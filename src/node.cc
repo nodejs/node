@@ -2280,20 +2280,16 @@ static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
 
 static void ProcessTitleGetter(Local<String> property,
                                const PropertyCallbackInfo<Value>& info) {
-  Environment* env = Environment::GetCurrent(info);
-  HandleScope scope(env->isolate());
   char buffer[512];
   uv_get_process_title(buffer, sizeof(buffer));
-  info.GetReturnValue().Set(String::NewFromUtf8(env->isolate(), buffer));
+  info.GetReturnValue().Set(String::NewFromUtf8(info.GetIsolate(), buffer));
 }
 
 
 static void ProcessTitleSetter(Local<String> property,
                                Local<Value> value,
                                const PropertyCallbackInfo<void>& info) {
-  Environment* env = Environment::GetCurrent(info);
-  HandleScope scope(env->isolate());
-  node::Utf8Value title(env->isolate(), value);
+  node::Utf8Value title(info.GetIsolate(), value);
   // TODO(piscisaureus): protect with a lock
   uv_set_process_title(*title);
 }
@@ -2301,13 +2297,12 @@ static void ProcessTitleSetter(Local<String> property,
 
 static void EnvGetter(Local<String> property,
                       const PropertyCallbackInfo<Value>& info) {
-  Environment* env = Environment::GetCurrent(info);
-  HandleScope scope(env->isolate());
+  Isolate* isolate = info.GetIsolate();
 #ifdef __POSIX__
-  node::Utf8Value key(env->isolate(), property);
+  node::Utf8Value key(isolate, property);
   const char* val = getenv(*key);
   if (val) {
-    return info.GetReturnValue().Set(String::NewFromUtf8(env->isolate(), val));
+    return info.GetReturnValue().Set(String::NewFromUtf8(isolate, val));
   }
 #else  // _WIN32
   String::Value key(property);
@@ -2321,7 +2316,7 @@ static void EnvGetter(Local<String> property,
   if ((result > 0 || GetLastError() == ERROR_SUCCESS) &&
       result < ARRAY_SIZE(buffer)) {
     const uint16_t* two_byte_buffer = reinterpret_cast<const uint16_t*>(buffer);
-    Local<String> rc = String::NewFromTwoByte(env->isolate(), two_byte_buffer);
+    Local<String> rc = String::NewFromTwoByte(isolate, two_byte_buffer);
     return info.GetReturnValue().Set(rc);
   }
 #endif
@@ -2331,11 +2326,9 @@ static void EnvGetter(Local<String> property,
 static void EnvSetter(Local<String> property,
                       Local<Value> value,
                       const PropertyCallbackInfo<Value>& info) {
-  Environment* env = Environment::GetCurrent(info);
-  HandleScope scope(env->isolate());
 #ifdef __POSIX__
-  node::Utf8Value key(env->isolate(), property);
-  node::Utf8Value val(env->isolate(), value);
+  node::Utf8Value key(info.GetIsolate(), property);
+  node::Utf8Value val(info.GetIsolate(), value);
   setenv(*key, *val, 1);
 #else  // _WIN32
   String::Value key(property);
@@ -2353,11 +2346,9 @@ static void EnvSetter(Local<String> property,
 
 static void EnvQuery(Local<String> property,
                      const PropertyCallbackInfo<Integer>& info) {
-  Environment* env = Environment::GetCurrent(info);
-  HandleScope scope(env->isolate());
   int32_t rc = -1;  // Not found unless proven otherwise.
 #ifdef __POSIX__
-  node::Utf8Value key(env->isolate(), property);
+  node::Utf8Value key(info.GetIsolate(), property);
   if (getenv(*key))
     rc = 0;
 #else  // _WIN32
@@ -2381,11 +2372,9 @@ static void EnvQuery(Local<String> property,
 
 static void EnvDeleter(Local<String> property,
                        const PropertyCallbackInfo<Boolean>& info) {
-  Environment* env = Environment::GetCurrent(info);
-  HandleScope scope(env->isolate());
   bool rc = true;
 #ifdef __POSIX__
-  node::Utf8Value key(env->isolate(), property);
+  node::Utf8Value key(info.GetIsolate(), property);
   rc = getenv(*key) != nullptr;
   if (rc)
     unsetenv(*key);
@@ -2404,20 +2393,19 @@ static void EnvDeleter(Local<String> property,
 
 
 static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
-  Environment* env = Environment::GetCurrent(info);
-  HandleScope scope(env->isolate());
+  Isolate* isolate = info.GetIsolate();
 #ifdef __POSIX__
   int size = 0;
   while (environ[size])
     size++;
 
-  Local<Array> envarr = Array::New(env->isolate(), size);
+  Local<Array> envarr = Array::New(isolate, size);
 
   for (int i = 0; i < size; ++i) {
     const char* var = environ[i];
     const char* s = strchr(var, '=');
     const int length = s ? s - var : strlen(var);
-    Local<String> name = String::NewFromUtf8(env->isolate(),
+    Local<String> name = String::NewFromUtf8(isolate,
                                              var,
                                              String::kNormalString,
                                              length);
@@ -2427,7 +2415,7 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
   WCHAR* environment = GetEnvironmentStringsW();
   if (environment == nullptr)
     return;  // This should not happen.
-  Local<Array> envarr = Array::New(env->isolate());
+  Local<Array> envarr = Array::New(isolate);
   WCHAR* p = environment;
   int i = 0;
   while (*p) {
@@ -2444,7 +2432,7 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
     }
     const uint16_t* two_byte_buffer = reinterpret_cast<const uint16_t*>(p);
     const size_t two_byte_buffer_len = s - p;
-    Local<String> value = String::NewFromTwoByte(env->isolate(),
+    Local<String> value = String::NewFromTwoByte(isolate,
                                                  two_byte_buffer,
                                                  String::kNormalString,
                                                  two_byte_buffer_len);
@@ -2505,8 +2493,6 @@ static Handle<Object> GetFeatures(Environment* env) {
 
 static void DebugPortGetter(Local<String> property,
                             const PropertyCallbackInfo<Value>& info) {
-  Environment* env = Environment::GetCurrent(info);
-  HandleScope scope(env->isolate());
   info.GetReturnValue().Set(debug_port);
 }
 
@@ -2514,8 +2500,6 @@ static void DebugPortGetter(Local<String> property,
 static void DebugPortSetter(Local<String> property,
                             Local<Value> value,
                             const PropertyCallbackInfo<void>& info) {
-  Environment* env = Environment::GetCurrent(info);
-  HandleScope scope(env->isolate());
   debug_port = value->Int32Value();
 }
 
@@ -2539,7 +2523,6 @@ static void NeedImmediateCallbackSetter(
     Local<String> property,
     Local<Value> value,
     const PropertyCallbackInfo<void>& info) {
-  HandleScope handle_scope(info.GetIsolate());
   Environment* env = Environment::GetCurrent(info);
 
   uv_check_t* immediate_check_handle = env->immediate_check_handle();
