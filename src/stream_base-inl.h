@@ -32,7 +32,7 @@ void StreamBase::AddMethods(Environment* env,
   t->InstanceTemplate()->SetAccessor(env->fd_string(),
                                      GetFD<Base>,
                                      nullptr,
-                                     Handle<Value>(),
+                                     env->as_external(),
                                      v8::DEFAULT,
                                      attributes);
 

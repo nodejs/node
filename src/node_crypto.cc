@@ -60,6 +60,8 @@ namespace crypto {
 using v8::Array;
 using v8::Boolean;
 using v8::Context;
+using v8::DEFAULT;
+using v8::DontDelete;
 using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::External;
@@ -76,6 +78,7 @@ using v8::Object;
 using v8::Persistent;
 using v8::PropertyAttribute;
 using v8::PropertyCallbackInfo;
+using v8::ReadOnly;
 using v8::String;
 using v8::V8;
 using v8::Value;
@@ -264,10 +267,13 @@ void SecureContext::Initialize(Environment* env, Handle<Object> target) {
   env->SetProtoMethod(t, "getCertificate", SecureContext::GetCertificate<true>);
   env->SetProtoMethod(t, "getIssuer", SecureContext::GetCertificate<false>);
 
-  NODE_SET_EXTERNAL(
-      t->PrototypeTemplate(),
-      "_external",
-      CtxGetter);
+  t->PrototypeTemplate()->SetAccessor(
+      FIXED_ONE_BYTE_STRING(env->isolate(), "_external"),
+      CtxGetter,
+      nullptr,
+      env->as_external(),
+      DEFAULT,
+      static_cast<PropertyAttribute>(ReadOnly | DontDelete));
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "SecureContext"),
               t->GetFunction());
@@ -991,10 +997,13 @@ void SSLWrap<Base>::AddMethods(Environment* env, Handle<FunctionTemplate> t) {
   env->SetProtoMethod(t, "setNPNProtocols", SetNPNProtocols);
 #endif
 
-  NODE_SET_EXTERNAL(
-      t->PrototypeTemplate(),
-      "_external",
-      SSLGetter);
+  t->PrototypeTemplate()->SetAccessor(
+      FIXED_ONE_BYTE_STRING(env->isolate(), "_external"),
+      SSLGetter,
+      nullptr,
+      env->as_external(),
+      DEFAULT,
+      static_cast<PropertyAttribute>(ReadOnly | DontDelete));
 }
 
 
@@ -3652,8 +3661,8 @@ void DiffieHellman::Initialize(Environment* env, Handle<Object> target) {
   t->InstanceTemplate()->SetAccessor(env->verify_error_string(),
                                      DiffieHellman::VerifyErrorGetter,
                                      nullptr,
-                                     Handle<Value>(),
-                                     v8::DEFAULT,
+                                     env->as_external(),
+                                     DEFAULT,
                                      attributes);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "DiffieHellman"),
@@ -3672,8 +3681,8 @@ void DiffieHellman::Initialize(Environment* env, Handle<Object> target) {
   t2->InstanceTemplate()->SetAccessor(env->verify_error_string(),
                                       DiffieHellman::VerifyErrorGetter,
                                       nullptr,
-                                      Handle<Value>(),
-                                      v8::DEFAULT,
+                                      env->as_external(),
+                                      DEFAULT,
                                       attributes);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "DiffieHellmanGroup"),

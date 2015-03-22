@@ -27,6 +27,30 @@ assert.strictEqual(vm.runInDebugContext(0), 0);
 assert.strictEqual(vm.runInDebugContext(null), null);
 assert.strictEqual(vm.runInDebugContext(undefined), undefined);
 
+// See https://github.com/iojs/io.js/issues/1190, accessing named interceptors
+// and accessors inside a debug event listener should not crash.
+(function() {
+  var Debug = vm.runInDebugContext('Debug');
+  var breaks = 0;
+
+  function ondebugevent(evt, exc) {
+    if (evt !== Debug.DebugEvent.Break) return;
+    exc.frame(0).evaluate('process.env').properties();  // Named interceptor.
+    exc.frame(0).evaluate('process.title').getTruncatedValue();  // Accessor.
+    breaks += 1;
+  }
+
+  function breakpoint() {
+    debugger;
+  }
+
+  assert.equal(breaks, 0);
+  Debug.setListener(ondebugevent);
+  assert.equal(breaks, 0);
+  breakpoint();
+  assert.equal(breaks, 1);
+})();
+
 // See https://github.com/iojs/io.js/issues/1190, fatal errors should not
 // crash the process.
 var script = common.fixturesDir + '/vm-run-in-debug-context.js';

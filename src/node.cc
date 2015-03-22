@@ -2280,7 +2280,7 @@ static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
 
 static void ProcessTitleGetter(Local<String> property,
                                const PropertyCallbackInfo<Value>& info) {
-  Environment* env = Environment::GetCurrent(info.GetIsolate());
+  Environment* env = Environment::GetCurrent(info);
   HandleScope scope(env->isolate());
   char buffer[512];
   uv_get_process_title(buffer, sizeof(buffer));
@@ -2291,7 +2291,7 @@ static void ProcessTitleGetter(Local<String> property,
 static void ProcessTitleSetter(Local<String> property,
                                Local<Value> value,
                                const PropertyCallbackInfo<void>& info) {
-  Environment* env = Environment::GetCurrent(info.GetIsolate());
+  Environment* env = Environment::GetCurrent(info);
   HandleScope scope(env->isolate());
   node::Utf8Value title(env->isolate(), value);
   // TODO(piscisaureus): protect with a lock
@@ -2301,7 +2301,7 @@ static void ProcessTitleSetter(Local<String> property,
 
 static void EnvGetter(Local<String> property,
                       const PropertyCallbackInfo<Value>& info) {
-  Environment* env = Environment::GetCurrent(info.GetIsolate());
+  Environment* env = Environment::GetCurrent(info);
   HandleScope scope(env->isolate());
 #ifdef __POSIX__
   node::Utf8Value key(env->isolate(), property);
@@ -2325,16 +2325,13 @@ static void EnvGetter(Local<String> property,
     return info.GetReturnValue().Set(rc);
   }
 #endif
-  // Not found.  Fetch from prototype.
-  info.GetReturnValue().Set(
-      info.Data().As<Object>()->Get(property));
 }
 
 
 static void EnvSetter(Local<String> property,
                       Local<Value> value,
                       const PropertyCallbackInfo<Value>& info) {
-  Environment* env = Environment::GetCurrent(info.GetIsolate());
+  Environment* env = Environment::GetCurrent(info);
   HandleScope scope(env->isolate());
 #ifdef __POSIX__
   node::Utf8Value key(env->isolate(), property);
@@ -2356,7 +2353,7 @@ static void EnvSetter(Local<String> property,
 
 static void EnvQuery(Local<String> property,
                      const PropertyCallbackInfo<Integer>& info) {
-  Environment* env = Environment::GetCurrent(info.GetIsolate());
+  Environment* env = Environment::GetCurrent(info);
   HandleScope scope(env->isolate());
   int32_t rc = -1;  // Not found unless proven otherwise.
 #ifdef __POSIX__
@@ -2384,7 +2381,7 @@ static void EnvQuery(Local<String> property,
 
 static void EnvDeleter(Local<String> property,
                        const PropertyCallbackInfo<Boolean>& info) {
-  Environment* env = Environment::GetCurrent(info.GetIsolate());
+  Environment* env = Environment::GetCurrent(info);
   HandleScope scope(env->isolate());
   bool rc = true;
 #ifdef __POSIX__
@@ -2407,7 +2404,7 @@ static void EnvDeleter(Local<String> property,
 
 
 static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
-  Environment* env = Environment::GetCurrent(info.GetIsolate());
+  Environment* env = Environment::GetCurrent(info);
   HandleScope scope(env->isolate());
 #ifdef __POSIX__
   int size = 0;
@@ -2508,7 +2505,7 @@ static Handle<Object> GetFeatures(Environment* env) {
 
 static void DebugPortGetter(Local<String> property,
                             const PropertyCallbackInfo<Value>& info) {
-  Environment* env = Environment::GetCurrent(info.GetIsolate());
+  Environment* env = Environment::GetCurrent(info);
   HandleScope scope(env->isolate());
   info.GetReturnValue().Set(debug_port);
 }
@@ -2517,7 +2514,7 @@ static void DebugPortGetter(Local<String> property,
 static void DebugPortSetter(Local<String> property,
                             Local<Value> value,
                             const PropertyCallbackInfo<void>& info) {
-  Environment* env = Environment::GetCurrent(info.GetIsolate());
+  Environment* env = Environment::GetCurrent(info);
   HandleScope scope(env->isolate());
   debug_port = value->Int32Value();
 }
@@ -2530,7 +2527,7 @@ static void DebugEnd(const FunctionCallbackInfo<Value>& args);
 
 void NeedImmediateCallbackGetter(Local<String> property,
                                  const PropertyCallbackInfo<Value>& info) {
-  Environment* env = Environment::GetCurrent(info.GetIsolate());
+  Environment* env = Environment::GetCurrent(info);
   const uv_check_t* immediate_check_handle = env->immediate_check_handle();
   bool active = uv_is_active(
       reinterpret_cast<const uv_handle_t*>(immediate_check_handle));
@@ -2543,7 +2540,7 @@ static void NeedImmediateCallbackSetter(
     Local<Value> value,
     const PropertyCallbackInfo<void>& info) {
   HandleScope handle_scope(info.GetIsolate());
-  Environment* env = Environment::GetCurrent(info.GetIsolate());
+  Environment* env = Environment::GetCurrent(info);
 
   uv_check_t* immediate_check_handle = env->immediate_check_handle();
   bool active = uv_is_active(
@@ -2626,7 +2623,8 @@ void SetupProcessObject(Environment* env,
 
   process->SetAccessor(env->title_string(),
                        ProcessTitleGetter,
-                       ProcessTitleSetter);
+                       ProcessTitleSetter,
+                       env->as_external());
 
   // process.version
   READONLY_PROPERTY(process,
@@ -2741,15 +2739,16 @@ void SetupProcessObject(Environment* env,
                                                 EnvQuery,
                                                 EnvDeleter,
                                                 EnvEnumerator,
-                                                Object::New(env->isolate()));
+                                                env->as_external());
   Local<Object> process_env = process_env_template->NewInstance();
   process->Set(env->env_string(), process_env);
 
   READONLY_PROPERTY(process, "pid", Integer::New(env->isolate(), getpid()));
   READONLY_PROPERTY(process, "features", GetFeatures(env));
   process->SetAccessor(env->need_imm_cb_string(),
-      NeedImmediateCallbackGetter,
-      NeedImmediateCallbackSetter);
+                       NeedImmediateCallbackGetter,
+                       NeedImmediateCallbackSetter,
+                       env->as_external());
 
   // -e, --eval
   if (eval_string) {
@@ -2812,7 +2811,8 @@ void SetupProcessObject(Environment* env,
 
   process->SetAccessor(env->debug_port_string(),
                        DebugPortGetter,
-                       DebugPortSetter);
+                       DebugPortSetter,
+                       env->as_external());
 
   // define various internal methods
   env->SetMethod(process,
