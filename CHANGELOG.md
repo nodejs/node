@@ -1,5 +1,44 @@
 # io.js ChangeLog
 
+## 2015-03-23, Version 1.6.2, @rvagg
+
+### Notable changes
+
+* **Windows**: The ongoing work in improving the state of Windows support has resulted in full test suite passes once again. As noted in the release notes for v1.4.2, CI system and configuration problems prevented it from properly reporting problems with the Windows tests, the problems with the CI and the codebase appear to have been fully resolved.
+* **FreeBSD**: A [kernel bug](https://lists.freebsd.org/pipermail/freebsd-current/2015-March/055043.html) impacting io.js/Node.js was [discovered](https://github.com/joyent/node/issues/9326) and a patch has been introduced to prevent it causing problems for io.js (Fedor Indutny) [#1218](https://github.com/iojs/io.js/pull/1218).
+* **module**: you can now `require('.')` instead of having to `require('./')`, this is considered a bugfix (Michaël Zasso) [#1185](https://github.com/iojs/io.js/pull/1185).
+* **v8**: updated to 4.1.0.25 including patches for `--max_old_space_size` values above `4096` and Solaris support, both of which are already included in io.js.
+
+### Known issues
+
+* Possible small memory leak(s) may still exist but have yet to be properly identified, details at [#1075](https://github.com/iojs/io.js/issues/1075).
+* Surrogate pair in REPL can freeze terminal [#690](https://github.com/iojs/io.js/issues/690)
+* Not possible to build io.js as a static library [#686](https://github.com/iojs/io.js/issues/686)
+* `process.send()` is not synchronous as the docs suggest, a regression introduced in 1.0.2, see [#760](https://github.com/iojs/io.js/issues/760) and fix in [#774](https://github.com/iojs/io.js/issues/774)
+* Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion [#894](https://github.com/iojs/io.js/issues/894)
+
+### Commits
+
+* [[`fe4434b77a`](https://github.com/iojs/io.js/commit/fe4434b77a)] - **deps**: upgrade v8 to 4.1.0.25 (Johan Bergström) [#1224](https://github.com/iojs/io.js/pull/1224)
+* [[`d8f383ba3f`](https://github.com/iojs/io.js/commit/d8f383ba3f)] - **doc**: update AUTHORS list (Rod Vagg) [#1234](https://github.com/iojs/io.js/pull/1234)
+* [[`bc9c1a5a7b`](https://github.com/iojs/io.js/commit/bc9c1a5a7b)] - **doc**: fix typo in CHANGELOG (Mathieu Darse) [#1230](https://github.com/iojs/io.js/pull/1230)
+* [[`99c79f8d41`](https://github.com/iojs/io.js/commit/99c79f8d41)] - **doc**: call js function in null context (Ben Noordhuis) [#1125](https://github.com/iojs/io.js/pull/1125)
+* [[`55abf34be5`](https://github.com/iojs/io.js/commit/55abf34be5)] - **doc**: don't use `using namespace v8` (Ben Noordhuis) [#1125](https://github.com/iojs/io.js/pull/1125)
+* [[`c4e1b82120`](https://github.com/iojs/io.js/commit/c4e1b82120)] - **doc**: replace v8::Handle<T> with v8::Local<T> (Ben Noordhuis) [#1125](https://github.com/iojs/io.js/pull/1125)
+* [[`2f1b78347c`](https://github.com/iojs/io.js/commit/2f1b78347c)] - **doc**: remove unnecessary v8::HandleScopes (Ben Noordhuis) [#1125](https://github.com/iojs/io.js/pull/1125)
+* [[`409d413363`](https://github.com/iojs/io.js/commit/409d413363)] - **doc**: remove uses of v8::Isolate::GetCurrent() (Ben Noordhuis) [#1125](https://github.com/iojs/io.js/pull/1125)
+* [[`33fea6ed5f`](https://github.com/iojs/io.js/commit/33fea6ed5f)] - **lib**: don't penalize setInterval() common case (Ben Noordhuis) [#1221](https://github.com/iojs/io.js/pull/1221)
+* [[`31da9758a0`](https://github.com/iojs/io.js/commit/31da9758a0)] - **lib**: don't penalize setTimeout() common case (Ben Noordhuis) [#1221](https://github.com/iojs/io.js/pull/1221)
+* [[`6fc5e95354`](https://github.com/iojs/io.js/commit/6fc5e95354)] - **module**: allow require('.') (Michaël Zasso) [#1185](https://github.com/iojs/io.js/pull/1185)
+* [[`9ae1a61214`](https://github.com/iojs/io.js/commit/9ae1a61214)] - **node**: ensure that streams2 won't `.end()` stdin (Fedor Indutny) [#1233](https://github.com/iojs/io.js/pull/1233)
+* [[`b64983d77c`](https://github.com/iojs/io.js/commit/b64983d77c)] - **src**: reset signal handler to SIG_DFL on FreeBSD (Fedor Indutny) [#1218](https://github.com/iojs/io.js/pull/1218)
+* [[`9705a34e96`](https://github.com/iojs/io.js/commit/9705a34e96)] - **test**: move sequential/test-signal-unregister (Ben Noordhuis) [#1227](https://github.com/iojs/io.js/pull/1227)
+* [[`10a9c00563`](https://github.com/iojs/io.js/commit/10a9c00563)] - **test**: fix timing issue in signal test (Ben Noordhuis) [#1227](https://github.com/iojs/io.js/pull/1227)
+* [[`999fbe9d96`](https://github.com/iojs/io.js/commit/999fbe9d96)] - **test**: fix crypto-binary-default bad crypto check (Brendan Ashworth) [#1141](https://github.com/iojs/io.js/pull/1141)
+* [[`2b3b2d392f`](https://github.com/iojs/io.js/commit/2b3b2d392f)] - **test**: add setTimeout/setInterval multi-arg tests (Ben Noordhuis) [#1221](https://github.com/iojs/io.js/pull/1221)
+* [[`849319a260`](https://github.com/iojs/io.js/commit/849319a260)] - **util**: Check input to util.inherits (Connor Peet) [#1240](https://github.com/iojs/io.js/pull/1240)
+* [[`cf081a4712`](https://github.com/iojs/io.js/commit/cf081a4712)] - **vm**: fix crash on fatal error in debug context (Ben Noordhuis) [#1229](https://github.com/iojs/io.js/pull/1229)
+
 ## 2015-03-20, Version 1.6.1, @rvagg
 
 ### Notable changes
