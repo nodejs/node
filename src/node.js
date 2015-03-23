@@ -19,7 +19,7 @@
     });
     EventEmitter.call(process);
 
-    process.EventEmitter = EventEmitter; // process.EventEmitter is deprecated
+    process.EventEmitter = EventEmitter; // process.EventEmitter is deprecated.
 
     // do this good and early, since it handles errors.
     startup.processFatal();
@@ -59,19 +59,19 @@
       });
 
     } else if (process.argv[1] == 'debug') {
-      // Start the debugger agent
+      // Start the debugger agent.
       var d = NativeModule.require('_debugger');
       d.start();
 
     } else if (process.argv[1] == '--debug-agent') {
-      // Start the debugger agent
+      // Start the debugger agent.
       var d = NativeModule.require('_debug_agent');
       d.start();
 
     } else {
-      // There is user code to be run
+      // There is user code to be run.
 
-      // Load any preload modules
+      // Load any preload modules.
       if (process._preload_modules) {
         var Module = NativeModule.require('module');
         process._preload_modules.forEach(function(module) {
@@ -83,7 +83,7 @@
         // User passed '-e' or '--eval' arguments to Node.
         evalScript('[eval]');
       } else if (process.argv[1]) {
-        // make process.argv[1] into a full path
+        // make process.argv[1] into a full path.
         var path = NativeModule.require('path');
         process.argv[1] = path.resolve(process.argv[1]);
 
@@ -238,8 +238,8 @@
       if (!caught)
         caught = process.emit('uncaughtException', er);
 
-      // If someone handled it, then great.  otherwise, die in C++ land
-      // since that means that we'll exit the process, emit the 'exit' event
+      // If someone handled it, then great. Otherwise, die in C++ land
+      // since that means that we'll exit the process, emit the 'exit' event.
       if (!caught) {
         try {
           if (!process._exiting) {
@@ -250,7 +250,7 @@
           // nothing to be done about it at this point.
         }
 
-      // if we handled an error, then make sure any ticks get processed
+      // if we handled an error, then make sure any ticks get processed.
       } else {
         NativeModule.require('timers').setImmediate(process._tickCallback);
       }
@@ -267,11 +267,11 @@
   };
 
   startup.processConfig = function() {
-    // used for `process.config`, but not a real module
+    // used for `process.config`, but not a real module.
     var config = NativeModule._source.config;
     delete NativeModule._source.config;
 
-    // strip the gyp comment line at the beginning
+    // strip the gyp comment line at the beginning.
     config = config.split('\n')
         .slice(1)
         .join('\n')
@@ -296,7 +296,7 @@
     var _runMicrotasks = {};
 
     // This tickInfo thing is used so that the C++ code in src/node.cc
-    // can have easy accesss to our nextTick state, and avoid unnecessary
+    // can have easy accesss to our nextTick state, and avoid unnecessary.
     var tickInfo = {};
 
     // *Must* match Environment::TickInfo::Fields in src/env.h.
@@ -425,7 +425,7 @@
           hasBeenNotifiedProperty.set(promise, true);
           if (!process.emit('unhandledRejection', reason, promise)) {
             // Nobody is listening.
-            // TODO(petkaantonov) Take some default action, see #830
+            // TODO(petkaantonov) Take some default action, see #830.
           } else
             hadListeners = true;
         }
@@ -502,7 +502,7 @@
     var stream;
     var tty_wrap = process.binding('tty_wrap');
 
-    // Note stream._type is used for test-module-load-list.js
+    // Note stream._type is used for test-module-load-list.js.
 
     switch (tty_wrap.guessHandleType(fd)) {
       case 'TTY':
@@ -548,7 +548,7 @@
         break;
 
       default:
-        // Probably an error on in uv_guess_handle()
+        // Probably an error on in uv_guess_handle().
         throw new Error('Implement me. Unknown stream file type!');
     }
 
@@ -630,12 +630,12 @@
               writable: false
             });
           }
-          // Make sure the stdin can't be `.end()`-ed
+          // Make sure the stdin can't be `.end()`-ed.
           stdin._writableState.ended = true;
           break;
 
         default:
-          // Probably an error on in uv_guess_handle()
+          // Probably an error on in uv_guess_handle().
           throw new Error('Implement me. Unknown stdin file type!');
       }
 
@@ -690,7 +690,7 @@
         throw new TypeError('invalid pid');
       }
 
-      // preserve null signal
+      // preserve null signal.
       if (0 === sig) {
         err = process._kill(pid, 0);
       } else {
@@ -722,7 +722,7 @@
              startup.lazyConstants().hasOwnProperty(event);
     }
 
-    // Detect presence of a listener for the special signal types
+    // Detect presence of a listener for the special signal types.
     process.on('newListener', function(type, listener) {
       if (isSignal(type) &&
           !signalWraps.hasOwnProperty(type)) {
