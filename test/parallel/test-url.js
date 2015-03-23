@@ -600,7 +600,7 @@ var parseTests = {
     'protocol': 'coap:',
     'slashes': true,
     'host': '[fedc:ba98:7654:3210:fedc:ba98:7654:3210]',
-    'hostname': 'fedc:ba98:7654:3210:fedc:ba98:7654:3210',
+    'hostname': '[fedc:ba98:7654:3210:fedc:ba98:7654:3210]',
     'href': 'coap://[fedc:ba98:7654:3210:fedc:ba98:7654:3210]/',
     'pathname': '/',
     'path': '/'
@@ -611,7 +611,7 @@ var parseTests = {
     'slashes': true,
     'host': '[1080:0:0:0:8:800:200c:417a]:61616',
     'port': '61616',
-    'hostname': '1080:0:0:0:8:800:200c:417a',
+    'hostname': '[1080:0:0:0:8:800:200c:417a]',
     'href': 'coap://[1080:0:0:0:8:800:200c:417a]:61616/',
     'pathname': '/',
     'path': '/'
@@ -623,7 +623,7 @@ var parseTests = {
     'auth': 'user:password',
     'host': '[3ffe:2a00:100:7031::1]:8080',
     'port': '8080',
-    'hostname': '3ffe:2a00:100:7031::1',
+    'hostname': '[3ffe:2a00:100:7031::1]',
     'href': 'http://user:password@[3ffe:2a00:100:7031::1]:8080/',
     'pathname': '/',
     'path': '/'
@@ -635,7 +635,7 @@ var parseTests = {
     'auth': 'u:p',
     'host': '[::192.9.5.5]:61616',
     'port': '61616',
-    'hostname': '::192.9.5.5',
+    'hostname': '[::192.9.5.5]',
     'href': 'coap://u:p@[::192.9.5.5]:61616/.well-known/r?n=Temperature',
     'search': '?n=Temperature',
     'query': 'n=Temperature',
@@ -691,7 +691,7 @@ var parseTests = {
     'protocol': 'http:',
     'slashes': true,
     'host': '[fe80::1]',
-    'hostname': 'fe80::1',
+    'hostname': '[fe80::1]',
     'href': 'http://[fe80::1]/a/b?a=b#abc',
     'search': '?a=b',
     'query': 'a=b',
@@ -857,8 +857,8 @@ var parseTests = {
 };
 
 for (var u in parseTests) {
-  var actual = url.parse(u),
-      spaced = url.parse('     \t  ' + u + '\n\t');
+  var actual = url.parse(u).toJSON(),
+      spaced = url.parse('     \t  ' + u + '\n\t').toJSON();
       expected = parseTests[u];
 
   Object.keys(actual).forEach(function (i) {
@@ -929,7 +929,7 @@ var parseTestsWithQueryString = {
   }
 };
 for (var u in parseTestsWithQueryString) {
-  var actual = url.parse(u, true);
+  var actual = url.parse(u, true).toJSON();
   var expected = parseTestsWithQueryString[u];
   for (var i in actual) {
     if (actual[i] === null && expected[i] === undefined) {
@@ -1074,7 +1074,7 @@ var formatTests = {
     'href': 'coap:u:p@[::1]:61616/.well-known/r?n=Temperature',
     'protocol': 'coap:',
     'auth': 'u:p',
-    'hostname': '::1',
+    'hostname': '[::1]',
     'port': '61616',
     'pathname': '/.well-known/r',
     'search': 'n=Temperature'
@@ -1576,3 +1576,1349 @@ for (var i = 0; i < throws.length; i++) {
 };
 assert(url.format('') === '');
 assert(url.format({}) === '');
+
+// base = base url to use.
+// input = relative url that will be resolved in relation to base
+// nodejs = result given by node.js 0.12, usually incorrect so not optimal
+// override = custom override that differs from node.js but is more correct
+var whatwgTests = [
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http://example\t.\norg",
+    "nodejs": "http://example/%09.%0Aorg"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http://user:pass@foo:21/bar;par?b#c",
+    "nodejs": "http://user:pass@foo:21/bar;par?b#c"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http:foo.com",
+    "nodejs": "http://example.org/foo/foo.com"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "\t   :foo.com   \n",
+    "nodejs": "http://example.org/foo/:foo.com"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": " foo.com  ",
+    "nodejs": "http://example.org/foo/foo.com"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "a:\t foo.com",
+    "nodejs": "a:%09%20foo.com"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http://f:21/ b ? d # e ",
+    "nodejs": "http://f:21/%20b%20?%20d%20#%20e"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http://f:/c",
+    "nodejs": "http://f/c"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http://f:0/c",
+    "nodejs": "http://f:0/c"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http://f:00000000000000/c",
+    "nodejs": "http://f:00000000000000/c",
+    "override": "http://f:0/c"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http://f:00000000000000000000080/c",
+    "nodejs": "http://f:00000000000000000000080/c",
+    "override": "http://f/c"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http://f:b/c",
+    "nodejs": "http://f/:b/c"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http://f: /c",
+    "nodejs": "http://f/%20/c"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http://f:\n/c",
+    "nodejs": "http://f/%0A/c"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http://f:fifty-two/c",
+    "nodejs": "http://f/:fifty-two/c"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http://f:999999/c",
+    "nodejs": "http://f:999999/c"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http://f: 21 / b ? d # e ",
+    "nodejs": "http://f/%2021%20/%20b%20?%20d%20#%20e"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "",
+    "nodejs": "http://example.org/foo/bar"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "  \t",
+    "nodejs": "http://example.org/foo/bar"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": ":foo.com/",
+    "nodejs": "http://example.org/foo/:foo.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": ":foo.com\\",
+    "nodejs": "http://example.org/foo/:foo.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": ":",
+    "nodejs": "http://example.org/foo/:"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": ":a",
+    "nodejs": "http://example.org/foo/:a"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": ":/",
+    "nodejs": "http://example.org/foo/:/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": ":\\",
+    "nodejs": "http://example.org/foo/:/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": ":#",
+    "nodejs": "http://example.org/foo/:#"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "#",
+    "nodejs": "http://example.org/foo/bar#"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "#/",
+    "nodejs": "http://example.org/foo/bar#/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "#\\",
+    "nodejs": "http://example.org/foo/bar#%5C"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "#;?",
+    "nodejs": "http://example.org/foo/bar#;?"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "?",
+    "nodejs": "http://example.org/foo/bar?"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "/",
+    "nodejs": "http://example.org/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": ":23",
+    "nodejs": "http://example.org/foo/:23"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "/:23",
+    "nodejs": "http://example.org/:23"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "::",
+    "nodejs": "http://example.org/foo/::"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "::23",
+    "nodejs": "http://example.org/foo/::23"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "foo://",
+    "nodejs": "foo://"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http://a:b@c:29/d",
+    "nodejs": "http://a:b@c:29/d"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http::@c:29",
+    "nodejs": "http://example.org/foo/:@c:29"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http://&a:foo(b]c@d:2/",
+    "nodejs": "http://%26a:foo(b%5Dc@d:2/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http://::@c@d:2",
+    "nodejs": "http://:%3A%40c@d:2/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http://foo.com:b@d/",
+    "nodejs": "http://foo.com:b@d/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http://foo.com/\\@",
+    "nodejs": "http://foo.com//@"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http:\\\\foo.com\\",
+    "nodejs": "http://foo.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http:\\\\a\\b:c\\d@foo.com\\",
+    "nodejs": "http://a/b:c/d@foo.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "foo:/",
+    "nodejs": "foo:/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "foo:/bar.com/",
+    "nodejs": "foo:/bar.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "foo://///////",
+    "nodejs": "foo://///////"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "foo://///////bar.com/",
+    "nodejs": "foo://///////bar.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "foo:////://///",
+    "nodejs": "foo:////://///"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "c:/foo",
+    "nodejs": "c:/foo"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "//foo/bar",
+    "nodejs": "http://foo/bar"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http://foo/path;a??e#f#g",
+    "nodejs": "http://foo/path;a??e#f#g"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http://foo/abcd?efgh?ijkl",
+    "nodejs": "http://foo/abcd?efgh?ijkl"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http://foo/abcd#foo?bar",
+    "nodejs": "http://foo/abcd#foo?bar"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "[61:24:74]:98",
+    "nodejs": "http://example.org/foo/[61:24:74]:98"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http:[61:27]/:foo",
+    "nodejs": "http://example.org/foo/[61:27]/:foo"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http://[1::2]:3:4",
+    "nodejs": "http://:4/[1::2]:3",
+    "override": "http://[1::2]/:3:4"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http://2001::1",
+    "nodejs": "http://2001:1/:",
+    "override": "http://2001/::1"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http://2001::1]",
+    "nodejs": "http://2001/::1]"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http://2001::1]:80",
+    "nodejs": "http://2001:80/::1]",
+    "override": "http://2001/::1]:80"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http://[2001::1]",
+    "nodejs": "http://[2001::1]/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http://[2001::1]:80",
+    "nodejs": "http://[2001::1]:80/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http:/example.com/",
+    "nodejs": "http://example.org/example.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "ftp:/example.com/",
+    "nodejs": "ftp://example.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "https:/example.com/",
+    "nodejs": "https://example.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "madeupscheme:/example.com/",
+    "nodejs": "madeupscheme:/example.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "file:/example.com/",
+    "nodejs": "file://example.com/",
+    "override": "file:///example.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "ftps:/example.com/",
+    "nodejs": "ftps:/example.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "gopher:/example.com/",
+    "nodejs": "gopher://example.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "ws:/example.com/",
+    "nodejs": "ws:/example.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "wss:/example.com/",
+    "nodejs": "wss:/example.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "data:/example.com/",
+    "nodejs": "data:/example.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "javascript:/example.com/",
+    "nodejs": "javascript:/example.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "mailto:/example.com/",
+    "nodejs": "mailto:/example.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "http:example.com/",
+    "nodejs": "http://example.org/foo/example.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "ftp:example.com/",
+    "nodejs": "ftp://example.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "https:example.com/",
+    "nodejs": "https://example.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "madeupscheme:example.com/",
+    "nodejs": "madeupscheme:example.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "ftps:example.com/",
+    "nodejs": "ftps:example.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "gopher:example.com/",
+    "nodejs": "gopher://example.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "ws:example.com/",
+    "nodejs": "ws:example.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "wss:example.com/",
+    "nodejs": "wss:example.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "data:example.com/",
+    "nodejs": "data:example.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "javascript:example.com/",
+    "nodejs": "javascript:example.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "mailto:example.com/",
+    "nodejs": "mailto:example.com/"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "/a/b/c",
+    "nodejs": "http://example.org/a/b/c"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "/a/ /c",
+    "nodejs": "http://example.org/a/%20/c"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "/a%2fc",
+    "nodejs": "http://example.org/a%2fc"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "/a/%2f/c",
+    "nodejs": "http://example.org/a/%2f/c"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "#\u03b2",
+    "nodejs": "http://example.org/foo/bar#\u03b2"
+  },
+  {
+    "base": "http://example.org/foo/bar",
+    "input": "data:text/html,test#test",
+    "nodejs": "data:text/html,test#test"
+  },
+  {
+    "base": "file:///tmp/mock/path",
+    "input": "file:c:\\foo\\bar.html",
+    "nodejs": "file:///tmp/mock/c:/foo/bar.html"
+  },
+  {
+    "base": "file:///tmp/mock/path",
+    "input": "  File:c|////foo\\bar.html",
+    "nodejs": "file://c/%7C////foo/bar.html",
+    "override": "file:///tmp/mock/c%7C////foo/bar.html"
+  },
+  {
+    "base": "file:///tmp/mock/path",
+    "input": "C|/foo/bar",
+    "nodejs": "file:///tmp/mock/C%7C/foo/bar"
+  },
+  {
+    "base": "file:///tmp/mock/path",
+    "input": "/C|\\foo\\bar",
+    "nodejs": "file:///C%7C/foo/bar"
+  },
+  {
+    "base": "file:///tmp/mock/path",
+    "input": "//C|/foo/bar",
+    "nodejs": "file://c/%7C/foo/bar"
+  },
+  {
+    "base": "file:///tmp/mock/path",
+    "input": "//server/file",
+    "nodejs": "file://server/file"
+  },
+  {
+    "base": "file:///tmp/mock/path",
+    "input": "\\\\server\\file",
+    "nodejs": "file://server/file"
+  },
+  {
+    "base": "file:///tmp/mock/path",
+    "input": "/\\server/file",
+    "nodejs": "file://server/file"
+  },
+  {
+    "base": "file:///tmp/mock/path",
+    "input": "file:///foo/bar.txt",
+    "nodejs": "file:///foo/bar.txt"
+  },
+  {
+    "base": "file:///tmp/mock/path",
+    "input": "file:///home/me",
+    "nodejs": "file:///home/me"
+  },
+  {
+    "base": "file:///tmp/mock/path",
+    "input": "//",
+    "nodejs": "file://",
+    "override": "file:////"
+  },
+  {
+    "base": "file:///tmp/mock/path",
+    "input": "///",
+    "nodejs": "file:///"
+  },
+  {
+    "base": "file:///tmp/mock/path",
+    "input": "///test",
+    "nodejs": "file:///test"
+  },
+  {
+    "base": "file:///tmp/mock/path",
+    "input": "file://test",
+    "nodejs": "file://test/"
+  },
+  {
+    "base": "file:///tmp/mock/path",
+    "input": "file://localhost",
+    "nodejs": "file://localhost/"
+  },
+  {
+    "base": "file:///tmp/mock/path",
+    "input": "file://localhost/",
+    "nodejs": "file://localhost/"
+  },
+  {
+    "base": "file:///tmp/mock/path",
+    "input": "file://localhost/test",
+    "nodejs": "file://localhost/test"
+  },
+  {
+    "base": "file:///tmp/mock/path",
+    "input": "test",
+    "nodejs": "file:///tmp/mock/test"
+  },
+  {
+    "base": "file:///tmp/mock/path",
+    "input": "file:test",
+    "nodejs": "file:///tmp/mock/test"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/././foo",
+    "nodejs": "http://example.com/././foo"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/./.foo",
+    "nodejs": "http://example.com/./.foo"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/foo/.",
+    "nodejs": "http://example.com/foo/."
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/foo/./",
+    "nodejs": "http://example.com/foo/./"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/foo/bar/..",
+    "nodejs": "http://example.com/foo/bar/.."
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/foo/bar/../",
+    "nodejs": "http://example.com/foo/bar/../"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/foo/..bar",
+    "nodejs": "http://example.com/foo/..bar"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/foo/bar/../ton",
+    "nodejs": "http://example.com/foo/bar/../ton"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/foo/bar/../ton/../../a",
+    "nodejs": "http://example.com/foo/bar/../ton/../../a"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/foo/../../..",
+    "nodejs": "http://example.com/foo/../../.."
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/foo/../../../ton",
+    "nodejs": "http://example.com/foo/../../../ton"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/foo/%2e",
+    "nodejs": "http://example.com/foo/%2e"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/foo/%2e%2",
+    "nodejs": "http://example.com/foo/%2e%2"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/foo/%2e./%2e%2e/.%2e/%2e.bar",
+    "nodejs": "http://example.com/foo/%2e./%2e%2e/.%2e/%2e.bar"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com////../..",
+    "nodejs": "http://example.com////../.."
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/foo/bar//../..",
+    "nodejs": "http://example.com/foo/bar//../.."
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/foo/bar//..",
+    "nodejs": "http://example.com/foo/bar//.."
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/foo",
+    "nodejs": "http://example.com/foo"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/%20foo",
+    "nodejs": "http://example.com/%20foo"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/foo%",
+    "nodejs": "http://example.com/foo%"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/foo%2",
+    "nodejs": "http://example.com/foo%2"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/foo%2zbar",
+    "nodejs": "http://example.com/foo%2zbar"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/foo%2\u00c2\u00a9zbar",
+    "nodejs": "http://example.com/foo%2\u00c2\u00a9zbar"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/foo%41%7a",
+    "nodejs": "http://example.com/foo%41%7a"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/foo\t\u0091%91",
+    "nodejs": "http://example.com/foo%09\u0091%91"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/foo%00%51",
+    "nodejs": "http://example.com/foo%00%51"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/(%28:%3A%29)",
+    "nodejs": "http://example.com/(%28:%3A%29)"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/%3A%3a%3C%3c",
+    "nodejs": "http://example.com/%3A%3a%3C%3c"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/foo\tbar",
+    "nodejs": "http://example.com/foo%09bar"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com\\\\foo\\\\bar",
+    "nodejs": "http://example.com//foo//bar"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/%7Ffp3%3Eju%3Dduvgw%3Dd",
+    "nodejs": "http://example.com/%7Ffp3%3Eju%3Dduvgw%3Dd"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/@asdf%40",
+    "nodejs": "http://example.com/@asdf%40"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/\u4f60\u597d\u4f60\u597d",
+    "nodejs": "http://example.com/\u4f60\u597d\u4f60\u597d"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/\u2025/foo",
+    "nodejs": "http://example.com/\u2025/foo"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/\ufeff/foo",
+    "nodejs": "http://example.com/\ufeff/foo"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://example.com/\u202e/foo/\u202d/bar",
+    "nodejs": "http://example.com/\u202e/foo/\u202d/bar"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://www.google.com/foo?bar=baz#",
+    "nodejs": "http://www.google.com/foo?bar=baz#"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://www.google.com/foo?bar=baz# \u00bb",
+    "nodejs": "http://www.google.com/foo?bar=baz#%20\u00bb"
+  },
+  {
+    "base": "about:blank",
+    "input": "data:test# \u00bb",
+    "nodejs": "data:test#%20\u00bb"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://[www.google.com]/",
+    "nodejs": "http://[www.google.com]/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://www.google.com",
+    "nodejs": "http://www.google.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://192.0x00A80001",
+    "nodejs": "http://192.0x00a80001/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://www/foo%2Ehtml",
+    "nodejs": "http://www/foo%2Ehtml"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://www/foo/%2E/html",
+    "nodejs": "http://www/foo/%2E/html"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://user:pass@/",
+    "nodejs": "http:///"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://%25DOMAIN:foobar@foodomain.com/",
+    "nodejs": "http://%25DOMAIN:foobar@foodomain.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http:\\\\www.google.com\\foo",
+    "nodejs": "http://www.google.com/foo"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://foo:80/",
+    "nodejs": "http://foo:80/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://foo:81/",
+    "nodejs": "http://foo:81/"
+  },
+  {
+    "base": "about:blank",
+    "input": "httpa://foo:80/",
+    "nodejs": "httpa://foo:80/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://foo:-80/",
+    "nodejs": "http://foo/:-80/"
+  },
+  {
+    "base": "about:blank",
+    "input": "https://foo:443/",
+    "nodejs": "https://foo:443/"
+  },
+  {
+    "base": "about:blank",
+    "input": "https://foo:80/",
+    "nodejs": "https://foo:80/"
+  },
+  {
+    "base": "about:blank",
+    "input": "ftp://foo:21/",
+    "nodejs": "ftp://foo:21/"
+  },
+  {
+    "base": "about:blank",
+    "input": "ftp://foo:80/",
+    "nodejs": "ftp://foo:80/"
+  },
+  {
+    "base": "about:blank",
+    "input": "gopher://foo:70/",
+    "nodejs": "gopher://foo:70/"
+  },
+  {
+    "base": "about:blank",
+    "input": "gopher://foo:443/",
+    "nodejs": "gopher://foo:443/"
+  },
+  {
+    "base": "about:blank",
+    "input": "ws://foo:80/",
+    "nodejs": "ws://foo:80/"
+  },
+  {
+    "base": "about:blank",
+    "input": "ws://foo:81/",
+    "nodejs": "ws://foo:81/"
+  },
+  {
+    "base": "about:blank",
+    "input": "ws://foo:443/",
+    "nodejs": "ws://foo:443/"
+  },
+  {
+    "base": "about:blank",
+    "input": "ws://foo:815/",
+    "nodejs": "ws://foo:815/"
+  },
+  {
+    "base": "about:blank",
+    "input": "wss://foo:80/",
+    "nodejs": "wss://foo:80/"
+  },
+  {
+    "base": "about:blank",
+    "input": "wss://foo:81/",
+    "nodejs": "wss://foo:81/"
+  },
+  {
+    "base": "about:blank",
+    "input": "wss://foo:443/",
+    "nodejs": "wss://foo:443/"
+  },
+  {
+    "base": "about:blank",
+    "input": "wss://foo:815/",
+    "nodejs": "wss://foo:815/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http:/example.com/",
+    "nodejs": "http://example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "ftp:/example.com/",
+    "nodejs": "ftp://example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "https:/example.com/",
+    "nodejs": "https://example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "madeupscheme:/example.com/",
+    "nodejs": "madeupscheme:/example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "file:/example.com/",
+    "nodejs": "file://example.com/",
+    "override": "file:/example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "ftps:/example.com/",
+    "nodejs": "ftps:/example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "gopher:/example.com/",
+    "nodejs": "gopher://example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "ws:/example.com/",
+    "nodejs": "ws:/example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "wss:/example.com/",
+    "nodejs": "wss:/example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "data:/example.com/",
+    "nodejs": "data:/example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "javascript:/example.com/",
+    "nodejs": "javascript:/example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "mailto:/example.com/",
+    "nodejs": "mailto:/example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http:example.com/",
+    "nodejs": "http://example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "ftp:example.com/",
+    "nodejs": "ftp://example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "https:example.com/",
+    "nodejs": "https://example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "madeupscheme:example.com/",
+    "nodejs": "madeupscheme:example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "ftps:example.com/",
+    "nodejs": "ftps:example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "gopher:example.com/",
+    "nodejs": "gopher://example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "ws:example.com/",
+    "nodejs": "ws:example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "wss:example.com/",
+    "nodejs": "wss:example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "data:example.com/",
+    "nodejs": "data:example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "javascript:example.com/",
+    "nodejs": "javascript:example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "mailto:example.com/",
+    "nodejs": "mailto:example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http:@www.example.com",
+    "nodejs": "http://@www.example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http:/@www.example.com",
+    "nodejs": "http://@www.example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://@www.example.com",
+    "nodejs": "http://www.example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http:a:b@www.example.com",
+    "nodejs": "http://a:b@www.example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http:/a:b@www.example.com",
+    "nodejs": "http://a:b@www.example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://a:b@www.example.com",
+    "nodejs": "http://a:b@www.example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://@pple.com",
+    "nodejs": "http://pple.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http::b@www.example.com",
+    "nodejs": "http://:b@www.example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http:/:b@www.example.com",
+    "nodejs": "http://:b@www.example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://:b@www.example.com",
+    "nodejs": "http://:b@www.example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http:/:@/www.example.com",
+    "nodejs": "http://:@/www.example.com"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://user@/www.example.com",
+    "nodejs": "http://user@www.example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http:@/www.example.com",
+    "nodejs": "http://@/www.example.com"
+  },
+  {
+    "base": "about:blank",
+    "input": "http:/@/www.example.com",
+    "nodejs": "http://@/www.example.com"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://@/www.example.com",
+    "nodejs": "http://www.example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "https:@/www.example.com",
+    "nodejs": "https://@/www.example.com"
+  },
+  {
+    "base": "about:blank",
+    "input": "http:a:b@/www.example.com",
+    "nodejs": "http://a:b@/www.example.com"
+  },
+  {
+    "base": "about:blank",
+    "input": "http:/a:b@/www.example.com",
+    "nodejs": "http://a:b@/www.example.com"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://a:b@/www.example.com",
+    "nodejs": "http://a:b@www.example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http::@/www.example.com",
+    "nodejs": "http://:@/www.example.com"
+  },
+  {
+    "base": "about:blank",
+    "input": "http:a:@www.example.com",
+    "nodejs": "http://a:@www.example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http:/a:@www.example.com",
+    "nodejs": "http://a:@www.example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://a:@www.example.com",
+    "nodejs": "http://a:@www.example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://www.@pple.com",
+    "nodejs": "http://www.@pple.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http:@:www.example.com",
+    "nodejs": "http://@:www.example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http:/@:www.example.com",
+    "nodejs": "http://@:www.example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://@:www.example.com",
+    "nodejs": "http://:www.example.com/"
+  },
+  {
+    "base": "about:blank",
+    "input": "http://:@www.example.com",
+    "nodejs": "http://:@www.example.com/"
+  },
+  {
+    "base": "http://www.example.com/test",
+    "input": "/",
+    "nodejs": "http://www.example.com/"
+  },
+  {
+    "base": "http://www.example.com/test",
+    "input": "/test.txt",
+    "nodejs": "http://www.example.com/test.txt"
+  },
+  {
+    "base": "http://www.example.com/test",
+    "input": ".",
+    "nodejs": "http://www.example.com/"
+  },
+  {
+    "base": "http://www.example.com/test",
+    "input": "..",
+    "nodejs": "http://www.example.com/"
+  },
+  {
+    "base": "http://www.example.com/test",
+    "input": "test.txt",
+    "nodejs": "http://www.example.com/test.txt"
+  },
+  {
+    "base": "http://www.example.com/test",
+    "input": "./test.txt",
+    "nodejs": "http://www.example.com/test.txt"
+  },
+  {
+    "base": "http://www.example.com/test",
+    "input": "../test.txt",
+    "nodejs": "http://www.example.com/test.txt"
+  },
+  {
+    "base": "http://www.example.com/test",
+    "input": "../aaa/test.txt",
+    "nodejs": "http://www.example.com/aaa/test.txt"
+  },
+  {
+    "base": "http://www.example.com/test",
+    "input": "../../test.txt",
+    "nodejs": "http://www.example.com/test.txt"
+  },
+  {
+    "base": "http://www.example.com/test",
+    "input": "\u4e2d/test.txt",
+    "nodejs": "http://www.example.com/\u4e2d/test.txt"
+  },
+  {
+    "base": "http://www.example.com/test",
+    "input": "http://www.example2.com",
+    "nodejs": "http://www.example2.com/"
+  },
+  {
+    "base": "http://www.example.com/test",
+    "input": "//www.example2.com",
+    "nodejs": "http://www.example2.com/"
+  },
+  {
+    "base": "http://other.com/",
+    "input": "http://ExAmPlE.CoM",
+    "nodejs": "http://example.com/"
+  },
+  {
+    "base": "http://other.com/",
+    "input": "http://example example.com",
+    "nodejs": "http://example/%20example.com"
+  },
+  {
+    "base": "http://other.com/",
+    "input": "http://Goo%20 goo%7C|.com",
+    "nodejs": "http://goo/%20%20goo%7C%7C.com"
+  },
+  {
+    "base": "http://other.com/",
+    "input": "http://GOO\u00a0\u3000goo.com",
+    "nodejs": "http://xn--googoo-rga8318g.com/"
+  },
+  {
+    "base": "http://other.com/",
+    "input": "http://GOO\u200b\u2060\ufeffgoo.com",
+    "nodejs": "http://xn--googoo-df0c40ax241n.com/"
+  },
+  {
+    "base": "http://other.com/",
+    "input": "http://www.foo\u3002bar.com",
+    "nodejs": "http://www.foo.bar.com/"
+  },
+  {
+    "base": "http://other.com/",
+    "input": "http://\ufdd0zyx.com",
+    "nodejs": "http://xn--zyx-h05s.com/"
+  },
+  {
+    "base": "http://other.com/",
+    "input": "http://%ef%b7%90zyx.com",
+    "nodejs": "http://other.com/%ef%b7%90zyx.com"
+  },
+  {
+    "base": "http://other.com/",
+    "input": "http://\uff27\uff4f.com",
+    "nodejs": "http://xn--si7cqa.com/"
+  },
+  {
+    "base": "http://other.com/",
+    "input": "http://\uff05\uff14\uff11.com",
+    "nodejs": "http://xn--wg7cyai.com/"
+  },
+  {
+    "base": "http://other.com/",
+    "input": "http://%ef%bc%85%ef%bc%94%ef%bc%91.com",
+    "nodejs": "http://other.com/%ef%bc%85%ef%bc%94%ef%bc%91.com"
+  },
+  {
+    "base": "http://other.com/",
+    "input": "http://\uff05\uff10\uff10.com",
+    "nodejs": "http://xn--wg7cwaa.com/"
+  },
+  {
+    "base": "http://other.com/",
+    "input": "http://%ef%bc%85%ef%bc%90%ef%bc%90.com",
+    "nodejs": "http://other.com/%ef%bc%85%ef%bc%90%ef%bc%90.com"
+  },
+  {
+    "base": "http://other.com/",
+    "input": "http://\u4f60\u597d\u4f60\u597d",
+    "nodejs": "http://xn--6qqa088eba/"
+  },
+  {
+    "base": "http://other.com/",
+    "input": "http://%zz%66%a.com",
+    "nodejs": "http://other.com/%zz%66%a.com"
+  },
+  {
+    "base": "http://other.com/",
+    "input": "http://%25",
+    "nodejs": "http://other.com/%25"
+  },
+  {
+    "base": "http://other.com/",
+    "input": "http://hello%00",
+    "nodejs": "http://hello/%00"
+  },
+  {
+    "base": "http://other.com/",
+    "input": "http://%30%78%63%30%2e%30%32%35%30.01",
+    "nodejs": "http://other.com/%30%78%63%30%2e%30%32%35%30.01"
+  },
+  {
+    "base": "http://other.com/",
+    "input": "http://%30%78%63%30%2e%30%32%35%30.01%2e",
+    "nodejs": "http://other.com/%30%78%63%30%2e%30%32%35%30.01%2e"
+  },
+  {
+    "base": "http://other.com/",
+    "input": "http://192.168.0.257",
+    "nodejs": "http://192.168.0.257/"
+  },
+  {
+    "base": "http://other.com/",
+    "input": "http://%3g%78%63%30%2e%30%32%35%30%2E.01",
+    "nodejs": "http://other.com/%3g%78%63%30%2e%30%32%35%30%2E.01"
+  },
+  {
+    "base": "http://other.com/",
+    "input": "http://192.168.0.1 hello",
+    "nodejs": "http://192.168.0.1/%20hello"
+  },
+  {
+    "base": "http://other.com/",
+    "input": "http://\uff10\uff38\uff43\uff10\uff0e\uff10\uff12\uff15\uff10\uff0e\uff10\uff11",
+    "nodejs": "http://xn--7g7ca6m5c.xn--7g7cafm.xn--7g7cc/"
+  },
+  {
+    "base": "http://other.com/",
+    "input": "http://[google.com]",
+    "nodejs": "http://[google.com]/"
+  },
+  {
+    "base": "http://other.com/",
+    "input": "http://foo:\ud83d\udca9@example.com/bar",
+    "nodejs": "http://foo:%F0%9F%92%A9@example.com/bar"
+  },
+  {
+    "base": "test:test",
+    "input": "x",
+    "nodejs": "test:x"
+  }
+];
+
+whatwgTests.forEach(function(test) {
+    var expected = test.override !== undefined ? test.override : test.nodejs;
+    assert.equal(url.resolve(test.base, test.input), expected);
+});
