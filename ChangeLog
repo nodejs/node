@@ -1,4 +1,9 @@
-2015.03.11, Version 0.10.37 (Maintenance)
+2015.03.23, Version 0.10.38 (Maintenance)
+
+* openssl: upgrade to 1.0.1m (Addressing multiple CVEs)
+
+
+2015.03.11, Version 0.10.37 (Maintenance), 7d6b5b1d5ba726331f9ccaaae59af7cd53eee82e
 
 * uv: update to 0.10.36 (CVE-2015-0278)
 
