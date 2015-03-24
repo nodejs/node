@@ -1,4 +1,9 @@
-2015.02.06, Version 0.12.0 (Stable)
+2015.03.23, Version 0.12.1 (Stable)
+
+* openssl: upgrade to 1.0.1m (Addressing multiple CVES)
+
+
+2015.02.06, Version 0.12.0 (Stable), 2b18916ff054309a07408719b62e2b6a4f1e056a
 
 * npm: Upgrade to 2.5.1
 
