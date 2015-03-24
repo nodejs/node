@@ -166,6 +166,9 @@ Example of listening for `reset`:
 Inside the REPL, Control+D will exit.  Multi-line expressions can be input.
 Tab completion is supported for both global and local variables.
 
+Core modules will be loaded on-demand into the environment. For example,
+accessing `fs` will `require()` the `fs` module as `global.fs`.
+
 The special variable `_` (underscore) contains the result of the last expression.
 
     > [ "a", "b", "c" ]
