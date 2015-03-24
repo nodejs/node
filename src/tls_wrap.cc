@@ -374,7 +374,7 @@ Local<Value> TLSWrap::GetSSLError(int status, int* err, const char** msg) {
           buf[mem->length] = '\0';
           *msg = buf;
         }
-        static_cast<void>(BIO_reset(bio));
+        BIO_free_all(bio);
 
         return scope.Escape(exception);
       }
