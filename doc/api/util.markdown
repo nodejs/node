@@ -131,7 +131,7 @@ Highlighted styles and their default values are:
  * `special` - only function at this time (cyan)
  * `name` (intentionally no styling)
 
-Predefined color codes are: `white`, `grey`, `black`, `blue`, `cyan`, 
+Predefined color codes are: `white`, `grey`, `black`, `blue`, `cyan`,
 `green`, `magenta`, `red` and `yellow`.
 There are also `bold`, `italic`, `underline` and `inverse` codes.
 
@@ -396,6 +396,42 @@ Returns `true` if the given "object" is a `Buffer`. `false` otherwise.
     util.isBuffer(new Buffer('hello world'))
       // true
 
+## util.deepEqual(a, b)
+
+Returns `true` if the given values "a" and "b" are coercively deep equal. `false` otherwise.
+Primitive values are compared using `==` operator. Doesn't take object prototypes into account.
+
+    var util = require('util');
+
+      // true
+    util.deepEqual(
+      { a : [ 2, 3 ], b : [ 4 ] },
+      { a : [ 2, 3 ], b : [ 4 ] }
+    );
+      // false
+    util.deepEqual(
+      { x : 5, y : [6] },
+      { x : 5, y : 6 }
+    );
+
+## util.deepStrictEqual(a, b)
+
+Returns `true` if the given values "a" and "b" are strictly deep equal. `false` otherwise.
+Primitive values are compared using `===` operator.
+If the values are objects returns `false` if their prototypes are not identical (compare as `true` with `===` operator).
+
+    var util = require('util');
+
+      // true
+    util.deepStrictEqual(
+      { a : [ 2, 3 ], b : [ 4 ] },
+      { a : [ 2, 3 ], b : [ 4 ] }
+    );
+      // false
+    util.deepStrictEqual(
+      { x : 5, y : '6' },
+      { x : 5, y : 6 }
+    );
 
 ## util.inherits(constructor, superConstructor)
 
