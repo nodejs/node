@@ -79,11 +79,11 @@ $ git checkout -b my-feature-branch -t origin/v1.x
 
 ### Step 3: Commit
 
-Make sure git knows your name and email address:
+Make sure git knows your real name and email address:
 
 ```text
-$ git config --global user.name "J. Random User"
-$ git config --global user.email "j.random.user@example.com"
+$ git config --global user.name "Jon Doe"
+$ git config --global user.email "jon.doe@example.com"
 ```
 
 Writing good commit logs is important.  A commit log should describe what
