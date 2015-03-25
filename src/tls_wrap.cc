@@ -90,10 +90,7 @@ TLSWrap::~TLSWrap() {
   MakePending();
 
   // And destroy
-  while (WriteItem* wi = pending_write_items_.PopFront()) {
-    wi->w_->Done(UV_ECANCELED);
-    delete wi;
-  }
+  InvokeQueued(UV_ECANCELED);
 
   ClearError();
 }
