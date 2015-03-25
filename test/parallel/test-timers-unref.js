@@ -35,11 +35,12 @@ check_unref = setInterval(function() {
   checks += 1;
 }, 100);
 
-// unref() during the callback
 setTimeout(function() {
   unref_callbacks++;
   this.unref();
 }, SHORT_TIME);
+
+// Should not timeout the test
 setInterval(function() {
   this.unref();
 }, SHORT_TIME);
