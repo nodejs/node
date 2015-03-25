@@ -339,7 +339,7 @@ void TLSWrap::EncOutCb(WriteWrap* req_wrap, int status) {
   // Commit
   NodeBIO::FromBIO(wrap->enc_out_)->Read(nullptr, wrap->write_size_);
 
-  // Ensure that the progress will be made and `InvokeQueued` will be called
+  // Ensure that the progress will be made and `InvokeQueued` will be called.
   wrap->ClearIn();
 
   // Try writing more data
