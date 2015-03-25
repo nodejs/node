@@ -63,8 +63,8 @@ not replaced.
     util.format('%s:%s', 'foo'); // 'foo:%s'
 
 If there are more arguments than placeholders, the extra arguments are
-converted to strings with `util.inspect()` and these strings are concatenated,
-delimited by a space.
+coerced to strings (for objects and symbols, `util.inspect()` is used)
+and then concatenated, delimited by a space.
 
     util.format('%s:%s', 'foo', 'bar', 'baz'); // 'foo:bar baz'
 
