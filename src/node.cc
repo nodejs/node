@@ -2761,6 +2761,10 @@ void SetupProcessObject(Environment* env,
     READONLY_PROPERTY(process,
                       "_preload_modules",
                       array);
+
+    delete[] preload_modules;
+    preload_modules = nullptr;
+    preload_module_count = 0;
   }
 
   // --no-deprecation
