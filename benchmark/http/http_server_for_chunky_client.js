@@ -6,8 +6,14 @@ var fs = require('fs');
 var spawn = require('child_process').spawn;
 var common = require('../common.js')
 var test = require('../../test/common.js')
-var pep = path.dirname(process.argv[1]) + '/chunky_http_client.js';
+var pep = path.dirname(process.argv[1]) + '/_chunky_http_client.js';
 var PIPE = test.PIPE;
+
+try {
+  fs.accessSync(test.tmpDir, fs.F_OK);
+} catch (e) {
+  fs.mkdirSync(test.tmpDir);
+}
 
 var server;
 try {
@@ -36,9 +42,10 @@ try {
   });
 
   child.stdout.pipe(process.stdout);
+  child.stderr.pipe(process.stderr);
 
-  child.on('exit', function (exitCode) {
-    console.error('Child exited with code: ' + exitCode);
+  child.on('close', function (exitCode) {
+    server.close();
   });
 
 } catch(e) {
