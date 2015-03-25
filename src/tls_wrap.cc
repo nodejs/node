@@ -90,8 +90,10 @@ TLSWrap::~TLSWrap() {
   MakePending();
 
   // And destroy
-  while (WriteItem* wi = pending_write_items_.PopFront())
+  while (WriteItem* wi = pending_write_items_.PopFront()) {
+    wi->w_->Done(UV_ECANCELED);
     delete wi;
+  }
 
   ClearError();
 }
@@ -310,10 +312,12 @@ void TLSWrap::EncOut() {
   write_req->Dispatched();
 
   // Ignore errors, this should be already handled in js
-  if (err)
+  if (err) {
     write_req->Dispose();
-  else
+    InvokeQueued(err);
+  } else {
     NODE_COUNT_NET_BYTES_SENT(write_size_);
+  }
 }
 
 
@@ -334,6 +338,9 @@ void TLSWrap::EncOutCb(WriteWrap* req_wrap, int status) {
 
   // Commit
   NodeBIO::FromBIO(wrap->enc_out_)->Read(nullptr, wrap->write_size_);
+
+  // Ensure that the progress will be maed and `InvokeQueued` will be called
+  wrap->ClearIn();
 
   // Try writing more data
   wrap->write_size_ = 0;
