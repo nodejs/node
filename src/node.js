@@ -173,35 +173,13 @@
   };
 
   startup.globalTimeouts = function() {
-    global.setTimeout = function() {
-      var t = NativeModule.require('timers');
-      return t.setTimeout.apply(this, arguments);
-    };
-
-    global.setInterval = function() {
-      var t = NativeModule.require('timers');
-      return t.setInterval.apply(this, arguments);
-    };
-
-    global.clearTimeout = function() {
-      var t = NativeModule.require('timers');
-      return t.clearTimeout.apply(this, arguments);
-    };
-
-    global.clearInterval = function() {
-      var t = NativeModule.require('timers');
-      return t.clearInterval.apply(this, arguments);
-    };
-
-    global.setImmediate = function() {
-      var t = NativeModule.require('timers');
-      return t.setImmediate.apply(this, arguments);
-    };
-
-    global.clearImmediate = function() {
-      var t = NativeModule.require('timers');
-      return t.clearImmediate.apply(this, arguments);
-    };
+    const timers = NativeModule.require('timers');
+    global.clearImmediate = timers.clearImmediate;
+    global.clearInterval = timers.clearInterval;
+    global.clearTimeout = timers.clearTimeout;
+    global.setImmediate = timers.setImmediate;
+    global.setInterval = timers.setInterval;
+    global.setTimeout = timers.setTimeout;
   };
 
   startup.globalConsole = function() {
