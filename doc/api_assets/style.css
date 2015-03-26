@@ -351,7 +351,20 @@ span.type {
 
 #column2.interior {
   width: 234px;
-  float: left;
+  position: fixed;
+  height: 100%;
+  overflow-y: scroll;
+}
+
+#column2.interior:after {
+  content: '';
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 234px;
+  height: 5em;
+  background: linear-gradient(rgba(242,245,240, 0), rgba(242,245,240, 1));
+  pointer-events: none;
 }
 
 #column2 ul {
@@ -360,7 +373,7 @@ span.type {
   margin-top: 1.25em;
   background: #f2f5f0;
   margin-bottom: 0;
-  padding-bottom: 2.5em;
+  padding-bottom: 4em;
 }
 
 #column2 ul li {
