@@ -56,7 +56,7 @@ assert.doesNotThrow(
 
 setTimeout(function() {
   fs.writeFileSync(filepathOne, 'world');
-}, 10);
+}, 20);
 
 
 process.chdir(testDir);
@@ -79,7 +79,7 @@ assert.doesNotThrow(
 
 setTimeout(function() {
   fs.writeFileSync(filepathTwoAbs, 'pardner');
-}, 10);
+}, 20);
 
 try { fs.unlinkSync(filepathThree); } catch (e) {}
 try { fs.mkdirSync(testsubdir, 0700); } catch (e) {}
@@ -103,7 +103,7 @@ assert.doesNotThrow(
 setTimeout(function() {
   var fd = fs.openSync(filepathThree, 'w');
   fs.closeSync(fd);
-}, 10);
+}, 20);
 
 // https://github.com/joyent/node/issues/2293 - non-persistent watcher should
 // not block the event loop
