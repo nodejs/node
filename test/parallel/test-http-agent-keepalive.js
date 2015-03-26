@@ -1,7 +1,7 @@
 var common = require('../common');
 var assert = require('assert');
 var http = require('http');
-var Agent = require('_http_agent').Agent;
+var Agent = require('http').Agent;
 var EventEmitter = require('events').EventEmitter;
 
 var agent = new Agent({
