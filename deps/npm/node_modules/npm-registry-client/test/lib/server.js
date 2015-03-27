@@ -3,7 +3,7 @@
 var http = require('http')
 var server = http.createServer(handler)
 var port = server.port = process.env.PORT || 1337
-var assert = require("assert")
+var assert = require('assert')
 server.listen(port)
 
 module.exports = server
@@ -15,13 +15,13 @@ function handler (req, res) {
 
   // If we got authorization, make sure it's the right password.
   if (req.headers.authorization && req.headers.authorization.match(/^Basic/)) {
-    var auth = req.headers.authorization.replace(/^Basic /, "")
-    auth = new Buffer(auth, "base64").toString("utf8")
-    assert.equal(auth, "username:%1234@asdf%")
+    var auth = req.headers.authorization.replace(/^Basic /, '')
+    auth = new Buffer(auth, 'base64').toString('utf8')
+    assert.equal(auth, 'username:%1234@asdf%')
   }
 
   var u = '* ' + req.url
-  , mu = req.method + ' ' + req.url
+  var mu = req.method + ' ' + req.url
 
   var k = server._expect[mu] ? mu : server._expect[u] ? u : null
   if (!k) throw Error('unexpected request: ' + req.method + ' ' + req.url)
@@ -29,13 +29,12 @@ function handler (req, res) {
   var fn = server._expect[k].shift()
   if (!fn) throw Error('unexpected request: ' + req.method + ' ' + req.url)
 
-
   var remain = (Object.keys(server._expect).reduce(function (s, k) {
     return s + server._expect[k].length
   }, 0))
   if (remain === 0) server.close()
-  else this.log.info("fake-registry", "TEST SERVER: %d reqs remain", remain)
-  this.log.info("fake-registry", Object.keys(server._expect).map(function(k) {
+  else this.log.info('fake-registry', 'TEST SERVER: %d reqs remain', remain)
+  this.log.info('fake-registry', Object.keys(server._expect).map(function (k) {
     return [k, server._expect[k].length]
   }).reduce(function (acc, kv) {
     acc[kv[0]] = kv[1]
@@ -52,7 +51,7 @@ function json (o) {
 }
 
 // this log is meanto to be overridden
-server.log = require("npmlog")
+server.log = require('npmlog')
 
 server.expect = function (method, u, fn) {
   if (typeof u === 'function') {

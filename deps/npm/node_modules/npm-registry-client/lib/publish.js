@@ -1,60 +1,59 @@
 module.exports = publish
 
-var url = require("url")
-  , semver = require("semver")
-  , crypto = require("crypto")
-  , Stream = require("stream").Stream
-  , assert = require("assert")
-  , fixer = require("normalize-package-data/lib/fixer.js")
-  , concat = require("concat-stream")
+var url = require('url')
+var semver = require('semver')
+var crypto = require('crypto')
+var Stream = require('stream').Stream
+var assert = require('assert')
+var fixer = require('normalize-package-data/lib/fixer.js')
+var concat = require('concat-stream')
 
 function escaped (name) {
-  return name.replace("/", "%2f")
+  return name.replace('/', '%2f')
 }
 
 function publish (uri, params, cb) {
-  assert(typeof uri === "string", "must pass registry URI to publish")
-  assert(params && typeof params === "object", "must pass params to publish")
-  assert(typeof cb === "function", "must pass callback to publish")
+  assert(typeof uri === 'string', 'must pass registry URI to publish')
+  assert(params && typeof params === 'object', 'must pass params to publish')
+  assert(typeof cb === 'function', 'must pass callback to publish')
 
   var access = params.access
   assert(
-    (!access) || ["public", "restricted"].indexOf(access) !== -1,
+    (!access) || ['public', 'restricted'].indexOf(access) !== -1,
     "if present, access level must be either 'public' or 'restricted'"
   )
 
   var auth = params.auth
-  assert(auth && typeof auth === "object", "must pass auth to publish")
+  assert(auth && typeof auth === 'object', 'must pass auth to publish')
   if (!(auth.token ||
         (auth.password && auth.username && auth.email))) {
-    var er = new Error("auth required for publishing")
-    er.code = "ENEEDAUTH"
+    var er = new Error('auth required for publishing')
+    er.code = 'ENEEDAUTH'
     return cb(er)
   }
 
   var metadata = params.metadata
   assert(
-    metadata && typeof metadata === "object",
-    "must pass package metadata to publish"
+    metadata && typeof metadata === 'object',
+    'must pass package metadata to publish'
   )
   try {
     fixer.fixNameField(metadata, true)
-  }
-  catch (er) {
+  } catch (er) {
     return cb(er)
   }
   var version = semver.clean(metadata.version)
-  if (!version) return cb(new Error("invalid semver: " + metadata.version))
+  if (!version) return cb(new Error('invalid semver: ' + metadata.version))
   metadata.version = version
 
   var body = params.body
-  assert(body, "must pass package body to publish")
-  assert(body instanceof Stream, "package body passed to publish must be a stream")
+  assert(body, 'must pass package body to publish')
+  assert(body instanceof Stream, 'package body passed to publish must be a stream')
   var client = this
   var sink = concat(function (tarbuffer) {
     putFirst.call(client, uri, metadata, tarbuffer, access, auth, cb)
   })
-  sink.on("error", cb)
+  sink.on('error', cb)
   body.pipe(sink)
 }
 
@@ -63,67 +62,67 @@ function putFirst (registry, data, tarbuffer, access, auth, cb) {
   // If 409, then GET and merge, try again.
   // If other error, then fail.
 
-  var root =
-    { _id : data.name
-    , name : data.name
-    , description : data.description
-    , "dist-tags" : {}
-    , versions : {}
-    , readme: data.readme || ""
-    }
+  var root = {
+    _id: data.name,
+    name: data.name,
+    description: data.description,
+    'dist-tags': {},
+    versions: {},
+    readme: data.readme || ''
+  }
 
   if (access) root.access = access
 
   if (!auth.token) {
-    root.maintainers = [{name : auth.username, email : auth.email}]
+    root.maintainers = [{ name: auth.username, email: auth.email }]
     data.maintainers = JSON.parse(JSON.stringify(root.maintainers))
   }
 
   root.versions[ data.version ] = data
   var tag = data.tag || this.config.defaultTag
-  root["dist-tags"][tag] = data.version
+  root['dist-tags'][tag] = data.version
 
-  var tbName = data.name + "-" + data.version + ".tgz"
-    , tbURI = data.name + "/-/" + tbName
+  var tbName = data.name + '-' + data.version + '.tgz'
+  var tbURI = data.name + '/-/' + tbName
 
-  data._id = data.name+"@"+data.version
+  data._id = data.name + '@' + data.version
   data.dist = data.dist || {}
-  data.dist.shasum = crypto.createHash("sha1").update(tarbuffer).digest("hex")
+  data.dist.shasum = crypto.createHash('sha1').update(tarbuffer).digest('hex')
   data.dist.tarball = url.resolve(registry, tbURI)
-                         .replace(/^https:\/\//, "http://")
+                         .replace(/^https:\/\//, 'http://')
 
   root._attachments = {}
   root._attachments[ tbName ] = {
-    "content_type": "application/octet-stream",
-    "data": tarbuffer.toString("base64"),
-    "length": tarbuffer.length
+    'content_type': 'application/octet-stream',
+    'data': tarbuffer.toString('base64'),
+    'length': tarbuffer.length
   }
 
   var fixed = url.resolve(registry, escaped(data.name))
   var client = this
   var options = {
-    method : "PUT",
-    body : root,
-    auth : auth
+    method: 'PUT',
+    body: root,
+    auth: auth
   }
   this.request(fixed, options, function (er, parsed, json, res) {
-    var r409 = "must supply latest _rev to update existing package"
-    var r409b = "Document update conflict."
+    var r409 = 'must supply latest _rev to update existing package'
+    var r409b = 'Document update conflict.'
     var conflict = res && res.statusCode === 409
-    if (parsed && (parsed.reason === r409 || parsed.reason === r409b))
+    if (parsed && (parsed.reason === r409 || parsed.reason === r409b)) {
       conflict = true
+    }
 
     // a 409 is typical here.  GET the data and merge in.
     if (er && !conflict) {
-      client.log.error("publish", "Failed PUT "+(res && res.statusCode))
+      client.log.error('publish', 'Failed PUT ' + (res && res.statusCode))
       return cb(er)
     }
 
-    if (!er && !conflict)
-      return cb(er, parsed, json, res)
+    if (!er && !conflict) return cb(er, parsed, json, res)
 
     // let's see what versions are already published.
-    client.request(fixed+"?write=true", { auth : auth }, function (er, current) {
+    client.request(fixed + '?write=true', { auth: auth }, function (er, current) {
       if (er) return cb(er)
 
       putNext.call(client, registry, data.version, root, current, auth, cb)
@@ -136,10 +135,9 @@ function putNext (registry, newVersion, root, current, auth, cb) {
   // just merge in existing stuff
   var curVers = Object.keys(current.versions || {}).map(function (v) {
     return semver.clean(v, true)
-  }).concat(Object.keys(current.time || {}).map(function(v) {
-    if (semver.valid(v, true))
-      return semver.clean(v, true)
-  }).filter(function(v) {
+  }).concat(Object.keys(current.time || {}).map(function (v) {
+    if (semver.valid(v, true)) return semver.clean(v, true)
+  }).filter(function (v) {
     return v
   }))
 
@@ -152,15 +150,15 @@ function putNext (registry, newVersion, root, current, auth, cb) {
   for (var i in root) {
     switch (i) {
       // objects that copy over the new stuffs
-      case "dist-tags":
-      case "versions":
-      case "_attachments":
+      case 'dist-tags':
+      case 'versions':
+      case '_attachments':
         for (var j in root[i])
           current[i][j] = root[i][j]
         break
 
       // ignore these
-      case "maintainers":
+      case 'maintainers':
         break
 
       // copy
@@ -173,16 +171,16 @@ function putNext (registry, newVersion, root, current, auth, cb) {
 
   var uri = url.resolve(registry, escaped(root.name))
   var options = {
-    method : "PUT",
-    body   : current,
-    auth   : auth
+    method: 'PUT',
+    body: current,
+    auth: auth
   }
   this.request(uri, options, cb)
 }
 
 function conflictError (pkgid, version) {
-  var e = new Error("cannot modify pre-existing version")
-  e.code = "EPUBLISHCONFLICT"
+  var e = new Error('cannot modify pre-existing version')
+  e.code = 'EPUBLISHCONFLICT'
   e.pkgid = pkgid
   e.version = version
   return e
