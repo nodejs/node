@@ -58,6 +58,10 @@ class Arguments BASE_EMBEDDED {
 
   Object** arguments() { return arguments_; }
 
+  Object** lowest_address() { return &this->operator[](length() - 1); }
+
+  Object** highest_address() { return &this->operator[](0); }
+
  private:
   intptr_t length_;
   Object** arguments_;

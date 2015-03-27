@@ -144,6 +144,8 @@ class SimplifiedOperatorBuilder FINAL {
   const Operator* NumberToInt32();
   const Operator* NumberToUint32();
 
+  const Operator* PlainPrimitiveToNumber();
+
   const Operator* ReferenceEqual(Type* type);
 
   const Operator* StringEqual();

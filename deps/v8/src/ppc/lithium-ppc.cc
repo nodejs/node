@@ -268,6 +268,20 @@ void LInnerAllocatedObject::PrintDataTo(StringStream* stream) {
 }
 
 
+void LCallFunction::PrintDataTo(StringStream* stream) {
+  context()->PrintTo(stream);
+  stream->Add(" ");
+  function()->PrintTo(stream);
+  if (hydrogen()->HasVectorAndSlot()) {
+    stream->Add(" (type-feedback-vector ");
+    temp_vector()->PrintTo(stream);
+    stream->Add(" ");
+    temp_slot()->PrintTo(stream);
+    stream->Add(")");
+  }
+}
+
+
 void LCallJSFunction::PrintDataTo(StringStream* stream) {
   stream->Add("= ");
   function()->PrintTo(stream);
@@ -1104,9 +1118,17 @@ LInstruction* LChunkBuilder::DoTailCallThroughMegamorphicCache(
       UseFixed(instr->receiver(), LoadDescriptor::ReceiverRegister());
   LOperand* name_register =
       UseFixed(instr->name(), LoadDescriptor::NameRegister());
+  LOperand* slot = NULL;
+  LOperand* vector = NULL;
+  if (FLAG_vector_ics) {
+    slot = UseFixed(instr->slot(), VectorLoadICDescriptor::SlotRegister());
+    vector =
+        UseFixed(instr->vector(), VectorLoadICDescriptor::VectorRegister());
+  }
+
   // Not marked as call. It can't deoptimize, and it never returns.
   return new (zone()) LTailCallThroughMegamorphicCache(
-      context, receiver_register, name_register);
+      context, receiver_register, name_register, slot, vector);
 }
 
 
@@ -1241,7 +1263,15 @@ LInstruction* LChunkBuilder::DoCallNewArray(HCallNewArray* instr) {
 LInstruction* LChunkBuilder::DoCallFunction(HCallFunction* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
   LOperand* function = UseFixed(instr->function(), r4);
-  LCallFunction* call = new (zone()) LCallFunction(context, function);
+  LOperand* slot = NULL;
+  LOperand* vector = NULL;
+  if (instr->HasVectorAndSlot()) {
+    slot = FixedTemp(r6);
+    vector = FixedTemp(r5);
+  }
+
+  LCallFunction* call =
+      new (zone()) LCallFunction(context, function, slot, vector);
   return MarkAsCall(DefineFixed(call, r3), instr);
 }
 
@@ -1399,8 +1429,15 @@ LInstruction* LChunkBuilder::DoFlooringDivI(HMathFloorOfDiv* instr) {
   DCHECK(instr->right()->representation().Equals(instr->representation()));
   LOperand* dividend = UseRegister(instr->left());
   LOperand* divisor = UseRegister(instr->right());
-  LFlooringDivI* div = new (zone()) LFlooringDivI(dividend, divisor);
-  return AssignEnvironment(DefineAsRegister(div));
+  LInstruction* result =
+      DefineAsRegister(new (zone()) LFlooringDivI(dividend, divisor));
+  if (instr->CheckFlag(HValue::kCanBeDivByZero) ||
+      instr->CheckFlag(HValue::kBailoutOnMinusZero) ||
+      (instr->CheckFlag(HValue::kCanOverflow) &&
+       !instr->CheckFlag(HValue::kAllUsesTruncatingToInt32))) {
+    result = AssignEnvironment(result);
+  }
+  return result;
 }
 
 
@@ -1490,9 +1527,10 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
     bool can_overflow = instr->CheckFlag(HValue::kCanOverflow);
     bool bailout_on_minus_zero = instr->CheckFlag(HValue::kBailoutOnMinusZero);
 
+    int32_t constant_value = 0;
     if (right->IsConstant()) {
       HConstant* constant = HConstant::cast(right);
-      int32_t constant_value = constant->Integer32Value();
+      constant_value = constant->Integer32Value();
       // Constants -1, 0 and 1 can be optimized if the result can overflow.
       // For other constants, it can be optimized only without overflow.
       if (!can_overflow || ((constant_value >= -1) && (constant_value <= 1))) {
@@ -1515,34 +1553,15 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
       right_op = UseRegister(right);
     }
     LMulI* mul = new (zone()) LMulI(left_op, right_op);
-    if (can_overflow || bailout_on_minus_zero) {
+    if (right_op->IsConstantOperand()
+            ? ((can_overflow && constant_value == -1) ||
+               (bailout_on_minus_zero && constant_value <= 0))
+            : (can_overflow || bailout_on_minus_zero)) {
       AssignEnvironment(mul);
     }
     return DefineAsRegister(mul);
 
   } else if (instr->representation().IsDouble()) {
-    if (instr->HasOneUse() &&
-        (instr->uses().value()->IsAdd() || instr->uses().value()->IsSub())) {
-      HBinaryOperation* use = HBinaryOperation::cast(instr->uses().value());
-
-      if (use->IsAdd() && instr == use->left()) {
-        // This mul is the lhs of an add. The add and mul will be folded into a
-        // multiply-add in DoAdd.
-        return NULL;
-      }
-      if (instr == use->right() && use->IsAdd() &&
-          !(use->left()->IsMul() && use->left()->HasOneUse())) {
-        // This mul is the rhs of an add, where the lhs is not another mul.
-        // The add and mul will be folded into a multiply-add in DoAdd.
-        return NULL;
-      }
-      if (instr == use->left() && use->IsSub()) {
-        // This mul is the lhs of a sub. The mul and sub will be folded into a
-        // multiply-sub in DoSub.
-        return NULL;
-      }
-    }
-
     return DoArithmeticD(Token::MUL, instr);
   } else {
     return DoArithmeticT(Token::MUL, instr);
@@ -1570,10 +1589,6 @@ LInstruction* LChunkBuilder::DoSub(HSub* instr) {
     }
     return result;
   } else if (instr->representation().IsDouble()) {
-    if (instr->left()->IsMul() && instr->left()->HasOneUse()) {
-      return DoMultiplySub(instr->right(), HMul::cast(instr->left()));
-    }
-
     return DoArithmeticD(Token::SUB, instr);
   } else {
     return DoArithmeticT(Token::SUB, instr);
@@ -1638,15 +1653,6 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
     LInstruction* result = DefineAsRegister(add);
     return result;
   } else if (instr->representation().IsDouble()) {
-    if (instr->left()->IsMul() && instr->left()->HasOneUse()) {
-      return DoMultiplyAdd(HMul::cast(instr->left()), instr->right());
-    }
-
-    if (instr->right()->IsMul() && instr->right()->HasOneUse()) {
-      DCHECK(!instr->left()->IsMul() || !instr->left()->HasOneUse());
-      return DoMultiplyAdd(HMul::cast(instr->right()), instr->left());
-    }
-
     return DoArithmeticD(Token::ADD, instr);
   } else {
     return DoArithmeticT(Token::ADD, instr);
@@ -2103,7 +2109,7 @@ LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
   LOperand* global_object =
       UseFixed(instr->global_object(), LoadDescriptor::ReceiverRegister());
   LOperand* vector = NULL;
-  if (FLAG_vector_ics) {
+  if (instr->HasVectorAndSlot()) {
     vector = FixedTemp(VectorLoadICDescriptor::VectorRegister());
   }
   LLoadGlobalGeneric* result =
@@ -2163,7 +2169,7 @@ LInstruction* LChunkBuilder::DoLoadNamedGeneric(HLoadNamedGeneric* instr) {
   LOperand* object =
       UseFixed(instr->object(), LoadDescriptor::ReceiverRegister());
   LOperand* vector = NULL;
-  if (FLAG_vector_ics) {
+  if (instr->HasVectorAndSlot()) {
     vector = FixedTemp(VectorLoadICDescriptor::VectorRegister());
   }
 
@@ -2230,7 +2236,7 @@ LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
       UseFixed(instr->object(), LoadDescriptor::ReceiverRegister());
   LOperand* key = UseFixed(instr->key(), LoadDescriptor::NameRegister());
   LOperand* vector = NULL;
-  if (FLAG_vector_ics) {
+  if (instr->HasVectorAndSlot()) {
     vector = FixedTemp(VectorLoadICDescriptor::VectorRegister());
   }
 

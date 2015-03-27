@@ -871,10 +871,9 @@ class MacroAssembler: public Assembler {
                       int stack_space = 0);
 
   // Leave the current exit frame.
-  void LeaveExitFrame(bool save_doubles,
-                      Register arg_count,
-                      bool restore_context,
-                      bool do_return = NO_EMIT_RETURN);
+  void LeaveExitFrame(bool save_doubles, Register arg_count,
+                      bool restore_context, bool do_return = NO_EMIT_RETURN,
+                      bool argument_count_is_length = false);
 
   // Get the actual activation frame alignment for target environment.
   static int ActivationFrameAlignment();
@@ -1103,7 +1102,7 @@ class MacroAssembler: public Assembler {
     lw(type, FieldMemOperand(obj, HeapObject::kMapOffset));
     lbu(type, FieldMemOperand(type, Map::kInstanceTypeOffset));
     And(type, type, Operand(kIsNotStringMask));
-    DCHECK_EQ(0, kStringTag);
+    DCHECK_EQ(0u, kStringTag);
     return eq;
   }
 
@@ -1285,16 +1284,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void MovToFloatParameter(DoubleRegister src);
   void MovToFloatParameters(DoubleRegister src1, DoubleRegister src2);
   void MovToFloatResult(DoubleRegister src);
-
-  // Calls an API function.  Allocates HandleScope, extracts returned value
-  // from handle and propagates exceptions.  Restores context.  stack_space
-  // - space to be unwound on exit (includes the call JS arguments space and
-  // the additional space allocated for the fast call).
-  void CallApiFunctionAndReturn(Register function_address,
-                                ExternalReference thunk_ref,
-                                int stack_space,
-                                MemOperand return_value_operand,
-                                MemOperand* context_restore_operand);
 
   // Jump to the builtin routine.
   void JumpToExternalReference(const ExternalReference& builtin,
@@ -1527,6 +1516,8 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void LoadInstanceDescriptors(Register map, Register descriptors);
   void EnumLength(Register dst, Register map);
   void NumberOfOwnDescriptors(Register dst, Register map);
+  void LoadAccessor(Register dst, Register holder, int accessor_index,
+                    AccessorComponent accessor);
 
   template<typename Field>
   void DecodeField(Register dst, Register src) {

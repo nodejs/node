@@ -303,8 +303,13 @@ struct WeakListVisitor<Context> {
     // Process the three weak lists linked off the context.
     DoWeakList<JSFunction>(heap, context, retainer,
                            Context::OPTIMIZED_FUNCTIONS_LIST);
-    DoWeakList<Code>(heap, context, retainer, Context::OPTIMIZED_CODE_LIST);
-    DoWeakList<Code>(heap, context, retainer, Context::DEOPTIMIZED_CODE_LIST);
+
+    // Code objects are always allocated in Code space, we do not have to visit
+    // them during scavenges.
+    if (heap->gc_state() == Heap::MARK_COMPACT) {
+      DoWeakList<Code>(heap, context, retainer, Context::OPTIMIZED_CODE_LIST);
+      DoWeakList<Code>(heap, context, retainer, Context::DEOPTIMIZED_CODE_LIST);
+    }
   }
 
   template <class T>

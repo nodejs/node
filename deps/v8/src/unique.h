@@ -49,7 +49,7 @@ class Unique {
       // TODO(titzer): other immortable immovable objects are also fine.
       DCHECK(!AllowHeapAllocation::IsAllowed() || handle->IsMap());
       raw_address_ = reinterpret_cast<Address>(*handle);
-      DCHECK_NE(raw_address_, NULL);  // Non-null should imply non-zero address.
+      DCHECK_NOT_NULL(raw_address_);  // Non-null should imply non-zero address.
     }
     handle_ = handle;
   }

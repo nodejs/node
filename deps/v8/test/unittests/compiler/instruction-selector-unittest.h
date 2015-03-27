@@ -18,7 +18,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class InstructionSelectorTest : public TestWithContext, public TestWithZone {
+class InstructionSelectorTest : public TestWithContext,
+                                public TestWithIsolateAndZone {
  public:
   InstructionSelectorTest();
   ~InstructionSelectorTest() OVERRIDE;
@@ -36,19 +37,20 @@ class InstructionSelectorTest : public TestWithContext, public TestWithZone {
   class StreamBuilder FINAL : public RawMachineAssembler {
    public:
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type)
-        : RawMachineAssembler(new (test->zone()) Graph(test->zone()),
+        : RawMachineAssembler(test->isolate(),
+                              new (test->zone()) Graph(test->zone()),
                               MakeMachineSignature(test->zone(), return_type)),
           test_(test) {}
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
                   MachineType parameter0_type)
         : RawMachineAssembler(
-              new (test->zone()) Graph(test->zone()),
+              test->isolate(), new (test->zone()) Graph(test->zone()),
               MakeMachineSignature(test->zone(), return_type, parameter0_type)),
           test_(test) {}
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
                   MachineType parameter0_type, MachineType parameter1_type)
         : RawMachineAssembler(
-              new (test->zone()) Graph(test->zone()),
+              test->isolate(), new (test->zone()) Graph(test->zone()),
               MakeMachineSignature(test->zone(), return_type, parameter0_type,
                                    parameter1_type)),
           test_(test) {}
@@ -56,7 +58,7 @@ class InstructionSelectorTest : public TestWithContext, public TestWithZone {
                   MachineType parameter0_type, MachineType parameter1_type,
                   MachineType parameter2_type)
         : RawMachineAssembler(
-              new (test->zone()) Graph(test->zone()),
+              test->isolate(), new (test->zone()) Graph(test->zone()),
               MakeMachineSignature(test->zone(), return_type, parameter0_type,
                                    parameter1_type, parameter2_type)),
           test_(test) {}

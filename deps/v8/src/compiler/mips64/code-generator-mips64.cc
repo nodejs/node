@@ -6,7 +6,6 @@
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
-#include "src/compiler/node-properties-inl.h"
 #include "src/mips/macro-assembler-mips.h"
 #include "src/scopes.h"
 
@@ -203,6 +202,100 @@ class OutOfLineCeil FINAL : public OutOfLineRound {
 };
 
 
+Condition FlagsConditionToConditionCmp(FlagsCondition condition) {
+  switch (condition) {
+    case kEqual:
+      return eq;
+    case kNotEqual:
+      return ne;
+    case kSignedLessThan:
+      return lt;
+    case kSignedGreaterThanOrEqual:
+      return ge;
+    case kSignedLessThanOrEqual:
+      return le;
+    case kSignedGreaterThan:
+      return gt;
+    case kUnsignedLessThan:
+      return lo;
+    case kUnsignedGreaterThanOrEqual:
+      return hs;
+    case kUnsignedLessThanOrEqual:
+      return ls;
+    case kUnsignedGreaterThan:
+      return hi;
+    case kUnorderedEqual:
+    case kUnorderedNotEqual:
+      break;
+    default:
+      break;
+  }
+  UNREACHABLE();
+  return kNoCondition;
+}
+
+
+Condition FlagsConditionToConditionTst(FlagsCondition condition) {
+  switch (condition) {
+    case kNotEqual:
+      return ne;
+    case kEqual:
+      return eq;
+    default:
+      break;
+  }
+  UNREACHABLE();
+  return kNoCondition;
+}
+
+
+Condition FlagsConditionToConditionOvf(FlagsCondition condition) {
+  switch (condition) {
+    case kOverflow:
+      return ne;
+    case kNotOverflow:
+      return eq;
+    default:
+      break;
+  }
+  UNREACHABLE();
+  return kNoCondition;
+}
+
+
+FPUCondition FlagsConditionToConditionCmpD(bool& predicate,
+                                           FlagsCondition condition) {
+  switch (condition) {
+    case kEqual:
+      predicate = true;
+      return EQ;
+    case kNotEqual:
+      predicate = false;
+      return EQ;
+    case kUnsignedLessThan:
+      predicate = true;
+      return OLT;
+    case kUnsignedGreaterThanOrEqual:
+      predicate = false;
+      return ULT;
+    case kUnsignedLessThanOrEqual:
+      predicate = true;
+      return OLE;
+    case kUnsignedGreaterThan:
+      predicate = false;
+      return ULE;
+    case kUnorderedEqual:
+    case kUnorderedNotEqual:
+      predicate = true;
+      break;
+    default:
+      predicate = true;
+      break;
+  }
+  UNREACHABLE();
+  return kNoFPUCondition;
+}
+
 }  // namespace
 
 
@@ -334,6 +427,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     }
     case kArchJmp:
       AssembleArchJump(i.InputRpo(0));
+      break;
+    case kArchLookupSwitch:
+      AssembleArchLookupSwitch(instr);
+      break;
+    case kArchTableSwitch:
+      AssembleArchTableSwitch(instr);
       break;
     case kArchNop:
       // don't emit code for nops.
@@ -715,31 +814,11 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   //    not separated by other instructions.
 
   if (instr->arch_opcode() == kMips64Tst) {
-    switch (branch->condition) {
-      case kNotEqual:
-        cc = ne;
-        break;
-      case kEqual:
-        cc = eq;
-        break;
-      default:
-        UNSUPPORTED_COND(kMips64Tst, branch->condition);
-        break;
-    }
+    cc = FlagsConditionToConditionTst(branch->condition);
     __ And(at, i.InputRegister(0), i.InputOperand(1));
     __ Branch(tlabel, cc, at, Operand(zero_reg));
   } else if (instr->arch_opcode() == kMips64Tst32) {
-    switch (branch->condition) {
-      case kNotEqual:
-        cc = ne;
-        break;
-      case kEqual:
-        cc = eq;
-        break;
-      default:
-        UNSUPPORTED_COND(kMips64Tst32, branch->condition);
-        break;
-    }
+    cc = FlagsConditionToConditionTst(branch->condition);
     // Zero-extend registers on MIPS64 only 64-bit operand
     // branch and compare op. is available.
     // This is a disadvantage to perform 32-bit operation on MIPS64.
@@ -750,97 +829,19 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
     __ Branch(tlabel, cc, at, Operand(zero_reg));
   } else if (instr->arch_opcode() == kMips64Dadd ||
              instr->arch_opcode() == kMips64Dsub) {
-    switch (branch->condition) {
-      case kOverflow:
-        cc = ne;
-        break;
-      case kNotOverflow:
-        cc = eq;
-        break;
-      default:
-        UNSUPPORTED_COND(kMips64Dadd, branch->condition);
-        break;
-    }
+    cc = FlagsConditionToConditionOvf(branch->condition);
 
     __ dsra32(kScratchReg, i.OutputRegister(), 0);
     __ sra(at, i.OutputRegister(), 31);
     __ Branch(tlabel, cc, at, Operand(kScratchReg));
   } else if (instr->arch_opcode() == kMips64Cmp) {
-    switch (branch->condition) {
-      case kEqual:
-        cc = eq;
-        break;
-      case kNotEqual:
-        cc = ne;
-        break;
-      case kSignedLessThan:
-        cc = lt;
-        break;
-      case kSignedGreaterThanOrEqual:
-        cc = ge;
-        break;
-      case kSignedLessThanOrEqual:
-        cc = le;
-        break;
-      case kSignedGreaterThan:
-        cc = gt;
-        break;
-      case kUnsignedLessThan:
-        cc = lo;
-        break;
-      case kUnsignedGreaterThanOrEqual:
-        cc = hs;
-        break;
-      case kUnsignedLessThanOrEqual:
-        cc = ls;
-        break;
-      case kUnsignedGreaterThan:
-        cc = hi;
-        break;
-      default:
-        UNSUPPORTED_COND(kMips64Cmp, branch->condition);
-        break;
-    }
+    cc = FlagsConditionToConditionCmp(branch->condition);
     __ Branch(tlabel, cc, i.InputRegister(0), i.InputOperand(1));
 
     if (!branch->fallthru) __ Branch(flabel);  // no fallthru to flabel.
 
   } else if (instr->arch_opcode() == kMips64Cmp32) {
-    switch (branch->condition) {
-      case kEqual:
-        cc = eq;
-        break;
-      case kNotEqual:
-        cc = ne;
-        break;
-      case kSignedLessThan:
-        cc = lt;
-        break;
-      case kSignedGreaterThanOrEqual:
-        cc = ge;
-        break;
-      case kSignedLessThanOrEqual:
-        cc = le;
-        break;
-      case kSignedGreaterThan:
-        cc = gt;
-        break;
-      case kUnsignedLessThan:
-        cc = lo;
-        break;
-      case kUnsignedGreaterThanOrEqual:
-        cc = hs;
-        break;
-      case kUnsignedLessThanOrEqual:
-        cc = ls;
-        break;
-      case kUnsignedGreaterThan:
-        cc = hi;
-        break;
-      default:
-        UNSUPPORTED_COND(kMips64Cmp32, branch->condition);
-        break;
-    }
+    cc = FlagsConditionToConditionCmp(branch->condition);
 
     switch (branch->condition) {
       case kEqual:
@@ -879,24 +880,24 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
     // even if we have to unfold BranchF macro.
     Label* nan = flabel;
     switch (branch->condition) {
-      case kUnorderedEqual:
+      case kEqual:
         cc = eq;
         break;
-      case kUnorderedNotEqual:
+      case kNotEqual:
         cc = ne;
         nan = tlabel;
         break;
-      case kUnorderedLessThan:
+      case kUnsignedLessThan:
         cc = lt;
         break;
-      case kUnorderedGreaterThanOrEqual:
+      case kUnsignedGreaterThanOrEqual:
         cc = ge;
         nan = tlabel;
         break;
-      case kUnorderedLessThanOrEqual:
+      case kUnsignedLessThanOrEqual:
         cc = le;
         break;
-      case kUnorderedGreaterThan:
+      case kUnsignedGreaterThan:
         cc = gt;
         nan = tlabel;
         break;
@@ -930,7 +931,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   // Materialize a full 32-bit 1 or 0 value. The result register is always the
   // last output of the instruction.
   Label false_value;
-  DCHECK_NE(0, instr->OutputCount());
+  DCHECK_NE(0u, instr->OutputCount());
   Register result = i.OutputRegister(instr->OutputCount() - 1);
   Condition cc = kNoCondition;
 
@@ -943,32 +944,12 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   // false.
 
   if (instr->arch_opcode() == kMips64Tst) {
-    switch (condition) {
-      case kNotEqual:
-        cc = ne;
-        break;
-      case kEqual:
-        cc = eq;
-        break;
-      default:
-        UNSUPPORTED_COND(kMips64Tst, condition);
-        break;
-    }
+    cc = FlagsConditionToConditionTst(condition);
     __ And(at, i.InputRegister(0), i.InputOperand(1));
     __ Branch(USE_DELAY_SLOT, &done, cc, at, Operand(zero_reg));
     __ li(result, Operand(1));  // In delay slot.
   } else if (instr->arch_opcode() == kMips64Tst32) {
-    switch (condition) {
-      case kNotEqual:
-        cc = ne;
-        break;
-      case kEqual:
-        cc = eq;
-        break;
-      default:
-        UNSUPPORTED_COND(kMips64Tst, condition);
-        break;
-    }
+    cc = FlagsConditionToConditionTst(condition);
     // Zero-extend register on MIPS64 only 64-bit operand
     // branch and compare op. is available.
     __ And(at, i.InputRegister(0), i.InputOperand(1));
@@ -977,17 +958,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     __ li(result, Operand(1));  // In delay slot.
   } else if (instr->arch_opcode() == kMips64Dadd ||
              instr->arch_opcode() == kMips64Dsub) {
-    switch (condition) {
-      case kOverflow:
-        cc = ne;
-        break;
-      case kNotOverflow:
-        cc = eq;
-        break;
-      default:
-        UNSUPPORTED_COND(kMips64DAdd, condition);
-        break;
-    }
+    cc = FlagsConditionToConditionOvf(condition);
     __ dsra32(kScratchReg, i.OutputRegister(), 0);
     __ sra(at, i.OutputRegister(), 31);
     __ Branch(USE_DELAY_SLOT, &done, cc, at, Operand(kScratchReg));
@@ -995,81 +966,13 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   } else if (instr->arch_opcode() == kMips64Cmp) {
     Register left = i.InputRegister(0);
     Operand right = i.InputOperand(1);
-    switch (condition) {
-      case kEqual:
-        cc = eq;
-        break;
-      case kNotEqual:
-        cc = ne;
-        break;
-      case kSignedLessThan:
-        cc = lt;
-        break;
-      case kSignedGreaterThanOrEqual:
-        cc = ge;
-        break;
-      case kSignedLessThanOrEqual:
-        cc = le;
-        break;
-      case kSignedGreaterThan:
-        cc = gt;
-        break;
-      case kUnsignedLessThan:
-        cc = lo;
-        break;
-      case kUnsignedGreaterThanOrEqual:
-        cc = hs;
-        break;
-      case kUnsignedLessThanOrEqual:
-        cc = ls;
-        break;
-      case kUnsignedGreaterThan:
-        cc = hi;
-        break;
-      default:
-        UNSUPPORTED_COND(kMips64Cmp, condition);
-        break;
-    }
+    cc = FlagsConditionToConditionCmp(condition);
     __ Branch(USE_DELAY_SLOT, &done, cc, left, right);
     __ li(result, Operand(1));  // In delay slot.
   } else if (instr->arch_opcode() == kMips64Cmp32) {
     Register left = i.InputRegister(0);
     Operand right = i.InputOperand(1);
-    switch (condition) {
-      case kEqual:
-        cc = eq;
-        break;
-      case kNotEqual:
-        cc = ne;
-        break;
-      case kSignedLessThan:
-        cc = lt;
-        break;
-      case kSignedGreaterThanOrEqual:
-        cc = ge;
-        break;
-      case kSignedLessThanOrEqual:
-        cc = le;
-        break;
-      case kSignedGreaterThan:
-        cc = gt;
-        break;
-      case kUnsignedLessThan:
-        cc = lo;
-        break;
-      case kUnsignedGreaterThanOrEqual:
-        cc = hs;
-        break;
-      case kUnsignedLessThanOrEqual:
-        cc = ls;
-        break;
-      case kUnsignedGreaterThan:
-        cc = hi;
-        break;
-      default:
-        UNSUPPORTED_COND(kMips64Cmp, condition);
-        break;
-    }
+    cc = FlagsConditionToConditionCmp(condition);
 
     switch (condition) {
       case kEqual:
@@ -1105,47 +1008,25 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   } else if (instr->arch_opcode() == kMips64CmpD) {
     FPURegister left = i.InputDoubleRegister(0);
     FPURegister right = i.InputDoubleRegister(1);
-    // TODO(plind): Provide NaN-testing macro-asm function without need for
-    // BranchF.
-    FPURegister dummy1 = f0;
-    FPURegister dummy2 = f2;
-    switch (condition) {
-      case kUnorderedEqual:
-        // TODO(plind):  improve the NaN testing throughout this function.
-        __ BranchF(NULL, &false_value, kNoCondition, dummy1, dummy2);
-        cc = eq;
-        break;
-      case kUnorderedNotEqual:
-        __ BranchF(USE_DELAY_SLOT, NULL, &done, kNoCondition, dummy1, dummy2);
-        __ li(result, Operand(1));  // In delay slot - returns 1 on NaN.
-        cc = ne;
-        break;
-      case kUnorderedLessThan:
-        __ BranchF(NULL, &false_value, kNoCondition, dummy1, dummy2);
-        cc = lt;
-        break;
-      case kUnorderedGreaterThanOrEqual:
-        __ BranchF(USE_DELAY_SLOT, NULL, &done, kNoCondition, dummy1, dummy2);
-        __ li(result, Operand(1));  // In delay slot - returns 1 on NaN.
-        cc = ge;
-        break;
-      case kUnorderedLessThanOrEqual:
-        __ BranchF(NULL, &false_value, kNoCondition, dummy1, dummy2);
-        cc = le;
-        break;
-      case kUnorderedGreaterThan:
-        __ BranchF(USE_DELAY_SLOT, NULL, &done, kNoCondition, dummy1, dummy2);
-        __ li(result, Operand(1));  // In delay slot - returns 1 on NaN.
-        cc = gt;
-        break;
-      default:
-        UNSUPPORTED_COND(kMips64Cmp, condition);
-        break;
-    }
-    __ BranchF(USE_DELAY_SLOT, &done, NULL, cc, left, right);
-    __ li(result, Operand(1));  // In delay slot - branch taken returns 1.
-                                // Fall-thru (branch not taken) returns 0.
 
+    bool predicate;
+    FPUCondition cc = FlagsConditionToConditionCmpD(predicate, condition);
+    if (kArchVariant != kMips64r6) {
+      __ li(result, Operand(1));
+      __ c(cc, D, left, right);
+      if (predicate) {
+        __ Movf(result, zero_reg);
+      } else {
+        __ Movt(result, zero_reg);
+      }
+    } else {
+      __ cmp(cc, L, kDoubleCompareReg, left, right);
+      __ dmfc1(at, kDoubleCompareReg);
+      __ dsrl32(result, at, 31);  // Cmp returns all 1s for true.
+      if (!predicate)             // Toggle result for not equal.
+        __ xori(result, result, 1);
+    }
+    return;
   } else {
     PrintF("AssembleArchBranch Unimplemented arch_opcode is : %d\n",
            instr->arch_opcode());
@@ -1159,6 +1040,43 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
 }
 
 
+void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
+  MipsOperandConverter i(this, instr);
+  Register input = i.InputRegister(0);
+  for (size_t index = 2; index < instr->InputCount(); index += 2) {
+    __ li(at, Operand(i.InputInt32(index + 0)));
+    __ beq(input, at, GetLabel(i.InputRpo(index + 1)));
+  }
+  __ nop();  // Branch delay slot of the last beq.
+  AssembleArchJump(i.InputRpo(1));
+}
+
+
+void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
+  MipsOperandConverter i(this, instr);
+  Register input = i.InputRegister(0);
+  size_t const case_count = instr->InputCount() - 2;
+  Label here;
+
+  __ Branch(GetLabel(i.InputRpo(1)), hs, input, Operand(case_count));
+  __ BlockTrampolinePoolFor(case_count * 2 + 7);
+  // Ensure that dd-ed labels use 8 byte aligned addresses.
+  if ((masm()->pc_offset() & 7) != 0) {
+    __ nop();
+  }
+  __ bal(&here);
+  __ dsll(at, input, 3);  // Branch delay slot.
+  __ bind(&here);
+  __ daddu(at, at, ra);
+  __ ld(at, MemOperand(at, 4 * v8::internal::Assembler::kInstrSize));
+  __ jr(at);
+  __ nop();  // Branch delay slot nop.
+  for (size_t index = 0; index < case_count; ++index) {
+    __ dd(GetLabel(i.InputRpo(index + 2)));
+  }
+}
+
+
 void CodeGenerator::AssembleDeoptimizerCall(int deoptimization_id) {
   Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
       isolate(), deoptimization_id, Deoptimizer::LAZY);
@@ -1168,6 +1086,7 @@ void CodeGenerator::AssembleDeoptimizerCall(int deoptimization_id) {
 
 void CodeGenerator::AssemblePrologue() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  int stack_slots = frame()->GetSpillSlotCount();
   if (descriptor->kind() == CallDescriptor::kCallAddress) {
     __ Push(ra, fp);
     __ mov(fp, sp);
@@ -1187,30 +1106,26 @@ void CodeGenerator::AssemblePrologue() {
     __ Prologue(info->IsCodePreAgingActive());
     frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
-
-    // Sloppy mode functions and builtins need to replace the receiver with the
-    // global proxy when called as functions (without an explicit receiver
-    // object).
-    // TODO(mstarzinger/verwaest): Should this be moved back into the CallIC?
-    if (info->strict_mode() == SLOPPY && !info->is_native()) {
-      Label ok;
-      // +2 for return address and saved frame pointer.
-      int receiver_slot = info->scope()->num_parameters() + 2;
-      __ ld(a2, MemOperand(fp, receiver_slot * kPointerSize));
-      __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
-      __ Branch(&ok, ne, a2, Operand(at));
-
-      __ ld(a2, GlobalObjectOperand());
-      __ ld(a2, FieldMemOperand(a2, GlobalObject::kGlobalProxyOffset));
-      __ sd(a2, MemOperand(fp, receiver_slot * kPointerSize));
-      __ bind(&ok);
-    }
-  } else {
+  } else if (stack_slots > 0) {
     __ StubPrologue();
     frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
   }
-  int stack_slots = frame()->GetSpillSlotCount();
+
+  if (info()->is_osr()) {
+    // TurboFan OSR-compiled functions cannot be entered directly.
+    __ Abort(kShouldNotDirectlyEnterOsrFunction);
+
+    // Unoptimized code jumps directly to this entrypoint while the unoptimized
+    // frame is still on the stack. Optimized code uses OSR values directly from
+    // the unoptimized frame. Thus, all that needs to be done is to allocate the
+    // remaining stack slots.
+    if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
+    osr_pc_offset_ = __ pc_offset();
+    DCHECK(stack_slots >= frame()->GetOsrStackSlotCount());
+    stack_slots -= frame()->GetOsrStackSlotCount();
+  }
+
   if (stack_slots > 0) {
     __ Dsubu(sp, sp, Operand(stack_slots * kPointerSize));
   }
@@ -1219,10 +1134,10 @@ void CodeGenerator::AssemblePrologue() {
 
 void CodeGenerator::AssembleReturn() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  int stack_slots = frame()->GetSpillSlotCount();
   if (descriptor->kind() == CallDescriptor::kCallAddress) {
     if (frame()->GetRegisterSaveAreaSize() > 0) {
       // Remove this frame's spill slots first.
-      int stack_slots = frame()->GetSpillSlotCount();
       if (stack_slots > 0) {
         __ Daddu(sp, sp, Operand(stack_slots * kPointerSize));
       }
@@ -1235,13 +1150,15 @@ void CodeGenerator::AssembleReturn() {
     __ mov(sp, fp);
     __ Pop(ra, fp);
     __ Ret();
-  } else {
+  } else if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
     __ mov(sp, fp);
     __ Pop(ra, fp);
     int pop_count = descriptor->IsJSFunctionCall()
                         ? static_cast<int>(descriptor->JSParameterCount())
                         : 0;
     __ DropAndRet(pop_count);
+  } else {
+    __ Ret();
   }
 }
 
@@ -1406,6 +1323,12 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     // No other combinations are possible.
     UNREACHABLE();
   }
+}
+
+
+void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
+  // On 64-bit MIPS we emit the jump tables inline.
+  UNREACHABLE();
 }
 
 

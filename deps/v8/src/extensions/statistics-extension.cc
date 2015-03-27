@@ -62,86 +62,81 @@ void StatisticsExtension::GetCounters(
   Counters* counters = isolate->counters();
   v8::Local<v8::Object> result = v8::Object::New(args.GetIsolate());
 
-#define ADD_COUNTER(name, caption)                                            \
-  AddCounter(args.GetIsolate(), result, counters->name(), #name);
+  struct StatisticsCounter {
+    v8::internal::StatsCounter* counter;
+    const char* name;
+  };
+  const StatisticsCounter counter_list[] = {
+#define ADD_COUNTER(name, caption) \
+  { counters->name(), #name }      \
+  ,
 
-  STATS_COUNTER_LIST_1(ADD_COUNTER)
-  STATS_COUNTER_LIST_2(ADD_COUNTER)
+      STATS_COUNTER_LIST_1(ADD_COUNTER) STATS_COUNTER_LIST_2(ADD_COUNTER)
 #undef ADD_COUNTER
-#define ADD_COUNTER(name)                                                      \
-  AddCounter(args.GetIsolate(), result, counters->count_of_##name(),           \
-             "count_of_" #name);                                               \
-  AddCounter(args.GetIsolate(), result, counters->size_of_##name(),            \
-             "size_of_" #name);
+#define ADD_COUNTER(name)                            \
+  { counters->count_of_##name(), "count_of_" #name } \
+  , {counters->size_of_##name(), "size_of_" #name},
 
-  INSTANCE_TYPE_LIST(ADD_COUNTER)
+          INSTANCE_TYPE_LIST(ADD_COUNTER)
 #undef ADD_COUNTER
-#define ADD_COUNTER(name)                                                      \
-  AddCounter(args.GetIsolate(), result, counters->count_of_CODE_TYPE_##name(), \
-             "count_of_CODE_TYPE_" #name);                                     \
-  AddCounter(args.GetIsolate(), result, counters->size_of_CODE_TYPE_##name(),  \
-             "size_of_CODE_TYPE_" #name);
+#define ADD_COUNTER(name)                                                \
+  { counters->count_of_CODE_TYPE_##name(), "count_of_CODE_TYPE_" #name } \
+  , {counters->size_of_CODE_TYPE_##name(), "size_of_CODE_TYPE_" #name},
 
-  CODE_KIND_LIST(ADD_COUNTER)
+              CODE_KIND_LIST(ADD_COUNTER)
 #undef ADD_COUNTER
-#define ADD_COUNTER(name)                                                      \
-  AddCounter(args.GetIsolate(), result,                                        \
-             counters->count_of_FIXED_ARRAY_##name(),                          \
-             "count_of_FIXED_ARRAY_" #name);                                   \
-  AddCounter(args.GetIsolate(), result,                                        \
-             counters->size_of_FIXED_ARRAY_##name(),                           \
-             "size_of_FIXED_ARRAY_" #name);
+#define ADD_COUNTER(name)                                                    \
+  { counters->count_of_FIXED_ARRAY_##name(), "count_of_FIXED_ARRAY_" #name } \
+  , {counters->size_of_FIXED_ARRAY_##name(), "size_of_FIXED_ARRAY_" #name},
 
-  FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(ADD_COUNTER)
+                  FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(ADD_COUNTER)
 #undef ADD_COUNTER
+  };  // End counter_list array.
 
-  AddNumber(args.GetIsolate(), result, isolate->memory_allocator()->Size(),
-            "total_committed_bytes");
-  AddNumber(args.GetIsolate(), result, heap->new_space()->Size(),
-            "new_space_live_bytes");
-  AddNumber(args.GetIsolate(), result, heap->new_space()->Available(),
-            "new_space_available_bytes");
-  AddNumber(args.GetIsolate(), result, heap->new_space()->CommittedMemory(),
-            "new_space_commited_bytes");
-  AddNumber(args.GetIsolate(), result, heap->old_pointer_space()->Size(),
-            "old_pointer_space_live_bytes");
-  AddNumber(args.GetIsolate(), result, heap->old_pointer_space()->Available(),
-            "old_pointer_space_available_bytes");
-  AddNumber(args.GetIsolate(), result,
-            heap->old_pointer_space()->CommittedMemory(),
-            "old_pointer_space_commited_bytes");
-  AddNumber(args.GetIsolate(), result, heap->old_data_space()->Size(),
-            "old_data_space_live_bytes");
-  AddNumber(args.GetIsolate(), result, heap->old_data_space()->Available(),
-            "old_data_space_available_bytes");
-  AddNumber(args.GetIsolate(), result,
-            heap->old_data_space()->CommittedMemory(),
-            "old_data_space_commited_bytes");
-  AddNumber(args.GetIsolate(), result, heap->code_space()->Size(),
-            "code_space_live_bytes");
-  AddNumber(args.GetIsolate(), result, heap->code_space()->Available(),
-            "code_space_available_bytes");
-  AddNumber(args.GetIsolate(), result, heap->code_space()->CommittedMemory(),
-            "code_space_commited_bytes");
-  AddNumber(args.GetIsolate(), result, heap->cell_space()->Size(),
-            "cell_space_live_bytes");
-  AddNumber(args.GetIsolate(), result, heap->cell_space()->Available(),
-            "cell_space_available_bytes");
-  AddNumber(args.GetIsolate(), result, heap->cell_space()->CommittedMemory(),
-            "cell_space_commited_bytes");
-  AddNumber(args.GetIsolate(), result, heap->property_cell_space()->Size(),
-            "property_cell_space_live_bytes");
-  AddNumber(args.GetIsolate(), result, heap->property_cell_space()->Available(),
-            "property_cell_space_available_bytes");
-  AddNumber(args.GetIsolate(), result,
-            heap->property_cell_space()->CommittedMemory(),
-            "property_cell_space_commited_bytes");
-  AddNumber(args.GetIsolate(), result, heap->lo_space()->Size(),
-            "lo_space_live_bytes");
-  AddNumber(args.GetIsolate(), result, heap->lo_space()->Available(),
-            "lo_space_available_bytes");
-  AddNumber(args.GetIsolate(), result, heap->lo_space()->CommittedMemory(),
-            "lo_space_commited_bytes");
+  for (size_t i = 0; i < arraysize(counter_list); i++) {
+    AddCounter(args.GetIsolate(), result, counter_list[i].counter,
+               counter_list[i].name);
+  }
+
+  struct StatisticNumber {
+    intptr_t number;
+    const char* name;
+  };
+
+  const StatisticNumber numbers[] = {
+      {isolate->memory_allocator()->Size(), "total_committed_bytes"},
+      {heap->new_space()->Size(), "new_space_live_bytes"},
+      {heap->new_space()->Available(), "new_space_available_bytes"},
+      {heap->new_space()->CommittedMemory(), "new_space_commited_bytes"},
+      {heap->old_pointer_space()->Size(), "old_pointer_space_live_bytes"},
+      {heap->old_pointer_space()->Available(),
+       "old_pointer_space_available_bytes"},
+      {heap->old_pointer_space()->CommittedMemory(),
+       "old_pointer_space_commited_bytes"},
+      {heap->old_data_space()->Size(), "old_data_space_live_bytes"},
+      {heap->old_data_space()->Available(), "old_data_space_available_bytes"},
+      {heap->old_data_space()->CommittedMemory(),
+       "old_data_space_commited_bytes"},
+      {heap->code_space()->Size(), "code_space_live_bytes"},
+      {heap->code_space()->Available(), "code_space_available_bytes"},
+      {heap->code_space()->CommittedMemory(), "code_space_commited_bytes"},
+      {heap->cell_space()->Size(), "cell_space_live_bytes"},
+      {heap->cell_space()->Available(), "cell_space_available_bytes"},
+      {heap->cell_space()->CommittedMemory(), "cell_space_commited_bytes"},
+      {heap->property_cell_space()->Size(), "property_cell_space_live_bytes"},
+      {heap->property_cell_space()->Available(),
+       "property_cell_space_available_bytes"},
+      {heap->property_cell_space()->CommittedMemory(),
+       "property_cell_space_commited_bytes"},
+      {heap->lo_space()->Size(), "lo_space_live_bytes"},
+      {heap->lo_space()->Available(), "lo_space_available_bytes"},
+      {heap->lo_space()->CommittedMemory(), "lo_space_commited_bytes"},
+  };
+
+  for (size_t i = 0; i < arraysize(numbers); i++) {
+    AddNumber(args.GetIsolate(), result, numbers[i].number, numbers[i].name);
+  }
+
   AddNumber64(args.GetIsolate(), result,
               heap->amount_of_external_allocated_memory(),
               "amount_of_external_allocated_memory");

@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-for (var i = 0; i < 1000000; i++) { }
+// Flags: --allow-natives-syntax
+
+for (var i = 0; i < 10; i++) { if (i == 5) %OptimizeOsr(); }
 var xl = 4096;
 var z = i % xl;

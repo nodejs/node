@@ -42,19 +42,19 @@ struct FPCmp {
 const FPCmp kFPCmpInstructions[] = {
     {{&RawMachineAssembler::Float64Equal, "Float64Equal", kMipsCmpD,
       kMachFloat64},
-     kUnorderedEqual},
+     kEqual},
     {{&RawMachineAssembler::Float64LessThan, "Float64LessThan", kMipsCmpD,
       kMachFloat64},
-     kUnorderedLessThan},
+     kUnsignedLessThan},
     {{&RawMachineAssembler::Float64LessThanOrEqual, "Float64LessThanOrEqual",
       kMipsCmpD, kMachFloat64},
-     kUnorderedLessThanOrEqual},
+     kUnsignedLessThanOrEqual},
     {{&RawMachineAssembler::Float64GreaterThan, "Float64GreaterThan", kMipsCmpD,
       kMachFloat64},
-     kUnorderedLessThan},
+     kUnsignedLessThan},
     {{&RawMachineAssembler::Float64GreaterThanOrEqual,
       "Float64GreaterThanOrEqual", kMipsCmpD, kMachFloat64},
-     kUnorderedLessThanOrEqual}};
+     kUnsignedLessThanOrEqual}};
 
 struct Conversion {
   // The machine_type field in MachInst1 represents the destination type.

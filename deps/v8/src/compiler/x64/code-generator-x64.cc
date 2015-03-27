@@ -7,7 +7,6 @@
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
-#include "src/compiler/node-properties-inl.h"
 #include "src/scopes.h"
 #include "src/x64/assembler-x64.h"
 #include "src/x64/macro-assembler-x64.h"
@@ -246,6 +245,18 @@ class OutOfLineTruncateDoubleToI FINAL : public OutOfLineCode {
         __ asm_instr##_cl(i.OutputOperand());                              \
       }                                                                    \
     }                                                                      \
+  } while (0)
+
+
+#define ASSEMBLE_MOVX(asm_instr)                            \
+  do {                                                      \
+    if (instr->addressing_mode() != kMode_None) {           \
+      __ asm_instr(i.OutputRegister(), i.MemoryOperand());  \
+    } else if (instr->InputAt(0)->IsRegister()) {           \
+      __ asm_instr(i.OutputRegister(), i.InputRegister(0)); \
+    } else {                                                \
+      __ asm_instr(i.OutputRegister(), i.InputOperand(0));  \
+    }                                                       \
   } while (0)
 
 
@@ -533,6 +544,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArchJmp:
       AssembleArchJump(i.InputRpo(0));
       break;
+    case kArchLookupSwitch:
+      AssembleArchLookupSwitch(instr);
+      break;
+    case kArchTableSwitch:
+      AssembleArchTableSwitch(instr);
+      break;
     case kArchNop:
       // don't emit code for nops.
       break;
@@ -796,17 +813,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       ASSEMBLE_AVX_DOUBLE_BINOP(vdivsd);
       break;
     case kX64Movsxbl:
-      if (instr->addressing_mode() != kMode_None) {
-        __ movsxbl(i.OutputRegister(), i.MemoryOperand());
-      } else if (instr->InputAt(0)->IsRegister()) {
-        __ movsxbl(i.OutputRegister(), i.InputRegister(0));
-      } else {
-        __ movsxbl(i.OutputRegister(), i.InputOperand(0));
-      }
+      ASSEMBLE_MOVX(movsxbl);
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movzxbl:
-      __ movzxbl(i.OutputRegister(), i.MemoryOperand());
+      ASSEMBLE_MOVX(movzxbl);
+      __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movb: {
       int index = 0;
@@ -819,17 +831,11 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kX64Movsxwl:
-      if (instr->addressing_mode() != kMode_None) {
-        __ movsxwl(i.OutputRegister(), i.MemoryOperand());
-      } else if (instr->InputAt(0)->IsRegister()) {
-        __ movsxwl(i.OutputRegister(), i.InputRegister(0));
-      } else {
-        __ movsxwl(i.OutputRegister(), i.InputOperand(0));
-      }
+      ASSEMBLE_MOVX(movsxwl);
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movzxwl:
-      __ movzxwl(i.OutputRegister(), i.MemoryOperand());
+      ASSEMBLE_MOVX(movzxwl);
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movw: {
@@ -864,14 +870,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         }
       }
       break;
-    case kX64Movsxlq: {
-      if (instr->InputAt(0)->IsRegister()) {
-        __ movsxlq(i.OutputRegister(), i.InputRegister(0));
-      } else {
-        __ movsxlq(i.OutputRegister(), i.InputOperand(0));
-      }
+    case kX64Movsxlq:
+      ASSEMBLE_MOVX(movsxlq);
       break;
-    }
     case kX64Movq:
       if (instr->HasOutput()) {
         __ movq(i.OutputRegister(), i.MemoryOperand());
@@ -961,7 +962,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       Register object = i.InputRegister(0);
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
-      __ movsxlq(index, index);
       __ movq(Operand(object, index, times_1, 0), value);
       __ leaq(index, Operand(object, index, times_1, 0));
       SaveFPRegsMode mode =
@@ -1041,27 +1041,15 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
     case kSignedGreaterThan:
       __ j(greater, tlabel);
       break;
-    case kUnorderedLessThan:
-      __ j(parity_even, flabel, flabel_distance);
-    // Fall through.
     case kUnsignedLessThan:
       __ j(below, tlabel);
       break;
-    case kUnorderedGreaterThanOrEqual:
-      __ j(parity_even, tlabel);
-    // Fall through.
     case kUnsignedGreaterThanOrEqual:
       __ j(above_equal, tlabel);
       break;
-    case kUnorderedLessThanOrEqual:
-      __ j(parity_even, flabel, flabel_distance);
-    // Fall through.
     case kUnsignedLessThanOrEqual:
       __ j(below_equal, tlabel);
       break;
-    case kUnorderedGreaterThan:
-      __ j(parity_even, tlabel);
-    // Fall through.
     case kUnsignedGreaterThan:
       __ j(above, tlabel);
       break;
@@ -1122,35 +1110,15 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     case kSignedGreaterThan:
       cc = greater;
       break;
-    case kUnorderedLessThan:
-      __ j(parity_odd, &check, Label::kNear);
-      __ movl(reg, Immediate(0));
-      __ jmp(&done, Label::kNear);
-    // Fall through.
     case kUnsignedLessThan:
       cc = below;
       break;
-    case kUnorderedGreaterThanOrEqual:
-      __ j(parity_odd, &check, Label::kNear);
-      __ movl(reg, Immediate(1));
-      __ jmp(&done, Label::kNear);
-    // Fall through.
     case kUnsignedGreaterThanOrEqual:
       cc = above_equal;
       break;
-    case kUnorderedLessThanOrEqual:
-      __ j(parity_odd, &check, Label::kNear);
-      __ movl(reg, Immediate(0));
-      __ jmp(&done, Label::kNear);
-    // Fall through.
     case kUnsignedLessThanOrEqual:
       cc = below_equal;
       break;
-    case kUnorderedGreaterThan:
-      __ j(parity_odd, &check, Label::kNear);
-      __ movl(reg, Immediate(1));
-      __ jmp(&done, Label::kNear);
-    // Fall through.
     case kUnsignedGreaterThan:
       cc = above;
       break;
@@ -1165,6 +1133,33 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   __ setcc(cc, reg);
   __ movzxbl(reg, reg);
   __ bind(&done);
+}
+
+
+void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
+  X64OperandConverter i(this, instr);
+  Register input = i.InputRegister(0);
+  for (size_t index = 2; index < instr->InputCount(); index += 2) {
+    __ cmpl(input, Immediate(i.InputInt32(static_cast<int>(index + 0))));
+    __ j(equal, GetLabel(i.InputRpo(static_cast<int>(index + 1))));
+  }
+  AssembleArchJump(i.InputRpo(1));
+}
+
+
+void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
+  X64OperandConverter i(this, instr);
+  Register input = i.InputRegister(0);
+  int32_t const case_count = static_cast<int32_t>(instr->InputCount() - 2);
+  Label** cases = zone()->NewArray<Label*>(case_count);
+  for (int32_t index = 0; index < case_count; ++index) {
+    cases[index] = GetLabel(i.InputRpo(index + 2));
+  }
+  Label* const table = AddJumpTable(cases, case_count);
+  __ cmpl(input, Immediate(case_count));
+  __ j(above_equal, GetLabel(i.InputRpo(1)));
+  __ leaq(kScratchRegister, Operand(table));
+  __ jmp(Operand(kScratchRegister, input, times_8, 0));
 }
 
 
@@ -1196,11 +1191,26 @@ void CodeGenerator::AssemblePrologue() {
     __ Prologue(info->IsCodePreAgingActive());
     frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
-  } else {
+  } else if (stack_slots > 0) {
     __ StubPrologue();
     frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
   }
+
+  if (info()->is_osr()) {
+    // TurboFan OSR-compiled functions cannot be entered directly.
+    __ Abort(kShouldNotDirectlyEnterOsrFunction);
+
+    // Unoptimized code jumps directly to this entrypoint while the unoptimized
+    // frame is still on the stack. Optimized code uses OSR values directly from
+    // the unoptimized frame. Thus, all that needs to be done is to allocate the
+    // remaining stack slots.
+    if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
+    osr_pc_offset_ = __ pc_offset();
+    DCHECK(stack_slots >= frame()->GetOsrStackSlotCount());
+    stack_slots -= frame()->GetOsrStackSlotCount();
+  }
+
   if (stack_slots > 0) {
     __ subq(rsp, Immediate(stack_slots * kPointerSize));
   }
@@ -1209,10 +1219,10 @@ void CodeGenerator::AssemblePrologue() {
 
 void CodeGenerator::AssembleReturn() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  int stack_slots = frame()->GetSpillSlotCount();
   if (descriptor->kind() == CallDescriptor::kCallAddress) {
     if (frame()->GetRegisterSaveAreaSize() > 0) {
       // Remove this frame's spill slots first.
-      int stack_slots = frame()->GetSpillSlotCount();
       if (stack_slots > 0) {
         __ addq(rsp, Immediate(stack_slots * kPointerSize));
       }
@@ -1232,13 +1242,15 @@ void CodeGenerator::AssembleReturn() {
       __ popq(rbp);       // Pop caller's frame pointer.
       __ ret(0);
     }
-  } else {
+  } else if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
     __ movq(rsp, rbp);  // Move stack pointer back to frame pointer.
     __ popq(rbp);       // Pop caller's frame pointer.
     int pop_count = descriptor->IsJSFunctionCall()
                         ? static_cast<int>(descriptor->JSParameterCount())
                         : 0;
     __ ret(pop_count * kPointerSize);
+  } else {
+    __ ret(0);
   }
 }
 
@@ -1395,6 +1407,13 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
   } else {
     // No other combinations are possible.
     UNREACHABLE();
+  }
+}
+
+
+void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
+  for (size_t index = 0; index < target_count; ++index) {
+    __ dq(targets[index]);
   }
 }
 

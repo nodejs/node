@@ -30,8 +30,8 @@ class InstructionTester : public HandleAndZoneScope {
       : isolate(main_isolate()),
         graph(zone()),
         schedule(zone()),
-        info(static_cast<HydrogenCodeStub*>(NULL), main_isolate()),
-        linkage(zone(), &info),
+        fake_stub(main_isolate()),
+        info(&fake_stub, main_isolate()),
         common(zone()),
         machine(zone()),
         code(NULL) {}
@@ -39,8 +39,8 @@ class InstructionTester : public HandleAndZoneScope {
   Isolate* isolate;
   Graph graph;
   Schedule schedule;
+  FakeStubForTesting fake_stub;
   CompilationInfoWithZone info;
-  Linkage linkage;
   CommonOperatorBuilder common;
   MachineOperatorBuilder machine;
   TestInstrSeq* code;
@@ -55,7 +55,8 @@ class InstructionTester : public HandleAndZoneScope {
     }
     InstructionBlocks* instruction_blocks =
         TestInstrSeq::InstructionBlocksFor(main_zone(), &schedule);
-    code = new (main_zone()) TestInstrSeq(main_zone(), instruction_blocks);
+    code = new (main_zone())
+        TestInstrSeq(main_isolate(), main_zone(), instruction_blocks);
   }
 
   Node* Int32Constant(int32_t val) {
@@ -89,10 +90,7 @@ class InstructionTester : public HandleAndZoneScope {
   }
 
   UnallocatedOperand* NewUnallocated(int vreg) {
-    UnallocatedOperand* unallocated =
-        new (zone()) UnallocatedOperand(UnallocatedOperand::ANY);
-    unallocated->set_virtual_register(vreg);
-    return unallocated;
+    return UnallocatedOperand(UnallocatedOperand::ANY, vreg).Copy(zone());
   }
 
   InstructionBlock* BlockAt(BasicBlock* block) {
@@ -131,13 +129,10 @@ TEST(InstructionBasic) {
   BasicBlockVector* blocks = R.schedule.rpo_order();
   CHECK_EQ(static_cast<int>(blocks->size()), R.code->InstructionBlockCount());
 
-  int index = 0;
-  for (BasicBlockVectorIter i = blocks->begin(); i != blocks->end();
-       i++, index++) {
-    BasicBlock* block = *i;
+  for (auto block : *blocks) {
     CHECK_EQ(block->rpo_number(), R.BlockAt(block)->rpo_number().ToInt());
     CHECK_EQ(block->id().ToInt(), R.BlockAt(block)->id().ToInt());
-    CHECK_EQ(NULL, block->loop_end());
+    CHECK(!block->loop_end());
   }
 }
 
@@ -214,14 +209,10 @@ TEST(InstructionIsGapAt) {
   R.code->AddInstruction(g);
   R.code->EndBlock(b0->GetRpoNumber());
 
-  CHECK_EQ(true, R.code->InstructionAt(0)->IsBlockStart());
-
-  CHECK_EQ(true, R.code->IsGapAt(0));   // Label
-  CHECK_EQ(true, R.code->IsGapAt(1));   // Gap
-  CHECK_EQ(false, R.code->IsGapAt(2));  // i0
-  CHECK_EQ(true, R.code->IsGapAt(3));   // Gap
-  CHECK_EQ(true, R.code->IsGapAt(4));   // Gap
-  CHECK_EQ(false, R.code->IsGapAt(5));  // g
+  CHECK(R.code->instructions().size() == 4);
+  for (size_t i = 0; i < R.code->instructions().size(); ++i) {
+    CHECK_EQ(i % 2 == 0, R.code->instructions()[i]->IsGapMoves());
+  }
 }
 
 
@@ -248,23 +239,10 @@ TEST(InstructionIsGapAt2) {
   R.code->AddInstruction(g1);
   R.code->EndBlock(b1->GetRpoNumber());
 
-  CHECK_EQ(true, R.code->InstructionAt(0)->IsBlockStart());
-
-  CHECK_EQ(true, R.code->IsGapAt(0));   // Label
-  CHECK_EQ(true, R.code->IsGapAt(1));   // Gap
-  CHECK_EQ(false, R.code->IsGapAt(2));  // i0
-  CHECK_EQ(true, R.code->IsGapAt(3));   // Gap
-  CHECK_EQ(true, R.code->IsGapAt(4));   // Gap
-  CHECK_EQ(false, R.code->IsGapAt(5));  // g
-
-  CHECK_EQ(true, R.code->InstructionAt(6)->IsBlockStart());
-
-  CHECK_EQ(true, R.code->IsGapAt(6));    // Label
-  CHECK_EQ(true, R.code->IsGapAt(7));    // Gap
-  CHECK_EQ(false, R.code->IsGapAt(8));   // i1
-  CHECK_EQ(true, R.code->IsGapAt(9));    // Gap
-  CHECK_EQ(true, R.code->IsGapAt(10));   // Gap
-  CHECK_EQ(false, R.code->IsGapAt(11));  // g1
+  CHECK(R.code->instructions().size() == 8);
+  for (size_t i = 0; i < R.code->instructions().size(); ++i) {
+    CHECK_EQ(i % 2 == 0, R.code->instructions()[i]->IsGapMoves());
+  }
 }
 
 
@@ -282,16 +260,12 @@ TEST(InstructionAddGapMove) {
   R.code->AddInstruction(g);
   R.code->EndBlock(b0->GetRpoNumber());
 
-  CHECK_EQ(true, R.code->InstructionAt(0)->IsBlockStart());
+  CHECK(R.code->instructions().size() == 4);
+  for (size_t i = 0; i < R.code->instructions().size(); ++i) {
+    CHECK_EQ(i % 2 == 0, R.code->instructions()[i]->IsGapMoves());
+  }
 
-  CHECK_EQ(true, R.code->IsGapAt(0));   // Label
-  CHECK_EQ(true, R.code->IsGapAt(1));   // Gap
-  CHECK_EQ(false, R.code->IsGapAt(2));  // i0
-  CHECK_EQ(true, R.code->IsGapAt(3));   // Gap
-  CHECK_EQ(true, R.code->IsGapAt(4));   // Gap
-  CHECK_EQ(false, R.code->IsGapAt(5));  // g
-
-  int indexes[] = {0, 1, 3, 4, -1};
+  int indexes[] = {0, 2, -1};
   for (int i = 0; indexes[i] >= 0; i++) {
     int index = indexes[i];
 
@@ -301,7 +275,7 @@ TEST(InstructionAddGapMove) {
     R.code->AddGapMove(index, op1, op2);
     GapInstruction* gap = R.code->GapAt(index);
     ParallelMove* move = gap->GetParallelMove(GapInstruction::START);
-    CHECK_NE(NULL, move);
+    CHECK(move);
     const ZoneList<MoveOperands>* move_operands = move->move_operands();
     CHECK_EQ(1, move_operands->length());
     MoveOperands* cur = &move_operands->at(0);
@@ -312,7 +286,7 @@ TEST(InstructionAddGapMove) {
 
 
 TEST(InstructionOperands) {
-  Zone zone(CcTest::InitIsolateOnce());
+  Zone zone;
 
   {
     TestInstr* i = TestInstr::New(&zone, 101);
@@ -321,23 +295,24 @@ TEST(InstructionOperands) {
     CHECK_EQ(0, static_cast<int>(i->TempCount()));
   }
 
-  InstructionOperand* outputs[] = {
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER)};
+  int vreg = 15;
+  InstructionOperand outputs[] = {
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg)};
 
-  InstructionOperand* inputs[] = {
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER)};
+  InstructionOperand inputs[] = {
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg)};
 
-  InstructionOperand* temps[] = {
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER)};
+  InstructionOperand temps[] = {
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg)};
 
   for (size_t i = 0; i < arraysize(outputs); i++) {
     for (size_t j = 0; j < arraysize(inputs); j++) {
@@ -349,15 +324,15 @@ TEST(InstructionOperands) {
         CHECK(k == m->TempCount());
 
         for (size_t z = 0; z < i; z++) {
-          CHECK_EQ(outputs[z], m->OutputAt(z));
+          CHECK(outputs[z].Equals(m->OutputAt(z)));
         }
 
         for (size_t z = 0; z < j; z++) {
-          CHECK_EQ(inputs[z], m->InputAt(z));
+          CHECK(inputs[z].Equals(m->InputAt(z)));
         }
 
         for (size_t z = 0; z < k; z++) {
-          CHECK_EQ(temps[z], m->TempAt(z));
+          CHECK(temps[z].Equals(m->TempAt(z)));
         }
       }
     }

@@ -30,11 +30,6 @@ Handle<Object> TypeFeedbackVector::PremonomorphicSentinel(Isolate* isolate) {
 }
 
 
-Handle<Object> TypeFeedbackVector::GenericSentinel(Isolate* isolate) {
-  return isolate->factory()->generic_symbol();
-}
-
-
 Handle<Object> TypeFeedbackVector::MonomorphicArraySentinel(
     Isolate* isolate, ElementsKind elements_kind) {
   return Handle<Object>(Smi::FromInt(static_cast<int>(elements_kind)), isolate);

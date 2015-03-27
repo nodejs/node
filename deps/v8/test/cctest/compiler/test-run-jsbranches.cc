@@ -168,6 +168,33 @@ TEST(ForInContinueStatement) {
 }
 
 
+TEST(ForOfContinueStatement) {
+  const char* src =
+      "(function(a,b) {"
+      "  var r = '-';"
+      "  for (var x of a) {"
+      "    r += x + '-';"
+      "    if (b) continue;"
+      "    r += 'X-';"
+      "  }"
+      "  return r;"
+      "})";
+  FunctionTester T(src);
+
+  CompileRun(
+      "function wrap(v) {"
+      "  var iterable = {};"
+      "  function next() { return { done:!v.length, value:v.shift() }; };"
+      "  iterable[Symbol.iterator] = function() { return { next:next }; };"
+      "  return iterable;"
+      "}");
+
+  T.CheckCall(T.Val("-"), T.NewObject("wrap([])"), T.true_value());
+  T.CheckCall(T.Val("-1-2-"), T.NewObject("wrap([1,2])"), T.true_value());
+  T.CheckCall(T.Val("-1-X-2-X-"), T.NewObject("wrap([1,2])"), T.false_value());
+}
+
+
 TEST(SwitchStatement) {
   const char* src =
       "(function(a,b) {"

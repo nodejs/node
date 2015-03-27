@@ -1748,13 +1748,12 @@ class MultipleFunctionTarget {
 
 
 // Drops all call frame matched by target and all frames above them.
-template<typename TARGET>
-static const char* DropActivationsInActiveThreadImpl(
-    Isolate* isolate,
-    TARGET& target,  // NOLINT
-    bool do_drop) {
+template <typename TARGET>
+static const char* DropActivationsInActiveThreadImpl(Isolate* isolate,
+                                                     TARGET& target,  // NOLINT
+                                                     bool do_drop) {
   Debug* debug = isolate->debug();
-  Zone zone(isolate);
+  Zone zone;
   Vector<StackFrame*> frames = CreateStackMap(isolate, &zone);
 
 
@@ -1858,14 +1857,14 @@ static const char* DropActivationsInActiveThreadImpl(
 static const char* DropActivationsInActiveThread(
     Handle<JSArray> shared_info_array, Handle<JSArray> result, bool do_drop) {
   MultipleFunctionTarget target(shared_info_array, result);
+  Isolate* isolate = shared_info_array->GetIsolate();
 
-  const char* message = DropActivationsInActiveThreadImpl(
-      shared_info_array->GetIsolate(), target, do_drop);
+  const char* message =
+      DropActivationsInActiveThreadImpl(isolate, target, do_drop);
   if (message) {
     return message;
   }
 
-  Isolate* isolate = shared_info_array->GetIsolate();
   int array_len = GetArrayLength(shared_info_array);
 
   // Replace "blocked on active" with "replaced on active" status.
@@ -2027,8 +2026,8 @@ class SingleFrameTarget {
 const char* LiveEdit::RestartFrame(JavaScriptFrame* frame) {
   SingleFrameTarget target(frame);
 
-  const char* result = DropActivationsInActiveThreadImpl(
-      frame->isolate(), target, true);
+  const char* result =
+      DropActivationsInActiveThreadImpl(frame->isolate(), target, true);
   if (result != NULL) {
     return result;
   }

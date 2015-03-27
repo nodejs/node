@@ -11,9 +11,9 @@ namespace internal {
 namespace compiler {
 
 SimplifiedGraphBuilder::SimplifiedGraphBuilder(
-    Graph* graph, CommonOperatorBuilder* common,
+    Isolate* isolate, Graph* graph, CommonOperatorBuilder* common,
     MachineOperatorBuilder* machine, SimplifiedOperatorBuilder* simplified)
-    : GraphBuilder(graph),
+    : GraphBuilder(isolate, graph),
       effect_(NULL),
       return_(NULL),
       common_(common),

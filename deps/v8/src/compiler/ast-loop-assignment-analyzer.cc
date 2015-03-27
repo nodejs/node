@@ -13,7 +13,7 @@ typedef class AstLoopAssignmentAnalyzer ALAA;  // for code shortitude.
 
 ALAA::AstLoopAssignmentAnalyzer(Zone* zone, CompilationInfo* info)
     : info_(info), loop_stack_(zone) {
-  InitializeAstVisitor(zone);
+  InitializeAstVisitor(info->isolate(), zone);
 }
 
 
@@ -30,6 +30,8 @@ void ALAA::Enter(IterationStatement* loop) {
   int num_variables = 1 + info()->scope()->num_parameters() +
                       info()->scope()->num_stack_slots();
   BitVector* bits = new (zone()) BitVector(num_variables, zone());
+  if (info()->is_osr() && info()->osr_ast_id() == loop->OsrEntryId())
+    bits->AddAll();
   loop_stack_.push_back(bits);
 }
 
@@ -55,7 +57,6 @@ void ALAA::VisitFunctionDeclaration(FunctionDeclaration* leaf) {}
 void ALAA::VisitModuleDeclaration(ModuleDeclaration* leaf) {}
 void ALAA::VisitImportDeclaration(ImportDeclaration* leaf) {}
 void ALAA::VisitExportDeclaration(ExportDeclaration* leaf) {}
-void ALAA::VisitModuleVariable(ModuleVariable* leaf) {}
 void ALAA::VisitModulePath(ModulePath* leaf) {}
 void ALAA::VisitModuleUrl(ModuleUrl* leaf) {}
 void ALAA::VisitEmptyStatement(EmptyStatement* leaf) {}
@@ -203,9 +204,8 @@ void ALAA::VisitCaseClause(CaseClause* cc) {
 // -- Interesting nodes-------------------------------------------------------
 // ---------------------------------------------------------------------------
 void ALAA::VisitModuleStatement(ModuleStatement* stmt) {
-  Visit(stmt->body());
   // TODO(turbofan): can a module appear in a loop?
-  AnalyzeAssignment(stmt->proxy()->var());
+  Visit(stmt->body());
 }
 
 

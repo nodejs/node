@@ -1007,6 +1007,11 @@ class Assembler : public AssemblerBase {
   // Debugging ----------------------------------------------------------------
   PositionsRecorder* positions_recorder() { return &positions_recorder_; }
   void RecordComment(const char* msg);
+
+  // Record a deoptimization reason that can be used by a log or cpu profiler.
+  // Use --trace-deopt to enable.
+  void RecordDeoptReason(const int reason, const int raw_position);
+
   int buffer_space() const;
 
   // Mark address of the ExitJSFrame code.

@@ -171,44 +171,43 @@ TEST(VectorICProfilerStatistics) {
   Handle<JSFunction> f = v8::Utils::OpenHandle(
       *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
   // There should be one IC.
-  Code* code = f->shared()->code();
+  Handle<Code> code = handle(f->shared()->code(), isolate);
   TypeFeedbackInfo* feedback_info =
       TypeFeedbackInfo::cast(code->type_feedback_info());
   CHECK_EQ(1, feedback_info->ic_total_count());
   CHECK_EQ(0, feedback_info->ic_with_type_info_count());
   CHECK_EQ(0, feedback_info->ic_generic_count());
-  TypeFeedbackVector* feedback_vector = f->shared()->feedback_vector();
+  Handle<TypeFeedbackVector> feedback_vector =
+      handle(f->shared()->feedback_vector(), isolate);
+  int ic_slot = 0;
+  CallICNexus nexus(feedback_vector, FeedbackVectorICSlot(ic_slot));
   CHECK_EQ(1, feedback_vector->ic_with_type_info_count());
   CHECK_EQ(0, feedback_vector->ic_generic_count());
 
   // Now send the information generic.
   CompileRun("f(Object);");
-  feedback_vector = f->shared()->feedback_vector();
   CHECK_EQ(0, feedback_vector->ic_with_type_info_count());
   CHECK_EQ(1, feedback_vector->ic_generic_count());
 
-  // A collection will make the site uninitialized again.
+  // A collection will not affect the site.
   heap->CollectAllGarbage(i::Heap::kNoGCFlags);
-  feedback_vector = f->shared()->feedback_vector();
   CHECK_EQ(0, feedback_vector->ic_with_type_info_count());
-  CHECK_EQ(0, feedback_vector->ic_generic_count());
+  CHECK_EQ(1, feedback_vector->ic_generic_count());
 
   // The Array function is special. A call to array remains monomorphic
   // and isn't cleared by gc because an AllocationSite is being held.
+  // Clear the IC manually in order to test this case.
+  nexus.Clear(*code);
   CompileRun("f(Array);");
-  feedback_vector = f->shared()->feedback_vector();
   CHECK_EQ(1, feedback_vector->ic_with_type_info_count());
   CHECK_EQ(0, feedback_vector->ic_generic_count());
 
-  int ic_slot = 0;
-  CHECK(
-      feedback_vector->Get(FeedbackVectorICSlot(ic_slot))->IsAllocationSite());
+
+  CHECK(nexus.GetFeedback()->IsAllocationSite());
   heap->CollectAllGarbage(i::Heap::kNoGCFlags);
-  feedback_vector = f->shared()->feedback_vector();
   CHECK_EQ(1, feedback_vector->ic_with_type_info_count());
   CHECK_EQ(0, feedback_vector->ic_generic_count());
-  CHECK(
-      feedback_vector->Get(FeedbackVectorICSlot(ic_slot))->IsAllocationSite());
+  CHECK(nexus.GetFeedback()->IsAllocationSite());
 }
 
 
@@ -233,20 +232,21 @@ TEST(VectorCallICStates) {
   CallICNexus nexus(feedback_vector, slot);
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
   // CallIC doesn't return map feedback.
-  CHECK_EQ(NULL, nexus.FindFirstMap());
+  CHECK(!nexus.FindFirstMap());
 
   CompileRun("f(function() { return 16; })");
   CHECK_EQ(GENERIC, nexus.StateFromFeedback());
 
-  // After a collection, state should be reset to UNINITIALIZED.
+  // After a collection, state should remain GENERIC.
   heap->CollectAllGarbage(i::Heap::kNoGCFlags);
-  CHECK_EQ(UNINITIALIZED, nexus.StateFromFeedback());
+  CHECK_EQ(GENERIC, nexus.StateFromFeedback());
 
-  // Array is special. It will remain monomorphic across gcs and it contains an
-  // AllocationSite.
+  // A call to Array is special, it contains an AllocationSite as feedback.
+  // Clear the IC manually in order to test this case.
+  nexus.Clear(f->shared()->code());
   CompileRun("f(Array)");
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
-  CHECK(feedback_vector->Get(FeedbackVectorICSlot(slot))->IsAllocationSite());
+  CHECK(nexus.GetFeedback()->IsAllocationSite());
 
   heap->CollectAllGarbage(i::Heap::kNoGCFlags);
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
@@ -299,10 +299,68 @@ TEST(VectorLoadICStates) {
   // Finally driven megamorphic.
   CompileRun("f({ blarg: 3, gran: 3, torino: 10, foo: 2 })");
   CHECK_EQ(MEGAMORPHIC, nexus.StateFromFeedback());
-  CHECK_EQ(NULL, nexus.FindFirstMap());
+  CHECK(!nexus.FindFirstMap());
 
   // After a collection, state should not be reset to PREMONOMORPHIC.
   heap->CollectAllGarbage(i::Heap::kNoGCFlags);
   CHECK_EQ(MEGAMORPHIC, nexus.StateFromFeedback());
+}
+
+
+TEST(VectorLoadICOnSmi) {
+  if (i::FLAG_always_opt || !i::FLAG_vector_ics) return;
+  CcTest::InitializeVM();
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+
+  // Make sure function f has a call that uses a type feedback slot.
+  CompileRun(
+      "var o = { foo: 3 };"
+      "function f(a) { return a.foo; } f(o);");
+  Handle<JSFunction> f = v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
+  // There should be one IC.
+  Handle<TypeFeedbackVector> feedback_vector =
+      Handle<TypeFeedbackVector>(f->shared()->feedback_vector(), isolate);
+  FeedbackVectorICSlot slot(0);
+  LoadICNexus nexus(feedback_vector, slot);
+  CHECK_EQ(PREMONOMORPHIC, nexus.StateFromFeedback());
+
+  CompileRun("f(34)");
+  CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
+  // Verify that the monomorphic map is the one we expect.
+  Map* number_map = heap->heap_number_map();
+  CHECK_EQ(number_map, nexus.FindFirstMap());
+
+  // Now go polymorphic on o.
+  CompileRun("f(o)");
+  CHECK_EQ(POLYMORPHIC, nexus.StateFromFeedback());
+
+  MapHandleList maps;
+  nexus.FindAllMaps(&maps);
+  CHECK_EQ(2, maps.length());
+
+  // One of the maps should be the o map.
+  Handle<JSObject> o = v8::Utils::OpenHandle(
+      *v8::Handle<v8::Object>::Cast(CcTest::global()->Get(v8_str("o"))));
+  bool number_map_found = false;
+  bool o_map_found = false;
+  for (int i = 0; i < maps.length(); i++) {
+    Handle<Map> current = maps[i];
+    if (*current == number_map)
+      number_map_found = true;
+    else if (*current == o->map())
+      o_map_found = true;
+  }
+  CHECK(number_map_found && o_map_found);
+
+  // The degree of polymorphism doesn't change.
+  CompileRun("f(100)");
+  CHECK_EQ(POLYMORPHIC, nexus.StateFromFeedback());
+  MapHandleList maps2;
+  nexus.FindAllMaps(&maps2);
+  CHECK_EQ(2, maps2.length());
 }
 }

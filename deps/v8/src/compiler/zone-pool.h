@@ -9,7 +9,7 @@
 #include <set>
 #include <vector>
 
-#include "src/v8.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -60,7 +60,7 @@ class ZonePool FINAL {
     DISALLOW_COPY_AND_ASSIGN(StatsScope);
   };
 
-  explicit ZonePool(Isolate* isolate);
+  ZonePool();
   ~ZonePool();
 
   size_t GetMaxAllocatedBytes();
@@ -76,7 +76,6 @@ class ZonePool FINAL {
   typedef std::vector<Zone*> Used;
   typedef std::vector<StatsScope*> Stats;
 
-  Isolate* const isolate_;
   Unused unused_;
   Used used_;
   Stats stats_;

@@ -19,8 +19,7 @@ class MachineOperatorBuilder;
 
 class ChangeLowering FINAL : public Reducer {
  public:
-  ChangeLowering(JSGraph* jsgraph, Linkage* linkage)
-      : jsgraph_(jsgraph), linkage_(linkage) {}
+  explicit ChangeLowering(JSGraph* jsgraph) : jsgraph_(jsgraph) {}
   ~ChangeLowering() FINAL;
 
   Reduction Reduce(Node* node) FINAL;
@@ -52,12 +51,10 @@ class ChangeLowering FINAL : public Reducer {
   Graph* graph() const;
   Isolate* isolate() const;
   JSGraph* jsgraph() const { return jsgraph_; }
-  Linkage* linkage() const { return linkage_; }
   CommonOperatorBuilder* common() const;
   MachineOperatorBuilder* machine() const;
 
   JSGraph* jsgraph_;
-  Linkage* linkage_;
 };
 
 }  // namespace compiler

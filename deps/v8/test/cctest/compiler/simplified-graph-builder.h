@@ -18,13 +18,13 @@ namespace compiler {
 
 class SimplifiedGraphBuilder : public GraphBuilder {
  public:
-  SimplifiedGraphBuilder(Graph* graph, CommonOperatorBuilder* common,
+  SimplifiedGraphBuilder(Isolate* isolate, Graph* graph,
+                         CommonOperatorBuilder* common,
                          MachineOperatorBuilder* machine,
                          SimplifiedOperatorBuilder* simplified);
   virtual ~SimplifiedGraphBuilder() {}
 
   Zone* zone() const { return graph()->zone(); }
-  Isolate* isolate() const { return zone()->isolate(); }
   CommonOperatorBuilder* common() const { return common_; }
   MachineOperatorBuilder* machine() const { return machine_; }
   SimplifiedOperatorBuilder* simplified() const { return simplified_; }

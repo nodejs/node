@@ -942,6 +942,7 @@ const int kCArgSlotCount = (kMipsAbi == kN64) ? 0 : 4;
 // TODO(plind): find all usages and remove the needless instructions for n64.
 const int kCArgsSlotsSize = kCArgSlotCount * Instruction::kInstrSize * 2;
 
+const int kInvalidStackOffset = -1;
 const int kBranchReturnOffset = 2 * Instruction::kInstrSize;
 
 } }   // namespace v8::internal

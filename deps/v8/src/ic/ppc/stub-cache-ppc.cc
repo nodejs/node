@@ -7,7 +7,9 @@
 #if V8_TARGET_ARCH_PPC
 
 #include "src/codegen.h"
+#include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
+#include "src/interface-descriptors.h"
 
 namespace v8 {
 namespace internal {
@@ -16,7 +18,7 @@ namespace internal {
 
 
 static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
-                       Code::Flags flags, bool leave_frame,
+                       Code::Kind ic_kind, Code::Flags flags, bool leave_frame,
                        StubCache::Table table, Register receiver, Register name,
                        // Number of the cache entry, not scaled.
                        Register offset, Register scratch, Register scratch2,
@@ -48,8 +50,14 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
 
   // Calculate the base address of the entry.
   __ mov(base_addr, Operand(key_offset));
-  __ ShiftLeftImm(scratch2, offset_scratch, Operand(kPointerSizeLog2));
-  __ add(base_addr, base_addr, scratch2);
+#if V8_TARGET_ARCH_PPC64
+  DCHECK(kPointerSizeLog2 > StubCache::kCacheIndexShift);
+  __ ShiftLeftImm(offset_scratch, offset_scratch,
+                  Operand(kPointerSizeLog2 - StubCache::kCacheIndexShift));
+#else
+  DCHECK(kPointerSizeLog2 == StubCache::kCacheIndexShift);
+#endif
+  __ add(base_addr, base_addr, offset_scratch);
 
   // Check that the key in the entry matches the name.
   __ LoadP(ip, MemOperand(base_addr, 0));
@@ -99,10 +107,11 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
 }
 
 
-void StubCache::GenerateProbe(MacroAssembler* masm, Code::Flags flags,
-                              bool leave_frame, Register receiver,
-                              Register name, Register scratch, Register extra,
-                              Register extra2, Register extra3) {
+void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
+                              Code::Flags flags, bool leave_frame,
+                              Register receiver, Register name,
+                              Register scratch, Register extra, Register extra2,
+                              Register extra3) {
   Isolate* isolate = masm->isolate();
   Label miss;
 
@@ -120,21 +129,24 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Flags flags,
   DCHECK(Code::ExtractTypeFromFlags(flags) == 0);
 
   // Make sure that there are no register conflicts.
-  DCHECK(!scratch.is(receiver));
-  DCHECK(!scratch.is(name));
-  DCHECK(!extra.is(receiver));
-  DCHECK(!extra.is(name));
-  DCHECK(!extra.is(scratch));
-  DCHECK(!extra2.is(receiver));
-  DCHECK(!extra2.is(name));
-  DCHECK(!extra2.is(scratch));
-  DCHECK(!extra2.is(extra));
+  DCHECK(!AreAliased(receiver, name, scratch, extra, extra2, extra3));
 
   // Check scratch, extra and extra2 registers are valid.
   DCHECK(!scratch.is(no_reg));
   DCHECK(!extra.is(no_reg));
   DCHECK(!extra2.is(no_reg));
   DCHECK(!extra3.is(no_reg));
+
+#ifdef DEBUG
+  // If vector-based ics are in use, ensure that scratch, extra, extra2 and
+  // extra3 don't conflict with the vector and slot registers, which need
+  // to be preserved for a handler call or miss.
+  if (IC::ICUseVector(ic_kind)) {
+    Register vector = VectorLoadICDescriptor::VectorRegister();
+    Register slot = VectorLoadICDescriptor::SlotRegister();
+    DCHECK(!AreAliased(vector, slot, scratch, extra, extra2, extra3));
+  }
+#endif
 
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->megamorphic_stub_cache_probes(), 1, extra2,
@@ -147,34 +159,24 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Flags flags,
   __ lwz(scratch, FieldMemOperand(name, Name::kHashFieldOffset));
   __ LoadP(ip, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ add(scratch, scratch, ip);
-#if V8_TARGET_ARCH_PPC64
-  // Use only the low 32 bits of the map pointer.
-  __ rldicl(scratch, scratch, 0, 32);
-#endif
-  uint32_t mask = kPrimaryTableSize - 1;
-  // We shift out the last two bits because they are not part of the hash and
-  // they are always 01 for maps.
-  __ ShiftRightImm(scratch, scratch, Operand(kCacheIndexShift));
-  // Mask down the eor argument to the minimum to keep the immediate
-  // encodable.
-  __ xori(scratch, scratch, Operand((flags >> kCacheIndexShift) & mask));
-  // Prefer and_ to ubfx here because ubfx takes 2 cycles.
-  __ andi(scratch, scratch, Operand(mask));
+  __ xori(scratch, scratch, Operand(flags));
+  // The mask omits the last two bits because they are not part of the hash.
+  __ andi(scratch, scratch,
+          Operand((kPrimaryTableSize - 1) << kCacheIndexShift));
 
   // Probe the primary table.
-  ProbeTable(isolate, masm, flags, leave_frame, kPrimary, receiver, name,
-             scratch, extra, extra2, extra3);
+  ProbeTable(isolate, masm, ic_kind, flags, leave_frame, kPrimary, receiver,
+             name, scratch, extra, extra2, extra3);
 
   // Primary miss: Compute hash for secondary probe.
-  __ ShiftRightImm(extra, name, Operand(kCacheIndexShift));
-  __ sub(scratch, scratch, extra);
-  uint32_t mask2 = kSecondaryTableSize - 1;
-  __ addi(scratch, scratch, Operand((flags >> kCacheIndexShift) & mask2));
-  __ andi(scratch, scratch, Operand(mask2));
+  __ sub(scratch, scratch, name);
+  __ addi(scratch, scratch, Operand(flags));
+  __ andi(scratch, scratch,
+          Operand((kSecondaryTableSize - 1) << kCacheIndexShift));
 
   // Probe the secondary table.
-  ProbeTable(isolate, masm, flags, leave_frame, kSecondary, receiver, name,
-             scratch, extra, extra2, extra3);
+  ProbeTable(isolate, masm, ic_kind, flags, leave_frame, kSecondary, receiver,
+             name, scratch, extra, extra2, extra3);
 
   // Cache miss: Fall-through and let caller handle the miss by
   // entering the runtime system.

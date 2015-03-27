@@ -365,7 +365,7 @@ class RelocInfo {
     CODE_TARGET,  // Code target which is not any of the above.
     CODE_TARGET_WITH_ID,
     CONSTRUCT_CALL,  // code target that is a call to a JavaScript constructor.
-    DEBUG_BREAK,  // Code target for the debugger statement.
+    DEBUG_BREAK,     // Code target for the debugger statement.
     EMBEDDED_OBJECT,
     CELL,
 
@@ -373,9 +373,9 @@ class RelocInfo {
     RUNTIME_ENTRY,
     JS_RETURN,  // Marks start of the ExitJSFrame code.
     COMMENT,
-    POSITION,  // See comment for kNoPosition above.
+    POSITION,            // See comment for kNoPosition above.
     STATEMENT_POSITION,  // See comment for kNoPosition above.
-    DEBUG_BREAK_SLOT,  // Additional code inserted for debug break slot.
+    DEBUG_BREAK_SLOT,    // Additional code inserted for debug break slot.
     EXTERNAL_REFERENCE,  // The address of an external C++ function.
     INTERNAL_REFERENCE,  // An address inside the same function.
 
@@ -384,13 +384,20 @@ class RelocInfo {
     CONST_POOL,
     VENEER_POOL,
 
+    DEOPT_REASON,  // Deoptimization reason index.
+
     // add more as needed
     // Pseudo-types
-    NUMBER_OF_MODES,  // There are at most 15 modes with noncompact encoding.
-    NONE32,  // never recorded 32-bit value
-    NONE64,  // never recorded 64-bit value
+    NUMBER_OF_MODES,    // There are at most 15 modes with noncompact encoding.
+    NONE32,             // never recorded 32-bit value
+    NONE64,             // never recorded 64-bit value
     CODE_AGE_SEQUENCE,  // Not stored in RelocInfo array, used explictly by
                         // code aging.
+
+    // Encoded internal reference, used only on MIPS and MIPS64.
+    // Re-uses previous ARM-only encoding, to fit in RealRelocMode space.
+    INTERNAL_REFERENCE_ENCODED = CONST_POOL,
+
     FIRST_REAL_RELOC_MODE = CODE_TARGET,
     LAST_REAL_RELOC_MODE = VENEER_POOL,
     FIRST_PSEUDO_RELOC_MODE = CODE_AGE_SEQUENCE,
@@ -448,6 +455,9 @@ class RelocInfo {
   static inline bool IsVeneerPool(Mode mode) {
     return mode == VENEER_POOL;
   }
+  static inline bool IsDeoptReason(Mode mode) {
+    return mode == DEOPT_REASON;
+  }
   static inline bool IsPosition(Mode mode) {
     return mode == POSITION || mode == STATEMENT_POSITION;
   }
@@ -459,6 +469,9 @@ class RelocInfo {
   }
   static inline bool IsInternalReference(Mode mode) {
     return mode == INTERNAL_REFERENCE;
+  }
+  static inline bool IsInternalReferenceEncoded(Mode mode) {
+    return mode == INTERNAL_REFERENCE_ENCODED;
   }
   static inline bool IsDebugBreakSlot(Mode mode) {
     return mode == DEBUG_BREAK_SLOT;
@@ -642,14 +655,24 @@ class RelocInfo {
 // lower addresses.
 class RelocInfoWriter BASE_EMBEDDED {
  public:
-  RelocInfoWriter() : pos_(NULL),
-                      last_pc_(NULL),
-                      last_id_(0),
-                      last_position_(0) {}
-  RelocInfoWriter(byte* pos, byte* pc) : pos_(pos),
-                                         last_pc_(pc),
-                                         last_id_(0),
-                                         last_position_(0) {}
+  RelocInfoWriter()
+      : pos_(NULL),
+        last_pc_(NULL),
+        last_id_(0),
+        last_position_(0),
+        last_mode_(RelocInfo::NUMBER_OF_MODES),
+        next_position_candidate_pos_delta_(0),
+        next_position_candidate_pc_delta_(0),
+        next_position_candidate_flushed_(true) {}
+  RelocInfoWriter(byte* pos, byte* pc)
+      : pos_(pos),
+        last_pc_(pc),
+        last_id_(0),
+        last_position_(0),
+        last_mode_(RelocInfo::NUMBER_OF_MODES),
+        next_position_candidate_pos_delta_(0),
+        next_position_candidate_pc_delta_(0),
+        next_position_candidate_flushed_(true) {}
 
   byte* pos() const { return pos_; }
   byte* last_pc() const { return last_pc_; }
@@ -662,6 +685,8 @@ class RelocInfoWriter BASE_EMBEDDED {
     pos_ = pos;
     last_pc_ = pc;
   }
+
+  void Finish() { FlushPosition(); }
 
   // Max size (bytes) of a written RelocInfo. Longest encoding is
   // ExtraTag, VariableLengthPCJump, ExtraTag, pc_delta, ExtraTag, data_delta.
@@ -679,11 +704,19 @@ class RelocInfoWriter BASE_EMBEDDED {
   inline void WriteExtraTaggedData(intptr_t data_delta, int top_tag);
   inline void WriteTaggedData(intptr_t data_delta, int tag);
   inline void WriteExtraTag(int extra_tag, int top_tag);
+  inline void WritePosition(int pc_delta, int pos_delta, RelocInfo::Mode rmode);
+
+  void FlushPosition();
 
   byte* pos_;
   byte* last_pc_;
   int last_id_;
   int last_position_;
+  RelocInfo::Mode last_mode_;
+  int next_position_candidate_pos_delta_;
+  uint32_t next_position_candidate_pc_delta_;
+  bool next_position_candidate_flushed_;
+
   DISALLOW_COPY_AND_ASSIGN(RelocInfoWriter);
 };
 
@@ -733,6 +766,7 @@ class RelocIterator: public Malloced {
   int GetLocatableTypeTag();
   void ReadTaggedId();
   void ReadTaggedPosition();
+  void ReadTaggedData();
 
   // If the given mode is wanted, set it in rinfo_ and return true.
   // Else return false. Used for efficiently skipping unwanted modes.
@@ -925,7 +959,6 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference address_of_one_half();
   static ExternalReference address_of_minus_one_half();
   static ExternalReference address_of_negative_infinity();
-  static ExternalReference address_of_canonical_non_hole_nan();
   static ExternalReference address_of_the_hole_nan();
   static ExternalReference address_of_uint32_bias();
 

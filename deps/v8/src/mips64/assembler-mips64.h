@@ -37,6 +37,9 @@
 #define V8_MIPS_ASSEMBLER_MIPS_H_
 
 #include <stdio.h>
+
+#include <set>
+
 #include "src/assembler.h"
 #include "src/mips64/constants-mips64.h"
 #include "src/serialize.h"
@@ -323,6 +326,8 @@ const FPURegister f31 = { 31 };
 #define kLithiumScratchReg2 s4
 #define kLithiumScratchDouble f30
 #define kDoubleRegZero f28
+// Used on mips64r6 for compare operations.
+#define kDoubleCompareReg f31
 
 // FPU (coprocessor 1) control registers.
 // Currently only FCSR (#31) is implemented.
@@ -1053,12 +1058,18 @@ class Assembler : public AssemblerBase {
   // Use --code-comments to enable.
   void RecordComment(const char* msg);
 
-  static int RelocateInternalReference(byte* pc, intptr_t pc_delta);
+  // Record a deoptimization reason that can be used by a log or cpu profiler.
+  // Use --trace-deopt to enable.
+  void RecordDeoptReason(const int reason, const int raw_position);
+
+  static int RelocateInternalReference(RelocInfo::Mode rmode, byte* pc,
+                                       intptr_t pc_delta);
 
   // Writes a single byte or word of data in the code stream.  Used for
   // inline tables, e.g., jump-tables.
   void db(uint8_t data);
   void dd(uint32_t data);
+  void dd(Label* label);
 
   // Emits the address of the code stub's first instruction.
   void emit_code_stub_address(Code* stub);
@@ -1157,10 +1168,10 @@ class Assembler : public AssemblerBase {
   int64_t buffer_space() const { return reloc_info_writer.pos() - pc_; }
 
   // Decode branch instruction at pos and return branch target pos.
-  int64_t target_at(int64_t pos);
+  int64_t target_at(int64_t pos, bool is_internal);
 
   // Patch branch instruction at pos to branch to given branch target pos.
-  void target_at_put(int64_t pos, int64_t target_pos);
+  void target_at_put(int64_t pos, int64_t target_pos, bool is_internal);
 
   // Say if we need to relocate with this mode.
   bool MustUseReg(RelocInfo::Mode rmode);
@@ -1330,7 +1341,7 @@ class Assembler : public AssemblerBase {
   // Labels.
   void print(Label* L);
   void bind_to(Label* L, int pos);
-  void next(Label* L);
+  void next(Label* L, bool is_internal);
 
   // One trampoline consists of:
   // - space for trampoline slots,
@@ -1394,6 +1405,10 @@ class Assembler : public AssemblerBase {
   static const int kTrampolineSlotsSize = 6 * kInstrSize;
   static const int kMaxBranchOffset = (1 << (18 - 1)) - 1;
   static const int kInvalidSlotPos = -1;
+
+  // Internal reference positions, required for unbounded internal reference
+  // labels.
+  std::set<int64_t> internal_reference_positions_;
 
   Trampoline trampoline_;
   bool internal_trampoline_exception_;

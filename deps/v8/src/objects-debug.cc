@@ -207,7 +207,7 @@ void HeapObject::VerifyHeapPointer(Object* p) {
 void Symbol::SymbolVerify() {
   CHECK(IsSymbol());
   CHECK(HasHashCode());
-  CHECK_GT(Hash(), 0);
+  CHECK_GT(Hash(), 0u);
   CHECK(name()->IsUndefined() || name()->IsString());
   CHECK(flags()->IsSmi());
 }
@@ -276,7 +276,7 @@ void JSObject::JSObjectVerify() {
     }
     DescriptorArray* descriptors = map()->instance_descriptors();
     for (int i = 0; i < map()->NumberOfOwnDescriptors(); i++) {
-      if (descriptors->GetDetails(i).type() == FIELD) {
+      if (descriptors->GetDetails(i).type() == DATA) {
         Representation r = descriptors->GetDetails(i).representation();
         FieldIndex index = FieldIndex::ForDescriptor(map(), i);
         if (IsUnboxedDoubleField(index)) {
@@ -324,8 +324,9 @@ void Map::MapVerify() {
     SLOW_DCHECK(transitions()->IsSortedNoDuplicates());
     SLOW_DCHECK(transitions()->IsConsistentWithBackPointers(this));
   }
-  SLOW_DCHECK(!FLAG_unbox_double_fields ||
-              layout_descriptor()->IsConsistentWithMap(this));
+  // TODO(ishell): turn it back to SLOW_DCHECK.
+  CHECK(!FLAG_unbox_double_fields ||
+        layout_descriptor()->IsConsistentWithMap(this));
 }
 
 
@@ -389,11 +390,14 @@ void FixedArray::FixedArrayVerify() {
 void FixedDoubleArray::FixedDoubleArrayVerify() {
   for (int i = 0; i < length(); i++) {
     if (!is_the_hole(i)) {
-      double value = get_scalar(i);
-      CHECK(!std::isnan(value) ||
-            (bit_cast<uint64_t>(value) ==
-             bit_cast<uint64_t>(canonical_not_the_hole_nan_as_double())) ||
-            ((bit_cast<uint64_t>(value) & Double::kSignMask) != 0));
+      uint64_t value = get_representation(i);
+      uint64_t unexpected =
+          bit_cast<uint64_t>(std::numeric_limits<double>::quiet_NaN()) &
+          V8_UINT64_C(0x7FF8000000000000);
+      // Create implementation specific sNaN by inverting relevant bit.
+      unexpected ^= V8_UINT64_C(0x0008000000000000);
+      CHECK((value & V8_UINT64_C(0x7FF8000000000000)) != unexpected ||
+            (value & V8_UINT64_C(0x0007FFFFFFFFFFFF)) == V8_UINT64_C(0));
     }
   }
 }
@@ -567,7 +571,6 @@ void JSGlobalProxy::JSGlobalProxyVerify() {
   VerifyObjectField(JSGlobalProxy::kNativeContextOffset);
   // Make sure that this object has no properties, elements.
   CHECK_EQ(0, properties()->length());
-  CHECK_EQ(FAST_HOLEY_SMI_ELEMENTS, GetElementsKind());
   CHECK_EQ(0, FixedArray::cast(elements())->length());
 }
 
@@ -675,6 +678,7 @@ void Code::CodeVerify() {
 
 void Code::VerifyEmbeddedObjectsDependency() {
   if (!CanContainWeakObjects()) return;
+  WeakCell* cell = CachedWeakCell();
   DisallowHeapAllocation no_gc;
   Isolate* isolate = GetIsolate();
   HandleScope scope(isolate);
@@ -685,13 +689,13 @@ void Code::VerifyEmbeddedObjectsDependency() {
       if (obj->IsMap()) {
         Map* map = Map::cast(obj);
         CHECK(map->dependent_code()->Contains(DependentCode::kWeakCodeGroup,
-                                              this));
+                                              cell));
       } else if (obj->IsJSObject()) {
-        Object* raw_table = GetIsolate()->heap()->weak_object_to_code_table();
-        WeakHashTable* table = WeakHashTable::cast(raw_table);
-        Handle<Object> key_obj(obj, isolate);
-        CHECK(DependentCode::cast(table->Lookup(key_obj))->Contains(
-            DependentCode::kWeakCodeGroup, this));
+        WeakHashTable* table =
+            GetIsolate()->heap()->weak_object_to_code_table();
+        Handle<HeapObject> key_obj(HeapObject::cast(obj), isolate);
+        CHECK(DependentCode::cast(table->Lookup(key_obj))
+                  ->Contains(DependentCode::kWeakCodeGroup, cell));
       }
     }
   }
@@ -894,19 +898,6 @@ void ExecutableAccessorInfo::ExecutableAccessorInfoVerify() {
 }
 
 
-void DeclaredAccessorDescriptor::DeclaredAccessorDescriptorVerify() {
-  CHECK(IsDeclaredAccessorDescriptor());
-  VerifyPointer(serialized_data());
-}
-
-
-void DeclaredAccessorInfo::DeclaredAccessorInfoVerify() {
-  CHECK(IsDeclaredAccessorInfo());
-  AccessorInfoVerify();
-  VerifyPointer(descriptor());
-}
-
-
 void AccessorPair::AccessorPairVerify() {
   CHECK(IsAccessorPair());
   VerifyPointer(getter());
@@ -968,13 +959,6 @@ void ObjectTemplateInfo::ObjectTemplateInfoVerify() {
   TemplateInfoVerify();
   VerifyPointer(constructor());
   VerifyPointer(internal_field_count());
-}
-
-
-void SignatureInfo::SignatureInfoVerify() {
-  CHECK(IsSignatureInfo());
-  VerifyPointer(receiver());
-  VerifyPointer(args());
 }
 
 
@@ -1188,37 +1172,16 @@ bool DescriptorArray::IsSortedNoDuplicates(int valid_entries) {
 }
 
 
-bool LayoutDescriptor::IsConsistentWithMap(Map* map) {
-  if (FLAG_unbox_double_fields) {
-    DescriptorArray* descriptors = map->instance_descriptors();
-    int nof_descriptors = map->NumberOfOwnDescriptors();
-    for (int i = 0; i < nof_descriptors; i++) {
-      PropertyDetails details = descriptors->GetDetails(i);
-      if (details.type() != FIELD) continue;
-      FieldIndex field_index = FieldIndex::ForDescriptor(map, i);
-      bool tagged_expected =
-          !field_index.is_inobject() || !details.representation().IsDouble();
-      for (int bit = 0; bit < details.field_width_in_words(); bit++) {
-        bool tagged_actual = IsTagged(details.field_index() + bit);
-        DCHECK_EQ(tagged_expected, tagged_actual);
-        if (tagged_actual != tagged_expected) return false;
-      }
-    }
-  }
-  return true;
-}
-
-
 bool TransitionArray::IsSortedNoDuplicates(int valid_entries) {
   DCHECK(valid_entries == -1);
   Name* prev_key = NULL;
-  PropertyKind prev_kind = DATA;
+  PropertyKind prev_kind = kData;
   PropertyAttributes prev_attributes = NONE;
   uint32_t prev_hash = 0;
   for (int i = 0; i < number_of_transitions(); i++) {
     Name* key = GetSortedKey(i);
     uint32_t hash = key->Hash();
-    PropertyKind kind = DATA;
+    PropertyKind kind = kData;
     PropertyAttributes attributes = NONE;
     if (!IsSpecialTransition(key)) {
       Map* target = GetTarget(i);
@@ -1258,20 +1221,44 @@ bool TransitionArray::IsConsistentWithBackPointers(Map* current_map) {
 }
 
 
-void Code::VerifyEmbeddedObjectsInFullCode() {
-  // Check that no context-specific object has been embedded.
-  Heap* heap = GetIsolate()->heap();
-  int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-  for (RelocIterator it(this, mask); !it.done(); it.next()) {
-    Object* obj = it.rinfo()->target_object();
-    if (obj->IsCell()) obj = Cell::cast(obj)->value();
-    if (obj->IsPropertyCell()) obj = PropertyCell::cast(obj)->value();
-    if (!obj->IsHeapObject()) continue;
-    Map* map = obj->IsMap() ? Map::cast(obj) : HeapObject::cast(obj)->map();
-    int i = 0;
-    while (map != heap->roots_array_start()[i++]) {
-      CHECK_LT(i, Heap::kStrongRootListLength);
+// Estimates if there is a path from the object to a context.
+// This function is not precise, and can return false even if
+// there is a path to a context.
+bool CanLeak(Object* obj, Heap* heap, bool skip_weak_cell) {
+  if (!obj->IsHeapObject()) return false;
+  if (obj->IsWeakCell()) {
+    if (skip_weak_cell) return false;
+    return CanLeak(WeakCell::cast(obj)->value(), heap, skip_weak_cell);
+  }
+  if (obj->IsCell()) {
+    return CanLeak(Cell::cast(obj)->value(), heap, skip_weak_cell);
+  }
+  if (obj->IsPropertyCell()) {
+    return CanLeak(PropertyCell::cast(obj)->value(), heap, skip_weak_cell);
+  }
+  if (obj->IsContext()) return true;
+  if (obj->IsMap()) {
+    Map* map = Map::cast(obj);
+    for (int i = 0; i < Heap::kStrongRootListLength; i++) {
+      if (map == heap->roots_array_start()[i]) return false;
     }
+    return true;
+  }
+  return CanLeak(HeapObject::cast(obj)->map(), heap, skip_weak_cell);
+}
+
+
+void Code::VerifyEmbeddedObjects(VerifyMode mode) {
+  if (kind() == OPTIMIZED_FUNCTION) return;
+  Heap* heap = GetIsolate()->heap();
+  int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
+             RelocInfo::ModeMask(RelocInfo::CELL);
+  bool skip_weak_cell = (mode == kNoContextSpecificPointers) ? false : true;
+  for (RelocIterator it(this, mask); !it.done(); it.next()) {
+    Object* target = it.rinfo()->rmode() == RelocInfo::CELL
+                         ? it.rinfo()->target_cell()
+                         : it.rinfo()->target_object();
+    CHECK(!CanLeak(target, heap, skip_weak_cell));
   }
 }
 

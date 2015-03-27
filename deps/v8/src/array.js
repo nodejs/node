@@ -361,7 +361,7 @@ function ArrayToString() {
     func = array.join;
   }
   if (!IS_SPEC_FUNCTION(func)) {
-    return %_CallFunction(array, NoSideEffectsObjectToString);
+    return %_CallFunction(array, DefaultObjectToString);
   }
   return %_CallFunction(array, func);
 }

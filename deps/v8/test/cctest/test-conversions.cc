@@ -172,12 +172,12 @@ TEST(TrailingJunk) {
 
 TEST(NonStrDecimalLiteral) {
   UnicodeCache uc;
-  CHECK(std::isnan(
-      StringToDouble(&uc, " ", NO_FLAGS, v8::base::OS::nan_value())));
-  CHECK(
-      std::isnan(StringToDouble(&uc, "", NO_FLAGS, v8::base::OS::nan_value())));
-  CHECK(std::isnan(
-      StringToDouble(&uc, " ", NO_FLAGS, v8::base::OS::nan_value())));
+  CHECK(std::isnan(StringToDouble(&uc, " ", NO_FLAGS,
+                                  std::numeric_limits<double>::quiet_NaN())));
+  CHECK(std::isnan(StringToDouble(&uc, "", NO_FLAGS,
+                                  std::numeric_limits<double>::quiet_NaN())));
+  CHECK(std::isnan(StringToDouble(&uc, " ", NO_FLAGS,
+                                  std::numeric_limits<double>::quiet_NaN())));
   CHECK_EQ(0.0, StringToDouble(&uc, "", NO_FLAGS));
   CHECK_EQ(0.0, StringToDouble(&uc, " ", NO_FLAGS));
 }
@@ -318,7 +318,7 @@ TEST(BitField) {
   // One bit bit field can hold values 0 and 1.
   CHECK(!OneBit1::is_valid(static_cast<uint32_t>(-1)));
   CHECK(!OneBit2::is_valid(static_cast<uint32_t>(-1)));
-  for (int i = 0; i < 2; i++) {
+  for (unsigned i = 0; i < 2; i++) {
     CHECK(OneBit1::is_valid(i));
     x = OneBit1::encode(i);
     CHECK_EQ(i, OneBit1::decode(x));
@@ -333,7 +333,7 @@ TEST(BitField) {
   // Eight bit bit field can hold values from 0 tp 255.
   CHECK(!EightBit1::is_valid(static_cast<uint32_t>(-1)));
   CHECK(!EightBit2::is_valid(static_cast<uint32_t>(-1)));
-  for (int i = 0; i < 256; i++) {
+  for (unsigned i = 0; i < 256; i++) {
     CHECK(EightBit1::is_valid(i));
     x = EightBit1::encode(i);
     CHECK_EQ(i, EightBit1::decode(x));

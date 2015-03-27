@@ -182,7 +182,7 @@ void ConditionVariable::NativeHandle::Post(Event* event, bool result) {
 
   // Remove the event from the wait list.
   for (Event** wep = &waitlist_;; wep = &(*wep)->next_) {
-    DCHECK_NE(NULL, *wep);
+    DCHECK(*wep);
     if (*wep == event) {
       *wep = event->next_;
       break;

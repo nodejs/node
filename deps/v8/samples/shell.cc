@@ -98,6 +98,7 @@ int main(int argc, char* argv[]) {
     result = RunMain(isolate, argc, argv);
     if (run_shell) RunShell(context);
   }
+  isolate->Dispose();
   v8::V8::Dispose();
   v8::V8::ShutdownPlatform();
   delete platform;

@@ -69,7 +69,8 @@ RegisterConfiguration* InstructionSequenceTest::config() {
 
 InstructionSequence* InstructionSequenceTest::sequence() {
   if (sequence_ == nullptr) {
-    sequence_ = new (zone()) InstructionSequence(zone(), &instruction_blocks_);
+    sequence_ = new (zone())
+        InstructionSequence(isolate(), zone(), &instruction_blocks_);
   }
   return sequence_;
 }
@@ -137,7 +138,7 @@ InstructionSequenceTest::TestOperand InstructionSequenceTest::Imm(int32_t imm) {
 InstructionSequenceTest::VReg InstructionSequenceTest::Define(
     TestOperand output_op) {
   VReg vreg = NewReg();
-  InstructionOperand* outputs[1]{ConvertOutputOp(vreg, output_op)};
+  InstructionOperand outputs[1]{ConvertOutputOp(vreg, output_op)};
   Emit(vreg.value_, kArchNop, 1, outputs);
   return vreg;
 }
@@ -145,7 +146,7 @@ InstructionSequenceTest::VReg InstructionSequenceTest::Define(
 
 int InstructionSequenceTest::Return(TestOperand input_op_0) {
   block_returns_ = true;
-  InstructionOperand* inputs[1]{ConvertInputOp(input_op_0)};
+  InstructionOperand inputs[1]{ConvertInputOp(input_op_0)};
   return Emit(NewIndex(), kArchRet, 0, nullptr, 1, inputs);
 }
 
@@ -154,20 +155,35 @@ PhiInstruction* InstructionSequenceTest::Phi(VReg incoming_vreg_0,
                                              VReg incoming_vreg_1,
                                              VReg incoming_vreg_2,
                                              VReg incoming_vreg_3) {
-  auto phi = new (zone()) PhiInstruction(zone(), NewReg().value_, 10);
   VReg inputs[] = {incoming_vreg_0, incoming_vreg_1, incoming_vreg_2,
                    incoming_vreg_3};
-  for (size_t i = 0; i < arraysize(inputs); ++i) {
-    if (inputs[i].value_ == kNoValue) break;
-    Extend(phi, inputs[i]);
+  size_t input_count = 0;
+  for (; input_count < arraysize(inputs); ++input_count) {
+    if (inputs[input_count].value_ == kNoValue) break;
+  }
+  CHECK(input_count > 0);
+  auto phi = new (zone()) PhiInstruction(zone(), NewReg().value_, input_count);
+  for (size_t i = 0; i < input_count; ++i) {
+    SetInput(phi, i, inputs[i]);
   }
   current_block_->AddPhi(phi);
   return phi;
 }
 
 
-void InstructionSequenceTest::Extend(PhiInstruction* phi, VReg vreg) {
-  phi->Extend(zone(), vreg.value_);
+PhiInstruction* InstructionSequenceTest::Phi(VReg incoming_vreg_0,
+                                             size_t input_count) {
+  auto phi = new (zone()) PhiInstruction(zone(), NewReg().value_, input_count);
+  SetInput(phi, 0, incoming_vreg_0);
+  current_block_->AddPhi(phi);
+  return phi;
+}
+
+
+void InstructionSequenceTest::SetInput(PhiInstruction* phi, size_t input,
+                                       VReg vreg) {
+  CHECK(vreg.value_ != kNoValue);
+  phi->SetInput(input, vreg.value_);
 }
 
 
@@ -175,7 +191,7 @@ InstructionSequenceTest::VReg InstructionSequenceTest::DefineConstant(
     int32_t imm) {
   VReg vreg = NewReg();
   sequence()->AddConstant(vreg.value_, Constant(imm));
-  InstructionOperand* outputs[1]{ConstantOperand::Create(vreg.value_, zone())};
+  InstructionOperand outputs[1]{ConstantOperand(vreg.value_)};
   Emit(vreg.value_, kArchNop, 1, outputs);
   return vreg;
 }
@@ -195,7 +211,7 @@ static size_t CountInputs(size_t size,
 
 
 int InstructionSequenceTest::EmitI(size_t input_size, TestOperand* inputs) {
-  InstructionOperand** mapped_inputs = ConvertInputs(input_size, inputs);
+  InstructionOperand* mapped_inputs = ConvertInputs(input_size, inputs);
   return Emit(NewIndex(), kArchNop, 0, nullptr, input_size, mapped_inputs);
 }
 
@@ -212,8 +228,8 @@ int InstructionSequenceTest::EmitI(TestOperand input_op_0,
 InstructionSequenceTest::VReg InstructionSequenceTest::EmitOI(
     TestOperand output_op, size_t input_size, TestOperand* inputs) {
   VReg output_vreg = NewReg();
-  InstructionOperand* outputs[1]{ConvertOutputOp(output_vreg, output_op)};
-  InstructionOperand** mapped_inputs = ConvertInputs(input_size, inputs);
+  InstructionOperand outputs[1]{ConvertOutputOp(output_vreg, output_op)};
+  InstructionOperand* mapped_inputs = ConvertInputs(input_size, inputs);
   Emit(output_vreg.value_, kArchNop, 1, outputs, input_size, mapped_inputs);
   return output_vreg;
 }
@@ -230,9 +246,9 @@ InstructionSequenceTest::VReg InstructionSequenceTest::EmitOI(
 InstructionSequenceTest::VReg InstructionSequenceTest::EmitCall(
     TestOperand output_op, size_t input_size, TestOperand* inputs) {
   VReg output_vreg = NewReg();
-  InstructionOperand* outputs[1]{ConvertOutputOp(output_vreg, output_op)};
-  CHECK(UnallocatedOperand::cast(outputs[0])->HasFixedPolicy());
-  InstructionOperand** mapped_inputs = ConvertInputs(input_size, inputs);
+  InstructionOperand outputs[1]{ConvertOutputOp(output_vreg, output_op)};
+  CHECK(UnallocatedOperand::cast(outputs[0]).HasFixedPolicy());
+  InstructionOperand* mapped_inputs = ConvertInputs(input_size, inputs);
   Emit(output_vreg.value_, kArchCallCodeObject, 1, outputs, input_size,
        mapped_inputs, 0, nullptr, true);
   return output_vreg;
@@ -256,8 +272,8 @@ const Instruction* InstructionSequenceTest::GetInstruction(
 
 
 int InstructionSequenceTest::EmitBranch(TestOperand input_op) {
-  InstructionOperand* inputs[4]{ConvertInputOp(input_op), ConvertInputOp(Imm()),
-                                ConvertInputOp(Imm()), ConvertInputOp(Imm())};
+  InstructionOperand inputs[4]{ConvertInputOp(input_op), ConvertInputOp(Imm()),
+                               ConvertInputOp(Imm()), ConvertInputOp(Imm())};
   InstructionCode opcode = kArchJmp | FlagsModeField::encode(kFlags_branch) |
                            FlagsConditionField::encode(kEqual);
   auto instruction =
@@ -273,7 +289,7 @@ int InstructionSequenceTest::EmitFallThrough() {
 
 
 int InstructionSequenceTest::EmitJump() {
-  InstructionOperand* inputs[1]{ConvertInputOp(Imm())};
+  InstructionOperand inputs[1]{ConvertInputOp(Imm())};
   auto instruction =
       NewInstruction(kArchJmp, 0, nullptr, 1, inputs)->MarkAsControl();
   return AddInstruction(NewIndex(), instruction);
@@ -281,52 +297,44 @@ int InstructionSequenceTest::EmitJump() {
 
 
 Instruction* InstructionSequenceTest::NewInstruction(
-    InstructionCode code, size_t outputs_size, InstructionOperand** outputs,
-    size_t inputs_size, InstructionOperand** inputs, size_t temps_size,
-    InstructionOperand** temps) {
-  CHECK_NE(nullptr, current_block_);
+    InstructionCode code, size_t outputs_size, InstructionOperand* outputs,
+    size_t inputs_size, InstructionOperand* inputs, size_t temps_size,
+    InstructionOperand* temps) {
+  CHECK(current_block_);
   return Instruction::New(zone(), code, outputs_size, outputs, inputs_size,
                           inputs, temps_size, temps);
 }
 
 
-InstructionOperand* InstructionSequenceTest::Unallocated(
+InstructionOperand InstructionSequenceTest::Unallocated(
     TestOperand op, UnallocatedOperand::ExtendedPolicy policy) {
-  auto unallocated = new (zone()) UnallocatedOperand(policy);
-  unallocated->set_virtual_register(op.vreg_.value_);
-  return unallocated;
+  return UnallocatedOperand(policy, op.vreg_.value_);
 }
 
 
-InstructionOperand* InstructionSequenceTest::Unallocated(
+InstructionOperand InstructionSequenceTest::Unallocated(
     TestOperand op, UnallocatedOperand::ExtendedPolicy policy,
     UnallocatedOperand::Lifetime lifetime) {
-  auto unallocated = new (zone()) UnallocatedOperand(policy, lifetime);
-  unallocated->set_virtual_register(op.vreg_.value_);
-  return unallocated;
+  return UnallocatedOperand(policy, lifetime, op.vreg_.value_);
 }
 
 
-InstructionOperand* InstructionSequenceTest::Unallocated(
+InstructionOperand InstructionSequenceTest::Unallocated(
     TestOperand op, UnallocatedOperand::ExtendedPolicy policy, int index) {
-  auto unallocated = new (zone()) UnallocatedOperand(policy, index);
-  unallocated->set_virtual_register(op.vreg_.value_);
-  return unallocated;
+  return UnallocatedOperand(policy, index, op.vreg_.value_);
 }
 
 
-InstructionOperand* InstructionSequenceTest::Unallocated(
+InstructionOperand InstructionSequenceTest::Unallocated(
     TestOperand op, UnallocatedOperand::BasicPolicy policy, int index) {
-  auto unallocated = new (zone()) UnallocatedOperand(policy, index);
-  unallocated->set_virtual_register(op.vreg_.value_);
-  return unallocated;
+  return UnallocatedOperand(policy, index, op.vreg_.value_);
 }
 
 
-InstructionOperand** InstructionSequenceTest::ConvertInputs(
+InstructionOperand* InstructionSequenceTest::ConvertInputs(
     size_t input_size, TestOperand* inputs) {
-  InstructionOperand** mapped_inputs =
-      zone()->NewArray<InstructionOperand*>(static_cast<int>(input_size));
+  InstructionOperand* mapped_inputs =
+      zone()->NewArray<InstructionOperand>(static_cast<int>(input_size));
   for (size_t i = 0; i < input_size; ++i) {
     mapped_inputs[i] = ConvertInputOp(inputs[i]);
   }
@@ -334,10 +342,10 @@ InstructionOperand** InstructionSequenceTest::ConvertInputs(
 }
 
 
-InstructionOperand* InstructionSequenceTest::ConvertInputOp(TestOperand op) {
+InstructionOperand InstructionSequenceTest::ConvertInputOp(TestOperand op) {
   if (op.type_ == kImmediate) {
     CHECK_EQ(op.vreg_.value_, kNoValue);
-    return ImmediateOperand::Create(op.value_, zone());
+    return ImmediateOperand(op.value_);
   }
   CHECK_NE(op.vreg_.value_, kNoValue);
   switch (op.type_) {
@@ -360,12 +368,12 @@ InstructionOperand* InstructionSequenceTest::ConvertInputOp(TestOperand op) {
       break;
   }
   CHECK(false);
-  return NULL;
+  return InstructionOperand();
 }
 
 
-InstructionOperand* InstructionSequenceTest::ConvertOutputOp(VReg vreg,
-                                                             TestOperand op) {
+InstructionOperand InstructionSequenceTest::ConvertOutputOp(VReg vreg,
+                                                            TestOperand op) {
   CHECK_EQ(op.vreg_.value_, kNoValue);
   op.vreg_ = vreg;
   switch (op.type_) {
@@ -382,7 +390,7 @@ InstructionOperand* InstructionSequenceTest::ConvertOutputOp(VReg vreg,
       break;
   }
   CHECK(false);
-  return NULL;
+  return InstructionOperand();
 }
 
 
@@ -418,7 +426,7 @@ InstructionBlock* InstructionSequenceTest::NewBlock() {
 
 
 void InstructionSequenceTest::WireBlocks() {
-  CHECK_EQ(nullptr, current_block());
+  CHECK(!current_block());
   CHECK(instruction_blocks_.size() == completions_.size());
   size_t offset = 0;
   for (const auto& completion : completions_) {
@@ -452,11 +460,10 @@ void InstructionSequenceTest::WireBlock(size_t block_offset, int jump_offset) {
 
 int InstructionSequenceTest::Emit(int instruction_index, InstructionCode code,
                                   size_t outputs_size,
-                                  InstructionOperand** outputs,
+                                  InstructionOperand* outputs,
                                   size_t inputs_size,
-                                  InstructionOperand** inputs,
-                                  size_t temps_size, InstructionOperand** temps,
-                                  bool is_call) {
+                                  InstructionOperand* inputs, size_t temps_size,
+                                  InstructionOperand* temps, bool is_call) {
   auto instruction = NewInstruction(code, outputs_size, outputs, inputs_size,
                                     inputs, temps_size, temps);
   if (is_call) instruction->MarkAsCall();

@@ -8,7 +8,7 @@
 #include "src/allocation.h"
 #include "src/globals.h"
 #include "src/types.h"
-#include "src/zone-inl.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -19,9 +19,9 @@ class SmallMapList;
 
 class TypeFeedbackOracle: public ZoneObject {
  public:
-  TypeFeedbackOracle(Handle<Code> code,
+  TypeFeedbackOracle(Isolate* isolate, Zone* zone, Handle<Code> code,
                      Handle<TypeFeedbackVector> feedback_vector,
-                     Handle<Context> native_context, Zone* zone);
+                     Handle<Context> native_context);
 
   bool LoadIsUninitialized(TypeFeedbackId id);
   bool LoadIsUninitialized(FeedbackVectorICSlot slot);
@@ -101,7 +101,7 @@ class TypeFeedbackOracle: public ZoneObject {
   Type* CountType(TypeFeedbackId id);
 
   Zone* zone() const { return zone_; }
-  Isolate* isolate() const { return zone_->isolate(); }
+  Isolate* isolate() const { return isolate_; }
 
  private:
   void CollectReceiverTypes(TypeFeedbackId id,
@@ -137,6 +137,7 @@ class TypeFeedbackOracle: public ZoneObject {
 
  private:
   Handle<Context> native_context_;
+  Isolate* isolate_;
   Zone* zone_;
   Handle<UnseededNumberDictionary> dictionary_;
   Handle<TypeFeedbackVector> feedback_vector_;

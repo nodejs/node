@@ -19,18 +19,22 @@ class MoveOptimizer FINAL {
 
  private:
   typedef ZoneVector<MoveOperands*> MoveOpVector;
+  typedef ZoneVector<GapInstruction*> GapInstructions;
 
   InstructionSequence* code() const { return code_; }
   Zone* local_zone() const { return local_zone_; }
   Zone* code_zone() const { return code()->zone(); }
+  MoveOpVector& temp_vector_0() { return temp_vector_0_; }
+  MoveOpVector& temp_vector_1() { return temp_vector_1_; }
 
+  void CompressBlock(InstructionBlock* blocke);
   void CompressMoves(MoveOpVector* eliminated, ParallelMove* left,
                      ParallelMove* right);
-  void FinalizeMoves(MoveOpVector* loads, MoveOpVector* new_moves,
-                     GapInstruction* gap);
+  void FinalizeMoves(GapInstruction* gap);
 
   Zone* const local_zone_;
   InstructionSequence* const code_;
+  GapInstructions to_finalize_;
   MoveOpVector temp_vector_0_;
   MoveOpVector temp_vector_1_;
 

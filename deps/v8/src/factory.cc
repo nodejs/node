@@ -240,7 +240,7 @@ MaybeHandle<String> Factory::NewStringFromUtf8(Vector<const char> string,
       decoder(isolate()->unicode_cache()->utf8_decoder());
   decoder->Reset(string.start() + non_ascii_start,
                  length - non_ascii_start);
-  int utf16_length = decoder->Utf16Length();
+  int utf16_length = static_cast<int>(decoder->Utf16Length());
   DCHECK(utf16_length > 0);
   // Allocate string.
   Handle<SeqTwoByteString> result;
@@ -816,21 +816,6 @@ Handle<AliasedArgumentsEntry> Factory::NewAliasedArgumentsEntry(
 }
 
 
-Handle<DeclaredAccessorDescriptor> Factory::NewDeclaredAccessorDescriptor() {
-  return Handle<DeclaredAccessorDescriptor>::cast(
-      NewStruct(DECLARED_ACCESSOR_DESCRIPTOR_TYPE));
-}
-
-
-Handle<DeclaredAccessorInfo> Factory::NewDeclaredAccessorInfo() {
-  Handle<DeclaredAccessorInfo> info =
-      Handle<DeclaredAccessorInfo>::cast(
-          NewStruct(DECLARED_ACCESSOR_INFO_TYPE));
-  info->set_flag(0);  // Must clear the flag, it was initialized as undefined.
-  return info;
-}
-
-
 Handle<ExecutableAccessorInfo> Factory::NewExecutableAccessorInfo() {
   Handle<ExecutableAccessorInfo> info =
       Handle<ExecutableAccessorInfo>::cast(
@@ -1273,7 +1258,7 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
                                         MaybeHandle<Code> code) {
   Handle<Context> context(isolate()->native_context());
   Handle<SharedFunctionInfo> info = NewSharedFunctionInfo(name, code);
-  DCHECK((info->strict_mode() == SLOPPY) &&
+  DCHECK(is_sloppy(info->language_mode()) &&
          (map.is_identical_to(isolate()->sloppy_function_map()) ||
           map.is_identical_to(
               isolate()->sloppy_function_without_prototype_map()) ||
@@ -1376,8 +1361,7 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
 static bool ShouldOptimizeNewClosure(Isolate* isolate,
                                      Handle<SharedFunctionInfo> info) {
   return isolate->use_crankshaft() && !info->is_toplevel() &&
-         info->is_compiled() && info->allows_lazy_compilation() &&
-         !info->optimization_disabled() && !isolate->DebuggerHasBreakPoints();
+         info->is_compiled() && info->allows_lazy_compilation();
 }
 
 
@@ -1385,7 +1369,8 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<SharedFunctionInfo> info,
     Handle<Context> context,
     PretenureFlag pretenure) {
-  int map_index = Context::FunctionMapIndex(info->strict_mode(), info->kind());
+  int map_index =
+      Context::FunctionMapIndex(info->language_mode(), info->kind());
   Handle<Map> map(Map::cast(context->native_context()->get(map_index)));
   Handle<JSFunction> result = NewFunction(map, info, context, pretenure);
 
@@ -1591,8 +1576,9 @@ Handle<GlobalObject> Factory::NewGlobalObject(Handle<JSFunction> constructor) {
   Handle<DescriptorArray> descs(map->instance_descriptors());
   for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
     PropertyDetails details = descs->GetDetails(i);
-    DCHECK(details.type() == CALLBACKS);  // Only accessors are expected.
-    PropertyDetails d(details.attributes(), CALLBACKS, i + 1);
+    // Only accessors are expected.
+    DCHECK_EQ(ACCESSOR_CONSTANT, details.type());
+    PropertyDetails d(details.attributes(), ACCESSOR_CONSTANT, i + 1);
     Handle<Name> name(descs->GetKey(i));
     Handle<Object> value(descs->GetCallbacksObject(i), isolate());
     Handle<PropertyCell> cell = NewPropertyCell(value);
@@ -1973,6 +1959,18 @@ void Factory::ReinitializeJSProxy(Handle<JSProxy> proxy, InstanceType type,
 }
 
 
+Handle<JSGlobalProxy> Factory::NewUninitializedJSGlobalProxy() {
+  // Create an empty shell of a JSGlobalProxy that needs to be reinitialized
+  // via ReinitializeJSGlobalProxy later.
+  Handle<Map> map = NewMap(JS_GLOBAL_PROXY_TYPE, JSGlobalProxy::kSize);
+  // Maintain invariant expected from any JSGlobalProxy.
+  map->set_is_access_check_needed(true);
+  CALL_HEAP_FUNCTION(isolate(), isolate()->heap()->AllocateJSObjectFromMap(
+                                    *map, NOT_TENURED, false),
+                     JSGlobalProxy);
+}
+
+
 void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
                                         Handle<JSFunction> constructor) {
   DCHECK(constructor->has_initial_map());
@@ -2106,7 +2104,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
 
   // Set integer fields (smi or int, depending on the architecture).
   share->set_length(0);
-  share->set_formal_parameter_count(0);
+  share->set_internal_formal_parameter_count(0);
   share->set_expected_nof_properties(0);
   share->set_num_literals(0);
   share->set_start_position_and_type(0);
@@ -2152,12 +2150,6 @@ void Factory::SetNumberStringCache(Handle<Object> number,
   if (number_string_cache()->get(hash * 2) != *undefined_value()) {
     int full_size = isolate()->heap()->FullSizeNumberStringCacheLength();
     if (number_string_cache()->length() != full_size) {
-      // The first time we have a hash collision, we move to the full sized
-      // number string cache.  The idea is to have a small number string
-      // cache in the snapshot to keep  boot-time memory usage down.
-      // If we expand the number string cache already while creating
-      // the snapshot then that didn't work out.
-      DCHECK(!isolate()->serializer_enabled());
       Handle<FixedArray> new_cache = NewFixedArray(full_size, TENURED);
       isolate()->heap()->set_number_string_cache(*new_cache);
       return;
@@ -2228,7 +2220,8 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
 
 Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
                                              int length) {
-  bool strict_mode_callee = callee->shared()->strict_mode() == STRICT;
+  bool strict_mode_callee = is_strict(callee->shared()->language_mode()) ||
+                            !callee->is_simple_parameter_list();
   Handle<Map> map = strict_mode_callee ? isolate()->strict_arguments_map()
                                        : isolate()->sloppy_arguments_map();
 
@@ -2245,182 +2238,12 @@ Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
 }
 
 
-Handle<JSFunction> Factory::CreateApiFunction(
-    Handle<FunctionTemplateInfo> obj,
-    Handle<Object> prototype,
-    ApiInstanceType instance_type) {
-  Handle<Code> code = isolate()->builtins()->HandleApiCall();
-  Handle<Code> construct_stub = isolate()->builtins()->JSConstructStubApi();
-
-  Handle<JSFunction> result;
-  if (obj->remove_prototype()) {
-    result = NewFunctionWithoutPrototype(empty_string(), code);
-  } else {
-    int internal_field_count = 0;
-    if (!obj->instance_template()->IsUndefined()) {
-      Handle<ObjectTemplateInfo> instance_template =
-          Handle<ObjectTemplateInfo>(
-              ObjectTemplateInfo::cast(obj->instance_template()));
-      internal_field_count =
-          Smi::cast(instance_template->internal_field_count())->value();
-    }
-
-    // TODO(svenpanne) Kill ApiInstanceType and refactor things by generalizing
-    // JSObject::GetHeaderSize.
-    int instance_size = kPointerSize * internal_field_count;
-    InstanceType type;
-    switch (instance_type) {
-      case JavaScriptObjectType:
-        type = JS_OBJECT_TYPE;
-        instance_size += JSObject::kHeaderSize;
-        break;
-      case GlobalObjectType:
-        type = JS_GLOBAL_OBJECT_TYPE;
-        instance_size += JSGlobalObject::kSize;
-        break;
-      case GlobalProxyType:
-        type = JS_GLOBAL_PROXY_TYPE;
-        instance_size += JSGlobalProxy::kSize;
-        break;
-      default:
-        UNREACHABLE();
-        type = JS_OBJECT_TYPE;  // Keep the compiler happy.
-        break;
-    }
-
-    result = NewFunction(empty_string(), code, prototype, type, instance_size,
-                         obj->read_only_prototype(), true);
-  }
-
-  result->shared()->set_length(obj->length());
-  Handle<Object> class_name(obj->class_name(), isolate());
-  if (class_name->IsString()) {
-    result->shared()->set_instance_class_name(*class_name);
-    result->shared()->set_name(*class_name);
-  }
-  result->shared()->set_function_data(*obj);
-  result->shared()->set_construct_stub(*construct_stub);
-  result->shared()->DontAdaptArguments();
-
-  if (obj->remove_prototype()) {
-    DCHECK(result->shared()->IsApiFunction());
-    DCHECK(!result->has_initial_map());
-    DCHECK(!result->has_prototype());
-    return result;
-  }
-
-#ifdef DEBUG
-  LookupIterator it(handle(JSObject::cast(result->prototype())),
-                    constructor_string(), LookupIterator::OWN_SKIP_INTERCEPTOR);
-  MaybeHandle<Object> maybe_prop = Object::GetProperty(&it);
-  DCHECK(it.IsFound());
-  DCHECK(maybe_prop.ToHandleChecked().is_identical_to(result));
-#endif
-
-  // Down from here is only valid for API functions that can be used as a
-  // constructor (don't set the "remove prototype" flag).
-
-  Handle<Map> map(result->initial_map());
-
-  // Mark as undetectable if needed.
-  if (obj->undetectable()) {
-    map->set_is_undetectable();
-  }
-
-  // Mark as hidden for the __proto__ accessor if needed.
-  if (obj->hidden_prototype()) {
-    map->set_is_hidden_prototype();
-  }
-
-  // Mark as needs_access_check if needed.
-  if (obj->needs_access_check()) {
-    map->set_is_access_check_needed(true);
-  }
-
-  // Set interceptor information in the map.
-  if (!obj->named_property_handler()->IsUndefined()) {
-    map->set_has_named_interceptor();
-  }
-  if (!obj->indexed_property_handler()->IsUndefined()) {
-    map->set_has_indexed_interceptor();
-  }
-
-  // Set instance call-as-function information in the map.
-  if (!obj->instance_call_handler()->IsUndefined()) {
-    map->set_has_instance_call_handler();
-  }
-
-  // Recursively copy parent instance templates' accessors,
-  // 'data' may be modified.
-  int max_number_of_additional_properties = 0;
-  int max_number_of_static_properties = 0;
-  FunctionTemplateInfo* info = *obj;
-  while (true) {
-    if (!info->instance_template()->IsUndefined()) {
-      Object* props =
-          ObjectTemplateInfo::cast(
-              info->instance_template())->property_accessors();
-      if (!props->IsUndefined()) {
-        Handle<Object> props_handle(props, isolate());
-        NeanderArray props_array(props_handle);
-        max_number_of_additional_properties += props_array.length();
-      }
-    }
-    if (!info->property_accessors()->IsUndefined()) {
-      Object* props = info->property_accessors();
-      if (!props->IsUndefined()) {
-        Handle<Object> props_handle(props, isolate());
-        NeanderArray props_array(props_handle);
-        max_number_of_static_properties += props_array.length();
-      }
-    }
-    Object* parent = info->parent_template();
-    if (parent->IsUndefined()) break;
-    info = FunctionTemplateInfo::cast(parent);
-  }
-
-  Map::EnsureDescriptorSlack(map, max_number_of_additional_properties);
-
-  // Use a temporary FixedArray to acculumate static accessors
-  int valid_descriptors = 0;
-  Handle<FixedArray> array;
-  if (max_number_of_static_properties > 0) {
-    array = NewFixedArray(max_number_of_static_properties);
-  }
-
-  while (true) {
-    // Install instance descriptors
-    if (!obj->instance_template()->IsUndefined()) {
-      Handle<ObjectTemplateInfo> instance =
-          Handle<ObjectTemplateInfo>(
-              ObjectTemplateInfo::cast(obj->instance_template()), isolate());
-      Handle<Object> props = Handle<Object>(instance->property_accessors(),
-                                            isolate());
-      if (!props->IsUndefined()) {
-        Map::AppendCallbackDescriptors(map, props);
-      }
-    }
-    // Accumulate static accessors
-    if (!obj->property_accessors()->IsUndefined()) {
-      Handle<Object> props = Handle<Object>(obj->property_accessors(),
-                                            isolate());
-      valid_descriptors =
-          AccessorInfo::AppendUnique(props, array, valid_descriptors);
-    }
-    // Climb parent chain
-    Handle<Object> parent = Handle<Object>(obj->parent_template(), isolate());
-    if (parent->IsUndefined()) break;
-    obj = Handle<FunctionTemplateInfo>::cast(parent);
-  }
-
-  // Install accumulated static accessors
-  for (int i = 0; i < valid_descriptors; i++) {
-    Handle<AccessorInfo> accessor(AccessorInfo::cast(array->get(i)));
-    JSObject::SetAccessor(result, accessor).Assert();
-  }
-
-  DCHECK(result->shared()->IsApiFunction());
-  return result;
+Handle<JSWeakMap> Factory::NewJSWeakMap() {
+  // TODO(adamk): Currently the map is only created three times per
+  // isolate. If it's created more often, the map should be moved into the
+  // strong root list.
+  Handle<Map> map = NewMap(JS_WEAK_MAP_TYPE, JSWeakMap::kSize);
+  return Handle<JSWeakMap>::cast(NewJSObjectFromMap(map));
 }
 
 
@@ -2497,21 +2320,6 @@ void Factory::SetRegExpIrregexpData(Handle<JSRegExp> regexp,
   store->set(JSRegExp::kIrregexpCaptureCountIndex,
              Smi::FromInt(capture_count));
   regexp->set_data(*store);
-}
-
-
-MaybeHandle<FunctionTemplateInfo> Factory::ConfigureInstance(
-    Handle<FunctionTemplateInfo> desc, Handle<JSObject> instance) {
-  // Configure the instance by adding the properties specified by the
-  // instance template.
-  Handle<Object> instance_template(desc->instance_template(), isolate());
-  if (!instance_template->IsUndefined()) {
-      RETURN_ON_EXCEPTION(
-          isolate(),
-          Execution::ConfigureInstance(isolate(), instance, instance_template),
-          FunctionTemplateInfo);
-  }
-  return desc;
 }
 
 

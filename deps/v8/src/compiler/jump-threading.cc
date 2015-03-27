@@ -140,7 +140,7 @@ void JumpThreading::ApplyForwarding(ZoneVector<RpoNumber>& result,
                                     InstructionSequence* code) {
   if (!FLAG_turbo_jt) return;
 
-  Zone local_zone(code->zone()->isolate());
+  Zone local_zone;
   ZoneVector<bool> skip(static_cast<int>(result.size()), false, &local_zone);
 
   // Skip empty blocks when the previous block doesn't fall through.

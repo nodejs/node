@@ -221,7 +221,7 @@ TEST(LoadAndStoreWithRepresentation) {
 
   // Call the function from C++.
   F5 f = FUNCTION_CAST<F5>(code->entry());
-  CHECK_EQ(0, CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  CHECK(!CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
 }
 
 #undef __

@@ -601,7 +601,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   const int kDetailsOffset =
       SeededNumberDictionary::kElementsStartOffset + 2 * kPointerSize;
   ld(reg1, FieldMemOperand(reg2, kDetailsOffset));
-  DCHECK_EQ(FIELD, 0);
+  DCHECK_EQ(DATA, 0);
   And(at, reg1, Operand(Smi::FromInt(PropertyDetails::TypeField::kMask)));
   Branch(miss, ne, at, Operand(zero_reg));
 
@@ -3058,7 +3058,7 @@ void MacroAssembler::J(Label* L, BranchDelaySlot bdslot) {
   { BlockGrowBufferScope block_buf_growth(this);
     // Buffer growth (and relocation) must be blocked for internal references
     // until associated instructions are emitted and available to be patched.
-    RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
+    RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
     j(imm28);
   }
   // Emit a nop in the branch delay slot if required.
@@ -3075,7 +3075,7 @@ void MacroAssembler::Jr(Label* L, BranchDelaySlot bdslot) {
   { BlockGrowBufferScope block_buf_growth(this);
     // Buffer growth (and relocation) must be blocked for internal references
     // until associated instructions are emitted and available to be patched.
-    RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
+    RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
     li(at, Operand(imm64), ADDRESS_LOAD);
   }
   jr(at);
@@ -3094,7 +3094,7 @@ void MacroAssembler::Jalr(Label* L, BranchDelaySlot bdslot) {
   { BlockGrowBufferScope block_buf_growth(this);
     // Buffer growth (and relocation) must be blocked for internal references
     // until associated instructions are emitted and available to be patched.
-    RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
+    RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
     li(at, Operand(imm64), ADDRESS_LOAD);
   }
   jalr(at);
@@ -3234,7 +3234,7 @@ void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
 
   // Push the frame pointer, context, state, and code object.
   if (kind == StackHandler::JS_ENTRY) {
-    DCHECK_EQ(Smi::FromInt(0), 0);
+    DCHECK_EQ(static_cast<Smi*>(0), Smi::FromInt(0));
     // The second zero_reg indicates no context.
     // The first zero_reg is the NULL frame pointer.
     // The operands are reversed to match the order of MultiPush/Pop.
@@ -3884,7 +3884,7 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
 
   // Check for nan: all NaN values have a value greater (signed) than 0x7ff00000
   // in the exponent.
-  li(scratch1, Operand(kNaNOrInfinityLowerBoundUpper32));
+  li(scratch1, Operand(kHoleNanUpper32 & HeapNumber::kExponentMask));
   lw(exponent_reg, FieldMemOperand(value_reg, HeapNumber::kExponentOffset));
   Branch(&maybe_nan, ge, exponent_reg, Operand(scratch1));
 
@@ -4356,137 +4356,6 @@ void MacroAssembler::TailCallStub(CodeStub* stub,
                                   const Operand& r2,
                                   BranchDelaySlot bd) {
   Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond, r1, r2, bd);
-}
-
-
-static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
-  int64_t offset = (ref0.address() - ref1.address());
-  DCHECK(static_cast<int>(offset) == offset);
-  return static_cast<int>(offset);
-}
-
-
-void MacroAssembler::CallApiFunctionAndReturn(
-    Register function_address,
-    ExternalReference thunk_ref,
-    int stack_space,
-    MemOperand return_value_operand,
-    MemOperand* context_restore_operand) {
-  ExternalReference next_address =
-      ExternalReference::handle_scope_next_address(isolate());
-  const int kNextOffset = 0;
-  const int kLimitOffset = AddressOffset(
-      ExternalReference::handle_scope_limit_address(isolate()),
-      next_address);
-  const int kLevelOffset = AddressOffset(
-      ExternalReference::handle_scope_level_address(isolate()),
-      next_address);
-
-  DCHECK(function_address.is(a1) || function_address.is(a2));
-
-  Label profiler_disabled;
-  Label end_profiler_check;
-  li(t9, Operand(ExternalReference::is_profiling_address(isolate())));
-  lb(t9, MemOperand(t9, 0));
-  Branch(&profiler_disabled, eq, t9, Operand(zero_reg));
-
-  // Additional parameter is the address of the actual callback.
-  li(t9, Operand(thunk_ref));
-  jmp(&end_profiler_check);
-
-  bind(&profiler_disabled);
-  mov(t9, function_address);
-  bind(&end_profiler_check);
-
-  // Allocate HandleScope in callee-save registers.
-  li(s3, Operand(next_address));
-  ld(s0, MemOperand(s3, kNextOffset));
-  ld(s1, MemOperand(s3, kLimitOffset));
-  ld(s2, MemOperand(s3, kLevelOffset));
-  Daddu(s2, s2, Operand(1));
-  sd(s2, MemOperand(s3, kLevelOffset));
-
-  if (FLAG_log_timer_events) {
-    FrameScope frame(this, StackFrame::MANUAL);
-    PushSafepointRegisters();
-    PrepareCallCFunction(1, a0);
-    li(a0, Operand(ExternalReference::isolate_address(isolate())));
-    CallCFunction(ExternalReference::log_enter_external_function(isolate()), 1);
-    PopSafepointRegisters();
-  }
-
-  // Native call returns to the DirectCEntry stub which redirects to the
-  // return address pushed on stack (could have moved after GC).
-  // DirectCEntry stub itself is generated early and never moves.
-  DirectCEntryStub stub(isolate());
-  stub.GenerateCall(this, t9);
-
-  if (FLAG_log_timer_events) {
-    FrameScope frame(this, StackFrame::MANUAL);
-    PushSafepointRegisters();
-    PrepareCallCFunction(1, a0);
-    li(a0, Operand(ExternalReference::isolate_address(isolate())));
-    CallCFunction(ExternalReference::log_leave_external_function(isolate()), 1);
-    PopSafepointRegisters();
-  }
-
-  Label promote_scheduled_exception;
-  Label exception_handled;
-  Label delete_allocated_handles;
-  Label leave_exit_frame;
-  Label return_value_loaded;
-
-  // Load value from ReturnValue.
-  ld(v0, return_value_operand);
-  bind(&return_value_loaded);
-
-  // No more valid handles (the result handle was the last one). Restore
-  // previous handle scope.
-  sd(s0, MemOperand(s3, kNextOffset));
-  if (emit_debug_code()) {
-    ld(a1, MemOperand(s3, kLevelOffset));
-    Check(eq, kUnexpectedLevelAfterReturnFromApiCall, a1, Operand(s2));
-  }
-  Dsubu(s2, s2, Operand(1));
-  sd(s2, MemOperand(s3, kLevelOffset));
-  ld(at, MemOperand(s3, kLimitOffset));
-  Branch(&delete_allocated_handles, ne, s1, Operand(at));
-
-  // Check if the function scheduled an exception.
-  bind(&leave_exit_frame);
-  LoadRoot(a4, Heap::kTheHoleValueRootIndex);
-  li(at, Operand(ExternalReference::scheduled_exception_address(isolate())));
-  ld(a5, MemOperand(at));
-  Branch(&promote_scheduled_exception, ne, a4, Operand(a5));
-  bind(&exception_handled);
-
-  bool restore_context = context_restore_operand != NULL;
-  if (restore_context) {
-    ld(cp, *context_restore_operand);
-  }
-  li(s0, Operand(stack_space));
-  LeaveExitFrame(false, s0, !restore_context, EMIT_RETURN);
-
-  bind(&promote_scheduled_exception);
-  {
-    FrameScope frame(this, StackFrame::INTERNAL);
-    CallExternalReference(
-        ExternalReference(Runtime::kPromoteScheduledException, isolate()),
-        0);
-  }
-  jmp(&exception_handled);
-
-  // HandleScope limit has changed. Delete allocated extensions.
-  bind(&delete_allocated_handles);
-  sd(s1, MemOperand(s3, kLimitOffset));
-  mov(s0, v0);
-  mov(a0, v0);
-  PrepareCallCFunction(1, s1);
-  li(a0, Operand(ExternalReference::isolate_address(isolate())));
-  CallCFunction(ExternalReference::delete_handle_scope_extensions(isolate()),
-      1);
-  mov(v0, s0);
-  jmp(&leave_exit_frame);
 }
 
 
@@ -5116,10 +4985,9 @@ void MacroAssembler::EnterExitFrame(bool save_doubles,
 }
 
 
-void MacroAssembler::LeaveExitFrame(bool save_doubles,
-                                    Register argument_count,
-                                    bool restore_context,
-                                    bool do_return) {
+void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
+                                    bool restore_context, bool do_return,
+                                    bool argument_count_is_length) {
   // Optionally restore all double registers.
   if (save_doubles) {
     // Remember: we only need to restore every 2nd double FPU value.
@@ -5152,8 +5020,12 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
   ld(ra, MemOperand(sp, ExitFrameConstants::kCallerPCOffset));
 
   if (argument_count.is_valid()) {
-    dsll(t8, argument_count, kPointerSizeLog2);
-    daddu(sp, sp, t8);
+    if (argument_count_is_length) {
+      daddu(sp, sp, argument_count);
+    } else {
+      dsll(t8, argument_count, kPointerSizeLog2);
+      daddu(sp, sp, t8);
+    }
   }
 
   if (do_return) {
@@ -5350,7 +5222,7 @@ void MacroAssembler::JumpIfNotBothSmi(Register reg1,
 #if defined(__APPLE__)
   DCHECK_EQ(1, kSmiTagMask);
 #else
-  DCHECK_EQ((uint64_t)1, kSmiTagMask);
+  DCHECK_EQ((int64_t)1, kSmiTagMask);
 #endif
   or_(at, reg1, reg2);
   JumpIfNotSmi(at, on_not_both_smi);
@@ -5365,7 +5237,7 @@ void MacroAssembler::JumpIfEitherSmi(Register reg1,
 #if defined(__APPLE__)
   DCHECK_EQ(1, kSmiTagMask);
 #else
-  DCHECK_EQ((uint64_t)1, kSmiTagMask);
+  DCHECK_EQ((int64_t)1, kSmiTagMask);
 #endif
   // Both Smi tags must be 1 (not Smi).
   and_(at, reg1, reg2);
@@ -6054,6 +5926,19 @@ void MacroAssembler::EnumLength(Register dst, Register map) {
   ld(dst, FieldMemOperand(map, Map::kBitField3Offset));
   And(dst, dst, Operand(Map::EnumLengthBits::kMask));
   SmiTag(dst);
+}
+
+
+void MacroAssembler::LoadAccessor(Register dst, Register holder,
+                                  int accessor_index,
+                                  AccessorComponent accessor) {
+  ld(dst, FieldMemOperand(holder, HeapObject::kMapOffset));
+  LoadInstanceDescriptors(dst, dst);
+  ld(dst,
+     FieldMemOperand(dst, DescriptorArray::GetValueOffset(accessor_index)));
+  int offset = accessor == ACCESSOR_GETTER ? AccessorPair::kGetterOffset
+                                           : AccessorPair::kSetterOffset;
+  ld(dst, FieldMemOperand(dst, offset));
 }
 
 

@@ -4,6 +4,7 @@
 
 #include "src/v8.h"
 
+#include "src/code-stubs.h"
 #include "src/compiler.h"
 #include "src/zone.h"
 
@@ -32,9 +33,9 @@ static Handle<JSFunction> Compile(const char* source) {
                                    ->NewStringFromUtf8(CStrVector(source))
                                    .ToHandleChecked();
   Handle<SharedFunctionInfo> shared_function = Compiler::CompileScript(
-      source_code, Handle<String>(), 0, 0, false,
+      source_code, Handle<String>(), 0, 0, false, false,
       Handle<Context>(isolate->native_context()), NULL, NULL,
-      v8::ScriptCompiler::kNoCompileOptions, NOT_NATIVES_CODE);
+      v8::ScriptCompiler::kNoCompileOptions, NOT_NATIVES_CODE, false);
   return isolate->factory()->NewFunctionFromSharedFunctionInfo(
       shared_function, isolate->native_context());
 }
@@ -44,7 +45,8 @@ TEST(TestLinkageCreate) {
   InitializedHandleScope handles;
   Handle<JSFunction> function = Compile("a + b");
   CompilationInfoWithZone info(function);
-  Linkage linkage(info.zone(), &info);
+  CallDescriptor* descriptor = Linkage::ComputeIncoming(info.zone(), &info);
+  CHECK(descriptor);
 }
 
 
@@ -59,10 +61,8 @@ TEST(TestLinkageJSFunctionIncoming) {
     Handle<JSFunction> function = v8::Utils::OpenHandle(
         *v8::Handle<v8::Function>::Cast(CompileRun(sources[i])));
     CompilationInfoWithZone info(function);
-    Linkage linkage(info.zone(), &info);
-
-    CallDescriptor* descriptor = linkage.GetIncomingDescriptor();
-    CHECK_NE(NULL, descriptor);
+    CallDescriptor* descriptor = Linkage::ComputeIncoming(info.zone(), &info);
+    CHECK(descriptor);
 
     CHECK_EQ(1 + i, static_cast<int>(descriptor->JSParameterCount()));
     CHECK_EQ(1, static_cast<int>(descriptor->ReturnCount()));
@@ -74,11 +74,14 @@ TEST(TestLinkageJSFunctionIncoming) {
 
 TEST(TestLinkageCodeStubIncoming) {
   Isolate* isolate = CcTest::InitIsolateOnce();
-  CompilationInfoWithZone info(static_cast<HydrogenCodeStub*>(NULL), isolate);
-  Linkage linkage(info.zone(), &info);
-  // TODO(titzer): test linkage creation with a bonafide code stub.
-  // this just checks current behavior.
-  CHECK_EQ(NULL, linkage.GetIncomingDescriptor());
+  ToNumberStub stub(isolate);
+  CompilationInfoWithZone info(&stub, isolate);
+  CallDescriptor* descriptor = Linkage::ComputeIncoming(info.zone(), &info);
+  CHECK(descriptor);
+  CHECK_EQ(1, static_cast<int>(descriptor->JSParameterCount()));
+  CHECK_EQ(1, static_cast<int>(descriptor->ReturnCount()));
+  CHECK_EQ(Operator::kNoProperties, descriptor->properties());
+  CHECK_EQ(false, descriptor->IsJSFunctionCall());
 }
 
 
@@ -86,12 +89,11 @@ TEST(TestLinkageJSCall) {
   HandleAndZoneScope handles;
   Handle<JSFunction> function = Compile("a + c");
   CompilationInfoWithZone info(function);
-  Linkage linkage(info.zone(), &info);
 
   for (int i = 0; i < 32; i++) {
-    CallDescriptor* descriptor =
-        linkage.GetJSCallDescriptor(i, CallDescriptor::kNoFlags);
-    CHECK_NE(NULL, descriptor);
+    CallDescriptor* descriptor = Linkage::GetJSCallDescriptor(
+        info.zone(), false, i, CallDescriptor::kNoFlags);
+    CHECK(descriptor);
     CHECK_EQ(i, static_cast<int>(descriptor->JSParameterCount()));
     CHECK_EQ(1, static_cast<int>(descriptor->ReturnCount()));
     CHECK_EQ(Operator::kNoProperties, descriptor->properties());

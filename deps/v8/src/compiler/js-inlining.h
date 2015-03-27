@@ -6,7 +6,7 @@
 #define V8_COMPILER_JS_INLINING_H_
 
 #include "src/compiler/js-graph.h"
-#include "src/v8.h"
+#include "src/compiler/graph-reducer.h"
 
 namespace v8 {
 namespace internal {
@@ -14,14 +14,12 @@ namespace compiler {
 
 class JSCallFunctionAccessor;
 
-class JSInliner {
+class JSInliner FINAL : public Reducer {
  public:
   JSInliner(Zone* local_zone, CompilationInfo* info, JSGraph* jsgraph)
       : local_zone_(local_zone), info_(info), jsgraph_(jsgraph) {}
 
-  void Inline();
-  void TryInlineJSCall(Node* node);
-  void TryInlineRuntimeCall(Node* node);
+  Reduction Reduce(Node* node) OVERRIDE;
 
  private:
   friend class InlinerVisitor;
@@ -33,6 +31,7 @@ class JSInliner {
                                          Handle<JSFunction> jsfunction,
                                          Zone* temp_zone);
   void AddClosureToFrameState(Node* frame_state, Handle<JSFunction> jsfunction);
+  Reduction TryInlineJSCall(Node* node, Handle<JSFunction> jsfunction);
   static void UnifyReturn(Graph* graph);
 };
 }

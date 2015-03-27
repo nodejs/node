@@ -274,6 +274,20 @@ void LInnerAllocatedObject::PrintDataTo(StringStream* stream) {
 }
 
 
+void LCallFunction::PrintDataTo(StringStream* stream) {
+  context()->PrintTo(stream);
+  stream->Add(" ");
+  function()->PrintTo(stream);
+  if (hydrogen()->HasVectorAndSlot()) {
+    stream->Add(" (type-feedback-vector ");
+    temp_vector()->PrintTo(stream);
+    stream->Add(" ");
+    temp_slot()->PrintTo(stream);
+    stream->Add(")");
+  }
+}
+
+
 void LCallJSFunction::PrintDataTo(StringStream* stream) {
   stream->Add("= ");
   function()->PrintTo(stream);
@@ -765,7 +779,8 @@ LInstruction* LChunkBuilder::DoArithmeticD(Token::Value op,
     LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
     LOperand* right = UseRegisterAtStart(instr->BetterRightOperand());
     LArithmeticD* result = new(zone()) LArithmeticD(op, left, right);
-    return DefineSameAsFirst(result);
+    return CpuFeatures::IsSupported(AVX) ? DefineAsRegister(result)
+                                         : DefineSameAsFirst(result);
   }
 }
 
@@ -1280,7 +1295,15 @@ LInstruction* LChunkBuilder::DoCallNewArray(HCallNewArray* instr) {
 LInstruction* LChunkBuilder::DoCallFunction(HCallFunction* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* function = UseFixed(instr->function(), edi);
-  LCallFunction* call = new(zone()) LCallFunction(context, function);
+  LOperand* slot = NULL;
+  LOperand* vector = NULL;
+  if (instr->HasVectorAndSlot()) {
+    slot = FixedTemp(edx);
+    vector = FixedTemp(ebx);
+  }
+
+  LCallFunction* call =
+      new (zone()) LCallFunction(context, function, slot, vector);
   return MarkAsCall(DefineFixed(call, eax), instr);
 }
 
@@ -2095,9 +2118,8 @@ LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
   } else if (r.IsInteger32()) {
     return DefineAsRegister(new(zone()) LConstantI);
   } else if (r.IsDouble()) {
-    double value = instr->DoubleValue();
-    bool value_is_zero = bit_cast<uint64_t, double>(value) == 0;
-    LOperand* temp = value_is_zero ? NULL : TempRegister();
+    uint64_t const bits = instr->DoubleValueAsBits();
+    LOperand* temp = bits ? TempRegister() : nullptr;
     return DefineAsRegister(new(zone()) LConstantD(temp));
   } else if (r.IsExternal()) {
     return DefineAsRegister(new(zone()) LConstantE);

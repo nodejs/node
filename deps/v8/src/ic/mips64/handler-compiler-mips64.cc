@@ -17,8 +17,8 @@ namespace internal {
 
 
 void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
-    MacroAssembler* masm, Handle<HeapType> type, Register receiver,
-    Handle<JSFunction> getter) {
+    MacroAssembler* masm, Handle<Map> map, Register receiver, Register holder,
+    int accessor_index, int expected_arguments, Register scratch) {
   // ----------- S t a t e -------------
   //  -- a0    : receiver
   //  -- a2    : name
@@ -27,18 +27,21 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
-    if (!getter.is_null()) {
+    if (accessor_index >= 0) {
+      DCHECK(!holder.is(scratch));
+      DCHECK(!receiver.is(scratch));
       // Call the JavaScript getter with the receiver on the stack.
-      if (IC::TypeToMap(*type, masm->isolate())->IsJSGlobalObjectMap()) {
+      if (map->IsJSGlobalObjectMap()) {
         // Swap in the global receiver.
-        __ ld(receiver,
+        __ ld(scratch,
               FieldMemOperand(receiver, JSGlobalObject::kGlobalProxyOffset));
+        receiver = scratch;
       }
       __ push(receiver);
       ParameterCount actual(0);
-      ParameterCount expected(getter);
-      __ InvokeFunction(getter, expected, actual, CALL_FUNCTION,
-                        NullCallWrapper());
+      ParameterCount expected(expected_arguments);
+      __ LoadAccessor(a1, holder, accessor_index, ACCESSOR_GETTER);
+      __ InvokeFunction(a1, expected, actual, CALL_FUNCTION, NullCallWrapper());
     } else {
       // If we generate a global code snippet for deoptimization only, remember
       // the place to continue after deoptimization.
@@ -53,8 +56,8 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
 
 
 void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
-    MacroAssembler* masm, Handle<HeapType> type, Register receiver,
-    Handle<JSFunction> setter) {
+    MacroAssembler* masm, Handle<Map> map, Register receiver, Register holder,
+    int accessor_index, int expected_arguments, Register scratch) {
   // ----------- S t a t e -------------
   //  -- ra    : return address
   // -----------------------------------
@@ -64,18 +67,22 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
     // Save value register, so we can restore it later.
     __ push(value());
 
-    if (!setter.is_null()) {
+    if (accessor_index >= 0) {
+      DCHECK(!holder.is(scratch));
+      DCHECK(!receiver.is(scratch));
+      DCHECK(!value().is(scratch));
       // Call the JavaScript setter with receiver and value on the stack.
-      if (IC::TypeToMap(*type, masm->isolate())->IsJSGlobalObjectMap()) {
+      if (map->IsJSGlobalObjectMap()) {
         // Swap in the global receiver.
-        __ ld(receiver,
+        __ ld(scratch,
               FieldMemOperand(receiver, JSGlobalObject::kGlobalProxyOffset));
+        receiver = scratch;
       }
       __ Push(receiver, value());
       ParameterCount actual(1);
-      ParameterCount expected(setter);
-      __ InvokeFunction(setter, expected, actual, CALL_FUNCTION,
-                        NullCallWrapper());
+      ParameterCount expected(expected_arguments);
+      __ LoadAccessor(a1, holder, accessor_index, ACCESSOR_SETTER);
+      __ InvokeFunction(a1, expected, actual, CALL_FUNCTION, NullCallWrapper());
     } else {
       // If we generate a global code snippet for deoptimization only, remember
       // the place to continue after deoptimization.
@@ -189,7 +196,8 @@ void PropertyHandlerCompiler::GenerateCheckPropertyCell(
     Register scratch, Label* miss) {
   Handle<Cell> cell = JSGlobalObject::EnsurePropertyCell(global, name);
   DCHECK(cell->value()->IsTheHole());
-  __ li(scratch, Operand(cell));
+  Handle<WeakCell> weak_cell = masm->isolate()->factory()->NewWeakCell(cell);
+  __ LoadWeakValue(scratch, weak_cell, miss);
   __ ld(scratch, FieldMemOperand(scratch, Cell::kValueOffset));
   __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
   __ Branch(miss, ne, scratch, Operand(at));
@@ -200,16 +208,10 @@ static void PushInterceptorArguments(MacroAssembler* masm, Register receiver,
                                      Register holder, Register name,
                                      Handle<JSObject> holder_obj) {
   STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex == 0);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsInfoIndex == 1);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex == 2);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex == 3);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsLength == 4);
-  __ push(name);
-  Handle<InterceptorInfo> interceptor(holder_obj->GetNamedInterceptor());
-  DCHECK(!masm->isolate()->heap()->InNewSpace(*interceptor));
-  Register scratch = name;
-  __ li(scratch, Operand(interceptor));
-  __ Push(scratch, receiver, holder);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex == 1);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex == 2);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsLength == 3);
+  __ Push(name, receiver, holder);
 }
 
 
@@ -223,39 +225,48 @@ static void CompileCallLoadPropertyWithInterceptor(
 
 
 // Generate call to api function.
-void PropertyHandlerCompiler::GenerateFastApiCall(
+void PropertyHandlerCompiler::GenerateApiAccessorCall(
     MacroAssembler* masm, const CallOptimization& optimization,
     Handle<Map> receiver_map, Register receiver, Register scratch_in,
-    bool is_store, int argc, Register* values) {
+    bool is_store, Register store_parameter, Register accessor_holder,
+    int accessor_index) {
+  DCHECK(!accessor_holder.is(scratch_in));
   DCHECK(!receiver.is(scratch_in));
-  // Preparing to push, adjust sp.
-  __ Dsubu(sp, sp, Operand((argc + 1) * kPointerSize));
-  __ sd(receiver, MemOperand(sp, argc * kPointerSize));  // Push receiver.
+  __ push(receiver);
   // Write the arguments to stack frame.
-  for (int i = 0; i < argc; i++) {
-    Register arg = values[argc - 1 - i];
-    DCHECK(!receiver.is(arg));
-    DCHECK(!scratch_in.is(arg));
-    __ sd(arg, MemOperand(sp, (argc - 1 - i) * kPointerSize));  // Push arg.
+  if (is_store) {
+    DCHECK(!receiver.is(store_parameter));
+    DCHECK(!scratch_in.is(store_parameter));
+    __ push(store_parameter);
   }
   DCHECK(optimization.is_simple_api_call());
 
   // Abi for CallApiFunctionStub.
   Register callee = a0;
-  Register call_data = a4;
+  Register data = a4;
   Register holder = a2;
   Register api_function_address = a1;
 
+  // Put callee in place.
+  __ LoadAccessor(callee, accessor_holder, accessor_index,
+                  is_store ? ACCESSOR_SETTER : ACCESSOR_GETTER);
+
   // Put holder in place.
   CallOptimization::HolderLookup holder_lookup;
-  Handle<JSObject> api_holder =
-      optimization.LookupHolderOfExpectedType(receiver_map, &holder_lookup);
+  int holder_depth = 0;
+  optimization.LookupHolderOfExpectedType(receiver_map, &holder_lookup,
+                                          &holder_depth);
   switch (holder_lookup) {
     case CallOptimization::kHolderIsReceiver:
       __ Move(holder, receiver);
       break;
     case CallOptimization::kHolderFound:
-      __ li(holder, api_holder);
+      __ ld(holder, FieldMemOperand(receiver, HeapObject::kMapOffset));
+      __ ld(holder, FieldMemOperand(holder, Map::kPrototypeOffset));
+      for (int i = 1; i < holder_depth; i++) {
+        __ ld(holder, FieldMemOperand(holder, HeapObject::kMapOffset));
+        __ ld(holder, FieldMemOperand(holder, Map::kPrototypeOffset));
+      }
       break;
     case CallOptimization::kHolderNotFound:
       UNREACHABLE();
@@ -263,23 +274,17 @@ void PropertyHandlerCompiler::GenerateFastApiCall(
   }
 
   Isolate* isolate = masm->isolate();
-  Handle<JSFunction> function = optimization.constant_function();
   Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
-  Handle<Object> call_data_obj(api_call_info->data(), isolate);
-
-  // Put callee in place.
-  __ li(callee, function);
-
   bool call_data_undefined = false;
-  // Put call_data in place.
-  if (isolate->heap()->InNewSpace(*call_data_obj)) {
-    __ li(call_data, api_call_info);
-    __ ld(call_data, FieldMemOperand(call_data, CallHandlerInfo::kDataOffset));
-  } else if (call_data_obj->IsUndefined()) {
+  // Put call data in place.
+  if (api_call_info->data()->IsUndefined()) {
     call_data_undefined = true;
-    __ LoadRoot(call_data, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(data, Heap::kUndefinedValueRootIndex);
   } else {
-    __ li(call_data, call_data_obj);
+    __ ld(data, FieldMemOperand(callee, JSFunction::kSharedFunctionInfoOffset));
+    __ ld(data, FieldMemOperand(data, SharedFunctionInfo::kFunctionDataOffset));
+    __ ld(data, FieldMemOperand(data, FunctionTemplateInfo::kCallCodeOffset));
+    __ ld(data, FieldMemOperand(data, CallHandlerInfo::kDataOffset));
   }
   // Put api_function_address in place.
   Address function_address = v8::ToCData<Address>(api_call_info->callback());
@@ -289,7 +294,7 @@ void PropertyHandlerCompiler::GenerateFastApiCall(
   __ li(api_function_address, Operand(ref));
 
   // Jump to stub.
-  CallApiFunctionStub stub(isolate, is_store, call_data_undefined, argc);
+  CallApiAccessorStub stub(isolate, is_store, call_data_undefined);
   __ TailCallStub(&stub);
 }
 
@@ -371,21 +376,24 @@ void NamedStoreHandlerCompiler::GenerateConstantCheck(Register map_reg,
 void NamedStoreHandlerCompiler::GenerateFieldTypeChecks(HeapType* field_type,
                                                         Register value_reg,
                                                         Label* miss_label) {
+  Register map_reg = scratch1();
+  Register scratch = scratch2();
+  DCHECK(!value_reg.is(map_reg));
+  DCHECK(!value_reg.is(scratch));
   __ JumpIfSmi(value_reg, miss_label);
   HeapType::Iterator<Map> it = field_type->Classes();
   if (!it.Done()) {
-    __ ld(scratch1(), FieldMemOperand(value_reg, HeapObject::kMapOffset));
+    __ ld(map_reg, FieldMemOperand(value_reg, HeapObject::kMapOffset));
     Label do_store;
-    Handle<Map> current;
     while (true) {
-      // Do the CompareMap() directly within the Branch() functions.
-      current = it.Current();
+      // Compare map directly within the Branch() functions.
+      __ GetWeakValue(scratch, Map::WeakCellForMap(it.Current()));
       it.Advance();
       if (it.Done()) {
-        __ Branch(miss_label, ne, scratch1(), Operand(current));
+        __ Branch(miss_label, ne, map_reg, Operand(scratch));
         break;
       }
-      __ Branch(&do_store, eq, scratch1(), Operand(current));
+      __ Branch(&do_store, eq, map_reg, Operand(scratch));
     }
     __ bind(&do_store);
   }
@@ -396,7 +404,7 @@ Register PropertyHandlerCompiler::CheckPrototypes(
     Register object_reg, Register holder_reg, Register scratch1,
     Register scratch2, Handle<Name> name, Label* miss,
     PrototypeCheckType check) {
-  Handle<Map> receiver_map(IC::TypeToMap(*type(), isolate()));
+  Handle<Map> receiver_map = map();
 
   // Make sure there's no overlap between holder and object registers.
   DCHECK(!scratch1.is(object_reg) && !scratch1.is(holder_reg));
@@ -408,8 +416,8 @@ Register PropertyHandlerCompiler::CheckPrototypes(
   int depth = 0;
 
   Handle<JSObject> current = Handle<JSObject>::null();
-  if (type()->IsConstant()) {
-    current = Handle<JSObject>::cast(type()->AsConstant()->Value());
+  if (receiver_map->IsJSGlobalObjectMap()) {
+    current = isolate()->global_object();
   }
   Handle<JSObject> prototype = Handle<JSObject>::null();
   Handle<Map> current_map = receiver_map;
@@ -545,12 +553,15 @@ void NamedLoadHandlerCompiler::GenerateLoadCallback(
   DCHECK(!scratch3().is(reg));
   DCHECK(!scratch4().is(reg));
   __ push(receiver());
-  if (heap()->InNewSpace(callback->data())) {
-    __ li(scratch3(), callback);
-    __ ld(scratch3(),
-          FieldMemOperand(scratch3(), ExecutableAccessorInfo::kDataOffset));
+  Handle<Object> data(callback->data(), isolate());
+  if (data->IsUndefined() || data->IsSmi()) {
+    __ li(scratch3(), data);
   } else {
-    __ li(scratch3(), Handle<Object>(callback->data(), isolate()));
+    Handle<WeakCell> cell =
+        isolate()->factory()->NewWeakCell(Handle<HeapObject>::cast(data));
+    // The callback is alive if this instruction is executed,
+    // so the weak cell is not cleared and points to data.
+    __ GetWeakValue(scratch3(), cell);
   }
   __ Dsubu(sp, sp, 6 * kPointerSize);
   __ sd(scratch3(), MemOperand(sp, 5 * kPointerSize));
@@ -657,7 +668,14 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
   Register holder_reg = Frontend(name);
 
   __ Push(receiver(), holder_reg);  // Receiver.
-  __ li(at, Operand(callback));     // Callback info.
+  // If the callback cannot leak, then push the callback directly,
+  // otherwise wrap it in a weak cell.
+  if (callback->data()->IsUndefined() || callback->data()->IsSmi()) {
+    __ li(at, Operand(callback));
+  } else {
+    Handle<WeakCell> cell = isolate()->factory()->NewWeakCell(callback);
+    __ li(at, Operand(cell));
+  }
   __ push(at);
   __ li(at, Operand(name));
   __ Push(at, value());

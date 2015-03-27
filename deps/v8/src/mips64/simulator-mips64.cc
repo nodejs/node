@@ -13,6 +13,7 @@
 
 #include "src/assembler.h"
 #include "src/base/bits.h"
+#include "src/codegen.h"
 #include "src/disasm.h"
 #include "src/mips64/constants-mips64.h"
 #include "src/mips64/simulator-mips64.h"
@@ -808,7 +809,7 @@ void Simulator::FlushICache(v8::internal::HashMap* i_cache,
     FlushOnePage(i_cache, start, bytes_to_flush);
     start += bytes_to_flush;
     size -= bytes_to_flush;
-    DCHECK_EQ((uint64_t)0, start & CachePage::kPageMask);
+    DCHECK_EQ((int64_t)0, start & CachePage::kPageMask);
     offset = 0;
   }
   if (size != 0) {
@@ -2391,7 +2392,7 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
               set_fpu_register_double(fd_reg, -fs);
               break;
             case SQRT_D:
-              set_fpu_register_double(fd_reg, sqrt(fs));
+              set_fpu_register_double(fd_reg, fast_sqrt(fs));
               break;
             case C_UN_D:
               set_fcsr_bit(fcsr_cc, std::isnan(fs) || std::isnan(ft));

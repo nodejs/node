@@ -25,6 +25,8 @@ CodeEntry::CodeEntry(Logger::LogEventsAndTags tag, const char* name,
       script_id_(v8::UnboundScript::kNoScriptId),
       no_frame_ranges_(NULL),
       bailout_reason_(kEmptyBailoutReason),
+      deopt_reason_(kNoDeoptReason),
+      deopt_location_(0),
       line_info_(line_info),
       instruction_start_(instruction_start) {}
 

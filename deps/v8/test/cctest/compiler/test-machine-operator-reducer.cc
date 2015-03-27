@@ -61,8 +61,8 @@ class ReducerTester : public HandleAndZoneScope {
         common(main_zone()),
         graph(main_zone()),
         javascript(main_zone()),
-        typer(&graph, MaybeHandle<Context>()),
-        jsgraph(&graph, &common, &javascript, &machine),
+        typer(isolate, &graph, MaybeHandle<Context>()),
+        jsgraph(isolate, &graph, &common, &javascript, &machine),
         maxuint32(Constant<int32_t>(kMaxUInt32)) {
     Node* s = graph.NewNode(common.Start(num_parameters));
     graph.SetStart(s);
@@ -100,7 +100,7 @@ class ReducerTester : public HandleAndZoneScope {
   // the {expect} value.
   template <typename T>
   void CheckFoldBinop(volatile T expect, Node* a, Node* b) {
-    CHECK_NE(NULL, binop);
+    CHECK(binop);
     Node* n = CreateBinopNode(a, b);
     MachineOperatorReducer reducer(&jsgraph);
     Reduction reduction = reducer.Reduce(n);
@@ -112,7 +112,7 @@ class ReducerTester : public HandleAndZoneScope {
   // Check that the reduction of this binop applied to {a} and {b} yields
   // the {expect} node.
   void CheckBinop(Node* expect, Node* a, Node* b) {
-    CHECK_NE(NULL, binop);
+    CHECK(binop);
     Node* n = CreateBinopNode(a, b);
     MachineOperatorReducer reducer(&jsgraph);
     Reduction reduction = reducer.Reduce(n);
@@ -124,7 +124,7 @@ class ReducerTester : public HandleAndZoneScope {
   // this binop applied to {left_expect} and {right_expect}.
   void CheckFoldBinop(Node* left_expect, Node* right_expect, Node* left,
                       Node* right) {
-    CHECK_NE(NULL, binop);
+    CHECK(binop);
     Node* n = CreateBinopNode(left, right);
     MachineOperatorReducer reducer(&jsgraph);
     Reduction reduction = reducer.Reduce(n);
@@ -139,7 +139,7 @@ class ReducerTester : public HandleAndZoneScope {
   template <typename T>
   void CheckFoldBinop(volatile T left_expect, const Operator* op_expect,
                       Node* right_expect, Node* left, Node* right) {
-    CHECK_NE(NULL, binop);
+    CHECK(binop);
     Node* n = CreateBinopNode(left, right);
     MachineOperatorReducer reducer(&jsgraph);
     Reduction r = reducer.Reduce(n);
@@ -154,7 +154,7 @@ class ReducerTester : public HandleAndZoneScope {
   template <typename T>
   void CheckFoldBinop(Node* left_expect, const Operator* op_expect,
                       volatile T right_expect, Node* left, Node* right) {
-    CHECK_NE(NULL, binop);
+    CHECK(binop);
     Node* n = CreateBinopNode(left, right);
     MachineOperatorReducer reducer(&jsgraph);
     Reduction r = reducer.Reduce(n);
@@ -723,133 +723,6 @@ TEST(ReduceLoadStore) {
 }
 
 
-static void CheckNans(ReducerTester* R) {
-  Node* x = R->Parameter();
-  std::vector<double> nans = ValueHelper::nan_vector();
-  for (std::vector<double>::const_iterator pl = nans.begin(); pl != nans.end();
-       ++pl) {
-    for (std::vector<double>::const_iterator pr = nans.begin();
-         pr != nans.end(); ++pr) {
-      Node* nan1 = R->Constant<double>(*pl);
-      Node* nan2 = R->Constant<double>(*pr);
-      R->CheckBinop(nan1, x, nan1);     // x op NaN => NaN
-      R->CheckBinop(nan1, nan1, x);     // NaN op x => NaN
-      R->CheckBinop(nan1, nan2, nan1);  // NaN op NaN => NaN
-    }
-  }
-}
-
-
-TEST(ReduceFloat64Add) {
-  ReducerTester R;
-  R.binop = R.machine.Float64Add();
-
-  FOR_FLOAT64_INPUTS(pl) {
-    FOR_FLOAT64_INPUTS(pr) {
-      double x = *pl, y = *pr;
-      R.CheckFoldBinop<double>(x + y, x, y);
-    }
-  }
-
-  FOR_FLOAT64_INPUTS(i) {
-    Double tmp(*i);
-    if (!tmp.IsSpecial() || tmp.IsInfinite()) {
-      // Don't check NaNs as they are reduced more.
-      R.CheckPutConstantOnRight(*i);
-    }
-  }
-
-  CheckNans(&R);
-}
-
-
-TEST(ReduceFloat64Sub) {
-  ReducerTester R;
-  R.binop = R.machine.Float64Sub();
-
-  FOR_FLOAT64_INPUTS(pl) {
-    FOR_FLOAT64_INPUTS(pr) {
-      double x = *pl, y = *pr;
-      R.CheckFoldBinop<double>(x - y, x, y);
-    }
-  }
-
-  Node* zero = R.Constant<double>(0.0);
-  Node* x = R.Parameter();
-
-  R.CheckBinop(x, x, zero);  // x - 0.0 => x
-
-  CheckNans(&R);
-}
-
-
-TEST(ReduceFloat64Mul) {
-  ReducerTester R;
-  R.binop = R.machine.Float64Mul();
-
-  FOR_FLOAT64_INPUTS(pl) {
-    FOR_FLOAT64_INPUTS(pr) {
-      double x = *pl, y = *pr;
-      R.CheckFoldBinop<double>(x * y, x, y);
-    }
-  }
-
-  double inf = V8_INFINITY;
-  R.CheckPutConstantOnRight(-inf);
-  R.CheckPutConstantOnRight(-0.1);
-  R.CheckPutConstantOnRight(0.1);
-  R.CheckPutConstantOnRight(inf);
-
-  Node* x = R.Parameter();
-  Node* one = R.Constant<double>(1.0);
-
-  R.CheckBinop(x, x, one);  // x * 1.0 => x
-  R.CheckBinop(x, one, x);  // 1.0 * x => x
-
-  CheckNans(&R);
-}
-
-
-TEST(ReduceFloat64Div) {
-  ReducerTester R;
-  R.binop = R.machine.Float64Div();
-
-  FOR_FLOAT64_INPUTS(pl) {
-    FOR_FLOAT64_INPUTS(pr) {
-      double x = *pl, y = *pr;
-      R.CheckFoldBinop<double>(x / y, x, y);
-    }
-  }
-
-  Node* x = R.Parameter();
-  Node* one = R.Constant<double>(1.0);
-
-  R.CheckBinop(x, x, one);  // x / 1.0 => x
-
-  CheckNans(&R);
-}
-
-
-TEST(ReduceFloat64Mod) {
-  ReducerTester R;
-  R.binop = R.machine.Float64Mod();
-
-  FOR_FLOAT64_INPUTS(pl) {
-    FOR_FLOAT64_INPUTS(pr) {
-      double x = *pl, y = *pr;
-      R.CheckFoldBinop<double>(modulo(x, y), x, y);
-    }
-  }
-
-  Node* x = R.Parameter();
-  Node* zero = R.Constant<double>(0.0);
-
-  R.CheckFoldBinop<double>(v8::base::OS::nan_value(), x, zero);
-
-  CheckNans(&R);
-}
-
-
 // TODO(titzer): test MachineOperatorReducer for Word64And
 // TODO(titzer): test MachineOperatorReducer for Word64Or
 // TODO(titzer): test MachineOperatorReducer for Word64Xor
@@ -870,3 +743,8 @@ TEST(ReduceFloat64Mod) {
 // TODO(titzer): test MachineOperatorReducer for ChangeInt32ToFloat64
 // TODO(titzer): test MachineOperatorReducer for ChangeFloat64ToInt32
 // TODO(titzer): test MachineOperatorReducer for Float64Compare
+// TODO(titzer): test MachineOperatorReducer for Float64Add
+// TODO(titzer): test MachineOperatorReducer for Float64Sub
+// TODO(titzer): test MachineOperatorReducer for Float64Mul
+// TODO(titzer): test MachineOperatorReducer for Float64Div
+// TODO(titzer): test MachineOperatorReducer for Float64Mod

@@ -292,7 +292,7 @@ void RelocInfo::apply(intptr_t delta, ICacheFlushMode icache_flush_mode) {
   bool flush_icache = icache_flush_mode != SKIP_ICACHE_FLUSH;
   if (IsInternalReference(rmode_)) {
     // absolute code pointer inside code object moves with the code object.
-    Memory::Address_at(pc_) += static_cast<int32_t>(delta);
+    Memory::Address_at(pc_) += delta;
     if (flush_icache) CpuFeatures::FlushICache(pc_, sizeof(Address));
   } else if (IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)) {
     Memory::int32_at(pc_) -= static_cast<int32_t>(delta);
@@ -621,7 +621,12 @@ void Operand::set_disp32(int disp) {
   len_ += sizeof(int32_t);
 }
 
-
+void Operand::set_disp64(int64_t disp) {
+  DCHECK_EQ(1, len_);
+  int64_t* p = reinterpret_cast<int64_t*>(&buf_[len_]);
+  *p = disp;
+  len_ += sizeof(disp);
+}
 } }  // namespace v8::internal
 
 #endif  // V8_X64_ASSEMBLER_X64_INL_H_

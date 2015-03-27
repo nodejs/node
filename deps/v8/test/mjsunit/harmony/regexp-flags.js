@@ -2,19 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-regexps
+// Flags: --harmony-regexps --harmony-unicode-regexps
 
 RegExp.prototype.flags = 'setter should be undefined';
 
 assertEquals('', RegExp('').flags);
 assertEquals('', /./.flags);
-assertEquals('gimy', RegExp('', 'ygmi').flags);
-assertEquals('gimy', /foo/ymig.flags);
-
-// TODO(dslomov): When support for the `u` flag is added, uncomment the first
-// line below and remove the second line.
-//assertEquals(RegExp('', 'yumig').flags, 'gimuy');
-assertThrows(function() { RegExp('', 'yumig').flags; }, SyntaxError);
+assertEquals('gimuy', RegExp('', 'yugmi').flags);
+assertEquals('gimuy', /foo/yumig.flags);
 
 var descriptor = Object.getOwnPropertyDescriptor(RegExp.prototype, 'flags');
 assertTrue(descriptor.configurable);

@@ -98,11 +98,11 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm_)
 
-RegExpMacroAssemblerPPC::RegExpMacroAssemblerPPC(Mode mode,
-                                                 int registers_to_save,
-                                                 Zone* zone)
-    : NativeRegExpMacroAssembler(zone),
-      masm_(new MacroAssembler(zone->isolate(), NULL, kRegExpCodeSize)),
+RegExpMacroAssemblerPPC::RegExpMacroAssemblerPPC(Isolate* isolate, Zone* zone,
+                                                 Mode mode,
+                                                 int registers_to_save)
+    : NativeRegExpMacroAssembler(isolate, zone),
+      masm_(new MacroAssembler(isolate, NULL, kRegExpCodeSize)),
       mode_(mode),
       num_registers_(registers_to_save),
       num_saved_registers_(registers_to_save),
@@ -115,9 +115,7 @@ RegExpMacroAssemblerPPC::RegExpMacroAssemblerPPC(Mode mode,
   DCHECK_EQ(0, registers_to_save % 2);
 
 // Called from C
-#if ABI_USES_FUNCTION_DESCRIPTORS
   __ function_descriptor();
-#endif
 
   __ b(&entry_label_);  // We'll write the entry code later.
   // If the code gets too big or corrupted, an internal exception will be

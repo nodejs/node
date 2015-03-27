@@ -7,6 +7,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <string>
 
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -33,25 +34,6 @@ class Capture {
 
 
 namespace internal {
-
-struct AnyBitEq {
-  template <typename A, typename B>
-  bool operator()(A const& a, B const& b) const {
-    if (sizeof(A) != sizeof(B)) return false;
-    return std::memcmp(&a, &b, sizeof(A)) == 0;
-  }
-};
-
-
-template <typename Rhs>
-class BitEqMatcher : public ComparisonBase<BitEqMatcher<Rhs>, Rhs, AnyBitEq> {
- public:
-  explicit BitEqMatcher(Rhs const& rhs)
-      : ComparisonBase<BitEqMatcher<Rhs>, Rhs, AnyBitEq>(rhs) {}
-  static const char* Desc() { return "is bitwise equal to"; }
-  static const char* NegatedDesc() { return "isn't bitwise equal to"; }
-};
-
 
 template <typename T>
 class CaptureEqMatcher : public MatcherInterface<T> {
@@ -83,10 +65,11 @@ class CaptureEqMatcher : public MatcherInterface<T> {
 
 
 // Creates a polymorphic matcher that matches anything whose bit representation
-// is equal to that of x.
-template <typename T>
-inline internal::BitEqMatcher<T> BitEq(T const& x) {
-  return internal::BitEqMatcher<T>(x);
+// is equal to that of {x}.
+MATCHER_P(BitEq, x, std::string(negation ? "isn't" : "is") +
+                        " bitwise equal to " + PrintToString(x)) {
+  static_assert(sizeof(x) == sizeof(arg), "Size mismatch");
+  return std::memcmp(&arg, &x, sizeof(x)) == 0;
 }
 
 

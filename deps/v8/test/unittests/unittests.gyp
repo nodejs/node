@@ -28,6 +28,7 @@
         'base/division-by-constant-unittest.cc',
         'base/flags-unittest.cc',
         'base/functional-unittest.cc',
+        'base/logging-unittest.cc',
         'base/iterator-unittest.cc',
         'base/platform/condition-variable-unittest.cc',
         'base/platform/mutex-unittest.cc',
@@ -42,6 +43,8 @@
         'compiler/common-operator-unittest.cc',
         'compiler/compiler-test-utils.h',
         'compiler/control-equivalence-unittest.cc',
+        'compiler/control-flow-optimizer-unittest.cc',
+        'compiler/control-reducer-unittest.cc',
         'compiler/diamond-unittest.cc',
         'compiler/graph-reducer-unittest.cc',
         'compiler/graph-unittest.cc',
@@ -51,19 +54,27 @@
         'compiler/instruction-sequence-unittest.cc',
         'compiler/instruction-sequence-unittest.h',
         'compiler/js-builtin-reducer-unittest.cc',
+        'compiler/js-intrinsic-lowering-unittest.cc',
         'compiler/js-operator-unittest.cc',
         'compiler/js-typed-lowering-unittest.cc',
         'compiler/load-elimination-unittest.cc',
+        'compiler/loop-peeling-unittest.cc',
         'compiler/machine-operator-reducer-unittest.cc',
         'compiler/machine-operator-unittest.cc',
         'compiler/move-optimizer-unittest.cc',
         'compiler/node-matchers-unittest.cc',
+        'compiler/node-properties-unittest.cc',
         'compiler/node-test-utils.cc',
         'compiler/node-test-utils.h',
+        'compiler/node-unittest.cc',
+        'compiler/opcodes-unittest.cc',
         'compiler/register-allocator-unittest.cc',
+        'compiler/schedule-unittest.cc',
         'compiler/select-lowering-unittest.cc',
+        'compiler/scheduler-unittest.cc',
         'compiler/simplified-operator-reducer-unittest.cc',
         'compiler/simplified-operator-unittest.cc',
+        'compiler/typer-unittest.cc',
         'compiler/value-numbering-reducer-unittest.cc',
         'compiler/zone-pool-unittest.cc',
         'libplatform/default-platform-unittest.cc',
@@ -73,6 +84,8 @@
         'run-all-unittests.cc',
         'test-utils.h',
         'test-utils.cc',
+        '../../src/startup-data-util.h',
+        '../../src/startup-data-util.cc'
       ],
       'conditions': [
         ['v8_target_arch=="arm"', {
@@ -103,6 +116,11 @@
         ['v8_target_arch=="x64"', {
           'sources': [  ### gcmole(arch:x64) ###
             'compiler/x64/instruction-selector-x64-unittest.cc',
+          ],
+        }],
+        ['v8_target_arch=="ppc" or v8_target_arch=="ppc64"', {
+          'sources': [  ### gcmole(arch:ppc) ###
+            'compiler/ppc/instruction-selector-ppc-unittest.cc',
           ],
         }],
         ['component=="shared_library"', {

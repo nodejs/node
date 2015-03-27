@@ -144,6 +144,8 @@ class OutOfLineCode : public ZoneObject {
 static inline void FinishCode(MacroAssembler* masm) {
 #if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
   masm->CheckConstPool(true, false);
+#elif V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+  masm->ud2();
 #endif
 }
 

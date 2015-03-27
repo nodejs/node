@@ -138,6 +138,7 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 
   // Run the native code for the Array function called as a normal function.
   // Tail call a stub.
+  __ mov(a3, a1);
   __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
   ArrayConstructorStub stub(masm->isolate());
   __ TailCallStub(&stub);
@@ -315,6 +316,36 @@ void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
 }
 
 
+static void Generate_Runtime_NewObject(MacroAssembler* masm,
+                                       bool create_memento,
+                                       Register original_constructor,
+                                       Label* count_incremented,
+                                       Label* allocated) {
+  if (create_memento) {
+    // Get the cell or allocation site.
+    __ lw(a2, MemOperand(sp, 2 * kPointerSize));
+    __ push(a2);
+  }
+
+  __ push(a1);                    // argument for Runtime_NewObject
+  __ push(original_constructor);  // original constructor
+  if (create_memento) {
+    __ CallRuntime(Runtime::kNewObjectWithAllocationSite, 3);
+  } else {
+    __ CallRuntime(Runtime::kNewObject, 2);
+  }
+  __ mov(t4, v0);
+
+  // Runtime_NewObjectWithAllocationSite increments allocation count.
+  // Skip the increment.
+  if (create_memento) {
+    __ jmp(count_incremented);
+  } else {
+    __ jmp(allocated);
+  }
+}
+
+
 static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                                            bool is_api_function,
                                            bool create_memento) {
@@ -322,6 +353,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   //  -- a0     : number of arguments
   //  -- a1     : constructor function
   //  -- a2     : allocation site or undefined
+  //  -- a3     : original constructor
   //  -- ra     : return address
   //  -- sp[...]: constructor arguments
   // -----------------------------------
@@ -343,7 +375,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     FrameScope scope(masm, StackFrame::CONSTRUCT);
 
     if (create_memento) {
-      __ AssertUndefinedOrAllocationSite(a2, a3);
+      __ AssertUndefinedOrAllocationSite(a2, t0);
       __ push(a2);
     }
 
@@ -351,7 +383,14 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ sll(a0, a0, kSmiTagSize);  // Tag arguments count.
     __ MultiPushReversed(a0.bit() | a1.bit());
 
-    Label rt_call, allocated;
+    Label rt_call, allocated, normal_new, count_incremented;
+    __ Branch(&normal_new, eq, a1, Operand(a3));
+
+    // Original constructor and function are different.
+    Generate_Runtime_NewObject(masm, create_memento, a3, &count_incremented,
+                               &allocated);
+    __ bind(&normal_new);
+
     // Try to allocate the object without transitioning into C code. If any of
     // the preconditions is not met, the code bails out to the runtime call.
     if (FLAG_inline_new) {
@@ -590,27 +629,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // Allocate the new receiver object using the runtime call.
     // a1: constructor function
     __ bind(&rt_call);
-    if (create_memento) {
-      // Get the cell or allocation site.
-      __ lw(a2, MemOperand(sp, 2 * kPointerSize));
-      __ push(a2);
-    }
-
-    __ push(a1);  // Argument for Runtime_NewObject.
-    if (create_memento) {
-      __ CallRuntime(Runtime::kNewObjectWithAllocationSite, 2);
-    } else {
-      __ CallRuntime(Runtime::kNewObject, 1);
-    }
-    __ mov(t4, v0);
-
-    // If we ended up using the runtime, and we want a memento, then the
-    // runtime call made it for us, and we shouldn't do create count
-    // increment.
-    Label count_incremented;
-    if (create_memento) {
-      __ jmp(&count_incremented);
-    }
+    Generate_Runtime_NewObject(masm, create_memento, a1, &count_incremented,
+                               &allocated);
 
     // Receiver for constructor call allocated.
     // t4: JSObject
@@ -736,6 +756,93 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
 void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
   Generate_JSConstructStubHelper(masm, true, false);
+}
+
+
+void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- a0     : number of arguments
+  //  -- a1     : constructor function
+  //  -- a2     : allocation site or undefined
+  //  -- a3     : original constructor
+  //  -- ra     : return address
+  //  -- sp[...]: constructor arguments
+  // -----------------------------------
+
+  // TODO(dslomov): support pretenuring
+  CHECK(!FLAG_pretenuring_call_new);
+
+  {
+    FrameScope frame_scope(masm, StackFrame::CONSTRUCT);
+
+    __ mov(t0, a0);
+    __ SmiTag(t0);
+    __ push(t0);  // Smi-tagged arguments count.
+
+    // Push new.target.
+    __ push(a3);
+
+    // receiver is the hole.
+    __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
+    __ push(at);
+
+    // Set up pointer to last argument.
+    __ Addu(a2, fp, Operand(StandardFrameConstants::kCallerSPOffset));
+
+    // Copy arguments and receiver to the expression stack.
+    // a0: number of arguments
+    // a1: constructor function
+    // a2: address of last argument (caller sp)
+    // t0: number of arguments (smi-tagged)
+    // sp[0]: receiver
+    // sp[1]: new.target
+    // sp[2]: number of arguments (smi-tagged)
+    Label loop, entry;
+    __ Branch(&entry);
+    __ bind(&loop);
+    __ sll(at, t0, kPointerSizeLog2 - 1);
+    __ Addu(at, a2, Operand(at));
+    __ lw(at, MemOperand(at));
+    __ push(at);
+    __ bind(&entry);
+    __ Subu(t0, t0, Operand(2));
+    __ Branch(&loop, ge, t0, Operand(zero_reg));
+
+    __ Addu(a0, a0, Operand(1));
+
+    // Handle step in.
+    Label skip_step_in;
+    ExternalReference debug_step_in_fp =
+        ExternalReference::debug_step_in_fp_address(masm->isolate());
+    __ li(a2, Operand(debug_step_in_fp));
+    __ lw(a2, MemOperand(a2));
+    __ Branch(&skip_step_in, eq, a2, Operand(zero_reg));
+
+    __ Push(a0, a1, a1);
+    __ CallRuntime(Runtime::kHandleStepInForDerivedConstructors, 1);
+    __ Pop(a0, a1);
+
+    __ bind(&skip_step_in);
+
+    // Call the function.
+    // a0: number of arguments
+    // a1: constructor function
+    ParameterCount actual(a0);
+    __ InvokeFunction(a1, actual, CALL_FUNCTION, NullCallWrapper());
+
+    // Restore context from the frame.
+    // v0: result
+    // sp[0]: number of arguments (smi-tagged)
+    __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+    __ lw(a1, MemOperand(sp, 0));
+
+    // Leave construct frame.
+  }
+
+  __ sll(at, a1, kPointerSizeLog2 - 1);
+  __ Addu(sp, sp, Operand(at));
+  __ Addu(sp, sp, Operand(kPointerSize));
+  __ Jump(ra);
 }
 
 

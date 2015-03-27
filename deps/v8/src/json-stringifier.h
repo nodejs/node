@@ -539,7 +539,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
       PropertyDetails details = map->instance_descriptors()->GetDetails(i);
       if (details.IsDontEnum()) continue;
       Handle<Object> property;
-      if (details.type() == FIELD && *map == object->map()) {
+      if (details.type() == DATA && *map == object->map()) {
         FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
         Isolate* isolate = object->GetIsolate();
         if (object->IsUnboxedDoubleField(field_index)) {

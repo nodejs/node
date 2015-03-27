@@ -159,13 +159,13 @@ void DeclarationContext::Check(const char* source,
   if (expectations == EXPECT_RESULT) {
     CHECK(!catcher.HasCaught());
     if (!value.IsEmpty()) {
-      CHECK_EQ(value, result);
+      CHECK(value->Equals(result));
     }
   } else {
     CHECK(expectations == EXPECT_EXCEPTION);
     CHECK(catcher.HasCaught());
     if (!value.IsEmpty()) {
-      CHECK_EQ(value, catcher.Exception());
+      CHECK(value->Equals(catcher.Exception()));
     }
   }
   // Clean slate for the next test.
@@ -580,13 +580,13 @@ class SimpleContext {
     if (expectations == EXPECT_RESULT) {
       CHECK(!catcher.HasCaught());
       if (!value.IsEmpty()) {
-        CHECK_EQ(value, result);
+        CHECK(value->Equals(result));
       }
     } else {
       CHECK(expectations == EXPECT_EXCEPTION);
       CHECK(catcher.HasCaught());
       if (!value.IsEmpty()) {
-        CHECK_EQ(value, catcher.Exception());
+        CHECK(value->Equals(catcher.Exception()));
       }
     }
   }
@@ -676,7 +676,6 @@ TEST(CrossScriptReferences_Simple2) {
 
 TEST(CrossScriptReferencesHarmony) {
   i::FLAG_harmony_scoping = true;
-  i::FLAG_harmony_modules = true;
 
   v8::Isolate* isolate = CcTest::isolate();
   HandleScope scope(isolate);
@@ -687,7 +686,6 @@ TEST(CrossScriptReferencesHarmony) {
     "'use strict'; function x() { return 1 }; x()", "x()",
     "'use strict'; let x = 1; x", "x",
     "'use strict'; const x = 1; x", "x",
-    "'use strict'; module x { export let a = 1 }; x.a", "x.a",
     NULL
   };
 
@@ -823,7 +821,6 @@ TEST(CrossScriptReferencesHarmony) {
 TEST(GlobalLexicalOSR) {
   i::FLAG_use_strict = true;
   i::FLAG_harmony_scoping = true;
-  i::FLAG_harmony_modules = true;
 
   v8::Isolate* isolate = CcTest::isolate();
   HandleScope scope(isolate);
@@ -848,7 +845,6 @@ TEST(GlobalLexicalOSR) {
 TEST(CrossScriptConflicts) {
   i::FLAG_use_strict = true;
   i::FLAG_harmony_scoping = true;
-  i::FLAG_harmony_modules = true;
 
   HandleScope scope(CcTest::isolate());
 
@@ -857,7 +853,6 @@ TEST(CrossScriptConflicts) {
     "function x() { return 1 }; x()",
     "let x = 1; x",
     "const x = 1; x",
-    "module x { export let a = 1 }; x.a",
     NULL
   };
   const char* seconds[] = {
@@ -865,7 +860,6 @@ TEST(CrossScriptConflicts) {
     "function x() { return 2 }; x()",
     "let x = 2; x",
     "const x = 2; x",
-    "module x { export let a = 2 }; x.a",
     NULL
   };
 
@@ -1149,5 +1143,23 @@ TEST(CrossScriptAssignmentToConst) {
     context.Check("x", EXPECT_RESULT, Number::New(CcTest::isolate(), 1));
     context.Check("%OptimizeFunctionOnNextCall(f);f();", EXPECT_EXCEPTION);
     context.Check("x", EXPECT_RESULT, Number::New(CcTest::isolate(), 1));
+  }
+}
+
+
+TEST(Regress425510) {
+  i::FLAG_harmony_scoping = true;
+  i::FLAG_allow_natives_syntax = true;
+
+  HandleScope handle_scope(CcTest::isolate());
+
+  {
+    SimpleContext context;
+
+    context.Check("'use strict'; o; const o = 10", EXPECT_EXCEPTION);
+
+    for (int i = 0; i < 100; i++) {
+      context.Check("o.prototype", EXPECT_EXCEPTION);
+    }
   }
 }

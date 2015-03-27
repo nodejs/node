@@ -72,7 +72,7 @@ TEST(Utils1) {
 
   CHECK_EQ(INT_MAX, FastD2IChecked(1.0e100));
   CHECK_EQ(INT_MIN, FastD2IChecked(-1.0e100));
-  CHECK_EQ(INT_MIN, FastD2IChecked(v8::base::OS::nan_value()));
+  CHECK_EQ(INT_MIN, FastD2IChecked(std::numeric_limits<double>::quiet_NaN()));
 }
 
 

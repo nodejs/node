@@ -373,7 +373,7 @@ class HCheckTable : public ZoneObject {
           instr->DeleteAndReplaceWith(entry->check_);
           INC_STAT(redundant_);
         } else if (entry->state_ == HCheckTableEntry::UNCHECKED_STABLE) {
-          DCHECK_EQ(NULL, entry->check_);
+          DCHECK_NULL(entry->check_);
           TRACE(("Marking redundant CheckMaps #%d at B%d as stability check\n",
                  instr->id(), instr->block()->block_id()));
           instr->set_maps(entry->maps_->Copy(graph->zone()));
@@ -693,14 +693,14 @@ class HCheckTable : public ZoneObject {
     bool compact = false;
     for (int i = 0; i < size_; i++) {
       HCheckTableEntry* entry = &entries_[i];
-      DCHECK(entry->object_ != NULL);
+      DCHECK_NOT_NULL(entry->object_);
       if (phase_->aliasing_->MayAlias(entry->object_, object)) {
         entry->object_ = NULL;
         compact = true;
       }
     }
     if (compact) Compact();
-    DCHECK(Find(object) == NULL);
+    DCHECK_NULL(Find(object));
   }
 
   void Compact() {

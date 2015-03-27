@@ -209,14 +209,14 @@ mirror = debug.MakeMirror(o);
 // a has getter but no setter.
 assertTrue(mirror.property('a').hasGetter());
 assertFalse(mirror.property('a').hasSetter());
-assertEquals(debug.PropertyType.Callbacks, mirror.property('a').propertyType());
+assertEquals(debug.PropertyType.AccessorConstant, mirror.property('a').propertyType());
 assertEquals('function', mirror.property('a').getter().type());
 assertEquals('undefined', mirror.property('a').setter().type());
 assertEquals('function (){return \'a\';}', mirror.property('a').getter().source());
 // b has setter but no getter.
 assertFalse(mirror.property('b').hasGetter());
 assertTrue(mirror.property('b').hasSetter());
-assertEquals(debug.PropertyType.Callbacks, mirror.property('b').propertyType());
+assertEquals(debug.PropertyType.AccessorConstant, mirror.property('b').propertyType());
 assertEquals('undefined', mirror.property('b').getter().type());
 assertEquals('function', mirror.property('b').setter().type());
 assertEquals('function (){}', mirror.property('b').setter().source());
@@ -224,7 +224,7 @@ assertFalse(mirror.property('b').isException());
 // c has both getter and setter. The getter throws an exception.
 assertTrue(mirror.property('c').hasGetter());
 assertTrue(mirror.property('c').hasSetter());
-assertEquals(debug.PropertyType.Callbacks, mirror.property('c').propertyType());
+assertEquals(debug.PropertyType.AccessorConstant, mirror.property('c').propertyType());
 assertEquals('function', mirror.property('c').getter().type());
 assertEquals('function', mirror.property('c').setter().type());
 assertEquals('function (){throw \'c\';}', mirror.property('c').getter().source());

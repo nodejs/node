@@ -44,7 +44,6 @@
 #include "src/log-inl.h"  // NOLINT
 #include "src/handles-inl.h"  // NOLINT
 #include "src/types-inl.h"  // NOLINT
-#include "src/zone-inl.h"  // NOLINT
 
 namespace v8 {
 namespace internal {
@@ -57,6 +56,7 @@ class V8 : public AllStatic {
   static void TearDown();
 
   // Report process out of memory. Implementation found in api.cc.
+  // This function will not return, but will terminate the execution.
   static void FatalProcessOutOfMemory(const char* location,
                                       bool take_snapshot = false);
 
@@ -74,7 +74,7 @@ class V8 : public AllStatic {
   }
 
   static void SetArrayBufferAllocator(v8::ArrayBuffer::Allocator *allocator) {
-    CHECK_EQ(NULL, array_buffer_allocator_);
+    CHECK_NULL(array_buffer_allocator_);
     array_buffer_allocator_ = allocator;
   }
 

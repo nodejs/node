@@ -126,7 +126,7 @@ static const double PIo2[] = {
 };
 
 
-int __kernel_rem_pio2(double* x, double* y, int e0, int nx) {
+INLINE(int __kernel_rem_pio2(double* x, double* y, int e0, int nx)) {
   static const int32_t jk = 3;
   double fw;
   int32_t jx = nx - 1;
@@ -135,12 +135,12 @@ int __kernel_rem_pio2(double* x, double* y, int e0, int nx) {
   int32_t q0 = e0 - 24 * (jv + 1);
   int32_t m = jx + jk;
 
-  double f[10];
+  double f[20];
   for (int i = 0, j = jv - jx; i <= m; i++, j++) {
     f[i] = (j < 0) ? zero : static_cast<double>(two_over_pi[j]);
   }
 
-  double q[10];
+  double q[20];
   for (int i = 0; i <= jk; i++) {
     fw = 0.0;
     for (int j = 0; j <= jx; j++) fw += x[j] * f[jx + i - j];
@@ -151,7 +151,7 @@ int __kernel_rem_pio2(double* x, double* y, int e0, int nx) {
 
 recompute:
 
-  int32_t iq[10];
+  int32_t iq[20];
   double z = q[jz];
   for (int i = 0, j = jz; j > 0; i++, j--) {
     fw = static_cast<double>(static_cast<int32_t>(twon24 * z));
@@ -242,7 +242,7 @@ recompute:
     fw *= twon24;
   }
 
-  double fq[10];
+  double fq[20];
   for (int i = jz; i >= 0; i--) {
     fw = 0.0;
     for (int k = 0; k <= jk && k <= jz - i; k++) fw += PIo2[k] * q[i + k];
@@ -264,7 +264,7 @@ int rempio2(double x, double* y) {
   int32_t ix = hx & 0x7fffffff;
 
   if (ix >= 0x7ff00000) {
-    *y = base::OS::nan_value();
+    *y = std::numeric_limits<double>::quiet_NaN();
     return 0;
   }
 

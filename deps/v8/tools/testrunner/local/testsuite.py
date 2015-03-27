@@ -38,7 +38,7 @@ from ..objects import testcase
 VARIANT_FLAGS = {
     "default": [],
     "stress": ["--stress-opt", "--always-opt"],
-    "turbofan": ["--turbo-asm", "--turbo-filter=*", "--always-opt"],
+    "turbofan": ["--turbo-deoptimization", "--turbo-filter=*", "--always-opt"],
     "nocrankshaft": ["--nocrankshaft"]}
 
 FAST_VARIANT_FLAGS = [

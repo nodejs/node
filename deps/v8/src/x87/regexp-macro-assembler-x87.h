@@ -15,7 +15,8 @@ namespace internal {
 #ifndef V8_INTERPRETED_REGEXP
 class RegExpMacroAssemblerX87: public NativeRegExpMacroAssembler {
  public:
-  RegExpMacroAssemblerX87(Mode mode, int registers_to_save, Zone* zone);
+  RegExpMacroAssemblerX87(Isolate* isolate, Zone* zone, Mode mode,
+                          int registers_to_save);
   virtual ~RegExpMacroAssemblerX87();
   virtual int stack_limit_slack();
   virtual void AdvanceCurrentPosition(int by);

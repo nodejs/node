@@ -1479,6 +1479,85 @@ INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
 
 
 // -----------------------------------------------------------------------------
+// Floating point comparisons.
+
+
+const Comparison kFPComparisons[] = {
+    {&RawMachineAssembler::Float64Equal, "Float64Equal", kEqual, kNotEqual},
+    {&RawMachineAssembler::Float64LessThan, "Float64LessThan",
+     kUnsignedLessThan, kUnsignedGreaterThanOrEqual},
+    {&RawMachineAssembler::Float64LessThanOrEqual, "Float64LessThanOrEqual",
+     kUnsignedLessThanOrEqual, kUnsignedGreaterThan}};
+
+
+typedef InstructionSelectorTestWithParam<Comparison>
+    InstructionSelectorFPComparisonTest;
+
+
+TEST_P(InstructionSelectorFPComparisonTest, WithParameters) {
+  const Comparison& cmp = GetParam();
+  StreamBuilder m(this, kMachInt32, kMachFloat64, kMachFloat64);
+  m.Return((m.*cmp.constructor)(m.Parameter(0), m.Parameter(1)));
+  Stream const s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArmVcmpF64, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+  EXPECT_EQ(cmp.flags_condition, s[0]->flags_condition());
+}
+
+
+TEST_P(InstructionSelectorFPComparisonTest, NegatedWithParameters) {
+  const Comparison& cmp = GetParam();
+  StreamBuilder m(this, kMachInt32, kMachFloat64, kMachFloat64);
+  m.Return(
+      m.WordBinaryNot((m.*cmp.constructor)(m.Parameter(0), m.Parameter(1))));
+  Stream const s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArmVcmpF64, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+  EXPECT_EQ(cmp.negated_flags_condition, s[0]->flags_condition());
+}
+
+
+TEST_P(InstructionSelectorFPComparisonTest, WithImmediateZeroOnRight) {
+  const Comparison& cmp = GetParam();
+  StreamBuilder m(this, kMachInt32, kMachFloat64);
+  m.Return((m.*cmp.constructor)(m.Parameter(0), m.Float64Constant(0.0)));
+  Stream const s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArmVcmpF64, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+  EXPECT_EQ(cmp.flags_condition, s[0]->flags_condition());
+}
+
+
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
+                        InstructionSelectorFPComparisonTest,
+                        ::testing::ValuesIn(kFPComparisons));
+
+
+TEST_F(InstructionSelectorTest, Float64EqualWithImmediateZeroOnLeft) {
+  StreamBuilder m(this, kMachInt32, kMachFloat64);
+  m.Return(m.Float64Equal(m.Float64Constant(0.0), m.Parameter(0)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArmVcmpF64, s[0]->arch_opcode());
+  EXPECT_EQ(2U, s[0]->InputCount());
+  EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+  EXPECT_EQ(kEqual, s[0]->flags_condition());
+}
+
+
+// -----------------------------------------------------------------------------
 // Miscellaneous.
 
 

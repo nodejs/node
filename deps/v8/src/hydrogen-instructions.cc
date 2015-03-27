@@ -18,6 +18,8 @@
 #include "src/arm64/lithium-arm64.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM
 #include "src/arm/lithium-arm.h"  // NOLINT
+#elif V8_TARGET_ARCH_PPC
+#include "src/ppc/lithium-ppc.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS
 #include "src/mips/lithium-mips.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS64
@@ -620,17 +622,6 @@ void HValue::ComputeInitialRange(Zone* zone) {
 }
 
 
-std::ostream& operator<<(std::ostream& os, const HSourcePosition& p) {
-  if (p.IsUnknown()) {
-    return os << "<?>";
-  } else if (FLAG_hydrogen_track_positions) {
-    return os << "<" << p.inlining_id() << ":" << p.position() << ">";
-  } else {
-    return os << "<0:" << p.raw() << ">";
-  }
-}
-
-
 std::ostream& HInstruction::PrintTo(std::ostream& os) const {  // NOLINT
   os << Mnemonic() << " ";
   PrintDataTo(os) << ChangesOf(this) << TypeOf(this);
@@ -940,17 +931,15 @@ std::ostream& HCallJSFunction::PrintDataTo(std::ostream& os) const {  // NOLINT
 }
 
 
-HCallJSFunction* HCallJSFunction::New(
-    Zone* zone,
-    HValue* context,
-    HValue* function,
-    int argument_count,
-    bool pass_argument_count) {
+HCallJSFunction* HCallJSFunction::New(Isolate* isolate, Zone* zone,
+                                      HValue* context, HValue* function,
+                                      int argument_count,
+                                      bool pass_argument_count) {
   bool has_stack_check = false;
   if (function->IsConstant()) {
     HConstant* fun_const = HConstant::cast(function);
     Handle<JSFunction> jsfun =
-        Handle<JSFunction>::cast(fun_const->handle(zone->isolate()));
+        Handle<JSFunction>::cast(fun_const->handle(isolate));
     has_stack_check = !jsfun.is_null() &&
         (jsfun->code()->kind() == Code::FUNCTION ||
          jsfun->code()->kind() == Code::OPTIMIZED_FUNCTION);
@@ -965,6 +954,15 @@ HCallJSFunction* HCallJSFunction::New(
 std::ostream& HBinaryCall::PrintDataTo(std::ostream& os) const {  // NOLINT
   return os << NameOf(first()) << " " << NameOf(second()) << " #"
             << argument_count();
+}
+
+
+std::ostream& HCallFunction::PrintDataTo(std::ostream& os) const {  // NOLINT
+  os << NameOf(context()) << " " << NameOf(function());
+  if (HasVectorAndSlot()) {
+    os << " (type-feedback-vector icslot " << slot().ToInt() << ")";
+  }
+  return os;
 }
 
 
@@ -987,13 +985,16 @@ void HBoundsCheck::ApplyIndexChange() {
   int actual_offset = decomposition.offset() + offset();
   int actual_scale = decomposition.scale() + scale();
 
-  Zone* zone = block()->graph()->zone();
-  HValue* context = block()->graph()->GetInvalidContext();
+  HGraph* graph = block()->graph();
+  Isolate* isolate = graph->isolate();
+  Zone* zone = graph->zone();
+  HValue* context = graph->GetInvalidContext();
   if (actual_offset != 0) {
-    HConstant* add_offset = HConstant::New(zone, context, actual_offset);
+    HConstant* add_offset =
+        HConstant::New(isolate, zone, context, actual_offset);
     add_offset->InsertBefore(this);
-    HInstruction* add = HAdd::New(zone, context,
-                                  current_index, add_offset);
+    HInstruction* add =
+        HAdd::New(isolate, zone, context, current_index, add_offset);
     add->InsertBefore(this);
     add->AssumeRepresentation(index()->representation());
     add->ClearFlag(kCanOverflow);
@@ -1001,10 +1002,10 @@ void HBoundsCheck::ApplyIndexChange() {
   }
 
   if (actual_scale != 0) {
-    HConstant* sar_scale = HConstant::New(zone, context, actual_scale);
+    HConstant* sar_scale = HConstant::New(isolate, zone, context, actual_scale);
     sar_scale->InsertBefore(this);
-    HInstruction* sar = HSar::New(zone, context,
-                                  current_index, sar_scale);
+    HInstruction* sar =
+        HSar::New(isolate, zone, context, current_index, sar_scale);
     sar->InsertBefore(this);
     sar->AssumeRepresentation(index()->representation());
     current_index = sar;
@@ -1520,8 +1521,9 @@ std::ostream& HTypeof::PrintDataTo(std::ostream& os) const {  // NOLINT
 }
 
 
-HInstruction* HForceRepresentation::New(Zone* zone, HValue* context,
-       HValue* value, Representation representation) {
+HInstruction* HForceRepresentation::New(Isolate* isolate, Zone* zone,
+                                        HValue* context, HValue* value,
+                                        Representation representation) {
   if (FLAG_fold_constants && value->IsConstant()) {
     HConstant* c = HConstant::cast(value);
     c = c->CopyToRepresentation(representation, zone);
@@ -1593,7 +1595,7 @@ HValue* HUnaryMathOperation::Canonicalize() {
     }
 
     return Prepend(HMathFloorOfDiv::New(
-        block()->zone(), context(), left, right));
+        block()->graph()->isolate(), block()->zone(), context(), left, right));
   }
   return this;
 }
@@ -1803,9 +1805,7 @@ Range* HConstant::InferRange(Zone* zone) {
 }
 
 
-HSourcePosition HPhi::position() const {
-  return block()->first()->position();
-}
+SourcePosition HPhi::position() const { return block()->first()->position(); }
 
 
 Range* HPhi::InferRange(Zone* zone) {
@@ -2120,7 +2120,8 @@ void InductionVariableData::ChecksRelatedToLength::UseNewIndexInCurrentBlock(
   DCHECK(context != NULL);
 
   Zone* zone = index_base->block()->graph()->zone();
-  set_added_constant(HConstant::New(zone, context, mask));
+  Isolate* isolate = index_base->block()->graph()->isolate();
+  set_added_constant(HConstant::New(isolate, zone, context, mask));
   if (added_index() != NULL) {
     added_constant()->InsertBefore(added_index());
   } else {
@@ -2129,8 +2130,8 @@ void InductionVariableData::ChecksRelatedToLength::UseNewIndexInCurrentBlock(
 
   if (added_index() == NULL) {
     first_check_in_block()->ReplaceAllUsesWith(first_check_in_block()->index());
-    HInstruction* new_index =  HBitwise::New(zone, context, token, index_base,
-                                             added_constant());
+    HInstruction* new_index = HBitwise::New(isolate, zone, context, token,
+                                            index_base, added_constant());
     DCHECK(new_index->IsBitwise());
     new_index->ClearAllSideEffects();
     new_index->AssumeRepresentation(Representation::Integer32());
@@ -2681,6 +2682,19 @@ static bool IsInteger32(double value) {
 }
 
 
+HConstant::HConstant(Special special)
+    : HTemplateInstruction<0>(HType::TaggedNumber()),
+      object_(Handle<Object>::null()),
+      object_map_(Handle<Map>::null()),
+      bit_field_(HasDoubleValueField::encode(true) |
+                 InstanceTypeField::encode(kUnknownInstanceType)),
+      int32_value_(0) {
+  DCHECK_EQ(kHoleNaN, special);
+  std::memcpy(&double_value_, &kHoleNanInt64, sizeof(double_value_));
+  Initialize(Representation::Double());
+}
+
+
 HConstant::HConstant(Handle<Object> object, Representation r)
     : HTemplateInstruction<0>(HType::FromValue(object)),
       object_(Unique<Object>::CreateUninitialized(object)),
@@ -2783,7 +2797,7 @@ HConstant::HConstant(double double_value, Representation r,
                                            !std::isnan(double_value)) |
                  IsUndetectableField::encode(false) |
                  InstanceTypeField::encode(kUnknownInstanceType)),
-      int32_value_(HasInteger32Value() ? DoubleToInt32(double_value) : 0),
+      int32_value_(DoubleToInt32(double_value)),
       double_value_(double_value) {
   bit_field_ = HasSmiValueField::update(
       bit_field_, HasInteger32Value() && Smi::IsValid(int32_value_));
@@ -2842,7 +2856,7 @@ void HConstant::Initialize(Representation r) {
     // could cause heap object checks not to get emitted.
     object_ = Unique<Object>(Handle<Object>::null());
   }
-  if (r.IsSmiOrInteger32()) {
+  if (r.IsSmiOrInteger32() && object_.handle().is_null()) {
     // If it's not a heap object, it can't be in new space.
     bit_field_ = IsNotInNewSpaceField::update(bit_field_, true);
   }
@@ -2936,14 +2950,15 @@ Maybe<HConstant*> HConstant::CopyToTruncatedInt32(Zone* zone) {
 }
 
 
-Maybe<HConstant*> HConstant::CopyToTruncatedNumber(Zone* zone) {
+Maybe<HConstant*> HConstant::CopyToTruncatedNumber(Isolate* isolate,
+                                                   Zone* zone) {
   HConstant* res = NULL;
-  Handle<Object> handle = this->handle(zone->isolate());
+  Handle<Object> handle = this->handle(isolate);
   if (handle->IsBoolean()) {
     res = handle->BooleanValue() ?
       new(zone) HConstant(1) : new(zone) HConstant(0);
   } else if (handle->IsUndefined()) {
-    res = new(zone) HConstant(base::OS::nan_value());
+    res = new (zone) HConstant(std::numeric_limits<double>::quiet_NaN());
   } else if (handle->IsNull()) {
     res = new(zone) HConstant(0);
   }
@@ -3537,18 +3552,14 @@ HValue* HLoadKeyedGeneric::Canonicalize() {
       if (names_cache->enumerable() == object()) {
         HForInCacheArray* index_cache =
             names_cache->index_cache();
-        HCheckMapValue* map_check =
-            HCheckMapValue::New(block()->graph()->zone(),
-                                block()->graph()->GetInvalidContext(),
-                                object(),
-                                names_cache->map());
+        HCheckMapValue* map_check = HCheckMapValue::New(
+            block()->graph()->isolate(), block()->graph()->zone(),
+            block()->graph()->GetInvalidContext(), object(),
+            names_cache->map());
         HInstruction* index = HLoadKeyed::New(
-            block()->graph()->zone(),
-            block()->graph()->GetInvalidContext(),
-            index_cache,
-            key_load->key(),
-            key_load->key(),
-            key_load->elements_kind());
+            block()->graph()->isolate(), block()->graph()->zone(),
+            block()->graph()->GetInvalidContext(), index_cache, key_load->key(),
+            key_load->key(), key_load->elements_kind());
         map_check->InsertBefore(this);
         index->InsertBefore(this);
         return Prepend(new(block()->zone()) HLoadFieldByIndex(
@@ -3711,6 +3722,7 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
                                           HValue* dominator) {
   DCHECK(side_effect == kNewSpacePromotion);
   Zone* zone = block()->zone();
+  Isolate* isolate = block()->isolate();
   if (!FLAG_use_allocation_folding) return false;
 
   // Try to fold allocations together with their dominating allocations.
@@ -3812,25 +3824,19 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
   HInstruction* new_dominator_size_value;
 
   if (current_size->IsInteger32Constant()) {
-    new_dominator_size_value =
-        HConstant::CreateAndInsertBefore(zone,
-                                         context(),
-                                         new_dominator_size,
-                                         Representation::None(),
-                                         dominator_allocate);
+    new_dominator_size_value = HConstant::CreateAndInsertBefore(
+        isolate, zone, context(), new_dominator_size, Representation::None(),
+        dominator_allocate);
   } else {
-    HValue* new_dominator_size_constant =
-        HConstant::CreateAndInsertBefore(zone,
-                                         context(),
-                                         dominator_size_constant,
-                                         Representation::Integer32(),
-                                         dominator_allocate);
+    HValue* new_dominator_size_constant = HConstant::CreateAndInsertBefore(
+        isolate, zone, context(), dominator_size_constant,
+        Representation::Integer32(), dominator_allocate);
 
     // Add old and new size together and insert.
     current_size->ChangeRepresentation(Representation::Integer32());
 
-    new_dominator_size_value = HAdd::New(zone, context(),
-        new_dominator_size_constant, current_size);
+    new_dominator_size_value = HAdd::New(
+        isolate, zone, context(), new_dominator_size_constant, current_size);
     new_dominator_size_value->ClearFlag(HValue::kCanOverflow);
     new_dominator_size_value->ChangeRepresentation(Representation::Integer32());
 
@@ -3862,18 +3868,11 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
 
   // After that replace the dominated allocate instruction.
   HInstruction* inner_offset = HConstant::CreateAndInsertBefore(
-      zone,
-      context(),
-      dominator_size_constant,
-      Representation::None(),
+      isolate, zone, context(), dominator_size_constant, Representation::None(),
       this);
 
-  HInstruction* dominated_allocate_instr =
-      HInnerAllocatedObject::New(zone,
-                                 context(),
-                                 dominator_allocate,
-                                 inner_offset,
-                                 type());
+  HInstruction* dominated_allocate_instr = HInnerAllocatedObject::New(
+      isolate, zone, context(), dominator_allocate, inner_offset, type());
   dominated_allocate_instr->InsertBefore(this);
   DeleteAndReplaceWith(dominated_allocate_instr);
   if (FLAG_trace_allocation_folding) {
@@ -3956,43 +3955,43 @@ void HAllocate::UpdateFreeSpaceFiller(int32_t free_space_size) {
   // would otherwise automatically choose int32, but the actual store
   // requires a Smi-tagged value.
   HConstant* new_free_space_size = HConstant::CreateAndInsertBefore(
-      zone,
-      context(),
+      block()->isolate(), zone, context(),
       filler_free_space_size_->value()->GetInteger32Constant() +
           free_space_size,
-      Representation::Smi(),
-      filler_free_space_size_);
+      Representation::Smi(), filler_free_space_size_);
   filler_free_space_size_->UpdateValue(new_free_space_size);
 }
 
 
 void HAllocate::CreateFreeSpaceFiller(int32_t free_space_size) {
   DCHECK(filler_free_space_size_ == NULL);
+  Isolate* isolate = block()->isolate();
   Zone* zone = block()->zone();
   HInstruction* free_space_instr =
-      HInnerAllocatedObject::New(zone, context(), dominating_allocate_,
-      dominating_allocate_->size(), type());
+      HInnerAllocatedObject::New(isolate, zone, context(), dominating_allocate_,
+                                 dominating_allocate_->size(), type());
   free_space_instr->InsertBefore(this);
   HConstant* filler_map = HConstant::CreateAndInsertAfter(
-      zone, Unique<Map>::CreateImmovable(
-          isolate()->factory()->free_space_map()), true, free_space_instr);
-  HInstruction* store_map = HStoreNamedField::New(zone, context(),
-      free_space_instr, HObjectAccess::ForMap(), filler_map);
+      zone, Unique<Map>::CreateImmovable(isolate->factory()->free_space_map()),
+      true, free_space_instr);
+  HInstruction* store_map =
+      HStoreNamedField::New(isolate, zone, context(), free_space_instr,
+                            HObjectAccess::ForMap(), filler_map);
   store_map->SetFlag(HValue::kHasNoObservableSideEffects);
   store_map->InsertAfter(filler_map);
 
   // We must explicitly force Smi representation here because on x64 we
   // would otherwise automatically choose int32, but the actual store
   // requires a Smi-tagged value.
-  HConstant* filler_size = HConstant::CreateAndInsertAfter(
-      zone, context(), free_space_size, Representation::Smi(), store_map);
+  HConstant* filler_size =
+      HConstant::CreateAndInsertAfter(isolate, zone, context(), free_space_size,
+                                      Representation::Smi(), store_map);
   // Must force Smi representation for x64 (see comment above).
-  HObjectAccess access =
-      HObjectAccess::ForMapAndOffset(isolate()->factory()->free_space_map(),
-                                     FreeSpace::kSizeOffset,
-                                     Representation::Smi());
-  HStoreNamedField* store_size = HStoreNamedField::New(zone, context(),
-      free_space_instr, access, filler_size);
+  HObjectAccess access = HObjectAccess::ForMapAndOffset(
+      isolate->factory()->free_space_map(), FreeSpace::kSizeOffset,
+      Representation::Smi());
+  HStoreNamedField* store_size = HStoreNamedField::New(
+      isolate, zone, context(), free_space_instr, access, filler_size);
   store_size->SetFlag(HValue::kHasNoObservableSideEffects);
   store_size->InsertAfter(filler_size);
   filler_free_space_size_ = store_size;
@@ -4005,8 +4004,8 @@ void HAllocate::ClearNextMapWord(int offset) {
     HObjectAccess access =
         HObjectAccess::ForObservableJSObjectOffset(offset);
     HStoreNamedField* clear_next_map =
-        HStoreNamedField::New(zone, context(), this, access,
-            block()->graph()->GetConstant0());
+        HStoreNamedField::New(block()->isolate(), zone, context(), this, access,
+                              block()->graph()->GetConstant0());
     clear_next_map->ClearAllSideEffects();
     clear_next_map->InsertAfter(this);
   }
@@ -4038,55 +4037,48 @@ bool HStoreKeyed::TryIncreaseBaseOffset(uint32_t increase_by_value) {
 
 
 bool HStoreKeyed::NeedsCanonicalization() {
-  // If value is an integer or smi or comes from the result of a keyed load or
-  // constant then it is either be a non-hole value or in the case of a constant
-  // the hole is only being stored explicitly: no need for canonicalization.
-  //
-  // The exception to that is keyed loads from external float or double arrays:
-  // these can load arbitrary representation of NaN.
-
-  if (value()->IsConstant()) {
-    return false;
-  }
-
-  if (value()->IsLoadKeyed()) {
-    return IsExternalFloatOrDoubleElementsKind(
-        HLoadKeyed::cast(value())->elements_kind());
-  }
-
-  if (value()->IsChange()) {
-    if (HChange::cast(value())->from().IsSmiOrInteger32()) {
-      return false;
+  switch (value()->opcode()) {
+    case kLoadKeyed: {
+      ElementsKind load_kind = HLoadKeyed::cast(value())->elements_kind();
+      return IsExternalFloatOrDoubleElementsKind(load_kind) ||
+             IsFixedFloatElementsKind(load_kind);
     }
-    if (HChange::cast(value())->value()->type().IsSmi()) {
-      return false;
+    case kChange: {
+      Representation from = HChange::cast(value())->from();
+      return from.IsTagged() || from.IsHeapObject();
     }
+    case kLoadNamedField:
+    case kPhi: {
+      // Better safe than sorry...
+      return true;
+    }
+    default:
+      return false;
   }
-  return true;
 }
 
 
-#define H_CONSTANT_INT(val)                                                    \
-HConstant::New(zone, context, static_cast<int32_t>(val))
-#define H_CONSTANT_DOUBLE(val)                                                 \
-HConstant::New(zone, context, static_cast<double>(val))
+#define H_CONSTANT_INT(val) \
+  HConstant::New(isolate, zone, context, static_cast<int32_t>(val))
+#define H_CONSTANT_DOUBLE(val) \
+  HConstant::New(isolate, zone, context, static_cast<double>(val))
 
-#define DEFINE_NEW_H_SIMPLE_ARITHMETIC_INSTR(HInstr, op)                       \
-HInstruction* HInstr::New(                                                     \
-    Zone* zone, HValue* context, HValue* left, HValue* right) {                \
-  if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {      \
-    HConstant* c_left = HConstant::cast(left);                                 \
-    HConstant* c_right = HConstant::cast(right);                               \
-    if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {             \
-      double double_res = c_left->DoubleValue() op c_right->DoubleValue();     \
-      if (IsInt32Double(double_res)) {                                         \
-        return H_CONSTANT_INT(double_res);                                     \
-      }                                                                        \
-      return H_CONSTANT_DOUBLE(double_res);                                    \
-    }                                                                          \
-  }                                                                            \
-  return new(zone) HInstr(context, left, right);                               \
-}
+#define DEFINE_NEW_H_SIMPLE_ARITHMETIC_INSTR(HInstr, op)                     \
+  HInstruction* HInstr::New(Isolate* isolate, Zone* zone, HValue* context,   \
+                            HValue* left, HValue* right) {                   \
+    if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {  \
+      HConstant* c_left = HConstant::cast(left);                             \
+      HConstant* c_right = HConstant::cast(right);                           \
+      if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {         \
+        double double_res = c_left->DoubleValue() op c_right->DoubleValue(); \
+        if (IsInt32Double(double_res)) {                                     \
+          return H_CONSTANT_INT(double_res);                                 \
+        }                                                                    \
+        return H_CONSTANT_DOUBLE(double_res);                                \
+      }                                                                      \
+    }                                                                        \
+    return new (zone) HInstr(context, left, right);                          \
+  }
 
 
 DEFINE_NEW_H_SIMPLE_ARITHMETIC_INSTR(HAdd, +)
@@ -4096,10 +4088,8 @@ DEFINE_NEW_H_SIMPLE_ARITHMETIC_INSTR(HSub, -)
 #undef DEFINE_NEW_H_SIMPLE_ARITHMETIC_INSTR
 
 
-HInstruction* HStringAdd::New(Zone* zone,
-                              HValue* context,
-                              HValue* left,
-                              HValue* right,
+HInstruction* HStringAdd::New(Isolate* isolate, Zone* zone, HValue* context,
+                              HValue* left, HValue* right,
                               PretenureFlag pretenure_flag,
                               StringAddFlags flags,
                               Handle<AllocationSite> allocation_site) {
@@ -4111,9 +4101,9 @@ HInstruction* HStringAdd::New(Zone* zone,
       Handle<String> right_string = c_right->StringValue();
       // Prevent possible exception by invalid string length.
       if (left_string->length() + right_string->length() < String::kMaxLength) {
-        MaybeHandle<String> concat = zone->isolate()->factory()->NewConsString(
+        MaybeHandle<String> concat = isolate->factory()->NewConsString(
             c_left->StringValue(), c_right->StringValue());
-        return HConstant::New(zone, context, concat.ToHandleChecked());
+        return HConstant::New(isolate, zone, context, concat.ToHandleChecked());
       }
     }
   }
@@ -4140,26 +4130,28 @@ std::ostream& HStringAdd::PrintDataTo(std::ostream& os) const {  // NOLINT
 }
 
 
-HInstruction* HStringCharFromCode::New(
-    Zone* zone, HValue* context, HValue* char_code) {
+HInstruction* HStringCharFromCode::New(Isolate* isolate, Zone* zone,
+                                       HValue* context, HValue* char_code) {
   if (FLAG_fold_constants && char_code->IsConstant()) {
     HConstant* c_code = HConstant::cast(char_code);
-    Isolate* isolate = zone->isolate();
     if (c_code->HasNumberValue()) {
       if (std::isfinite(c_code->DoubleValue())) {
         uint32_t code = c_code->NumberValueAsInteger32() & 0xffff;
-        return HConstant::New(zone, context,
+        return HConstant::New(
+            isolate, zone, context,
             isolate->factory()->LookupSingleCharacterStringFromCode(code));
       }
-      return HConstant::New(zone, context, isolate->factory()->empty_string());
+      return HConstant::New(isolate, zone, context,
+                            isolate->factory()->empty_string());
     }
   }
   return new(zone) HStringCharFromCode(context, char_code);
 }
 
 
-HInstruction* HUnaryMathOperation::New(
-    Zone* zone, HValue* context, HValue* value, BuiltinFunctionId op) {
+HInstruction* HUnaryMathOperation::New(Isolate* isolate, Zone* zone,
+                                       HValue* context, HValue* value,
+                                       BuiltinFunctionId op) {
   do {
     if (!FLAG_fold_constants) break;
     if (!value->IsConstant()) break;
@@ -4167,7 +4159,7 @@ HInstruction* HUnaryMathOperation::New(
     if (!constant->HasNumberValue()) break;
     double d = constant->DoubleValue();
     if (std::isnan(d)) {  // NaN poisons everything.
-      return H_CONSTANT_DOUBLE(base::OS::nan_value());
+      return H_CONSTANT_DOUBLE(std::numeric_limits<double>::quiet_NaN());
     }
     if (std::isinf(d)) {  // +Infinity and -Infinity.
       switch (op) {
@@ -4175,7 +4167,8 @@ HInstruction* HUnaryMathOperation::New(
           return H_CONSTANT_DOUBLE((d > 0.0) ? d : 0.0);
         case kMathLog:
         case kMathSqrt:
-          return H_CONSTANT_DOUBLE((d > 0.0) ? d : base::OS::nan_value());
+          return H_CONSTANT_DOUBLE(
+              (d > 0.0) ? d : std::numeric_limits<double>::quiet_NaN());
         case kMathPowHalf:
         case kMathAbs:
           return H_CONSTANT_DOUBLE((d > 0.0) ? d : -d);
@@ -4262,26 +4255,25 @@ Representation HUnaryMathOperation::RepresentationFromUses() {
 }
 
 
-HInstruction* HPower::New(Zone* zone,
-                          HValue* context,
-                          HValue* left,
-                          HValue* right) {
+HInstruction* HPower::New(Isolate* isolate, Zone* zone, HValue* context,
+                          HValue* left, HValue* right) {
   if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_left = HConstant::cast(left);
     HConstant* c_right = HConstant::cast(right);
     if (c_left->HasNumberValue() && c_right->HasNumberValue()) {
       double result = power_helper(c_left->DoubleValue(),
                                    c_right->DoubleValue());
-      return H_CONSTANT_DOUBLE(std::isnan(result) ? base::OS::nan_value()
-                                                  : result);
+      return H_CONSTANT_DOUBLE(std::isnan(result)
+                                   ? std::numeric_limits<double>::quiet_NaN()
+                                   : result);
     }
   }
   return new(zone) HPower(left, right);
 }
 
 
-HInstruction* HMathMinMax::New(
-    Zone* zone, HValue* context, HValue* left, HValue* right, Operation op) {
+HInstruction* HMathMinMax::New(Isolate* isolate, Zone* zone, HValue* context,
+                               HValue* left, HValue* right, Operation op) {
   if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_left = HConstant::cast(left);
     HConstant* c_right = HConstant::cast(right);
@@ -4306,17 +4298,15 @@ HInstruction* HMathMinMax::New(
         }
       }
       // All comparisons failed, must be NaN.
-      return H_CONSTANT_DOUBLE(base::OS::nan_value());
+      return H_CONSTANT_DOUBLE(std::numeric_limits<double>::quiet_NaN());
     }
   }
   return new(zone) HMathMinMax(context, left, right, op);
 }
 
 
-HInstruction* HMod::New(Zone* zone,
-                        HValue* context,
-                        HValue* left,
-                        HValue* right) {
+HInstruction* HMod::New(Isolate* isolate, Zone* zone, HValue* context,
+                        HValue* left, HValue* right) {
   if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_left = HConstant::cast(left);
     HConstant* c_right = HConstant::cast(right);
@@ -4339,8 +4329,8 @@ HInstruction* HMod::New(Zone* zone,
 }
 
 
-HInstruction* HDiv::New(
-    Zone* zone, HValue* context, HValue* left, HValue* right) {
+HInstruction* HDiv::New(Isolate* isolate, Zone* zone, HValue* context,
+                        HValue* left, HValue* right) {
   // If left and right are constant values, try to return a constant value.
   if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_left = HConstant::cast(left);
@@ -4363,8 +4353,8 @@ HInstruction* HDiv::New(
 }
 
 
-HInstruction* HBitwise::New(
-    Zone* zone, HValue* context, Token::Value op, HValue* left, HValue* right) {
+HInstruction* HBitwise::New(Isolate* isolate, Zone* zone, HValue* context,
+                            Token::Value op, HValue* left, HValue* right) {
   if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_left = HConstant::cast(left);
     HConstant* c_right = HConstant::cast(right);
@@ -4393,18 +4383,18 @@ HInstruction* HBitwise::New(
 }
 
 
-#define DEFINE_NEW_H_BITWISE_INSTR(HInstr, result)                             \
-HInstruction* HInstr::New(                                                     \
-    Zone* zone, HValue* context, HValue* left, HValue* right) {                \
-  if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {      \
-    HConstant* c_left = HConstant::cast(left);                                 \
-    HConstant* c_right = HConstant::cast(right);                               \
-    if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {             \
-      return H_CONSTANT_INT(result);                                           \
-    }                                                                          \
-  }                                                                            \
-  return new(zone) HInstr(context, left, right);                               \
-}
+#define DEFINE_NEW_H_BITWISE_INSTR(HInstr, result)                          \
+  HInstruction* HInstr::New(Isolate* isolate, Zone* zone, HValue* context,  \
+                            HValue* left, HValue* right) {                  \
+    if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) { \
+      HConstant* c_left = HConstant::cast(left);                            \
+      HConstant* c_right = HConstant::cast(right);                          \
+      if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {        \
+        return H_CONSTANT_INT(result);                                      \
+      }                                                                     \
+    }                                                                       \
+    return new (zone) HInstr(context, left, right);                         \
+  }
 
 
 DEFINE_NEW_H_BITWISE_INSTR(HSar,
@@ -4415,8 +4405,8 @@ c_left->NumberValueAsInteger32() << (c_right->NumberValueAsInteger32() & 0x1f))
 #undef DEFINE_NEW_H_BITWISE_INSTR
 
 
-HInstruction* HShr::New(
-    Zone* zone, HValue* context, HValue* left, HValue* right) {
+HInstruction* HShr::New(Isolate* isolate, Zone* zone, HValue* context,
+                        HValue* left, HValue* right) {
   if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_left = HConstant::cast(left);
     HConstant* c_right = HConstant::cast(right);
@@ -4433,11 +4423,9 @@ HInstruction* HShr::New(
 }
 
 
-HInstruction* HSeqStringGetChar::New(Zone* zone,
-                                     HValue* context,
-                                     String::Encoding encoding,
-                                     HValue* string,
-                                     HValue* index) {
+HInstruction* HSeqStringGetChar::New(Isolate* isolate, Zone* zone,
+                                     HValue* context, String::Encoding encoding,
+                                     HValue* string, HValue* index) {
   if (FLAG_fold_constants && string->IsConstant() && index->IsConstant()) {
     HConstant* c_string = HConstant::cast(string);
     HConstant* c_index = HConstant::cast(index);
@@ -4476,9 +4464,9 @@ void HPhi::SimplifyConstantInputs() {
     if (operand->HasInteger32Value()) {
       continue;
     } else if (operand->HasDoubleValue()) {
-      HConstant* integer_input =
-          HConstant::New(graph->zone(), graph->GetInvalidContext(),
-                         DoubleToInt32(operand->DoubleValue()));
+      HConstant* integer_input = HConstant::New(
+          graph->isolate(), graph->zone(), graph->GetInvalidContext(),
+          DoubleToInt32(operand->DoubleValue()));
       integer_input->InsertAfter(operand);
       SetOperandAt(i, integer_input);
     } else if (operand->HasBooleanValue()) {

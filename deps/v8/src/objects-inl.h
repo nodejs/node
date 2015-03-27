@@ -58,7 +58,7 @@ PropertyDetails PropertyDetails::AsDeleted() const {
 
 
 int PropertyDetails::field_width_in_words() const {
-  DCHECK(type() == FIELD);
+  DCHECK(location() == kField);
   if (!FLAG_unbox_double_fields) return 1;
   if (kDoubleSize == kPointerSize) return 1;
   return representation().IsDouble() ? kDoubleSize / kPointerSize : 1;
@@ -161,9 +161,7 @@ bool Object::IsExternal() const {
 }
 
 
-bool Object::IsAccessorInfo() const {
-  return IsExecutableAccessorInfo() || IsDeclaredAccessorInfo();
-}
+bool Object::IsAccessorInfo() const { return IsExecutableAccessorInfo(); }
 
 
 bool Object::IsSmi() const {
@@ -1199,10 +1197,10 @@ MaybeHandle<Object> JSProxy::SetElementWithHandler(Handle<JSProxy> proxy,
                                                    Handle<JSReceiver> receiver,
                                                    uint32_t index,
                                                    Handle<Object> value,
-                                                   StrictMode strict_mode) {
+                                                   LanguageMode language_mode) {
   Isolate* isolate = proxy->GetIsolate();
   Handle<String> name = isolate->factory()->Uint32ToString(index);
-  return SetPropertyWithHandler(proxy, receiver, name, value, strict_mode);
+  return SetPropertyWithHandler(proxy, receiver, name, value, language_mode);
 }
 
 
@@ -1324,6 +1322,12 @@ Maybe<bool> JSProxy::HasElementWithHandler(Handle<JSProxy> proxy,
 
 #define WRITE_INT32_FIELD(p, offset, value) \
   (*reinterpret_cast<int32_t*>(FIELD_ADDR(p, offset)) = value)
+
+#define READ_UINT64_FIELD(p, offset) \
+  (*reinterpret_cast<const uint64_t*>(FIELD_ADDR_CONST(p, offset)))
+
+#define WRITE_UINT64_FIELD(p, offset, value) \
+  (*reinterpret_cast<uint64_t*>(FIELD_ADDR(p, offset)) = value)
 
 #define READ_INT64_FIELD(p, offset) \
   (*reinterpret_cast<const int64_t*>(FIELD_ADDR_CONST(p, offset)))
@@ -1881,7 +1885,7 @@ Handle<String> Map::ExpectedTransitionKey(Handle<Map> map) {
   int transition = TransitionArray::kSimpleTransitionIndex;
   PropertyDetails details = transitions->GetTargetDetails(transition);
   Name* name = transitions->GetKey(transition);
-  if (details.type() != FIELD) return Handle<String>::null();
+  if (details.type() != DATA) return Handle<String>::null();
   if (details.attributes() != NONE) return Handle<String>::null();
   if (!name->IsString()) return Handle<String>::null();
   return Handle<String>(String::cast(name));
@@ -1899,10 +1903,10 @@ Handle<Map> Map::FindTransitionToField(Handle<Map> map, Handle<Name> key) {
   DisallowHeapAllocation no_allocation;
   if (!map->HasTransitionArray()) return Handle<Map>::null();
   TransitionArray* transitions = map->transitions();
-  int transition = transitions->Search(DATA, *key, NONE);
+  int transition = transitions->Search(kData, *key, NONE);
   if (transition == TransitionArray::kNotFound) return Handle<Map>::null();
   PropertyDetails details = transitions->GetTargetDetails(transition);
-  if (details.type() != FIELD) return Handle<Map>::null();
+  if (details.type() != DATA) return Handle<Map>::null();
   DCHECK_EQ(NONE, details.attributes());
   return Handle<Map>(transitions->GetTarget(transition));
 }
@@ -2188,6 +2192,14 @@ bool JSObject::HasFastProperties() {
 }
 
 
+MaybeHandle<Object> JSObject::SetOwnElement(Handle<JSObject> object,
+                                            uint32_t index,
+                                            Handle<Object> value,
+                                            LanguageMode language_mode) {
+  return JSObject::SetOwnElement(object, index, value, NONE, language_mode);
+}
+
+
 bool Map::TooManyFastProperties(StoreFromKeyed store_mode) {
   if (unused_property_fields() != 0) return false;
   if (is_prototype_map()) return false;
@@ -2239,7 +2251,7 @@ bool Object::IsStringObjectWithCharacterAt(uint32_t index) {
 
 
 void Object::VerifyApiCallResultType() {
-#if ENABLE_EXTRA_CHECKS
+#if DEBUG
   if (!(IsSmi() ||
         IsString() ||
         IsSymbol() ||
@@ -2251,7 +2263,7 @@ void Object::VerifyApiCallResultType() {
         IsNull())) {
     FATAL("API call returned invalid object");
   }
-#endif  // ENABLE_EXTRA_CHECKS
+#endif  // DEBUG
 }
 
 
@@ -2290,37 +2302,21 @@ void FixedArray::set(int index, Object* value) {
 }
 
 
-inline bool FixedDoubleArray::is_the_hole_nan(double value) {
-  return bit_cast<uint64_t, double>(value) == kHoleNanInt64;
-}
-
-
-inline double FixedDoubleArray::hole_nan_as_double() {
-  return bit_cast<double, uint64_t>(kHoleNanInt64);
-}
-
-
-inline double FixedDoubleArray::canonical_not_the_hole_nan_as_double() {
-  DCHECK(bit_cast<uint64_t>(base::OS::nan_value()) != kHoleNanInt64);
-  DCHECK((bit_cast<uint64_t>(base::OS::nan_value()) >> 32) != kHoleNanUpper32);
-  return base::OS::nan_value();
-}
-
-
 double FixedDoubleArray::get_scalar(int index) {
   DCHECK(map() != GetHeap()->fixed_cow_array_map() &&
          map() != GetHeap()->fixed_array_map());
   DCHECK(index >= 0 && index < this->length());
-  double result = READ_DOUBLE_FIELD(this, kHeaderSize + index * kDoubleSize);
-  DCHECK(!is_the_hole_nan(result));
-  return result;
+  DCHECK(!is_the_hole(index));
+  return READ_DOUBLE_FIELD(this, kHeaderSize + index * kDoubleSize);
 }
 
-int64_t FixedDoubleArray::get_representation(int index) {
+
+uint64_t FixedDoubleArray::get_representation(int index) {
   DCHECK(map() != GetHeap()->fixed_cow_array_map() &&
          map() != GetHeap()->fixed_array_map());
   DCHECK(index >= 0 && index < this->length());
-  return READ_INT64_FIELD(this, kHeaderSize + index * kDoubleSize);
+  int offset = kHeaderSize + index * kDoubleSize;
+  return READ_UINT64_FIELD(this, offset);
 }
 
 
@@ -2338,8 +2334,12 @@ void FixedDoubleArray::set(int index, double value) {
   DCHECK(map() != GetHeap()->fixed_cow_array_map() &&
          map() != GetHeap()->fixed_array_map());
   int offset = kHeaderSize + index * kDoubleSize;
-  if (std::isnan(value)) value = canonical_not_the_hole_nan_as_double();
-  WRITE_DOUBLE_FIELD(this, offset, value);
+  if (std::isnan(value)) {
+    WRITE_DOUBLE_FIELD(this, offset, std::numeric_limits<double>::quiet_NaN());
+  } else {
+    WRITE_DOUBLE_FIELD(this, offset, value);
+  }
+  DCHECK(!is_the_hole(index));
 }
 
 
@@ -2347,13 +2347,12 @@ void FixedDoubleArray::set_the_hole(int index) {
   DCHECK(map() != GetHeap()->fixed_cow_array_map() &&
          map() != GetHeap()->fixed_array_map());
   int offset = kHeaderSize + index * kDoubleSize;
-  WRITE_DOUBLE_FIELD(this, offset, hole_nan_as_double());
+  WRITE_UINT64_FIELD(this, offset, kHoleNanInt64);
 }
 
 
 bool FixedDoubleArray::is_the_hole(int index) {
-  int offset = kHeaderSize + index * kDoubleSize;
-  return is_the_hole_nan(READ_DOUBLE_FIELD(this, offset));
+  return get_representation(index) == kHoleNanInt64;
 }
 
 
@@ -2960,7 +2959,7 @@ int LinearSearch(T* array, Name* name, int len, int valid_entries,
     return T::kNotFound;
   } else {
     DCHECK(len >= valid_entries);
-    DCHECK_EQ(NULL, out_insertion_index);  // Not supported here.
+    DCHECK_NULL(out_insertion_index);  // Not supported here.
     for (int number = 0; number < valid_entries; number++) {
       Name* entry = array->GetKey(number);
       uint32_t current_hash = entry->Hash();
@@ -3024,25 +3023,6 @@ int DescriptorArray::SearchWithCache(Name* name, Map* map) {
 
 PropertyDetails Map::GetLastDescriptorDetails() {
   return instance_descriptors()->GetDetails(LastAdded());
-}
-
-
-void Map::LookupDescriptor(JSObject* holder,
-                           Name* name,
-                           LookupResult* result) {
-  DescriptorArray* descriptors = this->instance_descriptors();
-  int number = descriptors->SearchWithCache(name, this);
-  if (number == DescriptorArray::kNotFound) return result->NotFound();
-  result->DescriptorResult(holder, descriptors->GetDetails(number), number);
-}
-
-
-void Map::LookupTransition(JSObject* holder, Name* name,
-                           PropertyAttributes attributes,
-                           LookupResult* result) {
-  int transition_index = this->SearchTransition(DATA, name, attributes);
-  if (transition_index == TransitionArray::kNotFound) return result->NotFound();
-  result->TransitionResult(holder, this->GetTransition(transition_index));
 }
 
 
@@ -3149,13 +3129,13 @@ PropertyType DescriptorArray::GetType(int descriptor_number) {
 
 
 int DescriptorArray::GetFieldIndex(int descriptor_number) {
-  DCHECK(GetDetails(descriptor_number).type() == FIELD);
+  DCHECK(GetDetails(descriptor_number).location() == kField);
   return GetDetails(descriptor_number).field_index();
 }
 
 
 HeapType* DescriptorArray::GetFieldType(int descriptor_number) {
-  DCHECK(GetDetails(descriptor_number).type() == FIELD);
+  DCHECK(GetDetails(descriptor_number).location() == kField);
   return HeapType::cast(GetValue(descriptor_number));
 }
 
@@ -3166,13 +3146,13 @@ Object* DescriptorArray::GetConstant(int descriptor_number) {
 
 
 Object* DescriptorArray::GetCallbacksObject(int descriptor_number) {
-  DCHECK(GetType(descriptor_number) == CALLBACKS);
+  DCHECK(GetType(descriptor_number) == ACCESSOR_CONSTANT);
   return GetValue(descriptor_number);
 }
 
 
 AccessorDescriptor* DescriptorArray::GetCallbacks(int descriptor_number) {
-  DCHECK(GetType(descriptor_number) == CALLBACKS);
+  DCHECK(GetType(descriptor_number) == ACCESSOR_CONSTANT);
   Foreign* p = Foreign::cast(GetCallbacksObject(descriptor_number));
   return reinterpret_cast<AccessorDescriptor*>(p->foreign_address());
 }
@@ -3343,7 +3323,6 @@ CAST_ACCESSOR(FixedArrayBase)
 CAST_ACCESSOR(FixedDoubleArray)
 CAST_ACCESSOR(FixedTypedArrayBase)
 CAST_ACCESSOR(Foreign)
-CAST_ACCESSOR(FreeSpace)
 CAST_ACCESSOR(GlobalObject)
 CAST_ACCESSOR(HeapObject)
 CAST_ACCESSOR(JSArray)
@@ -3402,6 +3381,12 @@ CAST_ACCESSOR(WeakFixedArray)
 CAST_ACCESSOR(WeakHashTable)
 
 
+// static
+template <class Traits>
+STATIC_CONST_MEMBER_DEFINITION const InstanceType
+    FixedTypedArray<Traits>::kInstanceType;
+
+
 template <class Traits>
 FixedTypedArray<Traits>* FixedTypedArray<Traits>::cast(Object* object) {
   SLOW_DCHECK(object->IsHeapObject() &&
@@ -3450,6 +3435,39 @@ NOBARRIER_SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
 
 SMI_ACCESSORS(String, length, kLengthOffset)
 SYNCHRONIZED_SMI_ACCESSORS(String, length, kLengthOffset)
+
+
+FreeSpace* FreeSpace::next() {
+  DCHECK(map() == GetHeap()->raw_unchecked_free_space_map() ||
+         (!GetHeap()->deserialization_complete() && map() == NULL));
+  DCHECK_LE(kNextOffset + kPointerSize, nobarrier_size());
+  return reinterpret_cast<FreeSpace*>(
+      Memory::Address_at(address() + kNextOffset));
+}
+
+
+FreeSpace** FreeSpace::next_address() {
+  DCHECK(map() == GetHeap()->raw_unchecked_free_space_map() ||
+         (!GetHeap()->deserialization_complete() && map() == NULL));
+  DCHECK_LE(kNextOffset + kPointerSize, nobarrier_size());
+  return reinterpret_cast<FreeSpace**>(address() + kNextOffset);
+}
+
+
+void FreeSpace::set_next(FreeSpace* next) {
+  DCHECK(map() == GetHeap()->raw_unchecked_free_space_map() ||
+         (!GetHeap()->deserialization_complete() && map() == NULL));
+  DCHECK_LE(kNextOffset + kPointerSize, nobarrier_size());
+  base::NoBarrier_Store(
+      reinterpret_cast<base::AtomicWord*>(address() + kNextOffset),
+      reinterpret_cast<base::AtomicWord>(next));
+}
+
+
+FreeSpace* FreeSpace::cast(HeapObject* o) {
+  SLOW_DCHECK(!o->GetHeap()->deserialization_complete() || o->IsFreeSpace());
+  return reinterpret_cast<FreeSpace*>(o);
+}
 
 
 uint32_t Name::hash_field() {
@@ -4235,11 +4253,13 @@ int32_t Int32ArrayTraits::defaultValue() { return 0; }
 
 
 float Float32ArrayTraits::defaultValue() {
-  return static_cast<float>(base::OS::nan_value());
+  return std::numeric_limits<float>::quiet_NaN();
 }
 
 
-double Float64ArrayTraits::defaultValue() { return base::OS::nan_value(); }
+double Float64ArrayTraits::defaultValue() {
+  return std::numeric_limits<double>::quiet_NaN();
+}
 
 
 template <class Traits>
@@ -4695,7 +4715,7 @@ bool Map::CanBeDeprecated() {
     if (details.representation().IsSmi()) return true;
     if (details.representation().IsDouble()) return true;
     if (details.representation().IsHeapObject()) return true;
-    if (details.type() == CONSTANT) return true;
+    if (details.type() == DATA_CONSTANT) return true;
   }
   return false;
 }
@@ -4727,21 +4747,6 @@ void DependentCode::set_number_of_entries(DependencyGroup group, int value) {
 }
 
 
-bool DependentCode::is_code_at(int i) {
-  return get(kCodesStartIndex + i)->IsCode();
-}
-
-Code* DependentCode::code_at(int i) {
-  return Code::cast(get(kCodesStartIndex + i));
-}
-
-
-CompilationInfo* DependentCode::compilation_info_at(int i) {
-  return reinterpret_cast<CompilationInfo*>(
-      Foreign::cast(get(kCodesStartIndex + i))->foreign_address());
-}
-
-
 void DependentCode::set_object_at(int i, Object* object) {
   set(kCodesStartIndex + i, object);
 }
@@ -4749,11 +4754,6 @@ void DependentCode::set_object_at(int i, Object* object) {
 
 Object* DependentCode::object_at(int i) {
   return get(kCodesStartIndex + i);
-}
-
-
-Object** DependentCode::slot_at(int i) {
-  return RawFieldOfElementAt(kCodesStartIndex + i);
 }
 
 
@@ -4850,16 +4850,29 @@ inline void Code::set_is_crankshafted(bool value) {
 
 
 inline bool Code::is_turbofanned() {
-  DCHECK(kind() == OPTIMIZED_FUNCTION || kind() == STUB);
   return IsTurbofannedField::decode(
       READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
 }
 
 
 inline void Code::set_is_turbofanned(bool value) {
-  DCHECK(kind() == OPTIMIZED_FUNCTION || kind() == STUB);
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
   int updated = IsTurbofannedField::update(previous, value);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
+}
+
+
+inline bool Code::can_have_weak_objects() {
+  DCHECK(kind() == OPTIMIZED_FUNCTION);
+  return CanHaveWeakObjectsField::decode(
+      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
+}
+
+
+inline void Code::set_can_have_weak_objects(bool value) {
+  DCHECK(kind() == OPTIMIZED_FUNCTION);
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
+  int updated = CanHaveWeakObjectsField::update(previous, value);
   WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
 }
 
@@ -5188,9 +5201,20 @@ bool Code::IsWeakObjectInOptimizedCode(Object* object) {
     return Map::cast(object)->CanTransition() &&
            FLAG_weak_embedded_maps_in_optimized_code;
   }
-  if (object->IsJSObject() ||
-      (object->IsCell() && Cell::cast(object)->value()->IsJSObject())) {
+  if (object->IsCell()) {
+    object = Cell::cast(object)->value();
+  } else if (object->IsPropertyCell()) {
+    object = PropertyCell::cast(object)->value();
+  }
+  if (object->IsJSObject()) {
     return FLAG_weak_embedded_objects_in_optimized_code;
+  }
+  if (object->IsFixedArray()) {
+    // Contexts of inlined functions are embedded in optimized code.
+    Map* map = HeapObject::cast(object)->map();
+    Heap* heap = map->GetHeap();
+    return FLAG_weak_embedded_objects_in_optimized_code &&
+           map == heap->function_context_map();
   }
   return false;
 }
@@ -5261,8 +5285,16 @@ void Map::UpdateDescriptors(DescriptorArray* descriptors,
     if (layout_descriptor()->IsSlowLayout()) {
       set_layout_descriptor(layout_desc);
     }
+#ifdef VERIFY_HEAP
+    // TODO(ishell): remove these checks from VERIFY_HEAP mode.
+    if (FLAG_verify_heap) {
+      CHECK(layout_descriptor()->IsConsistentWithMap(this));
+      CHECK(visitor_id() == StaticVisitorBase::GetVisitorId(this));
+    }
+#else
     SLOW_DCHECK(layout_descriptor()->IsConsistentWithMap(this));
     DCHECK(visitor_id() == StaticVisitorBase::GetVisitorId(this));
+#endif
   }
 }
 
@@ -5275,7 +5307,14 @@ void Map::InitializeDescriptors(DescriptorArray* descriptors,
 
   if (FLAG_unbox_double_fields) {
     set_layout_descriptor(layout_desc);
+#ifdef VERIFY_HEAP
+    // TODO(ishell): remove these checks from VERIFY_HEAP mode.
+    if (FLAG_verify_heap) {
+      CHECK(layout_descriptor()->IsConsistentWithMap(this));
+    }
+#else
     SLOW_DCHECK(layout_descriptor()->IsConsistentWithMap(this));
+#endif
     set_visitor_id(StaticVisitorBase::GetVisitorId(this));
   }
 }
@@ -5315,7 +5354,7 @@ void Map::AppendDescriptor(Descriptor* desc) {
 // it should never try to (otherwise, layout descriptor must be updated too).
 #ifdef DEBUG
   PropertyDetails details = desc->GetDetails();
-  CHECK(details.type() != FIELD || !details.representation().IsDouble());
+  CHECK(details.type() != DATA || !details.representation().IsDouble());
 #endif
 }
 
@@ -5489,12 +5528,6 @@ ACCESSORS_TO_SMI(AccessorInfo, flag, kFlagOffset)
 ACCESSORS(AccessorInfo, expected_receiver_type, Object,
           kExpectedReceiverTypeOffset)
 
-ACCESSORS(DeclaredAccessorDescriptor, serialized_data, ByteArray,
-          kSerializedDataOffset)
-
-ACCESSORS(DeclaredAccessorInfo, descriptor, DeclaredAccessorDescriptor,
-          kDescriptorOffset)
-
 ACCESSORS(ExecutableAccessorInfo, getter, Object, kGetterOffset)
 ACCESSORS(ExecutableAccessorInfo, setter, Object, kSetterOffset)
 ACCESSORS(ExecutableAccessorInfo, data, Object, kDataOffset)
@@ -5517,6 +5550,7 @@ ACCESSORS(InterceptorInfo, data, Object, kDataOffset)
 SMI_ACCESSORS(InterceptorInfo, flags, kFlagsOffset)
 BOOL_ACCESSORS(InterceptorInfo, flags, can_intercept_symbols,
                kCanInterceptSymbolsBit)
+BOOL_ACCESSORS(InterceptorInfo, flags, all_can_read, kAllCanReadBit)
 
 ACCESSORS(CallHandlerInfo, callback, Object, kCallbackOffset)
 ACCESSORS(CallHandlerInfo, data, Object, kDataOffset)
@@ -5548,9 +5582,6 @@ ACCESSORS(ObjectTemplateInfo, constructor, Object, kConstructorOffset)
 ACCESSORS(ObjectTemplateInfo, internal_field_count, Object,
           kInternalFieldCountOffset)
 
-ACCESSORS(SignatureInfo, receiver, Object, kReceiverOffset)
-ACCESSORS(SignatureInfo, args, Object, kArgsOffset)
-
 ACCESSORS(TypeSwitchInfo, types, Object, kTypesOffset)
 
 ACCESSORS(AllocationSite, transition_info, Object, kTransitionInfoOffset)
@@ -5576,6 +5607,8 @@ ACCESSORS(Script, eval_from_shared, Object, kEvalFromSharedOffset)
 ACCESSORS_TO_SMI(Script, eval_from_instructions_offset,
                  kEvalFrominstructionsOffsetOffset)
 ACCESSORS_TO_SMI(Script, flags, kFlagsOffset)
+BOOL_ACCESSORS(Script, flags, is_embedder_debug_script,
+               kIsEmbedderDebugScriptBit)
 BOOL_ACCESSORS(Script, flags, is_shared_cross_origin, kIsSharedCrossOriginBit)
 ACCESSORS(Script, source_url, Object, kSourceUrlOffset)
 ACCESSORS(Script, source_mapping_url, Object, kSourceMappingUrlOffset)
@@ -5637,6 +5670,7 @@ BOOL_ACCESSORS(FunctionTemplateInfo, flag, remove_prototype,
                kRemovePrototypeBit)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, do_not_cache,
                kDoNotCacheBit)
+BOOL_ACCESSORS(FunctionTemplateInfo, flag, instantiated, kInstantiatedBit)
 BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_expression,
                kIsExpressionBit)
 BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_toplevel,
@@ -5662,7 +5696,7 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, deserialized, kDeserialized)
 
 #if V8_HOST_ARCH_32_BIT
 SMI_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
-SMI_ACCESSORS(SharedFunctionInfo, formal_parameter_count,
+SMI_ACCESSORS(SharedFunctionInfo, internal_formal_parameter_count,
               kFormalParameterCountOffset)
 SMI_ACCESSORS(SharedFunctionInfo, expected_nof_properties,
               kExpectedNofPropertiesOffset)
@@ -5710,8 +5744,7 @@ SMI_ACCESSORS(SharedFunctionInfo, profiler_ticks, kProfilerTicksOffset)
 
 
 PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, length, kLengthOffset)
-PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo,
-                        formal_parameter_count,
+PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, internal_formal_parameter_count,
                         kFormalParameterCountOffset)
 
 PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo,
@@ -5764,17 +5797,22 @@ void SharedFunctionInfo::set_optimization_disabled(bool disable) {
 }
 
 
-StrictMode SharedFunctionInfo::strict_mode() {
-  return BooleanBit::get(compiler_hints(), kStrictModeFunction)
-      ? STRICT : SLOPPY;
+LanguageMode SharedFunctionInfo::language_mode() {
+  STATIC_ASSERT(LANGUAGE_END == 3);
+  return construct_language_mode(
+      BooleanBit::get(compiler_hints(), kStrictModeFunction),
+      BooleanBit::get(compiler_hints(), kStrongModeFunction));
 }
 
 
-void SharedFunctionInfo::set_strict_mode(StrictMode strict_mode) {
-  // We only allow mode transitions from sloppy to strict.
-  DCHECK(this->strict_mode() == SLOPPY || this->strict_mode() == strict_mode);
+void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
+  STATIC_ASSERT(LANGUAGE_END == 3);
+  // We only allow language mode transitions that set the same language mode
+  // again or go up in the chain:
+  DCHECK(is_sloppy(this->language_mode()) || is_strict(language_mode));
   int hints = compiler_hints();
-  hints = BooleanBit::set(hints, kStrictModeFunction, strict_mode == STRICT);
+  hints = BooleanBit::set(hints, kStrictModeFunction, is_strict(language_mode));
+  hints = BooleanBit::set(hints, kStrongModeFunction, is_strong(language_mode));
   set_compiler_hints(hints);
 }
 
@@ -5794,8 +5832,6 @@ void SharedFunctionInfo::set_kind(FunctionKind kind) {
 
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, uses_super_property,
                kUsesSuperProperty)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, uses_super_constructor_call,
-               kUsesSuperConstructorCall)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, native, kNative)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, inline_builtin,
                kInlineBuiltin)
@@ -5811,6 +5847,8 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_arrow, kIsArrow)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_generator, kIsGenerator)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_concise_method,
                kIsConciseMethod)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_accessor_function,
+               kIsAccessorFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_default_constructor,
                kIsDefaultConstructor)
 
@@ -5836,7 +5874,7 @@ bool Script::HasValidSource() {
 
 void SharedFunctionInfo::DontAdaptArguments() {
   DCHECK(code()->kind() == Code::BUILTIN);
-  set_formal_parameter_count(kDontAdaptArgumentsSentinel);
+  set_internal_formal_parameter_count(kDontAdaptArgumentsSentinel);
 }
 
 
@@ -5895,6 +5933,11 @@ void SharedFunctionInfo::set_scope_info(ScopeInfo* value,
 
 bool SharedFunctionInfo::is_compiled() {
   return code() != GetIsolate()->builtins()->builtin(Builtins::kCompileLazy);
+}
+
+
+bool SharedFunctionInfo::is_simple_parameter_list() {
+  return scope_info()->IsSimpleParameterList();
 }
 
 
@@ -6017,8 +6060,8 @@ bool JSFunction::IsFromExtensionScript() {
 
 
 bool JSFunction::NeedsArgumentsAdaption() {
-  return shared()->formal_parameter_count() !=
-      SharedFunctionInfo::kDontAdaptArgumentsSentinel;
+  return shared()->internal_formal_parameter_count() !=
+         SharedFunctionInfo::kDontAdaptArgumentsSentinel;
 }
 
 
@@ -6171,6 +6214,11 @@ bool JSFunction::is_compiled() {
 }
 
 
+bool JSFunction::is_simple_parameter_list() {
+  return shared()->is_simple_parameter_list();
+}
+
+
 FixedArray* JSFunction::literals() {
   DCHECK(!shared()->bound());
   return literals_or_bindings();
@@ -6194,7 +6242,7 @@ void JSFunction::set_function_bindings(FixedArray* bindings) {
   // Bound function literal may be initialized to the empty fixed array
   // before the bindings are set.
   DCHECK(bindings == GetHeap()->empty_fixed_array() ||
-         bindings->map() == GetHeap()->fixed_cow_array_map());
+         bindings->map() == GetHeap()->fixed_array_map());
   set_literals_or_bindings(bindings);
 }
 
@@ -7163,13 +7211,18 @@ Handle<ObjectHashTable> ObjectHashTable::Shrink(
 
 template <int entrysize>
 bool WeakHashTableShape<entrysize>::IsMatch(Handle<Object> key, Object* other) {
-  return key->SameValue(other);
+  if (other->IsWeakCell()) other = WeakCell::cast(other)->value();
+  return key->IsWeakCell() ? WeakCell::cast(*key)->value() == other
+                           : *key == other;
 }
 
 
 template <int entrysize>
 uint32_t WeakHashTableShape<entrysize>::Hash(Handle<Object> key) {
-  intptr_t hash = reinterpret_cast<intptr_t>(*key);
+  intptr_t hash =
+      key->IsWeakCell()
+          ? reinterpret_cast<intptr_t>(WeakCell::cast(*key)->value())
+          : reinterpret_cast<intptr_t>(*key);
   return (uint32_t)(hash & 0xFFFFFFFF);
 }
 
@@ -7177,6 +7230,7 @@ uint32_t WeakHashTableShape<entrysize>::Hash(Handle<Object> key) {
 template <int entrysize>
 uint32_t WeakHashTableShape<entrysize>::HashForObject(Handle<Object> key,
                                                       Object* other) {
+  if (other->IsWeakCell()) other = WeakCell::cast(other)->value();
   intptr_t hash = reinterpret_cast<intptr_t>(other);
   return (uint32_t)(hash & 0xFFFFFFFF);
 }
@@ -7486,6 +7540,49 @@ Object* JSMapIterator::CurrentValue() {
   Object* value = table->ValueAt(index);
   DCHECK(!value->IsTheHole());
   return value;
+}
+
+
+class String::SubStringRange::iterator FINAL {
+ public:
+  typedef std::forward_iterator_tag iterator_category;
+  typedef int difference_type;
+  typedef uc16 value_type;
+  typedef uc16* pointer;
+  typedef uc16& reference;
+
+  iterator(const iterator& other)
+      : content_(other.content_), offset_(other.offset_) {}
+
+  uc16 operator*() { return content_.Get(offset_); }
+  bool operator==(const iterator& other) const {
+    return content_.UsesSameString(other.content_) && offset_ == other.offset_;
+  }
+  bool operator!=(const iterator& other) const {
+    return !content_.UsesSameString(other.content_) || offset_ != other.offset_;
+  }
+  iterator& operator++() {
+    ++offset_;
+    return *this;
+  }
+  iterator operator++(int);
+
+ private:
+  friend class String;
+  iterator(String* from, int offset)
+      : content_(from->GetFlatContent()), offset_(offset) {}
+  String::FlatContent content_;
+  int offset_;
+};
+
+
+String::SubStringRange::iterator String::SubStringRange::begin() {
+  return String::SubStringRange::iterator(string_, first_);
+}
+
+
+String::SubStringRange::iterator String::SubStringRange::end() {
+  return String::SubStringRange::iterator(string_, first_ + length_);
 }
 
 

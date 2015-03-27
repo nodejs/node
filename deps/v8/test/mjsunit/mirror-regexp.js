@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
+// Flags: --expose-debug-as debug --harmony-unicode-regexps
 // Test the mirror object for regular expression values
 
 var all_attributes = debug.PropertyAttribute.ReadOnly |
@@ -36,6 +36,7 @@ var expected_attributes = {
   'global': all_attributes,
   'ignoreCase': all_attributes,
   'multiline': all_attributes,
+  'unicode' : all_attributes,
   'lastIndex': debug.PropertyAttribute.DontEnum | debug.PropertyAttribute.DontDelete
 };
 
@@ -108,3 +109,4 @@ testRegExpMirror(/x/);
 testRegExpMirror(/[abc]/);
 testRegExpMirror(/[\r\n]/g);
 testRegExpMirror(/a*b/gmi);
+testRegExpMirror(/(\u{0066}|\u{0062})oo/u);

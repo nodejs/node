@@ -5,7 +5,7 @@
 #include "src/bit-vector.h"
 #include "src/compiler/control-equivalence.h"
 #include "src/compiler/graph-visualizer.h"
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
 #include "src/zone-containers.h"
 #include "test/unittests/compiler/graph-unittest.h"
 

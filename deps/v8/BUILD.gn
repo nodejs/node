@@ -18,10 +18,9 @@ v8_interpreted_regexp = false
 v8_object_print = false
 v8_postmortem_support = false
 v8_use_snapshot = true
-v8_enable_extra_checks = is_debug
 v8_target_arch = cpu_arch
 v8_random_seed = "314159265"
-
+v8_toolset_for_d8 = "host"
 
 ###############################################################################
 # Configurations
@@ -63,54 +62,31 @@ config("features") {
   defines = []
 
   if (v8_enable_disassembler == true) {
-    defines += [
-      "ENABLE_DISASSEMBLER",
-    ]
+    defines += [ "ENABLE_DISASSEMBLER" ]
   }
   if (v8_enable_gdbjit == true) {
-    defines += [
-      "ENABLE_GDB_JIT_INTERFACE",
-    ]
+    defines += [ "ENABLE_GDB_JIT_INTERFACE" ]
   }
   if (v8_object_print == true) {
-    defines += [
-      "OBJECT_PRINT",
-    ]
+    defines += [ "OBJECT_PRINT" ]
   }
   if (v8_enable_verify_heap == true) {
-    defines += [
-      "VERIFY_HEAP",
-    ]
+    defines += [ "VERIFY_HEAP" ]
   }
   if (v8_interpreted_regexp == true) {
-    defines += [
-      "V8_INTERPRETED_REGEXP",
-    ]
+    defines += [ "V8_INTERPRETED_REGEXP" ]
   }
   if (v8_deprecation_warnings == true) {
-    defines += [
-      "V8_DEPRECATION_WARNINGS",
-    ]
+    defines += [ "V8_DEPRECATION_WARNINGS" ]
   }
   if (v8_enable_i18n_support == true) {
-    defines += [
-      "V8_I18N_SUPPORT",
-    ]
-  }
-  if (v8_enable_extra_checks == true) {
-    defines += [
-      "ENABLE_EXTRA_CHECKS",
-    ]
+    defines += [ "V8_I18N_SUPPORT" ]
   }
   if (v8_enable_handle_zapping == true) {
-    defines += [
-      "ENABLE_HANDLE_ZAPPING",
-    ]
+    defines += [ "ENABLE_HANDLE_ZAPPING" ]
   }
   if (v8_use_external_startup_data == true) {
-    defines += [
-      "V8_USE_EXTERNAL_STARTUP_DATA",
-    ]
+    defines += [ "V8_USE_EXTERNAL_STARTUP_DATA" ]
   }
 }
 
@@ -120,27 +96,45 @@ config("toolchain") {
   defines = []
   cflags = []
 
-  # TODO(jochen): Add support for arm, mips, mipsel.
+  # TODO(jochen): Add support for arm subarchs, mips, mipsel.
 
+  if (v8_target_arch == "arm") {
+    defines += [ "V8_TARGET_ARCH_ARM" ]
+    if (arm_version == 7) {
+      defines += [ "CAN_USE_ARMV7_INSTRUCTIONS" ]
+    }
+    if (arm_fpu == "vfpv3-d16") {
+      defines += [ "CAN_USE_VFP3_INSTRUCTIONS" ]
+    }
+    if (arm_fpu == "vfpv3") {
+      defines += [
+        "CAN_USE_VFP3_INSTRUCTIONS",
+        "CAN_USE_VFP32DREGS",
+      ]
+    }
+    if (arm_fpu == "neon") {
+      defines += [
+        "CAN_USE_VFP3_INSTRUCTIONS",
+        "CAN_USE_VFP32DREGS",
+        "CAN_USE_NEON",
+      ]
+    }
+
+    # TODO(jochen): Add support for arm_test_noprobe.
+
+    # TODO(jochen): Add support for cpu_arch != v8_target_arch/
+  }
   if (v8_target_arch == "arm64") {
-    defines += [
-      "V8_TARGET_ARCH_ARM64",
-    ]
+    defines += [ "V8_TARGET_ARCH_ARM64" ]
   }
   if (v8_target_arch == "x86") {
-    defines += [
-      "V8_TARGET_ARCH_IA32",
-    ]
+    defines += [ "V8_TARGET_ARCH_IA32" ]
   }
   if (v8_target_arch == "x64") {
-    defines += [
-      "V8_TARGET_ARCH_X64",
-    ]
+    defines += [ "V8_TARGET_ARCH_X64" ]
   }
   if (is_win) {
-    defines += [
-      "WIN32",
-    ]
+    defines += [ "WIN32" ]
     # TODO(jochen): Support v8_enable_prof.
   }
 
@@ -170,7 +164,7 @@ action("js2c") {
 
   # The script depends on this other script, this rule causes a rebuild if it
   # changes.
-  source_prereqs = [ "tools/jsmin.py" ]
+  inputs = [ "tools/jsmin.py" ]
 
   sources = [
     "src/runtime.js",
@@ -181,7 +175,6 @@ action("js2c") {
     "src/uri.js",
     "src/third_party/fdlibm/fdlibm.js",
     "src/math.js",
-    "src/apinatives.js",
     "src/date.js",
     "src/regexp.js",
     "src/arraybuffer.js",
@@ -203,7 +196,7 @@ action("js2c") {
   ]
 
   outputs = [
-    "$target_gen_dir/libraries.cc"
+    "$target_gen_dir/libraries.cc",
   ]
 
   if (v8_enable_i18n_support) {
@@ -211,15 +204,15 @@ action("js2c") {
   }
 
   args = [
-    rebase_path("$target_gen_dir/libraries.cc", root_build_dir),
-    "CORE",
-  ] + rebase_path(sources, root_build_dir)
+           rebase_path("$target_gen_dir/libraries.cc", root_build_dir),
+           "CORE",
+         ] + rebase_path(sources, root_build_dir)
 
   if (v8_use_external_startup_data) {
     outputs += [ "$target_gen_dir/libraries.bin" ]
     args += [
       "--startup_blob",
-      rebase_path("$target_gen_dir/libraries.bin", root_build_dir)
+      rebase_path("$target_gen_dir/libraries.bin", root_build_dir),
     ]
   }
 }
@@ -231,7 +224,7 @@ action("js2c_experimental") {
 
   # The script depends on this other script, this rule causes a rebuild if it
   # changes.
-  source_prereqs = [ "tools/jsmin.py" ]
+  inputs = [ "tools/jsmin.py" ]
 
   sources = [
     "src/macros.py",
@@ -241,28 +234,46 @@ action("js2c_experimental") {
     "src/harmony-array.js",
     "src/harmony-array-includes.js",
     "src/harmony-typedarray.js",
-    "src/harmony-classes.js",
     "src/harmony-tostring.js",
     "src/harmony-templates.js",
-    "src/harmony-regexp.js"
+    "src/harmony-regexp.js",
   ]
 
   outputs = [
-    "$target_gen_dir/experimental-libraries.cc"
+    "$target_gen_dir/experimental-libraries.cc",
   ]
 
   args = [
-    rebase_path("$target_gen_dir/experimental-libraries.cc", root_build_dir),
-    "EXPERIMENTAL",
-  ] + rebase_path(sources, root_build_dir)
+           rebase_path("$target_gen_dir/experimental-libraries.cc",
+                       root_build_dir),
+           "EXPERIMENTAL",
+         ] + rebase_path(sources, root_build_dir)
 
   if (v8_use_external_startup_data) {
     outputs += [ "$target_gen_dir/libraries_experimental.bin" ]
     args += [
       "--startup_blob",
-      rebase_path("$target_gen_dir/libraries_experimental.bin", root_build_dir)
+      rebase_path("$target_gen_dir/libraries_experimental.bin", root_build_dir),
     ]
   }
+}
+
+action("d8_js2c") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  script = "tools/js2c.py"
+
+  inputs = [
+    "src/d8.js",
+    "src/macros.py",
+  ]
+
+  outputs = [
+    "$target_gen_dir/d8-js.cc",
+  ]
+
+  args = rebase_path(outputs, root_build_dir) + [ "D8" ] +
+         rebase_path(inputs, root_build_dir)
 }
 
 if (v8_use_external_startup_data) {
@@ -271,16 +282,16 @@ if (v8_use_external_startup_data) {
 
     deps = [
       ":js2c",
-      ":js2c_experimental"
+      ":js2c_experimental",
     ]
 
     sources = [
       "$target_gen_dir/libraries.bin",
-      "$target_gen_dir/libraries_experimental.bin"
+      "$target_gen_dir/libraries_experimental.bin",
     ]
 
     outputs = [
-      "$root_out_dir/natives_blob.bin"
+      "$root_out_dir/natives_blob.bin",
     ]
 
     script = "tools/concatenate-files.py"
@@ -300,23 +311,24 @@ action("postmortem-metadata") {
   ]
 
   outputs = [
-    "$target_gen_dir/debug-support.cc"
+    "$target_gen_dir/debug-support.cc",
   ]
 
-  args =
-    rebase_path(outputs, root_build_dir) +
-    rebase_path(sources, root_build_dir)
+  args = rebase_path(outputs, root_build_dir) +
+         rebase_path(sources, root_build_dir)
 }
 
 action("run_mksnapshot") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
-  deps = [ ":mksnapshot($host_toolchain)" ]
+  deps = [
+    ":mksnapshot($host_toolchain)",
+  ]
 
   script = "tools/run.py"
 
   outputs = [
-    "$target_gen_dir/snapshot.cc"
+    "$target_gen_dir/snapshot.cc",
   ]
 
   args = [
@@ -324,23 +336,26 @@ action("run_mksnapshot") {
                                       "root_out_dir") + "/mksnapshot",
                        root_build_dir),
     "--log-snapshot-positions",
-    "--logfile", rebase_path("$target_gen_dir/snapshot.log", root_build_dir),
-    rebase_path("$target_gen_dir/snapshot.cc", root_build_dir)
+    "--logfile",
+    rebase_path("$target_gen_dir/snapshot.log", root_build_dir),
+    rebase_path("$target_gen_dir/snapshot.cc", root_build_dir),
   ]
 
   if (v8_random_seed != "0") {
-    args += [ "--random-seed", v8_random_seed ]
+    args += [
+      "--random-seed",
+      v8_random_seed,
+    ]
   }
 
   if (v8_use_external_startup_data) {
     outputs += [ "$root_out_dir/snapshot_blob.bin" ]
     args += [
       "--startup_blob",
-      rebase_path("$root_out_dir/snapshot_blob.bin", root_build_dir)
+      rebase_path("$root_out_dir/snapshot_blob.bin", root_build_dir),
     ]
   }
 }
-
 
 ###############################################################################
 # Source Sets (aka static libraries)
@@ -363,7 +378,11 @@ source_set("v8_nosnapshot") {
 
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [ ":internal_config", ":features", ":toolchain" ]
+  configs += [
+    ":internal_config",
+    ":features",
+    ":toolchain",
+  ]
 }
 
 source_set("v8_snapshot") {
@@ -384,7 +403,11 @@ source_set("v8_snapshot") {
 
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [ ":internal_config", ":features", ":toolchain" ]
+  configs += [
+    ":internal_config",
+    ":features",
+    ":toolchain",
+  ]
 }
 
 if (v8_use_external_startup_data) {
@@ -406,7 +429,11 @@ if (v8_use_external_startup_data) {
 
     configs -= [ "//build/config/compiler:chromium_code" ]
     configs += [ "//build/config/compiler:no_chromium_code" ]
-    configs += [ ":internal_config", ":features", ":toolchain" ]
+    configs += [
+      ":internal_config",
+      ":features",
+      ":toolchain",
+    ]
   }
 }
 
@@ -424,6 +451,8 @@ source_set("v8_base") {
     "src/allocation-tracker.h",
     "src/api.cc",
     "src/api.h",
+    "src/api-natives.cc",
+    "src/api-natives.h",
     "src/arguments.cc",
     "src/arguments.h",
     "src/assembler.cc",
@@ -432,8 +461,6 @@ source_set("v8_base") {
     "src/assert-scope.cc",
     "src/ast-numbering.cc",
     "src/ast-numbering.h",
-    "src/ast-this-access-visitor.cc",
-    "src/ast-this-access-visitor.h",
     "src/ast-value-factory.cc",
     "src/ast-value-factory.h",
     "src/ast.cc",
@@ -478,6 +505,8 @@ source_set("v8_base") {
     "src/compilation-statistics.h",
     "src/compiler/access-builder.cc",
     "src/compiler/access-builder.h",
+    "src/compiler/all-nodes.cc",
+    "src/compiler/all-nodes.h",
     "src/compiler/ast-graph-builder.cc",
     "src/compiler/ast-graph-builder.h",
     "src/compiler/ast-loop-assignment-analyzer.cc",
@@ -498,6 +527,8 @@ source_set("v8_base") {
     "src/compiler/control-builders.cc",
     "src/compiler/control-builders.h",
     "src/compiler/control-equivalence.h",
+    "src/compiler/control-flow-optimizer.cc",
+    "src/compiler/control-flow-optimizer.h",
     "src/compiler/control-reducer.cc",
     "src/compiler/control-reducer.h",
     "src/compiler/diamond.h",
@@ -505,7 +536,6 @@ source_set("v8_base") {
     "src/compiler/gap-resolver.cc",
     "src/compiler/gap-resolver.h",
     "src/compiler/generic-algorithm.h",
-    "src/compiler/graph-builder.cc",
     "src/compiler/graph-builder.h",
     "src/compiler/graph-inl.h",
     "src/compiler/graph-reducer.cc",
@@ -532,8 +562,8 @@ source_set("v8_base") {
     "src/compiler/js-graph.h",
     "src/compiler/js-inlining.cc",
     "src/compiler/js-inlining.h",
-    "src/compiler/js-intrinsic-builder.cc",
-    "src/compiler/js-intrinsic-builder.h",
+    "src/compiler/js-intrinsic-lowering.cc",
+    "src/compiler/js-intrinsic-lowering.h",
     "src/compiler/js-operator.cc",
     "src/compiler/js-operator.h",
     "src/compiler/js-typed-lowering.cc",
@@ -545,6 +575,7 @@ source_set("v8_base") {
     "src/compiler/linkage.h",
     "src/compiler/load-elimination.cc",
     "src/compiler/load-elimination.h",
+    "src/compiler/loop-peeling.cc",
     "src/compiler/loop-analysis.cc",
     "src/compiler/loop-analysis.h",
     "src/compiler/machine-operator-reducer.cc",
@@ -555,12 +586,13 @@ source_set("v8_base") {
     "src/compiler/machine-type.h",
     "src/compiler/move-optimizer.cc",
     "src/compiler/move-optimizer.h",
-    "src/compiler/node-aux-data-inl.h",
     "src/compiler/node-aux-data.h",
     "src/compiler/node-cache.cc",
     "src/compiler/node-cache.h",
+    "src/compiler/node-marker.cc",
+    "src/compiler/node-marker.h",
     "src/compiler/node-matchers.h",
-    "src/compiler/node-properties-inl.h",
+    "src/compiler/node-properties.cc",
     "src/compiler/node-properties.h",
     "src/compiler/node.cc",
     "src/compiler/node.h",
@@ -570,6 +602,8 @@ source_set("v8_base") {
     "src/compiler/operator-properties.h",
     "src/compiler/operator.cc",
     "src/compiler/operator.h",
+    "src/compiler/osr.cc",
+    "src/compiler/osr.h",
     "src/compiler/pipeline.cc",
     "src/compiler/pipeline.h",
     "src/compiler/pipeline-statistics.cc",
@@ -775,8 +809,6 @@ source_set("v8_base") {
     "src/ic/ic-compiler.h",
     "src/ic/stub-cache.cc",
     "src/ic/stub-cache.h",
-    "src/interface.cc",
-    "src/interface.h",
     "src/interface-descriptors.cc",
     "src/interface-descriptors.h",
     "src/interpreter-irregexp.cc",
@@ -813,6 +845,8 @@ source_set("v8_base") {
     "src/macro-assembler.h",
     "src/messages.cc",
     "src/messages.h",
+    "src/modules.cc",
+    "src/modules.h",
     "src/msan.h",
     "src/natives.h",
     "src/objects-debug.cc",
@@ -855,7 +889,6 @@ source_set("v8_base") {
     "src/rewriter.h",
     "src/runtime-profiler.cc",
     "src/runtime-profiler.h",
-    "src/runtime/runtime-api.cc",
     "src/runtime/runtime-array.cc",
     "src/runtime/runtime-classes.cc",
     "src/runtime/runtime-collections.cc",
@@ -949,7 +982,6 @@ source_set("v8_base") {
     "src/version.h",
     "src/vm-state-inl.h",
     "src/vm-state.h",
-    "src/zone-inl.h",
     "src/zone.cc",
     "src/zone.h",
     "src/third_party/fdlibm/fdlibm.cc",
@@ -1209,7 +1241,11 @@ source_set("v8_base") {
 
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [ ":internal_config", ":features", ":toolchain" ]
+  configs += [
+    ":internal_config",
+    ":features",
+    ":toolchain",
+  ]
 
   if (!is_debug) {
     configs -= [ "//build/config/compiler:optimize" ]
@@ -1217,7 +1253,9 @@ source_set("v8_base") {
   }
 
   defines = []
-  deps = [ ":v8_libbase" ]
+  deps = [
+    ":v8_libbase",
+  ]
 
   if (is_win) {
     # TODO(jschuh): crbug.com/167187 fix size_t to int truncations.
@@ -1229,6 +1267,7 @@ source_set("v8_base") {
     if (is_win) {
       deps += [ "//third_party/icu:icudata" ]
     }
+
     # TODO(jochen): Add support for icu_use_data_file_flag
     defines += [ "ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_FILE" ]
   } else {
@@ -1297,7 +1336,11 @@ source_set("v8_libbase") {
 
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [ ":internal_config_base", ":features", ":toolchain" ]
+  configs += [
+    ":internal_config_base",
+    ":features",
+    ":toolchain",
+  ]
 
   if (!is_debug) {
     configs -= [ "//build/config/compiler:optimize" ]
@@ -1307,15 +1350,11 @@ source_set("v8_libbase") {
   defines = []
 
   if (is_posix) {
-    sources += [
-      "src/base/platform/platform-posix.cc"
-    ]
+    sources += [ "src/base/platform/platform-posix.cc" ]
   }
 
   if (is_linux) {
-    sources += [
-      "src/base/platform/platform-linux.cc"
-    ]
+    sources += [ "src/base/platform/platform-linux.cc" ]
 
     libs = [ "rt" ]
   } else if (is_android) {
@@ -1344,7 +1383,10 @@ source_set("v8_libbase") {
 
     defines += [ "_CRT_RAND_S" ]  # for rand_s()
 
-    libs = [ "winmm.lib", "ws2_32.lib" ]
+    libs = [
+      "winmm.lib",
+      "ws2_32.lib",
+    ]
   }
 
   # TODO(jochen): Add support for qnx, freebsd, openbsd, netbsd, and solaris.
@@ -1363,7 +1405,11 @@ source_set("v8_libplatform") {
 
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [ ":internal_config_base", ":features", ":toolchain" ]
+  configs += [
+    ":internal_config_base",
+    ":features",
+    ":toolchain",
+  ]
 
   if (!is_debug) {
     configs -= [ "//build/config/compiler:optimize" ]
@@ -1389,7 +1435,11 @@ if (current_toolchain == host_toolchain) {
 
     configs -= [ "//build/config/compiler:chromium_code" ]
     configs += [ "//build/config/compiler:no_chromium_code" ]
-    configs += [ ":internal_config", ":features", ":toolchain" ]
+    configs += [
+      ":internal_config",
+      ":features",
+      ":toolchain",
+    ]
 
     deps = [
       ":v8_base",
@@ -1405,64 +1455,109 @@ if (current_toolchain == host_toolchain) {
 #
 
 if (component_mode == "shared_library") {
+  component("v8") {
+    sources = [
+      "src/v8dll-main.cc",
+    ]
 
-component("v8") {
-  sources = [
-    "src/v8dll-main.cc",
-  ]
+    if (v8_use_snapshot && v8_use_external_startup_data) {
+      deps = [
+        ":v8_base",
+        ":v8_external_snapshot",
+      ]
+    } else if (v8_use_snapshot) {
+      deps = [
+        ":v8_base",
+        ":v8_snapshot",
+      ]
+    } else {
+      assert(!v8_use_external_startup_data)
+      deps = [
+        ":v8_base",
+        ":v8_nosnapshot",
+      ]
+    }
 
-  if (v8_use_snapshot && v8_use_external_startup_data) {
-    deps = [
-      ":v8_base",
-      ":v8_external_snapshot",
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
+    configs += [
+      ":internal_config",
+      ":features",
+      ":toolchain",
     ]
-  } else if (v8_use_snapshot) {
-    deps = [
-      ":v8_base",
-      ":v8_snapshot",
-    ]
-  } else {
-    assert(!v8_use_external_startup_data)
-    deps = [
-      ":v8_base",
-      ":v8_nosnapshot",
-    ]
+
+    direct_dependent_configs = [ ":external_config" ]
+
+    libs = []
+    if (is_android && current_toolchain != host_toolchain) {
+      libs += [ "log" ]
+    }
   }
-
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [ ":internal_config", ":features", ":toolchain" ]
-
-  direct_dependent_configs = [ ":external_config" ]
-
-  libs = []
-  if (is_android && current_toolchain != host_toolchain) {
-    libs += [ "log" ]
-  }
-}
-
 } else {
+  group("v8") {
+    if (v8_use_snapshot && v8_use_external_startup_data) {
+      deps = [
+        ":v8_base",
+        ":v8_external_snapshot",
+      ]
+    } else if (v8_use_snapshot) {
+      deps = [
+        ":v8_base",
+        ":v8_snapshot",
+      ]
+    } else {
+      assert(!v8_use_external_startup_data)
+      deps = [
+        ":v8_base",
+        ":v8_nosnapshot",
+      ]
+    }
 
-group("v8") {
-  if (v8_use_snapshot && v8_use_external_startup_data) {
-    deps = [
-      ":v8_base",
-      ":v8_external_snapshot",
-    ]
-  } else if (v8_use_snapshot) {
-    deps = [
-      ":v8_base",
-      ":v8_snapshot",
-    ]
-  } else {
-    assert(!v8_use_external_startup_data)
-    deps = [
-      ":v8_base",
-      ":v8_nosnapshot",
-    ]
+    direct_dependent_configs = [ ":external_config" ]
   }
-
-  direct_dependent_configs = [ ":external_config" ]
 }
 
+if ((current_toolchain == host_toolchain && v8_toolset_for_d8 == "host") ||
+    (current_toolchain != host_toolchain && v8_toolset_for_d8 == "target")) {
+  executable("d8") {
+    sources = [
+      "src/d8.cc",
+      "src/d8.h",
+      "src/startup-data-util.h",
+      "src/startup-data-util.cc",
+    ]
+
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
+    configs += [
+      ":internal_config",
+      ":features",
+      ":toolchain",
+    ]
+
+    deps = [
+      ":d8_js2c",
+      ":v8",
+      ":v8_libplatform",
+      "//build/config/sanitizers:deps",
+    ]
+
+    # TODO(jochen): Add support for readline and vtunejit.
+
+    if (is_posix) {
+      sources += [ "src/d8-posix.cc" ]
+    } else if (is_win) {
+      sources += [ "src/d8-windows.cc" ]
+    }
+
+    if (component_mode != "shared_library") {
+      sources += [
+        "src/d8-debug.cc",
+        "$target_gen_dir/d8-js.cc",
+      ]
+    }
+    if (v8_enable_i18n_support) {
+      deps += [ "//third_party/icu" ]
+    }
+  }
 }

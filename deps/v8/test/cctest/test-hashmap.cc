@@ -93,37 +93,37 @@ static uint32_t CollisionHash(uint32_t key)  { return key & 0x3; }
 
 void TestSet(IntKeyHash hash, int size) {
   IntSet set(hash);
-  CHECK_EQ(0, set.occupancy());
+  CHECK_EQ(0u, set.occupancy());
 
   set.Insert(1);
   set.Insert(2);
   set.Insert(3);
-  CHECK_EQ(3, set.occupancy());
+  CHECK_EQ(3u, set.occupancy());
 
   set.Insert(2);
   set.Insert(3);
-  CHECK_EQ(3, set.occupancy());
+  CHECK_EQ(3u, set.occupancy());
 
   CHECK(set.Present(1));
   CHECK(set.Present(2));
   CHECK(set.Present(3));
   CHECK(!set.Present(4));
-  CHECK_EQ(3, set.occupancy());
+  CHECK_EQ(3u, set.occupancy());
 
   set.Remove(1);
   CHECK(!set.Present(1));
   CHECK(set.Present(2));
   CHECK(set.Present(3));
-  CHECK_EQ(2, set.occupancy());
+  CHECK_EQ(2u, set.occupancy());
 
   set.Remove(3);
   CHECK(!set.Present(1));
   CHECK(set.Present(2));
   CHECK(!set.Present(3));
-  CHECK_EQ(1, set.occupancy());
+  CHECK_EQ(1u, set.occupancy());
 
   set.Clear();
-  CHECK_EQ(0, set.occupancy());
+  CHECK_EQ(0u, set.occupancy());
 
   // Insert a long series of values.
   const int start = 453;
@@ -167,7 +167,7 @@ void TestSet(IntKeyHash hash, int size) {
       y = y * factor + offset;
     }
   }
-  CHECK_EQ(0, set.occupancy());
+  CHECK_EQ(0u, set.occupancy());
 }
 
 

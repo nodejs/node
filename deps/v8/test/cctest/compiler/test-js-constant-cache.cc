@@ -6,7 +6,7 @@
 
 #include "src/assembler.h"
 #include "src/compiler/js-graph.h"
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/typer.h"
 #include "src/types.h"
 #include "test/cctest/cctest.h"
@@ -17,11 +17,11 @@ using namespace v8::internal::compiler;
 
 class JSCacheTesterHelper {
  protected:
-  explicit JSCacheTesterHelper(Zone* zone)
+  JSCacheTesterHelper(Isolate* isolate, Zone* zone)
       : main_graph_(zone),
         main_common_(zone),
         main_javascript_(zone),
-        main_typer_(&main_graph_, MaybeHandle<Context>()),
+        main_typer_(isolate, &main_graph_, MaybeHandle<Context>()),
         main_machine_(zone) {}
   Graph main_graph_;
   CommonOperatorBuilder main_common_;
@@ -37,8 +37,8 @@ class JSConstantCacheTester : public HandleAndZoneScope,
                               public JSGraph {
  public:
   JSConstantCacheTester()
-      : JSCacheTesterHelper(main_zone()),
-        JSGraph(&main_graph_, &main_common_, &main_javascript_,
+      : JSCacheTesterHelper(main_isolate(), main_zone()),
+        JSGraph(main_isolate(), &main_graph_, &main_common_, &main_javascript_,
                 &main_machine_) {
     main_graph_.SetStart(main_graph_.NewNode(common()->Start(0)));
     main_graph_.SetEnd(main_graph_.NewNode(common()->End()));
@@ -65,7 +65,7 @@ TEST(ZeroConstant1) {
   CHECK_EQ(zero, T.Constant(0));
   CHECK_NE(zero, T.Constant(-0.0));
   CHECK_NE(zero, T.Constant(1.0));
-  CHECK_NE(zero, T.Constant(v8::base::OS::nan_value()));
+  CHECK_NE(zero, T.Constant(std::numeric_limits<double>::quiet_NaN()));
   CHECK_NE(zero, T.Float64Constant(0));
   CHECK_NE(zero, T.Int32Constant(0));
 
@@ -103,10 +103,10 @@ TEST(MinusZeroConstant) {
   double zero_value = OpParameter<double>(zero);
   double minus_zero_value = OpParameter<double>(minus_zero);
 
-  CHECK_EQ(0.0, zero_value);
-  CHECK_NE(-0.0, zero_value);
-  CHECK_EQ(-0.0, minus_zero_value);
-  CHECK_NE(0.0, minus_zero_value);
+  CHECK(bit_cast<uint64_t>(0.0) == bit_cast<uint64_t>(zero_value));
+  CHECK(bit_cast<uint64_t>(-0.0) != bit_cast<uint64_t>(zero_value));
+  CHECK(bit_cast<uint64_t>(0.0) != bit_cast<uint64_t>(minus_zero_value));
+  CHECK(bit_cast<uint64_t>(-0.0) == bit_cast<uint64_t>(minus_zero_value));
 }
 
 
@@ -119,7 +119,7 @@ TEST(ZeroConstant2) {
   CHECK_EQ(zero, T.ZeroConstant());
   CHECK_NE(zero, T.Constant(-0.0));
   CHECK_NE(zero, T.Constant(1.0));
-  CHECK_NE(zero, T.Constant(v8::base::OS::nan_value()));
+  CHECK_NE(zero, T.Constant(std::numeric_limits<double>::quiet_NaN()));
   CHECK_NE(zero, T.Float64Constant(0));
   CHECK_NE(zero, T.Int32Constant(0));
 
@@ -144,7 +144,7 @@ TEST(OneConstant1) {
   CHECK_EQ(one, T.Constant(1.0));
   CHECK_NE(one, T.Constant(1.01));
   CHECK_NE(one, T.Constant(-1.01));
-  CHECK_NE(one, T.Constant(v8::base::OS::nan_value()));
+  CHECK_NE(one, T.Constant(std::numeric_limits<double>::quiet_NaN()));
   CHECK_NE(one, T.Float64Constant(1.0));
   CHECK_NE(one, T.Int32Constant(1));
 
@@ -169,7 +169,7 @@ TEST(OneConstant2) {
   CHECK_EQ(one, T.Constant(1.0));
   CHECK_NE(one, T.Constant(1.01));
   CHECK_NE(one, T.Constant(-1.01));
-  CHECK_NE(one, T.Constant(v8::base::OS::nan_value()));
+  CHECK_NE(one, T.Constant(std::numeric_limits<double>::quiet_NaN()));
   CHECK_NE(one, T.Float64Constant(1.0));
   CHECK_NE(one, T.Int32Constant(1));
 

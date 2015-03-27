@@ -50,7 +50,7 @@ ValueNumberingReducer::~ValueNumberingReducer() {}
 
 
 Reduction ValueNumberingReducer::Reduce(Node* node) {
-  if (!node->op()->HasProperty(Operator::kEliminatable)) return NoChange();
+  if (!node->op()->HasProperty(Operator::kIdempotent)) return NoChange();
 
   const size_t hash = HashCode(node);
   if (!entries_) {
@@ -135,7 +135,7 @@ void ValueNumberingReducer::Grow() {
   Node** const old_entries = entries_;
   size_t const old_capacity = capacity_;
   capacity_ *= kCapacityToSizeRatio;
-  entries_ = zone()->NewArray<Node*>(static_cast<int>(capacity_));
+  entries_ = zone()->NewArray<Node*>(capacity_);
   memset(entries_, 0, sizeof(*entries_) * capacity_);
   size_ = 0;
   size_t const mask = capacity_ - 1;

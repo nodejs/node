@@ -55,16 +55,6 @@ static Handle<JSWeakSet> AllocateJSWeakSet(Isolate* isolate) {
   return weakset;
 }
 
-static void PutIntoWeakSet(Handle<JSWeakSet> weakset,
-                           Handle<JSObject> key,
-                           Handle<Object> value) {
-  Handle<ObjectHashTable> table = ObjectHashTable::Put(
-      Handle<ObjectHashTable>(ObjectHashTable::cast(weakset->table())),
-      Handle<JSObject>(JSObject::cast(*key)),
-      value);
-  weakset->set_table(*table);
-}
-
 static int NumberOfWeakCalls = 0;
 static void WeakPointerCallback(
     const v8::WeakCallbackData<v8::Value, void>& data) {
@@ -100,9 +90,8 @@ TEST(WeakSet_Weakness) {
   // Put entry into weak set.
   {
     HandleScope scope(isolate);
-    PutIntoWeakSet(weakset,
-                   Handle<JSObject>(JSObject::cast(*key)),
-                   Handle<Smi>(Smi::FromInt(23), isolate));
+    Handle<Smi> smi(Smi::FromInt(23), isolate);
+    Runtime::WeakCollectionSet(weakset, key, smi);
   }
   CHECK_EQ(1, ObjectHashTable::cast(weakset->table())->NumberOfElements());
 
@@ -156,7 +145,8 @@ TEST(WeakSet_Shrinking) {
     Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
     for (int i = 0; i < 32; i++) {
       Handle<JSObject> object = factory->NewJSObjectFromMap(map);
-      PutIntoWeakSet(weakset, object, Handle<Smi>(Smi::FromInt(i), isolate));
+      Handle<Smi> smi(Smi::FromInt(i), isolate);
+      Runtime::WeakCollectionSet(weakset, object, smi);
     }
   }
 
@@ -203,7 +193,7 @@ TEST(WeakSet_Regress2060a) {
       Handle<JSObject> object = factory->NewJSObject(function, TENURED);
       CHECK(!heap->InNewSpace(object->address()));
       CHECK(!first_page->Contains(object->address()));
-      PutIntoWeakSet(weakset, key, object);
+      Runtime::WeakCollectionSet(weakset, key, object);
     }
   }
 
@@ -243,9 +233,8 @@ TEST(WeakSet_Regress2060b) {
   }
   Handle<JSWeakSet> weakset = AllocateJSWeakSet(isolate);
   for (int i = 0; i < 32; i++) {
-    PutIntoWeakSet(weakset,
-                   keys[i],
-                   Handle<Smi>(Smi::FromInt(i), isolate));
+    Handle<Smi> smi(Smi::FromInt(i), isolate);
+    Runtime::WeakCollectionSet(weakset, keys[i], smi);
   }
 
   // Force compacting garbage collection. The subsequent collections are used

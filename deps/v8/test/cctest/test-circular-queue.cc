@@ -42,51 +42,51 @@ TEST(SamplingCircularQueue) {
 
   // Check that we are using non-reserved values.
   // Fill up the first chunk.
-  CHECK_EQ(NULL, scq.Peek());
+  CHECK(!scq.Peek());
   for (Record i = 1; i < 1 + kMaxRecordsInQueue; ++i) {
     Record* rec = reinterpret_cast<Record*>(scq.StartEnqueue());
-    CHECK_NE(NULL, rec);
+    CHECK(rec);
     *rec = i;
     scq.FinishEnqueue();
   }
 
   // The queue is full, enqueue is not allowed.
-  CHECK_EQ(NULL, scq.StartEnqueue());
+  CHECK(!scq.StartEnqueue());
 
   // Try to enqueue when the the queue is full. Consumption must be available.
-  CHECK_NE(NULL, scq.Peek());
+  CHECK(scq.Peek());
   for (int i = 0; i < 10; ++i) {
     Record* rec = reinterpret_cast<Record*>(scq.StartEnqueue());
-    CHECK_EQ(NULL, rec);
-    CHECK_NE(NULL, scq.Peek());
+    CHECK(!rec);
+    CHECK(scq.Peek());
   }
 
   // Consume all records.
   for (Record i = 1; i < 1 + kMaxRecordsInQueue; ++i) {
     Record* rec = reinterpret_cast<Record*>(scq.Peek());
-    CHECK_NE(NULL, rec);
+    CHECK(rec);
     CHECK_EQ(static_cast<int64_t>(i), static_cast<int64_t>(*rec));
     CHECK_EQ(rec, reinterpret_cast<Record*>(scq.Peek()));
     scq.Remove();
     CHECK_NE(rec, reinterpret_cast<Record*>(scq.Peek()));
   }
   // The queue is empty.
-  CHECK_EQ(NULL, scq.Peek());
+  CHECK(!scq.Peek());
 
 
-  CHECK_EQ(NULL, scq.Peek());
+  CHECK(!scq.Peek());
   for (Record i = 0; i < kMaxRecordsInQueue / 2; ++i) {
     Record* rec = reinterpret_cast<Record*>(scq.StartEnqueue());
-    CHECK_NE(NULL, rec);
+    CHECK(rec);
     *rec = i;
     scq.FinishEnqueue();
   }
 
   // Consume all available kMaxRecordsInQueue / 2 records.
-  CHECK_NE(NULL, scq.Peek());
+  CHECK(scq.Peek());
   for (Record i = 0; i < kMaxRecordsInQueue / 2; ++i) {
     Record* rec = reinterpret_cast<Record*>(scq.Peek());
-    CHECK_NE(NULL, rec);
+    CHECK(rec);
     CHECK_EQ(static_cast<int64_t>(i), static_cast<int64_t>(*rec));
     CHECK_EQ(rec, reinterpret_cast<Record*>(scq.Peek()));
     scq.Remove();
@@ -94,7 +94,7 @@ TEST(SamplingCircularQueue) {
   }
 
   // The queue is empty.
-  CHECK_EQ(NULL, scq.Peek());
+  CHECK(!scq.Peek());
 }
 
 
@@ -116,7 +116,7 @@ class ProducerThread: public v8::base::Thread {
   virtual void Run() {
     for (Record i = value_; i < value_ + records_per_chunk_; ++i) {
       Record* rec = reinterpret_cast<Record*>(scq_->StartEnqueue());
-      CHECK_NE(NULL, rec);
+      CHECK(rec);
       *rec = i;
       scq_->FinishEnqueue();
     }
@@ -147,41 +147,41 @@ TEST(SamplingCircularQueueMultithreading) {
   ProducerThread producer2(&scq, kRecordsPerChunk, 10, &semaphore);
   ProducerThread producer3(&scq, kRecordsPerChunk, 20, &semaphore);
 
-  CHECK_EQ(NULL, scq.Peek());
+  CHECK(!scq.Peek());
   producer1.Start();
   semaphore.Wait();
   for (Record i = 1; i < 1 + kRecordsPerChunk; ++i) {
     Record* rec = reinterpret_cast<Record*>(scq.Peek());
-    CHECK_NE(NULL, rec);
+    CHECK(rec);
     CHECK_EQ(static_cast<int64_t>(i), static_cast<int64_t>(*rec));
     CHECK_EQ(rec, reinterpret_cast<Record*>(scq.Peek()));
     scq.Remove();
     CHECK_NE(rec, reinterpret_cast<Record*>(scq.Peek()));
   }
 
-  CHECK_EQ(NULL, scq.Peek());
+  CHECK(!scq.Peek());
   producer2.Start();
   semaphore.Wait();
   for (Record i = 10; i < 10 + kRecordsPerChunk; ++i) {
     Record* rec = reinterpret_cast<Record*>(scq.Peek());
-    CHECK_NE(NULL, rec);
+    CHECK(rec);
     CHECK_EQ(static_cast<int64_t>(i), static_cast<int64_t>(*rec));
     CHECK_EQ(rec, reinterpret_cast<Record*>(scq.Peek()));
     scq.Remove();
     CHECK_NE(rec, reinterpret_cast<Record*>(scq.Peek()));
   }
 
-  CHECK_EQ(NULL, scq.Peek());
+  CHECK(!scq.Peek());
   producer3.Start();
   semaphore.Wait();
   for (Record i = 20; i < 20 + kRecordsPerChunk; ++i) {
     Record* rec = reinterpret_cast<Record*>(scq.Peek());
-    CHECK_NE(NULL, rec);
+    CHECK(rec);
     CHECK_EQ(static_cast<int64_t>(i), static_cast<int64_t>(*rec));
     CHECK_EQ(rec, reinterpret_cast<Record*>(scq.Peek()));
     scq.Remove();
     CHECK_NE(rec, reinterpret_cast<Record*>(scq.Peek()));
   }
 
-  CHECK_EQ(NULL, scq.Peek());
+  CHECK(!scq.Peek());
 }

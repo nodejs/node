@@ -77,7 +77,6 @@ class Decoder {
   void Format(Instruction* instr, const char* format);
   void Unknown(Instruction* instr);
   void UnknownFormat(Instruction* instr, const char* opcname);
-  void MarkerFormat(Instruction* instr, const char* opcname, int id);
 
   void DecodeExt1(Instruction* instr);
   void DecodeExt2(Instruction* instr);
@@ -360,13 +359,6 @@ void Decoder::UnknownFormat(Instruction* instr, const char* name) {
 }
 
 
-void Decoder::MarkerFormat(Instruction* instr, const char* name, int id) {
-  char buffer[100];
-  snprintf(buffer, sizeof(buffer), "%s %d", name, id);
-  Format(instr, buffer);
-}
-
-
 void Decoder::DecodeExt1(Instruction* instr) {
   switch (instr->Bits(10, 1) << 1) {
     case MCRF: {
@@ -605,43 +597,43 @@ void Decoder::DecodeExt2(Instruction* instr) {
         Format(instr, "cmpw    'ra, 'rb");
       }
 #endif
-      break;
+      return;
     }
     case SLWX: {
       Format(instr, "slw'.   'ra, 'rs, 'rb");
-      break;
+      return;
     }
 #if V8_TARGET_ARCH_PPC64
     case SLDX: {
       Format(instr, "sld'.   'ra, 'rs, 'rb");
-      break;
+      return;
     }
 #endif
     case SUBFCX: {
       Format(instr, "subfc'. 'rt, 'ra, 'rb");
-      break;
+      return;
     }
     case ADDCX: {
       Format(instr, "addc'.   'rt, 'ra, 'rb");
-      break;
+      return;
     }
     case CNTLZWX: {
       Format(instr, "cntlzw'. 'ra, 'rs");
-      break;
+      return;
     }
 #if V8_TARGET_ARCH_PPC64
     case CNTLZDX: {
       Format(instr, "cntlzd'. 'ra, 'rs");
-      break;
+      return;
     }
 #endif
     case ANDX: {
       Format(instr, "and'.    'ra, 'rs, 'rb");
-      break;
+      return;
     }
     case ANDCX: {
       Format(instr, "andc'.   'ra, 'rs, 'rb");
-      break;
+      return;
     }
     case CMPL: {
 #if V8_TARGET_ARCH_PPC64
@@ -653,55 +645,59 @@ void Decoder::DecodeExt2(Instruction* instr) {
         Format(instr, "cmplw   'ra, 'rb");
       }
 #endif
-      break;
+      return;
     }
     case NEGX: {
       Format(instr, "neg'.    'rt, 'ra");
-      break;
+      return;
     }
     case NORX: {
       Format(instr, "nor'.    'rt, 'ra, 'rb");
-      break;
+      return;
     }
     case SUBFX: {
       Format(instr, "subf'.   'rt, 'ra, 'rb");
-      break;
+      return;
     }
     case MULHWX: {
       Format(instr, "mulhw'o'.  'rt, 'ra, 'rb");
-      break;
+      return;
     }
     case ADDZEX: {
       Format(instr, "addze'.   'rt, 'ra");
-      break;
+      return;
     }
     case MULLW: {
       Format(instr, "mullw'o'.  'rt, 'ra, 'rb");
-      break;
+      return;
     }
 #if V8_TARGET_ARCH_PPC64
     case MULLD: {
       Format(instr, "mulld'o'.  'rt, 'ra, 'rb");
-      break;
+      return;
     }
 #endif
     case DIVW: {
       Format(instr, "divw'o'.   'rt, 'ra, 'rb");
-      break;
+      return;
+    }
+    case DIVWU: {
+      Format(instr, "divwu'o'.  'rt, 'ra, 'rb");
+      return;
     }
 #if V8_TARGET_ARCH_PPC64
     case DIVD: {
       Format(instr, "divd'o'.   'rt, 'ra, 'rb");
-      break;
+      return;
     }
 #endif
     case ADDX: {
       Format(instr, "add'o     'rt, 'ra, 'rb");
-      break;
+      return;
     }
     case XORX: {
       Format(instr, "xor'.    'ra, 'rs, 'rb");
-      break;
+      return;
     }
     case ORX: {
       if (instr->RTValue() == instr->RBValue()) {
@@ -709,7 +705,7 @@ void Decoder::DecodeExt2(Instruction* instr) {
       } else {
         Format(instr, "or      'ra, 'rs, 'rb");
       }
-      break;
+      return;
     }
     case MFSPR: {
       int spr = instr->Bits(20, 11);
@@ -718,7 +714,7 @@ void Decoder::DecodeExt2(Instruction* instr) {
       } else {
         Format(instr, "mfspr   'rt ??");
       }
-      break;
+      return;
     }
     case MTSPR: {
       int spr = instr->Bits(20, 11);
@@ -729,98 +725,113 @@ void Decoder::DecodeExt2(Instruction* instr) {
       } else {
         Format(instr, "mtspr   'rt ??");
       }
-      break;
+      return;
     }
     case MFCR: {
       Format(instr, "mfcr    'rt");
-      break;
+      return;
     }
     case STWX: {
       Format(instr, "stwx    'rs, 'ra, 'rb");
-      break;
+      return;
     }
     case STWUX: {
       Format(instr, "stwux   'rs, 'ra, 'rb");
-      break;
+      return;
     }
     case STBX: {
       Format(instr, "stbx    'rs, 'ra, 'rb");
-      break;
+      return;
     }
     case STBUX: {
       Format(instr, "stbux   'rs, 'ra, 'rb");
-      break;
+      return;
     }
     case STHX: {
       Format(instr, "sthx    'rs, 'ra, 'rb");
-      break;
+      return;
     }
     case STHUX: {
       Format(instr, "sthux   'rs, 'ra, 'rb");
-      break;
+      return;
     }
     case LWZX: {
       Format(instr, "lwzx    'rt, 'ra, 'rb");
-      break;
+      return;
     }
     case LWZUX: {
       Format(instr, "lwzux   'rt, 'ra, 'rb");
-      break;
+      return;
+    }
+    case LWAX: {
+      Format(instr, "lwax    'rt, 'ra, 'rb");
+      return;
     }
     case LBZX: {
       Format(instr, "lbzx    'rt, 'ra, 'rb");
-      break;
+      return;
     }
     case LBZUX: {
       Format(instr, "lbzux   'rt, 'ra, 'rb");
-      break;
+      return;
     }
     case LHZX: {
       Format(instr, "lhzx    'rt, 'ra, 'rb");
-      break;
+      return;
     }
     case LHZUX: {
       Format(instr, "lhzux   'rt, 'ra, 'rb");
-      break;
+      return;
+    }
+    case LHAX: {
+      Format(instr, "lhax    'rt, 'ra, 'rb");
+      return;
     }
 #if V8_TARGET_ARCH_PPC64
     case LDX: {
       Format(instr, "ldx     'rt, 'ra, 'rb");
-      break;
+      return;
     }
     case LDUX: {
       Format(instr, "ldux    'rt, 'ra, 'rb");
-      break;
+      return;
     }
     case STDX: {
       Format(instr, "stdx    'rt, 'ra, 'rb");
-      break;
+      return;
     }
     case STDUX: {
       Format(instr, "stdux   'rt, 'ra, 'rb");
-      break;
+      return;
     }
     case MFVSRD: {
       Format(instr, "mffprd  'ra, 'Dt");
-      break;
+      return;
     }
     case MFVSRWZ: {
       Format(instr, "mffprwz 'ra, 'Dt");
-      break;
+      return;
     }
     case MTVSRD: {
       Format(instr, "mtfprd  'Dt, 'ra");
-      break;
+      return;
     }
     case MTVSRWA: {
       Format(instr, "mtfprwa 'Dt, 'ra");
-      break;
+      return;
     }
     case MTVSRWZ: {
       Format(instr, "mtfprwz 'Dt, 'ra");
-      break;
+      return;
     }
 #endif
+  }
+
+  switch (instr->Bits(5, 1) << 1) {
+    case ISEL: {
+      Format(instr, "isel    'rt, 'ra, 'rb");
+      return;
+    }
     default: {
       Unknown(instr);  // not used by V8
     }
@@ -913,8 +924,20 @@ void Decoder::DecodeExt4(Instruction* instr) {
       Format(instr, "fabs'.   'Dt, 'Db");
       break;
     }
+    case FRIN: {
+      Format(instr, "frin.   'Dt, 'Db");
+      break;
+    }
+    case FRIZ: {
+      Format(instr, "friz.   'Dt, 'Db");
+      break;
+    }
+    case FRIP: {
+      Format(instr, "frip.   'Dt, 'Db");
+      break;
+    }
     case FRIM: {
-      Format(instr, "frim    'Dt, 'Db");
+      Format(instr, "frim.   'Dt, 'Db");
       break;
     }
     case FNEG: {
@@ -1252,18 +1275,6 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
       break;
     }
 #endif
-
-    case FAKE_OPCODE: {
-      if (instr->Bits(MARKER_SUBOPCODE_BIT, MARKER_SUBOPCODE_BIT) == 1) {
-        int marker_code = instr->Bits(STUB_MARKER_HIGH_BIT, 0);
-        DCHECK(marker_code < F_NEXT_AVAILABLE_STUB_MARKER);
-        MarkerFormat(instr, "stub-marker ", marker_code);
-      } else {
-        int fake_opcode = instr->Bits(FAKE_OPCODE_HIGH_BIT, 0);
-        MarkerFormat(instr, "faker-opcode ", fake_opcode);
-      }
-      break;
-    }
     default: {
       Unknown(instr);
       break;

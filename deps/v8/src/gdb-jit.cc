@@ -1918,7 +1918,7 @@ static void UnregisterCodeEntry(JITCodeEntry* entry) {
 
 static JITCodeEntry* CreateELFObject(CodeDescription* desc, Isolate* isolate) {
 #ifdef __MACH_O
-  Zone zone(isolate);
+  Zone zone;
   MachO mach_o(&zone);
   Writer w(&mach_o);
 
@@ -1930,7 +1930,7 @@ static JITCodeEntry* CreateELFObject(CodeDescription* desc, Isolate* isolate) {
 
   mach_o.Write(&w, desc->CodeStart(), desc->CodeSize());
 #else
-  Zone zone(isolate);
+  Zone zone;
   ELF elf(&zone);
   Writer w(&elf);
 
@@ -2127,7 +2127,7 @@ void GDBJITInterface::RemoveCode(Code* code) {
 
 void GDBJITInterface::RemoveCodeRange(Address start, Address end) {
   HashMap* entries = GetEntries();
-  Zone zone(Isolate::Current());
+  Zone zone;
   ZoneList<Code*> dead_codes(1, &zone);
 
   for (HashMap::Entry* e = entries->Start(); e != NULL; e = entries->Next(e)) {

@@ -24,7 +24,8 @@ class ParameterCount BASE_EMBEDDED {
   explicit ParameterCount(int immediate)
       : reg_(no_reg), immediate_(immediate) { }
   explicit ParameterCount(Handle<JSFunction> f)
-      : reg_(no_reg), immediate_(f->shared()->formal_parameter_count()) { }
+      : reg_(no_reg),
+        immediate_(f->shared()->internal_formal_parameter_count()) {}
 
   bool is_reg() const { return !reg_.is(no_reg); }
   bool is_immediate() const { return !is_reg(); }
