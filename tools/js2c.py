@@ -293,7 +293,17 @@ def JS2C(source, target):
     lines = ExpandMacros(lines, macros)
     lines = CompressScript(lines, do_jsmin)
     data = ToCArray(s, lines)
-    id = '/'.join(re.split('/|\\\\', s)[1:]).split('.')[0]
+
+    # On Windows, "./foo.bar" in the .gyp file is passed as "foo.bar"
+    # so don't assume there is always a slash in the file path.
+    if '/' in s or '\\' in s:
+      id = '/'.join(re.split('/|\\\\', s)[1:])
+    else:
+      id = s
+
+    if '.' in id:
+      id = id.split('.', 1)[0]
+
     if delay: id = id[:-6]
     if delay:
       delay_ids.append((id, len(lines)))
