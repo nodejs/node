@@ -151,8 +151,8 @@ Reduction JSBuiltinReducer::ReduceMathMax(Node* node) {
       Node* const input = r.GetJSCallInput(i);
       value = graph()->NewNode(
           common()->Select(kMachNone),
-          graph()->NewNode(simplified()->NumberLessThan(), input, value), input,
-          value);
+          graph()->NewNode(simplified()->NumberLessThan(), input, value), value,
+          input);
     }
     return Replace(value);
   }
