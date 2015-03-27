@@ -363,6 +363,7 @@ span.type {
   width: 234px;
   height: 5em;
   background: linear-gradient(rgba(242,245,240, 0), rgba(242,245,240, 1));
+  pointer-events: none;
 }
 
 #column2 ul {
