@@ -55,7 +55,7 @@ namespace node {
   V(bytes_parsed_string, "bytesParsed")                                       \
   V(callback_string, "callback")                                              \
   V(change_string, "change")                                                  \
-  V(close_string, "close")                                                    \
+  V(onclose_string, "_onclose")                                               \
   V(code_string, "code")                                                      \
   V(compare_string, "compare")                                                \
   V(ctime_string, "ctime")                                                    \
