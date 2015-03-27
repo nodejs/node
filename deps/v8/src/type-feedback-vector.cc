@@ -132,22 +132,9 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::Copy(
 
 // This logic is copied from
 // StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget.
-// TODO(mvstanton): with weak handling of all vector ics, this logic should
-// actually be completely eliminated and we no longer need to clear the
-// vector ICs.
-static bool ClearLogic(Heap* heap, int ic_age, Code::Kind kind,
-                       InlineCacheState state) {
-  if (FLAG_cleanup_code_caches_at_gc &&
-      (kind == Code::CALL_IC || heap->flush_monomorphic_ics() ||
-       // TODO(mvstanton): is this ic_age granular enough? it comes from
-       // the SharedFunctionInfo which may change on a different schedule
-       // than ic targets.
-       // ic_age != heap->global_ic_age() ||
-       // is_invalidated_weak_stub ||
-       heap->isolate()->serializer_enabled())) {
-    return true;
-  }
-  return false;
+static bool ClearLogic(Heap* heap, int ic_age) {
+  return FLAG_cleanup_code_caches_at_gc &&
+         heap->isolate()->serializer_enabled();
 }
 
 
@@ -171,16 +158,22 @@ void TypeFeedbackVector::ClearSlots(SharedFunctionInfo* shared) {
       }
     }
   }
+}
 
-  slots = ICSlots();
-  if (slots == 0) return;
 
-  // Now clear vector-based ICs.
-  // Try and pass the containing code (the "host").
-  Heap* heap = isolate->heap();
-  Code* host = shared->code();
+void TypeFeedbackVector::ClearICSlotsImpl(SharedFunctionInfo* shared,
+                                          bool force_clear) {
+  Heap* heap = GetIsolate()->heap();
+
   // I'm not sure yet if this ic age is the correct one.
   int ic_age = shared->ic_age();
+
+  if (!force_clear && !ClearLogic(heap, ic_age)) return;
+
+  int slots = ICSlots();
+  Code* host = shared->code();
+  Object* uninitialized_sentinel =
+      TypeFeedbackVector::RawUninitializedSentinel(heap);
   for (int i = 0; i < slots; i++) {
     FeedbackVectorICSlot slot(i);
     Object* obj = Get(slot);
@@ -188,19 +181,13 @@ void TypeFeedbackVector::ClearSlots(SharedFunctionInfo* shared) {
       Code::Kind kind = GetKind(slot);
       if (kind == Code::CALL_IC) {
         CallICNexus nexus(this, slot);
-        if (ClearLogic(heap, ic_age, kind, nexus.StateFromFeedback())) {
-          nexus.Clear(host);
-        }
+        nexus.Clear(host);
       } else if (kind == Code::LOAD_IC) {
         LoadICNexus nexus(this, slot);
-        if (ClearLogic(heap, ic_age, kind, nexus.StateFromFeedback())) {
-          nexus.Clear(host);
-        }
+        nexus.Clear(host);
       } else if (kind == Code::KEYED_LOAD_IC) {
         KeyedLoadICNexus nexus(this, slot);
-        if (ClearLogic(heap, ic_age, kind, nexus.StateFromFeedback())) {
-          nexus.Clear(host);
-        }
+        nexus.Clear(host);
       }
     }
   }
@@ -220,14 +207,13 @@ Handle<FixedArray> FeedbackNexus::EnsureArrayOfSize(int length) {
 }
 
 
-void FeedbackNexus::InstallHandlers(int start_index, TypeHandleList* types,
+void FeedbackNexus::InstallHandlers(int start_index, MapHandleList* maps,
                                     CodeHandleList* handlers) {
   Isolate* isolate = GetIsolate();
   Handle<FixedArray> array = handle(FixedArray::cast(GetFeedback()), isolate);
-  int receiver_count = types->length();
+  int receiver_count = maps->length();
   for (int current = 0; current < receiver_count; ++current) {
-    Handle<HeapType> type = types->at(current);
-    Handle<Map> map = IC::TypeToMap(*type, isolate);
+    Handle<Map> map = maps->at(current);
     Handle<WeakCell> cell = Map::WeakCellForMap(map);
     array->set(start_index + (current * 2), *cell);
     array->set(start_index + (current * 2 + 1), *handlers->at(current));
@@ -264,8 +250,8 @@ InlineCacheState KeyedLoadICNexus::StateFromFeedback() const {
     return UNINITIALIZED;
   } else if (feedback == *vector()->PremonomorphicSentinel(isolate)) {
     return PREMONOMORPHIC;
-  } else if (feedback == *vector()->GenericSentinel(isolate)) {
-    return GENERIC;
+  } else if (feedback == *vector()->MegamorphicSentinel(isolate)) {
+    return MEGAMORPHIC;
   } else if (feedback->IsFixedArray()) {
     // Determine state purely by our structure, don't check if the maps are
     // cleared.
@@ -285,7 +271,7 @@ InlineCacheState CallICNexus::StateFromFeedback() const {
 
   if (feedback == *vector()->MegamorphicSentinel(isolate)) {
     return GENERIC;
-  } else if (feedback->IsAllocationSite() || feedback->IsJSFunction()) {
+  } else if (feedback->IsAllocationSite() || feedback->IsWeakCell()) {
     return MONOMORPHIC;
   }
 
@@ -319,12 +305,13 @@ void CallICNexus::ConfigureUninitialized() {
 
 
 void CallICNexus::ConfigureMonomorphic(Handle<JSFunction> function) {
-  SetFeedback(*function);
+  Handle<WeakCell> new_cell = GetIsolate()->factory()->NewWeakCell(function);
+  SetFeedback(*new_cell);
 }
 
 
-void KeyedLoadICNexus::ConfigureGeneric() {
-  SetFeedback(*vector()->GenericSentinel(GetIsolate()), SKIP_WRITE_BARRIER);
+void KeyedLoadICNexus::ConfigureMegamorphic() {
+  SetFeedback(*vector()->MegamorphicSentinel(GetIsolate()), SKIP_WRITE_BARRIER);
 }
 
 
@@ -345,10 +332,9 @@ void KeyedLoadICNexus::ConfigurePremonomorphic() {
 }
 
 
-void LoadICNexus::ConfigureMonomorphic(Handle<HeapType> type,
+void LoadICNexus::ConfigureMonomorphic(Handle<Map> receiver_map,
                                        Handle<Code> handler) {
   Handle<FixedArray> array = EnsureArrayOfSize(2);
-  Handle<Map> receiver_map = IC::TypeToMap(*type, GetIsolate());
   Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
   array->set(0, *cell);
   array->set(1, *handler);
@@ -356,10 +342,9 @@ void LoadICNexus::ConfigureMonomorphic(Handle<HeapType> type,
 
 
 void KeyedLoadICNexus::ConfigureMonomorphic(Handle<Name> name,
-                                            Handle<HeapType> type,
+                                            Handle<Map> receiver_map,
                                             Handle<Code> handler) {
   Handle<FixedArray> array = EnsureArrayOfSize(3);
-  Handle<Map> receiver_map = IC::TypeToMap(*type, GetIsolate());
   if (name.is_null()) {
     array->set(0, Smi::FromInt(0));
   } else {
@@ -371,25 +356,25 @@ void KeyedLoadICNexus::ConfigureMonomorphic(Handle<Name> name,
 }
 
 
-void LoadICNexus::ConfigurePolymorphic(TypeHandleList* types,
+void LoadICNexus::ConfigurePolymorphic(MapHandleList* maps,
                                        CodeHandleList* handlers) {
-  int receiver_count = types->length();
+  int receiver_count = maps->length();
   EnsureArrayOfSize(receiver_count * 2);
-  InstallHandlers(0, types, handlers);
+  InstallHandlers(0, maps, handlers);
 }
 
 
 void KeyedLoadICNexus::ConfigurePolymorphic(Handle<Name> name,
-                                            TypeHandleList* types,
+                                            MapHandleList* maps,
                                             CodeHandleList* handlers) {
-  int receiver_count = types->length();
+  int receiver_count = maps->length();
   Handle<FixedArray> array = EnsureArrayOfSize(1 + receiver_count * 2);
   if (name.is_null()) {
     array->set(0, Smi::FromInt(0));
   } else {
     array->set(0, *name);
   }
-  InstallHandlers(1, types, handlers);
+  InstallHandlers(1, maps, handlers);
 }
 
 

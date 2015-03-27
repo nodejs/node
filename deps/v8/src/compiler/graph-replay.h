@@ -5,7 +5,6 @@
 #ifndef V8_COMPILER_GRAPH_REPLAY_H_
 #define V8_COMPILER_GRAPH_REPLAY_H_
 
-#include "src/compiler/generic-algorithm.h"
 #include "src/compiler/node.h"
 
 namespace v8 {
@@ -18,16 +17,13 @@ class Graph;
 // Helper class to print a full replay of a graph. This replay can be used to
 // materialize the same graph within a C++ unit test and hence test subsequent
 // optimization passes on a graph without going through the construction steps.
-class GraphReplayPrinter FINAL : public NullNodeVisitor {
+class GraphReplayPrinter {
  public:
 #ifdef DEBUG
   static void PrintReplay(Graph* graph);
 #else
   static void PrintReplay(Graph* graph) {}
 #endif
-
-  void Pre(Node* node);
-  void PostEdge(Node* from, int index, Node* to);
 
  private:
   GraphReplayPrinter() {}

@@ -21,15 +21,15 @@ class BufferedUtf16CharacterStream: public Utf16CharacterStream {
   virtual void PushBack(uc32 character);
 
  protected:
-  static const unsigned kBufferSize = 512;
-  static const unsigned kPushBackStepSize = 16;
+  static const size_t kBufferSize = 512;
+  static const size_t kPushBackStepSize = 16;
 
-  virtual unsigned SlowSeekForward(unsigned delta);
+  virtual size_t SlowSeekForward(size_t delta);
   virtual bool ReadBlock();
   virtual void SlowPushBack(uc16 character);
 
-  virtual unsigned BufferSeekForward(unsigned delta) = 0;
-  virtual unsigned FillBuffer(unsigned position) = 0;
+  virtual size_t BufferSeekForward(size_t delta) = 0;
+  virtual size_t FillBuffer(size_t position) = 0;
 
   const uc16* pushback_limit_;
   uc16 buffer_[kBufferSize];
@@ -39,40 +39,39 @@ class BufferedUtf16CharacterStream: public Utf16CharacterStream {
 // Generic string stream.
 class GenericStringUtf16CharacterStream: public BufferedUtf16CharacterStream {
  public:
-  GenericStringUtf16CharacterStream(Handle<String> data,
-                                    unsigned start_position,
-                                    unsigned end_position);
+  GenericStringUtf16CharacterStream(Handle<String> data, size_t start_position,
+                                    size_t end_position);
   virtual ~GenericStringUtf16CharacterStream();
 
  protected:
-  virtual unsigned BufferSeekForward(unsigned delta);
-  virtual unsigned FillBuffer(unsigned position);
+  virtual size_t BufferSeekForward(size_t delta);
+  virtual size_t FillBuffer(size_t position);
 
   Handle<String> string_;
-  unsigned length_;
+  size_t length_;
 };
 
 
 // Utf16 stream based on a literal UTF-8 string.
 class Utf8ToUtf16CharacterStream: public BufferedUtf16CharacterStream {
  public:
-  Utf8ToUtf16CharacterStream(const byte* data, unsigned length);
+  Utf8ToUtf16CharacterStream(const byte* data, size_t length);
   virtual ~Utf8ToUtf16CharacterStream();
 
-  static unsigned CopyChars(uint16_t* dest, unsigned length, const byte* src,
-                            unsigned* src_pos, unsigned src_length);
+  static size_t CopyChars(uint16_t* dest, size_t length, const byte* src,
+                          size_t* src_pos, size_t src_length);
 
  protected:
-  virtual unsigned BufferSeekForward(unsigned delta);
-  virtual unsigned FillBuffer(unsigned char_position);
-  void SetRawPosition(unsigned char_position);
+  virtual size_t BufferSeekForward(size_t delta);
+  virtual size_t FillBuffer(size_t char_position);
+  void SetRawPosition(size_t char_position);
 
   const byte* raw_data_;
-  unsigned raw_data_length_;  // Measured in bytes, not characters.
-  unsigned raw_data_pos_;
+  size_t raw_data_length_;  // Measured in bytes, not characters.
+  size_t raw_data_pos_;
   // The character position of the character at raw_data[raw_data_pos_].
   // Not necessarily the same as pos_.
-  unsigned raw_character_position_;
+  size_t raw_character_position_;
 };
 
 
@@ -91,7 +90,7 @@ class ExternalStreamingStream : public BufferedUtf16CharacterStream {
 
   virtual ~ExternalStreamingStream() { delete[] current_data_; }
 
-  unsigned BufferSeekForward(unsigned delta) OVERRIDE {
+  size_t BufferSeekForward(size_t delta) OVERRIDE {
     // We never need to seek forward when streaming scripts. We only seek
     // forward when we want to parse a function whose location we already know,
     // and when streaming, we don't know the locations of anything we haven't
@@ -100,19 +99,19 @@ class ExternalStreamingStream : public BufferedUtf16CharacterStream {
     return 0;
   }
 
-  unsigned FillBuffer(unsigned position) OVERRIDE;
+  size_t FillBuffer(size_t position) OVERRIDE;
 
  private:
-  void HandleUtf8SplitCharacters(unsigned* data_in_buffer);
+  void HandleUtf8SplitCharacters(size_t* data_in_buffer);
 
   ScriptCompiler::ExternalSourceStream* source_stream_;
   v8::ScriptCompiler::StreamedSource::Encoding encoding_;
   const uint8_t* current_data_;
-  unsigned current_data_offset_;
-  unsigned current_data_length_;
+  size_t current_data_offset_;
+  size_t current_data_length_;
   // For converting UTF-8 characters which are split across two data chunks.
   uint8_t utf8_split_char_buffer_[4];
-  unsigned utf8_split_char_buffer_length_;
+  size_t utf8_split_char_buffer_length_;
 };
 
 
@@ -131,7 +130,7 @@ class ExternalTwoByteStringUtf16CharacterStream: public Utf16CharacterStream {
   }
 
  protected:
-  virtual unsigned SlowSeekForward(unsigned delta) {
+  virtual size_t SlowSeekForward(size_t delta) {
     // Fast case always handles seeking.
     return 0;
   }

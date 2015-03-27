@@ -354,7 +354,7 @@ TEST(AssemblerIa329) {
   CHECK_EQ(kLess, f(1.1, 2.2));
   CHECK_EQ(kEqual, f(2.2, 2.2));
   CHECK_EQ(kGreater, f(3.3, 2.2));
-  CHECK_EQ(kNaN, f(v8::base::OS::nan_value(), 1.1));
+  CHECK_EQ(kNaN, f(std::numeric_limits<double>::quiet_NaN(), 1.1));
 }
 
 
@@ -438,7 +438,7 @@ TEST(AssemblerMultiByteNop) {
 
 
 #ifdef __GNUC__
-#define ELEMENT_COUNT 4
+#define ELEMENT_COUNT 4u
 
 void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
@@ -455,7 +455,7 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   __ pop(ecx);
 
   // Store input vector on the stack.
-  for (int i = 0; i < ELEMENT_COUNT; ++i) {
+  for (unsigned i = 0; i < ELEMENT_COUNT; ++i) {
     __ push(Immediate(vec->Get(i)->Int32Value()));
   }
 
@@ -507,7 +507,7 @@ TEST(StackAlignmentForSSE2) {
 
   int32_t vec[ELEMENT_COUNT] = { -1, 1, 1, 1 };
   v8::Local<v8::Array> v8_vec = v8::Array::New(isolate, ELEMENT_COUNT);
-  for (int i = 0; i < ELEMENT_COUNT; i++) {
+  for (unsigned i = 0; i < ELEMENT_COUNT; i++) {
       v8_vec->Set(i, v8_num(vec[i]));
   }
 
@@ -549,7 +549,7 @@ TEST(AssemblerIa32Extractps) {
   uint64_t value1 = V8_2PART_UINT64_C(0x12345678, 87654321);
   CHECK_EQ(0x12345678, f(uint64_to_double(value1)));
   uint64_t value2 = V8_2PART_UINT64_C(0x87654321, 12345678);
-  CHECK_EQ(0x87654321, f(uint64_to_double(value2)));
+  CHECK_EQ(static_cast<int>(0x87654321), f(uint64_to_double(value2)));
 }
 
 
@@ -1043,4 +1043,100 @@ TEST(AssemblerX64FMA_ss) {
   F10 f = FUNCTION_CAST<F10>(code->entry());
   CHECK_EQ(0, f(9.26621069e-05f, -2.4607749f, -1.09587872f));
 }
+
+
+TEST(AssemblerIa32JumpTables1) {
+  // Test jump tables with forward jumps.
+  CcTest::InitializeVM();
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  Assembler assm(isolate, nullptr, 0);
+
+  const int kNumCases = 512;
+  int values[kNumCases];
+  isolate->random_number_generator()->NextBytes(values, sizeof(values));
+  Label labels[kNumCases];
+
+  Label done, table;
+  __ mov(eax, Operand(esp, 4));
+  __ jmp(Operand::JumpTable(eax, times_4, &table));
+  __ ud2();
+  __ bind(&table);
+  for (int i = 0; i < kNumCases; ++i) {
+    __ dd(&labels[i]);
+  }
+
+  for (int i = 0; i < kNumCases; ++i) {
+    __ bind(&labels[i]);
+    __ mov(eax, Immediate(values[i]));
+    __ jmp(&done);
+  }
+
+  __ bind(&done);
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+  F1 f = FUNCTION_CAST<F1>(code->entry());
+  for (int i = 0; i < kNumCases; ++i) {
+    int res = f(i);
+    ::printf("f(%d) = %d\n", i, res);
+    CHECK_EQ(values[i], res);
+  }
+}
+
+
+TEST(AssemblerIa32JumpTables2) {
+  // Test jump tables with backward jumps.
+  CcTest::InitializeVM();
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  Assembler assm(isolate, nullptr, 0);
+
+  const int kNumCases = 512;
+  int values[kNumCases];
+  isolate->random_number_generator()->NextBytes(values, sizeof(values));
+  Label labels[kNumCases];
+
+  Label done, table;
+  __ mov(eax, Operand(esp, 4));
+  __ jmp(Operand::JumpTable(eax, times_4, &table));
+  __ ud2();
+
+  for (int i = 0; i < kNumCases; ++i) {
+    __ bind(&labels[i]);
+    __ mov(eax, Immediate(values[i]));
+    __ jmp(&done);
+  }
+
+  __ bind(&table);
+  for (int i = 0; i < kNumCases; ++i) {
+    __ dd(&labels[i]);
+  }
+
+  __ bind(&done);
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+  F1 f = FUNCTION_CAST<F1>(code->entry());
+  for (int i = 0; i < kNumCases; ++i) {
+    int res = f(i);
+    ::printf("f(%d) = %d\n", i, res);
+    CHECK_EQ(values[i], res);
+  }
+}
+
 #undef __

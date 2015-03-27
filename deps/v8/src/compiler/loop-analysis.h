@@ -25,7 +25,7 @@ class LoopTree : public ZoneObject {
       : zone_(zone),
         outer_loops_(zone),
         all_loops_(zone),
-        node_to_loop_num_(static_cast<int>(num_nodes), 0, zone),
+        node_to_loop_num_(static_cast<int>(num_nodes), -1, zone),
         loop_nodes_(zone) {}
 
   // Represents a loop in the tree of loops, including the header nodes,
@@ -37,6 +37,7 @@ class LoopTree : public ZoneObject {
     size_t HeaderSize() const { return body_start_ - header_start_; }
     size_t BodySize() const { return body_end_ - body_start_; }
     size_t TotalSize() const { return body_end_ - header_start_; }
+    size_t depth() const { return static_cast<size_t>(depth_); }
 
    private:
     friend class LoopTree;
@@ -61,7 +62,7 @@ class LoopTree : public ZoneObject {
   Loop* ContainingLoop(Node* node) {
     if (node->id() >= static_cast<int>(node_to_loop_num_.size()))
       return nullptr;
-    uint8_t num = node_to_loop_num_[node->id()];
+    int num = node_to_loop_num_[node->id()];
     return num > 0 ? &all_loops_[num - 1] : nullptr;
   }
 
@@ -88,10 +89,29 @@ class LoopTree : public ZoneObject {
                      &loop_nodes_[0] + loop->body_start_);
   }
 
+  // Return the header control node for a loop.
+  Node* HeaderNode(Loop* loop);
+
   // Return a range which can iterate over the body nodes of {loop}.
   NodeRange BodyNodes(Loop* loop) {
     return NodeRange(&loop_nodes_[0] + loop->body_start_,
                      &loop_nodes_[0] + loop->body_end_);
+  }
+
+  // Return a range which can iterate over the nodes of {loop}.
+  NodeRange LoopNodes(Loop* loop) {
+    return NodeRange(&loop_nodes_[0] + loop->header_start_,
+                     &loop_nodes_[0] + loop->body_end_);
+  }
+
+  // Return the node that represents the control, i.e. the loop node itself.
+  Node* GetLoopControl(Loop* loop) {
+    // TODO(turbofan): make the loop control node always first?
+    for (Node* node : HeaderNodes(loop)) {
+      if (node->opcode() == IrOpcode::kLoop) return node;
+    }
+    UNREACHABLE();
+    return NULL;
   }
 
  private:
@@ -116,8 +136,7 @@ class LoopTree : public ZoneObject {
   Zone* zone_;
   ZoneVector<Loop*> outer_loops_;
   ZoneVector<Loop> all_loops_;
-  // TODO(titzer): lift loop count restriction.
-  ZoneVector<uint8_t> node_to_loop_num_;
+  ZoneVector<int> node_to_loop_num_;
   ZoneVector<Node*> loop_nodes_;
 };
 
@@ -127,6 +146,7 @@ class LoopFinder {
   // Build a loop tree for the entire graph.
   static LoopTree* BuildLoopTree(Graph* graph, Zone* temp_zone);
 };
+
 
 }  // namespace compiler
 }  // namespace internal

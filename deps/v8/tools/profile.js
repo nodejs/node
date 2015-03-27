@@ -257,26 +257,28 @@ Profile.prototype.resolveAndFilterFuncs_ = function(stack) {
     var entry = this.codeMap_.findEntry(stack[i]);
     if (entry) {
       var name = entry.getName();
-      if (i == 0 && (entry.type == 'CPP' || entry.type == 'SHARED_LIB')) {
+      if (i === 0 && (entry.type === 'CPP' || entry.type === 'SHARED_LIB')) {
         look_for_first_c_function = true;
       }
-      if (look_for_first_c_function) {
-        if (entry.type == 'CPP') {
-          last_seen_c_function = name;
-        } else if (i > 0 && last_seen_c_function != '') {
-          if (this.c_entries_[last_seen_c_function] === undefined) {
-            this.c_entries_[last_seen_c_function] = 0;
-          }
-          this.c_entries_[last_seen_c_function]++;
-          look_for_first_c_function = false;  // Found it, we're done.
-        }
+      if (look_for_first_c_function && entry.type === 'CPP') {
+        last_seen_c_function = name;
       }
       if (!this.skipThisFunction(name)) {
         result.push(name);
       }
     } else {
-      this.handleUnknownCode(
-          Profile.Operation.TICK, stack[i], i);
+      this.handleUnknownCode(Profile.Operation.TICK, stack[i], i);
+      if (i === 0) result.push("UNKNOWN");
+    }
+    if (look_for_first_c_function &&
+        i > 0 &&
+        (!entry || entry.type !== 'CPP') &&
+        last_seen_c_function !== '') {
+      if (this.c_entries_[last_seen_c_function] === undefined) {
+        this.c_entries_[last_seen_c_function] = 0;
+      }
+      this.c_entries_[last_seen_c_function]++;
+      look_for_first_c_function = false;  // Found it, we're done.
     }
   }
   return result;

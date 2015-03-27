@@ -136,7 +136,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetPropertyDetails) {
         isolate, element_or_char,
         Runtime::GetElementOrCharAt(isolate, obj, index));
     details->set(0, *element_or_char);
-    details->set(1, PropertyDetails(NONE, FIELD, 0).AsSmi());
+    details->set(1, PropertyDetails(NONE, DATA, 0).AsSmi());
     return *isolate->factory()->NewJSArrayWithElements(details);
   }
 
@@ -158,7 +158,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetPropertyDetails) {
   details->set(0, *value);
   // TODO(verwaest): Get rid of this random way of handling interceptors.
   PropertyDetails d = it.state() == LookupIterator::INTERCEPTOR
-                          ? PropertyDetails(NONE, FIELD, 0)
+                          ? PropertyDetails(NONE, DATA, 0)
                           : it.property_details();
   details->set(1, d.AsSmi());
   details->set(
@@ -246,7 +246,8 @@ RUNTIME_FUNCTION(Runtime_DebugIndexedInterceptorElementValue) {
   CONVERT_NUMBER_CHECKED(uint32_t, index, Uint32, args[1]);
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, JSObject::GetElementWithInterceptor(obj, obj, index));
+      isolate, result,
+      JSObject::GetElementWithInterceptor(obj, obj, index, true));
   return *result;
 }
 
@@ -632,7 +633,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   // THIS MUST BE DONE LAST SINCE WE MIGHT ADVANCE
   // THE FRAME ITERATOR TO WRAP THE RECEIVER.
   Handle<Object> receiver(it.frame()->receiver(), isolate);
-  if (!receiver->IsJSObject() && shared->strict_mode() == SLOPPY &&
+  if (!receiver->IsJSObject() && is_sloppy(shared->language_mode()) &&
       !function->IsBuiltin()) {
     // If the receiver is not a JSObject and the function is not a
     // builtin or strict-mode we have hit an optimization where a
@@ -1207,14 +1208,14 @@ class ScopeIterator {
           info.MarkAsEval();
           info.SetContext(Handle<Context>(function_->context()));
         }
-        if (Parser::Parse(&info) && Scope::Analyze(&info)) {
+        if (Parser::ParseStatic(&info) && Scope::Analyze(&info)) {
           scope = info.function()->scope();
         }
         RetrieveScopeChain(scope, shared_info);
       } else {
         // Function code
         CompilationInfoWithZone info(shared_info);
-        if (Parser::Parse(&info) && Scope::Analyze(&info)) {
+        if (Parser::ParseStatic(&info) && Scope::Analyze(&info)) {
           scope = info.function()->scope();
         }
         RetrieveScopeChain(scope, shared_info);
@@ -1490,7 +1491,8 @@ class ScopeIterator {
                           Handle<SharedFunctionInfo> shared_info) {
     if (scope != NULL) {
       int source_position = shared_info->code()->SourcePosition(frame_->pc());
-      scope->GetNestedScopeChain(&nested_scope_chain_, source_position);
+      scope->GetNestedScopeChain(isolate_, &nested_scope_chain_,
+                                 source_position);
     } else {
       // A failed reparse indicates that the preparser has diverged from the
       // parser or that the preparse data given to the initial parse has been

@@ -34,6 +34,9 @@ local FLAGS = {
    -- Do not build gcsuspects file and reuse previously generated one.
    reuse_gcsuspects = false;
 
+   -- Don't use parallel python runner.
+   sequential = false;
+
    -- Print commands to console before executing them.
    verbose = false;
 
@@ -90,7 +93,8 @@ if not CLANG_PLUGINS or CLANG_PLUGINS == "" then
    CLANG_PLUGINS = DIR
 end
 
-local function MakeClangCommandLine(plugin, plugin_args, triple, arch_define)
+local function MakeClangCommandLine(
+      plugin, plugin_args, triple, arch_define, arch_options)
    if plugin_args then
      for i = 1, #plugin_args do
         plugin_args[i] = "-Xclang -plugin-arg-" .. plugin
@@ -109,21 +113,69 @@ local function MakeClangCommandLine(plugin, plugin_args, triple, arch_define)
       .. " -I./"
       .. " -Ithird_party/icu/source/common"
       .. " -Ithird_party/icu/source/i18n"
+      .. " " .. arch_options
+end
+
+local function IterTable(t)
+  return coroutine.wrap(function ()
+    for i, v in ipairs(t) do
+      coroutine.yield(v)
+    end
+  end)
+end
+
+local function SplitResults(lines, func)
+   -- Splits the output of parallel.py and calls func on each result.
+   -- Bails out in case of an error in one of the executions.
+   local current = {}
+   local filename = ""
+   for line in lines do
+      local new_file = line:match "^______________ (.*)$"
+      local code = line:match "^______________ finish (%d+) ______________$"
+      if code then
+         if tonumber(code) > 0 then
+            log(table.concat(current, "\n"))
+            log("Failed to examine " .. filename)
+            return false
+         end
+         log("-- %s", filename)
+         func(filename, IterTable(current))
+      elseif new_file then
+         filename = new_file
+         current = {}
+      else
+         table.insert(current, line)
+      end
+   end
+   return true
 end
 
 function InvokeClangPluginForEachFile(filenames, cfg, func)
    local cmd_line = MakeClangCommandLine(cfg.plugin,
                                          cfg.plugin_args,
                                          cfg.triple,
-                                         cfg.arch_define)
-   for _, filename in ipairs(filenames) do
-      log("-- %s", filename)
-      local action = cmd_line .. " " .. filename .. " 2>&1"
+                                         cfg.arch_define,
+                                         cfg.arch_options)
+   if FLAGS.sequential then
+      log("** Sequential execution.")
+      for _, filename in ipairs(filenames) do
+         log("-- %s", filename)
+         local action = cmd_line .. " " .. filename .. " 2>&1"
+         if FLAGS.verbose then print('popen ', action) end
+         local pipe = io.popen(action)
+         func(filename, pipe:lines())
+         local success = pipe:close()
+         if not success then error("Failed to run: " .. action) end
+      end
+   else
+      log("** Parallel execution.")
+      local action = "python tools/gcmole/parallel.py \""
+         .. cmd_line .. "\" " .. table.concat(filenames, " ")
       if FLAGS.verbose then print('popen ', action) end
       local pipe = io.popen(action)
-      func(filename, pipe:lines())
-      local success = pipe:close()
-      if not success then error("Failed to run: " .. action) end
+      local success = SplitResults(pipe:lines(), func)
+      local closed = pipe:close()
+      if not (success and closed) then error("Failed to run: " .. action) end
    end
 end
 
@@ -201,13 +253,17 @@ end
 
 local ARCHITECTURES = {
    ia32 = config { triple = "i586-unknown-linux",
-                   arch_define = "V8_TARGET_ARCH_IA32" },
+                   arch_define = "V8_TARGET_ARCH_IA32",
+                   arch_options = "-m32" },
    arm = config { triple = "i586-unknown-linux",
-                  arch_define = "V8_TARGET_ARCH_ARM" },
+                  arch_define = "V8_TARGET_ARCH_ARM",
+                  arch_options = "-m32" },
    x64 = config { triple = "x86_64-unknown-linux",
-                  arch_define = "V8_TARGET_ARCH_X64" },
+                  arch_define = "V8_TARGET_ARCH_X64",
+                  arch_options = "" },
    arm64 = config { triple = "x86_64-unknown-linux",
-                    arch_define = "V8_TARGET_ARCH_ARM64" },
+                    arch_define = "V8_TARGET_ARCH_ARM64",
+                    arch_options = "" },
 }
 
 -------------------------------------------------------------------------------

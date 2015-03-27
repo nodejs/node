@@ -17,7 +17,8 @@ namespace internal {
 
 class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
  public:
-  RegExpMacroAssemblerX64(Mode mode, int registers_to_save, Zone* zone);
+  RegExpMacroAssemblerX64(Isolate* isolate, Zone* zone, Mode mode,
+                          int registers_to_save);
   virtual ~RegExpMacroAssemblerX64();
   virtual int stack_limit_slack();
   virtual void AdvanceCurrentPosition(int by);

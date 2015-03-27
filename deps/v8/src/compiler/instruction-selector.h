@@ -5,11 +5,12 @@
 #ifndef V8_COMPILER_INSTRUCTION_SELECTOR_H_
 #define V8_COMPILER_INSTRUCTION_SELECTOR_H_
 
-#include <deque>
+#include <map>
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/instruction.h"
 #include "src/compiler/machine-operator.h"
+#include "src/compiler/node.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
@@ -21,17 +22,17 @@ struct CallBuffer;  // TODO(bmeurer): Remove this.
 class FlagsContinuation;
 class Linkage;
 
-typedef IntVector NodeToVregMap;
 
+typedef ZoneVector<InstructionOperand> InstructionOperandVector;
+
+
+// Instruction selection generates an InstructionSequence for a given Schedule.
 class InstructionSelector FINAL {
  public:
-  static const int kNodeUnmapped = -1;
-
   // Forward declarations.
   class Features;
 
-  // TODO(dcarney): pass in vreg mapping instead of graph.
-  InstructionSelector(Zone* local_zone, Graph* graph, Linkage* linkage,
+  InstructionSelector(Zone* zone, size_t node_count, Linkage* linkage,
                       InstructionSequence* sequence, Schedule* schedule,
                       SourcePositionTable* source_positions,
                       Features features = SupportedFeatures());
@@ -43,36 +44,36 @@ class InstructionSelector FINAL {
   // ============= Architecture-independent code emission methods. =============
   // ===========================================================================
 
-  Instruction* Emit(InstructionCode opcode, InstructionOperand* output,
-                    size_t temp_count = 0, InstructionOperand* *temps = NULL);
-  Instruction* Emit(InstructionCode opcode, InstructionOperand* output,
-                    InstructionOperand* a, size_t temp_count = 0,
-                    InstructionOperand* *temps = NULL);
-  Instruction* Emit(InstructionCode opcode, InstructionOperand* output,
-                    InstructionOperand* a, InstructionOperand* b,
-                    size_t temp_count = 0, InstructionOperand* *temps = NULL);
-  Instruction* Emit(InstructionCode opcode, InstructionOperand* output,
-                    InstructionOperand* a, InstructionOperand* b,
-                    InstructionOperand* c, size_t temp_count = 0,
-                    InstructionOperand* *temps = NULL);
-  Instruction* Emit(InstructionCode opcode, InstructionOperand* output,
-                    InstructionOperand* a, InstructionOperand* b,
-                    InstructionOperand* c, InstructionOperand* d,
-                    size_t temp_count = 0, InstructionOperand* *temps = NULL);
-  Instruction* Emit(InstructionCode opcode, InstructionOperand* output,
-                    InstructionOperand* a, InstructionOperand* b,
-                    InstructionOperand* c, InstructionOperand* d,
-                    InstructionOperand* e, size_t temp_count = 0,
-                    InstructionOperand* *temps = NULL);
-  Instruction* Emit(InstructionCode opcode, InstructionOperand* output,
-                    InstructionOperand* a, InstructionOperand* b,
-                    InstructionOperand* c, InstructionOperand* d,
-                    InstructionOperand* e, InstructionOperand* f,
-                    size_t temp_count = 0, InstructionOperand* *temps = NULL);
+  Instruction* Emit(InstructionCode opcode, InstructionOperand output,
+                    size_t temp_count = 0, InstructionOperand* temps = NULL);
+  Instruction* Emit(InstructionCode opcode, InstructionOperand output,
+                    InstructionOperand a, size_t temp_count = 0,
+                    InstructionOperand* temps = NULL);
+  Instruction* Emit(InstructionCode opcode, InstructionOperand output,
+                    InstructionOperand a, InstructionOperand b,
+                    size_t temp_count = 0, InstructionOperand* temps = NULL);
+  Instruction* Emit(InstructionCode opcode, InstructionOperand output,
+                    InstructionOperand a, InstructionOperand b,
+                    InstructionOperand c, size_t temp_count = 0,
+                    InstructionOperand* temps = NULL);
+  Instruction* Emit(InstructionCode opcode, InstructionOperand output,
+                    InstructionOperand a, InstructionOperand b,
+                    InstructionOperand c, InstructionOperand d,
+                    size_t temp_count = 0, InstructionOperand* temps = NULL);
+  Instruction* Emit(InstructionCode opcode, InstructionOperand output,
+                    InstructionOperand a, InstructionOperand b,
+                    InstructionOperand c, InstructionOperand d,
+                    InstructionOperand e, size_t temp_count = 0,
+                    InstructionOperand* temps = NULL);
+  Instruction* Emit(InstructionCode opcode, InstructionOperand output,
+                    InstructionOperand a, InstructionOperand b,
+                    InstructionOperand c, InstructionOperand d,
+                    InstructionOperand e, InstructionOperand f,
+                    size_t temp_count = 0, InstructionOperand* temps = NULL);
   Instruction* Emit(InstructionCode opcode, size_t output_count,
-                    InstructionOperand** outputs, size_t input_count,
-                    InstructionOperand** inputs, size_t temp_count = 0,
-                    InstructionOperand* *temps = NULL);
+                    InstructionOperand* outputs, size_t input_count,
+                    InstructionOperand* inputs, size_t temp_count = 0,
+                    InstructionOperand* temps = NULL);
   Instruction* Emit(Instruction* instr);
 
   // ===========================================================================
@@ -126,9 +127,7 @@ class InstructionSelector FINAL {
   bool IsLive(Node* node) const { return !IsDefined(node) && IsUsed(node); }
 
   int GetVirtualRegister(const Node* node);
-  // Gets the current mapping if it exists, kNodeUnmapped otherwise.
-  int GetMappedVirtualRegister(const Node* node) const;
-  const NodeToVregMap& GetNodeMapForTesting() const { return node_map_; }
+  const std::map<NodeId, int> GetVirtualRegistersForTesting() const;
 
  private:
   friend class OperandGenerator;
@@ -158,7 +157,7 @@ class InstructionSelector FINAL {
 
   // Inform the register allocation of the representation of the unallocated
   // operand {op}.
-  void MarkAsRepresentation(MachineType rep, InstructionOperand* op);
+  void MarkAsRepresentation(MachineType rep, const InstructionOperand& op);
 
   // Initialize the call buffer with the InstructionOperands, nodes, etc,
   // corresponding
@@ -196,12 +195,16 @@ class InstructionSelector FINAL {
 
   void VisitFinish(Node* node);
   void VisitParameter(Node* node);
+  void VisitOsrValue(Node* node);
   void VisitPhi(Node* node);
   void VisitProjection(Node* node);
   void VisitConstant(Node* node);
   void VisitCall(Node* call);
   void VisitGoto(BasicBlock* target);
   void VisitBranch(Node* input, BasicBlock* tbranch, BasicBlock* fbranch);
+  void VisitSwitch(Node* node, BasicBlock* default_branch,
+                   BasicBlock** case_branches, int32_t* case_values,
+                   size_t case_count, int32_t min_value, int32_t max_value);
   void VisitReturn(Node* value);
   void VisitThrow(Node* value);
   void VisitDeoptimize(Node* deopt);
@@ -222,11 +225,11 @@ class InstructionSelector FINAL {
   SourcePositionTable* const source_positions_;
   Features features_;
   Schedule* const schedule_;
-  NodeToVregMap node_map_;
   BasicBlock* current_block_;
-  ZoneDeque<Instruction*> instructions_;
+  ZoneVector<Instruction*> instructions_;
   BoolVector defined_;
   BoolVector used_;
+  IntVector virtual_registers_;
 };
 
 }  // namespace compiler

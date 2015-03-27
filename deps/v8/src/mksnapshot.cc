@@ -111,6 +111,32 @@ class SnapshotWriter {
 };
 
 
+char* GetExtraCode(char* filename) {
+  if (filename == NULL || strlen(filename) == 0) return NULL;
+  ::printf("Embedding extra script: %s\n", filename);
+  FILE* file = base::OS::FOpen(filename, "rb");
+  if (file == NULL) {
+    fprintf(stderr, "Failed to open '%s': errno %d\n", filename, errno);
+    exit(1);
+  }
+  fseek(file, 0, SEEK_END);
+  int size = ftell(file);
+  rewind(file);
+  char* chars = new char[size + 1];
+  chars[size] = '\0';
+  for (int i = 0; i < size;) {
+    int read = static_cast<int>(fread(&chars[i], 1, size - i, file));
+    if (read < 0) {
+      fprintf(stderr, "Failed to read '%s': errno %d\n", filename, errno);
+      exit(1);
+    }
+    i += read;
+  }
+  fclose(file);
+  return chars;
+}
+
+
 int main(int argc, char** argv) {
   // By default, log code create information in the snapshot.
   i::FLAG_log_code = true;
@@ -124,7 +150,7 @@ int main(int argc, char** argv) {
   // Print the usage if an error occurs when parsing the command line
   // flags or if the help flag is set.
   int result = i::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
-  if (result > 0 || argc != 2 || i::FLAG_help) {
+  if (result > 0 || (argc != 2 && argc != 3) || i::FLAG_help) {
     ::printf("Usage: %s [flag] ... outfile\n", argv[0]);
     i::FlagList::PrintHelp();
     return !i::FLAG_help;
@@ -139,9 +165,11 @@ int main(int argc, char** argv) {
   {
     SnapshotWriter writer(argv[1]);
     if (i::FLAG_startup_blob) writer.SetStartupBlobFile(i::FLAG_startup_blob);
-    StartupData blob = v8::V8::CreateSnapshotDataBlob();
+    char* extra_code = GetExtraCode(argc == 3 ? argv[2] : NULL);
+    StartupData blob = v8::V8::CreateSnapshotDataBlob(extra_code);
     CHECK(blob.data);
     writer.WriteSnapshot(blob);
+    delete[] extra_code;
     delete[] blob.data;
   }
 

@@ -105,6 +105,43 @@ class DefaultPersistentValueMapTraits : public StdMapTraits<K, V> {
 };
 
 
+template <typename K, typename V>
+class DefaultPhantomPersistentValueMapTraits : public StdMapTraits<K, V> {
+ private:
+  template <typename T>
+  struct RemovePointer;
+
+ public:
+  // Weak callback & friends:
+  static const PersistentContainerCallbackType kCallbackType = kNotWeak;
+  typedef PersistentValueMap<
+      K, V, DefaultPhantomPersistentValueMapTraits<K, V> > MapType;
+  typedef void PhantomCallbackDataType;
+
+  static PhantomCallbackDataType* PhantomCallbackParameter(MapType* map,
+                                                           const K& key,
+                                                           Local<V> value) {
+    return NULL;
+  }
+  static MapType* MapFromPhantomCallbackData(
+      const PhantomCallbackData<PhantomCallbackDataType>& data) {
+    return NULL;
+  }
+  static K KeyFromPhantomCallbackData(
+      const PhantomCallbackData<PhantomCallbackDataType>& data) {
+    return K();
+  }
+  static void DisposeCallbackData(PhantomCallbackDataType* data) {}
+  static void Dispose(Isolate* isolate, UniquePersistent<V> value, K key) {}
+
+ private:
+  template <typename T>
+  struct RemovePointer<T*> {
+    typedef T Type;
+  };
+};
+
+
 /**
  * A map wrapper that allows using UniquePersistent as a mapped value.
  * C++11 embedders don't need this class, as they can use UniquePersistent
@@ -115,13 +152,9 @@ class DefaultPersistentValueMapTraits : public StdMapTraits<K, V> {
  * PersistentContainerValue, with all conversion into and out of V8
  * handles being transparently handled by this class.
  */
-template<typename K, typename V, typename Traits>
-class PersistentValueMap {
+template <typename K, typename V, typename Traits>
+class PersistentValueMapBase {
  public:
-  explicit PersistentValueMap(Isolate* isolate) : isolate_(isolate) {}
-
-  ~PersistentValueMap() { Clear(); }
-
   Isolate* GetIsolate() { return isolate_; }
 
   /**
@@ -165,23 +198,6 @@ class PersistentValueMap {
     GetIsolate()->SetReference(
       reinterpret_cast<internal::Object**>(parent.val_),
       reinterpret_cast<internal::Object**>(FromVal(Traits::Get(&impl_, key))));
-  }
-
-  /**
-   * Put value into map. Depending on Traits::kIsWeak, the value will be held
-   * by the map strongly or weakly.
-   * Returns old value as UniquePersistent.
-   */
-  UniquePersistent<V> Set(const K& key, Local<V> value) {
-    UniquePersistent<V> persistent(isolate_, value);
-    return SetUnique(key, &persistent);
-  }
-
-  /**
-   * Put value into map, like Set(const K&, Local<V>).
-   */
-  UniquePersistent<V> Set(const K& key, UniquePersistent<V> value) {
-    return SetUnique(key, &value);
   }
 
   /**
@@ -237,7 +253,9 @@ class PersistentValueMap {
     }
 
    private:
-    friend class PersistentValueMap;
+    friend class PersistentValueMapBase;
+    friend class PersistentValueMap<K, V, Traits>;
+    friend class PhantomPersistentValueMap<K, V, Traits>;
 
     explicit PersistentValueReference(PersistentContainerValue value)
         : value_(value) { }
@@ -263,59 +281,16 @@ class PersistentValueMap {
     return PersistentValueReference(Traits::Get(&impl_, key));
   }
 
-  /**
-   * Put a value into the map and update the reference.
-   * Restrictions of GetReference apply here as well.
-   */
-  UniquePersistent<V> Set(const K& key, UniquePersistent<V> value,
-                          PersistentValueReference* reference) {
-    *reference = Leak(&value);
-    return SetUnique(key, &value);
-  }
+ protected:
+  explicit PersistentValueMapBase(Isolate* isolate) : isolate_(isolate) {}
 
- private:
-  PersistentValueMap(PersistentValueMap&);
-  void operator=(PersistentValueMap&);
+  ~PersistentValueMapBase() { Clear(); }
 
-  /**
-   * Put the value into the map, and set the 'weak' callback when demanded
-   * by the Traits class.
-   */
-  UniquePersistent<V> SetUnique(const K& key, UniquePersistent<V>* persistent) {
-    if (Traits::kCallbackType != kNotWeak) {
-      Local<V> value(Local<V>::New(isolate_, *persistent));
-      persistent->template SetWeak<typename Traits::WeakCallbackDataType>(
-        Traits::WeakCallbackParameter(this, key, value), WeakCallback);
-    }
-    PersistentContainerValue old_value =
-        Traits::Set(&impl_, key, ClearAndLeak(persistent));
-    return Release(old_value).Pass();
-  }
-
-  static void WeakCallback(
-      const WeakCallbackData<V, typename Traits::WeakCallbackDataType>& data) {
-    if (Traits::kCallbackType != kNotWeak) {
-      PersistentValueMap<K, V, Traits>* persistentValueMap =
-          Traits::MapFromWeakCallbackData(data);
-      K key = Traits::KeyFromWeakCallbackData(data);
-      Traits::Dispose(data.GetIsolate(),
-                      persistentValueMap->Remove(key).Pass(), key);
-      Traits::DisposeCallbackData(data.GetParameter());
-    }
-  }
+  Isolate* isolate() { return isolate_; }
+  typename Traits::Impl* impl() { return &impl_; }
 
   static V* FromVal(PersistentContainerValue v) {
     return reinterpret_cast<V*>(v);
-  }
-
-  static bool SetReturnValueFromVal(
-      ReturnValue<Value>* returnValue, PersistentContainerValue value) {
-    bool hasValue = value != kPersistentContainerNotFound;
-    if (hasValue) {
-      returnValue->SetInternal(
-          *reinterpret_cast<internal::Object**>(FromVal(value)));
-    }
-    return hasValue;
   }
 
   static PersistentContainerValue ClearAndLeak(
@@ -325,8 +300,7 @@ class PersistentValueMap {
     return reinterpret_cast<PersistentContainerValue>(v);
   }
 
-  static PersistentContainerValue Leak(
-      UniquePersistent<V>* persistent) {
+  static PersistentContainerValue Leak(UniquePersistent<V>* persistent) {
     return reinterpret_cast<PersistentContainerValue>(persistent->val_);
   }
 
@@ -345,8 +319,156 @@ class PersistentValueMap {
     return p.Pass();
   }
 
+ private:
+  PersistentValueMapBase(PersistentValueMapBase&);
+  void operator=(PersistentValueMapBase&);
+
+  static bool SetReturnValueFromVal(ReturnValue<Value>* returnValue,
+                                    PersistentContainerValue value) {
+    bool hasValue = value != kPersistentContainerNotFound;
+    if (hasValue) {
+      returnValue->SetInternal(
+          *reinterpret_cast<internal::Object**>(FromVal(value)));
+    }
+    return hasValue;
+  }
+
   Isolate* isolate_;
   typename Traits::Impl impl_;
+};
+
+
+template <typename K, typename V, typename Traits>
+class PersistentValueMap : public PersistentValueMapBase<K, V, Traits> {
+ public:
+  explicit PersistentValueMap(Isolate* isolate)
+      : PersistentValueMapBase<K, V, Traits>(isolate) {}
+
+  typedef
+      typename PersistentValueMapBase<K, V, Traits>::PersistentValueReference
+          PersistentValueReference;
+
+  /**
+   * Put value into map. Depending on Traits::kIsWeak, the value will be held
+   * by the map strongly or weakly.
+   * Returns old value as UniquePersistent.
+   */
+  UniquePersistent<V> Set(const K& key, Local<V> value) {
+    UniquePersistent<V> persistent(this->isolate(), value);
+    return SetUnique(key, &persistent);
+  }
+
+  /**
+   * Put value into map, like Set(const K&, Local<V>).
+   */
+  UniquePersistent<V> Set(const K& key, UniquePersistent<V> value) {
+    return SetUnique(key, &value);
+  }
+
+  /**
+   * Put the value into the map, and set the 'weak' callback when demanded
+   * by the Traits class.
+   */
+  UniquePersistent<V> SetUnique(const K& key, UniquePersistent<V>* persistent) {
+    if (Traits::kCallbackType != kNotWeak) {
+      Local<V> value(Local<V>::New(this->isolate(), *persistent));
+      persistent->template SetWeak<typename Traits::WeakCallbackDataType>(
+        Traits::WeakCallbackParameter(this, key, value), WeakCallback);
+    }
+    PersistentContainerValue old_value =
+        Traits::Set(this->impl(), key, this->ClearAndLeak(persistent));
+    return this->Release(old_value).Pass();
+  }
+
+  /**
+   * Put a value into the map and update the reference.
+   * Restrictions of GetReference apply here as well.
+   */
+  UniquePersistent<V> Set(const K& key, UniquePersistent<V> value,
+                          PersistentValueReference* reference) {
+    *reference = this->Leak(&value);
+    return SetUnique(key, &value);
+  }
+
+ private:
+  static void WeakCallback(
+      const WeakCallbackData<V, typename Traits::WeakCallbackDataType>& data) {
+    if (Traits::kCallbackType != kNotWeak) {
+      PersistentValueMap<K, V, Traits>* persistentValueMap =
+          Traits::MapFromWeakCallbackData(data);
+      K key = Traits::KeyFromWeakCallbackData(data);
+      Traits::Dispose(data.GetIsolate(),
+                      persistentValueMap->Remove(key).Pass(), key);
+      Traits::DisposeCallbackData(data.GetParameter());
+    }
+  }
+};
+
+
+template <typename K, typename V, typename Traits>
+class PhantomPersistentValueMap : public PersistentValueMapBase<K, V, Traits> {
+ public:
+  explicit PhantomPersistentValueMap(Isolate* isolate)
+      : PersistentValueMapBase<K, V, Traits>(isolate) {}
+
+  typedef
+      typename PersistentValueMapBase<K, V, Traits>::PersistentValueReference
+          PersistentValueReference;
+
+  /**
+   * Put value into map. Depending on Traits::kIsWeak, the value will be held
+   * by the map strongly or weakly.
+   * Returns old value as UniquePersistent.
+   */
+  UniquePersistent<V> Set(const K& key, Local<V> value) {
+    UniquePersistent<V> persistent(this->isolate(), value);
+    return SetUnique(key, &persistent);
+  }
+
+  /**
+   * Put value into map, like Set(const K&, Local<V>).
+   */
+  UniquePersistent<V> Set(const K& key, UniquePersistent<V> value) {
+    return SetUnique(key, &value);
+  }
+
+  /**
+   * Put the value into the map, and set the 'weak' callback when demanded
+   * by the Traits class.
+   */
+  UniquePersistent<V> SetUnique(const K& key, UniquePersistent<V>* persistent) {
+    if (Traits::kCallbackType != kNotWeak) {
+      Local<V> value(Local<V>::New(this->isolate(), *persistent));
+      persistent->template SetPhantom<typename Traits::WeakCallbackDataType>(
+          Traits::WeakCallbackParameter(this, key, value), WeakCallback, 0, 1);
+    }
+    PersistentContainerValue old_value =
+        Traits::Set(this->impl(), key, this->ClearAndLeak(persistent));
+    return this->Release(old_value).Pass();
+  }
+
+  /**
+   * Put a value into the map and update the reference.
+   * Restrictions of GetReference apply here as well.
+   */
+  UniquePersistent<V> Set(const K& key, UniquePersistent<V> value,
+                          PersistentValueReference* reference) {
+    *reference = this->Leak(&value);
+    return SetUnique(key, &value);
+  }
+
+ private:
+  static void WeakCallback(
+      const PhantomCallbackData<typename Traits::WeakCallbackDataType>& data) {
+    if (Traits::kCallbackType != kNotWeak) {
+      PhantomPersistentValueMap<K, V, Traits>* persistentValueMap =
+          Traits::MapFromPhantomCallbackData(data);
+      K key = Traits::KeyFromPhantomCallbackData(data);
+      Traits::Dispose(data.GetIsolate(), persistentValueMap->Remove(key).Pass(),
+                      key);
+      Traits::DisposeCallbackData(data.GetParameter());
+    }
+  }
 };
 
 

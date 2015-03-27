@@ -306,6 +306,34 @@ void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
 }
 
 
+static void Generate_Runtime_NewObject(MacroAssembler* masm,
+                                       bool create_memento,
+                                       Register original_constructor,
+                                       Label* count_incremented,
+                                       Label* allocated) {
+  // ----------- S t a t e -------------
+  //  -- r4: argument for Runtime_NewObject
+  // -----------------------------------
+  Register result = r7;
+
+  if (create_memento) {
+    // Get the cell or allocation site.
+    __ LoadP(r5, MemOperand(sp, 2 * kPointerSize));
+    __ Push(r5, r4, original_constructor);
+    __ CallRuntime(Runtime::kNewObjectWithAllocationSite, 3);
+    __ mr(result, r3);
+    // Runtime_NewObjectWithAllocationSite increments allocation count.
+    // Skip the increment.
+    __ b(count_incremented);
+  } else {
+    __ Push(r4, original_constructor);
+    __ CallRuntime(Runtime::kNewObject, 2);
+    __ mr(result, r3);
+    __ b(allocated);
+  }
+}
+
+
 static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                                            bool is_api_function,
                                            bool create_memento) {
@@ -313,6 +341,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   //  -- r3     : number of arguments
   //  -- r4     : constructor function
   //  -- r5     : allocation site or undefined
+  //  -- r6     : original constructor
   //  -- lr     : return address
   //  -- sp[...]: constructor arguments
   // -----------------------------------
@@ -327,18 +356,25 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     FrameAndConstantPoolScope scope(masm, StackFrame::CONSTRUCT);
 
     if (create_memento) {
-      __ AssertUndefinedOrAllocationSite(r5, r6);
+      __ AssertUndefinedOrAllocationSite(r5, r7);
       __ push(r5);
     }
 
     // Preserve the two incoming parameters on the stack.
     __ SmiTag(r3);
-    __ push(r3);  // Smi-tagged arguments count.
-    __ push(r4);  // Constructor function.
+    __ Push(r3, r4);
+
+    Label rt_call, allocated, normal_new, count_incremented;
+    __ cmp(r4, r6);
+    __ beq(&normal_new);
+
+    // Original constructor and function are different.
+    Generate_Runtime_NewObject(masm, create_memento, r6, &count_incremented,
+                               &allocated);
+    __ bind(&normal_new);
 
     // Try to allocate the object without transitioning into C code. If any of
     // the preconditions is not met, the code bails out to the runtime call.
-    Label rt_call, allocated;
     if (FLAG_inline_new) {
       Label undo_allocation;
       ExternalReference debug_step_in_fp =
@@ -369,14 +405,13 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         MemOperand bit_field3 = FieldMemOperand(r5, Map::kBitField3Offset);
         // Check if slack tracking is enabled.
         __ lwz(r7, bit_field3);
-        __ DecodeField<Map::ConstructionCount>(r11, r7);
-        STATIC_ASSERT(JSFunction::kNoSlackTracking == 0);
-        __ cmpi(r11, Operand::Zero());  // JSFunction::kNoSlackTracking
-        __ beq(&allocate);
+        __ DecodeField<Map::Counter>(r11, r7);
+        __ cmpi(r11, Operand(Map::kSlackTrackingCounterEnd));
+        __ blt(&allocate);
         // Decrease generous allocation count.
-        __ Add(r7, r7, -(1 << Map::ConstructionCount::kShift), r0);
+        __ Add(r7, r7, -(1 << Map::Counter::kShift), r0);
         __ stw(r7, bit_field3);
-        __ cmpi(r11, Operand(JSFunction::kFinishSlackTracking));
+        __ cmpi(r11, Operand(Map::kSlackTrackingCounterEnd));
         __ bne(&allocate);
 
         __ push(r4);
@@ -429,9 +464,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         Label no_inobject_slack_tracking;
 
         // Check if slack tracking is enabled.
-        STATIC_ASSERT(JSFunction::kNoSlackTracking == 0);
-        __ cmpi(r11, Operand::Zero());  // JSFunction::kNoSlackTracking
-        __ beq(&no_inobject_slack_tracking);
+        __ cmpi(r11, Operand(Map::kSlackTrackingCounterEnd));
+        __ blt(&no_inobject_slack_tracking);
 
         // Allocate object with a slack.
         __ lbz(r3, FieldMemOperand(r5, Map::kPreAllocatedPropertyFieldsOffset));
@@ -568,27 +602,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // Allocate the new receiver object using the runtime call.
     // r4: constructor function
     __ bind(&rt_call);
-    if (create_memento) {
-      // Get the cell or allocation site.
-      __ LoadP(r5, MemOperand(sp, 2 * kPointerSize));
-      __ push(r5);
-    }
-
-    __ push(r4);  // argument for Runtime_NewObject
-    if (create_memento) {
-      __ CallRuntime(Runtime::kNewObjectWithAllocationSite, 2);
-    } else {
-      __ CallRuntime(Runtime::kNewObject, 1);
-    }
-    __ mr(r7, r3);
-
-    // If we ended up using the runtime, and we want a memento, then the
-    // runtime call made it for us, and we shouldn't do create count
-    // increment.
-    Label count_incremented;
-    if (create_memento) {
-      __ b(&count_incremented);
-    }
+    Generate_Runtime_NewObject(masm, create_memento, r4, &count_incremented,
+                               &allocated);
 
     // Receiver for constructor call allocated.
     // r7: JSObject
@@ -720,6 +735,74 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
 void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
   Generate_JSConstructStubHelper(masm, true, false);
+}
+
+
+void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r3     : number of arguments
+  //  -- r4     : constructor function
+  //  -- r5     : allocation site or undefined
+  //  -- r6     : original constructor
+  //  -- lr     : return address
+  //  -- sp[...]: constructor arguments
+  // -----------------------------------
+
+  // TODO(dslomov): support pretenuring
+  CHECK(!FLAG_pretenuring_call_new);
+
+  {
+    FrameAndConstantPoolScope scope(masm, StackFrame::CONSTRUCT);
+
+    // Smi-tagged arguments count.
+    __ mr(r7, r3);
+    __ SmiTag(r7, SetRC);
+
+    // receiver is the hole.
+    __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+    __ Push(r7, ip);
+
+    // Set up pointer to last argument.
+    __ addi(r5, fp, Operand(StandardFrameConstants::kCallerSPOffset));
+
+    // Copy arguments and receiver to the expression stack.
+    // r3: number of arguments
+    // r4: constructor function
+    // r5: address of last argument (caller sp)
+    // r7: number of arguments (smi-tagged)
+    // cr0: compare against zero of arguments
+    // sp[0]: receiver
+    // sp[1]: number of arguments (smi-tagged)
+    Label loop, no_args;
+    __ beq(&no_args, cr0);
+    __ ShiftLeftImm(ip, r3, Operand(kPointerSizeLog2));
+    __ mtctr(r3);
+    __ bind(&loop);
+    __ subi(ip, ip, Operand(kPointerSize));
+    __ LoadPX(r0, MemOperand(r5, ip));
+    __ push(r0);
+    __ bdnz(&loop);
+    __ bind(&no_args);
+
+    // Call the function.
+    // r3: number of arguments
+    // r4: constructor function
+    ParameterCount actual(r3);
+    __ InvokeFunction(r4, actual, CALL_FUNCTION, NullCallWrapper());
+
+    // Restore context from the frame.
+    // r3: result
+    // sp[0]: number of arguments (smi-tagged)
+    __ LoadP(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+    __ LoadP(r4, MemOperand(sp, 0));
+
+    // Leave construct frame.
+  }
+
+  __ SmiToPtrArrayOffset(r4, r4);
+  __ add(sp, sp, r4);
+  __ addi(sp, sp, Operand(kPointerSize));
+  __ blr();
 }
 
 

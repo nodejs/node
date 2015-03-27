@@ -373,7 +373,7 @@ class HCheckTable : public ZoneObject {
           instr->DeleteAndReplaceWith(entry->check_);
           INC_STAT(redundant_);
         } else if (entry->state_ == HCheckTableEntry::UNCHECKED_STABLE) {
-          DCHECK_EQ(NULL, entry->check_);
+          DCHECK_NULL(entry->check_);
           TRACE(("Marking redundant CheckMaps #%d at B%d as stability check\n",
                  instr->id(), instr->block()->block_id()));
           instr->set_maps(entry->maps_->Copy(graph->zone()));
@@ -628,14 +628,23 @@ class HCheckTable : public ZoneObject {
     HValue* object = instr->object()->ActualValue();
     HCheckTableEntry* entry = Find(object);
     // Can only learn more about an object that already has a known set of maps.
-    if (entry == NULL) return;
+    if (entry == NULL) {
+      Kill(object);
+      return;
+    }
     EnsureChecked(entry, object, instr);
     if (entry->maps_->Contains(instr->original_map())) {
       // If the object has the original map, it will be transitioned.
       UniqueSet<Map>* maps = entry->maps_->Copy(zone());
       maps->Remove(instr->original_map());
       maps->Add(instr->transitioned_map(), zone());
-      entry->maps_ = maps;
+      HCheckTableEntry::State state =
+          (entry->state_ == HCheckTableEntry::CHECKED_STABLE &&
+           instr->map_is_stable())
+              ? HCheckTableEntry::CHECKED_STABLE
+              : HCheckTableEntry::CHECKED;
+      Kill(object);
+      Insert(object, NULL, maps, state);
     } else {
       // Object does not have the given map, thus the transition is redundant.
       instr->DeleteAndReplaceWith(object);
@@ -684,14 +693,14 @@ class HCheckTable : public ZoneObject {
     bool compact = false;
     for (int i = 0; i < size_; i++) {
       HCheckTableEntry* entry = &entries_[i];
-      DCHECK(entry->object_ != NULL);
+      DCHECK_NOT_NULL(entry->object_);
       if (phase_->aliasing_->MayAlias(entry->object_, object)) {
         entry->object_ = NULL;
         compact = true;
       }
     }
     if (compact) Compact();
-    DCHECK(Find(object) == NULL);
+    DCHECK_NULL(Find(object));
   }
 
   void Compact() {

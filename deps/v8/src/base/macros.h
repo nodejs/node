@@ -333,7 +333,7 @@ inline void USE(T) { }
 # define V8_INTPTR_C(x)   (x ## LL)
 # define V8_PTR_PREFIX    "I64"
 #elif V8_HOST_ARCH_64_BIT
-# if V8_OS_MACOSX
+# if V8_OS_MACOSX || V8_OS_OPENBSD
 #  define V8_UINT64_C(x)   (x ## ULL)
 #  define V8_INT64_C(x)    (x ## LL)
 # else
@@ -346,7 +346,11 @@ inline void USE(T) { }
 # define V8_UINT64_C(x)   (x ## ULL)
 # define V8_INT64_C(x)    (x ## LL)
 # define V8_INTPTR_C(x)   (x)
+#if V8_OS_AIX
+#define V8_PTR_PREFIX "l"
+#else
 # define V8_PTR_PREFIX    ""
+#endif
 #endif
 
 #define V8PRIxPTR V8_PTR_PREFIX "x"

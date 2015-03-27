@@ -57,7 +57,7 @@ PerfJitLogger::PerfJitLogger() : perf_output_handle_(NULL), code_index_(0) {
   CHECK_NE(size, -1);
   perf_output_handle_ =
       base::OS::FOpen(perf_dump_name.start(), base::OS::LogFileOpenMode);
-  CHECK_NE(perf_output_handle_, NULL);
+  CHECK_NOT_NULL(perf_output_handle_);
   setvbuf(perf_output_handle_, NULL, _IOFBF, kLogBufferSize);
 
   LogWriteHeader();

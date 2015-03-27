@@ -4,9 +4,9 @@
 
 #include "src/compiler/graph-replay.h"
 
+#include "src/compiler/all-nodes.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
-#include "src/compiler/graph-inl.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/operator-properties.h"
@@ -20,22 +20,26 @@ namespace compiler {
 void GraphReplayPrinter::PrintReplay(Graph* graph) {
   GraphReplayPrinter replay;
   PrintF("  Node* nil = graph.NewNode(common_builder.Dead());\n");
-  graph->VisitNodeInputsFromEnd(&replay);
-}
+  Zone zone;
+  AllNodes nodes(&zone, graph);
 
-
-void GraphReplayPrinter::Pre(Node* node) {
-  PrintReplayOpCreator(node->op());
-  PrintF("  Node* n%d = graph.NewNode(op", node->id());
-  for (int i = 0; i < node->InputCount(); ++i) {
-    PrintF(", nil");
+  // Allocate the nodes first.
+  for (Node* node : nodes.live) {
+    PrintReplayOpCreator(node->op());
+    PrintF("  Node* n%d = graph.NewNode(op", node->id());
+    for (int i = 0; i < node->InputCount(); ++i) {
+      PrintF(", nil");
+    }
+    PrintF("); USE(n%d);\n", node->id());
   }
-  PrintF("); USE(n%d);\n", node->id());
-}
 
-
-void GraphReplayPrinter::PostEdge(Node* from, int index, Node* to) {
-  PrintF("  n%d->ReplaceInput(%d, n%d);\n", from->id(), index, to->id());
+  // Connect the nodes to their inputs.
+  for (Node* node : nodes.live) {
+    for (int i = 0; i < node->InputCount(); i++) {
+      PrintF("  n%d->ReplaceInput(%d, n%d);\n", node->id(), i,
+             node->InputAt(i)->id());
+    }
+  }
 }
 
 

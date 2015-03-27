@@ -13,8 +13,7 @@ namespace v8 {
 namespace internal {
 
 
-CompleteParserRecorder::CompleteParserRecorder()
-    : function_store_(0) {
+CompleteParserRecorder::CompleteParserRecorder() {
   preamble_[PreparseDataConstants::kMagicOffset] =
       PreparseDataConstants::kMagicNumber;
   preamble_[PreparseDataConstants::kVersionOffset] =

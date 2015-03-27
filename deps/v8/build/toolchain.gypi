@@ -31,7 +31,14 @@
   'variables': {
     'msvs_use_common_release': 0,
     'clang%': 0,
+    'asan%': 0,
+    'lsan%': 0,
+    'msan%': 0,
+    'tsan%': 0,
+    'ubsan%': 0,
+    'ubsan_vptr%': 0,
     'v8_target_arch%': '<(target_arch)',
+    'v8_host_byteorder%': '<!(python -c "import sys; print sys.byteorder")',
     # Native Client builds currently use the V8 ARM JIT and
     # arm/simulator-arm.cc to defer the significant effort required
     # for NaCl JIT support. The nacl_target_arch variable provides
@@ -79,6 +86,46 @@
     # Allow to suppress the array bounds warning (default is no suppression).
     'wno_array_bounds%': '',
 
+    # Override where to find binutils
+    'binutils_dir%': '',
+
+    'conditions': [
+      ['OS=="linux" and host_arch=="x64"', {
+        'binutils_dir%': 'third_party/binutils/Linux_x64/Release/bin',
+      }],
+      ['OS=="linux" and host_arch=="ia32"', {
+        'binutils_dir%': 'third_party/binutils/Linux_ia32/Release/bin',
+      }],
+
+      # linux_use_bundled_gold: whether to use the gold linker binary checked
+      # into third_party/binutils.  Force this off via GYP_DEFINES when you
+      # are using a custom toolchain and need to control -B in ldflags.
+      # Do not use 32-bit gold on 32-bit hosts as it runs out address space
+      # for component=static_library builds.
+      ['OS=="linux" and (target_arch=="x64" or target_arch=="arm")', {
+        'linux_use_bundled_gold%': 1,
+      }, {
+        'linux_use_bundled_gold%': 0,
+      }],
+      # linux_use_bundled_binutils: whether to use the binary binutils
+      # checked into third_party/binutils.  These are not multi-arch so cannot
+      # be used except on x86 and x86-64 (the only two architectures which
+      # are currently checke in).  Force this off via GYP_DEFINES when you
+      # are using a custom toolchain and need to control -B in cflags.
+      ['OS=="linux" and (target_arch=="ia32" or target_arch=="x64")', {
+        'linux_use_bundled_binutils%': 1,
+      }, {
+        'linux_use_bundled_binutils%': 0,
+      }],
+      # linux_use_gold_flags: whether to use build flags that rely on gold.
+      # On by default for x64 Linux.
+      ['OS=="linux" and target_arch=="x64"', {
+        'linux_use_gold_flags%': 1,
+      }, {
+        'linux_use_gold_flags%': 0,
+      }],
+    ],
+
     # Link-Time Optimizations
     'use_lto%': 0,
 
@@ -91,7 +138,9 @@
     'android_webview_build%': '<(android_webview_build)',
   },
   'conditions': [
-    ['host_arch=="ia32" or host_arch=="x64" or clang==1', {
+    ['host_arch=="ia32" or host_arch=="x64" or \
+      host_arch=="ppc" or host_arch=="ppc64" or \
+      clang==1', {
       'variables': {
         'host_cxx_is_biarch%': 1,
        },
@@ -101,6 +150,7 @@
       },
     }],
     ['target_arch=="ia32" or target_arch=="x64" or target_arch=="x87" or \
+      target_arch=="ppc" or target_arch=="ppc64" or \
       clang==1', {
       'variables': {
         'target_cxx_is_biarch%': 1,
@@ -250,6 +300,38 @@
           'V8_TARGET_ARCH_ARM64',
         ],
       }],
+      ['v8_target_arch=="ppc" or v8_target_arch=="ppc64"', {
+        'defines': [
+          'V8_TARGET_ARCH_PPC',
+        ],
+        'conditions': [
+          ['v8_target_arch=="ppc64"', {
+            'defines': [
+              'V8_TARGET_ARCH_PPC64',
+            ],
+          }],
+          ['v8_host_byteorder=="little"', {
+            'defines': [
+              'V8_TARGET_ARCH_PPC_LE',
+            ],
+          }],
+          ['v8_host_byteorder=="big"', {
+            'defines': [
+              'V8_TARGET_ARCH_PPC_BE',
+            ],
+            'conditions': [
+              ['OS=="aix"', {
+                # Work around AIX ceil, trunc and round oddities.
+                'cflags': [ '-mcpu=power5+ -mfprnd' ],
+              }],
+              ['OS=="aix"', {
+                # Work around AIX assembler popcntb bug.
+                'cflags': [ '-mno-popcntb' ],
+              }],
+            ],
+          }],
+        ],
+      }],  # ppc
       ['v8_target_arch=="ia32"', {
         'defines': [
           'V8_TARGET_ARCH_IA32',
@@ -287,7 +369,10 @@
             'conditions': [
               ['v8_target_arch==target_arch and android_webview_build==0', {
                 # Target built with a Mips CXX compiler.
-                'cflags': ['-EB'],
+                'cflags': [
+                  '-EB',
+                  '-Wno-error=array-bounds',  # Workaround https://gcc.gnu.org/bugzilla/show_bug.cgi?id=56273
+                ],
                 'ldflags': ['-EB'],
                 'conditions': [
                   [ 'v8_use_mips_abi_hardfloat=="true"', {
@@ -471,7 +556,10 @@
             'conditions': [
               ['v8_target_arch==target_arch and android_webview_build==0', {
                 # Target built with a Mips CXX compiler.
-                'cflags': ['-EL'],
+                'cflags': [
+                  '-EL',
+                  '-Wno-error=array-bounds',  # Workaround https://gcc.gnu.org/bugzilla/show_bug.cgi?id=56273
+                ],
                 'ldflags': ['-EL'],
                 'conditions': [
                   [ 'v8_use_mips_abi_hardfloat=="true"', {
@@ -671,7 +759,10 @@
           ['_toolset=="target"', {
             'conditions': [
               ['v8_target_arch==target_arch and android_webview_build==0', {
-                'cflags': ['-EL'],
+                'cflags': [
+                  '-EL',
+                  '-Wno-error=array-bounds',  # Workaround https://gcc.gnu.org/bugzilla/show_bug.cgi?id=56273
+                ],
                 'ldflags': ['-EL'],
                 'conditions': [
                   [ 'v8_use_mips_abi_hardfloat=="true"', {
@@ -755,6 +846,26 @@
           '-mx32',
         ],
       }],  # v8_target_arch=="x32"
+      ['linux_use_gold_flags==1', {
+        # Newer gccs and clangs support -fuse-ld, use the flag to force gold
+        # selection.
+        # gcc -- http://gcc.gnu.org/onlinedocs/gcc-4.8.0/gcc/Optimize-Options.html
+        'ldflags': [ '-fuse-ld=gold', ],
+      }],
+      ['linux_use_bundled_binutils==1', {
+        'cflags': [
+          '-B<!(cd <(DEPTH) && pwd -P)/<(binutils_dir)',
+        ],
+      }],
+      ['linux_use_bundled_gold==1', {
+        # Put our binutils, which contains gold in the search path. We pass
+        # the path to gold to the compiler. gyp leaves unspecified what the
+        # cwd is when running the compiler, so the normal gyp path-munging
+        # fails us. This hack gets the right path.
+        'ldflags': [
+          '-B<!(cd <(DEPTH) && pwd -P)/<(binutils_dir)',
+        ],
+      }],
       ['OS=="win"', {
         'defines': [
           'WIN32',
@@ -783,11 +894,20 @@
           },
         },
       }],
-      ['(OS=="linux" or OS=="freebsd"  or OS=="openbsd" or OS=="solaris" \
+      ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
+         or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
+        v8_target_arch=="ia32"', {
+        'cflags': [
+          '-msse2',
+          '-mfpmath=sse',
+          '-mmmx',  # Allows mmintrin.h for MMX intrinsics.
+        ],
+      }],
+      ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
          or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
         (v8_target_arch=="arm" or v8_target_arch=="ia32" or \
          v8_target_arch=="x87" or v8_target_arch=="mips" or \
-         v8_target_arch=="mipsel")', {
+         v8_target_arch=="mipsel" or v8_target_arch=="ppc")', {
         'target_conditions': [
           ['_toolset=="host"', {
             'conditions': [
@@ -820,7 +940,8 @@
         ],
       }],
       ['(OS=="linux" or OS=="android") and \
-        (v8_target_arch=="x64" or v8_target_arch=="arm64")', {
+        (v8_target_arch=="x64" or v8_target_arch=="arm64" or \
+         v8_target_arch=="ppc64")', {
         'target_conditions': [
           ['_toolset=="host"', {
             'conditions': [
@@ -847,7 +968,7 @@
          ],
       }],
       ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
-         or OS=="netbsd" or OS=="qnx"', {
+         or OS=="netbsd" or OS=="qnx" or OS=="aix"', {
         'conditions': [
           [ 'v8_no_strict_aliasing==1', {
             'cflags': [ '-fno-strict-aliasing' ],
@@ -862,6 +983,21 @@
       }],
       ['OS=="netbsd"', {
         'cflags': [ '-I/usr/pkg/include' ],
+      }],
+      ['OS=="aix"', {
+        'defines': [
+          # Support for malloc(0)
+          '_LINUX_SOURCE_COMPAT=1',
+          '_ALL_SOURCE=1'],
+        'conditions': [
+          [ 'v8_target_arch=="ppc"', {
+            'ldflags': [ '-Wl,-bmaxdata:0x60000000/dsa' ],
+          }],
+          [ 'v8_target_arch=="ppc64"', {
+            'cflags': [ '-maix64' ],
+            'ldflags': [ '-maix64' ],
+          }],
+        ],
       }],
     ],  # conditions
     'configurations': {
@@ -883,9 +1019,12 @@
             'LinkIncremental': '2',
           },
         },
+        'variables': {
+          'v8_enable_slow_dchecks%': 1,
+        },
         'conditions': [
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \
-            OS=="qnx"', {
+            OS=="qnx" or OS=="aix"', {
             'cflags!': [
               '-O3',
               '-O2',
@@ -902,62 +1041,15 @@
                'GCC_OPTIMIZATION_LEVEL': '0',  # -O0
             },
           }],
-        ],
-        'defines': [
-          'ENABLE_SLOW_DCHECKS',
+          ['v8_enable_slow_dchecks==1', {
+            'defines': [
+              'ENABLE_SLOW_DCHECKS',
+            ],
+          }],
         ],
       },  # DebugBase0
       # Abstract configuration for v8_optimized_debug == 1.
       'DebugBase1': {
-        'abstract': 1,
-        'msvs_settings': {
-          'VCCLCompilerTool': {
-            'Optimization': '1',
-            'InlineFunctionExpansion': '2',
-            'EnableIntrinsicFunctions': 'true',
-            'FavorSizeOrSpeed': '0',
-            'StringPooling': 'true',
-            'BasicRuntimeChecks': '0',
-            'conditions': [
-              ['component=="shared_library"', {
-                'RuntimeLibrary': '3',  # /MDd
-              }, {
-                'RuntimeLibrary': '1',  # /MTd
-              }],
-            ],
-          },
-          'VCLinkerTool': {
-            'LinkIncremental': '2',
-          },
-        },
-        'defines': [
-          'ENABLE_SLOW_DCHECKS',
-        ],
-        'conditions': [
-          ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \
-            OS=="qnx"', {
-            'cflags!': [
-              '-O0',
-              '-O3', # TODO(2807) should be -O1.
-              '-O2',
-              '-Os',
-            ],
-            'cflags': [
-              '-fdata-sections',
-              '-ffunction-sections',
-              '-O1', # TODO(2807) should be -O3.
-            ],
-          }],
-          ['OS=="mac"', {
-            'xcode_settings': {
-               'GCC_OPTIMIZATION_LEVEL': '3',  # -O3
-               'GCC_STRICT_ALIASING': 'YES',
-            },
-          }],
-        ],
-      },  # DebugBase1
-      # Abstract configuration for v8_optimized_debug == 2.
-      'DebugBase2': {
         'abstract': 1,
         'msvs_settings': {
           'VCCLCompilerTool': {
@@ -981,9 +1073,12 @@
             'EnableCOMDATFolding': '2',
           },
         },
+        'variables': {
+          'v8_enable_slow_dchecks%': 0,
+        },
         'conditions': [
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \
-            OS=="qnx"', {
+            OS=="qnx" or OS=="aix"', {
             'cflags!': [
               '-O0',
               '-O1',
@@ -995,7 +1090,9 @@
             ],
             'conditions': [
               # TODO(crbug.com/272548): Avoid -O3 in NaCl
-              ['nacl_target_arch=="none"', {
+              # Don't use -O3 with sanitizers.
+              ['nacl_target_arch=="none" and asan==0 and msan==0 and lsan==0 \
+                and tsan==0 and ubsan==0 and ubsan_vptr==0', {
                 'cflags': ['-O3'],
                 'cflags!': ['-O2'],
                 }, {
@@ -1010,8 +1107,13 @@
               'GCC_STRICT_ALIASING': 'YES',
             },
           }],
+          ['v8_enable_slow_dchecks==1', {
+            'defines': [
+              'ENABLE_SLOW_DCHECKS',
+            ],
+          }],
         ],
-      },  # DebugBase2
+      },  # DebugBase1
       # Common settings for the Debug configuration.
       'DebugBaseCommon': {
         'abstract': 1,
@@ -1025,12 +1127,15 @@
         ],
         'conditions': [
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \
-            OS=="qnx"', {
+            OS=="qnx" or OS=="aix"', {
             'cflags': [ '-Woverloaded-virtual', '<(wno_array_bounds)', ],
           }],
           ['OS=="linux" and v8_enable_backtrace==1', {
             # Support for backtrace_symbols.
             'ldflags': [ '-rdynamic' ],
+          }],
+          ['OS=="aix"', {
+            'ldflags': [ '-Wl,-bbigtoc' ],
           }],
           ['OS=="android"', {
             'variables': {
@@ -1047,6 +1152,21 @@
               }],
             ],
           }],
+          ['linux_use_gold_flags==1', {
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'ldflags': [
+                  # Experimentation found that using four linking threads
+                  # saved ~20% of link time.
+                  # https://groups.google.com/a/chromium.org/group/chromium-dev/browse_thread/thread/281527606915bb36
+                  # Only apply this to the target linker, since the host
+                  # linker might not be gold, but isn't used much anyway.
+                  '-Wl,--threads',
+                  '-Wl,--thread-count=4',
+                ],
+              }],
+            ],
+          }],
         ],
       },  # DebugBaseCommon
       'Debug': {
@@ -1054,18 +1174,18 @@
         'conditions': [
           ['v8_optimized_debug==0', {
             'inherit_from': ['DebugBase0'],
-          }],
-          ['v8_optimized_debug==1', {
+          }, {
             'inherit_from': ['DebugBase1'],
-          }],
-          ['v8_optimized_debug==2', {
-            'inherit_from': ['DebugBase2'],
           }],
         ],
       },  # Debug
       'Release': {
+        'variables': {
+          'v8_enable_slow_dchecks%': 0,
+        },
         'conditions': [
-          ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
+          ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" \
+            or OS=="aix"', {
             'cflags!': [
               '-Os',
             ],
@@ -1076,7 +1196,9 @@
             ],
             'conditions': [
               # TODO(crbug.com/272548): Avoid -O3 in NaCl
-              ['nacl_target_arch=="none"', {
+              # Don't use -O3 with sanitizers.
+              ['nacl_target_arch=="none" and asan==0 and msan==0 and lsan==0 \
+                and tsan==0 and ubsan==0 and ubsan_vptr==0', {
                 'cflags': ['-O3'],
                 'cflags!': ['-O2'],
               }, {
@@ -1130,6 +1252,11 @@
               },
             },
           }],  # OS=="win"
+          ['v8_enable_slow_dchecks==1', {
+            'defines': [
+              'ENABLE_SLOW_DCHECKS',
+            ],
+          }],
         ],  # conditions
       },  # Release
     },  # configurations

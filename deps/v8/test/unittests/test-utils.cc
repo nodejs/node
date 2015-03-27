@@ -94,6 +94,7 @@ namespace internal {
 
 TestWithIsolate::~TestWithIsolate() {}
 
+TestWithIsolateAndZone::~TestWithIsolateAndZone() {}
 
 Factory* TestWithIsolate::factory() const { return isolate()->factory(); }
 

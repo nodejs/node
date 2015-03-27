@@ -14,7 +14,7 @@
   function ClassD() { }
 
   assertEquals(1, f(1));
-  var g = f.toMethod(ClassD.prototype);
+  var g = %ToMethod(f, ClassD.prototype);
   assertEquals(1, g(1));
   assertEquals(undefined, f[%HomeObjectSymbol()]);
   assertEquals(ClassD.prototype, g[%HomeObjectSymbol()]);
@@ -33,19 +33,10 @@
   var q = f(0);
   assertEquals(2, q(1));
   assertEquals(3, q(1));
-  var g = q.toMethod(Derived.prototype);
+  var g = %ToMethod(q, Derived.prototype);
   assertFalse(g === q);
   assertEquals(4, g(1));
   assertEquals(5, q(1));
-}());
-
-
-(function TestErrorCases() {
-  var sFun = Function.prototype.toMethod;
-  assertThrows(function() { sFun.call({}); }, TypeError);
-  assertThrows(function() { sFun.call({}, {}); }, TypeError);
-  function f(){};
-  assertThrows(function() { f.toMethod(1); }, TypeError);
 }());
 
 
@@ -56,11 +47,11 @@
 
   function g() { }
 
-  var fMeth = f.toMethod(o);
+  var fMeth = %ToMethod(f, o);
   assertEquals(o, fMeth[%HomeObjectSymbol()]);
   g.__proto__ = fMeth;
   assertEquals(undefined, g[%HomeObjectSymbol()]);
-  var gMeth = g.toMethod(o1);
+  var gMeth = %ToMethod(g, o1);
   assertEquals(fMeth, gMeth.__proto__);
   assertEquals(o, fMeth[%HomeObjectSymbol()]);
   assertEquals(o1, gMeth[%HomeObjectSymbol()]);
@@ -82,7 +73,7 @@
   }
 
   var fBound = f.bind(o, 1, 2, 3);
-  var fMeth = fBound.toMethod(p);
+  var fMeth = %ToMethod(fBound, p);
   assertEquals(10, fMeth(4));
   assertEquals(10, fMeth.call(p, 4));
   var fBound1 = fBound.bind(o, 4);
@@ -100,7 +91,7 @@
   assertEquals(15, f(o));
   %OptimizeFunctionOnNextCall(f);
   assertEquals(15, f(o));
-  var g = f.toMethod({});
+  var g = %ToMethod(f, {});
   var o1 = {y : 1024, x : "abc"};
   assertEquals("abc", f(o1));
   assertEquals("abc", g(o1));
@@ -110,6 +101,6 @@
   function f() {}
   Object.preventExtensions(f);
   assertFalse(Object.isExtensible(f));
-  var m = f.toMethod({});
+  var m = %ToMethod(f, {});
   assertTrue(Object.isExtensible(m));
 }());

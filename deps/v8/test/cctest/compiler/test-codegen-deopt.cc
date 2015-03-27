@@ -46,7 +46,7 @@ class DeoptCodegenTester {
         function(NewFunction(src)),
         info(function, scope->main_zone()),
         bailout_id(-1) {
-    CHECK(Parser::Parse(&info));
+    CHECK(Parser::ParseStatic(&info));
     info.SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
     CHECK(Compiler::Analyze(&info));
     CHECK(Compiler::EnsureDeoptimizationSupport(&info));
@@ -72,6 +72,7 @@ class DeoptCodegenTester {
   }
 
   Zone* zone() { return scope_->main_zone(); }
+  Isolate* isolate() { return scope_->main_isolate(); }
 
   HandleAndZoneScope* scope_;
   Handle<JSFunction> function;
@@ -102,7 +103,7 @@ class TrivialDeoptCodegenTester : public DeoptCodegenTester {
     // }
 
     CSignature1<Object*, Object*> sig;
-    RawMachineAssembler m(graph, &sig);
+    RawMachineAssembler m(isolate(), graph, &sig);
 
     Handle<JSFunction> deopt_function =
         NewFunction("function deopt() { %DeoptimizeFunction(foo); }; deopt");
@@ -220,7 +221,7 @@ class TrivialRuntimeDeoptCodegenTester : public DeoptCodegenTester {
     // }
 
     CSignature1<Object*, Object*> sig;
-    RawMachineAssembler m(graph, &sig);
+    RawMachineAssembler m(isolate(), graph, &sig);
 
     Unique<HeapObject> this_fun_constant =
         Unique<HeapObject>::CreateUninitialized(function);

@@ -90,6 +90,14 @@ void generate(MacroAssembler* masm, uint32_t key) {
   __ pop(kRootRegister);
   __ jr(ra);
   __ nop();
+#elif V8_TARGET_ARCH_PPC
+  __ function_descriptor();
+  __ push(kRootRegister);
+  __ InitializeRootRegister();
+  __ li(r3, Operand(key));
+  __ GetNumberHash(r3, ip);
+  __ pop(kRootRegister);
+  __ blr();
 #else
 #error Unsupported architecture.
 #endif

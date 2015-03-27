@@ -3766,17 +3766,17 @@ TEST(add_sub_zero) {
   __ Add(x0, x0, 0);
   __ Sub(x1, x1, 0);
   __ Sub(x2, x2, xzr);
-  CHECK_EQ(0, __ SizeOfCodeGeneratedSince(&blob1));
+  CHECK_EQ(0u, __ SizeOfCodeGeneratedSince(&blob1));
 
   Label blob2;
   __ Bind(&blob2);
   __ Add(w3, w3, 0);
-  CHECK_NE(0, __ SizeOfCodeGeneratedSince(&blob2));
+  CHECK_NE(0u, __ SizeOfCodeGeneratedSince(&blob2));
 
   Label blob3;
   __ Bind(&blob3);
   __ Sub(w3, w3, wzr);
-  CHECK_NE(0, __ SizeOfCodeGeneratedSince(&blob3));
+  CHECK_NE(0u, __ SizeOfCodeGeneratedSince(&blob3));
 
   END();
 
@@ -3810,7 +3810,7 @@ TEST(claim_drop_zero) {
   __ DropBySMI(xzr, 8);
   __ ClaimBySMI(xzr, 0);
   __ DropBySMI(xzr, 0);
-  CHECK_EQ(0, __ SizeOfCodeGeneratedSince(&start));
+  CHECK_EQ(0u, __ SizeOfCodeGeneratedSince(&start));
 
   END();
 

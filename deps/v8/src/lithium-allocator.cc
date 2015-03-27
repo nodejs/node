@@ -511,8 +511,7 @@ LifetimePosition LiveRange::FirstIntersection(LiveRange* other) {
 
 
 LAllocator::LAllocator(int num_values, HGraph* graph)
-    : zone_(graph->isolate()),
-      chunk_(NULL),
+    : chunk_(NULL),
       live_in_sets_(graph->blocks()->length(), zone()),
       live_ranges_(num_values * 2, zone()),
       fixed_live_ranges_(NULL),
@@ -2175,8 +2174,8 @@ LAllocatorPhase::LAllocatorPhase(const char* name, LAllocator* allocator)
 
 LAllocatorPhase::~LAllocatorPhase() {
   if (FLAG_hydrogen_stats) {
-    unsigned size = allocator_->zone()->allocation_size() -
-                    allocator_zone_start_allocation_size_;
+    size_t size = allocator_->zone()->allocation_size() -
+                  allocator_zone_start_allocation_size_;
     isolate()->GetHStatistics()->SaveTiming(name(), base::TimeDelta(), size);
   }
 

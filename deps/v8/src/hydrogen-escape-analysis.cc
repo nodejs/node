@@ -131,8 +131,8 @@ HValue* HEscapeAnalysisPhase::NewMapCheckAndInsert(HCapturedObject* state,
   HValue* value = state->map_value();
   // TODO(mstarzinger): This will narrow a map check against a set of maps
   // down to the first element in the set. Revisit and fix this.
-  HCheckValue* check = HCheckValue::New(
-      zone, NULL, value, mapcheck->maps()->at(0), false);
+  HCheckValue* check = HCheckValue::New(graph()->isolate(), zone, NULL, value,
+                                        mapcheck->maps()->at(0), false);
   check->InsertBefore(mapcheck);
   return check;
 }
@@ -146,8 +146,8 @@ HValue* HEscapeAnalysisPhase::NewLoadReplacement(
   Representation representation = load->representation();
   if (representation.IsSmiOrInteger32() || representation.IsDouble()) {
     Zone* zone = graph()->zone();
-    HInstruction* new_instr =
-        HForceRepresentation::New(zone, NULL, load_value, representation);
+    HInstruction* new_instr = HForceRepresentation::New(
+        graph()->isolate(), zone, NULL, load_value, representation);
     new_instr->InsertAfter(load);
     replacement = new_instr;
   }

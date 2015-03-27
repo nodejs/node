@@ -50,47 +50,11 @@ std::ostream& operator<<(std::ostream& os,
       return os << "[" << conf->general_register_name(op.index()) << "|R]";
     case InstructionOperand::DOUBLE_REGISTER:
       return os << "[" << conf->double_register_name(op.index()) << "|R]";
+    case InstructionOperand::INVALID:
+      return os << "(x)";
   }
   UNREACHABLE();
   return os;
-}
-
-
-template <InstructionOperand::Kind kOperandKind, int kNumCachedOperands>
-SubKindOperand<kOperandKind, kNumCachedOperands>*
-    SubKindOperand<kOperandKind, kNumCachedOperands>::cache = NULL;
-
-
-template <InstructionOperand::Kind kOperandKind, int kNumCachedOperands>
-void SubKindOperand<kOperandKind, kNumCachedOperands>::SetUpCache() {
-  if (cache) return;
-  cache = new SubKindOperand[kNumCachedOperands];
-  for (int i = 0; i < kNumCachedOperands; i++) {
-    cache[i].ConvertTo(kOperandKind, i);
-  }
-}
-
-
-template <InstructionOperand::Kind kOperandKind, int kNumCachedOperands>
-void SubKindOperand<kOperandKind, kNumCachedOperands>::TearDownCache() {
-  delete[] cache;
-  cache = NULL;
-}
-
-
-void InstructionOperand::SetUpCaches() {
-#define INSTRUCTION_OPERAND_SETUP(name, type, number) \
-  name##Operand::SetUpCache();
-  INSTRUCTION_OPERAND_LIST(INSTRUCTION_OPERAND_SETUP)
-#undef INSTRUCTION_OPERAND_SETUP
-}
-
-
-void InstructionOperand::TearDownCaches() {
-#define INSTRUCTION_OPERAND_TEARDOWN(name, type, number) \
-  name##Operand::TearDownCache();
-  INSTRUCTION_OPERAND_LIST(INSTRUCTION_OPERAND_TEARDOWN)
-#undef INSTRUCTION_OPERAND_TEARDOWN
 }
 
 
@@ -114,6 +78,40 @@ bool ParallelMove::IsRedundant() const {
     if (!move_operands_[i].IsRedundant()) return false;
   }
   return true;
+}
+
+
+Instruction::Instruction(InstructionCode opcode)
+    : opcode_(opcode),
+      bit_field_(OutputCountField::encode(0) | InputCountField::encode(0) |
+                 TempCountField::encode(0) | IsCallField::encode(false) |
+                 IsControlField::encode(false)),
+      pointer_map_(NULL) {}
+
+
+Instruction::Instruction(InstructionCode opcode, size_t output_count,
+                         InstructionOperand* outputs, size_t input_count,
+                         InstructionOperand* inputs, size_t temp_count,
+                         InstructionOperand* temps)
+    : opcode_(opcode),
+      bit_field_(OutputCountField::encode(output_count) |
+                 InputCountField::encode(input_count) |
+                 TempCountField::encode(temp_count) |
+                 IsCallField::encode(false) | IsControlField::encode(false)),
+      pointer_map_(NULL) {
+  size_t offset = 0;
+  for (size_t i = 0; i < output_count; ++i) {
+    DCHECK(!outputs[i].IsInvalid());
+    operands_[offset++] = outputs[i];
+  }
+  for (size_t i = 0; i < input_count; ++i) {
+    DCHECK(!inputs[i].IsInvalid());
+    operands_[offset++] = inputs[i];
+  }
+  for (size_t i = 0; i < temp_count; ++i) {
+    DCHECK(!temps[i].IsInvalid());
+    operands_[offset++] = temps[i];
+  }
 }
 
 
@@ -252,14 +250,6 @@ std::ostream& operator<<(std::ostream& os, const FlagsCondition& fc) {
       return os << "unordered equal";
     case kUnorderedNotEqual:
       return os << "unordered not equal";
-    case kUnorderedLessThan:
-      return os << "unordered less than";
-    case kUnorderedGreaterThanOrEqual:
-      return os << "unordered greater than or equal";
-    case kUnorderedLessThanOrEqual:
-      return os << "unordered less than or equal";
-    case kUnorderedGreaterThan:
-      return os << "unordered greater than";
     case kOverflow:
       return os << "overflow";
     case kNotOverflow:
@@ -287,7 +277,7 @@ std::ostream& operator<<(std::ostream& os,
 
   if (instr.IsGapMoves()) {
     const GapInstruction* gap = GapInstruction::cast(&instr);
-    os << (instr.IsBlockStart() ? " block-start" : "gap ");
+    os << "gap ";
     for (int i = GapInstruction::FIRST_INNER_POSITION;
          i <= GapInstruction::LAST_INNER_POSITION; i++) {
       os << "(";
@@ -347,6 +337,22 @@ std::ostream& operator<<(std::ostream& os, const Constant& constant) {
 }
 
 
+PhiInstruction::PhiInstruction(Zone* zone, int virtual_register,
+                               size_t input_count)
+    : virtual_register_(virtual_register),
+      output_(UnallocatedOperand(UnallocatedOperand::NONE, virtual_register)),
+      operands_(input_count, zone),
+      inputs_(input_count, zone) {}
+
+
+void PhiInstruction::SetInput(size_t offset, int virtual_register) {
+  DCHECK(inputs_[offset].IsInvalid());
+  auto input = UnallocatedOperand(UnallocatedOperand::ANY, virtual_register);
+  inputs_[offset] = input;
+  operands_[offset] = virtual_register;
+}
+
+
 InstructionBlock::InstructionBlock(Zone* zone, BasicBlock::Id id,
                                    BasicBlock::RpoNumber rpo_number,
                                    BasicBlock::RpoNumber loop_header,
@@ -395,14 +401,12 @@ static InstructionBlock* InstructionBlockFor(Zone* zone,
       GetLoopEndRpo(block), block->deferred());
   // Map successors and precessors
   instr_block->successors().reserve(block->SuccessorCount());
-  for (auto it = block->successors_begin(); it != block->successors_end();
-       ++it) {
-    instr_block->successors().push_back((*it)->GetRpoNumber());
+  for (BasicBlock* successor : block->successors()) {
+    instr_block->successors().push_back(successor->GetRpoNumber());
   }
   instr_block->predecessors().reserve(block->PredecessorCount());
-  for (auto it = block->predecessors_begin(); it != block->predecessors_end();
-       ++it) {
-    instr_block->predecessors().push_back((*it)->GetRpoNumber());
+  for (BasicBlock* predecessor : block->predecessors()) {
+    instr_block->predecessors().push_back(predecessor->GetRpoNumber());
   }
   return instr_block;
 }
@@ -416,7 +420,7 @@ InstructionBlocks* InstructionSequence::InstructionBlocksFor(
   size_t rpo_number = 0;
   for (BasicBlockVector::const_iterator it = schedule->rpo_order()->begin();
        it != schedule->rpo_order()->end(); ++it, ++rpo_number) {
-    DCHECK_EQ(NULL, (*blocks)[rpo_number]);
+    DCHECK(!(*blocks)[rpo_number]);
     DCHECK((*it)->GetRpoNumber().ToSize() == rpo_number);
     (*blocks)[rpo_number] = InstructionBlockFor(zone, *it);
   }
@@ -440,9 +444,11 @@ void InstructionSequence::ComputeAssemblyOrder(InstructionBlocks* blocks) {
 }
 
 
-InstructionSequence::InstructionSequence(Zone* instruction_zone,
+InstructionSequence::InstructionSequence(Isolate* isolate,
+                                         Zone* instruction_zone,
                                          InstructionBlocks* instruction_blocks)
-    : zone_(instruction_zone),
+    : isolate_(isolate),
+      zone_(instruction_zone),
       instruction_blocks_(instruction_blocks),
       block_starts_(zone()),
       constants_(ConstantMap::key_compare(),
@@ -458,10 +464,17 @@ InstructionSequence::InstructionSequence(Zone* instruction_zone,
 }
 
 
-BlockStartInstruction* InstructionSequence::GetBlockStart(
+int InstructionSequence::NextVirtualRegister() {
+  int virtual_register = next_virtual_register_++;
+  CHECK_NE(virtual_register, InstructionOperand::kInvalidVirtualRegister);
+  return virtual_register;
+}
+
+
+GapInstruction* InstructionSequence::GetBlockStart(
     BasicBlock::RpoNumber rpo) const {
   const InstructionBlock* block = InstructionBlockAt(rpo);
-  return BlockStartInstruction::cast(InstructionAt(block->code_start()));
+  return GapInstruction::cast(InstructionAt(block->code_start()));
 }
 
 
@@ -471,26 +484,26 @@ void InstructionSequence::StartBlock(BasicBlock::RpoNumber rpo) {
   int code_start = static_cast<int>(instructions_.size());
   block->set_code_start(code_start);
   block_starts_.push_back(code_start);
-  BlockStartInstruction* block_start = BlockStartInstruction::New(zone());
-  AddInstruction(block_start);
 }
 
 
 void InstructionSequence::EndBlock(BasicBlock::RpoNumber rpo) {
   int end = static_cast<int>(instructions_.size());
   InstructionBlock* block = InstructionBlockAt(rpo);
+  if (block->code_start() == end) {  // Empty block.  Insert a nop.
+    AddInstruction(Instruction::New(zone(), kArchNop));
+    end = static_cast<int>(instructions_.size());
+  }
   DCHECK(block->code_start() >= 0 && block->code_start() < end);
   block->set_code_end(end);
 }
 
 
 int InstructionSequence::AddInstruction(Instruction* instr) {
-  // TODO(titzer): the order of these gaps is a holdover from Lithium.
   GapInstruction* gap = GapInstruction::New(zone());
-  if (instr->IsControl()) instructions_.push_back(gap);
+  instructions_.push_back(gap);
   int index = static_cast<int>(instructions_.size());
   instructions_.push_back(instr);
-  if (!instr->IsControl()) instructions_.push_back(gap);
   if (instr->NeedsPointerMap()) {
     DCHECK(instr->pointer_map() == NULL);
     PointerMap* pointer_map = new (zone()) PointerMap(zone());
@@ -669,10 +682,10 @@ std::ostream& operator<<(std::ostream& os,
 
     for (auto phi : block->phis()) {
       PrintableInstructionOperand printable_op = {
-          printable.register_configuration_, phi->output()};
+          printable.register_configuration_, &phi->output()};
       os << "     phi: " << printable_op << " =";
       for (auto input : phi->inputs()) {
-        printable_op.op_ = input;
+        printable_op.op_ = &input;
         os << " " << printable_op;
       }
       os << "\n";

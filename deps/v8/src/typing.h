@@ -9,7 +9,6 @@
 
 #include "src/allocation.h"
 #include "src/ast.h"
-#include "src/compiler.h"
 #include "src/effects.h"
 #include "src/scopes.h"
 #include "src/type-info.h"
@@ -24,9 +23,7 @@ class AstTyper: public AstVisitor {
  public:
   static void Run(CompilationInfo* info);
 
-  void* operator new(size_t size, Zone* zone) {
-    return zone->New(static_cast<int>(size));
-  }
+  void* operator new(size_t size, Zone* zone) { return zone->New(size); }
   void operator delete(void* pointer, Zone* zone) { }
   void operator delete(void* pointer) { }
 

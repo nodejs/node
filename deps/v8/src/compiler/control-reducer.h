@@ -7,8 +7,14 @@
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class Zone;
+
+
 namespace compiler {
 
+// Forward declarations.
 class JSGraph;
 class CommonOperatorBuilder;
 class Node;
@@ -22,15 +28,16 @@ class ControlReducer {
   // Trim nodes in the graph that are not reachable from end.
   static void TrimGraph(Zone* zone, JSGraph* graph);
 
+  // Reduces a single merge node and attached phis.
+  static Node* ReduceMerge(JSGraph* graph, CommonOperatorBuilder* builder,
+                           Node* node);
+
   // Testing interface.
   static Node* ReducePhiForTesting(JSGraph* graph,
                                    CommonOperatorBuilder* builder, Node* node);
-  static Node* ReduceBranchForTesting(JSGraph* graph,
+  static Node* ReduceIfNodeForTesting(JSGraph* graph,
                                       CommonOperatorBuilder* builder,
                                       Node* node);
-  static Node* ReduceMergeForTesting(JSGraph* graph,
-                                     CommonOperatorBuilder* builder,
-                                     Node* node);
 };
 }
 }

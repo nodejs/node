@@ -255,6 +255,6 @@ TEST(FlagsRemoveIncomplete) {
   CHECK_EQ(2, FlagList::SetFlagsFromCommandLine(&argc,
                                                 const_cast<char **>(argv),
                                                 true));
-  CHECK_NE(NULL, argv[1]);
+  CHECK(argv[1]);
   CHECK_EQ(argc, 2);
 }

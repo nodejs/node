@@ -13,7 +13,8 @@
 #include <mach/mach_time.h>
 #endif
 
-#include <string.h>
+#include <cstring>
+#include <ostream>
 
 #if V8_OS_WIN
 #include "src/base/lazy-instance.h"
@@ -352,6 +353,11 @@ double Time::ToJsTime() const {
     return std::numeric_limits<double>::max();
   }
   return static_cast<double>(us_) / kMicrosecondsPerMillisecond;
+}
+
+
+std::ostream& operator<<(std::ostream& os, const Time& time) {
+  return os << time.ToJsTime();
 }
 
 

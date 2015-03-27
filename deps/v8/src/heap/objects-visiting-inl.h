@@ -262,10 +262,8 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(Heap* heap,
   // when they might be keeping a Context alive, or when the heap is about
   // to be serialized.
   if (FLAG_cleanup_code_caches_at_gc && target->is_inline_cache_stub() &&
-      !target->is_call_stub() &&
-      ((heap->flush_monomorphic_ics() && !target->embeds_maps_weakly()) ||
-       heap->isolate()->serializer_enabled() ||
-       target->ic_age() != heap->global_ic_age())) {
+      !target->is_call_stub() && (heap->isolate()->serializer_enabled() ||
+                                  target->ic_age() != heap->global_ic_age())) {
     ICUtility::Clear(heap->isolate(), rinfo->pc(),
                      rinfo->host()->constant_pool());
     target = Code::GetCodeFromTargetAddress(rinfo->target_address());
@@ -329,19 +327,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitPropertyCell(
     Map* map, HeapObject* object) {
   Heap* heap = map->GetHeap();
 
-  Object** slot =
-      HeapObject::RawField(object, PropertyCell::kDependentCodeOffset);
-  if (FLAG_collect_maps) {
-    // Mark property cell dependent codes array but do not push it onto marking
-    // stack, this will make references from it weak. We will clean dead
-    // codes when we iterate over property cells in ClearNonLiveReferences.
-    HeapObject* obj = HeapObject::cast(*slot);
-    heap->mark_compact_collector()->RecordSlot(slot, slot, obj);
-    StaticVisitor::MarkObjectWithoutPush(heap, obj);
-  } else {
-    StaticVisitor::VisitPointer(heap, slot);
-  }
-
   StaticVisitor::VisitPointers(
       heap,
       HeapObject::RawField(object, PropertyCell::kPointerFieldsBeginOffset),
@@ -369,20 +354,6 @@ template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitAllocationSite(
     Map* map, HeapObject* object) {
   Heap* heap = map->GetHeap();
-
-  Object** slot =
-      HeapObject::RawField(object, AllocationSite::kDependentCodeOffset);
-  if (FLAG_collect_maps) {
-    // Mark allocation site dependent codes array but do not push it onto
-    // marking stack, this will make references from it weak. We will clean
-    // dead codes when we iterate over allocation sites in
-    // ClearNonLiveReferences.
-    HeapObject* obj = HeapObject::cast(*slot);
-    heap->mark_compact_collector()->RecordSlot(slot, slot, obj);
-    StaticVisitor::MarkObjectWithoutPush(heap, obj);
-  } else {
-    StaticVisitor::VisitPointer(heap, slot);
-  }
 
   StaticVisitor::VisitPointers(
       heap,
@@ -446,7 +417,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfo(
     shared->ResetForNewContext(heap->global_ic_age());
   }
   if (FLAG_cleanup_code_caches_at_gc) {
-    shared->ClearTypeFeedbackInfo();
+    shared->ClearTypeFeedbackInfoAtGCTime();
   }
   if (FLAG_cache_optimized_code && FLAG_flush_optimized_code_cache &&
       !shared->optimized_code_map()->IsSmi()) {
@@ -645,14 +616,6 @@ void StaticMarkingVisitor<StaticVisitor>::MarkMapContents(Heap* heap,
                                  descriptors->GetDescriptorStartSlot(start),
                                  descriptors->GetDescriptorEndSlot(end));
   }
-
-  // Mark prototype dependent codes array but do not push it onto marking
-  // stack, this will make references from it weak. We will clean dead
-  // codes when we iterate over maps in ClearNonLiveTransitions.
-  Object** slot = HeapObject::RawField(map, Map::kDependentCodeOffset);
-  HeapObject* obj = HeapObject::cast(*slot);
-  heap->mark_compact_collector()->RecordSlot(slot, slot, obj);
-  StaticVisitor::MarkObjectWithoutPush(heap, obj);
 
   // Mark the pointer fields of the Map. Since the transitions array has
   // been marked already, it is fine that one of these fields contains a

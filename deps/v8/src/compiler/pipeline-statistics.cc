@@ -43,7 +43,7 @@ void PipelineStatistics::CommonStats::End(
 
 PipelineStatistics::PipelineStatistics(CompilationInfo* info,
                                        ZonePool* zone_pool)
-    : isolate_(info->zone()->isolate()),
+    : isolate_(info->isolate()),
       outer_zone_(info->zone()),
       zone_pool_(zone_pool),
       compilation_stats_(isolate_->GetTurboStatistics()),

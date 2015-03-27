@@ -312,8 +312,8 @@ function SHR(y) {
 */
 
 // ECMA-262, section 11.4.1, page 46.
-function DELETE(key, strict) {
-  return %DeleteProperty(%ToObject(this), %ToName(key), strict);
+function DELETE(key, language_mode) {
+  return %DeleteProperty(%ToObject(this), %ToName(key), language_mode);
 }
 
 
@@ -377,7 +377,9 @@ function FILTER_KEY(key) {
 function CALL_NON_FUNCTION() {
   var delegate = %GetFunctionDelegate(this);
   if (!IS_FUNCTION(delegate)) {
-    throw %MakeTypeError('called_non_callable', [typeof this]);
+    var callsite = %RenderCallSite();
+    if (callsite == "") callsite = typeof this;
+    throw %MakeTypeError('called_non_callable', [callsite]);
   }
   return %Apply(delegate, this, arguments, 0, %_ArgumentsLength());
 }
@@ -386,7 +388,9 @@ function CALL_NON_FUNCTION() {
 function CALL_NON_FUNCTION_AS_CONSTRUCTOR() {
   var delegate = %GetConstructorDelegate(this);
   if (!IS_FUNCTION(delegate)) {
-    throw %MakeTypeError('called_non_callable', [typeof this]);
+    var callsite = %RenderCallSite();
+    if (callsite == "") callsite = typeof this;
+    throw %MakeTypeError('called_non_callable', [callsite]);
   }
   return %Apply(delegate, this, arguments, 0, %_ArgumentsLength());
 }
@@ -465,6 +469,12 @@ function TO_NUMBER() {
 // Convert the receiver to a string - forward to ToString.
 function TO_STRING() {
   return %ToString(this);
+}
+
+
+// Convert the receiver to a string or symbol - forward to ToName.
+function TO_NAME() {
+  return %ToName(this);
 }
 
 

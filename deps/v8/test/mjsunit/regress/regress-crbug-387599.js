@@ -8,9 +8,7 @@ Debug = debug.Debug;
 Debug.setListener(function() {});
 
 function f() {
-  for (var i = 0; i < 100; i++) {
-    %OptimizeFunctionOnNextCall(f, "osr");
-  }
+  for (var i = 0; i < 100; i++) %OptimizeOsr();
 }
 
 Debug.setBreakPoint(f, 0, 0);

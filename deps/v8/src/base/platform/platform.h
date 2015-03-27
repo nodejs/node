@@ -246,9 +246,6 @@ class OS {
   // using --never-compact) if accurate profiling is desired.
   static void SignalCodeMovingGC();
 
-  // Returns the double constant NAN
-  static double nan_value();
-
   // Support runtime detection of whether the hard float option of the
   // EABI is used.
   static bool ArmUsingHardFloat();

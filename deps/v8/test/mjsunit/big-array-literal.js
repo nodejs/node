@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // On MacOS X 10.7.5, this test needs a stack size of at least 788 kBytes.
+// On PPC64, this test needs a stack size of at least 698 kBytes.
 // Flags: --stack-size=800
 // Flags: --turbo-deoptimization
 

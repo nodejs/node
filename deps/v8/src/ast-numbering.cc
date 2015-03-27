@@ -15,12 +15,11 @@ namespace internal {
 
 class AstNumberingVisitor FINAL : public AstVisitor {
  public:
-  explicit AstNumberingVisitor(Zone* zone)
+  explicit AstNumberingVisitor(Isolate* isolate, Zone* zone)
       : AstVisitor(),
         next_id_(BailoutId::FirstUsable().ToInt()),
-        dont_crankshaft_reason_(kNoReason),
-        dont_turbofan_reason_(kNoReason) {
-    InitializeAstVisitor(zone);
+        dont_optimize_reason_(kNoReason) {
+    InitializeAstVisitor(isolate, zone);
   }
 
   bool Renumber(FunctionLiteral* node);
@@ -45,23 +44,15 @@ class AstNumberingVisitor FINAL : public AstVisitor {
   }
 
   void IncrementNodeCount() { properties_.add_node_count(1); }
-  void DisableCrankshaft(BailoutReason reason) {
-    dont_crankshaft_reason_ = reason;
-    properties_.flags()->Add(kDontSelfOptimize);
-  }
-  // TODO(turbofan): Remove the dont_turbofan_reason once no nodes are
-  // DontTurbofanNode.  That set of nodes must be kept in sync with
-  // Pipeline::GenerateCode.
-  void DisableTurbofan(BailoutReason reason) {
-    dont_crankshaft_reason_ = reason;
-    dont_turbofan_reason_ = reason;
-    DisableSelfOptimization();
-  }
   void DisableSelfOptimization() {
     properties_.flags()->Add(kDontSelfOptimize);
   }
+  void DisableOptimization(BailoutReason reason) {
+    dont_optimize_reason_ = reason;
+    DisableSelfOptimization();
+  }
   void DisableCaching(BailoutReason reason) {
-    dont_crankshaft_reason_ = reason;
+    dont_optimize_reason_ = reason;
     DisableSelfOptimization();
     properties_.flags()->Add(kDontCache);
   }
@@ -86,15 +77,11 @@ class AstNumberingVisitor FINAL : public AstVisitor {
     }
   }
 
-  BailoutReason dont_optimize_reason() const {
-    return (dont_turbofan_reason_ != kNoReason) ? dont_turbofan_reason_
-                                                : dont_crankshaft_reason_;
-  }
+  BailoutReason dont_optimize_reason() const { return dont_optimize_reason_; }
 
   int next_id_;
   AstProperties properties_;
-  BailoutReason dont_crankshaft_reason_;
-  BailoutReason dont_turbofan_reason_;
+  BailoutReason dont_optimize_reason_;
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
   DISALLOW_COPY_AND_ASSIGN(AstNumberingVisitor);
@@ -109,14 +96,14 @@ void AstNumberingVisitor::VisitVariableDeclaration(VariableDeclaration* node) {
 
 void AstNumberingVisitor::VisitExportDeclaration(ExportDeclaration* node) {
   IncrementNodeCount();
-  DisableCrankshaft(kExportDeclaration);
+  DisableOptimization(kExportDeclaration);
   VisitVariableProxy(node->proxy());
 }
 
 
 void AstNumberingVisitor::VisitModuleUrl(ModuleUrl* node) {
   IncrementNodeCount();
-  DisableCrankshaft(kModuleUrl);
+  DisableOptimization(kModuleUrl);
 }
 
 
@@ -137,7 +124,7 @@ void AstNumberingVisitor::VisitBreakStatement(BreakStatement* node) {
 
 void AstNumberingVisitor::VisitDebuggerStatement(DebuggerStatement* node) {
   IncrementNodeCount();
-  DisableCrankshaft(kDebuggerStatement);
+  DisableOptimization(kDebuggerStatement);
   node->set_base_id(ReserveIdRange(DebuggerStatement::num_ids()));
 }
 
@@ -145,7 +132,7 @@ void AstNumberingVisitor::VisitDebuggerStatement(DebuggerStatement* node) {
 void AstNumberingVisitor::VisitNativeFunctionLiteral(
     NativeFunctionLiteral* node) {
   IncrementNodeCount();
-  DisableCrankshaft(kNativeFunctionLiteral);
+  DisableOptimization(kNativeFunctionLiteral);
   node->set_base_id(ReserveIdRange(NativeFunctionLiteral::num_ids()));
 }
 
@@ -165,7 +152,7 @@ void AstNumberingVisitor::VisitRegExpLiteral(RegExpLiteral* node) {
 void AstNumberingVisitor::VisitVariableProxy(VariableProxy* node) {
   IncrementNodeCount();
   if (node->var()->IsLookupSlot()) {
-    DisableCrankshaft(kReferenceToAVariableWhichRequiresDynamicLookup);
+    DisableOptimization(kReferenceToAVariableWhichRequiresDynamicLookup);
   }
   ReserveFeedbackSlots(node);
   node->set_base_id(ReserveIdRange(VariableProxy::num_ids()));
@@ -180,7 +167,7 @@ void AstNumberingVisitor::VisitThisFunction(ThisFunction* node) {
 
 void AstNumberingVisitor::VisitSuperReference(SuperReference* node) {
   IncrementNodeCount();
-  DisableTurbofan(kSuperReference);
+  DisableOptimization(kSuperReference);
   ReserveFeedbackSlots(node);
   node->set_base_id(ReserveIdRange(SuperReference::num_ids()));
   Visit(node->this_var());
@@ -189,7 +176,7 @@ void AstNumberingVisitor::VisitSuperReference(SuperReference* node) {
 
 void AstNumberingVisitor::VisitModuleDeclaration(ModuleDeclaration* node) {
   IncrementNodeCount();
-  DisableCrankshaft(kModuleDeclaration);
+  DisableOptimization(kModuleDeclaration);
   VisitVariableProxy(node->proxy());
   Visit(node->module());
 }
@@ -197,29 +184,22 @@ void AstNumberingVisitor::VisitModuleDeclaration(ModuleDeclaration* node) {
 
 void AstNumberingVisitor::VisitImportDeclaration(ImportDeclaration* node) {
   IncrementNodeCount();
-  DisableCrankshaft(kImportDeclaration);
+  DisableOptimization(kImportDeclaration);
   VisitVariableProxy(node->proxy());
   Visit(node->module());
 }
 
 
-void AstNumberingVisitor::VisitModuleVariable(ModuleVariable* node) {
-  IncrementNodeCount();
-  DisableCrankshaft(kModuleVariable);
-  Visit(node->proxy());
-}
-
-
 void AstNumberingVisitor::VisitModulePath(ModulePath* node) {
   IncrementNodeCount();
-  DisableCrankshaft(kModulePath);
+  DisableOptimization(kModulePath);
   Visit(node->module());
 }
 
 
 void AstNumberingVisitor::VisitModuleStatement(ModuleStatement* node) {
   IncrementNodeCount();
-  DisableCrankshaft(kModuleStatement);
+  DisableOptimization(kModuleStatement);
   Visit(node->body());
 }
 
@@ -238,7 +218,7 @@ void AstNumberingVisitor::VisitReturnStatement(ReturnStatement* node) {
 
 void AstNumberingVisitor::VisitYield(Yield* node) {
   IncrementNodeCount();
-  DisableCrankshaft(kYield);
+  DisableOptimization(kYield);
   ReserveFeedbackSlots(node);
   node->set_base_id(ReserveIdRange(Yield::num_ids()));
   Visit(node->generator_object());
@@ -294,7 +274,7 @@ void AstNumberingVisitor::VisitCallRuntime(CallRuntime* node) {
   ReserveFeedbackSlots(node);
   if (node->is_jsruntime()) {
     // Don't try to optimize JS runtime calls because we bailout on them.
-    DisableCrankshaft(kCallToAJavaScriptRuntimeFunction);
+    DisableOptimization(kCallToAJavaScriptRuntimeFunction);
   }
   node->set_base_id(ReserveIdRange(CallRuntime::num_ids()));
   VisitArguments(node->arguments());
@@ -303,7 +283,8 @@ void AstNumberingVisitor::VisitCallRuntime(CallRuntime* node) {
 
 void AstNumberingVisitor::VisitWithStatement(WithStatement* node) {
   IncrementNodeCount();
-  DisableCrankshaft(kWithStatement);
+  DisableOptimization(kWithStatement);
+  node->set_base_id(ReserveIdRange(WithStatement::num_ids()));
   Visit(node->expression());
   Visit(node->statement());
 }
@@ -329,7 +310,7 @@ void AstNumberingVisitor::VisitWhileStatement(WhileStatement* node) {
 
 void AstNumberingVisitor::VisitTryCatchStatement(TryCatchStatement* node) {
   IncrementNodeCount();
-  DisableTurbofan(kTryCatchStatement);
+  DisableOptimization(kTryCatchStatement);
   Visit(node->try_block());
   Visit(node->catch_block());
 }
@@ -337,7 +318,7 @@ void AstNumberingVisitor::VisitTryCatchStatement(TryCatchStatement* node) {
 
 void AstNumberingVisitor::VisitTryFinallyStatement(TryFinallyStatement* node) {
   IncrementNodeCount();
-  DisableTurbofan(kTryFinallyStatement);
+  DisableOptimization(kTryFinallyStatement);
   Visit(node->try_block());
   Visit(node->finally_block());
 }
@@ -390,7 +371,7 @@ void AstNumberingVisitor::VisitForInStatement(ForInStatement* node) {
 
 void AstNumberingVisitor::VisitForOfStatement(ForOfStatement* node) {
   IncrementNodeCount();
-  DisableTurbofan(kForOfStatement);
+  DisableOptimization(kForOfStatement);
   node->set_base_id(ReserveIdRange(ForOfStatement::num_ids()));
   Visit(node->assign_iterator());
   Visit(node->next_result());
@@ -452,8 +433,8 @@ void AstNumberingVisitor::VisitForStatement(ForStatement* node) {
 
 void AstNumberingVisitor::VisitClassLiteral(ClassLiteral* node) {
   IncrementNodeCount();
-  DisableTurbofan(kClassLiteral);
-  node->set_base_id(ReserveIdRange(ClassLiteral::num_ids()));
+  DisableOptimization(kClassLiteral);
+  node->set_base_id(ReserveIdRange(node->num_ids()));
   if (node->extends()) Visit(node->extends());
   if (node->constructor()) Visit(node->constructor());
   if (node->class_variable_proxy()) {
@@ -467,7 +448,7 @@ void AstNumberingVisitor::VisitClassLiteral(ClassLiteral* node) {
 
 void AstNumberingVisitor::VisitObjectLiteral(ObjectLiteral* node) {
   IncrementNodeCount();
-  node->set_base_id(ReserveIdRange(ObjectLiteral::num_ids()));
+  node->set_base_id(ReserveIdRange(node->num_ids()));
   for (int i = 0; i < node->properties()->length(); i++) {
     VisitObjectLiteralProperty(node->properties()->at(i));
   }
@@ -476,6 +457,7 @@ void AstNumberingVisitor::VisitObjectLiteral(ObjectLiteral* node) {
 
 void AstNumberingVisitor::VisitObjectLiteralProperty(
     ObjectLiteralProperty* node) {
+  if (node->is_computed_name()) DisableOptimization(kComputedPropertyName);
   Visit(node->key());
   Visit(node->value());
 }
@@ -551,12 +533,12 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
 
   if (scope->HasIllegalRedeclaration()) {
     scope->VisitIllegalRedeclaration(this);
-    DisableCrankshaft(kFunctionWithIllegalRedeclaration);
+    DisableOptimization(kFunctionWithIllegalRedeclaration);
     return Finish(node);
   }
-  if (scope->calls_eval()) DisableCrankshaft(kFunctionCallsEval);
+  if (scope->calls_eval()) DisableOptimization(kFunctionCallsEval);
   if (scope->arguments() != NULL && !scope->arguments()->IsStackAllocated()) {
-    DisableCrankshaft(kContextAllocatedArguments);
+    DisableOptimization(kContextAllocatedArguments);
   }
 
   VisitDeclarations(scope->declarations());
@@ -570,8 +552,9 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
 }
 
 
-bool AstNumbering::Renumber(FunctionLiteral* function, Zone* zone) {
-  AstNumberingVisitor visitor(zone);
+bool AstNumbering::Renumber(Isolate* isolate, Zone* zone,
+                            FunctionLiteral* function) {
+  AstNumberingVisitor visitor(isolate, zone);
   return visitor.Renumber(function);
 }
 }

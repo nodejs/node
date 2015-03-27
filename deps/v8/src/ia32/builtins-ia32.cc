@@ -100,6 +100,42 @@ void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
 }
 
 
+static void Generate_Runtime_NewObject(MacroAssembler* masm,
+                                       bool create_memento,
+                                       Register original_constructor,
+                                       Label* count_incremented,
+                                       Label* allocated) {
+  int offset = 0;
+  if (create_memento) {
+    // Get the cell or allocation site.
+    __ mov(edi, Operand(esp, kPointerSize * 2));
+    __ push(edi);
+    offset = kPointerSize;
+  }
+
+  // Must restore esi (context) and edi (constructor) before calling
+  // runtime.
+  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+  __ mov(edi, Operand(esp, offset));
+  __ push(edi);
+  __ push(original_constructor);
+  if (create_memento) {
+    __ CallRuntime(Runtime::kNewObjectWithAllocationSite, 3);
+  } else {
+    __ CallRuntime(Runtime::kNewObject, 2);
+  }
+  __ mov(ebx, eax);  // store result in ebx
+
+  // Runtime_NewObjectWithAllocationSite increments allocation count.
+  // Skip the increment.
+  if (create_memento) {
+    __ jmp(count_incremented);
+  } else {
+    __ jmp(allocated);
+  }
+}
+
+
 static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                                            bool is_api_function,
                                            bool create_memento) {
@@ -107,6 +143,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   //  -- eax: number of arguments
   //  -- edi: constructor function
   //  -- ebx: allocation site or undefined
+  //  -- edx: original constructor
   // -----------------------------------
 
   // Should never create mementos for api functions.
@@ -128,9 +165,20 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // Push the function to invoke on the stack.
     __ push(edi);
 
+    __ cmp(edx, edi);
+    Label normal_new;
+    Label count_incremented;
+    Label allocated;
+    __ j(equal, &normal_new);
+
+    // Original constructor and function are different.
+    Generate_Runtime_NewObject(masm, create_memento, edx, &count_incremented,
+                               &allocated);
+    __ bind(&normal_new);
+
     // Try to allocate the object without transitioning into C code. If any of
     // the preconditions is not met, the code bails out to the runtime call.
-    Label rt_call, allocated;
+    Label rt_call;
     if (FLAG_inline_new) {
       Label undo_allocation;
       ExternalReference debug_step_in_fp =
@@ -344,34 +392,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
     // Allocate the new receiver object using the runtime call.
     __ bind(&rt_call);
-    int offset = 0;
-    if (create_memento) {
-      // Get the cell or allocation site.
-      __ mov(edi, Operand(esp, kPointerSize * 2));
-      __ push(edi);
-      offset = kPointerSize;
-    }
-
-    // Must restore esi (context) and edi (constructor) before calling runtime.
-    __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-    __ mov(edi, Operand(esp, offset));
-    // edi: function (constructor)
-    __ push(edi);
-    if (create_memento) {
-      __ CallRuntime(Runtime::kNewObjectWithAllocationSite, 2);
-    } else {
-      __ CallRuntime(Runtime::kNewObject, 1);
-    }
-    __ mov(ebx, eax);  // store result in ebx
-
-    // If we ended up using the runtime, and we want a memento, then the
-    // runtime call made it for us, and we shouldn't do create count
-    // increment.
-    Label count_incremented;
-    if (create_memento) {
-      __ jmp(&count_incremented);
-    }
-
+    Generate_Runtime_NewObject(masm, create_memento, edi, &count_incremented,
+                               &allocated);
     // New object allocated.
     // ebx: newly allocated object
     __ bind(&allocated);
@@ -475,6 +497,80 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
 void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
   Generate_JSConstructStubHelper(masm, true, false);
+}
+
+
+void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- eax: number of arguments
+  //  -- edi: constructor function
+  //  -- ebx: allocation site or undefined
+  //  -- edx: original constructor
+  // -----------------------------------
+
+  // TODO(dslomov): support pretenuring
+  CHECK(!FLAG_pretenuring_call_new);
+
+  {
+    FrameScope frame_scope(masm, StackFrame::CONSTRUCT);
+
+    // Preserve actual arguments count.
+    __ SmiTag(eax);
+    __ push(eax);
+    __ SmiUntag(eax);
+
+    // Push new.target.
+    __ push(edx);
+
+    // receiver is the hole.
+    __ push(Immediate(masm->isolate()->factory()->the_hole_value()));
+
+    // Set up pointer to last argument.
+    __ lea(ebx, Operand(ebp, StandardFrameConstants::kCallerSPOffset));
+
+    // Copy arguments and receiver to the expression stack.
+    Label loop, entry;
+    __ mov(ecx, eax);
+    __ jmp(&entry);
+    __ bind(&loop);
+    __ push(Operand(ebx, ecx, times_4, 0));
+    __ bind(&entry);
+    __ dec(ecx);
+    __ j(greater_equal, &loop);
+
+    __ inc(eax);  // Pushed new.target.
+
+
+    // Handle step in.
+    Label skip_step_in;
+    ExternalReference debug_step_in_fp =
+        ExternalReference::debug_step_in_fp_address(masm->isolate());
+    __ cmp(Operand::StaticVariable(debug_step_in_fp), Immediate(0));
+    __ j(equal, &skip_step_in);
+
+    __ push(eax);
+    __ push(edi);
+    __ push(edi);
+    __ CallRuntime(Runtime::kHandleStepInForDerivedConstructors, 1);
+    __ pop(edi);
+    __ pop(eax);
+
+    __ bind(&skip_step_in);
+
+    // Invoke function.
+    ParameterCount actual(eax);
+    __ InvokeFunction(edi, actual, CALL_FUNCTION, NullCallWrapper());
+
+    // Restore context from the frame.
+    __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+
+    __ mov(ebx, Operand(esp, 0));
+  }
+
+  __ pop(ecx);  // Return address.
+  __ lea(esp, Operand(esp, ebx, times_2, 1 * kPointerSize));
+  __ push(ecx);
+  __ ret(0);
 }
 
 
@@ -1096,6 +1192,7 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 
   // Get the Array function.
   __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, edi);
+  __ mov(edx, edi);
 
   if (FLAG_debug_code) {
     // Initial map for the builtin Array function should be a map.

@@ -22,8 +22,6 @@ namespace internal {
 // Reference implementation for inlined runtime functions.  Only used when the
 // compiler does not support a certain intrinsic.  Don't optimize these, but
 // implement the intrinsic in the respective compiler instead.
-// TODO(mstarzinger): These are place-holder stubs for TurboFan and will
-// eventually all have a C++ implementation and this macro will be gone.
 #define I(name, number_of_args, result_size)                             \
   Object* RuntimeReference_##name(int args_length, Object** args_object, \
                                   Isolate* isolate);
@@ -80,7 +78,7 @@ void Runtime::InitializeIntrinsicFunctionNames(Isolate* isolate,
     if (name == NULL) continue;
     Handle<NameDictionary> new_dict = NameDictionary::Add(
         dict, isolate->factory()->InternalizeUtf8String(name),
-        Handle<Smi>(Smi::FromInt(i), isolate), PropertyDetails(NONE, FIELD, 0));
+        Handle<Smi>(Smi::FromInt(i), isolate), PropertyDetails(NONE, DATA, 0));
     // The dictionary does not need to grow.
     CHECK(new_dict.is_identical_to(dict));
   }

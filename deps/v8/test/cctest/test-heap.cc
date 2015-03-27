@@ -36,6 +36,7 @@
 #include "src/global-handles.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
+#include "src/snapshot.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
@@ -160,8 +161,7 @@ TEST(HeapObjects) {
   CHECK(value->IsNumber());
   CHECK_EQ(Smi::kMaxValue, Handle<Smi>::cast(value)->value());
 
-#if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_ARM64) && \
-    !defined(V8_TARGET_ARCH_MIPS64)
+#if !defined(V8_TARGET_ARCH_64_BIT)
   // TODO(lrn): We need a NumberFromIntptr function in order to test this.
   value = factory->NewNumberFromInt(Smi::kMinValue - 1);
   CHECK(value->IsHeapNumber());
@@ -650,7 +650,7 @@ TEST(ObjectProperties) {
   CHECK(maybe.value);
 
   // delete first
-  JSReceiver::DeleteProperty(obj, first, JSReceiver::NORMAL_DELETION).Check();
+  JSReceiver::DeleteProperty(obj, first, SLOPPY).Check();
   maybe = JSReceiver::HasOwnProperty(obj, first);
   CHECK(maybe.has_value);
   CHECK(!maybe.value);
@@ -666,11 +666,11 @@ TEST(ObjectProperties) {
   CHECK(maybe.value);
 
   // delete first and then second
-  JSReceiver::DeleteProperty(obj, first, JSReceiver::NORMAL_DELETION).Check();
+  JSReceiver::DeleteProperty(obj, first, SLOPPY).Check();
   maybe = JSReceiver::HasOwnProperty(obj, second);
   CHECK(maybe.has_value);
   CHECK(maybe.value);
-  JSReceiver::DeleteProperty(obj, second, JSReceiver::NORMAL_DELETION).Check();
+  JSReceiver::DeleteProperty(obj, second, SLOPPY).Check();
   maybe = JSReceiver::HasOwnProperty(obj, first);
   CHECK(maybe.has_value);
   CHECK(!maybe.value);
@@ -689,11 +689,11 @@ TEST(ObjectProperties) {
   CHECK(maybe.value);
 
   // delete second and then first
-  JSReceiver::DeleteProperty(obj, second, JSReceiver::NORMAL_DELETION).Check();
+  JSReceiver::DeleteProperty(obj, second, SLOPPY).Check();
   maybe = JSReceiver::HasOwnProperty(obj, first);
   CHECK(maybe.has_value);
   CHECK(maybe.value);
-  JSReceiver::DeleteProperty(obj, first, JSReceiver::NORMAL_DELETION).Check();
+  JSReceiver::DeleteProperty(obj, first, SLOPPY).Check();
   maybe = JSReceiver::HasOwnProperty(obj, first);
   CHECK(maybe.has_value);
   CHECK(!maybe.value);
@@ -1387,6 +1387,8 @@ TEST(CompilationCacheCachingBehavior) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   CompilationCache* compilation_cache = isolate->compilation_cache();
+  LanguageMode language_mode =
+      construct_language_mode(FLAG_use_strict, FLAG_use_strong);
 
   v8::HandleScope scope(CcTest::isolate());
   const char* raw_source =
@@ -1407,7 +1409,8 @@ TEST(CompilationCacheCachingBehavior) {
   // On first compilation, only a hash is inserted in the code cache. We can't
   // find that value.
   MaybeHandle<SharedFunctionInfo> info = compilation_cache->LookupScript(
-      source, Handle<Object>(), 0, 0, true, native_context);
+      source, Handle<Object>(), 0, 0, false, true, native_context,
+      language_mode);
   CHECK(info.is_null());
 
   {
@@ -1417,16 +1420,16 @@ TEST(CompilationCacheCachingBehavior) {
 
   // On second compilation, the hash is replaced by a real cache entry mapping
   // the source to the shared function info containing the code.
-  info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0, true,
-                                         native_context);
+  info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0, false,
+                                         true, native_context, language_mode);
   CHECK(!info.is_null());
 
   heap->CollectAllGarbage(Heap::kNoGCFlags);
 
   // On second compilation, the hash is replaced by a real cache entry mapping
   // the source to the shared function info containing the code.
-  info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0, true,
-                                         native_context);
+  info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0, false,
+                                         true, native_context, language_mode);
   CHECK(!info.is_null());
 
   while (!info.ToHandleChecked()->code()->IsOld()) {
@@ -1435,8 +1438,8 @@ TEST(CompilationCacheCachingBehavior) {
 
   heap->CollectAllGarbage(Heap::kNoGCFlags);
   // Ensure code aging cleared the entry from the cache.
-  info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0, true,
-                                         native_context);
+  info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0, false,
+                                         true, native_context, language_mode);
   CHECK(info.is_null());
 
   {
@@ -1446,8 +1449,8 @@ TEST(CompilationCacheCachingBehavior) {
 
   // On first compilation, only a hash is inserted in the code cache. We can't
   // find that value.
-  info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0, true,
-                                         native_context);
+  info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0, false,
+                                         true, native_context, language_mode);
   CHECK(info.is_null());
 
   for (int i = 0; i < CompilationCacheTable::kHashGenerations; i++) {
@@ -1461,8 +1464,8 @@ TEST(CompilationCacheCachingBehavior) {
 
   // If we aged the cache before caching the script, ensure that we didn't cache
   // on next compilation.
-  info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0, true,
-                                         native_context);
+  info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0, false,
+                                         true, native_context, language_mode);
   CHECK(info.is_null());
 }
 
@@ -2207,11 +2210,8 @@ TEST(PrototypeTransitionClearing) {
   // Verify that prototype transitions array was compacted.
   FixedArray* trans = baseObject->map()->GetPrototypeTransitions();
   for (int i = initialTransitions; i < initialTransitions + transitions; i++) {
-    int j = Map::kProtoTransitionHeaderSize +
-        i * Map::kProtoTransitionElementsPerEntry;
-    CHECK(trans->get(j + Map::kProtoTransitionMapOffset)->IsMap());
-    Object* proto = trans->get(j + Map::kProtoTransitionPrototypeOffset);
-    CHECK(proto->IsJSObject());
+    int j = Map::kProtoTransitionHeaderSize + i;
+    CHECK(trans->get(j)->IsMap());
   }
 
   // Make sure next prototype is placed on an old-space evacuation candidate.
@@ -3320,7 +3320,7 @@ TEST(Regress2211) {
 }
 
 
-TEST(IncrementalMarkingClearsTypeFeedbackInfo) {
+TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -3355,16 +3355,16 @@ TEST(IncrementalMarkingClearsTypeFeedbackInfo) {
   CHECK_EQ(expected_slots, feedback_vector->ICSlots());
   int slot1 = 0;
   int slot2 = 1;
-  CHECK(feedback_vector->Get(FeedbackVectorICSlot(slot1))->IsJSFunction());
-  CHECK(feedback_vector->Get(FeedbackVectorICSlot(slot2))->IsJSFunction());
+  CHECK(feedback_vector->Get(FeedbackVectorICSlot(slot1))->IsWeakCell());
+  CHECK(feedback_vector->Get(FeedbackVectorICSlot(slot2))->IsWeakCell());
 
   SimulateIncrementalMarking(CcTest::heap());
   CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
 
-  CHECK_EQ(feedback_vector->Get(FeedbackVectorICSlot(slot1)),
-           *TypeFeedbackVector::UninitializedSentinel(CcTest::i_isolate()));
-  CHECK_EQ(feedback_vector->Get(FeedbackVectorICSlot(slot2)),
-           *TypeFeedbackVector::UninitializedSentinel(CcTest::i_isolate()));
+  CHECK(!WeakCell::cast(feedback_vector->Get(FeedbackVectorICSlot(slot1)))
+             ->cleared());
+  CHECK(!WeakCell::cast(feedback_vector->Get(FeedbackVectorICSlot(slot2)))
+             ->cleared());
 }
 
 
@@ -3453,10 +3453,8 @@ TEST(IncrementalMarkingClearsMonomorphicIC) {
   // originating from a different native context.
   CcTest::global()->Set(v8_str("obj1"), obj1);
   CompileRun("function f(o) { return o.x; } f(obj1); f(obj1);");
-  Handle<JSFunction> f =
-      v8::Utils::OpenHandle(
-          *v8::Handle<v8::Function>::Cast(
-              CcTest::global()->Get(v8_str("f"))));
+  Handle<JSFunction> f = v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
 
   Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   if (FLAG_vector_ics) {
@@ -3552,10 +3550,8 @@ TEST(IncrementalMarkingClearsPolymorphicIC) {
   CcTest::global()->Set(v8_str("obj1"), obj1);
   CcTest::global()->Set(v8_str("obj2"), obj2);
   CompileRun("function f(o) { return o.x; } f(obj1); f(obj1); f(obj2);");
-  Handle<JSFunction> f =
-      v8::Utils::OpenHandle(
-          *v8::Handle<v8::Function>::Cast(
-              CcTest::global()->Get(v8_str("f"))));
+  Handle<JSFunction> f = v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str("f"))));
 
   Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   if (FLAG_vector_ics) {
@@ -3872,21 +3868,6 @@ TEST(Regress169209) {
 }
 
 
-// Helper function that simulates a fill new-space in the heap.
-static inline void AllocateAllButNBytes(v8::internal::NewSpace* space,
-                                        int extra_bytes) {
-  int space_remaining = static_cast<int>(
-      *space->allocation_limit_address() - *space->allocation_top_address());
-  CHECK(space_remaining >= extra_bytes);
-  int new_linear_size = space_remaining - extra_bytes;
-  v8::internal::AllocationResult allocation =
-      space->AllocateRaw(new_linear_size);
-  v8::internal::FreeListNode* node =
-      v8::internal::FreeListNode::cast(allocation.ToObjectChecked());
-  node->set_size(space->heap(), new_linear_size);
-}
-
-
 TEST(Regress169928) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_crankshaft = false;
@@ -4187,8 +4168,9 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
     DependentCode::GroupStartIndexes starts(site->dependent_code());
     CHECK_GE(starts.number_of_entries(), 1);
     int index = starts.at(DependentCode::kAllocationSiteTransitionChangedGroup);
-    CHECK(site->dependent_code()->is_code_at(index));
-    Code* function_bar = site->dependent_code()->code_at(index);
+    CHECK(site->dependent_code()->object_at(index)->IsWeakCell());
+    Code* function_bar = Code::cast(
+        WeakCell::cast(site->dependent_code()->object_at(index))->value());
     Handle<JSFunction> bar_handle =
         v8::Utils::OpenHandle(
             *v8::Handle<v8::Function>::Cast(
@@ -4206,7 +4188,8 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
   // longer referred to by dependent_code().
   DependentCode::GroupStartIndexes starts(site->dependent_code());
   int index = starts.at(DependentCode::kAllocationSiteTransitionChangedGroup);
-  CHECK(!(site->dependent_code()->is_code_at(index)));
+  CHECK(site->dependent_code()->object_at(index)->IsWeakCell() &&
+        WeakCell::cast(site->dependent_code()->object_at(index))->cleared());
 }
 
 
@@ -5089,6 +5072,17 @@ TEST(Regress442710) {
 }
 
 
+TEST(NumberStringCacheSize) {
+  if (!Snapshot::HaveASnapshotToStartFrom()) return;
+  // Test that the number-string cache has not been resized in the snapshot.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  CHECK_EQ(TestHeap::kInitialNumberStringCacheSize * 2,
+           heap->number_string_cache()->length());
+}
+
+
 #ifdef DEBUG
 TEST(PathTracer) {
   CcTest::InitializeVM();
@@ -5099,3 +5093,25 @@ TEST(PathTracer) {
   CcTest::i_isolate()->heap()->TracePathToObject(*o);
 }
 #endif  // DEBUG
+
+
+TEST(FirstPageFitsStartup) {
+  // Test that the first page sizes provided by the default snapshot are large
+  // enough to fit everything right after startup and creating one context.
+  // If this test fails, we are allocating too much aside from deserialization.
+  if (!Snapshot::HaveASnapshotToStartFrom()) return;
+  if (Snapshot::EmbedsScript()) return;
+  CcTest::InitializeVM();
+  LocalContext env;
+  PagedSpaces spaces(CcTest::heap());
+  for (PagedSpace* s = spaces.next(); s != NULL; s = spaces.next()) {
+    uint32_t default_size = s->AreaSize();
+    uint32_t reduced_size = Snapshot::SizeOfFirstPage(s->identity());
+    if (reduced_size == default_size) continue;
+    int counter = 0;
+    Page* page = NULL;
+    for (PageIterator it(s); it.has_next(); page = it.next()) counter++;
+    CHECK_LE(counter, 1);
+    CHECK(static_cast<uint32_t>(page->area_size()) == reduced_size);
+  }
+}

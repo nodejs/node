@@ -88,7 +88,7 @@ class HBasicBlock FINAL : public ZoneObject {
   bool IsFinished() const { return end_ != NULL; }
   void AddPhi(HPhi* phi);
   void RemovePhi(HPhi* phi);
-  void AddInstruction(HInstruction* instr, HSourcePosition position);
+  void AddInstruction(HInstruction* instr, SourcePosition position);
   bool Dominates(HBasicBlock* other) const;
   bool EqualToOrDominates(HBasicBlock* other) const;
   int LoopNestingDepth() const;
@@ -114,8 +114,7 @@ class HBasicBlock FINAL : public ZoneObject {
 
   int PredecessorIndexOf(HBasicBlock* predecessor) const;
   HPhi* AddNewPhi(int merged_index);
-  HSimulate* AddNewSimulate(BailoutId ast_id,
-                            HSourcePosition position,
+  HSimulate* AddNewSimulate(BailoutId ast_id, SourcePosition position,
                             RemovableSimulate removable = FIXED_SIMULATE) {
     HSimulate* instr = CreateSimulate(ast_id, removable);
     AddInstruction(instr, position);
@@ -167,21 +166,18 @@ class HBasicBlock FINAL : public ZoneObject {
   friend class HGraphBuilder;
 
   HSimulate* CreateSimulate(BailoutId ast_id, RemovableSimulate removable);
-  void Finish(HControlInstruction* last, HSourcePosition position);
-  void FinishExit(HControlInstruction* instruction, HSourcePosition position);
-  void Goto(HBasicBlock* block,
-            HSourcePosition position,
-            FunctionState* state = NULL,
-            bool add_simulate = true);
-  void GotoNoSimulate(HBasicBlock* block, HSourcePosition position) {
+  void Finish(HControlInstruction* last, SourcePosition position);
+  void FinishExit(HControlInstruction* instruction, SourcePosition position);
+  void Goto(HBasicBlock* block, SourcePosition position,
+            FunctionState* state = NULL, bool add_simulate = true);
+  void GotoNoSimulate(HBasicBlock* block, SourcePosition position) {
     Goto(block, position, NULL, false);
   }
 
   // Add the inlined function exit sequence, adding an HLeaveInlined
   // instruction and updating the bailout environment.
-  void AddLeaveInlined(HValue* return_value,
-                       FunctionState* state,
-                       HSourcePosition position);
+  void AddLeaveInlined(HValue* return_value, FunctionState* state,
+                       SourcePosition position);
 
  private:
   void RegisterPredecessor(HBasicBlock* pred);
@@ -461,11 +457,11 @@ class HGraph FINAL : public ZoneObject {
   // identifier to each inlining and dumps function source if it was inlined
   // for the first time during the current optimization.
   int TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
-                           HSourcePosition position);
+                           SourcePosition position);
 
-  // Converts given HSourcePosition to the absolute offset from the start of
+  // Converts given SourcePosition to the absolute offset from the start of
   // the corresponding script.
-  int SourcePositionToScriptPosition(HSourcePosition position);
+  int SourcePositionToScriptPosition(SourcePosition position);
 
  private:
   HConstant* ReinsertConstantIfNecessary(HConstant* constant);
@@ -509,23 +505,6 @@ class HGraph FINAL : public ZoneObject {
   int maximum_environment_size_;
   int no_side_effects_scope_count_;
   bool disallow_adding_new_values_;
-
-  class InlinedFunctionInfo {
-   public:
-    explicit InlinedFunctionInfo(Handle<SharedFunctionInfo> shared)
-      : shared_(shared), start_position_(shared->start_position()) {
-    }
-
-    Handle<SharedFunctionInfo> shared() const { return shared_; }
-    int start_position() const { return start_position_; }
-
-   private:
-    Handle<SharedFunctionInfo> shared_;
-    int start_position_;
-  };
-
-  ZoneList<InlinedFunctionInfo> inlined_functions_;
-  ZoneList<int> inlining_id_to_function_id_;
 
   DISALLOW_COPY_AND_ASSIGN(HGraph);
 };
@@ -958,7 +937,7 @@ class FunctionState FINAL {
   HArgumentsElements* arguments_elements_;
 
   int inlining_id_;
-  HSourcePosition outer_source_position_;
+  SourcePosition outer_source_position_;
 
   FunctionState* outer_;
 };
@@ -1046,7 +1025,7 @@ class HGraphBuilder {
         graph_(NULL),
         current_block_(NULL),
         scope_(info->scope()),
-        position_(HSourcePosition::Unknown()),
+        position_(SourcePosition::Unknown()),
         start_position_(0) {}
   virtual ~HGraphBuilder() {}
 
@@ -1102,11 +1081,15 @@ class HGraphBuilder {
     return AddLeaveInlined(current_block(), return_value, state);
   }
 
-  template<class I>
-  HInstruction* NewUncasted() { return I::New(zone(), context()); }
+  template <class I>
+  HInstruction* NewUncasted() {
+    return I::New(isolate(), zone(), context());
+  }
 
-  template<class I>
-  I* New() { return I::New(zone(), context()); }
+  template <class I>
+  I* New() {
+    return I::New(isolate(), zone(), context());
+  }
 
   template<class I>
   HInstruction* AddUncasted() { return AddInstruction(NewUncasted<I>());}
@@ -1116,11 +1099,13 @@ class HGraphBuilder {
 
   template<class I, class P1>
   HInstruction* NewUncasted(P1 p1) {
-    return I::New(zone(), context(), p1);
+    return I::New(isolate(), zone(), context(), p1);
   }
 
-  template<class I, class P1>
-  I* New(P1 p1) { return I::New(zone(), context(), p1); }
+  template <class I, class P1>
+  I* New(P1 p1) {
+    return I::New(isolate(), zone(), context(), p1);
+  }
 
   template<class I, class P1>
   HInstruction* AddUncasted(P1 p1) {
@@ -1144,12 +1129,12 @@ class HGraphBuilder {
 
   template<class I, class P1, class P2>
   HInstruction* NewUncasted(P1 p1, P2 p2) {
-    return I::New(zone(), context(), p1, p2);
+    return I::New(isolate(), zone(), context(), p1, p2);
   }
 
   template<class I, class P1, class P2>
   I* New(P1 p1, P2 p2) {
-    return I::New(zone(), context(), p1, p2);
+    return I::New(isolate(), zone(), context(), p1, p2);
   }
 
   template<class I, class P1, class P2>
@@ -1172,12 +1157,12 @@ class HGraphBuilder {
 
   template<class I, class P1, class P2, class P3>
   HInstruction* NewUncasted(P1 p1, P2 p2, P3 p3) {
-    return I::New(zone(), context(), p1, p2, p3);
+    return I::New(isolate(), zone(), context(), p1, p2, p3);
   }
 
   template<class I, class P1, class P2, class P3>
   I* New(P1 p1, P2 p2, P3 p3) {
-    return I::New(zone(), context(), p1, p2, p3);
+    return I::New(isolate(), zone(), context(), p1, p2, p3);
   }
 
   template<class I, class P1, class P2, class P3>
@@ -1192,12 +1177,12 @@ class HGraphBuilder {
 
   template<class I, class P1, class P2, class P3, class P4>
   HInstruction* NewUncasted(P1 p1, P2 p2, P3 p3, P4 p4) {
-    return I::New(zone(), context(), p1, p2, p3, p4);
+    return I::New(isolate(), zone(), context(), p1, p2, p3, p4);
   }
 
   template<class I, class P1, class P2, class P3, class P4>
   I* New(P1 p1, P2 p2, P3 p3, P4 p4) {
-    return I::New(zone(), context(), p1, p2, p3, p4);
+    return I::New(isolate(), zone(), context(), p1, p2, p3, p4);
   }
 
   template<class I, class P1, class P2, class P3, class P4>
@@ -1212,12 +1197,12 @@ class HGraphBuilder {
 
   template<class I, class P1, class P2, class P3, class P4, class P5>
   HInstruction* NewUncasted(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5) {
-    return I::New(zone(), context(), p1, p2, p3, p4, p5);
+    return I::New(isolate(), zone(), context(), p1, p2, p3, p4, p5);
   }
 
   template<class I, class P1, class P2, class P3, class P4, class P5>
   I* New(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5) {
-    return I::New(zone(), context(), p1, p2, p3, p4, p5);
+    return I::New(isolate(), zone(), context(), p1, p2, p3, p4, p5);
   }
 
   template<class I, class P1, class P2, class P3, class P4, class P5>
@@ -1232,12 +1217,12 @@ class HGraphBuilder {
 
   template<class I, class P1, class P2, class P3, class P4, class P5, class P6>
   HInstruction* NewUncasted(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6) {
-    return I::New(zone(), context(), p1, p2, p3, p4, p5, p6);
+    return I::New(isolate(), zone(), context(), p1, p2, p3, p4, p5, p6);
   }
 
   template<class I, class P1, class P2, class P3, class P4, class P5, class P6>
   I* New(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6) {
-    return I::New(zone(), context(), p1, p2, p3, p4, p5, p6);
+    return I::New(isolate(), zone(), context(), p1, p2, p3, p4, p5, p6);
   }
 
   template<class I, class P1, class P2, class P3, class P4, class P5, class P6>
@@ -1253,13 +1238,13 @@ class HGraphBuilder {
   template<class I, class P1, class P2, class P3, class P4,
       class P5, class P6, class P7>
   HInstruction* NewUncasted(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7) {
-    return I::New(zone(), context(), p1, p2, p3, p4, p5, p6, p7);
+    return I::New(isolate(), zone(), context(), p1, p2, p3, p4, p5, p6, p7);
   }
 
   template<class I, class P1, class P2, class P3, class P4,
       class P5, class P6, class P7>
       I* New(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7) {
-    return I::New(zone(), context(), p1, p2, p3, p4, p5, p6, p7);
+    return I::New(isolate(), zone(), context(), p1, p2, p3, p4, p5, p6, p7);
   }
 
   template<class I, class P1, class P2, class P3,
@@ -1278,13 +1263,13 @@ class HGraphBuilder {
       class P5, class P6, class P7, class P8>
   HInstruction* NewUncasted(P1 p1, P2 p2, P3 p3, P4 p4,
                             P5 p5, P6 p6, P7 p7, P8 p8) {
-    return I::New(zone(), context(), p1, p2, p3, p4, p5, p6, p7, p8);
+    return I::New(isolate(), zone(), context(), p1, p2, p3, p4, p5, p6, p7, p8);
   }
 
   template<class I, class P1, class P2, class P3, class P4,
       class P5, class P6, class P7, class P8>
       I* New(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8) {
-    return I::New(zone(), context(), p1, p2, p3, p4, p5, p6, p7, p8);
+    return I::New(isolate(), zone(), context(), p1, p2, p3, p4, p5, p6, p7, p8);
   }
 
   template<class I, class P1, class P2, class P3, class P4,
@@ -1469,7 +1454,7 @@ class HGraphBuilder {
   HValue* EnforceNumberType(HValue* number, Type* expected);
   HValue* TruncateToNumber(HValue* value, Type** expected);
 
-  void FinishExitWithHardDeoptimization(const char* reason);
+  void FinishExitWithHardDeoptimization(Deoptimizer::DeoptReason reason);
 
   void AddIncrementCounter(StatsCounter* counter);
 
@@ -1617,12 +1602,12 @@ class HGraphBuilder {
     void Else();
     void End();
 
-    void Deopt(const char* reason);
-    void ThenDeopt(const char* reason) {
+    void Deopt(Deoptimizer::DeoptReason reason);
+    void ThenDeopt(Deoptimizer::DeoptReason reason) {
       Then();
       Deopt(reason);
     }
-    void ElseDeopt(const char* reason) {
+    void ElseDeopt(Deoptimizer::DeoptReason reason) {
       Else();
       Deopt(reason);
     }
@@ -1896,18 +1881,16 @@ class HGraphBuilder {
   }
 
   // Convert the given absolute offset from the start of the script to
-  // the HSourcePosition assuming that this position corresponds to the
+  // the SourcePosition assuming that this position corresponds to the
   // same function as current position_.
-  HSourcePosition ScriptPositionToSourcePosition(int position) {
-    HSourcePosition pos = position_;
+  SourcePosition ScriptPositionToSourcePosition(int position) {
+    SourcePosition pos = position_;
     pos.set_position(position - start_position_);
     return pos;
   }
 
-  HSourcePosition source_position() { return position_; }
-  void set_source_position(HSourcePosition position) {
-    position_ = position;
-  }
+  SourcePosition source_position() { return position_; }
+  void set_source_position(SourcePosition position) { position_ = position; }
 
   template <typename ViewClass>
   void BuildArrayBufferViewInitialization(HValue* obj,
@@ -1927,14 +1910,14 @@ class HGraphBuilder {
   HGraph* graph_;
   HBasicBlock* current_block_;
   Scope* scope_;
-  HSourcePosition position_;
+  SourcePosition position_;
   int start_position_;
 };
 
 
-template<>
+template <>
 inline HDeoptimize* HGraphBuilder::Add<HDeoptimize>(
-    const char* reason, Deoptimizer::BailoutType type) {
+    Deoptimizer::DeoptReason reason, Deoptimizer::BailoutType type) {
   if (type == Deoptimizer::SOFT) {
     isolate()->counters()->soft_deopts_requested()->Increment();
     if (FLAG_always_opt) return NULL;
@@ -1952,9 +1935,9 @@ inline HDeoptimize* HGraphBuilder::Add<HDeoptimize>(
 }
 
 
-template<>
+template <>
 inline HInstruction* HGraphBuilder::AddUncasted<HDeoptimize>(
-    const char* reason, Deoptimizer::BailoutType type) {
+    Deoptimizer::DeoptReason reason, Deoptimizer::BailoutType type) {
   return Add<HDeoptimize>(reason, type);
 }
 
@@ -2128,9 +2111,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
   void VisitDeclarations(ZoneList<Declaration*>* declarations) OVERRIDE;
 
-  void* operator new(size_t size, Zone* zone) {
-    return zone->New(static_cast<int>(size));
-  }
+  void* operator new(size_t size, Zone* zone) { return zone->New(size); }
   void operator delete(void* pointer, Zone* zone) { }
   void operator delete(void* pointer) { }
 
@@ -2183,8 +2164,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void ClearInlinedTestContext() {
     function_state()->ClearInlinedTestContext();
   }
-  StrictMode function_strict_mode() {
-    return function_state()->compilation_info()->strict_mode();
+  LanguageMode function_language_mode() {
+    return function_state()->compilation_info()->language_mode();
   }
 
   // Generators for inline runtime functions.
@@ -2301,8 +2282,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
-  Type* ToType(Handle<Map> map);
-
  private:
   // Helpers for flow graph construction.
   enum GlobalPropertyAccess {
@@ -2338,13 +2317,10 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                               Handle<JSFunction> target);
 
   int InliningAstSize(Handle<JSFunction> target);
-  bool TryInline(Handle<JSFunction> target,
-                 int arguments_count,
-                 HValue* implicit_return_value,
-                 BailoutId ast_id,
-                 BailoutId return_id,
-                 InliningKind inlining_kind,
-                 HSourcePosition position);
+  bool TryInline(Handle<JSFunction> target, int arguments_count,
+                 HValue* implicit_return_value, BailoutId ast_id,
+                 BailoutId return_id, InliningKind inlining_kind,
+                 SourcePosition position);
 
   bool TryInlineCall(Call* expr);
   bool TryInlineConstruct(CallNew* expr, HValue* implicit_return_value);
@@ -2385,6 +2361,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                          int argc,
                          BailoutId ast_id,
                          ApiCallType call_type);
+  static bool IsReadOnlyLengthDescriptor(Handle<Map> jsarray_map);
+  static bool CanInlineArrayResizeOperation(Handle<Map> receiver_map);
 
   // If --trace-inlining, print a line of the inlining trace.  Inlining
   // succeeded if the reason string is NULL and failed if there is a
@@ -2452,19 +2430,132 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void BuildInlinedCallArray(Expression* expression, int argument_count,
                              Handle<AllocationSite> site);
 
+  class LookupResult FINAL BASE_EMBEDDED {
+   public:
+    LookupResult()
+        : lookup_type_(NOT_FOUND),
+          details_(NONE, DATA, Representation::None()) {}
+
+    void LookupDescriptor(Map* map, Name* name) {
+      DescriptorArray* descriptors = map->instance_descriptors();
+      int number = descriptors->SearchWithCache(name, map);
+      if (number == DescriptorArray::kNotFound) return NotFound();
+      lookup_type_ = DESCRIPTOR_TYPE;
+      details_ = descriptors->GetDetails(number);
+      number_ = number;
+    }
+
+    void LookupTransition(Map* map, Name* name, PropertyAttributes attributes) {
+      int transition_index = map->SearchTransition(kData, name, attributes);
+      if (transition_index == TransitionArray::kNotFound) return NotFound();
+      lookup_type_ = TRANSITION_TYPE;
+      transition_ = handle(map->GetTransition(transition_index));
+      number_ = transition_->LastAdded();
+      details_ = transition_->instance_descriptors()->GetDetails(number_);
+    }
+
+    void NotFound() {
+      lookup_type_ = NOT_FOUND;
+      details_ = PropertyDetails(NONE, DATA, 0);
+    }
+
+    Representation representation() const {
+      DCHECK(IsFound());
+      return details_.representation();
+    }
+
+    // Property callbacks does not include transitions to callbacks.
+    bool IsAccessorConstant() const {
+      return !IsTransition() && details_.type() == ACCESSOR_CONSTANT;
+    }
+
+    bool IsReadOnly() const {
+      DCHECK(IsFound());
+      return details_.IsReadOnly();
+    }
+
+    bool IsData() const {
+      return lookup_type_ == DESCRIPTOR_TYPE && details_.type() == DATA;
+    }
+
+    bool IsDataConstant() const {
+      return lookup_type_ == DESCRIPTOR_TYPE &&
+             details_.type() == DATA_CONSTANT;
+    }
+
+    bool IsConfigurable() const { return details_.IsConfigurable(); }
+    bool IsFound() const { return lookup_type_ != NOT_FOUND; }
+    bool IsTransition() const { return lookup_type_ == TRANSITION_TYPE; }
+
+    // Is the result is a property excluding transitions and the null
+    // descriptor?
+    bool IsProperty() const { return IsFound() && !IsTransition(); }
+
+    Handle<Map> GetTransitionTarget() const {
+      DCHECK(IsTransition());
+      return transition_;
+    }
+
+    bool IsTransitionToData() const {
+      return IsTransition() && details_.type() == DATA;
+    }
+
+    int GetLocalFieldIndexFromMap(Map* map) const {
+      return GetFieldIndexFromMap(map) - map->inobject_properties();
+    }
+
+    Object* GetConstantFromMap(Map* map) const {
+      DCHECK(details_.type() == DATA_CONSTANT);
+      return GetValueFromMap(map);
+    }
+
+    Object* GetValueFromMap(Map* map) const {
+      DCHECK(lookup_type_ == DESCRIPTOR_TYPE ||
+             lookup_type_ == TRANSITION_TYPE);
+      DCHECK(number_ < map->NumberOfOwnDescriptors());
+      return map->instance_descriptors()->GetValue(number_);
+    }
+
+    int GetFieldIndexFromMap(Map* map) const {
+      DCHECK(lookup_type_ == DESCRIPTOR_TYPE ||
+             lookup_type_ == TRANSITION_TYPE);
+      DCHECK(number_ < map->NumberOfOwnDescriptors());
+      return map->instance_descriptors()->GetFieldIndex(number_);
+    }
+
+    HeapType* GetFieldTypeFromMap(Map* map) const {
+      DCHECK_NE(NOT_FOUND, lookup_type_);
+      DCHECK(number_ < map->NumberOfOwnDescriptors());
+      return map->instance_descriptors()->GetFieldType(number_);
+    }
+
+    Map* GetFieldOwnerFromMap(Map* map) const {
+      DCHECK(lookup_type_ == DESCRIPTOR_TYPE ||
+             lookup_type_ == TRANSITION_TYPE);
+      DCHECK(number_ < map->NumberOfOwnDescriptors());
+      return map->FindFieldOwner(number_);
+    }
+
+   private:
+    // Where did we find the result;
+    enum { NOT_FOUND, DESCRIPTOR_TYPE, TRANSITION_TYPE } lookup_type_;
+
+    Handle<Map> transition_;
+    int number_;
+    PropertyDetails details_;
+  };
+
   class PropertyAccessInfo {
    public:
     PropertyAccessInfo(HOptimizedGraphBuilder* builder,
-                       PropertyAccessType access_type,
-                       Type* type,
+                       PropertyAccessType access_type, Handle<Map> map,
                        Handle<String> name)
-        : lookup_(builder->isolate()),
-          builder_(builder),
+        : builder_(builder),
           access_type_(access_type),
-          type_(type),
+          map_(map),
           name_(name),
           field_type_(HType::Tagged()),
-          access_(HObjectAccess::ForMap()) { }
+          access_(HObjectAccess::ForMap()) {}
 
     // Checkes whether this PropertyAccessInfo can be handled as a monomorphic
     // load named. It additionally fills in the fields necessary to generate the
@@ -2479,26 +2570,27 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     // PropertyAccessInfo is built for types->first().
     bool CanAccessAsMonomorphic(SmallMapList* types);
 
+    bool NeedsWrappingFor(Handle<JSFunction> target) const;
+
     Handle<Map> map();
-    Type* type() const { return type_; }
     Handle<String> name() const { return name_; }
 
     bool IsJSObjectFieldAccessor() {
       int offset;  // unused
-      return Accessors::IsJSObjectFieldAccessor<Type>(type_, name_, &offset);
+      return Accessors::IsJSObjectFieldAccessor(map_, name_, &offset);
     }
 
     bool GetJSObjectFieldAccess(HObjectAccess* access) {
       int offset;
-      if (Accessors::IsJSObjectFieldAccessor<Type>(type_, name_, &offset)) {
-        if (type_->Is(Type::String())) {
+      if (Accessors::IsJSObjectFieldAccessor(map_, name_, &offset)) {
+        if (IsStringType()) {
           DCHECK(String::Equals(isolate()->factory()->length_string(), name_));
           *access = HObjectAccess::ForStringLength();
-        } else if (type_->Is(Type::Array())) {
+        } else if (IsArrayType()) {
           DCHECK(String::Equals(isolate()->factory()->length_string(), name_));
-          *access = HObjectAccess::ForArrayLength(map()->elements_kind());
+          *access = HObjectAccess::ForArrayLength(map_->elements_kind());
         } else {
-          *access = HObjectAccess::ForMapAndOffset(map(), offset);
+          *access = HObjectAccess::ForMapAndOffset(map_, offset);
         }
         return true;
       }
@@ -2508,23 +2600,29 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     bool has_holder() { return !holder_.is_null(); }
     bool IsLoad() const { return access_type_ == LOAD; }
 
+    Isolate* isolate() const { return builder_->isolate(); }
     Handle<JSObject> holder() { return holder_; }
     Handle<JSFunction> accessor() { return accessor_; }
     Handle<Object> constant() { return constant_; }
-    Handle<Map> transition() { return handle(lookup_.GetTransitionTarget()); }
+    Handle<Map> transition() { return lookup_.GetTransitionTarget(); }
     SmallMapList* field_maps() { return &field_maps_; }
     HType field_type() const { return field_type_; }
     HObjectAccess access() { return access_; }
 
     bool IsFound() const { return lookup_.IsFound(); }
     bool IsProperty() const { return lookup_.IsProperty(); }
-    bool IsField() const { return lookup_.IsField(); }
-    bool IsConstant() const { return lookup_.IsConstant(); }
-    bool IsAccessor() const { return lookup_.IsPropertyCallbacks(); }
+    bool IsData() const { return lookup_.IsData(); }
+    bool IsDataConstant() const { return lookup_.IsDataConstant(); }
+    bool IsAccessorConstant() const { return lookup_.IsAccessorConstant(); }
     bool IsTransition() const { return lookup_.IsTransition(); }
 
     bool IsConfigurable() const { return lookup_.IsConfigurable(); }
     bool IsReadOnly() const { return lookup_.IsReadOnly(); }
+
+    bool IsStringType() { return map_->instance_type() < FIRST_NONSTRING_TYPE; }
+    bool IsNumberType() { return map_->instance_type() == HEAP_NUMBER_TYPE; }
+    bool IsValueWrapped() { return IsStringType() || IsNumberType(); }
+    bool IsArrayType() { return map_->instance_type() == JS_ARRAY_TYPE; }
 
    private:
     Handle<Object> GetAccessorsFromMap(Handle<Map> map) const {
@@ -2544,9 +2642,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     }
     Representation representation() const { return lookup_.representation(); }
 
-    Type* ToType(Handle<Map> map) { return builder_->ToType(map); }
     Zone* zone() { return builder_->zone(); }
-    Isolate* isolate() const { return lookup_.isolate(); }
     CompilationInfo* top_info() { return builder_->top_info(); }
     CompilationInfo* current_info() { return builder_->current_info(); }
 
@@ -2564,7 +2660,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     LookupResult lookup_;
     HOptimizedGraphBuilder* builder_;
     PropertyAccessType access_type_;
-    Type* type_;
+    Handle<Map> map_;
     Handle<String> name_;
     Handle<JSObject> holder_;
     Handle<JSFunction> accessor_;
@@ -2609,15 +2705,9 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   };
 
   HControlInstruction* BuildCompareInstruction(
-      Token::Value op,
-      HValue* left,
-      HValue* right,
-      Type* left_type,
-      Type* right_type,
-      Type* combined_type,
-      HSourcePosition left_position,
-      HSourcePosition right_position,
-      PushBeforeSimulateBehavior push_sim_result,
+      Token::Value op, HValue* left, HValue* right, Type* left_type,
+      Type* right_type, Type* combined_type, SourcePosition left_position,
+      SourcePosition right_position, PushBeforeSimulateBehavior push_sim_result,
       BailoutId bailout_id);
 
   HInstruction* BuildStringCharCodeAt(HValue* string,
@@ -2793,7 +2883,7 @@ class HStatistics FINAL: public Malloced {
 
   void Initialize(CompilationInfo* info);
   void Print();
-  void SaveTiming(const char* name, base::TimeDelta time, unsigned size);
+  void SaveTiming(const char* name, base::TimeDelta time, size_t size);
 
   void IncrementFullCodeGen(base::TimeDelta full_code_gen) {
     full_code_gen_ += full_code_gen;
@@ -2818,11 +2908,11 @@ class HStatistics FINAL: public Malloced {
  private:
   List<base::TimeDelta> times_;
   List<const char*> names_;
-  List<unsigned> sizes_;
+  List<size_t> sizes_;
   base::TimeDelta create_graph_;
   base::TimeDelta optimize_graph_;
   base::TimeDelta generate_code_;
-  unsigned total_size_;
+  size_t total_size_;
   base::TimeDelta full_code_gen_;
   double source_size_;
 };

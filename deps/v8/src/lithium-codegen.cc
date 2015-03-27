@@ -29,6 +29,9 @@
 #elif V8_TARGET_ARCH_X87
 #include "src/x87/lithium-x87.h"  // NOLINT
 #include "src/x87/lithium-codegen-x87.h"  // NOLINT
+#elif V8_TARGET_ARCH_PPC
+#include "src/ppc/lithium-ppc.h"          // NOLINT
+#include "src/ppc/lithium-codegen-ppc.h"  // NOLINT
 #else
 #error Unsupported target architecture.
 #endif
@@ -149,12 +152,8 @@ void LCodeGenBase::Comment(const char* format, ...) {
 }
 
 
-void LCodeGenBase::DeoptComment(const Deoptimizer::Reason& reason) {
-  std::ostringstream os;
-  os << ";;; deoptimize at " << HSourcePosition(reason.raw_position) << " "
-     << reason.mnemonic;
-  if (reason.detail != NULL) os << ": " << reason.detail;
-  Comment("%s", os.str().c_str());
+void LCodeGenBase::DeoptComment(const Deoptimizer::DeoptInfo& deopt_info) {
+  masm()->RecordDeoptReason(deopt_info.deopt_reason, deopt_info.raw_position);
 }
 
 
@@ -164,66 +163,6 @@ int LCodeGenBase::GetNextEmittedBlock() const {
     if (!chunk_->GetLabel(i)->HasReplacement()) return i;
   }
   return -1;
-}
-
-
-static void AddWeakObjectToCodeDependency(Isolate* isolate,
-                                          Handle<Object> object,
-                                          Handle<Code> code) {
-  Heap* heap = isolate->heap();
-  heap->EnsureWeakObjectToCodeTable();
-  Handle<DependentCode> dep(heap->LookupWeakObjectToCodeDependency(object));
-  dep = DependentCode::Insert(dep, DependentCode::kWeakCodeGroup, code);
-  heap->AddWeakObjectToCodeDependency(object, dep);
-}
-
-
-void LCodeGenBase::RegisterWeakObjectsInOptimizedCode(Handle<Code> code) {
-  DCHECK(code->is_optimized_code());
-  ZoneList<Handle<Map> > maps(1, zone());
-  ZoneList<Handle<JSObject> > objects(1, zone());
-  ZoneList<Handle<Cell> > cells(1, zone());
-  int mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-                  RelocInfo::ModeMask(RelocInfo::CELL);
-  for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
-    RelocInfo::Mode mode = it.rinfo()->rmode();
-    if (mode == RelocInfo::CELL &&
-        code->IsWeakObjectInOptimizedCode(it.rinfo()->target_cell())) {
-      Handle<Cell> cell(it.rinfo()->target_cell());
-      cells.Add(cell, zone());
-    } else if (mode == RelocInfo::EMBEDDED_OBJECT &&
-               code->IsWeakObjectInOptimizedCode(it.rinfo()->target_object())) {
-      if (it.rinfo()->target_object()->IsMap()) {
-        Handle<Map> map(Map::cast(it.rinfo()->target_object()));
-        maps.Add(map, zone());
-      } else if (it.rinfo()->target_object()->IsJSObject()) {
-        Handle<JSObject> object(JSObject::cast(it.rinfo()->target_object()));
-        objects.Add(object, zone());
-      } else if (it.rinfo()->target_object()->IsCell()) {
-        Handle<Cell> cell(Cell::cast(it.rinfo()->target_object()));
-        cells.Add(cell, zone());
-      }
-    }
-  }
-  if (FLAG_enable_ool_constant_pool) {
-    code->constant_pool()->set_weak_object_state(
-        ConstantPoolArray::WEAK_OBJECTS_IN_OPTIMIZED_CODE);
-  }
-#ifdef VERIFY_HEAP
-  // This disables verification of weak embedded objects after full GC.
-  // AddDependentCode can cause a GC, which would observe the state where
-  // this code is not yet in the depended code lists of the embedded maps.
-  NoWeakObjectVerificationScope disable_verification_of_embedded_objects;
-#endif
-  for (int i = 0; i < maps.length(); i++) {
-    Map::AddDependentCode(maps.at(i), DependentCode::kWeakCodeGroup, code);
-  }
-  for (int i = 0; i < objects.length(); i++) {
-    AddWeakObjectToCodeDependency(isolate(), objects.at(i), code);
-  }
-  for (int i = 0; i < cells.length(); i++) {
-    AddWeakObjectToCodeDependency(isolate(), cells.at(i), code);
-  }
 }
 
 

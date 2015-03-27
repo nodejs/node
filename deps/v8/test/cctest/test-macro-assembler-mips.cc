@@ -150,8 +150,7 @@ static void TestNaN(const char *code) {
   double value = a->get_scalar(0);
   CHECK(std::isnan(value) &&
         bit_cast<uint64_t>(value) ==
-            bit_cast<uint64_t>(
-                i::FixedDoubleArray::canonical_not_the_hole_nan_as_double()));
+            bit_cast<uint64_t>(std::numeric_limits<double>::quiet_NaN()));
 }
 
 

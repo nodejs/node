@@ -5,8 +5,9 @@
 #ifndef V8_BASE_LOGGING_H_
 #define V8_BASE_LOGGING_H_
 
-#include <stdint.h>
-#include <string.h>
+#include <cstring>
+#include <sstream>
+#include <string>
 
 #include "src/base/build_config.h"
 
@@ -31,193 +32,143 @@ extern "C" void V8_Fatal(const char* file, int line, const char* format, ...);
 #endif
 
 
-// The CHECK macro checks that the given condition is true; if not, it
-// prints a message to stderr and aborts.
-#define CHECK(condition) do {                                       \
-    if (!(condition)) {                                             \
-      V8_Fatal(__FILE__, __LINE__, "CHECK(%s) failed", #condition); \
-    }                                                               \
+namespace v8 {
+namespace base {
+
+// CHECK dies with a fatal error if condition is not true.  It is *not*
+// controlled by DEBUG, so the check will be executed regardless of
+// compilation mode.
+//
+// We make sure CHECK et al. always evaluates their arguments, as
+// doing CHECK(FunctionWithSideEffect()) is a common idiom.
+#define CHECK(condition)                                             \
+  do {                                                               \
+    if (V8_UNLIKELY(!(condition))) {                                 \
+      V8_Fatal(__FILE__, __LINE__, "Check failed: %s.", #condition); \
+    }                                                                \
   } while (0)
 
 
-// Helper function used by the CHECK_EQ function when given int
-// arguments.  Should not be called directly.
-inline void CheckEqualsHelper(const char* file, int line,
-                              const char* expected_source, int expected,
-                              const char* value_source, int value) {
-  if (expected != value) {
-    V8_Fatal(file, line,
-             "CHECK_EQ(%s, %s) failed\n#   Expected: %i\n#   Found: %i",
-             expected_source, value_source, expected, value);
-  }
+#ifdef DEBUG
+
+// Helper macro for binary operators.
+// Don't use this macro directly in your code, use CHECK_EQ et al below.
+#define CHECK_OP(name, op, lhs, rhs)                                    \
+  do {                                                                  \
+    if (std::string* _msg = ::v8::base::Check##name##Impl(              \
+            (lhs), (rhs), #lhs " " #op " " #rhs)) {                     \
+      V8_Fatal(__FILE__, __LINE__, "Check failed: %s.", _msg->c_str()); \
+      delete _msg;                                                      \
+    }                                                                   \
+  } while (0)
+
+#else
+
+// Make all CHECK functions discard their log strings to reduce code
+// bloat for official release builds.
+
+#define CHECK_OP(name, op, lhs, rhs) CHECK((lhs)op(rhs))
+
+#endif
+
+
+// Build the error message string.  This is separate from the "Impl"
+// function template because it is not performance critical and so can
+// be out of line, while the "Impl" code should be inline. Caller
+// takes ownership of the returned string.
+template <typename Lhs, typename Rhs>
+std::string* MakeCheckOpString(Lhs const& lhs, Rhs const& rhs,
+                               char const* msg) {
+  std::ostringstream ss;
+  ss << msg << " (" << lhs << " vs. " << rhs << ")";
+  return new std::string(ss.str());
 }
 
-
-// Helper function used by the CHECK_EQ function when given int64_t
-// arguments.  Should not be called directly.
-inline void CheckEqualsHelper(const char* file, int line,
-                              const char* expected_source,
-                              int64_t expected,
-                              const char* value_source,
-                              int64_t value) {
-  if (expected != value) {
-    // Print int64_t values in hex, as two int32s,
-    // to avoid platform-dependencies.
-    V8_Fatal(file, line,
-             "CHECK_EQ(%s, %s) failed\n#"
-             "   Expected: 0x%08x%08x\n#   Found: 0x%08x%08x",
-             expected_source, value_source,
-             static_cast<uint32_t>(expected >> 32),
-             static_cast<uint32_t>(expected),
-             static_cast<uint32_t>(value >> 32),
-             static_cast<uint32_t>(value));
-  }
-}
+// Commonly used instantiations of MakeCheckOpString<>. Explicitly instantiated
+// in logging.cc.
+#define DEFINE_MAKE_CHECK_OP_STRING(type)                     \
+  extern template std::string* MakeCheckOpString<type, type>( \
+      type const&, type const&, char const*);
+DEFINE_MAKE_CHECK_OP_STRING(int)
+DEFINE_MAKE_CHECK_OP_STRING(long)       // NOLINT(runtime/int)
+DEFINE_MAKE_CHECK_OP_STRING(long long)  // NOLINT(runtime/int)
+DEFINE_MAKE_CHECK_OP_STRING(unsigned int)
+DEFINE_MAKE_CHECK_OP_STRING(unsigned long)       // NOLINT(runtime/int)
+DEFINE_MAKE_CHECK_OP_STRING(unsigned long long)  // NOLINT(runtime/int)
+DEFINE_MAKE_CHECK_OP_STRING(char const*)
+DEFINE_MAKE_CHECK_OP_STRING(void const*)
+#undef DEFINE_MAKE_CHECK_OP_STRING
 
 
-// Helper function used by the CHECK_NE function when given int
-// arguments.  Should not be called directly.
-inline void CheckNonEqualsHelper(const char* file,
-                                 int line,
-                                 const char* unexpected_source,
-                                 int unexpected,
-                                 const char* value_source,
-                                 int value) {
-  if (unexpected == value) {
-    V8_Fatal(file, line, "CHECK_NE(%s, %s) failed\n#   Value: %i",
-             unexpected_source, value_source, value);
-  }
-}
+// Helper functions for CHECK_OP macro.
+// The (int, int) specialization works around the issue that the compiler
+// will not instantiate the template version of the function on values of
+// unnamed enum type - see comment below.
+// The (float, float) and (double, double) instantiations are explicitly
+// externialized to ensure proper 32/64-bit comparisons on x86.
+#define DEFINE_CHECK_OP_IMPL(NAME, op)                                         \
+  template <typename Lhs, typename Rhs>                                        \
+  V8_INLINE std::string* Check##NAME##Impl(Lhs const& lhs, Rhs const& rhs,     \
+                                           char const* msg) {                  \
+    return V8_LIKELY(lhs op rhs) ? nullptr : MakeCheckOpString(lhs, rhs, msg); \
+  }                                                                            \
+  V8_INLINE std::string* Check##NAME##Impl(int lhs, int rhs,                   \
+                                           char const* msg) {                  \
+    return V8_LIKELY(lhs op rhs) ? nullptr : MakeCheckOpString(lhs, rhs, msg); \
+  }                                                                            \
+  extern template std::string* Check##NAME##Impl<float, float>(                \
+      float const& lhs, float const& rhs, char const* msg);                    \
+  extern template std::string* Check##NAME##Impl<double, double>(              \
+      double const& lhs, double const& rhs, char const* msg);
+DEFINE_CHECK_OP_IMPL(EQ, ==)
+DEFINE_CHECK_OP_IMPL(NE, !=)
+DEFINE_CHECK_OP_IMPL(LE, <=)
+DEFINE_CHECK_OP_IMPL(LT, < )
+DEFINE_CHECK_OP_IMPL(GE, >=)
+DEFINE_CHECK_OP_IMPL(GT, > )
+#undef DEFINE_CHECK_OP_IMPL
 
+#define CHECK_EQ(lhs, rhs) CHECK_OP(EQ, ==, lhs, rhs)
+#define CHECK_NE(lhs, rhs) CHECK_OP(NE, !=, lhs, rhs)
+#define CHECK_LE(lhs, rhs) CHECK_OP(LE, <=, lhs, rhs)
+#define CHECK_LT(lhs, rhs) CHECK_OP(LT, <, lhs, rhs)
+#define CHECK_GE(lhs, rhs) CHECK_OP(GE, >=, lhs, rhs)
+#define CHECK_GT(lhs, rhs) CHECK_OP(GT, >, lhs, rhs)
+#define CHECK_NULL(val) CHECK((val) == nullptr)
+#define CHECK_NOT_NULL(val) CHECK((val) != nullptr)
+#define CHECK_IMPLIES(lhs, rhs) CHECK(!(lhs) || (rhs))
 
-// Helper function used by the CHECK function when given string
-// arguments.  Should not be called directly.
-inline void CheckEqualsHelper(const char* file,
-                              int line,
-                              const char* expected_source,
-                              const char* expected,
-                              const char* value_source,
-                              const char* value) {
-  if ((expected == NULL && value != NULL) ||
-      (expected != NULL && value == NULL) ||
-      (expected != NULL && value != NULL && strcmp(expected, value) != 0)) {
-    V8_Fatal(file, line,
-             "CHECK_EQ(%s, %s) failed\n#   Expected: %s\n#   Found: %s",
-             expected_source, value_source, expected, value);
-  }
-}
-
-
-inline void CheckNonEqualsHelper(const char* file,
-                                 int line,
-                                 const char* expected_source,
-                                 const char* expected,
-                                 const char* value_source,
-                                 const char* value) {
-  if (expected == value ||
-      (expected != NULL && value != NULL && strcmp(expected, value) == 0)) {
-    V8_Fatal(file, line, "CHECK_NE(%s, %s) failed\n#   Value: %s",
-             expected_source, value_source, value);
-  }
-}
-
-
-// Helper function used by the CHECK function when given pointer
-// arguments.  Should not be called directly.
-inline void CheckEqualsHelper(const char* file,
-                              int line,
-                              const char* expected_source,
-                              const void* expected,
-                              const char* value_source,
-                              const void* value) {
-  if (expected != value) {
-    V8_Fatal(file, line,
-             "CHECK_EQ(%s, %s) failed\n#   Expected: %p\n#   Found: %p",
-             expected_source, value_source,
-             expected, value);
-  }
-}
-
-
-inline void CheckNonEqualsHelper(const char* file,
-                                 int line,
-                                 const char* expected_source,
-                                 const void* expected,
-                                 const char* value_source,
-                                 const void* value) {
-  if (expected == value) {
-    V8_Fatal(file, line, "CHECK_NE(%s, %s) failed\n#   Value: %p",
-             expected_source, value_source, value);
-  }
-}
-
-
-inline void CheckNonEqualsHelper(const char* file,
-                              int line,
-                              const char* expected_source,
-                              int64_t expected,
-                              const char* value_source,
-                              int64_t value) {
-  if (expected == value) {
-    V8_Fatal(file, line,
-             "CHECK_EQ(%s, %s) failed\n#   Expected: %f\n#   Found: %f",
-             expected_source, value_source, expected, value);
-  }
-}
-
-
-#define CHECK_EQ(expected, value) CheckEqualsHelper(__FILE__, __LINE__, \
-  #expected, expected, #value, value)
-
-
-#define CHECK_NE(unexpected, value) CheckNonEqualsHelper(__FILE__, __LINE__, \
-  #unexpected, unexpected, #value, value)
-
-
-#define CHECK_GT(a, b) CHECK((a) > (b))
-#define CHECK_GE(a, b) CHECK((a) >= (b))
-#define CHECK_LT(a, b) CHECK((a) < (b))
-#define CHECK_LE(a, b) CHECK((a) <= (b))
-
-
-namespace v8 {
-namespace base {
 
 // Exposed for making debugging easier (to see where your function is being
 // called, just add a call to DumpBacktrace).
 void DumpBacktrace();
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 
 // The DCHECK macro is equivalent to CHECK except that it only
 // generates code in debug builds.
 #ifdef DEBUG
-#define DCHECK_RESULT(expr)    CHECK(expr)
 #define DCHECK(condition)      CHECK(condition)
 #define DCHECK_EQ(v1, v2)      CHECK_EQ(v1, v2)
 #define DCHECK_NE(v1, v2)      CHECK_NE(v1, v2)
 #define DCHECK_GE(v1, v2)      CHECK_GE(v1, v2)
 #define DCHECK_LT(v1, v2)      CHECK_LT(v1, v2)
 #define DCHECK_LE(v1, v2)      CHECK_LE(v1, v2)
+#define DCHECK_NULL(val)       CHECK_NULL(val)
+#define DCHECK_NOT_NULL(val)   CHECK_NOT_NULL(val)
+#define DCHECK_IMPLIES(v1, v2) CHECK_IMPLIES(v1, v2)
 #else
-#define DCHECK_RESULT(expr)    (expr)
 #define DCHECK(condition)      ((void) 0)
 #define DCHECK_EQ(v1, v2)      ((void) 0)
 #define DCHECK_NE(v1, v2)      ((void) 0)
 #define DCHECK_GE(v1, v2)      ((void) 0)
 #define DCHECK_LT(v1, v2)      ((void) 0)
 #define DCHECK_LE(v1, v2)      ((void) 0)
-#endif
-
-#define DCHECK_NOT_NULL(p)  DCHECK_NE(NULL, p)
-
-// "Extra checks" are lightweight checks that are enabled in some release
-// builds.
-#ifdef ENABLE_EXTRA_CHECKS
-#define EXTRA_CHECK(condition) CHECK(condition)
-#else
-#define EXTRA_CHECK(condition) ((void) 0)
+#define DCHECK_NULL(val)       ((void) 0)
+#define DCHECK_NOT_NULL(val)   ((void) 0)
+#define DCHECK_IMPLIES(v1, v2) ((void) 0)
 #endif
 
 #endif  // V8_BASE_LOGGING_H_

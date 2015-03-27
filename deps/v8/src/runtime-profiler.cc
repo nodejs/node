@@ -113,11 +113,7 @@ void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
 void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function,
                                                 int loop_nesting_levels) {
   SharedFunctionInfo* shared = function->shared();
-  // See AlwaysFullCompiler (in compiler.cc) comment on why we need
-  // Debug::has_break_points().
-  if (!FLAG_use_osr ||
-      isolate_->DebuggerHasBreakPoints() ||
-      function->IsBuiltin()) {
+  if (!FLAG_use_osr || function->IsBuiltin()) {
     return;
   }
 
@@ -147,7 +143,7 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function,
 void RuntimeProfiler::OptimizeNow() {
   HandleScope scope(isolate_);
 
-  if (!isolate_->use_crankshaft() || isolate_->DebuggerHasBreakPoints()) return;
+  if (!isolate_->use_crankshaft()) return;
 
   DisallowHeapAllocation no_gc;
 

@@ -9,6 +9,7 @@
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
+#include "src/compiler.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
 #include "src/global-handles.h"
@@ -95,12 +96,12 @@ void ExternalReferenceTable::Add(Address address,
                                  TypeCode type,
                                  uint16_t id,
                                  const char* name) {
-  DCHECK_NE(NULL, address);
+  DCHECK_NOT_NULL(address);
   ExternalReferenceEntry entry;
   entry.address = address;
   entry.code = EncodeExternal(type, id);
   entry.name = name;
-  DCHECK_NE(0, entry.code);
+  DCHECK_NE(0u, entry.code);
   // Assert that the code is added in ascending order to rule out duplicates.
   DCHECK((size() == 0) || (code(size() - 1) < entry.code));
   refs_.Add(entry);
@@ -163,8 +164,6 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       "std::log");
   Add(ExternalReference::store_buffer_top(isolate).address(),
       "store_buffer_top");
-  Add(ExternalReference::address_of_canonical_non_hole_nan().address(),
-      "canonical_nan");
   Add(ExternalReference::address_of_the_hole_nan().address(), "the_hole_nan");
   Add(ExternalReference::get_date_field_function(isolate).address(),
       "JSDate::GetField");
@@ -614,7 +613,9 @@ void Deserializer::DecodeReservation(
   DCHECK_EQ(0, reservations_[NEW_SPACE].length());
   STATIC_ASSERT(NEW_SPACE == 0);
   int current_space = NEW_SPACE;
-  for (const auto& r : res) {
+  for (int i = 0; i < res.length(); i++) {
+    SerializedData::Reservation r(0);
+    memcpy(&r, res.start() + i, sizeof(r));
     reservations_[current_space].Add({r.chunk_size(), NULL, NULL});
     if (r.is_last()) current_space++;
   }
@@ -633,6 +634,11 @@ void Deserializer::FlushICacheForNewCodeObjects() {
 
 
 bool Deserializer::ReserveSpace() {
+#ifdef DEBUG
+  for (int i = NEW_SPACE; i < kNumberOfSpaces; ++i) {
+    CHECK(reservations_[i].length() > 0);
+  }
+#endif  // DEBUG
   if (!isolate_->heap()->ReserveSpace(reservations_)) return false;
   for (int i = 0; i < kNumberOfPreallocatedSpaces; i++) {
     high_water_[i] = reservations_[i][0].start;
@@ -641,19 +647,25 @@ bool Deserializer::ReserveSpace() {
 }
 
 
-void Deserializer::Deserialize(Isolate* isolate) {
+void Deserializer::Initialize(Isolate* isolate) {
+  DCHECK_NULL(isolate_);
+  DCHECK_NOT_NULL(isolate);
   isolate_ = isolate;
-  DCHECK(isolate_ != NULL);
-  if (!ReserveSpace()) FatalProcessOutOfMemory("deserializing context");
+  DCHECK_NULL(external_reference_decoder_);
+  external_reference_decoder_ = new ExternalReferenceDecoder(isolate);
+}
+
+
+void Deserializer::Deserialize(Isolate* isolate) {
+  Initialize(isolate);
+  if (!ReserveSpace()) V8::FatalProcessOutOfMemory("deserializing context");
   // No active threads.
-  DCHECK_EQ(NULL, isolate_->thread_manager()->FirstThreadStateInUse());
+  DCHECK_NULL(isolate_->thread_manager()->FirstThreadStateInUse());
   // No active handles.
   DCHECK(isolate_->handle_scope_implementer()->blocks()->is_empty());
-  DCHECK_EQ(NULL, external_reference_decoder_);
-  external_reference_decoder_ = new ExternalReferenceDecoder(isolate);
   isolate_->heap()->IterateSmiRoots(this);
   isolate_->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG);
-  isolate_->heap()->RepairFreeListsAfterBoot();
+  isolate_->heap()->RepairFreeListsAfterDeserialization();
   isolate_->heap()->IterateWeakRoots(this, VISIT_ALL);
 
   isolate_->heap()->set_native_contexts_list(
@@ -667,8 +679,6 @@ void Deserializer::Deserialize(Isolate* isolate) {
     isolate_->heap()->set_allocation_sites_list(
         isolate_->heap()->undefined_value());
   }
-
-  isolate_->heap()->InitializeWeakObjectToCodeTable();
 
   // Update data pointers to the external strings containing natives sources.
   for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
@@ -686,33 +696,52 @@ void Deserializer::Deserialize(Isolate* isolate) {
 }
 
 
-void Deserializer::DeserializePartial(Isolate* isolate, Object** root,
-                                      OnOOM on_oom) {
-  isolate_ = isolate;
-  for (int i = NEW_SPACE; i < kNumberOfSpaces; i++) {
-    DCHECK(reservations_[i].length() > 0);
-  }
+MaybeHandle<Object> Deserializer::DeserializePartial(
+    Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
+    Handle<FixedArray>* outdated_contexts_out) {
+  Initialize(isolate);
   if (!ReserveSpace()) {
-    if (on_oom == FATAL_ON_OOM) FatalProcessOutOfMemory("deserialize context");
-    *root = NULL;
-    return;
+    V8::FatalProcessOutOfMemory("deserialize context");
+    return MaybeHandle<Object>();
   }
-  if (external_reference_decoder_ == NULL) {
-    external_reference_decoder_ = new ExternalReferenceDecoder(isolate);
-  }
+
+  Vector<Handle<Object> > attached_objects = Vector<Handle<Object> >::New(1);
+  attached_objects[kGlobalProxyReference] = global_proxy;
+  SetAttachedObjects(attached_objects);
 
   DisallowHeapAllocation no_gc;
-
   // Keep track of the code space start and end pointers in case new
   // code objects were unserialized
   OldSpace* code_space = isolate_->heap()->code_space();
   Address start_address = code_space->top();
-  VisitPointer(root);
+  Object* root;
+  Object* outdated_contexts;
+  VisitPointer(&root);
+  VisitPointer(&outdated_contexts);
 
   // There's no code deserialized here. If this assert fires
   // then that's changed and logging should be added to notify
   // the profiler et al of the new code.
   CHECK_EQ(start_address, code_space->top());
+  CHECK(outdated_contexts->IsFixedArray());
+  *outdated_contexts_out =
+      Handle<FixedArray>(FixedArray::cast(outdated_contexts), isolate);
+  return Handle<Object>(root, isolate);
+}
+
+
+MaybeHandle<SharedFunctionInfo> Deserializer::DeserializeCode(
+    Isolate* isolate) {
+  Initialize(isolate);
+  if (!ReserveSpace()) {
+    return Handle<SharedFunctionInfo>();
+  } else {
+    deserializing_user_code_ = true;
+    DisallowHeapAllocation no_gc;
+    Object* root;
+    VisitPointer(&root);
+    return Handle<SharedFunctionInfo>(SharedFunctionInfo::cast(root));
+  }
 }
 
 
@@ -723,7 +752,7 @@ Deserializer::~Deserializer() {
     delete external_reference_decoder_;
     external_reference_decoder_ = NULL;
   }
-  if (attached_objects_) attached_objects_->Dispose();
+  attached_objects_.Dispose();
 }
 
 
@@ -798,11 +827,12 @@ HeapObject* Deserializer::ProcessNewObjectFromSerializedCode(HeapObject* obj) {
 
 HeapObject* Deserializer::GetBackReferencedObject(int space) {
   HeapObject* obj;
+  BackReference back_reference(source_.GetInt());
   if (space == LO_SPACE) {
-    uint32_t index = source_.GetInt();
+    CHECK(back_reference.chunk_index() == 0);
+    uint32_t index = back_reference.large_object_index();
     obj = deserialized_large_objects_[index];
   } else {
-    BackReference back_reference(source_.GetInt());
     DCHECK(space < kNumberOfPreallocatedSpaces);
     uint32_t chunk_index = back_reference.chunk_index();
     DCHECK_LE(chunk_index, current_chunk_[space]);
@@ -860,12 +890,30 @@ void Deserializer::ReadObject(int space_number, Object** write_back) {
   // Fix up strings from serialized user code.
   if (deserializing_user_code()) obj = ProcessNewObjectFromSerializedCode(obj);
 
-  *write_back = obj;
+  Object* write_back_obj = obj;
+  UnalignedCopy(write_back, &write_back_obj);
 #ifdef DEBUG
   if (obj->IsCode()) {
     DCHECK(space_number == CODE_SPACE || space_number == LO_SPACE);
   } else {
     DCHECK(space_number != CODE_SPACE);
+  }
+#endif
+#if V8_TARGET_ARCH_PPC && \
+    (ABI_USES_FUNCTION_DESCRIPTORS || V8_OOL_CONSTANT_POOL)
+  // If we're on a platform that uses function descriptors
+  // these jump tables make use of RelocInfo::INTERNAL_REFERENCE.
+  // As the V8 serialization code doesn't handle that relocation type
+  // we use this to fix up code that has function descriptors.
+  if (space_number == CODE_SPACE) {
+    Code* code = reinterpret_cast<Code*>(HeapObject::FromAddress(address));
+    for (RelocIterator it(code); !it.done(); it.next()) {
+      RelocInfo::Mode rmode = it.rinfo()->rmode();
+      if (rmode == RelocInfo::INTERNAL_REFERENCE) {
+        Assembler::RelocateInternalReference(it.rinfo()->pc(), 0,
+                                             code->instruction_start());
+      }
+    }
   }
 #endif
 }
@@ -894,7 +942,7 @@ Address Deserializer::Allocate(int space_index, int size) {
   } else {
     DCHECK(space_index < kNumberOfPreallocatedSpaces);
     Address address = high_water_[space_index];
-    DCHECK_NE(NULL, address);
+    DCHECK_NOT_NULL(address);
     high_water_[space_index] += size;
 #ifdef DEBUG
     // Assert that the current reserved chunk is still big enough.
@@ -970,9 +1018,9 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
         new_object = isolate->builtins()->builtin(name);                       \
         emit_write_barrier = false;                                            \
       } else if (where == kAttachedReference) {                                \
-        DCHECK(deserializing_user_code());                                     \
         int index = source_.GetInt();                                          \
-        new_object = *attached_objects_->at(index);                            \
+        DCHECK(deserializing_user_code() || index == kGlobalProxyReference);   \
+        new_object = *attached_objects_[index];                                \
         emit_write_barrier = isolate->heap()->InNewSpace(new_object);          \
       } else {                                                                 \
         DCHECK(where == kBackrefWithSkip);                                     \
@@ -1003,7 +1051,7 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
         current = reinterpret_cast<Object**>(location_of_branch_data);         \
         current_was_incremented = true;                                        \
       } else {                                                                 \
-        *current = new_object;                                                 \
+        UnalignedCopy(current, &new_object);                                   \
       }                                                                        \
     }                                                                          \
     if (emit_write_barrier && write_barrier_needed) {                          \
@@ -1104,7 +1152,7 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
         int root_id = RootArrayConstantFromByteCode(data);
         Object* object = isolate->heap()->roots_array_start()[root_id];
         DCHECK(!isolate->heap()->InNewSpace(object));
-        *current++ = object;
+        UnalignedCopy(current++, &object);
         break;
       }
 
@@ -1116,7 +1164,7 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
             reinterpret_cast<intptr_t>(current) + skip);
         Object* object = isolate->heap()->roots_array_start()[root_id];
         DCHECK(!isolate->heap()->InNewSpace(object));
-        *current++ = object;
+        UnalignedCopy(current++, &object);
         break;
       }
 
@@ -1124,8 +1172,7 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
         int repeats = source_.GetInt();
         Object* object = current[-1];
         DCHECK(!isolate->heap()->InNewSpace(object));
-        for (int i = 0; i < repeats; i++) current[i] = object;
-        current += repeats;
+        for (int i = 0; i < repeats; i++) UnalignedCopy(current++, &object);
         break;
       }
 
@@ -1139,10 +1186,10 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
       case kFixedRepeat + 13:
       case kFixedRepeat + 14: {
         int repeats = RepeatsForCode(data);
-        Object* object = current[-1];
+        Object* object;
+        UnalignedCopy(&object, current - 1);
         DCHECK(!isolate->heap()->InNewSpace(object));
-        for (int i = 0; i < repeats; i++) current[i] = object;
-        current += repeats;
+        for (int i = 0; i < repeats; i++) UnalignedCopy(current++, &object);
         break;
       }
 
@@ -1161,16 +1208,16 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
       // allocation point and write a pointer to it to the current object.
       ALL_SPACES(kBackref, kPlain, kStartOfObject)
       ALL_SPACES(kBackrefWithSkip, kPlain, kStartOfObject)
-#if defined(V8_TARGET_ARCH_MIPS) || V8_OOL_CONSTANT_POOL || \
-    defined(V8_TARGET_ARCH_MIPS64)
+#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64) || \
+    defined(V8_TARGET_ARCH_PPC) || V8_OOL_CONSTANT_POOL
       // Deserialize a new object from pointer found in code and write
-      // a pointer to it to the current object. Required only for MIPS or ARM
-      // with ool constant pool, and omitted on the other architectures because
-      // it is fully unrolled and would cause bloat.
+      // a pointer to it to the current object. Required only for MIPS, PPC or
+      // ARM with ool constant pool, and omitted on the other architectures
+      // because it is fully unrolled and would cause bloat.
       ALL_SPACES(kNewObject, kFromCode, kStartOfObject)
       // Find a recently deserialized code object using its offset from the
       // current allocation point and write a pointer to it to the current
-      // object. Required only for MIPS or ARM with ool constant pool.
+      // object. Required only for MIPS, PPC or ARM with ool constant pool.
       ALL_SPACES(kBackref, kFromCode, kStartOfObject)
       ALL_SPACES(kBackrefWithSkip, kFromCode, kStartOfObject)
 #endif
@@ -1187,7 +1234,7 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
       CASE_STATEMENT(kRootArray, kPlain, kStartOfObject, 0)
       CASE_BODY(kRootArray, kPlain, kStartOfObject, 0)
 #if defined(V8_TARGET_ARCH_MIPS) || V8_OOL_CONSTANT_POOL || \
-    defined(V8_TARGET_ARCH_MIPS64)
+    defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_PPC)
       // Find an object in the roots array and write a pointer to it to in code.
       CASE_STATEMENT(kRootArray, kFromCode, kStartOfObject, 0)
       CASE_BODY(kRootArray, kFromCode, kStartOfObject, 0)
@@ -1248,13 +1295,14 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
       }
 
       case kNativesStringResource: {
+        DCHECK(!isolate_->heap()->deserialization_complete());
         int index = source_.Get();
         Vector<const char> source_vector = Natives::GetScriptSource(index);
         NativesExternalStringResource* resource =
-            new NativesExternalStringResource(isolate->bootstrapper(),
-                                              source_vector.start(),
+            new NativesExternalStringResource(source_vector.start(),
                                               source_vector.length());
-        *current++ = reinterpret_cast<Object*>(resource);
+        Object* resource_obj = reinterpret_cast<Object*>(resource);
+        UnalignedCopy(current++, &resource_obj);
         break;
       }
 
@@ -1267,7 +1315,7 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
         CHECK_EQ(reservation[chunk_index].end, high_water_[space]);
         // Move to next reserved chunk.
         chunk_index = ++current_chunk_[space];
-        DCHECK_LT(chunk_index, reservation.length());
+        CHECK_LT(chunk_index, reservation.length());
         high_water_[space] = reservation[chunk_index].start;
         break;
       }
@@ -1282,8 +1330,9 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
       FOUR_CASES(kHotObject)
       FOUR_CASES(kHotObject + 4) {
         int index = data & kHotObjectIndexMask;
-        *current = hot_objects_.Get(index);
-        if (write_barrier_needed && isolate->heap()->InNewSpace(*current)) {
+        Object* hot_object = hot_objects_.Get(index);
+        UnalignedCopy(current, &hot_object);
+        if (write_barrier_needed && isolate->heap()->InNewSpace(hot_object)) {
           Address current_address = reinterpret_cast<Address>(current);
           isolate->heap()->RecordWrite(
               current_object_address,
@@ -1296,14 +1345,14 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
       case kSynchronize: {
         // If we get here then that indicates that you have a mismatch between
         // the number of GC roots when serializing and deserializing.
-        UNREACHABLE();
+        CHECK(false);
       }
 
       default:
-        UNREACHABLE();
+        CHECK(false);
     }
   }
-  DCHECK_EQ(limit, current);
+  CHECK_EQ(limit, current);
 }
 
 
@@ -1334,7 +1383,7 @@ Serializer::~Serializer() {
 void StartupSerializer::SerializeStrongReferences() {
   Isolate* isolate = this->isolate();
   // No active threads.
-  CHECK_EQ(NULL, isolate->thread_manager()->FirstThreadStateInUse());
+  CHECK_NULL(isolate->thread_manager()->FirstThreadStateInUse());
   // No active or weak handles.
   CHECK(isolate->handle_scope_implementer()->blocks()->is_empty());
   CHECK_EQ(0, isolate->global_handles()->NumberOfWeakHandles());
@@ -1367,9 +1416,43 @@ void StartupSerializer::VisitPointers(Object** start, Object** end) {
 }
 
 
-void PartialSerializer::Serialize(Object** object) {
-  this->VisitPointer(object);
+void PartialSerializer::Serialize(Object** o) {
+  if ((*o)->IsContext()) {
+    Context* context = Context::cast(*o);
+    global_object_ = context->global_object();
+    back_reference_map()->AddGlobalProxy(context->global_proxy());
+  }
+  VisitPointer(o);
+  SerializeOutdatedContextsAsFixedArray();
   Pad();
+}
+
+
+void PartialSerializer::SerializeOutdatedContextsAsFixedArray() {
+  int length = outdated_contexts_.length();
+  if (length == 0) {
+    FixedArray* empty = isolate_->heap()->empty_fixed_array();
+    SerializeObject(empty, kPlain, kStartOfObject, 0);
+  } else {
+    // Serialize an imaginary fixed array containing outdated contexts.
+    int size = FixedArray::SizeFor(length);
+    Allocate(NEW_SPACE, size);
+    sink_->Put(kNewObject + NEW_SPACE, "emulated FixedArray");
+    sink_->PutInt(size >> kObjectAlignmentBits, "FixedArray size in words");
+    Map* map = isolate_->heap()->fixed_array_map();
+    SerializeObject(map, kPlain, kStartOfObject, 0);
+    Smi* length_smi = Smi::FromInt(length);
+    sink_->Put(kOnePointerRawData, "Smi");
+    for (int i = 0; i < kPointerSize; i++) {
+      sink_->Put(reinterpret_cast<byte*>(&length_smi)[i], "Byte");
+    }
+    for (int i = 0; i < length; i++) {
+      BackReference back_ref = outdated_contexts_[i];
+      DCHECK(BackReferenceIsAlreadyAllocated(back_ref));
+      sink_->Put(kBackref + back_ref.space(), "BackRef");
+      sink_->PutInt(back_ref.reference(), "BackRefValue");
+    }
+  }
 }
 
 
@@ -1464,6 +1547,26 @@ int PartialSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
 }
 
 
+#ifdef DEBUG
+bool Serializer::BackReferenceIsAlreadyAllocated(BackReference reference) {
+  DCHECK(reference.is_valid());
+  DCHECK(!reference.is_source());
+  DCHECK(!reference.is_global_proxy());
+  AllocationSpace space = reference.space();
+  int chunk_index = reference.chunk_index();
+  if (space == LO_SPACE) {
+    return chunk_index == 0 &&
+           reference.large_object_index() < seen_large_objects_index_;
+  } else if (chunk_index == completed_chunks_[space].length()) {
+    return reference.chunk_offset() < pending_chunk_[space];
+  } else {
+    return chunk_index < completed_chunks_[space].length() &&
+           reference.chunk_offset() < completed_chunks_[space][chunk_index];
+  }
+}
+#endif  // DEBUG
+
+
 bool Serializer::SerializeKnownObject(HeapObject* obj, HowToCode how_to_code,
                                       WhereToPoint where_to_point, int skip) {
   if (how_to_code == kPlain && where_to_point == kStartOfObject) {
@@ -1495,8 +1598,14 @@ bool Serializer::SerializeKnownObject(HeapObject* obj, HowToCode how_to_code,
       FlushSkip(skip);
       if (FLAG_trace_serializer) PrintF(" Encoding source object\n");
       DCHECK(how_to_code == kPlain && where_to_point == kStartOfObject);
-      sink_->Put(kAttachedReference + how_to_code + where_to_point, "Source");
-      sink_->PutInt(kSourceObjectReference, "kSourceObjectIndex");
+      sink_->Put(kAttachedReference + kPlain + kStartOfObject, "Source");
+      sink_->PutInt(kSourceObjectReference, "kSourceObjectReference");
+    } else if (back_reference.is_global_proxy()) {
+      FlushSkip(skip);
+      if (FLAG_trace_serializer) PrintF(" Encoding global proxy\n");
+      DCHECK(how_to_code == kPlain && where_to_point == kStartOfObject);
+      sink_->Put(kAttachedReference + kPlain + kStartOfObject, "Global Proxy");
+      sink_->PutInt(kGlobalProxyReference, "kGlobalProxyReference");
     } else {
       if (FLAG_trace_serializer) {
         PrintF(" Encoding back reference to: ");
@@ -1512,6 +1621,7 @@ bool Serializer::SerializeKnownObject(HeapObject* obj, HowToCode how_to_code,
                    "BackRefWithSkip");
         sink_->PutInt(skip, "BackRefSkipDistance");
       }
+      DCHECK(BackReferenceIsAlreadyAllocated(back_reference));
       sink_->PutInt(back_reference.reference(), "BackRefValue");
 
       hot_objects_.Add(obj);
@@ -1598,6 +1708,9 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     DCHECK(Map::cast(obj)->code_cache() == obj->GetHeap()->empty_fixed_array());
   }
 
+  // Replace typed arrays by undefined.
+  if (obj->IsJSTypedArray()) obj = isolate_->heap()->undefined_value();
+
   int root_index = root_index_map_.Lookup(obj);
   if (root_index != RootIndexMap::kInvalidRootIndex) {
     PutRoot(root_index, obj, how_to_code, where_to_point, skip);
@@ -1629,6 +1742,15 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer serializer(this, obj, sink_, how_to_code, where_to_point);
   serializer.Serialize();
+
+  if (obj->IsContext() &&
+      Context::cast(obj)->global_object() == global_object_) {
+    // Context refers to the current global object. This reference will
+    // become outdated after deserialization.
+    BackReference back_reference = back_reference_map_.Lookup(obj);
+    DCHECK(back_reference.is_valid());
+    outdated_contexts_.Add(back_reference);
+  }
 }
 
 
@@ -1747,6 +1869,9 @@ void Serializer::ObjectSerializer::Serialize() {
     object_->ShortPrint();
     PrintF("\n");
   }
+
+  // We cannot serialize typed array objects correctly.
+  DCHECK(!object_->IsJSTypedArray());
 
   if (object_->IsScript()) {
     // Clear cached line ends.
@@ -1994,6 +2119,10 @@ int Serializer::ObjectSerializer::OutputRawData(
     }
 
     const char* description = code_object_ ? "Code" : "Byte";
+#ifdef MEMORY_SANITIZER
+    // Object sizes are usually rounded up with uninitialized padding space.
+    MSAN_MEMORY_IS_INITIALIZED(object_start + base, bytes_to_output);
+#endif  // MEMORY_SANITIZER
     sink_->PutRaw(object_start + base, bytes_to_output, description);
     if (code_object_) delete[] object_start;
   }
@@ -2261,67 +2390,52 @@ int CodeSerializer::AddCodeStubKey(uint32_t stub_key) {
 }
 
 
-void CodeSerializer::SerializeSourceObject(HowToCode how_to_code,
-                                           WhereToPoint where_to_point) {
-  if (FLAG_trace_serializer) PrintF(" Encoding source object\n");
-
-  DCHECK(how_to_code == kPlain && where_to_point == kStartOfObject);
-  sink_->Put(kAttachedReference + how_to_code + where_to_point, "Source");
-  sink_->PutInt(kSourceObjectIndex, "kSourceObjectIndex");
-}
-
-
 MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     Isolate* isolate, ScriptData* cached_data, Handle<String> source) {
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
 
-  Object* root;
+  HandleScope scope(isolate);
 
-  {
-    HandleScope scope(isolate);
-
-    SmartPointer<SerializedCodeData> scd(
-        SerializedCodeData::FromCachedData(cached_data, *source));
-    if (scd.is_empty()) {
-      if (FLAG_profile_deserialization) PrintF("[Cached code failed check]\n");
-      DCHECK(cached_data->rejected());
-      return MaybeHandle<SharedFunctionInfo>();
-    }
-
-    // Eagerly expand string table to avoid allocations during deserialization.
-    StringTable::EnsureCapacityForDeserialization(
-        isolate, scd->NumInternalizedStrings());
-
-    // Prepare and register list of attached objects.
-    Vector<const uint32_t> code_stub_keys = scd->CodeStubKeys();
-    Vector<Handle<Object> > attached_objects = Vector<Handle<Object> >::New(
-        code_stub_keys.length() + kCodeStubsBaseIndex);
-    attached_objects[kSourceObjectIndex] = source;
-    for (int i = 0; i < code_stub_keys.length(); i++) {
-      attached_objects[i + kCodeStubsBaseIndex] =
-          CodeStub::GetCode(isolate, code_stub_keys[i]).ToHandleChecked();
-    }
-
-    Deserializer deserializer(scd.get());
-    deserializer.SetAttachedObjects(&attached_objects);
-
-    // Deserialize.
-    deserializer.DeserializePartial(isolate, &root, Deserializer::NULL_ON_OOM);
-    if (root == NULL) {
-      // Deserializing may fail if the reservations cannot be fulfilled.
-      if (FLAG_profile_deserialization) PrintF("[Deserializing failed]\n");
-      return MaybeHandle<SharedFunctionInfo>();
-    }
-    deserializer.FlushICacheForNewCodeObjects();
+  SmartPointer<SerializedCodeData> scd(
+      SerializedCodeData::FromCachedData(cached_data, *source));
+  if (scd.is_empty()) {
+    if (FLAG_profile_deserialization) PrintF("[Cached code failed check]\n");
+    DCHECK(cached_data->rejected());
+    return MaybeHandle<SharedFunctionInfo>();
   }
+
+  // Eagerly expand string table to avoid allocations during deserialization.
+  StringTable::EnsureCapacityForDeserialization(isolate,
+                                                scd->NumInternalizedStrings());
+
+  // Prepare and register list of attached objects.
+  Vector<const uint32_t> code_stub_keys = scd->CodeStubKeys();
+  Vector<Handle<Object> > attached_objects = Vector<Handle<Object> >::New(
+      code_stub_keys.length() + kCodeStubsBaseIndex);
+  attached_objects[kSourceObjectIndex] = source;
+  for (int i = 0; i < code_stub_keys.length(); i++) {
+    attached_objects[i + kCodeStubsBaseIndex] =
+        CodeStub::GetCode(isolate, code_stub_keys[i]).ToHandleChecked();
+  }
+
+  Deserializer deserializer(scd.get());
+  deserializer.SetAttachedObjects(attached_objects);
+
+  // Deserialize.
+  Handle<SharedFunctionInfo> result;
+  if (!deserializer.DeserializeCode(isolate).ToHandle(&result)) {
+    // Deserializing may fail if the reservations cannot be fulfilled.
+    if (FLAG_profile_deserialization) PrintF("[Deserializing failed]\n");
+    return MaybeHandle<SharedFunctionInfo>();
+  }
+  deserializer.FlushICacheForNewCodeObjects();
 
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     int length = cached_data->length();
     PrintF("[Deserializing from %d bytes took %0.3f ms]\n", length, ms);
   }
-  Handle<SharedFunctionInfo> result(SharedFunctionInfo::cast(root), isolate);
   result->set_deserialized(true);
 
   if (isolate->logger()->is_logging_code_events() ||
@@ -2335,7 +2449,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
                                        *result, NULL, name);
   }
 
-  return result;
+  return scope.CloseAndEscape(result);
 }
 
 
@@ -2348,12 +2462,11 @@ void SerializedData::AllocateData(int size) {
 }
 
 
-SnapshotData::SnapshotData(const SnapshotByteSink& sink,
-                           const Serializer& ser) {
+SnapshotData::SnapshotData(const Serializer& ser) {
   DisallowHeapAllocation no_gc;
   List<Reservation> reservations;
   ser.EncodeReservations(&reservations);
-  const List<byte>& payload = sink.data();
+  const List<byte>& payload = ser.sink()->data();
 
   // Calculate sizes.
   int reservation_size = reservations.length() * kInt32Size;
@@ -2364,7 +2477,7 @@ SnapshotData::SnapshotData(const SnapshotByteSink& sink,
 
   // Set header values.
   SetHeaderValue(kCheckSumOffset, Version::Hash());
-  SetHeaderValue(kReservationsOffset, reservations.length());
+  SetHeaderValue(kNumReservationsOffset, reservations.length());
   SetHeaderValue(kPayloadLengthOffset, payload.length());
 
   // Copy reservation chunk sizes.
@@ -2385,12 +2498,12 @@ bool SnapshotData::IsSane() {
 Vector<const SerializedData::Reservation> SnapshotData::Reservations() const {
   return Vector<const Reservation>(
       reinterpret_cast<const Reservation*>(data_ + kHeaderSize),
-      GetHeaderValue(kReservationsOffset));
+      GetHeaderValue(kNumReservationsOffset));
 }
 
 
 Vector<const byte> SnapshotData::Payload() const {
-  int reservations_size = GetHeaderValue(kReservationsOffset) * kInt32Size;
+  int reservations_size = GetHeaderValue(kNumReservationsOffset) * kInt32Size;
   const byte* payload = data_ + kHeaderSize + reservations_size;
   int length = GetHeaderValue(kPayloadLengthOffset);
   DCHECK_EQ(data_ + size_, payload + length);
@@ -2445,19 +2558,22 @@ SerializedCodeData::SerializedCodeData(const List<byte>& payload,
   int reservation_size = reservations.length() * kInt32Size;
   int num_stub_keys = stub_keys->length();
   int stub_keys_size = stub_keys->length() * kInt32Size;
-  int size = kHeaderSize + reservation_size + stub_keys_size + payload.length();
+  int payload_offset = kHeaderSize + reservation_size + stub_keys_size;
+  int padded_payload_offset = POINTER_SIZE_ALIGN(payload_offset);
+  int size = padded_payload_offset + payload.length();
 
   // Allocate backing store and create result data.
   AllocateData(size);
 
   // Set header values.
+  SetHeaderValue(kMagicNumberOffset, kMagicNumber);
   SetHeaderValue(kVersionHashOffset, Version::Hash());
   SetHeaderValue(kSourceHashOffset, SourceHash(cs.source()));
   SetHeaderValue(kCpuFeaturesOffset,
                  static_cast<uint32_t>(CpuFeatures::SupportedFeatures()));
   SetHeaderValue(kFlagHashOffset, FlagList::Hash());
   SetHeaderValue(kNumInternalizedStringsOffset, cs.num_internalized_strings());
-  SetHeaderValue(kReservationsOffset, reservations.length());
+  SetHeaderValue(kNumReservationsOffset, reservations.length());
   SetHeaderValue(kNumCodeStubKeysOffset, num_stub_keys);
   SetHeaderValue(kPayloadLengthOffset, payload.length());
 
@@ -2473,20 +2589,32 @@ SerializedCodeData::SerializedCodeData(const List<byte>& payload,
   CopyBytes(data_ + kHeaderSize + reservation_size,
             reinterpret_cast<byte*>(stub_keys->begin()), stub_keys_size);
 
+  memset(data_ + payload_offset, 0, padded_payload_offset - payload_offset);
+
   // Copy serialized data.
-  CopyBytes(data_ + kHeaderSize + reservation_size + stub_keys_size,
-            payload.begin(), static_cast<size_t>(payload.length()));
+  CopyBytes(data_ + padded_payload_offset, payload.begin(),
+            static_cast<size_t>(payload.length()));
 }
 
 
-bool SerializedCodeData::IsSane(String* source) const {
-  return GetHeaderValue(kVersionHashOffset) == Version::Hash() &&
-         GetHeaderValue(kSourceHashOffset) == SourceHash(source) &&
-         GetHeaderValue(kCpuFeaturesOffset) ==
-             static_cast<uint32_t>(CpuFeatures::SupportedFeatures()) &&
-         GetHeaderValue(kFlagHashOffset) == FlagList::Hash() &&
-         Checksum(Payload()).Check(GetHeaderValue(kChecksum1Offset),
-                                   GetHeaderValue(kChecksum2Offset));
+SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
+    String* source) const {
+  uint32_t magic_number = GetHeaderValue(kMagicNumberOffset);
+  uint32_t version_hash = GetHeaderValue(kVersionHashOffset);
+  uint32_t source_hash = GetHeaderValue(kSourceHashOffset);
+  uint32_t cpu_features = GetHeaderValue(kCpuFeaturesOffset);
+  uint32_t flags_hash = GetHeaderValue(kFlagHashOffset);
+  uint32_t c1 = GetHeaderValue(kChecksum1Offset);
+  uint32_t c2 = GetHeaderValue(kChecksum2Offset);
+  if (magic_number != kMagicNumber) return MAGIC_NUMBER_MISMATCH;
+  if (version_hash != Version::Hash()) return VERSION_MISMATCH;
+  if (source_hash != SourceHash(source)) return SOURCE_MISMATCH;
+  if (cpu_features != static_cast<uint32_t>(CpuFeatures::SupportedFeatures())) {
+    return CPU_FEATURES_MISMATCH;
+  }
+  if (flags_hash != FlagList::Hash()) return FLAGS_MISMATCH;
+  if (!Checksum(Payload()).Check(c1, c2)) return CHECKSUM_MISMATCH;
+  return CHECK_SUCCESS;
 }
 
 
@@ -2505,15 +2633,17 @@ Vector<const SerializedData::Reservation> SerializedCodeData::Reservations()
     const {
   return Vector<const Reservation>(
       reinterpret_cast<const Reservation*>(data_ + kHeaderSize),
-      GetHeaderValue(kReservationsOffset));
+      GetHeaderValue(kNumReservationsOffset));
 }
 
 
 Vector<const byte> SerializedCodeData::Payload() const {
-  int reservations_size = GetHeaderValue(kReservationsOffset) * kInt32Size;
+  int reservations_size = GetHeaderValue(kNumReservationsOffset) * kInt32Size;
   int code_stubs_size = GetHeaderValue(kNumCodeStubKeysOffset) * kInt32Size;
-  const byte* payload =
-      data_ + kHeaderSize + reservations_size + code_stubs_size;
+  int payload_offset = kHeaderSize + reservations_size + code_stubs_size;
+  int padded_payload_offset = POINTER_SIZE_ALIGN(payload_offset);
+  const byte* payload = data_ + padded_payload_offset;
+  DCHECK(IsAligned(reinterpret_cast<intptr_t>(payload), kPointerAlignment));
   int length = GetHeaderValue(kPayloadLengthOffset);
   DCHECK_EQ(data_ + size_, payload + length);
   return Vector<const byte>(payload, length);
@@ -2525,9 +2655,26 @@ int SerializedCodeData::NumInternalizedStrings() const {
 }
 
 Vector<const uint32_t> SerializedCodeData::CodeStubKeys() const {
-  int reservations_size = GetHeaderValue(kReservationsOffset) * kInt32Size;
+  int reservations_size = GetHeaderValue(kNumReservationsOffset) * kInt32Size;
   const byte* start = data_ + kHeaderSize + reservations_size;
   return Vector<const uint32_t>(reinterpret_cast<const uint32_t*>(start),
                                 GetHeaderValue(kNumCodeStubKeysOffset));
+}
+
+
+SerializedCodeData::SerializedCodeData(ScriptData* data)
+    : SerializedData(const_cast<byte*>(data->data()), data->length()) {}
+
+
+SerializedCodeData* SerializedCodeData::FromCachedData(ScriptData* cached_data,
+                                                       String* source) {
+  DisallowHeapAllocation no_gc;
+  SerializedCodeData* scd = new SerializedCodeData(cached_data);
+  SanityCheckResult r = scd->SanityCheck(source);
+  if (r == CHECK_SUCCESS) return scd;
+  cached_data->Reject();
+  source->GetIsolate()->counters()->code_cache_reject_reason()->AddSample(r);
+  delete scd;
+  return NULL;
 }
 } }  // namespace v8::internal

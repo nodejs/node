@@ -39,21 +39,9 @@ const NEW_TWO_BYTE_STRING = false;
 const GETTER = 0;
 const SETTER = 1;
 
-# These definitions must match the index of the properties in objects.h.
-const kApiTagOffset                 = 0;
-const kApiPropertyListOffset        = 1;
-const kApiSerialNumberOffset        = 3;
-const kApiConstructorOffset         = 3;
-const kApiPrototypeTemplateOffset   = 5;
-const kApiParentTemplateOffset      = 6;
-const kApiFlagOffset                = 14;
-
 const NO_HINT     = 0;
 const NUMBER_HINT = 1;
 const STRING_HINT = 2;
-
-const kFunctionTag  = 0;
-const kNewObjectTag = 1;
 
 # For date.js.
 const HoursPerDay      = 24;
@@ -64,12 +52,6 @@ const msPerMinute      = 60000;
 const msPerHour        = 3600000;
 const msPerDay         = 86400000;
 const msPerMonth       = 2592000000;
-
-# For apinatives.js
-const kUninitialized = -1;
-const kReadOnlyPrototypeBit = 3;
-const kRemovePrototypeBit = 4;  # For FunctionTemplateInfo, matches objects.h
-const kDoNotCacheBit = 5;  # For FunctionTemplateInfo, matches objects.h
 
 # Note: kDayZeroInJulianDay = ToJulianDay(1970, 0, 1).
 const kInvalidDate        = 'Invalid Date';

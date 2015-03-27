@@ -3,11 +3,10 @@
 // found in the LICENSE file.
 
 #include "src/compiler/diamond.h"
-#include "src/compiler/graph-inl.h"
 #include "src/compiler/js-builtin-reducer.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-matchers.h"
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
 #include "src/types.h"
 
 namespace v8 {
@@ -151,8 +150,8 @@ Reduction JSBuiltinReducer::ReduceMathMax(Node* node) {
       Node* const input = r.GetJSCallInput(i);
       value = graph()->NewNode(
           common()->Select(kMachNone),
-          graph()->NewNode(simplified()->NumberLessThan(), input, value), input,
-          value);
+          graph()->NewNode(simplified()->NumberLessThan(), input, value), value,
+          input);
     }
     return Replace(value);
   }

@@ -64,9 +64,9 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* map,
       }
       has_property_ = true;
       switch (property_details_.kind()) {
-        case v8::internal::DATA:
+        case v8::internal::kData:
           return DATA;
-        case v8::internal::ACCESSOR:
+        case v8::internal::kAccessor:
           return ACCESSOR;
       }
     case ACCESSOR:

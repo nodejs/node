@@ -92,6 +92,19 @@ class CodeEntry {
   }
   const char* bailout_reason() const { return bailout_reason_; }
 
+  void set_deopt_info(const char* deopt_reason, int location) {
+    DCHECK(!deopt_location_);
+    deopt_reason_ = deopt_reason;
+    deopt_location_ = location;
+  }
+  const char* deopt_reason() const { return deopt_reason_; }
+  int deopt_location() const { return deopt_location_; }
+  bool has_deopt_info() const { return deopt_location_; }
+  void clear_deopt_info() {
+    deopt_reason_ = kNoDeoptReason;
+    deopt_location_ = 0;
+  }
+
   static inline bool is_js_function_tag(Logger::LogEventsAndTags tag);
 
   List<OffsetRange>* no_frame_ranges() const { return no_frame_ranges_; }
@@ -114,6 +127,7 @@ class CodeEntry {
   static const char* const kEmptyNamePrefix;
   static const char* const kEmptyResourceName;
   static const char* const kEmptyBailoutReason;
+  static const char* const kNoDeoptReason;
 
  private:
   class TagField : public BitField<Logger::LogEventsAndTags, 0, 8> {};
@@ -130,6 +144,8 @@ class CodeEntry {
   int script_id_;
   List<OffsetRange>* no_frame_ranges_;
   const char* bailout_reason_;
+  const char* deopt_reason_;
+  int deopt_location_;
   JITLineInfoTable* line_info_;
   Address instruction_start_;
 
@@ -140,6 +156,17 @@ class CodeEntry {
 class ProfileTree;
 
 class ProfileNode {
+ private:
+  struct DeoptInfo {
+    DeoptInfo(const char* deopt_reason, int deopt_location)
+        : deopt_reason(deopt_reason), deopt_location(deopt_location) {}
+    DeoptInfo(const DeoptInfo& info)
+        : deopt_reason(info.deopt_reason),
+          deopt_location(info.deopt_location) {}
+    const char* deopt_reason;
+    int deopt_location;
+  };
+
  public:
   inline ProfileNode(ProfileTree* tree, CodeEntry* entry);
 
@@ -156,6 +183,8 @@ class ProfileNode {
   unsigned int GetHitLineCount() const { return line_ticks_.occupancy(); }
   bool GetLineTicks(v8::CpuProfileNode::LineTick* entries,
                     unsigned int length) const;
+  void CollectDeoptInfo(CodeEntry* entry);
+  const List<DeoptInfo>& deopt_infos() const { return deopt_infos_; }
 
   void Print(int indent);
 
@@ -180,6 +209,7 @@ class ProfileNode {
   unsigned id_;
   HashMap line_ticks_;
 
+  List<DeoptInfo> deopt_infos_;
   DISALLOW_COPY_AND_ASSIGN(ProfileNode);
 };
 
@@ -192,8 +222,6 @@ class ProfileTree {
   ProfileNode* AddPathFromEnd(
       const Vector<CodeEntry*>& path,
       int src_line = v8::CpuProfileNode::kNoLineNumberInfo);
-  void AddPathFromStart(const Vector<CodeEntry*>& path,
-                        int src_line = v8::CpuProfileNode::kNoLineNumberInfo);
   ProfileNode* root() const { return root_; }
   unsigned next_node_id() { return next_node_id_++; }
 

@@ -135,11 +135,12 @@ LiveRange::LiveRange(int id, Zone* zone)
       spills_at_definition_(nullptr) {}
 
 
-void LiveRange::set_assigned_register(int reg, Zone* zone) {
+void LiveRange::set_assigned_register(int reg,
+                                      InstructionOperandCache* operand_cache) {
   DCHECK(!HasRegisterAssigned() && !IsSpilled());
   assigned_register_ = reg;
   // TODO(dcarney): stop aliasing hint operands.
-  ConvertUsesToOperand(CreateAssignedOperand(zone));
+  ConvertUsesToOperand(GetAssignedOperand(operand_cache));
 }
 
 
@@ -183,7 +184,7 @@ void LiveRange::SetSpillOperand(InstructionOperand* operand) {
 
 void LiveRange::SetSpillRange(SpillRange* spill_range) {
   DCHECK(HasNoSpillType() || HasSpillRange());
-  DCHECK_NE(spill_range, nullptr);
+  DCHECK(spill_range);
   spill_type_ = SpillType::kSpillRange;
   spill_range_ = spill_range;
 }
@@ -250,27 +251,44 @@ bool LiveRange::CanBeSpilled(LifetimePosition pos) {
 }
 
 
-InstructionOperand* LiveRange::CreateAssignedOperand(Zone* zone) const {
-  InstructionOperand* op = nullptr;
+InstructionOperand* LiveRange::GetAssignedOperand(
+    InstructionOperandCache* cache) const {
   if (HasRegisterAssigned()) {
     DCHECK(!IsSpilled());
     switch (Kind()) {
       case GENERAL_REGISTERS:
-        op = RegisterOperand::Create(assigned_register(), zone);
-        break;
+        return cache->RegisterOperand(assigned_register());
       case DOUBLE_REGISTERS:
-        op = DoubleRegisterOperand::Create(assigned_register(), zone);
-        break;
+        return cache->DoubleRegisterOperand(assigned_register());
       default:
         UNREACHABLE();
     }
-  } else {
-    DCHECK(IsSpilled());
-    DCHECK(!HasRegisterAssigned());
-    op = TopLevel()->GetSpillOperand();
-    DCHECK(!op->IsUnallocated());
   }
+  DCHECK(IsSpilled());
+  DCHECK(!HasRegisterAssigned());
+  auto op = TopLevel()->GetSpillOperand();
+  DCHECK(!op->IsUnallocated());
   return op;
+}
+
+
+InstructionOperand LiveRange::GetAssignedOperand() const {
+  if (HasRegisterAssigned()) {
+    DCHECK(!IsSpilled());
+    switch (Kind()) {
+      case GENERAL_REGISTERS:
+        return RegisterOperand(assigned_register());
+      case DOUBLE_REGISTERS:
+        return DoubleRegisterOperand(assigned_register());
+      default:
+        UNREACHABLE();
+    }
+  }
+  DCHECK(IsSpilled());
+  DCHECK(!HasRegisterAssigned());
+  auto op = TopLevel()->GetSpillOperand();
+  DCHECK(!op->IsUnallocated());
+  return *op;
 }
 
 
@@ -553,6 +571,18 @@ LifetimePosition LiveRange::FirstIntersection(LiveRange* other) {
 }
 
 
+InstructionOperandCache::InstructionOperandCache() {
+  for (size_t i = 0; i < arraysize(general_register_operands_); ++i) {
+    general_register_operands_[i] =
+        i::compiler::RegisterOperand(static_cast<int>(i));
+  }
+  for (size_t i = 0; i < arraysize(double_register_operands_); ++i) {
+    double_register_operands_[i] =
+        i::compiler::DoubleRegisterOperand(static_cast<int>(i));
+  }
+}
+
+
 RegisterAllocator::RegisterAllocator(const RegisterConfiguration* config,
                                      Zone* zone, Frame* frame,
                                      InstructionSequence* code,
@@ -562,7 +592,8 @@ RegisterAllocator::RegisterAllocator(const RegisterConfiguration* config,
       code_(code),
       debug_name_(debug_name),
       config_(config),
-      phi_map_(PhiMap::key_compare(), PhiMap::allocator_type(local_zone())),
+      operand_cache_(new (code_zone()) InstructionOperandCache()),
+      phi_map_(local_zone()),
       live_in_sets_(code->InstructionBlockCount(), nullptr, local_zone()),
       live_ranges_(code->VirtualRegisterCount() * 2, nullptr, local_zone()),
       fixed_live_ranges_(this->config()->num_general_registers(), nullptr,
@@ -572,11 +603,9 @@ RegisterAllocator::RegisterAllocator(const RegisterConfiguration* config,
       unhandled_live_ranges_(local_zone()),
       active_live_ranges_(local_zone()),
       inactive_live_ranges_(local_zone()),
-      reusable_slots_(local_zone()),
       spill_ranges_(local_zone()),
       mode_(UNALLOCATED_REGISTERS),
-      num_registers_(-1),
-      allocation_ok_(true) {
+      num_registers_(-1) {
   DCHECK(this->config()->num_general_registers() <=
          RegisterConfiguration::kMaxGeneralRegisters);
   DCHECK(this->config()->num_double_registers() <=
@@ -589,7 +618,6 @@ RegisterAllocator::RegisterAllocator(const RegisterConfiguration* config,
       static_cast<size_t>(code->VirtualRegisterCount() * 2));
   active_live_ranges().reserve(8);
   inactive_live_ranges().reserve(8);
-  reusable_slots().reserve(8);
   spill_ranges().reserve(8);
   assigned_registers_ =
       new (code_zone()) BitVector(config->num_general_registers(), code_zone());
@@ -898,9 +926,7 @@ void SpillRange::MergeDisjointIntervals(UseInterval* other) {
 }
 
 
-void RegisterAllocator::ReuseSpillSlots() {
-  DCHECK(FLAG_turbo_reuse_spill_slots);
-
+void RegisterAllocator::AssignSpillSlots() {
   // Merge disjoint spill ranges
   for (size_t i = 0; i < spill_ranges().size(); i++) {
     auto range = spill_ranges()[i];
@@ -922,7 +948,7 @@ void RegisterAllocator::ReuseSpillSlots() {
     auto op_kind = kind == DOUBLE_REGISTERS
                        ? InstructionOperand::DOUBLE_STACK_SLOT
                        : InstructionOperand::STACK_SLOT;
-    auto op = new (code_zone()) InstructionOperand(op_kind, index);
+    auto op = InstructionOperand::New(code_zone(), op_kind, index);
     range->SetOperand(op);
   }
 }
@@ -933,7 +959,7 @@ void RegisterAllocator::CommitAssignment() {
     if (range == nullptr || range->IsEmpty()) continue;
     // Register assignments were committed in set_assigned_register.
     if (range->HasRegisterAssigned()) continue;
-    auto assigned = range->CreateAssignedOperand(code_zone());
+    auto assigned = range->GetAssignedOperand(operand_cache());
     range->ConvertUsesToOperand(assigned);
     if (range->IsSpilled()) {
       range->CommitSpillsAtDefinition(code(), assigned);
@@ -943,7 +969,6 @@ void RegisterAllocator::CommitAssignment() {
 
 
 SpillRange* RegisterAllocator::AssignSpillRangeToLiveRange(LiveRange* range) {
-  DCHECK(FLAG_turbo_reuse_spill_slots);
   auto spill_range = new (local_zone()) SpillRange(range, local_zone());
   spill_ranges().push_back(spill_range);
   return spill_range;
@@ -951,7 +976,6 @@ SpillRange* RegisterAllocator::AssignSpillRangeToLiveRange(LiveRange* range) {
 
 
 bool RegisterAllocator::TryReuseSpillForPhi(LiveRange* range) {
-  DCHECK(FLAG_turbo_reuse_spill_slots);
   if (range->IsChild() || !range->is_phi()) return false;
   DCHECK(range->HasNoSpillType());
 
@@ -1024,7 +1048,6 @@ bool RegisterAllocator::TryReuseSpillForPhi(LiveRange* range) {
     auto spill_range = AssignSpillRangeToLiveRange(range->TopLevel());
     CHECK(first_op_spill->TryMerge(spill_range));
     SpillBetween(range, range->Start(), pos->pos());
-    if (!AllocationOk()) return false;
     DCHECK(UnhandledIsSorted());
     return true;
   }
@@ -1043,7 +1066,6 @@ void RegisterAllocator::MeetRegisterConstraints(const InstructionBlock* block) {
       if (i < end) instr = InstructionAt(i + 1);
       if (i > start) prev_instr = InstructionAt(i - 1);
       MeetConstraintsBetween(prev_instr, instr, i);
-      if (!AllocationOk()) return;
     }
   }
 
@@ -1069,7 +1091,7 @@ void RegisterAllocator::MeetRegisterConstraintsForLastInstructionInBlock(
       AllocateFixed(output, -1, false);
       // This value is produced on the stack, we never need to spill it.
       if (output->IsStackSlot()) {
-        DCHECK(output->index() < 0);
+        DCHECK(output->index() < frame_->GetSpillSlotCount());
         range->SetSpillOperand(output);
         range->SetSpillStartIndex(end);
         assigned = true;
@@ -1078,15 +1100,14 @@ void RegisterAllocator::MeetRegisterConstraintsForLastInstructionInBlock(
       for (auto succ : block->successors()) {
         const InstructionBlock* successor = code()->InstructionBlockAt(succ);
         DCHECK(successor->PredecessorCount() == 1);
-        int gap_index = successor->first_instruction_index() + 1;
+        int gap_index = successor->first_instruction_index();
         DCHECK(code()->IsGapAt(gap_index));
 
         // Create an unconstrained operand for the same virtual register
         // and insert a gap move from the fixed output to the operand.
         UnallocatedOperand* output_copy =
-            new (code_zone()) UnallocatedOperand(UnallocatedOperand::ANY);
-        output_copy->set_virtual_register(output_vreg);
-
+            UnallocatedOperand(UnallocatedOperand::ANY, output_vreg)
+                .Copy(code_zone());
         AddGapMove(gap_index, GapInstruction::START, output, output_copy);
       }
     }
@@ -1095,7 +1116,7 @@ void RegisterAllocator::MeetRegisterConstraintsForLastInstructionInBlock(
       for (auto succ : block->successors()) {
         const InstructionBlock* successor = code()->InstructionBlockAt(succ);
         DCHECK(successor->PredecessorCount() == 1);
-        int gap_index = successor->first_instruction_index() + 1;
+        int gap_index = successor->first_instruction_index();
         range->SpillAtDefinition(local_zone(), gap_index, output);
         range->SetSpillStartIndex(gap_index);
       }
@@ -1135,7 +1156,7 @@ void RegisterAllocator::MeetConstraintsBetween(Instruction* first,
 
           // This value is produced on the stack, we never need to spill it.
           if (first_output->IsStackSlot()) {
-            DCHECK(first_output->index() < 0);
+            DCHECK(first_output->index() < frame_->GetSpillSlotCount());
             range->SetSpillOperand(first_output);
             range->SetSpillStartIndex(gap_index - 1);
             assigned = true;
@@ -1351,27 +1372,25 @@ void RegisterAllocator::ProcessInstructions(const InstructionBlock* block,
 
 void RegisterAllocator::ResolvePhis(const InstructionBlock* block) {
   for (auto phi : block->phis()) {
-    if (FLAG_turbo_reuse_spill_slots) {
-      auto res = phi_map_.insert(
-          std::make_pair(phi->virtual_register(), PhiMapValue(phi, block)));
-      DCHECK(res.second);
-      USE(res);
-    }
-    auto output = phi->output();
     int phi_vreg = phi->virtual_register();
+    auto res =
+        phi_map_.insert(std::make_pair(phi_vreg, PhiMapValue(phi, block)));
+    DCHECK(res.second);
+    USE(res);
+    auto& output = phi->output();
     if (!FLAG_turbo_delay_ssa_decon) {
       for (size_t i = 0; i < phi->operands().size(); ++i) {
         InstructionBlock* cur_block =
             code()->InstructionBlockAt(block->predecessors()[i]);
         AddGapMove(cur_block->last_instruction_index() - 1, GapInstruction::END,
-                   phi->inputs()[i], output);
+                   &phi->inputs()[i], &output);
         DCHECK(!InstructionAt(cur_block->last_instruction_index())
                     ->HasPointerMap());
       }
     }
     auto live_range = LiveRangeFor(phi_vreg);
     int gap_index = block->first_instruction_index();
-    live_range->SpillAtDefinition(local_zone(), gap_index, output);
+    live_range->SpillAtDefinition(local_zone(), gap_index, &output);
     live_range->SetSpillStartIndex(gap_index);
     // We use the phi-ness of some nodes in some later heuristics.
     live_range->set_is_phi(true);
@@ -1407,7 +1426,7 @@ ParallelMove* RegisterAllocator::GetConnectingParallelMove(
   }
   int gap_pos = pos.IsInstructionStart() ? (index - 1) : (index + 1);
   return code()->GapAt(gap_pos)->GetOrCreateParallelMove(
-      (gap_pos < index) ? GapInstruction::AFTER : GapInstruction::BEFORE,
+      (gap_pos < index) ? GapInstruction::AFTER : GapInstruction::START,
       code_zone());
 }
 
@@ -1435,8 +1454,10 @@ void RegisterAllocator::ConnectRanges() {
           }
           if (should_insert) {
             auto move = GetConnectingParallelMove(pos);
-            auto prev_operand = first_range->CreateAssignedOperand(code_zone());
-            auto cur_operand = second_range->CreateAssignedOperand(code_zone());
+            auto prev_operand =
+                first_range->GetAssignedOperand(operand_cache());
+            auto cur_operand =
+                second_range->GetAssignedOperand(operand_cache());
             move->AddMove(prev_operand, cur_operand, code_zone());
           }
         }
@@ -1493,7 +1514,7 @@ class LiveRangeBoundArray {
   void Initialize(Zone* zone, const LiveRange* const range) {
     size_t length = 0;
     for (auto i = range; i != nullptr; i = i->next()) length++;
-    start_ = zone->NewArray<LiveRangeBound>(static_cast<int>(length));
+    start_ = zone->NewArray<LiveRangeBound>(length);
     length_ = length;
     auto curr = start_;
     for (auto i = range; i != nullptr; i = i->next(), ++curr) {
@@ -1600,15 +1621,16 @@ void RegisterAllocator::ResolveControlFlow() {
         auto* block_bound =
             finder.ArrayFor(phi->virtual_register())->FindSucc(block);
         auto phi_output =
-            block_bound->range_->CreateAssignedOperand(code_zone());
-        phi->output()->ConvertTo(phi_output->kind(), phi_output->index());
+            block_bound->range_->GetAssignedOperand(operand_cache());
+        phi->output().ConvertTo(phi_output->kind(), phi_output->index());
         size_t pred_index = 0;
         for (auto pred : block->predecessors()) {
           const InstructionBlock* pred_block = code()->InstructionBlockAt(pred);
           auto* pred_bound = finder.ArrayFor(phi->operands()[pred_index])
                                  ->FindPred(pred_block);
-          auto pred_op = pred_bound->range_->CreateAssignedOperand(code_zone());
-          phi->inputs()[pred_index] = pred_op;
+          auto pred_op =
+              pred_bound->range_->GetAssignedOperand(operand_cache());
+          phi->inputs()[pred_index] = *pred_op;
           ResolveControlFlow(block, phi_output, pred_block, pred_op);
           pred_index++;
         }
@@ -1625,8 +1647,8 @@ void RegisterAllocator::ResolveControlFlow() {
         if (result.cur_cover_ == result.pred_cover_ ||
             result.cur_cover_->IsSpilled())
           continue;
-        auto pred_op = result.pred_cover_->CreateAssignedOperand(code_zone());
-        auto cur_op = result.cur_cover_->CreateAssignedOperand(code_zone());
+        auto pred_op = result.pred_cover_->GetAssignedOperand(operand_cache());
+        auto cur_op = result.cur_cover_->GetAssignedOperand(operand_cache());
         ResolveControlFlow(block, cur_op, pred_block, pred_op);
       }
       iterator.Advance();
@@ -1848,7 +1870,7 @@ void RegisterAllocator::PopulatePointerMaps() {
             "Pointer in register for range %d (start at %d) "
             "at safe point %d\n",
             cur->id(), cur->Start().Value(), safe_point);
-        InstructionOperand* operand = cur->CreateAssignedOperand(code_zone());
+        InstructionOperand* operand = cur->GetAssignedOperand(operand_cache());
         DCHECK(!operand->IsStackSlot());
         map->RecordPointer(operand, code_zone());
       }
@@ -1883,7 +1905,6 @@ void RegisterAllocator::AllocateRegisters() {
   SortUnhandled();
   DCHECK(UnhandledIsSorted());
 
-  DCHECK(reusable_slots().empty());
   DCHECK(active_live_ranges().empty());
   DCHECK(inactive_live_ranges().empty());
 
@@ -1932,18 +1953,12 @@ void RegisterAllocator::AllocateRegisters() {
         // Do not spill live range eagerly if use position that can benefit from
         // the register is too close to the start of live range.
         SpillBetween(current, current->Start(), pos->pos());
-        if (!AllocationOk()) return;
         DCHECK(UnhandledIsSorted());
         continue;
       }
     }
 
-    if (FLAG_turbo_reuse_spill_slots) {
-      if (TryReuseSpillForPhi(current)) {
-        continue;
-      }
-      if (!AllocationOk()) return;
-    }
+    if (TryReuseSpillForPhi(current)) continue;
 
     for (size_t i = 0; i < active_live_ranges().size(); ++i) {
       auto cur_active = active_live_ranges()[i];
@@ -1970,17 +1985,12 @@ void RegisterAllocator::AllocateRegisters() {
     DCHECK(!current->HasRegisterAssigned() && !current->IsSpilled());
 
     bool result = TryAllocateFreeReg(current);
-    if (!AllocationOk()) return;
-
     if (!result) AllocateBlockedReg(current);
-    if (!AllocationOk()) return;
-
     if (current->HasRegisterAssigned()) {
       AddToActive(current);
     }
   }
 
-  reusable_slots().clear();
   active_live_ranges().clear();
   inactive_live_ranges().clear();
 }
@@ -2076,36 +2086,9 @@ bool RegisterAllocator::UnhandledIsSorted() {
 }
 
 
-void RegisterAllocator::FreeSpillSlot(LiveRange* range) {
-  DCHECK(!FLAG_turbo_reuse_spill_slots);
-  // Check that we are the last range.
-  if (range->next() != nullptr) return;
-  if (!range->TopLevel()->HasSpillOperand()) return;
-  auto spill_operand = range->TopLevel()->GetSpillOperand();
-  if (spill_operand->IsConstant()) return;
-  if (spill_operand->index() >= 0) {
-    reusable_slots().push_back(range);
-  }
-}
-
-
-InstructionOperand* RegisterAllocator::TryReuseSpillSlot(LiveRange* range) {
-  DCHECK(!FLAG_turbo_reuse_spill_slots);
-  if (reusable_slots().empty()) return nullptr;
-  if (reusable_slots().front()->End().Value() >
-      range->TopLevel()->Start().Value()) {
-    return nullptr;
-  }
-  auto result = reusable_slots().front()->TopLevel()->GetSpillOperand();
-  reusable_slots().erase(reusable_slots().begin());
-  return result;
-}
-
-
 void RegisterAllocator::ActiveToHandled(LiveRange* range) {
   RemoveElement(&active_live_ranges(), range);
   TraceAlloc("Moving live range %d from active to handled\n", range->id());
-  if (!FLAG_turbo_reuse_spill_slots) FreeSpillSlot(range);
 }
 
 
@@ -2119,7 +2102,6 @@ void RegisterAllocator::ActiveToInactive(LiveRange* range) {
 void RegisterAllocator::InactiveToHandled(LiveRange* range) {
   RemoveElement(&inactive_live_ranges(), range);
   TraceAlloc("Moving live range %d from inactive to handled\n", range->id());
-  if (!FLAG_turbo_reuse_spill_slots) FreeSpillSlot(range);
 }
 
 
@@ -2186,7 +2168,6 @@ bool RegisterAllocator::TryAllocateFreeReg(LiveRange* current) {
     // Register reg is available at the range start but becomes blocked before
     // the range end. Split current at position where it becomes blocked.
     auto tail = SplitRangeAt(current, pos);
-    if (!AllocationOk()) return false;
     AddToUnhandledSorted(tail);
   }
 
@@ -2267,7 +2248,6 @@ void RegisterAllocator::AllocateBlockedReg(LiveRange* current) {
     // position.
     LiveRange* tail = SplitBetween(current, current->Start(),
                                    block_pos[reg].InstructionStart());
-    if (!AllocationOk()) return;
     AddToUnhandledSorted(tail);
   }
 
@@ -2346,7 +2326,6 @@ void RegisterAllocator::SplitAndSpillIntersecting(LiveRange* current) {
         // current live-range is larger than their end.
         SpillBetweenUntil(range, spill_pos, current->Start(), next_pos->pos());
       }
-      if (!AllocationOk()) return;
       ActiveToHandled(range);
       --i;
     }
@@ -2365,7 +2344,6 @@ void RegisterAllocator::SplitAndSpillIntersecting(LiveRange* current) {
           next_intersection = Min(next_intersection, next_pos->pos());
           SpillBetween(range, split_pos, next_intersection);
         }
-        if (!AllocationOk()) return;
         InactiveToHandled(range);
         --i;
       }
@@ -2376,7 +2354,8 @@ void RegisterAllocator::SplitAndSpillIntersecting(LiveRange* current) {
 
 bool RegisterAllocator::IsBlockBoundary(LifetimePosition pos) {
   return pos.IsInstructionStart() &&
-         InstructionAt(pos.InstructionIndex())->IsBlockStart();
+         code()->GetInstructionBlock(pos.InstructionIndex())->code_start() ==
+             pos.InstructionIndex();
 }
 
 
@@ -2393,7 +2372,6 @@ LiveRange* RegisterAllocator::SplitRangeAt(LiveRange* range,
          !InstructionAt(pos.InstructionIndex())->IsControl());
 
   int vreg = GetVirtualRegister();
-  if (!AllocationOk()) return nullptr;
   auto result = LiveRangeFor(vreg);
   range->SplitAt(pos, result, local_zone());
   return result;
@@ -2451,7 +2429,6 @@ LifetimePosition RegisterAllocator::FindOptimalSplitPos(LifetimePosition start,
 
 void RegisterAllocator::SpillAfter(LiveRange* range, LifetimePosition pos) {
   auto second_part = SplitRangeAt(range, pos);
-  if (!AllocationOk()) return;
   Spill(second_part);
 }
 
@@ -2468,16 +2445,18 @@ void RegisterAllocator::SpillBetweenUntil(LiveRange* range,
                                           LifetimePosition end) {
   CHECK(start.Value() < end.Value());
   auto second_part = SplitRangeAt(range, start);
-  if (!AllocationOk()) return;
 
   if (second_part->Start().Value() < end.Value()) {
     // The split result intersects with [start, end[.
     // Split it at position between ]start+1, end[, spill the middle part
     // and put the rest to unhandled.
+    auto third_part_end = end.PrevInstruction().InstructionEnd();
+    if (IsBlockBoundary(end.InstructionStart())) {
+      third_part_end = end.InstructionStart();
+    }
     auto third_part = SplitBetween(
         second_part, Max(second_part->Start().InstructionEnd(), until),
-        end.PrevInstruction().InstructionEnd());
-    if (!AllocationOk()) return;
+        third_part_end);
 
     DCHECK(third_part != second_part);
 
@@ -2496,21 +2475,7 @@ void RegisterAllocator::Spill(LiveRange* range) {
   TraceAlloc("Spilling live range %d\n", range->id());
   auto first = range->TopLevel();
   if (first->HasNoSpillType()) {
-    if (FLAG_turbo_reuse_spill_slots) {
-      AssignSpillRangeToLiveRange(first);
-    } else {
-      auto op = TryReuseSpillSlot(range);
-      if (op == nullptr) {
-        // Allocate a new operand referring to the spill slot.
-        RegisterKind kind = range->Kind();
-        int index = frame()->AllocateSpillSlot(kind == DOUBLE_REGISTERS);
-        auto op_kind = kind == DOUBLE_REGISTERS
-                           ? InstructionOperand::DOUBLE_STACK_SLOT
-                           : InstructionOperand::STACK_SLOT;
-        op = new (code_zone()) InstructionOperand(op_kind, index);
-      }
-      first->SetSpillOperand(op);
-    }
+    AssignSpillRangeToLiveRange(first);
   }
   range->MakeSpilled();
 }
@@ -2540,7 +2505,7 @@ void RegisterAllocator::SetLiveRangeAssignedRegister(LiveRange* range,
     DCHECK(range->Kind() == GENERAL_REGISTERS);
     assigned_registers_->Add(reg);
   }
-  range->set_assigned_register(reg, code_zone());
+  range->set_assigned_register(reg, operand_cache());
 }
 
 }  // namespace compiler

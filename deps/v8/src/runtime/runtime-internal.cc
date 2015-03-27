@@ -7,6 +7,9 @@
 #include "src/arguments.h"
 #include "src/bootstrapper.h"
 #include "src/debug.h"
+#include "src/messages.h"
+#include "src/parser.h"
+#include "src/prettyprinter.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {
@@ -150,6 +153,36 @@ RUNTIME_FUNCTION(Runtime_CollectStackTrace) {
     isolate->CaptureAndSetSimpleStackTrace(error_object, caller);
   }
   return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(Runtime_RenderCallSite) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  MessageLocation location;
+  isolate->ComputeLocation(&location);
+  if (location.start_pos() == -1) return isolate->heap()->empty_string();
+
+  Zone zone;
+  if (location.function()->shared()->is_function()) {
+    CompilationInfo info(location.function(), &zone);
+    if (!Parser::ParseStatic(&info)) {
+      isolate->clear_pending_exception();
+      return isolate->heap()->empty_string();
+    }
+    CallPrinter printer(isolate, &zone);
+    const char* string = printer.Print(info.function(), location.start_pos());
+    return *isolate->factory()->NewStringFromAsciiChecked(string);
+  }
+
+  CompilationInfo info(location.script(), &zone);
+  if (!Parser::ParseStatic(&info)) {
+    isolate->clear_pending_exception();
+    return isolate->heap()->empty_string();
+  }
+  CallPrinter printer(isolate, &zone);
+  const char* string = printer.Print(info.function(), location.start_pos());
+  return *isolate->factory()->NewStringFromAsciiChecked(string);
 }
 
 

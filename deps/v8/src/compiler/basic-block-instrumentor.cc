@@ -10,6 +10,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/machine-operator.h"
+#include "src/compiler/node.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/schedule.h"
 

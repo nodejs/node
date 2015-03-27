@@ -251,9 +251,7 @@ function osr_inner(t, limit) {
     if (t.hasOwnProperty(x)) {
       for (var i = 0; i < t[x].length; i++) {
         r += t[x][i];
-        if (i === limit) {
-          %OptimizeFunctionOnNextCall(osr_inner, "osr");
-        }
+        if (i === limit) %OptimizeOsr();
       }
       r += x;
     }
@@ -267,9 +265,7 @@ function osr_outer(t, osr_after) {
     for (var i = 0; i < t[x].length; i++) {
       r += t[x][i];
     }
-    if (x === osr_after) {
-      %OptimizeFunctionOnNextCall(osr_outer, "osr");
-    }
+    if (x === osr_after) %OptimizeOsr();
     r += x;
   }
   return r;
@@ -279,9 +275,7 @@ function osr_outer_and_deopt(t, osr_after) {
   var r = 1;
   for (var x in t) {
     r += x;
-    if (x == osr_after) {
-      %OptimizeFunctionOnNextCall(osr_outer_and_deopt, "osr");
-    }
+    if (x == osr_after) %OptimizeOsr();
   }
   return r;
 }

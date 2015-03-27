@@ -24,7 +24,7 @@ class BasicBlockProfilerTest : public RawMachineAssemblerTester<int32_t> {
   void ResetCounts() { isolate()->basic_block_profiler()->ResetCounts(); }
 
   void Expect(size_t size, uint32_t* expected) {
-    CHECK_NE(NULL, isolate()->basic_block_profiler());
+    CHECK(isolate()->basic_block_profiler());
     const BasicBlockProfiler::DataList* l =
         isolate()->basic_block_profiler()->data_list();
     CHECK_NE(0, static_cast<int>(l->size()));

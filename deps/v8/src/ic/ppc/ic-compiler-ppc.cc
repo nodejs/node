@@ -15,13 +15,11 @@ namespace internal {
 #define __ ACCESS_MASM(masm)
 
 
-void PropertyICCompiler::GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                                    StrictMode strict_mode) {
+void PropertyICCompiler::GenerateRuntimeSetProperty(
+    MacroAssembler* masm, LanguageMode language_mode) {
+  __ mov(r0, Operand(Smi::FromInt(language_mode)));
   __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),
-          StoreDescriptor::ValueRegister());
-
-  __ mov(r0, Operand(Smi::FromInt(strict_mode)));
-  __ Push(r0);
+          StoreDescriptor::ValueRegister(), r0);
 
   // Do tail-call to runtime routine.
   __ TailCallRuntime(Runtime::kSetProperty, 4, 1);
@@ -41,9 +39,12 @@ Handle<Code> PropertyICCompiler::CompilePolymorphic(TypeHandleList* types,
 
   if (check == PROPERTY &&
       (kind() == Code::KEYED_LOAD_IC || kind() == Code::KEYED_STORE_IC)) {
-    // In case we are compiling an IC for dictionary loads and stores, just
+    // In case we are compiling an IC for dictionary loads or stores, just
     // check whether the name is unique.
     if (name.is_identical_to(isolate()->factory()->normal_ic_symbol())) {
+      // Keyed loads with dictionaries shouldn't be here, they go generic.
+      // The DCHECK is to protect assumptions when --vector-ics is on.
+      DCHECK(kind() != Code::KEYED_LOAD_IC);
       Register tmp = scratch1();
       __ JumpIfSmi(this->name(), &miss);
       __ LoadP(tmp, FieldMemOperand(this->name(), HeapObject::kMapOffset));
@@ -72,8 +73,8 @@ Handle<Code> PropertyICCompiler::CompilePolymorphic(TypeHandleList* types,
     Handle<Map> map = IC::TypeToMap(*type, isolate());
     if (!map->is_deprecated()) {
       number_of_handled_maps++;
-      __ mov(ip, Operand(map));
-      __ cmp(map_reg, ip);
+      Handle<WeakCell> cell = Map::WeakCellForMap(map);
+      __ CmpWeakValue(map_reg, cell, scratch2());
       if (type->Is(HeapType::Number())) {
         DCHECK(!number_case.is_unused());
         __ bind(&number_case);
@@ -100,16 +101,18 @@ Handle<Code> PropertyICCompiler::CompileKeyedStorePolymorphic(
   __ JumpIfSmi(receiver(), &miss);
 
   int receiver_count = receiver_maps->length();
-  __ LoadP(scratch1(), FieldMemOperand(receiver(), HeapObject::kMapOffset));
+  Register map_reg = scratch1();
+  __ LoadP(map_reg, FieldMemOperand(receiver(), HeapObject::kMapOffset));
   for (int i = 0; i < receiver_count; ++i) {
-    __ mov(ip, Operand(receiver_maps->at(i)));
-    __ cmp(scratch1(), ip);
+    Handle<WeakCell> cell = Map::WeakCellForMap(receiver_maps->at(i));
+    __ CmpWeakValue(map_reg, cell, scratch2());
     if (transitioned_maps->at(i).is_null()) {
       __ Jump(handler_stubs->at(i), RelocInfo::CODE_TARGET, eq);
     } else {
       Label next_map;
       __ bne(&next_map);
-      __ mov(transition_map(), Operand(transitioned_maps->at(i)));
+      Handle<WeakCell> cell = Map::WeakCellForMap(transitioned_maps->at(i));
+      __ LoadWeakValue(transition_map(), cell, &miss);
       __ Jump(handler_stubs->at(i), RelocInfo::CODE_TARGET, al);
       __ bind(&next_map);
     }

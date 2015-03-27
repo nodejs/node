@@ -31,8 +31,8 @@ GCTracer::ContextDisposalEvent::ContextDisposalEvent(double time) {
 }
 
 
-GCTracer::SurvivalEvent::SurvivalEvent(double survival_rate) {
-  survival_rate_ = survival_rate;
+GCTracer::SurvivalEvent::SurvivalEvent(double promotion_ratio) {
+  promotion_ratio_ = promotion_ratio;
 }
 
 
@@ -257,8 +257,8 @@ void GCTracer::AddContextDisposalTime(double time) {
 }
 
 
-void GCTracer::AddSurvivalRate(double survival_rate) {
-  survival_events_.push_front(SurvivalEvent(survival_rate));
+void GCTracer::AddSurvivalRatio(double promotion_ratio) {
+  survival_events_.push_front(SurvivalEvent(promotion_ratio));
 }
 
 
@@ -350,6 +350,8 @@ void GCTracer::PrintNVP() const {
   PrintF("misc_compaction=%.1f ",
          current_.scopes[Scope::MC_UPDATE_MISC_POINTERS]);
   PrintF("weak_closure=%.1f ", current_.scopes[Scope::MC_WEAKCLOSURE]);
+  PrintF("inc_weak_closure=%.1f ",
+         current_.scopes[Scope::MC_INCREMENTAL_WEAKCLOSURE]);
   PrintF("weakcollection_process=%.1f ",
          current_.scopes[Scope::MC_WEAKCOLLECTION_PROCESS]);
   PrintF("weakcollection_clear=%.1f ",
@@ -372,9 +374,9 @@ void GCTracer::PrintNVP() const {
   PrintF("nodes_copied_in_new=%d ", heap_->nodes_copied_in_new_space_);
   PrintF("nodes_promoted=%d ", heap_->nodes_promoted_);
   PrintF("promotion_ratio=%.1f%% ", heap_->promotion_ratio_);
+  PrintF("average_survival_ratio=%.1f%% ", AverageSurvivalRatio());
   PrintF("promotion_rate=%.1f%% ", heap_->promotion_rate_);
   PrintF("semi_space_copy_rate=%.1f%% ", heap_->semi_space_copied_rate_);
-  PrintF("average_survival_rate%.1f%% ", AverageSurvivalRate());
   PrintF("new_space_allocation_throughput=%" V8_PTR_PREFIX "d ",
          NewSpaceAllocationThroughputInBytesPerMillisecond());
   PrintF("context_disposal_rate=%.1f ", ContextDisposalRateInMilliseconds());
@@ -570,13 +572,13 @@ double GCTracer::ContextDisposalRateInMilliseconds() const {
 }
 
 
-double GCTracer::AverageSurvivalRate() const {
+double GCTracer::AverageSurvivalRatio() const {
   if (survival_events_.size() == 0) return 0.0;
 
   double sum_of_rates = 0.0;
   SurvivalEventBuffer::const_iterator iter = survival_events_.begin();
   while (iter != survival_events_.end()) {
-    sum_of_rates += iter->survival_rate_;
+    sum_of_rates += iter->promotion_ratio_;
     ++iter;
   }
 

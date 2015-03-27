@@ -184,26 +184,6 @@ TEST(RuntimeCallInline) {
 }
 
 
-TEST(RuntimeCallBooleanize) {
-  // TODO(turbofan): %Booleanize will disappear, don't hesitate to remove this
-  // test case, two-argument case is covered by the above test already.
-  FLAG_allow_natives_syntax = true;
-  FunctionTester T("(function(a,b) { return %Booleanize(a, b); })");
-
-  T.CheckCall(T.true_value(), T.Val(-1), T.Val(Token::LT));
-  T.CheckCall(T.false_value(), T.Val(-1), T.Val(Token::EQ));
-  T.CheckCall(T.false_value(), T.Val(-1), T.Val(Token::GT));
-
-  T.CheckCall(T.false_value(), T.Val(0.0), T.Val(Token::LT));
-  T.CheckCall(T.true_value(), T.Val(0.0), T.Val(Token::EQ));
-  T.CheckCall(T.false_value(), T.Val(0.0), T.Val(Token::GT));
-
-  T.CheckCall(T.false_value(), T.Val(1), T.Val(Token::LT));
-  T.CheckCall(T.false_value(), T.Val(1), T.Val(Token::EQ));
-  T.CheckCall(T.true_value(), T.Val(1), T.Val(Token::GT));
-}
-
-
 TEST(EvalCall) {
   FunctionTester T("(function(a,b) { return eval(a); })");
   Handle<JSObject> g(T.function->context()->global_object()->global_proxy());

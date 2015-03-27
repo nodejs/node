@@ -10,7 +10,6 @@
 #include "src/base/bits.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator.h"
-#include "src/compiler/node-properties-inl.h"
 #include "src/compiler/simplified-operator.h"
 
 namespace v8 {
@@ -31,8 +30,7 @@ class RepresentationChanger {
         type_error_(false) {}
 
   // TODO(titzer): should Word64 also be implicitly convertable to others?
-  static const MachineTypeUnion rWord =
-      kRepBit | kRepWord8 | kRepWord16 | kRepWord32;
+  static const MachineTypeUnion rWord = kRepWord8 | kRepWord16 | kRepWord32;
 
   Node* GetRepresentationFor(Node* node, MachineTypeUnion output_type,
                              MachineTypeUnion use_type) {
@@ -262,8 +260,10 @@ class RepresentationChanger {
         break;
     }
     // Select the correct X -> Word32 operator.
-    const Operator* op = NULL;
-    if (output_type & kRepFloat64) {
+    const Operator* op;
+    if (output_type & kRepBit) {
+      return node;  // Sloppy comparison -> word32
+    } else if (output_type & kRepFloat64) {
       if (output_type & kTypeUint32 || use_unsigned) {
         op = machine()->ChangeFloat64ToUint32();
       } else {
@@ -291,35 +291,19 @@ class RepresentationChanger {
   Node* GetBitRepresentationFor(Node* node, MachineTypeUnion output_type) {
     // Eagerly fold representation changes for constants.
     switch (node->opcode()) {
-      case IrOpcode::kInt32Constant: {
-        int32_t value = OpParameter<int32_t>(node);
-        if (value == 0 || value == 1) return node;
-        return jsgraph()->Int32Constant(1);  // value != 0
-      }
-      case IrOpcode::kNumberConstant: {
-        double value = OpParameter<double>(node);
-        if (std::isnan(value) || value == 0.0) {
-          return jsgraph()->Int32Constant(0);
-        }
-        return jsgraph()->Int32Constant(1);
-      }
       case IrOpcode::kHeapConstant: {
-        Handle<Object> handle = OpParameter<Unique<Object> >(node).handle();
-        DCHECK(*handle == isolate()->heap()->true_value() ||
-               *handle == isolate()->heap()->false_value());
+        Handle<Object> value = OpParameter<Unique<Object> >(node).handle();
+        DCHECK(value.is_identical_to(factory()->true_value()) ||
+               value.is_identical_to(factory()->false_value()));
         return jsgraph()->Int32Constant(
-            *handle == isolate()->heap()->true_value() ? 1 : 0);
+            value.is_identical_to(factory()->true_value()) ? 1 : 0);
       }
       default:
         break;
     }
     // Select the correct X -> Bit operator.
     const Operator* op;
-    if (output_type & rWord) {
-      return node;  // No change necessary.
-    } else if (output_type & kRepWord64) {
-      return node;  // TODO(titzer): No change necessary, on 64-bit.
-    } else if (output_type & kRepTagged) {
+    if (output_type & kRepTagged) {
       op = simplified()->ChangeBoolToBit();
     } else {
       return TypeError(node, output_type, kRepBit);
@@ -464,8 +448,9 @@ class RepresentationChanger {
                                        node);
   }
 
-  JSGraph* jsgraph() { return jsgraph_; }
-  Isolate* isolate() { return isolate_; }
+  JSGraph* jsgraph() const { return jsgraph_; }
+  Isolate* isolate() const { return isolate_; }
+  Factory* factory() const { return isolate()->factory(); }
   SimplifiedOperatorBuilder* simplified() { return simplified_; }
   MachineOperatorBuilder* machine() { return jsgraph()->machine(); }
 };

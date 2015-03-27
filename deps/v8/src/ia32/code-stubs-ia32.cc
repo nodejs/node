@@ -738,6 +738,7 @@ void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
 
 
 void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
+  CHECK(!has_new_target());
   // The key is in edx and the parameter count is in eax.
   DCHECK(edx.is(ArgumentsAccessReadDescriptor::index()));
   DCHECK(eax.is(ArgumentsAccessReadDescriptor::parameter_count()));
@@ -804,6 +805,8 @@ void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
   // esp[8] : receiver displacement
   // esp[12] : function
 
+  CHECK(!has_new_target());
+
   // Check if the calling frame is an arguments adaptor frame.
   Label runtime;
   __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
@@ -831,6 +834,8 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
 
   // ebx = parameter count (tagged)
   __ mov(ebx, Operand(esp, 1 * kPointerSize));
+
+  CHECK(!has_new_target());
 
   // Check if the calling frame is an arguments adaptor frame.
   // TODO(rossberg): Factor out some of the bits that are shared with the other
@@ -1071,9 +1076,15 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // Patch the arguments.length and the parameters pointer.
   __ bind(&adaptor_frame);
   __ mov(ecx, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ mov(Operand(esp, 1 * kPointerSize), ecx);
+
+  if (has_new_target()) {
+    // Subtract 1 from smi-tagged arguments count.
+    __ sub(ecx, Immediate(2));
+  }
+
   __ lea(edx, Operand(edx, ecx, times_2,
                       StandardFrameConstants::kCallerSPOffset));
+  __ mov(Operand(esp, 1 * kPointerSize), ecx);
   __ mov(Operand(esp, 2 * kPointerSize), edx);
 
   // Try the new space allocation. Start out with computing the size of
@@ -1145,6 +1156,31 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // Do the runtime call to allocate the arguments object.
   __ bind(&runtime);
   __ TailCallRuntime(Runtime::kNewStrictArguments, 3, 1);
+}
+
+
+void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
+  // esp[0] : return address
+  // esp[4] : index of rest parameter
+  // esp[8] : number of parameters
+  // esp[12] : receiver displacement
+
+  // Check if the calling frame is an arguments adaptor frame.
+  Label runtime;
+  __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
+  __ mov(ecx, Operand(edx, StandardFrameConstants::kContextOffset));
+  __ cmp(ecx, Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ j(not_equal, &runtime);
+
+  // Patch the arguments.length and the parameters pointer.
+  __ mov(ecx, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ mov(Operand(esp, 2 * kPointerSize), ecx);
+  __ lea(edx, Operand(edx, ecx, times_2,
+                      StandardFrameConstants::kCallerSPOffset));
+  __ mov(Operand(esp, 3 * kPointerSize), edx);
+
+  __ bind(&runtime);
+  __ TailCallRuntime(Runtime::kNewRestParam, 3, 1);
 }
 
 
@@ -1706,7 +1742,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
     // If either is a Smi (we know that not both are), then they can only
     // be equal if the other is a HeapNumber. If so, use the slow case.
     STATIC_ASSERT(kSmiTag == 0);
-    DCHECK_EQ(0, Smi::FromInt(0));
+    DCHECK_EQ(static_cast<Smi*>(0), Smi::FromInt(0));
     __ mov(ecx, Immediate(kSmiTagMask));
     __ and_(ecx, eax);
     __ test(ecx, edx);
@@ -2149,6 +2185,13 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
     __ AssertUndefinedOrAllocationSite(ebx);
   }
 
+  if (IsSuperConstructorCall()) {
+    __ mov(edx, Operand(esp, eax, times_pointer_size, 2 * kPointerSize));
+  } else {
+    // Pass original constructor to construct stub.
+    __ mov(edx, edi);
+  }
+
   // Jump to the function-specific construct stub.
   Register jmp_reg = ecx;
   __ mov(jmp_reg, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
@@ -2189,11 +2232,10 @@ static void EmitLoadTypeFeedbackVector(MacroAssembler* masm, Register vector) {
 void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
   // edi - function
   // edx - slot id
+  // ebx - vector
   Label miss;
   int argc = arg_count();
   ParameterCount actual(argc);
-
-  EmitLoadTypeFeedbackVector(masm, ebx);
 
   __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, ecx);
   __ cmp(edi, ecx);
@@ -2210,6 +2252,7 @@ void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &miss);
 
   __ mov(ebx, ecx);
+  __ mov(edx, edi);
   ArrayConstructorStub stub(masm->isolate(), arg_count());
   __ TailCallStub(&stub);
 
@@ -2230,6 +2273,7 @@ void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
 void CallICStub::Generate(MacroAssembler* masm) {
   // edi - function
   // edx - slot id
+  // ebx - vector
   Isolate* isolate = masm->isolate();
   const int with_types_offset =
       FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
@@ -2241,12 +2285,30 @@ void CallICStub::Generate(MacroAssembler* masm) {
   int argc = arg_count();
   ParameterCount actual(argc);
 
-  EmitLoadTypeFeedbackVector(masm, ebx);
-
   // The checks. First, does edi match the recorded monomorphic target?
-  __ cmp(edi, FieldOperand(ebx, edx, times_half_pointer_size,
+  __ mov(ecx, FieldOperand(ebx, edx, times_half_pointer_size,
                            FixedArray::kHeaderSize));
+
+  // We don't know that we have a weak cell. We might have a private symbol
+  // or an AllocationSite, but the memory is safe to examine.
+  // AllocationSite::kTransitionInfoOffset - contains a Smi or pointer to
+  // FixedArray.
+  // WeakCell::kValueOffset - contains a JSFunction or Smi(0)
+  // Symbol::kHashFieldSlot - if the low bit is 1, then the hash is not
+  // computed, meaning that it can't appear to be a pointer. If the low bit is
+  // 0, then hash is computed, but the 0 bit prevents the field from appearing
+  // to be a pointer.
+  STATIC_ASSERT(WeakCell::kSize >= kPointerSize);
+  STATIC_ASSERT(AllocationSite::kTransitionInfoOffset ==
+                    WeakCell::kValueOffset &&
+                WeakCell::kValueOffset == Symbol::kHashFieldSlot);
+
+  __ cmp(edi, FieldOperand(ecx, WeakCell::kValueOffset));
   __ j(not_equal, &extra_checks_or_miss);
+
+  // The compare above could have been a SMI/SMI comparison. Guard against this
+  // convincing us that we have a monomorphic JSFunction.
+  __ JumpIfSmi(edi, &extra_checks_or_miss);
 
   __ bind(&have_js_function);
   if (CallAsMethod()) {
@@ -2276,8 +2338,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ bind(&extra_checks_or_miss);
   Label uninitialized, miss;
 
-  __ mov(ecx, FieldOperand(ebx, edx, times_half_pointer_size,
-                           FixedArray::kHeaderSize));
   __ cmp(ecx, Immediate(TypeFeedbackVector::MegamorphicSentinel(isolate)));
   __ j(equal, &slow_start);
 
@@ -2321,15 +2381,18 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // Update stats.
   __ add(FieldOperand(ebx, with_types_offset), Immediate(Smi::FromInt(1)));
 
-  // Store the function.
-  __ mov(
-      FieldOperand(ebx, edx, times_half_pointer_size, FixedArray::kHeaderSize),
-      edi);
+  // Store the function. Use a stub since we need a frame for allocation.
+  // ebx - vector
+  // edx - slot
+  // edi - function
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    CreateWeakCellStub create_stub(isolate);
+    __ push(edi);
+    __ CallStub(&create_stub);
+    __ pop(edi);
+  }
 
-  // Update the write barrier.
-  __ mov(eax, edi);
-  __ RecordWriteArray(ebx, eax, edx, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
   __ jmp(&have_js_function);
 
   // We are here because tracing is on or we encountered a MISS case we can't
@@ -2354,29 +2417,22 @@ void CallICStub::Generate(MacroAssembler* masm) {
 
 
 void CallICStub::GenerateMiss(MacroAssembler* masm) {
-  // Get the receiver of the function from the stack; 1 ~ return address.
-  __ mov(ecx, Operand(esp, (arg_count() + 1) * kPointerSize));
+  FrameScope scope(masm, StackFrame::INTERNAL);
 
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
+  // Push the function and feedback info.
+  __ push(edi);
+  __ push(ebx);
+  __ push(edx);
 
-    // Push the receiver and the function and feedback info.
-    __ push(ecx);
-    __ push(edi);
-    __ push(ebx);
-    __ push(edx);
+  // Call the entry.
+  IC::UtilityId id = GetICState() == DEFAULT ? IC::kCallIC_Miss
+                                             : IC::kCallIC_Customization_Miss;
 
-    // Call the entry.
-    IC::UtilityId id = GetICState() == DEFAULT ? IC::kCallIC_Miss
-                                               : IC::kCallIC_Customization_Miss;
+  ExternalReference miss = ExternalReference(IC_Utility(id), masm->isolate());
+  __ CallExternalReference(miss, 3);
 
-    ExternalReference miss = ExternalReference(IC_Utility(id),
-                                               masm->isolate());
-    __ CallExternalReference(miss, 4);
-
-    // Move result to edi and exit the internal frame.
-    __ mov(edi, eax);
-  }
+  // Move result to edi and exit the internal frame.
+  __ mov(edi, eax);
 }
 
 
@@ -2392,6 +2448,7 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   // It is important that the store buffer overflow stubs are generated first.
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
   CreateAllocationSiteStub::GenerateAheadOfTime(isolate);
+  CreateWeakCellStub::GenerateAheadOfTime(isolate);
   BinaryOpICStub::GenerateAheadOfTime(isolate);
   BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(isolate);
 }
@@ -3775,15 +3832,17 @@ void CompareICStub::GenerateObjects(MacroAssembler* masm) {
 
 void CompareICStub::GenerateKnownObjects(MacroAssembler* masm) {
   Label miss;
+  Handle<WeakCell> cell = Map::WeakCellForMap(known_map_);
   __ mov(ecx, edx);
   __ and_(ecx, eax);
   __ JumpIfSmi(ecx, &miss, Label::kNear);
 
+  __ GetWeakValue(edi, cell);
   __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
   __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
-  __ cmp(ecx, known_map_);
+  __ cmp(ecx, edi);
   __ j(not_equal, &miss, Label::kNear);
-  __ cmp(ebx, known_map_);
+  __ cmp(ebx, edi);
   __ j(not_equal, &miss, Label::kNear);
 
   __ sub(eax, edx);
@@ -4334,6 +4393,20 @@ void KeyedLoadICTrampolineStub::Generate(MacroAssembler* masm) {
 }
 
 
+void CallICTrampolineStub::Generate(MacroAssembler* masm) {
+  EmitLoadTypeFeedbackVector(masm, ebx);
+  CallICStub stub(isolate(), state());
+  __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
+void CallIC_ArrayTrampolineStub::Generate(MacroAssembler* masm) {
+  EmitLoadTypeFeedbackVector(masm, ebx);
+  CallIC_ArrayStub stub(isolate(), state());
+  __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (masm->isolate()->function_entry_hook() != NULL) {
     ProfileEntryHookStub stub(masm->isolate());
@@ -4555,9 +4628,10 @@ void ArrayConstructorStub::GenerateDispatchToArrayStub(
 
 void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- eax : argc (only if argument_count() == ANY)
+  //  -- eax : argc (only if argument_count() is ANY or MORE_THAN_ONE)
   //  -- ebx : AllocationSite or undefined
   //  -- edi : constructor
+  //  -- edx : Original constructor
   //  -- esp[0] : return address
   //  -- esp[4] : last argument
   // -----------------------------------
@@ -4577,6 +4651,11 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ AssertUndefinedOrAllocationSite(ebx);
   }
 
+  Label subclassing;
+
+  __ cmp(edx, edi);
+  __ j(not_equal, &subclassing);
+
   Label no_info;
   // If the feedback vector is the undefined value call an array constructor
   // that doesn't use AllocationSites.
@@ -4592,6 +4671,30 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
 
   __ bind(&no_info);
   GenerateDispatchToArrayStub(masm, DISABLE_ALLOCATION_SITES);
+
+  // Subclassing.
+  __ bind(&subclassing);
+  __ pop(ecx);  // return address.
+  __ push(edi);
+  __ push(edx);
+
+  // Adjust argc.
+  switch (argument_count()) {
+    case ANY:
+    case MORE_THAN_ONE:
+      __ add(eax, Immediate(2));
+      break;
+    case NONE:
+      __ mov(eax, Immediate(2));
+      break;
+    case ONE:
+      __ mov(eax, Immediate(3));
+      break;
+  }
+
+  __ push(ecx);
+  __ JumpToExternalReference(
+      ExternalReference(Runtime::kArrayConstructorWithSubclassing, isolate()));
 }
 
 
@@ -4681,13 +4784,204 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
 }
 
 
-void CallApiFunctionStub::Generate(MacroAssembler* masm) {
+// Generates an Operand for saving parameters after PrepareCallApiFunction.
+static Operand ApiParameterOperand(int index) {
+  return Operand(esp, index * kPointerSize);
+}
+
+
+// Prepares stack to put arguments (aligns and so on). Reserves
+// space for return value if needed (assumes the return value is a handle).
+// Arguments must be stored in ApiParameterOperand(0), ApiParameterOperand(1)
+// etc. Saves context (esi). If space was reserved for return value then
+// stores the pointer to the reserved slot into esi.
+static void PrepareCallApiFunction(MacroAssembler* masm, int argc) {
+  __ EnterApiExitFrame(argc);
+  if (__ emit_debug_code()) {
+    __ mov(esi, Immediate(bit_cast<int32_t>(kZapValue)));
+  }
+}
+
+
+// Calls an API function.  Allocates HandleScope, extracts returned value
+// from handle and propagates exceptions.  Clobbers ebx, edi and
+// caller-save registers.  Restores context.  On return removes
+// stack_space * kPointerSize (GCed).
+static void CallApiFunctionAndReturn(MacroAssembler* masm,
+                                     Register function_address,
+                                     ExternalReference thunk_ref,
+                                     Operand thunk_last_arg, int stack_space,
+                                     Operand* stack_space_operand,
+                                     Operand return_value_operand,
+                                     Operand* context_restore_operand) {
+  Isolate* isolate = masm->isolate();
+
+  ExternalReference next_address =
+      ExternalReference::handle_scope_next_address(isolate);
+  ExternalReference limit_address =
+      ExternalReference::handle_scope_limit_address(isolate);
+  ExternalReference level_address =
+      ExternalReference::handle_scope_level_address(isolate);
+
+  DCHECK(edx.is(function_address));
+  // Allocate HandleScope in callee-save registers.
+  __ mov(ebx, Operand::StaticVariable(next_address));
+  __ mov(edi, Operand::StaticVariable(limit_address));
+  __ add(Operand::StaticVariable(level_address), Immediate(1));
+
+  if (FLAG_log_timer_events) {
+    FrameScope frame(masm, StackFrame::MANUAL);
+    __ PushSafepointRegisters();
+    __ PrepareCallCFunction(1, eax);
+    __ mov(Operand(esp, 0),
+           Immediate(ExternalReference::isolate_address(isolate)));
+    __ CallCFunction(ExternalReference::log_enter_external_function(isolate),
+                     1);
+    __ PopSafepointRegisters();
+  }
+
+
+  Label profiler_disabled;
+  Label end_profiler_check;
+  __ mov(eax, Immediate(ExternalReference::is_profiling_address(isolate)));
+  __ cmpb(Operand(eax, 0), 0);
+  __ j(zero, &profiler_disabled);
+
+  // Additional parameter is the address of the actual getter function.
+  __ mov(thunk_last_arg, function_address);
+  // Call the api function.
+  __ mov(eax, Immediate(thunk_ref));
+  __ call(eax);
+  __ jmp(&end_profiler_check);
+
+  __ bind(&profiler_disabled);
+  // Call the api function.
+  __ call(function_address);
+  __ bind(&end_profiler_check);
+
+  if (FLAG_log_timer_events) {
+    FrameScope frame(masm, StackFrame::MANUAL);
+    __ PushSafepointRegisters();
+    __ PrepareCallCFunction(1, eax);
+    __ mov(Operand(esp, 0),
+           Immediate(ExternalReference::isolate_address(isolate)));
+    __ CallCFunction(ExternalReference::log_leave_external_function(isolate),
+                     1);
+    __ PopSafepointRegisters();
+  }
+
+  Label prologue;
+  // Load the value from ReturnValue
+  __ mov(eax, return_value_operand);
+
+  Label promote_scheduled_exception;
+  Label exception_handled;
+  Label delete_allocated_handles;
+  Label leave_exit_frame;
+
+  __ bind(&prologue);
+  // No more valid handles (the result handle was the last one). Restore
+  // previous handle scope.
+  __ mov(Operand::StaticVariable(next_address), ebx);
+  __ sub(Operand::StaticVariable(level_address), Immediate(1));
+  __ Assert(above_equal, kInvalidHandleScopeLevel);
+  __ cmp(edi, Operand::StaticVariable(limit_address));
+  __ j(not_equal, &delete_allocated_handles);
+  __ bind(&leave_exit_frame);
+
+  // Check if the function scheduled an exception.
+  ExternalReference scheduled_exception_address =
+      ExternalReference::scheduled_exception_address(isolate);
+  __ cmp(Operand::StaticVariable(scheduled_exception_address),
+         Immediate(isolate->factory()->the_hole_value()));
+  __ j(not_equal, &promote_scheduled_exception);
+  __ bind(&exception_handled);
+
+#if DEBUG
+  // Check if the function returned a valid JavaScript value.
+  Label ok;
+  Register return_value = eax;
+  Register map = ecx;
+
+  __ JumpIfSmi(return_value, &ok, Label::kNear);
+  __ mov(map, FieldOperand(return_value, HeapObject::kMapOffset));
+
+  __ CmpInstanceType(map, LAST_NAME_TYPE);
+  __ j(below_equal, &ok, Label::kNear);
+
+  __ CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
+  __ j(above_equal, &ok, Label::kNear);
+
+  __ cmp(map, isolate->factory()->heap_number_map());
+  __ j(equal, &ok, Label::kNear);
+
+  __ cmp(return_value, isolate->factory()->undefined_value());
+  __ j(equal, &ok, Label::kNear);
+
+  __ cmp(return_value, isolate->factory()->true_value());
+  __ j(equal, &ok, Label::kNear);
+
+  __ cmp(return_value, isolate->factory()->false_value());
+  __ j(equal, &ok, Label::kNear);
+
+  __ cmp(return_value, isolate->factory()->null_value());
+  __ j(equal, &ok, Label::kNear);
+
+  __ Abort(kAPICallReturnedInvalidObject);
+
+  __ bind(&ok);
+#endif
+
+  bool restore_context = context_restore_operand != NULL;
+  if (restore_context) {
+    __ mov(esi, *context_restore_operand);
+  }
+  if (stack_space_operand != nullptr) {
+    __ mov(ebx, *stack_space_operand);
+  }
+  __ LeaveApiExitFrame(!restore_context);
+  if (stack_space_operand != nullptr) {
+    DCHECK_EQ(0, stack_space);
+    __ pop(ecx);
+    __ add(esp, ebx);
+    __ jmp(ecx);
+  } else {
+    __ ret(stack_space * kPointerSize);
+  }
+
+  __ bind(&promote_scheduled_exception);
+  {
+    FrameScope frame(masm, StackFrame::INTERNAL);
+    __ CallRuntime(Runtime::kPromoteScheduledException, 0);
+  }
+  __ jmp(&exception_handled);
+
+  // HandleScope limit has changed. Delete allocated extensions.
+  ExternalReference delete_extensions =
+      ExternalReference::delete_handle_scope_extensions(isolate);
+  __ bind(&delete_allocated_handles);
+  __ mov(Operand::StaticVariable(limit_address), edi);
+  __ mov(edi, eax);
+  __ mov(Operand(esp, 0),
+         Immediate(ExternalReference::isolate_address(isolate)));
+  __ mov(eax, Immediate(delete_extensions));
+  __ call(eax);
+  __ mov(eax, edi);
+  __ jmp(&leave_exit_frame);
+}
+
+
+static void CallApiFunctionStubHelper(MacroAssembler* masm,
+                                      const ParameterCount& argc,
+                                      bool return_first_arg,
+                                      bool call_data_undefined) {
   // ----------- S t a t e -------------
-  //  -- eax                 : callee
+  //  -- edi                 : callee
   //  -- ebx                 : call_data
   //  -- ecx                 : holder
   //  -- edx                 : api_function_address
   //  -- esi                 : context
+  //  -- eax                 : number of arguments if argc is a register
   //  --
   //  -- esp[0]              : return address
   //  -- esp[4]              : last argument
@@ -4696,16 +4990,12 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
 
-  Register callee = eax;
+  Register callee = edi;
   Register call_data = ebx;
   Register holder = ecx;
   Register api_function_address = edx;
-  Register return_address = edi;
   Register context = esi;
-
-  int argc = this->argc();
-  bool is_store = this->is_store();
-  bool call_data_undefined = this->call_data_undefined();
+  Register return_address = eax;
 
   typedef FunctionCallbackArguments FCA;
 
@@ -4718,12 +5008,17 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(FCA::kHolderIndex == 0);
   STATIC_ASSERT(FCA::kArgsLength == 7);
 
-  __ pop(return_address);
+  DCHECK(argc.is_immediate() || eax.is(argc.reg()));
 
-  // context save
-  __ push(context);
-  // load context from callee
-  __ mov(context, FieldOperand(callee, JSFunction::kContextOffset));
+  if (argc.is_immediate()) {
+    __ pop(return_address);
+    // context save.
+    __ push(context);
+  } else {
+    // pop return address and save context
+    __ xchg(context, Operand(esp, 0));
+    return_address = context;
+  }
 
   // callee
   __ push(callee);
@@ -4734,9 +5029,9 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   Register scratch = call_data;
   if (!call_data_undefined) {
     // return value
-    __ push(Immediate(isolate()->factory()->undefined_value()));
+    __ push(Immediate(masm->isolate()->factory()->undefined_value()));
     // return value default
-    __ push(Immediate(isolate()->factory()->undefined_value()));
+    __ push(Immediate(masm->isolate()->factory()->undefined_value()));
   } else {
     // return value
     __ push(scratch);
@@ -4744,14 +5039,17 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
     __ push(scratch);
   }
   // isolate
-  __ push(Immediate(reinterpret_cast<int>(isolate())));
+  __ push(Immediate(reinterpret_cast<int>(masm->isolate())));
   // holder
   __ push(holder);
 
   __ mov(scratch, esp);
 
-  // return address
+  // push return address
   __ push(return_address);
+
+  // load context from callee
+  __ mov(context, FieldOperand(callee, JSFunction::kContextOffset));
 
   // API function gets reference to the v8::Arguments. If CPU profiler
   // is enabled wrapper function will be called and we need to pass
@@ -4763,41 +5061,76 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   // it's not controlled by GC.
   const int kApiStackSpace = 4;
 
-  __ PrepareCallApiFunction(kApiArgc + kApiStackSpace);
+  PrepareCallApiFunction(masm, kApiArgc + kApiStackSpace);
 
   // FunctionCallbackInfo::implicit_args_.
   __ mov(ApiParameterOperand(2), scratch);
-  __ add(scratch, Immediate((argc + FCA::kArgsLength - 1) * kPointerSize));
-  // FunctionCallbackInfo::values_.
-  __ mov(ApiParameterOperand(3), scratch);
-  // FunctionCallbackInfo::length_.
-  __ Move(ApiParameterOperand(4), Immediate(argc));
-  // FunctionCallbackInfo::is_construct_call_.
-  __ Move(ApiParameterOperand(5), Immediate(0));
+  if (argc.is_immediate()) {
+    __ add(scratch,
+           Immediate((argc.immediate() + FCA::kArgsLength - 1) * kPointerSize));
+    // FunctionCallbackInfo::values_.
+    __ mov(ApiParameterOperand(3), scratch);
+    // FunctionCallbackInfo::length_.
+    __ Move(ApiParameterOperand(4), Immediate(argc.immediate()));
+    // FunctionCallbackInfo::is_construct_call_.
+    __ Move(ApiParameterOperand(5), Immediate(0));
+  } else {
+    __ lea(scratch, Operand(scratch, argc.reg(), times_pointer_size,
+                            (FCA::kArgsLength - 1) * kPointerSize));
+    // FunctionCallbackInfo::values_.
+    __ mov(ApiParameterOperand(3), scratch);
+    // FunctionCallbackInfo::length_.
+    __ mov(ApiParameterOperand(4), argc.reg());
+    // FunctionCallbackInfo::is_construct_call_.
+    __ lea(argc.reg(), Operand(argc.reg(), times_pointer_size,
+                               (FCA::kArgsLength + 1) * kPointerSize));
+    __ mov(ApiParameterOperand(5), argc.reg());
+  }
 
   // v8::InvocationCallback's argument.
   __ lea(scratch, ApiParameterOperand(2));
   __ mov(ApiParameterOperand(0), scratch);
 
   ExternalReference thunk_ref =
-      ExternalReference::invoke_function_callback(isolate());
+      ExternalReference::invoke_function_callback(masm->isolate());
 
   Operand context_restore_operand(ebp,
                                   (2 + FCA::kContextSaveIndex) * kPointerSize);
   // Stores return the first js argument
   int return_value_offset = 0;
-  if (is_store) {
+  if (return_first_arg) {
     return_value_offset = 2 + FCA::kArgsLength;
   } else {
     return_value_offset = 2 + FCA::kReturnValueOffset;
   }
   Operand return_value_operand(ebp, return_value_offset * kPointerSize);
-  __ CallApiFunctionAndReturn(api_function_address,
-                              thunk_ref,
-                              ApiParameterOperand(1),
-                              argc + FCA::kArgsLength + 1,
-                              return_value_operand,
-                              &context_restore_operand);
+  int stack_space = 0;
+  Operand is_construct_call_operand = ApiParameterOperand(5);
+  Operand* stack_space_operand = &is_construct_call_operand;
+  if (argc.is_immediate()) {
+    stack_space = argc.immediate() + FCA::kArgsLength + 1;
+    stack_space_operand = nullptr;
+  }
+  CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
+                           ApiParameterOperand(1), stack_space,
+                           stack_space_operand, return_value_operand,
+                           &context_restore_operand);
+}
+
+
+void CallApiFunctionStub::Generate(MacroAssembler* masm) {
+  bool call_data_undefined = this->call_data_undefined();
+  CallApiFunctionStubHelper(masm, ParameterCount(eax), false,
+                            call_data_undefined);
+}
+
+
+void CallApiAccessorStub::Generate(MacroAssembler* masm) {
+  bool is_store = this->is_store();
+  int argc = this->argc();
+  bool call_data_undefined = this->call_data_undefined();
+  CallApiFunctionStubHelper(masm, ParameterCount(argc), is_store,
+                            call_data_undefined);
 }
 
 
@@ -4824,7 +5157,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   // load address of name
   __ lea(scratch, Operand(esp, 1 * kPointerSize));
 
-  __ PrepareCallApiFunction(kApiArgc);
+  PrepareCallApiFunction(masm, kApiArgc);
   __ mov(ApiParameterOperand(0), scratch);  // name.
   __ add(scratch, Immediate(kPointerSize));
   __ mov(ApiParameterOperand(1), scratch);  // arguments pointer.
@@ -4832,12 +5165,9 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   ExternalReference thunk_ref =
       ExternalReference::invoke_accessor_getter_callback(isolate());
 
-  __ CallApiFunctionAndReturn(api_function_address,
-                              thunk_ref,
-                              ApiParameterOperand(2),
-                              kStackSpace,
-                              Operand(ebp, 7 * kPointerSize),
-                              NULL);
+  CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
+                           ApiParameterOperand(2), kStackSpace, nullptr,
+                           Operand(ebp, 7 * kPointerSize), NULL);
 }
 
 

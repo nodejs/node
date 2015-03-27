@@ -137,15 +137,15 @@ class ParallelMoveCreator : public HandleAndZoneScope {
     int index = rng_->NextInt(6);
     switch (rng_->NextInt(5)) {
       case 0:
-        return ConstantOperand::Create(index, main_zone());
+        return ConstantOperand::New(index, main_zone());
       case 1:
-        return StackSlotOperand::Create(index, main_zone());
+        return StackSlotOperand::New(index, main_zone());
       case 2:
-        return DoubleStackSlotOperand::Create(index, main_zone());
+        return DoubleStackSlotOperand::New(index, main_zone());
       case 3:
-        return RegisterOperand::Create(index, main_zone());
+        return RegisterOperand::New(index, main_zone());
       case 4:
-        return DoubleRegisterOperand::Create(index, main_zone());
+        return DoubleRegisterOperand::New(index, main_zone());
     }
     UNREACHABLE();
     return NULL;

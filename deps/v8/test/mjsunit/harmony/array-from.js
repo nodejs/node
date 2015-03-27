@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-arrays --harmony-generators
+// Flags: --harmony-arrays
 (function() {
 
 assertEquals(1, Array.from.length);
@@ -91,21 +91,48 @@ function testArrayFrom(thisArg, constructor) {
     return x.toUpperCase();
   }), ['T', 'E', 'S', 'T'], constructor);
 
-  this.thisArg = thisArg;
-  assertThrows('Array.from.call(thisArg, null)', TypeError);
-  assertThrows('Array.from.call(thisArg, undefined)', TypeError);
-  assertThrows('Array.from.call(thisArg, [], null)', TypeError);
-  assertThrows('Array.from.call(thisArg, [], "noncallable")', TypeError);
+  assertThrows(function() { Array.from.call(thisArg, null); }, TypeError);
+  assertThrows(function() { Array.from.call(thisArg, undefined); }, TypeError);
+  assertThrows(function() { Array.from.call(thisArg, [], null); }, TypeError);
+  assertThrows(function() { Array.from.call(thisArg, [], "noncallable"); },
+               TypeError);
 
-  this.nullIterator = {};
+  var nullIterator = {};
   nullIterator[Symbol.iterator] = null;
-  assertThrows('Array.from.call(thisArg, nullIterator)', TypeError);
+  assertArrayLikeEquals(Array.from.call(thisArg, nullIterator), [],
+                        constructor);
 
-  this.nonObjIterator = {};
+  var nonObjIterator = {};
   nonObjIterator[Symbol.iterator] = function() { return "nonObject"; };
-  assertThrows('Array.from.call(thisArg, nonObjIterator)', TypeError);
+  assertThrows(function() { Array.from.call(thisArg, nonObjIterator); },
+               TypeError);
 
-  assertThrows('Array.from.call(thisArg, [], null)', TypeError);
+  assertThrows(function() { Array.from.call(thisArg, [], null); }, TypeError);
+
+  // Ensure iterator is only accessed once, and only invoked once
+  var called = false;
+  var arr = [1, 2, 3];
+  var obj = {};
+
+  // Test order --- only get iterator method once
+  function testIterator() {
+    assertFalse(called, "@@iterator should be called only once");
+    called = true;
+    assertEquals(obj, this);
+    return arr[Symbol.iterator]();
+  }
+  var getCalled = false;
+  Object.defineProperty(obj, Symbol.iterator, {
+    get: function() {
+      assertFalse(getCalled, "@@iterator should be accessed only once");
+      getCalled = true;
+      return testIterator;
+    },
+    set: function() {
+      assertUnreachable("@@iterator should not be set");
+    }
+  });
+  assertArrayLikeEquals(Array.from.call(thisArg, obj), [1, 2, 3], constructor);
 }
 
 function Other() {}
@@ -118,6 +145,7 @@ testArrayFrom({}, Array);
 testArrayFrom(Object, Object);
 testArrayFrom(Other, Other);
 testArrayFrom(Math.cos, Array);
-testArrayFrom(boundFn, Array);
+testArrayFrom(Math.cos.bind(Math), Array);
+testArrayFrom(boundFn, boundFn);
 
 })();

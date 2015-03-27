@@ -11,7 +11,7 @@ namespace internal {
 // Decorator on a RegExpMacroAssembler that write all calls.
 class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
  public:
-  explicit RegExpMacroAssemblerTracer(RegExpMacroAssembler* assembler);
+  RegExpMacroAssemblerTracer(Isolate* isolate, RegExpMacroAssembler* assembler);
   virtual ~RegExpMacroAssemblerTracer();
   virtual int stack_limit_slack() { return assembler_->stack_limit_slack(); }
   virtual bool CanReadUnaligned() { return assembler_->CanReadUnaligned(); }

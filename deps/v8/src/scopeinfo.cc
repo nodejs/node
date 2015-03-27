@@ -13,7 +13,8 @@ namespace v8 {
 namespace internal {
 
 
-Handle<ScopeInfo> ScopeInfo::Create(Scope* scope, Zone* zone) {
+Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
+                                    Scope* scope) {
   // Collect stack and context locals.
   ZoneList<Variable*> stack_locals(scope->StackLocalCount(), zone);
   ZoneList<Variable*> context_locals(scope->ContextLocalCount(), zone);
@@ -23,6 +24,9 @@ Handle<ScopeInfo> ScopeInfo::Create(Scope* scope, Zone* zone) {
   // Make sure we allocate the correct amount.
   DCHECK(scope->StackLocalCount() == stack_local_count);
   DCHECK(scope->ContextLocalCount() == context_local_count);
+
+  bool simple_parameter_list =
+      scope->is_function_scope() ? scope->is_simple_parameter_list() : true;
 
   // Determine use and location of the function variable if it is present.
   FunctionVariableInfo function_name_info;
@@ -49,17 +53,18 @@ Handle<ScopeInfo> ScopeInfo::Create(Scope* scope, Zone* zone) {
       + parameter_count + stack_local_count + 2 * context_local_count
       + (has_function_name ? 2 : 0);
 
-  Factory* factory = zone->isolate()->factory();
+  Factory* factory = isolate->factory();
   Handle<ScopeInfo> scope_info = factory->NewScopeInfo(length);
 
   // Encode the flags.
   int flags = ScopeTypeField::encode(scope->scope_type()) |
               CallsEvalField::encode(scope->calls_eval()) |
-              StrictModeField::encode(scope->strict_mode()) |
+              LanguageModeField::encode(scope->language_mode()) |
               FunctionVariableField::encode(function_name_info) |
               FunctionVariableMode::encode(function_variable_mode) |
               AsmModuleField::encode(scope->asm_module()) |
-              AsmFunctionField::encode(scope->asm_function());
+              AsmFunctionField::encode(scope->asm_function()) |
+              IsSimpleParameterListField::encode(simple_parameter_list);
   scope_info->SetFlags(flags);
   scope_info->SetParameterCount(parameter_count);
   scope_info->SetStackLocalCount(stack_local_count);
@@ -145,8 +150,8 @@ bool ScopeInfo::CallsEval() {
 }
 
 
-StrictMode ScopeInfo::strict_mode() {
-  return length() > 0 ? StrictModeField::decode(Flags()) : SLOPPY;
+LanguageMode ScopeInfo::language_mode() {
+  return length() > 0 ? LanguageModeField::decode(Flags()) : SLOPPY;
 }
 
 
@@ -547,25 +552,19 @@ void ScopeInfo::Print() {
 //---------------------------------------------------------------------------
 // ModuleInfo.
 
-Handle<ModuleInfo> ModuleInfo::Create(
-    Isolate* isolate, Interface* interface, Scope* scope) {
-  Handle<ModuleInfo> info = Allocate(isolate, interface->Length());
-  info->set_host_index(interface->Index());
+Handle<ModuleInfo> ModuleInfo::Create(Isolate* isolate,
+                                      ModuleDescriptor* descriptor,
+                                      Scope* scope) {
+  Handle<ModuleInfo> info = Allocate(isolate, descriptor->Length());
+  info->set_host_index(descriptor->Index());
   int i = 0;
-  for (Interface::Iterator it = interface->iterator();
-       !it.done(); it.Advance(), ++i) {
+  for (ModuleDescriptor::Iterator it = descriptor->iterator(); !it.done();
+       it.Advance(), ++i) {
     Variable* var = scope->LookupLocal(it.name());
     info->set_name(i, *(it.name()->string()));
     info->set_mode(i, var->mode());
-    DCHECK((var->mode() == MODULE) == (it.interface()->IsModule()));
-    if (var->mode() == MODULE) {
-      DCHECK(it.interface()->IsFrozen());
-      DCHECK(it.interface()->Index() >= 0);
-      info->set_index(i, it.interface()->Index());
-    } else {
-      DCHECK(var->index() >= 0);
-      info->set_index(i, var->index());
-    }
+    DCHECK(var->index() >= 0);
+    info->set_index(i, var->index());
   }
   DCHECK(i == info->length());
   return info;

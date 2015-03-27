@@ -34,14 +34,15 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
     out << "=== Schedule before instruction selection ===" << std::endl
         << *schedule;
   }
-  EXPECT_NE(0, graph()->NodeCount());
-  int initial_node_count = graph()->NodeCount();
-  Linkage linkage(test_->zone(), call_descriptor());
+  size_t const node_count = graph()->NodeCount();
+  EXPECT_NE(0u, node_count);
+  Linkage linkage(call_descriptor());
   InstructionBlocks* instruction_blocks =
       InstructionSequence::InstructionBlocksFor(test_->zone(), schedule);
-  InstructionSequence sequence(test_->zone(), instruction_blocks);
+  InstructionSequence sequence(test_->isolate(), test_->zone(),
+                               instruction_blocks);
   SourcePositionTable source_position_table(graph());
-  InstructionSelector selector(test_->zone(), graph(), &linkage, &sequence,
+  InstructionSelector selector(test_->zone(), node_count, &linkage, &sequence,
                                schedule, &source_position_table, features);
   selector.SelectInstructions();
   if (FLAG_trace_turbo) {
@@ -52,19 +53,9 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
         << printable;
   }
   Stream s;
+  s.virtual_registers_ = selector.GetVirtualRegistersForTesting();
   // Map virtual registers.
-  {
-    const NodeToVregMap& node_map = selector.GetNodeMapForTesting();
-    for (int i = 0; i < initial_node_count; ++i) {
-      if (node_map[i] != InstructionSelector::kNodeUnmapped) {
-        s.virtual_registers_.insert(std::make_pair(i, node_map[i]));
-      }
-    }
-  }
-  std::set<int> virtual_registers;
-  for (InstructionSequence::const_iterator i = sequence.begin();
-       i != sequence.end(); ++i) {
-    Instruction* instr = *i;
+  for (Instruction* const instr : sequence) {
     if (instr->opcode() < 0) continue;
     if (mode == kTargetInstructions) {
       switch (instr->arch_opcode()) {
@@ -86,10 +77,6 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
       if (output->IsConstant()) {
         s.constants_.insert(std::make_pair(
             output->index(), sequence.GetConstant(output->index())));
-        virtual_registers.insert(output->index());
-      } else if (output->IsUnallocated()) {
-        virtual_registers.insert(
-            UnallocatedOperand::cast(output)->virtual_register());
       }
     }
     for (size_t i = 0; i < instr->InputCount(); ++i) {
@@ -98,16 +85,12 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
       if (input->IsImmediate()) {
         s.immediates_.insert(std::make_pair(
             input->index(), sequence.GetImmediate(input->index())));
-      } else if (input->IsUnallocated()) {
-        virtual_registers.insert(
-            UnallocatedOperand::cast(input)->virtual_register());
       }
     }
     s.instructions_.push_back(instr);
   }
-  for (std::set<int>::const_iterator i = virtual_registers.begin();
-       i != virtual_registers.end(); ++i) {
-    int virtual_register = *i;
+  for (auto i : s.virtual_registers_) {
+    int const virtual_register = i.second;
     if (sequence.IsDouble(virtual_register)) {
       EXPECT_FALSE(sequence.IsReference(virtual_register));
       s.doubles_.insert(virtual_register);
@@ -167,7 +150,7 @@ TARGET_TEST_F(InstructionSelectorTest, ReturnFloat32Constant) {
   StreamBuilder m(this, kMachFloat32);
   m.Return(m.Float32Constant(kValue));
   Stream s = m.Build(kAllInstructions);
-  ASSERT_EQ(2U, s.size());
+  ASSERT_EQ(3U, s.size());
   EXPECT_EQ(kArchNop, s[0]->arch_opcode());
   ASSERT_EQ(InstructionOperand::CONSTANT, s[0]->OutputAt(0)->kind());
   EXPECT_FLOAT_EQ(kValue, s.ToFloat32(s[0]->OutputAt(0)));
@@ -180,7 +163,7 @@ TARGET_TEST_F(InstructionSelectorTest, ReturnParameter) {
   StreamBuilder m(this, kMachInt32, kMachInt32);
   m.Return(m.Parameter(0));
   Stream s = m.Build(kAllInstructions);
-  ASSERT_EQ(2U, s.size());
+  ASSERT_EQ(3U, s.size());
   EXPECT_EQ(kArchNop, s[0]->arch_opcode());
   ASSERT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(kArchRet, s[1]->arch_opcode());
@@ -192,7 +175,7 @@ TARGET_TEST_F(InstructionSelectorTest, ReturnZero) {
   StreamBuilder m(this, kMachInt32);
   m.Return(m.Int32Constant(0));
   Stream s = m.Build(kAllInstructions);
-  ASSERT_EQ(2U, s.size());
+  ASSERT_EQ(3U, s.size());
   EXPECT_EQ(kArchNop, s[0]->arch_opcode());
   ASSERT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(InstructionOperand::CONSTANT, s[0]->OutputAt(0)->kind());
@@ -210,7 +193,7 @@ TARGET_TEST_F(InstructionSelectorTest, TruncateFloat64ToInt32WithParameter) {
   StreamBuilder m(this, kMachInt32, kMachFloat64);
   m.Return(m.TruncateFloat64ToInt32(m.Parameter(0)));
   Stream s = m.Build(kAllInstructions);
-  ASSERT_EQ(3U, s.size());
+  ASSERT_EQ(4U, s.size());
   EXPECT_EQ(kArchNop, s[0]->arch_opcode());
   EXPECT_EQ(kArchTruncateDoubleToI, s[1]->arch_opcode());
   EXPECT_EQ(1U, s[1]->InputCount());
@@ -251,7 +234,7 @@ TARGET_TEST_F(InstructionSelectorTest, Finish) {
   Node* finish = m.NewNode(m.common()->Finish(1), param, m.graph()->start());
   m.Return(finish);
   Stream s = m.Build(kAllInstructions);
-  ASSERT_EQ(3U, s.size());
+  ASSERT_EQ(4U, s.size());
   EXPECT_EQ(kArchNop, s[0]->arch_opcode());
   ASSERT_EQ(1U, s[0]->OutputCount());
   ASSERT_TRUE(s[0]->Output()->IsUnallocated());

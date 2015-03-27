@@ -180,9 +180,20 @@ class Simulator {
   double get_double_from_register_pair(int reg);
   void set_d_register_from_double(int dreg, const double dbl) {
     DCHECK(dreg >= 0 && dreg < kNumFPRs);
-    fp_registers_[dreg] = dbl;
+    *bit_cast<double*>(&fp_registers_[dreg]) = dbl;
   }
-  double get_double_from_d_register(int dreg) { return fp_registers_[dreg]; }
+  double get_double_from_d_register(int dreg) {
+    DCHECK(dreg >= 0 && dreg < kNumFPRs);
+    return *bit_cast<double*>(&fp_registers_[dreg]);
+  }
+  void set_d_register(int dreg, int64_t value) {
+    DCHECK(dreg >= 0 && dreg < kNumFPRs);
+    fp_registers_[dreg] = value;
+  }
+  int64_t get_d_register(int dreg) {
+    DCHECK(dreg >= 0 && dreg < kNumFPRs);
+    return fp_registers_[dreg];
+  }
 
   // Special case of set_register and get_register to access the raw PC value.
   void set_pc(intptr_t value);
@@ -293,7 +304,8 @@ class Simulator {
   void ExecuteExt1(Instruction* instr);
   bool ExecuteExt2_10bit(Instruction* instr);
   bool ExecuteExt2_9bit_part1(Instruction* instr);
-  void ExecuteExt2_9bit_part2(Instruction* instr);
+  bool ExecuteExt2_9bit_part2(Instruction* instr);
+  void ExecuteExt2_5bit(Instruction* instr);
   void ExecuteExt2(Instruction* instr);
   void ExecuteExt4(Instruction* instr);
 #if V8_TARGET_ARCH_PPC64
@@ -333,7 +345,7 @@ class Simulator {
   intptr_t special_reg_ctr_;
   int32_t special_reg_xer_;
 
-  double fp_registers_[kNumFPRs];
+  int64_t fp_registers_[kNumFPRs];
 
   // Simulator support.
   char* stack_;

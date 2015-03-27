@@ -12,6 +12,7 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
+class Factory;
 class Heap;
 
 namespace compiler {

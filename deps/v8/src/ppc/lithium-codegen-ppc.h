@@ -135,7 +135,7 @@ class LCodeGen : public LCodeGenBase {
 #undef DECLARE_DO
 
  private:
-  StrictMode strict_mode() const { return info()->strict_mode(); }
+  LanguageMode language_mode() const { return info()->language_mode(); }
 
   Scope* scope() const { return scope_; }
 
@@ -190,13 +190,11 @@ class LCodeGen : public LCodeGenBase {
   void CallRuntimeFromDeferred(Runtime::FunctionId id, int argc,
                                LInstruction* instr, LOperand* context);
 
-  enum R4State { R4_UNINITIALIZED, R4_CONTAINS_TARGET };
-
   // Generate a direct call to a known function.  Expects the function
   // to be in r4.
   void CallKnownFunction(Handle<JSFunction> function,
                          int formal_parameter_count, int arity,
-                         LInstruction* instr, R4State r4_state);
+                         LInstruction* instr);
 
   void RecordSafepointWithLazyDeopt(LInstruction* instr,
                                     SafepointMode safepoint_mode);
@@ -204,10 +202,10 @@ class LCodeGen : public LCodeGenBase {
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment,
                                             Safepoint::DeoptMode mode);
   void DeoptimizeIf(Condition condition, LInstruction* instr,
-                    const char* detail, Deoptimizer::BailoutType bailout_type,
-                    CRegister cr = cr7);
+                    Deoptimizer::DeoptReason deopt_reason,
+                    Deoptimizer::BailoutType bailout_type, CRegister cr = cr7);
   void DeoptimizeIf(Condition condition, LInstruction* instr,
-                    const char* detail, CRegister cr = cr7);
+                    Deoptimizer::DeoptReason deopt_reason, CRegister cr = cr7);
 
   void AddToTranslation(LEnvironment* environment, Translation* translation,
                         LOperand* op, bool is_tagged, bool is_uint32,

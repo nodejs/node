@@ -256,6 +256,7 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
 void Assembler::GetCode(CodeDesc* desc) {
   // Finalize code (at this point overflow() may be true, but the gap ensures
   // that we are still not overlapping instructions and relocation info).
+  reloc_info_writer.Finish();
   DCHECK(pc_ <= reloc_info_writer.pos());  // No overlap.
   // Set up code descriptor.
   desc->buffer = buffer_;
@@ -1201,6 +1202,13 @@ void Assembler::ret(int imm16) {
 }
 
 
+void Assembler::ud2() {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0x0B);
+}
+
+
 // Labels refer to positions in the (to be) generated code.
 // There are bound, linked, and unused labels.
 //
@@ -1239,7 +1247,10 @@ void Assembler::bind_to(Label* L, int pos) {
   while (L->is_linked()) {
     Displacement disp = disp_at(L);
     int fixup_pos = L->pos();
-    if (disp.type() == Displacement::CODE_RELATIVE) {
+    if (disp.type() == Displacement::CODE_ABSOLUTE) {
+      long_at_put(fixup_pos, reinterpret_cast<int>(buffer_ + pos));
+      internal_reference_positions_.push_back(fixup_pos);
+    } else if (disp.type() == Displacement::CODE_RELATIVE) {
       // Relative to Code* heap object pointer.
       long_at_put(fixup_pos, pos + Code::kHeaderSize - kHeapObjectTag);
     } else {
@@ -1897,28 +1908,6 @@ void Assembler::setcc(Condition cc, Register reg) {
 }
 
 
-void Assembler::RecordJSReturn() {
-  positions_recorder()->WriteRecordedPositions();
-  EnsureSpace ensure_space(this);
-  RecordRelocInfo(RelocInfo::JS_RETURN);
-}
-
-
-void Assembler::RecordDebugBreakSlot() {
-  positions_recorder()->WriteRecordedPositions();
-  EnsureSpace ensure_space(this);
-  RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT);
-}
-
-
-void Assembler::RecordComment(const char* msg, bool force) {
-  if (FLAG_code_comments || force) {
-    EnsureSpace ensure_space(this);
-    RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
-  }
-}
-
-
 void Assembler::GrowBuffer() {
   DCHECK(buffer_overflow());
   if (!own_buffer_) FATAL("external code buffer is too small");
@@ -1959,15 +1948,10 @@ void Assembler::GrowBuffer() {
   reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
                                reloc_info_writer.last_pc() + pc_delta);
 
-  // Relocate runtime entries.
-  for (RelocIterator it(desc); !it.done(); it.next()) {
-    RelocInfo::Mode rmode = it.rinfo()->rmode();
-    if (rmode == RelocInfo::INTERNAL_REFERENCE) {
-      int32_t* p = reinterpret_cast<int32_t*>(it.rinfo()->pc());
-      if (*p != 0) {  // 0 means uninitialized.
-        *p += pc_delta;
-      }
-    }
+  // Relocate internal references.
+  for (auto pos : internal_reference_positions_) {
+    int32_t* p = reinterpret_cast<int32_t*>(buffer_ + pos);
+    *p += pc_delta;
   }
 
   DCHECK(!buffer_overflow());
@@ -2017,7 +2001,21 @@ void Assembler::emit_operand(Register reg, const Operand& adr) {
   if (length >= sizeof(int32_t) && !RelocInfo::IsNone(adr.rmode_)) {
     pc_ -= sizeof(int32_t);  // pc_ must be *at* disp32
     RecordRelocInfo(adr.rmode_);
-    pc_ += sizeof(int32_t);
+    if (adr.rmode_ == RelocInfo::INTERNAL_REFERENCE) {  // Fixup for labels
+      emit_label(*reinterpret_cast<Label**>(pc_));
+    } else {
+      pc_ += sizeof(int32_t);
+    }
+  }
+}
+
+
+void Assembler::emit_label(Label* label) {
+  if (label->is_bound()) {
+    internal_reference_positions_.push_back(pc_offset());
+    emit(reinterpret_cast<uint32_t>(buffer_ + label->pos()));
+  } else {
+    emit_disp(label, Displacement::CODE_ABSOLUTE);
   }
 }
 
@@ -2039,6 +2037,13 @@ void Assembler::db(uint8_t data) {
 void Assembler::dd(uint32_t data) {
   EnsureSpace ensure_space(this);
   emit(data);
+}
+
+
+void Assembler::dd(Label* label) {
+  EnsureSpace ensure_space(this);
+  RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
+  emit_label(label);
 }
 
 
