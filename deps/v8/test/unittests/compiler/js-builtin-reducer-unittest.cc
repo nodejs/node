@@ -166,7 +166,7 @@ TEST_F(JSBuiltinReducerTest, MathMax2) {
       if (t0->Is(Type::Integral32()) && t1->Is(Type::Integral32())) {
         ASSERT_TRUE(r.Changed());
         EXPECT_THAT(r.replacement(),
-                    IsSelect(kMachNone, IsNumberLessThan(p1, p0), p1, p0));
+                    IsSelect(kMachNone, IsNumberLessThan(p1, p0), p0, p1));
       } else {
         ASSERT_FALSE(r.Changed());
         EXPECT_EQ(IrOpcode::kJSCallFunction, call->opcode());

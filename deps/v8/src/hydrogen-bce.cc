@@ -56,7 +56,8 @@ class BoundsCheckKey : public ZoneObject {
       constant = HConstant::cast(check->index());
     }
 
-    if (constant != NULL && constant->HasInteger32Value()) {
+    if (constant != NULL && constant->HasInteger32Value() &&
+        constant->Integer32Value() != kMinInt) {
       *offset = is_sub ? - constant->Integer32Value()
                        : constant->Integer32Value();
     } else {
