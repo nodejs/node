@@ -6,63 +6,63 @@ module.exports = unpublish
 // else, PUT the modified data
 // delete the tarball
 
-var semver = require("semver")
-  , url = require("url")
-  , chain = require("slide").chain
-  , assert = require("assert")
+var semver = require('semver')
+var url = require('url')
+var chain = require('slide').chain
+var assert = require('assert')
 
 function unpublish (uri, params, cb) {
-  assert(typeof uri === "string", "must pass registry URI to unpublish")
-  assert(params && typeof params === "object", "must pass params to unpublish")
-  assert(typeof cb === "function", "must pass callback to unpublish")
+  assert(typeof uri === 'string', 'must pass registry URI to unpublish')
+  assert(params && typeof params === 'object', 'must pass params to unpublish')
+  assert(typeof cb === 'function', 'must pass callback to unpublish')
 
   var ver = params.version
   var auth = params.auth
-  assert(auth && typeof auth === "object", "must pass auth to unpublish")
+  assert(auth && typeof auth === 'object', 'must pass auth to unpublish')
 
   var options = {
-    timeout : -1,
-    follow : false,
-    auth : auth
+    timeout: -1,
+    follow: false,
+    auth: auth
   }
-  this.get(uri + "?write=true", options, function (er, data) {
+  this.get(uri + '?write=true', options, function (er, data) {
     if (er) {
-      this.log.info("unpublish", uri+" not published")
+      this.log.info('unpublish', uri + ' not published')
       return cb()
     }
     // remove all if no version specified
     if (!ver) {
-      this.log.info("unpublish", "No version specified, removing all")
-      return this.request(uri+"/-rev/"+data._rev, { method : "DELETE", auth : auth }, cb)
+      this.log.info('unpublish', 'No version specified, removing all')
+      return this.request(uri + '/-rev/' + data._rev, { method: 'DELETE', auth: auth }, cb)
     }
 
     var versions = data.versions || {}
-      , versionPublic = versions.hasOwnProperty(ver)
+    var versionPublic = versions.hasOwnProperty(ver)
 
     var dist
     if (!versionPublic) {
-      this.log.info("unpublish", uri+"@"+ver+" not published")
+      this.log.info('unpublish', uri + '@' + ver + ' not published')
     } else {
       dist = versions[ver].dist
-      this.log.verbose("unpublish", "removing attachments", dist)
+      this.log.verbose('unpublish', 'removing attachments', dist)
     }
 
     delete versions[ver]
     // if it was the only version, then delete the whole package.
     if (!Object.keys(versions).length) {
-      this.log.info("unpublish", "No versions remain, removing entire package")
-      return this.request(uri+"/-rev/"+data._rev, { method : "DELETE", auth : auth }, cb)
+      this.log.info('unpublish', 'No versions remain, removing entire package')
+      return this.request(uri + '/-rev/' + data._rev, { method: 'DELETE', auth: auth }, cb)
     }
 
     if (!versionPublic) return cb()
 
-    var latestVer = data["dist-tags"].latest
-    for (var tag in data["dist-tags"]) {
-      if (data["dist-tags"][tag] === ver) delete data["dist-tags"][tag]
+    var latestVer = data['dist-tags'].latest
+    for (var tag in data['dist-tags']) {
+      if (data['dist-tags'][tag] === ver) delete data['dist-tags'][tag]
     }
 
     if (latestVer === ver) {
-      data["dist-tags"].latest =
+      data['dist-tags'].latest =
         Object.getOwnPropertyNames(versions).sort(semver.compareLoose).pop()
     }
 
@@ -71,9 +71,9 @@ function unpublish (uri, params, cb) {
     delete data._attachments
     var cb_ = detacher.call(this, uri, data, dist, auth, cb)
 
-    this.request(uri+"/-rev/"+rev, { method : "PUT", body : data, auth : auth }, function (er) {
+    this.request(uri + '/-rev/' + rev, { method: 'PUT', body: data, auth: auth }, function (er) {
       if (er) {
-        this.log.error("unpublish", "Failed to update data")
+        this.log.error('unpublish', 'Failed to update data')
       }
       cb_(er)
     }.bind(this))
@@ -83,7 +83,7 @@ function unpublish (uri, params, cb) {
 function detacher (uri, data, dist, credentials, cb) {
   return function (er) {
     if (er) return cb(er)
-    this.get(escape(uri, data.name), { auth : credentials }, function (er, data) {
+    this.get(escape(uri, data.name), { auth: credentials }, function (er, data) {
       if (er) return cb(er)
 
       var tb = url.parse(dist.tarball)
@@ -103,19 +103,18 @@ function detacher (uri, data, dist, credentials, cb) {
 
 function detach (uri, data, path, rev, credentials, cb) {
   if (rev) {
-    path += "/-rev/" + rev
-    this.log.info("detach", path)
-    return this.request(url.resolve(uri, path), { method : "DELETE", auth : credentials }, cb)
+    path += '/-rev/' + rev
+    this.log.info('detach', path)
+    return this.request(url.resolve(uri, path), { method: 'DELETE', auth: credentials }, cb)
   }
-  this.get(escape(uri, data.name), { auth : credentials }, function (er, data) {
+  this.get(escape(uri, data.name), { auth: credentials }, function (er, data) {
     rev = data._rev
-    if (!rev) return cb(new Error(
-      "No _rev found in "+data._id))
+    if (!rev) return cb(new Error('No _rev found in ' + data._id))
     detach.call(this, data, path, rev, cb)
   }.bind(this))
 }
 
 function escape (base, name) {
-  var escaped = name.replace(/\//, "%2f")
+  var escaped = name.replace(/\//, '%2f')
   return url.resolve(base, escaped)
 }

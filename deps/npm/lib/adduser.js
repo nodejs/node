@@ -135,7 +135,8 @@ function save (c, u, cb) {
     if (scope.charAt(0) !== "@") scope = "@" + scope
 
     var scopedRegistry = npm.config.get(scope + ":registry")
-    if (scopedRegistry) uri = scopedRegistry
+    var cliRegistry = npm.config.get("registry", "cli")
+    if (scopedRegistry && !cliRegistry) uri = scopedRegistry
   }
 
   var params = {
