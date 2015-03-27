@@ -1,3 +1,50 @@
+### v2.7.4 (2015-03-20):
+
+#### BUG FIXES
+
+* [`fe1bc38`](https://github.com/npm/npm/commit/fe1bc387a14475e373557de669e03d9d006d3173)
+  [#7672](https://github.com/npm/npm/issues/7672) `npm-registry-client@3.1.2`:
+  Fix client-side certificate handling by correcting property name.
+  ([@atamon](https://github.com/atamon))
+* [`3ce3cc2`](https://github.com/npm/npm/commit/3ce3cc242fc345bca6820185a4f5a013c5bc1944)
+  [#7635](https://github.com/npm/npm/issues/7635) `fstream-npm@1.0.2`: Raise a
+  more descriptive error when `bundledDependencies` isn't an array.
+  ([@KenanY](https://github.com/KenanY))
+* [`3a12723`](https://github.com/npm/npm/commit/3a127235076a1f00bc8befba56c024c6d0e7f477)
+  [#7661](https://github.com/npm/npm/issues/7661) Allow setting `--registry` on
+  the command line to trump the mapped registry for `--scope`.
+  ([@othiym23](https://github.com/othiym23))
+* [`89ce829`](https://github.com/npm/npm/commit/89ce829a00b526d0518f5cd855c323bffe182af0)
+  [#7630](https://github.com/npm/npm/issues/7630) `hosted-git-info@1.5.3`: Part
+  3 of ensuring that GitHub shorthand is handled consistently.
+  ([@othiym23](https://github.com/othiym23))
+* [`63313eb`](https://github.com/npm/npm/commit/63313eb0c37891c355546fd1093010c8a0c3cd81)
+  [#7630](https://github.com/npm/npm/issues/7630)
+  `realize-package-specifier@2.2.0`: Part 2 of ensuring that GitHub shorthand
+  is handled consistently. ([@othiym23](https://github.com/othiym23))
+* [`3ed41bf`](https://github.com/npm/npm/commit/3ed41bf64a1bb752bb3155c74dd6ffbbd28c89c9)
+  [#7630](https://github.com/npm/npm/issues/7630) `npm-package-arg@3.1.1`: Part
+  1 of ensuring that GitHub shorthand is handled consistently.
+  ([@othiym23](https://github.com/othiym23))
+
+#### DEPENDENCY UPDATES
+
+* [`6a498c6`](https://github.com/npm/npm/commit/6a498c6aaa00611a0a1ea405255900c327103f8b)
+  `npm-registry-couchapp@2.6.7`: Ensure that npm continues to work with new
+  registry architecture. ([@bcoe](https://github.com/bcoe))
+* [`bd72c47`](https://github.com/npm/npm/commit/bd72c47ce8c58e287d496902c11845c8fea420d6)
+  `glob@5.0.3`: Updated to latest version.
+  ([@isaacs](https://github.com/isaacs))
+* [`4bfbaa2`](https://github.com/npm/npm/commit/4bfbaa2d8b9dc7067d999de8f55676db3a4f4196)
+  `npmlog@1.2.0`: Getting up to date with latest version (but not using any of
+  the new features). ([@othiym23](https://github.com/othiym23))
+
+#### A NEW REGRESSION TEST
+
+* [`3703b0b`](https://github.com/npm/npm/commit/3703b0b87c127a64649bdbfc3bc697ebccc4aa24)
+  Add regression test for `npm version` to ensure `message` property in config
+  continues to be honored. ([@dannyfritz](https://github.com/dannyfritz))
+
 ### v2.7.3 (2015-03-16):
 
 #### HAHA WHOOPS LIL SHINKWRAP ISSUE THERE LOL

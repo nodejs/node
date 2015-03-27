@@ -2,23 +2,22 @@
 
 module.exports = RegClient
 
-var join = require("path").join
-  , fs = require("graceful-fs")
+var join = require('path').join
+var fs = require('graceful-fs')
 
 var npmlog
 try {
-  npmlog = require("npmlog")
-}
-catch (er) {
+  npmlog = require('npmlog')
+} catch (er) {
   npmlog = {
-    error   : noop,
-    warn    : noop,
-    info    : noop,
-    verbose : noop,
-    silly   : noop,
-    http    : noop,
-    pause   : noop,
-    resume  : noop
+    error: noop,
+    warn: noop,
+    info: noop,
+    verbose: noop,
+    silly: noop,
+    http: noop,
+    pause: noop,
+    resume: noop
   }
 }
 
@@ -36,20 +35,20 @@ function RegClient (config) {
   if (this.config.ssl.strict === undefined) this.config.ssl.strict = true
 
   this.config.retry = this.config.retry || {}
-  if (typeof this.config.retry.retries !== "number") this.config.retry.retries = 2
-  if (typeof this.config.retry.factor !== "number") this.config.retry.factor = 10
-  if (typeof this.config.retry.minTimeout !== "number") this.config.retry.minTimeout = 10000
-  if (typeof this.config.retry.maxTimeout !== "number") this.config.retry.maxTimeout = 60000
+  if (typeof this.config.retry.retries !== 'number') this.config.retry.retries = 2
+  if (typeof this.config.retry.factor !== 'number') this.config.retry.factor = 10
+  if (typeof this.config.retry.minTimeout !== 'number') this.config.retry.minTimeout = 10000
+  if (typeof this.config.retry.maxTimeout !== 'number') this.config.retry.maxTimeout = 60000
 
-  this.config.userAgent = this.config.userAgent || "node/" + process.version
-  this.config.defaultTag = this.config.defaultTag || "latest"
+  this.config.userAgent = this.config.userAgent || 'node/' + process.version
+  this.config.defaultTag = this.config.defaultTag || 'latest'
 
   this.log = this.config.log || npmlog
   delete this.config.log
 
   var client = this
-  fs.readdirSync(join(__dirname, "lib")).forEach(function (f) {
-    var entry = join(__dirname, "lib", f)
+  fs.readdirSync(join(__dirname, 'lib')).forEach(function (f) {
+    var entry = join(__dirname, 'lib', f)
 
     // lib/group-name/operation.js -> client.groupName.operation
     var stat = fs.statSync(entry)
@@ -62,14 +61,14 @@ function RegClient (config) {
           // keep client.groupName.operation from stomping client.operation
           client[groupName] = Object.create(client)
         }
-        var name = f.replace(/\.js$/, "").replace(/-([a-z])/, dashToCamel)
+        var name = f.replace(/\.js$/, '').replace(/-([a-z])/, dashToCamel)
         client[groupName][name] = require(join(entry, f))
       })
       return
     }
 
     if (!f.match(/\.js$/)) return
-    var name = f.replace(/\.js$/, "").replace(/-([a-z])/, dashToCamel)
+    var name = f.replace(/\.js$/, '').replace(/-([a-z])/, dashToCamel)
     client[name] = require(entry)
   })
 }

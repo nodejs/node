@@ -57,9 +57,9 @@ test("get lines", function (t) {
       matches.shift()
       matches.forEach(function (m) {
         m = m.split(")").shift()
-        var literal = m.match(/^['"].+['"]$/)
+        var literal = m.match(/^['"].+?['"]/)
         if (literal) {
-          m = m.slice(1, -1)
+          m = literal[0].slice(1, -1)
           if (!m.match(/^\_/) && m !== "argv")
             CONFS[m] = {
               file: f,
