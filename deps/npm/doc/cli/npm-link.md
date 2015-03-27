@@ -38,7 +38,8 @@ For example:
     npm link redis              # link-install the package
 
 Now, any changes to ~/projects/node-redis will be reflected in
-~/projects/node-bloggy/node_modules/node-redis/
+~/projects/node-bloggy/node_modules/node-redis/. Note that the link should
+be to the package name, not the directory name for that package.
 
 You may also shortcut the two steps in one.  For example, to do the
 above use-case in a shorter way:

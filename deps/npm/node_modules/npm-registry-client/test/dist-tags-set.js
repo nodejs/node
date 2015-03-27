@@ -1,111 +1,111 @@
-var test = require("tap").test
+var test = require('tap').test
 
-var server = require("./lib/server.js")
-var common = require("./lib/common.js")
+var server = require('./lib/server.js')
+var common = require('./lib/common.js')
 var client = common.freshClient()
 
-function nop() {}
+function nop () {}
 
-var BASE_URL = "http://localhost:1337/"
-var URI = "/-/package/underscore/dist-tags"
-var TOKEN = "foo"
+var BASE_URL = 'http://localhost:1337/'
+var URI = '/-/package/underscore/dist-tags'
+var TOKEN = 'foo'
 var AUTH = {
-  token : TOKEN
+  token: TOKEN
 }
-var PACKAGE = "underscore"
+var PACKAGE = 'underscore'
 var DIST_TAGS = {
-  "a" : "8.0.8",
-  "b" : "3.0.3"
+  'a': '8.0.8',
+  'b': '3.0.3'
 }
 var PARAMS = {
-  package : PACKAGE,
-  distTags : DIST_TAGS,
-  auth : AUTH
+  'package': PACKAGE,
+  distTags: DIST_TAGS,
+  auth: AUTH
 }
 
-test("distTags.set call contract", function (t) {
+test('distTags.set call contract', function (t) {
   t.throws(function () {
     client.distTags.set(undefined, AUTH, nop)
-  }, "requires a URI")
+  }, 'requires a URI')
 
   t.throws(function () {
     client.distTags.set([], PARAMS, nop)
-  }, "requires URI to be a string")
+  }, 'requires URI to be a string')
 
   t.throws(function () {
     client.distTags.set(BASE_URL, undefined, nop)
-  }, "requires params object")
+  }, 'requires params object')
 
   t.throws(function () {
-    client.distTags.set(BASE_URL, "", nop)
-  }, "params must be object")
+    client.distTags.set(BASE_URL, '', nop)
+  }, 'params must be object')
 
   t.throws(function () {
     client.distTags.set(BASE_URL, PARAMS, undefined)
-  }, "requires callback")
+  }, 'requires callback')
 
   t.throws(function () {
-    client.distTags.set(BASE_URL, PARAMS, "callback")
-  }, "callback must be function")
+    client.distTags.set(BASE_URL, PARAMS, 'callback')
+  }, 'callback must be function')
 
   t.throws(
     function () {
       var params = {
-        distTags : DIST_TAGS,
-        auth : AUTH
+        distTags: DIST_TAGS,
+        auth: AUTH
       }
       client.distTags.set(BASE_URL, params, nop)
     },
     {
-      name : "AssertionError",
-      message : "must pass package name to distTags.set"
+      name: 'AssertionError',
+      message: 'must pass package name to distTags.set'
     },
-    "distTags.set must include package name"
+    'distTags.set must include package name'
   )
 
   t.throws(
     function () {
       var params = {
-        package : PACKAGE,
-        auth : AUTH
+        'package': PACKAGE,
+        auth: AUTH
       }
       client.distTags.set(BASE_URL, params, nop)
     },
     {
-      name : "AssertionError",
-      message : "must pass distTags map to distTags.set"
+      name: 'AssertionError',
+      message: 'must pass distTags map to distTags.set'
     },
-    "distTags.set must include dist-tags"
+    'distTags.set must include dist-tags'
   )
 
   t.throws(
     function () {
       var params = {
-        package : PACKAGE,
-        distTags : DIST_TAGS
+        'package': PACKAGE,
+        distTags: DIST_TAGS
       }
       client.distTags.set(BASE_URL, params, nop)
     },
-    { name : "AssertionError", message : "must pass auth to distTags.set" },
-    "distTags.set must include auth"
+    { name: 'AssertionError', message: 'must pass auth to distTags.set' },
+    'distTags.set must include auth'
   )
 
   t.end()
 })
 
-test("set dist-tags for a package", function (t) {
-  server.expect("PUT", URI, function (req, res) {
-    t.equal(req.method, "PUT")
+test('set dist-tags for a package', function (t) {
+  server.expect('PUT', URI, function (req, res) {
+    t.equal(req.method, 'PUT')
 
-    var b = ""
-    req.setEncoding("utf8")
-    req.on("data", function (d) {
+    var b = ''
+    req.setEncoding('utf8')
+    req.on('data', function (d) {
       b += d
     })
 
-    req.on("end", function () {
+    req.on('end', function () {
       var d = JSON.parse(b)
-      t.deepEqual(d, DIST_TAGS, "got back tags")
+      t.deepEqual(d, DIST_TAGS, 'got back tags')
 
       res.statusCode = 200
       res.json(DIST_TAGS)
@@ -113,8 +113,8 @@ test("set dist-tags for a package", function (t) {
   })
 
   client.distTags.set(BASE_URL, PARAMS, function (error, data) {
-    t.ifError(error, "no errors")
-    t.ok(data.a && data.b, "dist-tags set")
+    t.ifError(error, 'no errors')
+    t.ok(data.a && data.b, 'dist-tags set')
 
     t.end()
   })

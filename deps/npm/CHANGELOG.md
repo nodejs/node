@@ -1,3 +1,192 @@
+### v2.7.4 (2015-03-20):
+
+#### BUG FIXES
+
+* [`fe1bc38`](https://github.com/npm/npm/commit/fe1bc387a14475e373557de669e03d9d006d3173)
+  [#7672](https://github.com/npm/npm/issues/7672) `npm-registry-client@3.1.2`:
+  Fix client-side certificate handling by correcting property name.
+  ([@atamon](https://github.com/atamon))
+* [`3ce3cc2`](https://github.com/npm/npm/commit/3ce3cc242fc345bca6820185a4f5a013c5bc1944)
+  [#7635](https://github.com/npm/npm/issues/7635) `fstream-npm@1.0.2`: Raise a
+  more descriptive error when `bundledDependencies` isn't an array.
+  ([@KenanY](https://github.com/KenanY))
+* [`3a12723`](https://github.com/npm/npm/commit/3a127235076a1f00bc8befba56c024c6d0e7f477)
+  [#7661](https://github.com/npm/npm/issues/7661) Allow setting `--registry` on
+  the command line to trump the mapped registry for `--scope`.
+  ([@othiym23](https://github.com/othiym23))
+* [`89ce829`](https://github.com/npm/npm/commit/89ce829a00b526d0518f5cd855c323bffe182af0)
+  [#7630](https://github.com/npm/npm/issues/7630) `hosted-git-info@1.5.3`: Part
+  3 of ensuring that GitHub shorthand is handled consistently.
+  ([@othiym23](https://github.com/othiym23))
+* [`63313eb`](https://github.com/npm/npm/commit/63313eb0c37891c355546fd1093010c8a0c3cd81)
+  [#7630](https://github.com/npm/npm/issues/7630)
+  `realize-package-specifier@2.2.0`: Part 2 of ensuring that GitHub shorthand
+  is handled consistently. ([@othiym23](https://github.com/othiym23))
+* [`3ed41bf`](https://github.com/npm/npm/commit/3ed41bf64a1bb752bb3155c74dd6ffbbd28c89c9)
+  [#7630](https://github.com/npm/npm/issues/7630) `npm-package-arg@3.1.1`: Part
+  1 of ensuring that GitHub shorthand is handled consistently.
+  ([@othiym23](https://github.com/othiym23))
+
+#### DEPENDENCY UPDATES
+
+* [`6a498c6`](https://github.com/npm/npm/commit/6a498c6aaa00611a0a1ea405255900c327103f8b)
+  `npm-registry-couchapp@2.6.7`: Ensure that npm continues to work with new
+  registry architecture. ([@bcoe](https://github.com/bcoe))
+* [`bd72c47`](https://github.com/npm/npm/commit/bd72c47ce8c58e287d496902c11845c8fea420d6)
+  `glob@5.0.3`: Updated to latest version.
+  ([@isaacs](https://github.com/isaacs))
+* [`4bfbaa2`](https://github.com/npm/npm/commit/4bfbaa2d8b9dc7067d999de8f55676db3a4f4196)
+  `npmlog@1.2.0`: Getting up to date with latest version (but not using any of
+  the new features). ([@othiym23](https://github.com/othiym23))
+
+#### A NEW REGRESSION TEST
+
+* [`3703b0b`](https://github.com/npm/npm/commit/3703b0b87c127a64649bdbfc3bc697ebccc4aa24)
+  Add regression test for `npm version` to ensure `message` property in config
+  continues to be honored. ([@dannyfritz](https://github.com/dannyfritz))
+
+### v2.7.3 (2015-03-16):
+
+#### HAHA WHOOPS LIL SHINKWRAP ISSUE THERE LOL
+
+* [`1549106`](https://github.com/npm/npm/commit/1549106f518000633915686f5f1ccc6afcf77f8f)
+  [#7641](https://github.com/npm/npm/issues/7641) Due to 448efd0, running `npm
+  shrinkwrap --dev` caused production dependencies to no longer be included in
+  `npm-shrinkwrap.json`. Whoopsie! ([@othiym23](https://github.com/othiym23))
+
+### v2.7.2 (2015-03-12):
+
+#### NPM GASTROENTEROLOGY
+
+* [`fb0ac26`](https://github.com/npm/npm/commit/fb0ac26eecdd76f6eaa4a96a865b7c6f52ce5aa5)
+  [#7579](https://github.com/npm/npm/issues/7579) Only block removing files and
+  links when we're sure npm isn't responsible for them. This change is hard to
+  summarize, because if things are working correctly you should never see it,
+  but if you want more context, just [go read the commit
+  message](https://github.com/npm/npm/commit/fb0ac26eecdd76f6eaa4a96a865b7c6f52ce5aa5),
+  which lays it all out. ([@othiym23](https://github.com/othiym23))
+* [`051c473`](https://github.com/npm/npm/commit/051c4738486a826300f205b71590781ce7744f01)
+  [#7552](https://github.com/npm/npm/issues/7552) `bundledDependencies` are now
+  properly included in the installation context. This is another fantastically
+  hard-to-summarize bug, and once again, I encourage you to [read the commit
+  message](https://github.com/npm/npm/commit/051c4738486a826300f205b71590781ce7744f01)
+  if you're curious about the details. The snappy takeaway is that this
+  unbreaks many use cases for `ember-cli`. ([@othiym23](https://github.com/othiym23))
+
+#### LESS DRAMATIC CHANGES
+
+* [`fcd9247`](https://github.com/npm/npm/commit/fcd92476f3a9092f6f8c83a19a24fe63b206edcd)
+  [#7597](https://github.com/npm/npm/issues/7597) Awk varies pretty
+  dramatically from platform to platform, so use Perl to generate the AUTHORS
+  list instead. ([@KenanY](https://github.com/KenanY))
+* [`721b17a`](https://github.com/npm/npm/commit/721b17a31690bec074eb8763d823d6de63406005)
+  [#7598](https://github.com/npm/npm/issues/7598) `npm install --save` really
+  isn't experimental anymore. ([@RichardLitt](https://github.com/RichardLitt))
+
+#### DEPENDENCY REFRESH
+
+* [`a91f2c7`](https://github.com/npm/npm/commit/a91f2c7c9a5183d9cde7aae040ebd9ccdf104be7)
+  [#7559](https://github.com/npm/npm/issues/7559) `node-gyp@1.0.3` Switch
+  `node-gyp` to use `stdio` instead of `customFds` so it stops printing a
+  deprecation warning every time you build a native dependency.
+  ([@jeffbski](https://github.com/jeffbski))
+* [`0c85db7`](https://github.com/npm/npm/commit/0c85db7f0dde41762411e40a029153e6a65ef483)
+  `rimraf@2.3.2`: Globbing now deals with paths containing valid glob
+  metacharacters better. ([@isaacs](https://github.com/isaacs))
+* [`d14588e`](https://github.com/npm/npm/commit/d14588ed09b032c4c770e34b4c0f2436f5fccf6e)
+  `minimatch@2.0.4`: Bug fixes. ([@isaacs](https://github.com/isaacs))
+* [`aa9952e`](https://github.com/npm/npm/commit/aa9952e8270a6c1b7f97e579875dd6e3aa22abfd)
+  `graceful-fs@3.0.6`: Bug fixes. ([@isaacs](https://github.com/isaacs))
+
+### v2.7.1 (2015-03-05):
+
+#### GITSANITY
+
+* [`6823807`](https://github.com/npm/npm/commit/6823807bba6c00228a724e1205ae90d67df0adad)
+  [#7121](https://github.com/npm/npm/issues/7121) `npm install --save` for Git
+  dependencies saves the URL passed in, instead of the temporary directory used
+  to clone the remote repo. Fixes using Git dependencies when shrinkwwapping.
+  In the process, rewrote the Git dependency caching code. Again. No more
+  single-letter variable names, and a much clearer workflow.
+  ([@othiym23](https://github.com/othiym23))
+* [`c8258f3`](https://github.com/npm/npm/commit/c8258f31365b045e5fcf15b865a363abbc3be616)
+  [#7486](https://github.com/npm/npm/issues/7486) When installing Git remotes,
+  the caching code was passing in the function `gitEnv` instead of the results
+  of invoking it. ([@functino](https://github.com/functino))
+* [`c618eed`](https://github.com/npm/npm/commit/c618eeda3e321fd454d77c476b53a0330f2344cc)
+  [#2556](https://github.com/npm/npm/issues/2556) Make it possible to install
+  Git dependencies when using `--link` by not linking just the Git
+  dependencies. ([@smikes](https://github.com/smikes))
+
+#### WHY DID THIS TAKE SO LONG.
+
+* [`abdd040`](https://github.com/npm/npm/commit/abdd040da90932535472f593d5433a67ee074801)
+  `read-package-json@1.3.2`: Provide more helpful error messages when JSON
+  parse errors are encountered by using a more forgiving JSON parser than
+  JSON.parse. ([@smikes](https://github.com/smikes))
+
+#### BUGS & TWEAKS
+
+* [`c56cfcd`](https://github.com/npm/npm/commit/c56cfcd79cd8ab4ccd06d2c03d7e04030d576683)
+  [#7525](https://github.com/npm/npm/issues/7525) `npm dedupe` handles scoped
+  packages. ([@KidkArolis](https://github.com/KidkArolis))
+* [`1b8ba74`](https://github.com/npm/npm/commit/1b8ba7426393cbae2c76ad2c35953782d4401871)
+  [#7531](https://github.com/npm/npm/issues/7531) `npm stars` and `npm whoami`
+  will no longer send the registry the error text saying you need to log in as
+  your username.  ([@othiym23](https://github.com/othiym23))
+* [`6de1e91`](https://github.com/npm/npm/commit/6de1e91116a5105dfa75126532b9083d8672e034)
+  [#6441](https://github.com/npm/npm/issues/6441) Prevent needless reinstalls
+  by only updating packages when the current version isn't the same as the
+  version returned as `wanted` by `npm outdated`.
+  ([@othiym23](https://github.com/othiym23))
+* [`2abc3ee`](https://github.com/npm/npm/commit/2abc3ee08f0cabc4e7bfd7b973c0b59dc44715ff)
+  Add `npm upgrade` as an alias for `npm update`.
+  ([@othiym23](https://github.com/othiym23))
+* [`bcd4722`](https://github.com/npm/npm/commit/bcd47224e18884191a5d0057c2b2fff83ac8206e)
+  [#7508](https://github.com/npm/npm/issues/7508) FreeBSD uses `EAI_FAIL`
+  instead of `ENOTFOUND`. ([@othiym23](https://github.com/othiym23))
+* [`21c1ac4`](https://github.com/npm/npm/commit/21c1ac41280f0716a208cde14025a2ad5ef61fed)
+  [#7507](https://github.com/npm/npm/issues/7507) Update support URL in generic
+  error handler to `https:` from `http:`.
+  ([@watilde](https://github.com/watilde))
+* [`b6bd99a`](https://github.com/npm/npm/commit/b6bd99a73f575545fbbaef95c12237c47dd32561)
+  [#7492](https://github.com/npm/npm/issues/7492) On install, the
+  `package.json` `engineStrict` deprecation only warns for the current package.
+  ([@othiym23](https://github.com/othiym23))
+* [`4ef1412`](https://github.com/npm/npm/commit/4ef1412d0061239da2b1c4460ed6db37cc9ded27)
+  [#7075](https://github.com/npm/npm/issues/7075) If you try to tag a release
+  as a valid semver range, `npm publish` and `npm tag` will error early instead
+  of proceeding. ([@smikes](https://github.com/smikes))
+* [`ad53d0f`](https://github.com/npm/npm/commit/ad53d0f666125d9f50d661b54901c6e5bab4d603)
+  Use `rimraf` in npm build script because Windows doesn't know what rm is.
+  ([@othiym23](https://github.com/othiym23))
+* [`8885c4d`](https://github.com/npm/npm/commit/8885c4dfb618f2838930b5c5149abea300a762d6)
+  `rimraf@2.3.1`: Better Windows support.
+  ([@isaacs](https://github.com/isaacs))
+* [`8885c4d`](https://github.com/npm/npm/commit/8885c4dfb618f2838930b5c5149abea300a762d6)
+  `glob@4.4.2`: Handle bad symlinks properly.
+  ([@isaacs](https://github.com/isaacs))
+
+###E TYPSO & CLARFIICATIONS
+
+dId yuo know that submiting fxies for doc tpyos is an exclelent way to get
+strated contriburting to a new open-saurce porject?
+
+* [`42c605c`](https://github.com/npm/npm/commit/42c605c7b401f603c32ea70427e1a7666adeafd9)
+  Fix typo in `CHANGELOG.md` ([@adrianblynch](https://github.com/adrianblynch))
+* [`c9bd58d`](https://github.com/npm/npm/commit/c9bd58dd637b9c41441023584a13e3818d5db336)
+  Add note about `node_modules/.bin` being added to the path in `npm
+  run-script`. ([@quarterto](https://github.com/quarterto))
+* [`903bdd1`](https://github.com/npm/npm/commit/903bdd105b205d6e45d3a2ab83eea8e4071e9aeb)
+  Matt Ranney confused the world when he renamed `node-redis` to `redis`. "The
+  world" includes npm's documentation.
+  ([@RichardLitt](https://github.com/RichardLitt))
+* [`dea9bb2`](https://github.com/npm/npm/commit/dea9bb2319183fe54bf4d173d8533d46d2c6611c)
+  Fix typo in contributor link. ([@watilde](https://github.com/watilde))
+* [`1226ca9`](https://github.com/npm/npm/commit/1226ca98d4d7650cc3ba16bf7ac62e44820f3bfa)
+  Properly close code block in npm-install.md.
+  ([@olizilla](https://github.com/olizilla))
+
 ### v2.7.0 (2015-02-26):
 
 #### SOMETIMES SEMVER MEANS "SUBJECTIVE-EMPATHETIC VERSIONING"
@@ -14,7 +203,7 @@ If the patch below were landed on its own, free of context, it would be a
 breaking change. But, since the "new" behavior is how the documentation claims
 this feature has always worked, I'm classifying it as a patch-level bug fix. I
 apologize in advance if this breaks anybody's deployment scripts, and if it
-turns out to be a significant regression in practics, we can revert this change
+turns out to be a significant regression in practice, we can revert this change
 and move it to `npm@3`, which is allowed to make breaking changes due to being
 a new major version of semver.
 
@@ -65,7 +254,7 @@ tracker, and they included some nice small features and fixes:
   [#7354](https://github.com/npm/npm/issues/7354) Add `--if-present` flag to
   allow e.g. CI systems to call (semi-) standard build tasks defined in
   `package.json`, but don't raise an error if no such script is defined.
-  ([@jussi](https://github.com/jussi)-kalliokoski)
+  ([@jussi-kalliokoski](https://github.com/jussi-kalliokoski))
 * [`7bf85cc`](https://github.com/npm/npm/commit/7bf85cc372ab5698593b01e139c383fa62c92516)
   [#4005](https://github.com/npm/npm/issues/4005)
   [#6248](https://github.com/npm/npm/issues/6248) Globally unlink a package
@@ -1077,7 +1266,7 @@ Other changes:
 * [`b706d63`](https://github.com/npm/npm/commit/b706d637d5965dbf8f7ce07dc5c4bc80887f30d8)
   [#3059](https://github.com/npm/npm/issues/3059) disable prepublish when
   running `npm install --production`
-  ([@jussi](https://github.com/jussi)-kalliokoski)
+  ([@jussi-kalliokoski](https://github.com/jussi-kalliokoski))
 * [`119f068`](https://github.com/npm/npm/commit/119f068eae2a36fa8b9c9ca557c70377792243a4)
   attach the node version used when publishing a package to its registry
   metadata ([@othiym23](https://github.com/othiym23))

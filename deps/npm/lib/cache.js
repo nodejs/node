@@ -300,8 +300,12 @@ function add (args, where, cb) {
       case "git":
         addRemoteGit(p.spec, false, cb)
         break
-      case "github":
-        maybeGithub(p.spec, cb)
+      case "hosted":
+        if (p.hosted.type === "github") {
+          maybeGithub(p.rawSpec, cb)
+        } else {
+          addRemoteGit(p.spec, false, cb)
+        }
         break
       default:
         if (p.name) return addNamed(p.name, p.spec, null, cb)

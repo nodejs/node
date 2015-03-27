@@ -1,20 +1,18 @@
 #!/bin/sh
 
-git log --reverse --format='%aN <%aE>' | awk '
+git log --reverse --format='%aN <%aE>' | perl -we '
+
 BEGIN {
-  print "# Authors sorted by whether or not they'\''re me";
+  %seen = (), @authors = ();
 }
 
-{
-  if (all[$NF] != 1) {
-    all[$NF] = 1;
-    ordered[length(all)] = $0;
-  }
+while (<>) {
+  next if $seen{$_};
+  $seen{$_} = push @authors, $_;
 }
 
 END {
-  for (i in ordered) {
-    print ordered[i];
-  }
+  print "# Authors sorted by whether or not they'\''re me\n";
+  print @authors;
 }
 ' > AUTHORS
