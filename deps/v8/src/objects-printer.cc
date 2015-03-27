@@ -231,26 +231,27 @@ void JSObject::PrintProperties(std::ostream& os) {  // NOLINT
       descs->GetKey(i)->NamePrint(os);
       os << ": ";
       switch (descs->GetType(i)) {
-        case FIELD: {
+        case DATA: {
           FieldIndex index = FieldIndex::ForDescriptor(map(), i);
           if (IsUnboxedDoubleField(index)) {
             os << "<unboxed double> " << RawFastDoublePropertyAt(index);
           } else {
             os << Brief(RawFastPropertyAt(index));
           }
-          os << " (field at offset " << index.property_index() << ")\n";
+          os << " (data field at offset " << index.property_index() << ")\n";
           break;
         }
-        case ACCESSOR_FIELD: {
+        case ACCESSOR: {
           FieldIndex index = FieldIndex::ForDescriptor(map(), i);
-          os << " (accessor at offset " << index.property_index() << ")\n";
+          os << " (accessor field at offset " << index.property_index()
+             << ")\n";
           break;
         }
-        case CONSTANT:
-          os << Brief(descs->GetConstant(i)) << " (constant)\n";
+        case DATA_CONSTANT:
+          os << Brief(descs->GetConstant(i)) << " (data constant)\n";
           break;
-        case CALLBACKS:
-          os << Brief(descs->GetCallbacksObject(i)) << " (callbacks)\n";
+        case ACCESSOR_CONSTANT:
+          os << Brief(descs->GetCallbacksObject(i)) << " (accessor constant)\n";
           break;
       }
     }
@@ -423,6 +424,7 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   if (has_instance_call_handler()) os << " - instance_call_handler\n";
   if (is_access_check_needed()) os << " - access_check_needed\n";
   if (!is_extensible()) os << " - non-extensible\n";
+  if (is_observed()) os << " - observed\n";
   os << " - back pointer: " << Brief(GetBackPointer());
   os << "\n - instance descriptors " << (owns_descriptors() ? "(own) " : "")
      << "#" << NumberOfOwnDescriptors() << ": "
@@ -863,24 +865,6 @@ void ExecutableAccessorInfo::ExecutableAccessorInfoPrint(
 }
 
 
-void DeclaredAccessorInfo::DeclaredAccessorInfoPrint(
-    std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "DeclaredAccessorInfo");
-  os << "\n - name: " << Brief(name());
-  os << "\n - flag: " << Brief(flag());
-  os << "\n - descriptor: " << Brief(descriptor());
-  os << "\n";
-}
-
-
-void DeclaredAccessorDescriptor::DeclaredAccessorDescriptorPrint(
-    std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "DeclaredAccessorDescriptor");
-  os << "\n - internal field: " << Brief(serialized_data());
-  os << "\n";
-}
-
-
 void Box::BoxPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "Box");
   os << "\n - value: " << Brief(value());
@@ -944,6 +928,7 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(
   os << "\n - hidden_prototype: " << (hidden_prototype() ? "true" : "false");
   os << "\n - undetectable: " << (undetectable() ? "true" : "false");
   os << "\n - need_access_check: " << (needs_access_check() ? "true" : "false");
+  os << "\n - instantiated: " << (instantiated() ? "true" : "false");
   os << "\n";
 }
 
@@ -955,14 +940,6 @@ void ObjectTemplateInfo::ObjectTemplateInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - property_accessors: " << Brief(property_accessors());
   os << "\n - constructor: " << Brief(constructor());
   os << "\n - internal_field_count: " << Brief(internal_field_count());
-  os << "\n";
-}
-
-
-void SignatureInfo::SignatureInfoPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "SignatureInfo");
-  os << "\n - receiver: " << Brief(receiver());
-  os << "\n - args: " << Brief(args());
   os << "\n";
 }
 
@@ -1195,11 +1172,11 @@ void TransitionArray::PrintTransitions(std::ostream& os,
     } else {
       PropertyDetails details = GetTargetDetails(key, target);
       os << " (transition to ";
-      if (details.location() == IN_DESCRIPTOR) {
+      if (details.location() == kDescriptor) {
         os << "immutable ";
       }
-      os << (details.kind() == DATA ? "data" : "accessor");
-      if (details.location() == IN_DESCRIPTOR) {
+      os << (details.kind() == kData ? "data" : "accessor");
+      if (details.location() == kDescriptor) {
         os << " " << Brief(GetTargetValue(i));
       }
       os << "), attrs: " << details.attributes();

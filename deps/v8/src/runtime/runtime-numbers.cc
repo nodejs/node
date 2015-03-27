@@ -229,8 +229,9 @@ RUNTIME_FUNCTION(Runtime_StringParseFloat) {
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
 
-  double value = StringToDouble(isolate->unicode_cache(), subject,
-                                ALLOW_TRAILING_JUNK, base::OS::nan_value());
+  double value =
+      StringToDouble(isolate->unicode_cache(), subject, ALLOW_TRAILING_JUNK,
+                     std::numeric_limits<double>::quiet_NaN());
 
   return *isolate->factory()->NewNumber(value);
 }

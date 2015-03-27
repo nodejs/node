@@ -60,19 +60,15 @@ RUNTIME_FUNCTION(Runtime_ConstructDouble) {
 
 
 RUNTIME_FUNCTION(Runtime_RemPiO2) {
-  HandleScope handle_scope(isolate);
-  DCHECK(args.length() == 1);
+  SealHandleScope shs(isolate);
+  DisallowHeapAllocation no_gc;
+  DCHECK(args.length() == 2);
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  Factory* factory = isolate->factory();
-  double y[2] = {0.0, 0.0};
-  int n = fdlibm::rempio2(x, y);
-  Handle<FixedArray> array = factory->NewFixedArray(3);
-  Handle<HeapNumber> y0 = factory->NewHeapNumber(y[0]);
-  Handle<HeapNumber> y1 = factory->NewHeapNumber(y[1]);
-  array->set(0, Smi::FromInt(n));
-  array->set(1, *y0);
-  array->set(2, *y1);
-  return *factory->NewJSArrayWithElements(array);
+  CONVERT_ARG_CHECKED(JSTypedArray, result, 1);
+  RUNTIME_ASSERT(result->byte_length() == Smi::FromInt(2 * sizeof(double)));
+  void* backing_store = JSArrayBuffer::cast(result->buffer())->backing_store();
+  double* y = static_cast<double*>(backing_store);
+  return Smi::FromInt(fdlibm::rempio2(x, y));
 }
 
 

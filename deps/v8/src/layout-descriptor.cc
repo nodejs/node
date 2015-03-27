@@ -72,13 +72,16 @@ Handle<LayoutDescriptor> LayoutDescriptor::New(
 }
 
 
-Handle<LayoutDescriptor> LayoutDescriptor::Append(Handle<Map> map,
-                                                  PropertyDetails details) {
+Handle<LayoutDescriptor> LayoutDescriptor::ShareAppend(
+    Handle<Map> map, PropertyDetails details) {
+  DCHECK(map->owns_descriptors());
   Isolate* isolate = map->GetIsolate();
   Handle<LayoutDescriptor> layout_descriptor(map->GetLayoutDescriptor(),
                                              isolate);
 
   if (!InobjectUnboxedField(map->inobject_properties(), details)) {
+    DCHECK(details.location() != kField ||
+           layout_descriptor->IsTagged(details.field_index()));
     return layout_descriptor;
   }
   int field_index = details.field_index();
@@ -104,6 +107,8 @@ Handle<LayoutDescriptor> LayoutDescriptor::AppendIfFastOrUseFull(
     return full_layout_descriptor;
   }
   if (!InobjectUnboxedField(map->inobject_properties(), details)) {
+    DCHECK(details.location() != kField ||
+           layout_descriptor->IsTagged(details.field_index()));
     return handle(layout_descriptor, map->GetIsolate());
   }
   int field_index = details.field_index();
@@ -127,7 +132,6 @@ Handle<LayoutDescriptor> LayoutDescriptor::EnsureCapacity(
     int new_capacity) {
   int old_capacity = layout_descriptor->capacity();
   if (new_capacity <= old_capacity) {
-    // Nothing to do with layout in Smi-form.
     return layout_descriptor;
   }
   Handle<LayoutDescriptor> new_layout_descriptor =
@@ -251,6 +255,27 @@ bool LayoutDescriptorHelper::IsTagged(
       offset_in_bytes + sequence_length * kPointerSize;
   DCHECK(offset_in_bytes < *out_end_of_contiguous_region_offset);
   return tagged;
+}
+
+
+bool LayoutDescriptor::IsConsistentWithMap(Map* map) {
+  if (FLAG_unbox_double_fields) {
+    DescriptorArray* descriptors = map->instance_descriptors();
+    int nof_descriptors = map->NumberOfOwnDescriptors();
+    for (int i = 0; i < nof_descriptors; i++) {
+      PropertyDetails details = descriptors->GetDetails(i);
+      if (details.type() != DATA) continue;
+      FieldIndex field_index = FieldIndex::ForDescriptor(map, i);
+      bool tagged_expected =
+          !field_index.is_inobject() || !details.representation().IsDouble();
+      for (int bit = 0; bit < details.field_width_in_words(); bit++) {
+        bool tagged_actual = IsTagged(details.field_index() + bit);
+        DCHECK_EQ(tagged_expected, tagged_actual);
+        if (tagged_actual != tagged_expected) return false;
+      }
+    }
+  }
+  return true;
 }
 }
 }  // namespace v8::internal

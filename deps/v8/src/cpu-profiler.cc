@@ -7,6 +7,7 @@
 #include "src/cpu-profiler-inl.h"
 
 #include "src/compiler.h"
+#include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/hashmap.h"
 #include "src/log-inl.h"
@@ -35,6 +36,19 @@ ProfilerEventsProcessor::ProfilerEventsProcessor(ProfileGenerator* generator,
 void ProfilerEventsProcessor::Enqueue(const CodeEventsContainer& event) {
   event.generic.order = ++last_code_event_id_;
   events_buffer_.Enqueue(event);
+}
+
+
+void ProfilerEventsProcessor::AddDeoptStack(Isolate* isolate, Address from,
+                                            int fp_to_sp_delta) {
+  TickSampleEventRecord record(last_code_event_id_);
+  RegisterState regs;
+  Address fp = isolate->c_entry_fp(isolate->thread_local_top());
+  regs.sp = fp - fp_to_sp_delta;
+  regs.fp = fp;
+  regs.pc = from;
+  record.sample.Init(isolate, regs, TickSample::kSkipCEntryFrame);
+  ticks_from_vm_buffer_.Enqueue(record);
 }
 
 
@@ -326,6 +340,19 @@ void CpuProfiler::CodeDisableOptEvent(Code* code, SharedFunctionInfo* shared) {
   rec->start = code->address();
   rec->bailout_reason = GetBailoutReason(shared->disable_optimization_reason());
   processor_->Enqueue(evt_rec);
+}
+
+
+void CpuProfiler::CodeDeoptEvent(Code* code, int bailout_id, Address pc,
+                                 int fp_to_sp_delta) {
+  CodeEventsContainer evt_rec(CodeEventRecord::CODE_DEOPT);
+  CodeDeoptEventRecord* rec = &evt_rec.CodeDeoptEventRecord_;
+  Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(code, bailout_id);
+  rec->start = code->address();
+  rec->deopt_reason = Deoptimizer::GetDeoptReason(info.deopt_reason);
+  rec->raw_position = info.raw_position;
+  processor_->Enqueue(evt_rec);
+  processor_->AddDeoptStack(isolate_, pc, fp_to_sp_delta);
 }
 
 

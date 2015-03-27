@@ -95,7 +95,7 @@ std::pair<v8::base::TimeDelta, v8::base::TimeDelta> RunBaselineParser(
     v8::base::ElapsedTimer timer;
     timer.Start();
     // Allow lazy parsing; otherwise we won't produce cached data.
-    bool success = Parser::Parse(&info, true);
+    bool success = Parser::ParseStatic(&info, true);
     parse_time1 = timer.Elapsed();
     if (!success) {
       fprintf(stderr, "Parsing failed\n");
@@ -111,7 +111,7 @@ std::pair<v8::base::TimeDelta, v8::base::TimeDelta> RunBaselineParser(
     v8::base::ElapsedTimer timer;
     timer.Start();
     // Allow lazy parsing; otherwise cached data won't help.
-    bool success = Parser::Parse(&info, true);
+    bool success = Parser::ParseStatic(&info, true);
     parse_time2 = timer.Elapsed();
     if (!success) {
       fprintf(stderr, "Parsing failed\n");

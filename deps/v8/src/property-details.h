@@ -43,22 +43,22 @@ class TypeInfo;
 // Type of properties.
 // Order of kinds is significant.
 // Must fit in the BitField PropertyDetails::KindField.
-enum PropertyKind { DATA = 0, ACCESSOR = 1 };
+enum PropertyKind { kData = 0, kAccessor = 1 };
 
 
 // Order of modes is significant.
 // Must fit in the BitField PropertyDetails::StoreModeField.
-enum PropertyLocation { IN_OBJECT = 0, IN_DESCRIPTOR = 1 };
+enum PropertyLocation { kField = 0, kDescriptor = 1 };
 
 
 // Order of properties is significant.
 // Must fit in the BitField PropertyDetails::TypeField.
 // A copy of this is in mirror-debugger.js.
 enum PropertyType {
-  FIELD = (IN_OBJECT << 1) | DATA,
-  CONSTANT = (IN_DESCRIPTOR << 1) | DATA,
-  ACCESSOR_FIELD = (IN_OBJECT << 1) | ACCESSOR,
-  CALLBACKS = (IN_DESCRIPTOR << 1) | ACCESSOR
+  DATA = (kField << 1) | kData,
+  DATA_CONSTANT = (kDescriptor << 1) | kData,
+  ACCESSOR = (kField << 1) | kAccessor,
+  ACCESSOR_CONSTANT = (kDescriptor << 1) | kAccessor
 };
 
 
@@ -210,6 +210,15 @@ class PropertyDetails BASE_EMBEDDED {
         | AttributesField::encode(attributes)
         | RepresentationField::encode(EncodeRepresentation(representation))
         | FieldIndexField::encode(field_index);
+  }
+
+  PropertyDetails(PropertyAttributes attributes, PropertyKind kind,
+                  PropertyLocation location, Representation representation,
+                  int field_index = 0) {
+    value_ = KindField::encode(kind) | LocationField::encode(location) |
+             AttributesField::encode(attributes) |
+             RepresentationField::encode(EncodeRepresentation(representation)) |
+             FieldIndexField::encode(field_index);
   }
 
   int pointer() const { return DescriptorPointer::decode(value_); }

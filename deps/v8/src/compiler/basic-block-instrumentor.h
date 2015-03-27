@@ -5,8 +5,6 @@
 #ifndef V8_COMPILER_BASIC_BLOCK_INSTRUMENTOR_H_
 #define V8_COMPILER_BASIC_BLOCK_INSTRUMENTOR_H_
 
-#include "src/v8.h"
-
 #include "src/basic-block-profiler.h"
 
 namespace v8 {

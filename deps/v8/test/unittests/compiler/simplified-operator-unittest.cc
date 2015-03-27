@@ -51,6 +51,7 @@ const PureOperator kPureOperators[] = {
     PURE(NumberModulus, Operator::kNoProperties, 2),
     PURE(NumberToInt32, Operator::kNoProperties, 1),
     PURE(NumberToUint32, Operator::kNoProperties, 1),
+    PURE(PlainPrimitiveToNumber, Operator::kNoProperties, 1),
     PURE(StringEqual, Operator::kCommutative, 2),
     PURE(StringLessThan, Operator::kNoProperties, 2),
     PURE(StringLessThanOrEqual, Operator::kNoProperties, 2),

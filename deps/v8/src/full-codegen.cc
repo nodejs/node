@@ -60,10 +60,6 @@ void BreakableStatementChecker::VisitModuleLiteral(ModuleLiteral* module) {
 }
 
 
-void BreakableStatementChecker::VisitModuleVariable(ModuleVariable* module) {
-}
-
-
 void BreakableStatementChecker::VisitModulePath(ModulePath* module) {
 }
 
@@ -351,7 +347,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
 
 #ifdef DEBUG
   // Check that no context-specific object has been embedded.
-  code->VerifyEmbeddedObjectsInFullCode();
+  code->VerifyEmbeddedObjects(Code::kNoContextSpecificPointers);
 #endif  // DEBUG
   return true;
 }
@@ -420,7 +416,7 @@ void FullCodeGenerator::PopulateTypeFeedbackInfo(Handle<Code> code) {
 
 
 void FullCodeGenerator::Initialize() {
-  InitializeAstVisitor(info_->zone());
+  InitializeAstVisitor(info_->isolate(), info_->zone());
   // The generation of debug code must match between the snapshot code and the
   // code that is generated later.  This is assumed by the debugger when it is
   // calculating PC offsets after generating a debug version of code.  Therefore
@@ -447,7 +443,7 @@ void FullCodeGenerator::CallLoadIC(ContextualMode contextual_mode,
 
 
 void FullCodeGenerator::CallStoreIC(TypeFeedbackId id) {
-  Handle<Code> ic = CodeFactory::StoreIC(isolate(), strict_mode()).code();
+  Handle<Code> ic = CodeFactory::StoreIC(isolate(), language_mode()).code();
   CallIC(ic, id);
 }
 
@@ -614,15 +610,14 @@ void FullCodeGenerator::AllocateModules(ZoneList<Declaration*>* declarations) {
       if (module != NULL) {
         Comment cmnt(masm_, "[ Link nested modules");
         Scope* scope = module->body()->scope();
-        Interface* interface = scope->interface();
-        DCHECK(interface->IsModule() && interface->IsFrozen());
+        DCHECK(scope->module()->IsFrozen());
 
-        interface->Allocate(scope->module_var()->index());
+        scope->module()->Allocate(scope->module_var()->index());
 
         // Set up module context.
-        DCHECK(scope->interface()->Index() >= 0);
-        __ Push(Smi::FromInt(scope->interface()->Index()));
-        __ Push(scope->GetScopeInfo());
+        DCHECK(scope->module()->Index() >= 0);
+        __ Push(Smi::FromInt(scope->module()->Index()));
+        __ Push(scope->GetScopeInfo(isolate()));
         __ CallRuntime(Runtime::kPushModuleContext, 2);
         StoreToFrameField(StandardFrameConstants::kContextOffset,
                           context_register());
@@ -725,9 +720,14 @@ void FullCodeGenerator::VisitDeclarations(
   AstVisitor::VisitDeclarations(declarations);
 
   if (scope_->num_modules() != 0) {
+    // TODO(ES6): This step, which creates module instance objects,
+    // can probably be delayed until an "import *" declaration
+    // reifies a module instance. Until imports are implemented,
+    // we skip it altogether.
+    //
     // Initialize modules from descriptor array.
-    DCHECK(module_index_ == modules_->length());
-    DeclareModules(modules_);
+    //  DCHECK(module_index_ == modules_->length());
+    //  DeclareModules(modules_);
     modules_ = saved_modules;
     module_index_ = saved_module_index;
   }
@@ -750,7 +750,7 @@ void FullCodeGenerator::VisitModuleLiteral(ModuleLiteral* module) {
   Block* block = module->body();
   Scope* saved_scope = scope();
   scope_ = block->scope();
-  Interface* interface = scope_->interface();
+  ModuleDescriptor* descriptor = scope_->module();
 
   Comment cmnt(masm_, "[ ModuleLiteral");
   SetStatementPosition(block);
@@ -760,8 +760,8 @@ void FullCodeGenerator::VisitModuleLiteral(ModuleLiteral* module) {
   int index = module_index_++;
 
   // Set up module context.
-  DCHECK(interface->Index() >= 0);
-  __ Push(Smi::FromInt(interface->Index()));
+  DCHECK(descriptor->Index() >= 0);
+  __ Push(Smi::FromInt(descriptor->Index()));
   __ Push(Smi::FromInt(0));
   __ CallRuntime(Runtime::kPushModuleContext, 2);
   StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
@@ -773,7 +773,7 @@ void FullCodeGenerator::VisitModuleLiteral(ModuleLiteral* module) {
 
   // Populate the module description.
   Handle<ModuleInfo> description =
-      ModuleInfo::Create(isolate(), interface, scope_);
+      ModuleInfo::Create(isolate(), descriptor, scope_);
   modules_->set(index, *description);
 
   scope_ = saved_scope;
@@ -784,40 +784,21 @@ void FullCodeGenerator::VisitModuleLiteral(ModuleLiteral* module) {
 }
 
 
-void FullCodeGenerator::VisitModuleVariable(ModuleVariable* module) {
-  // Nothing to do.
-  // The instance object is resolved statically through the module's interface.
-}
-
-
+// TODO(adamk): Delete ModulePath.
 void FullCodeGenerator::VisitModulePath(ModulePath* module) {
-  // Nothing to do.
-  // The instance object is resolved statically through the module's interface.
 }
 
 
+// TODO(adamk): Delete ModuleUrl.
 void FullCodeGenerator::VisitModuleUrl(ModuleUrl* module) {
-  // TODO(rossberg): dummy allocation for now.
-  Scope* scope = module->body()->scope();
-  Interface* interface = scope_->interface();
-
-  DCHECK(interface->IsModule() && interface->IsFrozen());
-  DCHECK(!modules_.is_null());
-  DCHECK(module_index_ < modules_->length());
-  interface->Allocate(scope->module_var()->index());
-  int index = module_index_++;
-
-  Handle<ModuleInfo> description =
-      ModuleInfo::Create(isolate(), interface, scope_);
-  modules_->set(index, *description);
 }
 
 
 int FullCodeGenerator::DeclareGlobalsFlags() {
-  DCHECK(DeclareGlobalsStrictMode::is_valid(strict_mode()));
+  DCHECK(DeclareGlobalsLanguageMode::is_valid(language_mode()));
   return DeclareGlobalsEvalFlag::encode(is_eval()) |
-      DeclareGlobalsNativeFlag::encode(is_native()) |
-      DeclareGlobalsStrictMode::encode(strict_mode());
+         DeclareGlobalsNativeFlag::encode(is_native()) |
+         DeclareGlobalsLanguageMode::encode(language_mode());
 }
 
 
@@ -837,7 +818,7 @@ void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
   } else {
     // Check if the statement will be breakable without adding a debug break
     // slot.
-    BreakableStatementChecker checker(zone());
+    BreakableStatementChecker checker(info_->isolate(), zone());
     checker.Check(stmt);
     // Record the statement position right here if the statement is not
     // breakable. For breakable statements the actual recording of the
@@ -858,13 +839,29 @@ void FullCodeGenerator::VisitSuperReference(SuperReference* super) {
 }
 
 
+bool FullCodeGenerator::ValidateSuperCall(Call* expr) {
+  Variable* new_target_var = scope()->DeclarationScope()->new_target_var();
+  if (new_target_var == nullptr) {
+    // TODO(dslomov): this is not exactly correct, the spec requires us
+    // to execute the constructor and only fail when an assigment to 'this'
+    // is attempted. Will implement once we have general new.target support,
+    // but also filed spec bug 3843 to make it an early error.
+    __ CallRuntime(Runtime::kThrowUnsupportedSuperError, 0);
+    RecordJSReturnSite(expr);
+    context()->Plug(result_register());
+    return false;
+  }
+  return true;
+}
+
+
 void FullCodeGenerator::SetExpressionPosition(Expression* expr) {
   if (!info_->is_debug()) {
     CodeGenerator::RecordPositions(masm_, expr->position());
   } else {
     // Check if the expression will be breakable without adding a debug break
     // slot.
-    BreakableStatementChecker checker(zone());
+    BreakableStatementChecker checker(info_->isolate(), zone());
     checker.Check(expr);
     // Record a statement position right here if the expression is not
     // breakable. For breakable expressions the actual recording of the
@@ -1052,19 +1049,15 @@ void FullCodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
   Comment cmnt(masm_, "[ ArithmeticExpression");
   Expression* left = expr->left();
   Expression* right = expr->right();
-  OverwriteMode mode =
-      left->ResultOverwriteAllowed()
-      ? OVERWRITE_LEFT
-      : (right->ResultOverwriteAllowed() ? OVERWRITE_RIGHT : NO_OVERWRITE);
 
   VisitForStackValue(left);
   VisitForAccumulatorValue(right);
 
   SetSourcePosition(expr->position());
   if (ShouldInlineSmiCase(op)) {
-    EmitInlineSmiBinaryOp(expr, op, mode, left, right);
+    EmitInlineSmiBinaryOp(expr, op, left, right);
   } else {
-    EmitBinaryOp(expr, op, mode);
+    EmitBinaryOp(expr, op);
   }
 }
 
@@ -1086,7 +1079,9 @@ void FullCodeGenerator::VisitBlock(Block* stmt) {
 void FullCodeGenerator::VisitModuleStatement(ModuleStatement* stmt) {
   Comment cmnt(masm_, "[ Module context");
 
-  __ Push(Smi::FromInt(stmt->proxy()->interface()->Index()));
+  DCHECK(stmt->body()->scope()->is_module_scope());
+
+  __ Push(Smi::FromInt(stmt->body()->scope()->module()->Index()));
   __ Push(Smi::FromInt(0));
   __ CallRuntime(Runtime::kPushModuleContext, 2);
   StoreToFrameField(
@@ -1211,6 +1206,15 @@ void FullCodeGenerator::EmitUnwindBeforeReturn() {
 }
 
 
+void FullCodeGenerator::EmitPropertyKey(ObjectLiteralProperty* property,
+                                        BailoutId bailout_id) {
+  VisitForStackValue(property->key());
+  __ InvokeBuiltin(Builtins::TO_NAME, CALL_FUNCTION);
+  PrepareForBailoutForId(bailout_id, NO_REGISTERS);
+  __ Push(result_register());
+}
+
+
 void FullCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   Comment cmnt(masm_, "[ ReturnStatement");
   SetStatementPosition(stmt);
@@ -1229,6 +1233,7 @@ void FullCodeGenerator::VisitWithStatement(WithStatement* stmt) {
   PushFunctionArgumentForContextAllocation();
   __ CallRuntime(Runtime::kPushWithContext, 2);
   StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
+  PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
 
   Scope* saved_scope = scope();
   scope_ = stmt->scope();
@@ -1582,8 +1587,7 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
 
   {
     EnterBlockScopeIfNeeded block_scope_state(
-        this, lit->scope(), BailoutId::None(), BailoutId::None(),
-        BailoutId::None());
+        this, lit->scope(), lit->EntryId(), lit->DeclsId(), lit->ExitId());
 
     if (lit->raw_name() != NULL) {
       __ Push(lit->name());
@@ -1642,8 +1646,8 @@ void FullCodeGenerator::VisitNativeFunctionLiteral(
 
   // Copy the function data to the shared function info.
   shared->set_function_data(fun->shared()->function_data());
-  int parameters = fun->shared()->formal_parameter_count();
-  shared->set_formal_parameter_count(parameters);
+  int parameters = fun->shared()->internal_formal_parameter_count();
+  shared->set_internal_formal_parameter_count(parameters);
 
   EmitNewClosure(shared, false);
 }
@@ -1791,7 +1795,7 @@ FullCodeGenerator::EnterBlockScopeIfNeeded::EnterBlockScopeIfNeeded(
     codegen_->scope_ = scope;
     {
       Comment cmnt(masm(), "[ Extend block context");
-      __ Push(scope->GetScopeInfo());
+      __ Push(scope->GetScopeInfo(codegen->isolate()));
       codegen_->PushFunctionArgumentForContextAllocation();
       __ CallRuntime(Runtime::kPushBlockContext, 2);
 

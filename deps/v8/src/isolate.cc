@@ -83,7 +83,6 @@ void ThreadLocalTop::InitializeInternal() {
   failed_access_check_callback_ = NULL;
   save_context_ = NULL;
   catcher_ = NULL;
-  top_lookup_result_ = NULL;
   promise_on_stack_ = NULL;
 
   // These members are re-initialized later after deserialization
@@ -207,9 +206,6 @@ void Isolate::Iterate(ObjectVisitor* v, ThreadLocalTop* thread) {
   for (StackFrameIterator it(this, thread); !it.done(); it.Advance()) {
     it.frame()->Iterate(v);
   }
-
-  // Iterate pointers in live lookup results.
-  thread->top_lookup_result_->Iterate(v);
 }
 
 
@@ -404,7 +400,7 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
       // mode function.  The number of sloppy frames is stored as
       // first element in the result array.
       if (!encountered_strict_function) {
-        if (fun->shared()->strict_mode() == STRICT) {
+        if (is_strict(fun->shared()->language_mode())) {
           encountered_strict_function = true;
         } else {
           sloppy_frames++;
@@ -1063,9 +1059,36 @@ void Isolate::ComputeLocation(MessageLocation* target) {
       int pos = frame->LookupCode()->SourcePosition(frame->pc());
       // Compute the location from the function and the reloc info.
       Handle<Script> casted_script(Script::cast(script));
-      *target = MessageLocation(casted_script, pos, pos + 1);
+      *target = MessageLocation(casted_script, pos, pos + 1, handle(fun));
     }
   }
+}
+
+
+bool Isolate::ComputeLocationFromException(MessageLocation* target,
+                                           Handle<Object> exception) {
+  if (!exception->IsJSObject()) return false;
+
+  Handle<Name> start_pos_symbol = factory()->error_start_pos_symbol();
+  Handle<Object> start_pos = JSObject::GetDataProperty(
+      Handle<JSObject>::cast(exception), start_pos_symbol);
+  if (!start_pos->IsSmi()) return false;
+  int start_pos_value = Handle<Smi>::cast(start_pos)->value();
+
+  Handle<Name> end_pos_symbol = factory()->error_end_pos_symbol();
+  Handle<Object> end_pos = JSObject::GetDataProperty(
+      Handle<JSObject>::cast(exception), end_pos_symbol);
+  if (!end_pos->IsSmi()) return false;
+  int end_pos_value = Handle<Smi>::cast(end_pos)->value();
+
+  Handle<Name> script_symbol = factory()->error_script_symbol();
+  Handle<Object> script = JSObject::GetDataProperty(
+      Handle<JSObject>::cast(exception), script_symbol);
+  if (!script->IsScript()) return false;
+
+  Handle<Script> cast_script(Script::cast(*script));
+  *target = MessageLocation(cast_script, start_pos_value, end_pos_value);
+  return true;
 }
 
 
@@ -1181,9 +1204,12 @@ Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
     }
   }
   if (!location) {
-    if (!ComputeLocationFromStackTrace(&potential_computed_location,
-                                       exception)) {
-      ComputeLocation(&potential_computed_location);
+    if (!ComputeLocationFromException(&potential_computed_location,
+                                      exception)) {
+      if (!ComputeLocationFromStackTrace(&potential_computed_location,
+                                         exception)) {
+        ComputeLocation(&potential_computed_location);
+      }
     }
     location = &potential_computed_location;
   }
@@ -1560,7 +1586,7 @@ Isolate::ThreadDataTable::~ThreadDataTable() {
   // TODO(svenpanne) The assertion below would fire if an embedder does not
   // cleanly dispose all Isolates before disposing v8, so we are conservative
   // and leave it out for now.
-  // DCHECK_EQ(NULL, list_);
+  // DCHECK_NULL(list_);
 }
 
 
@@ -1644,7 +1670,6 @@ Isolate::Isolate(bool enable_serializer)
       descriptor_lookup_cache_(NULL),
       handle_scope_implementer_(NULL),
       unicode_cache_(NULL),
-      runtime_zone_(this),
       inner_pointer_to_code_cache_(NULL),
       global_handles_(NULL),
       eternal_handles_(NULL),
@@ -1657,6 +1682,8 @@ Isolate::Isolate(bool enable_serializer)
       // TODO(bmeurer) Initialized lazily because it depends on flags; can
       // be fixed once the default isolate cleanup is done.
       random_number_generator_(NULL),
+      store_buffer_hash_set_1_address_(NULL),
+      store_buffer_hash_set_2_address_(NULL),
       serializer_enabled_(enable_serializer),
       has_fatal_error_(false),
       initialized_from_snapshot_(false),
@@ -1875,6 +1902,9 @@ Isolate::~Isolate() {
   delete handle_scope_implementer_;
   handle_scope_implementer_ = NULL;
 
+  delete code_tracer();
+  set_code_tracer(NULL);
+
   delete compilation_cache_;
   compilation_cache_ = NULL;
   delete bootstrapper_;
@@ -2025,8 +2055,8 @@ bool Isolate::Init(Deserializer* des) {
 
   // Initialize other runtime facilities
 #if defined(USE_SIMULATOR)
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || \
-    V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
+    V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC
   Simulator::Initialize(this);
 #endif
 #endif
@@ -2111,19 +2141,6 @@ bool Isolate::Init(Deserializer* des) {
   if (FLAG_trace_turbo) {
     // Create an empty file.
     std::ofstream(GetTurboCfgFileName().c_str(), std::ios_base::trunc);
-  }
-
-  // If we are deserializing, log non-function code objects and compiled
-  // functions found in the snapshot.
-  if (!create_heap_objects &&
-      (FLAG_log_code ||
-       FLAG_ll_prof ||
-       FLAG_perf_jit_prof ||
-       FLAG_perf_basic_prof ||
-       logger_->is_logging_code_events())) {
-    HandleScope scope(this);
-    LOG(this, LogCodeObjects());
-    LOG(this, LogCompiledFunctions());
   }
 
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, embedder_data_)),
@@ -2546,6 +2563,57 @@ std::string Isolate::GetTurboCfgFileName() {
     return os.str();
   } else {
     return FLAG_trace_turbo_cfg_file;
+  }
+}
+
+
+// Heap::detached_contexts tracks detached contexts as pairs
+// (number of GC since the context was detached, the context).
+void Isolate::AddDetachedContext(Handle<Context> context) {
+  HandleScope scope(this);
+  Handle<WeakCell> cell = factory()->NewWeakCell(context);
+  Handle<FixedArray> detached_contexts(heap()->detached_contexts());
+  int length = detached_contexts->length();
+  detached_contexts = FixedArray::CopySize(detached_contexts, length + 2);
+  detached_contexts->set(length, Smi::FromInt(0));
+  detached_contexts->set(length + 1, *cell);
+  heap()->set_detached_contexts(*detached_contexts);
+}
+
+
+void Isolate::CheckDetachedContextsAfterGC() {
+  HandleScope scope(this);
+  Handle<FixedArray> detached_contexts(heap()->detached_contexts());
+  int length = detached_contexts->length();
+  if (length == 0) return;
+  int new_length = 0;
+  for (int i = 0; i < length; i += 2) {
+    int mark_sweeps = Smi::cast(detached_contexts->get(i))->value();
+    WeakCell* cell = WeakCell::cast(detached_contexts->get(i + 1));
+    if (!cell->cleared()) {
+      detached_contexts->set(new_length, Smi::FromInt(mark_sweeps + 1));
+      detached_contexts->set(new_length + 1, cell);
+      new_length += 2;
+    }
+    counters()->detached_context_age_in_gc()->AddSample(mark_sweeps + 1);
+  }
+  if (FLAG_trace_detached_contexts) {
+    PrintF("%d detached contexts are collected out of %d\n",
+           length - new_length, length);
+    for (int i = 0; i < new_length; i += 2) {
+      int mark_sweeps = Smi::cast(detached_contexts->get(i))->value();
+      WeakCell* cell = WeakCell::cast(detached_contexts->get(i + 1));
+      if (mark_sweeps > 3) {
+        PrintF("detached context 0x%p\n survived %d GCs (leak?)\n",
+               static_cast<void*>(cell->value()), mark_sweeps);
+      }
+    }
+  }
+  if (new_length == 0) {
+    heap()->set_detached_contexts(heap()->empty_fixed_array());
+  } else if (new_length < length) {
+    heap()->RightTrimFixedArray<Heap::FROM_GC>(*detached_contexts,
+                                               length - new_length);
   }
 }
 

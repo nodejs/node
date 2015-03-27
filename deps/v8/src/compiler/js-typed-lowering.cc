@@ -3,12 +3,11 @@
 // found in the LICENSE file.
 
 #include "src/compiler/access-builder.h"
-#include "src/compiler/graph-inl.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-typed-lowering.h"
-#include "src/compiler/node-aux-data-inl.h"
 #include "src/compiler/node-matchers.h"
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
+#include "src/compiler/operator-properties.h"
 #include "src/types.h"
 
 namespace v8 {
@@ -31,26 +30,23 @@ static void RelaxEffects(Node* node) {
 
 JSTypedLowering::JSTypedLowering(JSGraph* jsgraph, Zone* zone)
     : jsgraph_(jsgraph), simplified_(graph()->zone()), conversions_(zone) {
-  Handle<Object> zero = factory()->NewNumber(0.0);
-  Handle<Object> one = factory()->NewNumber(1.0);
-  zero_range_ = Type::Range(zero, zero, graph()->zone());
-  one_range_ = Type::Range(one, one, graph()->zone());
-  Handle<Object> thirtyone = factory()->NewNumber(31.0);
-  zero_thirtyone_range_ = Type::Range(zero, thirtyone, graph()->zone());
+  zero_range_ = Type::Range(0.0, 1.0, graph()->zone());
+  one_range_ = Type::Range(1.0, 1.0, graph()->zone());
+  zero_thirtyone_range_ = Type::Range(0.0, 31.0, graph()->zone());
   // TODO(jarin): Can we have a correctification of the stupid type system?
   // These stupid work-arounds are just stupid!
   shifted_int32_ranges_[0] = Type::Signed32();
   if (SmiValuesAre31Bits()) {
     shifted_int32_ranges_[1] = Type::SignedSmall();
     for (size_t k = 2; k < arraysize(shifted_int32_ranges_); ++k) {
-      Handle<Object> min = factory()->NewNumber(kMinInt / (1 << k));
-      Handle<Object> max = factory()->NewNumber(kMaxInt / (1 << k));
+      double min = kMinInt / (1 << k);
+      double max = kMaxInt / (1 << k);
       shifted_int32_ranges_[k] = Type::Range(min, max, graph()->zone());
     }
   } else {
     for (size_t k = 1; k < arraysize(shifted_int32_ranges_); ++k) {
-      Handle<Object> min = factory()->NewNumber(kMinInt / (1 << k));
-      Handle<Object> max = factory()->NewNumber(kMaxInt / (1 << k));
+      double min = kMinInt / (1 << k);
+      double max = kMaxInt / (1 << k);
       shifted_int32_ranges_[k] = Type::Range(min, max, graph()->zone());
     }
   }
@@ -198,8 +194,16 @@ class JSBinopReduction FINAL {
     if (NodeProperties::GetBounds(node).upper->Is(Type::PlainPrimitive())) {
       return lowering_->ConvertToNumber(node);
     }
-    Node* n = graph()->NewNode(javascript()->ToNumber(), node, context(),
-                               effect(), control());
+    // TODO(jarin) This ToNumber conversion can deoptimize, but we do not really
+    // have a frame state to deoptimize to. Either we provide such a frame state
+    // or we exclude the values that could lead to deoptimization (e.g., by
+    // triggering eager deopt if the value is not plain).
+    Node* const n = FLAG_turbo_deoptimization
+                        ? graph()->NewNode(
+                              javascript()->ToNumber(), node, context(),
+                              jsgraph()->EmptyFrameState(), effect(), control())
+                        : graph()->NewNode(javascript()->ToNumber(), node,
+                                           context(), effect(), control());
     update_effect(n);
     return n;
   }
@@ -267,13 +271,15 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
 
 Reduction JSTypedLowering::ReduceJSBitwiseOr(Node* node) {
   JSBinopReduction r(this, node);
-  if (r.BothInputsAre(Type::Primitive()) || r.OneInputIs(zero_range_)) {
-    // TODO(jarin): Propagate frame state input from non-primitive input node to
-    // JSToNumber node.
+
+  // We can only reduce to Word32Or if we are sure the to-number conversions
+  // cannot lazily deoptimize.
+  bool shortcut_or_zero =
+      !FLAG_turbo_deoptimization && r.OneInputIs(zero_range_);
+  if (r.BothInputsAre(Type::Primitive()) || shortcut_or_zero) {
     // TODO(titzer): some Smi bitwise operations don't really require going
     // all the way to int32, which can save tagging/untagging for some
-    // operations
-    // on some platforms.
+    // operations on some platforms.
     // TODO(turbofan): make this heuristic configurable for code size.
     r.ConvertInputsToUI32(kSigned, kSigned);
     return r.ChangeToPureOperator(machine()->Word32Or(), Type::Integral32());
@@ -284,9 +290,13 @@ Reduction JSTypedLowering::ReduceJSBitwiseOr(Node* node) {
 
 Reduction JSTypedLowering::ReduceJSMultiply(Node* node) {
   JSBinopReduction r(this, node);
-  if (r.BothInputsAre(Type::Primitive()) || r.OneInputIs(one_range_)) {
-    // TODO(jarin): Propagate frame state input from non-primitive input node to
-    // JSToNumber node.
+
+  // We can only reduce to NumberMultiply if we are sure the to-number
+  // conversions cannot lazily deoptimize.
+  bool shortcut_multiply_one =
+      !FLAG_turbo_deoptimization && r.OneInputIs(one_range_);
+
+  if (r.BothInputsAre(Type::Primitive()) || shortcut_multiply_one) {
     r.ConvertInputsToNumber();
     return r.ChangeToPureOperator(simplified()->NumberMultiply(),
                                   Type::Number());
@@ -624,15 +634,20 @@ Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
     }
     // Remember this conversion.
     InsertConversion(node);
-    if (node->InputAt(1) != jsgraph()->NoContextConstant() ||
-        node->InputAt(2) != graph()->start() ||
-        node->InputAt(3) != graph()->start()) {
+    if (NodeProperties::GetContextInput(node) !=
+            jsgraph()->NoContextConstant() ||
+        NodeProperties::GetEffectInput(node) != graph()->start() ||
+        NodeProperties::GetControlInput(node) != graph()->start()) {
       // JSToNumber(x:plain-primitive,context,effect,control)
       //   => JSToNumber(x,no-context,start,start)
       RelaxEffects(node);
-      node->ReplaceInput(1, jsgraph()->NoContextConstant());
-      node->ReplaceInput(2, graph()->start());
-      node->ReplaceInput(3, graph()->start());
+      NodeProperties::ReplaceContextInput(node, jsgraph()->NoContextConstant());
+      NodeProperties::ReplaceControlInput(node, graph()->start());
+      NodeProperties::ReplaceEffectInput(node, graph()->start());
+      if (OperatorProperties::HasFrameStateInput(node->op())) {
+        NodeProperties::ReplaceFrameStateInput(node,
+                                               jsgraph()->EmptyFrameState());
+      }
       return Changed(node);
     }
   }
@@ -752,8 +767,15 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
         if (number_reduction.Changed()) {
           value = number_reduction.replacement();
         } else {
-          value = effect = graph()->NewNode(javascript()->ToNumber(), value,
-                                            context, effect, control);
+          if (OperatorProperties::HasFrameStateInput(
+                  javascript()->ToNumber())) {
+            value = effect =
+                graph()->NewNode(javascript()->ToNumber(), value, context,
+                                 jsgraph()->EmptyFrameState(), effect, control);
+          } else {
+            value = effect = graph()->NewNode(javascript()->ToNumber(), value,
+                                              context, effect, control);
+          }
         }
       }
       // For integer-typed arrays, convert to the integer type.
@@ -785,8 +807,8 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
       node->ReplaceInput(2, length);
       node->ReplaceInput(3, value);
       node->ReplaceInput(4, effect);
-      DCHECK_EQ(control, node->InputAt(5));
-      DCHECK_EQ(6, node->InputCount());
+      node->ReplaceInput(5, control);
+      node->TrimInputCount(6);
       return Changed(node);
     }
   }
@@ -838,8 +860,7 @@ Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
 Reduction JSTypedLowering::Reduce(Node* node) {
   // Check if the output type is a singleton.  In that case we already know the
   // result value and can simply replace the node if it's eliminable.
-  if (NodeProperties::IsTyped(node) &&
-      !IrOpcode::IsLeafOpcode(node->opcode()) &&
+  if (!NodeProperties::IsConstant(node) && NodeProperties::IsTyped(node) &&
       node->op()->HasProperty(Operator::kEliminatable)) {
     Type* upper = NodeProperties::GetBounds(node).upper;
     if (upper->IsConstant()) {
@@ -932,9 +953,16 @@ Node* JSTypedLowering::ConvertToNumber(Node* input) {
   // Avoid inserting too many eager ToNumber() operations.
   Reduction const reduction = ReduceJSToNumberInput(input);
   if (reduction.Changed()) return reduction.replacement();
-  Node* const conversion = graph()->NewNode(javascript()->ToNumber(), input,
-                                            jsgraph()->NoContextConstant(),
-                                            graph()->start(), graph()->start());
+  // TODO(jarin) Use PlainPrimitiveToNumber once we have it.
+  Node* const conversion =
+      FLAG_turbo_deoptimization
+          ? graph()->NewNode(javascript()->ToNumber(), input,
+                             jsgraph()->NoContextConstant(),
+                             jsgraph()->EmptyFrameState(), graph()->start(),
+                             graph()->start())
+          : graph()->NewNode(javascript()->ToNumber(), input,
+                             jsgraph()->NoContextConstant(), graph()->start(),
+                             graph()->start());
   InsertConversion(conversion);
   return conversion;
 }

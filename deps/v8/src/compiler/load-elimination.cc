@@ -4,7 +4,7 @@
 
 #include "src/compiler/load-elimination.h"
 
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
 
 namespace v8 {

@@ -34,6 +34,7 @@ from testrunner.objects import testcase
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 SELF_SCRIPT_PATTERN = re.compile(r"//\s+Env: TEST_FILE_NAME")
+MODULE_PATTERN = re.compile(r"^// MODULE$", flags=re.MULTILINE)
 
 
 class MjsunitTestSuite(testsuite.TestSuite):
@@ -77,7 +78,12 @@ class MjsunitTestSuite(testsuite.TestSuite):
     if SELF_SCRIPT_PATTERN.search(source):
       env = ["-e", "TEST_FILE_NAME=\"%s\"" % testfilename.replace("\\", "\\\\")]
       files = env + files
-    files.append(os.path.join(self.root, "mjsunit.js"))
+
+    if not context.no_harness:
+      files.append(os.path.join(self.root, "mjsunit.js"))
+
+    if MODULE_PATTERN.search(source):
+      files.append("--module")
     files.append(testfilename)
 
     flags += files

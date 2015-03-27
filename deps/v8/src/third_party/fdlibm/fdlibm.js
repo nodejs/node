@@ -20,10 +20,13 @@
 // and exposed through kMath as typed array. We assume the compiler to convert
 // from decimal to binary accurately enough to produce the intended values.
 // kMath is initialized to a Float64Array during genesis and not writable.
+// rempio2result is used as a container for return values of %RemPiO2. It is
+// initialized to a two-element Float64Array during genesis.
 
 "use strict";
 
 var kMath;
+var rempio2result;
 
 const INVPIO2 = kMath[0];
 const PIO2_1  = kMath[1];
@@ -38,6 +41,7 @@ const PIO4LO  = kMath[33];
 // Compute k and r such that x - k*pi/2 = r where |r| < pi/4. For
 // precision, r is returned as two values y0 and y1 such that r = y0 + y1
 // to more than double precision.
+
 macro REMPIO2(X)
   var n, y0, y1;
   var hx = %_DoubleHi(X);
@@ -105,10 +109,9 @@ macro REMPIO2(X)
     }
   } else {
     // Need to do full Payne-Hanek reduction here.
-    var r = %RemPiO2(X);
-    n = r[0];
-    y0 = r[1];
-    y1 = r[2];
+    n = %RemPiO2(X, rempio2result);
+    y0 = rempio2result[0];
+    y1 = rempio2result[1];
   }
 endmacro
 

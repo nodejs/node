@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/register-configuration.h"
+#include "src/globals.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {

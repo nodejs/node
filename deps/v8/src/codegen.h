@@ -53,6 +53,8 @@ enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 #include "src/arm64/codegen-arm64.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM
 #include "src/arm/codegen-arm.h"  // NOLINT
+#elif V8_TARGET_ARCH_PPC
+#include "src/ppc/codegen-ppc.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS
 #include "src/mips/codegen-mips.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS64

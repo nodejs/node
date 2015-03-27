@@ -459,18 +459,6 @@ TEST(SizeOfFirstPageIsLargeEnough) {
 }
 
 
-static inline void FillCurrentPage(v8::internal::NewSpace* space) {
-  int new_linear_size = static_cast<int>(*space->allocation_limit_address() -
-                                         *space->allocation_top_address());
-  if (new_linear_size == 0) return;
-  v8::internal::AllocationResult allocation =
-      space->AllocateRaw(new_linear_size);
-  v8::internal::FreeListNode* node =
-      v8::internal::FreeListNode::cast(allocation.ToObjectChecked());
-  node->set_size(space->heap(), new_linear_size);
-}
-
-
 UNINITIALIZED_TEST(NewSpaceGrowsToTargetCapacity) {
   FLAG_target_semi_space_size = 2;
   if (FLAG_optimize_for_size) return;
@@ -502,9 +490,9 @@ UNINITIALIZED_TEST(NewSpaceGrowsToTargetCapacity) {
 
       // Turn the allocation into a proper object so isolate teardown won't
       // crash.
-      v8::internal::FreeListNode* node =
-          v8::internal::FreeListNode::cast(allocation.ToObjectChecked());
-      node->set_size(new_space->heap(), 80);
+      HeapObject* free_space = NULL;
+      CHECK(allocation.To(&free_space));
+      new_space->heap()->CreateFillerObjectAt(free_space->address(), 80);
     }
   }
   isolate->Dispose();

@@ -22,13 +22,15 @@
 # define V8_INFINITY std::numeric_limits<double>::infinity()
 #elif V8_LIBC_MSVCRT
 # define V8_INFINITY HUGE_VAL
+#elif V8_OS_AIX
+#define V8_INFINITY (__builtin_inff())
 #else
 # define V8_INFINITY INFINITY
 #endif
 
 #if V8_TARGET_ARCH_IA32 || (V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_32_BIT) || \
     V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||     \
-    V8_TARGET_ARCH_MIPS64
+    V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC
 #define V8_TURBOFAN_BACKEND 1
 #else
 #define V8_TURBOFAN_BACKEND 0
@@ -59,6 +61,9 @@ namespace internal {
 #if (V8_TARGET_ARCH_ARM && !V8_HOST_ARCH_ARM)
 #define USE_SIMULATOR 1
 #endif
+#if (V8_TARGET_ARCH_PPC && !V8_HOST_ARCH_PPC)
+#define USE_SIMULATOR 1
+#endif
 #if (V8_TARGET_ARCH_MIPS && !V8_HOST_ARCH_MIPS)
 #define USE_SIMULATOR 1
 #endif
@@ -83,7 +88,7 @@ namespace internal {
 
 
 // Determine whether double field unboxing feature is enabled.
-#if (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64)
+#if V8_TARGET_ARCH_64_BIT
 #define V8_DOUBLE_FIELDS_UNBOXING 0
 #else
 #define V8_DOUBLE_FIELDS_UNBOXING 0
@@ -220,7 +225,47 @@ template <typename T, class P = FreeStoreAllocationPolicy> class List;
 
 // The Strict Mode (ECMA-262 5th edition, 4.2.2).
 
-enum StrictMode { SLOPPY, STRICT };
+enum LanguageMode {
+  // LanguageMode is expressed as a bitmask. Descriptions of the bits:
+  STRICT_BIT = 1 << 0,
+  STRONG_BIT = 1 << 1,
+  LANGUAGE_END,
+
+  // Shorthands for some common language modes.
+  SLOPPY = 0,
+  STRICT = STRICT_BIT,
+  STRONG = STRICT_BIT | STRONG_BIT
+};
+
+
+inline bool is_sloppy(LanguageMode language_mode) {
+  return (language_mode & STRICT_BIT) == 0;
+}
+
+
+inline bool is_strict(LanguageMode language_mode) {
+  return language_mode & STRICT_BIT;
+}
+
+
+inline bool is_strong(LanguageMode language_mode) {
+  return language_mode & STRONG_BIT;
+}
+
+
+inline bool is_valid_language_mode(int language_mode) {
+  return language_mode == SLOPPY || language_mode == STRICT ||
+         language_mode == STRONG;
+}
+
+
+inline LanguageMode construct_language_mode(bool strict_bit, bool strong_bit) {
+  int language_mode = 0;
+  if (strict_bit) language_mode |= STRICT_BIT;
+  if (strong_bit) language_mode |= STRONG_BIT;
+  DCHECK(is_valid_language_mode(language_mode));
+  return static_cast<LanguageMode>(language_mode);
+}
 
 
 // Mask for the sign bit in a smi.
@@ -328,7 +373,6 @@ class JSArray;
 class JSFunction;
 class JSObject;
 class LargeObjectSpace;
-class LookupResult;
 class MacroAssembler;
 class Map;
 class MapSpace;
@@ -482,9 +526,11 @@ enum CallFunctionFlags {
 
 
 enum CallConstructorFlags {
-  NO_CALL_CONSTRUCTOR_FLAGS,
+  NO_CALL_CONSTRUCTOR_FLAGS = 0,
   // The call target is cached in the instruction stream.
-  RECORD_CONSTRUCTOR_TARGET
+  RECORD_CONSTRUCTOR_TARGET = 1,
+  SUPER_CONSTRUCTOR_CALL = 1 << 1,
+  SUPER_CALL_RECORD_TARGET = SUPER_CONSTRUCTOR_CALL | RECORD_CONSTRUCTOR_TARGET
 };
 
 
@@ -562,9 +608,6 @@ struct AccessorDescriptor {
 #define HAS_SMI_TAG(value) \
   ((reinterpret_cast<intptr_t>(value) & kSmiTagMask) == kSmiTag)
 
-#define HAS_FAILURE_TAG(value) \
-  ((reinterpret_cast<intptr_t>(value) & kFailureTagMask) == kFailureTag)
-
 // OBJECT_POINTER_ALIGN returns the value aligned as a HeapObject pointer
 #define OBJECT_POINTER_ALIGN(value)                             \
   (((value) + kObjectAlignmentMask) & ~kObjectAlignmentMask)
@@ -606,6 +649,7 @@ enum CpuFeature {
   SAHF,
   AVX,
   FMA3,
+  ATOM,
   // ARM
   VFP3,
   ARMv7,
@@ -625,6 +669,10 @@ enum CpuFeature {
   // ARM64
   ALWAYS_ALIGN_CSP,
   COHERENT_CACHE,
+  // PPC
+  FPR_GPR_MOV,
+  LWSYNC,
+  ISELECT,
   NUMBER_OF_CPU_FEATURES
 };
 
@@ -649,14 +697,11 @@ enum ScopeType {
 };
 
 
-const uint32_t kHoleNanUpper32 = 0x7FFFFFFF;
-const uint32_t kHoleNanLower32 = 0xFFFFFFFF;
-const uint32_t kNaNOrInfinityLowerBoundUpper32 = 0x7FF00000;
+const uint32_t kHoleNanUpper32 = 0xFFF7FFFF;
+const uint32_t kHoleNanLower32 = 0xFFF7FFFF;
 
 const uint64_t kHoleNanInt64 =
     (static_cast<uint64_t>(kHoleNanUpper32) << 32) | kHoleNanLower32;
-const uint64_t kLastNonNaNInt64 =
-    (static_cast<uint64_t>(kNaNOrInfinityLowerBoundUpper32) << 32);
 
 
 // The order of this enum has to be kept in sync with the predicates below.
@@ -666,11 +711,9 @@ enum VariableMode {
 
   CONST_LEGACY,    // declared via legacy 'const' declarations
 
-  LET,             // declared via 'let' declarations (first lexical)
+  LET,             // declared via 'let' declarations
 
   CONST,           // declared via 'const' declarations
-
-  MODULE,          // declared via 'module' declaration (last lexical)
 
   // Variables introduced by the compiler:
   INTERNAL,        // like VAR, but not user-visible (may or may not
@@ -699,17 +742,17 @@ inline bool IsDynamicVariableMode(VariableMode mode) {
 
 
 inline bool IsDeclaredVariableMode(VariableMode mode) {
-  return mode >= VAR && mode <= MODULE;
+  return mode >= VAR && mode <= CONST;
 }
 
 
 inline bool IsLexicalVariableMode(VariableMode mode) {
-  return mode >= LET && mode <= MODULE;
+  return mode == LET || mode == CONST;
 }
 
 
 inline bool IsImmutableVariableMode(VariableMode mode) {
-  return (mode >= CONST && mode <= MODULE) || mode == CONST_LEGACY;
+  return mode == CONST || mode == CONST_LEGACY;
 }
 
 
@@ -770,11 +813,16 @@ enum Signedness { kSigned, kUnsigned };
 
 enum FunctionKind {
   kNormalFunction = 0,
-  kArrowFunction = 1,
-  kGeneratorFunction = 2,
-  kConciseMethod = 4,
+  kArrowFunction = 1 << 0,
+  kGeneratorFunction = 1 << 1,
+  kConciseMethod = 1 << 2,
   kConciseGeneratorMethod = kGeneratorFunction | kConciseMethod,
-  kDefaultConstructor = 8
+  kAccessorFunction = 1 << 3,
+  kDefaultConstructor = 1 << 4,
+  kSubclassConstructor = 1 << 5,
+  kBaseConstructor = 1 << 6,
+  kDefaultBaseConstructor = kDefaultConstructor | kBaseConstructor,
+  kDefaultSubclassConstructor = kDefaultConstructor | kSubclassConstructor
 };
 
 
@@ -784,7 +832,11 @@ inline bool IsValidFunctionKind(FunctionKind kind) {
          kind == FunctionKind::kGeneratorFunction ||
          kind == FunctionKind::kConciseMethod ||
          kind == FunctionKind::kConciseGeneratorMethod ||
-         kind == FunctionKind::kDefaultConstructor;
+         kind == FunctionKind::kAccessorFunction ||
+         kind == FunctionKind::kDefaultBaseConstructor ||
+         kind == FunctionKind::kDefaultSubclassConstructor ||
+         kind == FunctionKind::kBaseConstructor ||
+         kind == FunctionKind::kSubclassConstructor;
 }
 
 
@@ -806,12 +858,36 @@ inline bool IsConciseMethod(FunctionKind kind) {
 }
 
 
+inline bool IsAccessorFunction(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  return kind & FunctionKind::kAccessorFunction;
+}
+
+
 inline bool IsDefaultConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
   return kind & FunctionKind::kDefaultConstructor;
 }
 
 
+inline bool IsBaseConstructor(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  return kind & FunctionKind::kBaseConstructor;
+}
+
+
+inline bool IsSubclassConstructor(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  return kind & FunctionKind::kSubclassConstructor;
+}
+
+
+inline bool IsConstructor(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  return kind &
+         (FunctionKind::kBaseConstructor | FunctionKind::kSubclassConstructor |
+          FunctionKind::kDefaultConstructor);
+}
 } }  // namespace v8::internal
 
 namespace i = v8::internal;

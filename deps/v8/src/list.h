@@ -63,7 +63,7 @@ class List {
   // backing store (e.g. Add).
   inline T& operator[](int i) const {
     DCHECK(0 <= i);
-    SLOW_DCHECK(i < length_);
+    SLOW_DCHECK(static_cast<unsigned>(i) < static_cast<unsigned>(length_));
     return data_[i];
   }
   inline T& at(int i) const { return operator[](i); }

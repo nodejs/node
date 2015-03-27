@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/graph-reducer.h"
-
 #include <functional>
 
-#include "src/compiler/graph-inl.h"
+#include "src/compiler/graph.h"
+#include "src/compiler/graph-reducer.h"
+#include "src/compiler/node.h"
 
 namespace v8 {
 namespace internal {
@@ -154,9 +154,11 @@ void GraphReducer::ReduceTop() {
       // Otherwise {node} was replaced by a new node. Replace all old uses of
       // {node} with {replacement}. New nodes created by this reduction can
       // use {node}.
-      node->ReplaceUsesIf(
-          [node_count](Node* const node) { return node->id() < node_count; },
-          replacement);
+      for (Edge edge : node->use_edges()) {
+        if (edge.from()->id() < node_count) {
+          edge.UpdateTo(replacement);
+        }
+      }
       // Unlink {node} if it's no longer used.
       if (node->uses().empty()) {
         node->Kill();

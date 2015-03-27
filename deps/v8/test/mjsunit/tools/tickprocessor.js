@@ -323,7 +323,7 @@ CppEntriesProviderMock.prototype.parseVmSymbols = function(
 
 
 function PrintMonitor(outputOrFileName) {
-  var expectedOut = typeof outputOrFileName == 'string' ?
+  var expectedOut = this.expectedOut = typeof outputOrFileName == 'string' ?
       this.loadExpectedOutput(outputOrFileName) : outputOrFileName;
   var outputPos = 0;
   var diffs = this.diffs = [];
@@ -359,7 +359,10 @@ PrintMonitor.prototype.loadExpectedOutput = function(fileName) {
 PrintMonitor.prototype.finish = function() {
   print = this.oldPrint;
   if (this.diffs.length > 0 || this.unexpectedOut != null) {
+    print("===== actual output: =====");
     print(this.realOut.join('\n'));
+    print("===== expected output: =====");
+    print(this.expectedOut.join('\n'));
     assertEquals([], this.diffs);
     assertNull(this.unexpectedOut);
   }
@@ -383,7 +386,8 @@ function driveTickProcessorTest(
                              stateFilter,
                              undefined,
                              "0",
-                             "auto,auto");
+                             "auto,auto",
+                             false);
   var pm = new PrintMonitor(testsPath + refOutput);
   tp.processLogFileInTest(testsPath + logInput);
   tp.printStatistics();

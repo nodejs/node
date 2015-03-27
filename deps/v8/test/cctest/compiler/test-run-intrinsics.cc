@@ -11,7 +11,6 @@ using namespace v8::internal::compiler;
 uint32_t flags = CompilationInfo::kInliningEnabled;
 
 TEST(IsSmi) {
-  FLAG_turbo_inlining_intrinsics = true;
   FLAG_turbo_deoptimization = true;
   FunctionTester T("(function(a) { return %_IsSmi(a); })", flags);
 
@@ -25,7 +24,6 @@ TEST(IsSmi) {
 
 
 TEST(IsNonNegativeSmi) {
-  FLAG_turbo_inlining_intrinsics = true;
   FLAG_turbo_deoptimization = true;
   FunctionTester T("(function(a) { return %_IsNonNegativeSmi(a); })", flags);
 
@@ -39,7 +37,6 @@ TEST(IsNonNegativeSmi) {
 
 
 TEST(IsMinusZero) {
-  FLAG_turbo_inlining_intrinsics = true;
   FLAG_turbo_deoptimization = true;
   FunctionTester T("(function(a) { return %_IsMinusZero(a); })", flags);
 
@@ -53,7 +50,6 @@ TEST(IsMinusZero) {
 
 
 TEST(IsArray) {
-  FLAG_turbo_inlining_intrinsics = true;
   FLAG_turbo_deoptimization = true;
   FunctionTester T("(function(a) { return %_IsArray(a); })", flags);
 
@@ -69,7 +65,6 @@ TEST(IsArray) {
 
 
 TEST(IsObject) {
-  FLAG_turbo_inlining_intrinsics = true;
   FLAG_turbo_deoptimization = true;
   FunctionTester T("(function(a) { return %_IsObject(a); })", flags);
 
@@ -85,7 +80,6 @@ TEST(IsObject) {
 
 
 TEST(IsFunction) {
-  FLAG_turbo_inlining_intrinsics = true;
   FLAG_turbo_deoptimization = true;
   FunctionTester T("(function(a) { return %_IsFunction(a); })", flags);
 
@@ -101,7 +95,6 @@ TEST(IsFunction) {
 
 
 TEST(IsRegExp) {
-  FLAG_turbo_inlining_intrinsics = true;
   FLAG_turbo_deoptimization = true;
   FunctionTester T("(function(a) { return %_IsRegExp(a); })", flags);
 
@@ -117,7 +110,6 @@ TEST(IsRegExp) {
 
 
 TEST(ClassOf) {
-  FLAG_turbo_inlining_intrinsics = true;
   FLAG_turbo_deoptimization = true;
   FunctionTester T("(function(a) { return %_ClassOf(a); })", flags);
 
@@ -133,7 +125,6 @@ TEST(ClassOf) {
 
 
 TEST(ObjectEquals) {
-  FLAG_turbo_inlining_intrinsics = true;
   FLAG_turbo_deoptimization = true;
   FunctionTester T("(function(a,b) { return %_ObjectEquals(a,b); })", flags);
   CompileRun("var o = {}");
@@ -148,7 +139,6 @@ TEST(ObjectEquals) {
 
 
 TEST(ValueOf) {
-  FLAG_turbo_inlining_intrinsics = true;
   FLAG_turbo_deoptimization = true;
   FunctionTester T("(function(a) { return %_ValueOf(a); })", flags);
 
@@ -160,7 +150,6 @@ TEST(ValueOf) {
 
 
 TEST(SetValueOf) {
-  FLAG_turbo_inlining_intrinsics = true;
   FLAG_turbo_deoptimization = true;
   FunctionTester T("(function(a,b) { return %_SetValueOf(a,b); })", flags);
 
@@ -171,7 +160,6 @@ TEST(SetValueOf) {
 
 
 TEST(StringCharFromCode) {
-  FLAG_turbo_inlining_intrinsics = true;
   FLAG_turbo_deoptimization = true;
   FunctionTester T("(function(a) { return %_StringCharFromCode(a); })", flags);
 
@@ -182,7 +170,6 @@ TEST(StringCharFromCode) {
 
 
 TEST(StringCharAt) {
-  FLAG_turbo_inlining_intrinsics = true;
   FLAG_turbo_deoptimization = true;
   FunctionTester T("(function(a,b) { return %_StringCharAt(a,b); })", flags);
 
@@ -193,7 +180,6 @@ TEST(StringCharAt) {
 
 
 TEST(StringCharCodeAt) {
-  FLAG_turbo_inlining_intrinsics = true;
   FLAG_turbo_deoptimization = true;
   FunctionTester T("(function(a,b) { return %_StringCharCodeAt(a,b); })",
                    flags);
@@ -205,7 +191,6 @@ TEST(StringCharCodeAt) {
 
 
 TEST(StringAdd) {
-  FLAG_turbo_inlining_intrinsics = true;
   FLAG_turbo_deoptimization = true;
   FunctionTester T("(function(a,b) { return %_StringAdd(a,b); })", flags);
 
@@ -216,7 +201,6 @@ TEST(StringAdd) {
 
 
 TEST(StringSubString) {
-  FLAG_turbo_inlining_intrinsics = true;
   FLAG_turbo_deoptimization = true;
   FunctionTester T("(function(a,b) { return %_SubString(a,b,b+3); })", flags);
 
@@ -227,7 +211,6 @@ TEST(StringSubString) {
 
 
 TEST(StringCompare) {
-  FLAG_turbo_inlining_intrinsics = true;
   FLAG_turbo_deoptimization = true;
   FunctionTester T("(function(a,b) { return %_StringCompare(a,b); })", flags);
 
@@ -238,7 +221,6 @@ TEST(StringCompare) {
 
 
 TEST(CallFunction) {
-  FLAG_turbo_inlining_intrinsics = true;
   FLAG_turbo_deoptimization = true;
   FunctionTester T("(function(a,b) { return %_CallFunction(a, 1, 2, 3, b); })",
                    flags);

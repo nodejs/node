@@ -16,136 +16,26 @@ using namespace v8::internal::compiler;
 static Operator dummy_operator(IrOpcode::kParameter, Operator::kNoWrite,
                                "dummy", 0, 0, 0, 1, 0, 0);
 
-TEST(NodeAllocation) {
-  GraphTester graph;
-  Node* n1 = graph.NewNode(&dummy_operator);
-  Node* n2 = graph.NewNode(&dummy_operator);
-  CHECK(n2->id() != n1->id());
-}
-
-
-TEST(NodeWithOpcode) {
-  GraphTester graph;
-  Node* n1 = graph.NewNode(&dummy_operator);
-  Node* n2 = graph.NewNode(&dummy_operator);
-  CHECK(n1->op() == &dummy_operator);
-  CHECK(n2->op() == &dummy_operator);
-}
-
-
-TEST(NodeInputs1) {
-  GraphTester graph;
-  Node* n0 = graph.NewNode(&dummy_operator);
-  Node* n2 = graph.NewNode(&dummy_operator, n0);
-  CHECK_EQ(1, n2->InputCount());
-  CHECK(n0 == n2->InputAt(0));
-}
-
-
-TEST(NodeInputs2) {
-  GraphTester graph;
-  Node* n0 = graph.NewNode(&dummy_operator);
-  Node* n1 = graph.NewNode(&dummy_operator);
-  Node* n2 = graph.NewNode(&dummy_operator, n0, n1);
-  CHECK_EQ(2, n2->InputCount());
-  CHECK(n0 == n2->InputAt(0));
-  CHECK(n1 == n2->InputAt(1));
-}
-
-
-TEST(NodeInputs3) {
-  GraphTester graph;
-  Node* n0 = graph.NewNode(&dummy_operator);
-  Node* n1 = graph.NewNode(&dummy_operator);
-  Node* n2 = graph.NewNode(&dummy_operator, n0, n1, n1);
-  CHECK_EQ(3, n2->InputCount());
-  CHECK(n0 == n2->InputAt(0));
-  CHECK(n1 == n2->InputAt(1));
-  CHECK(n1 == n2->InputAt(2));
-}
-
-
-TEST(NodeInputIteratorEmpty) {
-  GraphTester graph;
-  Node* n1 = graph.NewNode(&dummy_operator);
-  Node::Inputs::iterator i(n1->inputs().begin());
-  int input_count = 0;
-  for (; i != n1->inputs().end(); ++i) {
-    input_count++;
-  }
-  CHECK_EQ(0, input_count);
-}
-
-
-TEST(NodeInputIteratorOne) {
-  GraphTester graph;
-  Node* n0 = graph.NewNode(&dummy_operator);
-  Node* n1 = graph.NewNode(&dummy_operator, n0);
-  Node::Inputs::iterator i(n1->inputs().begin());
-  CHECK_EQ(1, n1->InputCount());
-  CHECK_EQ(n0, *i);
-  ++i;
-  CHECK(n1->inputs().end() == i);
-}
-
-
-TEST(NodeUseIteratorEmpty) {
-  GraphTester graph;
-  Node* n1 = graph.NewNode(&dummy_operator);
-  int use_count = 0;
-  for (Edge const edge : n1->use_edges()) {
-    USE(edge);
-    use_count++;
-  }
-  CHECK_EQ(0, use_count);
-}
-
-
-TEST(NodeUseIteratorOne) {
-  GraphTester graph;
-  Node* n0 = graph.NewNode(&dummy_operator);
-  Node* n1 = graph.NewNode(&dummy_operator, n0);
-  Node::Uses::iterator i(n0->uses().begin());
-  CHECK_EQ(n1, *i);
-  ++i;
-  CHECK(n0->uses().end() == i);
-}
-
-
-TEST(NodeUseIteratorReplaceNoUses) {
-  GraphTester graph;
-  Node* n0 = graph.NewNode(&dummy_operator);
-  Node* n1 = graph.NewNode(&dummy_operator);
-  Node* n2 = graph.NewNode(&dummy_operator);
-  Node* n3 = graph.NewNode(&dummy_operator, n2);
-  n0->ReplaceUses(n1);
-  CHECK(n0->uses().begin() == n0->uses().end());
-  n0->ReplaceUses(n2);
-  CHECK(n0->uses().begin() == n0->uses().end());
-  USE(n3);
-}
-
-
 TEST(NodeUseIteratorReplaceUses) {
   GraphTester graph;
   Node* n0 = graph.NewNode(&dummy_operator);
   Node* n1 = graph.NewNode(&dummy_operator, n0);
   Node* n2 = graph.NewNode(&dummy_operator, n0);
   Node* n3 = graph.NewNode(&dummy_operator);
-  Node::Uses::iterator i1(n0->uses().begin());
+  auto i1(n0->uses().begin());
   CHECK_EQ(n1, *i1);
   ++i1;
   CHECK_EQ(n2, *i1);
   n0->ReplaceUses(n3);
-  Node::Uses::iterator i2(n3->uses().begin());
+  auto i2(n3->uses().begin());
   CHECK_EQ(n1, *i2);
   ++i2;
   CHECK_EQ(n2, *i2);
-  Node::Inputs::iterator i3(n1->inputs().begin());
+  auto i3(n1->inputs().begin());
   CHECK_EQ(n3, *i3);
   ++i3;
   CHECK(n1->inputs().end() == i3);
-  Node::Inputs::iterator i4(n2->inputs().begin());
+  auto i4(n2->inputs().begin());
   CHECK_EQ(n3, *i4);
   ++i4;
   CHECK(n2->inputs().end() == i4);
@@ -160,14 +50,14 @@ TEST(NodeUseIteratorReplaceUsesSelf) {
 
   n1->ReplaceInput(0, n1);  // Create self-reference.
 
-  Node::Uses::iterator i1(n1->uses().begin());
+  auto i1(n1->uses().begin());
   CHECK_EQ(n1, *i1);
 
   n1->ReplaceUses(n3);
 
   CHECK(n1->uses().begin() == n1->uses().end());
 
-  Node::Uses::iterator i2(n3->uses().begin());
+  auto i2(n3->uses().begin());
   CHECK_EQ(n1, *i2);
   ++i2;
   CHECK(n1->uses().end() == i2);
@@ -180,7 +70,7 @@ TEST(ReplaceInput) {
   Node* n1 = graph.NewNode(&dummy_operator);
   Node* n2 = graph.NewNode(&dummy_operator);
   Node* n3 = graph.NewNode(&dummy_operator, n0, n1, n2);
-  Node::Inputs::iterator i1(n3->inputs().begin());
+  auto i1(n3->inputs().begin());
   CHECK(n0 == *i1);
   CHECK_EQ(n0, n3->InputAt(0));
   ++i1;
@@ -192,26 +82,26 @@ TEST(ReplaceInput) {
   ++i1;
   CHECK(i1 == n3->inputs().end());
 
-  Node::Uses::iterator i2(n1->uses().begin());
+  auto i2(n1->uses().begin());
   CHECK_EQ(n3, *i2);
   ++i2;
   CHECK(i2 == n1->uses().end());
 
   Node* n4 = graph.NewNode(&dummy_operator);
-  Node::Uses::iterator i3(n4->uses().begin());
+  auto i3(n4->uses().begin());
   CHECK(i3 == n4->uses().end());
 
   n3->ReplaceInput(1, n4);
 
-  Node::Uses::iterator i4(n1->uses().begin());
+  auto i4(n1->uses().begin());
   CHECK(i4 == n1->uses().end());
 
-  Node::Uses::iterator i5(n4->uses().begin());
+  auto i5(n4->uses().begin());
   CHECK_EQ(n3, *i5);
   ++i5;
   CHECK(i5 == n4->uses().end());
 
-  Node::Inputs::iterator i6(n3->inputs().begin());
+  auto i6(n3->inputs().begin());
   CHECK(n0 == *i6);
   CHECK_EQ(n0, n3->InputAt(0));
   ++i6;
@@ -321,7 +211,7 @@ TEST(Inputs) {
 
   // Make sure uses have been hooked op correctly.
   Node::Uses uses(n4->uses());
-  Node::Uses::iterator current = uses.begin();
+  auto current = uses.begin();
   CHECK(current != uses.end());
   CHECK(*current == n3);
   ++current;
@@ -450,7 +340,7 @@ TEST(ReplaceUsesFromAppendedInputs) {
   CHECK_EQ(3, n3->UseCount());
 
   Node::Uses uses(n3->uses());
-  Node::Uses::iterator current = uses.begin();
+  auto current = uses.begin();
   CHECK(current != uses.end());
   CHECK(*current == n1);
   ++current;
@@ -461,76 +351,6 @@ TEST(ReplaceUsesFromAppendedInputs) {
   CHECK(*current == n2);
   ++current;
   CHECK(current == uses.end());
-}
-
-
-template <bool result>
-struct FixedPredicate {
-  bool operator()(const Node* node) const { return result; }
-};
-
-
-TEST(ReplaceUsesIfWithFixedPredicate) {
-  GraphTester graph;
-
-  Node* n0 = graph.NewNode(&dummy_operator);
-  Node* n1 = graph.NewNode(&dummy_operator, n0);
-  Node* n2 = graph.NewNode(&dummy_operator, n0);
-  Node* n3 = graph.NewNode(&dummy_operator);
-
-  CHECK_EQ(0, n2->UseCount());
-  n2->ReplaceUsesIf(FixedPredicate<true>(), n1);
-  CHECK_EQ(0, n2->UseCount());
-  n2->ReplaceUsesIf(FixedPredicate<false>(), n1);
-  CHECK_EQ(0, n2->UseCount());
-
-  CHECK_EQ(0, n3->UseCount());
-  n3->ReplaceUsesIf(FixedPredicate<true>(), n1);
-  CHECK_EQ(0, n3->UseCount());
-  n3->ReplaceUsesIf(FixedPredicate<false>(), n1);
-  CHECK_EQ(0, n3->UseCount());
-
-  CHECK_EQ(2, n0->UseCount());
-  CHECK_EQ(0, n1->UseCount());
-  n0->ReplaceUsesIf(FixedPredicate<false>(), n1);
-  CHECK_EQ(2, n0->UseCount());
-  CHECK_EQ(0, n1->UseCount());
-  n0->ReplaceUsesIf(FixedPredicate<true>(), n1);
-  CHECK_EQ(0, n0->UseCount());
-  CHECK_EQ(2, n1->UseCount());
-
-  n1->AppendInput(graph.zone(), n1);
-  CHECK_EQ(3, n1->UseCount());
-  n1->AppendInput(graph.zone(), n3);
-  CHECK_EQ(1, n3->UseCount());
-  n3->ReplaceUsesIf(FixedPredicate<true>(), n1);
-  CHECK_EQ(4, n1->UseCount());
-  CHECK_EQ(0, n3->UseCount());
-  n1->ReplaceUsesIf(FixedPredicate<false>(), n3);
-  CHECK_EQ(4, n1->UseCount());
-  CHECK_EQ(0, n3->UseCount());
-}
-
-
-TEST(ReplaceUsesIfWithEqualTo) {
-  GraphTester graph;
-
-  Node* n0 = graph.NewNode(&dummy_operator);
-  Node* n1 = graph.NewNode(&dummy_operator, n0);
-  Node* n2 = graph.NewNode(&dummy_operator, n0, n1);
-
-  CHECK_EQ(0, n2->UseCount());
-  n2->ReplaceUsesIf(std::bind1st(std::equal_to<Node*>(), n1), n0);
-  CHECK_EQ(0, n2->UseCount());
-
-  CHECK_EQ(2, n0->UseCount());
-  CHECK_EQ(1, n1->UseCount());
-  n1->ReplaceUsesIf(std::bind1st(std::equal_to<Node*>(), n0), n0);
-  CHECK_EQ(2, n0->UseCount());
-  CHECK_EQ(1, n1->UseCount());
-  n0->ReplaceUsesIf(std::bind2nd(std::equal_to<Node*>(), n2), n1);
-  CHECK_EQ(1, n0->UseCount());
-  CHECK_EQ(2, n1->UseCount());
 }
 
 
@@ -812,15 +632,15 @@ TEST(RemoveAllInputs) {
     n1->RemoveAllInputs();
     CHECK_EQ(1, n1->InputCount());
     CHECK_EQ(1, n0->UseCount());
-    CHECK_EQ(NULL, n1->InputAt(0));
+    CHECK(!n1->InputAt(0));
 
     CHECK_EQ(1, n1->UseCount());
     n2->RemoveAllInputs();
     CHECK_EQ(2, n2->InputCount());
     CHECK_EQ(0, n0->UseCount());
     CHECK_EQ(0, n1->UseCount());
-    CHECK_EQ(NULL, n2->InputAt(0));
-    CHECK_EQ(NULL, n2->InputAt(1));
+    CHECK(!n2->InputAt(0));
+    CHECK(!n2->InputAt(1));
   }
 
   {
@@ -833,6 +653,6 @@ TEST(RemoveAllInputs) {
     n1->RemoveAllInputs();
     CHECK_EQ(1, n1->InputCount());
     CHECK_EQ(0, n1->UseCount());
-    CHECK_EQ(NULL, n1->InputAt(0));
+    CHECK(!n1->InputAt(0));
   }
 }

@@ -8,6 +8,7 @@
 namespace v8 {
 namespace internal {
 
+// TODO(svenpanne) introduce an AbortReason and partition this list
 #define ERROR_MESSAGES_LIST(V)                                                 \
   V(kNoReason, "no reason")                                                    \
                                                                                \
@@ -39,6 +40,7 @@ namespace internal {
     "BinaryStub_GenerateFloatingPointCode")                                    \
   V(kBothRegistersWereSmisInSelectNonSmi,                                      \
     "Both registers were smis in SelectNonSmi")                                \
+  V(kBuiltinFunctionCannotBeOptimized, "Builtin function cannot be optimized") \
   V(kCallToAJavaScriptRuntimeFunction,                                         \
     "Call to a JavaScript runtime function")                                   \
   V(kCannotTranslatePositionInChangedArea,                                     \
@@ -47,6 +49,7 @@ namespace internal {
   V(kCodeGenerationFailed, "Code generation failed")                           \
   V(kCodeObjectNotProperlyPatched, "Code object not properly patched")         \
   V(kCompoundAssignmentToLookupSlot, "Compound assignment to lookup slot")     \
+  V(kComputedPropertyName, "Computed property name")                           \
   V(kContextAllocatedArguments, "Context-allocated arguments")                 \
   V(kCopyBuffersOverlap, "Copy buffers overlap")                               \
   V(kCouldNotGenerateZero, "Could not generate +0.0")                          \
@@ -217,6 +220,7 @@ namespace internal {
   V(kRegisterDidNotMatchExpectedRoot, "Register did not match expected root")  \
   V(kRegisterWasClobbered, "Register was clobbered")                           \
   V(kRememberedSetPointerInNewSpace, "Remembered set pointer is in new space") \
+  V(kRestParameter, "Rest parameters")                                         \
   V(kReturnAddressNotFoundInFrame, "Return address not found in frame")        \
   V(kRhsHasBeenClobbered, "Rhs has been clobbered")                            \
   V(kScopedBlock, "ScopedBlock")                                               \
@@ -226,12 +230,18 @@ namespace internal {
   V(kStackFrameTypesMustMatch, "Stack frame types must match")                 \
   V(kTheCurrentStackPointerIsBelowCsp,                                         \
     "The current stack pointer is below csp")                                  \
+  V(kTheInstructionShouldBeALis, "The instruction should be a lis")            \
   V(kTheInstructionShouldBeALui, "The instruction should be a lui")            \
   V(kTheInstructionShouldBeAnOri, "The instruction should be an ori")          \
+  V(kTheInstructionShouldBeAnOris, "The instruction should be an oris")        \
+  V(kTheInstructionShouldBeALi, "The instruction should be a li")              \
+  V(kTheInstructionShouldBeASldi, "The instruction should be a sldi")          \
   V(kTheInstructionToPatchShouldBeALoadFromConstantPool,                       \
     "The instruction to patch should be a load from the constant pool")        \
   V(kTheInstructionToPatchShouldBeAnLdrLiteral,                                \
     "The instruction to patch should be a ldr literal")                        \
+  V(kTheInstructionToPatchShouldBeALis,                                        \
+    "The instruction to patch should be a lis")                                \
   V(kTheInstructionToPatchShouldBeALui,                                        \
     "The instruction to patch should be a lui")                                \
   V(kTheInstructionToPatchShouldBeAnOri,                                       \
@@ -301,7 +311,6 @@ namespace internal {
     "Unexpected unused properties of string wrapper")                          \
   V(kUnimplemented, "unimplemented")                                           \
   V(kUninitializedKSmiConstantRegister, "Uninitialized kSmiConstantRegister")  \
-  V(kUnknown, "Unknown")                                                       \
   V(kUnsupportedConstCompoundAssignment,                                       \
     "Unsupported const compound assignment")                                   \
   V(kUnsupportedCountOperationWithConst,                                       \
@@ -322,6 +331,9 @@ namespace internal {
   V(kWrongFunctionContext, "Wrong context passed to function")                 \
   V(kWrongAddressOrValuePassedToRecordWrite,                                   \
     "Wrong address or value passed to RecordWrite")                            \
+  V(kShouldNotDirectlyEnterOsrFunction,                                        \
+    "Should not directly enter OSR-compiled function")                         \
+  V(kOsrCompileFailed, "OSR compilation failed")                               \
   V(kYield, "Yield")
 
 

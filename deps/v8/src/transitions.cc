@@ -97,7 +97,7 @@ Handle<TransitionArray> TransitionArray::Insert(Handle<Map> map,
   bool is_special_transition = flag == SPECIAL_TRANSITION;
   DCHECK_EQ(is_special_transition, IsSpecialTransition(*name));
   PropertyDetails details = is_special_transition
-                                ? PropertyDetails(NONE, FIELD, 0)
+                                ? PropertyDetails(NONE, DATA, 0)
                                 : GetTargetDetails(*name, *target);
 
   int insertion_index = kNotFound;

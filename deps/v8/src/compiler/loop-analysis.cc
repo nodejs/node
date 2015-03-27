@@ -1,61 +1,31 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/graph.h"
 #include "src/compiler/loop-analysis.h"
+
+#include "src/compiler/graph.h"
 #include "src/compiler/node.h"
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-marker.h"
+#include "src/compiler/node-properties.h"
 #include "src/zone.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-typedef uint32_t LoopMarks;
-
+#define OFFSET(x) ((x)&0x1f)
+#define BIT(x) (1u << OFFSET(x))
+#define INDEX(x) ((x) >> 5)
 
 // TODO(titzer): don't assume entry edges have a particular index.
-// TODO(titzer): use a BitMatrix to generalize this algorithm.
-static const size_t kMaxLoops = 31;
 static const int kAssumedLoopEntryIndex = 0;  // assume loops are entered here.
-static const LoopMarks kVisited = 1;          // loop #0 is reserved.
 
 
 // Temporary information for each node during marking.
 struct NodeInfo {
   Node* node;
   NodeInfo* next;       // link in chaining loop members
-  LoopMarks forward;    // accumulated marks in the forward direction
-  LoopMarks backward;   // accumulated marks in the backward direction
-  LoopMarks loop_mark;  // loop mark for header nodes; encodes loop_num
-
-  bool MarkBackward(LoopMarks bw) {
-    LoopMarks prev = backward;
-    LoopMarks next = backward | bw;
-    backward = next;
-    return prev != next;
-  }
-
-  bool MarkForward(LoopMarks fw) {
-    LoopMarks prev = forward;
-    LoopMarks next = forward | fw;
-    forward = next;
-    return prev != next;
-  }
-
-  bool IsInLoop(size_t loop_num) {
-    DCHECK(loop_num > 0 && loop_num <= 31);
-    return forward & backward & (1 << loop_num);
-  }
-
-  bool IsLoopHeader() { return loop_mark != 0; }
-  bool IsInAnyLoop() { return (forward & backward) > kVisited; }
-
-  bool IsInHeaderForLoop(size_t loop_num) {
-    DCHECK(loop_num > 0);
-    return loop_mark == (kVisited | (1 << loop_num));
-  }
 };
 
 
@@ -66,9 +36,6 @@ struct LoopInfo {
   NodeInfo* body_list;
   LoopTree::Loop* loop;
 };
-
-
-static const NodeInfo kEmptyNodeInfo = {nullptr, nullptr, 0, 0, 0};
 
 
 // Encapsulation of the loop finding algorithm.
@@ -88,13 +55,18 @@ static const NodeInfo kEmptyNodeInfo = {nullptr, nullptr, 0, 0, 0};
 class LoopFinderImpl {
  public:
   LoopFinderImpl(Graph* graph, LoopTree* loop_tree, Zone* zone)
-      : end_(graph->end()),
+      : zone_(zone),
+        end_(graph->end()),
         queue_(zone),
         queued_(graph, 2),
-        info_(graph->NodeCount(), kEmptyNodeInfo, zone),
+        info_(graph->NodeCount(), {nullptr, nullptr}, zone),
         loops_(zone),
+        loop_num_(graph->NodeCount(), -1, zone),
         loop_tree_(loop_tree),
-        loops_found_(0) {}
+        loops_found_(0),
+        width_(0),
+        backward_(nullptr),
+        forward_(nullptr) {}
 
   void Run() {
     PropagateBackward();
@@ -106,12 +78,15 @@ class LoopFinderImpl {
     // Print out the results.
     for (NodeInfo& ni : info_) {
       if (ni.node == nullptr) continue;
-      for (size_t i = 1; i <= loops_.size(); i++) {
-        if (ni.IsInLoop(i)) {
+      for (int i = 1; i <= loops_found_; i++) {
+        int index = ni.node->id() * width_ + INDEX(i);
+        bool marked_forward = forward_[index] & BIT(i);
+        bool marked_backward = backward_[index] & BIT(i);
+        if (marked_forward && marked_backward) {
           PrintF("X");
-        } else if (ni.forward & (1 << i)) {
+        } else if (marked_forward) {
           PrintF("/");
-        } else if (ni.backward & (1 << i)) {
+        } else if (marked_backward) {
           PrintF("\\");
         } else {
           PrintF(" ");
@@ -132,118 +107,196 @@ class LoopFinderImpl {
   }
 
  private:
+  Zone* zone_;
   Node* end_;
   NodeDeque queue_;
   NodeMarker<bool> queued_;
   ZoneVector<NodeInfo> info_;
   ZoneVector<LoopInfo> loops_;
+  ZoneVector<int> loop_num_;
   LoopTree* loop_tree_;
-  size_t loops_found_;
+  int loops_found_;
+  int width_;
+  uint32_t* backward_;
+  uint32_t* forward_;
+
+  int num_nodes() {
+    return static_cast<int>(loop_tree_->node_to_loop_num_.size());
+  }
+
+  // Tb = Tb | (Fb - loop_filter)
+  bool PropagateBackwardMarks(Node* from, Node* to, int loop_filter) {
+    if (from == to) return false;
+    uint32_t* fp = &backward_[from->id() * width_];
+    uint32_t* tp = &backward_[to->id() * width_];
+    bool change = false;
+    for (int i = 0; i < width_; i++) {
+      uint32_t mask = i == INDEX(loop_filter) ? ~BIT(loop_filter) : 0xFFFFFFFF;
+      uint32_t prev = tp[i];
+      uint32_t next = prev | (fp[i] & mask);
+      tp[i] = next;
+      if (!change && (prev != next)) change = true;
+    }
+    return change;
+  }
+
+  // Tb = Tb | B
+  bool SetBackwardMark(Node* to, int loop_num) {
+    uint32_t* tp = &backward_[to->id() * width_ + INDEX(loop_num)];
+    uint32_t prev = tp[0];
+    uint32_t next = prev | BIT(loop_num);
+    tp[0] = next;
+    return next != prev;
+  }
+
+  // Tf = Tf | B
+  bool SetForwardMark(Node* to, int loop_num) {
+    uint32_t* tp = &forward_[to->id() * width_ + INDEX(loop_num)];
+    uint32_t prev = tp[0];
+    uint32_t next = prev | BIT(loop_num);
+    tp[0] = next;
+    return next != prev;
+  }
+
+  // Tf = Tf | (Ff & Tb)
+  bool PropagateForwardMarks(Node* from, Node* to) {
+    if (from == to) return false;
+    bool change = false;
+    int findex = from->id() * width_;
+    int tindex = to->id() * width_;
+    for (int i = 0; i < width_; i++) {
+      uint32_t marks = backward_[tindex + i] & forward_[findex + i];
+      uint32_t prev = forward_[tindex + i];
+      uint32_t next = prev | marks;
+      forward_[tindex + i] = next;
+      if (!change && (prev != next)) change = true;
+    }
+    return change;
+  }
+
+  bool IsInLoop(Node* node, int loop_num) {
+    int offset = node->id() * width_ + INDEX(loop_num);
+    return backward_[offset] & forward_[offset] & BIT(loop_num);
+  }
 
   // Propagate marks backward from loop headers.
   void PropagateBackward() {
-    PropagateBackward(end_, kVisited);
+    ResizeBackwardMarks();
+    SetBackwardMark(end_, 0);
+    Queue(end_);
 
     while (!queue_.empty()) {
       Node* node = queue_.front();
+      info(node);
       queue_.pop_front();
       queued_.Set(node, false);
 
+      int loop_num = -1;
       // Setup loop headers first.
       if (node->opcode() == IrOpcode::kLoop) {
         // found the loop node first.
-        CreateLoopInfo(node);
-      } else if (node->opcode() == IrOpcode::kPhi ||
-                 node->opcode() == IrOpcode::kEffectPhi) {
+        loop_num = CreateLoopInfo(node);
+      } else if (NodeProperties::IsPhi(node)) {
         // found a phi first.
         Node* merge = node->InputAt(node->InputCount() - 1);
-        if (merge->opcode() == IrOpcode::kLoop) CreateLoopInfo(merge);
+        if (merge->opcode() == IrOpcode::kLoop) {
+          loop_num = CreateLoopInfo(merge);
+        }
       }
 
-      // Propagate reachability marks backwards from this node.
-      NodeInfo& ni = info(node);
-      if (ni.IsLoopHeader()) {
-        // Handle edges from loop header nodes specially.
-        for (int i = 0; i < node->InputCount(); i++) {
-          if (i == kAssumedLoopEntryIndex) {
-            // Don't propagate the loop mark backwards on the entry edge.
-            PropagateBackward(node->InputAt(0),
-                              kVisited | (ni.backward & ~ni.loop_mark));
-          } else {
-            // Only propagate the loop mark on backedges.
-            PropagateBackward(node->InputAt(i), ni.loop_mark);
-          }
-        }
-      } else {
-        // Propagate all loop marks backwards for a normal node.
-        for (Node* const input : node->inputs()) {
-          PropagateBackward(input, ni.backward);
+      // Propagate marks backwards from this node.
+      for (int i = 0; i < node->InputCount(); i++) {
+        Node* input = node->InputAt(i);
+        if (loop_num > 0 && i != kAssumedLoopEntryIndex) {
+          // Only propagate the loop mark on backedges.
+          if (SetBackwardMark(input, loop_num)) Queue(input);
+        } else {
+          // Entry or normal edge. Propagate all marks except loop_num.
+          if (PropagateBackwardMarks(node, input, loop_num)) Queue(input);
         }
       }
     }
   }
 
-  // Make a new loop header for the given node.
-  void CreateLoopInfo(Node* node) {
-    NodeInfo& ni = info(node);
-    if (ni.IsLoopHeader()) return;  // loop already set up.
+  // Make a new loop if necessary for the given node.
+  int CreateLoopInfo(Node* node) {
+    int loop_num = LoopNum(node);
+    if (loop_num > 0) return loop_num;
 
-    loops_found_++;
-    size_t loop_num = loops_.size() + 1;
-    CHECK(loops_found_ <= kMaxLoops);  // TODO(titzer): don't crash.
+    loop_num = ++loops_found_;
+    if (INDEX(loop_num) >= width_) ResizeBackwardMarks();
+
     // Create a new loop.
     loops_.push_back({node, nullptr, nullptr, nullptr});
     loop_tree_->NewLoop();
-    LoopMarks loop_mark = kVisited | (1 << loop_num);
-    ni.node = node;
-    ni.loop_mark = loop_mark;
+    SetBackwardMark(node, loop_num);
+    loop_tree_->node_to_loop_num_[node->id()] = loop_num;
 
     // Setup loop mark for phis attached to loop header.
     for (Node* use : node->uses()) {
-      if (use->opcode() == IrOpcode::kPhi ||
-          use->opcode() == IrOpcode::kEffectPhi) {
-        info(use).loop_mark = loop_mark;
+      if (NodeProperties::IsPhi(use)) {
+        info(use);  // create the NodeInfo
+        SetBackwardMark(use, loop_num);
+        loop_tree_->node_to_loop_num_[use->id()] = loop_num;
       }
     }
+
+    return loop_num;
+  }
+
+  void ResizeBackwardMarks() {
+    int new_width = width_ + 1;
+    int max = num_nodes();
+    uint32_t* new_backward = zone_->NewArray<uint32_t>(new_width * max);
+    memset(new_backward, 0, new_width * max * sizeof(uint32_t));
+    if (width_ > 0) {  // copy old matrix data.
+      for (int i = 0; i < max; i++) {
+        uint32_t* np = &new_backward[i * new_width];
+        uint32_t* op = &backward_[i * width_];
+        for (int j = 0; j < width_; j++) np[j] = op[j];
+      }
+    }
+    width_ = new_width;
+    backward_ = new_backward;
+  }
+
+  void ResizeForwardMarks() {
+    int max = num_nodes();
+    forward_ = zone_->NewArray<uint32_t>(width_ * max);
+    memset(forward_, 0, width_ * max * sizeof(uint32_t));
   }
 
   // Propagate marks forward from loops.
   void PropagateForward() {
+    ResizeForwardMarks();
     for (LoopInfo& li : loops_) {
-      queued_.Set(li.header, true);
-      queue_.push_back(li.header);
-      NodeInfo& ni = info(li.header);
-      ni.forward = ni.loop_mark;
+      SetForwardMark(li.header, LoopNum(li.header));
+      Queue(li.header);
     }
     // Propagate forward on paths that were backward reachable from backedges.
     while (!queue_.empty()) {
       Node* node = queue_.front();
       queue_.pop_front();
       queued_.Set(node, false);
-      NodeInfo& ni = info(node);
       for (Edge edge : node->use_edges()) {
         Node* use = edge.from();
-        NodeInfo& ui = info(use);
-        if (IsBackedge(use, ui, edge)) continue;  // skip backedges.
-        LoopMarks both = ni.forward & ui.backward;
-        if (ui.MarkForward(both) && !queued_.Get(use)) {
-          queued_.Set(use, true);
-          queue_.push_back(use);
+        if (!IsBackedge(use, edge)) {
+          if (PropagateForwardMarks(node, use)) Queue(use);
         }
       }
     }
   }
 
-  bool IsBackedge(Node* use, NodeInfo& ui, Edge& edge) {
-    // TODO(titzer): checking for backedges here is ugly.
-    if (!ui.IsLoopHeader()) return false;
+  bool IsBackedge(Node* use, Edge& edge) {
+    if (LoopNum(use) <= 0) return false;
     if (edge.index() == kAssumedLoopEntryIndex) return false;
-    if (use->opcode() == IrOpcode::kPhi ||
-        use->opcode() == IrOpcode::kEffectPhi) {
+    if (NodeProperties::IsPhi(use)) {
       return !NodeProperties::IsControlEdge(edge);
     }
     return true;
   }
+
+  int LoopNum(Node* node) { return loop_tree_->node_to_loop_num_[node->id()]; }
 
   NodeInfo& info(Node* node) {
     NodeInfo& i = info_[node->id()];
@@ -251,38 +304,49 @@ class LoopFinderImpl {
     return i;
   }
 
-  void PropagateBackward(Node* node, LoopMarks marks) {
-    if (info(node).MarkBackward(marks) && !queued_.Get(node)) {
+  void Queue(Node* node) {
+    if (!queued_.Get(node)) {
       queue_.push_back(node);
       queued_.Set(node, true);
     }
   }
 
   void FinishLoopTree() {
-    // Degenerate cases.
-    if (loops_.size() == 0) return;
-    if (loops_.size() == 1) return FinishSingleLoop();
+    DCHECK(loops_found_ == static_cast<int>(loops_.size()));
+    DCHECK(loops_found_ == static_cast<int>(loop_tree_->all_loops_.size()));
 
-    for (size_t i = 1; i <= loops_.size(); i++) ConnectLoopTree(i);
+    // Degenerate cases.
+    if (loops_found_ == 0) return;
+    if (loops_found_ == 1) return FinishSingleLoop();
+
+    for (int i = 1; i <= loops_found_; i++) ConnectLoopTree(i);
 
     size_t count = 0;
     // Place the node into the innermost nested loop of which it is a member.
     for (NodeInfo& ni : info_) {
-      if (ni.node == nullptr || !ni.IsInAnyLoop()) continue;
+      if (ni.node == nullptr) continue;
 
       LoopInfo* innermost = nullptr;
-      size_t index = 0;
-      for (size_t i = 1; i <= loops_.size(); i++) {
-        if (ni.IsInLoop(i)) {
-          LoopInfo* loop = &loops_[i - 1];
-          if (innermost == nullptr ||
-              loop->loop->depth_ > innermost->loop->depth_) {
-            innermost = loop;
-            index = i;
+      int innermost_index = 0;
+      int pos = ni.node->id() * width_;
+      // Search the marks word by word.
+      for (int i = 0; i < width_; i++) {
+        uint32_t marks = backward_[pos + i] & forward_[pos + i];
+        for (int j = 0; j < 32; j++) {
+          if (marks & (1u << j)) {
+            int loop_num = i * 32 + j;
+            if (loop_num == 0) continue;
+            LoopInfo* loop = &loops_[loop_num - 1];
+            if (innermost == nullptr ||
+                loop->loop->depth_ > innermost->loop->depth_) {
+              innermost = loop;
+              innermost_index = loop_num;
+            }
           }
         }
       }
-      if (ni.IsInHeaderForLoop(index)) {
+      if (innermost == nullptr) continue;
+      if (LoopNum(ni.node) == innermost_index) {
         ni.next = innermost->header_list;
         innermost->header_list = &ni;
       } else {
@@ -301,18 +365,14 @@ class LoopFinderImpl {
 
   // Handle the simpler case of a single loop (no checks for nesting necessary).
   void FinishSingleLoop() {
-    DCHECK(loops_.size() == 1);
-    DCHECK(loop_tree_->all_loops_.size() == 1);
-
     // Place nodes into the loop header and body.
     LoopInfo* li = &loops_[0];
     li->loop = &loop_tree_->all_loops_[0];
     loop_tree_->SetParent(nullptr, li->loop);
     size_t count = 0;
     for (NodeInfo& ni : info_) {
-      if (ni.node == nullptr || !ni.IsInAnyLoop()) continue;
-      DCHECK(ni.IsInLoop(1));
-      if (ni.IsInHeaderForLoop(1)) {
+      if (ni.node == nullptr || !IsInLoop(ni.node, 1)) continue;
+      if (LoopNum(ni.node) == 1) {
         ni.next = li->header_list;
         li->header_list = &ni;
       } else {
@@ -330,25 +390,21 @@ class LoopFinderImpl {
   // Recursively serialize the list of header nodes and body nodes
   // so that nested loops occupy nested intervals.
   void SerializeLoop(LoopTree::Loop* loop) {
-    size_t loop_num = loop_tree_->LoopNum(loop);
+    int loop_num = loop_tree_->LoopNum(loop);
     LoopInfo& li = loops_[loop_num - 1];
 
     // Serialize the header.
     loop->header_start_ = static_cast<int>(loop_tree_->loop_nodes_.size());
     for (NodeInfo* ni = li.header_list; ni != nullptr; ni = ni->next) {
       loop_tree_->loop_nodes_.push_back(ni->node);
-      // TODO(titzer): lift loop count restriction.
-      loop_tree_->node_to_loop_num_[ni->node->id()] =
-          static_cast<uint8_t>(loop_num);
+      loop_tree_->node_to_loop_num_[ni->node->id()] = loop_num;
     }
 
     // Serialize the body.
     loop->body_start_ = static_cast<int>(loop_tree_->loop_nodes_.size());
     for (NodeInfo* ni = li.body_list; ni != nullptr; ni = ni->next) {
       loop_tree_->loop_nodes_.push_back(ni->node);
-      // TODO(titzer): lift loop count restriction.
-      loop_tree_->node_to_loop_num_[ni->node->id()] =
-          static_cast<uint8_t>(loop_num);
+      loop_tree_->node_to_loop_num_[ni->node->id()] = loop_num;
     }
 
     // Serialize nested loops.
@@ -358,15 +414,15 @@ class LoopFinderImpl {
   }
 
   // Connect the LoopTree loops to their parents recursively.
-  LoopTree::Loop* ConnectLoopTree(size_t loop_num) {
+  LoopTree::Loop* ConnectLoopTree(int loop_num) {
     LoopInfo& li = loops_[loop_num - 1];
     if (li.loop != nullptr) return li.loop;
 
     NodeInfo& ni = info(li.header);
     LoopTree::Loop* parent = nullptr;
-    for (size_t i = 1; i <= loops_.size(); i++) {
+    for (int i = 1; i <= loops_found_; i++) {
       if (i == loop_num) continue;
-      if (ni.IsInLoop(i)) {
+      if (IsInLoop(ni.node, i)) {
         // recursively create potential parent loops first.
         LoopTree::Loop* upper = ConnectLoopTree(i);
         if (parent == nullptr || upper->depth_ > parent->depth_) {
@@ -404,6 +460,16 @@ LoopTree* LoopFinder::BuildLoopTree(Graph* graph, Zone* zone) {
     finder.Print();
   }
   return loop_tree;
+}
+
+
+Node* LoopTree::HeaderNode(Loop* loop) {
+  Node* first = *HeaderNodes(loop).begin();
+  if (first->opcode() == IrOpcode::kLoop) return first;
+  DCHECK(IrOpcode::IsPhiOpcode(first->opcode()));
+  Node* header = NodeProperties::GetControlInput(first);
+  DCHECK_EQ(IrOpcode::kLoop, header->opcode());
+  return header;
 }
 
 }  // namespace compiler

@@ -37,7 +37,6 @@ class PPCDebugger {
   ~PPCDebugger();
 
   void Stop(Instruction* instr);
-  void Info(Instruction* instr);
   void Debug();
 
  private:
@@ -130,15 +129,6 @@ void PPCDebugger::Stop(Instruction* instr) {
   Debug();
 }
 #endif
-
-
-void PPCDebugger::Info(Instruction* instr) {
-  // Retrieve the encoded address immediately following the Info breakpoint.
-  char* msg =
-      *reinterpret_cast<char**>(sim_->get_pc() + Instruction::kInstrSize);
-  PrintF("Simulator info %s\n", msg);
-  sim_->set_pc(sim_->get_pc() + Instruction::kInstrSize + kPointerSize);
-}
 
 
 intptr_t PPCDebugger::GetRegisterValue(int regnum) {
@@ -989,7 +979,9 @@ void Simulator::GetFpArgs(double* x, double* y, intptr_t* z) {
 
 
 // The return value is in d1.
-void Simulator::SetFpResult(const double& result) { fp_registers_[1] = result; }
+void Simulator::SetFpResult(const double& result) {
+  set_d_register_from_double(1, result);
+}
 
 
 void Simulator::TrashCallerSaveRegisters() {
@@ -1148,30 +1140,42 @@ bool Simulator::OverflowFrom(int32_t alu_out, int32_t left, int32_t right,
 }
 
 
-#if !V8_TARGET_ARCH_PPC64
-// Calls into the V8 runtime are based on this very simple interface.
-// Note: To be able to return two values from some calls the code in runtime.cc
-// uses the ObjectPair which is essentially two 32-bit values stuffed into a
-// 64-bit value. With the code below we assume that all runtime calls return
-// 64 bits of result. If they don't, the r4 result register contains a bogus
-// value, which is fine because it is caller-saved.
-typedef int64_t (*SimulatorRuntimeCall)(intptr_t arg0, intptr_t arg1,
-                                        intptr_t arg2, intptr_t arg3,
-                                        intptr_t arg4, intptr_t arg5);
-#else
-// For 64-bit, we need to be more explicit.
-typedef intptr_t (*SimulatorRuntimeCall)(intptr_t arg0, intptr_t arg1,
-                                         intptr_t arg2, intptr_t arg3,
-                                         intptr_t arg4, intptr_t arg5);
+#if V8_TARGET_ARCH_PPC64
 struct ObjectPair {
   intptr_t x;
   intptr_t y;
 };
 
-typedef struct ObjectPair (*SimulatorRuntimeObjectPairCall)(
-    intptr_t arg0, intptr_t arg1, intptr_t arg2, intptr_t arg3, intptr_t arg4,
-    intptr_t arg5);
+
+static void decodeObjectPair(ObjectPair* pair, intptr_t* x, intptr_t* y) {
+  *x = pair->x;
+  *y = pair->y;
+}
+#else
+typedef uint64_t ObjectPair;
+
+
+static void decodeObjectPair(ObjectPair* pair, intptr_t* x, intptr_t* y) {
+#if V8_TARGET_BIG_ENDIAN
+  *x = static_cast<int32_t>(*pair >> 32);
+  *y = static_cast<int32_t>(*pair);
+#else
+  *x = static_cast<int32_t>(*pair);
+  *y = static_cast<int32_t>(*pair >> 32);
 #endif
+}
+#endif
+
+// Calls into the V8 runtime are based on this very simple interface.
+// Note: To be able to return two values from some calls the code in
+// runtime.cc uses the ObjectPair which is essentially two pointer
+// values stuffed into a structure. With the code below we assume that
+// all runtime calls return this pair. If they don't, the r4 result
+// register contains a bogus value, which is fine because it is
+// caller-saved.
+typedef ObjectPair (*SimulatorRuntimeCall)(intptr_t arg0, intptr_t arg1,
+                                           intptr_t arg2, intptr_t arg3,
+                                           intptr_t arg4, intptr_t arg5);
 
 // These prototypes handle the four types of FP calls.
 typedef int (*SimulatorRuntimeCompareCall)(double darg0, double darg1);
@@ -1203,7 +1207,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       Redirection* redirection = Redirection::FromSwiInstruction(instr);
       const int kArgCount = 6;
       int arg0_regnum = 3;
-#if V8_TARGET_ARCH_PPC64 && !ABI_RETURNS_OBJECT_PAIRS_IN_REGS
+#if !ABI_RETURNS_OBJECT_PAIRS_IN_REGS
       intptr_t result_buffer = 0;
       if (redirection->type() == ExternalReference::BUILTIN_OBJECTPAIR_CALL) {
         result_buffer = get_register(r3);
@@ -1396,56 +1400,19 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           PrintF("\n");
         }
         CHECK(stack_aligned);
-#if !V8_TARGET_ARCH_PPC64
         DCHECK(redirection->type() == ExternalReference::BUILTIN_CALL);
         SimulatorRuntimeCall target =
             reinterpret_cast<SimulatorRuntimeCall>(external);
-        int64_t result = target(arg[0], arg[1], arg[2], arg[3], arg[4], arg[5]);
-        int32_t lo_res = static_cast<int32_t>(result);
-        int32_t hi_res = static_cast<int32_t>(result >> 32);
-#if V8_TARGET_BIG_ENDIAN
+        ObjectPair result =
+            target(arg[0], arg[1], arg[2], arg[3], arg[4], arg[5]);
+        intptr_t x;
+        intptr_t y;
+        decodeObjectPair(&result, &x, &y);
         if (::v8::internal::FLAG_trace_sim) {
-          PrintF("Returned %08x\n", hi_res);
+          PrintF("Returned {%08" V8PRIxPTR ", %08" V8PRIxPTR "}\n", x, y);
         }
-        set_register(r3, hi_res);
-        set_register(r4, lo_res);
-#else
-        if (::v8::internal::FLAG_trace_sim) {
-          PrintF("Returned %08x\n", lo_res);
-        }
-        set_register(r3, lo_res);
-        set_register(r4, hi_res);
-#endif
-#else
-        if (redirection->type() == ExternalReference::BUILTIN_CALL) {
-          SimulatorRuntimeCall target =
-              reinterpret_cast<SimulatorRuntimeCall>(external);
-          intptr_t result =
-              target(arg[0], arg[1], arg[2], arg[3], arg[4], arg[5]);
-          if (::v8::internal::FLAG_trace_sim) {
-            PrintF("Returned %08" V8PRIxPTR "\n", result);
-          }
-          set_register(r3, result);
-        } else {
-          DCHECK(redirection->type() ==
-                 ExternalReference::BUILTIN_OBJECTPAIR_CALL);
-          SimulatorRuntimeObjectPairCall target =
-              reinterpret_cast<SimulatorRuntimeObjectPairCall>(external);
-          struct ObjectPair result =
-              target(arg[0], arg[1], arg[2], arg[3], arg[4], arg[5]);
-          if (::v8::internal::FLAG_trace_sim) {
-            PrintF("Returned %08" V8PRIxPTR ", %08" V8PRIxPTR "\n", result.x,
-                   result.y);
-          }
-#if ABI_RETURNS_OBJECT_PAIRS_IN_REGS
-          set_register(r3, result.x);
-          set_register(r4, result.y);
-#else
-          memcpy(reinterpret_cast<void*>(result_buffer), &result,
-                 sizeof(struct ObjectPair));
-#endif
-        }
-#endif
+        set_register(r3, x);
+        set_register(r4, y);
       }
       set_pc(saved_lr);
       break;
@@ -1453,11 +1420,6 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
     case kBreakpoint: {
       PPCDebugger dbg(this);
       dbg.Debug();
-      break;
-    }
-    case kInfo: {
-      PPCDebugger dbg(this);
-      dbg.Info(instr);
       break;
     }
     // stop uses all codes greater than 1 << 23.
@@ -1830,8 +1792,8 @@ bool Simulator::ExecuteExt2_10bit(Instruction* instr) {
       int rb = instr->RBValue();
       intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
       intptr_t rb_val = get_register(rb);
-      double* dptr = reinterpret_cast<double*>(ReadDW(ra_val + rb_val));
-      set_d_register_from_double(frt, *dptr);
+      int64_t* dptr = reinterpret_cast<int64_t*>(ReadDW(ra_val + rb_val));
+      set_d_register(frt, *dptr);
       if (opcode == LFDUX) {
         DCHECK(ra != 0);
         set_register(ra, ra_val + rb_val);
@@ -1861,9 +1823,8 @@ bool Simulator::ExecuteExt2_10bit(Instruction* instr) {
         int rb = instr->RBValue();
         intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
         intptr_t rb_val = get_register(rb);
-        double frs_val = get_double_from_d_register(frs);
-        int64_t* p = reinterpret_cast<int64_t*>(&frs_val);
-        WriteDW(ra_val + rb_val, *p);
+        int64_t frs_val = get_d_register(frs);
+        WriteDW(ra_val + rb_val, frs_val);
         if (opcode == STFDUX) {
           DCHECK(ra != 0);
           set_register(ra, ra_val + rb_val);
@@ -2015,7 +1976,20 @@ bool Simulator::ExecuteExt2_9bit_part1(Instruction* instr) {
       if (instr->Bit(0)) {  // RC bit set
         SetCR0(static_cast<intptr_t>(alu_out));
       }
-      // todo - handle OE bit
+      break;
+    }
+    case MULHWUX: {
+      int rt = instr->RTValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      uint32_t ra_val = (get_register(ra) & 0xFFFFFFFF);
+      uint32_t rb_val = (get_register(rb) & 0xFFFFFFFF);
+      uint64_t alu_out = (uint64_t)ra_val * (uint64_t)rb_val;
+      alu_out >>= 32;
+      set_register(rt, alu_out);
+      if (instr->Bit(0)) {  // RC bit set
+        SetCR0(static_cast<intptr_t>(alu_out));
+      }
       break;
     }
     case NEGX: {
@@ -2074,18 +2048,16 @@ bool Simulator::ExecuteExt2_9bit_part1(Instruction* instr) {
       DCHECK(!instr->Bit(0));
       int frt = instr->RTValue();
       int ra = instr->RAValue();
-      double frt_val = get_double_from_d_register(frt);
-      int64_t* p = reinterpret_cast<int64_t*>(&frt_val);
-      set_register(ra, *p);
+      int64_t frt_val = get_d_register(frt);
+      set_register(ra, frt_val);
       break;
     }
     case MFVSRWZ: {
       DCHECK(!instr->Bit(0));
       int frt = instr->RTValue();
       int ra = instr->RAValue();
-      double frt_val = get_double_from_d_register(frt);
-      int64_t* p = reinterpret_cast<int64_t*>(&frt_val);
-      set_register(ra, static_cast<uint32_t>(*p));
+      int64_t frt_val = get_d_register(frt);
+      set_register(ra, static_cast<uint32_t>(frt_val));
       break;
     }
     case MTVSRD: {
@@ -2093,8 +2065,7 @@ bool Simulator::ExecuteExt2_9bit_part1(Instruction* instr) {
       int frt = instr->RTValue();
       int ra = instr->RAValue();
       int64_t ra_val = get_register(ra);
-      double* p = reinterpret_cast<double*>(&ra_val);
-      set_d_register_from_double(frt, *p);
+      set_d_register(frt, ra_val);
       break;
     }
     case MTVSRWA: {
@@ -2102,8 +2073,7 @@ bool Simulator::ExecuteExt2_9bit_part1(Instruction* instr) {
       int frt = instr->RTValue();
       int ra = instr->RAValue();
       int64_t ra_val = static_cast<int32_t>(get_register(ra));
-      double* p = reinterpret_cast<double*>(&ra_val);
-      set_d_register_from_double(frt, *p);
+      set_d_register(frt, ra_val);
       break;
     }
     case MTVSRWZ: {
@@ -2111,8 +2081,7 @@ bool Simulator::ExecuteExt2_9bit_part1(Instruction* instr) {
       int frt = instr->RTValue();
       int ra = instr->RAValue();
       uint64_t ra_val = static_cast<uint32_t>(get_register(ra));
-      double* p = reinterpret_cast<double*>(&ra_val);
-      set_d_register_from_double(frt, *p);
+      set_d_register(frt, ra_val);
       break;
     }
 #endif
@@ -2126,7 +2095,8 @@ bool Simulator::ExecuteExt2_9bit_part1(Instruction* instr) {
 }
 
 
-void Simulator::ExecuteExt2_9bit_part2(Instruction* instr) {
+bool Simulator::ExecuteExt2_9bit_part2(Instruction* instr) {
+  bool found = true;
   int opcode = instr->Bits(9, 1) << 1;
   switch (opcode) {
     case CNTLZWX: {
@@ -2344,6 +2314,29 @@ void Simulator::ExecuteExt2_9bit_part2(Instruction* instr) {
       }
       break;
     }
+    case DIVWU: {
+      int rt = instr->RTValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      uint32_t ra_val = get_register(ra);
+      uint32_t rb_val = get_register(rb);
+      bool overflow = (rb_val == 0);
+      // result is undefined if divisor is zero
+      uint32_t alu_out = (overflow) ? -1 : ra_val / rb_val;
+      set_register(rt, alu_out);
+      if (instr->Bit(10)) {  // OE bit set
+        if (overflow) {
+          special_reg_xer_ |= 0xC0000000;  // set SO,OV
+        } else {
+          special_reg_xer_ &= ~0x40000000;  // clear OV
+        }
+      }
+      if (instr->Bit(0)) {  // RC bit set
+        bool setSO = (special_reg_xer_ & 0x80000000);
+        SetCR0(alu_out, setSO);
+      }
+      break;
+    }
 #if V8_TARGET_ARCH_PPC64
     case DIVD: {
       int rt = instr->RTValue();
@@ -2359,6 +2352,21 @@ void Simulator::ExecuteExt2_9bit_part2(Instruction* instr) {
           (rb_val == 0 || (ra_val == kMinLongLong && rb_val == -1))
               ? -1
               : ra_val / rb_val;
+      set_register(rt, alu_out);
+      if (instr->Bit(0)) {  // RC bit set
+        SetCR0(alu_out);
+      }
+      // todo - handle OE bit
+      break;
+    }
+    case DIVDU: {
+      int rt = instr->RTValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      uint64_t ra_val = get_register(ra);
+      uint64_t rb_val = get_register(rb);
+      // result is undefined if divisor is zero
+      uint64_t alu_out = (rb_val == 0) ? -1 : ra_val / rb_val;
       set_register(rt, alu_out);
       if (instr->Bit(0)) {  // RC bit set
         SetCR0(alu_out);
@@ -2402,6 +2410,19 @@ void Simulator::ExecuteExt2_9bit_part2(Instruction* instr) {
       intptr_t rs_val = get_register(rs);
       intptr_t rb_val = get_register(rb);
       intptr_t alu_out = rs_val | rb_val;
+      set_register(ra, alu_out);
+      if (instr->Bit(0)) {  // RC bit set
+        SetCR0(alu_out);
+      }
+      break;
+    }
+    case ORC: {
+      int rs = instr->RSValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      intptr_t rs_val = get_register(rs);
+      intptr_t rb_val = get_register(rb);
+      intptr_t alu_out = rs_val | ~rb_val;
       set_register(ra, alu_out);
       if (instr->Bit(0)) {  // RC bit set
         SetCR0(alu_out);
@@ -2497,6 +2518,15 @@ void Simulator::ExecuteExt2_9bit_part2(Instruction* instr) {
       break;
     }
 #if V8_TARGET_ARCH_PPC64
+    case LWAX: {
+      int rt = instr->RTValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+      intptr_t rb_val = get_register(rb);
+      set_register(rt, ReadW(ra_val + rb_val, instr));
+      break;
+    }
     case LDX:
     case LDUX: {
       int rt = instr->RTValue();
@@ -2556,8 +2586,47 @@ void Simulator::ExecuteExt2_9bit_part2(Instruction* instr) {
       }
       break;
     }
+    case LHAX:
+    case LHAUX: {
+      int rt = instr->RTValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+      intptr_t rb_val = get_register(rb);
+      set_register(rt, ReadH(ra_val + rb_val, instr));
+      if (opcode == LHAUX) {
+        DCHECK(ra != 0 && ra != rt);
+        set_register(ra, ra_val + rb_val);
+      }
+      break;
+    }
     case DCBF: {
       // todo - simulate dcbf
+      break;
+    }
+    default: {
+      found = false;
+      break;
+    }
+  }
+
+  return found;
+}
+
+
+void Simulator::ExecuteExt2_5bit(Instruction* instr) {
+  int opcode = instr->Bits(5, 1) << 1;
+  switch (opcode) {
+    case ISEL: {
+      int rt = instr->RTValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      int condition_bit = instr->RCValue();
+      int condition_mask = 0x80000000 >> condition_bit;
+      intptr_t ra_val = (ra == 0) ? 0 : get_register(ra);
+      intptr_t rb_val = get_register(rb);
+      intptr_t value = (condition_reg_ & condition_mask) ? ra_val : rb_val;
+      set_register(rt, value);
       break;
     }
     default: {
@@ -2573,7 +2642,8 @@ void Simulator::ExecuteExt2(Instruction* instr) {
   if (ExecuteExt2_10bit(instr)) return;
   // Now look at the lesser encodings
   if (ExecuteExt2_9bit_part1(instr)) return;
-  ExecuteExt2_9bit_part2(instr);
+  if (ExecuteExt2_9bit_part2(instr)) return;
+  ExecuteExt2_5bit(instr);
 }
 
 
@@ -2613,7 +2683,7 @@ void Simulator::ExecuteExt4(Instruction* instr) {
       int frt = instr->RTValue();
       int frb = instr->RBValue();
       double frb_val = get_double_from_d_register(frb);
-      double frt_val = std::sqrt(frb_val);
+      double frt_val = fast_sqrt(frb_val);
       set_d_register_from_double(frt, frt_val);
       return;
     }
@@ -2690,13 +2760,58 @@ void Simulator::ExecuteExt4(Instruction* instr) {
       condition_reg_ = (condition_reg_ & ~condition_mask) | condition;
       return;
     }
-    case FRSP: {
+    case FRIN: {
       int frt = instr->RTValue();
       int frb = instr->RBValue();
       double frb_val = get_double_from_d_register(frb);
-      // frsp round 8-byte double-precision value to 8-byte
-      // single-precision value, ignore the round here
-      set_d_register_from_double(frt, frb_val);
+      double frt_val = std::round(frb_val);
+      set_d_register_from_double(frt, frt_val);
+      if (instr->Bit(0)) {  // RC bit set
+                            //  UNIMPLEMENTED();
+      }
+      return;
+    }
+    case FRIZ: {
+      int frt = instr->RTValue();
+      int frb = instr->RBValue();
+      double frb_val = get_double_from_d_register(frb);
+      double frt_val = std::trunc(frb_val);
+      set_d_register_from_double(frt, frt_val);
+      if (instr->Bit(0)) {  // RC bit set
+                            //  UNIMPLEMENTED();
+      }
+      return;
+    }
+    case FRIP: {
+      int frt = instr->RTValue();
+      int frb = instr->RBValue();
+      double frb_val = get_double_from_d_register(frb);
+      double frt_val = std::ceil(frb_val);
+      set_d_register_from_double(frt, frt_val);
+      if (instr->Bit(0)) {  // RC bit set
+                            //  UNIMPLEMENTED();
+      }
+      return;
+    }
+    case FRIM: {
+      int frt = instr->RTValue();
+      int frb = instr->RBValue();
+      double frb_val = get_double_from_d_register(frb);
+      double frt_val = std::floor(frb_val);
+      set_d_register_from_double(frt, frt_val);
+      if (instr->Bit(0)) {  // RC bit set
+                            //  UNIMPLEMENTED();
+      }
+      return;
+    }
+    case FRSP: {
+      int frt = instr->RTValue();
+      int frb = instr->RBValue();
+      // frsp round 8-byte double-precision value to
+      // single-precision value
+      double frb_val = get_double_from_d_register(frb);
+      double frt_val = static_cast<float>(frb_val);
+      set_d_register_from_double(frt, frt_val);
       if (instr->Bit(0)) {  // RC bit set
                             //  UNIMPLEMENTED();
       }
@@ -2821,9 +2936,8 @@ void Simulator::ExecuteExt4(Instruction* instr) {
     case FMR: {
       int frt = instr->RTValue();
       int frb = instr->RBValue();
-      double frb_val = get_double_from_d_register(frb);
-      double frt_val = frb_val;
-      set_d_register_from_double(frt, frt_val);
+      int64_t frb_val = get_d_register(frb);
+      set_d_register(frt, frb_val);
       return;
     }
     case MTFSFI: {
@@ -2840,9 +2954,8 @@ void Simulator::ExecuteExt4(Instruction* instr) {
     }
     case MTFSF: {
       int frb = instr->RBValue();
-      double frb_dval = get_double_from_d_register(frb);
-      int64_t* p = reinterpret_cast<int64_t*>(&frb_dval);
-      int32_t frb_ival = static_cast<int32_t>((*p) & 0xffffffff);
+      int64_t frb_dval = get_d_register(frb);
+      int32_t frb_ival = static_cast<int32_t>((frb_dval)&0xffffffff);
       int l = instr->Bits(25, 25);
       if (l == 1) {
         fp_condition_reg_ = frb_ival;
@@ -2859,8 +2972,7 @@ void Simulator::ExecuteExt4(Instruction* instr) {
     case MFFS: {
       int frt = instr->RTValue();
       int64_t lval = static_cast<int64_t>(fp_condition_reg_);
-      double* p = reinterpret_cast<double*>(&lval);
-      set_d_register_from_double(frt, *p);
+      set_d_register(frt, lval);
       return;
     }
     case FABS: {
@@ -2868,16 +2980,6 @@ void Simulator::ExecuteExt4(Instruction* instr) {
       int frb = instr->RBValue();
       double frb_val = get_double_from_d_register(frb);
       double frt_val = std::fabs(frb_val);
-      set_d_register_from_double(frt, frt_val);
-      return;
-    }
-    case FRIM: {
-      int frt = instr->RTValue();
-      int frb = instr->RBValue();
-      double frb_val = get_double_from_d_register(frb);
-      int64_t floor_val = (int64_t)frb_val;
-      if (floor_val > frb_val) floor_val--;
-      double frt_val = static_cast<double>(floor_val);
       set_d_register_from_double(frt, frt_val);
       return;
     }
@@ -3365,7 +3467,6 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       uintptr_t result = ReadHU(ra_val + offset, instr) & 0xffff;
       set_register(rt, result);
       if (opcode == LHZU) {
-        DCHECK(ra != 0);
         set_register(ra, ra_val + offset);
       }
       break;
@@ -3373,7 +3474,15 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
 
     case LHA:
     case LHAU: {
-      UNIMPLEMENTED();
+      int ra = instr->RAValue();
+      int rt = instr->RTValue();
+      intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+      int offset = SIGN_EXT_IMM16(instr->Bits(15, 0));
+      intptr_t result = ReadH(ra_val + offset, instr);
+      set_register(rt, result);
+      if (opcode == LHAU) {
+        set_register(ra, ra_val + offset);
+      }
       break;
     }
 
@@ -3420,8 +3529,8 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int ra = instr->RAValue();
       int32_t offset = SIGN_EXT_IMM16(instr->Bits(15, 0));
       intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
-      double* dptr = reinterpret_cast<double*>(ReadDW(ra_val + offset));
-      set_d_register_from_double(frt, *dptr);
+      int64_t* dptr = reinterpret_cast<int64_t*>(ReadDW(ra_val + offset));
+      set_d_register(frt, *dptr);
       if (opcode == LFDU) {
         DCHECK(ra != 0);
         set_register(ra, ra_val + offset);
@@ -3451,9 +3560,8 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int ra = instr->RAValue();
       int32_t offset = SIGN_EXT_IMM16(instr->Bits(15, 0));
       intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
-      double frs_val = get_double_from_d_register(frs);
-      int64_t* p = reinterpret_cast<int64_t*>(&frs_val);
-      WriteDW(ra_val + offset, *p);
+      int64_t frs_val = get_d_register(frs);
+      WriteDW(ra_val + offset, frs_val);
       if (opcode == STFDU) {
         DCHECK(ra != 0);
         set_register(ra, ra_val + offset);
@@ -3514,27 +3622,6 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
 #endif
-
-    case FAKE_OPCODE: {
-      if (instr->Bits(MARKER_SUBOPCODE_BIT, MARKER_SUBOPCODE_BIT) == 1) {
-        int marker_code = instr->Bits(STUB_MARKER_HIGH_BIT, 0);
-        DCHECK(marker_code < F_NEXT_AVAILABLE_STUB_MARKER);
-        PrintF("Hit stub-marker: %d (EMIT_STUB_MARKER)\n", marker_code);
-      } else {
-        int fake_opcode = instr->Bits(FAKE_OPCODE_HIGH_BIT, 0);
-        if (fake_opcode == fBKPT) {
-          PPCDebugger dbg(this);
-          PrintF("Simulator hit BKPT.\n");
-          dbg.Debug();
-        } else {
-          DCHECK(fake_opcode < fLastFaker);
-          PrintF("Hit ARM opcode: %d(FAKE_OPCODE defined in constant-ppc.h)\n",
-                 fake_opcode);
-          UNIMPLEMENTED();
-        }
-      }
-      break;
-    }
 
     default: {
       UNIMPLEMENTED();

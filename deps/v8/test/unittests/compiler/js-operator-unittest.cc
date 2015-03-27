@@ -66,9 +66,9 @@ const SharedOperator kSharedOperators[] = {
     SHARED(Modulus, Operator::kNoProperties, 2, 1, 1, 1, 1, 1),
     SHARED(UnaryNot, Operator::kPure, 1, 0, 0, 0, 1, 0),
     SHARED(ToBoolean, Operator::kPure, 1, 0, 0, 0, 1, 0),
-    SHARED(ToNumber, Operator::kNoProperties, 1, 0, 1, 1, 1, 1),
+    SHARED(ToNumber, Operator::kNoProperties, 1, 1, 1, 1, 1, 1),
     SHARED(ToString, Operator::kNoProperties, 1, 0, 1, 1, 1, 1),
-    SHARED(ToName, Operator::kNoProperties, 1, 0, 1, 1, 1, 1),
+    SHARED(ToName, Operator::kNoProperties, 1, 1, 1, 1, 1, 1),
     SHARED(ToObject, Operator::kNoProperties, 1, 1, 1, 1, 1, 1),
     SHARED(Yield, Operator::kNoProperties, 1, 0, 1, 1, 1, 1),
     SHARED(Create, Operator::kEliminatable, 0, 0, 1, 1, 1, 1),
@@ -77,7 +77,7 @@ const SharedOperator kSharedOperators[] = {
     SHARED(InstanceOf, Operator::kNoProperties, 2, 1, 1, 1, 1, 1),
     SHARED(Debugger, Operator::kNoProperties, 0, 0, 1, 1, 0, 1),
     SHARED(CreateFunctionContext, Operator::kNoProperties, 1, 0, 1, 1, 1, 1),
-    SHARED(CreateWithContext, Operator::kNoProperties, 2, 0, 1, 1, 1, 1),
+    SHARED(CreateWithContext, Operator::kNoProperties, 2, 1, 1, 1, 1, 1),
     SHARED(CreateBlockContext, Operator::kNoProperties, 2, 0, 1, 1, 1, 1),
     SHARED(CreateModuleContext, Operator::kNoProperties, 2, 0, 1, 1, 1, 1),
     SHARED(CreateScriptContext, Operator::kNoProperties, 2, 0, 1, 1, 1, 1)
@@ -152,11 +152,11 @@ INSTANTIATE_TEST_CASE_P(JSOperatorTest, JSSharedOperatorTest,
 
 class JSStorePropertyOperatorTest
     : public TestWithZone,
-      public ::testing::WithParamInterface<StrictMode> {};
+      public ::testing::WithParamInterface<LanguageMode> {};
 
 
 TEST_P(JSStorePropertyOperatorTest, InstancesAreGloballyShared) {
-  const StrictMode mode = GetParam();
+  const LanguageMode mode = GetParam();
   JSOperatorBuilder javascript1(zone());
   JSOperatorBuilder javascript2(zone());
   EXPECT_EQ(javascript1.StoreProperty(mode), javascript2.StoreProperty(mode));
@@ -165,7 +165,7 @@ TEST_P(JSStorePropertyOperatorTest, InstancesAreGloballyShared) {
 
 TEST_P(JSStorePropertyOperatorTest, NumberOfInputsAndOutputs) {
   JSOperatorBuilder javascript(zone());
-  const StrictMode mode = GetParam();
+  const LanguageMode mode = GetParam();
   const Operator* op = javascript.StoreProperty(mode);
 
   // TODO(jarin): Get rid of this hack.
@@ -187,7 +187,7 @@ TEST_P(JSStorePropertyOperatorTest, NumberOfInputsAndOutputs) {
 
 TEST_P(JSStorePropertyOperatorTest, OpcodeIsCorrect) {
   JSOperatorBuilder javascript(zone());
-  const StrictMode mode = GetParam();
+  const LanguageMode mode = GetParam();
   const Operator* op = javascript.StoreProperty(mode);
   EXPECT_EQ(IrOpcode::kJSStoreProperty, op->opcode());
 }
@@ -195,15 +195,15 @@ TEST_P(JSStorePropertyOperatorTest, OpcodeIsCorrect) {
 
 TEST_P(JSStorePropertyOperatorTest, OpParameter) {
   JSOperatorBuilder javascript(zone());
-  const StrictMode mode = GetParam();
+  const LanguageMode mode = GetParam();
   const Operator* op = javascript.StoreProperty(mode);
-  EXPECT_EQ(mode, OpParameter<StrictMode>(op));
+  EXPECT_EQ(mode, OpParameter<LanguageMode>(op));
 }
 
 
 TEST_P(JSStorePropertyOperatorTest, Properties) {
   JSOperatorBuilder javascript(zone());
-  const StrictMode mode = GetParam();
+  const LanguageMode mode = GetParam();
   const Operator* op = javascript.StoreProperty(mode);
   EXPECT_EQ(Operator::kNoProperties, op->properties());
 }

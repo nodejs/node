@@ -30,6 +30,77 @@ struct OffsetRange {
 };
 
 
+// This class encapsulates encoding and decoding of sources positions from
+// which hydrogen values originated.
+// When FLAG_track_hydrogen_positions is set this object encodes the
+// identifier of the inlining and absolute offset from the start of the
+// inlined function.
+// When the flag is not set we simply track absolute offset from the
+// script start.
+class SourcePosition {
+ public:
+  SourcePosition(const SourcePosition& other) : value_(other.value_) {}
+
+  static SourcePosition Unknown() { return SourcePosition(kNoPosition); }
+
+  bool IsUnknown() const { return value_ == kNoPosition; }
+
+  uint32_t position() const { return PositionField::decode(value_); }
+  void set_position(uint32_t position) {
+    if (FLAG_hydrogen_track_positions) {
+      value_ = static_cast<uint32_t>(PositionField::update(value_, position));
+    } else {
+      value_ = position;
+    }
+  }
+
+  uint32_t inlining_id() const { return InliningIdField::decode(value_); }
+  void set_inlining_id(uint32_t inlining_id) {
+    if (FLAG_hydrogen_track_positions) {
+      value_ =
+          static_cast<uint32_t>(InliningIdField::update(value_, inlining_id));
+    }
+  }
+
+  uint32_t raw() const { return value_; }
+
+ private:
+  static const uint32_t kNoPosition =
+      static_cast<uint32_t>(RelocInfo::kNoPosition);
+  typedef BitField<uint32_t, 0, 9> InliningIdField;
+
+  // Offset from the start of the inlined function.
+  typedef BitField<uint32_t, 9, 23> PositionField;
+
+  explicit SourcePosition(uint32_t value) : value_(value) {}
+
+  friend class HPositionInfo;
+  friend class LCodeGenBase;
+
+  // If FLAG_hydrogen_track_positions is set contains bitfields InliningIdField
+  // and PositionField.
+  // Otherwise contains absolute offset from the script start.
+  uint32_t value_;
+};
+
+
+std::ostream& operator<<(std::ostream& os, const SourcePosition& p);
+
+
+class InlinedFunctionInfo {
+ public:
+  explicit InlinedFunctionInfo(Handle<SharedFunctionInfo> shared)
+      : shared_(shared), start_position_(shared->start_position()) {}
+
+  Handle<SharedFunctionInfo> shared() const { return shared_; }
+  int start_position() const { return start_position_; }
+
+ private:
+  Handle<SharedFunctionInfo> shared_;
+  int start_position_;
+};
+
+
 class ScriptData {
  public:
   ScriptData(const byte* data, int length);
@@ -73,27 +144,31 @@ class CompilationInfo {
     kEval = 1 << 1,
     kGlobal = 1 << 2,
     kStrictMode = 1 << 3,
-    kThisHasUses = 1 << 4,
-    kNative = 1 << 5,
-    kDeferredCalling = 1 << 6,
-    kNonDeferredCalling = 1 << 7,
-    kSavesCallerDoubles = 1 << 8,
-    kRequiresFrame = 1 << 9,
-    kMustNotHaveEagerFrame = 1 << 10,
-    kDeoptimizationSupport = 1 << 11,
-    kDebug = 1 << 12,
-    kCompilingForDebugging = 1 << 13,
-    kParseRestriction = 1 << 14,
-    kSerializing = 1 << 15,
-    kContextSpecializing = 1 << 16,
-    kInliningEnabled = 1 << 17,
-    kTypingEnabled = 1 << 18,
-    kDisableFutureOptimization = 1 << 19,
-    kToplevel = 1 << 20
+    kStrongMode = 1 << 4,
+    kThisHasUses = 1 << 5,
+    kNative = 1 << 6,
+    kDeferredCalling = 1 << 7,
+    kNonDeferredCalling = 1 << 8,
+    kSavesCallerDoubles = 1 << 9,
+    kRequiresFrame = 1 << 10,
+    kMustNotHaveEagerFrame = 1 << 11,
+    kDeoptimizationSupport = 1 << 12,
+    kDebug = 1 << 13,
+    kCompilingForDebugging = 1 << 14,
+    kParseRestriction = 1 << 15,
+    kSerializing = 1 << 16,
+    kContextSpecializing = 1 << 17,
+    kInliningEnabled = 1 << 18,
+    kTypingEnabled = 1 << 19,
+    kDisableFutureOptimization = 1 << 20,
+    kModule = 1 << 21,
+    kToplevel = 1 << 22,
+    kSplittingEnabled = 1 << 23
   };
 
   CompilationInfo(Handle<JSFunction> closure, Zone* zone);
-  CompilationInfo(Isolate* isolate, Zone* zone);
+  CompilationInfo(Handle<Script> script, Zone* zone);
+  CompilationInfo(CodeStub* stub, Isolate* isolate, Zone* zone);
   virtual ~CompilationInfo();
 
   Isolate* isolate() const {
@@ -104,8 +179,10 @@ class CompilationInfo {
   bool is_lazy() const { return GetFlag(kLazy); }
   bool is_eval() const { return GetFlag(kEval); }
   bool is_global() const { return GetFlag(kGlobal); }
-  StrictMode strict_mode() const {
-    return GetFlag(kStrictMode) ? STRICT : SLOPPY;
+  bool is_module() const { return GetFlag(kModule); }
+  LanguageMode language_mode() const {
+    STATIC_ASSERT(LANGUAGE_END == 3);
+    return construct_language_mode(GetFlag(kStrictMode), GetFlag(kStrongMode));
   }
   FunctionLiteral* function() const { return function_; }
   Scope* scope() const { return scope_; }
@@ -115,7 +192,7 @@ class CompilationInfo {
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   Handle<Script> script() const { return script_; }
   void set_script(Handle<Script> script) { script_ = script; }
-  HydrogenCodeStub* code_stub() const {return code_stub_; }
+  CodeStub* code_stub() const { return code_stub_; }
   v8::Extension* extension() const { return extension_; }
   ScriptData** cached_data() const { return cached_data_; }
   ScriptCompiler::CompileOptions compile_options() const {
@@ -145,6 +222,11 @@ class CompilationInfo {
     SetFlag(kGlobal);
   }
 
+  void MarkAsModule() {
+    DCHECK(!is_lazy());
+    SetFlag(kModule);
+  }
+
   void set_parameter_count(int parameter_count) {
     DCHECK(IsStub());
     parameter_count_ = parameter_count;
@@ -156,8 +238,10 @@ class CompilationInfo {
 
   bool this_has_uses() { return GetFlag(kThisHasUses); }
 
-  void SetStrictMode(StrictMode strict_mode) {
-    SetFlag(kStrictMode, strict_mode == STRICT);
+  void SetLanguageMode(LanguageMode language_mode) {
+    STATIC_ASSERT(LANGUAGE_END == 3);
+    SetFlag(kStrictMode, language_mode & STRICT_BIT);
+    SetFlag(kStrongMode, language_mode & STRONG_BIT);
   }
 
   void MarkAsNative() { SetFlag(kNative); }
@@ -213,6 +297,10 @@ class CompilationInfo {
   void MarkAsToplevel() { SetFlag(kToplevel); }
 
   bool is_toplevel() const { return GetFlag(kToplevel); }
+
+  void MarkAsSplittingEnabled() { SetFlag(kSplittingEnabled); }
+
+  bool is_splitting_enabled() const { return GetFlag(kSplittingEnabled); }
 
   bool IsCodePreAgingActive() const {
     return FLAG_optimize_for_size && FLAG_age_code && !will_serialize() &&
@@ -330,12 +418,15 @@ class CompilationInfo {
   }
 
   void AbortOptimization(BailoutReason reason) {
-    if (bailout_reason_ != kNoReason) bailout_reason_ = reason;
+    DCHECK(reason != kNoReason);
+    if (bailout_reason_ == kNoReason) bailout_reason_ = reason;
     SetFlag(kDisableFutureOptimization);
   }
 
   void RetryOptimization(BailoutReason reason) {
-    if (bailout_reason_ != kNoReason) bailout_reason_ = reason;
+    DCHECK(reason != kNoReason);
+    if (GetFlag(kDisableFutureOptimization)) return;
+    bailout_reason_ = reason;
   }
 
   BailoutReason bailout_reason() const { return bailout_reason_; }
@@ -362,6 +453,15 @@ class CompilationInfo {
     no_frame_ranges_ = NULL;
     return result;
   }
+
+  List<InlinedFunctionInfo>* inlined_function_infos() {
+    return inlined_function_infos_;
+  }
+  List<int>* inlining_id_to_function_id() {
+    return inlining_id_to_function_id_;
+  }
+  int TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
+                           SourcePosition position);
 
   Handle<Foreign> object_wrapper() {
     if (object_wrapper_.is_null()) {
@@ -394,13 +494,20 @@ class CompilationInfo {
     ast_value_factory_owned_ = owned;
   }
 
+  int osr_expr_stack_height() { return osr_expr_stack_height_; }
+  void set_osr_expr_stack_height(int height) {
+    DCHECK(height >= 0);
+    osr_expr_stack_height_ = height;
+  }
+
+#if DEBUG
+  void PrintAstForTesting();
+#endif
+
+  bool is_simple_parameter_list();
+
  protected:
-  CompilationInfo(Handle<Script> script,
-                  Zone* zone);
   CompilationInfo(Handle<SharedFunctionInfo> shared_info,
-                  Zone* zone);
-  CompilationInfo(HydrogenCodeStub* stub,
-                  Isolate* isolate,
                   Zone* zone);
   CompilationInfo(ScriptCompiler::ExternalSourceStream* source_stream,
                   ScriptCompiler::StreamedSource::Encoding encoding,
@@ -447,7 +554,7 @@ class CompilationInfo {
   // The script scope provided as a convenience.
   Scope* script_scope_;
   // For compiled stubs, the stub object
-  HydrogenCodeStub* code_stub_;
+  CodeStub* code_stub_;
   // The compiled code.
   Handle<Code> code_;
 
@@ -499,6 +606,8 @@ class CompilationInfo {
   int prologue_offset_;
 
   List<OffsetRange>* no_frame_ranges_;
+  List<InlinedFunctionInfo>* inlined_function_infos_;
+  List<int>* inlining_id_to_function_id_;
 
   // A copy of shared_info()->opt_count() to avoid handle deref
   // during graph optimization.
@@ -518,6 +627,8 @@ class CompilationInfo {
   // should be abandoned due to dependency change.
   bool aborted_due_to_dependency_change_;
 
+  int osr_expr_stack_height_;
+
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
 };
 
@@ -527,21 +638,17 @@ class CompilationInfo {
 class CompilationInfoWithZone: public CompilationInfo {
  public:
   explicit CompilationInfoWithZone(Handle<Script> script)
-      : CompilationInfo(script, &zone_),
-        zone_(script->GetIsolate()) {}
+      : CompilationInfo(script, &zone_) {}
   explicit CompilationInfoWithZone(Handle<SharedFunctionInfo> shared_info)
-      : CompilationInfo(shared_info, &zone_),
-        zone_(shared_info->GetIsolate()) {}
+      : CompilationInfo(shared_info, &zone_) {}
   explicit CompilationInfoWithZone(Handle<JSFunction> closure)
-      : CompilationInfo(closure, &zone_),
-        zone_(closure->GetIsolate()) {}
-  CompilationInfoWithZone(HydrogenCodeStub* stub, Isolate* isolate)
-      : CompilationInfo(stub, isolate, &zone_),
-        zone_(isolate) {}
+      : CompilationInfo(closure, &zone_) {}
+  CompilationInfoWithZone(CodeStub* stub, Isolate* isolate)
+      : CompilationInfo(stub, isolate, &zone_) {}
   CompilationInfoWithZone(ScriptCompiler::ExternalSourceStream* stream,
                           ScriptCompiler::StreamedSource::Encoding encoding,
                           Isolate* isolate)
-      : CompilationInfo(stream, encoding, isolate, &zone_), zone_(isolate) {}
+      : CompilationInfo(stream, encoding, isolate, &zone_) {}
 
   // Virtual destructor because a CompilationInfoWithZone has to exit the
   // zone scope and get rid of dependent maps even when the destructor is
@@ -693,16 +800,16 @@ class Compiler : public AllStatic {
   // Compile a String source within a context for eval.
   MUST_USE_RESULT static MaybeHandle<JSFunction> GetFunctionFromEval(
       Handle<String> source, Handle<SharedFunctionInfo> outer_info,
-      Handle<Context> context, StrictMode strict_mode,
+      Handle<Context> context, LanguageMode language_mode,
       ParseRestriction restriction, int scope_position);
 
   // Compile a String source within a context.
   static Handle<SharedFunctionInfo> CompileScript(
       Handle<String> source, Handle<Object> script_name, int line_offset,
-      int column_offset, bool is_shared_cross_origin, Handle<Context> context,
-      v8::Extension* extension, ScriptData** cached_data,
-      ScriptCompiler::CompileOptions compile_options,
-      NativesFlag is_natives_code);
+      int column_offset, bool is_debugger_script, bool is_shared_cross_origin,
+      Handle<Context> context, v8::Extension* extension,
+      ScriptData** cached_data, ScriptCompiler::CompileOptions compile_options,
+      NativesFlag is_natives_code, bool is_module);
 
   static Handle<SharedFunctionInfo> CompileStreamedScript(CompilationInfo* info,
                                                           int source_length);
@@ -749,7 +856,7 @@ class CompilationPhase BASE_EMBEDDED {
   const char* name_;
   CompilationInfo* info_;
   Zone zone_;
-  unsigned info_zone_start_allocation_size_;
+  size_t info_zone_start_allocation_size_;
   base::ElapsedTimer timer_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationPhase);

@@ -5,6 +5,7 @@
 #ifndef V8_CHECKS_H_
 #define V8_CHECKS_H_
 
+#include "include/v8.h"
 #include "src/base/logging.h"
 
 namespace v8 {
@@ -13,8 +14,6 @@ class Value;
 template <class T> class Handle;
 
 namespace internal {
-
-intptr_t HeapObjectTagMask();
 
 #ifdef ENABLE_SLOW_DCHECKS
 #define SLOW_DCHECK(condition) \
@@ -27,30 +26,11 @@ const bool FLAG_enable_slow_asserts = false;
 
 } }  // namespace v8::internal
 
+#define DCHECK_TAG_ALIGNED(address)             \
+  DCHECK((reinterpret_cast<intptr_t>(address) & \
+          ::v8::internal::kHeapObjectTagMask) == 0)
 
-void CheckNonEqualsHelper(const char* file, int line,
-                          const char* expected_source, double expected,
-                          const char* value_source, double value);
-
-void CheckEqualsHelper(const char* file, int line, const char* expected_source,
-                       double expected, const char* value_source, double value);
-
-void CheckNonEqualsHelper(const char* file, int line,
-                          const char* unexpected_source,
-                          v8::Handle<v8::Value> unexpected,
-                          const char* value_source,
-                          v8::Handle<v8::Value> value);
-
-void CheckEqualsHelper(const char* file,
-                       int line,
-                       const char* expected_source,
-                       v8::Handle<v8::Value> expected,
-                       const char* value_source,
-                       v8::Handle<v8::Value> value);
-
-#define DCHECK_TAG_ALIGNED(address) \
-  DCHECK((reinterpret_cast<intptr_t>(address) & HeapObjectTagMask()) == 0)
-
-#define DCHECK_SIZE_TAG_ALIGNED(size) DCHECK((size & HeapObjectTagMask()) == 0)
+#define DCHECK_SIZE_TAG_ALIGNED(size) \
+  DCHECK((size & ::v8::internal::kHeapObjectTagMask) == 0)
 
 #endif  // V8_CHECKS_H_

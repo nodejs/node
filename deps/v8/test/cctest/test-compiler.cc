@@ -60,9 +60,9 @@ static Handle<JSFunction> Compile(const char* source) {
   Handle<String> source_code = isolate->factory()->NewStringFromUtf8(
       CStrVector(source)).ToHandleChecked();
   Handle<SharedFunctionInfo> shared_function = Compiler::CompileScript(
-      source_code, Handle<String>(), 0, 0, false,
+      source_code, Handle<String>(), 0, 0, false, false,
       Handle<Context>(isolate->native_context()), NULL, NULL,
-      v8::ScriptCompiler::kNoCompileOptions, NOT_NATIVES_CODE);
+      v8::ScriptCompiler::kNoCompileOptions, NOT_NATIVES_CODE, false);
   return isolate->factory()->NewFunctionFromSharedFunctionInfo(
       shared_function, isolate->native_context());
 }
@@ -314,7 +314,9 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
   CHECK_EQ(expected_slots, feedback_vector->Slots());
   CHECK_EQ(expected_ic_slots, feedback_vector->ICSlots());
   FeedbackVectorICSlot slot_for_a(0);
-  CHECK(feedback_vector->Get(slot_for_a)->IsJSFunction());
+  Object* object = feedback_vector->Get(slot_for_a);
+  CHECK(object->IsWeakCell() &&
+        WeakCell::cast(object)->value()->IsJSFunction());
 
   CompileRun("%OptimizeFunctionOnNextCall(f); f(fun1);");
 
@@ -322,7 +324,9 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
   // of the full code.
   CHECK(f->IsOptimized());
   CHECK(f->shared()->has_deoptimization_support());
-  CHECK(f->shared()->feedback_vector()->Get(slot_for_a)->IsJSFunction());
+  object = f->shared()->feedback_vector()->Get(slot_for_a);
+  CHECK(object->IsWeakCell() &&
+        WeakCell::cast(object)->value()->IsJSFunction());
 }
 
 
@@ -397,6 +401,116 @@ TEST(OptimizedCodeSharing) {
           || !CcTest::i_isolate()->use_crankshaft() || !fun2->IsOptimizable());
     CHECK_EQ(fun1->code(), fun2->code());
   }
+}
+
+
+TEST(CompileFunctionInContext) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  CompileRun("var r = 10;");
+  v8::Local<v8::Object> math =
+      v8::Local<v8::Object>::Cast(env->Global()->Get(v8_str("Math")));
+  v8::ScriptCompiler::Source script_source(v8_str(
+      "a = PI * r * r;"
+      "x = r * cos(PI);"
+      "y = r * sin(PI / 2);"));
+  v8::Local<v8::Function> fun = v8::ScriptCompiler::CompileFunctionInContext(
+      CcTest::isolate(), &script_source, env.local(), 0, NULL, 1, &math);
+  CHECK(!fun.IsEmpty());
+  fun->Call(env->Global(), 0, NULL);
+  CHECK(env->Global()->Has(v8_str("a")));
+  v8::Local<v8::Value> a = env->Global()->Get(v8_str("a"));
+  CHECK(a->IsNumber());
+  CHECK(env->Global()->Has(v8_str("x")));
+  v8::Local<v8::Value> x = env->Global()->Get(v8_str("x"));
+  CHECK(x->IsNumber());
+  CHECK(env->Global()->Has(v8_str("y")));
+  v8::Local<v8::Value> y = env->Global()->Get(v8_str("y"));
+  CHECK(y->IsNumber());
+  CHECK_EQ(314.1592653589793, a->NumberValue());
+  CHECK_EQ(-10.0, x->NumberValue());
+  CHECK_EQ(10.0, y->NumberValue());
+}
+
+
+TEST(CompileFunctionInContextComplex) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  CompileRun(
+      "var x = 1;"
+      "var y = 2;"
+      "var z = 4;"
+      "var a = {x: 8, y: 16};"
+      "var b = {x: 32};");
+  v8::Local<v8::Object> ext[2];
+  ext[0] = v8::Local<v8::Object>::Cast(env->Global()->Get(v8_str("a")));
+  ext[1] = v8::Local<v8::Object>::Cast(env->Global()->Get(v8_str("b")));
+  v8::ScriptCompiler::Source script_source(v8_str("result = x + y + z"));
+  v8::Local<v8::Function> fun = v8::ScriptCompiler::CompileFunctionInContext(
+      CcTest::isolate(), &script_source, env.local(), 0, NULL, 2, ext);
+  CHECK(!fun.IsEmpty());
+  fun->Call(env->Global(), 0, NULL);
+  CHECK(env->Global()->Has(v8_str("result")));
+  v8::Local<v8::Value> result = env->Global()->Get(v8_str("result"));
+  CHECK(result->IsNumber());
+  CHECK_EQ(52.0, result->NumberValue());
+}
+
+
+TEST(CompileFunctionInContextArgs) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  CompileRun("var a = {x: 23};");
+  v8::Local<v8::Object> ext[1];
+  ext[0] = v8::Local<v8::Object>::Cast(env->Global()->Get(v8_str("a")));
+  v8::ScriptCompiler::Source script_source(v8_str("result = x + b"));
+  v8::Local<v8::String> arg = v8_str("b");
+  v8::Local<v8::Function> fun = v8::ScriptCompiler::CompileFunctionInContext(
+      CcTest::isolate(), &script_source, env.local(), 1, &arg, 1, ext);
+  CHECK(!fun.IsEmpty());
+  v8::Local<v8::Value> b_value = v8::Number::New(CcTest::isolate(), 42.0);
+  fun->Call(env->Global(), 1, &b_value);
+  CHECK(env->Global()->Has(v8_str("result")));
+  v8::Local<v8::Value> result = env->Global()->Get(v8_str("result"));
+  CHECK(result->IsNumber());
+  CHECK_EQ(65.0, result->NumberValue());
+}
+
+
+TEST(CompileFunctionInContextComments) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  CompileRun("var a = {x: 23, y: 1, z: 2};");
+  v8::Local<v8::Object> ext[1];
+  ext[0] = v8::Local<v8::Object>::Cast(env->Global()->Get(v8_str("a")));
+  v8::ScriptCompiler::Source script_source(
+      v8_str("result = /* y + */ x + b // + z"));
+  v8::Local<v8::String> arg = v8_str("b");
+  v8::Local<v8::Function> fun = v8::ScriptCompiler::CompileFunctionInContext(
+      CcTest::isolate(), &script_source, env.local(), 1, &arg, 1, ext);
+  CHECK(!fun.IsEmpty());
+  v8::Local<v8::Value> b_value = v8::Number::New(CcTest::isolate(), 42.0);
+  fun->Call(env->Global(), 1, &b_value);
+  CHECK(env->Global()->Has(v8_str("result")));
+  v8::Local<v8::Value> result = env->Global()->Get(v8_str("result"));
+  CHECK(result->IsNumber());
+  CHECK_EQ(65.0, result->NumberValue());
+}
+
+
+TEST(CompileFunctionInContextNonIdentifierArgs) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::ScriptCompiler::Source script_source(v8_str("result = 1"));
+  v8::Local<v8::String> arg = v8_str("b }");
+  v8::Local<v8::Function> fun = v8::ScriptCompiler::CompileFunctionInContext(
+      CcTest::isolate(), &script_source, env.local(), 1, &arg, 0, NULL);
+  CHECK(fun.IsEmpty());
 }
 
 

@@ -51,6 +51,17 @@
   'S12.1_A4_T2': [PASS, FAIL_OK],
   'S12.6.4_A15': [PASS, FAIL_OK],
 
+  # ES6 allows duplicate properties
+  '11.1.5-4-4-a-1-s': [FAIL],
+  '11.1.5_4-4-b-1': [FAIL],
+  '11.1.5_4-4-b-2': [FAIL],
+  '11.1.5_4-4-c-1': [FAIL],
+  '11.1.5_4-4-c-2': [FAIL],
+  '11.1.5_4-4-d-1': [FAIL],
+  '11.1.5_4-4-d-2': [FAIL],
+  '11.1.5_4-4-d-3': [FAIL],
+  '11.1.5_4-4-d-4': [FAIL],
+
   ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation

@@ -65,6 +65,7 @@ class MachineOperatorReducer FINAL : public Reducer {
   }
 
   Reduction ReduceInt32Add(Node* node);
+  Reduction ReduceInt32Sub(Node* node);
   Reduction ReduceInt32Div(Node* node);
   Reduction ReduceUint32Div(Node* node);
   Reduction ReduceInt32Mod(Node* node);

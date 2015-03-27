@@ -13,11 +13,11 @@
 namespace v8 {
 namespace internal {
 
-RegExpMacroAssembler::RegExpMacroAssembler(Zone* zone)
-  : slow_safe_compiler_(false),
-    global_mode_(NOT_GLOBAL),
-    zone_(zone) {
-}
+RegExpMacroAssembler::RegExpMacroAssembler(Isolate* isolate, Zone* zone)
+    : slow_safe_compiler_(false),
+      global_mode_(NOT_GLOBAL),
+      isolate_(isolate),
+      zone_(zone) {}
 
 
 RegExpMacroAssembler::~RegExpMacroAssembler() {
@@ -26,9 +26,9 @@ RegExpMacroAssembler::~RegExpMacroAssembler() {
 
 #ifndef V8_INTERPRETED_REGEXP  // Avoid unused code, e.g., on ARM.
 
-NativeRegExpMacroAssembler::NativeRegExpMacroAssembler(Zone* zone)
-    : RegExpMacroAssembler(zone) {
-}
+NativeRegExpMacroAssembler::NativeRegExpMacroAssembler(Isolate* isolate,
+                                                       Zone* zone)
+    : RegExpMacroAssembler(isolate, zone) {}
 
 
 NativeRegExpMacroAssembler::~NativeRegExpMacroAssembler() {

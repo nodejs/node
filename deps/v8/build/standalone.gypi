@@ -33,10 +33,8 @@
   'includes': ['toolchain.gypi'],
   'variables': {
     'component%': 'static_library',
-    'make_clang_dir%': '../third_party/llvm-build/Release+Asserts',
+    'clang_dir%': 'third_party/llvm-build/Release+Asserts',
     'clang_xcode%': 0,
-    'asan%': 0,
-    'tsan%': 0,
     'visibility%': 'hidden',
     'v8_enable_backtrace%': 0,
     'v8_enable_i18n_support%': 1,
@@ -48,7 +46,7 @@
         'variables': {
           'conditions': [
             ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or \
-               OS=="netbsd" or OS=="mac" or OS=="qnx"', {
+               OS=="netbsd" or OS=="mac" or OS=="qnx" or OS=="aix"', {
               # This handles the Unix platforms we generally deal with.
               # Anything else gets passed through, which probably won't work
               # very well; such hosts should pass an explicit target_arch
@@ -56,7 +54,7 @@
               'host_arch%': '<!pymod_do_main(detect_v8_host_arch)',
             }, {
               # OS!="linux" and OS!="freebsd" and OS!="openbsd" and
-              # OS!="netbsd" and OS!="mac"
+              # OS!="netbsd" and OS!="mac" and OS!="aix"
               'host_arch%': 'ia32',
             }],
           ],
@@ -67,11 +65,27 @@
       'host_arch%': '<(host_arch)',
       'target_arch%': '<(target_arch)',
       'v8_target_arch%': '<(target_arch)',
+
+      # goma settings.
+      # 1 to use goma.
+      # If no gomadir is set, it uses the default gomadir.
+      'use_goma%': 0,
+      'gomadir%': '',
+      'conditions': [
+        # Set default gomadir.
+        ['OS=="win"', {
+          'gomadir': 'c:\\goma\\goma-win',
+        }, {
+          'gomadir': '<!(/bin/echo -n ${HOME}/goma)',
+        }],
+      ],
     },
     'host_arch%': '<(host_arch)',
     'target_arch%': '<(target_arch)',
     'v8_target_arch%': '<(v8_target_arch)',
     'werror%': '-Werror',
+    'use_goma%': '<(use_goma)',
+    'gomadir%': '<(gomadir)',
 
     # .gyp files or targets should set v8_code to 1 if they build V8 specific
     # code, as opposed to external code.  This variable is used to control such
@@ -82,15 +96,13 @@
     # Speeds up Debug builds:
     # 0 - Compiler optimizations off (debuggable) (default). This may
     #     be 5x slower than Release (or worse).
-    # 1 - Turn on compiler optimizations. This may be hard or impossible to
-    #     debug. This may still be 2x slower than Release (or worse).
-    # 2 - Turn on optimizations, and also #undef DEBUG / #define NDEBUG
-    #     (but leave V8_ENABLE_CHECKS and most other assertions enabled.
-    #     This may cause some v8 tests to fail in the Debug configuration.
-    #     This roughly matches the performance of a Release build and can
-    #     be used by embedders that need to build their own code as debug
-    #     but don't want or need a debug version of V8. This should produce
-    #     near-release speeds.
+    # 1 - Turn on optimizations and disable slow DCHECKs, but leave
+    #     V8_ENABLE_CHECKS and most other assertions enabled.  This may cause
+    #     some v8 tests to fail in the Debug configuration.  This roughly
+    #     matches the performance of a Release build and can be used by
+    #     embedders that need to build their own code as debug but don't want
+    #     or need a debug version of V8. This should produce near-release
+    #     speeds.
     'v8_optimized_debug%': 0,
 
     # Use external files for startup data blobs:
@@ -118,13 +130,23 @@
       }, {
         'os_posix%': 1,
       }],
+      ['OS=="win" and use_goma==1', {
+        # goma doesn't support pch yet.
+        'chromium_win_pch': 0,
+        # goma doesn't support PDB yet, so win_z7=1 or fastbuild=1.
+        'conditions': [
+          ['win_z7==0 and fastbuild==0', {
+            'fastbuild': 1,
+          }],
+        ],
+      }],
       ['(v8_target_arch=="ia32" or v8_target_arch=="x64" or v8_target_arch=="x87") and \
         (OS=="linux" or OS=="mac")', {
         'v8_enable_gdbjit%': 1,
       }, {
         'v8_enable_gdbjit%': 0,
       }],
-      ['OS=="mac"', {
+      ['(OS=="linux" or OS=="mac") and (target_arch=="ia32" or target_arch=="x64")', {
         'clang%': 1,
       }, {
         'clang%': 0,
@@ -161,10 +183,13 @@
               '_GLIBCXX_DEBUG'
             ],
           }],
+          [ 'OS=="aix"', {
+            'cflags': [ '-gxcoff' ],
+          }],
         ],
       },
       'Optdebug': {
-        'inherit_from': [ 'DebugBaseCommon', 'DebugBase2' ],
+        'inherit_from': [ 'DebugBaseCommon', 'DebugBase1' ],
       },
       'Debug': {
         # Xcode insists on this empty entry.
@@ -201,7 +226,7 @@
     ],
   },
   'conditions': [
-    ['asan==1', {
+    ['asan==1 and OS!="mac"', {
       'target_defaults': {
         'cflags_cc+': [
           '-fno-omit-frame-pointer',
@@ -209,7 +234,7 @@
           '-fsanitize=address',
           '-w',  # http://crbug.com/162783
         ],
-        'cflags_cc!': [
+        'cflags!': [
           '-fomit-frame-pointer',
         ],
         'ldflags': [
@@ -217,7 +242,7 @@
         ],
       },
     }],
-    ['tsan==1', {
+    ['tsan==1 and OS!="mac"', {
       'target_defaults': {
         'cflags+': [
           '-fno-omit-frame-pointer',
@@ -238,8 +263,31 @@
         ],
       },
     }],
+    ['asan==1 and OS=="mac"', {
+      'target_defaults': {
+        'xcode_settings': {
+          'OTHER_CFLAGS+': [
+            '-fno-omit-frame-pointer',
+            '-gline-tables-only',
+            '-fsanitize=address',
+            '-w',  # http://crbug.com/162783
+          ],
+          'OTHER_CFLAGS!': [
+            '-fomit-frame-pointer',
+          ],
+        },
+        'target_conditions': [
+          ['_type!="static_library"', {
+            'xcode_settings': {'OTHER_LDFLAGS': ['-fsanitize=address']},
+          }],
+        ],
+        'dependencies': [
+          '<(DEPTH)/build/mac/asan.gyp:asan_dynamic_runtime',
+        ],
+      },
+    }],
     ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
-       or OS=="netbsd"', {
+       or OS=="netbsd" or OS=="aix"', {
       'target_defaults': {
         'cflags': [
           '-Wall',
@@ -256,6 +304,9 @@
         'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti', '-std=gnu++0x' ],
         'ldflags': [ '-pthread', ],
         'conditions': [
+          [ 'host_arch=="ppc64"', {
+            'cflags': [ '-mminimal-toc' ],
+          }],
           [ 'visibility=="hidden" and v8_enable_backtrace==0', {
             'cflags': [ '-fvisibility=hidden' ],
           }],
@@ -442,10 +493,19 @@
       },  # target_defaults
     }],  # OS=="mac"
     ['clang==1 and ((OS!="mac" and OS!="ios") or clang_xcode==0) '
-        'and OS!="win"', {
+        'and OS!="win" and "<(GENERATOR)"=="make"', {
       'make_global_settings': [
-        ['CC', '<(make_clang_dir)/bin/clang'],
-        ['CXX', '<(make_clang_dir)/bin/clang++'],
+        ['CC', '../<(clang_dir)/bin/clang'],
+        ['CXX', '../<(clang_dir)/bin/clang++'],
+        ['CC.host', '$(CC)'],
+        ['CXX.host', '$(CXX)'],
+      ],
+    }],
+    ['clang==1 and ((OS!="mac" and OS!="ios") or clang_xcode==0) '
+        'and OS!="win" and "<(GENERATOR)"=="ninja"', {
+      'make_global_settings': [
+        ['CC', '<(clang_dir)/bin/clang'],
+        ['CXX', '<(clang_dir)/bin/clang++'],
         ['CC.host', '$(CC)'],
         ['CXX.host', '$(CXX)'],
       ],
@@ -453,7 +513,18 @@
     ['clang==1 and OS=="win"', {
       'make_global_settings': [
         # On Windows, gyp's ninja generator only looks at CC.
-        ['CC', '<(make_clang_dir)/bin/clang-cl'],
+        ['CC', '../<(clang_dir)/bin/clang-cl'],
+      ],
+    }],
+    # TODO(yyanagisawa): supports GENERATOR==make
+    #  make generator doesn't support CC_wrapper without CC
+    #  in make_global_settings yet.
+    ['use_goma==1 and ("<(GENERATOR)"=="ninja" or clang==1)', {
+      'make_global_settings': [
+       ['CC_wrapper', '<(gomadir)/gomacc'],
+       ['CXX_wrapper', '<(gomadir)/gomacc'],
+       ['CC.host_wrapper', '<(gomadir)/gomacc'],
+       ['CXX.host_wrapper', '<(gomadir)/gomacc'],
       ],
     }],
   ],

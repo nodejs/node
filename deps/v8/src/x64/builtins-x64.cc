@@ -99,6 +99,41 @@ void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
 }
 
 
+static void Generate_Runtime_NewObject(MacroAssembler* masm,
+                                       bool create_memento,
+                                       Register original_constructor,
+                                       Label* count_incremented,
+                                       Label* allocated) {
+  int offset = 0;
+  if (create_memento) {
+    // Get the cell or allocation site.
+    __ movp(rdi, Operand(rsp, kPointerSize * 2));
+    __ Push(rdi);
+    offset = kPointerSize;
+  }
+
+  // Must restore rsi (context) and rdi (constructor) before calling runtime.
+  __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+  __ movp(rdi, Operand(rsp, offset));
+  __ Push(rdi);
+  __ Push(original_constructor);
+  if (create_memento) {
+    __ CallRuntime(Runtime::kNewObjectWithAllocationSite, 3);
+  } else {
+    __ CallRuntime(Runtime::kNewObject, 2);
+  }
+  __ movp(rbx, rax);  // store result in rbx
+
+  // Runtime_NewObjectWithAllocationSite increments allocation count.
+  // Skip the increment.
+  if (create_memento) {
+    __ jmp(count_incremented);
+  } else {
+    __ jmp(allocated);
+  }
+}
+
+
 static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                                            bool is_api_function,
                                            bool create_memento) {
@@ -106,6 +141,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   //  -- rax: number of arguments
   //  -- rdi: constructor function
   //  -- rbx: allocation site or undefined
+  //  -- rdx: original constructor
   // -----------------------------------
 
   // Should never create mementos for api functions.
@@ -127,9 +163,16 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // Push the function to invoke on the stack.
     __ Push(rdi);
 
+    Label rt_call, normal_new, allocated, count_incremented;
+    __ cmpp(rdx, rdi);
+    __ j(equal, &normal_new);
+
+    Generate_Runtime_NewObject(masm, create_memento, rdx, &count_incremented,
+                               &allocated);
+
+    __ bind(&normal_new);
     // Try to allocate the object without transitioning into C code. If any of
     // the preconditions is not met, the code bails out to the runtime call.
-    Label rt_call, allocated;
     if (FLAG_inline_new) {
       Label undo_allocation;
 
@@ -345,32 +388,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // Allocate the new receiver object using the runtime call.
     // rdi: function (constructor)
     __ bind(&rt_call);
-    int offset = 0;
-    if (create_memento) {
-      // Get the cell or allocation site.
-      __ movp(rdi, Operand(rsp, kPointerSize*2));
-      __ Push(rdi);
-      offset = kPointerSize;
-    }
-
-    // Must restore rsi (context) and rdi (constructor) before calling runtime.
-    __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
-    __ movp(rdi, Operand(rsp, offset));
-    __ Push(rdi);
-    if (create_memento) {
-      __ CallRuntime(Runtime::kNewObjectWithAllocationSite, 2);
-    } else {
-      __ CallRuntime(Runtime::kNewObject, 1);
-    }
-    __ movp(rbx, rax);  // store result in rbx
-
-    // If we ended up using the runtime, and we want a memento, then the
-    // runtime call made it for us, and we shouldn't do create count
-    // increment.
-    Label count_incremented;
-    if (create_memento) {
-      __ jmp(&count_incremented);
-    }
+    Generate_Runtime_NewObject(masm, create_memento, rdi, &count_incremented,
+                               &allocated);
 
     // New object allocated.
     // rbx: newly allocated object
@@ -476,6 +495,81 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
 void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
   Generate_JSConstructStubHelper(masm, true, false);
+}
+
+
+void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax: number of arguments
+  //  -- rdi: constructor function
+  //  -- rbx: allocation site or undefined
+  //  -- rdx: original constructor
+  // -----------------------------------
+  // TODO(dslomov): support pretenuring
+  CHECK(!FLAG_pretenuring_call_new);
+
+  {
+    FrameScope frame_scope(masm, StackFrame::CONSTRUCT);
+
+    // Store a smi-tagged arguments count on the stack.
+    __ Integer32ToSmi(rax, rax);
+    __ Push(rax);
+    __ SmiToInteger32(rax, rax);
+
+    // Push new.target
+    __ Push(rdx);
+
+    // receiver is the hole.
+    __ Push(masm->isolate()->factory()->the_hole_value());
+
+    // Set up pointer to last argument.
+    __ leap(rbx, Operand(rbp, StandardFrameConstants::kCallerSPOffset));
+
+    // Copy arguments and receiver to the expression stack.
+    Label loop, entry;
+    __ movp(rcx, rax);
+    __ jmp(&entry);
+    __ bind(&loop);
+    __ Push(Operand(rbx, rcx, times_pointer_size, 0));
+    __ bind(&entry);
+    __ decp(rcx);
+    __ j(greater_equal, &loop);
+
+    __ incp(rax);  // Pushed new.target.
+
+    // Handle step in.
+    Label skip_step_in;
+    ExternalReference debug_step_in_fp =
+        ExternalReference::debug_step_in_fp_address(masm->isolate());
+    __ Move(kScratchRegister, debug_step_in_fp);
+    __ cmpp(Operand(kScratchRegister, 0), Immediate(0));
+    __ j(equal, &skip_step_in);
+
+    __ Push(rax);
+    __ Push(rdi);
+    __ Push(rdi);
+    __ CallRuntime(Runtime::kHandleStepInForDerivedConstructors, 1);
+    __ Pop(rdi);
+    __ Pop(rax);
+
+    __ bind(&skip_step_in);
+
+    // Call the function.
+    ParameterCount actual(rax);
+    __ InvokeFunction(rdi, actual, CALL_FUNCTION, NullCallWrapper());
+
+    // Restore context from the frame.
+    __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+
+    __ movp(rbx, Operand(rsp, 0));  // Get arguments count.
+  }                                 // Leave construct frame.
+
+  // Remove caller arguments from the stack and return.
+  __ PopReturnAddressTo(rcx);
+  SmiIndex index = masm->SmiToIndex(rbx, rbx, kPointerSizeLog2);
+  __ leap(rsp, Operand(rsp, index.reg, index.scale, 1 * kPointerSize));
+  __ PushReturnAddressFrom(rcx);
+  __ ret(0);
 }
 
 
@@ -1178,6 +1272,7 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
     __ Check(equal, kUnexpectedInitialMapForArrayFunction);
   }
 
+  __ movp(rdx, rdi);
   // Run the native code for the Array function called as a normal function.
   // tail call a stub
   __ LoadRoot(rbx, Heap::kUndefinedValueRootIndex);

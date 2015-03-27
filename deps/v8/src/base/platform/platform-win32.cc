@@ -1162,11 +1162,6 @@ void OS::SignalCodeMovingGC() { }
 #endif  // __MINGW32__
 
 
-double OS::nan_value() {
-  return std::numeric_limits<double>::quiet_NaN();
-}
-
-
 int OS::ActivationFrameAlignment() {
 #ifdef _WIN64
   return 16;  // Windows 64-bit ABI requires the stack to be 16-byte aligned.

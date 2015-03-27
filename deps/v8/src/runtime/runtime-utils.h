@@ -70,13 +70,12 @@ namespace internal {
   PropertyDetails name = PropertyDetails(Smi::cast(args[index]));
 
 
-// Assert that the given argument has a valid value for a StrictMode
-// and store it in a StrictMode variable with the given name.
-#define CONVERT_STRICT_MODE_ARG_CHECKED(name, index) \
-  RUNTIME_ASSERT(args[index]->IsSmi());              \
-  RUNTIME_ASSERT(args.smi_at(index) == STRICT ||     \
-                 args.smi_at(index) == SLOPPY);      \
-  StrictMode name = static_cast<StrictMode>(args.smi_at(index));
+// Assert that the given argument has a valid value for a LanguageMode
+// and store it in a LanguageMode variable with the given name.
+#define CONVERT_LANGUAGE_MODE_ARG_CHECKED(name, index)        \
+  RUNTIME_ASSERT(args[index]->IsSmi());                       \
+  RUNTIME_ASSERT(is_valid_language_mode(args.smi_at(index))); \
+  LanguageMode name = static_cast<LanguageMode>(args.smi_at(index));
 
 
 // Assert that the given argument is a number within the Int32 range
@@ -86,6 +85,16 @@ namespace internal {
   RUNTIME_ASSERT(args[index]->IsNumber());     \
   int32_t name = 0;                            \
   RUNTIME_ASSERT(args[index]->ToInt32(&name));
+
+
+// Cast the given argument to PropertyAttributes and store its value in a
+// variable with the given name.  If the argument is not a Smi call or the
+// enum value is out of range, call IllegalOperation and return.
+#define CONVERT_PROPERTY_ATTRIBUTES_CHECKED(name, index)                   \
+  RUNTIME_ASSERT(args[index]->IsSmi());                                    \
+  RUNTIME_ASSERT(                                                          \
+      (args.smi_at(index) & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0); \
+  PropertyAttributes name = static_cast<PropertyAttributes>(args.smi_at(index));
 
 
 // A mechanism to return a pair of Object pointers in registers (if possible).

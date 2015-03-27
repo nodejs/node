@@ -75,6 +75,7 @@ var tickProcessor = new TickProcessor(
   snapshotLogProcessor,
   params.distortion,
   params.range,
-  sourceMap);
+  sourceMap,
+  params.timedRange);
 tickProcessor.processLogFile(params.logFileName);
 tickProcessor.printStatistics();

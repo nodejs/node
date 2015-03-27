@@ -96,9 +96,9 @@ if (extension_gc_script) {
 }
 
 // Test a normal script.
-var mjsunit_js_script = Debug.findScript(/mjsunit.js/);
-assertTrue(/mjsunit.js/.test(mjsunit_js_script.name));
-assertEquals(Debug.ScriptType.Normal, mjsunit_js_script.type);
+var debug_script = Debug.findScript(/debug-script.js/);
+assertTrue(/debug-script.js/.test(debug_script.name));
+assertEquals(Debug.ScriptType.Normal, debug_script.type);
 
 // Check a nonexistent script.
 var dummy_script = Debug.findScript('dummy.js');

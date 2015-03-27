@@ -9,10 +9,11 @@
 #include "src/compiler/control-builders.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/graph-visualizer.h"
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/representation-change.h"
 #include "src/compiler/simplified-lowering.h"
+#include "src/compiler/source-position.h"
 #include "src/compiler/typer.h"
 #include "src/compiler/verifier.h"
 #include "src/execution.h"
@@ -36,14 +37,17 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
                            MachineType p3 = kMachNone,
                            MachineType p4 = kMachNone)
       : GraphBuilderTester<ReturnType>(p0, p1, p2, p3, p4),
-        typer(this->graph(), MaybeHandle<Context>()),
+        typer(this->isolate(), this->graph(), MaybeHandle<Context>()),
         javascript(this->zone()),
-        jsgraph(this->graph(), this->common(), &javascript, this->machine()),
-        lowering(&jsgraph, this->zone()) {}
+        jsgraph(this->isolate(), this->graph(), this->common(), &javascript,
+                this->machine()),
+        source_positions(jsgraph.graph()),
+        lowering(&jsgraph, this->zone(), &source_positions) {}
 
   Typer typer;
   JSOperatorBuilder javascript;
   JSGraph jsgraph;
+  SourcePositionTable source_positions;
   SimplifiedLowering lowering;
 
   void LowerAllNodes() {
@@ -57,11 +61,7 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
     typer.Run();
     lowering.LowerAllNodes();
 
-    Zone* zone = this->zone();
-    CompilationInfo info(zone->isolate(), zone);
-    Linkage linkage(
-        zone, Linkage::GetSimplifiedCDescriptor(zone, this->machine_sig_));
-    ChangeLowering lowering(&jsgraph, &linkage);
+    ChangeLowering lowering(&jsgraph);
     GraphReducer reducer(this->graph(), this->zone());
     reducer.AddReducer(&lowering);
     reducer.ReduceGraph();
@@ -666,9 +666,9 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
   explicit TestingGraph(Type* p0_type, Type* p1_type = Type::None(),
                         Type* p2_type = Type::None())
       : GraphAndBuilders(main_zone()),
-        typer(graph(), MaybeHandle<Context>()),
+        typer(main_isolate(), graph(), MaybeHandle<Context>()),
         javascript(main_zone()),
-        jsgraph(graph(), common(), &javascript, machine()) {
+        jsgraph(main_isolate(), graph(), common(), &javascript, machine()) {
     start = graph()->NewNode(common()->Start(2));
     graph()->SetStart(start);
     ret =
@@ -698,7 +698,10 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
     CHECK_EQ(expected, node->opcode());
   }
 
-  void Lower() { SimplifiedLowering(&jsgraph, jsgraph.zone()).LowerAllNodes(); }
+  void Lower() {
+    SourcePositionTable table(jsgraph.graph());
+    SimplifiedLowering(&jsgraph, jsgraph.zone(), &table).LowerAllNodes();
+  }
 
   // Inserts the node as the return value of the graph.
   Node* Return(Node* node) {
@@ -785,31 +788,6 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
   CommonOperatorBuilder* common() { return &main_common_; }
   Graph* graph() { return main_graph_; }
 };
-
-
-TEST(LowerAnyToBoolean_bit_bit) {
-  // AnyToBoolean(x: kRepBit) used as kRepBit
-  HandleAndZoneScope scope;
-  Factory* f = scope.main_zone()->isolate()->factory();
-  Handle<Object> zero = f->NewNumber(0);
-  Handle<Object> one = f->NewNumber(1);
-  Type* singleton_zero = Type::Constant(zero, scope.main_zone());
-  Type* singleton_one = Type::Constant(one, scope.main_zone());
-  Type* zero_one_range = Type::Range(zero, one, scope.main_zone());
-  static Type* kTypes[] = {
-      singleton_zero, singleton_one, zero_one_range, Type::Boolean(),
-      Type::Union(Type::Boolean(), singleton_zero, scope.main_zone()),
-      Type::Union(Type::Boolean(), singleton_one, scope.main_zone()),
-      Type::Union(Type::Boolean(), zero_one_range, scope.main_zone())};
-  for (Type* type : kTypes) {
-    TestingGraph t(type);
-    Node* x = t.ExampleWithTypeAndRep(type, kRepBit);
-    Node* cnv = t.graph()->NewNode(t.simplified()->AnyToBoolean(), x);
-    Node* use = t.Branch(cnv);
-    t.Lower();
-    CHECK_EQ(x, use->InputAt(0));
-  }
-}
 
 
 #if V8_TURBOFAN_TARGET
@@ -996,11 +974,8 @@ TEST(LowerNumberCmp_to_float64) {
 
 TEST(LowerNumberAddSub_to_int32) {
   HandleAndZoneScope scope;
-  Factory* f = scope.main_zone()->isolate()->factory();
-  Type* small_range =
-      Type::Range(f->NewNumber(1), f->NewNumber(10), scope.main_zone());
-  Type* large_range =
-      Type::Range(f->NewNumber(-1e+13), f->NewNumber(1e+14), scope.main_zone());
+  Type* small_range = Type::Range(1, 10, scope.main_zone());
+  Type* large_range = Type::Range(-1e+13, 1e+14, scope.main_zone());
   static Type* types[] = {Type::Signed32(), Type::Integral32(), small_range,
                           large_range};
 
@@ -1020,11 +995,8 @@ TEST(LowerNumberAddSub_to_int32) {
 
 TEST(LowerNumberAddSub_to_uint32) {
   HandleAndZoneScope scope;
-  Factory* f = scope.main_zone()->isolate()->factory();
-  Type* small_range =
-      Type::Range(f->NewNumber(1), f->NewNumber(10), scope.main_zone());
-  Type* large_range =
-      Type::Range(f->NewNumber(-1e+13), f->NewNumber(1e+14), scope.main_zone());
+  Type* small_range = Type::Range(1, 10, scope.main_zone());
+  Type* large_range = Type::Range(-1e+13, 1e+14, scope.main_zone());
   static Type* types[] = {Type::Signed32(), Type::Integral32(), small_range,
                           large_range};
 

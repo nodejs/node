@@ -67,7 +67,8 @@ class KangarooThread : public v8::base::Thread {
     {
       v8::Locker locker(isolate_);
       v8::Isolate::Scope isolate_scope(isolate_);
-      CHECK_EQ(isolate_, v8::internal::Isolate::Current());
+      CHECK_EQ(reinterpret_cast<v8::internal::Isolate*>(isolate_),
+               v8::internal::Isolate::Current());
       v8::HandleScope scope(isolate_);
       v8::Local<v8::Context> context =
           v8::Local<v8::Context>::New(isolate_, context_);
@@ -106,7 +107,8 @@ TEST(KangarooIsolates) {
     v8::HandleScope handle_scope(isolate);
     v8::Local<v8::Context> context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(context);
-    CHECK_EQ(isolate, v8::internal::Isolate::Current());
+    CHECK_EQ(reinterpret_cast<v8::internal::Isolate*>(isolate),
+             v8::internal::Isolate::Current());
     CompileRun("function getValue() { return 30; }");
     thread1.Reset(new KangarooThread(isolate, context));
   }
@@ -184,7 +186,8 @@ class IsolateLockingThreadWithLocalContext : public JoinableThread {
     v8::Isolate::Scope isolate_scope(isolate_);
     v8::HandleScope handle_scope(isolate_);
     LocalContext local_context(isolate_);
-    CHECK_EQ(isolate_, v8::internal::Isolate::Current());
+    CHECK_EQ(reinterpret_cast<v8::internal::Isolate*>(isolate_),
+             v8::internal::Isolate::Current());
     CalcFibAndCheck();
   }
  private:
@@ -219,42 +222,6 @@ TEST(IsolateLockingStress) {
   }
   StartJoinAndDeleteThreads(threads);
   isolate->Dispose();
-}
-
-class IsolateNonlockingThread : public JoinableThread {
- public:
-  IsolateNonlockingThread() : JoinableThread("IsolateNonlockingThread") {}
-
-  virtual void Run() {
-    v8::Isolate* isolate = v8::Isolate::New();
-    {
-      v8::Isolate::Scope isolate_scope(isolate);
-      v8::HandleScope handle_scope(isolate);
-      v8::Handle<v8::Context> context = v8::Context::New(isolate);
-      v8::Context::Scope context_scope(context);
-      CHECK_EQ(isolate, v8::internal::Isolate::Current());
-      CalcFibAndCheck();
-    }
-    isolate->Dispose();
-  }
- private:
-};
-
-
-// Run many threads each accessing its own isolate without locking
-TEST(MultithreadedParallelIsolates) {
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
-  const int kNThreads = 10;
-#elif V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
-  const int kNThreads = 4;
-#else
-  const int kNThreads = 50;
-#endif
-  i::List<JoinableThread*> threads(kNThreads);
-  for (int i = 0; i < kNThreads; i++) {
-    threads.Add(new IsolateNonlockingThread());
-  }
-  StartJoinAndDeleteThreads(threads);
 }
 
 

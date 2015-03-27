@@ -6,6 +6,7 @@
 
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/graph-builder-tester.h"
 #include "test/cctest/compiler/value-helper.h"
 
@@ -25,7 +26,8 @@ class RepresentationChangerTester : public HandleAndZoneScope,
   explicit RepresentationChangerTester(int num_parameters = 0)
       : GraphAndBuilders(main_zone()),
         javascript_(main_zone()),
-        jsgraph_(main_graph_, &main_common_, &javascript_, &main_machine_),
+        jsgraph_(main_isolate(), main_graph_, &main_common_, &javascript_,
+                 &main_machine_),
         changer_(&jsgraph_, &main_simplified_, main_isolate()) {
     Node* s = graph()->NewNode(common()->Start(num_parameters));
     graph()->SetStart(s);
@@ -57,7 +59,7 @@ class RepresentationChangerTester : public HandleAndZoneScope,
   void CheckFloat64Constant(Node* n, double expected) {
     Float64Matcher m(n);
     CHECK(m.HasValue());
-    CHECK_EQ(expected, m.Value());
+    CheckDoubleEq(expected, m.Value());
   }
 
   void CheckFloat32Constant(Node* n, float expected) {
@@ -76,7 +78,7 @@ class RepresentationChangerTester : public HandleAndZoneScope,
     NumberMatcher m(n);
     CHECK_EQ(IrOpcode::kNumberConstant, n->opcode());
     CHECK(m.HasValue());
-    CHECK_EQ(expected, m.Value());
+    CheckDoubleEq(expected, m.Value());
   }
 
   Node* Parameter(int index = 0) {
@@ -480,12 +482,6 @@ TEST(Nops) {
   r.CheckNop(kRepFloat32 | kTypeNumber, kRepFloat32);
   r.CheckNop(kRepFloat32, kRepFloat32 | kTypeNumber);
 
-  // 32-bit or 64-bit words can be used as branch conditions (kRepBit).
-  r.CheckNop(kRepWord32, kRepBit);
-  r.CheckNop(kRepWord32, kRepBit | kTypeBool);
-  r.CheckNop(kRepWord64, kRepBit);
-  r.CheckNop(kRepWord64, kRepBit | kTypeBool);
-
   // 32-bit words can be used as smaller word sizes and vice versa, because
   // loads from memory implicitly sign or zero extend the value to the
   // full machine word size, and stores implicitly truncate.
@@ -509,6 +505,16 @@ TEST(Nops) {
 
 TEST(TypeErrors) {
   RepresentationChangerTester r;
+
+  // Wordish cannot be implicitly converted to/from comparison conditions.
+  r.CheckTypeError(kRepWord8, kRepBit);
+  r.CheckTypeError(kRepWord8, kRepBit | kTypeBool);
+  r.CheckTypeError(kRepWord16, kRepBit);
+  r.CheckTypeError(kRepWord16, kRepBit | kTypeBool);
+  r.CheckTypeError(kRepWord32, kRepBit);
+  r.CheckTypeError(kRepWord32, kRepBit | kTypeBool);
+  r.CheckTypeError(kRepWord64, kRepBit);
+  r.CheckTypeError(kRepWord64, kRepBit | kTypeBool);
 
   // Floats cannot be implicitly converted to/from comparison conditions.
   r.CheckTypeError(kRepFloat64, kRepBit);

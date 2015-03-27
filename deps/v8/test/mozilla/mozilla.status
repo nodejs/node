@@ -56,7 +56,6 @@
   # TODO(turbofan): These are all covered by mjsunit as well. Enable them once
   # we pass 'mjsunit' and 'webkit' with TurboFan.
   'js1_4/Functions/function-001': [PASS, NO_VARIANTS],
-  'js1_5/Regress/regress-396684': [PASS, NO_VARIANTS],
   'js1_5/Regress/regress-80981': [PASS, NO_VARIANTS],
 
   # TODO(turbofan): Large switch statements crash.
@@ -390,7 +389,6 @@
   'js1_5/LexicalConventions/regress-469940': [FAIL_OK],
   'js1_5/Exceptions/regress-332472': [FAIL_OK],
   'js1_5/Regress/regress-173067': [FAIL_OK],
-  'js1_5/Regress/regress-355556': [FAIL_OK],
   'js1_5/Regress/regress-328664': [FAIL_OK],
   'js1_5/Regress/regress-252892': [FAIL_OK],
   'js1_5/Regress/regress-352208': [FAIL_OK],
@@ -872,9 +870,14 @@
   'js1_5/GC/regress-203278-2': [PASS, TIMEOUT, NO_VARIANTS],
 }],  # 'arch == mipsel or arch == mips64el'
 
+['arch == mipsel and simulator_run == True', {
+  # Crashes due to C stack overflow.
+  'js1_5/extensions/regress-355497': [SKIP],
+}], # 'arch == mipsel and simulator_run == True'
+
 ['arch == mips64el and simulator_run == True', {
   'js1_5/extensions/regress-355497': [FAIL_OK, 'Flags: --sim-stack-size=512'],
-}],
+}], # 'arch == mips64el and simulator_run == True'
 
 ['arch == mips', {
 
@@ -894,6 +897,12 @@
   # BUG(1040): Allow this test to timeout.
   'js1_5/GC/regress-203278-2': [PASS, TIMEOUT, NO_VARIANTS],
 }],  # 'arch == mips'
+
+['arch == arm and simulator_run == True', {
+
+  #BUG(3837): Crashes due to C stack overflow.
+  'js1_5/extensions/regress-355497': [SKIP],
+}],  # 'arch == arm and simulator_run == True'
 
 ['arch == arm64 and simulator_run == True', {
 

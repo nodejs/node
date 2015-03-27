@@ -5,8 +5,6 @@
 #ifndef V8_COMPILER_FRAME_H_
 #define V8_COMPILER_FRAME_H_
 
-#include "src/v8.h"
-
 #include "src/bit-vector.h"
 
 namespace v8 {
@@ -23,6 +21,7 @@ class Frame : public ZoneObject {
       : register_save_area_size_(0),
         spill_slot_count_(0),
         double_spill_slot_count_(0),
+        osr_stack_slot_count_(0),
         allocated_registers_(NULL),
         allocated_double_registers_(NULL) {}
 
@@ -50,6 +49,14 @@ class Frame : public ZoneObject {
 
   int GetRegisterSaveAreaSize() { return register_save_area_size_; }
 
+  // OSR stack slots, including locals and expression stack slots.
+  void SetOsrStackSlotCount(int slots) {
+    DCHECK(slots >= 0);
+    osr_stack_slot_count_ = slots;
+  }
+
+  int GetOsrStackSlotCount() { return osr_stack_slot_count_; }
+
   int AllocateSpillSlot(bool is_double) {
     // If 32-bit, skip one if the new slot is a double.
     if (is_double) {
@@ -63,10 +70,16 @@ class Frame : public ZoneObject {
     return spill_slot_count_++;
   }
 
+  void ReserveSpillSlots(size_t slot_count) {
+    DCHECK_EQ(0, spill_slot_count_);  // can only reserve before allocation.
+    spill_slot_count_ = static_cast<int>(slot_count);
+  }
+
  private:
   int register_save_area_size_;
   int spill_slot_count_;
   int double_spill_slot_count_;
+  int osr_stack_slot_count_;
   BitVector* allocated_registers_;
   BitVector* allocated_double_registers_;
 

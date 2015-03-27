@@ -25,7 +25,7 @@ char const* const kMnemonics[] = {
 
 // static
 char const* IrOpcode::Mnemonic(Value value) {
-  size_t const n = std::max<size_t>(value, arraysize(kMnemonics) - 1);
+  size_t const n = std::min<size_t>(value, arraysize(kMnemonics) - 1);
   return kMnemonics[n];
 }
 

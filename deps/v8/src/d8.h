@@ -248,14 +248,16 @@ class Shell : public i::AllStatic {
 #endif  // V8_SHARED
 
  public:
-  static Local<UnboundScript> CompileString(
+  enum SourceType { SCRIPT, MODULE };
+
+  static Local<Script> CompileString(
       Isolate* isolate, Local<String> source, Local<Value> name,
-      v8::ScriptCompiler::CompileOptions compile_options);
-  static bool ExecuteString(Isolate* isolate,
-                            Handle<String> source,
-                            Handle<Value> name,
-                            bool print_result,
-                            bool report_exceptions);
+      v8::ScriptCompiler::CompileOptions compile_options,
+      SourceType source_type);
+  static bool ExecuteString(Isolate* isolate, Handle<String> source,
+                            Handle<Value> name, bool print_result,
+                            bool report_exceptions,
+                            SourceType source_type = SCRIPT);
   static const char* ToCString(const v8::String::Utf8Value& value);
   static void ReportException(Isolate* isolate, TryCatch* try_catch);
   static Handle<String> ReadFile(Isolate* isolate, const char* name);

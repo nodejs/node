@@ -20,7 +20,7 @@ class TestCode : public HandleAndZoneScope {
   TestCode()
       : HandleAndZoneScope(),
         blocks_(main_zone()),
-        sequence_(main_zone(), &blocks_),
+        sequence_(main_isolate(), main_zone(), &blocks_),
         rpo_number_(RpoNumber::FromInt(0)),
         current_(NULL) {}
 
@@ -31,7 +31,7 @@ class TestCode : public HandleAndZoneScope {
 
   int Jump(int target) {
     Start();
-    InstructionOperand* ops[] = {UseRpo(target)};
+    InstructionOperand ops[] = {UseRpo(target)};
     sequence_.AddInstruction(Instruction::New(main_zone(), kArchJmp, 0, NULL, 1,
                                               ops, 0, NULL)->MarkAsControl());
     int pos = static_cast<int>(sequence_.instructions().size() - 1);
@@ -44,7 +44,7 @@ class TestCode : public HandleAndZoneScope {
   }
   int Branch(int ttarget, int ftarget) {
     Start();
-    InstructionOperand* ops[] = {UseRpo(ttarget), UseRpo(ftarget)};
+    InstructionOperand ops[] = {UseRpo(ttarget), UseRpo(ftarget)};
     InstructionCode code = 119 | FlagsModeField::encode(kFlags_branch) |
                            FlagsConditionField::encode(kEqual);
     sequence_.AddInstruction(Instruction::New(main_zone(), code, 0, NULL, 2,
@@ -60,16 +60,16 @@ class TestCode : public HandleAndZoneScope {
   void RedundantMoves() {
     Start();
     sequence_.AddInstruction(Instruction::New(main_zone(), kArchNop));
-    int index = static_cast<int>(sequence_.instructions().size()) - 1;
-    sequence_.AddGapMove(index, RegisterOperand::Create(13, main_zone()),
-                         RegisterOperand::Create(13, main_zone()));
+    int index = static_cast<int>(sequence_.instructions().size()) - 2;
+    sequence_.AddGapMove(index, RegisterOperand::New(13, main_zone()),
+                         RegisterOperand::New(13, main_zone()));
   }
   void NonRedundantMoves() {
     Start();
     sequence_.AddInstruction(Instruction::New(main_zone(), kArchNop));
-    int index = static_cast<int>(sequence_.instructions().size()) - 1;
-    sequence_.AddGapMove(index, ImmediateOperand::Create(11, main_zone()),
-                         RegisterOperand::Create(11, main_zone()));
+    int index = static_cast<int>(sequence_.instructions().size()) - 2;
+    sequence_.AddGapMove(index, ImmediateOperand::New(11, main_zone()),
+                         RegisterOperand::New(11, main_zone()));
   }
   void Other() {
     Start();
@@ -81,9 +81,9 @@ class TestCode : public HandleAndZoneScope {
     current_ = NULL;
     rpo_number_ = RpoNumber::FromInt(rpo_number_.ToInt() + 1);
   }
-  InstructionOperand* UseRpo(int num) {
+  InstructionOperand UseRpo(int num) {
     int index = sequence_.AddImmediate(Constant(RpoNumber::FromInt(num)));
-    return ImmediateOperand::Create(index, main_zone());
+    return ImmediateOperand(index);
   }
   void Start(bool deferred = false) {
     if (current_ == NULL) {
@@ -102,7 +102,7 @@ class TestCode : public HandleAndZoneScope {
 
 
 void VerifyForwarding(TestCode& code, int count, int* expected) {
-  Zone local_zone(code.main_isolate());
+  Zone local_zone;
   ZoneVector<RpoNumber> result(&local_zone);
   JumpThreading::ComputeForwarding(&local_zone, result, &code.sequence_);
 

@@ -228,7 +228,8 @@ const char* DwVfpRegister::AllocationIndexToString(int index) {
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo
 
-const int RelocInfo::kApplyMask = 0;
+// static
+const int RelocInfo::kApplyMask = 1 << RelocInfo::INTERNAL_REFERENCE;
 
 
 bool RelocInfo::IsCodedSpecially() {
@@ -491,6 +492,7 @@ Assembler::~Assembler() {
 
 
 void Assembler::GetCode(CodeDesc* desc) {
+  reloc_info_writer.Finish();
   if (!FLAG_enable_ool_constant_pool) {
     // Emit constant pool if necessary.
     CheckConstPool(true, false);
@@ -796,14 +798,20 @@ int Assembler::target_at(int pos) {
     // Emitted link to a label, not part of a branch.
     return instr;
   }
-  DCHECK((instr & 7*B25) == 5*B25);  // b, bl, or blx imm24
-  int imm26 = ((instr & kImm24Mask) << 8) >> 6;
-  if ((Instruction::ConditionField(instr) == kSpecialCondition) &&
-      ((instr & B24) != 0)) {
-    // blx uses bit 24 to encode bit 2 of imm26
-    imm26 += 2;
+  if ((instr & 7 * B25) == 5 * B25) {
+    int imm26 = ((instr & kImm24Mask) << 8) >> 6;
+    // b, bl, or blx imm24
+    if ((Instruction::ConditionField(instr) == kSpecialCondition) &&
+        ((instr & B24) != 0)) {
+      // blx uses bit 24 to encode bit 2 of imm26
+      imm26 += 2;
+    }
+    return pos + kPcLoadDelta + imm26;
   }
-  return pos + kPcLoadDelta + imm26;
+  // Internal reference to the label.
+  DCHECK_EQ(7 * B25 | 1 * B0, instr & (7 * B25 | 1 * B0));
+  int imm26 = (((instr >> 1) & kImm24Mask) << 8) >> 6;
+  return pos + imm26;
 }
 
 
@@ -877,19 +885,25 @@ void Assembler::target_at_put(int pos, int target_pos) {
     }
     return;
   }
-  int imm26 = target_pos - (pos + kPcLoadDelta);
-  DCHECK((instr & 7*B25) == 5*B25);  // b, bl, or blx imm24
-  if (Instruction::ConditionField(instr) == kSpecialCondition) {
-    // blx uses bit 24 to encode bit 2 of imm26
-    DCHECK((imm26 & 1) == 0);
-    instr = (instr & ~(B24 | kImm24Mask)) | ((imm26 & 2) >> 1)*B24;
-  } else {
-    DCHECK((imm26 & 3) == 0);
-    instr &= ~kImm24Mask;
+  if ((instr & 7 * B25) == 5 * B25) {
+    // b, bl, or blx imm24
+    int imm26 = target_pos - (pos + kPcLoadDelta);
+    if (Instruction::ConditionField(instr) == kSpecialCondition) {
+      // blx uses bit 24 to encode bit 2 of imm26
+      DCHECK((imm26 & 1) == 0);
+      instr = (instr & ~(B24 | kImm24Mask)) | ((imm26 & 2) >> 1) * B24;
+    } else {
+      DCHECK((imm26 & 3) == 0);
+      instr &= ~kImm24Mask;
+    }
+    int imm24 = imm26 >> 2;
+    DCHECK(is_int24(imm24));
+    instr_at_put(pos, instr | (imm24 & kImm24Mask));
+    return;
   }
-  int imm24 = imm26 >> 2;
-  DCHECK(is_int24(imm24));
-  instr_at_put(pos, instr | (imm24 & kImm24Mask));
+  // Patch internal reference to label.
+  DCHECK_EQ(7 * B25 | 1 * B0, instr & (7 * B25 | 1 * B0));
+  instr_at_put(pos, reinterpret_cast<Instr>(buffer_ + target_pos));
 }
 
 
@@ -3355,28 +3369,6 @@ bool Assembler::ImmediateFitsAddrMode2Instruction(int32_t imm32) {
 
 
 // Debugging.
-void Assembler::RecordJSReturn() {
-  positions_recorder()->WriteRecordedPositions();
-  CheckBuffer();
-  RecordRelocInfo(RelocInfo::JS_RETURN);
-}
-
-
-void Assembler::RecordDebugBreakSlot() {
-  positions_recorder()->WriteRecordedPositions();
-  CheckBuffer();
-  RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT);
-}
-
-
-void Assembler::RecordComment(const char* msg) {
-  if (FLAG_code_comments) {
-    CheckBuffer();
-    RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
-  }
-}
-
-
 void Assembler::RecordConstPool(int size) {
   // We only need this for debugger support, to correctly compute offsets in the
   // code.
@@ -3417,9 +3409,16 @@ void Assembler::GrowBuffer() {
   reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
                                reloc_info_writer.last_pc() + pc_delta);
 
-  // None of our relocation types are pc relative pointing outside the code
-  // buffer nor pc absolute pointing inside the code buffer, so there is no need
-  // to relocate any emitted relocation entries.
+  // Relocate internal references.
+  for (RelocIterator it(desc); !it.done(); it.next()) {
+    if (it.rinfo()->rmode() == RelocInfo::INTERNAL_REFERENCE) {
+      // Don't patch unbound internal references (bit 0 set); those are still
+      // hooked up in the Label chain and will be automatically patched once
+      // the label is bound.
+      int32_t* p = reinterpret_cast<int32_t*>(it.rinfo()->pc());
+      if ((*p & 1 * B0) == 0) *p += pc_delta;
+    }
+  }
 
   // Relocate pending relocation entries.
   for (int i = 0; i < num_pending_32_bit_reloc_info_; i++) {
@@ -3460,6 +3459,37 @@ void Assembler::dd(uint32_t data) {
   CheckBuffer();
   *reinterpret_cast<uint32_t*>(pc_) = data;
   pc_ += sizeof(uint32_t);
+}
+
+
+void Assembler::dd(Label* label) {
+  CheckBuffer();
+  RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
+  if (label->is_bound()) {
+    uint32_t data = reinterpret_cast<uint32_t>(buffer_ + label->pos());
+    DCHECK_EQ(0u, data & 1 * B0);
+    *reinterpret_cast<uint32_t*>(pc_) = data;
+    pc_ += sizeof(uint32_t);
+  } else {
+    int target_pos;
+    if (label->is_linked()) {
+      // Point to previous instruction that uses the link.
+      target_pos = label->pos();
+    } else {
+      // First entry of the link chain points to itself.
+      target_pos = pc_offset();
+    }
+    label->link_to(pc_offset());
+    // Encode internal reference to unbound label. We set the least significant
+    // bit to distinguish unbound internal references in GrowBuffer() below.
+    int imm26 = target_pos - pc_offset();
+    DCHECK_EQ(0, imm26 & 3);
+    int imm24 = imm26 >> 2;
+    DCHECK(is_int24(imm24));
+    // We use bit pattern 0000111<imm24>1 because that doesn't match any branch
+    // or load that would also appear on the label chain.
+    emit(7 * B25 | ((imm24 & kImm24Mask) << 1) | 1 * B0);
+  }
 }
 
 

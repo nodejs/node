@@ -146,8 +146,6 @@ function error_test() {
     // strict mode syntax errors should be caught (GH-5178)
     { client: client_unix, send: '(function() { "use strict"; return 0755; })()',
       expect: /^SyntaxError: Octal literals are not allowed in strict mode/ },
-    { client: client_unix, send: '(function() { "use strict"; return { p: 1, p: 2 }; })()',
-      expect: /^SyntaxError: Duplicate data property in object literal not allowed in strict mode/ },
     { client: client_unix, send: '(function(a, a, b) { "use strict"; return a + b + c; })()',
       expect: /^SyntaxError: Strict mode function may not have duplicate parameter names/ },
     { client: client_unix, send: '(function() { "use strict"; with (this) {} })()',

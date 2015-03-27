@@ -1,3 +1,533 @@
+2015-02-19: Version 4.2.77
+
+        Make generator constructors configurable (issue 3902).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-19: Version 4.2.76
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-18: Version 4.2.75
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-18: Version 4.2.74
+
+        Correctly propagate terminate exception in TryCall (issue 3892).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-17: Version 4.2.73
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-17: Version 4.2.72
+
+        [turbofan] Fix control reducer with re-reducing branches (Chromium issue
+        458876).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-16: Version 4.2.71
+
+        Implement ES6 rest parameters (issue 2159).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-13: Version 4.2.70
+
+        new classes: no longer experimental (issue 3834).
+
+        Make it possible to define arguments for CompileFunctionInContext.
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-12: Version 4.2.69
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-11: Version 4.2.68
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-11: Version 4.2.67
+
+        Throw on range error when creating a string via API (issue 3853).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-11: Version 4.2.66
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-10: Version 4.2.65
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-10: Version 4.2.64
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-10: Version 4.2.63
+
+        Introduce a compile method that takes context extensions (Chromium issue
+        456192).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-09: Version 4.2.62
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-09: Version 4.2.61
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-07: Version 4.2.60
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-07: Version 4.2.59
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-07: Version 4.2.58
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-06: Version 4.2.57
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-06: Version 4.2.56
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-06: Version 4.2.55
+
+        Protect against uninitialized lexical variables at top-level (Chromium
+        issue 452510).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-05: Version 4.2.54
+
+        Fix HConstant(double, ...) constructor (issue 3865).
+
+        Add NativeWeakMap to v8.h (Chromium issue 437416).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-05: Version 4.2.53
+
+        Fix issue with multiple properties and emit store (issue 3856).
+
+        Class methods should be non enumerable (issue 3330).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-04: Version 4.2.52
+
+        Add WeakKeyMap to v8.h (Chromium issue 437416).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-04: Version 4.2.51
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-03: Version 4.2.50
+
+        Reset inlining limits due to overly long compilation times in
+        Speedometer, Dart2JS (Chromium issue 454625).
+
+        Add WeakMap to v8.h (Chromium issue 437416).
+
+        [V8] Added line, column and script symbols for SyntaxError (Chromium
+        issue 443140).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-03: Version 4.2.49
+
+        Compute the same hash for all NaN values (issue 3859).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-03: Version 4.2.48
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-02: Version 4.2.47
+
+        Check global object behind global proxy for extensibility (Chromium
+        issue 454091).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-02: Version 4.2.46
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-02: Version 4.2.45
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-01: Version 4.2.44
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-01: Version 4.2.43
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-31: Version 4.2.42
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-31: Version 4.2.41
+
+        Layout descriptor sharing issue fixed (issue 3832, Chromium issue
+        437713).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-30: Version 4.2.40
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-30: Version 4.2.38
+
+        Move object literal checking into checker classes (issue 3819).
+
+        [turbofan] Fix OSR compilations of for-in.
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-30: Version 4.2.37
+
+        Do not create unresolved variables when parsing arrow functions lazily
+        (issue 3501).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-29: Version 4.2.36
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-29: Version 4.2.35
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-28: Version 4.2.34
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-28: Version 4.2.33
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-27: Version 4.2.32
+
+        Do not generalize field representations when making elements kind or
+        observed transition (Chromium issue 448711).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-27: Version 4.2.31
+
+        [x86] Disable AVX unless the operating system explicitly claims to
+        support it (issue 3846, Chromium issue 452033).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-27: Version 4.2.30
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-26: Version 4.2.29
+
+        MIPS: Fixed Hydrogen environment handling for mul-i ARM and ARM64 (issue
+        451322).
+
+        [turbofan] Simplify reduction if IfTrue and IfFalse and fix bugs
+        (Chromium issue 451958).
+
+        Add HeapNumber fast path to v8::Value::{Uint,Int}32Value() (Chromium
+        issue 446097).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-26: Version 4.2.28
+
+        Fixed Hydrogen environment handling for mul-i on ARM and ARM64 (issue
+        451322).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-25: Version 4.2.27
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-24: Version 4.2.26
+
+        ES6 Array.prototype.toString falls back on Object.prototype.toString if
+        method "join" is not callable (issue 3793).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-23: Version 4.2.25
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-23: Version 4.2.24
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-23: Version 4.2.23
+
+        [x86] Blacklist AVX for Windows versions before 6.1 (Windows 7) (issue
+        3846).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-23: Version 4.2.22
+
+        Fix run-time ARMv6 detection (issue 3844).
+
+        Support concatenating with zero-size arrays with DICTIONARY_ELEMENTS in
+        Runtime_ArrayConcat (Chromium issue 450895).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-22: Version 4.2.21
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-22: Version 4.2.20
+
+        Add a pretty printer to improve the error message non-function calls
+        (Chromium issue 259443).
+
+        Remove implicit uint8_t to char cast in string replace (Chromium issue
+        446196).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-21: Version 4.2.19
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-20: Version 4.2.18
+
+        Fix issue with __proto__ when using ES6 object literals (issue 3818).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-20: Version 4.2.17
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-20: Version 4.2.16
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-19: Version 4.2.15
+
+        Unobscurified OFStream (Chromium issue 448102).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-19: Version 4.2.14
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-18: Version 4.2.13
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-18: Version 4.2.12
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-17: Version 4.2.11
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-16: Version 4.2.10
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-16: Version 4.2.9
+
+        MIPS: ES6 computed property names (issue 3754).
+
+        ES6 computed property names (issue 3754).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-15: Version 4.2.8
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-15: Version 4.2.7
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-15: Version 4.2.6
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-15: Version 4.2.5
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-14: Version 4.2.4
+
+        Auto-generate v8 version based on tags (Chromium issue 446166).
+
+        Remove support for signatures with arguments.
+
+        Add proper support for proxies to HType (Chromium issue 448730).
+
+        [turbofan] Fix truncation/representation sloppiness wrt. bool/bit (issue
+        3812).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-14: Version 4.2.3
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-14: Version 4.2.2
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-14: Version 4.2.1
+
+        Map -0 to integer 0 for typed array constructors (Chromium issue
+        447756).
+
+        Introduce a gyp variable to control whether or not slow dchecks are on.
+
+        Correctly setup the freelist of the coderange on Win64 (Chromium issue
+        447555).
+
+        Fast forward V8 to version 4.2.
+
+        Remove "extra checks".
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-08: Version 3.32.7
+
+        Correctly parse line ends for debugging (issue 2825).
+
+        Fixed printing during DCE (issue 3679).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-08: Version 3.32.6
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-08: Version 3.32.5
+
+        Correct handling of exceptions occured during getting of exception stack
+        trace (Chromium issue 444805).
+
+        Fix bug in Runtime_CompileOptimized resulting from stack overflow
+        (Chromium issue 446774).
+
+        Turn on job-based recompilation (issue 3608).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-07: Version 3.32.4
+
+        Performance and stability improvements on all platforms.
+
+
 2015-01-07: Version 3.32.3
 
         Performance and stability improvements on all platforms.

@@ -80,14 +80,14 @@ TEST(TestOperator_Print) {
   Operator op1a(19, NONE, "Another1", 0, 0, 0, 0, 0, 0);
   Operator op1b(19, FOLD, "Another2", 2, 0, 0, 2, 0, 0);
 
-  CHECK_EQ("Another1", OperatorToString(&op1a).get());
-  CHECK_EQ("Another2", OperatorToString(&op1b).get());
+  CHECK_EQ(0, strcmp("Another1", OperatorToString(&op1a).get()));
+  CHECK_EQ(0, strcmp("Another2", OperatorToString(&op1b).get()));
 
   Operator op2a(20, NONE, "Flog1", 0, 0, 0, 0, 0, 0);
   Operator op2b(20, FOLD, "Flog2", 1, 0, 0, 1, 0, 0);
 
-  CHECK_EQ("Flog1", OperatorToString(&op2a).get());
-  CHECK_EQ("Flog2", OperatorToString(&op2b).get());
+  CHECK_EQ(0, strcmp("Flog1", OperatorToString(&op2a).get()));
+  CHECK_EQ(0, strcmp("Flog2", OperatorToString(&op2b).get()));
 }
 
 
@@ -148,16 +148,16 @@ TEST(TestOperator1int_Equals) {
 
 TEST(TestOperator1int_Print) {
   Operator1<int> op1(12, NONE, "Op1Test", 0, 0, 0, 1, 0, 0, 0);
-  CHECK_EQ("Op1Test[0]", OperatorToString(&op1).get());
+  CHECK_EQ(0, strcmp("Op1Test[0]", OperatorToString(&op1).get()));
 
   Operator1<int> op2(12, NONE, "Op1Test", 0, 0, 0, 1, 0, 0, 66666666);
-  CHECK_EQ("Op1Test[66666666]", OperatorToString(&op2).get());
+  CHECK_EQ(0, strcmp("Op1Test[66666666]", OperatorToString(&op2).get()));
 
   Operator1<int> op3(12, NONE, "FooBar", 0, 0, 0, 1, 0, 0, 2347);
-  CHECK_EQ("FooBar[2347]", OperatorToString(&op3).get());
+  CHECK_EQ(0, strcmp("FooBar[2347]", OperatorToString(&op3).get()));
 
   Operator1<int> op4(12, NONE, "BarFoo", 0, 0, 0, 1, 0, 0, -879);
-  CHECK_EQ("BarFoo[-879]", OperatorToString(&op4).get());
+  CHECK_EQ(0, strcmp("BarFoo[-879]", OperatorToString(&op4).get()));
 }
 
 
@@ -179,8 +179,8 @@ TEST(TestOperator1doublePrint) {
   Operator1<double> op1a(23, NONE, "Canary", 0, 0, 0, 0, 0, 0, 0.5);
   Operator1<double> op1b(23, FOLD, "Finch", 2, 0, 0, 2, 0, 0, -1.5);
 
-  CHECK_EQ("Canary[0.5]", OperatorToString(&op1a).get());
-  CHECK_EQ("Finch[-1.5]", OperatorToString(&op1b).get());
+  CHECK_EQ(0, strcmp("Canary[0.5]", OperatorToString(&op1a).get()));
+  CHECK_EQ(0, strcmp("Finch[-1.5]", OperatorToString(&op1b).get()));
 }
 
 

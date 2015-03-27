@@ -285,7 +285,7 @@ class LTemplateResultInstruction : public LInstruction {
   STATIC_ASSERT(R == 0 || R == 1);
   bool HasResult() const FINAL { return R != 0 && result() != NULL; }
   void set_result(LOperand* operand) { results_[0] = operand; }
-  LOperand* result() const { return results_[0]; }
+  LOperand* result() const OVERRIDE { return results_[0]; }
 
  protected:
   EmbeddedContainer<LOperand*, R> results_;
@@ -466,24 +466,29 @@ class LCallStub FINAL : public LTemplateInstruction<1, 1, 0> {
 
 
 class LTailCallThroughMegamorphicCache FINAL
-    : public LTemplateInstruction<0, 3, 0> {
+    : public LTemplateInstruction<0, 5, 0> {
  public:
-  explicit LTailCallThroughMegamorphicCache(LOperand* context,
-                                            LOperand* receiver,
-                                            LOperand* name) {
+  LTailCallThroughMegamorphicCache(LOperand* context, LOperand* receiver,
+                                   LOperand* name, LOperand* slot,
+                                   LOperand* vector) {
     inputs_[0] = context;
     inputs_[1] = receiver;
     inputs_[2] = name;
+    inputs_[3] = slot;
+    inputs_[4] = vector;
   }
 
   LOperand* context() { return inputs_[0]; }
   LOperand* receiver() { return inputs_[1]; }
   LOperand* name() { return inputs_[2]; }
+  LOperand* slot() { return inputs_[3]; }
+  LOperand* vector() { return inputs_[4]; }
 
   DECLARE_CONCRETE_INSTRUCTION(TailCallThroughMegamorphicCache,
                                "tail-call-through-megamorphic-cache")
   DECLARE_HYDROGEN_ACCESSOR(TailCallThroughMegamorphicCache)
 };
+
 
 class LUnknownOSRValue FINAL : public LTemplateInstruction<1, 0, 0> {
  public:
@@ -1309,6 +1314,7 @@ class LConstantD FINAL : public LTemplateInstruction<1, 0, 0> {
   DECLARE_HYDROGEN_ACCESSOR(Constant)
 
   double value() const { return hydrogen()->DoubleValue(); }
+  uint64_t bits() const { return hydrogen()->DoubleValueAsBits(); }
 };
 
 
@@ -1745,7 +1751,7 @@ class LStoreCodeEntry FINAL : public LTemplateInstruction<0, 2, 0> {
   LOperand* function() { return inputs_[0]; }
   LOperand* code_object() { return inputs_[1]; }
 
-  virtual void PrintDataTo(StringStream* stream);
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 
   DECLARE_CONCRETE_INSTRUCTION(StoreCodeEntry, "store-code-entry")
   DECLARE_HYDROGEN_ACCESSOR(StoreCodeEntry)
@@ -1822,9 +1828,10 @@ class LCallWithDescriptor FINAL : public LTemplateResultInstruction<1> {
 
   const CallInterfaceDescriptor descriptor() { return descriptor_; }
 
+  DECLARE_HYDROGEN_ACCESSOR(CallWithDescriptor)
+
  private:
   DECLARE_CONCRETE_INSTRUCTION(CallWithDescriptor, "call-with-descriptor")
-  DECLARE_HYDROGEN_ACCESSOR(CallWithDescriptor)
 
   void PrintDataTo(StringStream* stream) OVERRIDE;
 
@@ -1861,20 +1868,26 @@ class LInvokeFunction FINAL : public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LCallFunction FINAL : public LTemplateInstruction<1, 2, 0> {
+class LCallFunction FINAL : public LTemplateInstruction<1, 2, 2> {
  public:
-  LCallFunction(LOperand* context, LOperand* function) {
+  LCallFunction(LOperand* context, LOperand* function, LOperand* slot,
+                LOperand* vector) {
     inputs_[0] = context;
     inputs_[1] = function;
+    temps_[0] = slot;
+    temps_[1] = vector;
   }
 
   LOperand* context() { return inputs_[0]; }
   LOperand* function() { return inputs_[1]; }
+  LOperand* temp_slot() { return temps_[0]; }
+  LOperand* temp_vector() { return temps_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(CallFunction, "call-function")
   DECLARE_HYDROGEN_ACCESSOR(CallFunction)
 
   int arity() const { return hydrogen()->argument_count() - 1; }
+  void PrintDataTo(StringStream* stream) OVERRIDE;
 };
 
 
@@ -2130,7 +2143,7 @@ class LStoreNamedGeneric FINAL : public LTemplateInstruction<0, 3, 0> {
   void PrintDataTo(StringStream* stream) OVERRIDE;
 
   Handle<Object> name() const { return hydrogen()->name(); }
-  StrictMode strict_mode() { return hydrogen()->strict_mode(); }
+  LanguageMode language_mode() { return hydrogen()->language_mode(); }
 };
 
 
@@ -2189,7 +2202,7 @@ class LStoreKeyedGeneric FINAL : public LTemplateInstruction<0, 4, 0> {
 
   void PrintDataTo(StringStream* stream) OVERRIDE;
 
-  StrictMode strict_mode() { return hydrogen()->strict_mode(); }
+  LanguageMode language_mode() { return hydrogen()->language_mode(); }
 };
 
 

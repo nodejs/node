@@ -106,11 +106,11 @@ void IC::SetTargetAtAddress(Address address, Code* target,
   Code* old_target = GetTargetAtAddress(address, constant_pool);
 #ifdef DEBUG
   // STORE_IC and KEYED_STORE_IC use Code::extra_ic_state() to mark
-  // ICs as strict mode. The strict-ness of the IC must be preserved.
+  // ICs as language mode. The language mode of the IC must be preserved.
   if (old_target->kind() == Code::STORE_IC ||
       old_target->kind() == Code::KEYED_STORE_IC) {
-    DCHECK(StoreIC::GetStrictMode(old_target->extra_ic_state()) ==
-           StoreIC::GetStrictMode(target->extra_ic_state()));
+    DCHECK(StoreIC::GetLanguageMode(old_target->extra_ic_state()) ==
+           StoreIC::GetLanguageMode(target->extra_ic_state()));
   }
 #endif
   Assembler::set_target_address_at(address, constant_pool,
@@ -140,16 +140,16 @@ void LoadIC::set_target(Code* code) {
 
 
 void StoreIC::set_target(Code* code) {
-  // Strict mode must be preserved across IC patching.
-  DCHECK(GetStrictMode(code->extra_ic_state()) ==
-         GetStrictMode(target()->extra_ic_state()));
+  // Language mode must be preserved across IC patching.
+  DCHECK(GetLanguageMode(code->extra_ic_state()) ==
+         GetLanguageMode(target()->extra_ic_state()));
   IC::set_target(code);
 }
 
 
 void KeyedStoreIC::set_target(Code* code) {
-  // Strict mode must be preserved across IC patching.
-  DCHECK(GetStrictMode(code->extra_ic_state()) == strict_mode());
+  // Language mode must be preserved across IC patching.
+  DCHECK(GetLanguageMode(code->extra_ic_state()) == language_mode());
   IC::set_target(code);
 }
 
@@ -161,15 +161,15 @@ Code* IC::raw_target() const {
 void IC::UpdateTarget() { target_ = handle(raw_target(), isolate_); }
 
 
-template <class TypeClass>
-JSFunction* IC::GetRootConstructor(TypeClass* type, Context* native_context) {
-  if (type->Is(TypeClass::Boolean())) {
+JSFunction* IC::GetRootConstructor(Map* receiver_map, Context* native_context) {
+  Isolate* isolate = receiver_map->GetIsolate();
+  if (receiver_map == isolate->heap()->boolean_map()) {
     return native_context->boolean_function();
-  } else if (type->Is(TypeClass::Number())) {
+  } else if (receiver_map->instance_type() == HEAP_NUMBER_TYPE) {
     return native_context->number_function();
-  } else if (type->Is(TypeClass::String())) {
+  } else if (receiver_map->instance_type() < FIRST_NONSTRING_TYPE) {
     return native_context->string_function();
-  } else if (type->Is(TypeClass::Symbol())) {
+  } else if (receiver_map->instance_type() == SYMBOL_TYPE) {
     return native_context->symbol_function();
   } else {
     return NULL;
@@ -177,15 +177,15 @@ JSFunction* IC::GetRootConstructor(TypeClass* type, Context* native_context) {
 }
 
 
-Handle<Map> IC::GetHandlerCacheHolder(HeapType* type, bool receiver_is_holder,
-                                      Isolate* isolate, CacheHolderFlag* flag) {
-  Handle<Map> receiver_map = TypeToMap(type, isolate);
+Handle<Map> IC::GetHandlerCacheHolder(Handle<Map> receiver_map,
+                                      bool receiver_is_holder, Isolate* isolate,
+                                      CacheHolderFlag* flag) {
   if (receiver_is_holder) {
     *flag = kCacheOnReceiver;
     return receiver_map;
   }
   Context* native_context = *isolate->native_context();
-  JSFunction* builtin_ctor = GetRootConstructor(type, native_context);
+  JSFunction* builtin_ctor = GetRootConstructor(*receiver_map, native_context);
   if (builtin_ctor != NULL) {
     *flag = kCacheOnPrototypeReceiverIsPrimitive;
     return handle(HeapObject::cast(builtin_ctor->instance_prototype())->map());
@@ -198,16 +198,16 @@ Handle<Map> IC::GetHandlerCacheHolder(HeapType* type, bool receiver_is_holder,
 }
 
 
-Handle<Map> IC::GetICCacheHolder(HeapType* type, Isolate* isolate,
+Handle<Map> IC::GetICCacheHolder(Handle<Map> map, Isolate* isolate,
                                  CacheHolderFlag* flag) {
   Context* native_context = *isolate->native_context();
-  JSFunction* builtin_ctor = GetRootConstructor(type, native_context);
+  JSFunction* builtin_ctor = GetRootConstructor(*map, native_context);
   if (builtin_ctor != NULL) {
     *flag = kCacheOnPrototype;
     return handle(builtin_ctor->initial_map());
   }
   *flag = kCacheOnReceiver;
-  return TypeToMap(type, isolate);
+  return map;
 }
 
 

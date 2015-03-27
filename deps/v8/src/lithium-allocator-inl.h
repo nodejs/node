@@ -15,6 +15,8 @@
 #include "src/arm64/lithium-arm64.h" // NOLINT
 #elif V8_TARGET_ARCH_ARM
 #include "src/arm/lithium-arm.h" // NOLINT
+#elif V8_TARGET_ARCH_PPC
+#include "src/ppc/lithium-ppc.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS
 #include "src/mips/lithium-mips.h" // NOLINT
 #elif V8_TARGET_ARCH_MIPS64

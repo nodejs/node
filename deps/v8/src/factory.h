@@ -264,10 +264,6 @@ class Factory FINAL {
   Handle<AliasedArgumentsEntry> NewAliasedArgumentsEntry(
       int aliased_context_slot);
 
-  Handle<DeclaredAccessorDescriptor> NewDeclaredAccessorDescriptor();
-
-  Handle<DeclaredAccessorInfo> NewDeclaredAccessorInfo();
-
   Handle<ExecutableAccessorInfo> NewExecutableAccessorInfo();
 
   Handle<Script> NewScript(Handle<String> source);
@@ -362,6 +358,8 @@ class Factory FINAL {
   inline Handle<JSObject> NewNeanderObject() {
     return NewJSObjectFromMap(neander_map());
   }
+
+  Handle<JSWeakMap> NewJSWeakMap();
 
   Handle<JSObject> NewArgumentsObject(Handle<JSFunction> callee, int length);
 
@@ -469,6 +467,8 @@ class Factory FINAL {
   void ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> global,
                                  Handle<JSFunction> constructor);
 
+  Handle<JSGlobalProxy> NewUninitializedJSGlobalProxy();
+
   // Change the type of the argument into a JS object/function and reinitialize.
   void BecomeJSObject(Handle<JSProxy> object);
   void BecomeJSFunction(Handle<JSProxy> object);
@@ -561,24 +561,7 @@ class Factory FINAL {
     return NumberToString(NewNumberFromUint(value));
   }
 
-  enum ApiInstanceType {
-    JavaScriptObjectType,
-    GlobalObjectType,
-    GlobalProxyType
-  };
-
-  Handle<JSFunction> CreateApiFunction(
-      Handle<FunctionTemplateInfo> data,
-      Handle<Object> prototype,
-      ApiInstanceType type = JavaScriptObjectType);
-
   Handle<JSFunction> InstallMembers(Handle<JSFunction> function);
-
-  // Installs interceptors on the instance.  'desc' is a function template,
-  // and instance is an object instance created by the function of this
-  // function template.
-  MUST_USE_RESULT MaybeHandle<FunctionTemplateInfo> ConfigureInstance(
-      Handle<FunctionTemplateInfo> desc, Handle<JSObject> instance);
 
 #define ROOT_ACCESSOR(type, name, camel_name)                         \
   inline Handle<type> name() {                                        \

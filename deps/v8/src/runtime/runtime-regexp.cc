@@ -805,7 +805,7 @@ static JSRegExp::Flags RegExpFlagsFromString(Handle<String> flags,
   uint32_t value = JSRegExp::NONE;
   int length = flags->length();
   // A longer flags string cannot be valid.
-  if (length > 4) return JSRegExp::Flags(0);
+  if (length > 5) return JSRegExp::Flags(0);
   for (int i = 0; i < length; i++) {
     uint32_t flag = JSRegExp::NONE;
     switch (flags->Get(i)) {
@@ -817,6 +817,10 @@ static JSRegExp::Flags RegExpFlagsFromString(Handle<String> flags,
         break;
       case 'm':
         flag = JSRegExp::MULTILINE;
+        break;
+      case 'u':
+        if (!FLAG_harmony_unicode_regexps) return JSRegExp::Flags(0);
+        flag = JSRegExp::UNICODE_ESCAPES;
         break;
       case 'y':
         if (!FLAG_harmony_regexps) return JSRegExp::Flags(0);
@@ -859,10 +863,12 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
   Handle<Object> ignore_case = factory->ToBoolean(flags.is_ignore_case());
   Handle<Object> multiline = factory->ToBoolean(flags.is_multiline());
   Handle<Object> sticky = factory->ToBoolean(flags.is_sticky());
+  Handle<Object> unicode = factory->ToBoolean(flags.is_unicode());
 
   Map* map = regexp->map();
   Object* constructor = map->constructor();
-  if (!FLAG_harmony_regexps && constructor->IsJSFunction() &&
+  if (!FLAG_harmony_regexps && !FLAG_harmony_unicode_regexps &&
+      constructor->IsJSFunction() &&
       JSFunction::cast(constructor)->initial_map() == map) {
     // If we still have the original map, set in-object properties directly.
     // Both true and false are immovable immortal objects so no need for write
@@ -895,6 +901,10 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
     if (FLAG_harmony_regexps) {
       JSObject::SetOwnPropertyIgnoreAttributes(regexp, factory->sticky_string(),
                                                sticky, final).Check();
+    }
+    if (FLAG_harmony_unicode_regexps) {
+      JSObject::SetOwnPropertyIgnoreAttributes(
+          regexp, factory->unicode_string(), unicode, final).Check();
     }
     JSObject::SetOwnPropertyIgnoreAttributes(
         regexp, factory->last_index_string(), zero, writable).Check();

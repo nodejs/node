@@ -62,7 +62,7 @@ Node* BuildConstant(InstructionSelectorTest::StreamBuilder& m, MachineType type,
 
 
 // ARM64 logical instructions.
-static const MachInst2 kLogicalInstructions[] = {
+const MachInst2 kLogicalInstructions[] = {
     {&RawMachineAssembler::Word32And, "Word32And", kArm64And32, kMachInt32},
     {&RawMachineAssembler::Word64And, "Word64And", kArm64And, kMachInt64},
     {&RawMachineAssembler::Word32Or, "Word32Or", kArm64Or32, kMachInt32},
@@ -74,7 +74,7 @@ static const MachInst2 kLogicalInstructions[] = {
 // ARM64 logical immediates: contiguous set bits, rotated about a power of two
 // sized block. The block is then duplicated across the word. Below is a random
 // subset of the 32-bit immediates.
-static const uint32_t kLogical32Immediates[] = {
+const uint32_t kLogical32Immediates[] = {
     0x00000002, 0x00000003, 0x00000070, 0x00000080, 0x00000100, 0x000001c0,
     0x00000300, 0x000007e0, 0x00003ffc, 0x00007fc0, 0x0003c000, 0x0003f000,
     0x0003ffc0, 0x0003fff8, 0x0007ff00, 0x0007ffe0, 0x000e0000, 0x001e0000,
@@ -95,7 +95,7 @@ static const uint32_t kLogical32Immediates[] = {
 
 
 // Random subset of 64-bit logical immediates.
-static const uint64_t kLogical64Immediates[] = {
+const uint64_t kLogical64Immediates[] = {
     0x0000000000000001, 0x0000000000000002, 0x0000000000000003,
     0x0000000000000070, 0x0000000000000080, 0x0000000000000100,
     0x00000000000001c0, 0x0000000000000300, 0x0000000000000600,
@@ -131,7 +131,7 @@ std::ostream& operator<<(std::ostream& os, const AddSub& op) {
 }
 
 
-static const AddSub kAddSubInstructions[] = {
+const AddSub kAddSubInstructions[] = {
     {{&RawMachineAssembler::Int32Add, "Int32Add", kArm64Add32, kMachInt32},
      kArm64Sub32},
     {{&RawMachineAssembler::Int64Add, "Int64Add", kArm64Add, kMachInt64},
@@ -144,7 +144,7 @@ static const AddSub kAddSubInstructions[] = {
 
 // ARM64 Add/Sub immediates: 12-bit immediate optionally shifted by 12.
 // Below is a combination of a random subset and some edge values.
-static const int32_t kAddSubImmediates[] = {
+const int32_t kAddSubImmediates[] = {
     0,        1,        69,       493,      599,      701,      719,
     768,      818,      842,      945,      1246,     1286,     1429,
     1669,     2171,     2179,     2182,     2254,     2334,     2338,
@@ -160,7 +160,7 @@ static const int32_t kAddSubImmediates[] = {
 
 
 // ARM64 flag setting data processing instructions.
-static const MachInst2 kDPFlagSetInstructions[] = {
+const MachInst2 kDPFlagSetInstructions[] = {
     {&RawMachineAssembler::Word32And, "Word32And", kArm64Tst32, kMachInt32},
     {&RawMachineAssembler::Int32Add, "Int32Add", kArm64Cmn32, kMachInt32},
     {&RawMachineAssembler::Int32Sub, "Int32Sub", kArm64Cmp32, kMachInt32},
@@ -168,7 +168,7 @@ static const MachInst2 kDPFlagSetInstructions[] = {
 
 
 // ARM64 arithmetic with overflow instructions.
-static const MachInst2 kOvfAddSubInstructions[] = {
+const MachInst2 kOvfAddSubInstructions[] = {
     {&RawMachineAssembler::Int32AddWithOverflow, "Int32AddWithOverflow",
      kArm64Add32, kMachInt32},
     {&RawMachineAssembler::Int32SubWithOverflow, "Int32SubWithOverflow",
@@ -176,7 +176,7 @@ static const MachInst2 kOvfAddSubInstructions[] = {
 
 
 // ARM64 shift instructions.
-static const Shift kShiftInstructions[] = {
+const Shift kShiftInstructions[] = {
     {{&RawMachineAssembler::Word32Shl, "Word32Shl", kArm64Lsl32, kMachInt32},
      kMode_Operand2_R_LSL_I},
     {{&RawMachineAssembler::Word64Shl, "Word64Shl", kArm64Lsl, kMachInt64},
@@ -196,7 +196,7 @@ static const Shift kShiftInstructions[] = {
 
 
 // ARM64 Mul/Div instructions.
-static const MachInst2 kMulDivInstructions[] = {
+const MachInst2 kMulDivInstructions[] = {
     {&RawMachineAssembler::Int32Mul, "Int32Mul", kArm64Mul32, kMachInt32},
     {&RawMachineAssembler::Int64Mul, "Int64Mul", kArm64Mul, kMachInt64},
     {&RawMachineAssembler::Int32Div, "Int32Div", kArm64Idiv32, kMachInt32},
@@ -206,7 +206,7 @@ static const MachInst2 kMulDivInstructions[] = {
 
 
 // ARM64 FP arithmetic instructions.
-static const MachInst2 kFPArithInstructions[] = {
+const MachInst2 kFPArithInstructions[] = {
     {&RawMachineAssembler::Float64Add, "Float64Add", kArm64Float64Add,
      kMachFloat64},
     {&RawMachineAssembler::Float64Sub, "Float64Sub", kArm64Float64Sub,
@@ -229,16 +229,16 @@ std::ostream& operator<<(std::ostream& os, const FPCmp& cmp) {
 
 
 // ARM64 FP comparison instructions.
-static const FPCmp kFPCmpInstructions[] = {
+const FPCmp kFPCmpInstructions[] = {
     {{&RawMachineAssembler::Float64Equal, "Float64Equal", kArm64Float64Cmp,
       kMachFloat64},
-     kUnorderedEqual},
+     kEqual},
     {{&RawMachineAssembler::Float64LessThan, "Float64LessThan",
       kArm64Float64Cmp, kMachFloat64},
-     kUnorderedLessThan},
+     kUnsignedLessThan},
     {{&RawMachineAssembler::Float64LessThanOrEqual, "Float64LessThanOrEqual",
       kArm64Float64Cmp, kMachFloat64},
-     kUnorderedLessThanOrEqual}};
+     kUnsignedLessThanOrEqual}};
 
 
 struct Conversion {
@@ -254,7 +254,7 @@ std::ostream& operator<<(std::ostream& os, const Conversion& conv) {
 
 
 // ARM64 type conversion instructions.
-static const Conversion kConversionInstructions[] = {
+const Conversion kConversionInstructions[] = {
     {{&RawMachineAssembler::ChangeFloat32ToFloat64, "ChangeFloat32ToFloat64",
       kArm64Float32ToFloat64, kMachFloat64},
      kMachFloat32},
@@ -1518,8 +1518,37 @@ TEST_P(InstructionSelectorFPCmpTest, Parameter) {
 }
 
 
+TEST_P(InstructionSelectorFPCmpTest, WithImmediateZeroOnRight) {
+  const FPCmp cmp = GetParam();
+  StreamBuilder m(this, kMachInt32, cmp.mi.machine_type);
+  m.Return((m.*cmp.mi.constructor)(m.Parameter(0), m.Float64Constant(0.0)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(cmp.mi.arch_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(2U, s[0]->InputCount());
+  EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+  EXPECT_EQ(cmp.cond, s[0]->flags_condition());
+}
+
+
 INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorFPCmpTest,
                         ::testing::ValuesIn(kFPCmpInstructions));
+
+
+TEST_F(InstructionSelectorTest, Float64EqualWithImmediateZeroOnLeft) {
+  StreamBuilder m(this, kMachInt32, kMachFloat64);
+  m.Return(m.Float64Equal(m.Float64Constant(0.0), m.Parameter(0)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArm64Float64Cmp, s[0]->arch_opcode());
+  EXPECT_EQ(2U, s[0]->InputCount());
+  EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+  EXPECT_EQ(kEqual, s[0]->flags_condition());
+}
 
 
 // -----------------------------------------------------------------------------

@@ -716,7 +716,7 @@ DebugInfoListNode::DebugInfoListNode(DebugInfo* debug_info): next_(NULL) {
   debug_info_ = Handle<DebugInfo>::cast(global_handles->Create(debug_info));
   typedef PhantomCallbackData<void>::Callback Callback;
   GlobalHandles::MakePhantom(
-      reinterpret_cast<Object**>(debug_info_.location()), this,
+      reinterpret_cast<Object**>(debug_info_.location()), this, 0,
       reinterpret_cast<Callback>(Debug::HandlePhantomDebugInfo));
 }
 
@@ -744,8 +744,8 @@ bool Debug::CompileDebuggerScript(Isolate* isolate, int index) {
   // Compile the script.
   Handle<SharedFunctionInfo> function_info;
   function_info = Compiler::CompileScript(
-      source_code, script_name, 0, 0, false, context, NULL, NULL,
-      ScriptCompiler::kNoCompileOptions, NATIVES_CODE);
+      source_code, script_name, 0, 0, false, false, context, NULL, NULL,
+      ScriptCompiler::kNoCompileOptions, NATIVES_CODE, false);
 
   // Silently ignore stack overflows during compilation.
   if (function_info.is_null()) {
@@ -2351,7 +2351,7 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
   // Handle the jump to continue execution after break point depending on the
   // break location.
   if (at_js_return) {
-    // If the break point as return is still active jump to the corresponding
+    // If the break point at return is still active jump to the corresponding
     // place in the original code. If not the break point was removed during
     // break point processing.
     if (break_at_js_return_active) {

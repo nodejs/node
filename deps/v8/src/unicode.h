@@ -136,9 +136,7 @@ class Utf8 {
                                 uchar c,
                                 int previous,
                                 bool replace_invalid = false);
-  static uchar CalculateValue(const byte* str,
-                              unsigned length,
-                              unsigned* cursor);
+  static uchar CalculateValue(const byte* str, size_t length, size_t* cursor);
 
   // The unicode replacement character, used to signal invalid unicode
   // sequences (e.g. an orphan surrogate) when converting to a UTF-8 encoding.
@@ -156,9 +154,7 @@ class Utf8 {
   // The maximum size a single UTF-16 code unit may take up when encoded as
   // UTF-8.
   static const unsigned kMax16BitCodeUnitSize  = 3;
-  static inline uchar ValueOf(const byte* str,
-                              unsigned length,
-                              unsigned* cursor);
+  static inline uchar ValueOf(const byte* str, size_t length, size_t* cursor);
 };
 
 struct Uppercase {

@@ -17,22 +17,23 @@ namespace internal {
 template <typename T> class Handle;
 class Object;
 
-#define HTYPE_LIST(V)                                 \
-  V(Any, 0x0)              /* 0000 0000 0000 0000 */  \
-  V(Tagged, 0x1)           /* 0000 0000 0000 0001 */  \
-  V(TaggedPrimitive, 0x5)  /* 0000 0000 0000 0101 */  \
-  V(TaggedNumber, 0xd)     /* 0000 0000 0000 1101 */  \
-  V(Smi, 0x1d)             /* 0000 0000 0001 1101 */  \
-  V(HeapObject, 0x21)      /* 0000 0000 0010 0001 */  \
-  V(HeapPrimitive, 0x25)   /* 0000 0000 0010 0101 */  \
-  V(Null, 0x27)            /* 0000 0000 0010 0111 */  \
-  V(HeapNumber, 0x2d)      /* 0000 0000 0010 1101 */  \
-  V(String, 0x65)          /* 0000 0000 0110 0101 */  \
-  V(Boolean, 0xa5)         /* 0000 0000 1010 0101 */  \
-  V(Undefined, 0x125)      /* 0000 0001 0010 0101 */  \
-  V(JSObject, 0x221)       /* 0000 0010 0010 0001 */  \
-  V(JSArray, 0x621)        /* 0000 0110 0010 0001 */  \
-  V(None, 0x7ff)           /* 0000 0111 1111 1111 */
+#define HTYPE_LIST(V)                               \
+  V(Any, 0x0)             /* 0000 0000 0000 0000 */ \
+  V(Tagged, 0x1)          /* 0000 0000 0000 0001 */ \
+  V(TaggedPrimitive, 0x5) /* 0000 0000 0000 0101 */ \
+  V(TaggedNumber, 0xd)    /* 0000 0000 0000 1101 */ \
+  V(Smi, 0x1d)            /* 0000 0000 0001 1101 */ \
+  V(HeapObject, 0x21)     /* 0000 0000 0010 0001 */ \
+  V(HeapPrimitive, 0x25)  /* 0000 0000 0010 0101 */ \
+  V(Null, 0x27)           /* 0000 0000 0010 0111 */ \
+  V(HeapNumber, 0x2d)     /* 0000 0000 0010 1101 */ \
+  V(String, 0x65)         /* 0000 0000 0110 0101 */ \
+  V(Boolean, 0xa5)        /* 0000 0000 1010 0101 */ \
+  V(Undefined, 0x125)     /* 0000 0001 0010 0101 */ \
+  V(JSReceiver, 0x221)    /* 0000 0010 0010 0001 */ \
+  V(JSObject, 0x621)      /* 0000 0110 0010 0001 */ \
+  V(JSArray, 0xe21)       /* 0000 1110 0010 0001 */ \
+  V(None, 0xfff)          /* 0000 1111 1111 1111 */
 
 class HType FINAL {
  public:

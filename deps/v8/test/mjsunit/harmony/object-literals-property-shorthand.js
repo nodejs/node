@@ -49,3 +49,25 @@
   function f(x) { return {x}; }
   assertEquals('function f(x) { return {x}; }', f.toString());
 })();
+
+
+(function TestProtoName() {
+  var __proto__ = 1;
+  var object = {
+    __proto__
+  };
+  assertEquals(Object.prototype, Object.getPrototypeOf(object));
+  assertEquals(1, object.__proto__);
+})();
+
+
+(function TestProtoName2() {
+  var __proto__ = 1;
+  var p = {};
+  var object = {
+    __proto__: p,
+    __proto__,
+  };
+  assertEquals(p, Object.getPrototypeOf(object));
+  assertEquals(1, object.__proto__);
+})();

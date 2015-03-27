@@ -408,9 +408,9 @@ void init_memcopy_functions() {
 
 bool DoubleToBoolean(double d) {
   // NaN, +0, and -0 should return the false object
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if V8_TARGET_LITTLE_ENDIAN
   union IeeeDoubleLittleEndianArchType u;
-#elif __BYTE_ORDER == __BIG_ENDIAN
+#else
   union IeeeDoubleBigEndianArchType u;
 #endif
   u.d = d;

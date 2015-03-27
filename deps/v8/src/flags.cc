@@ -553,6 +553,9 @@ void FlagList::EnforceFlagImplications() {
 
 uint32_t FlagList::Hash() {
   std::ostringstream modified_args_as_string;
+#ifdef DEBUG
+  modified_args_as_string << "debug";
+#endif  // DEBUG
   for (size_t i = 0; i < num_flags; ++i) {
     Flag* current = &flags[i];
     if (!current->IsDefault()) {

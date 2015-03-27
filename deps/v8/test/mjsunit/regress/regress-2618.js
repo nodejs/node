@@ -30,9 +30,7 @@
 function f() {
   do {
     do {
-      for (var i = 0; i < 10000000; i++) {
-        // This should run long enough to trigger OSR.
-      }
+      for (var i = 0; i < 10; i++) %OptimizeOsr();
     } while (false);
   } while (false);
 }
@@ -57,7 +55,7 @@ function g() {
             do {
               do {
                 do {
-                  for (var i = 0; i < 10000000; i++) { }
+                  for (var i = 0; i < 10; i++) %OptimizeOsr();
                 } while (false);
               } while (false);
             } while (false);

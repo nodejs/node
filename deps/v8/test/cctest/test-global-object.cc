@@ -47,5 +47,5 @@ TEST(StrictUndeclaredGlobalVariable) {
   script->Run();
   CHECK(try_catch.HasCaught());
   v8::String::Utf8Value exception(try_catch.Exception());
-  CHECK_EQ("ReferenceError: x is not defined", *exception);
+  CHECK_EQ(0, strcmp("ReferenceError: x is not defined", *exception));
 }
