@@ -19,6 +19,8 @@
 #include "src/compiler/mips64/instruction-codes-mips64.h"
 #elif V8_TARGET_ARCH_X64
 #include "src/compiler/x64/instruction-codes-x64.h"
+#elif V8_TARGET_ARCH_PPC
+#include "src/compiler/ppc/instruction-codes-ppc.h"
 #else
 #define TARGET_ARCH_OPCODE_LIST(V)
 #define TARGET_ADDRESSING_MODE_LIST(V)
@@ -35,6 +37,8 @@ namespace compiler {
   V(ArchCallCodeObject)     \
   V(ArchCallJSFunction)     \
   V(ArchJmp)                \
+  V(ArchLookupSwitch)       \
+  V(ArchTableSwitch)        \
   V(ArchNop)                \
   V(ArchRet)                \
   V(ArchStackPointer)       \
@@ -102,10 +106,6 @@ enum FlagsCondition {
   kUnsignedGreaterThan,
   kUnorderedEqual,
   kUnorderedNotEqual,
-  kUnorderedLessThan,
-  kUnorderedGreaterThanOrEqual,
-  kUnorderedLessThanOrEqual,
-  kUnorderedGreaterThan,
   kOverflow,
   kNotOverflow
 };
@@ -129,7 +129,7 @@ typedef int32_t InstructionCode;
 typedef BitField<ArchOpcode, 0, 7> ArchOpcodeField;
 typedef BitField<AddressingMode, 7, 5> AddressingModeField;
 typedef BitField<FlagsMode, 12, 2> FlagsModeField;
-typedef BitField<FlagsCondition, 14, 5> FlagsConditionField;
+typedef BitField<FlagsCondition, 14, 4> FlagsConditionField;
 typedef BitField<int, 14, 18> MiscField;
 
 }  // namespace compiler

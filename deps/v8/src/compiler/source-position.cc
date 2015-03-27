@@ -4,7 +4,7 @@
 
 #include "src/compiler/source-position.h"
 #include "src/compiler/graph.h"
-#include "src/compiler/node-aux-data-inl.h"
+#include "src/compiler/node-aux-data.h"
 
 namespace v8 {
 namespace internal {
@@ -15,7 +15,7 @@ class SourcePositionTable::Decorator FINAL : public GraphDecorator {
   explicit Decorator(SourcePositionTable* source_positions)
       : source_positions_(source_positions) {}
 
-  void Decorate(Node* node) FINAL {
+  void Decorate(Node* node, bool incomplete) FINAL {
     DCHECK(!source_positions_->current_position_.IsInvalid());
     source_positions_->table_.Set(node, source_positions_->current_position_);
   }

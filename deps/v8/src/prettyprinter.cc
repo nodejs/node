@@ -14,13 +14,428 @@
 namespace v8 {
 namespace internal {
 
-#ifdef DEBUG
-
-PrettyPrinter::PrettyPrinter(Zone* zone) {
+CallPrinter::CallPrinter(Isolate* isolate, Zone* zone) {
   output_ = NULL;
   size_ = 0;
   pos_ = 0;
-  InitializeAstVisitor(zone);
+  position_ = 0;
+  found_ = false;
+  done_ = false;
+  InitializeAstVisitor(isolate, zone);
+}
+
+
+CallPrinter::~CallPrinter() { DeleteArray(output_); }
+
+
+const char* CallPrinter::Print(FunctionLiteral* program, int position) {
+  Init();
+  position_ = position;
+  Find(program);
+  return output_;
+}
+
+
+void CallPrinter::Find(AstNode* node, bool print) {
+  if (done_) return;
+  if (found_) {
+    if (print) {
+      int start = pos_;
+      Visit(node);
+      if (start != pos_) return;
+    }
+    Print("(intermediate value)");
+  } else {
+    Visit(node);
+  }
+}
+
+
+void CallPrinter::Init() {
+  if (size_ == 0) {
+    DCHECK(output_ == NULL);
+    const int initial_size = 256;
+    output_ = NewArray<char>(initial_size);
+    size_ = initial_size;
+  }
+  output_[0] = '\0';
+  pos_ = 0;
+}
+
+
+void CallPrinter::Print(const char* format, ...) {
+  if (!found_ || done_) return;
+  for (;;) {
+    va_list arguments;
+    va_start(arguments, format);
+    int n = VSNPrintF(Vector<char>(output_, size_) + pos_, format, arguments);
+    va_end(arguments);
+
+    if (n >= 0) {
+      // there was enough space - we are done
+      pos_ += n;
+      return;
+    } else {
+      // there was not enough space - allocate more and try again
+      const int slack = 32;
+      int new_size = size_ + (size_ >> 1) + slack;
+      char* new_output = NewArray<char>(new_size);
+      MemCopy(new_output, output_, pos_);
+      DeleteArray(output_);
+      output_ = new_output;
+      size_ = new_size;
+    }
+  }
+}
+
+
+void CallPrinter::VisitBlock(Block* node) {
+  FindStatements(node->statements());
+}
+
+
+void CallPrinter::VisitVariableDeclaration(VariableDeclaration* node) {}
+
+
+void CallPrinter::VisitFunctionDeclaration(FunctionDeclaration* node) {}
+
+
+void CallPrinter::VisitModuleDeclaration(ModuleDeclaration* node) {
+  Find(node->module());
+}
+
+
+void CallPrinter::VisitImportDeclaration(ImportDeclaration* node) {
+  Find(node->module());
+}
+
+
+void CallPrinter::VisitExportDeclaration(ExportDeclaration* node) {}
+
+
+void CallPrinter::VisitModuleLiteral(ModuleLiteral* node) {
+  VisitBlock(node->body());
+}
+
+
+void CallPrinter::VisitModulePath(ModulePath* node) { Find(node->module()); }
+
+
+void CallPrinter::VisitModuleUrl(ModuleUrl* node) {}
+
+
+void CallPrinter::VisitModuleStatement(ModuleStatement* node) {
+  Find(node->body());
+}
+
+
+void CallPrinter::VisitExpressionStatement(ExpressionStatement* node) {
+  Find(node->expression());
+}
+
+
+void CallPrinter::VisitEmptyStatement(EmptyStatement* node) {}
+
+
+void CallPrinter::VisitIfStatement(IfStatement* node) {
+  Find(node->condition());
+  Find(node->then_statement());
+  if (node->HasElseStatement()) {
+    Find(node->else_statement());
+  }
+}
+
+
+void CallPrinter::VisitContinueStatement(ContinueStatement* node) {}
+
+
+void CallPrinter::VisitBreakStatement(BreakStatement* node) {}
+
+
+void CallPrinter::VisitReturnStatement(ReturnStatement* node) {
+  Find(node->expression());
+}
+
+
+void CallPrinter::VisitWithStatement(WithStatement* node) {
+  Find(node->expression());
+  Find(node->statement());
+}
+
+
+void CallPrinter::VisitSwitchStatement(SwitchStatement* node) {
+  Find(node->tag());
+  ZoneList<CaseClause*>* cases = node->cases();
+  for (int i = 0; i < cases->length(); i++) Find(cases->at(i));
+}
+
+
+void CallPrinter::VisitCaseClause(CaseClause* clause) {
+  if (!clause->is_default()) {
+    Find(clause->label());
+  }
+  FindStatements(clause->statements());
+}
+
+
+void CallPrinter::VisitDoWhileStatement(DoWhileStatement* node) {
+  Find(node->body());
+  Find(node->cond());
+}
+
+
+void CallPrinter::VisitWhileStatement(WhileStatement* node) {
+  Find(node->cond());
+  Find(node->body());
+}
+
+
+void CallPrinter::VisitForStatement(ForStatement* node) {
+  if (node->init() != NULL) {
+    Find(node->init());
+  }
+  if (node->cond() != NULL) Find(node->cond());
+  if (node->next() != NULL) Find(node->next());
+  Find(node->body());
+}
+
+
+void CallPrinter::VisitForInStatement(ForInStatement* node) {
+  Find(node->each());
+  Find(node->enumerable());
+  Find(node->body());
+}
+
+
+void CallPrinter::VisitForOfStatement(ForOfStatement* node) {
+  Find(node->each());
+  Find(node->iterable());
+  Find(node->body());
+}
+
+
+void CallPrinter::VisitTryCatchStatement(TryCatchStatement* node) {
+  Find(node->try_block());
+  Find(node->catch_block());
+}
+
+
+void CallPrinter::VisitTryFinallyStatement(TryFinallyStatement* node) {
+  Find(node->try_block());
+  Find(node->finally_block());
+}
+
+
+void CallPrinter::VisitDebuggerStatement(DebuggerStatement* node) {}
+
+
+void CallPrinter::VisitFunctionLiteral(FunctionLiteral* node) {
+  FindStatements(node->body());
+}
+
+
+void CallPrinter::VisitClassLiteral(ClassLiteral* node) {
+  if (node->extends()) Find(node->extends());
+  for (int i = 0; i < node->properties()->length(); i++) {
+    Find(node->properties()->at(i)->value());
+  }
+}
+
+
+void CallPrinter::VisitNativeFunctionLiteral(NativeFunctionLiteral* node) {}
+
+
+void CallPrinter::VisitConditional(Conditional* node) {
+  Find(node->condition());
+  Find(node->then_expression());
+  Find(node->else_expression());
+}
+
+
+void CallPrinter::VisitLiteral(Literal* node) {
+  PrintLiteral(node->value(), true);
+}
+
+
+void CallPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
+  Print("/");
+  PrintLiteral(node->pattern(), false);
+  Print("/");
+  PrintLiteral(node->flags(), false);
+}
+
+
+void CallPrinter::VisitObjectLiteral(ObjectLiteral* node) {
+  for (int i = 0; i < node->properties()->length(); i++) {
+    Find(node->properties()->at(i)->value());
+  }
+}
+
+
+void CallPrinter::VisitArrayLiteral(ArrayLiteral* node) {
+  Print("[");
+  for (int i = 0; i < node->values()->length(); i++) {
+    if (i != 0) Print(",");
+    Find(node->values()->at(i), true);
+  }
+  Print("]");
+}
+
+
+void CallPrinter::VisitVariableProxy(VariableProxy* node) {
+  PrintLiteral(node->name(), false);
+}
+
+
+void CallPrinter::VisitAssignment(Assignment* node) {
+  Find(node->target());
+  Find(node->value());
+}
+
+
+void CallPrinter::VisitYield(Yield* node) { Find(node->expression()); }
+
+
+void CallPrinter::VisitThrow(Throw* node) { Find(node->exception()); }
+
+
+void CallPrinter::VisitProperty(Property* node) {
+  Expression* key = node->key();
+  Literal* literal = key->AsLiteral();
+  if (literal != NULL && literal->value()->IsInternalizedString()) {
+    Find(node->obj(), true);
+    Print(".");
+    PrintLiteral(literal->value(), false);
+  } else {
+    Find(node->obj(), true);
+    Print("[");
+    Find(key, true);
+    Print("]");
+  }
+}
+
+
+void CallPrinter::VisitCall(Call* node) {
+  bool was_found = !found_ && node->position() == position_;
+  if (was_found) found_ = true;
+  Find(node->expression(), true);
+  if (!was_found) Print("(...)");
+  FindArguments(node->arguments());
+  if (was_found) done_ = true;
+}
+
+
+void CallPrinter::VisitCallNew(CallNew* node) {
+  bool was_found = !found_ && node->expression()->position() == position_;
+  if (was_found) found_ = true;
+  Find(node->expression(), was_found);
+  FindArguments(node->arguments());
+  if (was_found) done_ = true;
+}
+
+
+void CallPrinter::VisitCallRuntime(CallRuntime* node) {
+  FindArguments(node->arguments());
+}
+
+
+void CallPrinter::VisitUnaryOperation(UnaryOperation* node) {
+  Token::Value op = node->op();
+  bool needsSpace =
+      op == Token::DELETE || op == Token::TYPEOF || op == Token::VOID;
+  Print("(%s%s", Token::String(op), needsSpace ? " " : "");
+  Find(node->expression(), true);
+  Print(")");
+}
+
+
+void CallPrinter::VisitCountOperation(CountOperation* node) {
+  Print("(");
+  if (node->is_prefix()) Print("%s", Token::String(node->op()));
+  Find(node->expression(), true);
+  if (node->is_postfix()) Print("%s", Token::String(node->op()));
+  Print(")");
+}
+
+
+void CallPrinter::VisitBinaryOperation(BinaryOperation* node) {
+  Print("(");
+  Find(node->left(), true);
+  Print(" %s ", Token::String(node->op()));
+  Find(node->right(), true);
+  Print(")");
+}
+
+
+void CallPrinter::VisitCompareOperation(CompareOperation* node) {
+  Print("(");
+  Find(node->left(), true);
+  Print(" %s ", Token::String(node->op()));
+  Find(node->right(), true);
+  Print(")");
+}
+
+
+void CallPrinter::VisitThisFunction(ThisFunction* node) {}
+
+
+void CallPrinter::VisitSuperReference(SuperReference* node) {}
+
+
+void CallPrinter::FindStatements(ZoneList<Statement*>* statements) {
+  if (statements == NULL) return;
+  for (int i = 0; i < statements->length(); i++) {
+    Find(statements->at(i));
+  }
+}
+
+
+void CallPrinter::FindArguments(ZoneList<Expression*>* arguments) {
+  if (found_) return;
+  for (int i = 0; i < arguments->length(); i++) {
+    Find(arguments->at(i));
+  }
+}
+
+
+void CallPrinter::PrintLiteral(Handle<Object> value, bool quote) {
+  Object* object = *value;
+  if (object->IsString()) {
+    String* string = String::cast(object);
+    if (quote) Print("\"");
+    for (int i = 0; i < string->length(); i++) {
+      Print("%c", string->Get(i));
+    }
+    if (quote) Print("\"");
+  } else if (object->IsNull()) {
+    Print("null");
+  } else if (object->IsTrue()) {
+    Print("true");
+  } else if (object->IsFalse()) {
+    Print("false");
+  } else if (object->IsUndefined()) {
+    Print("undefined");
+  } else if (object->IsNumber()) {
+    Print("%g", object->Number());
+  }
+}
+
+
+void CallPrinter::PrintLiteral(const AstRawString* value, bool quote) {
+  PrintLiteral(value->string(), quote);
+}
+
+
+//-----------------------------------------------------------------------------
+
+
+#ifdef DEBUG
+
+PrettyPrinter::PrettyPrinter(Isolate* isolate, Zone* zone) {
+  output_ = NULL;
+  size_ = 0;
+  pos_ = 0;
+  InitializeAstVisitor(isolate, zone);
 }
 
 
@@ -83,11 +498,6 @@ void PrettyPrinter::VisitModuleLiteral(ModuleLiteral* node) {
 }
 
 
-void PrettyPrinter::VisitModuleVariable(ModuleVariable* node) {
-  Visit(node->proxy());
-}
-
-
 void PrettyPrinter::VisitModulePath(ModulePath* node) {
   Visit(node->module());
   Print(".");
@@ -103,8 +513,6 @@ void PrettyPrinter::VisitModuleUrl(ModuleUrl* node) {
 
 void PrettyPrinter::VisitModuleStatement(ModuleStatement* node) {
   Print("module ");
-  PrintLiteral(node->proxy()->name(), false);
-  Print(" ");
   Visit(node->body());
 }
 
@@ -497,8 +905,8 @@ const char* PrettyPrinter::PrintProgram(FunctionLiteral* program) {
 }
 
 
-void PrettyPrinter::PrintOut(Zone* zone, AstNode* node) {
-  PrettyPrinter printer(zone);
+void PrettyPrinter::PrintOut(Isolate* isolate, Zone* zone, AstNode* node) {
+  PrettyPrinter printer(isolate, zone);
   PrintF("%s", printer.Print(node));
 }
 
@@ -666,8 +1074,8 @@ class IndentedScope BASE_EMBEDDED {
 //-----------------------------------------------------------------------------
 
 
-AstPrinter::AstPrinter(Zone* zone) : PrettyPrinter(zone), indent_(0) {
-}
+AstPrinter::AstPrinter(Isolate* isolate, Zone* zone)
+    : PrettyPrinter(isolate, zone), indent_(0) {}
 
 
 AstPrinter::~AstPrinter() {
@@ -821,12 +1229,6 @@ void AstPrinter::VisitModuleLiteral(ModuleLiteral* node) {
 }
 
 
-void AstPrinter::VisitModuleVariable(ModuleVariable* node) {
-  IndentedScope indent(this, "MODULE VARIABLE");
-  Visit(node->proxy());
-}
-
-
 void AstPrinter::VisitModulePath(ModulePath* node) {
   IndentedScope indent(this, "MODULE PATH");
   PrintIndentedVisit("MODULE PATH PARENT", node->module());
@@ -841,7 +1243,6 @@ void AstPrinter::VisitModuleUrl(ModuleUrl* node) {
 
 void AstPrinter::VisitModuleStatement(ModuleStatement* node) {
   IndentedScope indent(this, "MODULE STATEMENT");
-  PrintLiteralIndented("NAME", node->proxy()->name(), true);
   PrintStatements(node->body()->statements());
 }
 

@@ -52,17 +52,17 @@ TEST(ProfileNodeFindOrAddChild) {
   ProfileNode* node = tree.root();
   CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa");
   ProfileNode* childNode1 = node->FindOrAddChild(&entry1);
-  CHECK_NE(NULL, childNode1);
+  CHECK(childNode1);
   CHECK_EQ(childNode1, node->FindOrAddChild(&entry1));
   CodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb");
   ProfileNode* childNode2 = node->FindOrAddChild(&entry2);
-  CHECK_NE(NULL, childNode2);
+  CHECK(childNode2);
   CHECK_NE(childNode1, childNode2);
   CHECK_EQ(childNode1, node->FindOrAddChild(&entry1));
   CHECK_EQ(childNode2, node->FindOrAddChild(&entry2));
   CodeEntry entry3(i::Logger::FUNCTION_TAG, "ccc");
   ProfileNode* childNode3 = node->FindOrAddChild(&entry3);
-  CHECK_NE(NULL, childNode3);
+  CHECK(childNode3);
   CHECK_NE(childNode1, childNode3);
   CHECK_NE(childNode2, childNode3);
   CHECK_EQ(childNode1, node->FindOrAddChild(&entry1));
@@ -77,7 +77,7 @@ TEST(ProfileNodeFindOrAddChildForSameFunction) {
   ProfileNode* node = tree.root();
   CodeEntry entry1(i::Logger::FUNCTION_TAG, aaa);
   ProfileNode* childNode1 = node->FindOrAddChild(&entry1);
-  CHECK_NE(NULL, childNode1);
+  CHECK(childNode1);
   CHECK_EQ(childNode1, node->FindOrAddChild(&entry1));
   // The same function again.
   CodeEntry entry2(i::Logger::FUNCTION_TAG, aaa);
@@ -117,64 +117,6 @@ class ProfileTreeTestHelper {
 
 }  // namespace
 
-TEST(ProfileTreeAddPathFromStart) {
-  CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa");
-  CodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb");
-  CodeEntry entry3(i::Logger::FUNCTION_TAG, "ccc");
-  ProfileTree tree;
-  ProfileTreeTestHelper helper(&tree);
-  CHECK_EQ(NULL, helper.Walk(&entry1));
-  CHECK_EQ(NULL, helper.Walk(&entry2));
-  CHECK_EQ(NULL, helper.Walk(&entry3));
-
-  CodeEntry* path[] = {NULL, &entry1, NULL, &entry2, NULL, NULL, &entry3, NULL};
-  Vector<CodeEntry*> path_vec(path, sizeof(path) / sizeof(path[0]));
-  tree.AddPathFromStart(path_vec);
-  CHECK_EQ(NULL, helper.Walk(&entry2));
-  CHECK_EQ(NULL, helper.Walk(&entry3));
-  ProfileNode* node1 = helper.Walk(&entry1);
-  CHECK_NE(NULL, node1);
-  CHECK_EQ(0, node1->self_ticks());
-  CHECK_EQ(NULL, helper.Walk(&entry1, &entry1));
-  CHECK_EQ(NULL, helper.Walk(&entry1, &entry3));
-  ProfileNode* node2 = helper.Walk(&entry1, &entry2);
-  CHECK_NE(NULL, node2);
-  CHECK_NE(node1, node2);
-  CHECK_EQ(0, node2->self_ticks());
-  CHECK_EQ(NULL, helper.Walk(&entry1, &entry2, &entry1));
-  CHECK_EQ(NULL, helper.Walk(&entry1, &entry2, &entry2));
-  ProfileNode* node3 = helper.Walk(&entry1, &entry2, &entry3);
-  CHECK_NE(NULL, node3);
-  CHECK_NE(node1, node3);
-  CHECK_NE(node2, node3);
-  CHECK_EQ(1, node3->self_ticks());
-
-  tree.AddPathFromStart(path_vec);
-  CHECK_EQ(node1, helper.Walk(&entry1));
-  CHECK_EQ(node2, helper.Walk(&entry1, &entry2));
-  CHECK_EQ(node3, helper.Walk(&entry1, &entry2, &entry3));
-  CHECK_EQ(0, node1->self_ticks());
-  CHECK_EQ(0, node2->self_ticks());
-  CHECK_EQ(2, node3->self_ticks());
-
-  CodeEntry* path2[] = {&entry1, &entry2, &entry2};
-  Vector<CodeEntry*> path2_vec(path2, sizeof(path2) / sizeof(path2[0]));
-  tree.AddPathFromStart(path2_vec);
-  CHECK_EQ(NULL, helper.Walk(&entry2));
-  CHECK_EQ(NULL, helper.Walk(&entry3));
-  CHECK_EQ(node1, helper.Walk(&entry1));
-  CHECK_EQ(NULL, helper.Walk(&entry1, &entry1));
-  CHECK_EQ(NULL, helper.Walk(&entry1, &entry3));
-  CHECK_EQ(node2, helper.Walk(&entry1, &entry2));
-  CHECK_EQ(NULL, helper.Walk(&entry1, &entry2, &entry1));
-  CHECK_EQ(node3, helper.Walk(&entry1, &entry2, &entry3));
-  CHECK_EQ(2, node3->self_ticks());
-  ProfileNode* node4 = helper.Walk(&entry1, &entry2, &entry2);
-  CHECK_NE(NULL, node4);
-  CHECK_NE(node3, node4);
-  CHECK_EQ(1, node4->self_ticks());
-}
-
 
 TEST(ProfileTreeAddPathFromEnd) {
   CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa");
@@ -182,64 +124,64 @@ TEST(ProfileTreeAddPathFromEnd) {
   CodeEntry entry3(i::Logger::FUNCTION_TAG, "ccc");
   ProfileTree tree;
   ProfileTreeTestHelper helper(&tree);
-  CHECK_EQ(NULL, helper.Walk(&entry1));
-  CHECK_EQ(NULL, helper.Walk(&entry2));
-  CHECK_EQ(NULL, helper.Walk(&entry3));
+  CHECK(!helper.Walk(&entry1));
+  CHECK(!helper.Walk(&entry2));
+  CHECK(!helper.Walk(&entry3));
 
   CodeEntry* path[] = {NULL, &entry3, NULL, &entry2, NULL, NULL, &entry1, NULL};
   Vector<CodeEntry*> path_vec(path, sizeof(path) / sizeof(path[0]));
   tree.AddPathFromEnd(path_vec);
-  CHECK_EQ(NULL, helper.Walk(&entry2));
-  CHECK_EQ(NULL, helper.Walk(&entry3));
+  CHECK(!helper.Walk(&entry2));
+  CHECK(!helper.Walk(&entry3));
   ProfileNode* node1 = helper.Walk(&entry1);
-  CHECK_NE(NULL, node1);
-  CHECK_EQ(0, node1->self_ticks());
-  CHECK_EQ(NULL, helper.Walk(&entry1, &entry1));
-  CHECK_EQ(NULL, helper.Walk(&entry1, &entry3));
+  CHECK(node1);
+  CHECK_EQ(0u, node1->self_ticks());
+  CHECK(!helper.Walk(&entry1, &entry1));
+  CHECK(!helper.Walk(&entry1, &entry3));
   ProfileNode* node2 = helper.Walk(&entry1, &entry2);
-  CHECK_NE(NULL, node2);
+  CHECK(node2);
   CHECK_NE(node1, node2);
-  CHECK_EQ(0, node2->self_ticks());
-  CHECK_EQ(NULL, helper.Walk(&entry1, &entry2, &entry1));
-  CHECK_EQ(NULL, helper.Walk(&entry1, &entry2, &entry2));
+  CHECK_EQ(0u, node2->self_ticks());
+  CHECK(!helper.Walk(&entry1, &entry2, &entry1));
+  CHECK(!helper.Walk(&entry1, &entry2, &entry2));
   ProfileNode* node3 = helper.Walk(&entry1, &entry2, &entry3);
-  CHECK_NE(NULL, node3);
+  CHECK(node3);
   CHECK_NE(node1, node3);
   CHECK_NE(node2, node3);
-  CHECK_EQ(1, node3->self_ticks());
+  CHECK_EQ(1u, node3->self_ticks());
 
   tree.AddPathFromEnd(path_vec);
   CHECK_EQ(node1, helper.Walk(&entry1));
   CHECK_EQ(node2, helper.Walk(&entry1, &entry2));
   CHECK_EQ(node3, helper.Walk(&entry1, &entry2, &entry3));
-  CHECK_EQ(0, node1->self_ticks());
-  CHECK_EQ(0, node2->self_ticks());
-  CHECK_EQ(2, node3->self_ticks());
+  CHECK_EQ(0u, node1->self_ticks());
+  CHECK_EQ(0u, node2->self_ticks());
+  CHECK_EQ(2u, node3->self_ticks());
 
   CodeEntry* path2[] = {&entry2, &entry2, &entry1};
   Vector<CodeEntry*> path2_vec(path2, sizeof(path2) / sizeof(path2[0]));
   tree.AddPathFromEnd(path2_vec);
-  CHECK_EQ(NULL, helper.Walk(&entry2));
-  CHECK_EQ(NULL, helper.Walk(&entry3));
+  CHECK(!helper.Walk(&entry2));
+  CHECK(!helper.Walk(&entry3));
   CHECK_EQ(node1, helper.Walk(&entry1));
-  CHECK_EQ(NULL, helper.Walk(&entry1, &entry1));
-  CHECK_EQ(NULL, helper.Walk(&entry1, &entry3));
+  CHECK(!helper.Walk(&entry1, &entry1));
+  CHECK(!helper.Walk(&entry1, &entry3));
   CHECK_EQ(node2, helper.Walk(&entry1, &entry2));
-  CHECK_EQ(NULL, helper.Walk(&entry1, &entry2, &entry1));
+  CHECK(!helper.Walk(&entry1, &entry2, &entry1));
   CHECK_EQ(node3, helper.Walk(&entry1, &entry2, &entry3));
-  CHECK_EQ(2, node3->self_ticks());
+  CHECK_EQ(2u, node3->self_ticks());
   ProfileNode* node4 = helper.Walk(&entry1, &entry2, &entry2);
-  CHECK_NE(NULL, node4);
+  CHECK(node4);
   CHECK_NE(node3, node4);
-  CHECK_EQ(1, node4->self_ticks());
+  CHECK_EQ(1u, node4->self_ticks());
 }
 
 
 TEST(ProfileTreeCalculateTotalTicks) {
   ProfileTree empty_tree;
-  CHECK_EQ(0, empty_tree.root()->self_ticks());
+  CHECK_EQ(0u, empty_tree.root()->self_ticks());
   empty_tree.root()->IncrementSelfTicks();
-  CHECK_EQ(1, empty_tree.root()->self_ticks());
+  CHECK_EQ(1u, empty_tree.root()->self_ticks());
 
   CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa");
   CodeEntry* e1_path[] = {&entry1};
@@ -247,38 +189,38 @@ TEST(ProfileTreeCalculateTotalTicks) {
       e1_path, sizeof(e1_path) / sizeof(e1_path[0]));
 
   ProfileTree single_child_tree;
-  single_child_tree.AddPathFromStart(e1_path_vec);
+  single_child_tree.AddPathFromEnd(e1_path_vec);
   single_child_tree.root()->IncrementSelfTicks();
-  CHECK_EQ(1, single_child_tree.root()->self_ticks());
+  CHECK_EQ(1u, single_child_tree.root()->self_ticks());
   ProfileTreeTestHelper single_child_helper(&single_child_tree);
   ProfileNode* node1 = single_child_helper.Walk(&entry1);
-  CHECK_NE(NULL, node1);
-  CHECK_EQ(1, single_child_tree.root()->self_ticks());
-  CHECK_EQ(1, node1->self_ticks());
+  CHECK(node1);
+  CHECK_EQ(1u, single_child_tree.root()->self_ticks());
+  CHECK_EQ(1u, node1->self_ticks());
 
   CodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb");
-  CodeEntry* e1_e2_path[] = {&entry1, &entry2};
-  Vector<CodeEntry*> e1_e2_path_vec(
-      e1_e2_path, sizeof(e1_e2_path) / sizeof(e1_e2_path[0]));
+  CodeEntry* e2_e1_path[] = {&entry2, &entry1};
+  Vector<CodeEntry*> e2_e1_path_vec(e2_e1_path,
+                                    sizeof(e2_e1_path) / sizeof(e2_e1_path[0]));
 
   ProfileTree flat_tree;
   ProfileTreeTestHelper flat_helper(&flat_tree);
-  flat_tree.AddPathFromStart(e1_path_vec);
-  flat_tree.AddPathFromStart(e1_path_vec);
-  flat_tree.AddPathFromStart(e1_e2_path_vec);
-  flat_tree.AddPathFromStart(e1_e2_path_vec);
-  flat_tree.AddPathFromStart(e1_e2_path_vec);
+  flat_tree.AddPathFromEnd(e1_path_vec);
+  flat_tree.AddPathFromEnd(e1_path_vec);
+  flat_tree.AddPathFromEnd(e2_e1_path_vec);
+  flat_tree.AddPathFromEnd(e2_e1_path_vec);
+  flat_tree.AddPathFromEnd(e2_e1_path_vec);
   // Results in {root,0,0} -> {entry1,0,2} -> {entry2,0,3}
-  CHECK_EQ(0, flat_tree.root()->self_ticks());
+  CHECK_EQ(0u, flat_tree.root()->self_ticks());
   node1 = flat_helper.Walk(&entry1);
-  CHECK_NE(NULL, node1);
-  CHECK_EQ(2, node1->self_ticks());
+  CHECK(node1);
+  CHECK_EQ(2u, node1->self_ticks());
   ProfileNode* node2 = flat_helper.Walk(&entry1, &entry2);
-  CHECK_NE(NULL, node2);
-  CHECK_EQ(3, node2->self_ticks());
+  CHECK(node2);
+  CHECK_EQ(3u, node2->self_ticks());
   // Must calculate {root,5,0} -> {entry1,5,2} -> {entry2,3,3}
-  CHECK_EQ(0, flat_tree.root()->self_ticks());
-  CHECK_EQ(2, node1->self_ticks());
+  CHECK_EQ(0u, flat_tree.root()->self_ticks());
+  CHECK_EQ(2u, node1->self_ticks());
 
   CodeEntry* e2_path[] = {&entry2};
   Vector<CodeEntry*> e2_path_vec(
@@ -290,40 +232,40 @@ TEST(ProfileTreeCalculateTotalTicks) {
 
   ProfileTree wide_tree;
   ProfileTreeTestHelper wide_helper(&wide_tree);
-  wide_tree.AddPathFromStart(e1_path_vec);
-  wide_tree.AddPathFromStart(e1_path_vec);
-  wide_tree.AddPathFromStart(e1_e2_path_vec);
-  wide_tree.AddPathFromStart(e2_path_vec);
-  wide_tree.AddPathFromStart(e2_path_vec);
-  wide_tree.AddPathFromStart(e2_path_vec);
-  wide_tree.AddPathFromStart(e3_path_vec);
-  wide_tree.AddPathFromStart(e3_path_vec);
-  wide_tree.AddPathFromStart(e3_path_vec);
-  wide_tree.AddPathFromStart(e3_path_vec);
+  wide_tree.AddPathFromEnd(e1_path_vec);
+  wide_tree.AddPathFromEnd(e1_path_vec);
+  wide_tree.AddPathFromEnd(e2_e1_path_vec);
+  wide_tree.AddPathFromEnd(e2_path_vec);
+  wide_tree.AddPathFromEnd(e2_path_vec);
+  wide_tree.AddPathFromEnd(e2_path_vec);
+  wide_tree.AddPathFromEnd(e3_path_vec);
+  wide_tree.AddPathFromEnd(e3_path_vec);
+  wide_tree.AddPathFromEnd(e3_path_vec);
+  wide_tree.AddPathFromEnd(e3_path_vec);
   // Results in            -> {entry1,0,2} -> {entry2,0,1}
   //            {root,0,0} -> {entry2,0,3}
   //                       -> {entry3,0,4}
-  CHECK_EQ(0, wide_tree.root()->self_ticks());
+  CHECK_EQ(0u, wide_tree.root()->self_ticks());
   node1 = wide_helper.Walk(&entry1);
-  CHECK_NE(NULL, node1);
-  CHECK_EQ(2, node1->self_ticks());
+  CHECK(node1);
+  CHECK_EQ(2u, node1->self_ticks());
   ProfileNode* node1_2 = wide_helper.Walk(&entry1, &entry2);
-  CHECK_NE(NULL, node1_2);
-  CHECK_EQ(1, node1_2->self_ticks());
+  CHECK(node1_2);
+  CHECK_EQ(1u, node1_2->self_ticks());
   node2 = wide_helper.Walk(&entry2);
-  CHECK_NE(NULL, node2);
-  CHECK_EQ(3, node2->self_ticks());
+  CHECK(node2);
+  CHECK_EQ(3u, node2->self_ticks());
   ProfileNode* node3 = wide_helper.Walk(&entry3);
-  CHECK_NE(NULL, node3);
-  CHECK_EQ(4, node3->self_ticks());
+  CHECK(node3);
+  CHECK_EQ(4u, node3->self_ticks());
   // Calculates             -> {entry1,3,2} -> {entry2,1,1}
   //            {root,10,0} -> {entry2,3,3}
   //                        -> {entry3,4,4}
-  CHECK_EQ(0, wide_tree.root()->self_ticks());
-  CHECK_EQ(2, node1->self_ticks());
-  CHECK_EQ(1, node1_2->self_ticks());
-  CHECK_EQ(3, node2->self_ticks());
-  CHECK_EQ(4, node3->self_ticks());
+  CHECK_EQ(0u, wide_tree.root()->self_ticks());
+  CHECK_EQ(2u, node1->self_ticks());
+  CHECK_EQ(1u, node1_2->self_ticks());
+  CHECK_EQ(3u, node2->self_ticks());
+  CHECK_EQ(4u, node3->self_ticks());
 }
 
 
@@ -342,23 +284,23 @@ TEST(CodeMapAddCode) {
   code_map.AddCode(ToAddress(0x1700), &entry2, 0x100);
   code_map.AddCode(ToAddress(0x1900), &entry3, 0x50);
   code_map.AddCode(ToAddress(0x1950), &entry4, 0x10);
-  CHECK_EQ(NULL, code_map.FindEntry(0));
-  CHECK_EQ(NULL, code_map.FindEntry(ToAddress(0x1500 - 1)));
+  CHECK(!code_map.FindEntry(0));
+  CHECK(!code_map.FindEntry(ToAddress(0x1500 - 1)));
   CHECK_EQ(&entry1, code_map.FindEntry(ToAddress(0x1500)));
   CHECK_EQ(&entry1, code_map.FindEntry(ToAddress(0x1500 + 0x100)));
   CHECK_EQ(&entry1, code_map.FindEntry(ToAddress(0x1500 + 0x200 - 1)));
   CHECK_EQ(&entry2, code_map.FindEntry(ToAddress(0x1700)));
   CHECK_EQ(&entry2, code_map.FindEntry(ToAddress(0x1700 + 0x50)));
   CHECK_EQ(&entry2, code_map.FindEntry(ToAddress(0x1700 + 0x100 - 1)));
-  CHECK_EQ(NULL, code_map.FindEntry(ToAddress(0x1700 + 0x100)));
-  CHECK_EQ(NULL, code_map.FindEntry(ToAddress(0x1900 - 1)));
+  CHECK(!code_map.FindEntry(ToAddress(0x1700 + 0x100)));
+  CHECK(!code_map.FindEntry(ToAddress(0x1900 - 1)));
   CHECK_EQ(&entry3, code_map.FindEntry(ToAddress(0x1900)));
   CHECK_EQ(&entry3, code_map.FindEntry(ToAddress(0x1900 + 0x28)));
   CHECK_EQ(&entry4, code_map.FindEntry(ToAddress(0x1950)));
   CHECK_EQ(&entry4, code_map.FindEntry(ToAddress(0x1950 + 0x7)));
   CHECK_EQ(&entry4, code_map.FindEntry(ToAddress(0x1950 + 0x10 - 1)));
-  CHECK_EQ(NULL, code_map.FindEntry(ToAddress(0x1950 + 0x10)));
-  CHECK_EQ(NULL, code_map.FindEntry(ToAddress(0xFFFFFFFF)));
+  CHECK(!code_map.FindEntry(ToAddress(0x1950 + 0x10)));
+  CHECK(!code_map.FindEntry(ToAddress(0xFFFFFFFF)));
 }
 
 
@@ -371,11 +313,11 @@ TEST(CodeMapMoveAndDeleteCode) {
   CHECK_EQ(&entry1, code_map.FindEntry(ToAddress(0x1500)));
   CHECK_EQ(&entry2, code_map.FindEntry(ToAddress(0x1700)));
   code_map.MoveCode(ToAddress(0x1500), ToAddress(0x1700));  // Deprecate bbb.
-  CHECK_EQ(NULL, code_map.FindEntry(ToAddress(0x1500)));
+  CHECK(!code_map.FindEntry(ToAddress(0x1500)));
   CHECK_EQ(&entry1, code_map.FindEntry(ToAddress(0x1700)));
   CodeEntry entry3(i::Logger::FUNCTION_TAG, "ccc");
   code_map.AddCode(ToAddress(0x1750), &entry3, 0x100);
-  CHECK_EQ(NULL, code_map.FindEntry(ToAddress(0x1700)));
+  CHECK(!code_map.FindEntry(ToAddress(0x1700)));
   CHECK_EQ(&entry3, code_map.FindEntry(ToAddress(0x1750)));
 }
 
@@ -438,26 +380,26 @@ TEST(RecordTickSample) {
   generator.RecordTickSample(sample3);
 
   CpuProfile* profile = profiles.StopProfiling("");
-  CHECK_NE(NULL, profile);
+  CHECK(profile);
   ProfileTreeTestHelper top_down_test_helper(profile->top_down());
-  CHECK_EQ(NULL, top_down_test_helper.Walk(entry2));
-  CHECK_EQ(NULL, top_down_test_helper.Walk(entry3));
+  CHECK(!top_down_test_helper.Walk(entry2));
+  CHECK(!top_down_test_helper.Walk(entry3));
   ProfileNode* node1 = top_down_test_helper.Walk(entry1);
-  CHECK_NE(NULL, node1);
+  CHECK(node1);
   CHECK_EQ(entry1, node1->entry());
   ProfileNode* node2 = top_down_test_helper.Walk(entry1, entry1);
-  CHECK_NE(NULL, node2);
+  CHECK(node2);
   CHECK_EQ(entry1, node2->entry());
   ProfileNode* node3 = top_down_test_helper.Walk(entry1, entry2, entry3);
-  CHECK_NE(NULL, node3);
+  CHECK(node3);
   CHECK_EQ(entry3, node3->entry());
   ProfileNode* node4 = top_down_test_helper.Walk(entry1, entry3, entry1);
-  CHECK_NE(NULL, node4);
+  CHECK(node4);
   CHECK_EQ(entry1, node4->entry());
 }
 
 
-static void CheckNodeIds(ProfileNode* node, int* expectedId) {
+static void CheckNodeIds(ProfileNode* node, unsigned* expectedId) {
   CHECK_EQ((*expectedId)++, node->id());
   for (int i = 0; i < node->children()->length(); i++) {
     CheckNodeIds(node->children()->at(i), expectedId);
@@ -501,12 +443,12 @@ TEST(SampleIds) {
   generator.RecordTickSample(sample3);
 
   CpuProfile* profile = profiles.StopProfiling("");
-  int nodeId = 1;
+  unsigned nodeId = 1;
   CheckNodeIds(profile->top_down()->root(), &nodeId);
-  CHECK_EQ(7, nodeId - 1);
+  CHECK_EQ(7u, nodeId - 1);
 
   CHECK_EQ(3, profile->samples_count());
-  int expected_id[] = {3, 5, 7};
+  unsigned expected_id[] = {3, 5, 7};
   for (int i = 0; i < 3; i++) {
     CHECK_EQ(expected_id[i], profile->sample(i)->id());
   }
@@ -530,9 +472,9 @@ TEST(NoSamples) {
   generator.RecordTickSample(sample1);
 
   CpuProfile* profile = profiles.StopProfiling("");
-  int nodeId = 1;
+  unsigned nodeId = 1;
   CheckNodeIds(profile->top_down()->root(), &nodeId);
-  CHECK_EQ(3, nodeId - 1);
+  CHECK_EQ(3u, nodeId - 1);
 
   CHECK_EQ(0, profile->samples_count());
 }
@@ -580,13 +522,13 @@ TEST(RecordStackTraceAtStartProfiling) {
   //           startProfiling
   // if the sampler managed to get a tick.
   current = PickChild(current, "");
-  CHECK_NE(NULL, const_cast<ProfileNode*>(current));
+  CHECK(const_cast<ProfileNode*>(current));
   current = PickChild(current, "a");
-  CHECK_NE(NULL, const_cast<ProfileNode*>(current));
+  CHECK(const_cast<ProfileNode*>(current));
   current = PickChild(current, "b");
-  CHECK_NE(NULL, const_cast<ProfileNode*>(current));
+  CHECK(const_cast<ProfileNode*>(current));
   current = PickChild(current, "c");
-  CHECK_NE(NULL, const_cast<ProfileNode*>(current));
+  CHECK(const_cast<ProfileNode*>(current));
   CHECK(current->children()->length() == 0 ||
         current->children()->length() == 1);
   if (current->children()->length() == 1) {
@@ -658,14 +600,14 @@ TEST(ProfileNodeScriptId) {
   //         startProfiling
   // if the sampler managed to get a tick.
   current = PickChild(current, "");
-  CHECK_NE(NULL, const_cast<v8::CpuProfileNode*>(current));
+  CHECK(const_cast<v8::CpuProfileNode*>(current));
 
   current = PickChild(current, "b");
-  CHECK_NE(NULL, const_cast<v8::CpuProfileNode*>(current));
+  CHECK(const_cast<v8::CpuProfileNode*>(current));
   CHECK_EQ(script_b->GetUnboundScript()->GetId(), current->GetScriptId());
 
   current = PickChild(current, "a");
-  CHECK_NE(NULL, const_cast<v8::CpuProfileNode*>(current));
+  CHECK(const_cast<v8::CpuProfileNode*>(current));
   CHECK_EQ(script_a->GetUnboundScript()->GetId(), current->GetScriptId());
 }
 
@@ -764,13 +706,13 @@ TEST(BailoutReason) {
   //     kTryFinally
   //       kTryCatch
   current = PickChild(current, "");
-  CHECK_NE(NULL, const_cast<v8::CpuProfileNode*>(current));
+  CHECK(const_cast<v8::CpuProfileNode*>(current));
 
   current = PickChild(current, "TryFinally");
-  CHECK_NE(NULL, const_cast<v8::CpuProfileNode*>(current));
+  CHECK(const_cast<v8::CpuProfileNode*>(current));
   CHECK(!strcmp("TryFinallyStatement", current->GetBailoutReason()));
 
   current = PickChild(current, "TryCatch");
-  CHECK_NE(NULL, const_cast<v8::CpuProfileNode*>(current));
+  CHECK(const_cast<v8::CpuProfileNode*>(current));
   CHECK(!strcmp("TryCatchStatement", current->GetBailoutReason()));
 }

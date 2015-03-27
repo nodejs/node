@@ -599,6 +599,15 @@ void Scanner::Scan() {
           token = ScanNumber(true);
         } else {
           token = Token::PERIOD;
+          if (c0_ == '.') {
+            Advance();
+            if (c0_ == '.') {
+              Advance();
+              token = Token::ELLIPSIS;
+            } else {
+              PushBack('.');
+            }
+          }
         }
         break;
 
@@ -834,7 +843,7 @@ Token::Value Scanner::ScanTemplateSpan() {
       ReduceRawLiteralLength(2);
       break;
     } else if (c == '\\') {
-      if (unicode_cache_->IsLineTerminator(c0_)) {
+      if (c0_ > 0 && unicode_cache_->IsLineTerminator(c0_)) {
         // The TV of LineContinuation :: \ LineTerminatorSequence is the empty
         // code unit sequence.
         uc32 lastChar = c0_;

@@ -42,9 +42,9 @@ TEST_F(RegisterAllocatorTest, SimpleLoop) {
     StartLoop(1);
 
     StartBlock();
-    auto phi = Phi(i_reg);
+    auto phi = Phi(i_reg, 2);
     auto ipp = EmitOI(Same(), Reg(phi), Use(DefineConstant()));
-    Extend(phi, ipp);
+    SetInput(phi, 1, ipp);
     EndBlock(Jump(0));
 
     EndLoop();
@@ -206,14 +206,14 @@ TEST_F(RegisterAllocatorTest, RegressionPhisNeedTooManyRegisters) {
     StartBlock();
 
     for (size_t i = 0; i < arraysize(parameters); ++i) {
-      phis[i] = Phi(parameters[i]);
+      phis[i] = Phi(parameters[i], 2);
     }
 
     // Perform some computations.
     // something like phi[i] += const
     for (size_t i = 0; i < arraysize(parameters); ++i) {
       auto result = EmitOI(Same(), Reg(phis[i]), Use(constant));
-      Extend(phis[i], result);
+      SetInput(phis[i], 1, result);
     }
 
     EndBlock(Branch(Reg(DefineConstant()), 1, 2));
@@ -431,6 +431,40 @@ TEST_F(RegisterAllocatorTest, RegressionSpillTwice) {
   Allocate();
 }
 
+
+TEST_F(RegisterAllocatorTest, RegressionLoadConstantBeforeSpill) {
+  StartBlock();
+  // Fill registers.
+  VReg values[kDefaultNRegs];
+  for (size_t i = arraysize(values); i > 0; --i) {
+    values[i - 1] = Define(Reg(static_cast<int>(i - 1)));
+  }
+  auto c = DefineConstant();
+  auto to_spill = Define(Reg());
+  EndBlock(Jump(1));
+
+  {
+    StartLoop(1);
+
+    StartBlock();
+    // Create a use for c in second half of prev block's last gap
+    Phi(c);
+    for (size_t i = arraysize(values); i > 0; --i) {
+      Phi(values[i - 1]);
+    }
+    EndBlock(Jump(1));
+
+    EndLoop();
+  }
+
+  StartBlock();
+  // Force c to split within to_spill's definition.
+  EmitI(Reg(c));
+  EmitI(Reg(to_spill));
+  EndBlock(Last());
+
+  Allocate();
+}
 
 }  // namespace compiler
 }  // namespace internal

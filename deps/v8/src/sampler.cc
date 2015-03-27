@@ -13,7 +13,7 @@
 #include <signal.h>
 #include <sys/time.h>
 
-#if !V8_OS_QNX && !V8_OS_NACL
+#if !V8_OS_QNX && !V8_OS_NACL && !V8_OS_AIX
 #include <sys/syscall.h>  // NOLINT
 #endif
 
@@ -256,6 +256,12 @@ class SimulatorHelper {
         Simulator::sp));
     state->fp = reinterpret_cast<Address>(simulator_->get_register(
         Simulator::fp));
+#elif V8_TARGET_ARCH_PPC
+    state->pc = reinterpret_cast<Address>(simulator_->get_pc());
+    state->sp =
+        reinterpret_cast<Address>(simulator_->get_register(Simulator::sp));
+    state->fp =
+        reinterpret_cast<Address>(simulator_->get_register(Simulator::fp));
 #endif
   }
 
@@ -361,7 +367,7 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
 #else
   // Extracting the sample from the context is extremely machine dependent.
   ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
-#if !V8_OS_OPENBSD
+#if !(V8_OS_OPENBSD || (V8_OS_LINUX && V8_HOST_ARCH_PPC))
   mcontext_t& mcontext = ucontext->uc_mcontext;
 #endif
 #if V8_OS_LINUX
@@ -398,6 +404,10 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   state.pc = reinterpret_cast<Address>(mcontext.pc);
   state.sp = reinterpret_cast<Address>(mcontext.gregs[29]);
   state.fp = reinterpret_cast<Address>(mcontext.gregs[30]);
+#elif V8_HOST_ARCH_PPC
+  state.pc = reinterpret_cast<Address>(ucontext->uc_mcontext.regs->nip);
+  state.sp = reinterpret_cast<Address>(ucontext->uc_mcontext.regs->gpr[PT_R1]);
+  state.fp = reinterpret_cast<Address>(ucontext->uc_mcontext.regs->gpr[PT_R31]);
 #endif  // V8_HOST_ARCH_*
 #elif V8_OS_MACOSX
 #if V8_HOST_ARCH_X64
@@ -469,7 +479,11 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   state.sp = reinterpret_cast<Address>(mcontext.cpu.gpr[ARM_REG_SP]);
   state.fp = reinterpret_cast<Address>(mcontext.cpu.gpr[ARM_REG_FP]);
 #endif  // V8_HOST_ARCH_*
-#endif  // V8_OS_QNX
+#elif V8_OS_AIX
+  state.pc = reinterpret_cast<Address>(mcontext.jmp_context.iar);
+  state.sp = reinterpret_cast<Address>(mcontext.jmp_context.gpr[1]);
+  state.fp = reinterpret_cast<Address>(mcontext.jmp_context.gpr[31]);
+#endif  // V8_OS_AIX
 #endif  // USE_SIMULATOR
   sampler->SampleStack(state);
 }

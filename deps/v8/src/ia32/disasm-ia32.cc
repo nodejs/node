@@ -1035,6 +1035,8 @@ int DisassemblerIA32::RegisterFPUInstruction(int escape_opcode,
 // Returns NULL if the instruction is not handled here.
 static const char* F0Mnem(byte f0byte) {
   switch (f0byte) {
+    case 0x0B:
+      return "ud2";
     case 0x18: return "prefetch";
     case 0xA2: return "cpuid";
     case 0xBE: return "movsx_b";
@@ -1215,7 +1217,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                      data[7] == 0) {
             AppendToBuffer("nop");  // 8 byte nop.
             data += 8;
-          } else if (f0byte == 0xA2 || f0byte == 0x31) {
+          } else if (f0byte == 0x0B || f0byte == 0xA2 || f0byte == 0x31) {
             AppendToBuffer("%s", f0mnem);
             data += 2;
           } else if (f0byte == 0x28) {

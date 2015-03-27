@@ -172,6 +172,7 @@ enum {
   U = 1 << 23,  // Positive (or negative) offset/index.
   P = 1 << 24,  // Offset/pre-indexed addressing (or post-indexed addressing).
   I = 1 << 25,  // Immediate shifter operand (or not).
+  B0 = 1 << 0,
   B4 = 1 << 4,
   B5 = 1 << 5,
   B6 = 1 << 6,

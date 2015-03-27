@@ -5,6 +5,7 @@
 #include "src/compiler/common-operator-reducer.h"
 
 #include "src/compiler/common-operator.h"
+#include "src/compiler/node.h"
 
 namespace v8 {
 namespace internal {

@@ -3,11 +3,10 @@
 // found in the LICENSE file.
 
 #include "src/compiler/diamond.h"
-#include "src/compiler/graph-inl.h"
 #include "src/compiler/js-builtin-reducer.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-matchers.h"
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
 #include "src/types.h"
 
 namespace v8 {

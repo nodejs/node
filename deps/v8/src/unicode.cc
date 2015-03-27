@@ -190,9 +190,7 @@ static int LookupMapping(const int32_t* table,
 }
 
 
-uchar Utf8::CalculateValue(const byte* str,
-                           unsigned length,
-                           unsigned* cursor) {
+uchar Utf8::CalculateValue(const byte* str, size_t length, size_t* cursor) {
   // We only get called for non-ASCII characters.
   if (length == 1) {
     *cursor += 1;

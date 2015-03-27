@@ -285,6 +285,20 @@ void LInnerAllocatedObject::PrintDataTo(StringStream* stream) {
 }
 
 
+void LCallFunction::PrintDataTo(StringStream* stream) {
+  context()->PrintTo(stream);
+  stream->Add(" ");
+  function()->PrintTo(stream);
+  if (hydrogen()->HasVectorAndSlot()) {
+    stream->Add(" (type-feedback-vector ");
+    temp_vector()->PrintTo(stream);
+    stream->Add(" ");
+    temp_slot()->PrintTo(stream);
+    stream->Add(")");
+  }
+}
+
+
 void LCallJSFunction::PrintDataTo(StringStream* stream) {
   stream->Add("= ");
   function()->PrintTo(stream);
@@ -1291,7 +1305,15 @@ LInstruction* LChunkBuilder::DoCallNewArray(HCallNewArray* instr) {
 LInstruction* LChunkBuilder::DoCallFunction(HCallFunction* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* function = UseFixed(instr->function(), edi);
-  LCallFunction* call = new(zone()) LCallFunction(context, function);
+  LOperand* slot = NULL;
+  LOperand* vector = NULL;
+  if (instr->HasVectorAndSlot()) {
+    slot = FixedTemp(edx);
+    vector = FixedTemp(ebx);
+  }
+
+  LCallFunction* call =
+      new (zone()) LCallFunction(context, function, slot, vector);
   return MarkAsCall(DefineFixed(call, eax), instr);
 }
 
@@ -1721,7 +1743,7 @@ LInstruction* LChunkBuilder::DoCompareObjectEqAndBranch(
 LInstruction* LChunkBuilder::DoCompareHoleAndBranch(
     HCompareHoleAndBranch* instr) {
   LOperand* value = UseRegisterAtStart(instr->value());
-  return new(zone()) LCmpHoleAndBranch(value);
+  return new (zone()) LCmpHoleAndBranch(value);
 }
 
 

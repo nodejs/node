@@ -54,11 +54,8 @@
 #define ABI_PASSES_HANDLES_IN_REGS \
   (!V8_HOST_ARCH_PPC || V8_OS_AIX || V8_TARGET_ARCH_PPC64)
 
-#define ABI_RETURNS_HANDLES_IN_REGS \
-  (!V8_HOST_ARCH_PPC || V8_TARGET_LITTLE_ENDIAN)
-
 #define ABI_RETURNS_OBJECT_PAIRS_IN_REGS \
-  (!V8_HOST_ARCH_PPC || V8_TARGET_LITTLE_ENDIAN)
+  (!V8_HOST_ARCH_PPC || !V8_TARGET_ARCH_PPC64 || V8_TARGET_LITTLE_ENDIAN)
 
 #define ABI_TOC_ADDRESSABILITY_VIA_IP \
   (V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC64 && V8_TARGET_LITTLE_ENDIAN)
@@ -832,6 +829,48 @@ class Assembler : public AssemblerBase {
     }
   }
 
+  void isel(Register rt, Register ra, Register rb, int cb);
+  void isel(Condition cond, Register rt, Register ra, Register rb,
+            CRegister cr = cr7) {
+    DCHECK(cond != al);
+    DCHECK(cr.code() >= 0 && cr.code() <= 7);
+
+    switch (cond) {
+      case eq:
+        isel(rt, ra, rb, encode_crbit(cr, CR_EQ));
+        break;
+      case ne:
+        isel(rt, rb, ra, encode_crbit(cr, CR_EQ));
+        break;
+      case gt:
+        isel(rt, ra, rb, encode_crbit(cr, CR_GT));
+        break;
+      case le:
+        isel(rt, rb, ra, encode_crbit(cr, CR_GT));
+        break;
+      case lt:
+        isel(rt, ra, rb, encode_crbit(cr, CR_LT));
+        break;
+      case ge:
+        isel(rt, rb, ra, encode_crbit(cr, CR_LT));
+        break;
+      case unordered:
+        isel(rt, ra, rb, encode_crbit(cr, CR_FU));
+        break;
+      case ordered:
+        isel(rt, rb, ra, encode_crbit(cr, CR_FU));
+        break;
+      case overflow:
+        isel(rt, ra, rb, encode_crbit(cr, CR_SO));
+        break;
+      case nooverflow:
+        isel(rt, rb, ra, encode_crbit(cr, CR_SO));
+        break;
+      default:
+        UNIMPLEMENTED();
+    }
+  }
+
   void b(Condition cond, Label* L, CRegister cr = cr7, LKBit lk = LeaveLK) {
     if (cond == al) {
       b(L, lk);
@@ -907,11 +946,13 @@ class Assembler : public AssemblerBase {
   void mullw(Register dst, Register src1, Register src2, OEBit o = LeaveOE,
              RCBit r = LeaveRC);
 
-  void mulhw(Register dst, Register src1, Register src2, OEBit o = LeaveOE,
-             RCBit r = LeaveRC);
+  void mulhw(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
+  void mulhwu(Register dst, Register src1, Register src2, RCBit r = LeaveRC);
 
   void divw(Register dst, Register src1, Register src2, OEBit o = LeaveOE,
             RCBit r = LeaveRC);
+  void divwu(Register dst, Register src1, Register src2, OEBit o = LeaveOE,
+             RCBit r = LeaveRC);
 
   void addi(Register dst, Register src, const Operand& imm);
   void addis(Register dst, Register src, const Operand& imm);
@@ -926,6 +967,7 @@ class Assembler : public AssemblerBase {
   void ori(Register dst, Register src, const Operand& imm);
   void oris(Register dst, Register src, const Operand& imm);
   void orx(Register dst, Register src1, Register src2, RCBit rc = LeaveRC);
+  void orc(Register dst, Register src1, Register src2, RCBit rc = LeaveRC);
   void xori(Register dst, Register src, const Operand& imm);
   void xoris(Register ra, Register rs, const Operand& imm);
   void xor_(Register dst, Register src1, Register src2, RCBit rc = LeaveRC);
@@ -943,11 +985,14 @@ class Assembler : public AssemblerBase {
   void lhz(Register dst, const MemOperand& src);
   void lhzx(Register dst, const MemOperand& src);
   void lhzux(Register dst, const MemOperand& src);
+  void lha(Register dst, const MemOperand& src);
+  void lhax(Register dst, const MemOperand& src);
   void lwz(Register dst, const MemOperand& src);
   void lwzu(Register dst, const MemOperand& src);
   void lwzx(Register dst, const MemOperand& src);
   void lwzux(Register dst, const MemOperand& src);
   void lwa(Register dst, const MemOperand& src);
+  void lwax(Register dst, const MemOperand& src);
   void stb(Register dst, const MemOperand& src);
   void stbx(Register dst, const MemOperand& src);
   void stbux(Register dst, const MemOperand& src);
@@ -961,6 +1006,7 @@ class Assembler : public AssemblerBase {
 
   void extsb(Register rs, Register ra, RCBit r = LeaveRC);
   void extsh(Register rs, Register ra, RCBit r = LeaveRC);
+  void extsw(Register rs, Register ra, RCBit r = LeaveRC);
 
   void neg(Register rt, Register ra, OEBit o = LeaveOE, RCBit c = LeaveRC);
 
@@ -992,11 +1038,12 @@ class Assembler : public AssemblerBase {
   void rotldi(Register ra, Register rs, int sh, RCBit r = LeaveRC);
   void rotrdi(Register ra, Register rs, int sh, RCBit r = LeaveRC);
   void cntlzd_(Register dst, Register src, RCBit rc = LeaveRC);
-  void extsw(Register rs, Register ra, RCBit r = LeaveRC);
   void mulld(Register dst, Register src1, Register src2, OEBit o = LeaveOE,
              RCBit r = LeaveRC);
   void divd(Register dst, Register src1, Register src2, OEBit o = LeaveOE,
             RCBit r = LeaveRC);
+  void divdu(Register dst, Register src1, Register src2, OEBit o = LeaveOE,
+             RCBit r = LeaveRC);
 #endif
 
   void rlwinm(Register ra, Register rs, int sh, int mb, int me,
@@ -1059,8 +1106,6 @@ class Assembler : public AssemblerBase {
   void mtfprwa(DoubleRegister dst, Register src);
 #endif
 
-  void fake_asm(enum FAKE_OPCODE_T fopcode);
-  void marker_asm(int mcode);
   void function_descriptor();
 
   // Exception-generating instructions and debugging support
@@ -1068,10 +1113,6 @@ class Assembler : public AssemblerBase {
             int32_t code = kDefaultStopCode, CRegister cr = cr7);
 
   void bkpt(uint32_t imm16);  // v5 and above
-
-  // Informational messages when simulating
-  void info(const char* msg, Condition cond = al,
-            int32_t code = kDefaultStopCode, CRegister cr = cr7);
 
   void dcbf(Register ra, Register rb);
   void sync();
@@ -1111,7 +1152,14 @@ class Assembler : public AssemblerBase {
            RCBit rc = LeaveRC);
   void fctiwz(const DoubleRegister frt, const DoubleRegister frb);
   void fctiw(const DoubleRegister frt, const DoubleRegister frb);
-  void frim(const DoubleRegister frt, const DoubleRegister frb);
+  void frin(const DoubleRegister frt, const DoubleRegister frb,
+            RCBit rc = LeaveRC);
+  void friz(const DoubleRegister frt, const DoubleRegister frb,
+            RCBit rc = LeaveRC);
+  void frip(const DoubleRegister frt, const DoubleRegister frb,
+            RCBit rc = LeaveRC);
+  void frim(const DoubleRegister frt, const DoubleRegister frb,
+            RCBit rc = LeaveRC);
   void frsp(const DoubleRegister frt, const DoubleRegister frb,
             RCBit rc = LeaveRC);
   void fcfid(const DoubleRegister frt, const DoubleRegister frb,
@@ -1232,6 +1280,10 @@ class Assembler : public AssemblerBase {
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --code-comments to enable.
   void RecordComment(const char* msg);
+
+  // Record a deoptimization reason that can be used by a log or cpu profiler.
+  // Use --trace-deopt to enable.
+  void RecordDeoptReason(const int reason, const int raw_position);
 
   // Writes a single byte or word of data in the code stream.  Used
   // for inline tables, e.g., jump-tables.
@@ -1365,12 +1417,6 @@ class Assembler : public AssemblerBase {
   bool has_exception() const { return internal_trampoline_exception_; }
 
   bool is_trampoline_emitted() const { return trampoline_emitted_; }
-
-#if V8_OOL_CONSTANT_POOL
-  void set_constant_pool_available(bool available) {
-    constant_pool_available_ = available;
-  }
-#endif
 
  private:
   // Code generation

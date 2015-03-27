@@ -5,6 +5,8 @@
 #include <limits>
 
 #include "src/compiler/graph.h"
+#include "src/compiler/node.h"
+#include "src/compiler/operator.h"
 #include "src/compiler/value-numbering-reducer.h"
 #include "test/unittests/test-utils.h"
 
@@ -20,8 +22,8 @@ struct TestOperator : public Operator {
 };
 
 
-static const TestOperator kOp0(0, Operator::kEliminatable, 0, 1);
-static const TestOperator kOp1(1, Operator::kEliminatable, 1, 1);
+static const TestOperator kOp0(0, Operator::kIdempotent, 0, 1);
+static const TestOperator kOp1(1, Operator::kIdempotent, 1, 1);
 
 
 class ValueNumberingReducerTest : public TestWithZone {
@@ -74,17 +76,17 @@ TEST_F(ValueNumberingReducerTest, OperatorEqualityNotIdentity) {
     Operator::Opcode opcode = static_cast<Operator::Opcode>(
         std::numeric_limits<Operator::Opcode>::max() - i);
     inputs[i] = graph()->NewNode(
-        new (zone()) TestOperator(opcode, Operator::kEliminatable, 0, 1));
+        new (zone()) TestOperator(opcode, Operator::kIdempotent, 0, 1));
   }
   TRACED_FORRANGE(size_t, input_count, 0, arraysize(inputs)) {
     const TestOperator op1(static_cast<Operator::Opcode>(input_count),
-                           Operator::kEliminatable, input_count, 1);
+                           Operator::kIdempotent, input_count, 1);
     Node* n1 = graph()->NewNode(&op1, static_cast<int>(input_count), inputs);
     Reduction r1 = Reduce(n1);
     EXPECT_FALSE(r1.Changed());
 
     const TestOperator op2(static_cast<Operator::Opcode>(input_count),
-                           Operator::kEliminatable, input_count, 1);
+                           Operator::kIdempotent, input_count, 1);
     Node* n2 = graph()->NewNode(&op2, static_cast<int>(input_count), inputs);
     Reduction r2 = Reduce(n2);
     EXPECT_TRUE(r2.Changed());
@@ -100,10 +102,10 @@ TEST_F(ValueNumberingReducerTest, SubsequentReductionsYieldTheSameNode) {
     Operator::Opcode opcode = static_cast<Operator::Opcode>(
         std::numeric_limits<Operator::Opcode>::max() - i);
     inputs[i] = graph()->NewNode(
-        new (zone()) TestOperator(opcode, Operator::kEliminatable, 0, 1));
+        new (zone()) TestOperator(opcode, Operator::kIdempotent, 0, 1));
   }
   TRACED_FORRANGE(size_t, input_count, 0, arraysize(inputs)) {
-    const TestOperator op1(1, Operator::kEliminatable, input_count, 1);
+    const TestOperator op1(1, Operator::kIdempotent, input_count, 1);
     Node* n = graph()->NewNode(&op1, static_cast<int>(input_count), inputs);
     Reduction r = Reduce(n);
     EXPECT_FALSE(r.Changed());

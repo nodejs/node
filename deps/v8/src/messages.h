@@ -43,22 +43,24 @@ class SourceInfo;
 
 class MessageLocation {
  public:
-  MessageLocation(Handle<Script> script,
-                  int start_pos,
-                  int end_pos)
+  MessageLocation(Handle<Script> script, int start_pos, int end_pos,
+                  Handle<JSFunction> function = Handle<JSFunction>())
       : script_(script),
         start_pos_(start_pos),
-        end_pos_(end_pos) { }
+        end_pos_(end_pos),
+        function_(function) {}
   MessageLocation() : start_pos_(-1), end_pos_(-1) { }
 
   Handle<Script> script() const { return script_; }
   int start_pos() const { return start_pos_; }
   int end_pos() const { return end_pos_; }
+  Handle<JSFunction> function() const { return function_; }
 
  private:
   Handle<Script> script_;
   int start_pos_;
   int end_pos_;
+  Handle<JSFunction> function_;
 };
 
 

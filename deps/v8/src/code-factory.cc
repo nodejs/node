@@ -49,17 +49,35 @@ Callable CodeFactory::KeyedLoadICInOptimizedCode(Isolate* isolate) {
 
 
 // static
-Callable CodeFactory::StoreIC(Isolate* isolate, StrictMode mode) {
-  return Callable(StoreIC::initialize_stub(isolate, mode),
+Callable CodeFactory::CallIC(Isolate* isolate, int argc,
+                             CallICState::CallType call_type) {
+  return Callable(CallIC::initialize_stub(isolate, argc, call_type),
+                  CallFunctionWithFeedbackDescriptor(isolate));
+}
+
+
+// static
+Callable CodeFactory::CallICInOptimizedCode(Isolate* isolate, int argc,
+                                            CallICState::CallType call_type) {
+  return Callable(
+      CallIC::initialize_stub_in_optimized_code(isolate, argc, call_type),
+      CallFunctionWithFeedbackAndVectorDescriptor(isolate));
+}
+
+
+// static
+Callable CodeFactory::StoreIC(Isolate* isolate, LanguageMode language_mode) {
+  return Callable(StoreIC::initialize_stub(isolate, language_mode),
                   StoreDescriptor(isolate));
 }
 
 
 // static
-Callable CodeFactory::KeyedStoreIC(Isolate* isolate, StrictMode mode) {
-  Handle<Code> ic = mode == SLOPPY
-                        ? isolate->builtins()->KeyedStoreIC_Initialize()
-                        : isolate->builtins()->KeyedStoreIC_Initialize_Strict();
+Callable CodeFactory::KeyedStoreIC(Isolate* isolate,
+                                   LanguageMode language_mode) {
+  Handle<Code> ic = is_strict(language_mode)
+                        ? isolate->builtins()->KeyedStoreIC_Initialize_Strict()
+                        : isolate->builtins()->KeyedStoreIC_Initialize();
   return Callable(ic, StoreDescriptor(isolate));
 }
 
@@ -72,9 +90,8 @@ Callable CodeFactory::CompareIC(Isolate* isolate, Token::Value op) {
 
 
 // static
-Callable CodeFactory::BinaryOpIC(Isolate* isolate, Token::Value op,
-                                 OverwriteMode mode) {
-  BinaryOpICStub stub(isolate, op, mode);
+Callable CodeFactory::BinaryOpIC(Isolate* isolate, Token::Value op) {
+  BinaryOpICStub stub(isolate, op);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 

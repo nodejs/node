@@ -86,7 +86,7 @@ class ScopedLoggerInitializer {
 
   FILE* StopLoggingGetTempFile() {
     temp_file_ = logger_->TearDown();
-    CHECK_NE(NULL, temp_file_);
+    CHECK(temp_file_);
     fflush(temp_file_);
     rewind(temp_file_);
     return temp_file_;
@@ -368,7 +368,7 @@ TEST(LogCallbacks) {
                 "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"method1\"",
                 reinterpret_cast<intptr_t>(ObjMethod1));
 
-    CHECK_NE(NULL, StrNStr(log.start(), ref_data.start(), log.length()));
+    CHECK(StrNStr(log.start(), ref_data.start(), log.length()));
     log.Dispose();
   }
   isolate->Dispose();
@@ -414,22 +414,19 @@ TEST(LogAccessorCallbacks) {
     i::SNPrintF(prop1_getter_record,
                 "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"get prop1\"",
                 reinterpret_cast<intptr_t>(Prop1Getter));
-    CHECK_NE(NULL,
-             StrNStr(log.start(), prop1_getter_record.start(), log.length()));
+    CHECK(StrNStr(log.start(), prop1_getter_record.start(), log.length()));
 
     EmbeddedVector<char, 100> prop1_setter_record;
     i::SNPrintF(prop1_setter_record,
                 "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"set prop1\"",
                 reinterpret_cast<intptr_t>(Prop1Setter));
-    CHECK_NE(NULL,
-             StrNStr(log.start(), prop1_setter_record.start(), log.length()));
+    CHECK(StrNStr(log.start(), prop1_setter_record.start(), log.length()));
 
     EmbeddedVector<char, 100> prop2_getter_record;
     i::SNPrintF(prop2_getter_record,
                 "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"get prop2\"",
                 reinterpret_cast<intptr_t>(Prop2Getter));
-    CHECK_NE(NULL,
-             StrNStr(log.start(), prop2_getter_record.start(), log.length()));
+    CHECK(StrNStr(log.start(), prop2_getter_record.start(), log.length()));
     log.Dispose();
   }
   isolate->Dispose();
@@ -498,7 +495,7 @@ TEST(EquivalenceOfLoggingAndTraversal) {
     if (!result->IsTrue()) {
       v8::Local<v8::String> s = result->ToString(isolate);
       i::ScopedVector<char> data(s->Utf8Length() + 1);
-      CHECK_NE(NULL, data.start());
+      CHECK(data.start());
       s->WriteUtf8(data.start());
       printf("%s\n", data.start());
       // Make sure that our output is written prior crash due to CHECK failure.
@@ -523,7 +520,7 @@ TEST(LogVersion) {
     i::SNPrintF(ref_data, "v8-version,%d,%d,%d,%d,%d", i::Version::GetMajor(),
                 i::Version::GetMinor(), i::Version::GetBuild(),
                 i::Version::GetPatch(), i::Version::IsCandidate());
-    CHECK_NE(NULL, StrNStr(log.start(), ref_data.start(), log.length()));
+    CHECK(StrNStr(log.start(), ref_data.start(), log.length()));
     log.Dispose();
   }
   isolate->Dispose();

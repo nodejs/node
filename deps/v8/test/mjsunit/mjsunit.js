@@ -202,8 +202,8 @@ var assertUnoptimized;
       if (a === 0) return (1 / a) === (1 / b);
       return true;
     }
-    if (typeof a != typeof b) return false;
-    if (typeof a == "number") return isNaN(a) && isNaN(b);
+    if (typeof a !== typeof b) return false;
+    if (typeof a === "number") return isNaN(a) && isNaN(b);
     if (typeof a !== "object" && typeof a !== "function") return false;
     // Neither a nor b is primitive.
     var objectClass = classOf(a);
@@ -216,7 +216,7 @@ var assertUnoptimized;
     if (objectClass === "Function") return false;
     if (objectClass === "Array") {
       var elementCount = 0;
-      if (a.length != b.length) {
+      if (a.length !== b.length) {
         return false;
       }
       for (var i = 0; i < a.length; i++) {
@@ -224,8 +224,8 @@ var assertUnoptimized;
       }
       return true;
     }
-    if (objectClass == "String" || objectClass == "Number" ||
-      objectClass == "Boolean" || objectClass == "Date") {
+    if (objectClass === "String" || objectClass === "Number" ||
+      objectClass === "Boolean" || objectClass === "Date") {
       if (a.valueOf() !== b.valueOf()) return false;
     }
     return deepObjectEquals(a, b);
@@ -235,7 +235,7 @@ var assertUnoptimized;
     // TODO(mstarzinger): We should think about using Harmony's egal operator
     // or the function equivalent Object.is() here.
     if (found === expected) {
-      if (expected !== 0 || (1 / expected) == (1 / found)) return;
+      if (expected !== 0 || (1 / expected) === (1 / found)) return;
     } else if ((expected !== expected) && (found !== found)) {
       return;
     }
@@ -262,7 +262,7 @@ var assertUnoptimized;
       start = name_opt + " - ";
     }
     assertEquals(expected.length, found.length, start + "array length");
-    if (expected.length == found.length) {
+    if (expected.length === found.length) {
       for (var i = 0; i < expected.length; ++i) {
         assertEquals(expected[i], found[i],
                      start + "array element at index " + i);
@@ -282,7 +282,7 @@ var assertUnoptimized;
 
   assertToStringEquals = function assertToStringEquals(expected, found,
                                                        name_opt) {
-    if (expected != String(found)) {
+    if (expected !== String(found)) {
       fail(expected, found, name_opt);
     }
   };
@@ -315,14 +315,14 @@ var assertUnoptimized;
   assertThrows = function assertThrows(code, type_opt, cause_opt) {
     var threwException = true;
     try {
-      if (typeof code == 'function') {
+      if (typeof code === 'function') {
         code();
       } else {
         eval(code);
       }
       threwException = false;
     } catch (e) {
-      if (typeof type_opt == 'function') {
+      if (typeof type_opt === 'function') {
         assertInstanceof(e, type_opt);
       }
       if (arguments.length >= 3) {
@@ -339,7 +339,7 @@ var assertUnoptimized;
     if (!(obj instanceof type)) {
       var actualTypeName = null;
       var actualConstructor = Object.getPrototypeOf(obj).constructor;
-      if (typeof actualConstructor == "function") {
+      if (typeof actualConstructor === "function") {
         actualTypeName = actualConstructor.name || String(actualConstructor);
       }
       fail("Object <" + PrettyPrint(obj) + "> is not an instance of <" +
@@ -351,7 +351,7 @@ var assertUnoptimized;
 
    assertDoesNotThrow = function assertDoesNotThrow(code, name_opt) {
     try {
-      if (typeof code == 'function') {
+      if (typeof code === 'function') {
         code();
       } else {
         eval(code);
@@ -386,12 +386,12 @@ var assertUnoptimized;
 
   assertUnoptimized = function assertUnoptimized(fun, sync_opt, name_opt) {
     if (sync_opt === undefined) sync_opt = "";
-    assertTrue(OptimizationStatus(fun, sync_opt) != 1, name_opt);
+    assertTrue(OptimizationStatus(fun, sync_opt) !== 1, name_opt);
   }
 
   assertOptimized = function assertOptimized(fun, sync_opt, name_opt) {
     if (sync_opt === undefined) sync_opt = "";
-    assertTrue(OptimizationStatus(fun, sync_opt) != 2, name_opt);
+    assertTrue(OptimizationStatus(fun, sync_opt) !== 2, name_opt);
   }
 
 })();

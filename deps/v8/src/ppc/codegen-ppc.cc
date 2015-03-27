@@ -46,9 +46,7 @@ UnaryMathFunction CreateExpFunction() {
     Register temp3 = r9;
 
 // Called from C
-#if ABI_USES_FUNCTION_DESCRIPTORS
     __ function_descriptor();
-#endif
 
     __ Push(temp3, temp2, temp1);
     MathExpGenerator::EmitMathExp(&masm, input, result, double_scratch1,
@@ -88,9 +86,7 @@ UnaryMathFunction CreateSqrtFunction() {
   MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
 
 // Called from C
-#if ABI_USES_FUNCTION_DESCRIPTORS
   __ function_descriptor();
-#endif
 
   __ MovFromFloatParameter(d1);
   __ fsqrt(d1, d1);
@@ -159,7 +155,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
     MacroAssembler* masm, Register receiver, Register key, Register value,
     Register target_map, AllocationSiteMode mode, Label* fail) {
   // lr contains the return address
-  Label loop, entry, convert_hole, gc_required, only_change_map, done;
+  Label loop, entry, convert_hole, only_change_map, done;
   Register elements = r7;
   Register length = r8;
   Register array = r9;
@@ -167,7 +163,9 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   // target_map parameter can be clobbered.
   Register scratch1 = target_map;
-  Register scratch2 = r11;
+  Register scratch2 = r10;
+  Register scratch3 = r11;
+  Register scratch4 = r14;
 
   // Verify input registers don't conflict with locals.
   DCHECK(!AreAliased(receiver, key, value, target_map, elements, length, array,
@@ -183,17 +181,15 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ CompareRoot(elements, Heap::kEmptyFixedArrayRootIndex);
   __ beq(&only_change_map);
 
-  // Preserve lr and use r17 as a temporary register.
-  __ mflr(r0);
-  __ Push(r0);
-
   __ LoadP(length, FieldMemOperand(elements, FixedArray::kLengthOffset));
   // length: number of elements (smi-tagged)
 
   // Allocate new FixedDoubleArray.
-  __ SmiToDoubleArrayOffset(r17, length);
-  __ addi(r17, r17, Operand(FixedDoubleArray::kHeaderSize));
-  __ Allocate(r17, array, r10, scratch2, &gc_required, DOUBLE_ALIGNMENT);
+  __ SmiToDoubleArrayOffset(scratch3, length);
+  __ addi(scratch3, scratch3, Operand(FixedDoubleArray::kHeaderSize));
+  __ Allocate(scratch3, array, scratch4, scratch2, fail, DOUBLE_ALIGNMENT);
+  // array: destination FixedDoubleArray, not tagged as heap object.
+  // elements: source FixedArray.
 
   // Set destination FixedDoubleArray's length and map.
   __ LoadRoot(scratch2, Heap::kFixedDoubleArrayMapRootIndex);
@@ -203,27 +199,30 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   __ StoreP(target_map, FieldMemOperand(receiver, HeapObject::kMapOffset), r0);
   __ RecordWriteField(receiver, HeapObject::kMapOffset, target_map, scratch2,
-                      kLRHasBeenSaved, kDontSaveFPRegs, OMIT_REMEMBERED_SET,
+                      kLRHasNotBeenSaved, kDontSaveFPRegs, OMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
   // Replace receiver's backing store with newly created FixedDoubleArray.
   __ addi(scratch1, array, Operand(kHeapObjectTag));
   __ StoreP(scratch1, FieldMemOperand(receiver, JSObject::kElementsOffset), r0);
   __ RecordWriteField(receiver, JSObject::kElementsOffset, scratch1, scratch2,
-                      kLRHasBeenSaved, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
+                      kLRHasNotBeenSaved, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
 
   // Prepare for conversion loop.
-  __ addi(target_map, elements,
+  __ addi(scratch1, elements,
           Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ addi(r10, array, Operand(FixedDoubleArray::kHeaderSize));
-  __ SmiToDoubleArrayOffset(array, length);
-  __ add(array_end, r10, array);
+  __ addi(scratch2, array, Operand(FixedDoubleArray::kHeaderSize));
+  __ SmiToDoubleArrayOffset(array_end, length);
+  __ add(array_end, scratch2, array_end);
 // Repurpose registers no longer in use.
 #if V8_TARGET_ARCH_PPC64
   Register hole_int64 = elements;
+  __ mov(hole_int64, Operand(kHoleNanInt64));
 #else
   Register hole_lower = elements;
   Register hole_upper = length;
+  __ mov(hole_lower, Operand(kHoleNanLower32));
+  __ mov(hole_upper, Operand(kHoleNanUpper32));
 #endif
   // scratch1: begin of source FixedArray element fields, not tagged
   // hole_lower: kHoleNanLower32 OR hol_int64
@@ -240,48 +239,38 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
                       OMIT_SMI_CHECK);
   __ b(&done);
 
-  // Call into runtime if GC is required.
-  __ bind(&gc_required);
-  __ Pop(r0);
-  __ mtlr(r0);
-  __ b(fail);
-
   // Convert and copy elements.
   __ bind(&loop);
-  __ LoadP(r11, MemOperand(scratch1));
+  __ LoadP(scratch3, MemOperand(scratch1));
   __ addi(scratch1, scratch1, Operand(kPointerSize));
-  // r11: current element
-  __ UntagAndJumpIfNotSmi(r11, r11, &convert_hole);
+  // scratch3: current element
+  __ UntagAndJumpIfNotSmi(scratch3, scratch3, &convert_hole);
 
   // Normal smi, convert to double and store.
-  __ ConvertIntToDouble(r11, d0);
+  __ ConvertIntToDouble(scratch3, d0);
   __ stfd(d0, MemOperand(scratch2, 0));
-  __ addi(r10, r10, Operand(8));
-
+  __ addi(scratch2, scratch2, Operand(8));
   __ b(&entry);
 
   // Hole found, store the-hole NaN.
   __ bind(&convert_hole);
   if (FLAG_debug_code) {
-    // Restore a "smi-untagged" heap object.
-    __ LoadP(r11, MemOperand(r6, -kPointerSize));
-    __ CompareRoot(r11, Heap::kTheHoleValueRootIndex);
+    __ LoadP(scratch3, MemOperand(scratch1, -kPointerSize));
+    __ CompareRoot(scratch3, Heap::kTheHoleValueRootIndex);
     __ Assert(eq, kObjectFoundInSmiOnlyArray);
   }
 #if V8_TARGET_ARCH_PPC64
-  __ std(hole_int64, MemOperand(r10, 0));
+  __ std(hole_int64, MemOperand(scratch2, 0));
 #else
-  __ stw(hole_upper, MemOperand(r10, Register::kExponentOffset));
-  __ stw(hole_lower, MemOperand(r10, Register::kMantissaOffset));
+  __ stw(hole_upper, MemOperand(scratch2, Register::kExponentOffset));
+  __ stw(hole_lower, MemOperand(scratch2, Register::kMantissaOffset));
 #endif
-  __ addi(r10, r10, Operand(8));
+  __ addi(scratch2, scratch2, Operand(8));
 
   __ bind(&entry);
-  __ cmp(r10, array_end);
+  __ cmp(scratch2, array_end);
   __ blt(&loop);
 
-  __ Pop(r0);
-  __ mtlr(r0);
   __ bind(&done);
 }
 
@@ -290,11 +279,13 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
     MacroAssembler* masm, Register receiver, Register key, Register value,
     Register target_map, AllocationSiteMode mode, Label* fail) {
   // Register lr contains the return address.
-  Label entry, loop, convert_hole, gc_required, only_change_map;
+  Label loop, convert_hole, gc_required, only_change_map;
   Register elements = r7;
   Register array = r9;
   Register length = r8;
-  Register scratch = r11;
+  Register scratch = r10;
+  Register scratch3 = r11;
+  Register hole_value = r14;
 
   // Verify input registers don't conflict with locals.
   DCHECK(!AreAliased(receiver, key, value, target_map, elements, array, length,
@@ -340,7 +331,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ addi(src_elements, elements,
           Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag));
   __ SmiToPtrArrayOffset(length, length);
-  __ LoadRoot(r10, Heap::kTheHoleValueRootIndex);
+  __ LoadRoot(hole_value, Heap::kTheHoleValueRootIndex);
 
   Label initialization_loop, loop_done;
   __ ShiftRightImm(r0, length, Operand(kPointerSizeLog2), SetRC);
@@ -353,7 +344,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ addi(dst_elements, array,
           Operand(FixedArray::kHeaderSize - kHeapObjectTag - kPointerSize));
   __ bind(&initialization_loop);
-  __ StorePU(r10, MemOperand(dst_elements, kPointerSize));
+  __ StorePU(hole_value, MemOperand(dst_elements, kPointerSize));
   __ bdnz(&initialization_loop);
 
   __ addi(dst_elements, array,
@@ -367,7 +358,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   //               not tagged, +4
   // dst_end: end of destination FixedArray, not tagged
   // array: destination FixedArray
-  // r10: the-hole pointer
+  // hole_value: the-hole pointer
   // heap_number_map: heap number map
   __ b(&loop);
 
@@ -378,7 +369,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
 
   // Replace the-hole NaN with the-hole pointer.
   __ bind(&convert_hole);
-  __ StoreP(r10, MemOperand(dst_elements));
+  __ StoreP(hole_value, MemOperand(dst_elements));
   __ addi(dst_elements, dst_elements, Operand(kPointerSize));
   __ cmpl(dst_elements, dst_end);
   __ bge(&loop_done);
@@ -395,7 +386,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // Non-hole double, copy value into a heap number.
   Register heap_number = receiver;
   Register scratch2 = value;
-  __ AllocateHeapNumber(heap_number, scratch2, r11, heap_number_map,
+  __ AllocateHeapNumber(heap_number, scratch2, scratch3, heap_number_map,
                         &gc_required);
   // heap_number: new heap number
 #if V8_TARGET_ARCH_PPC64
@@ -416,14 +407,6 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ addi(dst_elements, dst_elements, Operand(kPointerSize));
   __ RecordWrite(array, scratch2, heap_number, kLRHasNotBeenSaved,
                  kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
-  __ b(&entry);
-
-  // Replace the-hole NaN with the-hole pointer.
-  __ bind(&convert_hole);
-  __ StoreP(r10, MemOperand(dst_elements));
-  __ addi(dst_elements, dst_elements, Operand(kPointerSize));
-
-  __ bind(&entry);
   __ cmpl(dst_elements, dst_end);
   __ blt(&loop);
   __ bind(&loop_done);

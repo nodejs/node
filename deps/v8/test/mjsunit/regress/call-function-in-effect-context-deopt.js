@@ -31,7 +31,7 @@ function f(deopt, osr) {
   var result = "result";
   %_CallFunction(0, 0, function() {});
   var dummy = deopt + 0;
-  if (osr) while (%GetOptimizationStatus(f) == 2) {}
+  for (var i = 0; osr && i < 2; i++) %OptimizeOsr();
   return result;
 }
 

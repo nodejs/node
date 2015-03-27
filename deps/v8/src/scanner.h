@@ -67,15 +67,14 @@ class Utf16CharacterStream {
 
   // Return the current position in the code unit stream.
   // Starts at zero.
-  inline unsigned pos() const { return pos_; }
+  inline size_t pos() const { return pos_; }
 
   // Skips forward past the next code_unit_count UTF-16 code units
   // in the input, or until the end of input if that comes sooner.
   // Returns the number of code units actually skipped. If less
   // than code_unit_count,
-  inline unsigned SeekForward(unsigned code_unit_count) {
-    unsigned buffered_chars =
-        static_cast<unsigned>(buffer_end_ - buffer_cursor_);
+  inline size_t SeekForward(size_t code_unit_count) {
+    size_t buffered_chars = buffer_end_ - buffer_cursor_;
     if (code_unit_count <= buffered_chars) {
       buffer_cursor_ += code_unit_count;
       pos_ += code_unit_count;
@@ -98,11 +97,11 @@ class Utf16CharacterStream {
   // is at or after the end of the input, return false. If there
   // are more code_units available, return true.
   virtual bool ReadBlock() = 0;
-  virtual unsigned SlowSeekForward(unsigned code_unit_count) = 0;
+  virtual size_t SlowSeekForward(size_t code_unit_count) = 0;
 
   const uint16_t* buffer_cursor_;
   const uint16_t* buffer_end_;
-  unsigned pos_;
+  size_t pos_;
 };
 
 
@@ -121,6 +120,12 @@ class UnicodeCache {
   bool IsIdentifierStart(unibrow::uchar c) { return kIsIdentifierStart.get(c); }
   bool IsIdentifierPart(unibrow::uchar c) { return kIsIdentifierPart.get(c); }
   bool IsLineTerminator(unibrow::uchar c) { return kIsLineTerminator.get(c); }
+  bool IsLineTerminatorSequence(unibrow::uchar c, unibrow::uchar next) {
+    if (!IsLineTerminator(c)) return false;
+    if (c == 0x000d && next == 0x000a) return false;  // CR with following LF.
+    return true;
+  }
+
   bool IsWhiteSpace(unibrow::uchar c) { return kIsWhiteSpace.get(c); }
   bool IsWhiteSpaceOrLineTerminator(unibrow::uchar c) {
     return kIsWhiteSpaceOrLineTerminator.get(c);
@@ -691,7 +696,7 @@ class Scanner {
 
   // Return the current source position.
   int source_pos() {
-    return source_->pos() - kCharacterLookaheadBufferSize;
+    return static_cast<int>(source_->pos()) - kCharacterLookaheadBufferSize;
   }
 
   UnicodeCache* unicode_cache_;

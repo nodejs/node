@@ -118,10 +118,10 @@ int FPURegister::ToAllocationIndex(FPURegister reg) {
 // RelocInfo.
 
 void RelocInfo::apply(intptr_t delta, ICacheFlushMode icache_flush_mode) {
-  if (IsInternalReference(rmode_)) {
+  if (IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_)) {
     // Absolute code pointer inside code object moves with the code object.
     byte* p = reinterpret_cast<byte*>(pc_);
-    int count = Assembler::RelocateInternalReference(p, delta);
+    int count = Assembler::RelocateInternalReference(rmode_, p, delta);
     CpuFeatures::FlushICache(p, count * sizeof(uint32_t));
   }
 }

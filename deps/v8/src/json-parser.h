@@ -32,7 +32,6 @@ class JsonParser BASE_EMBEDDED {
         source_length_(source->length()),
         isolate_(source->map()->GetHeap()->isolate()),
         factory_(isolate_->factory()),
-        zone_(isolate_),
         object_constructor_(isolate_->native_context()->object_function(),
                             isolate_),
         position_(-1) {
@@ -109,10 +108,8 @@ class JsonParser BASE_EMBEDDED {
         const uint8_t* expected_chars = content.ToOneByteVector().start();
         for (int i = 0; i < length; i++) {
           uint8_t c0 = input_chars[i];
-          if (c0 != expected_chars[i] ||
-              c0 == '"' || c0 < 0x20 || c0 == '\\') {
-            return false;
-          }
+          // The expected string has to be free of \, " and characters < 0x20.
+          if (c0 != expected_chars[i]) return false;
         }
         if (input_chars[length] == '"') {
           position_ = position_ + length + 1;
@@ -553,10 +550,9 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonNumber() {
   double number;
   if (seq_one_byte) {
     Vector<const uint8_t> chars(seq_source_->GetChars() +  beg_pos, length);
-    number = StringToDouble(isolate()->unicode_cache(),
-                            chars,
+    number = StringToDouble(isolate()->unicode_cache(), chars,
                             NO_FLAGS,  // Hex, octal or trailing junk.
-                            base::OS::nan_value());
+                            std::numeric_limits<double>::quiet_NaN());
   } else {
     Vector<uint8_t> buffer = Vector<uint8_t>::New(length);
     String::WriteToFlat(*source_, buffer.start(), beg_pos, position_);

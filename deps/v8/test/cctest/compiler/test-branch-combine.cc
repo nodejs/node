@@ -415,7 +415,7 @@ TEST(BranchCombineInt32CmpAllInputShapes_inverse_branch_false) {
 
 TEST(BranchCombineFloat64Compares) {
   double inf = V8_INFINITY;
-  double nan = v8::base::OS::nan_value();
+  double nan = std::numeric_limits<double>::quiet_NaN();
   double inputs[] = {0.0, 1.0, -1.0, -inf, inf, nan};
 
   int32_t eq_constant = -1733;
@@ -444,10 +444,10 @@ TEST(BranchCombineFloat64Compares) {
       m.Bind(&blockb);
       m.Return(m.Int32Constant(ne_constant));
 
-      for (size_t i = 0; i < arraysize(inputs); i++) {
-        for (size_t j = 0; j < arraysize(inputs); j += 2) {
+      for (size_t i = 0; i < arraysize(inputs); ++i) {
+        for (size_t j = 0; j < arraysize(inputs); ++j) {
           input_a = inputs[i];
-          input_b = inputs[i];
+          input_b = inputs[j];
           int32_t expected =
               invert ? (cmp.Float64Compare(input_a, input_b) ? ne_constant
                                                              : eq_constant)

@@ -8,7 +8,6 @@
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
-#include "src/compiler/node-properties-inl.h"
 #include "src/scopes.h"
 
 namespace v8 {
@@ -199,6 +198,41 @@ class OutOfLineLoadInteger FINAL : public OutOfLineCode {
   Register const result_;
 };
 
+
+Condition FlagsConditionToCondition(FlagsCondition condition) {
+  switch (condition) {
+    case kEqual:
+      return eq;
+    case kNotEqual:
+      return ne;
+    case kSignedLessThan:
+      return lt;
+    case kSignedGreaterThanOrEqual:
+      return ge;
+    case kSignedLessThanOrEqual:
+      return le;
+    case kSignedGreaterThan:
+      return gt;
+    case kUnsignedLessThan:
+      return lo;
+    case kUnsignedGreaterThanOrEqual:
+      return hs;
+    case kUnsignedLessThanOrEqual:
+      return ls;
+    case kUnsignedGreaterThan:
+      return hi;
+    case kOverflow:
+      return vs;
+    case kNotOverflow:
+      return vc;
+    case kUnorderedEqual:
+    case kUnorderedNotEqual:
+      break;
+  }
+  UNREACHABLE();
+  return kNoCondition;
+}
+
 }  // namespace
 
 
@@ -300,6 +334,14 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     }
     case kArchJmp:
       AssembleArchJump(i.InputRpo(0));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArchLookupSwitch:
+      AssembleArchLookupSwitch(instr);
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArchTableSwitch:
+      AssembleArchTableSwitch(instr);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArchNop:
@@ -458,8 +500,15 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       DCHECK_EQ(SetCC, i.OutputSBit());
       break;
     case kArmVcmpF64:
-      __ VFPCompareAndSetFlags(i.InputFloat64Register(0),
-                               i.InputFloat64Register(1));
+      if (instr->InputAt(1)->IsDoubleRegister()) {
+        __ VFPCompareAndSetFlags(i.InputFloat64Register(0),
+                                 i.InputFloat64Register(1));
+      } else {
+        DCHECK(instr->InputAt(1)->IsImmediate());
+        // 0.0 is the only immediate supported by vcmp instructions.
+        DCHECK(i.InputDouble(1) == 0.0);
+        __ VFPCompareAndSetFlags(i.InputFloat64Register(0), i.InputDouble(1));
+      }
       DCHECK_EQ(SetCC, i.OutputSBit());
       break;
     case kArmVaddF64:
@@ -685,65 +734,8 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   ArmOperandConverter i(this, instr);
   Label* tlabel = branch->true_label;
   Label* flabel = branch->false_label;
-  switch (branch->condition) {
-    case kUnorderedEqual:
-      // The "eq" condition will not catch the unordered case.
-      // The jump/fall through to false label will be used if the comparison
-      // was unordered.
-    case kEqual:
-      __ b(eq, tlabel);
-      break;
-    case kUnorderedNotEqual:
-      // Unordered or not equal can be tested with "ne" condtion.
-      // See ARMv7 manual A8.3 - Conditional execution.
-    case kNotEqual:
-      __ b(ne, tlabel);
-      break;
-    case kSignedLessThan:
-      __ b(lt, tlabel);
-      break;
-    case kSignedGreaterThanOrEqual:
-      __ b(ge, tlabel);
-      break;
-    case kSignedLessThanOrEqual:
-      __ b(le, tlabel);
-      break;
-    case kSignedGreaterThan:
-      __ b(gt, tlabel);
-      break;
-    case kUnorderedLessThan:
-      // The "lo" condition will not catch the unordered case.
-      // The jump/fall through to false label will be used if the comparison
-      // was unordered.
-    case kUnsignedLessThan:
-      __ b(lo, tlabel);
-      break;
-    case kUnorderedGreaterThanOrEqual:
-      // Unordered, greater than or equal can be tested with "hs" condtion.
-      // See ARMv7 manual A8.3 - Conditional execution.
-    case kUnsignedGreaterThanOrEqual:
-      __ b(hs, tlabel);
-      break;
-    case kUnorderedLessThanOrEqual:
-      // The "ls" condition will not catch the unordered case.
-      // The jump/fall through to false label will be used if the comparison
-      // was unordered.
-    case kUnsignedLessThanOrEqual:
-      __ b(ls, tlabel);
-      break;
-    case kUnorderedGreaterThan:
-      // Unordered or greater than can be tested with "hi" condtion.
-      // See ARMv7 manual A8.3 - Conditional execution.
-    case kUnsignedGreaterThan:
-      __ b(hi, tlabel);
-      break;
-    case kOverflow:
-      __ b(vs, tlabel);
-      break;
-    case kNotOverflow:
-      __ b(vc, tlabel);
-      break;
-  }
+  Condition cc = FlagsConditionToCondition(branch->condition);
+  __ b(cc, tlabel);
   if (!branch->fallthru) __ b(flabel);  // no fallthru to flabel.
 }
 
@@ -757,86 +749,39 @@ void CodeGenerator::AssembleArchJump(BasicBlock::RpoNumber target) {
 void CodeGenerator::AssembleArchBoolean(Instruction* instr,
                                         FlagsCondition condition) {
   ArmOperandConverter i(this, instr);
-  Label done;
 
   // Materialize a full 32-bit 1 or 0 value. The result register is always the
   // last output of the instruction.
-  Label check;
-  DCHECK_NE(0, instr->OutputCount());
+  DCHECK_NE(0u, instr->OutputCount());
   Register reg = i.OutputRegister(instr->OutputCount() - 1);
-  Condition cc = kNoCondition;
-  switch (condition) {
-    case kUnorderedEqual:
-      __ b(vc, &check);
-      __ mov(reg, Operand(0));
-      __ b(&done);
-    // Fall through.
-    case kEqual:
-      cc = eq;
-      break;
-    case kUnorderedNotEqual:
-      __ b(vc, &check);
-      __ mov(reg, Operand(1));
-      __ b(&done);
-    // Fall through.
-    case kNotEqual:
-      cc = ne;
-      break;
-    case kSignedLessThan:
-      cc = lt;
-      break;
-    case kSignedGreaterThanOrEqual:
-      cc = ge;
-      break;
-    case kSignedLessThanOrEqual:
-      cc = le;
-      break;
-    case kSignedGreaterThan:
-      cc = gt;
-      break;
-    case kUnorderedLessThan:
-      __ b(vc, &check);
-      __ mov(reg, Operand(0));
-      __ b(&done);
-    // Fall through.
-    case kUnsignedLessThan:
-      cc = lo;
-      break;
-    case kUnorderedGreaterThanOrEqual:
-      __ b(vc, &check);
-      __ mov(reg, Operand(1));
-      __ b(&done);
-    // Fall through.
-    case kUnsignedGreaterThanOrEqual:
-      cc = hs;
-      break;
-    case kUnorderedLessThanOrEqual:
-      __ b(vc, &check);
-      __ mov(reg, Operand(0));
-      __ b(&done);
-    // Fall through.
-    case kUnsignedLessThanOrEqual:
-      cc = ls;
-      break;
-    case kUnorderedGreaterThan:
-      __ b(vc, &check);
-      __ mov(reg, Operand(1));
-      __ b(&done);
-    // Fall through.
-    case kUnsignedGreaterThan:
-      cc = hi;
-      break;
-    case kOverflow:
-      cc = vs;
-      break;
-    case kNotOverflow:
-      cc = vc;
-      break;
-  }
-  __ bind(&check);
+  Condition cc = FlagsConditionToCondition(condition);
   __ mov(reg, Operand(0));
   __ mov(reg, Operand(1), LeaveCC, cc);
-  __ bind(&done);
+}
+
+
+void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
+  ArmOperandConverter i(this, instr);
+  Register input = i.InputRegister(0);
+  for (size_t index = 2; index < instr->InputCount(); index += 2) {
+    __ cmp(input, Operand(i.InputInt32(index + 0)));
+    __ b(eq, GetLabel(i.InputRpo(index + 1)));
+  }
+  AssembleArchJump(i.InputRpo(1));
+}
+
+
+void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
+  ArmOperandConverter i(this, instr);
+  Register input = i.InputRegister(0);
+  size_t const case_count = instr->InputCount() - 2;
+  __ cmp(input, Operand(case_count));
+  __ BlockConstPoolFor(case_count + 2);
+  __ ldr(pc, MemOperand(pc, input, LSL, 2), lo);
+  __ b(GetLabel(i.InputRpo(1)));
+  for (size_t index = 0; index < case_count; ++index) {
+    __ dd(GetLabel(i.InputRpo(index + 2)));
+  }
 }
 
 
@@ -849,6 +794,7 @@ void CodeGenerator::AssembleDeoptimizerCall(int deoptimization_id) {
 
 void CodeGenerator::AssemblePrologue() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  int stack_slots = frame()->GetSpillSlotCount();
   if (descriptor->kind() == CallDescriptor::kCallAddress) {
     bool saved_pp;
     if (FLAG_enable_ool_constant_pool) {
@@ -877,12 +823,26 @@ void CodeGenerator::AssemblePrologue() {
     __ Prologue(info->IsCodePreAgingActive());
     frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
-  } else {
+  } else if (stack_slots > 0) {
     __ StubPrologue();
     frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
   }
-  int stack_slots = frame()->GetSpillSlotCount();
+
+  if (info()->is_osr()) {
+    // TurboFan OSR-compiled functions cannot be entered directly.
+    __ Abort(kShouldNotDirectlyEnterOsrFunction);
+
+    // Unoptimized code jumps directly to this entrypoint while the unoptimized
+    // frame is still on the stack. Optimized code uses OSR values directly from
+    // the unoptimized frame. Thus, all that needs to be done is to allocate the
+    // remaining stack slots.
+    if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
+    osr_pc_offset_ = __ pc_offset();
+    DCHECK(stack_slots >= frame()->GetOsrStackSlotCount());
+    stack_slots -= frame()->GetOsrStackSlotCount();
+  }
+
   if (stack_slots > 0) {
     __ sub(sp, sp, Operand(stack_slots * kPointerSize));
   }
@@ -891,10 +851,10 @@ void CodeGenerator::AssemblePrologue() {
 
 void CodeGenerator::AssembleReturn() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  int stack_slots = frame()->GetSpillSlotCount();
   if (descriptor->kind() == CallDescriptor::kCallAddress) {
     if (frame()->GetRegisterSaveAreaSize() > 0) {
       // Remove this frame's spill slots first.
-      int stack_slots = frame()->GetSpillSlotCount();
       if (stack_slots > 0) {
         __ add(sp, sp, Operand(stack_slots * kPointerSize));
       }
@@ -906,12 +866,14 @@ void CodeGenerator::AssembleReturn() {
     }
     __ LeaveFrame(StackFrame::MANUAL);
     __ Ret();
-  } else {
+  } else if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
     __ LeaveFrame(StackFrame::MANUAL);
     int pop_count = descriptor->IsJSFunctionCall()
                         ? static_cast<int>(descriptor->JSParameterCount())
                         : 0;
     __ Drop(pop_count);
+    __ Ret();
+  } else {
     __ Ret();
   }
 }
@@ -1079,6 +1041,12 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     // No other combinations are possible.
     UNREACHABLE();
   }
+}
+
+
+void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
+  // On 32-bit ARM we emit the jump tables inline.
+  UNREACHABLE();
 }
 
 

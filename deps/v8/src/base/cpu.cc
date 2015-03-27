@@ -16,6 +16,15 @@
 #if V8_OS_QNX
 #include <sys/syspage.h>  // cpuinfo
 #endif
+#if V8_OS_LINUX && V8_HOST_ARCH_PPC
+#include <elf.h>
+#endif
+#if V8_OS_AIX
+#include <sys/systemcfg.h>  // _system_configuration
+#ifndef POWER_8
+#define POWER_8 0x10000
+#endif
+#endif
 #if V8_OS_POSIX
 #include <unistd.h>  // sysconf()
 #endif
@@ -312,6 +321,8 @@ CPU::CPU()
       has_ssse3_(false),
       has_sse41_(false),
       has_sse42_(false),
+      is_atom_(false),
+      has_osxsave_(false),
       has_avx_(false),
       has_fma3_(false),
       has_idiva_(false),
@@ -360,8 +371,23 @@ CPU::CPU()
     has_ssse3_ = (cpu_info[2] & 0x00000200) != 0;
     has_sse41_ = (cpu_info[2] & 0x00080000) != 0;
     has_sse42_ = (cpu_info[2] & 0x00100000) != 0;
+    has_osxsave_ = (cpu_info[2] & 0x08000000) != 0;
     has_avx_ = (cpu_info[2] & 0x10000000) != 0;
-    if (has_avx_) has_fma3_ = (cpu_info[2] & 0x00001000) != 0;
+    has_fma3_ = (cpu_info[2] & 0x00001000) != 0;
+
+    if (family_ == 0x6) {
+      switch (model_) {
+        case 0x1c:  // SLT
+        case 0x26:
+        case 0x36:
+        case 0x27:
+        case 0x35:
+        case 0x37:  // SLM
+        case 0x4a:
+        case 0x4d:
+          is_atom_ = true;
+      }
+    }
   }
 
 #if V8_HOST_ARCH_IA32
@@ -589,7 +615,69 @@ CPU::CPU()
     delete[] part;
   }
 
+#elif V8_HOST_ARCH_PPC
+
+#ifndef USE_SIMULATOR
+#if V8_OS_LINUX
+  // Read processor info from /proc/self/auxv.
+  char* auxv_cpu_type = NULL;
+  FILE* fp = fopen("/proc/self/auxv", "r");
+  if (fp != NULL) {
+#if V8_TARGET_ARCH_PPC64
+    Elf64_auxv_t entry;
+#else
+    Elf32_auxv_t entry;
 #endif
+    for (;;) {
+      size_t n = fread(&entry, sizeof(entry), 1, fp);
+      if (n == 0 || entry.a_type == AT_NULL) {
+        break;
+      }
+      if (entry.a_type == AT_PLATFORM) {
+        auxv_cpu_type = reinterpret_cast<char*>(entry.a_un.a_val);
+        break;
+      }
+    }
+    fclose(fp);
+  }
+
+  part_ = -1;
+  if (auxv_cpu_type) {
+    if (strcmp(auxv_cpu_type, "power8") == 0) {
+      part_ = PPC_POWER8;
+    } else if (strcmp(auxv_cpu_type, "power7") == 0) {
+      part_ = PPC_POWER7;
+    } else if (strcmp(auxv_cpu_type, "power6") == 0) {
+      part_ = PPC_POWER6;
+    } else if (strcmp(auxv_cpu_type, "power5") == 0) {
+      part_ = PPC_POWER5;
+    } else if (strcmp(auxv_cpu_type, "ppc970") == 0) {
+      part_ = PPC_G5;
+    } else if (strcmp(auxv_cpu_type, "ppc7450") == 0) {
+      part_ = PPC_G4;
+    } else if (strcmp(auxv_cpu_type, "pa6t") == 0) {
+      part_ = PPC_PA6T;
+    }
+  }
+
+#elif V8_OS_AIX
+  switch (_system_configuration.implementation) {
+    case POWER_8:
+      part_ = PPC_POWER8;
+      break;
+    case POWER_7:
+      part_ = PPC_POWER7;
+      break;
+    case POWER_6:
+      part_ = PPC_POWER6;
+      break;
+    case POWER_5:
+      part_ = PPC_POWER5;
+      break;
+  }
+#endif  // V8_OS_AIX
+#endif  // !USE_SIMULATOR
+#endif  // V8_HOST_ARCH_PPC
 }
 
 } }  // namespace v8::base

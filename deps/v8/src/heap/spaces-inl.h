@@ -91,6 +91,12 @@ HeapObject* HeapObjectIterator::FromCurrentPage() {
     int obj_size = (size_func_ == NULL) ? obj->Size() : size_func_(obj);
     cur_addr_ += obj_size;
     DCHECK(cur_addr_ <= cur_end_);
+    // TODO(hpayer): Remove the debugging code.
+    if (cur_addr_ > cur_end_) {
+      space_->heap()->isolate()->PushStackTraceAndDie(0xaaaaaaaa, obj, NULL,
+                                                      obj_size);
+    }
+
     if (!obj->IsFiller()) {
       DCHECK_OBJECT_SIZE(obj_size);
       return obj;
@@ -299,14 +305,6 @@ intptr_t LargeObjectSpace::Available() {
   return ObjectSizeFor(heap()->isolate()->memory_allocator()->Available());
 }
 
-
-bool FreeListNode::IsFreeListNode(HeapObject* object) {
-  Map* map = object->map();
-  Heap* heap = object->GetHeap();
-  return map == heap->raw_unchecked_free_space_map() ||
-         map == heap->raw_unchecked_one_pointer_filler_map() ||
-         map == heap->raw_unchecked_two_pointer_filler_map();
-}
 }
 }  // namespace v8::internal
 

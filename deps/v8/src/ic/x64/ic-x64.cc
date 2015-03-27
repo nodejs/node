@@ -168,11 +168,10 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
 
 
 // Loads an indexed element from a fast case array.
-// If not_fast_array is NULL, doesn't perform the elements map check.
 static void GenerateFastArrayLoad(MacroAssembler* masm, Register receiver,
                                   Register key, Register elements,
                                   Register scratch, Register result,
-                                  Label* not_fast_array, Label* out_of_range) {
+                                  Label* slow) {
   // Register use:
   //
   // receiver - holds the receiver on entry.
@@ -181,8 +180,6 @@ static void GenerateFastArrayLoad(MacroAssembler* masm, Register receiver,
   // key      - holds the smi key on entry.
   //            Unchanged unless 'result' is the same register.
   //
-  // elements - holds the elements of the receiver on exit.
-  //
   // result   - holds the result on exit if the load succeeded.
   //            Allowed to be the the same as 'receiver' or 'key'.
   //            Unchanged on bailout so 'receiver' and 'key' can be safely
@@ -190,32 +187,58 @@ static void GenerateFastArrayLoad(MacroAssembler* masm, Register receiver,
   //
   // Scratch registers:
   //
-  //   scratch - used to hold elements of the receiver and the loaded value.
+  // elements - holds the elements of the receiver and its prototypes.
+  //
+  // scratch  - used to hold maps, prototypes, and the loaded value.
+  Label check_prototypes, check_next_prototype;
+  Label done, in_bounds, return_undefined;
 
   __ movp(elements, FieldOperand(receiver, JSObject::kElementsOffset));
-  if (not_fast_array != NULL) {
-    // Check that the object is in fast mode and writable.
-    __ CompareRoot(FieldOperand(elements, HeapObject::kMapOffset),
-                   Heap::kFixedArrayMapRootIndex);
-    __ j(not_equal, not_fast_array);
-  } else {
-    __ AssertFastElements(elements);
-  }
+  __ AssertFastElements(elements);
   // Check that the key (index) is within bounds.
   __ SmiCompare(key, FieldOperand(elements, FixedArray::kLengthOffset));
   // Unsigned comparison rejects negative indices.
-  __ j(above_equal, out_of_range);
+  __ j(below, &in_bounds);
+
+  // Out-of-bounds. Check the prototype chain to see if we can just return
+  // 'undefined'.
+  __ SmiCompare(key, Smi::FromInt(0));
+  __ j(less, slow);  // Negative keys can't take the fast OOB path.
+  __ bind(&check_prototypes);
+  __ movp(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
+  __ bind(&check_next_prototype);
+  __ movp(scratch, FieldOperand(scratch, Map::kPrototypeOffset));
+  // scratch: current prototype
+  __ CompareRoot(scratch, Heap::kNullValueRootIndex);
+  __ j(equal, &return_undefined);
+  __ movp(elements, FieldOperand(scratch, JSObject::kElementsOffset));
+  __ movp(scratch, FieldOperand(scratch, HeapObject::kMapOffset));
+  // elements: elements of current prototype
+  // scratch: map of current prototype
+  __ CmpInstanceType(scratch, JS_OBJECT_TYPE);
+  __ j(below, slow);
+  __ testb(FieldOperand(scratch, Map::kBitFieldOffset),
+           Immediate((1 << Map::kIsAccessCheckNeeded) |
+                     (1 << Map::kHasIndexedInterceptor)));
+  __ j(not_zero, slow);
+  __ CompareRoot(elements, Heap::kEmptyFixedArrayRootIndex);
+  __ j(not_equal, slow);
+  __ jmp(&check_next_prototype);
+
+  __ bind(&return_undefined);
+  __ LoadRoot(result, Heap::kUndefinedValueRootIndex);
+  __ jmp(&done);
+
+  __ bind(&in_bounds);
   // Fast case: Do the load.
   SmiIndex index = masm->SmiToIndex(scratch, key, kPointerSizeLog2);
   __ movp(scratch, FieldOperand(elements, index.reg, index.scale,
                                 FixedArray::kHeaderSize));
   __ CompareRoot(scratch, Heap::kTheHoleValueRootIndex);
-  // In case the loaded value is the_hole we have to consult GetProperty
-  // to ensure the prototype chain is searched.
-  __ j(equal, out_of_range);
-  if (!result.is(scratch)) {
-    __ movp(result, scratch);
-  }
+  // In case the loaded value is the_hole we have to check the prototype chain.
+  __ j(equal, &check_prototypes);
+  __ Move(result, scratch);
+  __ bind(&done);
 }
 
 
@@ -251,7 +274,7 @@ static void GenerateKeyNameCheck(MacroAssembler* masm, Register key,
 }
 
 
-void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
+void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   // The return address is on the stack.
   Label slow, check_name, index_smi, index_name, property_array_property;
   Label probe_dictionary, check_number_dictionary;
@@ -273,7 +296,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // Check the receiver's map to see if it has fast elements.
   __ CheckFastElements(rax, &check_number_dictionary);
 
-  GenerateFastArrayLoad(masm, receiver, key, rax, rbx, rax, NULL, &slow);
+  GenerateFastArrayLoad(masm, receiver, key, rax, rbx, rax, &slow);
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->keyed_load_generic_smi(), 1);
   __ ret(0);
@@ -302,86 +325,35 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   GenerateKeyedLoadReceiverCheck(masm, receiver, rax, Map::kHasNamedInterceptor,
                                  &slow);
 
-  // If the receiver is a fast-case object, check the keyed lookup
-  // cache. Otherwise probe the dictionary leaving result in key.
+  // If the receiver is a fast-case object, check the stub cache. Otherwise
+  // probe the dictionary.
   __ movp(rbx, FieldOperand(receiver, JSObject::kPropertiesOffset));
   __ CompareRoot(FieldOperand(rbx, HeapObject::kMapOffset),
                  Heap::kHashTableMapRootIndex);
   __ j(equal, &probe_dictionary);
 
-  // Load the map of the receiver, compute the keyed lookup cache hash
-  // based on 32 bits of the map pointer and the string hash.
-  __ movp(rbx, FieldOperand(receiver, HeapObject::kMapOffset));
-  __ movl(rax, rbx);
-  __ shrl(rax, Immediate(KeyedLookupCache::kMapHashShift));
-  __ movl(rdi, FieldOperand(key, String::kHashFieldOffset));
-  __ shrl(rdi, Immediate(String::kHashShift));
-  __ xorp(rax, rdi);
-  int mask = (KeyedLookupCache::kCapacityMask & KeyedLookupCache::kHashMask);
-  __ andp(rax, Immediate(mask));
-
-  // Load the key (consisting of map and internalized string) from the cache and
-  // check for match.
-  Label load_in_object_property;
-  static const int kEntriesPerBucket = KeyedLookupCache::kEntriesPerBucket;
-  Label hit_on_nth_entry[kEntriesPerBucket];
-  ExternalReference cache_keys =
-      ExternalReference::keyed_lookup_cache_keys(masm->isolate());
-
-  for (int i = 0; i < kEntriesPerBucket - 1; i++) {
-    Label try_next_entry;
-    __ movp(rdi, rax);
-    __ shlp(rdi, Immediate(kPointerSizeLog2 + 1));
-    __ LoadAddress(kScratchRegister, cache_keys);
-    int off = kPointerSize * i * 2;
-    __ cmpp(rbx, Operand(kScratchRegister, rdi, times_1, off));
-    __ j(not_equal, &try_next_entry);
-    __ cmpp(key, Operand(kScratchRegister, rdi, times_1, off + kPointerSize));
-    __ j(equal, &hit_on_nth_entry[i]);
-    __ bind(&try_next_entry);
+  Register megamorphic_scratch = rdi;
+  if (FLAG_vector_ics) {
+    // When vector ics are in use, the handlers in the stub cache expect a
+    // vector and slot. Since we won't change the IC from any downstream
+    // misses, a dummy vector can be used.
+    Register vector = VectorLoadICDescriptor::VectorRegister();
+    Register slot = VectorLoadICDescriptor::SlotRegister();
+    DCHECK(!AreAliased(megamorphic_scratch, vector, slot));
+    Handle<TypeFeedbackVector> dummy_vector = Handle<TypeFeedbackVector>::cast(
+        masm->isolate()->factory()->keyed_load_dummy_vector());
+    int int_slot = dummy_vector->GetIndex(FeedbackVectorICSlot(0));
+    __ Move(vector, dummy_vector);
+    __ Move(slot, Smi::FromInt(int_slot));
   }
 
-  int off = kPointerSize * (kEntriesPerBucket - 1) * 2;
-  __ cmpp(rbx, Operand(kScratchRegister, rdi, times_1, off));
-  __ j(not_equal, &slow);
-  __ cmpp(key, Operand(kScratchRegister, rdi, times_1, off + kPointerSize));
-  __ j(not_equal, &slow);
-
-  // Get field offset, which is a 32-bit integer.
-  ExternalReference cache_field_offsets =
-      ExternalReference::keyed_lookup_cache_field_offsets(masm->isolate());
-
-  // Hit on nth entry.
-  for (int i = kEntriesPerBucket - 1; i >= 0; i--) {
-    __ bind(&hit_on_nth_entry[i]);
-    if (i != 0) {
-      __ addl(rax, Immediate(i));
-    }
-    __ LoadAddress(kScratchRegister, cache_field_offsets);
-    __ movl(rdi, Operand(kScratchRegister, rax, times_4, 0));
-    __ movzxbp(rax, FieldOperand(rbx, Map::kInObjectPropertiesOffset));
-    __ subp(rdi, rax);
-    __ j(above_equal, &property_array_property);
-    if (i != 0) {
-      __ jmp(&load_in_object_property);
-    }
-  }
-
-  // Load in-object property.
-  __ bind(&load_in_object_property);
-  __ movzxbp(rax, FieldOperand(rbx, Map::kInstanceSizeOffset));
-  __ addp(rax, rdi);
-  __ movp(rax, FieldOperand(receiver, rax, times_pointer_size, 0));
-  __ IncrementCounter(counters->keyed_load_generic_lookup_cache(), 1);
-  __ ret(0);
-
-  // Load property array property.
-  __ bind(&property_array_property);
-  __ movp(rax, FieldOperand(receiver, JSObject::kPropertiesOffset));
-  __ movp(rax,
-          FieldOperand(rax, rdi, times_pointer_size, FixedArray::kHeaderSize));
-  __ IncrementCounter(counters->keyed_load_generic_lookup_cache(), 1);
-  __ ret(0);
+  Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
+      Code::ComputeHandlerFlags(Code::LOAD_IC));
+  masm->isolate()->stub_cache()->GenerateProbe(masm, Code::KEYED_LOAD_IC, flags,
+                                               false, receiver, key,
+                                               megamorphic_scratch, no_reg);
+  // Cache miss.
+  GenerateMiss(masm);
 
   // Do a quick inline probe of the receiver's dictionary, if it
   // exists.
@@ -540,7 +512,7 @@ static void KeyedStoreGenerateMegamorphicHelper(
 
 
 void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
-                                       StrictMode strict_mode) {
+                                       LanguageMode language_mode) {
   // Return address is on the stack.
   Label slow, slow_with_tagged_index, fast_object, fast_object_grow;
   Label fast_double, fast_double_grow;
@@ -580,7 +552,7 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   __ bind(&slow);
   __ Integer32ToSmi(key, key);
   __ bind(&slow_with_tagged_index);
-  PropertyICCompiler::GenerateRuntimeSetProperty(masm, strict_mode);
+  PropertyICCompiler::GenerateRuntimeSetProperty(masm, language_mode);
   // Never returns to here.
 
   __ bind(&maybe_name_key);

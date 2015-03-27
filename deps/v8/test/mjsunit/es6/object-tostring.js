@@ -33,7 +33,7 @@ function testToStringTag(className) {
   // Using builtin toStringTags
   var obj = {};
   obj[Symbol.toStringTag] = className;
-  assertEquals("[object ~" + className + "]",
+  assertEquals("[object " + className + "]",
                Object.prototype.toString.call(obj));
 
   // Getter throws
@@ -50,7 +50,7 @@ function testToStringTag(className) {
   Object.defineProperty(obj, Symbol.toStringTag, {
     get: function() { return className; }
   });
-  assertEquals("[object ~" + className + "]",
+  assertEquals("[object " + className + "]",
                Object.prototype.toString.call(obj));
 
   // Custom, non-builtin toStringTags
@@ -99,14 +99,14 @@ function testToStringTag(className) {
 function testToStringTagNonString(value) {
   var obj = {};
   obj[Symbol.toStringTag] = value;
-  assertEquals("[object ???]", Object.prototype.toString.call(obj));
+  assertEquals("[object Object]", Object.prototype.toString.call(obj));
 
   // With getter
   obj = {};
   Object.defineProperty(obj, Symbol.toStringTag, {
     get: function() { return value; }
   });
-  assertEquals("[object ???]", Object.prototype.toString.call(obj));
+  assertEquals("[object Object]", Object.prototype.toString.call(obj));
 }
 
 [
@@ -131,3 +131,9 @@ function testObjectToStringPropertyDesc() {
   assertTrue(desc.configurable);
 }
 testObjectToStringPropertyDesc();
+
+function testObjectToStringOwnNonStringValue() {
+  var obj = Object.defineProperty({}, Symbol.toStringTag, { value: 1 });
+  assertEquals("[object Object]", ({}).toString.call(obj));
+}
+testObjectToStringOwnNonStringValue();

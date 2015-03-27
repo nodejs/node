@@ -328,11 +328,10 @@ TEST(APITestBasicMutation) {
   // Setting an indexed element via the property setting method
   obj->Set(Number::New(v8_isolate, 1), Number::New(v8_isolate, 5));
   // Setting with a non-String, non-uint32 key
-  obj->ForceSet(Number::New(v8_isolate, 1.1), Number::New(v8_isolate, 6),
-                DontDelete);
+  obj->Set(Number::New(v8_isolate, 1.1), Number::New(v8_isolate, 6));
   obj->Delete(String::NewFromUtf8(v8_isolate, "foo"));
   obj->Delete(1);
-  obj->ForceDelete(Number::New(v8_isolate, 1.1));
+  obj->Delete(Number::New(v8_isolate, 1.1));
 
   // Force delivery
   // TODO(adamk): Should the above set methods trigger delivery themselves?

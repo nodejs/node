@@ -16,12 +16,13 @@ namespace compiler {
 
 // Forward declarations.
 class RepresentationChanger;
-
+class SourcePositionTable;
 
 class SimplifiedLowering FINAL {
  public:
-  SimplifiedLowering(JSGraph* jsgraph, Zone* zone)
-      : jsgraph_(jsgraph), zone_(zone) {}
+  SimplifiedLowering(JSGraph* jsgraph, Zone* zone,
+                     SourcePositionTable* source_positions)
+      : jsgraph_(jsgraph), zone_(zone), source_positions_(source_positions) {}
   ~SimplifiedLowering() {}
 
   void LowerAllNodes();
@@ -44,6 +45,13 @@ class SimplifiedLowering FINAL {
  private:
   JSGraph* const jsgraph_;
   Zone* const zone_;
+
+  // TODO(danno): SimplifiedLowering shouldn't know anything about the source
+  // positions table, but must for now since there currently is no other way to
+  // pass down source position information to nodes created during
+  // lowering. Once this phase becomes a vanilla reducer, it should get source
+  // position information via the SourcePositionWrapper like all other reducers.
+  SourcePositionTable* source_positions_;
 
   Node* SmiTag(Node* node);
   Node* IsTagged(Node* node);

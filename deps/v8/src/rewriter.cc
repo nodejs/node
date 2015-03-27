@@ -15,13 +15,14 @@ namespace internal {
 
 class Processor: public AstVisitor {
  public:
-  Processor(Variable* result, AstValueFactory* ast_value_factory)
+  Processor(Isolate* isolate, Variable* result,
+            AstValueFactory* ast_value_factory)
       : result_(result),
         result_assigned_(false),
         is_set_(false),
         in_try_(false),
         factory_(ast_value_factory) {
-    InitializeAstVisitor(ast_value_factory->zone());
+    InitializeAstVisitor(isolate, ast_value_factory->zone());
   }
 
   virtual ~Processor() { }
@@ -205,7 +206,6 @@ void Processor::VisitModuleDeclaration(ModuleDeclaration* node) {}
 void Processor::VisitImportDeclaration(ImportDeclaration* node) {}
 void Processor::VisitExportDeclaration(ExportDeclaration* node) {}
 void Processor::VisitModuleLiteral(ModuleLiteral* node) {}
-void Processor::VisitModuleVariable(ModuleVariable* node) {}
 void Processor::VisitModulePath(ModulePath* node) {}
 void Processor::VisitModuleUrl(ModuleUrl* node) {}
 void Processor::VisitEmptyStatement(EmptyStatement* node) {}
@@ -235,7 +235,7 @@ bool Rewriter::Rewrite(CompilationInfo* info) {
         scope->NewTemporary(info->ast_value_factory()->dot_result_string());
     // The name string must be internalized at this point.
     DCHECK(!result->name().is_null());
-    Processor processor(result, info->ast_value_factory());
+    Processor processor(info->isolate(), result, info->ast_value_factory());
     processor.Process(body);
     if (processor.HasStackOverflow()) return false;
 

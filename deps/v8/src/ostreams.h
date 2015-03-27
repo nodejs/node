@@ -17,29 +17,29 @@
 namespace v8 {
 namespace internal {
 
+
 class OFStreamBase : public std::streambuf {
- protected:
+ public:
   explicit OFStreamBase(FILE* f);
   virtual ~OFStreamBase();
 
-  int_type sync() FINAL;
-  int_type overflow(int_type c) FINAL;
-
- private:
+ protected:
   FILE* const f_;
 
-  DISALLOW_COPY_AND_ASSIGN(OFStreamBase);
+  virtual int sync();
+  virtual int_type overflow(int_type c);
+  virtual std::streamsize xsputn(const char* s, std::streamsize n);
 };
 
 
 // An output stream writing to a file.
-class OFStream FINAL : private virtual OFStreamBase, public std::ostream {
+class OFStream : public std::ostream {
  public:
   explicit OFStream(FILE* f);
   ~OFStream();
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(OFStream);
+  OFStreamBase buf_;
 };
 
 
@@ -55,11 +55,19 @@ struct AsReversiblyEscapedUC16 {
   uint16_t value;
 };
 
+struct AsEscapedUC16ForJSON {
+  explicit AsEscapedUC16ForJSON(uint16_t v) : value(v) {}
+  uint16_t value;
+};
+
 
 // Writes the given character to the output escaping everything outside of
 // printable/space ASCII range. Additionally escapes '\' making escaping
 // reversible.
 std::ostream& operator<<(std::ostream& os, const AsReversiblyEscapedUC16& c);
+
+// Same as AsReversiblyEscapedUC16 with additional escaping of \n, \r, " and '.
+std::ostream& operator<<(std::ostream& os, const AsEscapedUC16ForJSON& c);
 
 // Writes the given character to the output escaping everything outside
 // of printable ASCII range.

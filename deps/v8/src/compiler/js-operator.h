@@ -171,14 +171,14 @@ const LoadPropertyParameters& LoadPropertyParametersOf(const Operator* op);
 // used as a parameter by JSStoreNamed operators.
 class StoreNamedParameters FINAL {
  public:
-  StoreNamedParameters(StrictMode strict_mode, const Unique<Name>& name)
-      : strict_mode_(strict_mode), name_(name) {}
+  StoreNamedParameters(LanguageMode language_mode, const Unique<Name>& name)
+      : language_mode_(language_mode), name_(name) {}
 
-  StrictMode strict_mode() const { return strict_mode_; }
+  LanguageMode language_mode() const { return language_mode_; }
   const Unique<Name>& name() const { return name_; }
 
  private:
-  const StrictMode strict_mode_;
+  const LanguageMode language_mode_;
   const Unique<Name> name_;
 };
 
@@ -239,10 +239,11 @@ class JSOperatorBuilder FINAL : public ZoneObject {
                             const VectorSlotPair& feedback,
                             ContextualMode contextual_mode = NOT_CONTEXTUAL);
 
-  const Operator* StoreProperty(StrictMode strict_mode);
-  const Operator* StoreNamed(StrictMode strict_mode, const Unique<Name>& name);
+  const Operator* StoreProperty(LanguageMode language_mode);
+  const Operator* StoreNamed(LanguageMode language_mode,
+                             const Unique<Name>& name);
 
-  const Operator* DeleteProperty(StrictMode strict_mode);
+  const Operator* DeleteProperty(LanguageMode language_mode);
 
   const Operator* HasProperty();
 

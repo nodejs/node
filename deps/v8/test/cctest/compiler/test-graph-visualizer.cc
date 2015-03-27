@@ -14,6 +14,7 @@
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
+#include "src/compiler/source-position.h"
 #include "src/compiler/verifier.h"
 
 using namespace v8::internal;
@@ -33,7 +34,8 @@ TEST(NodeWithNullInputReachableFromEnd) {
 
   OFStream os(stdout);
   os << AsDOT(graph);
-  os << AsJSON(graph);
+  SourcePositionTable table(&graph);
+  os << AsJSON(graph, &table);
 }
 
 
@@ -51,7 +53,8 @@ TEST(NodeWithNullControlReachableFromEnd) {
 
   OFStream os(stdout);
   os << AsDOT(graph);
-  os << AsJSON(graph);
+  SourcePositionTable table(&graph);
+  os << AsJSON(graph, &table);
 }
 
 
@@ -69,7 +72,8 @@ TEST(NodeWithNullInputReachableFromStart) {
 
   OFStream os(stdout);
   os << AsDOT(graph);
-  os << AsJSON(graph);
+  SourcePositionTable table(&graph);
+  os << AsJSON(graph, &table);
 }
 
 
@@ -86,5 +90,6 @@ TEST(NodeWithNullControlReachableFromStart) {
 
   OFStream os(stdout);
   os << AsDOT(graph);
-  os << AsJSON(graph);
+  SourcePositionTable table(&graph);
+  os << AsJSON(graph, &table);
 }

@@ -16,7 +16,8 @@ CallOptimization::CallOptimization(Handle<JSFunction> function) {
 
 
 Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
-    Handle<Map> object_map, HolderLookup* holder_lookup) const {
+    Handle<Map> object_map, HolderLookup* holder_lookup,
+    int* holder_depth_in_prototype_chain) const {
   DCHECK(is_simple_api_call());
   if (!object_map->IsJSObjectMap()) {
     *holder_lookup = kHolderNotFound;
@@ -27,13 +28,16 @@ Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
     *holder_lookup = kHolderIsReceiver;
     return Handle<JSObject>::null();
   }
-  while (true) {
+  for (int depth = 1; true; depth++) {
     if (!object_map->prototype()->IsJSObject()) break;
     Handle<JSObject> prototype(JSObject::cast(object_map->prototype()));
     if (!prototype->map()->is_hidden_prototype()) break;
     object_map = handle(prototype->map());
     if (expected_receiver_type_->IsTemplateFor(*object_map)) {
       *holder_lookup = kHolderFound;
+      if (holder_depth_in_prototype_chain != NULL) {
+        *holder_depth_in_prototype_chain = depth;
+      }
       return prototype;
     }
   }
@@ -45,8 +49,14 @@ Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
 bool CallOptimization::IsCompatibleReceiver(Handle<Object> receiver,
                                             Handle<JSObject> holder) const {
   DCHECK(is_simple_api_call());
-  if (!receiver->IsJSObject()) return false;
-  Handle<Map> map(JSObject::cast(*receiver)->map());
+  if (!receiver->IsHeapObject()) return false;
+  Handle<Map> map(HeapObject::cast(*receiver)->map());
+  return IsCompatibleReceiverMap(map, holder);
+}
+
+
+bool CallOptimization::IsCompatibleReceiverMap(Handle<Map> map,
+                                               Handle<JSObject> holder) const {
   HolderLookup holder_lookup;
   Handle<JSObject> api_holder = LookupHolderOfExpectedType(map, &holder_lookup);
   switch (holder_lookup) {
@@ -92,19 +102,11 @@ void CallOptimization::AnalyzePossibleApiFunction(Handle<JSFunction> function) {
 
   // Require a C++ callback.
   if (info->call_code()->IsUndefined()) return;
-  api_call_info_ =
-      Handle<CallHandlerInfo>(CallHandlerInfo::cast(info->call_code()));
+  api_call_info_ = handle(CallHandlerInfo::cast(info->call_code()));
 
-  // Accept signatures that either have no restrictions at all or
-  // only have restrictions on the receiver.
   if (!info->signature()->IsUndefined()) {
-    Handle<SignatureInfo> signature =
-        Handle<SignatureInfo>(SignatureInfo::cast(info->signature()));
-    if (!signature->args()->IsUndefined()) return;
-    if (!signature->receiver()->IsUndefined()) {
-      expected_receiver_type_ = Handle<FunctionTemplateInfo>(
-          FunctionTemplateInfo::cast(signature->receiver()));
-    }
+    expected_receiver_type_ =
+        handle(FunctionTemplateInfo::cast(info->signature()));
   }
 
   is_simple_api_call_ = true;

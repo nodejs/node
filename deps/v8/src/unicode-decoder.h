@@ -14,32 +14,32 @@ class Utf8DecoderBase {
  public:
   // Initialization done in subclass.
   inline Utf8DecoderBase();
-  inline Utf8DecoderBase(uint16_t* buffer, unsigned buffer_length,
-                         const uint8_t* stream, unsigned stream_length);
-  inline unsigned Utf16Length() const { return utf16_length_; }
+  inline Utf8DecoderBase(uint16_t* buffer, size_t buffer_length,
+                         const uint8_t* stream, size_t stream_length);
+  inline size_t Utf16Length() const { return utf16_length_; }
 
  protected:
   // This reads all characters and sets the utf16_length_.
   // The first buffer_length utf16 chars are cached in the buffer.
-  void Reset(uint16_t* buffer, unsigned buffer_length, const uint8_t* stream,
-             unsigned stream_length);
+  void Reset(uint16_t* buffer, size_t buffer_length, const uint8_t* stream,
+             size_t stream_length);
   static void WriteUtf16Slow(const uint8_t* stream, uint16_t* data,
-                             unsigned length);
+                             size_t length);
   const uint8_t* unbuffered_start_;
-  unsigned utf16_length_;
+  size_t utf16_length_;
   bool last_byte_of_buffer_unused_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(Utf8DecoderBase);
 };
 
-template <unsigned kBufferSize>
+template <size_t kBufferSize>
 class Utf8Decoder : public Utf8DecoderBase {
  public:
   inline Utf8Decoder() {}
-  inline Utf8Decoder(const char* stream, unsigned length);
-  inline void Reset(const char* stream, unsigned length);
-  inline unsigned WriteUtf16(uint16_t* data, unsigned length) const;
+  inline Utf8Decoder(const char* stream, size_t length);
+  inline void Reset(const char* stream, size_t length);
+  inline size_t WriteUtf16(uint16_t* data, size_t length) const;
 
  private:
   uint16_t buffer_[kBufferSize];
@@ -52,35 +52,34 @@ Utf8DecoderBase::Utf8DecoderBase()
       last_byte_of_buffer_unused_(false) {}
 
 
-Utf8DecoderBase::Utf8DecoderBase(uint16_t* buffer, unsigned buffer_length,
-                                 const uint8_t* stream,
-                                 unsigned stream_length) {
+Utf8DecoderBase::Utf8DecoderBase(uint16_t* buffer, size_t buffer_length,
+                                 const uint8_t* stream, size_t stream_length) {
   Reset(buffer, buffer_length, stream, stream_length);
 }
 
 
-template <unsigned kBufferSize>
-Utf8Decoder<kBufferSize>::Utf8Decoder(const char* stream, unsigned length)
+template <size_t kBufferSize>
+Utf8Decoder<kBufferSize>::Utf8Decoder(const char* stream, size_t length)
     : Utf8DecoderBase(buffer_, kBufferSize,
                       reinterpret_cast<const uint8_t*>(stream), length) {}
 
 
-template <unsigned kBufferSize>
-void Utf8Decoder<kBufferSize>::Reset(const char* stream, unsigned length) {
+template <size_t kBufferSize>
+void Utf8Decoder<kBufferSize>::Reset(const char* stream, size_t length) {
   Utf8DecoderBase::Reset(buffer_, kBufferSize,
                          reinterpret_cast<const uint8_t*>(stream), length);
 }
 
 
-template <unsigned kBufferSize>
-unsigned Utf8Decoder<kBufferSize>::WriteUtf16(uint16_t* data,
-                                              unsigned length) const {
+template <size_t kBufferSize>
+size_t Utf8Decoder<kBufferSize>::WriteUtf16(uint16_t* data,
+                                            size_t length) const {
   DCHECK(length > 0);
   if (length > utf16_length_) length = utf16_length_;
   // memcpy everything in buffer.
-  unsigned buffer_length =
+  size_t buffer_length =
       last_byte_of_buffer_unused_ ? kBufferSize - 1 : kBufferSize;
-  unsigned memcpy_length = length <= buffer_length ? length : buffer_length;
+  size_t memcpy_length = length <= buffer_length ? length : buffer_length;
   v8::internal::MemCopy(data, buffer_, memcpy_length * sizeof(uint16_t));
   if (length <= buffer_length) return length;
   DCHECK(unbuffered_start_ != NULL);

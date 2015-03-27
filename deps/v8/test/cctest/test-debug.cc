@@ -394,7 +394,7 @@ void CheckDebuggerUnloaded(bool check_functions) {
   // Check that the debugger context is cleared and that there is no debug
   // information stored for the debugger.
   CHECK(CcTest::i_isolate()->debug()->debug_context().is_null());
-  CHECK_EQ(NULL, CcTest::i_isolate()->debug()->debug_info_list_);
+  CHECK(!CcTest::i_isolate()->debug()->debug_info_list_);
 
   // Collect garbage to ensure weak handles are cleared.
   CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
@@ -2148,12 +2148,12 @@ TEST(ScriptBreakPointLine) {
   // Call f and check that the script break point.
   f->Call(env->Global(), 0, NULL);
   CHECK_EQ(2, break_point_hit_count);
-  CHECK_EQ("f", last_function_hit);
+  CHECK_EQ(0, strcmp("f", last_function_hit));
 
   // Call g and check that the script break point.
   g->Call(env->Global(), 0, NULL);
   CHECK_EQ(3, break_point_hit_count);
-  CHECK_EQ("g", last_function_hit);
+  CHECK_EQ(0, strcmp("g", last_function_hit));
 
   // Clear the script break point on g and set one on h.
   ClearBreakPointFromJS(env->GetIsolate(), sbp3);
@@ -2163,7 +2163,7 @@ TEST(ScriptBreakPointLine) {
   // Call g and check that the script break point in h is hit.
   g->Call(env->Global(), 0, NULL);
   CHECK_EQ(4, break_point_hit_count);
-  CHECK_EQ("h", last_function_hit);
+  CHECK_EQ(0, strcmp("h", last_function_hit));
 
   // Clear break points in f and h. Set a new one in the script between
   // functions f and g and test that there is no break points in f and g any
@@ -4242,7 +4242,7 @@ TEST(DebugBreak) {
   }
 
   // One break for each function called.
-  CHECK_EQ(4 * arraysize(argv), break_point_hit_count);
+  CHECK(4 * arraysize(argv) == break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(NULL);
@@ -5675,8 +5675,7 @@ TEST(CallFunctionInDebugger) {
 
   // Calling a function through the debugger returns 0 frames if there are
   // no JavaScript frames.
-  CHECK_EQ(v8::Integer::New(isolate, 0),
-           v8::Debug::Call(frame_count));
+  CHECK(v8::Integer::New(isolate, 0)->Equals(v8::Debug::Call(frame_count)));
 
   // Test that the number of frames can be retrieved.
   v8::Script::Compile(
@@ -5973,7 +5972,7 @@ TEST(ScriptNameAndData) {
 
   f->Call(env->Global(), 0, NULL);
   CHECK_EQ(1, break_point_hit_count);
-  CHECK_EQ("name", last_script_name_hit);
+  CHECK_EQ(0, strcmp("name", last_script_name_hit));
 
   // Compile the same script again without setting data. As the compilation
   // cache is disabled when debugging expect the data to be missing.
@@ -5982,7 +5981,7 @@ TEST(ScriptNameAndData) {
       env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "f")));
   f->Call(env->Global(), 0, NULL);
   CHECK_EQ(2, break_point_hit_count);
-  CHECK_EQ("name", last_script_name_hit);
+  CHECK_EQ(0, strcmp("name", last_script_name_hit));
 
   v8::Local<v8::String> data_obj_source = v8::String::NewFromUtf8(
       env->GetIsolate(),
@@ -5999,7 +5998,7 @@ TEST(ScriptNameAndData) {
       env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "f")));
   f->Call(env->Global(), 0, NULL);
   CHECK_EQ(3, break_point_hit_count);
-  CHECK_EQ("new name", last_script_name_hit);
+  CHECK_EQ(0, strcmp("new name", last_script_name_hit));
 
   v8::Handle<v8::Script> script3 = v8::Script::Compile(script, &origin2);
   script3->Run();
@@ -6204,7 +6203,7 @@ TEST(RegExpDebugBreak) {
   // Check that there was only one break event. Matching RegExp should not
   // cause Break events.
   CHECK_EQ(1, break_point_hit_count);
-  CHECK_EQ("f", last_function_hit);
+  CHECK_EQ(0, strcmp("f", last_function_hit));
 }
 #endif  // V8_INTERPRETED_REGEXP
 
@@ -6930,7 +6929,7 @@ TEST(DebugContextIsPreservedBetweenAccesses) {
 static v8::Handle<v8::Value> expected_callback_data;
 static void DebugEventContextChecker(const v8::Debug::EventDetails& details) {
   CHECK(details.GetEventContext() == expected_context);
-  CHECK_EQ(expected_callback_data, details.GetCallbackData());
+  CHECK(expected_callback_data->Equals(details.GetCallbackData()));
 }
 
 
@@ -7442,7 +7441,7 @@ TEST(PrecompiledFunction) {
   v8::Local<v8::Value> result = ParserCacheCompileRun(source);
   CHECK(result->IsString());
   v8::String::Utf8Value utf8(result);
-  CHECK_EQ("bar", *utf8);
+  CHECK_EQ(0, strcmp("bar", *utf8));
 
   v8::Debug::SetDebugEventListener(NULL);
   CheckDebuggerUnloaded();

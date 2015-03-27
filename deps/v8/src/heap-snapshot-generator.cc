@@ -1422,13 +1422,7 @@ void V8HeapExplorer::ExtractAccessorInfoReferences(
   SetInternalReference(accessor_info, entry, "expected_receiver_type",
                        accessor_info->expected_receiver_type(),
                        AccessorInfo::kExpectedReceiverTypeOffset);
-  if (accessor_info->IsDeclaredAccessorInfo()) {
-    DeclaredAccessorInfo* declared_accessor_info =
-        DeclaredAccessorInfo::cast(accessor_info);
-    SetInternalReference(declared_accessor_info, entry, "descriptor",
-                         declared_accessor_info->descriptor(),
-                         DeclaredAccessorInfo::kDescriptorOffset);
-  } else if (accessor_info->IsExecutableAccessorInfo()) {
+  if (accessor_info->IsExecutableAccessorInfo()) {
     ExecutableAccessorInfo* executable_accessor_info =
         ExecutableAccessorInfo::cast(accessor_info);
     SetInternalReference(executable_accessor_info, entry, "getter",
@@ -1628,7 +1622,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
     for (int i = 0; i < real_size; i++) {
       PropertyDetails details = descs->GetDetails(i);
       switch (details.location()) {
-        case IN_OBJECT: {
+        case kField: {
           Representation r = details.representation();
           if (r.IsSmi() || r.IsDouble()) break;
 
@@ -1648,7 +1642,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
           }
           break;
         }
-        case IN_DESCRIPTOR:
+        case kDescriptor:
           SetDataOrAccessorPropertyReference(details.kind(), js_obj, entry,
                                              descs->GetKey(i),
                                              descs->GetValue(i));
@@ -2037,7 +2031,7 @@ void V8HeapExplorer::SetDataOrAccessorPropertyReference(
     PropertyKind kind, JSObject* parent_obj, int parent_entry,
     Name* reference_name, Object* child_obj, const char* name_format_string,
     int field_offset) {
-  if (kind == ACCESSOR) {
+  if (kind == kAccessor) {
     ExtractAccessorPairProperty(parent_obj, parent_entry, reference_name,
                                 child_obj, field_offset);
   } else {
@@ -2557,13 +2551,17 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
 
 #ifdef VERIFY_HEAP
   Heap* debug_heap = heap_;
-  debug_heap->Verify();
+  if (FLAG_verify_heap) {
+    debug_heap->Verify();
+  }
 #endif
 
   SetProgressTotal(2);  // 2 passes.
 
 #ifdef VERIFY_HEAP
-  debug_heap->Verify();
+  if (FLAG_verify_heap) {
+    debug_heap->Verify();
+  }
 #endif
 
   snapshot_->AddSyntheticRootEntries();
@@ -3104,7 +3102,7 @@ void HeapSnapshotJSONSerializer::SerializeString(const unsigned char* s) {
           WriteUChar(writer_, *s);
         } else {
           // Convert UTF-8 into \u UTF-16 literal.
-          unsigned length = 1, cursor = 0;
+          size_t length = 1, cursor = 0;
           for ( ; length <= 4 && *(s + length) != '\0'; ++length) { }
           unibrow::uchar c = unibrow::Utf8::CalculateValue(s, length, &cursor);
           if (c != unibrow::Utf8::kBadChar) {

@@ -103,8 +103,8 @@ void DateCache::YearMonthDayFromDays(
   days += is_leap;
 
   // Check if the date is after February.
-  if (days >= 31 + 28 + is_leap) {
-    days -= 31 + 28 + is_leap;
+  if (days >= 31 + 28 + BoolToInt(is_leap)) {
+    days -= 31 + 28 + BoolToInt(is_leap);
     // Find the date starting from March.
     for (int i = 2; i < 12; i++) {
       if (days < kDaysInMonths[i]) {

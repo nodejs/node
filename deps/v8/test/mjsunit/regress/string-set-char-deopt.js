@@ -36,7 +36,7 @@
     var world = " world";
     %_OneByteSeqStringSetChar(0, (deopt(), 0x48), string);
 
-    if (osr) while (%GetOptimizationStatus(f) == 2) {}
+    for (var i = 0; osr && i < 2; i++) %OptimizeOsr();
 
     return string + world;
   }

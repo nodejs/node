@@ -24,6 +24,7 @@ namespace internal {
   V(ArrayConstructor)                       \
   V(BinaryOpICWithAllocationSite)           \
   V(CallApiFunction)                        \
+  V(CallApiAccessor)                        \
   V(CallApiGetter)                          \
   V(CallConstruct)                          \
   V(CallFunction)                           \
@@ -38,6 +39,8 @@ namespace internal {
   V(JSEntry)                                \
   V(KeyedLoadICTrampoline)                  \
   V(LoadICTrampoline)                       \
+  V(CallICTrampoline)                       \
+  V(CallIC_ArrayTrampoline)                 \
   V(LoadIndexedInterceptor)                 \
   V(LoadIndexedString)                      \
   V(MathPow)                                \
@@ -60,6 +63,7 @@ namespace internal {
   V(BinaryOpWithAllocationSite)             \
   V(CompareNilIC)                           \
   V(CreateAllocationSite)                   \
+  V(CreateWeakCell)                         \
   V(ElementsTransitionAndStore)             \
   V(FastCloneShallowArray)                  \
   V(FastCloneShallowObject)                 \
@@ -90,7 +94,8 @@ namespace internal {
   V(StoreField)                             \
   V(StoreGlobal)                            \
   V(StoreTransition)                        \
-  V(StringLength)
+  V(StringLength)                           \
+  V(RestParamAccess)
 
 // List of code stubs only used on ARM 32 bits platforms.
 #if V8_TARGET_ARCH_ARM
@@ -111,6 +116,16 @@ namespace internal {
 #define CODE_STUB_LIST_ARM64(V)
 #endif
 
+// List of code stubs only used on PPC platforms.
+#ifdef V8_TARGET_ARCH_PPC
+#define CODE_STUB_LIST_PPC(V) \
+  V(DirectCEntry)             \
+  V(StoreRegistersState)      \
+  V(RestoreRegistersState)
+#else
+#define CODE_STUB_LIST_PPC(V)
+#endif
+
 // List of code stubs only used on MIPS platforms.
 #if V8_TARGET_ARCH_MIPS
 #define CODE_STUB_LIST_MIPS(V) \
@@ -127,10 +142,11 @@ namespace internal {
 #endif
 
 // Combined list of code stubs.
-#define CODE_STUB_LIST(V)            \
-  CODE_STUB_LIST_ALL_PLATFORMS(V)    \
-  CODE_STUB_LIST_ARM(V)              \
-  CODE_STUB_LIST_ARM64(V)           \
+#define CODE_STUB_LIST(V)         \
+  CODE_STUB_LIST_ALL_PLATFORMS(V) \
+  CODE_STUB_LIST_ARM(V)           \
+  CODE_STUB_LIST_ARM64(V)         \
+  CODE_STUB_LIST_PPC(V)           \
   CODE_STUB_LIST_MIPS(V)
 
 // Stub is base classes of all stubs.
@@ -198,11 +214,12 @@ class CodeStub BASE_EMBEDDED {
   virtual Major MajorKey() const = 0;
   uint32_t MinorKey() const { return minor_key_; }
 
+  // BinaryOpStub needs to override this.
+  virtual Code::Kind GetCodeKind() const;
+
   virtual InlineCacheState GetICState() const { return UNINITIALIZED; }
   virtual ExtraICState GetExtraICState() const { return kNoExtraICState; }
-  virtual Code::StubType GetStubType() {
-    return Code::NORMAL;
-  }
+  virtual Code::StubType GetStubType() const { return Code::NORMAL; }
 
   friend std::ostream& operator<<(std::ostream& os, const CodeStub& s) {
     s.PrintName(os);
@@ -246,9 +263,6 @@ class CodeStub BASE_EMBEDDED {
   // registering stub in the stub cache.
   virtual void Activate(Code* code) { }
 
-  // BinaryOpStub needs to override this.
-  virtual Code::Kind GetCodeKind() const;
-
   // Add the code to a specialized cache, specific to an individual
   // stub type. Please note, this method must add the code object to a
   // roots object, otherwise we will remove the code during GC.
@@ -278,6 +292,30 @@ class CodeStub BASE_EMBEDDED {
   friend class BreakPointIterator;
 
   Isolate* isolate_;
+};
+
+
+// TODO(svenpanne) This class is only used to construct a more or less sensible
+// CompilationInfo for testing purposes, basically pretending that we are
+// currently compiling some kind of code stub. Remove this when the pipeline and
+// testing machinery is restructured in such a way that we don't have to come up
+// with a CompilationInfo out of thin air, although we only need a few parts of
+// it.
+struct FakeStubForTesting : public CodeStub {
+  explicit FakeStubForTesting(Isolate* isolate) : CodeStub(isolate) {}
+
+  // Only used by pipeline.cc's GetDebugName in DEBUG mode.
+  Major MajorKey() const OVERRIDE { return CodeStub::NoCache; }
+
+  CallInterfaceDescriptor GetCallInterfaceDescriptor() OVERRIDE {
+    UNREACHABLE();
+    return CallInterfaceDescriptor();
+  }
+
+  Handle<Code> GenerateCode() OVERRIDE {
+    UNREACHABLE();
+    return Handle<Code>();
+  }
 };
 
 
@@ -504,6 +542,8 @@ class RuntimeCallHelper {
 #include "src/arm64/code-stubs-arm64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "src/arm/code-stubs-arm.h"
+#elif V8_TARGET_ARCH_PPC
+#include "src/ppc/code-stubs-ppc.h"
 #elif V8_TARGET_ARCH_MIPS
 #include "src/mips/code-stubs-mips.h"
 #elif V8_TARGET_ARCH_MIPS64
@@ -555,29 +595,26 @@ class NumberToStringStub FINAL : public HydrogenCodeStub {
 
 class FastNewClosureStub : public HydrogenCodeStub {
  public:
-  FastNewClosureStub(Isolate* isolate, StrictMode strict_mode,
+  FastNewClosureStub(Isolate* isolate, LanguageMode language_mode,
                      FunctionKind kind)
       : HydrogenCodeStub(isolate) {
     DCHECK(IsValidFunctionKind(kind));
-    set_sub_minor_key(StrictModeBits::encode(strict_mode) |
+    set_sub_minor_key(LanguageModeBits::encode(language_mode) |
                       FunctionKindBits::encode(kind));
   }
 
-  StrictMode strict_mode() const {
-    return StrictModeBits::decode(sub_minor_key());
+  LanguageMode language_mode() const {
+    return LanguageModeBits::decode(sub_minor_key());
   }
 
   FunctionKind kind() const {
     return FunctionKindBits::decode(sub_minor_key());
   }
-  bool is_arrow() const { return IsArrowFunction(kind()); }
-  bool is_generator() const { return IsGeneratorFunction(kind()); }
-  bool is_concise_method() const { return IsConciseMethod(kind()); }
-  bool is_default_constructor() const { return IsDefaultConstructor(kind()); }
 
  private:
-  class StrictModeBits : public BitField<StrictMode, 0, 1> {};
-  class FunctionKindBits : public BitField<FunctionKind, 1, 4> {};
+  STATIC_ASSERT(LANGUAGE_END == 3);
+  class LanguageModeBits : public BitField<LanguageMode, 0, 2> {};
+  class FunctionKindBits : public BitField<FunctionKind, 2, 7> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewClosure);
   DEFINE_HYDROGEN_CODE_STUB(FastNewClosure, HydrogenCodeStub);
@@ -657,6 +694,17 @@ class CreateAllocationSiteStub : public HydrogenCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(CreateAllocationSite);
   DEFINE_HYDROGEN_CODE_STUB(CreateAllocationSite, HydrogenCodeStub);
+};
+
+
+class CreateWeakCellStub : public HydrogenCodeStub {
+ public:
+  explicit CreateWeakCellStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
+
+  static void GenerateAheadOfTime(Isolate* isolate);
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(CreateWeakCell);
+  DEFINE_HYDROGEN_CODE_STUB(CreateWeakCell, HydrogenCodeStub);
 };
 
 
@@ -815,7 +863,7 @@ class CallICStub: public PlatformCodeStub {
  private:
   void PrintState(std::ostream& os) const OVERRIDE;  // NOLINT
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(CallFunctionWithFeedback);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(CallFunctionWithFeedbackAndVector);
   DEFINE_PLATFORM_CODE_STUB(CallIC, PlatformCodeStub);
 };
 
@@ -863,7 +911,7 @@ class LoadIndexedInterceptorStub : public PlatformCodeStub {
       : PlatformCodeStub(isolate) {}
 
   Code::Kind GetCodeKind() const OVERRIDE { return Code::HANDLER; }
-  Code::StubType GetStubType() OVERRIDE { return Code::FAST; }
+  Code::StubType GetStubType() const OVERRIDE { return Code::FAST; }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
   DEFINE_PLATFORM_CODE_STUB(LoadIndexedInterceptor, PlatformCodeStub);
@@ -876,7 +924,7 @@ class LoadIndexedStringStub : public PlatformCodeStub {
       : PlatformCodeStub(isolate) {}
 
   Code::Kind GetCodeKind() const OVERRIDE { return Code::HANDLER; }
-  Code::StubType GetStubType() OVERRIDE { return Code::FAST; }
+  Code::StubType GetStubType() const OVERRIDE { return Code::FAST; }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
   DEFINE_PLATFORM_CODE_STUB(LoadIndexedString, PlatformCodeStub);
@@ -916,7 +964,7 @@ class LoadFieldStub: public HandlerStub {
 
  protected:
   Code::Kind kind() const OVERRIDE { return Code::LOAD_IC; }
-  Code::StubType GetStubType() OVERRIDE { return Code::FAST; }
+  Code::StubType GetStubType() const OVERRIDE { return Code::FAST; }
 
  private:
   class LoadFieldByIndexBits : public BitField<int, 0, 13> {};
@@ -932,7 +980,7 @@ class KeyedLoadSloppyArgumentsStub : public HandlerStub {
 
  protected:
   Code::Kind kind() const OVERRIDE { return Code::KEYED_LOAD_IC; }
-  Code::StubType GetStubType() OVERRIDE { return Code::FAST; }
+  Code::StubType GetStubType() const OVERRIDE { return Code::FAST; }
 
  private:
   DEFINE_HANDLER_CODE_STUB(KeyedLoadSloppyArguments, HandlerStub);
@@ -952,7 +1000,7 @@ class LoadConstantStub : public HandlerStub {
 
  protected:
   Code::Kind kind() const OVERRIDE { return Code::LOAD_IC; }
-  Code::StubType GetStubType() OVERRIDE { return Code::FAST; }
+  Code::StubType GetStubType() const OVERRIDE { return Code::FAST; }
 
  private:
   class ConstantIndexBits : public BitField<int, 0, kSubMinorKeyBits> {};
@@ -967,7 +1015,7 @@ class StringLengthStub: public HandlerStub {
 
  protected:
   Code::Kind kind() const OVERRIDE { return Code::LOAD_IC; }
-  Code::StubType GetStubType() OVERRIDE { return Code::FAST; }
+  Code::StubType GetStubType() const OVERRIDE { return Code::FAST; }
 
   DEFINE_HANDLER_CODE_STUB(StringLength, HandlerStub);
 };
@@ -996,7 +1044,7 @@ class StoreFieldStub : public HandlerStub {
 
  protected:
   Code::Kind kind() const OVERRIDE { return Code::STORE_IC; }
-  Code::StubType GetStubType() OVERRIDE { return Code::FAST; }
+  Code::StubType GetStubType() const OVERRIDE { return Code::FAST; }
 
  private:
   class StoreFieldByIndexBits : public BitField<int, 0, 13> {};
@@ -1049,7 +1097,7 @@ class StoreTransitionStub : public HandlerStub {
 
  protected:
   Code::Kind kind() const OVERRIDE { return Code::STORE_IC; }
-  Code::StubType GetStubType() OVERRIDE { return Code::FAST; }
+  Code::StubType GetStubType() const OVERRIDE { return Code::FAST; }
 
  private:
   class StoreFieldByIndexBits : public BitField<int, 0, 13> {};
@@ -1068,7 +1116,7 @@ class StoreGlobalStub : public HandlerStub {
                       CheckGlobalBits::encode(check_global));
   }
 
-  static Handle<HeapObject> global_placeholder(Isolate* isolate) {
+  static Handle<HeapObject> property_cell_placeholder(Isolate* isolate) {
     return isolate->factory()->uninitialized_value();
   }
 
@@ -1076,13 +1124,15 @@ class StoreGlobalStub : public HandlerStub {
                                        Handle<PropertyCell> cell) {
     if (check_global()) {
       Code::FindAndReplacePattern pattern;
-      pattern.Add(Handle<Map>(global_placeholder(isolate())->map()), global);
-      pattern.Add(isolate()->factory()->meta_map(), Handle<Map>(global->map()));
-      pattern.Add(isolate()->factory()->global_property_cell_map(), cell);
+      pattern.Add(isolate()->factory()->meta_map(),
+                  Map::WeakCellForMap(Handle<Map>(global->map())));
+      pattern.Add(Handle<Map>(property_cell_placeholder(isolate())->map()),
+                  isolate()->factory()->NewWeakCell(cell));
       return CodeStub::GetCodeCopy(pattern);
     } else {
       Code::FindAndReplacePattern pattern;
-      pattern.Add(isolate()->factory()->global_property_cell_map(), cell);
+      pattern.Add(Handle<Map>(property_cell_placeholder(isolate())->map()),
+                  isolate()->factory()->NewWeakCell(cell));
       return CodeStub::GetCodeCopy(pattern);
     }
   }
@@ -1117,14 +1167,40 @@ class StoreGlobalStub : public HandlerStub {
 
 class CallApiFunctionStub : public PlatformCodeStub {
  public:
-  CallApiFunctionStub(Isolate* isolate,
-                      bool is_store,
-                      bool call_data_undefined,
-                      int argc) : PlatformCodeStub(isolate) {
+  explicit CallApiFunctionStub(Isolate* isolate, bool call_data_undefined)
+      : PlatformCodeStub(isolate) {
+    minor_key_ = CallDataUndefinedBits::encode(call_data_undefined);
+  }
+
+ private:
+  bool call_data_undefined() const {
+    return CallDataUndefinedBits::decode(minor_key_);
+  }
+
+  class CallDataUndefinedBits : public BitField<bool, 0, 1> {};
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(ApiFunction);
+  DEFINE_PLATFORM_CODE_STUB(CallApiFunction, PlatformCodeStub);
+};
+
+
+class CallApiAccessorStub : public PlatformCodeStub {
+ public:
+  CallApiAccessorStub(Isolate* isolate, bool is_store, bool call_data_undefined)
+      : PlatformCodeStub(isolate) {
     minor_key_ = IsStoreBits::encode(is_store) |
                  CallDataUndefinedBits::encode(call_data_undefined) |
+                 ArgumentBits::encode(is_store ? 1 : 0);
+  }
+
+ protected:
+  // For CallApiFunctionWithFixedArgsStub, see below.
+  static const int kArgBits = 3;
+  CallApiAccessorStub(Isolate* isolate, int argc, bool call_data_undefined)
+      : PlatformCodeStub(isolate) {
+    minor_key_ = IsStoreBits::encode(false) |
+                 CallDataUndefinedBits::encode(call_data_undefined) |
                  ArgumentBits::encode(argc);
-    DCHECK(!is_store || argc == 1);
   }
 
  private:
@@ -1136,12 +1212,29 @@ class CallApiFunctionStub : public PlatformCodeStub {
 
   class IsStoreBits: public BitField<bool, 0, 1> {};
   class CallDataUndefinedBits: public BitField<bool, 1, 1> {};
-  class ArgumentBits: public BitField<int, 2, Code::kArgumentsBits> {};
-  STATIC_ASSERT(Code::kArgumentsBits + 2 <= kStubMinorKeyBits);
+  class ArgumentBits : public BitField<int, 2, kArgBits> {};
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ApiFunction);
-  DEFINE_PLATFORM_CODE_STUB(CallApiFunction, PlatformCodeStub);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(ApiAccessor);
+  DEFINE_PLATFORM_CODE_STUB(CallApiAccessor, PlatformCodeStub);
 };
+
+
+// TODO(dcarney): see if it's possible to remove this later without performance
+// degradation.
+// This is not a real stub, but a way of generating the CallApiAccessorStub
+// (which has the same abi) which makes it clear that it is not an accessor.
+class CallApiFunctionWithFixedArgsStub : public CallApiAccessorStub {
+ public:
+  static const int kMaxFixedArgs = (1 << kArgBits) - 1;
+  CallApiFunctionWithFixedArgsStub(Isolate* isolate, int argc,
+                                   bool call_data_undefined)
+      : CallApiAccessorStub(isolate, argc, call_data_undefined) {
+    DCHECK(0 <= argc && argc <= kMaxFixedArgs);
+  }
+};
+
+
+typedef ApiAccessorDescriptor ApiFunctionWithFixedArgsDescriptor;
 
 
 class CallApiGetterStub : public PlatformCodeStub {
@@ -1155,10 +1248,9 @@ class CallApiGetterStub : public PlatformCodeStub {
 
 class BinaryOpICStub : public HydrogenCodeStub {
  public:
-  BinaryOpICStub(Isolate* isolate, Token::Value op,
-                 OverwriteMode mode = NO_OVERWRITE)
+  BinaryOpICStub(Isolate* isolate, Token::Value op)
       : HydrogenCodeStub(isolate, UNINITIALIZED) {
-    BinaryOpICState state(isolate, op, mode);
+    BinaryOpICState state(isolate, op);
     set_sub_minor_key(state.GetExtraICState());
   }
 
@@ -1239,10 +1331,8 @@ class BinaryOpICWithAllocationSiteStub FINAL : public PlatformCodeStub {
 
 class BinaryOpWithAllocationSiteStub FINAL : public BinaryOpICStub {
  public:
-  BinaryOpWithAllocationSiteStub(Isolate* isolate,
-                                 Token::Value op,
-                                 OverwriteMode mode)
-      : BinaryOpICStub(isolate, op, mode) {}
+  BinaryOpWithAllocationSiteStub(Isolate* isolate, Token::Value op)
+      : BinaryOpICStub(isolate, op) {}
 
   BinaryOpWithAllocationSiteStub(Isolate* isolate, const BinaryOpICState& state)
       : BinaryOpICStub(isolate, state) {}
@@ -1460,7 +1550,7 @@ class CEntryStub : public PlatformCodeStub {
       : PlatformCodeStub(isolate) {
     minor_key_ = SaveDoublesBits::encode(save_doubles == kSaveFPRegs);
     DCHECK(result_size == 1 || result_size == 2);
-#ifdef _WIN64
+#if _WIN64 || V8_TARGET_ARCH_PPC
     minor_key_ = ResultSizeBits::update(minor_key_, result_size);
 #endif  // _WIN64
   }
@@ -1473,7 +1563,7 @@ class CEntryStub : public PlatformCodeStub {
 
  private:
   bool save_doubles() const { return SaveDoublesBits::decode(minor_key_); }
-#ifdef _WIN64
+#if _WIN64 || V8_TARGET_ARCH_PPC
   int result_size() const { return ResultSizeBits::decode(minor_key_); }
 #endif  // _WIN64
 
@@ -1525,8 +1615,13 @@ class ArgumentsAccessStub: public PlatformCodeStub {
     NEW_STRICT
   };
 
-  ArgumentsAccessStub(Isolate* isolate, Type type) : PlatformCodeStub(isolate) {
-    minor_key_ = TypeBits::encode(type);
+  enum HasNewTarget { NO_NEW_TARGET, HAS_NEW_TARGET };
+
+  ArgumentsAccessStub(Isolate* isolate, Type type,
+                      HasNewTarget has_new_target = NO_NEW_TARGET)
+      : PlatformCodeStub(isolate) {
+    minor_key_ =
+        TypeBits::encode(type) | HasNewTargetBits::encode(has_new_target);
   }
 
   CallInterfaceDescriptor GetCallInterfaceDescriptor() OVERRIDE {
@@ -1538,6 +1633,9 @@ class ArgumentsAccessStub: public PlatformCodeStub {
 
  private:
   Type type() const { return TypeBits::decode(minor_key_); }
+  bool has_new_target() const {
+    return HasNewTargetBits::decode(minor_key_) == HAS_NEW_TARGET;
+  }
 
   void GenerateReadElement(MacroAssembler* masm);
   void GenerateNewStrict(MacroAssembler* masm);
@@ -1547,8 +1645,26 @@ class ArgumentsAccessStub: public PlatformCodeStub {
   void PrintName(std::ostream& os) const OVERRIDE;  // NOLINT
 
   class TypeBits : public BitField<Type, 0, 2> {};
+  class HasNewTargetBits : public BitField<HasNewTarget, 2, 1> {};
 
   DEFINE_PLATFORM_CODE_STUB(ArgumentsAccess, PlatformCodeStub);
+};
+
+
+class RestParamAccessStub: public PlatformCodeStub {
+ public:
+  explicit RestParamAccessStub(Isolate* isolate) : PlatformCodeStub(isolate) { }
+
+  CallInterfaceDescriptor GetCallInterfaceDescriptor() OVERRIDE {
+    return ContextOnlyDescriptor(isolate());
+  }
+
+ private:
+  void GenerateNew(MacroAssembler* masm);
+
+  virtual void PrintName(std::ostream& os) const OVERRIDE;  // NOLINT
+
+  DEFINE_PLATFORM_CODE_STUB(RestParamAccess, PlatformCodeStub);
 };
 
 
@@ -1628,9 +1744,13 @@ class CallConstructStub: public PlatformCodeStub {
     return (flags() & RECORD_CONSTRUCTOR_TARGET) != 0;
   }
 
+  bool IsSuperConstructorCall() const {
+    return (flags() & SUPER_CONSTRUCTOR_CALL) != 0;
+  }
+
   void PrintName(std::ostream& os) const OVERRIDE;  // NOLINT
 
-  class FlagBits : public BitField<CallConstructorFlags, 0, 1> {};
+  class FlagBits : public BitField<CallConstructorFlags, 0, 2> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(CallConstruct);
   DEFINE_PLATFORM_CODE_STUB(CallConstruct, PlatformCodeStub);
@@ -1881,6 +2001,41 @@ class KeyedLoadICTrampolineStub : public LoadICTrampolineStub {
 };
 
 
+class CallICTrampolineStub : public PlatformCodeStub {
+ public:
+  CallICTrampolineStub(Isolate* isolate, const CallICState& state)
+      : PlatformCodeStub(isolate) {
+    minor_key_ = state.GetExtraICState();
+  }
+
+  Code::Kind GetCodeKind() const OVERRIDE { return Code::CALL_IC; }
+
+  InlineCacheState GetICState() const FINAL { return DEFAULT; }
+
+  ExtraICState GetExtraICState() const FINAL {
+    return static_cast<ExtraICState>(minor_key_);
+  }
+
+ protected:
+  CallICState state() const {
+    return CallICState(static_cast<ExtraICState>(minor_key_));
+  }
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(CallFunctionWithFeedback);
+  DEFINE_PLATFORM_CODE_STUB(CallICTrampoline, PlatformCodeStub);
+};
+
+
+class CallIC_ArrayTrampolineStub : public CallICTrampolineStub {
+ public:
+  CallIC_ArrayTrampolineStub(Isolate* isolate, const CallICState& state)
+      : CallICTrampolineStub(isolate, state) {}
+
+ private:
+  DEFINE_PLATFORM_CODE_STUB(CallIC_ArrayTrampoline, CallICTrampolineStub);
+};
+
+
 class MegamorphicLoadStub : public HydrogenCodeStub {
  public:
   MegamorphicLoadStub(Isolate* isolate, const LoadICState& state)
@@ -2017,7 +2172,7 @@ class ScriptContextFieldStub : public HandlerStub {
   class SlotIndexBits
       : public BitField<int, kContextIndexBits, kSlotIndexBits> {};
 
-  Code::StubType GetStubType() OVERRIDE { return Code::FAST; }
+  Code::StubType GetStubType() const OVERRIDE { return Code::FAST; }
 
   DEFINE_CODE_STUB_BASE(ScriptContextFieldStub, HandlerStub);
 };

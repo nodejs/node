@@ -67,8 +67,10 @@
   'array-feedback': [PASS, NO_VARIANTS],
   'compare-known-objects-slow': [PASS, NO_VARIANTS],
   'elements-kind': [PASS, NO_VARIANTS],
+  'opt-elements-kind': [PASS, NO_VARIANTS],
 
   # Some tests are just too slow to run for now.
+  'big-object-literal': [PASS, NO_VARIANTS],
   'bit-not': [PASS, NO_VARIANTS],
   'json2': [PASS, NO_VARIANTS],
   'packed-elements': [PASS, NO_VARIANTS],
@@ -76,52 +78,42 @@
   'whitespaces': [PASS, NO_VARIANTS],
   'compiler/osr-assert': [PASS, NO_VARIANTS],
   'regress/regress-2185-2': [PASS, NO_VARIANTS],
+  'regress/regress-2612': [PASS, NO_VARIANTS],
+
+  # Modules are busted
+  'harmony/module-linking': [SKIP],
+  'harmony/module-recompile': [SKIP],
+  'harmony/module-resolution': [SKIP],
+  'harmony/regress/regress-343928': [SKIP],
 
   # Issue 3660: Replacing activated TurboFan frames by unoptimized code does
   # not work, but we expect it to not crash.
   'debug-step-turbofan': [PASS, FAIL],
 
-  # Support for %GetFrameDetails is missing and requires checkpoints.
-  'debug-evaluate-bool-constructor': [PASS, NO_VARIANTS],
+  # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
   'debug-evaluate-const': [PASS, NO_VARIANTS],
-  'debug-evaluate-locals-optimized-double': [PASS, NO_VARIANTS],
-  'debug-evaluate-locals-optimized': [PASS, NO_VARIANTS],
   'debug-evaluate-locals': [PASS, NO_VARIANTS],
-  'debug-evaluate-with-context': [PASS, NO_VARIANTS],
+  'debug-liveedit-check-stack': [PASS, NO_VARIANTS],  # only in no-snap mode.
   'debug-liveedit-double-call': [PASS, NO_VARIANTS],
-  'debug-liveedit-restart-frame': [PASS, NO_VARIANTS],
-  'debug-return-value': [PASS, NO_VARIANTS],
-  'debug-set-variable-value': [PASS, NO_VARIANTS],
   'debug-step-stub-callfunction': [PASS, NO_VARIANTS],
+  'debug-set-variable-value': [PASS, NO_VARIANTS],
   'debug-stepin-accessor': [PASS, NO_VARIANTS],
   'debug-stepin-builtin': [PASS, NO_VARIANTS],
   'debug-stepin-constructor': [PASS, NO_VARIANTS],
   'debug-stepin-function-call': [PASS, NO_VARIANTS],
   'debug-stepnext-do-while': [PASS, NO_VARIANTS],
-  'debug-stepout-recursive-function': [PASS, NO_VARIANTS],
   'debug-stepout-scope-part1': [PASS, NO_VARIANTS],
   'debug-stepout-scope-part2': [PASS, NO_VARIANTS],
   'debug-stepout-scope-part3': [PASS, NO_VARIANTS],
-  'debug-stepout-scope-part7': [PASS, NO_VARIANTS],
-  'debug-stepout-to-builtin': [PASS, NO_VARIANTS],
-  'es6/debug-promises/throw-in-constructor': [PASS, NO_VARIANTS],
-  'es6/debug-promises/reject-in-constructor': [PASS, NO_VARIANTS],
-  'es6/debug-promises/throw-with-undefined-reject': [PASS, NO_VARIANTS],
-  'es6/debug-promises/throw-with-throw-in-reject': [PASS, NO_VARIANTS],
-  'es6/debug-promises/reject-with-throw-in-reject': [PASS, NO_VARIANTS],
-  'es6/debug-promises/throw-uncaught-all': [PASS, NO_VARIANTS],
-  'es6/debug-promises/throw-uncaught-uncaught': [PASS, NO_VARIANTS],
-  'es6/debug-promises/reject-uncaught-late': [PASS, NO_VARIANTS],
-  'es6/debug-promises/throw-caught-by-default-reject-handler': [PASS, NO_VARIANTS],
-  'es6/generators-debug-scopes': [PASS, NO_VARIANTS],
-  'harmony/debug-blockscopes': [PASS, NO_VARIANTS],
-  'regress/regress-1081309': [PASS, NO_VARIANTS],
-  'regress/regress-269': [PASS, NO_VARIANTS],
-  'regress/regress-crbug-259300': [PASS, NO_VARIANTS],
-  'regress/regress-frame-details-null-receiver': [PASS, NO_VARIANTS],
+  'es6/debug-stepin-microtasks': [PASS, NO_VARIANTS],
+  'es6/debug-stepnext-for': [PASS, NO_VARIANTS],
+  'harmony/debug-evaluate-blockscopes': [PASS, NO_VARIANTS],
 
-  # TODO(arv): TurboFan does not yet add [[HomeObject]] as needed.
-  'harmony/object-literals-super': [PASS, NO_VARIANTS],
+  # TODO(jarin): Some tests don't like --turbo-deoptimzation very much.
+  'asm/embenchen/lua_binarytrees': [SKIP],
+  'es6/symbols': [PASS, NO_VARIANTS],
+  'regress/regress-354433': [PASS, NO_VARIANTS],  # only on ARM simulator.
+  'regress/regress-crbug-259300': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
@@ -255,6 +247,12 @@
   # Issue 3776.
   'debug-stepframe': [SKIP],
 }],  # 'gc_stress == True'
+
+##############################################################################
+['byteorder == big', {
+  # Emscripten requires little-endian, skip all tests on big endian platforms.
+  'asm/embenchen/*': [SKIP],
+}],  # 'byteorder == big'
 
 ##############################################################################
 ['arch == arm64 or arch == android_arm64', {
@@ -445,9 +443,6 @@
 ['arch == mips', {
   # Flaky with TF.
   'mirror-script': [PASS, NO_VARIANTS],
-
-  # Emscripten requires little-endian, skip all tests on MIPS EB.
-  'asm/embenchen/*': [SKIP],
 }],  # 'arch == mips'
 
 ##############################################################################
@@ -572,6 +567,12 @@
   'harmony/private': [SKIP],
   'harmony/symbols': [SKIP],
 }],  # 'arch == nacl_ia32 or arch == nacl_x64'
+
+##############################################################################
+['arch == x87', {
+  # Currently Turbofan is not supported by x87.
+  'compiler/opt-next-call-turbo': [SKIP],
+}],  # 'arch == x87'
 
 ##############################################################################
 ['deopt_fuzzer == True', {

@@ -69,6 +69,7 @@ def _V8PresubmitChecks(input_api, output_api):
   from presubmit import SourceProcessor
   from presubmit import CheckRuntimeVsNativesNameClashes
   from presubmit import CheckExternalReferenceRegistration
+  from presubmit import CheckAuthorizedAuthor
 
   results = []
   if not CppLintProcessor().Run(input_api.PresubmitLocalPath()):
@@ -83,6 +84,7 @@ def _V8PresubmitChecks(input_api, output_api):
   if not CheckExternalReferenceRegistration(input_api.PresubmitLocalPath()):
     results.append(output_api.PresubmitError(
         "External references registration check failed"))
+  results.extend(CheckAuthorizedAuthor(input_api, output_api))
   return results
 
 
@@ -242,15 +244,17 @@ def GetPreferredTryMasters(project, change):
   return {
     'tryserver.v8': {
       'v8_linux_rel': set(['defaulttests']),
-      'v8_linux_dbg': set(['defaulttests']),
-      'v8_linux_nosnap_rel': set(['defaulttests']),
+      'v8_linux_nodcheck_rel': set(['defaulttests']),
+      'v8_linux_gcc_compile_rel': set(['defaulttests']),
       'v8_linux64_rel': set(['defaulttests']),
-      'v8_linux_arm_dbg': set(['defaulttests']),
-      'v8_linux_arm64_rel': set(['defaulttests']),
-      'v8_linux_layout_dbg': set(['defaulttests']),
-      'v8_linux_chromium_gn_rel': set(['defaulttests']),
-      'v8_mac_rel': set(['defaulttests']),
+      'v8_linux64_asan_rel': set(['defaulttests']),
       'v8_win_rel': set(['defaulttests']),
-      'v8_win64_compile_rel': set(['defaulttests']),
+      'v8_win_compile_dbg': set(['defaulttests']),
+      'v8_win64_rel': set(['defaulttests']),
+      'v8_mac_rel': set(['defaulttests']),
+      'v8_linux_arm_rel': set(['defaulttests']),
+      'v8_linux_arm64_rel': set(['defaulttests']),
+      'v8_android_arm_compile_rel': set(['defaulttests']),
+      'v8_linux_chromium_gn_rel': set(['defaulttests']),
     },
   }

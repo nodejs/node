@@ -9,6 +9,7 @@
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/utils.h"
+#include "src/v8.h"
 
 #if V8_LIBC_BIONIC
 #include <malloc.h>  // NOLINT
@@ -20,7 +21,7 @@ namespace internal {
 void* Malloced::New(size_t size) {
   void* result = malloc(size);
   if (result == NULL) {
-    v8::internal::FatalProcessOutOfMemory("Malloced operator new");
+    V8::FatalProcessOutOfMemory("Malloced operator new");
   }
   return result;
 }
@@ -28,11 +29,6 @@ void* Malloced::New(size_t size) {
 
 void Malloced::Delete(void* p) {
   free(p);
-}
-
-
-void Malloced::FatalProcessOutOfMemory() {
-  v8::internal::FatalProcessOutOfMemory("Out of memory");
 }
 
 
@@ -96,7 +92,7 @@ void* AlignedAlloc(size_t size, size_t alignment) {
 #else
   if (posix_memalign(&ptr, alignment, size)) ptr = NULL;
 #endif
-  if (ptr == NULL) FatalProcessOutOfMemory("AlignedAlloc");
+  if (ptr == NULL) V8::FatalProcessOutOfMemory("AlignedAlloc");
   return ptr;
 }
 

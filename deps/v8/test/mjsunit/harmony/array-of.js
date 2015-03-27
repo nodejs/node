@@ -159,6 +159,26 @@ assertEquals(Array.of.length, 0);
 assertThrows(function() { new Array.of() }, TypeError);  // not a constructor
 
 // When the this-value passed in is not a constructor, the result is an array.
-[undefined, null, false, "cow"].forEach(function(val) {
-    assertEquals(Array.isArray(Array.of(val)), true);
+[
+  undefined,
+  null,
+  false,
+  "cow",
+  NaN,
+  67,
+  Infinity,
+  -Infinity,
+  Math.cos, // builtin functions with no [[Construct]] slot
+  Math.cos.bind(Math) // bound builtin functions with no [[Construct]] slot
+].forEach(function(val) {
+    assertEquals(Array.isArray(Array.of.call(val, val)), true);
 });
+
+
+(function testBoundConstructor() {
+  var boundFn = (function() {}).bind(null);
+  var instance = Array.of.call(boundFn, 1, 2, 3);
+  assertEquals(instance.length, 3);
+  assertEquals(instance instanceof boundFn, true);
+  assertEquals(Array.isArray(instance), false);
+})();

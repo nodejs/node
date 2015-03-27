@@ -36,6 +36,12 @@ void CodeDisableOptEventRecord::UpdateCodeMap(CodeMap* code_map) {
 }
 
 
+void CodeDeoptEventRecord::UpdateCodeMap(CodeMap* code_map) {
+  CodeEntry* entry = code_map->FindEntry(start);
+  if (entry != NULL) entry->set_deopt_info(deopt_reason, raw_position);
+}
+
+
 void SharedFunctionInfoMoveEventRecord::UpdateCodeMap(CodeMap* code_map) {
   code_map->MoveCode(from, to);
 }

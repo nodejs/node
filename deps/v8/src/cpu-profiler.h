@@ -23,12 +23,13 @@ class CpuProfile;
 class CpuProfilesCollection;
 class ProfileGenerator;
 
-#define CODE_EVENTS_TYPE_LIST(V)                                   \
-  V(CODE_CREATION,    CodeCreateEventRecord)                       \
-  V(CODE_MOVE,        CodeMoveEventRecord)                         \
-  V(CODE_DISABLE_OPT, CodeDisableOptEventRecord)                   \
-  V(SHARED_FUNC_MOVE, SharedFunctionInfoMoveEventRecord)           \
-  V(REPORT_BUILTIN,   ReportBuiltinEventRecord)
+#define CODE_EVENTS_TYPE_LIST(V)                         \
+  V(CODE_CREATION, CodeCreateEventRecord)                \
+  V(CODE_MOVE, CodeMoveEventRecord)                      \
+  V(CODE_DISABLE_OPT, CodeDisableOptEventRecord)         \
+  V(CODE_DEOPT, CodeDeoptEventRecord)                    \
+  V(SHARED_FUNC_MOVE, SharedFunctionInfoMoveEventRecord) \
+  V(REPORT_BUILTIN, ReportBuiltinEventRecord)
 
 
 class CodeEventRecord {
@@ -70,6 +71,16 @@ class CodeDisableOptEventRecord : public CodeEventRecord {
  public:
   Address start;
   const char* bailout_reason;
+
+  INLINE(void UpdateCodeMap(CodeMap* code_map));
+};
+
+
+class CodeDeoptEventRecord : public CodeEventRecord {
+ public:
+  Address start;
+  const char* deopt_reason;
+  int raw_position;
 
   INLINE(void UpdateCodeMap(CodeMap* code_map));
 };
@@ -137,6 +148,7 @@ class ProfilerEventsProcessor : public base::Thread {
 
   // Puts current stack into tick sample events buffer.
   void AddCurrentStack(Isolate* isolate);
+  void AddDeoptStack(Isolate* isolate, Address from, int fp_to_sp_delta);
 
   // Tick sample events are filled directly in the buffer of the circular
   // queue (because the structure is of fixed width, but usually not all
@@ -233,6 +245,8 @@ class CpuProfiler : public CodeEventListener {
   virtual void CodeMovingGCEvent() {}
   virtual void CodeMoveEvent(Address from, Address to);
   virtual void CodeDisableOptEvent(Code* code, SharedFunctionInfo* shared);
+  virtual void CodeDeoptEvent(Code* code, int bailout_id, Address pc,
+                              int fp_to_sp_delta);
   virtual void CodeDeleteEvent(Address from);
   virtual void GetterCallbackEvent(Name* name, Address entry_point);
   virtual void RegExpCodeCreateEvent(Code* code, String* source);

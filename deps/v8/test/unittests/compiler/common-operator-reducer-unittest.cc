@@ -5,6 +5,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/common-operator-reducer.h"
 #include "src/compiler/machine-type.h"
+#include "src/compiler/operator.h"
 #include "test/unittests/compiler/graph-unittest.h"
 
 namespace v8 {

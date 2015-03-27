@@ -30,7 +30,7 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
              : kPointerSizeLog2 == StubCache::kCacheIndexShift);
   ScaleFactor scale_factor = kPointerSize == kInt64Size ? times_2 : times_1;
 
-  DCHECK_EQ(3 * kPointerSize, sizeof(StubCache::Entry));
+  DCHECK_EQ(3u * kPointerSize, sizeof(StubCache::Entry));
   // The offset register holds the entry offset times four (due to masking
   // and shifting optimizations).
   ExternalReference key_offset(isolate->stub_cache()->key_reference(table));

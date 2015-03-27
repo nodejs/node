@@ -13,9 +13,7 @@ function get_closure() {
   return function add_field(obj, osr) {
     obj.c = 3;
     var x = 0;
-    if (osr) {
-      %OptimizeFunctionOnNextCall(add_field, "osr");
-    }
+    if (osr) %OptimizeOsr();
     for (var i = 0; i < 10; i++) {
       x = i + 1;
     }

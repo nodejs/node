@@ -88,8 +88,6 @@ class AstRawString : public AstString {
     return *c;
   }
 
-  V8_INLINE bool IsArguments(AstValueFactory* ast_value_factory) const;
-
   // For storing AstRawStrings in a hash map.
   uint32_t hash() const {
     return hash_;
@@ -249,17 +247,19 @@ class AstValue : public ZoneObject {
   F(get_template_callsite, "GetTemplateCallSite")       \
   F(initialize_const_global, "initializeConstGlobal")   \
   F(initialize_var_global, "initializeVarGlobal")       \
+  F(is_construct_call, "_IsConstructCall")              \
   F(let, "let")                                         \
   F(make_reference_error, "MakeReferenceErrorEmbedded") \
   F(make_syntax_error, "MakeSyntaxErrorEmbedded")       \
   F(make_type_error, "MakeTypeErrorEmbedded")           \
-  F(module, "module")                                   \
   F(native, "native")                                   \
+  F(new_target, "new.target")                           \
   F(next, "next")                                       \
   F(proto, "__proto__")                                 \
   F(prototype, "prototype")                             \
   F(this, "this")                                       \
   F(use_asm, "use asm")                                 \
+  F(use_strong, "use strong")                           \
   F(use_strict, "use strict")                           \
   F(value, "value")
 
@@ -355,11 +355,6 @@ class AstValueFactory {
   OTHER_CONSTANTS(F)
 #undef F
 };
-
-
-bool AstRawString::IsArguments(AstValueFactory* ast_value_factory) const {
-  return ast_value_factory->arguments_string() == this;
-}
 } }  // namespace v8::internal
 
 #undef STRING_CONSTANTS

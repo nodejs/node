@@ -12,11 +12,7 @@ namespace compiler {
 class MoveOptimizerTest : public InstructionSequenceTest {
  public:
   GapInstruction* LastGap() {
-    auto instruction = sequence()->instructions().back();
-    if (!instruction->IsGapMoves()) {
-      instruction = *(sequence()->instructions().rbegin() + 1);
-    }
-    return GapInstruction::cast(instruction);
+    return GapInstruction::cast(*(sequence()->instructions().rbegin() + 1));
   }
 
   void AddMove(GapInstruction* gap, TestOperand from, TestOperand to,
@@ -73,12 +69,12 @@ class MoveOptimizerTest : public InstructionSequenceTest {
     CHECK_NE(kNoValue, op.value_);
     switch (op.type_) {
       case kConstant:
-        return ConstantOperand::Create(op.value_, zone());
+        return ConstantOperand::New(op.value_, zone());
       case kFixedSlot:
-        return StackSlotOperand::Create(op.value_, zone());
+        return StackSlotOperand::New(op.value_, zone());
       case kFixedRegister:
         CHECK(0 <= op.value_ && op.value_ < num_general_registers());
-        return RegisterOperand::Create(op.value_, zone());
+        return RegisterOperand::New(op.value_, zone());
       default:
         break;
     }
@@ -90,10 +86,10 @@ class MoveOptimizerTest : public InstructionSequenceTest {
 
 TEST_F(MoveOptimizerTest, RemovesRedundant) {
   StartBlock();
+  EmitNop();
   AddMove(LastGap(), Reg(0), Reg(1));
   EmitNop();
   AddMove(LastGap(), Reg(1), Reg(0));
-  EmitNop();
   EndBlock(Last());
 
   Optimize();

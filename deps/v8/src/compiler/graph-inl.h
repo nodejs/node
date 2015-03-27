@@ -14,7 +14,7 @@ namespace compiler {
 
 template <class Visitor>
 void Graph::VisitNodeInputsFromEnd(Visitor* visitor) {
-  Zone tmp_zone(zone()->isolate());
+  Zone tmp_zone;
   GenericGraphVisit::Visit<Visitor>(this, &tmp_zone, end(), visitor);
 }
 

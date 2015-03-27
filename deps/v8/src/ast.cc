@@ -65,30 +65,22 @@ VariableProxy::VariableProxy(Zone* zone, Variable* var, int position)
                  IsAssignedField::encode(false) |
                  IsResolvedField::encode(false)),
       variable_feedback_slot_(FeedbackVectorICSlot::Invalid()),
-      raw_name_(var->raw_name()),
-      interface_(var->interface()) {
+      raw_name_(var->raw_name()) {
   BindTo(var);
 }
 
 
 VariableProxy::VariableProxy(Zone* zone, const AstRawString* name, bool is_this,
-                             Interface* interface, int position)
+                             int position)
     : Expression(zone, position),
       bit_field_(IsThisField::encode(is_this) | IsAssignedField::encode(false) |
                  IsResolvedField::encode(false)),
       variable_feedback_slot_(FeedbackVectorICSlot::Invalid()),
-      raw_name_(name),
-      interface_(interface) {}
+      raw_name_(name) {}
 
 
 void VariableProxy::BindTo(Variable* var) {
-  DCHECK(!FLAG_harmony_modules || interface_->IsUnified(var->interface()));
   DCHECK((is_this() && var->is_this()) || raw_name() == var->raw_name());
-  // Ideally CONST-ness should match. However, this is very hard to achieve
-  // because we don't know the exact semantics of conflicting (const and
-  // non-const) multiple variable declarations, const vars introduced via
-  // eval() etc.  Const-ness and variable declarations are a complete mess
-  // in JS. Sigh...
   set_var(var);
   set_is_resolved();
   var->set_is_used();
@@ -146,21 +138,14 @@ int FunctionLiteral::end_position() const {
 }
 
 
-StrictMode FunctionLiteral::strict_mode() const {
-  return scope()->strict_mode();
+LanguageMode FunctionLiteral::language_mode() const {
+  return scope()->language_mode();
 }
 
 
 bool FunctionLiteral::uses_super_property() const {
   DCHECK_NOT_NULL(scope());
   return scope()->uses_super_property() || scope()->inner_uses_super_property();
-}
-
-
-bool FunctionLiteral::uses_super_constructor_call() const {
-  DCHECK_NOT_NULL(scope());
-  return scope()->uses_super_constructor_call() ||
-         scope()->inner_uses_super_constructor_call();
 }
 
 
@@ -183,15 +168,29 @@ void FunctionLiteral::InitializeSharedInfo(
 }
 
 
-ObjectLiteralProperty::ObjectLiteralProperty(Zone* zone,
-                                             AstValueFactory* ast_value_factory,
-                                             Literal* key, Expression* value,
-                                             bool is_static) {
-  emit_store_ = true;
-  key_ = key;
-  value_ = value;
-  is_static_ = is_static;
-  if (key->raw_value()->EqualsString(ast_value_factory->proto_string())) {
+ObjectLiteralProperty::ObjectLiteralProperty(Expression* key, Expression* value,
+                                             Kind kind, bool is_static,
+                                             bool is_computed_name)
+    : key_(key),
+      value_(value),
+      kind_(kind),
+      emit_store_(true),
+      is_static_(is_static),
+      is_computed_name_(is_computed_name) {}
+
+
+ObjectLiteralProperty::ObjectLiteralProperty(AstValueFactory* ast_value_factory,
+                                             Expression* key, Expression* value,
+                                             bool is_static,
+                                             bool is_computed_name)
+    : key_(key),
+      value_(value),
+      emit_store_(true),
+      is_static_(is_static),
+      is_computed_name_(is_computed_name) {
+  if (!is_computed_name &&
+      key->AsLiteral()->raw_value()->EqualsString(
+          ast_value_factory->proto_string())) {
     kind_ = PROTOTYPE;
   } else if (value_->AsMaterializedLiteral() != NULL) {
     kind_ = MATERIALIZED_LITERAL;
@@ -200,16 +199,6 @@ ObjectLiteralProperty::ObjectLiteralProperty(Zone* zone,
   } else {
     kind_ = COMPUTED;
   }
-}
-
-
-ObjectLiteralProperty::ObjectLiteralProperty(Zone* zone, bool is_getter,
-                                             FunctionLiteral* value,
-                                             bool is_static) {
-  emit_store_ = true;
-  value_ = value;
-  kind_ = is_getter ? GETTER : SETTER;
-  is_static_ = is_static;
 }
 
 
@@ -231,25 +220,33 @@ bool ObjectLiteral::Property::emit_store() {
 
 
 void ObjectLiteral::CalculateEmitStore(Zone* zone) {
+  const auto GETTER = ObjectLiteral::Property::GETTER;
+  const auto SETTER = ObjectLiteral::Property::SETTER;
+
   ZoneAllocationPolicy allocator(zone);
 
   ZoneHashMap table(Literal::Match, ZoneHashMap::kDefaultHashMapCapacity,
                     allocator);
   for (int i = properties()->length() - 1; i >= 0; i--) {
     ObjectLiteral::Property* property = properties()->at(i);
-    Literal* literal = property->key();
-    if (literal->value()->IsNull()) continue;
+    if (property->is_computed_name()) continue;
+    if (property->kind() == ObjectLiteral::Property::PROTOTYPE) continue;
+    Literal* literal = property->key()->AsLiteral();
+    DCHECK(!literal->value()->IsNull());
+
+    // If there is an existing entry do not emit a store unless the previous
+    // entry was also an accessor.
     uint32_t hash = literal->Hash();
-    // If the key of a computed property is in the table, do not emit
-    // a store for the property later.
-    if ((property->kind() == ObjectLiteral::Property::MATERIALIZED_LITERAL ||
-         property->kind() == ObjectLiteral::Property::COMPUTED) &&
-        table.Lookup(literal, hash, false, allocator) != NULL) {
-      property->set_emit_store(false);
-    } else {
-      // Add key to the table.
-      table.Lookup(literal, hash, true, allocator);
+    ZoneHashMap::Entry* entry = table.Lookup(literal, hash, true, allocator);
+    if (entry->value != NULL) {
+      auto previous_kind =
+          static_cast<ObjectLiteral::Property*>(entry->value)->kind();
+      if (!((property->kind() == GETTER && previous_kind == SETTER) ||
+            (property->kind() == SETTER && previous_kind == GETTER))) {
+        property->set_emit_store(false);
+      }
     }
+    entry->value = property;
   }
 }
 
@@ -279,6 +276,13 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
       is_simple = false;
       continue;
     }
+
+    if (position == boilerplate_properties_ * 2) {
+      DCHECK(property->is_computed_name());
+      break;
+    }
+    DCHECK(!property->is_computed_name());
+
     MaterializedLiteral* m_literal = property->value()->AsMaterializedLiteral();
     if (m_literal != NULL) {
       m_literal->BuildConstants(isolate);
@@ -288,7 +292,7 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
     // Add CONSTANT and COMPUTED properties to boilerplate. Use undefined
     // value for COMPUTED properties, the real value is filled in at
     // runtime. The enumeration order is maintained.
-    Handle<Object> key = property->key()->value();
+    Handle<Object> key = property->key()->AsLiteral()->value();
     Handle<Object> value = GetBoilerplateValue(property->value(), isolate);
 
     // Ensure objects that may, at any point in time, contain fields with double
@@ -417,16 +421,6 @@ void MaterializedLiteral::BuildConstants(Isolate* isolate) {
 }
 
 
-void TargetCollector::AddTarget(Label* target, Zone* zone) {
-  // Add the label to the collector, but discard duplicates.
-  int length = targets_.length();
-  for (int i = 0; i < length; i++) {
-    if (targets_[i] == target) return;
-  }
-  targets_.Add(target, zone);
-}
-
-
 void UnaryOperation::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
   // TODO(olivf) If this Operation is used in a test context, then the
   // expression has a ToBoolean stub and we want to collect the type
@@ -444,31 +438,6 @@ void BinaryOperation::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
   // to the TestContext, therefore we have to store it here and not on the
   // right hand operand.
   set_to_boolean_types(oracle->ToBooleanTypes(right()->test_id()));
-}
-
-
-bool BinaryOperation::ResultOverwriteAllowed() const {
-  switch (op()) {
-    case Token::COMMA:
-    case Token::OR:
-    case Token::AND:
-      return false;
-    case Token::BIT_OR:
-    case Token::BIT_XOR:
-    case Token::BIT_AND:
-    case Token::SHL:
-    case Token::SAR:
-    case Token::SHR:
-    case Token::ADD:
-    case Token::SUB:
-    case Token::MUL:
-    case Token::DIV:
-    case Token::MOD:
-      return true;
-    default:
-      UNREACHABLE();
-  }
-  return false;
 }
 
 
@@ -576,15 +545,28 @@ void Expression::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
 }
 
 
-bool Call::IsUsingCallFeedbackSlot(Isolate* isolate) const {
+bool Call::IsUsingCallFeedbackICSlot(Isolate* isolate) const {
   CallType call_type = GetCallType(isolate);
-  return (call_type != POSSIBLY_EVAL_CALL);
+  if (IsUsingCallFeedbackSlot(isolate) || call_type == POSSIBLY_EVAL_CALL) {
+    return false;
+  }
+  return true;
+}
+
+
+bool Call::IsUsingCallFeedbackSlot(Isolate* isolate) const {
+  // SuperConstructorCall uses a CallConstructStub, which wants
+  // a Slot, not an IC slot.
+  return GetCallType(isolate) == SUPER_CALL;
 }
 
 
 FeedbackVectorRequirements Call::ComputeFeedbackRequirements(Isolate* isolate) {
-  int ic_slots = IsUsingCallFeedbackSlot(isolate) ? 1 : 0;
-  return FeedbackVectorRequirements(0, ic_slots);
+  int ic_slots = IsUsingCallFeedbackICSlot(isolate) ? 1 : 0;
+  int slots = IsUsingCallFeedbackSlot(isolate) ? 1 : 0;
+  // A Call uses either a slot or an IC slot.
+  DCHECK((ic_slots & slots) == 0);
+  return FeedbackVectorRequirements(slots, ic_slots);
 }
 
 
@@ -640,7 +622,8 @@ void CallNew::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
 
 
 void ObjectLiteral::Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  TypeFeedbackId id = key()->LiteralFeedbackId();
+  DCHECK(!is_computed_name());
+  TypeFeedbackId id = key()->AsLiteral()->LiteralFeedbackId();
   SmallMapList maps;
   oracle->CollectReceiverTypes(id, &maps);
   receiver_type_ = maps.length() == 1 ? maps.at(0)

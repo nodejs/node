@@ -17,6 +17,8 @@
 #include "src/arm64/frames-arm64.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM
 #include "src/arm/frames-arm.h"  // NOLINT
+#elif V8_TARGET_ARCH_PPC
+#include "src/ppc/frames-ppc.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS
 #include "src/mips/frames-mips.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS64

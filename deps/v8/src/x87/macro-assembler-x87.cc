@@ -597,30 +597,8 @@ void MacroAssembler::StoreNumberToDoubleElements(
            fail,
            DONT_DO_SMI_CHECK);
 
-  // Double value, canonicalize NaN.
-  uint32_t offset = HeapNumber::kValueOffset + sizeof(kHoleNanLower32);
-  cmp(FieldOperand(maybe_number, offset),
-      Immediate(kNaNOrInfinityLowerBoundUpper32));
-  j(greater_equal, &maybe_nan, Label::kNear);
-
-  bind(&not_nan);
-  ExternalReference canonical_nan_reference =
-      ExternalReference::address_of_canonical_non_hole_nan();
   fld_d(FieldOperand(maybe_number, HeapNumber::kValueOffset));
-  bind(&have_double_value);
-  fstp_d(FieldOperand(elements, key, times_4,
-                      FixedDoubleArray::kHeaderSize - elements_offset));
-  jmp(&done);
-
-  bind(&maybe_nan);
-  // Could be NaN or Infinity. If fraction is not zero, it's NaN, otherwise
-  // it's an Infinity, and the non-NaN code path applies.
-  j(greater, &is_nan, Label::kNear);
-  cmp(FieldOperand(maybe_number, HeapNumber::kValueOffset), Immediate(0));
-  j(zero, &not_nan);
-  bind(&is_nan);
-  fld_d(Operand::StaticVariable(canonical_nan_reference));
-  jmp(&have_double_value, Label::kNear);
+  jmp(&done, Label::kNear);
 
   bind(&smi_value);
   // Value is a smi. Convert to a double and store.
@@ -630,9 +608,9 @@ void MacroAssembler::StoreNumberToDoubleElements(
   push(scratch);
   fild_s(Operand(esp, 0));
   pop(scratch);
+  bind(&done);
   fstp_d(FieldOperand(elements, key, times_4,
                       FixedDoubleArray::kHeaderSize - elements_offset));
-  bind(&done);
 }
 
 
@@ -1324,7 +1302,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   // Check that the value is a field property.
   const int kDetailsOffset =
       SeededNumberDictionary::kElementsStartOffset + 2 * kPointerSize;
-  DCHECK_EQ(FIELD, 0);
+  DCHECK_EQ(DATA, 0);
   test(FieldOperand(elements, r2, times_pointer_size, kDetailsOffset),
        Immediate(PropertyDetails::TypeField::kMask << kSmiTagSize));
   j(not_zero, miss);
@@ -2048,169 +2026,6 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
 }
 
 
-Operand ApiParameterOperand(int index) {
-  return Operand(esp, index * kPointerSize);
-}
-
-
-void MacroAssembler::PrepareCallApiFunction(int argc) {
-  EnterApiExitFrame(argc);
-  if (emit_debug_code()) {
-    mov(esi, Immediate(bit_cast<int32_t>(kZapValue)));
-  }
-}
-
-
-void MacroAssembler::CallApiFunctionAndReturn(
-    Register function_address,
-    ExternalReference thunk_ref,
-    Operand thunk_last_arg,
-    int stack_space,
-    Operand return_value_operand,
-    Operand* context_restore_operand) {
-  ExternalReference next_address =
-      ExternalReference::handle_scope_next_address(isolate());
-  ExternalReference limit_address =
-      ExternalReference::handle_scope_limit_address(isolate());
-  ExternalReference level_address =
-      ExternalReference::handle_scope_level_address(isolate());
-
-  DCHECK(edx.is(function_address));
-  // Allocate HandleScope in callee-save registers.
-  mov(ebx, Operand::StaticVariable(next_address));
-  mov(edi, Operand::StaticVariable(limit_address));
-  add(Operand::StaticVariable(level_address), Immediate(1));
-
-  if (FLAG_log_timer_events) {
-    FrameScope frame(this, StackFrame::MANUAL);
-    PushSafepointRegisters();
-    PrepareCallCFunction(1, eax);
-    mov(Operand(esp, 0),
-        Immediate(ExternalReference::isolate_address(isolate())));
-    CallCFunction(ExternalReference::log_enter_external_function(isolate()), 1);
-    PopSafepointRegisters();
-  }
-
-
-  Label profiler_disabled;
-  Label end_profiler_check;
-  mov(eax, Immediate(ExternalReference::is_profiling_address(isolate())));
-  cmpb(Operand(eax, 0), 0);
-  j(zero, &profiler_disabled);
-
-  // Additional parameter is the address of the actual getter function.
-  mov(thunk_last_arg, function_address);
-  // Call the api function.
-  mov(eax, Immediate(thunk_ref));
-  call(eax);
-  jmp(&end_profiler_check);
-
-  bind(&profiler_disabled);
-  // Call the api function.
-  call(function_address);
-  bind(&end_profiler_check);
-
-  if (FLAG_log_timer_events) {
-    FrameScope frame(this, StackFrame::MANUAL);
-    PushSafepointRegisters();
-    PrepareCallCFunction(1, eax);
-    mov(Operand(esp, 0),
-        Immediate(ExternalReference::isolate_address(isolate())));
-    CallCFunction(ExternalReference::log_leave_external_function(isolate()), 1);
-    PopSafepointRegisters();
-  }
-
-  Label prologue;
-  // Load the value from ReturnValue
-  mov(eax, return_value_operand);
-
-  Label promote_scheduled_exception;
-  Label exception_handled;
-  Label delete_allocated_handles;
-  Label leave_exit_frame;
-
-  bind(&prologue);
-  // No more valid handles (the result handle was the last one). Restore
-  // previous handle scope.
-  mov(Operand::StaticVariable(next_address), ebx);
-  sub(Operand::StaticVariable(level_address), Immediate(1));
-  Assert(above_equal, kInvalidHandleScopeLevel);
-  cmp(edi, Operand::StaticVariable(limit_address));
-  j(not_equal, &delete_allocated_handles);
-  bind(&leave_exit_frame);
-
-  // Check if the function scheduled an exception.
-  ExternalReference scheduled_exception_address =
-      ExternalReference::scheduled_exception_address(isolate());
-  cmp(Operand::StaticVariable(scheduled_exception_address),
-      Immediate(isolate()->factory()->the_hole_value()));
-  j(not_equal, &promote_scheduled_exception);
-  bind(&exception_handled);
-
-#if ENABLE_EXTRA_CHECKS
-  // Check if the function returned a valid JavaScript value.
-  Label ok;
-  Register return_value = eax;
-  Register map = ecx;
-
-  JumpIfSmi(return_value, &ok, Label::kNear);
-  mov(map, FieldOperand(return_value, HeapObject::kMapOffset));
-
-  CmpInstanceType(map, FIRST_NONSTRING_TYPE);
-  j(below, &ok, Label::kNear);
-
-  CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
-  j(above_equal, &ok, Label::kNear);
-
-  cmp(map, isolate()->factory()->heap_number_map());
-  j(equal, &ok, Label::kNear);
-
-  cmp(return_value, isolate()->factory()->undefined_value());
-  j(equal, &ok, Label::kNear);
-
-  cmp(return_value, isolate()->factory()->true_value());
-  j(equal, &ok, Label::kNear);
-
-  cmp(return_value, isolate()->factory()->false_value());
-  j(equal, &ok, Label::kNear);
-
-  cmp(return_value, isolate()->factory()->null_value());
-  j(equal, &ok, Label::kNear);
-
-  Abort(kAPICallReturnedInvalidObject);
-
-  bind(&ok);
-#endif
-
-  bool restore_context = context_restore_operand != NULL;
-  if (restore_context) {
-    mov(esi, *context_restore_operand);
-  }
-  LeaveApiExitFrame(!restore_context);
-  ret(stack_space * kPointerSize);
-
-  bind(&promote_scheduled_exception);
-  {
-    FrameScope frame(this, StackFrame::INTERNAL);
-    CallRuntime(Runtime::kPromoteScheduledException, 0);
-  }
-  jmp(&exception_handled);
-
-  // HandleScope limit has changed. Delete allocated extensions.
-  ExternalReference delete_extensions =
-      ExternalReference::delete_handle_scope_extensions(isolate());
-  bind(&delete_allocated_handles);
-  mov(Operand::StaticVariable(limit_address), edi);
-  mov(edi, eax);
-  mov(Operand(esp, 0),
-      Immediate(ExternalReference::isolate_address(isolate())));
-  mov(eax, Immediate(delete_extensions));
-  call(eax);
-  mov(eax, edi);
-  jmp(&leave_exit_frame);
-}
-
-
 void MacroAssembler::JumpToExternalReference(const ExternalReference& ext) {
   // Set the entry point and jump to the C entry runtime stub.
   mov(ebx, Immediate(ext));
@@ -2551,10 +2366,15 @@ void MacroAssembler::CmpWeakValue(Register value, Handle<WeakCell> cell,
 }
 
 
-void MacroAssembler::LoadWeakValue(Register value, Handle<WeakCell> cell,
-                                   Label* miss) {
+void MacroAssembler::GetWeakValue(Register value, Handle<WeakCell> cell) {
   mov(value, cell);
   mov(value, FieldOperand(value, WeakCell::kValueOffset));
+}
+
+
+void MacroAssembler::LoadWeakValue(Register value, Handle<WeakCell> cell,
+                                   Label* miss) {
+  GetWeakValue(value, cell);
   JumpIfSmi(value, miss);
 }
 
@@ -2777,6 +2597,18 @@ void MacroAssembler::LoadInstanceDescriptors(Register map,
 void MacroAssembler::NumberOfOwnDescriptors(Register dst, Register map) {
   mov(dst, FieldOperand(map, Map::kBitField3Offset));
   DecodeField<Map::NumberOfOwnDescriptorsBits>(dst);
+}
+
+
+void MacroAssembler::LoadAccessor(Register dst, Register holder,
+                                  int accessor_index,
+                                  AccessorComponent accessor) {
+  mov(dst, FieldOperand(holder, HeapObject::kMapOffset));
+  LoadInstanceDescriptors(dst, dst);
+  mov(dst, FieldOperand(dst, DescriptorArray::GetValueOffset(accessor_index)));
+  int offset = accessor == ACCESSOR_GETTER ? AccessorPair::kGetterOffset
+                                           : AccessorPair::kSetterOffset;
+  mov(dst, FieldOperand(dst, offset));
 }
 
 

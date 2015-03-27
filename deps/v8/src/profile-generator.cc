@@ -8,11 +8,11 @@
 
 #include "src/compiler.h"
 #include "src/debug.h"
+#include "src/deoptimizer.h"
 #include "src/global-handles.h"
 #include "src/sampler.h"
 #include "src/scopeinfo.h"
 #include "src/unicode.h"
-#include "src/zone-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -160,6 +160,7 @@ int JITLineInfoTable::GetSourceLineNumber(int pc_offset) const {
 const char* const CodeEntry::kEmptyNamePrefix = "";
 const char* const CodeEntry::kEmptyResourceName = "";
 const char* const CodeEntry::kEmptyBailoutReason = "";
+const char* const CodeEntry::kNoDeoptReason = "";
 
 
 CodeEntry::~CodeEntry() {
@@ -213,6 +214,12 @@ int CodeEntry::GetSourceLine(int pc_offset) const {
 }
 
 
+void ProfileNode::CollectDeoptInfo(CodeEntry* entry) {
+  deopt_infos_.Add(DeoptInfo(entry->deopt_reason(), entry->deopt_location()));
+  entry->clear_deopt_info();
+}
+
+
 ProfileNode* ProfileNode::FindChild(CodeEntry* entry) {
   HashMap::Entry* map_entry =
       children_.Lookup(entry, CodeEntryHash(entry), false);
@@ -224,13 +231,14 @@ ProfileNode* ProfileNode::FindChild(CodeEntry* entry) {
 ProfileNode* ProfileNode::FindOrAddChild(CodeEntry* entry) {
   HashMap::Entry* map_entry =
       children_.Lookup(entry, CodeEntryHash(entry), true);
-  if (map_entry->value == NULL) {
+  ProfileNode* node = reinterpret_cast<ProfileNode*>(map_entry->value);
+  if (node == NULL) {
     // New node added.
-    ProfileNode* new_node = new ProfileNode(tree_, entry);
-    map_entry->value = new_node;
-    children_list_.Add(new_node);
+    node = new ProfileNode(tree_, entry);
+    map_entry->value = node;
+    children_list_.Add(node);
   }
-  return reinterpret_cast<ProfileNode*>(map_entry->value);
+  return node;
 }
 
 
@@ -269,12 +277,22 @@ bool ProfileNode::GetLineTicks(v8::CpuProfileNode::LineTick* entries,
 
 
 void ProfileNode::Print(int indent) {
-  base::OS::Print("%5u %*s %s%s %d #%d %s", self_ticks_, indent, "",
+  base::OS::Print("%5u %*s %s%s %d #%d", self_ticks_, indent, "",
                   entry_->name_prefix(), entry_->name(), entry_->script_id(),
-                  id(), entry_->bailout_reason());
+                  id());
   if (entry_->resource_name()[0] != '\0')
     base::OS::Print(" %s:%d", entry_->resource_name(), entry_->line_number());
   base::OS::Print("\n");
+  for (auto info : deopt_infos_) {
+    base::OS::Print("%*s deopted at %d with reason '%s'\n", indent + 10, "",
+                    info.deopt_location, info.deopt_reason);
+  }
+  const char* bailout_reason = entry_->bailout_reason();
+  if (bailout_reason != GetBailoutReason(BailoutReason::kNoReason) &&
+      bailout_reason != CodeEntry::kEmptyBailoutReason) {
+    base::OS::Print("%*s bailed out due to '%s'\n", indent + 10, "",
+                    bailout_reason);
+  }
   for (HashMap::Entry* p = children_.Start();
        p != NULL;
        p = children_.Next(p)) {
@@ -311,35 +329,23 @@ ProfileTree::~ProfileTree() {
 ProfileNode* ProfileTree::AddPathFromEnd(const Vector<CodeEntry*>& path,
                                          int src_line) {
   ProfileNode* node = root_;
+  CodeEntry* last_entry = NULL;
   for (CodeEntry** entry = path.start() + path.length() - 1;
        entry != path.start() - 1;
        --entry) {
     if (*entry != NULL) {
       node = node->FindOrAddChild(*entry);
+      last_entry = *entry;
     }
+  }
+  if (last_entry && last_entry->has_deopt_info()) {
+    node->CollectDeoptInfo(last_entry);
   }
   node->IncrementSelfTicks();
   if (src_line != v8::CpuProfileNode::kNoLineNumberInfo) {
     node->IncrementLineTicks(src_line);
   }
   return node;
-}
-
-
-void ProfileTree::AddPathFromStart(const Vector<CodeEntry*>& path,
-                                   int src_line) {
-  ProfileNode* node = root_;
-  for (CodeEntry** entry = path.start();
-       entry != path.start() + path.length();
-       ++entry) {
-    if (*entry != NULL) {
-      node = node->FindOrAddChild(*entry);
-    }
-  }
-  node->IncrementSelfTicks();
-  if (src_line != v8::CpuProfileNode::kNoLineNumberInfo) {
-    node->IncrementLineTicks(src_line);
-  }
 }
 
 

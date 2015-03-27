@@ -42,22 +42,25 @@ CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
   if (info->function() != NULL) {
     // If we already have the function literal, use the number of parameters
     // plus the receiver.
-    return GetJSCallDescriptor(1 + info->function()->parameter_count(), zone,
+    return GetJSCallDescriptor(zone, info->is_osr(),
+                               1 + info->function()->parameter_count(),
                                CallDescriptor::kNoFlags);
   }
   if (!info->closure().is_null()) {
     // If we are compiling a JS function, use a JS call descriptor,
     // plus the receiver.
     SharedFunctionInfo* shared = info->closure()->shared();
-    return GetJSCallDescriptor(1 + shared->formal_parameter_count(), zone,
+    return GetJSCallDescriptor(zone, info->is_osr(),
+                               1 + shared->internal_formal_parameter_count(),
                                CallDescriptor::kNoFlags);
   }
   if (info->code_stub() != NULL) {
     // Use the code stub interface descriptor.
     CallInterfaceDescriptor descriptor =
         info->code_stub()->GetCallInterfaceDescriptor();
-    return GetStubCallDescriptor(descriptor, 0, CallDescriptor::kNoFlags,
-                                 Operator::kNoProperties, zone);
+    return GetStubCallDescriptor(info->isolate(), zone, descriptor, 0,
+                                 CallDescriptor::kNoFlags,
+                                 Operator::kNoProperties);
   }
   return NULL;  // TODO(titzer): ?
 }
@@ -91,131 +94,54 @@ FrameOffset Linkage::GetFrameOffset(int spill_slot, Frame* frame,
 }
 
 
-CallDescriptor* Linkage::GetJSCallDescriptor(
-    int parameter_count, CallDescriptor::Flags flags) const {
-  return GetJSCallDescriptor(parameter_count, zone_, flags);
-}
-
-
-CallDescriptor* Linkage::GetRuntimeCallDescriptor(
-    Runtime::FunctionId function, int parameter_count,
-    Operator::Properties properties) const {
-  return GetRuntimeCallDescriptor(function, parameter_count, properties, zone_);
-}
-
-
-CallDescriptor* Linkage::GetStubCallDescriptor(
-    const CallInterfaceDescriptor& descriptor, int stack_parameter_count,
-    CallDescriptor::Flags flags, Operator::Properties properties) const {
-  return GetStubCallDescriptor(descriptor, stack_parameter_count, flags,
-                               properties, zone_);
-}
-
-
 // static
 bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
   if (!FLAG_turbo_deoptimization) {
     return false;
   }
-  // TODO(jarin) At the moment, we only add frame state for
-  // few chosen runtime functions.
+
+  // Most runtime functions need a FrameState. A few chosen ones that we know
+  // not to call into arbitrary JavaScript, not to throw, and not to deoptimize
+  // are blacklisted here and can be called without a FrameState.
   switch (function) {
-    case Runtime::kApply:
-    case Runtime::kArrayBufferNeuter:
-    case Runtime::kArrayConcat:
-    case Runtime::kBasicJSONStringify:
-    case Runtime::kCheckExecutionState:
-    case Runtime::kCollectStackTrace:
-    case Runtime::kCompileLazy:
-    case Runtime::kCompileOptimized:
-    case Runtime::kCompileString:
-    case Runtime::kCreateObjectLiteral:
-    case Runtime::kDebugBreak:
-    case Runtime::kDataViewSetInt8:
-    case Runtime::kDataViewSetUint8:
-    case Runtime::kDataViewSetInt16:
-    case Runtime::kDataViewSetUint16:
-    case Runtime::kDataViewSetInt32:
-    case Runtime::kDataViewSetUint32:
-    case Runtime::kDataViewSetFloat32:
-    case Runtime::kDataViewSetFloat64:
-    case Runtime::kDataViewGetInt8:
-    case Runtime::kDataViewGetUint8:
-    case Runtime::kDataViewGetInt16:
-    case Runtime::kDataViewGetUint16:
-    case Runtime::kDataViewGetInt32:
-    case Runtime::kDataViewGetUint32:
-    case Runtime::kDataViewGetFloat32:
-    case Runtime::kDataViewGetFloat64:
-    case Runtime::kDebugEvaluate:
-    case Runtime::kDebugEvaluateGlobal:
-    case Runtime::kDebugGetLoadedScripts:
-    case Runtime::kDebugGetPropertyDetails:
-    case Runtime::kDebugPromiseEvent:
-    case Runtime::kDefineAccessorPropertyUnchecked:
-    case Runtime::kDefineDataPropertyUnchecked:
-    case Runtime::kDeleteProperty:
-    case Runtime::kDeoptimizeFunction:
-    case Runtime::kFunctionBindArguments:
-    case Runtime::kGetDefaultReceiver:
-    case Runtime::kGetFrameCount:
-    case Runtime::kGetOwnProperty:
-    case Runtime::kGetOwnPropertyNames:
-    case Runtime::kGetPropertyNamesFast:
-    case Runtime::kGetPrototype:
+    case Runtime::kDeclareGlobals:                 // TODO(jarin): Is it safe?
+    case Runtime::kDefineClassMethod:              // TODO(jarin): Is it safe?
+    case Runtime::kDefineGetterPropertyUnchecked:  // TODO(jarin): Is it safe?
+    case Runtime::kDefineSetterPropertyUnchecked:  // TODO(jarin): Is it safe?
+    case Runtime::kForInCacheArrayLength:
+    case Runtime::kForInInit:
+    case Runtime::kForInNext:
+    case Runtime::kNewArguments:
+    case Runtime::kNewClosure:
+    case Runtime::kNewFunctionContext:
+    case Runtime::kPushBlockContext:
+    case Runtime::kPushCatchContext:
+    case Runtime::kReThrow:
+    case Runtime::kSetProperty:  // TODO(jarin): Is it safe?
+    case Runtime::kStringCompare:
+    case Runtime::kStringEquals:
+    case Runtime::kToFastProperties:  // TODO(jarin): Is it safe?
+    case Runtime::kTraceEnter:
+    case Runtime::kTraceExit:
+    case Runtime::kTypeof:
+    case Runtime::kNewRestParamSlow:
+      return false;
     case Runtime::kInlineArguments:
     case Runtime::kInlineCallFunction:
     case Runtime::kInlineDateField:
+    case Runtime::kInlineOptimizedGetPrototype:
     case Runtime::kInlineRegExpExec:
-    case Runtime::kInternalSetPrototype:
-    case Runtime::kInterrupt:
-    case Runtime::kIsPropertyEnumerable:
-    case Runtime::kIsSloppyModeFunction:
-    case Runtime::kLiveEditGatherCompileInfo:
-    case Runtime::kLoadLookupSlot:
-    case Runtime::kLoadLookupSlotNoReferenceError:
-    case Runtime::kMaterializeRegExpLiteral:
-    case Runtime::kNewObject:
-    case Runtime::kNewObjectFromBound:
-    case Runtime::kNewObjectWithAllocationSite:
-    case Runtime::kObjectFreeze:
-    case Runtime::kOwnKeys:
-    case Runtime::kParseJson:
-    case Runtime::kPrepareStep:
-    case Runtime::kPreventExtensions:
-    case Runtime::kPromiseRejectEvent:
-    case Runtime::kPromiseRevokeReject:
-    case Runtime::kRegExpInitializeAndCompile:
-    case Runtime::kRegExpExecMultiple:
-    case Runtime::kResolvePossiblyDirectEval:
-    case Runtime::kRunMicrotasks:
-    case Runtime::kSetPrototype:
-    case Runtime::kSetScriptBreakPoint:
-    case Runtime::kSparseJoinWithSeparator:
-    case Runtime::kStackGuard:
-    case Runtime::kStoreKeyedToSuper_Sloppy:
-    case Runtime::kStoreKeyedToSuper_Strict:
-    case Runtime::kStoreToSuper_Sloppy:
-    case Runtime::kStoreToSuper_Strict:
-    case Runtime::kStoreLookupSlot:
-    case Runtime::kStringBuilderConcat:
-    case Runtime::kStringBuilderJoin:
-    case Runtime::kStringMatch:
-    case Runtime::kStringReplaceGlobalRegExpWithString:
-    case Runtime::kThrowNonMethodError:
-    case Runtime::kThrowNotDateError:
-    case Runtime::kThrowReferenceError:
-    case Runtime::kThrowUnsupportedSuperError:
-    case Runtime::kThrow:
-    case Runtime::kTypedArraySetFastCases:
-    case Runtime::kTypedArrayInitializeFromArrayLike:
-#ifdef V8_I18N_SUPPORT
-    case Runtime::kGetImplFromInitializedIntlObject:
-#endif
       return true;
     default:
-      return false;
+      break;
   }
+
+  // Most inlined runtime functions (except the ones listed above) can be called
+  // without a FrameState or will be lowered by JSIntrinsicLowering internally.
+  const Runtime::Function* const f = Runtime::FunctionForId(function);
+  if (f->intrinsic_type == Runtime::IntrinsicType::INLINE) return false;
+
+  return true;
 }
 
 
@@ -223,32 +149,39 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
 // Provide unimplemented methods on unsupported architectures, to at least link.
 //==============================================================================
 #if !V8_TURBOFAN_BACKEND
-CallDescriptor* Linkage::GetJSCallDescriptor(int parameter_count, Zone* zone,
+CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
+                                             int parameter_count,
                                              CallDescriptor::Flags flags) {
   UNIMPLEMENTED();
   return NULL;
 }
 
 
+LinkageLocation Linkage::GetOsrValueLocation(int index) const {
+  UNIMPLEMENTED();
+  return LinkageLocation(-1);  // Dummy value
+}
+
+
 CallDescriptor* Linkage::GetRuntimeCallDescriptor(
-    Runtime::FunctionId function, int parameter_count,
-    Operator::Properties properties, Zone* zone) {
+    Zone* zone, Runtime::FunctionId function, int parameter_count,
+    Operator::Properties properties) {
   UNIMPLEMENTED();
   return NULL;
 }
 
 
 CallDescriptor* Linkage::GetStubCallDescriptor(
-    const CallInterfaceDescriptor& descriptor, int stack_parameter_count,
-    CallDescriptor::Flags flags, Operator::Properties properties,
-    Zone* zone) {
+    Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
+    int stack_parameter_count, CallDescriptor::Flags flags,
+    Operator::Properties properties) {
   UNIMPLEMENTED();
   return NULL;
 }
 
 
 CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
-                                                  MachineSignature* sig) {
+                                                  const MachineSignature* sig) {
   UNIMPLEMENTED();
   return NULL;
 }

@@ -8,7 +8,6 @@
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-graph.h"
 #include "src/contexts.h"
-#include "src/v8.h"
 
 namespace v8 {
 namespace internal {
@@ -18,8 +17,7 @@ namespace compiler {
 // some {LoadContext} nodes or strength reducing some {StoreContext} nodes.
 class JSContextSpecializer : public Reducer {
  public:
-  JSContextSpecializer(CompilationInfo* info, JSGraph* jsgraph, Node* context)
-      : info_(info), jsgraph_(jsgraph), context_(context) {}
+  explicit JSContextSpecializer(JSGraph* jsgraph) : jsgraph_(jsgraph) {}
 
   Reduction Reduce(Node* node) OVERRIDE;
 
@@ -28,9 +26,7 @@ class JSContextSpecializer : public Reducer {
   Reduction ReduceJSStoreContext(Node* node);
 
  private:
-  CompilationInfo* info_;
   JSGraph* jsgraph_;
-  Node* context_;
 };
 }
 }

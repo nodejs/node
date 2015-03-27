@@ -182,7 +182,7 @@ const LoadNamedParameters& LoadNamedParametersOf(const Operator* op) {
 
 bool operator==(StoreNamedParameters const& lhs,
                 StoreNamedParameters const& rhs) {
-  return lhs.strict_mode() == rhs.strict_mode() && lhs.name() == rhs.name();
+  return lhs.language_mode() == rhs.language_mode() && lhs.name() == rhs.name();
 }
 
 
@@ -193,12 +193,12 @@ bool operator!=(StoreNamedParameters const& lhs,
 
 
 size_t hash_value(StoreNamedParameters const& p) {
-  return base::hash_combine(p.strict_mode(), p.name());
+  return base::hash_combine(p.language_mode(), p.name());
 }
 
 
 std::ostream& operator<<(std::ostream& os, StoreNamedParameters const& p) {
-  return os << p.strict_mode() << ", " << Brief(*p.name().handle());
+  return os << p.language_mode() << ", " << Brief(*p.name().handle());
 }
 
 
@@ -260,12 +260,12 @@ struct JSOperatorGlobalCache FINAL {
   CACHED_OP_LIST(CACHED)
 #undef CACHED
 
-  template <StrictMode kStrictMode>
-  struct StorePropertyOperator FINAL : public Operator1<StrictMode> {
+  template <LanguageMode kLanguageMode>
+  struct StorePropertyOperator FINAL : public Operator1<LanguageMode> {
     StorePropertyOperator()
-        : Operator1<StrictMode>(IrOpcode::kJSStoreProperty,
-                                Operator::kNoProperties, "JSStoreProperty", 3,
-                                1, 1, 0, 1, 0, kStrictMode) {}
+        : Operator1<LanguageMode>(IrOpcode::kJSStoreProperty,
+                                  Operator::kNoProperties, "JSStoreProperty", 3,
+                                  1, 1, 0, 1, 0, kLanguageMode) {}
   };
   StorePropertyOperator<SLOPPY> kStorePropertySloppyOperator;
   StorePropertyOperator<STRICT> kStorePropertyStrictOperator;
@@ -344,21 +344,20 @@ const Operator* JSOperatorBuilder::LoadProperty(
 }
 
 
-const Operator* JSOperatorBuilder::StoreProperty(StrictMode strict_mode) {
-  switch (strict_mode) {
-    case SLOPPY:
-      return &cache_.kStorePropertySloppyOperator;
-    case STRICT:
-      return &cache_.kStorePropertyStrictOperator;
+const Operator* JSOperatorBuilder::StoreProperty(LanguageMode language_mode) {
+  if (is_strict(language_mode)) {
+    return &cache_.kStorePropertyStrictOperator;
+  } else {
+    return &cache_.kStorePropertySloppyOperator;
   }
   UNREACHABLE();
   return nullptr;
 }
 
 
-const Operator* JSOperatorBuilder::StoreNamed(StrictMode strict_mode,
+const Operator* JSOperatorBuilder::StoreNamed(LanguageMode language_mode,
                                               const Unique<Name>& name) {
-  StoreNamedParameters parameters(strict_mode, name);
+  StoreNamedParameters parameters(language_mode, name);
   return new (zone()) Operator1<StoreNamedParameters>(   // --
       IrOpcode::kJSStoreNamed, Operator::kNoProperties,  // opcode
       "JSStoreNamed",                                    // name
@@ -367,12 +366,12 @@ const Operator* JSOperatorBuilder::StoreNamed(StrictMode strict_mode,
 }
 
 
-const Operator* JSOperatorBuilder::DeleteProperty(StrictMode strict_mode) {
-  return new (zone()) Operator1<StrictMode>(                 // --
+const Operator* JSOperatorBuilder::DeleteProperty(LanguageMode language_mode) {
+  return new (zone()) Operator1<LanguageMode>(               // --
       IrOpcode::kJSDeleteProperty, Operator::kNoProperties,  // opcode
       "JSDeleteProperty",                                    // name
       2, 1, 1, 1, 1, 0,                                      // counts
-      strict_mode);                                          // parameter
+      language_mode);                                        // parameter
 }
 
 
@@ -402,7 +401,7 @@ const Operator* JSOperatorBuilder::CreateCatchContext(
   return new (zone()) Operator1<Unique<String>>(                 // --
       IrOpcode::kJSCreateCatchContext, Operator::kNoProperties,  // opcode
       "JSCreateCatchContext",                                    // name
-      1, 1, 1, 1, 1, 0,                                          // counts
+      2, 1, 1, 1, 1, 0,                                          // counts
       name);                                                     // parameter
 }
 

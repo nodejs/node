@@ -160,6 +160,8 @@ void Deoptimizer::EntryGenerator::Generate() {
   const int kSavedRegistersAreaSize = kNumberOfRegisters * kRegisterSize +
                                       kDoubleRegsSize;
 
+  __ Store(ExternalReference(Isolate::kCEntryFPAddress, isolate()), rbp);
+
   // We use this to keep the value of the fifth argument temporarily.
   // Unfortunately we can't store it directly in r8 (used for passing
   // this on linux), since it is another parameter passing register on windows.

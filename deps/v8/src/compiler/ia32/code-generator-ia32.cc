@@ -7,7 +7,6 @@
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
-#include "src/compiler/node-properties-inl.h"
 #include "src/ia32/assembler-ia32.h"
 #include "src/ia32/macro-assembler-ia32.h"
 #include "src/scopes.h"
@@ -310,6 +309,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     }
     case kArchJmp:
       AssembleArchJump(i.InputRpo(0));
+      break;
+    case kArchLookupSwitch:
+      AssembleArchLookupSwitch(instr);
+      break;
+    case kArchTableSwitch:
+      AssembleArchTableSwitch(instr);
       break;
     case kArchNop:
       // don't emit code for nops.
@@ -730,27 +735,15 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
     case kSignedGreaterThan:
       __ j(greater, tlabel);
       break;
-    case kUnorderedLessThan:
-      __ j(parity_even, flabel, flabel_distance);
-    // Fall through.
     case kUnsignedLessThan:
       __ j(below, tlabel);
       break;
-    case kUnorderedGreaterThanOrEqual:
-      __ j(parity_even, tlabel);
-    // Fall through.
     case kUnsignedGreaterThanOrEqual:
       __ j(above_equal, tlabel);
       break;
-    case kUnorderedLessThanOrEqual:
-      __ j(parity_even, flabel, flabel_distance);
-    // Fall through.
     case kUnsignedLessThanOrEqual:
       __ j(below_equal, tlabel);
       break;
-    case kUnorderedGreaterThan:
-      __ j(parity_even, tlabel);
-    // Fall through.
     case kUnsignedGreaterThan:
       __ j(above, tlabel);
       break;
@@ -780,7 +773,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   // Materialize a full 32-bit 1 or 0 value. The result register is always the
   // last output of the instruction.
   Label check;
-  DCHECK_NE(0, instr->OutputCount());
+  DCHECK_NE(0u, instr->OutputCount());
   Register reg = i.OutputRegister(instr->OutputCount() - 1);
   Condition cc = no_condition;
   switch (condition) {
@@ -812,35 +805,15 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     case kSignedGreaterThan:
       cc = greater;
       break;
-    case kUnorderedLessThan:
-      __ j(parity_odd, &check, Label::kNear);
-      __ Move(reg, Immediate(0));
-      __ jmp(&done, Label::kNear);
-    // Fall through.
     case kUnsignedLessThan:
       cc = below;
       break;
-    case kUnorderedGreaterThanOrEqual:
-      __ j(parity_odd, &check, Label::kNear);
-      __ mov(reg, Immediate(1));
-      __ jmp(&done, Label::kNear);
-    // Fall through.
     case kUnsignedGreaterThanOrEqual:
       cc = above_equal;
       break;
-    case kUnorderedLessThanOrEqual:
-      __ j(parity_odd, &check, Label::kNear);
-      __ Move(reg, Immediate(0));
-      __ jmp(&done, Label::kNear);
-    // Fall through.
     case kUnsignedLessThanOrEqual:
       cc = below_equal;
       break;
-    case kUnorderedGreaterThan:
-      __ j(parity_odd, &check, Label::kNear);
-      __ mov(reg, Immediate(1));
-      __ jmp(&done, Label::kNear);
-    // Fall through.
     case kUnsignedGreaterThan:
       cc = above;
       break;
@@ -866,6 +839,32 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     __ mov(reg, Immediate(1));
   }
   __ bind(&done);
+}
+
+
+void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
+  IA32OperandConverter i(this, instr);
+  Register input = i.InputRegister(0);
+  for (size_t index = 2; index < instr->InputCount(); index += 2) {
+    __ cmp(input, Immediate(i.InputInt32(index + 0)));
+    __ j(equal, GetLabel(i.InputRpo(index + 1)));
+  }
+  AssembleArchJump(i.InputRpo(1));
+}
+
+
+void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
+  IA32OperandConverter i(this, instr);
+  Register input = i.InputRegister(0);
+  size_t const case_count = instr->InputCount() - 2;
+  Label** cases = zone()->NewArray<Label*>(case_count);
+  for (size_t index = 0; index < case_count; ++index) {
+    cases[index] = GetLabel(i.InputRpo(index + 2));
+  }
+  Label* const table = AddJumpTable(cases, case_count);
+  __ cmp(input, Immediate(case_count));
+  __ j(above_equal, GetLabel(i.InputRpo(1)));
+  __ jmp(Operand::JumpTable(input, times_4, table));
 }
 
 
@@ -1006,8 +1005,7 @@ void CodeGenerator::AssembleDeoptimizerCall(int deoptimization_id) {
 
 void CodeGenerator::AssemblePrologue() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  Frame* frame = this->frame();
-  int stack_slots = frame->GetSpillSlotCount();
+  int stack_slots = frame()->GetSpillSlotCount();
   if (descriptor->kind() == CallDescriptor::kCallAddress) {
     // Assemble a prologue similar the to cdecl calling convention.
     __ push(ebp);
@@ -1020,19 +1018,37 @@ void CodeGenerator::AssemblePrologue() {
         __ push(Register::from_code(i));
         register_save_area_size += kPointerSize;
       }
-      frame->SetRegisterSaveAreaSize(register_save_area_size);
+      frame()->SetRegisterSaveAreaSize(register_save_area_size);
     }
   } else if (descriptor->IsJSFunctionCall()) {
+    // TODO(turbofan): this prologue is redundant with OSR, but needed for
+    // code aging.
     CompilationInfo* info = this->info();
     __ Prologue(info->IsCodePreAgingActive());
-    frame->SetRegisterSaveAreaSize(
+    frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
-  } else {
+  } else if (stack_slots > 0) {
     __ StubPrologue();
-    frame->SetRegisterSaveAreaSize(
+    frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
   }
+
+  if (info()->is_osr()) {
+    // TurboFan OSR-compiled functions cannot be entered directly.
+    __ Abort(kShouldNotDirectlyEnterOsrFunction);
+
+    // Unoptimized code jumps directly to this entrypoint while the unoptimized
+    // frame is still on the stack. Optimized code uses OSR values directly from
+    // the unoptimized frame. Thus, all that needs to be done is to allocate the
+    // remaining stack slots.
+    if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
+    osr_pc_offset_ = __ pc_offset();
+    DCHECK(stack_slots >= frame()->GetOsrStackSlotCount());
+    stack_slots -= frame()->GetOsrStackSlotCount();
+  }
+
   if (stack_slots > 0) {
+    // Allocate the stack slots used by this frame.
     __ sub(esp, Immediate(stack_slots * kPointerSize));
   }
 }
@@ -1040,11 +1056,11 @@ void CodeGenerator::AssemblePrologue() {
 
 void CodeGenerator::AssembleReturn() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  int stack_slots = frame()->GetSpillSlotCount();
   if (descriptor->kind() == CallDescriptor::kCallAddress) {
     const RegList saves = descriptor->CalleeSavedRegisters();
     if (frame()->GetRegisterSaveAreaSize() > 0) {
       // Remove this frame's spill slots first.
-      int stack_slots = frame()->GetSpillSlotCount();
       if (stack_slots > 0) {
         __ add(esp, Immediate(stack_slots * kPointerSize));
       }
@@ -1063,13 +1079,15 @@ void CodeGenerator::AssembleReturn() {
       __ pop(ebp);       // Pop caller's frame pointer.
       __ ret(0);
     }
-  } else {
+  } else if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
     __ mov(esp, ebp);  // Move stack pointer back to frame pointer.
     __ pop(ebp);       // Pop caller's frame pointer.
     int pop_count = descriptor->IsJSFunctionCall()
                         ? static_cast<int>(descriptor->JSParameterCount())
                         : 0;
     __ ret(pop_count * kPointerSize);
+  } else {
+    __ ret(0);
   }
 }
 
@@ -1226,6 +1244,13 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
   } else {
     // No other combinations are possible.
     UNREACHABLE();
+  }
+}
+
+
+void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
+  for (size_t index = 0; index < target_count; ++index) {
+    __ dd(targets[index]);
   }
 }
 

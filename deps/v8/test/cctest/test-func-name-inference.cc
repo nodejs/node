@@ -90,7 +90,7 @@ static void CheckFunctionName(v8::Handle<v8::Script> script,
   // Verify inferred function name.
   SmartArrayPointer<char> inferred_name =
       shared_func_info->inferred_name()->ToCString();
-  CHECK_EQ(ref_inferred_name, inferred_name.get());
+  CHECK_EQ(0, strcmp(ref_inferred_name, inferred_name.get()));
 }
 
 

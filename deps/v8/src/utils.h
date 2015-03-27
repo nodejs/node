@@ -27,6 +27,9 @@ namespace internal {
 // General helper functions
 
 
+inline int BoolToInt(bool b) { return b ? 1 : 0; }
+
+
 // Same as strcmp, but can handle NULL arguments.
 inline bool CStringEquals(const char* s1, const char* s2) {
   return (s1 == s2) || (s1 != NULL && s2 != NULL && strcmp(s1, s2) == 0);
@@ -730,9 +733,8 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
 
 // Compare 8bit/16bit chars to 8bit/16bit chars.
 template <typename lchar, typename rchar>
-inline int CompareCharsUnsigned(const lchar* lhs,
-                                const rchar* rhs,
-                                int chars) {
+inline int CompareCharsUnsigned(const lchar* lhs, const rchar* rhs,
+                                size_t chars) {
   const lchar* limit = lhs + chars;
   if (sizeof(*lhs) == sizeof(char) && sizeof(*rhs) == sizeof(char)) {
     // memcmp compares byte-by-byte, yielding wrong results for two-byte
@@ -748,8 +750,8 @@ inline int CompareCharsUnsigned(const lchar* lhs,
   return 0;
 }
 
-template<typename lchar, typename rchar>
-inline int CompareChars(const lchar* lhs, const rchar* rhs, int chars) {
+template <typename lchar, typename rchar>
+inline int CompareChars(const lchar* lhs, const rchar* rhs, size_t chars) {
   DCHECK(sizeof(lchar) <= 2);
   DCHECK(sizeof(rchar) <= 2);
   if (sizeof(lchar) == 1) {
@@ -1314,24 +1316,30 @@ Vector<const char> ReadFile(FILE* file,
 
 
 template <typename sourcechar, typename sinkchar>
-INLINE(static void CopyCharsUnsigned(sinkchar* dest,
-                                     const sourcechar* src,
-                                     int chars));
+INLINE(static void CopyCharsUnsigned(sinkchar* dest, const sourcechar* src,
+                                     size_t chars));
 #if defined(V8_HOST_ARCH_ARM)
-INLINE(void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars));
-INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint8_t* src, int chars));
-INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars));
+INLINE(void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, size_t chars));
+INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint8_t* src,
+                              size_t chars));
+INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src,
+                              size_t chars));
 #elif defined(V8_HOST_ARCH_MIPS)
-INLINE(void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars));
-INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars));
+INLINE(void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, size_t chars));
+INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src,
+                              size_t chars));
+#elif defined(V8_HOST_ARCH_PPC)
+INLINE(void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, size_t chars));
+INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src,
+                              size_t chars));
 #endif
 
 // Copy from 8bit/16bit chars to 8bit/16bit chars.
 template <typename sourcechar, typename sinkchar>
-INLINE(void CopyChars(sinkchar* dest, const sourcechar* src, int chars));
+INLINE(void CopyChars(sinkchar* dest, const sourcechar* src, size_t chars));
 
-template<typename sourcechar, typename sinkchar>
-void CopyChars(sinkchar* dest, const sourcechar* src, int chars) {
+template <typename sourcechar, typename sinkchar>
+void CopyChars(sinkchar* dest, const sourcechar* src, size_t chars) {
   DCHECK(sizeof(sourcechar) <= 2);
   DCHECK(sizeof(sinkchar) <= 2);
   if (sizeof(sinkchar) == 1) {
@@ -1358,7 +1366,7 @@ void CopyChars(sinkchar* dest, const sourcechar* src, int chars) {
 }
 
 template <typename sourcechar, typename sinkchar>
-void CopyCharsUnsigned(sinkchar* dest, const sourcechar* src, int chars) {
+void CopyCharsUnsigned(sinkchar* dest, const sourcechar* src, size_t chars) {
   sinkchar* limit = dest + chars;
   if ((sizeof(*dest) == sizeof(*src)) &&
       (chars >= static_cast<int>(kMinComplexMemCopy / sizeof(*dest)))) {
@@ -1370,7 +1378,7 @@ void CopyCharsUnsigned(sinkchar* dest, const sourcechar* src, int chars) {
 
 
 #if defined(V8_HOST_ARCH_ARM)
-void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars) {
+void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, size_t chars) {
   switch (static_cast<unsigned>(chars)) {
     case 0:
       break;
@@ -1426,8 +1434,8 @@ void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars) {
 }
 
 
-void CopyCharsUnsigned(uint16_t* dest, const uint8_t* src, int chars) {
-  if (chars >= kMinComplexConvertMemCopy) {
+void CopyCharsUnsigned(uint16_t* dest, const uint8_t* src, size_t chars) {
+  if (chars >= static_cast<size_t>(kMinComplexConvertMemCopy)) {
     MemCopyUint16Uint8(dest, src, chars);
   } else {
     MemCopyUint16Uint8Wrapper(dest, src, chars);
@@ -1435,7 +1443,7 @@ void CopyCharsUnsigned(uint16_t* dest, const uint8_t* src, int chars) {
 }
 
 
-void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars) {
+void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, size_t chars) {
   switch (static_cast<unsigned>(chars)) {
     case 0:
       break;
@@ -1468,7 +1476,7 @@ void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars) {
 
 
 #elif defined(V8_HOST_ARCH_MIPS)
-void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars) {
+void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, size_t chars) {
   if (chars < kMinComplexMemCopy) {
     memcpy(dest, src, chars);
   } else {
@@ -1476,13 +1484,143 @@ void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars) {
   }
 }
 
-void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars) {
+void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, size_t chars) {
   if (chars < kMinComplexMemCopy) {
     memcpy(dest, src, chars * sizeof(*dest));
   } else {
     MemCopy(dest, src, chars * sizeof(*dest));
   }
 }
+#elif defined(V8_HOST_ARCH_PPC)
+#define CASE(n)           \
+  case n:                 \
+    memcpy(dest, src, n); \
+    break
+void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, size_t chars) {
+  switch (static_cast<unsigned>(chars)) {
+    case 0:
+      break;
+    case 1:
+      *dest = *src;
+      break;
+      CASE(2);
+      CASE(3);
+      CASE(4);
+      CASE(5);
+      CASE(6);
+      CASE(7);
+      CASE(8);
+      CASE(9);
+      CASE(10);
+      CASE(11);
+      CASE(12);
+      CASE(13);
+      CASE(14);
+      CASE(15);
+      CASE(16);
+      CASE(17);
+      CASE(18);
+      CASE(19);
+      CASE(20);
+      CASE(21);
+      CASE(22);
+      CASE(23);
+      CASE(24);
+      CASE(25);
+      CASE(26);
+      CASE(27);
+      CASE(28);
+      CASE(29);
+      CASE(30);
+      CASE(31);
+      CASE(32);
+      CASE(33);
+      CASE(34);
+      CASE(35);
+      CASE(36);
+      CASE(37);
+      CASE(38);
+      CASE(39);
+      CASE(40);
+      CASE(41);
+      CASE(42);
+      CASE(43);
+      CASE(44);
+      CASE(45);
+      CASE(46);
+      CASE(47);
+      CASE(48);
+      CASE(49);
+      CASE(50);
+      CASE(51);
+      CASE(52);
+      CASE(53);
+      CASE(54);
+      CASE(55);
+      CASE(56);
+      CASE(57);
+      CASE(58);
+      CASE(59);
+      CASE(60);
+      CASE(61);
+      CASE(62);
+      CASE(63);
+      CASE(64);
+    default:
+      memcpy(dest, src, chars);
+      break;
+  }
+}
+#undef CASE
+
+#define CASE(n)               \
+  case n:                     \
+    memcpy(dest, src, n * 2); \
+    break
+void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, size_t chars) {
+  switch (static_cast<unsigned>(chars)) {
+    case 0:
+      break;
+    case 1:
+      *dest = *src;
+      break;
+      CASE(2);
+      CASE(3);
+      CASE(4);
+      CASE(5);
+      CASE(6);
+      CASE(7);
+      CASE(8);
+      CASE(9);
+      CASE(10);
+      CASE(11);
+      CASE(12);
+      CASE(13);
+      CASE(14);
+      CASE(15);
+      CASE(16);
+      CASE(17);
+      CASE(18);
+      CASE(19);
+      CASE(20);
+      CASE(21);
+      CASE(22);
+      CASE(23);
+      CASE(24);
+      CASE(25);
+      CASE(26);
+      CASE(27);
+      CASE(28);
+      CASE(29);
+      CASE(30);
+      CASE(31);
+      CASE(32);
+    default:
+      memcpy(dest, src, chars * 2);
+      break;
+  }
+}
+#undef CASE
 #endif
 
 

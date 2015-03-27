@@ -274,6 +274,7 @@ class MacroAssembler: public Assembler {
   }
 
   void CmpWeakValue(Register value, Handle<WeakCell> cell, Register scratch);
+  void GetWeakValue(Register value, Handle<WeakCell> cell);
   void LoadWeakValue(Register value, Handle<WeakCell> cell, Label* miss);
 
   // ---------------------------------------------------------------------------
@@ -485,6 +486,8 @@ class MacroAssembler: public Assembler {
   void LoadInstanceDescriptors(Register map, Register descriptors);
   void EnumLength(Register dst, Register map);
   void NumberOfOwnDescriptors(Register dst, Register map);
+  void LoadAccessor(Register dst, Register holder, int accessor_index,
+                    AccessorComponent accessor);
 
   template<typename Field>
   void DecodeField(Register reg) {
@@ -754,24 +757,6 @@ class MacroAssembler: public Assembler {
   // function).
   void CallCFunction(ExternalReference function, int num_arguments);
   void CallCFunction(Register function, int num_arguments);
-
-  // Prepares stack to put arguments (aligns and so on). Reserves
-  // space for return value if needed (assumes the return value is a handle).
-  // Arguments must be stored in ApiParameterOperand(0), ApiParameterOperand(1)
-  // etc. Saves context (esi). If space was reserved for return value then
-  // stores the pointer to the reserved slot into esi.
-  void PrepareCallApiFunction(int argc);
-
-  // Calls an API function.  Allocates HandleScope, extracts returned value
-  // from handle and propagates exceptions.  Clobbers ebx, edi and
-  // caller-save registers.  Restores context.  On return removes
-  // stack_space * kPointerSize (GCed).
-  void CallApiFunctionAndReturn(Register function_address,
-                                ExternalReference thunk_ref,
-                                Operand thunk_last_arg,
-                                int stack_space,
-                                Operand return_value_operand,
-                                Operand* context_restore_operand);
 
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& ext);
@@ -1049,10 +1034,6 @@ inline Operand ContextOperand(Register context, int index) {
 inline Operand GlobalObjectOperand() {
   return ContextOperand(esi, Context::GLOBAL_OBJECT_INDEX);
 }
-
-
-// Generates an Operand for saving parameters after PrepareCallApiFunction.
-Operand ApiParameterOperand(int index);
 
 
 #ifdef GENERATED_CODE_COVERAGE

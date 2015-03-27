@@ -108,6 +108,7 @@ class GCTracer {
       MC_UPDATE_POINTERS_TO_EVACUATED,
       MC_UPDATE_POINTERS_BETWEEN_EVACUATED,
       MC_UPDATE_MISC_POINTERS,
+      MC_INCREMENTAL_WEAKCLOSURE,
       MC_WEAKCLOSURE,
       MC_WEAKCOLLECTION_PROCESS,
       MC_WEAKCOLLECTION_CLEAR,
@@ -169,9 +170,9 @@ class GCTracer {
     // Default constructor leaves the event uninitialized.
     SurvivalEvent() {}
 
-    explicit SurvivalEvent(double survival_rate);
+    explicit SurvivalEvent(double survival_ratio);
 
-    double survival_rate_;
+    double promotion_ratio_;
   };
 
 
@@ -299,7 +300,7 @@ class GCTracer {
 
   void AddContextDisposalTime(double time);
 
-  void AddSurvivalRate(double survival_rate);
+  void AddSurvivalRatio(double survival_ratio);
 
   // Log an incremental marking step.
   void AddIncrementalMarkingStep(double duration, intptr_t bytes);
@@ -387,10 +388,10 @@ class GCTracer {
   // Returns 0 if no events have been recorded.
   double ContextDisposalRateInMilliseconds() const;
 
-  // Computes the average survival rate based on the last recorded survival
+  // Computes the average survival ratio based on the last recorded survival
   // events.
   // Returns 0 if no events have been recorded.
-  double AverageSurvivalRate() const;
+  double AverageSurvivalRatio() const;
 
   // Returns true if at least one survival event was recorded.
   bool SurvivalEventsRecorded() const;

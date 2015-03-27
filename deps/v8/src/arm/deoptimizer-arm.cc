@@ -165,6 +165,9 @@ void Deoptimizer::EntryGenerator::Generate() {
   // handle this a bit differently.
   __ stm(db_w, sp, restored_regs  | sp.bit() | lr.bit() | pc.bit());
 
+  __ mov(ip, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
+  __ str(fp, MemOperand(ip));
+
   const int kSavedRegistersAreaSize =
       (kNumberOfRegisters * kPointerSize) + kDoubleRegsSize;
 

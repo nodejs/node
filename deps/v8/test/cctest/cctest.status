@@ -64,6 +64,9 @@
   # are actually 13 * 38 * 5 * 128 = 316160 individual tests hidden here.
   'test-parsing/ParserSync': [PASS, NO_VARIANTS],
 
+  # Modules are busted
+  'test-parsing/ExportsMaybeAssigned': [SKIP],
+
   # This tests only the type system, so there is no point in running several
   # variants.
   'test-hydrogen-types/*': [PASS, NO_VARIANTS],
@@ -91,32 +94,13 @@
   # BUG(3742).
   'test-mark-compact/MarkCompactCollector': [PASS, ['arch==arm', NO_VARIANTS]],
 
-  # Support for %GetFrameDetails is missing and requires checkpoints.
-  'test-api/Regress385349': [PASS, NO_VARIANTS],
-  'test-debug/DebuggerStatement': [PASS, NO_VARIANTS],
-  'test-debug/DebuggerStatementBreakpoint': [PASS, NO_VARIANTS],
-  'test-debug/DebugEvaluateWithCodeGenerationDisallowed': [PASS, NO_VARIANTS],
+  # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
   'test-debug/DebugStepNatives': [PASS, NO_VARIANTS],
-  'test-debug/DebugStepFunctionCall': [PASS, NO_VARIANTS],
   'test-debug/DebugStepFunctionApply': [PASS, NO_VARIANTS],
-  'test-debug/ScriptNameAndData': [PASS, NO_VARIANTS],
-  'test-debug/ContextData': [PASS, NO_VARIANTS],
-  'test-debug/DebugBreakInMessageHandler': [PASS, NO_VARIANTS],
-  'test-debug/CallFunctionInDebugger': [PASS, NO_VARIANTS],
-  'test-debug/CallingContextIsNotDebugContext': [PASS, NO_VARIANTS],
-  'test-debug/DebugEventContext': [PASS, NO_VARIANTS],
-  'test-debug/DebugBreakInline': [PASS, NO_VARIANTS],
-  'test-debug/BreakMessageWhenMessageHandlerIsReset': [PASS, NO_VARIANTS],
-  'test-debug/DebugBreak': [PASS, NO_VARIANTS],
-  'test-debug/DebugBreakFunctionApply': [PASS, NO_VARIANTS],
-  'test-debug/DebugBreakStackInspection': [PASS, NO_VARIANTS],
-  'test-debug/DeoptimizeDuringDebugBreak': [PASS, NO_VARIANTS],
-  'test-debug/DisableBreak': [PASS, NO_VARIANTS],
-  'test-debug/NoDebugBreakInAfterCompileMessageHandler': [PASS, NO_VARIANTS],
-  'test-debug/RegExpDebugBreak': [PASS, NO_VARIANTS],
+  'test-debug/DebugStepFunctionCall': [PASS, NO_VARIANTS],
 
-  # TODO(titzer): Triggers bug in late control reduction.
-  'test-run-inlining/InlineLoopGuardedEmpty': [SKIP],
+  # TODO(jochen): Reenable after we removed the CHECK() from the marking queue.
+  'test-mark-compact/MarkingDeque': [SKIP],
 
   ############################################################################
   # Slow tests.
@@ -160,6 +144,7 @@
   # Pass but take too long with the simulator.
   'test-api/ExternalArrays': [PASS, TIMEOUT],
   'test-api/Threading1': [SKIP],
+  'test-api/Threading2': [SKIP],
 }],  # 'arch == arm64 and simulator_run == True'
 
 ['arch == arm64 and mode == debug and simulator_run == True', {
@@ -178,13 +163,10 @@
 ['asan == True', {
   # Skip tests not suitable for ASAN.
   'test-assembler-x64/AssemblerX64XchglOperations': [SKIP],
-  'test-lockers/MultithreadedParallelIsolates': [SKIP],
 }],  # 'asan == True'
 
 ##############################################################################
 ['no_snap == True', {
-  # BUG(3215)
-  'test-lockers/MultithreadedParallelIsolates': [PASS, FAIL, TIMEOUT],
 }],  # 'no_snap == True'
 
 ##############################################################################
@@ -203,9 +185,6 @@
 
   # BUG(3005).
   'test-alloc/CodeRange': [PASS, FAIL],
-
-  # BUG(3215). Crashes on windows.
-  'test-lockers/MultithreadedParallelIsolates': [SKIP],
 
   # BUG(3331). Fails on windows.
   'test-heap/NoWeakHashTableLeakWithIncrementalMarking': [SKIP],
@@ -324,7 +303,6 @@
   # NaCl builds have problems with threaded tests since Pepper_28.
   # V8 Issue 2786
   'test-api/Threading1': [SKIP],
-  'test-lockers/MultithreadedParallelIsolates': [SKIP],
   'test-lockers/ExtensionsRegistration': [SKIP],
 
   # These tests fail as there is no /tmp directory in Native Client.
@@ -423,4 +401,9 @@
   'test-accessors/Gc' : [SKIP],
 
 }],  # 'arch == nacl_ia32 or arch == nacl_x64'
+
+['arch == ppc64', {
+  #issue 2857
+  'test-log/EquivalenceOfLoggingAndTraversal' : [SKIP],
+}],  # 'arch == ppc64'
 ]

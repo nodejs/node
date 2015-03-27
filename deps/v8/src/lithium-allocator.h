@@ -564,7 +564,7 @@ class LAllocatorPhase : public CompilationPhase {
 
  private:
   LAllocator* allocator_;
-  unsigned allocator_zone_start_allocation_size_;
+  size_t allocator_zone_start_allocation_size_;
 
   DISALLOW_COPY_AND_ASSIGN(LAllocatorPhase);
 };

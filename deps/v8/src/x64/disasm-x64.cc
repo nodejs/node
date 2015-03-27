@@ -503,7 +503,7 @@ int DisassemblerX64::PrintRightOperandHelper(
     case 0:
       if ((rm & 7) == 5) {
         int32_t disp = *reinterpret_cast<int32_t*>(modrmp + 1);
-        AppendToBuffer("[0x%x]", disp);
+        AppendToBuffer("[rip+0x%x]", disp);
         return 5;
       } else if ((rm & 7) == 4) {
         // Codes for SIB byte.
@@ -803,7 +803,7 @@ int DisassemblerX64::ShiftInstruction(byte* data) {
         UnimplementedInstruction();
         return count + 1;
     }
-    DCHECK_NE(NULL, mnem);
+    DCHECK_NOT_NULL(mnem);
     AppendToBuffer("%s%c ", mnem, operand_size_code());
   }
   count += PrintRightOperand(data + count);
@@ -1500,6 +1500,8 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     get_modrm(*current, &mod, &regop, &rm);
     AppendToBuffer("%s,", NameOfCPURegister(regop));
     current += PrintRightOperand(current);
+  } else if (opcode == 0x0B) {
+    AppendToBuffer("ud2");
   } else {
     UnimplementedInstruction();
   }

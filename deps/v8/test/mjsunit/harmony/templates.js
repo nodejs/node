@@ -505,3 +505,16 @@ var obj = {
   assertEquals("\u00008", `\08`);
   assertEquals("\u00009", `\09`);
 })();
+
+
+(function testLegacyOctalEscapesInExpressions() {
+  // Allowed in sloppy expression
+  assertEquals("\x07", `${"\07"}`);
+
+  // Disallowed in template tail
+  assertThrows("`${\"\\07\"}\\07`", SyntaxError);
+
+  // Disallowed in strict expression
+  assertThrows("`${(function() { \"use strict\"; return \"\\07\"; })()}`",
+               SyntaxError);
+})();

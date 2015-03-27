@@ -49,29 +49,25 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized) {
   CONVERT_BOOLEAN_ARG_CHECKED(concurrent, 1);
   DCHECK(isolate->use_crankshaft());
 
-  Handle<Code> unoptimized(function->shared()->code());
-  if (function->shared()->optimization_disabled() ||
-      isolate->DebuggerHasBreakPoints()) {
-    // If the function is not optimizable or debugger is active continue
-    // using the code from the full compiler.
-    if (FLAG_trace_opt) {
-      PrintF("[failed to optimize ");
-      function->PrintName();
-      PrintF(": is code optimizable: %s, is debugger enabled: %s]\n",
-             function->shared()->optimization_disabled() ? "F" : "T",
-             isolate->DebuggerHasBreakPoints() ? "T" : "F");
-    }
-    function->ReplaceCode(*unoptimized);
-    return function->code();
-  }
-
   Compiler::ConcurrencyMode mode =
       concurrent ? Compiler::CONCURRENT : Compiler::NOT_CONCURRENT;
   Handle<Code> code;
+  Handle<Code> unoptimized(function->shared()->code());
   if (Compiler::GetOptimizedCode(function, unoptimized, mode).ToHandle(&code)) {
+    // Optimization succeeded, return optimized code.
     function->ReplaceCode(*code);
   } else {
-    function->ReplaceCode(function->shared()->code());
+    // Optimization failed, get unoptimized code.
+    if (isolate->has_pending_exception()) {  // Possible stack overflow.
+      return isolate->heap()->exception();
+    }
+    code = Handle<Code>(function->shared()->code(), isolate);
+    if (code->kind() != Code::FUNCTION &&
+        code->kind() != Code::OPTIMIZED_FUNCTION) {
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+          isolate, code, Compiler::GetUnoptimizedCode(function));
+    }
+    function->ReplaceCode(*code);
   }
 
   DCHECK(function->code()->kind() == Code::FUNCTION ||
@@ -290,8 +286,15 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
       // match. Fix heuristics for reenabling optimizations!
       function->shared()->increment_deopt_count();
 
-      // TODO(titzer): Do not install code into the function.
-      function->ReplaceCode(*result);
+      if (result->is_turbofanned()) {
+        // TurboFanned OSR code cannot be installed into the function.
+        // But the function is obviously hot, so optimize it next time.
+        function->ReplaceCode(
+            isolate->builtins()->builtin(Builtins::kCompileOptimized));
+      } else {
+        // Crankshafted OSR code can be installed into the function.
+        function->ReplaceCode(*result);
+      }
       return *result;
     }
   }
@@ -391,7 +394,7 @@ RUNTIME_FUNCTION(Runtime_CompileString) {
 static ObjectPair CompileGlobalEval(Isolate* isolate, Handle<String> source,
                                     Handle<SharedFunctionInfo> outer_info,
                                     Handle<Object> receiver,
-                                    StrictMode strict_mode,
+                                    LanguageMode language_mode,
                                     int scope_position) {
   Handle<Context> context = Handle<Context>(isolate->context());
   Handle<Context> native_context = Handle<Context>(context->native_context());
@@ -415,7 +418,7 @@ static ObjectPair CompileGlobalEval(Isolate* isolate, Handle<String> source,
   Handle<JSFunction> compiled;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, compiled,
-      Compiler::GetFunctionFromEval(source, outer_info, context, strict_mode,
+      Compiler::GetFunctionFromEval(source, outer_info, context, language_mode,
                                     restriction, scope_position),
       MakePair(isolate->heap()->exception(), NULL));
   return MakePair(*compiled, *receiver);
@@ -439,13 +442,13 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_ResolvePossiblyDirectEval) {
   }
 
   DCHECK(args[4]->IsSmi());
-  DCHECK(args.smi_at(4) == SLOPPY || args.smi_at(4) == STRICT);
-  StrictMode strict_mode = static_cast<StrictMode>(args.smi_at(4));
+  DCHECK(is_valid_language_mode(args.smi_at(4)));
+  LanguageMode language_mode = static_cast<LanguageMode>(args.smi_at(4));
   DCHECK(args[5]->IsSmi());
   Handle<SharedFunctionInfo> outer_info(args.at<JSFunction>(2)->shared(),
                                         isolate);
   return CompileGlobalEval(isolate, args.at<String>(1), outer_info,
-                           args.at<Object>(3), strict_mode, args.smi_at(5));
+                           args.at<Object>(3), language_mode, args.smi_at(5));
 }
 }
 }  // namespace v8::internal
