@@ -630,6 +630,8 @@
               writable: false
             });
           }
+          // Make sure the stdin can't be `.end()`-ed
+          stdin._writableState.ended = true;
           break;
 
         default:

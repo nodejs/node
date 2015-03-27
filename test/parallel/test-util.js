@@ -78,3 +78,10 @@ assert.deepEqual(util._extend({a:1}, true),       {a:1});
 assert.deepEqual(util._extend({a:1}, false),      {a:1});
 assert.deepEqual(util._extend({a:1}, {b:2}),      {a:1, b:2});
 assert.deepEqual(util._extend({a:1, b:2}, {b:3}), {a:1, b:3});
+
+// inherits
+var ctor = function() {};
+assert.throws(function() { util.inherits(ctor, {}) }, TypeError);
+assert.throws(function() { util.inherits(ctor, null) }, TypeError);
+assert.throws(function() { util.inherits(null, ctor) }, TypeError);
+assert.doesNotThrow(function() { util.inherits(ctor, ctor) }, TypeError);

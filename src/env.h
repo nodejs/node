@@ -474,6 +474,8 @@ class Environment {
   inline HandleWrapQueue* handle_wrap_queue() { return &handle_wrap_queue_; }
   inline ReqWrapQueue* req_wrap_queue() { return &req_wrap_queue_; }
 
+  static const int kContextEmbedderDataIndex = NODE_CONTEXT_EMBEDDER_DATA_INDEX;
+
  private:
   static const int kIsolateSlot = NODE_ISOLATE_SLOT;
 
@@ -481,10 +483,6 @@ class Environment {
   inline Environment(v8::Local<v8::Context> context, uv_loop_t* loop);
   inline ~Environment();
   inline IsolateData* isolate_data() const;
-
-  enum ContextEmbedderDataIndex {
-    kContextEmbedderDataIndex = NODE_CONTEXT_EMBEDDER_DATA_INDEX
-  };
 
   v8::Isolate* const isolate_;
   IsolateData* const isolate_data_;
