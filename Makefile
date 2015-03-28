@@ -11,6 +11,23 @@ STAGINGSERVER ?= node-www
 
 OSTYPE := $(shell uname -s | tr '[A-Z]' '[a-z]')
 
+ifdef QUICKCHECK
+  QUICKCHECK_ARG := --quickcheck
+endif
+
+ifdef ENABLE_V8_TAP
+  TAP_V8 := --junitout v8-tap.xml
+  TAP_V8_INTL := --junitout v8-intl-tap.xml
+  TAP_V8_BENCHMARKS := --junitout v8-benchmarks-tap.xml
+endif
+
+ifdef DISABLE_V8_I18N
+  V8_TEST_NO_I18N := --noi18n
+  V8_BUILD_NO_I18N := i18nsupport=off
+endif
+
+BUILDTYPE_LOWER := $(shell echo $(BUILDTYPE) | tr '[A-Z]' '[a-z]')
+
 # Determine EXEEXT
 EXEEXT := $(shell $(PYTHON) -c \
 		"import sys; print('.exe' if sys.platform == 'win32' else '')")
@@ -81,11 +98,32 @@ distclean:
 	-rm -rf deps/icu
 	-rm -rf deps/icu4c*.tgz deps/icu4c*.zip deps/icu-tmp
 	-rm -f $(BINARYTAR).* $(TARBALL).*
+	-rm -rf deps/v8/testing/gmock
+	-rm -rf deps/v8/testing/gtest
 
 check: test
 
 cctest: all
 	@out/$(BUILDTYPE)/$@
+
+v8:
+	tools/make-v8.sh v8
+	#cd deps/v8
+ifneq (,$(filter $(DESTCPU),x86))
+	+make -C deps/v8 $(V8_BUILD_NO_I18N);
+else
+ifneq (,$(filter $(ARCH),x86))
+	+make -C deps/v8 $(V8_BUILD_NO_I18N);
+else
+ifeq ($(ARCH)$(DESTCPU),)
+	+make -C deps/v8 $(V8_BUILD_NO_I18N);
+else
+	+make -C deps/v8 $(ARCH) $(V8_BUILD_NO_I18N);
+endif
+	+make -C deps/v8 $(ARCH) $(V8_BUILD_NO_I18N);
+endif
+	+make -C deps/v8 $(ARCH) $(V8_BUILD_NO_I18N);
+endif
 
 test: | cctest  # Depends on 'all'.
 	$(PYTHON) tools/test.py --mode=release message parallel sequential -J
@@ -183,6 +221,26 @@ test-timers:
 
 test-timers-clean:
 	$(MAKE) --directory=tools clean
+
+test-v8:
+	# note: performs full test unless QUICKCHECK is specified
+	deps/v8/tools/run-tests.py --arch=$(ARCH) --mode=$(BUILDTYPE_LOWER) $(V8_TEST_NO_I18N) \
+	  $(QUICKCHECK_ARG) --no-presubmit --shell-dir=deps/v8/out/$(ARCH).$(BUILDTYPE_LOWER) \
+	 $(TAP_V8)
+
+test-v8-intl:
+	# note: performs full test unless QUICKCHECK is specified
+	deps/v8/tools/run-tests.py --arch=$(ARCH) --mode=$(BUILDTYPE_LOWER) --no-presubmit \
+	  $(QUICKCHECK_ARG) --shell-dir=deps/v8/out/$(ARCH).$(BUILDTYPE_LOWER) intl $(TAP_V8_INTL)
+
+test-v8-benchmarks:
+	# note: this runs with --download-data so it'll go out and
+	deps/v8/tools/run-tests.py --arch=$(ARCH) --mode=$(BUILDTYPE_LOWER) --download-data \
+	  $(QUICKCHECK_ARG) --no-presubmit --shell-dir=deps/v8/out/$(ARCH).$(BUILDTYPE_LOWER) benchmarks \
+	 $(TAP_V8_BENCHMARKS)
+ 
+test-v8-all: test-v8 test-v8-intl test-v8-benchmarks
+	# runs all v8 tests
 
 apidoc_sources = $(wildcard doc/api/*.markdown)
 apidocs = $(addprefix out/,$(apidoc_sources:.markdown=.html)) \

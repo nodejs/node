@@ -375,6 +375,11 @@ parser.add_option('--enable-static',
     dest='enable_static',
     help='build as static library')
 
+parser.add_option('--with-v8-tests',
+    action='store_true',
+    dest='with_v8_tests',
+    help='Build v8 test suite')
+
 (options, args) = parser.parse_args()
 
 # Expand ~ in the install prefix now, it gets written to multiple files.
@@ -796,6 +801,8 @@ def configure_v8(o):
   o['variables']['v8_optimized_debug'] = 0  # Compile with -O0 in debug builds.
   o['variables']['v8_random_seed'] = 0  # Use a random seed for hash tables.
   o['variables']['v8_use_snapshot'] = 'false' if options.without_snapshot else 'true'
+  if options.with_v8_tests:
+    o['variables']['with_v8_tests'] = 1
 
 def configure_openssl(o):
   o['variables']['node_use_openssl'] = b(not options.without_ssl)
