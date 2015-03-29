@@ -58,11 +58,13 @@ var proc = spawn(process.execPath, [script]);
 var data = [];
 proc.stdout.on('data', assert.fail);
 proc.stderr.on('data', data.push.bind(data));
+proc.stderr.once('end', common.mustCall(function() {
+  var haystack = Buffer.concat(data).toString('utf8');
+  assert(/SyntaxError: Unexpected token \*/.test(haystack));
+}));
 proc.once('exit', common.mustCall(function(exitCode, signalCode) {
   assert.equal(exitCode, 1);
   assert.equal(signalCode, null);
-  var haystack = Buffer.concat(data).toString('utf8');
-  assert(/SyntaxError: Unexpected token \*/.test(haystack));
 }));
 
 var proc = spawn(process.execPath, [script, 'handle-fatal-exception']);
