@@ -66,6 +66,7 @@
 #include "cryptlib.h"
 #include "o_time.h"
 #include <openssl/asn1t.h>
+#include "asn1_locl.h"
 
 IMPLEMENT_ASN1_MSTRING(ASN1_TIME, B_ASN1_TIME)
 
@@ -195,4 +196,33 @@ int ASN1_TIME_set_string(ASN1_TIME *s, const char *str)
         return 0;
 
     return 1;
+}
+
+static int asn1_time_to_tm(struct tm *tm, const ASN1_TIME *t)
+{
+    if (t == NULL) {
+        time_t now_t;
+        time(&now_t);
+        if (OPENSSL_gmtime(&now_t, tm))
+            return 1;
+        return 0;
+    }
+
+    if (t->type == V_ASN1_UTCTIME)
+        return asn1_utctime_to_tm(tm, t);
+    else if (t->type == V_ASN1_GENERALIZEDTIME)
+        return asn1_generalizedtime_to_tm(tm, t);
+
+    return 0;
+}
+
+int ASN1_TIME_diff(int *pday, int *psec,
+                   const ASN1_TIME *from, const ASN1_TIME *to)
+{
+    struct tm tm_from, tm_to;
+    if (!asn1_time_to_tm(&tm_from, from))
+        return 0;
+    if (!asn1_time_to_tm(&tm_to, to))
+        return 0;
+    return OPENSSL_gmtime_diff(pday, psec, &tm_from, &tm_to);
 }

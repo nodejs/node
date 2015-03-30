@@ -119,6 +119,7 @@
 
 #ifdef OPENSSL_FIPS
 # include <openssl/fips.h>
+# include "evp_locl.h"
 #endif
 
 void EVP_MD_CTX_init(EVP_MD_CTX *ctx)
@@ -145,6 +146,17 @@ int EVP_DigestInit(EVP_MD_CTX *ctx, const EVP_MD *type)
 int EVP_DigestInit_ex(EVP_MD_CTX *ctx, const EVP_MD *type, ENGINE *impl)
 {
     EVP_MD_CTX_clear_flags(ctx, EVP_MD_CTX_FLAG_CLEANED);
+#ifdef OPENSSL_FIPS
+    /* If FIPS mode switch to approved implementation if possible */
+    if (FIPS_mode()) {
+        const EVP_MD *fipsmd;
+        if (type) {
+            fipsmd = evp_get_fips_md(type);
+            if (fipsmd)
+                type = fipsmd;
+        }
+    }
+#endif
 #ifndef OPENSSL_NO_ENGINE
     /*
      * Whether it's nice or not, "Inits" can be used on "Final"'d contexts so

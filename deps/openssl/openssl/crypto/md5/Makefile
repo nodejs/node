@@ -52,6 +52,9 @@ md5-ia64.s: asm/md5-ia64.S
 	$(CC) $(CFLAGS) -E asm/md5-ia64.S | \
 	$(PERL) -ne 's/;\s+/;\n/g; print;' > $@
 
+md5-sparcv9.S:	asm/md5-sparcv9.pl
+	$(PERL) asm/md5-sparcv9.pl $@ $(CFLAGS)
+
 files:
 	$(PERL) $(TOP)/util/files.pl Makefile >> $(TOP)/MINFO
 

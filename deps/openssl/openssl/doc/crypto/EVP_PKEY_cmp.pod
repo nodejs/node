@@ -23,10 +23,10 @@ doesn't use parameters.
 The function EVP_PKEY_copy_parameters() copies the parameters from key
 B<from> to key B<to>.
 
-The funcion EVP_PKEY_cmp_parameters() compares the parameters of keys
+The function EVP_PKEY_cmp_parameters() compares the parameters of keys
 B<a> and B<b>.
 
-The funcion EVP_PKEY_cmp() compares the public key components and paramters
+The function EVP_PKEY_cmp() compares the public key components and paramters
 (if present) of keys B<a> and B<b>.
 
 =head1 NOTES

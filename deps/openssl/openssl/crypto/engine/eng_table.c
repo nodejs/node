@@ -351,6 +351,8 @@ void engine_table_doall(ENGINE_TABLE *table, engine_table_doall_cb *cb,
     ENGINE_PILE_DOALL dall;
     dall.cb = cb;
     dall.arg = arg;
-    lh_ENGINE_PILE_doall_arg(&table->piles, LHASH_DOALL_ARG_FN(int_cb),
-                             ENGINE_PILE_DOALL, &dall);
+    if (table)
+        lh_ENGINE_PILE_doall_arg(&table->piles,
+                                 LHASH_DOALL_ARG_FN(int_cb),
+                                 ENGINE_PILE_DOALL, &dall);
 }

@@ -208,7 +208,7 @@
 # elif !defined(OPENSSL_SYS_VMS) \
 	&& !defined(OPENSSL_SYS_MSDOS) \
 	&& !defined(OPENSSL_SYS_MACINTOSH_CLASSIC) \
-	&& !defined(MAC_OS_GUSI_SOURCE) \
+	&& !defined(MAC_OS_GUSI_SOURCE)	\
 	&& !defined(OPENSSL_SYS_VXWORKS) \
 	&& !defined(OPENSSL_SYS_NETWARE)
 #  define TERMIOS

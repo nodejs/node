@@ -64,7 +64,11 @@
 #ifndef OPENSSL_NO_CMS
 # include <openssl/cms.h>
 #endif
+#include <openssl/asn1t.h>
 #include "asn1_locl.h"
+
+static int ecdh_cms_decrypt(CMS_RecipientInfo *ri);
+static int ecdh_cms_encrypt(CMS_RecipientInfo *ri);
 
 static int eckey_param2type(int *pptype, void **ppval, EC_KEY *ec_key)
 {
@@ -580,10 +584,21 @@ static int ec_pkey_ctrl(EVP_PKEY *pkey, int op, long arg1, void *arg2)
             X509_ALGOR_set0(alg2, OBJ_nid2obj(snid), V_ASN1_UNDEF, 0);
         }
         return 1;
+
+    case ASN1_PKEY_CTRL_CMS_ENVELOPE:
+        if (arg1 == 1)
+            return ecdh_cms_decrypt(arg2);
+        else if (arg1 == 0)
+            return ecdh_cms_encrypt(arg2);
+        return -2;
+
+    case ASN1_PKEY_CTRL_CMS_RI_TYPE:
+        *(int *)arg2 = CMS_RECIPINFO_AGREE;
+        return 1;
 #endif
 
     case ASN1_PKEY_CTRL_DEFAULT_MD_NID:
-        *(int *)arg2 = NID_sha1;
+        *(int *)arg2 = NID_sha256;
         return 2;
 
     default:
@@ -625,3 +640,326 @@ const EVP_PKEY_ASN1_METHOD eckey_asn1_meth = {
     old_ec_priv_decode,
     old_ec_priv_encode
 };
+
+#ifndef OPENSSL_NO_CMS
+
+static int ecdh_cms_set_peerkey(EVP_PKEY_CTX *pctx,
+                                X509_ALGOR *alg, ASN1_BIT_STRING *pubkey)
+{
+    ASN1_OBJECT *aoid;
+    int atype;
+    void *aval;
+    int rv = 0;
+    EVP_PKEY *pkpeer = NULL;
+    EC_KEY *ecpeer = NULL;
+    const unsigned char *p;
+    int plen;
+    X509_ALGOR_get0(&aoid, &atype, &aval, alg);
+    if (OBJ_obj2nid(aoid) != NID_X9_62_id_ecPublicKey)
+        goto err;
+    /* If absent parameters get group from main key */
+    if (atype == V_ASN1_UNDEF || atype == V_ASN1_NULL) {
+        const EC_GROUP *grp;
+        EVP_PKEY *pk;
+        pk = EVP_PKEY_CTX_get0_pkey(pctx);
+        if (!pk)
+            goto err;
+        grp = EC_KEY_get0_group(pk->pkey.ec);
+        ecpeer = EC_KEY_new();
+        if (!ecpeer)
+            goto err;
+        if (!EC_KEY_set_group(ecpeer, grp))
+            goto err;
+    } else {
+        ecpeer = eckey_type2param(atype, aval);
+        if (!ecpeer)
+            goto err;
+    }
+    /* We have parameters now set public key */
+    plen = ASN1_STRING_length(pubkey);
+    p = ASN1_STRING_data(pubkey);
+    if (!p || !plen)
+        goto err;
+    if (!o2i_ECPublicKey(&ecpeer, &p, plen))
+        goto err;
+    pkpeer = EVP_PKEY_new();
+    if (!pkpeer)
+        goto err;
+    EVP_PKEY_set1_EC_KEY(pkpeer, ecpeer);
+    if (EVP_PKEY_derive_set_peer(pctx, pkpeer) > 0)
+        rv = 1;
+ err:
+    if (ecpeer)
+        EC_KEY_free(ecpeer);
+    if (pkpeer)
+        EVP_PKEY_free(pkpeer);
+    return rv;
+}
+
+/* Set KDF parameters based on KDF NID */
+static int ecdh_cms_set_kdf_param(EVP_PKEY_CTX *pctx, int eckdf_nid)
+{
+    int kdf_nid, kdfmd_nid, cofactor;
+    const EVP_MD *kdf_md;
+    if (eckdf_nid == NID_undef)
+        return 0;
+
+    /* Lookup KDF type, cofactor mode and digest */
+    if (!OBJ_find_sigid_algs(eckdf_nid, &kdfmd_nid, &kdf_nid))
+        return 0;
+
+    if (kdf_nid == NID_dh_std_kdf)
+        cofactor = 0;
+    else if (kdf_nid == NID_dh_cofactor_kdf)
+        cofactor = 1;
+    else
+        return 0;
+
+    if (EVP_PKEY_CTX_set_ecdh_cofactor_mode(pctx, cofactor) <= 0)
+        return 0;
+
+    if (EVP_PKEY_CTX_set_ecdh_kdf_type(pctx, EVP_PKEY_ECDH_KDF_X9_62) <= 0)
+        return 0;
+
+    kdf_md = EVP_get_digestbynid(kdfmd_nid);
+    if (!kdf_md)
+        return 0;
+
+    if (EVP_PKEY_CTX_set_ecdh_kdf_md(pctx, kdf_md) <= 0)
+        return 0;
+    return 1;
+}
+
+static int ecdh_cms_set_shared_info(EVP_PKEY_CTX *pctx, CMS_RecipientInfo *ri)
+{
+    int rv = 0;
+
+    X509_ALGOR *alg, *kekalg = NULL;
+    ASN1_OCTET_STRING *ukm;
+    const unsigned char *p;
+    unsigned char *der = NULL;
+    int plen, keylen;
+    const EVP_CIPHER *kekcipher;
+    EVP_CIPHER_CTX *kekctx;
+
+    if (!CMS_RecipientInfo_kari_get0_alg(ri, &alg, &ukm))
+        return 0;
+
+    if (!ecdh_cms_set_kdf_param(pctx, OBJ_obj2nid(alg->algorithm))) {
+        ECerr(EC_F_ECDH_CMS_SET_SHARED_INFO, EC_R_KDF_PARAMETER_ERROR);
+        return 0;
+    }
+
+    if (alg->parameter->type != V_ASN1_SEQUENCE)
+        return 0;
+
+    p = alg->parameter->value.sequence->data;
+    plen = alg->parameter->value.sequence->length;
+    kekalg = d2i_X509_ALGOR(NULL, &p, plen);
+    if (!kekalg)
+        goto err;
+    kekctx = CMS_RecipientInfo_kari_get0_ctx(ri);
+    if (!kekctx)
+        goto err;
+    kekcipher = EVP_get_cipherbyobj(kekalg->algorithm);
+    if (!kekcipher || EVP_CIPHER_mode(kekcipher) != EVP_CIPH_WRAP_MODE)
+        goto err;
+    if (!EVP_EncryptInit_ex(kekctx, kekcipher, NULL, NULL, NULL))
+        goto err;
+    if (EVP_CIPHER_asn1_to_param(kekctx, kekalg->parameter) <= 0)
+        goto err;
+
+    keylen = EVP_CIPHER_CTX_key_length(kekctx);
+    if (EVP_PKEY_CTX_set_ecdh_kdf_outlen(pctx, keylen) <= 0)
+        goto err;
+
+    plen = CMS_SharedInfo_encode(&der, kekalg, ukm, keylen);
+
+    if (!plen)
+        goto err;
+
+    if (EVP_PKEY_CTX_set0_ecdh_kdf_ukm(pctx, der, plen) <= 0)
+        goto err;
+    der = NULL;
+
+    rv = 1;
+ err:
+    if (kekalg)
+        X509_ALGOR_free(kekalg);
+    if (der)
+        OPENSSL_free(der);
+    return rv;
+}
+
+static int ecdh_cms_decrypt(CMS_RecipientInfo *ri)
+{
+    EVP_PKEY_CTX *pctx;
+    pctx = CMS_RecipientInfo_get0_pkey_ctx(ri);
+    if (!pctx)
+        return 0;
+    /* See if we need to set peer key */
+    if (!EVP_PKEY_CTX_get0_peerkey(pctx)) {
+        X509_ALGOR *alg;
+        ASN1_BIT_STRING *pubkey;
+        if (!CMS_RecipientInfo_kari_get0_orig_id(ri, &alg, &pubkey,
+                                                 NULL, NULL, NULL))
+            return 0;
+        if (!alg || !pubkey)
+            return 0;
+        if (!ecdh_cms_set_peerkey(pctx, alg, pubkey)) {
+            ECerr(EC_F_ECDH_CMS_DECRYPT, EC_R_PEER_KEY_ERROR);
+            return 0;
+        }
+    }
+    /* Set ECDH derivation parameters and initialise unwrap context */
+    if (!ecdh_cms_set_shared_info(pctx, ri)) {
+        ECerr(EC_F_ECDH_CMS_DECRYPT, EC_R_SHARED_INFO_ERROR);
+        return 0;
+    }
+    return 1;
+}
+
+static int ecdh_cms_encrypt(CMS_RecipientInfo *ri)
+{
+    EVP_PKEY_CTX *pctx;
+    EVP_PKEY *pkey;
+    EVP_CIPHER_CTX *ctx;
+    int keylen;
+    X509_ALGOR *talg, *wrap_alg = NULL;
+    ASN1_OBJECT *aoid;
+    ASN1_BIT_STRING *pubkey;
+    ASN1_STRING *wrap_str;
+    ASN1_OCTET_STRING *ukm;
+    unsigned char *penc = NULL;
+    int penclen;
+    int rv = 0;
+    int ecdh_nid, kdf_type, kdf_nid, wrap_nid;
+    const EVP_MD *kdf_md;
+    pctx = CMS_RecipientInfo_get0_pkey_ctx(ri);
+    if (!pctx)
+        return 0;
+    /* Get ephemeral key */
+    pkey = EVP_PKEY_CTX_get0_pkey(pctx);
+    if (!CMS_RecipientInfo_kari_get0_orig_id(ri, &talg, &pubkey,
+                                             NULL, NULL, NULL))
+        goto err;
+    X509_ALGOR_get0(&aoid, NULL, NULL, talg);
+    /* Is everything uninitialised? */
+    if (aoid == OBJ_nid2obj(NID_undef)) {
+
+        EC_KEY *eckey = pkey->pkey.ec;
+        /* Set the key */
+        unsigned char *p;
+
+        penclen = i2o_ECPublicKey(eckey, NULL);
+        if (penclen <= 0)
+            goto err;
+        penc = OPENSSL_malloc(penclen);
+        if (!penc)
+            goto err;
+        p = penc;
+        penclen = i2o_ECPublicKey(eckey, &p);
+        if (penclen <= 0)
+            goto err;
+        ASN1_STRING_set0(pubkey, penc, penclen);
+        pubkey->flags &= ~(ASN1_STRING_FLAG_BITS_LEFT | 0x07);
+        pubkey->flags |= ASN1_STRING_FLAG_BITS_LEFT;
+
+        penc = NULL;
+        X509_ALGOR_set0(talg, OBJ_nid2obj(NID_X9_62_id_ecPublicKey),
+                        V_ASN1_UNDEF, NULL);
+    }
+
+    /* See if custom paraneters set */
+    kdf_type = EVP_PKEY_CTX_get_ecdh_kdf_type(pctx);
+    if (kdf_type <= 0)
+        goto err;
+    if (!EVP_PKEY_CTX_get_ecdh_kdf_md(pctx, &kdf_md))
+        goto err;
+    ecdh_nid = EVP_PKEY_CTX_get_ecdh_cofactor_mode(pctx);
+    if (ecdh_nid < 0)
+        goto err;
+    else if (ecdh_nid == 0)
+        ecdh_nid = NID_dh_std_kdf;
+    else if (ecdh_nid == 1)
+        ecdh_nid = NID_dh_cofactor_kdf;
+
+    if (kdf_type == EVP_PKEY_ECDH_KDF_NONE) {
+        kdf_type = EVP_PKEY_ECDH_KDF_X9_62;
+        if (EVP_PKEY_CTX_set_ecdh_kdf_type(pctx, kdf_type) <= 0)
+            goto err;
+    } else
+        /* Uknown KDF */
+        goto err;
+    if (kdf_md == NULL) {
+        /* Fixme later for better MD */
+        kdf_md = EVP_sha1();
+        if (EVP_PKEY_CTX_set_ecdh_kdf_md(pctx, kdf_md) <= 0)
+            goto err;
+    }
+
+    if (!CMS_RecipientInfo_kari_get0_alg(ri, &talg, &ukm))
+        goto err;
+
+    /* Lookup NID for KDF+cofactor+digest */
+
+    if (!OBJ_find_sigid_by_algs(&kdf_nid, EVP_MD_type(kdf_md), ecdh_nid))
+        goto err;
+    /* Get wrap NID */
+    ctx = CMS_RecipientInfo_kari_get0_ctx(ri);
+    wrap_nid = EVP_CIPHER_CTX_type(ctx);
+    keylen = EVP_CIPHER_CTX_key_length(ctx);
+
+    /* Package wrap algorithm in an AlgorithmIdentifier */
+
+    wrap_alg = X509_ALGOR_new();
+    if (!wrap_alg)
+        goto err;
+    wrap_alg->algorithm = OBJ_nid2obj(wrap_nid);
+    wrap_alg->parameter = ASN1_TYPE_new();
+    if (!wrap_alg->parameter)
+        goto err;
+    if (EVP_CIPHER_param_to_asn1(ctx, wrap_alg->parameter) <= 0)
+        goto err;
+    if (ASN1_TYPE_get(wrap_alg->parameter) == NID_undef) {
+        ASN1_TYPE_free(wrap_alg->parameter);
+        wrap_alg->parameter = NULL;
+    }
+
+    if (EVP_PKEY_CTX_set_ecdh_kdf_outlen(pctx, keylen) <= 0)
+        goto err;
+
+    penclen = CMS_SharedInfo_encode(&penc, wrap_alg, ukm, keylen);
+
+    if (!penclen)
+        goto err;
+
+    if (EVP_PKEY_CTX_set0_ecdh_kdf_ukm(pctx, penc, penclen) <= 0)
+        goto err;
+    penc = NULL;
+
+    /*
+     * Now need to wrap encoding of wrap AlgorithmIdentifier into parameter
+     * of another AlgorithmIdentifier.
+     */
+    penclen = i2d_X509_ALGOR(wrap_alg, &penc);
+    if (!penc || !penclen)
+        goto err;
+    wrap_str = ASN1_STRING_new();
+    if (!wrap_str)
+        goto err;
+    ASN1_STRING_set0(wrap_str, penc, penclen);
+    penc = NULL;
+    X509_ALGOR_set0(talg, OBJ_nid2obj(kdf_nid), V_ASN1_SEQUENCE, wrap_str);
+
+    rv = 1;
+
+ err:
+    if (penc)
+        OPENSSL_free(penc);
+    if (wrap_alg)
+        X509_ALGOR_free(wrap_alg);
+    return rv;
+}
+
+#endif

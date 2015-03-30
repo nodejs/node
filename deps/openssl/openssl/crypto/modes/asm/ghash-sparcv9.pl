@@ -36,6 +36,15 @@
 # references to input data and Z.hi updates to achieve 12 cycles
 # timing. To anchor to something else, sha1-sparcv9.pl spends 11.6
 # cycles to process one byte on UltraSPARC pre-Tx CPU and ~24 on T1.
+#
+# October 2012
+#
+# Add VIS3 lookup-table-free implementation using polynomial
+# multiplication xmulx[hi] and extended addition addxc[cc]
+# instructions. 4.52/7.63x improvement on T3/T4 or in absolute
+# terms 7.90/2.14 cycles per byte. On T4 multi-process benchmark
+# saturates at ~15.5x single-process result on 8-core processor,
+# or ~20.5GBps per 2.85GHz socket.
 
 $bits=32;
 for (@ARGV)     { $bits=64 if (/\-m64/ || /\-xarch\=v9/); }
@@ -66,6 +75,10 @@ $Htbl="%i1";
 $inp="%i2";
 $len="%i3";
 
+$code.=<<___ if ($bits==64);
+.register	%g2,#scratch
+.register	%g3,#scratch
+___
 $code.=<<___;
 .section	".text",#alloc,#execinstr
 
@@ -321,10 +334,238 @@ gcm_gmult_4bit:
 	restore
 .type	gcm_gmult_4bit,#function
 .size	gcm_gmult_4bit,(.-gcm_gmult_4bit)
-.asciz	"GHASH for SPARCv9, CRYPTOGAMS by <appro\@openssl.org>"
+___
+
+{{{
+# Straightforward 128x128-bit multiplication using Karatsuba algorithm
+# followed by pair of 64-bit reductions [with a shortcut in first one,
+# which allowed to break dependency between reductions and remove one
+# multiplication from critical path]. While it might be suboptimal
+# with regard to sheer number of multiplications, other methods [such
+# as aggregate reduction] would require more 64-bit registers, which
+# we don't have in 32-bit application context.
+
+($Xip,$Htable,$inp,$len)=map("%i$_",(0..3));
+
+($Hhl,$Hlo,$Hhi,$Xlo,$Xhi,$xE1,$sqr, $C0,$C1,$C2,$C3,$V)=
+	(map("%o$_",(0..5,7)),map("%g$_",(1..5)));
+
+($shl,$shr)=map("%l$_",(0..7));
+
+# For details regarding "twisted H" see ghash-x86.pl.
+$code.=<<___;
+.globl	gcm_init_vis3
+.align	32
+gcm_init_vis3:
+	save	%sp,-$frame,%sp
+
+	ldx	[%i1+0],$Hhi
+	ldx	[%i1+8],$Hlo
+	mov	0xE1,$Xhi
+	mov	1,$Xlo
+	sllx	$Xhi,57,$Xhi
+	srax	$Hhi,63,$C0		! broadcast carry
+	addcc	$Hlo,$Hlo,$Hlo		! H<<=1
+	addxc	$Hhi,$Hhi,$Hhi
+	and	$C0,$Xlo,$Xlo
+	and	$C0,$Xhi,$Xhi
+	xor	$Xlo,$Hlo,$Hlo
+	xor	$Xhi,$Hhi,$Hhi
+	stx	$Hlo,[%i0+8]		! save twisted H
+	stx	$Hhi,[%i0+0]
+
+	sethi	%hi(0xA0406080),$V
+	sethi	%hi(0x20C0E000),%l0
+	or	$V,%lo(0xA0406080),$V
+	or	%l0,%lo(0x20C0E000),%l0
+	sllx	$V,32,$V
+	or	%l0,$V,$V		! (0xE0·i)&0xff=0xA040608020C0E000
+	stx	$V,[%i0+16]
+
+	ret
+	restore
+.type	gcm_init_vis3,#function
+.size	gcm_init_vis3,.-gcm_init_vis3
+
+.globl	gcm_gmult_vis3
+.align	32
+gcm_gmult_vis3:
+	save	%sp,-$frame,%sp
+
+	ldx	[$Xip+8],$Xlo		! load Xi
+	ldx	[$Xip+0],$Xhi
+	ldx	[$Htable+8],$Hlo	! load twisted H
+	ldx	[$Htable+0],$Hhi
+
+	mov	0xE1,%l7
+	sllx	%l7,57,$xE1		! 57 is not a typo
+	ldx	[$Htable+16],$V		! (0xE0·i)&0xff=0xA040608020C0E000
+
+	xor	$Hhi,$Hlo,$Hhl		! Karatsuba pre-processing
+	xmulx	$Xlo,$Hlo,$C0
+	xor	$Xlo,$Xhi,$C2		! Karatsuba pre-processing
+	xmulx	$C2,$Hhl,$C1
+	xmulxhi	$Xlo,$Hlo,$Xlo
+	xmulxhi	$C2,$Hhl,$C2
+	xmulxhi	$Xhi,$Hhi,$C3
+	xmulx	$Xhi,$Hhi,$Xhi
+
+	sll	$C0,3,$sqr
+	srlx	$V,$sqr,$sqr		! ·0xE0 [implicit &(7<<3)]
+	xor	$C0,$sqr,$sqr
+	sllx	$sqr,57,$sqr		! ($C0·0xE1)<<1<<56 [implicit &0x7f]
+
+	xor	$C0,$C1,$C1		! Karatsuba post-processing
+	xor	$Xlo,$C2,$C2
+	 xor	$sqr,$Xlo,$Xlo		! real destination is $C1
+	xor	$C3,$C2,$C2
+	xor	$Xlo,$C1,$C1
+	xor	$Xhi,$C2,$C2
+	xor	$Xhi,$C1,$C1
+
+	xmulxhi	$C0,$xE1,$Xlo		! ·0xE1<<1<<56
+	 xor	$C0,$C2,$C2
+	xmulx	$C1,$xE1,$C0
+	 xor	$C1,$C3,$C3
+	xmulxhi	$C1,$xE1,$C1
+
+	xor	$Xlo,$C2,$C2
+	xor	$C0,$C2,$C2
+	xor	$C1,$C3,$C3
+
+	stx	$C2,[$Xip+8]		! save Xi
+	stx	$C3,[$Xip+0]
+
+	ret
+	restore
+.type	gcm_gmult_vis3,#function
+.size	gcm_gmult_vis3,.-gcm_gmult_vis3
+
+.globl	gcm_ghash_vis3
+.align	32
+gcm_ghash_vis3:
+	save	%sp,-$frame,%sp
+
+	ldx	[$Xip+8],$C2		! load Xi
+	ldx	[$Xip+0],$C3
+	ldx	[$Htable+8],$Hlo	! load twisted H
+	ldx	[$Htable+0],$Hhi
+
+	mov	0xE1,%l7
+	sllx	%l7,57,$xE1		! 57 is not a typo
+	ldx	[$Htable+16],$V		! (0xE0·i)&0xff=0xA040608020C0E000
+
+	and	$inp,7,$shl
+	andn	$inp,7,$inp
+	sll	$shl,3,$shl
+	prefetch [$inp+63], 20
+	sub	%g0,$shl,$shr
+
+	xor	$Hhi,$Hlo,$Hhl		! Karatsuba pre-processing
+.Loop:
+	ldx	[$inp+8],$Xlo
+	brz,pt	$shl,1f
+	ldx	[$inp+0],$Xhi
+
+	ldx	[$inp+16],$C1		! align data
+	srlx	$Xlo,$shr,$C0
+	sllx	$Xlo,$shl,$Xlo
+	sllx	$Xhi,$shl,$Xhi
+	srlx	$C1,$shr,$C1
+	or	$C0,$Xhi,$Xhi
+	or	$C1,$Xlo,$Xlo
+1:
+	add	$inp,16,$inp
+	sub	$len,16,$len
+	xor	$C2,$Xlo,$Xlo
+	xor	$C3,$Xhi,$Xhi
+	prefetch [$inp+63], 20
+
+	xmulx	$Xlo,$Hlo,$C0
+	xor	$Xlo,$Xhi,$C2		! Karatsuba pre-processing
+	xmulx	$C2,$Hhl,$C1
+	xmulxhi	$Xlo,$Hlo,$Xlo
+	xmulxhi	$C2,$Hhl,$C2
+	xmulxhi	$Xhi,$Hhi,$C3
+	xmulx	$Xhi,$Hhi,$Xhi
+
+	sll	$C0,3,$sqr
+	srlx	$V,$sqr,$sqr		! ·0xE0 [implicit &(7<<3)]
+	xor	$C0,$sqr,$sqr
+	sllx	$sqr,57,$sqr		! ($C0·0xE1)<<1<<56 [implicit &0x7f]
+
+	xor	$C0,$C1,$C1		! Karatsuba post-processing
+	xor	$Xlo,$C2,$C2
+	 xor	$sqr,$Xlo,$Xlo		! real destination is $C1
+	xor	$C3,$C2,$C2
+	xor	$Xlo,$C1,$C1
+	xor	$Xhi,$C2,$C2
+	xor	$Xhi,$C1,$C1
+
+	xmulxhi	$C0,$xE1,$Xlo		! ·0xE1<<1<<56
+	 xor	$C0,$C2,$C2
+	xmulx	$C1,$xE1,$C0
+	 xor	$C1,$C3,$C3
+	xmulxhi	$C1,$xE1,$C1
+
+	xor	$Xlo,$C2,$C2
+	xor	$C0,$C2,$C2
+	brnz,pt	$len,.Loop
+	xor	$C1,$C3,$C3
+
+	stx	$C2,[$Xip+8]		! save Xi
+	stx	$C3,[$Xip+0]
+
+	ret
+	restore
+.type	gcm_ghash_vis3,#function
+.size	gcm_ghash_vis3,.-gcm_ghash_vis3
+___
+}}}
+$code.=<<___;
+.asciz	"GHASH for SPARCv9/VIS3, CRYPTOGAMS by <appro\@openssl.org>"
 .align	4
 ___
 
-$code =~ s/\`([^\`]*)\`/eval $1/gem;
-print $code;
+
+# Purpose of these subroutines is to explicitly encode VIS instructions,
+# so that one can compile the module without having to specify VIS
+# extentions on compiler command line, e.g. -xarch=v9 vs. -xarch=v9a.
+# Idea is to reserve for option to produce "universal" binary and let
+# programmer detect if current CPU is VIS capable at run-time.
+sub unvis3 {
+my ($mnemonic,$rs1,$rs2,$rd)=@_;
+my %bias = ( "g" => 0, "o" => 8, "l" => 16, "i" => 24 );
+my ($ref,$opf);
+my %visopf = (	"addxc"		=> 0x011,
+		"addxccc"	=> 0x013,
+		"xmulx"		=> 0x115,
+		"xmulxhi"	=> 0x116	);
+
+    $ref = "$mnemonic\t$rs1,$rs2,$rd";
+
+    if ($opf=$visopf{$mnemonic}) {
+	foreach ($rs1,$rs2,$rd) {
+	    return $ref if (!/%([goli])([0-9])/);
+	    $_=$bias{$1}+$2;
+	}
+
+	return	sprintf ".word\t0x%08x !%s",
+			0x81b00000|$rd<<25|$rs1<<14|$opf<<5|$rs2,
+			$ref;
+    } else {
+	return $ref;
+    }
+}
+
+foreach (split("\n",$code)) {
+	s/\`([^\`]*)\`/eval $1/ge;
+
+	s/\b(xmulx[hi]*|addxc[c]{0,2})\s+(%[goli][0-7]),\s*(%[goli][0-7]),\s*(%[goli][0-7])/
+		&unvis3($1,$2,$3,$4)
+	 /ge;
+
+	print $_,"\n";
+}
+
 close STDOUT;

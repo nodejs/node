@@ -63,9 +63,27 @@
 
 #if defined(OPENSSL_NO_POSIX_IO)
 /*
- * One can argue that one should implement dummy placeholder for
- * BIO_s_fd here...
+ * Dummy placeholder for BIO_s_fd...
  */
+BIO *BIO_new_fd(int fd, int close_flag)
+{
+    return NULL;
+}
+
+int BIO_fd_non_fatal_error(int err)
+{
+    return 0;
+}
+
+int BIO_fd_should_retry(int i)
+{
+    return 0;
+}
+
+BIO_METHOD *BIO_s_fd(void)
+{
+    return NULL;
+}
 #else
 /*
  * As for unconditional usage of "UPLINK" interface in this module.

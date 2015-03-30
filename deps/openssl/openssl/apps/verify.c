@@ -88,6 +88,7 @@ int MAIN(int argc, char **argv)
     X509_STORE *cert_ctx = NULL;
     X509_LOOKUP *lookup = NULL;
     X509_VERIFY_PARAM *vpm = NULL;
+    int crl_download = 0;
 #ifndef OPENSSL_NO_ENGINE
     char *engine = NULL;
 #endif
@@ -136,7 +137,8 @@ int MAIN(int argc, char **argv)
                 if (argc-- < 1)
                     goto end;
                 crlfile = *(++argv);
-            }
+            } else if (strcmp(*argv, "-crl_download") == 0)
+                crl_download = 1;
 #ifndef OPENSSL_NO_ENGINE
             else if (strcmp(*argv, "-engine") == 0) {
                 if (--argc < 1)
@@ -214,6 +216,9 @@ int MAIN(int argc, char **argv)
     }
 
     ret = 0;
+
+    if (crl_download)
+        store_setup_crl_download(cert_ctx);
     if (argc < 1) {
         if (1 != check(cert_ctx, NULL, untrusted, trusted, crls, e))
             ret = -1;

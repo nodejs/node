@@ -251,13 +251,13 @@ static void gost_cnt_next(void *ctx, unsigned char *iv, unsigned char *buf)
     } else {
         memcpy(buf1, iv, 8);
     }
-    g = buf1[0] | (buf1[1] << 8) | (buf1[2] << 16) | (buf1[3] << 24);
+    g = buf1[0] | (buf1[1] << 8) | (buf1[2] << 16) | ((word32) buf1[3] << 24);
     g += 0x01010101;
     buf1[0] = (unsigned char)(g & 0xff);
     buf1[1] = (unsigned char)((g >> 8) & 0xff);
     buf1[2] = (unsigned char)((g >> 16) & 0xff);
     buf1[3] = (unsigned char)((g >> 24) & 0xff);
-    g = buf1[4] | (buf1[5] << 8) | (buf1[6] << 16) | (buf1[7] << 24);
+    g = buf1[4] | (buf1[5] << 8) | (buf1[6] << 16) | ((word32) buf1[7] << 24);
     go = g;
     g += 0x01010104;
     if (go > g)                 /* overflow */

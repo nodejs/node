@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-PKCS7_verify - verify a PKCS#7 signedData structure
+PKCS7_verify, PKCS7_get0_signers - verify a PKCS#7 signedData structure
 
 =head1 SYNOPSIS
 
@@ -91,8 +91,8 @@ timestamp).
 
 =head1 RETURN VALUES
 
-PKCS7_verify() returns 1 for a successful verification and zero or a negative
-value if an error occurs.
+PKCS7_verify() returns one for a successful verification and zero
+if an error occurs.
 
 PKCS7_get0_signers() returns all signers or B<NULL> if an error occurred.
 

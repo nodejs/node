@@ -97,6 +97,8 @@ static int cms_si_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
             EVP_PKEY_free(si->pkey);
         if (si->signer)
             X509_free(si->signer);
+        if (si->pctx)
+            EVP_MD_CTX_cleanup(&si->mctx);
     }
     return 1;
 }
@@ -164,10 +166,21 @@ ASN1_CHOICE(CMS_KeyAgreeRecipientIdentifier) = {
   ASN1_IMP(CMS_KeyAgreeRecipientIdentifier, d.rKeyId, CMS_RecipientKeyIdentifier, 0)
 } ASN1_CHOICE_END(CMS_KeyAgreeRecipientIdentifier)
 
-ASN1_SEQUENCE(CMS_RecipientEncryptedKey) = {
+static int cms_rek_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
+                      void *exarg)
+{
+    CMS_RecipientEncryptedKey *rek = (CMS_RecipientEncryptedKey *)*pval;
+    if (operation == ASN1_OP_FREE_POST) {
+        if (rek->pkey)
+            EVP_PKEY_free(rek->pkey);
+    }
+    return 1;
+}
+
+ASN1_SEQUENCE_cb(CMS_RecipientEncryptedKey, cms_rek_cb) = {
         ASN1_SIMPLE(CMS_RecipientEncryptedKey, rid, CMS_KeyAgreeRecipientIdentifier),
         ASN1_SIMPLE(CMS_RecipientEncryptedKey, encryptedKey, ASN1_OCTET_STRING)
-} ASN1_SEQUENCE_END(CMS_RecipientEncryptedKey)
+} ASN1_SEQUENCE_END_cb(CMS_RecipientEncryptedKey, CMS_RecipientEncryptedKey)
 
 ASN1_SEQUENCE(CMS_OriginatorPublicKey) = {
   ASN1_SIMPLE(CMS_OriginatorPublicKey, algorithm, X509_ALGOR),
@@ -180,13 +193,29 @@ ASN1_CHOICE(CMS_OriginatorIdentifierOrKey) = {
   ASN1_IMP(CMS_OriginatorIdentifierOrKey, d.originatorKey, CMS_OriginatorPublicKey, 1)
 } ASN1_CHOICE_END(CMS_OriginatorIdentifierOrKey)
 
-ASN1_SEQUENCE(CMS_KeyAgreeRecipientInfo) = {
+static int cms_kari_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
+                       void *exarg)
+{
+    CMS_KeyAgreeRecipientInfo *kari = (CMS_KeyAgreeRecipientInfo *)*pval;
+    if (operation == ASN1_OP_NEW_POST) {
+        EVP_CIPHER_CTX_init(&kari->ctx);
+        EVP_CIPHER_CTX_set_flags(&kari->ctx, EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
+        kari->pctx = NULL;
+    } else if (operation == ASN1_OP_FREE_POST) {
+        if (kari->pctx)
+            EVP_PKEY_CTX_free(kari->pctx);
+        EVP_CIPHER_CTX_cleanup(&kari->ctx);
+    }
+    return 1;
+}
+
+ASN1_SEQUENCE_cb(CMS_KeyAgreeRecipientInfo, cms_kari_cb) = {
         ASN1_SIMPLE(CMS_KeyAgreeRecipientInfo, version, LONG),
         ASN1_EXP(CMS_KeyAgreeRecipientInfo, originator, CMS_OriginatorIdentifierOrKey, 0),
         ASN1_EXP_OPT(CMS_KeyAgreeRecipientInfo, ukm, ASN1_OCTET_STRING, 1),
         ASN1_SIMPLE(CMS_KeyAgreeRecipientInfo, keyEncryptionAlgorithm, X509_ALGOR),
         ASN1_SEQUENCE_OF(CMS_KeyAgreeRecipientInfo, recipientEncryptedKeys, CMS_RecipientEncryptedKey)
-} ASN1_SEQUENCE_END(CMS_KeyAgreeRecipientInfo)
+} ASN1_SEQUENCE_END_cb(CMS_KeyAgreeRecipientInfo, CMS_KeyAgreeRecipientInfo)
 
 ASN1_SEQUENCE(CMS_KEKIdentifier) = {
         ASN1_SIMPLE(CMS_KEKIdentifier, keyIdentifier, ASN1_OCTET_STRING),
@@ -225,6 +254,8 @@ static int cms_ri_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
                 EVP_PKEY_free(ktri->pkey);
             if (ktri->recip)
                 X509_free(ktri->recip);
+            if (ktri->pctx)
+                EVP_PKEY_CTX_free(ktri->pctx);
         } else if (ri->type == CMS_RECIPINFO_KEK) {
             CMS_KEKRecipientInfo *kekri = ri->d.kekri;
             if (kekri->key) {
@@ -379,3 +410,50 @@ ASN1_SEQUENCE(CMS_Receipt) = {
   ASN1_SIMPLE(CMS_Receipt, signedContentIdentifier, ASN1_OCTET_STRING),
   ASN1_SIMPLE(CMS_Receipt, originatorSignatureValue, ASN1_OCTET_STRING)
 } ASN1_SEQUENCE_END(CMS_Receipt)
+
+/*
+ * Utilities to encode the CMS_SharedInfo structure used during key
+ * derivation.
+ */
+
+typedef struct {
+    X509_ALGOR *keyInfo;
+    ASN1_OCTET_STRING *entityUInfo;
+    ASN1_OCTET_STRING *suppPubInfo;
+} CMS_SharedInfo;
+
+ASN1_SEQUENCE(CMS_SharedInfo) = {
+  ASN1_SIMPLE(CMS_SharedInfo, keyInfo, X509_ALGOR),
+  ASN1_EXP_OPT(CMS_SharedInfo, entityUInfo, ASN1_OCTET_STRING, 0),
+  ASN1_EXP_OPT(CMS_SharedInfo, suppPubInfo, ASN1_OCTET_STRING, 2),
+} ASN1_SEQUENCE_END(CMS_SharedInfo)
+
+int CMS_SharedInfo_encode(unsigned char **pder, X509_ALGOR *kekalg,
+                          ASN1_OCTET_STRING *ukm, int keylen)
+{
+    union {
+        CMS_SharedInfo *pecsi;
+        ASN1_VALUE *a;
+    } intsi = {
+        NULL
+    };
+
+    ASN1_OCTET_STRING oklen;
+    unsigned char kl[4];
+    CMS_SharedInfo ecsi;
+
+    keylen <<= 3;
+    kl[0] = (keylen >> 24) & 0xff;
+    kl[1] = (keylen >> 16) & 0xff;
+    kl[2] = (keylen >> 8) & 0xff;
+    kl[3] = keylen & 0xff;
+    oklen.length = 4;
+    oklen.data = kl;
+    oklen.type = V_ASN1_OCTET_STRING;
+    oklen.flags = 0;
+    ecsi.keyInfo = kekalg;
+    ecsi.entityUInfo = ukm;
+    ecsi.suppPubInfo = &oklen;
+    intsi.pecsi = &ecsi;
+    return ASN1_item_i2d(intsi.a, pder, ASN1_ITEM_rptr(CMS_SharedInfo));
+}

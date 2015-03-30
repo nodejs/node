@@ -21,10 +21,7 @@ B<ssl> by setting an underlying B<BIO>.
 The behaviour of SSL_accept() depends on the underlying BIO. 
 
 If the underlying BIO is B<blocking>, SSL_accept() will only return once the
-handshake has been finished or an error occurred, except for SGC (Server
-Gated Cryptography). For SGC, SSL_accept() may return with -1, but
-SSL_get_error() will yield B<SSL_ERROR_WANT_READ/WRITE> and SSL_accept()
-should be called again.
+handshake has been finished or an error occurred.
 
 If the underlying BIO is B<non-blocking>, SSL_accept() will also return
 when the underlying BIO could not satisfy the needs of SSL_accept()

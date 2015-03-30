@@ -76,8 +76,12 @@ X509_SIG *PKCS8_encrypt(int pbe_nid, const EVP_CIPHER *cipher,
 
     if (pbe_nid == -1)
         pbe = PKCS5_pbe2_set(cipher, iter, salt, saltlen);
-    else
+    else if (EVP_PBE_find(EVP_PBE_TYPE_PRF, pbe_nid, NULL, NULL, 0))
+        pbe = PKCS5_pbe2_set_iv(cipher, iter, salt, saltlen, NULL, pbe_nid);
+    else {
+        ERR_clear_error();
         pbe = PKCS5_pbe_set(pbe_nid, iter, salt, saltlen);
+    }
     if (!pbe) {
         PKCS12err(PKCS12_F_PKCS8_ENCRYPT, ERR_R_ASN1_LIB);
         goto err;

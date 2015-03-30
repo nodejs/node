@@ -100,6 +100,36 @@ static CMS_EnvelopedData *cms_enveloped_data_init(CMS_ContentInfo *cms)
     return cms_get0_enveloped(cms);
 }
 
+int cms_env_asn1_ctrl(CMS_RecipientInfo *ri, int cmd)
+{
+    EVP_PKEY *pkey;
+    int i;
+    if (ri->type == CMS_RECIPINFO_TRANS)
+        pkey = ri->d.ktri->pkey;
+    else if (ri->type == CMS_RECIPINFO_AGREE) {
+        EVP_PKEY_CTX *pctx = ri->d.kari->pctx;
+        if (!pctx)
+            return 0;
+        pkey = EVP_PKEY_CTX_get0_pkey(pctx);
+        if (!pkey)
+            return 0;
+    } else
+        return 0;
+    if (!pkey->ameth || !pkey->ameth->pkey_ctrl)
+        return 1;
+    i = pkey->ameth->pkey_ctrl(pkey, ASN1_PKEY_CTRL_CMS_ENVELOPE, cmd, ri);
+    if (i == -2) {
+        CMSerr(CMS_F_CMS_ENV_ASN1_CTRL,
+               CMS_R_NOT_SUPPORTED_FOR_THIS_KEY_TYPE);
+        return 0;
+    }
+    if (i <= 0) {
+        CMSerr(CMS_F_CMS_ENV_ASN1_CTRL, CMS_R_CTRL_FAILURE);
+        return 0;
+    }
+    return 1;
+}
+
 STACK_OF(CMS_RecipientInfo) *CMS_get0_RecipientInfos(CMS_ContentInfo *cms)
 {
     CMS_EnvelopedData *env;
@@ -112,6 +142,15 @@ STACK_OF(CMS_RecipientInfo) *CMS_get0_RecipientInfos(CMS_ContentInfo *cms)
 int CMS_RecipientInfo_type(CMS_RecipientInfo *ri)
 {
     return ri->type;
+}
+
+EVP_PKEY_CTX *CMS_RecipientInfo_get0_pkey_ctx(CMS_RecipientInfo *ri)
+{
+    if (ri->type == CMS_RECIPINFO_TRANS)
+        return ri->d.ktri->pctx;
+    else if (ri->type == CMS_RECIPINFO_AGREE)
+        return ri->d.kari->pctx;
+    return NULL;
 }
 
 CMS_ContentInfo *CMS_EnvelopedData_create(const EVP_CIPHER *cipher)
@@ -137,19 +176,63 @@ CMS_ContentInfo *CMS_EnvelopedData_create(const EVP_CIPHER *cipher)
 
 /* Key Transport Recipient Info (KTRI) routines */
 
+/* Initialise a ktri based on passed certificate and key */
+
+static int cms_RecipientInfo_ktri_init(CMS_RecipientInfo *ri, X509 *recip,
+                                       EVP_PKEY *pk, unsigned int flags)
+{
+    CMS_KeyTransRecipientInfo *ktri;
+    int idtype;
+
+    ri->d.ktri = M_ASN1_new_of(CMS_KeyTransRecipientInfo);
+    if (!ri->d.ktri)
+        return 0;
+    ri->type = CMS_RECIPINFO_TRANS;
+
+    ktri = ri->d.ktri;
+
+    if (flags & CMS_USE_KEYID) {
+        ktri->version = 2;
+        idtype = CMS_RECIPINFO_KEYIDENTIFIER;
+    } else {
+        ktri->version = 0;
+        idtype = CMS_RECIPINFO_ISSUER_SERIAL;
+    }
+
+    /*
+     * Not a typo: RecipientIdentifier and SignerIdentifier are the same
+     * structure.
+     */
+
+    if (!cms_set1_SignerIdentifier(ktri->rid, recip, idtype))
+        return 0;
+
+    CRYPTO_add(&recip->references, 1, CRYPTO_LOCK_X509);
+    CRYPTO_add(&pk->references, 1, CRYPTO_LOCK_EVP_PKEY);
+    ktri->pkey = pk;
+    ktri->recip = recip;
+
+    if (flags & CMS_KEY_PARAM) {
+        ktri->pctx = EVP_PKEY_CTX_new(ktri->pkey, NULL);
+        if (!ktri->pctx)
+            return 0;
+        if (EVP_PKEY_encrypt_init(ktri->pctx) <= 0)
+            return 0;
+    } else if (!cms_env_asn1_ctrl(ri, 0))
+        return 0;
+    return 1;
+}
+
 /*
- * Add a recipient certificate. For now only handle key transport. If we ever
- * handle key agreement will need updating.
+ * Add a recipient certificate using appropriate type of RecipientInfo
  */
 
 CMS_RecipientInfo *CMS_add1_recipient_cert(CMS_ContentInfo *cms,
                                            X509 *recip, unsigned int flags)
 {
     CMS_RecipientInfo *ri = NULL;
-    CMS_KeyTransRecipientInfo *ktri;
     CMS_EnvelopedData *env;
     EVP_PKEY *pk = NULL;
-    int i, type;
     env = cms_get0_enveloped(cms);
     if (!env)
         goto err;
@@ -159,58 +242,35 @@ CMS_RecipientInfo *CMS_add1_recipient_cert(CMS_ContentInfo *cms,
     if (!ri)
         goto merr;
 
-    /* Initialize and add key transport recipient info */
-
-    ri->d.ktri = M_ASN1_new_of(CMS_KeyTransRecipientInfo);
-    if (!ri->d.ktri)
-        goto merr;
-    ri->type = CMS_RECIPINFO_TRANS;
-
-    ktri = ri->d.ktri;
-
-    X509_check_purpose(recip, -1, -1);
     pk = X509_get_pubkey(recip);
     if (!pk) {
         CMSerr(CMS_F_CMS_ADD1_RECIPIENT_CERT, CMS_R_ERROR_GETTING_PUBLIC_KEY);
         goto err;
     }
-    CRYPTO_add(&recip->references, 1, CRYPTO_LOCK_X509);
-    ktri->pkey = pk;
-    ktri->recip = recip;
 
-    if (flags & CMS_USE_KEYID) {
-        ktri->version = 2;
-        if (env->version < 2)
-            env->version = 2;
-        type = CMS_RECIPINFO_KEYIDENTIFIER;
-    } else {
-        ktri->version = 0;
-        type = CMS_RECIPINFO_ISSUER_SERIAL;
-    }
+    switch (cms_pkey_get_ri_type(pk)) {
 
-    /*
-     * Not a typo: RecipientIdentifier and SignerIdentifier are the same
-     * structure.
-     */
+    case CMS_RECIPINFO_TRANS:
+        if (!cms_RecipientInfo_ktri_init(ri, recip, pk, flags))
+            goto err;
+        break;
 
-    if (!cms_set1_SignerIdentifier(ktri->rid, recip, type))
+    case CMS_RECIPINFO_AGREE:
+        if (!cms_RecipientInfo_kari_init(ri, recip, pk, flags))
+            goto err;
+        break;
+
+    default:
+        CMSerr(CMS_F_CMS_ADD1_RECIPIENT_CERT,
+               CMS_R_NOT_SUPPORTED_FOR_THIS_KEY_TYPE);
         goto err;
 
-    if (pk->ameth && pk->ameth->pkey_ctrl) {
-        i = pk->ameth->pkey_ctrl(pk, ASN1_PKEY_CTRL_CMS_ENVELOPE, 0, ri);
-        if (i == -2) {
-            CMSerr(CMS_F_CMS_ADD1_RECIPIENT_CERT,
-                   CMS_R_NOT_SUPPORTED_FOR_THIS_KEY_TYPE);
-            goto err;
-        }
-        if (i <= 0) {
-            CMSerr(CMS_F_CMS_ADD1_RECIPIENT_CERT, CMS_R_CTRL_FAILURE);
-            goto err;
-        }
     }
 
     if (!sk_CMS_RecipientInfo_push(env->recipientInfos, ri))
         goto merr;
+
+    EVP_PKEY_free(pk);
 
     return ri;
 
@@ -219,6 +279,8 @@ CMS_RecipientInfo *CMS_add1_recipient_cert(CMS_ContentInfo *cms,
  err:
     if (ri)
         M_ASN1_free_of(ri, CMS_RecipientInfo);
+    if (pk)
+        EVP_PKEY_free(pk);
     return NULL;
 
 }
@@ -288,7 +350,7 @@ static int cms_RecipientInfo_ktri_encrypt(CMS_ContentInfo *cms,
 {
     CMS_KeyTransRecipientInfo *ktri;
     CMS_EncryptedContentInfo *ec;
-    EVP_PKEY_CTX *pctx = NULL;
+    EVP_PKEY_CTX *pctx;
     unsigned char *ek = NULL;
     size_t eklen;
 
@@ -301,12 +363,19 @@ static int cms_RecipientInfo_ktri_encrypt(CMS_ContentInfo *cms,
     ktri = ri->d.ktri;
     ec = cms->d.envelopedData->encryptedContentInfo;
 
-    pctx = EVP_PKEY_CTX_new(ktri->pkey, NULL);
-    if (!pctx)
-        return 0;
+    pctx = ktri->pctx;
 
-    if (EVP_PKEY_encrypt_init(pctx) <= 0)
-        goto err;
+    if (pctx) {
+        if (!cms_env_asn1_ctrl(ri, 0))
+            goto err;
+    } else {
+        pctx = EVP_PKEY_CTX_new(ktri->pkey, NULL);
+        if (!pctx)
+            return 0;
+
+        if (EVP_PKEY_encrypt_init(pctx) <= 0)
+            goto err;
+    }
 
     if (EVP_PKEY_CTX_ctrl(pctx, -1, EVP_PKEY_OP_ENCRYPT,
                           EVP_PKEY_CTRL_CMS_ENCRYPT, 0, ri) <= 0) {
@@ -333,8 +402,10 @@ static int cms_RecipientInfo_ktri_encrypt(CMS_ContentInfo *cms,
     ret = 1;
 
  err:
-    if (pctx)
+    if (pctx) {
         EVP_PKEY_CTX_free(pctx);
+        ktri->pctx = NULL;
+    }
     if (ek)
         OPENSSL_free(ek);
     return ret;
@@ -347,7 +418,7 @@ static int cms_RecipientInfo_ktri_decrypt(CMS_ContentInfo *cms,
                                           CMS_RecipientInfo *ri)
 {
     CMS_KeyTransRecipientInfo *ktri = ri->d.ktri;
-    EVP_PKEY_CTX *pctx = NULL;
+    EVP_PKEY *pkey = ktri->pkey;
     unsigned char *ek = NULL;
     size_t eklen;
     int ret = 0;
@@ -359,20 +430,23 @@ static int cms_RecipientInfo_ktri_decrypt(CMS_ContentInfo *cms,
         return 0;
     }
 
-    pctx = EVP_PKEY_CTX_new(ktri->pkey, NULL);
-    if (!pctx)
+    ktri->pctx = EVP_PKEY_CTX_new(pkey, NULL);
+    if (!ktri->pctx)
         return 0;
 
-    if (EVP_PKEY_decrypt_init(pctx) <= 0)
+    if (EVP_PKEY_decrypt_init(ktri->pctx) <= 0)
         goto err;
 
-    if (EVP_PKEY_CTX_ctrl(pctx, -1, EVP_PKEY_OP_DECRYPT,
+    if (!cms_env_asn1_ctrl(ri, 1))
+        goto err;
+
+    if (EVP_PKEY_CTX_ctrl(ktri->pctx, -1, EVP_PKEY_OP_DECRYPT,
                           EVP_PKEY_CTRL_CMS_DECRYPT, 0, ri) <= 0) {
         CMSerr(CMS_F_CMS_RECIPIENTINFO_KTRI_DECRYPT, CMS_R_CTRL_ERROR);
         goto err;
     }
 
-    if (EVP_PKEY_decrypt(pctx, NULL, &eklen,
+    if (EVP_PKEY_decrypt(ktri->pctx, NULL, &eklen,
                          ktri->encryptedKey->data,
                          ktri->encryptedKey->length) <= 0)
         goto err;
@@ -384,7 +458,7 @@ static int cms_RecipientInfo_ktri_decrypt(CMS_ContentInfo *cms,
         goto err;
     }
 
-    if (EVP_PKEY_decrypt(pctx, ek, &eklen,
+    if (EVP_PKEY_decrypt(ktri->pctx, ek, &eklen,
                          ktri->encryptedKey->data,
                          ktri->encryptedKey->length) <= 0) {
         CMSerr(CMS_F_CMS_RECIPIENTINFO_KTRI_DECRYPT, CMS_R_CMS_LIB);
@@ -402,8 +476,10 @@ static int cms_RecipientInfo_ktri_decrypt(CMS_ContentInfo *cms,
     ec->keylen = eklen;
 
  err:
-    if (pctx)
-        EVP_PKEY_CTX_free(pctx);
+    if (ktri->pctx) {
+        EVP_PKEY_CTX_free(ktri->pctx);
+        ktri->pctx = NULL;
+    }
     if (!ret && ek)
         OPENSSL_free(ek);
 
@@ -745,12 +821,99 @@ int CMS_RecipientInfo_decrypt(CMS_ContentInfo *cms, CMS_RecipientInfo *ri)
     }
 }
 
+int CMS_RecipientInfo_encrypt(CMS_ContentInfo *cms, CMS_RecipientInfo *ri)
+{
+    switch (ri->type) {
+    case CMS_RECIPINFO_TRANS:
+        return cms_RecipientInfo_ktri_encrypt(cms, ri);
+
+    case CMS_RECIPINFO_AGREE:
+        return cms_RecipientInfo_kari_encrypt(cms, ri);
+
+    case CMS_RECIPINFO_KEK:
+        return cms_RecipientInfo_kekri_encrypt(cms, ri);
+        break;
+
+    case CMS_RECIPINFO_PASS:
+        return cms_RecipientInfo_pwri_crypt(cms, ri, 1);
+        break;
+
+    default:
+        CMSerr(CMS_F_CMS_RECIPIENTINFO_ENCRYPT,
+               CMS_R_UNSUPPORTED_RECIPIENT_TYPE);
+        return 0;
+    }
+}
+
+/* Check structures and fixup version numbers (if necessary) */
+
+static void cms_env_set_originfo_version(CMS_EnvelopedData *env)
+{
+    CMS_OriginatorInfo *org = env->originatorInfo;
+    int i;
+    if (org == NULL)
+        return;
+    for (i = 0; i < sk_CMS_CertificateChoices_num(org->certificates); i++) {
+        CMS_CertificateChoices *cch;
+        cch = sk_CMS_CertificateChoices_value(org->certificates, i);
+        if (cch->type == CMS_CERTCHOICE_OTHER) {
+            env->version = 4;
+            return;
+        } else if (cch->type == CMS_CERTCHOICE_V2ACERT) {
+            if (env->version < 3)
+                env->version = 3;
+        }
+    }
+
+    for (i = 0; i < sk_CMS_RevocationInfoChoice_num(org->crls); i++) {
+        CMS_RevocationInfoChoice *rch;
+        rch = sk_CMS_RevocationInfoChoice_value(org->crls, i);
+        if (rch->type == CMS_REVCHOICE_OTHER) {
+            env->version = 4;
+            return;
+        }
+    }
+}
+
+static void cms_env_set_version(CMS_EnvelopedData *env)
+{
+    int i;
+    CMS_RecipientInfo *ri;
+
+    /*
+     * Can't set version higher than 4 so if 4 or more already nothing to do.
+     */
+    if (env->version >= 4)
+        return;
+
+    cms_env_set_originfo_version(env);
+
+    if (env->version >= 3)
+        return;
+
+    for (i = 0; i < sk_CMS_RecipientInfo_num(env->recipientInfos); i++) {
+        ri = sk_CMS_RecipientInfo_value(env->recipientInfos, i);
+        if (ri->type == CMS_RECIPINFO_PASS || ri->type == CMS_RECIPINFO_OTHER) {
+            env->version = 3;
+            return;
+        } else if (ri->type != CMS_RECIPINFO_TRANS
+                   || ri->d.ktri->version != 0) {
+            env->version = 2;
+        }
+    }
+    if (env->version == 2)
+        return;
+    if (env->originatorInfo || env->unprotectedAttrs)
+        env->version = 2;
+    env->version = 0;
+}
+
 BIO *cms_EnvelopedData_init_bio(CMS_ContentInfo *cms)
 {
     CMS_EncryptedContentInfo *ec;
     STACK_OF(CMS_RecipientInfo) *rinfos;
     CMS_RecipientInfo *ri;
-    int i, r, ok = 0;
+    int i, ok = 0;
     BIO *ret;
 
     /* Get BIO first to set up key */
@@ -769,32 +932,13 @@ BIO *cms_EnvelopedData_init_bio(CMS_ContentInfo *cms)
 
     for (i = 0; i < sk_CMS_RecipientInfo_num(rinfos); i++) {
         ri = sk_CMS_RecipientInfo_value(rinfos, i);
-
-        switch (ri->type) {
-        case CMS_RECIPINFO_TRANS:
-            r = cms_RecipientInfo_ktri_encrypt(cms, ri);
-            break;
-
-        case CMS_RECIPINFO_KEK:
-            r = cms_RecipientInfo_kekri_encrypt(cms, ri);
-            break;
-
-        case CMS_RECIPINFO_PASS:
-            r = cms_RecipientInfo_pwri_crypt(cms, ri, 1);
-            break;
-
-        default:
-            CMSerr(CMS_F_CMS_ENVELOPEDDATA_INIT_BIO,
-                   CMS_R_UNSUPPORTED_RECIPIENT_TYPE);
-            goto err;
-        }
-
-        if (r <= 0) {
+        if (CMS_RecipientInfo_encrypt(cms, ri) <= 0) {
             CMSerr(CMS_F_CMS_ENVELOPEDDATA_INIT_BIO,
                    CMS_R_ERROR_SETTING_RECIPIENTINFO);
             goto err;
         }
     }
+    cms_env_set_version(cms->d.envelopedData);
 
     ok = 1;
 
@@ -811,4 +955,20 @@ BIO *cms_EnvelopedData_init_bio(CMS_ContentInfo *cms)
     BIO_free(ret);
     return NULL;
 
+}
+
+/*
+ * Get RecipientInfo type (if any) supported by a key (public or private). To
+ * retain compatibility with previous behaviour if the ctrl value isn't
+ * supported we assume key transport.
+ */
+int cms_pkey_get_ri_type(EVP_PKEY *pk)
+{
+    if (pk->ameth && pk->ameth->pkey_ctrl) {
+        int i, r;
+        i = pk->ameth->pkey_ctrl(pk, ASN1_PKEY_CTRL_CMS_RI_TYPE, 0, &r);
+        if (i > 0)
+            return r;
+    }
+    return CMS_RECIPINFO_TRANS;
 }

@@ -77,6 +77,12 @@ sparcv9a-mont.s:	asm/sparcv9a-mont.pl
 	$(PERL) asm/sparcv9a-mont.pl $(CFLAGS) > $@
 sparcv9-mont.s:		asm/sparcv9-mont.pl
 	$(PERL) asm/sparcv9-mont.pl $(CFLAGS) > $@
+vis3-mont.s:		asm/vis3-mont.pl
+	$(PERL) asm/vis3-mont.pl $(CFLAGS) > $@
+sparct4-mont.S:	asm/sparct4-mont.pl
+	$(PERL) asm/sparct4-mont.pl $(CFLAGS) > $@
+sparcv9-gf2m.S:	asm/sparcv9-gf2m.pl
+	$(PERL) asm/sparcv9-gf2m.pl $(CFLAGS) > $@
 
 bn-mips3.o:	asm/mips3.s
 	@if [ "$(CC)" = "gcc" ]; then \
@@ -102,8 +108,10 @@ x86_64-mont5.s:	asm/x86_64-mont5.pl
 	$(PERL) asm/x86_64-mont5.pl $(PERLASM_SCHEME) > $@
 x86_64-gf2m.s:	asm/x86_64-gf2m.pl
 	$(PERL) asm/x86_64-gf2m.pl $(PERLASM_SCHEME) > $@
-modexp512-x86_64.s:	asm/modexp512-x86_64.pl
-	$(PERL) asm/modexp512-x86_64.pl $(PERLASM_SCHEME) > $@
+rsaz-x86_64.s:	asm/rsaz-x86_64.pl
+	$(PERL) asm/rsaz-x86_64.pl $(PERLASM_SCHEME) > $@
+rsaz-avx2.s:	asm/rsaz-avx2.pl
+	$(PERL) asm/rsaz-avx2.pl $(PERLASM_SCHEME) > $@
 
 bn-ia64.s:	asm/ia64.S
 	$(CC) $(CFLAGS) -E asm/ia64.S > $@
@@ -125,14 +133,15 @@ ppc-mont.s:	asm/ppc-mont.pl;$(PERL) asm/ppc-mont.pl $(PERLASM_SCHEME) $@
 ppc64-mont.s:	asm/ppc64-mont.pl;$(PERL) asm/ppc64-mont.pl $(PERLASM_SCHEME) $@
 
 alpha-mont.s:	asm/alpha-mont.pl
-	(preproc=/tmp/$$$$.$@; trap "rm $$preproc" INT; \
+	(preproc=$$$$.$@.S; trap "rm $$preproc" INT; \
 	$(PERL) asm/alpha-mont.pl > $$preproc && \
-	$(CC) -E $$preproc > $@ && rm $$preproc)
+	$(CC) -E -P $$preproc > $@ && rm $$preproc)
 
 # GNU make "catch all"
-%-mont.s:	asm/%-mont.pl;	$(PERL) $< $(PERLASM_SCHEME) $@
+%-mont.S:	asm/%-mont.pl;	$(PERL) $< $(PERLASM_SCHEME) $@
 %-gf2m.S:	asm/%-gf2m.pl;	$(PERL) $< $(PERLASM_SCHEME) $@
 
+armv4-mont.o:	armv4-mont.S
 armv4-gf2m.o:	armv4-gf2m.S
 
 files:
