@@ -57,6 +57,7 @@ B<openssl> B<cms>
 [B<-secretkeyid id>]
 [B<-econtent_type type>]
 [B<-inkey file>]
+[B<-keyopt name:parameter>]
 [B<-passin arg>]
 [B<-rand file(s)>]
 [B<cert.pem...>]
@@ -321,8 +322,13 @@ verification was successful.
 
 =item B<-recip file>
 
-the recipients certificate when decrypting a message. This certificate
-must match one of the recipients of the message or an error occurs.
+when decrypting a message this specifies the recipients certificate. The
+certificate must match one of the recipients of the message or an error
+occurs.
+
+When encrypting a message this option may be used multiple times to specify
+each recipient. This form B<must> be used if customised parameters are
+required (for example to specify RSA-OAEP).
 
 =item B<-keyid>
 
@@ -380,6 +386,13 @@ corresponding certificate. If this option is not specified then the
 private key must be included in the certificate file specified with
 the B<-recip> or B<-signer> file. When signing this option can be used
 multiple times to specify successive keys.
+
+=item B<-keyopt name:opt>
+
+for signing and encryption this option can be used multiple times to
+set customised parameters for the preceding key or certificate. It can
+currently be used to set RSA-PSS for signing, RSA-OAEP for encryption
+or to modify default parameters for ECDH.
 
 =item B<-passin arg>
 
@@ -508,6 +521,10 @@ The B<-compress> option.
 
 The B<-secretkey> option when used with B<-encrypt>.
 
+The use of PSS with B<-sign>.
+
+The use of OAEP or non-RSA keys with B<-encrypt>.
+
 Additionally the B<-EncryptedData_create> and B<-data_create> type cannot
 be processed by the older B<smime> command.
 
@@ -588,6 +605,21 @@ Add a signer to an existing message:
 
  openssl cms -resign -in mail.msg -signer newsign.pem -out mail2.msg
 
+Sign mail using RSA-PSS:
+
+ openssl cms -sign -in message.txt -text -out mail.msg \
+	-signer mycert.pem -keyopt rsa_padding_mode:pss
+
+Create encrypted mail using RSA-OAEP:
+
+ openssl cms -encrypt -in plain.txt -out mail.msg \
+	-recip cert.pem -keyopt rsa_padding_mode:oaep
+
+Use SHA256 KDF with an ECDH certificate:
+
+ openssl cms -encrypt -in plain.txt -out mail.msg \
+	-recip ecdhcert.pem -keyopt ecdh_kdf_md:sha256
+
 =head1 BUGS
 
 The MIME parser isn't very clever: it seems to handle most messages that I've
@@ -613,5 +645,14 @@ No revocation checking is done on the signer's certificate.
 The use of multiple B<-signer> options and the B<-resign> command were first
 added in OpenSSL 1.0.0
 
+The B<keyopt> option was first added in OpenSSL 1.1.0
+
+The use of B<-recip> to specify the recipient when encrypting mail was first
+added to OpenSSL 1.1.0
+
+Support for RSA-OAEP and RSA-PSS was first added to OpenSSL 1.1.0. 
+
+The use of non-RSA keys with B<-encrypt> and B<-decrypt> was first added
+to OpenSSL 1.1.0.
 
 =cut

@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-OpenSSL_add_all_algorithms, OpenSSL_add_all_ciphers, OpenSSL_add_all_digests -
+OpenSSL_add_all_algorithms, OpenSSL_add_all_ciphers, OpenSSL_add_all_digests, EVP_cleanup -
 add algorithms to internal table
 
 =head1 SYNOPSIS

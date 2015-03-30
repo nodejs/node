@@ -69,6 +69,7 @@ extern X509V3_EXT_METHOD v3_crl_hold, v3_pci;
 extern X509V3_EXT_METHOD v3_policy_mappings, v3_policy_constraints;
 extern X509V3_EXT_METHOD v3_name_constraints, v3_inhibit_anyp, v3_idp;
 extern X509V3_EXT_METHOD v3_addr, v3_asid;
+extern X509V3_EXT_METHOD v3_ct_scts[];
 
 /*
  * This table will be searched using OBJ_bsearch so it *must* kept in order
@@ -126,6 +127,8 @@ static const X509V3_EXT_METHOD *standard_exts[] = {
     &v3_idp,
     &v3_alt[2],
     &v3_freshest_crl,
+    &v3_ct_scts[0],
+    &v3_ct_scts[1],
 };
 
 /* Number of standard extensions */

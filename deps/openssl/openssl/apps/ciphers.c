@@ -85,6 +85,9 @@ int MAIN(int argc, char **argv)
 {
     int ret = 1, i;
     int verbose = 0, Verbose = 0;
+#ifndef OPENSSL_NO_SSL_TRACE
+    int stdname = 0;
+#endif
     const char **pp;
     const char *p;
     int badops = 0;
@@ -119,6 +122,10 @@ int MAIN(int argc, char **argv)
             verbose = 1;
         else if (strcmp(*argv, "-V") == 0)
             verbose = Verbose = 1;
+#ifndef OPENSSL_NO_SSL_TRACE
+        else if (strcmp(*argv, "-stdname") == 0)
+            stdname = verbose = 1;
+#endif
 #ifndef OPENSSL_NO_SSL2
         else if (strcmp(*argv, "-ssl2") == 0)
             meth = SSLv2_client_method();
@@ -202,7 +209,14 @@ int MAIN(int argc, char **argv)
                                id1, id2, id3);
                 }
             }
-
+#ifndef OPENSSL_NO_SSL_TRACE
+            if (stdname) {
+                const char *nm = SSL_CIPHER_standard_name(c);
+                if (nm == NULL)
+                    nm = "UNKNOWN";
+                BIO_printf(STDout, "%s - ", nm);
+            }
+#endif
             BIO_puts(STDout, SSL_CIPHER_description(c, buf, sizeof buf));
         }
     }

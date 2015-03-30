@@ -39,6 +39,8 @@ sub get_mem
 { my($size,$addr,$reg1,$reg2,$idx)=@_;
   my($post,$ret);
 
+    if (!defined($idx) && 1*$reg2) { $idx=$reg2; $reg2=$reg1; undef $reg1; }
+
     $ret .= "$size PTR " if ($size ne "");
 
     $addr =~ s/^\s+//;
@@ -80,7 +82,7 @@ TITLE	$_[0].asm
 IF \@Version LT 800
 ECHO MASM version 8.00 or later is strongly recommended.
 ENDIF
-.686
+.486
 .MODEL	FLAT
 OPTION	DOTNAME
 IF \@Version LT 800
@@ -133,7 +135,7 @@ ___
     if (grep {/\b${nmdecor}OPENSSL_ia32cap_P\b/i} @out)
     {	my $comm=<<___;
 .bss	SEGMENT 'BSS'
-COMM	${nmdecor}OPENSSL_ia32cap_P:QWORD
+COMM	${nmdecor}OPENSSL_ia32cap_P:DWORD:4
 .bss	ENDS
 ___
 	# comment out OPENSSL_ia32cap_P declarations

@@ -5,15 +5,32 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
-  Major changes between OpenSSL 1.0.1l and OpenSSL 1.0.1m [19 Mar 2015]
+  Major changes between OpenSSL 1.0.2 and OpenSSL 1.0.2a [19 Mar 2015]
 
+      o OpenSSL 1.0.2 ClientHello sigalgs DoS fix (CVE-2015-0291)
+      o Multiblock corrupted pointer fix (CVE-2015-0290)
+      o Segmentation fault in DTLSv1_listen fix (CVE-2015-0207)
       o Segmentation fault in ASN1_TYPE_cmp fix (CVE-2015-0286)
+      o Segmentation fault for invalid PSS parameters fix (CVE-2015-0208)
       o ASN.1 structure reuse memory corruption fix (CVE-2015-0287)
       o PKCS7 NULL pointer dereferences fix (CVE-2015-0289)
       o DoS via reachable assert in SSLv2 servers fix (CVE-2015-0293)
+      o Empty CKE with client auth and DHE fix (CVE-2015-1787)
+      o Handshake with unseeded PRNG fix (CVE-2015-0285)
       o Use After Free following d2i_ECPrivatekey error fix (CVE-2015-0209)
       o X509_to_X509_REQ NULL pointer deref fix (CVE-2015-0288)
       o Removed the export ciphers from the DEFAULT ciphers
+
+  Major changes between OpenSSL 1.0.1l and OpenSSL 1.0.2 [22 Jan 2015]:
+
+      o Suite B support for TLS 1.2 and DTLS 1.2
+      o Support for DTLS 1.2
+      o TLS automatic EC curve selection.
+      o API to set TLS supported signature algorithms and curves
+      o SSL_CONF configuration API.
+      o TLS Brainpool support.
+      o ALPN support.
+      o CMS support for RSA-PSS, RSA-OAEP, ECDH and X9.42 DH.
 
   Major changes between OpenSSL 1.0.1k and OpenSSL 1.0.1l [15 Jan 2015]
 

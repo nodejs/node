@@ -238,7 +238,6 @@ int TS_RESP_CTX_set_def_policy(TS_RESP_CTX *ctx, ASN1_OBJECT *def_policy)
 
 int TS_RESP_CTX_set_certs(TS_RESP_CTX *ctx, STACK_OF(X509) *certs)
 {
-    int i;
 
     if (ctx->certs) {
         sk_X509_pop_free(ctx->certs, X509_free);
@@ -246,13 +245,9 @@ int TS_RESP_CTX_set_certs(TS_RESP_CTX *ctx, STACK_OF(X509) *certs)
     }
     if (!certs)
         return 1;
-    if (!(ctx->certs = sk_X509_dup(certs))) {
+    if (!(ctx->certs = X509_chain_up_ref(certs))) {
         TSerr(TS_F_TS_RESP_CTX_SET_CERTS, ERR_R_MALLOC_FAILURE);
         return 0;
-    }
-    for (i = 0; i < sk_X509_num(ctx->certs); ++i) {
-        X509 *cert = sk_X509_value(ctx->certs, i);
-        CRYPTO_add(&cert->references, +1, CRYPTO_LOCK_X509);
     }
 
     return 1;

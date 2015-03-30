@@ -587,15 +587,33 @@ case "$GUESSOS" in
 	fi
 	;;
   ppc64-*-linux2)
+	if [ -z "$KERNEL_BITS" ]; then
+	    echo "WARNING! If you wish to build 64-bit library, then you have to"
+	    echo "         invoke './Configure linux-ppc64' *manually*."
+	    if [ "$TEST" = "false" -a -t 1 ]; then
+		echo "         You have about 5 seconds to press Ctrl-C to abort."
+		(trap "stty `stty -g`" 2 0; stty -icanon min 0 time 50; read waste) <&1
+	    fi
+	fi
+	if [ "$KERNEL_BITS" = "64" ]; then
+	    OUT="linux-ppc64"
+	else
+	    OUT="linux-ppc"
+	    (echo "__LP64__" | gcc -E -x c - 2>/dev/null | grep "^__LP64__" 2>&1 > /dev/null) || options="$options -m32"
+	fi
+	;;
+  ppc64le-*-linux2) OUT="linux-ppc64le" ;;
+  ppc-*-linux2) OUT="linux-ppc" ;;
+  mips64*-*-linux2)
 	echo "WARNING! If you wish to build 64-bit library, then you have to"
-	echo "         invoke './Configure linux-ppc64' *manually*."
+	echo "         invoke './Configure linux64-mips64' *manually*."
 	if [ "$TEST" = "false" -a -t 1 ]; then
 	    echo "         You have about 5 seconds to press Ctrl-C to abort."
 	    (trap "stty `stty -g`" 2 0; stty -icanon min 0 time 50; read waste) <&1
 	fi
-	OUT="linux-ppc"
+	OUT="linux-mips64"
 	;;
-  ppc-*-linux2) OUT="linux-ppc" ;;
+  mips*-*-linux2) OUT="linux-mips32" ;;
   ppc60x-*-vxworks*) OUT="vxworks-ppc60x" ;;
   ppcgen-*-vxworks*) OUT="vxworks-ppcgen" ;;
   pentium-*-vxworks*) OUT="vxworks-pentium" ;;
@@ -644,6 +662,7 @@ case "$GUESSOS" in
   armv[1-3]*-*-linux2) OUT="linux-generic32" ;;
   armv[7-9]*-*-linux2) OUT="linux-armv4"; options="$options -march=armv7-a" ;;
   arm*-*-linux2) OUT="linux-armv4" ;;
+  aarch64-*-linux2) OUT="linux-aarch64" ;;
   sh*b-*-linux2) OUT="linux-generic32"; options="$options -DB_ENDIAN" ;;
   sh*-*-linux2)  OUT="linux-generic32"; options="$options -DL_ENDIAN" ;;
   m68k*-*-linux2) OUT="linux-generic32"; options="$options -DB_ENDIAN" ;;

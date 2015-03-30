@@ -104,7 +104,7 @@ erroneous SSL_ERROR_SYSCALL may be flagged even though no error occurred.
 The shutdown was successfully completed. The "close notify" alert was sent
 and the peer's "close notify" alert was received.
 
-=item -1
+=item E<lt>0
 
 The shutdown was not successful because a fatal error occurred either
 at the protocol level or a connection failure occurred. It can also occur if

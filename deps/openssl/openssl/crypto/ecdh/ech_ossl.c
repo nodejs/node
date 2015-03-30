@@ -138,6 +138,16 @@ static int ecdh_compute_key(void *out, size_t outlen, const EC_POINT *pub_key,
     }
 
     group = EC_KEY_get0_group(ecdh);
+
+    if (EC_KEY_get_flags(ecdh) & EC_FLAG_COFACTOR_ECDH) {
+        if (!EC_GROUP_get_cofactor(group, x, ctx) ||
+            !BN_mul(x, x, priv_key, ctx)) {
+            ECDHerr(ECDH_F_ECDH_COMPUTE_KEY, ERR_R_MALLOC_FAILURE);
+            goto err;
+        }
+        priv_key = x;
+    }
+
     if ((tmp = EC_POINT_new(group)) == NULL) {
         ECDHerr(ECDH_F_ECDH_COMPUTE_KEY, ERR_R_MALLOC_FAILURE);
         goto err;

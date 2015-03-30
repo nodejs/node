@@ -37,6 +37,9 @@ B<openssl> B<s_client>
 [B<-no_ssl2>]
 [B<-no_ssl3>]
 [B<-no_tls1>]
+[B<-no_tls1_1>]
+[B<-no_tls1_2>]
+[B<-fallback_scsv>]
 [B<-bugs>]
 [B<-cipher cipherlist>]
 [B<-serverpref>]
@@ -47,6 +50,7 @@ B<openssl> B<s_client>
 [B<-sess_out filename>]
 [B<-sess_in filename>]
 [B<-rand file(s)>]
+[B<-serverinfo types>]
 [B<-status>]
 [B<-nextprotoneg protocols>]
 
@@ -196,16 +200,19 @@ Use the PSK key B<key> when using a PSK cipher suite. The key is
 given as a hexadecimal number without leading 0x, for example -psk
 1a2b3c4d.
 
-=item B<-ssl2>, B<-ssl3>, B<-tls1>, B<-no_ssl2>, B<-no_ssl3>, B<-no_tls1>
+=item B<-ssl2>, B<-ssl3>, B<-tls1>, B<-no_ssl2>, B<-no_ssl3>, B<-no_tls1>, B<-no_tls1_1>, B<-no_tls1_2>
 
 these options disable the use of certain SSL or TLS protocols. By default
 the initial handshake uses a method which should be compatible with all
 servers and permit them to use SSL v3, SSL v2 or TLS as appropriate.
 
-Unfortunately there are a lot of ancient and broken servers in use which
+Unfortunately there are still ancient and broken servers in use which
 cannot handle this technique and will fail to connect. Some servers only
-work if TLS is turned off with the B<-no_tls> option others will only
-support SSL v2 and may need the B<-ssl2> option.
+work if TLS is turned off.
+
+=item B<-fallback_scsv>
+
+Send TLS_FALLBACK_SCSV in the ClientHello.
 
 =item B<-bugs>
 
@@ -260,6 +267,13 @@ generator, or an EGD socket (see L<RAND_egd(3)|RAND_egd(3)>).
 Multiple files can be specified separated by a OS-dependent character.
 The separator is B<;> for MS-Windows, B<,> for OpenVMS, and B<:> for
 all others.
+
+=item B<-serverinfo types>
+
+a list of comma-separated TLS Extension Types (numbers between 0 and 
+65535).  Each type will be sent as an empty ClientHello TLS Extension.
+The server's response (if any) will be encoded and displayed as a PEM
+file.
 
 =item B<-status>
 

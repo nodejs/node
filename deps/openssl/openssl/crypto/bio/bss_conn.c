@@ -585,7 +585,7 @@ static int conn_puts(BIO *bp, const char *str)
     return (ret);
 }
 
-BIO *BIO_new_connect(char *str)
+BIO *BIO_new_connect(const char *str)
 {
     BIO *ret;
 

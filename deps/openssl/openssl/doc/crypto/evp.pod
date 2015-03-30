@@ -13,22 +13,58 @@ evp - high-level cryptographic functions
 The EVP library provides a high-level interface to cryptographic
 functions.
 
-B<EVP_Seal>I<...> and B<EVP_Open>I<...> provide public key encryption
-and decryption to implement digital "envelopes".
+L<B<EVP_Seal>I<...>|EVP_SealInit(3)> and L<B<EVP_Open>I<...>|EVP_OpenInit(3)>
+provide public key encryption and decryption to implement digital "envelopes".
 
-The B<EVP_Sign>I<...> and B<EVP_Verify>I<...> functions implement
-digital signatures.
+The L<B<EVP_DigestSign>I<...>|EVP_DigestSignInit(3)> and
+L<B<EVP_DigestVerify>I<...>|EVP_DigestVerifyInit(3)> functions implement
+digital signatures and Message Authentication Codes (MACs). Also see the older
+L<B<EVP_Sign>I<...>|EVP_SignInit(3)> and L<B<EVP_Verify>I<...>|EVP_VerifyInit(3)>
+functions.
 
-Symmetric encryption is available with the B<EVP_Encrypt>I<...>
-functions.  The B<EVP_Digest>I<...> functions provide message digests.
+Symmetric encryption is available with the L<B<EVP_Encrypt>I<...>|EVP_EncryptInit(3)>
+functions.  The L<B<EVP_Digest>I<...>|EVP_DigestInit(3)> functions provide message digests.
 
 The B<EVP_PKEY>I<...> functions provide a high level interface to
-asymmetric algorithms.
+asymmetric algorithms. To create a new EVP_PKEY see
+L<EVP_PKEY_new(3)|EVP_PKEY_new(3)>. EVP_PKEYs can be associated
+with a private key of a particular algorithm by using the functions
+described on the L<EVP_PKEY_set1_RSA(3)|EVP_PKEY_set1_RSA(3)> page, or
+new keys can be generated using L<EVP_PKEY_keygen(3)|EVP_PKEY_keygen(3)>.
+EVP_PKEYs can be compared using L<EVP_PKEY_cmp(3)|EVP_PKEY_cmp(3)>, or printed using
+L<EVP_PKEY_print_private(3)|EVP_PKEY_print_private(3)>.
 
-Algorithms are loaded with OpenSSL_add_all_algorithms(3).
+The EVP_PKEY functions support the full range of asymmetric algorithm operations:
+
+=over
+
+=item For key agreement see L<EVP_PKEY_derive(3)|EVP_PKEY_derive(3)>
+
+=item For signing and verifying see L<EVP_PKEY_sign(3)|EVP_PKEY_sign(3)>,
+L<EVP_PKEY_verify(3)|EVP_PKEY_verify(3)> and L<EVP_PKEY_verify_recover(3)|EVP_PKEY_verify_recover(3)>.
+However, note that
+these functions do not perform a digest of the data to be signed. Therefore
+normally you would use the L<B<EVP_DigestSign>I<...>|EVP_DigestSignInit(3)>
+functions for this purpose.
+
+=item For encryption and decryption see L<EVP_PKEY_encrypt(3)|EVP_PKEY_encrypt(3)>
+and L<EVP_PKEY_decrypt(3)|EVP_PKEY_decrypt(3)> respectively. However, note that
+these functions perform encryption and decryption only. As public key
+encryption is an expensive operation, normally you would wrap
+an encrypted message in a "digital envelope" using the L<B<EVP_Seal>I<...>|EVP_SealInit(3)> and
+L<B<EVP_Open>I<...>|EVP_OpenInit(3)> functions.
+
+=back
+
+The L<EVP_BytesToKey(3)|EVP_BytesToKey(3)> function provides some limited support for password
+based encryption. Careful selection of the parameters will provide a PKCS#5 PBKDF1 compatible
+implementation. However, new applications should not typically use this (preferring, for example,
+PBKDF2 from PCKS#5).
+
+Algorithms are loaded with L<OpenSSL_add_all_algorithms(3)|OpenSSL_add_all_algorithms(3)>.
 
 All the symmetric algorithms (ciphers), digests and asymmetric algorithms
-(public key algorithms) can be replaced by ENGINE modules providing alternative
+(public key algorithms) can be replaced by L<ENGINE|engine(3)> modules providing alternative
 implementations. If ENGINE implementations of ciphers or digests are registered
 as defaults, then the various EVP functions will automatically use those
 implementations automatically in preference to built in software
@@ -47,8 +83,20 @@ L<EVP_DigestInit(3)|EVP_DigestInit(3)>,
 L<EVP_EncryptInit(3)|EVP_EncryptInit(3)>,
 L<EVP_OpenInit(3)|EVP_OpenInit(3)>,
 L<EVP_SealInit(3)|EVP_SealInit(3)>,
+L<EVP_DigestSignInit(3)|EVP_DigestSignInit(3)>,
 L<EVP_SignInit(3)|EVP_SignInit(3)>,
 L<EVP_VerifyInit(3)|EVP_VerifyInit(3)>,
+L<EVP_PKEY_new(3)|EVP_PKEY_new(3)>,
+L<EVP_PKEY_set1_RSA(3)|EVP_PKEY_set1_RSA(3)>,
+L<EVP_PKEY_keygen(3)|EVP_PKEY_keygen(3)>,
+L<EVP_PKEY_print_private(3)|EVP_PKEY_print_private(3)>,
+L<EVP_PKEY_decrypt(3)|EVP_PKEY_decrypt(3)>,
+L<EVP_PKEY_encrypt(3)|EVP_PKEY_encrypt(3)>,
+L<EVP_PKEY_sign(3)|EVP_PKEY_sign(3)>,
+L<EVP_PKEY_verify(3)|EVP_PKEY_verify(3)>,
+L<EVP_PKEY_verify_recover(3)|EVP_PKEY_verify_recover(3)>,
+L<EVP_PKEY_derive(3)|EVP_PKEY_derive(3)>,
+L<EVP_BytesToKey(3)|EVP_BytesToKey(3)>,
 L<OpenSSL_add_all_algorithms(3)|OpenSSL_add_all_algorithms(3)>,
 L<engine(3)|engine(3)>
 

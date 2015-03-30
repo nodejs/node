@@ -1,1 +1,1 @@
-#include "../../crypto/symhacks.h"
+../../crypto/symhacks.h

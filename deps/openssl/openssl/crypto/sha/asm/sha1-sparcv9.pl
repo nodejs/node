@@ -5,6 +5,8 @@
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
 # details see http://www.openssl.org/~appro/cryptogams/.
+#
+# Hardware SPARC T4 support by David S. Miller <davem@davemloft.net>.
 # ====================================================================
 
 # Performance improvement is not really impressive on pre-T1 CPU: +8%
@@ -18,10 +20,10 @@
 # ensure scalability on UltraSPARC T1, or rather to avoid decay when
 # amount of active threads exceeds the number of physical cores.
 
-$bits=32;
-for (@ARGV)	{ $bits=64 if (/\-m64/ || /\-xarch\=v9/); }
-if ($bits==64)	{ $bias=2047; $frame=192; }
-else		{ $bias=0;    $frame=112; }
+# SPARC T4 SHA1 hardware achieves 3.72 cycles per byte, which is 3.1x
+# faster than software. Multi-process benchmark saturates at 11x
+# single-process result on 8-core processor, or ~9GBps per 2.85GHz
+# socket.
 
 $output=shift;
 open STDOUT,">$output";
@@ -178,17 +180,102 @@ $code.=<<___;
 ___
 }
 
-$code.=<<___ if ($bits==64);
+$code.=<<___;
+#include "sparc_arch.h"
+
+#ifdef __arch64__
 .register	%g2,#scratch
 .register	%g3,#scratch
-___
-$code.=<<___;
+#endif
+
 .section	".text",#alloc,#execinstr
+
+#ifdef __PIC__
+SPARC_PIC_THUNK(%g1)
+#endif
 
 .align	32
 .globl	sha1_block_data_order
 sha1_block_data_order:
-	save	%sp,-$frame,%sp
+	SPARC_LOAD_ADDRESS_LEAF(OPENSSL_sparcv9cap_P,%g1,%g5)
+	ld	[%g1+4],%g1		! OPENSSL_sparcv9cap_P[1]
+
+	andcc	%g1, CFR_SHA1, %g0
+	be	.Lsoftware
+	nop
+
+	ld	[%o0 + 0x00], %f0	! load context
+	ld	[%o0 + 0x04], %f1
+	ld	[%o0 + 0x08], %f2
+	andcc	%o1, 0x7, %g0
+	ld	[%o0 + 0x0c], %f3
+	bne,pn	%icc, .Lhwunaligned
+	 ld	[%o0 + 0x10], %f4
+
+.Lhw_loop:
+	ldd	[%o1 + 0x00], %f8
+	ldd	[%o1 + 0x08], %f10
+	ldd	[%o1 + 0x10], %f12
+	ldd	[%o1 + 0x18], %f14
+	ldd	[%o1 + 0x20], %f16
+	ldd	[%o1 + 0x28], %f18
+	ldd	[%o1 + 0x30], %f20
+	subcc	%o2, 1, %o2		! done yet? 
+	ldd	[%o1 + 0x38], %f22
+	add	%o1, 0x40, %o1
+	prefetch [%o1 + 63], 20
+
+	.word	0x81b02820		! SHA1
+
+	bne,pt	SIZE_T_CC, .Lhw_loop
+	nop
+
+.Lhwfinish:
+	st	%f0, [%o0 + 0x00]	! store context
+	st	%f1, [%o0 + 0x04]
+	st	%f2, [%o0 + 0x08]
+	st	%f3, [%o0 + 0x0c]
+	retl
+	st	%f4, [%o0 + 0x10]
+
+.align	8
+.Lhwunaligned:
+	alignaddr %o1, %g0, %o1
+
+	ldd	[%o1 + 0x00], %f10
+.Lhwunaligned_loop:
+	ldd	[%o1 + 0x08], %f12
+	ldd	[%o1 + 0x10], %f14
+	ldd	[%o1 + 0x18], %f16
+	ldd	[%o1 + 0x20], %f18
+	ldd	[%o1 + 0x28], %f20
+	ldd	[%o1 + 0x30], %f22
+	ldd	[%o1 + 0x38], %f24
+	subcc	%o2, 1, %o2		! done yet?
+	ldd	[%o1 + 0x40], %f26
+	add	%o1, 0x40, %o1
+	prefetch [%o1 + 63], 20
+
+	faligndata %f10, %f12, %f8
+	faligndata %f12, %f14, %f10
+	faligndata %f14, %f16, %f12
+	faligndata %f16, %f18, %f14
+	faligndata %f18, %f20, %f16
+	faligndata %f20, %f22, %f18
+	faligndata %f22, %f24, %f20
+	faligndata %f24, %f26, %f22
+
+	.word	0x81b02820		! SHA1
+
+	bne,pt	SIZE_T_CC, .Lhwunaligned_loop
+	for	%f26, %f26, %f10	! %f10=%f26
+
+	ba	.Lhwfinish
+	nop
+
+.align	16
+.Lsoftware:
+	save	%sp,-STACK_FRAME,%sp
 	sllx	$len,6,$len
 	add	$inp,$len,$len
 
@@ -268,7 +355,7 @@ $code.=<<___;
 	add	$E,@X[4],$E
 	st	$E,[$ctx+16]
 
-	bne	`$bits==64?"%xcc":"%icc"`,.Lloop
+	bne	SIZE_T_CC,.Lloop
 	andn	$inp,7,$tmp0
 
 	ret
@@ -279,6 +366,62 @@ $code.=<<___;
 .align	4
 ___
 
-$code =~ s/\`([^\`]*)\`/eval $1/gem;
-print $code;
+# Purpose of these subroutines is to explicitly encode VIS instructions,
+# so that one can compile the module without having to specify VIS
+# extentions on compiler command line, e.g. -xarch=v9 vs. -xarch=v9a.
+# Idea is to reserve for option to produce "universal" binary and let
+# programmer detect if current CPU is VIS capable at run-time.
+sub unvis {
+my ($mnemonic,$rs1,$rs2,$rd)=@_;
+my $ref,$opf;
+my %visopf = (	"faligndata"	=> 0x048,
+		"for"		=> 0x07c	);
+
+    $ref = "$mnemonic\t$rs1,$rs2,$rd";
+
+    if ($opf=$visopf{$mnemonic}) {
+	foreach ($rs1,$rs2,$rd) {
+	    return $ref if (!/%f([0-9]{1,2})/);
+	    $_=$1;
+	    if ($1>=32) {
+		return $ref if ($1&1);
+		# re-encode for upper double register addressing
+		$_=($1|$1>>5)&31;
+	    }
+	}
+
+	return	sprintf ".word\t0x%08x !%s",
+			0x81b00000|$rd<<25|$rs1<<14|$opf<<5|$rs2,
+			$ref;
+    } else {
+	return $ref;
+    }
+}
+sub unalignaddr {
+my ($mnemonic,$rs1,$rs2,$rd)=@_;
+my %bias = ( "g" => 0, "o" => 8, "l" => 16, "i" => 24 );
+my $ref="$mnemonic\t$rs1,$rs2,$rd";
+
+    foreach ($rs1,$rs2,$rd) {
+	if (/%([goli])([0-7])/)	{ $_=$bias{$1}+$2; }
+	else			{ return $ref; }
+    }
+    return  sprintf ".word\t0x%08x !%s",
+		    0x81b00300|$rd<<25|$rs1<<14|$rs2,
+		    $ref;
+}
+
+foreach (split("\n",$code)) {
+	s/\`([^\`]*)\`/eval $1/ge;
+
+	s/\b(f[^\s]*)\s+(%f[0-9]{1,2}),\s*(%f[0-9]{1,2}),\s*(%f[0-9]{1,2})/
+		&unvis($1,$2,$3,$4)
+	 /ge;
+	s/\b(alignaddr)\s+(%[goli][0-7]),\s*(%[goli][0-7]),\s*(%[goli][0-7])/
+		&unalignaddr($1,$2,$3,$4)
+	 /ge;
+
+	print $_,"\n";
+}
+
 close STDOUT;

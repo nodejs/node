@@ -30,6 +30,8 @@ else
   extra="$4"
 fi
 
+serverinfo="./serverinfo.pem"
+
 #############################################################################
 
 echo test sslv2
@@ -165,6 +167,35 @@ $ssltest -tls1 -cipher PSK -psk abc123 $extra || exit 1
 echo test tls1 with PSK via BIO pair
 $ssltest -bio_pair -tls1 -cipher PSK -psk abc123 $extra || exit 1
 
+#############################################################################
+# Custom Extension tests
+
+echo test tls1 with custom extensions
+$ssltest -bio_pair -tls1 -custom_ext || exit 1
+
+#############################################################################
+# Serverinfo tests
+
+echo test tls1 with serverinfo
+$ssltest -bio_pair -tls1 -serverinfo_file $serverinfo || exit 1
+$ssltest -bio_pair -tls1 -serverinfo_file $serverinfo -serverinfo_sct || exit 1
+$ssltest -bio_pair -tls1 -serverinfo_file $serverinfo -serverinfo_tack || exit 1
+$ssltest -bio_pair -tls1 -serverinfo_file $serverinfo -serverinfo_sct -serverinfo_tack || exit 1
+$ssltest -bio_pair -tls1 -custom_ext -serverinfo_file $serverinfo -serverinfo_sct -serverinfo_tack || exit 1
+
+
+#############################################################################
+# ALPN tests
+
+$ssltest -bio_pair -tls1 -alpn_client foo -alpn_server bar || exit 1
+$ssltest -bio_pair -tls1 -alpn_client foo -alpn_server foo -alpn_expected foo || exit 1
+$ssltest -bio_pair -tls1 -alpn_client foo,bar -alpn_server foo -alpn_expected foo || exit 1
+$ssltest -bio_pair -tls1 -alpn_client bar,foo -alpn_server foo -alpn_expected foo || exit 1
+$ssltest -bio_pair -tls1 -alpn_client bar,foo -alpn_server foo,bar -alpn_expected foo || exit 1
+$ssltest -bio_pair -tls1 -alpn_client bar,foo -alpn_server bar,foo -alpn_expected bar || exit 1
+$ssltest -bio_pair -tls1 -alpn_client foo,bar -alpn_server bar,foo -alpn_expected bar || exit 1
+$ssltest -bio_pair -tls1 -alpn_client baz -alpn_server bar,foo || exit 1
+
 if ../util/shlib_wrap.sh ../apps/openssl no-srp; then
   echo skipping SRP tests
 else
@@ -179,6 +210,14 @@ else
 
   echo test tls1 with SRP auth via BIO pair
   $ssltest -bio_pair -tls1 -cipher aSRP -srpuser test -srppass abc123
+fi
+
+#############################################################################
+# Multi-buffer tests
+
+if [ -z "$extra" -a `uname -m` = "x86_64" ]; then
+  $ssltest -cipher AES128-SHA    -bytes 8m	|| exit 1
+  $ssltest -cipher AES128-SHA256 -bytes 8m	|| exit 1
 fi
 
 exit 0

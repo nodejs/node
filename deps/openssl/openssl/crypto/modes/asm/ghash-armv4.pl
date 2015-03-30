@@ -35,6 +35,20 @@
 # Add NEON implementation featuring polynomial multiplication, i.e. no
 # lookup tables involved. On Cortex A8 it was measured to process one
 # byte in 15 cycles or 55% faster than integer-only code.
+#
+# April 2014
+#
+# Switch to multiplication algorithm suggested in paper referred
+# below and combine it with reduction algorithm from x86 module.
+# Performance improvement over previous version varies from 65% on
+# Snapdragon S4 to 110% on Cortex A9. In absolute terms Cortex A8
+# processes one byte in 8.45 cycles, A9 - in 10.2, Snapdragon S4 -
+# in 9.33.
+#
+# Câmara, D.; Gouvêa, C. P. L.; López, J. & Dahab, R.: Fast Software
+# Polynomial Multiplication on ARM Processors using the NEON Engine.
+# 
+# http://conradoplg.cryptoland.net/files/2010/12/mocrysen13.pdf
 
 # ====================================================================
 # Note about "528B" variant. In ARM case it makes lesser sense to
@@ -303,117 +317,161 @@ $code.=<<___;
 .size	gcm_gmult_4bit,.-gcm_gmult_4bit
 ___
 {
-my $cnt=$Htbl;	# $Htbl is used once in the very beginning
+my ($Xl,$Xm,$Xh,$IN)=map("q$_",(0..3));
+my ($t0,$t1,$t2,$t3)=map("q$_",(8..12));
+my ($Hlo,$Hhi,$Hhl,$k48,$k32,$k16)=map("d$_",(26..31));
 
-my ($Hhi, $Hlo, $Zo, $T, $xi, $mod) = map("d$_",(0..7));
-my ($Qhi, $Qlo, $Z,  $R, $zero, $Qpost, $IN) = map("q$_",(8..15));
-
-# Z:Zo keeps 128-bit result shifted by 1 to the right, with bottom bit
-# in Zo. Or should I say "top bit", because GHASH is specified in
-# reverse bit order? Otherwise straightforward 128-bt H by one input
-# byte multiplication and modulo-reduction, times 16.
-
-sub Dlo()   { shift=~m|q([1]?[0-9])|?"d".($1*2):"";     }
-sub Dhi()   { shift=~m|q([1]?[0-9])|?"d".($1*2+1):"";   }
-sub Q()     { shift=~m|d([1-3]?[02468])|?"q".($1/2):""; }
+sub clmul64x64 {
+my ($r,$a,$b)=@_;
+$code.=<<___;
+	vext.8		$t0#lo, $a, $a, #1	@ A1
+	vmull.p8	$t0, $t0#lo, $b		@ F = A1*B
+	vext.8		$r#lo, $b, $b, #1	@ B1
+	vmull.p8	$r, $a, $r#lo		@ E = A*B1
+	vext.8		$t1#lo, $a, $a, #2	@ A2
+	vmull.p8	$t1, $t1#lo, $b		@ H = A2*B
+	vext.8		$t3#lo, $b, $b, #2	@ B2
+	vmull.p8	$t3, $a, $t3#lo		@ G = A*B2
+	vext.8		$t2#lo, $a, $a, #3	@ A3
+	veor		$t0, $t0, $r		@ L = E + F
+	vmull.p8	$t2, $t2#lo, $b		@ J = A3*B
+	vext.8		$r#lo, $b, $b, #3	@ B3
+	veor		$t1, $t1, $t3		@ M = G + H
+	vmull.p8	$r, $a, $r#lo		@ I = A*B3
+	veor		$t0#lo, $t0#lo, $t0#hi	@ t0 = (L) (P0 + P1) << 8
+	vand		$t0#hi, $t0#hi, $k48
+	vext.8		$t3#lo, $b, $b, #4	@ B4
+	veor		$t1#lo, $t1#lo, $t1#hi	@ t1 = (M) (P2 + P3) << 16
+	vand		$t1#hi, $t1#hi, $k32
+	vmull.p8	$t3, $a, $t3#lo		@ K = A*B4
+	veor		$t2, $t2, $r		@ N = I + J
+	veor		$t0#lo, $t0#lo, $t0#hi
+	veor		$t1#lo, $t1#lo, $t1#hi
+	veor		$t2#lo, $t2#lo, $t2#hi	@ t2 = (N) (P4 + P5) << 24
+	vand		$t2#hi, $t2#hi, $k16
+	vext.8		$t0, $t0, $t0, #15
+	veor		$t3#lo, $t3#lo, $t3#hi	@ t3 = (K) (P6 + P7) << 32
+	vmov.i64	$t3#hi, #0
+	vext.8		$t1, $t1, $t1, #14
+	veor		$t2#lo, $t2#lo, $t2#hi
+	vmull.p8	$r, $a, $b		@ D = A*B
+	vext.8		$t3, $t3, $t3, #12
+	vext.8		$t2, $t2, $t2, #13
+	veor		$t0, $t0, $t1
+	veor		$t2, $t2, $t3
+	veor		$r, $r, $t0
+	veor		$r, $r, $t2
+___
+}
 
 $code.=<<___;
-#if __ARM_ARCH__>=7
+#if __ARM_MAX_ARCH__>=7
+.arch	armv7-a
 .fpu	neon
+
+.global	gcm_init_neon
+.type	gcm_init_neon,%function
+.align	4
+gcm_init_neon:
+	vld1.64		$IN#hi,[r1,:64]!	@ load H
+	vmov.i8		$t0,#0xe1
+	vld1.64		$IN#lo,[r1,:64]
+	vshl.i64	$t0#hi,#57
+	vshr.u64	$t0#lo,#63		@ t0=0xc2....01
+	vdup.8		$t1,$IN#hi[7]
+	vshr.u64	$Hlo,$IN#lo,#63
+	vshr.s8		$t1,#7			@ broadcast carry bit
+	vshl.i64	$IN,$IN,#1
+	vand		$t0,$t0,$t1
+	vorr		$IN#hi,$Hlo		@ H<<<=1
+	veor		$IN,$IN,$t0		@ twisted H
+	vstmia		r0,{$IN}
+
+	ret					@ bx lr
+.size	gcm_init_neon,.-gcm_init_neon
 
 .global	gcm_gmult_neon
 .type	gcm_gmult_neon,%function
 .align	4
 gcm_gmult_neon:
-	sub		$Htbl,#16		@ point at H in GCM128_CTX
-	vld1.64		`&Dhi("$IN")`,[$Xi,:64]!@ load Xi
-	vmov.i32	$mod,#0xe1		@ our irreducible polynomial
-	vld1.64		`&Dlo("$IN")`,[$Xi,:64]!
-	vshr.u64	$mod,#32
-	vldmia		$Htbl,{$Hhi-$Hlo}	@ load H
-	veor		$zero,$zero
+	vld1.64		$IN#hi,[$Xi,:64]!	@ load Xi
+	vld1.64		$IN#lo,[$Xi,:64]!
+	vmov.i64	$k48,#0x0000ffffffffffff
+	vldmia		$Htbl,{$Hlo-$Hhi}	@ load twisted H
+	vmov.i64	$k32,#0x00000000ffffffff
 #ifdef __ARMEL__
 	vrev64.8	$IN,$IN
 #endif
-	veor		$Qpost,$Qpost
-	veor		$R,$R
-	mov		$cnt,#16
-	veor		$Z,$Z
+	vmov.i64	$k16,#0x000000000000ffff
+	veor		$Hhl,$Hlo,$Hhi		@ Karatsuba pre-processing
 	mov		$len,#16
-	veor		$Zo,$Zo
-	vdup.8		$xi,`&Dlo("$IN")`[0]	@ broadcast lowest byte
-	b		.Linner_neon
+	b		.Lgmult_neon
 .size	gcm_gmult_neon,.-gcm_gmult_neon
 
 .global	gcm_ghash_neon
 .type	gcm_ghash_neon,%function
 .align	4
 gcm_ghash_neon:
-	vld1.64		`&Dhi("$Z")`,[$Xi,:64]!	@ load Xi
-	vmov.i32	$mod,#0xe1		@ our irreducible polynomial
-	vld1.64		`&Dlo("$Z")`,[$Xi,:64]!
-	vshr.u64	$mod,#32
-	vldmia		$Xi,{$Hhi-$Hlo}		@ load H
-	veor		$zero,$zero
-	nop
+	vld1.64		$Xl#hi,[$Xi,:64]!	@ load Xi
+	vld1.64		$Xl#lo,[$Xi,:64]!
+	vmov.i64	$k48,#0x0000ffffffffffff
+	vldmia		$Htbl,{$Hlo-$Hhi}	@ load twisted H
+	vmov.i64	$k32,#0x00000000ffffffff
 #ifdef __ARMEL__
-	vrev64.8	$Z,$Z
+	vrev64.8	$Xl,$Xl
 #endif
-.Louter_neon:
-	vld1.64		`&Dhi($IN)`,[$inp]!	@ load inp
-	veor		$Qpost,$Qpost
-	vld1.64		`&Dlo($IN)`,[$inp]!
-	veor		$R,$R
-	mov		$cnt,#16
+	vmov.i64	$k16,#0x000000000000ffff
+	veor		$Hhl,$Hlo,$Hhi		@ Karatsuba pre-processing
+
+.Loop_neon:
+	vld1.64		$IN#hi,[$inp]!		@ load inp
+	vld1.64		$IN#lo,[$inp]!
 #ifdef __ARMEL__
 	vrev64.8	$IN,$IN
 #endif
-	veor		$Zo,$Zo
-	veor		$IN,$Z			@ inp^=Xi
-	veor		$Z,$Z
-	vdup.8		$xi,`&Dlo("$IN")`[0]	@ broadcast lowest byte
-.Linner_neon:
-	subs		$cnt,$cnt,#1
-	vmull.p8	$Qlo,$Hlo,$xi		@ H.lo·Xi[i]
-	vmull.p8	$Qhi,$Hhi,$xi		@ H.hi·Xi[i]
-	vext.8		$IN,$zero,#1		@ IN>>=8
+	veor		$IN,$Xl			@ inp^=Xi
+.Lgmult_neon:
+___
+	&clmul64x64	($Xl,$Hlo,"$IN#lo");	# H.lo·Xi.lo
+$code.=<<___;
+	veor		$IN#lo,$IN#lo,$IN#hi	@ Karatsuba pre-processing
+___
+	&clmul64x64	($Xm,$Hhl,"$IN#lo");	# (H.lo+H.hi)·(Xi.lo+Xi.hi)
+	&clmul64x64	($Xh,$Hhi,"$IN#hi");	# H.hi·Xi.hi
+$code.=<<___;
+	veor		$Xm,$Xm,$Xl		@ Karatsuba post-processing
+	veor		$Xm,$Xm,$Xh
+	veor		$Xl#hi,$Xl#hi,$Xm#lo
+	veor		$Xh#lo,$Xh#lo,$Xm#hi	@ Xh|Xl - 256-bit result
 
-	veor		$Z,$Qpost		@ modulo-scheduled part
-	vshl.i64	`&Dlo("$R")`,#48
-	vdup.8		$xi,`&Dlo("$IN")`[0]	@ broadcast lowest byte
-	veor		$T,`&Dlo("$Qlo")`,`&Dlo("$Z")`
+	@ equivalent of reduction_avx from ghash-x86_64.pl
+	vshl.i64	$t1,$Xl,#57		@ 1st phase
+	vshl.i64	$t2,$Xl,#62
+	veor		$t2,$t2,$t1		@
+	vshl.i64	$t1,$Xl,#63
+	veor		$t2, $t2, $t1		@
+ 	veor		$Xl#hi,$Xl#hi,$t2#lo	@
+	veor		$Xh#lo,$Xh#lo,$t2#hi
 
-	veor		`&Dhi("$Z")`,`&Dlo("$R")`
-	vuzp.8		$Qlo,$Qhi
-	vsli.8		$Zo,$T,#1		@ compose the "carry" byte
-	vext.8		$Z,$zero,#1		@ Z>>=8
+	vshr.u64	$t2,$Xl,#1		@ 2nd phase
+	veor		$Xh,$Xh,$Xl
+	veor		$Xl,$Xl,$t2		@
+	vshr.u64	$t2,$t2,#6
+	vshr.u64	$Xl,$Xl,#1		@
+	veor		$Xl,$Xl,$Xh		@
+	veor		$Xl,$Xl,$t2		@
 
-	vmull.p8	$R,$Zo,$mod		@ "carry"·0xe1
-	vshr.u8		$Zo,$T,#7		@ save Z's bottom bit
-	vext.8		$Qpost,$Qlo,$zero,#1	@ Qlo>>=8
-	veor		$Z,$Qhi
-	bne		.Linner_neon
-
-	veor		$Z,$Qpost		@ modulo-scheduled artefact
-	vshl.i64	`&Dlo("$R")`,#48
-	veor		`&Dhi("$Z")`,`&Dlo("$R")`
-
-	@ finalization, normalize Z:Zo
-	vand		$Zo,$mod		@ suffices to mask the bit
-	vshr.u64	`&Dhi(&Q("$Zo"))`,`&Dlo("$Z")`,#63
-	vshl.i64	$Z,#1
 	subs		$len,#16
-	vorr		$Z,`&Q("$Zo")`		@ Z=Z:Zo<<1
-	bne		.Louter_neon
+	bne		.Loop_neon
 
 #ifdef __ARMEL__
-	vrev64.8	$Z,$Z
+	vrev64.8	$Xl,$Xl
 #endif
 	sub		$Xi,#16	
-	vst1.64		`&Dhi("$Z")`,[$Xi,:64]!	@ write out Xi
-	vst1.64		`&Dlo("$Z")`,[$Xi,:64]
+	vst1.64		$Xl#hi,[$Xi,:64]!	@ write out Xi
+	vst1.64		$Xl#lo,[$Xi,:64]
 
-	bx	lr
+	ret					@ bx lr
 .size	gcm_ghash_neon,.-gcm_ghash_neon
 #endif
 ___
@@ -423,7 +481,13 @@ $code.=<<___;
 .align  2
 ___
 
-$code =~ s/\`([^\`]*)\`/eval $1/gem;
-$code =~ s/\bbx\s+lr\b/.word\t0xe12fff1e/gm;	# make it possible to compile with -march=armv4
-print $code;
+foreach (split("\n",$code)) {
+	s/\`([^\`]*)\`/eval $1/geo;
+
+	s/\bq([0-9]+)#(lo|hi)/sprintf "d%d",2*$1+($2 eq "hi")/geo	or
+	s/\bret\b/bx	lr/go		or
+	s/\bbx\s+lr\b/.word\t0xe12fff1e/go;    # make it possible to compile with -march=armv4
+
+	print $_,"\n";
+}
 close STDOUT; # enforce flush

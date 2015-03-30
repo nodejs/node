@@ -1,6 +1,6 @@
 /* crypto/dsa/dsa_err.c */
 /* ====================================================================
- * Copyright (c) 1999-2011 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2013 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -74,6 +74,7 @@ static ERR_STRING_DATA DSA_str_functs[] = {
     {ERR_FUNC(DSA_F_DO_DSA_PRINT), "DO_DSA_PRINT"},
     {ERR_FUNC(DSA_F_DSAPARAMS_PRINT), "DSAparams_print"},
     {ERR_FUNC(DSA_F_DSAPARAMS_PRINT_FP), "DSAparams_print_fp"},
+    {ERR_FUNC(DSA_F_DSA_BUILTIN_PARAMGEN2), "DSA_BUILTIN_PARAMGEN2"},
     {ERR_FUNC(DSA_F_DSA_DO_SIGN), "DSA_do_sign"},
     {ERR_FUNC(DSA_F_DSA_DO_VERIFY), "DSA_do_verify"},
     {ERR_FUNC(DSA_F_DSA_GENERATE_KEY), "DSA_generate_key"},
@@ -107,12 +108,14 @@ static ERR_STRING_DATA DSA_str_reasons[] = {
      "data too large for key size"},
     {ERR_REASON(DSA_R_DECODE_ERROR), "decode error"},
     {ERR_REASON(DSA_R_INVALID_DIGEST_TYPE), "invalid digest type"},
+    {ERR_REASON(DSA_R_INVALID_PARAMETERS), "invalid parameters"},
     {ERR_REASON(DSA_R_MISSING_PARAMETERS), "missing parameters"},
     {ERR_REASON(DSA_R_MODULUS_TOO_LARGE), "modulus too large"},
     {ERR_REASON(DSA_R_NEED_NEW_SETUP_VALUES), "need new setup values"},
     {ERR_REASON(DSA_R_NON_FIPS_DSA_METHOD), "non fips dsa method"},
     {ERR_REASON(DSA_R_NO_PARAMETERS_SET), "no parameters set"},
     {ERR_REASON(DSA_R_PARAMETER_ENCODING_ERROR), "parameter encoding error"},
+    {ERR_REASON(DSA_R_Q_NOT_PRIME), "q not prime"},
     {0, NULL}
 };
 

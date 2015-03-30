@@ -1,6 +1,6 @@
 /* crypto/x509/x509_err.c */
 /* ====================================================================
- * Copyright (c) 1999-2006 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2012 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -88,6 +88,7 @@ static ERR_STRING_DATA X509_str_functs[] = {
     {ERR_FUNC(X509_F_X509_ATTRIBUTE_GET0_DATA), "X509_ATTRIBUTE_get0_data"},
     {ERR_FUNC(X509_F_X509_ATTRIBUTE_SET1_DATA), "X509_ATTRIBUTE_set1_data"},
     {ERR_FUNC(X509_F_X509_CHECK_PRIVATE_KEY), "X509_check_private_key"},
+    {ERR_FUNC(X509_F_X509_CRL_DIFF), "X509_CRL_diff"},
     {ERR_FUNC(X509_F_X509_CRL_PRINT_FP), "X509_CRL_print_fp"},
     {ERR_FUNC(X509_F_X509_EXTENSION_CREATE_BY_NID),
      "X509_EXTENSION_create_by_NID"},
@@ -131,22 +132,29 @@ static ERR_STRING_DATA X509_str_functs[] = {
 };
 
 static ERR_STRING_DATA X509_str_reasons[] = {
+    {ERR_REASON(X509_R_AKID_MISMATCH), "akid mismatch"},
     {ERR_REASON(X509_R_BAD_X509_FILETYPE), "bad x509 filetype"},
     {ERR_REASON(X509_R_BASE64_DECODE_ERROR), "base64 decode error"},
     {ERR_REASON(X509_R_CANT_CHECK_DH_KEY), "cant check dh key"},
     {ERR_REASON(X509_R_CERT_ALREADY_IN_HASH_TABLE),
      "cert already in hash table"},
+    {ERR_REASON(X509_R_CRL_ALREADY_DELTA), "crl already delta"},
+    {ERR_REASON(X509_R_CRL_VERIFY_FAILURE), "crl verify failure"},
     {ERR_REASON(X509_R_ERR_ASN1_LIB), "err asn1 lib"},
+    {ERR_REASON(X509_R_IDP_MISMATCH), "idp mismatch"},
     {ERR_REASON(X509_R_INVALID_DIRECTORY), "invalid directory"},
     {ERR_REASON(X509_R_INVALID_FIELD_NAME), "invalid field name"},
     {ERR_REASON(X509_R_INVALID_TRUST), "invalid trust"},
+    {ERR_REASON(X509_R_ISSUER_MISMATCH), "issuer mismatch"},
     {ERR_REASON(X509_R_KEY_TYPE_MISMATCH), "key type mismatch"},
     {ERR_REASON(X509_R_KEY_VALUES_MISMATCH), "key values mismatch"},
     {ERR_REASON(X509_R_LOADING_CERT_DIR), "loading cert dir"},
     {ERR_REASON(X509_R_LOADING_DEFAULTS), "loading defaults"},
     {ERR_REASON(X509_R_METHOD_NOT_SUPPORTED), "method not supported"},
+    {ERR_REASON(X509_R_NEWER_CRL_NOT_NEWER), "newer crl not newer"},
     {ERR_REASON(X509_R_NO_CERT_SET_FOR_US_TO_VERIFY),
      "no cert set for us to verify"},
+    {ERR_REASON(X509_R_NO_CRL_NUMBER), "no crl number"},
     {ERR_REASON(X509_R_PUBLIC_KEY_DECODE_ERROR), "public key decode error"},
     {ERR_REASON(X509_R_PUBLIC_KEY_ENCODE_ERROR), "public key encode error"},
     {ERR_REASON(X509_R_SHOULD_RETRY), "should retry"},

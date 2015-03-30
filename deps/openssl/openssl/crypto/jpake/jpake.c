@@ -4,6 +4,7 @@
 #include <openssl/sha.h>
 #include <openssl/err.h>
 #include <memory.h>
+#include <string.h>
 
 /*
  * In the definition, (xa, xb, xc, xd) are Alice's (x1, x2, x3, x4) or
