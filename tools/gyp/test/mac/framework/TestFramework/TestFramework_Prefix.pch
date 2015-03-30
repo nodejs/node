@@ -1,0 +1,7 @@
+//
+// Prefix header for all source files of the 'TestFramework' target in the 'TestFramework' project.
+//
+
+#ifdef __OBJC__
+    #import <Cocoa/Cocoa.h>
+#endif
