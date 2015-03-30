@@ -39,9 +39,11 @@ import pprint
 
 # These variables should just be spit back out as variable references.
 _generator_identity_variables = [
+  'CONFIGURATION_NAME',
   'EXECUTABLE_PREFIX',
   'EXECUTABLE_SUFFIX',
   'INTERMEDIATE_DIR',
+  'LIB_DIR',
   'PRODUCT_DIR',
   'RULE_INPUT_ROOT',
   'RULE_INPUT_DIRNAME',
@@ -49,6 +51,11 @@ _generator_identity_variables = [
   'RULE_INPUT_NAME',
   'RULE_INPUT_PATH',
   'SHARED_INTERMEDIATE_DIR',
+  'SHARED_LIB_DIR',
+  'SHARED_LIB_PREFIX',
+  'SHARED_LIB_SUFFIX',
+  'STATIC_LIB_PREFIX',
+  'STATIC_LIB_SUFFIX',
 ]
 
 # gypd doesn't define a default value for OS like many other generator

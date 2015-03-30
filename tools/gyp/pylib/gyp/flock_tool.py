@@ -40,7 +40,12 @@ class FlockTool(object):
     # with EBADF, that's why we use this F_SETLK
     # hack instead.
     fd = os.open(lockfile, os.O_WRONLY|os.O_NOCTTY|os.O_CREAT, 0666)
-    op = struct.pack('hhllhhl', fcntl.F_WRLCK, 0, 0, 0, 0, 0, 0)
+    if sys.platform.startswith('aix'):
+      # Python on AIX is compiled with LARGEFILE support, which changes the
+      # struct size.
+      op = struct.pack('hhIllqq', fcntl.F_WRLCK, 0, 0, 0, 0, 0, 0)
+    else:
+      op = struct.pack('hhllhhl', fcntl.F_WRLCK, 0, 0, 0, 0, 0, 0)
     fcntl.fcntl(fd, fcntl.F_SETLK, op)
     return subprocess.call(cmd_list)
 

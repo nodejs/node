@@ -1,0 +1,26 @@
+VARIABLES:input.py:562:ExpandVariables Matches: {'content': 'names.txt <@(names', 'is_array': '', 'replace': '<|(names.txt <@(names)', 'type': '<|', 'command_string': None}
+VARIABLES:input.py:562:ExpandVariables Matches: {'content': 'names', 'is_array': '', 'replace': '<@(names)', 'type': '<@', 'command_string': None}
+VARIABLES:input.py:797:ExpandVariables Found output 'names.txt John Jacob Jingleheimer Schmidt', recursing.
+VARIABLES:input.py:797:ExpandVariables Found output 'names.txt', recursing.
+VARIABLES:input.py:562:ExpandVariables Matches: {'content': 'names_listfile', 'is_array': '', 'replace': '<(names_listfile)', 'type': '<', 'command_string': None}
+VARIABLES:input.py:797:ExpandVariables Found output 'names.txt', recursing.
+VARIABLES:input.py:562:ExpandVariables Matches: {'content': 'names_listfile', 'is_array': '', 'replace': '<(names_listfile)', 'type': '<', 'command_string': None}
+VARIABLES:input.py:797:ExpandVariables Found output 'names.txt', recursing.
+VARIABLES:input.py:562:ExpandVariables Matches: {'content': 'cat <(names_listfile', 'is_array': '', 'replace': '<!@(cat <(names_listfile)', 'type': '<!@', 'command_string': None}
+VARIABLES:input.py:562:ExpandVariables Matches: {'content': 'names_listfile', 'is_array': '', 'replace': '<(names_listfile)', 'type': '<', 'command_string': None}
+VARIABLES:input.py:797:ExpandVariables Found output 'cat names.txt', recursing.
+VARIABLES:input.py:676:ExpandVariables Executing command 'cat names.txt' in directory 'src'
+VARIABLES:input.py:797:ExpandVariables Found output ['John', 'Jacob', 'Jingleheimer', 'Schmidt'], recursing.
+VARIABLES:input.py:562:ExpandVariables Matches: {'content': 'sources.txt <@(_sources', 'is_array': '', 'replace': '<|(sources.txt <@(_sources)', 'type': '<|', 'command_string': None}
+VARIABLES:input.py:562:ExpandVariables Matches: {'content': '_sources', 'is_array': '', 'replace': '<@(_sources)', 'type': '<@', 'command_string': None}
+VARIABLES:input.py:797:ExpandVariables Found output 'sources.txt John Jacob Jingleheimer Schmidt', recursing.
+VARIABLES:input.py:797:ExpandVariables Found output 'sources.txt', recursing.
+VARIABLES:input.py:562:ExpandVariables Matches: {'content': 'sources_listfile', 'is_array': '', 'replace': '<(sources_listfile)', 'type': '<', 'command_string': None}
+VARIABLES:input.py:797:ExpandVariables Found output 'sources.txt', recursing.
+VARIABLES:input.py:562:ExpandVariables Matches: {'content': 'sources_listfile', 'is_array': '', 'replace': '<(sources_listfile)', 'type': '<', 'command_string': None}
+VARIABLES:input.py:797:ExpandVariables Found output 'sources.txt', recursing.
+VARIABLES:input.py:562:ExpandVariables Matches: {'content': 'cat <(sources_listfile', 'is_array': '', 'replace': '<!@(cat <(sources_listfile)', 'type': '<!@', 'command_string': None}
+VARIABLES:input.py:562:ExpandVariables Matches: {'content': 'sources_listfile', 'is_array': '', 'replace': '<(sources_listfile)', 'type': '<', 'command_string': None}
+VARIABLES:input.py:797:ExpandVariables Found output 'cat sources.txt', recursing.
+VARIABLES:input.py:676:ExpandVariables Executing command 'cat sources.txt' in directory 'src'
+VARIABLES:input.py:797:ExpandVariables Found output ['John', 'Jacob', 'Jingleheimer', 'Schmidt'], recursing.
