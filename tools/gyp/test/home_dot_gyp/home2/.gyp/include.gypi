@@ -1,0 +1,5 @@
+{
+  'variables': {
+    'foo': '"fromhome2"',
+  },
+}
