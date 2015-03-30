@@ -71,6 +71,17 @@
     } else {
       // There is user code to be run
 
+      // If this is a worker in cluster mode, start up the communication
+      // channel. This needs to be done before any user code gets executed
+      // (including preload modules).
+      if (process.argv[1] && process.env.NODE_UNIQUE_ID) {
+        var cluster = NativeModule.require('cluster');
+        cluster._setupWorker();
+
+        // Make sure it's not accidentally inherited by child processes.
+        delete process.env.NODE_UNIQUE_ID;
+      }
+
       // Load any preload modules
       if (process._preload_modules) {
         var Module = NativeModule.require('module');
@@ -86,16 +97,6 @@
         // make process.argv[1] into a full path
         var path = NativeModule.require('path');
         process.argv[1] = path.resolve(process.argv[1]);
-
-        // If this is a worker in cluster mode, start up the communication
-        // channel.
-        if (process.env.NODE_UNIQUE_ID) {
-          var cluster = NativeModule.require('cluster');
-          cluster._setupWorker();
-
-          // Make sure it's not accidentally inherited by child processes.
-          delete process.env.NODE_UNIQUE_ID;
-        }
 
         var Module = NativeModule.require('module');
 
