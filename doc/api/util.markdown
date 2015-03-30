@@ -328,7 +328,8 @@ Returns `true` if the given "object" is `undefined`. `false` otherwise.
 
 ## util.isObject(object)
 
-Returns `true` if the given "object" is strictly an `Object`. `false` otherwise.
+Returns `true` if the given "object" is strictly an `Object` __and__ not a
+`Function`. `false` otherwise.
 
     var util = require('util');
 
@@ -338,6 +339,8 @@ Returns `true` if the given "object" is strictly an `Object`. `false` otherwise.
       // false
     util.isObject({})
       // true
+    util.isObject(function(){})
+      // false
 
 
 ## util.isFunction(object)
