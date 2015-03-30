@@ -96,7 +96,6 @@ static const char *crl_usage[] = {
     NULL
 };
 
-static X509_CRL *load_crl(char *file, int format);
 static BIO *bio_out = NULL;
 
 int MAIN(int, char **);
@@ -106,10 +105,10 @@ int MAIN(int argc, char **argv)
     unsigned long nmflag = 0;
     X509_CRL *x = NULL;
     char *CAfile = NULL, *CApath = NULL;
-    int ret = 1, i, num, badops = 0;
+    int ret = 1, i, num, badops = 0, badsig = 0;
     BIO *out = NULL;
-    int informat, outformat;
-    char *infile = NULL, *outfile = NULL;
+    int informat, outformat, keyformat;
+    char *infile = NULL, *outfile = NULL, *crldiff = NULL, *keyfile = NULL;
     int hash = 0, issuer = 0, lastupdate = 0, nextupdate = 0, noout =
         0, text = 0;
 #ifndef OPENSSL_NO_MD5
@@ -147,6 +146,7 @@ int MAIN(int argc, char **argv)
 
     informat = FORMAT_PEM;
     outformat = FORMAT_PEM;
+    keyformat = FORMAT_PEM;
 
     argc--;
     argv++;
@@ -173,6 +173,18 @@ int MAIN(int argc, char **argv)
             if (--argc < 1)
                 goto bad;
             infile = *(++argv);
+        } else if (strcmp(*argv, "-gendelta") == 0) {
+            if (--argc < 1)
+                goto bad;
+            crldiff = *(++argv);
+        } else if (strcmp(*argv, "-key") == 0) {
+            if (--argc < 1)
+                goto bad;
+            keyfile = *(++argv);
+        } else if (strcmp(*argv, "-keyform") == 0) {
+            if (--argc < 1)
+                goto bad;
+            keyformat = str2fmt(*(++argv));
         } else if (strcmp(*argv, "-out") == 0) {
             if (--argc < 1)
                 goto bad;
@@ -214,6 +226,8 @@ int MAIN(int argc, char **argv)
             fingerprint = ++num;
         else if (strcmp(*argv, "-crlnumber") == 0)
             crlnumber = ++num;
+        else if (strcmp(*argv, "-badsig") == 0)
+            badsig = 1;
         else if ((md_alg = EVP_get_digestbyname(*argv + 1))) {
             /* ok */
             digest = md_alg;
@@ -279,6 +293,33 @@ int MAIN(int argc, char **argv)
             BIO_printf(bio_err, "verify failure\n");
         else
             BIO_printf(bio_err, "verify OK\n");
+    }
+
+    if (crldiff) {
+        X509_CRL *newcrl, *delta;
+        if (!keyfile) {
+            BIO_puts(bio_err, "Missing CRL signing key\n");
+            goto end;
+        }
+        newcrl = load_crl(crldiff, informat);
+        if (!newcrl)
+            goto end;
+        pkey = load_key(bio_err, keyfile, keyformat, 0, NULL, NULL,
+                        "CRL signing key");
+        if (!pkey) {
+            X509_CRL_free(newcrl);
+            goto end;
+        }
+        delta = X509_CRL_diff(x, newcrl, pkey, digest, 0);
+        X509_CRL_free(newcrl);
+        EVP_PKEY_free(pkey);
+        if (delta) {
+            X509_CRL_free(x);
+            x = delta;
+        } else {
+            BIO_puts(bio_err, "Error creating delta CRL\n");
+            goto end;
+        }
     }
 
     if (num) {
@@ -369,6 +410,9 @@ int MAIN(int argc, char **argv)
         goto end;
     }
 
+    if (badsig)
+        x->signature->data[x->signature->length - 1] ^= 0x1;
+
     if (outformat == FORMAT_ASN1)
         i = (int)i2d_X509_CRL_bio(out, x);
     else if (outformat == FORMAT_PEM)
@@ -383,6 +427,8 @@ int MAIN(int argc, char **argv)
     }
     ret = 0;
  end:
+    if (ret != 0)
+        ERR_print_errors(bio_err);
     BIO_free_all(out);
     BIO_free_all(bio_out);
     bio_out = NULL;
@@ -393,42 +439,4 @@ int MAIN(int argc, char **argv)
     }
     apps_shutdown();
     OPENSSL_EXIT(ret);
-}
-
-static X509_CRL *load_crl(char *infile, int format)
-{
-    X509_CRL *x = NULL;
-    BIO *in = NULL;
-
-    in = BIO_new(BIO_s_file());
-    if (in == NULL) {
-        ERR_print_errors(bio_err);
-        goto end;
-    }
-
-    if (infile == NULL)
-        BIO_set_fp(in, stdin, BIO_NOCLOSE);
-    else {
-        if (BIO_read_filename(in, infile) <= 0) {
-            perror(infile);
-            goto end;
-        }
-    }
-    if (format == FORMAT_ASN1)
-        x = d2i_X509_CRL_bio(in, NULL);
-    else if (format == FORMAT_PEM)
-        x = PEM_read_bio_X509_CRL(in, NULL, NULL, NULL);
-    else {
-        BIO_printf(bio_err, "bad input format specified for input crl\n");
-        goto end;
-    }
-    if (x == NULL) {
-        BIO_printf(bio_err, "unable to load CRL\n");
-        ERR_print_errors(bio_err);
-        goto end;
-    }
-
- end:
-    BIO_free(in);
-    return (x);
 }

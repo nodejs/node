@@ -61,6 +61,7 @@
 #include "cryptlib.h"
 #include "o_time.h"
 #include <openssl/asn1.h>
+#include "asn1_locl.h"
 
 #if 0
 int i2d_ASN1_UTCTIME(ASN1_UTCTIME *a, unsigned char **pp)
@@ -109,7 +110,7 @@ ASN1_UTCTIME *d2i_ASN1_UTCTIME(ASN1_UTCTIME **a, unsigned char **pp,
 
 #endif
 
-int ASN1_UTCTIME_check(ASN1_UTCTIME *d)
+int asn1_utctime_to_tm(struct tm *tm, const ASN1_UTCTIME *d)
 {
     static const int min[8] = { 0, 1, 1, 0, 0, 0, 0, 0 };
     static const int max[8] = { 99, 12, 31, 23, 59, 59, 12, 59 };
@@ -127,6 +128,8 @@ int ASN1_UTCTIME_check(ASN1_UTCTIME *d)
     for (i = 0; i < 6; i++) {
         if ((i == 5) && ((a[o] == 'Z') || (a[o] == '+') || (a[o] == '-'))) {
             i++;
+            if (tm)
+                tm->tm_sec = 0;
             break;
         }
         if ((a[o] < '0') || (a[o] > '9'))
@@ -143,10 +146,33 @@ int ASN1_UTCTIME_check(ASN1_UTCTIME *d)
 
         if ((n < min[i]) || (n > max[i]))
             goto err;
+        if (tm) {
+            switch (i) {
+            case 0:
+                tm->tm_year = n < 50 ? n + 100 : n;
+                break;
+            case 1:
+                tm->tm_mon = n - 1;
+                break;
+            case 2:
+                tm->tm_mday = n;
+                break;
+            case 3:
+                tm->tm_hour = n;
+                break;
+            case 4:
+                tm->tm_min = n;
+                break;
+            case 5:
+                tm->tm_sec = n;
+                break;
+            }
+        }
     }
     if (a[o] == 'Z')
         o++;
     else if ((a[o] == '+') || (a[o] == '-')) {
+        int offsign = a[o] == '-' ? -1 : 1, offset = 0;
         o++;
         if (o + 4 > l)
             goto err;
@@ -160,12 +186,25 @@ int ASN1_UTCTIME_check(ASN1_UTCTIME *d)
             n = (n * 10) + a[o] - '0';
             if ((n < min[i]) || (n > max[i]))
                 goto err;
+            if (tm) {
+                if (i == 6)
+                    offset = n * 3600;
+                else if (i == 7)
+                    offset += n * 60;
+            }
             o++;
         }
+        if (offset && !OPENSSL_gmtime_adj(tm, 0, offset * offsign))
+            return 0;
     }
-    return (o == l);
+    return o == l;
  err:
-    return (0);
+    return 0;
+}
+
+int ASN1_UTCTIME_check(const ASN1_UTCTIME *d)
+{
+    return asn1_utctime_to_tm(NULL, d);
 }
 
 int ASN1_UTCTIME_set_string(ASN1_UTCTIME *s, const char *str)
@@ -249,43 +288,26 @@ ASN1_UTCTIME *ASN1_UTCTIME_adj(ASN1_UTCTIME *s, time_t t,
 
 int ASN1_UTCTIME_cmp_time_t(const ASN1_UTCTIME *s, time_t t)
 {
-    struct tm *tm;
-    struct tm data;
-    int offset;
-    int year;
+    struct tm stm, ttm;
+    int day, sec;
 
-#define g2(p) (((p)[0]-'0')*10+(p)[1]-'0')
-
-    if (s->data[12] == 'Z')
-        offset = 0;
-    else {
-        offset = g2(s->data + 13) * 60 + g2(s->data + 15);
-        if (s->data[12] == '-')
-            offset = -offset;
-    }
-
-    t -= offset * 60;           /* FIXME: may overflow in extreme cases */
-
-    tm = OPENSSL_gmtime(&t, &data);
-    /*
-     * NB: -1, 0, 1 already valid return values so use -2 to indicate error.
-     */
-    if (tm == NULL)
+    if (!asn1_utctime_to_tm(&stm, s))
         return -2;
 
-#define return_cmp(a,b) if ((a)<(b)) return -1; else if ((a)>(b)) return 1
-    year = g2(s->data);
-    if (year < 50)
-        year += 100;
-    return_cmp(year, tm->tm_year);
-    return_cmp(g2(s->data + 2) - 1, tm->tm_mon);
-    return_cmp(g2(s->data + 4), tm->tm_mday);
-    return_cmp(g2(s->data + 6), tm->tm_hour);
-    return_cmp(g2(s->data + 8), tm->tm_min);
-    return_cmp(g2(s->data + 10), tm->tm_sec);
-#undef g2
-#undef return_cmp
+    if (!OPENSSL_gmtime(&t, &ttm))
+        return -2;
 
+    if (!OPENSSL_gmtime_diff(&day, &sec, &ttm, &stm))
+        return -2;
+
+    if (day > 0)
+        return 1;
+    if (day < 0)
+        return -1;
+    if (sec > 0)
+        return 1;
+    if (sec < 0)
+        return -1;
     return 0;
 }
 

@@ -83,7 +83,7 @@ OpenSSL  -  Frequently Asked Questions
 * Which is the current version of OpenSSL?
 
 The current version is available from <URL: http://www.openssl.org>.
-OpenSSL 1.0.1e was released on Feb 11th, 2013.
+OpenSSL 1.0.1a was released on Apr 19th, 2012.
 
 In addition to the current stable release, you can also access daily
 snapshots of the OpenSSL development version at <URL:
@@ -184,14 +184,18 @@ Therefore the answer to the common question "when will feature X be
 backported to OpenSSL 1.0.0/0.9.8?" is "never" but it could appear
 in the next minor release.
 
+* What happens when the letter release reaches z?
+
+It was decided after the release of OpenSSL 0.9.8y the next version should
+be 0.9.8za then 0.9.8zb and so on.
+
+
 [LEGAL] =======================================================================
 
 * Do I need patent licenses to use OpenSSL?
 
-The patents section of the README file lists patents that may apply to
-you if you want to use OpenSSL.  For information on intellectual
-property rights, please consult a lawyer.  The OpenSSL team does not
-offer legal advice.
+For information on intellectual property rights, please consult a lawyer.
+The OpenSSL team does not offer legal advice.
 
 You can configure OpenSSL so as not to use IDEA, MDC2 and RC5 by using
  ./config no-idea no-mdc2 no-rc5
@@ -608,8 +612,8 @@ valid for the current DOS session.
 * What is special about OpenSSL on Redhat?
 
 Red Hat Linux (release 7.0 and later) include a preinstalled limited
-version of OpenSSL. For patent reasons, support for IDEA, RC5 and MDC2
-is disabled in this version. The same may apply to other Linux distributions.
+version of OpenSSL. Red Hat has chosen to disable support for IDEA, RC5 and
+MDC2 in this version. The same may apply to other Linux distributions.
 Users may therefore wish to install more or all of the features left out.
 
 To do this you MUST ensure that you do not overwrite the openssl that is in
@@ -631,11 +635,6 @@ relevant updates in packages up to and including 0.9.6b.
 
 A possible way around this is to persuade Red Hat to produce a non-US
 version of Red Hat Linux.
-
-FYI: Patent numbers and expiry dates of US patents:
-MDC-2: 4,908,861 13/03/2007
-IDEA:  5,214,703 25/05/2010
-RC5:   5,724,428 03/03/2015
 
 
 * Why does the OpenSSL compilation fail on MacOS X?
@@ -862,7 +861,7 @@ The opposite assumes we already have len bytes in buf:
  p = buf;
  p7 = d2i_PKCS7(NULL, &p, len);
 
-At this point p7 contains a valid PKCS7 structure of NULL if an error
+At this point p7 contains a valid PKCS7 structure or NULL if an error
 occurred. If an error occurred ERR_print_errors(bio) should give more
 information.
 
@@ -873,6 +872,21 @@ variable the buffer pointer is changed to point just after the data
 that has been read or written. This may well be uninitialized data
 and attempts to free the buffer will have unpredictable results
 because it no longer points to the same address.
+
+Memory allocation and encoding can also be combined in a single
+operation by the ASN1 routines:
+
+ unsigned char *buf = NULL;	/* mandatory */
+ int len;
+ len = i2d_PKCS7(p7, &buf);
+ if (len < 0)
+	/* Error */
+ /* Do some things with 'buf' */
+ /* Finished with buf: free it */
+ OPENSSL_free(buf);
+
+In this special case the "buf" parameter is *not* incremented, it points
+to the start of the encoding.
 
 
 * OpenSSL uses DER but I need BER format: does OpenSSL support BER?

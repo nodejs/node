@@ -204,6 +204,24 @@ extern "C" {
 # define BN_MUL_LOW_RECURSIVE_SIZE_NORMAL        (32)/* 32 */
 # define BN_MONT_CTX_SET_SIZE_WORD               (64)/* 32 */
 
+/*
+ * 2011-02-22 SMS. In various places, a size_t variable or a type cast to
+ * size_t was used to perform integer-only operations on pointers.  This
+ * failed on VMS with 64-bit pointers (CC /POINTER_SIZE = 64) because size_t
+ * is still only 32 bits.  What's needed in these cases is an integer type
+ * with the same size as a pointer, which size_t is not certain to be. The
+ * only fix here is VMS-specific.
+ */
+# if defined(OPENSSL_SYS_VMS)
+#  if __INITIAL_POINTER_SIZE == 64
+#   define PTR_SIZE_INT long long
+#  else                         /* __INITIAL_POINTER_SIZE == 64 */
+#   define PTR_SIZE_INT int
+#  endif                        /* __INITIAL_POINTER_SIZE == 64 [else] */
+# elif !defined(PTR_SIZE_INT)   /* defined(OPENSSL_SYS_VMS) */
+#  define PTR_SIZE_INT size_t
+# endif                         /* defined(OPENSSL_SYS_VMS) [else] */
+
 # if !defined(OPENSSL_NO_ASM) && !defined(OPENSSL_NO_INLINE_ASM) && !defined(PEDANTIC)
 /*
  * BN_UMULT_HIGH section.
@@ -294,6 +312,15 @@ unsigned __int64 _umul128(unsigned __int64 a, unsigned __int64 b,
              : "=l"(low),"=h"(high)     \
              : "r"(a), "r"(b));
 #    endif
+#   endif
+#  elif defined(__aarch64__) && defined(SIXTY_FOUR_BIT_LONG)
+#   if defined(__GNUC__) && __GNUC__>=2
+#    define BN_UMULT_HIGH(a,b)   ({      \
+        register BN_ULONG ret;          \
+        asm ("umulh     %0,%1,%2"       \
+             : "=r"(ret)                \
+             : "r"(a), "r"(b));         \
+        ret;                    })
 #   endif
 #  endif                        /* cpu */
 # endif                         /* OPENSSL_NO_ASM */

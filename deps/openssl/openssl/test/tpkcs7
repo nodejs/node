@@ -9,40 +9,40 @@ else
 fi
 
 echo testing pkcs7 conversions
-cp $t fff.p
+cp $t p7-fff.p
 
 echo "p -> d"
-$cmd -in fff.p -inform p -outform d >f.d
+$cmd -in p7-fff.p -inform p -outform d >p7-f.d
 if [ $? != 0 ]; then exit 1; fi
 echo "p -> p"
-$cmd -in fff.p -inform p -outform p >f.p
+$cmd -in p7-fff.p -inform p -outform p >p7-f.p
 if [ $? != 0 ]; then exit 1; fi
 
 echo "d -> d"
-$cmd -in f.d -inform d -outform d >ff.d1
+$cmd -in p7-f.d -inform d -outform d >p7-ff.d1
 if [ $? != 0 ]; then exit 1; fi
 echo "p -> d"
-$cmd -in f.p -inform p -outform d >ff.d3
+$cmd -in p7-f.p -inform p -outform d >p7-ff.d3
 if [ $? != 0 ]; then exit 1; fi
 
 echo "d -> p"
-$cmd -in f.d -inform d -outform p >ff.p1
+$cmd -in p7-f.d -inform d -outform p >p7-ff.p1
 if [ $? != 0 ]; then exit 1; fi
 echo "p -> p"
-$cmd -in f.p -inform p -outform p >ff.p3
+$cmd -in p7-f.p -inform p -outform p >p7-ff.p3
 if [ $? != 0 ]; then exit 1; fi
 
-cmp fff.p f.p
+cmp p7-fff.p p7-f.p
 if [ $? != 0 ]; then exit 1; fi
-cmp fff.p ff.p1
+cmp p7-fff.p p7-ff.p1
 if [ $? != 0 ]; then exit 1; fi
-cmp fff.p ff.p3
-if [ $? != 0 ]; then exit 1; fi
-
-cmp f.p ff.p1
-if [ $? != 0 ]; then exit 1; fi
-cmp f.p ff.p3
+cmp p7-fff.p p7-ff.p3
 if [ $? != 0 ]; then exit 1; fi
 
-/bin/rm -f f.* ff.* fff.*
+cmp p7-f.p p7-ff.p1
+if [ $? != 0 ]; then exit 1; fi
+cmp p7-f.p p7-ff.p3
+if [ $? != 0 ]; then exit 1; fi
+
+/bin/rm -f p7-f.* p7-ff.* p7-fff.*
 exit 0

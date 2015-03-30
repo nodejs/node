@@ -130,7 +130,7 @@
 # undef PROG
 # define PROG    dhparam_main
 
-# define DEFBITS 512
+# define DEFBITS 2048
 
 /*-
  * -inform arg  - input format - default PEM (DER or PEM)
@@ -254,7 +254,7 @@ int MAIN(int argc, char **argv)
         BIO_printf(bio_err,
                    " -5            generate parameters using  5 as the generator value\n");
         BIO_printf(bio_err,
-                   " numbits       number of bits in to generate (default 512)\n");
+                   " numbits       number of bits in to generate (default 2048)\n");
 # ifndef OPENSSL_NO_ENGINE
         BIO_printf(bio_err,
                    " -engine e     use engine e, possibly a hardware device.\n");
@@ -489,9 +489,12 @@ int MAIN(int argc, char **argv)
     if (!noout) {
         if (outformat == FORMAT_ASN1)
             i = i2d_DHparams_bio(out, dh);
-        else if (outformat == FORMAT_PEM)
-            i = PEM_write_bio_DHparams(out, dh);
-        else {
+        else if (outformat == FORMAT_PEM) {
+            if (dh->q)
+                i = PEM_write_bio_DHxparams(out, dh);
+            else
+                i = PEM_write_bio_DHparams(out, dh);
+        } else {
             BIO_printf(bio_err, "bad output format specified for outfile\n");
             goto end;
         }

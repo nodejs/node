@@ -633,7 +633,6 @@ static int win32_pathbyaddr(void *addr, char *path, int sz)
     CREATETOOLHELP32SNAPSHOT create_snap;
     CLOSETOOLHELP32SNAPSHOT close_snap;
     MODULE32 module_first, module_next;
-    int len;
 
     if (addr == NULL) {
         union {
@@ -694,25 +693,29 @@ static int win32_pathbyaddr(void *addr, char *path, int sz)
             return WideCharToMultiByte(CP_ACP, 0, me32.szExePath, -1,
                                        path, sz, NULL, NULL);
 #  else
-            len = (int)wcslen(me32.szExePath);
-            if (sz <= 0)
-                return len + 1;
-            if (len >= sz)
-                len = sz - 1;
-            for (i = 0; i < len; i++)
-                path[i] = (char)me32.szExePath[i];
-            path[len++] = 0;
-            return len;
+            {
+                int i, len = (int)wcslen(me32.szExePath);
+                if (sz <= 0)
+                    return len + 1;
+                if (len >= sz)
+                    len = sz - 1;
+                for (i = 0; i < len; i++)
+                    path[i] = (char)me32.szExePath[i];
+                path[len++] = 0;
+                return len;
+            }
 #  endif
 # else
-            len = (int)strlen(me32.szExePath);
-            if (sz <= 0)
-                return len + 1;
-            if (len >= sz)
-                len = sz - 1;
-            memcpy(path, me32.szExePath, len);
-            path[len++] = 0;
-            return len;
+            {
+                int len = (int)strlen(me32.szExePath);
+                if (sz <= 0)
+                    return len + 1;
+                if (len >= sz)
+                    len = sz - 1;
+                memcpy(path, me32.szExePath, len);
+                path[len++] = 0;
+                return len;
+            }
 # endif
         }
     } while ((*module_next) (hModuleSnap, &me32));

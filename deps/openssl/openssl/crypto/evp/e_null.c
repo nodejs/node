@@ -61,8 +61,6 @@
 #include <openssl/evp.h>
 #include <openssl/objects.h>
 
-#ifndef OPENSSL_FIPS
-
 static int null_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                          const unsigned char *iv, int enc);
 static int null_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
@@ -100,4 +98,3 @@ static int null_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
         memcpy((char *)out, (const char *)in, inl);
     return 1;
 }
-#endif

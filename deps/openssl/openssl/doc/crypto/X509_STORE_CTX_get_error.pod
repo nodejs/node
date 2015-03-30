@@ -32,7 +32,7 @@ checks.
 
 X509_STORE_CTX_get_error_depth() returns the B<depth> of the error. This is a
 non-negative integer representing where in the certificate chain the error
-occurred. If it is zero it occured in the end entity certificate, one if
+occurred. If it is zero it occurred in the end entity certificate, one if
 it is the certificate which signed the end entity certificate and so on.
 
 X509_STORE_CTX_get_current_cert() returns the certificate in B<ctx> which
@@ -246,11 +246,11 @@ Some feature of a certificate extension is not supported. Unused.
 
 =item B<X509_V_ERR_PERMITTED_VIOLATION: permitted subtree violation>
 
-A name constraint violation occured in the permitted subtrees.
+A name constraint violation occurred in the permitted subtrees.
 
 =item B<X509_V_ERR_EXCLUDED_VIOLATION: excluded subtree violation>
 
-A name constraint violation occured in the excluded subtrees.
+A name constraint violation occurred in the excluded subtrees.
 
 =item B<X509_V_ERR_SUBTREE_MINMAX: name constraints minimum and maximum not supported>
 
@@ -270,7 +270,7 @@ a garbage extension or some new feature not currently supported.
 
 =item B<X509_V_ERR_CRL_PATH_VALIDATION_ERROR: CRL path validation error>
 
-An error occured when attempting to verify the CRL path. This error can only
+An error occurred when attempting to verify the CRL path. This error can only
 happen if extended CRL checking is enabled.
 
 =item B<X509_V_ERR_APPLICATION_VERIFICATION: application verification failure>

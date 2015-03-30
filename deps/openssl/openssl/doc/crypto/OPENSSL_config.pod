@@ -48,17 +48,6 @@ configuration file.
 Applications should free up configuration at application closedown by calling
 CONF_modules_free().
 
-=head1 RESTRICTIONS
-
-The OPENSSL_config() function is designed to be a very simple "call it and
-forget it" function. As a result its behaviour is somewhat limited. It ignores
-all errors silently and it can only load from the standard configuration file
-location for example.
-
-It is however B<much> better than nothing. Applications which need finer
-control over their configuration functionality should use the configuration
-functions such as CONF_load_modules() directly.
-
 =head1 RETURN VALUES
 
 Neither OPENSSL_config() nor OPENSSL_no_config() return a value.

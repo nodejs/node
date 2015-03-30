@@ -23,10 +23,7 @@ L<SSL_set_accept_state(3)|SSL_set_accept_state(3)>.
 The behaviour of SSL_do_handshake() depends on the underlying BIO.
 
 If the underlying BIO is B<blocking>, SSL_do_handshake() will only return
-once the handshake has been finished or an error occurred, except for SGC
-(Server Gated Cryptography). For SGC, SSL_do_handshake() may return with -1,
-but SSL_get_error() will yield B<SSL_ERROR_WANT_READ/WRITE> and
-SSL_do_handshake() should be called again.
+once the handshake has been finished or an error occurred.
 
 If the underlying BIO is B<non-blocking>, SSL_do_handshake() will also return
 when the underlying BIO could not satisfy the needs of SSL_do_handshake()

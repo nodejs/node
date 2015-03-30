@@ -65,7 +65,7 @@
 #include <openssl/bio.h>
 #ifndef OPENSSL_NO_DGRAM
 
-# if defined(OPENSSL_SYS_WIN32) || defined(OPENSSL_SYS_VMS)
+# if defined(OPENSSL_SYS_VMS)
 #  include <sys/timeb.h>
 # endif
 
@@ -78,6 +78,10 @@
 
 # if defined(OPENSSL_SYS_LINUX) && !defined(IP_MTU)
 #  define IP_MTU      14        /* linux is lame */
+# endif
+
+# if OPENSSL_USE_IPV6 && !defined(IPPROTO_IPV6)
+#  define IPPROTO_IPV6 41       /* windows is lame */
 # endif
 
 # if defined(__FreeBSD__) && defined(IN6_IS_ADDR_V4MAPPED)
@@ -495,8 +499,8 @@ static long dgram_ctrl(BIO *b, int cmd, long num, void *ptr)
     int *ip;
     struct sockaddr *to = NULL;
     bio_dgram_data *data = NULL;
-# if defined(OPENSSL_SYS_LINUX) && (defined(IP_MTU_DISCOVER) || defined(IP_MTU))
     int sockopt_val = 0;
+# if defined(OPENSSL_SYS_LINUX) && (defined(IP_MTU_DISCOVER) || defined(IP_MTU))
     socklen_t sockopt_len;      /* assume that system supporting IP_MTU is
                                  * modern enough to define socklen_t */
     socklen_t addr_len;
@@ -881,6 +885,61 @@ static long dgram_ctrl(BIO *b, int cmd, long num, void *ptr)
             ret = 0;
         break;
 # endif
+    case BIO_CTRL_DGRAM_SET_DONT_FRAG:
+        sockopt_val = num ? 1 : 0;
+
+        switch (data->peer.sa.sa_family) {
+        case AF_INET:
+# if defined(IP_DONTFRAG)
+            if ((ret = setsockopt(b->num, IPPROTO_IP, IP_DONTFRAG,
+                                  &sockopt_val, sizeof(sockopt_val))) < 0) {
+                perror("setsockopt");
+                ret = -1;
+            }
+# elif defined(OPENSSL_SYS_LINUX) && defined(IP_MTUDISCOVER)
+            if ((sockopt_val = num ? IP_PMTUDISC_PROBE : IP_PMTUDISC_DONT),
+                (ret = setsockopt(b->num, IPPROTO_IP, IP_MTU_DISCOVER,
+                                  &sockopt_val, sizeof(sockopt_val))) < 0) {
+                perror("setsockopt");
+                ret = -1;
+            }
+# elif defined(OPENSSL_SYS_WINDOWS) && defined(IP_DONTFRAGMENT)
+            if ((ret = setsockopt(b->num, IPPROTO_IP, IP_DONTFRAGMENT,
+                                  (const char *)&sockopt_val,
+                                  sizeof(sockopt_val))) < 0) {
+                perror("setsockopt");
+                ret = -1;
+            }
+# else
+            ret = -1;
+# endif
+            break;
+# if OPENSSL_USE_IPV6
+        case AF_INET6:
+#  if defined(IPV6_DONTFRAG)
+            if ((ret = setsockopt(b->num, IPPROTO_IPV6, IPV6_DONTFRAG,
+                                  (const void *)&sockopt_val,
+                                  sizeof(sockopt_val))) < 0) {
+                perror("setsockopt");
+                ret = -1;
+            }
+#  elif defined(OPENSSL_SYS_LINUX) && defined(IPV6_MTUDISCOVER)
+            if ((sockopt_val = num ? IP_PMTUDISC_PROBE : IP_PMTUDISC_DONT),
+                (ret = setsockopt(b->num, IPPROTO_IPV6, IPV6_MTU_DISCOVER,
+                                  &sockopt_val, sizeof(sockopt_val))) < 0) {
+                perror("setsockopt");
+                ret = -1;
+            }
+#  else
+            ret = -1;
+#  endif
+            break;
+# endif
+        default:
+            ret = -1;
+            break;
+        }
+        break;
     case BIO_CTRL_DGRAM_GET_MTU_OVERHEAD:
         ret = dgram_get_mtu_overhead(data);
         break;
@@ -1994,11 +2053,22 @@ int BIO_dgram_non_fatal_error(int err)
 
 static void get_current_time(struct timeval *t)
 {
-# ifdef OPENSSL_SYS_WIN32
-    struct _timeb tb;
-    _ftime(&tb);
-    t->tv_sec = (long)tb.time;
-    t->tv_usec = (long)tb.millitm * 1000;
+# if defined(_WIN32)
+    SYSTEMTIME st;
+    union {
+        unsigned __int64 ul;
+        FILETIME ft;
+    } now;
+
+    GetSystemTime(&st);
+    SystemTimeToFileTime(&st, &now.ft);
+#  ifdef  __MINGW32__
+    now.ul -= 116444736000000000ULL;
+#  else
+    now.ul -= 116444736000000000UI64; /* re-bias to 1/1/1970 */
+#  endif
+    t->tv_sec = (long)(now.ul / 10000000);
+    t->tv_usec = ((int)(now.ul % 10000000)) / 10;
 # elif defined(OPENSSL_SYS_VMS)
     struct timeb tb;
     ftime(&tb);

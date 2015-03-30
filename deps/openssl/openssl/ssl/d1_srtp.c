@@ -117,10 +117,9 @@
 #include <stdio.h>
 #include <openssl/objects.h>
 #include "ssl_locl.h"
+#include "srtp.h"
 
 #ifndef OPENSSL_NO_SRTP
-
-# include "srtp.h"
 
 static SRTP_PROTECTION_PROFILE srtp_known_profiles[] = {
     {

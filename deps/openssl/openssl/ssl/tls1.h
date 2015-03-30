@@ -209,11 +209,9 @@ extern "C" {
 # define TLSEXT_TYPE_status_request              5
 /* ExtensionType values from RFC4681 */
 # define TLSEXT_TYPE_user_mapping                6
-
 /* ExtensionType values from RFC5878 */
 # define TLSEXT_TYPE_client_authz                7
 # define TLSEXT_TYPE_server_authz                8
-
 /* ExtensionType values from RFC6091 */
 # define TLSEXT_TYPE_cert_type           9
 
@@ -233,6 +231,9 @@ extern "C" {
 /* ExtensionType value from RFC5620 */
 # define TLSEXT_TYPE_heartbeat   15
 
+/* ExtensionType value from draft-ietf-tls-applayerprotoneg-00 */
+# define TLSEXT_TYPE_application_layer_protocol_negotiation 16
+
 /*
  * ExtensionType value for TLS padding extension.
  * http://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml
@@ -250,7 +251,7 @@ extern "C" {
  * i.e. build with -DTLSEXT_TYPE_opaque_prf_input=38183
  * using whatever extension number you'd like to try
  */
-#  define TLSEXT_TYPE_opaque_prf_input           ?? */
+#  define TLSEXT_TYPE_opaque_prf_input           ??
 # endif
 
 /* Temporary extension type */
@@ -280,6 +281,9 @@ extern "C" {
 # define TLSEXT_signature_dsa                            2
 # define TLSEXT_signature_ecdsa                          3
 
+/* Total number of different signature algorithms */
+# define TLSEXT_signature_num                            4
+
 # define TLSEXT_hash_none                                0
 # define TLSEXT_hash_md5                                 1
 # define TLSEXT_hash_sha1                                2
@@ -287,6 +291,18 @@ extern "C" {
 # define TLSEXT_hash_sha256                              4
 # define TLSEXT_hash_sha384                              5
 # define TLSEXT_hash_sha512                              6
+
+/* Total number of different digest algorithms */
+
+# define TLSEXT_hash_num                                 7
+
+/* Flag set for unrecognised algorithms */
+# define TLSEXT_nid_unknown                              0x1000000
+
+/* ECC curves */
+
+# define TLSEXT_curve_P_256                              23
+# define TLSEXT_curve_P_384                              24
 
 # ifndef OPENSSL_NO_TLSEXT
 
@@ -305,6 +321,16 @@ int SSL_export_keying_material(SSL *s, unsigned char *out, size_t olen,
                                const char *label, size_t llen,
                                const unsigned char *p, size_t plen,
                                int use_context);
+
+int SSL_get_sigalgs(SSL *s, int idx,
+                    int *psign, int *phash, int *psignandhash,
+                    unsigned char *rsig, unsigned char *rhash);
+
+int SSL_get_shared_sigalgs(SSL *s, int idx,
+                           int *psign, int *phash, int *psignandhash,
+                           unsigned char *rsig, unsigned char *rhash);
+
+int SSL_check_chain(SSL *s, X509 *x, EVP_PKEY *pk, STACK_OF(X509) *chain);
 
 #  define SSL_set_tlsext_host_name(s,name) \
 SSL_ctrl(s,SSL_CTRL_SET_TLSEXT_HOSTNAME,TLSEXT_NAMETYPE_host_name,(char *)name)
@@ -541,11 +567,10 @@ SSL_CTX_callback_ctrl(ssl,SSL_CTRL_SET_TLSEXT_TICKET_KEY_CB,(void (*)(void))cb)
 # define TLS1_CK_ECDH_RSA_WITH_AES_256_GCM_SHA384        0x0300C032
 
 /*
- * XXX Inconsistency alert: The OpenSSL names of ciphers with ephemeral DH
- * here include the string "DHE", while elsewhere it has always been "EDH".
- * (The alias for the list of all such ciphers also is "EDH".) The
- * specifications speak of "EDH"; maybe we should allow both forms for
- * everything.
+ * XXX * Backward compatibility alert: + * Older versions of OpenSSL gave
+ * some DHE ciphers names with "EDH" + * instead of "DHE".  Going forward, we
+ * should be using DHE + * everywhere, though we may indefinitely maintain
+ * aliases for users + * or configurations that used "EDH" +
  */
 # define TLS1_TXT_RSA_EXPORT1024_WITH_RC4_56_MD5         "EXP1024-RC4-MD5"
 # define TLS1_TXT_RSA_EXPORT1024_WITH_RC2_CBC_56_MD5     "EXP1024-RC2-CBC-MD5"

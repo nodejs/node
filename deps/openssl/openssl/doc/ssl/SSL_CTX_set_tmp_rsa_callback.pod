@@ -70,7 +70,7 @@ the TLS standard, when the RSA key can be used for signing only, that is
 for export ciphers. Using ephemeral RSA key exchange for other purposes
 violates the standard and can break interoperability with clients.
 It is therefore strongly recommended to not use ephemeral RSA key
-exchange and use EDH (Ephemeral Diffie-Hellman) key exchange instead
+exchange and use DHE (Ephemeral Diffie-Hellman) key exchange instead
 in order to achieve forward secrecy (see
 L<SSL_CTX_set_tmp_dh_callback(3)|SSL_CTX_set_tmp_dh_callback(3)>).
 

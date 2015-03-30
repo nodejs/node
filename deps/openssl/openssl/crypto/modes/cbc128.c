@@ -59,7 +59,7 @@
 #endif
 #include <assert.h>
 
-#ifndef STRICT_ALIGNMENT
+#if !defined(STRICT_ALIGNMENT) && !defined(PEDANTIC)
 # define STRICT_ALIGNMENT 0
 #endif
 
