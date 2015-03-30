@@ -72,3 +72,11 @@ child_process.exec(nodeBinary + ' '
     if (err) throw err;
     assert.equal(stdout, 'A\nB\nhello\n');
   });
+
+child_process.exec(nodeBinary + ' '
+  + '--require ' + fixture('cluster-preload.js') + ' '
+  + fixture('cluster-preload-test.js'),
+  function(err, stdout, stderr) {
+    if (err) throw err;
+    assert.ok(/worker terminated with code 43/.test(stdout));
+  });
