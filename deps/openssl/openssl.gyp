@@ -30,7 +30,7 @@
           'conditions': [
             ['target_arch=="arm"', {
               'defines': ['<@(openssl_defines_asm)'],
-              'sources': ['<@(openssl_sources_arm_elf_gas)'],
+              'sources': ['<@(openssl_sources_arm_void_gas)'],
             }, 'target_arch=="ia32" and OS=="mac"', {
               'defines': [
                 '<@(openssl_defines_asm)',
@@ -69,6 +69,9 @@
                 '<@(openssl_defines_x64_elf)',
               ],
               'sources': ['<@(openssl_sources_x64_elf_gas)'],
+            }, 'target_arch=="arm64"', {
+              'defines': ['<@(openssl_defines_arm64)',],
+              'sources': ['<@(openssl_sources_arm64_linux64_gas)'],
             }, {
               # Other architectures don't use assembly.
               'defines': ['OPENSSL_NO_ASM'],
