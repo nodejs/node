@@ -357,11 +357,63 @@ def try_check_compiler(cc, lang):
   return (True, is_clang, clang_version, gcc_version)
 
 
+#
+# The version of asm compiler is needed for building openssl asm files.
+# See deps/openssl/openssl.gypi for detail.
+# Commands and reglar expressions to obtain its version number is taken from
+# https://github.com/openssl/openssl/blob/OpenSSL_1_0_2-stable/crypto/sha/asm/sha512-x86_64.pl#L112-L129
+#
+def get_llvm_version(cc):
+  try:
+    proc = subprocess.Popen(shlex.split(cc) + ['-v'], stdin=subprocess.PIPE,
+                            stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+  except OSError:
+    print '''Node.js configure error: No acceptable C compiler found!
+
+        Please make sure you have a C compiler installed on your system and/or
+        consider adjusting the CC environment variable if you installed
+        it in a non-standard prefix.
+        '''
+    sys.exit()
+
+  match = re.search(r"(^clang version|based on LLVM) ([3-9]\.[0-9]+)",
+                    proc.communicate()[1])
+
+  if match:
+    return match.group(2)
+  else:
+    return 0
+
+
+def get_gas_version(cc):
+  try:
+    proc = subprocess.Popen(shlex.split(cc) + ['-Wa,-v', '-c', '-o',
+                                               '/dev/null', '-x',
+                                               'assembler',  '/dev/null'],
+                            stdin=subprocess.PIPE, stderr=subprocess.PIPE,
+                            stdout=subprocess.PIPE)
+  except OSError:
+    print '''Node.js configure error: No acceptable C compiler found!
+
+        Please make sure you have a C compiler installed on your system and/or
+        consider adjusting the CC environment variable if you installed
+        it in a non-standard prefix.
+        '''
+    sys.exit()
+
+  match = re.match(r"GNU assembler version ([2-9]\.[0-9]+)",
+                   proc.communicate()[1])
+
+  if match:
+    return match.group(1)
+  else:
+    return 0
+
 # Note: Apple clang self-reports as clang 4.2.0 and gcc 4.2.1.  It passes
 # the version check more by accident than anything else but a more rigorous
 # check involves checking the build number against a whitelist.  I'm not
 # quite prepared to go that far yet.
-def check_compiler():
+def check_compiler(o):
   if sys.platform == 'win32':
     return
 
@@ -379,6 +431,15 @@ def check_compiler():
     # do for the C bits.  However, we might as well encourage people to upgrade
     # to a version that is not completely ancient.
     warn('C compiler too old, need gcc 4.2 or clang 3.2 (CC=%s)' % CC)
+
+    # Need llvm_version or gas_version when openssl asm files are compiled
+  if options.without_ssl or options.openssl_no_asm or options.shared_openssl:
+    return
+
+  if is_clang:
+    o['variables']['llvm_version'] = get_llvm_version(CC)
+  else:
+    o['variables']['gas_version'] = get_gas_version(CC)
 
 
 def cc_macros():
@@ -935,16 +996,6 @@ def configure_intl(o):
         pprint.pformat(icu_config, indent=2) + '\n')
   return  # end of configure_intl
 
-# Print a warning when the compiler is too old.
-check_compiler()
-
-# determine the "flavor" (operating system) we're building for,
-# leveraging gyp's GetFlavor function
-flavor_params = {}
-if (options.dest_os):
-  flavor_params['flavor'] = options.dest_os
-flavor = GetFlavor(flavor_params)
-
 output = {
   'variables': { 'python': sys.executable },
   'include_dirs': [],
@@ -952,6 +1003,16 @@ output = {
   'defines': [],
   'cflags': [],
 }
+
+# Print a warning when the compiler is too old.
+check_compiler(output)
+
+# determine the "flavor" (operating system) we're building for,
+# leveraging gyp's GetFlavor function
+flavor_params = {}
+if (options.dest_os):
+  flavor_params['flavor'] = options.dest_os
+flavor = GetFlavor(flavor_params)
 
 configure_node(output)
 configure_libz(output)

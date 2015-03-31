@@ -651,7 +651,7 @@
       'openssl/crypto/rc4/rc4_skey.c',
       'openssl/crypto/whrlpool/wp_block.c'
     ],
-    'openssl_sources_ia32_elf_gas': [
+    'openssl_sources_asm_latest_ia32_elf_gas': [
       'asm/x86-elf-gas/aes/aes-586.s',
       'asm/x86-elf-gas/aes/aesni-x86.s',
       'asm/x86-elf-gas/aes/vpaes-x86.s',
@@ -673,9 +673,34 @@
       'asm/x86-elf-gas/whrlpool/wp-mmx.s',
       'asm/x86-elf-gas/modes/ghash-x86.s',
       'asm/x86-elf-gas/x86cpuid.s',
+    ],
+    'openssl_sources_asm_obsolete_ia32_elf_gas': [
+      'asm_obsolete/x86-elf-gas/aes/aes-586.s',
+      'asm_obsolete/x86-elf-gas/aes/aesni-x86.s',
+      'asm_obsolete/x86-elf-gas/aes/vpaes-x86.s',
+      'asm_obsolete/x86-elf-gas/bf/bf-586.s',
+      'asm_obsolete/x86-elf-gas/bn/bn-586.s',
+      'asm_obsolete/x86-elf-gas/bn/co-586.s',
+      'asm_obsolete/x86-elf-gas/bn/x86-mont.s',
+      'asm_obsolete/x86-elf-gas/bn/x86-gf2m.s',
+      'asm_obsolete/x86-elf-gas/camellia/cmll-x86.s',
+      'asm_obsolete/x86-elf-gas/cast/cast-586.s',
+      'asm_obsolete/x86-elf-gas/des/crypt586.s',
+      'asm_obsolete/x86-elf-gas/des/des-586.s',
+      'asm_obsolete/x86-elf-gas/md5/md5-586.s',
+      'asm_obsolete/x86-elf-gas/rc4/rc4-586.s',
+      'asm_obsolete/x86-elf-gas/ripemd/rmd-586.s',
+      'asm_obsolete/x86-elf-gas/sha/sha1-586.s',
+      'asm_obsolete/x86-elf-gas/sha/sha256-586.s',
+      'asm_obsolete/x86-elf-gas/sha/sha512-586.s',
+      'asm_obsolete/x86-elf-gas/whrlpool/wp-mmx.s',
+      'asm_obsolete/x86-elf-gas/modes/ghash-x86.s',
+      'asm_obsolete/x86-elf-gas/x86cpuid.s',
+    ],
+    'openssl_sources_common_ia32': [
       'openssl/crypto/whrlpool/wp_block.c'
     ],
-    'openssl_sources_x64_elf_gas': [
+    'openssl_sources_asm_latest_x64_elf_gas': [
       'asm/x64-elf-gas/aes/aes-x86_64.s',
       'asm/x64-elf-gas/aes/aesni-mb-x86_64.s',
       'asm/x64-elf-gas/aes/aesni-sha256-x86_64.s',
@@ -702,6 +727,36 @@
       'asm/x64-elf-gas/modes/aesni-gcm-x86_64.s',
       'asm/x64-elf-gas/modes/ghash-x86_64.s',
       'asm/x64-elf-gas/x86_64cpuid.s',
+    ],
+    'openssl_sources_asm_obsolete_x64_elf_gas': [
+      'asm_obsolete/x64-elf-gas/aes/aes-x86_64.s',
+      'asm_obsolete/x64-elf-gas/aes/aesni-mb-x86_64.s',
+      'asm_obsolete/x64-elf-gas/aes/aesni-sha256-x86_64.s',
+      'asm_obsolete/x64-elf-gas/aes/aesni-x86_64.s',
+      'asm_obsolete/x64-elf-gas/aes/vpaes-x86_64.s',
+      'asm_obsolete/x64-elf-gas/aes/bsaes-x86_64.s',
+      'asm_obsolete/x64-elf-gas/aes/aesni-sha1-x86_64.s',
+      'asm_obsolete/x64-elf-gas/bn/rsaz-avx2.s',
+      'asm_obsolete/x64-elf-gas/bn/rsaz-x86_64.s',
+      'asm_obsolete/x64-elf-gas/bn/x86_64-mont.s',
+      'asm_obsolete/x64-elf-gas/bn/x86_64-mont5.s',
+      'asm_obsolete/x64-elf-gas/bn/x86_64-gf2m.s',
+      'asm_obsolete/x64-elf-gas/camellia/cmll-x86_64.s',
+      'asm_obsolete/x64-elf-gas/ec/ecp_nistz256-x86_64.s',
+      'asm_obsolete/x64-elf-gas/md5/md5-x86_64.s',
+      'asm_obsolete/x64-elf-gas/rc4/rc4-x86_64.s',
+      'asm_obsolete/x64-elf-gas/rc4/rc4-md5-x86_64.s',
+      'asm_obsolete/x64-elf-gas/sha/sha1-mb-x86_64.s',
+      'asm_obsolete/x64-elf-gas/sha/sha1-x86_64.s',
+      'asm_obsolete/x64-elf-gas/sha/sha256-mb-x86_64.s',
+      'asm_obsolete/x64-elf-gas/sha/sha256-x86_64.s',
+      'asm_obsolete/x64-elf-gas/sha/sha512-x86_64.s',
+      'asm_obsolete/x64-elf-gas/whrlpool/wp-x86_64.s',
+      'asm_obsolete/x64-elf-gas/modes/aesni-gcm-x86_64.s',
+      'asm_obsolete/x64-elf-gas/modes/ghash-x86_64.s',
+      'asm_obsolete/x64-elf-gas/x86_64cpuid.s',
+    ],
+    'openssl_sources_common_x64_elf_gas': [
       # Non-generated asm
       'openssl/crypto/bn/asm/x86_64-gcc.c',
       # No asm available
@@ -714,7 +769,7 @@
       'openssl/crypto/ec/ecp_nistz256.c',
       'openssl/crypto/ui/ui_compat.c'
     ],
-    'openssl_sources_ia32_mac_gas': [
+    'openssl_sources_asm_latest_ia32_mac_gas': [
       'asm/x86-macosx-gas/aes/aes-586.s',
       'asm/x86-macosx-gas/aes/aesni-x86.s',
       'asm/x86-macosx-gas/aes/vpaes-x86.s',
@@ -736,9 +791,31 @@
       'asm/x86-macosx-gas/whrlpool/wp-mmx.s',
       'asm/x86-macosx-gas/modes/ghash-x86.s',
       'asm/x86-macosx-gas/x86cpuid.s',
-      'openssl/crypto/whrlpool/wp_block.c',
     ],
-    'openssl_sources_x64_mac_gas': [
+    'openssl_sources_asm_obsolete_ia32_mac_gas': [
+      'asm_obsolete/x86-macosx-gas/aes/aes-586.s',
+      'asm_obsolete/x86-macosx-gas/aes/aesni-x86.s',
+      'asm_obsolete/x86-macosx-gas/aes/vpaes-x86.s',
+      'asm_obsolete/x86-macosx-gas/bf/bf-586.s',
+      'asm_obsolete/x86-macosx-gas/bn/bn-586.s',
+      'asm_obsolete/x86-macosx-gas/bn/co-586.s',
+      'asm_obsolete/x86-macosx-gas/bn/x86-mont.s',
+      'asm_obsolete/x86-macosx-gas/bn/x86-gf2m.s',
+      'asm_obsolete/x86-macosx-gas/camellia/cmll-x86.s',
+      'asm_obsolete/x86-macosx-gas/cast/cast-586.s',
+      'asm_obsolete/x86-macosx-gas/des/crypt586.s',
+      'asm_obsolete/x86-macosx-gas/des/des-586.s',
+      'asm_obsolete/x86-macosx-gas/md5/md5-586.s',
+      'asm_obsolete/x86-macosx-gas/rc4/rc4-586.s',
+      'asm_obsolete/x86-macosx-gas/ripemd/rmd-586.s',
+      'asm_obsolete/x86-macosx-gas/sha/sha1-586.s',
+      'asm_obsolete/x86-macosx-gas/sha/sha256-586.s',
+      'asm_obsolete/x86-macosx-gas/sha/sha512-586.s',
+      'asm_obsolete/x86-macosx-gas/whrlpool/wp-mmx.s',
+      'asm_obsolete/x86-macosx-gas/modes/ghash-x86.s',
+      'asm_obsolete/x86-macosx-gas/x86cpuid.s',
+    ],
+    'openssl_sources_asm_latest_x64_mac_gas': [
       'asm/x64-macosx-gas/aes/aes-x86_64.s',
       'asm/x64-macosx-gas/aes/aesni-x86_64.s',
       'asm/x64-macosx-gas/aes/vpaes-x86_64.s',
@@ -763,6 +840,34 @@
       'asm/x64-macosx-gas/modes/aesni-gcm-x86_64.s',
       'asm/x64-macosx-gas/modes/ghash-x86_64.s',
       'asm/x64-macosx-gas/x86_64cpuid.s',
+    ],
+    'openssl_sources_asm_obsolete_x64_mac_gas': [
+      'asm_obsolete/x64-macosx-gas/aes/aes-x86_64.s',
+      'asm_obsolete/x64-macosx-gas/aes/aesni-x86_64.s',
+      'asm_obsolete/x64-macosx-gas/aes/vpaes-x86_64.s',
+      'asm_obsolete/x64-macosx-gas/aes/aesni-mb-x86_64.s',
+      'asm_obsolete/x64-macosx-gas/aes/aesni-sha256-x86_64.s',
+      'asm_obsolete/x64-macosx-gas/aes/bsaes-x86_64.s',
+      'asm_obsolete/x64-macosx-gas/aes/aesni-sha1-x86_64.s',
+      'asm_obsolete/x64-macosx-gas/bn/rsaz-avx2.s',
+      'asm_obsolete/x64-macosx-gas/bn/rsaz-x86_64.s',
+      'asm_obsolete/x64-macosx-gas/bn/x86_64-mont.s',
+      'asm_obsolete/x64-macosx-gas/bn/x86_64-mont5.s',
+      'asm_obsolete/x64-macosx-gas/bn/x86_64-gf2m.s',
+      'asm_obsolete/x64-macosx-gas/camellia/cmll-x86_64.s',
+      'asm_obsolete/x64-macosx-gas/ec/ecp_nistz256-x86_64.s',
+      'asm_obsolete/x64-macosx-gas/md5/md5-x86_64.s',
+      'asm_obsolete/x64-macosx-gas/sha/sha1-mb-x86_64.s',
+      'asm_obsolete/x64-macosx-gas/sha/sha1-x86_64.s',
+      'asm_obsolete/x64-macosx-gas/sha/sha256-mb-x86_64.s',
+      'asm_obsolete/x64-macosx-gas/sha/sha256-x86_64.s',
+      'asm_obsolete/x64-macosx-gas/sha/sha512-x86_64.s',
+      'asm_obsolete/x64-macosx-gas/whrlpool/wp-x86_64.s',
+      'asm_obsolete/x64-macosx-gas/modes/aesni-gcm-x86_64.s',
+      'asm_obsolete/x64-macosx-gas/modes/ghash-x86_64.s',
+      'asm_obsolete/x64-macosx-gas/x86_64cpuid.s',
+    ],
+    'openssl_sources_common_x64_mac_gas': [
       # Non-generated asm
       'openssl/crypto/bn/asm/x86_64-gcc.c',
       # No asm available
@@ -831,7 +936,7 @@
       'openssl/crypto/armcap.c',
       'openssl/crypto/arm64cpuid.S',
     ],
-    'openssl_sources_ia32_win_masm': [
+    'openssl_sources_asm_ia32_win_masm': [
       'asm/x86-win32-masm/aes/aes-586.asm',
       'asm/x86-win32-masm/aes/aesni-x86.asm',
       'asm/x86-win32-masm/aes/vpaes-x86.asm',
@@ -853,9 +958,8 @@
       'asm/x86-win32-masm/whrlpool/wp-mmx.asm',
       'asm/x86-win32-masm/modes/ghash-x86.asm',
       'asm/x86-win32-masm/x86cpuid.asm',
-      'openssl/crypto/whrlpool/wp_block.c'
     ],
-    'openssl_sources_x64_win_masm': [
+    'openssl_sources_asm_latest_x64_win_masm': [
       'asm/x64-win32-masm/aes/aes-x86_64.asm',
       'asm/x64-win32-masm/aes/aesni-x86_64.asm',
       'asm/x64-win32-masm/aes/aesni-mb-x86_64.asm',
@@ -882,6 +986,36 @@
       'asm/x64-win32-masm/modes/aesni-gcm-x86_64.asm',
       'asm/x64-win32-masm/modes/ghash-x86_64.asm',
       'asm/x64-win32-masm/x86_64cpuid.asm',
+    ],
+    'openssl_sources_asm_obsolete_x64_win_masm': [
+      'asm_obsolete/x64-win32-masm/aes/aes-x86_64.asm',
+      'asm_obsolete/x64-win32-masm/aes/aesni-x86_64.asm',
+      'asm_obsolete/x64-win32-masm/aes/aesni-mb-x86_64.asm',
+      'asm_obsolete/x64-win32-masm/aes/aesni-sha256-x86_64.asm',
+      'asm_obsolete/x64-win32-masm/aes/vpaes-x86_64.asm',
+      'asm_obsolete/x64-win32-masm/aes/bsaes-x86_64.asm',
+      'asm_obsolete/x64-win32-masm/aes/aesni-sha1-x86_64.asm',
+      'asm_obsolete/x64-win32-masm/bn/rsaz-avx2.asm',
+      'asm_obsolete/x64-win32-masm/bn/rsaz-x86_64.asm',
+      'asm_obsolete/x64-win32-masm/bn/x86_64-mont.asm',
+      'asm_obsolete/x64-win32-masm/bn/x86_64-mont5.asm',
+      'asm_obsolete/x64-win32-masm/bn/x86_64-gf2m.asm',
+      'asm_obsolete/x64-win32-masm/camellia/cmll-x86_64.asm',
+      'asm_obsolete/x64-win32-masm/ec/ecp_nistz256-x86_64.asm',
+      'asm_obsolete/x64-win32-masm/md5/md5-x86_64.asm',
+      'asm_obsolete/x64-win32-masm/rc4/rc4-x86_64.asm',
+      'asm_obsolete/x64-win32-masm/rc4/rc4-md5-x86_64.asm',
+      'asm_obsolete/x64-win32-masm/sha/sha1-mb-x86_64.asm',
+      'asm_obsolete/x64-win32-masm/sha/sha1-x86_64.asm',
+      'asm_obsolete/x64-win32-masm/sha/sha256-mb-x86_64.asm',
+      'asm_obsolete/x64-win32-masm/sha/sha256-x86_64.asm',
+      'asm_obsolete/x64-win32-masm/sha/sha512-x86_64.asm',
+      'asm_obsolete/x64-win32-masm/whrlpool/wp-x86_64.asm',
+      'asm_obsolete/x64-win32-masm/modes/aesni-gcm-x86_64.asm',
+      'asm_obsolete/x64-win32-masm/modes/ghash-x86_64.asm',
+      'asm_obsolete/x64-win32-masm/x86_64cpuid.asm',
+    ],
+    'openssl_sources_common_x64_win_masm': [
       # No asm available
       'openssl/crypto/bn/bn_asm.c',
       'openssl/crypto/bf/bf_enc.c',
@@ -892,6 +1026,63 @@
       'openssl/crypto/des/fcrypt_b.c',
       'openssl/crypto/ec/ecp_nistz256.c',
       'openssl/crypto/ui/ui_compat.c'
+    ],
+    'openssl_sources_ia32_win_masm': [
+      '<@(openssl_sources_asm_ia32_win_masm)',
+      '<@(openssl_sources_common_ia32)',
+    ],
+    #
+    # Asm files are changed depending on the version of assembler.
+    # We provide two sets of asm files, one is asm_latest(avx2 and
+    # addx supported) and the other asm_obsolete(without avx1/2 and addx)
+    # The asm_latest follows the version as defined in
+    # https://github.com/openssl/openssl/blob/OpenSSL_1_0_2-stable/crypto/ec/asm/ecp_nistz256-avx2.pl#L45-L67
+    #
+    'conditions': [
+      ['(OS=="win" and MSVS_VERSION>="2012") or '
+       'llvm_version>="3.3" or gas_version>="2.23"', {
+        'openssl_sources_x64_win_masm': [
+          '<@(openssl_sources_asm_latest_x64_win_masm)',
+          '<@(openssl_sources_common_x64_win_masm)',
+        ],
+        'openssl_sources_ia32_mac_gas': [
+          '<@(openssl_sources_asm_latest_ia32_mac_gas)',
+          '<@(openssl_sources_common_ia32)',
+        ],
+        'openssl_sources_x64_mac_gas': [
+          '<@(openssl_sources_asm_latest_x64_mac_gas)',
+          '<@(openssl_sources_common_x64_mac_gas)',
+        ],
+        'openssl_sources_ia32_elf_gas': [
+          '<@(openssl_sources_asm_latest_ia32_elf_gas)',
+          '<@(openssl_sources_common_ia32)',
+        ],
+        'openssl_sources_x64_elf_gas': [
+          '<@(openssl_sources_asm_latest_x64_elf_gas)',
+          '<@(openssl_sources_common_x64_elf_gas)',
+        ],
+      }, {
+        'openssl_sources_x64_win_masm': [
+          '<@(openssl_sources_asm_obsolete_x64_win_masm)',
+          '<@(openssl_sources_common_x64_win_masm)',
+        ],
+        'openssl_sources_ia32_mac_gas': [
+          '<@(openssl_sources_asm_obsolete_ia32_mac_gas)',
+          '<@(openssl_sources_common_ia32)',
+        ],
+        'openssl_sources_x64_mac_gas': [
+          '<@(openssl_sources_asm_obsolete_x64_mac_gas)',
+          '<@(openssl_sources_common_x64_mac_gas)',
+        ],
+        'openssl_sources_ia32_elf_gas': [
+          '<@(openssl_sources_asm_obsolete_ia32_elf_gas)',
+          '<@(openssl_sources_common_ia32)',
+        ],
+        'openssl_sources_x64_elf_gas': [
+          '<@(openssl_sources_asm_obsolete_x64_elf_gas)',
+          '<@(openssl_sources_common_x64_elf_gas)',
+        ],
+      }]
     ],
     'openssl_cli_sources': [
       'openssl/apps/app_rand.c',
