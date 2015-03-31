@@ -1,4 +1,51 @@
-2015.03.23, Version 0.12.1 (Stable)
+2015.03.31, Version 0.12.2 (Stable)
+
+* uv: Upgrade to 1.4.2
+
+* npm: Upgrade to 2.7.4
+
+* V8: do not add extra newline in log file (Julien Gilli)
+
+* V8: Fix --max_old_space_size=4096 integer overflow (Andrei Sedoi)
+
+* asyncwrap: fix constructor condition for early ret (Trevor Norris)
+
+* buffer: align chunks on 8-byte boundary (Fedor Indutny)
+
+* buffer: fix pool offset adjustment (Trevor Norris)
+
+* build: fix use of strict aliasing (Trevor Norris)
+
+* console: allow Object.prototype fields as labels (Colin Ihrig)
+
+* fs: make F_OK/R_OK/W_OK/X_OK not writable (Jackson Tian)
+
+* fs: properly handle fd passed to truncate() (Bruno Jouhier)
+
+* http: fix assert on data/end after socket error (Fedor Indutny)
+
+* lib: fix max size check in Buffer constructor (Ben Noordhuis)
+
+* lib: fix stdio/ipc sync i/o regression (Ben Noordhuis)
+
+* module: replace NativeModule.require (Herbert Vojčík)
+
+* net: allow port 0 in connect() (cjihrig)
+
+* net: unref timer in parent sockets (Fedor Indutny)
+
+* path: refactor for performance and consistency (Nathan Woltman)
+
+* smalloc: extend user API (Trevor Norris)
+
+* src: fix for SIGINT crash on FreeBSD (Fedor Indutny)
+
+* src: fix builtin modules failing with --use-strict (Julien Gilli)
+
+* watchdog: fix timeout for early polling return (Saúl Ibarra Corretgé)
+
+
+2015.03.23, Version 0.12.1 (Stable), 0034086b49f22cfde765a7e9f55db25f8eb310b6
 
 * openssl: upgrade to 1.0.1m (Addressing multiple CVES)
 
