@@ -6,13 +6,15 @@
   'variables': {
     'is_clang': 0,
     'gcc_version': 0,
-    'openssl_no_asm%': 0
+    'openssl_no_asm%': 0,
+    'llvm_version%': 0,
+    'gas_version%': 0,
   },
-  'includes': ['openssl.gypi'],
   'targets': [
     {
       'target_name': 'openssl',
       'type': '<(library)',
+      'includes': ['openssl.gypi'],
       'sources': ['<@(openssl_sources)'],
       'sources/': [
         ['exclude', 'md2/.*$'],
@@ -99,6 +101,7 @@
     }
   ],
   'target_defaults': {
+    'includes': ['openssl.gypi'],
     'include_dirs': ['<@(openssl_default_include_dirs)'],
     'defines': ['<@(openssl_default_defines_all)'],
     'conditions': [
