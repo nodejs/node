@@ -611,6 +611,104 @@
           ],
         } ],
       ]
-    }
+    },
+
+    {
+      'target_name':'npm-files.wxs',
+      'type':'none',
+      'actions': [
+        {
+          'action_name':'heat',
+          'inputs': [
+            'deps/npm',
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/npm-files.wxs',
+          ],
+          'action': [
+            '"<(wix_bin_dir)/heat.exe"',
+            'dir', '<@(_inputs)',
+            '-out', '<@(_outputs)',
+            '-cg', 'NpmSourceFiles',
+            '-dr', 'NodeModulesFolder',
+            '-var', 'var.NpmSourceDir',
+            '-gg',
+          ],
+          'msvs_quote_cmd': 0
+        },
+      ],
+    },
+
+
+    {
+      'target_name':'installer',
+      'type':'none',
+      'dependencies': [ 'npm-files.wxs' ],
+
+      'conditions': [
+        ['target_arch=="x64"', {
+          'variables': { 'program_files_folder_id': 'ProgramFiles64Folder' }
+        }, {
+          'variables': { 'program_files_folder_id': 'ProgramFilesFolder' }
+        }],
+      ],
+      'sources': [
+        'tools/msvs/msi/product.wxs',
+        '<(SHARED_INTERMEDIATE_DIR)/npm-files.wxs'
+      ],
+      'rules': [
+        {
+         'rule_name':'candle',
+         'extension':'wxs',
+         'outputs': [
+           '<(SHARED_INTERMEDIATE_DIR)/<(RULE_INPUT_ROOT).wixobj',
+          ],
+         'action': [
+           '"<(wix_bin_dir)/candle.exe"',
+           '-dProductVersion=0.0.0.0',
+           '-dNoETW=0',
+           '-dNoPerfCtr=0',
+           '-dProgramFilesFolderId=<(program_files_folder_id)',
+           '-dNpmSourceDir=deps/npm',
+           '-dSourceDir=<(PRODUCT_DIR).',
+           '-dProjectDir=tools/msvs/msi/',
+           '-arch', '<(target_arch)',
+           '-ext', '<(wix_bin_dir)/WixUtilExtension.dll',
+           '-nologo',
+           '-out',
+           '<@(_outputs)',
+           '<(RULE_INPUT_PATH)',
+          ],
+        },
+       ],
+
+     }, {
+      'target_name': 'msi',
+      'type': 'none',
+      'dependencies': [ 'installer' ],
+      'actions': [
+        {
+          'action_name': 'light',
+          'inputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/product.wixobj',
+            '<(SHARED_INTERMEDIATE_DIR)/npm-files.wixobj'
+          ],
+          'outputs': [
+            '<(PRODUCT_DIR)/iojs-v-<(target_arch).msi'
+          ],
+          'action': [
+            '"<(wix_bin_dir)/light.exe"',
+            '-cultures:en-US',
+            '-ext', '<(wix_bin_dir)/WixUIExtension.dll',
+            '-ext', '<(wix_bin_dir)/WixUtilExtension.dll',
+            '-loc', 'tools/msvs/msi/WixUI_en-us.wxl',
+            '<@(_inputs)',
+            '-out',
+            '<@(_outputs)'
+          ]
+        }
+      ]
+    },
+
   ] # end targets
 }
