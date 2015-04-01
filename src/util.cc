@@ -31,14 +31,14 @@ static inline uint32_t clz(uint32_t xs) {
 
 namespace node {
 
-typedef size_t (*ErrorStrategy)(
-    const size_t, const char*, const size_t);
-typedef void (*GlyphStrategy)(
-    const char*, const size_t, const uint32_t, const size_t);
+typedef size_t (*ErrorStrategy)(size_t, const uint8_t*, size_t);
+typedef void (*GlyphStrategy)(const uint8_t*, size_t, uint32_t, size_t);
 
 
-static size_t Skip(
-    const size_t remaining, const char* input, const size_t glyph_size) {
+inline size_t Skip(
+    const size_t remaining,
+    const uint8_t* input,
+    const size_t glyph_size) {
   if (remaining > glyph_size) {
     return 1;
   }
@@ -46,21 +46,23 @@ static size_t Skip(
 }
 
 
-static size_t Halt(
-    const size_t remaining, const char* input, const size_t glyph_size) {
+inline size_t Halt(
+    const size_t remaining,
+    const uint8_t* input,
+    const size_t glyph_size) {
   return 0;
 }
 
 
-static void DiscardGlyph(
-    const char* glyph,
-    size_t glyph_size,
-    uint32_t glyph_value,
+inline void DiscardGlyph(
+    const uint8_t* glyph,
+    const size_t glyph_size,
+    const uint32_t glyph_value,
     const size_t pos) {
 }
 
 
-static bool IsLegalUTF8Glyph(const uint8_t* input, const size_t length) {
+inline bool IsLegalUtf8Glyph(const uint8_t* input, const size_t length) {
   uint8_t acc;
   const uint8_t* srcptr = input + length;
   switch (length) {
@@ -69,10 +71,12 @@ static bool IsLegalUTF8Glyph(const uint8_t* input, const size_t length) {
       acc = (*--srcptr);
       if (acc < 0x80 || acc > 0xBF)
         return false;
+      // fall-through
     case 3:
       acc = (*--srcptr);
       if (acc < 0x80 || acc > 0xBF)
         return false;
+      // fall-through
     case 2:
       acc = (*--srcptr);
       if (acc > 0xBF)
@@ -98,6 +102,7 @@ static bool IsLegalUTF8Glyph(const uint8_t* input, const size_t length) {
           if (acc < 0x80)
             return false;
       }
+      // fall-through
     case 1:
       if (*input >= 0x80 && *input < 0xC2) {
         return false;
@@ -115,7 +120,7 @@ static const uint32_t offsets_from_utf8[6] = {
 
 template <ErrorStrategy OnError, typename GlyphStrategy>
 static size_t Utf8Consume(
-    char* const input,
+    const uint8_t* const input,
     const size_t length,
     const GlyphStrategy OnGlyph) {
   size_t idx = 0;
@@ -128,28 +133,32 @@ static size_t Utf8Consume(
 
     if (extrabytes + idx > length) {
       advance = OnError(length - idx, input, extrabytes);
-    } else if (!IsLegalUTF8Glyph(
-          reinterpret_cast<uint8_t*>(input + idx), extrabytes + 1)) {
+    } else if (!IsLegalUtf8Glyph(input + idx, extrabytes + 1)) {
       advance = OnError(length - idx, input, extrabytes);
     } else {
       switch (extrabytes) {
         case 5:
-          glyph += static_cast<uint8_t>(input[i++]);
+          glyph += input[i++];
           glyph <<= 6;
+          // fall-through
         case 4:
-          glyph += static_cast<uint8_t>(input[i++]);
+          glyph += input[i++];
           glyph <<= 6;
+          // fall-through
         case 3:
-          glyph += static_cast<uint8_t>(input[i++]);
+          glyph += input[i++];
           glyph <<= 6;
+          // fall-through
         case 2:
-          glyph += static_cast<uint8_t>(input[i++]);
+          glyph += input[i++];
           glyph <<= 6;
+          // fall-through
         case 1:
-          glyph += static_cast<uint8_t>(input[i++]);
+          glyph += input[i++];
           glyph <<= 6;
+          // fall-through
         case 0:
-          glyph += static_cast<uint8_t>(input[i]);
+          glyph += input[i];
       }
 
       glyph -= offsets_from_utf8[extrabytes];
@@ -172,10 +181,10 @@ static size_t Utf8Consume(
 }
 
 
-size_t StripInvalidUtf8Glyphs(char * input, const size_t size) {
+size_t StripInvalidUtf8Glyphs(uint8_t* input, const size_t size) {
   size_t idx = 0;
   auto on_glyph = [&input, &idx](
-      const char* data, size_t size, uint32_t glyph, size_t pos) {
+      const uint8_t* data, size_t size, uint32_t glyph, size_t pos) {
     size_t old_idx = idx;
     idx += size;
     if (pos == old_idx)
@@ -187,7 +196,7 @@ size_t StripInvalidUtf8Glyphs(char * input, const size_t size) {
 }
 
 
-bool Utf8Value::IsValidUTF8(char * const input, const size_t size) {
+bool Utf8Value::IsValidUtf8(const uint8_t * const input, const size_t size) {
   return Utf8Consume<Halt>(input, size, DiscardGlyph) == size;
 }
 
