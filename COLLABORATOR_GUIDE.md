@@ -36,7 +36,7 @@ necessary.
 
 ## Accepting Modifications
 
-All modifications to the the io.js code and documentation should be
+All modifications to the io.js code and documentation should be
 performed via GitHub pull requests, including modifications by
 Collaborators and TC members.
 
@@ -89,7 +89,7 @@ information regarding the change process:
   other Collaborators who have reviewed the change.
 - A `PR-URL:` line that references the full GitHub URL of the original
   pull request being merged so it's easy to trace a commit back to the
-  conversation that lead up to that change.
+  conversation that led up to that change.
 - A `Fixes: X` line, where _X_ is either includes the full GitHub URL
   for an issue, and/or the hash and commit message if the commit fixes
   a bug in a previous commit. Multiple `Fixes:` lines may be added if
