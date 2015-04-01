@@ -39,7 +39,9 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#ifndef MIN
+# define MIN(a, b) ((a) < (b) ? (a) : (b))
+#endif
 
 #define TYPE_ERROR(msg) env->ThrowTypeError(msg)
 
