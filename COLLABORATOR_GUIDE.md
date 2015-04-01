@@ -36,7 +36,7 @@ necessary.
 
 ## Accepting Modifications
 
-All modifications to the the io.js code and documentation should be
+All modifications to the io.js code and documentation should be
 performed via GitHub pull requests, including modifications by
 Collaborators and TC members.
 
