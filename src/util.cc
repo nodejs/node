@@ -12,7 +12,7 @@
 
 #ifdef WIN32
 #include <intrin.h>
-static uint32_t __inline clz(uint32_t xs) {
+inline uint32_t __inline clz(uint32_t xs) {
   unsigned long result = 0;
   _BitScanReverse(&result, xs);
   return (31 - result);
@@ -20,7 +20,7 @@ static uint32_t __inline clz(uint32_t xs) {
 #elif defined(HAS_GCC_BUILTIN_CLZ)
 #define clz(xs) __builtin_clz(xs)
 #else
-static inline uint32_t clz(uint32_t xs) {
+inline uint32_t clz(uint32_t xs) {
   uint32_t out = 0;
   while (xs >> (31 - out)) {
     ++out;
@@ -119,7 +119,7 @@ static const uint32_t offsets_from_utf8[6] = {
 
 
 template <ErrorStrategy OnError, typename GlyphStrategy>
-static size_t Utf8Consume(
+inline size_t Utf8Consume(
     const uint8_t* const input,
     const size_t length,
     const GlyphStrategy OnGlyph) {
