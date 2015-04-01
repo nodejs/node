@@ -12,20 +12,27 @@
 
 #ifdef WIN32
 #include <intrin.h>
-inline uint32_t __inline clz(uint32_t xs) {
+inline uint32_t clz(uint8_t xs) {
   unsigned long result = 0;
+  uint32_t input = static_cast<uint32_t>(xs) << 24;
   _BitScanReverse(&result, xs);
   return (31 - result);
 }
 #elif defined(HAS_GCC_BUILTIN_CLZ)
-#define clz(xs) __builtin_clz(xs)
+#define clz(xs) __builtin_clz(static_cast<uint32_t>(xs) << 24)
 #else
-inline uint32_t clz(uint32_t xs) {
-  uint32_t out = 0;
-  while (xs >> (31 - out)) {
-    ++out;
-  }
-  return out;
+inline uint32_t log2(uint8_t v) {
+  const uint32_t r = (v > 15) << 2;
+  v >>= r;
+  const uint32_t s = (v > 3) << 1;
+  v >>= s;
+  v >>= 1;
+  return r | s | v;
+}
+
+inline uint32_t clz(uint8_t v) {
+  // clz(0) == 7.  Add a zero check if that's an issue.
+  return 7 - log2(v);
 }
 #endif
 
@@ -127,8 +134,7 @@ inline size_t Utf8Consume(
   while (idx < length) {
     size_t advance = 0;
     uint32_t glyph = 0;
-    uint8_t extrabytes = static_cast<uint8_t>(
-        clz(~(static_cast<uint32_t>(input[idx])<<24)));
+    uint8_t extrabytes = input[idx] ? clz(~input[idx]) : 0;
     size_t i = idx;
 
     if (extrabytes + idx > length) {
@@ -136,15 +142,8 @@ inline size_t Utf8Consume(
     } else if (!IsLegalUtf8Glyph(input + idx, extrabytes + 1)) {
       advance = OnError(length - idx, input, extrabytes);
     } else {
+      ASSERT(extrabytes < 4);
       switch (extrabytes) {
-        case 5:
-          glyph += input[i++];
-          glyph <<= 6;
-          // fall-through
-        case 4:
-          glyph += input[i++];
-          glyph <<= 6;
-          // fall-through
         case 3:
           glyph += input[i++];
           glyph <<= 6;
@@ -181,18 +180,18 @@ inline size_t Utf8Consume(
 }
 
 
-size_t StripInvalidUtf8Glyphs(uint8_t* input, const size_t size) {
+size_t Utf8Value::StripInvalidUtf8Glyphs(uint8_t* const input, const size_t size) {
   size_t idx = 0;
-  auto on_glyph = [&input, &idx](
+  auto on_glyph = [input, &idx](
       const uint8_t* data, size_t size, uint32_t glyph, size_t pos) {
     size_t old_idx = idx;
     idx += size;
-    if (pos == old_idx)
-      return;
-    memcpy(input + old_idx, data, size);
+    if (old_idx == pos) return;
+    memmove(input + old_idx, data, size);
   };
 
-  return Utf8Consume<Skip>(input, size, on_glyph);
+  size_t copied = Utf8Consume<Skip>(input, size, on_glyph);
+  return idx;
 }
 
 
