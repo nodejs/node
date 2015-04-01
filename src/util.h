@@ -189,6 +189,7 @@ class Utf8Value {
       return length_;
     };
 
+    static bool IsValidUTF8(char * const, const size_t);
   private:
     size_t length_;
     char* str_;

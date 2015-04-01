@@ -1,7 +1,195 @@
 #include "util.h"
 #include "string_bytes.h"
 
+#define UNI_SUR_HIGH_START    (uint32_t) 0xD800
+#define UNI_SUR_LOW_END       (uint32_t) 0xDFFF
+#define UNI_REPLACEMENT_CHAR  (uint32_t) 0x0000FFFD
+#define UNI_MAX_LEGAL_UTF32   (uint32_t) 0x0010FFFF
+
+#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4)
+#define HAS_GCC_BUILTIN_CLZ
+#endif
+
+#ifdef WIN32
+#include <intrin.h>
+static uint32_t __inline clz(uint32_t xs) {
+  unsigned long result = 0;
+  _BitScanReverse(&result, xs);
+  return (31 - result);
+}
+#elif defined(HAS_GCC_BUILTIN_CLZ)
+#define clz(xs) __builtin_clz(xs)
+#else
+static inline uint32_t clz(uint32_t xs) {
+  uint32_t out = 0;
+  while (xs >> (31 - out)) {
+    ++out;
+  }
+  return out;
+}
+#endif
+
 namespace node {
+
+typedef size_t (*ErrorStrategy)(
+    const size_t, const char*, const size_t);
+typedef void (*GlyphStrategy)(
+    const char*, const size_t, const uint32_t, const size_t);
+
+
+static size_t Skip(
+    const size_t remaining, const char* input, const size_t glyph_size) {
+  if (remaining > glyph_size) {
+    return 1;
+  }
+  return 0;
+}
+
+
+static size_t Halt(
+    const size_t remaining, const char* input, const size_t glyph_size) {
+  return 0;
+}
+
+
+static void DiscardGlyph(
+    const char* glyph,
+    size_t glyph_size,
+    uint32_t glyph_value,
+    const size_t pos) {
+}
+
+
+static bool IsLegalUTF8Glyph(const uint8_t* input, const size_t length) {
+  uint8_t acc;
+  const uint8_t* srcptr = input + length;
+  switch (length) {
+    default: return false;
+    case 4:
+      acc = (*--srcptr);
+      if (acc < 0x80 || acc > 0xBF)
+        return false;
+    case 3:
+      acc = (*--srcptr);
+      if (acc < 0x80 || acc > 0xBF)
+        return false;
+    case 2:
+      acc = (*--srcptr);
+      if (acc > 0xBF)
+        return false;
+      switch (*input) {
+        case 0xE0:
+          if (acc < 0xA0)
+            return false;
+          break;
+        case 0xED:
+          if (acc > 0x9F)
+            return false;
+          break;
+        case 0xF0:
+          if (acc < 0x90)
+            return false;
+          break;
+        case 0xF4:
+          if (acc > 0x8F)
+            return false;
+          break;
+        default:
+          if (acc < 0x80)
+            return false;
+      }
+    case 1:
+      if (*input >= 0x80 && *input < 0xC2) {
+        return false;
+      }
+  }
+  return *input <= 0xF4;
+}
+
+
+static const uint32_t offsets_from_utf8[6] = {
+  0x00000000, 0x00003080, 0x000E2080,
+  0x03C82080, 0xFA082080, 0x82082080
+};
+
+
+template <ErrorStrategy OnError, typename GlyphStrategy>
+static size_t Utf8Consume(
+    char* const input,
+    const size_t length,
+    const GlyphStrategy OnGlyph) {
+  size_t idx = 0;
+  while (idx < length) {
+    size_t advance = 0;
+    uint32_t glyph = 0;
+    uint8_t extrabytes = (uint8_t)clz(~(static_cast<int>(input[idx])<<24));
+    size_t i = idx;
+
+    if (extrabytes + idx > length) {
+      advance = OnError(length - idx, input, extrabytes);
+    } else if (!IsLegalUTF8Glyph(
+          reinterpret_cast<uint8_t*>(input + idx), extrabytes + 1)) {
+      advance = OnError(length - idx, input, extrabytes);
+    } else {
+      switch (extrabytes) {
+        case 5:
+          glyph += (uint8_t) input[i++];
+          glyph <<= 6;
+        case 4:
+          glyph += (uint8_t) input[i++];
+          glyph <<= 6;
+        case 3:
+          glyph += (uint8_t) input[i++];
+          glyph <<= 6;
+        case 2:
+          glyph += (uint8_t) input[i++];
+          glyph <<= 6;
+        case 1:
+          glyph += (uint8_t) input[i++];
+          glyph <<= 6;
+        case 0:
+          glyph += (uint8_t) input[i];
+      }
+
+      glyph -= offsets_from_utf8[extrabytes];
+
+      if (glyph > UNI_MAX_LEGAL_UTF32 ||
+          (glyph >= UNI_SUR_HIGH_START && glyph <= UNI_SUR_LOW_END)) {
+        advance = OnError(length - idx, input, extrabytes);
+      } else {
+        advance = extrabytes + 1;
+        OnGlyph(input + idx, extrabytes + 1, glyph, idx);
+      }
+    }
+
+    if (advance == 0) {
+      break;
+    }
+    idx += advance;
+  }
+  return idx;
+}
+
+
+size_t StripInvalidUtf8Glyphs(char * input, const size_t size) {
+  size_t idx = 0;
+  auto on_glyph = [&input, &idx](
+      const char* data, size_t size, uint32_t glyph, size_t pos) {
+    size_t old_idx = idx;
+    idx += size;
+    if (pos == old_idx)
+      return;
+    memcpy(input + old_idx, data, size);
+  };
+
+  return Utf8Consume<Skip>(input, size, on_glyph);
+}
+
+
+bool Utf8Value::IsValidUTF8(char * const input, const size_t size) {
+  return Utf8Consume<Halt>(input, size, DiscardGlyph) == size;
+}
+
 
 Utf8Value::Utf8Value(v8::Isolate* isolate, v8::Handle<v8::Value> value)
     : length_(0), str_(str_st_) {
