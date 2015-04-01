@@ -1,10 +1,10 @@
 #include "util.h"
 #include "string_bytes.h"
 
-#define UNI_SUR_HIGH_START    (uint32_t) 0xD800
-#define UNI_SUR_LOW_END       (uint32_t) 0xDFFF
-#define UNI_REPLACEMENT_CHAR  (uint32_t) 0x0000FFFD
-#define UNI_MAX_LEGAL_UTF32   (uint32_t) 0x0010FFFF
+#define UNI_SUR_HIGH_START    0xD800UL
+#define UNI_SUR_LOW_END       0xDFFFUL
+#define UNI_REPLACEMENT_CHAR  0x0000FFFDUL
+#define UNI_MAX_LEGAL_UTF32   0x0010FFFFUL
 
 #if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4)
 #define HAS_GCC_BUILTIN_CLZ
@@ -122,7 +122,8 @@ static size_t Utf8Consume(
   while (idx < length) {
     size_t advance = 0;
     uint32_t glyph = 0;
-    uint8_t extrabytes = (uint8_t)clz(~(static_cast<int>(input[idx])<<24));
+    uint8_t extrabytes = static_cast<uint8_t>(
+        clz(~(static_cast<uint32_t>(input[idx])<<24)));
     size_t i = idx;
 
     if (extrabytes + idx > length) {
@@ -133,22 +134,22 @@ static size_t Utf8Consume(
     } else {
       switch (extrabytes) {
         case 5:
-          glyph += (uint8_t) input[i++];
+          glyph += static_cast<uint8_t>(input[i++]);
           glyph <<= 6;
         case 4:
-          glyph += (uint8_t) input[i++];
+          glyph += static_cast<uint8_t>(input[i++]);
           glyph <<= 6;
         case 3:
-          glyph += (uint8_t) input[i++];
+          glyph += static_cast<uint8_t>(input[i++]);
           glyph <<= 6;
         case 2:
-          glyph += (uint8_t) input[i++];
+          glyph += static_cast<uint8_t>(input[i++]);
           glyph <<= 6;
         case 1:
-          glyph += (uint8_t) input[i++];
+          glyph += static_cast<uint8_t>(input[i++]);
           glyph <<= 6;
         case 0:
-          glyph += (uint8_t) input[i];
+          glyph += static_cast<uint8_t>(input[i]);
       }
 
       glyph -= offsets_from_utf8[extrabytes];
