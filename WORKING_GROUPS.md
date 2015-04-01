@@ -25,6 +25,7 @@ back in to the TC.
 * [i18n](#i18n)
 * [Evangelism](#evangelism)
 * [Roadmap](#roadmap)
+* [Docker](#docker)
 * [Starting a Working Group](#starting-a-wg)
 * [Bootstrap Governance](#bootstrap-governance)
 
@@ -67,7 +68,6 @@ Its responsibilities are:
 * Produce Packages for all target platforms.
 * Run tests.
 * Run performance testing and comparisons.
-* Creates and manages official docker images.
 * Creates and manages build-containers.
 
 
@@ -166,6 +166,17 @@ Their responsibilities are:
 * Attract and summarize user community needs and feedback.
 * Find or potentially create tools that allow for broader participation.
 * Create Pull Requests for relevant changes to [Roadmap.md](./ROADMAP.md)
+
+
+### [Docker](https://github.com/iojs/docker-iojs)
+
+The Docker working group's purpose is to build, maintain, and improve official
+Docker images for the `io.js` project.
+
+Their responsibilities are:
+* Keep the official Docker images updated in line with new `io.js` releases.
+* Decide and implement image improvements and/or fixes.
+* Maintain and improve the images' documentation.
 
 
 ## Starting a WG
