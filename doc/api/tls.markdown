@@ -109,6 +109,60 @@ handshake extensions allowing you:
   * SNI - to use one TLS server for multiple hostnames with different SSL
     certificates.
 
+## Modifying the Default Cipher Suite
+
+Node.js is built with a default suite of enabled and disabled ciphers.
+Currently, the default cipher suite is:
+
+    ECDHE-RSA-AES128-SHA256:AES128-GCM-SHA256:HIGH:!RC4:!MD5:!aNULL:!EDH
+
+This default can be overridden entirely using the `--cipher-list` command line
+switch or `NODE_CIPHER_LIST` environment variable. For instance:
+
+    node --cipher-list=ECDHE-RSA-AES256-SHA384:DHE-RSA-AES256-SHA384
+
+Setting the environment variable would have the same effect:
+
+    NODE_CIPHER_LIST=ECDHE-RSA-AES256-SHA384:DHE-RSA-AES256-SHA384
+
+CAUTION: The default cipher suite has been carefully selected to reflect current
+security best practices and risk mitigation. Changing the default cipher suite
+can have a significant impact on the security of an application. The
+`--cipher-list` and `NODE_CIPHER_LIST` options should only be used if
+absolutely necessary.
+
+### Using Legacy Default Cipher Suite ###
+
+It is possible for the built-in default cipher suite to change from one release
+of Node.js to another. For instance, v0.10.39 uses a different default than
+v0.10.38. Such changes can cause issues with applications written to assume
+certain specific defaults. To help buffer applications against such changes,
+the `--enable-legacy-cipher-list` command line switch or `NODE_LEGACY_CIPHER_LIST`
+environment variable can be set to specify a specific preset default:
+
+    # Use the v0.10.38 defaults
+    node --enable-legacy-cipher-list=v0.10.38
+    // or
+    NODE_LEGACY_CIPHER_LIST=v0.10.38
+
+Currently, the values supported for the `enable-legacy-cipher-list` switch and
+`NODE_LEGACY_CIPHER_LIST` environment variable include:
+
+    v0.10.38 - To enable the default cipher suite used in v0.10.38
+
+      ECDHE-RSA-AES128-SHA256:AES128-GCM-SHA256:RC4:HIGH:!MD5:!aNULL:!EDH
+
+These legacy cipher suites are also made available for use via the
+`getLegacyCiphers()` method:
+
+    var tls = require('tls');
+    console.log(tls.getLegacyCiphers('v0.10.38'));
+
+CAUTION: Changes to the default cipher suite are typically made in order to
+strengthen the default security for applications running within Node.js.
+Reverting back to the defaults used by older releases can weaken the security
+of your applications. The legacy cipher suites should only be used if absolutely
+necessary.
 
 ## tls.getCiphers()
 
@@ -151,13 +205,13 @@ automatically set as a listener for the [secureConnection][] event.  The
     conjunction with the `honorCipherOrder` option described below to
     prioritize the non-CBC cipher.
 
-    Defaults to `AES128-GCM-SHA256:RC4:HIGH:!MD5:!aNULL:!EDH`.
+    Defaults to `ECDHE-RSA-AES128-SHA256:AES128-GCM-SHA256:HIGH:!RC4:!MD5:!aNULL:!EDH`.
     Consult the [OpenSSL cipher list format documentation] for details on the
     format. ECDH (Elliptic Curve Diffie-Hellman) ciphers are not yet supported.
 
 
     `AES128-GCM-SHA256` is used when node.js is linked against OpenSSL 1.0.1
-    or newer and the client speaks TLS 1.2, RC4 is used as a secure fallback.
+    or newer and the client speaks TLS 1.2.
 
     **NOTE**: Previous revisions of this section suggested `AES256-SHA` as an
     acceptable cipher. Unfortunately, `AES256-SHA` is a CBC cipher and therefore
@@ -333,7 +387,7 @@ Here is an example of a client of echo server as described previously:
       // These are necessary only if using the client certificate authentication
       key: fs.readFileSync('client-key.pem'),
       cert: fs.readFileSync('client-cert.pem'),
-    
+
       // This is necessary only if the server uses the self-signed certificate
       ca: [ fs.readFileSync('server-cert.pem') ]
     };
@@ -525,7 +579,7 @@ A ClearTextStream is the `clear` member of a SecurePair object.
 
 ### Event: 'secureConnect'
 
-This event is emitted after a new connection has been successfully handshaked. 
+This event is emitted after a new connection has been successfully handshaked.
 The listener will be called no matter if the server's certificate was
 authorized or not. It is up to the user to test `cleartextStream.authorized`
 to see if the server certificate was signed by one of the specified CAs.
@@ -550,14 +604,14 @@ some properties corresponding to the field of the certificate.
 
 Example:
 
-    { subject: 
+    { subject:
        { C: 'UK',
          ST: 'Acknack Ltd',
          L: 'Rhys Jones',
          O: 'node.js',
          OU: 'Test TLS Certificate',
          CN: 'localhost' },
-      issuer: 
+      issuer:
        { C: 'UK',
          ST: 'Acknack Ltd',
          L: 'Rhys Jones',
