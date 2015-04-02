@@ -8,6 +8,10 @@ if (cluster.isWorker) {
 
   }).listen(common.PORT, '127.0.0.1');
 
+  cluster.worker.on('disconnect', function() {
+    process.exit(42);
+  });
+
 } else if (cluster.isMaster) {
 
   var checks = {
@@ -18,6 +22,7 @@ if (cluster.isWorker) {
     },
     worker: {
       emitDisconnect: false,
+      emitDisconnectInsideWorker: false,
       emitExit: false,
       state: false,
       suicideMode: false,
@@ -59,9 +64,11 @@ if (cluster.isWorker) {
   });
 
   // Check that the worker died
-  worker.once('exit', function() {
+  worker.once('exit', function(code) {
     checks.worker.emitExit = true;
     checks.worker.died = !alive(worker.process.pid);
+    checks.worker.emitDisconnectInsideWorker = code === 42;
+
     process.nextTick(function() {
       process.exit(0);
     });
@@ -74,6 +81,7 @@ if (cluster.isWorker) {
 
     // events
     assert.ok(w.emitDisconnect, 'Disconnect event did not emit');
+    assert.ok(w.emitDisconnectInsideWorker, 'Disconnect event did not emit inside worker');
     assert.ok(c.emitDisconnect, 'Disconnect event did not emit');
     assert.ok(w.emitExit, 'Exit event did not emit');
     assert.ok(c.emitExit, 'Exit event did not emit');
