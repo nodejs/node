@@ -73,6 +73,8 @@ class TimerWrap : public HandleWrap {
   static void Start(const FunctionCallbackInfo<Value>& args) {
     TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
 
+    CHECK(HandleWrap::IsAlive(wrap));
+
     int64_t timeout = args[0]->IntegerValue();
     int64_t repeat = args[1]->IntegerValue();
     int err = uv_timer_start(&wrap->handle_, OnTimeout, timeout, repeat);
@@ -82,12 +84,16 @@ class TimerWrap : public HandleWrap {
   static void Stop(const FunctionCallbackInfo<Value>& args) {
     TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
 
+    CHECK(HandleWrap::IsAlive(wrap));
+
     int err = uv_timer_stop(&wrap->handle_);
     args.GetReturnValue().Set(err);
   }
 
   static void Again(const FunctionCallbackInfo<Value>& args) {
     TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
+
+    CHECK(HandleWrap::IsAlive(wrap));
 
     int err = uv_timer_again(&wrap->handle_);
     args.GetReturnValue().Set(err);
@@ -96,6 +102,8 @@ class TimerWrap : public HandleWrap {
   static void SetRepeat(const FunctionCallbackInfo<Value>& args) {
     TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
 
+    CHECK(HandleWrap::IsAlive(wrap));
+
     int64_t repeat = args[0]->IntegerValue();
     uv_timer_set_repeat(&wrap->handle_, repeat);
     args.GetReturnValue().Set(0);
@@ -103,6 +111,8 @@ class TimerWrap : public HandleWrap {
 
   static void GetRepeat(const FunctionCallbackInfo<Value>& args) {
     TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
+
+    CHECK(HandleWrap::IsAlive(wrap));
 
     int64_t repeat = uv_timer_get_repeat(&wrap->handle_);
     if (repeat <= 0xfffffff)
