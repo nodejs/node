@@ -6,21 +6,6 @@
 #define UNI_REPLACEMENT_CHAR  0x0000FFFDUL
 #define UNI_MAX_LEGAL_UTF32   0x0010FFFFUL
 
-#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4)
-#define HAS_GCC_BUILTIN_CLZ
-#endif
-
-#ifdef WIN32
-#include <intrin.h>
-inline uint32_t clz(uint8_t xs) {
-  unsigned long result = 0;
-  uint32_t input = static_cast<uint32_t>(xs) << 24;
-  _BitScanReverse(&result, xs);
-  return (31 - result);
-}
-#elif defined(HAS_GCC_BUILTIN_CLZ)
-#define clz(xs) __builtin_clz(static_cast<uint32_t>(xs) << 24)
-#else
 inline uint32_t log2(uint8_t v) {
   const uint32_t r = (v > 15) << 2;
   v >>= r;
@@ -31,10 +16,8 @@ inline uint32_t log2(uint8_t v) {
 }
 
 inline uint32_t clz(uint8_t v) {
-  // clz(0) == 7.  Add a zero check if that's an issue.
   return 7 - log2(v);
 }
-#endif
 
 namespace node {
 
@@ -190,8 +173,7 @@ size_t Utf8Value::StripInvalidUtf8Glyphs(uint8_t* const input, const size_t size
     memmove(input + old_idx, data, size);
   };
 
-  size_t copied = Utf8Consume<Skip>(input, size, on_glyph);
-  return idx;
+  return Utf8Consume<Skip>(input, size, on_glyph);
 }
 
 
