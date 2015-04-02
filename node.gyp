@@ -108,7 +108,6 @@
         'src/node_main.cc',
         'src/node_os.cc',
         'src/node_v8.cc',
-        'src/node_v8_platform.cc',
         'src/node_stat_watcher.cc',
         'src/node_watchdog.cc',
         'src/node_zlib.cc',
@@ -312,7 +311,12 @@
             'deps/v8/include/v8.h',
             'deps/v8/include/v8-debug.h',
           ],
-          'dependencies': [ 'deps/v8/tools/gyp/v8.gyp:v8' ],
+          'dependencies': [
+            'deps/v8/tools/gyp/v8.gyp:v8',
+            'deps/v8/tools/gyp/v8.gyp:v8_libplatform',
+          ],
+          # libplatform/libplatform.h includes include/v8platform.h
+          'include_dirs': [ 'deps/v8' ],
         }],
 
         [ 'node_shared_zlib=="false"', {
