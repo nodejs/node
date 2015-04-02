@@ -6,7 +6,6 @@
     'node_use_etw%': 'false',
     'node_use_perfctr%': 'false',
     'node_has_winsdk%': 'false',
-    'node_shared_v8%': 'false',
     'node_shared_zlib%': 'false',
     'node_shared_http_parser%': 'false',
     'node_shared_libuv%': 'false',
@@ -81,14 +80,17 @@
 
       'dependencies': [
         'node_js2c#host',
-        'deps/cares/cares.gyp:cares'
+        'deps/cares/cares.gyp:cares',
+        'deps/v8/tools/gyp/v8.gyp:v8',
+        'deps/v8/tools/gyp/v8.gyp:v8_libplatform'
       ],
 
       'include_dirs': [
         'src',
         'tools/msvs/genfiles',
         'deps/uv/src/ares',
-        '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
+        '<(SHARED_INTERMEDIATE_DIR)', # for node_natives.h
+        'deps/v8' # include/v8_platform.h
       ],
 
       'sources': [
@@ -163,6 +165,8 @@
         'src/util-inl.h',
         'src/util.cc',
         'deps/http_parser/http_parser.h',
+        'deps/v8/include/v8.h',
+        'deps/v8/include/v8-debug.h',
         '<(SHARED_INTERMEDIATE_DIR)/node_natives.h',
         # javascript files to make for an even more pleasant IDE experience
         '<@(library_files)',
@@ -306,19 +310,6 @@
             ],
           },
         }],
-        [ 'node_shared_v8=="false"', {
-          'sources': [
-            'deps/v8/include/v8.h',
-            'deps/v8/include/v8-debug.h',
-          ],
-          'dependencies': [
-            'deps/v8/tools/gyp/v8.gyp:v8',
-            'deps/v8/tools/gyp/v8.gyp:v8_libplatform',
-          ],
-          # libplatform/libplatform.h includes include/v8platform.h
-          'include_dirs': [ 'deps/v8' ],
-        }],
-
         [ 'node_shared_zlib=="false"', {
           'dependencies': [ 'deps/zlib/zlib.gyp:zlib' ],
         }],
@@ -381,16 +372,12 @@
           ],
         }],
         [ 'OS=="freebsd" or OS=="linux"', {
-          'ldflags': [ '-Wl,-z,noexecstack' ],
+          'ldflags': [ '-Wl,-z,noexecstack',
+                       '-Wl,--whole-archive <(V8_BASE)',
+                       '-Wl,--no-whole-archive' ]
         }],
         [ 'OS=="sunos"', {
           'ldflags': [ '-Wl,-M,/usr/lib/ld/map.noexstk' ],
-        }],
-        [
-          'OS in "linux freebsd" and node_shared_v8=="false"', {
-            'ldflags': [
-              '-Wl,--whole-archive <(V8_BASE) -Wl,--no-whole-archive',
-            ],
         }],
       ],
       'msvs_settings': {
@@ -619,14 +606,14 @@
     {
       'target_name': 'cctest',
       'type': 'executable',
-      'dependencies': [ 'deps/gtest/gtest.gyp:gtest' ],
-      'conditions': [
-        [ 'node_shared_v8=="false"', {
-          'dependencies': [ 'deps/v8/tools/gyp/v8.gyp:v8' ],
-        }],
+      'dependencies': [ 
+        'deps/gtest/gtest.gyp:gtest',
+        'deps/v8/tools/gyp/v8.gyp:v8',
+        'deps/v8/tools/gyp/v8.gyp:v8_libplatform'
       ],
       'include_dirs': [
         'src',
+        'deps/v8/include'
       ],
       'defines': [
         # gtest's ASSERT macros conflict with our own.
