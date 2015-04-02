@@ -3006,7 +3006,6 @@ static void PrintHelp() {
          "function is used\n"
          "  --trace-deprecation  show stack traces on deprecations\n"
          "  --v8-options         print v8 command line options\n"
-         "  --max-stack-size=val set max v8 stack size (bytes)\n"
 #if defined(NODE_HAVE_I18N_SUPPORT)
          "  --icu-data-dir=dir   set ICU data load path to dir\n"
          "                         (overrides NODE_ICU_DATA)\n"
