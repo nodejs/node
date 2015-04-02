@@ -3824,21 +3824,21 @@ static void StartNodeInstance(void* arg) {
 
     bool more;
     do {
-      more = uv_run(env->event_loop(), UV_RUN_ONCE);
+      more = uv_run(env->event_loop(), UV_RUN_DEFAULT);
       if (more == false) {
         EmitBeforeExit(env);
 
-        // Emit `beforeExit` if the loop became alive either after emitting
-        // event, or after running some callbacks.
-        more = uv_loop_alive(env->event_loop());
-        if (uv_run(env->event_loop(), UV_RUN_NOWAIT) != 0)
-          more = true;
+        more = env->event_loop()->active_handles ||
+            (env->event_loop()->active_reqs[0] !=
+             env->event_loop()->active_reqs[1]);
       }
     } while (more == true);
 
     int exit_code = EmitExit(env);
     if (instance_data->is_main())
       instance_data->set_exit_code(exit_code);
+    // TODO(trevnorris): This will fail for certain beforeExit cases.
+    //assert(!uv_loop_alive(env->event_loop()));
     RunAtExit(env);
 
     env->Dispose();
