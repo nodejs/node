@@ -49,7 +49,7 @@ server.listen(common.PORT, '127.0.0.1', function() {
     rejectUnauthorized: false
   }, function() {
     var cipher = client.getCipher();
-    assert.equal(cipher.name, cipher_list[0]);
+    assert.equal(cipher.name, cipher_list[1]);
     assert(cipher_version_pattern.test(cipher.version));
     client.end();
     server.close();
