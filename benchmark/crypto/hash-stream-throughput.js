@@ -5,7 +5,7 @@ var crypto = require('crypto');
 
 var bench = common.createBenchmark(main, {
   writes: [500],
-  algo: [ 'sha256', 'md5' ],
+  algo: ['sha1', 'sha256', 'sha512'],
   type: ['asc', 'utf', 'buf'],
   len: [2, 1024, 102400, 1024 * 1024],
   api: ['legacy', 'stream']
