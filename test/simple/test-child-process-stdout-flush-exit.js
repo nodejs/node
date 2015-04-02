@@ -52,14 +52,17 @@ if (process.argv[2] === 'child') {
 
   // check if we receive both 'hello' at start and 'goodbye' at end
   child.stdout.setEncoding('utf8');
+  var messageSequence = 0;
   child.stdout.on('data', function (data) {
-    if (data.slice(0, 6) == 'hello\n') {
+    if ((0 == messageSequence) && (data.slice(0, 6) == 'hello\n')) {
       gotHello = true;
-    } else if (data.slice(data.length - 8) == 'goodbye\n') {
+    }
+    if (data.slice(data.length - 8) == 'goodbye\n') {
       gotBye = true;
     } else {
       gotBye = false;
     }
+    messageSequence++;
   });
 
   child.on('close', function (data) {
