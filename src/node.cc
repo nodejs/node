@@ -5,7 +5,6 @@
 #include "node_http_parser.h"
 #include "node_javascript.h"
 #include "node_version.h"
-#include "node_v8_platform.h"
 
 #if defined HAVE_PERFCTR
 #include "node_counters.h"
@@ -38,6 +37,7 @@
 #include "string_bytes.h"
 #include "util.h"
 #include "uv.h"
+#include "libplatform/libplatform.h"
 #include "v8-debug.h"
 #include "v8-profiler.h"
 #include "zlib.h"
@@ -140,6 +140,7 @@ static bool debugger_running;
 static uv_async_t dispatch_debug_messages_async;
 
 static Isolate* node_isolate = nullptr;
+static v8::Platform* default_platform;
 
 class ArrayBufferAllocator : public ArrayBuffer::Allocator {
  public:
@@ -3824,8 +3825,11 @@ static void StartNodeInstance(void* arg) {
 
     bool more;
     do {
+      v8::platform::PumpMessageLoop(default_platform, isolate);
       more = uv_run(env->event_loop(), UV_RUN_ONCE);
+
       if (more == false) {
+        v8::platform::PumpMessageLoop(default_platform, isolate);
         EmitBeforeExit(env);
 
         // Emit `beforeExit` if the loop became alive either after emitting
@@ -3872,7 +3876,9 @@ int Start(int argc, char** argv) {
   V8::SetEntropySource(crypto::EntropySource);
 #endif
 
-  V8::InitializePlatform(new Platform(4));
+  const int thread_pool_size = 4;
+  default_platform = v8::platform::CreateDefaultPlatform(thread_pool_size);
+  V8::InitializePlatform(default_platform);
   V8::Initialize();
 
   int exit_code = 1;
@@ -3888,6 +3894,9 @@ int Start(int argc, char** argv) {
     exit_code = instance_data.exit_code();
   }
   V8::Dispose();
+
+  delete default_platform;
+  default_platform = nullptr;
 
   delete[] exec_argv;
   exec_argv = nullptr;
