@@ -1,0 +1,64 @@
+{
+  "name": "get-stdin",
+  "version": "4.0.1",
+  "description": "Easier stdin",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sindresorhus/get-stdin"
+  },
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "http://sindresorhus.com"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "scripts": {
+    "test": "node test.js && node test-buffer.js && echo unicorns | node test-real.js"
+  },
+  "files": [
+    "index.js"
+  ],
+  "keywords": [
+    "std",
+    "stdin",
+    "stdio",
+    "concat",
+    "buffer",
+    "stream",
+    "process",
+    "stream"
+  ],
+  "devDependencies": {
+    "ava": "0.0.4",
+    "buffer-equal": "0.0.1"
+  },
+  "gitHead": "65c744975229b25d6cc5c7546f49b6ad9099553f",
+  "bugs": {
+    "url": "https://github.com/sindresorhus/get-stdin/issues"
+  },
+  "homepage": "https://github.com/sindresorhus/get-stdin",
+  "_id": "get-stdin@4.0.1",
+  "_shasum": "b968c6b0a04384324902e8bf1a5df32579a450fe",
+  "_from": "get-stdin@>=4.0.1 <5.0.0",
+  "_npmVersion": "1.4.28",
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "dist": {
+    "shasum": "b968c6b0a04384324902e8bf1a5df32579a450fe",
+    "tarball": "http://registry.npmjs.org/get-stdin/-/get-stdin-4.0.1.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/get-stdin/-/get-stdin-4.0.1.tgz",
+  "readme": "ERROR: No README data found!"
+}

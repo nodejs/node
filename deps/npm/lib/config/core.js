@@ -76,6 +76,7 @@ function load () {
   cb = once(function (er, conf) {
     if (!er)
       exports.loaded = conf
+      loading = false
     loadCbs.forEach(function (fn) {
       fn(er, conf)
     })
