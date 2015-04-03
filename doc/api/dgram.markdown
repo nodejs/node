@@ -46,7 +46,7 @@ with `socket.address().address` and `socket.address().port`.
 The `options` object should contain a `type` field of either `udp4` or `udp6`
 and an optional boolean `reuseAddr` field.
 
-When `reuseAddr` is true `socket.bind()` will reuse the address, even if
+When `reuseAddr` is `true` `socket.bind()` will reuse the address, even if
 another process has already bound a socket on it. `reuseAddr` defaults to
 `false`.
 
