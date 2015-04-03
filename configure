@@ -25,12 +25,20 @@ import nodedownload
 # parse our options
 parser = optparse.OptionParser()
 
+valid_os = ('win', 'mac', 'solaris', 'freebsd', 'openbsd', 'linux', 'android')
+valid_arch = ('arm', 'arm64', 'ia32', 'mips', 'mipsel', 'x32', 'x64')
+valid_arm_float_abi = ('soft', 'softfp', 'hard')
+valid_mips_arch = ('loongson', 'r1', 'r2', 'r6', 'rx')
+valid_mips_fpu = ('fp32', 'fp64', 'fpxx')
+valid_mips_float_abi = ('soft', 'hard')
+
 # Options should be in alphabetical order but keep --prefix at the top,
 # that's arguably the one people will be looking for most.
 parser.add_option('--prefix',
     action='store',
     dest='prefix',
-    help='select the install prefix (defaults to /usr/local)')
+    default='/usr/local',
+    help='select the install prefix [default: %default]')
 
 parser.add_option('--debug',
     action='store_true',
@@ -40,14 +48,16 @@ parser.add_option('--debug',
 parser.add_option('--dest-cpu',
     action='store',
     dest='dest_cpu',
-    help='CPU architecture to build for. '
-         'Valid values are: arm, arm64, ia32, mips, mipsel, x32, x64')
+    choices=valid_arch,
+    help='CPU architecture to build for ({0})'.format(', '.join(
+        str(i) for i in valid_arch)))
 
 parser.add_option('--dest-os',
     action='store',
     dest='dest_os',
-    help='operating system to build for. Valid values are: '
-         'win, mac, solaris, freebsd, openbsd, linux, android')
+    choices=valid_os,
+    help='operating system to build for ({0})'.format(', '.join(
+        str(i) for i in valid_os)))
 
 parser.add_option('--gdb',
     action='store_true',
@@ -101,7 +111,8 @@ parser.add_option('--shared-http-parser-includes',
 parser.add_option('--shared-http-parser-libname',
     action='store',
     dest='shared_http_parser_libname',
-    help='alternative lib name to link to (default: \'http_parser\')')
+    default='http_parser',
+    help='alternative lib name to link to [default: %default]')
 
 parser.add_option('--shared-http-parser-libpath',
     action='store',
@@ -121,7 +132,8 @@ parser.add_option('--shared-libuv-includes',
 parser.add_option('--shared-libuv-libname',
     action='store',
     dest='shared_libuv_libname',
-    help='alternative lib name to link to (default: \'uv\')')
+    default='uv',
+    help='alternative lib name to link to [default: %default]')
 
 parser.add_option('--shared-libuv-libpath',
     action='store',
@@ -141,7 +153,8 @@ parser.add_option('--shared-openssl-includes',
 parser.add_option('--shared-openssl-libname',
     action='store',
     dest='shared_openssl_libname',
-    help='alternative lib name to link to (default: \'crypto,ssl\')')
+    default='crypto,ssl',
+    help='alternative lib name to link to [default: %default]')
 
 parser.add_option('--shared-openssl-libpath',
     action='store',
@@ -161,7 +174,8 @@ parser.add_option('--shared-zlib-includes',
 parser.add_option('--shared-zlib-libname',
     action='store',
     dest='shared_zlib_libname',
-    help='alternative lib name to link to (default: \'z\')')
+    default='z',
+    help='alternative lib name to link to [default: %default]')
 
 parser.add_option('--shared-zlib-libpath',
     action='store',
@@ -188,26 +202,33 @@ parser.add_option('--v8-options',
 parser.add_option('--with-arm-float-abi',
     action='store',
     dest='arm_float_abi',
-    help='specifies which floating-point ABI to use. Valid values are: '
-         'soft, softfp, hard')
+    choices=valid_arm_float_abi,
+    help='specifies which floating-point ABI to use ({0}).'.format(', '.join(
+        str(i) for i in valid_arm_float_abi)))
 
 parser.add_option('--with-mips-arch-variant',
     action='store',
     dest='mips_arch_variant',
     default='r2',
-    help='MIPS arch variant: loongson, r1, r2, r6, rx')
+    choices=valid_mips_arch,
+    help='MIPS arch variant ({0}) [default: %default]'.format(', '.join(
+        str(i) for i in valid_mips_arch)))
 
 parser.add_option('--with-mips-fpu-mode',
     action='store',
     dest='mips_fpu_mode',
     default='fp32',
-    help='MIPS FPU mode: fp32, fp64, fpxx')
+    choices=valid_mips_fpu,
+    help='MIPS FPU mode ({0}) [default: %default]'.format(', '.join(
+        str(i) for i in valid_mips_fpu)))
 
 parser.add_option('--with-mips-float-abi',
     action='store',
     dest='mips_float_abi',
     default='hard',
-    help='MIPS floating-point ABI: soft, hard')
+    choices=valid_mips_float_abi,
+    help='MIPS floating-point ABI ({0}) [default: %default]'.format(', '.join(
+        str(i) for i in valid_mips_float_abi)))
 
 parser.add_option('--with-dtrace',
     action='store_true',
@@ -237,12 +258,14 @@ parser.add_option('--with-icu-path',
 parser.add_option('--with-icu-locales',
     action='store',
     dest='with_icu_locales',
-    help='Comma-separated list of locales for "small-icu". Default: "root,en". "root" is assumed.')
+    default='root,en',
+    help='Comma-separated list of locales for "small-icu". "root" is assumed. '
+        '[default: %default]')
 
 parser.add_option('--with-intl',
     action='store',
     dest='with_intl',
-    help='Intl mode: none, full-icu, small-icu (default is none)')
+    help='Intl mode: none, full-icu, small-icu [default: none]')
 
 parser.add_option('--with-icu-source',
     action='store',
@@ -601,13 +624,9 @@ def configure_node(o):
 def configure_libz(o):
   o['variables']['node_shared_zlib'] = b(options.shared_zlib)
 
-  # assume shared_zlib if one of these is set?
+  o['libraries'] += ['-l%s' % options.shared_zlib_libname]
   if options.shared_zlib_libpath:
     o['libraries'] += ['-L%s' % options.shared_zlib_libpath]
-  if options.shared_zlib_libname:
-    o['libraries'] += ['-l%s' % options.shared_zlib_libname]
-  elif options.shared_zlib:
-    o['libraries'] += ['-lz']
   if options.shared_zlib_includes:
     o['include_dirs'] += [options.shared_zlib_includes]
 
@@ -615,13 +634,9 @@ def configure_libz(o):
 def configure_http_parser(o):
     o['variables']['node_shared_http_parser'] = b(options.shared_http_parser)
 
-    # assume shared http_parser if one of these is set?
+    o['libraries'] += ['-l%s' % options.shared_http_parser_libname]
     if options.shared_http_parser_libpath:
         o['libraries'] += ['-L%s' % options.shared_http_parser_libpath]
-    if options.shared_http_parser_libname:
-        o['libraries'] += ['-l%s' % options.shared_http_parser_libname]
-    elif options.shared_http_parser:
-        o['libraries'] += ['-lhttp_parser']
     if options.shared_http_parser_includes:
         o['include_dirs'] += [options.shared_http_parser_includes]
 
@@ -629,16 +644,12 @@ def configure_http_parser(o):
 def configure_libuv(o):
   o['variables']['node_shared_libuv'] = b(options.shared_libuv)
 
-  # assume shared libuv if one of these is set?
+  o['libraries'] += ['-l%s' % options.shared_libuv_libname]
   if options.shared_libuv_libpath:
     o['libraries'] += ['-L%s' % options.shared_libuv_libpath]
   else:
     o['variables']['uv_library'] = 'static_library'
 
-  if options.shared_libuv_libname:
-    o['libraries'] += ['-l%s' % options.shared_libuv_libname]
-  elif options.shared_libuv:
-    o['libraries'] += ['-luv']
   if options.shared_libuv_includes:
     o['include_dirs'] += [options.shared_libuv_includes]
 
@@ -662,14 +673,11 @@ def configure_openssl(o):
   if options.shared_openssl:
     (libs, cflags) = pkg_config('openssl') or ('-lssl -lcrypto', '')
 
+    libnames = options.shared_openssl_libname.split(',')
+    o['libraries'] += ['-l%s' % s for s in libnames]
+
     if options.shared_openssl_libpath:
       o['libraries'] += ['-L%s' % options.shared_openssl_libpath]
-
-    if options.shared_openssl_libname:
-      libnames = options.shared_openssl_libname.split(',')
-      o['libraries'] += ['-l%s' % s for s in libnames]
-    else:
-      o['libraries'] += libs.split()
 
     if options.shared_openssl_includes:
       o['include_dirs'] += [options.shared_openssl_includes]
@@ -780,10 +788,6 @@ def configure_intl(o):
   # set the default
   if with_intl is None:
     with_intl = 'none'  # The default mode of Intl
-  # sanity check localelist
-  if options.with_icu_locales and (with_intl != 'small-icu'):
-    print 'Error: --with-icu-locales only makes sense with --with-intl=small-icu'
-    sys.exit(1)
   if with_intl == 'none' or with_intl is None:
     o['variables']['v8_enable_i18n_support'] = 0
     return  # no Intl
