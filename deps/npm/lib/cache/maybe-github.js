@@ -13,12 +13,12 @@ module.exports = function maybeGithub (p, cb) {
   return addRemoteGit(parsed.git(), true, function (er, data) {
     if (er) {
       log.info("maybeGithub", "Couldn't clone %s", parsed.git())
-      log.info("maybeGithub", "Now attempting %s from %s", p, parsed.ssh())
+      log.info("maybeGithub", "Now attempting %s from %s", p, parsed.sshurl())
 
-      return addRemoteGit(parsed.ssh(), false, function (er, data) {
+      return addRemoteGit(parsed.sshurl(), false, function (er, data) {
         if (er) return cb(er)
 
-        success(parsed.ssh(), data)
+        success(parsed.sshurl(), data)
       })
     }
 

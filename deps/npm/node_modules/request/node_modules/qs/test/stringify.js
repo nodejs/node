@@ -67,6 +67,36 @@ describe('stringify()', function () {
         done();
     });
 
+    it('uses indices notation for arrays when indices=true', function (done) {
+
+        expect(Qs.stringify({ a: ['b', 'c'] }, { indices: true })).to.equal('a%5B0%5D=b&a%5B1%5D=c');
+        done();
+    });
+
+    it('uses indices notation for arrays when no arrayFormat is specified', function (done) {
+
+        expect(Qs.stringify({ a: ['b', 'c'] })).to.equal('a%5B0%5D=b&a%5B1%5D=c');
+        done();
+    });
+
+    it('uses indices notation for arrays when no arrayFormat=indices', function (done) {
+
+        expect(Qs.stringify({ a: ['b', 'c'] }, { arrayFormat: 'indices' })).to.equal('a%5B0%5D=b&a%5B1%5D=c');
+        done();
+    });
+
+    it('uses repeat notation for arrays when no arrayFormat=repeat', function (done) {
+
+        expect(Qs.stringify({ a: ['b', 'c'] }, { arrayFormat: 'repeat' })).to.equal('a=b&a=c');
+        done();
+    });
+
+    it('uses brackets notation for arrays when no arrayFormat=brackets', function (done) {
+
+        expect(Qs.stringify({ a: ['b', 'c'] }, { arrayFormat: 'brackets' })).to.equal('a%5B%5D=b&a%5B%5D=c');
+        done();
+    });
+
     it('stringifies a complicated object', function (done) {
 
         expect(Qs.stringify({ a: { b: 'c', d: 'e' } })).to.equal('a%5Bb%5D=c&a%5Bd%5D=e');

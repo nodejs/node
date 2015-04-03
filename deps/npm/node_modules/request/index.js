@@ -47,56 +47,23 @@ function request (uri, options, callback) {
   options.callback = params.callback
   options.uri = params.uri
 
-  return new request.Request(options)
-}
-
-function requester(params) {
-  if(typeof params.options._requester === 'function') {
-    return params.options._requester
-  }
-  return request
-}
-
-request.get = function (uri, options, callback) {
-  var params = initParams(uri, options, callback)
-  params.options.method = 'GET'
-  return requester(params)(params.uri || null, params.options, params.callback)
-}
-
-request.head = function (uri, options, callback) {
-  var params = initParams(uri, options, callback)
-  params.options.method = 'HEAD'
-
-  if (paramsHaveRequestBody(params)) {
+  if (params.options.method === 'HEAD' && paramsHaveRequestBody(params)) {
     throw new Error('HTTP HEAD requests MUST NOT include a request body.')
   }
 
-  return requester(params)(params.uri || null, params.options, params.callback)
+  return new request.Request(options)
 }
 
-request.post = function (uri, options, callback) {
-  var params = initParams(uri, options, callback)
-  params.options.method = 'POST'
-  return requester(params)(params.uri || null, params.options, params.callback)
-}
+var verbs = ['get', 'head', 'post', 'put', 'patch', 'del']
 
-request.put = function (uri, options, callback) {
-  var params = initParams(uri, options, callback)
-  params.options.method = 'PUT'
-  return requester(params)(params.uri || null, params.options, params.callback)
-}
-
-request.patch = function (uri, options, callback) {
-  var params = initParams(uri, options, callback)
-  params.options.method = 'PATCH'
-  return requester(params)(params.uri || null, params.options, params.callback)
-}
-
-request.del = function (uri, options, callback) {
-  var params = initParams(uri, options, callback)
-  params.options.method = 'DELETE'
-  return requester(params)(params.uri || null, params.options, params.callback)
-}
+verbs.forEach(function(verb){
+  var method = verb === 'del' ? 'DELETE' : verb.toUpperCase()
+  request[verb] = function(uri, options, callback){
+    var params = initParams(uri, options, callback)
+    params.options.method = method
+    return this(params.uri || null, params.options, params.callback)
+  }
+})
 
 request.jar = function (store) {
   return cookies.jar(store)
@@ -107,6 +74,12 @@ request.cookie = function (str) {
 }
 
 request.defaults = function (options, requester) {
+
+  if (typeof options === 'function') {
+    requester = options
+    options = {}
+  }
+
   var self = this
   var wrap = function (method) {
     var headerlessOptions = function (options) {
@@ -131,11 +104,7 @@ request.defaults = function (options, requester) {
       }
 
       if (isFunction(requester)) {
-        if (method === self) {
-          method = requester
-        } else {
-          params.options._requester = requester
-        }
+        method = requester
       }
 
       return method(params.options, params.callback)
@@ -143,13 +112,13 @@ request.defaults = function (options, requester) {
   }
 
   var defaults      = wrap(self)
-  defaults.get      = wrap(self.get)
-  defaults.patch    = wrap(self.patch)
-  defaults.post     = wrap(self.post)
-  defaults.put      = wrap(self.put)
-  defaults.head     = wrap(self.head)
-  defaults.del      = wrap(self.del)
-  defaults.cookie   = wrap(self.cookie)
+  defaults.get      = self.get
+  defaults.patch    = self.patch
+  defaults.post     = self.post
+  defaults.put      = self.put
+  defaults.head     = self.head
+  defaults.del      = self.del
+  defaults.cookie   = self.cookie
   defaults.jar      = self.jar
   defaults.defaults = self.defaults
   return defaults

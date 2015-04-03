@@ -64,11 +64,11 @@ for testing, or running stuff without actually installing npm itself.)
 
 ## Windows Install or Upgrade
 
-You can download a zip file from <https://github.com/npm/npm/releases>, and unpack it
-in the same folder where node.exe lives.
+You can download a zip file from <https://github.com/npm/npm/releases>, and
+unpack it in the `node_modules\npm\` folder inside node's installation folder.
 
-The latest version in a zip file is 1.4.12.  To upgrade to npm 2, follow the
-Windows upgrade instructions in the npm Troubleshooting Guide:
+To upgrade to npm 2, follow the Windows upgrade instructions in
+the npm Troubleshooting Guide:
 
 <https://github.com/npm/npm/wiki/Troubleshooting#upgrading-on-windows>
 
