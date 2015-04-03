@@ -354,7 +354,7 @@ function getResolved (uri, treeish) {
   // https://github.com/npm/npm/issues/3224
   var spo = uri.split(parsed.host)
   var spr = resolved.split(parsed.host)
-  if (spo[1].charAt(0) === ':' && spr[1].charAt(0) === '/') {
+  if (spo[1] && spo[1].charAt(0) === ':' && spr[1] && spr[1].charAt(0) === '/') {
     spr[1] = spr[1].slice(1)
   }
   return spr.join(parsed.host)

@@ -1,3 +1,60 @@
+### v2.7.5 (2015-03-26):
+
+#### BUG FIXES
+
+* [`5811468`](https://github.com/npm/npm/commit/5811468e104ccb6b26b8715dff390d68daa10066)
+  [#7713](https://github.com/npm/npm/issues/7713) Add a test for `npm link` and
+  `npm link <package>`. ([@w](https://github.com/w)atilde)
+* [`3cf3b0c`](https://github.com/npm/npm/commit/3cf3b0c8fddb6b66f969969feebea85fabd0360b)
+  [#7713](https://github.com/npm/npm/issues/7713) Only use absolute symbolic
+  links when `npm link`ing. ([@hokaccha](https://github.com/hokaccha))
+* [`f35aa93`](https://github.com/npm/npm/commit/f35aa933e136228a89e3fcfdebe8c7cc4f1e7c00)
+  [#7443](https://github.com/npm/npm/issues/7443) Keep relative URLs when
+  hitting search endpoint. ([@othiym23](https://github.com/othiym23))
+* [`eab6184`](https://github.com/npm/npm/commit/eab618425c51e3aa4416da28dcd8ca4ba63aec41)
+  [#7766](https://github.com/npm/npm/issues/7766) One last tweak to ensure that
+  GitHub shortcuts work with private repositories.
+  ([@iarna](https://github.com/iarna))
+* [`5d7f704`](https://github.com/npm/npm/commit/5d7f704823f5f92ddd7ff3e7dd2b8bcc66c73005)
+  [#7656](https://github.com/npm/npm/issues/7656) Don't try to load a deleted
+  CA file, allowing the `cafile` config to be changed.
+  ([@KenanY](https://github.com/KenanY))
+* [`a840a13`](https://github.com/npm/npm/commit/a840a13bbf0330157536381ea8e58d0bd93b4c05)
+  [#7746](https://github.com/npm/npm/issues/7746) Only fix up URL paths when
+  there are paths to fix up. ([@othiym23](https://github.com/othiym23))
+
+#### DEPENDENCY UPDATES
+
+* [`300834e`](https://github.com/npm/npm/commit/300834e91a4e2a95fb7fb59c309e7c3fc91d2312)
+  `tar@2.0.0`: Normalize symbolic links that point to targets outside the
+  extraction root. ([@othiym23](https://github.com/othiym23))
+* [`0dc6875`](https://github.com/npm/npm/commit/0dc68757cffd5397c280bc71365d106523a5a052)
+  `semver@4.3.2`: Package versions can be no more than 256 characters long.
+  ([@isaacs](https://github.com/isaacs))
+* [`94df809`](https://github.com/npm/npm/commit/94df8095985bf5ba9d8db99dc445d05dac136aaf)
+  `request@2.54.0`: Fixes for Node.js 0.12 and io.js.
+  ([@simov](https://github.com/simov))
+* [`98a13ea`](https://github.com/npm/npm/commit/98a13eafdf098b53069ad15297008fcab9c61653)
+  `opener@1.4.1`: Deal with `start` on Windows more conventionally.
+  ([@domenic](https://github.com/domenic))
+* [`c2417c7`](https://github.com/npm/npm/commit/c2417c7702459a446f07d43ca3c4e99bde7fe9d6)
+  `require-inject@1.2.0`: Add installGlobally to bypass cleanups.
+  ([@iarna](https://github.com/iarna))
+
+#### DOCUMENTATION FIXES
+
+* [`f87c728`](https://github.com/npm/npm/commit/f87c728f8732c9e977c0dc2060c0610649e79155)
+  [#7696](https://github.com/npm/npm/issues/7696) Months and minutes were
+  swapped in doc-build.sh ([@MeddahJ](https://github.com/MeddahJ))
+* [`4e216b2`](https://github.com/npm/npm/commit/4e216b29b30463f06afe6e3c645e205da5f50922)
+  [#7752](https://github.com/npm/npm/issues/7752) Update string examples to be
+  properly quoted. ([@snuggs](https://github.com/snuggs))
+* [`402f52a`](https://github.com/npm/npm/commit/402f52ab201efa348feb87cad753fc4b91e8a3fb)
+  [#7635](https://github.com/npm/npm/issues/7635) Clarify Windows installation
+  instructions. ([@msikma](https://github.com/msikma))
+* [`c910399`](https://github.com/npm/npm/commit/c910399ecfd8db49fe4496dd26887765a8aed20f)
+  small typo fix to `CHANGELOG.md` ([@e-jigsaw](https://github.com/e-jigsaw))
+
 ### v2.7.4 (2015-03-20):
 
 #### BUG FIXES
@@ -105,7 +162,7 @@
 * [`6823807`](https://github.com/npm/npm/commit/6823807bba6c00228a724e1205ae90d67df0adad)
   [#7121](https://github.com/npm/npm/issues/7121) `npm install --save` for Git
   dependencies saves the URL passed in, instead of the temporary directory used
-  to clone the remote repo. Fixes using Git dependencies when shrinkwwapping.
+  to clone the remote repo. Fixes using Git dependencies when shrinkwrapping.
   In the process, rewrote the Git dependency caching code. Again. No more
   single-letter variable names, and a much clearer workflow.
   ([@othiym23](https://github.com/othiym23))

@@ -114,7 +114,7 @@ is an object with a "name" field and optionally "url" and "email", like this:
 
 Or you can shorten that all into a single string, and npm will parse it for you:
 
-    "Barney Rubble <b@rubble.com> (http://barnyrubble.tumblr.com/)
+    "Barney Rubble <b@rubble.com> (http://barnyrubble.tumblr.com/)"
 
 Both email and url are optional either way.
 

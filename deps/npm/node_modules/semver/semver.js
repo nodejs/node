@@ -20,6 +20,9 @@ if (typeof module === 'object' && module.exports === exports)
 // Not necessarily the package version of this code.
 exports.SEMVER_SPEC_VERSION = '2.0.0';
 
+var MAX_LENGTH = 256;
+var MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER || 9007199254740991;
+
 // The actual regexps go on exports.re
 var re = exports.re = [];
 var src = exports.src = [];
@@ -233,8 +236,18 @@ for (var i = 0; i < R; i++) {
 
 exports.parse = parse;
 function parse(version, loose) {
+  if (version.length > MAX_LENGTH)
+    return null;
+
   var r = loose ? re[LOOSE] : re[FULL];
-  return (r.test(version)) ? new SemVer(version, loose) : null;
+  if (!r.test(version))
+    return null;
+
+  try {
+    return new SemVer(version, loose);
+  } catch (er) {
+    return null;
+  }
 }
 
 exports.valid = valid;
@@ -262,6 +275,9 @@ function SemVer(version, loose) {
     throw new TypeError('Invalid Version: ' + version);
   }
 
+  if (version.length > MAX_LENGTH)
+    throw new TypeError('version is longer than ' + MAX_LENGTH + ' characters')
+
   if (!(this instanceof SemVer))
     return new SemVer(version, loose);
 
@@ -278,6 +294,15 @@ function SemVer(version, loose) {
   this.major = +m[1];
   this.minor = +m[2];
   this.patch = +m[3];
+
+  if (this.major > MAX_SAFE_INTEGER || this.major < 0)
+    throw new TypeError('Invalid major version')
+
+  if (this.minor > MAX_SAFE_INTEGER || this.minor < 0)
+    throw new TypeError('Invalid minor version')
+
+  if (this.patch > MAX_SAFE_INTEGER || this.patch < 0)
+    throw new TypeError('Invalid patch version')
 
   // numberify any prerelease numeric ids
   if (!m[4])
