@@ -44,16 +44,16 @@ class TestFindCycles(unittest.TestCase):
   def test_cycle_self_reference(self):
     self._create_dependency(self.nodes['a'], self.nodes['a'])
 
-    self.assertEquals([(self.nodes['a'], self.nodes['a'])],
+    self.assertEquals([[self.nodes['a'], self.nodes['a']]],
                       self.nodes['a'].FindCycles())
 
   def test_cycle_two_nodes(self):
     self._create_dependency(self.nodes['a'], self.nodes['b'])
     self._create_dependency(self.nodes['b'], self.nodes['a'])
 
-    self.assertEquals([(self.nodes['a'], self.nodes['b'], self.nodes['a'])],
+    self.assertEquals([[self.nodes['a'], self.nodes['b'], self.nodes['a']]],
                       self.nodes['a'].FindCycles())
-    self.assertEquals([(self.nodes['b'], self.nodes['a'], self.nodes['b'])],
+    self.assertEquals([[self.nodes['b'], self.nodes['a'], self.nodes['b']]],
                       self.nodes['b'].FindCycles())
 
   def test_two_cycles(self):
@@ -65,9 +65,9 @@ class TestFindCycles(unittest.TestCase):
 
     cycles = self.nodes['a'].FindCycles()
     self.assertTrue(
-       (self.nodes['a'], self.nodes['b'], self.nodes['a']) in cycles)
+       [self.nodes['a'], self.nodes['b'], self.nodes['a']] in cycles)
     self.assertTrue(
-       (self.nodes['b'], self.nodes['c'], self.nodes['b']) in cycles)
+       [self.nodes['b'], self.nodes['c'], self.nodes['b']] in cycles)
     self.assertEquals(2, len(cycles))
 
   def test_big_cycle(self):
@@ -77,12 +77,12 @@ class TestFindCycles(unittest.TestCase):
     self._create_dependency(self.nodes['d'], self.nodes['e'])
     self._create_dependency(self.nodes['e'], self.nodes['a'])
 
-    self.assertEquals([(self.nodes['a'],
+    self.assertEquals([[self.nodes['a'],
                         self.nodes['b'],
                         self.nodes['c'],
                         self.nodes['d'],
                         self.nodes['e'],
-                        self.nodes['a'])],
+                        self.nodes['a']]],
                       self.nodes['a'].FindCycles())
 
 

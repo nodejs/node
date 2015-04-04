@@ -59,7 +59,6 @@ def Load(build_files, format, default_variables={},
   if params is None:
     params = {}
 
-  flavor = None
   if '-' in format:
     format, params['flavor'] = format.split('-', 1)
 
@@ -69,6 +68,7 @@ def Load(build_files, format, default_variables={},
   # named WITH_CAPITAL_LETTERS to provide a distinct "best practice" namespace,
   # avoiding collisions with user and automatic variables.
   default_variables['GENERATOR'] = format
+  default_variables['GENERATOR_FLAVOR'] = params.get('flavor', '')
 
   # Format can be a custom python file, or by default the name of a module
   # within gyp.generator.
@@ -371,7 +371,7 @@ def gyp_main(args):
     if options.use_environment:
       generate_formats = os.environ.get('GYP_GENERATORS', [])
     if generate_formats:
-      generate_formats = re.split('[\s,]', generate_formats)
+      generate_formats = re.split(r'[\s,]', generate_formats)
     if generate_formats:
       options.formats = generate_formats
     else:
@@ -493,14 +493,13 @@ def gyp_main(args):
               'gyp_binary': sys.argv[0],
               'home_dot_gyp': home_dot_gyp,
               'parallel': options.parallel,
-              'root_targets': options.root_targets}
+              'root_targets': options.root_targets,
+              'target_arch': cmdline_default_variables.get('target_arch', '')}
 
     # Start with the default variables from the command line.
-    [generator, flat_list, targets, data] = Load(build_files, format,
-                                                 cmdline_default_variables,
-                                                 includes, options.depth,
-                                                 params, options.check,
-                                                 options.circular_check)
+    [generator, flat_list, targets, data] = Load(
+        build_files, format, cmdline_default_variables, includes, options.depth,
+        params, options.check, options.circular_check)
 
     # TODO(mark): Pass |data| for now because the generator needs a list of
     # build files that came in.  In the future, maybe it should just accept
