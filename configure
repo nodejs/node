@@ -295,6 +295,11 @@ parser.add_option('--xcode',
     dest='use_xcode',
     help='generate build files for use with xcode')
 
+parser.add_option('--enable-static',
+    action='store_true',
+    dest='enable_static',
+    help='build as static library')
+
 (options, args) = parser.parse_args()
 
 # set up auto-download list
@@ -588,6 +593,9 @@ def configure_node(o):
 
   if options.v8_options:
     o['variables']['node_v8_options'] = options.v8_options.replace('"', '\\"')
+
+  if options.enable_static:
+    o['variables']['node_target_type'] = 'static_library'
 
 
 def configure_libz(o):
