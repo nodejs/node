@@ -818,9 +818,12 @@ Test it with:
 * `callback`: `void (*)(void*)` - A pointer to the function to call at exit.
 * `args`: `void*` - A pointer to pass to the callback at exit.
 
-Registers exit hooks that run after the event loop has ended, but before the VM is killed.
+Registers exit hooks that run after the event loop has ended, but before the VM
+is killed.
 
-Callbacks are run in reverse order of registration, i.e. newest first. AtExit takes callback and its arguments as arguments.
+Callbacks are run in last-in, first-out order. AtExit takes two parameters:
+a pointer to a callback function to run at exit, and a pointer to untyped
+context data to be passed to that callback.
 
 The file `binding.cc` implements AtExit below:
 
@@ -834,7 +837,7 @@ The file `binding.cc` implements AtExit below:
       static int at_exit_cb2_called = 0;
 
       static void at_exit_cb1(void* arg) {
-        v8::Isolate* isolate = v8::Isolate::GetCurrent();
+        v8::Isolate* isolate = static_cast<v8::Isolate*>(arg);
         v8::HandleScope scope(isolate);
         assert(arg == 0);
         v8::Local<v8::Object> obj = v8::Object::New(isolate);
@@ -854,7 +857,7 @@ The file `binding.cc` implements AtExit below:
       }
 
       void init(Handle<Object> exports) {
-        AtExit(at_exit_cb1);
+        AtExit(at_exit_cb1, exports->GetIsolate());
         AtExit(at_exit_cb2, cookie);
         AtExit(at_exit_cb2, cookie);
         AtExit(sanity_check);
