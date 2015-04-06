@@ -1,8 +1,0 @@
-// -*- mode: c++ -*-
-#include <stdio.h>
-
-namespace gen {
-  void nodir() {
-    printf("no dir here\n");
-  }
-}

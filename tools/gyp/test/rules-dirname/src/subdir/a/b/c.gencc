@@ -1,8 +1,0 @@
-// -*- mode: c++ -*-
-#include <stdio.h>
-
-namespace gen {
-  void c() {
-    printf("hi c\n");
-  }
-}
