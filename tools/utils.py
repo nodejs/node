@@ -73,7 +73,7 @@ def GuessOS():
 def GuessArchitecture():
   id = platform.machine()
   id = id.lower()  # Windows 7 capitalizes 'AMD64'.
-  if id.startswith('arm'):
+  if id.startswith('arm') or id == 'aarch64':
     return 'arm'
   elif (not id) or (not re.match('(x|i[3-6])86$', id) is None):
     return 'ia32'
