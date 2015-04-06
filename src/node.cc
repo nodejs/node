@@ -2938,9 +2938,7 @@ static void PrintHelp() {
          "  --enable-ssl3        enable ssl3\n"
          "  --cipher-list=val    specify the default TLS cipher list\n"
          "  --enable-legacy-cipher-list=val \n"
-         "                       set to v0.10.38 to use the v0.10.38 list,\n"
-         "                       set to v0.10.39 to use the v0.10.39 list.\n"
-         "                       set to v0.12.2 to use the v0.12.2 list.\n"
+         "                       val = v0.10.38, v0.10.39, or v0.12.2\n"
          "\n"
          "Environment variables:\n"
 #ifdef _WIN32
@@ -2959,10 +2957,8 @@ static void PrintHelp() {
 #endif
 #endif
          "NODE_CIPHER_LIST       Override the default TLS cipher list\n"
-         "NODE_LEGACY_CIPHER_LIST\n"
-         "                       Set to v0.10.38 to use the v0.10.38 list.\n"
-         "                       Set to v0.10.39 to use the v0.10.39 list.\n"
-         "                       Set to v0.12.2 to use the v0.12.2 list.\n"
+         "NODE_LEGACY_CIPHER_LIST=val\n"
+         "                       val = v0.10.38, v0.10.39, or v0.12.2\n"
          "\n"
          "Documentation can be found at http://nodejs.org/\n");
 }
