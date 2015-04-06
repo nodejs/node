@@ -173,8 +173,8 @@ def files(action):
     subdir_files('deps/uv/include', 'include/node/', action)
 
   if 'false' == variables.get('node_shared_openssl'):
+    subdir_files('deps/openssl/openssl/include/openssl', 'include/node/openssl/', action)
     action(['deps/openssl/config/opensslconf.h'], 'include/node/openssl/')
-    subdir_files('deps/openssl/include/openssl', 'include/node/openssl/', action)
 
   if 'false' == variables.get('node_shared_v8'):
     subdir_files('deps/v8/include', 'include/node/', action)
