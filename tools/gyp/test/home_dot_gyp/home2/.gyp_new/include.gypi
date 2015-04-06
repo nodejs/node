@@ -1,5 +1,0 @@
-{
-  'variables': {
-    'foo': '"fromhome3"',
-  },
-}

@@ -1,1 +1,0 @@
-void objc_fun() { }

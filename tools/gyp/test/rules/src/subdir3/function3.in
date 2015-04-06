@@ -1,6 +1,0 @@
-#include <stdio.h>
-
-extern "C" void function3(void)
-{
-  printf("Hello from function3.in\n");
-}
