@@ -13,6 +13,7 @@
     'node_use_openssl%': 'true',
     'node_shared_openssl%': 'false',
     'node_v8_options%': '',
+    'node_target_type%': 'executable',
     'library_files': [
       'src/node.js',
       'lib/_debug_agent.js',
@@ -77,7 +78,7 @@
   'targets': [
     {
       'target_name': 'iojs',
-      'type': 'executable',
+      'type': '<(node_target_type)',
 
       'dependencies': [
         'node_js2c#host',
@@ -179,6 +180,12 @@
       ],
 
       'conditions': [
+        # No node_main.cc for anything except executable
+        [ 'node_target_type!="executable"', {
+          'sources!': [
+            'src/node_main.cc',
+          ],
+        }],
         [ 'v8_enable_i18n_support==1', {
           'defines': [ 'NODE_HAVE_I18N_SUPPORT=1' ],
           'dependencies': [
@@ -211,19 +218,25 @@
                 './deps/openssl/openssl.gyp:openssl-cli',
               ],
               # Do not let unused OpenSSL symbols to slip away
-              'xcode_settings': {
-                'OTHER_LDFLAGS': [
-                  '-Wl,-force_load,<(PRODUCT_DIR)/libopenssl.a',
-                ],
-              },
               'conditions': [
-                ['OS in "linux freebsd"', {
-                  'ldflags': [
-                    '-Wl,--whole-archive <(PRODUCT_DIR)/libopenssl.a -Wl,--no-whole-archive',
+                # -force_load or --whole-archive are not applicable for the static library
+                [ 'node_target_type!="static_library"', {
+                  'xcode_settings': {
+                    'OTHER_LDFLAGS': [
+                      '-Wl,-force_load,<(PRODUCT_DIR)/libopenssl.a',
+                    ],
+                  },
+                  'conditions': [
+                    ['OS in "linux freebsd"', {
+                      'ldflags': [
+                        '-Wl,--whole-archive <(PRODUCT_DIR)/libopenssl.a -Wl,--no-whole-archive',
+                      ],
+                    } ],
                   ],
-                }],
+                } ],
               ],
-            }]]
+            } ]
+          ],
         }, {
           'defines': [ 'HAVE_OPENSSL=0' ]
         }],
@@ -300,12 +313,17 @@
         } ],
         [ 'v8_postmortem_support=="true"', {
           'dependencies': [ 'deps/v8/tools/gyp/v8.gyp:postmortem-metadata' ],
-          'xcode_settings': {
-            'OTHER_LDFLAGS': [
-              '-Wl,-force_load,<(V8_BASE)',
-            ],
-          },
-        }],
+          'conditions': [
+            # -force_load is not applicable for the static library
+            [ 'node_target_type!="static_library"', {
+              'xcode_settings': {
+                'OTHER_LDFLAGS': [
+                  '-Wl,-force_load,<(V8_BASE)',
+                ],
+              },
+            } ],
+          ],
+        } ],
         [ 'node_shared_v8=="false"', {
           'sources': [
             'deps/v8/include/v8.h',
