@@ -44,7 +44,7 @@ child.stdout.once('data', function() {
                       '  });\n' +
                       '});"";\n');
 
-    setTimeout(child.stdin.end.bind(child.stdin), 200);
+    setTimeout(child.stdin.end.bind(child.stdin), common.platformTimeout(200));
   }
 });
 

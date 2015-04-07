@@ -128,13 +128,13 @@ if (process.argv[2] === 'child') {
 
   server.listen(common.PORT, '127.0.0.1');
 
-  var timeElasped = 0;
+  var timeElapsed = 0;
   var closeServer = function() {
     console.error('[m] closeServer');
     var startTime = Date.now();
     server.on('close', function() {
       console.error('[m] emit(close)');
-      timeElasped = Date.now() - startTime;
+      timeElapsed = Date.now() - startTime;
     });
 
     console.error('[m] calling server.close');
@@ -149,11 +149,14 @@ if (process.argv[2] === 'child') {
     }, 200);
   };
 
+  var min = 190;
+  var max = common.platformTimeout(1500);
   process.on('exit', function() {
     assert.equal(disconnected, count);
     assert.equal(connected, count);
     assert.ok(closeEmitted);
-    assert.ok(timeElasped >= 190 && timeElasped <= 1000,
-              'timeElasped was not between 190 and 1000 ms');
+    assert.ok(timeElapsed >= min && timeElapsed <= max,
+              `timeElapsed was not between ${min} and ${max} ms:` +
+              `${timeElapsed}`);
   });
 }
