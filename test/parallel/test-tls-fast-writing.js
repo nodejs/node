@@ -22,7 +22,7 @@ var gotDrain = false;
 var timer = setTimeout(function() {
   console.log('not ok - timed out');
   process.exit(1);
-}, 500);
+}, common.platformTimeout(500));
 
 function onconnection(conn) {
   conn.on('data', function(c) {
