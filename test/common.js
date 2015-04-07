@@ -1,3 +1,5 @@
+'use strict';
+
 var path = require('path');
 var fs = require('fs');
 var assert = require('assert');
@@ -176,6 +178,34 @@ exports.spawnPwd = function(options) {
     return spawn('cmd.exe', ['/c', 'cd'], options);
   } else {
     return spawn('pwd', [], options);
+  }
+};
+
+const PLATFORM_TIMOUT_FACTORS = {
+  armv6: 6.0,
+  armv7: 2.0
+};
+
+exports.platformTimeout = function (ms) {
+  if (process.arch !== 'arm')
+    return ms;
+
+  let cpuinfo;
+
+  // arm version detection based on v8
+  try {
+    cpuinfo = fs.readFileSync('/proc/cpuinfo').toString();
+  } catch (e) {
+    return ms;
+  }
+
+  if (/\nCPU architecture:\s7\n/.test(cpuinfo)) {
+    return ms * PLATFORM_TIMOUT_FACTORS[/\(v6l\)/.test(cpuinfo) ?
+      'armv6' : 'armv7'];
+  } else if (/\nCPU architecture:\s6\n/.test(cpuinfo)) {
+    return ms * PLATFORM_TIMOUT_FACTORS['armv6'];
+  } else {
+    return ms;
   }
 };
 
