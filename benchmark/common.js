@@ -16,7 +16,6 @@ exports.PORT = process.env.PORT || 12346;
 
 // If this is the main module, then run the benchmarks
 if (module === require.main) {
-  hasWrk();
   var type = process.argv[2];
   var testFilter = process.argv[3];
   if (!type) {
@@ -92,7 +91,6 @@ function Benchmark(fn, options) {
 
   var self = this;
 
-  hasWrk();
   process.nextTick(function() {
     self._run();
   });
@@ -100,6 +98,7 @@ function Benchmark(fn, options) {
 
 // benchmark an http server.
 Benchmark.prototype.http = function(p, args, cb) {
+  hasWrk();
   var self = this;
   var regexp = /Requests\/sec:[ \t]+([0-9\.]+)/;
   var url = 'http://127.0.0.1:' + exports.PORT + p;
