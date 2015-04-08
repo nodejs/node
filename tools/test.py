@@ -729,8 +729,9 @@ FLAGS = {
     'debug'   : ['--enable-slow-asserts', '--debug-code', '--verify-heap'],
     'release' : []}
 TIMEOUT_SCALEFACTOR = {
-    'arm'  : { 'debug' : 8, 'release' : 2 },  # The ARM buildbots are slow.
-    'ia32' : { 'debug' : 4, 'release' : 1 } }
+    'armv6' : { 'debug' : 12, 'release' : 3 },  # The ARM buildbots are slow.
+    'arm'   : { 'debug' :  8, 'release' : 2 },
+    'ia32'  : { 'debug' :  4, 'release' : 1 } }
 
 
 class Context(object):
