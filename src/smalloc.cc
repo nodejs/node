@@ -48,8 +48,14 @@ using v8::kExternalUint8Array;
 
 class CallbackInfo {
  public:
+  enum Ownership {
+    kInternal,
+    kExternal
+  };
+
   static inline void Free(char* data, void* hint);
   static inline CallbackInfo* New(Isolate* isolate,
+                                  Ownership ownership,
                                   Handle<Object> object,
                                   FreeCallback callback,
                                   void* hint = 0);
@@ -59,10 +65,12 @@ class CallbackInfo {
   static void WeakCallback(const WeakCallbackData<Object, CallbackInfo>&);
   inline void WeakCallback(Isolate* isolate, Local<Object> object);
   inline CallbackInfo(Isolate* isolate,
+                      Ownership ownership,
                       Handle<Object> object,
                       FreeCallback callback,
                       void* hint);
   ~CallbackInfo();
+  const Ownership ownership_;
   Persistent<Object> persistent_;
   FreeCallback const callback_;
   void* const hint_;
@@ -76,10 +84,11 @@ void CallbackInfo::Free(char* data, void*) {
 
 
 CallbackInfo* CallbackInfo::New(Isolate* isolate,
+                                CallbackInfo::Ownership ownership,
                                 Handle<Object> object,
                                 FreeCallback callback,
                                 void* hint) {
-  return new CallbackInfo(isolate, object, callback, hint);
+  return new CallbackInfo(isolate, ownership, object, callback, hint);
 }
 
 
@@ -94,15 +103,18 @@ Persistent<Object>* CallbackInfo::persistent() {
 
 
 CallbackInfo::CallbackInfo(Isolate* isolate,
+                           CallbackInfo::Ownership ownership,
                            Handle<Object> object,
                            FreeCallback callback,
                            void* hint)
-    : persistent_(isolate, object),
+    : ownership_(ownership),
+      persistent_(isolate, object),
       callback_(callback),
       hint_(hint) {
   persistent_.SetWeak(this, WeakCallback);
   persistent_.SetWrapperClassId(ALLOC_ID);
   persistent_.MarkIndependent();
+  isolate->AdjustAmountOfExternalAllocatedMemory(sizeof(*this));
 }
 
 
@@ -129,9 +141,11 @@ void CallbackInfo::WeakCallback(Isolate* isolate, Local<Object> object) {
     array_length *= array_size;
   }
   object->SetIndexedPropertiesToExternalArrayData(nullptr, array_type, 0);
-  int64_t change_in_bytes = -static_cast<int64_t>(array_length + sizeof(*this));
-  isolate->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
   callback_(static_cast<char*>(array_data), hint_);
+  int64_t change_in_bytes = -static_cast<int64_t>(sizeof(*this));
+  if (ownership_ == kInternal)
+    change_in_bytes -= static_cast<int64_t>(array_length);
+  isolate->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
   delete this;
 }
 
@@ -333,7 +347,10 @@ void Alloc(Environment* env,
   env->isolate()->AdjustAmountOfExternalAllocatedMemory(length);
   size_t size = length / ExternalArraySize(type);
   obj->SetIndexedPropertiesToExternalArrayData(data, type, size);
-  CallbackInfo::New(env->isolate(), obj, CallbackInfo::Free);
+  CallbackInfo::New(env->isolate(),
+                    CallbackInfo::kInternal,
+                    obj,
+                    CallbackInfo::Free);
 }
 
 
@@ -381,6 +398,25 @@ void AllocDispose(Environment* env, Handle<Object> obj) {
 }
 
 
+static void Alloc(Environment* env,
+                  CallbackInfo::Ownership ownership,
+                  Handle<Object> obj,
+                  char* data,
+                  size_t length,
+                  FreeCallback fn,
+                  void* hint,
+                  enum ExternalArrayType type) {
+  CHECK_EQ(false, obj->HasIndexedPropertiesInExternalArrayData());
+  Isolate* isolate = env->isolate();
+  HandleScope handle_scope(isolate);
+  env->set_using_smalloc_alloc_cb(true);
+  CallbackInfo* info = CallbackInfo::New(isolate, ownership, obj, fn, hint);
+  obj->SetHiddenValue(env->smalloc_p_string(), External::New(isolate, info));
+  size_t size = length / ExternalArraySize(type);
+  obj->SetIndexedPropertiesToExternalArrayData(data, type, size);
+}
+
+
 void Alloc(Environment* env,
            Handle<Object> obj,
            size_t length,
@@ -404,7 +440,8 @@ void Alloc(Environment* env,
     UNREACHABLE();
   }
 
-  Alloc(env, obj, data, length, fn, hint, type);
+  env->isolate()->AdjustAmountOfExternalAllocatedMemory(length);
+  Alloc(env, CallbackInfo::kInternal, obj, data, length, fn, hint, type);
 }
 
 
@@ -415,15 +452,7 @@ void Alloc(Environment* env,
            FreeCallback fn,
            void* hint,
            enum ExternalArrayType type) {
-  CHECK_EQ(false, obj->HasIndexedPropertiesInExternalArrayData());
-  Isolate* isolate = env->isolate();
-  HandleScope handle_scope(isolate);
-  env->set_using_smalloc_alloc_cb(true);
-  CallbackInfo* info = CallbackInfo::New(isolate, obj, fn, hint);
-  obj->SetHiddenValue(env->smalloc_p_string(), External::New(isolate, info));
-  isolate->AdjustAmountOfExternalAllocatedMemory(length + sizeof(*info));
-  size_t size = length / ExternalArraySize(type);
-  obj->SetIndexedPropertiesToExternalArrayData(data, type, size);
+  Alloc(env, CallbackInfo::kExternal, obj, data, length, fn, hint, type);
 }
 
 
