@@ -141,13 +141,11 @@ void CallbackInfo::WeakCallback(Isolate* isolate, Local<Object> object) {
     array_length *= array_size;
   }
   object->SetIndexedPropertiesToExternalArrayData(nullptr, array_type, 0);
-  if (ownership_ == kInternal) {
-    int64_t change_in_bytes = -static_cast<int64_t>(array_length);
-    isolate->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
-  }
   callback_(static_cast<char*>(array_data), hint_);
-  isolate->AdjustAmountOfExternalAllocatedMemory(
-      -static_cast<int64_t>(sizeof(*this)));
+  int64_t change_in_bytes = -static_cast<int64_t>(sizeof(*this));
+  if (ownership_ == kInternal)
+    change_in_bytes -= static_cast<int64_t>(array_length);
+  isolate->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
   delete this;
 }
 
