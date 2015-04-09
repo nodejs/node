@@ -180,7 +180,7 @@ exports.spawnPwd = function(options) {
 };
 
 exports.platformTimeout = function(ms) {
-  if (process.platform !== 'arm')
+  if (process.arch !== 'arm')
     return ms;
 
   if (process.config.variables.arm_version === '6')
