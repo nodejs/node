@@ -478,9 +478,9 @@ Options:
  - `Agent` object: explicitly use the passed in `Agent`.
  - `false`: opts out of connection pooling with an Agent, defaults request to
    `Connection: close`.
-- `keepAlive`: {Boolean} Keep sockets around in a pool to be used
+ - `keepAlive`: {Boolean} Keep sockets around in a pool to be used
   by other requests in the future. Default = `false`
-- `keepAliveMsecs`: {Integer} When using HTTP KeepAlive, how often to
+ - `keepAliveMsecs`: {Integer} When using HTTP KeepAlive, how often to
   send TCP KeepAlive packets over sockets being kept alive.  Default =
   `1000`.  Only relevant if `keepAlive` is set to `true`.
 
