@@ -60,7 +60,7 @@ projects.  Do not send your patch to us, we cannot accept it.
 
 In case of doubt, open an issue in the
 [issue tracker](https://github.com/iojs/io.js/issues/) or contact one of the
-[project Collaborators](https://github.com/iojs/io.js/#Current-Project-Team-Members)
+[project Collaborators](https://github.com/iojs/io.js/#current-project-team-members)
 ([IRC](http://webchat.freenode.net/?channels=io.js) is often the best medium.)Especially do so if you plan to work on something big.  Nothing is more
 frustrating than seeing your hard work go to waste because your vision
 does not align with the project team.
@@ -189,7 +189,7 @@ By making a contribution to this project, I certify that:
 ## Code of Conduct
 
 This Code of Conduct is adapted from [Rust's wonderful
-CoC](https://github.com/rust-lang/rust/wiki/Note-development-policy#conduct).
+CoC](http://www.rust-lang.org/conduct.html).
 
 * We are committed to providing a friendly, safe and welcoming
   environment for all, regardless of gender, sexual orientation,
