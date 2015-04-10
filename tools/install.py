@@ -175,6 +175,7 @@ def files(action):
 
   if 'false' == variables.get('node_shared_openssl'):
     subdir_files('deps/openssl/openssl/include/openssl', 'include/node/openssl/', action)
+    subdir_files('deps/openssl/config/archs', 'include/node/openssl/archs', action)
     action(['deps/openssl/config/opensslconf.h'], 'include/node/openssl/')
 
 
