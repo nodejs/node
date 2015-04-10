@@ -98,6 +98,11 @@ function init (dir, input, config, cb) {
         if (!pkg.repository)
           delete pkg.repository
 
+        // readJson filters out empty descriptions, but init-package-json
+        // traditionally leaves them alone
+        if (!pkg.description)
+          pkg.description = data.description
+
         var d = JSON.stringify(pkg, null, 2) + '\n'
         function write (yes) {
           fs.writeFile(package, d, 'utf8', function (er) {

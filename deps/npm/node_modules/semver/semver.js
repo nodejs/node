@@ -236,6 +236,12 @@ for (var i = 0; i < R; i++) {
 
 exports.parse = parse;
 function parse(version, loose) {
+  if (version instanceof SemVer)
+    return version;
+
+  if (typeof version !== 'string')
+    return null;
+
   if (version.length > MAX_LENGTH)
     return null;
 
@@ -309,7 +315,12 @@ function SemVer(version, loose) {
     this.prerelease = [];
   else
     this.prerelease = m[4].split('.').map(function(id) {
-      return (/^[0-9]+$/.test(id)) ? +id : id;
+      if (/^[0-9]+$/.test(id)) {
+        var num = +id
+        if (num >= 0 && num < MAX_SAFE_INTEGER)
+          return num
+      }
+      return id;
     });
 
   this.build = m[5] ? m[5].split('.') : [];

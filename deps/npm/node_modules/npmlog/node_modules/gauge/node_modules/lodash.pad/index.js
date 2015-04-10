@@ -1,13 +1,13 @@
 /**
- * lodash 3.0.0 (Custom Build) <https://lodash.com/>
+ * lodash 3.1.0 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
  * Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>
- * Based on Underscore.js 1.7.0 <http://underscorejs.org/LICENSE>
+ * Based on Underscore.js 1.8.2 <http://underscorejs.org/LICENSE>
  * Copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
  * Available under MIT license <https://lodash.com/license>
  */
 var baseToString = require('lodash._basetostring'),
-    createPad = require('lodash._createpad');
+    createPadding = require('lodash._createpadding');
 
 /** Native method references. */
 var ceil = Math.ceil,
@@ -17,9 +17,8 @@ var ceil = Math.ceil,
 var nativeIsFinite = global.isFinite;
 
 /**
- * Pads `string` on the left and right sides if it is shorter then the given
- * padding length. The `chars` string may be truncated if the number of padding
- * characters can't be evenly divided by the padding length.
+ * Pads `string` on the left and right sides if it is shorter than `length`.
+ * Padding characters are truncated if they can't be evenly divided by `length`.
  *
  * @static
  * @memberOf _
@@ -51,7 +50,7 @@ function pad(string, length, chars) {
       leftLength = floor(mid),
       rightLength = ceil(mid);
 
-  chars = createPad('', rightLength, chars);
+  chars = createPadding('', rightLength, chars);
   return chars.slice(0, leftLength) + string + chars;
 }
 

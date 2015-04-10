@@ -1,0 +1,60 @@
+{
+  "name": "async",
+  "description": "Higher-order functions and common patterns for asynchronous code",
+  "main": "./lib/async",
+  "author": {
+    "name": "Caolan McMahon"
+  },
+  "version": "0.9.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/caolan/async.git"
+  },
+  "bugs": {
+    "url": "https://github.com/caolan/async/issues"
+  },
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "https://github.com/caolan/async/raw/master/LICENSE"
+    }
+  ],
+  "devDependencies": {
+    "nodeunit": ">0.0.0",
+    "uglify-js": "1.2.x",
+    "nodelint": ">0.0.0"
+  },
+  "jam": {
+    "main": "lib/async.js",
+    "include": [
+      "lib/async.js",
+      "README.md",
+      "LICENSE"
+    ]
+  },
+  "scripts": {
+    "test": "nodeunit test/test-async.js"
+  },
+  "homepage": "https://github.com/caolan/async",
+  "_id": "async@0.9.0",
+  "dist": {
+    "shasum": "ac3613b1da9bed1b47510bb4651b8931e47146c7",
+    "tarball": "http://registry.npmjs.org/async/-/async-0.9.0.tgz"
+  },
+  "_from": "async@0.9.0",
+  "_npmVersion": "1.4.3",
+  "_npmUser": {
+    "name": "caolan",
+    "email": "caolan.mcmahon@gmail.com"
+  },
+  "maintainers": [
+    {
+      "name": "caolan",
+      "email": "caolan@caolanmcmahon.com"
+    }
+  ],
+  "directories": {},
+  "_shasum": "ac3613b1da9bed1b47510bb4651b8931e47146c7",
+  "_resolved": "https://registry.npmjs.org/async/-/async-0.9.0.tgz",
+  "readme": "ERROR: No README data found!"
+}
