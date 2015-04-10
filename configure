@@ -594,13 +594,6 @@ def configure_node(o):
 
   if target_arch == 'arm':
     configure_arm(o)
-  elif (target_arch == 'arm64' and
-        not options.shared_openssl and
-        not options.without_ssl):
-    # FIXME(bnoordhuis) It's not possible to build the bundled openssl due to
-    # deps/openssl/asm/arm-elf-gas/modes/ghash-armv4.S, which is 32 bits only.
-    warn('not building openssl, arm64 not yet supported')
-    options.without_ssl = True
   elif target_arch in ('mips', 'mipsel'):
     configure_mips(o)
 
