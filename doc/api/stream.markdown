@@ -284,7 +284,7 @@ data.
 ```javascript
 var readable = getReadableStreamSomehow();
 readable.resume();
-readable.on('end', function(chunk) {
+readable.on('end', function() {
   console.log('got to the end, but did not read anything');
 });
 ```
