@@ -30,7 +30,6 @@ function unbuild_ (silent) { return function (folder, cb_) {
   readJson(path.resolve(folder, "package.json"), function (er, pkg) {
     // if no json, then just trash it, but no scripts or whatever.
     if (er) return gentlyRm(folder, false, base, cb)
-    readJson.cache.del(folder)
     chain
       ( [ [lifecycle, pkg, "preuninstall", folder, false, true]
         , [lifecycle, pkg, "uninstall", folder, false, true]
@@ -52,8 +51,6 @@ function rmStuff (pkg, folder, cb) {
   var parent = path.dirname(folder)
     , gnm = npm.dir
     , top = gnm === parent
-
-  readJson.cache.del(path.resolve(folder, "package.json"))
 
   log.verbose("unbuild rmStuff", pkg._id, "from", gnm)
   if (!top) log.verbose("unbuild rmStuff", "in", parent)

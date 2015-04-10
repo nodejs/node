@@ -45,10 +45,14 @@ var desired = {
   version: '0.0.0',
   dependencies: {
     request: {
-      version: '0.9.0'
+      version: '0.9.0',
+      from: 'request@0.9.0',
+      resolved: common.registry + '/request/-/request-0.9.0.tgz'
     },
     underscore: {
-      version: '1.5.1'
+      version: '1.5.1',
+      from: 'underscore@1.5.1',
+      resolved: common.registry + '/underscore/-/underscore-1.5.1.tgz'
     }
   }
 }
