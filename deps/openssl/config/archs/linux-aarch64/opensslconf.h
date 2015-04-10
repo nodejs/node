@@ -138,14 +138,14 @@ extern "C" {
  * - Intel P6 because partial register stalls are very expensive;
  * - elder Alpha because it lacks byte load/store instructions;
  */
-#define RC4_INT unsigned int
+#define RC4_INT unsigned char
 #endif
 #if !defined(RC4_CHUNK)
 /*
  * This enables code handling data aligned at natural CPU word
  * boundary. See crypto/rc4/rc4_enc.c for further details.
  */
-#define RC4_CHUNK unsigned long long
+#define RC4_CHUNK unsigned long
 #endif
 #endif
 
@@ -164,8 +164,8 @@ extern "C" {
 /* Should we define BN_DIV2W here? */
 
 /* Only one for the following should be defined */
-#undef SIXTY_FOUR_BIT_LONG
-#define SIXTY_FOUR_BIT
+#define SIXTY_FOUR_BIT_LONG
+#undef SIXTY_FOUR_BIT
 #undef THIRTY_TWO_BIT
 #endif
 
@@ -178,7 +178,7 @@ extern "C" {
 
 #if defined(HEADER_BF_LOCL_H) && !defined(CONFIG_HEADER_BF_LOCL_H)
 #define CONFIG_HEADER_BF_LOCL_H
-#undef BF_PTR
+#define BF_PTR
 #endif /* HEADER_BF_LOCL_H */
 
 #if defined(HEADER_DES_LOCL_H) && !defined(CONFIG_HEADER_DES_LOCL_H)
