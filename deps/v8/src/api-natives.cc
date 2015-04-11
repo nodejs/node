@@ -207,36 +207,33 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
 }
 
 
-void InstallInCache(Isolate* isolate, int serial_number,
-                    Handle<JSFunction> function) {
+void CacheFunction(Isolate* isolate, Handle<Smi> serial_number,
+                   Handle<JSFunction> function) {
   auto cache = isolate->function_cache();
-  if (cache->length() <= serial_number) {
-    int new_size;
-    if (isolate->next_serial_number() < 50) {
-      new_size = 100;
-    } else {
-      new_size = 3 * isolate->next_serial_number() / 2;
-    }
-    cache = FixedArray::CopySize(cache, new_size);
-    isolate->native_context()->set_function_cache(*cache);
-  }
-  cache->set(serial_number, *function);
+  auto new_cache = ObjectHashTable::Put(cache, serial_number, function);
+  isolate->native_context()->set_function_cache(*new_cache);
+}
+
+
+void UncacheFunction(Isolate* isolate, Handle<Smi> serial_number) {
+  auto cache = isolate->function_cache();
+  bool was_present = false;
+  auto new_cache = ObjectHashTable::Remove(cache, serial_number, &was_present);
+  DCHECK(was_present);
+  isolate->native_context()->set_function_cache(*new_cache);
 }
 
 
 MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
                                             Handle<FunctionTemplateInfo> data,
                                             Handle<Name> name) {
-  int serial_number = Smi::cast(data->serial_number())->value();
+  auto serial_number = handle(Smi::cast(data->serial_number()), isolate);
   // Probe cache.
   if (!data->do_not_cache()) {
     auto cache = isolate->function_cache();
-    // Fast case: see if the function has already been instantiated
-    if (serial_number < cache->length()) {
-      Handle<Object> element = FixedArray::get(cache, serial_number);
-      if (element->IsJSFunction()) {
-        return Handle<JSFunction>::cast(element);
-      }
+    Object* element = cache->Lookup(serial_number);
+    if (element->IsJSFunction()) {
+      return handle(JSFunction::cast(element), isolate);
     }
   }
   // Enter a new scope.  Recursion could otherwise create a lot of handles.
@@ -279,15 +276,14 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
     function->shared()->set_name(*name);
   }
   if (!data->do_not_cache()) {
-    // Cache the function to limit recursion.
-    InstallInCache(isolate, serial_number, function);
+    // Cache the function.
+    CacheFunction(isolate, serial_number, function);
   }
   auto result = ConfigureInstance(isolate, function, data);
   if (result.is_null()) {
-    // uncache on error.
+    // Uncache on error.
     if (!data->do_not_cache()) {
-      auto cache = isolate->function_cache();
-      cache->set(serial_number, isolate->heap()->undefined_value());
+      UncacheFunction(isolate, serial_number);
     }
     return MaybeHandle<JSFunction>();
   }

@@ -20335,15 +20335,15 @@ THREADED_TEST(FunctionNew) {
   env->Global()->Set(v8_str("func"), func);
   Local<Value> result = CompileRun("func();");
   CHECK(v8::Integer::New(isolate, 17)->Equals(result));
-  // Verify function not cached
-  int serial_number =
-      i::Smi::cast(v8::Utils::OpenHandle(*func)
-          ->shared()->get_api_func_data()->serial_number())->value();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Handle<i::FixedArray> cache(i_isolate->native_context()->function_cache());
-  if (serial_number < cache->length()) {
-    CHECK(cache->get(serial_number)->IsUndefined());
-  }
+  // Verify function not cached
+  auto serial_number = handle(i::Smi::cast(v8::Utils::OpenHandle(*func)
+                                               ->shared()
+                                               ->get_api_func_data()
+                                               ->serial_number()),
+                              i_isolate);
+  auto cache = i_isolate->function_cache();
+  CHECK(cache->Lookup(serial_number)->IsTheHole());
   // Verify that each Function::New creates a new function instance
   Local<Object> data2 = v8::Object::New(isolate);
   function_new_expected_env = data2;

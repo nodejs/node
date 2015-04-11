@@ -291,6 +291,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
     self.arch = arch
     self.mode = mode
     self.results = []
+    self.tests = []
 
   def Starting(self):
     self.progress_indicator.runner = self.runner
@@ -304,10 +305,24 @@ class JsonTestProgressIndicator(ProgressIndicator):
         # Buildbot might start out with an empty file.
         complete_results = json.loads(f.read() or "[]")
 
+    # Sort tests by duration.
+    timed_tests = [t for t in self.tests if t.duration is not None]
+    timed_tests.sort(lambda a, b: cmp(b.duration, a.duration))
+    slowest_tests = [
+      {
+        "name": test.GetLabel(),
+        "flags": test.flags,
+        "command": EscapeCommand(self.runner.GetCommand(test)).replace(
+            ABS_PATH_PREFIX, ""),
+        "duration": test.duration,
+      } for test in timed_tests[:20]
+    ]
+
     complete_results.append({
       "arch": self.arch,
       "mode": self.mode,
       "results": self.results,
+      "slowest_tests": slowest_tests,
     })
 
     with open(self.json_test_results, "w") as f:
@@ -318,6 +333,8 @@ class JsonTestProgressIndicator(ProgressIndicator):
 
   def HasRun(self, test, has_unexpected_output):
     self.progress_indicator.HasRun(test, has_unexpected_output)
+    # Buffer all tests for sorting the durations in the end.
+    self.tests.append(test)
     if not has_unexpected_output:
       # Omit tests that run as expected. Passing tests of reruns after failures
       # will have unexpected_output to be reported here has well.
@@ -334,6 +351,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
       "exit_code": test.output.exit_code,
       "result": test.suite.GetOutcome(test),
       "expected": list(test.outcomes or ["PASS"]),
+      "duration": test.duration,
     })
 
 
