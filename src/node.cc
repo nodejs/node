@@ -101,6 +101,7 @@ using v8::ObjectTemplate;
 using v8::Promise;
 using v8::PromiseRejectMessage;
 using v8::PropertyCallbackInfo;
+using v8::SealHandleScope;
 using v8::String;
 using v8::TryCatch;
 using v8::Uint32;
@@ -3836,22 +3837,25 @@ static void StartNodeInstance(void* arg) {
     if (instance_data->use_debug_agent())
       EnableDebug(env);
 
-    bool more;
-    do {
-      v8::platform::PumpMessageLoop(default_platform, isolate);
-      more = uv_run(env->event_loop(), UV_RUN_ONCE);
-
-      if (more == false) {
+    {
+      SealHandleScope seal(isolate);
+      bool more;
+      do {
         v8::platform::PumpMessageLoop(default_platform, isolate);
-        EmitBeforeExit(env);
+        more = uv_run(env->event_loop(), UV_RUN_ONCE);
 
-        // Emit `beforeExit` if the loop became alive either after emitting
-        // event, or after running some callbacks.
-        more = uv_loop_alive(env->event_loop());
-        if (uv_run(env->event_loop(), UV_RUN_NOWAIT) != 0)
-          more = true;
-      }
-    } while (more == true);
+        if (more == false) {
+          v8::platform::PumpMessageLoop(default_platform, isolate);
+          EmitBeforeExit(env);
+
+          // Emit `beforeExit` if the loop became alive either after emitting
+          // event, or after running some callbacks.
+          more = uv_loop_alive(env->event_loop());
+          if (uv_run(env->event_loop(), UV_RUN_NOWAIT) != 0)
+            more = true;
+        }
+      } while (more == true);
+    }
 
     int exit_code = EmitExit(env);
     if (instance_data->is_main())
