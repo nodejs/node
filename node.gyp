@@ -69,6 +69,8 @@
       'lib/v8.js',
       'lib/vm.js',
       'lib/zlib.js',
+
+      'lib/internal/freelist.js',
     ],
   },
 

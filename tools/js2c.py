@@ -238,11 +238,11 @@ static const struct _native natives[] = {
 
 
 NATIVE_DECLARATION = """\
-  { "%(id)s", %(id)s_native, sizeof(%(id)s_native)-1 },
+  { "%(id)s", %(escaped_id)s_native, sizeof(%(escaped_id)s_native)-1 },
 """
 
 SOURCE_DECLARATION = """\
-  const char %(id)s_native[] = { %(data)s };
+  const char %(escaped_id)s_native[] = { %(data)s };
 """
 
 
@@ -293,16 +293,39 @@ def JS2C(source, target):
     lines = ExpandMacros(lines, macros)
     lines = CompressScript(lines, do_jsmin)
     data = ToCArray(s, lines)
-    id = os.path.basename(str(s)).split('.')[0]
+
+    # On Windows, "./foo.bar" in the .gyp file is passed as "foo.bar"
+    # so don't assume there is always a slash in the file path.
+    if '/' in s or '\\' in s:
+      id = '/'.join(re.split('/|\\\\', s)[1:])
+    else:
+      id = s
+
+    if '.' in id:
+      id = id.split('.', 1)[0]
+
     if delay: id = id[:-6]
     if delay:
       delay_ids.append((id, len(lines)))
     else:
       ids.append((id, len(lines)))
-    source_lines.append(SOURCE_DECLARATION % { 'id': id, 'data': data })
-    source_lines_empty.append(SOURCE_DECLARATION % { 'id': id, 'data': 0 })
-    native_lines.append(NATIVE_DECLARATION % { 'id': id })
-  
+
+    escaped_id = id.replace('/', '$')
+    source_lines.append(SOURCE_DECLARATION % {
+      'id': id,
+      'escaped_id': escaped_id,
+      'data': data
+    })
+    source_lines_empty.append(SOURCE_DECLARATION % {
+      'id': id,
+      'escaped_id': escaped_id,
+      'data': 0
+    })
+    native_lines.append(NATIVE_DECLARATION % {
+      'id': id,
+      'escaped_id': escaped_id
+    })
+
   # Build delay support functions
   get_index_cases = [ ]
   get_script_source_cases = [ ]

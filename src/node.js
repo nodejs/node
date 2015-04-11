@@ -173,35 +173,13 @@
   };
 
   startup.globalTimeouts = function() {
-    global.setTimeout = function() {
-      var t = NativeModule.require('timers');
-      return t.setTimeout.apply(this, arguments);
-    };
-
-    global.setInterval = function() {
-      var t = NativeModule.require('timers');
-      return t.setInterval.apply(this, arguments);
-    };
-
-    global.clearTimeout = function() {
-      var t = NativeModule.require('timers');
-      return t.clearTimeout.apply(this, arguments);
-    };
-
-    global.clearInterval = function() {
-      var t = NativeModule.require('timers');
-      return t.clearInterval.apply(this, arguments);
-    };
-
-    global.setImmediate = function() {
-      var t = NativeModule.require('timers');
-      return t.setImmediate.apply(this, arguments);
-    };
-
-    global.clearImmediate = function() {
-      var t = NativeModule.require('timers');
-      return t.clearImmediate.apply(this, arguments);
-    };
+    const timers = NativeModule.require('timers');
+    global.clearImmediate = timers.clearImmediate;
+    global.clearInterval = timers.clearInterval;
+    global.clearTimeout = timers.clearTimeout;
+    global.setImmediate = timers.setImmediate;
+    global.setInterval = timers.setInterval;
+    global.setTimeout = timers.setTimeout;
   };
 
   startup.globalConsole = function() {
@@ -837,6 +815,27 @@
   NativeModule.exists = function(id) {
     return NativeModule._source.hasOwnProperty(id);
   };
+
+  const EXPOSE_INTERNALS = process.execArgv.some(function(arg) {
+    return arg.match(/^--expose[-_]internals$/);
+  });
+
+  if (EXPOSE_INTERNALS) {
+    NativeModule.nonInternalExists = NativeModule.exists;
+
+    NativeModule.isInternal = function(id) {
+      return false;
+    };
+  } else {
+    NativeModule.nonInternalExists = function(id) {
+      return NativeModule.exists(id) && !NativeModule.isInternal(id);
+    };
+
+    NativeModule.isInternal = function(id) {
+      return id.startsWith('internal/');
+    };
+  }
+
 
   NativeModule.getSource = function(id) {
     return NativeModule._source[id];

@@ -12,6 +12,7 @@ var pkg = path.resolve(__dirname, "adduser-legacy-auth")
 var outfile = path.resolve(pkg, "_npmrc")
 
 var contents = "_auth=" + new Buffer("u:x").toString("base64") + "\n" +
+               "registry=https://nonexistent.lvh.me/registry\n" +
                "email=u@p.me\n"
 
 var responses = {

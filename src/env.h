@@ -55,7 +55,7 @@ namespace node {
   V(bytes_parsed_string, "bytesParsed")                                       \
   V(callback_string, "callback")                                              \
   V(change_string, "change")                                                  \
-  V(close_string, "close")                                                    \
+  V(onclose_string, "_onclose")                                               \
   V(code_string, "code")                                                      \
   V(compare_string, "compare")                                                \
   V(ctime_string, "ctime")                                                    \
@@ -224,6 +224,7 @@ namespace node {
   V(zero_return_string, "ZERO_RETURN")                                        \
 
 #define ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)                           \
+  V(as_external, v8::External)                                                \
   V(async_hooks_init_function, v8::Function)                                  \
   V(async_hooks_pre_function, v8::Function)                                   \
   V(async_hooks_post_function, v8::Function)                                  \
@@ -357,8 +358,10 @@ class Environment {
   static inline Environment* GetCurrent(v8::Local<v8::Context> context);
   static inline Environment* GetCurrent(
       const v8::FunctionCallbackInfo<v8::Value>& info);
+
+  template <typename T>
   static inline Environment* GetCurrent(
-      const v8::PropertyCallbackInfo<v8::Value>& info);
+      const v8::PropertyCallbackInfo<T>& info);
 
   // See CreateEnvironment() in src/node.cc.
   static inline Environment* New(v8::Local<v8::Context> context,
@@ -508,8 +511,6 @@ class Environment {
   ListHead<HandleCleanup,
            &HandleCleanup::handle_cleanup_queue_> handle_cleanup_queue_;
   int handle_cleanup_waiting_;
-
-  v8::Persistent<v8::External> external_;
 
 #define V(PropertyName, TypeName)                                             \
   v8::Persistent<TypeName> PropertyName ## _;

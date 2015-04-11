@@ -54,7 +54,15 @@ function rimraf (p, options, cb) {
   var errState = null
   var n = 0
 
-  glob(p, globOpts, afterGlob)
+  if (!glob.hasMagic(p))
+    return afterGlob(null, [p])
+
+  fs.lstat(p, function (er, stat) {
+    if (!er)
+      return afterGlob(null, [p])
+
+    glob(p, globOpts, afterGlob)
+  })
 
   function next (er) {
     errState = errState || er
@@ -249,7 +257,19 @@ function rimrafSync (p, options) {
   assert(p)
   assert(options)
 
-  var results = glob.sync(p, globOpts)
+  var results
+
+  if (!glob.hasMagic(p)) {
+    results = [p]
+  } else {
+    try {
+      fs.lstatSync(p)
+      results = [p]
+    } catch (er) {
+      results = glob.sync(p, globOpts)
+    }
+  }
+
   if (!results.length)
     return
 

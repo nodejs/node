@@ -222,8 +222,9 @@ function build (gyp, argv, callback) {
       var p = arch === 'x64' ? 'x64' : 'Win32'
       argv.push('/p:Configuration=' + buildType + ';Platform=' + p)
       if (jobs) {
-        if (!isNaN(parseInt(jobs, 10))) {
-          argv.push('/m:' + parseInt(jobs, 10))
+        var j = parseInt(jobs, 10)
+        if (!isNaN(j) && j > 0) {
+          argv.push('/m:' + j)
         } else if (jobs.toUpperCase() === 'MAX') {
           argv.push('/m:' + require('os').cpus().length)
         }
@@ -234,9 +235,10 @@ function build (gyp, argv, callback) {
       argv.push('-C')
       argv.push('build')
       if (jobs) {
-        if (!isNaN(parseInt(jobs, 10))) {
+        var j = parseInt(jobs, 10)
+        if (!isNaN(j) && j > 0) {
           argv.push('--jobs')
-          argv.push(parseInt(jobs, 10))
+          argv.push(j)
         } else if (jobs.toUpperCase() === 'MAX') {
           argv.push('--jobs')
           argv.push(require('os').cpus().length)

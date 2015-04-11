@@ -84,7 +84,7 @@ void UDPWrap::Initialize(Handle<Object> target,
   t->InstanceTemplate()->SetAccessor(env->fd_string(),
                                      UDPWrap::GetFD,
                                      nullptr,
-                                     Handle<Value>(),
+                                     env->as_external(),
                                      v8::DEFAULT,
                                      attributes);
 

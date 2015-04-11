@@ -1,27 +1,28 @@
 var assert = require("assert")
   , log = require("npmlog")
   , addRemoteGit = require("./add-remote-git.js")
+  , hosted = require("hosted-git-info")
 
 module.exports = function maybeGithub (p, cb) {
   assert(typeof p === "string", "must pass package name")
   assert(typeof cb === "function", "must pass callback")
 
-  var u = "git://github.com/" + p
-  log.info("maybeGithub", "Attempting %s from %s", p, u)
+  var parsed = hosted.fromUrl(p)
+  log.info("maybeGithub", "Attempting %s from %s", p, parsed.git())
 
-  return addRemoteGit(u, true, function (er, data) {
+  return addRemoteGit(parsed.git(), true, function (er, data) {
     if (er) {
-      var upriv = "ssh://git@github.com:" + p
-      log.info("maybeGithub", "Attempting %s from %s", p, upriv)
+      log.info("maybeGithub", "Couldn't clone %s", parsed.git())
+      log.info("maybeGithub", "Now attempting %s from %s", p, parsed.ssh())
 
-      return addRemoteGit(upriv, false, function (er, data) {
+      return addRemoteGit(parsed.ssh(), false, function (er, data) {
         if (er) return cb(er)
 
-        success(upriv, data)
+        success(parsed.ssh(), data)
       })
     }
 
-    success(u, data)
+    success(parsed.git(), data)
   })
 
   function success (u, data) {

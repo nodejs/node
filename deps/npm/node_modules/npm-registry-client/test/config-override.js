@@ -1,44 +1,44 @@
-var test = require("tap").test
+var test = require('tap').test
 
-require("./lib/server.js").close()
-var common = require("./lib/common.js")
+require('./lib/server.js').close()
+var common = require('./lib/common.js')
 var config = {
-  proxy : {
-    http : "http://proxy.npm:8088/",
-    https : "https://proxy.npm:8043/",
-    localAddress : "localhost.localdomain"
+  proxy: {
+    http: 'http://proxy.npm:8088/',
+    https: 'https://proxy.npm:8043/',
+    localAddress: 'localhost.localdomain'
   },
-  ssl : {
-    ca : "not including a PEM",
-    certificate : "still not including a PEM",
-    key : "nope",
-    strict : false
+  ssl: {
+    ca: 'not including a PEM',
+    certificate: 'still not including a PEM',
+    key: 'nope',
+    strict: false
   },
-  retry : {
-    count : 1,
-    factor : 9001,
-    minTimeout : -1,
-    maxTimeout : Infinity
+  retry: {
+    count: 1,
+    factor: 9001,
+    minTimeout: -1,
+    maxTimeout: Infinity
   },
-  userAgent : "npm-awesome/4 (Mozilla 5.0)",
-  log : { fake : function () {} },
-  defaultTag : "next",
-  couchToken : { object : true },
-  sessionToken : "hamchunx"
+  userAgent: 'npm-awesome/4 (Mozilla 5.0)',
+  log: { fake: function () {} },
+  defaultTag: 'next',
+  couchToken: { object: true },
+  sessionToken: 'hamchunx'
 }
 
-test("config defaults", function (t) {
+test('config defaults', function (t) {
   var client = common.freshClient(config)
 
   var proxy = client.config.proxy
-  t.equal(proxy.http, "http://proxy.npm:8088/")
-  t.equal(proxy.https, "https://proxy.npm:8043/")
-  t.equal(proxy.localAddress, "localhost.localdomain")
+  t.equal(proxy.http, 'http://proxy.npm:8088/')
+  t.equal(proxy.https, 'https://proxy.npm:8043/')
+  t.equal(proxy.localAddress, 'localhost.localdomain')
 
   var ssl = client.config.ssl
-  t.equal(ssl.ca, "not including a PEM")
-  t.equal(ssl.certificate, "still not including a PEM")
-  t.equal(ssl.key, "nope")
+  t.equal(ssl.ca, 'not including a PEM')
+  t.equal(ssl.certificate, 'still not including a PEM')
+  t.equal(ssl.key, 'nope')
   t.equal(ssl.strict, false)
 
   var retry = client.config.retry
@@ -47,11 +47,11 @@ test("config defaults", function (t) {
   t.equal(retry.minTimeout, -1)
   t.equal(retry.maxTimeout, Infinity)
 
-  t.equal(client.config.userAgent, "npm-awesome/4 (Mozilla 5.0)")
+  t.equal(client.config.userAgent, 'npm-awesome/4 (Mozilla 5.0)')
   t.ok(client.log.fake)
-  t.equal(client.config.defaultTag, "next")
+  t.equal(client.config.defaultTag, 'next')
   t.ok(client.config.couchToken.object)
-  t.equal(client.config.sessionToken, "hamchunx")
+  t.equal(client.config.sessionToken, 'hamchunx')
 
   t.end()
 })

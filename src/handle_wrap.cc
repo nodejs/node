@@ -52,7 +52,7 @@ void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
   wrap->handle__ = nullptr;
 
   if (args[0]->IsFunction()) {
-    wrap->object()->Set(env->close_string(), args[0]);
+    wrap->object()->Set(env->onclose_string(), args[0]);
     wrap->flags_ |= kCloseCallback;
   }
 }
@@ -94,7 +94,7 @@ void HandleWrap::OnClose(uv_handle_t* handle) {
   Local<Object> object = wrap->object();
 
   if (wrap->flags_ & kCloseCallback) {
-    wrap->MakeCallback(env->close_string(), 0, nullptr);
+    wrap->MakeCallback(env->onclose_string(), 0, nullptr);
   }
 
   object->SetAlignedPointerInInternalField(0, nullptr);
