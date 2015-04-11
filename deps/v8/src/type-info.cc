@@ -437,6 +437,9 @@ bool TypeFeedbackOracle::CanRetainOtherContext(Map* map,
   }
   constructor = map->constructor();
   if (constructor->IsNull()) return false;
+  // If the constructor is not null or a JSFunction, we have to conservatively
+  // assume that it may retain a native context.
+  if (!constructor->IsJSFunction()) return true;
   JSFunction* function = JSFunction::cast(constructor);
   return CanRetainOtherContext(function, native_context);
 }

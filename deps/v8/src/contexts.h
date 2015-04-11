@@ -138,7 +138,7 @@ enum BindingFlags {
   V(MAKE_MESSAGE_FUN_INDEX, JSFunction, make_message_fun)                      \
   V(GET_STACK_TRACE_LINE_INDEX, JSFunction, get_stack_trace_line_fun)          \
   V(CONFIGURE_GLOBAL_INDEX, JSFunction, configure_global_fun)                  \
-  V(FUNCTION_CACHE_INDEX, FixedArray, function_cache)                          \
+  V(FUNCTION_CACHE_INDEX, ObjectHashTable, function_cache)                     \
   V(JSFUNCTION_RESULT_CACHES_INDEX, FixedArray, jsfunction_result_caches)      \
   V(NORMALIZED_MAP_CACHE_INDEX, Object, normalized_map_cache)                  \
   V(RUNTIME_CONTEXT_INDEX, Context, runtime_context)                           \
