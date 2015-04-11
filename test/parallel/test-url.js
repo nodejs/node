@@ -1189,7 +1189,9 @@ var relativeTests = [
   ['http://example.com/b//c//d;p?q#blarg',
    'http:/a/b/c/d',
    'http://example.com/a/b/c/d'],
-  ['/foo/bar/baz', '/../etc/passwd', '/etc/passwd']
+  ['/foo/bar/baz', '/../etc/passwd', '/etc/passwd'],
+  ['http://localhost', 'file:///Users/foo', 'file:///Users/foo'],
+  ['http://localhost', 'file://foo/Users', 'file://foo/Users']
 ];
 relativeTests.forEach(function(relativeTest) {
   var a = url.resolve(relativeTest[0], relativeTest[1]),

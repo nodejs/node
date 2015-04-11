@@ -200,6 +200,17 @@ Qs.stringify({ a: ['b', 'c', 'd'] }, { indices: false });
 // 'a=b&a=c&a=d'
 ```
 
+You may use the `arrayFormat` option to specify the format of the output array
+
+```javascript
+Qs.stringify({ a: ['b', 'c'] }, { arrayFormat: 'indices' })
+// 'a[0]=b&a[1]=c'
+Qs.stringify({ a: ['b', 'c'] }, { arrayFormat: 'brackets' })
+// 'a[]=b&a[]=c'
+Qs.stringify({ a: ['b', 'c'] }, { arrayFormat: 'repeat' })
+// 'a=b&a=c'
+```
+
 Empty strings and null values will omit the value, but the equals sign (=) remains in place:
 
 ```javascript

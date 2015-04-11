@@ -57,6 +57,9 @@ Create a full content-type header given a content-type or extension.
 ```js
 mime.contentType('markdown')  // 'text/x-markdown; charset=utf-8'
 mime.contentType('file.json') // 'application/json; charset=utf-8'
+
+// from a full path
+mime.contentType(path.extname('/path/to/file.json')) // 'application/json; charset=utf-8'
 ```
 
 ### mime.extension(type)

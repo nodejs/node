@@ -108,7 +108,6 @@
         'src/node_main.cc',
         'src/node_os.cc',
         'src/node_v8.cc',
-        'src/node_v8_platform.cc',
         'src/node_stat_watcher.cc',
         'src/node_watchdog.cc',
         'src/node_zlib.cc',
@@ -312,7 +311,12 @@
             'deps/v8/include/v8.h',
             'deps/v8/include/v8-debug.h',
           ],
-          'dependencies': [ 'deps/v8/tools/gyp/v8.gyp:v8' ],
+          'dependencies': [
+            'deps/v8/tools/gyp/v8.gyp:v8',
+            'deps/v8/tools/gyp/v8.gyp:v8_libplatform',
+          ],
+          # libplatform/libplatform.h includes include/v8platform.h
+          'include_dirs': [ 'deps/v8' ],
         }],
 
         [ 'node_shared_zlib=="false"', {
@@ -611,6 +615,31 @@
           ],
         } ],
       ]
+    },
+    {
+      'target_name': 'cctest',
+      'type': 'executable',
+      'dependencies': [ 'deps/gtest/gtest.gyp:gtest' ],
+      'conditions': [
+        [ 'node_shared_v8=="false"', {
+          'dependencies': [ 'deps/v8/tools/gyp/v8.gyp:v8' ],
+        }],
+      ],
+      'include_dirs': [
+        'src',
+      ],
+      'defines': [
+        # gtest's ASSERT macros conflict with our own.
+        'GTEST_DONT_DEFINE_ASSERT_EQ=1',
+        'GTEST_DONT_DEFINE_ASSERT_GE=1',
+        'GTEST_DONT_DEFINE_ASSERT_GT=1',
+        'GTEST_DONT_DEFINE_ASSERT_LE=1',
+        'GTEST_DONT_DEFINE_ASSERT_LT=1',
+        'GTEST_DONT_DEFINE_ASSERT_NE=1',
+      ],
+      'sources': [
+        'test/cctest/util.cc',
+      ],
     }
   ] # end targets
 }
