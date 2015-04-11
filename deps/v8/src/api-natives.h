@@ -12,6 +12,8 @@ namespace internal {
 
 class ApiNatives {
  public:
+  static const int kInitialFunctionCacheSize = 256;
+
   MUST_USE_RESULT static MaybeHandle<JSFunction> InstantiateFunction(
       Handle<FunctionTemplateInfo> data);
 

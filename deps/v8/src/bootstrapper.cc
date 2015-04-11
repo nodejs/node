@@ -2059,7 +2059,9 @@ bool Genesis::InstallNatives() {
 
   InstallNativeFunctions();
 
-  native_context()->set_function_cache(heap()->empty_fixed_array());
+  auto function_cache =
+      ObjectHashTable::New(isolate(), ApiNatives::kInitialFunctionCacheSize);
+  native_context()->set_function_cache(*function_cache);
 
   // Store the map for the string prototype after the natives has been compiled
   // and the String function has been set up.
