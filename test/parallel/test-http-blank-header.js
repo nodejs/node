@@ -28,7 +28,7 @@ server.listen(common.PORT, function() {
             'Host: mapdevel.trolologames.ru:443\r\n' +
             'Cookie:\r\n' +
             'Origin: http://mapdevel.trolologames.ru\r\n' +
-            '\r\n\r\nhello world'
+            '\r\n\r\nhello world\r\n'
     );
   });
 

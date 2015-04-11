@@ -2,18 +2,11 @@
 var common = require('../common');
 var assert = require('assert');
 
-var HTTPParser = process.binding('http_parser').HTTPParser;
+var HTTPParser = require('_http_parser');
 
 var CRLF = '\r\n';
 var REQUEST = HTTPParser.REQUEST;
 var RESPONSE = HTTPParser.RESPONSE;
-
-var methods = HTTPParser.methods;
-
-var kOnHeaders = HTTPParser.kOnHeaders | 0;
-var kOnHeadersComplete = HTTPParser.kOnHeadersComplete | 0;
-var kOnBody = HTTPParser.kOnBody | 0;
-var kOnMessageComplete = HTTPParser.kOnMessageComplete | 0;
 
 // The purpose of this test is not to check HTTP compliance but to test the
 // binding. Tests for pathological http messages should be submitted
@@ -24,34 +17,30 @@ var kOnMessageComplete = HTTPParser.kOnMessageComplete | 0;
 function newParser(type) {
   var parser = new HTTPParser(type);
 
-  parser.headers = [];
-  parser.url = '';
+  parser.onHeaders = function() {};
 
-  parser[kOnHeaders] = function(headers, url) {
-    parser.headers = parser.headers.concat(headers);
-    parser.url += url;
-  };
-
-  parser[kOnHeadersComplete] = function(info) {
-  };
-
-  parser[kOnBody] = function(b, start, len) {
+  parser.onBody = function(b, start, len) {
     assert.ok(false, 'Function should not be called.');
   };
 
-  parser[kOnMessageComplete] = function() {
-  };
+  parser.onComplete = function() {};
 
   return parser;
 }
 
-
+var c = 0;
 function mustCall(f, times) {
   var actual = 0;
+  var caller;
+
+  times = (times === undefined ? 1 : times);
 
   process.setMaxListeners(256);
   process.on('exit', function() {
-    assert.equal(actual, times || 1);
+    assert.equal(actual,
+                 times,
+                 'mustCall #' + (++c) + ' handler count mismatch: ' + actual +
+                 ' !== ' + times);
   });
 
   return function() {
@@ -62,7 +51,7 @@ function mustCall(f, times) {
 
 
 function expectBody(expected) {
-  return mustCall(function(buf, start, len) {
+  return mustCall(function onBody(buf, start, len) {
     var body = '' + buf.slice(start, start + len);
     assert.equal(body, expected);
   });
@@ -82,27 +71,27 @@ function expectBody(expected) {
                                    shouldKeepAlive) {
     assert.equal(versionMajor, 1);
     assert.equal(versionMinor, 1);
-    assert.equal(method, methods.indexOf('GET'));
+    assert.equal(method, 'GET');
     assert.equal(url || parser.url, '/hello');
   };
 
   var parser = newParser(REQUEST);
-  parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
-  parser.execute(request, 0, request.length);
+  parser.onHeaders = mustCall(onHeadersComplete);
+  parser.execute(request);
 
   //
   // Check that if we throw an error in the callbacks that error will be
   // thrown from parser.execute()
   //
 
-  parser[kOnHeadersComplete] = function(info) {
+  parser.onHeaders = function(info) {
     throw new Error('hello world');
   };
 
   parser.reinitialize(HTTPParser.REQUEST);
 
   assert.throws(function() {
-    parser.execute(request, 0, request.length);
+    parser.execute(request);
   }, Error, 'hello world');
 })();
 
@@ -134,9 +123,9 @@ function expectBody(expected) {
   };
 
   var parser = newParser(RESPONSE);
-  parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
-  parser[kOnBody] = mustCall(onBody);
-  parser.execute(request, 0, request.length);
+  parser.onHeaders = mustCall(onHeadersComplete);
+  parser.onBody = mustCall(onBody);
+  parser.execute(request);
 })();
 
 
@@ -160,8 +149,8 @@ function expectBody(expected) {
   };
 
   var parser = newParser(RESPONSE);
-  parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
-  parser.execute(request, 0, request.length);
+  parser.onHeaders = mustCall(onHeadersComplete);
+  parser.execute(request);
 })();
 
 
@@ -182,20 +171,21 @@ function expectBody(expected) {
 
   var seen_body = false;
 
-  var onHeaders = function(headers, url) {
+  var onComplete = function() {
     assert.ok(seen_body); // trailers should come after the body
-    assert.deepEqual(headers, ['Vary', '*', 'Content-Type', 'text/plain']);
+    assert.deepEqual(parser.headers,
+                     ['Vary', '*', 'Content-Type', 'text/plain']);
   };
 
   var onHeadersComplete = function(versionMajor, versionMinor, headers, method,
                                    url, statusCode, statusMessage, upgrade,
                                    shouldKeepAlive) {
-    assert.equal(method, methods.indexOf('POST'));
+    assert.equal(method, 'POST');
     assert.equal(url || parser.url, '/it');
     assert.equal(versionMajor, 1);
     assert.equal(versionMinor, 1);
     // expect to see trailing headers now
-    parser[kOnHeaders] = mustCall(onHeaders);
+    parser.onComplete = mustCall(onComplete);
   };
 
   var onBody = function(buf, start, len) {
@@ -205,9 +195,9 @@ function expectBody(expected) {
   };
 
   var parser = newParser(REQUEST);
-  parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
-  parser[kOnBody] = mustCall(onBody);
-  parser.execute(request, 0, request.length);
+  parser.onHeaders = mustCall(onHeadersComplete);
+  parser.onBody = mustCall(onBody);
+  parser.execute(request);
 })();
 
 
@@ -225,7 +215,7 @@ function expectBody(expected) {
   var onHeadersComplete = function(versionMajor, versionMinor, headers, method,
                                    url, statusCode, statusMessage, upgrade,
                                    shouldKeepAlive) {
-    assert.equal(method, methods.indexOf('GET'));
+    assert.equal(method, 'GET');
     assert.equal(versionMajor, 1);
     assert.equal(versionMinor, 0);
     assert.deepEqual(
@@ -234,8 +224,8 @@ function expectBody(expected) {
   };
 
   var parser = newParser(REQUEST);
-  parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
-  parser.execute(request, 0, request.length);
+  parser.onHeaders = mustCall(onHeadersComplete);
+  parser.execute(request);
 })();
 
 
@@ -255,7 +245,7 @@ function expectBody(expected) {
   var onHeadersComplete = function(versionMajor, versionMinor, headers, method,
                                    url, statusCode, statusMessage, upgrade,
                                    shouldKeepAlive) {
-    assert.equal(method, methods.indexOf('GET'));
+    assert.equal(method, 'GET');
     assert.equal(url || parser.url, '/foo/bar/baz?quux=42#1337');
     assert.equal(versionMajor, 1);
     assert.equal(versionMinor, 0);
@@ -268,10 +258,9 @@ function expectBody(expected) {
       assert.equal(headers[i + 1], '42');
     }
   };
-
   var parser = newParser(REQUEST);
-  parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
-  parser.execute(request, 0, request.length);
+  parser.onHeaders = mustCall(onHeadersComplete);
+  parser.execute(request);
 })();
 
 
@@ -289,7 +278,7 @@ function expectBody(expected) {
   var onHeadersComplete = function(versionMajor, versionMinor, headers, method,
                                    url, statusCode, statusMessage, upgrade,
                                    shouldKeepAlive) {
-    assert.equal(method, methods.indexOf('POST'));
+    assert.equal(method, 'POST');
     assert.equal(url || parser.url, '/it');
     assert.equal(versionMajor, 1);
     assert.equal(versionMinor, 1);
@@ -301,9 +290,9 @@ function expectBody(expected) {
   };
 
   var parser = newParser(REQUEST);
-  parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
-  parser[kOnBody] = mustCall(onBody);
-  parser.execute(request, 0, request.length);
+  parser.onHeaders = mustCall(onHeadersComplete);
+  parser.onBody = mustCall(onBody);
+  parser.execute(request);
 })();
 
 
@@ -327,7 +316,7 @@ function expectBody(expected) {
   var onHeadersComplete = function(versionMajor, versionMinor, headers, method,
                                    url, statusCode, statusMessage, upgrade,
                                    shouldKeepAlive) {
-    assert.equal(method, methods.indexOf('POST'));
+    assert.equal(method, 'POST');
     assert.equal(url || parser.url, '/it');
     assert.equal(versionMajor, 1);
     assert.equal(versionMinor, 1);
@@ -342,9 +331,9 @@ function expectBody(expected) {
   };
 
   var parser = newParser(REQUEST);
-  parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
-  parser[kOnBody] = mustCall(onBody, body_parts.length);
-  parser.execute(request, 0, request.length);
+  parser.onHeaders = mustCall(onHeadersComplete);
+  parser.onBody = mustCall(onBody, body_parts.length);
+  parser.execute(request);
 })();
 
 
@@ -365,7 +354,7 @@ function expectBody(expected) {
   var onHeadersComplete = function(versionMajor, versionMinor, headers, method,
                                    url, statusCode, statusMessage, upgrade,
                                    shouldKeepAlive) {
-    assert.equal(method, methods.indexOf('POST'));
+    assert.equal(method, 'POST');
     assert.equal(url || parser.url, '/it');
     assert.equal(versionMajor, 1);
     assert.equal(versionMinor, 1);
@@ -381,9 +370,9 @@ function expectBody(expected) {
   };
 
   var parser = newParser(REQUEST);
-  parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
-  parser[kOnBody] = mustCall(onBody, body_parts.length);
-  parser.execute(request, 0, request.length);
+  parser.onHeaders = mustCall(onHeadersComplete);
+  parser.onBody = mustCall(onBody, body_parts.length);
+  parser.execute(request);
 
   request = Buffer(
       '9' + CRLF +
@@ -394,7 +383,7 @@ function expectBody(expected) {
       '123456789ABCDEF' + CRLF +
       '0' + CRLF);
 
-  parser.execute(request, 0, request.length);
+  parser.execute(request);
 })();
 
 
@@ -423,7 +412,7 @@ function expectBody(expected) {
     var onHeadersComplete = function(versionMajor, versionMinor, headers,
                                      method, url, statusCode, statusMessage,
                                      upgrade, shouldKeepAlive) {
-      assert.equal(method, methods.indexOf('POST'));
+      assert.equal(method, 'POST');
       assert.equal(url || parser.url, '/helpme');
       assert.equal(versionMajor, 1);
       assert.equal(versionMinor, 1);
@@ -438,10 +427,10 @@ function expectBody(expected) {
     };
 
     var parser = newParser(REQUEST);
-    parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
-    parser[kOnBody] = onBody;
-    parser.execute(a, 0, a.length);
-    parser.execute(b, 0, b.length);
+    parser.onHeaders = mustCall(onHeadersComplete);
+    parser.onBody = onBody;
+    parser.execute(a);
+    parser.execute(b);
 
     assert.equal(expected_body, '');
   }
@@ -482,7 +471,7 @@ function expectBody(expected) {
   var onHeadersComplete = function(versionMajor, versionMinor, headers, method,
                                    url, statusCode, statusMessage, upgrade,
                                    shouldKeepAlive) {
-    assert.equal(method, methods.indexOf('POST'));
+    assert.equal(method, 'POST');
     assert.equal(url || parser.url, '/it');
     assert.equal(versionMajor, 1);
     assert.equal(versionMinor, 1);
@@ -500,11 +489,11 @@ function expectBody(expected) {
   };
 
   var parser = newParser(REQUEST);
-  parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
-  parser[kOnBody] = onBody;
+  parser.onHeaders = mustCall(onHeadersComplete);
+  parser.onBody = onBody;
 
   for (var i = 0; i < request.length; ++i) {
-    parser.execute(request, i, 1);
+    parser.execute(request.slice(i, i + 1));
   }
 
   assert.equal(expected_body, '');
@@ -534,7 +523,7 @@ function expectBody(expected) {
   var onHeadersComplete1 = function(versionMajor, versionMinor, headers, method,
                                     url, statusCode, statusMessage, upgrade,
                                     shouldKeepAlive) {
-    assert.equal(method, methods.indexOf('PUT'));
+    assert.equal(method, 'PUT');
     assert.equal(url, '/this');
     assert.equal(versionMajor, 1);
     assert.equal(versionMinor, 1);
@@ -546,7 +535,7 @@ function expectBody(expected) {
   var onHeadersComplete2 = function(versionMajor, versionMinor, headers, method,
                                     url, statusCode, statusMessage, upgrade,
                                     shouldKeepAlive) {
-    assert.equal(method, methods.indexOf('POST'));
+    assert.equal(method, 'POST');
     assert.equal(url, '/that');
     assert.equal(versionMajor, 1);
     assert.equal(versionMinor, 0);
@@ -555,14 +544,14 @@ function expectBody(expected) {
   };
 
   var parser = newParser(REQUEST);
-  parser[kOnHeadersComplete] = onHeadersComplete1;
-  parser[kOnBody] = expectBody('ping');
-  parser.execute(req1, 0, req1.length);
+  parser.onHeaders = onHeadersComplete1;
+  parser.onBody = expectBody('ping');
+  parser.execute(req1);
 
   parser.reinitialize(REQUEST);
-  parser[kOnBody] = expectBody('pong');
-  parser[kOnHeadersComplete] = onHeadersComplete2;
-  parser.execute(req2, 0, req2.length);
+  parser.onBody = expectBody('pong');
+  parser.onHeaders = onHeadersComplete2;
+  parser.execute(req2);
 })();
 
 // Test parser 'this' safety
@@ -574,5 +563,5 @@ assert.throws(function() {
 
   var parser = newParser(REQUEST);
   var notparser = { execute: parser.execute };
-  notparser.execute(request, 0, request.length);
+  notparser.execute(request);
 }, TypeError);

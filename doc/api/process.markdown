@@ -632,8 +632,7 @@ A property exposing version strings of io.js and its dependencies.
 
 Will print something like:
 
-    { http_parser: '2.3.0',
-      node: '1.1.1',
+    { node: '1.1.1',
       v8: '4.1.0.14',
       uv: '1.3.0',
       zlib: '1.2.8',
@@ -660,7 +659,6 @@ An example of the possible output looks like:
          node_install_npm: 'true',
          node_prefix: '',
          node_shared_cares: 'false',
-         node_shared_http_parser: 'false',
          node_shared_libuv: 'false',
          node_shared_zlib: 'false',
          node_use_dtrace: 'false',

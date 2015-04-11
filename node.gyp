@@ -7,7 +7,6 @@
     'node_use_perfctr%': 'false',
     'node_has_winsdk%': 'false',
     'node_shared_zlib%': 'false',
-    'node_shared_http_parser%': 'false',
     'node_shared_libuv%': 'false',
     'node_use_openssl%': 'true',
     'node_shared_openssl%': 'false',
@@ -37,6 +36,7 @@
       'lib/_http_common.js',
       'lib/_http_incoming.js',
       'lib/_http_outgoing.js',
+      'lib/_http_parser.js',
       'lib/_http_server.js',
       'lib/https.js',
       'lib/module.js',
@@ -112,7 +112,6 @@
         'src/node_constants.cc',
         'src/node_contextify.cc',
         'src/node_file.cc',
-        'src/node_http_parser.cc',
         'src/node_javascript.cc',
         'src/node_main.cc',
         'src/node_os.cc',
@@ -148,7 +147,6 @@
         'src/node_buffer.h',
         'src/node_constants.h',
         'src/node_file.h',
-        'src/node_http_parser.h',
         'src/node_internals.h',
         'src/node_javascript.h',
         'src/node_root_certs.h',
@@ -171,7 +169,6 @@
         'src/util.h',
         'src/util-inl.h',
         'src/util.cc',
-        'deps/http_parser/http_parser.h',
         'deps/v8/include/v8.h',
         'deps/v8/include/v8-debug.h',
         '<(SHARED_INTERMEDIATE_DIR)/node_natives.h',
@@ -337,10 +334,6 @@
         }],
         [ 'node_shared_zlib=="false"', {
           'dependencies': [ 'deps/zlib/zlib.gyp:zlib' ],
-        }],
-
-        [ 'node_shared_http_parser=="false"', {
-          'dependencies': [ 'deps/http_parser/http_parser.gyp:http_parser' ],
         }],
 
         [ 'node_shared_libuv=="false"', {

@@ -2,7 +2,6 @@
 #include "node_buffer.h"
 #include "node_constants.h"
 #include "node_file.h"
-#include "node_http_parser.h"
 #include "node_javascript.h"
 #include "node_version.h"
 
@@ -2677,15 +2676,6 @@ void SetupProcessObject(Environment* env,
   // process.versions
   Local<Object> versions = Object::New(env->isolate());
   READONLY_PROPERTY(process, "versions", versions);
-
-  const char http_parser_version[] = NODE_STRINGIFY(HTTP_PARSER_VERSION_MAJOR)
-                                     "."
-                                     NODE_STRINGIFY(HTTP_PARSER_VERSION_MINOR)
-                                     "."
-                                     NODE_STRINGIFY(HTTP_PARSER_VERSION_PATCH);
-  READONLY_PROPERTY(versions,
-                    "http_parser",
-                    FIXED_ONE_BYTE_STRING(env->isolate(), http_parser_version));
 
   // +1 to get rid of the leading 'v'
   READONLY_PROPERTY(versions,

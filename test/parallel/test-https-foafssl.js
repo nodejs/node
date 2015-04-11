@@ -62,7 +62,7 @@ server.listen(common.PORT, function() {
     server.close();
   });
 
-  client.stdin.write('GET /\n\n');
+  client.stdin.write('GET /\r\n');
 
   client.on('error', function(error) {
     throw error;
