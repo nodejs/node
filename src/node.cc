@@ -3541,7 +3541,13 @@ void Init(int* argc,
                 DispatchDebugMessagesAsyncCallback);
   uv_unref(reinterpret_cast<uv_handle_t*>(&dispatch_debug_messages_async));
 
-#if defined(__arm__)
+#if defined(__ARM_ARCH_6__) || \
+    defined(__ARM_ARCH_6J__) || \
+    defined(__ARM_ARCH_6K__) || \
+    defined(__ARM_ARCH_6M__) || \
+    defined(__ARM_ARCH_6T2__) || \
+    defined(__ARM_ARCH_6ZK__) || \
+    defined(__ARM_ARCH_6Z__)
   // See https://github.com/iojs/io.js/issues/1376
   // and https://code.google.com/p/v8/issues/detail?id=4019
   // TODO(bnoordhuis): Remove test/parallel/test-arm-math-exp-regress-1376.js
