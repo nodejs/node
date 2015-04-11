@@ -21895,6 +21895,38 @@ void CallCompletedCallbackException() {
 }
 
 
+TEST(SealHandleScope) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  LocalContext env;
+
+  v8::SealHandleScope seal(isolate);
+
+  // Should fail
+  v8::Local<v8::Object> obj = v8::Object::New(isolate);
+
+  USE(obj);
+}
+
+
+TEST(SealHandleScopeNested) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  LocalContext env;
+
+  v8::SealHandleScope seal(isolate);
+
+  {
+    v8::HandleScope handle_scope(isolate);
+
+    // Should work
+    v8::Local<v8::Object> obj = v8::Object::New(isolate);
+
+    USE(obj);
+  }
+}
+
+
 TEST(CallCompletedCallbackOneException) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());

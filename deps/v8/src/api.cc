@@ -515,6 +515,27 @@ i::Object** EscapableHandleScope::Escape(i::Object** escape_value) {
 }
 
 
+SealHandleScope::SealHandleScope(Isolate* isolate) {
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+
+  isolate_ = internal_isolate;
+  i::HandleScopeData* current = internal_isolate->handle_scope_data();
+  prev_limit_ = current->limit;
+  current->limit = current->next;
+  prev_level_ = current->level;
+  current->level = 0;
+}
+
+
+SealHandleScope::~SealHandleScope() {
+  i::HandleScopeData* current = isolate_->handle_scope_data();
+  DCHECK_EQ(0, current->level);
+  current->level = prev_level_;
+  DCHECK_EQ(current->next, current->limit);
+  current->limit = prev_limit_;
+}
+
+
 void Context::Enter() {
   i::Handle<i::Context> env = Utils::OpenHandle(this);
   i::Isolate* isolate = env->GetIsolate();
