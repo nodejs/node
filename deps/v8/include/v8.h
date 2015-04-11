@@ -1072,6 +1072,24 @@ class ScriptOrigin {
   Handle<Value> source_map_url_;
 };
 
+class V8_EXPORT SealHandleScope {
+ public:
+  SealHandleScope(Isolate* isolate);
+  ~SealHandleScope();
+
+ private:
+  // Make it hard to create heap-allocated or illegal handle scopes by
+  // disallowing certain operations.
+  SealHandleScope(const SealHandleScope&);
+  void operator=(const SealHandleScope&);
+  void* operator new(size_t size);
+  void operator delete(void*, size_t);
+
+  internal::Isolate* isolate_;
+  int prev_level_;
+  internal::Object** prev_limit_;
+};
+
 
 /**
  * A compiled JavaScript script, not yet tied to a Context.

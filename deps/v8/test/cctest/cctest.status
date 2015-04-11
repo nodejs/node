@@ -40,6 +40,7 @@
   # they don't fail then test.py has failed.
   'test-serialize/TestThatAlwaysFails': [FAIL],
   'test-serialize/DependentTestThatAlwaysFails': [FAIL],
+  'test-api/SealHandleScope': [FAIL],
 
   # This test always fails.  It tests that LiveEdit causes abort when turned off.
   'test-debug/LiveEditDisabled': [FAIL],
