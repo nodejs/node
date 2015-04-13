@@ -787,13 +787,7 @@ def configure_intl(o):
     return
   # --with-intl=<with_intl>
   # set the default
-  if with_intl is None:
-    with_intl = 'none'  # The default mode of Intl
-  # sanity check localelist
-  if options.with_icu_locales and (with_intl != 'small-icu'):
-    print 'Error: --with-icu-locales only makes sense with --with-intl=small-icu'
-    sys.exit(1)
-  if with_intl == 'none' or with_intl is None:
+  if with_intl in (None, 'none'):
     o['variables']['v8_enable_i18n_support'] = 0
     return  # no Intl
   elif with_intl == 'small-icu':
@@ -801,8 +795,6 @@ def configure_intl(o):
     o['variables']['v8_enable_i18n_support'] = 1
     o['variables']['icu_small'] = b(True)
     with_icu_locales = options.with_icu_locales
-    if not with_icu_locales:
-      with_icu_locales = 'root,en'
     locs = set(with_icu_locales.split(','))
     locs.add('root')  # must have root
     o['variables']['icu_locales'] = string.join(locs,',')
