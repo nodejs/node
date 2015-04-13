@@ -49,15 +49,13 @@ parser.add_option('--dest-cpu',
     action='store',
     dest='dest_cpu',
     choices=valid_arch,
-    help='CPU architecture to build for ({0})'.format(', '.join(
-        str(i) for i in valid_arch)))
+    help='CPU architecture to build for ({0})'.format(', '.join(valid_arch)))
 
 parser.add_option('--dest-os',
     action='store',
     dest='dest_os',
     choices=valid_os,
-    help='operating system to build for ({0})'.format(', '.join(
-        str(i) for i in valid_os)))
+    help='operating system to build for ({0})'.format(', '.join(valid_os)))
 
 parser.add_option('--gdb',
     action='store_true',
@@ -203,32 +201,32 @@ parser.add_option('--with-arm-float-abi',
     action='store',
     dest='arm_float_abi',
     choices=valid_arm_float_abi,
-    help='specifies which floating-point ABI to use ({0}).'.format(', '.join(
-        str(i) for i in valid_arm_float_abi)))
+    help='specifies which floating-point ABI to use ({0}).'.format(
+        ', '.join(valid_arm_float_abi)))
 
 parser.add_option('--with-mips-arch-variant',
     action='store',
     dest='mips_arch_variant',
     default='r2',
     choices=valid_mips_arch,
-    help='MIPS arch variant ({0}) [default: %default]'.format(', '.join(
-        str(i) for i in valid_mips_arch)))
+    help='MIPS arch variant ({0}) [default: %default]'.format(
+        ', '.join(valid_mips_arch)))
 
 parser.add_option('--with-mips-fpu-mode',
     action='store',
     dest='mips_fpu_mode',
     default='fp32',
     choices=valid_mips_fpu,
-    help='MIPS FPU mode ({0}) [default: %default]'.format(', '.join(
-        str(i) for i in valid_mips_fpu)))
+    help='MIPS FPU mode ({0}) [default: %default]'.format(
+        ', '.join(valid_mips_fpu)))
 
 parser.add_option('--with-mips-float-abi',
     action='store',
     dest='mips_float_abi',
     default='hard',
     choices=valid_mips_float_abi,
-    help='MIPS floating-point ABI ({0}) [default: %default]'.format(', '.join(
-        str(i) for i in valid_mips_float_abi)))
+    help='MIPS floating-point ABI ({0}) [default: %default]'.format(
+        ', '.join(valid_mips_float_abi)))
 
 parser.add_option('--with-dtrace',
     action='store_true',
