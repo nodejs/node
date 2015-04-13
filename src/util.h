@@ -2,6 +2,7 @@
 #define SRC_UTIL_H_
 
 #include "v8.h"
+#include "uv.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -42,6 +43,8 @@ namespace node {
 #define CHECK_LE(a, b) CHECK((a) <= (b))
 #define CHECK_LT(a, b) CHECK((a) < (b))
 #define CHECK_NE(a, b) CHECK((a) != (b))
+
+#define STATIC_ASSERT(expression) static_assert(expression, #expression)
 
 #define UNREACHABLE() abort()
 
@@ -98,6 +101,7 @@ class ListHead {
   inline void MoveBack(ListHead* that);
   inline void PushBack(T* element);
   inline void PushFront(T* element);
+  inline void Remove(T* element);
   inline bool IsEmpty() const;
   inline T* PopFront();
   inline Iterator begin() const;
@@ -165,8 +169,13 @@ inline void Wrap(v8::Local<v8::Object> object, void* pointer);
 
 inline void ClearWrap(v8::Local<v8::Object> object);
 
+inline void BarrierInitAndWait(uv_barrier_t* barrier, int count);
+inline void BarrierWait(uv_barrier_t* barrier);
+
 template <typename TypeName>
 inline TypeName* Unwrap(v8::Local<v8::Object> object);
+
+char* ToUtf8Value(v8::Isolate* isolate, v8::Handle<v8::Value> value);
 
 class Utf8Value {
   public:

@@ -16,6 +16,7 @@ namespace node {
 
 // Forward declaration
 class Environment;
+class WorkerContext;
 
 // If persistent.IsWeak() == false, then do not call persistent.Reset()
 // while the returned Local<T> is still in scope, it will destroy the
@@ -103,7 +104,6 @@ void AppendExceptionLine(Environment* env,
                          v8::Handle<v8::Message> message);
 
 NO_RETURN void FatalError(const char* location, const char* message);
-
 v8::Local<v8::Value> BuildStatsObject(Environment* env, const uv_stat_t* s);
 
 enum Endianness {
@@ -147,6 +147,21 @@ inline MUST_USE_RESULT bool ParseArrayIndex(v8::Handle<v8::Value> arg,
   *ret = static_cast<size_t>(tmp_i);
   return true;
 }
+
+extern bool experimental_workers;
+extern v8::Platform* default_platform;
+uv_thread_t* main_thread();
+void InitializeEnvironment(Environment* env,
+                           v8::Isolate* isolate,
+                           uv_loop_t* loop,
+                           v8::Handle<v8::Context> context,
+                           int argc,
+                           const char* const* argv,
+                           int exec_argc,
+                           const char* const* exec_argv);
+Environment* CreateEnvironment(v8::Isolate* isolate,
+                               v8::Handle<v8::Context> context,
+                               WorkerContext* worker_context);
 
 void ThrowError(v8::Isolate* isolate, const char* errmsg);
 void ThrowTypeError(v8::Isolate* isolate, const char* errmsg);
@@ -194,83 +209,6 @@ NODE_DEPRECATED("Use ThrowUVException(isolate)",
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   return ThrowUVException(isolate, errorno, syscall, message, path);
 })
-
-enum NodeInstanceType { MAIN, WORKER };
-
-class NodeInstanceData {
-  public:
-    NodeInstanceData(NodeInstanceType node_instance_type,
-                     uv_loop_t* event_loop,
-                     int argc,
-                     const char** argv,
-                     int exec_argc,
-                     const char** exec_argv,
-                     bool use_debug_agent_flag)
-        : node_instance_type_(node_instance_type),
-          exit_code_(1),
-          event_loop_(event_loop),
-          argc_(argc),
-          argv_(argv),
-          exec_argc_(exec_argc),
-          exec_argv_(exec_argv),
-          use_debug_agent_flag_(use_debug_agent_flag) {
-      CHECK_NE(event_loop_, nullptr);
-    }
-
-    uv_loop_t* event_loop() const {
-      return event_loop_;
-    }
-
-    int exit_code() {
-      CHECK(is_main());
-      return exit_code_;
-    }
-
-    void set_exit_code(int exit_code) {
-      CHECK(is_main());
-      exit_code_ = exit_code;
-    }
-
-    bool is_main() {
-      return node_instance_type_ == MAIN;
-    }
-
-    bool is_worker() {
-      return node_instance_type_ == WORKER;
-    }
-
-    int argc() {
-      return argc_;
-    }
-
-    const char** argv() {
-      return argv_;
-    }
-
-    int exec_argc() {
-      return exec_argc_;
-    }
-
-    const char** exec_argv() {
-      return exec_argv_;
-    }
-
-    bool use_debug_agent() {
-      return is_main() && use_debug_agent_flag_;
-    }
-
-  private:
-    const NodeInstanceType node_instance_type_;
-    int exit_code_;
-    uv_loop_t* const event_loop_;
-    const int argc_;
-    const char** argv_;
-    const int exec_argc_;
-    const char** exec_argv_;
-    const bool use_debug_agent_flag_;
-
-    DISALLOW_COPY_AND_ASSIGN(NodeInstanceData);
-};
 
 }  // namespace node
 
