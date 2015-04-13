@@ -154,6 +154,12 @@ test-timers:
 test-timers-clean:
 	$(MAKE) --directory=tools clean
 
+test-workers: all
+	$(PYTHON) tools/test.py --mode=release workers -J
+
+test-workers-debug: all
+	$(PYTHON) tools/test.py --mode=debug workers -J
+
 apidoc_sources = $(wildcard doc/api/*.markdown)
 apidocs = $(addprefix out/,$(apidoc_sources:.markdown=.html)) \
           $(addprefix out/,$(apidoc_sources:.markdown=.json))

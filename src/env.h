@@ -9,6 +9,7 @@
 #include "util.h"
 #include "uv.h"
 #include "v8.h"
+#include "worker.h"
 
 #include <stdint.h>
 
@@ -84,6 +85,7 @@ namespace node {
   V(exit_code_string, "exitCode")                                             \
   V(exit_string, "exit")                                                      \
   V(expire_string, "expire")                                                  \
+  V(experimental_workers_string, "experimental_workers")                      \
   V(exponent_string, "exponent")                                              \
   V(exports_string, "exports")                                                \
   V(ext_key_usage_string, "ext_key_usage")                                    \
@@ -113,6 +115,7 @@ namespace node {
   V(isclosing_string, "isClosing")                                            \
   V(issuer_string, "issuer")                                                  \
   V(issuercert_string, "issuerCertificate")                                   \
+  V(keep_alive_string, "keepAlive")                                           \
   V(kill_signal_string, "killSignal")                                         \
   V(mac_string, "mac")                                                        \
   V(mark_sweep_compact_string, "mark-sweep-compact")                          \
@@ -250,6 +253,23 @@ namespace node {
   V(udp_constructor_function, v8::Function)                                   \
   V(write_wrap_constructor_function, v8::Function)                            \
 
+#define PER_ISOLATE_SYMBOL_PROPERTIES(V)                                      \
+  V(worker_init_symbol, "worker_init")                                        \
+
+
+// All weak persistent handles that need to be walked upon Environment
+// destruction should have defined a class id. Finalizers are not called even
+// when a V8 isolate (and its heap) are destroyed so non-JS resources are
+// easily leaked. The clean-ups for these are defined in
+// persistent-handle-cleanup.cc.
+//
+// The cleanup for resources that are backing strong persistent handles is
+// ensured in some other way, e.g. RegisterHandleCleanup.
+enum ClassId : uint16_t {
+  SMALLOC = 0xA10C,
+  CONTEXTIFY_SCRIPT = SMALLOC + 1
+};
+
 class Environment;
 
 // TODO(bnoordhuis) Rename struct, the ares_ prefix implies it's part
@@ -262,6 +282,25 @@ struct ares_task_t {
 };
 
 RB_HEAD(ares_task_list, ares_task_t);
+
+typedef void (*HandleCleanupCb)(Environment* env,
+                                uv_handle_t* handle,
+                                void* arg);
+class HandleCleanup {
+ private:
+  friend class Environment;
+
+  HandleCleanup(uv_handle_t* handle, HandleCleanupCb cb, void* arg)
+      : handle_(handle),
+        cb_(cb),
+        arg_(arg) {
+  }
+
+  uv_handle_t* handle_;
+  HandleCleanupCb cb_;
+  void* arg_;
+  ListNode<HandleCleanup> handle_cleanup_queue_;
+};
 
 class Environment {
  public:
@@ -336,26 +375,6 @@ class Environment {
     DISALLOW_COPY_AND_ASSIGN(TickInfo);
   };
 
-  typedef void (*HandleCleanupCb)(Environment* env,
-                                  uv_handle_t* handle,
-                                  void* arg);
-
-  class HandleCleanup {
-   private:
-    friend class Environment;
-
-    HandleCleanup(uv_handle_t* handle, HandleCleanupCb cb, void* arg)
-        : handle_(handle),
-          cb_(cb),
-          arg_(arg) {
-    }
-
-    uv_handle_t* handle_;
-    HandleCleanupCb cb_;
-    void* arg_;
-    ListNode<HandleCleanup> handle_cleanup_queue_;
-  };
-
   static inline Environment* GetCurrent(v8::Isolate* isolate);
   static inline Environment* GetCurrent(v8::Local<v8::Context> context);
   static inline Environment* GetCurrent(
@@ -367,7 +386,8 @@ class Environment {
 
   // See CreateEnvironment() in src/node.cc.
   static inline Environment* New(v8::Local<v8::Context> context,
-                                 uv_loop_t* loop);
+                                 uv_loop_t* loop,
+                                 WorkerContext* worker_context = nullptr);
   inline void CleanupHandles();
   inline void Dispose();
 
@@ -390,10 +410,11 @@ class Environment {
   inline uv_check_t* idle_check_handle();
 
   // Register clean-up cb to be called on env->Dispose()
-  inline void RegisterHandleCleanup(uv_handle_t* handle,
-                                    HandleCleanupCb cb,
-                                    void *arg);
+  inline HandleCleanup* RegisterHandleCleanup(uv_handle_t* handle,
+                                              HandleCleanupCb cb,
+                                              void *arg);
   inline void FinishHandleCleanup(uv_handle_t* handle);
+  inline void DeregisterHandleCleanup(HandleCleanup* hc);
 
   inline AsyncHooks* async_hooks();
   inline DomainFlag* domain_flag();
@@ -404,6 +425,7 @@ class Environment {
   inline ares_channel cares_channel();
   inline ares_channel* cares_channel_ptr();
   inline ares_task_list* cares_task_list();
+  inline void set_using_cares();
 
   inline bool using_smalloc_alloc_cb() const;
   inline void set_using_smalloc_alloc_cb(bool value);
@@ -422,6 +444,17 @@ class Environment {
 
   void PrintSyncTrace() const;
   inline void set_trace_sync_io(bool value);
+
+  inline WorkerContext* worker_context() const;
+  inline void set_worker_context(WorkerContext* context);
+
+  inline Environment* owner_env() const;
+  inline void set_owner_env(Environment* env);
+
+  inline bool is_main_instance() const;
+  inline bool is_worker_instance() const;
+
+  inline size_t sub_worker_context_count() const;
 
   inline void ThrowError(const char* errmsg);
   inline void ThrowTypeError(const char* errmsg);
@@ -457,6 +490,18 @@ class Environment {
                                 const char* name,
                                 v8::FunctionCallback callback);
 
+  typedef
+  ListHead<WorkerContext,
+           &WorkerContext::subworker_list_member_> WorkerContextList;
+
+  inline uv_mutex_t* ApiMutex();
+  inline bool CanCallIntoJs() const;
+  inline void AddSubWorkerContext(WorkerContext* context);
+  inline void RemoveSubWorkerContext(WorkerContext* context);
+  inline WorkerContextList* sub_worker_contexts();
+  inline void Exit(int exit_code = 0);
+  inline void ProcessNotifications();
+  inline void TerminateSubWorkers();
 
   // Strings are shared across shared contexts. The getters simply proxy to
   // the per-isolate primitive.
@@ -469,6 +514,11 @@ class Environment {
   inline v8::Local<TypeName> PropertyName() const;                            \
   inline void set_ ## PropertyName(v8::Local<TypeName> value);
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
+#undef V
+
+#define V(PropertyName, StringName)                                           \
+  inline v8::Local<v8::Symbol> PropertyName() const;
+  PER_ISOLATE_SYMBOL_PROPERTIES(V)
 #undef V
 
   inline debugger::Agent* debugger_agent() {
@@ -494,6 +544,8 @@ class Environment {
 
   v8::Isolate* const isolate_;
   IsolateData* const isolate_data_;
+  WorkerContext* worker_context_ = nullptr;
+  Environment* owner_env_ = nullptr;
   uv_check_t immediate_check_handle_;
   uv_idle_t immediate_idle_handle_;
   uv_prepare_t idle_prepare_handle_;
@@ -510,13 +562,17 @@ class Environment {
   bool using_asyncwrap_;
   bool printed_error_;
   bool trace_sync_io_;
+  bool using_cares_ = false;
   debugger::Agent debugger_agent_;
 
   HandleWrapQueue handle_wrap_queue_;
   ReqWrapQueue req_wrap_queue_;
   ListHead<HandleCleanup,
            &HandleCleanup::handle_cleanup_queue_> handle_cleanup_queue_;
-  int handle_cleanup_waiting_;
+  WorkerContextList sub_worker_contexts_;
+  size_t sub_worker_context_count_ = 0;
+  size_t handle_cleanup_waiting_ = 0;
+  bool sub_worker_context_list_dirty_ = false;
 
 #define V(PropertyName, TypeName)                                             \
   v8::Persistent<TypeName> PropertyName ## _;
@@ -536,6 +592,11 @@ class Environment {
     PER_ISOLATE_STRING_PROPERTIES(V)
 #undef V
 
+#define V(PropertyName, StringName)                                           \
+    inline v8::Local<v8::Symbol> PropertyName() const;
+    PER_ISOLATE_SYMBOL_PROPERTIES(V)
+#undef V
+
    private:
     inline static IsolateData* Get(v8::Isolate* isolate);
     inline explicit IsolateData(v8::Isolate* isolate, uv_loop_t* loop);
@@ -547,6 +608,11 @@ class Environment {
 #define V(PropertyName, StringValue)                                          \
     v8::Eternal<v8::String> PropertyName ## _;
     PER_ISOLATE_STRING_PROPERTIES(V)
+#undef V
+
+#define V(PropertyName, StringName)                                          \
+    v8::Eternal<v8::Symbol> PropertyName ## _;
+    PER_ISOLATE_SYMBOL_PROPERTIES(V)
 #undef V
 
     unsigned int ref_count_;

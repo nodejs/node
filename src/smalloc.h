@@ -141,6 +141,40 @@ void Alloc(Environment* env,
 void AllocDispose(Environment* env, v8::Handle<v8::Object> obj);
 bool HasExternalData(Environment* env, v8::Local<v8::Object> obj);
 
+class CallbackInfo {
+ public:
+  enum Ownership {
+    kInternal,
+    kExternal
+  };
+
+  static inline void Free(char* data, void* hint);
+  static inline CallbackInfo* New(v8::Isolate* isolate,
+                                  Ownership ownership,
+                                  v8::Handle<v8::Object> object,
+                                  FreeCallback callback,
+                                  void* hint = 0);
+
+  void DisposeNoAllocation(v8::Isolate* isolate);
+  inline void Dispose(v8::Isolate* isolate);
+  inline v8::Persistent<v8::Object>* persistent();
+ private:
+  static void WeakCallback(
+      const v8::WeakCallbackData<v8::Object, CallbackInfo>&);
+  inline void WeakCallback(v8::Isolate* isolate, v8::Local<v8::Object> object);
+  inline CallbackInfo(v8::Isolate* isolate,
+                      Ownership ownership,
+                      v8::Handle<v8::Object> object,
+                      FreeCallback callback,
+                      void* hint);
+  ~CallbackInfo();
+  const Ownership ownership_;
+  v8::Persistent<v8::Object> persistent_;
+  FreeCallback const callback_;
+  void* const hint_;
+  DISALLOW_COPY_AND_ASSIGN(CallbackInfo);
+};
+
 }  // namespace smalloc
 }  // namespace node
 

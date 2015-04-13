@@ -164,6 +164,8 @@ void LoadAsyncWrapperInfo(Environment* env) {
 Handle<Value> AsyncWrap::MakeCallback(const Handle<Function> cb,
                                       int argc,
                                       Handle<Value>* argv) {
+  if (!env()->CanCallIntoJs())
+    return Undefined(env()->isolate());
   CHECK(env()->context() == env()->isolate()->GetCurrentContext());
 
   Local<Object> context = object();
@@ -183,7 +185,7 @@ Handle<Value> AsyncWrap::MakeCallback(const Handle<Function> cb,
     }
   }
 
-  TryCatch try_catch;
+  TryCatch try_catch(env()->isolate());
   try_catch.SetVerbose(true);
 
   if (has_domain) {
@@ -198,6 +200,8 @@ Handle<Value> AsyncWrap::MakeCallback(const Handle<Function> cb,
   if (has_async_queue()) {
     try_catch.SetVerbose(false);
     env()->async_hooks_pre_function()->Call(context, 0, nullptr);
+    if (try_catch.HasTerminated())
+      return Undefined(env()->isolate());
     if (try_catch.HasCaught())
       FatalError("node::AsyncWrap::MakeCallback", "pre hook threw");
     try_catch.SetVerbose(true);
@@ -226,6 +230,8 @@ Handle<Value> AsyncWrap::MakeCallback(const Handle<Function> cb,
   if (has_async_queue()) {
     try_catch.SetVerbose(false);
     env()->async_hooks_post_function()->Call(context, 0, nullptr);
+    if (try_catch.HasTerminated())
+      return Undefined(env()->isolate());
     if (try_catch.HasCaught())
       FatalError("node::AsyncWrap::MakeCallback", "post hook threw");
     try_catch.SetVerbose(true);

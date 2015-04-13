@@ -69,13 +69,13 @@
       'lib/v8.js',
       'lib/vm.js',
       'lib/zlib.js',
-
       'lib/internal/child_process.js',
       'lib/internal/freelist.js',
       'lib/internal/smalloc.js',
       'lib/internal/socket_list.js',
       'lib/internal/repl.js',
       'lib/internal/util.js',
+      'lib/worker.js'
     ],
   },
 
@@ -121,6 +121,8 @@
         'src/node_watchdog.cc',
         'src/node_zlib.cc',
         'src/node_i18n.cc',
+        'src/notification-channel.cc',
+        'src/persistent-handle-cleanup.cc',
         'src/pipe_wrap.cc',
         'src/signal_wrap.cc',
         'src/smalloc.cc',
@@ -134,6 +136,7 @@
         'src/process_wrap.cc',
         'src/udp_wrap.cc',
         'src/uv.cc',
+        'src/worker.cc',
         # headers to make for a more pleasant IDE experience
         'src/async-wrap.h',
         'src/async-wrap-inl.h',
@@ -147,6 +150,7 @@
         'src/node.h',
         'src/node_buffer.h',
         'src/node_constants.h',
+        'src/node-contextify.h',
         'src/node_file.h',
         'src/node_http_parser.h',
         'src/node_internals.h',
@@ -156,7 +160,10 @@
         'src/node_watchdog.h',
         'src/node_wrap.h',
         'src/node_i18n.h',
+        'src/notification-channel.h',
+        'src/persistent-handle-cleanup.h',
         'src/pipe_wrap.h',
+        'src/producer-consumer-queue.h',
         'src/smalloc.h',
         'src/tty_wrap.h',
         'src/tcp_wrap.h',
@@ -171,6 +178,7 @@
         'src/util.h',
         'src/util-inl.h',
         'src/util.cc',
+        'src/worker.h',
         'deps/http_parser/http_parser.h',
         'deps/v8/include/v8.h',
         'deps/v8/include/v8-debug.h',
@@ -188,6 +196,11 @@
         'NODE_WANT_INTERNALS=1',
       ],
 
+      'xcode_settings': {
+          'OTHER_LDFLAGS': [
+            '-stdlib=libc++',
+          ],
+      },
 
       'conditions': [
         [ 'node_tag!=""', {
@@ -637,7 +650,8 @@
       'dependencies': [
         'deps/gtest/gtest.gyp:gtest',
         'deps/v8/tools/gyp/v8.gyp:v8',
-        'deps/v8/tools/gyp/v8.gyp:v8_libplatform'
+        'deps/v8/tools/gyp/v8.gyp:v8_libplatform',
+        'deps/uv/uv.gyp:libuv',
       ],
       'include_dirs': [
         'src',

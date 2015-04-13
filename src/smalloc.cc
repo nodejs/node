@@ -9,7 +9,6 @@
 
 #include <string.h>
 
-#define ALLOC_ID (0xA10C)
 #define EXTERNAL_ARRAY_TYPES(V)                                               \
   V(Int8, kExternalInt8Array)                                                 \
   V(Uint8, kExternalUint8Array)                                               \
@@ -46,38 +45,6 @@ using v8::WeakCallbackData;
 using v8::kExternalUint8Array;
 
 
-class CallbackInfo {
- public:
-  enum Ownership {
-    kInternal,
-    kExternal
-  };
-
-  static inline void Free(char* data, void* hint);
-  static inline CallbackInfo* New(Isolate* isolate,
-                                  Ownership ownership,
-                                  Handle<Object> object,
-                                  FreeCallback callback,
-                                  void* hint = 0);
-  inline void Dispose(Isolate* isolate);
-  inline Persistent<Object>* persistent();
- private:
-  static void WeakCallback(const WeakCallbackData<Object, CallbackInfo>&);
-  inline void WeakCallback(Isolate* isolate, Local<Object> object);
-  inline CallbackInfo(Isolate* isolate,
-                      Ownership ownership,
-                      Handle<Object> object,
-                      FreeCallback callback,
-                      void* hint);
-  ~CallbackInfo();
-  const Ownership ownership_;
-  Persistent<Object> persistent_;
-  FreeCallback const callback_;
-  void* const hint_;
-  DISALLOW_COPY_AND_ASSIGN(CallbackInfo);
-};
-
-
 void CallbackInfo::Free(char* data, void*) {
   ::free(data);
 }
@@ -112,7 +79,7 @@ CallbackInfo::CallbackInfo(Isolate* isolate,
       callback_(callback),
       hint_(hint) {
   persistent_.SetWeak(this, WeakCallback);
-  persistent_.SetWrapperClassId(ALLOC_ID);
+  persistent_.SetWrapperClassId(ClassId::SMALLOC);
   persistent_.MarkIndependent();
   isolate->AdjustAmountOfExternalAllocatedMemory(sizeof(*this));
 }
@@ -120,6 +87,15 @@ CallbackInfo::CallbackInfo(Isolate* isolate,
 
 CallbackInfo::~CallbackInfo() {
   persistent_.Reset();
+}
+
+
+void CallbackInfo::DisposeNoAllocation(Isolate* isolate) {
+  HandleScope scope(isolate);
+  Local<Object> object = PersistentToLocal(isolate, persistent_);
+  void* array_data = object->GetIndexedPropertiesExternalArrayData();
+  free(array_data);
+  delete this;
 }
 
 
@@ -650,7 +626,7 @@ void Initialize(Handle<Object> exports,
                Uint32::NewFromUnsigned(env->isolate(), kMaxType));
 
   HeapProfiler* heap_profiler = env->isolate()->GetHeapProfiler();
-  heap_profiler->SetWrapperClassInfoProvider(ALLOC_ID, WrapperInfo);
+  heap_profiler->SetWrapperClassInfoProvider(ClassId::SMALLOC, WrapperInfo);
 }
 
 

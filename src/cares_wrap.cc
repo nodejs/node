@@ -1240,13 +1240,19 @@ static void CaresTimerClose(Environment* env,
 }
 
 
+static void InitAresOnce() {
+  int r = ares_library_init(ARES_LIB_INIT_ALL);
+  CHECK_EQ(r, ARES_SUCCESS);
+}
+
+
 static void Initialize(Handle<Object> target,
                        Handle<Value> unused,
                        Handle<Context> context) {
-  Environment* env = Environment::GetCurrent(context);
+  static uv_once_t init_once = UV_ONCE_INIT;
+  uv_once(&init_once, InitAresOnce);
 
-  int r = ares_library_init(ARES_LIB_INIT_ALL);
-  CHECK_EQ(r, ARES_SUCCESS);
+  Environment* env = Environment::GetCurrent(context);
 
   struct ares_options options;
   memset(&options, 0, sizeof(options));
@@ -1255,10 +1261,12 @@ static void Initialize(Handle<Object> target,
   options.sock_state_cb_data = env;
 
   /* We do the call to ares_init_option for caller. */
-  r = ares_init_options(env->cares_channel_ptr(),
-                        &options,
-                        ARES_OPT_FLAGS | ARES_OPT_SOCK_STATE_CB);
+  int r = ares_init_options(env->cares_channel_ptr(),
+                            &options,
+                            ARES_OPT_FLAGS | ARES_OPT_SOCK_STATE_CB);
   CHECK_EQ(r, ARES_SUCCESS);
+  // Make env call ares_destroy when disposed.
+  env->set_using_cares();
 
   /* Initialize the timeout timer. The timer won't be started until the */
   /* first socket is opened. */
