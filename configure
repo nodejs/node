@@ -70,24 +70,6 @@ parser.add_option("--openssl-no-asm",
     dest="openssl_no_asm",
     help="Do not build optimized assembly for OpenSSL")
 
-# deprecated
-parser.add_option('--openssl-includes',
-    action='store',
-    dest='shared_openssl_includes',
-    help=optparse.SUPPRESS_HELP)
-
-# deprecated
-parser.add_option('--openssl-libpath',
-    action='store',
-    dest='shared_openssl_libpath',
-    help=optparse.SUPPRESS_HELP)
-
-# deprecated
-parser.add_option('--openssl-use-sys',
-    action='store_true',
-    dest='shared_openssl',
-    help=optparse.SUPPRESS_HELP)
-
 parser.add_option('--shared-http-parser',
     action='store_true',
     dest='shared_http_parser',
