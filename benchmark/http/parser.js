@@ -167,19 +167,16 @@ function main(conf) {
   for (var i = 0; i < n; ++i)
     chunks[i] = new Buffer(chunks[i], 'binary');
 
-  for (var j = 0; j < 1000; ++j) {
-    var parser = new HTTPParser(kind);
-    parser.onHeaders = onHeadersComplete;
-    parser.onBody = onBody;
-    parser.onComplete = onComplete;
-    for (var i = 0; i < n; ++i)
-      parser.execute(chunks[i]);
-  }
-
   var parser = new HTTPParser(kind);
   parser.onHeaders = onHeadersComplete;
   parser.onBody = onBody;
   parser.onComplete = onComplete;
+
+  // Allow V8 to optimize first ...
+  for (var j = 0; j < 1000; ++j) {
+    for (var i = 0; i < n; ++i)
+      parser.execute(chunks[i]);
+  }
 
   bench.start();
   for (var i = 0; i < n; ++i)
