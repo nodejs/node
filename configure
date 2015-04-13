@@ -794,8 +794,7 @@ def configure_intl(o):
     # small ICU (English only)
     o['variables']['v8_enable_i18n_support'] = 1
     o['variables']['icu_small'] = b(True)
-    with_icu_locales = options.with_icu_locales
-    locs = set(with_icu_locales.split(','))
+    locs = set(options.with_icu_locales.split(','))
     locs.add('root')  # must have root
     o['variables']['icu_locales'] = string.join(locs,',')
   elif with_intl == 'full-icu':
