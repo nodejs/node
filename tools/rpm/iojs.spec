@@ -93,13 +93,16 @@ done
 /usr/bin/*
 /usr/include/*
 /usr/lib/node_modules/
-/usr/share/man/man1/node.1.gz
+/usr/share/man/man1/iojs.1.gz
 /usr/share/systemtap/tapset/node.stp
 %{_datadir}/%{name}/
-%doc ChangeLog LICENSE README.md
+%doc CHANGELOG.md LICENSE README.md
 
 
 %changelog
+* Mon Apr 13 2015 Dan Varga <danvarga@gmail.com>
+- Fix paths for changelog and manpage
+
 * Thu Dec 4 2014 Ben Noordhuis <info@bnoordhuis.nl>
 - Rename to iojs.
 
