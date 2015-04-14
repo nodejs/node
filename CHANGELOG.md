@@ -1,5 +1,15 @@
 # io.js ChangeLog
 
+## 2015-04-14, Version 1.7.1, @rvagg
+
+### Notable changes
+
+* **build**: A syntax error in the Makefile for release builds caused 1.7.0 to be DOA and unreleased. (Rod Vagg) [#1421](https://github.com/iojs/io.js/pull/1421).
+
+### Commits
+
+* [[`aee86a21f2`](https://github.com/iojs/io.js/commit/aee86a21f2)] - **build**: fix RELEASE check (Rod Vagg) [#1421](https://github.com/iojs/io.js/pull/1421)
+
 ## 2015-04-14, Version 1.7.0, @rvagg
 
 ### Notable changes
