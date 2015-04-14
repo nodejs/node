@@ -221,4 +221,4 @@ you're rewriting history on a repository other people are working
 against) but is allowed for simpler slip-ups such as typo's in commit
 messages. You are only allowed to force push to any io.js branch
 within 10 minutes from your original push. After that period passes,
-consider the commit as final.
+consider the commit final.
