@@ -218,7 +218,7 @@ $ git push origin v1.x
 With git, there's a way to override remote trees by force pushing
 (`git push -f`). This should generally be seen as forbidden (since
 you're rewriting history on a repository other people are working
-against) but is allowed for simpler slip-ups such as typo's in commit
+against) but is allowed for simpler slip-ups such as typos in commit
 messages. You are only allowed to force push to any io.js branch
 within 10 minutes from your original push. After that period passes,
 consider the commit final.
