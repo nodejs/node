@@ -1,5 +1,57 @@
 # io.js ChangeLog
 
+## 2015-04-14, Version 1.7.0, @rvagg
+
+### Notable changes
+
+* **C++ API**: Fedor Indutny contributed a feature to V8 which has been backported to the V8 bundled in io.js. `SealHandleScope` allows a C++ add-on author to _seal_ a `HandleScope` to prevent further, unintended allocations within it. Currently only enabled for debug builds of io.js. This feature helped detect the leak in [#1075](https://github.com/iojs/io.js/issues/1075) and is now activated on the root `HandleScope` in io.js. (Fedor Indutny) [#1395](https://github.com/iojs/io.js/pull/1395).
+* **ARM**: This release includes significant work to improve the state of ARM support for builds and tests. The io.js CI cluster's ARMv6, ARMv7 and ARMv8 build servers are now all (mostly) reporting passing builds and tests.
+  * ARMv8 64-bit (AARCH64) is now properly supported, including a backported fix in libuv that was mistakenly detecting the existence of `epoll_wait()`. (Ben Noordhuis) [#1365](https://github.com/iojs/io.js/pull/1365).
+  * ARMv6: [#1376](https://github.com/iojs/io.js/issues/1376) reported a problem with `Math.exp()` on ARMv6 (incl Raspberry Pi). The culprit is erroneous codegen for ARMv6 when using the "fast math" feature of V8. `--nofast_math` has been turned on for all ARMv6 variants by default to avoid this, fast math can be turned back on with `--fast_math`. (Ben Noordhuis) [#1398](https://github.com/iojs/io.js/pull/1398).
+  * Tests: timeouts have been tuned specifically for slower platforms, detected as ARMv6 and ARMv7. (Roman Reiss) [#1366](https://github.com/iojs/io.js/pull/1366).
+* **npm**: Upgrade npm to 2.7.6. See the [release notes](https://github.com/npm/npm/releases/tag/v2.7.6) for details. Summary:
+  * [`b747593`](https://github.com/npm/npm/commit/b7475936f473f029e6a027ba1b16277523747d0b)[#7630](https://github.com/npm/npm/issues/7630) Don't automatically log all git failures as errors. `maybeGithub` needs to be able to fail without logging to support its fallback logic. ([@othiym23](https://github.com/othiym23))
+  * [`78005eb`](https://github.com/npm/npm/commit/78005ebb6f4103c20f077669c3929b7ea46a4c0d)[#7743](https://github.com/npm/npm/issues/7743) Always quote arguments passed to `npm run-script`. This allows build systems and the like to safely escape glob patterns passed as arguments to `run-scripts` with `npm run-script <script> -- <arguments>`. This is a tricky change to test, and may be reverted or moved to `npm@3` if it turns out it breaks things for users. ([@mantoni](https://github.com/mantoni))
+  * [`da015ee`](https://github.com/npm/npm/commit/da015eee45f6daf384598151d06a9b57ffce136e)[#7074](https://github.com/npm/npm/issues/7074) `read-package-json@1.3.3`: `read-package-json` no longer caches `package.json` files, which trades a very small performance loss for the elimination of a large class of really annoying race conditions. See [#7074](https://github.com/npm/npm/issues/7074) for the grisly details. ([@othiym23](https://github.com/othiym23))
+
+### Commits
+
+* [[`d2b62a4973`](https://github.com/iojs/io.js/commit/d2b62a4973)] - **benchmark**: don't check wrk in non-http benchmark (Jackson Tian) [#1368](https://github.com/iojs/io.js/pull/1368)
+* [[`fd90b33b94`](https://github.com/iojs/io.js/commit/fd90b33b94)] - **build**: validate options passed to configure (Johan Bergström) [#1335](https://github.com/iojs/io.js/pull/1335)
+* [[`04b02f5e34`](https://github.com/iojs/io.js/commit/04b02f5e34)] - **build**: Remove deprecated flags (Johan Bergström) [#1407](https://github.com/iojs/io.js/pull/1407)
+* [[`39d395c966`](https://github.com/iojs/io.js/commit/39d395c966)] - **build**: minor changes to fix rpm build (Dan Varga) [#1408](https://github.com/iojs/io.js/pull/1408)
+* [[`f9a2d31b32`](https://github.com/iojs/io.js/commit/f9a2d31b32)] - **build**: Simplify fetching release version (Johan Bergström) [#1405](https://github.com/iojs/io.js/pull/1405)
+* [[`cd38a4af8f`](https://github.com/iojs/io.js/commit/cd38a4af8f)] - **build**: support building io.js as a static library (Marat Abdullin) [#1341](https://github.com/iojs/io.js/pull/1341)
+* [[`d726a177ed`](https://github.com/iojs/io.js/commit/d726a177ed)] - **build**: Remove building against a shared V8 (Johan Bergström) [#1331](https://github.com/iojs/io.js/pull/1331)
+* [[`a5244d3a39`](https://github.com/iojs/io.js/commit/a5244d3a39)] - **(SEMVER-MINOR)** **deps**: backport 1f8555 from v8's upstream (Fedor Indutny) [#1395](https://github.com/iojs/io.js/pull/1395)
+* [[`09d4a286ea`](https://github.com/iojs/io.js/commit/09d4a286ea)] - **deps**: make node-gyp work with io.js (cjihrig) [#990](https://github.com/iojs/io.js/pull/990)
+* [[`cc8376ae67`](https://github.com/iojs/io.js/commit/cc8376ae67)] - **deps**: upgrade npm to 2.7.6 (Forrest L Norvell) [#1390](https://github.com/iojs/io.js/pull/1390)
+* [[`5b0e5755a0`](https://github.com/iojs/io.js/commit/5b0e5755a0)] - **deps**: generate opensslconf.h for architectures (Shigeki Ohtsu) [#1377](https://github.com/iojs/io.js/pull/1377)
+* [[`7d14aa0222`](https://github.com/iojs/io.js/commit/7d14aa0222)] - **deps**: add Makefile to generate opensslconf.h (Shigeki Ohtsu) [#1377](https://github.com/iojs/io.js/pull/1377)
+* [[`29a3301461`](https://github.com/iojs/io.js/commit/29a3301461)] - **deps**: make opensslconf.h include each target arch (Shigeki Ohtsu) [#1377](https://github.com/iojs/io.js/pull/1377)
+* [[`93a1a07ef4`](https://github.com/iojs/io.js/commit/93a1a07ef4)] - **doc**: remove keepAlive options from http.request (Jeremiah Senkpiel) [#1392](https://github.com/iojs/io.js/pull/1392)
+* [[`3ad6ea7c38`](https://github.com/iojs/io.js/commit/3ad6ea7c38)] - **doc**: remove redundant parameter in `end` listener. (Alex Yursha) [#1387](https://github.com/iojs/io.js/pull/1387)
+* [[`2bc3532461`](https://github.com/iojs/io.js/commit/2bc3532461)] - **doc**: document Console class (Jackson Tian) [#1388](https://github.com/iojs/io.js/pull/1388)
+* [[`69bc1382b7`](https://github.com/iojs/io.js/commit/69bc1382b7)] - **doc**: properly indent http.Agent keepAlive options (Jeremiah Senkpiel) [#1384](https://github.com/iojs/io.js/pull/1384)
+* [[`b464d467a2`](https://github.com/iojs/io.js/commit/b464d467a2)] - **doc**: update curl usage in COLLABORATOR_GUIDE (Roman Reiss) [#1382](https://github.com/iojs/io.js/pull/1382)
+* [[`61c0e7b70f`](https://github.com/iojs/io.js/commit/61c0e7b70f)] - **doc**: update CONTRIBUTING links. (Andrew Crites) [#1380](https://github.com/iojs/io.js/pull/1380)
+* [[`8d467e521c`](https://github.com/iojs/io.js/commit/8d467e521c)] - **doc**: add TC meeting 2015-03-18 minutes (Rod Vagg) [#1370](https://github.com/iojs/io.js/pull/1370)
+* [[`8ba9c4a7c2`](https://github.com/iojs/io.js/commit/8ba9c4a7c2)] - **doc**: add TC meeting 2015-04-01 minutes (Rod Vagg) [#1371](https://github.com/iojs/io.js/pull/1371)
+* [[`48facf93ad`](https://github.com/iojs/io.js/commit/48facf93ad)] - **doc**: update AUTHORS list (Rod Vagg) [#1372](https://github.com/iojs/io.js/pull/1372)
+* [[`1219e7466c`](https://github.com/iojs/io.js/commit/1219e7466c)] - **lib**: reduce process.binding() calls (Brendan Ashworth) [#1367](https://github.com/iojs/io.js/pull/1367)
+* [[`264a8f3a1b`](https://github.com/iojs/io.js/commit/264a8f3a1b)] - **linux**: fix epoll_pwait() fallback on arm64 (Ben Noordhuis) [#1365](https://github.com/iojs/io.js/pull/1365)
+* [[`f0bf6bb024`](https://github.com/iojs/io.js/commit/f0bf6bb024)] - **readline**: fix calling constructor without new (Alex Kocharin) [#1385](https://github.com/iojs/io.js/pull/1385)
+* [[`ff74931107`](https://github.com/iojs/io.js/commit/ff74931107)] - **smalloc**: do not track external memory (Fedor Indutny) [#1375](https://github.com/iojs/io.js/pull/1375)
+* [[`a07c69113a`](https://github.com/iojs/io.js/commit/a07c69113a)] - **(SEMVER-MINOR)** **src**: use global SealHandleScope (Fedor Indutny) [#1395](https://github.com/iojs/io.js/pull/1395)
+* [[`a4d88475fa`](https://github.com/iojs/io.js/commit/a4d88475fa)] - **src**: disable fast math only on armv6 (Ben Noordhuis) [#1398](https://github.com/iojs/io.js/pull/1398)
+* [[`e306c78f83`](https://github.com/iojs/io.js/commit/e306c78f83)] - **src**: disable fast math on arm (Ben Noordhuis) [#1398](https://github.com/iojs/io.js/pull/1398)
+* [[`7049d7b474`](https://github.com/iojs/io.js/commit/7049d7b474)] - **test**: increase timeouts on ARM (Roman Reiss) [#1366](https://github.com/iojs/io.js/pull/1366)
+* [[`3066f2c0c3`](https://github.com/iojs/io.js/commit/3066f2c0c3)] - **test**: double test timeout on arm machines (Ben Noordhuis) [#1357](https://github.com/iojs/io.js/pull/1357)
+* [[`66db9241cb`](https://github.com/iojs/io.js/commit/66db9241cb)] - **tools**: Remove unused files (Johan Bergström) [#1406](https://github.com/iojs/io.js/pull/1406)
+* [[`8bc8bd4bc2`](https://github.com/iojs/io.js/commit/8bc8bd4bc2)] - **tools**: add to install deps/openssl/config/archs (Shigeki Ohtsu) [#1377](https://github.com/iojs/io.js/pull/1377)
+* [[`907aaf325a`](https://github.com/iojs/io.js/commit/907aaf325a)] - **win,node-gyp**: optionally allow node.exe/iojs.exe to be renamed (Bert Belder) [#1266](https://github.com/iojs/io.js/pull/1266)
+* [[`372bf83818`](https://github.com/iojs/io.js/commit/372bf83818)] - **zlib**: make constants keep readonly (Jackson Tian) [#1361](https://github.com/iojs/io.js/pull/1361)
+
 ## 2015-04-06, Version 1.6.4, @Fishrock123
 
 ### Notable changes
