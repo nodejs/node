@@ -5,11 +5,10 @@ var REQUEST = HTTPParser.REQUEST;
 var RESPONSE = HTTPParser.RESPONSE;
 
 var bench = common.createBenchmark(main, {
+  n: [100000],
   type: [
     'small-req',
     'small-res',
-    'small-req-chunked',
-    'small-res-chunked',
     'medium-req',
     'medium-res',
     'medium-req-chunked',
@@ -29,30 +28,6 @@ var inputs = {
   'small-res': [
     'HTTP/1.1 200 OK' + CRLF +
     'Date: Mon, 23 May 2005 22:38:34 GMT' + CRLF + CRLF
-  ],
-  'small-req-chunked': [
-    'GET',
-    ' /index',
-    '.html HT',
-    'TP/1.',
-    '1',
-    CRLF,
-    'Host',
-    ': ',
-    'www.example.com' + CRLF,
-    CRLF
-  ],
-  'small-res-chunked': [
-    'HTTP',
-    '/1.',
-    '1 20',
-    '0 OK' + CRLF,
-    'Date: ',
-    'Mon, 23 May ',
-    '2005 22:38:34',
-    ' GMT',
-    CRLF,
-    CRLF
   ],
   'medium-req': [
     'POST /it HTTP/1.1' + CRLF +
@@ -160,11 +135,12 @@ function onComplete() {
 
 function main(conf) {
   var chunks = inputs[conf.type];
-  var n = chunks.length;
+  var n = +conf.n;
+  var nchunks = chunks.length;
   var kind = (/\-req\-?/i.exec(conf.type) ? REQUEST : RESPONSE);
 
   // Convert strings to Buffers first ...
-  for (var i = 0; i < n; ++i)
+  for (var i = 0; i < nchunks; ++i)
     chunks[i] = new Buffer(chunks[i], 'binary');
 
   var parser = new HTTPParser(kind);
@@ -174,12 +150,14 @@ function main(conf) {
 
   // Allow V8 to optimize first ...
   for (var j = 0; j < 1000; ++j) {
-    for (var i = 0; i < n; ++i)
+    for (var i = 0; i < nchunks; ++i)
       parser.execute(chunks[i]);
   }
 
   bench.start();
-  for (var i = 0; i < n; ++i)
-    parser.execute(chunks[i]);
-  bench.end(n);
+  for (var c = 0; c < n; ++c) {
+    for (var i = 0; i < nchunks; ++i)
+      parser.execute(chunks[i]);
+  }
+  bench.end(n * nchunks);
 }
