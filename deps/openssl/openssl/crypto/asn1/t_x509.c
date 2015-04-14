@@ -228,6 +228,21 @@ int X509_print_ex(BIO *bp, X509 *x, unsigned long nmflags,
         }
     }
 
+    if (!(cflag & X509_FLAG_NO_IDS)) {
+        if (ci->issuerUID) {
+            if (BIO_printf(bp, "%8sIssuer Unique ID: ", "") <= 0)
+                goto err;
+            if (!X509_signature_dump(bp, ci->issuerUID, 12))
+                goto err;
+        }
+        if (ci->subjectUID) {
+            if (BIO_printf(bp, "%8sSubject Unique ID: ", "") <= 0)
+                goto err;
+            if (!X509_signature_dump(bp, ci->subjectUID, 12))
+                goto err;
+        }
+    }
+
     if (!(cflag & X509_FLAG_NO_EXTENSIONS))
         X509V3_extensions_print(bp, "X509v3 extensions",
                                 ci->extensions, cflag, 8);

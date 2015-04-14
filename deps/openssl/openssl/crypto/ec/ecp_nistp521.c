@@ -1282,11 +1282,11 @@ static void point_add(felem x3, felem y3, felem z3,
     felem_scalar128(tmp2, 2);
     /* tmp2[i] < 17*2^121 */
     felem_diff128(tmp, tmp2);
-    /*-
-     * tmp[i] < 2^127 - 2^69 + 17*2^122
-     *        = 2^126 - 2^122 - 2^6 - 2^2 - 1
-     *        < 2^127
-     */
+        /*-
+         * tmp[i] < 2^127 - 2^69 + 17*2^122
+         *        = 2^126 - 2^122 - 2^6 - 2^2 - 1
+         *        < 2^127
+         */
     felem_reduce(y_out, tmp);
 
     copy_conditional(x_out, x2, z1_is_zero);

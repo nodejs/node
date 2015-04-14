@@ -19,9 +19,10 @@
 # Performance in number of cycles per processed byte for 128-bit key:
 #
 #		ECB encrypt	ECB decrypt	CBC large chunk
-# AMD64		33		41		13.0
-# EM64T		38		59		18.6(*)
-# Core 2	30		43		14.5(*)
+# AMD64		33		43		13.0
+# EM64T		38		56		18.6(*)
+# Core 2	30		42		14.5(*)
+# Atom		65		86		32.1(*)
 #
 # (*) with hyper-threading off
 
@@ -366,68 +367,66 @@ $code.=<<___;
 	movzb	`&lo("$s0")`,$t0
 	movzb	`&lo("$s1")`,$t1
 	movzb	`&lo("$s2")`,$t2
-	movzb	($sbox,$t0,1),$t0
-	movzb	($sbox,$t1,1),$t1
-	movzb	($sbox,$t2,1),$t2
-
 	movzb	`&lo("$s3")`,$t3
 	movzb	`&hi("$s1")`,$acc0
 	movzb	`&hi("$s2")`,$acc1
-	movzb	($sbox,$t3,1),$t3
-	movzb	($sbox,$acc0,1),$t4	#$t0
-	movzb	($sbox,$acc1,1),$t5	#$t1
-
-	movzb	`&hi("$s3")`,$acc2
-	movzb	`&hi("$s0")`,$acc0
 	shr	\$16,$s2
+	movzb	`&hi("$s3")`,$acc2
+	movzb	($sbox,$t0,1),$t0
+	movzb	($sbox,$t1,1),$t1
+	movzb	($sbox,$t2,1),$t2
+	movzb	($sbox,$t3,1),$t3
+
+	movzb	($sbox,$acc0,1),$t4	#$t0
+	movzb	`&hi("$s0")`,$acc0
+	movzb	($sbox,$acc1,1),$t5	#$t1
+	movzb	`&lo("$s2")`,$acc1
 	movzb	($sbox,$acc2,1),$acc2	#$t2
 	movzb	($sbox,$acc0,1),$acc0	#$t3
-	shr	\$16,$s3
 
-	movzb	`&lo("$s2")`,$acc1
 	shl	\$8,$t4
+	shr	\$16,$s3
 	shl	\$8,$t5
-	movzb	($sbox,$acc1,1),$acc1	#$t0
 	xor	$t4,$t0
-	xor	$t5,$t1
-
-	movzb	`&lo("$s3")`,$t4
 	shr	\$16,$s0
+	movzb	`&lo("$s3")`,$t4
 	shr	\$16,$s1
-	movzb	`&lo("$s0")`,$t5
+	xor	$t5,$t1
 	shl	\$8,$acc2
-	shl	\$8,$acc0
-	movzb	($sbox,$t4,1),$t4	#$t1
-	movzb	($sbox,$t5,1),$t5	#$t2
+	movzb	`&lo("$s0")`,$t5
+	movzb	($sbox,$acc1,1),$acc1	#$t0
 	xor	$acc2,$t2
-	xor	$acc0,$t3
 
+	shl	\$8,$acc0
 	movzb	`&lo("$s1")`,$acc2
-	movzb	`&hi("$s3")`,$acc0
 	shl	\$16,$acc1
-	movzb	($sbox,$acc2,1),$acc2	#$t3
-	movzb	($sbox,$acc0,1),$acc0	#$t0
+	xor	$acc0,$t3
+	movzb	($sbox,$t4,1),$t4	#$t1
+	movzb	`&hi("$s3")`,$acc0
+	movzb	($sbox,$t5,1),$t5	#$t2
 	xor	$acc1,$t0
 
-	movzb	`&hi("$s0")`,$acc1
 	shr	\$8,$s2
+	movzb	`&hi("$s0")`,$acc1
+	shl	\$16,$t4
 	shr	\$8,$s1
+	shl	\$16,$t5
+	xor	$t4,$t1
+	movzb	($sbox,$acc2,1),$acc2	#$t3
+	movzb	($sbox,$acc0,1),$acc0	#$t0
 	movzb	($sbox,$acc1,1),$acc1	#$t1
 	movzb	($sbox,$s2,1),$s3	#$t3
 	movzb	($sbox,$s1,1),$s2	#$t2
-	shl	\$16,$t4
-	shl	\$16,$t5
-	shl	\$16,$acc2
-	xor	$t4,$t1
-	xor	$t5,$t2
-	xor	$acc2,$t3
 
+	shl	\$16,$acc2
+	xor	$t5,$t2
 	shl	\$24,$acc0
+	xor	$acc2,$t3
 	shl	\$24,$acc1
-	shl	\$24,$s3
 	xor	$acc0,$t0
-	shl	\$24,$s2
+	shl	\$24,$s3
 	xor	$acc1,$t1
+	shl	\$24,$s2
 	mov	$t0,$s0
 	mov	$t1,$s1
 	xor	$t2,$s2
@@ -466,12 +465,12 @@ sub enctransform()
 { my ($t3,$r20,$r21)=($acc2,"%r8d","%r9d");
 
 $code.=<<___;
-	mov	$s0,$acc0
-	mov	$s1,$acc1
-	and	\$0x80808080,$acc0
-	and	\$0x80808080,$acc1
-	mov	$acc0,$t0
-	mov	$acc1,$t1
+	mov	\$0x80808080,$t0
+	mov	\$0x80808080,$t1
+	and	$s0,$t0
+	and	$s1,$t1
+	mov	$t0,$acc0
+	mov	$t1,$acc1
 	shr	\$7,$t0
 	lea	($s0,$s0),$r20
 	shr	\$7,$t1
@@ -489,25 +488,25 @@ $code.=<<___;
 
 	xor	$r20,$s0
 	xor	$r21,$s1
-	 mov	$s2,$acc0
-	 mov	$s3,$acc1
+	 mov	\$0x80808080,$t2
 	rol	\$24,$s0
+	 mov	\$0x80808080,$t3
 	rol	\$24,$s1
-	 and	\$0x80808080,$acc0
-	 and	\$0x80808080,$acc1
+	 and	$s2,$t2
+	 and	$s3,$t3
 	xor	$r20,$s0
 	xor	$r21,$s1
-	 mov	$acc0,$t2
-	 mov	$acc1,$t3
+	 mov	$t2,$acc0
 	ror	\$16,$t0
+	 mov	$t3,$acc1
 	ror	\$16,$t1
-	 shr	\$7,$t2
 	 lea	($s2,$s2),$r20
+	 shr	\$7,$t2
 	xor	$t0,$s0
-	xor	$t1,$s1
 	 shr	\$7,$t3
-	 lea	($s3,$s3),$r21
+	xor	$t1,$s1
 	ror	\$8,$t0
+	 lea	($s3,$s3),$r21
 	ror	\$8,$t1
 	 sub	$t2,$acc0
 	 sub	$t3,$acc1
@@ -523,23 +522,23 @@ $code.=<<___;
 	xor	$acc0,$r20
 	xor	$acc1,$r21
 
+	ror	\$16,$t2
 	xor	$r20,$s2
+	ror	\$16,$t3
 	xor	$r21,$s3
 	rol	\$24,$s2
+	mov	0($sbox),$acc0			# prefetch Te4
 	rol	\$24,$s3
 	xor	$r20,$s2
-	xor	$r21,$s3
-	mov	0($sbox),$acc0			# prefetch Te4
-	ror	\$16,$t2
-	ror	\$16,$t3
 	mov	64($sbox),$acc1
-	xor	$t2,$s2
-	xor	$t3,$s3
+	xor	$r21,$s3
 	mov	128($sbox),$r20
-	ror	\$8,$t2
-	ror	\$8,$t3
-	mov	192($sbox),$r21
 	xor	$t2,$s2
+	ror	\$8,$t2
+	xor	$t3,$s3
+	ror	\$8,$t3
+	xor	$t2,$s2
+	mov	192($sbox),$r21
 	xor	$t3,$s3
 ___
 }
@@ -936,70 +935,69 @@ $code.=<<___;
 	movzb	`&lo("$s0")`,$t0
 	movzb	`&lo("$s1")`,$t1
 	movzb	`&lo("$s2")`,$t2
-	movzb	($sbox,$t0,1),$t0
-	movzb	($sbox,$t1,1),$t1
-	movzb	($sbox,$t2,1),$t2
-
 	movzb	`&lo("$s3")`,$t3
 	movzb	`&hi("$s3")`,$acc0
 	movzb	`&hi("$s0")`,$acc1
-	movzb	($sbox,$t3,1),$t3
-	movzb	($sbox,$acc0,1),$t4	#$t0
-	movzb	($sbox,$acc1,1),$t5	#$t1
-
+	shr	\$16,$s3
 	movzb	`&hi("$s1")`,$acc2
+	movzb	($sbox,$t0,1),$t0
+	movzb	($sbox,$t1,1),$t1
+	movzb	($sbox,$t2,1),$t2
+	movzb	($sbox,$t3,1),$t3
+
+	movzb	($sbox,$acc0,1),$t4	#$t0
 	movzb	`&hi("$s2")`,$acc0
-	shr	\$16,$s2
+	movzb	($sbox,$acc1,1),$t5	#$t1
 	movzb	($sbox,$acc2,1),$acc2	#$t2
 	movzb	($sbox,$acc0,1),$acc0	#$t3
-	shr	\$16,$s3
 
-	movzb	`&lo("$s2")`,$acc1
-	shl	\$8,$t4
+	shr	\$16,$s2
 	shl	\$8,$t5
-	movzb	($sbox,$acc1,1),$acc1	#$t0
-	xor	$t4,$t0
-	xor	$t5,$t1
-
-	movzb	`&lo("$s3")`,$t4
+	shl	\$8,$t4
+	movzb	`&lo("$s2")`,$acc1
 	shr	\$16,$s0
+	xor	$t4,$t0
 	shr	\$16,$s1
-	movzb	`&lo("$s0")`,$t5
+	movzb	`&lo("$s3")`,$t4
+
 	shl	\$8,$acc2
+	xor	$t5,$t1
 	shl	\$8,$acc0
-	movzb	($sbox,$t4,1),$t4	#$t1
-	movzb	($sbox,$t5,1),$t5	#$t2
+	movzb	`&lo("$s0")`,$t5
+	movzb	($sbox,$acc1,1),$acc1	#$t0
 	xor	$acc2,$t2
-	xor	$acc0,$t3
-
 	movzb	`&lo("$s1")`,$acc2
-	movzb	`&hi("$s1")`,$acc0
-	shl	\$16,$acc1
-	movzb	($sbox,$acc2,1),$acc2	#$t3
-	movzb	($sbox,$acc0,1),$acc0	#$t0
-	xor	$acc1,$t0
 
+	shl	\$16,$acc1
+	xor	$acc0,$t3
+	movzb	($sbox,$t4,1),$t4	#$t1
+	movzb	`&hi("$s1")`,$acc0
+	movzb	($sbox,$acc2,1),$acc2	#$t3
+	xor	$acc1,$t0
+	movzb	($sbox,$t5,1),$t5	#$t2
 	movzb	`&hi("$s2")`,$acc1
+
+	shl	\$16,$acc2
 	shl	\$16,$t4
 	shl	\$16,$t5
-	movzb	($sbox,$acc1,1),$s1	#$t1
+	xor	$acc2,$t3
+	movzb	`&hi("$s3")`,$acc2
 	xor	$t4,$t1
+	shr	\$8,$s0
 	xor	$t5,$t2
 
-	movzb	`&hi("$s3")`,$acc1
-	shr	\$8,$s0
-	shl	\$16,$acc2
-	movzb	($sbox,$acc1,1),$s2	#$t2
+	movzb	($sbox,$acc0,1),$acc0	#$t0
+	movzb	($sbox,$acc1,1),$s1	#$t1
+	movzb	($sbox,$acc2,1),$s2	#$t2
 	movzb	($sbox,$s0,1),$s3	#$t3
-	xor	$acc2,$t3
 
+	mov	$t0,$s0
 	shl	\$24,$acc0
 	shl	\$24,$s1
 	shl	\$24,$s2
-	xor	$acc0,$t0
+	xor	$acc0,$s0
 	shl	\$24,$s3
 	xor	$t1,$s1
-	mov	$t0,$s0
 	xor	$t2,$s2
 	xor	$t3,$s3
 ___
@@ -1014,12 +1012,12 @@ sub dectransform()
   my $prefetch = shift;
 
 $code.=<<___;
-	mov	$tp10,$acc0
-	mov	$tp18,$acc8
-	and	$mask80,$acc0
-	and	$mask80,$acc8
-	mov	$acc0,$tp40
-	mov	$acc8,$tp48
+	mov	$mask80,$tp40
+	mov	$mask80,$tp48
+	and	$tp10,$tp40
+	and	$tp18,$tp48
+	mov	$tp40,$acc0
+	mov	$tp48,$acc8
 	shr	\$7,$tp40
 	lea	($tp10,$tp10),$tp20
 	shr	\$7,$tp48
@@ -1030,15 +1028,15 @@ $code.=<<___;
 	and	$maskfe,$tp28
 	and	$mask1b,$acc0
 	and	$mask1b,$acc8
-	xor	$tp20,$acc0
-	xor	$tp28,$acc8
-	mov	$acc0,$tp20
-	mov	$acc8,$tp28
+	xor	$acc0,$tp20
+	xor	$acc8,$tp28
+	mov	$mask80,$tp80
+	mov	$mask80,$tp88
 
-	and	$mask80,$acc0
-	and	$mask80,$acc8
-	mov	$acc0,$tp80
-	mov	$acc8,$tp88
+	and	$tp20,$tp80
+	and	$tp28,$tp88
+	mov	$tp80,$acc0
+	mov	$tp88,$acc8
 	shr	\$7,$tp80
 	lea	($tp20,$tp20),$tp40
 	shr	\$7,$tp88
@@ -1049,15 +1047,15 @@ $code.=<<___;
 	and	$maskfe,$tp48
 	and	$mask1b,$acc0
 	and	$mask1b,$acc8
-	xor	$tp40,$acc0
-	xor	$tp48,$acc8
-	mov	$acc0,$tp40
-	mov	$acc8,$tp48
+	xor	$acc0,$tp40
+	xor	$acc8,$tp48
+	mov	$mask80,$tp80
+	mov	$mask80,$tp88
 
-	and	$mask80,$acc0
-	and	$mask80,$acc8
-	mov	$acc0,$tp80
-	mov	$acc8,$tp88
+	and	$tp40,$tp80
+	and	$tp48,$tp88
+	mov	$tp80,$acc0
+	mov	$tp88,$acc8
 	shr	\$7,$tp80
 	 xor	$tp10,$tp20		# tp2^=tp1
 	shr	\$7,$tp88
@@ -1082,51 +1080,51 @@ $code.=<<___;
 	mov	$tp10,$acc0
 	mov	$tp18,$acc8
 	xor	$tp80,$tp40		# tp4^tp1^=tp8
-	xor	$tp88,$tp48		# tp4^tp1^=tp8
 	shr	\$32,$acc0
+	xor	$tp88,$tp48		# tp4^tp1^=tp8
 	shr	\$32,$acc8
 	xor	$tp20,$tp80		# tp8^=tp8^tp2^tp1=tp2^tp1
-	xor	$tp28,$tp88		# tp8^=tp8^tp2^tp1=tp2^tp1
 	rol	\$8,`&LO("$tp10")`	# ROTATE(tp1^tp8,8)
+	xor	$tp28,$tp88		# tp8^=tp8^tp2^tp1=tp2^tp1
 	rol	\$8,`&LO("$tp18")`	# ROTATE(tp1^tp8,8)
 	xor	$tp40,$tp80		# tp2^tp1^=tp8^tp4^tp1=tp8^tp4^tp2
+	rol	\$8,`&LO("$acc0")`	# ROTATE(tp1^tp8,8)
 	xor	$tp48,$tp88		# tp2^tp1^=tp8^tp4^tp1=tp8^tp4^tp2
 
-	rol	\$8,`&LO("$acc0")`	# ROTATE(tp1^tp8,8)
 	rol	\$8,`&LO("$acc8")`	# ROTATE(tp1^tp8,8)
 	xor	`&LO("$tp80")`,`&LO("$tp10")`
-	xor	`&LO("$tp88")`,`&LO("$tp18")`
 	shr	\$32,$tp80
+	xor	`&LO("$tp88")`,`&LO("$tp18")`
 	shr	\$32,$tp88
 	xor	`&LO("$tp80")`,`&LO("$acc0")`
 	xor	`&LO("$tp88")`,`&LO("$acc8")`
 
 	mov	$tp20,$tp80
-	mov	$tp28,$tp88
-	shr	\$32,$tp80
-	shr	\$32,$tp88
 	rol	\$24,`&LO("$tp20")`	# ROTATE(tp2^tp1^tp8,24)
+	mov	$tp28,$tp88
 	rol	\$24,`&LO("$tp28")`	# ROTATE(tp2^tp1^tp8,24)
-	rol	\$24,`&LO("$tp80")`	# ROTATE(tp2^tp1^tp8,24)
-	rol	\$24,`&LO("$tp88")`	# ROTATE(tp2^tp1^tp8,24)
+	shr	\$32,$tp80
 	xor	`&LO("$tp20")`,`&LO("$tp10")`
+	shr	\$32,$tp88
 	xor	`&LO("$tp28")`,`&LO("$tp18")`
+	rol	\$24,`&LO("$tp80")`	# ROTATE(tp2^tp1^tp8,24)
 	mov	$tp40,$tp20
+	rol	\$24,`&LO("$tp88")`	# ROTATE(tp2^tp1^tp8,24)
 	mov	$tp48,$tp28
+	shr	\$32,$tp20
 	xor	`&LO("$tp80")`,`&LO("$acc0")`
+	shr	\$32,$tp28
 	xor	`&LO("$tp88")`,`&LO("$acc8")`
 
 	`"mov	0($sbox),$mask80"	if ($prefetch)`
-	shr	\$32,$tp20
-	shr	\$32,$tp28
-	`"mov	64($sbox),$maskfe"	if ($prefetch)`
 	rol	\$16,`&LO("$tp40")`	# ROTATE(tp4^tp1^tp8,16)
+	`"mov	64($sbox),$maskfe"	if ($prefetch)`
 	rol	\$16,`&LO("$tp48")`	# ROTATE(tp4^tp1^tp8,16)
 	`"mov	128($sbox),$mask1b"	if ($prefetch)`
 	rol	\$16,`&LO("$tp20")`	# ROTATE(tp4^tp1^tp8,16)
-	rol	\$16,`&LO("$tp28")`	# ROTATE(tp4^tp1^tp8,16)
 	`"mov	192($sbox),$tp80"	if ($prefetch)`
 	xor	`&LO("$tp40")`,`&LO("$tp10")`
+	rol	\$16,`&LO("$tp28")`	# ROTATE(tp4^tp1^tp8,16)
 	xor	`&LO("$tp48")`,`&LO("$tp18")`
 	`"mov	256($sbox),$tp88"	if ($prefetch)`
 	xor	`&LO("$tp20")`,`&LO("$acc0")`
@@ -1302,10 +1300,6 @@ private_AES_set_encrypt_key:
 
 	call	_x86_64_AES_set_encrypt_key
 
-	mov	8(%rsp),%r15
-	mov	16(%rsp),%r14
-	mov	24(%rsp),%r13
-	mov	32(%rsp),%r12
 	mov	40(%rsp),%rbp
 	mov	48(%rsp),%rbx
 	add	\$56,%rsp

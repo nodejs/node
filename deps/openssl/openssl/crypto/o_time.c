@@ -246,8 +246,72 @@ struct tm *OPENSSL_gmtime(const time_t *timer, struct tm *result)
 
 static long date_to_julian(int y, int m, int d);
 static void julian_to_date(long jd, int *y, int *m, int *d);
+static int julian_adj(const struct tm *tm, int off_day, long offset_sec,
+                      long *pday, int *psec);
 
 int OPENSSL_gmtime_adj(struct tm *tm, int off_day, long offset_sec)
+{
+    int time_sec, time_year, time_month, time_day;
+    long time_jd;
+
+    /* Convert time and offset into julian day and seconds */
+    if (!julian_adj(tm, off_day, offset_sec, &time_jd, &time_sec))
+        return 0;
+
+    /* Convert Julian day back to date */
+
+    julian_to_date(time_jd, &time_year, &time_month, &time_day);
+
+    if (time_year < 1900 || time_year > 9999)
+        return 0;
+
+    /* Update tm structure */
+
+    tm->tm_year = time_year - 1900;
+    tm->tm_mon = time_month - 1;
+    tm->tm_mday = time_day;
+
+    tm->tm_hour = time_sec / 3600;
+    tm->tm_min = (time_sec / 60) % 60;
+    tm->tm_sec = time_sec % 60;
+
+    return 1;
+
+}
+
+int OPENSSL_gmtime_diff(int *pday, int *psec,
+                        const struct tm *from, const struct tm *to)
+{
+    int from_sec, to_sec, diff_sec;
+    long from_jd, to_jd, diff_day;
+    if (!julian_adj(from, 0, 0, &from_jd, &from_sec))
+        return 0;
+    if (!julian_adj(to, 0, 0, &to_jd, &to_sec))
+        return 0;
+    diff_day = to_jd - from_jd;
+    diff_sec = to_sec - from_sec;
+    /* Adjust differences so both positive or both negative */
+    if (diff_day > 0 && diff_sec < 0) {
+        diff_day--;
+        diff_sec += SECS_PER_DAY;
+    }
+    if (diff_day < 0 && diff_sec > 0) {
+        diff_day++;
+        diff_sec -= SECS_PER_DAY;
+    }
+
+    if (pday)
+        *pday = (int)diff_day;
+    if (psec)
+        *psec = diff_sec;
+
+    return 1;
+
+}
+
+/* Convert tm structure and offset into julian day and seconds */
+static int julian_adj(const struct tm *tm, int off_day, long offset_sec,
+                      long *pday, int *psec)
 {
     int offset_hms, offset_day;
     long time_jd;
@@ -284,25 +348,9 @@ int OPENSSL_gmtime_adj(struct tm *tm, int off_day, long offset_sec)
     if (time_jd < 0)
         return 0;
 
-    /* Convert Julian day back to date */
-
-    julian_to_date(time_jd, &time_year, &time_month, &time_day);
-
-    if (time_year < 1900 || time_year > 9999)
-        return 0;
-
-    /* Update tm structure */
-
-    tm->tm_year = time_year - 1900;
-    tm->tm_mon = time_month - 1;
-    tm->tm_mday = time_day;
-
-    tm->tm_hour = offset_hms / 3600;
-    tm->tm_min = (offset_hms / 60) % 60;
-    tm->tm_sec = offset_hms % 60;
-
+    *pday = time_jd;
+    *psec = offset_hms;
     return 1;
-
 }
 
 /*
@@ -354,27 +402,39 @@ int main(int argc, char **argv)
 
 int check_time(long offset)
 {
-    struct tm tm1, tm2;
+    struct tm tm1, tm2, o1;
+    int off_day, off_sec;
+    long toffset;
     time_t t1, t2;
     time(&t1);
     t2 = t1 + offset;
     OPENSSL_gmtime(&t2, &tm2);
     OPENSSL_gmtime(&t1, &tm1);
+    o1 = tm1;
     OPENSSL_gmtime_adj(&tm1, 0, offset);
-    if ((tm1.tm_year == tm2.tm_year) &&
-        (tm1.tm_mon == tm2.tm_mon) &&
-        (tm1.tm_mday == tm2.tm_mday) &&
-        (tm1.tm_hour == tm2.tm_hour) &&
-        (tm1.tm_min == tm2.tm_min) && (tm1.tm_sec == tm2.tm_sec))
-        return 1;
-    fprintf(stderr, "TIME ERROR!!\n");
-    fprintf(stderr, "Time1: %d/%d/%d, %d:%02d:%02d\n",
-            tm2.tm_mday, tm2.tm_mon + 1, tm2.tm_year + 1900,
-            tm2.tm_hour, tm2.tm_min, tm2.tm_sec);
-    fprintf(stderr, "Time2: %d/%d/%d, %d:%02d:%02d\n",
-            tm1.tm_mday, tm1.tm_mon + 1, tm1.tm_year + 1900,
-            tm1.tm_hour, tm1.tm_min, tm1.tm_sec);
-    return 0;
+    if ((tm1.tm_year != tm2.tm_year) ||
+        (tm1.tm_mon != tm2.tm_mon) ||
+        (tm1.tm_mday != tm2.tm_mday) ||
+        (tm1.tm_hour != tm2.tm_hour) ||
+        (tm1.tm_min != tm2.tm_min) || (tm1.tm_sec != tm2.tm_sec)) {
+        fprintf(stderr, "TIME ERROR!!\n");
+        fprintf(stderr, "Time1: %d/%d/%d, %d:%02d:%02d\n",
+                tm2.tm_mday, tm2.tm_mon + 1, tm2.tm_year + 1900,
+                tm2.tm_hour, tm2.tm_min, tm2.tm_sec);
+        fprintf(stderr, "Time2: %d/%d/%d, %d:%02d:%02d\n",
+                tm1.tm_mday, tm1.tm_mon + 1, tm1.tm_year + 1900,
+                tm1.tm_hour, tm1.tm_min, tm1.tm_sec);
+        return 0;
+    }
+    OPENSSL_gmtime_diff(&o1, &tm1, &off_day, &off_sec);
+    toffset = (long)off_day *SECS_PER_DAY + off_sec;
+    if (offset != toffset) {
+        fprintf(stderr, "TIME OFFSET ERROR!!\n");
+        fprintf(stderr, "Expected %ld, Got %ld (%d:%d)\n",
+                offset, toffset, off_day, off_sec);
+        return 0;
+    }
+    return 1;
 }
 
 #endif

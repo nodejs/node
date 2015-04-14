@@ -75,6 +75,7 @@ STACK_OF(EVP_PKEY_METHOD) *app_pkey_methods = NULL;
 
 extern const EVP_PKEY_METHOD rsa_pkey_meth, dh_pkey_meth, dsa_pkey_meth;
 extern const EVP_PKEY_METHOD ec_pkey_meth, hmac_pkey_meth, cmac_pkey_meth;
+extern const EVP_PKEY_METHOD dhx_pkey_meth;
 
 static const EVP_PKEY_METHOD *standard_methods[] = {
 #ifndef OPENSSL_NO_RSA
@@ -90,7 +91,10 @@ static const EVP_PKEY_METHOD *standard_methods[] = {
     &ec_pkey_meth,
 #endif
     &hmac_pkey_meth,
-    &cmac_pkey_meth
+    &cmac_pkey_meth,
+#ifndef OPENSSL_NO_DH
+    &dhx_pkey_meth
+#endif
 };
 
 DECLARE_OBJ_BSEARCH_CMP_FN(const EVP_PKEY_METHOD *, const EVP_PKEY_METHOD *,

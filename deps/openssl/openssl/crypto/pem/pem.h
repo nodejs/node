@@ -129,6 +129,7 @@ extern "C" {
 # define PEM_STRING_PKCS8        "ENCRYPTED PRIVATE KEY"
 # define PEM_STRING_PKCS8INF     "PRIVATE KEY"
 # define PEM_STRING_DHPARAMS     "DH PARAMETERS"
+# define PEM_STRING_DHXPARAMS    "X9.42 DH PARAMETERS"
 # define PEM_STRING_SSL_SESSION  "SSL SESSION PARAMETERS"
 # define PEM_STRING_DSAPARAMS    "DSA PARAMETERS"
 # define PEM_STRING_ECDSA_PUBLIC "ECDSA PUBLIC KEY"
@@ -181,7 +182,6 @@ typedef struct pem_ctx_st {
 
     int num_recipient;
     PEM_USER **recipient;
-
 /*-
     XXX(ben): don#t think this is used!
         STACK *x509_chain;      / * certificate chain */
@@ -399,8 +399,8 @@ int PEM_do_header(EVP_CIPHER_INFO *cipher, unsigned char *data, long *len,
 # ifndef OPENSSL_NO_BIO
 int PEM_read_bio(BIO *bp, char **name, char **header,
                  unsigned char **data, long *len);
-int PEM_write_bio(BIO *bp, const char *name, char *hdr, unsigned char *data,
-                  long len);
+int PEM_write_bio(BIO *bp, const char *name, const char *hdr,
+                  const unsigned char *data, long len);
 int PEM_bytes_read_bio(unsigned char **pdata, long *plen, char **pnm,
                        const char *name, BIO *bp, pem_password_cb *cb,
                        void *u);
@@ -419,7 +419,8 @@ int PEM_X509_INFO_write_bio(BIO *bp, X509_INFO *xi, EVP_CIPHER *enc,
 
 int PEM_read(FILE *fp, char **name, char **header,
              unsigned char **data, long *len);
-int PEM_write(FILE *fp, char *name, char *hdr, unsigned char *data, long len);
+int PEM_write(FILE *fp, const char *name, const char *hdr,
+              const unsigned char *data, long len);
 void *PEM_ASN1_read(d2i_of_void *d2i, const char *name, FILE *fp, void **x,
                     pem_password_cb *cb, void *u);
 int PEM_ASN1_write(i2d_of_void *i2d, const char *name, FILE *fp,
@@ -474,6 +475,7 @@ DECLARE_PEM_rw(EC_PUBKEY, EC_KEY)
 # endif
 # ifndef OPENSSL_NO_DH
 DECLARE_PEM_rw_const(DHparams, DH)
+DECLARE_PEM_write_const(DHxparams, DH)
 # endif
 DECLARE_PEM_rw_cb(PrivateKey, EVP_PKEY)
 DECLARE_PEM_rw(PUBKEY, EVP_PKEY)
@@ -562,8 +564,10 @@ void ERR_load_PEM_strings(void);
 # define PEM_F_PEM_PK8PKEY                                119
 # define PEM_F_PEM_READ                                   108
 # define PEM_F_PEM_READ_BIO                               109
+# define PEM_F_PEM_READ_BIO_DHPARAMS                      141
 # define PEM_F_PEM_READ_BIO_PARAMETERS                    140
 # define PEM_F_PEM_READ_BIO_PRIVATEKEY                    123
+# define PEM_F_PEM_READ_DHPARAMS                          142
 # define PEM_F_PEM_READ_PRIVATEKEY                        124
 # define PEM_F_PEM_SEALFINAL                              110
 # define PEM_F_PEM_SEALINIT                               111

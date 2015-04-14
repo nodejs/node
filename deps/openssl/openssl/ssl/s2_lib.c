@@ -435,10 +435,7 @@ const SSL_CIPHER *ssl2_get_cipher_by_char(const unsigned char *p)
         ((unsigned long)p[1] << 8L) | (unsigned long)p[2];
     c.id = id;
     cp = OBJ_bsearch_ssl_cipher_id(&c, ssl2_ciphers, SSL2_NUM_CIPHERS);
-    if ((cp == NULL) || (cp->valid == 0))
-        return NULL;
-    else
-        return cp;
+    return cp;
 }
 
 int ssl2_put_cipher_by_char(const SSL_CIPHER *c, unsigned char *p)

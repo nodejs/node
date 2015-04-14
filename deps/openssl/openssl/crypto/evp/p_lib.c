@@ -337,7 +337,7 @@ int EVP_PKEY_set1_DH(EVP_PKEY *pkey, DH *key)
 
 DH *EVP_PKEY_get1_DH(EVP_PKEY *pkey)
 {
-    if (pkey->type != EVP_PKEY_DH) {
+    if (pkey->type != EVP_PKEY_DH && pkey->type != EVP_PKEY_DHX) {
         EVPerr(EVP_F_EVP_PKEY_GET1_DH, EVP_R_EXPECTING_A_DH_KEY);
         return NULL;
     }

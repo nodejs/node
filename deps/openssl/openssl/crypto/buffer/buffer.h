@@ -84,6 +84,7 @@ BUF_MEM *BUF_MEM_new(void);
 void BUF_MEM_free(BUF_MEM *a);
 int BUF_MEM_grow(BUF_MEM *str, size_t len);
 int BUF_MEM_grow_clean(BUF_MEM *str, size_t len);
+size_t BUF_strnlen(const char *str, size_t maxlen);
 char *BUF_strdup(const char *str);
 char *BUF_strndup(const char *str, size_t siz);
 void *BUF_memdup(const void *data, size_t siz);

@@ -2,7 +2,49 @@
  OpenSSL CHANGES
  _______________
 
- Changes between 1.0.1l and 1.0.1m [19 Mar 2015]
+ Changes between 1.0.2 and 1.0.2a [19 Mar 2015]
+
+  *) ClientHello sigalgs DoS fix
+
+     If a client connects to an OpenSSL 1.0.2 server and renegotiates with an
+     invalid signature algorithms extension a NULL pointer dereference will
+     occur. This can be exploited in a DoS attack against the server.
+
+     This issue was was reported to OpenSSL by David Ramos of Stanford
+     University.
+     (CVE-2015-0291)
+     [Stephen Henson and Matt Caswell]
+
+  *) Multiblock corrupted pointer fix
+
+     OpenSSL 1.0.2 introduced the "multiblock" performance improvement. This
+     feature only applies on 64 bit x86 architecture platforms that support AES
+     NI instructions. A defect in the implementation of "multiblock" can cause
+     OpenSSL's internal write buffer to become incorrectly set to NULL when
+     using non-blocking IO. Typically, when the user application is using a
+     socket BIO for writing, this will only result in a failed connection.
+     However if some other BIO is used then it is likely that a segmentation
+     fault will be triggered, thus enabling a potential DoS attack.
+
+     This issue was reported to OpenSSL by Daniel Danner and Rainer Mueller.
+     (CVE-2015-0290)
+     [Matt Caswell]
+
+  *) Segmentation fault in DTLSv1_listen fix
+
+     The DTLSv1_listen function is intended to be stateless and processes the
+     initial ClientHello from many peers. It is common for user code to loop
+     over the call to DTLSv1_listen until a valid ClientHello is received with
+     an associated cookie. A defect in the implementation of DTLSv1_listen means
+     that state is preserved in the SSL object from one invocation to the next
+     that can lead to a segmentation fault. Errors processing the initial
+     ClientHello can trigger this scenario. An example of such an error could be
+     that a DTLS1.0 only client is attempting to connect to a DTLS1.2 only
+     server.
+
+     This issue was reported to OpenSSL by Per Allansson.
+     (CVE-2015-0207)
+     [Matt Caswell]
 
   *) Segmentation fault in ASN1_TYPE_cmp fix
 
@@ -13,6 +55,20 @@
      application which performs certificate verification is vulnerable including
      OpenSSL clients and servers which enable client authentication.
      (CVE-2015-0286)
+     [Stephen Henson]
+
+  *) Segmentation fault for invalid PSS parameters fix
+
+     The signature verification routines will crash with a NULL pointer
+     dereference if presented with an ASN.1 signature using the RSA PSS
+     algorithm and invalid parameters. Since these routines are used to verify
+     certificate signature algorithms this can be used to crash any
+     certificate verification operation and exploited in a DoS attack. Any
+     application which performs certificate verification is vulnerable including
+     OpenSSL clients and servers which enable client authentication.
+
+     This issue was was reported to OpenSSL by Brian Carpenter.
+     (CVE-2015-0208)
      [Stephen Henson]
 
   *) ASN.1 structure reuse memory corruption fix
@@ -53,6 +109,36 @@
      (CVE-2015-0293)
      [Emilia Käsper]
 
+  *) Empty CKE with client auth and DHE fix
+
+     If client auth is used then a server can seg fault in the event of a DHE
+     ciphersuite being selected and a zero length ClientKeyExchange message
+     being sent by the client. This could be exploited in a DoS attack.
+     (CVE-2015-1787)
+     [Matt Caswell]
+
+  *) Handshake with unseeded PRNG fix
+
+     Under certain conditions an OpenSSL 1.0.2 client can complete a handshake
+     with an unseeded PRNG. The conditions are:
+     - The client is on a platform where the PRNG has not been seeded
+     automatically, and the user has not seeded manually
+     - A protocol specific client method version has been used (i.e. not
+     SSL_client_methodv23)
+     - A ciphersuite is used that does not require additional random data from
+     the PRNG beyond the initial ClientHello client random (e.g. PSK-RC4-SHA).
+
+     If the handshake succeeds then the client random that has been used will
+     have been generated from a PRNG with insufficient entropy and therefore the
+     output may be predictable.
+
+     For example using the following command with an unseeded openssl will
+     succeed on an unpatched platform:
+
+     openssl s_client -psk 1a2b3c4d -tls1_2 -cipher PSK-RC4-SHA
+     (CVE-2015-0285)
+     [Matt Caswell]
+
   *) Use After Free following d2i_ECPrivatekey error fix
 
      A malformed EC private key file consumed via the d2i_ECPrivateKey function
@@ -78,6 +164,336 @@
 
   *) Removed the export ciphers from the DEFAULT ciphers
      [Kurt Roeckx]
+
+ Changes between 1.0.1l and 1.0.2 [22 Jan 2015]
+
+  *) Facilitate "universal" ARM builds targeting range of ARM ISAs, e.g.
+     ARMv5 through ARMv8, as opposite to "locking" it to single one.
+     So far those who have to target multiple plaforms would compromise
+     and argue that binary targeting say ARMv5 would still execute on
+     ARMv8. "Universal" build resolves this compromise by providing
+     near-optimal performance even on newer platforms.
+     [Andy Polyakov]
+
+  *) Accelerated NIST P-256 elliptic curve implementation for x86_64
+     (other platforms pending).
+     [Shay Gueron & Vlad Krasnov (Intel Corp), Andy Polyakov]
+
+  *) Add support for the SignedCertificateTimestampList certificate and
+     OCSP response extensions from RFC6962.
+     [Rob Stradling]
+
+  *) Fix ec_GFp_simple_points_make_affine (thus, EC_POINTs_mul etc.)
+     for corner cases. (Certain input points at infinity could lead to
+     bogus results, with non-infinity inputs mapped to infinity too.)
+     [Bodo Moeller]
+
+  *) Initial support for PowerISA 2.0.7, first implemented in POWER8.
+     This covers AES, SHA256/512 and GHASH. "Initial" means that most
+     common cases are optimized and there still is room for further
+     improvements. Vector Permutation AES for Altivec is also added.
+     [Andy Polyakov]
+
+  *) Add support for little-endian ppc64 Linux target.
+     [Marcelo Cerri (IBM)]
+
+  *) Initial support for AMRv8 ISA crypto extensions. This covers AES,
+     SHA1, SHA256 and GHASH. "Initial" means that most common cases
+     are optimized and there still is room for further improvements.
+     Both 32- and 64-bit modes are supported.
+     [Andy Polyakov, Ard Biesheuvel (Linaro)]
+
+  *) Improved ARMv7 NEON support.
+     [Andy Polyakov]
+
+  *) Support for SPARC Architecture 2011 crypto extensions, first
+     implemented in SPARC T4. This covers AES, DES, Camellia, SHA1,
+     SHA256/512, MD5, GHASH and modular exponentiation.
+     [Andy Polyakov, David Miller]
+
+  *) Accelerated modular exponentiation for Intel processors, a.k.a.
+     RSAZ.
+     [Shay Gueron & Vlad Krasnov (Intel Corp)]
+
+  *) Support for new and upcoming Intel processors, including AVX2,
+     BMI and SHA ISA extensions. This includes additional "stitched"
+     implementations, AESNI-SHA256 and GCM, and multi-buffer support
+     for TLS encrypt.
+
+     This work was sponsored by Intel Corp.
+     [Andy Polyakov]
+
+  *) Support for DTLS 1.2. This adds two sets of DTLS methods: DTLS_*_method()
+     supports both DTLS 1.2 and 1.0 and should use whatever version the peer
+     supports and DTLSv1_2_*_method() which supports DTLS 1.2 only.
+     [Steve Henson]
+
+  *) Use algorithm specific chains in SSL_CTX_use_certificate_chain_file():
+     this fixes a limiation in previous versions of OpenSSL.
+     [Steve Henson]
+
+  *) Extended RSA OAEP support via EVP_PKEY API. Options to specify digest,
+     MGF1 digest and OAEP label.
+     [Steve Henson]
+
+  *) Add EVP support for key wrapping algorithms, to avoid problems with
+     existing code the flag EVP_CIPHER_CTX_WRAP_ALLOW has to be set in
+     the EVP_CIPHER_CTX or an error is returned. Add AES and DES3 wrap
+     algorithms and include tests cases.
+     [Steve Henson]
+
+  *) Add functions to allocate and set the fields of an ECDSA_METHOD
+     structure.
+     [Douglas E. Engert, Steve Henson]
+
+  *) New functions OPENSSL_gmtime_diff and ASN1_TIME_diff to find the
+     difference in days and seconds between two tm or ASN1_TIME structures.
+     [Steve Henson]
+
+  *) Add -rev test option to s_server to just reverse order of characters
+     received by client and send back to server. Also prints an abbreviated
+     summary of the connection parameters.
+     [Steve Henson]
+
+  *) New option -brief for s_client and s_server to print out a brief summary
+     of connection parameters.
+     [Steve Henson]
+
+  *) Add callbacks for arbitrary TLS extensions.
+     [Trevor Perrin <trevp@trevp.net> and Ben Laurie]
+
+  *) New option -crl_download in several openssl utilities to download CRLs
+     from CRLDP extension in certificates.
+     [Steve Henson]
+
+  *) New options -CRL and -CRLform for s_client and s_server for CRLs.
+     [Steve Henson]
+
+  *) New function X509_CRL_diff to generate a delta CRL from the difference
+     of two full CRLs. Add support to "crl" utility.
+     [Steve Henson]
+
+  *) New functions to set lookup_crls function and to retrieve
+     X509_STORE from X509_STORE_CTX.
+     [Steve Henson]
+
+  *) Print out deprecated issuer and subject unique ID fields in
+     certificates.
+     [Steve Henson]
+
+  *) Extend OCSP I/O functions so they can be used for simple general purpose
+     HTTP as well as OCSP. New wrapper function which can be used to download
+     CRLs using the OCSP API.
+     [Steve Henson]
+
+  *) Delegate command line handling in s_client/s_server to SSL_CONF APIs.
+     [Steve Henson]
+
+  *) SSL_CONF* functions. These provide a common framework for application
+     configuration using configuration files or command lines.
+     [Steve Henson]
+
+  *) SSL/TLS tracing code. This parses out SSL/TLS records using the
+     message callback and prints the results. Needs compile time option
+     "enable-ssl-trace". New options to s_client and s_server to enable
+     tracing.
+     [Steve Henson]
+
+  *) New ctrl and macro to retrieve supported points extensions.
+     Print out extension in s_server and s_client.
+     [Steve Henson]
+
+  *) New functions to retrieve certificate signature and signature
+     OID NID.
+     [Steve Henson]
+
+  *) Add functions to retrieve and manipulate the raw cipherlist sent by a
+     client to OpenSSL.
+     [Steve Henson]
+
+  *) New Suite B modes for TLS code. These use and enforce the requirements
+     of RFC6460: restrict ciphersuites, only permit Suite B algorithms and
+     only use Suite B curves. The Suite B modes can be set by using the
+     strings "SUITEB128", "SUITEB192" or "SUITEB128ONLY" for the cipherstring.
+     [Steve Henson]
+
+  *) New chain verification flags for Suite B levels of security. Check
+     algorithms are acceptable when flags are set in X509_verify_cert.
+     [Steve Henson]
+
+  *) Make tls1_check_chain return a set of flags indicating checks passed
+     by a certificate chain. Add additional tests to handle client
+     certificates: checks for matching certificate type and issuer name
+     comparison.
+     [Steve Henson]
+
+  *) If an attempt is made to use a signature algorithm not in the peer
+     preference list abort the handshake. If client has no suitable
+     signature algorithms in response to a certificate request do not
+     use the certificate.
+     [Steve Henson]
+
+  *) If server EC tmp key is not in client preference list abort handshake.
+     [Steve Henson]
+
+  *) Add support for certificate stores in CERT structure. This makes it
+     possible to have different stores per SSL structure or one store in
+     the parent SSL_CTX. Include distint stores for certificate chain
+     verification and chain building. New ctrl SSL_CTRL_BUILD_CERT_CHAIN
+     to build and store a certificate chain in CERT structure: returing
+     an error if the chain cannot be built: this will allow applications
+     to test if a chain is correctly configured.
+
+     Note: if the CERT based stores are not set then the parent SSL_CTX
+     store is used to retain compatibility with existing behaviour.
+
+     [Steve Henson]
+
+  *) New function ssl_set_client_disabled to set a ciphersuite disabled
+     mask based on the current session, check mask when sending client
+     hello and checking the requested ciphersuite.
+     [Steve Henson]
+
+  *) New ctrls to retrieve and set certificate types in a certificate
+     request message. Print out received values in s_client. If certificate
+     types is not set with custom values set sensible values based on
+     supported signature algorithms.
+     [Steve Henson]
+
+  *) Support for distinct client and server supported signature algorithms.
+     [Steve Henson]
+
+  *) Add certificate callback. If set this is called whenever a certificate
+     is required by client or server. An application can decide which
+     certificate chain to present based on arbitrary criteria: for example
+     supported signature algorithms. Add very simple example to s_server.
+     This fixes many of the problems and restrictions of the existing client
+     certificate callback: for example you can now clear an existing
+     certificate and specify the whole chain.
+     [Steve Henson]
+
+  *) Add new "valid_flags" field to CERT_PKEY structure which determines what
+     the certificate can be used for (if anything). Set valid_flags field 
+     in new tls1_check_chain function. Simplify ssl_set_cert_masks which used
+     to have similar checks in it.
+
+     Add new "cert_flags" field to CERT structure and include a "strict mode".
+     This enforces some TLS certificate requirements (such as only permitting
+     certificate signature algorithms contained in the supported algorithms
+     extension) which some implementations ignore: this option should be used
+     with caution as it could cause interoperability issues.
+     [Steve Henson]
+
+  *) Update and tidy signature algorithm extension processing. Work out
+     shared signature algorithms based on preferences and peer algorithms
+     and print them out in s_client and s_server. Abort handshake if no
+     shared signature algorithms.
+     [Steve Henson]
+
+  *) Add new functions to allow customised supported signature algorithms
+     for SSL and SSL_CTX structures. Add options to s_client and s_server
+     to support them.
+     [Steve Henson]
+
+  *) New function SSL_certs_clear() to delete all references to certificates
+     from an SSL structure. Before this once a certificate had been added
+     it couldn't be removed.
+     [Steve Henson]
+
+  *) Integrate hostname, email address and IP address checking with certificate
+     verification. New verify options supporting checking in opensl utility.
+     [Steve Henson]
+
+  *) Fixes and wildcard matching support to hostname and email checking
+     functions. Add manual page.
+     [Florian Weimer (Red Hat Product Security Team)]
+
+  *) New functions to check a hostname email or IP address against a
+     certificate. Add options x509 utility to print results of checks against
+     a certificate.
+     [Steve Henson]
+
+  *) Fix OCSP checking.
+     [Rob Stradling <rob.stradling@comodo.com> and Ben Laurie]
+
+  *) Initial experimental support for explicitly trusted non-root CAs. 
+     OpenSSL still tries to build a complete chain to a root but if an
+     intermediate CA has a trust setting included that is used. The first
+     setting is used: whether to trust (e.g., -addtrust option to the x509
+     utility) or reject.
+     [Steve Henson]
+
+  *) Add -trusted_first option which attempts to find certificates in the
+     trusted store even if an untrusted chain is also supplied.
+     [Steve Henson]
+
+  *) MIPS assembly pack updates: support for MIPS32r2 and SmartMIPS ASE,
+     platform support for Linux and Android.
+     [Andy Polyakov]
+
+  *) Support for linux-x32, ILP32 environment in x86_64 framework.
+     [Andy Polyakov]
+
+  *) Experimental multi-implementation support for FIPS capable OpenSSL.
+     When in FIPS mode the approved implementations are used as normal,
+     when not in FIPS mode the internal unapproved versions are used instead.
+     This means that the FIPS capable OpenSSL isn't forced to use the
+     (often lower perfomance) FIPS implementations outside FIPS mode.
+     [Steve Henson]
+
+  *) Transparently support X9.42 DH parameters when calling
+     PEM_read_bio_DHparameters. This means existing applications can handle
+     the new parameter format automatically.
+     [Steve Henson]
+
+  *) Initial experimental support for X9.42 DH parameter format: mainly
+     to support use of 'q' parameter for RFC5114 parameters.
+     [Steve Henson]
+
+  *) Add DH parameters from RFC5114 including test data to dhtest.
+     [Steve Henson]
+
+  *) Support for automatic EC temporary key parameter selection. If enabled
+     the most preferred EC parameters are automatically used instead of
+     hardcoded fixed parameters. Now a server just has to call:
+     SSL_CTX_set_ecdh_auto(ctx, 1) and the server will automatically
+     support ECDH and use the most appropriate parameters.
+     [Steve Henson]
+
+  *) Enhance and tidy EC curve and point format TLS extension code. Use
+     static structures instead of allocation if default values are used.
+     New ctrls to set curves we wish to support and to retrieve shared curves.
+     Print out shared curves in s_server. New options to s_server and s_client
+     to set list of supported curves.
+     [Steve Henson]
+
+  *) New ctrls to retrieve supported signature algorithms and 
+     supported curve values as an array of NIDs. Extend openssl utility
+     to print out received values.
+     [Steve Henson]
+
+  *) Add new APIs EC_curve_nist2nid and EC_curve_nid2nist which convert
+     between NIDs and the more common NIST names such as "P-256". Enhance
+     ecparam utility and ECC method to recognise the NIST names for curves.
+     [Steve Henson]
+
+  *) Enhance SSL/TLS certificate chain handling to support different
+     chains for each certificate instead of one chain in the parent SSL_CTX.
+     [Steve Henson]
+
+  *) Support for fixed DH ciphersuite client authentication: where both
+     server and client use DH certificates with common parameters.
+     [Steve Henson]
+
+  *) Support for fixed DH ciphersuites: those requiring DH server
+     certificates.
+     [Steve Henson]
+
+  *) New function i2d_re_X509_tbs for re-encoding the TBS portion of
+     the certificate.
+     Note: Related 1.0.2-beta specific macros X509_get_cert_info,
+     X509_CINF_set_modified, X509_CINF_get_issuer, X509_CINF_get_extensions and
+     X509_CINF_get_signature were reverted post internal team review.
 
  Changes between 1.0.1k and 1.0.1l [15 Jan 2015]
 

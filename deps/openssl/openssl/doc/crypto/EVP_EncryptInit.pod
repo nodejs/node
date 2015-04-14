@@ -16,7 +16,17 @@ EVP_CIPHER_CTX_nid, EVP_CIPHER_CTX_block_size, EVP_CIPHER_CTX_key_length,
 EVP_CIPHER_CTX_iv_length, EVP_CIPHER_CTX_get_app_data,
 EVP_CIPHER_CTX_set_app_data, EVP_CIPHER_CTX_type, EVP_CIPHER_CTX_flags,
 EVP_CIPHER_CTX_mode, EVP_CIPHER_param_to_asn1, EVP_CIPHER_asn1_to_param,
-EVP_CIPHER_CTX_set_padding - EVP cipher routines
+EVP_CIPHER_CTX_set_padding,  EVP_enc_null, EVP_des_cbc, EVP_des_ecb,
+EVP_des_cfb, EVP_des_ofb, EVP_des_ede_cbc, EVP_des_ede, EVP_des_ede_ofb,
+EVP_des_ede_cfb, EVP_des_ede3_cbc, EVP_des_ede3, EVP_des_ede3_ofb,
+EVP_des_ede3_cfb, EVP_desx_cbc, EVP_rc4, EVP_rc4_40, EVP_idea_cbc,
+EVP_idea_ecb, EVP_idea_cfb, EVP_idea_ofb, EVP_idea_cbc, EVP_rc2_cbc,
+EVP_rc2_ecb, EVP_rc2_cfb, EVP_rc2_ofb, EVP_rc2_40_cbc, EVP_rc2_64_cbc,
+EVP_bf_cbc, EVP_bf_ecb, EVP_bf_cfb, EVP_bf_ofb, EVP_cast5_cbc,
+EVP_cast5_ecb, EVP_cast5_cfb, EVP_cast5_ofb, EVP_rc5_32_12_16_cbc,
+EVP_rc5_32_12_16_ecb, EVP_rc5_32_12_16_cfb, EVP_rc5_32_12_16_ofb, 
+EVP_aes_128_gcm, EVP_aes_192_gcm, EVP_aes_256_gcm, EVP_aes_128_ccm,
+EVP_aes_192_ccm, EVP_aes_256_ccm - EVP cipher routines
 
 =head1 SYNOPSIS
 
@@ -231,8 +241,7 @@ or the parameters cannot be set (for example the RC2 effective key length
 is not supported.
 
 EVP_CIPHER_CTX_ctrl() allows various cipher specific parameters to be determined
-and set. Currently only the RC2 effective key length and the number of rounds of
-RC5 can be set.
+and set.
 
 =head1 RETURN VALUES
 
@@ -338,7 +347,87 @@ RC5 encryption algorithm in CBC, ECB, CFB and OFB modes respectively. This is a 
 cipher with an additional "number of rounds" parameter. By default the key length is set to 128
 bits and 12 rounds.
 
+=item EVP_aes_128_gcm(void), EVP_aes_192_gcm(void), EVP_aes_256_gcm(void)
+
+AES Galois Counter Mode (GCM) for 128, 192 and 256 bit keys respectively.
+These ciphers require additional control operations to function correctly: see
+L<GCM mode> section below for details.
+
+=item EVP_aes_128_ccm(void), EVP_aes_192_ccm(void), EVP_aes_256_ccm(void)
+
+AES Counter with CBC-MAC Mode (CCM) for 128, 192 and 256 bit keys respectively.
+These ciphers require additional control operations to function correctly: see
+CCM mode section below for details.
+
 =back
+
+=head1 GCM Mode
+
+For GCM mode ciphers the behaviour of the EVP interface is subtly altered and
+several GCM specific ctrl operations are supported.
+
+To specify any additional authenticated data (AAD) a call to EVP_CipherUpdate(),
+EVP_EncryptUpdate() or EVP_DecryptUpdate() should be made with the output 
+parameter B<out> set to B<NULL>.
+
+When decrypting the return value of EVP_DecryptFinal() or EVP_CipherFinal()
+indicates if the operation was successful. If it does not indicate success
+the authentication operation has failed and any output data B<MUST NOT>
+be used as it is corrupted.
+
+The following ctrls are supported in GCM mode:
+
+ EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, ivlen, NULL);
+
+Sets the GCM IV length: this call can only be made before specifying an IV. If
+not called a default IV length is used (96 bits for AES).
+ 
+ EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, taglen, tag);
+
+Writes B<taglen> bytes of the tag value to the buffer indicated by B<tag>.
+This call can only be made when encrypting data and B<after> all data has been
+processed (e.g. after an EVP_EncryptFinal() call).
+
+ EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, taglen, tag);
+
+Sets the expected tag to B<taglen> bytes from B<tag>. This call is only legal
+when decrypting data and must be made B<before> any data is processed (e.g.
+before any EVP_DecryptUpdate() call). 
+
+See L<EXAMPLES> below for an example of the use of GCM mode.
+
+=head1 CCM Mode
+
+The behaviour of CCM mode ciphers is similar to CCM mode but with a few
+additional requirements and different ctrl values.
+
+Like GCM mode any additional authenticated data (AAD) is passed by calling
+EVP_CipherUpdate(), EVP_EncryptUpdate() or EVP_DecryptUpdate() with the output 
+parameter B<out> set to B<NULL>. Additionally the total plaintext or ciphertext
+length B<MUST> be passed to EVP_CipherUpdate(), EVP_EncryptUpdate() or
+EVP_DecryptUpdate() with the output and input parameters (B<in> and B<out>) 
+set to B<NULL> and the length passed in the B<inl> parameter.
+
+The following ctrls are supported in CCM mode:
+ 
+ EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_TAG, taglen, tag);
+
+This call is made to set the expected B<CCM> tag value when decrypting or
+the length of the tag (with the B<tag> parameter set to NULL) when encrypting.
+The tag length is often referred to as B<M>. If not set a default value is
+used (12 for AES).
+
+ EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_L, ivlen, NULL);
+
+Sets the CCM B<L> value. If not set a default is used (8 for AES).
+
+ EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_IVLEN, ivlen, NULL);
+
+Sets the CCM nonce (IV) length: this call can only be made before specifying
+an nonce value. The nonce length is given by B<15 - L> so it is 7 by default
+for AES.
+
+
 
 =head1 NOTES
 

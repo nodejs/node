@@ -89,8 +89,10 @@ typedef unsigned long long u64;
 #endif
 
 #undef ROTATE
-#if defined(_MSC_VER) || defined(__ICC)
-# define ROTATE(a,n)	_lrotl(a,n)
+#if defined(_MSC_VER)
+# define ROTATE(a,n)    _lrotl(a,n)
+#elif defined(__ICC)
+# define ROTATE(a,n)    _rotl(a,n)
 #elif defined(__GNUC__) && __GNUC__>=2
 # if defined(__i386) || defined(__i386__) || defined(__x86_64) || defined(__x86_64__)
 #   define ROTATE(a,n)  ({ register unsigned int ret;   \

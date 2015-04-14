@@ -75,6 +75,8 @@ static void receipt_request_print(BIO *out, CMS_ContentInfo *cms);
 static CMS_ReceiptRequest *make_receipt_request(STACK_OF(OPENSSL_STRING)
                                                 *rr_to, int rr_allorfirst, STACK_OF(OPENSSL_STRING)
                                                 *rr_from);
+static int cms_set_pkey_param(EVP_PKEY_CTX *pctx,
+                              STACK_OF(OPENSSL_STRING) *param);
 
 # define SMIME_OP        0x10
 # define SMIME_IP        0x20
@@ -98,6 +100,14 @@ static CMS_ReceiptRequest *make_receipt_request(STACK_OF(OPENSSL_STRING)
 
 int verify_err = 0;
 
+typedef struct cms_key_param_st cms_key_param;
+
+struct cms_key_param_st {
+    int idx;
+    STACK_OF(OPENSSL_STRING) *param;
+    cms_key_param *next;
+};
+
 int MAIN(int, char **);
 
 int MAIN(int argc, char **argv)
@@ -112,7 +122,7 @@ int MAIN(int argc, char **argv)
     STACK_OF(OPENSSL_STRING) *sksigners = NULL, *skkeys = NULL;
     char *certfile = NULL, *keyfile = NULL, *contfile = NULL;
     char *certsoutfile = NULL;
-    const EVP_CIPHER *cipher = NULL;
+    const EVP_CIPHER *cipher = NULL, *wrap_cipher = NULL;
     CMS_ContentInfo *cms = NULL, *rcms = NULL;
     X509_STORE *store = NULL;
     X509 *cert = NULL, *recip = NULL, *signer = NULL;
@@ -139,6 +149,8 @@ int MAIN(int argc, char **argv)
     unsigned char *secret_key = NULL, *secret_keyid = NULL;
     unsigned char *pwri_pass = NULL, *pwri_tmp = NULL;
     size_t secret_keylen = 0, secret_keyidlen = 0;
+
+    cms_key_param *key_first = NULL, *key_param = NULL;
 
     ASN1_OBJECT *econtent_type = NULL;
 
@@ -201,6 +213,8 @@ int MAIN(int argc, char **argv)
             cipher = EVP_des_ede3_cbc();
         else if (!strcmp(*args, "-des"))
             cipher = EVP_des_cbc();
+        else if (!strcmp(*args, "-des3-wrap"))
+            wrap_cipher = EVP_des_ede3_wrap();
 # endif
 # ifndef OPENSSL_NO_SEED
         else if (!strcmp(*args, "-seed"))
@@ -221,6 +235,12 @@ int MAIN(int argc, char **argv)
             cipher = EVP_aes_192_cbc();
         else if (!strcmp(*args, "-aes256"))
             cipher = EVP_aes_256_cbc();
+        else if (!strcmp(*args, "-aes128-wrap"))
+            wrap_cipher = EVP_aes_128_wrap();
+        else if (!strcmp(*args, "-aes192-wrap"))
+            wrap_cipher = EVP_aes_192_wrap();
+        else if (!strcmp(*args, "-aes256-wrap"))
+            wrap_cipher = EVP_aes_256_wrap();
 # endif
 # ifndef OPENSSL_NO_CAMELLIA
         else if (!strcmp(*args, "-camellia128"))
@@ -378,7 +398,17 @@ int MAIN(int argc, char **argv)
         } else if (!strcmp(*args, "-recip")) {
             if (!args[1])
                 goto argerr;
-            recipfile = *++args;
+            if (operation == SMIME_ENCRYPT) {
+                if (!encerts)
+                    encerts = sk_X509_new_null();
+                cert = load_cert(bio_err, *++args, FORMAT_PEM,
+                                 NULL, e, "recipient certificate file");
+                if (!cert)
+                    goto end;
+                sk_X509_push(encerts, cert);
+                cert = NULL;
+            } else
+                recipfile = *++args;
         } else if (!strcmp(*args, "-certsout")) {
             if (!args[1])
                 goto argerr;
@@ -413,6 +443,40 @@ int MAIN(int argc, char **argv)
             if (!args[1])
                 goto argerr;
             keyform = str2fmt(*++args);
+        } else if (!strcmp(*args, "-keyopt")) {
+            int keyidx = -1;
+            if (!args[1])
+                goto argerr;
+            if (operation == SMIME_ENCRYPT) {
+                if (encerts)
+                    keyidx += sk_X509_num(encerts);
+            } else {
+                if (keyfile || signerfile)
+                    keyidx++;
+                if (skkeys)
+                    keyidx += sk_OPENSSL_STRING_num(skkeys);
+            }
+            if (keyidx < 0) {
+                BIO_printf(bio_err, "No key specified\n");
+                goto argerr;
+            }
+            if (key_param == NULL || key_param->idx != keyidx) {
+                cms_key_param *nparam;
+                nparam = OPENSSL_malloc(sizeof(cms_key_param));
+                if(!nparam) {
+                    BIO_printf(bio_err, "Out of memory\n");
+                    goto argerr;
+                }
+                nparam->idx = keyidx;
+                nparam->param = sk_OPENSSL_STRING_new_null();
+                nparam->next = NULL;
+                if (key_first == NULL)
+                    key_first = nparam;
+                else
+                    key_param->next = nparam;
+                key_param = nparam;
+            }
+            sk_OPENSSL_STRING_push(key_param->param, *++args);
         } else if (!strcmp(*args, "-rctform")) {
             if (!args[1])
                 goto argerr;
@@ -502,7 +566,7 @@ int MAIN(int argc, char **argv)
             badarg = 1;
         }
     } else if (operation == SMIME_ENCRYPT) {
-        if (!*args && !secret_key && !pwri_pass) {
+        if (!*args && !secret_key && !pwri_pass && !encerts) {
             BIO_printf(bio_err, "No recipient(s) certificate(s) specified\n");
             badarg = 1;
         }
@@ -567,6 +631,7 @@ int MAIN(int argc, char **argv)
                    "-inkey file    input private key (if not signer or recipient)\n");
         BIO_printf(bio_err,
                    "-keyform arg   input private key format (PEM or ENGINE)\n");
+        BIO_printf(bio_err, "-keyopt nm:v   set public key parameters\n");
         BIO_printf(bio_err, "-out file      output file\n");
         BIO_printf(bio_err,
                    "-outform arg   output format SMIME (default), PEM or DER\n");
@@ -650,7 +715,7 @@ int MAIN(int argc, char **argv)
             goto end;
         }
 
-        if (*args)
+        if (*args && !encerts)
             encerts = sk_X509_new_null();
         while (*args) {
             if (!(cert = load_cert(bio_err, *args, FORMAT_PEM,
@@ -802,10 +867,39 @@ int MAIN(int argc, char **argv)
     } else if (operation == SMIME_COMPRESS) {
         cms = CMS_compress(in, -1, flags);
     } else if (operation == SMIME_ENCRYPT) {
+        int i;
         flags |= CMS_PARTIAL;
-        cms = CMS_encrypt(encerts, in, cipher, flags);
+        cms = CMS_encrypt(NULL, in, cipher, flags);
         if (!cms)
             goto end;
+        for (i = 0; i < sk_X509_num(encerts); i++) {
+            CMS_RecipientInfo *ri;
+            cms_key_param *kparam;
+            int tflags = flags;
+            X509 *x = sk_X509_value(encerts, i);
+            for (kparam = key_first; kparam; kparam = kparam->next) {
+                if (kparam->idx == i) {
+                    tflags |= CMS_KEY_PARAM;
+                    break;
+                }
+            }
+            ri = CMS_add1_recipient_cert(cms, x, tflags);
+            if (!ri)
+                goto end;
+            if (kparam) {
+                EVP_PKEY_CTX *pctx;
+                pctx = CMS_RecipientInfo_get0_pkey_ctx(ri);
+                if (!cms_set_pkey_param(pctx, kparam->param))
+                    goto end;
+            }
+            if (CMS_RecipientInfo_type(ri) == CMS_RECIPINFO_AGREE
+                && wrap_cipher) {
+                EVP_CIPHER_CTX *wctx;
+                wctx = CMS_RecipientInfo_kari_get0_ctx(ri);
+                EVP_EncryptInit_ex(wctx, wrap_cipher, NULL, NULL, NULL);
+            }
+        }
+
         if (secret_key) {
             if (!CMS_add0_recipient_key(cms, NID_undef,
                                         secret_key, secret_keylen,
@@ -878,8 +972,11 @@ int MAIN(int argc, char **argv)
             flags |= CMS_REUSE_DIGEST;
         for (i = 0; i < sk_OPENSSL_STRING_num(sksigners); i++) {
             CMS_SignerInfo *si;
+            cms_key_param *kparam;
+            int tflags = flags;
             signerfile = sk_OPENSSL_STRING_value(sksigners, i);
             keyfile = sk_OPENSSL_STRING_value(skkeys, i);
+
             signer = load_cert(bio_err, signerfile, FORMAT_PEM, NULL,
                                e, "signer certificate");
             if (!signer)
@@ -888,9 +985,21 @@ int MAIN(int argc, char **argv)
                            "signing key file");
             if (!key)
                 goto end;
-            si = CMS_add1_signer(cms, signer, key, sign_md, flags);
+            for (kparam = key_first; kparam; kparam = kparam->next) {
+                if (kparam->idx == i) {
+                    tflags |= CMS_KEY_PARAM;
+                    break;
+                }
+            }
+            si = CMS_add1_signer(cms, signer, key, sign_md, tflags);
             if (!si)
                 goto end;
+            if (kparam) {
+                EVP_PKEY_CTX *pctx;
+                pctx = CMS_SignerInfo_get0_pkey_ctx(si);
+                if (!cms_set_pkey_param(pctx, kparam->param))
+                    goto end;
+            }
             if (rr && !CMS_add1_ReceiptRequest(si, rr))
                 goto end;
             X509_free(signer);
@@ -1045,6 +1154,13 @@ int MAIN(int argc, char **argv)
         sk_OPENSSL_STRING_free(rr_to);
     if (rr_from)
         sk_OPENSSL_STRING_free(rr_from);
+    for (key_param = key_first; key_param;) {
+        cms_key_param *tparam;
+        sk_OPENSSL_STRING_free(key_param->param);
+        tparam = key_param->next;
+        OPENSSL_free(key_param);
+        key_param = tparam;
+    }
     X509_STORE_free(store);
     X509_free(cert);
     X509_free(recip);
@@ -1216,6 +1332,24 @@ static CMS_ReceiptRequest *make_receipt_request(STACK_OF(OPENSSL_STRING)
     return rr;
  err:
     return NULL;
+}
+
+static int cms_set_pkey_param(EVP_PKEY_CTX *pctx,
+                              STACK_OF(OPENSSL_STRING) *param)
+{
+    char *keyopt;
+    int i;
+    if (sk_OPENSSL_STRING_num(param) <= 0)
+        return 1;
+    for (i = 0; i < sk_OPENSSL_STRING_num(param); i++) {
+        keyopt = sk_OPENSSL_STRING_value(param, i);
+        if (pkey_ctrl_string(pctx, keyopt) <= 0) {
+            BIO_printf(bio_err, "parameter error \"%s\"\n", keyopt);
+            ERR_print_errors(bio_err);
+            return 0;
+        }
+    }
+    return 1;
 }
 
 #endif
