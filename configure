@@ -31,6 +31,7 @@ valid_arm_float_abi = ('soft', 'softfp', 'hard')
 valid_mips_arch = ('loongson', 'r1', 'r2', 'r6', 'rx')
 valid_mips_fpu = ('fp32', 'fp64', 'fpxx')
 valid_mips_float_abi = ('soft', 'hard')
+valid_intl_modes = ('none', 'small-icu', 'full-icu', 'system-icu')
 
 # create option groups
 shared_optgroup = optparse.OptionGroup(parser, "Shared libraries",
@@ -239,7 +240,10 @@ parser.add_option('--with-etw',
 intl_optgroup.add_option('--with-intl',
     action='store',
     dest='with_intl',
-    help='Intl mode: none, full-icu, small-icu (default is none)')
+    default='none',
+    choices=valid_intl_modes,
+    help='Intl mode (valid choices: {0}) [default: %default]'.format(
+        ', '.join(valid_intl_modes)))
 
 intl_optgroup.add_option('--with-icu-path',
     action='store',
@@ -842,7 +846,7 @@ def configure_intl(o):
   with_intl = options.with_intl
   with_icu_source = options.with_icu_source
   have_icu_path = bool(options.with_icu_path)
-  if have_icu_path and with_intl:
+  if have_icu_path and with_intl != 'none':
     print 'Error: Cannot specify both --with-icu-path and --with-intl'
     sys.exit(1)
   elif have_icu_path:
@@ -880,11 +884,6 @@ def configure_intl(o):
     # use the "system" .gyp
     o['variables']['icu_gyp_path'] = 'tools/icu/icu-system.gyp'
     return
-  else:
-    print 'Error: unknown value --with-intl=%s' % with_intl
-    sys.exit(1)
-  # Note: non-ICU implementations could use other 'with_intl'
-  # values.
 
   # this is just the 'deps' dir. Used for unpacking.
   icu_parent_path = os.path.join(root_dir, 'deps')
