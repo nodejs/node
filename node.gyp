@@ -71,6 +71,12 @@
       'lib/zlib.js',
 
       'lib/internal/freelist.js',
+      'lib/internal/http/agent.js',
+      'lib/internal/http/client.js',
+      'lib/internal/http/common.js',
+      'lib/internal/http/incoming.js',
+      'lib/internal/http/outgoing.js',
+      'lib/internal/http/server.js',
     ],
   },
 
