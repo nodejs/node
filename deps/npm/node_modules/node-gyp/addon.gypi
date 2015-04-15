@@ -1,7 +1,7 @@
 {
   'target_defaults': {
     'type': 'loadable_module',
-    'win_delay_load_hook': 'false',
+    'win_delay_load_hook': 'true',
     'product_prefix': '',
 
     'include_dirs': [
