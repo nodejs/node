@@ -83,6 +83,26 @@ if defined nosnapshot set nosnapshot_arg=--without-snapshot
 if defined noetw set noetw_arg=--without-etw& set noetw_msi_arg=/p:NoETW=1
 if defined noperfctr set noperfctr_arg=--without-perfctr& set noperfctr_msi_arg=/p:NoPerfCtr=1
 
+@rem Look for Visual Studio 2015
+echo Looking for Visual Studio 2015
+if not defined VS140COMNTOOLS goto vc-set-2013
+if not exist "%VS140COMNTOOLS%\..\..\vc\vcvarsall.bat" goto vc-set-2013
+echo Found Visual Studio 2015
+if defined msi (
+  echo Looking for WiX installation for Visual Studio 2015...
+  if not exist "%WIX%\SDK\VS2015" (
+    echo Failed to find WiX install for Visual Studio 2015
+    echo VS2015 support for WiX is only present starting at version 3.10
+    goto vc-set-2013
+  )
+)
+call "%VS140COMNTOOLS%\..\..\vc\vcvarsall.bat"
+if not defined VCINSTALLDIR goto msbuild-not-found
+set GYP_MSVS_VERSION=2015
+set PLATFORM_TOOLSET=v140
+goto msbuild-found
+
+:vc-set-2013
 @rem Look for Visual Studio 2013
 echo Looking for Visual Studio 2013
 if not defined VS120COMNTOOLS goto vc-set-2012
@@ -92,6 +112,7 @@ if defined msi (
   echo Looking for WiX installation for Visual Studio 2013...
   if not exist "%WIX%\SDK\VS2013" (
     echo Failed to find WiX install for Visual Studio 2013
+    echo VS2013 support for WiX is only present starting at version 3.8
     goto vc-set-2012
   )
 )
