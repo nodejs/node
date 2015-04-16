@@ -9,9 +9,8 @@ var REQUEST = HTTPParser.REQUEST;
 var RESPONSE = HTTPParser.RESPONSE;
 
 // The purpose of this test is not to check HTTP compliance but to test the
-// binding. Tests for pathological http messages should be submitted
-// upstream to https://github.com/joyent/http-parser for inclusion into
-// deps/http-parser/test.c
+// binding. Tests for pathological http messages should be added to
+// test-http-parser-durability.js
 
 
 function newParser(type) {
