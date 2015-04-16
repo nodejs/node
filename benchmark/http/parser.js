@@ -124,9 +124,8 @@ var inputs = {
   ,
 };
 
-function onHeadersComplete(versionMajor, versionMinor, headers, method,
-                           url, statusCode, statusMessage, upgrade,
-                           shouldKeepAlive) {
+function onHeaders(versionMajor, versionMinor, headers, method, url, statusCode,
+                   statusMessage, upgrade, shouldKeepAlive) {
 }
 function onBody(data, start, len) {
 }
@@ -144,7 +143,7 @@ function main(conf) {
     chunks[i] = new Buffer(chunks[i], 'binary');
 
   var parser = new HTTPParser(kind);
-  parser.onHeaders = onHeadersComplete;
+  parser.onHeaders = onHeaders;
   parser.onBody = onBody;
   parser.onComplete = onComplete;
 
