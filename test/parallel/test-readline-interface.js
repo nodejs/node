@@ -216,6 +216,18 @@ function isWarned(emitter) {
     fi.emit('data', ''); // removes listener
   });
 
+  // calling readline without `new`
+  fi = new FakeInput();
+  rli = readline.Interface({ input: fi, output: fi, terminal: terminal });
+  called = false;
+  rli.on('line', function(line) {
+    called = true;
+    assert.equal(line, 'asdf');
+  });
+  fi.emit('data', 'asdf\n');
+  assert.ok(called);
+  rli.close();
+
   if (terminal) {
     // question
     fi = new FakeInput();

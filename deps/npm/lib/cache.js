@@ -135,9 +135,7 @@ function read (name, ver, forceBypass, cb) {
 
   var root = cachedPackageRoot({name : name, version : ver})
   function c (er, data) {
-    log.silly("cache", "addNamed cb", name+"@"+ver)
     if (er) log.verbose("cache", "addNamed error for", name+"@"+ver, er)
-
     if (data) deprCheck(data)
 
     return cb(er, data)

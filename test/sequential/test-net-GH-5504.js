@@ -72,7 +72,7 @@ function parent() {
     setTimeout(function() {
       throw new Error('hang');
     });
-  }, 4000).unref();
+  }, common.platformTimeout(2000)).unref();
 
   var s = spawn(node, [__filename, 'server'], opt);
   var c;

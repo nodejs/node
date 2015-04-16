@@ -189,8 +189,7 @@ function run (pkg, wd, cmd, args, cb) {
 function joinArgs (args) {
   var joinedArgs = ""
   args.forEach(function(arg) {
-    if (arg.match(/[ '"]/)) arg = '"' + arg.replace(/"/g, '\\"') + '"'
-    joinedArgs += " " + arg
+    joinedArgs += ' "' + arg.replace(/"/g, '\\"') + '"'
   })
   return joinedArgs
 }

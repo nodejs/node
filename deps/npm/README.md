@@ -40,7 +40,7 @@ There's a pretty robust install script at
 
 Here's an example using curl:
 
-    curl -L https://npmjs.com/install.sh | sh
+    curl -L https://www.npmjs.com/install.sh | sh
 
 ### Slightly Fancier
 

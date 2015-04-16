@@ -197,7 +197,7 @@ docclean:
 RAWVER=$(shell $(PYTHON) tools/getnodeversion.py)
 VERSION=v$(RAWVER)
 FULLVERSION=$(VERSION)
-RELEASE=$(shell $(PYTHON) tools/getnodeisrelease.py)
+RELEASE=($shell sed -ne 's/#define NODE_VERSION_IS_RELEASE \([01]\)/\1/p' src/node_version.h)
 PLATFORM=$(shell uname | tr '[:upper:]' '[:lower:]')
 NPMVERSION=v$(shell cat deps/npm/package.json | grep '"version"' | sed 's/^[^:]*: "\([^"]*\)",.*/\1/')
 ifeq ($(findstring x86_64,$(shell uname -m)),x86_64)

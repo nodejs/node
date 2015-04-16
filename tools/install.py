@@ -168,16 +168,16 @@ def files(action):
   ], 'include/node/')
 
   subdir_files('deps/cares/include', 'include/node/', action)
+  subdir_files('deps/v8/include', 'include/node/', action)
 
   if 'false' == variables.get('node_shared_libuv'):
     subdir_files('deps/uv/include', 'include/node/', action)
 
   if 'false' == variables.get('node_shared_openssl'):
     subdir_files('deps/openssl/openssl/include/openssl', 'include/node/openssl/', action)
+    subdir_files('deps/openssl/config/archs', 'include/node/openssl/archs', action)
     action(['deps/openssl/config/opensslconf.h'], 'include/node/openssl/')
 
-  if 'false' == variables.get('node_shared_v8'):
-    subdir_files('deps/v8/include', 'include/node/', action)
 
   if 'false' == variables.get('node_shared_zlib'):
     action([

@@ -51,7 +51,7 @@ function onNoMoreLines() {
 
 setTimeout(function testTimedOut() {
   assert(false, 'test timed out.');
-}, 6000).unref();
+}, common.platformTimeout(3000)).unref();
 
 process.on('exit', function onExit() {
   // Kill processes in reverse order to avoid timing problems on Windows where

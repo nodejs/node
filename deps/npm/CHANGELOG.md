@@ -1,10 +1,111 @@
+### v2.7.6 (2015-04-02):
+
+#### GIT MEAN, GIT TUFF, GIT ALL THE WAY AWAY FROM MY STUFF
+
+Part of the reason that we're reluctant to take patches to how npm deals with
+git dependencies is that every time we touch the git support, something breaks.
+The last few releases are a case in point. `npm@2.7.4` completely broke
+installing private modules from GitHub, and `npm@2.7.5` fixed them at the cost
+of logging a misleading error message that caused many people to believe that
+their dependencies hadn't been successfully installed when they actually had
+been.
+
+This all started from a desire to ensure that GitHub shortcut syntax is being
+handled correctly.  The correct behavior is for npm to try to clone all
+dependencies on GitHub (whether they're specified with the GitHub
+`organization/repository` shortcut syntax or not) via the plain `git:` protocol
+first, and to fall back to using `git+ssh:` if `git:` doesn't work. Previously,
+sometimes npm would use `git:` and `git+ssh:` in some cases (most notably when
+using GitHub shortcut syntax on the command line), and use `git+https:` in
+others (when the GitHub shortcut syntax was present in `package.json`). This
+led to subtle and hard-to-understand inconsistencies, and we're glad that as of
+`npm@2.7.6`, we've finally gotten things to where they were before we started,
+only slightly more consistent overall.
+
+We are now going to go back to our policy of being extremely reluctant to touch
+the code that handles Git dependencies.
+
+* [`b747593`](https://github.com/npm/npm/commit/b7475936f473f029e6a027ba1b16277523747d0b)
+  [#7630](https://github.com/npm/npm/issues/7630) Don't automatically log all
+  git failures as errors. `maybeGithub` needs to be able to fail without
+  logging to support its fallback logic.
+  ([@othiym23](https://github.com/othiym23))
+* [`cd67a0d`](https://github.com/npm/npm/commit/cd67a0db07891d20871822696c26692c8a84866a)
+  [#7829](https://github.com/npm/npm/issues/7829) When fetching a git remote
+  URL, handle failures gracefully (without assuming standard output exists).
+  ([@othiym23](https://github.com/othiym23))
+* [`637c7d1`](https://github.com/npm/npm/commit/637c7d1411fe07f409cf91f2e65fd70685cb253c)
+  [#7829](https://github.com/npm/npm/issues/7829) When fetching a git remote
+  URL, handle failures gracefully (without assuming standard _error_ exists).
+  ([@othiym23](https://github.com/othiym23))
+
+#### OTHER SIGNIFICANT FIXES
+
+* [`78005eb`](https://github.com/npm/npm/commit/78005ebb6f4103c20f077669c3929b7ea46a4c0d)
+  [#7743](https://github.com/npm/npm/issues/7743) Always quote arguments passed
+  to `npm run-script`. This allows build systems and the like to safely escape
+  glob patterns passed as arguments to `run-scripts` with `npm run-script
+  <script> -- <arguments>`. This is a tricky change to test, and may be
+  reverted or moved to `npm@3` if it turns out it breaks things for users.
+  ([@mantoni](https://github.com/mantoni))
+* [`da015ee`](https://github.com/npm/npm/commit/da015eee45f6daf384598151d06a9b57ffce136e)
+  [#7074](https://github.com/npm/npm/issues/7074) `read-package-json@1.3.3`:
+  `read-package-json` no longer caches `package.json` files, which trades a
+  very small performance loss for the elimination of a large class of really
+  annoying race conditions. See [#7074](https://github.com/npm/npm/issues/7074)
+  for the grisly details. ([@othiym23](https://github.com/othiym23))
+* [`dd20f57`](https://github.com/npm/npm/commit/dd20f5755291b9433f0d298ee0eead22cda6db36)
+  `init-package-json@1.3.2`: Only add the `@` to scoped package names if it's
+  not already there when reading from the filesystem
+  ([@watilde](https://github.com/watilde)), and support inline validation of
+  package names ([@michaelnisi](https://github.com/michaelnisi)).
+
+#### SMALL FIXES AND DEPENDENCY UPGRADES
+
+* [`1f380f6`](https://github.com/npm/npm/commit/1f380f66c1e944b8ffbf096fa94d09e931626e12)
+  [#7820](https://github.com/npm/npm/issues/7820) `are-we-there-yet@1.0.4`: Use
+  `readable-stream` instead of built-in `stream` module to better support
+  Node.js 0.8.x. ([@SonicHedgehog](https://github.com/SonicHedgehog))
+* [`d380188`](https://github.com/npm/npm/commit/d380188e161be31f5a4f53947de6bc28df4732d8)
+  `semver@4.3.3`: Don't throw on `semver.parse(null)`, and parse numeric
+  version strings more robustly. ([@isaacs](https://github.com/isaacs))
+* [`01d9964`](https://github.com/npm/npm/commit/01d99649265f921e1c61cf406613e7042bcea008)
+  `nock@1.4.0`: This change may need to be rolled back, or rolled forward,
+  because [nock depends on
+  `setImmediate`](https://github.com/npm/npm/issues/7842), which causes tests
+  to fail when run with Node.js 0.8. ([@othiym23](https://github.com/othiym23))
+* [`91f5cb1`](https://github.com/npm/npm/commit/91f5cb1fb91520fbe25a4da5b80848ed540b9ad3)
+  [#7791](https://github.com/npm/npm/issues/7791) Fix brackets in npmconf so
+  that `loaded` is set correctly.
+  ([@charmander](https://github.com/charmander))
+* [`1349e27`](https://github.com/npm/npm/commit/1349e27c936a8b0fc9f6440a6d6404ef3b19c587)
+  [#7818](https://github.com/npm/npm/issues/7818) Update `README.md` to point
+  out that the install script now lives on https://www.npmjs.com.
+  ([@weisjohn](https://github.com/weisjohn))
+
 ### v2.7.5 (2015-03-26):
+
+#### SECURITY FIXES
+
+* [`300834e`](https://github.com/npm/npm/commit/300834e91a4e2a95fb7fb59c309e7c3fc91d2312)
+  `tar@2.0.0`: Normalize symbolic links that point to targets outside the
+  extraction root. This prevents packages containing symbolic links from
+  overwriting targets outside the expected paths for a package. Thanks to [Tim
+  Cuthbertson](http://gfxmonk.net/) and the team at [Lift
+  Security](https://liftsecurity.io/) for working with the npm team to identify
+  this issue. ([@othiym23](https://github.com/othiym23))
+* [`0dc6875`](https://github.com/npm/npm/commit/0dc68757cffd5397c280bc71365d106523a5a052)
+  `semver@4.3.2`: Package versions can be no more than 256 characters long.
+  This prevents a situation in which parsing the version number can use
+  exponentially more time and memory to parse, leading to a potential denial of
+  service. Thanks to Adam Baldwin at Lift Security for bringing this to our
+  attention.  ([@isaacs](https://github.com/isaacs))
 
 #### BUG FIXES
 
 * [`5811468`](https://github.com/npm/npm/commit/5811468e104ccb6b26b8715dff390d68daa10066)
   [#7713](https://github.com/npm/npm/issues/7713) Add a test for `npm link` and
-  `npm link <package>`. ([@w](https://github.com/w)atilde)
+  `npm link <package>`. ([@watilde](https://github.com/watilde))
 * [`3cf3b0c`](https://github.com/npm/npm/commit/3cf3b0c8fddb6b66f969969feebea85fabd0360b)
   [#7713](https://github.com/npm/npm/issues/7713) Only use absolute symbolic
   links when `npm link`ing. ([@hokaccha](https://github.com/hokaccha))
@@ -25,12 +126,6 @@
 
 #### DEPENDENCY UPDATES
 
-* [`300834e`](https://github.com/npm/npm/commit/300834e91a4e2a95fb7fb59c309e7c3fc91d2312)
-  `tar@2.0.0`: Normalize symbolic links that point to targets outside the
-  extraction root. ([@othiym23](https://github.com/othiym23))
-* [`0dc6875`](https://github.com/npm/npm/commit/0dc68757cffd5397c280bc71365d106523a5a052)
-  `semver@4.3.2`: Package versions can be no more than 256 characters long.
-  ([@isaacs](https://github.com/isaacs))
 * [`94df809`](https://github.com/npm/npm/commit/94df8095985bf5ba9d8db99dc445d05dac136aaf)
   `request@2.54.0`: Fixes for Node.js 0.12 and io.js.
   ([@simov](https://github.com/simov))

@@ -11,7 +11,7 @@ tap.test('the basics', function (t) {
       { name: 'the-name',
         version: '1.2.5',
         description: 'description',
-        author: 'me <em@i.l> (http://url)',
+        author: 'npmbot <n@p.m> (http://npm.im)',
         scripts: { test: 'make test' },
         main: 'main.js',
         config: { foo: 'bar' },

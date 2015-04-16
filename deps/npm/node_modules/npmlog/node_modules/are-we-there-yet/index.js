@@ -1,5 +1,5 @@
 "use strict"
-var stream = require("stream");
+var stream = require("readable-stream");
 var EventEmitter = require("events").EventEmitter
 var util = require("util")
 var delegate = require("delegates")

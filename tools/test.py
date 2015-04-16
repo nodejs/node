@@ -729,8 +729,9 @@ FLAGS = {
     'debug'   : ['--enable-slow-asserts', '--debug-code', '--verify-heap'],
     'release' : []}
 TIMEOUT_SCALEFACTOR = {
-    'debug'   : 4,
-    'release' : 1 }
+    'armv6' : { 'debug' : 12, 'release' : 3 },  # The ARM buildbots are slow.
+    'arm'   : { 'debug' :  8, 'release' : 2 },
+    'ia32'  : { 'debug' :  4, 'release' : 1 } }
 
 
 class Context(object):
@@ -770,7 +771,7 @@ class Context(object):
     return testcase.variant_flags + FLAGS[mode]
 
   def GetTimeout(self, mode):
-    return self.timeout * TIMEOUT_SCALEFACTOR[mode]
+    return self.timeout * TIMEOUT_SCALEFACTOR[ARCH_GUESS or 'ia32'][mode]
 
 def RunTestCases(cases_to_run, progress, tasks):
   progress = PROGRESS_INDICATORS[progress](cases_to_run)
