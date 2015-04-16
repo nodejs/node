@@ -746,7 +746,6 @@ void Initialize(Handle<Object> target,
   env->SetMethod(target, "setupBufferJS", SetupBufferJS);
 
   env->SetMethod(target, "byteLength", ByteLength);
-  env->SetMethod(target, "byteLength", ByteLength);
   env->SetMethod(target, "compare", Compare);
   env->SetMethod(target, "fill", Fill);
   env->SetMethod(target, "indexOfBuffer", IndexOfBuffer);
