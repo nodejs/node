@@ -682,7 +682,7 @@ def configure_node(o):
 def configure_libz(o):
   o['variables']['node_shared_zlib'] = b(options.shared_zlib)
 
-  if b(options.shared_zlib) == 'true':
+  if options.shared_zlib:
     libraries = format_libraries(options.shared_zlib_libname)
     (libs, cflags) = pkg_config('zlib') or (libraries, '')
     o['libraries'] += libs.split()
@@ -698,7 +698,7 @@ def configure_libz(o):
 def configure_http_parser(o):
     o['variables']['node_shared_http_parser'] = b(options.shared_http_parser)
 
-    if b(options.shared_http_parser) == 'true':
+    if options.shared_http_parser:
       # no .pc-file for http_parser
       o['libraries'] += ['-l%s' % options.shared_http_parser_libname]
       if options.shared_http_parser_libpath:
@@ -710,7 +710,7 @@ def configure_http_parser(o):
 def configure_libuv(o):
   o['variables']['node_shared_libuv'] = b(options.shared_libuv)
 
-  if b(options.shared_libuv) == 'true':
+  if options.shared_libuv:
     libraries = format_libraries(options.shared_libuv_libname)
     (libs, cflags) = pkg_config('libuv') or (libraries, '')
     o['libraries'] += libs.split()
@@ -742,7 +742,7 @@ def configure_openssl(o):
   if options.without_ssl:
     return
 
-  if b(options.shared_openssl) == 'true':
+  if options.shared_openssl:
     libraries = format_libraries(options.shared_openssl_libname)
     (libs, cflags) = pkg_config('openssl') or (libraries, '')
     o['libraries'] += libs.split()
