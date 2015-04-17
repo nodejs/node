@@ -10,7 +10,7 @@ test("npa-bitbucket", function (t) {
       name: null,
       type: "hosted",
       hosted: { type: "bitbucket" },
-      spec: "git+ssh://git@bitbucket.org/user/foo-js.git",
+      spec: "bitbucket:user/foo-js",
       raw: "bitbucket:user/foo-js"
     },
 
@@ -18,7 +18,7 @@ test("npa-bitbucket", function (t) {
       name: null,
       type: "hosted",
       hosted: { type: "bitbucket" },
-      spec: "git+ssh://git@bitbucket.org/user/foo-js.git#bar/baz",
+      spec: "bitbucket:user/foo-js#bar/baz",
       raw: "bitbucket:user/foo-js#bar/baz"
     },
 
@@ -26,7 +26,7 @@ test("npa-bitbucket", function (t) {
       name: null,
       type: "hosted",
       hosted: { type: "bitbucket" },
-      spec: "git+ssh://git@bitbucket.org/user..blerg--/..foo-js.git# . . . . . some . tags / / /",
+      spec: "bitbucket:user..blerg--/..foo-js# . . . . . some . tags / / /",
       raw: "bitbucket:user..blerg--/..foo-js# . . . . . some . tags / / /"
     },
 
@@ -34,7 +34,7 @@ test("npa-bitbucket", function (t) {
       name: null,
       type: "hosted",
       hosted: { type: "bitbucket" },
-      spec: "git+ssh://git@bitbucket.org/user/foo-js.git#bar/baz/bin",
+      spec: "bitbucket:user/foo-js#bar/baz/bin",
       raw: "bitbucket:user/foo-js#bar/baz/bin"
     },
 
@@ -42,7 +42,7 @@ test("npa-bitbucket", function (t) {
       name: "foo",
       type: "hosted",
       hosted: { type: "bitbucket" },
-      spec: "git+ssh://git@bitbucket.org/user/foo-js.git",
+      spec: "bitbucket:user/foo-js",
       raw: "foo@bitbucket:user/foo-js"
     },
 
@@ -58,7 +58,7 @@ test("npa-bitbucket", function (t) {
       name: null,
       type: "hosted",
       hosted: { type: "bitbucket" },
-      spec: "git+ssh://git@bitbucket.org/user/foo.git",
+      spec: "https://bitbucket.org/user/foo.git",
       raw: "https://bitbucket.org/user/foo.git"
     },
 

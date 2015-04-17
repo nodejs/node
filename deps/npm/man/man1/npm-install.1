@@ -191,8 +191,52 @@ fetch the package by name if it is not valid\.
     npm install mygithubuser/myproject
 .fi
 .RE
- To reference a package in a git repo that is not on GitHub, see git
- remote urls below\.
+ To reference a package in a generic git repo (not on GitHub), see git remote
+ urls below\.
+.IP \(bu 2
+\fBnpm install github:<githubname>/<githubrepo>\fR:
+  The same as the above, but explicitly marked as a GitHub dependency\.
+  Example:
+.P
+.RS 2
+.nf
+    npm install github:npm/npm
+.fi
+.RE
+.IP \(bu 2
+\fBnpm install gist:[<githubname>/]<gistID>\fR:
+  Install the package at \fBhttps://gist\.github\.com/gistID\fR by attempting to
+  clone it using \fBgit\fR\|\. The GitHub username associated with the gist is
+  optional and will not be saved in \fBpackage\.json\fR if \fB\-\-save\fR is used\.
+  Example:
+.P
+.RS 2
+.nf
+    npm install gist:101a11beef
+.fi
+.RE
+.IP \(bu 2
+\fBnpm install bitbucket:<bitbucketname>/<bitbucketrepo>\fR:
+  Install the package at \fBhttps://bitbucket\.org/bitbucketname/bitbucketrepo\fR
+  by attempting to clone it using \fBgit\fR\|\.
+  Example:
+.P
+.RS 2
+.nf
+    npm install bitbucket:mybitbucketuser/myproject
+.fi
+.RE
+.IP \(bu 2
+\fBnpm install gitlab:<gitlabname>/<gitlabrepo>\fR:
+  Install the package at \fBhttps://gitlab\.com/gitlabname/gitlabrepo\fR
+  by attempting to clone it using \fBgit\fR\|\.
+  Example:
+.P
+.RS 2
+.nf
+    npm install gitlab:mygitlabuser/myproject
+.fi
+.RE
 .IP \(bu 2
 \fBnpm install <git remote url>\fR:
   Install a package by cloning a git remote url\.  The format of the git
@@ -200,7 +244,7 @@ fetch the package by name if it is not valid\.
 .P
 .RS 2
 .nf
-    <protocol>://[<user>@]<hostname><separator><path>[#<commit\-ish>]
+    <protocol>://[<user>[:<password>]@]<hostname><separator><path>[#<commit\-ish>]
 .fi
 .RE
   \fB<protocol>\fR is one of \fBgit\fR, \fBgit+ssh\fR, \fBgit+http\fR, or

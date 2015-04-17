@@ -125,13 +125,37 @@ fetch the package by name if it is not valid.
   attempting to clone it using <code>git</code>.</p>
 <p>  Example:</p>
 <pre><code>    npm install mygithubuser/myproject
-</code></pre><p> To reference a package in a git repo that is not on GitHub, see git
- remote urls below.</p>
+</code></pre><p> To reference a package in a generic git repo (not on GitHub), see git remote
+ urls below.</p>
 </li>
+<li><p><code>npm install github:&lt;githubname&gt;/&lt;githubrepo&gt;</code>:</p>
+<p>  The same as the above, but explicitly marked as a GitHub dependency.</p>
+<p>  Example:</p>
+<pre><code>    npm install github:npm/npm
+</code></pre></li>
+<li><p><code>npm install gist:[&lt;githubname&gt;/]&lt;gistID&gt;</code>:</p>
+<p>  Install the package at <code>https://gist.github.com/gistID</code> by attempting to
+  clone it using <code>git</code>. The GitHub username associated with the gist is
+  optional and will not be saved in <code>package.json</code> if <code>--save</code> is used.</p>
+<p>  Example:</p>
+<pre><code>    npm install gist:101a11beef
+</code></pre></li>
+<li><p><code>npm install bitbucket:&lt;bitbucketname&gt;/&lt;bitbucketrepo&gt;</code>:</p>
+<p>  Install the package at <code>https://bitbucket.org/bitbucketname/bitbucketrepo</code>
+  by attempting to clone it using <code>git</code>.</p>
+<p>  Example:</p>
+<pre><code>    npm install bitbucket:mybitbucketuser/myproject
+</code></pre></li>
+<li><p><code>npm install gitlab:&lt;gitlabname&gt;/&lt;gitlabrepo&gt;</code>:</p>
+<p>  Install the package at <code>https://gitlab.com/gitlabname/gitlabrepo</code>
+  by attempting to clone it using <code>git</code>.</p>
+<p>  Example:</p>
+<pre><code>    npm install gitlab:mygitlabuser/myproject
+</code></pre></li>
 <li><p><code>npm install &lt;git remote url&gt;</code>:</p>
 <p>  Install a package by cloning a git remote url.  The format of the git
   url is:</p>
-<pre><code>    &lt;protocol&gt;://[&lt;user&gt;@]&lt;hostname&gt;&lt;separator&gt;&lt;path&gt;[#&lt;commit-ish&gt;]
+<pre><code>    &lt;protocol&gt;://[&lt;user&gt;[:&lt;password&gt;]@]&lt;hostname&gt;&lt;separator&gt;&lt;path&gt;[#&lt;commit-ish&gt;]
 </code></pre><p>  <code>&lt;protocol&gt;</code> is one of <code>git</code>, <code>git+ssh</code>, <code>git+http</code>, or
   <code>git+https</code>.  If no <code>&lt;commit-ish&gt;</code> is specified, then <code>master</code> is
   used.</p>

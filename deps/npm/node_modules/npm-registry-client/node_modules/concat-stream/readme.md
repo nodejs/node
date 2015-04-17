@@ -73,7 +73,7 @@ By default `concat-stream` will give you back the same data type as the type of 
 * `uint8array`, `u8`, `uint8` - get back a Uint8Array
 * `object`, get back an array of Objects
 
-If you don't specify an encoding, and the types can't be inferred (e.g. you write things that aren't int he list above), it will try to convert concat them into a `Buffer`.
+If you don't specify an encoding, and the types can't be inferred (e.g. you write things that aren't in the list above), it will try to convert concat them into a `Buffer`.
 
 # error handling
 

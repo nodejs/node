@@ -350,7 +350,7 @@ See [API documentation for `.error()`](API.md#error-rejectedhandler----promise)
 
 Finally, Bluebird also supports predicate-based filters. If you pass a
 predicate function instead of an error type, the predicate will receive
-the error as an argument. The return result will be used determine whether
+the error as an argument. The return result will be used to determine whether
 the error handler should be called.
 
 Predicates should allow for very fine grained control over caught errors:

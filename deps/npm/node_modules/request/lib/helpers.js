@@ -1,7 +1,6 @@
 'use strict'
 
-var extend = require('util')._extend
-  , jsonSafeStringify = require('json-stringify-safe')
+var jsonSafeStringify = require('json-stringify-safe')
   , crypto = require('crypto')
 
 function deferMethod() {
@@ -12,46 +11,16 @@ function deferMethod() {
   return setImmediate
 }
 
-function constructObject(initialObject) {
-  initialObject = initialObject || {}
-
-  return {
-    extend: function (object) {
-      return constructObject(extend(initialObject, object))
-    },
-    done: function () {
-      return initialObject
-    }
-  }
-}
-
-function constructOptionsFrom(uri, options) {
-  var params = constructObject()
-  if (typeof options === 'object') {
-    params.extend(options).extend({uri: uri})
-  } else if (typeof uri === 'string') {
-    params.extend({uri: uri})
-  } else {
-    params.extend(uri)
-  }
-  return params.done()
-}
-
 function isFunction(value) {
   return typeof value === 'function'
 }
 
-function filterForCallback(values) {
-  var callbacks = values.filter(isFunction)
-  return callbacks[0]
-}
-
 function paramsHaveRequestBody(params) {
   return (
-    params.options.body ||
-    params.options.requestBodyStream ||
-    (params.options.json && typeof params.options.json !== 'boolean') ||
-    params.options.multipart
+    params.body ||
+    params.requestBodyStream ||
+    (params.json && typeof params.json !== 'boolean') ||
+    params.multipart
   )
 }
 
@@ -78,9 +47,6 @@ function toBase64 (str) {
 }
 
 exports.isFunction            = isFunction
-exports.constructObject       = constructObject
-exports.constructOptionsFrom  = constructOptionsFrom
-exports.filterForCallback     = filterForCallback
 exports.paramsHaveRequestBody = paramsHaveRequestBody
 exports.safeStringify         = safeStringify
 exports.md5                   = md5
