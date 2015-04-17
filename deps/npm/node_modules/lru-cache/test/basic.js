@@ -215,7 +215,7 @@ test("drop the old items", function(t) {
     cache.set("c", "C")
     // timed out
     t.notOk(cache.get("a"))
-  }, 60)
+  }, 60 + 25)
 
   setTimeout(function () {
     t.notOk(cache.get("b"))

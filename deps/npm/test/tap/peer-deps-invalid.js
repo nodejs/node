@@ -1,45 +1,102 @@
-var common = require("../common-tap")
-var path = require("path")
-var test = require("tap").test
-var rimraf = require("rimraf")
-var npm = require("../../")
-var mr = require("npm-registry-mock")
-var pkg = path.resolve(__dirname, "peer-deps-invalid")
-var cache = path.resolve(pkg, "cache")
-var nodeModules = path.resolve(pkg, "node_modules")
+var fs = require('graceful-fs')
+var path = require('path')
 
-test("installing dependencies that have conflicting peerDependencies", function (t) {
-  rimraf.sync(nodeModules)
-  rimraf.sync(cache)
+var mkdirp = require('mkdirp')
+var mr = require('npm-registry-mock')
+var osenv = require('osenv')
+var rimraf = require('rimraf')
+var test = require('tap').test
+
+var npm = require('../../')
+var common = require('../common-tap')
+
+var pkg = path.resolve(__dirname, 'peer-deps-invalid')
+var cache = path.resolve(pkg, 'cache')
+
+var json = {
+  author: 'Domenic Denicola <domenic@domenicdenicola.com> (http://domenicdenicola.com/)',
+  name: 'peer-deps-invalid',
+  version: '0.0.0',
+  dependencies: {
+    'npm-test-peer-deps-file': 'http://localhost:1337/ok.js',
+    'npm-test-peer-deps-file-invalid': 'http://localhost:1337/invalid.js'
+  }
+}
+
+test('setup', function (t) {
+  cleanup()
+  mkdirp.sync(cache)
+  fs.writeFileSync(
+    path.join(pkg, 'package.json'),
+    JSON.stringify(json, null, 2)
+  )
+  fs.writeFileSync(path.join(pkg, 'file-ok.js'), fileOK)
+  fs.writeFileSync(path.join(pkg, 'file-fail.js'), fileFail)
+
   process.chdir(pkg)
+  t.end()
+})
 
+test('installing dependencies that have conflicting peerDependencies', function (t) {
   var customMocks = {
-    "get": {
-      "/ok.js": [200, path.join(pkg, "file-ok.js")],
-      "/invalid.js": [200, path.join(pkg, "file-fail.js")]
+    'get': {
+      '/ok.js': [200, path.join(pkg, 'file-ok.js')],
+      '/invalid.js': [200, path.join(pkg, 'file-fail.js')]
     }
   }
-  mr({port: common.port, mocks: customMocks}, function (err, s) { // create mock registry.
-    t.ifError(err, "mock registry started")
-    npm.load({
-      cache: cache,
-      registry: common.registry
-    }, function () {
-      npm.commands.install([], function (err) {
-        if (!err) {
-          t.fail("No error!")
-        } else {
-          t.equal(err.code, "EPEERINVALID")
-        }
-        t.end()
-        s.close() // shutdown mock registry.
-      })
-    })
+  mr({port: common.port, mocks: customMocks}, function (err, s) {
+    t.ifError(err, 'mock registry started')
+    npm.load(
+      {
+        cache: cache,
+        registry: common.registry
+      },
+      function () {
+        npm.commands.install([], function (err) {
+          if (!err) {
+            t.fail('No error!')
+          } else {
+            t.equal(err.code, 'EPEERINVALID')
+          }
+          s.close()
+          t.end()
+        })
+      }
+    )
   })
 })
 
-test("cleanup", function (t) {
-  rimraf.sync(nodeModules)
-  rimraf.sync(cache)
+test('cleanup', function (t) {
+  cleanup()
   t.end()
 })
+
+function cleanup () {
+  process.chdir(osenv.tmpdir())
+  rimraf.sync(pkg)
+}
+
+var fileFail = function () {
+/**package
+* { "name": "npm-test-peer-deps-file-invalid"
+* , "main": "index.js"
+* , "version": "1.2.3"
+* , "description":"This one should conflict with the other one"
+* , "peerDependencies": { "underscore": "1.3.3" }
+* }
+**/
+  module.exports = 'I\'m just a lonely index, naked as the day I was born.'
+}.toString().split('\n').slice(1, -1).join('\n')
+
+var fileOK = function () {
+/**package
+* { "name": "npm-test-peer-deps-file"
+* , "main": "index.js"
+* , "version": "1.2.3"
+* , "description":"No package.json in sight!"
+* , "peerDependencies": { "underscore": "1.3.1" }
+* , "dependencies": { "mkdirp": "0.3.5" }
+* }
+**/
+  module.exports = 'I\'m just a lonely index, naked as the day I was born.'
+}.toString().split('\n').slice(1, -1).join('\n')
