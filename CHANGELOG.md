@@ -1,5 +1,88 @@
 # io.js ChangeLog
 
+## 2015-04-17, Version 1.8.0, @chrisdickinson
+
+### Notable changes
+
+* **build**: Support for building io.js as a static library (Marat Abdullin) [#1341](https://github.com/iojs/io.js/pull/1341)
+* **deps**: Upgrade openssl to 1.0.2a (Shigeki Ohtsu) [#1389](https://github.com/iojs/io.js/pull/1389)
+* **npm**: Upgrade npm to 2.8.3. See the [release notes](https://github.com/npm/npm/releases/tag/v2.8.3) for details. Includes improved git support. Summary:
+  * [`387f889`](https://github.com/npm/npm/commit/387f889c0e8fb617d9cc9a42ed0a3ec49424ab5d)
+  [#7961](https://github.com/npm/npm/issues/7961) Ensure that hosted git SSH
+  URLs always have a valid protocol when stored in `resolved` fields in
+  `npm-shrinkwrap.json`. ([@othiym23](https://github.com/othiym23))
+  * [`394c2f5`](https://github.com/npm/npm/commit/394c2f5a1227232c0baf42fbba1402aafe0d6ffb)
+  Switch the order in which hosted Git providers are checked to `git:`,
+  `git+https:`, then `git+ssh:` (from `git:`, `git+ssh:`, then `git+https:`) in
+  an effort to go from most to least likely to succeed, to make for less
+  confusing error message. ([@othiym23](https://github.com/othiym23))
+  * [`431c3bf`](https://github.com/npm/npm/commit/431c3bf6cdec50f9f0c735f478cb2f3f337d3313)
+  [#7699](https://github.com/npm/npm/issues/7699) `npm-registry-client@6.3.2`:
+  Don't send body with HTTP GET requests when logging in.
+  ([@smikes](https://github.com/smikes))
+  * [`15efe12`](https://github.com/npm/npm/commit/15efe124753257728a0ddc64074fa5a4b9c2eb30)
+  [#7872](https://github.com/npm/npm/issues/7872) Use the new version of
+  `hosted-git-info` to pass along credentials embedded in git URLs. Test it.
+  Test it a lot. ([@othiym23](https://github.com/othiym23))
+  * [`b027319`](https://github.com/npm/npm/commit/b0273190c71eba14395ddfdd1d9f7ba625297523)
+  [#7920](https://github.com/npm/npm/issues/7920) Scoped packages with
+  `peerDependencies` were installing the `peerDependencies` into the wrong
+  directory. ([@ewie](https://github.com/ewie))
+  * [`6b0f588`](https://github.com/npm/npm/commit/6b0f58877f37df9904490ffbaaad33862bd36dce)
+  [#7867](https://github.com/npm/npm/issues/7867) Use git shorthand and git
+  URLs as presented by user. Support new `hosted-git-info` shortcut syntax.
+  Save shorthand in `package.json`. Try cloning via `git:`, `git+ssh:`, and
+  `git+https:`, in that order, when supported by the underlying hosting
+  provider. ([@othiym23](https://github.com/othiym23))
+* **src**: Allow multiple arguments to be passed to process.nextTick (Trevor Norris) [#1077](https://github.com/iojs/io.js/pull/1077)
+* **module**: The interaction of `require('.')` with `NODE_PATH` has been restored and deprecated. This functionality
+will be removed at a later point. (Roman Reiss) [#1363](https://github.com/iojs/io.js/pull/1363)
+
+### Known issues
+
+* Some problems with unreferenced timers running during `beforeExit` are still to be resolved. See [#1264](https://github.com/iojs/io.js/issues/1264).
+* Surrogate pair in REPL can freeze terminal [#690](https://github.com/iojs/io.js/issues/690)
+* `process.send()` is not synchronous as the docs suggest, a regression introduced in 1.0.2, see [#760](https://github.com/iojs/io.js/issues/760) and fix in [#774](https://github.com/iojs/io.js/issues/774)
+* Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion [#894](https://github.com/iojs/io.js/issues/894)
+* `url.resolve` may transfer the auth portion of the url when resolving between two full hosts, see [#1435](https://github.com/iojs/io.js/issues/1435).
+* readline: split escapes are processed incorrectly, see [#1403](https://github.com/iojs/io.js/issues/1403)
+
+### Commits
+
+* [[`431673ebd1`](https://github.com/iojs/io.js/commit/431673ebd1)] - **buffer**: fast-case for empty string in byteLength (Jackson Tian) [#1441](https://github.com/iojs/io.js/pull/1441)
+* [[`1b22bad35f`](https://github.com/iojs/io.js/commit/1b22bad35f)] - **build**: fix logic for shared library flags (Jeremiah Senkpiel) [#1454](https://github.com/iojs/io.js/pull/1454)
+* [[`91943a99d5`](https://github.com/iojs/io.js/commit/91943a99d5)] - **build**: use %PYTHON% instead of python (Rod Vagg) [#1444](https://github.com/iojs/io.js/pull/1444)
+* [[`c7769d417b`](https://github.com/iojs/io.js/commit/c7769d417b)] - **build**: Expose xz compression level (Johan Bergström) [#1428](https://github.com/iojs/io.js/pull/1428)
+* [[`a530b2baf1`](https://github.com/iojs/io.js/commit/a530b2baf1)] - **build**: fix error message in configure (Shigeki Ohtsu) [#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`92dfb794f9`](https://github.com/iojs/io.js/commit/92dfb794f9)] - **build**: enable ssl support on arm64 (Shigeki Ohtsu) [#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`7de0dcde83`](https://github.com/iojs/io.js/commit/7de0dcde83)] - **deps**: make node-gyp work with io.js (cjihrig) [#990](https://github.com/iojs/io.js/pull/990)
+* [[`4870213f9e`](https://github.com/iojs/io.js/commit/4870213f9e)] - **deps**: upgrade npm to 2.8.3 (Forrest L Norvell) 
+* [[`49bb7ded2c`](https://github.com/iojs/io.js/commit/49bb7ded2c)] - **deps**: fix git case sensitivity issue in npm (Chris Dickinson) [#1456](https://github.com/iojs/io.js/pull/1456)
+* [[`4830b4bce8`](https://github.com/iojs/io.js/commit/4830b4bce8)] - **deps**: add docs to upgrade openssl (Shigeki Ohtsu) [#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`11bec72c87`](https://github.com/iojs/io.js/commit/11bec72c87)] - **deps**: update asm files for openssl-1.0.2a (Shigeki Ohtsu) [#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`53924d8ebe`](https://github.com/iojs/io.js/commit/53924d8ebe)] - **deps**: update asm Makefile for openssl-1.0.2a (Shigeki Ohtsu) [#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`418e839456`](https://github.com/iojs/io.js/commit/418e839456)] - **deps**: update openssl.gyp/gypi for openssl-1.0.2a (Shigeki Ohtsu) [#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`02f12ab666`](https://github.com/iojs/io.js/commit/02f12ab666)] - **deps**: update opensslconf.h for 1.0.2a (Shigeki Ohtsu) [#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`eb7a23595f`](https://github.com/iojs/io.js/commit/eb7a23595f)] - **deps**: add x32 and arm64 support for opensslconf.h (Shigeki Ohtsu) [#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`033a663127`](https://github.com/iojs/io.js/commit/033a663127)] - **deps**: replace all headers in openssl (Shigeki Ohtsu) [#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`ae8831f240`](https://github.com/iojs/io.js/commit/ae8831f240)] - **deps**: backport openssl patch of alt cert chains 1 (Shigeki Ohtsu) [#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`71316c46d9`](https://github.com/iojs/io.js/commit/71316c46d9)] - **deps**: fix asm build error of openssl in x86_win32 (Shigeki Ohtsu) [#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`d293a4f096`](https://github.com/iojs/io.js/commit/d293a4f096)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`e4872d7405`](https://github.com/iojs/io.js/commit/e4872d7405)] - **deps**: upgrade openssl to 1.0.2a (Shigeki Ohtsu) [#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`a1c9ef3142`](https://github.com/iojs/io.js/commit/a1c9ef3142)] - **deps, build**: add support older assembler (Shigeki Ohtsu) [#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`76f219c128`](https://github.com/iojs/io.js/commit/76f219c128)] - **doc**: Document forced pushing with git (Johan Bergström) [#1420](https://github.com/iojs/io.js/pull/1420)
+* [[`12e51d56c1`](https://github.com/iojs/io.js/commit/12e51d56c1)] - **doc**: add Addon API WG (Rod Vagg) [#1226](https://github.com/iojs/io.js/pull/1226)
+* [[`7956a13dad`](https://github.com/iojs/io.js/commit/7956a13dad)] - **http**: logically respect maxSockets (fengmk2) [#1242](https://github.com/iojs/io.js/pull/1242)
+* [[`5b844e140b`](https://github.com/iojs/io.js/commit/5b844e140b)] - **module**: fix style (Roman Reiss) [#1453](https://github.com/iojs/io.js/pull/1453)
+* [[`3ad82c335d`](https://github.com/iojs/io.js/commit/3ad82c335d)] - **(SEMVER-MINOR)** **module**: handle NODE_PATH in require('.') (Roman Reiss) [#1363](https://github.com/iojs/io.js/pull/1363)
+* [[`cd60ff0328`](https://github.com/iojs/io.js/commit/cd60ff0328)] - **net**: add fd into listen2 debug info (Jackson Tian) [#1442](https://github.com/iojs/io.js/pull/1442)
+* [[`10e31ba56c`](https://github.com/iojs/io.js/commit/10e31ba56c)] - **(SEMVER-MINOR)** **node**: allow multiple arguments passed to nextTick (Trevor Norris) [#1077](https://github.com/iojs/io.js/pull/1077)
+* [[`116c54692a`](https://github.com/iojs/io.js/commit/116c54692a)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`62f5f4cec9`](https://github.com/iojs/io.js/commit/62f5f4cec9)] - **src**: remove duplicate byteLength from Buffer (Jackson Tian) [#1438](https://github.com/iojs/io.js/pull/1438)
+* [[`51d0808c90`](https://github.com/iojs/io.js/commit/51d0808c90)] - **stream**: remove duplicated expression (Yazhong Liu) [#1444](https://github.com/iojs/io.js/pull/1444)
+* [[`deb9d23d7b`](https://github.com/iojs/io.js/commit/deb9d23d7b)] - **test**: fix error message check for openssl-1.0.2a (Shigeki Ohtsu) [#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`ca8c9ec2c8`](https://github.com/iojs/io.js/commit/ca8c9ec2c8)] - **win,node-gyp**: optionally allow node.exe/iojs.exe to be renamed (Bert Belder) [#1266](https://github.com/iojs/io.js/pull/1266)
+
 ## 2015-04-14, Version 1.7.1, @rvagg
 
 ### Notable changes
