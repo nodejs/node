@@ -1,5 +1,14 @@
 ## Change Log
 
+### v2.55.0 (2015/04/05)
+- [#1520](https://github.com/request/request/pull/1520) Refactor defaults (@simov)
+- [#1525](https://github.com/request/request/pull/1525) Delete request headers with undefined value. (@froatsnook)
+- [#1521](https://github.com/request/request/pull/1521) Add promise tests (@simov)
+- [#1518](https://github.com/request/request/pull/1518) Fix defaults (@simov)
+- [#1515](https://github.com/request/request/pull/1515) Allow static invoking of convenience methods (@simov)
+- [#1505](https://github.com/request/request/pull/1505) Fix multipart boundary extraction regexp (@simov)
+- [#1510](https://github.com/request/request/pull/1510) Fix basic auth form data (@simov)
+
 ### v2.54.0 (2015/03/24)
 - [#1501](https://github.com/request/request/pull/1501) HTTP Archive 1.2 support (@ahmadnassri)
 - [#1486](https://github.com/request/request/pull/1486) Add a test for the forever agent (@akshayp)
