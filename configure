@@ -658,7 +658,7 @@ def configure_node(o):
 def configure_libz(o):
   o['variables']['node_shared_zlib'] = b(options.shared_zlib)
 
-  if b(options.shared_zlib) == True:
+  if options.shared_zlib:
     o['libraries'] += ['-l%s' % options.shared_zlib_libname]
   if options.shared_zlib_libpath:
     o['libraries'] += ['-L%s' % options.shared_zlib_libpath]
@@ -668,8 +668,8 @@ def configure_libz(o):
 
 def configure_http_parser(o):
     o['variables']['node_shared_http_parser'] = b(options.shared_http_parser)
-    
-    if b(options.shared_http_parser) == True:
+
+    if options.shared_http_parser:
       o['libraries'] += ['-l%s' % options.shared_http_parser_libname]
     if options.shared_http_parser_libpath:
         o['libraries'] += ['-L%s' % options.shared_http_parser_libpath]
@@ -680,7 +680,7 @@ def configure_http_parser(o):
 def configure_libuv(o):
   o['variables']['node_shared_libuv'] = b(options.shared_libuv)
 
-  if b(options.shared_libuv) == True:
+  if options.shared_libuv:
     o['libraries'] += ['-l%s' % options.shared_libuv_libname]
   if options.shared_libuv_libpath:
     o['libraries'] += ['-L%s' % options.shared_libuv_libpath]
