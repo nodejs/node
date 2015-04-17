@@ -95,6 +95,7 @@ describe('create()', function () {
 
         var error = Boom.unauthorized(null);
         expect(error.output.payload.message).to.not.exist();
+        expect(error.isServer).to.be.false();
         done();
     });
 
@@ -126,7 +127,10 @@ describe('badRequest()', function () {
 
     it('returns a 400 error statusCode', function (done) {
 
-        expect(Boom.badRequest().output.statusCode).to.equal(400);
+        var error = Boom.badRequest();
+
+        expect(error.output.statusCode).to.equal(400);
+        expect(error.isServer).to.be.false();
         done();
     });
 
@@ -511,6 +515,7 @@ describe('internal()', function () {
 
         var err = Boom.internal('my message');
         expect(err.message).to.equal('my message');
+        expect(err.isServer).to.true();
         expect(err.output.payload.message).to.equal('An internal server error occurred');
         done();
     });
@@ -529,6 +534,7 @@ describe('internal()', function () {
         catch (err) {
             var boom = Boom.internal('Someting bad', err);
             expect(boom.message).to.equal('Someting bad: Unexpected end of input');
+            expect(boom.isServer).to.be.true();
             done();
         }
     });
@@ -587,6 +593,7 @@ describe('badImplementation()', function () {
         var err = Boom.badImplementation();
         expect(err.output.statusCode).to.equal(500);
         expect(err.isDeveloperError).to.equal(true);
+        expect(err.isServer).to.be.true();
         done();
     });
 });

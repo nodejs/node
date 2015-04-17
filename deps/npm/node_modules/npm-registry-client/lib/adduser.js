@@ -76,7 +76,7 @@ function adduser (uri, params, cb) {
       client.log.verbose('adduser', 'update existing user')
       return client.request(
         uri + '?write=true',
-        { body: userobj, auth: auth },
+        { auth: auth },
         function (er, data, json, response) {
           if (er || data.error) {
             return cb(er, data, json, response)
