@@ -22,7 +22,7 @@ if (!cmd.args.length) {
 }
 
 if (!cmd.schema) {
-  cmd.schema = 'log'
+  cmd.schema = 'har'
 }
 
 cmd.args.map(function (fileName) {

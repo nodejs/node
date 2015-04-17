@@ -1,6 +1,0 @@
-{
-  "name": "scripts-whitespace-windows-dep",
-  "version": "0.0.1",
-  "bin": [ "bin/foo" ],
-  "repository": "git://github.com/robertkowalski/bogusfixture"
-}

@@ -17,7 +17,6 @@ function Extract (opts) {
 
   // better to drop in cwd? seems more standard.
   opts.path = opts.path || path.resolve("node-tar-extract")
-  // have to dump into a directory
   opts.type = "Directory"
   opts.Directory = true
 
@@ -44,19 +43,19 @@ function Extract (opts) {
         entry.linkpath = entry.props.linkpath = lp
       }
     }
-
     if (entry.type === "Link") {
-      entry.linkpath = entry.props.linkpath = path.join(
-        opts.path, path.join("/", entry.props.linkpath)
-      )
+      entry.linkpath = entry.props.linkpath =
+        path.join(opts.path, path.join("/", entry.props.linkpath))
     }
 
-    if (entry.props && entry.props.linkpath) {
+    if (entry.type === "SymbolicLink") {
+      var dn = path.dirname(entry.path) || ""
       var linkpath = entry.props.linkpath
-      // normalize paths that point outside the extraction root
-      if (path.resolve(opts.path, linkpath).indexOf(opts.path) !== 0) {
-        entry.props.linkpath = path.join(opts.path, path.join("/", linkpath))
+      var target = path.resolve(opts.path, dn, linkpath)
+      if (target.indexOf(opts.path) !== 0) {
+        linkpath = path.join(opts.path, path.join("/", linkpath))
       }
+      entry.linkpath = entry.props.linkpath = linkpath
     }
   })
 
