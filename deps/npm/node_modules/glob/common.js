@@ -1,6 +1,5 @@
 exports.alphasort = alphasort
 exports.alphasorti = alphasorti
-exports.isAbsolute = process.platform === "win32" ? absWin : absUnix
 exports.setopts = setopts
 exports.ownProp = ownProp
 exports.makeAbs = makeAbs
@@ -15,25 +14,8 @@ function ownProp (obj, field) {
 
 var path = require("path")
 var minimatch = require("minimatch")
+var isAbsolute = require("path-is-absolute")
 var Minimatch = minimatch.Minimatch
-
-function absWin (p) {
-  if (absUnix(p)) return true
-  // pull off the device/UNC bit from a windows path.
-  // from node's lib/path.js
-  var splitDeviceRe =
-      /^([a-zA-Z]:|[\\\/]{2}[^\\\/]+[\\\/]+[^\\\/]+)?([\\\/])?([\s\S]*?)$/
-  var result = splitDeviceRe.exec(p)
-  var device = result[1] || ''
-  var isUnc = device && device.charAt(1) !== ':'
-  var isAbsolute = !!result[2] || isUnc // UNC paths are always absolute
-
-  return isAbsolute
-}
-
-function absUnix (p) {
-  return p.charAt(0) === "/" || p === ""
-}
 
 function alphasorti (a, b) {
   return a.toLowerCase().localeCompare(b.toLowerCase())
@@ -230,7 +212,7 @@ function makeAbs (self, f) {
   var abs = f
   if (f.charAt(0) === '/') {
     abs = path.join(self.root, f)
-  } else if (exports.isAbsolute(f)) {
+  } else if (isAbsolute(f) || f === '') {
     abs = f
   } else if (self.changedCwd) {
     abs = path.resolve(self.cwd, f)

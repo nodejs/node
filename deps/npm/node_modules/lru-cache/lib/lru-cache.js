@@ -217,6 +217,7 @@ function get (self, key, doUse) {
 function use (self, hit) {
   shiftLU(self, hit)
   hit.lu = self._mru ++
+  if (self._maxAge) hit.now = Date.now()
   self._lruList[hit.lu] = hit
 }
 

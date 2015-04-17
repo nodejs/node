@@ -31,7 +31,7 @@ var expect = {
     'graceful-fs': '~1.1.8'
   },
   devDependencies: { tap: '~0.2.5' },
-  homepage: 'https://github.com/isaacs/read-package-json',
+  homepage: 'https://github.com/isaacs/read-package-json#readme',
   optionalDependencies: { npmlog: '0', 'graceful-fs': '~1.1.8' },
   _id: 'read-package-json@0.1.1',
   readme: 'ERROR: No README data found!'

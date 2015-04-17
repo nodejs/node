@@ -423,9 +423,9 @@ function save (where, installed, tree, pretty, hasArguments, cb) {
   var saveTarget = path.resolve(where, "package.json")
 
   asyncMap(Object.keys(tree), function (k, cb) {
-    // if "what" was a url, then save that instead.
+    // if "from" is remote, git, or hosted, then save that instead.
     var t = tree[k]
-      , u = url.parse(t.from)
+      , f = npa(t.from)
       , a = npa(t.what)
       , w = [a.name, a.spec]
 
@@ -433,7 +433,7 @@ function save (where, installed, tree, pretty, hasArguments, cb) {
     fs.stat(t.from, function (er){
       if (!er) {
         w[1] = "file:" + t.from
-      } else if (u && u.protocol) {
+      } else if (['hosted', 'git', 'remote'].indexOf(f.type) !== -1) {
         w[1] = t.from
       }
       cb(null, [w])
@@ -1128,7 +1128,16 @@ function write (target, targetFolder, context, cb_) {
               "in npm 3+. Your application will need to depend on it explicitly."
             ], pd+","+data.name)
         })
-        var pdTargetFolder = path.resolve(targetFolder, "..", "..")
+
+        // Package scopes cause an addditional tree level which needs to be
+        // considered when resolving a peerDependency's target folder.
+        var pdTargetFolder
+        if (npa(target.name).scope) {
+          pdTargetFolder = path.resolve(targetFolder, '../../..')
+        } else {
+          pdTargetFolder = path.resolve(targetFolder, '../..')
+        }
+
         var pdContext = context
         if (peerDeps.length > 0) {
           actions.push(
