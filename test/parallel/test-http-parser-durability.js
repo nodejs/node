@@ -1,11 +1,13 @@
 var assert = require('assert');
 var inspect = require('util').inspect;
+var format = require('util').format;
 
 var HTTPParser = require('_http_parser');
 
 var CRLF = '\r\n';
 var REQUEST = HTTPParser.REQUEST;
 var RESPONSE = HTTPParser.RESPONSE;
+var requestsEnd = -1;
 
 var cases = [
   // REQUESTS ==================================================================
@@ -35,7 +37,6 @@ var cases = [
       'Accept',
         '*/*',
     ],
-    upgrade: false,
     body: undefined
   },
   {
@@ -79,7 +80,6 @@ var cases = [
       'Connection',
         'keep-alive',
     ],
-    upgrade: false,
     body: undefined
   },
   {
@@ -100,7 +100,6 @@ var cases = [
       'aaaaaaaaaaaaa',
         '++++++++++',
     ],
-    upgrade: false,
     body: undefined
   },
   {
@@ -117,7 +116,6 @@ var cases = [
     method: 'GET',
     url: '/forums/1/topics/2375?page=1#posts-17408',
     headers: [],
-    upgrade: false,
     body: undefined
   },
   {
@@ -134,7 +132,6 @@ var cases = [
     method: 'GET',
     url: '/get_no_headers_no_body/world',
     headers: [],
-    upgrade: false,
     body: undefined
   },
   {
@@ -155,7 +152,6 @@ var cases = [
       'Accept',
         '*/*',
     ],
-    upgrade: false,
     body: undefined
   },
   {
@@ -177,7 +173,6 @@ var cases = [
       'conTENT-Length',
         '5',
     ],
-    upgrade: false,
     body: 'HELLO'
   },
   {
@@ -205,7 +200,6 @@ var cases = [
       'Content-Length',
         '5',
     ],
-    upgrade: false,
     body: 'World'
   },
   {
@@ -230,7 +224,6 @@ var cases = [
       'Transfer-Encoding',
         'chunked',
     ],
-    upgrade: false,
     body: 'all your base are belong to us'
   },
   {
@@ -257,7 +250,6 @@ var cases = [
       'Transfer-Encoding',
         'chunked',
     ],
-    upgrade: false,
     body: 'hello world'
   },
   {
@@ -290,7 +282,6 @@ var cases = [
       'Content-Type',
         'text/plain',
     ],
-    upgrade: false,
     body: 'hello world'
   },
   {
@@ -317,7 +308,6 @@ var cases = [
       'Transfer-Encoding',
         'chunked',
     ],
-    upgrade: false,
     body: 'hello world'
   },
   {
@@ -334,7 +324,6 @@ var cases = [
     method: 'GET',
     url: '/with_"stupid"_quotes?foo="bar"',
     headers: [],
-    upgrade: false,
     body: undefined
   },
   {
@@ -361,7 +350,6 @@ var cases = [
       'Accept',
         '*/*',
     ],
-    upgrade: false,
     body: undefined
   },
   {
@@ -378,7 +366,6 @@ var cases = [
     method: 'GET',
     url: '/test.cgi?foo=bar?baz',
     headers: [],
-    upgrade: false,
     body: undefined
   },
   {
@@ -396,7 +383,6 @@ var cases = [
     method: 'GET',
     url: '/test',
     headers: [],
-    upgrade: false,
     body: undefined
   },
   {
@@ -411,7 +397,7 @@ var cases = [
       'Upgrade: WebSocket',
       'Sec-WebSocket-Key1: 4 @1  46546xW%0l 1 5',
       'Origin: http://example.com',
-      '', '',
+      '',
       'Hot diggity dogg'
     ].join(CRLF),
     shouldKeepAlive: true,
@@ -436,7 +422,7 @@ var cases = [
       'Origin',
         'http://example.com',
     ],
-    upgrade: true,
+    upgrade: 'Hot diggity dogg',
     body: undefined
   },
   {
@@ -446,7 +432,7 @@ var cases = [
       'CONNECT 0-home0.netscape.com:443 HTTP/1.0',
       'User-agent: Mozilla/1.1N',
       'Proxy-authorization: basic aGVsbG86d29ybGQ=',
-      '', '',
+      '',
       'some data',
       'and yet even more data'
     ].join(CRLF),
@@ -462,7 +448,7 @@ var cases = [
       'Proxy-authorization',
         'basic aGVsbG86d29ybGQ=',
     ],
-    upgrade: true,
+    upgrade: 'some data\r\nand yet even more data',
     body: undefined
   },
   {
@@ -479,7 +465,6 @@ var cases = [
     method: 'REPORT',
     url: '/test',
     headers: [],
-    upgrade: false,
     body: undefined
   },
   {
@@ -496,7 +481,6 @@ var cases = [
     method: 'GET',
     url: '/',
     headers: [],
-    upgrade: false,
     body: undefined
   },
   {
@@ -523,7 +507,6 @@ var cases = [
       'ST',
         '"ssdp:all"',
     ],
-    upgrade: false,
     body: undefined
   },
   {
@@ -564,7 +547,6 @@ var cases = [
       'Connection',
         'close',
     ],
-    upgrade: false,
     body: undefined
   },
   {
@@ -581,7 +563,6 @@ var cases = [
     method: 'GET',
     url: 'http://example.org?hail=all',
     headers: [],
-    upgrade: false,
     body: undefined
   },
   {
@@ -598,7 +579,6 @@ var cases = [
     method: 'GET',
     url: 'http://example.org:1234?hail=all',
     headers: [],
-    upgrade: false,
     body: undefined
   },
   {
@@ -615,7 +595,6 @@ var cases = [
     method: 'GET',
     url: 'http://example.org:1234',
     headers: [],
-    upgrade: false,
     body: undefined
   },
   {
@@ -646,7 +625,6 @@ var cases = [
       'Content-Length',
         '10',
     ],
-    upgrade: false,
     body: 'cccccccccc'
   },
   {
@@ -670,7 +648,7 @@ var cases = [
       'Proxy-authorization',
         'basic aGVsbG86d29ybGQ=',
     ],
-    upgrade: true,
+    upgrade: '',
     body: undefined
   },
   {
@@ -692,7 +670,6 @@ var cases = [
       'Host',
         'github.com',
     ],
-    upgrade: false,
     body: undefined
   },
   {
@@ -716,7 +693,7 @@ var cases = [
       'Proxy-authorization',
         'basic aGVsbG86d29ybGQ=',
     ],
-    upgrade: true,
+    upgrade: '',
     body: undefined
   },
   {
@@ -745,7 +722,6 @@ var cases = [
       'Content-Length',
         '4',
     ],
-    upgrade: false,
     body: 'q=42'
   },
   {
@@ -777,7 +753,6 @@ var cases = [
       'Connection',
         'close',
     ],
-    upgrade: false,
     body: 'q=42'
   },
   {
@@ -798,7 +773,6 @@ var cases = [
       'Host',
         'www.example.com',
     ],
-    upgrade: false,
     body: undefined
   },
   {
@@ -819,7 +793,6 @@ var cases = [
       'Host',
         'www.example.com',
     ],
-    upgrade: false,
     body: undefined
   },
   {
@@ -836,7 +809,6 @@ var cases = [
     method: 'GET',
     url: 'http://a%12:b!&*$@example.org:1234/toto',
     headers: [],
-    upgrade: false,
     body: undefined
   },
   {
@@ -852,7 +824,7 @@ var cases = [
       'Upgrade: WebSocket',
       'Sec-WebSocket-Key1: 4 @1  46546xW%0l 1 5',
       'Origin: http://example.com',
-      '', '',
+      '',
       'Hot diggity dogg'
     ].join(CRLF),
     shouldKeepAlive: true,
@@ -877,7 +849,7 @@ var cases = [
       'Origin',
         'http://example.com',
     ],
-    upgrade: true,
+    upgrade: 'Hot diggity dogg',
     body: undefined
   },
   {
@@ -887,7 +859,7 @@ var cases = [
       'GET /demo HTTP/1.1',
       'Connection: keep-alive, upgrade',
       'Upgrade: WebSocket',
-      '', '',
+      '',
       'Hot diggity dogg'
     ].join(CRLF),
     shouldKeepAlive: true,
@@ -902,7 +874,7 @@ var cases = [
       'Upgrade',
         'WebSocket',
     ],
-    upgrade: true,
+    upgrade: 'Hot diggity dogg',
     body: undefined
   },
   {
@@ -913,7 +885,7 @@ var cases = [
       'Connection: keep-alive, ',
       ' upgrade',
       'Upgrade: WebSocket',
-      '', '',
+      '',
       'Hot diggity dogg'
     ].join(CRLF),
     shouldKeepAlive: true,
@@ -928,7 +900,7 @@ var cases = [
       'Upgrade',
         'WebSocket',
     ],
-    upgrade: true,
+    upgrade: 'Hot diggity dogg',
     body: undefined
   },
   // RESPONSES =================================================================
@@ -975,7 +947,6 @@ var cases = [
       'Content-Length',
         '219',
     ],
-    upgrade: false,
     body: '<HTML><HEAD><meta http-equiv="content-type" content="text/html;'
         + 'charset=utf-8">\n<TITLE>301 Moved</TITLE></HEAD><BODY>\n<H1>301 '
         + 'Moved</H1>\nThe document has moved\n<A HREF="http://www.google.com/'
@@ -1016,7 +987,6 @@ var cases = [
       'Connection',
         'close',
     ],
-    upgrade: false,
     body: '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<SOAP-ENV:Envelope xmlns'
         + ':SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\">\n  '
         + '<SOAP-ENV:Body>\n    <SOAP-ENV:Fault>\n       <faultcode>SOAP-ENV:'
@@ -1037,7 +1007,6 @@ var cases = [
     statusCode: 404,
     statusText: 'Not Found',
     headers: [],
-    upgrade: false,
     body: undefined
   },
   {
@@ -1054,7 +1023,6 @@ var cases = [
     statusCode: 301,
     statusText: '',
     headers: [],
-    upgrade: false,
     body: undefined
   },
   {
@@ -1084,7 +1052,6 @@ var cases = [
       'Transfer-Encoding',
         'chunked',
     ],
-    upgrade: false,
     body: 'This is the data in the first chunk\r\n'
         + 'and this is the second one\r\n'
   },
@@ -1117,7 +1084,6 @@ var cases = [
         'v7;x;114750856;0-0;0;17820020;0/0;21603567/21621457/1;;~okv=;'
           + 'dcmt=text/xml;;~cs=o',
     ],
-    upgrade: false,
     body: undefined
   },
   {
@@ -1162,7 +1128,6 @@ var cases = [
       'Connection',
         'keep-alive',
     ],
-    upgrade: false,
     body: undefined
   },
   {
@@ -1215,7 +1180,6 @@ var cases = [
       'Connection',
         'close',
     ],
-    upgrade: false,
     body: undefined
   },
   {
@@ -1242,7 +1206,6 @@ var cases = [
       'Connection',
         'close',
     ],
-    upgrade: false,
     body: undefined
   },
   {
@@ -1264,7 +1227,6 @@ var cases = [
       'Content-Type',
         'text/plain',
     ],
-    upgrade: false,
     body: 'hello world'
   },
   {
@@ -1285,7 +1247,6 @@ var cases = [
       'Connection',
         'keep-alive',
     ],
-    upgrade: false,
     body: undefined
   },
   {
@@ -1306,7 +1267,6 @@ var cases = [
       'Connection',
         'keep-alive',
     ],
-    upgrade: false,
     body: undefined
   },
   {
@@ -1323,7 +1283,6 @@ var cases = [
     statusCode: 200,
     statusText: 'OK',
     headers: [],
-    upgrade: false,
     body: undefined
   },
   {
@@ -1340,7 +1299,6 @@ var cases = [
     statusCode: 204,
     statusText: 'No content',
     headers: [],
-    upgrade: false,
     body: undefined
   },
   {
@@ -1361,11 +1319,10 @@ var cases = [
       'Connection',
         'close',
     ],
-    upgrade: false,
     body: undefined
   },
   {
-    name: 'HTTP/1.1 with chunked endocing and a 200 response',
+    name: 'HTTP/1.1 with chunked encoding and a 200 response',
     type: RESPONSE,
     raw: [
       'HTTP/1.1 200 OK',
@@ -1384,7 +1341,6 @@ var cases = [
       'Transfer-Encoding',
         'chunked',
     ],
-    upgrade: false,
     body: undefined
   },
   {
@@ -1445,7 +1401,6 @@ var cases = [
       'Transfer-Encoding',
         'chunked',
     ],
-    upgrade: false,
     body: '\n'
   },
   {
@@ -1462,22 +1417,29 @@ var cases = [
     statusCode: 200,
     statusText: '',
     headers: [],
-    upgrade: false,
     body: undefined
   },
 ];
+for (var i = 0; i < cases.length; ++i) {
+  if (cases[i].type === RESPONSE) {
+    requestsEnd = i - 1;
+    break;
+  }
+}
+
 
 
 // Prevent EE warnings since we have many test cases which attach `exit` event
 // handlers
 process.setMaxListeners(0);
 
+// Test predefined requests/responses
 cases.forEach(function(testCase) {
   var parser = new HTTPParser(testCase.type);
-  var reqEvents = [ 'onHeaders' ];
+  var input = new Buffer(testCase.raw, 'binary');
+  var reqEvents = ['onHeaders'];
   var completed = false;
-  var allHeaders;
-  var body;
+  var message = {};
 
   if (testCase.body !== undefined)
     reqEvents.push('onBody');
@@ -1486,66 +1448,34 @@ cases.forEach(function(testCase) {
                      statusCode, statusText, upgrade, shouldKeepAlive) {
     assert.strictEqual(reqEvents[0],
                        'onHeaders',
-                       'Expected onHeaders to the next event for: '
-                         + testCase.name);
+                       'Expected onHeaders to the next event for: ' +
+                         testCase.name);
     reqEvents.shift();
-    _assert(assert.strictEqual,
-            'versionMajor',
-            testCase,
-            versionMajor,
-            testCase.httpMajor);
-    _assert(assert.strictEqual,
-            'versionMinor',
-            testCase,
-            versionMinor,
-            testCase.httpMinor);
-    // Defer checking headers in case there are trailers ...
-    allHeaders = headers;
-    if (testCase.type === REQUEST) {
-      _assert(assert.strictEqual,
-              'method',
-              testCase,
-              method,
-              testCase.method);
-      _assert(assert.strictEqual,
-              'url',
-              testCase,
-              url,
-              testCase.url);
-    } else {
-      _assert(assert.strictEqual,
-              'statusCode',
-              testCase,
-              statusCode,
-              testCase.statusCode);
-      _assert(assert.strictEqual,
-              'statusText',
-              testCase,
-              statusText,
-              testCase.statusText);
-    }
-    _assert(assert.strictEqual,
-            'upgrade',
-            testCase,
-            upgrade,
-            testCase.upgrade);
-    _assert(assert.strictEqual,
-            'shouldKeepAlive',
-            testCase,
-            shouldKeepAlive,
-            testCase.shouldKeepAlive);
+    message = {
+      type: (method === undefined && url === undefined ? RESPONSE : REQUEST),
+      shouldKeepAlive: shouldKeepAlive,
+      //msgCompleteOnEOF
+      httpMajor: versionMajor,
+      httpMinor: versionMinor,
+      method: method,
+      url: url,
+      headers: headers,
+      statusCode: statusCode,
+      statusText: statusText,
+      upgrade: upgrade
+    };
   }
 
   function onBody(data, offset, len) {
-    if (body === undefined) {
+    if (message.body === undefined) {
       assert.strictEqual(reqEvents[0],
                          'onBody',
-                         'Expected onBody to be the next event for: '
-                           + testCase.name);
+                         'Expected onBody to be the next event for: ' +
+                           testCase.name);
       reqEvents.shift();
-      body = data.toString('binary', offset, offset + len);
+      message.body = data.toString('binary', offset, offset + len);
     } else
-      body += data.toString('binary', offset, offset + len);
+      message.body += data.toString('binary', offset, offset + len);
   }
 
   function onComplete() {
@@ -1553,18 +1483,12 @@ cases.forEach(function(testCase) {
                        0,
                        'Missed ' + reqEvents + ' event(s) for: ' +
                          testCase.name);
-    if (parser.headers.length > 0)
-      allHeaders = allHeaders.concat(parser.headers);
-    _assert(assert.deepEqual,
-            'headers',
-            testCase,
-            allHeaders,
-            testCase.headers);
-    _assert(assert.strictEqual,
-            'body',
-            testCase,
-            body,
-            testCase.body);
+    if (parser.headers.length > 0) {
+      if (message.headers)
+        message.headers = message.headers.concat(parser.headers);
+      else
+        message.headers = parser.headers;
+    }
     completed = true;
   }
 
@@ -1578,8 +1502,9 @@ cases.forEach(function(testCase) {
                        'Parsing did not complete for: ' + testCase.name);
   });
 
+  var ret;
   try {
-    var ret = parser.execute(new Buffer(testCase.raw, 'binary'));
+    ret = parser.execute(input);
     parser.finish();
   } catch (ex) {
     throw new Error('Unexpected error thrown for: ' + testCase.name + ':\n\n' +
@@ -1591,11 +1516,654 @@ cases.forEach(function(testCase) {
     throw new Error('Unexpected error for: ' + testCase.name + ':\n\n' +
                     ret.stack + '\n');
   }
+  if (message.upgrade === false || typeof ret !== 'number')
+    message.upgrade = undefined;
+  else
+    message.upgrade = input.toString('binary', ret);
+  assertMessageEquals(message, testCase);
 });
 
-function _assert(assertFn, type, testCase, actual, expected) {
-  assertFn(actual,
-           expected,
-           type + ' mismatch for: ' + testCase.name + '\nActual:\n' +
-             inspect(actual) + '\nExpected:\n' + inspect(expected) + '\n');
+// Test execute() return value
+(function() {
+  var parser = new HTTPParser(REQUEST);
+  var input = 'GET / HTTP/1.1\r\nheader: value\r\nhdr: value\r\n';
+  var ret;
+
+  parser.onHeaders = parser.onBody = parser.onComplete = function() {};
+  ret = parser.execute(new Buffer(input));
+  assert.strictEqual(ret, Buffer.byteLength(input));
+})();
+
+// Test for header overflow
+[REQUEST, RESPONSE].forEach(function(type) {
+  var parser = new HTTPParser(type);
+  var input = (type === REQUEST ? 'GET / HTTP/1.1\r\n' : 'HTTP/1.0 200 OK\r\n');
+  var ret;
+
+  parser.onHeaders = parser.onBody = parser.onComplete = function() {};
+  ret = parser.execute(new Buffer(input));
+  assert.strictEqual(ret, Buffer.byteLength(input));
+
+  input = new Buffer('header-key: header-value\r\n');
+  for (var i = 0; i < 10000; ++i) {
+    ret = parser.execute(input);
+    if (typeof ret !== 'number') {
+      assert(/Header size limit exceeded/i.test(ret.message));
+      return;
+    }
+  }
+
+  throw new Error('Error expected but none in header overflow test');
+});
+
+// Test for no overflow with long body
+[REQUEST, RESPONSE].forEach(function(type) {
+  [1000, 100000].forEach(function(length) {
+    var parser = new HTTPParser(type);
+    var input = format(
+      '%s\r\nConnection: Keep-Alive\r\nContent-Length: %d\r\n\r\n',
+      type === REQUEST ? 'POST / HTTP/1.0' : 'HTTP/1.0 200 OK',
+      length
+    );
+    var input2 = new Buffer('a');
+    var ret;
+
+    parser.onHeaders = parser.onBody = parser.onComplete = function() {};
+    ret = parser.execute(new Buffer(input));
+    assert.strictEqual(ret, Buffer.byteLength(input));
+
+    for (var i = 0; i < length; ++i) {
+      ret = parser.execute(input2);
+      assert.strictEqual(ret, 1);
+    }
+
+    ret = parser.execute(new Buffer(input));
+    assert.strictEqual(ret, Buffer.byteLength(input));
+  });
+});
+
+// Test for content length overflow
+['9007199254740991', '9007199254740992', '9007199254740993'].forEach(
+  function(length, i) {
+    var parser = new HTTPParser(RESPONSE);
+    var input = format('HTTP/1.1 200 OK\r\nContent-Length: %s\r\n\r\n', length);
+    var ret;
+
+    parser.onHeaders = parser.onBody = parser.onComplete = function() {};
+    ret = parser.execute(new Buffer(input));
+    if (i === 0)
+      assert.strictEqual(ret, Buffer.byteLength(input));
+    else {
+      assert.strictEqual(typeof ret !== 'number', true);
+      assert.strictEqual(/Bad Content-Length/i.test(ret.message), true);
+    }
+  }
+);
+
+// Test for chunk length overflow
+['1fffffffffffff', '20000000000000', '20000000000001'].forEach(
+  function(length, i) {
+    var parser = new HTTPParser(RESPONSE);
+    var input = format('HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n' +
+                       '%s\r\n...', length);
+    var ret;
+
+    parser.onHeaders = parser.onBody = parser.onComplete = function() {};
+    ret = parser.execute(new Buffer(input));
+    if (i === 0)
+      assert.strictEqual(ret, Buffer.byteLength(input));
+    else {
+      assert.strictEqual(typeof ret !== 'number', true);
+      assert.strictEqual(/Chunk size too big/i.test(ret.message), true);
+    }
+  }
+);
+
+// Test pipelined responses
+(function() {
+  var responsesStart = requestsEnd + 1;
+  for (var i = responsesStart; i < cases.length; ++i) {
+    if (!cases[i].shouldKeepAlive)
+      continue;
+    for (var j = responsesStart; j < cases.length; ++j) {
+      if (!cases[j].shouldKeepAlive)
+        continue;
+      for (var k = responsesStart; k < cases.length; ++k)
+        testMultiple3(cases[i], cases[j], cases[k]);
+    }
+  }
+})();
+
+// Test response body sizes
+[
+ getMessageByName('404 no headers no body'),
+ getMessageByName('200 trailing space on chunked body'),
+ {
+   name: 'large chunked message',
+   type: RESPONSE,
+   raw: createLargeChunkedMessage(31337, [
+     'HTTP/1.0 200 OK',
+     'Transfer-Encoding: chunked',
+     'Content-Type: text/plain',
+     '', ''
+   ].join(CRLF)),
+   shouldKeepAlive: false,
+   msgCompleteOnEOF: false,
+   httpMajor: 1,
+   httpMinor: 0,
+   statusCode: 200,
+   statusText: 'OK',
+   headers: [
+     'Transfer-Encoding',
+       'chunked',
+     'Content-Type',
+       'text/plain'
+   ],
+   bodySize: 31337 * 1024
+ }
+].forEach(function(expected) {
+  var parser = new HTTPParser(expected.type);
+  var expectedBodySize = (expected.bodySize !== undefined
+                          ? expected.bodySize
+                          : (expected.body && expected.body.length) || 0);
+  var messages = [];
+  var message = {};
+  var ret;
+  var body;
+
+  parser.onHeaders = function(versionMajor, versionMinor, headers, method, url,
+                              statusCode, statusText, upgrade,
+                              shouldKeepAlive) {
+    message = {
+      type: (method === undefined && url === undefined ? RESPONSE : REQUEST),
+      shouldKeepAlive: shouldKeepAlive,
+      //msgCompleteOnEOF
+      httpMajor: versionMajor,
+      httpMinor: versionMinor,
+      method: method,
+      url: url,
+      headers: headers,
+      statusCode: statusCode,
+      statusText: statusText
+    };
+  };
+  parser.onBody = function(data, offset, len) {
+    if (message.bodySize === undefined) {
+      message.bodySize = len;
+      body = data.toString('binary', offset, offset + len);
+    } else {
+      message.bodySize += len;
+      body += data.toString('binary', offset, offset + len);
+    }
+  };
+  parser.onComplete = function() {
+    messages.push(message);
+    message = {};
+  };
+
+  var l = expected.raw.length;
+  var chunk = 4024;
+
+  for (var i = 0; i < l; i += chunk) {
+    var toread = Math.min(l - i, chunk);
+    ret = parser.execute(
+      new Buffer(expected.raw.slice(i, i + toread), 'binary')
+    );
+    assert.strictEqual(ret, toread);
+  }
+  assert.strictEqual(parser.finish(), undefined);
+
+  assert.strictEqual(messages.length, 1);
+  assertMessageEquals(messages[0], expected, ['body', 'upgrade']);
+  assert.strictEqual(messages[0].bodySize || 0, expectedBodySize);
+});
+
+
+// Perform scan tests on some responses
+console.log('response scan 1/2      ');
+testScan(getMessageByName('200 trailing space on chunked body'),
+         getMessageByName('HTTP/1.0 with keep-alive and a 204 status'),
+         getMessageByName('301 no response phrase'));
+console.log('response scan 2/2      ');
+testScan(getMessageByName('no merge with empty value'),
+         getMessageByName('underscore header key'),
+         {
+           name: 'ycombinator headers',
+           type: RESPONSE,
+           raw: [
+             'HTTP/1.1 200 OK',
+             'Content-Type: text/html; charset=utf-8',
+             'Connection: close',
+             '',
+             'these headers are from http://news.ycombinator.com/'
+           ].join(CRLF),
+           shouldKeepAlive: false,
+           msgCompleteOnEOF: true,
+           httpMajor: 1,
+           httpMinor: 1,
+           statusCode: 200,
+           statusText: 'OK',
+           headers: [
+             'Content-Type',
+               'text/html; charset=utf-8',
+             'Connection',
+               'close',
+           ],
+           body: 'these headers are from http://news.ycombinator.com/'
+         });
+console.log('responses okay');
+
+
+
+
+// Test malformed HTTP version in request
+(function() {
+  var parser = new HTTPParser(REQUEST);
+  var input = 'GET / HTP/1.1\r\n\r\n';
+  var ret;
+
+  parser.onHeaders = parser.onBody = parser.onComplete = function() {};
+  ret = parser.execute(new Buffer(input));
+  assert.strictEqual(typeof ret !== 'number', true);
+  assert.strictEqual(/Malformed request line/i.test(ret.message), true);
+})();
+
+// Test well-formed but incomplete request
+(function() {
+  var parser = new HTTPParser(REQUEST);
+  var input = 'GET / HTTP/1.1\r\nContent-Type: text/plain\r\n' +
+              'Content-Length: 6\r\n\r\nfooba';
+  var ret;
+
+  parser.onHeaders = parser.onBody = parser.onComplete = function() {};
+  ret = parser.execute(new Buffer(input));
+  assert.strictEqual(ret, input.length);
+})();
+
+// Test illegal header field name line folding in request
+(function() {
+  var parser = new HTTPParser(REQUEST);
+  var input = 'GET / HTTP/1.1\r\nname\r\n : value\r\n\r\n';
+  var ret;
+
+  parser.onHeaders = parser.onBody = parser.onComplete = function() {};
+  ret = parser.execute(new Buffer(input));
+  assert.strictEqual(typeof ret !== 'number', true);
+  assert.strictEqual(/Malformed header line/i.test(ret.message), true);
+})();
+
+// Test large SSL certificate header value in request
+(function() {
+  var parser = new HTTPParser(REQUEST);
+  var input =
+    'GET / HTTP/1.1\r\n' +
+    'X-SSL-Bullshit:   -----BEGIN CERTIFICATE-----\r\n' +
+    '\tMIIFbTCCBFWgAwIBAgICH4cwDQYJKoZIhvcNAQEFBQAwcDELMAkGA1UEBhMCVUsx\r\n' +
+    '\tETAPBgNVBAoTCGVTY2llbmNlMRIwEAYDVQQLEwlBdXRob3JpdHkxCzAJBgNVBAMT\r\n' +
+    '\tAkNBMS0wKwYJKoZIhvcNAQkBFh5jYS1vcGVyYXRvckBncmlkLXN1cHBvcnQuYWMu\r\n' +
+    '\tdWswHhcNMDYwNzI3MTQxMzI4WhcNMDcwNzI3MTQxMzI4WjBbMQswCQYDVQQGEwJV\r\n' +
+    '\tSzERMA8GA1UEChMIZVNjaWVuY2UxEzARBgNVBAsTCk1hbmNoZXN0ZXIxCzAJBgNV\r\n' +
+    '\tBAcTmrsogriqMWLAk1DMRcwFQYDVQQDEw5taWNoYWVsIHBhcmQYJKoZIhvcNAQEB\r\n' +
+    '\tBQADggEPADCCAQoCggEBANPEQBgl1IaKdSS1TbhF3hEXSl72G9J+WC/1R64fAcEF\r\n' +
+    '\tW51rEyFYiIeZGx/BVzwXbeBoNUK41OK65sxGuflMo5gLflbwJtHBRIEKAfVVp3YR\r\n' +
+    '\tgW7cMA/s/XKgL1GEC7rQw8lIZT8RApukCGqOVHSi/F1SiFlPDxuDfmdiNzL31+sL\r\n' +
+    '\t0iwHDdNkGjy5pyBSB8Y79dsSJtCW/iaLB0/n8Sj7HgvvZJ7x0fr+RQjYOUUfrePP\r\n' +
+    '\tu2MSpFyf+9BbC/aXgaZuiCvSR+8Snv3xApQY+fULK/xY8h8Ua51iXoQ5jrgu2SqR\r\n' +
+    '\twgA7BUi3G8LFzMBl8FRCDYGUDy7M6QaHXx1ZWIPWNKsCAwEAAaOCAiQwggIgMAwG\r\n' +
+    '\tA1UdEwEB/wQCMAAwEQYJYIZIAYb4QgHTTPAQDAgWgMA4GA1UdDwEB/wQEAwID6DAs\r\n' +
+    '\tBglghkgBhvhCAQ0EHxYdVUsgZS1TY2llbmNlIFVzZXIgQ2VydGlmaWNhdGUwHQYD\r\n' +
+    '\tVR0OBBYEFDTt/sf9PeMaZDHkUIldrDYMNTBZMIGaBgNVHSMEgZIwgY+AFAI4qxGj\r\n' +
+    '\tloCLDdMVKwiljjDastqooXSkcjBwMQswCQYDVQQGEwJVSzERMA8GA1UEChMIZVNj\r\n' +
+    '\taWVuY2UxEjAQBgNVBAsTCUF1dGhvcml0eTELMAkGA1UEAxMCQ0ExLTArBgkqhkiG\r\n' +
+    '\t9w0BCQEWHmNhLW9wZXJhdG9yQGdyaWQtc3VwcG9ydC5hYy51a4IBADApBgNVHRIE\r\n' +
+    '\tIjAggR5jYS1vcGVyYXRvckBncmlkLXN1cHBvcnQuYWMudWswGQYDVR0gBBIwEDAO\r\n' +
+    '\tBgwrBgEEAdkvAQEBAQYwPQYJYIZIAYb4QgEEBDAWLmh0dHA6Ly9jYS5ncmlkLXN1\r\n' +
+    '\tcHBvcnQuYWMudmT4sopwqlBWsvcHViL2NybC9jYWNybC5jcmwwPQYJYIZIAYb4QgEDBD' +
+    'AWLmh0\r\n' +
+    '\tdHA6Ly9jYS5ncmlkLXN1cHBvcnQuYWMudWsvcHViL2NybC9jYWNybC5jcmwwPwYD\r\n' +
+    '\tVR0fBDgwNjA0oDKgMIYuaHR0cDovL2NhLmdyaWQt5hYy51ay9wdWIv\r\n' +
+    '\tY3JsL2NhY3JsLmNybDANBgkqhkiG9w0BAQUFAAOCAQEAS/U4iiooBENGW/Hwmmd3\r\n' +
+    '\tXCy6Zrt08YjKCzGNjorT98g8uGsqYjSxv/hmi0qlnlHs+k/3Iobc3LjS5AMYr5L8\r\n' +
+    '\tUO7OSkgFFlLHQyC9JzPfmLCAugvzEbyv4Olnsr8hbxF1MbKZoQxUZtMVu29wjfXk\r\n' +
+    '\thTeApBv7eaKCWpSp7MCbvgzm74izKhu3vlDk9w6qVrxePfGgpKPqfHiOoGhFnbTK\r\n' +
+    '\twTC6o2xq5y0qZ03JonF7OJspEd3I5zKY3E+ov7/ZhW6DqT8UFvsAdjvQbXyhV8Eu\r\n' +
+    '\tYhixw1aKEPzNjNowuIseVogKOLXxWI5vAi5HgXdS0/ES5gDGsABo4fqovUKlgop3\r\n' +
+    '\tRA==\r\n' +
+    '\t-----END CERTIFICATE-----\r\n' +
+    '\r\n';
+  var ret;
+
+  parser.onHeaders = parser.onBody = parser.onComplete = function() {};
+  ret = parser.execute(new Buffer(input));
+  assert.strictEqual(ret, input.length);
+})();
+
+
+// Test pipelined requests
+(function() {
+  for (var i = 0; i <= requestsEnd; ++i) {
+    if (!cases[i].shouldKeepAlive)
+      continue;
+    for (var j = 0; j <= requestsEnd; ++j) {
+      if (!cases[j].shouldKeepAlive)
+        continue;
+      for (var k = 0; k <= requestsEnd; ++k)
+        testMultiple3(cases[i], cases[j], cases[k]);
+    }
+  }
+})();
+
+
+// Perform scan tests on some requests
+console.log('request scan 1/4      ');
+testScan(getMessageByName('get no headers no body'),
+         getMessageByName('get one header no body'),
+         getMessageByName('get no headers no body'));
+console.log('request scan 2/4      ');
+testScan(getMessageByName(
+          'post - chunked body: all your base are belong to us'
+         ),
+         getMessageByName('post identity body world'),
+         getMessageByName('get funky content length body hello'));
+console.log('request scan 3/4      ');
+testScan(getMessageByName('two chunks ; triple zero ending'),
+         getMessageByName('chunked with trailing headers'),
+         getMessageByName('chunked with chunk extensions'));
+console.log('request scan 4/4      ');
+testScan(getMessageByName('query url with question mark'),
+         getMessageByName('newline prefix get'),
+         getMessageByName('connect request'));
+console.log('requests okay');
+
+
+
+
+// HELPER FUNCTIONS ============================================================
+
+// SCAN through every possible breaking to make sure the parser can handle
+// getting the content in any chunks that might come from the socket
+function testScan(case1, case2, case3) {
+  var messageCount = countParsedMessages(case1, case2, case3);
+  var total = case1.raw + case2.raw + case3.raw;
+  var totallen = total.length;
+  var totalops = (totallen - 1) * (totallen - 2) / 2;
+  var messages = [];
+  var message = {};
+  var ops = 0;
+  var nb = 0;
+  var hasUpgrade;
+  var ret;
+
+  function onHeaders(versionMajor, versionMinor, headers, method, url,
+                     statusCode, statusText, upgrade, shouldKeepAlive) {
+    message = {
+      type: (method === undefined && url === undefined ? RESPONSE : REQUEST),
+      shouldKeepAlive: shouldKeepAlive,
+      //msgCompleteOnEOF
+      httpMajor: versionMajor,
+      httpMinor: versionMinor,
+      method: method,
+      url: url,
+      headers: headers,
+      statusCode: statusCode,
+      statusText: statusText,
+      upgrade: upgrade
+    };
+  }
+  function onBody(data, offset, len) {
+    if (!message.body)
+      message.body = data.toString('binary', offset, offset + len);
+    else
+      message.body += data.toString('binary', offset, offset + len);
+  }
+  function onComplete() {
+    if (parser.headers.length > 0) {
+      if (message.headers)
+        message.headers = message.headers.concat(parser.headers);
+      else
+        message.headers = parser.headers;
+    }
+    messages.push(message);
+    message = {};
+  }
+
+  for (var j = 2; j < totallen; ++j) {
+    for (var i = 1; i < j; ++i) {
+      if (ops % 1000 === 0) {
+        var value = Math.floor(100 * ops / totalops);
+        if (value < 10)
+          value = '  ' + value;
+        else if (value < 100)
+          value = ' ' + value;
+        else
+          value = '' + value;
+        console.log('\b\b\b\b%s%', value);
+      }
+      ++ops;
+
+      var parser = new HTTPParser(case1.type);
+      parser.onHeaders = onHeaders;
+      parser.onBody = onBody;
+      parser.onComplete = onComplete;
+
+      messages = [];
+      hasUpgrade = false;
+      nb = 0;
+
+      ret = parser.execute(new Buffer(total.slice(0, i), 'binary'));
+      assert.strictEqual(typeof ret === 'number', true);
+      nb += ret;
+
+      for (var k = 0; k < messages.length; ++k) {
+        if (messages[k].upgrade === true)
+          hasUpgrade = true;
+        else
+          delete messages[k].upgrade;
+      }
+
+      if (!hasUpgrade) {
+        assert.strictEqual(nb, i);
+
+        ret = parser.execute(new Buffer(total.slice(i, j), 'binary'));
+        assert.strictEqual(typeof ret === 'number', true);
+        nb += ret;
+
+        for (var k = 0; k < messages.length; ++k) {
+          if (messages[k].upgrade === true)
+            hasUpgrade = true;
+          else
+            delete messages[k].upgrade;
+        }
+
+        if (!hasUpgrade) {
+          assert.strictEqual(nb, i + (j - i));
+
+          ret = parser.execute(new Buffer(total.slice(j), 'binary'));
+          assert.strictEqual(typeof ret === 'number', true);
+          nb += ret;
+
+          for (var k = 0; k < messages.length; ++k) {
+            if (messages[k].upgrade === true)
+              hasUpgrade = true;
+            else
+              delete messages[k].upgrade;
+          }
+
+          if (!hasUpgrade)
+            assert.strictEqual(nb, i + (j - i) + (totallen - j));
+        }
+      }
+
+      assert.strictEqual(parser.finish(), undefined);
+      assert.strictEqual(messages.length, messageCount);
+
+      for (var k = 0; k < messages.length; ++k) {
+        if (messages[k].upgrade !== true)
+          delete messages[k].upgrade;
+      }
+
+      if (hasUpgrade) {
+        var lastMessage = messages.slice(-1)[0];
+        upgradeMessageFix(total, nb, lastMessage, case1, case2, case3);
+      }
+
+      assertMessageEquals(messages[0], case1);
+      if (messages.length > 1)
+        assertMessageEquals(messages[1], case2);
+      if (messages.length > 2)
+        assertMessageEquals(messages[2], case3);
+    }
+  }
+  console.log('\b\b\b\b100%');
+}
+
+function testMultiple3(case1, case2, case3) {
+  var messageCount = countParsedMessages(case1, case2, case3);
+  var total = case1.raw + case2.raw + case3.raw;
+  var parser = new HTTPParser(case1.type);
+  var messages = [];
+  var message = {};
+  var ret;
+
+  parser.onHeaders = function(versionMajor, versionMinor, headers, method, url,
+                              statusCode, statusText, upgrade,
+                              shouldKeepAlive) {
+    message = {
+      type: (method === undefined && url === undefined ? RESPONSE : REQUEST),
+      shouldKeepAlive: shouldKeepAlive,
+      //msgCompleteOnEOF
+      httpMajor: versionMajor,
+      httpMinor: versionMinor,
+      method: method,
+      url: url,
+      headers: headers,
+      statusCode: statusCode,
+      statusText: statusText,
+      upgrade: upgrade
+    };
+  };
+  parser.onBody = function(data, offset, len) {
+    if (!message.body)
+      message.body = data.toString('binary', offset, offset + len);
+    else
+      message.body += data.toString('binary', offset, offset + len);
+  };
+  parser.onComplete = function() {
+    if (parser.headers.length > 0) {
+      if (message.headers)
+        message.headers = message.headers.concat(parser.headers);
+      else
+        message.headers = parser.headers;
+    }
+    messages.push(message);
+    message = {};
+  };
+
+  ret = parser.execute(new Buffer(total, 'binary'));
+
+  assert.strictEqual(parser.finish(), undefined);
+  assert.strictEqual(messages.length, messageCount);
+
+  var hasUpgrade = false;
+  for (var i = 0; i < messages.length; ++i) {
+    if (messages[i].upgrade === true)
+      hasUpgrade = true;
+    else
+      delete messages[i].upgrade;
+  }
+
+  if (hasUpgrade) {
+    var lastMessage = messages.slice(-1)[0];
+    upgradeMessageFix(total, ret, lastMessage, case1, case2, case3);
+  } else
+    assert.strictEqual(ret, total.length);
+
+  assertMessageEquals(messages[0], case1);
+  if (messages.length > 1)
+    assertMessageEquals(messages[1], case2);
+  if (messages.length > 2)
+    assertMessageEquals(messages[2], case3);
+}
+
+function upgradeMessageFix(body, ret, actualLast) {
+  var offset = 0;
+
+  for (var i = 3; i < arguments.length; ++i) {
+    var caseMsg = arguments[i];
+
+    offset += caseMsg.raw.length;
+
+    if (caseMsg.upgrade !== undefined) {
+      offset -= caseMsg.upgrade.length;
+
+      // Check the portion of the response after its specified upgrade
+      assert.strictEqual(body.slice(offset), body.slice(ret));
+
+      // Fix up the response so that assertMessageEquals() will verify the
+      // upgrade correctly
+      actualLast.upgrade = body.slice(ret, ret + caseMsg.upgrade.length);
+      return;
+    }
+  }
+
+  throw new Error('Expected a message with an upgrade');
+}
+
+function countParsedMessages() {
+  for (var i = 0; i < arguments.length; ++i) {
+    if (arguments[i].upgrade) {
+      return i + 1;
+    }
+  }
+  return arguments.length;
+}
+
+function createLargeChunkedMessage(bodySizeKB, rawHeaders) {
+  var wrote = 0;
+  var headerslen = rawHeaders.length;
+  var bufsize = headerslen + (5 + 1024 + 2) * bodySizeKB + 5;
+  var buf = new Buffer(bufsize);
+
+  buf.write(rawHeaders, wrote, headerslen, 'binary');
+  wrote += headerslen;
+
+  for (var i = 0; i < bodySizeKB; ++i) {
+    // Write 1KB chunk into the body.
+    buf.write('400\r\n', wrote, 5);
+    wrote += 5;
+    buf.fill('C', wrote, wrote + 1024);
+    wrote += 1024;
+    buf.write('\r\n', wrote, 2);
+    wrote += 2;
+  }
+
+  buf.write('0\r\n\r\n', wrote, 5);
+  wrote += 5;
+  assert.strictEqual(wrote, bufsize);
+
+  return buf.toString('binary');
+}
+
+function getMessageByName(name) {
+  var lowered = name.toLowerCase();
+  for (var i = 0; i < cases.length; ++i) {
+    if (cases[i].name.toLowerCase() === lowered)
+      return cases[i];
+  }
+  throw new Error('Predefined HTTP message not found for: ' + name);
+}
+
+function assertMessageEquals(actual, expected, except) {
+  ['type', 'httpMajor', 'httpMinor', 'method', 'url', 'statusCode',
+   'statusText', 'shouldKeepAlive', 'headers', 'upgrade', 'body'
+  ].filter(function(p) {
+    return (except === undefined || except.indexOf(p) === -1);
+  }).forEach(function(type) {
+    var assertFn = (type === 'headers' ? assert.deepEqual : assert.strictEqual);
+    assertFn(actual[type],
+             expected[type],
+             type + ' mismatch for: ' + expected.name + '\nActual:\n' +
+               inspect(actual[type]) + '\nExpected:\n' +
+               inspect(expected[type]) + '\n');
+  });
 }
