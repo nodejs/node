@@ -93,7 +93,6 @@ parser.add_option('--openssl-fips',
     dest='openssl_fips',
     help='Build OpenSSL using FIPS canister .o file in supplied folder')
 
-    help='alternative lib name to link to [default: %default]')
 shared_optgroup.add_option('--shared-libuv',
     action='store_true',
     dest='shared_libuv',
