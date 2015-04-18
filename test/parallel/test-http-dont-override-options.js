@@ -21,7 +21,7 @@ agent.defaultPort = common.PORT;
 // be mutable / modified
 var options = {
   host: undefined,
-  hostname: 'localhost',
+  hostname: common.localhostIPv4,
   port: undefined,
   defaultPort: undefined,
   path: undefined,
@@ -37,7 +37,7 @@ process.on('exit', function() {
   assert.equal(requests, 1);
 
   assert.strictEqual(options.host, undefined);
-  assert.strictEqual(options.hostname, 'localhost');
+  assert.strictEqual(options.hostname, common.localhostIPv4);
   assert.strictEqual(options.port, undefined);
   assert.strictEqual(options.defaultPort, undefined);
   assert.strictEqual(options.path, undefined);
