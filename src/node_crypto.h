@@ -138,7 +138,10 @@ class SSLWrap {
         kind_(kind),
         next_sess_(nullptr),
         session_callbacks_(false),
-        new_session_wait_(false) {
+        new_session_wait_(false),
+        cert_cb_(nullptr),
+        cert_cb_arg_(nullptr),
+        cert_cb_running_(false) {
     ssl_ = SSL_new(sc->ctx_);
     CHECK_NE(ssl_, nullptr);
   }
@@ -157,6 +160,9 @@ class SSLWrap {
     npn_protos_.Reset();
     selected_npn_proto_.Reset();
 #endif
+#ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
+    sni_context_.Reset();
+#endif
 #ifdef NODE__HAVE_TLSEXT_STATUS_CB
     ocsp_response_.Reset();
 #endif  // NODE__HAVE_TLSEXT_STATUS_CB
@@ -167,9 +173,12 @@ class SSLWrap {
   inline bool is_server() const { return kind_ == kServer; }
   inline bool is_client() const { return kind_ == kClient; }
   inline bool is_waiting_new_session() const { return new_session_wait_; }
+  inline bool is_waiting_cert_cb() const { return cert_cb_ != nullptr; }
 
  protected:
-  static void InitNPN(SecureContext* sc);
+  typedef void (*CertCb)(void* arg);
+
+  static void InitNPN(Base* w, SecureContext* sc);
   static void AddMethods(Environment* env, v8::Handle<v8::FunctionTemplate> t);
 
   static SSL_SESSION* GetSessionCallback(SSL* s,
@@ -190,6 +199,7 @@ class SSLWrap {
   static void VerifyError(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetCurrentCipher(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EndParser(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void CertCbDone(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Renegotiate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Shutdown(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetTLSTicket(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -218,8 +228,11 @@ class SSLWrap {
                                      void* arg);
 #endif  // OPENSSL_NPN_NEGOTIATED
   static int TLSExtStatusCallback(SSL* s, void* arg);
+  static int SSLCertCallback(SSL* s, void* arg);
   static void SSLGetter(v8::Local<v8::String> property,
                         const v8::PropertyCallbackInfo<v8::Value>& info);
+
+  void WaitForCertCb(CertCb cb, void* arg);
 
   inline Environment* ssl_env() const {
     return env_;
@@ -231,6 +244,12 @@ class SSLWrap {
   SSL* ssl_;
   bool session_callbacks_;
   bool new_session_wait_;
+
+  // SSL_set_cert_cb
+  CertCb cert_cb_;
+  void* cert_cb_arg_;
+  bool cert_cb_running_;
+
   ClientHelloParser hello_parser_;
 
 #ifdef NODE__HAVE_TLSEXT_STATUS_CB
@@ -241,6 +260,10 @@ class SSLWrap {
   v8::Persistent<v8::Object> npn_protos_;
   v8::Persistent<v8::Value> selected_npn_proto_;
 #endif  // OPENSSL_NPN_NEGOTIATED
+
+#ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
+  v8::Persistent<v8::Value> sni_context_;
+#endif
 
   friend class SecureContext;
 };
@@ -253,7 +276,6 @@ class Connection : public SSLWrap<Connection>, public AsyncWrap {
   ~Connection() override {
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
     sniObject_.Reset();
-    sniContext_.Reset();
     servername_.Reset();
 #endif
   }
@@ -268,7 +290,6 @@ class Connection : public SSLWrap<Connection>, public AsyncWrap {
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   v8::Persistent<v8::Object> sniObject_;
-  v8::Persistent<v8::Value> sniContext_;
   v8::Persistent<v8::String> servername_;
 #endif
 

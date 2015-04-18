@@ -36,13 +36,13 @@ server.listen(common.PORT, function() {
 
     common.debug(util.inspect(peerCert));
     assert.equal(peerCert.subject.emailAddress, 'ry@tinyclouds.org');
-    assert.equal(peerCert.serialNumber, '9A84ABCFB8A72ABE');
+    assert.equal(peerCert.serialNumber, '9A84ABCFB8A72AC0');
     assert.deepEqual(peerCert.infoAccess['OCSP - URI'],
                      [ 'http://ocsp.nodejs.org/' ]);
 
     var issuer = peerCert.issuerCertificate;
     assert.ok(issuer.issuerCertificate === issuer);
-    assert.equal(issuer.serialNumber, 'B5090C899FC2FF93');
+    assert.equal(issuer.serialNumber, '8DF21C01468AF393');
     verified = true;
     server.close();
   });
