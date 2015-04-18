@@ -28,6 +28,8 @@ var cases = [
     httpMinor: 1,
     method: 'GET',
     url: '/test',
+    statusCode: null,
+    statusText: null,
     headers: [
       'User-Agent',
         'curl/7.18.0 (i486-pc-linux-gnu) libcurl/7.18.0 '
@@ -61,6 +63,8 @@ var cases = [
     httpMinor: 1,
     method: 'GET',
     url: '/favicon.ico',
+    statusCode: null,
+    statusText: null,
     headers: [
       'Host',
         '0.0.0.0=5000',
@@ -96,6 +100,8 @@ var cases = [
     httpMinor: 1,
     method: 'GET',
     url: '/repeater',
+    statusCode: null,
+    statusText: null,
     headers: [
       'aaaaaaaaaaaaa',
         '++++++++++',
@@ -115,6 +121,8 @@ var cases = [
     httpMinor: 1,
     method: 'GET',
     url: '/forums/1/topics/2375?page=1#posts-17408',
+    statusCode: null,
+    statusText: null,
     headers: [],
     body: undefined
   },
@@ -131,6 +139,8 @@ var cases = [
     httpMinor: 1,
     method: 'GET',
     url: '/get_no_headers_no_body/world',
+    statusCode: null,
+    statusText: null,
     headers: [],
     body: undefined
   },
@@ -148,6 +158,8 @@ var cases = [
     httpMinor: 1,
     method: 'GET',
     url: '/get_one_header_no_body',
+    statusCode: null,
+    statusText: null,
     headers: [
       'Accept',
         '*/*',
@@ -169,6 +181,8 @@ var cases = [
     httpMinor: 0,
     method: 'GET',
     url: '/get_funky_content_length_body_hello',
+    statusCode: null,
+    statusText: null,
     headers: [
       'conTENT-Length',
         '5',
@@ -192,6 +206,8 @@ var cases = [
     httpMinor: 1,
     method: 'POST',
     url: '/post_identity_body_world?q=search#hey',
+    statusCode: null,
+    statusText: null,
     headers: [
       'Accept',
         '*/*',
@@ -220,6 +236,8 @@ var cases = [
     httpMinor: 1,
     method: 'POST',
     url: '/post_chunked_all_your_base',
+    statusCode: null,
+    statusText: null,
     headers: [
       'Transfer-Encoding',
         'chunked',
@@ -246,6 +264,8 @@ var cases = [
     httpMinor: 1,
     method: 'POST',
     url: '/two_chunks_mult_zero_end',
+    statusCode: null,
+    statusText: null,
     headers: [
       'Transfer-Encoding',
         'chunked',
@@ -274,6 +294,8 @@ var cases = [
     httpMinor: 1,
     method: 'POST',
     url: '/chunked_w_trailing_headers',
+    statusCode: null,
+    statusText: null,
     headers: [
       'Transfer-Encoding',
         'chunked',
@@ -304,6 +326,8 @@ var cases = [
     httpMinor: 1,
     method: 'POST',
     url: '/chunked_w_extensions',
+    statusCode: null,
+    statusText: null,
     headers: [
       'Transfer-Encoding',
         'chunked',
@@ -323,6 +347,8 @@ var cases = [
     httpMinor: 1,
     method: 'GET',
     url: '/with_"stupid"_quotes?foo="bar"',
+    statusCode: null,
+    statusText: null,
     headers: [],
     body: undefined
   },
@@ -342,6 +368,8 @@ var cases = [
     httpMinor: 0,
     method: 'GET',
     url: '/test',
+    statusCode: null,
+    statusText: null,
     headers: [
       'Host',
         '0.0.0.0:5000',
@@ -365,6 +393,8 @@ var cases = [
     httpMinor: 1,
     method: 'GET',
     url: '/test.cgi?foo=bar?baz',
+    statusCode: null,
+    statusText: null,
     headers: [],
     body: undefined
   },
@@ -382,6 +412,8 @@ var cases = [
     httpMinor: 1,
     method: 'GET',
     url: '/test',
+    statusCode: null,
+    statusText: null,
     headers: [],
     body: undefined
   },
@@ -406,6 +438,8 @@ var cases = [
     httpMinor: 1,
     method: 'GET',
     url: '/demo',
+    statusCode: null,
+    statusText: null,
     headers: [
       'Host',
         'example.com',
@@ -442,6 +476,8 @@ var cases = [
     httpMinor: 0,
     method: 'CONNECT',
     url: '0-home0.netscape.com:443',
+    statusCode: null,
+    statusText: null,
     headers: [
       'User-agent',
         'Mozilla/1.1N',
@@ -464,6 +500,8 @@ var cases = [
     httpMinor: 1,
     method: 'REPORT',
     url: '/test',
+    statusCode: null,
+    statusText: null,
     headers: [],
     body: undefined
   },
@@ -480,6 +518,8 @@ var cases = [
     httpMinor: 9,
     method: 'GET',
     url: '/',
+    statusCode: null,
+    statusText: null,
     headers: [],
     body: undefined
   },
@@ -499,6 +539,8 @@ var cases = [
     httpMinor: 1,
     method: 'M-SEARCH',
     url: '*',
+    statusCode: null,
+    statusText: null,
     headers: [
       'HOST',
         '239.255.255.250:1900',
@@ -535,6 +577,8 @@ var cases = [
     httpMinor: 1,
     method: 'GET',
     url: '/',
+    statusCode: null,
+    statusText: null,
     headers: [
       'Line1',
         'abc def ghi jkl mno  qrs',
@@ -562,6 +606,8 @@ var cases = [
     httpMinor: 1,
     method: 'GET',
     url: 'http://example.org?hail=all',
+    statusCode: null,
+    statusText: null,
     headers: [],
     body: undefined
   },
@@ -578,6 +624,8 @@ var cases = [
     httpMinor: 1,
     method: 'GET',
     url: 'http://example.org:1234?hail=all',
+    statusCode: null,
+    statusText: null,
     headers: [],
     body: undefined
   },
@@ -594,6 +642,8 @@ var cases = [
     httpMinor: 1,
     method: 'GET',
     url: 'http://example.org:1234',
+    statusCode: null,
+    statusText: null,
     headers: [],
     body: undefined
   },
@@ -615,6 +665,8 @@ var cases = [
     httpMinor: 1,
     method: 'PATCH',
     url: '/file.txt',
+    statusCode: null,
+    statusText: null,
     headers: [
       'Host',
         'www.example.com',
@@ -642,6 +694,8 @@ var cases = [
     httpMinor: 0,
     method: 'CONNECT',
     url: 'HOME0.NETSCAPE.COM:443',
+    statusCode: null,
+    statusText: null,
     headers: [
       'User-agent',
         'Mozilla/1.1N',
@@ -666,6 +720,8 @@ var cases = [
     httpMinor: 1,
     method: 'GET',
     url: new Buffer('/δ¶/δt/pope?q=1#narf', 'utf8').toString('binary'),
+    statusCode: null,
+    statusText: null,
     headers: [
       'Host',
         'github.com',
@@ -687,6 +743,8 @@ var cases = [
     httpMinor: 0,
     method: 'CONNECT',
     url: 'home_0.netscape.com:443',
+    statusCode: null,
+    statusText: null,
     headers: [
       'User-agent',
         'Mozilla/1.1N',
@@ -714,6 +772,8 @@ var cases = [
     httpMinor: 1,
     method: 'POST',
     url: '/',
+    statusCode: null,
+    statusText: null,
     headers: [
       'Host',
         'www.example.com',
@@ -743,6 +803,8 @@ var cases = [
     httpMinor: 1,
     method: 'POST',
     url: '/',
+    statusCode: null,
+    statusText: null,
     headers: [
       'Host',
         'www.example.com',
@@ -769,6 +831,8 @@ var cases = [
     httpMinor: 1,
     method: 'PURGE',
     url: '/file.txt',
+    statusCode: null,
+    statusText: null,
     headers: [
       'Host',
         'www.example.com',
@@ -789,6 +853,8 @@ var cases = [
     httpMinor: 1,
     method: 'SEARCH',
     url: '/',
+    statusCode: null,
+    statusText: null,
     headers: [
       'Host',
         'www.example.com',
@@ -808,6 +874,8 @@ var cases = [
     httpMinor: 1,
     method: 'GET',
     url: 'http://a%12:b!&*$@example.org:1234/toto',
+    statusCode: null,
+    statusText: null,
     headers: [],
     body: undefined
   },
@@ -833,6 +901,8 @@ var cases = [
     httpMinor: 1,
     method: 'GET',
     url: '/demo',
+    statusCode: null,
+    statusText: null,
     headers: [
       'Host',
         'example.com',
@@ -868,6 +938,8 @@ var cases = [
     httpMinor: 1,
     method: 'GET',
     url: '/demo',
+    statusCode: null,
+    statusText: null,
     headers: [
       'Connection',
         'keep-alive, upgrade',
@@ -894,6 +966,8 @@ var cases = [
     httpMinor: 1,
     method: 'GET',
     url: '/demo',
+    statusCode: null,
+    statusText: null,
     headers: [
       'Connection',
         'keep-alive,  upgrade',
@@ -927,6 +1001,8 @@ var cases = [
     msgCompleteOnEOF: false,
     httpMajor: 1,
     httpMinor: 1,
+    method: null,
+    url: null,
     statusCode: 301,
     statusText: 'Moved Permanently',
     headers: [
@@ -973,6 +1049,8 @@ var cases = [
     msgCompleteOnEOF: true,
     httpMajor: 1,
     httpMinor: 1,
+    method: null,
+    url: null,
     statusCode: 200,
     statusText: 'OK',
     headers: [
@@ -1004,6 +1082,8 @@ var cases = [
     msgCompleteOnEOF: true,
     httpMajor: 1,
     httpMinor: 1,
+    method: null,
+    url: null,
     statusCode: 404,
     statusText: 'Not Found',
     headers: [],
@@ -1020,6 +1100,8 @@ var cases = [
     msgCompleteOnEOF: true,
     httpMajor: 1,
     httpMinor: 1,
+    method: null,
+    url: null,
     statusCode: 301,
     statusText: '',
     headers: [],
@@ -1044,6 +1126,8 @@ var cases = [
     msgCompleteOnEOF: false,
     httpMajor: 1,
     httpMinor: 1,
+    method: null,
+    url: null,
     statusCode: 200,
     statusText: 'OK',
     headers: [
@@ -1071,6 +1155,8 @@ var cases = [
     msgCompleteOnEOF: false,
     httpMajor: 1,
     httpMinor: 1,
+    method: null,
+    url: null,
     statusCode: 200,
     statusText: 'OK',
     headers: [
@@ -1106,6 +1192,8 @@ var cases = [
     msgCompleteOnEOF: false,
     httpMajor: 1,
     httpMinor: 0,
+    method: null,
+    url: null,
     statusCode: 301,
     statusText: 'Moved Permanently',
     headers: [
@@ -1154,6 +1242,8 @@ var cases = [
     msgCompleteOnEOF: false,
     httpMajor: 1,
     httpMinor: 1,
+    method: null,
+    url: null,
     statusCode: 200,
     statusText: 'OK',
     headers: [
@@ -1196,6 +1286,8 @@ var cases = [
     msgCompleteOnEOF: false,
     httpMajor: 1,
     httpMinor: 1,
+    method: null,
+    url: null,
     statusCode: 500,
     statusText: 'Oriëntatieprobleem',
     headers: [
@@ -1221,6 +1313,8 @@ var cases = [
     msgCompleteOnEOF: true,
     httpMajor: 1,
     httpMinor: 1,
+    method: null,
+    url: null,
     statusCode: 200,
     statusText: 'OK',
     headers: [
@@ -1241,6 +1335,8 @@ var cases = [
     msgCompleteOnEOF: true,
     httpMajor: 1,
     httpMinor: 0,
+    method: null,
+    url: null,
     statusCode: 200,
     statusText: 'OK',
     headers: [
@@ -1261,6 +1357,8 @@ var cases = [
     msgCompleteOnEOF: false,
     httpMajor: 1,
     httpMinor: 0,
+    method: null,
+    url: null,
     statusCode: 204,
     statusText: 'No content',
     headers: [
@@ -1280,6 +1378,8 @@ var cases = [
     msgCompleteOnEOF: true,
     httpMajor: 1,
     httpMinor: 1,
+    method: null,
+    url: null,
     statusCode: 200,
     statusText: 'OK',
     headers: [],
@@ -1296,6 +1396,8 @@ var cases = [
     msgCompleteOnEOF: false,
     httpMajor: 1,
     httpMinor: 1,
+    method: null,
+    url: null,
     statusCode: 204,
     statusText: 'No content',
     headers: [],
@@ -1313,6 +1415,8 @@ var cases = [
     msgCompleteOnEOF: false,
     httpMajor: 1,
     httpMinor: 1,
+    method: null,
+    url: null,
     statusCode: 204,
     statusText: 'No content',
     headers: [
@@ -1335,6 +1439,8 @@ var cases = [
     msgCompleteOnEOF: false,
     httpMajor: 1,
     httpMinor: 1,
+    method: null,
+    url: null,
     statusCode: 200,
     statusText: 'OK',
     headers: [
@@ -1373,6 +1479,8 @@ var cases = [
     msgCompleteOnEOF: false,
     httpMajor: 1,
     httpMinor: 1,
+    method: null,
+    url: null,
     statusCode: 301,
     statusText: 'MovedPermanently',
     headers: [
@@ -1414,6 +1522,8 @@ var cases = [
     msgCompleteOnEOF: true,
     httpMajor: 1,
     httpMinor: 1,
+    method: null,
+    url: null,
     statusCode: 200,
     statusText: '',
     headers: [],
@@ -1452,7 +1562,7 @@ cases.forEach(function(testCase) {
                          testCase.name);
     reqEvents.shift();
     message = {
-      type: (method === undefined && url === undefined ? RESPONSE : REQUEST),
+      type: (method === null && url === null ? RESPONSE : REQUEST),
       shouldKeepAlive: shouldKeepAlive,
       //msgCompleteOnEOF
       httpMajor: versionMajor,
@@ -1651,6 +1761,8 @@ cases.forEach(function(testCase) {
    msgCompleteOnEOF: false,
    httpMajor: 1,
    httpMinor: 0,
+   method: null,
+   url: null,
    statusCode: 200,
    statusText: 'OK',
    headers: [
@@ -1675,7 +1787,7 @@ cases.forEach(function(testCase) {
                               statusCode, statusText, upgrade,
                               shouldKeepAlive) {
     message = {
-      type: (method === undefined && url === undefined ? RESPONSE : REQUEST),
+      type: (method === null && url === null ? RESPONSE : REQUEST),
       shouldKeepAlive: shouldKeepAlive,
       //msgCompleteOnEOF
       httpMajor: versionMajor,
@@ -1741,6 +1853,8 @@ testScan(getMessageByName('no merge with empty value'),
            msgCompleteOnEOF: true,
            httpMajor: 1,
            httpMinor: 1,
+           method: null,
+           url: null,
            statusCode: 200,
            statusText: 'OK',
            headers: [
@@ -1897,7 +2011,7 @@ function testScan(case1, case2, case3) {
   function onHeaders(versionMajor, versionMinor, headers, method, url,
                      statusCode, statusText, upgrade, shouldKeepAlive) {
     message = {
-      type: (method === undefined && url === undefined ? RESPONSE : REQUEST),
+      type: (method === null && url === null ? RESPONSE : REQUEST),
       shouldKeepAlive: shouldKeepAlive,
       //msgCompleteOnEOF
       httpMajor: versionMajor,
@@ -2029,7 +2143,7 @@ function testMultiple3(case1, case2, case3) {
                               statusCode, statusText, upgrade,
                               shouldKeepAlive) {
     message = {
-      type: (method === undefined && url === undefined ? RESPONSE : REQUEST),
+      type: (method === null && url === null ? RESPONSE : REQUEST),
       shouldKeepAlive: shouldKeepAlive,
       //msgCompleteOnEOF
       httpMajor: versionMajor,
