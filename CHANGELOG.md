@@ -1,11 +1,16 @@
 # io.js ChangeLog
 
-## 2015-04-17, Version 1.8.0, @chrisdickinson
+## 2015-04-20, Version 1.8.1, @chrisdickinson
 
 ### Notable changes
 
+* **NOTICE**: Skipped v1.8.0 due to problems with release tooling.
+  See [#1436](https://github.com/iojs/io.js/issues/1436) for details.
 * **build**: Support for building io.js as a static library (Marat Abdullin) [#1341](https://github.com/iojs/io.js/pull/1341)
 * **deps**: Upgrade openssl to 1.0.2a (Shigeki Ohtsu) [#1389](https://github.com/iojs/io.js/pull/1389)
+  * Users should see performance improvements when using the crypto API.
+  See [here](https://github.com/iojs/io.js/wiki/Crypto-Performance-Notes-for-OpenSSL-1.0.2a-on-iojs-v1.8.0)
+  for details.
 * **npm**: Upgrade npm to 2.8.3. See the [release notes](https://github.com/npm/npm/releases/tag/v2.8.3) for details. Includes improved git support. Summary:
   * [`387f889`](https://github.com/npm/npm/commit/387f889c0e8fb617d9cc9a42ed0a3ec49424ab5d)
   [#7961](https://github.com/npm/npm/issues/7961) Ensure that hosted git SSH
@@ -49,6 +54,8 @@ will be removed at a later point. (Roman Reiss) [#1363](https://github.com/iojs/
 
 ### Commits
 
+* [[`53ed89d927`](https://github.com/iojs/io.js/commit/53ed89d927)] - ***Revert*** "**build**: use %PYTHON% instead of python" (Rod Vagg) [#1475](https://github.com/iojs/io.js/pull/1475)
+* [[`2b744b0ab7`](https://github.com/iojs/io.js/commit/2b744b0ab7)] - **src**: revert NODE_MODULE_VERSION to 43 (Chris Dickinson) [#1460](https://github.com/iojs/io.js/pull/1460)
 * [[`431673ebd1`](https://github.com/iojs/io.js/commit/431673ebd1)] - **buffer**: fast-case for empty string in byteLength (Jackson Tian) [#1441](https://github.com/iojs/io.js/pull/1441)
 * [[`1b22bad35f`](https://github.com/iojs/io.js/commit/1b22bad35f)] - **build**: fix logic for shared library flags (Jeremiah Senkpiel) [#1454](https://github.com/iojs/io.js/pull/1454)
 * [[`91943a99d5`](https://github.com/iojs/io.js/commit/91943a99d5)] - **build**: use %PYTHON% instead of python (Rod Vagg) [#1444](https://github.com/iojs/io.js/pull/1444)
@@ -56,7 +63,7 @@ will be removed at a later point. (Roman Reiss) [#1363](https://github.com/iojs/
 * [[`a530b2baf1`](https://github.com/iojs/io.js/commit/a530b2baf1)] - **build**: fix error message in configure (Shigeki Ohtsu) [#1389](https://github.com/iojs/io.js/pull/1389)
 * [[`92dfb794f9`](https://github.com/iojs/io.js/commit/92dfb794f9)] - **build**: enable ssl support on arm64 (Shigeki Ohtsu) [#1389](https://github.com/iojs/io.js/pull/1389)
 * [[`7de0dcde83`](https://github.com/iojs/io.js/commit/7de0dcde83)] - **deps**: make node-gyp work with io.js (cjihrig) [#990](https://github.com/iojs/io.js/pull/990)
-* [[`4870213f9e`](https://github.com/iojs/io.js/commit/4870213f9e)] - **deps**: upgrade npm to 2.8.3 (Forrest L Norvell) 
+* [[`4870213f9e`](https://github.com/iojs/io.js/commit/4870213f9e)] - **deps**: upgrade npm to 2.8.3 (Forrest L Norvell)
 * [[`49bb7ded2c`](https://github.com/iojs/io.js/commit/49bb7ded2c)] - **deps**: fix git case sensitivity issue in npm (Chris Dickinson) [#1456](https://github.com/iojs/io.js/pull/1456)
 * [[`4830b4bce8`](https://github.com/iojs/io.js/commit/4830b4bce8)] - **deps**: add docs to upgrade openssl (Shigeki Ohtsu) [#1389](https://github.com/iojs/io.js/pull/1389)
 * [[`11bec72c87`](https://github.com/iojs/io.js/commit/11bec72c87)] - **deps**: update asm files for openssl-1.0.2a (Shigeki Ohtsu) [#1389](https://github.com/iojs/io.js/pull/1389)
