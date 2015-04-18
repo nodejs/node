@@ -34,13 +34,8 @@ $ git remote add upstream git://github.com/iojs/io.js.git
 
 #### Which branch?
 
-Now decide if you want your feature or bug fix to go into the master branch
-or the stable branch.  As a rule of thumb, bug fixes go into the stable branch
-while new features go into the master branch.
-
-The stable branch is effectively frozen; patches that change the io.js
-API/ABI or affect the run-time behavior of applications get rejected. The
-current stable branch is set as the default branch on GitHub.
+For developing new features and bug fixes, the `master` branch should be pulled
+and built upon.
 
 #### Respect the stability index
 
@@ -49,7 +44,7 @@ The rules for the master branch are less strict; consult the
 
 In a nutshell, modules are at varying levels of API stability.  Bug fixes are
 always welcome but API or behavioral changes to modules at stability level 3
-and up are off-limits.
+(Locked) are off-limits.
 
 #### Dependencies
 
@@ -71,11 +66,8 @@ does not align with the project team.
 Create a feature branch and start hacking:
 
 ```text
-$ git checkout -b my-feature-branch -t origin/v1.x
+$ git checkout -b my-feature-branch -t origin/master
 ```
-
-(Where `v1.x` is the latest stable branch as of this writing.)
-
 
 ### Step 3: Commit
 
@@ -123,7 +115,7 @@ Use `git rebase` (not `git merge`) to sync your work from time to time.
 
 ```text
 $ git fetch upstream
-$ git rebase upstream/v1.x  # or upstream/master
+$ git rebase upstream/master
 ```
 
 
@@ -147,10 +139,10 @@ can use this syntax to run it exactly as the test harness would:
 $ python tools/test.py -v --mode=release parallel/test-stream2-transform
 ```
 
-You can run tests directly with node:
+You can run tests directly with iojs:
 
 ```text
-$ node ./test/parallel/test-streams2-transform.js
+$ iojs ./test/parallel/test-streams2-transform.js
 ```
 
 
