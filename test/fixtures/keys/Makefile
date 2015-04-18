@@ -17,6 +17,28 @@ ca2-cert.pem: ca2.cnf
 	echo '01' > ca2-serial
 	touch ca2-database.txt
 
+#
+# Create Subordinate Certificate Authority: ca3
+# ('password' is used for the CA password.)
+#
+ca3-key.pem:
+	openssl genrsa -out ca3-key.pem 1024
+
+ca3-csr.pem: ca3.cnf ca3-key.pem
+	openssl req -new \
+		-extensions v3_ca -config ca3.cnf -key ca3-key.pem -out ca3-csr.pem
+
+ca3-cert.pem: ca3-csr.pem ca3-key.pem ca3.cnf ca1-cert.pem ca1-key.pem
+	openssl x509 -req \
+		-extfile ca3.cnf \
+		-extensions v3_ca \
+		-days 9999 \
+		-passin "pass:password" \
+		-in ca3-csr.pem \
+		-CA ca1-cert.pem \
+		-CAkey ca1-key.pem \
+		-CAcreateserial \
+		-out ca3-cert.pem
 
 #
 # agent1 is signed by ca1.
@@ -156,6 +178,31 @@ agent5-cert.pem: agent5-csr.pem ca2-cert.pem ca2-key.pem
 
 agent5-verify: agent5-cert.pem ca2-cert.pem
 	openssl verify -CAfile ca2-cert.pem agent5-cert.pem
+
+#
+# agent6 is signed by ca3
+#
+
+agent6-key.pem:
+	openssl genrsa -out agent6-key.pem 1024
+
+agent6-csr.pem: agent6.cnf agent6-key.pem
+	openssl req -new -config agent6.cnf -key agent6-key.pem -out agent6-csr.pem
+
+agent6-cert.pem: agent6-csr.pem ca3-cert.pem ca3-key.pem
+	openssl x509 -req \
+		-days 9999 \
+		-passin "pass:password" \
+		-in agent6-csr.pem \
+		-CA ca3-cert.pem \
+		-CAkey ca3-key.pem \
+		-CAcreateserial \
+		-extfile agent6.cnf \
+		-out agent6-cert.pem
+	cat ca3-cert.pem >> agent6-cert.pem
+
+agent6-verify: agent6-cert.pem ca3-cert.pem
+	openssl verify -CAfile ca3-cert.pem agent6-cert.pem
 
 ec-key.pem:
 	openssl ecparam -genkey -out ec-key.pem -name prime256v1
