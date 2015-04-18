@@ -141,7 +141,7 @@ if errorlevel 1 echo Failed to generate license.rtf&goto exit
 :msi
 @rem Skip msi generation if not requested
 if not defined msi goto run
-call :getnodeversion
+if not defined NODE_VERSION call :getnodeversion
 
 if not defined NIGHTLY goto msibuild
 set NODE_VERSION=%NODE_VERSION%.%NIGHTLY%
@@ -208,6 +208,6 @@ rem ***************
 
 :getnodeversion
 set NODE_VERSION=
-for /F "usebackq tokens=*" %%i in (`"%PYTHON%" "%~dp0tools\getnodeversion.py"`) do set NODE_VERSION=%%i
+for /F "usebackq tokens=*" %%i in (`%PYTHON% "%~dp0tools\getnodeversion.py"`) do set NODE_VERSION=%%i
 if not defined NODE_VERSION echo Cannot determine current version of io.js & exit /b 1
 goto :EOF
