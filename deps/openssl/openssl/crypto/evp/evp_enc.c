@@ -169,14 +169,8 @@ int EVP_CipherInit_ex(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *cipher,
 #endif
 
 #ifdef OPENSSL_FIPS
-        if (FIPS_mode()) {
-            const EVP_CIPHER *fcipher;
-            if (cipher)
-                fcipher = evp_get_fips_cipher(cipher);
-            if (fcipher)
-                cipher = fcipher;
+        if (FIPS_mode())
             return FIPS_cipherinit(ctx, cipher, key, iv, enc);
-        }
 #endif
         ctx->cipher = cipher;
         if (ctx->cipher->ctx_size) {
@@ -189,8 +183,7 @@ int EVP_CipherInit_ex(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *cipher,
             ctx->cipher_data = NULL;
         }
         ctx->key_len = cipher->key_len;
-        /* Preserve wrap enable flag, zero everything else */
-        ctx->flags &= EVP_CIPHER_CTX_FLAG_WRAP_ALLOW;
+        ctx->flags = 0;
         if (ctx->cipher->flags & EVP_CIPH_CTRL_INIT) {
             if (!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_INIT, 0, NULL)) {
                 EVPerr(EVP_F_EVP_CIPHERINIT_EX, EVP_R_INITIALIZATION_ERROR);
@@ -212,12 +205,6 @@ int EVP_CipherInit_ex(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *cipher,
     OPENSSL_assert(ctx->cipher->block_size == 1
                    || ctx->cipher->block_size == 8
                    || ctx->cipher->block_size == 16);
-
-    if (!(ctx->flags & EVP_CIPHER_CTX_FLAG_WRAP_ALLOW)
-        && EVP_CIPHER_CTX_mode(ctx) == EVP_CIPH_WRAP_MODE) {
-        EVPerr(EVP_F_EVP_CIPHERINIT_EX, EVP_R_WRAP_MODE_NOT_ALLOWED);
-        return 0;
-    }
 
     if (!(EVP_CIPHER_CTX_flags(ctx) & EVP_CIPH_CUSTOM_IV)) {
         switch (EVP_CIPHER_CTX_mode(ctx)) {

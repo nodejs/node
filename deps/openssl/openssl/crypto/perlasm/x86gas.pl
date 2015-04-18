@@ -70,8 +70,6 @@ sub ::DWP
 { my($addr,$reg1,$reg2,$idx)=@_;
   my $ret="";
 
-    if (!defined($idx) && 1*$reg2) { $idx=$reg2; $reg2=$reg1; undef $reg1; }
-
     $addr =~ s/^\s+//;
     # prepend global references with optional underscore
     $addr =~ s/^([^\+\-0-9][^\+\-]*)/&::islabel($1) or "$nmdecor$1"/ige;
@@ -159,7 +157,7 @@ sub ::file_end
 	}
     }
     if (grep {/\b${nmdecor}OPENSSL_ia32cap_P\b/i} @out) {
-	my $tmp=".comm\t${nmdecor}OPENSSL_ia32cap_P,16";
+	my $tmp=".comm\t${nmdecor}OPENSSL_ia32cap_P,8";
 	if ($::macosx)	{ push (@out,"$tmp,2\n"); }
 	elsif ($::elf)	{ push (@out,"$tmp,4\n"); }
 	else		{ push (@out,"$tmp\n"); }
@@ -172,9 +170,10 @@ sub ::data_short{   push(@out,".value\t".join(',',@_)."\n");  }
 sub ::data_word {   push(@out,".long\t".join(',',@_)."\n");   }
 
 sub ::align
-{ my $val=$_[0];
+{ my $val=$_[0],$p2,$i;
     if ($::aout)
-    {	$val=int(log($val)/log(2));
+    {	for ($p2=0;$val!=0;$val>>=1) { $p2++; }
+	$val=$p2-1;
 	$val.=",0x90";
     }
     push(@out,".align\t$val\n");
@@ -196,8 +195,6 @@ sub ::picmeup
 	    &::mov($dst,&::DWP("$indirect-$reflabel",$base));
 	    $non_lazy_ptr{"$nmdecor$sym"}=$indirect;
 	}
-	elsif ($sym eq "OPENSSL_ia32cap_P" && $::elf>0)
-	{   &::lea($dst,&::DWP("$sym-$reflabel",$base));   }
 	else
 	{   &::lea($dst,&::DWP("_GLOBAL_OFFSET_TABLE_+[.-$reflabel]",
 			    $base));
@@ -252,7 +249,5 @@ ___
 
 sub ::dataseg
 {   push(@out,".data\n");   }
-
-*::hidden = sub { push(@out,".hidden\t$nmdecor$_[0]\n"); } if ($::elf);
 
 1;

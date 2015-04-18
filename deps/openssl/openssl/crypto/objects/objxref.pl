@@ -39,8 +39,7 @@ my @xrkeys = keys %xref_tbl;
 
 my @srt1 = sort { $oid_tbl{$a} <=> $oid_tbl{$b}} @xrkeys;
 
-my $i;
-for($i = 0; $i <= $#srt1; $i++)
+for(my $i = 0; $i <= $#srt1; $i++)
 	{
 	$xref_tbl{$srt1[$i]}[2] = $i;
 	}

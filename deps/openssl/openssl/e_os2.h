@@ -101,7 +101,7 @@ extern "C" {
 #  undef OPENSSL_SYS_UNIX
 #  define OPENSSL_SYS_WIN32_UWIN
 # else
-#  if defined(__CYGWIN__) || defined(OPENSSL_SYSNAME_CYGWIN)
+#  if defined(__CYGWIN32__) || defined(OPENSSL_SYSNAME_CYGWIN32)
 #   undef OPENSSL_SYS_UNIX
 #   define OPENSSL_SYS_WIN32_CYGWIN
 #  else

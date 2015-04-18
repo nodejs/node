@@ -148,8 +148,7 @@ $ TEST_FILES = "BNTEST,ECTEST,ECDSATEST,ECDHTEST,IDEATEST,"+ -
 	       "RANDTEST,DHTEST,ENGINETEST,"+ -
 	       "BFTEST,CASTTEST,SSLTEST,EXPTEST,DSATEST,RSA_TEST,"+ -
 	       "EVP_TEST,IGETEST,JPAKETEST,SRPTEST,"+ -
-	       "ASN1TEST,V3NAMETEST,HEARTBEAT_TEST,"+ -
-	       "CONSTANT_TIME_TEST"
+	       "ASN1TEST,HEARTBEAT_TEST,CONSTANT_TIME_TEST"
 $! Should we add MTTEST,PQ_TEST,LH_TEST,DIVTEST,TABTEST as well?
 $!
 $! Additional directory information.
@@ -186,7 +185,6 @@ $ T_D_EVP_TEST   := [-.crypto.evp]
 $ T_D_IGETEST    := [-.test]
 $ T_D_JPAKETEST  := [-.crypto.jpake]
 $ T_D_SRPTEST    := [-.crypto.srp]
-$ T_D_V3NAMETEST := [-.crypto.x509v3]
 $ T_D_ASN1TEST   := [-.test]
 $ T_D_HEARTBEAT_TEST := [-.ssl]
 $ T_D_CONSTANT_TIME_TEST := [-.crypto]

@@ -205,7 +205,7 @@ extern BIO *bio_err;
 #  endif
 # endif
 
-# if defined(OPENSSL_SYSNAME_WIN32) || defined(OPENSSL_SYSNAME_WINCE)
+# ifdef OPENSSL_SYSNAME_WIN32
 #  define openssl_fdset(a,b) FD_SET((unsigned int)a, b)
 # else
 #  define openssl_fdset(a,b) FD_SET(a, b)
@@ -245,9 +245,6 @@ int app_passwd(BIO *err, char *arg1, char *arg2, char **pass1, char **pass2);
 int add_oid_section(BIO *err, CONF *conf);
 X509 *load_cert(BIO *err, const char *file, int format,
                 const char *pass, ENGINE *e, const char *cert_descrip);
-X509_CRL *load_crl(const char *infile, int format);
-int load_cert_crl_http(const char *url, BIO *err,
-                       X509 **pcert, X509_CRL **pcrl);
 EVP_PKEY *load_key(BIO *err, const char *file, int format, int maybe_stdin,
                    const char *pass, ENGINE *e, const char *key_descrip);
 EVP_PKEY *load_pubkey(BIO *err, const char *file, int format, int maybe_stdin,
@@ -265,9 +262,8 @@ ENGINE *setup_engine(BIO *err, const char *engine, int debug);
 
 # ifndef OPENSSL_NO_OCSP
 OCSP_RESPONSE *process_responder(BIO *err, OCSP_REQUEST *req,
-                                 const char *host, const char *path,
-                                 const char *port, int use_ssl,
-                                 const STACK_OF(CONF_VALUE) *headers,
+                                 char *host, char *path, char *port,
+                                 int use_ssl, STACK_OF(CONF_VALUE) *headers,
                                  int req_timeout);
 # endif
 
@@ -338,15 +334,10 @@ void jpake_client_auth(BIO *out, BIO *conn, const char *secret);
 void jpake_server_auth(BIO *out, BIO *conn, const char *secret);
 # endif
 
-# ifndef OPENSSL_NO_TLSEXT
+# if !defined(OPENSSL_NO_TLSEXT) && !defined(OPENSSL_NO_NEXTPROTONEG)
 unsigned char *next_protos_parse(unsigned short *outlen, const char *in);
-# endif                         /* ndef OPENSSL_NO_TLSEXT */
-
-void print_cert_checks(BIO *bio, X509 *x,
-                       const char *checkhost,
-                       const char *checkemail, const char *checkip);
-
-void store_setup_crl_download(X509_STORE *st);
+# endif                         /* !OPENSSL_NO_TLSEXT &&
+                                 * !OPENSSL_NO_NEXTPROTONEG */
 
 # define FORMAT_UNDEF    0
 # define FORMAT_ASN1     1
@@ -362,7 +353,6 @@ void store_setup_crl_download(X509_STORE *st);
 # define FORMAT_ASN1RSA  10     /* DER RSAPubicKey format */
 # define FORMAT_MSBLOB   11     /* MS Key blob format */
 # define FORMAT_PVK      12     /* MS PVK file format */
-# define FORMAT_HTTP     13     /* Download using HTTP */
 
 # define EXT_COPY_NONE   0
 # define EXT_COPY_ADD    1

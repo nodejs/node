@@ -94,14 +94,13 @@ EC_GROUP *EC_GROUP_new(const EC_METHOD *meth)
     ret->meth = meth;
 
     ret->extra_data = NULL;
-    ret->mont_data = NULL;
 
     ret->generator = NULL;
     BN_init(&ret->order);
     BN_init(&ret->cofactor);
 
     ret->curve_name = 0;
-    ret->asn1_flag = ~EC_GROUP_ASN1_FLAG_MASK;
+    ret->asn1_flag = 0;
     ret->asn1_form = POINT_CONVERSION_UNCOMPRESSED;
 
     ret->seed = NULL;
@@ -125,9 +124,6 @@ void EC_GROUP_free(EC_GROUP *group)
 
     EC_EX_DATA_free_all_data(&group->extra_data);
 
-    if (EC_GROUP_VERSION(group) && group->mont_data)
-        BN_MONT_CTX_free(group->mont_data);
-
     if (group->generator != NULL)
         EC_POINT_free(group->generator);
     BN_free(&group->order);
@@ -150,9 +146,6 @@ void EC_GROUP_clear_free(EC_GROUP *group)
         group->meth->group_finish(group);
 
     EC_EX_DATA_clear_free_all_data(&group->extra_data);
-
-    if (EC_GROUP_VERSION(group) && group->mont_data)
-        BN_MONT_CTX_free(group->mont_data);
 
     if (group->generator != NULL)
         EC_POINT_clear_free(group->generator);
@@ -194,22 +187,6 @@ int EC_GROUP_copy(EC_GROUP *dest, const EC_GROUP *src)
             (&dest->extra_data, t, d->dup_func, d->free_func,
              d->clear_free_func))
             return 0;
-    }
-
-    if (EC_GROUP_VERSION(src) && src->mont_data != NULL) {
-        if (dest->mont_data == NULL) {
-            dest->mont_data = BN_MONT_CTX_new();
-            if (dest->mont_data == NULL)
-                return 0;
-        }
-        if (!BN_MONT_CTX_copy(dest->mont_data, src->mont_data))
-            return 0;
-    } else {
-        /* src->generator == NULL */
-        if (EC_GROUP_VERSION(dest) && dest->mont_data != NULL) {
-            BN_MONT_CTX_free(dest->mont_data);
-            dest->mont_data = NULL;
-        }
     }
 
     if (src->generator != NULL) {
@@ -318,24 +295,12 @@ int EC_GROUP_set_generator(EC_GROUP *group, const EC_POINT *generator,
     } else
         BN_zero(&group->cofactor);
 
-    /*
-     * We ignore the return value because some groups have an order with
-     * factors of two, which makes the Montgomery setup fail.
-     * |group->mont_data| will be NULL in this case.
-     */
-    ec_precompute_mont_data(group);
-
     return 1;
 }
 
 const EC_POINT *EC_GROUP_get0_generator(const EC_GROUP *group)
 {
     return group->generator;
-}
-
-BN_MONT_CTX *EC_GROUP_get_mont_data(const EC_GROUP *group)
-{
-    return EC_GROUP_VERSION(group) ? group->mont_data : NULL;
 }
 
 int EC_GROUP_get_order(const EC_GROUP *group, BIGNUM *order, BN_CTX *ctx)
@@ -367,13 +332,12 @@ int EC_GROUP_get_curve_name(const EC_GROUP *group)
 
 void EC_GROUP_set_asn1_flag(EC_GROUP *group, int flag)
 {
-    group->asn1_flag &= ~EC_GROUP_ASN1_FLAG_MASK;
-    group->asn1_flag |= flag & EC_GROUP_ASN1_FLAG_MASK;
+    group->asn1_flag = flag;
 }
 
 int EC_GROUP_get_asn1_flag(const EC_GROUP *group)
 {
-    return group->asn1_flag & EC_GROUP_ASN1_FLAG_MASK;
+    return group->asn1_flag;
 }
 
 void EC_GROUP_set_point_conversion_form(EC_GROUP *group,
@@ -1085,43 +1049,4 @@ int EC_GROUP_have_precompute_mult(const EC_GROUP *group)
     else
         return 0;               /* cannot tell whether precomputation has
                                  * been performed */
-}
-
-/*
- * ec_precompute_mont_data sets |group->mont_data| from |group->order| and
- * returns one on success. On error it returns zero.
- */
-int ec_precompute_mont_data(EC_GROUP *group)
-{
-    BN_CTX *ctx = BN_CTX_new();
-    int ret = 0;
-
-    if (!EC_GROUP_VERSION(group))
-        goto err;
-
-    if (group->mont_data) {
-        BN_MONT_CTX_free(group->mont_data);
-        group->mont_data = NULL;
-    }
-
-    if (ctx == NULL)
-        goto err;
-
-    group->mont_data = BN_MONT_CTX_new();
-    if (!group->mont_data)
-        goto err;
-
-    if (!BN_MONT_CTX_set(group->mont_data, &group->order, ctx)) {
-        BN_MONT_CTX_free(group->mont_data);
-        group->mont_data = NULL;
-        goto err;
-    }
-
-    ret = 1;
-
- err:
-
-    if (ctx)
-        BN_CTX_free(ctx);
-    return ret;
 }

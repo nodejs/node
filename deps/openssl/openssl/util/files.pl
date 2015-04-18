@@ -4,12 +4,6 @@
 # It is basically a list of all variables from the passed makefile
 #
 
-while ($ARGV[0] =~ /^(\S+)\s*=(.*)$/)
-	{
-	$sym{$1} = $2;
-	shift;
-	}
-
 $s="";
 while (<>)
 	{
@@ -39,7 +33,7 @@ while (<>)
 		$o =~ s/\s+/ /g;
 
 		$o =~ s/\$[({]([^)}]+)[)}]/$sym{$1}/g;
-		$sym{$s}=$o if !exists $sym{$s};
+		$sym{$s}=$o;
 		}
 	}
 

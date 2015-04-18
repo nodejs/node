@@ -80,7 +80,7 @@
 # include <openssl/x509.h>
 # include <openssl/pem.h>
 
-# define DEFBITS 2048
+# define DEFBITS 512
 # undef PROG
 # define PROG gendh_main
 

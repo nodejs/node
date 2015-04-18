@@ -236,19 +236,6 @@ void X509_STORE_free(X509_STORE *vfy)
     if (vfy == NULL)
         return;
 
-    i = CRYPTO_add(&vfy->references, -1, CRYPTO_LOCK_X509_STORE);
-#ifdef REF_PRINT
-    REF_PRINT("X509_STORE", vfy);
-#endif
-    if (i > 0)
-        return;
-#ifdef REF_CHECK
-    if (i < 0) {
-        fprintf(stderr, "X509_STORE_free, bad reference count\n");
-        abort();                /* ok */
-    }
-#endif
-
     sk = vfy->get_cert_methods;
     for (i = 0; i < sk_X509_LOOKUP_num(sk); i++) {
         lu = sk_X509_LOOKUP_value(sk, i);
@@ -690,19 +677,6 @@ void X509_STORE_set_verify_cb(X509_STORE *ctx,
                               int (*verify_cb) (int, X509_STORE_CTX *))
 {
     ctx->verify_cb = verify_cb;
-}
-
-void X509_STORE_set_lookup_crls_cb(X509_STORE *ctx,
-                                   STACK_OF(X509_CRL) *(*cb) (X509_STORE_CTX
-                                                              *ctx,
-                                                              X509_NAME *nm))
-{
-    ctx->lookup_crls = cb;
-}
-
-X509_STORE *X509_STORE_CTX_get0_store(X509_STORE_CTX *ctx)
-{
-    return ctx->ctx;
 }
 
 IMPLEMENT_STACK_OF(X509_LOOKUP)

@@ -62,18 +62,16 @@
 #include <openssl/objects.h>
 #include "ssl_locl.h"
 
-#if defined(OPENSSL_SYS_VMS)
+#if defined(OPENSSL_SYS_WIN32) || defined(OPENSSL_SYS_VMS)
 # include <sys/timeb.h>
 #endif
 
 static void get_current_time(struct timeval *t);
-static void dtls1_set_handshake_header(SSL *s, int type, unsigned long len);
-static int dtls1_handshake_write(SSL *s);
 const char dtls1_version_str[] = "DTLSv1" OPENSSL_VERSION_PTEXT;
 int dtls1_listen(SSL *s, struct sockaddr *client);
 
 SSL3_ENC_METHOD DTLSv1_enc_data = {
-    tls1_enc,
+    dtls1_enc,
     tls1_mac,
     tls1_setup_key_block,
     tls1_generate_master_secret,
@@ -85,30 +83,6 @@ SSL3_ENC_METHOD DTLSv1_enc_data = {
     TLS_MD_SERVER_FINISH_CONST, TLS_MD_SERVER_FINISH_CONST_SIZE,
     tls1_alert_code,
     tls1_export_keying_material,
-    SSL_ENC_FLAG_DTLS | SSL_ENC_FLAG_EXPLICIT_IV,
-    DTLS1_HM_HEADER_LENGTH,
-    dtls1_set_handshake_header,
-    dtls1_handshake_write
-};
-
-SSL3_ENC_METHOD DTLSv1_2_enc_data = {
-    tls1_enc,
-    tls1_mac,
-    tls1_setup_key_block,
-    tls1_generate_master_secret,
-    tls1_change_cipher_state,
-    tls1_final_finish_mac,
-    TLS1_FINISH_MAC_LENGTH,
-    tls1_cert_verify_mac,
-    TLS_MD_CLIENT_FINISH_CONST, TLS_MD_CLIENT_FINISH_CONST_SIZE,
-    TLS_MD_SERVER_FINISH_CONST, TLS_MD_SERVER_FINISH_CONST_SIZE,
-    tls1_alert_code,
-    tls1_export_keying_material,
-    SSL_ENC_FLAG_DTLS | SSL_ENC_FLAG_EXPLICIT_IV | SSL_ENC_FLAG_SIGALGS
-        | SSL_ENC_FLAG_SHA256_PRF | SSL_ENC_FLAG_TLS1_2_CIPHERS,
-    DTLS1_HM_HEADER_LENGTH,
-    dtls1_set_handshake_header,
-    dtls1_handshake_write
 };
 
 long dtls1_default_timeout(void)
@@ -270,11 +244,9 @@ void dtls1_clear(SSL *s)
 
     ssl3_clear(s);
     if (s->options & SSL_OP_CISCO_ANYCONNECT)
-        s->client_version = s->version = DTLS1_BAD_VER;
-    else if (s->method->version == DTLS_ANY_VERSION)
-        s->version = DTLS1_2_VERSION;
+        s->version = DTLS1_BAD_VER;
     else
-        s->version = s->method->version;
+        s->version = DTLS1_VERSION;
 }
 
 long dtls1_ctrl(SSL *s, int cmd, long larg, void *parg)
@@ -299,22 +271,14 @@ long dtls1_ctrl(SSL *s, int cmd, long larg, void *parg)
          * highest enabled version (according to s->ctx->method, as version
          * negotiation may have changed s->method).
          */
-        if (s->version == s->ctx->method->version)
-            return 1;
-        /*
-         * Apparently we're using a version-flexible SSL_METHOD (not at its
-         * highest protocol version).
-         */
-        if (s->ctx->method->version == DTLS_method()->version) {
-#if DTLS_MAX_VERSION != DTLS1_2_VERSION
-# error Code needs update for DTLS_method() support beyond DTLS1_2_VERSION.
+#if DTLS_MAX_VERSION != DTLS1_VERSION
+# error Code needs update for DTLS_method() support beyond DTLS1_VERSION.
 #endif
-            if (!(s->options & SSL_OP_NO_DTLSv1_2))
-                return s->version == DTLS1_2_VERSION;
-            if (!(s->options & SSL_OP_NO_DTLSv1))
-                return s->version == DTLS1_VERSION;
-        }
-        return 0;               /* Unexpected state; fail closed. */
+        /*
+         * Just one protocol version is supported so far; fail closed if the
+         * version is not as expected.
+         */
+        return s->version == DTLS_MAX_VERSION;
     case DTLS_CTRL_SET_LINK_MTU:
         if (larg < (long)dtls1_link_min_mtu())
             return 0;
@@ -513,22 +477,11 @@ int dtls1_handle_timeout(SSL *s)
 
 static void get_current_time(struct timeval *t)
 {
-#if defined(_WIN32)
-    SYSTEMTIME st;
-    union {
-        unsigned __int64 ul;
-        FILETIME ft;
-    } now;
-
-    GetSystemTime(&st);
-    SystemTimeToFileTime(&st, &now.ft);
-# ifdef  __MINGW32__
-    now.ul -= 116444736000000000ULL;
-# else
-    now.ul -= 116444736000000000UI64; /* re-bias to 1/1/1970 */
-# endif
-    t->tv_sec = (long)(now.ul / 10000000);
-    t->tv_usec = ((int)(now.ul % 10000000)) / 10;
+#ifdef OPENSSL_SYS_WIN32
+    struct _timeb tb;
+    _ftime(&tb);
+    t->tv_sec = (long)tb.time;
+    t->tv_usec = (long)tb.millitm * 1000;
 #elif defined(OPENSSL_SYS_VMS)
     struct timeb tb;
     ftime(&tb);
@@ -543,9 +496,6 @@ int dtls1_listen(SSL *s, struct sockaddr *client)
 {
     int ret;
 
-    /* Ensure there is no state left over from a previous invocation */
-    SSL_clear(s);
-
     SSL_set_options(s, SSL_OP_COOKIE_EXCHANGE);
     s->d1->listen = 1;
 
@@ -555,19 +505,4 @@ int dtls1_listen(SSL *s, struct sockaddr *client)
 
     (void)BIO_dgram_get_peer(SSL_get_rbio(s), client);
     return 1;
-}
-
-static void dtls1_set_handshake_header(SSL *s, int htype, unsigned long len)
-{
-    unsigned char *p = (unsigned char *)s->init_buf->data;
-    dtls1_set_message_header(s, p, htype, len, 0, len);
-    s->init_num = (int)len + DTLS1_HM_HEADER_LENGTH;
-    s->init_off = 0;
-    /* Buffer the message to handle re-xmits */
-    dtls1_buffer_message(s, 0);
-}
-
-static int dtls1_handshake_write(SSL *s)
-{
-    return dtls1_do_write(s, SSL3_RT_HANDSHAKE);
 }

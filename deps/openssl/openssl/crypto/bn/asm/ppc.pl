@@ -392,7 +392,6 @@ $data=<<EOF;
 	.long	0
 	.byte	0,12,0x14,0,0,0,2,0
 	.long	0
-.size	.bn_sqr_comba4,.-.bn_sqr_comba4
 
 #
 #	NOTE:	The following label name should be changed to
@@ -820,7 +819,6 @@ $data=<<EOF;
 	.long	0
 	.byte	0,12,0x14,0,0,0,2,0
 	.long	0
-.size	.bn_sqr_comba8,.-.bn_sqr_comba8
 
 #
 #	NOTE:	The following label name should be changed to
@@ -974,7 +972,6 @@ $data=<<EOF;
 	.long	0
 	.byte	0,12,0x14,0,0,0,3,0
 	.long	0
-.size	.bn_mul_comba4,.-.bn_mul_comba4
 
 #
 #	NOTE:	The following label name should be changed to
@@ -1513,7 +1510,6 @@ $data=<<EOF;
 	.long	0
 	.byte	0,12,0x14,0,0,0,3,0
 	.long	0
-.size	.bn_mul_comba8,.-.bn_mul_comba8
 
 #
 #	NOTE:	The following label name should be changed to
@@ -1564,7 +1560,6 @@ Lppcasm_sub_adios:
 	.long	0
 	.byte	0,12,0x14,0,0,0,4,0
 	.long	0
-.size	.bn_sub_words,.-.bn_sub_words
 
 #
 #	NOTE:	The following label name should be changed to
@@ -1610,7 +1605,6 @@ Lppcasm_add_adios:
 	.long	0
 	.byte	0,12,0x14,0,0,0,4,0
 	.long	0
-.size	.bn_add_words,.-.bn_add_words
 
 #
 #	NOTE:	The following label name should be changed to
@@ -1726,7 +1720,6 @@ Lppcasm_div9:
 	.long	0
 	.byte	0,12,0x14,0,0,0,3,0
 	.long	0
-.size	.bn_div_words,.-.bn_div_words
 
 #
 #	NOTE:	The following label name should be changed to
@@ -1768,7 +1761,6 @@ Lppcasm_sqr_adios:
 	.long	0
 	.byte	0,12,0x14,0,0,0,3,0
 	.long	0
-.size	.bn_sqr_words,.-.bn_sqr_words
 
 #
 #	NOTE:	The following label name should be changed to
@@ -1874,7 +1866,6 @@ Lppcasm_mw_OVER:
 	.long	0
 	.byte	0,12,0x14,0,0,0,4,0
 	.long	0
-.size	bn_mul_words,.-bn_mul_words
 
 #
 #	NOTE:	The following label name should be changed to
@@ -2000,7 +1991,6 @@ Lppcasm_maw_adios:
 	.long	0
 	.byte	0,12,0x14,0,0,0,4,0
 	.long	0
-.size	.bn_mul_add_words,.-.bn_mul_add_words
 	.align	4
 EOF
 $data =~ s/\`([^\`]*)\`/eval $1/gem;

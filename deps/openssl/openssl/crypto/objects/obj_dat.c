@@ -142,7 +142,7 @@ static unsigned long added_obj_hash(const ADDED_OBJ *ca)
         return 0;
     }
     ret &= 0x3fffffffL;
-    ret |= ((unsigned long)ca->type) << 30L;
+    ret |= ca->type << 30L;
     return (ret);
 }
 

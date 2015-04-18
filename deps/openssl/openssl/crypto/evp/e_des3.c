@@ -65,38 +65,7 @@
 # include <openssl/des.h>
 # include <openssl/rand.h>
 
-/* Block use of implementations in FIPS mode */
-# undef EVP_CIPH_FLAG_FIPS
-# define EVP_CIPH_FLAG_FIPS      0
-
-typedef struct {
-    union {
-        double align;
-        DES_key_schedule ks[3];
-    } ks;
-    union {
-        void (*cbc) (const void *, void *, size_t, const void *, void *);
-    } stream;
-} DES_EDE_KEY;
-# define ks1 ks.ks[0]
-# define ks2 ks.ks[1]
-# define ks3 ks.ks[2]
-
-# if defined(AES_ASM) && (defined(__sparc) || defined(__sparc__))
-/* ---------^^^ this is not a typo, just a way to detect that
- * assembler support was in general requested... */
-#  include "sparc_arch.h"
-
-extern unsigned int OPENSSL_sparcv9cap_P[];
-
-#  define SPARC_DES_CAPABLE       (OPENSSL_sparcv9cap_P[1] & CFR_DES)
-
-void des_t4_key_expand(const void *key, DES_key_schedule *ks);
-void des_t4_ede3_cbc_encrypt(const void *inp, void *out, size_t len,
-                             DES_key_schedule *ks, unsigned char iv[8]);
-void des_t4_ede3_cbc_decrypt(const void *inp, void *out, size_t len,
-                             DES_key_schedule *ks, unsigned char iv[8]);
-# endif
+# ifndef OPENSSL_FIPS
 
 static int des_ede_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                             const unsigned char *iv, int enc);
@@ -106,7 +75,13 @@ static int des_ede3_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 
 static int des3_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr);
 
-# define data(ctx) ((DES_EDE_KEY *)(ctx)->cipher_data)
+typedef struct {
+    DES_key_schedule ks1;       /* key schedule */
+    DES_key_schedule ks2;       /* key schedule (for ede) */
+    DES_key_schedule ks3;       /* key schedule (for ede3) */
+} DES_EDE_KEY;
+
+#  define data(ctx) ((DES_EDE_KEY *)(ctx)->cipher_data)
 
 /*
  * Because of various casts and different args can't use
@@ -148,9 +123,7 @@ static int des_ede_ofb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 static int des_ede_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                               const unsigned char *in, size_t inl)
 {
-    DES_EDE_KEY *dat = data(ctx);
-
-# ifdef KSSL_DEBUG
+#  ifdef KSSL_DEBUG
     {
         int i;
         fprintf(stderr, "des_ede_cbc_cipher(ctx=%p, buflen=%d)\n", ctx,
@@ -160,24 +133,21 @@ static int des_ede_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
             fprintf(stderr, "%02X", ctx->iv[i]);
         fprintf(stderr, "\n");
     }
-# endif                         /* KSSL_DEBUG */
-    if (dat->stream.cbc) {
-        (*dat->stream.cbc) (in, out, inl, &dat->ks, ctx->iv);
-        return 1;
-    }
-
+#  endif                        /* KSSL_DEBUG */
     while (inl >= EVP_MAXCHUNK) {
         DES_ede3_cbc_encrypt(in, out, (long)EVP_MAXCHUNK,
-                             &dat->ks1, &dat->ks2, &dat->ks3,
-                             (DES_cblock *)ctx->iv, ctx->encrypt);
+                             &data(ctx)->ks1, &data(ctx)->ks2,
+                             &data(ctx)->ks3, (DES_cblock *)ctx->iv,
+                             ctx->encrypt);
         inl -= EVP_MAXCHUNK;
         in += EVP_MAXCHUNK;
         out += EVP_MAXCHUNK;
     }
     if (inl)
         DES_ede3_cbc_encrypt(in, out, (long)inl,
-                             &dat->ks1, &dat->ks2, &dat->ks3,
-                             (DES_cblock *)ctx->iv, ctx->encrypt);
+                             &data(ctx)->ks1, &data(ctx)->ks2,
+                             &data(ctx)->ks3, (DES_cblock *)ctx->iv,
+                             ctx->encrypt);
     return 1;
 }
 
@@ -245,57 +215,39 @@ static int des_ede3_cfb8_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 }
 
 BLOCK_CIPHER_defs(des_ede, DES_EDE_KEY, NID_des_ede, 8, 16, 8, 64,
-                  EVP_CIPH_RAND_KEY | EVP_CIPH_FLAG_DEFAULT_ASN1,
-                  des_ede_init_key, NULL, NULL, NULL, des3_ctrl)
-# define des_ede3_cfb64_cipher des_ede_cfb64_cipher
-# define des_ede3_ofb_cipher des_ede_ofb_cipher
-# define des_ede3_cbc_cipher des_ede_cbc_cipher
-# define des_ede3_ecb_cipher des_ede_ecb_cipher
+                  EVP_CIPH_RAND_KEY, des_ede_init_key, NULL,
+                  EVP_CIPHER_set_asn1_iv, EVP_CIPHER_get_asn1_iv, des3_ctrl)
+#  define des_ede3_cfb64_cipher des_ede_cfb64_cipher
+#  define des_ede3_ofb_cipher des_ede_ofb_cipher
+#  define des_ede3_cbc_cipher des_ede_cbc_cipher
+#  define des_ede3_ecb_cipher des_ede_ecb_cipher
     BLOCK_CIPHER_defs(des_ede3, DES_EDE_KEY, NID_des_ede3, 8, 24, 8, 64,
-                  EVP_CIPH_RAND_KEY | EVP_CIPH_FLAG_FIPS |
-                  EVP_CIPH_FLAG_DEFAULT_ASN1, des_ede3_init_key, NULL, NULL, NULL,
-                  des3_ctrl)
+                  EVP_CIPH_RAND_KEY, des_ede3_init_key, NULL,
+                  EVP_CIPHER_set_asn1_iv, EVP_CIPHER_get_asn1_iv, des3_ctrl)
 
     BLOCK_CIPHER_def_cfb(des_ede3, DES_EDE_KEY, NID_des_ede3, 24, 8, 1,
-                     EVP_CIPH_RAND_KEY | EVP_CIPH_FLAG_FIPS |
-                     EVP_CIPH_FLAG_DEFAULT_ASN1, des_ede3_init_key, NULL, NULL,
-                     NULL, des3_ctrl)
+                     EVP_CIPH_RAND_KEY, des_ede3_init_key, NULL,
+                     EVP_CIPHER_set_asn1_iv,
+                     EVP_CIPHER_get_asn1_iv, des3_ctrl)
 
     BLOCK_CIPHER_def_cfb(des_ede3, DES_EDE_KEY, NID_des_ede3, 24, 8, 8,
-                     EVP_CIPH_RAND_KEY | EVP_CIPH_FLAG_FIPS |
-                     EVP_CIPH_FLAG_DEFAULT_ASN1, des_ede3_init_key, NULL, NULL,
-                     NULL, des3_ctrl)
+                     EVP_CIPH_RAND_KEY, des_ede3_init_key, NULL,
+                     EVP_CIPHER_set_asn1_iv,
+                     EVP_CIPHER_get_asn1_iv, des3_ctrl)
 
 static int des_ede_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                             const unsigned char *iv, int enc)
 {
     DES_cblock *deskey = (DES_cblock *)key;
-    DES_EDE_KEY *dat = data(ctx);
-
-    dat->stream.cbc = NULL;
-# if defined(SPARC_DES_CAPABLE)
-    if (SPARC_DES_CAPABLE) {
-        int mode = ctx->cipher->flags & EVP_CIPH_MODE;
-
-        if (mode == EVP_CIPH_CBC_MODE) {
-            des_t4_key_expand(&deskey[0], &dat->ks1);
-            des_t4_key_expand(&deskey[1], &dat->ks2);
-            memcpy(&dat->ks3, &dat->ks1, sizeof(dat->ks1));
-            dat->stream.cbc = enc ? des_t4_ede3_cbc_encrypt :
-                des_t4_ede3_cbc_decrypt;
-            return 1;
-        }
-    }
-# endif
-# ifdef EVP_CHECK_DES_KEY
-    if (DES_set_key_checked(&deskey[0], &dat->ks1)
-        ! !DES_set_key_checked(&deskey[1], &dat->ks2))
+#  ifdef EVP_CHECK_DES_KEY
+    if (DES_set_key_checked(&deskey[0], &data(ctx)->ks1)
+        ! !DES_set_key_checked(&deskey[1], &data(ctx)->ks2))
         return 0;
-# else
-    DES_set_key_unchecked(&deskey[0], &dat->ks1);
-    DES_set_key_unchecked(&deskey[1], &dat->ks2);
-# endif
-    memcpy(&dat->ks3, &dat->ks1, sizeof(dat->ks1));
+#  else
+    DES_set_key_unchecked(&deskey[0], &data(ctx)->ks1);
+    DES_set_key_unchecked(&deskey[1], &data(ctx)->ks2);
+#  endif
+    memcpy(&data(ctx)->ks3, &data(ctx)->ks1, sizeof(data(ctx)->ks1));
     return 1;
 }
 
@@ -303,9 +255,7 @@ static int des_ede3_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                              const unsigned char *iv, int enc)
 {
     DES_cblock *deskey = (DES_cblock *)key;
-    DES_EDE_KEY *dat = data(ctx);
-
-# ifdef KSSL_DEBUG
+#  ifdef KSSL_DEBUG
     {
         int i;
         fprintf(stderr, "des_ede3_init_key(ctx=%p)\n", ctx);
@@ -320,33 +270,18 @@ static int des_ede3_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
             fprintf(stderr, "\n");
         }
     }
-# endif                         /* KSSL_DEBUG */
+#  endif                        /* KSSL_DEBUG */
 
-    dat->stream.cbc = NULL;
-# if defined(SPARC_DES_CAPABLE)
-    if (SPARC_DES_CAPABLE) {
-        int mode = ctx->cipher->flags & EVP_CIPH_MODE;
-
-        if (mode == EVP_CIPH_CBC_MODE) {
-            des_t4_key_expand(&deskey[0], &dat->ks1);
-            des_t4_key_expand(&deskey[1], &dat->ks2);
-            des_t4_key_expand(&deskey[2], &dat->ks3);
-            dat->stream.cbc = enc ? des_t4_ede3_cbc_encrypt :
-                des_t4_ede3_cbc_decrypt;
-            return 1;
-        }
-    }
-# endif
-# ifdef EVP_CHECK_DES_KEY
-    if (DES_set_key_checked(&deskey[0], &dat->ks1)
-        || DES_set_key_checked(&deskey[1], &dat->ks2)
-        || DES_set_key_checked(&deskey[2], &dat->ks3))
+#  ifdef EVP_CHECK_DES_KEY
+    if (DES_set_key_checked(&deskey[0], &data(ctx)->ks1)
+        || DES_set_key_checked(&deskey[1], &data(ctx)->ks2)
+        || DES_set_key_checked(&deskey[2], &data(ctx)->ks3))
         return 0;
-# else
-    DES_set_key_unchecked(&deskey[0], &dat->ks1);
-    DES_set_key_unchecked(&deskey[1], &dat->ks2);
-    DES_set_key_unchecked(&deskey[2], &dat->ks3);
-# endif
+#  else
+    DES_set_key_unchecked(&deskey[0], &data(ctx)->ks1);
+    DES_set_key_unchecked(&deskey[1], &data(ctx)->ks2);
+    DES_set_key_unchecked(&deskey[2], &data(ctx)->ks3);
+#  endif
     return 1;
 }
 
@@ -380,114 +315,5 @@ const EVP_CIPHER *EVP_des_ede3(void)
 {
     return &des_ede3_ecb;
 }
-
-# ifndef OPENSSL_NO_SHA
-
-#  include <openssl/sha.h>
-
-static const unsigned char wrap_iv[8] =
-    { 0x4a, 0xdd, 0xa2, 0x2c, 0x79, 0xe8, 0x21, 0x05 };
-
-static int des_ede3_unwrap(EVP_CIPHER_CTX *ctx, unsigned char *out,
-                           const unsigned char *in, size_t inl)
-{
-    unsigned char icv[8], iv[8], sha1tmp[SHA_DIGEST_LENGTH];
-    int rv = -1;
-    if (inl < 24)
-        return -1;
-    if (!out)
-        return inl - 16;
-    memcpy(ctx->iv, wrap_iv, 8);
-    /* Decrypt first block which will end up as icv */
-    des_ede_cbc_cipher(ctx, icv, in, 8);
-    /* Decrypt central blocks */
-    /*
-     * If decrypting in place move whole output along a block so the next
-     * des_ede_cbc_cipher is in place.
-     */
-    if (out == in) {
-        memmove(out, out + 8, inl - 8);
-        in -= 8;
-    }
-    des_ede_cbc_cipher(ctx, out, in + 8, inl - 16);
-    /* Decrypt final block which will be IV */
-    des_ede_cbc_cipher(ctx, iv, in + inl - 8, 8);
-    /* Reverse order of everything */
-    BUF_reverse(icv, NULL, 8);
-    BUF_reverse(out, NULL, inl - 16);
-    BUF_reverse(ctx->iv, iv, 8);
-    /* Decrypt again using new IV */
-    des_ede_cbc_cipher(ctx, out, out, inl - 16);
-    des_ede_cbc_cipher(ctx, icv, icv, 8);
-    /* Work out SHA1 hash of first portion */
-    SHA1(out, inl - 16, sha1tmp);
-
-    if (!CRYPTO_memcmp(sha1tmp, icv, 8))
-        rv = inl - 16;
-    OPENSSL_cleanse(icv, 8);
-    OPENSSL_cleanse(sha1tmp, SHA_DIGEST_LENGTH);
-    OPENSSL_cleanse(iv, 8);
-    OPENSSL_cleanse(ctx->iv, 8);
-    if (rv == -1)
-        OPENSSL_cleanse(out, inl - 16);
-
-    return rv;
-}
-
-static int des_ede3_wrap(EVP_CIPHER_CTX *ctx, unsigned char *out,
-                         const unsigned char *in, size_t inl)
-{
-    unsigned char sha1tmp[SHA_DIGEST_LENGTH];
-    if (!out)
-        return inl + 16;
-    /* Copy input to output buffer + 8 so we have space for IV */
-    memmove(out + 8, in, inl);
-    /* Work out ICV */
-    SHA1(in, inl, sha1tmp);
-    memcpy(out + inl + 8, sha1tmp, 8);
-    OPENSSL_cleanse(sha1tmp, SHA_DIGEST_LENGTH);
-    /* Generate random IV */
-    RAND_bytes(ctx->iv, 8);
-    memcpy(out, ctx->iv, 8);
-    /* Encrypt everything after IV in place */
-    des_ede_cbc_cipher(ctx, out + 8, out + 8, inl + 8);
-    BUF_reverse(out, NULL, inl + 16);
-    memcpy(ctx->iv, wrap_iv, 8);
-    des_ede_cbc_cipher(ctx, out, out, inl + 16);
-    return inl + 16;
-}
-
-static int des_ede3_wrap_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
-                                const unsigned char *in, size_t inl)
-{
-    /*
-     * Sanity check input length: we typically only wrap keys so EVP_MAXCHUNK
-     * is more than will ever be needed. Also input length must be a multiple
-     * of 8 bits.
-     */
-    if (inl >= EVP_MAXCHUNK || inl % 8)
-        return -1;
-    if (ctx->encrypt)
-        return des_ede3_wrap(ctx, out, in, inl);
-    else
-        return des_ede3_unwrap(ctx, out, in, inl);
-}
-
-static const EVP_CIPHER des3_wrap = {
-    NID_id_smime_alg_CMS3DESwrap,
-    8, 24, 0,
-    EVP_CIPH_WRAP_MODE | EVP_CIPH_CUSTOM_IV | EVP_CIPH_FLAG_CUSTOM_CIPHER
-        | EVP_CIPH_FLAG_DEFAULT_ASN1,
-    des_ede3_init_key, des_ede3_wrap_cipher,
-    NULL,
-    sizeof(DES_EDE_KEY),
-    NULL, NULL, NULL, NULL
-};
-
-const EVP_CIPHER *EVP_des_ede3_wrap(void)
-{
-    return &des3_wrap;
-}
-
 # endif
 #endif

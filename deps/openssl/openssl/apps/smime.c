@@ -632,12 +632,6 @@ int MAIN(int argc, char **argv)
             p7 = PKCS7_sign(NULL, NULL, other, in, flags);
             if (!p7)
                 goto end;
-            if (flags & PKCS7_NOCERTS) {
-                for (i = 0; i < sk_X509_num(other); i++) {
-                    X509 *x = sk_X509_value(other, i);
-                    PKCS7_add_certificate(p7, x);
-                }
-            }
         } else
             flags |= PKCS7_REUSE_DIGEST;
         for (i = 0; i < sk_OPENSSL_STRING_num(sksigners); i++) {

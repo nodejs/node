@@ -68,11 +68,7 @@ const char *SSLeay_version(int t)
         return OPENSSL_VERSION_TEXT;
     if (t == SSLEAY_BUILT_ON) {
 #ifdef DATE
-# ifdef OPENSSL_USE_BUILD_DATE
         return (DATE);
-# else
-        return ("built on: reproducible build, date unspecified");
-# endif
 #else
         return ("built on: date not available");
 #endif

@@ -114,7 +114,6 @@
 # define EVP_PKEY_DSA3   NID_dsaWithSHA1
 # define EVP_PKEY_DSA4   NID_dsaWithSHA1_2
 # define EVP_PKEY_DH     NID_dhKeyAgreement
-# define EVP_PKEY_DHX    NID_dhpublicnumber
 # define EVP_PKEY_EC     NID_X9_62_id_ecPublicKey
 # define EVP_PKEY_HMAC   NID_hmac
 # define EVP_PKEY_CMAC   NID_cmac
@@ -347,7 +346,6 @@ struct evp_cipher_st {
 # define         EVP_CIPH_GCM_MODE               0x6
 # define         EVP_CIPH_CCM_MODE               0x7
 # define         EVP_CIPH_XTS_MODE               0x10001
-# define         EVP_CIPH_WRAP_MODE              0x10002
 # define         EVP_CIPH_MODE                   0xF0007
 /* Set if variable length cipher */
 # define         EVP_CIPH_VARIABLE_LENGTH        0x8
@@ -378,14 +376,6 @@ struct evp_cipher_st {
  */
 # define         EVP_CIPH_FLAG_CUSTOM_CIPHER     0x100000
 # define         EVP_CIPH_FLAG_AEAD_CIPHER       0x200000
-# define         EVP_CIPH_FLAG_TLS1_1_MULTIBLOCK 0x400000
-
-/*
- * Cipher context flag to indicate we can handle wrap mode: if allowed in
- * older applications it could overflow buffers.
- */
-
-# define         EVP_CIPHER_CTX_FLAG_WRAP_ALLOW  0x1
 
 /* ctrl() values */
 
@@ -418,18 +408,6 @@ struct evp_cipher_st {
 # define         EVP_CTRL_AEAD_SET_MAC_KEY       0x17
 /* Set the GCM invocation field, decrypt only */
 # define         EVP_CTRL_GCM_SET_IV_INV         0x18
-
-# define         EVP_CTRL_TLS1_1_MULTIBLOCK_AAD  0x19
-# define         EVP_CTRL_TLS1_1_MULTIBLOCK_ENCRYPT      0x1a
-# define         EVP_CTRL_TLS1_1_MULTIBLOCK_DECRYPT      0x1b
-# define         EVP_CTRL_TLS1_1_MULTIBLOCK_MAX_BUFSIZE  0x1c
-
-typedef struct {
-    unsigned char *out;
-    const unsigned char *inp;
-    size_t len;
-    unsigned int interleave;
-} EVP_CTRL_TLS1_1_MULTIBLOCK_PARAM;
 
 /* GCM TLS constants */
 /* Length of fixed part of IV derived from PRF */
@@ -659,8 +637,7 @@ int EVP_DigestSignFinal(EVP_MD_CTX *ctx,
 
 int EVP_DigestVerifyInit(EVP_MD_CTX *ctx, EVP_PKEY_CTX **pctx,
                          const EVP_MD *type, ENGINE *e, EVP_PKEY *pkey);
-int EVP_DigestVerifyFinal(EVP_MD_CTX *ctx,
-                          const unsigned char *sig, size_t siglen);
+int EVP_DigestVerifyFinal(EVP_MD_CTX *ctx, unsigned char *sig, size_t siglen);
 
 int EVP_OpenInit(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type,
                  const unsigned char *ek, int ekl, const unsigned char *iv,
@@ -765,7 +742,6 @@ const EVP_CIPHER *EVP_des_cbc(void);
 const EVP_CIPHER *EVP_des_ede_cbc(void);
 const EVP_CIPHER *EVP_des_ede3_cbc(void);
 const EVP_CIPHER *EVP_desx_cbc(void);
-const EVP_CIPHER *EVP_des_ede3_wrap(void);
 /*
  * This should now be supported through the dev_crypto ENGINE. But also, why
  * are rc4 and md5 declarations made here inside a "NO_DES" precompiler
@@ -835,7 +811,6 @@ const EVP_CIPHER *EVP_aes_128_ctr(void);
 const EVP_CIPHER *EVP_aes_128_ccm(void);
 const EVP_CIPHER *EVP_aes_128_gcm(void);
 const EVP_CIPHER *EVP_aes_128_xts(void);
-const EVP_CIPHER *EVP_aes_128_wrap(void);
 const EVP_CIPHER *EVP_aes_192_ecb(void);
 const EVP_CIPHER *EVP_aes_192_cbc(void);
 const EVP_CIPHER *EVP_aes_192_cfb1(void);
@@ -846,7 +821,6 @@ const EVP_CIPHER *EVP_aes_192_ofb(void);
 const EVP_CIPHER *EVP_aes_192_ctr(void);
 const EVP_CIPHER *EVP_aes_192_ccm(void);
 const EVP_CIPHER *EVP_aes_192_gcm(void);
-const EVP_CIPHER *EVP_aes_192_wrap(void);
 const EVP_CIPHER *EVP_aes_256_ecb(void);
 const EVP_CIPHER *EVP_aes_256_cbc(void);
 const EVP_CIPHER *EVP_aes_256_cfb1(void);
@@ -858,14 +832,9 @@ const EVP_CIPHER *EVP_aes_256_ctr(void);
 const EVP_CIPHER *EVP_aes_256_ccm(void);
 const EVP_CIPHER *EVP_aes_256_gcm(void);
 const EVP_CIPHER *EVP_aes_256_xts(void);
-const EVP_CIPHER *EVP_aes_256_wrap(void);
 #  if !defined(OPENSSL_NO_SHA) && !defined(OPENSSL_NO_SHA1)
 const EVP_CIPHER *EVP_aes_128_cbc_hmac_sha1(void);
 const EVP_CIPHER *EVP_aes_256_cbc_hmac_sha1(void);
-#  endif
-#  ifndef OPENSSL_NO_SHA256
-const EVP_CIPHER *EVP_aes_128_cbc_hmac_sha256(void);
-const EVP_CIPHER *EVP_aes_256_cbc_hmac_sha256(void);
 #  endif
 # endif
 # ifndef OPENSSL_NO_CAMELLIA
@@ -1057,7 +1026,6 @@ void EVP_PBE_cleanup(void);
 # define ASN1_PKEY_CTRL_DEFAULT_MD_NID   0x3
 # define ASN1_PKEY_CTRL_CMS_SIGN         0x5
 # define ASN1_PKEY_CTRL_CMS_ENVELOPE     0x7
-# define ASN1_PKEY_CTRL_CMS_RI_TYPE      0x8
 
 int EVP_PKEY_asn1_get_count(void);
 const EVP_PKEY_ASN1_METHOD *EVP_PKEY_asn1_get0(int idx);
@@ -1151,10 +1119,6 @@ void EVP_PKEY_asn1_set_ctrl(EVP_PKEY_ASN1_METHOD *ameth,
                 EVP_PKEY_CTX_ctrl(ctx, -1, EVP_PKEY_OP_TYPE_SIG,  \
                                         EVP_PKEY_CTRL_MD, 0, (void *)md)
 
-# define  EVP_PKEY_CTX_get_signature_md(ctx, pmd)        \
-                EVP_PKEY_CTX_ctrl(ctx, -1, EVP_PKEY_OP_TYPE_SIG,  \
-                                        EVP_PKEY_CTRL_GET_MD, 0, (void *)pmd)
-
 # define EVP_PKEY_CTRL_MD                1
 # define EVP_PKEY_CTRL_PEER_KEY          2
 
@@ -1175,8 +1139,6 @@ void EVP_PKEY_asn1_set_ctrl(EVP_PKEY_ASN1_METHOD *ameth,
 # define EVP_PKEY_CTRL_CMS_SIGN          11
 
 # define EVP_PKEY_CTRL_CIPHER            12
-
-# define EVP_PKEY_CTRL_GET_MD            13
 
 # define EVP_PKEY_ALG_CTRL               0x1000
 
@@ -1363,13 +1325,11 @@ void ERR_load_EVP_strings(void);
 # define EVP_F_AESNI_INIT_KEY                             165
 # define EVP_F_AESNI_XTS_CIPHER                           176
 # define EVP_F_AES_INIT_KEY                               133
-# define EVP_F_AES_T4_INIT_KEY                            178
 # define EVP_F_AES_XTS                                    172
 # define EVP_F_AES_XTS_CIPHER                             175
 # define EVP_F_ALG_MODULE_INIT                            177
 # define EVP_F_CAMELLIA_INIT_KEY                          159
 # define EVP_F_CMAC_INIT                                  173
-# define EVP_F_CMLL_T4_INIT_KEY                           179
 # define EVP_F_D2I_PKEY                                   100
 # define EVP_F_DO_SIGVER_INIT                             161
 # define EVP_F_DSAPKEY2PKCS8                              134
@@ -1509,7 +1469,6 @@ void ERR_load_EVP_strings(void);
 # define EVP_R_UNSUPPORTED_PRF                            125
 # define EVP_R_UNSUPPORTED_PRIVATE_KEY_ALGORITHM          118
 # define EVP_R_UNSUPPORTED_SALT_TYPE                      126
-# define EVP_R_WRAP_MODE_NOT_ALLOWED                      170
 # define EVP_R_WRONG_FINAL_BLOCK_LENGTH                   109
 # define EVP_R_WRONG_PUBLIC_KEY_TYPE                      110
 

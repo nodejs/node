@@ -68,7 +68,6 @@
 extern const EVP_PKEY_ASN1_METHOD rsa_asn1_meths[];
 extern const EVP_PKEY_ASN1_METHOD dsa_asn1_meths[];
 extern const EVP_PKEY_ASN1_METHOD dh_asn1_meth;
-extern const EVP_PKEY_ASN1_METHOD dhx_asn1_meth;
 extern const EVP_PKEY_ASN1_METHOD eckey_asn1_meth;
 extern const EVP_PKEY_ASN1_METHOD hmac_asn1_meth;
 extern const EVP_PKEY_ASN1_METHOD cmac_asn1_meth;
@@ -93,10 +92,7 @@ static const EVP_PKEY_ASN1_METHOD *standard_methods[] = {
     &eckey_asn1_meth,
 #endif
     &hmac_asn1_meth,
-    &cmac_asn1_meth,
-#ifndef OPENSSL_NO_DH
-    &dhx_asn1_meth
-#endif
+    &cmac_asn1_meth
 };
 
 typedef int sk_cmp_fn_type(const char *const *a, const char *const *b);

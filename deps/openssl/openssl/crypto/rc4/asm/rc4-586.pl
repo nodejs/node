@@ -60,7 +60,7 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 push(@INC,"${dir}","${dir}../../perlasm");
 require "x86asm.pl";
 
-&asm_init($ARGV[0],"rc4-586.pl",$x86only = $ARGV[$#ARGV] eq "386");
+&asm_init($ARGV[0],"rc4-586.pl");
 
 $xx="eax";
 $yy="ebx";
@@ -184,11 +184,8 @@ if ($alt=0) {
 	&and	($ty,-4);		# how many 4-byte chunks?
 	&jz	(&label("loop1"));
 
-	&mov	(&wparam(3),$out);	# $out as accumulator in these loops
-					if ($x86only) {
-	&jmp	(&label("go4loop4"));
-					} else {
 	&test	($ty,-8);
+	&mov	(&wparam(3),$out);	# $out as accumulator in these loops
 	&jz	(&label("go4loop4"));
 
 	&picmeup($out,"OPENSSL_ia32cap_P");
@@ -231,7 +228,6 @@ if ($alt=0) {
 	&cmp	($inp,&wparam(1));	# compare to input+len
 	&je	(&label("done"));
 	&jmp	(&label("loop1"));
-					}
 
 &set_label("go4loop4",16);
 	&lea	($ty,&DWP(-4,$inp,$ty));

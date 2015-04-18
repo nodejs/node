@@ -77,14 +77,12 @@ static const SSL_METHOD *tls1_get_client_method(int ver)
 
 IMPLEMENT_tls_meth_func(TLS1_2_VERSION, TLSv1_2_client_method,
                         ssl_undefined_function,
-                        ssl3_connect,
-                        tls1_get_client_method, TLSv1_2_enc_data)
+                        ssl3_connect, tls1_get_client_method)
 
     IMPLEMENT_tls_meth_func(TLS1_1_VERSION, TLSv1_1_client_method,
                         ssl_undefined_function,
-                        ssl3_connect,
-                        tls1_get_client_method, TLSv1_1_enc_data)
+                        ssl3_connect, tls1_get_client_method)
 
     IMPLEMENT_tls_meth_func(TLS1_VERSION, TLSv1_client_method,
                         ssl_undefined_function,
-                        ssl3_connect, tls1_get_client_method, TLSv1_enc_data)
+                        ssl3_connect, tls1_get_client_method)

@@ -225,17 +225,13 @@ int BIO_get_port(const char *str, unsigned short *port_ptr)
 int BIO_sock_error(int sock)
 {
     int j, i;
-    union {
-        size_t s;
-        int i;
-    } size;
+    int size;
 
 # if defined(OPENSSL_SYS_BEOS_R5)
     return 0;
 # endif
 
-    /* heuristic way to adapt for platforms that expect 64-bit optlen */
-    size.s = 0, size.i = sizeof(j);
+    size = sizeof(int);
     /*
      * Note: under Windows the third parameter is of type (char *) whereas
      * under other systems it is (void *) if you don't have a cast it will

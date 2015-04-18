@@ -4,15 +4,13 @@
 #include <setjmp.h>
 #include <signal.h>
 #include <unistd.h>
-#if defined(__linux) || defined(_AIX)
-# include <sys/utsname.h>
-#endif
 #include <crypto.h>
 #include <openssl/bn.h>
 
-#include "ppc_arch.h"
+#define PPC_FPU64       (1<<0)
+#define PPC_ALTIVEC     (1<<1)
 
-unsigned int OPENSSL_ppccap_P = 0;
+static int OPENSSL_ppccap_P = 0;
 
 static sigset_t all_masked;
 
@@ -27,7 +25,7 @@ int bn_mul_mont(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
                         const BN_ULONG *np, const BN_ULONG *n0, int num);
 
     if (sizeof(size_t) == 4) {
-# if 1 || (defined(__APPLE__) && defined(__MACH__))
+# if (defined(__APPLE__) && defined(__MACH__))
         if (num >= 8 && (num & 3) == 0 && (OPENSSL_ppccap_P & PPC_FPU64))
             return bn_mul_mont_fpu64(rp, ap, bp, np, n0, num);
 # else
@@ -57,22 +55,6 @@ int bn_mul_mont(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
 }
 #endif
 
-void sha256_block_p8(void *ctx, const void *inp, size_t len);
-void sha256_block_ppc(void *ctx, const void *inp, size_t len);
-void sha256_block_data_order(void *ctx, const void *inp, size_t len)
-{
-    OPENSSL_ppccap_P & PPC_CRYPTO207 ? sha256_block_p8(ctx, inp, len) :
-        sha256_block_ppc(ctx, inp, len);
-}
-
-void sha512_block_p8(void *ctx, const void *inp, size_t len);
-void sha512_block_ppc(void *ctx, const void *inp, size_t len);
-void sha512_block_data_order(void *ctx, const void *inp, size_t len)
-{
-    OPENSSL_ppccap_P & PPC_CRYPTO207 ? sha512_block_p8(ctx, inp, len) :
-        sha512_block_ppc(ctx, inp, len);
-}
-
 static sigjmp_buf ill_jmp;
 static void ill_handler(int sig)
 {
@@ -81,7 +63,6 @@ static void ill_handler(int sig)
 
 void OPENSSL_ppc64_probe(void);
 void OPENSSL_altivec_probe(void);
-void OPENSSL_crypto207_probe(void);
 
 void OPENSSL_cpuid_setup(void)
 {
@@ -112,15 +93,12 @@ void OPENSSL_cpuid_setup(void)
     OPENSSL_ppccap_P = 0;
 
 #if defined(_AIX)
-    if (sizeof(size_t) == 4) {
-        struct utsname uts;
+    if (sizeof(size_t) == 4
 # if defined(_SC_AIX_KERNEL_BITMODE)
-        if (sysconf(_SC_AIX_KERNEL_BITMODE) != 64)
-            return;
+        && sysconf(_SC_AIX_KERNEL_BITMODE) != 64
 # endif
-        if (uname(&uts) != 0 || atoi(uts.version) < 6)
-            return;
-    }
+        )
+        return;
 #endif
 
     memset(&ill_act, 0, sizeof(ill_act));
@@ -131,14 +109,10 @@ void OPENSSL_cpuid_setup(void)
     sigaction(SIGILL, &ill_act, &ill_oact);
 
     if (sizeof(size_t) == 4) {
-#ifdef __linux
-        struct utsname uts;
-        if (uname(&uts) == 0 && strcmp(uts.machine, "ppc64") == 0)
-#endif
-            if (sigsetjmp(ill_jmp, 1) == 0) {
-                OPENSSL_ppc64_probe();
-                OPENSSL_ppccap_P |= PPC_FPU64;
-            }
+        if (sigsetjmp(ill_jmp, 1) == 0) {
+            OPENSSL_ppc64_probe();
+            OPENSSL_ppccap_P |= PPC_FPU64;
+        }
     } else {
         /*
          * Wanted code detecting POWER6 CPU and setting PPC_FPU64
@@ -148,10 +122,6 @@ void OPENSSL_cpuid_setup(void)
     if (sigsetjmp(ill_jmp, 1) == 0) {
         OPENSSL_altivec_probe();
         OPENSSL_ppccap_P |= PPC_ALTIVEC;
-        if (sigsetjmp(ill_jmp, 1) == 0) {
-            OPENSSL_crypto207_probe();
-            OPENSSL_ppccap_P |= PPC_CRYPTO207;
-        }
     }
 
     sigaction(SIGILL, &ill_oact, NULL);
