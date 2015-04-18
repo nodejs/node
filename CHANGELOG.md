@@ -1,11 +1,12 @@
 # io.js ChangeLog
 
-## 2015-04-17, Version 1.8.0, @chrisdickinson
+## 2015-04-18, Version 1.8.1, @chrisdickinson
 
 ### Notable changes
 
+* **NOTICE**: Skipped v1.8.0 due to issues with NODE_MODULE_VERSION and problems with
+  release tooling. See [#1436](https://github.com/iojs/io.js/issues/1436) for details.
 * **build**: Support for building io.js as a static library (Marat Abdullin) [#1341](https://github.com/iojs/io.js/pull/1341)
-* **deps**: Upgrade openssl to 1.0.2a (Shigeki Ohtsu) [#1389](https://github.com/iojs/io.js/pull/1389)
 * **npm**: Upgrade npm to 2.8.3. See the [release notes](https://github.com/npm/npm/releases/tag/v2.8.3) for details. Includes improved git support. Summary:
   * [`387f889`](https://github.com/npm/npm/commit/387f889c0e8fb617d9cc9a42ed0a3ec49424ab5d)
   [#7961](https://github.com/npm/npm/issues/7961) Ensure that hosted git SSH
@@ -49,6 +50,24 @@ will be removed at a later point. (Roman Reiss) [#1363](https://github.com/iojs/
 
 ### Commits
 
+* [[`acd8d14f8c`](https://github.com/iojs/io.js/commit/acd8d14f8c)] - ***Revert*** "**build**: enable ssl support on arm64" (Chris Dickinson)
+* [[`278f16e0d3`](https://github.com/iojs/io.js/commit/278f16e0d3)] - ***Revert*** "**build**: fix error message in configure" (Chris Dickinson)
+* [[`e2d19b0f25`](https://github.com/iojs/io.js/commit/e2d19b0f25)] - ***Revert*** "**build**: use %PYTHON% instead of python" (Chris Dickinson)
+* [[`95aff3e678`](https://github.com/iojs/io.js/commit/95aff3e678)] - ***Revert*** "**deps**: upgrade openssl to 1.0.2a" (Chris Dickinson)
+* [[`0da630fe7c`](https://github.com/iojs/io.js/commit/0da630fe7c)] - ***Revert*** "**deps**: fix openssl assembly error on ia32 win32" (Chris Dickinson)
+* [[`1f3e55e165`](https://github.com/iojs/io.js/commit/1f3e55e165)] - ***Revert*** "**deps**: fix asm build error of openssl in x86_win32" (Chris Dickinson)
+* [[`fb558acb49`](https://github.com/iojs/io.js/commit/fb558acb49)] - ***Revert*** "**deps**: backport openssl patch of alt cert chains 1" (Chris Dickinson)
+* [[`fdf3b562ce`](https://github.com/iojs/io.js/commit/fdf3b562ce)] - ***Revert*** "**deps**: replace all headers in openssl" (Chris Dickinson)
+* [[`118aa4928d`](https://github.com/iojs/io.js/commit/118aa4928d)] - ***Revert*** "**deps**: add x32 and arm64 support for opensslconf.h" (Chris Dickinson)
+* [[`42977a724c`](https://github.com/iojs/io.js/commit/42977a724c)] - ***Revert*** "**deps**: update opensslconf.h for 1.0.2a" (Chris Dickinson)
+* [[`9afb2697b7`](https://github.com/iojs/io.js/commit/9afb2697b7)] - ***Revert*** "**deps**: update openssl.gyp/gypi for openssl-1.0.2a" (Chris Dickinson)
+* [[`243f4e8a61`](https://github.com/iojs/io.js/commit/243f4e8a61)] - ***Revert*** "**deps**: update asm Makefile for openssl-1.0.2a" (Chris Dickinson)
+* [[`36375a3264`](https://github.com/iojs/io.js/commit/36375a3264)] - ***Revert*** "**deps**: update asm files for openssl-1.0.2a" (Chris Dickinson)
+* [[`d6eeab3477`](https://github.com/iojs/io.js/commit/d6eeab3477)] - ***Revert*** "**deps**: add docs to upgrade openssl" (Chris Dickinson)
+* [[`0f6df823da`](https://github.com/iojs/io.js/commit/0f6df823da)] - ***Revert*** "**deps, build**: add support older assembler" (Chris Dickinson)
+* [[`134ceaa261`](https://github.com/iojs/io.js/commit/134ceaa261)] - ***Revert*** "**openssl**: fix keypress requirement in apps on win32" (Chris Dickinson)
+* [[`96b9d3c515`](https://github.com/iojs/io.js/commit/96b9d3c515)] - **src**: revert NODE_MODULE_VERSION to 43 (Chris Dickinson)
+* [[`090f6e45bd`](https://github.com/iojs/io.js/commit/090f6e45bd)] - ***Revert*** "**test**: fix error message check for openssl-1.0.2a" (Chris Dickinson)
 * [[`431673ebd1`](https://github.com/iojs/io.js/commit/431673ebd1)] - **buffer**: fast-case for empty string in byteLength (Jackson Tian) [#1441](https://github.com/iojs/io.js/pull/1441)
 * [[`1b22bad35f`](https://github.com/iojs/io.js/commit/1b22bad35f)] - **build**: fix logic for shared library flags (Jeremiah Senkpiel) [#1454](https://github.com/iojs/io.js/pull/1454)
 * [[`91943a99d5`](https://github.com/iojs/io.js/commit/91943a99d5)] - **build**: use %PYTHON% instead of python (Rod Vagg) [#1444](https://github.com/iojs/io.js/pull/1444)
@@ -56,7 +75,7 @@ will be removed at a later point. (Roman Reiss) [#1363](https://github.com/iojs/
 * [[`a530b2baf1`](https://github.com/iojs/io.js/commit/a530b2baf1)] - **build**: fix error message in configure (Shigeki Ohtsu) [#1389](https://github.com/iojs/io.js/pull/1389)
 * [[`92dfb794f9`](https://github.com/iojs/io.js/commit/92dfb794f9)] - **build**: enable ssl support on arm64 (Shigeki Ohtsu) [#1389](https://github.com/iojs/io.js/pull/1389)
 * [[`7de0dcde83`](https://github.com/iojs/io.js/commit/7de0dcde83)] - **deps**: make node-gyp work with io.js (cjihrig) [#990](https://github.com/iojs/io.js/pull/990)
-* [[`4870213f9e`](https://github.com/iojs/io.js/commit/4870213f9e)] - **deps**: upgrade npm to 2.8.3 (Forrest L Norvell) 
+* [[`4870213f9e`](https://github.com/iojs/io.js/commit/4870213f9e)] - **deps**: upgrade npm to 2.8.3 (Forrest L Norvell)
 * [[`49bb7ded2c`](https://github.com/iojs/io.js/commit/49bb7ded2c)] - **deps**: fix git case sensitivity issue in npm (Chris Dickinson) [#1456](https://github.com/iojs/io.js/pull/1456)
 * [[`4830b4bce8`](https://github.com/iojs/io.js/commit/4830b4bce8)] - **deps**: add docs to upgrade openssl (Shigeki Ohtsu) [#1389](https://github.com/iojs/io.js/pull/1389)
 * [[`11bec72c87`](https://github.com/iojs/io.js/commit/11bec72c87)] - **deps**: update asm files for openssl-1.0.2a (Shigeki Ohtsu) [#1389](https://github.com/iojs/io.js/pull/1389)
