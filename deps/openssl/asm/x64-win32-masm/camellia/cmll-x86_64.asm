@@ -1,5 +1,5 @@
 OPTION	DOTNAME
-.text$	SEGMENT ALIGN(256) 'CODE'
+.text$	SEGMENT ALIGN(64) 'CODE'
 
 
 PUBLIC	Camellia_EncryptBlock
@@ -281,6 +281,7 @@ $L$edone::
 	mov	r11d,edx
 
 DB	0f3h,0c3h
+
 _x86_64_Camellia_encrypt	ENDP
 
 
@@ -564,6 +565,7 @@ $L$ddone::
 	mov	r11d,ebx
 
 DB	0f3h,0c3h
+
 _x86_64_Camellia_decrypt	ENDP
 PUBLIC	Camellia_Ekeygen
 
@@ -585,7 +587,7 @@ $L$SEH_begin_Camellia_Ekeygen::
 	push	r15
 $L$key_prologue::
 
-	mov	r15d,edi
+	mov	r15,rdi
 	mov	r13,rdx
 
 	mov	r8d,DWORD PTR[rsi]
@@ -1775,6 +1777,7 @@ $L$cbc_enc_pushf::
 	mov	rsi,r12
 	lea	rdi,QWORD PTR[((8+24))+rsp]
 	DD	09066A4F3h
+
 	popfq
 $L$cbc_enc_popf::
 
@@ -1782,6 +1785,7 @@ $L$cbc_enc_popf::
 	lea	rax,QWORD PTR[((16+24))+rsp]
 	mov	QWORD PTR[8+rsp],rax
 	jmp	$L$cbc_eloop
+
 
 ALIGN	16
 $L$CBC_DECRYPT::
@@ -1865,6 +1869,7 @@ $L$cbc_dec_pushf::
 	lea	rsi,QWORD PTR[((8+24))+rsp]
 	lea	rdi,QWORD PTR[r13]
 	DD	09066A4F3h
+
 	popfq
 $L$cbc_dec_popf::
 
@@ -2029,6 +2034,7 @@ $L$common_seh_exit::
 	mov	ecx,154
 	DD	0a548f3fch
 
+
 	mov	rsi,r9
 	xor	rcx,rcx
 	mov	rdx,QWORD PTR[8+rsi]
@@ -2083,14 +2089,17 @@ $L$SEH_info_Camellia_EncryptBlock_Rounds::
 DB	9,0,0,0
 	DD	imagerel common_se_handler
 	DD	imagerel $L$enc_prologue,imagerel $L$enc_epilogue
+
 $L$SEH_info_Camellia_DecryptBlock_Rounds::
 DB	9,0,0,0
 	DD	imagerel common_se_handler
 	DD	imagerel $L$dec_prologue,imagerel $L$dec_epilogue
+
 $L$SEH_info_Camellia_Ekeygen::
 DB	9,0,0,0
 	DD	imagerel common_se_handler
 	DD	imagerel $L$key_prologue,imagerel $L$key_epilogue
+
 $L$SEH_info_Camellia_cbc_encrypt::
 DB	9,0,0,0
 	DD	imagerel cbc_se_handler

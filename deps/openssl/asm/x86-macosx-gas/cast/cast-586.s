@@ -12,13 +12,16 @@ L_CAST_encrypt_begin:
 	pushl	%esi
 	pushl	%edi
 	# Load the 2 words
+
 	movl	(%ebx),%edi
 	movl	4(%ebx),%esi
 	# Get short key flag
+
 	movl	128(%ebp),%eax
 	pushl	%eax
 	xorl	%eax,%eax
 	# round 0
+
 	movl	(%ebp),%edx
 	movl	4(%ebp),%ecx
 	addl	%esi,%edx
@@ -40,6 +43,7 @@ L_CAST_encrypt_begin:
 	addl	%ebx,%ecx
 	xorl	%ecx,%edi
 	# round 1
+
 	movl	8(%ebp),%edx
 	movl	12(%ebp),%ecx
 	xorl	%edi,%edx
@@ -61,6 +65,7 @@ L_CAST_encrypt_begin:
 	xorl	%ebx,%ecx
 	xorl	%ecx,%esi
 	# round 2
+
 	movl	16(%ebp),%edx
 	movl	20(%ebp),%ecx
 	subl	%esi,%edx
@@ -82,6 +87,7 @@ L_CAST_encrypt_begin:
 	subl	%ebx,%ecx
 	xorl	%ecx,%edi
 	# round 3
+
 	movl	24(%ebp),%edx
 	movl	28(%ebp),%ecx
 	addl	%edi,%edx
@@ -103,6 +109,7 @@ L_CAST_encrypt_begin:
 	addl	%ebx,%ecx
 	xorl	%ecx,%esi
 	# round 4
+
 	movl	32(%ebp),%edx
 	movl	36(%ebp),%ecx
 	xorl	%esi,%edx
@@ -124,6 +131,7 @@ L_CAST_encrypt_begin:
 	xorl	%ebx,%ecx
 	xorl	%ecx,%edi
 	# round 5
+
 	movl	40(%ebp),%edx
 	movl	44(%ebp),%ecx
 	subl	%edi,%edx
@@ -145,6 +153,7 @@ L_CAST_encrypt_begin:
 	subl	%ebx,%ecx
 	xorl	%ecx,%esi
 	# round 6
+
 	movl	48(%ebp),%edx
 	movl	52(%ebp),%ecx
 	addl	%esi,%edx
@@ -166,6 +175,7 @@ L_CAST_encrypt_begin:
 	addl	%ebx,%ecx
 	xorl	%ecx,%edi
 	# round 7
+
 	movl	56(%ebp),%edx
 	movl	60(%ebp),%ecx
 	xorl	%edi,%edx
@@ -187,6 +197,7 @@ L_CAST_encrypt_begin:
 	xorl	%ebx,%ecx
 	xorl	%ecx,%esi
 	# round 8
+
 	movl	64(%ebp),%edx
 	movl	68(%ebp),%ecx
 	subl	%esi,%edx
@@ -208,6 +219,7 @@ L_CAST_encrypt_begin:
 	subl	%ebx,%ecx
 	xorl	%ecx,%edi
 	# round 9
+
 	movl	72(%ebp),%edx
 	movl	76(%ebp),%ecx
 	addl	%edi,%edx
@@ -229,6 +241,7 @@ L_CAST_encrypt_begin:
 	addl	%ebx,%ecx
 	xorl	%ecx,%esi
 	# round 10
+
 	movl	80(%ebp),%edx
 	movl	84(%ebp),%ecx
 	xorl	%esi,%edx
@@ -250,6 +263,7 @@ L_CAST_encrypt_begin:
 	xorl	%ebx,%ecx
 	xorl	%ecx,%edi
 	# round 11
+
 	movl	88(%ebp),%edx
 	movl	92(%ebp),%ecx
 	subl	%edi,%edx
@@ -271,10 +285,12 @@ L_CAST_encrypt_begin:
 	subl	%ebx,%ecx
 	xorl	%ecx,%esi
 	# test short key flag
+
 	popl	%edx
 	orl	%edx,%edx
 	jnz	L000cast_enc_done
 	# round 12
+
 	movl	96(%ebp),%edx
 	movl	100(%ebp),%ecx
 	addl	%esi,%edx
@@ -296,6 +312,7 @@ L_CAST_encrypt_begin:
 	addl	%ebx,%ecx
 	xorl	%ecx,%edi
 	# round 13
+
 	movl	104(%ebp),%edx
 	movl	108(%ebp),%ecx
 	xorl	%edi,%edx
@@ -317,6 +334,7 @@ L_CAST_encrypt_begin:
 	xorl	%ebx,%ecx
 	xorl	%ecx,%esi
 	# round 14
+
 	movl	112(%ebp),%edx
 	movl	116(%ebp),%ecx
 	subl	%esi,%edx
@@ -338,6 +356,7 @@ L_CAST_encrypt_begin:
 	subl	%ebx,%ecx
 	xorl	%ecx,%edi
 	# round 15
+
 	movl	120(%ebp),%edx
 	movl	124(%ebp),%ecx
 	addl	%edi,%edx
@@ -380,14 +399,17 @@ L_CAST_decrypt_begin:
 	pushl	%esi
 	pushl	%edi
 	# Load the 2 words
+
 	movl	(%ebx),%edi
 	movl	4(%ebx),%esi
 	# Get short key flag
+
 	movl	128(%ebp),%eax
 	orl	%eax,%eax
 	jnz	L001cast_dec_skip
 	xorl	%eax,%eax
 	# round 15
+
 	movl	120(%ebp),%edx
 	movl	124(%ebp),%ecx
 	addl	%esi,%edx
@@ -409,6 +431,7 @@ L_CAST_decrypt_begin:
 	addl	%ebx,%ecx
 	xorl	%ecx,%edi
 	# round 14
+
 	movl	112(%ebp),%edx
 	movl	116(%ebp),%ecx
 	subl	%edi,%edx
@@ -430,6 +453,7 @@ L_CAST_decrypt_begin:
 	subl	%ebx,%ecx
 	xorl	%ecx,%esi
 	# round 13
+
 	movl	104(%ebp),%edx
 	movl	108(%ebp),%ecx
 	xorl	%esi,%edx
@@ -451,6 +475,7 @@ L_CAST_decrypt_begin:
 	xorl	%ebx,%ecx
 	xorl	%ecx,%edi
 	# round 12
+
 	movl	96(%ebp),%edx
 	movl	100(%ebp),%ecx
 	addl	%edi,%edx
@@ -473,6 +498,7 @@ L_CAST_decrypt_begin:
 	xorl	%ecx,%esi
 L001cast_dec_skip:
 	# round 11
+
 	movl	88(%ebp),%edx
 	movl	92(%ebp),%ecx
 	subl	%esi,%edx
@@ -494,6 +520,7 @@ L001cast_dec_skip:
 	subl	%ebx,%ecx
 	xorl	%ecx,%edi
 	# round 10
+
 	movl	80(%ebp),%edx
 	movl	84(%ebp),%ecx
 	xorl	%edi,%edx
@@ -515,6 +542,7 @@ L001cast_dec_skip:
 	xorl	%ebx,%ecx
 	xorl	%ecx,%esi
 	# round 9
+
 	movl	72(%ebp),%edx
 	movl	76(%ebp),%ecx
 	addl	%esi,%edx
@@ -536,6 +564,7 @@ L001cast_dec_skip:
 	addl	%ebx,%ecx
 	xorl	%ecx,%edi
 	# round 8
+
 	movl	64(%ebp),%edx
 	movl	68(%ebp),%ecx
 	subl	%edi,%edx
@@ -557,6 +586,7 @@ L001cast_dec_skip:
 	subl	%ebx,%ecx
 	xorl	%ecx,%esi
 	# round 7
+
 	movl	56(%ebp),%edx
 	movl	60(%ebp),%ecx
 	xorl	%esi,%edx
@@ -578,6 +608,7 @@ L001cast_dec_skip:
 	xorl	%ebx,%ecx
 	xorl	%ecx,%edi
 	# round 6
+
 	movl	48(%ebp),%edx
 	movl	52(%ebp),%ecx
 	addl	%edi,%edx
@@ -599,6 +630,7 @@ L001cast_dec_skip:
 	addl	%ebx,%ecx
 	xorl	%ecx,%esi
 	# round 5
+
 	movl	40(%ebp),%edx
 	movl	44(%ebp),%ecx
 	subl	%esi,%edx
@@ -620,6 +652,7 @@ L001cast_dec_skip:
 	subl	%ebx,%ecx
 	xorl	%ecx,%edi
 	# round 4
+
 	movl	32(%ebp),%edx
 	movl	36(%ebp),%ecx
 	xorl	%edi,%edx
@@ -641,6 +674,7 @@ L001cast_dec_skip:
 	xorl	%ebx,%ecx
 	xorl	%ecx,%esi
 	# round 3
+
 	movl	24(%ebp),%edx
 	movl	28(%ebp),%ecx
 	addl	%esi,%edx
@@ -662,6 +696,7 @@ L001cast_dec_skip:
 	addl	%ebx,%ecx
 	xorl	%ecx,%edi
 	# round 2
+
 	movl	16(%ebp),%edx
 	movl	20(%ebp),%ecx
 	subl	%edi,%edx
@@ -683,6 +718,7 @@ L001cast_dec_skip:
 	subl	%ebx,%ecx
 	xorl	%ecx,%esi
 	# round 1
+
 	movl	8(%ebp),%edx
 	movl	12(%ebp),%ecx
 	xorl	%esi,%edx
@@ -704,6 +740,7 @@ L001cast_dec_skip:
 	xorl	%ebx,%ecx
 	xorl	%ecx,%edi
 	# round 0
+
 	movl	(%ebp),%edx
 	movl	4(%ebp),%ecx
 	addl	%edi,%edx
@@ -744,6 +781,7 @@ L_CAST_cbc_encrypt_begin:
 	pushl	%edi
 	movl	28(%esp),%ebp
 	# getting iv ptr from parameter 4
+
 	movl	36(%esp),%ebx
 	movl	(%ebx),%esi
 	movl	4(%ebx),%edi
@@ -755,8 +793,10 @@ L_CAST_cbc_encrypt_begin:
 	movl	36(%esp),%esi
 	movl	40(%esp),%edi
 	# getting encrypt flag from parameter 5
+
 	movl	56(%esp),%ecx
 	# get and push parameter 3
+
 	movl	48(%esp),%eax
 	pushl	%eax
 	pushl	%ebx

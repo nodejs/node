@@ -112,78 +112,74 @@ $L000loop:
 	shl	ecx,24
 	xor	edx,ecx
 	mov	ecx,esi
-	mov	ebp,2155905152
-	and	ebp,ecx
+	mov	esi,ecx
+	and	esi,2155905152
+	mov	ebp,esi
+	shr	ebp,7
 	lea	edi,DWORD PTR [ecx*1+ecx]
-	mov	esi,ebp
-	shr	ebp,7
-	and	edi,4278124286
 	sub	esi,ebp
+	and	edi,4278124286
+	and	esi,454761243
 	mov	ebp,ecx
-	and	esi,454761243
-	ror	ebp,16
 	xor	esi,edi
-	mov	edi,ecx
 	xor	ecx,esi
-	ror	edi,24
-	xor	esi,ebp
 	rol	ecx,24
-	xor	esi,edi
-	mov	ebp,2155905152
 	xor	ecx,esi
-	and	ebp,edx
+	ror	ebp,16
+	xor	ecx,ebp
+	ror	ebp,8
+	xor	ecx,ebp
+	mov	esi,edx
+	and	esi,2155905152
+	mov	ebp,esi
+	shr	ebp,7
 	lea	edi,DWORD PTR [edx*1+edx]
-	mov	esi,ebp
-	shr	ebp,7
-	and	edi,4278124286
 	sub	esi,ebp
+	and	edi,4278124286
+	and	esi,454761243
 	mov	ebp,edx
-	and	esi,454761243
-	ror	ebp,16
 	xor	esi,edi
-	mov	edi,edx
 	xor	edx,esi
-	ror	edi,24
-	xor	esi,ebp
 	rol	edx,24
-	xor	esi,edi
-	mov	ebp,2155905152
 	xor	edx,esi
-	and	ebp,eax
+	ror	ebp,16
+	xor	edx,ebp
+	ror	ebp,8
+	xor	edx,ebp
+	mov	esi,eax
+	and	esi,2155905152
+	mov	ebp,esi
+	shr	ebp,7
 	lea	edi,DWORD PTR [eax*1+eax]
-	mov	esi,ebp
-	shr	ebp,7
-	and	edi,4278124286
 	sub	esi,ebp
+	and	edi,4278124286
+	and	esi,454761243
 	mov	ebp,eax
-	and	esi,454761243
-	ror	ebp,16
 	xor	esi,edi
-	mov	edi,eax
 	xor	eax,esi
-	ror	edi,24
-	xor	esi,ebp
 	rol	eax,24
-	xor	esi,edi
-	mov	ebp,2155905152
 	xor	eax,esi
-	and	ebp,ebx
-	lea	edi,DWORD PTR [ebx*1+ebx]
-	mov	esi,ebp
-	shr	ebp,7
-	and	edi,4278124286
-	sub	esi,ebp
-	mov	ebp,ebx
-	and	esi,454761243
 	ror	ebp,16
+	xor	eax,ebp
+	ror	ebp,8
+	xor	eax,ebp
+	mov	esi,ebx
+	and	esi,2155905152
+	mov	ebp,esi
+	shr	ebp,7
+	lea	edi,DWORD PTR [ebx*1+ebx]
+	sub	esi,ebp
+	and	edi,4278124286
+	and	esi,454761243
+	mov	ebp,ebx
 	xor	esi,edi
-	mov	edi,ebx
 	xor	ebx,esi
-	ror	edi,24
-	xor	esi,ebp
 	rol	ebx,24
-	xor	esi,edi
 	xor	ebx,esi
+	ror	ebp,16
+	xor	ebx,ebp
+	ror	ebp,8
+	xor	ebx,ebp
 	mov	edi,DWORD PTR 20[esp]
 	mov	ebp,DWORD PTR 28[esp]
 	add	edi,16
@@ -300,76 +296,74 @@ $L001loop:
 	pshufw	mm5,mm4,13
 	movd	eax,mm1
 	movd	ebx,mm5
-	mov	DWORD PTR 20[esp],edi
 	movzx	esi,al
-	movzx	edx,ah
-	pshufw	mm2,mm0,13
 	movzx	ecx,BYTE PTR [esi*1+ebp-128]
-	movzx	edi,bl
+	pshufw	mm2,mm0,13
+	movzx	edx,ah
 	movzx	edx,BYTE PTR [edx*1+ebp-128]
-	shr	eax,16
 	shl	edx,8
-	movzx	esi,BYTE PTR [edi*1+ebp-128]
-	movzx	edi,bh
-	shl	esi,16
-	pshufw	mm6,mm4,8
-	or	ecx,esi
-	movzx	esi,BYTE PTR [edi*1+ebp-128]
-	movzx	edi,ah
-	shl	esi,24
-	shr	ebx,16
-	or	edx,esi
-	movzx	esi,BYTE PTR [edi*1+ebp-128]
-	movzx	edi,bh
-	shl	esi,8
-	or	ecx,esi
-	movzx	esi,BYTE PTR [edi*1+ebp-128]
-	movzx	edi,al
-	shl	esi,24
-	or	ecx,esi
-	movzx	esi,BYTE PTR [edi*1+ebp-128]
-	movzx	edi,bl
-	movd	eax,mm2
-	movd	mm0,ecx
-	movzx	ecx,BYTE PTR [edi*1+ebp-128]
-	movzx	edi,ah
-	shl	ecx,16
-	movd	ebx,mm6
-	or	ecx,esi
-	movzx	esi,BYTE PTR [edi*1+ebp-128]
-	movzx	edi,bh
-	shl	esi,24
-	or	ecx,esi
-	movzx	esi,BYTE PTR [edi*1+ebp-128]
-	movzx	edi,bl
-	shl	esi,8
-	shr	ebx,16
-	or	ecx,esi
-	movzx	esi,BYTE PTR [edi*1+ebp-128]
-	movzx	edi,al
 	shr	eax,16
-	movd	mm1,ecx
-	movzx	ecx,BYTE PTR [edi*1+ebp-128]
-	movzx	edi,ah
-	shl	ecx,16
-	and	eax,255
+	movzx	esi,bl
+	movzx	esi,BYTE PTR [esi*1+ebp-128]
+	shl	esi,16
 	or	ecx,esi
-	punpckldq	mm0,mm1
-	movzx	esi,BYTE PTR [edi*1+ebp-128]
-	movzx	edi,bh
+	pshufw	mm6,mm4,8
+	movzx	esi,bh
+	movzx	esi,BYTE PTR [esi*1+ebp-128]
 	shl	esi,24
-	and	ebx,255
-	movzx	eax,BYTE PTR [eax*1+ebp-128]
-	or	ecx,esi
-	shl	eax,16
-	movzx	esi,BYTE PTR [edi*1+ebp-128]
-	or	edx,eax
+	or	edx,esi
+	shr	ebx,16
+	movzx	esi,ah
+	movzx	esi,BYTE PTR [esi*1+ebp-128]
 	shl	esi,8
-	movzx	ebx,BYTE PTR [ebx*1+ebp-128]
 	or	ecx,esi
-	or	edx,ebx
-	mov	edi,DWORD PTR 20[esp]
+	movzx	esi,bh
+	movzx	esi,BYTE PTR [esi*1+ebp-128]
+	shl	esi,24
+	or	ecx,esi
+	movd	mm0,ecx
+	movzx	esi,al
+	movzx	ecx,BYTE PTR [esi*1+ebp-128]
+	movd	eax,mm2
+	movzx	esi,bl
+	movzx	esi,BYTE PTR [esi*1+ebp-128]
+	shl	esi,16
+	or	ecx,esi
+	movd	ebx,mm6
+	movzx	esi,ah
+	movzx	esi,BYTE PTR [esi*1+ebp-128]
+	shl	esi,24
+	or	ecx,esi
+	movzx	esi,bh
+	movzx	esi,BYTE PTR [esi*1+ebp-128]
+	shl	esi,8
+	or	ecx,esi
+	movd	mm1,ecx
+	movzx	esi,bl
+	movzx	ecx,BYTE PTR [esi*1+ebp-128]
+	shr	ebx,16
+	movzx	esi,al
+	movzx	esi,BYTE PTR [esi*1+ebp-128]
+	shl	esi,16
+	or	ecx,esi
+	shr	eax,16
+	punpckldq	mm0,mm1
+	movzx	esi,ah
+	movzx	esi,BYTE PTR [esi*1+ebp-128]
+	shl	esi,24
+	or	ecx,esi
+	and	eax,255
+	movzx	eax,BYTE PTR [eax*1+ebp-128]
+	shl	eax,16
+	or	edx,eax
+	movzx	esi,bh
+	movzx	esi,BYTE PTR [esi*1+ebp-128]
+	shl	esi,8
+	or	ecx,esi
 	movd	mm4,ecx
+	and	ebx,255
+	movzx	ebx,BYTE PTR [ebx*1+ebp-128]
+	or	edx,ebx
 	movd	mm5,edx
 	punpckldq	mm4,mm5
 	add	edi,16
@@ -1134,28 +1128,28 @@ $L006loop:
 	movzx	eax,BYTE PTR [eax*1+ebp-128]
 	shl	eax,24
 	xor	edx,eax
-	mov	edi,2155905152
-	and	edi,ecx
-	mov	esi,edi
+	mov	esi,ecx
+	and	esi,2155905152
+	mov	edi,esi
 	shr	edi,7
 	lea	eax,DWORD PTR [ecx*1+ecx]
 	sub	esi,edi
 	and	eax,4278124286
 	and	esi,454761243
-	xor	eax,esi
-	mov	edi,2155905152
-	and	edi,eax
-	mov	esi,edi
+	xor	esi,eax
+	mov	eax,esi
+	and	esi,2155905152
+	mov	edi,esi
 	shr	edi,7
 	lea	ebx,DWORD PTR [eax*1+eax]
 	sub	esi,edi
 	and	ebx,4278124286
 	and	esi,454761243
 	xor	eax,ecx
-	xor	ebx,esi
-	mov	edi,2155905152
-	and	edi,ebx
-	mov	esi,edi
+	xor	esi,ebx
+	mov	ebx,esi
+	and	esi,2155905152
+	mov	edi,esi
 	shr	edi,7
 	lea	ebp,DWORD PTR [ebx*1+ebx]
 	sub	esi,edi
@@ -1166,39 +1160,39 @@ $L006loop:
 	xor	ebp,esi
 	xor	ecx,eax
 	xor	eax,ebp
+	rol	eax,24
 	xor	ecx,ebx
 	xor	ebx,ebp
-	rol	eax,24
-	xor	ecx,ebp
 	rol	ebx,16
-	xor	ecx,eax
+	xor	ecx,ebp
 	rol	ebp,8
+	xor	ecx,eax
 	xor	ecx,ebx
 	mov	eax,DWORD PTR 4[esp]
 	xor	ecx,ebp
 	mov	DWORD PTR 12[esp],ecx
-	mov	edi,2155905152
-	and	edi,edx
-	mov	esi,edi
+	mov	esi,edx
+	and	esi,2155905152
+	mov	edi,esi
 	shr	edi,7
 	lea	ebx,DWORD PTR [edx*1+edx]
 	sub	esi,edi
 	and	ebx,4278124286
 	and	esi,454761243
-	xor	ebx,esi
-	mov	edi,2155905152
-	and	edi,ebx
-	mov	esi,edi
+	xor	esi,ebx
+	mov	ebx,esi
+	and	esi,2155905152
+	mov	edi,esi
 	shr	edi,7
 	lea	ecx,DWORD PTR [ebx*1+ebx]
 	sub	esi,edi
 	and	ecx,4278124286
 	and	esi,454761243
 	xor	ebx,edx
-	xor	ecx,esi
-	mov	edi,2155905152
-	and	edi,ecx
-	mov	esi,edi
+	xor	esi,ecx
+	mov	ecx,esi
+	and	esi,2155905152
+	mov	edi,esi
 	shr	edi,7
 	lea	ebp,DWORD PTR [ecx*1+ecx]
 	sub	esi,edi
@@ -1209,39 +1203,39 @@ $L006loop:
 	xor	ebp,esi
 	xor	edx,ebx
 	xor	ebx,ebp
+	rol	ebx,24
 	xor	edx,ecx
 	xor	ecx,ebp
-	rol	ebx,24
-	xor	edx,ebp
 	rol	ecx,16
-	xor	edx,ebx
+	xor	edx,ebp
 	rol	ebp,8
+	xor	edx,ebx
 	xor	edx,ecx
 	mov	ebx,DWORD PTR 8[esp]
 	xor	edx,ebp
 	mov	DWORD PTR 16[esp],edx
-	mov	edi,2155905152
-	and	edi,eax
-	mov	esi,edi
+	mov	esi,eax
+	and	esi,2155905152
+	mov	edi,esi
 	shr	edi,7
 	lea	ecx,DWORD PTR [eax*1+eax]
 	sub	esi,edi
 	and	ecx,4278124286
 	and	esi,454761243
-	xor	ecx,esi
-	mov	edi,2155905152
-	and	edi,ecx
-	mov	esi,edi
+	xor	esi,ecx
+	mov	ecx,esi
+	and	esi,2155905152
+	mov	edi,esi
 	shr	edi,7
 	lea	edx,DWORD PTR [ecx*1+ecx]
 	sub	esi,edi
 	and	edx,4278124286
 	and	esi,454761243
 	xor	ecx,eax
-	xor	edx,esi
-	mov	edi,2155905152
-	and	edi,edx
-	mov	esi,edi
+	xor	esi,edx
+	mov	edx,esi
+	and	esi,2155905152
+	mov	edi,esi
 	shr	edi,7
 	lea	ebp,DWORD PTR [edx*1+edx]
 	sub	esi,edi
@@ -1252,37 +1246,37 @@ $L006loop:
 	xor	ebp,esi
 	xor	eax,ecx
 	xor	ecx,ebp
+	rol	ecx,24
 	xor	eax,edx
 	xor	edx,ebp
-	rol	ecx,24
-	xor	eax,ebp
 	rol	edx,16
-	xor	eax,ecx
+	xor	eax,ebp
 	rol	ebp,8
+	xor	eax,ecx
 	xor	eax,edx
 	xor	eax,ebp
-	mov	edi,2155905152
-	and	edi,ebx
-	mov	esi,edi
+	mov	esi,ebx
+	and	esi,2155905152
+	mov	edi,esi
 	shr	edi,7
 	lea	ecx,DWORD PTR [ebx*1+ebx]
 	sub	esi,edi
 	and	ecx,4278124286
 	and	esi,454761243
-	xor	ecx,esi
-	mov	edi,2155905152
-	and	edi,ecx
-	mov	esi,edi
+	xor	esi,ecx
+	mov	ecx,esi
+	and	esi,2155905152
+	mov	edi,esi
 	shr	edi,7
 	lea	edx,DWORD PTR [ecx*1+ecx]
 	sub	esi,edi
 	and	edx,4278124286
 	and	esi,454761243
 	xor	ecx,ebx
-	xor	edx,esi
-	mov	edi,2155905152
-	and	edi,edx
-	mov	esi,edi
+	xor	esi,edx
+	mov	edx,esi
+	and	esi,2155905152
+	mov	edi,esi
 	shr	edi,7
 	lea	ebp,DWORD PTR [edx*1+edx]
 	sub	esi,edi
@@ -1293,13 +1287,13 @@ $L006loop:
 	xor	ebp,esi
 	xor	ebx,ecx
 	xor	ecx,ebp
+	rol	ecx,24
 	xor	ebx,edx
 	xor	edx,ebp
-	rol	ecx,24
-	xor	ebx,ebp
 	rol	edx,16
-	xor	ebx,ecx
+	xor	ebx,ebp
 	rol	ebp,8
+	xor	ebx,ecx
 	xor	ebx,edx
 	mov	ecx,DWORD PTR 12[esp]
 	xor	ebx,ebp
@@ -1417,79 +1411,77 @@ __sse_AES_decrypt_compact	PROC PRIVATE
 ALIGN	16
 $L007loop:
 	pshufw	mm1,mm0,12
-	pshufw	mm5,mm4,9
 	movd	eax,mm1
-	movd	ebx,mm5
-	mov	DWORD PTR 20[esp],edi
+	pshufw	mm5,mm4,9
 	movzx	esi,al
-	movzx	edx,ah
-	pshufw	mm2,mm0,6
 	movzx	ecx,BYTE PTR [esi*1+ebp-128]
-	movzx	edi,bl
+	movd	ebx,mm5
+	movzx	edx,ah
 	movzx	edx,BYTE PTR [edx*1+ebp-128]
-	shr	eax,16
 	shl	edx,8
-	movzx	esi,BYTE PTR [edi*1+ebp-128]
-	movzx	edi,bh
+	pshufw	mm2,mm0,6
+	movzx	esi,bl
+	movzx	esi,BYTE PTR [esi*1+ebp-128]
 	shl	esi,16
-	pshufw	mm6,mm4,3
 	or	ecx,esi
-	movzx	esi,BYTE PTR [edi*1+ebp-128]
-	movzx	edi,ah
-	shl	esi,24
-	shr	ebx,16
-	or	edx,esi
-	movzx	esi,BYTE PTR [edi*1+ebp-128]
-	movzx	edi,bh
-	shl	esi,24
-	or	ecx,esi
-	movzx	esi,BYTE PTR [edi*1+ebp-128]
-	movzx	edi,al
-	shl	esi,8
-	movd	eax,mm2
-	or	ecx,esi
-	movzx	esi,BYTE PTR [edi*1+ebp-128]
-	movzx	edi,bl
-	shl	esi,16
-	movd	ebx,mm6
-	movd	mm0,ecx
-	movzx	ecx,BYTE PTR [edi*1+ebp-128]
-	movzx	edi,al
-	or	ecx,esi
-	movzx	esi,BYTE PTR [edi*1+ebp-128]
-	movzx	edi,bl
-	or	edx,esi
-	movzx	esi,BYTE PTR [edi*1+ebp-128]
-	movzx	edi,ah
-	shl	esi,16
 	shr	eax,16
+	movzx	esi,bh
+	movzx	esi,BYTE PTR [esi*1+ebp-128]
+	shl	esi,24
 	or	edx,esi
-	movzx	esi,BYTE PTR [edi*1+ebp-128]
-	movzx	edi,bh
 	shr	ebx,16
-	shl	esi,8
-	movd	mm1,edx
-	movzx	edx,BYTE PTR [edi*1+ebp-128]
-	movzx	edi,bh
-	shl	edx,24
-	and	ebx,255
-	or	edx,esi
-	punpckldq	mm0,mm1
-	movzx	esi,BYTE PTR [edi*1+ebp-128]
-	movzx	edi,al
-	shl	esi,8
-	movzx	eax,ah
-	movzx	ebx,BYTE PTR [ebx*1+ebp-128]
+	pshufw	mm6,mm4,3
+	movzx	esi,ah
+	movzx	esi,BYTE PTR [esi*1+ebp-128]
+	shl	esi,24
 	or	ecx,esi
-	movzx	esi,BYTE PTR [edi*1+ebp-128]
-	or	edx,ebx
-	shl	esi,16
-	movzx	eax,BYTE PTR [eax*1+ebp-128]
+	movzx	esi,bh
+	movzx	esi,BYTE PTR [esi*1+ebp-128]
+	shl	esi,8
+	or	ecx,esi
+	movd	mm0,ecx
+	movzx	esi,al
+	movd	eax,mm2
+	movzx	ecx,BYTE PTR [esi*1+ebp-128]
+	shl	ecx,16
+	movzx	esi,bl
+	movd	ebx,mm6
+	movzx	esi,BYTE PTR [esi*1+ebp-128]
+	or	ecx,esi
+	movzx	esi,al
+	movzx	esi,BYTE PTR [esi*1+ebp-128]
 	or	edx,esi
+	movzx	esi,bl
+	movzx	esi,BYTE PTR [esi*1+ebp-128]
+	shl	esi,16
+	or	edx,esi
+	movd	mm1,edx
+	movzx	esi,ah
+	movzx	edx,BYTE PTR [esi*1+ebp-128]
+	shl	edx,8
+	movzx	esi,bh
+	shr	eax,16
+	movzx	esi,BYTE PTR [esi*1+ebp-128]
+	shl	esi,24
+	or	edx,esi
+	shr	ebx,16
+	punpckldq	mm0,mm1
+	movzx	esi,bh
+	movzx	esi,BYTE PTR [esi*1+ebp-128]
+	shl	esi,8
+	or	ecx,esi
+	and	ebx,255
+	movzx	ebx,BYTE PTR [ebx*1+ebp-128]
+	or	edx,ebx
+	movzx	esi,al
+	movzx	esi,BYTE PTR [esi*1+ebp-128]
+	shl	esi,16
+	or	edx,esi
+	movd	mm4,edx
+	movzx	eax,ah
+	movzx	eax,BYTE PTR [eax*1+ebp-128]
 	shl	eax,24
 	or	ecx,eax
-	mov	edi,DWORD PTR 20[esp]
-	movd	mm4,edx
 	movd	mm5,ecx
 	punpckldq	mm4,mm5
 	add	edi,16
@@ -3037,30 +3029,30 @@ $L055invert:
 ALIGN	4
 $L056permute:
 	add	edi,16
-	mov	ebp,2155905152
-	and	ebp,eax
-	lea	ebx,DWORD PTR [eax*1+eax]
-	mov	esi,ebp
+	mov	esi,eax
+	and	esi,2155905152
+	mov	ebp,esi
 	shr	ebp,7
+	lea	ebx,DWORD PTR [eax*1+eax]
 	sub	esi,ebp
 	and	ebx,4278124286
 	and	esi,454761243
-	xor	ebx,esi
-	mov	ebp,2155905152
-	and	ebp,ebx
-	lea	ecx,DWORD PTR [ebx*1+ebx]
-	mov	esi,ebp
+	xor	esi,ebx
+	mov	ebx,esi
+	and	esi,2155905152
+	mov	ebp,esi
 	shr	ebp,7
+	lea	ecx,DWORD PTR [ebx*1+ebx]
 	sub	esi,ebp
 	and	ecx,4278124286
 	and	esi,454761243
 	xor	ebx,eax
-	xor	ecx,esi
-	mov	ebp,2155905152
-	and	ebp,ecx
-	lea	edx,DWORD PTR [ecx*1+ecx]
-	mov	esi,ebp
+	xor	esi,ecx
+	mov	ecx,esi
+	and	esi,2155905152
+	mov	ebp,esi
 	shr	ebp,7
+	lea	edx,DWORD PTR [ecx*1+ecx]
 	xor	ecx,eax
 	sub	esi,ebp
 	and	edx,4278124286
@@ -3081,30 +3073,30 @@ $L056permute:
 	mov	ebx,ebp
 	xor	eax,edx
 	mov	DWORD PTR [edi],eax
-	mov	ebp,2155905152
-	and	ebp,ebx
-	lea	ecx,DWORD PTR [ebx*1+ebx]
-	mov	esi,ebp
+	mov	esi,ebx
+	and	esi,2155905152
+	mov	ebp,esi
 	shr	ebp,7
+	lea	ecx,DWORD PTR [ebx*1+ebx]
 	sub	esi,ebp
 	and	ecx,4278124286
 	and	esi,454761243
-	xor	ecx,esi
-	mov	ebp,2155905152
-	and	ebp,ecx
-	lea	edx,DWORD PTR [ecx*1+ecx]
-	mov	esi,ebp
+	xor	esi,ecx
+	mov	ecx,esi
+	and	esi,2155905152
+	mov	ebp,esi
 	shr	ebp,7
+	lea	edx,DWORD PTR [ecx*1+ecx]
 	sub	esi,ebp
 	and	edx,4278124286
 	and	esi,454761243
 	xor	ecx,ebx
-	xor	edx,esi
-	mov	ebp,2155905152
-	and	ebp,edx
-	lea	eax,DWORD PTR [edx*1+edx]
-	mov	esi,ebp
+	xor	esi,edx
+	mov	edx,esi
+	and	esi,2155905152
+	mov	ebp,esi
 	shr	ebp,7
+	lea	eax,DWORD PTR [edx*1+edx]
 	xor	edx,ebx
 	sub	esi,ebp
 	and	eax,4278124286
@@ -3125,30 +3117,30 @@ $L056permute:
 	mov	ecx,ebp
 	xor	ebx,eax
 	mov	DWORD PTR 4[edi],ebx
-	mov	ebp,2155905152
-	and	ebp,ecx
-	lea	edx,DWORD PTR [ecx*1+ecx]
-	mov	esi,ebp
+	mov	esi,ecx
+	and	esi,2155905152
+	mov	ebp,esi
 	shr	ebp,7
+	lea	edx,DWORD PTR [ecx*1+ecx]
 	sub	esi,ebp
 	and	edx,4278124286
 	and	esi,454761243
-	xor	edx,esi
-	mov	ebp,2155905152
-	and	ebp,edx
-	lea	eax,DWORD PTR [edx*1+edx]
-	mov	esi,ebp
+	xor	esi,edx
+	mov	edx,esi
+	and	esi,2155905152
+	mov	ebp,esi
 	shr	ebp,7
+	lea	eax,DWORD PTR [edx*1+edx]
 	sub	esi,ebp
 	and	eax,4278124286
 	and	esi,454761243
 	xor	edx,ecx
-	xor	eax,esi
-	mov	ebp,2155905152
-	and	ebp,eax
-	lea	ebx,DWORD PTR [eax*1+eax]
-	mov	esi,ebp
+	xor	esi,eax
+	mov	eax,esi
+	and	esi,2155905152
+	mov	ebp,esi
 	shr	ebp,7
+	lea	ebx,DWORD PTR [eax*1+eax]
 	xor	eax,ecx
 	sub	esi,ebp
 	and	ebx,4278124286
@@ -3169,30 +3161,30 @@ $L056permute:
 	mov	edx,ebp
 	xor	ecx,ebx
 	mov	DWORD PTR 8[edi],ecx
-	mov	ebp,2155905152
-	and	ebp,edx
-	lea	eax,DWORD PTR [edx*1+edx]
-	mov	esi,ebp
+	mov	esi,edx
+	and	esi,2155905152
+	mov	ebp,esi
 	shr	ebp,7
+	lea	eax,DWORD PTR [edx*1+edx]
 	sub	esi,ebp
 	and	eax,4278124286
 	and	esi,454761243
-	xor	eax,esi
-	mov	ebp,2155905152
-	and	ebp,eax
-	lea	ebx,DWORD PTR [eax*1+eax]
-	mov	esi,ebp
+	xor	esi,eax
+	mov	eax,esi
+	and	esi,2155905152
+	mov	ebp,esi
 	shr	ebp,7
+	lea	ebx,DWORD PTR [eax*1+eax]
 	sub	esi,ebp
 	and	ebx,4278124286
 	and	esi,454761243
 	xor	eax,edx
-	xor	ebx,esi
-	mov	ebp,2155905152
-	and	ebp,ebx
-	lea	ecx,DWORD PTR [ebx*1+ebx]
-	mov	esi,ebp
+	xor	esi,ebx
+	mov	ebx,esi
+	and	esi,2155905152
+	mov	ebp,esi
 	shr	ebp,7
+	lea	ecx,DWORD PTR [ebx*1+ebx]
 	xor	ebx,edx
 	sub	esi,ebp
 	and	ecx,4278124286
@@ -3227,6 +3219,6 @@ DB	80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114
 DB	111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .text$	ENDS
 .bss	SEGMENT 'BSS'
-COMM	_OPENSSL_ia32cap_P:DWORD:4
+COMM	_OPENSSL_ia32cap_P:QWORD
 .bss	ENDS
 END

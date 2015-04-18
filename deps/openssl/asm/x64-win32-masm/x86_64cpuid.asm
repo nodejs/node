@@ -7,10 +7,10 @@ EXTERN	OPENSSL_cpuid_setup:NEAR
 
 .CRT$XCU	ENDS
 _DATA	SEGMENT
-COMM	OPENSSL_ia32cap_P:DWORD:4
+COMM	OPENSSL_ia32cap_P:DWORD:2
 
 _DATA	ENDS
-.text$	SEGMENT ALIGN(256) 'CODE'
+.text$	SEGMENT ALIGN(64) 'CODE'
 
 PUBLIC	OPENSSL_atomic_add
 
@@ -19,10 +19,12 @@ OPENSSL_atomic_add	PROC PUBLIC
 	mov	eax,DWORD PTR[rcx]
 $L$spin::	lea	r8,QWORD PTR[rax*1+rdx]
 DB	0f0h
+
 	cmpxchg	DWORD PTR[rcx],r8d
 	jne	$L$spin
 	mov	eax,r8d
 DB	048h,098h
+
 	DB	0F3h,0C3h		;repret
 OPENSSL_atomic_add	ENDP
 
@@ -40,17 +42,9 @@ PUBLIC	OPENSSL_ia32_cpuid
 
 ALIGN	16
 OPENSSL_ia32_cpuid	PROC PUBLIC
-	mov	QWORD PTR[8+rsp],rdi	;WIN64 prologue
-	mov	QWORD PTR[16+rsp],rsi
-	mov	rax,rsp
-$L$SEH_begin_OPENSSL_ia32_cpuid::
-	mov	rdi,rcx
-
-
 	mov	r8,rbx
 
 	xor	eax,eax
-	mov	DWORD PTR[8+rdi],eax
 	cpuid
 	mov	r11d,eax
 
@@ -118,14 +112,6 @@ $L$intel::
 	shr	r10d,14
 	and	r10d,0fffh
 
-	cmp	r11d,7
-	jb	$L$nocacheinfo
-
-	mov	eax,7
-	xor	ecx,ecx
-	cpuid
-	mov	DWORD PTR[8+rdi],ebx
-
 $L$nocacheinfo::
 	mov	eax,1
 	cpuid
@@ -159,22 +145,19 @@ $L$generic::
 	jnc	$L$clear_avx
 	xor	ecx,ecx
 DB	00fh,001h,0d0h
+
 	and	eax,6
 	cmp	eax,6
 	je	$L$done
 $L$clear_avx::
 	mov	eax,0efffe7ffh
 	and	r9d,eax
-	and	DWORD PTR[8+rdi],0ffffffdfh
 $L$done::
 	shl	r9,32
 	mov	eax,r10d
 	mov	rbx,r8
 	or	rax,r9
-	mov	rdi,QWORD PTR[8+rsp]	;WIN64 epilogue
-	mov	rsi,QWORD PTR[16+rsp]
 	DB	0F3h,0C3h		;repret
-$L$SEH_end_OPENSSL_ia32_cpuid::
 OPENSSL_ia32_cpuid	ENDP
 
 PUBLIC	OPENSSL_cleanse
@@ -244,21 +227,6 @@ $L$break_rdrand::
 	cmove	rax,rcx
 	DB	0F3h,0C3h		;repret
 OPENSSL_ia32_rdrand	ENDP
-
-PUBLIC	OPENSSL_ia32_rdseed
-
-ALIGN	16
-OPENSSL_ia32_rdseed	PROC PUBLIC
-	mov	ecx,8
-$L$oop_rdseed::
-DB	72,15,199,248
-	jc	$L$break_rdseed
-	loop	$L$oop_rdseed
-$L$break_rdseed::
-	cmp	rax,0
-	cmove	rax,rcx
-	DB	0F3h,0C3h		;repret
-OPENSSL_ia32_rdseed	ENDP
 
 .text$	ENDS
 END

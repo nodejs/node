@@ -1,5 +1,5 @@
 OPTION	DOTNAME
-.text$	SEGMENT ALIGN(256) 'CODE'
+.text$	SEGMENT ALIGN(64) 'CODE'
 
 
 ALIGN	16
@@ -250,12 +250,14 @@ $L$body_mul_2x2::
 	mov	rax,rdx
 	mov	rbp,r9
 	call	_mul_1x1
+
 	mov	QWORD PTR[16+rsp],rax
 	mov	QWORD PTR[24+rsp],rdx
 
 	mov	rax,QWORD PTR[48+rsp]
 	mov	rbp,QWORD PTR[64+rsp]
 	call	_mul_1x1
+
 	mov	QWORD PTR[rsp],rax
 	mov	QWORD PTR[8+rsp],rdx
 
@@ -264,6 +266,7 @@ $L$body_mul_2x2::
 	xor	rax,QWORD PTR[48+rsp]
 	xor	rbp,QWORD PTR[64+rsp]
 	call	_mul_1x1
+
 	mov	rbx,QWORD PTR[rsp]
 	mov	rcx,QWORD PTR[8+rsp]
 	mov	rdi,QWORD PTR[16+rsp]
@@ -347,6 +350,7 @@ $L$in_prologue::
 	mov	ecx,154
 	DD	0a548f3fch
 
+
 	mov	rsi,r9
 	xor	rcx,rcx
 	mov	rdx,QWORD PTR[8+rsi]
@@ -391,6 +395,7 @@ ALIGN	8
 $L$SEH_info_1x1::
 DB	001h,007h,002h,000h
 DB	007h,001h,011h,000h
+
 $L$SEH_info_2x2::
 DB	9,0,0,0
 	DD	imagerel se_handler

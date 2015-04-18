@@ -88,33 +88,33 @@ __vpaes_encrypt_core	PROC PRIVATE
 	movdqa	xmm1,xmm6
 	movdqa	xmm2,XMMWORD PTR [ebp]
 	pandn	xmm1,xmm0
-	pand	xmm0,xmm6
 	movdqu	xmm5,XMMWORD PTR [edx]
+	psrld	xmm1,4
+	pand	xmm0,xmm6
 DB	102,15,56,0,208
 	movdqa	xmm0,XMMWORD PTR 16[ebp]
-	pxor	xmm2,xmm5
-	psrld	xmm1,4
-	add	edx,16
 DB	102,15,56,0,193
-	lea	ebx,DWORD PTR 192[ebp]
+	pxor	xmm2,xmm5
 	pxor	xmm0,xmm2
+	add	edx,16
+	lea	ebx,DWORD PTR 192[ebp]
 	jmp	$L000enc_entry
 ALIGN	16
 $L001enc_loop:
 	movdqa	xmm4,XMMWORD PTR 32[ebp]
-	movdqa	xmm0,XMMWORD PTR 48[ebp]
 DB	102,15,56,0,226
-DB	102,15,56,0,195
 	pxor	xmm4,xmm5
-	movdqa	xmm5,XMMWORD PTR 64[ebp]
+	movdqa	xmm0,XMMWORD PTR 48[ebp]
+DB	102,15,56,0,195
 	pxor	xmm0,xmm4
-	movdqa	xmm1,XMMWORD PTR [ecx*1+ebx-64]
+	movdqa	xmm5,XMMWORD PTR 64[ebp]
 DB	102,15,56,0,234
+	movdqa	xmm1,XMMWORD PTR [ecx*1+ebx-64]
 	movdqa	xmm2,XMMWORD PTR 80[ebp]
-	movdqa	xmm4,XMMWORD PTR [ecx*1+ebx]
 DB	102,15,56,0,211
-	movdqa	xmm3,xmm0
 	pxor	xmm2,xmm5
+	movdqa	xmm4,XMMWORD PTR [ecx*1+ebx]
+	movdqa	xmm3,xmm0
 DB	102,15,56,0,193
 	add	edx,16
 	pxor	xmm0,xmm2
@@ -123,28 +123,28 @@ DB	102,15,56,0,220
 	pxor	xmm3,xmm0
 DB	102,15,56,0,193
 	and	ecx,48
-	sub	eax,1
 	pxor	xmm0,xmm3
+	sub	eax,1
 $L000enc_entry:
 	movdqa	xmm1,xmm6
-	movdqa	xmm5,XMMWORD PTR [ebp-32]
 	pandn	xmm1,xmm0
 	psrld	xmm1,4
 	pand	xmm0,xmm6
+	movdqa	xmm5,XMMWORD PTR [ebp-32]
 DB	102,15,56,0,232
-	movdqa	xmm3,xmm7
 	pxor	xmm0,xmm1
-DB	102,15,56,0,217
-	movdqa	xmm4,xmm7
-	pxor	xmm3,xmm5
-DB	102,15,56,0,224
-	movdqa	xmm2,xmm7
-	pxor	xmm4,xmm5
-DB	102,15,56,0,211
 	movdqa	xmm3,xmm7
+DB	102,15,56,0,217
+	pxor	xmm3,xmm5
+	movdqa	xmm4,xmm7
+DB	102,15,56,0,224
+	pxor	xmm4,xmm5
+	movdqa	xmm2,xmm7
+DB	102,15,56,0,211
 	pxor	xmm2,xmm0
-DB	102,15,56,0,220
+	movdqa	xmm3,xmm7
 	movdqu	xmm5,XMMWORD PTR [edx]
+DB	102,15,56,0,220
 	pxor	xmm3,xmm1
 	jnz	$L001enc_loop
 	movdqa	xmm4,XMMWORD PTR 96[ebp]
@@ -159,8 +159,8 @@ DB	102,15,56,0,193
 __vpaes_encrypt_core ENDP
 ALIGN	16
 __vpaes_decrypt_core	PROC PRIVATE
-	lea	ebx,DWORD PTR 608[ebp]
 	mov	eax,DWORD PTR 240[edx]
+	lea	ebx,DWORD PTR 608[ebp]
 	movdqa	xmm1,xmm6
 	movdqa	xmm2,XMMWORD PTR [ebx-64]
 	pandn	xmm1,xmm0
@@ -183,56 +183,56 @@ DB	102,15,56,0,193
 ALIGN	16
 $L003dec_loop:
 	movdqa	xmm4,XMMWORD PTR [ebx-32]
-	movdqa	xmm1,XMMWORD PTR [ebx-16]
 DB	102,15,56,0,226
-DB	102,15,56,0,203
-	pxor	xmm0,xmm4
-	movdqa	xmm4,XMMWORD PTR [ebx]
-	pxor	xmm0,xmm1
-	movdqa	xmm1,XMMWORD PTR 16[ebx]
-DB	102,15,56,0,226
-DB	102,15,56,0,197
-DB	102,15,56,0,203
-	pxor	xmm0,xmm4
-	movdqa	xmm4,XMMWORD PTR 32[ebx]
-	pxor	xmm0,xmm1
-	movdqa	xmm1,XMMWORD PTR 48[ebx]
-DB	102,15,56,0,226
-DB	102,15,56,0,197
-DB	102,15,56,0,203
-	pxor	xmm0,xmm4
-	movdqa	xmm4,XMMWORD PTR 64[ebx]
-	pxor	xmm0,xmm1
-	movdqa	xmm1,XMMWORD PTR 80[ebx]
-DB	102,15,56,0,226
-DB	102,15,56,0,197
-DB	102,15,56,0,203
+	pxor	xmm4,xmm0
+	movdqa	xmm0,XMMWORD PTR [ebx-16]
+DB	102,15,56,0,195
 	pxor	xmm0,xmm4
 	add	edx,16
-DB	102,15,58,15,237,12
-	pxor	xmm0,xmm1
+DB	102,15,56,0,197
+	movdqa	xmm4,XMMWORD PTR [ebx]
+DB	102,15,56,0,226
+	pxor	xmm4,xmm0
+	movdqa	xmm0,XMMWORD PTR 16[ebx]
+DB	102,15,56,0,195
+	pxor	xmm0,xmm4
 	sub	eax,1
+DB	102,15,56,0,197
+	movdqa	xmm4,XMMWORD PTR 32[ebx]
+DB	102,15,56,0,226
+	pxor	xmm4,xmm0
+	movdqa	xmm0,XMMWORD PTR 48[ebx]
+DB	102,15,56,0,195
+	pxor	xmm0,xmm4
+DB	102,15,56,0,197
+	movdqa	xmm4,XMMWORD PTR 64[ebx]
+DB	102,15,56,0,226
+	pxor	xmm4,xmm0
+	movdqa	xmm0,XMMWORD PTR 80[ebx]
+DB	102,15,56,0,195
+	pxor	xmm0,xmm4
+DB	102,15,58,15,237,12
 $L002dec_entry:
 	movdqa	xmm1,xmm6
-	movdqa	xmm2,XMMWORD PTR [ebp-32]
 	pandn	xmm1,xmm0
-	pand	xmm0,xmm6
 	psrld	xmm1,4
+	pand	xmm0,xmm6
+	movdqa	xmm2,XMMWORD PTR [ebp-32]
 DB	102,15,56,0,208
-	movdqa	xmm3,xmm7
 	pxor	xmm0,xmm1
+	movdqa	xmm3,xmm7
 DB	102,15,56,0,217
-	movdqa	xmm4,xmm7
 	pxor	xmm3,xmm2
+	movdqa	xmm4,xmm7
 DB	102,15,56,0,224
 	pxor	xmm4,xmm2
 	movdqa	xmm2,xmm7
 DB	102,15,56,0,211
-	movdqa	xmm3,xmm7
 	pxor	xmm2,xmm0
+	movdqa	xmm3,xmm7
 DB	102,15,56,0,220
-	movdqu	xmm0,XMMWORD PTR [edx]
 	pxor	xmm3,xmm1
+	movdqu	xmm0,XMMWORD PTR [edx]
 	jnz	$L003dec_loop
 	movdqa	xmm4,XMMWORD PTR 96[ebx]
 DB	102,15,56,0,226
@@ -339,12 +339,12 @@ $L013schedule_mangle_last_dec:
 __vpaes_schedule_core ENDP
 ALIGN	16
 __vpaes_schedule_192_smear	PROC PRIVATE
-	pshufd	xmm1,xmm6,128
+	pshufd	xmm0,xmm6,128
+	pxor	xmm6,xmm0
 	pshufd	xmm0,xmm7,254
-	pxor	xmm6,xmm1
-	pxor	xmm1,xmm1
 	pxor	xmm6,xmm0
 	movdqa	xmm0,xmm6
+	pxor	xmm1,xmm1
 	movhlps	xmm6,xmm1
 	ret
 __vpaes_schedule_192_smear ENDP

@@ -28,8 +28,8 @@ L_RC4_begin:
 	movl	(%edi,%eax,4),%ecx
 	andl	$-4,%edx
 	jz	L002loop1
-	movl	%ebp,32(%esp)
 	testl	$-8,%edx
+	movl	%ebp,32(%esp)
 	jz	L003go4loop4
 	call	L004PIC_me_up
 L004PIC_me_up:
@@ -376,4 +376,4 @@ L019opts:
 L_OPENSSL_ia32cap_P$non_lazy_ptr:
 .indirect_symbol	_OPENSSL_ia32cap_P
 .long	0
-.comm	_OPENSSL_ia32cap_P,16,2
+.comm	_OPENSSL_ia32cap_P,8,2

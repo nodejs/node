@@ -66,230 +66,228 @@ whirlpool_block_mmx:
 	movq	4096(%ebp,%esi,8),%mm0
 	movl	(%esp),%eax
 	movl	4(%esp),%ebx
-	movzbl	%al,%ecx
-	movzbl	%ah,%edx
-	shrl	$16,%eax
+	movb	%al,%cl
+	movb	%ah,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
+	shrl	$16,%eax
 	pxor	(%ebp,%esi,8),%mm0
 	movq	7(%ebp,%edi,8),%mm1
+	movb	%al,%cl
+	movb	%ah,%dl
 	movl	8(%esp),%eax
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
 	movq	6(%ebp,%esi,8),%mm2
 	movq	5(%ebp,%edi,8),%mm3
-	shrl	$16,%ebx
+	movb	%bl,%cl
+	movb	%bh,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
+	shrl	$16,%ebx
 	movq	4(%ebp,%esi,8),%mm4
 	movq	3(%ebp,%edi,8),%mm5
+	movb	%bl,%cl
+	movb	%bh,%dl
 	movl	12(%esp),%ebx
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
 	movq	2(%ebp,%esi,8),%mm6
 	movq	1(%ebp,%edi,8),%mm7
-	shrl	$16,%eax
+	movb	%al,%cl
+	movb	%ah,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
+	shrl	$16,%eax
 	pxor	(%ebp,%esi,8),%mm1
 	pxor	7(%ebp,%edi,8),%mm2
+	movb	%al,%cl
+	movb	%ah,%dl
 	movl	16(%esp),%eax
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
 	pxor	6(%ebp,%esi,8),%mm3
 	pxor	5(%ebp,%edi,8),%mm4
-	shrl	$16,%ebx
+	movb	%bl,%cl
+	movb	%bh,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
+	shrl	$16,%ebx
 	pxor	4(%ebp,%esi,8),%mm5
 	pxor	3(%ebp,%edi,8),%mm6
+	movb	%bl,%cl
+	movb	%bh,%dl
 	movl	20(%esp),%ebx
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
 	pxor	2(%ebp,%esi,8),%mm7
 	pxor	1(%ebp,%edi,8),%mm0
-	shrl	$16,%eax
+	movb	%al,%cl
+	movb	%ah,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
+	shrl	$16,%eax
 	pxor	(%ebp,%esi,8),%mm2
 	pxor	7(%ebp,%edi,8),%mm3
+	movb	%al,%cl
+	movb	%ah,%dl
 	movl	24(%esp),%eax
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
 	pxor	6(%ebp,%esi,8),%mm4
 	pxor	5(%ebp,%edi,8),%mm5
-	shrl	$16,%ebx
+	movb	%bl,%cl
+	movb	%bh,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
+	shrl	$16,%ebx
 	pxor	4(%ebp,%esi,8),%mm6
 	pxor	3(%ebp,%edi,8),%mm7
+	movb	%bl,%cl
+	movb	%bh,%dl
 	movl	28(%esp),%ebx
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
 	pxor	2(%ebp,%esi,8),%mm0
 	pxor	1(%ebp,%edi,8),%mm1
-	shrl	$16,%eax
+	movb	%al,%cl
+	movb	%ah,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
+	shrl	$16,%eax
 	pxor	(%ebp,%esi,8),%mm3
 	pxor	7(%ebp,%edi,8),%mm4
+	movb	%al,%cl
+	movb	%ah,%dl
 	movl	32(%esp),%eax
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
 	pxor	6(%ebp,%esi,8),%mm5
 	pxor	5(%ebp,%edi,8),%mm6
-	shrl	$16,%ebx
+	movb	%bl,%cl
+	movb	%bh,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
+	shrl	$16,%ebx
 	pxor	4(%ebp,%esi,8),%mm7
 	pxor	3(%ebp,%edi,8),%mm0
+	movb	%bl,%cl
+	movb	%bh,%dl
 	movl	36(%esp),%ebx
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
 	pxor	2(%ebp,%esi,8),%mm1
 	pxor	1(%ebp,%edi,8),%mm2
-	shrl	$16,%eax
+	movb	%al,%cl
+	movb	%ah,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
+	shrl	$16,%eax
 	pxor	(%ebp,%esi,8),%mm4
 	pxor	7(%ebp,%edi,8),%mm5
+	movb	%al,%cl
+	movb	%ah,%dl
 	movl	40(%esp),%eax
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
 	pxor	6(%ebp,%esi,8),%mm6
 	pxor	5(%ebp,%edi,8),%mm7
-	shrl	$16,%ebx
+	movb	%bl,%cl
+	movb	%bh,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
+	shrl	$16,%ebx
 	pxor	4(%ebp,%esi,8),%mm0
 	pxor	3(%ebp,%edi,8),%mm1
+	movb	%bl,%cl
+	movb	%bh,%dl
 	movl	44(%esp),%ebx
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
 	pxor	2(%ebp,%esi,8),%mm2
 	pxor	1(%ebp,%edi,8),%mm3
-	shrl	$16,%eax
+	movb	%al,%cl
+	movb	%ah,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
+	shrl	$16,%eax
 	pxor	(%ebp,%esi,8),%mm5
 	pxor	7(%ebp,%edi,8),%mm6
+	movb	%al,%cl
+	movb	%ah,%dl
 	movl	48(%esp),%eax
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
 	pxor	6(%ebp,%esi,8),%mm7
 	pxor	5(%ebp,%edi,8),%mm0
-	shrl	$16,%ebx
+	movb	%bl,%cl
+	movb	%bh,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
+	shrl	$16,%ebx
 	pxor	4(%ebp,%esi,8),%mm1
 	pxor	3(%ebp,%edi,8),%mm2
+	movb	%bl,%cl
+	movb	%bh,%dl
 	movl	52(%esp),%ebx
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
 	pxor	2(%ebp,%esi,8),%mm3
 	pxor	1(%ebp,%edi,8),%mm4
-	shrl	$16,%eax
+	movb	%al,%cl
+	movb	%ah,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
+	shrl	$16,%eax
 	pxor	(%ebp,%esi,8),%mm6
 	pxor	7(%ebp,%edi,8),%mm7
+	movb	%al,%cl
+	movb	%ah,%dl
 	movl	56(%esp),%eax
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
 	pxor	6(%ebp,%esi,8),%mm0
 	pxor	5(%ebp,%edi,8),%mm1
-	shrl	$16,%ebx
+	movb	%bl,%cl
+	movb	%bh,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
+	shrl	$16,%ebx
 	pxor	4(%ebp,%esi,8),%mm2
 	pxor	3(%ebp,%edi,8),%mm3
+	movb	%bl,%cl
+	movb	%bh,%dl
 	movl	60(%esp),%ebx
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
 	pxor	2(%ebp,%esi,8),%mm4
 	pxor	1(%ebp,%edi,8),%mm5
-	shrl	$16,%eax
+	movb	%al,%cl
+	movb	%ah,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
+	shrl	$16,%eax
 	pxor	(%ebp,%esi,8),%mm7
 	pxor	7(%ebp,%edi,8),%mm0
+	movb	%al,%cl
+	movb	%ah,%dl
 	movl	64(%esp),%eax
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
 	pxor	6(%ebp,%esi,8),%mm1
 	pxor	5(%ebp,%edi,8),%mm2
-	shrl	$16,%ebx
+	movb	%bl,%cl
+	movb	%bh,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
+	shrl	$16,%ebx
 	pxor	4(%ebp,%esi,8),%mm3
 	pxor	3(%ebp,%edi,8),%mm4
+	movb	%bl,%cl
+	movb	%bh,%dl
 	movl	68(%esp),%ebx
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
 	pxor	2(%ebp,%esi,8),%mm5
 	pxor	1(%ebp,%edi,8),%mm6
 	movq	%mm0,(%esp)
@@ -300,226 +298,226 @@ whirlpool_block_mmx:
 	movq	%mm5,40(%esp)
 	movq	%mm6,48(%esp)
 	movq	%mm7,56(%esp)
-	shrl	$16,%eax
+	movb	%al,%cl
+	movb	%ah,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
+	shrl	$16,%eax
 	pxor	(%ebp,%esi,8),%mm0
 	pxor	7(%ebp,%edi,8),%mm1
+	movb	%al,%cl
+	movb	%ah,%dl
 	movl	72(%esp),%eax
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
 	pxor	6(%ebp,%esi,8),%mm2
 	pxor	5(%ebp,%edi,8),%mm3
-	shrl	$16,%ebx
+	movb	%bl,%cl
+	movb	%bh,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
+	shrl	$16,%ebx
 	pxor	4(%ebp,%esi,8),%mm4
 	pxor	3(%ebp,%edi,8),%mm5
+	movb	%bl,%cl
+	movb	%bh,%dl
 	movl	76(%esp),%ebx
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
 	pxor	2(%ebp,%esi,8),%mm6
 	pxor	1(%ebp,%edi,8),%mm7
-	shrl	$16,%eax
+	movb	%al,%cl
+	movb	%ah,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
+	shrl	$16,%eax
 	pxor	(%ebp,%esi,8),%mm1
 	pxor	7(%ebp,%edi,8),%mm2
+	movb	%al,%cl
+	movb	%ah,%dl
 	movl	80(%esp),%eax
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
 	pxor	6(%ebp,%esi,8),%mm3
 	pxor	5(%ebp,%edi,8),%mm4
-	shrl	$16,%ebx
+	movb	%bl,%cl
+	movb	%bh,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
+	shrl	$16,%ebx
 	pxor	4(%ebp,%esi,8),%mm5
 	pxor	3(%ebp,%edi,8),%mm6
+	movb	%bl,%cl
+	movb	%bh,%dl
 	movl	84(%esp),%ebx
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
 	pxor	2(%ebp,%esi,8),%mm7
 	pxor	1(%ebp,%edi,8),%mm0
-	shrl	$16,%eax
+	movb	%al,%cl
+	movb	%ah,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
+	shrl	$16,%eax
 	pxor	(%ebp,%esi,8),%mm2
 	pxor	7(%ebp,%edi,8),%mm3
+	movb	%al,%cl
+	movb	%ah,%dl
 	movl	88(%esp),%eax
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
 	pxor	6(%ebp,%esi,8),%mm4
 	pxor	5(%ebp,%edi,8),%mm5
-	shrl	$16,%ebx
+	movb	%bl,%cl
+	movb	%bh,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
+	shrl	$16,%ebx
 	pxor	4(%ebp,%esi,8),%mm6
 	pxor	3(%ebp,%edi,8),%mm7
+	movb	%bl,%cl
+	movb	%bh,%dl
 	movl	92(%esp),%ebx
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
 	pxor	2(%ebp,%esi,8),%mm0
 	pxor	1(%ebp,%edi,8),%mm1
-	shrl	$16,%eax
+	movb	%al,%cl
+	movb	%ah,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
+	shrl	$16,%eax
 	pxor	(%ebp,%esi,8),%mm3
 	pxor	7(%ebp,%edi,8),%mm4
+	movb	%al,%cl
+	movb	%ah,%dl
 	movl	96(%esp),%eax
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
 	pxor	6(%ebp,%esi,8),%mm5
 	pxor	5(%ebp,%edi,8),%mm6
-	shrl	$16,%ebx
+	movb	%bl,%cl
+	movb	%bh,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
+	shrl	$16,%ebx
 	pxor	4(%ebp,%esi,8),%mm7
 	pxor	3(%ebp,%edi,8),%mm0
+	movb	%bl,%cl
+	movb	%bh,%dl
 	movl	100(%esp),%ebx
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
 	pxor	2(%ebp,%esi,8),%mm1
 	pxor	1(%ebp,%edi,8),%mm2
-	shrl	$16,%eax
+	movb	%al,%cl
+	movb	%ah,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
+	shrl	$16,%eax
 	pxor	(%ebp,%esi,8),%mm4
 	pxor	7(%ebp,%edi,8),%mm5
+	movb	%al,%cl
+	movb	%ah,%dl
 	movl	104(%esp),%eax
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
 	pxor	6(%ebp,%esi,8),%mm6
 	pxor	5(%ebp,%edi,8),%mm7
-	shrl	$16,%ebx
+	movb	%bl,%cl
+	movb	%bh,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
+	shrl	$16,%ebx
 	pxor	4(%ebp,%esi,8),%mm0
 	pxor	3(%ebp,%edi,8),%mm1
+	movb	%bl,%cl
+	movb	%bh,%dl
 	movl	108(%esp),%ebx
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
 	pxor	2(%ebp,%esi,8),%mm2
 	pxor	1(%ebp,%edi,8),%mm3
-	shrl	$16,%eax
+	movb	%al,%cl
+	movb	%ah,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
+	shrl	$16,%eax
 	pxor	(%ebp,%esi,8),%mm5
 	pxor	7(%ebp,%edi,8),%mm6
+	movb	%al,%cl
+	movb	%ah,%dl
 	movl	112(%esp),%eax
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
 	pxor	6(%ebp,%esi,8),%mm7
 	pxor	5(%ebp,%edi,8),%mm0
-	shrl	$16,%ebx
+	movb	%bl,%cl
+	movb	%bh,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
+	shrl	$16,%ebx
 	pxor	4(%ebp,%esi,8),%mm1
 	pxor	3(%ebp,%edi,8),%mm2
+	movb	%bl,%cl
+	movb	%bh,%dl
 	movl	116(%esp),%ebx
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
 	pxor	2(%ebp,%esi,8),%mm3
 	pxor	1(%ebp,%edi,8),%mm4
-	shrl	$16,%eax
+	movb	%al,%cl
+	movb	%ah,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
+	shrl	$16,%eax
 	pxor	(%ebp,%esi,8),%mm6
 	pxor	7(%ebp,%edi,8),%mm7
+	movb	%al,%cl
+	movb	%ah,%dl
 	movl	120(%esp),%eax
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
 	pxor	6(%ebp,%esi,8),%mm0
 	pxor	5(%ebp,%edi,8),%mm1
-	shrl	$16,%ebx
+	movb	%bl,%cl
+	movb	%bh,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
+	shrl	$16,%ebx
 	pxor	4(%ebp,%esi,8),%mm2
 	pxor	3(%ebp,%edi,8),%mm3
+	movb	%bl,%cl
+	movb	%bh,%dl
 	movl	124(%esp),%ebx
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
 	pxor	2(%ebp,%esi,8),%mm4
 	pxor	1(%ebp,%edi,8),%mm5
-	shrl	$16,%eax
+	movb	%al,%cl
+	movb	%ah,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
+	shrl	$16,%eax
 	pxor	(%ebp,%esi,8),%mm7
 	pxor	7(%ebp,%edi,8),%mm0
+	movb	%al,%cl
+	movb	%ah,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
 	pxor	6(%ebp,%esi,8),%mm1
 	pxor	5(%ebp,%edi,8),%mm2
-	shrl	$16,%ebx
+	movb	%bl,%cl
+	movb	%bh,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%bl,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%bh,%edx
+	shrl	$16,%ebx
 	pxor	4(%ebp,%esi,8),%mm3
 	pxor	3(%ebp,%edi,8),%mm4
+	movb	%bl,%cl
+	movb	%bh,%dl
 	leal	(%ecx,%ecx,1),%esi
-	movzbl	%al,%ecx
 	leal	(%edx,%edx,1),%edi
-	movzbl	%ah,%edx
 	pxor	2(%ebp,%esi,8),%mm5
 	pxor	1(%ebp,%edi,8),%mm6
 	leal	128(%esp),%ebx

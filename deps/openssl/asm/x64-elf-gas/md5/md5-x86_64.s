@@ -1,4 +1,5 @@
 .text
+
 .align	16
 
 .globl	md5_block_asm_data_order
@@ -30,6 +31,7 @@ md5_block_asm_data_order:
 
 	cmpq	%rdi,%rsi
 	je	.Lend
+
 
 
 .Lloop:
@@ -649,6 +651,7 @@ md5_block_asm_data_order:
 	addq	$64,%rsi
 	cmpq	%rdi,%rsi
 	jb	.Lloop
+
 
 
 .Lend:

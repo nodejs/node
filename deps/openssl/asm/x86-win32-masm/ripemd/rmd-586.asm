@@ -25,6 +25,7 @@ $L_ripemd160_block_asm_data_order_begin::
 	sub	esp,108
 $L000start:
 	;
+
 	mov	ebx,DWORD PTR [eax]
 	mov	ebp,DWORD PTR 4[eax]
 	mov	DWORD PTR [esp],ebx

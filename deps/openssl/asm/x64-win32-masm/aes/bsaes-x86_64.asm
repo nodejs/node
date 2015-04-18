@@ -1,5 +1,5 @@
 OPTION	DOTNAME
-.text$	SEGMENT ALIGN(256) 'CODE'
+.text$	SEGMENT ALIGN(64) 'CODE'
 
 EXTERN	asm_AES_encrypt:NEAR
 EXTERN	asm_AES_decrypt:NEAR
@@ -14,18 +14,18 @@ _bsaes_encrypt8	PROC PRIVATE
 	movdqa	xmm7,XMMWORD PTR[80+r11]
 	pxor	xmm15,xmm8
 	pxor	xmm0,xmm8
-	pxor	xmm1,xmm8
-	pxor	xmm2,xmm8
 DB	102,68,15,56,0,255
+	pxor	xmm1,xmm8
 DB	102,15,56,0,199
-	pxor	xmm3,xmm8
-	pxor	xmm4,xmm8
+	pxor	xmm2,xmm8
 DB	102,15,56,0,207
+	pxor	xmm3,xmm8
 DB	102,15,56,0,215
-	pxor	xmm5,xmm8
-	pxor	xmm6,xmm8
+	pxor	xmm4,xmm8
 DB	102,15,56,0,223
+	pxor	xmm5,xmm8
 DB	102,15,56,0,231
+	pxor	xmm6,xmm8
 DB	102,15,56,0,239
 DB	102,15,56,0,247
 _bsaes_encrypt8_bitslice::
@@ -122,21 +122,21 @@ ALIGN	16
 $L$enc_loop::
 	pxor	xmm15,XMMWORD PTR[rax]
 	pxor	xmm0,XMMWORD PTR[16+rax]
-	pxor	xmm1,XMMWORD PTR[32+rax]
-	pxor	xmm2,XMMWORD PTR[48+rax]
 DB	102,68,15,56,0,255
+	pxor	xmm1,XMMWORD PTR[32+rax]
 DB	102,15,56,0,199
-	pxor	xmm3,XMMWORD PTR[64+rax]
-	pxor	xmm4,XMMWORD PTR[80+rax]
+	pxor	xmm2,XMMWORD PTR[48+rax]
 DB	102,15,56,0,207
+	pxor	xmm3,XMMWORD PTR[64+rax]
 DB	102,15,56,0,215
-	pxor	xmm5,XMMWORD PTR[96+rax]
-	pxor	xmm6,XMMWORD PTR[112+rax]
+	pxor	xmm4,XMMWORD PTR[80+rax]
 DB	102,15,56,0,223
+	pxor	xmm5,XMMWORD PTR[96+rax]
 DB	102,15,56,0,231
+	pxor	xmm6,XMMWORD PTR[112+rax]
 DB	102,15,56,0,239
-DB	102,15,56,0,247
 	lea	rax,QWORD PTR[128+rax]
+DB	102,15,56,0,247
 $L$enc_sbox::
 	pxor	xmm4,xmm5
 	pxor	xmm1,xmm0
@@ -486,18 +486,18 @@ _bsaes_decrypt8	PROC PRIVATE
 	movdqa	xmm7,XMMWORD PTR[((-48))+r11]
 	pxor	xmm15,xmm8
 	pxor	xmm0,xmm8
-	pxor	xmm1,xmm8
-	pxor	xmm2,xmm8
 DB	102,68,15,56,0,255
+	pxor	xmm1,xmm8
 DB	102,15,56,0,199
-	pxor	xmm3,xmm8
-	pxor	xmm4,xmm8
+	pxor	xmm2,xmm8
 DB	102,15,56,0,207
+	pxor	xmm3,xmm8
 DB	102,15,56,0,215
-	pxor	xmm5,xmm8
-	pxor	xmm6,xmm8
+	pxor	xmm4,xmm8
 DB	102,15,56,0,223
+	pxor	xmm5,xmm8
 DB	102,15,56,0,231
+	pxor	xmm6,xmm8
 DB	102,15,56,0,239
 DB	102,15,56,0,247
 	movdqa	xmm7,XMMWORD PTR[r11]
@@ -593,21 +593,21 @@ ALIGN	16
 $L$dec_loop::
 	pxor	xmm15,XMMWORD PTR[rax]
 	pxor	xmm0,XMMWORD PTR[16+rax]
-	pxor	xmm1,XMMWORD PTR[32+rax]
-	pxor	xmm2,XMMWORD PTR[48+rax]
 DB	102,68,15,56,0,255
+	pxor	xmm1,XMMWORD PTR[32+rax]
 DB	102,15,56,0,199
-	pxor	xmm3,XMMWORD PTR[64+rax]
-	pxor	xmm4,XMMWORD PTR[80+rax]
+	pxor	xmm2,XMMWORD PTR[48+rax]
 DB	102,15,56,0,207
+	pxor	xmm3,XMMWORD PTR[64+rax]
 DB	102,15,56,0,215
-	pxor	xmm5,XMMWORD PTR[96+rax]
-	pxor	xmm6,XMMWORD PTR[112+rax]
+	pxor	xmm4,XMMWORD PTR[80+rax]
 DB	102,15,56,0,223
+	pxor	xmm5,XMMWORD PTR[96+rax]
 DB	102,15,56,0,231
+	pxor	xmm6,XMMWORD PTR[112+rax]
 DB	102,15,56,0,239
-DB	102,15,56,0,247
 	lea	rax,QWORD PTR[128+rax]
+DB	102,15,56,0,247
 $L$dec_sbox::
 	pxor	xmm2,xmm3
 
@@ -1300,6 +1300,7 @@ $L$cbc_dec_one::
 	lea	rdx,QWORD PTR[32+rbp]
 	lea	r8,QWORD PTR[r15]
 	call	asm_AES_decrypt
+
 	pxor	xmm14,XMMWORD PTR[32+rbp]
 	movdqu	XMMWORD PTR[r13],xmm14
 	movdqa	xmm14,xmm15
@@ -1421,21 +1422,21 @@ $L$ctr_enc_loop::
 	movdqa	xmm7,XMMWORD PTR[((-16))+r11]
 	pxor	xmm15,xmm8
 	pxor	xmm0,xmm8
-	pxor	xmm1,xmm8
-	pxor	xmm2,xmm8
 DB	102,68,15,56,0,255
+	pxor	xmm1,xmm8
 DB	102,15,56,0,199
-	pxor	xmm3,xmm8
-	pxor	xmm4,xmm8
+	pxor	xmm2,xmm8
 DB	102,15,56,0,207
+	pxor	xmm3,xmm8
 DB	102,15,56,0,215
-	pxor	xmm5,xmm8
-	pxor	xmm6,xmm8
+	pxor	xmm4,xmm8
 DB	102,15,56,0,223
+	pxor	xmm5,xmm8
 DB	102,15,56,0,231
+	pxor	xmm6,xmm8
 DB	102,15,56,0,239
-DB	102,15,56,0,247
 	lea	r11,QWORD PTR[$L$BS0]
+DB	102,15,56,0,247
 	mov	r10d,ebx
 
 	call	_bsaes_encrypt8_bitslice
@@ -1599,6 +1600,7 @@ $L$xts_enc_body::
 	lea	rdx,QWORD PTR[32+rbp]
 	lea	r8,QWORD PTR[r10]
 	call	asm_AES_encrypt
+
 
 	mov	eax,DWORD PTR[240+r15]
 	mov	rbx,r14
@@ -1969,6 +1971,7 @@ $L$xts_enc_1::
 	lea	rdx,QWORD PTR[32+rbp]
 	lea	r8,QWORD PTR[r15]
 	call	asm_AES_encrypt
+
 	pxor	xmm15,XMMWORD PTR[32+rbp]
 
 
@@ -2002,6 +2005,7 @@ $L$xts_enc_steal::
 	movdqa	XMMWORD PTR[32+rbp],xmm15
 	lea	r8,QWORD PTR[r15]
 	call	asm_AES_encrypt
+
 	pxor	xmm6,XMMWORD PTR[32+rbp]
 	movdqu	XMMWORD PTR[(-16)+r13],xmm6
 
@@ -2076,6 +2080,7 @@ $L$xts_dec_body::
 	lea	rdx,QWORD PTR[32+rbp]
 	lea	r8,QWORD PTR[r10]
 	call	asm_AES_encrypt
+
 
 	mov	eax,DWORD PTR[240+r15]
 	mov	rbx,r14
@@ -2453,6 +2458,7 @@ $L$xts_dec_1::
 	lea	rdx,QWORD PTR[32+rbp]
 	lea	r8,QWORD PTR[r15]
 	call	asm_AES_decrypt
+
 	pxor	xmm15,XMMWORD PTR[32+rbp]
 
 
@@ -2484,6 +2490,7 @@ $L$xts_dec_done::
 	movdqa	XMMWORD PTR[32+rbp],xmm15
 	lea	r8,QWORD PTR[r15]
 	call	asm_AES_decrypt
+
 	pxor	xmm6,XMMWORD PTR[32+rbp]
 	mov	rdx,r13
 	movdqu	XMMWORD PTR[r13],xmm6
@@ -2505,6 +2512,7 @@ $L$xts_dec_steal::
 	movdqa	XMMWORD PTR[32+rbp],xmm15
 	lea	r8,QWORD PTR[r15]
 	call	asm_AES_decrypt
+
 	pxor	xmm5,XMMWORD PTR[32+rbp]
 	movdqu	XMMWORD PTR[r13],xmm5
 
@@ -2639,6 +2647,7 @@ se_handler	PROC PRIVATE
 	lea	rdi,QWORD PTR[512+r8]
 	mov	ecx,20
 	DD	0a548f3fch
+
 	lea	rax,QWORD PTR[160+rax]
 
 	mov	rbp,QWORD PTR[112+rax]
@@ -2662,6 +2671,7 @@ $L$in_prologue::
 	mov	rsi,r8
 	mov	ecx,154
 	DD	0a548f3fch
+
 
 	mov	rsi,r9
 	xor	rcx,rcx
@@ -2717,18 +2727,22 @@ $L$cbc_dec_info::
 DB	9,0,0,0
 	DD	imagerel se_handler
 	DD	imagerel $L$cbc_dec_body,imagerel $L$cbc_dec_epilogue
+
 $L$ctr_enc_info::
 DB	9,0,0,0
 	DD	imagerel se_handler
 	DD	imagerel $L$ctr_enc_body,imagerel $L$ctr_enc_epilogue
+
 $L$xts_enc_info::
 DB	9,0,0,0
 	DD	imagerel se_handler
 	DD	imagerel $L$xts_enc_body,imagerel $L$xts_enc_epilogue
+
 $L$xts_dec_info::
 DB	9,0,0,0
 	DD	imagerel se_handler
 	DD	imagerel $L$xts_dec_body,imagerel $L$xts_dec_epilogue
+
 
 .xdata	ENDS
 END

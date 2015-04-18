@@ -1,4 +1,5 @@
 .text
+
 .p2align	4
 
 .globl	_md5_block_asm_data_order
@@ -30,6 +31,7 @@ L$prologue:
 
 	cmpq	%rdi,%rsi
 	je	L$end
+
 
 
 L$loop:
@@ -649,6 +651,7 @@ L$loop:
 	addq	$64,%rsi
 	cmpq	%rdi,%rsi
 	jb	L$loop
+
 
 
 L$end:

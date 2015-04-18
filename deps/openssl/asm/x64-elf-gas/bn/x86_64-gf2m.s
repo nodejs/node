@@ -1,5 +1,6 @@
 .text
 
+
 .type	_mul_1x1,@function
 .align	16
 _mul_1x1:
@@ -246,12 +247,14 @@ bn_GF2m_mul_2x2:
 	movq	%rsi,%rax
 	movq	%rcx,%rbp
 	call	_mul_1x1
+
 	movq	%rax,16(%rsp)
 	movq	%rdx,24(%rsp)
 
 	movq	48(%rsp),%rax
 	movq	64(%rsp),%rbp
 	call	_mul_1x1
+
 	movq	%rax,0(%rsp)
 	movq	%rdx,8(%rsp)
 
@@ -260,6 +263,7 @@ bn_GF2m_mul_2x2:
 	xorq	48(%rsp),%rax
 	xorq	64(%rsp),%rbp
 	call	_mul_1x1
+
 	movq	0(%rsp),%rbx
 	movq	8(%rsp),%rcx
 	movq	16(%rsp),%rdi

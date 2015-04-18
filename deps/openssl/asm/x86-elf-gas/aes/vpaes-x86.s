@@ -73,33 +73,33 @@ _vpaes_encrypt_core:
 	movdqa	%xmm6,%xmm1
 	movdqa	(%ebp),%xmm2
 	pandn	%xmm0,%xmm1
-	pand	%xmm6,%xmm0
 	movdqu	(%edx),%xmm5
+	psrld	$4,%xmm1
+	pand	%xmm6,%xmm0
 .byte	102,15,56,0,208
 	movdqa	16(%ebp),%xmm0
-	pxor	%xmm5,%xmm2
-	psrld	$4,%xmm1
-	addl	$16,%edx
 .byte	102,15,56,0,193
-	leal	192(%ebp),%ebx
+	pxor	%xmm5,%xmm2
 	pxor	%xmm2,%xmm0
+	addl	$16,%edx
+	leal	192(%ebp),%ebx
 	jmp	.L000enc_entry
 .align	16
 .L001enc_loop:
 	movdqa	32(%ebp),%xmm4
-	movdqa	48(%ebp),%xmm0
 .byte	102,15,56,0,226
-.byte	102,15,56,0,195
 	pxor	%xmm5,%xmm4
-	movdqa	64(%ebp),%xmm5
+	movdqa	48(%ebp),%xmm0
+.byte	102,15,56,0,195
 	pxor	%xmm4,%xmm0
-	movdqa	-64(%ebx,%ecx,1),%xmm1
+	movdqa	64(%ebp),%xmm5
 .byte	102,15,56,0,234
+	movdqa	-64(%ebx,%ecx,1),%xmm1
 	movdqa	80(%ebp),%xmm2
-	movdqa	(%ebx,%ecx,1),%xmm4
 .byte	102,15,56,0,211
-	movdqa	%xmm0,%xmm3
 	pxor	%xmm5,%xmm2
+	movdqa	(%ebx,%ecx,1),%xmm4
+	movdqa	%xmm0,%xmm3
 .byte	102,15,56,0,193
 	addl	$16,%edx
 	pxor	%xmm2,%xmm0
@@ -108,28 +108,28 @@ _vpaes_encrypt_core:
 	pxor	%xmm0,%xmm3
 .byte	102,15,56,0,193
 	andl	$48,%ecx
-	subl	$1,%eax
 	pxor	%xmm3,%xmm0
+	subl	$1,%eax
 .L000enc_entry:
 	movdqa	%xmm6,%xmm1
-	movdqa	-32(%ebp),%xmm5
 	pandn	%xmm0,%xmm1
 	psrld	$4,%xmm1
 	pand	%xmm6,%xmm0
+	movdqa	-32(%ebp),%xmm5
 .byte	102,15,56,0,232
-	movdqa	%xmm7,%xmm3
 	pxor	%xmm1,%xmm0
-.byte	102,15,56,0,217
-	movdqa	%xmm7,%xmm4
-	pxor	%xmm5,%xmm3
-.byte	102,15,56,0,224
-	movdqa	%xmm7,%xmm2
-	pxor	%xmm5,%xmm4
-.byte	102,15,56,0,211
 	movdqa	%xmm7,%xmm3
+.byte	102,15,56,0,217
+	pxor	%xmm5,%xmm3
+	movdqa	%xmm7,%xmm4
+.byte	102,15,56,0,224
+	pxor	%xmm5,%xmm4
+	movdqa	%xmm7,%xmm2
+.byte	102,15,56,0,211
 	pxor	%xmm0,%xmm2
-.byte	102,15,56,0,220
+	movdqa	%xmm7,%xmm3
 	movdqu	(%edx),%xmm5
+.byte	102,15,56,0,220
 	pxor	%xmm1,%xmm3
 	jnz	.L001enc_loop
 	movdqa	96(%ebp),%xmm4
@@ -145,8 +145,8 @@ _vpaes_encrypt_core:
 .type	_vpaes_decrypt_core,@function
 .align	16
 _vpaes_decrypt_core:
-	leal	608(%ebp),%ebx
 	movl	240(%edx),%eax
+	leal	608(%ebp),%ebx
 	movdqa	%xmm6,%xmm1
 	movdqa	-64(%ebx),%xmm2
 	pandn	%xmm0,%xmm1
@@ -169,56 +169,56 @@ _vpaes_decrypt_core:
 .align	16
 .L003dec_loop:
 	movdqa	-32(%ebx),%xmm4
-	movdqa	-16(%ebx),%xmm1
 .byte	102,15,56,0,226
-.byte	102,15,56,0,203
-	pxor	%xmm4,%xmm0
-	movdqa	(%ebx),%xmm4
-	pxor	%xmm1,%xmm0
-	movdqa	16(%ebx),%xmm1
-.byte	102,15,56,0,226
-.byte	102,15,56,0,197
-.byte	102,15,56,0,203
-	pxor	%xmm4,%xmm0
-	movdqa	32(%ebx),%xmm4
-	pxor	%xmm1,%xmm0
-	movdqa	48(%ebx),%xmm1
-.byte	102,15,56,0,226
-.byte	102,15,56,0,197
-.byte	102,15,56,0,203
-	pxor	%xmm4,%xmm0
-	movdqa	64(%ebx),%xmm4
-	pxor	%xmm1,%xmm0
-	movdqa	80(%ebx),%xmm1
-.byte	102,15,56,0,226
-.byte	102,15,56,0,197
-.byte	102,15,56,0,203
+	pxor	%xmm0,%xmm4
+	movdqa	-16(%ebx),%xmm0
+.byte	102,15,56,0,195
 	pxor	%xmm4,%xmm0
 	addl	$16,%edx
-.byte	102,15,58,15,237,12
-	pxor	%xmm1,%xmm0
+.byte	102,15,56,0,197
+	movdqa	(%ebx),%xmm4
+.byte	102,15,56,0,226
+	pxor	%xmm0,%xmm4
+	movdqa	16(%ebx),%xmm0
+.byte	102,15,56,0,195
+	pxor	%xmm4,%xmm0
 	subl	$1,%eax
+.byte	102,15,56,0,197
+	movdqa	32(%ebx),%xmm4
+.byte	102,15,56,0,226
+	pxor	%xmm0,%xmm4
+	movdqa	48(%ebx),%xmm0
+.byte	102,15,56,0,195
+	pxor	%xmm4,%xmm0
+.byte	102,15,56,0,197
+	movdqa	64(%ebx),%xmm4
+.byte	102,15,56,0,226
+	pxor	%xmm0,%xmm4
+	movdqa	80(%ebx),%xmm0
+.byte	102,15,56,0,195
+	pxor	%xmm4,%xmm0
+.byte	102,15,58,15,237,12
 .L002dec_entry:
 	movdqa	%xmm6,%xmm1
-	movdqa	-32(%ebp),%xmm2
 	pandn	%xmm0,%xmm1
-	pand	%xmm6,%xmm0
 	psrld	$4,%xmm1
+	pand	%xmm6,%xmm0
+	movdqa	-32(%ebp),%xmm2
 .byte	102,15,56,0,208
-	movdqa	%xmm7,%xmm3
 	pxor	%xmm1,%xmm0
+	movdqa	%xmm7,%xmm3
 .byte	102,15,56,0,217
-	movdqa	%xmm7,%xmm4
 	pxor	%xmm2,%xmm3
+	movdqa	%xmm7,%xmm4
 .byte	102,15,56,0,224
 	pxor	%xmm2,%xmm4
 	movdqa	%xmm7,%xmm2
 .byte	102,15,56,0,211
-	movdqa	%xmm7,%xmm3
 	pxor	%xmm0,%xmm2
+	movdqa	%xmm7,%xmm3
 .byte	102,15,56,0,220
-	movdqu	(%edx),%xmm0
 	pxor	%xmm1,%xmm3
+	movdqu	(%edx),%xmm0
 	jnz	.L003dec_loop
 	movdqa	96(%ebx),%xmm4
 .byte	102,15,56,0,226
@@ -327,12 +327,12 @@ _vpaes_schedule_core:
 .type	_vpaes_schedule_192_smear,@function
 .align	16
 _vpaes_schedule_192_smear:
-	pshufd	$128,%xmm6,%xmm1
+	pshufd	$128,%xmm6,%xmm0
+	pxor	%xmm0,%xmm6
 	pshufd	$254,%xmm7,%xmm0
-	pxor	%xmm1,%xmm6
-	pxor	%xmm1,%xmm1
 	pxor	%xmm0,%xmm6
 	movdqa	%xmm6,%xmm0
+	pxor	%xmm1,%xmm1
 	movhlps	%xmm1,%xmm6
 	ret
 .size	_vpaes_schedule_192_smear,.-_vpaes_schedule_192_smear

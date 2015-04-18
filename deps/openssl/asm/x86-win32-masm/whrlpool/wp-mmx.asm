@@ -81,230 +81,228 @@ $L003round:
 	movq	mm0,QWORD PTR 4096[esi*8+ebp]
 	mov	eax,DWORD PTR [esp]
 	mov	ebx,DWORD PTR 4[esp]
-	movzx	ecx,al
-	movzx	edx,ah
-	shr	eax,16
+	mov	cl,al
+	mov	dl,ah
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
+	shr	eax,16
 	pxor	mm0,QWORD PTR [esi*8+ebp]
 	movq	mm1,QWORD PTR 7[edi*8+ebp]
+	mov	cl,al
+	mov	dl,ah
 	mov	eax,DWORD PTR 8[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
 	movq	mm2,QWORD PTR 6[esi*8+ebp]
 	movq	mm3,QWORD PTR 5[edi*8+ebp]
-	shr	ebx,16
+	mov	cl,bl
+	mov	dl,bh
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
+	shr	ebx,16
 	movq	mm4,QWORD PTR 4[esi*8+ebp]
 	movq	mm5,QWORD PTR 3[edi*8+ebp]
+	mov	cl,bl
+	mov	dl,bh
 	mov	ebx,DWORD PTR 12[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
 	movq	mm6,QWORD PTR 2[esi*8+ebp]
 	movq	mm7,QWORD PTR 1[edi*8+ebp]
-	shr	eax,16
+	mov	cl,al
+	mov	dl,ah
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
+	shr	eax,16
 	pxor	mm1,QWORD PTR [esi*8+ebp]
 	pxor	mm2,QWORD PTR 7[edi*8+ebp]
+	mov	cl,al
+	mov	dl,ah
 	mov	eax,DWORD PTR 16[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
 	pxor	mm3,QWORD PTR 6[esi*8+ebp]
 	pxor	mm4,QWORD PTR 5[edi*8+ebp]
-	shr	ebx,16
+	mov	cl,bl
+	mov	dl,bh
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
+	shr	ebx,16
 	pxor	mm5,QWORD PTR 4[esi*8+ebp]
 	pxor	mm6,QWORD PTR 3[edi*8+ebp]
+	mov	cl,bl
+	mov	dl,bh
 	mov	ebx,DWORD PTR 20[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
 	pxor	mm7,QWORD PTR 2[esi*8+ebp]
 	pxor	mm0,QWORD PTR 1[edi*8+ebp]
-	shr	eax,16
+	mov	cl,al
+	mov	dl,ah
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
+	shr	eax,16
 	pxor	mm2,QWORD PTR [esi*8+ebp]
 	pxor	mm3,QWORD PTR 7[edi*8+ebp]
+	mov	cl,al
+	mov	dl,ah
 	mov	eax,DWORD PTR 24[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
 	pxor	mm4,QWORD PTR 6[esi*8+ebp]
 	pxor	mm5,QWORD PTR 5[edi*8+ebp]
-	shr	ebx,16
+	mov	cl,bl
+	mov	dl,bh
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
+	shr	ebx,16
 	pxor	mm6,QWORD PTR 4[esi*8+ebp]
 	pxor	mm7,QWORD PTR 3[edi*8+ebp]
+	mov	cl,bl
+	mov	dl,bh
 	mov	ebx,DWORD PTR 28[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
 	pxor	mm0,QWORD PTR 2[esi*8+ebp]
 	pxor	mm1,QWORD PTR 1[edi*8+ebp]
-	shr	eax,16
+	mov	cl,al
+	mov	dl,ah
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
+	shr	eax,16
 	pxor	mm3,QWORD PTR [esi*8+ebp]
 	pxor	mm4,QWORD PTR 7[edi*8+ebp]
+	mov	cl,al
+	mov	dl,ah
 	mov	eax,DWORD PTR 32[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
 	pxor	mm5,QWORD PTR 6[esi*8+ebp]
 	pxor	mm6,QWORD PTR 5[edi*8+ebp]
-	shr	ebx,16
+	mov	cl,bl
+	mov	dl,bh
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
+	shr	ebx,16
 	pxor	mm7,QWORD PTR 4[esi*8+ebp]
 	pxor	mm0,QWORD PTR 3[edi*8+ebp]
+	mov	cl,bl
+	mov	dl,bh
 	mov	ebx,DWORD PTR 36[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
 	pxor	mm1,QWORD PTR 2[esi*8+ebp]
 	pxor	mm2,QWORD PTR 1[edi*8+ebp]
-	shr	eax,16
+	mov	cl,al
+	mov	dl,ah
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
+	shr	eax,16
 	pxor	mm4,QWORD PTR [esi*8+ebp]
 	pxor	mm5,QWORD PTR 7[edi*8+ebp]
+	mov	cl,al
+	mov	dl,ah
 	mov	eax,DWORD PTR 40[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
 	pxor	mm6,QWORD PTR 6[esi*8+ebp]
 	pxor	mm7,QWORD PTR 5[edi*8+ebp]
-	shr	ebx,16
+	mov	cl,bl
+	mov	dl,bh
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
+	shr	ebx,16
 	pxor	mm0,QWORD PTR 4[esi*8+ebp]
 	pxor	mm1,QWORD PTR 3[edi*8+ebp]
+	mov	cl,bl
+	mov	dl,bh
 	mov	ebx,DWORD PTR 44[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
 	pxor	mm2,QWORD PTR 2[esi*8+ebp]
 	pxor	mm3,QWORD PTR 1[edi*8+ebp]
-	shr	eax,16
+	mov	cl,al
+	mov	dl,ah
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
+	shr	eax,16
 	pxor	mm5,QWORD PTR [esi*8+ebp]
 	pxor	mm6,QWORD PTR 7[edi*8+ebp]
+	mov	cl,al
+	mov	dl,ah
 	mov	eax,DWORD PTR 48[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
 	pxor	mm7,QWORD PTR 6[esi*8+ebp]
 	pxor	mm0,QWORD PTR 5[edi*8+ebp]
-	shr	ebx,16
+	mov	cl,bl
+	mov	dl,bh
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
+	shr	ebx,16
 	pxor	mm1,QWORD PTR 4[esi*8+ebp]
 	pxor	mm2,QWORD PTR 3[edi*8+ebp]
+	mov	cl,bl
+	mov	dl,bh
 	mov	ebx,DWORD PTR 52[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
 	pxor	mm3,QWORD PTR 2[esi*8+ebp]
 	pxor	mm4,QWORD PTR 1[edi*8+ebp]
-	shr	eax,16
+	mov	cl,al
+	mov	dl,ah
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
+	shr	eax,16
 	pxor	mm6,QWORD PTR [esi*8+ebp]
 	pxor	mm7,QWORD PTR 7[edi*8+ebp]
+	mov	cl,al
+	mov	dl,ah
 	mov	eax,DWORD PTR 56[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
 	pxor	mm0,QWORD PTR 6[esi*8+ebp]
 	pxor	mm1,QWORD PTR 5[edi*8+ebp]
-	shr	ebx,16
+	mov	cl,bl
+	mov	dl,bh
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
+	shr	ebx,16
 	pxor	mm2,QWORD PTR 4[esi*8+ebp]
 	pxor	mm3,QWORD PTR 3[edi*8+ebp]
+	mov	cl,bl
+	mov	dl,bh
 	mov	ebx,DWORD PTR 60[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
 	pxor	mm4,QWORD PTR 2[esi*8+ebp]
 	pxor	mm5,QWORD PTR 1[edi*8+ebp]
-	shr	eax,16
+	mov	cl,al
+	mov	dl,ah
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
+	shr	eax,16
 	pxor	mm7,QWORD PTR [esi*8+ebp]
 	pxor	mm0,QWORD PTR 7[edi*8+ebp]
+	mov	cl,al
+	mov	dl,ah
 	mov	eax,DWORD PTR 64[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
 	pxor	mm1,QWORD PTR 6[esi*8+ebp]
 	pxor	mm2,QWORD PTR 5[edi*8+ebp]
-	shr	ebx,16
+	mov	cl,bl
+	mov	dl,bh
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
+	shr	ebx,16
 	pxor	mm3,QWORD PTR 4[esi*8+ebp]
 	pxor	mm4,QWORD PTR 3[edi*8+ebp]
+	mov	cl,bl
+	mov	dl,bh
 	mov	ebx,DWORD PTR 68[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
 	pxor	mm5,QWORD PTR 2[esi*8+ebp]
 	pxor	mm6,QWORD PTR 1[edi*8+ebp]
 	movq	QWORD PTR [esp],mm0
@@ -315,226 +313,226 @@ $L003round:
 	movq	QWORD PTR 40[esp],mm5
 	movq	QWORD PTR 48[esp],mm6
 	movq	QWORD PTR 56[esp],mm7
-	shr	eax,16
+	mov	cl,al
+	mov	dl,ah
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
+	shr	eax,16
 	pxor	mm0,QWORD PTR [esi*8+ebp]
 	pxor	mm1,QWORD PTR 7[edi*8+ebp]
+	mov	cl,al
+	mov	dl,ah
 	mov	eax,DWORD PTR 72[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
 	pxor	mm2,QWORD PTR 6[esi*8+ebp]
 	pxor	mm3,QWORD PTR 5[edi*8+ebp]
-	shr	ebx,16
+	mov	cl,bl
+	mov	dl,bh
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
+	shr	ebx,16
 	pxor	mm4,QWORD PTR 4[esi*8+ebp]
 	pxor	mm5,QWORD PTR 3[edi*8+ebp]
+	mov	cl,bl
+	mov	dl,bh
 	mov	ebx,DWORD PTR 76[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
 	pxor	mm6,QWORD PTR 2[esi*8+ebp]
 	pxor	mm7,QWORD PTR 1[edi*8+ebp]
-	shr	eax,16
+	mov	cl,al
+	mov	dl,ah
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
+	shr	eax,16
 	pxor	mm1,QWORD PTR [esi*8+ebp]
 	pxor	mm2,QWORD PTR 7[edi*8+ebp]
+	mov	cl,al
+	mov	dl,ah
 	mov	eax,DWORD PTR 80[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
 	pxor	mm3,QWORD PTR 6[esi*8+ebp]
 	pxor	mm4,QWORD PTR 5[edi*8+ebp]
-	shr	ebx,16
+	mov	cl,bl
+	mov	dl,bh
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
+	shr	ebx,16
 	pxor	mm5,QWORD PTR 4[esi*8+ebp]
 	pxor	mm6,QWORD PTR 3[edi*8+ebp]
+	mov	cl,bl
+	mov	dl,bh
 	mov	ebx,DWORD PTR 84[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
 	pxor	mm7,QWORD PTR 2[esi*8+ebp]
 	pxor	mm0,QWORD PTR 1[edi*8+ebp]
-	shr	eax,16
+	mov	cl,al
+	mov	dl,ah
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
+	shr	eax,16
 	pxor	mm2,QWORD PTR [esi*8+ebp]
 	pxor	mm3,QWORD PTR 7[edi*8+ebp]
+	mov	cl,al
+	mov	dl,ah
 	mov	eax,DWORD PTR 88[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
 	pxor	mm4,QWORD PTR 6[esi*8+ebp]
 	pxor	mm5,QWORD PTR 5[edi*8+ebp]
-	shr	ebx,16
+	mov	cl,bl
+	mov	dl,bh
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
+	shr	ebx,16
 	pxor	mm6,QWORD PTR 4[esi*8+ebp]
 	pxor	mm7,QWORD PTR 3[edi*8+ebp]
+	mov	cl,bl
+	mov	dl,bh
 	mov	ebx,DWORD PTR 92[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
 	pxor	mm0,QWORD PTR 2[esi*8+ebp]
 	pxor	mm1,QWORD PTR 1[edi*8+ebp]
-	shr	eax,16
+	mov	cl,al
+	mov	dl,ah
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
+	shr	eax,16
 	pxor	mm3,QWORD PTR [esi*8+ebp]
 	pxor	mm4,QWORD PTR 7[edi*8+ebp]
+	mov	cl,al
+	mov	dl,ah
 	mov	eax,DWORD PTR 96[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
 	pxor	mm5,QWORD PTR 6[esi*8+ebp]
 	pxor	mm6,QWORD PTR 5[edi*8+ebp]
-	shr	ebx,16
+	mov	cl,bl
+	mov	dl,bh
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
+	shr	ebx,16
 	pxor	mm7,QWORD PTR 4[esi*8+ebp]
 	pxor	mm0,QWORD PTR 3[edi*8+ebp]
+	mov	cl,bl
+	mov	dl,bh
 	mov	ebx,DWORD PTR 100[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
 	pxor	mm1,QWORD PTR 2[esi*8+ebp]
 	pxor	mm2,QWORD PTR 1[edi*8+ebp]
-	shr	eax,16
+	mov	cl,al
+	mov	dl,ah
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
+	shr	eax,16
 	pxor	mm4,QWORD PTR [esi*8+ebp]
 	pxor	mm5,QWORD PTR 7[edi*8+ebp]
+	mov	cl,al
+	mov	dl,ah
 	mov	eax,DWORD PTR 104[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
 	pxor	mm6,QWORD PTR 6[esi*8+ebp]
 	pxor	mm7,QWORD PTR 5[edi*8+ebp]
-	shr	ebx,16
+	mov	cl,bl
+	mov	dl,bh
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
+	shr	ebx,16
 	pxor	mm0,QWORD PTR 4[esi*8+ebp]
 	pxor	mm1,QWORD PTR 3[edi*8+ebp]
+	mov	cl,bl
+	mov	dl,bh
 	mov	ebx,DWORD PTR 108[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
 	pxor	mm2,QWORD PTR 2[esi*8+ebp]
 	pxor	mm3,QWORD PTR 1[edi*8+ebp]
-	shr	eax,16
+	mov	cl,al
+	mov	dl,ah
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
+	shr	eax,16
 	pxor	mm5,QWORD PTR [esi*8+ebp]
 	pxor	mm6,QWORD PTR 7[edi*8+ebp]
+	mov	cl,al
+	mov	dl,ah
 	mov	eax,DWORD PTR 112[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
 	pxor	mm7,QWORD PTR 6[esi*8+ebp]
 	pxor	mm0,QWORD PTR 5[edi*8+ebp]
-	shr	ebx,16
+	mov	cl,bl
+	mov	dl,bh
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
+	shr	ebx,16
 	pxor	mm1,QWORD PTR 4[esi*8+ebp]
 	pxor	mm2,QWORD PTR 3[edi*8+ebp]
+	mov	cl,bl
+	mov	dl,bh
 	mov	ebx,DWORD PTR 116[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
 	pxor	mm3,QWORD PTR 2[esi*8+ebp]
 	pxor	mm4,QWORD PTR 1[edi*8+ebp]
-	shr	eax,16
+	mov	cl,al
+	mov	dl,ah
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
+	shr	eax,16
 	pxor	mm6,QWORD PTR [esi*8+ebp]
 	pxor	mm7,QWORD PTR 7[edi*8+ebp]
+	mov	cl,al
+	mov	dl,ah
 	mov	eax,DWORD PTR 120[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
 	pxor	mm0,QWORD PTR 6[esi*8+ebp]
 	pxor	mm1,QWORD PTR 5[edi*8+ebp]
-	shr	ebx,16
+	mov	cl,bl
+	mov	dl,bh
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
+	shr	ebx,16
 	pxor	mm2,QWORD PTR 4[esi*8+ebp]
 	pxor	mm3,QWORD PTR 3[edi*8+ebp]
+	mov	cl,bl
+	mov	dl,bh
 	mov	ebx,DWORD PTR 124[esp]
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
 	pxor	mm4,QWORD PTR 2[esi*8+ebp]
 	pxor	mm5,QWORD PTR 1[edi*8+ebp]
-	shr	eax,16
+	mov	cl,al
+	mov	dl,ah
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
+	shr	eax,16
 	pxor	mm7,QWORD PTR [esi*8+ebp]
 	pxor	mm0,QWORD PTR 7[edi*8+ebp]
+	mov	cl,al
+	mov	dl,ah
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
 	pxor	mm1,QWORD PTR 6[esi*8+ebp]
 	pxor	mm2,QWORD PTR 5[edi*8+ebp]
-	shr	ebx,16
+	mov	cl,bl
+	mov	dl,bh
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,bl
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,bh
+	shr	ebx,16
 	pxor	mm3,QWORD PTR 4[esi*8+ebp]
 	pxor	mm4,QWORD PTR 3[edi*8+ebp]
+	mov	cl,bl
+	mov	dl,bh
 	lea	esi,DWORD PTR [ecx*1+ecx]
-	movzx	ecx,al
 	lea	edi,DWORD PTR [edx*1+edx]
-	movzx	edx,ah
 	pxor	mm5,QWORD PTR 2[esi*8+ebp]
 	pxor	mm6,QWORD PTR 1[edi*8+ebp]
 	lea	ebx,DWORD PTR 128[esp]

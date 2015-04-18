@@ -1,5 +1,5 @@
 OPTION	DOTNAME
-.text$	SEGMENT ALIGN(256) 'CODE'
+.text$	SEGMENT ALIGN(64) 'CODE'
 ALIGN	16
 
 PUBLIC	rc4_md5_enc
@@ -1327,6 +1327,7 @@ $L$in_prologue::
 	mov	rsi,r8
 	mov	ecx,154
 	DD	0a548f3fch
+
 
 	mov	rsi,r9
 	xor	rcx,rcx

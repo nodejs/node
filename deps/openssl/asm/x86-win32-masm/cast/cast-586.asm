@@ -18,6 +18,7 @@ ALIGN	16
 _CAST_encrypt	PROC PUBLIC
 $L_CAST_encrypt_begin::
 	;
+
 	push	ebp
 	push	ebx
 	mov	ebx,DWORD PTR 12[esp]
@@ -390,6 +391,7 @@ ALIGN	16
 _CAST_decrypt	PROC PUBLIC
 $L_CAST_decrypt_begin::
 	;
+
 	push	ebp
 	push	ebx
 	mov	ebx,DWORD PTR 12[esp]
@@ -755,6 +757,7 @@ ALIGN	16
 _CAST_cbc_encrypt	PROC PUBLIC
 $L_CAST_cbc_encrypt_begin::
 	;
+
 	push	ebp
 	push	ebx
 	push	esi

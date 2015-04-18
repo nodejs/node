@@ -3,13 +3,6 @@ IF @Version LT 800
 ECHO MASM version 8.00 or later is strongly recommended.
 ENDIF
 .686
-.XMM
-IF @Version LT 800
-XMMWORD STRUCT 16
-DQ	2 dup (?)
-XMMWORD	ENDS
-ENDIF
-
 .MODEL	FLAT
 OPTION	DOTNAME
 IF @Version LT 800
@@ -37,8 +30,6 @@ $L_OPENSSL_ia32_cpuid_begin::
 	xor	eax,eax
 	bt	ecx,21
 	jnc	$L000nocpuid
-	mov	esi,DWORD PTR 20[esp]
-	mov	DWORD PTR 8[esi],eax
 	cpuid
 	mov	edi,eax
 	xor	eax,eax
@@ -89,36 +80,28 @@ $L_OPENSSL_ia32_cpuid_begin::
 	and	edx,4026531839
 	jmp	$L002generic
 $L001intel:
-	cmp	edi,7
-	jb	$L003cacheinfo
-	mov	esi,DWORD PTR 20[esp]
-	mov	eax,7
-	xor	ecx,ecx
-	cpuid
-	mov	DWORD PTR 8[esi],ebx
-$L003cacheinfo:
 	cmp	edi,4
 	mov	edi,-1
-	jb	$L004nocacheinfo
+	jb	$L003nocacheinfo
 	mov	eax,4
 	mov	ecx,0
 	cpuid
 	mov	edi,eax
 	shr	edi,14
 	and	edi,4095
-$L004nocacheinfo:
+$L003nocacheinfo:
 	mov	eax,1
 	xor	ecx,ecx
 	cpuid
 	and	edx,3220176895
 	cmp	ebp,0
-	jne	$L005notintel
+	jne	$L004notintel
 	or	edx,1073741824
 	and	ah,15
 	cmp	ah,15
-	jne	$L005notintel
+	jne	$L004notintel
 	or	edx,1048576
-$L005notintel:
+$L004notintel:
 	bt	edx,28
 	jnc	$L002generic
 	and	edx,4026531839
@@ -135,22 +118,20 @@ $L002generic:
 	mov	esi,edx
 	or	ebp,ecx
 	bt	ecx,27
-	jnc	$L006clear_avx
+	jnc	$L005clear_avx
 	xor	ecx,ecx
 DB	15,1,208
 	and	eax,6
 	cmp	eax,6
-	je	$L007done
+	je	$L006done
 	cmp	eax,2
-	je	$L006clear_avx
-$L008clear_xmm:
+	je	$L005clear_avx
+$L007clear_xmm:
 	and	ebp,4261412861
 	and	esi,4278190079
-$L006clear_avx:
+$L005clear_avx:
 	and	ebp,4026525695
-	mov	edi,DWORD PTR 20[esp]
-	and	DWORD PTR 8[edi],4294967263
-$L007done:
+$L006done:
 	mov	eax,esi
 	mov	edx,ebp
 $L000nocpuid:
@@ -168,9 +149,9 @@ $L_OPENSSL_rdtsc_begin::
 	xor	edx,edx
 	lea	ecx,DWORD PTR _OPENSSL_ia32cap_P
 	bt	DWORD PTR [ecx],4
-	jnc	$L009notsc
+	jnc	$L008notsc
 	rdtsc
-$L009notsc:
+$L008notsc:
 	ret
 _OPENSSL_rdtsc ENDP
 ALIGN	16
@@ -178,14 +159,14 @@ _OPENSSL_instrument_halt	PROC PUBLIC
 $L_OPENSSL_instrument_halt_begin::
 	lea	ecx,DWORD PTR _OPENSSL_ia32cap_P
 	bt	DWORD PTR [ecx],4
-	jnc	$L010nohalt
+	jnc	$L009nohalt
 DD	2421723150
 	and	eax,3
-	jnz	$L010nohalt
+	jnz	$L009nohalt
 	pushfd
 	pop	eax
 	bt	eax,9
-	jnc	$L010nohalt
+	jnc	$L009nohalt
 	rdtsc
 	push	edx
 	push	eax
@@ -195,7 +176,7 @@ DD	2421723150
 	sbb	edx,DWORD PTR 4[esp]
 	add	esp,8
 	ret
-$L010nohalt:
+$L009nohalt:
 	xor	eax,eax
 	xor	edx,edx
 	ret
@@ -206,21 +187,21 @@ $L_OPENSSL_far_spin_begin::
 	pushfd
 	pop	eax
 	bt	eax,9
-	jnc	$L011nospin
+	jnc	$L010nospin
 	mov	eax,DWORD PTR 4[esp]
 	mov	ecx,DWORD PTR 8[esp]
 DD	2430111262
 	xor	eax,eax
 	mov	edx,DWORD PTR [ecx]
-	jmp	$L012spin
+	jmp	$L011spin
 ALIGN	16
-$L012spin:
+$L011spin:
 	inc	eax
 	cmp	edx,DWORD PTR [ecx]
-	je	$L012spin
+	je	$L011spin
 DD	529567888
 	ret
-$L011nospin:
+$L010nospin:
 	xor	eax,eax
 	xor	edx,edx
 	ret
@@ -233,22 +214,9 @@ $L_OPENSSL_wipe_cpu_begin::
 	lea	ecx,DWORD PTR _OPENSSL_ia32cap_P
 	mov	ecx,DWORD PTR [ecx]
 	bt	DWORD PTR [ecx],1
-	jnc	$L013no_x87
-	and	ecx,83886080
-	cmp	ecx,83886080
-	jne	$L014no_sse2
-	pxor	xmm0,xmm0
-	pxor	xmm1,xmm1
-	pxor	xmm2,xmm2
-	pxor	xmm3,xmm3
-	pxor	xmm4,xmm4
-	pxor	xmm5,xmm5
-	pxor	xmm6,xmm6
-	pxor	xmm7,xmm7
-$L014no_sse2:
-DD	4007259865,4007259865,4007259865,4007259865
-DD	2430851995
-$L013no_x87:
+	jnc	$L012no_x87
+DD	4007259865,4007259865,4007259865,4007259865,2430851995
+$L012no_x87:
 	lea	eax,DWORD PTR 4[esp]
 	ret
 _OPENSSL_wipe_cpu ENDP
@@ -260,11 +228,11 @@ $L_OPENSSL_atomic_add_begin::
 	push	ebx
 	nop
 	mov	eax,DWORD PTR [edx]
-$L015spin:
+$L013spin:
 	lea	ebx,DWORD PTR [ecx*1+eax]
 	nop
 DD	447811568
-	jne	$L015spin
+	jne	$L013spin
 	mov	eax,ebx
 	pop	ebx
 	ret
@@ -301,63 +269,50 @@ $L_OPENSSL_cleanse_begin::
 	mov	ecx,DWORD PTR 8[esp]
 	xor	eax,eax
 	cmp	ecx,7
-	jae	$L016lot
+	jae	$L014lot
 	cmp	ecx,0
-	je	$L017ret
-$L018little:
+	je	$L015ret
+$L016little:
 	mov	BYTE PTR [edx],al
 	sub	ecx,1
 	lea	edx,DWORD PTR 1[edx]
-	jnz	$L018little
-$L017ret:
+	jnz	$L016little
+$L015ret:
 	ret
 ALIGN	16
-$L016lot:
+$L014lot:
 	test	edx,3
-	jz	$L019aligned
+	jz	$L017aligned
 	mov	BYTE PTR [edx],al
 	lea	ecx,DWORD PTR [ecx-1]
 	lea	edx,DWORD PTR 1[edx]
-	jmp	$L016lot
-$L019aligned:
+	jmp	$L014lot
+$L017aligned:
 	mov	DWORD PTR [edx],eax
 	lea	ecx,DWORD PTR [ecx-4]
 	test	ecx,-4
 	lea	edx,DWORD PTR 4[edx]
-	jnz	$L019aligned
+	jnz	$L017aligned
 	cmp	ecx,0
-	jne	$L018little
+	jne	$L016little
 	ret
 _OPENSSL_cleanse ENDP
 ALIGN	16
 _OPENSSL_ia32_rdrand	PROC PUBLIC
 $L_OPENSSL_ia32_rdrand_begin::
 	mov	ecx,8
-$L020loop:
+$L018loop:
 DB	15,199,240
-	jc	$L021break
-	loop	$L020loop
-$L021break:
+	jc	$L019break
+	loop	$L018loop
+$L019break:
 	cmp	eax,0
 	cmove	eax,ecx
 	ret
 _OPENSSL_ia32_rdrand ENDP
-ALIGN	16
-_OPENSSL_ia32_rdseed	PROC PUBLIC
-$L_OPENSSL_ia32_rdseed_begin::
-	mov	ecx,8
-$L022loop:
-DB	15,199,248
-	jc	$L023break
-	loop	$L022loop
-$L023break:
-	cmp	eax,0
-	cmove	eax,ecx
-	ret
-_OPENSSL_ia32_rdseed ENDP
 .text$	ENDS
 .bss	SEGMENT 'BSS'
-COMM	_OPENSSL_ia32cap_P:DWORD:4
+COMM	_OPENSSL_ia32cap_P:QWORD
 .bss	ENDS
 .CRT$XCU	SEGMENT DWORD PUBLIC 'DATA'
 EXTERN	_OPENSSL_cpuid_setup:NEAR

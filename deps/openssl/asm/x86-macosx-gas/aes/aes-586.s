@@ -95,78 +95,74 @@ L000loop:
 	shll	$24,%ecx
 	xorl	%ecx,%edx
 	movl	%esi,%ecx
-	movl	$2155905152,%ebp
-	andl	%ecx,%ebp
+	movl	%ecx,%esi
+	andl	$2155905152,%esi
+	movl	%esi,%ebp
+	shrl	$7,%ebp
 	leal	(%ecx,%ecx,1),%edi
-	movl	%ebp,%esi
-	shrl	$7,%ebp
-	andl	$4278124286,%edi
 	subl	%ebp,%esi
+	andl	$4278124286,%edi
+	andl	$454761243,%esi
 	movl	%ecx,%ebp
-	andl	$454761243,%esi
-	rorl	$16,%ebp
 	xorl	%edi,%esi
-	movl	%ecx,%edi
 	xorl	%esi,%ecx
-	rorl	$24,%edi
-	xorl	%ebp,%esi
 	roll	$24,%ecx
-	xorl	%edi,%esi
-	movl	$2155905152,%ebp
 	xorl	%esi,%ecx
-	andl	%edx,%ebp
+	rorl	$16,%ebp
+	xorl	%ebp,%ecx
+	rorl	$8,%ebp
+	xorl	%ebp,%ecx
+	movl	%edx,%esi
+	andl	$2155905152,%esi
+	movl	%esi,%ebp
+	shrl	$7,%ebp
 	leal	(%edx,%edx,1),%edi
-	movl	%ebp,%esi
-	shrl	$7,%ebp
-	andl	$4278124286,%edi
 	subl	%ebp,%esi
+	andl	$4278124286,%edi
+	andl	$454761243,%esi
 	movl	%edx,%ebp
-	andl	$454761243,%esi
-	rorl	$16,%ebp
 	xorl	%edi,%esi
-	movl	%edx,%edi
 	xorl	%esi,%edx
-	rorl	$24,%edi
-	xorl	%ebp,%esi
 	roll	$24,%edx
-	xorl	%edi,%esi
-	movl	$2155905152,%ebp
 	xorl	%esi,%edx
-	andl	%eax,%ebp
+	rorl	$16,%ebp
+	xorl	%ebp,%edx
+	rorl	$8,%ebp
+	xorl	%ebp,%edx
+	movl	%eax,%esi
+	andl	$2155905152,%esi
+	movl	%esi,%ebp
+	shrl	$7,%ebp
 	leal	(%eax,%eax,1),%edi
-	movl	%ebp,%esi
-	shrl	$7,%ebp
-	andl	$4278124286,%edi
 	subl	%ebp,%esi
+	andl	$4278124286,%edi
+	andl	$454761243,%esi
 	movl	%eax,%ebp
-	andl	$454761243,%esi
-	rorl	$16,%ebp
 	xorl	%edi,%esi
-	movl	%eax,%edi
 	xorl	%esi,%eax
-	rorl	$24,%edi
-	xorl	%ebp,%esi
 	roll	$24,%eax
-	xorl	%edi,%esi
-	movl	$2155905152,%ebp
 	xorl	%esi,%eax
-	andl	%ebx,%ebp
-	leal	(%ebx,%ebx,1),%edi
-	movl	%ebp,%esi
-	shrl	$7,%ebp
-	andl	$4278124286,%edi
-	subl	%ebp,%esi
-	movl	%ebx,%ebp
-	andl	$454761243,%esi
 	rorl	$16,%ebp
+	xorl	%ebp,%eax
+	rorl	$8,%ebp
+	xorl	%ebp,%eax
+	movl	%ebx,%esi
+	andl	$2155905152,%esi
+	movl	%esi,%ebp
+	shrl	$7,%ebp
+	leal	(%ebx,%ebx,1),%edi
+	subl	%ebp,%esi
+	andl	$4278124286,%edi
+	andl	$454761243,%esi
+	movl	%ebx,%ebp
 	xorl	%edi,%esi
-	movl	%ebx,%edi
 	xorl	%esi,%ebx
-	rorl	$24,%edi
-	xorl	%ebp,%esi
 	roll	$24,%ebx
-	xorl	%edi,%esi
 	xorl	%esi,%ebx
+	rorl	$16,%ebp
+	xorl	%ebp,%ebx
+	rorl	$8,%ebp
+	xorl	%ebp,%ebx
 	movl	20(%esp),%edi
 	movl	28(%esp),%ebp
 	addl	$16,%edi
@@ -282,76 +278,74 @@ L001loop:
 	pshufw	$13,%mm4,%mm5
 	movd	%mm1,%eax
 	movd	%mm5,%ebx
-	movl	%edi,20(%esp)
 	movzbl	%al,%esi
-	movzbl	%ah,%edx
-	pshufw	$13,%mm0,%mm2
 	movzbl	-128(%ebp,%esi,1),%ecx
-	movzbl	%bl,%edi
+	pshufw	$13,%mm0,%mm2
+	movzbl	%ah,%edx
 	movzbl	-128(%ebp,%edx,1),%edx
-	shrl	$16,%eax
 	shll	$8,%edx
-	movzbl	-128(%ebp,%edi,1),%esi
-	movzbl	%bh,%edi
-	shll	$16,%esi
-	pshufw	$8,%mm4,%mm6
-	orl	%esi,%ecx
-	movzbl	-128(%ebp,%edi,1),%esi
-	movzbl	%ah,%edi
-	shll	$24,%esi
-	shrl	$16,%ebx
-	orl	%esi,%edx
-	movzbl	-128(%ebp,%edi,1),%esi
-	movzbl	%bh,%edi
-	shll	$8,%esi
-	orl	%esi,%ecx
-	movzbl	-128(%ebp,%edi,1),%esi
-	movzbl	%al,%edi
-	shll	$24,%esi
-	orl	%esi,%ecx
-	movzbl	-128(%ebp,%edi,1),%esi
-	movzbl	%bl,%edi
-	movd	%mm2,%eax
-	movd	%ecx,%mm0
-	movzbl	-128(%ebp,%edi,1),%ecx
-	movzbl	%ah,%edi
-	shll	$16,%ecx
-	movd	%mm6,%ebx
-	orl	%esi,%ecx
-	movzbl	-128(%ebp,%edi,1),%esi
-	movzbl	%bh,%edi
-	shll	$24,%esi
-	orl	%esi,%ecx
-	movzbl	-128(%ebp,%edi,1),%esi
-	movzbl	%bl,%edi
-	shll	$8,%esi
-	shrl	$16,%ebx
-	orl	%esi,%ecx
-	movzbl	-128(%ebp,%edi,1),%esi
-	movzbl	%al,%edi
 	shrl	$16,%eax
-	movd	%ecx,%mm1
-	movzbl	-128(%ebp,%edi,1),%ecx
-	movzbl	%ah,%edi
-	shll	$16,%ecx
-	andl	$255,%eax
+	movzbl	%bl,%esi
+	movzbl	-128(%ebp,%esi,1),%esi
+	shll	$16,%esi
 	orl	%esi,%ecx
-	punpckldq	%mm1,%mm0
-	movzbl	-128(%ebp,%edi,1),%esi
-	movzbl	%bh,%edi
+	pshufw	$8,%mm4,%mm6
+	movzbl	%bh,%esi
+	movzbl	-128(%ebp,%esi,1),%esi
 	shll	$24,%esi
-	andl	$255,%ebx
-	movzbl	-128(%ebp,%eax,1),%eax
-	orl	%esi,%ecx
-	shll	$16,%eax
-	movzbl	-128(%ebp,%edi,1),%esi
-	orl	%eax,%edx
+	orl	%esi,%edx
+	shrl	$16,%ebx
+	movzbl	%ah,%esi
+	movzbl	-128(%ebp,%esi,1),%esi
 	shll	$8,%esi
-	movzbl	-128(%ebp,%ebx,1),%ebx
 	orl	%esi,%ecx
-	orl	%ebx,%edx
-	movl	20(%esp),%edi
+	movzbl	%bh,%esi
+	movzbl	-128(%ebp,%esi,1),%esi
+	shll	$24,%esi
+	orl	%esi,%ecx
+	movd	%ecx,%mm0
+	movzbl	%al,%esi
+	movzbl	-128(%ebp,%esi,1),%ecx
+	movd	%mm2,%eax
+	movzbl	%bl,%esi
+	movzbl	-128(%ebp,%esi,1),%esi
+	shll	$16,%esi
+	orl	%esi,%ecx
+	movd	%mm6,%ebx
+	movzbl	%ah,%esi
+	movzbl	-128(%ebp,%esi,1),%esi
+	shll	$24,%esi
+	orl	%esi,%ecx
+	movzbl	%bh,%esi
+	movzbl	-128(%ebp,%esi,1),%esi
+	shll	$8,%esi
+	orl	%esi,%ecx
+	movd	%ecx,%mm1
+	movzbl	%bl,%esi
+	movzbl	-128(%ebp,%esi,1),%ecx
+	shrl	$16,%ebx
+	movzbl	%al,%esi
+	movzbl	-128(%ebp,%esi,1),%esi
+	shll	$16,%esi
+	orl	%esi,%ecx
+	shrl	$16,%eax
+	punpckldq	%mm1,%mm0
+	movzbl	%ah,%esi
+	movzbl	-128(%ebp,%esi,1),%esi
+	shll	$24,%esi
+	orl	%esi,%ecx
+	andl	$255,%eax
+	movzbl	-128(%ebp,%eax,1),%eax
+	shll	$16,%eax
+	orl	%eax,%edx
+	movzbl	%bh,%esi
+	movzbl	-128(%ebp,%esi,1),%esi
+	shll	$8,%esi
+	orl	%esi,%ecx
 	movd	%ecx,%mm4
+	andl	$255,%ebx
+	movzbl	-128(%ebp,%ebx,1),%ebx
+	orl	%ebx,%edx
 	movd	%edx,%mm5
 	punpckldq	%mm5,%mm4
 	addl	$16,%edi
@@ -1114,28 +1108,28 @@ L006loop:
 	movzbl	-128(%ebp,%eax,1),%eax
 	shll	$24,%eax
 	xorl	%eax,%edx
-	movl	$2155905152,%edi
-	andl	%ecx,%edi
-	movl	%edi,%esi
+	movl	%ecx,%esi
+	andl	$2155905152,%esi
+	movl	%esi,%edi
 	shrl	$7,%edi
 	leal	(%ecx,%ecx,1),%eax
 	subl	%edi,%esi
 	andl	$4278124286,%eax
 	andl	$454761243,%esi
-	xorl	%esi,%eax
-	movl	$2155905152,%edi
-	andl	%eax,%edi
-	movl	%edi,%esi
+	xorl	%eax,%esi
+	movl	%esi,%eax
+	andl	$2155905152,%esi
+	movl	%esi,%edi
 	shrl	$7,%edi
 	leal	(%eax,%eax,1),%ebx
 	subl	%edi,%esi
 	andl	$4278124286,%ebx
 	andl	$454761243,%esi
 	xorl	%ecx,%eax
-	xorl	%esi,%ebx
-	movl	$2155905152,%edi
-	andl	%ebx,%edi
-	movl	%edi,%esi
+	xorl	%ebx,%esi
+	movl	%esi,%ebx
+	andl	$2155905152,%esi
+	movl	%esi,%edi
 	shrl	$7,%edi
 	leal	(%ebx,%ebx,1),%ebp
 	subl	%edi,%esi
@@ -1146,39 +1140,39 @@ L006loop:
 	xorl	%esi,%ebp
 	xorl	%eax,%ecx
 	xorl	%ebp,%eax
+	roll	$24,%eax
 	xorl	%ebx,%ecx
 	xorl	%ebp,%ebx
-	roll	$24,%eax
-	xorl	%ebp,%ecx
 	roll	$16,%ebx
-	xorl	%eax,%ecx
+	xorl	%ebp,%ecx
 	roll	$8,%ebp
+	xorl	%eax,%ecx
 	xorl	%ebx,%ecx
 	movl	4(%esp),%eax
 	xorl	%ebp,%ecx
 	movl	%ecx,12(%esp)
-	movl	$2155905152,%edi
-	andl	%edx,%edi
-	movl	%edi,%esi
+	movl	%edx,%esi
+	andl	$2155905152,%esi
+	movl	%esi,%edi
 	shrl	$7,%edi
 	leal	(%edx,%edx,1),%ebx
 	subl	%edi,%esi
 	andl	$4278124286,%ebx
 	andl	$454761243,%esi
-	xorl	%esi,%ebx
-	movl	$2155905152,%edi
-	andl	%ebx,%edi
-	movl	%edi,%esi
+	xorl	%ebx,%esi
+	movl	%esi,%ebx
+	andl	$2155905152,%esi
+	movl	%esi,%edi
 	shrl	$7,%edi
 	leal	(%ebx,%ebx,1),%ecx
 	subl	%edi,%esi
 	andl	$4278124286,%ecx
 	andl	$454761243,%esi
 	xorl	%edx,%ebx
-	xorl	%esi,%ecx
-	movl	$2155905152,%edi
-	andl	%ecx,%edi
-	movl	%edi,%esi
+	xorl	%ecx,%esi
+	movl	%esi,%ecx
+	andl	$2155905152,%esi
+	movl	%esi,%edi
 	shrl	$7,%edi
 	leal	(%ecx,%ecx,1),%ebp
 	subl	%edi,%esi
@@ -1189,39 +1183,39 @@ L006loop:
 	xorl	%esi,%ebp
 	xorl	%ebx,%edx
 	xorl	%ebp,%ebx
+	roll	$24,%ebx
 	xorl	%ecx,%edx
 	xorl	%ebp,%ecx
-	roll	$24,%ebx
-	xorl	%ebp,%edx
 	roll	$16,%ecx
-	xorl	%ebx,%edx
+	xorl	%ebp,%edx
 	roll	$8,%ebp
+	xorl	%ebx,%edx
 	xorl	%ecx,%edx
 	movl	8(%esp),%ebx
 	xorl	%ebp,%edx
 	movl	%edx,16(%esp)
-	movl	$2155905152,%edi
-	andl	%eax,%edi
-	movl	%edi,%esi
+	movl	%eax,%esi
+	andl	$2155905152,%esi
+	movl	%esi,%edi
 	shrl	$7,%edi
 	leal	(%eax,%eax,1),%ecx
 	subl	%edi,%esi
 	andl	$4278124286,%ecx
 	andl	$454761243,%esi
-	xorl	%esi,%ecx
-	movl	$2155905152,%edi
-	andl	%ecx,%edi
-	movl	%edi,%esi
+	xorl	%ecx,%esi
+	movl	%esi,%ecx
+	andl	$2155905152,%esi
+	movl	%esi,%edi
 	shrl	$7,%edi
 	leal	(%ecx,%ecx,1),%edx
 	subl	%edi,%esi
 	andl	$4278124286,%edx
 	andl	$454761243,%esi
 	xorl	%eax,%ecx
-	xorl	%esi,%edx
-	movl	$2155905152,%edi
-	andl	%edx,%edi
-	movl	%edi,%esi
+	xorl	%edx,%esi
+	movl	%esi,%edx
+	andl	$2155905152,%esi
+	movl	%esi,%edi
 	shrl	$7,%edi
 	leal	(%edx,%edx,1),%ebp
 	subl	%edi,%esi
@@ -1232,37 +1226,37 @@ L006loop:
 	xorl	%esi,%ebp
 	xorl	%ecx,%eax
 	xorl	%ebp,%ecx
+	roll	$24,%ecx
 	xorl	%edx,%eax
 	xorl	%ebp,%edx
-	roll	$24,%ecx
-	xorl	%ebp,%eax
 	roll	$16,%edx
-	xorl	%ecx,%eax
+	xorl	%ebp,%eax
 	roll	$8,%ebp
+	xorl	%ecx,%eax
 	xorl	%edx,%eax
 	xorl	%ebp,%eax
-	movl	$2155905152,%edi
-	andl	%ebx,%edi
-	movl	%edi,%esi
+	movl	%ebx,%esi
+	andl	$2155905152,%esi
+	movl	%esi,%edi
 	shrl	$7,%edi
 	leal	(%ebx,%ebx,1),%ecx
 	subl	%edi,%esi
 	andl	$4278124286,%ecx
 	andl	$454761243,%esi
-	xorl	%esi,%ecx
-	movl	$2155905152,%edi
-	andl	%ecx,%edi
-	movl	%edi,%esi
+	xorl	%ecx,%esi
+	movl	%esi,%ecx
+	andl	$2155905152,%esi
+	movl	%esi,%edi
 	shrl	$7,%edi
 	leal	(%ecx,%ecx,1),%edx
 	subl	%edi,%esi
 	andl	$4278124286,%edx
 	andl	$454761243,%esi
 	xorl	%ebx,%ecx
-	xorl	%esi,%edx
-	movl	$2155905152,%edi
-	andl	%edx,%edi
-	movl	%edi,%esi
+	xorl	%edx,%esi
+	movl	%esi,%edx
+	andl	$2155905152,%esi
+	movl	%esi,%edi
 	shrl	$7,%edi
 	leal	(%edx,%edx,1),%ebp
 	subl	%edi,%esi
@@ -1273,13 +1267,13 @@ L006loop:
 	xorl	%esi,%ebp
 	xorl	%ecx,%ebx
 	xorl	%ebp,%ecx
+	roll	$24,%ecx
 	xorl	%edx,%ebx
 	xorl	%ebp,%edx
-	roll	$24,%ecx
-	xorl	%ebp,%ebx
 	roll	$16,%edx
-	xorl	%ecx,%ebx
+	xorl	%ebp,%ebx
 	roll	$8,%ebp
+	xorl	%ecx,%ebx
 	xorl	%edx,%ebx
 	movl	12(%esp),%ecx
 	xorl	%ebp,%ebx
@@ -1396,79 +1390,77 @@ __sse_AES_decrypt_compact:
 .align	4,0x90
 L007loop:
 	pshufw	$12,%mm0,%mm1
-	pshufw	$9,%mm4,%mm5
 	movd	%mm1,%eax
-	movd	%mm5,%ebx
-	movl	%edi,20(%esp)
+	pshufw	$9,%mm4,%mm5
 	movzbl	%al,%esi
-	movzbl	%ah,%edx
-	pshufw	$6,%mm0,%mm2
 	movzbl	-128(%ebp,%esi,1),%ecx
-	movzbl	%bl,%edi
+	movd	%mm5,%ebx
+	movzbl	%ah,%edx
 	movzbl	-128(%ebp,%edx,1),%edx
-	shrl	$16,%eax
 	shll	$8,%edx
-	movzbl	-128(%ebp,%edi,1),%esi
-	movzbl	%bh,%edi
+	pshufw	$6,%mm0,%mm2
+	movzbl	%bl,%esi
+	movzbl	-128(%ebp,%esi,1),%esi
 	shll	$16,%esi
-	pshufw	$3,%mm4,%mm6
 	orl	%esi,%ecx
-	movzbl	-128(%ebp,%edi,1),%esi
-	movzbl	%ah,%edi
-	shll	$24,%esi
-	shrl	$16,%ebx
-	orl	%esi,%edx
-	movzbl	-128(%ebp,%edi,1),%esi
-	movzbl	%bh,%edi
-	shll	$24,%esi
-	orl	%esi,%ecx
-	movzbl	-128(%ebp,%edi,1),%esi
-	movzbl	%al,%edi
-	shll	$8,%esi
-	movd	%mm2,%eax
-	orl	%esi,%ecx
-	movzbl	-128(%ebp,%edi,1),%esi
-	movzbl	%bl,%edi
-	shll	$16,%esi
-	movd	%mm6,%ebx
-	movd	%ecx,%mm0
-	movzbl	-128(%ebp,%edi,1),%ecx
-	movzbl	%al,%edi
-	orl	%esi,%ecx
-	movzbl	-128(%ebp,%edi,1),%esi
-	movzbl	%bl,%edi
-	orl	%esi,%edx
-	movzbl	-128(%ebp,%edi,1),%esi
-	movzbl	%ah,%edi
-	shll	$16,%esi
 	shrl	$16,%eax
+	movzbl	%bh,%esi
+	movzbl	-128(%ebp,%esi,1),%esi
+	shll	$24,%esi
 	orl	%esi,%edx
-	movzbl	-128(%ebp,%edi,1),%esi
-	movzbl	%bh,%edi
 	shrl	$16,%ebx
-	shll	$8,%esi
-	movd	%edx,%mm1
-	movzbl	-128(%ebp,%edi,1),%edx
-	movzbl	%bh,%edi
-	shll	$24,%edx
-	andl	$255,%ebx
-	orl	%esi,%edx
-	punpckldq	%mm1,%mm0
-	movzbl	-128(%ebp,%edi,1),%esi
-	movzbl	%al,%edi
-	shll	$8,%esi
-	movzbl	%ah,%eax
-	movzbl	-128(%ebp,%ebx,1),%ebx
+	pshufw	$3,%mm4,%mm6
+	movzbl	%ah,%esi
+	movzbl	-128(%ebp,%esi,1),%esi
+	shll	$24,%esi
 	orl	%esi,%ecx
-	movzbl	-128(%ebp,%edi,1),%esi
-	orl	%ebx,%edx
-	shll	$16,%esi
-	movzbl	-128(%ebp,%eax,1),%eax
+	movzbl	%bh,%esi
+	movzbl	-128(%ebp,%esi,1),%esi
+	shll	$8,%esi
+	orl	%esi,%ecx
+	movd	%ecx,%mm0
+	movzbl	%al,%esi
+	movd	%mm2,%eax
+	movzbl	-128(%ebp,%esi,1),%ecx
+	shll	$16,%ecx
+	movzbl	%bl,%esi
+	movd	%mm6,%ebx
+	movzbl	-128(%ebp,%esi,1),%esi
+	orl	%esi,%ecx
+	movzbl	%al,%esi
+	movzbl	-128(%ebp,%esi,1),%esi
 	orl	%esi,%edx
+	movzbl	%bl,%esi
+	movzbl	-128(%ebp,%esi,1),%esi
+	shll	$16,%esi
+	orl	%esi,%edx
+	movd	%edx,%mm1
+	movzbl	%ah,%esi
+	movzbl	-128(%ebp,%esi,1),%edx
+	shll	$8,%edx
+	movzbl	%bh,%esi
+	shrl	$16,%eax
+	movzbl	-128(%ebp,%esi,1),%esi
+	shll	$24,%esi
+	orl	%esi,%edx
+	shrl	$16,%ebx
+	punpckldq	%mm1,%mm0
+	movzbl	%bh,%esi
+	movzbl	-128(%ebp,%esi,1),%esi
+	shll	$8,%esi
+	orl	%esi,%ecx
+	andl	$255,%ebx
+	movzbl	-128(%ebp,%ebx,1),%ebx
+	orl	%ebx,%edx
+	movzbl	%al,%esi
+	movzbl	-128(%ebp,%esi,1),%esi
+	shll	$16,%esi
+	orl	%esi,%edx
+	movd	%edx,%mm4
+	movzbl	%ah,%eax
+	movzbl	-128(%ebp,%eax,1),%eax
 	shll	$24,%eax
 	orl	%eax,%ecx
-	movl	20(%esp),%edi
-	movd	%edx,%mm4
 	movd	%ecx,%mm5
 	punpckldq	%mm5,%mm4
 	addl	$16,%edi
@@ -3014,30 +3006,30 @@ L055invert:
 .align	2,0x90
 L056permute:
 	addl	$16,%edi
-	movl	$2155905152,%ebp
-	andl	%eax,%ebp
-	leal	(%eax,%eax,1),%ebx
-	movl	%ebp,%esi
+	movl	%eax,%esi
+	andl	$2155905152,%esi
+	movl	%esi,%ebp
 	shrl	$7,%ebp
+	leal	(%eax,%eax,1),%ebx
 	subl	%ebp,%esi
 	andl	$4278124286,%ebx
 	andl	$454761243,%esi
-	xorl	%esi,%ebx
-	movl	$2155905152,%ebp
-	andl	%ebx,%ebp
-	leal	(%ebx,%ebx,1),%ecx
-	movl	%ebp,%esi
+	xorl	%ebx,%esi
+	movl	%esi,%ebx
+	andl	$2155905152,%esi
+	movl	%esi,%ebp
 	shrl	$7,%ebp
+	leal	(%ebx,%ebx,1),%ecx
 	subl	%ebp,%esi
 	andl	$4278124286,%ecx
 	andl	$454761243,%esi
 	xorl	%eax,%ebx
-	xorl	%esi,%ecx
-	movl	$2155905152,%ebp
-	andl	%ecx,%ebp
-	leal	(%ecx,%ecx,1),%edx
-	movl	%ebp,%esi
+	xorl	%ecx,%esi
+	movl	%esi,%ecx
+	andl	$2155905152,%esi
+	movl	%esi,%ebp
 	shrl	$7,%ebp
+	leal	(%ecx,%ecx,1),%edx
 	xorl	%eax,%ecx
 	subl	%ebp,%esi
 	andl	$4278124286,%edx
@@ -3058,30 +3050,30 @@ L056permute:
 	movl	%ebp,%ebx
 	xorl	%edx,%eax
 	movl	%eax,(%edi)
-	movl	$2155905152,%ebp
-	andl	%ebx,%ebp
-	leal	(%ebx,%ebx,1),%ecx
-	movl	%ebp,%esi
+	movl	%ebx,%esi
+	andl	$2155905152,%esi
+	movl	%esi,%ebp
 	shrl	$7,%ebp
+	leal	(%ebx,%ebx,1),%ecx
 	subl	%ebp,%esi
 	andl	$4278124286,%ecx
 	andl	$454761243,%esi
-	xorl	%esi,%ecx
-	movl	$2155905152,%ebp
-	andl	%ecx,%ebp
-	leal	(%ecx,%ecx,1),%edx
-	movl	%ebp,%esi
+	xorl	%ecx,%esi
+	movl	%esi,%ecx
+	andl	$2155905152,%esi
+	movl	%esi,%ebp
 	shrl	$7,%ebp
+	leal	(%ecx,%ecx,1),%edx
 	subl	%ebp,%esi
 	andl	$4278124286,%edx
 	andl	$454761243,%esi
 	xorl	%ebx,%ecx
-	xorl	%esi,%edx
-	movl	$2155905152,%ebp
-	andl	%edx,%ebp
-	leal	(%edx,%edx,1),%eax
-	movl	%ebp,%esi
+	xorl	%edx,%esi
+	movl	%esi,%edx
+	andl	$2155905152,%esi
+	movl	%esi,%ebp
 	shrl	$7,%ebp
+	leal	(%edx,%edx,1),%eax
 	xorl	%ebx,%edx
 	subl	%ebp,%esi
 	andl	$4278124286,%eax
@@ -3102,30 +3094,30 @@ L056permute:
 	movl	%ebp,%ecx
 	xorl	%eax,%ebx
 	movl	%ebx,4(%edi)
-	movl	$2155905152,%ebp
-	andl	%ecx,%ebp
-	leal	(%ecx,%ecx,1),%edx
-	movl	%ebp,%esi
+	movl	%ecx,%esi
+	andl	$2155905152,%esi
+	movl	%esi,%ebp
 	shrl	$7,%ebp
+	leal	(%ecx,%ecx,1),%edx
 	subl	%ebp,%esi
 	andl	$4278124286,%edx
 	andl	$454761243,%esi
-	xorl	%esi,%edx
-	movl	$2155905152,%ebp
-	andl	%edx,%ebp
-	leal	(%edx,%edx,1),%eax
-	movl	%ebp,%esi
+	xorl	%edx,%esi
+	movl	%esi,%edx
+	andl	$2155905152,%esi
+	movl	%esi,%ebp
 	shrl	$7,%ebp
+	leal	(%edx,%edx,1),%eax
 	subl	%ebp,%esi
 	andl	$4278124286,%eax
 	andl	$454761243,%esi
 	xorl	%ecx,%edx
-	xorl	%esi,%eax
-	movl	$2155905152,%ebp
-	andl	%eax,%ebp
-	leal	(%eax,%eax,1),%ebx
-	movl	%ebp,%esi
+	xorl	%eax,%esi
+	movl	%esi,%eax
+	andl	$2155905152,%esi
+	movl	%esi,%ebp
 	shrl	$7,%ebp
+	leal	(%eax,%eax,1),%ebx
 	xorl	%ecx,%eax
 	subl	%ebp,%esi
 	andl	$4278124286,%ebx
@@ -3146,30 +3138,30 @@ L056permute:
 	movl	%ebp,%edx
 	xorl	%ebx,%ecx
 	movl	%ecx,8(%edi)
-	movl	$2155905152,%ebp
-	andl	%edx,%ebp
-	leal	(%edx,%edx,1),%eax
-	movl	%ebp,%esi
+	movl	%edx,%esi
+	andl	$2155905152,%esi
+	movl	%esi,%ebp
 	shrl	$7,%ebp
+	leal	(%edx,%edx,1),%eax
 	subl	%ebp,%esi
 	andl	$4278124286,%eax
 	andl	$454761243,%esi
-	xorl	%esi,%eax
-	movl	$2155905152,%ebp
-	andl	%eax,%ebp
-	leal	(%eax,%eax,1),%ebx
-	movl	%ebp,%esi
+	xorl	%eax,%esi
+	movl	%esi,%eax
+	andl	$2155905152,%esi
+	movl	%esi,%ebp
 	shrl	$7,%ebp
+	leal	(%eax,%eax,1),%ebx
 	subl	%ebp,%esi
 	andl	$4278124286,%ebx
 	andl	$454761243,%esi
 	xorl	%edx,%eax
-	xorl	%esi,%ebx
-	movl	$2155905152,%ebp
-	andl	%ebx,%ebp
-	leal	(%ebx,%ebx,1),%ecx
-	movl	%ebp,%esi
+	xorl	%ebx,%esi
+	movl	%esi,%ebx
+	andl	$2155905152,%esi
+	movl	%esi,%ebp
 	shrl	$7,%ebp
+	leal	(%ebx,%ebx,1),%ecx
 	xorl	%edx,%ebx
 	subl	%ebp,%esi
 	andl	$4278124286,%ecx
@@ -3205,4 +3197,4 @@ L056permute:
 L_OPENSSL_ia32cap_P$non_lazy_ptr:
 .indirect_symbol	_OPENSSL_ia32cap_P
 .long	0
-.comm	_OPENSSL_ia32cap_P,16,2
+.comm	_OPENSSL_ia32cap_P,8,2

@@ -1,5 +1,5 @@
 OPTION	DOTNAME
-.text$	SEGMENT ALIGN(256) 'CODE'
+.text$	SEGMENT ALIGN(64) 'CODE'
 
 ALIGN	16
 _x86_64_AES_encrypt	PROC PRIVATE
@@ -152,6 +152,7 @@ $L$enc_loop::
 	xor	ecx,r12d
 	xor	edx,r8d
 DB	0f3h,0c3h
+
 _x86_64_AES_encrypt	ENDP
 
 ALIGN	16
@@ -176,78 +177,80 @@ $L$enc_loop_compact::
 	movzx	r10d,al
 	movzx	r11d,bl
 	movzx	r12d,cl
-	movzx	r8d,dl
-	movzx	esi,bh
-	movzx	edi,ch
-	shr	ecx,16
-	movzx	ebp,dh
 	movzx	r10d,BYTE PTR[r10*1+r14]
 	movzx	r11d,BYTE PTR[r11*1+r14]
 	movzx	r12d,BYTE PTR[r12*1+r14]
-	movzx	r8d,BYTE PTR[r8*1+r14]
 
+	movzx	r8d,dl
+	movzx	esi,bh
+	movzx	edi,ch
+	movzx	r8d,BYTE PTR[r8*1+r14]
 	movzx	r9d,BYTE PTR[rsi*1+r14]
-	movzx	esi,ah
 	movzx	r13d,BYTE PTR[rdi*1+r14]
-	movzx	edi,cl
+
+	movzx	ebp,dh
+	movzx	esi,ah
+	shr	ecx,16
 	movzx	ebp,BYTE PTR[rbp*1+r14]
 	movzx	esi,BYTE PTR[rsi*1+r14]
-
-	shl	r9d,8
 	shr	edx,16
-	shl	r13d,8
-	xor	r10d,r9d
-	shr	eax,16
-	movzx	r9d,dl
-	shr	ebx,16
-	xor	r11d,r13d
-	shl	ebp,8
-	movzx	r13d,al
-	movzx	edi,BYTE PTR[rdi*1+r14]
-	xor	r12d,ebp
 
+	movzx	edi,cl
+	shl	r9d,8
+	shl	r13d,8
+	movzx	edi,BYTE PTR[rdi*1+r14]
+	xor	r10d,r9d
+	xor	r11d,r13d
+
+	movzx	r9d,dl
+	shr	eax,16
+	shr	ebx,16
+	movzx	r13d,al
+	shl	ebp,8
 	shl	esi,8
-	movzx	ebp,bl
-	shl	edi,16
-	xor	r8d,esi
 	movzx	r9d,BYTE PTR[r9*1+r14]
-	movzx	esi,dh
 	movzx	r13d,BYTE PTR[r13*1+r14]
+	xor	r12d,ebp
+	xor	r8d,esi
+
+	movzx	ebp,bl
+	movzx	esi,dh
+	shl	edi,16
+	movzx	ebp,BYTE PTR[rbp*1+r14]
+	movzx	esi,BYTE PTR[rsi*1+r14]
 	xor	r10d,edi
 
-	shr	ecx,8
 	movzx	edi,ah
-	shl	r9d,16
+	shr	ecx,8
 	shr	ebx,8
-	shl	r13d,16
-	xor	r11d,r9d
-	movzx	ebp,BYTE PTR[rbp*1+r14]
-	movzx	esi,BYTE PTR[rsi*1+r14]
 	movzx	edi,BYTE PTR[rdi*1+r14]
 	movzx	edx,BYTE PTR[rcx*1+r14]
 	movzx	ecx,BYTE PTR[rbx*1+r14]
-
+	shl	r9d,16
+	shl	r13d,16
 	shl	ebp,16
+	xor	r11d,r9d
 	xor	r12d,r13d
-	shl	esi,24
 	xor	r8d,ebp
+
+	shl	esi,24
 	shl	edi,24
-	xor	r10d,esi
 	shl	edx,24
-	xor	r11d,edi
+	xor	r10d,esi
 	shl	ecx,24
+	xor	r11d,edi
 	mov	eax,r10d
 	mov	ebx,r11d
 	xor	ecx,r12d
 	xor	edx,r8d
 	cmp	r15,QWORD PTR[16+rsp]
 	je	$L$enc_compact_done
-	mov	r10d,080808080h
-	mov	r11d,080808080h
-	and	r10d,eax
-	and	r11d,ebx
-	mov	esi,r10d
-	mov	edi,r11d
+	mov	esi,eax
+	mov	edi,ebx
+	and	esi,080808080h
+	and	edi,080808080h
+	mov	r10d,esi
+	mov	r11d,edi
 	shr	r10d,7
 	lea	r8d,DWORD PTR[rax*1+rax]
 	shr	r11d,7
@@ -265,25 +268,25 @@ $L$enc_loop_compact::
 
 	xor	eax,r8d
 	xor	ebx,r9d
-	mov	r12d,080808080h
+	mov	esi,ecx
+	mov	edi,edx
 	rol	eax,24
-	mov	ebp,080808080h
 	rol	ebx,24
-	and	r12d,ecx
-	and	ebp,edx
+	and	esi,080808080h
+	and	edi,080808080h
 	xor	eax,r8d
 	xor	ebx,r9d
-	mov	esi,r12d
+	mov	r12d,esi
+	mov	ebp,edi
 	ror	r10d,16
-	mov	edi,ebp
 	ror	r11d,16
-	lea	r8d,DWORD PTR[rcx*1+rcx]
 	shr	r12d,7
+	lea	r8d,DWORD PTR[rcx*1+rcx]
 	xor	eax,r10d
-	shr	ebp,7
 	xor	ebx,r11d
-	ror	r10d,8
+	shr	ebp,7
 	lea	r9d,DWORD PTR[rdx*1+rdx]
+	ror	r10d,8
 	ror	r11d,8
 	sub	esi,r12d
 	sub	edi,ebp
@@ -299,23 +302,23 @@ $L$enc_loop_compact::
 	xor	r8d,esi
 	xor	r9d,edi
 
-	ror	r12d,16
 	xor	ecx,r8d
-	ror	ebp,16
 	xor	edx,r9d
 	rol	ecx,24
-	mov	esi,DWORD PTR[r14]
 	rol	edx,24
 	xor	ecx,r8d
-	mov	edi,DWORD PTR[64+r14]
 	xor	edx,r9d
-	mov	r8d,DWORD PTR[128+r14]
+	mov	esi,DWORD PTR[r14]
+	ror	r12d,16
+	ror	ebp,16
+	mov	edi,DWORD PTR[64+r14]
 	xor	ecx,r12d
-	ror	r12d,8
 	xor	edx,ebp
+	mov	r8d,DWORD PTR[128+r14]
+	ror	r12d,8
 	ror	ebp,8
-	xor	ecx,r12d
 	mov	r9d,DWORD PTR[192+r14]
+	xor	ecx,r12d
 	xor	edx,ebp
 	jmp	$L$enc_loop_compact
 ALIGN	16
@@ -325,6 +328,7 @@ $L$enc_compact_done::
 	xor	ecx,DWORD PTR[8+r15]
 	xor	edx,DWORD PTR[12+r15]
 DB	0f3h,0c3h
+
 _x86_64_AES_encrypt_compact	ENDP
 PUBLIC	AES_encrypt
 
@@ -559,6 +563,7 @@ $L$dec_loop::
 	xor	ecx,r12d
 	xor	edx,r8d
 DB	0f3h,0c3h
+
 _x86_64_AES_decrypt	ENDP
 
 ALIGN	16
@@ -584,69 +589,70 @@ $L$dec_loop_compact::
 	movzx	r10d,al
 	movzx	r11d,bl
 	movzx	r12d,cl
-	movzx	r8d,dl
-	movzx	esi,dh
-	movzx	edi,ah
-	shr	edx,16
-	movzx	ebp,bh
 	movzx	r10d,BYTE PTR[r10*1+r14]
 	movzx	r11d,BYTE PTR[r11*1+r14]
 	movzx	r12d,BYTE PTR[r12*1+r14]
-	movzx	r8d,BYTE PTR[r8*1+r14]
 
+	movzx	r8d,dl
+	movzx	esi,dh
+	movzx	edi,ah
+	movzx	r8d,BYTE PTR[r8*1+r14]
 	movzx	r9d,BYTE PTR[rsi*1+r14]
-	movzx	esi,ch
 	movzx	r13d,BYTE PTR[rdi*1+r14]
+
+	movzx	ebp,bh
+	movzx	esi,ch
+	shr	ecx,16
 	movzx	ebp,BYTE PTR[rbp*1+r14]
 	movzx	esi,BYTE PTR[rsi*1+r14]
+	shr	edx,16
 
-	shr	ecx,16
-	shl	r13d,8
-	shl	r9d,8
 	movzx	edi,cl
-	shr	eax,16
-	xor	r10d,r9d
-	shr	ebx,16
-	movzx	r9d,dl
-
-	shl	ebp,8
-	xor	r11d,r13d
-	shl	esi,8
-	movzx	r13d,al
+	shl	r9d,8
+	shl	r13d,8
 	movzx	edi,BYTE PTR[rdi*1+r14]
-	xor	r12d,ebp
-	movzx	ebp,bl
+	xor	r10d,r9d
+	xor	r11d,r13d
 
-	shl	edi,16
-	xor	r8d,esi
+	movzx	r9d,dl
+	shr	eax,16
+	shr	ebx,16
+	movzx	r13d,al
+	shl	ebp,8
+	shl	esi,8
 	movzx	r9d,BYTE PTR[r9*1+r14]
-	movzx	esi,bh
-	movzx	ebp,BYTE PTR[rbp*1+r14]
-	xor	r10d,edi
 	movzx	r13d,BYTE PTR[r13*1+r14]
-	movzx	edi,ch
+	xor	r12d,ebp
+	xor	r8d,esi
 
-	shl	ebp,16
+	movzx	ebp,bl
+	movzx	esi,bh
+	shl	edi,16
+	movzx	ebp,BYTE PTR[rbp*1+r14]
+	movzx	esi,BYTE PTR[rsi*1+r14]
+	xor	r10d,edi
+
+	movzx	edi,ch
 	shl	r9d,16
 	shl	r13d,16
-	xor	r8d,ebp
-	movzx	ebp,dh
+	movzx	ebx,BYTE PTR[rdi*1+r14]
 	xor	r11d,r9d
-	shr	eax,8
 	xor	r12d,r13d
 
-	movzx	esi,BYTE PTR[rsi*1+r14]
-	movzx	ebx,BYTE PTR[rdi*1+r14]
-	movzx	ecx,BYTE PTR[rbp*1+r14]
+	movzx	edi,dh
+	shr	eax,8
+	shl	ebp,16
+	movzx	ecx,BYTE PTR[rdi*1+r14]
 	movzx	edx,BYTE PTR[rax*1+r14]
+	xor	r8d,ebp
 
-	mov	eax,r10d
 	shl	esi,24
 	shl	ebx,24
 	shl	ecx,24
-	xor	eax,esi
+	xor	r10d,esi
 	shl	edx,24
 	xor	ebx,r11d
+	mov	eax,r10d
 	xor	ecx,r12d
 	xor	edx,r8d
 	cmp	r15,QWORD PTR[16+rsp]
@@ -659,12 +665,12 @@ $L$dec_loop_compact::
 	or	rax,rbx
 	or	rcx,rdx
 	mov	rbp,QWORD PTR[((256+16))+r14]
-	mov	r9,rsi
-	mov	r12,rsi
-	and	r9,rax
-	and	r12,rcx
-	mov	rbx,r9
-	mov	rdx,r12
+	mov	rbx,rax
+	mov	rdx,rcx
+	and	rbx,rsi
+	and	rdx,rsi
+	mov	r9,rbx
+	mov	r12,rdx
 	shr	r9,7
 	lea	r8,QWORD PTR[rax*1+rax]
 	shr	r12,7
@@ -675,15 +681,15 @@ $L$dec_loop_compact::
 	and	r11,rdi
 	and	rbx,rbp
 	and	rdx,rbp
-	xor	r8,rbx
-	xor	r11,rdx
-	mov	r10,rsi
-	mov	r13,rsi
+	xor	rbx,r8
+	xor	rdx,r11
+	mov	r8,rbx
+	mov	r11,rdx
 
-	and	r10,r8
-	and	r13,r11
-	mov	rbx,r10
-	mov	rdx,r13
+	and	rbx,rsi
+	and	rdx,rsi
+	mov	r10,rbx
+	mov	r13,rdx
 	shr	r10,7
 	lea	r9,QWORD PTR[r8*1+r8]
 	shr	r13,7
@@ -694,15 +700,15 @@ $L$dec_loop_compact::
 	and	r12,rdi
 	and	rbx,rbp
 	and	rdx,rbp
-	xor	r9,rbx
-	xor	r12,rdx
-	mov	r10,rsi
-	mov	r13,rsi
+	xor	rbx,r9
+	xor	rdx,r12
+	mov	r9,rbx
+	mov	r12,rdx
 
-	and	r10,r9
-	and	r13,r12
-	mov	rbx,r10
-	mov	rdx,r13
+	and	rbx,rsi
+	and	rdx,rsi
+	mov	r10,rbx
+	mov	r13,rdx
 	shr	r10,7
 	xor	r8,rax
 	shr	r13,7
@@ -727,51 +733,51 @@ $L$dec_loop_compact::
 	mov	rbx,rax
 	mov	rdx,rcx
 	xor	r9,r10
-	shr	rbx,32
 	xor	r12,r13
+	shr	rbx,32
 	shr	rdx,32
 	xor	r10,r8
-	rol	eax,8
 	xor	r13,r11
+	rol	eax,8
 	rol	ecx,8
 	xor	r10,r9
-	rol	ebx,8
 	xor	r13,r12
 
+	rol	ebx,8
 	rol	edx,8
 	xor	eax,r10d
-	shr	r10,32
 	xor	ecx,r13d
+	shr	r10,32
 	shr	r13,32
 	xor	ebx,r10d
 	xor	edx,r13d
 
 	mov	r10,r8
-	rol	r8d,24
 	mov	r13,r11
-	rol	r11d,24
 	shr	r10,32
-	xor	eax,r8d
 	shr	r13,32
-	xor	ecx,r11d
+	rol	r8d,24
+	rol	r11d,24
 	rol	r10d,24
-	mov	r8,r9
 	rol	r13d,24
+	xor	eax,r8d
+	xor	ecx,r11d
+	mov	r8,r9
 	mov	r11,r12
-	shr	r8,32
 	xor	ebx,r10d
-	shr	r11,32
 	xor	edx,r13d
 
 	mov	rsi,QWORD PTR[r14]
-	rol	r9d,16
+	shr	r8,32
+	shr	r11,32
 	mov	rdi,QWORD PTR[64+r14]
+	rol	r9d,16
 	rol	r12d,16
 	mov	rbp,QWORD PTR[128+r14]
 	rol	r8d,16
+	rol	r11d,16
 	mov	r10,QWORD PTR[192+r14]
 	xor	eax,r9d
-	rol	r11d,16
 	xor	ecx,r12d
 	mov	r13,QWORD PTR[256+r14]
 	xor	ebx,r8d
@@ -784,6 +790,7 @@ $L$dec_compact_done::
 	xor	ecx,DWORD PTR[8+r15]
 	xor	edx,DWORD PTR[12+r15]
 DB	0f3h,0c3h
+
 _x86_64_AES_decrypt_compact	ENDP
 PUBLIC	AES_decrypt
 
@@ -890,6 +897,10 @@ $L$enc_key_prologue::
 
 	call	_x86_64_AES_set_encrypt_key
 
+	mov	r15,QWORD PTR[8+rsp]
+	mov	r14,QWORD PTR[16+rsp]
+	mov	r13,QWORD PTR[24+rsp]
+	mov	r12,QWORD PTR[32+rsp]
 	mov	rbp,QWORD PTR[40+rsp]
 	mov	rbx,QWORD PTR[48+rsp]
 	add	rsp,56
@@ -1138,6 +1149,7 @@ $L$badpointer::
 	mov	rax,-1
 $L$exit::
 DB	0f3h,0c3h
+
 _x86_64_AES_set_encrypt_key	ENDP
 PUBLIC	private_AES_set_decrypt_key
 
@@ -1199,12 +1211,12 @@ $L$permute::
 	lea	r15,QWORD PTR[16+r15]
 	mov	rax,QWORD PTR[r15]
 	mov	rcx,QWORD PTR[8+r15]
-	mov	r9,rsi
-	mov	r12,rsi
-	and	r9,rax
-	and	r12,rcx
-	mov	rbx,r9
-	mov	rdx,r12
+	mov	rbx,rax
+	mov	rdx,rcx
+	and	rbx,rsi
+	and	rdx,rsi
+	mov	r9,rbx
+	mov	r12,rdx
 	shr	r9,7
 	lea	r8,QWORD PTR[rax*1+rax]
 	shr	r12,7
@@ -1215,15 +1227,15 @@ $L$permute::
 	and	r11,rdi
 	and	rbx,rbp
 	and	rdx,rbp
-	xor	r8,rbx
-	xor	r11,rdx
-	mov	r10,rsi
-	mov	r13,rsi
+	xor	rbx,r8
+	xor	rdx,r11
+	mov	r8,rbx
+	mov	r11,rdx
 
-	and	r10,r8
-	and	r13,r11
-	mov	rbx,r10
-	mov	rdx,r13
+	and	rbx,rsi
+	and	rdx,rsi
+	mov	r10,rbx
+	mov	r13,rdx
 	shr	r10,7
 	lea	r9,QWORD PTR[r8*1+r8]
 	shr	r13,7
@@ -1234,15 +1246,15 @@ $L$permute::
 	and	r12,rdi
 	and	rbx,rbp
 	and	rdx,rbp
-	xor	r9,rbx
-	xor	r12,rdx
-	mov	r10,rsi
-	mov	r13,rsi
+	xor	rbx,r9
+	xor	rdx,r12
+	mov	r9,rbx
+	mov	r12,rdx
 
-	and	r10,r9
-	and	r13,r12
-	mov	rbx,r10
-	mov	rdx,r13
+	and	rbx,rsi
+	and	rdx,rsi
+	mov	r10,rbx
+	mov	r13,rdx
 	shr	r10,7
 	xor	r8,rax
 	shr	r13,7
@@ -1267,51 +1279,51 @@ $L$permute::
 	mov	rbx,rax
 	mov	rdx,rcx
 	xor	r9,r10
-	shr	rbx,32
 	xor	r12,r13
+	shr	rbx,32
 	shr	rdx,32
 	xor	r10,r8
-	rol	eax,8
 	xor	r13,r11
+	rol	eax,8
 	rol	ecx,8
 	xor	r10,r9
-	rol	ebx,8
 	xor	r13,r12
 
+	rol	ebx,8
 	rol	edx,8
 	xor	eax,r10d
-	shr	r10,32
 	xor	ecx,r13d
+	shr	r10,32
 	shr	r13,32
 	xor	ebx,r10d
 	xor	edx,r13d
 
 	mov	r10,r8
-	rol	r8d,24
 	mov	r13,r11
-	rol	r11d,24
 	shr	r10,32
-	xor	eax,r8d
 	shr	r13,32
-	xor	ecx,r11d
+	rol	r8d,24
+	rol	r11d,24
 	rol	r10d,24
-	mov	r8,r9
 	rol	r13d,24
+	xor	eax,r8d
+	xor	ecx,r11d
+	mov	r8,r9
 	mov	r11,r12
-	shr	r8,32
 	xor	ebx,r10d
-	shr	r11,32
 	xor	edx,r13d
 
 
-	rol	r9d,16
+	shr	r8,32
+	shr	r11,32
 
+	rol	r9d,16
 	rol	r12d,16
 
 	rol	r8d,16
+	rol	r11d,16
 
 	xor	eax,r9d
-	rol	r11d,16
 	xor	ecx,r12d
 
 	xor	ebx,r8d
@@ -1443,6 +1455,7 @@ $L$cbc_do_ecopy::
 	lea	r15,QWORD PTR[80+rsp]
 	mov	ecx,240/8
 	DD	090A548F3h
+
 	mov	DWORD PTR[rdi],eax
 $L$cbc_skip_ecopy::
 	mov	QWORD PTR[rsp],r15
@@ -1606,6 +1619,7 @@ $L$cbc_fast_cleanup::
 	xor	rax,rax
 	DD	090AB48F3h
 
+
 	jmp	$L$cbc_exit
 
 
@@ -1661,6 +1675,7 @@ $L$cbc_slow_body::
 	mov	edx,DWORD PTR[12+rbp]
 	jz	$L$cbc_slow_enc_tail
 
+
 ALIGN	4
 $L$cbc_slow_enc_loop::
 	xor	eax,DWORD PTR[r8]
@@ -1705,15 +1720,18 @@ $L$cbc_slow_enc_tail::
 	mov	rsi,r8
 	mov	rdi,r9
 	DD	09066A4F3h
+
 	mov	rcx,16
 	sub	rcx,r10
 	xor	rax,rax
 	DD	09066AAF3h
+
 	mov	r8,r9
 	mov	r10,16
 	mov	rax,r11
 	mov	rcx,r12
 	jmp	$L$cbc_slow_enc_loop
+
 
 ALIGN	16
 $L$SLOW_DECRYPT::
@@ -1790,6 +1808,7 @@ $L$cbc_slow_dec_partial::
 	lea	rsi,QWORD PTR[64+rsp]
 	lea	rcx,QWORD PTR[16+r10]
 	DD	09066A4F3h
+
 	jmp	$L$cbc_exit
 
 ALIGN	16
@@ -2792,6 +2811,7 @@ $L$common_seh_exit::
 	mov	ecx,154
 	DD	0a548f3fch
 
+
 	mov	rsi,r9
 	xor	rcx,rcx
 	mov	rdx,QWORD PTR[8+rsi]
@@ -2850,18 +2870,22 @@ $L$SEH_info_AES_encrypt::
 DB	9,0,0,0
 	DD	imagerel block_se_handler
 	DD	imagerel $L$enc_prologue,imagerel $L$enc_epilogue
+
 $L$SEH_info_AES_decrypt::
 DB	9,0,0,0
 	DD	imagerel block_se_handler
 	DD	imagerel $L$dec_prologue,imagerel $L$dec_epilogue
+
 $L$SEH_info_private_AES_set_encrypt_key::
 DB	9,0,0,0
 	DD	imagerel key_se_handler
 	DD	imagerel $L$enc_key_prologue,imagerel $L$enc_key_epilogue
+
 $L$SEH_info_private_AES_set_decrypt_key::
 DB	9,0,0,0
 	DD	imagerel key_se_handler
 	DD	imagerel $L$dec_key_prologue,imagerel $L$dec_key_epilogue
+
 $L$SEH_info_AES_cbc_encrypt::
 DB	9,0,0,0
 	DD	imagerel cbc_se_handler
