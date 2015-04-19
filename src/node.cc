@@ -954,8 +954,8 @@ void LoggerCallback(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsString());
 
   if (custom_logger) {
-    int32_t func_type = args[0]->ToInteger(env->isolate())->Int32Value();
-    node::Utf8Value message(env->isolate(), args[1]);
+    int32_t func_type = args[0]->IntegerValue();
+    Utf8Value message(env->isolate(), args[1].As<String>());
     if (custom_logger(static_cast<logger_func_type>(func_type), *message))
       args.GetReturnValue().Set(True(env->isolate()));
   }
@@ -2890,7 +2890,22 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "_setupPromises", SetupPromises);
   env->SetMethod(process, "_setupDomainUse", SetupDomainUse);
 
-  env->SetMethod(process, "_logger", LoggerCallback);
+  // Readonly _logger method
+  v8::Local<v8::Function> logger =
+      env->NewFunctionTemplate(LoggerCallback)->GetFunction();
+  READONLY_PROPERTY(process, "_logger", logger);
+  logger->SetName(v8::String::NewFromUtf8(env->isolate(), "_logger"));
+  // Logger function type constants
+  READONLY_PROPERTY(logger, "LOGGER_FUNC_TYPE_LOG",
+                    Integer::New(env->isolate(), LOGGER_FUNC_TYPE_LOG));
+  READONLY_PROPERTY(logger, "LOGGER_FUNC_TYPE_INFO",
+                    Integer::New(env->isolate(), LOGGER_FUNC_TYPE_INFO));
+  READONLY_PROPERTY(logger, "LOGGER_FUNC_TYPE_WARN",
+                    Integer::New(env->isolate(), LOGGER_FUNC_TYPE_WARN));
+  READONLY_PROPERTY(logger, "LOGGER_FUNC_TYPE_ERROR",
+                    Integer::New(env->isolate(), LOGGER_FUNC_TYPE_ERROR));
+  READONLY_PROPERTY(logger, "LOGGER_FUNC_TYPE_DIR",
+                    Integer::New(env->isolate(), LOGGER_FUNC_TYPE_DIR));
 
   // pre-set _events object for faster emit checks
   process->Set(env->events_string(), Object::New(env->isolate()));
