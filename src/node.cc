@@ -956,8 +956,8 @@ void LoggerCallback(const FunctionCallbackInfo<Value>& args) {
   if (custom_logger) {
     int32_t func_type = args[0]->ToInteger(env->isolate())->Int32Value();
     node::Utf8Value message(env->isolate(), args[1]);
-    custom_logger(static_cast<logger_func_type>(func_type), *message);
-    args.GetReturnValue().Set(True(env->isolate()));
+    if (custom_logger(static_cast<logger_func_type>(func_type), *message))
+      args.GetReturnValue().Set(True(env->isolate()));
   }
 }
 

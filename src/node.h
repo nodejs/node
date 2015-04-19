@@ -170,7 +170,7 @@ enum logger_func_type {
   LOGGER_FUNC_TYPE_DIR = 6
 };
 
-typedef void (*logger_func)(logger_func_type func_type, const char* fmt, ...);
+typedef bool (*logger_func)(logger_func_type func_type, const char* fmt, ...);
 
 NODE_EXTERN logger_func SetLogger(logger_func func);
 
