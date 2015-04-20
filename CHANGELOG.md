@@ -96,6 +96,14 @@ will be removed at a later point. (Roman Reiss) [#1363](https://github.com/iojs/
 
 * **build**: A syntax error in the Makefile for release builds caused 1.7.0 to be DOA and unreleased. (Rod Vagg) [#1421](https://github.com/iojs/io.js/pull/1421).
 
+### Known issues
+
+* Some problems with unreferenced timers running during `beforeExit` are still to be resolved. See [#1264](https://github.com/iojs/io.js/issues/1264).
+* Surrogate pair in REPL can freeze terminal [#690](https://github.com/iojs/io.js/issues/690)
+* `process.send()` is not synchronous as the docs suggest, a regression introduced in 1.0.2, see [#760](https://github.com/iojs/io.js/issues/760) and fix in [#774](https://github.com/iojs/io.js/issues/774)
+* Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion [#894](https://github.com/iojs/io.js/issues/894)
+* readline: split escapes are processed incorrectly, see [#1403](https://github.com/iojs/io.js/issues/1403)
+
 ### Commits
 
 * [[`aee86a21f2`](https://github.com/iojs/io.js/commit/aee86a21f2)] - **build**: fix RELEASE check (Rod Vagg) [#1421](https://github.com/iojs/io.js/pull/1421)
@@ -113,6 +121,14 @@ will be removed at a later point. (Roman Reiss) [#1363](https://github.com/iojs/
   * [`b747593`](https://github.com/npm/npm/commit/b7475936f473f029e6a027ba1b16277523747d0b)[#7630](https://github.com/npm/npm/issues/7630) Don't automatically log all git failures as errors. `maybeGithub` needs to be able to fail without logging to support its fallback logic. ([@othiym23](https://github.com/othiym23))
   * [`78005eb`](https://github.com/npm/npm/commit/78005ebb6f4103c20f077669c3929b7ea46a4c0d)[#7743](https://github.com/npm/npm/issues/7743) Always quote arguments passed to `npm run-script`. This allows build systems and the like to safely escape glob patterns passed as arguments to `run-scripts` with `npm run-script <script> -- <arguments>`. This is a tricky change to test, and may be reverted or moved to `npm@3` if it turns out it breaks things for users. ([@mantoni](https://github.com/mantoni))
   * [`da015ee`](https://github.com/npm/npm/commit/da015eee45f6daf384598151d06a9b57ffce136e)[#7074](https://github.com/npm/npm/issues/7074) `read-package-json@1.3.3`: `read-package-json` no longer caches `package.json` files, which trades a very small performance loss for the elimination of a large class of really annoying race conditions. See [#7074](https://github.com/npm/npm/issues/7074) for the grisly details. ([@othiym23](https://github.com/othiym23))
+
+### Known issues
+
+* Some problems with unreferenced timers running during `beforeExit` are still to be resolved. See [#1264](https://github.com/iojs/io.js/issues/1264).
+* Surrogate pair in REPL can freeze terminal [#690](https://github.com/iojs/io.js/issues/690)
+* `process.send()` is not synchronous as the docs suggest, a regression introduced in 1.0.2, see [#760](https://github.com/iojs/io.js/issues/760) and fix in [#774](https://github.com/iojs/io.js/issues/774)
+* Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion [#894](https://github.com/iojs/io.js/issues/894)
+* readline: split escapes are processed incorrectly, see [#1403](https://github.com/iojs/io.js/issues/1403)
 
 ### Commits
 
