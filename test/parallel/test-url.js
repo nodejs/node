@@ -1538,7 +1538,21 @@ var relativeTests2 = [
   //changeing auth
   ['http://diff:auth@www.example.com',
    'http://asdf:qwer@www.example.com',
-   'http://diff:auth@www.example.com/']
+   'http://diff:auth@www.example.com/'],
+
+  // https://github.com/nodejs/node/issues/1435
+  ['https://another.host.com/',
+   'https://user:password@example.org/',
+   'https://another.host.com/'],
+  ['//another.host.com/',
+   'https://user:password@example.org/',
+   'https://another.host.com/'],
+  ['http://another.host.com/',
+   'https://user:password@example.org/',
+   'http://another.host.com/'],
+  ['mailto:another.host.com',
+   'mailto:user@example.org',
+   'mailto:another.host.com'],
 ];
 relativeTests2.forEach(function(relativeTest) {
   const a = url.resolve(relativeTest[1], relativeTest[0]);
