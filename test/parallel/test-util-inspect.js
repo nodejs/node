@@ -276,7 +276,7 @@ checkAlignment(function(){
   var obj = {};
   big_array.forEach(function(v) {
     obj[v] = null;
-  })
+  });
   return obj;
 }());
 checkAlignment(new Set(big_array));
