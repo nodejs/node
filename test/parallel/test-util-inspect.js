@@ -235,3 +235,17 @@ if (typeof Symbol !== 'undefined') {
   assert.equal(util.inspect(subject, options), '[ 1, 2, 3, [length]: 3, [Symbol(symbol)]: 42 ]');
 
 }
+
+// test Set
+assert.equal(util.inspect(new Set), 'Set {}')
+assert.equal(util.inspect(new Set([1, 2, 3])), 'Set { 1, 2, 3 }')
+var set = new Set(["foo"])
+set.bar = 42
+assert.equal(util.inspect(set, true), 'Set { \'foo\', [size]: 1, bar: 42 }')
+
+// test Map
+assert.equal(util.inspect(new Map), 'Map {}')
+assert.equal(util.inspect(new Map([[1, 'a'], [2, 'b'], [3, 'c']])), 'Map { 1 => \'a\', 2 => \'b\', 3 => \'c\' }')
+var map = new Map([["foo", null]])
+map.bar = 42
+assert.equal(util.inspect(map, true), 'Map { \'foo\' => null, [size]: 1, bar: 42 }')
