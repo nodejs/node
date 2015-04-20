@@ -178,7 +178,7 @@ class SSLWrap {
  protected:
   typedef void (*CertCb)(void* arg);
 
-  static void InitNPN(Base* w, SecureContext* sc);
+  static void InitNPN(SecureContext* sc);
   static void AddMethods(Environment* env, v8::Handle<v8::FunctionTemplate> t);
 
   static SSL_SESSION* GetSessionCallback(SSL* s,

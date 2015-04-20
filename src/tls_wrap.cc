@@ -148,7 +148,9 @@ void TLSWrap::InitSSL() {
   }
 #endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
 
-  InitNPN(this, sc_);
+  InitNPN(sc_);
+
+  SSL_set_cert_cb(ssl_, SSLWrap<TLSWrap>::SSLCertCallback, this);
 
   if (is_server()) {
     SSL_set_accept_state(ssl_);
@@ -808,7 +810,7 @@ int TLSWrap::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
   p->sni_context_.Reset(env->isolate(), ctx);
 
   SecureContext* sc = Unwrap<SecureContext>(ctx.As<Object>());
-  InitNPN(p, sc);
+  InitNPN(sc);
   SSL_set_SSL_CTX(s, sc->ctx_);
   return SSL_TLSEXT_ERR_OK;
 }
