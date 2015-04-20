@@ -250,6 +250,23 @@ var map = new Map([["foo", null]]);
 map.bar = 42;
 assert.equal(util.inspect(map, true), 'Map { \'foo\' => null, [size]: 1, bar: 42 }');
 
+// test Promise
+assert.equal(util.inspect(Promise.resolve(3)), 'Promise { 3 }');
+assert.equal(util.inspect(Promise.reject(3)), 'Promise { <rejected> 3 }');
+assert.equal(util.inspect(new Promise(function() {})), 'Promise { <pending> }');
+var promise = Promise.resolve('foo');
+promise.bar = 42;
+assert.equal(util.inspect(promise), 'Promise { \'foo\', bar: 42 }');
+
+// Make sure it doesn't choke on polyfills. Unlike Set/Map, there is no standard
+// interface to synchronously inspect a Promise, so our techniques only work on
+// a bonafide native Promise.
+var oldPromise = Promise;
+global.Promise = function() { this.bar = 42; };
+assert.equal(util.inspect(new Promise), '{ bar: 42 }');
+global.Promise = oldPromise;
+
+
 // Test alignment of items in container
 // Assumes that the first numeric character is the start of an item.
 
