@@ -249,3 +249,35 @@ assert.equal(util.inspect(new Map([[1, 'a'], [2, 'b'], [3, 'c']])), 'Map { 1 => 
 var map = new Map([["foo", null]]);
 map.bar = 42;
 assert.equal(util.inspect(map, true), 'Map { \'foo\' => null, [size]: 1, bar: 42 }');
+
+// Test alignment of items in container
+// Assumes that the first numeric character is the start of an item.
+
+function checkAlignment(container) {
+  var lines = util.inspect(container).split("\n");
+  var pos;
+  lines.forEach(function(line) {
+    var npos = line.search(/\d/);
+    if (npos !== -1) {
+      if (pos !== undefined)
+        assert.equal(pos, npos, "container items not aligned");
+      pos = npos;
+    }
+  });
+}
+
+var big_array = [];
+for (var i = 0; i < 100; i++) {
+  big_array.push(i);
+}
+
+checkAlignment(big_array);
+checkAlignment(function(){
+  var obj = {};
+  big_array.forEach(function(v) {
+    obj[v] = null;
+  })
+  return obj;
+}());
+checkAlignment(new Set(big_array));
+checkAlignment(new Map(big_array.map(function (y) { return [y, null] })));
