@@ -946,17 +946,19 @@ logger_func SetLogger(logger_func func) {
 
 
 void LoggerCallback(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  HandleScope scope(env->isolate());
-
-  CHECK(args[0]->IsNumber());
-  CHECK(args[1]->IsString());
-
   if (custom_logger) {
-    int32_t func_type = args[0]->IntegerValue();
-    Utf8Value message(env->isolate(), args[1].As<String>());
-    if (custom_logger(static_cast<logger_func_type>(func_type), *message))
+    Environment* env = Environment::GetCurrent(args);
+
+    HandleScope scope(env->isolate());
+
+    CHECK(args[0]->IsNumber());
+    CHECK(args[1]->IsString());
+
+    logger_func_type func_type =
+        static_cast<logger_func_type>(args[0]->IntegerValue());
+    node::Utf8Value message(env->isolate(), args[1].As<String>());
+
+    if (custom_logger(func_type, *message))
       args.GetReturnValue().Set(True(env->isolate()));
   }
 }
