@@ -13,7 +13,8 @@ var cert = fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'));
 var key = fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem'));
 
 // https://github.com/iojs/io.js/issues/1489
-// tls.connect(options) with no options.host should accept a cert with CN:'localhost'
+// tls.connect(options) with no options.host should accept a cert with
+//   CN:'localhost'
 tls.createServer({
   key: key,
   cert: cert
@@ -24,7 +25,8 @@ tls.connect({
     ca: cert,
     // No host set here. 'localhost' is the default,
     // but tls.checkServerIdentity() breaks before the fix with:
-    // Error: Hostname/IP doesn't match certificate's altnames: "Host: undefined. is not cert's CN: localhost"
+    // Error: Hostname/IP doesn't match certificate's altnames:
+    //   "Host: undefined. is not cert's CN: localhost"
 }, function () {
     console.log('OK');
     process.exit();
