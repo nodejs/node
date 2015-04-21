@@ -923,19 +923,21 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
 
 
 #define LOG_STDERR(...)                                                       \
-  if (custom_logger)                                                          \
-    custom_logger(LOGGER_FUNC_TYPE_STDERR, __VA_ARGS__);                      \
-  else {                                                                      \
+  if (custom_logger == NULL ||                                                \
+      !custom_logger(LOGGER_FUNC_TYPE_STDERR, __VA_ARGS__))                   \
+  {                                                                           \
     fprintf(stderr, __VA_ARGS__);                                             \
     fflush(stderr);                                                           \
   }
 
 
 #define LOG_STDOUT(...)                                                       \
-  if (custom_logger)                                                          \
-    custom_logger(LOGGER_FUNC_TYPE_STDOUT, __VA_ARGS__);                      \
-  else                                                                        \
-    printf(__VA_ARGS__);
+  if (custom_logger == NULL ||                                                \
+      !custom_logger(LOGGER_FUNC_TYPE_STDOUT, __VA_ARGS__))                   \
+  {                                                                           \
+    fprintf(stdout, __VA_ARGS__);                                             \
+    fflush(stdout);                                                           \
+  }
 
 
 logger_func SetLogger(logger_func func) {
