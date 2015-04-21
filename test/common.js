@@ -218,3 +218,11 @@ exports.hasMultiLocalhost = function hasMultiLocalhost() {
   t.close();
   return ret === 0;
 };
+
+exports.busyLoop = function busyLoop(time) {
+  var startTime = new Date().getTime();
+  var stopTime =  startTime + time;
+  while (new Date().getTime() < stopTime) {
+    ;
+  }
+};
