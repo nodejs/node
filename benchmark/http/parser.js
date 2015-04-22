@@ -9,12 +9,15 @@ var bench = common.createBenchmark(main, {
   type: [
     'small-req',
     'small-res',
+    'small-alternate',
     'medium-req',
     'medium-res',
+    'medium-alternate',
     'medium-req-chunked',
     'medium-res-chunked',
     'large-req',
     'large-res',
+    'large-alternate',
     'large-req-chunked',
     'large-res-chunked',
   ]
@@ -29,6 +32,7 @@ var inputs = {
     'HTTP/1.1 200 OK' + CRLF +
     'Date: Mon, 23 May 2005 22:38:34 GMT' + CRLF + CRLF
   ],
+  'small-alternate': true,
   'medium-req': [
     'POST /it HTTP/1.1' + CRLF +
     'Content-Type: text/plain' + CRLF +
@@ -68,6 +72,7 @@ var inputs = {
     '123456789ABCDEF' + CRLF +
     '0' + CRLF
   ],
+  'medium-alternate': true,
   'medium-req-chunked': [
     'POST /it HTTP/',
     '1.1' + CRLF,
@@ -112,6 +117,7 @@ var inputs = {
     'Content-Length: 3572' + CRLF + CRLF +
     new Array(256).join('X-Filler: 42' + CRLF) + CRLF
   ],
+  'large-alternate': true,
   'large-req-chunked':
     ('POST /foo/bar/baz?quux=42#1337 HTTP/1.0' + CRLF +
     new Array(256).join('X-Filler: 42' + CRLF) + CRLF).match(/.{1,144}/g)
@@ -133,30 +139,61 @@ function onComplete() {
 }
 
 function main(conf) {
-  var chunks = inputs[conf.type];
+  var type = conf.type;
+  var chunks = inputs[type];
   var n = +conf.n;
-  var nchunks = chunks.length;
-  var kind = (/\-req\-?/i.exec(conf.type) ? REQUEST : RESPONSE);
+  var nchunks = (chunks !== true ? chunks.length : 1);
+  var kind = (/\-req\-?/i.exec(type) ? REQUEST : RESPONSE);
+  var altsize = /^([^\-]+)\-alternate$/.exec(type);
+  var req;
+  var res;
+
+  if (altsize)
+    altsize = altsize[1];
 
   // Convert strings to Buffers first ...
-  for (var i = 0; i < nchunks; ++i)
-    chunks[i] = new Buffer(chunks[i], 'binary');
+  if (chunks === true) {
+    // alternating
+    req = new Buffer(inputs[altsize + '-req'].join(''), 'binary');
+    res = new Buffer(inputs[altsize + '-res'].join(''), 'binary');
+    kind = REQUEST;
+  } else {
+    for (var i = 0; i < nchunks; ++i)
+      chunks[i] = new Buffer(chunks[i], 'binary');
+  }
 
   var parser = new HTTPParser(kind);
   parser.onHeaders = onHeaders;
   parser.onBody = onBody;
   parser.onComplete = onComplete;
 
-  // Allow V8 to optimize first ...
-  for (var j = 0; j < 1000; ++j) {
-    for (var i = 0; i < nchunks; ++i)
-      parser.execute(chunks[i]);
+  if (altsize) {
+    // Allow V8 to optimize first ...
+    for (var j = 0; j < 1000; ++j) {
+      parser.reinitialize(REQUEST);
+      parser.execute(req);
+      parser.reinitialize(RESPONSE);
+      parser.execute(res);
+    }
+    bench.start();
+    for (var c = 0; c < n; ++c) {
+      parser.reinitialize(REQUEST);
+      parser.execute(req);
+      parser.reinitialize(RESPONSE);
+      parser.execute(res);
+    }
+    bench.end(n * 2);
+  } else {
+    // Allow V8 to optimize first ...
+    for (var j = 0; j < 1000; ++j) {
+      for (var i = 0; i < nchunks; ++i)
+        parser.execute(chunks[i]);
+    }
+    bench.start();
+    for (var c = 0; c < n; ++c) {
+      for (var i = 0; i < nchunks; ++i)
+        parser.execute(chunks[i]);
+    }
+    bench.end(n * nchunks);
   }
-
-  bench.start();
-  for (var c = 0; c < n; ++c) {
-    for (var i = 0; i < nchunks; ++i)
-      parser.execute(chunks[i]);
-  }
-  bench.end(n * nchunks);
 }
