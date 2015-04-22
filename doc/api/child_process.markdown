@@ -144,11 +144,15 @@ In the following example, only the child's fd `1` is setup as a pipe, so only
 the parent's `child.stdio[1]` is a stream, all other values in the array are
 `null`.
 
-    child = child_process.spawn("ls", {
+    var assert = require('assert');
+    var fs = require('fs');
+    var child_process = require('child_process');
+
+    child = child_process.spawn('ls', {
         stdio: [
           0, // use parents stdin for child
           'pipe', // pipe child's stdout to parent
-          fs.openSync("err.out", "w") // direct child's stderr to a file
+          fs.openSync('err.out', 'w') // direct child's stderr to a file
         ]
     });
 
