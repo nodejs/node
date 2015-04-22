@@ -5,6 +5,7 @@ var format = require('util').format;
 var HTTPParser = require('_http_parser');
 
 var CRLF = '\r\n';
+var LF = '\n';
 var REQUEST = HTTPParser.REQUEST;
 var RESPONSE = HTTPParser.RESPONSE;
 var requestsEnd = -1;
@@ -514,8 +515,9 @@ var cases = [
     ].join(CRLF),
     shouldKeepAlive: false,
     msgCompleteOnEOF: false,
-    httpMajor: 0,
-    httpMinor: 9,
+    error: true,
+    httpMajor: 1,
+    httpMinor: null,
     method: 'GET',
     url: '/',
     statusCode: null,
@@ -552,7 +554,7 @@ var cases = [
     body: undefined
   },
   {
-    name: 'line folding in header value',
+    name: 'line folding in header value with CRLF',
     type: REQUEST,
     raw: [
       'GET / HTTP/1.1',
@@ -877,6 +879,48 @@ var cases = [
     statusCode: null,
     statusText: null,
     headers: [],
+    body: undefined
+  },
+  {
+    name: 'line folding in header value with LF',
+    type: REQUEST,
+    raw: [
+      'GET / HTTP/1.1',
+      'Line1:   abc',
+      '\tdef',
+      ' ghi',
+      '\t\tjkl',
+      '  mno ',
+      '\t \tqrs',
+      'Line2: \t line2\t',
+      'Line3:',
+      ' line3',
+      'Line4: ',
+      ' ',
+      'Connection:',
+      ' close',
+      '', ''
+    ].join(LF),
+    shouldKeepAlive: false,
+    msgCompleteOnEOF: false,
+    httpMajor: 1,
+    httpMinor: 1,
+    method: 'GET',
+    url: '/',
+    statusCode: null,
+    statusText: null,
+    headers: [
+      'Line1',
+        'abc def ghi jkl mno  qrs',
+      'Line2',
+        'line2',
+      'Line3',
+        'line3',
+      'Line4',
+        '',
+      'Connection',
+        'close',
+    ],
     body: undefined
   },
   {
@@ -1626,6 +1670,10 @@ cases.forEach(function(testCase) {
     throw new Error('Unexpected error for: ' + testCase.name + ':\n\n' +
                     ret.stack + '\n');
   }
+  if (testCase.error !== undefined) {
+    completed = true; // Prevent error from throwing on script exit
+    return;
+  }
   if (message.upgrade === false || typeof ret !== 'number')
     message.upgrade = undefined;
   else
@@ -1658,7 +1706,7 @@ cases.forEach(function(testCase) {
   for (var i = 0; i < 10000; ++i) {
     ret = parser.execute(input);
     if (typeof ret !== 'number') {
-      assert(/Header size limit exceeded/i.test(ret.message));
+      assert(/Header limit exceeded/i.test(ret.message));
       return;
     }
   }
@@ -1724,7 +1772,7 @@ cases.forEach(function(testCase) {
       assert.strictEqual(ret, Buffer.byteLength(input));
     else {
       assert.strictEqual(typeof ret !== 'number', true);
-      assert.strictEqual(/Chunk size too big/i.test(ret.message), true);
+      assert.strictEqual(/Chunk size limit exceeded/i.test(ret.message), true);
     }
   }
 );
@@ -1733,13 +1781,16 @@ cases.forEach(function(testCase) {
 (function() {
   var responsesStart = requestsEnd + 1;
   for (var i = responsesStart; i < cases.length; ++i) {
-    if (!cases[i].shouldKeepAlive)
+    if (!cases[i].shouldKeepAlive || cases[i].error !== undefined)
       continue;
     for (var j = responsesStart; j < cases.length; ++j) {
-      if (!cases[j].shouldKeepAlive)
+      if (!cases[j].shouldKeepAlive || cases[j].error !== undefined)
         continue;
-      for (var k = responsesStart; k < cases.length; ++k)
+      for (var k = responsesStart; k < cases.length; ++k) {
+         if (cases[i].error !== undefined)
+           continue;
         testMultiple3(cases[i], cases[j], cases[k]);
+      }
     }
   }
 })();
@@ -1956,13 +2007,16 @@ console.log('responses okay');
 // Test pipelined requests
 (function() {
   for (var i = 0; i <= requestsEnd; ++i) {
-    if (!cases[i].shouldKeepAlive)
+    if (!cases[i].shouldKeepAlive || cases[i].error !== undefined)
       continue;
     for (var j = 0; j <= requestsEnd; ++j) {
-      if (!cases[j].shouldKeepAlive)
+      if (!cases[j].shouldKeepAlive || cases[j].error !== undefined)
         continue;
-      for (var k = 0; k <= requestsEnd; ++k)
+      for (var k = 0; k <= requestsEnd; ++k) {
+        if (cases[k].error !== undefined)
+          continue;
         testMultiple3(cases[i], cases[j], cases[k]);
+      }
     }
   }
 })();
