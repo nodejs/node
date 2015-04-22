@@ -6,6 +6,7 @@ if (!common.hasCrypto) {
 }
 var tls = require('tls');
 
+var assert = require('assert');
 var fs = require('fs');
 var path = require('path');
 
@@ -20,7 +21,7 @@ tls.createServer({
   cert: cert
 }).listen(common.PORT);
 
-tls.connect({
+var socket = tls.connect({
     port: common.PORT,
     ca: cert,
     // No host set here. 'localhost' is the default,
@@ -28,6 +29,6 @@ tls.connect({
     // Error: Hostname/IP doesn't match certificate's altnames:
     //   "Host: undefined. is not cert's CN: localhost"
 }, function() {
-    console.log('OK');
+    assert(socket.authorized);
     process.exit();
 });
