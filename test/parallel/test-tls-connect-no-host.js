@@ -27,7 +27,7 @@ tls.connect({
     // but tls.checkServerIdentity() breaks before the fix with:
     // Error: Hostname/IP doesn't match certificate's altnames:
     //   "Host: undefined. is not cert's CN: localhost"
-}, function () {
+}, function() {
     console.log('OK');
     process.exit();
 });
