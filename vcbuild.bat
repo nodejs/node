@@ -83,25 +83,6 @@ if defined nosnapshot set nosnapshot_arg=--without-snapshot
 if defined noetw set noetw_arg=--without-etw& set noetw_msi_arg=/p:NoETW=1
 if defined noperfctr set noperfctr_arg=--without-perfctr& set noperfctr_msi_arg=/p:NoPerfCtr=1
 
-:project-gen
-@rem Skip project generation if requested.
-if defined noprojgen goto msbuild
-
-if defined NIGHTLY set TAG=nightly-%NIGHTLY%
-
-@rem Generate the VS project.
-SETLOCAL
-  if defined VS100COMNTOOLS call "%VS100COMNTOOLS%\VCVarsQueryRegistry.bat"
-  python configure %debug_arg% %nosnapshot_arg% %noetw_arg% %noperfctr_arg% --dest-cpu=%target_arch% --tag=%TAG%
-  if errorlevel 1 goto create-msvs-files-failed
-  if not exist node.sln goto create-msvs-files-failed
-  echo Project files generated.
-ENDLOCAL
-
-:msbuild
-@rem Skip project generation if requested.
-if defined nobuild goto sign
-
 @rem Look for Visual Studio 2013
 if not defined VS120COMNTOOLS goto vc-set-2012
 if not exist "%VS120COMNTOOLS%\..\..\vc\vcvarsall.bat" goto vc-set-2012
@@ -124,13 +105,31 @@ if not defined VS100COMNTOOLS goto msbuild-not-found
 if not exist "%VS100COMNTOOLS%\..\..\vc\vcvarsall.bat" goto msbuild-not-found
 call "%VS100COMNTOOLS%\..\..\vc\vcvarsall.bat"
 if not defined VCINSTALLDIR goto msbuild-not-found
+set GYP_MSVS_VERSION=2010
 goto msbuild-found
 
 :msbuild-not-found
-echo Build skipped. To build, this file needs to run from VS cmd prompt.
-goto run
+echo Failed to find Visual Studio installation.
+goto exit
 
 :msbuild-found
+
+:project-gen
+@rem Skip project generation if requested.
+if defined noprojgen goto msbuild
+
+if defined NIGHTLY set TAG=nightly-%NIGHTLY%
+
+@rem Generate the VS project.
+python configure %debug_arg% %nosnapshot_arg% %noetw_arg% %noperfctr_arg% --dest-cpu=%target_arch% --tag=%TAG%
+if errorlevel 1 goto create-msvs-files-failed
+if not exist node.sln goto create-msvs-files-failed
+echo Project files generated.
+
+:msbuild
+@rem Skip project generation if requested.
+if defined nobuild goto sign
+
 @rem Build the sln with msbuild.
 msbuild node.sln /m /t:%target% /p:Configuration=%config% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 goto exit
