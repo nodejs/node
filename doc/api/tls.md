@@ -926,10 +926,10 @@ added: v0.11.13
     *Note*: [`tls.createServer()`][] sets the default value to `true`, other
     APIs that create secure contexts leave it unset.
   * `ecdhCurve` {string} A string describing a named curve to use for ECDH key
-    agreement or `false` to disable ECDH. Defaults to `prime256v1` (NIST P-256).
-    Use [`crypto.getCurves()`][] to obtain a list of available curve names. On
-    recent releases, `openssl ecparam -list_curves` will also display the name
-    and description of each available elliptic curve.
+    agreement or `false` to disable ECDH. Defaults to
+    [`tls.DEFAULT_ECDH_CURVE`].  Use [`crypto.getCurves()`][] to obtain a list
+    of available curve names. On recent releases, `openssl ecparam -list_curves`
+    will also display the name and description of each available elliptic curve.
   * `dhparam` {string|Buffer} Diffie Hellman parameters, required for
     [Perfect Forward Secrecy][]. Use `openssl dhparam` to create the parameters.
     The key length must be greater than or equal to 1024 bits, otherwise an
@@ -1077,6 +1077,12 @@ For example:
 console.log(tls.getCiphers()); // ['AES128-SHA', 'AES256-SHA', ...]
 ```
 
+## tls.DEFAULT_ECDH_CURVE
+
+The default curve name to use for ECDH key agreement. The default value is
+`'prime256v1'` (NIST P-256). Consult [RFC 4492] for more details.
+
+
 ## Deprecated APIs
 
 ### Class: CryptoStream
@@ -1210,6 +1216,7 @@ where `secure_socket` has the same API as `pair.cleartext`.
 [OCSP request]: https://en.wikipedia.org/wiki/OCSP_stapling
 [TLS recommendations]: https://wiki.mozilla.org/Security/Server_Side_TLS
 [TLS Session Tickets]: https://www.ietf.org/rfc/rfc5077.txt
+[`tls.DEFAULT_ECDH_CURVE`]: #tls_tls_default_ecdh_curve
 [`tls.TLSSocket.getPeerCertificate()`]: #tls_tlssocket_getpeercertificate_detailed
 [`tls.createSecureContext()`]: #tls_tls_createsecurecontext_options
 [`tls.connect()`]: #tls_tls_connect_options_callback
