@@ -2740,6 +2740,13 @@ static Local<Object> GetFeatures(Environment* env) {
 #endif
   obj->Set(env->tls_npn_string(), tls_npn);
 
+#ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
+  Local<Boolean> tls_alpn = True(env->isolate());
+#else
+  Local<Boolean> tls_alpn = False(env->isolate());
+#endif
+  obj->Set(env->tls_alpn_string(), tls_alpn);
+
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   Local<Boolean> tls_sni = True(env->isolate());
 #else
