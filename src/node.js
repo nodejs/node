@@ -130,21 +130,20 @@
         // If -i or --interactive were passed, or stdin is a TTY.
         if (process._forceRepl || NativeModule.require('tty').isatty(0)) {
           // REPL
-          var opts = {
-            useGlobal: true,
-            ignoreUndefined: false
-          };
-          if (parseInt(process.env['NODE_NO_READLINE'], 10)) {
-            opts.terminal = false;
-          }
-          if (parseInt(process.env['NODE_DISABLE_COLORS'], 10)) {
-            opts.useColors = false;
-          }
-          var repl = Module.requireRepl().start(opts);
-          repl.on('exit', function() {
-            process.exit();
+          Module.requireRepl().createRepl(process.env, function(err, repl) {
+            if (err) {
+              throw err;
+            }
+            repl.on('exit', function() {
+              if (repl._flushing) {
+                repl.pause();
+                return repl.once('flushHistory', function() {
+                  process.exit();
+                });
+              }
+              process.exit();
+            });
           });
-
         } else {
           // Read all of stdin - execute it.
           process.stdin.setEncoding('utf8');
