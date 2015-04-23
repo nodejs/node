@@ -72,6 +72,7 @@
 
       'lib/internal/freelist.js',
       'lib/internal/smalloc.js',
+      'lib/internal/repl.js',
     ],
   },
 
