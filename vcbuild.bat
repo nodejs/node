@@ -102,24 +102,9 @@ if "%i18n_arg%"=="full-icu" set i18n_arg=--with-intl=full-icu
 if "%i18n_arg%"=="small-icu" set i18n_arg=--with-intl=small-icu
 if "%i18n_arg%"=="intl-none" set i18n_arg=--with-intl=none
 
-:project-gen
-@rem Skip project generation if requested.
-if defined noprojgen goto msbuild
-
 if defined NIGHTLY set TAG=nightly-%NIGHTLY%
 
-@rem Generate the VS project.
-SETLOCAL
-  if defined VS100COMNTOOLS call "%VS100COMNTOOLS%\VCVarsQueryRegistry.bat"
-  python configure %download_arg% %i18n_arg% %debug_arg% %nosnapshot_arg% %noetw_arg% %noperfctr_arg% --dest-cpu=%target_arch% --tag=%TAG%
-  if errorlevel 1 goto create-msvs-files-failed
-  if not exist node.sln goto create-msvs-files-failed
-  echo Project files generated.
-ENDLOCAL
-
-:msbuild
-@rem Skip project generation if requested.
-if defined nobuild goto sign
+@rem Set environment for msbuild
 
 @rem Look for Visual Studio 2013
 if not defined VS120COMNTOOLS goto vc-set-2012
@@ -152,13 +137,29 @@ if "%VCVARS_VER%" NEQ "100" (
   SET VCVARS_VER=100
 )
 if not defined VCINSTALLDIR goto msbuild-not-found
+set GYP_MSVS_VERSION=2010
 goto msbuild-found
 
 :msbuild-not-found
-echo Build skipped. To build, this file needs to run from VS cmd prompt.
-goto run
+echo Failed to find Visual Studio installation.
+goto exit
 
 :msbuild-found
+
+:project-gen
+@rem Skip project generation if requested.
+if defined noprojgen goto msbuild
+
+@rem Generate the VS project.
+python configure %download_arg% %i18n_arg% %debug_arg% %nosnapshot_arg% %noetw_arg% %noperfctr_arg% --dest-cpu=%target_arch% --tag=%TAG%
+if errorlevel 1 goto create-msvs-files-failed
+if not exist node.sln goto create-msvs-files-failed
+echo Project files generated.
+
+:msbuild
+@rem Skip project generation if requested.
+if defined nobuild goto sign
+
 @rem Build the sln with msbuild.
 msbuild node.sln /m /t:%target% /p:Configuration=%config% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 goto exit
