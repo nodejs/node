@@ -5,9 +5,7 @@
 #include "node_crypto_clienthello.h"  // ClientHelloParser
 #include "node_crypto_clienthello-inl.h"
 
-#ifdef OPENSSL_NPN_NEGOTIATED
 #include "node_buffer.h"
-#endif
 
 #include "env.h"
 #include "async-wrap.h"
@@ -202,6 +200,7 @@ class SSLWrap {
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
     sni_context_.Reset();
 #endif
+
 #ifdef NODE__HAVE_TLSEXT_STATUS_CB
     ocsp_response_.Reset();
 #endif  // NODE__HAVE_TLSEXT_STATUS_CB
@@ -272,6 +271,16 @@ class SSLWrap {
                                      unsigned int inlen,
                                      void* arg);
 #endif  // OPENSSL_NPN_NEGOTIATED
+
+  static void GetALPNNegotiatedProto(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetALPNProtocols(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static int SelectALPNCallback(SSL* s,
+                                const unsigned char** out,
+                                unsigned char* outlen,
+                                const unsigned char* in,
+                                unsigned int inlen,
+                                void* arg);
   static int TLSExtStatusCallback(SSL* s, void* arg);
   static int SSLCertCallback(SSL* s, void* arg);
   static void SSLGetter(v8::Local<v8::String> property,
