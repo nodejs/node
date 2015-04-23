@@ -66,14 +66,15 @@ and tap `R<CR>` (that's the letter `R` followed by a carriage return) a few
 times.
 
 
-## NPN and SNI
+## ALPN, NPN and SNI
 
 <!-- type=misc -->
 
-NPN (Next Protocol Negotiation) and SNI (Server Name Indication) are TLS
+ALPN (Application-Layer Protocol Negotiation Extension), NPN (Next
+Protocol Negotiation) and SNI (Server Name Indication) are TLS
 handshake extensions allowing you:
 
-  * NPN - to use one TLS server for multiple protocols (HTTP, SPDY)
+  * ALPN/NPN - to use one TLS server for multiple protocols (HTTP, SPDY, HTTP/2)
   * SNI - to use one TLS server for multiple hostnames with different SSL
     certificates.
 
@@ -249,6 +250,12 @@ automatically set as a listener for the [secureConnection][] event.  The
   - `NPNProtocols`: An array or `Buffer` of possible NPN protocols. (Protocols
     should be ordered by their priority).
 
+  - `ALPNProtocols`: An array or `Buffer` of possible ALPN
+    protocols. (Protocols should be ordered by their priority). When
+    the server receives both NPN and ALPN extensions from the client,
+    ALPN takes precedence over NPN and the server does not send an NPN
+    extension to the client.
+
   - `SNICallback(servername, cb)`: A function that will be called if client
     supports SNI TLS extension. Two argument will be passed to it: `servername`,
     and `cb`. `SNICallback` should invoke `cb(null, ctx)`, where `ctx` is a
@@ -372,9 +379,16 @@ Creates a new client connection to the given `port` and `host` (old API) or
     fails; `err.code` contains the OpenSSL error code. Default: `true`.
 
   - `NPNProtocols`: An array of strings or `Buffer`s containing supported NPN
-    protocols. `Buffer`s should have following format: `0x05hello0x05world`,
-    where first byte is next protocol name's length. (Passing array should
-    usually be much simpler: `['hello', 'world']`.)
+    protocols. `Buffer`s should have the following format:
+    `0x05hello0x05world`, where first byte is next protocol name's
+    length. (Passing array should usually be much simpler:
+    `['hello', 'world']`.)
+
+  - `ALPNProtocols`: An array of strings or `Buffer`s containing
+    supported ALPN protocols. `Buffer`s should have following format:
+    `0x05hello0x05world`, where the first byte is the next protocol
+    name's length. (Passing array should usually be much simpler:
+    `['hello', 'world']`.)
 
   - `servername`: Servername for SNI (Server Name Indication) TLS extension.
 
@@ -476,6 +490,8 @@ Construct a new TLSSocket object from existing TCP socket.
 
   - `NPNProtocols`: Optional, see [tls.createServer][]
 
+  - `ALPNProtocols`: Optional, see [tls.createServer][]
+
   - `SNICallback`: Optional, see [tls.createServer][]
 
   - `session`: Optional, a `Buffer` instance, containing TLS session
@@ -571,7 +587,13 @@ server. If `socket.authorized` is false, then
 `socket.authorizationError` is set to describe how authorization
 failed. Implied but worth mentioning: depending on the settings of the TLS
 server, you unauthorized connections may be accepted.
-`socket.npnProtocol` is a string containing selected NPN protocol.
+
+`socket.npnProtocol` is a string containing the selected NPN protocol
+and `socket.alpnProtocol` is a string containing the selected ALPN
+protocol, When both NPN and ALPN extensions are received, ALPN takes
+precedence over NPN and the next protocol is selected by ALPN. When
+ALPN has no selected protocol, this returns false.
+
 `socket.servername` is a string containing servername requested with
 SNI.
 
@@ -744,8 +766,9 @@ The listener will be called no matter if the server's certificate was
 authorized or not. It is up to the user to test `tlsSocket.authorized`
 to see if the server certificate was signed by one of the specified CAs.
 If `tlsSocket.authorized === false` then the error can be found in
-`tlsSocket.authorizationError`. Also if NPN was used - you can check
-`tlsSocket.npnProtocol` for negotiated protocol.
+`tlsSocket.authorizationError`. Also if ALPN or NPN was used - you can
+check `tlsSocket.alpnProtocol` or `tlsSocket.npnProtocol` for the
+negotiated protocol.
 
 ### Event: 'OCSPResponse'
 
