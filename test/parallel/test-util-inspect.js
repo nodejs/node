@@ -239,16 +239,18 @@ if (typeof Symbol !== 'undefined') {
 // test Set
 assert.equal(util.inspect(new Set), 'Set {}');
 assert.equal(util.inspect(new Set([1, 2, 3])), 'Set { 1, 2, 3 }');
-var set = new Set(["foo"]);
+var set = new Set(['foo']);
 set.bar = 42;
 assert.equal(util.inspect(set, true), 'Set { \'foo\', [size]: 1, bar: 42 }');
 
 // test Map
 assert.equal(util.inspect(new Map), 'Map {}');
-assert.equal(util.inspect(new Map([[1, 'a'], [2, 'b'], [3, 'c']])), 'Map { 1 => \'a\', 2 => \'b\', 3 => \'c\' }');
-var map = new Map([["foo", null]]);
+assert.equal(util.inspect(new Map([[1, 'a'], [2, 'b'], [3, 'c']])),
+             'Map { 1 => \'a\', 2 => \'b\', 3 => \'c\' }');
+var map = new Map([['foo', null]]);
 map.bar = 42;
-assert.equal(util.inspect(map, true), 'Map { \'foo\' => null, [size]: 1, bar: 42 }');
+assert.equal(util.inspect(map, true),
+             'Map { \'foo\' => null, [size]: 1, bar: 42 }');
 
 // test Promise
 assert.equal(util.inspect(Promise.resolve(3)), 'Promise { 3 }');
@@ -271,13 +273,13 @@ global.Promise = oldPromise;
 // Assumes that the first numeric character is the start of an item.
 
 function checkAlignment(container) {
-  var lines = util.inspect(container).split("\n");
+  var lines = util.inspect(container).split('\n');
   var pos;
   lines.forEach(function(line) {
     var npos = line.search(/\d/);
     if (npos !== -1) {
       if (pos !== undefined)
-        assert.equal(pos, npos, "container items not aligned");
+        assert.equal(pos, npos, 'container items not aligned');
       pos = npos;
     }
   });
@@ -289,7 +291,7 @@ for (var i = 0; i < 100; i++) {
 }
 
 checkAlignment(big_array);
-checkAlignment(function(){
+checkAlignment(function() {
   var obj = {};
   big_array.forEach(function(v) {
     obj[v] = null;
