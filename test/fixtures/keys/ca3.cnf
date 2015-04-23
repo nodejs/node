@@ -13,7 +13,7 @@ ST                     = CA
 L                      = SF
 O                      = Joyent
 OU                     = Node.js
-CN                     = ca1
+CN                     = ca3
 emailAddress           = ry@tinyclouds.org
 
 [ req_attributes ]

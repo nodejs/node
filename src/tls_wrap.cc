@@ -150,6 +150,8 @@ void TLSWrap::InitSSL() {
 
   InitNPN(sc_);
 
+  SSL_set_cert_cb(ssl_, SSLWrap<TLSWrap>::SSLCertCallback, this);
+
   if (is_server()) {
     SSL_set_accept_state(ssl_);
   } else if (is_client()) {
@@ -353,6 +355,7 @@ Local<Value> TLSWrap::GetSSLError(int status, int* err, const char** msg) {
     case SSL_ERROR_NONE:
     case SSL_ERROR_WANT_READ:
     case SSL_ERROR_WANT_WRITE:
+    case SSL_ERROR_WANT_X509_LOOKUP:
       break;
     case SSL_ERROR_ZERO_RETURN:
       return scope.Escape(env()->zero_return_string());
@@ -722,16 +725,16 @@ void TLSWrap::EnableSessionCallbacks(
     const FunctionCallbackInfo<Value>& args) {
   TLSWrap* wrap = Unwrap<TLSWrap>(args.Holder());
   wrap->enable_session_callbacks();
-  EnableHelloParser(args);
-}
-
-
-void TLSWrap::EnableHelloParser(const FunctionCallbackInfo<Value>& args) {
-  TLSWrap* wrap = Unwrap<TLSWrap>(args.Holder());
   NodeBIO::FromBIO(wrap->enc_in_)->set_initial(kMaxHelloLength);
   wrap->hello_parser_.Start(SSLWrap<TLSWrap>::OnClientHello,
                             OnClientHelloParseEnd,
                             wrap);
+}
+
+
+void TLSWrap::EnableCertCb(const FunctionCallbackInfo<Value>& args) {
+  TLSWrap* wrap = Unwrap<TLSWrap>(args.Holder());
+  wrap->WaitForCertCb(OnClientHelloParseEnd, wrap);
 }
 
 
@@ -829,7 +832,7 @@ void TLSWrap::Initialize(Handle<Object> target,
   env->SetProtoMethod(t, "start", Start);
   env->SetProtoMethod(t, "setVerifyMode", SetVerifyMode);
   env->SetProtoMethod(t, "enableSessionCallbacks", EnableSessionCallbacks);
-  env->SetProtoMethod(t, "enableHelloParser", EnableHelloParser);
+  env->SetProtoMethod(t, "enableCertCb", EnableCertCb);
 
   StreamBase::AddMethods<TLSWrap>(env, t, StreamBase::kFlagHasWritev);
   SSLWrap<TLSWrap>::AddMethods(env, t);
