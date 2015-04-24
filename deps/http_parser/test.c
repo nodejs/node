@@ -39,6 +39,7 @@
 
 #define MAX_HEADERS 13
 #define MAX_ELEMENT_SIZE 2048
+#define MAX_CHUNKS 16
 
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 
@@ -64,6 +65,10 @@ struct message {
   enum { NONE=0, FIELD, VALUE } last_header_element;
   char headers [MAX_HEADERS][2][MAX_ELEMENT_SIZE];
   int should_keep_alive;
+
+  int num_chunks;
+  int num_chunks_complete;
+  int chunk_lengths[MAX_CHUNKS];
 
   const char *upgrade; // upgraded body
 
@@ -301,6 +306,8 @@ const struct message requests[] =
     { { "Transfer-Encoding" , "chunked" }
     }
   ,.body= "all your base are belong to us"
+  ,.num_chunks_complete= 2
+  ,.chunk_lengths= { 0x1e }
   }
 
 #define TWO_CHUNKS_MULT_ZERO_END 9
@@ -327,6 +334,8 @@ const struct message requests[] =
     { { "Transfer-Encoding", "chunked" }
     }
   ,.body= "hello world"
+  ,.num_chunks_complete= 3
+  ,.chunk_lengths= { 5, 6 }
   }
 
 #define CHUNKED_W_TRAILING_HEADERS 10
@@ -357,6 +366,8 @@ const struct message requests[] =
     , { "Content-Type", "text/plain" }
     }
   ,.body= "hello world"
+  ,.num_chunks_complete= 3
+  ,.chunk_lengths= { 5, 6 }
   }
 
 #define CHUNKED_W_BULLSHIT_AFTER_LENGTH 11
@@ -383,6 +394,8 @@ const struct message requests[] =
     { { "Transfer-Encoding", "chunked" }
     }
   ,.body= "hello world"
+  ,.num_chunks_complete= 3
+  ,.chunk_lengths= { 5, 6 }
   }
 
 #define WITH_QUOTES 12
@@ -950,6 +963,143 @@ const struct message requests[] =
   ,.body= ""
   }
 
+#define CONNECTION_MULTI 35
+, {.name = "multiple connection header values with folding"
+  ,.type= HTTP_REQUEST
+  ,.raw= "GET /demo HTTP/1.1\r\n"
+         "Host: example.com\r\n"
+         "Connection: Something,\r\n"
+         " Upgrade, ,Keep-Alive\r\n"
+         "Sec-WebSocket-Key2: 12998 5 Y3 1  .P00\r\n"
+         "Sec-WebSocket-Protocol: sample\r\n"
+         "Upgrade: WebSocket\r\n"
+         "Sec-WebSocket-Key1: 4 @1  46546xW%0l 1 5\r\n"
+         "Origin: http://example.com\r\n"
+         "\r\n"
+         "Hot diggity dogg"
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.method= HTTP_GET
+  ,.query_string= ""
+  ,.fragment= ""
+  ,.request_path= "/demo"
+  ,.request_url= "/demo"
+  ,.num_headers= 7
+  ,.upgrade="Hot diggity dogg"
+  ,.headers= { { "Host", "example.com" }
+             , { "Connection", "Something, Upgrade, ,Keep-Alive" }
+             , { "Sec-WebSocket-Key2", "12998 5 Y3 1  .P00" }
+             , { "Sec-WebSocket-Protocol", "sample" }
+             , { "Upgrade", "WebSocket" }
+             , { "Sec-WebSocket-Key1", "4 @1  46546xW%0l 1 5" }
+             , { "Origin", "http://example.com" }
+             }
+  ,.body= ""
+  }
+
+#define CONNECTION_MULTI_LWS 36
+, {.name = "multiple connection header values with folding and lws"
+  ,.type= HTTP_REQUEST
+  ,.raw= "GET /demo HTTP/1.1\r\n"
+         "Connection: keep-alive, upgrade\r\n"
+         "Upgrade: WebSocket\r\n"
+         "\r\n"
+         "Hot diggity dogg"
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.method= HTTP_GET
+  ,.query_string= ""
+  ,.fragment= ""
+  ,.request_path= "/demo"
+  ,.request_url= "/demo"
+  ,.num_headers= 2
+  ,.upgrade="Hot diggity dogg"
+  ,.headers= { { "Connection", "keep-alive, upgrade" }
+             , { "Upgrade", "WebSocket" }
+             }
+  ,.body= ""
+  }
+
+#define CONNECTION_MULTI_LWS_CRLF 37
+, {.name = "multiple connection header values with folding and lws"
+  ,.type= HTTP_REQUEST
+  ,.raw= "GET /demo HTTP/1.1\r\n"
+         "Connection: keep-alive, \r\n upgrade\r\n"
+         "Upgrade: WebSocket\r\n"
+         "\r\n"
+         "Hot diggity dogg"
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.method= HTTP_GET
+  ,.query_string= ""
+  ,.fragment= ""
+  ,.request_path= "/demo"
+  ,.request_url= "/demo"
+  ,.num_headers= 2
+  ,.upgrade="Hot diggity dogg"
+  ,.headers= { { "Connection", "keep-alive,  upgrade" }
+             , { "Upgrade", "WebSocket" }
+             }
+  ,.body= ""
+  }
+
+#define UPGRADE_POST_REQUEST 38
+, {.name = "upgrade post request"
+  ,.type= HTTP_REQUEST
+  ,.raw= "POST /demo HTTP/1.1\r\n"
+         "Host: example.com\r\n"
+         "Connection: Upgrade\r\n"
+         "Upgrade: HTTP/2.0\r\n"
+         "Content-Length: 15\r\n"
+         "\r\n"
+         "sweet post body"
+         "Hot diggity dogg"
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.method= HTTP_POST
+  ,.request_path= "/demo"
+  ,.request_url= "/demo"
+  ,.num_headers= 4
+  ,.upgrade="Hot diggity dogg"
+  ,.headers= { { "Host", "example.com" }
+             , { "Connection", "Upgrade" }
+             , { "Upgrade", "HTTP/2.0" }
+             , { "Content-Length", "15" }
+             }
+  ,.body= "sweet post body"
+  }
+
+#define CONNECT_WITH_BODY_REQUEST 39
+, {.name = "connect with body request"
+  ,.type= HTTP_REQUEST
+  ,.raw= "CONNECT foo.bar.com:443 HTTP/1.0\r\n"
+         "User-agent: Mozilla/1.1N\r\n"
+         "Proxy-authorization: basic aGVsbG86d29ybGQ=\r\n"
+         "Content-Length: 10\r\n"
+         "\r\n"
+         "blarfcicle"
+  ,.should_keep_alive= FALSE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 0
+  ,.method= HTTP_CONNECT
+  ,.request_url= "foo.bar.com:443"
+  ,.num_headers= 3
+  ,.upgrade="blarfcicle"
+  ,.headers= { { "User-agent", "Mozilla/1.1N" }
+             , { "Proxy-authorization", "basic aGVsbG86d29ybGQ=" }
+             , { "Content-Length", "10" }
+             }
+  ,.body= ""
+  }
 
 , {.name= NULL } /* sentinel */
 };
@@ -1110,7 +1260,8 @@ const struct message responses[] =
   ,.body =
          "This is the data in the first chunk\r\n"
          "and this is the second one\r\n"
-
+  ,.num_chunks_complete= 3
+  ,.chunk_lengths= { 0x25, 0x1c }
   }
 
 #define NO_CARRIAGE_RET 5
@@ -1264,6 +1415,8 @@ const struct message responses[] =
     , { "Connection", "close" }
     }
   ,.body= ""
+  ,.num_chunks_complete= 1
+  ,.chunk_lengths= {}
   }
 
 #define NON_ASCII_IN_STATUS_LINE 10
@@ -1446,6 +1599,7 @@ const struct message responses[] =
     }
   ,.body_size= 0
   ,.body= ""
+  ,.num_chunks_complete= 1
   }
 
 #if !HTTP_PARSER_STRICT
@@ -1519,6 +1673,8 @@ const struct message responses[] =
              , { "Transfer-Encoding", "chunked" }
              }
   ,.body= "\n"
+  ,.num_chunks_complete= 2
+  ,.chunk_lengths= { 1 }
   }
 
 #define EMPTY_REASON_PHRASE_AFTER_SPACE 20
@@ -1754,6 +1910,35 @@ response_status_cb (http_parser *p, const char *buf, size_t len)
   return 0;
 }
 
+int
+chunk_header_cb (http_parser *p)
+{
+  assert(p == parser);
+  int chunk_idx = messages[num_messages].num_chunks;
+  messages[num_messages].num_chunks++;
+  if (chunk_idx < MAX_CHUNKS) {
+    messages[num_messages].chunk_lengths[chunk_idx] = p->content_length;
+  }
+
+  return 0;
+}
+
+int
+chunk_complete_cb (http_parser *p)
+{
+  assert(p == parser);
+
+  /* Here we want to verify that each chunk_header_cb is matched by a
+   * chunk_complete_cb, so not only should the total number of calls to
+   * both callbacks be the same, but they also should be interleaved
+   * properly */
+  assert(messages[num_messages].num_chunks ==
+         messages[num_messages].num_chunks_complete + 1);
+
+  messages[num_messages].num_chunks_complete++;
+  return 0;
+}
+
 /* These dontcall_* callbacks exist so that we can verify that when we're
  * paused, no additional callbacks are invoked */
 int
@@ -1822,6 +2007,23 @@ dontcall_response_status_cb (http_parser *p, const char *buf, size_t len)
   abort();
 }
 
+int
+dontcall_chunk_header_cb (http_parser *p)
+{
+  if (p) { } // gcc
+  fprintf(stderr, "\n\n*** on_chunk_header() called on paused parser ***\n\n");
+  exit(1);
+}
+
+int
+dontcall_chunk_complete_cb (http_parser *p)
+{
+  if (p) { } // gcc
+  fprintf(stderr, "\n\n*** on_chunk_complete() "
+          "called on paused parser ***\n\n");
+  exit(1);
+}
+
 static http_parser_settings settings_dontcall =
   {.on_message_begin = dontcall_message_begin_cb
   ,.on_header_field = dontcall_header_field_cb
@@ -1831,6 +2033,8 @@ static http_parser_settings settings_dontcall =
   ,.on_body = dontcall_body_cb
   ,.on_headers_complete = dontcall_headers_complete_cb
   ,.on_message_complete = dontcall_message_complete_cb
+  ,.on_chunk_header = dontcall_chunk_header_cb
+  ,.on_chunk_complete = dontcall_chunk_complete_cb
   };
 
 /* These pause_* callbacks always pause the parser and just invoke the regular
@@ -1901,6 +2105,22 @@ pause_response_status_cb (http_parser *p, const char *buf, size_t len)
   return response_status_cb(p, buf, len);
 }
 
+int
+pause_chunk_header_cb (http_parser *p)
+{
+  http_parser_pause(p, 1);
+  *current_pause_parser = settings_dontcall;
+  return chunk_header_cb(p);
+}
+
+int
+pause_chunk_complete_cb (http_parser *p)
+{
+  http_parser_pause(p, 1);
+  *current_pause_parser = settings_dontcall;
+  return chunk_complete_cb(p);
+}
+
 static http_parser_settings settings_pause =
   {.on_message_begin = pause_message_begin_cb
   ,.on_header_field = pause_header_field_cb
@@ -1910,6 +2130,8 @@ static http_parser_settings settings_pause =
   ,.on_body = pause_body_cb
   ,.on_headers_complete = pause_headers_complete_cb
   ,.on_message_complete = pause_message_complete_cb
+  ,.on_chunk_header = pause_chunk_header_cb
+  ,.on_chunk_complete = pause_chunk_complete_cb
   };
 
 static http_parser_settings settings =
@@ -1921,6 +2143,8 @@ static http_parser_settings settings =
   ,.on_body = body_cb
   ,.on_headers_complete = headers_complete_cb
   ,.on_message_complete = message_complete_cb
+  ,.on_chunk_header = chunk_header_cb
+  ,.on_chunk_complete = chunk_complete_cb
   };
 
 static http_parser_settings settings_count_body =
@@ -1932,6 +2156,8 @@ static http_parser_settings settings_count_body =
   ,.on_body = count_body_cb
   ,.on_headers_complete = headers_complete_cb
   ,.on_message_complete = message_complete_cb
+  ,.on_chunk_header = chunk_header_cb
+  ,.on_chunk_complete = chunk_complete_cb
   };
 
 static http_parser_settings settings_null =
@@ -1943,6 +2169,8 @@ static http_parser_settings settings_null =
   ,.on_body = 0
   ,.on_headers_complete = 0
   ,.on_message_complete = 0
+  ,.on_chunk_header = 0
+  ,.on_chunk_complete = 0
   };
 
 void
@@ -2111,6 +2339,12 @@ message_eq (int index, const struct message *expected)
     MESSAGE_CHECK_STR_EQ(expected, m, body);
   }
 
+  assert(m->num_chunks == m->num_chunks_complete);
+  MESSAGE_CHECK_NUM_EQ(expected, m, num_chunks_complete);
+  for (i = 0; i < m->num_chunks && i < MAX_CHUNKS; i++) {
+    MESSAGE_CHECK_NUM_EQ(expected, m, chunk_lengths[i]);
+  }
+
   MESSAGE_CHECK_NUM_EQ(expected, m, num_headers);
 
   int r;
@@ -2207,7 +2441,6 @@ print_error (const char *raw, size_t error_location)
         break;
 
       case '\n':
-        char_len = 2;
         fprintf(stderr, "\\n\n");
 
         if (this_line) goto print;
@@ -2825,7 +3058,7 @@ test_message (const struct message *message)
     if (msg1len) {
       read = parse(msg1, msg1len);
 
-      if (message->upgrade && parser->upgrade) {
+      if (message->upgrade && parser->upgrade && num_messages > 0) {
         messages[num_messages - 1].upgrade = msg1 + read;
         goto test;
       }
@@ -2910,15 +3143,11 @@ test_simple (const char *buf, enum http_errno err_expected)
 {
   parser_init(HTTP_REQUEST);
 
-  size_t parsed;
-  int pass;
   enum http_errno err;
 
-  parsed = parse(buf, strlen(buf));
-  pass = (parsed == strlen(buf));
+  parse(buf, strlen(buf));
   err = HTTP_PARSER_ERRNO(parser);
-  parsed = parse(NULL, 0);
-  pass &= (parsed == 0);
+  parse(NULL, 0);
 
   parser_free();
 
@@ -2963,6 +3192,22 @@ test_header_overflow_error (int req)
   fprintf(stderr, "\n*** Error expected but none in header overflow test ***\n");
   abort();
 }
+
+
+void
+test_header_nread_value ()
+{
+  http_parser parser;
+  http_parser_init(&parser, HTTP_REQUEST);
+  size_t parsed;
+  const char *buf;
+  buf = "GET / HTTP/1.1\r\nheader: value\nhdr: value\r\n";
+  parsed = http_parser_execute(&parser, &settings_null, buf, strlen(buf));
+  assert(parsed == strlen(buf));
+
+  assert(parser.nread == strlen(buf));
+}
+
 
 static void
 test_content_length_overflow (const char *buf, size_t buflen, int expect_ok)
@@ -3330,6 +3575,9 @@ main (void)
   test_parse_url();
   test_method_str();
 
+  //// NREAD
+  test_header_nread_value();
+
   //// OVERFLOW CONDITIONS
 
   test_header_overflow_error(HTTP_REQUEST);
@@ -3389,7 +3637,11 @@ main (void)
         , { "Content-Type", "text/plain" }
         }
       ,.body_size= 31337*1024
+      ,.num_chunks_complete= 31338
       };
+    for (i = 0; i < MAX_CHUNKS; i++) {
+      large_chunked.chunk_lengths[i] = 1024;
+    }
     test_message_count_body(&large_chunked);
     free(msg);
   }
@@ -3476,6 +3728,13 @@ main (void)
     test_simple(buf, HPE_INVALID_METHOD);
   }
 
+  // illegal header field name line folding
+  test_simple("GET / HTTP/1.1\r\n"
+              "name\r\n"
+              " : value\r\n"
+              "\r\n",
+              HPE_INVALID_HEADER_TOKEN);
+
   const char *dumbfuck2 =
     "GET / HTTP/1.1\r\n"
     "X-SSL-Bullshit:   -----BEGIN CERTIFICATE-----\r\n"
@@ -3512,6 +3771,22 @@ main (void)
     "\t-----END CERTIFICATE-----\r\n"
     "\r\n";
   test_simple(dumbfuck2, HPE_OK);
+
+  const char *corrupted_connection =
+    "GET / HTTP/1.1\r\n"
+    "Host: www.example.com\r\n"
+    "Connection\r\033\065\325eep-Alive\r\n"
+    "Accept-Encoding: gzip\r\n"
+    "\r\n";
+  test_simple(corrupted_connection, HPE_INVALID_HEADER_TOKEN);
+
+  const char *corrupted_header_name =
+    "GET / HTTP/1.1\r\n"
+    "Host: www.example.com\r\n"
+    "X-Some-Header\r\033\065\325eep-Alive\r\n"
+    "Accept-Encoding: gzip\r\n"
+    "\r\n";
+  test_simple(corrupted_header_name, HPE_INVALID_HEADER_TOKEN);
 
 #if 0
   // NOTE(Wed Nov 18 11:57:27 CET 2009) this seems okay. we just read body
