@@ -1602,7 +1602,7 @@ cases.forEach(function(testCase) {
                      statusCode, statusText, upgrade, shouldKeepAlive) {
     assert.strictEqual(reqEvents[0],
                        'onHeaders',
-                       'Expected onHeaders to the next event for: ' +
+                       'Expected onHeaders to be the next event for: ' +
                          testCase.name);
     reqEvents.shift();
     message = {
