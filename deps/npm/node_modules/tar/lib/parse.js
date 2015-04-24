@@ -61,7 +61,7 @@ function Parse () {
 // emitting "end"
 Parse.prototype._streamEnd = function () {
   var me = this
-  if (!me._ended) me.error("unexpected eof")
+  if (!me._ended || me._entry) me.error("unexpected eof")
   me.emit("end")
 }
 

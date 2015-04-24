@@ -131,7 +131,12 @@ Pack.prototype._process = function () {
   // in the tarball to use.  That way we can skip a lot of extra
   // work when resolving symlinks for bundled dependencies in npm.
 
-  var root = path.dirname((entry.root || entry).path)
+  var root = path.dirname((entry.root || entry).path);
+  if (me._global && me._global.fromBase && entry.root && entry.root.path) {
+    // user set 'fromBase: true' indicating tar root should be directory itself
+    root = entry.root.path;
+  }
+
   var wprops = {}
 
   Object.keys(entry.props || {}).forEach(function (k) {

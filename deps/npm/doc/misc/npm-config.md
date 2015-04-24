@@ -3,7 +3,7 @@ npm-config(7) -- More than you probably want to know about npm configuration
 
 ## DESCRIPTION
 
-npm gets its configuration values from 6 sources, in this priority:
+npm gets its configuration values from the following sources, sorted by priority:
 
 ### Command Line Flags
 

@@ -1,6 +1,7 @@
 var tap = require('tap')
 var init = require('../')
 var rimraf = require('rimraf')
+var semver = require('semver')
 
 tap.test('the basics', function (t) {
   var i = __dirname + '/basic.input'
@@ -19,15 +20,27 @@ tap.test('the basics', function (t) {
     t.same(data, expect)
     t.end()
   })
-  setTimeout(function () {
-    process.stdin.emit('data', 'the-name\n')
-  }, 50)
-  setTimeout(function () {
-    process.stdin.emit('data', 'description\n')
-  }, 100)
-  setTimeout(function () {
-    process.stdin.emit('data', 'yes\n')
-  }, 150)
+  var stdin = process.stdin
+  var name = 'the-name\n'
+  var desc = 'description\n'
+  var yes = 'yes\n'
+  if (semver.gte(process.versions.node, '0.11.0')) {
+    ;[name, desc, yes].forEach(function (chunk) {
+      stdin.push(chunk)
+    })
+  } else {
+    function input (chunk, ms) {
+      setTimeout(function () {
+        stdin.emit('data', chunk)
+      }, ms)
+    }
+    stdin.once('readable', function () {
+      var ms = 0
+      ;[name, desc, yes].forEach(function (chunk) {
+        input(chunk, ms += 50)
+      })
+    })
+  }
 })
 
 tap.test('teardown', function (t) {
