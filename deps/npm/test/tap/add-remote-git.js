@@ -1,26 +1,25 @@
-var fs = require("fs")
-var resolve = require("path").resolve
+var fs = require('fs')
+var resolve = require('path').resolve
 
-var chain = require("slide").chain
-var osenv = require("osenv")
-var mkdirp = require("mkdirp")
-var rimraf = require("rimraf")
-var test = require("tap").test
+var osenv = require('osenv')
+var mkdirp = require('mkdirp')
+var rimraf = require('rimraf')
+var test = require('tap').test
 
-var npm = require("../../lib/npm.js")
-var common = require("../common-tap.js")
+var npm = require('../../lib/npm.js')
+var common = require('../common-tap.js')
 
-var pkg = resolve(__dirname, "add-remote-git")
-var repo = resolve(__dirname, "add-remote-git-repo")
+var pkg = resolve(__dirname, 'add-remote-git')
+var repo = resolve(__dirname, 'add-remote-git-repo')
 
 var daemon
 var daemonPID
 var git
 
-test("setup", function (t) {
+test('setup', function (t) {
   bootstrap()
   setup(function (er, r) {
-    t.ifError(er, "git started up successfully")
+    t.ifError(er, 'git started up successfully')
 
     if (!er) {
       daemon = r[r.length - 2]
@@ -31,17 +30,17 @@ test("setup", function (t) {
   })
 })
 
-test("install from repo", function (t) {
+test('install from repo', function (t) {
   process.chdir(pkg)
-  npm.commands.install(".", [], function (er) {
-    t.ifError(er, "npm installed via git")
+  npm.commands.install('.', [], function (er) {
+    t.ifError(er, 'npm installed via git')
 
     t.end()
   })
 })
 
-test("clean", function (t) {
-  daemon.on("close", function () {
+test('clean', function (t) {
+  daemon.on('close', function () {
     cleanup()
     t.end()
   })
@@ -49,77 +48,67 @@ test("clean", function (t) {
 })
 
 var pjParent = JSON.stringify({
-  name : "parent",
-  version : "1.2.3",
-  dependencies : {
-    "child" : "git://localhost:1234/child.git"
+  name: 'parent',
+  version: '1.2.3',
+  dependencies: {
+    child: 'git://localhost:1234/child.git'
   }
-}, null, 2) + "\n"
+}, null, 2) + '\n'
 
 var pjChild = JSON.stringify({
-  name : "child",
-  version : "1.0.3"
-}, null, 2) + "\n"
+  name: 'child',
+  version: '1.0.3'
+}, null, 2) + '\n'
 
 function bootstrap () {
   mkdirp.sync(pkg)
-  fs.writeFileSync(resolve(pkg, "package.json"), pjParent)
+  fs.writeFileSync(resolve(pkg, 'package.json'), pjParent)
 }
 
 function setup (cb) {
   mkdirp.sync(repo)
-  fs.writeFileSync(resolve(repo, "package.json"), pjChild)
-  npm.load({ registry : common.registry, loglevel : "silent" }, function () {
-    git = require("../../lib/utils/git.js")
+  fs.writeFileSync(resolve(repo, 'package.json'), pjChild)
+  npm.load({ registry: common.registry, loglevel: 'silent' }, function () {
+    git = require('../../lib/utils/git.js')
 
     function startDaemon (cb) {
       // start git server
       var d = git.spawn(
         [
-          "daemon",
-          "--verbose",
-          "--listen=localhost",
-          "--export-all",
-          "--base-path=.",
-          "--port=1234"
+          'daemon',
+          '--verbose',
+          '--listen=localhost',
+          '--export-all',
+          '--base-path=.',
+          '--port=1234'
         ],
         {
-          cwd : pkg,
-          env : process.env,
-          stdio : ["pipe", "pipe", "pipe"]
+          cwd: pkg,
+          env: process.env,
+          stdio: ['pipe', 'pipe', 'pipe']
         }
       )
-      d.stderr.on("data", childFinder)
+      d.stderr.on('data', childFinder)
 
       function childFinder (c) {
         var cpid = c.toString().match(/^\[(\d+)\]/)
         if (cpid[1]) {
-          this.removeListener("data", childFinder)
+          this.removeListener('data', childFinder)
           cb(null, [d, cpid[1]])
         }
       }
     }
 
-    var opts = {
-      cwd : repo,
-      env : process.env
-    }
-
-    chain(
-      [
-        git.chainableExec(["init"], opts),
-        git.chainableExec(["config", "user.name", "PhantomFaker"], opts),
-        git.chainableExec(["config", "user.email", "nope@not.real"], opts),
-        git.chainableExec(["add", "package.json"], opts),
-        git.chainableExec(["commit", "-m", "stub package"], opts),
+    common.makeGitRepo({
+      path: repo,
+      commands: [
         git.chainableExec(
-          ["clone", "--bare", repo, "child.git"],
-          { cwd : pkg, env : process.env }
+          ['clone', '--bare', repo, 'child.git'],
+          { cwd: pkg, env: process.env }
         ),
         startDaemon
-      ],
-      cb
-    )
+      ]
+    }, cb)
   })
 }
 

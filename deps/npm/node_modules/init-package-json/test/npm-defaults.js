@@ -14,7 +14,7 @@ var EXPECTED = {
     test          : 'echo "Error: no test specified" && exit 1'
   },
   keywords        : [],
-  author          : "npmbot <n@p.m> (http://npm.im)",
+  author          : "npmbot <n@p.m> (http://npm.im/)",
   license         : "WTFPL"
 }
 

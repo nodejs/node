@@ -78,7 +78,7 @@ is an object with a &quot;name&quot; field and optionally &quot;url&quot; and &q
 , &quot;url&quot; : &quot;http://barnyrubble.tumblr.com/&quot;
 }
 </code></pre><p>Or you can shorten that all into a single string, and npm will parse it for you:</p>
-<pre><code>&quot;Barney Rubble &lt;b@rubble.com&gt; (http://barnyrubble.tumblr.com/)
+<pre><code>&quot;Barney Rubble &lt;b@rubble.com&gt; (http://barnyrubble.tumblr.com/)&quot;
 </code></pre><p>Both email and url are optional either way.</p>
 <p>npm also sets a top-level &quot;maintainers&quot; field with your npm user info.</p>
 <h2 id="files">files</h2>
@@ -185,9 +185,15 @@ command will be able to find you.</p>
 </code></pre><p>The URL should be a publicly available (perhaps read-only) url that can be handed
 directly to a VCS program without any modification.  It should not be a url to an
 html project page that you put in your browser.  It&#39;s for computers.</p>
-<p>For GitHub repositories you can use the same shortcut syntax you use for <code>npm
-install</code>:</p>
+<p>For GitHub, GitHub gist, Bitbucket, or GitLab repositories you can use the same
+shortcut syntax you use for <code>npm install</code>:</p>
 <pre><code>&quot;repository&quot;: &quot;npm/npm&quot;
+
+&quot;repository&quot;: &quot;gist:11081aaa281&quot;
+
+&quot;repository&quot;: &quot;bitbucket:example/repo&quot;
+
+&quot;repository&quot;: &quot;gitlab:another/repo&quot;
 </code></pre><h2 id="scripts">scripts</h2>
 <p>The &quot;scripts&quot; property is a dictionary containing script commands that are run
 at various times in the lifecycle of your package.  The key is the lifecycle

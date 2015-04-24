@@ -1,0 +1,84 @@
+{
+  "name": "supports-color",
+  "version": "1.3.1",
+  "description": "Detect whether a terminal supports color",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sindresorhus/supports-color"
+  },
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    },
+    {
+      "name": "jbnicolai",
+      "email": "jappelman@xebia.com"
+    }
+  ],
+  "bin": {
+    "supports-color": "cli.js"
+  },
+  "engines": {
+    "node": ">=0.8.0"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "files": [
+    "index.js",
+    "cli.js"
+  ],
+  "keywords": [
+    "cli",
+    "bin",
+    "color",
+    "colour",
+    "colors",
+    "terminal",
+    "console",
+    "cli",
+    "ansi",
+    "styles",
+    "tty",
+    "rgb",
+    "256",
+    "shell",
+    "xterm",
+    "command-line",
+    "support",
+    "supports",
+    "capability",
+    "detect"
+  ],
+  "devDependencies": {
+    "mocha": "*",
+    "require-uncached": "^1.0.2"
+  },
+  "gitHead": "09f1b4c336cee7269b4c8b3a8880054a23fcb35e",
+  "bugs": {
+    "url": "https://github.com/sindresorhus/supports-color/issues"
+  },
+  "homepage": "https://github.com/sindresorhus/supports-color",
+  "_id": "supports-color@1.3.1",
+  "_shasum": "15758df09d8ff3b4acc307539fabe27095e1042d",
+  "_from": "supports-color@>=1.3.0 <2.0.0",
+  "_npmVersion": "2.5.1",
+  "_nodeVersion": "0.12.0",
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "dist": {
+    "shasum": "15758df09d8ff3b4acc307539fabe27095e1042d",
+    "tarball": "http://registry.npmjs.org/supports-color/-/supports-color-1.3.1.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/supports-color/-/supports-color-1.3.1.tgz"
+}

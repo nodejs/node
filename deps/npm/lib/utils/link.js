@@ -16,13 +16,14 @@ function linkIfExists (from, to, gently, cb) {
   })
 }
 
-function link (from, to, gently, cb) {
+function link (from, to, gently, abs, cb) {
+  if (typeof cb !== "function") cb = abs, abs = false
   if (typeof cb !== "function") cb = gently, gently = null
   if (npm.config.get("force")) gently = false
 
   to = path.resolve(to)
   var target = from = path.resolve(from)
-  if (process.platform !== "win32") {
+  if (!abs && process.platform !== "win32") {
     // junctions on windows must be absolute
     target = path.relative(path.dirname(to), from)
     // if there is no folder in common, then it will be much

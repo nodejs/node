@@ -9,7 +9,7 @@ require("tap").test("basic", function (t) {
       name: null,
       type: "hosted",
       hosted: { type: "gitlab" },
-      spec: "git+ssh://git@gitlab.com/user/foo-js.git",
+      raw: "gitlab:user/foo-js",
       raw: "gitlab:user/foo-js"
     },
 
@@ -17,7 +17,7 @@ require("tap").test("basic", function (t) {
       name: null,
       type: "hosted",
       hosted: { type: "gitlab" },
-      spec: "git+ssh://git@gitlab.com/user/foo-js.git#bar/baz",
+      raw: "gitlab:user/foo-js#bar/baz",
       raw: "gitlab:user/foo-js#bar/baz"
     },
 
@@ -25,7 +25,7 @@ require("tap").test("basic", function (t) {
       name: null,
       type: "hosted",
       hosted: { type: "gitlab" },
-      spec: "git+ssh://git@gitlab.com/user..blerg--/..foo-js.git# . . . . . some . tags / / /",
+      spec: "gitlab:user..blerg--/..foo-js# . . . . . some . tags / / /",
       raw: "gitlab:user..blerg--/..foo-js# . . . . . some . tags / / /"
     },
 
@@ -33,7 +33,7 @@ require("tap").test("basic", function (t) {
       name: null,
       type: "hosted",
       hosted: { type: "gitlab" },
-      spec: "git+ssh://git@gitlab.com/user/foo-js.git#bar/baz/bin",
+      spec: "gitlab:user/foo-js#bar/baz/bin",
       raw: "gitlab:user/foo-js#bar/baz/bin"
     },
 
@@ -41,7 +41,7 @@ require("tap").test("basic", function (t) {
       name: "foo",
       type: "hosted",
       hosted: { type: "gitlab" },
-      spec: "git+ssh://git@gitlab.com/user/foo-js.git",
+      spec: "gitlab:user/foo-js",
       raw: "foo@gitlab:user/foo-js"
     },
 
@@ -57,7 +57,7 @@ require("tap").test("basic", function (t) {
       name: null,
       type: "hosted",
       hosted: { type: "gitlab" },
-      spec: "git+ssh://git@gitlab.com/user/foo.git",
+      spec: "https://gitlab.com/user/foo.git",
       raw: "https://gitlab.com/user/foo.git"
     },
 

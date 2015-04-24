@@ -7,16 +7,16 @@ var osenv = require('osenv')
 var rimraf = require('rimraf')
 var test = require('tap').test
 
+var common = require('../common-tap.js')
 var npm = npm = require('../../')
 
-var common = require('../common-tap.js')
 var pkg = path.resolve(__dirname, 'shrinkwrap-dev-dependency')
 
 test("shrinkwrap doesn't strip out the dependency", function (t) {
   t.plan(1)
 
   mr({port: common.port}, function (er, s) {
-    setup({}, function (err) {
+    setup(function (err) {
       if (err) return t.fail(err)
 
       npm.install('.', function (err) {
@@ -44,10 +44,14 @@ var desired = {
   version: '0.0.0',
   dependencies: {
     request: {
-      version: '0.9.0'
+      version: '0.9.0',
+      from: 'request@0.9.0',
+      resolved: common.registry + '/request/-/request-0.9.0.tgz'
     },
     underscore: {
-      version: '1.3.1'
+      version: '1.3.1',
+      from: 'underscore@1.3.1',
+      resolved: common.registry + '/underscore/-/underscore-1.3.1.tgz'
     }
   }
 }
@@ -65,22 +69,19 @@ var json = {
   }
 }
 
-function setup (opts, cb) {
+function setup (cb) {
   cleanup()
   mkdirp.sync(pkg)
   fs.writeFileSync(path.join(pkg, 'package.json'), JSON.stringify(json, null, 2))
   process.chdir(pkg)
 
-  var allOpts = {
+  var opts = {
     cache: path.resolve(pkg, 'cache'),
-    registry: common.registry
+    registry: common.registry,
+    // important to make sure devDependencies don't get stripped
+    dev: true
   }
-
-  for (var key in opts) {
-    allOpts[key] = opts[key]
-  }
-
-  npm.load(allOpts, cb)
+  npm.load(opts, cb)
 }
 
 function cleanup () {

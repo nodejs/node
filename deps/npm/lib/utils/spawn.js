@@ -11,7 +11,18 @@ function spawn (cmd, args, options) {
     er.file = cmd
     cooked.emit("error", er)
   }).on("close", function (code, signal) {
-    cooked.emit("close", code, signal)
+    // Create ENOENT error because Node.js v0.8 will not emit
+    // an `error` event if the command could not be found.
+    if (code === 127) {
+      var er = new Error('spawn ENOENT')
+      er.code = 'ENOENT'
+      er.errno = 'ENOENT'
+      er.syscall = 'spawn'
+      er.file = cmd
+      cooked.emit('error', er)
+    } else {
+      cooked.emit("close", code, signal)
+    }
   })
 
   cooked.stdin = raw.stdin

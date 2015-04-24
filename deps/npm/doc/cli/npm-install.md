@@ -164,15 +164,51 @@ after packing it up into a tarball (b).
 
           npm install mygithubuser/myproject
 
-   To reference a package in a git repo that is not on GitHub, see git
-   remote urls below.
+   To reference a package in a generic git repo (not on GitHub), see git remote
+   urls below.
+
+* `npm install github:<githubname>/<githubrepo>`:
+
+    The same as the above, but explicitly marked as a GitHub dependency.
+
+    Example:
+
+          npm install github:npm/npm
+
+* `npm install gist:[<githubname>/]<gistID>`:
+
+    Install the package at `https://gist.github.com/gistID` by attempting to
+    clone it using `git`. The GitHub username associated with the gist is
+    optional and will not be saved in `package.json` if `--save` is used.
+
+    Example:
+
+          npm install gist:101a11beef
+
+* `npm install bitbucket:<bitbucketname>/<bitbucketrepo>`:
+
+    Install the package at `https://bitbucket.org/bitbucketname/bitbucketrepo`
+    by attempting to clone it using `git`.
+
+    Example:
+
+          npm install bitbucket:mybitbucketuser/myproject
+
+* `npm install gitlab:<gitlabname>/<gitlabrepo>`:
+
+    Install the package at `https://gitlab.com/gitlabname/gitlabrepo`
+    by attempting to clone it using `git`.
+
+    Example:
+
+          npm install gitlab:mygitlabuser/myproject
 
 * `npm install <git remote url>`:
 
     Install a package by cloning a git remote url.  The format of the git
     url is:
 
-          <protocol>://[<user>@]<hostname><separator><path>[#<commit-ish>]
+          <protocol>://[<user>[:<password>]@]<hostname><separator><path>[#<commit-ish>]
 
     `<protocol>` is one of `git`, `git+ssh`, `git+http`, or
     `git+https`.  If no `<commit-ish>` is specified, then `master` is

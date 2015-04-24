@@ -223,8 +223,9 @@ function install (args, cb_) {
 
     // initial "family" is the name:version of the root, if it's got
     // a package.json file.
-    var jsonFile = path.resolve(where, "package.json")
-    readJson(jsonFile, log.warn, function (er, data) {
+    var jsonPath = path.resolve(where, "package.json")
+    log.verbose('install', 'initial load of', jsonPath)
+    readJson(jsonPath, log.warn, function (er, data) {
       if (er
           && er.code !== "ENOENT"
           && er.code !== "ENOTDIR") return cb(er)
@@ -246,7 +247,9 @@ function install (args, cb_) {
 }
 
 function validateInstall (where, cb) {
-  readJson(path.resolve(where, 'package.json'), log.warn, function (er, data) {
+  var jsonPath = path.resolve(where, 'package.json')
+  log.verbose('validateInstall', 'loading', jsonPath, 'for validation')
+  readJson(jsonPath, log.warn, function (er, data) {
     if (er
         && er.code !== 'ENOENT'
         && er.code !== 'ENOTDIR') return cb(er)
@@ -314,11 +317,11 @@ function findPeerInvalid_ (packageMap, fpiList) {
 function readDependencies (context, where, opts, cb) {
   var wrap = context ? context.wrap : null
 
-  readJson( path.resolve(where, "package.json")
-          , log.warn
-          , function (er, data) {
+  var jsonPath = path.resolve(where, 'package.json')
+  log.verbose('readDependencies', 'loading dependencies from', jsonPath)
+  readJson(jsonPath, log.warn, function (er, data) {
     if (er && er.code === "ENOENT") er.code = "ENOPACKAGEJSON"
-    if (er)  return cb(er)
+    if (er) return cb(er)
 
     if (opts && opts.dev) {
       if (!data.dependencies) data.dependencies = {}
@@ -420,9 +423,9 @@ function save (where, installed, tree, pretty, hasArguments, cb) {
   var saveTarget = path.resolve(where, "package.json")
 
   asyncMap(Object.keys(tree), function (k, cb) {
-    // if "what" was a url, then save that instead.
+    // if "from" is remote, git, or hosted, then save that instead.
     var t = tree[k]
-      , u = url.parse(t.from)
+      , f = npa(t.from)
       , a = npa(t.what)
       , w = [a.name, a.spec]
 
@@ -430,7 +433,7 @@ function save (where, installed, tree, pretty, hasArguments, cb) {
     fs.stat(t.from, function (er){
       if (!er) {
         w[1] = "file:" + t.from
-      } else if (u && u.protocol) {
+      } else if (['hosted', 'git', 'remote'].indexOf(f.type) !== -1) {
         w[1] = t.from
       }
       cb(null, [w])
@@ -472,7 +475,7 @@ function save (where, installed, tree, pretty, hasArguments, cb) {
         data.bundleDependencies = bundle.sort()
       }
 
-      log.verbose("saving", things)
+      log.verbose("save", "saving", things)
       data[deps] = data[deps] || {}
       Object.keys(things).forEach(function (t) {
         data[deps][t] = things[t]
@@ -485,6 +488,7 @@ function save (where, installed, tree, pretty, hasArguments, cb) {
 
       data[deps] = sortedObject(data[deps])
 
+      log.silly("save", "writing", saveTarget)
       data = JSON.stringify(data, null, 2) + "\n"
       writeFileAtomic(saveTarget, data, function (er) {
         cb(er, installed, tree, pretty)
@@ -601,7 +605,9 @@ function installManyTop (what, where, context, cb_) {
 
   if (context.explicit) return next()
 
-  readJson(path.join(where, "package.json"), log.warn, function (er, data) {
+  var jsonPath = path.join(where, 'package.json')
+  log.verbose('installManyTop', 'reading for lifecycle', jsonPath)
+  readJson(jsonPath, log.warn, function (er, data) {
     if (er) return next(er)
     lifecycle(data, "preinstall", where, next)
   })
@@ -636,8 +642,9 @@ function installManyTop_ (what, where, context, cb) {
       // recombine unscoped with @scope/package packages
       asyncMap(unscoped.concat(scoped).map(function (p) {
         return path.resolve(nm, p, "package.json")
-      }), function (jsonfile, cb) {
-        readJson(jsonfile, log.warn, function (er, data) {
+      }), function (jsonPath, cb) {
+        log.verbose('installManyTop', 'reading scoped package data from', jsonPath)
+        readJson(jsonPath, log.warn, function (er, data) {
           if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
           if (er) return cb(null, [])
           cb(null, [[data.name, data.version]])
@@ -789,7 +796,9 @@ function targetResolver (where, context, deps) {
       })
 
       asyncMap(inst, function (pkg, cb) {
-        readJson(path.resolve(name, pkg, "package.json"), log.warn, function (er, d) {
+        var jsonPath = path.resolve(name, pkg, 'package.json')
+        log.verbose('targetResolver', 'reading package data from', jsonPath)
+        readJson(jsonPath, log.warn, function (er, d) {
           if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
           // error means it's not a package, most likely.
           if (er) return cb(null, [])
@@ -930,11 +939,11 @@ function installOne (target, where, context, cb) {
 
 function localLink (target, where, context, cb) {
   log.verbose("localLink", target._id)
-  var jsonFile = path.resolve( npm.globalDir, target.name
-                             , "package.json" )
-    , parent = context.parent
+  var jsonPath = path.resolve(npm.globalDir, target.name , 'package.json')
+  var parent = context.parent
 
-  readJson(jsonFile, log.warn, function (er, data) {
+  log.verbose('localLink', 'reading data to link', target.name, 'from', jsonPath)
+  readJson(jsonPath, log.warn, function (er, data) {
     function thenLink () {
       npm.commands.link([target.name], function (er, d) {
         log.silly("localLink", "back from link", [er, d])
@@ -1057,23 +1066,24 @@ function write (target, targetFolder, context, cb_) {
 
   log.silly("install write", "writing", target.name, target.version, "to", targetFolder)
   chain(
-      [ [ cache.unpack, target.name, target.version, targetFolder
-        , null, null, user, group ]
-      , [ fs, "writeFile"
-        , path.resolve(targetFolder, "package.json")
-        , JSON.stringify(target, null, 2) + "\n" ]
-      , [ lifecycle, target, "preinstall", targetFolder ]
-      , function (cb) {
-          if (!target.bundleDependencies) return cb()
+    [ [ cache.unpack, target.name, target.version, targetFolder, null, null, user, group ],
+      function writePackageJSON (cb) {
+        var jsonPath = path.resolve(targetFolder, 'package.json')
+        log.verbose('write', 'writing to', jsonPath)
+        writeFileAtomic(jsonPath, JSON.stringify(target, null, 2) + '\n', cb)
+      },
+      [ lifecycle, target, "preinstall", targetFolder ],
+      function collectBundled (cb) {
+        if (!target.bundleDependencies) return cb()
 
-          var bd = path.resolve(targetFolder, "node_modules")
-          fs.readdir(bd, function (er, b) {
-            // nothing bundled, maybe
-            if (er) return cb()
-            bundled = b || []
-            cb()
-          })
-        } ]
+        var bd = path.resolve(targetFolder, "node_modules")
+        fs.readdir(bd, function (er, b) {
+          // nothing bundled, maybe
+          if (er) return cb()
+          bundled = b || []
+          cb()
+        })
+      } ]
 
     // nest the chain so that we can throw away the results returned
     // up until this point, since we really don't care about it.
@@ -1118,7 +1128,16 @@ function write (target, targetFolder, context, cb_) {
               "in npm 3+. Your application will need to depend on it explicitly."
             ], pd+","+data.name)
         })
-        var pdTargetFolder = path.resolve(targetFolder, "..", "..")
+
+        // Package scopes cause an addditional tree level which needs to be
+        // considered when resolving a peerDependency's target folder.
+        var pdTargetFolder
+        if (npa(target.name).scope) {
+          pdTargetFolder = path.resolve(targetFolder, '../../..')
+        } else {
+          pdTargetFolder = path.resolve(targetFolder, '../..')
+        }
+
         var pdContext = context
         if (peerDeps.length > 0) {
           actions.push(

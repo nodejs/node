@@ -1,51 +1,84 @@
-var common = require("../common-tap.js")
-var existsSync = require("fs").existsSync
-var join = require("path").join
-var exec = require("child_process").exec
+var exec = require('child_process').exec
+var fs = require('graceful-fs')
+var path = require('path')
+var existsSync = fs.existsSync || path.existsSync
 
-var test = require("tap").test
-var rimraf = require("rimraf")
-var mkdirp = require("mkdirp")
+var mkdirp = require('mkdirp')
+var osenv = require('osenv')
+var rimraf = require('rimraf')
+var test = require('tap').test
 
-var pkg = join(__dirname, "install-scoped")
-var work = join(__dirname, "install-scoped-TEST")
-var modules = join(work, "node_modules")
+var common = require('../common-tap.js')
 
-var EXEC_OPTS = {}
+var pkg = path.join(__dirname, 'install-scoped-link')
+var work = path.join(__dirname, 'install-scoped-link-TEST')
+var modules = path.join(work, 'node_modules')
 
-test("setup", function (t) {
+var EXEC_OPTS = { cwd: work }
+
+var world = 'console.log("hello blrbld")\n'
+
+var json = {
+  name: '@scoped/package',
+  version: '0.0.0',
+  bin: {
+    hello: './world.js'
+  }
+}
+
+test('setup', function (t) {
+  cleanup()
+  mkdirp.sync(pkg)
+  fs.writeFileSync(
+    path.join(pkg, 'package.json'),
+    JSON.stringify(json, null, 2)
+  )
+  fs.writeFileSync(path.join(pkg, 'world.js'), world)
+
   mkdirp.sync(modules)
   process.chdir(work)
 
   t.end()
 })
 
-test("installing package with links", function (t) {
-  common.npm(["install", pkg], EXEC_OPTS, function (err, code) {
-    t.ifError(err, "install ran to completion without error")
-    t.notOk(code, "npm install exited with code 0")
+test('installing package with links', function (t) {
+  common.npm(
+    [
+      '--loglevel', 'silent',
+      'install', pkg
+    ],
+    EXEC_OPTS,
+    function (err, code) {
+      t.ifError(err, 'install ran to completion without error')
+      t.notOk(code, 'npm install exited with code 0')
 
-    t.ok(
-      existsSync(join(modules, "@scoped", "package", "package.json")),
-      "package installed"
-    )
-    t.ok(existsSync(join(modules, ".bin")), "binary link directory exists")
+      t.ok(
+        existsSync(path.join(modules, '@scoped', 'package', 'package.json')),
+        'package installed'
+      )
+      t.ok(existsSync(path.join(modules, '.bin')), 'binary link directory exists')
 
-    var hello = join(modules, ".bin", "hello")
-    t.ok(existsSync(hello), "binary link exists")
+      var hello = path.join(modules, '.bin', 'hello')
+      t.ok(existsSync(hello), 'binary link exists')
 
-    exec("node " + hello, function (err, stdout, stderr) {
-      t.ifError(err, "command ran fine")
-      t.notOk(stderr, "got no error output back")
-      t.equal(stdout, "hello blrbld\n", "output was as expected")
+      exec('node ' + hello, function (err, stdout, stderr) {
+        t.ifError(err, 'command ran fine')
+        t.notOk(stderr, 'got no error output back')
+        t.equal(stdout, 'hello blrbld\n', 'output was as expected')
 
-      t.end()
-    })
-  })
+        t.end()
+      })
+    }
+  )
 })
 
-test("cleanup", function (t) {
-  process.chdir(__dirname)
-  rimraf.sync(work)
+test('cleanup', function (t) {
+  cleanup()
   t.end()
 })
+
+function cleanup () {
+  process.chdir(osenv.tmpdir())
+  rimraf.sync(work)
+  rimraf.sync(pkg)
+}

@@ -9,8 +9,12 @@ function loadCAFile(cafilePath, cb) {
   fs.readFile(cafilePath, "utf8", afterCARead.bind(this))
 
   function afterCARead(er, cadata) {
-    if (er)
+
+    if (er) {
+      // previous cafile no longer exists, so just continue on gracefully
+      if (er.code === 'ENOENT') return cb()
       return cb(er)
+    }
 
     var delim = "-----END CERTIFICATE-----"
     var output

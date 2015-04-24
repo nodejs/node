@@ -11,14 +11,6 @@ var common = require("../common-tap.js")
 
 var pkg = path.join(__dirname, "prepublish_package")
 
-// TODO: nock uses setImmediate, breaks 0.8: replace with mockRegistry
-if (!global.setImmediate) {
-  global.setImmediate = function () {
-    var args = [arguments[0], 0].concat([].slice.call(arguments, 1))
-    setTimeout.apply(this, args)
-  }
-}
-
 test("setup", function (t) {
   mkdirp(path.join(pkg, "cache"), next)
 

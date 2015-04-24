@@ -1,3 +1,500 @@
+### v2.8.4 (2015-04-16):
+
+This is the fourth release of npm this week, so it's mostly just landing a few
+small outstanding PRs on dependencies and some tiny documentation tweaks.
+`npm@2.8.3` is where the real action is.
+
+* [`ee2bd77`](https://github.com/npm/npm/commit/ee2bd77f3c64d38735d1d31028224a5c40422a9b)
+  [#7983](https://github.com/npm/npm/issues/7983) `tar@2.1.0`: Better error
+  reporting in corrupted tar files, and add support for the `fromBase` flag
+  (rescued from the dustbin of history by
+  [@deanmarano](https://github.com/deanmarano)).
+  ([@othiym23](https://github.com/othiym23))
+* [`d8eee6c`](https://github.com/npm/npm/commit/d8eee6cf9d2ff7aca68dfaed2de76824a3e0d9af)
+  `init-package-json@1.4.1`: Add support for a default author, and only add
+  scope to a package name once. ([@othiym23](https://github.com/othiym23))
+* [`4fc5d98`](https://github.com/npm/npm/commit/4fc5d98b785f601c60d4dc0a2c8674f0cccf6262)
+  `lru-cache@2.6.1`: Small tweaks to cache value aging and entry counting that
+  are irrelevant to npm. ([@isaacs](https://github.com/isaacs))
+* [`1fe5840`](https://github.com/npm/npm/commit/1fe584089f5bef133de5518aa26eaf6064be2bf7)
+  [#7946](https://github.com/npm/npm/issues/7946) Make `npm init` text
+  friendlier. ([@sandfox](https://github.com/sandfox))
+
+### v2.8.3 (2015-04-15):
+
+#### TWO SMALL GIT TWEAKS
+
+This is the last of a set of releases intended to ensure npm's git support is
+robust enough that we can stop working on it for a while. These fixes are
+small, but prevent a common crasher and clear up one of the more confusing
+error messages coming out of npm when working with repositories hosted on git.
+
+* [`387f889`](https://github.com/npm/npm/commit/387f889c0e8fb617d9cc9a42ed0a3ec49424ab5d)
+  [#7961](https://github.com/npm/npm/issues/7961) Ensure that hosted git SSH
+  URLs always have a valid protocol when stored in `resolved` fields in
+  `npm-shrinkwrap.json`. ([@othiym23](https://github.com/othiym23))
+* [`394c2f5`](https://github.com/npm/npm/commit/394c2f5a1227232c0baf42fbba1402aafe0d6ffb)
+  Switch the order in which hosted Git providers are checked to `git:`,
+  `git+https:`, then `git+ssh:` (from `git:`, `git+ssh:`, then `git+https:`) in
+  an effort to go from most to least likely to succeed, to make for less
+  confusing error message. ([@othiym23](https://github.com/othiym23))
+
+### v2.8.2 (2015-04-14):
+
+#### PEACE IN OUR TIME
+
+npm has been having an issue with CouchDB's web server since the release
+of io.js and Node.js 0.12.0 that has consumed a huge amount of my time
+to little visible effect. Sam Mikes picked up the thread from me, and
+after a [_lot_ of effort](https://github.com/npm/npm/issues/7699#issuecomment-93091111)
+figured out that ultimately there are probably a couple problems with
+the new HTTP Agent keep-alive handling in new versions of Node. In
+addition, `npm-registry-client` was gratuitously sending a body along
+with a GET request which was triggering the bugs. Sam removed about 10 bytes from
+one file in `npm-registry-client`, and this problem, which has been bugging us for months,
+completely went away.
+
+In conclusion, Sam Mikes is great, and anybody using a private registry
+hosted on CouchDB should thank him for his hard work. Also, thanks to
+the community at large for pitching in on this bug, which has been
+around for months now.
+
+* [`431c3bf`](https://github.com/npm/npm/commit/431c3bf6cdec50f9f0c735f478cb2f3f337d3313)
+  [#7699](https://github.com/npm/npm/issues/7699) `npm-registry-client@6.3.2`:
+  Don't send body with HTTP GET requests when logging in.
+  ([@smikes](https://github.com/smikes))
+
+### v2.8.1 (2015-04-12):
+
+#### CORRECTION: NPM'S GIT INTEGRATION IS DOING OKAY
+
+A [helpful bug report](https://github.com/npm/npm/issues/7872#issuecomment-91809553)
+led to another round of changes to
+[`hosted-git-info`](https://github.com/npm/hosted-git-info/commit/827163c74531b69985d1ede7abced4861e7b0cd4),
+some additional test-writing, and a bunch of hands-on testing against actual
+private repositories. While the complexity of npm's git dependency handling is
+nearly fractal (because npm is very complex, and git is even more complex),
+it's feeling way more solid than it has for a while. We think this is a
+substantial improvement over what we had before, so give `npm@2.8.1` a shot if
+you have particularly complex git use cases and
+[let us know](https://github.com/npm/npm/issues/new) how it goes.
+
+(NOTE: These changes mostly affect cloning and saving references to packages
+hosted in git repositories, and don't address some known issues with things
+like lifecycle scripts not being run on npm dependencies. Work continues on
+other issues that affect parity between git and npm registry packages.)
+
+* [`66377c6`](https://github.com/npm/npm/commit/66377c6ece2cf4d53d9a618b7d9824e1452bc293)
+  [#7872](https://github.com/npm/npm/issues/7872) `hosted-git-info@2.1.2`: Pass
+  through credentials embedded in SSH and HTTPs git URLs.
+  ([@othiym23](https://github.com/othiym23))
+* [`15efe12`](https://github.com/npm/npm/commit/15efe124753257728a0ddc64074fa5a4b9c2eb30)
+  [#7872](https://github.com/npm/npm/issues/7872) Use the new version of
+  `hosted-git-info` to pass along credentials embedded in git URLs. Test it.
+  Test it a lot. ([@othiym23](https://github.com/othiym23))
+
+#### SCOPED DEPENDENCIES AND PEER DEPENDENCIES: NOT QUITE REESE'S
+
+Big thanks to [@ewie](https://github.com/ewie) for identifying an issue with
+how npm was handling `peerDependencies` that were implicitly installed from the
+`package.json` files of scoped dependencies. This
+[will be a moot point](https://github.com/npm/npm/issues/6565#issuecomment-74971689)
+with the release of `npm@3`, but until then, it's important that
+`peerDependency` auto-installation work as expected.
+
+* [`b027319`](https://github.com/npm/npm/commit/b0273190c71eba14395ddfdd1d9f7ba625297523)
+  [#7920](https://github.com/npm/npm/issues/7920) Scoped packages with
+  `peerDependencies` were installing the `peerDependencies` into the wrong
+  directory. ([@ewie](https://github.com/ewie))
+* [`649e31a`](https://github.com/npm/npm/commit/649e31ae4fd02568bae5dc6b4ea783431ce3d63e)
+  [#7920](https://github.com/npm/npm/issues/7920) Test `peerDependency`
+  installs involving scoped packages using `npm-package-arg` instead of simple
+  path tests, for consistency. ([@othiym23](https://github.com/othiym23))
+
+#### MAKING IT EASIER TO WRITE NPM TESTS, VERSION 0.0.1
+
+[@iarna](https://github.com/iarna) and I
+([@othiym23](https://github.com/othiym23)) have been discussing a
+[candidate plan](https://github.com/npm/npm/wiki/rewriting-npm's-tests:-a-plan-maybe)
+for improving npm's test suite, with the goal of making it easier for new
+contributors to get involved with npm by reducing the learning curve
+necessary to be able to write good tests for proposed changes. This is the
+first substantial piece of that effort. Here's what the commit message for
+[`ed7e249`](https://github.com/npm/npm/commit/ed7e249d50444312cd266942ce3b89e1ca049bdf)
+had to say about this work:
+
+> It's too difficult for npm contributors to figure out what the conventional
+> style is for tests. Part of the problem is that the documentation in
+> CONTRIBUTING.md is inadequate, but another important factor is that the tests
+> themselves are written in a variety of styles.  One of the most notable
+> examples of this is the fact that many tests use fixture directories to store
+> precooked test scenarios and package.json files.
+>
+> This had some negative consequences:
+>
+>   * tests weren't idempotent
+>   * subtle dependencies between tests existed
+>   * new tests get written in this deprecated style because it's not
+>     obvious that the style is out of favor
+>   * it's hard to figure out why a lot of those directories existed,
+>     because they served a variety of purposes, so it was difficult to
+>     tell when it was safe to remove them
+>
+> All in all, the fixture directories were a major source of technical debt, and
+> cleaning them up, while time-consuming, makes the whole test suite much more
+> approachable, and makes it more likely that new tests written by outside
+> contributors will follow a conventional style. To support that, all of the
+> tests touched by this changed were cleaned up to pass the `standard` style
+> checker.
+
+And here's a little extra context from a comment I left on [#7929](https://github.com/npm/npm/issues/7929):
+
+> One of the other things that encouraged me was looking at this
+> [presentation on technical debt](http://www.slideshare.net/nnja/pycon-2015-technical-debt-the-monster-in-your-closet)
+> from Pycon 2015, especially slide 53, which I interpreted in terms of
+> difficulty getting new contributors to submit patches to an OSS project like
+> npm. npm has a long ways to go, but I feel good about this change.
+
+* [`ed7e249`](https://github.com/npm/npm/commit/ed7e249d50444312cd266942ce3b89e1ca049bdf)
+  [#7929](https://github.com/npm/npm/issues/7929) Eliminate fixture directories
+  from `test/tap`, leaving each test self-contained.
+  ([@othiym23](https://github.com/othiym23))
+* [`4928d30`](https://github.com/npm/npm/commit/4928d30140821c63e03fffed73f8d88ebdc43710)
+  [#7929](https://github.com/npm/npm/issues/7929) Move fixture files from
+  `test/tap/*` to `test/fixtures`. ([@othiym23](https://github.com/othiym23))
+* [`e925deb`](https://github.com/npm/npm/commit/e925debca91092a814c1a00933babc3a8cf975be)
+  [#7929](https://github.com/npm/npm/issues/7929) Tweak the run scripts to stop
+  slaughtering the CPU on doc rebuild.
+  ([@othiym23](https://github.com/othiym23))
+* [`65bf7cf`](https://github.com/npm/npm/commit/65bf7cffaf91c426b676c47529eee796f8b8b75c)
+  [#7923](https://github.com/npm/npm/issues/7923) Use an alias of scripts and
+  run-scripts in `npm run test-all` ([@watilde](https://github.com/watilde))
+* [`756a3fb`](https://github.com/npm/npm/commit/756a3fbb852a2469afe706635ed88d22c37743e5)
+  [#7923](https://github.com/npm/npm/issues/7923) Sync timeout time of `npm
+  run-script test-all` to be the same as `test` and `tap` scripts.
+  ([@watilde](https://github.com/watilde))
+* [`8299b5f`](https://github.com/npm/npm/commit/8299b5fb6373354a7fbaab6f333863758812ae90)
+  Set a timeout for tap tests for `npm run-script test-all`.
+  ([@othiym23](https://github.com/othiym23))
+
+#### THE EVER-BEATING DRUM OF DEPENDENCY UPDATES
+
+* [`d90d0b9`](https://github.com/npm/npm/commit/d90d0b992acbf62fd5d68debf9d1dbd6cfa20804)
+  [#7924](https://github.com/npm/npm/issues/7924) Remove `child-process-close`,
+  as it was included for Node 0.6 compatibility, and npm no longer supports
+  0.6. ([@robertkowalski](https://github.com/robertkowalski))
+* [`16427c1`](https://github.com/npm/npm/commit/16427c1f3ea3d71ee753c62eb4c2663c7b32b84f)
+  `lru-cache@2.5.2`: More accurate updating of expiry times when `maxAge` is
+  set. ([@isaacs](https://github.com/isaacs))
+* [`03cce83`](https://github.com/npm/npm/commit/03cce83b64344a9e0fe036dce214f4d68cfcc9e7)
+  `nock@1.6.0`: Mocked network error handling.
+  ([@pgte](https://github.com/pgte))
+* [`f93b1f0`](https://github.com/npm/npm/commit/f93b1f0b7eb5d1b8a7967e837bbd756db1091d00)
+  `glob@5.0.5`: Use `path-is-absolute` polyfill, allowing newer Node.js and
+  io.js versions to use `path.isAbsolute()`.
+  ([@sindresorhus](https://github.com/sindresorhus))
+* [`a70d694`](https://github.com/npm/npm/commit/a70d69495a6e96997e64855d9e749d943ee6d64f)
+  `request@2.55.0`: Bug fixes and simplification.
+  ([@simov](https://github.com/simov))
+* [`2aecc6f`](https://github.com/npm/npm/commit/2aecc6f4083526feeb14615b4e5484edc66175b5)
+  `columnify@1.5.1`: Switch to using babel from 6to5.
+  ([@timoxley](https://github.com/timoxley))
+
+### v2.8.0 (2015-04-09):
+
+#### WE WILL NEVER BE DONE FIXING NPM'S GIT SUPPORT
+
+If you look at [the last release's release
+notes](https://github.com/npm/npm/blob/master/CHANGELOG.md#git-mean-git-tuff-git-all-the-way-away-from-my-stuff),
+you will note that they confidently assert that it's perfectly OK to force all
+GitHub URLs through the same `git:` -> `git+ssh:` fallback flow for cloning. It
+turns out that many users depend on `git+https:` URLs in their build
+environments because they use GitHub auth tokens instead of SSH keys. Also, in
+some cases you just want to be able to explicitly say how a given dependency
+should be cloned from GitHub.
+
+Because of the way we resolved the inconsistency in GitHub shorthand handling
+[before](https://github.com/npm/npm/blob/master/CHANGELOG.md#bug-fixes-1), this
+turned out to be difficult to work around. So instead of hacking around it, we
+completely redid how git is handled within npm and its attendant packages.
+Again. This time, we changed things so that `normalize-package-data` and
+`read-package-json` leave more of the git logic to npm itself, which makes
+handling shorthand syntax consistently much easier, and also allows users to
+resume using explicit, fully-qualified git URLs without npm messing with them.
+
+Here's a summary of what's changed:
+
+* Instead of converting the GitHub shorthand syntax to a `git+ssh:`, `git:`, or
+  `git+https:` URL and saving that, save the shorthand itself to
+  `package.json`.
+* If presented with shortcuts, try cloning via the git protocol, SSH, and HTTPS
+  (in that order).
+* No longer prompt for credentials -- it didn't work right with the spinner,
+  and wasn't guaranteed to work anyway. We may experiment with doing this a
+  better way in the future. Users can override this by setting `GIT_ASKPASS` in
+  their environment if they want to experiment with interactive cloning, but
+  should also set `--no-spin` on the npm command line (or run `npm config set
+  spin=false`).
+* **EXPERIMENTAL FEATURE**: Add support for `github:`, `gist:`, `bitbucket:`,
+  and `gitlab:` shorthand prefixes. GitHub shortcuts will continue to be
+  normalized to `org/repo` instead of being saved as `github:org/repo`, but
+  `gitlab:`, `gist:`, and `bitbucket:` prefixes will be used on the command
+  line and from `package.json`. BE CAREFUL WITH THIS. `package.json` files
+  published with the new shorthand syntax can _only_ be read by `npm@2.8.0` and
+  later, and this feature is mostly meant for playing around with it. If you
+  want to save git dependencies in a form that older versions of npm can read,
+  use `--save-exact`, which will save the git URL and resolved commit hash of
+  the head of the branch in a manner similar to the way that `--save-exact`
+  pins versions for registry dependencies.  This is documented (so check `npm
+  help install` for details), but we're not going to make a lot of noise about
+  it until it has a chance to bake in a little more.
+
+It is [@othiym23](https://github.com/othiym23)'s sincere hope that this will
+resolve all of the inconsistencies users were seeing with GitHub and git-hosted
+packages, but given the level of change here, that may just be a fond wish.
+Extra testing of this change is requested.
+
+* [`6b0f588`](https://github.com/npm/npm/commit/6b0f58877f37df9904490ffbaaad33862bd36dce)
+  [#7867](https://github.com/npm/npm/issues/7867) Use git shorthand and git
+  URLs as presented by user. Support new `hosted-git-info` shortcut syntax.
+  Save shorthand in `package.json`. Try cloning via `git:`, `git+ssh:`, and
+  `git+https:`, in that order, when supported by the underlying hosting
+  provider. ([@othiym23](https://github.com/othiym23))
+* [`75d4267`](https://github.com/npm/npm/commit/75d426787869d54ca7400408f562f971b34649ef)
+  [#7867](https://github.com/npm/npm/issues/7867) Document new GitHub, GitHub
+  gist, Bitbucket, and GitLab shorthand syntax.
+  ([@othiym23](https://github.com/othiym23))
+* [`7d92c75`](https://github.com/npm/npm/commit/7d92c7592998d90ec883fa989ca74f04ec1b93de)
+  [#7867](https://github.com/npm/npm/issues/7867) When `--save-exact` is used
+  with git shorthand or URLs, save the fully-resolved URL, with branch name
+  resolved to the exact hash for the commit checked out.
+  ([@othiym23](https://github.com/othiym23))
+* [`9220e59`](https://github.com/npm/npm/commit/9220e59f8def8c82c6d331a39ba29ad4c44e3a9b)
+  [#7867](https://github.com/npm/npm/issues/7867) Ensure that non-prefixed and
+  non-normalized GitHub shortcuts are saved to `package.json`.
+  ([@othiym23](https://github.com/othiym23))
+* [`dd398e9`](https://github.com/npm/npm/commit/dd398e98a8eba27eeba84378200da3d078fdf980)
+  [#7867](https://github.com/npm/npm/issues/7867) `hosted-git-info@2.1.1`:
+  Ensure that `gist:` shorthand survives being round-tripped through
+  `package.json`. ([@othiym23](https://github.com/othiym23))
+* [`33d1420`](https://github.com/npm/npm/commit/33d1420bf2f629332fceb2ac7e174e63ac48f96a)
+  [#7867](https://github.com/npm/npm/issues/7867) `hosted-git-info@2.1.0`: Add
+  support for auth embedded directly in git URLs.
+  ([@othiym23](https://github.com/othiym23))
+* [`23a1d5a`](https://github.com/npm/npm/commit/23a1d5a540e8db27f5cd0245de7c3694e2bddad1)
+  [#7867](https://github.com/npm/npm/issues/7867) `hosted-git-info@2.0.2`: Make
+  it possible to determine in which form a hosted git URL was passed.
+  ([@iarna](https://github.com/iarna))
+* [`eaf75ac`](https://github.com/npm/npm/commit/eaf75acb718611ad5cfb360084ec86938d9c66c5)
+  [#7867](https://github.com/npm/npm/issues/7867)
+  `normalize-package-data@2.0.0`: Normalize GitHub specifiers so they pass
+  through shortcut syntax and preserve explicit URLs.
+  ([@iarna](https://github.com/iarna))
+* [`95e0535`](https://github.com/npm/npm/commit/95e0535e365e0aca49c634dd2061a0369b0475f1)
+  [#7867](https://github.com/npm/npm/issues/7867) `npm-package-arg@4.0.0`: Add
+  git URL and shortcut to hosted git spec and use `hosted-git-info@2.0.2`.
+  ([@iarna](https://github.com/iarna))
+* [`a808926`](https://github.com/npm/npm/commit/a8089268d5f3d57f42dbaba02ff6437da5121191)
+  [#7867](https://github.com/npm/npm/issues/7867)
+  `realize-package-specifier@3.0.0`: Use `npm-package-arg@4.0.0` and test
+  shortcut specifier behavior. ([@iarna](https://github.com/iarna))
+* [`6dd1e03`](https://github.com/npm/npm/commit/6dd1e039bddf8cf5383343f91d84bc5d78acd083)
+  [#7867](https://github.com/npm/npm/issues/7867) `init-package-json@1.4.0`:
+  Allow dependency on `read-package-json@2.0.0`.
+  ([@iarna](https://github.com/iarna))
+* [`63254bb`](https://github.com/npm/npm/commit/63254bb6358f66752aca6aa1a275271b3ae03f7c)
+  [#7867](https://github.com/npm/npm/issues/7867) `read-installed@4.0.0`: Use
+  `read-package-json@2.0.0`. ([@iarna](https://github.com/iarna))
+* [`254b887`](https://github.com/npm/npm/commit/254b8871f5a173bb464cc5b0ace460c7878b8097)
+  [#7867](https://github.com/npm/npm/issues/7867) `read-package-json@2.0.0`:
+  Use `normalize-package-data@2.0.0`. ([@iarna](https://github.com/iarna))
+* [`0b9f8be`](https://github.com/npm/npm/commit/0b9f8be62fe5252abe54d49e36a696f4816c2eca)
+  [#7867](https://github.com/npm/npm/issues/7867) `npm-registry-client@6.3.0`:
+  Mark compatibility with `normalize-package-data@2.0.0` and
+  `npm-package-arg@4.0.0`. ([@iarna](https://github.com/iarna))
+* [`f40ecaa`](https://github.com/npm/npm/commit/f40ecaad68f77abc50eb6f5b224e31dec3d250fc)
+  [#7867](https://github.com/npm/npm/issues/7867) Extract a common method to
+  use when cloning git repos for testing.
+  ([@othiym23](https://github.com/othiym23))
+
+#### TEST FIXES FOR NODE 0.8
+
+npm continues to [get closer](https://github.com/npm/npm/issues/7842) to being
+completely green on Travis for Node 0.8.
+
+* [`26d36e9`](https://github.com/npm/npm/commit/26d36e9cf0eca69fe1863d2ea536c28555b9e8de)
+  [#7842](https://github.com/npm/npm/issues/7842) When spawning child
+  processes, map exit code 127 to ENOENT so Node 0.8 handles child process
+  failures the same as later versions.
+  ([@SonicHedgehog](https://github.com/SonicHedgehog))
+* [`54cd895`](https://github.com/npm/npm/commit/54cd8956ea783f96749e46597d8c2cb9397c5d5f)
+  [#7842](https://github.com/npm/npm/issues/7842) Node 0.8 requires -e with -p
+  when evaluating snippets; fix test.
+  ([@SonicHedgehog](https://github.com/SonicHedgehog))
+
+#### SMALL FIX AND DOC TWEAK
+
+* [`20e9003`](https://github.com/npm/npm/commit/20e90031b847e9f7c7168f3dad8b1e526f9a2586)
+  `tar@2.0.1`: Fix regression where relative symbolic links within an
+  extraction root that pointed within an extraction root would get normalized
+  to absolute symbolic links. ([@isaacs](https://github.com/isaacs))
+* [`2ef8898`](https://github.com/npm/npm/commit/2ef88989c41bee1578570bb2172c90ede129dbd1)
+  [#7879](https://github.com/npm/npm/issues/7879) Better document that `npm
+  publish --tag=foo` will not set `latest` to that version.
+  ([@linclark](https://github.com/linclark))
+
+### v2.7.6 (2015-04-02):
+
+#### GIT MEAN, GIT TUFF, GIT ALL THE WAY AWAY FROM MY STUFF
+
+Part of the reason that we're reluctant to take patches to how npm deals with
+git dependencies is that every time we touch the git support, something breaks.
+The last few releases are a case in point. `npm@2.7.4` completely broke
+installing private modules from GitHub, and `npm@2.7.5` fixed them at the cost
+of logging a misleading error message that caused many people to believe that
+their dependencies hadn't been successfully installed when they actually had
+been.
+
+This all started from a desire to ensure that GitHub shortcut syntax is being
+handled correctly.  The correct behavior is for npm to try to clone all
+dependencies on GitHub (whether they're specified with the GitHub
+`organization/repository` shortcut syntax or not) via the plain `git:` protocol
+first, and to fall back to using `git+ssh:` if `git:` doesn't work. Previously,
+sometimes npm would use `git:` and `git+ssh:` in some cases (most notably when
+using GitHub shortcut syntax on the command line), and use `git+https:` in
+others (when the GitHub shortcut syntax was present in `package.json`). This
+led to subtle and hard-to-understand inconsistencies, and we're glad that as of
+`npm@2.7.6`, we've finally gotten things to where they were before we started,
+only slightly more consistent overall.
+
+We are now going to go back to our policy of being extremely reluctant to touch
+the code that handles Git dependencies.
+
+* [`b747593`](https://github.com/npm/npm/commit/b7475936f473f029e6a027ba1b16277523747d0b)
+  [#7630](https://github.com/npm/npm/issues/7630) Don't automatically log all
+  git failures as errors. `maybeGithub` needs to be able to fail without
+  logging to support its fallback logic.
+  ([@othiym23](https://github.com/othiym23))
+* [`cd67a0d`](https://github.com/npm/npm/commit/cd67a0db07891d20871822696c26692c8a84866a)
+  [#7829](https://github.com/npm/npm/issues/7829) When fetching a git remote
+  URL, handle failures gracefully (without assuming standard output exists).
+  ([@othiym23](https://github.com/othiym23))
+* [`637c7d1`](https://github.com/npm/npm/commit/637c7d1411fe07f409cf91f2e65fd70685cb253c)
+  [#7829](https://github.com/npm/npm/issues/7829) When fetching a git remote
+  URL, handle failures gracefully (without assuming standard _error_ exists).
+  ([@othiym23](https://github.com/othiym23))
+
+#### OTHER SIGNIFICANT FIXES
+
+* [`78005eb`](https://github.com/npm/npm/commit/78005ebb6f4103c20f077669c3929b7ea46a4c0d)
+  [#7743](https://github.com/npm/npm/issues/7743) Always quote arguments passed
+  to `npm run-script`. This allows build systems and the like to safely escape
+  glob patterns passed as arguments to `run-scripts` with `npm run-script
+  <script> -- <arguments>`. This is a tricky change to test, and may be
+  reverted or moved to `npm@3` if it turns out it breaks things for users.
+  ([@mantoni](https://github.com/mantoni))
+* [`da015ee`](https://github.com/npm/npm/commit/da015eee45f6daf384598151d06a9b57ffce136e)
+  [#7074](https://github.com/npm/npm/issues/7074) `read-package-json@1.3.3`:
+  `read-package-json` no longer caches `package.json` files, which trades a
+  very small performance loss for the elimination of a large class of really
+  annoying race conditions. See [#7074](https://github.com/npm/npm/issues/7074)
+  for the grisly details. ([@othiym23](https://github.com/othiym23))
+* [`dd20f57`](https://github.com/npm/npm/commit/dd20f5755291b9433f0d298ee0eead22cda6db36)
+  `init-package-json@1.3.2`: Only add the `@` to scoped package names if it's
+  not already there when reading from the filesystem
+  ([@watilde](https://github.com/watilde)), and support inline validation of
+  package names ([@michaelnisi](https://github.com/michaelnisi)).
+
+#### SMALL FIXES AND DEPENDENCY UPGRADES
+
+* [`1f380f6`](https://github.com/npm/npm/commit/1f380f66c1e944b8ffbf096fa94d09e931626e12)
+  [#7820](https://github.com/npm/npm/issues/7820) `are-we-there-yet@1.0.4`: Use
+  `readable-stream` instead of built-in `stream` module to better support
+  Node.js 0.8.x. ([@SonicHedgehog](https://github.com/SonicHedgehog))
+* [`d380188`](https://github.com/npm/npm/commit/d380188e161be31f5a4f53947de6bc28df4732d8)
+  `semver@4.3.3`: Don't throw on `semver.parse(null)`, and parse numeric
+  version strings more robustly. ([@isaacs](https://github.com/isaacs))
+* [`01d9964`](https://github.com/npm/npm/commit/01d99649265f921e1c61cf406613e7042bcea008)
+  `nock@1.4.0`: This change may need to be rolled back, or rolled forward,
+  because [nock depends on
+  `setImmediate`](https://github.com/npm/npm/issues/7842), which causes tests
+  to fail when run with Node.js 0.8. ([@othiym23](https://github.com/othiym23))
+* [`91f5cb1`](https://github.com/npm/npm/commit/91f5cb1fb91520fbe25a4da5b80848ed540b9ad3)
+  [#7791](https://github.com/npm/npm/issues/7791) Fix brackets in npmconf so
+  that `loaded` is set correctly.
+  ([@charmander](https://github.com/charmander))
+* [`1349e27`](https://github.com/npm/npm/commit/1349e27c936a8b0fc9f6440a6d6404ef3b19c587)
+  [#7818](https://github.com/npm/npm/issues/7818) Update `README.md` to point
+  out that the install script now lives on https://www.npmjs.com.
+  ([@weisjohn](https://github.com/weisjohn))
+
+### v2.7.5 (2015-03-26):
+
+#### SECURITY FIXES
+
+* [`300834e`](https://github.com/npm/npm/commit/300834e91a4e2a95fb7fb59c309e7c3fc91d2312)
+  `tar@2.0.0`: Normalize symbolic links that point to targets outside the
+  extraction root. This prevents packages containing symbolic links from
+  overwriting targets outside the expected paths for a package. Thanks to [Tim
+  Cuthbertson](http://gfxmonk.net/) and the team at [Lift
+  Security](https://liftsecurity.io/) for working with the npm team to identify
+  this issue. ([@othiym23](https://github.com/othiym23))
+* [`0dc6875`](https://github.com/npm/npm/commit/0dc68757cffd5397c280bc71365d106523a5a052)
+  `semver@4.3.2`: Package versions can be no more than 256 characters long.
+  This prevents a situation in which parsing the version number can use
+  exponentially more time and memory to parse, leading to a potential denial of
+  service. Thanks to Adam Baldwin at Lift Security for bringing this to our
+  attention.  ([@isaacs](https://github.com/isaacs))
+
+#### BUG FIXES
+
+* [`5811468`](https://github.com/npm/npm/commit/5811468e104ccb6b26b8715dff390d68daa10066)
+  [#7713](https://github.com/npm/npm/issues/7713) Add a test for `npm link` and
+  `npm link <package>`. ([@watilde](https://github.com/watilde))
+* [`3cf3b0c`](https://github.com/npm/npm/commit/3cf3b0c8fddb6b66f969969feebea85fabd0360b)
+  [#7713](https://github.com/npm/npm/issues/7713) Only use absolute symbolic
+  links when `npm link`ing. ([@hokaccha](https://github.com/hokaccha))
+* [`f35aa93`](https://github.com/npm/npm/commit/f35aa933e136228a89e3fcfdebe8c7cc4f1e7c00)
+  [#7443](https://github.com/npm/npm/issues/7443) Keep relative URLs when
+  hitting search endpoint. ([@othiym23](https://github.com/othiym23))
+* [`eab6184`](https://github.com/npm/npm/commit/eab618425c51e3aa4416da28dcd8ca4ba63aec41)
+  [#7766](https://github.com/npm/npm/issues/7766) One last tweak to ensure that
+  GitHub shortcuts work with private repositories.
+  ([@iarna](https://github.com/iarna))
+* [`5d7f704`](https://github.com/npm/npm/commit/5d7f704823f5f92ddd7ff3e7dd2b8bcc66c73005)
+  [#7656](https://github.com/npm/npm/issues/7656) Don't try to load a deleted
+  CA file, allowing the `cafile` config to be changed.
+  ([@KenanY](https://github.com/KenanY))
+* [`a840a13`](https://github.com/npm/npm/commit/a840a13bbf0330157536381ea8e58d0bd93b4c05)
+  [#7746](https://github.com/npm/npm/issues/7746) Only fix up URL paths when
+  there are paths to fix up. ([@othiym23](https://github.com/othiym23))
+
+#### DEPENDENCY UPDATES
+
+* [`94df809`](https://github.com/npm/npm/commit/94df8095985bf5ba9d8db99dc445d05dac136aaf)
+  `request@2.54.0`: Fixes for Node.js 0.12 and io.js.
+  ([@simov](https://github.com/simov))
+* [`98a13ea`](https://github.com/npm/npm/commit/98a13eafdf098b53069ad15297008fcab9c61653)
+  `opener@1.4.1`: Deal with `start` on Windows more conventionally.
+  ([@domenic](https://github.com/domenic))
+* [`c2417c7`](https://github.com/npm/npm/commit/c2417c7702459a446f07d43ca3c4e99bde7fe9d6)
+  `require-inject@1.2.0`: Add installGlobally to bypass cleanups.
+  ([@iarna](https://github.com/iarna))
+
+#### DOCUMENTATION FIXES
+
+* [`f87c728`](https://github.com/npm/npm/commit/f87c728f8732c9e977c0dc2060c0610649e79155)
+  [#7696](https://github.com/npm/npm/issues/7696) Months and minutes were
+  swapped in doc-build.sh ([@MeddahJ](https://github.com/MeddahJ))
+* [`4e216b2`](https://github.com/npm/npm/commit/4e216b29b30463f06afe6e3c645e205da5f50922)
+  [#7752](https://github.com/npm/npm/issues/7752) Update string examples to be
+  properly quoted. ([@snuggs](https://github.com/snuggs))
+* [`402f52a`](https://github.com/npm/npm/commit/402f52ab201efa348feb87cad753fc4b91e8a3fb)
+  [#7635](https://github.com/npm/npm/issues/7635) Clarify Windows installation
+  instructions. ([@msikma](https://github.com/msikma))
+* [`c910399`](https://github.com/npm/npm/commit/c910399ecfd8db49fe4496dd26887765a8aed20f)
+  small typo fix to `CHANGELOG.md` ([@e-jigsaw](https://github.com/e-jigsaw))
+
 ### v2.7.4 (2015-03-20):
 
 #### BUG FIXES
@@ -105,7 +602,7 @@
 * [`6823807`](https://github.com/npm/npm/commit/6823807bba6c00228a724e1205ae90d67df0adad)
   [#7121](https://github.com/npm/npm/issues/7121) `npm install --save` for Git
   dependencies saves the URL passed in, instead of the temporary directory used
-  to clone the remote repo. Fixes using Git dependencies when shrinkwwapping.
+  to clone the remote repo. Fixes using Git dependencies when shrinkwrapping.
   In the process, rewrote the Git dependency caching code. Again. No more
   single-letter variable names, and a much clearer workflow.
   ([@othiym23](https://github.com/othiym23))

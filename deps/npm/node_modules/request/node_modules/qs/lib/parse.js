@@ -29,6 +29,10 @@ internals.parseValues = function (str, options) {
             var key = Utils.decode(part.slice(0, pos));
             var val = Utils.decode(part.slice(pos + 1));
 
+            if (Object.prototype.hasOwnProperty(key)) {
+                continue;
+            }
+
             if (!obj.hasOwnProperty(key)) {
                 obj[key] = val;
             }

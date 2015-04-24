@@ -27,9 +27,10 @@ exports.create = function (statusCode, message, data) {
 
 internals.initialize = function (error, statusCode, message) {
 
-    Hoek.assert(!isNaN(parseFloat(statusCode)) && isFinite(statusCode) && statusCode >= 400, 'First argument must be a number (400+):', statusCode);
+    Hoek.assert(Hoek.isInteger(statusCode) && statusCode >= 400, 'First argument must be a number (400+):', statusCode);
 
     error.isBoom = true;
+    error.isServer = statusCode >= 500;
 
     if (!error.hasOwnProperty('data')) {
         error.data = null;

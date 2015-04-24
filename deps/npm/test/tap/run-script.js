@@ -111,6 +111,10 @@ test('npm run-script with args that contain double quotes', function (t) {
   common.npm(['run-script', 'start', '--', 'what"s "up"?'], opts, testOutput.bind(null, t, 'what"s "up"?'))
 })
 
+test('npm run-script with args that contain ticks', function (t) {
+  common.npm(['run-script', 'start', '--', 'what\'s \'up\'?'], opts, testOutput.bind(null, t, 'what\'s \'up\'?'))
+})
+
 test('npm run-script with pre script', function (t) {
   common.npm(['run-script', 'with-post'], opts, testOutput.bind(null, t, 'main;post'))
 })

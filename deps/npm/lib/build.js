@@ -85,20 +85,26 @@ function linkStuff (pkg, folder, global, didRB, cb) {
   // if it's global, and folder is in {prefix}/node_modules,
   // then bins are in {prefix}/bin
   // otherwise, then bins are in folder/../.bin
-  var parent = pkg.name[0] === "@" ? path.dirname(path.dirname(folder)) : path.dirname(folder)
-    , gnm = global && npm.globalDir
-    , gtop = parent === gnm
+  var parent = pkg.name[0] === '@' ? path.dirname(path.dirname(folder)) : path.dirname(folder)
+  var gnm = global && npm.globalDir
+  var gtop = parent === gnm
 
-  log.verbose("linkStuff", [global, gnm, gtop, parent])
-  log.info("linkStuff", pkg._id)
+  log.info('linkStuff', pkg._id)
+  log.silly('linkStuff', pkg._id, 'has', parent, 'as its parent node_modules')
+  if (global) log.silly('linkStuff', pkg._id, 'is part of a global install')
+  if (gnm) log.silly('linkStuff', pkg._id, 'is installed into a global node_modules')
+  if (gtop) log.silly('linkStuff', pkg._id, 'is installed into the top-level global node_modules')
 
-  shouldWarn(pkg, folder, global, function() {
-    asyncMap( [linkBins, linkMans, !didRB && rebuildBundles]
-            , function (fn, cb) {
-      if (!fn) return cb()
-      log.verbose(fn.name, pkg._id)
-      fn(pkg, folder, parent, gtop, cb)
-    }, cb)
+  shouldWarn(pkg, folder, global, function () {
+    asyncMap(
+      [linkBins, linkMans, !didRB && rebuildBundles],
+      function (fn, cb) {
+        if (!fn) return cb()
+        log.verbose(fn.name, pkg._id)
+        fn(pkg, folder, parent, gtop, cb)
+      },
+      cb
+    )
   })
 }
 

@@ -127,7 +127,7 @@ function linkPkg (folder, cb_) {
       return cb(er)
     }
     var target = path.resolve(npm.globalDir, d.name)
-    symlink(me, target, function (er) {
+    symlink(me, target, false, true, function (er) {
       if (er) return cb(er)
       log.verbose("link", "build target", target)
       // also install missing dependencies.

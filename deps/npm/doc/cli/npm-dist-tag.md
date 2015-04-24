@@ -33,7 +33,8 @@ When installing dependencies, a preferred tagged version may be specified:
 
 This also applies to `npm dedupe`.
 
-Publishing a package always sets the "latest" tag to the published version.
+Publishing a package sets the "latest" tag to the published version unless the
+`--tag` option is used. For example, `npm publish --tag=beta`.
 
 ## PURPOSE
 

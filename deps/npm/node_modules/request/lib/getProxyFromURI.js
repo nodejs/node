@@ -49,7 +49,7 @@ function getProxyFromURI(uri) {
   if (noProxy === '*') {
     return null
   }
-  
+
   // if the noProxy is not empty and the uri is found return null
 
   if (noProxy !== '' && uriInNoProxy(uri, noProxy)) {
@@ -62,7 +62,7 @@ function getProxyFromURI(uri) {
     return process.env.HTTP_PROXY ||
            process.env.http_proxy || null
   }
-  
+
   if (uri.protocol === 'https:') {
     return process.env.HTTPS_PROXY ||
            process.env.https_proxy ||

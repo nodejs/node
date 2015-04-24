@@ -3,7 +3,6 @@ module.exports = exports = search
 
 var npm = require("./npm.js")
   , columnify = require("columnify")
-  , mapToRegistry = require("./utils/map-to-registry.js")
   , updateIndex = require("./cache/update-index.js")
 
 search.usage = "npm search [some search terms ...]"
@@ -35,19 +34,24 @@ function search (args, silent, staleness, cb) {
   if (typeof cb !== "function") cb = silent, silent = false
 
   var searchopts = npm.config.get("searchopts")
-    , searchexclude = npm.config.get("searchexclude")
+  var searchexclude = npm.config.get("searchexclude")
+
   if (typeof searchopts !== "string") searchopts = ""
   searchopts = searchopts.split(/\s+/)
-  if (typeof searchexclude === "string") {
-    searchexclude = searchexclude.split(/\s+/)
-  } else searchexclude = []
   var opts = searchopts.concat(args).map(function (s) {
     return s.toLowerCase()
   }).filter(function (s) { return s })
+
+  if (typeof searchexclude === "string") {
+    searchexclude = searchexclude.split(/\s+/)
+  } else {
+    searchexclude = []
+  }
   searchexclude = searchexclude.map(function (s) {
     return s.toLowerCase()
   })
-  getFilteredData( staleness, opts, searchexclude, function (er, data) {
+
+  getFilteredData(staleness, opts, searchexclude, function (er, data) {
     // now data is the list of data that we want to show.
     // prettify and print it, and then provide the raw
     // data to the cb.
@@ -58,19 +62,9 @@ function search (args, silent, staleness, cb) {
 }
 
 function getFilteredData (staleness, args, notArgs, cb) {
-  mapToRegistry("-/all", npm.config, function (er, uri, auth) {
+  updateIndex(staleness, function (er, data) {
     if (er) return cb(er)
-
-    var params = {
-      timeout : staleness,
-      follow  : true,
-      staleOk : true,
-      auth    : auth
-    }
-    updateIndex(uri, params, function (er, data) {
-      if (er) return cb(er)
-      return cb(null, filter(data, args, notArgs))
-    })
+    return cb(null, filter(data, args, notArgs))
   })
 }
 

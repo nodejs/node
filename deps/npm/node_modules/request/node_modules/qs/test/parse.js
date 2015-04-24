@@ -187,7 +187,7 @@ describe('parse()', function () {
 
     it('cannot override prototypes', function (done) {
 
-        var obj = Qs.parse('toString=bad&bad[toString]=bad&constructor=bad');
+        var obj = Qs.parse('hasOwnProperty=bad&toString=bad&bad[toString]=bad&constructor=bad');
         expect(typeof obj.toString).to.equal('function');
         expect(typeof obj.bad.toString).to.equal('function');
         expect(typeof obj.constructor).to.equal('function');

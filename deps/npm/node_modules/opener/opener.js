@@ -35,6 +35,11 @@ function opener(args, options, callback) {
         //
         // Furthermore, if "cmd /c" double-quoted the first parameter, then "start" will interpret it as a window title,
         // so we need to add a dummy empty-string window title: http://stackoverflow.com/a/154090/3191
+        //
+        // Additionally, on Windows ampersand needs to be escaped when passed to "start"
+        args = args.map(function(value) {
+            return value.replace(/&/g, '^&');
+        });
         args = ["/c", "start", '""'].concat(args);
     }
 

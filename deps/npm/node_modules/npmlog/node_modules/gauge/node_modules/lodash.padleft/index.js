@@ -1,18 +1,31 @@
 /**
- * lodash 3.0.0 (Custom Build) <https://lodash.com/>
+ * lodash 3.1.0 (Custom Build) <https://lodash.com/>
  * Build: `lodash modern modularize exports="npm" -o ./`
  * Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/>
- * Based on Underscore.js 1.7.0 <http://underscorejs.org/LICENSE>
+ * Based on Underscore.js 1.8.2 <http://underscorejs.org/LICENSE>
  * Copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
  * Available under MIT license <https://lodash.com/license>
  */
 var baseToString = require('lodash._basetostring'),
-    createPad = require('lodash._createpad');
+    createPadding = require('lodash._createpadding');
 
 /**
- * Pads `string` on the left side if it is shorter then the given padding
- * length. The `chars` string may be truncated if the number of padding
- * characters exceeds the padding length.
+ * Creates a function for `_.padLeft` or `_.padRight`.
+ *
+ * @private
+ * @param {boolean} [fromRight] Specify padding from the right.
+ * @returns {Function} Returns the new pad function.
+ */
+function createPadDir(fromRight) {
+  return function(string, length, chars) {
+    string = baseToString(string);
+    return string && ((fromRight ? string : '') + createPadding(string, length, chars) + (fromRight ? '' : string));
+  };
+}
+
+/**
+ * Pads `string` on the left side if it is shorter than `length`. Padding
+ * characters are truncated if they exceed `length`.
  *
  * @static
  * @memberOf _
@@ -32,9 +45,6 @@ var baseToString = require('lodash._basetostring'),
  * _.padLeft('abc', 3);
  * // => 'abc'
  */
-function padLeft(string, length, chars) {
-  string = baseToString(string);
-  return string && (createPad(string, length, chars) + string);
-}
+var padLeft = createPadDir();
 
 module.exports = padLeft;
