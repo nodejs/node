@@ -104,6 +104,8 @@ Heap::Heap()
       allocation_timeout_(0),
 #endif  // DEBUG
       old_generation_allocation_limit_(initial_old_generation_size_),
+      idle_old_generation_allocation_limit_(
+          kMinimumOldGenerationAllocationLimit),
       old_gen_exhausted_(false),
       inline_allocation_disabled_(false),
       store_buffer_rebuilder_(store_buffer()),
@@ -1159,8 +1161,7 @@ bool Heap::PerformGarbageCollection(
     // Temporarily set the limit for case when PostGarbageCollectionProcessing
     // allocates and triggers GC. The real limit is set at after
     // PostGarbageCollectionProcessing.
-    old_generation_allocation_limit_ =
-        OldGenerationAllocationLimit(PromotedSpaceSizeOfObjects(), 0);
+    SetOldGenerationAllocationLimit(PromotedSpaceSizeOfObjects(), 0);
     old_gen_exhausted_ = false;
     old_generation_size_configured_ = true;
   } else {
@@ -1194,8 +1195,8 @@ bool Heap::PerformGarbageCollection(
     // Register the amount of external allocated memory.
     amount_of_external_allocated_memory_at_last_global_gc_ =
         amount_of_external_allocated_memory_;
-    old_generation_allocation_limit_ = OldGenerationAllocationLimit(
-        PromotedSpaceSizeOfObjects(), freed_global_handles);
+    SetOldGenerationAllocationLimit(PromotedSpaceSizeOfObjects(),
+                                    freed_global_handles);
     // We finished a marking cycle. We can uncommit the marking deque until
     // we start marking again.
     mark_compact_collector_.UncommitMarkingDeque();
@@ -4558,7 +4559,7 @@ bool Heap::TryFinalizeIdleIncrementalMarking(
 
 bool Heap::WorthActivatingIncrementalMarking() {
   return incremental_marking()->IsStopped() &&
-         incremental_marking()->WorthActivating() && NextGCIsLikelyToBeFull();
+         incremental_marking()->ShouldActivate();
 }
 
 
@@ -4583,6 +4584,7 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
       static_cast<double>(base::Time::kMillisecondsPerSecond);
   HistogramTimerScope idle_notification_scope(
       isolate_->counters()->gc_idle_notification());
+  double idle_time_in_ms = deadline_in_ms - MonotonicallyIncreasingTimeInMs();
 
   GCIdleTimeHandler::HeapState heap_state;
   heap_state.contexts_disposed = contexts_disposed_;
@@ -4591,8 +4593,15 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
   heap_state.size_of_objects = static_cast<size_t>(SizeOfObjects());
   heap_state.incremental_marking_stopped = incremental_marking()->IsStopped();
   // TODO(ulan): Start incremental marking only for large heaps.
+  intptr_t limit = old_generation_allocation_limit_;
+  if (static_cast<size_t>(idle_time_in_ms) >
+      GCIdleTimeHandler::kMinIdleTimeToStartIncrementalMarking) {
+    limit = idle_old_generation_allocation_limit_;
+  }
+
   heap_state.can_start_incremental_marking =
-      incremental_marking()->ShouldActivate() && FLAG_incremental_marking;
+      incremental_marking()->WorthActivating() &&
+      NextGCIsLikelyToBeFull(limit) && FLAG_incremental_marking;
   heap_state.sweeping_in_progress =
       mark_compact_collector()->sweeping_in_progress();
   heap_state.mark_compact_speed_in_bytes_per_ms =
@@ -4610,7 +4619,6 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
       static_cast<size_t>(
           tracer()->NewSpaceAllocationThroughputInBytesPerMillisecond());
 
-  double idle_time_in_ms = deadline_in_ms - MonotonicallyIncreasingTimeInMs();
   GCIdleTimeAction action =
       gc_idle_time_handler_.Compute(idle_time_in_ms, heap_state);
   isolate()->counters()->gc_idle_time_allotted_in_ms()->AddSample(
@@ -5358,21 +5366,37 @@ int64_t Heap::PromotedExternalMemorySize() {
 }
 
 
-intptr_t Heap::OldGenerationAllocationLimit(intptr_t old_gen_size,
-                                            int freed_global_handles) {
+intptr_t Heap::CalculateOldGenerationAllocationLimit(double factor,
+                                                     intptr_t old_gen_size) {
+  CHECK(factor > 1.0);
+  CHECK(old_gen_size > 0);
+  intptr_t limit = static_cast<intptr_t>(old_gen_size * factor);
+  limit = Max(limit, kMinimumOldGenerationAllocationLimit);
+  limit += new_space_.Capacity();
+  intptr_t halfway_to_the_max = (old_gen_size + max_old_generation_size_) / 2;
+  return Min(limit, halfway_to_the_max);
+}
+
+
+void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
+                                           int freed_global_handles) {
   const int kMaxHandles = 1000;
   const int kMinHandles = 100;
-  double min_factor = 1.1;
+  const double min_factor = 1.1;
   double max_factor = 4;
+  const double idle_max_factor = 1.5;
   // We set the old generation growing factor to 2 to grow the heap slower on
   // memory-constrained devices.
   if (max_old_generation_size_ <= kMaxOldSpaceSizeMediumMemoryDevice) {
     max_factor = 2;
   }
+
   // If there are many freed global handles, then the next full GC will
   // likely collect a lot of garbage. Choose the heap growing factor
   // depending on freed global handles.
   // TODO(ulan, hpayer): Take into account mutator utilization.
+  // TODO(hpayer): The idle factor could make the handles heuristic obsolete.
+  // Look into that.
   double factor;
   if (freed_global_handles <= kMinHandles) {
     factor = max_factor;
@@ -5391,11 +5415,10 @@ intptr_t Heap::OldGenerationAllocationLimit(intptr_t old_gen_size,
     factor = min_factor;
   }
 
-  intptr_t limit = static_cast<intptr_t>(old_gen_size * factor);
-  limit = Max(limit, kMinimumOldGenerationAllocationLimit);
-  limit += new_space_.Capacity();
-  intptr_t halfway_to_the_max = (old_gen_size + max_old_generation_size_) / 2;
-  return Min(limit, halfway_to_the_max);
+  old_generation_allocation_limit_ =
+      CalculateOldGenerationAllocationLimit(factor, old_gen_size);
+  idle_old_generation_allocation_limit_ = CalculateOldGenerationAllocationLimit(
+      Min(factor, idle_max_factor), old_gen_size);
 }
 
 

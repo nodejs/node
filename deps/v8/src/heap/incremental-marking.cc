@@ -422,7 +422,9 @@ void IncrementalMarking::ActivateIncrementalWriteBarrier() {
 
 
 bool IncrementalMarking::ShouldActivate() {
-  return WorthActivating() && heap_->NextGCIsLikelyToBeFull();
+  return WorthActivating() &&
+         heap_->NextGCIsLikelyToBeFull(
+             heap_->old_generation_allocation_limit());
 }
 
 

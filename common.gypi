@@ -20,16 +20,17 @@
     # Enable disassembler for `--print-code` v8 options
     'v8_enable_disassembler': 1,
 
+    # Disable support for postmortem debugging, continuously broken.
+    'v8_postmortem_support%': 'false',
+
     # Don't bake anything extra into the snapshot.
     'v8_use_external_startup_data%': 0,
 
     'conditions': [
       ['OS == "win"', {
         'os_posix': 0,
-        'v8_postmortem_support%': 'false',
       }, {
         'os_posix': 1,
-        'v8_postmortem_support%': 'true',
       }],
       ['GENERATOR == "ninja" or OS== "mac"', {
         'OBJ_DIR': '<(PRODUCT_DIR)/obj',
