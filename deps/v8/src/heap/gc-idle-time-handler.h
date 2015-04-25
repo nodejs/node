@@ -125,6 +125,9 @@ class GCIdleTimeHandler {
   // That is the maximum idle time we will have during frame rendering.
   static const size_t kMaxFrameRenderingIdleTime = 16;
 
+  // Minimum idle time to start incremental marking.
+  static const size_t kMinIdleTimeToStartIncrementalMarking = 10;
+
   // If we haven't recorded any scavenger events yet, we use a conservative
   // lower bound for the scavenger speed.
   static const size_t kInitialConservativeScavengeSpeed = 100 * KB;
