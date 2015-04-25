@@ -932,6 +932,24 @@ class V8_EXPORT EscapableHandleScope : public HandleScope {
   internal::Object** escape_slot_;
 };
 
+class V8_EXPORT SealHandleScope {
+ public:
+  SealHandleScope(Isolate* isolate);
+  ~SealHandleScope();
+
+ private:
+  // Make it hard to create heap-allocated or illegal handle scopes by
+  // disallowing certain operations.
+  SealHandleScope(const SealHandleScope&);
+  void operator=(const SealHandleScope&);
+  void* operator new(size_t size);
+  void operator delete(void*, size_t);
+
+  internal::Isolate* isolate_;
+  int prev_level_;
+  internal::Object** prev_limit_;
+};
+
 
 /**
  * A simple Maybe type, representing an object which may or may not have a
@@ -1002,24 +1020,6 @@ class ScriptOrigin {
   Handle<Boolean> resource_is_embedder_debug_script_;
   Handle<Boolean> resource_is_shared_cross_origin_;
   Handle<Integer> script_id_;
-};
-
-class V8_EXPORT SealHandleScope {
- public:
-  SealHandleScope(Isolate* isolate);
-  ~SealHandleScope();
-
- private:
-  // Make it hard to create heap-allocated or illegal handle scopes by
-  // disallowing certain operations.
-  SealHandleScope(const SealHandleScope&);
-  void operator=(const SealHandleScope&);
-  void* operator new(size_t size);
-  void operator delete(void*, size_t);
-
-  internal::Isolate* isolate_;
-  int prev_level_;
-  internal::Object** prev_limit_;
 };
 
 

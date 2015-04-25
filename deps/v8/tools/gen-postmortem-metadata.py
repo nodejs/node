@@ -91,7 +91,7 @@ consts_misc = [
     { 'name': 'prop_idx_first',
         'value': 'DescriptorArray::kFirstIndex' },
     { 'name': 'prop_type_field',
-        'value': 'DATA' },
+        'value': 'FIELD' },
     { 'name': 'prop_type_mask',
         'value': 'PropertyDetails::TypeField::kMask' },
     { 'name': 'prop_index_mask',
