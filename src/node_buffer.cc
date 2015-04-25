@@ -303,12 +303,9 @@ void Base64Slice(const FunctionCallbackInfo<Value>& args) {
 void Copy(const FunctionCallbackInfo<Value> &args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (!HasInstance(args[1]))
-    return env->ThrowTypeError("first arg should be a Buffer");
+  ARGS_THIS(args[0])
 
   Local<Object> target = args[1].As<Object>();
-
-  ARGS_THIS(args[0])
   size_t target_length = target->GetIndexedPropertiesExternalArrayDataLength();
   char* target_data = static_cast<char*>(
       target->GetIndexedPropertiesExternalArrayData());
@@ -385,13 +382,7 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
 
   ARGS_THIS(args[0])
 
-  if (!args[1]->IsString())
-    return env->ThrowTypeError("Argument must be a string");
-
-  Local<String> str = args[1]->ToString(env->isolate());
-
-  if (encoding == HEX && str->Length() % 2 != 0)
-    return env->ThrowTypeError("Invalid hex string");
+  Local<String> str = args[1].As<String>();
 
   size_t offset;
   size_t max_length;
@@ -606,9 +597,6 @@ int32_t IndexOf(const char* haystack,
 
 
 void IndexOfString(const FunctionCallbackInfo<Value>& args) {
-  ASSERT(args[1]->IsString());
-  ASSERT(args[2]->IsNumber());
-
   ARGS_THIS(args[0]);
   node::Utf8Value str(args.GetIsolate(), args[1]);
   int32_t offset_i32 = args[2]->Int32Value();
@@ -636,9 +624,6 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
 
 
 void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
-  ASSERT(args[1]->IsObject());
-  ASSERT(args[2]->IsNumber());
-
   ARGS_THIS(args[0]);
   Local<Object> buf = args[1].As<Object>();
   int32_t offset_i32 = args[2]->Int32Value();
@@ -672,9 +657,6 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
 
 
 void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
-  ASSERT(args[1]->IsNumber());
-  ASSERT(args[2]->IsNumber());
-
   ARGS_THIS(args[0]);
   uint32_t needle = args[1]->Uint32Value();
   int32_t offset_i32 = args[2]->Int32Value();
