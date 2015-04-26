@@ -984,6 +984,7 @@ void SSLWrap<Base>::AddMethods(Environment* env, Handle<FunctionTemplate> t) {
   env->SetProtoMethod(t, "newSessionDone", NewSessionDone);
   env->SetProtoMethod(t, "setOCSPResponse", SetOCSPResponse);
   env->SetProtoMethod(t, "requestOCSP", RequestOCSP);
+  env->SetProtoMethod(t, "destroySSL", DestroySSL);
 
 #ifdef SSL_set_max_send_fragment
   env->SetProtoMethod(t, "setMaxSendFragment", SetMaxSendFragment);
@@ -1868,6 +1869,24 @@ void SSLWrap<Base>::SSLGetter(Local<String> property,
   SSL* ssl = Unwrap<Base>(info.Holder())->ssl_;
   Local<External> ext = External::New(info.GetIsolate(), ssl);
   info.GetReturnValue().Set(ext);
+}
+
+
+template <class Base>
+void SSLWrap<Base>::DestroySSL(const FunctionCallbackInfo<Value>& args) {
+  Base* w = Unwrap<Base>(args.Holder());
+
+  w->DestroySSL();
+}
+
+
+template <class Base>
+void SSLWrap<Base>::DestroySSL() {
+  if (ssl_ == nullptr)
+    return;
+
+  SSL_free(ssl_);
+  ssl_ = nullptr;
 }
 
 
