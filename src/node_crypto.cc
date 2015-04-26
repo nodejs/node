@@ -265,6 +265,7 @@ void SecureContext::Initialize(Environment* env, Handle<Object> target) {
   env->SetProtoMethod(t, "loadPKCS12", SecureContext::LoadPKCS12);
   env->SetProtoMethod(t, "getTicketKeys", SecureContext::GetTicketKeys);
   env->SetProtoMethod(t, "setTicketKeys", SecureContext::SetTicketKeys);
+  env->SetProtoMethod(t, "setFreeListLength", SecureContext::SetFreeListLength);
   env->SetProtoMethod(t, "getCertificate", SecureContext::GetCertificate<true>);
   env->SetProtoMethod(t, "getIssuer", SecureContext::GetCertificate<false>);
 
@@ -930,6 +931,13 @@ void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(true);
 #endif  // !def(OPENSSL_NO_TLSEXT) && def(SSL_CTX_get_tlsext_ticket_keys)
+}
+
+
+void SecureContext::SetFreeListLength(const FunctionCallbackInfo<Value>& args) {
+  SecureContext* wrap = Unwrap<SecureContext>(args.Holder());
+
+  wrap->ctx_->freelist_max_len = args[0]->Int32Value();
 }
 
 
