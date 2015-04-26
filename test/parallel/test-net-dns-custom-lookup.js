@@ -11,15 +11,16 @@ function check(addressType, cb) {
     cb && cb();
   });
 
-  var address = addressType === 4 ? '127.0.0.1' : '::1';
+  var address = addressType === 4 ? common.localhostIPv4 : '::1';
   server.listen(common.PORT, address, function() {
     net.connect({
       port: common.PORT,
       host: 'localhost',
+      family: addressType,
       lookup: lookup
     }).on('lookup', function(err, ip, type) {
       assert.equal(err, null);
-      assert.equal(ip, address);
+      assert.equal(address, ip);
       assert.equal(type, addressType);
       ok = true;
     });
@@ -27,7 +28,15 @@ function check(addressType, cb) {
 
   function lookup(host, dnsopts, cb) {
     dnsopts.family = addressType;
-    dns.lookup(host, dnsopts, cb);
+    if (addressType === 4) {
+      process.nextTick(function() {
+        cb(null, common.localhostIPv4, 4);
+      });
+    } else {
+      process.nextTick(function() {
+        cb(null, '::1', 6);
+      });
+    }
   }
 }
 
