@@ -131,6 +131,7 @@ template int SSLWrap<TLSWrap>::SelectNextProtoCallback(
     void* arg);
 #endif
 template int SSLWrap<TLSWrap>::TLSExtStatusCallback(SSL* s, void* arg);
+template void SSLWrap<TLSWrap>::DestroySSL();
 
 
 static void crypto_threadid_cb(CRYPTO_THREADID* tid) {
@@ -1868,6 +1869,16 @@ void SSLWrap<Base>::SSLGetter(Local<String> property,
   SSL* ssl = Unwrap<Base>(info.Holder())->ssl_;
   Local<External> ext = External::New(info.GetIsolate(), ssl);
   info.GetReturnValue().Set(ext);
+}
+
+
+template <class Base>
+void SSLWrap<Base>::DestroySSL() {
+  if (ssl_ == nullptr)
+    return;
+
+  SSL_free(ssl_);
+  ssl_ = nullptr;
 }
 
 

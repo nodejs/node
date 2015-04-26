@@ -144,10 +144,7 @@ class SSLWrap {
   }
 
   virtual ~SSLWrap() {
-    if (ssl_ != nullptr) {
-      SSL_free(ssl_);
-      ssl_ = nullptr;
-    }
+    DestroySSL();
     if (next_sess_ != nullptr) {
       SSL_SESSION_free(next_sess_);
       next_sess_ = nullptr;
@@ -220,6 +217,8 @@ class SSLWrap {
   static int TLSExtStatusCallback(SSL* s, void* arg);
   static void SSLGetter(v8::Local<v8::String> property,
                         const v8::PropertyCallbackInfo<v8::Value>& info);
+
+  void DestroySSL();
 
   inline Environment* ssl_env() const {
     return env_;

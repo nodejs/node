@@ -208,7 +208,7 @@ void TLSWrap::Receive(const FunctionCallbackInfo<Value>& args) {
   uv_buf_t buf;
 
   // Copy given buffer entirely or partiall if handle becomes closed
-  while (len > 0 && !wrap->IsClosing()) {
+  while (len > 0 && wrap->IsAlive() && !wrap->IsClosing()) {
     wrap->stream_->OnAlloc(len, &buf);
     size_t copy = buf.len > len ? len : buf.len;
     memcpy(buf.base, data, copy);
@@ -281,6 +281,9 @@ void TLSWrap::EncOut() {
   // Split-off queue
   if (established_ && !write_item_queue_.IsEmpty())
     MakePending();
+
+  if (ssl_ == nullptr)
+    return;
 
   // No data to write
   if (BIO_pending(enc_out_) == 0) {
@@ -396,7 +399,8 @@ void TLSWrap::ClearOut() {
   if (eof_)
     return;
 
-  CHECK_NE(ssl_, nullptr);
+  if (ssl_ == nullptr)
+    return;
 
   char out[kClearOutChunkSize];
   int read;
@@ -451,6 +455,9 @@ bool TLSWrap::ClearIn() {
   if (!hello_parser_.IsEnded())
     return false;
 
+  if (ssl_ == nullptr)
+    return false;
+
   int written = 0;
   while (clear_in_->Length() > 0) {
     size_t avail = 0;
@@ -503,7 +510,7 @@ int TLSWrap::GetFD() {
 
 
 bool TLSWrap::IsAlive() {
-  return stream_->IsAlive();
+  return ssl_ != nullptr && stream_->IsAlive();
 }
 
 
@@ -572,6 +579,9 @@ int TLSWrap::DoWrite(WriteWrap* w,
       clear_in_->Write(bufs[i].base, bufs[i].len);
     return 0;
   }
+
+  if (ssl_ == nullptr)
+    return UV_EPROTO;
 
   int written = 0;
   for (i = 0; i < count; i++) {
@@ -660,7 +670,10 @@ void TLSWrap::DoRead(ssize_t nread,
   }
 
   // Only client connections can receive data
-  CHECK_NE(ssl_, nullptr);
+  if (ssl_ == nullptr) {
+    OnRead(UV_EPROTO, nullptr);
+    return;
+  }
 
   // Commit read data
   NodeBIO* enc_in = NodeBIO::FromBIO(enc_in_);
@@ -680,7 +693,7 @@ void TLSWrap::DoRead(ssize_t nread,
 
 
 int TLSWrap::DoShutdown(ShutdownWrap* req_wrap) {
-  if (SSL_shutdown(ssl_) == 0)
+  if (ssl_ != nullptr && SSL_shutdown(ssl_) == 0)
     SSL_shutdown(ssl_);
   shutdown_ = true;
   EncOut();
@@ -695,6 +708,9 @@ void TLSWrap::SetVerifyMode(const FunctionCallbackInfo<Value>& args) {
 
   if (args.Length() < 2 || !args[0]->IsBoolean() || !args[1]->IsBoolean())
     return env->ThrowTypeError("Bad arguments, expected two booleans");
+
+  if (wrap->ssl_ == nullptr)
+    return env->ThrowTypeError("SetVerifyMode after destroySSL");
 
   int verify_mode;
   if (wrap->is_server()) {
@@ -735,6 +751,14 @@ void TLSWrap::EnableHelloParser(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void TLSWrap::DestroySSL(const FunctionCallbackInfo<Value>& args) {
+  TLSWrap* wrap = Unwrap<TLSWrap>(args.Holder());
+  wrap->SSLWrap<TLSWrap>::DestroySSL();
+  delete wrap->clear_in_;
+  wrap->clear_in_ = nullptr;
+}
+
+
 void TLSWrap::OnClientHelloParseEnd(void* arg) {
   TLSWrap* c = static_cast<TLSWrap*>(arg);
   c->Cycle();
@@ -746,6 +770,8 @@ void TLSWrap::GetServername(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   TLSWrap* wrap = Unwrap<TLSWrap>(args.Holder());
+
+  CHECK_NE(wrap->ssl_, nullptr);
 
   const char* servername = SSL_get_servername(wrap->ssl_,
                                               TLSEXT_NAMETYPE_host_name);
@@ -770,6 +796,8 @@ void TLSWrap::SetServername(const FunctionCallbackInfo<Value>& args) {
 
   if (!wrap->is_client())
     return;
+
+  CHECK_NE(wrap->ssl_, nullptr);
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   node::Utf8Value servername(env->isolate(), args[0].As<String>());
@@ -830,6 +858,7 @@ void TLSWrap::Initialize(Handle<Object> target,
   env->SetProtoMethod(t, "setVerifyMode", SetVerifyMode);
   env->SetProtoMethod(t, "enableSessionCallbacks", EnableSessionCallbacks);
   env->SetProtoMethod(t, "enableHelloParser", EnableHelloParser);
+  env->SetProtoMethod(t, "destroySSL", DestroySSL);
 
   StreamBase::AddMethods<TLSWrap>(env, t, StreamBase::kFlagHasWritev);
   SSLWrap<TLSWrap>::AddMethods(env, t);
