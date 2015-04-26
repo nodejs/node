@@ -132,6 +132,7 @@ class TLSWrap : public crypto::SSLWrap<TLSWrap>,
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EnableHelloParser(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DestroySSL(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   static void GetServername(const v8::FunctionCallbackInfo<v8::Value>& args);
