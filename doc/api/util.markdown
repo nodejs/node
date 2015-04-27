@@ -438,7 +438,7 @@ through the `constructor.super_` property.
 
 Marks that a method should not be used any more.
 
-    var util = require('utils');
+    var util = require('util');
 
     exports.puts = util.deprecate(function() {
       for (var i = 0, len = arguments.length; i < len; ++i) {
