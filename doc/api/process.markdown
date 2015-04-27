@@ -455,6 +455,19 @@ This is the numerical group id, not the group name.
     }
 
 
+## process.getegid()
+
+Note: this function is only available on POSIX platforms (i.e. not Windows,
+Android)
+
+Gets the effective group identity of the process. (See getegid(2).)
+This is the numerical group id, not the group name.
+
+    if (process.getegid) {
+      console.log('Current gid: ' + process.getegid());
+    }
+
+
 ## process.setgid(id)
 
 Note: this function is only available on POSIX platforms (i.e. not Windows,
@@ -476,6 +489,27 @@ blocks while resolving it to a numerical ID.
     }
 
 
+## process.setegid(id)
+
+Note: this function is only available on POSIX platforms (i.e. not Windows,
+Android)
+
+Sets the effective group identity of the process. (See setegid(2).)
+This accepts either a numerical ID or a groupname string. If a groupname
+is specified, this method blocks while resolving it to a numerical ID.
+
+    if (process.getegid && process.setegid) {
+      console.log('Current gid: ' + process.getegid());
+      try {
+        process.setegid(501);
+        console.log('New gid: ' + process.getegid());
+      }
+      catch (err) {
+        console.log('Failed to set gid: ' + err);
+      }
+    }
+
+
 ## process.getuid()
 
 Note: this function is only available on POSIX platforms (i.e. not Windows,
@@ -486,6 +520,19 @@ This is the numerical userid, not the username.
 
     if (process.getuid) {
       console.log('Current uid: ' + process.getuid());
+    }
+
+
+## process.geteuid()
+
+Note: this function is only available on POSIX platforms (i.e. not Windows,
+Android)
+
+Gets the effective user identity of the process. (See geteuid(2).)
+This is the numerical userid, not the username.
+
+    if (process.geteuid) {
+      console.log('Current uid: ' + process.geteuid());
     }
 
 
@@ -503,6 +550,27 @@ blocks while resolving it to a numerical ID.
       try {
         process.setuid(501);
         console.log('New uid: ' + process.getuid());
+      }
+      catch (err) {
+        console.log('Failed to set uid: ' + err);
+      }
+    }
+
+
+## process.seteuid(id)
+
+Note: this function is only available on POSIX platforms (i.e. not Windows,
+Android)
+
+Sets the effective user identity of the process. (See seteuid(2).)
+This accepts either a numerical ID or a username string.  If a username
+is specified, this method blocks while resolving it to a numerical ID.
+
+    if (process.geteuid && process.seteuid) {
+      console.log('Current uid: ' + process.geteuid());
+      try {
+        process.seteuid(501);
+        console.log('New uid: ' + process.geteuid());
       }
       catch (err) {
         console.log('Failed to set uid: ' + err);
