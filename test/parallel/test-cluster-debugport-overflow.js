@@ -12,7 +12,8 @@ if (process.argv[2] == 'master') {
    }
 } else {
    // iojs --debug-port=65535 test-cluster-debugport-overflow.js master
-   spawn(process.argv[0], ['--debug-port=65535', __filename, 'master']).on('close', function(code){
+   var args = ['--debug-port=65535', __filename, 'master'];
+   spawn(process.argv[0], args).on('close', function(code) {
       assert.equal(42, code, 'Worker was started');
    });
 }
