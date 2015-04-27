@@ -31,6 +31,16 @@ valid_arm_float_abi = ('soft', 'softfp', 'hard')
 valid_mips_arch = ('loongson', 'r1', 'r2', 'r6', 'rx')
 valid_mips_fpu = ('fp32', 'fp64', 'fpxx')
 valid_mips_float_abi = ('soft', 'hard')
+valid_intl_modes = ('none', 'small-icu', 'full-icu', 'system-icu')
+
+# create option groups
+shared_optgroup = optparse.OptionGroup(parser, "Shared libraries",
+    "Flags that allows you to control whether you want to build against "
+    "built-in dependencies or its shared representations. If necessary, "
+    "provide multiple libraries with comma.")
+intl_optgroup = optparse.OptionGroup(parser, "Internationalization",
+    "Flags that lets you enable i18n features in io.js as well as which "
+    "library you want to build against.")
 
 # Options should be in alphabetical order but keep --prefix at the top,
 # that's arguably the one people will be looking for most.
@@ -78,89 +88,91 @@ parser.add_option("--openssl-no-asm",
     dest="openssl_no_asm",
     help="Do not build optimized assembly for OpenSSL")
 
-parser.add_option('--shared-http-parser',
+shared_optgroup.add_option('--shared-http-parser',
     action='store_true',
     dest='shared_http_parser',
     help='link to a shared http_parser DLL instead of static linking')
 
-parser.add_option('--shared-http-parser-includes',
+shared_optgroup.add_option('--shared-http-parser-includes',
     action='store',
     dest='shared_http_parser_includes',
     help='directory containing http_parser header files')
 
-parser.add_option('--shared-http-parser-libname',
+shared_optgroup.add_option('--shared-http-parser-libname',
     action='store',
     dest='shared_http_parser_libname',
     default='http_parser',
     help='alternative lib name to link to [default: %default]')
 
-parser.add_option('--shared-http-parser-libpath',
+shared_optgroup.add_option('--shared-http-parser-libpath',
     action='store',
     dest='shared_http_parser_libpath',
     help='a directory to search for the shared http_parser DLL')
 
-parser.add_option('--shared-libuv',
+shared_optgroup.add_option('--shared-libuv',
     action='store_true',
     dest='shared_libuv',
     help='link to a shared libuv DLL instead of static linking')
 
-parser.add_option('--shared-libuv-includes',
+shared_optgroup.add_option('--shared-libuv-includes',
     action='store',
     dest='shared_libuv_includes',
     help='directory containing libuv header files')
 
-parser.add_option('--shared-libuv-libname',
+shared_optgroup.add_option('--shared-libuv-libname',
     action='store',
     dest='shared_libuv_libname',
     default='uv',
     help='alternative lib name to link to [default: %default]')
 
-parser.add_option('--shared-libuv-libpath',
+shared_optgroup.add_option('--shared-libuv-libpath',
     action='store',
     dest='shared_libuv_libpath',
     help='a directory to search for the shared libuv DLL')
 
-parser.add_option('--shared-openssl',
+shared_optgroup.add_option('--shared-openssl',
     action='store_true',
     dest='shared_openssl',
     help='link to a shared OpenSSl DLL instead of static linking')
 
-parser.add_option('--shared-openssl-includes',
+shared_optgroup.add_option('--shared-openssl-includes',
     action='store',
     dest='shared_openssl_includes',
     help='directory containing OpenSSL header files')
 
-parser.add_option('--shared-openssl-libname',
+shared_optgroup.add_option('--shared-openssl-libname',
     action='store',
     dest='shared_openssl_libname',
     default='crypto,ssl',
     help='alternative lib name to link to [default: %default]')
 
-parser.add_option('--shared-openssl-libpath',
+shared_optgroup.add_option('--shared-openssl-libpath',
     action='store',
     dest='shared_openssl_libpath',
     help='a directory to search for the shared OpenSSL DLLs')
 
-parser.add_option('--shared-zlib',
+shared_optgroup.add_option('--shared-zlib',
     action='store_true',
     dest='shared_zlib',
     help='link to a shared zlib DLL instead of static linking')
 
-parser.add_option('--shared-zlib-includes',
+shared_optgroup.add_option('--shared-zlib-includes',
     action='store',
     dest='shared_zlib_includes',
     help='directory containing zlib header files')
 
-parser.add_option('--shared-zlib-libname',
+shared_optgroup.add_option('--shared-zlib-libname',
     action='store',
     dest='shared_zlib_libname',
     default='z',
     help='alternative lib name to link to [default: %default]')
 
-parser.add_option('--shared-zlib-libpath',
+shared_optgroup.add_option('--shared-zlib-libpath',
     action='store',
     dest='shared_zlib_libpath',
     help='a directory to search for the shared zlib DLL')
+
+parser.add_option_group(shared_optgroup)
 
 # TODO document when we've decided on what the tracing API and its options will
 # look like
@@ -225,32 +237,37 @@ parser.add_option('--with-etw',
     dest='with_etw',
     help='build with ETW (default is true on Windows)')
 
-parser.add_option('--download',
+parser.add_option('--with-intl',
     action='store',
-    dest='download_list',
-    help=nodedownload.help())
+    dest='with_intl',
+    default='none',
+    choices=valid_intl_modes,
+    help='Intl mode (valid choices: {0}) [default: %default]'.format(
+        ', '.join(valid_intl_modes)))
 
-parser.add_option('--with-icu-path',
+intl_optgroup.add_option('--with-icu-path',
     action='store',
     dest='with_icu_path',
     help='Path to icu.gyp (ICU i18n, Chromium version only.)')
 
-parser.add_option('--with-icu-locales',
+intl_optgroup.add_option('--with-icu-locales',
     action='store',
     dest='with_icu_locales',
     default='root,en',
     help='Comma-separated list of locales for "small-icu". "root" is assumed. '
         '[default: %default]')
 
-parser.add_option('--with-intl',
-    action='store',
-    dest='with_intl',
-    help='Intl mode: none, full-icu, small-icu [default: none]')
-
-parser.add_option('--with-icu-source',
+intl_optgroup.add_option('--with-icu-source',
     action='store',
     dest='with_icu_source',
     help='Intl mode: optional local path to icu/ dir, or path/URL of icu source archive.')
+
+intl_optgroup.add_option('--download',
+    action='store',
+    dest='download_list',
+    help=nodedownload.help())
+
+parser.add_option_group(intl_optgroup)
 
 parser.add_option('--with-perfctr',
     action='store_true',
@@ -812,7 +829,7 @@ def configure_intl(o):
   with_intl = options.with_intl
   with_icu_source = options.with_icu_source
   have_icu_path = bool(options.with_icu_path)
-  if have_icu_path and with_intl:
+  if have_icu_path and with_intl != 'none':
     print 'Error: Cannot specify both --with-icu-path and --with-intl'
     sys.exit(1)
   elif have_icu_path:
@@ -850,11 +867,6 @@ def configure_intl(o):
     # use the "system" .gyp
     o['variables']['icu_gyp_path'] = 'tools/icu/icu-system.gyp'
     return
-  else:
-    print 'Error: unknown value --with-intl=%s' % with_intl
-    sys.exit(1)
-  # Note: non-ICU implementations could use other 'with_intl'
-  # values.
 
   # this is just the 'deps' dir. Used for unpacking.
   icu_parent_path = os.path.join(root_dir, 'deps')
