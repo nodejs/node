@@ -6,7 +6,7 @@ if (process.argv[2] == 'master') {
    if (cluster.isMaster) {
       cluster.fork().on('exit', function(code) {
          process.exit(code);
-      })
+      });
    } else {
       process.exit(42);
    }
