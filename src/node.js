@@ -475,7 +475,7 @@
       if (process._exiting)
         return;
 
-      var args = undefined;
+      var args;
       if (arguments.length > 1) {
         args = [];
         for (var i = 1; i < arguments.length; i++)
@@ -496,8 +496,9 @@
           if (!process.emit('unhandledRejection', reason, promise)) {
             // Nobody is listening.
             // TODO(petkaantonov) Take some default action, see #830
-          } else
+          } else {
             hadListeners = true;
+          }
         }
       }
       return hadListeners;
