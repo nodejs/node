@@ -460,10 +460,14 @@ Options:
 
 - `host`: A domain name or IP address of the server to issue the request to.
   Defaults to `'localhost'`.
-- `hostname`: To support `url.parse()` `hostname` is preferred over `host`
+- `hostname`: Alias for `host`. To support `url.parse()` `hostname` is
+  preferred over `host`.
+- `family`: IP address family to use when resolving `host` and `hostname`.
+  Valid values are `4` or `6`. When unspecified, both IP v4 and v6 will be
+  used.
 - `port`: Port of remote server. Defaults to 80.
 - `localAddress`: Local interface to bind for network connections.
-- `socketPath`: Unix Domain Socket (use one of host:port or socketPath)
+- `socketPath`: Unix Domain Socket (use one of host:port or socketPath).
 - `method`: A string specifying the HTTP request method. Defaults to `'GET'`.
 - `path`: Request path. Defaults to `'/'`. Should include query string if any.
   E.G. `'/index.html?page=12'`. An exception is thrown when the request path
