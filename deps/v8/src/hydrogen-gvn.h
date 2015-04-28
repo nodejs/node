@@ -7,7 +7,6 @@
 
 #include <iosfwd>
 
-#include "src/compiler.h"
 #include "src/hydrogen.h"
 #include "src/hydrogen-instructions.h"
 #include "src/zone.h"

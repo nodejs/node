@@ -20,6 +20,8 @@ class RegisterAllocator;
 class Schedule;
 class SourcePositionTable;
 
+FILE* OpenVisualizerLogFile(CompilationInfo* info, const char* phase,
+                            const char* suffix, const char* mode);
 
 struct AsDOT {
   explicit AsDOT(const Graph& g) : graph(g) {}
@@ -30,8 +32,9 @@ std::ostream& operator<<(std::ostream& os, const AsDOT& ad);
 
 
 struct AsJSON {
-  explicit AsJSON(const Graph& g) : graph(g) {}
+  AsJSON(const Graph& g, SourcePositionTable* p) : graph(g), positions(p) {}
   const Graph& graph;
+  const SourcePositionTable* positions;
 };
 
 std::ostream& operator<<(std::ostream& os, const AsJSON& ad);

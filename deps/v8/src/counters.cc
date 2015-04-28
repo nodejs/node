@@ -47,8 +47,11 @@ void HistogramTimer::Start() {
 // Stop the timer and record the results.
 void HistogramTimer::Stop() {
   if (Enabled()) {
-    // Compute the delta between start and stop, in milliseconds.
-    AddSample(static_cast<int>(timer_.Elapsed().InMilliseconds()));
+    int64_t sample = resolution_ == MICROSECOND
+                         ? timer_.Elapsed().InMicroseconds()
+                         : timer_.Elapsed().InMilliseconds();
+    // Compute the delta between start and stop, in microseconds.
+    AddSample(static_cast<int>(sample));
     timer_.Stop();
   }
   Logger::CallEventLogger(isolate(), name(), Logger::END, true);
@@ -61,10 +64,15 @@ Counters::Counters(Isolate* isolate) {
   HISTOGRAM_RANGE_LIST(HR)
 #undef HR
 
-#define HT(name, caption) \
-    name##_ = HistogramTimer(#caption, 0, 10000, 50, isolate);
+#define HT(name, caption, max, res) \
+  name##_ = HistogramTimer(#caption, 0, max, HistogramTimer::res, 50, isolate);
     HISTOGRAM_TIMER_LIST(HT)
 #undef HT
+
+#define AHT(name, caption) \
+  name##_ = AggregatableHistogramTimer(#caption, 0, 10000000, 50, isolate);
+    AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT)
+#undef AHT
 
 #define HP(name, caption) \
     name##_ = Histogram(#caption, 0, 101, 100, isolate);
@@ -152,9 +160,13 @@ void Counters::ResetHistograms() {
   HISTOGRAM_RANGE_LIST(HR)
 #undef HR
 
-#define HT(name, caption) name##_.Reset();
+#define HT(name, caption, max, res) name##_.Reset();
     HISTOGRAM_TIMER_LIST(HT)
 #undef HT
+
+#define AHT(name, caption) name##_.Reset();
+    AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT)
+#undef AHT
 
 #define HP(name, caption) name##_.Reset();
     HISTOGRAM_PERCENTAGE_LIST(HP)

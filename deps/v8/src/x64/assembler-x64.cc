@@ -4,11 +4,16 @@
 
 #include "src/x64/assembler-x64.h"
 
+#include <cstring>
+
+#if V8_TARGET_ARCH_X64
+
+#if V8_LIBC_MSVCRT
+#include <intrin.h>  // _xgetbv()
+#endif
 #if V8_OS_MACOSX
 #include <sys/sysctl.h>
 #endif
-
-#if V8_TARGET_ARCH_X64
 
 #include "src/base/bits.h"
 #include "src/macro-assembler.h"
@@ -22,22 +27,44 @@ namespace internal {
 
 namespace {
 
-bool EnableAVX() {
+#if !V8_LIBC_MSVCRT
+
+V8_INLINE uint64_t _xgetbv(unsigned int xcr) {
+  unsigned eax, edx;
+  // Check xgetbv; this uses a .byte sequence instead of the instruction
+  // directly because older assemblers do not include support for xgetbv and
+  // there is no easy way to conditionally compile based on the assembler
+  // used.
+  __asm__ volatile(".byte 0x0f, 0x01, 0xd0" : "=a"(eax), "=d"(edx) : "c"(xcr));
+  return static_cast<uint64_t>(eax) | (static_cast<uint64_t>(edx) << 32);
+}
+
+#define _XCR_XFEATURE_ENABLED_MASK 0
+
+#endif  // !V8_LIBC_MSVCRT
+
+
+bool OSHasAVXSupport() {
 #if V8_OS_MACOSX
-  // Mac OS X 10.9 has a bug where AVX transitions were indeed being caused by
-  // ISRs, so we detect Mac OS X 10.9 here and disable AVX in that case.
+  // Mac OS X up to 10.9 has a bug where AVX transitions were indeed being
+  // caused by ISRs, so we detect that here and disable AVX in that case.
   char buffer[128];
   size_t buffer_size = arraysize(buffer);
-  int ctl_name[] = { CTL_KERN , KERN_OSRELEASE };
+  int ctl_name[] = {CTL_KERN, KERN_OSRELEASE};
   if (sysctl(ctl_name, 2, buffer, &buffer_size, nullptr, 0) != 0) {
     V8_Fatal(__FILE__, __LINE__, "V8 failed to get kernel version");
   }
   // The buffer now contains a string of the form XX.YY.ZZ, where
-  // XX is the major kernel version component. 13.x.x (Mavericks) is
-  // affected by this bug, so disable AVX there.
-  if (memcmp(buffer, "13.", 3) == 0) return false;
+  // XX is the major kernel version component.
+  char* period_pos = strchr(buffer, '.');
+  DCHECK_NOT_NULL(period_pos);
+  *period_pos = '\0';
+  long kernel_version_major = strtol(buffer, nullptr, 10);  // NOLINT
+  if (kernel_version_major <= 13) return false;
 #endif  // V8_OS_MACOSX
-  return FLAG_enable_avx;
+  // Check whether OS claims to support AVX.
+  uint64_t feature_mask = _xgetbv(_XCR_XFEATURE_ENABLED_MASK);
+  return (feature_mask & 0x6) == 0x6;
 }
 
 }  // namespace
@@ -55,17 +82,28 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (cpu.has_sse3() && FLAG_enable_sse3) supported_ |= 1u << SSE3;
   // SAHF is not generally available in long mode.
   if (cpu.has_sahf() && FLAG_enable_sahf) supported_ |= 1u << SAHF;
-  if (cpu.has_avx() && EnableAVX()) supported_ |= 1u << AVX;
-  if (cpu.has_fma3() && FLAG_enable_fma3) supported_ |= 1u << FMA3;
+  if (cpu.has_avx() && FLAG_enable_avx && cpu.has_osxsave() &&
+      OSHasAVXSupport()) {
+    supported_ |= 1u << AVX;
+  }
+  if (cpu.has_fma3() && FLAG_enable_fma3 && cpu.has_osxsave() &&
+      OSHasAVXSupport()) {
+    supported_ |= 1u << FMA3;
+  }
+  if (strcmp(FLAG_mcpu, "auto") == 0) {
+    if (cpu.is_atom()) supported_ |= 1u << ATOM;
+  } else if (strcmp(FLAG_mcpu, "atom") == 0) {
+    supported_ |= 1u << ATOM;
+  }
 }
 
 
 void CpuFeatures::PrintTarget() { }
 void CpuFeatures::PrintFeatures() {
-  printf("SSE3=%d SSE4_1=%d SAHF=%d AVX=%d FMA3=%d\n",
+  printf("SSE3=%d SSE4_1=%d SAHF=%d AVX=%d FMA3=%d ATOM=%d\n",
          CpuFeatures::IsSupported(SSE3), CpuFeatures::IsSupported(SSE4_1),
          CpuFeatures::IsSupported(SAHF), CpuFeatures::IsSupported(AVX),
-         CpuFeatures::IsSupported(FMA3));
+         CpuFeatures::IsSupported(FMA3), CpuFeatures::IsSupported(ATOM));
 }
 
 
@@ -181,6 +219,13 @@ Operand::Operand(Register index,
 }
 
 
+Operand::Operand(Label* label) : rex_(0), len_(1) {
+  DCHECK_NOT_NULL(label);
+  set_modrm(0, rbp);
+  set_disp64(reinterpret_cast<intptr_t>(label));
+}
+
+
 Operand::Operand(const Operand& operand, int32_t offset) {
   DCHECK(operand.len_ >= 1);
   // Operand encodes REX ModR/M [SIB] [Disp].
@@ -287,6 +332,7 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
 void Assembler::GetCode(CodeDesc* desc) {
   // Finalize code (at this point overflow() may be true, but the gap ensures
   // that we are still not overlapping instructions and relocation info).
+  reloc_info_writer.Finish();
   DCHECK(pc_ <= reloc_info_writer.pos());  // No overlap.
   // Set up code descriptor.
   desc->buffer = buffer_;
@@ -327,15 +373,30 @@ void Assembler::bind_to(Label* L, int pos) {
     int current = L->pos();
     int next = long_at(current);
     while (next != current) {
-      // Relative address, relative to point after address.
-      int imm32 = pos - (current + sizeof(int32_t));
-      long_at_put(current, imm32);
+      if (current >= 4 && long_at(current - 4) == 0) {
+        // Absolute address.
+        intptr_t imm64 = reinterpret_cast<intptr_t>(buffer_ + pos);
+        *reinterpret_cast<intptr_t*>(addr_at(current - 4)) = imm64;
+        internal_reference_positions_.push_back(current - 4);
+      } else {
+        // Relative address, relative to point after address.
+        int imm32 = pos - (current + sizeof(int32_t));
+        long_at_put(current, imm32);
+      }
       current = next;
       next = long_at(next);
     }
     // Fix up last fixup on linked list.
-    int last_imm32 = pos - (current + sizeof(int32_t));
-    long_at_put(current, last_imm32);
+    if (current >= 4 && long_at(current - 4) == 0) {
+      // Absolute address.
+      intptr_t imm64 = reinterpret_cast<intptr_t>(buffer_ + pos);
+      *reinterpret_cast<intptr_t*>(addr_at(current - 4)) = imm64;
+      internal_reference_positions_.push_back(current - 4);
+    } else {
+      // Relative address, relative to point after address.
+      int imm32 = pos - (current + sizeof(int32_t));
+      long_at_put(current, imm32);
+    }
   }
   while (L->is_near_linked()) {
     int fixup_pos = L->near_link_pos();
@@ -403,15 +464,10 @@ void Assembler::GrowBuffer() {
   reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
                                reloc_info_writer.last_pc() + pc_delta);
 
-  // Relocate runtime entries.
-  for (RelocIterator it(desc); !it.done(); it.next()) {
-    RelocInfo::Mode rmode = it.rinfo()->rmode();
-    if (rmode == RelocInfo::INTERNAL_REFERENCE) {
-      intptr_t* p = reinterpret_cast<intptr_t*>(it.rinfo()->pc());
-      if (*p != 0) {  // 0 means uninitialized.
-        *p += pc_delta;
-      }
-    }
+  // Relocate internal references.
+  for (auto pos : internal_reference_positions_) {
+    intptr_t* p = reinterpret_cast<intptr_t*>(buffer_ + pos);
+    *p += pc_delta;
   }
 
   DCHECK(!buffer_overflow());
@@ -425,11 +481,29 @@ void Assembler::emit_operand(int code, const Operand& adr) {
 
   // Emit updated ModR/M byte containing the given register.
   DCHECK((adr.buf_[0] & 0x38) == 0);
-  pc_[0] = adr.buf_[0] | code << 3;
+  *pc_++ = adr.buf_[0] | code << 3;
 
-  // Emit the rest of the encoded operand.
-  for (unsigned i = 1; i < length; i++) pc_[i] = adr.buf_[i];
-  pc_ += length;
+  // Recognize RIP relative addressing.
+  if (adr.buf_[0] == 5) {
+    DCHECK_EQ(9u, length);
+    Label* label = *bit_cast<Label* const*>(&adr.buf_[1]);
+    if (label->is_bound()) {
+      int offset = label->pos() - pc_offset() - sizeof(int32_t);
+      DCHECK_GE(0, offset);
+      emitl(offset);
+    } else if (label->is_linked()) {
+      emitl(label->pos());
+      label->link_to(pc_offset() - sizeof(int32_t));
+    } else {
+      DCHECK(label->is_unused());
+      int32_t current = pc_offset();
+      emitl(current);
+      label->link_to(current);
+    }
+  } else {
+    // Emit the rest of the encoded operand.
+    for (unsigned i = 1; i < length; i++) *pc_++ = adr.buf_[i];
+  }
 }
 
 
@@ -1774,6 +1848,13 @@ void Assembler::ret(int imm16) {
     emit(imm16 & 0xFF);
     emit((imm16 >> 8) & 0xFF);
   }
+}
+
+
+void Assembler::ud2() {
+  EnsureSpace ensure_space(this);
+  emit(0x0F);
+  emit(0x0B);
 }
 
 
@@ -3309,6 +3390,27 @@ void Assembler::dd(uint32_t data) {
 }
 
 
+void Assembler::dq(Label* label) {
+  EnsureSpace ensure_space(this);
+  if (label->is_bound()) {
+    internal_reference_positions_.push_back(pc_offset());
+    emitp(buffer_ + label->pos(), RelocInfo::INTERNAL_REFERENCE);
+  } else {
+    RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
+    emitl(0);  // Zero for the first 32bit marks it as 64bit absolute address.
+    if (label->is_linked()) {
+      emitl(label->pos());
+      label->link_to(pc_offset() - sizeof(int32_t));
+    } else {
+      DCHECK(label->is_unused());
+      int32_t current = pc_offset();
+      emitl(current);
+      label->link_to(current);
+    }
+  }
+}
+
+
 // Relocation information implementations.
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
@@ -3323,28 +3425,6 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   }
   RelocInfo rinfo(pc_, rmode, data, NULL);
   reloc_info_writer.Write(&rinfo);
-}
-
-
-void Assembler::RecordJSReturn() {
-  positions_recorder()->WriteRecordedPositions();
-  EnsureSpace ensure_space(this);
-  RecordRelocInfo(RelocInfo::JS_RETURN);
-}
-
-
-void Assembler::RecordDebugBreakSlot() {
-  positions_recorder()->WriteRecordedPositions();
-  EnsureSpace ensure_space(this);
-  RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT);
-}
-
-
-void Assembler::RecordComment(const char* msg, bool force) {
-  if (FLAG_code_comments || force) {
-    EnsureSpace ensure_space(this);
-    RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
-  }
 }
 
 

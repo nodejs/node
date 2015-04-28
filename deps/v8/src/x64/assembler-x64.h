@@ -37,6 +37,9 @@
 #ifndef V8_X64_ASSEMBLER_X64_H_
 #define V8_X64_ASSEMBLER_X64_H_
 
+#include <deque>
+
+#include "src/assembler.h"
 #include "src/serialize.h"
 
 namespace v8 {
@@ -408,6 +411,9 @@ class Operand BASE_EMBEDDED {
   // this must not overflow.
   Operand(const Operand& base, int32_t offset);
 
+  // [rip + disp/r]
+  explicit Operand(Label* label);
+
   // Checks whether either base or index register is the given register.
   // Does not check the "reg" part of the Operand.
   bool AddressUsesRegister(Register reg) const;
@@ -421,7 +427,7 @@ class Operand BASE_EMBEDDED {
 
  private:
   byte rex_;
-  byte buf_[6];
+  byte buf_[9];
   // The number of bytes of buf_ in use.
   byte len_;
 
@@ -437,6 +443,7 @@ class Operand BASE_EMBEDDED {
   // Needs to be called after set_sib, not before it.
   inline void set_disp8(int disp);
   inline void set_disp32(int disp);
+  inline void set_disp64(int64_t disp);  // for labels.
 
   friend class Assembler;
 };
@@ -888,6 +895,7 @@ class Assembler : public AssemblerBase {
   void int3();
   void nop();
   void ret(int imm16);
+  void ud2();
   void setcc(Condition cc, Register reg);
 
   // Label operations & relative jumps (PPUM Appendix D)
@@ -934,6 +942,7 @@ class Assembler : public AssemblerBase {
 
   // Jump near absolute indirect (r64)
   void jmp(Register adr);
+  void jmp(const Operand& src);
 
   // Conditional jumps
   void j(Condition cc,
@@ -1328,7 +1337,11 @@ class Assembler : public AssemblerBase {
 
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --code-comments to enable.
-  void RecordComment(const char* msg, bool force = false);
+  void RecordComment(const char* msg);
+
+  // Record a deoptimization reason that can be used by a log or cpu profiler.
+  // Use --trace-deopt to enable.
+  void RecordDeoptReason(const int reason, const int raw_position);
 
   // Allocate a constant pool of the correct size for the generated code.
   Handle<ConstantPoolArray> NewConstantPool(Isolate* isolate);
@@ -1340,6 +1353,7 @@ class Assembler : public AssemblerBase {
   // Used for inline tables, e.g., jump-tables.
   void db(uint8_t data);
   void dd(uint32_t data);
+  void dq(Label* label);
 
   PositionsRecorder* positions_recorder() { return &positions_recorder_; }
 
@@ -1366,9 +1380,6 @@ class Assembler : public AssemblerBase {
  protected:
   // Call near indirect
   void call(const Operand& operand);
-
-  // Jump near absolute indirect (m64)
-  void jmp(const Operand& src);
 
  private:
   byte* addr_at(int pos)  { return buffer_ + pos; }
@@ -1806,6 +1817,11 @@ class Assembler : public AssemblerBase {
 
   // code generation
   RelocInfoWriter reloc_info_writer;
+
+  // Internal reference positions, required for (potential) patching in
+  // GrowBuffer(); contains only those internal references whose labels
+  // are already bound.
+  std::deque<int> internal_reference_positions_;
 
   List< Handle<Code> > code_targets_;
 

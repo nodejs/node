@@ -11,15 +11,17 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-MachineCallHelper::MachineCallHelper(Zone* zone, MachineSignature* machine_sig)
-    : CallHelper(zone->isolate(), machine_sig),
+MachineCallHelper::MachineCallHelper(Isolate* isolate,
+                                     MachineSignature* machine_sig)
+    : CallHelper(isolate, machine_sig),
       parameters_(NULL),
+      isolate_(isolate),
       graph_(NULL) {}
 
 
 void MachineCallHelper::InitParameters(GraphBuilder* builder,
                                        CommonOperatorBuilder* common) {
-  DCHECK_EQ(NULL, parameters_);
+  DCHECK(!parameters_);
   graph_ = builder->graph();
   int param_count = static_cast<int>(parameter_count());
   if (param_count == 0) return;
@@ -37,14 +39,14 @@ byte* MachineCallHelper::Generate() {
     Zone* zone = graph_->zone();
     CallDescriptor* desc =
         Linkage::GetSimplifiedCDescriptor(zone, machine_sig_);
-    code_ = Pipeline::GenerateCodeForTesting(desc, graph_);
+    code_ = Pipeline::GenerateCodeForTesting(isolate_, desc, graph_);
   }
   return code_.ToHandleChecked()->entry();
 }
 
 
 Node* MachineCallHelper::Parameter(size_t index) {
-  DCHECK_NE(NULL, parameters_);
+  DCHECK(parameters_);
   DCHECK(index < parameter_count());
   return parameters_[index];
 }

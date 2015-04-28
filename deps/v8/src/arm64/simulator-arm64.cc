@@ -12,6 +12,7 @@
 #include "src/arm64/decoder-arm64-inl.h"
 #include "src/arm64/simulator-arm64.h"
 #include "src/assembler.h"
+#include "src/codegen.h"
 #include "src/disasm.h"
 #include "src/macro-assembler.h"
 #include "src/ostreams.h"
@@ -3100,7 +3101,7 @@ T Simulator::FPSqrt(T op) {
   } else if (op < 0.0) {
     return FPDefaultNaN<T>();
   } else {
-    return std::sqrt(op);
+    return fast_sqrt(op);
   }
 }
 

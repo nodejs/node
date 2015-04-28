@@ -24,6 +24,8 @@ class IncrementalMarking {
 
   enum ForceCompletionAction { FORCE_COMPLETION, DO_NOT_FORCE_COMPLETION };
 
+  enum GCRequestType { COMPLETE_MARKING, OVERAPPROXIMATION };
+
   explicit IncrementalMarking(Heap* heap);
 
   static void Initialize();
@@ -36,6 +38,13 @@ class IncrementalMarking {
   bool should_hurry() { return should_hurry_; }
   void set_should_hurry(bool val) { should_hurry_ = val; }
 
+  bool weak_closure_was_overapproximated() const {
+    return weak_closure_was_overapproximated_;
+  }
+  void set_weak_closure_was_overapproximated(bool val) {
+    weak_closure_was_overapproximated_ = val;
+  }
+
   inline bool IsStopped() { return state() == STOPPED; }
 
   INLINE(bool IsMarking()) { return state() >= MARKING; }
@@ -43,6 +52,8 @@ class IncrementalMarking {
   inline bool IsMarkingIncomplete() { return state() == MARKING; }
 
   inline bool IsComplete() { return state() == COMPLETE; }
+
+  GCRequestType request_type() const { return request_type_; }
 
   bool WorthActivating();
 
@@ -65,6 +76,8 @@ class IncrementalMarking {
   void Finalize();
 
   void Abort();
+
+  void OverApproximateWeakClosure();
 
   void MarkingComplete(CompletionAction action);
 
@@ -227,6 +240,10 @@ class IncrementalMarking {
   int unscanned_bytes_of_large_object_;
 
   bool was_activated_;
+
+  bool weak_closure_was_overapproximated_;
+
+  GCRequestType request_type_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(IncrementalMarking);
 };

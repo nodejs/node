@@ -98,7 +98,19 @@ void FastCloneShallowObjectDescriptor::Initialize(
 void CreateAllocationSiteDescriptor::Initialize(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {cp, a2, a3};
-  data->Initialize(arraysize(registers), registers, NULL);
+  Representation representations[] = {Representation::Tagged(),
+                                      Representation::Tagged(),
+                                      Representation::Smi()};
+  data->Initialize(arraysize(registers), registers, representations);
+}
+
+
+void CreateWeakCellDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {cp, a2, a3, a1};
+  Representation representations[] = {
+      Representation::Tagged(), Representation::Tagged(), Representation::Smi(),
+      Representation::Tagged()};
+  data->Initialize(arraysize(registers), registers, representations);
 }
 
 
@@ -115,6 +127,16 @@ void CallFunctionWithFeedbackDescriptor::Initialize(
   Representation representations[] = {Representation::Tagged(),
                                       Representation::Tagged(),
                                       Representation::Smi()};
+  data->Initialize(arraysize(registers), registers, representations);
+}
+
+
+void CallFunctionWithFeedbackAndVectorDescriptor::Initialize(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {cp, a1, a3, a2};
+  Representation representations[] = {
+      Representation::Tagged(), Representation::Tagged(), Representation::Smi(),
+      Representation::Tagged()};
   data->Initialize(arraysize(registers), registers, representations);
 }
 
@@ -293,6 +315,27 @@ void ArgumentAdaptorDescriptor::Initialize(CallInterfaceDescriptorData* data) {
 
 
 void ApiFunctionDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {
+      cp,  // context
+      a0,  // callee
+      a4,  // call_data
+      a2,  // holder
+      a1,  // api_function_address
+      a3,  // actual number of arguments
+  };
+  Representation representations[] = {
+      Representation::Tagged(),     // context
+      Representation::Tagged(),     // callee
+      Representation::Tagged(),     // call_data
+      Representation::Tagged(),     // holder
+      Representation::External(),   // api_function_address
+      Representation::Integer32(),  // actual number of arguments
+  };
+  data->Initialize(arraysize(registers), registers, representations);
+}
+
+
+void ApiAccessorDescriptor::Initialize(CallInterfaceDescriptorData* data) {
   Register registers[] = {
       cp,  // context
       a0,  // callee

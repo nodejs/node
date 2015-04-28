@@ -9,19 +9,6 @@
 // var $Object = global.Object;
 // var $Symbol = global.Symbol;
 
-var kBuiltinStringTags = {
-  "__proto__": null,
-  "Arguments": true,
-  "Array": true,
-  "Boolean": true,
-  "Date": true,
-  "Error": true,
-  "Function": true,
-  "Number": true,
-  "RegExp": true,
-  "String": true
-};
-
 DefaultObjectToString = ObjectToStringHarmony;
 // ES6 draft 08-24-14, section 19.1.3.6
 function ObjectToStringHarmony() {
@@ -30,12 +17,8 @@ function ObjectToStringHarmony() {
   var O = ToObject(this);
   var builtinTag = %_ClassOf(O);
   var tag = O[symbolToStringTag];
-  if (IS_UNDEFINED(tag)) {
+  if (!IS_STRING(tag)) {
     tag = builtinTag;
-  } else if (!IS_STRING(tag)) {
-    return "[object ???]"
-  } else if (tag !== builtinTag && kBuiltinStringTags[tag]) {
-    return "[object ~" + tag + "]";
   }
   return "[object " + tag + "]";
 }

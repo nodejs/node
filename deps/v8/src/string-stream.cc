@@ -335,7 +335,7 @@ void StringStream::PrintUsingMap(JSObject* js_object) {
   DescriptorArray* descs = map->instance_descriptors();
   for (int i = 0; i < real_size; i++) {
     PropertyDetails details = descs->GetDetails(i);
-    if (details.type() == FIELD) {
+    if (details.type() == DATA) {
       Object* key = descs->GetKey(i);
       if (key->IsString() || key->IsNumber()) {
         int len = 3;

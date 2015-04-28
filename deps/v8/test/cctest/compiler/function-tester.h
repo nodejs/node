@@ -36,7 +36,7 @@ class FunctionTester : public InitializedHandleScope {
     const uint32_t supported_flags = CompilationInfo::kContextSpecializing |
                                      CompilationInfo::kInliningEnabled |
                                      CompilationInfo::kTypingEnabled;
-    CHECK_EQ(0, flags_ & ~supported_flags);
+    CHECK_EQ(0u, flags_ & ~supported_flags);
   }
 
   explicit FunctionTester(Graph* graph)
@@ -154,7 +154,7 @@ class FunctionTester : public InitializedHandleScope {
 #if V8_TURBOFAN_TARGET
     CompilationInfoWithZone info(function);
 
-    CHECK(Parser::Parse(&info));
+    CHECK(Parser::ParseStatic(&info));
     info.SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
     if (flags_ & CompilationInfo::kContextSpecializing) {
       info.MarkAsContextSpecializing();
@@ -210,7 +210,7 @@ class FunctionTester : public InitializedHandleScope {
     CHECK(Pipeline::SupportedTarget());
     CompilationInfoWithZone info(function);
 
-    CHECK(Parser::Parse(&info));
+    CHECK(Parser::ParseStatic(&info));
     info.SetOptimizing(BailoutId::None(),
                        Handle<Code>(function->shared()->code()));
     CHECK(Compiler::Analyze(&info));

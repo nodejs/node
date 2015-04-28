@@ -20,7 +20,6 @@ const char* Variable::Mode2String(VariableMode mode) {
     case CONST_LEGACY: return "CONST_LEGACY";
     case LET: return "LET";
     case CONST: return "CONST";
-    case MODULE: return "MODULE";
     case DYNAMIC: return "DYNAMIC";
     case DYNAMIC_GLOBAL: return "DYNAMIC_GLOBAL";
     case DYNAMIC_LOCAL: return "DYNAMIC_LOCAL";
@@ -35,7 +34,7 @@ const char* Variable::Mode2String(VariableMode mode) {
 Variable::Variable(Scope* scope, const AstRawString* name, VariableMode mode,
                    bool is_valid_ref, Kind kind,
                    InitializationFlag initialization_flag,
-                   MaybeAssignedFlag maybe_assigned_flag, Interface* interface)
+                   MaybeAssignedFlag maybe_assigned_flag)
     : scope_(scope),
       name_(name),
       mode_(mode),
@@ -48,8 +47,7 @@ Variable::Variable(Scope* scope, const AstRawString* name, VariableMode mode,
       force_context_allocation_(false),
       is_used_(false),
       initialization_flag_(initialization_flag),
-      maybe_assigned_(maybe_assigned_flag),
-      interface_(interface) {
+      maybe_assigned_(maybe_assigned_flag) {
   // Var declared variables never need initialization.
   DCHECK(!(mode == VAR && initialization_flag == kNeedsInitialization));
 }

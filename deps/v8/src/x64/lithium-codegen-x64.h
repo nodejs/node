@@ -118,7 +118,7 @@ class LCodeGen: public LCodeGenBase {
 #undef DECLARE_DO
 
  private:
-  StrictMode strict_mode() const { return info()->strict_mode(); }
+  LanguageMode language_mode() const { return info()->language_mode(); }
 
   LPlatformChunk* chunk() const { return chunk_; }
   Scope* scope() const { return scope_; }
@@ -188,27 +188,22 @@ class LCodeGen: public LCodeGenBase {
 
   void LoadContextFromDeferred(LOperand* context);
 
-  enum RDIState {
-    RDI_UNINITIALIZED,
-    RDI_CONTAINS_TARGET
-  };
-
   // Generate a direct call to a known function.  Expects the function
   // to be in rdi.
   void CallKnownFunction(Handle<JSFunction> function,
-                         int formal_parameter_count,
-                         int arity,
-                         LInstruction* instr,
-                         RDIState rdi_state);
+                         int formal_parameter_count, int arity,
+                         LInstruction* instr);
 
   void RecordSafepointWithLazyDeopt(LInstruction* instr,
                                     SafepointMode safepoint_mode,
                                     int argc);
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment,
                                             Safepoint::DeoptMode mode);
-  void DeoptimizeIf(Condition cc, LInstruction* instr, const char* detail,
+  void DeoptimizeIf(Condition cc, LInstruction* instr,
+                    Deoptimizer::DeoptReason deopt_reason,
                     Deoptimizer::BailoutType bailout_type);
-  void DeoptimizeIf(Condition cc, LInstruction* instr, const char* detail);
+  void DeoptimizeIf(Condition cc, LInstruction* instr,
+                    Deoptimizer::DeoptReason deopt_reason);
 
   bool DeoptEveryNTimes() {
     return FLAG_deopt_every_n_times != 0 && !info()->IsStub();

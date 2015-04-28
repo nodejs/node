@@ -77,12 +77,11 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm_)
 
-RegExpMacroAssemblerX87::RegExpMacroAssemblerX87(
-    Mode mode,
-    int registers_to_save,
-    Zone* zone)
-    : NativeRegExpMacroAssembler(zone),
-      masm_(new MacroAssembler(zone->isolate(), NULL, kRegExpCodeSize)),
+RegExpMacroAssemblerX87::RegExpMacroAssemblerX87(Isolate* isolate, Zone* zone,
+                                                 Mode mode,
+                                                 int registers_to_save)
+    : NativeRegExpMacroAssembler(isolate, zone),
+      masm_(new MacroAssembler(isolate, NULL, kRegExpCodeSize)),
       mode_(mode),
       num_registers_(registers_to_save),
       num_saved_registers_(registers_to_save),

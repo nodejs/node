@@ -4,6 +4,9 @@
 
 #include "src/v8.h"
 
+#if defined(V8_OS_AIX)
+#include <fenv.h>
+#endif
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/compiler.h"
@@ -48,7 +51,15 @@ double modulo(double x, double y) {
 #else  // POSIX
 
 double modulo(double x, double y) {
+#if defined(V8_OS_AIX)
+  // AIX raises an underflow exception for (Number.MIN_VALUE % Number.MAX_VALUE)
+  feclearexcept(FE_ALL_EXCEPT);
+  double result = std::fmod(x, y);
+  int exception = fetestexcept(FE_UNDERFLOW);
+  return (exception ? x : result);
+#else
   return std::fmod(x, y);
+#endif
 }
 #endif  // defined(_WIN64)
 
@@ -125,12 +136,13 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info, const char* kind) {
 #ifdef DEBUG
   if (!info->IsStub() && print_source) {
     PrintF("--- Source from AST ---\n%s\n",
-           PrettyPrinter(info->zone()).PrintProgram(info->function()));
+           PrettyPrinter(info->isolate(), info->zone())
+               .PrintProgram(info->function()));
   }
 
   if (!info->IsStub() && print_ast) {
-    PrintF("--- AST ---\n%s\n",
-           AstPrinter(info->zone()).PrintProgram(info->function()));
+    PrintF("--- AST ---\n%s\n", AstPrinter(info->isolate(), info->zone())
+                                    .PrintProgram(info->function()));
   }
 #endif  // DEBUG
 }

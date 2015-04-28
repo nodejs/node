@@ -98,10 +98,6 @@ class Bootstrapper FINAL {
   char* RestoreState(char* from);
   void FreeThreadResources();
 
-  // This will allocate a char array that is deleted when V8 is shut down.
-  // It should only be used for strictly finite allocations.
-  char* AllocateAutoDeletedArray(int bytes);
-
   // Used for new context creation.
   bool InstallExtensions(Handle<Context> native_context,
                          v8::ExtensionConfiguration* extensions);
@@ -113,10 +109,6 @@ class Bootstrapper FINAL {
   typedef int NestingCounterType;
   NestingCounterType nesting_;
   SourceCodeCache extensions_cache_;
-  // This is for delete, not delete[].
-  List<char*>* delete_these_non_arrays_on_tear_down_;
-  // This is for delete[]
-  List<char*>* delete_these_arrays_on_tear_down_;
 
   friend class BootstrapperActive;
   friend class Isolate;
@@ -155,9 +147,8 @@ class BootstrapperActive FINAL BASE_EMBEDDED {
 class NativesExternalStringResource FINAL
     : public v8::String::ExternalOneByteStringResource {
  public:
-  NativesExternalStringResource(Bootstrapper* bootstrapper,
-                                const char* source,
-                                size_t length);
+  NativesExternalStringResource(const char* source, size_t length)
+      : data_(source), length_(length) {}
   const char* data() const OVERRIDE { return data_; }
   size_t length() const OVERRIDE { return length_; }
 

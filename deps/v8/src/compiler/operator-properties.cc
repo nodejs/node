@@ -57,21 +57,26 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSBitwiseOr:
     case IrOpcode::kJSBitwiseXor:
     case IrOpcode::kJSDivide:
-    case IrOpcode::kJSLoadNamed:
-    case IrOpcode::kJSLoadProperty:
     case IrOpcode::kJSModulus:
     case IrOpcode::kJSMultiply:
     case IrOpcode::kJSShiftLeft:
     case IrOpcode::kJSShiftRight:
     case IrOpcode::kJSShiftRightLogical:
-    case IrOpcode::kJSStoreNamed:
-    case IrOpcode::kJSStoreProperty:
     case IrOpcode::kJSSubtract:
+
+    // Context operations
+    case IrOpcode::kJSCreateWithContext:
 
     // Conversions
     case IrOpcode::kJSToObject:
+    case IrOpcode::kJSToNumber:
+    case IrOpcode::kJSToName:
 
-    // Other
+    // Properties
+    case IrOpcode::kJSLoadNamed:
+    case IrOpcode::kJSLoadProperty:
+    case IrOpcode::kJSStoreNamed:
+    case IrOpcode::kJSStoreProperty:
     case IrOpcode::kJSDeleteProperty:
       return true;
 
@@ -95,7 +100,8 @@ bool OperatorProperties::IsBasicBlockBegin(const Operator* op) {
   return opcode == IrOpcode::kStart || opcode == IrOpcode::kEnd ||
          opcode == IrOpcode::kDead || opcode == IrOpcode::kLoop ||
          opcode == IrOpcode::kMerge || opcode == IrOpcode::kIfTrue ||
-         opcode == IrOpcode::kIfFalse;
+         opcode == IrOpcode::kIfFalse || opcode == IrOpcode::kIfValue ||
+         opcode == IrOpcode::kIfDefault;
 }
 
 }  // namespace compiler

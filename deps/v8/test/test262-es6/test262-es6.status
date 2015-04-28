@@ -79,16 +79,15 @@
   ######################## OBSOLETED BY ES6 ###########################
 
   # ES6 allows duplicate properties
-  # TODO(arv): Reactivate when check removal has relanded.
-  # '11.1.5-4-4-a-1-s': [FAIL],
-  # '11.1.5_4-4-b-1': [FAIL],
-  # '11.1.5_4-4-b-2': [FAIL],
-  # '11.1.5_4-4-c-1': [FAIL],
-  # '11.1.5_4-4-c-2': [FAIL],
-  # '11.1.5_4-4-d-1': [FAIL],
-  # '11.1.5_4-4-d-2': [FAIL],
-  # '11.1.5_4-4-d-3': [FAIL],
-  # '11.1.5_4-4-d-4': [FAIL],
+  '11.1.5-4-4-a-1-s': [FAIL],
+  '11.1.5_4-4-b-1': [FAIL],
+  '11.1.5_4-4-b-2': [FAIL],
+  '11.1.5_4-4-c-1': [FAIL],
+  '11.1.5_4-4-c-2': [FAIL],
+  '11.1.5_4-4-d-1': [FAIL],
+  '11.1.5_4-4-d-2': [FAIL],
+  '11.1.5_4-4-d-3': [FAIL],
+  '11.1.5_4-4-d-4': [FAIL],
 
   # ES6 does ToObject for Object.prototype.getOwnPropertyNames
   '15.2.3.4-1': [FAIL],

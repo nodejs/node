@@ -4,7 +4,7 @@
 
 #include "src/code-stubs.h"
 #include "src/compiler/js-graph.h"
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/typer.h"
 
 namespace v8 {
@@ -85,7 +85,7 @@ Node* JSGraph::OneConstant() {
 
 Node* JSGraph::NaNConstant() {
   if (!nan_constant_.is_set()) {
-    nan_constant_.set(NumberConstant(base::OS::nan_value()));
+    nan_constant_.set(NumberConstant(std::numeric_limits<double>::quiet_NaN()));
   }
   return nan_constant_.get();
 }
@@ -197,6 +197,28 @@ Node* JSGraph::ExternalConstant(ExternalReference reference) {
     *loc = graph()->NewNode(common()->ExternalConstant(reference));
   }
   return *loc;
+}
+
+
+Node* JSGraph::EmptyFrameState() {
+  if (!empty_frame_state_.is_set()) {
+    Node* values = graph()->NewNode(common()->StateValues(0));
+    Node* state_node = graph()->NewNode(
+        common()->FrameState(JS_FRAME, BailoutId(0),
+                             OutputFrameStateCombine::Ignore()),
+        values, values, values, NoContextConstant(), UndefinedConstant());
+    empty_frame_state_.set(state_node);
+  }
+  return empty_frame_state_.get();
+}
+
+
+Node* JSGraph::DeadControl() {
+  if (!dead_control_.is_set()) {
+    Node* dead_node = graph()->NewNode(common()->Dead());
+    dead_control_.set(dead_node);
+  }
+  return dead_control_.get();
 }
 
 

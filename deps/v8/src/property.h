@@ -73,180 +73,37 @@ class Descriptor BASE_EMBEDDED {
 std::ostream& operator<<(std::ostream& os, const Descriptor& d);
 
 
-class FieldDescriptor FINAL : public Descriptor {
+class DataDescriptor FINAL : public Descriptor {
  public:
-  FieldDescriptor(Handle<Name> key,
-                  int field_index,
-                  PropertyAttributes attributes,
-                  Representation representation)
-      : Descriptor(key, HeapType::Any(key->GetIsolate()), attributes,
-                   FIELD, representation, field_index) {}
-  FieldDescriptor(Handle<Name> key,
-                  int field_index,
-                  Handle<HeapType> field_type,
-                  PropertyAttributes attributes,
-                  Representation representation)
-      : Descriptor(key, field_type, attributes, FIELD,
-                   representation, field_index) { }
+  DataDescriptor(Handle<Name> key, int field_index,
+                 PropertyAttributes attributes, Representation representation)
+      : Descriptor(key, HeapType::Any(key->GetIsolate()), attributes, DATA,
+                   representation, field_index) {}
+  DataDescriptor(Handle<Name> key, int field_index, Handle<HeapType> field_type,
+                 PropertyAttributes attributes, Representation representation)
+      : Descriptor(key, field_type, attributes, DATA, representation,
+                   field_index) {}
 };
 
 
-class ConstantDescriptor FINAL : public Descriptor {
+class DataConstantDescriptor FINAL : public Descriptor {
  public:
-  ConstantDescriptor(Handle<Name> key,
-                     Handle<Object> value,
-                     PropertyAttributes attributes)
-      : Descriptor(key, value, attributes, CONSTANT,
+  DataConstantDescriptor(Handle<Name> key, Handle<Object> value,
+                         PropertyAttributes attributes)
+      : Descriptor(key, value, attributes, DATA_CONSTANT,
                    value->OptimalRepresentation()) {}
 };
 
 
-class CallbacksDescriptor FINAL : public Descriptor {
+class AccessorConstantDescriptor FINAL : public Descriptor {
  public:
-  CallbacksDescriptor(Handle<Name> key,
-                      Handle<Object> foreign,
-                      PropertyAttributes attributes)
-      : Descriptor(key, foreign, attributes, CALLBACKS,
+  AccessorConstantDescriptor(Handle<Name> key, Handle<Object> foreign,
+                             PropertyAttributes attributes)
+      : Descriptor(key, foreign, attributes, ACCESSOR_CONSTANT,
                    Representation::Tagged()) {}
 };
 
 
-class LookupResult FINAL BASE_EMBEDDED {
- public:
-  explicit LookupResult(Isolate* isolate)
-      : isolate_(isolate),
-        next_(isolate->top_lookup_result()),
-        lookup_type_(NOT_FOUND),
-        holder_(NULL),
-        transition_(NULL),
-        details_(NONE, FIELD, Representation::None()) {
-    isolate->set_top_lookup_result(this);
-  }
-
-  ~LookupResult() {
-    DCHECK(isolate()->top_lookup_result() == this);
-    isolate()->set_top_lookup_result(next_);
-  }
-
-  Isolate* isolate() const { return isolate_; }
-
-  void DescriptorResult(JSObject* holder, PropertyDetails details, int number) {
-    lookup_type_ = DESCRIPTOR_TYPE;
-    holder_ = holder;
-    transition_ = NULL;
-    details_ = details;
-    number_ = number;
-  }
-
-  void TransitionResult(JSObject* holder, Map* target) {
-    lookup_type_ = TRANSITION_TYPE;
-    number_ = target->LastAdded();
-    details_ = target->instance_descriptors()->GetDetails(number_);
-    holder_ = holder;
-    transition_ = target;
-  }
-
-  void NotFound() {
-    lookup_type_ = NOT_FOUND;
-    details_ = PropertyDetails(NONE, FIELD, 0);
-    holder_ = NULL;
-    transition_ = NULL;
-  }
-
-  Representation representation() const {
-    DCHECK(IsFound());
-    return details_.representation();
-  }
-
-  // Property callbacks does not include transitions to callbacks.
-  bool IsPropertyCallbacks() const {
-    return !IsTransition() && details_.type() == CALLBACKS;
-  }
-
-  bool IsReadOnly() const {
-    DCHECK(IsFound());
-    return details_.IsReadOnly();
-  }
-
-  bool IsField() const {
-    return lookup_type_ == DESCRIPTOR_TYPE && details_.type() == FIELD;
-  }
-
-  bool IsConstant() const {
-    return lookup_type_ == DESCRIPTOR_TYPE && details_.type() == CONSTANT;
-  }
-
-  bool IsConfigurable() const { return details_.IsConfigurable(); }
-  bool IsFound() const { return lookup_type_ != NOT_FOUND; }
-  bool IsTransition() const { return lookup_type_ == TRANSITION_TYPE; }
-
-  // Is the result is a property excluding transitions and the null descriptor?
-  bool IsProperty() const {
-    return IsFound() && !IsTransition();
-  }
-
-  Map* GetTransitionTarget() const {
-    DCHECK(IsTransition());
-    return transition_;
-  }
-
-  bool IsTransitionToField() const {
-    return IsTransition() && details_.type() == FIELD;
-  }
-
-  int GetLocalFieldIndexFromMap(Map* map) const {
-    return GetFieldIndexFromMap(map) - map->inobject_properties();
-  }
-
-  Object* GetConstantFromMap(Map* map) const {
-    DCHECK(details_.type() == CONSTANT);
-    return GetValueFromMap(map);
-  }
-
-  Object* GetValueFromMap(Map* map) const {
-    DCHECK(lookup_type_ == DESCRIPTOR_TYPE ||
-           lookup_type_ == TRANSITION_TYPE);
-    DCHECK(number_ < map->NumberOfOwnDescriptors());
-    return map->instance_descriptors()->GetValue(number_);
-  }
-
-  int GetFieldIndexFromMap(Map* map) const {
-    DCHECK(lookup_type_ == DESCRIPTOR_TYPE ||
-           lookup_type_ == TRANSITION_TYPE);
-    DCHECK(number_ < map->NumberOfOwnDescriptors());
-    return map->instance_descriptors()->GetFieldIndex(number_);
-  }
-
-  HeapType* GetFieldTypeFromMap(Map* map) const {
-    DCHECK_NE(NOT_FOUND, lookup_type_);
-    DCHECK(number_ < map->NumberOfOwnDescriptors());
-    return map->instance_descriptors()->GetFieldType(number_);
-  }
-
-  Map* GetFieldOwnerFromMap(Map* map) const {
-    DCHECK(lookup_type_ == DESCRIPTOR_TYPE ||
-           lookup_type_ == TRANSITION_TYPE);
-    DCHECK(number_ < map->NumberOfOwnDescriptors());
-    return map->FindFieldOwner(number_);
-  }
-
-  void Iterate(ObjectVisitor* visitor);
-
- private:
-  Isolate* isolate_;
-  LookupResult* next_;
-
-  // Where did we find the result;
-  enum { NOT_FOUND, DESCRIPTOR_TYPE, TRANSITION_TYPE } lookup_type_;
-
-  JSReceiver* holder_;
-  Map* transition_;
-  int number_;
-  PropertyDetails details_;
-};
-
-
-std::ostream& operator<<(std::ostream& os, const LookupResult& r);
 } }  // namespace v8::internal
 
 #endif  // V8_PROPERTY_H_

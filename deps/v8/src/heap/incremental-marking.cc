@@ -28,7 +28,9 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       idle_marking_delay_counter_(0),
       no_marking_scope_depth_(0),
       unscanned_bytes_of_large_object_(0),
-      was_activated_(false) {}
+      was_activated_(false),
+      weak_closure_was_overapproximated_(false),
+      request_type_(COMPLETE_MARKING) {}
 
 
 void IncrementalMarking::RecordWriteSlow(HeapObject* obj, Object** slot,
@@ -420,7 +422,9 @@ void IncrementalMarking::ActivateIncrementalWriteBarrier() {
 
 
 bool IncrementalMarking::ShouldActivate() {
-  return WorthActivating() && heap_->NextGCIsLikelyToBeFull();
+  return WorthActivating() &&
+         heap_->NextGCIsLikelyToBeFull(
+             heap_->old_generation_allocation_limit());
 }
 
 
@@ -550,8 +554,6 @@ void IncrementalMarking::StartMarking(CompactionFlag flag) {
   IncrementalMarkingRootMarkingVisitor visitor(this);
   heap_->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG);
 
-  heap_->mark_compact_collector()->MarkWeakObjectToCodeTable();
-
   // Ready to start incremental marking.
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] Running\n");
@@ -655,10 +657,7 @@ intptr_t IncrementalMarking::ProcessMarkingDeque(intptr_t bytes_to_process) {
     int size = obj->SizeFromMap(map);
     unscanned_bytes_of_large_object_ = 0;
     VisitObject(map, obj, size);
-    int delta = (size - unscanned_bytes_of_large_object_);
-    // TODO(jochen): remove after http://crbug.com/381820 is resolved.
-    CHECK_LT(0, delta);
-    bytes_processed += delta;
+    bytes_processed += size - unscanned_bytes_of_large_object_;
   }
   return bytes_processed;
 }
@@ -774,6 +773,18 @@ void IncrementalMarking::Finalize() {
 }
 
 
+void IncrementalMarking::OverApproximateWeakClosure() {
+  DCHECK(FLAG_overapproximate_weak_closure);
+  DCHECK(!weak_closure_was_overapproximated_);
+  if (FLAG_trace_incremental_marking) {
+    PrintF("[IncrementalMarking] requesting weak closure overapproximation.\n");
+  }
+  set_should_hurry(true);
+  request_type_ = OVERAPPROXIMATION;
+  heap_->isolate()->stack_guard()->RequestGC();
+}
+
+
 void IncrementalMarking::MarkingComplete(CompletionAction action) {
   state_ = COMPLETE;
   // We will set the stack guard to request a GC now.  This will mean the rest
@@ -786,12 +797,16 @@ void IncrementalMarking::MarkingComplete(CompletionAction action) {
     PrintF("[IncrementalMarking] Complete (normal).\n");
   }
   if (action == GC_VIA_STACK_GUARD) {
+    request_type_ = COMPLETE_MARKING;
     heap_->isolate()->stack_guard()->RequestGC();
   }
 }
 
 
-void IncrementalMarking::Epilogue() { was_activated_ = false; }
+void IncrementalMarking::Epilogue() {
+  was_activated_ = false;
+  weak_closure_was_overapproximated_ = false;
+}
 
 
 void IncrementalMarking::OldSpaceStep(intptr_t allocated) {
@@ -934,7 +949,13 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
       if (heap_->mark_compact_collector()->marking_deque()->IsEmpty()) {
         if (completion == FORCE_COMPLETION ||
             IsIdleMarkingDelayCounterLimitReached()) {
-          MarkingComplete(action);
+          if (FLAG_overapproximate_weak_closure &&
+              !weak_closure_was_overapproximated_ &&
+              action == GC_VIA_STACK_GUARD) {
+            OverApproximateWeakClosure();
+          } else {
+            MarkingComplete(action);
+          }
         } else {
           IncrementIdleMarkingDelayCounter();
         }

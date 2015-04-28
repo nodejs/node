@@ -692,175 +692,6 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
 }
 
 
-static int Offset(ExternalReference ref0, ExternalReference ref1) {
-  int64_t offset = (ref0.address() - ref1.address());
-  // Check that fits into int.
-  DCHECK(static_cast<int>(offset) == offset);
-  return static_cast<int>(offset);
-}
-
-
-void MacroAssembler::PrepareCallApiFunction(int arg_stack_space) {
-  EnterApiExitFrame(arg_stack_space);
-}
-
-
-void MacroAssembler::CallApiFunctionAndReturn(
-    Register function_address,
-    ExternalReference thunk_ref,
-    Register thunk_last_arg,
-    int stack_space,
-    Operand return_value_operand,
-    Operand* context_restore_operand) {
-  Label prologue;
-  Label promote_scheduled_exception;
-  Label exception_handled;
-  Label delete_allocated_handles;
-  Label leave_exit_frame;
-  Label write_back;
-
-  Factory* factory = isolate()->factory();
-  ExternalReference next_address =
-      ExternalReference::handle_scope_next_address(isolate());
-  const int kNextOffset = 0;
-  const int kLimitOffset = Offset(
-      ExternalReference::handle_scope_limit_address(isolate()),
-      next_address);
-  const int kLevelOffset = Offset(
-      ExternalReference::handle_scope_level_address(isolate()),
-      next_address);
-  ExternalReference scheduled_exception_address =
-      ExternalReference::scheduled_exception_address(isolate());
-
-  DCHECK(rdx.is(function_address) || r8.is(function_address));
-  // Allocate HandleScope in callee-save registers.
-  Register prev_next_address_reg = r14;
-  Register prev_limit_reg = rbx;
-  Register base_reg = r15;
-  Move(base_reg, next_address);
-  movp(prev_next_address_reg, Operand(base_reg, kNextOffset));
-  movp(prev_limit_reg, Operand(base_reg, kLimitOffset));
-  addl(Operand(base_reg, kLevelOffset), Immediate(1));
-
-  if (FLAG_log_timer_events) {
-    FrameScope frame(this, StackFrame::MANUAL);
-    PushSafepointRegisters();
-    PrepareCallCFunction(1);
-    LoadAddress(arg_reg_1, ExternalReference::isolate_address(isolate()));
-    CallCFunction(ExternalReference::log_enter_external_function(isolate()), 1);
-    PopSafepointRegisters();
-  }
-
-
-  Label profiler_disabled;
-  Label end_profiler_check;
-  Move(rax, ExternalReference::is_profiling_address(isolate()));
-  cmpb(Operand(rax, 0), Immediate(0));
-  j(zero, &profiler_disabled);
-
-  // Third parameter is the address of the actual getter function.
-  Move(thunk_last_arg, function_address);
-  Move(rax, thunk_ref);
-  jmp(&end_profiler_check);
-
-  bind(&profiler_disabled);
-  // Call the api function!
-  Move(rax, function_address);
-
-  bind(&end_profiler_check);
-
-  // Call the api function!
-  call(rax);
-
-  if (FLAG_log_timer_events) {
-    FrameScope frame(this, StackFrame::MANUAL);
-    PushSafepointRegisters();
-    PrepareCallCFunction(1);
-    LoadAddress(arg_reg_1, ExternalReference::isolate_address(isolate()));
-    CallCFunction(ExternalReference::log_leave_external_function(isolate()), 1);
-    PopSafepointRegisters();
-  }
-
-  // Load the value from ReturnValue
-  movp(rax, return_value_operand);
-  bind(&prologue);
-
-  // No more valid handles (the result handle was the last one). Restore
-  // previous handle scope.
-  subl(Operand(base_reg, kLevelOffset), Immediate(1));
-  movp(Operand(base_reg, kNextOffset), prev_next_address_reg);
-  cmpp(prev_limit_reg, Operand(base_reg, kLimitOffset));
-  j(not_equal, &delete_allocated_handles);
-  bind(&leave_exit_frame);
-
-  // Check if the function scheduled an exception.
-  Move(rsi, scheduled_exception_address);
-  Cmp(Operand(rsi, 0), factory->the_hole_value());
-  j(not_equal, &promote_scheduled_exception);
-  bind(&exception_handled);
-
-#if ENABLE_EXTRA_CHECKS
-  // Check if the function returned a valid JavaScript value.
-  Label ok;
-  Register return_value = rax;
-  Register map = rcx;
-
-  JumpIfSmi(return_value, &ok, Label::kNear);
-  movp(map, FieldOperand(return_value, HeapObject::kMapOffset));
-
-  CmpInstanceType(map, FIRST_NONSTRING_TYPE);
-  j(below, &ok, Label::kNear);
-
-  CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
-  j(above_equal, &ok, Label::kNear);
-
-  CompareRoot(map, Heap::kHeapNumberMapRootIndex);
-  j(equal, &ok, Label::kNear);
-
-  CompareRoot(return_value, Heap::kUndefinedValueRootIndex);
-  j(equal, &ok, Label::kNear);
-
-  CompareRoot(return_value, Heap::kTrueValueRootIndex);
-  j(equal, &ok, Label::kNear);
-
-  CompareRoot(return_value, Heap::kFalseValueRootIndex);
-  j(equal, &ok, Label::kNear);
-
-  CompareRoot(return_value, Heap::kNullValueRootIndex);
-  j(equal, &ok, Label::kNear);
-
-  Abort(kAPICallReturnedInvalidObject);
-
-  bind(&ok);
-#endif
-
-  bool restore_context = context_restore_operand != NULL;
-  if (restore_context) {
-    movp(rsi, *context_restore_operand);
-  }
-  LeaveApiExitFrame(!restore_context);
-  ret(stack_space * kPointerSize);
-
-  bind(&promote_scheduled_exception);
-  {
-    FrameScope frame(this, StackFrame::INTERNAL);
-    CallRuntime(Runtime::kPromoteScheduledException, 0);
-  }
-  jmp(&exception_handled);
-
-  // HandleScope limit has changed. Delete allocated extensions.
-  bind(&delete_allocated_handles);
-  movp(Operand(base_reg, kLimitOffset), prev_limit_reg);
-  movp(prev_limit_reg, rax);
-  LoadAddress(arg_reg_1, ExternalReference::isolate_address(isolate()));
-  LoadAddress(rax,
-              ExternalReference::delete_handle_scope_extensions(isolate()));
-  call(rax);
-  movp(rax, prev_limit_reg);
-  jmp(&leave_exit_frame);
-}
-
-
 void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
                                              int result_size) {
   // Set the entry point and jump to the C entry runtime stub.
@@ -2367,7 +2198,7 @@ void MacroAssembler::SelectNonSmi(Register dst,
   Check(not_both_smis, kBothRegistersWereSmisInSelectNonSmi);
 #endif
   STATIC_ASSERT(kSmiTag == 0);
-  DCHECK_EQ(0, Smi::FromInt(0));
+  DCHECK_EQ(static_cast<Smi*>(0), Smi::FromInt(0));
   movl(kScratchRegister, Immediate(kSmiTagMask));
   andp(kScratchRegister, src1);
   testl(kScratchRegister, src2);
@@ -2747,21 +2578,8 @@ void MacroAssembler::Move(XMMRegister dst, uint32_t src) {
   if (src == 0) {
     xorps(dst, dst);
   } else {
-    unsigned cnt = base::bits::CountPopulation32(src);
-    unsigned nlz = base::bits::CountLeadingZeros32(src);
-    unsigned ntz = base::bits::CountTrailingZeros32(src);
-    if (nlz + cnt + ntz == 32) {
-      pcmpeqd(dst, dst);
-      if (ntz == 0) {
-        psrld(dst, 32 - cnt);
-      } else {
-        pslld(dst, 32 - cnt);
-        if (nlz != 0) psrld(dst, nlz);
-      }
-    } else {
-      movl(kScratchRegister, Immediate(src));
-      movq(dst, kScratchRegister);
-    }
+    movl(kScratchRegister, Immediate(src));
+    movq(dst, kScratchRegister);
   }
 }
 
@@ -2772,18 +2590,7 @@ void MacroAssembler::Move(XMMRegister dst, uint64_t src) {
   if (upper == 0) {
     Move(dst, lower);
   } else {
-    unsigned cnt = base::bits::CountPopulation64(src);
-    unsigned nlz = base::bits::CountLeadingZeros64(src);
-    unsigned ntz = base::bits::CountTrailingZeros64(src);
-    if (nlz + cnt + ntz == 64) {
-      pcmpeqd(dst, dst);
-      if (ntz == 0) {
-        psrlq(dst, 64 - cnt);
-      } else {
-        psllq(dst, 64 - cnt);
-        if (nlz != 0) psrlq(dst, nlz);
-      }
-    } else if (lower == 0) {
+    if (lower == 0) {
       Move(dst, upper);
       psllq(dst, 32);
     } else {
@@ -2859,10 +2666,15 @@ void MacroAssembler::CmpWeakValue(Register value, Handle<WeakCell> cell,
 }
 
 
-void MacroAssembler::LoadWeakValue(Register value, Handle<WeakCell> cell,
-                                   Label* miss) {
+void MacroAssembler::GetWeakValue(Register value, Handle<WeakCell> cell) {
   Move(value, cell, RelocInfo::EMBEDDED_OBJECT);
   movp(value, FieldOperand(value, WeakCell::kValueOffset));
+}
+
+
+void MacroAssembler::LoadWeakValue(Register value, Handle<WeakCell> cell,
+                                   Label* miss) {
+  GetWeakValue(value, cell);
   JumpIfSmi(value, miss);
 }
 
@@ -3061,7 +2873,7 @@ void MacroAssembler::Call(ExternalReference ext) {
 
 
 void MacroAssembler::Call(const Operand& op) {
-  if (kPointerSize == kInt64Size) {
+  if (kPointerSize == kInt64Size && !CpuFeatures::IsSupported(ATOM)) {
     call(op);
   } else {
     movp(kScratchRegister, op);
@@ -3420,7 +3232,7 @@ void MacroAssembler::StoreNumberToDoubleElements(
     XMMRegister xmm_scratch,
     Label* fail,
     int elements_offset) {
-  Label smi_value, is_nan, maybe_nan, not_nan, have_double_value, done;
+  Label smi_value, done;
 
   JumpIfSmi(maybe_number, &smi_value, Label::kNear);
 
@@ -3429,44 +3241,20 @@ void MacroAssembler::StoreNumberToDoubleElements(
            fail,
            DONT_DO_SMI_CHECK);
 
-  // Double value, canonicalize NaN.
-  uint32_t offset = HeapNumber::kValueOffset + sizeof(kHoleNanLower32);
-  cmpl(FieldOperand(maybe_number, offset),
-       Immediate(kNaNOrInfinityLowerBoundUpper32));
-  j(greater_equal, &maybe_nan, Label::kNear);
-
-  bind(&not_nan);
-  movsd(xmm_scratch, FieldOperand(maybe_number, HeapNumber::kValueOffset));
-  bind(&have_double_value);
-  movsd(FieldOperand(elements, index, times_8,
-                     FixedDoubleArray::kHeaderSize - elements_offset),
-        xmm_scratch);
-  jmp(&done);
-
-  bind(&maybe_nan);
-  // Could be NaN or Infinity. If fraction is not zero, it's NaN, otherwise
-  // it's an Infinity, and the non-NaN code path applies.
-  j(greater, &is_nan, Label::kNear);
-  cmpl(FieldOperand(maybe_number, HeapNumber::kValueOffset), Immediate(0));
-  j(zero, &not_nan);
-  bind(&is_nan);
-  // Convert all NaNs to the same canonical NaN value when they are stored in
-  // the double array.
-  Set(kScratchRegister,
-      bit_cast<uint64_t>(
-          FixedDoubleArray::canonical_not_the_hole_nan_as_double()));
-  movq(xmm_scratch, kScratchRegister);
-  jmp(&have_double_value, Label::kNear);
+  // Double value, turn potential sNaN into qNaN.
+  Move(xmm_scratch, 1.0);
+  mulsd(xmm_scratch, FieldOperand(maybe_number, HeapNumber::kValueOffset));
+  jmp(&done, Label::kNear);
 
   bind(&smi_value);
   // Value is a smi. convert to a double and store.
   // Preserve original value.
   SmiToInteger32(kScratchRegister, maybe_number);
   Cvtlsi2sd(xmm_scratch, kScratchRegister);
+  bind(&done);
   movsd(FieldOperand(elements, index, times_8,
                      FixedDoubleArray::kHeaderSize - elements_offset),
         xmm_scratch);
-  bind(&done);
 }
 
 
@@ -3627,6 +3415,18 @@ void MacroAssembler::EnumLength(Register dst, Register map) {
   movl(dst, FieldOperand(map, Map::kBitField3Offset));
   andl(dst, Immediate(Map::EnumLengthBits::kMask));
   Integer32ToSmi(dst, dst);
+}
+
+
+void MacroAssembler::LoadAccessor(Register dst, Register holder,
+                                  int accessor_index,
+                                  AccessorComponent accessor) {
+  movp(dst, FieldOperand(holder, HeapObject::kMapOffset));
+  LoadInstanceDescriptors(dst, dst);
+  movp(dst, FieldOperand(dst, DescriptorArray::GetValueOffset(accessor_index)));
+  int offset = accessor == ACCESSOR_GETTER ? AccessorPair::kGetterOffset
+                                           : AccessorPair::kSetterOffset;
+  movp(dst, FieldOperand(dst, offset));
 }
 
 
@@ -4384,7 +4184,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   // Check that the value is a field property.
   const int kDetailsOffset =
       SeededNumberDictionary::kElementsStartOffset + 2 * kPointerSize;
-  DCHECK_EQ(FIELD, 0);
+  DCHECK_EQ(DATA, 0);
   Test(FieldOperand(elements, r2, times_pointer_size, kDetailsOffset),
        Smi::FromInt(PropertyDetails::TypeField::kMask));
   j(not_zero, miss);

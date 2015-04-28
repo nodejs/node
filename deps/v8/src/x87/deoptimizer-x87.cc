@@ -212,7 +212,8 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
 
 
 bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
-  int parameter_count = function->shared()->formal_parameter_count() + 1;
+  int parameter_count =
+      function->shared()->internal_formal_parameter_count() + 1;
   unsigned input_frame_size = input_->GetFrameSize();
   unsigned alignment_state_offset =
       input_frame_size - parameter_count * kPointerSize -
@@ -240,6 +241,9 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ sub(esp, Immediate(kDoubleRegsSize));
 
   __ pushad();
+
+  ExternalReference c_entry_fp_address(Isolate::kCEntryFPAddress, isolate());
+  __ mov(Operand::StaticVariable(c_entry_fp_address), ebp);
 
   // GP registers are safe to use now.
   // Save used x87 fp registers in correct position of previous reserve space.

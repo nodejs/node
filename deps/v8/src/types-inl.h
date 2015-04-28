@@ -16,6 +16,19 @@ namespace internal {
 // -----------------------------------------------------------------------------
 // TypeImpl
 
+template <class Config>
+typename TypeImpl<Config>::bitset TypeImpl<Config>::BitsetType::SignedSmall() {
+  return i::SmiValuesAre31Bits() ? kSigned31 : kSigned32;
+}
+
+
+template <class Config>
+typename TypeImpl<Config>::bitset
+TypeImpl<Config>::BitsetType::UnsignedSmall() {
+  return i::SmiValuesAre31Bits() ? kUnsigned30 : kUnsigned31;
+}
+
+
 template<class Config>
 TypeImpl<Config>* TypeImpl<Config>::cast(typename Config::Base* object) {
   TypeImpl* t = static_cast<TypeImpl*>(object);
@@ -83,7 +96,18 @@ bool ZoneTypeConfig::is_bitset(Type* type) {
 
 // static
 bool ZoneTypeConfig::is_struct(Type* type, int tag) {
-  return !is_bitset(type) && struct_tag(as_struct(type)) == tag;
+  DCHECK(tag != kRangeStructTag);
+  if (is_bitset(type)) return false;
+  int type_tag = struct_tag(as_struct(type));
+  return type_tag == tag;
+}
+
+
+// static
+bool ZoneTypeConfig::is_range(Type* type) {
+  if (is_bitset(type)) return false;
+  int type_tag = struct_tag(as_struct(type));
+  return type_tag == kRangeStructTag;
 }
 
 
@@ -104,6 +128,13 @@ ZoneTypeConfig::Type::bitset ZoneTypeConfig::as_bitset(Type* type) {
 ZoneTypeConfig::Struct* ZoneTypeConfig::as_struct(Type* type) {
   DCHECK(!is_bitset(type));
   return reinterpret_cast<Struct*>(type);
+}
+
+
+// static
+ZoneTypeConfig::Range* ZoneTypeConfig::as_range(Type* type) {
+  DCHECK(!is_bitset(type));
+  return reinterpret_cast<Range*>(type);
 }
 
 
@@ -134,6 +165,12 @@ ZoneTypeConfig::Type* ZoneTypeConfig::from_struct(Struct* structure) {
 
 
 // static
+ZoneTypeConfig::Type* ZoneTypeConfig::from_range(Range* range) {
+  return reinterpret_cast<Type*>(range);
+}
+
+
+// static
 ZoneTypeConfig::Type* ZoneTypeConfig::from_class(
     i::Handle<i::Map> map, Zone* zone) {
   return from_bitset(0);
@@ -143,6 +180,7 @@ ZoneTypeConfig::Type* ZoneTypeConfig::from_class(
 // static
 ZoneTypeConfig::Struct* ZoneTypeConfig::struct_create(
     int tag, int length, Zone* zone) {
+  DCHECK(tag != kRangeStructTag);
   Struct* structure = reinterpret_cast<Struct*>(
       zone->New(sizeof(void*) * (length + 2)));  // NOLINT
   structure[0] = reinterpret_cast<void*>(tag);
@@ -201,6 +239,45 @@ void ZoneTypeConfig::struct_set_value(
 }
 
 
+// static
+ZoneTypeConfig::Range* ZoneTypeConfig::range_create(Zone* zone) {
+  Range* range = reinterpret_cast<Range*>(zone->New(sizeof(Range)));  // NOLINT
+  range->tag = reinterpret_cast<void*>(kRangeStructTag);
+  range->bitset = 0;
+  range->limits[0] = 1;
+  range->limits[1] = 0;
+  return range;
+}
+
+
+// static
+int ZoneTypeConfig::range_get_bitset(ZoneTypeConfig::Range* range) {
+  return range->bitset;
+}
+
+
+// static
+void ZoneTypeConfig::range_set_bitset(ZoneTypeConfig::Range* range, int value) {
+  range->bitset = value;
+}
+
+
+// static
+double ZoneTypeConfig::range_get_double(ZoneTypeConfig::Range* range,
+                                        int index) {
+  DCHECK(index >= 0 && index < 2);
+  return range->limits[index];
+}
+
+
+// static
+void ZoneTypeConfig::range_set_double(ZoneTypeConfig::Range* range, int index,
+                                      double value, Zone*) {
+  DCHECK(index >= 0 && index < 2);
+  range->limits[index] = value;
+}
+
+
 // -----------------------------------------------------------------------------
 // HeapTypeConfig
 
@@ -239,7 +316,14 @@ bool HeapTypeConfig::is_class(Type* type) {
 
 // static
 bool HeapTypeConfig::is_struct(Type* type, int tag) {
+  DCHECK(tag != kRangeStructTag);
   return type->IsFixedArray() && struct_tag(as_struct(type)) == tag;
+}
+
+
+// static
+bool HeapTypeConfig::is_range(Type* type) {
+  return type->IsFixedArray() && struct_tag(as_struct(type)) == kRangeStructTag;
 }
 
 
@@ -259,6 +343,12 @@ i::Handle<i::Map> HeapTypeConfig::as_class(Type* type) {
 // static
 i::Handle<HeapTypeConfig::Struct> HeapTypeConfig::as_struct(Type* type) {
   return i::handle(Struct::cast(type));
+}
+
+
+// static
+i::Handle<HeapTypeConfig::Range> HeapTypeConfig::as_range(Type* type) {
+  return i::handle(Range::cast(type));
 }
 
 
@@ -287,6 +377,13 @@ i::Handle<HeapTypeConfig::Type> HeapTypeConfig::from_class(
 i::Handle<HeapTypeConfig::Type> HeapTypeConfig::from_struct(
     i::Handle<Struct> structure) {
   return i::Handle<Type>::cast(i::Handle<Object>::cast(structure));
+}
+
+
+// static
+i::Handle<HeapTypeConfig::Type> HeapTypeConfig::from_range(
+    i::Handle<Range> range) {
+  return i::Handle<Type>::cast(i::Handle<Object>::cast(range));
 }
 
 
@@ -348,6 +445,46 @@ void HeapTypeConfig::struct_set_value(
   structure->set(i + 1, *x);
 }
 
+
+// static
+i::Handle<HeapTypeConfig::Range> HeapTypeConfig::range_create(
+    Isolate* isolate) {
+  i::Handle<Range> range = isolate->factory()->NewFixedArray(4);
+  range->set(0, i::Smi::FromInt(kRangeStructTag));
+  return range;
+}
+
+
+// static
+int HeapTypeConfig::range_get_bitset(i::Handle<HeapTypeConfig::Range> range) {
+  Type* v = static_cast<Type*>(range->get(1));
+  return as_bitset(v);
+}
+
+
+// static
+void HeapTypeConfig::range_set_bitset(i::Handle<HeapTypeConfig::Range> range,
+                                      int value) {
+  range->set(1, from_bitset(value));
+}
+
+
+// static
+double HeapTypeConfig::range_get_double(i::Handle<HeapTypeConfig::Range> range,
+                                        int index) {
+  DCHECK(index >= 0 && index < 2);
+  return range->get(index + 2)->Number();
+}
+
+
+// static
+void HeapTypeConfig::range_set_double(i::Handle<HeapTypeConfig::Range> range,
+                                      int index, double value,
+                                      Isolate* isolate) {
+  DCHECK(index >= 0 && index < 2);
+  i::Handle<Object> number = isolate->factory()->NewNumber(value);
+  range->set(index + 2, *number);
+}
 } }  // namespace v8::internal
 
 #endif  // V8_TYPES_INL_H_

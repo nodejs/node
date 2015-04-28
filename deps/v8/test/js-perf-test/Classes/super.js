@@ -10,39 +10,37 @@ var SuperBenchmark = new BenchmarkSuite('Super', [100], [
 ]);
 
 
-function Base() { }
-Base.prototype = {
-  constructor: Base,
+class Base {
+  constructor() {}
   get x() {
     return this._x++;
-  },
+  }
   set x(v) {
     this._x += v;
     return this._x;
   }
+  f() {
+    return this._x++;
+  }
 }
 
-Base.prototype.f = function() {
-  return this._x++;
-}.toMethod(Base.prototype);
 
-function Derived() {
-  this._x = 1;
+class Derived extends Base {
+  constructor() {
+    super();
+    this._x = 1;
+  }
+  SuperCall() {
+    return super.f();
+  }
+  GetterCall() {
+    return super.x;
+  }
+  SetterCall() {
+    return super.x = 5;
+  }
 }
-Derived.prototype = Object.create(Base.prototype);
-Object.setPrototypeOf(Derived, Base);
 
-Derived.prototype.SuperCall = function() {
-  return super.f();
-}.toMethod(Derived.prototype);
-
-Derived.prototype.GetterCall = function() {
-  return super.x;
-}.toMethod(Derived.prototype);
-
-Derived.prototype.SetterCall = function() {
-  return super.x = 5;
-}.toMethod(Derived.prototype);
 
 var derived = new Derived();
 

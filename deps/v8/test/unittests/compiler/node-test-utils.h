@@ -31,15 +31,33 @@ class Node;
 using ::testing::Matcher;
 
 
+Matcher<Node*> IsAlways();
+Matcher<Node*> IsEnd(const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsBranch(const Matcher<Node*>& value_matcher,
                         const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsMerge(const Matcher<Node*>& control0_matcher,
                        const Matcher<Node*>& control1_matcher);
+Matcher<Node*> IsMerge(const Matcher<Node*>& control0_matcher,
+                       const Matcher<Node*>& control1_matcher,
+                       const Matcher<Node*>& control2_matcher);
+Matcher<Node*> IsLoop(const Matcher<Node*>& control0_matcher,
+                      const Matcher<Node*>& control1_matcher);
+Matcher<Node*> IsLoop(const Matcher<Node*>& control0_matcher,
+                      const Matcher<Node*>& control1_matcher,
+                      const Matcher<Node*>& control2_matcher);
 Matcher<Node*> IsIfTrue(const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsIfFalse(const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsSwitch(const Matcher<Node*>& value_matcher,
+                        const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsIfValue(const Matcher<int32_t>& value_matcher,
+                         const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsIfDefault(const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsValueEffect(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsFinish(const Matcher<Node*>& value_matcher,
                         const Matcher<Node*>& effect_matcher);
+Matcher<Node*> IsReturn(const Matcher<Node*>& value_matcher,
+                        const Matcher<Node*>& effect_matcher,
+                        const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsExternalConstant(
     const Matcher<ExternalReference>& value_matcher);
 Matcher<Node*> IsHeapConstant(
@@ -57,9 +75,16 @@ Matcher<Node*> IsPhi(const Matcher<MachineType>& type_matcher,
                      const Matcher<Node*>& value0_matcher,
                      const Matcher<Node*>& value1_matcher,
                      const Matcher<Node*>& merge_matcher);
+Matcher<Node*> IsPhi(const Matcher<MachineType>& type_matcher,
+                     const Matcher<Node*>& value0_matcher,
+                     const Matcher<Node*>& value1_matcher,
+                     const Matcher<Node*>& value2_matcher,
+                     const Matcher<Node*>& merge_matcher);
 Matcher<Node*> IsEffectPhi(const Matcher<Node*>& effect0_matcher,
                            const Matcher<Node*>& effect1_matcher,
                            const Matcher<Node*>& merge_matcher);
+Matcher<Node*> IsEffectSet(const Matcher<Node*>& effect0_matcher,
+                           const Matcher<Node*>& effect1_matcher);
 Matcher<Node*> IsProjection(const Matcher<size_t>& index_matcher,
                             const Matcher<Node*>& base_matcher);
 Matcher<Node*> IsCall(const Matcher<CallDescriptor*>& descriptor_matcher,
@@ -118,6 +143,8 @@ Matcher<Node*> IsStoreElement(const Matcher<ElementAccess>& access_matcher,
                               const Matcher<Node*>& value_matcher,
                               const Matcher<Node*>& effect_matcher,
                               const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsObjectIsSmi(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsObjectIsNonNegativeSmi(const Matcher<Node*>& value_matcher);
 
 Matcher<Node*> IsLoad(const Matcher<LoadRepresentation>& rep_matcher,
                       const Matcher<Node*>& base_matcher,

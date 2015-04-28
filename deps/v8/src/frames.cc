@@ -754,7 +754,7 @@ int JavaScriptFrame::GetNumberOfIncomingArguments() const {
   DCHECK(can_access_heap_objects() &&
          isolate()->heap()->gc_state() == Heap::NOT_IN_GC);
 
-  return function()->shared()->formal_parameter_count();
+  return function()->shared()->internal_formal_parameter_count();
 }
 
 
@@ -1310,7 +1310,7 @@ void ArgumentsAdaptorFrame::Print(StringStream* accumulator,
   int actual = ComputeParametersCount();
   int expected = -1;
   JSFunction* function = this->function();
-  expected = function->shared()->formal_parameter_count();
+  expected = function->shared()->internal_formal_parameter_count();
 
   PrintIndex(accumulator, mode, index);
   accumulator->Add("arguments adaptor frame: %d->%d", actual, expected);

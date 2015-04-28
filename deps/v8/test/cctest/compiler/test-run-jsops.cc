@@ -212,7 +212,7 @@ TEST(BinopLessThan) {
 }
 
 
-TEST(BinopLessThanEqual) {
+TEST(BinopLessThanOrEqual) {
   FunctionTester T("(function(a,b) { return a <= b; })");
 
   T.CheckTrue(7, 8);
@@ -521,4 +521,25 @@ TEST(RegExpLiteral) {
 
   T.CheckTrue(T.Val("abc"));
   T.CheckFalse(T.Val("xyz"));
+}
+
+
+TEST(ClassLiteral) {
+  FLAG_harmony_classes = true;
+  FLAG_harmony_sloppy = true;
+  FLAG_harmony_object_literals = true;
+  const char* src =
+      "(function(a,b) {"
+      "  class C {"
+      "    x() { return a; }"
+      "    static y() { return b; }"
+      "    get z() { return 0; }"
+      "    constructor() {}"
+      "  }"
+      "  return new C().x() + C.y();"
+      "})";
+  FunctionTester T(src);
+
+  T.CheckCall(T.Val(65), T.Val(23), T.Val(42));
+  T.CheckCall(T.Val("ab"), T.Val("a"), T.Val("b"));
 }

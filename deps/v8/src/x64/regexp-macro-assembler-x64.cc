@@ -93,12 +93,11 @@ namespace internal {
 
 #define __ ACCESS_MASM((&masm_))
 
-RegExpMacroAssemblerX64::RegExpMacroAssemblerX64(
-    Mode mode,
-    int registers_to_save,
-    Zone* zone)
-    : NativeRegExpMacroAssembler(zone),
-      masm_(zone->isolate(), NULL, kRegExpCodeSize),
+RegExpMacroAssemblerX64::RegExpMacroAssemblerX64(Isolate* isolate, Zone* zone,
+                                                 Mode mode,
+                                                 int registers_to_save)
+    : NativeRegExpMacroAssembler(isolate, zone),
+      masm_(isolate, NULL, kRegExpCodeSize),
       no_root_array_scope_(&masm_),
       code_relative_fixup_positions_(4, zone),
       mode_(mode),

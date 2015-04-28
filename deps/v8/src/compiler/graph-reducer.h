@@ -5,12 +5,17 @@
 #ifndef V8_COMPILER_GRAPH_REDUCER_H_
 #define V8_COMPILER_GRAPH_REDUCER_H_
 
-#include "src/compiler/graph.h"
+#include "src/compiler/node-marker.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+// Forward declarations.
+class Graph;
+class Node;
+
 
 // Represents the result of trying to reduce a node in the graph.
 class Reduction FINAL {

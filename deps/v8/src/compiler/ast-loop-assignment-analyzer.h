@@ -7,7 +7,6 @@
 
 #include "src/ast.h"
 #include "src/bit-vector.h"
-#include "src/v8.h"
 #include "src/zone-containers.h"
 
 namespace v8 {

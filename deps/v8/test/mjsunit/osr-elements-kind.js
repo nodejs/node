@@ -88,11 +88,10 @@ function assertKind(expected, obj, name_opt) {
   assertEquals(expected, getKind(obj), name_opt);
 }
 
-// long-running loop forces OSR.
 %NeverOptimizeFunction(construct_smis);
 %NeverOptimizeFunction(construct_doubles);
 %NeverOptimizeFunction(convert_mixed);
-for (var i = 0; i < 1000000; i++) { }
+for (var i = 0; i < 10; i++) { if (i == 5) %OptimizeOsr(); }
 
 // This code exists to eliminate the learning influence of AllocationSites
 // on the following tests.

@@ -22,7 +22,8 @@ namespace compiler {
 // A class that just passes node creation on to the Graph.
 class DirectGraphBuilder : public GraphBuilder {
  public:
-  explicit DirectGraphBuilder(Graph* graph) : GraphBuilder(graph) {}
+  DirectGraphBuilder(Isolate* isolate, Graph* graph)
+      : GraphBuilder(isolate, graph) {}
   virtual ~DirectGraphBuilder() {}
 
  protected:
@@ -35,7 +36,7 @@ class DirectGraphBuilder : public GraphBuilder {
 
 class MachineCallHelper : public CallHelper {
  public:
-  MachineCallHelper(Zone* zone, MachineSignature* machine_sig);
+  MachineCallHelper(Isolate* isolate, MachineSignature* machine_sig);
 
   Node* Parameter(size_t index);
 
@@ -51,6 +52,7 @@ class MachineCallHelper : public CallHelper {
  private:
   Node** parameters_;
   // TODO(dcarney): shouldn't need graph stored.
+  Isolate* isolate_;
   Graph* graph_;
   MaybeHandle<Code> code_;
 };
@@ -88,12 +90,12 @@ class GraphBuilderTester
                               MachineType p4 = kMachNone)
       : GraphAndBuilders(main_zone()),
         MachineCallHelper(
-            main_zone(),
+            main_isolate(),
             MakeMachineSignature(
                 main_zone(), ReturnValueTraits<ReturnType>::Representation(),
                 p0, p1, p2, p3, p4)),
-        SimplifiedGraphBuilder(main_graph_, &main_common_, &main_machine_,
-                               &main_simplified_) {
+        SimplifiedGraphBuilder(main_isolate(), main_graph_, &main_common_,
+                               &main_machine_, &main_simplified_) {
     Begin(static_cast<int>(parameter_count()));
     InitParameters(this, &main_common_);
   }

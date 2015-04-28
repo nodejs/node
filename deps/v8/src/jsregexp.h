@@ -7,7 +7,6 @@
 
 #include "src/allocation.h"
 #include "src/assembler.h"
-#include "src/zone-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -240,7 +239,7 @@ class CharacterRange {
  public:
   CharacterRange() : from_(0), to_(0) { }
   // For compatibility with the CHECK_OK macro
-  CharacterRange(void* null) { DCHECK_EQ(NULL, null); }  //NOLINT
+  CharacterRange(void* null) { DCHECK_NULL(null); }  // NOLINT
   CharacterRange(uc16 from, uc16 to) : from_(from), to_(to) { }
   static void AddClassEscape(uc16 type, ZoneList<CharacterRange>* ranges,
                              Zone* zone);
@@ -263,8 +262,8 @@ class CharacterRange {
   bool is_valid() { return from_ <= to_; }
   bool IsEverything(uc16 max) { return from_ == 0 && to_ >= max; }
   bool IsSingleton() { return (from_ == to_); }
-  void AddCaseEquivalents(ZoneList<CharacterRange>* ranges, bool is_one_byte,
-                          Zone* zone);
+  void AddCaseEquivalents(Isolate* isolate, Zone* zone,
+                          ZoneList<CharacterRange>* ranges, bool is_one_byte);
   static void Split(ZoneList<CharacterRange>* base,
                     Vector<const int> overlay,
                     ZoneList<CharacterRange>** included,
@@ -847,7 +846,7 @@ class TextNode: public SeqRegExpNode {
                                     int characters_filled_in,
                                     bool not_at_start);
   ZoneList<TextElement>* elements() { return elms_; }
-  void MakeCaseIndependent(bool is_one_byte);
+  void MakeCaseIndependent(Isolate* isolate, bool is_one_byte);
   virtual int GreedyLoopTextLength();
   virtual RegExpNode* GetSuccessorOfOmnivorousTextNode(
       RegExpCompiler* compiler);
@@ -1598,8 +1597,9 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 //   +-------+        +------------+
 class Analysis: public NodeVisitor {
  public:
-  Analysis(bool ignore_case, bool is_one_byte)
-      : ignore_case_(ignore_case),
+  Analysis(Isolate* isolate, bool ignore_case, bool is_one_byte)
+      : isolate_(isolate),
+        ignore_case_(ignore_case),
         is_one_byte_(is_one_byte),
         error_message_(NULL) {}
   void EnsureAnalyzed(RegExpNode* node);
@@ -1619,7 +1619,10 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
     error_message_ = error_message;
   }
 
+  Isolate* isolate() const { return isolate_; }
+
  private:
+  Isolate* isolate_;
   bool ignore_case_;
   bool is_one_byte_;
   const char* error_message_;
@@ -1652,19 +1655,18 @@ class RegExpEngine: public AllStatic {
           code(isolate->heap()->the_hole_value()),
           num_registers(0) {}
     CompilationResult(Object* code, int registers)
-      : error_message(NULL),
-        code(code),
-        num_registers(registers) {}
+        : error_message(NULL), code(code), num_registers(registers) {}
     const char* error_message;
     Object* code;
     int num_registers;
   };
 
-  static CompilationResult Compile(RegExpCompileData* input, bool ignore_case,
+  static CompilationResult Compile(Isolate* isolate, Zone* zone,
+                                   RegExpCompileData* input, bool ignore_case,
                                    bool global, bool multiline, bool sticky,
                                    Handle<String> pattern,
                                    Handle<String> sample_subject,
-                                   bool is_one_byte, Zone* zone);
+                                   bool is_one_byte);
 
   static bool TooMuchRegExpCode(Handle<String> pattern);
 

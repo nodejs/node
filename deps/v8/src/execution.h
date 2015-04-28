@@ -98,12 +98,6 @@ class Execution FINAL : public AllStatic {
   static Handle<Object> CharAt(Handle<String> str, uint32_t index);
 
   static Handle<Object> GetFunctionFor();
-  MUST_USE_RESULT static MaybeHandle<JSFunction> InstantiateFunction(
-      Handle<FunctionTemplateInfo> data);
-  MUST_USE_RESULT static MaybeHandle<JSObject> InstantiateObject(
-      Handle<ObjectTemplateInfo> data);
-  MUST_USE_RESULT static MaybeHandle<Object> ConfigureInstance(
-      Isolate* isolate,  Handle<Object> instance, Handle<Object> data);
   static Handle<String> GetStackTraceLine(Handle<Object> recv,
                                           Handle<JSFunction> fun,
                                           Handle<Object> pos,

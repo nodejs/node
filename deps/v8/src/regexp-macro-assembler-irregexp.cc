@@ -16,14 +16,15 @@ namespace internal {
 
 #ifdef V8_INTERPRETED_REGEXP
 
-RegExpMacroAssemblerIrregexp::RegExpMacroAssemblerIrregexp(Vector<byte> buffer,
+RegExpMacroAssemblerIrregexp::RegExpMacroAssemblerIrregexp(Isolate* isolate,
+                                                           Vector<byte> buffer,
                                                            Zone* zone)
-    : RegExpMacroAssembler(zone),
+    : RegExpMacroAssembler(isolate, zone),
       buffer_(buffer),
       pc_(0),
       own_buffer_(false),
       advance_current_end_(kInvalidPC),
-      isolate_(zone->isolate()) { }
+      isolate_(isolate) {}
 
 
 RegExpMacroAssemblerIrregexp::~RegExpMacroAssemblerIrregexp() {

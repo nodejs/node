@@ -5,7 +5,7 @@
 #ifndef V8_COMPILER_REGISTER_CONFIGURATION_H_
 #define V8_COMPILER_REGISTER_CONFIGURATION_H_
 
-#include "src/v8.h"
+#include "src/base/macros.h"
 
 namespace v8 {
 namespace internal {

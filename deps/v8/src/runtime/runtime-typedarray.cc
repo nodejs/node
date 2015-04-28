@@ -63,6 +63,8 @@ bool Runtime::SetupArrayBufferAllocatingData(Isolate* isolate,
                                              bool initialize) {
   void* data;
   CHECK(V8::ArrayBufferAllocator() != NULL);
+  // Prevent creating array buffers when serializing.
+  DCHECK(!isolate->serializer_enabled());
   if (allocated_length != 0) {
     if (initialize) {
       data = V8::ArrayBufferAllocator()->Allocate(allocated_length);

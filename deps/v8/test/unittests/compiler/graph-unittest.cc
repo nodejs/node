@@ -4,7 +4,7 @@
 
 #include "test/unittests/compiler/graph-unittest.h"
 
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
 #include "test/unittests/compiler/node-test-utils.h"
 
 namespace v8 {
@@ -13,6 +13,7 @@ namespace compiler {
 
 GraphTest::GraphTest(int num_parameters) : common_(zone()), graph_(zone()) {
   graph()->SetStart(graph()->NewNode(common()->Start(num_parameters)));
+  graph()->SetEnd(graph()->NewNode(common()->End(), graph()->start()));
 }
 
 
@@ -92,8 +93,15 @@ Matcher<Node*> GraphTest::IsTrueConstant() {
 }
 
 
+Matcher<Node*> GraphTest::IsUndefinedConstant() {
+  return IsHeapConstant(
+      Unique<HeapObject>::CreateImmovable(factory()->undefined_value()));
+}
+
+
 TypedGraphTest::TypedGraphTest(int num_parameters)
-    : GraphTest(num_parameters), typer_(graph(), MaybeHandle<Context>()) {}
+    : GraphTest(num_parameters),
+      typer_(isolate(), graph(), MaybeHandle<Context>()) {}
 
 
 TypedGraphTest::~TypedGraphTest() {}
@@ -103,6 +111,26 @@ Node* TypedGraphTest::Parameter(Type* type, int32_t index) {
   Node* node = GraphTest::Parameter(index);
   NodeProperties::SetBounds(node, Bounds(type));
   return node;
+}
+
+
+namespace {
+
+const Operator kDummyOperator(0, Operator::kNoProperties, "Dummy", 0, 0, 0, 1,
+                              0, 0);
+
+}  // namespace
+
+
+TEST_F(GraphTest, NewNode) {
+  Node* n0 = graph()->NewNode(&kDummyOperator);
+  Node* n1 = graph()->NewNode(&kDummyOperator);
+  EXPECT_NE(n0, n1);
+  EXPECT_LT(0, n0->id());
+  EXPECT_LT(0, n1->id());
+  EXPECT_NE(n0->id(), n1->id());
+  EXPECT_EQ(&kDummyOperator, n0->op());
+  EXPECT_EQ(&kDummyOperator, n1->op());
 }
 
 }  // namespace compiler

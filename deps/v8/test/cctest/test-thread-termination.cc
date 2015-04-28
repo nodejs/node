@@ -270,31 +270,23 @@ TEST(TerminateLoadICException) {
 }
 
 
+v8::Persistent<v8::String> reenter_script_1;
+v8::Persistent<v8::String> reenter_script_2;
+
 void ReenterAfterTermination(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::TryCatch try_catch;
-  CHECK(!v8::V8::IsExecutionTerminating(args.GetIsolate()));
-  v8::Script::Compile(v8::String::NewFromUtf8(args.GetIsolate(),
-                                              "function f() {"
-                                              "  var term = true;"
-                                              "  try {"
-                                              "    while(true) {"
-                                              "      if (term) terminate();"
-                                              "      term = false;"
-                                              "    }"
-                                              "    fail();"
-                                              "  } catch(e) {"
-                                              "    fail();"
-                                              "  }"
-                                              "}"
-                                              "f()"))->Run();
+  v8::Isolate* isolate = args.GetIsolate();
+  CHECK(!v8::V8::IsExecutionTerminating(isolate));
+  v8::Local<v8::String> script =
+      v8::Local<v8::String>::New(isolate, reenter_script_1);
+  v8::Script::Compile(script)->Run();
   CHECK(try_catch.HasCaught());
   CHECK(try_catch.Exception()->IsNull());
   CHECK(try_catch.Message().IsEmpty());
   CHECK(!try_catch.CanContinue());
-  CHECK(v8::V8::IsExecutionTerminating(args.GetIsolate()));
-  v8::Script::Compile(v8::String::NewFromUtf8(args.GetIsolate(),
-                                              "function f() { fail(); } f()"))
-      ->Run();
+  CHECK(v8::V8::IsExecutionTerminating(isolate));
+  script = v8::Local<v8::String>::New(isolate, reenter_script_2);
+  v8::Script::Compile(script)->Run();
 }
 
 
@@ -309,17 +301,28 @@ TEST(TerminateAndReenterFromThreadItself) {
       v8::Context::New(isolate, NULL, global);
   v8::Context::Scope context_scope(context);
   CHECK(!v8::V8::IsExecutionTerminating());
-  v8::Handle<v8::String> source = v8::String::NewFromUtf8(
-      isolate, "try { loop(); fail(); } catch(e) { fail(); }");
-  v8::Script::Compile(source)->Run();
+  // Create script strings upfront as it won't work when terminating.
+  reenter_script_1.Reset(isolate, v8_str(
+                                      "function f() {"
+                                      "  var term = true;"
+                                      "  try {"
+                                      "    while(true) {"
+                                      "      if (term) terminate();"
+                                      "      term = false;"
+                                      "    }"
+                                      "    fail();"
+                                      "  } catch(e) {"
+                                      "    fail();"
+                                      "  }"
+                                      "}"
+                                      "f()"));
+  reenter_script_2.Reset(isolate, v8_str("function f() { fail(); } f()"));
+  CompileRun("try { loop(); fail(); } catch(e) { fail(); }");
   CHECK(!v8::V8::IsExecutionTerminating(isolate));
   // Check we can run JS again after termination.
-  CHECK(v8::Script::Compile(
-      v8::String::NewFromUtf8(isolate,
-                              "function f() { return true; }"
-                              "f()"))
-            ->Run()
-            ->IsTrue());
+  CHECK(CompileRun("function f() { return true; } f()")->IsTrue());
+  reenter_script_1.Reset();
+  reenter_script_2.Reset();
 }
 
 

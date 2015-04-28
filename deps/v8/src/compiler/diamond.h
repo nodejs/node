@@ -5,10 +5,8 @@
 #ifndef V8_COMPILER_DIAMOND_H_
 #define V8_COMPILER_DIAMOND_H_
 
-#include "src/v8.h"
-
 #include "src/compiler/common-operator.h"
-#include "src/compiler/graph-inl.h"
+#include "src/compiler/graph.h"
 #include "src/compiler/node.h"
 
 namespace v8 {

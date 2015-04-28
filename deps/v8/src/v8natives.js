@@ -654,6 +654,15 @@ function Delete(obj, p, should_throw) {
 }
 
 
+// ES6, draft 12-24-14, section 7.3.8
+function GetMethod(obj, p) {
+  var func = obj[p];
+  if (IS_NULL_OR_UNDEFINED(func)) return UNDEFINED;
+  if (IS_SPEC_FUNCTION(func)) return func;
+  throw MakeTypeError('called_non_callable', [typeof func]);
+}
+
+
 // Harmony proxies.
 function DefineProxyProperty(obj, p, attributes, should_throw) {
   // TODO(rossberg): adjust once there is a story for symbols vs proxies.

@@ -49,6 +49,10 @@
 #include "src/v8.h"
 #endif  // !V8_SHARED
 
+#ifdef V8_USE_EXTERNAL_STARTUP_DATA
+#include "src/startup-data-util.h"
+#endif  // V8_USE_EXTERNAL_STARTUP_DATA
+
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <unistd.h>  // NOLINT
 #else
@@ -60,6 +64,10 @@
 
 #ifndef DCHECK
 #define DCHECK(condition) assert(condition)
+#endif
+
+#ifndef CHECK
+#define CHECK(condition) assert(condition)
 #endif
 
 namespace v8 {
@@ -221,14 +229,17 @@ ScriptCompiler::CachedData* CompileForCachedData(
 
 
 // Compile a string within the current v8 context.
-Local<UnboundScript> Shell::CompileString(
+Local<Script> Shell::CompileString(
     Isolate* isolate, Local<String> source, Local<Value> name,
-    ScriptCompiler::CompileOptions compile_options) {
+    ScriptCompiler::CompileOptions compile_options, SourceType source_type) {
   ScriptOrigin origin(name);
   if (compile_options == ScriptCompiler::kNoCompileOptions) {
     ScriptCompiler::Source script_source(source, origin);
-    return ScriptCompiler::CompileUnbound(isolate, &script_source,
-                                          compile_options);
+    return source_type == SCRIPT
+               ? ScriptCompiler::Compile(isolate, &script_source,
+                                         compile_options)
+               : ScriptCompiler::CompileModule(isolate, &script_source,
+                                               compile_options);
   }
 
   ScriptCompiler::CachedData* data =
@@ -242,17 +253,20 @@ Local<UnboundScript> Shell::CompileString(
     DCHECK(false);  // A new compile option?
   }
   if (data == NULL) compile_options = ScriptCompiler::kNoCompileOptions;
-  return ScriptCompiler::CompileUnbound(isolate, &cached_source,
-                                        compile_options);
+  Local<Script> result =
+      source_type == SCRIPT
+          ? ScriptCompiler::Compile(isolate, &cached_source, compile_options)
+          : ScriptCompiler::CompileModule(isolate, &cached_source,
+                                          compile_options);
+  CHECK(data == NULL || !data->rejected);
+  return result;
 }
 
 
 // Executes a string within the current v8 context.
-bool Shell::ExecuteString(Isolate* isolate,
-                          Handle<String> source,
-                          Handle<Value> name,
-                          bool print_result,
-                          bool report_exceptions) {
+bool Shell::ExecuteString(Isolate* isolate, Handle<String> source,
+                          Handle<Value> name, bool print_result,
+                          bool report_exceptions, SourceType source_type) {
 #ifndef V8_SHARED
   bool FLAG_debugger = i::FLAG_debugger;
 #else
@@ -266,61 +280,61 @@ bool Shell::ExecuteString(Isolate* isolate,
     try_catch.SetVerbose(true);
   }
 
-  Handle<UnboundScript> script =
-      Shell::CompileString(isolate, source, name, options.compile_options);
-  if (script.IsEmpty()) {
-    // Print errors that happened during compilation.
-    if (report_exceptions && !FLAG_debugger)
-      ReportException(isolate, &try_catch);
-    return false;
-  } else {
+  Handle<Value> result;
+  {
     PerIsolateData* data = PerIsolateData::Get(isolate);
     Local<Context> realm =
         Local<Context>::New(isolate, data->realms_[data->realm_current_]);
-    realm->Enter();
-    Handle<Value> result = script->BindToCurrentContext()->Run();
-    realm->Exit();
-    data->realm_current_ = data->realm_switch_;
-    if (result.IsEmpty()) {
-      DCHECK(try_catch.HasCaught());
-      // Print errors that happened during execution.
+    Context::Scope context_scope(realm);
+    Handle<Script> script = Shell::CompileString(
+        isolate, source, name, options.compile_options, source_type);
+    if (script.IsEmpty()) {
+      // Print errors that happened during compilation.
       if (report_exceptions && !FLAG_debugger)
         ReportException(isolate, &try_catch);
       return false;
-    } else {
-      DCHECK(!try_catch.HasCaught());
-      if (print_result) {
-#if !defined(V8_SHARED)
-        if (options.test_shell) {
-#endif
-          if (!result->IsUndefined()) {
-            // If all went well and the result wasn't undefined then print
-            // the returned value.
-            v8::String::Utf8Value str(result);
-            fwrite(*str, sizeof(**str), str.length(), stdout);
-            printf("\n");
-          }
-#if !defined(V8_SHARED)
-        } else {
-          v8::TryCatch try_catch;
-          v8::Local<v8::Context> context =
-              v8::Local<v8::Context>::New(isolate, utility_context_);
-          v8::Context::Scope context_scope(context);
-          Handle<Object> global = context->Global();
-          Handle<Value> fun =
-              global->Get(String::NewFromUtf8(isolate, "Stringify"));
-          Handle<Value> argv[1] = { result };
-          Handle<Value> s = Handle<Function>::Cast(fun)->Call(global, 1, argv);
-          if (try_catch.HasCaught()) return true;
-          v8::String::Utf8Value str(s);
-          fwrite(*str, sizeof(**str), str.length(), stdout);
-          printf("\n");
-        }
-#endif
-      }
-      return true;
     }
+    result = script->Run();
+    data->realm_current_ = data->realm_switch_;
   }
+  if (result.IsEmpty()) {
+    DCHECK(try_catch.HasCaught());
+    // Print errors that happened during execution.
+    if (report_exceptions && !FLAG_debugger)
+      ReportException(isolate, &try_catch);
+    return false;
+  }
+  DCHECK(!try_catch.HasCaught());
+  if (print_result) {
+#if !defined(V8_SHARED)
+    if (options.test_shell) {
+#endif
+      if (!result->IsUndefined()) {
+        // If all went well and the result wasn't undefined then print
+        // the returned value.
+        v8::String::Utf8Value str(result);
+        fwrite(*str, sizeof(**str), str.length(), stdout);
+        printf("\n");
+      }
+#if !defined(V8_SHARED)
+    } else {
+      v8::TryCatch try_catch;
+      v8::Local<v8::Context> context =
+          v8::Local<v8::Context>::New(isolate, utility_context_);
+      v8::Context::Scope context_scope(context);
+      Handle<Object> global = context->Global();
+      Handle<Value> fun =
+          global->Get(String::NewFromUtf8(isolate, "Stringify"));
+      Handle<Value> argv[1] = {result};
+      Handle<Value> s = Handle<Function>::Cast(fun)->Call(global, 1, argv);
+      if (try_catch.HasCaught()) return true;
+      v8::String::Utf8Value str(s);
+      fwrite(*str, sizeof(**str), str.length(), stdout);
+      printf("\n");
+    }
+#endif
+  }
+  return true;
 }
 
 
@@ -824,7 +838,20 @@ void Shell::AddHistogramSample(void* histogram, int sample) {
 }
 
 
+class NoUseStrongForUtilityScriptScope {
+ public:
+  NoUseStrongForUtilityScriptScope() : flag_(i::FLAG_use_strong) {
+    i::FLAG_use_strong = false;
+  }
+  ~NoUseStrongForUtilityScriptScope() { i::FLAG_use_strong = flag_; }
+
+ private:
+  bool flag_;
+};
+
+
 void Shell::InstallUtilityScript(Isolate* isolate) {
+  NoUseStrongForUtilityScriptScope no_use_strong;
   HandleScope scope(isolate);
   // If we use the utility context, we have to set the security tokens so that
   // utility, evaluation and debug context can all access each other.
@@ -1189,6 +1216,7 @@ void SourceGroup::Execute(Isolate* isolate) {
   bool exception_was_thrown = false;
   for (int i = begin_offset_; i < end_offset_; ++i) {
     const char* arg = argv_[i];
+    Shell::SourceType source_type = Shell::SCRIPT;
     if (strcmp(arg, "-e") == 0 && i + 1 < end_offset_) {
       // Execute argument given to -e option directly.
       HandleScope handle_scope(isolate);
@@ -1199,21 +1227,28 @@ void SourceGroup::Execute(Isolate* isolate) {
         break;
       }
       ++i;
+      continue;
+    } else if (strcmp(arg, "--module") == 0 && i + 1 < end_offset_) {
+      // Treat the next file as a module.
+      source_type = Shell::MODULE;
+      arg = argv_[++i];
     } else if (arg[0] == '-') {
       // Ignore other options. They have been parsed already.
-    } else {
-      // Use all other arguments as names of files to load and run.
-      HandleScope handle_scope(isolate);
-      Handle<String> file_name = String::NewFromUtf8(isolate, arg);
-      Handle<String> source = ReadFile(isolate, arg);
-      if (source.IsEmpty()) {
-        printf("Error reading '%s'\n", arg);
-        Shell::Exit(1);
-      }
-      if (!Shell::ExecuteString(isolate, source, file_name, false, true)) {
-        exception_was_thrown = true;
-        break;
-      }
+      continue;
+    }
+
+    // Use all other arguments as names of files to load and run.
+    HandleScope handle_scope(isolate);
+    Handle<String> file_name = String::NewFromUtf8(isolate, arg);
+    Handle<String> source = ReadFile(isolate, arg);
+    if (source.IsEmpty()) {
+      printf("Error reading '%s'\n", arg);
+      Shell::Exit(1);
+    }
+    if (!Shell::ExecuteString(isolate, source, file_name, false, true,
+                              source_type)) {
+      exception_was_thrown = true;
+      break;
     }
   }
   if (exception_was_thrown != Shell::options.expected_to_throw) {
@@ -1398,6 +1433,8 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
 
+  bool enable_harmony_modules = false;
+
   // Set up isolated source groups.
   options.isolate_sources = new SourceGroup[options.num_isolates];
   SourceGroup* current = options.isolate_sources;
@@ -1408,6 +1445,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       current->End(i);
       current++;
       current->Begin(argv, i + 1);
+    } else if (strcmp(str, "--module") == 0) {
+      // Pass on to SourceGroup, which understands this option.
+      enable_harmony_modules = true;
     } else if (strncmp(argv[i], "--", 2) == 0) {
       printf("Warning: unknown flag %s.\nTry --help for options\n", argv[i]);
     }
@@ -1416,6 +1456,10 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 
   if (!logfile_per_isolate && options.num_isolates) {
     SetFlagsFromString("--nologfile_per_isolate");
+  }
+
+  if (enable_harmony_modules) {
+    SetFlagsFromString("--harmony-modules");
   }
 
   return true;
@@ -1539,94 +1583,10 @@ class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 
 class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
-  void* Allocate(size_t) OVERRIDE { return malloc(0); }
-  void* AllocateUninitialized(size_t length) OVERRIDE { return malloc(0); }
+  void* Allocate(size_t) OVERRIDE { return malloc(1); }
+  void* AllocateUninitialized(size_t length) OVERRIDE { return malloc(1); }
   void Free(void* p, size_t) OVERRIDE { free(p); }
 };
-
-
-#ifdef V8_USE_EXTERNAL_STARTUP_DATA
-class StartupDataHandler {
- public:
-  StartupDataHandler(const char* exec_path, const char* natives_blob,
-                     const char* snapshot_blob) {
-    // If we have (at least one) explicitly given blob, use those.
-    // If not, use the default blob locations next to the d8 binary.
-    if (natives_blob || snapshot_blob) {
-      LoadFromFiles(natives_blob, snapshot_blob);
-    } else {
-      char* natives;
-      char* snapshot;
-      LoadFromFiles(RelativePath(&natives, exec_path, "natives_blob.bin"),
-                    RelativePath(&snapshot, exec_path, "snapshot_blob.bin"));
-
-      free(natives);
-      free(snapshot);
-    }
-  }
-
-  ~StartupDataHandler() {
-    delete[] natives_.data;
-    delete[] snapshot_.data;
-  }
-
- private:
-  static char* RelativePath(char** buffer, const char* exec_path,
-                            const char* name) {
-    DCHECK(exec_path);
-    const char* last_slash = strrchr(exec_path, '/');
-    if (last_slash) {
-      int after_slash = last_slash - exec_path + 1;
-      int name_length = static_cast<int>(strlen(name));
-      *buffer =
-          reinterpret_cast<char*>(calloc(after_slash + name_length + 1, 1));
-      strncpy(*buffer, exec_path, after_slash);
-      strncat(*buffer, name, name_length);
-    } else {
-      *buffer = strdup(name);
-    }
-    return *buffer;
-  }
-
-  void LoadFromFiles(const char* natives_blob, const char* snapshot_blob) {
-    Load(natives_blob, &natives_, v8::V8::SetNativesDataBlob);
-    Load(snapshot_blob, &snapshot_, v8::V8::SetSnapshotDataBlob);
-  }
-
-  void Load(const char* blob_file,
-            v8::StartupData* startup_data,
-            void (*setter_fn)(v8::StartupData*)) {
-    startup_data->data = NULL;
-    startup_data->raw_size = 0;
-
-    if (!blob_file)
-      return;
-
-    FILE* file = fopen(blob_file, "rb");
-    if (!file)
-      return;
-
-    fseek(file, 0, SEEK_END);
-    startup_data->raw_size = ftell(file);
-    rewind(file);
-
-    startup_data->data = new char[startup_data->raw_size];
-    int read_size =
-        static_cast<int>(fread(const_cast<char*>(startup_data->data), 1,
-                               startup_data->raw_size, file));
-    fclose(file);
-
-    if (startup_data->raw_size == read_size) (*setter_fn)(startup_data);
-  }
-
-  v8::StartupData natives_;
-  v8::StartupData snapshot_;
-
-  // Disallow copy & assign.
-  StartupDataHandler(const StartupDataHandler& other);
-  void operator=(const StartupDataHandler& other);
-};
-#endif  // V8_USE_EXTERNAL_STARTUP_DATA
 
 
 int Shell::Main(int argc, char* argv[]) {
@@ -1651,8 +1611,8 @@ int Shell::Main(int argc, char* argv[]) {
   v8::V8::InitializePlatform(platform);
   v8::V8::Initialize();
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
-  StartupDataHandler startup_data(argv[0], options.natives_blob,
-                                  options.snapshot_blob);
+  v8::StartupDataHandler startup_data(argv[0], options.natives_blob,
+                                      options.snapshot_blob);
 #endif
   SetFlagsFromString("--trace-hydrogen-file=hydrogen.cfg");
   SetFlagsFromString("--trace-turbo-cfg-file=turbo.cfg");

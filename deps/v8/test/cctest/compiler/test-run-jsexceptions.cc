@@ -10,6 +10,7 @@ using namespace v8::internal;
 using namespace v8::internal::compiler;
 
 TEST(Throw) {
+  i::FLAG_turbo_exceptions = true;
   FunctionTester T("(function(a,b) { if (a) { throw b; } else { return b; }})");
 
   T.CheckThrows(T.true_value(), T.NewObject("new Error"));
@@ -42,4 +43,118 @@ TEST(ThrowSourcePosition) {
   CHECK(!message.IsEmpty());
   CHECK_EQ(4, message->GetLineNumber());
   CHECK_EQ(95, message->GetStartPosition());
+}
+
+
+// TODO(mstarzinger): Increase test coverage by having similar tests within the
+// mjsunit suite to also test integration with other components (e.g. OSR).
+
+
+TEST(Catch) {
+  i::FLAG_turbo_exceptions = true;
+  const char* src =
+      "(function(a,b) {"
+      "  var r = '-';"
+      "  try {"
+      "    r += 'A-';"
+      "    throw 'B-';"
+      "  } catch (e) {"
+      "    r += e;"
+      "  }"
+      "  return r;"
+      "})";
+  FunctionTester T(src);
+
+  T.CheckCall(T.Val("-A-B-"));
+}
+
+
+TEST(CatchNested) {
+  i::FLAG_turbo_exceptions = true;
+  const char* src =
+      "(function(a,b) {"
+      "  var r = '-';"
+      "  try {"
+      "    r += 'A-';"
+      "    throw 'C-';"
+      "  } catch (e) {"
+      "    try {"
+      "      throw 'B-';"
+      "    } catch (e) {"
+      "      r += e;"
+      "    }"
+      "    r += e;"
+      "  }"
+      "  return r;"
+      "})";
+  FunctionTester T(src);
+
+  T.CheckCall(T.Val("-A-B-C-"));
+}
+
+
+TEST(CatchBreak) {
+  i::FLAG_turbo_exceptions = true;
+  const char* src =
+      "(function(a,b) {"
+      "  var r = '-';"
+      "  L: try {"
+      "    r += 'A-';"
+      "    if (a) break L;"
+      "    r += 'B-';"
+      "    throw 'C-';"
+      "  } catch (e) {"
+      "    if (b) break L;"
+      "    r += e;"
+      "  }"
+      "  r += 'D-';"
+      "  return r;"
+      "})";
+  FunctionTester T(src);
+
+  T.CheckCall(T.Val("-A-D-"), T.true_value(), T.false_value());
+  T.CheckCall(T.Val("-A-B-D-"), T.false_value(), T.true_value());
+  T.CheckCall(T.Val("-A-B-C-D-"), T.false_value(), T.false_value());
+}
+
+
+TEST(Finally) {
+  i::FLAG_turbo_exceptions = true;
+  const char* src =
+      "(function(a,b) {"
+      "  var r = '-';"
+      "  try {"
+      "    r += 'A-';"
+      "  } finally {"
+      "    r += 'B-';"
+      "  }"
+      "  return r;"
+      "})";
+  FunctionTester T(src);
+
+  T.CheckCall(T.Val("-A-B-"));
+}
+
+
+TEST(FinallyBreak) {
+  i::FLAG_turbo_exceptions = true;
+  const char* src =
+      "(function(a,b) {"
+      "  var r = '-';"
+      "  L: try {"
+      "    r += 'A-';"
+      "    if (a) return r;"
+      "    r += 'B-';"
+      "    if (b) break L;"
+      "    r += 'C-';"
+      "  } finally {"
+      "    r += 'D-';"
+      "  }"
+      "  return r;"
+      "})";
+  FunctionTester T(src);
+
+  T.CheckCall(T.Val("-A-"), T.true_value(), T.false_value());
+  T.CheckCall(T.Val("-A-B-D-"), T.false_value(), T.true_value());
+  T.CheckCall(T.Val("-A-B-C-D-"), T.false_value(), T.false_value());
 }

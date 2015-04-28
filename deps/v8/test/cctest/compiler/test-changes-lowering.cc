@@ -7,7 +7,7 @@
 #include "src/compiler/change-lowering.h"
 #include "src/compiler/control-builders.h"
 #include "src/compiler/js-graph.h"
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/select-lowering.h"
 #include "src/compiler/simplified-lowering.h"
@@ -33,7 +33,8 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
   explicit ChangesLoweringTester(MachineType p0 = kMachNone)
       : GraphBuilderTester<ReturnType>(p0),
         javascript(this->zone()),
-        jsgraph(this->graph(), this->common(), &javascript, this->machine()),
+        jsgraph(this->isolate(), this->graph(), this->common(), &javascript,
+                this->machine()),
         function(Handle<JSFunction>::null()) {}
 
   JSOperatorBuilder javascript;
@@ -125,11 +126,9 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
 
   void LowerChange(Node* change) {
     // Run the graph reducer with changes lowering on a single node.
-    CompilationInfo info(this->isolate(), this->zone());
-    Linkage linkage(this->zone(), &info);
-    Typer typer(this->graph(), info.context());
+    Typer typer(this->isolate(), this->graph(), Handle<Context>());
     typer.Run();
-    ChangeLowering change_lowering(&jsgraph, &linkage);
+    ChangeLowering change_lowering(&jsgraph);
     SelectLowering select_lowering(this->graph(), this->common());
     GraphReducer reducer(this->graph(), this->zone());
     reducer.AddReducer(&change_lowering);
@@ -241,13 +240,13 @@ TEST(RunChangeTaggedToFloat64) {
       {
         Handle<Object> number = t.factory()->NewNumber(input);
         t.Call(*number);
-        CHECK_EQ(input, result);
+        CheckDoubleEq(input, result);
       }
 
       {
         Handle<HeapNumber> number = t.factory()->NewHeapNumber(input);
         t.Call(*number);
-        CHECK_EQ(input, result);
+        CheckDoubleEq(input, result);
       }
     }
   }

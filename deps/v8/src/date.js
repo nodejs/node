@@ -747,6 +747,12 @@ function CheckDateCacheCurrent() {
 }
 
 
+function CreateDate(time) {
+  var date = new $Date();
+  date.setTime(time);
+  return date;
+}
+
 // -------------------------------------------------------------------
 
 function SetUpDate() {

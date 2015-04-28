@@ -26,9 +26,8 @@ Handle<Code> PropertyHandlerCompiler::Find(Handle<Name> name,
 
 
 Handle<Code> NamedLoadHandlerCompiler::ComputeLoadNonexistent(
-    Handle<Name> name, Handle<HeapType> type) {
+    Handle<Name> name, Handle<Map> receiver_map) {
   Isolate* isolate = name->GetIsolate();
-  Handle<Map> receiver_map = IC::TypeToMap(*type, isolate);
   if (receiver_map->prototype()->IsNull()) {
     // TODO(jkummerow/verwaest): If there is no prototype and the property
     // is nonexistent, introduce a builtin to handle this (fast properties
@@ -37,7 +36,7 @@ Handle<Code> NamedLoadHandlerCompiler::ComputeLoadNonexistent(
   }
   CacheHolderFlag flag;
   Handle<Map> stub_holder_map =
-      IC::GetHandlerCacheHolder(*type, false, isolate, &flag);
+      IC::GetHandlerCacheHolder(receiver_map, false, isolate, &flag);
 
   // If no dictionary mode objects are present in the prototype chain, the load
   // nonexistent IC stub can be shared for all names for a given map and we use
@@ -62,7 +61,7 @@ Handle<Code> NamedLoadHandlerCompiler::ComputeLoadNonexistent(
       cache_name, stub_holder_map, Code::LOAD_IC, flag, Code::FAST);
   if (!handler.is_null()) return handler;
 
-  NamedLoadHandlerCompiler compiler(isolate, type, last, flag);
+  NamedLoadHandlerCompiler compiler(isolate, receiver_map, last, flag);
   handler = compiler.CompileLoadNonexistent(cache_name);
   Map::UpdateCodeCache(stub_holder_map, cache_name, handler);
   return handler;
@@ -75,12 +74,10 @@ Handle<Code> PropertyHandlerCompiler::GetCode(Code::Kind kind,
   Code::Flags flags = Code::ComputeHandlerFlags(kind, type, cache_holder());
   Handle<Code> code = GetCodeWithFlags(flags, name);
   PROFILE(isolate(), CodeCreateEvent(Logger::STUB_TAG, *code, *name));
+#ifdef DEBUG
+  code->VerifyEmbeddedObjects();
+#endif
   return code;
-}
-
-
-void PropertyHandlerCompiler::set_type_for_object(Handle<Object> object) {
-  type_ = IC::CurrentTypeOf(object, isolate());
 }
 
 
@@ -92,13 +89,13 @@ Register NamedLoadHandlerCompiler::FrontendHeader(Register object_reg,
                                                   Label* miss) {
   PrototypeCheckType check_type = CHECK_ALL_MAPS;
   int function_index = -1;
-  if (type()->Is(HeapType::String())) {
+  if (map()->instance_type() < FIRST_NONSTRING_TYPE) {
     function_index = Context::STRING_FUNCTION_INDEX;
-  } else if (type()->Is(HeapType::Symbol())) {
+  } else if (map()->instance_type() == SYMBOL_TYPE) {
     function_index = Context::SYMBOL_FUNCTION_INDEX;
-  } else if (type()->Is(HeapType::Number())) {
+  } else if (map()->instance_type() == HEAP_NUMBER_TYPE) {
     function_index = Context::NUMBER_FUNCTION_INDEX;
-  } else if (type()->Is(HeapType::Boolean())) {
+  } else if (*map() == isolate()->heap()->boolean_map()) {
     function_index = Context::BOOLEAN_FUNCTION_INDEX;
   } else {
     check_type = SKIP_RECEIVER;
@@ -109,7 +106,8 @@ Register NamedLoadHandlerCompiler::FrontendHeader(Register object_reg,
                                               scratch1(), miss);
     Object* function = isolate()->native_context()->get(function_index);
     Object* prototype = JSFunction::cast(function)->instance_prototype();
-    set_type_for_object(handle(prototype, isolate()));
+    Handle<Map> map(JSObject::cast(prototype)->map());
+    set_map(map);
     object_reg = scratch1();
   }
 
@@ -152,7 +150,7 @@ void PropertyHandlerCompiler::NonexistentFrontendHeader(Handle<Name> name,
   Handle<Map> last_map;
   if (holder().is_null()) {
     holder_reg = receiver();
-    last_map = IC::TypeToMap(*type(), isolate());
+    last_map = map();
     // If |type| has null as its prototype, |holder()| is
     // Handle<JSObject>::null().
     DCHECK(last_map->prototype() == isolate()->heap()->null_value());
@@ -165,7 +163,7 @@ void PropertyHandlerCompiler::NonexistentFrontendHeader(Handle<Name> name,
     if (last_map->IsJSGlobalObjectMap()) {
       Handle<JSGlobalObject> global =
           holder().is_null()
-              ? Handle<JSGlobalObject>::cast(type()->AsConstant()->Value())
+              ? Handle<JSGlobalObject>::cast(isolate()->global_object())
               : Handle<JSGlobalObject>::cast(holder());
       GenerateCheckPropertyCell(masm(), global, name, scratch1, miss);
     } else {
@@ -229,12 +227,12 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
 
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
-    Handle<Name> name, const CallOptimization& call_optimization) {
+    Handle<Name> name, const CallOptimization& call_optimization,
+    int accessor_index) {
   DCHECK(call_optimization.is_simple_api_call());
-  Frontend(name);
-  Handle<Map> receiver_map = IC::TypeToMap(*type(), isolate());
-  GenerateFastApiCall(masm(), call_optimization, receiver_map, receiver(),
-                      scratch1(), false, 0, NULL);
+  Register holder = Frontend(name);
+  GenerateApiAccessorCall(masm(), call_optimization, map(), receiver(),
+                          scratch2(), false, no_reg, holder, accessor_index);
   return GetCode(kind(), Code::FAST, name);
 }
 
@@ -270,7 +268,7 @@ void NamedLoadHandlerCompiler::InterceptorVectorSlotPop(Register holder_reg,
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
     LookupIterator* it) {
-  // So far the most popular follow ups for interceptor loads are FIELD and
+  // So far the most popular follow ups for interceptor loads are DATA and
   // ExecutableAccessorInfo, so inline only them. Other cases may be added
   // later.
   bool inline_followup = false;
@@ -284,17 +282,29 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
       break;
     case LookupIterator::DATA:
       inline_followup =
-          it->property_details().type() == FIELD && !it->is_dictionary_holder();
+          it->property_details().type() == DATA && !it->is_dictionary_holder();
       break;
     case LookupIterator::ACCESSOR: {
       Handle<Object> accessors = it->GetAccessors();
-      inline_followup = accessors->IsExecutableAccessorInfo();
-      if (!inline_followup) break;
-      Handle<ExecutableAccessorInfo> info =
-          Handle<ExecutableAccessorInfo>::cast(accessors);
-      inline_followup = info->getter() != NULL &&
-                        ExecutableAccessorInfo::IsCompatibleReceiverType(
-                            isolate(), info, type());
+      if (accessors->IsExecutableAccessorInfo()) {
+        Handle<ExecutableAccessorInfo> info =
+            Handle<ExecutableAccessorInfo>::cast(accessors);
+        inline_followup = info->getter() != NULL &&
+                          ExecutableAccessorInfo::IsCompatibleReceiverMap(
+                              isolate(), info, map());
+      } else if (accessors->IsAccessorPair()) {
+        Handle<JSObject> property_holder(it->GetHolder<JSObject>());
+        Handle<Object> getter(Handle<AccessorPair>::cast(accessors)->getter(),
+                              isolate());
+        if (!getter->IsJSFunction()) break;
+        if (!property_holder->HasFastProperties()) break;
+        auto function = Handle<JSFunction>::cast(getter);
+        CallOptimization call_optimization(function);
+        Handle<Map> receiver_map = map();
+        inline_followup = call_optimization.is_simple_api_call() &&
+                          call_optimization.IsCompatibleReceiverMap(
+                              receiver_map, property_holder);
+      }
     }
   }
 
@@ -319,7 +329,8 @@ void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
     LookupIterator* it, Register interceptor_reg) {
   Handle<JSObject> real_named_property_holder(it->GetHolder<JSObject>());
 
-  set_type_for_object(holder());
+  Handle<Map> holder_map(holder()->map());
+  set_map(holder_map);
   set_holder(real_named_property_holder);
 
   Label miss;
@@ -337,25 +348,35 @@ void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
     case LookupIterator::TRANSITION:
       UNREACHABLE();
     case LookupIterator::DATA: {
-      DCHECK_EQ(FIELD, it->property_details().type());
+      DCHECK_EQ(DATA, it->property_details().type());
       __ Move(receiver(), reg);
       LoadFieldStub stub(isolate(), it->GetFieldIndex());
       GenerateTailCall(masm(), stub.GetCode());
       break;
     }
     case LookupIterator::ACCESSOR:
-      Handle<ExecutableAccessorInfo> info =
-          Handle<ExecutableAccessorInfo>::cast(it->GetAccessors());
-      DCHECK_NE(NULL, info->getter());
-      GenerateLoadCallback(reg, info);
+      if (it->GetAccessors()->IsExecutableAccessorInfo()) {
+        Handle<ExecutableAccessorInfo> info =
+            Handle<ExecutableAccessorInfo>::cast(it->GetAccessors());
+        DCHECK_NOT_NULL(info->getter());
+        GenerateLoadCallback(reg, info);
+      } else {
+        auto function = handle(JSFunction::cast(
+            AccessorPair::cast(*it->GetAccessors())->getter()));
+        CallOptimization call_optimization(function);
+        GenerateApiAccessorCall(masm(), call_optimization, holder_map,
+                                receiver(), scratch2(), false, no_reg, reg,
+                                it->GetAccessorIndex());
+      }
   }
 }
 
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadViaGetter(
-    Handle<Name> name, Handle<JSFunction> getter) {
-  Frontend(name);
-  GenerateLoadViaGetter(masm(), type(), receiver(), getter);
+    Handle<Name> name, int accessor_index, int expected_arguments) {
+  Register holder = Frontend(name);
+  GenerateLoadViaGetter(masm(), map(), receiver(), holder, accessor_index,
+                        expected_arguments, scratch2());
   return GetCode(kind(), Code::FAST, name);
 }
 
@@ -392,7 +413,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
   DCHECK(!transition->is_access_check_needed());
 
   // Call to respective StoreTransitionStub.
-  if (details.type() == CONSTANT) {
+  if (details.type() == DATA_CONSTANT) {
     GenerateRestoreMap(transition, scratch2(), &miss);
     DCHECK(descriptors->GetValue(descriptor)->IsJSFunction());
     Register map_reg = StoreTransitionDescriptor::MapRegister();
@@ -441,9 +462,11 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreField(LookupIterator* it) {
 
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreViaSetter(
-    Handle<JSObject> object, Handle<Name> name, Handle<JSFunction> setter) {
-  Frontend(name);
-  GenerateStoreViaSetter(masm(), type(), receiver(), setter);
+    Handle<JSObject> object, Handle<Name> name, int accessor_index,
+    int expected_arguments) {
+  Register holder = Frontend(name);
+  GenerateStoreViaSetter(masm(), map(), receiver(), holder, accessor_index,
+                         expected_arguments, scratch2());
 
   return GetCode(kind(), Code::FAST, name);
 }
@@ -451,11 +474,11 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreViaSetter(
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
     Handle<JSObject> object, Handle<Name> name,
-    const CallOptimization& call_optimization) {
-  Frontend(name);
-  Register values[] = {value()};
-  GenerateFastApiCall(masm(), call_optimization, handle(object->map()),
-                      receiver(), scratch1(), true, 1, values);
+    const CallOptimization& call_optimization, int accessor_index) {
+  Register holder = Frontend(name);
+  GenerateApiAccessorCall(masm(), call_optimization, handle(object->map()),
+                          receiver(), scratch2(), true, value(), holder,
+                          accessor_index);
   return GetCode(kind(), Code::FAST, name);
 }
 

@@ -11,7 +11,7 @@ namespace internal {
 namespace AstNumbering {
 // Assign type feedback IDs and bailout IDs to an AST node tree.
 //
-bool Renumber(FunctionLiteral* function, Zone* zone);
+bool Renumber(Isolate* isolate, Zone* zone, FunctionLiteral* function);
 }
 }
 }  // namespace v8::internal

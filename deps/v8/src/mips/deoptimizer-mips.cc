@@ -162,6 +162,9 @@ void Deoptimizer::EntryGenerator::Generate() {
     }
   }
 
+  __ li(a2, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
+  __ sw(fp, MemOperand(a2));
+
   const int kSavedRegistersAreaSize =
       (kNumberOfRegisters * kPointerSize) + kDoubleRegsSize;
 

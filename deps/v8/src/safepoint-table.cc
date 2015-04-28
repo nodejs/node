@@ -10,7 +10,6 @@
 #include "src/disasm.h"
 #include "src/macro-assembler.h"
 #include "src/ostreams.h"
-#include "src/zone-inl.h"
 
 namespace v8 {
 namespace internal {

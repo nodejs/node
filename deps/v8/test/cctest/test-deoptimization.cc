@@ -395,7 +395,7 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationADDString) {
     v8::Handle<v8::Value> result = env->Global()->Get(v8_str("result"));
     CHECK(result->IsString());
     v8::String::Utf8Value utf8(result);
-    CHECK_EQ("a+an X", *utf8);
+    CHECK_EQ(0, strcmp("a+an X", *utf8));
     CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(i_isolate));
   }
   isolate->Exit();

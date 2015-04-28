@@ -5,8 +5,6 @@
 #ifndef V8_COMPILER_RAW_MACHINE_ASSEMBLER_H_
 #define V8_COMPILER_RAW_MACHINE_ASSEMBLER_H_
 
-#include "src/v8.h"
-
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-builder.h"
 #include "src/compiler/linkage.h"
@@ -44,19 +42,19 @@ class RawMachineAssembler : public GraphBuilder {
     DISALLOW_COPY_AND_ASSIGN(Label);
   };
 
-  RawMachineAssembler(Graph* graph, MachineSignature* machine_sig,
+  RawMachineAssembler(Isolate* isolate, Graph* graph,
+                      const MachineSignature* machine_sig,
                       MachineType word = kMachPtr,
                       MachineOperatorBuilder::Flags flags =
                           MachineOperatorBuilder::Flag::kNoFlags);
   ~RawMachineAssembler() OVERRIDE {}
 
-  Isolate* isolate() const { return zone()->isolate(); }
   Zone* zone() const { return graph()->zone(); }
   MachineOperatorBuilder* machine() { return &machine_; }
   CommonOperatorBuilder* common() { return &common_; }
   CallDescriptor* call_descriptor() const { return call_descriptor_; }
   size_t parameter_count() const { return machine_sig_->parameter_count(); }
-  MachineSignature* machine_sig() const { return machine_sig_; }
+  const MachineSignature* machine_sig() const { return machine_sig_; }
 
   Node* UndefinedConstant() {
     Unique<HeapObject> unique = Unique<HeapObject>::CreateImmovable(
@@ -402,6 +400,8 @@ class RawMachineAssembler : public GraphBuilder {
   Label* Exit();
   void Goto(Label* label);
   void Branch(Node* condition, Label* true_val, Label* false_val);
+  void Switch(Node* index, Label* default_label, int32_t* case_values,
+              Label** case_labels, size_t case_count);
   // Call through CallFunctionStub with lazy deopt and frame-state.
   Node* CallFunctionStub0(Node* function, Node* receiver, Node* context,
                           Node* frame_state, CallFunctionFlags flags);
@@ -448,7 +448,7 @@ class RawMachineAssembler : public GraphBuilder {
   Schedule* schedule_;
   MachineOperatorBuilder machine_;
   CommonOperatorBuilder common_;
-  MachineSignature* machine_sig_;
+  const MachineSignature* machine_sig_;
   CallDescriptor* call_descriptor_;
   Node** parameters_;
   Label exit_label_;

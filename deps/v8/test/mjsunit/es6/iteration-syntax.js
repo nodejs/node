@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-scoping --use-strict
+// Flags: --harmony-scoping
 
 // Test for-of syntax.
 
@@ -35,28 +35,38 @@ function f() { for (x of y) { } }
 function f() { for (var x of y) { } }
 function f() { for (let x of y) { } }
 
-assertThrows("function f() { for (x of) { } }", SyntaxError);
-assertThrows("function f() { for (x of y z) { } }", SyntaxError);
-assertThrows("function f() { for (x of y;) { } }", SyntaxError);
+function StrictSyntaxError(s) {
+  try {
+    eval(s);
+  } catch (e) {
+    assertInstanceof(e, SyntaxError);
+    return;
+  }
+  throw "did not throw";
+}
 
-assertThrows("function f() { for (var x of) { } }", SyntaxError);
-assertThrows("function f() { for (var x of y z) { } }", SyntaxError);
-assertThrows("function f() { for (var x of y;) { } }", SyntaxError);
+StrictSyntaxError("function f() { for (x of) { } }");
+StrictSyntaxError("function f() { for (x of y z) { } }");
+StrictSyntaxError("function f() { for (x of y;) { } }");
 
-assertThrows("function f() { for (let x of) { } }", SyntaxError);
-assertThrows("function f() { for (let x of y z) { } }", SyntaxError);
-assertThrows("function f() { for (let x of y;) { } }", SyntaxError);
+StrictSyntaxError("function f() { for (var x of) { } }");
+StrictSyntaxError("function f() { for (var x of y z) { } }");
+StrictSyntaxError("function f() { for (var x of y;) { } }");
 
-assertThrows("function f() { for (of y) { } }", SyntaxError);
-assertThrows("function f() { for (of of) { } }", SyntaxError);
-assertThrows("function f() { for (var of y) { } }", SyntaxError);
-assertThrows("function f() { for (var of of) { } }", SyntaxError);
-assertThrows("function f() { for (let of y) { } }", SyntaxError);
-assertThrows("function f() { for (let of of) { } }", SyntaxError);
+StrictSyntaxError("function f() { for (let x of) { } }");
+StrictSyntaxError("function f() { for (let x of y z) { } }");
+StrictSyntaxError("function f() { for (let x of y;) { } }");
 
-assertThrows("function f() { for (x = 3 of y) { } }", SyntaxError);
-assertThrows("function f() { for (var x = 3 of y) { } }", SyntaxError);
-assertThrows("function f() { for (let x = 3 of y) { } }", SyntaxError);
+StrictSyntaxError("function f() { for (of y) { } }");
+StrictSyntaxError("function f() { for (of of) { } }");
+StrictSyntaxError("function f() { for (var of y) { } }");
+StrictSyntaxError("function f() { for (var of of) { } }");
+StrictSyntaxError("function f() { for (let of y) { } }");
+StrictSyntaxError("function f() { for (let of of) { } }");
+
+StrictSyntaxError("function f() { for (x = 3 of y) { } }");
+StrictSyntaxError("function f() { for (var x = 3 of y) { } }");
+StrictSyntaxError("function f() { for (let x = 3 of y) { } }");
 
 
 // Alack, this appears to be valid.

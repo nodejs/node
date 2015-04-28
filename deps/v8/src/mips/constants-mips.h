@@ -924,6 +924,7 @@ class Instruction {
 // C/C++ argument slots size.
 const int kCArgSlotCount = 4;
 const int kCArgsSlotsSize = kCArgSlotCount * Instruction::kInstrSize;
+const int kInvalidStackOffset = -1;
 // JS argument slots size.
 const int kJSArgsSlotsSize = 0 * Instruction::kInstrSize;
 // Assembly builtins argument slots size.

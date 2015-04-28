@@ -683,6 +683,7 @@ class LChunk : public ZoneObject {
   typedef zone_allocator<Handle<Map> > MapAllocator;
   typedef std::set<Handle<Map>, MapLess, MapAllocator> MapSet;
 
+  void RegisterWeakObjectsInOptimizedCode(Handle<Code> code) const;
   void CommitDependencies(Handle<Code> code) const;
 
   CompilationInfo* info_;

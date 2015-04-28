@@ -25,11 +25,6 @@ SaveContext::SaveContext(Isolate* isolate)
 }
 
 
-bool Isolate::DebuggerHasBreakPoints() {
-  return debug()->has_break_points();
-}
-
-
 base::RandomNumberGenerator* Isolate::random_number_generator() {
   if (random_number_generator_ == NULL) {
     if (FLAG_random_seed != 0) {

@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_NODE_AUX_DATA_H_
 #define V8_COMPILER_NODE_AUX_DATA_H_
 
+#include "src/compiler/node.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
@@ -12,22 +13,30 @@ namespace internal {
 namespace compiler {
 
 // Forward declarations.
-class Graph;
 class Node;
 
 template <class T>
 class NodeAuxData {
  public:
-  inline explicit NodeAuxData(Zone* zone);
+  explicit NodeAuxData(Zone* zone) : aux_data_(zone) {}
 
-  inline void Set(Node* node, const T& data);
-  inline T Get(Node* node) const;
+  void Set(Node* node, T const& data) {
+    size_t const id = node->id();
+    if (id >= aux_data_.size()) aux_data_.resize(id + 1);
+    aux_data_[id] = data;
+  }
+
+  T Get(Node* node) const {
+    size_t const id = node->id();
+    return (id < aux_data_.size()) ? aux_data_[id] : T();
+  }
 
  private:
   ZoneVector<T> aux_data_;
 };
-}
-}
-}  // namespace v8::internal::compiler
 
-#endif
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
+
+#endif  // V8_COMPILER_NODE_AUX_DATA_H_

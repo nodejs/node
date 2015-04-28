@@ -2,8 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
+
 #include "src/compiler/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/node-properties.h"
 
 namespace v8 {
 namespace internal {
@@ -14,11 +17,6 @@ class X64OperandGenerator FINAL : public OperandGenerator {
  public:
   explicit X64OperandGenerator(InstructionSelector* selector)
       : OperandGenerator(selector) {}
-
-  InstructionOperand* TempRegister(Register reg) {
-    return new (zone()) UnallocatedOperand(UnallocatedOperand::FIXED_REGISTER,
-                                           Register::ToAllocationIndex(reg));
-  }
 
   bool CanBeImmediate(Node* node) {
     switch (node->opcode()) {
@@ -35,7 +33,7 @@ class X64OperandGenerator FINAL : public OperandGenerator {
 
   AddressingMode GenerateMemoryOperandInputs(Node* index, int scale_exponent,
                                              Node* base, Node* displacement,
-                                             InstructionOperand* inputs[],
+                                             InstructionOperand inputs[],
                                              size_t* input_count) {
     AddressingMode mode = kMode_MRI;
     if (base != NULL) {
@@ -84,7 +82,7 @@ class X64OperandGenerator FINAL : public OperandGenerator {
   }
 
   AddressingMode GetEffectiveAddressMemoryOperand(Node* operand,
-                                                  InstructionOperand* inputs[],
+                                                  InstructionOperand inputs[],
                                                   size_t* input_count) {
     BaseWithIndexAndDisplacement64Matcher m(operand, true);
     DCHECK(m.matches());
@@ -136,9 +134,9 @@ void InstructionSelector::VisitLoad(Node* node) {
       return;
   }
 
-  InstructionOperand* outputs[1];
+  InstructionOperand outputs[1];
   outputs[0] = g.DefineAsRegister(node);
-  InstructionOperand* inputs[3];
+  InstructionOperand inputs[3];
   size_t input_count = 0;
   AddressingMode mode =
       g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
@@ -160,8 +158,8 @@ void InstructionSelector::VisitStore(Node* node) {
     // TODO(dcarney): refactor RecordWrite function to take temp registers
     //                and pass them here instead of using fixed regs
     // TODO(dcarney): handle immediate indices.
-    InstructionOperand* temps[] = {g.TempRegister(rcx), g.TempRegister(rdx)};
-    Emit(kX64StoreWriteBarrier, NULL, g.UseFixed(base, rbx),
+    InstructionOperand temps[] = {g.TempRegister(rcx), g.TempRegister(rdx)};
+    Emit(kX64StoreWriteBarrier, g.NoOutput(), g.UseFixed(base, rbx),
          g.UseFixed(index, rcx), g.UseFixed(value, rdx), arraysize(temps),
          temps);
     return;
@@ -193,15 +191,15 @@ void InstructionSelector::VisitStore(Node* node) {
       UNREACHABLE();
       return;
   }
-  InstructionOperand* inputs[4];
+  InstructionOperand inputs[4];
   size_t input_count = 0;
   AddressingMode mode =
       g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
   InstructionCode code = opcode | AddressingModeField::encode(mode);
-  InstructionOperand* value_operand =
+  InstructionOperand value_operand =
       g.CanBeImmediate(value) ? g.UseImmediate(value) : g.UseRegister(value);
   inputs[input_count++] = value_operand;
-  Emit(code, 0, static_cast<InstructionOperand**>(NULL), input_count, inputs);
+  Emit(code, 0, static_cast<InstructionOperand*>(NULL), input_count, inputs);
 }
 
 
@@ -245,7 +243,7 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
       return;
     }
   }
-  InstructionOperand* length_operand =
+  InstructionOperand length_operand =
       g.CanBeImmediate(length) ? g.UseImmediate(length) : g.UseRegister(length);
   Emit(opcode, g.DefineAsRegister(node), g.UseRegister(buffer),
        g.UseRegister(offset), g.TempImmediate(0), length_operand);
@@ -280,7 +278,7 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
       UNREACHABLE();
       return;
   }
-  InstructionOperand* value_operand =
+  InstructionOperand value_operand =
       g.CanBeImmediate(value) ? g.UseImmediate(value) : g.UseRegister(value);
   if (offset->opcode() == IrOpcode::kInt32Add && CanCover(node, offset)) {
     Int32Matcher mlength(length);
@@ -288,16 +286,16 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
     if (mlength.HasValue() && moffset.right().HasValue() &&
         moffset.right().Value() >= 0 &&
         mlength.Value() >= moffset.right().Value()) {
-      Emit(opcode, nullptr, g.UseRegister(buffer),
+      Emit(opcode, g.NoOutput(), g.UseRegister(buffer),
            g.UseRegister(moffset.left().node()),
            g.UseImmediate(moffset.right().node()), g.UseImmediate(length),
            value_operand);
       return;
     }
   }
-  InstructionOperand* length_operand =
+  InstructionOperand length_operand =
       g.CanBeImmediate(length) ? g.UseImmediate(length) : g.UseRegister(length);
-  Emit(opcode, nullptr, g.UseRegister(buffer), g.UseRegister(offset),
+  Emit(opcode, g.NoOutput(), g.UseRegister(buffer), g.UseRegister(offset),
        g.TempImmediate(0), length_operand, value_operand);
 }
 
@@ -309,9 +307,9 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
   Int32BinopMatcher m(node);
   Node* left = m.left().node();
   Node* right = m.right().node();
-  InstructionOperand* inputs[4];
+  InstructionOperand inputs[4];
   size_t input_count = 0;
-  InstructionOperand* outputs[2];
+  InstructionOperand outputs[2];
   size_t output_count = 0;
 
   // TODO(turbofan): match complex addressing modes.
@@ -323,7 +321,7 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
     //   mov rax, [rbp-0x10]
     //   add rax, [rbp-0x10]
     //   jo label
-    InstructionOperand* const input = g.UseRegister(left);
+    InstructionOperand const input = g.UseRegister(left);
     inputs[input_count++] = input;
     inputs[input_count++] = input;
   } else if (g.CanBeImmediate(right)) {
@@ -368,7 +366,15 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
 
 
 void InstructionSelector::VisitWord32And(Node* node) {
-  VisitBinop(this, node, kX64And32);
+  X64OperandGenerator g(this);
+  Uint32BinopMatcher m(node);
+  if (m.right().Is(0xff)) {
+    Emit(kX64Movzxbl, g.DefineAsRegister(node), g.Use(m.left().node()));
+  } else if (m.right().Is(0xffff)) {
+    Emit(kX64Movzxwl, g.DefineAsRegister(node), g.Use(m.left().node()));
+  } else {
+    VisitBinop(this, node, kX64And32);
+  }
 }
 
 
@@ -460,7 +466,7 @@ void EmitLea(InstructionSelector* selector, InstructionCode opcode,
              Node* displacement) {
   X64OperandGenerator g(selector);
 
-  InstructionOperand* inputs[4];
+  InstructionOperand inputs[4];
   size_t input_count = 0;
   AddressingMode mode = g.GenerateMemoryOperandInputs(
       index, scale, base, displacement, inputs, &input_count);
@@ -468,7 +474,7 @@ void EmitLea(InstructionSelector* selector, InstructionCode opcode,
   DCHECK_NE(0, static_cast<int>(input_count));
   DCHECK_GE(arraysize(inputs), input_count);
 
-  InstructionOperand* outputs[1];
+  InstructionOperand outputs[1];
   outputs[0] = g.DefineAsRegister(result);
 
   opcode = AddressingModeField::encode(mode) | opcode;
@@ -638,7 +644,7 @@ void VisitMulHigh(InstructionSelector* selector, Node* node,
 
 void VisitDiv(InstructionSelector* selector, Node* node, ArchOpcode opcode) {
   X64OperandGenerator g(selector);
-  InstructionOperand* temps[] = {g.TempRegister(rdx)};
+  InstructionOperand temps[] = {g.TempRegister(rdx)};
   selector->Emit(
       opcode, g.DefineAsFixed(node, rax), g.UseFixed(node->InputAt(0), rax),
       g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
@@ -874,7 +880,7 @@ void InstructionSelector::VisitFloat64Div(Node* node) {
 
 void InstructionSelector::VisitFloat64Mod(Node* node) {
   X64OperandGenerator g(this);
-  InstructionOperand* temps[] = {g.TempRegister(rax)};
+  InstructionOperand temps[] = {g.TempRegister(rax)};
   Emit(kSSEFloat64Mod, g.DefineSameAsFirst(node),
        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)), 1,
        temps);
@@ -938,11 +944,14 @@ void InstructionSelector::VisitCall(Node* node) {
   InitializeCallBuffer(node, &buffer, true, true);
 
   // Push any stack arguments.
-  for (NodeVectorRIter input = buffer.pushed_nodes.rbegin();
-       input != buffer.pushed_nodes.rend(); input++) {
+  for (auto i = buffer.pushed_nodes.rbegin(); i != buffer.pushed_nodes.rend();
+       ++i) {
     // TODO(titzer): handle pushing double parameters.
-    Emit(kX64Push, NULL,
-         g.CanBeImmediate(*input) ? g.UseImmediate(*input) : g.Use(*input));
+    InstructionOperand value =
+        g.CanBeImmediate(*i) ? g.UseImmediate(*i) : IsSupported(ATOM)
+                                                        ? g.UseRegister(*i)
+                                                        : g.Use(*i);
+    Emit(kX64Push, g.NoOutput(), value);
   }
 
   // Select the appropriate opcode based on the call type.
@@ -962,7 +971,7 @@ void InstructionSelector::VisitCall(Node* node) {
   opcode |= MiscField::encode(descriptor->flags());
 
   // Emit the call instruction.
-  InstructionOperand** first_output =
+  InstructionOperand* first_output =
       buffer.outputs.size() > 0 ? &buffer.outputs.front() : NULL;
   Instruction* call_instr =
       Emit(opcode, buffer.outputs.size(), first_output,
@@ -973,12 +982,13 @@ void InstructionSelector::VisitCall(Node* node) {
 
 // Shared routine for multiple compare operations.
 static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
-                         InstructionOperand* left, InstructionOperand* right,
+                         InstructionOperand left, InstructionOperand right,
                          FlagsContinuation* cont) {
   X64OperandGenerator g(selector);
   opcode = cont->Encode(opcode);
   if (cont->IsBranch()) {
-    selector->Emit(opcode, NULL, left, right, g.Label(cont->true_block()),
+    selector->Emit(opcode, g.NoOutput(), left, right,
+                   g.Label(cont->true_block()),
                    g.Label(cont->false_block()))->MarkAsControl();
   } else {
     DCHECK(cont->IsSet());
@@ -1027,11 +1037,12 @@ static void VisitCompareZero(InstructionSelector* selector, Node* node,
 }
 
 
-// Shared routine for multiple float64 compare operations.
+// Shared routine for multiple float64 compare operations (inputs commuted).
 static void VisitFloat64Compare(InstructionSelector* selector, Node* node,
                                 FlagsContinuation* cont) {
-  VisitCompare(selector, kSSEFloat64Cmp, node->InputAt(0), node->InputAt(1),
-               cont, node->op()->HasProperty(Operator::kCommutative));
+  Node* const left = node->InputAt(0);
+  Node* const right = node->InputAt(1);
+  VisitCompare(selector, kSSEFloat64Cmp, right, left, cont, false);
 }
 
 
@@ -1102,22 +1113,22 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
         cont.OverwriteAndNegateIfEqual(kUnorderedEqual);
         return VisitFloat64Compare(this, value, &cont);
       case IrOpcode::kFloat64LessThan:
-        cont.OverwriteAndNegateIfEqual(kUnorderedLessThan);
+        cont.OverwriteAndNegateIfEqual(kUnsignedGreaterThan);
         return VisitFloat64Compare(this, value, &cont);
       case IrOpcode::kFloat64LessThanOrEqual:
-        cont.OverwriteAndNegateIfEqual(kUnorderedLessThanOrEqual);
+        cont.OverwriteAndNegateIfEqual(kUnsignedGreaterThanOrEqual);
         return VisitFloat64Compare(this, value, &cont);
       case IrOpcode::kProjection:
         // Check if this is the overflow output projection of an
         // <Operation>WithOverflow node.
-        if (OpParameter<size_t>(value) == 1u) {
+        if (ProjectionIndexOf(value->op()) == 1u) {
           // We cannot combine the <Operation>WithOverflow with this branch
           // unless the 0th projection (the use of the actual value of the
           // <Operation> is either NULL, which means there's no use of the
           // actual value, or was already defined, which means it is scheduled
           // *AFTER* this branch).
-          Node* node = value->InputAt(0);
-          Node* result = node->FindProjection(0);
+          Node* const node = value->InputAt(0);
+          Node* const result = NodeProperties::FindProjection(node, 0);
           if (result == NULL || IsDefined(result)) {
             switch (node->opcode()) {
               case IrOpcode::kInt32AddWithOverflow:
@@ -1147,6 +1158,70 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
 
   // Branch could not be combined with a compare, emit compare against 0.
   VisitCompareZero(this, value, kX64Cmp32, &cont);
+}
+
+
+void InstructionSelector::VisitSwitch(Node* node, BasicBlock* default_branch,
+                                      BasicBlock** case_branches,
+                                      int32_t* case_values, size_t case_count,
+                                      int32_t min_value, int32_t max_value) {
+  X64OperandGenerator g(this);
+  InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
+  InstructionOperand default_operand = g.Label(default_branch);
+
+  // Note that {value_range} can be 0 if {min_value} is -2^31 and {max_value}
+  // is 2^31-1, so don't assume that it's non-zero below.
+  size_t value_range =
+      1u + bit_cast<uint32_t>(max_value) - bit_cast<uint32_t>(min_value);
+
+  // Determine whether to issue an ArchTableSwitch or an ArchLookupSwitch
+  // instruction.
+  size_t table_space_cost = 4 + value_range;
+  size_t table_time_cost = 3;
+  size_t lookup_space_cost = 3 + 2 * case_count;
+  size_t lookup_time_cost = case_count;
+  if (case_count > 4 &&
+      table_space_cost + 3 * table_time_cost <=
+          lookup_space_cost + 3 * lookup_time_cost &&
+      min_value > std::numeric_limits<int32_t>::min()) {
+    InstructionOperand index_operand = g.TempRegister();
+    if (min_value) {
+      // The leal automatically zero extends, so result is a valid 64-bit index.
+      Emit(kX64Lea32 | AddressingModeField::encode(kMode_MRI), index_operand,
+           value_operand, g.TempImmediate(-min_value));
+    } else {
+      // Zero extend, because we use it as 64-bit index into the jump table.
+      Emit(kX64Movl, index_operand, value_operand);
+    }
+    size_t input_count = 2 + value_range;
+    auto* inputs = zone()->NewArray<InstructionOperand>(input_count);
+    inputs[0] = index_operand;
+    std::fill(&inputs[1], &inputs[input_count], default_operand);
+    for (size_t index = 0; index < case_count; ++index) {
+      size_t value = case_values[index] - min_value;
+      BasicBlock* branch = case_branches[index];
+      DCHECK_LE(0u, value);
+      DCHECK_LT(value + 2, input_count);
+      inputs[value + 2] = g.Label(branch);
+    }
+    Emit(kArchTableSwitch, 0, nullptr, input_count, inputs, 0, nullptr)
+        ->MarkAsControl();
+    return;
+  }
+
+  // Generate a sequence of conditional jumps.
+  size_t input_count = 2 + case_count * 2;
+  auto* inputs = zone()->NewArray<InstructionOperand>(input_count);
+  inputs[0] = value_operand;
+  inputs[1] = default_operand;
+  for (size_t index = 0; index < case_count; ++index) {
+    int32_t value = case_values[index];
+    BasicBlock* branch = case_branches[index];
+    inputs[index * 2 + 2 + 0] = g.TempImmediate(value);
+    inputs[index * 2 + 2 + 1] = g.Label(branch);
+  }
+  Emit(kArchLookupSwitch, 0, nullptr, input_count, inputs, 0, nullptr)
+      ->MarkAsControl();
 }
 
 
@@ -1247,7 +1322,7 @@ void InstructionSelector::VisitWord64Equal(Node* const node) {
 
 
 void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
-  if (Node* ovf = node->FindProjection(1)) {
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
     FlagsContinuation cont(kOverflow, ovf);
     VisitBinop(this, node, kX64Add32, &cont);
   }
@@ -1257,7 +1332,7 @@ void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
 
 
 void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
-  if (Node* ovf = node->FindProjection(1)) {
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
     FlagsContinuation cont(kOverflow, ovf);
     return VisitBinop(this, node, kX64Sub32, &cont);
   }
@@ -1291,13 +1366,13 @@ void InstructionSelector::VisitFloat64Equal(Node* node) {
 
 
 void InstructionSelector::VisitFloat64LessThan(Node* node) {
-  FlagsContinuation cont(kUnorderedLessThan, node);
+  FlagsContinuation cont(kUnsignedGreaterThan, node);
   VisitFloat64Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
-  FlagsContinuation cont(kUnorderedLessThanOrEqual, node);
+  FlagsContinuation cont(kUnsignedGreaterThanOrEqual, node);
   VisitFloat64Compare(this, node, &cont);
 }
 

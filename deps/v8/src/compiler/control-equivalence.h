@@ -5,8 +5,6 @@
 #ifndef V8_COMPILER_CONTROL_EQUIVALENCE_H_
 #define V8_COMPILER_CONTROL_EQUIVALENCE_H_
 
-#include "src/v8.h"
-
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/node-properties.h"
@@ -185,8 +183,7 @@ class ControlEquivalence : public ZoneObject {
           Edge edge = *entry.input;
           Node* input = edge.to();
           ++(entry.input);
-          if (NodeProperties::IsControlEdge(edge) &&
-              NodeProperties::IsControl(input)) {
+          if (NodeProperties::IsControlEdge(edge)) {
             // Visit next control input.
             if (!GetData(input)->participates) continue;
             if (GetData(input)->visited) continue;
@@ -216,8 +213,7 @@ class ControlEquivalence : public ZoneObject {
           Edge edge = *entry.use;
           Node* use = edge.from();
           ++(entry.use);
-          if (NodeProperties::IsControlEdge(edge) &&
-              NodeProperties::IsControl(use)) {
+          if (NodeProperties::IsControlEdge(edge)) {
             // Visit next control use.
             if (!GetData(use)->participates) continue;
             if (GetData(use)->visited) continue;

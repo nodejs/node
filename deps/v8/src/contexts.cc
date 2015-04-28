@@ -173,10 +173,6 @@ static void GetAttributesAndBindingFlags(VariableMode mode,
                            ? IMMUTABLE_CHECK_INITIALIZED_HARMONY
                            : IMMUTABLE_IS_INITIALIZED_HARMONY;
       break;
-    case MODULE:
-      *attributes = READ_ONLY;
-      *binding_flags = IMMUTABLE_IS_INITIALIZED_HARMONY;
-      break;
     case DYNAMIC:
     case DYNAMIC_GLOBAL:
     case DYNAMIC_LOCAL:

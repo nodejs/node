@@ -7,8 +7,6 @@
 #include "src/base/lazy-instance.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
-#include "src/v8.h"
-#include "src/zone-inl.h"
 
 namespace v8 {
 namespace internal {

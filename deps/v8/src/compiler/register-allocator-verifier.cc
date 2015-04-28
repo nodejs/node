@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/bit-vector.h"
 #include "src/compiler/instruction.h"
 #include "src/compiler/register-allocator-verifier.h"
 
@@ -19,7 +20,7 @@ static void VerifyGapEmpty(const GapInstruction* gap) {
        i <= GapInstruction::LAST_INNER_POSITION; i++) {
     GapInstruction::InnerPosition inner_pos =
         static_cast<GapInstruction::InnerPosition>(i);
-    CHECK_EQ(NULL, gap->GetParallelMove(inner_pos));
+    CHECK(!gap->GetParallelMove(inner_pos));
   }
 }
 
@@ -28,7 +29,7 @@ void RegisterAllocatorVerifier::VerifyInput(
     const OperandConstraint& constraint) {
   CHECK_NE(kSameAsFirst, constraint.type_);
   if (constraint.type_ != kImmediate) {
-    CHECK_NE(UnallocatedOperand::kInvalidVirtualRegister,
+    CHECK_NE(InstructionOperand::kInvalidVirtualRegister,
              constraint.virtual_register_);
   }
 }
@@ -39,15 +40,13 @@ void RegisterAllocatorVerifier::VerifyTemp(
   CHECK_NE(kSameAsFirst, constraint.type_);
   CHECK_NE(kImmediate, constraint.type_);
   CHECK_NE(kConstant, constraint.type_);
-  CHECK_EQ(UnallocatedOperand::kInvalidVirtualRegister,
-           constraint.virtual_register_);
 }
 
 
 void RegisterAllocatorVerifier::VerifyOutput(
     const OperandConstraint& constraint) {
   CHECK_NE(kImmediate, constraint.type_);
-  CHECK_NE(UnallocatedOperand::kInvalidVirtualRegister,
+  CHECK_NE(InstructionOperand::kInvalidVirtualRegister,
            constraint.virtual_register_);
 }
 
@@ -62,8 +61,7 @@ RegisterAllocatorVerifier::RegisterAllocatorVerifier(
   // kSameAsFirst along the way.
   for (const auto* instr : sequence->instructions()) {
     const size_t operand_count = OperandCount(instr);
-    auto* op_constraints =
-        zone->NewArray<OperandConstraint>(static_cast<int>(operand_count));
+    auto* op_constraints = zone->NewArray<OperandConstraint>(operand_count);
     size_t count = 0;
     for (size_t i = 0; i < instr->InputCount(); ++i, ++count) {
       BuildConstraint(instr->InputAt(i), &op_constraints[count]);
@@ -121,7 +119,7 @@ void RegisterAllocatorVerifier::VerifyAssignment() {
 void RegisterAllocatorVerifier::BuildConstraint(const InstructionOperand* op,
                                                 OperandConstraint* constraint) {
   constraint->value_ = kMinInt;
-  constraint->virtual_register_ = UnallocatedOperand::kInvalidVirtualRegister;
+  constraint->virtual_register_ = InstructionOperand::kInvalidVirtualRegister;
   if (op->IsConstant()) {
     constraint->type_ = kConstant;
     constraint->value_ = ConstantOperand::cast(op)->index();
@@ -214,89 +212,121 @@ void RegisterAllocatorVerifier::CheckConstraint(
   }
 }
 
+namespace {
 
-class RegisterAllocatorVerifier::OutgoingMapping : public ZoneObject {
+typedef BasicBlock::RpoNumber Rpo;
+
+static const int kInvalidVreg = InstructionOperand::kInvalidVirtualRegister;
+
+struct PhiData : public ZoneObject {
+  PhiData(Rpo definition_rpo, const PhiInstruction* phi, int first_pred_vreg,
+          const PhiData* first_pred_phi, Zone* zone)
+      : definition_rpo(definition_rpo),
+        virtual_register(phi->virtual_register()),
+        first_pred_vreg(first_pred_vreg),
+        first_pred_phi(first_pred_phi),
+        operands(zone) {
+    operands.reserve(phi->operands().size());
+    operands.insert(operands.begin(), phi->operands().begin(),
+                    phi->operands().end());
+  }
+  const Rpo definition_rpo;
+  const int virtual_register;
+  const int first_pred_vreg;
+  const PhiData* first_pred_phi;
+  IntVector operands;
+};
+
+class PhiMap : public ZoneMap<int, PhiData*>, public ZoneObject {
  public:
-  struct OperandLess {
-    bool operator()(const InstructionOperand* a,
-                    const InstructionOperand* b) const {
-      if (a->kind() == b->kind()) return a->index() < b->index();
-      return a->kind() < b->kind();
+  explicit PhiMap(Zone* zone) : ZoneMap<int, PhiData*>(zone) {}
+};
+
+struct OperandLess {
+  bool operator()(const InstructionOperand* a,
+                  const InstructionOperand* b) const {
+    if (a->kind() == b->kind()) return a->index() < b->index();
+    return a->kind() < b->kind();
+  }
+};
+
+class OperandMap : public ZoneObject {
+ public:
+  struct MapValue : public ZoneObject {
+    MapValue()
+        : incoming(nullptr),
+          define_vreg(kInvalidVreg),
+          use_vreg(kInvalidVreg),
+          succ_vreg(kInvalidVreg) {}
+    MapValue* incoming;  // value from first predecessor block.
+    int define_vreg;     // valid if this value was defined in this block.
+    int use_vreg;        // valid if this value was used in this block.
+    int succ_vreg;       // valid if propagated back from successor block.
+  };
+
+  class Map
+      : public ZoneMap<const InstructionOperand*, MapValue*, OperandLess> {
+   public:
+    explicit Map(Zone* zone)
+        : ZoneMap<const InstructionOperand*, MapValue*, OperandLess>(zone) {}
+
+    // Remove all entries with keys not in other.
+    void Intersect(const Map& other) {
+      if (this->empty()) return;
+      auto it = this->begin();
+      OperandLess less;
+      for (const auto& o : other) {
+        while (less(it->first, o.first)) {
+          this->erase(it++);
+          if (it == this->end()) return;
+        }
+        if (it->first->Equals(o.first)) {
+          ++it;
+          if (it == this->end()) return;
+        } else {
+          CHECK(less(o.first, it->first));
+        }
+      }
     }
   };
 
-  typedef std::map<
-      const InstructionOperand*, int, OperandLess,
-      zone_allocator<std::pair<const InstructionOperand*, const int>>>
-      LocationMap;
+  explicit OperandMap(Zone* zone) : map_(zone) {}
 
-  explicit OutgoingMapping(Zone* zone)
-      : locations_(LocationMap::key_compare(),
-                   LocationMap::allocator_type(zone)),
-        predecessor_intersection_(LocationMap::key_compare(),
-                                  LocationMap::allocator_type(zone)) {}
-
-  LocationMap* locations() { return &locations_; }
-
-  void RunPhis(const InstructionSequence* sequence,
-               const InstructionBlock* block, size_t phi_index) {
-    // This operation is only valid in edge split form.
-    size_t predecessor_index = block->predecessors()[phi_index].ToSize();
-    CHECK(sequence->instruction_blocks()[predecessor_index]->SuccessorCount() ==
-          1);
-    for (const auto* phi : block->phis()) {
-      auto input = phi->inputs()[phi_index];
-      CHECK(locations()->find(input) != locations()->end());
-      auto it = locations()->find(phi->output());
-      CHECK(it != locations()->end());
-      if (input->IsConstant()) {
-        CHECK_EQ(it->second, input->index());
-      } else {
-        CHECK_EQ(it->second, phi->operands()[phi_index]);
-      }
-      it->second = phi->virtual_register();
-    }
-  }
-
-  void RunGapInstruction(Zone* zone, const GapInstruction* gap) {
-    for (int i = GapInstruction::FIRST_INNER_POSITION;
-         i <= GapInstruction::LAST_INNER_POSITION; i++) {
-      GapInstruction::InnerPosition inner_pos =
-          static_cast<GapInstruction::InnerPosition>(i);
-      const ParallelMove* move = gap->GetParallelMove(inner_pos);
-      if (move == nullptr) continue;
-      RunParallelMoves(zone, move);
-    }
-  }
+  Map& map() { return map_; }
 
   void RunParallelMoves(Zone* zone, const ParallelMove* move) {
     // Compute outgoing mappings.
-    LocationMap to_insert((LocationMap::key_compare()),
-                          LocationMap::allocator_type(zone));
-    auto* moves = move->move_operands();
+    Map to_insert(zone);
+    auto moves = move->move_operands();
     for (auto i = moves->begin(); i != moves->end(); ++i) {
       if (i->IsEliminated()) continue;
-      auto cur = locations()->find(i->source());
-      CHECK(cur != locations()->end());
+      auto cur = map().find(i->source());
+      CHECK(cur != map().end());
       to_insert.insert(std::make_pair(i->destination(), cur->second));
     }
     // Drop current mappings.
     for (auto i = moves->begin(); i != moves->end(); ++i) {
       if (i->IsEliminated()) continue;
-      auto cur = locations()->find(i->destination());
-      if (cur != locations()->end()) locations()->erase(cur);
+      auto cur = map().find(i->destination());
+      if (cur != map().end()) map().erase(cur);
     }
     // Insert new values.
-    locations()->insert(to_insert.begin(), to_insert.end());
+    map().insert(to_insert.begin(), to_insert.end());
   }
 
-  void Map(const InstructionOperand* op, int virtual_register) {
-    locations()->insert(std::make_pair(op, virtual_register));
+  void RunGapInstruction(Zone* zone, const GapInstruction* gap) {
+    for (int i = GapInstruction::FIRST_INNER_POSITION;
+         i <= GapInstruction::LAST_INNER_POSITION; i++) {
+      auto inner_pos = static_cast<GapInstruction::InnerPosition>(i);
+      auto move = gap->GetParallelMove(inner_pos);
+      if (move == nullptr) continue;
+      RunParallelMoves(zone, move);
+    }
   }
 
   void Drop(const InstructionOperand* op) {
-    auto it = locations()->find(op);
-    if (it != locations()->end()) locations()->erase(it);
+    auto it = map().find(op);
+    if (it != map().end()) map().erase(it);
   }
 
   void DropRegisters(const RegisterConfiguration* config) {
@@ -310,131 +340,316 @@ class RegisterAllocatorVerifier::OutgoingMapping : public ZoneObject {
     }
   }
 
-  void InitializeFromFirstPredecessor(const InstructionSequence* sequence,
-                                      const OutgoingMappings* outgoing_mappings,
-                                      const InstructionBlock* block) {
-    if (block->predecessors().empty()) return;
-    size_t predecessor_index = block->predecessors()[0].ToSize();
-    CHECK(predecessor_index < block->rpo_number().ToSize());
-    auto* incoming = outgoing_mappings->at(predecessor_index);
-    if (block->PredecessorCount() > 1) {
-      // Update incoming map with phis. The remaining phis will be checked later
-      // as their mappings are not guaranteed to exist yet.
-      incoming->RunPhis(sequence, block, 0);
+  void Define(Zone* zone, const InstructionOperand* op, int virtual_register) {
+    auto value = new (zone) MapValue();
+    value->define_vreg = virtual_register;
+    auto res = map().insert(std::make_pair(op, value));
+    if (!res.second) res.first->second = value;
+  }
+
+  void Use(const InstructionOperand* op, int use_vreg, bool initial_pass) {
+    auto it = map().find(op);
+    CHECK(it != map().end());
+    auto v = it->second;
+    if (v->define_vreg != kInvalidVreg) {
+      CHECK_EQ(v->define_vreg, use_vreg);
     }
-    // Now initialize outgoing mapping for this block with incoming mapping.
-    CHECK(locations_.empty());
-    locations_ = incoming->locations_;
-  }
-
-  void InitializeFromIntersection() { locations_ = predecessor_intersection_; }
-
-  void InitializeIntersection(const OutgoingMapping* incoming) {
-    CHECK(predecessor_intersection_.empty());
-    predecessor_intersection_ = incoming->locations_;
-  }
-
-  void Intersect(const OutgoingMapping* other) {
-    if (predecessor_intersection_.empty()) return;
-    auto it = predecessor_intersection_.begin();
-    OperandLess less;
-    for (const auto& o : other->locations_) {
-      while (less(it->first, o.first)) {
-        ++it;
-        if (it == predecessor_intersection_.end()) return;
+    // Already used this vreg in this block.
+    if (v->use_vreg != kInvalidVreg) {
+      CHECK_EQ(v->use_vreg, use_vreg);
+      return;
+    }
+    if (!initial_pass) {
+      // A value may be defined and used in this block or the use must have
+      // propagated up.
+      if (v->succ_vreg != kInvalidVreg) {
+        CHECK_EQ(v->succ_vreg, use_vreg);
+      } else {
+        CHECK_EQ(v->define_vreg, use_vreg);
       }
-      if (it->first->Equals(o.first)) {
-        if (o.second != it->second) {
-          predecessor_intersection_.erase(it++);
-        } else {
-          ++it;
+      // Mark the use.
+      it->second->use_vreg = use_vreg;
+      return;
+    }
+    // Go up block list and ensure the correct definition is reached.
+    for (; v != nullptr; v = v->incoming) {
+      // Value unused in block.
+      if (v->define_vreg == kInvalidVreg && v->use_vreg == kInvalidVreg) {
+        continue;
+      }
+      // Found correct definition or use.
+      CHECK(v->define_vreg == use_vreg || v->use_vreg == use_vreg);
+      // Mark the use.
+      it->second->use_vreg = use_vreg;
+      return;
+    }
+    // Use of a non-phi value without definition.
+    CHECK(false);
+  }
+
+  void UsePhi(const InstructionOperand* op, const PhiData* phi,
+              bool initial_pass) {
+    auto it = map().find(op);
+    CHECK(it != map().end());
+    auto v = it->second;
+    int use_vreg = phi->virtual_register;
+    // Phis are not defined.
+    CHECK_EQ(kInvalidVreg, v->define_vreg);
+    // Already used this vreg in this block.
+    if (v->use_vreg != kInvalidVreg) {
+      CHECK_EQ(v->use_vreg, use_vreg);
+      return;
+    }
+    if (!initial_pass) {
+      // A used phi must have propagated its use to a predecessor.
+      CHECK_EQ(v->succ_vreg, use_vreg);
+      // Mark the use.
+      v->use_vreg = use_vreg;
+      return;
+    }
+    // Go up the block list starting at the first predecessor and ensure this
+    // phi has a correct use or definition.
+    for (v = v->incoming; v != nullptr; v = v->incoming) {
+      // Value unused in block.
+      if (v->define_vreg == kInvalidVreg && v->use_vreg == kInvalidVreg) {
+        continue;
+      }
+      // Found correct definition or use.
+      if (v->define_vreg != kInvalidVreg) {
+        CHECK(v->define_vreg == phi->first_pred_vreg);
+      } else if (v->use_vreg != phi->first_pred_vreg) {
+        // Walk the phi chain, hunting for a matching phi use.
+        auto p = phi;
+        for (; p != nullptr; p = p->first_pred_phi) {
+          if (p->virtual_register == v->use_vreg) break;
         }
-        if (it == predecessor_intersection_.end()) return;
+        CHECK(p);
+      }
+      // Mark the use.
+      it->second->use_vreg = use_vreg;
+      return;
+    }
+    // Use of a phi value without definition.
+    UNREACHABLE();
+  }
+
+ private:
+  Map map_;
+  DISALLOW_COPY_AND_ASSIGN(OperandMap);
+};
+
+}  // namespace
+
+
+class RegisterAllocatorVerifier::BlockMaps {
+ public:
+  BlockMaps(Zone* zone, const InstructionSequence* sequence)
+      : zone_(zone),
+        sequence_(sequence),
+        phi_map_guard_(sequence->VirtualRegisterCount(), zone),
+        phi_map_(zone),
+        incoming_maps_(zone),
+        outgoing_maps_(zone) {
+    InitializePhis();
+    InitializeOperandMaps();
+  }
+
+  bool IsPhi(int virtual_register) {
+    return phi_map_guard_.Contains(virtual_register);
+  }
+
+  const PhiData* GetPhi(int virtual_register) {
+    auto it = phi_map_.find(virtual_register);
+    CHECK(it != phi_map_.end());
+    return it->second;
+  }
+
+  OperandMap* InitializeIncoming(size_t block_index, bool initial_pass) {
+    return initial_pass ? InitializeFromFirstPredecessor(block_index)
+                        : InitializeFromIntersection(block_index);
+  }
+
+  void PropagateUsesBackwards() {
+    typedef std::set<size_t, std::greater<size_t>, zone_allocator<size_t>>
+        BlockIds;
+    BlockIds block_ids((BlockIds::key_compare()),
+                       zone_allocator<size_t>(zone()));
+    // First ensure that incoming contains only keys in all predecessors.
+    for (auto block : sequence()->instruction_blocks()) {
+      size_t index = block->rpo_number().ToSize();
+      block_ids.insert(index);
+      auto& succ_map = incoming_maps_[index]->map();
+      for (size_t i = 0; i < block->PredecessorCount(); ++i) {
+        auto pred_rpo = block->predecessors()[i];
+        succ_map.Intersect(outgoing_maps_[pred_rpo.ToSize()]->map());
+      }
+    }
+    // Back propagation fixpoint.
+    while (!block_ids.empty()) {
+      // Pop highest block_id.
+      auto block_id_it = block_ids.begin();
+      const size_t succ_index = *block_id_it;
+      block_ids.erase(block_id_it);
+      // Propagate uses back to their definition blocks using succ_vreg.
+      auto block = sequence()->instruction_blocks()[succ_index];
+      auto& succ_map = incoming_maps_[succ_index]->map();
+      for (size_t i = 0; i < block->PredecessorCount(); ++i) {
+        for (auto& succ_val : succ_map) {
+          // An incoming map contains no defines.
+          CHECK_EQ(kInvalidVreg, succ_val.second->define_vreg);
+          // Compute succ_vreg.
+          int succ_vreg = succ_val.second->succ_vreg;
+          if (succ_vreg == kInvalidVreg) {
+            succ_vreg = succ_val.second->use_vreg;
+            // Initialize succ_vreg in back propagation chain.
+            succ_val.second->succ_vreg = succ_vreg;
+          }
+          if (succ_vreg == kInvalidVreg) continue;
+          // May need to transition phi.
+          if (IsPhi(succ_vreg)) {
+            auto phi = GetPhi(succ_vreg);
+            if (phi->definition_rpo.ToSize() == succ_index) {
+              // phi definition block, transition to pred value.
+              succ_vreg = phi->operands[i];
+            }
+          }
+          // Push succ_vreg up to all predecessors.
+          auto pred_rpo = block->predecessors()[i];
+          auto& pred_map = outgoing_maps_[pred_rpo.ToSize()]->map();
+          auto& pred_val = *pred_map.find(succ_val.first);
+          if (pred_val.second->use_vreg != kInvalidVreg) {
+            CHECK_EQ(succ_vreg, pred_val.second->use_vreg);
+          }
+          if (pred_val.second->define_vreg != kInvalidVreg) {
+            CHECK_EQ(succ_vreg, pred_val.second->define_vreg);
+          }
+          if (pred_val.second->succ_vreg != kInvalidVreg) {
+            CHECK_EQ(succ_vreg, pred_val.second->succ_vreg);
+          } else {
+            pred_val.second->succ_vreg = succ_vreg;
+            block_ids.insert(pred_rpo.ToSize());
+          }
+        }
+      }
+    }
+    // Clear uses and back links for second pass.
+    for (auto operand_map : incoming_maps_) {
+      for (auto& succ_val : operand_map->map()) {
+        succ_val.second->incoming = nullptr;
+        succ_val.second->use_vreg = kInvalidVreg;
       }
     }
   }
 
  private:
-  LocationMap locations_;
-  LocationMap predecessor_intersection_;
+  OperandMap* InitializeFromFirstPredecessor(size_t block_index) {
+    auto to_init = outgoing_maps_[block_index];
+    CHECK(to_init->map().empty());
+    auto block = sequence()->instruction_blocks()[block_index];
+    if (block->predecessors().empty()) return to_init;
+    size_t predecessor_index = block->predecessors()[0].ToSize();
+    // Ensure not a backedge.
+    CHECK(predecessor_index < block->rpo_number().ToSize());
+    auto incoming = outgoing_maps_[predecessor_index];
+    // Copy map and replace values.
+    to_init->map() = incoming->map();
+    for (auto& it : to_init->map()) {
+      auto incoming = it.second;
+      it.second = new (zone()) OperandMap::MapValue();
+      it.second->incoming = incoming;
+    }
+    // Copy to incoming map for second pass.
+    incoming_maps_[block_index]->map() = to_init->map();
+    return to_init;
+  }
 
-  DISALLOW_COPY_AND_ASSIGN(OutgoingMapping);
+  OperandMap* InitializeFromIntersection(size_t block_index) {
+    return incoming_maps_[block_index];
+  }
+
+  void InitializeOperandMaps() {
+    size_t block_count = sequence()->instruction_blocks().size();
+    incoming_maps_.reserve(block_count);
+    outgoing_maps_.reserve(block_count);
+    for (size_t i = 0; i < block_count; ++i) {
+      incoming_maps_.push_back(new (zone()) OperandMap(zone()));
+      outgoing_maps_.push_back(new (zone()) OperandMap(zone()));
+    }
+  }
+
+  void InitializePhis() {
+    const size_t block_count = sequence()->instruction_blocks().size();
+    for (size_t block_index = 0; block_index < block_count; ++block_index) {
+      const auto block = sequence()->instruction_blocks()[block_index];
+      for (auto phi : block->phis()) {
+        int first_pred_vreg = phi->operands()[0];
+        const PhiData* first_pred_phi = nullptr;
+        if (IsPhi(first_pred_vreg)) {
+          first_pred_phi = GetPhi(first_pred_vreg);
+          first_pred_vreg = first_pred_phi->first_pred_vreg;
+        }
+        CHECK(!IsPhi(first_pred_vreg));
+        auto phi_data = new (zone()) PhiData(
+            block->rpo_number(), phi, first_pred_vreg, first_pred_phi, zone());
+        auto res =
+            phi_map_.insert(std::make_pair(phi->virtual_register(), phi_data));
+        CHECK(res.second);
+        phi_map_guard_.Add(phi->virtual_register());
+      }
+    }
+  }
+
+  typedef ZoneVector<OperandMap*> OperandMaps;
+  typedef ZoneVector<PhiData*> PhiVector;
+
+  Zone* zone() const { return zone_; }
+  const InstructionSequence* sequence() const { return sequence_; }
+
+  Zone* const zone_;
+  const InstructionSequence* const sequence_;
+  BitVector phi_map_guard_;
+  PhiMap phi_map_;
+  OperandMaps incoming_maps_;
+  OperandMaps outgoing_maps_;
 };
 
 
-// Verify that all gap moves move the operands for a virtual register into the
-// correct location for every instruction.
 void RegisterAllocatorVerifier::VerifyGapMoves() {
-  typedef ZoneVector<OutgoingMapping*> OutgoingMappings;
-  OutgoingMappings outgoing_mappings(
-      static_cast<int>(sequence()->instruction_blocks().size()), nullptr,
-      zone());
-  // Construct all mappings, ignoring back edges and multiple entries.
-  ConstructOutgoingMappings(&outgoing_mappings, true);
-  // Run all remaining phis and compute the intersection of all predecessor
-  // mappings.
-  for (const auto* block : sequence()->instruction_blocks()) {
-    if (block->PredecessorCount() == 0) continue;
-    const size_t block_index = block->rpo_number().ToSize();
-    auto* mapping = outgoing_mappings[block_index];
-    bool initialized = false;
-    // Walk predecessors in reverse to ensure Intersect is correctly working.
-    // If it did nothing, the second pass would do exactly what the first pass
-    // did.
-    for (size_t phi_input = block->PredecessorCount() - 1; true; --phi_input) {
-      const size_t pred_block_index = block->predecessors()[phi_input].ToSize();
-      auto* incoming = outgoing_mappings[pred_block_index];
-      if (phi_input != 0) incoming->RunPhis(sequence(), block, phi_input);
-      if (!initialized) {
-        mapping->InitializeIntersection(incoming);
-        initialized = true;
-      } else {
-        mapping->Intersect(incoming);
-      }
-      if (phi_input == 0) break;
-    }
-  }
-  // Construct all mappings again, this time using the instersection mapping
-  // above as the incoming mapping instead of the result from the first
-  // predecessor.
-  ConstructOutgoingMappings(&outgoing_mappings, false);
+  BlockMaps block_maps(zone(), sequence());
+  VerifyGapMoves(&block_maps, true);
+  block_maps.PropagateUsesBackwards();
+  VerifyGapMoves(&block_maps, false);
 }
 
 
-void RegisterAllocatorVerifier::ConstructOutgoingMappings(
-    OutgoingMappings* outgoing_mappings, bool initial_pass) {
-  // Compute the locations of all virtual registers leaving every block, using
-  // only the first predecessor as source for the input mapping.
-  for (const auto* block : sequence()->instruction_blocks()) {
-    const size_t block_index = block->rpo_number().ToSize();
-    auto* current = outgoing_mappings->at(block_index);
-    CHECK(initial_pass == (current == nullptr));
-    // Initialize current.
-    if (!initial_pass) {
-      // Skip check second time around for blocks without multiple predecessors
-      // as we have already executed this in the initial run.
-      if (block->PredecessorCount() <= 1) continue;
-      current->InitializeFromIntersection();
-    } else {
-      current = new (zone()) OutgoingMapping(zone());
-      outgoing_mappings->at(block_index) = current;
-      // Copy outgoing values from predecessor block.
-      current->InitializeFromFirstPredecessor(sequence(), outgoing_mappings,
-                                              block);
-    }
-    // Update current with gaps and operands for all instructions in block.
+// Compute and verify outgoing values for every block.
+void RegisterAllocatorVerifier::VerifyGapMoves(BlockMaps* block_maps,
+                                               bool initial_pass) {
+  const size_t block_count = sequence()->instruction_blocks().size();
+  for (size_t block_index = 0; block_index < block_count; ++block_index) {
+    auto current = block_maps->InitializeIncoming(block_index, initial_pass);
+    const auto block = sequence()->instruction_blocks()[block_index];
     for (int instr_index = block->code_start(); instr_index < block->code_end();
          ++instr_index) {
       const auto& instr_constraint = constraints_[instr_index];
-      const auto* instr = instr_constraint.instruction_;
-      const auto* op_constraints = instr_constraint.operand_constraints_;
+      const auto instr = instr_constraint.instruction_;
+      if (instr->IsSourcePosition()) continue;
+      if (instr->IsGapMoves()) {
+        current->RunGapInstruction(zone(), GapInstruction::cast(instr));
+        continue;
+      }
+      const auto op_constraints = instr_constraint.operand_constraints_;
       size_t count = 0;
       for (size_t i = 0; i < instr->InputCount(); ++i, ++count) {
         if (op_constraints[count].type_ == kImmediate) continue;
-        auto it = current->locations()->find(instr->InputAt(i));
         int virtual_register = op_constraints[count].virtual_register_;
-        CHECK(it != current->locations()->end());
-        CHECK_EQ(it->second, virtual_register);
+        auto op = instr->InputAt(i);
+        if (!block_maps->IsPhi(virtual_register)) {
+          current->Use(op, virtual_register, initial_pass);
+        } else {
+          auto phi = block_maps->GetPhi(virtual_register);
+          current->UsePhi(op, phi, initial_pass);
+        }
       }
       for (size_t i = 0; i < instr->TempCount(); ++i, ++count) {
         current->Drop(instr->TempAt(i));
@@ -443,13 +658,8 @@ void RegisterAllocatorVerifier::ConstructOutgoingMappings(
         current->DropRegisters(config());
       }
       for (size_t i = 0; i < instr->OutputCount(); ++i, ++count) {
-        current->Drop(instr->OutputAt(i));
         int virtual_register = op_constraints[count].virtual_register_;
-        current->Map(instr->OutputAt(i), virtual_register);
-      }
-      if (instr->IsGapMoves()) {
-        const auto* gap = GapInstruction::cast(instr);
-        current->RunGapInstruction(zone(), gap);
+        current->Define(zone(), instr->OutputAt(i), virtual_register);
       }
     }
   }

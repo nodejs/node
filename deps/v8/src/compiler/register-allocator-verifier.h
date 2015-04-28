@@ -5,7 +5,6 @@
 #ifndef V8_REGISTER_ALLOCATOR_VERIFIER_H_
 #define V8_REGISTER_ALLOCATOR_VERIFIER_H_
 
-#include "src/v8.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
@@ -49,10 +48,9 @@ class RegisterAllocatorVerifier FINAL : public ZoneObject {
     OperandConstraint* operand_constraints_;
   };
 
-  class OutgoingMapping;
+  class BlockMaps;
 
   typedef ZoneVector<InstructionConstraint> Constraints;
-  typedef ZoneVector<OutgoingMapping*> OutgoingMappings;
 
   Zone* zone() const { return zone_; }
   const RegisterConfiguration* config() { return config_; }
@@ -68,8 +66,7 @@ class RegisterAllocatorVerifier FINAL : public ZoneObject {
   void CheckConstraint(const InstructionOperand* op,
                        const OperandConstraint* constraint);
 
-  void ConstructOutgoingMappings(OutgoingMappings* outgoing_mappings,
-                                 bool initial_pass);
+  void VerifyGapMoves(BlockMaps* outgoing_mappings, bool initial_pass);
 
   Zone* const zone_;
   const RegisterConfiguration* config_;

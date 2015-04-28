@@ -12,6 +12,24 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+class CodeGenerator::JumpTable FINAL : public ZoneObject {
+ public:
+  JumpTable(JumpTable* next, Label** targets, size_t target_count)
+      : next_(next), targets_(targets), target_count_(target_count) {}
+
+  Label* label() { return &label_; }
+  JumpTable* next() const { return next_; }
+  Label** targets() const { return targets_; }
+  size_t target_count() const { return target_count_; }
+
+ private:
+  Label label_;
+  JumpTable* const next_;
+  Label** const targets_;
+  size_t const target_count_;
+};
+
+
 CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
                              InstructionSequence* code, CompilationInfo* info)
     : frame_(frame),
@@ -21,14 +39,16 @@ CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
       labels_(zone()->NewArray<Label>(code->InstructionBlockCount())),
       current_block_(BasicBlock::RpoNumber::Invalid()),
       current_source_position_(SourcePosition::Invalid()),
-      masm_(code->zone()->isolate(), NULL, 0),
+      masm_(info->isolate(), NULL, 0),
       resolver_(this),
       safepoints_(code->zone()),
       deoptimization_states_(code->zone()),
       deoptimization_literals_(code->zone()),
       translations_(code->zone()),
       last_lazy_deopt_pc_(0),
-      ools_(nullptr) {
+      jump_tables_(nullptr),
+      ools_(nullptr),
+      osr_pc_offset_(-1) {
   for (int i = 0; i < code->InstructionBlockCount(); ++i) {
     new (&labels_[i]) Label;
   }
@@ -80,11 +100,9 @@ Handle<Code> CodeGenerator::GenerateCode() {
     for (OutOfLineCode* ool = ools_; ool; ool = ool->next()) {
       masm()->bind(ool->entry());
       ool->Generate();
-      masm()->jmp(ool->exit());
+      if (ool->exit()->is_bound()) masm()->jmp(ool->exit());
     }
   }
-
-  FinishCode(masm());
 
   // Ensure there is space for lazy deoptimization in the code.
   if (!info->IsStub()) {
@@ -94,15 +112,21 @@ Handle<Code> CodeGenerator::GenerateCode() {
     }
   }
 
+  FinishCode(masm());
+
+  // Emit the jump tables.
+  if (jump_tables_) {
+    masm()->Align(kPointerSize);
+    for (JumpTable* table = jump_tables_; table; table = table->next()) {
+      masm()->bind(table->label());
+      AssembleJumpTable(table->targets(), table->target_count());
+    }
+  }
+
   safepoints()->Emit(masm(), frame()->GetSpillSlotCount());
 
-  // TODO(titzer): what are the right code flags here?
-  Code::Kind kind = Code::STUB;
-  if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
-    kind = Code::OPTIMIZED_FUNCTION;
-  }
   Handle<Code> result = v8::internal::CodeGenerator::MakeCodeEpilogue(
-      masm(), Code::ComputeFlags(kind), info);
+      masm(), info->flags(), info);
   result->set_is_turbofanned(true);
   result->set_stack_slots(frame()->GetSpillSlotCount());
   result->set_safepoint_table_offset(safepoints()->GetCodeOffset());
@@ -236,7 +260,7 @@ void CodeGenerator::AssembleGap(GapInstruction* instr) {
 void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
   CompilationInfo* info = this->info();
   int deopt_count = static_cast<int>(deoptimization_states_.size());
-  if (deopt_count == 0) return;
+  if (deopt_count == 0 && !info->is_osr()) return;
   Handle<DeoptimizationInputData> data =
       DeoptimizationInputData::New(isolate(), deopt_count, TENURED);
 
@@ -266,16 +290,21 @@ void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
     data->SetLiteralArray(*literals);
   }
 
-  // No OSR in Turbofan yet...
-  BailoutId osr_ast_id = BailoutId::None();
-  data->SetOsrAstId(Smi::FromInt(osr_ast_id.ToInt()));
-  data->SetOsrPcOffset(Smi::FromInt(-1));
+  if (info->is_osr()) {
+    DCHECK(osr_pc_offset_ >= 0);
+    data->SetOsrAstId(Smi::FromInt(info_->osr_ast_id().ToInt()));
+    data->SetOsrPcOffset(Smi::FromInt(osr_pc_offset_));
+  } else {
+    BailoutId osr_ast_id = BailoutId::None();
+    data->SetOsrAstId(Smi::FromInt(osr_ast_id.ToInt()));
+    data->SetOsrPcOffset(Smi::FromInt(-1));
+  }
 
   // Populate deoptimization entries.
   for (int i = 0; i < deopt_count; i++) {
     DeoptimizationState* deoptimization_state = deoptimization_states_[i];
     data->SetAstId(i, deoptimization_state->bailout_id());
-    CHECK_NE(NULL, deoptimization_states_[i]);
+    CHECK(deoptimization_states_[i]);
     data->SetTranslationIndex(
         i, Smi::FromInt(deoptimization_states_[i]->translation_id()));
     data->SetArgumentsStackHeight(i, Smi::FromInt(0));
@@ -283,6 +312,12 @@ void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
   }
 
   code_object->set_deoptimization_data(*data);
+}
+
+
+Label* CodeGenerator::AddJumpTable(Label** targets, size_t target_count) {
+  jump_tables_ = new (zone()) JumpTable(jump_tables_, targets, target_count);
+  return jump_tables_->label();
 }
 
 
@@ -570,6 +605,11 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
 
 
 void CodeGenerator::AddNopForSmiCodeInlining() { UNIMPLEMENTED(); }
+
+
+void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
+  UNIMPLEMENTED();
+}
 
 #endif  // !V8_TURBOFAN_BACKEND
 

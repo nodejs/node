@@ -5,6 +5,7 @@
 #include "src/bootstrapper.h"
 
 #include "src/accessors.h"
+#include "src/api-natives.h"
 #include "src/code-stubs.h"
 #include "src/extensions/externalize-string-extension.h"
 #include "src/extensions/free-buffer-extension.h"
@@ -19,28 +20,10 @@
 namespace v8 {
 namespace internal {
 
-NativesExternalStringResource::NativesExternalStringResource(
-    Bootstrapper* bootstrapper,
-    const char* source,
-    size_t length)
-    : data_(source), length_(length) {
-  if (bootstrapper->delete_these_non_arrays_on_tear_down_ == NULL) {
-    bootstrapper->delete_these_non_arrays_on_tear_down_ = new List<char*>(2);
-  }
-  // The resources are small objects and we only make a fixed number of
-  // them, but let's clean them up on exit for neatness.
-  bootstrapper->delete_these_non_arrays_on_tear_down_->
-      Add(reinterpret_cast<char*>(this));
-}
-
-
 Bootstrapper::Bootstrapper(Isolate* isolate)
     : isolate_(isolate),
       nesting_(0),
-      extensions_cache_(Script::TYPE_EXTENSION),
-      delete_these_non_arrays_on_tear_down_(NULL),
-      delete_these_arrays_on_tear_down_(NULL) {
-}
+      extensions_cache_(Script::TYPE_EXTENSION) {}
 
 
 Handle<String> Bootstrapper::NativesSourceLookup(int index) {
@@ -50,9 +33,7 @@ Handle<String> Bootstrapper::NativesSourceLookup(int index) {
     // We can use external strings for the natives.
     Vector<const char> source = Natives::GetScriptSource(index);
     NativesExternalStringResource* resource =
-        new NativesExternalStringResource(this,
-                                          source.start(),
-                                          source.length());
+        new NativesExternalStringResource(source.start(), source.length());
     // We do not expect this to throw an exception. Change this if it does.
     Handle<String> source_code = isolate_->factory()
                                      ->NewExternalStringFromOneByte(resource)
@@ -113,39 +94,19 @@ void Bootstrapper::TearDownExtensions() {
 }
 
 
-char* Bootstrapper::AllocateAutoDeletedArray(int bytes) {
-  char* memory = new char[bytes];
-  if (memory != NULL) {
-    if (delete_these_arrays_on_tear_down_ == NULL) {
-      delete_these_arrays_on_tear_down_ = new List<char*>(2);
-    }
-    delete_these_arrays_on_tear_down_->Add(memory);
-  }
-  return memory;
-}
-
-
 void Bootstrapper::TearDown() {
-  if (delete_these_non_arrays_on_tear_down_ != NULL) {
-    int len = delete_these_non_arrays_on_tear_down_->length();
-    DCHECK(len < 1000);  // Don't use this mechanism for unbounded allocations.
-    for (int i = 0; i < len; i++) {
-      delete delete_these_non_arrays_on_tear_down_->at(i);
-      delete_these_non_arrays_on_tear_down_->at(i) = NULL;
+  Object* natives_source_cache = isolate_->heap()->natives_source_cache();
+  if (natives_source_cache->IsFixedArray()) {
+    FixedArray* natives_source_array = FixedArray::cast(natives_source_cache);
+    for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
+      Object* natives_source = natives_source_array->get(i);
+      if (!natives_source->IsUndefined()) {
+        const NativesExternalStringResource* resource =
+            reinterpret_cast<const NativesExternalStringResource*>(
+                ExternalOneByteString::cast(natives_source)->resource());
+        delete resource;
+      }
     }
-    delete delete_these_non_arrays_on_tear_down_;
-    delete_these_non_arrays_on_tear_down_ = NULL;
-  }
-
-  if (delete_these_arrays_on_tear_down_ != NULL) {
-    int len = delete_these_arrays_on_tear_down_->length();
-    DCHECK(len < 1000);  // Don't use this mechanism for unbounded allocations.
-    for (int i = 0; i < len; i++) {
-      delete[] delete_these_arrays_on_tear_down_->at(i);
-      delete_these_arrays_on_tear_down_->at(i) = NULL;
-    }
-    delete delete_these_arrays_on_tear_down_;
-    delete_these_arrays_on_tear_down_ = NULL;
   }
 
   extensions_cache_.Initialize(isolate_, false);  // Yes, symmetrical
@@ -183,16 +144,15 @@ class Genesis BASE_EMBEDDED {
   // Make the "arguments" and "caller" properties throw a TypeError on access.
   void PoisonArgumentsAndCaller(Handle<Map> map);
 
-  // Creates the global objects using the global and the template passed in
-  // through the API.  We call this regardless of whether we are building a
+  // Creates the global objects using the global proxy and the template passed
+  // in through the API.  We call this regardless of whether we are building a
   // context from scratch or using a deserialized one from the partial snapshot
   // but in the latter case we don't use the objects it produces directly, as
   // we have to used the deserialized ones that are linked together with the
   // rest of the context snapshot.
-  Handle<JSGlobalProxy> CreateNewGlobals(
+  Handle<GlobalObject> CreateNewGlobals(
       v8::Handle<v8::ObjectTemplate> global_proxy_template,
-      MaybeHandle<JSGlobalProxy> maybe_global_proxy,
-      Handle<GlobalObject>* global_object_out);
+      Handle<JSGlobalProxy> global_proxy);
   // Hooks the given global proxy into the context.  If the context was created
   // by deserialization then this will unhook the global proxy that was
   // deserialized, leaving the GC to pick it up.
@@ -201,7 +161,8 @@ class Genesis BASE_EMBEDDED {
   // Similarly, we want to use the global that has been created by the templates
   // passed through the API.  The global from the snapshot is detached from the
   // other objects in the snapshot.
-  void HookUpGlobalObject(Handle<GlobalObject> global_object);
+  void HookUpGlobalObject(Handle<GlobalObject> global_object,
+                          Handle<FixedArray> outdated_contexts);
   // New context initialization.  Used for creating a context from scratch.
   void InitializeGlobal(Handle<GlobalObject> global_object,
                         Handle<JSFunction> empty_function);
@@ -210,6 +171,8 @@ class Genesis BASE_EMBEDDED {
   // Used for creating a context from scratch.
   void InstallNativeFunctions();
   void InstallExperimentalNativeFunctions();
+  // Typed arrays are not serializable and have to initialized afterwards.
+  void InitializeBuiltinTypedArrays();
 
 #define DECLARE_FEATURE_INITIALIZATION(id, descr) \
   void InstallNativeFunctions_##id();             \
@@ -373,6 +336,9 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
   global_proxy->set_native_context(*factory->null_value());
   SetObjectPrototype(global_proxy, factory->null_value());
   global_proxy->map()->set_constructor(*factory->null_value());
+  if (FLAG_track_detached_contexts) {
+    env->GetIsolate()->AddDetachedContext(env);
+  }
 }
 
 
@@ -418,29 +384,29 @@ void Genesis::SetFunctionInstanceDescriptor(
   Handle<AccessorInfo> length =
       Accessors::FunctionLengthInfo(isolate(), attribs);
   {  // Add length.
-    CallbacksDescriptor d(Handle<Name>(Name::cast(length->name())),
-                          length, attribs);
+    AccessorConstantDescriptor d(Handle<Name>(Name::cast(length->name())),
+                                 length, attribs);
     map->AppendDescriptor(&d);
   }
   Handle<AccessorInfo> name =
       Accessors::FunctionNameInfo(isolate(), attribs);
   {  // Add name.
-    CallbacksDescriptor d(Handle<Name>(Name::cast(name->name())),
-                          name, attribs);
+    AccessorConstantDescriptor d(Handle<Name>(Name::cast(name->name())), name,
+                                 attribs);
     map->AppendDescriptor(&d);
   }
   Handle<AccessorInfo> args =
       Accessors::FunctionArgumentsInfo(isolate(), attribs);
   {  // Add arguments.
-    CallbacksDescriptor d(Handle<Name>(Name::cast(args->name())),
-                          args, attribs);
+    AccessorConstantDescriptor d(Handle<Name>(Name::cast(args->name())), args,
+                                 attribs);
     map->AppendDescriptor(&d);
   }
   Handle<AccessorInfo> caller =
       Accessors::FunctionCallerInfo(isolate(), attribs);
   {  // Add caller.
-    CallbacksDescriptor d(Handle<Name>(Name::cast(caller->name())),
-                          caller, attribs);
+    AccessorConstantDescriptor d(Handle<Name>(Name::cast(caller->name())),
+                                 caller, attribs);
     map->AppendDescriptor(&d);
   }
   if (IsFunctionModeWithPrototype(function_mode)) {
@@ -449,8 +415,8 @@ void Genesis::SetFunctionInstanceDescriptor(
     }
     Handle<AccessorInfo> prototype =
         Accessors::FunctionPrototypeInfo(isolate(), attribs);
-    CallbacksDescriptor d(Handle<Name>(Name::cast(prototype->name())),
-                          prototype, attribs);
+    AccessorConstantDescriptor d(Handle<Name>(Name::cast(prototype->name())),
+                                 prototype, attribs);
     map->AppendDescriptor(&d);
   }
 }
@@ -574,7 +540,7 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
   // Add length.
   if (function_mode == BOUND_FUNCTION) {
     Handle<String> length_string = isolate()->factory()->length_string();
-    FieldDescriptor d(length_string, 0, ro_attribs, Representation::Tagged());
+    DataDescriptor d(length_string, 0, ro_attribs, Representation::Tagged());
     map->AppendDescriptor(&d);
   } else {
     DCHECK(function_mode == FUNCTION_WITH_WRITEABLE_PROTOTYPE ||
@@ -582,24 +548,25 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
            function_mode == FUNCTION_WITHOUT_PROTOTYPE);
     Handle<AccessorInfo> length =
         Accessors::FunctionLengthInfo(isolate(), ro_attribs);
-    CallbacksDescriptor d(Handle<Name>(Name::cast(length->name())),
-                          length, ro_attribs);
+    AccessorConstantDescriptor d(Handle<Name>(Name::cast(length->name())),
+                                 length, ro_attribs);
     map->AppendDescriptor(&d);
   }
   Handle<AccessorInfo> name =
       Accessors::FunctionNameInfo(isolate(), ro_attribs);
   {  // Add name.
-    CallbacksDescriptor d(Handle<Name>(Name::cast(name->name())),
-                          name, ro_attribs);
+    AccessorConstantDescriptor d(Handle<Name>(Name::cast(name->name())), name,
+                                 ro_attribs);
     map->AppendDescriptor(&d);
   }
   {  // Add arguments.
-    CallbacksDescriptor d(factory()->arguments_string(), arguments,
-                          rw_attribs);
+    AccessorConstantDescriptor d(factory()->arguments_string(), arguments,
+                                 rw_attribs);
     map->AppendDescriptor(&d);
   }
   {  // Add caller.
-    CallbacksDescriptor d(factory()->caller_string(), caller, rw_attribs);
+    AccessorConstantDescriptor d(factory()->caller_string(), caller,
+                                 rw_attribs);
     map->AppendDescriptor(&d);
   }
   if (IsFunctionModeWithPrototype(function_mode)) {
@@ -609,8 +576,8 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
                                                            : ro_attribs;
     Handle<AccessorInfo> prototype =
         Accessors::FunctionPrototypeInfo(isolate(), attribs);
-    CallbacksDescriptor d(Handle<Name>(Name::cast(prototype->name())),
-                          prototype, attribs);
+    AccessorConstantDescriptor d(Handle<Name>(Name::cast(prototype->name())),
+                                 prototype, attribs);
     map->AppendDescriptor(&d);
   }
 }
@@ -709,7 +676,7 @@ static void ReplaceAccessors(Handle<Map> map,
                              Handle<AccessorPair> accessor_pair) {
   DescriptorArray* descriptors = map->instance_descriptors();
   int idx = descriptors->SearchWithCache(*name, *map);
-  CallbacksDescriptor descriptor(name, accessor_pair, attributes);
+  AccessorConstantDescriptor descriptor(name, accessor_pair, attributes);
   descriptors->Replace(idx, &descriptor);
 }
 
@@ -756,14 +723,13 @@ void Genesis::CreateRoots() {
 }
 
 
-Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
+Handle<GlobalObject> Genesis::CreateNewGlobals(
     v8::Handle<v8::ObjectTemplate> global_proxy_template,
-    MaybeHandle<JSGlobalProxy> maybe_global_proxy,
-    Handle<GlobalObject>* global_object_out) {
+    Handle<JSGlobalProxy> global_proxy) {
   // The argument global_proxy_template aka data is an ObjectTemplateInfo.
   // It has a constructor pointer that points at global_constructor which is a
   // FunctionTemplateInfo.
-  // The global_proxy_constructor is used to create or reinitialize the
+  // The global_proxy_constructor is used to (re)initialize the
   // global_proxy. The global_proxy_constructor also has a prototype_template
   // pointer that points at js_global_object_template which is an
   // ObjectTemplateInfo.
@@ -809,21 +775,17 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
   } else {
     Handle<FunctionTemplateInfo> js_global_object_constructor(
         FunctionTemplateInfo::cast(js_global_object_template->constructor()));
-    js_global_object_function =
-        factory()->CreateApiFunction(js_global_object_constructor,
-                                     factory()->the_hole_value(),
-                                     factory()->GlobalObjectType);
+    js_global_object_function = ApiNatives::CreateApiFunction(
+        isolate(), js_global_object_constructor, factory()->the_hole_value(),
+        ApiNatives::GlobalObjectType);
   }
 
   js_global_object_function->initial_map()->set_is_hidden_prototype();
   js_global_object_function->initial_map()->set_dictionary_map(true);
   Handle<GlobalObject> global_object =
       factory()->NewGlobalObject(js_global_object_function);
-  if (global_object_out != NULL) {
-    *global_object_out = global_object;
-  }
 
-  // Step 2: create or re-initialize the global proxy object.
+  // Step 2: (re)initialize the global proxy object.
   Handle<JSFunction> global_proxy_function;
   if (global_proxy_template.IsEmpty()) {
     Handle<String> name = Handle<String>(heap()->empty_string());
@@ -836,10 +798,9 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
         v8::Utils::OpenHandle(*global_proxy_template);
     Handle<FunctionTemplateInfo> global_constructor(
             FunctionTemplateInfo::cast(data->constructor()));
-    global_proxy_function =
-        factory()->CreateApiFunction(global_constructor,
-                                     factory()->the_hole_value(),
-                                     factory()->GlobalProxyType);
+    global_proxy_function = ApiNatives::CreateApiFunction(
+        isolate(), global_constructor, factory()->the_hole_value(),
+        ApiNatives::GlobalProxyType);
   }
 
   Handle<String> global_name = factory()->global_string();
@@ -849,15 +810,8 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
   // Set global_proxy.__proto__ to js_global after ConfigureGlobalObjects
   // Return the global proxy.
 
-  Handle<JSGlobalProxy> global_proxy;
-  if (maybe_global_proxy.ToHandle(&global_proxy)) {
-    factory()->ReinitializeJSGlobalProxy(global_proxy, global_proxy_function);
-  } else {
-    global_proxy = Handle<JSGlobalProxy>::cast(
-        factory()->NewJSObject(global_proxy_function, TENURED));
-    global_proxy->set_hash(heap()->undefined_value());
-  }
-  return global_proxy;
+  factory()->ReinitializeJSGlobalProxy(global_proxy, global_proxy_function);
+  return global_object;
 }
 
 
@@ -867,17 +821,29 @@ void Genesis::HookUpGlobalProxy(Handle<GlobalObject> global_object,
   global_object->set_native_context(*native_context());
   global_object->set_global_proxy(*global_proxy);
   global_proxy->set_native_context(*native_context());
+  // If we deserialized the context, the global proxy is already
+  // correctly set up. Otherwise it's undefined.
+  DCHECK(native_context()->get(Context::GLOBAL_PROXY_INDEX)->IsUndefined() ||
+         native_context()->global_proxy() == *global_proxy);
   native_context()->set_global_proxy(*global_proxy);
 }
 
 
-void Genesis::HookUpGlobalObject(Handle<GlobalObject> global_object) {
+void Genesis::HookUpGlobalObject(Handle<GlobalObject> global_object,
+                                 Handle<FixedArray> outdated_contexts) {
   Handle<GlobalObject> global_object_from_snapshot(
       GlobalObject::cast(native_context()->extension()));
   Handle<JSBuiltinsObject> builtins_global(native_context()->builtins());
   native_context()->set_extension(*global_object);
-  native_context()->set_global_object(*global_object);
   native_context()->set_security_token(*global_object);
+
+  // Replace outdated global objects in deserialized contexts.
+  for (int i = 0; i < outdated_contexts->length(); ++i) {
+    Context* context = Context::cast(outdated_contexts->get(i));
+    DCHECK_EQ(context->global_object(), *global_object_from_snapshot);
+    context->set_global_object(*global_object);
+  }
+
   static const PropertyAttributes attributes =
       static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
   Runtime::DefineObjectProperty(builtins_global, factory()->global_string(),
@@ -948,9 +914,9 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     Handle<AccessorInfo> array_length =
         Accessors::ArrayLengthInfo(isolate, attribs);
     {  // Add length.
-      CallbacksDescriptor d(
-          Handle<Name>(Name::cast(array_length->name())),
-          array_length, attribs);
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(array_length->name())), array_length,
+          attribs);
       initial_map->AppendDescriptor(&d);
     }
 
@@ -1002,7 +968,8 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
         Accessors::StringLengthInfo(isolate, attribs));
 
     {  // Add length.
-      CallbacksDescriptor d(factory->length_string(), string_length, attribs);
+      AccessorConstantDescriptor d(factory->length_string(), string_length,
+                                   attribs);
       string_map->AppendDescriptor(&d);
     }
   }
@@ -1047,41 +1014,38 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
       // ECMA-262, section 15.10.7.1.
       Handle<AccessorInfo> regexp_source(
           Accessors::RegExpSourceInfo(isolate, final));
-      CallbacksDescriptor d(factory->source_string(), regexp_source, final);
+      AccessorConstantDescriptor d(factory->source_string(), regexp_source,
+                                   final);
       initial_map->AppendDescriptor(&d);
     }
     {
       // ECMA-262, section 15.10.7.2.
-      FieldDescriptor field(factory->global_string(),
-                            JSRegExp::kGlobalFieldIndex,
-                            final,
-                            Representation::Tagged());
+      DataDescriptor field(factory->global_string(),
+                           JSRegExp::kGlobalFieldIndex, final,
+                           Representation::Tagged());
       initial_map->AppendDescriptor(&field);
     }
     {
       // ECMA-262, section 15.10.7.3.
-      FieldDescriptor field(factory->ignore_case_string(),
-                            JSRegExp::kIgnoreCaseFieldIndex,
-                            final,
-                            Representation::Tagged());
+      DataDescriptor field(factory->ignore_case_string(),
+                           JSRegExp::kIgnoreCaseFieldIndex, final,
+                           Representation::Tagged());
       initial_map->AppendDescriptor(&field);
     }
     {
       // ECMA-262, section 15.10.7.4.
-      FieldDescriptor field(factory->multiline_string(),
-                            JSRegExp::kMultilineFieldIndex,
-                            final,
-                            Representation::Tagged());
+      DataDescriptor field(factory->multiline_string(),
+                           JSRegExp::kMultilineFieldIndex, final,
+                           Representation::Tagged());
       initial_map->AppendDescriptor(&field);
     }
     {
       // ECMA-262, section 15.10.7.5.
       PropertyAttributes writable =
           static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
-      FieldDescriptor field(factory->last_index_string(),
-                            JSRegExp::kLastIndexFieldIndex,
-                            writable,
-                            Representation::Tagged());
+      DataDescriptor field(factory->last_index_string(),
+                           JSRegExp::kLastIndexFieldIndex, writable,
+                           Representation::Tagged());
       initial_map->AppendDescriptor(&field);
     }
 
@@ -1178,14 +1142,14 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     Map::EnsureDescriptorSlack(iterator_result_map,
                                JSGeneratorObject::kResultPropertyCount);
 
-    FieldDescriptor value_descr(factory->value_string(),
-                                JSGeneratorObject::kResultValuePropertyIndex,
-                                NONE, Representation::Tagged());
+    DataDescriptor value_descr(factory->value_string(),
+                               JSGeneratorObject::kResultValuePropertyIndex,
+                               NONE, Representation::Tagged());
     iterator_result_map->AppendDescriptor(&value_descr);
 
-    FieldDescriptor done_descr(factory->done_string(),
-                               JSGeneratorObject::kResultDonePropertyIndex,
-                               NONE, Representation::Tagged());
+    DataDescriptor done_descr(factory->done_string(),
+                              JSGeneratorObject::kResultDonePropertyIndex, NONE,
+                              Representation::Tagged());
     iterator_result_map->AppendDescriptor(&done_descr);
 
     iterator_result_map->set_unused_property_fields(0);
@@ -1219,13 +1183,13 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     Map::EnsureDescriptorSlack(map, 2);
 
     {  // length
-      FieldDescriptor d(factory->length_string(), Heap::kArgumentsLengthIndex,
-                        DONT_ENUM, Representation::Tagged());
+      DataDescriptor d(factory->length_string(), Heap::kArgumentsLengthIndex,
+                       DONT_ENUM, Representation::Tagged());
       map->AppendDescriptor(&d);
     }
     {  // callee
-      FieldDescriptor d(factory->callee_string(), Heap::kArgumentsCalleeIndex,
-                        DONT_ENUM, Representation::Tagged());
+      DataDescriptor d(factory->callee_string(), Heap::kArgumentsCalleeIndex,
+                       DONT_ENUM, Representation::Tagged());
       map->AppendDescriptor(&d);
     }
     // @@iterator method is added later.
@@ -1276,16 +1240,18 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     Map::EnsureDescriptorSlack(map, 3);
 
     {  // length
-      FieldDescriptor d(factory->length_string(), Heap::kArgumentsLengthIndex,
-                        DONT_ENUM, Representation::Tagged());
+      DataDescriptor d(factory->length_string(), Heap::kArgumentsLengthIndex,
+                       DONT_ENUM, Representation::Tagged());
       map->AppendDescriptor(&d);
     }
     {  // callee
-      CallbacksDescriptor d(factory->callee_string(), callee, attributes);
+      AccessorConstantDescriptor d(factory->callee_string(), callee,
+                                   attributes);
       map->AppendDescriptor(&d);
     }
     {  // caller
-      CallbacksDescriptor d(factory->caller_string(), caller, attributes);
+      AccessorConstantDescriptor d(factory->caller_string(), caller,
+                                   attributes);
       map->AppendDescriptor(&d);
     }
     // @@iterator method is added later.
@@ -1446,9 +1412,9 @@ bool Genesis::CompileScriptCached(Isolate* isolate,
     Handle<String> script_name =
         factory->NewStringFromUtf8(name).ToHandleChecked();
     function_info = Compiler::CompileScript(
-        source, script_name, 0, 0, false, top_context, extension, NULL,
+        source, script_name, 0, 0, false, false, top_context, extension, NULL,
         ScriptCompiler::kNoCompileOptions,
-        use_runtime_context ? NATIVES_CODE : NOT_NATIVES_CODE);
+        use_runtime_context ? NATIVES_CODE : NOT_NATIVES_CODE, false);
     if (function_info.is_null()) return false;
     if (cache != NULL) cache->Add(name, function_info);
   }
@@ -1489,7 +1455,7 @@ static Handle<JSObject> ResolveBuiltinIdHolder(Handle<Context> native_context,
             .ToHandleChecked());
   }
   const char* inner = period_pos + 1;
-  DCHECK_EQ(NULL, strchr(inner, '.'));
+  DCHECK(!strchr(inner, '.'));
   Vector<const char> property(holder_expr,
                               static_cast<int>(period_pos - holder_expr));
   Handle<String> property_string = factory->InternalizeUtf8String(property);
@@ -1531,11 +1497,7 @@ void Genesis::InstallNativeFunctions() {
   INSTALL_NATIVE(JSFunction, "ToLength", to_length_fun);
 
   INSTALL_NATIVE(JSFunction, "GlobalEval", global_eval_fun);
-  INSTALL_NATIVE(JSFunction, "Instantiate", instantiate_fun);
-  INSTALL_NATIVE(JSFunction, "ConfigureTemplateInstance",
-                 configure_instance_fun);
   INSTALL_NATIVE(JSFunction, "GetStackTraceLine", get_stack_trace_line_fun);
-  INSTALL_NATIVE(JSObject, "functionCache", function_cache);
   INSTALL_NATIVE(JSFunction, "ToCompletePropertyDescriptor",
                  to_complete_property_descriptor);
 
@@ -1579,6 +1541,60 @@ void Genesis::InstallExperimentalNativeFunctions() {
 }
 
 
+template <typename Data>
+Data* SetBuiltinTypedArray(Isolate* isolate, Handle<JSBuiltinsObject> builtins,
+                           ExternalArrayType type, Data* data,
+                           size_t num_elements, const char* name) {
+  size_t byte_length = num_elements * sizeof(*data);
+  Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
+  bool should_be_freed = false;
+  if (data == NULL) {
+    data = reinterpret_cast<Data*>(malloc(byte_length));
+    should_be_freed = true;
+  }
+  Runtime::SetupArrayBuffer(isolate, buffer, true, data, byte_length);
+  buffer->set_should_be_freed(should_be_freed);
+
+  Handle<JSTypedArray> typed_array =
+      isolate->factory()->NewJSTypedArray(type, buffer, 0, num_elements);
+  Handle<String> name_string = isolate->factory()->InternalizeUtf8String(name);
+  // Reset property cell type before (re)initializing.
+  JSBuiltinsObject::InvalidatePropertyCell(builtins, name_string);
+  JSObject::SetOwnPropertyIgnoreAttributes(builtins, name_string, typed_array,
+                                           DONT_DELETE).Assert();
+  return data;
+}
+
+
+void Genesis::InitializeBuiltinTypedArrays() {
+  Handle<JSBuiltinsObject> builtins(native_context()->builtins());
+  {  // Initially seed the per-context random number generator using the
+    // per-isolate random number generator.
+    const size_t num_elements = 2;
+    const size_t num_bytes = num_elements * sizeof(uint32_t);
+    uint32_t* state = SetBuiltinTypedArray<uint32_t>(isolate(), builtins,
+                                                     kExternalUint32Array, NULL,
+                                                     num_elements, "rngstate");
+    do {
+      isolate()->random_number_generator()->NextBytes(state, num_bytes);
+    } while (state[0] == 0 || state[1] == 0);
+  }
+
+  {  // Initialize trigonometric lookup tables and constants.
+    const size_t num_elements = arraysize(fdlibm::MathConstants::constants);
+    double* data = const_cast<double*>(fdlibm::MathConstants::constants);
+    SetBuiltinTypedArray<double>(isolate(), builtins, kExternalFloat64Array,
+                                 data, num_elements, "kMath");
+  }
+
+  {  // Initialize a result array for rempio2 calculation
+    const size_t num_elements = 2;
+    SetBuiltinTypedArray<double>(isolate(), builtins, kExternalFloat64Array,
+                                 NULL, num_elements, "rempio2result");
+  }
+}
+
+
 #define EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(id) \
   void Genesis::InstallNativeFunctions_##id() {}
 
@@ -1596,6 +1612,9 @@ EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_tostring)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_templates)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_sloppy)
 EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_unicode)
+EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_unicode_regexps)
+EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_computed_property_names)
+EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_rest_parameters)
 
 
 void Genesis::InstallNativeFunctions_harmony_proxies() {
@@ -1626,6 +1645,8 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_proxies)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_templates)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_sloppy)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_unicode)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_computed_property_names)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_rest_parameters)
 
 void Genesis::InitializeGlobal_harmony_regexps() {
   Handle<JSObject> builtins(native_context()->builtins());
@@ -1635,6 +1656,19 @@ void Genesis::InitializeGlobal_harmony_regexps() {
   PropertyAttributes attributes =
       static_cast<PropertyAttributes>(DONT_DELETE | READ_ONLY);
   Runtime::DefineObjectProperty(builtins, factory()->harmony_regexps_string(),
+                                flag, attributes).Assert();
+}
+
+
+void Genesis::InitializeGlobal_harmony_unicode_regexps() {
+  Handle<JSObject> builtins(native_context()->builtins());
+
+  Handle<HeapObject> flag(FLAG_harmony_unicode_regexps ? heap()->true_value()
+                                                       : heap()->false_value());
+  PropertyAttributes attributes =
+      static_cast<PropertyAttributes>(DONT_DELETE | READ_ONLY);
+  Runtime::DefineObjectProperty(builtins,
+                                factory()->harmony_unicode_regexps_string(),
                                 flag, attributes).Assert();
 }
 
@@ -1674,8 +1708,8 @@ Handle<JSFunction> Genesis::InstallInternalArray(
   Handle<AccessorInfo> array_length =
       Accessors::ArrayLengthInfo(isolate(), attribs);
   {  // Add length.
-    CallbacksDescriptor d(
-        Handle<Name>(Name::cast(array_length->name())), array_length, attribs);
+    AccessorConstantDescriptor d(Handle<Name>(Name::cast(array_length->name())),
+                                 array_length, attribs);
     initial_map->AppendDescriptor(&d);
   }
 
@@ -1749,7 +1783,7 @@ bool Genesis::InstallNatives() {
     native_context()->set_script_function(*script_fun);
 
     Handle<Map> script_map = Handle<Map>(script_fun->initial_map());
-    Map::EnsureDescriptorSlack(script_map, 14);
+    Map::EnsureDescriptorSlack(script_map, 15);
 
     PropertyAttributes attribs =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
@@ -1757,16 +1791,17 @@ bool Genesis::InstallNatives() {
     Handle<AccessorInfo> script_column =
         Accessors::ScriptColumnOffsetInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(Handle<Name>(Name::cast(script_column->name())),
-                           script_column, attribs);
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_column->name())), script_column,
+          attribs);
       script_map->AppendDescriptor(&d);
     }
 
     Handle<AccessorInfo> script_id =
         Accessors::ScriptIdInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(Handle<Name>(Name::cast(script_id->name())),
-                            script_id, attribs);
+      AccessorConstantDescriptor d(Handle<Name>(Name::cast(script_id->name())),
+                                   script_id, attribs);
       script_map->AppendDescriptor(&d);
     }
 
@@ -1774,39 +1809,40 @@ bool Genesis::InstallNatives() {
     Handle<AccessorInfo> script_name =
         Accessors::ScriptNameInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(Handle<Name>(Name::cast(script_name->name())),
-                            script_name, attribs);
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_name->name())), script_name, attribs);
       script_map->AppendDescriptor(&d);
     }
 
     Handle<AccessorInfo> script_line =
         Accessors::ScriptLineOffsetInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(Handle<Name>(Name::cast(script_line->name())),
-                           script_line, attribs);
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_line->name())), script_line, attribs);
       script_map->AppendDescriptor(&d);
     }
 
     Handle<AccessorInfo> script_source =
         Accessors::ScriptSourceInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(Handle<Name>(Name::cast(script_source->name())),
-                            script_source, attribs);
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_source->name())), script_source,
+          attribs);
       script_map->AppendDescriptor(&d);
     }
 
     Handle<AccessorInfo> script_type =
         Accessors::ScriptTypeInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(Handle<Name>(Name::cast(script_type->name())),
-                            script_type, attribs);
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_type->name())), script_type, attribs);
       script_map->AppendDescriptor(&d);
     }
 
     Handle<AccessorInfo> script_compilation_type =
         Accessors::ScriptCompilationTypeInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(
+      AccessorConstantDescriptor d(
           Handle<Name>(Name::cast(script_compilation_type->name())),
           script_compilation_type, attribs);
       script_map->AppendDescriptor(&d);
@@ -1815,15 +1851,16 @@ bool Genesis::InstallNatives() {
     Handle<AccessorInfo> script_line_ends =
         Accessors::ScriptLineEndsInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(Handle<Name>(Name::cast(script_line_ends->name())),
-                            script_line_ends, attribs);
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_line_ends->name())), script_line_ends,
+          attribs);
       script_map->AppendDescriptor(&d);
     }
 
     Handle<AccessorInfo> script_context_data =
         Accessors::ScriptContextDataInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(
+      AccessorConstantDescriptor d(
           Handle<Name>(Name::cast(script_context_data->name())),
           script_context_data, attribs);
       script_map->AppendDescriptor(&d);
@@ -1832,7 +1869,7 @@ bool Genesis::InstallNatives() {
     Handle<AccessorInfo> script_eval_from_script =
         Accessors::ScriptEvalFromScriptInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(
+      AccessorConstantDescriptor d(
           Handle<Name>(Name::cast(script_eval_from_script->name())),
           script_eval_from_script, attribs);
       script_map->AppendDescriptor(&d);
@@ -1841,7 +1878,7 @@ bool Genesis::InstallNatives() {
     Handle<AccessorInfo> script_eval_from_script_position =
         Accessors::ScriptEvalFromScriptPositionInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(
+      AccessorConstantDescriptor d(
           Handle<Name>(Name::cast(script_eval_from_script_position->name())),
           script_eval_from_script_position, attribs);
       script_map->AppendDescriptor(&d);
@@ -1850,7 +1887,7 @@ bool Genesis::InstallNatives() {
     Handle<AccessorInfo> script_eval_from_function_name =
         Accessors::ScriptEvalFromFunctionNameInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(
+      AccessorConstantDescriptor d(
           Handle<Name>(Name::cast(script_eval_from_function_name->name())),
           script_eval_from_function_name, attribs);
       script_map->AppendDescriptor(&d);
@@ -1859,17 +1896,27 @@ bool Genesis::InstallNatives() {
     Handle<AccessorInfo> script_source_url =
         Accessors::ScriptSourceUrlInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(Handle<Name>(Name::cast(script_source_url->name())),
-                            script_source_url, attribs);
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_source_url->name())),
+          script_source_url, attribs);
       script_map->AppendDescriptor(&d);
     }
 
     Handle<AccessorInfo> script_source_mapping_url =
         Accessors::ScriptSourceMappingUrlInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(
+      AccessorConstantDescriptor d(
           Handle<Name>(Name::cast(script_source_mapping_url->name())),
           script_source_mapping_url, attribs);
+      script_map->AppendDescriptor(&d);
+    }
+
+    Handle<AccessorInfo> script_is_embedder_debug_script =
+        Accessors::ScriptIsEmbedderDebugScriptInfo(isolate(), attribs);
+    {
+      AccessorConstantDescriptor d(
+          Handle<Name>(Name::cast(script_is_embedder_debug_script->name())),
+          script_is_embedder_debug_script, attribs);
       script_map->AppendDescriptor(&d);
     }
 
@@ -2012,6 +2059,10 @@ bool Genesis::InstallNatives() {
 
   InstallNativeFunctions();
 
+  auto function_cache =
+      ObjectHashTable::New(isolate(), ApiNatives::kInitialFunctionCacheSize);
+  native_context()->set_function_cache(*function_cache);
+
   // Store the map for the string prototype after the natives has been compiled
   // and the String function has been set up.
   Handle<JSFunction> string_function(native_context()->string_function());
@@ -2053,7 +2104,7 @@ bool Genesis::InstallNatives() {
     DCHECK(call->is_compiled());
 
     // Set the expected parameters for apply to 2; required by builtin.
-    apply->shared()->set_formal_parameter_count(2);
+    apply->shared()->set_internal_formal_parameter_count(2);
 
     // Set the lengths for the functions to satisfy ECMA-262.
     call->shared()->set_length(1);
@@ -2092,25 +2143,22 @@ bool Genesis::InstallNatives() {
       int old = array_descriptors->SearchWithCache(
           *length, array_function->initial_map());
       DCHECK(old != DescriptorArray::kNotFound);
-      CallbacksDescriptor desc(length,
-                               handle(array_descriptors->GetValue(old),
-                                      isolate()),
-                               array_descriptors->GetDetails(old).attributes());
+      AccessorConstantDescriptor desc(
+          length, handle(array_descriptors->GetValue(old), isolate()),
+          array_descriptors->GetDetails(old).attributes());
       initial_map->AppendDescriptor(&desc);
     }
     {
-      FieldDescriptor index_field(factory()->index_string(),
-                                  JSRegExpResult::kIndexIndex,
-                                  NONE,
-                                  Representation::Tagged());
+      DataDescriptor index_field(factory()->index_string(),
+                                 JSRegExpResult::kIndexIndex, NONE,
+                                 Representation::Tagged());
       initial_map->AppendDescriptor(&index_field);
     }
 
     {
-      FieldDescriptor input_field(factory()->input_string(),
-                                  JSRegExpResult::kInputIndex,
-                                  NONE,
-                                  Representation::Tagged());
+      DataDescriptor input_field(factory()->input_string(),
+                                 JSRegExpResult::kInputIndex, NONE,
+                                 Representation::Tagged());
       initial_map->AppendDescriptor(&input_field);
     }
 
@@ -2127,22 +2175,22 @@ bool Genesis::InstallNatives() {
     Handle<AccessorInfo> arguments_iterator =
         Accessors::ArgumentsIteratorInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(factory()->iterator_symbol(), arguments_iterator,
-                            attribs);
+      AccessorConstantDescriptor d(factory()->iterator_symbol(),
+                                   arguments_iterator, attribs);
       Handle<Map> map(native_context()->sloppy_arguments_map());
       Map::EnsureDescriptorSlack(map, 1);
       map->AppendDescriptor(&d);
     }
     {
-      CallbacksDescriptor d(factory()->iterator_symbol(), arguments_iterator,
-                            attribs);
+      AccessorConstantDescriptor d(factory()->iterator_symbol(),
+                                   arguments_iterator, attribs);
       Handle<Map> map(native_context()->aliased_arguments_map());
       Map::EnsureDescriptorSlack(map, 1);
       map->AppendDescriptor(&d);
     }
     {
-      CallbacksDescriptor d(factory()->iterator_symbol(), arguments_iterator,
-                            attribs);
+      AccessorConstantDescriptor d(factory()->iterator_symbol(),
+                                   arguments_iterator, attribs);
       Handle<Map> map(native_context()->strict_arguments_map());
       Map::EnsureDescriptorSlack(map, 1);
       map->AppendDescriptor(&d);
@@ -2150,7 +2198,9 @@ bool Genesis::InstallNatives() {
   }
 
 #ifdef VERIFY_HEAP
-  builtins->ObjectVerify();
+  if (FLAG_verify_heap) {
+    builtins->ObjectVerify();
+  }
 #endif
 
   return true;
@@ -2165,8 +2215,7 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_proxies_natives[] = {"native proxy.js", NULL};
   static const char* harmony_strings_natives[] = {"native harmony-string.js",
                                                   NULL};
-  static const char* harmony_classes_natives[] = {"native harmony-classes.js",
-                                                  NULL};
+  static const char* harmony_classes_natives[] = {NULL};
   static const char* harmony_modules_natives[] = {NULL};
   static const char* harmony_scoping_natives[] = {NULL};
   static const char* harmony_object_literals_natives[] = {NULL};
@@ -2180,6 +2229,9 @@ bool Genesis::InstallExperimentalNatives() {
       "native harmony-templates.js", NULL};
   static const char* harmony_sloppy_natives[] = {NULL};
   static const char* harmony_unicode_natives[] = {NULL};
+  static const char* harmony_unicode_regexps_natives[] = {NULL};
+  static const char* harmony_computed_property_names_natives[] = {NULL};
+  static const char* harmony_rest_parameters_natives[] = {NULL};
 
   for (int i = ExperimentalNatives::GetDebuggerCount();
        i < ExperimentalNatives::GetBuiltinsCount(); i++) {
@@ -2491,11 +2543,11 @@ bool Genesis::InstallJSBuiltins(Handle<JSBuiltinsObject> builtins) {
     Handle<Object> function_object = Object::GetProperty(
         isolate(), builtins, Builtins::GetName(id)).ToHandleChecked();
     Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
-    builtins->set_javascript_builtin(id, *function);
     // TODO(mstarzinger): This is just a temporary hack to make TurboFan work,
     // the correct solution is to restore the context register after invoking
     // builtins from full-codegen.
-    function->shared()->set_optimization_disabled(true);
+    function->shared()->DisableOptimization(kBuiltinFunctionCannotBeOptimized);
+    builtins->set_javascript_builtin(id, *function);
     if (!Compiler::EnsureCompiled(function, CLEAR_EXCEPTION)) {
       return false;
     }
@@ -2544,7 +2596,7 @@ bool Genesis::ConfigureApiObject(Handle<JSObject> object,
              ->IsTemplateFor(object->map()));;
 
   MaybeHandle<JSObject> maybe_obj =
-      Execution::InstantiateObject(object_template);
+      ApiNatives::InstantiateObject(object_template);
   Handle<JSObject> obj;
   if (!maybe_obj.ToHandle(&obj)) {
     DCHECK(isolate()->has_pending_exception());
@@ -2558,13 +2610,18 @@ bool Genesis::ConfigureApiObject(Handle<JSObject> object,
 
 void Genesis::TransferNamedProperties(Handle<JSObject> from,
                                       Handle<JSObject> to) {
+  // If JSObject::AddProperty asserts due to already existing property,
+  // it is likely due to both global objects sharing property name(s).
+  // Merging those two global objects is impossible.
+  // The global template must not create properties that already exist
+  // in the snapshotted global object.
   if (from->HasFastProperties()) {
     Handle<DescriptorArray> descs =
         Handle<DescriptorArray>(from->map()->instance_descriptors());
     for (int i = 0; i < from->map()->NumberOfOwnDescriptors(); i++) {
       PropertyDetails details = descs->GetDetails(i);
       switch (details.type()) {
-        case FIELD: {
+        case DATA: {
           HandleScope inner(isolate());
           Handle<Name> key = Handle<Name>(descs->GetKey(i));
           FieldIndex index = FieldIndex::ForDescriptor(from->map(), i);
@@ -2574,16 +2631,16 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           JSObject::AddProperty(to, key, value, details.attributes());
           break;
         }
-        case CONSTANT: {
+        case DATA_CONSTANT: {
           HandleScope inner(isolate());
           Handle<Name> key = Handle<Name>(descs->GetKey(i));
           Handle<Object> constant(descs->GetConstant(i), isolate());
           JSObject::AddProperty(to, key, constant, details.attributes());
           break;
         }
-        case ACCESSOR_FIELD:
+        case ACCESSOR:
           UNREACHABLE();
-        case CALLBACKS: {
+        case ACCESSOR_CONSTANT: {
           Handle<Name> key(descs->GetKey(i));
           LookupIterator it(to, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
           CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
@@ -2593,7 +2650,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           DCHECK(!to->HasFastProperties());
           // Add to dictionary.
           Handle<Object> callbacks(descs->GetCallbacksObject(i), isolate());
-          PropertyDetails d(details.attributes(), CALLBACKS, i + 1);
+          PropertyDetails d(details.attributes(), ACCESSOR_CONSTANT, i + 1);
           JSObject::SetNormalizedProperty(to, key, callbacks, d);
           break;
         }
@@ -2621,7 +2678,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
                                  isolate());
         }
         PropertyDetails details = properties->DetailsAt(i);
-        DCHECK_EQ(DATA, details.kind());
+        DCHECK_EQ(kData, details.kind());
         JSObject::AddProperty(to, key, value, details.attributes());
       }
     }
@@ -2711,11 +2768,21 @@ Genesis::Genesis(Isolate* isolate,
   StackLimitCheck check(isolate);
   if (check.HasOverflowed()) return;
 
+  // The deserializer needs to hook up references to the global proxy.
+  // Create an uninitialized global proxy now if we don't have one
+  // and initialize it later in CreateNewGlobals.
+  Handle<JSGlobalProxy> global_proxy;
+  if (!maybe_global_proxy.ToHandle(&global_proxy)) {
+    global_proxy = isolate->factory()->NewUninitializedJSGlobalProxy();
+  }
+
   // We can only de-serialize a context if the isolate was initialized from
   // a snapshot. Otherwise we have to build the context from scratch.
-  if (isolate->initialized_from_snapshot()) {
-    native_context_ = Snapshot::NewContextFromSnapshot(isolate);
-  } else {
+  Handle<FixedArray> outdated_contexts;
+  if (!isolate->initialized_from_snapshot() ||
+      !Snapshot::NewContextFromSnapshot(isolate, global_proxy,
+                                        &outdated_contexts)
+           .ToHandle(&native_context_)) {
     native_context_ = Handle<Context>();
   }
 
@@ -2732,12 +2799,11 @@ Genesis::Genesis(Isolate* isolate,
       Map::TraceAllTransitions(object_fun->initial_map());
     }
 #endif
-    Handle<GlobalObject> global_object;
-    Handle<JSGlobalProxy> global_proxy = CreateNewGlobals(
-        global_proxy_template, maybe_global_proxy, &global_object);
+    Handle<GlobalObject> global_object =
+        CreateNewGlobals(global_proxy_template, global_proxy);
 
     HookUpGlobalProxy(global_object, global_proxy);
-    HookUpGlobalObject(global_object);
+    HookUpGlobalObject(global_object, outdated_contexts);
     native_context()->builtins()->set_global_proxy(
         native_context()->global_proxy());
 
@@ -2747,9 +2813,8 @@ Genesis::Genesis(Isolate* isolate,
     CreateRoots();
     Handle<JSFunction> empty_function = CreateEmptyFunction(isolate);
     CreateStrictModeFunctionMaps(empty_function);
-    Handle<GlobalObject> global_object;
-    Handle<JSGlobalProxy> global_proxy = CreateNewGlobals(
-        global_proxy_template, maybe_global_proxy, &global_object);
+    Handle<GlobalObject> global_object =
+        CreateNewGlobals(global_proxy_template, global_proxy);
     HookUpGlobalProxy(global_object, global_proxy);
     InitializeGlobal(global_object, empty_function);
     InstallJSFunctionResultCaches();
@@ -2766,43 +2831,9 @@ Genesis::Genesis(Isolate* isolate,
   if (!InstallExperimentalNatives()) return;
   InitializeExperimentalGlobal();
 
-  // We can't (de-)serialize typed arrays currently, but we are lucky: The state
-  // of the random number generator needs no initialization during snapshot
-  // creation time and we don't need trigonometric functions then.
-  if (!isolate->serializer_enabled()) {
-    // Initially seed the per-context random number generator using the
-    // per-isolate random number generator.
-    const int num_elems = 2;
-    const int num_bytes = num_elems * sizeof(uint32_t);
-    uint32_t* state = reinterpret_cast<uint32_t*>(malloc(num_bytes));
-
-    do {
-      isolate->random_number_generator()->NextBytes(state, num_bytes);
-    } while (state[0] == 0 || state[1] == 0);
-
-    v8::Local<v8::ArrayBuffer> buffer = v8::ArrayBuffer::New(
-        reinterpret_cast<v8::Isolate*>(isolate), state, num_bytes);
-    Utils::OpenHandle(*buffer)->set_should_be_freed(true);
-    v8::Local<v8::Uint32Array> ta = v8::Uint32Array::New(buffer, 0, num_elems);
-    Handle<JSBuiltinsObject> builtins(native_context()->builtins());
-    Runtime::DefineObjectProperty(builtins, factory()->InternalizeOneByteString(
-                                                STATIC_CHAR_VECTOR("rngstate")),
-                                  Utils::OpenHandle(*ta), NONE).Assert();
-
-    // Initialize trigonometric lookup tables and constants.
-    const int constants_size = arraysize(fdlibm::MathConstants::constants);
-    const int table_num_bytes = constants_size * kDoubleSize;
-    v8::Local<v8::ArrayBuffer> trig_buffer = v8::ArrayBuffer::New(
-        reinterpret_cast<v8::Isolate*>(isolate),
-        const_cast<double*>(fdlibm::MathConstants::constants), table_num_bytes);
-    v8::Local<v8::Float64Array> trig_table =
-        v8::Float64Array::New(trig_buffer, 0, constants_size);
-
-    Runtime::DefineObjectProperty(
-        builtins,
-        factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("kMath")),
-        Utils::OpenHandle(*trig_table), NONE).Assert();
-  }
+  // The serializer cannot serialize typed arrays. Reset those typed arrays
+  // for each new context.
+  InitializeBuiltinTypedArrays();
 
   result_ = native_context();
 }

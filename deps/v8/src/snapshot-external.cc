@@ -6,6 +6,7 @@
 
 #include "src/snapshot.h"
 
+#include "src/base/platform/mutex.h"
 #include "src/serialize.h"
 #include "src/snapshot-source-sink.h"
 #include "src/v8.h"  // for V8::Initialize
@@ -19,19 +20,24 @@
 namespace v8 {
 namespace internal {
 
+static base::LazyMutex external_startup_data_mutex = LAZY_MUTEX_INITIALIZER;
 static v8::StartupData external_startup_blob = {NULL, 0};
 
 void SetSnapshotFromFile(StartupData* snapshot_blob) {
+  base::LockGuard<base::Mutex> lock_guard(
+      external_startup_data_mutex.Pointer());
   DCHECK(snapshot_blob);
   DCHECK(snapshot_blob->data);
   DCHECK(snapshot_blob->raw_size > 0);
   DCHECK(!external_startup_blob.data);
-  // Validate snapshot blob.
-  DCHECK(!Snapshot::ExtractStartupData(snapshot_blob).is_empty());
-  DCHECK(!Snapshot::ExtractContextData(snapshot_blob).is_empty());
+  DCHECK(Snapshot::SnapshotIsValid(snapshot_blob));
   external_startup_blob = *snapshot_blob;
 }
 
 
-const v8::StartupData Snapshot::SnapshotBlob() { return external_startup_blob; }
+const v8::StartupData Snapshot::SnapshotBlob() {
+  base::LockGuard<base::Mutex> lock_guard(
+      external_startup_data_mutex.Pointer());
+  return external_startup_blob;
+}
 } }  // namespace v8::internal

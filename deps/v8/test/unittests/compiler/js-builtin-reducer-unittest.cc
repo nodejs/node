@@ -4,7 +4,7 @@
 
 #include "src/compiler/js-builtin-reducer.h"
 #include "src/compiler/js-graph.h"
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/typer.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
@@ -25,7 +25,7 @@ class JSBuiltinReducerTest : public TypedGraphTest {
   Reduction Reduce(Node* node, MachineOperatorBuilder::Flags flags =
                                    MachineOperatorBuilder::Flag::kNoFlags) {
     MachineOperatorBuilder machine(zone(), kMachPtr, flags);
-    JSGraph jsgraph(graph(), common(), javascript(), &machine);
+    JSGraph jsgraph(isolate(), graph(), common(), javascript(), &machine);
     JSBuiltinReducer reducer(&jsgraph);
     return reducer.Reduce(node);
   }
@@ -53,12 +53,10 @@ namespace {
 
 // TODO(mstarzinger): Find a common place and unify with test-js-typed-lowering.
 Type* const kNumberTypes[] = {
-    Type::UnsignedSmall(),       Type::NegativeSigned32(),
-    Type::NonNegativeSigned32(), Type::SignedSmall(),
-    Type::Signed32(),            Type::Unsigned32(),
-    Type::Integral32(),          Type::MinusZero(),
-    Type::NaN(),                 Type::OrderedNumber(),
-    Type::PlainNumber(),         Type::Number()};
+    Type::UnsignedSmall(), Type::Negative32(),  Type::Unsigned31(),
+    Type::SignedSmall(),   Type::Signed32(),    Type::Unsigned32(),
+    Type::Integral32(),    Type::MinusZero(),   Type::NaN(),
+    Type::OrderedNumber(), Type::PlainNumber(), Type::Number()};
 
 }  // namespace
 
