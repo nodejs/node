@@ -1,0 +1,51 @@
+{
+  "name": "sprintf-js",
+  "version": "1.0.2",
+  "description": "JavaScript sprintf implementation",
+  "author": {
+    "name": "Alexandru Marasteanu",
+    "email": "hello@alexei.ro",
+    "url": "http://alexei.ro/"
+  },
+  "main": "src/sprintf.js",
+  "scripts": {
+    "test": "mocha test/test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alexei/sprintf.js.git"
+  },
+  "license": "BSD-3-Clause",
+  "devDependencies": {
+    "mocha": "*",
+    "grunt": "*",
+    "grunt-contrib-watch": "*",
+    "grunt-contrib-uglify": "*"
+  },
+  "gitHead": "e8c73065cd1a79a32c697806a4e85f1fe7917592",
+  "bugs": {
+    "url": "https://github.com/alexei/sprintf.js/issues"
+  },
+  "homepage": "https://github.com/alexei/sprintf.js",
+  "_id": "sprintf-js@1.0.2",
+  "_shasum": "11e4d84ff32144e35b0bf3a66f8587f38d8f9978",
+  "_from": "sprintf-js@>=1.0.2 <1.1.0",
+  "_npmVersion": "1.4.28",
+  "_npmUser": {
+    "name": "alexei",
+    "email": "hello@alexei.ro"
+  },
+  "maintainers": [
+    {
+      "name": "alexei",
+      "email": "hello@alexei.ro"
+    }
+  ],
+  "dist": {
+    "shasum": "11e4d84ff32144e35b0bf3a66f8587f38d8f9978",
+    "tarball": "http://registry.npmjs.org/sprintf-js/-/sprintf-js-1.0.2.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/sprintf-js/-/sprintf-js-1.0.2.tgz",
+  "readme": "ERROR: No README data found!"
+}

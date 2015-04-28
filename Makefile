@@ -386,11 +386,8 @@ bench-idle:
 	sleep 1
 	./$(NODE_EXE) benchmark/idle_clients.js &
 
-jslintfix:
-	PYTHONPATH=tools/closure_linter/:tools/gflags/ $(PYTHON) tools/closure_linter/closure_linter/fixjsstyle.py --strict --nojsdoc -r lib/ -r src/ --exclude_files lib/punycode.js
-
 jslint:
-	PYTHONPATH=tools/closure_linter/:tools/gflags/ $(PYTHON) tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc -r lib/ -r src/ --exclude_files lib/punycode.js
+	./$(NODE_EXE) tools/eslint/bin/eslint.js src/*.js lib/*.js --reset --quiet
 
 CPPLINT_EXCLUDE ?=
 CPPLINT_EXCLUDE += src/node_lttng.cc
