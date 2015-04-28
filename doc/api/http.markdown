@@ -478,7 +478,7 @@ Options:
   Authorization header.
 - `agent`: Controls [Agent][] behavior. When an Agent is used request will
   default to `Connection: keep-alive`. Possible values:
- - `undefined` (default): use [global Agent][] for this host and port.
+ - `undefined` (default): use [globalAgent][] for this host and port.
  - `Agent` object: explicitly use the passed in `Agent`.
  - `false`: opts out of connection pooling with an Agent, defaults request to
    `Connection: close`.
@@ -1073,7 +1073,7 @@ authentication details.
 [EventEmitter]: events.html#events_class_events_eventemitter
 [Readable Stream]: stream.html#stream_class_stream_readable
 [Writable Stream]: stream.html#stream_class_stream_writable
-[global Agent]: #http_http_globalagent
+[globalAgent]: #http_http_globalagent
 [http.ClientRequest]: #http_class_http_clientrequest
 [http.IncomingMessage]: #http_http_incomingmessage
 [http.ServerResponse]: #http_class_http_serverresponse
