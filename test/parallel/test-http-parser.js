@@ -1,5 +1,4 @@
 'use strict';
-var common = require('../common');
 var assert = require('assert');
 
 var HTTPParser = require('_http_parser');
@@ -10,7 +9,7 @@ var RESPONSE = HTTPParser.RESPONSE;
 
 // The purpose of this test is not to check HTTP compliance but to test the
 // binding. Tests for pathological http messages should be added to
-// test-http-parser-durability.js
+// pummel/test-http-parser-durability.js
 
 
 function newParser(type) {
