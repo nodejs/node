@@ -71,6 +71,7 @@
       'lib/zlib.js',
 
       'lib/internal/freelist.js',
+      'lib/internal/smalloc.js',
     ],
   },
 
