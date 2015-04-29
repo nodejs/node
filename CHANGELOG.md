@@ -1,5 +1,132 @@
 # io.js ChangeLog
 
+## 2015-05-04, Version 2.0.0, @rvagg
+
+### Breaking changes
+
+Full details at https://github.com/iojs/io.js/wiki/Breaking-Changes#200-from-1x
+
+* V8 upgrade to 4.2, minor changes to C++ API
+* `os.tmpdir()` is now cross-platform consistent and will no longer returns a path with a trailling slash on any platform
+* While not a *breaking change* the 'smalloc' module has been deprecated in anticipation of it becoming unsupportable with a future upgrade to V8 4.4. See [#1451](https://github.com/iojs/io.js/issues/1451)  for further information.
+
+_Note: a new version of the 'url' module was reverted prior to release as it was decided the potential for breakage across the npm ecosystem was too great and that more compatibility work needed to be done before releasing it. See [#1602](https://github.com/iojs/io.js/pull/1602) for further information._
+
+### Notable changes
+
+* **crypto**: significantly reduced memory usage for TLS (Fedor Indutny & Сковорода Никита Андреевич) [#1529](https://github.com/iojs/io.js/pull/1529)
+* **net**: `socket.connect()` now accepts a `'lookup'` option for a custom DNS resolution mechanism, defaults to `dns.lookup()` (Evan Lucas) [#1505](https://github.com/iojs/io.js/pull/1505)
+* **npm**: Upgrade npm to 2.9.0. See the [v2.8.4](https://github.com/npm/npm/releases/tag/v2.8.4) and [v2.9.0](https://github.com/npm/npm/releases/tag/v2.9.0) release notes for details. Notable items:
+  - Add support for default author field to make `npm init -y` work without user-input (@othiym23) [npm/npm/d8eee6cf9d](https://github.com/npm/npm/commit/d8eee6cf9d2ff7aca68dfaed2de76824a3e0d9af)
+  - Include local modules in `npm outdated` and `npm update` (@ArnaudRinquin) [npm/npm#7426](https://github.com/npm/npm/issues/7426)
+  - The prefix used before the version number on `npm version` is now configurable via `tag-version-prefix` (@kkragenbrink) [npm/npm#8014](https://github.com/npm/npm/issues/8014)
+* **os**: `os.tmpdir()` is now cross-platform consistent and will no longer returns a path with a trailling slash on any platform (Christian Tellnes) [#747](https://github.com/iojs/io.js/pull/747)
+* **process**:
+  - `process.nextTick()` performance has been improved by between 2-42% across the benchmark suite, notable because this is heavily used across core (Brian White) [#1548](https://github.com/iojs/io.js/pull/1548)
+  - New `process.geteuid()`, `process.seteuid(id)`, `process.getegid()` and `process.setegid(id)` methods allow you to get and set effective UID and GID of the process (Evan Lucas) [#1536](https://github.com/iojs/io.js/pull/1536)
+* **repl**:
+  - REPL history can be persisted across sessions if the `NODE_REPL_HISTORY_FILE` environment variable is set to a user accessible file, `NODE_REPL_HISTORY_SIZE` can set the maximum history size and defaults to `1000` (Chris Dickinson) [#1513](https://github.com/iojs/io.js/pull/1513)
+  - The REPL can be placed in to one of three modes using the `NODE_REPL_MODE` environment variable: `sloppy`, `strict` or `magic` (default); the new `magic` mode will automatically run "strict mode only" statements in strict mode (Chris Dickinson) [#1513](https://github.com/iojs/io.js/pull/1513)
+* **smalloc**: the 'smalloc' module has been deprecated due to changes coming in V8 4.4 that will render it unusable
+* **util**: add Promise, Map and Set inspection support (Christopher Monsanto) [#1471](https://github.com/iojs/io.js/pull/1471)
+* **V8**: upgrade to 4.2.77.18, see the [ChangeLog](https://chromium.googlesource.com/v8/v8/+/refs/heads/4.2.77/ChangeLog) for full details. Notable items:
+  - Classes have moved out of staging; the `class` keyword is now usable in strict mode without flags
+  - Object literal enhancements have moved out of staging; shorthand method and property syntax is now usable (`{ method() { }, property }`)
+  - Rest parameters (`function(...args) {}`) are implemented in staging behind the `--harmony-rest-parameters` flag
+  - Computed property names (`{['foo'+'bar']:'bam'}`) are implemented in staging behind the `--harmony-computed-property-names` flag
+  - Unicode escapes (`'\u{xxxx}'`) are implemented in staging behind the `--harmony_unicode` flag and the `--harmony_unicode_regexps` flag for use in regular expressions
+* **Windows**:
+  - Random process termination on Windows fixed (Fedor Indutny)  [#1512](https://github.com/iojs/io.js/issues/1512) / [#1563](https://github.com/iojs/io.js/pull/1563)
+  - The delay-load hook introduced to fix issues with process naming (iojs.exe / node.exe) has been made opt-out for native add-ons. Native add-ons should include `'win_delay_load_hook': 'false'` in their binding.gyp to disable this feature if they experience problems . (Bert Belder) [#1433](https://github.com/iojs/io.js/pull/1433)
+* **Governance**:
+  - Rod Vagg (@rvagg) was added to the Technical Committee (TC)
+  - Jeremiah Senkpiel (@Fishrock123) was added to the Technical Committee (TC)
+
+### Known issues
+
+See https://github.com/iojs/io.js/labels/confirmed-bug for complete and current list of known issues.
+
+* Some problems with unreferenced timers running during `beforeExit` are still to be resolved. See [#1264](https://github.com/iojs/io.js/issues/1264).
+* Surrogate pair in REPL can freeze terminal [#690](https://github.com/iojs/io.js/issues/690)
+* `process.send()` is not synchronous as the docs suggest, a regression introduced in 1.0.2, see [#760](https://github.com/iojs/io.js/issues/760) and fix in [#774](https://github.com/iojs/io.js/issues/774)
+* Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion [#894](https://github.com/iojs/io.js/issues/894)
+* `url.resolve` may transfer the auth portion of the url when resolving between two full hosts, see [#1435](https://github.com/iojs/io.js/issues/1435).
+* readline: split escapes are processed incorrectly, see [#1403](https://github.com/iojs/io.js/issues/1403)
+
+### Commits
+
+* [[`5404cbc745`](https://github.com/iojs/io.js/commit/5404cbc745)] - **buffer**: fix copy() segfault with zero arguments (Trevor Norris) [#1520](https://github.com/iojs/io.js/pull/1520)
+* [[`3d3083b91f`](https://github.com/iojs/io.js/commit/3d3083b91f)] - **buffer**: little improve for Buffer.concat method (Jackson Tian) [#1437](https://github.com/iojs/io.js/pull/1437)
+* [[`e67542ae17`](https://github.com/iojs/io.js/commit/e67542ae17)] - **build**: disable -Og when building with clang (Ben Noordhuis) [#1609](https://github.com/iojs/io.js/pull/1609)
+* [[`78f4b038f8`](https://github.com/iojs/io.js/commit/78f4b038f8)] - **build**: turn on debug-safe optimizations with -Og (Ben Noordhuis) [#1569](https://github.com/iojs/io.js/pull/1569)
+* [[`a5dcff827a`](https://github.com/iojs/io.js/commit/a5dcff827a)] - **build**: Use option groups in configure output (Johan Bergström) [#1533](https://github.com/iojs/io.js/pull/1533)
+* [[`2a3c8c187e`](https://github.com/iojs/io.js/commit/2a3c8c187e)] - **build**: remove -J from test-ci (Rod Vagg) [#1544](https://github.com/iojs/io.js/pull/1544)
+* [[`e6874dd0f9`](https://github.com/iojs/io.js/commit/e6874dd0f9)] - **crypto**: track external memory for SSL structures (Fedor Indutny) [#1529](https://github.com/iojs/io.js/pull/1529)
+* [[`935c9d3fa7`](https://github.com/iojs/io.js/commit/935c9d3fa7)] - **deps**: make node-gyp work with io.js (cjihrig) [#990](https://github.com/iojs/io.js/pull/990)
+* [[`56e4255382`](https://github.com/iojs/io.js/commit/56e4255382)] - **deps**: upgrade npm to 2.9.0 (Forrest L Norvell) [#1573](https://github.com/iojs/io.js/pull/1573)
+* [[`509b59ea7c`](https://github.com/iojs/io.js/commit/509b59ea7c)] - **deps**: enable v8 postmortem debugging again (Ben Noordhuis) [#1232](https://github.com/iojs/io.js/pull/1232)
+* [[`01652c7709`](https://github.com/iojs/io.js/commit/01652c7709)] - **deps**: upgrade v8 to 4.2.77.18 (Chris Dickinson) [#1506](https://github.com/iojs/io.js/pull/1506)
+* [[`01e6632d70`](https://github.com/iojs/io.js/commit/01e6632d70)] - **deps**: upgrade v8 to 4.2.77.15 (Ben Noordhuis) [#1399](https://github.com/iojs/io.js/pull/1399)
+* [[`db4ded5903`](https://github.com/iojs/io.js/commit/db4ded5903)] - **deps**: enable v8 postmortem debugging again (Ben Noordhuis) [#1232](https://github.com/iojs/io.js/pull/1232)
+* [[`36cd5fb9d2`](https://github.com/iojs/io.js/commit/36cd5fb9d2)] - **(SEMVER-MAJOR)** **deps**: upgrade v8 to 4.2.77.13 (Ben Noordhuis) [#1232](https://github.com/iojs/io.js/pull/1232)
+* [[`b3a7da1091`](https://github.com/iojs/io.js/commit/b3a7da1091)] - **deps**: update http_parser to 2.5.0 (Fedor Indutny) [#1517](https://github.com/iojs/io.js/pull/1517)
+* [[`ac1fb39ce8`](https://github.com/iojs/io.js/commit/ac1fb39ce8)] - **doc**: add rvagg to the TC (Rod Vagg) [#1613](https://github.com/iojs/io.js/pull/1613)
+* [[`dacc1fa35c`](https://github.com/iojs/io.js/commit/dacc1fa35c)] - **doc**: update AUTHORS list (Rod Vagg) [#1586](https://github.com/iojs/io.js/pull/1586)
+* [[`2a3a1909ab`](https://github.com/iojs/io.js/commit/2a3a1909ab)] - **doc**: add require() lines to child.stdio example (Nick Raienko) [#1504](https://github.com/iojs/io.js/pull/1504)
+* [[`02388dbf40`](https://github.com/iojs/io.js/commit/02388dbf40)] - **doc**: fix some cross-references (Alexander Gromnitsky) [#1584](https://github.com/iojs/io.js/pull/1584)
+* [[`57c4cc26e2`](https://github.com/iojs/io.js/commit/57c4cc26e2)] - **doc**: add TC meeting 2015-04-22 minutes (Rod Vagg) [#1556](https://github.com/iojs/io.js/pull/1556)
+* [[`b4ad5d7050`](https://github.com/iojs/io.js/commit/b4ad5d7050)] - **doc**: improve http.request and https.request opts (Roman Reiss) [#1551](https://github.com/iojs/io.js/pull/1551)
+* [[`7dc8eec0a6`](https://github.com/iojs/io.js/commit/7dc8eec0a6)] - **doc**: deprecate smalloc module (Ben Noordhuis) [#1566](https://github.com/iojs/io.js/pull/1566)
+* [[`1bcdf46ca7`](https://github.com/iojs/io.js/commit/1bcdf46ca7)] - **doc**: add TC meeting 2015-04-15 minutes (Rod Vagg) [#1498](https://github.com/iojs/io.js/pull/1498)
+* [[`391cae3595`](https://github.com/iojs/io.js/commit/391cae3595)] - **doc**: Add Known issues to v1.7.0/1.7.1 CHANGELOG (Yosuke Furukawa) [#1473](https://github.com/iojs/io.js/pull/1473)
+* [[`e55fdc47a7`](https://github.com/iojs/io.js/commit/e55fdc47a7)] - **doc**: fix util.deprecate example (Nick Raienko) [#1535](https://github.com/iojs/io.js/pull/1535)
+* [[`5178f93bc0`](https://github.com/iojs/io.js/commit/5178f93bc0)] - **doc**: Add Addon API (NAN) to working group list (Julian Duque) [#1523](https://github.com/iojs/io.js/pull/1523)
+* [[`f3cc50f811`](https://github.com/iojs/io.js/commit/f3cc50f811)] - **doc**: add TC meeting 2015-04-08 minutes (Rod Vagg) [#1497](https://github.com/iojs/io.js/pull/1497)
+* [[`bb254b533b`](https://github.com/iojs/io.js/commit/bb254b533b)] - **doc**: update branch to master (Roman Reiss) [#1511](https://github.com/iojs/io.js/pull/1511)
+* [[`22aafa5597`](https://github.com/iojs/io.js/commit/22aafa5597)] - **doc**: add Fishrock123 to the TC (Jeremiah Senkpiel) [#1507](https://github.com/iojs/io.js/pull/1507)
+* [[`b16a328ede`](https://github.com/iojs/io.js/commit/b16a328ede)] - **doc**: add spaces to child.kill example (Nick Raienko) [#1503](https://github.com/iojs/io.js/pull/1503)
+* [[`26327757f8`](https://github.com/iojs/io.js/commit/26327757f8)] - **doc**: update AUTHORS list (Rod Vagg) [#1476](https://github.com/iojs/io.js/pull/1476)
+* [[`f9c681cf62`](https://github.com/iojs/io.js/commit/f9c681cf62)] - **fs**: validate fd on fs.write (Julian Duque) [#1553](https://github.com/iojs/io.js/pull/1553)
+* [[`801b47acc5`](https://github.com/iojs/io.js/commit/801b47acc5)] - **gitignore**: ignore xcode workspaces and projects (Roman Klauke) [#1562](https://github.com/iojs/io.js/pull/1562)
+* [[`d5ce47e433`](https://github.com/iojs/io.js/commit/d5ce47e433)] - **(SEMVER-MINOR)** **lib**: deprecate the smalloc module (Ben Noordhuis) [#1564](https://github.com/iojs/io.js/pull/1564)
+* [[`7384ca83f9`](https://github.com/iojs/io.js/commit/7384ca83f9)] - **module**: remove '' from Module.globalPaths (Chris Yip) [#1488](https://github.com/iojs/io.js/pull/1488)
+* [[`b4f5898395`](https://github.com/iojs/io.js/commit/b4f5898395)] - **net**: ensure Write/ShutdownWrap references handle (Fedor Indutny) [#1590](https://github.com/iojs/io.js/pull/1590)
+* [[`4abe2fa1cf`](https://github.com/iojs/io.js/commit/4abe2fa1cf)] - **(SEMVER-MINOR)** **net**: add lookup option to Socket.prototype.connect (Evan Lucas) [#1505](https://github.com/iojs/io.js/pull/1505)
+* [[`1bef717476`](https://github.com/iojs/io.js/commit/1bef717476)] - **(SEMVER-MINOR)** **net**: cleanup connect logic (Evan Lucas) [#1505](https://github.com/iojs/io.js/pull/1505)
+* [[`c7782c0af8`](https://github.com/iojs/io.js/commit/c7782c0af8)] - **node**: improve nextTick performance (Brian White) [#1571](https://github.com/iojs/io.js/pull/1571)
+* [[`b57cc51d8d`](https://github.com/iojs/io.js/commit/b57cc51d8d)] - **(SEMVER-MAJOR)** **os**: remove trailing slash from os.tmpdir() (Christian Tellnes) [#747](https://github.com/iojs/io.js/pull/747)
+* [[`ca219b00d1`](https://github.com/iojs/io.js/commit/ca219b00d1)] - **repl**: fix for a+ fd clearing the file on read (Chris Dickinson) [#1605](https://github.com/iojs/io.js/pull/1605)
+* [[`051d482b15`](https://github.com/iojs/io.js/commit/051d482b15)] - **repl**: fix \_debugger by properly proxying repl (Chris Dickinson) [#1605](https://github.com/iojs/io.js/pull/1605)
+* [[`2e2fce0502`](https://github.com/iojs/io.js/commit/2e2fce0502)] - **repl**: fix persistent history and env variable name (Roman Reiss) [#1593](https://github.com/iojs/io.js/pull/1593)
+* [[`ea5195ccaf`](https://github.com/iojs/io.js/commit/ea5195ccaf)] - **repl**: do not save history for non-terminal repl (Fedor Indutny) [#1575](https://github.com/iojs/io.js/pull/1575)
+* [[`0450ce7db2`](https://github.com/iojs/io.js/commit/0450ce7db2)] - **repl**: add mode detection, cli persistent history (Chris Dickinson) [#1513](https://github.com/iojs/io.js/pull/1513)
+* [[`af9fe3bbc7`](https://github.com/iojs/io.js/commit/af9fe3bbc7)] - **(SEMVER-MAJOR)** **src**: bump NODE_MODULE_VERSION due to V8 API (Rod Vagg) [#1532](https://github.com/iojs/io.js/pull/1532)
+* [[`279f6116aa`](https://github.com/iojs/io.js/commit/279f6116aa)] - **src**: fix -Wmissing-field-initializers warning (Ben Noordhuis) [#1606](https://github.com/iojs/io.js/pull/1606)
+* [[`73062521a4`](https://github.com/iojs/io.js/commit/73062521a4)] - **src**: deprecate smalloc public functions (Ben Noordhuis) [#1565](https://github.com/iojs/io.js/pull/1565)
+* [[`ccb199af17`](https://github.com/iojs/io.js/commit/ccb199af17)] - **src**: fix deprecation warnings (Ben Noordhuis) [#1565](https://github.com/iojs/io.js/pull/1565)
+* [[`609fa0de03`](https://github.com/iojs/io.js/commit/609fa0de03)] - **src**: fix NODE_DEPRECATED macro (Ben Noordhuis) [#1565](https://github.com/iojs/io.js/pull/1565)
+* [[`3c92ca2b5c`](https://github.com/iojs/io.js/commit/3c92ca2b5c)] - **(SEMVER-MINOR)** **src**: add ability to get/set effective uid/gid (Evan Lucas) [#1536](https://github.com/iojs/io.js/pull/1536)
+* [[`30b7349176`](https://github.com/iojs/io.js/commit/30b7349176)] - **stream_base**: dispatch reqs in the stream impl (Fedor Indutny) [#1563](https://github.com/iojs/io.js/pull/1563)
+* [[`0fa6c4a6fc`](https://github.com/iojs/io.js/commit/0fa6c4a6fc)] - **string_decoder**: don't cache Buffer.isEncoding (Brian White) [#1548](https://github.com/iojs/io.js/pull/1548)
+* [[`f9b226c1c1`](https://github.com/iojs/io.js/commit/f9b226c1c1)] - **test**: extend timeouts for ARMv6 (Rod Vagg) [#1554](https://github.com/iojs/io.js/pull/1554)
+* [[`bfae8236b1`](https://github.com/iojs/io.js/commit/bfae8236b1)] - **test**: fix test-net-dns-custom-lookup test assertion (Evan Lucas) [#1531](https://github.com/iojs/io.js/pull/1531)
+* [[`547213913b`](https://github.com/iojs/io.js/commit/547213913b)] - **test**: adjust Makefile/test-ci, add to vcbuild.bat (Rod Vagg) [#1530](https://github.com/iojs/io.js/pull/1530)
+* [[`550c2638c0`](https://github.com/iojs/io.js/commit/550c2638c0)] - **tls**: use `SSL_set_cert_cb` for async SNI/OCSP (Fedor Indutny) [#1464](https://github.com/iojs/io.js/pull/1464)
+* [[`1787416376`](https://github.com/iojs/io.js/commit/1787416376)] - **tls**: destroy singleUse context immediately (Fedor Indutny) [#1529](https://github.com/iojs/io.js/pull/1529)
+* [[`2684c902c4`](https://github.com/iojs/io.js/commit/2684c902c4)] - **tls**: zero SSL_CTX freelist for a singleUse socket (Fedor Indutny) [#1529](https://github.com/iojs/io.js/pull/1529)
+* [[`2d241b3b82`](https://github.com/iojs/io.js/commit/2d241b3b82)] - **tls**: destroy SSL once it is out of use (Fedor Indutny) [#1529](https://github.com/iojs/io.js/pull/1529)
+* [[`f7620fb96d`](https://github.com/iojs/io.js/commit/f7620fb96d)] - **tls_wrap**: Unlink TLSWrap and SecureContext objects (Сковорода Никита Андреевич) [#1580](https://github.com/iojs/io.js/pull/1580)
+* [[`a7d74633f2`](https://github.com/iojs/io.js/commit/a7d74633f2)] - **tls_wrap**: use localhost if options.host is empty (Guilherme Souza) [#1493](https://github.com/iojs/io.js/pull/1493)
+* [[`702997c1f0`](https://github.com/iojs/io.js/commit/702997c1f0)] - ***Revert*** "**url**: significantly improve the performance of the url module" (Rod Vagg) [#1602](https://github.com/iojs/io.js/pull/1602)
+* [[`0daed24883`](https://github.com/iojs/io.js/commit/0daed24883)] - ***Revert*** "**url**: delete href cache on all setter code paths" (Rod Vagg) [#1602](https://github.com/iojs/io.js/pull/1602)
+* [[`0f39ef4ca1`](https://github.com/iojs/io.js/commit/0f39ef4ca1)] - ***Revert*** "**url**: fix treatment of some values as non-empty" (Rod Vagg) [#1602](https://github.com/iojs/io.js/pull/1602)
+* [[`66877216bd`](https://github.com/iojs/io.js/commit/66877216bd)] - **url**: fix treatment of some values as non-empty (Petka Antonov) [#1589](https://github.com/iojs/io.js/pull/1589)
+* [[`dbdd81a91b`](https://github.com/iojs/io.js/commit/dbdd81a91b)] - **url**: delete href cache on all setter code paths (Petka Antonov) [#1589](https://github.com/iojs/io.js/pull/1589)
+* [[`3fd7fc429c`](https://github.com/iojs/io.js/commit/3fd7fc429c)] - **url**: significantly improve the performance of the url module (Petka Antonov) [#1561](https://github.com/iojs/io.js/pull/1561)
+* [[`bf7ac08dd0`](https://github.com/iojs/io.js/commit/bf7ac08dd0)] - **util**: add Map and Set inspection support (Christopher Monsanto) [#1471](https://github.com/iojs/io.js/pull/1471)
+* [[`30e83d2e84`](https://github.com/iojs/io.js/commit/30e83d2e84)] - **win,node-gyp**: optionally allow node.exe/iojs.exe to be renamed (Bert Belder) [#1266](https://github.com/iojs/io.js/pull/1266)
+* [[`3bda6cbfa4`](https://github.com/iojs/io.js/commit/3bda6cbfa4)] - **(SEMVER-MAJOR)** **win,node-gyp**: enable delay-load hook by default (Bert Belder) [#1433](https://github.com/iojs/io.js/pull/1433)
+
 ## 2015-04-20, Version 1.8.1, @chrisdickinson
 
 ### Notable changes
@@ -459,7 +586,7 @@ will be removed at a later point. (Roman Reiss) [#1363](https://github.com/iojs/
 * [[`80e14d736e`](https://github.com/iojs/io.js/commit/80e14d736e)] - **doc**: move checkServerIdentity option to tls.connect() (skenqbx) [#1107](https://github.com/iojs/io.js/pull/1107)
 * [[`684a5878b6`](https://github.com/iojs/io.js/commit/684a5878b6)] - **doc**: fix missing periods in url.markdown (Ryuichi Okumura) [#1115](https://github.com/iojs/io.js/pull/1115)
 * [[`8431fc53f1`](https://github.com/iojs/io.js/commit/8431fc53f1)] - **tls_wrap**: proxy handle methods in prototype (Fedor Indutny) [#1108](https://github.com/iojs/io.js/pull/1108)
-* [[`8070b1ff99`](https://github.com/iojs/io.js/commit/8070b1ff99)] - **buffer**: Don't assign .parent if none exists (Trevor Norris) [#1109](https://github.com/iojs/io.js/pull/1109) 
+* [[`8070b1ff99`](https://github.com/iojs/io.js/commit/8070b1ff99)] - **buffer**: Don't assign .parent if none exists (Trevor Norris) [#1109](https://github.com/iojs/io.js/pull/1109)
 
 ## 2015-03-09, Version 1.5.1, @rvagg
 
