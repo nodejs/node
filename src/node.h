@@ -42,7 +42,16 @@
 #include "v8.h"  // NOLINT(build/include_order)
 #include "node_version.h"  // NODE_MODULE_VERSION
 
-#define NODE_DEPRECATED(msg, fn) V8_DEPRECATED(msg, fn)
+#if defined(__GNUC__)
+# define NODE_DEPRECATED(message, declarator) \
+    __attribute__((deprecated(message))) declarator
+#elif defined(_MSC_VER)
+# define NODE_DEPRECATED(message, declarator) \
+    __declspec(deprecated) declarator
+#else
+# define NODE_DEPRECATED(message, declarator) \
+    declarator
+#endif
 
 // Forward-declare libuv loop
 struct uv_loop_s;
