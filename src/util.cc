@@ -13,7 +13,7 @@ Utf8Value::Utf8Value(v8::Isolate* isolate, v8::Handle<v8::Value> value)
     return;
 
   // Allocate enough space to include the null terminator
-  size_t len = StringBytes::StorageSize(string, UTF8) + 1;
+  size_t len = StringBytes::StorageSize(isolate, string, UTF8) + 1;
   if (len > sizeof(str_st_)) {
     str_ = static_cast<char*>(malloc(len));
     CHECK_NE(str_, nullptr);

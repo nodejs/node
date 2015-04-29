@@ -4593,7 +4593,7 @@ void RandomBytesCheck(RandomBytesRequest* req, Local<Value> argv[2]) {
     size_t size;
     req->return_memory(&data, &size);
     argv[0] = Null(req->env()->isolate());
-    argv[1] = Buffer::Use(data, size);
+    argv[1] = Buffer::Use(req->env()->isolate(), data, size);
   }
 }
 
