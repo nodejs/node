@@ -306,7 +306,6 @@ void TLSWrap::EncOut() {
   for (size_t i = 0; i < count; i++)
     buf[i] = uv_buf_init(data[i], size[i]);
   int err = stream_->DoWrite(write_req, buf, count, nullptr);
-  write_req->Dispatched();
 
   // Ignore errors, this should be already handled in js
   if (err) {
@@ -558,6 +557,7 @@ int TLSWrap::DoWrite(WriteWrap* w,
 
   // Queue callback to execute it on next tick
   write_item_queue_.PushBack(new WriteItem(w));
+  w->Dispatched();
 
   // Write queued data
   if (empty) {
