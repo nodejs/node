@@ -184,7 +184,7 @@ exports.platformTimeout = function(ms) {
     return ms;
 
   if (process.config.variables.arm_version === '6')
-    return 6 * ms;  // ARMv6
+    return 7 * ms;  // ARMv6
 
   return 2 * ms;  // ARMv7 and up.
 };

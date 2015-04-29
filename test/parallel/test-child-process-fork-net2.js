@@ -150,7 +150,7 @@ if (process.argv[2] === 'child') {
   };
 
   var min = 190;
-  var max = common.platformTimeout(1500);
+  var max = common.platformTimeout(2000);
   process.on('exit', function() {
     assert.equal(disconnected, count);
     assert.equal(connected, count);
