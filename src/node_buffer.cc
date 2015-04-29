@@ -98,7 +98,7 @@ Local<Object> New(Isolate* isolate, Handle<String> string, enum encoding enc) {
 
   size_t length = StringBytes::Size(isolate, string, enc);
 
-  Local<Object> buf = New(length);
+  Local<Object> buf = New(isolate, length);
   char* data = Buffer::Data(buf);
   StringBytes::Write(isolate, data, length, string, enc);
 
