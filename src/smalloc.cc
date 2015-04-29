@@ -129,29 +129,7 @@ void CallbackInfo::WeakCallback(
 }
 
 
-void CallbackInfo::WeakCallback(Isolate* isolate, Local<Object> object) {
-  void* array_data = object->GetIndexedPropertiesExternalArrayData();
-  size_t array_length = object->GetIndexedPropertiesExternalArrayDataLength();
-  enum ExternalArrayType array_type =
-      object->GetIndexedPropertiesExternalArrayDataType();
-  size_t array_size = ExternalArraySize(array_type);
-  CHECK_GT(array_size, 0);
-  if (array_size > 1 && array_data != NULL) {
-    CHECK_GT(array_length * array_size, array_length);  // Overflow check.
-    array_length *= array_size;
-  }
-  object->SetIndexedPropertiesToExternalArrayData(nullptr, array_type, 0);
-  callback_(static_cast<char*>(array_data), hint_);
-  int64_t change_in_bytes = -static_cast<int64_t>(sizeof(*this));
-  if (ownership_ == kInternal)
-    change_in_bytes -= static_cast<int64_t>(array_length);
-  isolate->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
-  delete this;
-}
-
-
-// return size of external array type, or 0 if unrecognized
-size_t ExternalArraySize(enum ExternalArrayType type) {
+inline size_t InternalExternalArraySize(enum ExternalArrayType type) {
   switch (type) {
     case v8::kExternalUint8Array:
       return sizeof(uint8_t);
@@ -173,6 +151,33 @@ size_t ExternalArraySize(enum ExternalArrayType type) {
       return sizeof(uint8_t);
   }
   return 0;
+}
+
+
+void CallbackInfo::WeakCallback(Isolate* isolate, Local<Object> object) {
+  void* array_data = object->GetIndexedPropertiesExternalArrayData();
+  size_t array_length = object->GetIndexedPropertiesExternalArrayDataLength();
+  enum ExternalArrayType array_type =
+      object->GetIndexedPropertiesExternalArrayDataType();
+  size_t array_size = InternalExternalArraySize(array_type);
+  CHECK_GT(array_size, 0);
+  if (array_size > 1 && array_data != NULL) {
+    CHECK_GT(array_length * array_size, array_length);  // Overflow check.
+    array_length *= array_size;
+  }
+  object->SetIndexedPropertiesToExternalArrayData(nullptr, array_type, 0);
+  callback_(static_cast<char*>(array_data), hint_);
+  int64_t change_in_bytes = -static_cast<int64_t>(sizeof(*this));
+  if (ownership_ == kInternal)
+    change_in_bytes -= static_cast<int64_t>(array_length);
+  isolate->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
+  delete this;
+}
+
+
+// return size of external array type, or 0 if unrecognized
+size_t ExternalArraySize(enum ExternalArrayType type) {
+  return InternalExternalArraySize(type);
 }
 
 
@@ -200,12 +205,12 @@ void CopyOnto(const FunctionCallbackInfo<Value>& args) {
   size_t source_length = source->GetIndexedPropertiesExternalArrayDataLength();
   enum ExternalArrayType source_type =
     source->GetIndexedPropertiesExternalArrayDataType();
-  size_t source_size = ExternalArraySize(source_type);
+  size_t source_size = InternalExternalArraySize(source_type);
 
   size_t dest_length = dest->GetIndexedPropertiesExternalArrayDataLength();
   enum ExternalArrayType dest_type =
     dest->GetIndexedPropertiesExternalArrayDataType();
-  size_t dest_size = ExternalArraySize(dest_type);
+  size_t dest_size = InternalExternalArraySize(dest_type);
 
   // optimization for Uint8 arrays (i.e. Buffers)
   if (source_size != 1 || dest_size != 1) {
@@ -261,7 +266,7 @@ void SliceOnto(const FunctionCallbackInfo<Value>& args) {
   size_t source_len = source->GetIndexedPropertiesExternalArrayDataLength();
   enum ExternalArrayType source_type =
     source->GetIndexedPropertiesExternalArrayDataType();
-  size_t source_size = ExternalArraySize(source_type);
+  size_t source_size = InternalExternalArraySize(source_type);
 
   CHECK_NE(source_size, 0);
 
@@ -304,7 +309,7 @@ void Alloc(const FunctionCallbackInfo<Value>& args) {
     array_type = kExternalUint8Array;
   } else {
     array_type = static_cast<ExternalArrayType>(args[2]->Uint32Value());
-    size_t type_length = ExternalArraySize(array_type);
+    size_t type_length = InternalExternalArraySize(array_type);
     CHECK_GE(type_length * length, length);
     length *= type_length;
   }
@@ -318,7 +323,7 @@ void Alloc(Environment* env,
            Handle<Object> obj,
            size_t length,
            enum ExternalArrayType type) {
-  size_t type_size = ExternalArraySize(type);
+  size_t type_size = InternalExternalArraySize(type);
 
   CHECK_LE(length, kMaxLength);
   CHECK_GT(type_size, 0);
@@ -345,7 +350,7 @@ void Alloc(Environment* env,
            enum ExternalArrayType type) {
   CHECK_EQ(false, obj->HasIndexedPropertiesInExternalArrayData());
   env->isolate()->AdjustAmountOfExternalAllocatedMemory(length);
-  size_t size = length / ExternalArraySize(type);
+  size_t size = length / InternalExternalArraySize(type);
   obj->SetIndexedPropertiesToExternalArrayData(data, type, size);
   CallbackInfo::New(env->isolate(),
                     CallbackInfo::kInternal,
@@ -378,7 +383,7 @@ void AllocDispose(Environment* env, Handle<Object> obj) {
   size_t length = obj->GetIndexedPropertiesExternalArrayDataLength();
   enum ExternalArrayType array_type =
     obj->GetIndexedPropertiesExternalArrayDataType();
-  size_t array_size = ExternalArraySize(array_type);
+  size_t array_size = InternalExternalArraySize(array_type);
 
   CHECK_GT(array_size, 0);
   CHECK_GE(length * array_size, length);
@@ -412,7 +417,7 @@ static void Alloc(Environment* env,
   env->set_using_smalloc_alloc_cb(true);
   CallbackInfo* info = CallbackInfo::New(isolate, ownership, obj, fn, hint);
   obj->SetHiddenValue(env->smalloc_p_string(), External::New(isolate, info));
-  size_t size = length / ExternalArraySize(type);
+  size_t size = length / InternalExternalArraySize(type);
   obj->SetIndexedPropertiesToExternalArrayData(data, type, size);
 }
 
@@ -425,7 +430,7 @@ void Alloc(Environment* env,
            enum ExternalArrayType type) {
   CHECK_LE(length, kMaxLength);
 
-  size_t type_size = ExternalArraySize(type);
+  size_t type_size = InternalExternalArraySize(type);
 
   CHECK_GT(type_size, 0);
   CHECK_GE(length * type_size, length);
