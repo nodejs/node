@@ -1,6 +1,10 @@
 # Smalloc
 
-    Stability: 2 - Stable
+    Stability: 0 - Deprecated
+
+This module has been deprecated for technical reasons and will be removed when
+the V8 JavaScript engine is upgraded to version 4.3 or 4.4.  It is recommended
+that you start using [typed arrays][] instead.
 
 ## Class: smalloc
 
@@ -138,3 +142,5 @@ Enum of possible external array types. Contains:
 * `Float`
 * `Double`
 * `Uint8Clamped`
+
+[typed arrays]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Typed_arrays
