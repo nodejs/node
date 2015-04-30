@@ -119,7 +119,7 @@ bool TLSWrap::InvokeQueued(int status) {
         err = uv_check_start(&check->check_, CheckWriteItem::CheckCb);
 
       // No luck today, do it on next InvokeQueued
-      if (err) {
+      if (err != 0) {
         delete check;
         pending_write_items_.PushBack(wi);
         continue;
