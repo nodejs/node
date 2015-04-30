@@ -14,7 +14,7 @@
     'node_tag%': '',
     'uv_library%': 'static_library',
 
-    # Default to -O0 for debug builds.
+    # Default to -Og for debug builds.
     'v8_optimized_debug%': 0,
 
     # Enable disassembler for `--print-code` v8 options
@@ -54,7 +54,7 @@
           'v8_enable_handle_zapping%': 1,
         },
         'defines': [ 'DEBUG', '_DEBUG' ],
-        'cflags': [ '-g', '-O0' ],
+        'cflags': [ '-g', '-Og' ],
         'conditions': [
           ['target_arch=="x64"', {
             'msvs_configuration_platform': 'x64',
