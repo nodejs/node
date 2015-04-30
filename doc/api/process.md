@@ -1356,6 +1356,48 @@ In custom builds from non-release versions of the source tree, only the
 `name` property may be present. The additional properties should not be
 relied upon to exist.
 
+## process.resourceUsage()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Object} containing resource usage measures for the current process
+
+Note: Windows only provides the following resource usage measures:
+
+- `userCpuTimeUsedSec`
+- `userCpuTimeUsedMs`
+- `systemCpuTimeUsedSec`
+- `systemCpuTimeUsedMs`
+
+On Windows, all other values are `0`.
+
+On Linux, some fields may or may not be used/set to non-zero values depending on
+the kernel version. See the getrusage(2) man page for more information.
+
+Example return value:
+
+```js
+    { userCpuTimeUsedSec: 0,
+      userCpuTimeUsedMs: 159729,
+      systemCpuTimeUsedSec: 0,
+      systemCpuTimeUsedMs: 30597,
+      maxResidentSetSize: 20426752,
+      integralSharedMemorySize: 0,
+      integralUnsharedDataSize: 0,
+      integralUnsharedStackSize: 0,
+      pageReclaims: 3002,
+      pageFaults: 2250,
+      swaps: 0,
+      blockInputOperations: 0,
+      blockOutputOperations: 0,
+      ipcMessagesSent: 55,
+      ipcMessagesReceived: 54,
+      signalsReceived: 0,
+      voluntaryContextSwitches: 92,
+      involuntaryContextSwitches: 374 }
+```
+
 ## process.send(message[, sendHandle[, options]][, callback])
 <!-- YAML
 added: v0.5.9

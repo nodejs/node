@@ -2261,6 +2261,56 @@ static void Uptime(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+static void GetResourceUsage(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  uv_rusage_t rusage;
+  int err = uv_getrusage(&rusage);
+  if (err)
+    return env->ThrowUVException(err, "uv_getrusage");
+
+  Local<Object> resource_usage = Object::New(env->isolate());
+  resource_usage->Set(env->user_cpu_time_used_sec(),
+                      Number::New(env->isolate(), rusage.ru_utime.tv_sec));
+  resource_usage->Set(env->user_cpu_time_used_ms(),
+                      Number::New(env->isolate(), rusage.ru_utime.tv_usec));
+  resource_usage->Set(env->system_cpu_time_used_sec(),
+                      Number::New(env->isolate(), rusage.ru_stime.tv_sec));
+  resource_usage->Set(env->system_cpu_time_used_ms(),
+                      Number::New(env->isolate(), rusage.ru_stime.tv_usec));
+  resource_usage->Set(env->max_resident_set_size(),
+                      Number::New(env->isolate(), rusage.ru_maxrss));
+  resource_usage->Set(env->integral_shared_mem_size(),
+                      Number::New(env->isolate(), rusage.ru_ixrss));
+  resource_usage->Set(env->integral_unshared_data_size(),
+                      Number::New(env->isolate(), rusage.ru_idrss));
+  resource_usage->Set(env->integral_unshared_stack_size(),
+                      Number::New(env->isolate(), rusage.ru_isrss));
+  resource_usage->Set(env->page_reclaims(),
+                      Number::New(env->isolate(), rusage.ru_minflt));
+  resource_usage->Set(env->page_faults(),
+                      Number::New(env->isolate(), rusage.ru_majflt));
+  resource_usage->Set(env->swaps(),
+                      Number::New(env->isolate(), rusage.ru_nswap));
+  resource_usage->Set(env->block_input_operations(),
+                      Number::New(env->isolate(), rusage.ru_inblock));
+  resource_usage->Set(env->block_output_operations(),
+                      Number::New(env->isolate(), rusage.ru_oublock));
+  resource_usage->Set(env->ipc_messages_sent(),
+                      Number::New(env->isolate(), rusage.ru_msgsnd));
+  resource_usage->Set(env->ipc_messages_received(),
+                      Number::New(env->isolate(), rusage.ru_msgrcv));
+  resource_usage->Set(env->signals_received(),
+                      Number::New(env->isolate(), rusage.ru_nsignals));
+  resource_usage->Set(env->voluntary_context_switches(),
+                      Number::New(env->isolate(), rusage.ru_nvcsw));
+  resource_usage->Set(env->involuntary_context_switches(),
+                      Number::New(env->isolate(), rusage.ru_nivcsw));
+
+  args.GetReturnValue().Set(resource_usage);
+}
+
+
 void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -3367,6 +3417,7 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "hrtime", Hrtime);
 
   env->SetMethod(process, "cpuUsage", CPUUsage);
+  env->SetMethod(process, "resourceUsage", GetResourceUsage);
 
   env->SetMethod(process, "dlopen", DLOpen);
 
