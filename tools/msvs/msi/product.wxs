@@ -237,6 +237,9 @@
       </Component>
     </DirectoryRef>
 
+    <InstallExecuteSequence>
+    </InstallExecuteSequence>
+
     <UI Id="NodeInstallUI">
       <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8"/>
       <TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12"/>
