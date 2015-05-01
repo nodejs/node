@@ -31,15 +31,16 @@ test("outdated ignores private modules", function (t) {
       function () {
         npm.install(".", function (err) {
           t.ifError(err, "install success")
+          bumpLocalPrivate()
           npm.outdated(function (er, d) {
             t.ifError(er, "outdated success")
             t.deepEqual(d, [[
               path.resolve(__dirname, "outdated-private"),
               "underscore",
               "1.3.1",
-              "1.3.1",
               "1.5.1",
-              "file:underscore"
+              "1.5.1",
+              "underscore@1.5.1"
             ]])
             s.close()
           })
@@ -70,6 +71,12 @@ var pjLocalPrivate = JSON.stringify({
   private      : true
 }, null, 2) + "\n"
 
+var pjLocalPrivateBumped = JSON.stringify({
+  name         : "local-private",
+  version      : "1.1.0",
+  private      : true
+}, null, 2) + "\n"
+
 var pjScopedLocalPrivate = JSON.stringify({
   name         : "@scoped/another-local-private",
   version      : "1.0.0",
@@ -93,6 +100,10 @@ function bootstrap () {
 
   mkdirp.sync(pkgLocalUnderscore)
   fs.writeFileSync(path.resolve(pkgLocalUnderscore, "package.json"), pjLocalUnderscore)
+}
+
+function bumpLocalPrivate () {
+  fs.writeFileSync(path.resolve(pkgLocalPrivate, "package.json"), pjLocalPrivateBumped)
 }
 
 function cleanup () {

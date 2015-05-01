@@ -2,11 +2,12 @@
 module.exports = unpublish
 
 var log = require("npmlog")
-  , npm = require("./npm.js")
-  , readJson = require("read-package-json")
-  , path = require("path")
-  , mapToRegistry = require("./utils/map-to-registry.js")
-  , npa = require("npm-package-arg")
+var npm = require("./npm.js")
+var readJson = require("read-package-json")
+var path = require("path")
+var mapToRegistry = require("./utils/map-to-registry.js")
+var npa = require("npm-package-arg")
+var getPublishConfig = require("./utils/get-publish-config.js")
 
 unpublish.usage = "npm unpublish <project>[@<version>]"
 
@@ -71,18 +72,28 @@ function unpublish (args, cb) {
     return readJson(cwdJson, function (er, data) {
       if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
       if (er) return cb("Usage:\n" + unpublish.usage)
-      gotProject(data.name, data.version, cb)
+      log.verbose('unpublish', data)
+      gotProject(data.name, data.version, data.publishConfig, cb)
     })
   }
   return gotProject(project, version, cb)
 }
 
-function gotProject (project, version, cb_) {
+function gotProject (project, version, publishConfig, cb_) {
+  if (typeof cb_ !== 'function') {
+    cb_ = publishConfig
+    publishConfig = null
+  }
+
   function cb (er) {
     if (er) return cb_(er)
     console.log("- " + project + (version ? "@" + version : ""))
     cb_()
   }
+
+  var mappedConfig = getPublishConfig(publishConfig, npm.config, npm.registry)
+  var config = mappedConfig.config
+  var registry = mappedConfig.client
 
   // remove from the cache first
   npm.commands.cache(["clean", project, version], function (er) {
@@ -91,14 +102,14 @@ function gotProject (project, version, cb_) {
       return cb(er)
     }
 
-    mapToRegistry(project, npm.config, function (er, uri, auth) {
+    mapToRegistry(project, config, function (er, uri, auth) {
       if (er) return cb(er)
 
       var params = {
-        version : version,
-        auth    : auth
+        version: version,
+        auth: auth
       }
-      npm.registry.unpublish(uri, params, cb)
+      registry.unpublish(uri, params, cb)
     })
   })
 }
