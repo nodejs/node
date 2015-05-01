@@ -165,9 +165,9 @@ void SyncProcessStdioPipe::Close() {
 }
 
 
-Local<Object> SyncProcessStdioPipe::GetOutputAsBuffer(Isolate* isolate) const {
+Local<Object> SyncProcessStdioPipe::GetOutputAsBuffer(Environment* env) const {
   size_t length = OutputLength();
-  Local<Object> js_buffer = Buffer::New(isolate, length);
+  Local<Object> js_buffer = Buffer::New(env, length);
   CopyOutput(Buffer::Data(js_buffer));
   return js_buffer;
 }
@@ -679,7 +679,7 @@ Local<Array> SyncProcessRunner::BuildOutputArray() {
   for (uint32_t i = 0; i < stdio_count_; i++) {
     SyncProcessStdioPipe* h = stdio_pipes_[i];
     if (h != nullptr && h->writable())
-      js_output->Set(i, h->GetOutputAsBuffer(env()->isolate()));
+      js_output->Set(i, h->GetOutputAsBuffer(env()));
     else
       js_output->Set(i, Null(env()->isolate()));
   }
