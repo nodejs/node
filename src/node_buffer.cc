@@ -19,7 +19,7 @@
   } while (0)
 
 #define ARGS_THIS(argT)                                                     \
-  Local<Object> obj = argT;                                                 \
+  Local<Object> obj = argT.As<Object>();                                    \
   size_t obj_length = obj->GetIndexedPropertiesExternalArrayDataLength();   \
   char* obj_data = static_cast<char*>(                                      \
     obj->GetIndexedPropertiesExternalArrayData());                          \
@@ -223,8 +223,8 @@ template <encoding encoding>
 void StringSlice(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  ARGS_THIS(args.This())
-  SLICE_START_END(args[0], args[1], obj_length)
+  ARGS_THIS(args[0])
+  SLICE_START_END(args[1], args[2], obj_length)
 
   args.GetReturnValue().Set(
       StringBytes::Encode(env->isolate(), obj_data + start, length, encoding));
@@ -235,8 +235,8 @@ template <>
 void StringSlice<UCS2>(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  ARGS_THIS(args.This())
-  SLICE_START_END(args[0], args[1], obj_length)
+  ARGS_THIS(args[0])
+  SLICE_START_END(args[1], args[2], obj_length)
   length /= 2;
 
   const char* data = obj_data + start;
@@ -299,16 +299,13 @@ void Base64Slice(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-// bytesCopied = buffer.copy(target[, targetStart][, sourceStart][, sourceEnd]);
+// bytesCopied = copy(buffer, target[, targetStart][, sourceStart][, sourceEnd])
 void Copy(const FunctionCallbackInfo<Value> &args) {
   Environment* env = Environment::GetCurrent(args);
 
-  Local<Object> target = args[0]->ToObject(env->isolate());
+  ARGS_THIS(args[0])
 
-  if (!HasInstance(target))
-    return env->ThrowTypeError("first arg should be a Buffer");
-
-  ARGS_THIS(args.This())
+  Local<Object> target = args[1].As<Object>();
   size_t target_length = target->GetIndexedPropertiesExternalArrayDataLength();
   char* target_data = static_cast<char*>(
       target->GetIndexedPropertiesExternalArrayData());
@@ -316,9 +313,9 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
   size_t source_start;
   size_t source_end;
 
-  CHECK_NOT_OOB(ParseArrayIndex(args[1], 0, &target_start));
-  CHECK_NOT_OOB(ParseArrayIndex(args[2], 0, &source_start));
-  CHECK_NOT_OOB(ParseArrayIndex(args[3], obj_length, &source_end));
+  CHECK_NOT_OOB(ParseArrayIndex(args[2], 0, &target_start));
+  CHECK_NOT_OOB(ParseArrayIndex(args[3], 0, &source_start));
+  CHECK_NOT_OOB(ParseArrayIndex(args[4], obj_length, &source_end));
 
   // Copy 0 bytes; we're done
   if (target_start >= target_length || source_start >= source_end)
@@ -340,7 +337,7 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
 
 
 void Fill(const FunctionCallbackInfo<Value>& args) {
-  ARGS_THIS(args[0].As<Object>())
+  ARGS_THIS(args[0]);
 
   size_t start = args[2]->Uint32Value();
   size_t end = args[3]->Uint32Value();
@@ -383,21 +380,15 @@ template <encoding encoding>
 void StringWrite(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  ARGS_THIS(args.This())
+  ARGS_THIS(args[0])
 
-  if (!args[0]->IsString())
-    return env->ThrowTypeError("Argument must be a string");
-
-  Local<String> str = args[0]->ToString(env->isolate());
-
-  if (encoding == HEX && str->Length() % 2 != 0)
-    return env->ThrowTypeError("Invalid hex string");
+  Local<String> str = args[1].As<String>();
 
   size_t offset;
   size_t max_length;
 
-  CHECK_NOT_OOB(ParseArrayIndex(args[1], 0, &offset));
-  CHECK_NOT_OOB(ParseArrayIndex(args[2], obj_length - offset, &max_length));
+  CHECK_NOT_OOB(ParseArrayIndex(args[2], 0, &offset));
+  CHECK_NOT_OOB(ParseArrayIndex(args[3], obj_length - offset, &max_length));
 
   max_length = MIN(obj_length - offset, max_length);
 
@@ -459,7 +450,7 @@ static inline void Swizzle(char* start, unsigned int len) {
 
 template <typename T, enum Endianness endianness>
 void ReadFloatGeneric(const FunctionCallbackInfo<Value>& args) {
-  ARGS_THIS(args[0].As<Object>());
+  ARGS_THIS(args[0]);
 
   uint32_t offset = args[1]->Uint32Value();
   CHECK_LE(offset + sizeof(T), obj_length);
@@ -500,8 +491,8 @@ void ReadDoubleBE(const FunctionCallbackInfo<Value>& args) {
 
 
 template <typename T, enum Endianness endianness>
-uint32_t WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
-  ARGS_THIS(args[0].As<Object>())
+void WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
+  ARGS_THIS(args[0]);
 
   T val = args[1]->NumberValue();
   uint32_t offset = args[2]->Uint32Value();
@@ -517,27 +508,28 @@ uint32_t WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
   if (endianness != GetEndianness())
     Swizzle(na.bytes, sizeof(na.bytes));
   memcpy(ptr, na.bytes, sizeof(na.bytes));
-  return offset + sizeof(na.bytes);
+
+  args.GetReturnValue().Set(static_cast<uint32_t>(offset + sizeof(na.bytes)));
 }
 
 
 void WriteFloatLE(const FunctionCallbackInfo<Value>& args) {
-  args.GetReturnValue().Set(WriteFloatGeneric<float, kLittleEndian>(args));
+  WriteFloatGeneric<float, kLittleEndian>(args);
 }
 
 
 void WriteFloatBE(const FunctionCallbackInfo<Value>& args) {
-  args.GetReturnValue().Set(WriteFloatGeneric<float, kBigEndian>(args));
+  WriteFloatGeneric<float, kBigEndian>(args);
 }
 
 
 void WriteDoubleLE(const FunctionCallbackInfo<Value>& args) {
-  args.GetReturnValue().Set(WriteFloatGeneric<double, kLittleEndian>(args));
+  WriteFloatGeneric<double, kLittleEndian>(args);
 }
 
 
 void WriteDoubleBE(const FunctionCallbackInfo<Value>& args) {
-  args.GetReturnValue().Set(WriteFloatGeneric<double, kBigEndian>(args));
+  WriteFloatGeneric<double, kBigEndian>(args);
 }
 
 
@@ -605,11 +597,7 @@ int32_t IndexOf(const char* haystack,
 
 
 void IndexOfString(const FunctionCallbackInfo<Value>& args) {
-  ASSERT(args[0]->IsObject());
-  ASSERT(args[1]->IsString());
-  ASSERT(args[2]->IsNumber());
-
-  ARGS_THIS(args[0].As<Object>());
+  ARGS_THIS(args[0]);
   node::Utf8Value str(args.GetIsolate(), args[1]);
   int32_t offset_i32 = args[2]->Int32Value();
   uint32_t offset;
@@ -636,11 +624,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
 
 
 void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
-  ASSERT(args[0]->IsObject());
-  ASSERT(args[1]->IsObject());
-  ASSERT(args[2]->IsNumber());
-
-  ARGS_THIS(args[0].As<Object>());
+  ARGS_THIS(args[0]);
   Local<Object> buf = args[1].As<Object>();
   int32_t offset_i32 = args[2]->Int32Value();
   size_t buf_length = buf->GetIndexedPropertiesExternalArrayDataLength();
@@ -673,11 +657,7 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
 
 
 void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
-  ASSERT(args[0]->IsObject());
-  ASSERT(args[1]->IsNumber());
-  ASSERT(args[2]->IsNumber());
-
-  ARGS_THIS(args[0].As<Object>());
+  ARGS_THIS(args[0]);
   uint32_t needle = args[1]->Uint32Value();
   int32_t offset_i32 = args[2]->Int32Value();
   uint32_t offset;
@@ -715,22 +695,6 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
 
   Local<Object> proto = proto_v.As<Object>();
 
-  env->SetMethod(proto, "asciiSlice", AsciiSlice);
-  env->SetMethod(proto, "base64Slice", Base64Slice);
-  env->SetMethod(proto, "binarySlice", BinarySlice);
-  env->SetMethod(proto, "hexSlice", HexSlice);
-  env->SetMethod(proto, "ucs2Slice", Ucs2Slice);
-  env->SetMethod(proto, "utf8Slice", Utf8Slice);
-
-  env->SetMethod(proto, "asciiWrite", AsciiWrite);
-  env->SetMethod(proto, "base64Write", Base64Write);
-  env->SetMethod(proto, "binaryWrite", BinaryWrite);
-  env->SetMethod(proto, "hexWrite", HexWrite);
-  env->SetMethod(proto, "ucs2Write", Ucs2Write);
-  env->SetMethod(proto, "utf8Write", Utf8Write);
-
-  env->SetMethod(proto, "copy", Copy);
-
   // for backwards compatibility
   proto->ForceSet(env->offset_string(),
                   Uint32::New(env->isolate(), 0),
@@ -761,6 +725,22 @@ void Initialize(Handle<Object> target,
   env->SetMethod(target, "writeDoubleLE", WriteDoubleLE);
   env->SetMethod(target, "writeFloatBE", WriteFloatBE);
   env->SetMethod(target, "writeFloatLE", WriteFloatLE);
+
+  env->SetMethod(target, "copy", Copy);
+
+  env->SetMethod(target, "asciiSlice", AsciiSlice);
+  env->SetMethod(target, "base64Slice", Base64Slice);
+  env->SetMethod(target, "binarySlice", BinarySlice);
+  env->SetMethod(target, "hexSlice", HexSlice);
+  env->SetMethod(target, "ucs2Slice", Ucs2Slice);
+  env->SetMethod(target, "utf8Slice", Utf8Slice);
+
+  env->SetMethod(target, "asciiWrite", AsciiWrite);
+  env->SetMethod(target, "base64Write", Base64Write);
+  env->SetMethod(target, "binaryWrite", BinaryWrite);
+  env->SetMethod(target, "hexWrite", HexWrite);
+  env->SetMethod(target, "ucs2Write", Ucs2Write);
+  env->SetMethod(target, "utf8Write", Utf8Write);
 }
 
 

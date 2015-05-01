@@ -1179,3 +1179,35 @@ var ps = Buffer.poolSize;
 Buffer.poolSize = 0;
 assert.equal(Buffer(1).parent, undefined);
 Buffer.poolSize = ps;
+
+// GH-1485. Do not core dump when `this` is a non-buffer.
+assert.equal(Buffer.prototype.toString(), "[object Object]");
+
+[null, undefined, {}, 0].forEach(function(v) {
+  assert.throws(function() {
+    Buffer.prototype.write.call(v);
+  });
+
+  assert.throws(function() {
+    Buffer.prototype.copy.call(v, new Buffer(0));
+  });
+  assert.throws(function() {
+    (new Buffer(0)).copy(v);
+  });
+
+  assert.throws(function() {
+    Buffer.prototype.fill.call(v);
+  });
+
+  assert.throws(function() {
+    Buffer.prototype.indexOf.call(v, 0);
+  });
+
+  assert.throws(function() {
+    Buffer.prototype.readDoubleLE.call(v, 0, false);
+  });
+
+  assert.throws(function() {
+    Buffer.prototype.writeDoubleLE.call(v, 0, 0, false);
+  });
+});
