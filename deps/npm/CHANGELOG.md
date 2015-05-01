@@ -1,3 +1,25 @@
+### v2.8.4 (2015-04-16):
+
+This is the fourth release of npm this week, so it's mostly just landing a few
+small outstanding PRs on dependencies and some tiny documentation tweaks.
+`npm@2.8.3` is where the real action is.
+
+* [`ee2bd77`](https://github.com/npm/npm/commit/ee2bd77f3c64d38735d1d31028224a5c40422a9b)
+  [#7983](https://github.com/npm/npm/issues/7983) `tar@2.1.0`: Better error
+  reporting in corrupted tar files, and add support for the `fromBase` flag
+  (rescued from the dustbin of history by
+  [@deanmarano](https://github.com/deanmarano)).
+  ([@othiym23](https://github.com/othiym23))
+* [`d8eee6c`](https://github.com/npm/npm/commit/d8eee6cf9d2ff7aca68dfaed2de76824a3e0d9af)
+  `init-package-json@1.4.1`: Add support for a default author, and only add
+  scope to a package name once. ([@othiym23](https://github.com/othiym23))
+* [`4fc5d98`](https://github.com/npm/npm/commit/4fc5d98b785f601c60d4dc0a2c8674f0cccf6262)
+  `lru-cache@2.6.1`: Small tweaks to cache value aging and entry counting that
+  are irrelevant to npm. ([@isaacs](https://github.com/isaacs))
+* [`1fe5840`](https://github.com/npm/npm/commit/1fe584089f5bef133de5518aa26eaf6064be2bf7)
+  [#7946](https://github.com/npm/npm/issues/7946) Make `npm init` text
+  friendlier. ([@sandfox](https://github.com/sandfox))
+
 ### v2.8.3 (2015-04-15):
 
 #### TWO SMALL GIT TWEAKS

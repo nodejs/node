@@ -88,7 +88,7 @@ inherits(Extract, tar.Parse)
 
 Extract.prototype._streamEnd = function () {
   var me = this
-  if (!me._ended) me.error("unexpected eof")
+  if (!me._ended || me._entry) me.error("unexpected eof")
   me._fst.end()
   // my .end() is coming later.
 }
