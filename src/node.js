@@ -328,22 +328,33 @@
     // Run callbacks that have no domain.
     // Using domains will cause this to be overridden.
     function _tickCallback() {
-      var callback, threw, tock;
+      var callback, args, tock;
 
       do {
         while (tickInfo[kIndex] < tickInfo[kLength]) {
           tock = nextTickQueue[tickInfo[kIndex]++];
           callback = tock.callback;
-          threw = true;
-          try {
-            if (tock.args === undefined)
-              callback();
-            else
-              callback.apply(null, tock.args);
-            threw = false;
-          } finally {
-            if (threw)
-              tickDone();
+          args = tock.args;
+          // Using separate callback execution functions helps to limit the
+          // scope of DEOPTs caused by using try blocks and allows direct
+          // callback invocation with small numbers of arguments to avoid the
+          // performance hit associated with using `fn.apply()`
+          if (args === undefined) {
+            doNTCallback0(callback);
+          } else {
+            switch (args.length) {
+              case 1:
+                doNTCallback1(callback, args[0]);
+                break;
+              case 2:
+                doNTCallback2(callback, args[0], args[1]);
+                break;
+              case 3:
+                doNTCallback3(callback, args[0], args[1], args[2]);
+                break;
+              default:
+                doNTCallbackMany(callback, args);
+            }
           }
           if (1e4 < tickInfo[kIndex])
             tickDone();
@@ -355,25 +366,36 @@
     }
 
     function _tickDomainCallback() {
-      var callback, domain, threw, tock;
+      var callback, domain, args, tock;
 
       do {
         while (tickInfo[kIndex] < tickInfo[kLength]) {
           tock = nextTickQueue[tickInfo[kIndex]++];
           callback = tock.callback;
           domain = tock.domain;
+          args = tock.args;
           if (domain)
             domain.enter();
-          threw = true;
-          try {
-            if (tock.args === undefined)
-              callback();
-            else
-              callback.apply(null, tock.args);
-            threw = false;
-          } finally {
-            if (threw)
-              tickDone();
+          // Using separate callback execution functions helps to limit the
+          // scope of DEOPTs caused by using try blocks and allows direct
+          // callback invocation with small numbers of arguments to avoid the
+          // performance hit associated with using `fn.apply()`
+          if (args === undefined) {
+            doNTCallback0(callback);
+          } else {
+            switch (args.length) {
+              case 1:
+                doNTCallback1(callback, args[0]);
+                break;
+              case 2:
+                doNTCallback2(callback, args[0], args[1]);
+                break;
+              case 3:
+                doNTCallback3(callback, args[0], args[1], args[2]);
+                break;
+              default:
+                doNTCallbackMany(callback, args);
+            }
           }
           if (1e4 < tickInfo[kIndex])
             tickDone();
@@ -384,6 +406,61 @@
         _runMicrotasks();
         emitPendingUnhandledRejections();
       } while (tickInfo[kLength] !== 0);
+    }
+
+    function doNTCallback0(callback) {
+      var threw = true;
+      try {
+        callback();
+        threw = false;
+      } finally {
+        if (threw)
+          tickDone();
+      }
+    }
+
+    function doNTCallback1(callback, arg1) {
+      var threw = true;
+      try {
+        callback(arg1);
+        threw = false;
+      } finally {
+        if (threw)
+          tickDone();
+      }
+    }
+
+    function doNTCallback2(callback, arg1, arg2) {
+      var threw = true;
+      try {
+        callback(arg1, arg2);
+        threw = false;
+      } finally {
+        if (threw)
+          tickDone();
+      }
+    }
+
+    function doNTCallback3(callback, arg1, arg2, arg3) {
+      var threw = true;
+      try {
+        callback(arg1, arg2, arg3);
+        threw = false;
+      } finally {
+        if (threw)
+          tickDone();
+      }
+    }
+
+    function doNTCallbackMany(callback, args) {
+      var threw = true;
+      try {
+        callback.apply(null, args);
+        threw = false;
+      } finally {
+        if (threw)
+          tickDone();
+      }
     }
 
     function TickObject(c, args) {
