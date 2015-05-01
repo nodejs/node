@@ -1,4 +1,4 @@
-.TH "NPM\-SCOPE" "7" "April 2015" "" ""
+.TH "NPM\-SCOPE" "7" "May 2015" "" ""
 .SH "NAME"
 \fBnpm-scope\fR \- Scoped packages
 .SH DESCRIPTION
@@ -17,9 +17,9 @@ followed by a slash, e\.g\.
 Scopes are a way of grouping related packages together, and also affect a few
 things about the way npm treats the package\.
 .P
-\fBAs of 2014\-09\-03, scoped packages are not supported by the public npm registry\fR\|\.
-However, the npm client is backwards\-compatible with un\-scoped registries, so
-it can be used to work with scoped and un\-scoped registries at the same time\.
+Scoped packages are supported by the public npm registry\.  The npm
+client is backwards\-compatible with un\-scoped registries, so it can be
+used to work with scoped and un\-scoped registries at the same time\.
 .SH Installing scoped packages
 .P
 Scoped packages are installed to a sub\-folder of the regular installation
@@ -64,10 +64,27 @@ There is nothing special about the way Node treats scope folders, this is
 just specifying to require the module \fBmypackage\fR in the folder called \fB@myorg\fR\|\.
 .SH Publishing scoped packages
 .P
-Scoped packages can be published to any registry that supports them\.
-\fIAs of 2014\-09\-03, the public npm registry does not support scoped packages\fR,
-so attempting to publish a scoped package to the registry will fail unless
-you have associated that scope with a different registry, see below\.
+Scoped packages can be published to any registry that supports them, including
+the public npm registry\.
+.P
+(As of 2015\-04\-19, the public npm registry \fBdoes\fR support scoped packages)
+.P
+If you wish, you may associate a scope with a registry; see below\.
+.SS Publishing public scoped packages to the public npm registry
+.P
+To publish a public scoped package, you must specify \fB\-\-access public\fR with
+the initial publication\.  This will publish the package and set access
+to \fBpublic\fR as if you had run \fBnpm access public\fR after publishing\.
+.SS Publishing private scoped packages to the npm registry
+.P
+To publish a private scoped package to the npm registry, you must have
+an npm Private Modules \fIhttps://www\.npmjs\.com/private\-modules\fR
+account\.
+.P
+You can then publish the module with \fBnpm publish\fR or \fBnpm publish
+\-\-access restricted\fR, and it will be present in the npm registry, with
+restricted access\.  You can then change the access permissions, if
+desired, with \fBnpm access\fR or on the npmjs\.com website\.
 .SH Associating a scope with a registry
 .P
 Scopes can be associated with a separate registry\. This allows you to
@@ -103,6 +120,8 @@ that registry instead\.
 npm help install
 .IP \(bu 2
 npm help publish
+.IP \(bu 2
+npm help access
 
 .RE
 

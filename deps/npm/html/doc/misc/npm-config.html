@@ -11,7 +11,7 @@
 
 <h1><a href="../misc/npm-config.html">npm-config</a></h1> <p>More than you probably want to know about npm configuration</p>
 <h2 id="description">DESCRIPTION</h2>
-<p>npm gets its configuration values from 6 sources, in this priority:</p>
+<p>npm gets its configuration values from the following sources, sorted by priority:</p>
 <h3 id="command-line-flags">Command Line Flags</h3>
 <p>Putting <code>--foo bar</code> on the command line sets the <code>foo</code> configuration
 parameter to <code>&quot;bar&quot;</code>.  A <code>--</code> argument tells the cli parser to stop
@@ -689,6 +689,17 @@ registry via https.</p>
 it will install the specified tag.</p>
 <p>Also the tag that is added to the package@version specified by the <code>npm
 tag</code> command, if no explicit tag is given.</p>
+<h3 id="tag-version-prefix">tag-version-prefix</h3>
+<ul>
+<li>Default: <code>&quot;v&quot;</code></li>
+<li>Type: String</li>
+</ul>
+<p>If set, alters the prefix used when tagging a new version when performing a
+version increment using  <code>npm-version</code>. To remove the prefix altogether, set it
+to the empty string: <code>&quot;&quot;</code>.</p>
+<p>Because other tools may rely on the convention that npm version tags look like
+<code>v1.0.0</code>, <em>only use this property if it is absolutely necessary</em>. In
+particular, use care when overriding this setting for public packages.</p>
 <h3 id="tmp">tmp</h3>
 <ul>
 <li>Default: TMPDIR environment variable, or &quot;/tmp&quot;</li>
@@ -788,5 +799,5 @@ exit successfully.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-config &mdash; npm@2.8.3</p>
+<p id="footer">npm-config &mdash; npm@2.9.0</p>
 
