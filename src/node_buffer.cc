@@ -303,10 +303,10 @@ void Base64Slice(const FunctionCallbackInfo<Value>& args) {
 void Copy(const FunctionCallbackInfo<Value> &args) {
   Environment* env = Environment::GetCurrent(args);
 
-  Local<Object> target = args[0]->ToObject(env->isolate());
-
-  if (!HasInstance(target))
+  if (!HasInstance(args[0]))
     return env->ThrowTypeError("first arg should be a Buffer");
+
+  Local<Object> target = args[0]->ToObject(env->isolate());
 
   ARGS_THIS(args.This())
   size_t target_length = target->GetIndexedPropertiesExternalArrayDataLength();
