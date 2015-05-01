@@ -232,7 +232,7 @@ function requestDone (method, where, cb) {
       var name
       if (!w.match(/^-/)) {
         w = w.split('/')
-        name = w[w.indexOf('_rewrite') + 1]
+        name = decodeURIComponent(w[w.indexOf('_rewrite') + 1])
       }
 
       if (!parsed.error) {
@@ -245,7 +245,7 @@ function requestDone (method, where, cb) {
         er = new Error('404 Not Found: ' + name)
       } else {
         er = new Error(
-          parsed.error + ' ' + (parsed.reason || '') + ': ' + w
+          parsed.error + ' ' + (parsed.reason || '') + ': ' + (name || w)
         )
       }
       if (name) er.pkgid = name

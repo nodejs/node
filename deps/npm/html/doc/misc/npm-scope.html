@@ -18,9 +18,9 @@ followed by a slash, e.g.</p>
 <pre><code>@somescope/somepackagename
 </code></pre><p>Scopes are a way of grouping related packages together, and also affect a few
 things about the way npm treats the package.</p>
-<p><strong>As of 2014-09-03, scoped packages are not supported by the public npm registry</strong>.
-However, the npm client is backwards-compatible with un-scoped registries, so
-it can be used to work with scoped and un-scoped registries at the same time.</p>
+<p>Scoped packages are supported by the public npm registry.  The npm
+client is backwards-compatible with un-scoped registries, so it can be
+used to work with scoped and un-scoped registries at the same time.</p>
 <h2 id="installing-scoped-packages">Installing scoped packages</h2>
 <p>Scoped packages are installed to a sub-folder of the regular installation
 folder, e.g. if your other packages are installed in <code>node_modules/packagename</code>,
@@ -43,10 +43,22 @@ include the name of the scope when requiring them in your code, e.g.</p>
 </code></pre><p>There is nothing special about the way Node treats scope folders, this is
 just specifying to require the module <code>mypackage</code> in the folder called <code>@myorg</code>.</p>
 <h2 id="publishing-scoped-packages">Publishing scoped packages</h2>
-<p>Scoped packages can be published to any registry that supports them.
-<em>As of 2014-09-03, the public npm registry does not support scoped packages</em>,
-so attempting to publish a scoped package to the registry will fail unless
-you have associated that scope with a different registry, see below.</p>
+<p>Scoped packages can be published to any registry that supports them, including
+the public npm registry.</p>
+<p>(As of 2015-04-19, the public npm registry <strong>does</strong> support scoped packages)</p>
+<p>If you wish, you may associate a scope with a registry; see below.</p>
+<h3 id="publishing-public-scoped-packages-to-the-public-npm-registry">Publishing public scoped packages to the public npm registry</h3>
+<p>To publish a public scoped package, you must specify <code>--access public</code> with
+the initial publication.  This will publish the package and set access
+to <code>public</code> as if you had run <code>npm access public</code> after publishing.</p>
+<h3 id="publishing-private-scoped-packages-to-the-npm-registry">Publishing private scoped packages to the npm registry</h3>
+<p>To publish a private scoped package to the npm registry, you must have
+an <a href="https://www.npmjs.com/private-modules">npm Private Modules</a>
+account.</p>
+<p>You can then publish the module with <code>npm publish</code> or <code>npm publish
+--access restricted</code>, and it will be present in the npm registry, with
+restricted access.  You can then change the access permissions, if
+desired, with <code>npm access</code> or on the npmjs.com website.</p>
 <h2 id="associating-a-scope-with-a-registry">Associating a scope with a registry</h2>
 <p>Scopes can be associated with a separate registry. This allows you to
 seamlessly use a mix of packages from the public npm registry and one or more
@@ -65,6 +77,7 @@ that registry instead.</p>
 <ul>
 <li><a href="../cli/npm-install.html"><a href="../cli/npm-install.html">npm-install(1)</a></a></li>
 <li><a href="../cli/npm-publish.html"><a href="../cli/npm-publish.html">npm-publish(1)</a></a></li>
+<li><a href="../cli/npm-access.html"><a href="../cli/npm-access.html">npm-access(1)</a></a></li>
 </ul>
 
 </div>
@@ -78,5 +91,5 @@ that registry instead.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-scope &mdash; npm@2.8.3</p>
+<p id="footer">npm-scope &mdash; npm@2.9.0</p>
 

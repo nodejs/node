@@ -155,7 +155,7 @@ function commit (version, hasShrinkwrap, cb) {
       git.chainableExec([ "add", "package.json" ], options),
       hasShrinkwrap && git.chainableExec([ "add", "npm-shrinkwrap.json" ] , options),
       git.chainableExec([ "commit", "-m", message ], options),
-      git.chainableExec([ "tag", "v" + version, flag, message ], options)
+      git.chainableExec([ "tag", npm.config.get("tag-version-prefix") + version, flag, message ], options)
     ],
     cb
   )

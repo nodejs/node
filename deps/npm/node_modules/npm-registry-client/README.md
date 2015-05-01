@@ -9,7 +9,7 @@ It handles all the caching and HTTP calls.
 ```javascript
 var RegClient = require('npm-registry-client')
 var client = new RegClient(config)
-var uri = "npm://registry.npmjs.org/npm"
+var uri = "https://registry.npmjs.org/npm"
 var params = {timeout: 1000}
 
 client.get(uri, params, function (error, data, raw, res) {

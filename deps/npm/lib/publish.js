@@ -7,13 +7,12 @@ var npm = require("./npm.js")
   , readJson = require("read-package-json")
   , lifecycle = require("./utils/lifecycle.js")
   , chain = require("slide").chain
-  , Conf = require("./config/core.js").Conf
-  , CachingRegClient = require("./cache/caching-client.js")
   , mapToRegistry = require("./utils/map-to-registry.js")
   , cachedPackageRoot = require("./cache/cached-package-root.js")
   , createReadStream = require("graceful-fs").createReadStream
   , npa = require("npm-package-arg")
   , semver = require('semver')
+  , getPublishConfig = require("./utils/get-publish-config.js")
 
 publish.usage = "npm publish <tarball> [--tag <tagname>]"
               + "\nnpm publish <folder> [--tag <tagname>]"
@@ -83,22 +82,13 @@ function cacheAddPublish (dir, didPre, isRetry, cb) {
 function publish_ (arg, data, isRetry, cachedir, cb) {
   if (!data) return cb(new Error("no package.json file found"))
 
-  var registry = npm.registry
-  var config = npm.config
-
-  // check for publishConfig hash
-  if (data.publishConfig) {
-    config = new Conf(npm.config)
-    config.save = npm.config.save.bind(npm.config)
-
-    // don't modify the actual publishConfig object, in case we have
-    // to set a login token or some other data.
-    config.unshift(Object.keys(data.publishConfig).reduce(function (s, k) {
-      s[k] = data.publishConfig[k]
-      return s
-    }, {}))
-    registry = new CachingRegClient(config)
-  }
+  var mappedConfig = getPublishConfig(
+    data.publishConfig,
+    npm.config,
+    npm.registry
+  )
+  var config = mappedConfig.config
+  var registry = mappedConfig.client
 
   data._npmVersion  = npm.version
   data._nodeVersion = process.versions.node

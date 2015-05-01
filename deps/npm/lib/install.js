@@ -687,8 +687,6 @@ function installMany (what, where, context, cb) {
 
     var parent = data
 
-    var d = data.dependencies || {}
-
     // if we're explicitly installing "what" into "where", then the shrinkwrap
     // for "where" doesn't apply. This would be the case if someone were adding
     // a new package to a shrinkwrapped package. (data.dependencies will not be
@@ -696,10 +694,13 @@ function installMany (what, where, context, cb) {
     // there's no harm in using that.)
     if (context.explicit) wrap = null
 
+    var deps = data.dependencies || {}
+    var devDeps = data.devDependencies || {}
+
     // what is a list of things.
     // resolve each one.
     asyncMap( what
-            , targetResolver(where, context, d)
+            , targetResolver(where, context, deps, devDeps)
             , function (er, targets) {
 
       if (er) return cb(er)
@@ -774,7 +775,7 @@ function installMany (what, where, context, cb) {
   })
 }
 
-function targetResolver (where, context, deps) {
+function targetResolver (where, context, deps, devDeps) {
   var alreadyInstalledManually = []
     , resolveLeft = 0
     , nm = path.resolve(where, "node_modules")
@@ -807,7 +808,8 @@ function targetResolver (where, context, deps) {
           // otherwise, make sure that it's a semver match with what we want.
           var bd = parent.bundleDependencies
           var isBundled = bd && bd.indexOf(d.name) !== -1
-          var currentIsSatisfactory = semver.satisfies(d.version, deps[d.name] || "*", true)
+          var expectedVersion = deps[d.name] || (devDeps && devDeps[d.name]) || "*"
+          var currentIsSatisfactory = semver.satisfies(d.version, expectedVersion, true)
           if (isBundled || currentIsSatisfactory || deps[d.name] === d._resolved) {
             return cb(null, d.name)
           }

@@ -301,7 +301,7 @@ function shouldUpdate (args, dir, dep, has, req, depth, cb, type) {
   }
 
   if (args.length && args.indexOf(dep) === -1) return skip()
-  var parsed = npa(req)
+  var parsed = npa(dep + '@' + req)
   if (parsed.type === "git" || (parsed.hosted && parsed.hosted.type === "github")) {
     return doIt("git", "git")
   }
@@ -313,8 +313,35 @@ function shouldUpdate (args, dir, dep, has, req, depth, cb, type) {
     npm.registry.get(uri, { auth : auth }, updateDeps)
   })
 
+  function updateLocalDeps (latestRegistryVersion) {
+    readJson(path.resolve(parsed.spec, 'package.json'), function (er, localDependency) {
+      if (er) return cb()
+
+      var wanted = localDependency.version
+      var latest = localDependency.version
+
+      if (latestRegistryVersion) {
+        latest = latestRegistryVersion
+        if (semver.lt(wanted, latestRegistryVersion)) {
+          wanted = latestRegistryVersion
+          req = dep + '@' + latest
+        }
+      }
+
+      if (curr.version !== wanted) {
+        doIt(wanted, latest)
+      } else {
+        skip()
+      }
+    })
+  }
+
   function updateDeps (er, d) {
-    if (er) return cb()
+    if (er) {
+      if (parsed.type !== 'local') return cb()
+      return updateLocalDeps()
+    }
+
     if (!d || !d["dist-tags"] || !d.versions) return cb()
     var l = d.versions[d["dist-tags"].latest]
     if (!l) return cb()
@@ -355,6 +382,8 @@ function shouldUpdate (args, dir, dep, has, req, depth, cb, type) {
       if (!curr || dFromUrl && cFromUrl && d._from !== curr.from
           || d.version !== curr.version
           || d.version !== l.version) {
+        if (parsed.type === 'local') return updateLocalDeps(l.version)
+
         doIt(d.version, l.version)
       }
       else {
