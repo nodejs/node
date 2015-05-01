@@ -65,14 +65,44 @@ class TLSWrap : public crypto::SSLWrap<TLSWrap>,
   // Write callback queue's item
   class WriteItem {
    public:
-    explicit WriteItem(WriteWrap* w) : w_(w) {
+    class SyncScope {
+     public:
+      explicit SyncScope(WriteItem* item) : item_(item) {
+        item_->async_ = false;
+      }
+      ~SyncScope() {
+        item_->async_ = true;
+      }
+
+     private:
+      WriteItem* item_;
+    };
+
+    explicit WriteItem(WriteWrap* w) : w_(w), async_(false) {
     }
     ~WriteItem() {
       w_ = nullptr;
     }
 
     WriteWrap* w_;
+    bool async_;
     ListNode<WriteItem> member_;
+  };
+
+  class CheckWriteItem {
+   public:
+    CheckWriteItem(WriteWrap* w, int status) : w_(w), status_(status)  {
+    }
+
+    ~CheckWriteItem() {
+      w_ = nullptr;
+    }
+
+    static void CheckCb(uv_check_t* check);
+
+    WriteWrap* w_;
+    int status_;
+    uv_check_t check_;
   };
 
   TLSWrap(Environment* env,
