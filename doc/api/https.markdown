@@ -108,7 +108,7 @@ The options argument has the following options
 - `family`: IP address family to use when resolving `host` and `hostname`.
   Valid values are `4` or `6`. When unspecified, both IP v4 and v6 will be
   used.
-- `port`: Port of remote server. Defaults to 80.
+- `port`: Port of remote server. Defaults to 443.
 - `localAddress`: Local interface to bind for network connections.
 - `socketPath`: Unix Domain Socket (use one of host:port or socketPath).
 - `method`: A string specifying the HTTP request method. Defaults to `'GET'`.
