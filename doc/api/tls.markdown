@@ -786,7 +786,7 @@ The numeric representation of the local port.
 [OpenSSL cipher list format documentation]: http://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT
 [BEAST attacks]: http://blog.ivanristic.com/2011/10/mitigating-the-beast-attack-on-tls.html
 [tls.createServer]: #tls_tls_createserver_options_secureconnectionlistener
-[tls.createSecurePair]: #tls_tls_createsecurepair_credentials_isserver_requestcert_rejectunauthorized
+[tls.createSecurePair]: #tls_tls_createsecurepair_context_isserver_requestcert_rejectunauthorized
 [tls.TLSSocket]: #tls_class_tls_tlssocket
 [net.Server]: net.html#net_class_net_server
 [net.Socket]: net.html#net_class_net_socket

@@ -304,7 +304,7 @@ Example of opening standard input and listening for both events:
 As a Stream, `process.stdin` can also be used in "old" mode that is compatible
 with scripts written for node.js prior to v0.10.
 For more information see
-[Stream compatibility](stream.html#stream_compatibility_with_older_node_versions).
+[Stream compatibility](stream.html#stream_compatibility_with_older_node_js_versions).
 
 In "old" Streams mode the stdin stream is paused by default, so one
 must call `process.stdin.resume()` to read from it. Note also that calling
