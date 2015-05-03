@@ -7,6 +7,7 @@ ecmaFeatures:
   templateStrings: true
   octalLiterals: true
   binaryLiterals: true
+  generators: true
 
 rules:
   # Possible Errors
