@@ -43,10 +43,10 @@ const accessorTests = [{
 }, {
   // Setting href to non-null non-string coerces to string
   url: 'google',
-  set: {href: undefined},
+  set: {href: 0},
   test: {
-    path: 'undefined',
-    href: 'undefined'
+    path: '0',
+    href: '0'
   }
 }, {
   // Setting port is reflected in host
@@ -180,8 +180,8 @@ const accessorTests = [{
   url: 'http://www.google.com',
   set: {search: ''},
   test: {
-    search: '?',
-    path: '/?'
+    search: null,
+    path: '/'
   }
 }, {
 
@@ -203,10 +203,11 @@ const accessorTests = [{
 }, {
 
   // Empty hash is ok
-  url: 'http://www.google.com',
+  url: 'http://www.google.com#hash',
   set: {hash: ''},
   test: {
-    hash: '#'
+    hash: null,
+    href: 'http://www.google.com/'
   }
 }, {
 
@@ -252,7 +253,8 @@ const accessorTests = [{
   url: 'http://www.google.com',
   set: {pathname: ''},
   test: {
-    pathname: '/'
+    pathname: null,
+    href: 'http://www.google.com'
   }
 }, {
   // Null path is ok
@@ -290,11 +292,12 @@ const accessorTests = [{
     protocol: null
   }
 }, {
-  // Empty protocol is invalid
+  // Empty protocol is ok
   url: 'http://www.google.com/path',
   set: {protocol: ''},
   test: {
-    protocol: 'http:'
+    protocol: null,
+    href: '//www.google.com/path'
   }
 }, {
   // Set query to an object
@@ -327,9 +330,9 @@ const accessorTests = [{
   url: 'http://www.google.com/path?key=value',
   set: {path: '?key2=value2'},
   test: {
-    pathname: '/',
+    pathname: null,
     search: '?key2=value2',
-    href: 'http://www.google.com/?key2=value2'
+    href: 'http://www.google.com?key2=value2'
   }
 }, {
   // path is reflected in search and pathname 3
@@ -348,6 +351,38 @@ const accessorTests = [{
     pathname: null,
     search: null,
     href: 'http://www.google.com'
+  }
+}, {
+  // setting hash to '' removes any hash
+  url: 'http://www.google.com/#hash',
+  set: {hash: ''},
+  test: {
+    hash: null,
+    href: 'http://www.google.com/'
+  }
+}, {
+  // setting hash to '#' removes any hash
+  url: 'http://www.google.com/#hash',
+  set: {hash: '#'},
+  test: {
+    hash: null,
+    href: 'http://www.google.com/'
+  }
+}, {
+  // setting search to '' removes any search
+  url: 'http://www.google.com/?search',
+  set: {search: ''},
+  test: {
+    search: null,
+    href: 'http://www.google.com/'
+  }
+}, {
+  // setting search to '?' removes any search
+  url: 'http://www.google.com/?search',
+  set: {search: '?'},
+  test: {
+    search: null,
+    href: 'http://www.google.com/'
   }
 }
 
