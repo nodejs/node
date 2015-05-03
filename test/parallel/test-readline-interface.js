@@ -191,31 +191,6 @@ function isWarned(emitter) {
   assert.equal(callCount, 1);
   rli.close();
 
-  // keypress
-  [
-    ['a'],
-    ['\x1b'],
-    ['\x1b[31m'],
-    ['\x1b[31m', '\x1b[39m'],
-    ['\x1b[31m', 'a', '\x1b[39m', 'a']
-  ].forEach(function (keypresses) {
-    fi = new FakeInput();
-    callCount = 0;
-    var remainingKeypresses = keypresses.slice();
-    function keypressListener (ch, key) {
-      callCount++;
-      if (ch) assert(!key.code);
-      assert.equal(key.sequence, remainingKeypresses.shift());
-    };
-    readline.emitKeypressEvents(fi);
-    fi.on('keypress', keypressListener);
-    fi.emit('data', keypresses.join(''));
-    assert.equal(callCount, keypresses.length);
-    assert.equal(remainingKeypresses.length, 0);
-    fi.removeListener('keypress', keypressListener);
-    fi.emit('data', ''); // removes listener
-  });
-
   // calling readline without `new`
   fi = new FakeInput();
   rli = readline.Interface({ input: fi, output: fi, terminal: terminal });
