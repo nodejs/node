@@ -48,7 +48,8 @@ inline AsyncWrap::AsyncWrap(Environment* env,
       FatalError("node::AsyncWrap::AsyncWrap", "parent pre hook threw");
   }
 
-  env->async_hooks_init_function()->Call(object, 0, nullptr);
+  v8::Local<v8::Value> n = v8::Int32::New(env->isolate(), provider);
+  env->async_hooks_init_function()->Call(object, 1, &n);
 
   if (try_catch.HasCaught())
     FatalError("node::AsyncWrap::AsyncWrap", "init hook threw");
