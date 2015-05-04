@@ -360,7 +360,6 @@ def pkg_config(pkg):
 
 def format_libraries(list):
   """Returns string of space separated libraries"""
-  list = list.replace(' ', '')
   set = list.split(',')
   return ' '.join('-l{0}'.format(i) for i in set)
 
