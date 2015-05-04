@@ -45,6 +45,6 @@
  * an API is broken in the C++ side, including in v8 or
  * other dependencies.
  */
-#define NODE_MODULE_VERSION 43  /* io.js v1.1.0 */
+#define NODE_MODULE_VERSION 44  /* io.js v2.0.0 */
 
 #endif  /* SRC_NODE_VERSION_H_ */
