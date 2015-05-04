@@ -269,7 +269,8 @@ class Environment {
    public:
     inline uint32_t* fields();
     inline int fields_count() const;
-    inline bool call_init_hook();
+    inline bool callbacks_enabled();
+    inline void set_enable_callbacks(uint32_t flag);
 
    private:
     friend class Environment;  // So we can call the constructor.
@@ -277,7 +278,7 @@ class Environment {
 
     enum Fields {
       // Set this to not zero if the init hook should be called.
-      kCallInitHook,
+      kEnableCallbacks,
       kFieldsCount
     };
 
@@ -374,7 +375,7 @@ class Environment {
 
   inline v8::Isolate* isolate() const;
   inline uv_loop_t* event_loop() const;
-  inline bool call_async_init_hook() const;
+  inline bool async_wrap_callbacks_enabled() const;
   inline bool in_domain() const;
   inline uint32_t watched_providers() const;
 
