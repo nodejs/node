@@ -345,7 +345,6 @@ def b(value):
 def pkg_config(pkg):
   pkg_config = os.environ.get('PKG_CONFIG', 'pkg-config')
   pkg_config_args = '--silence-errors'
-
   retval = ()
   for flag in ['--libs', '--cflags']:
     try:
@@ -356,9 +355,7 @@ def pkg_config(pkg):
     except OSError:
       # no pkg-config/pkgconf installed
       return (None, None)
-
     retval += (val,)
-
   return retval
 
 def format_libraries(list):
@@ -717,7 +714,6 @@ def configure_openssl(o):
 
   if options.without_ssl:
     return
-
   configure_library('openssl', o)
 
 def configure_fullystatic(o):
