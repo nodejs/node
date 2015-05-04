@@ -345,11 +345,6 @@ def b(value):
 def pkg_config(pkg):
   pkg_config = os.environ.get('PKG_CONFIG', 'pkg-config')
   pkg_config_args = '--silence-errors'
-  try:
-    subprocess.check_output([pkg_config, '--version'])
-  except OSError:
-    # no pkg-config/pkgconf installed
-    return (None, None)
 
   retval = ()
   for flag in ['--libs', '--cflags']:
@@ -358,6 +353,9 @@ def pkg_config(pkg):
     except subprocess.CalledProcessError:
       # most likely missing a .pc-file
       val = None
+    except OSError:
+      # no pkg-config/pkgconf installed
+      return (None, None)
 
     retval += (val,)
 
