@@ -21,39 +21,25 @@ inline AsyncWrap::AsyncWrap(Environment* env,
   // Check user controlled flag to see if the init callback should run.
   if (!env->using_asyncwrap())
     return;
-  if (!env->call_async_init_hook() && parent == nullptr)
+
+  // If callback hooks have not been enabled, and there is no parent, return.
+  if (!env->async_wrap_callbacks_enabled() && parent == nullptr)
     return;
 
-  // TODO(trevnorris): Until it's verified all passed object's are not weak,
-  // add a HandleScope to make sure there's no leak.
+  // If callback hooks have not been enabled and parent has no queue, return.
+  if (!env->async_wrap_callbacks_enabled() && !parent->has_async_queue())
+    return;
+
   v8::HandleScope scope(env->isolate());
-
-  v8::Local<v8::Object> parent_obj;
-
   v8::TryCatch try_catch;
 
-  // If a parent value was sent then call its pre/post functions to let it know
-  // a conceptual "child" is being instantiated (e.g. that a server has
-  // received a connection).
-  if (parent != nullptr) {
-    parent_obj = parent->object();
-    env->async_hooks_pre_function()->Call(parent_obj, 0, nullptr);
-    if (try_catch.HasCaught())
-      FatalError("node::AsyncWrap::AsyncWrap", "parent pre hook threw");
-  }
-
-  env->async_hooks_init_function()->Call(object, 0, nullptr);
+  v8::Local<v8::Value> n = v8::Int32::New(env->isolate(), provider);
+  env->async_hooks_init_function()->Call(object, 1, &n);
 
   if (try_catch.HasCaught())
     FatalError("node::AsyncWrap::AsyncWrap", "init hook threw");
 
   bits_ |= 1;  // has_async_queue() is true now.
-
-  if (parent != nullptr) {
-    env->async_hooks_post_function()->Call(parent_obj, 0, nullptr);
-    if (try_catch.HasCaught())
-      FatalError("node::AsyncWrap::AsyncWrap", "parent post hook threw");
-  }
 }
 
 
