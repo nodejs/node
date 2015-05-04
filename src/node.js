@@ -130,7 +130,7 @@
         // If -i or --interactive were passed, or stdin is a TTY.
         if (process._forceRepl || NativeModule.require('tty').isatty(0)) {
           // REPL
-          Module.requireRepl().createRepl(process.env, function(err, repl) {
+          Module.requireRepl().createInternalRepl(process.env, function(err, repl) {
             if (err) {
               throw err;
             }
