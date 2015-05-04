@@ -343,7 +343,8 @@ def b(value):
 
 
 def pkg_config(pkg):
-  pkg_config = os.environ.get('PKG_CONFIG', 'pkg-config')
+  pkg_config = os.environ.get('PKG_CONFIG_PATH',
+    os.environ.get('PKG_CONFIG', 'pkg-config'))
   pkg_config_args = '--silence-errors'
   retval = ()
   for flag in ['--libs', '--cflags']:
