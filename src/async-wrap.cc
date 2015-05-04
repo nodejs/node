@@ -23,32 +23,28 @@ using v8::kExternalUint32Array;
 
 namespace node {
 
-static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
+static void EnableHooksJS(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  env->async_hooks()->set_enable_callbacks(1);
+}
 
-  CHECK(args[0]->IsObject());
+
+static void DisableHooksJS(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  env->async_hooks()->set_enable_callbacks(0);
+}
+
+
+static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK(args[0]->IsFunction());
   CHECK(args[1]->IsFunction());
   CHECK(args[2]->IsFunction());
-  CHECK(args[3]->IsFunction());
 
-  // Attach Fields enum from Environment::AsyncHooks.
-  // Flags attached to this object are:
-  // - kCallInitHook (0): Tells the AsyncWrap constructor whether it should
-  //   make a call to the init JS callback. This is disabled by default, so
-  //   even after setting the callbacks the flag will have to be set to
-  //   non-zero to have those callbacks called. This only affects the init
-  //   callback. If the init callback was called, then the pre/post callbacks
-  //   will automatically be called.
-  Local<Object> async_hooks_obj = args[0].As<Object>();
-  Environment::AsyncHooks* async_hooks = env->async_hooks();
-  async_hooks_obj->SetIndexedPropertiesToExternalArrayData(
-      async_hooks->fields(),
-      kExternalUint32Array,
-      async_hooks->fields_count());
-
-  env->set_async_hooks_init_function(args[1].As<Function>());
-  env->set_async_hooks_pre_function(args[2].As<Function>());
-  env->set_async_hooks_post_function(args[3].As<Function>());
+  env->set_async_hooks_init_function(args[0].As<Function>());
+  env->set_async_hooks_pre_function(args[1].As<Function>());
+  env->set_async_hooks_post_function(args[2].As<Function>());
 
   env->set_using_asyncwrap(true);
 }
@@ -61,7 +57,9 @@ static void Initialize(Handle<Object> target,
   Isolate* isolate = env->isolate();
   HandleScope scope(isolate);
 
-  NODE_SET_METHOD(target, "setupHooks", SetupHooks);
+  env->SetMethod(target, "setupHooks", SetupHooks);
+  env->SetMethod(target, "disable", DisableHooksJS);
+  env->SetMethod(target, "enable", EnableHooksJS);
 
   Local<Object> async_providers = Object::New(isolate);
 #define V(PROVIDER)                                                           \
