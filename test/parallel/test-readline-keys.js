@@ -40,8 +40,6 @@ function addTest(sequences, expectedKeys) {
   sequences.forEach(function (sequence) {
     fi.write(sequence);
   });
-console.log(keys)
-console.log(expectedKeys)
   assert.deepStrictEqual(keys, expectedKeys);
 }
 
