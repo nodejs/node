@@ -14,7 +14,7 @@
     'node_tag%': '',
     'uv_library%': 'static_library',
 
-    # Default to -Og for debug builds.
+    # Default to -O0 for debug builds.
     'v8_optimized_debug%': 0,
 
     # Enable disassembler for `--print-code` v8 options
@@ -54,13 +54,8 @@
           'v8_enable_handle_zapping%': 1,
         },
         'defines': [ 'DEBUG', '_DEBUG' ],
-        'cflags': [ '-g' ],
+        'cflags': [ '-g', '-O0' ],
         'conditions': [
-          ['clang==1', {
-            'cflags': [ '-O0' ],  # https://llvm.org/bugs/show_bug.cgi?id=20765
-          }, {
-            'cflags': [ '-Og' ],  # Debug-friendly optimizations only.
-          }],
           ['target_arch=="x64"', {
             'msvs_configuration_platform': 'x64',
           }],
