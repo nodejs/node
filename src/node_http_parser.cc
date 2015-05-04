@@ -554,7 +554,9 @@ const struct http_parser_settings Parser::settings = {
   Parser::on_header_value,
   Parser::on_headers_complete,
   Parser::on_body,
-  Parser::on_message_complete
+  Parser::on_message_complete,
+  nullptr,  // on_chunk_header
+  nullptr   // on_chunk_complete
 };
 
 
