@@ -21,7 +21,13 @@ inline AsyncWrap::AsyncWrap(Environment* env,
   // Check user controlled flag to see if the init callback should run.
   if (!env->using_asyncwrap())
     return;
-  if (!env->call_async_init_hook() && parent == nullptr)
+
+  // If callback hooks have not been enabled, and there is no parent, return.
+  if (!env->async_wrap_callbacks_enabled() && parent == nullptr)
+    return;
+
+  // If callback hooks have not been enabled and parent has no queue, return.
+  if (!env->async_wrap_callbacks_enabled() && !parent->has_async_queue())
     return;
 
   // TODO(trevnorris): Until it's verified all passed object's are not weak,
