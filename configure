@@ -343,17 +343,28 @@ def b(value):
 
 
 def pkg_config(pkg):
-  cmd = os.popen('pkg-config --libs %s' % pkg, 'r')
-  libs = cmd.readline().strip()
-  ret = cmd.close()
-  if (ret): return None
+  pkg_config = os.environ.get('PKG_CONFIG', 'pkg-config')
+  args = '--silence-errors'
+  retval = ()
+  for flag in ['--libs-only-l', '--cflags-only-I', '--libs-only-L']:
+    try:
+      val = subprocess.check_output([pkg_config, args, flag, pkg])
+      # check_output returns bytes
+      val = val.encode().strip().rstrip('\n')
+    except subprocess.CalledProcessError:
+      # most likely missing a .pc-file
+      val = None
+    except OSError:
+      # no pkg-config/pkgconf installed
+      return (None, None, None)
+    retval += (val,)
+  return retval
 
-  cmd = os.popen('pkg-config --cflags %s' % pkg, 'r')
-  cflags = cmd.readline().strip()
-  ret = cmd.close()
-  if (ret): return None
 
-  return (libs, cflags)
+def format_libraries(list):
+  """Returns string of space separated libraries"""
+  libraries = list.split(',')
+  return ' '.join('-l{0}'.format(i) for i in libraries)
 
 
 def try_check_compiler(cc, lang):
@@ -668,40 +679,30 @@ def configure_node(o):
     o['variables']['node_target_type'] = 'static_library'
 
 
-def configure_libz(o):
-  o['variables']['node_shared_zlib'] = b(options.shared_zlib)
+def configure_library(lib, output):
+  shared_lib = 'shared_' + lib
+  output['variables']['node_' + shared_lib] = b(getattr(options, shared_lib))
 
-  if options.shared_zlib:
-    o['libraries'] += ['-l%s' % options.shared_zlib_libname]
-  if options.shared_zlib_libpath:
-    o['libraries'] += ['-L%s' % options.shared_zlib_libpath]
-  if options.shared_zlib_includes:
-    o['include_dirs'] += [options.shared_zlib_includes]
+  if getattr(options, shared_lib):
+    default_cflags = getattr(options, shared_lib + '_includes')
+    default_lib = format_libraries(getattr(options, shared_lib + '_libname'))
+    default_libpath = getattr(options, shared_lib + '_libpath')
+    if default_libpath:
+      default_libpath = '-L' + default_libpath
+    (pkg_libs, pkg_cflags, pkg_libpath) = pkg_config(lib)
+    cflags = pkg_cflags.split('-I') if pkg_cflags else default_cflags
+    libs = pkg_libs if pkg_libs else default_lib
+    libpath = pkg_libpath if pkg_libpath else default_libpath
 
-
-def configure_http_parser(o):
-    o['variables']['node_shared_http_parser'] = b(options.shared_http_parser)
-
-    if options.shared_http_parser:
-      o['libraries'] += ['-l%s' % options.shared_http_parser_libname]
-    if options.shared_http_parser_libpath:
-        o['libraries'] += ['-L%s' % options.shared_http_parser_libpath]
-    if options.shared_http_parser_includes:
-        o['include_dirs'] += [options.shared_http_parser_includes]
-
-
-def configure_libuv(o):
-  o['variables']['node_shared_libuv'] = b(options.shared_libuv)
-
-  if options.shared_libuv:
-    o['libraries'] += ['-l%s' % options.shared_libuv_libname]
-  if options.shared_libuv_libpath:
-    o['libraries'] += ['-L%s' % options.shared_libuv_libpath]
-  else:
-    o['variables']['uv_library'] = 'static_library'
-
-  if options.shared_libuv_includes:
-    o['include_dirs'] += [options.shared_libuv_includes]
+    # libpath needs to be provided ahead libraries
+    if libpath:
+      output['libraries'] += [libpath]
+    if libs:
+      # libs passed to the linker cannot contain spaces.
+      # (libpath on the other hand can)
+      output['libraries'] += libs.split()
+    if cflags:
+      output['include_dirs'] += [cflags]
 
 
 def configure_v8(o):
@@ -714,25 +715,11 @@ def configure_v8(o):
 def configure_openssl(o):
   o['variables']['node_use_openssl'] = b(not options.without_ssl)
   o['variables']['node_shared_openssl'] = b(options.shared_openssl)
-  o['variables']['openssl_no_asm'] = (
-    1 if options.openssl_no_asm else 0)
+  o['variables']['openssl_no_asm'] = 1 if options.openssl_no_asm else 0
 
   if options.without_ssl:
     return
-
-  if options.shared_openssl:
-    (libs, cflags) = pkg_config('openssl') or ('-lssl -lcrypto', '')
-
-    libnames = options.shared_openssl_libname.split(',')
-    o['libraries'] += ['-l%s' % s for s in libnames]
-
-    if options.shared_openssl_libpath:
-      o['libraries'] += ['-L%s' % options.shared_openssl_libpath]
-
-    if options.shared_openssl_includes:
-      o['include_dirs'] += [options.shared_openssl_includes]
-    else:
-      o['cflags'] += cflags.split()
+  configure_library('openssl', o)
 
 
 def configure_fullystatic(o):
@@ -853,11 +840,14 @@ def configure_intl(o):
     # ICU from pkg-config.
     o['variables']['v8_enable_i18n_support'] = 1
     pkgicu = pkg_config('icu-i18n')
-    if not pkgicu:
+    if pkgicu[0] is None:
       print 'Error: could not load pkg-config data for "icu-i18n".'
       print 'See above errors or the README.md.'
       sys.exit(1)
-    (libs, cflags) = pkgicu
+    (libs, cflags, libpath) = pkgicu
+    # libpath provides linker path which may contain spaces
+    o['libraries'] += [libpath]
+    # safe to split, cannot contain spaces
     o['libraries'] += libs.split()
     o['cflags'] += cflags.split()
     # use the "system" .gyp
@@ -1016,9 +1006,9 @@ if (options.dest_os):
 flavor = GetFlavor(flavor_params)
 
 configure_node(output)
-configure_libz(output)
-configure_http_parser(output)
-configure_libuv(output)
+configure_library('zlib', output)
+configure_library('http_parser', output)
+configure_library('libuv', output)
 configure_v8(output)
 configure_openssl(output)
 configure_winsdk(output)
