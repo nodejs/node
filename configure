@@ -1013,11 +1013,7 @@ configure_intl(output)
 configure_fullystatic(output)
 
 # remove duplicates from libraries
-unique_libraries = []
-for library in output['libraries']:
-  if library not in unique_libraries:
-     unique_libraries.append(library)
-output['libraries'] = unique_libraries
+output['libraries'] = list(set(output['libraries']))
 
 # variables should be a root level element,
 # move everything else to target_defaults
