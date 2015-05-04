@@ -343,18 +343,31 @@ def b(value):
 
 
 def pkg_config(pkg):
-  cmd = os.popen('pkg-config --libs %s' % pkg, 'r')
-  libs = cmd.readline().strip()
-  ret = cmd.close()
-  if (ret): return None
+  pkg_config = os.environ.get('PKG_CONFIG', 'pkg-config')
+  pkg_config_args = '--silence-errors'
+  try:
+    subprocess.check_output([pkg_config, '--version'])
+  except OSError:
+    # no pkg-config/pkgconf installed
+    return (None, None)
 
-  cmd = os.popen('pkg-config --cflags %s' % pkg, 'r')
-  cflags = cmd.readline().strip()
-  ret = cmd.close()
-  if (ret): return None
+  retval = ()
+  for flag in ['--libs', '--cflags']:
+    try:
+     val = subprocess.check_output([pkg_config, pkg_config_args, flag, pkg])
+    except subprocess.CalledProcessError:
+      # most likely missing a .pc-file
+      val = None
 
-  return (libs, cflags)
+    retval += (val,)
 
+  return retval
+
+def format_libraries(list):
+  """Returns string of space separated libraries"""
+  list = list.replace(' ', '')
+  set = list.split(',')
+  return ' '.join('-l{0}'.format(i) for i in set)
 
 def try_check_compiler(cc, lang):
   try:
@@ -672,41 +685,25 @@ def configure_node(o):
     o['variables']['node_target_type'] = 'static_library'
 
 
-def configure_libz(o):
-  o['variables']['node_shared_zlib'] = b(options.shared_zlib)
+def configure_library(lib, output):
+  shared_lib = 'shared_%s' % lib
+  output['variables']['node_%s' % shared_lib] = b(getattr(options, shared_lib))
 
-  if options.shared_zlib:
-    o['libraries'] += ['-l%s' % options.shared_zlib_libname]
-  if options.shared_zlib_libpath:
-    o['libraries'] += ['-L%s' % options.shared_zlib_libpath]
-  if options.shared_zlib_includes:
-    o['include_dirs'] += [options.shared_zlib_includes]
-
-
-def configure_http_parser(o):
-    o['variables']['node_shared_http_parser'] = b(options.shared_http_parser)
-
-    if options.shared_http_parser:
-      o['libraries'] += ['-l%s' % options.shared_http_parser_libname]
-    if options.shared_http_parser_libpath:
-        o['libraries'] += ['-L%s' % options.shared_http_parser_libpath]
-    if options.shared_http_parser_includes:
-        o['include_dirs'] += [options.shared_http_parser_includes]
-
-
-def configure_libuv(o):
-  o['variables']['node_shared_libuv'] = b(options.shared_libuv)
-
-  if options.shared_libuv:
-    o['libraries'] += ['-l%s' % options.shared_libuv_libname]
-  if options.shared_libuv_libpath:
-    o['libraries'] += ['-L%s' % options.shared_libuv_libpath]
-  else:
-    o['variables']['uv_library'] = 'static_library'
-
-  if options.shared_libuv_includes:
-    o['include_dirs'] += [options.shared_libuv_includes]
-
+  if getattr(options, shared_lib):
+    default_lib = format_libraries(getattr(options, '%s_libname' % shared_lib))
+    default_libpath = getattr(options, '%s_libpath' % shared_lib)
+    default_cflags = getattr(options, '%s_includes' % shared_lib)
+    
+    (pkg_libs, pkg_cflags) = pkg_config(lib)
+    libs = pkg_libs if pkg_libs else default_lib
+    cflags = pkg_cflags if pkg_cflags else default_cflags
+  
+    if libs:
+      output['libraries'] += libs.split()
+    if cflags:
+      output['include_dirs'] += cflags.split()
+    if default_libpath:
+      output['libraries'] += ['-L%s' % default_libpath]
 
 def configure_v8(o):
   o['variables']['v8_enable_gdbjit'] = 1 if options.gdb else 0
@@ -718,26 +715,12 @@ def configure_v8(o):
 def configure_openssl(o):
   o['variables']['node_use_openssl'] = b(not options.without_ssl)
   o['variables']['node_shared_openssl'] = b(options.shared_openssl)
-  o['variables']['openssl_no_asm'] = (
-    1 if options.openssl_no_asm else 0)
+  o['variables']['openssl_no_asm'] = 1 if options.openssl_no_asm else 0
 
   if options.without_ssl:
     return
 
-  if options.shared_openssl:
-    (libs, cflags) = pkg_config('openssl') or ('-lssl -lcrypto', '')
-
-    libnames = options.shared_openssl_libname.split(',')
-    o['libraries'] += ['-l%s' % s for s in libnames]
-
-    if options.shared_openssl_libpath:
-      o['libraries'] += ['-L%s' % options.shared_openssl_libpath]
-
-    if options.shared_openssl_includes:
-      o['include_dirs'] += [options.shared_openssl_includes]
-    else:
-      o['cflags'] += cflags.split()
-
+  configure_library('openssl', o)
 
 def configure_fullystatic(o):
   if options.fully_static:
@@ -1020,14 +1003,21 @@ if (options.dest_os):
 flavor = GetFlavor(flavor_params)
 
 configure_node(output)
-configure_libz(output)
-configure_http_parser(output)
-configure_libuv(output)
+configure_library('zlib', output)
+configure_library('http_parser', output)
+configure_library('libuv', output)
 configure_v8(output)
 configure_openssl(output)
 configure_winsdk(output)
 configure_intl(output)
 configure_fullystatic(output)
+
+# remove duplicates from libraries
+unique_libraries = []
+for library in output['libraries']:
+  if library not in unique_libraries:
+     unique_libraries.append(library)
+output['libraries'] = unique_libraries
 
 # variables should be a root level element,
 # move everything else to target_defaults
