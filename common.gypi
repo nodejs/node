@@ -54,8 +54,13 @@
           'v8_enable_handle_zapping%': 1,
         },
         'defines': [ 'DEBUG', '_DEBUG' ],
-        'cflags': [ '-g', '-Og' ],
+        'cflags': [ '-g' ],
         'conditions': [
+          ['clang==1', {
+            'cflags': [ '-O0' ],  # https://llvm.org/bugs/show_bug.cgi?id=20765
+          }, {
+            'cflags': [ '-Og' ],  # Debug-friendly optimizations only.
+          }],
           ['target_arch=="x64"', {
             'msvs_configuration_platform': 'x64',
           }],
