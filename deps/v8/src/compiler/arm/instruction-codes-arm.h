@@ -15,6 +15,7 @@ namespace compiler {
   V(ArmAdd)                        \
   V(ArmAnd)                        \
   V(ArmBic)                        \
+  V(ArmClz)                        \
   V(ArmCmp)                        \
   V(ArmCmn)                        \
   V(ArmTst)                        \
@@ -53,16 +54,21 @@ namespace compiler {
   V(ArmVmodF64)                    \
   V(ArmVnegF64)                    \
   V(ArmVsqrtF64)                   \
-  V(ArmVfloorF64)                  \
-  V(ArmVceilF64)                   \
-  V(ArmVroundTruncateF64)          \
-  V(ArmVroundTiesAwayF64)          \
+  V(ArmVrintmF64)                  \
+  V(ArmVrintpF64)                  \
+  V(ArmVrintzF64)                  \
+  V(ArmVrintaF64)                  \
   V(ArmVcvtF32F64)                 \
   V(ArmVcvtF64F32)                 \
   V(ArmVcvtF64S32)                 \
   V(ArmVcvtF64U32)                 \
   V(ArmVcvtS32F64)                 \
   V(ArmVcvtU32F64)                 \
+  V(ArmVmovLowU32F64)              \
+  V(ArmVmovLowF64U32)              \
+  V(ArmVmovHighU32F64)             \
+  V(ArmVmovHighF64U32)             \
+  V(ArmVmovF64U32U32)              \
   V(ArmVldrF32)                    \
   V(ArmVstrF32)                    \
   V(ArmVldrF64)                    \

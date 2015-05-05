@@ -86,6 +86,7 @@
         'compiler/test-run-machops.cc',
         'compiler/test-run-properties.cc',
         'compiler/test-run-stackcheck.cc',
+        'compiler/test-run-stubs.cc',
         'compiler/test-run-variables.cc',
         'compiler/test-simplified-lowering.cc',
         'cctest.cc',
@@ -99,6 +100,7 @@
         'test-api.cc',
         'test-api.h',
         'test-api-interceptors.cc',
+        'test-array-list.cc',
         'test-ast.cc',
         'test-atomicops.cc',
         'test-bignum.cc',
@@ -156,6 +158,7 @@
         'test-thread-termination.cc',
         'test-threads.cc',
         'test-transitions.cc',
+        'test-typedarrays.cc',
         'test-types.cc',
         'test-unbound-queue.cc',
         'test-unboxed-doubles.cc',
@@ -269,6 +272,9 @@
               'AdditionalOptions': ['/bigobj'],
             },
           },
+        }],
+        ['OS=="aix"', {
+          'ldflags': [ '-Wl,-bbigtoc' ],
         }],
         ['component=="shared_library"', {
           # cctest can't be built against a shared library, so we need to

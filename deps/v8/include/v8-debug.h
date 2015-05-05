@@ -202,13 +202,22 @@ class V8_EXPORT Debug {
   *   }
   * \endcode
   */
-  static Local<Value> Call(v8::Handle<v8::Function> fun,
-                           Handle<Value> data = Handle<Value>());
+  static V8_DEPRECATE_SOON(
+      "Use maybe version",
+      Local<Value> Call(v8::Handle<v8::Function> fun,
+                        Handle<Value> data = Handle<Value>()));
+  // TODO(dcarney): data arg should be a MaybeLocal
+  static MaybeLocal<Value> Call(Local<Context> context,
+                                v8::Handle<v8::Function> fun,
+                                Handle<Value> data = Handle<Value>());
 
   /**
    * Returns a mirror object for the given object.
    */
-  static Local<Value> GetMirror(v8::Handle<v8::Value> obj);
+  static V8_DEPRECATE_SOON("Use maybe version",
+                           Local<Value> GetMirror(v8::Handle<v8::Value> obj));
+  static MaybeLocal<Value> GetMirror(Local<Context> context,
+                                     v8::Handle<v8::Value> obj);
 
   /**
    * Makes V8 process all pending debug messages.

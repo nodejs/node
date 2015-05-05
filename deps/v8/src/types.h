@@ -615,7 +615,8 @@ class TypeImpl : public Config::Base {
       TypeHandle type, UnionHandle result, int size, Region* region);
   static int IntersectAux(TypeHandle type, TypeHandle other, UnionHandle result,
                           int size, Limits* limits, Region* region);
-  static TypeHandle NormalizeUnion(UnionHandle unioned, int size);
+  static TypeHandle NormalizeUnion(UnionHandle unioned, int size,
+                                   Region* region);
   static TypeHandle NormalizeRangeAndBitset(RangeHandle range, bitset* bits,
                                             Region* region);
 };

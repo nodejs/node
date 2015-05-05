@@ -413,6 +413,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   INLINE(static void VisitCodeTarget(Heap* heap, RelocInfo* rinfo));
   INLINE(static void VisitCodeAgeSequence(Heap* heap, RelocInfo* rinfo));
   INLINE(static void VisitExternalReference(RelocInfo* rinfo)) {}
+  INLINE(static void VisitInternalReference(RelocInfo* rinfo)) {}
   INLINE(static void VisitRuntimeEntry(RelocInfo* rinfo)) {}
   // Skip the weak next code link in a code object.
   INLINE(static void VisitNextCodeLink(Heap* heap, Object** slot)) {}
@@ -489,7 +490,10 @@ class WeakObjectRetainer;
 // pointers. The template parameter T is a WeakListVisitor that defines how to
 // access the next-element pointers.
 template <class T>
-Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer);
+Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer,
+                      bool stop_after_young);
+Object* VisitNewArrayBufferViewsWeakList(Heap* heap, Object* list,
+                                         WeakObjectRetainer* retainer);
 }
 }  // namespace v8::internal
 

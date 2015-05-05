@@ -34,7 +34,6 @@
 #include "src/disassembler.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
-#include "src/serialize.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
@@ -442,6 +441,10 @@ TEST(DisasmIa320) {
     __ subsd(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ divsd(xmm1, xmm0);
     __ divsd(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ minsd(xmm1, xmm0);
+    __ minsd(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ maxsd(xmm1, xmm0);
+    __ maxsd(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ ucomisd(xmm0, xmm1);
     __ cmpltsd(xmm0, xmm1);
 
@@ -451,6 +454,11 @@ TEST(DisasmIa320) {
     __ psrlq(xmm0, 17);
     __ psrlq(xmm0, xmm1);
     __ por(xmm0, xmm1);
+
+    __ pcmpeqd(xmm1, xmm0);
+
+    __ punpckldq(xmm1, xmm6);
+    __ punpckhdq(xmm7, xmm5);
   }
 
   // cmov.
@@ -494,6 +502,10 @@ TEST(DisasmIa320) {
       __ vsubsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vdivsd(xmm0, xmm1, xmm2);
       __ vdivsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vminsd(xmm0, xmm1, xmm2);
+      __ vminsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vmaxsd(xmm0, xmm1, xmm2);
+      __ vmaxsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
     }
   }
 

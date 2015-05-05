@@ -31,6 +31,9 @@ class ControlFlowOptimizer FINAL {
   void VisitNode(Node* node);
   void VisitBranch(Node* node);
 
+  bool TryBuildSwitch(Node* node);
+  bool TryCloneBranch(Node* node);
+
   CommonOperatorBuilder* common() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }

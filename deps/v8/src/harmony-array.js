@@ -211,7 +211,7 @@ function ArrayOf() {
 function HarmonyArrayExtendSymbolPrototype() {
   %CheckIsBootstrapping();
 
-  InstallConstants($Symbol, $Array(
+  InstallConstants(global.Symbol, $Array(
     // TODO(dslomov, caitp): Move to symbol.js when shipping
    "isConcatSpreadable", symbolIsConcatSpreadable
   ));

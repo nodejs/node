@@ -23,10 +23,19 @@
 // rempio2result is used as a container for return values of %RemPiO2. It is
 // initialized to a two-element Float64Array during genesis.
 
-"use strict";
-
 var kMath;
 var rempio2result;
+
+(function() {
+  
+"use strict";
+
+%CheckIsBootstrapping();
+
+var GlobalMath = global.Math;
+var GlobalArray = global.Array;
+
+//-------------------------------------------------------------------
 
 const INVPIO2 = kMath[0];
 const PIO2_1  = kMath[1];
@@ -79,7 +88,7 @@ macro REMPIO2(X)
     }
   } else if (ix <= 0x413921fb) {
     // |X| ~<= 2^19*(pi/2), medium size
-    var t = MathAbs(X);
+    var t = $abs(X);
     n = (t * INVPIO2 + 0.5) | 0;
     var r = t - n * PIO2_1;
     var w = n * PIO2_1T;
@@ -141,16 +150,18 @@ endmacro
 //     then                   3    2
 //          sin(x) = X + (S1*X + (X *(r-Y/2)+Y))
 //
-macro KSIN(x)
-kMath[7+x]
-endmacro
+const S1 = -1.66666666666666324348e-01;
+const S2 = 8.33333333332248946124e-03;
+const S3 = -1.98412698298579493134e-04;
+const S4 = 2.75573137070700676789e-06;
+const S5 = -2.50507602534068634195e-08;
+const S6 = 1.58969099521155010221e-10;
 
 macro RETURN_KERNELSIN(X, Y, SIGN)
   var z = X * X;
   var v = z * X;
-  var r = KSIN(1) + z * (KSIN(2) + z * (KSIN(3) +
-                    z * (KSIN(4) + z * KSIN(5))));
-  return (X - ((z * (0.5 * Y - v * r) - Y) - v * KSIN(0))) SIGN;
+  var r = S2 + z * (S3 + z * (S4 + z * (S5 + z * S6)));
+  return (X - ((z * (0.5 * Y - v * r) - Y) - v * S1)) SIGN;
 endmacro
 
 // __kernel_cos(X, Y)
@@ -185,15 +196,17 @@ endmacro
 //     magnitude of the latter is at least a quarter of X*X/2,
 //     thus, reducing the rounding error in the subtraction.
 //
-macro KCOS(x)
-kMath[13+x]
-endmacro
+const C1 = 4.16666666666666019037e-02;
+const C2 = -1.38888888888741095749e-03;
+const C3 = 2.48015872894767294178e-05;
+const C4 = -2.75573143513906633035e-07;
+const C5 = 2.08757232129817482790e-09;
+const C6 = -1.13596475577881948265e-11;
 
 macro RETURN_KERNELCOS(X, Y, SIGN)
   var ix = %_DoubleHi(X) & 0x7fffffff;
   var z = X * X;
-  var r = z * (KCOS(0) + z * (KCOS(1) + z * (KCOS(2)+
-          z * (KCOS(3) + z * (KCOS(4) + z * KCOS(5))))));
+  var r = z * (C1 + z * (C2 + z * (C3 + z * (C4 + z * (C5 + z * C6)))));
   if (ix < 0x3fd33333) {  // |x| ~< 0.3
     return (1 - (0.5 * z - (z * r - X * Y))) SIGN;
   } else {
@@ -257,7 +270,7 @@ function KernelTan(x, y, returnTan) {
   if (ix < 0x3e300000) {  // |x| < 2^-28
     if (((ix | %_DoubleLo(x)) | (returnTan + 1)) == 0) {
       // x == 0 && returnTan = -1
-      return 1 / MathAbs(x);
+      return 1 / $abs(x);
     } else {
       if (returnTan == 1) {
         return x;
@@ -336,22 +349,22 @@ function MathCosSlow(x) {
 
 // ECMA 262 - 15.8.2.16
 function MathSin(x) {
-  x = x * 1;  // Convert to number.
+  x = +x;  // Convert to number.
   if ((%_DoubleHi(x) & 0x7fffffff) <= 0x3fe921fb) {
     // |x| < pi/4, approximately.  No reduction needed.
     RETURN_KERNELSIN(x, 0, /* empty */);
   }
-  return MathSinSlow(x);
+  return +MathSinSlow(x);
 }
 
 // ECMA 262 - 15.8.2.7
 function MathCos(x) {
-  x = x * 1;  // Convert to number.
+  x = +x;  // Convert to number.
   if ((%_DoubleHi(x) & 0x7fffffff) <= 0x3fe921fb) {
     // |x| < pi/4, approximately.  No reduction needed.
     RETURN_KERNELCOS(x, 0, /* empty */);
   }
-  return MathCosSlow(x);
+  return +MathCosSlow(x);
 }
 
 // ECMA 262 - 15.8.2.18
@@ -745,7 +758,7 @@ function MathSinh(x) {
   x = x * 1;  // Convert to number.
   var h = (x < 0) ? -0.5 : 0.5;
   // |x| in [0, 22]. return sign(x)*0.5*(E+E/(E+1))
-  var ax = MathAbs(x);
+  var ax = $abs(x);
   if (ax < 22) {
     // For |x| < 2^-28, sinh(x) = x
     if (ax < TWO_M28) return x;
@@ -754,11 +767,11 @@ function MathSinh(x) {
     return h * (t + t / (t + 1));
   }
   // |x| in [22, log(maxdouble)], return 0.5 * exp(|x|)
-  if (ax < LOG_MAXD) return h * MathExp(ax);
+  if (ax < LOG_MAXD) return h * $exp(ax);
   // |x| in [log(maxdouble), overflowthreshold]
   // overflowthreshold = 710.4758600739426
   if (ax <= KSINH_OVERFLOW) {
-    var w = MathExp(0.5 * ax);
+    var w = $exp(0.5 * ax);
     var t = h * w;
     return t * w;
   }
@@ -796,7 +809,7 @@ function MathCosh(x) {
   var ix = %_DoubleHi(x) & 0x7fffffff;
   // |x| in [0,0.5*log2], return 1+expm1(|x|)^2/(2*exp(|x|))
   if (ix < 0x3fd62e43) {
-    var t = MathExpm1(MathAbs(x));
+    var t = MathExpm1($abs(x));
     var w = 1 + t;
     // For |x| < 2^-55, cosh(x) = 1
     if (ix < 0x3c800000) return w;
@@ -804,14 +817,14 @@ function MathCosh(x) {
   }
   // |x| in [0.5*log2, 22], return (exp(|x|)+1/exp(|x|)/2
   if (ix < 0x40360000) {
-    var t = MathExp(MathAbs(x));
+    var t = $exp($abs(x));
     return 0.5 * t + 0.5 / t;
   }
   // |x| in [22, log(maxdouble)], return half*exp(|x|)
-  if (ix < 0x40862e42) return 0.5 * MathExp(MathAbs(x));
+  if (ix < 0x40862e42) return 0.5 * $exp($abs(x));
   // |x| in [log(maxdouble), overflowthreshold]
-  if (MathAbs(x) <= KCOSH_OVERFLOW) {
-    var w = MathExp(0.5 * MathAbs(x));
+  if ($abs(x) <= KCOSH_OVERFLOW) {
+    var w = $exp(0.5 * $abs(x));
     var t = 0.5 * w;
     return t * w;
   }
@@ -879,7 +892,7 @@ function MathLog10(x) {
   y = k + i;
   x = %_ConstructDouble(hx, lx);
 
-  z = y * LOG10_2LO + IVLN10 * MathLog(x);
+  z = y * LOG10_2LO + IVLN10 * %_MathLogRT(x);
   return z + y * LOG10_2HI;
 }
 
@@ -914,7 +927,7 @@ const TWO53 = 9007199254740992;
 
 function MathLog2(x) {
   x = x * 1;  // Convert to number.
-  var ax = MathAbs(x);
+  var ax = $abs(x);
   var hx = %_DoubleHi(x);
   var lx = %_DoubleLo(x);
   var ix = hx & 0x7fffffff;
@@ -997,3 +1010,22 @@ function MathLog2(x) {
   // t1 + t2 = log2(ax), sum up because we do not care about extra precision.
   return t1 + t2;
 }
+
+//-------------------------------------------------------------------
+
+InstallFunctions(GlobalMath, DONT_ENUM, GlobalArray(
+  "cos", MathCos,
+  "sin", MathSin,
+  "tan", MathTan,
+  "sinh", MathSinh,
+  "cosh", MathCosh,
+  "log10", MathLog10,
+  "log2", MathLog2,
+  "log1p", MathLog1p,
+  "expm1", MathExpm1
+));
+
+%SetInlineBuiltinFlag(MathSin);
+%SetInlineBuiltinFlag(MathCos);
+
+})();

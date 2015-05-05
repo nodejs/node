@@ -228,6 +228,12 @@ void InternalArrayConstructorDescriptor::Initialize(
 }
 
 
+void CompareDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {esi, edx, eax};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
 void CompareNilDescriptor::Initialize(CallInterfaceDescriptorData* data) {
   Register registers[] = {esi, eax};
   data->Initialize(arraysize(registers), registers, NULL);

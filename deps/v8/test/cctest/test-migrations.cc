@@ -145,6 +145,7 @@ class Expectations {
       os << ": " << representations_[i].Mnemonic();
       os << ", attrs: " << attributes_[i] << ")\n";
     }
+    os << "\n";
   }
 
   Handle<HeapType> GetFieldType(int index) {
@@ -232,12 +233,14 @@ class Expectations {
                       representations_[descriptor])) {
       return false;
     }
-    Object* expected_value = *values_[descriptor];
     Object* value = descriptors->GetValue(descriptor);
+    Object* expected_value = *values_[descriptor];
     switch (type) {
       case DATA:
-      case ACCESSOR:
-        return HeapType::cast(expected_value)->Equals(HeapType::cast(value));
+      case ACCESSOR: {
+        HeapType* type = descriptors->GetFieldType(descriptor);
+        return HeapType::cast(expected_value)->Equals(type);
+      }
 
       case DATA_CONSTANT:
         return value == expected_value;
@@ -263,6 +266,9 @@ class Expectations {
     for (int i = 0; i < expected_nof; i++) {
       if (!Check(descriptors, i)) {
         Print();
+#ifdef OBJECT_PRINT
+        descriptors->Print();
+#endif
         Check(descriptors, i);
         return false;
       }
@@ -336,9 +342,10 @@ class Expectations {
     SetDataField(property_index, attributes, representation, heap_type);
 
     Handle<String> name = MakeName("prop", property_index);
-    int t = map->SearchTransition(kData, *name, attributes);
-    CHECK_NE(TransitionArray::kNotFound, t);
-    return handle(map->GetTransition(t));
+    Map* target =
+        TransitionArray::SearchTransition(*map, kData, *name, attributes);
+    CHECK(target != NULL);
+    return handle(target);
   }
 
   Handle<Map> AddAccessorConstant(Handle<Map> map,
@@ -517,21 +524,51 @@ TEST(ReconfigureAccessorToNonExistingDataFieldHeavy) {
 // A set of tests for representation generalization case.
 //
 
-static void TestGeneralizeRepresentation(Representation from_representation,
-                                         Handle<HeapType> from_type,
-                                         Representation to_representation,
-                                         Handle<HeapType> to_type,
-                                         Representation expected_representation,
-                                         Handle<HeapType> expected_type) {
+// This test ensures that representation/field type generalization at
+// |property_index| is done correctly independently of the fact that the |map|
+// is detached from transition tree or not.
+//
+//  {} - p0 - p1 - p2: |detach_point_map|
+//                  |
+//                  X - detached at |detach_property_at_index|
+//                  |
+//                  + - p3 - p4: |map|
+//
+// Detaching does not happen if |detach_property_at_index| is -1.
+//
+static void TestGeneralizeRepresentation(
+    int detach_property_at_index, int property_index,
+    Representation from_representation, Handle<HeapType> from_type,
+    Representation to_representation, Handle<HeapType> to_type,
+    Representation expected_representation, Handle<HeapType> expected_type,
+    bool expected_deprecation, bool expected_field_type_dependency) {
   Isolate* isolate = CcTest::i_isolate();
+  Handle<HeapType> any_type = HeapType::Any(isolate);
+
+  CHECK(detach_property_at_index >= -1 &&
+        detach_property_at_index < kPropCount);
+  CHECK(property_index < kPropCount);
+  CHECK_NE(detach_property_at_index, property_index);
+
+  const bool is_detached_map = detach_property_at_index >= 0;
 
   Expectations expectations(isolate);
 
   // Create a map, add required properties to it and initialize expectations.
   Handle<Map> initial_map = Map::Create(isolate, 0);
   Handle<Map> map = initial_map;
+  Handle<Map> detach_point_map;
   for (int i = 0; i < kPropCount; i++) {
-    map = expectations.AddDataField(map, NONE, from_representation, from_type);
+    if (i == property_index) {
+      map =
+          expectations.AddDataField(map, NONE, from_representation, from_type);
+    } else {
+      map =
+          expectations.AddDataField(map, NONE, Representation::Smi(), any_type);
+      if (i == detach_property_at_index) {
+        detach_point_map = map;
+      }
+    }
   }
   CHECK(!map->is_deprecated());
   CHECK(map->is_stable());
@@ -540,44 +577,107 @@ static void TestGeneralizeRepresentation(Representation from_representation,
   Zone zone;
   FakeStubForTesting stub(isolate);
 
-  // Create new maps by generalizing representation of propX field.
-  Handle<Map> maps[kPropCount];
-  for (int i = 0; i < kPropCount; i++) {
-    Handle<Map> field_owner(map->FindFieldOwner(i), isolate);
-    CompilationInfo info(&stub, isolate, &zone);
-    CHECK(!info.HasAbortedDueToDependencyChange());
-
-    Map::AddDependentCompilationInfo(field_owner,
-                                     DependentCode::kFieldTypeGroup, &info);
-
-    Handle<Map> new_map = Map::ReconfigureProperty(
-        map, i, kData, NONE, to_representation, to_type, FORCE_FIELD);
-    maps[i] = new_map;
-
-    expectations.SetDataField(i, expected_representation, expected_type);
-
+  if (is_detached_map) {
+    detach_point_map = Map::ReconfigureProperty(
+        detach_point_map, detach_property_at_index, kData, NONE,
+        Representation::Tagged(), any_type, FORCE_FIELD);
+    expectations.SetDataField(detach_property_at_index,
+                              Representation::Tagged(), any_type);
     CHECK(map->is_deprecated());
-    CHECK(!info.HasAbortedDueToDependencyChange());
-    info.RollbackDependencies();  // Properly cleanup compilation info.
-
-    CHECK_NE(*map, *new_map);
-    CHECK(i == 0 || maps[i - 1]->is_deprecated());
-
-    CHECK(!new_map->is_deprecated());
-    CHECK(!new_map->is_dictionary_map());
-    CHECK(expectations.Check(*new_map));
+    CHECK(expectations.Check(*detach_point_map,
+                             detach_point_map->NumberOfOwnDescriptors()));
   }
 
-  Handle<Map> active_map = maps[kPropCount - 1];
-  CHECK(!active_map->is_deprecated());
+  // Create new maps by generalizing representation of propX field.
+  Handle<Map> field_owner(map->FindFieldOwner(property_index), isolate);
+  CompilationInfo info(&stub, isolate, &zone);
+  CHECK(!info.HasAbortedDueToDependencyChange());
+
+  Map::AddDependentCompilationInfo(field_owner, DependentCode::kFieldTypeGroup,
+                                   &info);
+
+  Handle<Map> new_map =
+      Map::ReconfigureProperty(map, property_index, kData, NONE,
+                               to_representation, to_type, FORCE_FIELD);
+
+  expectations.SetDataField(property_index, expected_representation,
+                            expected_type);
+
+  CHECK(!new_map->is_deprecated());
+  CHECK(expectations.Check(*new_map));
+
+  if (is_detached_map) {
+    CHECK(map->is_deprecated());
+    CHECK_NE(*map, *new_map);
+    CHECK_EQ(expected_field_type_dependency && !field_owner->is_deprecated(),
+             info.HasAbortedDueToDependencyChange());
+
+  } else if (expected_deprecation) {
+    CHECK(map->is_deprecated());
+    CHECK(field_owner->is_deprecated());
+    CHECK_NE(*map, *new_map);
+    CHECK(!info.HasAbortedDueToDependencyChange());
+
+  } else {
+    CHECK(!field_owner->is_deprecated());
+    CHECK_EQ(*map, *new_map);
+
+    CHECK_EQ(expected_field_type_dependency,
+             info.HasAbortedDueToDependencyChange());
+  }
+
+  info.RollbackDependencies();  // Properly cleanup compilation info.
 
   // Update all deprecated maps and check that they are now the same.
   Handle<Map> updated_map = Map::Update(map);
-  CHECK_EQ(*active_map, *updated_map);
-  for (int i = 0; i < kPropCount; i++) {
-    updated_map = Map::Update(maps[i]);
-    CHECK_EQ(*active_map, *updated_map);
+  CHECK_EQ(*new_map, *updated_map);
+}
+
+
+static void TestGeneralizeRepresentation(
+    Representation from_representation, Handle<HeapType> from_type,
+    Representation to_representation, Handle<HeapType> to_type,
+    Representation expected_representation, Handle<HeapType> expected_type,
+    bool expected_deprecation, bool expected_field_type_dependency) {
+  // Check the cases when the map being reconfigured is a part of the
+  // transition tree.
+  STATIC_ASSERT(kPropCount > 4);
+  int indices[] = {0, 2, kPropCount - 1};
+  for (int i = 0; i < static_cast<int>(arraysize(indices)); i++) {
+    TestGeneralizeRepresentation(
+        -1, indices[i], from_representation, from_type, to_representation,
+        to_type, expected_representation, expected_type, expected_deprecation,
+        expected_field_type_dependency);
   }
+
+  if (!from_representation.IsNone()) {
+    // Check the cases when the map being reconfigured is NOT a part of the
+    // transition tree. "None -> anything" representation changes make sense
+    // only for "attached" maps.
+    int indices[] = {0, kPropCount - 1};
+    for (int i = 0; i < static_cast<int>(arraysize(indices)); i++) {
+      TestGeneralizeRepresentation(
+          indices[i], 2, from_representation, from_type, to_representation,
+          to_type, expected_representation, expected_type, expected_deprecation,
+          expected_field_type_dependency);
+    }
+  }
+}
+
+
+static void TestGeneralizeRepresentation(Representation from_representation,
+                                         Handle<HeapType> from_type,
+                                         Representation to_representation,
+                                         Handle<HeapType> to_type,
+                                         Representation expected_representation,
+                                         Handle<HeapType> expected_type) {
+  const bool expected_deprecation = true;
+  const bool expected_field_type_dependency = false;
+
+  TestGeneralizeRepresentation(
+      from_representation, from_type, to_representation, to_type,
+      expected_representation, expected_type, expected_deprecation,
+      expected_field_type_dependency);
 }
 
 
@@ -586,51 +686,12 @@ static void TestGeneralizeRepresentationTrivial(
     Representation to_representation, Handle<HeapType> to_type,
     Representation expected_representation, Handle<HeapType> expected_type,
     bool expected_field_type_dependency = true) {
-  Isolate* isolate = CcTest::i_isolate();
+  const bool expected_deprecation = false;
 
-  Expectations expectations(isolate);
-
-  // Create a map, add required properties to it and initialize expectations.
-  Handle<Map> initial_map = Map::Create(isolate, 0);
-  Handle<Map> map = initial_map;
-  for (int i = 0; i < kPropCount; i++) {
-    map = expectations.AddDataField(map, NONE, from_representation, from_type);
-  }
-  CHECK(!map->is_deprecated());
-  CHECK(map->is_stable());
-  CHECK(expectations.Check(*map));
-
-  Zone zone;
-  FakeStubForTesting stub(isolate);
-
-  // Create new maps by generalizing representation of propX field.
-  for (int i = 0; i < kPropCount; i++) {
-    Handle<Map> field_owner(map->FindFieldOwner(i), isolate);
-    CompilationInfo info(&stub, isolate, &zone);
-    CHECK(!info.HasAbortedDueToDependencyChange());
-
-    Map::AddDependentCompilationInfo(field_owner,
-                                     DependentCode::kFieldTypeGroup, &info);
-
-    Handle<Map> new_map = Map::ReconfigureProperty(
-        map, i, kData, NONE, to_representation, to_type, FORCE_FIELD);
-
-    expectations.SetDataField(i, expected_representation, expected_type);
-
-    CHECK_EQ(*map, *new_map);
-    CHECK_EQ(expected_field_type_dependency,
-             info.HasAbortedDueToDependencyChange());
-
-    info.RollbackDependencies();  // Properly cleanup compilation info.
-
-    CHECK_EQ(*map, *new_map);
-    CHECK(!new_map->is_deprecated());
-    CHECK(!new_map->is_dictionary_map());
-    CHECK(expectations.Check(*new_map));
-  }
-
-  Handle<Map> updated_map = Map::Update(map);
-  CHECK_EQ(*map, *updated_map);
+  TestGeneralizeRepresentation(
+      from_representation, from_type, to_representation, to_type,
+      expected_representation, expected_type, expected_deprecation,
+      expected_field_type_dependency);
 }
 
 
@@ -828,7 +889,6 @@ TEST(GeneralizeRepresentationWithAccessorProperties) {
     CHECK(i == 0 || maps[i - 1]->is_deprecated());
 
     CHECK(!new_map->is_deprecated());
-    CHECK(!new_map->is_dictionary_map());
     CHECK(expectations.Check(*new_map));
   }
 
@@ -925,7 +985,6 @@ static void TestReconfigureDataFieldAttribute_GeneralizeRepresentation(
   CHECK_NE(*map, *new_map);
 
   CHECK(!new_map->is_deprecated());
-  CHECK(!new_map->is_dictionary_map());
   CHECK(expectations.Check(*new_map));
 
   // Update deprecated |map|, it should become |new_map|.
@@ -1016,7 +1075,6 @@ static void TestReconfigureDataFieldAttribute_GeneralizeRepresentationTrivial(
   info.RollbackDependencies();  // Properly cleanup compilation info.
 
   CHECK(!new_map->is_deprecated());
-  CHECK(!new_map->is_dictionary_map());
   CHECK(expectations.Check(*new_map));
 
   Handle<Map> updated_map = Map::Update(map);
@@ -1121,7 +1179,6 @@ struct CheckDeprecated {
     CHECK_NE(*map, *new_map);
 
     CHECK(!new_map->is_deprecated());
-    CHECK(!new_map->is_dictionary_map());
     CHECK(expectations.Check(*new_map));
 
     // Update deprecated |map|, it should become |new_map|.
@@ -1140,7 +1197,6 @@ struct CheckSameMap {
     CHECK_EQ(*map, *new_map);
 
     CHECK(!new_map->is_deprecated());
-    CHECK(!new_map->is_dictionary_map());
     CHECK(expectations.Check(*new_map));
 
     // Update deprecated |map|, it should become |new_map|.
@@ -1163,7 +1219,6 @@ struct CheckCopyGeneralizeAllRepresentations {
     }
 
     CHECK(!new_map->is_deprecated());
-    CHECK(!new_map->is_dictionary_map());
     CHECK(expectations.Check(*new_map));
   }
 };
@@ -1423,9 +1478,10 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
       }
 
       Handle<String> name = MakeName("prop", i);
-      int t = map2->SearchTransition(kData, *name, NONE);
-      CHECK_NE(TransitionArray::kNotFound, t);
-      map2 = handle(map2->GetTransition(t));
+      Map* target =
+          TransitionArray::SearchTransition(*map2, kData, *name, NONE);
+      CHECK(target != NULL);
+      map2 = handle(target);
     }
 
     map2 = Map::ReconfigureProperty(map2, kSplitProp, kData, NONE,
@@ -1445,12 +1501,12 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
 
   // Fill in transition tree of |map2| so that it can't have more transitions.
   for (int i = 0; i < TransitionArray::kMaxNumberOfTransitions; i++) {
-    CHECK(map2->CanHaveMoreTransitions());
+    CHECK(TransitionArray::CanHaveMoreTransitions(map2));
     Handle<String> name = MakeName("foo", i);
     Map::CopyWithField(map2, name, any_type, NONE, Representation::Smi(),
                        INSERT_TRANSITION).ToHandleChecked();
   }
-  CHECK(!map2->CanHaveMoreTransitions());
+  CHECK(!TransitionArray::CanHaveMoreTransitions(map2));
 
   // Try to update |map|, since there is no place for propX transition at |map2|
   // |map| should become "copy-generalized".

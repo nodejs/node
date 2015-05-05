@@ -56,6 +56,30 @@ RUNTIME_FUNCTION(Runtime_ThrowArrayNotSubclassableError) {
 }
 
 
+static Object* ThrowStaticPrototypeError(Isolate* isolate) {
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError("static_prototype", HandleVector<Object>(NULL, 0)));
+}
+
+
+RUNTIME_FUNCTION(Runtime_ThrowStaticPrototypeError) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  return ThrowStaticPrototypeError(isolate);
+}
+
+
+RUNTIME_FUNCTION(Runtime_ThrowIfStaticPrototype) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(Name, name, 0);
+  if (Name::Equals(name, isolate->factory()->prototype_string())) {
+    return ThrowStaticPrototypeError(isolate);
+  }
+  return *name;
+}
+
+
 RUNTIME_FUNCTION(Runtime_ToMethod) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
@@ -117,7 +141,7 @@ RUNTIME_FUNCTION(Runtime_DefineClass) {
   Handle<Map> map =
       isolate->factory()->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   map->SetPrototype(prototype_parent);
-  map->set_constructor(*constructor);
+  map->SetConstructor(*constructor);
   Handle<JSObject> prototype = isolate->factory()->NewJSObjectFromMap(map);
 
   Handle<String> name_string = name->IsString()
@@ -232,9 +256,8 @@ RUNTIME_FUNCTION(Runtime_ClassGetSourceCode) {
 
 static Object* LoadFromSuper(Isolate* isolate, Handle<Object> receiver,
                              Handle<JSObject> home_object, Handle<Name> name) {
-  if (home_object->IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccess(home_object, name, v8::ACCESS_GET)) {
-    isolate->ReportFailedAccessCheck(home_object, v8::ACCESS_GET);
+  if (home_object->IsAccessCheckNeeded() && !isolate->MayAccess(home_object)) {
+    isolate->ReportFailedAccessCheck(home_object);
     RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   }
 
@@ -252,9 +275,8 @@ static Object* LoadFromSuper(Isolate* isolate, Handle<Object> receiver,
 static Object* LoadElementFromSuper(Isolate* isolate, Handle<Object> receiver,
                                     Handle<JSObject> home_object,
                                     uint32_t index) {
-  if (home_object->IsAccessCheckNeeded() &&
-      !isolate->MayIndexedAccess(home_object, index, v8::ACCESS_GET)) {
-    isolate->ReportFailedAccessCheck(home_object, v8::ACCESS_GET);
+  if (home_object->IsAccessCheckNeeded() && !isolate->MayAccess(home_object)) {
+    isolate->ReportFailedAccessCheck(home_object);
     RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   }
 
@@ -306,9 +328,8 @@ RUNTIME_FUNCTION(Runtime_LoadKeyedFromSuper) {
 static Object* StoreToSuper(Isolate* isolate, Handle<JSObject> home_object,
                             Handle<Object> receiver, Handle<Name> name,
                             Handle<Object> value, LanguageMode language_mode) {
-  if (home_object->IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccess(home_object, name, v8::ACCESS_SET)) {
-    isolate->ReportFailedAccessCheck(home_object, v8::ACCESS_SET);
+  if (home_object->IsAccessCheckNeeded() && !isolate->MayAccess(home_object)) {
+    isolate->ReportFailedAccessCheck(home_object);
     RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   }
 
@@ -331,9 +352,8 @@ static Object* StoreElementToSuper(Isolate* isolate,
                                    Handle<Object> receiver, uint32_t index,
                                    Handle<Object> value,
                                    LanguageMode language_mode) {
-  if (home_object->IsAccessCheckNeeded() &&
-      !isolate->MayIndexedAccess(home_object, index, v8::ACCESS_SET)) {
-    isolate->ReportFailedAccessCheck(home_object, v8::ACCESS_SET);
+  if (home_object->IsAccessCheckNeeded() && !isolate->MayAccess(home_object)) {
+    isolate->ReportFailedAccessCheck(home_object);
     RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   }
 
@@ -433,8 +453,8 @@ RUNTIME_FUNCTION(Runtime_HandleStepInForDerivedConstructors) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_DefaultConstructorCallSuper) {
-  UNREACHABLE();
+RUNTIME_FUNCTION(Runtime_DefaultConstructorCallSuper) {
+  UNIMPLEMENTED();
   return nullptr;
 }
 }

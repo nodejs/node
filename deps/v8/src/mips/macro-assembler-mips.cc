@@ -86,6 +86,7 @@ void MacroAssembler::LoadRoot(Register destination,
 
 void MacroAssembler::StoreRoot(Register source,
                                Heap::RootListIndex index) {
+  DCHECK(Heap::RootCanBeWrittenAfterInitialization(index));
   sw(source, MemOperand(s6, index << kPointerSizeLog2));
 }
 
@@ -94,6 +95,7 @@ void MacroAssembler::StoreRoot(Register source,
                                Heap::RootListIndex index,
                                Condition cond,
                                Register src1, const Operand& src2) {
+  DCHECK(Heap::RootCanBeWrittenAfterInitialization(index));
   Branch(2, NegateCondition(cond), src1, src2);
   sw(source, MemOperand(s6, index << kPointerSizeLog2));
 }
@@ -1545,6 +1547,18 @@ void MacroAssembler::BranchF(Label* target,
 
   if (bd == PROTECT) {
     nop();
+  }
+}
+
+
+void MacroAssembler::FmoveLow(FPURegister dst, Register src_low) {
+  if (IsFp64Mode()) {
+    DCHECK(!src_low.is(at));
+    mfhc1(at, dst);
+    mtc1(src_low, dst);
+    mthc1(at, dst);
+  } else {
+    mtc1(src_low, dst);
   }
 }
 
@@ -3221,147 +3235,27 @@ void MacroAssembler::DebugBreak() {
 // ---------------------------------------------------------------------------
 // Exception handling.
 
-void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
-                                    int handler_index) {
+void MacroAssembler::PushStackHandler() {
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 1 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 3 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 4 * kPointerSize);
-
-  // For the JSEntry handler, we must preserve a0-a3 and s0.
-  // t1-t3 are available. We will build up the handler from the bottom by
-  // pushing on the stack.
-  // Set up the code object (t1) and the state (t2) for pushing.
-  unsigned state =
-      StackHandler::IndexField::encode(handler_index) |
-      StackHandler::KindField::encode(kind);
-  li(t1, Operand(CodeObject()), CONSTANT_SIZE);
-  li(t2, Operand(state));
-
-  // Push the frame pointer, context, state, and code object.
-  if (kind == StackHandler::JS_ENTRY) {
-    DCHECK_EQ(static_cast<Smi*>(0), Smi::FromInt(0));
-    // The second zero_reg indicates no context.
-    // The first zero_reg is the NULL frame pointer.
-    // The operands are reversed to match the order of MultiPush/Pop.
-    Push(zero_reg, zero_reg, t2, t1);
-  } else {
-    MultiPush(t1.bit() | t2.bit() | cp.bit() | fp.bit());
-  }
 
   // Link the current handler as the next handler.
   li(t2, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
   lw(t1, MemOperand(t2));
   push(t1);
+
   // Set this new handler as the current one.
   sw(sp, MemOperand(t2));
 }
 
 
-void MacroAssembler::PopTryHandler() {
+void MacroAssembler::PopStackHandler() {
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   pop(a1);
   Addu(sp, sp, Operand(StackHandlerConstants::kSize - kPointerSize));
   li(at, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
   sw(a1, MemOperand(at));
-}
-
-
-void MacroAssembler::JumpToHandlerEntry() {
-  // Compute the handler entry address and jump to it.  The handler table is
-  // a fixed array of (smi-tagged) code offsets.
-  // v0 = exception, a1 = code object, a2 = state.
-  lw(a3, FieldMemOperand(a1, Code::kHandlerTableOffset));  // Handler table.
-  Addu(a3, a3, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  srl(a2, a2, StackHandler::kKindWidth);  // Handler index.
-  sll(a2, a2, kPointerSizeLog2);
-  Addu(a2, a3, a2);
-  lw(a2, MemOperand(a2));  // Smi-tagged offset.
-  Addu(a1, a1, Operand(Code::kHeaderSize - kHeapObjectTag));  // Code start.
-  sra(t9, a2, kSmiTagSize);
-  Addu(t9, t9, a1);
-  Jump(t9);  // Jump.
-}
-
-
-void MacroAssembler::Throw(Register value) {
-  // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
-  STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 3 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 4 * kPointerSize);
-
-  // The exception is expected in v0.
-  Move(v0, value);
-
-  // Drop the stack pointer to the top of the top handler.
-  li(a3, Operand(ExternalReference(Isolate::kHandlerAddress,
-                                   isolate())));
-  lw(sp, MemOperand(a3));
-
-  // Restore the next handler.
-  pop(a2);
-  sw(a2, MemOperand(a3));
-
-  // Get the code object (a1) and state (a2).  Restore the context and frame
-  // pointer.
-  MultiPop(a1.bit() | a2.bit() | cp.bit() | fp.bit());
-
-  // If the handler is a JS frame, restore the context to the frame.
-  // (kind == ENTRY) == (fp == 0) == (cp == 0), so we could test either fp
-  // or cp.
-  Label done;
-  Branch(&done, eq, cp, Operand(zero_reg));
-  sw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  bind(&done);
-
-  JumpToHandlerEntry();
-}
-
-
-void MacroAssembler::ThrowUncatchable(Register value) {
-  // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 3 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 4 * kPointerSize);
-
-  // The exception is expected in v0.
-  if (!value.is(v0)) {
-    mov(v0, value);
-  }
-  // Drop the stack pointer to the top of the top stack handler.
-  li(a3, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
-  lw(sp, MemOperand(a3));
-
-  // Unwind the handlers until the ENTRY handler is found.
-  Label fetch_next, check_kind;
-  jmp(&check_kind);
-  bind(&fetch_next);
-  lw(sp, MemOperand(sp, StackHandlerConstants::kNextOffset));
-
-  bind(&check_kind);
-  STATIC_ASSERT(StackHandler::JS_ENTRY == 0);
-  lw(a2, MemOperand(sp, StackHandlerConstants::kStateOffset));
-  And(a2, a2, Operand(StackHandler::KindField::kMask));
-  Branch(&fetch_next, ne, a2, Operand(zero_reg));
-
-  // Set the top handler address to next handler past the top ENTRY handler.
-  pop(a2);
-  sw(a2, MemOperand(a3));
-
-  // Get the code object (a1) and state (a2).  Clear the context and frame
-  // pointer (0 was saved in the handler).
-  MultiPop(a1.bit() | a2.bit() | cp.bit() | fp.bit());
-
-  JumpToHandlerEntry();
 }
 
 
@@ -4321,6 +4215,20 @@ void MacroAssembler::IsObjectNameType(Register object,
 // Support functions.
 
 
+void MacroAssembler::GetMapConstructor(Register result, Register map,
+                                       Register temp, Register temp2) {
+  Label done, loop;
+  lw(result, FieldMemOperand(map, Map::kConstructorOrBackPointerOffset));
+  bind(&loop);
+  JumpIfSmi(result, &done);
+  GetObjectType(result, temp, temp2);
+  Branch(&done, ne, temp2, Operand(MAP_TYPE));
+  lw(result, FieldMemOperand(result, Map::kConstructorOrBackPointerOffset));
+  Branch(&loop);
+  bind(&done);
+}
+
+
 void MacroAssembler::TryGetFunctionPrototype(Register function,
                                              Register result,
                                              Register scratch,
@@ -4373,7 +4281,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
     // Non-instance prototype: Fetch prototype from constructor field
     // in initial map.
     bind(&non_instance);
-    lw(result, FieldMemOperand(result, Map::kConstructorOffset));
+    GetMapConstructor(result, result, scratch, scratch);
   }
 
   // All done.

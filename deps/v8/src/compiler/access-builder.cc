@@ -61,7 +61,8 @@ FieldAccess AccessBuilder::ForMapInstanceType() {
 // static
 FieldAccess AccessBuilder::ForStringLength() {
   return {kTaggedBase, String::kLengthOffset, Handle<Name>(),
-          Type::SignedSmall(), kMachAnyTagged};
+          Type::Intersect(Type::UnsignedSmall(), Type::TaggedSigned()),
+          kMachAnyTagged};
 }
 
 
@@ -78,6 +79,12 @@ FieldAccess AccessBuilder::ForContextSlot(size_t index) {
   DCHECK_EQ(offset,
             Context::SlotOffset(static_cast<int>(index)) + kHeapObjectTag);
   return {kTaggedBase, offset, Handle<Name>(), Type::Any(), kMachAnyTagged};
+}
+
+
+// static
+FieldAccess AccessBuilder::ForStatsCounter() {
+  return {kUntaggedBase, 0, MaybeHandle<Name>(), Type::Signed32(), kMachInt32};
 }
 
 
@@ -110,6 +117,21 @@ ElementAccess AccessBuilder::ForTypedArrayElement(ExternalArrayType type,
       return {taggedness, header_size, Type::Number(), kMachFloat32};
     case kExternalFloat64Array:
       return {taggedness, header_size, Type::Number(), kMachFloat64};
+  }
+  UNREACHABLE();
+  return {kUntaggedBase, 0, Type::None(), kMachNone};
+}
+
+
+// static
+ElementAccess AccessBuilder::ForSeqStringChar(String::Encoding encoding) {
+  switch (encoding) {
+    case String::ONE_BYTE_ENCODING:
+      return {kTaggedBase, SeqString::kHeaderSize, Type::Unsigned32(),
+              kMachUint8};
+    case String::TWO_BYTE_ENCODING:
+      return {kTaggedBase, SeqString::kHeaderSize, Type::Unsigned32(),
+              kMachUint16};
   }
   UNREACHABLE();
   return {kUntaggedBase, 0, Type::None(), kMachNone};

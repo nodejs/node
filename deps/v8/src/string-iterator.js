@@ -2,13 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+(function() {
+
 "use strict";
 
+%CheckIsBootstrapping();
 
-// This file relies on the fact that the following declaration has been made
-// in runtime.js:
-// var $String = global.String;
+var GlobalArray = global.Array;
+var GlobalObject = global.Object;
+var GlobalString = global.String;
 
+//-------------------------------------------------------------------
 
 var stringIteratorIteratedStringSymbol =
     GLOBAL_PRIVATE("StringIterator#iteratedString");
@@ -75,35 +79,27 @@ function StringIteratorNext() {
 }
 
 
-function SetUpStringIterator() {
-  %CheckIsBootstrapping();
-
-  %FunctionSetPrototype(StringIterator, new $Object());
-  %FunctionSetInstanceClassName(StringIterator, 'String Iterator');
-
-  InstallFunctions(StringIterator.prototype, DONT_ENUM, $Array(
-    'next', StringIteratorNext
-  ));
-  %FunctionSetName(StringIteratorIterator, '[Symbol.iterator]');
-  %AddNamedProperty(StringIterator.prototype, symbolIterator,
-                    StringIteratorIterator, DONT_ENUM);
-  %AddNamedProperty(StringIterator.prototype, symbolToStringTag,
-                    "String Iterator", READ_ONLY | DONT_ENUM);
-}
-SetUpStringIterator();
-
-
 // 21.1.3.27 String.prototype [ @@iterator ]( )
 function StringPrototypeIterator() {
   return CreateStringIterator(this);
 }
 
+//-------------------------------------------------------------------
 
-function ExtendStringPrototypeWithIterator() {
-  %CheckIsBootstrapping();
+%FunctionSetPrototype(StringIterator, new GlobalObject());
+%FunctionSetInstanceClassName(StringIterator, 'String Iterator');
 
-  %FunctionSetName(StringPrototypeIterator, '[Symbol.iterator]');
-  %AddNamedProperty($String.prototype, symbolIterator,
-                    StringPrototypeIterator, DONT_ENUM);
-}
-ExtendStringPrototypeWithIterator();
+InstallFunctions(StringIterator.prototype, DONT_ENUM, GlobalArray(
+  'next', StringIteratorNext
+));
+%FunctionSetName(StringIteratorIterator, '[Symbol.iterator]');
+%AddNamedProperty(StringIterator.prototype, symbolIterator,
+                  StringIteratorIterator, DONT_ENUM);
+%AddNamedProperty(StringIterator.prototype, symbolToStringTag,
+                  "String Iterator", READ_ONLY | DONT_ENUM);
+
+%FunctionSetName(StringPrototypeIterator, '[Symbol.iterator]');
+%AddNamedProperty(GlobalString.prototype, symbolIterator,
+                  StringPrototypeIterator, DONT_ENUM);
+
+})();

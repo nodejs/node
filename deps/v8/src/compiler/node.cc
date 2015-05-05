@@ -40,7 +40,7 @@ Node* Node::New(Zone* zone, NodeId id, const Operator* op, int input_count,
 
 void Node::Kill() {
   DCHECK_NOT_NULL(op());
-  RemoveAllInputs();
+  NullAllInputs();
   DCHECK(uses().empty());
 }
 
@@ -89,7 +89,7 @@ void Node::RemoveInput(int index) {
 }
 
 
-void Node::RemoveAllInputs() {
+void Node::NullAllInputs() {
   for (Edge edge : input_edges()) edge.UpdateTo(nullptr);
 }
 
@@ -118,33 +118,23 @@ int Node::UseCount() const {
 }
 
 
-Node* Node::UseAt(int index) const {
-  DCHECK_LE(0, index);
-  DCHECK_LT(index, UseCount());
-  const Use* use = first_use_;
-  while (index-- != 0) {
-    use = use->next;
-  }
-  return use->from;
-}
+void Node::ReplaceUses(Node* that) {
+  DCHECK(this->first_use_ == nullptr || this->first_use_->prev == nullptr);
+  DCHECK(that->first_use_ == nullptr || that->first_use_->prev == nullptr);
 
-
-void Node::ReplaceUses(Node* replace_to) {
-  for (Use* use = first_use_; use; use = use->next) {
-    use->from->GetInputRecordPtr(use->input_index)->to = replace_to;
+  // Update the pointers to {this} to point to {that}.
+  Use* last_use = nullptr;
+  for (Use* use = this->first_use_; use; use = use->next) {
+    use->from->GetInputRecordPtr(use->input_index)->to = that;
+    last_use = use;
   }
-  if (!replace_to->last_use_) {
-    DCHECK(!replace_to->first_use_);
-    replace_to->first_use_ = first_use_;
-    replace_to->last_use_ = last_use_;
-  } else if (first_use_) {
-    DCHECK_NOT_NULL(replace_to->first_use_);
-    replace_to->last_use_->next = first_use_;
-    first_use_->prev = replace_to->last_use_;
-    replace_to->last_use_ = last_use_;
+  if (last_use) {
+    // Concat the use list of {this} and {that}.
+    last_use->next = that->first_use_;
+    if (that->first_use_) that->first_use_->prev = last_use;
+    that->first_use_ = this->first_use_;
   }
   first_use_ = nullptr;
-  last_use_ = nullptr;
 }
 
 
@@ -174,8 +164,7 @@ Node::Node(NodeId id, const Operator* op, int input_count,
       bit_field_(InputCountField::encode(input_count) |
                  ReservedInputCountField::encode(reserved_input_count) |
                  HasAppendableInputsField::encode(false)),
-      first_use_(nullptr),
-      last_use_(nullptr) {}
+      first_use_(nullptr) {}
 
 
 void Node::EnsureAppendableInputs(Zone* zone) {
@@ -192,24 +181,21 @@ void Node::EnsureAppendableInputs(Zone* zone) {
 
 
 void Node::AppendUse(Use* const use) {
-  use->next = nullptr;
-  use->prev = last_use_;
-  if (last_use_) {
-    last_use_->next = use;
-  } else {
-    first_use_ = use;
-  }
-  last_use_ = use;
+  DCHECK(first_use_ == nullptr || first_use_->prev == nullptr);
+  use->next = first_use_;
+  use->prev = nullptr;
+  if (first_use_) first_use_->prev = use;
+  first_use_ = use;
 }
 
 
 void Node::RemoveUse(Use* const use) {
-  if (use == last_use_) {
-    last_use_ = use->prev;
-  }
+  DCHECK(first_use_ == nullptr || first_use_->prev == nullptr);
   if (use->prev) {
+    DCHECK_NE(first_use_, use);
     use->prev->next = use->next;
   } else {
+    DCHECK_EQ(first_use_, use);
     first_use_ = use->next;
   }
   if (use->next) {

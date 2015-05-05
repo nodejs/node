@@ -17,13 +17,12 @@ class JumpThreading {
  public:
   // Compute the forwarding map of basic blocks to their ultimate destination.
   // Returns {true} if there is at least one block that is forwarded.
-  static bool ComputeForwarding(Zone* local_zone,
-                                ZoneVector<BasicBlock::RpoNumber>& result,
+  static bool ComputeForwarding(Zone* local_zone, ZoneVector<RpoNumber>& result,
                                 InstructionSequence* code);
 
   // Rewrite the instructions to forward jumps and branches.
   // May also negate some branches.
-  static void ApplyForwarding(ZoneVector<BasicBlock::RpoNumber>& forwarding,
+  static void ApplyForwarding(ZoneVector<RpoNumber>& forwarding,
                               InstructionSequence* code);
 };
 

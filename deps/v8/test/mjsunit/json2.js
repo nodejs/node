@@ -183,3 +183,8 @@ try {
   externalizeString(str, true);
 } catch (e) { }
 TestStringify("\"external\"", str, null, 0);
+
+var o = {};
+o.somespecialproperty = 10;
+o["\x19"] = 10;
+assertThrows("JSON.parse('{\"somespecialproperty\":100, \"\x19\":10}')");

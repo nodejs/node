@@ -7,22 +7,205 @@
 
 #include "src/allocation.h"
 #include "src/ast.h"
-#include "src/compiler.h"  // For CachedDataMode
+#include "src/compiler.h"  // TODO(titzer): remove this include dependency
+#include "src/pending-compilation-error-handler.h"
 #include "src/preparse-data.h"
 #include "src/preparse-data-format.h"
 #include "src/preparser.h"
 #include "src/scopes.h"
 
 namespace v8 {
+
 class ScriptCompiler;
 
 namespace internal {
 
-class CompilationInfo;
-class ParserLog;
-class PositionStack;
 class Target;
 
+// A container for the inputs, configuration options, and outputs of parsing.
+class ParseInfo {
+ public:
+  explicit ParseInfo(Zone* zone);
+  ParseInfo(Zone* zone, Handle<JSFunction> function);
+  ParseInfo(Zone* zone, Handle<Script> script);
+  // TODO(all) Only used via Debug::FindSharedFunctionInfoInScript, remove?
+  ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared);
+
+  ~ParseInfo() {
+    if (ast_value_factory_owned()) {
+      delete ast_value_factory_;
+      set_ast_value_factory_owned(false);
+    }
+    ast_value_factory_ = nullptr;
+  }
+
+  Zone* zone() { return zone_; }
+
+// Convenience accessor methods for flags.
+#define FLAG_ACCESSOR(flag, getter, setter)     \
+  bool getter() const { return GetFlag(flag); } \
+  void setter() { SetFlag(flag); }              \
+  void setter(bool val) { SetFlag(flag, val); }
+
+  FLAG_ACCESSOR(kToplevel, is_toplevel, set_toplevel)
+  FLAG_ACCESSOR(kLazy, is_lazy, set_lazy)
+  FLAG_ACCESSOR(kEval, is_eval, set_eval)
+  FLAG_ACCESSOR(kGlobal, is_global, set_global)
+  FLAG_ACCESSOR(kStrictMode, is_strict_mode, set_strict_mode)
+  FLAG_ACCESSOR(kStrongMode, is_strong_mode, set_strong_mode)
+  FLAG_ACCESSOR(kNative, is_native, set_native)
+  FLAG_ACCESSOR(kModule, is_module, set_module)
+  FLAG_ACCESSOR(kAllowLazyParsing, allow_lazy_parsing, set_allow_lazy_parsing)
+  FLAG_ACCESSOR(kAstValueFactoryOwned, ast_value_factory_owned,
+                set_ast_value_factory_owned)
+
+#undef FLAG_ACCESSOR
+
+  void set_parse_restriction(ParseRestriction restriction) {
+    SetFlag(kParseRestriction, restriction != NO_PARSE_RESTRICTION);
+  }
+
+  ParseRestriction parse_restriction() const {
+    return GetFlag(kParseRestriction) ? ONLY_SINGLE_FUNCTION_LITERAL
+                                      : NO_PARSE_RESTRICTION;
+  }
+
+  ScriptCompiler::ExternalSourceStream* source_stream() {
+    return source_stream_;
+  }
+  void set_source_stream(ScriptCompiler::ExternalSourceStream* source_stream) {
+    source_stream_ = source_stream;
+  }
+
+  ScriptCompiler::StreamedSource::Encoding source_stream_encoding() {
+    return source_stream_encoding_;
+  }
+  void set_source_stream_encoding(
+      ScriptCompiler::StreamedSource::Encoding source_stream_encoding) {
+    source_stream_encoding_ = source_stream_encoding;
+  }
+
+  v8::Extension* extension() { return extension_; }
+  void set_extension(v8::Extension* extension) { extension_ = extension; }
+
+  ScriptData** cached_data() { return cached_data_; }
+  void set_cached_data(ScriptData** cached_data) { cached_data_ = cached_data; }
+
+  ScriptCompiler::CompileOptions compile_options() { return compile_options_; }
+  void set_compile_options(ScriptCompiler::CompileOptions compile_options) {
+    compile_options_ = compile_options;
+  }
+
+  Scope* script_scope() { return script_scope_; }
+  void set_script_scope(Scope* script_scope) { script_scope_ = script_scope; }
+
+  AstValueFactory* ast_value_factory() { return ast_value_factory_; }
+  void set_ast_value_factory(AstValueFactory* ast_value_factory) {
+    ast_value_factory_ = ast_value_factory;
+  }
+
+  FunctionLiteral* function() {  // TODO(titzer): temporary name adapter
+    return literal_;
+  }
+  FunctionLiteral* literal() { return literal_; }
+  void set_literal(FunctionLiteral* literal) { literal_ = literal; }
+
+  Scope* scope() { return scope_; }
+  void set_scope(Scope* scope) { scope_ = scope; }
+
+  UnicodeCache* unicode_cache() { return unicode_cache_; }
+  void set_unicode_cache(UnicodeCache* unicode_cache) {
+    unicode_cache_ = unicode_cache;
+  }
+
+  uintptr_t stack_limit() { return stack_limit_; }
+  void set_stack_limit(uintptr_t stack_limit) { stack_limit_ = stack_limit; }
+
+  uint32_t hash_seed() { return hash_seed_; }
+  void set_hash_seed(uint32_t hash_seed) { hash_seed_ = hash_seed; }
+
+  //--------------------------------------------------------------------------
+  // TODO(titzer): these should not be part of ParseInfo.
+  //--------------------------------------------------------------------------
+  Isolate* isolate() { return isolate_; }
+  Handle<JSFunction> closure() { return closure_; }
+  Handle<SharedFunctionInfo> shared_info() { return shared_; }
+  Handle<Script> script() { return script_; }
+  Handle<Context> context() { return context_; }
+  void clear_script() { script_ = Handle<Script>::null(); }
+  void set_isolate(Isolate* isolate) { isolate_ = isolate; }
+  void set_context(Handle<Context> context) { context_ = context; }
+  void set_script(Handle<Script> script) { script_ = script; }
+  //--------------------------------------------------------------------------
+
+  LanguageMode language_mode() {
+    return construct_language_mode(is_strict_mode(), is_strong_mode());
+  }
+  void set_language_mode(LanguageMode language_mode) {
+    STATIC_ASSERT(LANGUAGE_END == 3);
+    set_strict_mode(language_mode & STRICT_BIT);
+    set_strong_mode(language_mode & STRONG_BIT);
+  }
+
+  void ReopenHandlesInNewHandleScope() {
+    closure_ = Handle<JSFunction>(*closure_);
+    shared_ = Handle<SharedFunctionInfo>(*shared_);
+    script_ = Handle<Script>(*script_);
+    context_ = Handle<Context>(*context_);
+  }
+
+ private:
+  // Various configuration flags for parsing.
+  enum Flag {
+    // ---------- Input flags ---------------------------
+    kToplevel = 1 << 0,
+    kLazy = 1 << 1,
+    kEval = 1 << 2,
+    kGlobal = 1 << 3,
+    kStrictMode = 1 << 4,
+    kStrongMode = 1 << 5,
+    kNative = 1 << 6,
+    kParseRestriction = 1 << 7,
+    kModule = 1 << 8,
+    kAllowLazyParsing = 1 << 9,
+    // ---------- Output flags --------------------------
+    kAstValueFactoryOwned = 1 << 10
+  };
+
+  //------------- Inputs to parsing and scope analysis -----------------------
+  Zone* zone_;
+  unsigned flags_;
+  ScriptCompiler::ExternalSourceStream* source_stream_;
+  ScriptCompiler::StreamedSource::Encoding source_stream_encoding_;
+  v8::Extension* extension_;
+  ScriptCompiler::CompileOptions compile_options_;
+  Scope* script_scope_;
+  UnicodeCache* unicode_cache_;
+  uintptr_t stack_limit_;
+  uint32_t hash_seed_;
+
+  // TODO(titzer): Move handles and isolate out of ParseInfo.
+  Isolate* isolate_;
+  Handle<JSFunction> closure_;
+  Handle<SharedFunctionInfo> shared_;
+  Handle<Script> script_;
+  Handle<Context> context_;
+
+  //----------- Inputs+Outputs of parsing and scope analysis -----------------
+  ScriptData** cached_data_;  // used if available, populated if requested.
+  AstValueFactory* ast_value_factory_;  // used if available, otherwise new.
+
+  //----------- Outputs of parsing and scope analysis ------------------------
+  FunctionLiteral* literal_;  // produced by full parser.
+  Scope* scope_;              // produced by scope analysis.
+
+  void SetFlag(Flag f) { flags_ |= f; }
+  void SetFlag(Flag f, bool v) { flags_ = v ? flags_ | f : flags_ & ~f; }
+  bool GetFlag(Flag f) const { return (flags_ & f) != 0; }
+
+  void set_shared_info(Handle<SharedFunctionInfo> shared) { shared_ = shared; }
+  void set_closure(Handle<JSFunction> closure) { closure_ = closure; }
+};
 
 class FunctionEntry BASE_EMBEDDED {
  public:
@@ -492,20 +675,16 @@ class ParserTraits {
       const AstRawString* arg, int pos);
 
   // Reporting errors.
-  void ReportMessageAt(Scanner::Location source_location,
-                       const char* message,
+  void ReportMessageAt(Scanner::Location source_location, const char* message,
                        const char* arg = NULL,
-                       bool is_reference_error = false);
-  void ReportMessage(const char* message,
-                     const char* arg = NULL,
-                     bool is_reference_error = false);
-  void ReportMessage(const char* message,
-                     const AstRawString* arg,
-                     bool is_reference_error = false);
-  void ReportMessageAt(Scanner::Location source_location,
-                       const char* message,
+                       ParseErrorType error_type = kSyntaxError);
+  void ReportMessage(const char* message, const char* arg = NULL,
+                     ParseErrorType error_type = kSyntaxError);
+  void ReportMessage(const char* message, const AstRawString* arg,
+                     ParseErrorType error_type = kSyntaxError);
+  void ReportMessageAt(Scanner::Location source_location, const char* message,
                        const AstRawString* arg,
-                       bool is_reference_error = false);
+                       ParseErrorType error_type = kSyntaxError);
 
   // "null" return type creators.
   static const AstRawString* EmptyIdentifier() {
@@ -545,7 +724,8 @@ class ParserTraits {
                                  int end_pos);
   Literal* ExpressionFromLiteral(Token::Value token, int pos, Scanner* scanner,
                                  AstNodeFactory* factory);
-  Expression* ExpressionFromIdentifier(const AstRawString* name, int pos,
+  Expression* ExpressionFromIdentifier(const AstRawString* name,
+                                       int start_position, int end_position,
                                        Scope* scope, AstNodeFactory* factory);
   Expression* ExpressionFromString(int pos, Scanner* scanner,
                                    AstNodeFactory* factory);
@@ -638,8 +818,7 @@ class ParserTraits {
 
 class Parser : public ParserBase<ParserTraits> {
  public:
-  Parser(CompilationInfo* info, uintptr_t stack_limit, uint32_t hash_seed,
-         UnicodeCache* unicode_cache);
+  explicit Parser(ParseInfo* info);
   ~Parser() {
     delete reusable_preparser_;
     reusable_preparser_ = NULL;
@@ -650,14 +829,14 @@ class Parser : public ParserBase<ParserTraits> {
   // Parses the source code represented by the compilation info and sets its
   // function literal.  Returns false (and deallocates any allocated AST
   // nodes) if parsing failed.
-  static bool ParseStatic(CompilationInfo* info, bool allow_lazy = false);
-  bool Parse(CompilationInfo* info);
-  void ParseOnBackground(CompilationInfo* info);
+  static bool ParseStatic(ParseInfo* info);
+  bool Parse(ParseInfo* info);
+  void ParseOnBackground(ParseInfo* info);
 
   // Handle errors detected during parsing, move statistics to Isolate,
   // internalize strings (move them to the heap).
-  void Internalize(CompilationInfo* info);
-  void HandleSourceURLComments(CompilationInfo* info);
+  void Internalize(Isolate* isolate, Handle<Script> script, bool error);
+  void HandleSourceURLComments(Isolate* isolate, Handle<Script> script);
 
  private:
   friend class ParserTraits;
@@ -672,17 +851,17 @@ class Parser : public ParserBase<ParserTraits> {
   static const int kMaxNumFunctionLocals = 4194303;  // 2^22-1
 
   // Returns NULL if parsing failed.
-  FunctionLiteral* ParseProgram(CompilationInfo* info);
+  FunctionLiteral* ParseProgram(Isolate* isolate, ParseInfo* info);
 
-  FunctionLiteral* ParseLazy(CompilationInfo* info);
-  FunctionLiteral* ParseLazy(CompilationInfo* info,
+  FunctionLiteral* ParseLazy(Isolate* isolate, ParseInfo* info);
+  FunctionLiteral* ParseLazy(Isolate* isolate, ParseInfo* info,
                              Utf16CharacterStream* source);
 
   // Called by ParseProgram after setting up the scanner.
-  FunctionLiteral* DoParseProgram(CompilationInfo* info, Scope** scope,
+  FunctionLiteral* DoParseProgram(ParseInfo* info, Scope** scope,
                                   Scope** ad_hoc_eval_scope);
 
-  void SetCachedData(CompilationInfo* info);
+  void SetCachedData(ParseInfo* info);
 
   bool inside_with() const { return scope_->inside_with(); }
   ScriptCompiler::CompileOptions compile_options() const {
@@ -707,15 +886,17 @@ class Parser : public ParserBase<ParserTraits> {
   void* ParseStatementList(ZoneList<Statement*>* body, int end_token,
                            bool is_eval, Scope** ad_hoc_eval_scope, bool* ok);
   Statement* ParseStatementListItem(bool* ok);
-  Statement* ParseModule(bool* ok);
+  void* ParseModuleItemList(ZoneList<Statement*>* body, bool* ok);
   Statement* ParseModuleItem(bool* ok);
-  Literal* ParseModuleSpecifier(bool* ok);
+  const AstRawString* ParseModuleSpecifier(bool* ok);
   Statement* ParseImportDeclaration(bool* ok);
   Statement* ParseExportDeclaration(bool* ok);
   Statement* ParseExportDefault(bool* ok);
-  void* ParseExportClause(ZoneList<const AstRawString*>* names,
+  void* ParseExportClause(ZoneList<const AstRawString*>* export_names,
+                          ZoneList<Scanner::Location>* export_locations,
+                          ZoneList<const AstRawString*>* local_names,
                           Scanner::Location* reserved_loc, bool* ok);
-  void* ParseNamedImports(ZoneList<const AstRawString*>* names, bool* ok);
+  ZoneList<ImportDeclaration*>* ParseNamedImports(int pos, bool* ok);
   Statement* ParseStatement(ZoneList<const AstRawString*>* labels, bool* ok);
   Statement* ParseSubStatement(ZoneList<const AstRawString*>* labels, bool* ok);
   Statement* ParseFunctionDeclaration(ZoneList<const AstRawString*>* names,
@@ -763,8 +944,8 @@ class Parser : public ParserBase<ParserTraits> {
                                   Expression* each,
                                   Expression* subject,
                                   Statement* body);
-  Statement* DesugarLetBindingsInForStatement(
-      Scope* inner_scope, ZoneList<const AstRawString*>* names,
+  Statement* DesugarLexicalBindingsInForStatement(
+      Scope* inner_scope, bool is_const, ZoneList<const AstRawString*>* names,
       ForStatement* loop, Statement* init, Expression* cond, Statement* next,
       Statement* body, bool* ok);
 
@@ -799,7 +980,7 @@ class Parser : public ParserBase<ParserTraits> {
 
   // Parser support
   VariableProxy* NewUnresolved(const AstRawString* name, VariableMode mode);
-  void Declare(Declaration* declaration, bool resolve, bool* ok);
+  Variable* Declare(Declaration* declaration, bool resolve, bool* ok);
 
   bool TargetStackContainsLabel(const AstRawString* label);
   BreakableStatement* LookupBreakTarget(const AstRawString* label, bool* ok);
@@ -845,13 +1026,7 @@ class Parser : public ParserBase<ParserTraits> {
 
   bool parsing_lazy_arrow_parameters_;  // for lazily parsed arrow functions.
 
-  // Pending errors.
-  bool has_pending_error_;
-  Scanner::Location pending_error_location_;
-  const char* pending_error_message_;
-  const AstRawString* pending_error_arg_;
-  const char* pending_error_char_arg_;
-  bool pending_error_is_reference_error_;
+  PendingCompilationErrorHandler pending_error_handler_;
 
   // Other information which will be stored in Parser and moved to Isolate after
   // parsing.

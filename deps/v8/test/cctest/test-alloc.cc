@@ -63,7 +63,7 @@ static AllocationResult AllocateAfterFailures() {
   heap->AllocateFixedArray(10000, TENURED).ToObjectChecked();
 
   // Large object space.
-  static const int kLargeObjectSpaceFillerLength = 300000;
+  static const int kLargeObjectSpaceFillerLength = 3 * (Page::kPageSize / 10);
   static const int kLargeObjectSpaceFillerSize = FixedArray::SizeFor(
       kLargeObjectSpaceFillerLength);
   DCHECK(kLargeObjectSpaceFillerSize > heap->old_pointer_space()->AreaSize());
@@ -210,7 +210,7 @@ TEST(CodeRange) {
       // Geometrically distributed sizes, greater than
       // Page::kMaxRegularHeapObjectSize (which is greater than code page area).
       // TODO(gc): instead of using 3 use some contant based on code_range_size
-      // kMaxHeapObjectSize.
+      // kMaxRegularHeapObjectSize.
       size_t requested =
           (Page::kMaxRegularHeapObjectSize << (Pseudorandom() % 3)) +
           Pseudorandom() % 5000 + 1;
