@@ -62,7 +62,20 @@ static bool HasArrayBufferInWeakList(Heap* heap, JSArrayBuffer* ab) {
 }
 
 
-static int CountViews(JSArrayBuffer* array_buffer) {
+static int CountViewsInNewSpaceList(Heap* heap, JSArrayBuffer* array_buffer) {
+  int count = 0;
+  for (Object* o = heap->new_array_buffer_views_list(); !o->IsUndefined();) {
+    JSArrayBufferView* view = JSArrayBufferView::cast(o);
+    if (array_buffer == view->buffer()) {
+      count++;
+    }
+    o = view->weak_next();
+  }
+  return count;
+}
+
+
+static int CountViews(Heap* heap, JSArrayBuffer* array_buffer) {
   int count = 0;
   for (Object* o = array_buffer->weak_first_view();
        !o->IsUndefined();
@@ -70,17 +83,27 @@ static int CountViews(JSArrayBuffer* array_buffer) {
     count++;
   }
 
-  return count;
+  return count + CountViewsInNewSpaceList(heap, array_buffer);
 }
 
-static bool HasViewInWeakList(JSArrayBuffer* array_buffer,
+
+static bool HasViewInNewSpaceList(Heap* heap, JSArrayBufferView* ta) {
+  for (Object* o = heap->new_array_buffer_views_list(); !o->IsUndefined();
+       o = JSArrayBufferView::cast(o)->weak_next()) {
+    if (ta == o) return true;
+  }
+  return false;
+}
+
+
+static bool HasViewInWeakList(Heap* heap, JSArrayBuffer* array_buffer,
                               JSArrayBufferView* ta) {
   for (Object* o = array_buffer->weak_first_view();
        !o->IsUndefined();
        o = JSArrayBufferView::cast(o)->weak_next()) {
     if (ta == o) return true;
   }
-  return false;
+  return HasViewInNewSpaceList(heap, ta);
 }
 
 
@@ -200,18 +223,18 @@ void TestViewFromApi() {
 
       Handle<JSArrayBufferView> ita1 = v8::Utils::OpenHandle(*ta1);
       Handle<JSArrayBufferView> ita2 = v8::Utils::OpenHandle(*ta2);
-      CHECK_EQ(2, CountViews(*iab));
-      CHECK(HasViewInWeakList(*iab, *ita1));
-      CHECK(HasViewInWeakList(*iab, *ita2));
+      CHECK_EQ(2, CountViews(isolate->heap(), *iab));
+      CHECK(HasViewInWeakList(isolate->heap(), *iab, *ita1));
+      CHECK(HasViewInWeakList(isolate->heap(), *iab, *ita2));
     }
     isolate->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
-    CHECK_EQ(1, CountViews(*iab));
+    CHECK_EQ(1, CountViews(isolate->heap(), *iab));
     Handle<JSArrayBufferView> ita1 = v8::Utils::OpenHandle(*ta1);
-    CHECK(HasViewInWeakList(*iab, *ita1));
+    CHECK(HasViewInWeakList(isolate->heap(), *iab, *ita1));
   }
   isolate->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 
-  CHECK_EQ(0, CountViews(*iab));
+  CHECK_EQ(0, CountViews(isolate->heap(), *iab));
 }
 
 
@@ -299,10 +322,13 @@ static void TestTypedArrayFromScript(const char* constructor) {
           v8::Handle<TypedArray>::Cast(CompileRun("ta3"));
       CHECK_EQ(1, CountArrayBuffersInWeakList(isolate->heap()) - start);
       Handle<JSArrayBuffer> iab = v8::Utils::OpenHandle(*ab);
-      CHECK_EQ(3, CountViews(*iab));
-      CHECK(HasViewInWeakList(*iab, *v8::Utils::OpenHandle(*ta1)));
-      CHECK(HasViewInWeakList(*iab, *v8::Utils::OpenHandle(*ta2)));
-      CHECK(HasViewInWeakList(*iab, *v8::Utils::OpenHandle(*ta3)));
+      CHECK_EQ(3, CountViews(isolate->heap(), *iab));
+      CHECK(HasViewInWeakList(isolate->heap(), *iab,
+                              *v8::Utils::OpenHandle(*ta1)));
+      CHECK(HasViewInWeakList(isolate->heap(), *iab,
+                              *v8::Utils::OpenHandle(*ta2)));
+      CHECK(HasViewInWeakList(isolate->heap(), *iab,
+                              *v8::Utils::OpenHandle(*ta3)));
     }
 
     i::SNPrintF(source, "ta%d = null;", i);
@@ -316,13 +342,14 @@ static void TestTypedArrayFromScript(const char* constructor) {
       v8::Handle<v8::ArrayBuffer> ab =
           v8::Handle<v8::ArrayBuffer>::Cast(CompileRun("ab"));
       Handle<JSArrayBuffer> iab = v8::Utils::OpenHandle(*ab);
-      CHECK_EQ(2, CountViews(*iab));
+      CHECK_EQ(2, CountViews(isolate->heap(), *iab));
       for (int j = 1; j <= 3; j++) {
         if (j == i) continue;
         i::SNPrintF(source, "ta%d", j);
         v8::Handle<TypedArray> ta =
             v8::Handle<TypedArray>::Cast(CompileRun(source.start()));
-        CHECK(HasViewInWeakList(*iab, *v8::Utils::OpenHandle(*ta)));
+        CHECK(HasViewInWeakList(isolate->heap(), *iab,
+                                *v8::Utils::OpenHandle(*ta)));
       }
     }
 
@@ -336,7 +363,7 @@ static void TestTypedArrayFromScript(const char* constructor) {
       v8::Handle<v8::ArrayBuffer> ab =
           v8::Handle<v8::ArrayBuffer>::Cast(CompileRun("ab"));
       Handle<JSArrayBuffer> iab = v8::Utils::OpenHandle(*ab);
-      CHECK_EQ(0, CountViews(*iab));
+      CHECK_EQ(0, CountViews(isolate->heap(), *iab));
     }
   }
 }

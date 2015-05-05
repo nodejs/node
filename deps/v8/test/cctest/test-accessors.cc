@@ -605,3 +605,86 @@ THREADED_TEST(Regress433458) {
       "Object.defineProperty(obj, 'prop', { writable: false });"
       "Object.defineProperty(obj, 'prop', { writable: true });");
 }
+
+
+static bool security_check_value = false;
+
+
+static bool SecurityTestCallback(Local<v8::Object> global, Local<Value> name,
+                                 v8::AccessType type, Local<Value> data) {
+  return security_check_value;
+}
+
+
+TEST(PrototypeGetterAccessCheck) {
+  i::FLAG_allow_natives_syntax = true;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  auto fun_templ = v8::FunctionTemplate::New(isolate);
+  auto getter_templ = v8::FunctionTemplate::New(isolate, handle_property);
+  getter_templ->SetAcceptAnyReceiver(false);
+  fun_templ->InstanceTemplate()->SetAccessorProperty(v8_str("foo"),
+                                                     getter_templ);
+  auto obj_templ = v8::ObjectTemplate::New(isolate);
+  obj_templ->SetAccessCheckCallbacks(SecurityTestCallback, nullptr);
+  env->Global()->Set(v8_str("Fun"), fun_templ->GetFunction());
+  env->Global()->Set(v8_str("obj"), obj_templ->NewInstance());
+  env->Global()->Set(v8_str("obj2"), obj_templ->NewInstance());
+
+  security_check_value = true;
+  CompileRun("var proto = new Fun();");
+  CompileRun("obj.__proto__ = proto;");
+  ExpectInt32("proto.foo", 907);
+
+  // Test direct.
+  security_check_value = true;
+  ExpectInt32("obj.foo", 907);
+  security_check_value = false;
+  {
+    v8::TryCatch try_catch(isolate);
+    CompileRun("obj.foo");
+    CHECK(try_catch.HasCaught());
+  }
+
+  // Test through call.
+  security_check_value = true;
+  ExpectInt32("proto.__lookupGetter__('foo').call(obj)", 907);
+  security_check_value = false;
+  {
+    v8::TryCatch try_catch(isolate);
+    CompileRun("proto.__lookupGetter__('foo').call(obj)");
+    CHECK(try_catch.HasCaught());
+  }
+
+  // Test ics.
+  CompileRun(
+      "function f() {"
+      "   var x;"
+      "  for (var i = 0; i < 4; i++) {"
+      "    x = obj.foo;"
+      "  }"
+      "  return x;"
+      "}");
+
+  security_check_value = true;
+  ExpectInt32("f()", 907);
+  security_check_value = false;
+  {
+    v8::TryCatch try_catch(isolate);
+    CompileRun("f();");
+    CHECK(try_catch.HasCaught());
+  }
+
+  // Test crankshaft.
+  CompileRun("%OptimizeFunctionOnNextCall(f);");
+
+  security_check_value = true;
+  ExpectInt32("f()", 907);
+  security_check_value = false;
+  {
+    v8::TryCatch try_catch(isolate);
+    CompileRun("f();");
+    CHECK(try_catch.HasCaught());
+  }
+}

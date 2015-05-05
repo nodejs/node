@@ -9,6 +9,7 @@
 #include "src/v8.h"
 
 #include "src/assert-scope.h"
+#include "src/char-predicates-inl.h"
 #include "src/conversions-inl.h"
 #include "src/conversions.h"
 #include "src/dtoa.h"
@@ -502,4 +503,54 @@ double StringToDouble(UnicodeCache* unicode_cache, Handle<String> string,
 }
 
 
+bool IsNonArrayIndexInteger(String* string) {
+  const int kBufferSize = 64;
+  const int kUint32MaxChars = 11;
+  uint16_t buffer[kBufferSize];
+  int offset = 0;
+  const int length = string->length();
+  if (length == 0) return false;
+  // First iteration, check for minus, 0 followed by anything else, etc.
+  int to = std::min(offset + kUint32MaxChars, length);
+  {
+    String::WriteToFlat(string, buffer, offset, to);
+    bool negative = false;
+    if (buffer[offset] == '-') {
+      negative = true;
+      ++offset;
+      if (offset == to) return false;  // Just '-' is bad.
+    }
+    if (buffer[offset] == '0') {
+      return to == 2 && negative;  // Match just '-0'.
+    }
+    // Process positive integers.
+    if (!negative) {
+      uint64_t acc = 0;
+      for (; offset < to; ++offset) {
+        uint64_t digit = buffer[offset] - '0';
+        if (digit > 9) return false;
+        acc = 10 * acc + digit;
+      }
+      // String is consumed.  Evaluate what we have.
+      if (offset == length) {
+        return acc >
+               static_cast<uint64_t>(std::numeric_limits<uint32_t>::max());
+      }
+    }
+  }
+  // Consume rest of string.  If we get here, we're way out of uint32_t bounds
+  // or negative.
+  int i = offset;
+  while (true) {
+    for (; offset < to; ++offset, ++i) {
+      if (!IsDecimalDigit(buffer[i])) return false;
+    }
+    if (offset == length) break;
+    // Read next chunk.
+    to = std::min(offset + kBufferSize, length);
+    String::WriteToFlat(string, buffer, offset, to);
+    i = 0;
+  }
+  return true;
+}
 } }  // namespace v8::internal

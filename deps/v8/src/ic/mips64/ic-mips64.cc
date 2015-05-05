@@ -668,7 +668,7 @@ static void KeyedStoreGenerateMegamorphicHelper(
   __ daddu(address, address, at);
   __ lw(scratch_value, MemOperand(address));
   __ Branch(&fast_double_without_map_check, ne, scratch_value,
-            Operand(kHoleNanUpper32));
+            Operand(static_cast<int32_t>(kHoleNanUpper32)));
   __ JumpIfDictionaryInPrototypeChain(receiver, elements_map, scratch_value,
                                       slow);
 
@@ -676,7 +676,7 @@ static void KeyedStoreGenerateMegamorphicHelper(
   __ StoreNumberToDoubleElements(value, key,
                                  elements,  // Overwritten.
                                  a3,        // Scratch regs...
-                                 a4, a5, &transition_double_elements);
+                                 a4, &transition_double_elements);
   if (increment_length == kIncrementLength) {
     // Add 1 to receiver->length.
     __ Daddu(scratch_value, key, Operand(Smi::FromInt(1)));

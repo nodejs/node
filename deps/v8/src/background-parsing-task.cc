@@ -10,27 +10,35 @@ namespace internal {
 BackgroundParsingTask::BackgroundParsingTask(
     StreamedSource* source, ScriptCompiler::CompileOptions options,
     int stack_size, Isolate* isolate)
-    : source_(source), options_(options), stack_size_(stack_size) {
-  // Prepare the data for the internalization phase and compilation phase, which
-  // will happen in the main thread after parsing.
-  source->info.Reset(new i::CompilationInfoWithZone(source->source_stream.get(),
-                                                    source->encoding, isolate));
-  source->info->MarkAsGlobal();
-
+    : source_(source), stack_size_(stack_size) {
   // We don't set the context to the CompilationInfo yet, because the background
   // thread cannot do anything with it anyway. We set it just before compilation
   // on the foreground thread.
   DCHECK(options == ScriptCompiler::kProduceParserCache ||
          options == ScriptCompiler::kProduceCodeCache ||
          options == ScriptCompiler::kNoCompileOptions);
-  source->allow_lazy =
-      !i::Compiler::DebuggerWantsEagerCompilation(source->info.get());
 
-  if (!source->allow_lazy && options_ == ScriptCompiler::kProduceParserCache) {
+  // Prepare the data for the internalization phase and compilation phase, which
+  // will happen in the main thread after parsing.
+  Zone* zone = new Zone();
+  ParseInfo* info = new ParseInfo(zone);
+  source->zone.Reset(zone);
+  source->info.Reset(info);
+  info->set_isolate(isolate);
+  info->set_source_stream(source->source_stream.get());
+  info->set_source_stream_encoding(source->encoding);
+  info->set_hash_seed(isolate->heap()->HashSeed());
+  info->set_global();
+  info->set_unicode_cache(&source_->unicode_cache);
+
+  bool disable_lazy = Compiler::DebuggerWantsEagerCompilation(isolate);
+  if (disable_lazy && options == ScriptCompiler::kProduceParserCache) {
     // Producing cached data while parsing eagerly is not supported.
-    options_ = ScriptCompiler::kNoCompileOptions;
+    options = ScriptCompiler::kNoCompileOptions;
   }
-  source->hash_seed = isolate->heap()->HashSeed();
+
+  info->set_compile_options(options);
+  info->set_allow_lazy_parsing(!disable_lazy);
 }
 
 
@@ -40,20 +48,19 @@ void BackgroundParsingTask::Run() {
   DisallowHandleDereference no_deref;
 
   ScriptData* script_data = NULL;
-  if (options_ == ScriptCompiler::kProduceParserCache ||
-      options_ == ScriptCompiler::kProduceCodeCache) {
-    source_->info->SetCachedData(&script_data, options_);
+  ScriptCompiler::CompileOptions options = source_->info->compile_options();
+  if (options == ScriptCompiler::kProduceParserCache ||
+      options == ScriptCompiler::kProduceCodeCache) {
+    source_->info->set_cached_data(&script_data);
   }
 
   uintptr_t stack_limit =
       reinterpret_cast<uintptr_t>(&stack_limit) - stack_size_ * KB;
 
+  source_->info->set_stack_limit(stack_limit);
   // Parser needs to stay alive for finalizing the parsing on the main
   // thread. Passing &parse_info is OK because Parser doesn't store it.
-  source_->parser.Reset(new Parser(source_->info.get(), stack_limit,
-                                   source_->hash_seed,
-                                   &source_->unicode_cache));
-  source_->parser->set_allow_lazy(source_->allow_lazy);
+  source_->parser.Reset(new Parser(source_->info.get()));
   source_->parser->ParseOnBackground(source_->info.get());
 
   if (script_data != NULL) {

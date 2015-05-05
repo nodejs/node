@@ -9,9 +9,6 @@
 // var $Number = global.Number;
 // var $Function = global.Function;
 // var $Array = global.Array;
-//
-// in math.js:
-// var $floor = MathFloor
 
 var $isNaN = GlobalIsNaN;
 var $isFinite = GlobalIsFinite;
@@ -32,6 +29,17 @@ function InstallFunctions(object, attributes, functions) {
     %SetNativeFlag(f);
   }
   %ToFastProperties(object);
+}
+
+
+function OverrideFunction(object, name, f) {
+  ObjectDefineProperty(object, name, { value: f,
+                                       writeable: true,
+                                       configurable: true,
+                                       enumerable: false });
+  %FunctionSetName(f, name);
+  %FunctionRemovePrototype(f);
+  %SetNativeFlag(f);
 }
 
 
@@ -210,7 +218,7 @@ var DefaultObjectToString = NoSideEffectsObjectToString;
 function NoSideEffectsObjectToString() {
   if (IS_UNDEFINED(this) && !IS_UNDETECTABLE(this)) return "[object Undefined]";
   if (IS_NULL(this)) return "[object Null]";
-  return "[object " + %_ClassOf(ToObject(this)) + "]";
+  return "[object " + %_ClassOf(TO_OBJECT_INLINE(this)) + "]";
 }
 
 
@@ -223,7 +231,7 @@ function ObjectToLocaleString() {
 
 // ECMA-262 - 15.2.4.4
 function ObjectValueOf() {
-  return ToObject(this);
+  return TO_OBJECT_INLINE(this);
 }
 
 
@@ -258,7 +266,7 @@ function ObjectPropertyIsEnumerable(V) {
     var desc = GetOwnPropertyJS(this, P);
     return IS_UNDEFINED(desc) ? false : desc.isEnumerable();
   }
-  return %IsPropertyEnumerable(ToObject(this), P);
+  return %IsPropertyEnumerable(TO_OBJECT_INLINE(this), P);
 }
 
 
@@ -276,7 +284,7 @@ function ObjectDefineGetter(name, fun) {
   desc.setGet(fun);
   desc.setEnumerable(true);
   desc.setConfigurable(true);
-  DefineOwnProperty(ToObject(receiver), ToName(name), desc, false);
+  DefineOwnProperty(TO_OBJECT_INLINE(receiver), ToName(name), desc, false);
 }
 
 
@@ -285,7 +293,7 @@ function ObjectLookupGetter(name) {
   if (receiver == null && !IS_UNDETECTABLE(receiver)) {
     receiver = %GlobalProxy(global);
   }
-  return %LookupAccessor(ToObject(receiver), ToName(name), GETTER);
+  return %LookupAccessor(TO_OBJECT_INLINE(receiver), ToName(name), GETTER);
 }
 
 
@@ -302,7 +310,7 @@ function ObjectDefineSetter(name, fun) {
   desc.setSet(fun);
   desc.setEnumerable(true);
   desc.setConfigurable(true);
-  DefineOwnProperty(ToObject(receiver), ToName(name), desc, false);
+  DefineOwnProperty(TO_OBJECT_INLINE(receiver), ToName(name), desc, false);
 }
 
 
@@ -311,12 +319,12 @@ function ObjectLookupSetter(name) {
   if (receiver == null && !IS_UNDETECTABLE(receiver)) {
     receiver = %GlobalProxy(global);
   }
-  return %LookupAccessor(ToObject(receiver), ToName(name), SETTER);
+  return %LookupAccessor(TO_OBJECT_INLINE(receiver), ToName(name), SETTER);
 }
 
 
 function ObjectKeys(obj) {
-  obj = ToObject(obj);
+  obj = TO_OBJECT_INLINE(obj);
   if (%_IsJSProxy(obj)) {
     var handler = %GetHandler(obj);
     var names = CallTrap0(handler, "keys", DerivedKeysTrap);
@@ -633,7 +641,7 @@ function GetOwnPropertyJS(obj, v) {
   // GetOwnProperty returns an array indexed by the constants
   // defined in macros.py.
   // If p is not a property on obj undefined is returned.
-  var props = %GetOwnProperty(ToObject(obj), p);
+  var props = %GetOwnProperty(TO_OBJECT_INLINE(obj), p);
 
   return ConvertDescriptorArrayToDescriptor(props);
 }
@@ -684,9 +692,9 @@ function DefineProxyProperty(obj, p, attributes, should_throw) {
 
 // ES5 8.12.9.
 function DefineObjectProperty(obj, p, desc, should_throw) {
-  var current_array = %GetOwnProperty(ToObject(obj), ToName(p));
+  var current_array = %GetOwnProperty(obj, ToName(p));
   var current = ConvertDescriptorArrayToDescriptor(current_array);
-  var extensible = %IsExtensible(ToObject(obj));
+  var extensible = %IsExtensible(obj);
 
   // Error handling according to spec.
   // Step 3
@@ -1097,7 +1105,7 @@ function ObjectGetOwnPropertyKeys(obj, filter) {
 
 // ES5 section 15.2.3.4.
 function ObjectGetOwnPropertyNames(obj) {
-  obj = ToObject(obj);
+  obj = TO_OBJECT_INLINE(obj);
   // Special handling for proxies.
   if (%_IsJSProxy(obj)) {
     var handler = %GetHandler(obj);
@@ -1189,7 +1197,7 @@ function ObjectDefineProperties(obj, properties) {
   if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("called_on_non_object", ["Object.defineProperties"]);
   }
-  var props = ToObject(properties);
+  var props = TO_OBJECT_INLINE(properties);
   var names = GetOwnEnumerablePropertyNames(props);
   var descriptors = new InternalArray();
   for (var i = 0; i < names.length; i++) {
@@ -1368,7 +1376,7 @@ function ObjectIs(obj1, obj2) {
 
 // ECMA-262, Edition 6, section B.2.2.1.1
 function ObjectGetProto() {
-  return %_GetPrototype(ToObject(this));
+  return %_GetPrototype(TO_OBJECT_INLINE(this));
 }
 
 
@@ -1385,10 +1393,10 @@ function ObjectSetProto(proto) {
 function ObjectConstructor(x) {
   if (%_IsConstructCall()) {
     if (x == null) return this;
-    return ToObject(x);
+    return TO_OBJECT_INLINE(x);
   } else {
     if (x == null) return { };
-    return ToObject(x);
+    return TO_OBJECT_INLINE(x);
   }
 }
 
@@ -1514,7 +1522,7 @@ function NumberConstructor(x) {
 
 
 // ECMA-262 section 15.7.4.2.
-function NumberToString(radix) {
+function NumberToStringJS(radix) {
   // NOTE: Both Number objects and values can enter here as
   // 'this'. This is not as dictated by ECMA-262.
   var number = this;
@@ -1542,7 +1550,7 @@ function NumberToString(radix) {
 
 // ECMA-262 section 15.7.4.3
 function NumberToLocaleString() {
-  return %_CallFunction(this, NumberToString);
+  return %_CallFunction(this, NumberToStringJS);
 }
 
 
@@ -1655,8 +1663,7 @@ function NumberIsNaN(number) {
 function NumberIsSafeInteger(number) {
   if (NumberIsFinite(number)) {
     var integral = TO_INTEGER(number);
-    if (integral == number)
-      return MathAbs(integral) <= $Number.MAX_SAFE_INTEGER;
+    if (integral == number) return $abs(integral) <= $Number.MAX_SAFE_INTEGER;
   }
   return false;
 }
@@ -1695,7 +1702,7 @@ function SetUpNumber() {
 
   // Set up non-enumerable functions on the Number prototype object.
   InstallFunctions($Number.prototype, DONT_ENUM, $Array(
-    "toString", NumberToString,
+    "toString", NumberToStringJS,
     "toLocaleString", NumberToLocaleString,
     "valueOf", NumberValueOf,
     "toFixed", NumberToFixedJS,
@@ -1836,7 +1843,7 @@ function NewFunctionFromString(arguments, function_token) {
     // If the formal parameters string include ) - an illegal
     // character - it may make the combined function expression
     // compile. We avoid this problem by checking for this early on.
-    if (%_CallFunction(p, ')', StringIndexOfJS) != -1) {
+    if (%_CallFunction(p, ')', $stringIndexOf) != -1) {
       throw MakeSyntaxError('paren_in_arg_string', []);
     }
     // If the formal parameters include an unbalanced block comment, the
@@ -1879,21 +1886,11 @@ SetUpFunction();
 // ----------------------------------------------------------------------------
 // Iterator related spec functions.
 
-// ES6 rev 26, 2014-07-18
-// 7.4.1 CheckIterable ( obj )
-function ToIterable(obj) {
-  if (!IS_SPEC_OBJECT(obj)) {
-    return UNDEFINED;
-  }
-  return obj[symbolIterator];
-}
-
-
-// ES6 rev 26, 2014-07-18
-// 7.4.2 GetIterator ( obj, method )
+// ES6 rev 33, 2015-02-12
+// 7.4.1 GetIterator ( obj, method )
 function GetIterator(obj, method) {
   if (IS_UNDEFINED(method)) {
-    method = ToIterable(obj);
+    method = obj[symbolIterator];
   }
   if (!IS_SPEC_FUNCTION(method)) {
     throw MakeTypeError('not_iterable', [obj]);

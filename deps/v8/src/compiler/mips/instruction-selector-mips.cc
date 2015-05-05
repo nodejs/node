@@ -114,9 +114,8 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
   DCHECK_GE(arraysize(inputs), input_count);
   DCHECK_GE(arraysize(outputs), output_count);
 
-  Instruction* instr = selector->Emit(cont->Encode(opcode), output_count,
-                                      outputs, input_count, inputs);
-  if (cont->IsBranch()) instr->MarkAsControl();
+  selector->Emit(cont->Encode(opcode), output_count, outputs, input_count,
+                 inputs);
 }
 
 
@@ -265,6 +264,12 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
 }
 
 
+void InstructionSelector::VisitWord32Clz(Node* node) {
+  MipsOperandGenerator g(this);
+  Emit(kMipsClz, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
+
+
 void InstructionSelector::VisitInt32Add(Node* node) {
   MipsOperandGenerator g(this);
 
@@ -402,6 +407,20 @@ void InstructionSelector::VisitFloat64Add(Node* node) {
 
 
 void InstructionSelector::VisitFloat64Sub(Node* node) {
+  MipsOperandGenerator g(this);
+  Float64BinopMatcher m(node);
+  if (m.left().IsMinusZero() && m.right().IsFloat64RoundDown() &&
+      CanCover(m.node(), m.right().node())) {
+    if (m.right().InputAt(0)->opcode() == IrOpcode::kFloat64Sub &&
+        CanCover(m.right().node(), m.right().InputAt(0))) {
+      Float64BinopMatcher mright0(m.right().InputAt(0));
+      if (mright0.left().IsMinusZero()) {
+        Emit(kMipsFloat64RoundUp, g.DefineAsRegister(node),
+             g.UseRegister(mright0.right().node()));
+        return;
+      }
+    }
+  }
   VisitRRR(this, kMipsSubD, node);
 }
 
@@ -423,19 +442,20 @@ void InstructionSelector::VisitFloat64Mod(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat64Max(Node* node) { UNREACHABLE(); }
+
+
+void InstructionSelector::VisitFloat64Min(Node* node) { UNREACHABLE(); }
+
+
 void InstructionSelector::VisitFloat64Sqrt(Node* node) {
   MipsOperandGenerator g(this);
   Emit(kMipsSqrtD, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
 }
 
 
-void InstructionSelector::VisitFloat64Floor(Node* node) {
-  VisitRR(this, kMipsFloat64Floor, node);
-}
-
-
-void InstructionSelector::VisitFloat64Ceil(Node* node) {
-  VisitRR(this, kMipsFloat64Ceil, node);
+void InstructionSelector::VisitFloat64RoundDown(Node* node) {
+  VisitRR(this, kMipsFloat64RoundDown, node);
 }
 
 
@@ -449,7 +469,7 @@ void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
 }
 
 
-void InstructionSelector::VisitCall(Node* node) {
+void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   MipsOperandGenerator g(this);
   const CallDescriptor* descriptor = OpParameter<const CallDescriptor*>(node);
 
@@ -476,6 +496,13 @@ void InstructionSelector::VisitCall(Node* node) {
     slot--;
   }
 
+  // Pass label of exception handler block.
+  CallDescriptor::Flags flags = descriptor->flags();
+  if (handler != nullptr) {
+    flags |= CallDescriptor::kHasExceptionHandler;
+    buffer.instruction_args.push_back(g.Label(handler));
+  }
+
   // Select the appropriate opcode based on the call type.
   InstructionCode opcode;
   switch (descriptor->kind()) {
@@ -490,7 +517,7 @@ void InstructionSelector::VisitCall(Node* node) {
       UNREACHABLE();
       return;
   }
-  opcode |= MiscField::encode(descriptor->flags());
+  opcode |= MiscField::encode(flags);
 
   // Emit the call instruction.
   InstructionOperand* first_output =
@@ -600,8 +627,7 @@ static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
   opcode = cont->Encode(opcode);
   if (cont->IsBranch()) {
     selector->Emit(opcode, g.NoOutput(), left, right,
-                   g.Label(cont->true_block()),
-                   g.Label(cont->false_block()))->MarkAsControl();
+                   g.Label(cont->true_block()), g.Label(cont->false_block()));
   } else {
     DCHECK(cont->IsSet());
     // TODO(plind): Revisit and test this path.
@@ -730,8 +756,7 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
   InstructionOperand const value_operand = g.UseRegister(value);
   if (cont->IsBranch()) {
     selector->Emit(opcode, g.NoOutput(), value_operand, g.TempImmediate(0),
-                   g.Label(cont->true_block()),
-                   g.Label(cont->false_block()))->MarkAsControl();
+                   g.Label(cont->true_block()), g.Label(cont->false_block()));
   } else {
     selector->Emit(opcode, g.DefineAsRegister(cont->result()), value_operand,
                    g.TempImmediate(0));
@@ -746,63 +771,31 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
 }
 
 
-void InstructionSelector::VisitSwitch(Node* node, BasicBlock* default_branch,
-                                      BasicBlock** case_branches,
-                                      int32_t* case_values, size_t case_count,
-                                      int32_t min_value, int32_t max_value) {
+void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   MipsOperandGenerator g(this);
   InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
-  InstructionOperand default_operand = g.Label(default_branch);
 
-  // Note that {value_range} can be 0 if {min_value} is -2^31 and {max_value}
-  // is 2^31-1, so don't assume that it's non-zero below.
-  size_t value_range =
-      1u + bit_cast<uint32_t>(max_value) - bit_cast<uint32_t>(min_value);
-
-  // Determine whether to issue an ArchTableSwitch or an ArchLookupSwitch
-  // instruction.
-  size_t table_space_cost = 9 + value_range;
-  size_t table_time_cost = 9;
-  size_t lookup_space_cost = 2 + 2 * case_count;
-  size_t lookup_time_cost = case_count;
-  if (case_count > 0 &&
+  // Emit either ArchTableSwitch or ArchLookupSwitch.
+  size_t table_space_cost = 9 + sw.value_range;
+  size_t table_time_cost = 3;
+  size_t lookup_space_cost = 2 + 2 * sw.case_count;
+  size_t lookup_time_cost = sw.case_count;
+  if (sw.case_count > 0 &&
       table_space_cost + 3 * table_time_cost <=
           lookup_space_cost + 3 * lookup_time_cost &&
-      min_value > std::numeric_limits<int32_t>::min()) {
+      sw.min_value > std::numeric_limits<int32_t>::min()) {
     InstructionOperand index_operand = value_operand;
-    if (min_value) {
+    if (sw.min_value) {
       index_operand = g.TempRegister();
-      Emit(kMipsSub, index_operand, value_operand, g.TempImmediate(min_value));
+      Emit(kMipsSub, index_operand, value_operand,
+           g.TempImmediate(sw.min_value));
     }
-    size_t input_count = 2 + value_range;
-    auto* inputs = zone()->NewArray<InstructionOperand>(input_count);
-    inputs[0] = index_operand;
-    std::fill(&inputs[1], &inputs[input_count], default_operand);
-    for (size_t index = 0; index < case_count; ++index) {
-      size_t value = case_values[index] - min_value;
-      BasicBlock* branch = case_branches[index];
-      DCHECK_LE(0u, value);
-      DCHECK_LT(value + 2, input_count);
-      inputs[value + 2] = g.Label(branch);
-    }
-    Emit(kArchTableSwitch, 0, nullptr, input_count, inputs, 0, nullptr)
-        ->MarkAsControl();
-    return;
+    // Generate a table lookup.
+    return EmitTableSwitch(sw, index_operand);
   }
 
   // Generate a sequence of conditional jumps.
-  size_t input_count = 2 + case_count * 2;
-  auto* inputs = zone()->NewArray<InstructionOperand>(input_count);
-  inputs[0] = value_operand;
-  inputs[1] = default_operand;
-  for (size_t index = 0; index < case_count; ++index) {
-    int32_t value = case_values[index];
-    BasicBlock* branch = case_branches[index];
-    inputs[index * 2 + 2 + 0] = g.TempImmediate(value);
-    inputs[index * 2 + 2 + 1] = g.Label(branch);
-  }
-  Emit(kArchLookupSwitch, 0, nullptr, input_count, inputs, 0, nullptr)
-      ->MarkAsControl();
+  return EmitLookupSwitch(sw, value_operand);
 }
 
 
@@ -878,12 +871,43 @@ void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat64ExtractLowWord32(Node* node) {
+  MipsOperandGenerator g(this);
+  Emit(kMipsFloat64ExtractLowWord32, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitFloat64ExtractHighWord32(Node* node) {
+  MipsOperandGenerator g(this);
+  Emit(kMipsFloat64ExtractHighWord32, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitFloat64InsertLowWord32(Node* node) {
+  MipsOperandGenerator g(this);
+  Node* left = node->InputAt(0);
+  Node* right = node->InputAt(1);
+  Emit(kMipsFloat64InsertLowWord32, g.DefineSameAsFirst(node),
+       g.UseRegister(left), g.UseRegister(right));
+}
+
+
+void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
+  MipsOperandGenerator g(this);
+  Node* left = node->InputAt(0);
+  Node* right = node->InputAt(1);
+  Emit(kMipsFloat64InsertHighWord32, g.DefineSameAsFirst(node),
+       g.UseRegister(left), g.UseRegister(right));
+}
+
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
   if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
-    return MachineOperatorBuilder::kFloat64Floor |
-           MachineOperatorBuilder::kFloat64Ceil |
+    return MachineOperatorBuilder::kFloat64RoundDown |
            MachineOperatorBuilder::kFloat64RoundTruncate;
   }
   return MachineOperatorBuilder::kNoFlags;

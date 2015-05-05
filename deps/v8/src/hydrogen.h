@@ -407,13 +407,11 @@ class HGraph FINAL : public ZoneObject {
     use_optimistic_licm_ = value;
   }
 
-  void MarkRecursive() {
-    is_recursive_ = true;
-  }
+  void MarkRecursive() { is_recursive_ = true; }
+  bool is_recursive() const { return is_recursive_; }
 
-  bool is_recursive() const {
-    return is_recursive_;
-  }
+  void MarkThisHasUses() { this_has_uses_ = true; }
+  bool this_has_uses() const { return this_has_uses_; }
 
   void MarkDependsOnEmptyArrayProtoElements() {
     // Add map dependency if not already added.
@@ -499,6 +497,7 @@ class HGraph FINAL : public ZoneObject {
   Zone* zone_;
 
   bool is_recursive_;
+  bool this_has_uses_;
   bool use_optimistic_licm_;
   bool depends_on_empty_array_proto_elements_;
   int type_change_checksum_;
@@ -1869,12 +1868,14 @@ class HGraphBuilder {
 
  protected:
   void SetSourcePosition(int position) {
-    DCHECK(position != RelocInfo::kNoPosition);
-    position_.set_position(position - start_position_);
+    if (position != RelocInfo::kNoPosition) {
+      position_.set_position(position - start_position_);
+    }
+    // Otherwise position remains unknown.
   }
 
   void EnterInlinedSource(int start_position, int id) {
-    if (FLAG_hydrogen_track_positions) {
+    if (top_info()->is_tracking_positions()) {
       start_position_ = start_position;
       position_.set_inlining_id(id);
     }
@@ -2118,14 +2119,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
  protected:
-  // Type of a member function that generates inline code for a native function.
-  typedef void (HOptimizedGraphBuilder::*InlineFunctionGenerator)
-      (CallRuntime* call);
-
   // Forward declarations for inner scope classes.
   class SubgraphScope;
-
-  static const InlineFunctionGenerator kInlineFunctionGenerators[];
 
   static const int kMaxCallPolymorphism = 4;
   static const int kMaxLoadPolymorphism = 4;
@@ -2168,13 +2163,85 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     return function_state()->compilation_info()->language_mode();
   }
 
-  // Generators for inline runtime functions.
-#define INLINE_FUNCTION_GENERATOR_DECLARATION(Name, argc, ressize)      \
-  void Generate##Name(CallRuntime* call);
+#define FOR_EACH_HYDROGEN_INTRINSIC(F) \
+  F(IsSmi)                             \
+  F(IsArray)                           \
+  F(IsRegExp)                          \
+  F(IsJSProxy)                         \
+  F(IsConstructCall)                   \
+  F(CallFunction)                      \
+  F(ArgumentsLength)                   \
+  F(Arguments)                         \
+  F(ValueOf)                           \
+  F(SetValueOf)                        \
+  F(DateField)                         \
+  F(StringCharFromCode)                \
+  F(StringCharAt)                      \
+  F(OneByteSeqStringSetChar)           \
+  F(TwoByteSeqStringSetChar)           \
+  F(ObjectEquals)                      \
+  F(IsObject)                          \
+  F(IsFunction)                        \
+  F(IsUndetectableObject)              \
+  F(IsSpecObject)                      \
+  F(MathPow)                           \
+  F(IsMinusZero)                       \
+  F(HasCachedArrayIndex)               \
+  F(GetCachedArrayIndex)               \
+  F(FastOneByteArrayJoin)              \
+  F(DebugBreakInOptimizedCode)         \
+  F(StringCharCodeAt)                  \
+  F(StringAdd)                         \
+  F(SubString)                         \
+  F(StringCompare)                     \
+  F(RegExpExec)                        \
+  F(RegExpConstructResult)             \
+  F(GetFromCache)                      \
+  F(NumberToString)                    \
+  F(DebugIsActive)                     \
+  /* Typed Arrays */                   \
+  F(TypedArrayInitialize)              \
+  F(DataViewInitialize)                \
+  F(MaxSmi)                            \
+  F(TypedArrayMaxSizeInHeap)           \
+  F(ArrayBufferViewGetByteLength)      \
+  F(ArrayBufferViewGetByteOffset)      \
+  F(TypedArrayGetLength)               \
+  /* ArrayBuffer */                    \
+  F(ArrayBufferGetByteLength)          \
+  /* Maths */                          \
+  F(ConstructDouble)                   \
+  F(DoubleHi)                          \
+  F(DoubleLo)                          \
+  F(MathClz32)                         \
+  F(MathFloor)                         \
+  F(MathSqrt)                          \
+  F(MathLogRT)                         \
+  /* ES6 Collections */                \
+  F(MapClear)                          \
+  F(MapDelete)                         \
+  F(MapGet)                            \
+  F(MapGetSize)                        \
+  F(MapHas)                            \
+  F(MapInitialize)                     \
+  F(MapSet)                            \
+  F(SetAdd)                            \
+  F(SetClear)                          \
+  F(SetDelete)                         \
+  F(SetGetSize)                        \
+  F(SetHas)                            \
+  F(SetInitialize)                     \
+  /* Arrays */                         \
+  F(HasFastPackedElements)             \
+  F(GetPrototype)                      \
+  /* Strings */                        \
+  F(StringGetLength)                   \
+  /* JSValue */                        \
+  F(JSValueGetValue)
 
-  INLINE_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_DECLARATION)
-  INLINE_OPTIMIZED_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_DECLARATION)
-#undef INLINE_FUNCTION_GENERATOR_DECLARATION
+#define GENERATOR_DECLARATION(Name) void Generate##Name(CallRuntime* call);
+  FOR_EACH_HYDROGEN_INTRINSIC(GENERATOR_DECLARATION)
+#undef GENERATOR_DECLARATION
 
   void VisitDelete(UnaryOperation* expr);
   void VisitVoid(UnaryOperation* expr);
@@ -2319,8 +2386,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   int InliningAstSize(Handle<JSFunction> target);
   bool TryInline(Handle<JSFunction> target, int arguments_count,
                  HValue* implicit_return_value, BailoutId ast_id,
-                 BailoutId return_id, InliningKind inlining_kind,
-                 SourcePosition position);
+                 BailoutId return_id, InliningKind inlining_kind);
 
   bool TryInlineCall(Call* expr);
   bool TryInlineConstruct(CallNew* expr, HValue* implicit_return_value);
@@ -2430,121 +2496,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void BuildInlinedCallArray(Expression* expression, int argument_count,
                              Handle<AllocationSite> site);
 
-  class LookupResult FINAL BASE_EMBEDDED {
-   public:
-    LookupResult()
-        : lookup_type_(NOT_FOUND),
-          details_(NONE, DATA, Representation::None()) {}
-
-    void LookupDescriptor(Map* map, Name* name) {
-      DescriptorArray* descriptors = map->instance_descriptors();
-      int number = descriptors->SearchWithCache(name, map);
-      if (number == DescriptorArray::kNotFound) return NotFound();
-      lookup_type_ = DESCRIPTOR_TYPE;
-      details_ = descriptors->GetDetails(number);
-      number_ = number;
-    }
-
-    void LookupTransition(Map* map, Name* name, PropertyAttributes attributes) {
-      int transition_index = map->SearchTransition(kData, name, attributes);
-      if (transition_index == TransitionArray::kNotFound) return NotFound();
-      lookup_type_ = TRANSITION_TYPE;
-      transition_ = handle(map->GetTransition(transition_index));
-      number_ = transition_->LastAdded();
-      details_ = transition_->instance_descriptors()->GetDetails(number_);
-    }
-
-    void NotFound() {
-      lookup_type_ = NOT_FOUND;
-      details_ = PropertyDetails(NONE, DATA, 0);
-    }
-
-    Representation representation() const {
-      DCHECK(IsFound());
-      return details_.representation();
-    }
-
-    // Property callbacks does not include transitions to callbacks.
-    bool IsAccessorConstant() const {
-      return !IsTransition() && details_.type() == ACCESSOR_CONSTANT;
-    }
-
-    bool IsReadOnly() const {
-      DCHECK(IsFound());
-      return details_.IsReadOnly();
-    }
-
-    bool IsData() const {
-      return lookup_type_ == DESCRIPTOR_TYPE && details_.type() == DATA;
-    }
-
-    bool IsDataConstant() const {
-      return lookup_type_ == DESCRIPTOR_TYPE &&
-             details_.type() == DATA_CONSTANT;
-    }
-
-    bool IsConfigurable() const { return details_.IsConfigurable(); }
-    bool IsFound() const { return lookup_type_ != NOT_FOUND; }
-    bool IsTransition() const { return lookup_type_ == TRANSITION_TYPE; }
-
-    // Is the result is a property excluding transitions and the null
-    // descriptor?
-    bool IsProperty() const { return IsFound() && !IsTransition(); }
-
-    Handle<Map> GetTransitionTarget() const {
-      DCHECK(IsTransition());
-      return transition_;
-    }
-
-    bool IsTransitionToData() const {
-      return IsTransition() && details_.type() == DATA;
-    }
-
-    int GetLocalFieldIndexFromMap(Map* map) const {
-      return GetFieldIndexFromMap(map) - map->inobject_properties();
-    }
-
-    Object* GetConstantFromMap(Map* map) const {
-      DCHECK(details_.type() == DATA_CONSTANT);
-      return GetValueFromMap(map);
-    }
-
-    Object* GetValueFromMap(Map* map) const {
-      DCHECK(lookup_type_ == DESCRIPTOR_TYPE ||
-             lookup_type_ == TRANSITION_TYPE);
-      DCHECK(number_ < map->NumberOfOwnDescriptors());
-      return map->instance_descriptors()->GetValue(number_);
-    }
-
-    int GetFieldIndexFromMap(Map* map) const {
-      DCHECK(lookup_type_ == DESCRIPTOR_TYPE ||
-             lookup_type_ == TRANSITION_TYPE);
-      DCHECK(number_ < map->NumberOfOwnDescriptors());
-      return map->instance_descriptors()->GetFieldIndex(number_);
-    }
-
-    HeapType* GetFieldTypeFromMap(Map* map) const {
-      DCHECK_NE(NOT_FOUND, lookup_type_);
-      DCHECK(number_ < map->NumberOfOwnDescriptors());
-      return map->instance_descriptors()->GetFieldType(number_);
-    }
-
-    Map* GetFieldOwnerFromMap(Map* map) const {
-      DCHECK(lookup_type_ == DESCRIPTOR_TYPE ||
-             lookup_type_ == TRANSITION_TYPE);
-      DCHECK(number_ < map->NumberOfOwnDescriptors());
-      return map->FindFieldOwner(number_);
-    }
-
-   private:
-    // Where did we find the result;
-    enum { NOT_FOUND, DESCRIPTOR_TYPE, TRANSITION_TYPE } lookup_type_;
-
-    Handle<Map> transition_;
-    int number_;
-    PropertyDetails details_;
-  };
-
   class PropertyAccessInfo {
    public:
     PropertyAccessInfo(HOptimizedGraphBuilder* builder,
@@ -2555,7 +2506,9 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
           map_(map),
           name_(name),
           field_type_(HType::Tagged()),
-          access_(HObjectAccess::ForMap()) {}
+          access_(HObjectAccess::ForMap()),
+          lookup_type_(NOT_FOUND),
+          details_(NONE, DATA, Representation::None()) {}
 
     // Checkes whether this PropertyAccessInfo can be handled as a monomorphic
     // load named. It additionally fills in the fields necessary to generate the
@@ -2604,20 +2557,26 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     Handle<JSObject> holder() { return holder_; }
     Handle<JSFunction> accessor() { return accessor_; }
     Handle<Object> constant() { return constant_; }
-    Handle<Map> transition() { return lookup_.GetTransitionTarget(); }
+    Handle<Map> transition() { return transition_; }
     SmallMapList* field_maps() { return &field_maps_; }
     HType field_type() const { return field_type_; }
     HObjectAccess access() { return access_; }
 
-    bool IsFound() const { return lookup_.IsFound(); }
-    bool IsProperty() const { return lookup_.IsProperty(); }
-    bool IsData() const { return lookup_.IsData(); }
-    bool IsDataConstant() const { return lookup_.IsDataConstant(); }
-    bool IsAccessorConstant() const { return lookup_.IsAccessorConstant(); }
-    bool IsTransition() const { return lookup_.IsTransition(); }
-
-    bool IsConfigurable() const { return lookup_.IsConfigurable(); }
-    bool IsReadOnly() const { return lookup_.IsReadOnly(); }
+    bool IsFound() const { return lookup_type_ != NOT_FOUND; }
+    bool IsProperty() const { return IsFound() && !IsTransition(); }
+    bool IsTransition() const { return lookup_type_ == TRANSITION_TYPE; }
+    bool IsData() const {
+      return lookup_type_ == DESCRIPTOR_TYPE && details_.type() == DATA;
+    }
+    bool IsDataConstant() const {
+      return lookup_type_ == DESCRIPTOR_TYPE &&
+             details_.type() == DATA_CONSTANT;
+    }
+    bool IsAccessorConstant() const {
+      return !IsTransition() && details_.type() == ACCESSOR_CONSTANT;
+    }
+    bool IsConfigurable() const { return details_.IsConfigurable(); }
+    bool IsReadOnly() const { return details_.IsReadOnly(); }
 
     bool IsStringType() { return map_->instance_type() < FIRST_NONSTRING_TYPE; }
     bool IsNumberType() { return map_->instance_type() == HEAP_NUMBER_TYPE; }
@@ -2625,31 +2584,71 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     bool IsArrayType() { return map_->instance_type() == JS_ARRAY_TYPE; }
 
    private:
-    Handle<Object> GetAccessorsFromMap(Handle<Map> map) const {
-      return handle(lookup_.GetValueFromMap(*map), isolate());
-    }
     Handle<Object> GetConstantFromMap(Handle<Map> map) const {
-      return handle(lookup_.GetConstantFromMap(*map), isolate());
+      DCHECK_EQ(DESCRIPTOR_TYPE, lookup_type_);
+      DCHECK(number_ < map->NumberOfOwnDescriptors());
+      return handle(map->instance_descriptors()->GetValue(number_), isolate());
+    }
+    Handle<Object> GetAccessorsFromMap(Handle<Map> map) const {
+      return GetConstantFromMap(map);
     }
     Handle<HeapType> GetFieldTypeFromMap(Handle<Map> map) const {
-      return handle(lookup_.GetFieldTypeFromMap(*map), isolate());
+      DCHECK(IsFound());
+      DCHECK(number_ < map->NumberOfOwnDescriptors());
+      return handle(map->instance_descriptors()->GetFieldType(number_),
+                    isolate());
     }
     Handle<Map> GetFieldOwnerFromMap(Handle<Map> map) const {
-      return handle(lookup_.GetFieldOwnerFromMap(*map));
+      DCHECK(IsFound());
+      DCHECK(number_ < map->NumberOfOwnDescriptors());
+      return handle(map->FindFieldOwner(number_));
     }
     int GetLocalFieldIndexFromMap(Handle<Map> map) const {
-      return lookup_.GetLocalFieldIndexFromMap(*map);
+      DCHECK(lookup_type_ == DESCRIPTOR_TYPE ||
+             lookup_type_ == TRANSITION_TYPE);
+      DCHECK(number_ < map->NumberOfOwnDescriptors());
+      int field_index = map->instance_descriptors()->GetFieldIndex(number_);
+      return field_index - map->inobject_properties();
     }
-    Representation representation() const { return lookup_.representation(); }
+
+    void LookupDescriptor(Map* map, Name* name) {
+      DescriptorArray* descriptors = map->instance_descriptors();
+      int number = descriptors->SearchWithCache(name, map);
+      if (number == DescriptorArray::kNotFound) return NotFound();
+      lookup_type_ = DESCRIPTOR_TYPE;
+      details_ = descriptors->GetDetails(number);
+      number_ = number;
+    }
+    void LookupTransition(Map* map, Name* name, PropertyAttributes attributes) {
+      Map* target =
+          TransitionArray::SearchTransition(map, kData, name, attributes);
+      if (target == NULL) return NotFound();
+      lookup_type_ = TRANSITION_TYPE;
+      transition_ = handle(target);
+      number_ = transition_->LastAdded();
+      details_ = transition_->instance_descriptors()->GetDetails(number_);
+    }
+    void NotFound() {
+      lookup_type_ = NOT_FOUND;
+      details_ = PropertyDetails::Empty();
+    }
+    Representation representation() const {
+      DCHECK(IsFound());
+      return details_.representation();
+    }
+    bool IsTransitionToData() const {
+      return IsTransition() && details_.type() == DATA;
+    }
 
     Zone* zone() { return builder_->zone(); }
     CompilationInfo* top_info() { return builder_->top_info(); }
     CompilationInfo* current_info() { return builder_->current_info(); }
 
     bool LoadResult(Handle<Map> map);
-    void LoadFieldMaps(Handle<Map> map);
+    bool LoadFieldMaps(Handle<Map> map);
     bool LookupDescriptor();
     bool LookupInPrototypes();
+    bool IsIntegerIndexedExotic();
     bool IsCompatible(PropertyAccessInfo* other);
 
     void GeneralizeRepresentation(Representation r) {
@@ -2657,7 +2656,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
           access_.representation().generalize(r));
     }
 
-    LookupResult lookup_;
     HOptimizedGraphBuilder* builder_;
     PropertyAccessType access_type_;
     Handle<Map> map_;
@@ -2669,6 +2667,11 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     SmallMapList field_maps_;
     HType field_type_;
     HObjectAccess access_;
+
+    enum { NOT_FOUND, DESCRIPTOR_TYPE, TRANSITION_TYPE } lookup_type_;
+    Handle<Map> transition_;
+    int number_;
+    PropertyDetails details_;
   };
 
   HInstruction* BuildMonomorphicAccess(PropertyAccessInfo* info,
@@ -2756,12 +2759,9 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                    PropertyAccessType access_type,
                                    bool* has_side_effects);
 
-  HInstruction* BuildNamedGeneric(PropertyAccessType access,
-                                  Expression* expr,
-                                  HValue* object,
-                                  Handle<String> name,
-                                  HValue* value,
-                                  bool is_uninitialized = false);
+  HInstruction* BuildNamedGeneric(PropertyAccessType access, Expression* expr,
+                                  HValue* object, Handle<String> name,
+                                  HValue* value, bool is_uninitialized = false);
 
   HCheckMaps* AddCheckMap(HValue* object, Handle<Map> map);
 

@@ -63,6 +63,7 @@ class BinaryOpICState FINAL BASE_EMBEDDED {
         left_kind_(NONE),
         right_kind_(NONE),
         result_kind_(NONE),
+        fixed_right_arg_(Nothing<int>()),
         isolate_(isolate) {
     DCHECK_LE(FIRST_TOKEN, op);
     DCHECK_LE(op, LAST_TOKEN);

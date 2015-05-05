@@ -52,7 +52,7 @@ class JSTypedLowering FINAL : public Reducer {
   Reduction ReduceUI32Shift(Node* node, Signedness left_signedness,
                             const Operator* shift_op);
 
-  Node* ConvertToNumber(Node* input);
+  Node* ConvertPrimitiveToNumber(Node* input);
   template <IrOpcode::Value>
   Node* FindConversion(Node* input);
   void InsertConversion(Node* conversion);

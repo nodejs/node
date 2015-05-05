@@ -42,7 +42,6 @@
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
 #include "src/macro-assembler.h"
-#include "src/serialize.h"
 
 namespace v8 {
 namespace internal {
@@ -243,27 +242,6 @@ bool RelocInfo::IsCodedSpecially() {
 
 bool RelocInfo::IsInConstantPool() {
   return Assembler::is_constant_pool_load(pc_);
-}
-
-
-void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
-  // Patch the code at the current address with the supplied instructions.
-  Instr* pc = reinterpret_cast<Instr*>(pc_);
-  Instr* instr = reinterpret_cast<Instr*>(instructions);
-  for (int i = 0; i < instruction_count; i++) {
-    *(pc + i) = *(instr + i);
-  }
-
-  // Indicate that code has changed.
-  CpuFeatures::FlushICache(pc_, instruction_count * Assembler::kInstrSize);
-}
-
-
-// Patch the code at the current PC with a call to the target address.
-// Additional guard instructions can be added if required.
-void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
-  // Patch the code at the current address with a call to the target.
-  UNIMPLEMENTED();
 }
 
 
@@ -1011,7 +989,7 @@ static bool fits_shifter(uint32_t imm32,
                          Instr* instr) {
   // imm32 must be unsigned.
   for (int rot = 0; rot < 16; rot++) {
-    uint32_t imm8 = (imm32 << 2*rot) | (imm32 >> (32 - 2*rot));
+    uint32_t imm8 = base::bits::RotateLeft32(imm32, 2 * rot);
     if ((imm8 <= 0xff)) {
       *rotate_imm = rot;
       *immed_8 = imm8;
@@ -3324,7 +3302,7 @@ Instr Assembler::PatchMovwImmediate(Instr instruction, uint32_t immediate) {
 int Assembler::DecodeShiftImm(Instr instr) {
   int rotate = Instruction::RotateValue(instr) * 2;
   int immed8 = Instruction::Immed8Value(instr);
-  return (immed8 >> rotate) | (immed8 << (32 - rotate));
+  return base::bits::RotateRight32(immed8, rotate);
 }
 
 

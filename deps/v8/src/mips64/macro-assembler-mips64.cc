@@ -89,6 +89,7 @@ void MacroAssembler::LoadRoot(Register destination,
 
 void MacroAssembler::StoreRoot(Register source,
                                Heap::RootListIndex index) {
+  DCHECK(Heap::RootCanBeWrittenAfterInitialization(index));
   sd(source, MemOperand(s6, index << kPointerSizeLog2));
 }
 
@@ -97,6 +98,7 @@ void MacroAssembler::StoreRoot(Register source,
                                Heap::RootListIndex index,
                                Condition cond,
                                Register src1, const Operand& src2) {
+  DCHECK(Heap::RootCanBeWrittenAfterInitialization(index));
   Branch(2, NegateCondition(cond), src1, src2);
   sd(source, MemOperand(s6, index << kPointerSizeLog2));
 }
@@ -1717,6 +1719,14 @@ void MacroAssembler::BranchF(Label* target,
 }
 
 
+void MacroAssembler::FmoveLow(FPURegister dst, Register src_low) {
+  DCHECK(!src_low.is(at));
+  mfhc1(at, dst);
+  mtc1(src_low, dst);
+  mthc1(at, dst);
+}
+
+
 void MacroAssembler::Move(FPURegister dst, float imm) {
   li(at, Operand(bit_cast<int32_t>(imm)));
   mtc1(at, dst);
@@ -2112,7 +2122,7 @@ void MacroAssembler::BranchShort(int16_t offset, Condition cond, Register rs,
       // Unsigned comparison.
       case Ugreater:
         if (r2.is(zero_reg)) {
-          bgtz(rs, offset);
+          bne(rs, zero_reg, offset);
         } else {
           sltu(scratch, r2, rs);
           bne(scratch, zero_reg, offset);
@@ -2120,7 +2130,7 @@ void MacroAssembler::BranchShort(int16_t offset, Condition cond, Register rs,
         break;
       case Ugreater_equal:
         if (r2.is(zero_reg)) {
-          bgez(rs, offset);
+          b(offset);
         } else {
           sltu(scratch, rs, r2);
           beq(scratch, zero_reg, offset);
@@ -2137,7 +2147,7 @@ void MacroAssembler::BranchShort(int16_t offset, Condition cond, Register rs,
         break;
       case Uless_equal:
         if (r2.is(zero_reg)) {
-          b(offset);
+          beq(rs, zero_reg, offset);
         } else {
           sltu(scratch, r2, rs);
           beq(scratch, zero_reg, offset);
@@ -2227,7 +2237,7 @@ void MacroAssembler::BranchShort(int16_t offset, Condition cond, Register rs,
       // Unsigned comparison.
       case Ugreater:
         if (rt.imm64_ == 0) {
-          bgtz(rs, offset);
+          bne(rs, zero_reg, offset);
         } else {
           r2 = scratch;
           li(r2, rt);
@@ -2237,7 +2247,7 @@ void MacroAssembler::BranchShort(int16_t offset, Condition cond, Register rs,
         break;
       case Ugreater_equal:
         if (rt.imm64_ == 0) {
-          bgez(rs, offset);
+          b(offset);
         } else if (is_int16(rt.imm64_)) {
           sltiu(scratch, rs, rt.imm64_);
           beq(scratch, zero_reg, offset);
@@ -2264,7 +2274,7 @@ void MacroAssembler::BranchShort(int16_t offset, Condition cond, Register rs,
         break;
       case Uless_equal:
         if (rt.imm64_ == 0) {
-          b(offset);
+          beq(rs, zero_reg, offset);
         } else {
           r2 = scratch;
           li(r2, rt);
@@ -2366,7 +2376,7 @@ void MacroAssembler::BranchShort(Label* L, Condition cond, Register rs,
       case Ugreater:
         if (r2.is(zero_reg)) {
           offset = shifted_branch_offset(L, false);
-           bgtz(rs, offset);
+          bne(rs, zero_reg, offset);
         } else {
           sltu(scratch, r2, rs);
           offset = shifted_branch_offset(L, false);
@@ -2376,7 +2386,7 @@ void MacroAssembler::BranchShort(Label* L, Condition cond, Register rs,
       case Ugreater_equal:
         if (r2.is(zero_reg)) {
           offset = shifted_branch_offset(L, false);
-          bgez(rs, offset);
+          b(offset);
         } else {
           sltu(scratch, rs, r2);
           offset = shifted_branch_offset(L, false);
@@ -2396,7 +2406,7 @@ void MacroAssembler::BranchShort(Label* L, Condition cond, Register rs,
       case Uless_equal:
         if (r2.is(zero_reg)) {
           offset = shifted_branch_offset(L, false);
-          b(offset);
+          beq(rs, zero_reg, offset);
         } else {
           sltu(scratch, r2, rs);
           offset = shifted_branch_offset(L, false);
@@ -2518,7 +2528,7 @@ void MacroAssembler::BranchShort(Label* L, Condition cond, Register rs,
       case Ugreater_equal:
         if (rt.imm64_ == 0) {
           offset = shifted_branch_offset(L, false);
-          bgez(rs, offset);
+          b(offset);
         } else if (is_int16(rt.imm64_)) {
           sltiu(scratch, rs, rt.imm64_);
           offset = shifted_branch_offset(L, false);
@@ -3212,147 +3222,28 @@ void MacroAssembler::DebugBreak() {
 // ---------------------------------------------------------------------------
 // Exception handling.
 
-void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
-                                    int handler_index) {
+void MacroAssembler::PushStackHandler() {
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 1 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 3 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 4 * kPointerSize);
-
-  // For the JSEntry handler, we must preserve a0-a3 and s0.
-  // a5-a7 are available. We will build up the handler from the bottom by
-  // pushing on the stack.
-  // Set up the code object (a5) and the state (a6) for pushing.
-  unsigned state =
-      StackHandler::IndexField::encode(handler_index) |
-      StackHandler::KindField::encode(kind);
-  li(a5, Operand(CodeObject()), CONSTANT_SIZE);
-  li(a6, Operand(state));
-
-  // Push the frame pointer, context, state, and code object.
-  if (kind == StackHandler::JS_ENTRY) {
-    DCHECK_EQ(static_cast<Smi*>(0), Smi::FromInt(0));
-    // The second zero_reg indicates no context.
-    // The first zero_reg is the NULL frame pointer.
-    // The operands are reversed to match the order of MultiPush/Pop.
-    Push(zero_reg, zero_reg, a6, a5);
-  } else {
-    MultiPush(a5.bit() | a6.bit() | cp.bit() | fp.bit());
-  }
 
   // Link the current handler as the next handler.
   li(a6, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
   ld(a5, MemOperand(a6));
   push(a5);
+
   // Set this new handler as the current one.
   sd(sp, MemOperand(a6));
 }
 
 
-void MacroAssembler::PopTryHandler() {
+void MacroAssembler::PopStackHandler() {
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   pop(a1);
-  Daddu(sp, sp, Operand(StackHandlerConstants::kSize - kPointerSize));
+  Daddu(sp, sp, Operand(static_cast<int64_t>(StackHandlerConstants::kSize -
+                                             kPointerSize)));
   li(at, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
   sd(a1, MemOperand(at));
-}
-
-
-void MacroAssembler::JumpToHandlerEntry() {
-  // Compute the handler entry address and jump to it.  The handler table is
-  // a fixed array of (smi-tagged) code offsets.
-  // v0 = exception, a1 = code object, a2 = state.
-  ld(a3, FieldMemOperand(a1, Code::kHandlerTableOffset));
-  Daddu(a3, a3, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  dsrl(a2, a2, StackHandler::kKindWidth);  // Handler index.
-  dsll(a2, a2, kPointerSizeLog2);
-  Daddu(a2, a3, a2);
-  ld(a2, MemOperand(a2));  // Smi-tagged offset.
-  Daddu(a1, a1, Operand(Code::kHeaderSize - kHeapObjectTag));  // Code start.
-  dsra32(t9, a2, 0);
-  Daddu(t9, t9, a1);
-  Jump(t9);  // Jump.
-}
-
-
-void MacroAssembler::Throw(Register value) {
-  // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
-  STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 3 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 4 * kPointerSize);
-
-  // The exception is expected in v0.
-  Move(v0, value);
-
-  // Drop the stack pointer to the top of the top handler.
-  li(a3, Operand(ExternalReference(Isolate::kHandlerAddress,
-                                   isolate())));
-  ld(sp, MemOperand(a3));
-
-  // Restore the next handler.
-  pop(a2);
-  sd(a2, MemOperand(a3));
-
-  // Get the code object (a1) and state (a2).  Restore the context and frame
-  // pointer.
-  MultiPop(a1.bit() | a2.bit() | cp.bit() | fp.bit());
-
-  // If the handler is a JS frame, restore the context to the frame.
-  // (kind == ENTRY) == (fp == 0) == (cp == 0), so we could test either fp
-  // or cp.
-  Label done;
-  Branch(&done, eq, cp, Operand(zero_reg));
-  sd(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  bind(&done);
-
-  JumpToHandlerEntry();
-}
-
-
-void MacroAssembler::ThrowUncatchable(Register value) {
-  // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kCodeOffset == 1 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 2 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 3 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 4 * kPointerSize);
-
-  // The exception is expected in v0.
-  if (!value.is(v0)) {
-    mov(v0, value);
-  }
-  // Drop the stack pointer to the top of the top stack handler.
-  li(a3, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
-  ld(sp, MemOperand(a3));
-
-  // Unwind the handlers until the ENTRY handler is found.
-  Label fetch_next, check_kind;
-  jmp(&check_kind);
-  bind(&fetch_next);
-  ld(sp, MemOperand(sp, StackHandlerConstants::kNextOffset));
-
-  bind(&check_kind);
-  STATIC_ASSERT(StackHandler::JS_ENTRY == 0);
-  ld(a2, MemOperand(sp, StackHandlerConstants::kStateOffset));
-  And(a2, a2, Operand(StackHandler::KindField::kMask));
-  Branch(&fetch_next, ne, a2, Operand(zero_reg));
-
-  // Set the top handler address to next handler past the top ENTRY handler.
-  pop(a2);
-  sd(a2, MemOperand(a3));
-
-  // Get the code object (a1) and state (a2).  Clear the context and frame
-  // pointer (0 was saved in the handler).
-  MultiPop(a1.bit() | a2.bit() | cp.bit() | fp.bit());
-
-  JumpToHandlerEntry();
 }
 
 
@@ -3865,69 +3756,42 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
                                                  Register elements_reg,
                                                  Register scratch1,
                                                  Register scratch2,
-                                                 Register scratch3,
                                                  Label* fail,
                                                  int elements_offset) {
-  Label smi_value, maybe_nan, have_double_value, is_nan, done;
-  Register mantissa_reg = scratch2;
-  Register exponent_reg = scratch3;
+  Label smi_value, done;
 
   // Handle smi values specially.
   JumpIfSmi(value_reg, &smi_value);
 
-  // Ensure that the object is a heap number
+  // Ensure that the object is a heap number.
   CheckMap(value_reg,
            scratch1,
            Heap::kHeapNumberMapRootIndex,
            fail,
            DONT_DO_SMI_CHECK);
 
-  // Check for nan: all NaN values have a value greater (signed) than 0x7ff00000
-  // in the exponent.
-  li(scratch1, Operand(kHoleNanUpper32 & HeapNumber::kExponentMask));
-  lw(exponent_reg, FieldMemOperand(value_reg, HeapNumber::kExponentOffset));
-  Branch(&maybe_nan, ge, exponent_reg, Operand(scratch1));
+  // Double value, turn potential sNaN into qNan.
+  DoubleRegister double_result = f0;
+  DoubleRegister double_scratch = f2;
 
-  lwu(mantissa_reg, FieldMemOperand(value_reg, HeapNumber::kMantissaOffset));
-
-  bind(&have_double_value);
-  // dsll(scratch1, key_reg, kDoubleSizeLog2 - kSmiTagSize);
-  dsra(scratch1, key_reg, 32 - kDoubleSizeLog2);
-  Daddu(scratch1, scratch1, elements_reg);
-  sw(mantissa_reg, FieldMemOperand(
-     scratch1, FixedDoubleArray::kHeaderSize - elements_offset));
-  uint32_t offset = FixedDoubleArray::kHeaderSize - elements_offset +
-      sizeof(kHoleNanLower32);
-  sw(exponent_reg, FieldMemOperand(scratch1, offset));
-  jmp(&done);
-
-  bind(&maybe_nan);
-  // Could be NaN, Infinity or -Infinity. If fraction is not zero, it's NaN,
-  // otherwise it's Infinity or -Infinity, and the non-NaN code path applies.
-  lw(mantissa_reg, FieldMemOperand(value_reg, HeapNumber::kMantissaOffset));
-  Branch(&have_double_value, eq, mantissa_reg, Operand(zero_reg));
-  bind(&is_nan);
-  // Load canonical NaN for storing into the double array.
-  LoadRoot(at, Heap::kNanValueRootIndex);
-  lw(mantissa_reg, FieldMemOperand(at, HeapNumber::kMantissaOffset));
-  lw(exponent_reg, FieldMemOperand(at, HeapNumber::kExponentOffset));
-  jmp(&have_double_value);
+  ldc1(double_result, FieldMemOperand(value_reg, HeapNumber::kValueOffset));
+  Branch(USE_DELAY_SLOT, &done);  // Canonicalization is one instruction.
+  FPUCanonicalizeNaN(double_result, double_result);
 
   bind(&smi_value);
+  // scratch1 is now effective address of the double element.
+  // Untag and transfer.
+  dsrl32(at, value_reg, 0);
+  mtc1(at, double_scratch);
+  cvt_d_w(double_result, double_scratch);
+
+  bind(&done);
   Daddu(scratch1, elements_reg,
       Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag -
               elements_offset));
-  // dsll(scratch2, key_reg, kDoubleSizeLog2 - kSmiTagSize);
   dsra(scratch2, key_reg, 32 - kDoubleSizeLog2);
   Daddu(scratch1, scratch1, scratch2);
-  // scratch1 is now effective address of the double element
-
-  Register untagged_value = elements_reg;
-  SmiUntag(untagged_value, value_reg);
-  mtc1(untagged_value, f2);
-  cvt_d_w(f0, f2);
-  sdc1(f0, MemOperand(scratch1, 0));
-  bind(&done);
+  sdc1(double_result, MemOperand(scratch1, 0));
 }
 
 
@@ -3999,6 +3863,10 @@ void MacroAssembler::GetWeakValue(Register value, Handle<WeakCell> cell) {
   ld(value, FieldMemOperand(value, WeakCell::kValueOffset));
 }
 
+void MacroAssembler::FPUCanonicalizeNaN(const DoubleRegister dst,
+                                        const DoubleRegister src) {
+  sub_d(dst, src, kDoubleRegZero);
+}
 
 void MacroAssembler::LoadWeakValue(Register value, Handle<WeakCell> cell,
                                    Label* miss) {
@@ -4267,6 +4135,20 @@ void MacroAssembler::IsObjectNameType(Register object,
 // Support functions.
 
 
+void MacroAssembler::GetMapConstructor(Register result, Register map,
+                                       Register temp, Register temp2) {
+  Label done, loop;
+  ld(result, FieldMemOperand(map, Map::kConstructorOrBackPointerOffset));
+  bind(&loop);
+  JumpIfSmi(result, &done);
+  GetObjectType(result, temp, temp2);
+  Branch(&done, ne, temp2, Operand(MAP_TYPE));
+  ld(result, FieldMemOperand(result, Map::kConstructorOrBackPointerOffset));
+  Branch(&loop);
+  bind(&done);
+}
+
+
 void MacroAssembler::TryGetFunctionPrototype(Register function,
                                              Register result,
                                              Register scratch,
@@ -4319,7 +4201,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
     // Non-instance prototype: Fetch prototype from constructor field
     // in initial map.
     bind(&non_instance);
-    ld(result, FieldMemOperand(result, Map::kConstructorOffset));
+    GetMapConstructor(result, result, scratch, scratch);
   }
 
   // All done.

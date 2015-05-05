@@ -73,8 +73,10 @@ typedef TestWithZone ScheduleTest;
 
 namespace {
 
+const Operator kCallOperator(IrOpcode::kCall, Operator::kNoProperties,
+                             "MockCall", 0, 0, 0, 0, 0, 0);
 const Operator kBranchOperator(IrOpcode::kBranch, Operator::kNoProperties,
-                               "Branch", 0, 0, 0, 0, 0, 0);
+                               "MockBranch", 0, 0, 0, 0, 0, 0);
 const Operator kDummyOperator(IrOpcode::kParameter, Operator::kNoProperties,
                               "Dummy", 0, 0, 0, 0, 0, 0);
 
@@ -132,6 +134,35 @@ TEST_F(ScheduleTest, AddGoto) {
 
   EXPECT_EQ(0u, end->PredecessorCount());
   EXPECT_EQ(0u, end->SuccessorCount());
+}
+
+
+TEST_F(ScheduleTest, AddCall) {
+  Schedule schedule(zone());
+  BasicBlock* start = schedule.start();
+
+  Node* call = Node::New(zone(), 0, &kCallOperator, 0, nullptr, false);
+  BasicBlock* sblock = schedule.NewBasicBlock();
+  BasicBlock* eblock = schedule.NewBasicBlock();
+  schedule.AddCall(start, call, sblock, eblock);
+
+  EXPECT_EQ(start, schedule.block(call));
+
+  EXPECT_EQ(0u, start->PredecessorCount());
+  EXPECT_EQ(2u, start->SuccessorCount());
+  EXPECT_EQ(sblock, start->SuccessorAt(0));
+  EXPECT_EQ(eblock, start->SuccessorAt(1));
+  EXPECT_THAT(start->successors(), ElementsAre(sblock, eblock));
+
+  EXPECT_EQ(1u, sblock->PredecessorCount());
+  EXPECT_EQ(0u, sblock->SuccessorCount());
+  EXPECT_EQ(start, sblock->PredecessorAt(0));
+  EXPECT_THAT(sblock->predecessors(), ElementsAre(start));
+
+  EXPECT_EQ(1u, eblock->PredecessorCount());
+  EXPECT_EQ(0u, eblock->SuccessorCount());
+  EXPECT_EQ(start, eblock->PredecessorAt(0));
+  EXPECT_THAT(eblock->predecessors(), ElementsAre(start));
 }
 
 

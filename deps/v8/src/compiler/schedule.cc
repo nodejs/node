@@ -100,10 +100,14 @@ std::ostream& operator<<(std::ostream& os, const BasicBlock::Control& c) {
       return os << "none";
     case BasicBlock::kGoto:
       return os << "goto";
+    case BasicBlock::kCall:
+      return os << "call";
     case BasicBlock::kBranch:
       return os << "branch";
     case BasicBlock::kSwitch:
       return os << "switch";
+    case BasicBlock::kDeoptimize:
+      return os << "deoptimize";
     case BasicBlock::kReturn:
       return os << "return";
     case BasicBlock::kThrow:
@@ -116,11 +120,6 @@ std::ostream& operator<<(std::ostream& os, const BasicBlock::Control& c) {
 
 std::ostream& operator<<(std::ostream& os, const BasicBlock::Id& id) {
   return os << id.ToSize();
-}
-
-
-std::ostream& operator<<(std::ostream& os, const BasicBlock::RpoNumber& rpo) {
-  return os << rpo.ToSize();
 }
 
 
@@ -194,16 +193,27 @@ void Schedule::AddNode(BasicBlock* block, Node* node) {
 
 
 void Schedule::AddGoto(BasicBlock* block, BasicBlock* succ) {
-  DCHECK(block->control() == BasicBlock::kNone);
+  DCHECK_EQ(BasicBlock::kNone, block->control());
   block->set_control(BasicBlock::kGoto);
   AddSuccessor(block, succ);
 }
 
 
+void Schedule::AddCall(BasicBlock* block, Node* call, BasicBlock* success_block,
+                       BasicBlock* exception_block) {
+  DCHECK_EQ(BasicBlock::kNone, block->control());
+  DCHECK_EQ(IrOpcode::kCall, call->opcode());
+  block->set_control(BasicBlock::kCall);
+  AddSuccessor(block, success_block);
+  AddSuccessor(block, exception_block);
+  SetControlInput(block, call);
+}
+
+
 void Schedule::AddBranch(BasicBlock* block, Node* branch, BasicBlock* tblock,
                          BasicBlock* fblock) {
-  DCHECK(block->control() == BasicBlock::kNone);
-  DCHECK(branch->opcode() == IrOpcode::kBranch);
+  DCHECK_EQ(BasicBlock::kNone, block->control());
+  DCHECK_EQ(IrOpcode::kBranch, branch->opcode());
   block->set_control(BasicBlock::kBranch);
   AddSuccessor(block, tblock);
   AddSuccessor(block, fblock);
@@ -224,15 +234,23 @@ void Schedule::AddSwitch(BasicBlock* block, Node* sw, BasicBlock** succ_blocks,
 
 
 void Schedule::AddReturn(BasicBlock* block, Node* input) {
-  DCHECK(block->control() == BasicBlock::kNone);
+  DCHECK_EQ(BasicBlock::kNone, block->control());
   block->set_control(BasicBlock::kReturn);
   SetControlInput(block, input);
   if (block != end()) AddSuccessor(block, end());
 }
 
 
+void Schedule::AddDeoptimize(BasicBlock* block, Node* input) {
+  DCHECK_EQ(BasicBlock::kNone, block->control());
+  block->set_control(BasicBlock::kDeoptimize);
+  SetControlInput(block, input);
+  if (block != end()) AddSuccessor(block, end());
+}
+
+
 void Schedule::AddThrow(BasicBlock* block, Node* input) {
-  DCHECK(block->control() == BasicBlock::kNone);
+  DCHECK_EQ(BasicBlock::kNone, block->control());
   block->set_control(BasicBlock::kThrow);
   SetControlInput(block, input);
   if (block != end()) AddSuccessor(block, end());
@@ -241,8 +259,8 @@ void Schedule::AddThrow(BasicBlock* block, Node* input) {
 
 void Schedule::InsertBranch(BasicBlock* block, BasicBlock* end, Node* branch,
                             BasicBlock* tblock, BasicBlock* fblock) {
-  DCHECK(block->control() != BasicBlock::kNone);
-  DCHECK(end->control() == BasicBlock::kNone);
+  DCHECK_NE(BasicBlock::kNone, block->control());
+  DCHECK_EQ(BasicBlock::kNone, end->control());
   end->set_control(block->control());
   block->set_control(BasicBlock::kBranch);
   MoveSuccessors(block, end);
@@ -306,14 +324,14 @@ void Schedule::SetBlockForNode(BasicBlock* block, Node* node) {
 
 std::ostream& operator<<(std::ostream& os, const Schedule& s) {
   for (BasicBlock* block : *s.rpo_order()) {
-    os << "--- BLOCK B" << block->id();
+    os << "--- BLOCK B" << block->rpo_number();
     if (block->deferred()) os << " (deferred)";
     if (block->PredecessorCount() != 0) os << " <- ";
     bool comma = false;
     for (BasicBlock const* predecessor : block->predecessors()) {
       if (comma) os << ", ";
       comma = true;
-      os << "B" << predecessor->id();
+      os << "B" << predecessor->rpo_number();
     }
     os << " ---\n";
     for (Node* node : *block) {
@@ -342,7 +360,7 @@ std::ostream& operator<<(std::ostream& os, const Schedule& s) {
       for (BasicBlock const* successor : block->successors()) {
         if (comma) os << ", ";
         comma = true;
-        os << "B" << successor->id();
+        os << "B" << successor->rpo_number();
       }
       os << "\n";
     }

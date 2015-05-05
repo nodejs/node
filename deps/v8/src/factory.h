@@ -196,6 +196,14 @@ class Factory FINAL {
   // Create a new cons string object which consists of a pair of strings.
   MUST_USE_RESULT MaybeHandle<String> NewConsString(Handle<String> left,
                                                     Handle<String> right);
+  MUST_USE_RESULT MaybeHandle<String> NewOneByteConsString(
+      int length, Handle<String> left, Handle<String> right);
+  MUST_USE_RESULT MaybeHandle<String> NewTwoByteConsString(
+      int length, Handle<String> left, Handle<String> right);
+  MUST_USE_RESULT MaybeHandle<String> NewRawConsString(Handle<Map> map,
+                                                       int length,
+                                                       Handle<String> left,
+                                                       Handle<String> right);
 
   // Create a new string object which holds a proper substring of a string.
   Handle<String> NewProperSubString(Handle<String> str,
@@ -292,9 +300,7 @@ class Factory FINAL {
 
   Handle<Cell> NewCell(Handle<Object> value);
 
-  Handle<PropertyCell> NewPropertyCellWithHole();
-
-  Handle<PropertyCell> NewPropertyCell(Handle<Object> value);
+  Handle<PropertyCell> NewPropertyCell();
 
   Handle<WeakCell> NewWeakCell(Handle<HeapObject> value);
 
@@ -519,40 +525,38 @@ class Factory FINAL {
 
   // Interface for creating error objects.
 
-  MaybeHandle<Object> NewError(const char* maker, const char* message,
-                               Handle<JSArray> args);
+  Handle<Object> NewError(const char* maker, const char* message,
+                          Handle<JSArray> args);
   Handle<String> EmergencyNewError(const char* message, Handle<JSArray> args);
-  MaybeHandle<Object> NewError(const char* maker, const char* message,
+  Handle<Object> NewError(const char* maker, const char* message,
+                          Vector<Handle<Object> > args);
+  Handle<Object> NewError(const char* message, Vector<Handle<Object> > args);
+  Handle<Object> NewError(Handle<String> message);
+  Handle<Object> NewError(const char* constructor, Handle<String> message);
+
+  Handle<Object> NewTypeError(const char* message,
+                              Vector<Handle<Object> > args);
+  Handle<Object> NewTypeError(Handle<String> message);
+
+  Handle<Object> NewRangeError(const char* message,
                                Vector<Handle<Object> > args);
-  MaybeHandle<Object> NewError(const char* message,
-                               Vector<Handle<Object> > args);
-  MaybeHandle<Object> NewError(Handle<String> message);
-  MaybeHandle<Object> NewError(const char* constructor, Handle<String> message);
+  Handle<Object> NewRangeError(Handle<String> message);
 
-  MaybeHandle<Object> NewTypeError(const char* message,
-                                   Vector<Handle<Object> > args);
-  MaybeHandle<Object> NewTypeError(Handle<String> message);
-
-  MaybeHandle<Object> NewRangeError(const char* message,
-                                    Vector<Handle<Object> > args);
-  MaybeHandle<Object> NewRangeError(Handle<String> message);
-
-  MaybeHandle<Object> NewInvalidStringLengthError() {
+  Handle<Object> NewInvalidStringLengthError() {
     return NewRangeError("invalid_string_length",
                          HandleVector<Object>(NULL, 0));
   }
 
-  MaybeHandle<Object> NewSyntaxError(const char* message, Handle<JSArray> args);
-  MaybeHandle<Object> NewSyntaxError(Handle<String> message);
+  Handle<Object> NewSyntaxError(const char* message, Handle<JSArray> args);
+  Handle<Object> NewSyntaxError(Handle<String> message);
 
-  MaybeHandle<Object> NewReferenceError(const char* message,
-                                        Vector<Handle<Object> > args);
-  MaybeHandle<Object> NewReferenceError(const char* message,
-                                        Handle<JSArray> args);
-  MaybeHandle<Object> NewReferenceError(Handle<String> message);
-
-  MaybeHandle<Object> NewEvalError(const char* message,
+  Handle<Object> NewReferenceError(const char* message,
                                    Vector<Handle<Object> > args);
+  Handle<Object> NewReferenceError(const char* message, Handle<JSArray> args);
+  Handle<Object> NewReferenceError(Handle<String> message);
+
+  Handle<Object> NewEvalError(const char* message,
+                              Vector<Handle<Object> > args);
 
   Handle<String> NumberToString(Handle<Object> number,
                                 bool check_number_string_cache = true);
@@ -620,8 +624,8 @@ class Factory FINAL {
                                                    MaybeHandle<Code> code);
 
   // Allocate a new type feedback vector
-  Handle<TypeFeedbackVector> NewTypeFeedbackVector(
-      const FeedbackVectorSpec& spec);
+  template <typename Spec>
+  Handle<TypeFeedbackVector> NewTypeFeedbackVector(const Spec* spec);
 
   // Allocates a new JSMessageObject object.
   Handle<JSMessageObject> NewJSMessageObject(

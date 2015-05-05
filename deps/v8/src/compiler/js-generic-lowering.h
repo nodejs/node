@@ -5,11 +5,8 @@
 #ifndef V8_COMPILER_JS_GENERIC_LOWERING_H_
 #define V8_COMPILER_JS_GENERIC_LOWERING_H_
 
-#include "src/allocation.h"
 #include "src/code-factory.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/graph-reducer.h"
-#include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/opcodes.h"
 
@@ -19,6 +16,7 @@ namespace compiler {
 
 // Forward declarations.
 class CommonOperatorBuilder;
+class JSGraph;
 class MachineOperatorBuilder;
 class Linkage;
 
@@ -26,8 +24,8 @@ class Linkage;
 // Lowers JS-level operators to runtime and IC calls in the "generic" case.
 class JSGenericLowering FINAL : public Reducer {
  public:
-  JSGenericLowering(bool is_typing_enabled, JSGraph* graph);
-  ~JSGenericLowering() FINAL {}
+  JSGenericLowering(bool is_typing_enabled, JSGraph* jsgraph);
+  ~JSGenericLowering() FINAL;
 
   Reduction Reduce(Node* node) FINAL;
 
@@ -46,16 +44,16 @@ class JSGenericLowering FINAL : public Reducer {
   // Helper for optimization of JSCallFunction.
   bool TryLowerDirectJSCall(Node* node);
 
-  Zone* zone() const { return graph()->zone(); }
-  Isolate* isolate() const { return jsgraph()->isolate(); }
+  Zone* zone() const;
+  Isolate* isolate() const;
   JSGraph* jsgraph() const { return jsgraph_; }
-  Graph* graph() const { return jsgraph()->graph(); }
-  CommonOperatorBuilder* common() const { return jsgraph()->common(); }
-  MachineOperatorBuilder* machine() const { return jsgraph()->machine(); }
+  Graph* graph() const;
+  CommonOperatorBuilder* common() const;
+  MachineOperatorBuilder* machine() const;
 
  private:
-  bool is_typing_enabled_;
-  JSGraph* jsgraph_;
+  bool const is_typing_enabled_;
+  JSGraph* const jsgraph_;
 };
 
 }  // namespace compiler

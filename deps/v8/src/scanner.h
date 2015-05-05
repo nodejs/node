@@ -427,7 +427,6 @@ class Scanner {
     }
   }
 
-  int FindNumber(DuplicateFinder* finder, int value);
   int FindSymbol(DuplicateFinder* finder, int value);
 
   UnicodeCache* unicode_cache() { return unicode_cache_; }
@@ -436,18 +435,15 @@ class Scanner {
   Location octal_position() const { return octal_pos_; }
   void clear_octal_position() { octal_pos_ = Location::invalid(); }
 
+  // Returns the value of the last smi that was scanned.
+  int smi_value() const { return smi_value_; }
+
   // Seek forward to the given position.  This operation does not
   // work in general, for instance when there are pushed back
   // characters, but works for seeking forward until simple delimiter
   // tokens, which is what it is used for.
   void SeekForward(int pos);
 
-  bool HarmonyScoping() const {
-    return harmony_scoping_;
-  }
-  void SetHarmonyScoping(bool scoping) {
-    harmony_scoping_ = scoping;
-  }
   bool HarmonyModules() const {
     return harmony_modules_;
   }
@@ -466,8 +462,6 @@ class Scanner {
   void SetHarmonyClasses(bool classes) {
     harmony_classes_ = classes;
   }
-  bool HarmonyTemplates() const { return harmony_templates_; }
-  void SetHarmonyTemplates(bool templates) { harmony_templates_ = templates; }
   bool HarmonyUnicode() const { return harmony_unicode_; }
   void SetHarmonyUnicode(bool unicode) { harmony_unicode_ = unicode; }
 
@@ -530,8 +524,11 @@ class Scanner {
   }
 
   inline void StartRawLiteral() {
-    raw_literal_buffer_.Reset();
-    next_.raw_literal_chars = &raw_literal_buffer_;
+    LiteralBuffer* free_buffer =
+        (current_.raw_literal_chars == &raw_literal_buffer1_) ?
+            &raw_literal_buffer2_ : &raw_literal_buffer1_;
+    free_buffer->Reset();
+    next_.raw_literal_chars = free_buffer;
   }
 
   INLINE(void AddLiteralChar(uc32 c)) {
@@ -562,12 +559,16 @@ class Scanner {
   }
 
   // Low-level scanning support.
-  template <bool capture_raw = false>
+  template <bool capture_raw = false, bool check_surrogate = true>
   void Advance() {
     if (capture_raw) {
       AddRawLiteralChar(c0_);
     }
     c0_ = source_->Advance();
+    if (check_surrogate) HandleLeadSurrogate();
+  }
+
+  void HandleLeadSurrogate() {
     if (unibrow::Utf16::IsLeadSurrogate(c0_)) {
       uc32 c1 = source_->Advance();
       if (!unibrow::Utf16::IsTrailSurrogate(c1)) {
@@ -710,7 +711,8 @@ class Scanner {
   LiteralBuffer source_mapping_url_;
 
   // Buffer to store raw string values
-  LiteralBuffer raw_literal_buffer_;
+  LiteralBuffer raw_literal_buffer1_;
+  LiteralBuffer raw_literal_buffer2_;
 
   TokenDesc current_;  // desc for current token (as returned by Next())
   TokenDesc next_;     // desc for next token (one token look-ahead)
@@ -722,6 +724,9 @@ class Scanner {
   // Start position of the octal literal last scanned.
   Location octal_pos_;
 
+  // Value of the last smi that was scanned.
+  int smi_value_;
+
   // One Unicode character look-ahead; c0_ < 0 at the end of the input.
   uc32 c0_;
 
@@ -732,16 +737,12 @@ class Scanner {
   // Whether there is a multi-line comment that contains a
   // line-terminator after the current token, and before the next.
   bool has_multiline_comment_before_next_;
-  // Whether we scan 'let' as a keyword for harmony block-scoped let bindings.
-  bool harmony_scoping_;
   // Whether we scan 'module', 'import', 'export' as keywords.
   bool harmony_modules_;
   // Whether we scan 0o777 and 0b111 as numbers.
   bool harmony_numeric_literals_;
   // Whether we scan 'class', 'extends', 'static' and 'super' as keywords.
   bool harmony_classes_;
-  // Whether we scan TEMPLATE_SPAN and TEMPLATE_TAIL
-  bool harmony_templates_;
   // Whether we allow \u{xxxxx}.
   bool harmony_unicode_;
 };
