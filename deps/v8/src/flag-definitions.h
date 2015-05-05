@@ -182,32 +182,29 @@ DEFINE_IMPLICATION(harmony, es_staging)
 DEFINE_IMPLICATION(es_staging, harmony)
 
 // Features that are still work in progress (behind individual flags).
-#define HARMONY_INPROGRESS(V)                                           \
-  V(harmony_modules, "harmony modules (implies block scoping)")         \
-  V(harmony_arrays, "harmony array methods")                            \
-  V(harmony_array_includes, "harmony Array.prototype.includes")         \
-  V(harmony_regexps, "harmony regular expression extensions")           \
-  V(harmony_arrow_functions, "harmony arrow functions")                 \
-  V(harmony_proxies, "harmony proxies")                                 \
-  V(harmony_sloppy, "harmony features in sloppy mode")                  \
-  V(harmony_unicode, "harmony unicode escapes")                         \
-  V(harmony_unicode_regexps, "harmony unicode regexps")                 \
-  V(harmony_computed_property_names, "harmony computed property names") \
-  V(harmony_rest_parameters, "harmony rest parameters")                 \
+#define HARMONY_INPROGRESS(V)                                   \
+  V(harmony_modules, "harmony modules")                         \
+  V(harmony_arrays, "harmony array methods")                    \
+  V(harmony_array_includes, "harmony Array.prototype.includes") \
+  V(harmony_regexps, "harmony regular expression extensions")   \
+  V(harmony_arrow_functions, "harmony arrow functions")         \
+  V(harmony_proxies, "harmony proxies")                         \
+  V(harmony_sloppy, "harmony features in sloppy mode")          \
+  V(harmony_unicode, "harmony unicode escapes")                 \
+  V(harmony_unicode_regexps, "harmony unicode regexps")         \
+  V(harmony_rest_parameters, "harmony rest parameters")         \
+  V(harmony_reflect, "harmony Reflect API")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED(V)                                                 \
-  V(harmony_tostring, "harmony toString")                                 \
+#define HARMONY_STAGED(V)                                               \
+  V(harmony_computed_property_names, "harmony computed property names") \
+  V(harmony_tostring, "harmony toString")
 
 // Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING(V)                                               \
-  V(harmony_numeric_literals, "harmony numeric literals")                 \
-  V(harmony_strings, "harmony string methods")                            \
-  V(harmony_scoping, "harmony block scoping")                             \
-  V(harmony_templates, "harmony template literals")                       \
-  V(harmony_classes,                                                      \
-    "harmony classes (implies block scoping & object literal extension)") \
-  V(harmony_object_literals, "harmony object literal extensions")         \
+#define HARMONY_SHIPPING(V)                                                \
+  V(harmony_numeric_literals, "harmony numeric literals")                  \
+  V(harmony_classes, "harmony classes (implies object literal extension)") \
+  V(harmony_object_literals, "harmony object literal extensions")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
 // from HARMONY_SHIPPING, all occurrences of the FLAG_ variable are removed,
@@ -234,8 +231,6 @@ HARMONY_SHIPPING(FLAG_SHIPPING_FEATURES)
 
 
 // Feature dependencies.
-DEFINE_IMPLICATION(harmony_modules, harmony_scoping)
-DEFINE_IMPLICATION(harmony_classes, harmony_scoping)
 DEFINE_IMPLICATION(harmony_classes, harmony_object_literals)
 DEFINE_IMPLICATION(harmony_unicode_regexps, harmony_unicode)
 
@@ -301,6 +296,8 @@ DEFINE_BOOL(collect_megamorphic_maps_from_stub_cache, true,
             "crankshaft harvests type feedback from stub cache")
 DEFINE_BOOL(hydrogen_stats, false, "print statistics for hydrogen")
 DEFINE_BOOL(trace_check_elimination, false, "trace check elimination phase")
+DEFINE_BOOL(trace_environment_liveness, false,
+            "trace liveness of local variable slots")
 DEFINE_BOOL(trace_hydrogen, false, "trace generated hydrogen to file")
 DEFINE_STRING(trace_hydrogen_filter, "*", "hydrogen tracing filter")
 DEFINE_BOOL(trace_hydrogen_stubs, false, "trace generated hydrogen for stubs")
@@ -367,10 +364,9 @@ DEFINE_BOOL(optimize_for_in, true, "optimize functions containing for-in loops")
 
 DEFINE_BOOL(concurrent_recompilation, true,
             "optimizing hot functions asynchronously on a separate thread")
-DEFINE_BOOL(job_based_recompilation, false,
+DEFINE_BOOL(job_based_recompilation, true,
             "post tasks to v8::Platform instead of using a thread for "
             "concurrent recompilation")
-DEFINE_IMPLICATION(job_based_recompilation, concurrent_recompilation)
 DEFINE_BOOL(trace_concurrent_recompilation, false,
             "track concurrent recompilation")
 DEFINE_INT(concurrent_recompilation_queue_length, 8,
@@ -402,6 +398,7 @@ DEFINE_BOOL(turbo_verify, DEBUG_BOOL, "verify TurboFan graphs at each phase")
 DEFINE_BOOL(turbo_stats, false, "print TurboFan statistics")
 DEFINE_BOOL(turbo_splitting, true, "split nodes during scheduling in TurboFan")
 DEFINE_BOOL(turbo_types, true, "use typed lowering in TurboFan")
+DEFINE_BOOL(turbo_type_feedback, false, "use type feedback in TurboFan")
 DEFINE_BOOL(turbo_source_positions, false,
             "track source code positions when building TurboFan IR")
 DEFINE_IMPLICATION(trace_turbo, turbo_source_positions)
@@ -409,9 +406,9 @@ DEFINE_BOOL(context_specialization, false,
             "enable context specialization in TurboFan")
 DEFINE_BOOL(turbo_deoptimization, false, "enable deoptimization in TurboFan")
 DEFINE_BOOL(turbo_inlining, false, "enable inlining in TurboFan")
+DEFINE_BOOL(turbo_builtin_inlining, true, "enable builtin inlining in TurboFan")
 DEFINE_BOOL(trace_turbo_inlining, false, "trace TurboFan inlining")
 DEFINE_BOOL(loop_assignment_analysis, true, "perform loop assignment analysis")
-DEFINE_IMPLICATION(turbo_inlining, turbo_types)
 DEFINE_BOOL(turbo_profiling, false, "enable profiling in TurboFan")
 // TODO(dcarney): this is just for experimentation, remove when default.
 DEFINE_BOOL(turbo_delay_ssa_decon, false,
@@ -420,11 +417,11 @@ DEFINE_BOOL(turbo_verify_allocation, DEBUG_BOOL,
             "verify register allocation in TurboFan")
 DEFINE_BOOL(turbo_move_optimization, true, "optimize gap moves in TurboFan")
 DEFINE_BOOL(turbo_jt, true, "enable jump threading in TurboFan")
-DEFINE_BOOL(turbo_osr, false, "enable OSR in TurboFan")
+DEFINE_BOOL(turbo_osr, true, "enable OSR in TurboFan")
 DEFINE_BOOL(turbo_exceptions, false, "enable exception handling in TurboFan")
 DEFINE_BOOL(turbo_stress_loop_peeling, false,
             "stress loop peeling optimization")
-DEFINE_BOOL(turbo_switch, true, "optimize switches in TurboFan")
+DEFINE_BOOL(turbo_cf_optimization, true, "optimize control flow in TurboFan")
 
 DEFINE_INT(typed_array_max_size_in_heap, 64,
            "threshold for in-heap typed array")
@@ -578,6 +575,8 @@ DEFINE_INT(initial_old_space_size, 0, "initial old space size (in Mbytes)")
 DEFINE_INT(max_executable_size, 0, "max size of executable memory (in Mbytes)")
 DEFINE_BOOL(gc_global, false, "always perform global GCs")
 DEFINE_INT(gc_interval, -1, "garbage collect after <n> allocations")
+DEFINE_INT(retain_maps_for_n_gc, 2,
+           "keeps maps alive for <n> old space garbage collections")
 DEFINE_BOOL(trace_gc, false,
             "print one trace line following each garbage collection")
 DEFINE_BOOL(trace_gc_nvp, false,
@@ -596,8 +595,9 @@ DEFINE_BOOL(print_max_heap_committed, false,
             "in name=value format on exit")
 DEFINE_BOOL(trace_gc_verbose, false,
             "print more details following each garbage collection")
-DEFINE_BOOL(trace_fragmentation, false,
-            "report fragmentation for old pointer and data pages")
+DEFINE_BOOL(trace_fragmentation, false, "report fragmentation for old space")
+DEFINE_BOOL(trace_fragmentation_verbose, false,
+            "report fragmentation for old space (detailed)")
 DEFINE_BOOL(collect_maps, true,
             "garbage collect maps from which no objects can be reached")
 DEFINE_BOOL(weak_embedded_maps_in_optimized_code, true,
@@ -614,8 +614,13 @@ DEFINE_BOOL(age_code, true,
             "old code (required for code flushing)")
 DEFINE_BOOL(incremental_marking, true, "use incremental marking")
 DEFINE_BOOL(incremental_marking_steps, true, "do incremental marking steps")
-DEFINE_BOOL(overapproximate_weak_closure, false,
+DEFINE_BOOL(overapproximate_weak_closure, true,
             "overapproximate weak closer to reduce atomic pause time")
+DEFINE_INT(min_progress_during_object_groups_marking, 128,
+           "keep overapproximating the weak closure as long as we discover at "
+           "least this many unmarked objects")
+DEFINE_INT(max_object_groups_marking_rounds, 3,
+           "at most try this many times to over approximate the weak closure")
 DEFINE_BOOL(concurrent_sweeping, true, "use concurrent sweeping")
 DEFINE_BOOL(trace_incremental_marking, false,
             "trace progress of the incremental marking")
@@ -753,6 +758,19 @@ DEFINE_NEG_IMPLICATION(predictable, concurrent_recompilation)
 DEFINE_NEG_IMPLICATION(predictable, concurrent_osr)
 DEFINE_NEG_IMPLICATION(predictable, concurrent_sweeping)
 
+// mark-compact.cc
+DEFINE_BOOL(force_marking_deque_overflows, false,
+            "force overflows of marking deque by reducing it's size "
+            "to 64 words")
+
+DEFINE_BOOL(stress_compaction, false,
+            "stress the GC compactor to flush out bugs (implies "
+            "--force_marking_deque_overflows)")
+
+DEFINE_BOOL(manual_evacuation_candidates_selection, false,
+            "Test mode only flag. It allows an unit test to select evacuation "
+            "candidates pages (requires --stress_compaction).")
+
 
 //
 // Dev shell flags
@@ -770,21 +788,24 @@ DEFINE_ARGS(js_arguments,
 //
 // GDB JIT integration flags.
 //
+#undef FLAG
+#ifdef ENABLE_GDB_JIT_INTERFACE
+#define FLAG FLAG_FULL
+#else
+#define FLAG FLAG_READONLY
+#endif
 
-DEFINE_BOOL(gdbjit, false, "enable GDBJIT interface (disables compacting GC)")
+DEFINE_BOOL(gdbjit, false, "enable GDBJIT interface")
 DEFINE_BOOL(gdbjit_full, false, "enable GDBJIT interface for all code objects")
 DEFINE_BOOL(gdbjit_dump, false, "dump elf objects with debug info to disk")
 DEFINE_STRING(gdbjit_dump_filter, "",
               "dump only objects containing this substring")
 
-// mark-compact.cc
-DEFINE_BOOL(force_marking_deque_overflows, false,
-            "force overflows of marking deque by reducing it's size "
-            "to 64 words")
-
-DEFINE_BOOL(stress_compaction, false,
-            "stress the GC compactor to flush out bugs (implies "
-            "--force_marking_deque_overflows)")
+#ifdef ENABLE_GDB_JIT_INTERFACE
+DEFINE_IMPLICATION(gdbjit_full, gdbjit)
+DEFINE_IMPLICATION(gdbjit_dump, gdbjit)
+#endif
+DEFINE_NEG_IMPLICATION(gdbjit, compact_code_space)
 
 //
 // Debug only flags

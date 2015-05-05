@@ -28,6 +28,7 @@ struct SharedOperator {
   int control_input_count;
   int value_output_count;
   int effect_output_count;
+  int control_output_count;
 };
 
 
@@ -39,48 +40,48 @@ std::ostream& operator<<(std::ostream& os, const SharedOperator& sop) {
 const SharedOperator kSharedOperators[] = {
 #define SHARED(Name, properties, value_input_count, frame_state_input_count, \
                effect_input_count, control_input_count, value_output_count,  \
-               effect_output_count)                                          \
+               effect_output_count, control_output_count)                    \
   {                                                                          \
     &JSOperatorBuilder::Name, IrOpcode::kJS##Name, properties,               \
         value_input_count, frame_state_input_count, effect_input_count,      \
-        control_input_count, value_output_count, effect_output_count         \
+        control_input_count, value_output_count, effect_output_count,        \
+        control_output_count                                                 \
   }
-    SHARED(Equal, Operator::kNoProperties, 2, 1, 1, 1, 1, 1),
-    SHARED(NotEqual, Operator::kNoProperties, 2, 1, 1, 1, 1, 1),
-    SHARED(StrictEqual, Operator::kPure, 2, 0, 0, 0, 1, 0),
-    SHARED(StrictNotEqual, Operator::kPure, 2, 0, 0, 0, 1, 0),
-    SHARED(LessThan, Operator::kNoProperties, 2, 1, 1, 1, 1, 1),
-    SHARED(GreaterThan, Operator::kNoProperties, 2, 1, 1, 1, 1, 1),
-    SHARED(LessThanOrEqual, Operator::kNoProperties, 2, 1, 1, 1, 1, 1),
-    SHARED(GreaterThanOrEqual, Operator::kNoProperties, 2, 1, 1, 1, 1, 1),
-    SHARED(BitwiseOr, Operator::kNoProperties, 2, 1, 1, 1, 1, 1),
-    SHARED(BitwiseXor, Operator::kNoProperties, 2, 1, 1, 1, 1, 1),
-    SHARED(BitwiseAnd, Operator::kNoProperties, 2, 1, 1, 1, 1, 1),
-    SHARED(ShiftLeft, Operator::kNoProperties, 2, 1, 1, 1, 1, 1),
-    SHARED(ShiftRight, Operator::kNoProperties, 2, 1, 1, 1, 1, 1),
-    SHARED(ShiftRightLogical, Operator::kNoProperties, 2, 1, 1, 1, 1, 1),
-    SHARED(Add, Operator::kNoProperties, 2, 1, 1, 1, 1, 1),
-    SHARED(Subtract, Operator::kNoProperties, 2, 1, 1, 1, 1, 1),
-    SHARED(Multiply, Operator::kNoProperties, 2, 1, 1, 1, 1, 1),
-    SHARED(Divide, Operator::kNoProperties, 2, 1, 1, 1, 1, 1),
-    SHARED(Modulus, Operator::kNoProperties, 2, 1, 1, 1, 1, 1),
-    SHARED(UnaryNot, Operator::kPure, 1, 0, 0, 0, 1, 0),
-    SHARED(ToBoolean, Operator::kPure, 1, 0, 0, 0, 1, 0),
-    SHARED(ToNumber, Operator::kNoProperties, 1, 1, 1, 1, 1, 1),
-    SHARED(ToString, Operator::kNoProperties, 1, 0, 1, 1, 1, 1),
-    SHARED(ToName, Operator::kNoProperties, 1, 1, 1, 1, 1, 1),
-    SHARED(ToObject, Operator::kNoProperties, 1, 1, 1, 1, 1, 1),
-    SHARED(Yield, Operator::kNoProperties, 1, 0, 1, 1, 1, 1),
-    SHARED(Create, Operator::kEliminatable, 0, 0, 1, 1, 1, 1),
-    SHARED(HasProperty, Operator::kNoProperties, 2, 1, 1, 1, 1, 1),
-    SHARED(TypeOf, Operator::kPure, 1, 0, 0, 0, 1, 0),
-    SHARED(InstanceOf, Operator::kNoProperties, 2, 1, 1, 1, 1, 1),
-    SHARED(Debugger, Operator::kNoProperties, 0, 0, 1, 1, 0, 1),
-    SHARED(CreateFunctionContext, Operator::kNoProperties, 1, 0, 1, 1, 1, 1),
-    SHARED(CreateWithContext, Operator::kNoProperties, 2, 1, 1, 1, 1, 1),
-    SHARED(CreateBlockContext, Operator::kNoProperties, 2, 0, 1, 1, 1, 1),
-    SHARED(CreateModuleContext, Operator::kNoProperties, 2, 0, 1, 1, 1, 1),
-    SHARED(CreateScriptContext, Operator::kNoProperties, 2, 0, 1, 1, 1, 1)
+    SHARED(Equal, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
+    SHARED(NotEqual, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
+    SHARED(StrictEqual, Operator::kPure, 2, 0, 0, 0, 1, 0, 0),
+    SHARED(StrictNotEqual, Operator::kPure, 2, 0, 0, 0, 1, 0, 0),
+    SHARED(LessThan, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
+    SHARED(GreaterThan, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
+    SHARED(LessThanOrEqual, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
+    SHARED(GreaterThanOrEqual, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
+    SHARED(BitwiseOr, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
+    SHARED(BitwiseXor, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
+    SHARED(BitwiseAnd, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
+    SHARED(ShiftLeft, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
+    SHARED(ShiftRight, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
+    SHARED(ShiftRightLogical, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
+    SHARED(Add, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
+    SHARED(Subtract, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
+    SHARED(Multiply, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
+    SHARED(Divide, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
+    SHARED(Modulus, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
+    SHARED(UnaryNot, Operator::kPure, 1, 0, 0, 0, 1, 0, 0),
+    SHARED(ToBoolean, Operator::kPure, 1, 0, 0, 0, 1, 0, 0),
+    SHARED(ToNumber, Operator::kNoProperties, 1, 1, 1, 1, 1, 1, 2),
+    SHARED(ToString, Operator::kNoProperties, 1, 0, 1, 1, 1, 1, 2),
+    SHARED(ToName, Operator::kNoProperties, 1, 1, 1, 1, 1, 1, 2),
+    SHARED(ToObject, Operator::kNoProperties, 1, 1, 1, 1, 1, 1, 2),
+    SHARED(Yield, Operator::kNoProperties, 1, 0, 1, 1, 1, 1, 2),
+    SHARED(Create, Operator::kEliminatable, 0, 0, 1, 0, 1, 1, 0),
+    SHARED(HasProperty, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
+    SHARED(TypeOf, Operator::kPure, 1, 0, 0, 0, 1, 0, 0),
+    SHARED(InstanceOf, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
+    SHARED(CreateFunctionContext, Operator::kNoProperties, 1, 0, 1, 1, 1, 1, 2),
+    SHARED(CreateWithContext, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
+    SHARED(CreateBlockContext, Operator::kNoProperties, 2, 0, 1, 1, 1, 1, 2),
+    SHARED(CreateModuleContext, Operator::kNoProperties, 2, 0, 1, 1, 1, 1, 2),
+    SHARED(CreateScriptContext, Operator::kNoProperties, 2, 0, 1, 1, 1, 1, 2)
 #undef SHARED
 };
 
@@ -122,7 +123,7 @@ TEST_P(JSSharedOperatorTest, NumberOfInputsAndOutputs) {
 
   EXPECT_EQ(sop.value_output_count, op->ValueOutputCount());
   EXPECT_EQ(sop.effect_output_count, op->EffectOutputCount());
-  EXPECT_EQ(0, op->ControlOutputCount());
+  EXPECT_EQ(sop.control_output_count, op->ControlOutputCount());
 }
 
 
@@ -169,7 +170,7 @@ TEST_P(JSStorePropertyOperatorTest, NumberOfInputsAndOutputs) {
   const Operator* op = javascript.StoreProperty(mode);
 
   // TODO(jarin): Get rid of this hack.
-  const int frame_state_input_count = FLAG_turbo_deoptimization ? 1 : 0;
+  const int frame_state_input_count = FLAG_turbo_deoptimization ? 2 : 0;
   EXPECT_EQ(3, op->ValueInputCount());
   EXPECT_EQ(1, OperatorProperties::GetContextInputCount(op));
   EXPECT_EQ(frame_state_input_count,
@@ -181,7 +182,7 @@ TEST_P(JSStorePropertyOperatorTest, NumberOfInputsAndOutputs) {
 
   EXPECT_EQ(0, op->ValueOutputCount());
   EXPECT_EQ(1, op->EffectOutputCount());
-  EXPECT_EQ(0, op->ControlOutputCount());
+  EXPECT_EQ(2, op->ControlOutputCount());
 }
 
 

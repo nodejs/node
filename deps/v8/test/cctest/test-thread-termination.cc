@@ -192,6 +192,7 @@ TEST(TerminateOnlyV8ThreadFromOtherThread) {
   // Run a loop that will be infinite if thread termination does not work.
   v8::Handle<v8::String> source = v8::String::NewFromUtf8(
       CcTest::isolate(), "try { loop(); fail(); } catch(e) { fail(); }");
+  i::FLAG_turbo_osr = false;  // TODO(titzer): interrupts in TF loops.
   v8::Script::Compile(source)->Run();
 
   thread.Join();
@@ -228,6 +229,7 @@ void LoopGetProperty(const v8::FunctionCallbackInfo<v8::Value>& args) {
                               "    }"
                               "    fail();"
                               "  } catch(e) {"
+                              "    (function() {})();"  // trigger stack check.
                               "    fail();"
                               "  }"
                               "}"
@@ -375,6 +377,7 @@ void MicrotaskLoopForever(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // Enqueue another should-not-run task to ensure we clean out the queue
   // when we terminate.
   isolate->EnqueueMicrotask(v8::Function::New(isolate, MicrotaskShouldNotRun));
+  i::FLAG_turbo_osr = false;  // TODO(titzer): interrupts in TF loops.
   CompileRun("terminate(); while (true) { }");
   CHECK(v8::V8::IsExecutionTerminating());
 }
@@ -473,4 +476,66 @@ TEST(ErrorObjectAfterTermination) {
   v8::Local<v8::Value> error = v8::Exception::Error(v8_str("error"));
   // TODO(yangguo): crbug/403509. Check for empty handle instead.
   CHECK(error->IsUndefined());
+}
+
+
+void InnerTryCallTerminate(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  CHECK(!v8::V8::IsExecutionTerminating(args.GetIsolate()));
+  v8::Handle<v8::Object> global = CcTest::global();
+  v8::Handle<v8::Function> loop =
+      v8::Handle<v8::Function>::Cast(global->Get(v8_str("loop")));
+  i::MaybeHandle<i::Object> result =
+      i::Execution::TryCall(v8::Utils::OpenHandle((*loop)),
+                            v8::Utils::OpenHandle((*global)), 0, NULL, NULL);
+  CHECK(result.is_null());
+  // TryCall ignores terminate execution, but rerequests the interrupt.
+  CHECK(!v8::V8::IsExecutionTerminating(args.GetIsolate()));
+  CHECK(CompileRun("1 + 1;").IsEmpty());
+}
+
+
+TEST(TerminationInInnerTryCall) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> global_template = CreateGlobalTemplate(
+      CcTest::isolate(), TerminateCurrentThread, DoLoopNoCall);
+  global_template->Set(
+      v8_str("inner_try_call_terminate"),
+      v8::FunctionTemplate::New(isolate, InnerTryCallTerminate));
+  v8::Handle<v8::Context> context =
+      v8::Context::New(CcTest::isolate(), NULL, global_template);
+  v8::Context::Scope context_scope(context);
+  {
+    v8::TryCatch try_catch;
+    CompileRun("inner_try_call_terminate()");
+    CHECK(try_catch.HasTerminated());
+  }
+  CHECK_EQ(4, CompileRun("2 + 2")->ToInt32()->Int32Value());
+  CHECK(!v8::V8::IsExecutionTerminating());
+}
+
+
+TEST(TerminateAndTryCall) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> global = CreateGlobalTemplate(
+      isolate, TerminateCurrentThread, DoLoopCancelTerminate);
+  v8::Handle<v8::Context> context = v8::Context::New(isolate, NULL, global);
+  v8::Context::Scope context_scope(context);
+  CHECK(!v8::V8::IsExecutionTerminating(isolate));
+  v8::TryCatch try_catch;
+  CHECK(!v8::V8::IsExecutionTerminating(isolate));
+  // Terminate execution has been triggered inside TryCall, but re-requested
+  // to trigger later.
+  CHECK(CompileRun("terminate(); reference_error();").IsEmpty());
+  CHECK(try_catch.HasCaught());
+  CHECK(!v8::V8::IsExecutionTerminating(isolate));
+  CHECK(CcTest::global()->Get(v8_str("terminate"))->IsFunction());
+  // The first stack check after terminate has been re-requested fails.
+  CHECK(CompileRun("1 + 1").IsEmpty());
+  CHECK(!v8::V8::IsExecutionTerminating(isolate));
+  // V8 then recovers.
+  CHECK_EQ(4, CompileRun("2 + 2")->ToInt32()->Int32Value());
+  CHECK(!v8::V8::IsExecutionTerminating(isolate));
 }

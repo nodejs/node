@@ -39,11 +39,11 @@ class MipsOperandConverter FINAL : public InstructionOperandConverter {
   MipsOperandConverter(CodeGenerator* gen, Instruction* instr)
       : InstructionOperandConverter(gen, instr) {}
 
-  FloatRegister OutputSingleRegister(int index = 0) {
+  FloatRegister OutputSingleRegister(size_t index = 0) {
     return ToSingleRegister(instr_->OutputAt(index));
   }
 
-  FloatRegister InputSingleRegister(int index) {
+  FloatRegister InputSingleRegister(size_t index) {
     return ToSingleRegister(instr_->InputAt(index));
   }
 
@@ -53,7 +53,7 @@ class MipsOperandConverter FINAL : public InstructionOperandConverter {
     return ToDoubleRegister(op);
   }
 
-  Operand InputImmediate(int index) {
+  Operand InputImmediate(size_t index) {
     Constant constant = ToConstant(instr_->InputAt(index));
     switch (constant.type()) {
       case Constant::kInt32:
@@ -78,7 +78,7 @@ class MipsOperandConverter FINAL : public InstructionOperandConverter {
     return Operand(zero_reg);
   }
 
-  Operand InputOperand(int index) {
+  Operand InputOperand(size_t index) {
     InstructionOperand* op = instr_->InputAt(index);
     if (op->IsRegister()) {
       return Operand(ToRegister(op));
@@ -86,8 +86,8 @@ class MipsOperandConverter FINAL : public InstructionOperandConverter {
     return InputImmediate(index);
   }
 
-  MemOperand MemoryOperand(int* first_index) {
-    const int index = *first_index;
+  MemOperand MemoryOperand(size_t* first_index) {
+    const size_t index = *first_index;
     switch (AddressingModeField::decode(instr_->opcode())) {
       case kMode_None:
         break;
@@ -102,7 +102,7 @@ class MipsOperandConverter FINAL : public InstructionOperandConverter {
     return MemOperand(no_reg);
   }
 
-  MemOperand MemoryOperand(int index = 0) { return MemoryOperand(&index); }
+  MemOperand MemoryOperand(size_t index = 0) { return MemoryOperand(&index); }
 
   MemOperand ToMemOperand(InstructionOperand* op) const {
     DCHECK(op != NULL);
@@ -116,7 +116,7 @@ class MipsOperandConverter FINAL : public InstructionOperandConverter {
 };
 
 
-static inline bool HasRegisterInput(Instruction* instr, int index) {
+static inline bool HasRegisterInput(Instruction* instr, size_t index) {
   return instr->InputAt(index)->IsRegister();
 }
 
@@ -408,7 +408,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ addiu(at, i.InputRegister(0), Code::kHeaderSize - kHeapObjectTag);
         __ Call(at);
       }
-      AddSafepointAndDeopt(instr);
+      RecordCallPosition(instr);
       break;
     }
     case kArchCallJSFunction: {
@@ -422,7 +422,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
 
       __ lw(at, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
       __ Call(at);
-      AddSafepointAndDeopt(instr);
+      RecordCallPosition(instr);
       break;
     }
     case kArchJmp:
@@ -437,6 +437,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArchNop:
       // don't emit code for nops.
       break;
+    case kArchDeoptimize: {
+      int deopt_state_id =
+          BuildTranslation(instr, -1, 0, OutputFrameStateCombine::Ignore());
+      AssembleDeoptimizerCall(deopt_state_id, Deoptimizer::EAGER);
+      break;
+    }
     case kArchRet:
       AssembleReturn();
       break;
@@ -489,6 +495,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kMipsXor:
       __ Xor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      break;
+    case kMipsClz:
+      __ Clz(i.OutputRegister(), i.InputRegister(0));
       break;
     case kMipsShl:
       if (instr->InputAt(1)->IsRegister()) {
@@ -567,16 +576,16 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ MovFromFloatResult(i.OutputDoubleRegister());
       break;
     }
-    case kMipsFloat64Floor: {
+    case kMipsFloat64RoundDown: {
       ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(floor_l_d, Floor);
-      break;
-    }
-    case kMipsFloat64Ceil: {
-      ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(ceil_l_d, Ceil);
       break;
     }
     case kMipsFloat64RoundTruncate: {
       ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(trunc_l_d, Truncate);
+      break;
+    }
+    case kMipsFloat64RoundUp: {
+      ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(ceil_l_d, Ceil);
       break;
     }
     case kMipsSqrtD: {
@@ -615,6 +624,18 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Trunc_uw_d(i.InputDoubleRegister(0), i.OutputRegister(), scratch);
       break;
     }
+    case kMipsFloat64ExtractLowWord32:
+      __ FmoveLow(i.OutputRegister(), i.InputDoubleRegister(0));
+      break;
+    case kMipsFloat64ExtractHighWord32:
+      __ FmoveHigh(i.OutputRegister(), i.InputDoubleRegister(0));
+      break;
+    case kMipsFloat64InsertLowWord32:
+      __ FmoveLow(i.OutputDoubleRegister(), i.InputRegister(1));
+      break;
+    case kMipsFloat64InsertHighWord32:
+      __ FmoveHigh(i.OutputDoubleRegister(), i.InputRegister(1));
+      break;
     // ... more basic instructions ...
 
     case kMipsLbu:
@@ -646,7 +667,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kMipsSwc1: {
-      int index = 0;
+      size_t index = 0;
       MemOperand operand = i.MemoryOperand(&index);
       __ swc1(i.InputSingleRegister(index), operand);
       break;
@@ -803,7 +824,7 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
 }
 
 
-void CodeGenerator::AssembleArchJump(BasicBlock::RpoNumber target) {
+void CodeGenerator::AssembleArchJump(RpoNumber target) {
   if (!IsNextInAssemblyOrder(target)) __ Branch(GetLabel(target));
 }
 
@@ -917,9 +938,10 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
 }
 
 
-void CodeGenerator::AssembleDeoptimizerCall(int deoptimization_id) {
+void CodeGenerator::AssembleDeoptimizerCall(
+    int deoptimization_id, Deoptimizer::BailoutType bailout_type) {
   Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
-      isolate(), deoptimization_id, Deoptimizer::LAZY);
+      isolate(), deoptimization_id, bailout_type);
   __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
 }
 
@@ -962,6 +984,8 @@ void CodeGenerator::AssemblePrologue() {
     // remaining stack slots.
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
+    // TODO(titzer): cannot address target function == local #-1
+    __ lw(a1, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
     DCHECK(stack_slots >= frame()->GetOsrStackSlotCount());
     stack_slots -= frame()->GetOsrStackSlotCount();
   }
@@ -1150,9 +1174,9 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     Register temp_0 = kScratchReg;
     FPURegister temp_1 = kScratchDoubleReg;
     MemOperand src0 = g.ToMemOperand(source);
-    MemOperand src1(src0.rm(), src0.offset() + kPointerSize);
+    MemOperand src1(src0.rm(), src0.offset() + kIntSize);
     MemOperand dst0 = g.ToMemOperand(destination);
-    MemOperand dst1(dst0.rm(), dst0.offset() + kPointerSize);
+    MemOperand dst1(dst0.rm(), dst0.offset() + kIntSize);
     __ ldc1(temp_1, dst0);  // Save destination in temp_1.
     __ lw(temp_0, src0);    // Then use temp_0 to copy source to destination.
     __ sw(temp_0, dst0);

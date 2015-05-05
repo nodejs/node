@@ -272,10 +272,9 @@ BasicJsonStringifier::Result BasicJsonStringifier::StackPush(
     for (int i = 0; i < length; i++) {
       if (elements->get(i) == *object) {
         AllowHeapAllocation allow_to_return_error;
-        Handle<Object> error;
-        MaybeHandle<Object> maybe_error = factory()->NewTypeError(
+        Handle<Object> error = factory()->NewTypeError(
             "circular_structure", HandleVector<Object>(NULL, 0));
-        if (maybe_error.ToHandle(&error)) isolate_->Throw(*error);
+        isolate_->Throw(*error);
         return EXCEPTION;
       }
     }

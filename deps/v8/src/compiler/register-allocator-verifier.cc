@@ -162,6 +162,13 @@ void RegisterAllocatorVerifier::BuildConstraint(const InstructionOperand* op,
             constraint->type_ = kRegister;
           }
           break;
+        case UnallocatedOperand::MUST_HAVE_SLOT:
+          if (sequence()->IsDouble(vreg)) {
+            constraint->type_ = kDoubleSlot;
+          } else {
+            constraint->type_ = kSlot;
+          }
+          break;
         case UnallocatedOperand::SAME_AS_FIRST_INPUT:
           constraint->type_ = kSameAsFirst;
           break;
@@ -200,6 +207,12 @@ void RegisterAllocatorVerifier::CheckConstraint(
       CHECK(op->IsStackSlot());
       CHECK_EQ(op->index(), constraint->value_);
       return;
+    case kSlot:
+      CHECK(op->IsStackSlot());
+      return;
+    case kDoubleSlot:
+      CHECK(op->IsDoubleStackSlot());
+      return;
     case kNone:
       CHECK(op->IsRegister() || op->IsStackSlot());
       return;
@@ -214,7 +227,7 @@ void RegisterAllocatorVerifier::CheckConstraint(
 
 namespace {
 
-typedef BasicBlock::RpoNumber Rpo;
+typedef RpoNumber Rpo;
 
 static const int kInvalidVreg = InstructionOperand::kInvalidVirtualRegister;
 
@@ -245,8 +258,7 @@ class PhiMap : public ZoneMap<int, PhiData*>, public ZoneObject {
 struct OperandLess {
   bool operator()(const InstructionOperand* a,
                   const InstructionOperand* b) const {
-    if (a->kind() == b->kind()) return a->index() < b->index();
-    return a->kind() < b->kind();
+    return *a < *b;
   }
 };
 
@@ -302,7 +314,10 @@ class OperandMap : public ZoneObject {
       if (i->IsEliminated()) continue;
       auto cur = map().find(i->source());
       CHECK(cur != map().end());
-      to_insert.insert(std::make_pair(i->destination(), cur->second));
+      auto res =
+          to_insert.insert(std::make_pair(i->destination(), cur->second));
+      // Ensure injectivity of moves.
+      CHECK(res.second);
     }
     // Drop current mappings.
     for (auto i = moves->begin(); i != moves->end(); ++i) {

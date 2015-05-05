@@ -16,7 +16,7 @@
 #include "src/prettyprinter.h"
 #include "src/scopeinfo.h"
 #include "src/scopes.h"
-#include "src/snapshot.h"
+#include "src/snapshot/snapshot.h"
 
 namespace v8 {
 namespace internal {
@@ -443,9 +443,8 @@ void FullCodeGenerator::Initialize() {
   // calculating PC offsets after generating a debug version of code.  Therefore
   // we disable the production of debug code in the full compiler if we are
   // either generating a snapshot or we booted from a snapshot.
-  generate_debug_code_ = FLAG_debug_code &&
-                         !masm_->serializer_enabled() &&
-                         !Snapshot::HaveASnapshotToStartFrom();
+  generate_debug_code_ = FLAG_debug_code && !masm_->serializer_enabled() &&
+                         !info_->isolate()->snapshot_available();
   masm_->set_emit_debug_code(generate_debug_code_);
   masm_->set_predictable_code_size(true);
 }
@@ -460,6 +459,17 @@ void FullCodeGenerator::CallLoadIC(ContextualMode contextual_mode,
                                    TypeFeedbackId id) {
   Handle<Code> ic = CodeFactory::LoadIC(isolate(), contextual_mode).code();
   CallIC(ic, id);
+}
+
+
+void FullCodeGenerator::CallGlobalLoadIC(Handle<String> name) {
+  if (masm()->serializer_enabled() || FLAG_vector_ics) {
+    // Vector-ICs don't work with LoadGlobalIC.
+    return CallLoadIC(CONTEXTUAL);
+  }
+  Handle<Code> ic = CodeFactory::LoadGlobalIC(
+                        isolate(), isolate()->global_object(), name).code();
+  CallIC(ic, TypeFeedbackId::None());
 }
 
 
@@ -860,22 +870,6 @@ void FullCodeGenerator::VisitSuperReference(SuperReference* super) {
 }
 
 
-bool FullCodeGenerator::ValidateSuperCall(Call* expr) {
-  Variable* new_target_var = scope()->DeclarationScope()->new_target_var();
-  if (new_target_var == nullptr) {
-    // TODO(dslomov): this is not exactly correct, the spec requires us
-    // to execute the constructor and only fail when an assigment to 'this'
-    // is attempted. Will implement once we have general new.target support,
-    // but also filed spec bug 3843 to make it an early error.
-    __ CallRuntime(Runtime::kThrowUnsupportedSuperError, 0);
-    RecordJSReturnSite(expr);
-    context()->Plug(result_register());
-    return false;
-  }
-  return true;
-}
-
-
 void FullCodeGenerator::SetExpressionPosition(Expression* expr) {
   if (!info_->is_debug()) {
     CodeGenerator::RecordPositions(masm_, expr->position());
@@ -906,39 +900,6 @@ void FullCodeGenerator::SetSourcePosition(int pos) {
   if (pos != RelocInfo::kNoPosition) {
     masm_->positions_recorder()->RecordPosition(pos);
   }
-}
-
-
-// Lookup table for code generators for  special runtime calls which are
-// generated inline.
-#define INLINE_FUNCTION_GENERATOR_ADDRESS(Name, argc, ressize)          \
-    &FullCodeGenerator::Emit##Name,
-
-const FullCodeGenerator::InlineFunctionGenerator
-  FullCodeGenerator::kInlineFunctionGenerators[] = {
-    INLINE_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_ADDRESS)
-  };
-#undef INLINE_FUNCTION_GENERATOR_ADDRESS
-
-
-FullCodeGenerator::InlineFunctionGenerator
-  FullCodeGenerator::FindInlineFunctionGenerator(Runtime::FunctionId id) {
-    int lookup_index =
-        static_cast<int>(id) - static_cast<int>(Runtime::kFirstInlineFunction);
-    DCHECK(lookup_index >= 0);
-    DCHECK(static_cast<size_t>(lookup_index) <
-           arraysize(kInlineFunctionGenerators));
-    return kInlineFunctionGenerators[lookup_index];
-}
-
-
-void FullCodeGenerator::EmitInlineRuntimeCall(CallRuntime* expr) {
-  const Runtime::Function* function = expr->function();
-  DCHECK(function != NULL);
-  DCHECK(function->intrinsic_type == Runtime::INLINE);
-  InlineFunctionGenerator generator =
-      FindInlineFunctionGenerator(function->function_id);
-  ((*this).*(generator))(expr);
 }
 
 
@@ -1440,7 +1401,6 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   Label try_entry, handler_entry, exit;
   __ jmp(&try_entry);
   __ bind(&handler_entry);
-  handler_table()->set(stmt->index(), Smi::FromInt(handler_entry.pos()));
   // Exception handler code, the exception is in the result register.
   // Extend the context before executing the catch block.
   { Comment cmnt(masm_, "[ Extend catch context");
@@ -1466,11 +1426,11 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
 
   // Try block code. Sets up the exception handler chain.
   __ bind(&try_entry);
-  __ PushTryHandler(StackHandler::CATCH, stmt->index());
+  EnterTryBlock(stmt->index(), &handler_entry);
   { TryCatch try_body(this);
     Visit(stmt->try_block());
   }
-  __ PopTryHandler();
+  ExitTryBlock(stmt->index());
   __ bind(&exit);
 }
 
@@ -1504,7 +1464,6 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // Jump to try-handler setup and try-block code.
   __ jmp(&try_entry);
   __ bind(&handler_entry);
-  handler_table()->set(stmt->index(), Smi::FromInt(handler_entry.pos()));
   // Exception handler code.  This code is only executed when an exception
   // is thrown.  The exception is in the result register, and must be
   // preserved by the finally block.  Call the finally block and then
@@ -1523,11 +1482,11 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
   // Set up try handler.
   __ bind(&try_entry);
-  __ PushTryHandler(StackHandler::FINALLY, stmt->index());
+  EnterTryBlock(stmt->index(), &handler_entry);
   { TryFinally try_body(this, &finally_entry);
     Visit(stmt->try_block());
   }
-  __ PopTryHandler();
+  ExitTryBlock(stmt->index());
   // Execute the finally block on the way out.  Clobber the unpredictable
   // value in the result register with one that's safe for GC because the
   // finally block will unconditionally preserve the result register on the
@@ -1682,13 +1641,54 @@ void FullCodeGenerator::VisitThrow(Throw* expr) {
 }
 
 
-FullCodeGenerator::NestedStatement* FullCodeGenerator::TryCatch::Exit(
-    int* stack_depth,
-    int* context_length) {
+void FullCodeGenerator::EnterTryBlock(int index, Label* handler) {
+  handler_table()->SetRangeStart(index, masm()->pc_offset());
+  handler_table()->SetRangeHandler(index, handler->pos());
+
+  // Determine expression stack depth of try statement.
+  int stack_depth = info_->scope()->num_stack_slots();  // Include stack locals.
+  for (NestedStatement* current = nesting_stack_; current != NULL; /*nop*/) {
+    current = current->AccumulateDepth(&stack_depth);
+  }
+  handler_table()->SetRangeDepth(index, stack_depth);
+
+  // Push context onto operand stack.
+  STATIC_ASSERT(TryBlockConstant::kElementCount == 1);
+  __ Push(context_register());
+}
+
+
+void FullCodeGenerator::ExitTryBlock(int index) {
+  handler_table()->SetRangeEnd(index, masm()->pc_offset());
+
+  // Drop context from operand stack.
+  __ Drop(TryBlockConstant::kElementCount);
+}
+
+
+FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
+    int* stack_depth, int* context_length) {
   // The macros used here must preserve the result register.
-  __ Drop(*stack_depth);
-  __ PopTryHandler();
+
+  // Because the handler block contains the context of the finally
+  // code, we can restore it directly from there for the finally code
+  // rather than iteratively unwinding contexts via their previous
+  // links.
+  if (*context_length > 0) {
+    __ Drop(*stack_depth);  // Down to the handler block.
+    // Restore the context to its dedicated register and the stack.
+    STATIC_ASSERT(TryFinally::kElementCount == 1);
+    __ Pop(codegen_->context_register());
+    codegen_->StoreToFrameField(StandardFrameConstants::kContextOffset,
+                                codegen_->context_register());
+  } else {
+    // Down to the handler block and also drop context.
+    __ Drop(*stack_depth + kElementCount);
+  }
+  __ Call(finally_entry_);
+
   *stack_depth = 0;
+  *context_length = 0;
   return previous_;
 }
 

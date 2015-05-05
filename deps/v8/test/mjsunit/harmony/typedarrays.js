@@ -530,7 +530,7 @@ function TestTypedArraysWithIllegalIndices() {
    * assertEquals(undefined, a[-Infinity]);
    */
   a[1.5] = 10;
-  assertEquals(undefined, a[1.5]);
+  assertEquals(10, a[1.5]);
   var nan = Math.sqrt(-1);
   a[nan] = 5;
   assertEquals(5, a[nan]);
@@ -579,7 +579,7 @@ function TestTypedArraysWithIllegalIndicesStrict() {
    * assertEquals(undefined, a[-Infinity]);
    */
   a[1.5] = 10;
-  assertEquals(undefined, a[1.5]);
+  assertEquals(10, a[1.5]);
   var nan = Math.sqrt(-1);
   a[nan] = 5;
   assertEquals(5, a[nan]);

@@ -69,6 +69,11 @@ const kMaxYear  = 1000000;
 const kMinMonth = -10000000;
 const kMaxMonth = 10000000;
 
+# Safe maximum number of arguments to push to stack, when multiplied by
+# pointer size. Used by Function.prototype.apply(), Reflect.apply() and
+# Reflect.construct().
+const kSafeArgumentsLength = 0x800000;
+
 # Strict mode flags for passing to %SetProperty
 const kSloppyMode = 0;
 const kStrictMode = 1;
@@ -111,7 +116,6 @@ macro IS_GENERATOR(arg)         = (%_ClassOf(arg) === 'Generator');
 macro IS_SET_ITERATOR(arg)      = (%_ClassOf(arg) === 'Set Iterator');
 macro IS_MAP_ITERATOR(arg)      = (%_ClassOf(arg) === 'Map Iterator');
 macro IS_UNDETECTABLE(arg)      = (%_IsUndetectableObject(arg));
-macro FLOOR(arg)                = $floor(arg);
 
 # Macro for ECMAScript 5 queries of the type:
 # "Type(O) is object."

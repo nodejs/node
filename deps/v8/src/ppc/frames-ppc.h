@@ -57,14 +57,7 @@ const int kNumCalleeSaved = 18;
 
 // Number of registers for which space is reserved in safepoints. Must be a
 // multiple of 8.
-// TODO(regis): Only 8 registers may actually be sufficient. Revisit.
 const int kNumSafepointRegisters = 32;
-
-// Define the list of registers actually saved at safepoints.
-// Note that the number of saved registers may be smaller than the reserved
-// space, i.e. kNumSafepointSavedRegisters <= kNumSafepointRegisters.
-const RegList kSafepointSavedRegisters = kJSCallerSaved | kCalleeSaved;
-const int kNumSafepointSavedRegisters = kNumJSCallerSaved + kNumCalleeSaved;
 
 // The following constants describe the stack frame linkage area as
 // defined by the ABI.  Note that kNumRequiredStackFrameSlots must
@@ -123,13 +116,8 @@ class EntryFrameConstants : public AllStatic {
 
 class ExitFrameConstants : public AllStatic {
  public:
-#if V8_OOL_CONSTANT_POOL
-  static const int kFrameSize = 3 * kPointerSize;
-  static const int kConstantPoolOffset = -3 * kPointerSize;
-#else
   static const int kFrameSize = 2 * kPointerSize;
   static const int kConstantPoolOffset = 0;  // Not used.
-#endif
   static const int kCodeOffset = -2 * kPointerSize;
   static const int kSPOffset = -1 * kPointerSize;
 
@@ -193,9 +181,6 @@ inline Object* JavaScriptFrame::function_slot_object() const {
 }
 
 
-inline void StackHandler::SetFp(Address slot, Address fp) {
-  Memory::Address_at(slot) = fp;
-}
 }
 }  // namespace v8::internal
 

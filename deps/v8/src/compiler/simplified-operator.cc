@@ -158,7 +158,6 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
 
 
 #define PURE_OP_LIST(V)                                 \
-  V(AnyToBoolean, Operator::kNoProperties, 1)           \
   V(BooleanNot, Operator::kNoProperties, 1)             \
   V(BooleanToNumber, Operator::kNoProperties, 1)        \
   V(NumberEqual, Operator::kCommutative, 2)             \

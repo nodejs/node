@@ -81,11 +81,9 @@ static void CheckFunctionName(v8::Handle<v8::Script> script,
 
   // Obtain SharedFunctionInfo for the function.
   isolate->debug()->PrepareForBreakPoints();
-  Object* shared_func_info_ptr =
-      isolate->debug()->FindSharedFunctionInfoInScript(i_script, func_pos);
-  CHECK(shared_func_info_ptr != CcTest::heap()->undefined_value());
-  Handle<SharedFunctionInfo> shared_func_info(
-      SharedFunctionInfo::cast(shared_func_info_ptr));
+  Handle<SharedFunctionInfo> shared_func_info =
+      Handle<SharedFunctionInfo>::cast(
+          isolate->debug()->FindSharedFunctionInfoInScript(i_script, func_pos));
 
   // Verify inferred function name.
   SmartArrayPointer<char> inferred_name =

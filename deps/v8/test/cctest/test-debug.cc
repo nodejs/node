@@ -416,7 +416,7 @@ void CheckDebuggerUnloaded(bool check_functions) {
           if (RelocInfo::IsCodeTarget(rmode)) {
             CHECK(!Debug::IsDebugBreak(it.rinfo()->target_address()));
           } else if (RelocInfo::IsJSReturn(rmode)) {
-            CHECK(!Debug::IsDebugBreakAtReturn(it.rinfo()));
+            CHECK(!it.rinfo()->IsPatchedReturnSequence());
           }
         }
       }
@@ -437,47 +437,36 @@ static void CheckDebuggerUnloaded(bool check_functions = false) {
 }
 
 
-// Inherit from BreakLocationIterator to get access to protected parts for
-// testing.
-class TestBreakLocationIterator: public v8::internal::BreakLocationIterator {
- public:
-  explicit TestBreakLocationIterator(Handle<v8::internal::DebugInfo> debug_info)
-    : BreakLocationIterator(debug_info, v8::internal::SOURCE_BREAK_LOCATIONS) {}
-  v8::internal::RelocIterator* it() { return reloc_iterator_; }
-  v8::internal::RelocIterator* it_original() {
-    return reloc_iterator_original_;
-  }
-};
-
-
 // Compile a function, set a break point and check that the call at the break
 // location in the code is the expected debug_break function.
 void CheckDebugBreakFunction(DebugLocalContext* env,
                              const char* source, const char* name,
                              int position, v8::internal::RelocInfo::Mode mode,
                              Code* debug_break) {
-  v8::internal::Debug* debug = CcTest::i_isolate()->debug();
+  i::Debug* debug = CcTest::i_isolate()->debug();
 
   // Create function and set the break point.
-  Handle<v8::internal::JSFunction> fun = v8::Utils::OpenHandle(
-      *CompileFunction(env, source, name));
+  Handle<i::JSFunction> fun =
+      v8::Utils::OpenHandle(*CompileFunction(env, source, name));
   int bp = SetBreakPoint(fun, position);
 
   // Check that the debug break function is as expected.
-  Handle<v8::internal::SharedFunctionInfo> shared(fun->shared());
+  Handle<i::SharedFunctionInfo> shared(fun->shared());
   CHECK(Debug::HasDebugInfo(shared));
-  TestBreakLocationIterator it1(Debug::GetDebugInfo(shared));
-  it1.FindBreakLocationFromPosition(position, v8::internal::STATEMENT_ALIGNED);
-  v8::internal::RelocInfo::Mode actual_mode = it1.it()->rinfo()->rmode();
-  if (actual_mode == v8::internal::RelocInfo::CODE_TARGET_WITH_ID) {
-    actual_mode = v8::internal::RelocInfo::CODE_TARGET;
+  i::BreakLocation location = i::BreakLocation::FromPosition(
+      Debug::GetDebugInfo(shared), i::SOURCE_BREAK_LOCATIONS, position,
+      i::STATEMENT_ALIGNED);
+  i::RelocInfo::Mode actual_mode = location.rmode();
+  if (actual_mode == i::RelocInfo::CODE_TARGET_WITH_ID) {
+    actual_mode = i::RelocInfo::CODE_TARGET;
   }
   CHECK_EQ(mode, actual_mode);
-  if (mode != v8::internal::RelocInfo::JS_RETURN) {
-    CHECK_EQ(debug_break,
-        Code::GetCodeFromTargetAddress(it1.it()->rinfo()->target_address()));
+  if (mode != i::RelocInfo::JS_RETURN) {
+    CHECK_EQ(debug_break, *location.CodeTarget());
   } else {
-    CHECK(Debug::IsDebugBreakAtReturn(it1.it()->rinfo()));
+    i::RelocInfo rinfo = location.rinfo();
+    CHECK(i::RelocInfo::IsJSReturn(rinfo.rmode()));
+    CHECK(rinfo.IsPatchedReturnSequence());
   }
 
   // Clear the break point and check that the debug break function is no longer
@@ -485,15 +474,17 @@ void CheckDebugBreakFunction(DebugLocalContext* env,
   ClearBreakPoint(bp);
   CHECK(!debug->HasDebugInfo(shared));
   CHECK(debug->EnsureDebugInfo(shared, fun));
-  TestBreakLocationIterator it2(Debug::GetDebugInfo(shared));
-  it2.FindBreakLocationFromPosition(position, v8::internal::STATEMENT_ALIGNED);
-  actual_mode = it2.it()->rinfo()->rmode();
-  if (actual_mode == v8::internal::RelocInfo::CODE_TARGET_WITH_ID) {
-    actual_mode = v8::internal::RelocInfo::CODE_TARGET;
+  location = i::BreakLocation::FromPosition(Debug::GetDebugInfo(shared),
+                                            i::SOURCE_BREAK_LOCATIONS, position,
+                                            i::STATEMENT_ALIGNED);
+  actual_mode = location.rmode();
+  if (actual_mode == i::RelocInfo::CODE_TARGET_WITH_ID) {
+    actual_mode = i::RelocInfo::CODE_TARGET;
   }
   CHECK_EQ(mode, actual_mode);
-  if (mode == v8::internal::RelocInfo::JS_RETURN) {
-    CHECK(!Debug::IsDebugBreakAtReturn(it2.it()->rinfo()));
+  if (mode == i::RelocInfo::JS_RETURN) {
+    i::RelocInfo rinfo = location.rinfo();
+    CHECK(!rinfo.IsPatchedReturnSequence());
   }
 }
 
@@ -6706,6 +6697,7 @@ TEST(ProcessDebugMessagesThreaded) {
       v8::FunctionTemplate::New(isolate, StartSendingCommands);
   env->Global()->Set(v8_str("start"), start->GetFunction());
 
+  i::FLAG_turbo_osr = false;  // TODO(titzer): interrupts in TF loops.
   CompileRun("start(); while (true) { }");
 
   CHECK_EQ(20, counting_message_handler_counter);
@@ -7655,7 +7647,6 @@ static void DebugHarmonyScopingListener(
 
 
 TEST(DebugBreakInLexicalScopes) {
-  i::FLAG_harmony_scoping = true;
   i::FLAG_allow_natives_syntax = true;
 
   DebugLocalContext env;

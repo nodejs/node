@@ -40,6 +40,7 @@ class PlatformInterfaceDescriptor;
   V(ArrayConstructor)                         \
   V(InternalArrayConstructorConstantArgCount) \
   V(InternalArrayConstructor)                 \
+  V(Compare)                                  \
   V(CompareNil)                               \
   V(ToBoolean)                                \
   V(BinaryOp)                                 \
@@ -403,6 +404,12 @@ class InternalArrayConstructorDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(InternalArrayConstructorDescriptor,
                      CallInterfaceDescriptor)
+};
+
+
+class CompareDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(CompareDescriptor, CallInterfaceDescriptor)
 };
 
 

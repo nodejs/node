@@ -8,6 +8,7 @@
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/operator-properties.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
@@ -119,6 +120,16 @@ TEST_F(JSTypedLoweringTest, JSUnaryNotWithBoolean) {
 }
 
 
+TEST_F(JSTypedLoweringTest, JSUnaryNotWithOrderedNumber) {
+  Node* input = Parameter(Type::OrderedNumber(), 0);
+  Node* context = Parameter(Type::Any(), 1);
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->UnaryNot(), input, context));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsNumberEqual(input, IsNumberConstant(0)));
+}
+
+
 TEST_F(JSTypedLoweringTest, JSUnaryNotWithFalsish) {
   Node* input = Parameter(
       Type::Union(
@@ -173,13 +184,25 @@ TEST_F(JSTypedLoweringTest, JSUnaryNotWithNonZeroPlainNumber) {
 }
 
 
+TEST_F(JSTypedLoweringTest, JSUnaryNotWithString) {
+  Node* input = Parameter(Type::String(), 0);
+  Node* context = Parameter(Type::Any(), 1);
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->UnaryNot(), input, context));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsNumberEqual(IsLoadField(AccessBuilder::ForStringLength(), input,
+                                        graph()->start(), graph()->start()),
+                            IsNumberConstant(0.0)));
+}
+
+
 TEST_F(JSTypedLoweringTest, JSUnaryNotWithAny) {
   Node* input = Parameter(Type::Any(), 0);
   Node* context = Parameter(Type::Any(), 1);
   Reduction r =
       Reduce(graph()->NewNode(javascript()->UnaryNot(), input, context));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsBooleanNot(IsAnyToBoolean(input)));
+  ASSERT_FALSE(r.Changed());
 }
 
 
@@ -349,13 +372,37 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithNonZeroPlainNumber) {
 }
 
 
+TEST_F(JSTypedLoweringTest, JSToBooleanWithOrderedNumber) {
+  Node* input = Parameter(Type::OrderedNumber(), 0);
+  Node* context = Parameter(Type::Any(), 1);
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->ToBoolean(), input, context));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsBooleanNot(IsNumberEqual(input, IsNumberConstant(0.0))));
+}
+
+
+TEST_F(JSTypedLoweringTest, JSToBooleanWithString) {
+  Node* input = Parameter(Type::String(), 0);
+  Node* context = Parameter(Type::Any(), 1);
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->ToBoolean(), input, context));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(
+      r.replacement(),
+      IsNumberLessThan(IsNumberConstant(0.0),
+                       IsLoadField(AccessBuilder::ForStringLength(), input,
+                                   graph()->start(), graph()->start())));
+}
+
+
 TEST_F(JSTypedLoweringTest, JSToBooleanWithAny) {
   Node* input = Parameter(Type::Any(), 0);
   Node* context = Parameter(Type::Any(), 1);
   Reduction r =
       Reduce(graph()->NewNode(javascript()->ToBoolean(), input, context));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsAnyToBoolean(input));
+  ASSERT_FALSE(r.Changed());
 }
 
 
@@ -681,8 +728,9 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArray) {
       Node* control = graph()->start();
       Node* node = graph()->NewNode(javascript()->StoreProperty(language_mode),
                                     base, key, value, context);
-      if (FLAG_turbo_deoptimization) {
-        node->AppendInput(zone(), UndefinedConstant());
+      for (int i = 0;
+           i < OperatorProperties::GetFrameStateInputCount(node->op()); i++) {
+        node->AppendInput(zone(), EmptyFrameState());
       }
       node->AppendInput(zone(), effect);
       node->AppendInput(zone(), control);
@@ -726,8 +774,9 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
       Node* control = graph()->start();
       Node* node = graph()->NewNode(javascript()->StoreProperty(language_mode),
                                     base, key, value, context);
-      if (FLAG_turbo_deoptimization) {
-        node->AppendInput(zone(), UndefinedConstant());
+      for (int i = 0;
+           i < OperatorProperties::GetFrameStateInputCount(node->op()); i++) {
+        node->AppendInput(zone(), EmptyFrameState());
       }
       node->AppendInput(zone(), effect);
       node->AppendInput(zone(), control);
@@ -784,8 +833,9 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithSafeKey) {
       Node* control = graph()->start();
       Node* node = graph()->NewNode(javascript()->StoreProperty(language_mode),
                                     base, key, value, context);
-      if (FLAG_turbo_deoptimization) {
-        node->AppendInput(zone(), UndefinedConstant());
+      for (int i = 0;
+           i < OperatorProperties::GetFrameStateInputCount(node->op()); i++) {
+        node->AppendInput(zone(), EmptyFrameState());
       }
       node->AppendInput(zone(), effect);
       node->AppendInput(zone(), control);

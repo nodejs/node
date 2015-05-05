@@ -106,7 +106,6 @@ void CallPrinter::VisitModuleDeclaration(ModuleDeclaration* node) {
 
 
 void CallPrinter::VisitImportDeclaration(ImportDeclaration* node) {
-  Find(node->module());
 }
 
 
@@ -481,7 +480,7 @@ void PrettyPrinter::VisitImportDeclaration(ImportDeclaration* node) {
   Print("import ");
   PrintLiteral(node->proxy()->name(), false);
   Print(" from ");
-  Visit(node->module());
+  PrintLiteral(node->module_specifier()->string(), true);
   Print(";");
 }
 
@@ -1213,7 +1212,7 @@ void AstPrinter::VisitModuleDeclaration(ModuleDeclaration* node) {
 void AstPrinter::VisitImportDeclaration(ImportDeclaration* node) {
   IndentedScope indent(this, "IMPORT");
   PrintLiteralIndented("NAME", node->proxy()->name(), true);
-  Visit(node->module());
+  PrintLiteralIndented("FROM", node->module_specifier()->string(), true);
 }
 
 
