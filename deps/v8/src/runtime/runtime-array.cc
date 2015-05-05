@@ -444,8 +444,8 @@ static bool IterateElementsSlow(Isolate* isolate, Handle<JSObject> receiver,
   for (uint32_t i = 0; i < length; ++i) {
     HandleScope loop_scope(isolate);
     Maybe<bool> maybe = JSReceiver::HasElement(receiver, i);
-    if (!maybe.has_value) return false;
-    if (maybe.value) {
+    if (!maybe.IsJust()) return false;
+    if (maybe.FromJust()) {
       Handle<Object> element_value;
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, element_value,
@@ -511,8 +511,8 @@ static bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
           visitor->visit(j, element_value);
         } else {
           Maybe<bool> maybe = JSReceiver::HasElement(receiver, j);
-          if (!maybe.has_value) return false;
-          if (maybe.value) {
+          if (!maybe.IsJust()) return false;
+          if (maybe.FromJust()) {
             // Call GetElement on receiver, not its prototype, or getters won't
             // have the correct receiver.
             ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -547,8 +547,8 @@ static bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
           visitor->visit(j, element_value);
         } else {
           Maybe<bool> maybe = JSReceiver::HasElement(receiver, j);
-          if (!maybe.has_value) return false;
-          if (maybe.value) {
+          if (!maybe.IsJust()) return false;
+          if (maybe.FromJust()) {
             // Call GetElement on receiver, not its prototype, or getters won't
             // have the correct receiver.
             Handle<Object> element_value;
@@ -1228,7 +1228,8 @@ RUNTIME_FUNCTION(Runtime_HasComplexElements) {
       return isolate->heap()->true_value();
     }
     if (!current->HasDictionaryElements()) continue;
-    if (current->element_dictionary()->HasComplexElements()) {
+    if (current->element_dictionary()
+            ->HasComplexElements<DictionaryEntryType::kObjects>()) {
       return isolate->heap()->true_value();
     }
   }
@@ -1322,7 +1323,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_ForInNext) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_IsArray) {
+RUNTIME_FUNCTION(Runtime_IsArray) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_CHECKED(Object, obj, 0);
@@ -1330,23 +1331,26 @@ RUNTIME_FUNCTION(RuntimeReference_IsArray) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_HasCachedArrayIndex) {
+RUNTIME_FUNCTION(Runtime_HasCachedArrayIndex) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
   return isolate->heap()->false_value();
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_GetCachedArrayIndex) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  return isolate->heap()->undefined_value();
+RUNTIME_FUNCTION(Runtime_GetCachedArrayIndex) {
+  // This can never be reached, because Runtime_HasCachedArrayIndex always
+  // returns false.
+  UNIMPLEMENTED();
+  return nullptr;
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_FastOneByteArrayJoin) {
+RUNTIME_FUNCTION(Runtime_FastOneByteArrayJoin) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 2);
+  // Returning undefined means that this fast path fails and one has to resort
+  // to a slow path.
   return isolate->heap()->undefined_value();
 }
 }

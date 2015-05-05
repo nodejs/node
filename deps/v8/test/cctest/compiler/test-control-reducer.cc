@@ -8,7 +8,7 @@
 #include "src/base/bits.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/control-reducer.h"
-#include "src/compiler/graph-inl.h"
+#include "src/compiler/graph.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
 
@@ -694,9 +694,9 @@ TEST(CMergeReduce_none1) {
 TEST(CMergeReduce_none2) {
   ControlReducerTester R;
 
-  Node* t = R.graph.NewNode(R.common.IfTrue(), R.start);
-  Node* f = R.graph.NewNode(R.common.IfFalse(), R.start);
-  Node* merge = R.graph.NewNode(R.common.Merge(2), t, f);
+  Node* t1 = R.graph.NewNode(R.common.IfTrue(), R.start);
+  Node* t2 = R.graph.NewNode(R.common.IfTrue(), R.start);
+  Node* merge = R.graph.NewNode(R.common.Merge(2), t1, t2);
   R.ReduceMerge(merge, merge);
 }
 
@@ -744,7 +744,7 @@ TEST(CMergeReduce_dead_rm1b) {
   ControlReducerTester R;
 
   Node* t = R.graph.NewNode(R.common.IfTrue(), R.start);
-  Node* f = R.graph.NewNode(R.common.IfFalse(), R.start);
+  Node* f = R.graph.NewNode(R.common.IfTrue(), R.start);
   for (int i = 0; i < 2; i++) {
     Node* merge = R.graph.NewNode(R.common.Merge(3), R.dead, R.dead, R.dead);
     for (int j = i + 1; j < 3; j++) {
@@ -1118,7 +1118,7 @@ TEST(CChainedDiamondsReduce_x_false) {
   Diamond d2(R, R.zero);
   d2.chain(d1);
 
-  R.ReduceMergeIterative(d1.merge, d2.merge);
+  R.ReduceMergeIterative(R.start, d2.merge);
 }
 
 
@@ -1128,8 +1128,7 @@ TEST(CChainedDiamondsReduce_false_x) {
   Diamond d2(R, R.p0);
   d2.chain(d1);
 
-  R.ReduceMergeIterative(d2.merge, d2.merge);
-  CheckInputs(d2.branch, R.p0, R.start);
+  R.ReduceMergeIterative(R.start, d2.merge);
 }
 
 
@@ -1187,6 +1186,28 @@ TEST(CNestedDiamonds_xyz) {
       }
     }
   }
+}
+
+
+TEST(CUnusedDiamond1) {
+  ControlReducerTester R;
+  // if (p0) { } else { }
+  Node* branch = R.graph.NewNode(R.common.Branch(), R.p0, R.start);
+  Node* if_true = R.graph.NewNode(R.common.IfTrue(), branch);
+  Node* if_false = R.graph.NewNode(R.common.IfFalse(), branch);
+  Node* merge = R.graph.NewNode(R.common.Merge(2), if_true, if_false);
+  R.ReduceMergeIterative(R.start, merge);
+}
+
+
+TEST(CUnusedDiamond2) {
+  ControlReducerTester R;
+  // if (p0) { } else { }
+  Node* branch = R.graph.NewNode(R.common.Branch(), R.p0, R.start);
+  Node* if_true = R.graph.NewNode(R.common.IfTrue(), branch);
+  Node* if_false = R.graph.NewNode(R.common.IfFalse(), branch);
+  Node* merge = R.graph.NewNode(R.common.Merge(2), if_false, if_true);
+  R.ReduceMergeIterative(R.start, merge);
 }
 
 
@@ -1329,9 +1350,7 @@ TEST(Return_nested_diamonds1) {
 
   CheckInputs(ret, d1.phi, R.start, d1.merge);
   CheckInputs(d1.phi, R.one, R.zero, d1.merge);
-  CheckInputs(d1.merge, d2.merge, d3.merge);
-  CheckLiveDiamond(d2);
-  CheckLiveDiamond(d3);
+  CheckInputs(d1.merge, d1.if_true, d1.if_false);
 }
 
 
@@ -1348,11 +1367,7 @@ TEST(Return_nested_diamonds_true1) {
 
   R.ReduceGraph();  // d1 gets folded true.
 
-  CheckInputs(ret, R.one, R.start, d2.merge);
-  CheckInputs(d2.branch, R.p0, R.start);
-  CheckDeadDiamond(d1);
-  CheckLiveDiamond(d2);
-  CheckDeadDiamond(d3);
+  CheckInputs(ret, R.one, R.start, R.start);
 }
 
 
@@ -1369,11 +1384,7 @@ TEST(Return_nested_diamonds_false1) {
 
   R.ReduceGraph();  // d1 gets folded false.
 
-  CheckInputs(ret, R.zero, R.start, d3.merge);
-  CheckInputs(d3.branch, R.p0, R.start);
-  CheckDeadDiamond(d1);
-  CheckDeadDiamond(d2);
-  CheckLiveDiamond(d3);
+  CheckInputs(ret, R.zero, R.start, R.start);
 }
 
 

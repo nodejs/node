@@ -210,11 +210,11 @@ MaybeHandle<Object> Execution::TryCall(Handle<JSFunction> func,
       DCHECK(catcher.HasCaught());
       DCHECK(isolate->has_pending_exception());
       DCHECK(isolate->external_caught_exception());
-      if (exception_out != NULL) {
-        if (isolate->pending_exception() ==
-            isolate->heap()->termination_exception()) {
-          is_termination = true;
-        } else {
+      if (isolate->pending_exception() ==
+          isolate->heap()->termination_exception()) {
+        is_termination = true;
+      } else {
+        if (exception_out != NULL) {
           *exception_out = v8::Utils::OpenHandle(*catcher.Exception());
         }
       }
@@ -222,9 +222,11 @@ MaybeHandle<Object> Execution::TryCall(Handle<JSFunction> func,
     }
 
     DCHECK(!isolate->has_pending_exception());
-    DCHECK(!isolate->external_caught_exception());
   }
-  if (is_termination) isolate->TerminateExecution();
+
+  // Re-request terminate execution interrupt to trigger later.
+  if (is_termination) isolate->stack_guard()->RequestTerminateExecution();
+
   return maybe_result;
 }
 
@@ -646,6 +648,13 @@ Handle<String> Execution::GetStackTraceLine(Handle<Object> recv,
   }
 
   return Handle<String>::cast(result);
+}
+
+
+void StackGuard::CheckAndHandleGCInterrupt() {
+  if (CheckAndClearInterrupt(GC_REQUEST)) {
+    isolate_->heap()->HandleGCRequest();
+  }
 }
 
 

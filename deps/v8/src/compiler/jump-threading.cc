@@ -9,10 +9,10 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-typedef BasicBlock::RpoNumber RpoNumber;
-
-#define TRACE(x) \
-  if (FLAG_trace_turbo_jt) PrintF x
+#define TRACE(...)                                \
+  do {                                            \
+    if (FLAG_trace_turbo_jt) PrintF(__VA_ARGS__); \
+  } while (false)
 
 struct JumpThreadingState {
   bool forwarded;
@@ -31,19 +31,19 @@ struct JumpThreadingState {
     RpoNumber to_to = result[to.ToInt()];
     bool pop = true;
     if (to == from) {
-      TRACE(("  xx %d\n", from.ToInt()));
+      TRACE("  xx %d\n", from.ToInt());
       result[from.ToInt()] = from;
     } else if (to_to == unvisited()) {
-      TRACE(("  fw %d -> %d (recurse)\n", from.ToInt(), to.ToInt()));
+      TRACE("  fw %d -> %d (recurse)\n", from.ToInt(), to.ToInt());
       stack.push(to);
       result[to.ToInt()] = onstack();
       pop = false;  // recurse.
     } else if (to_to == onstack()) {
-      TRACE(("  fw %d -> %d (cycle)\n", from.ToInt(), to.ToInt()));
+      TRACE("  fw %d -> %d (cycle)\n", from.ToInt(), to.ToInt());
       result[from.ToInt()] = to;  // break the cycle.
       forwarded = true;
     } else {
-      TRACE(("  fw %d -> %d (forward)\n", from.ToInt(), to.ToInt()));
+      TRACE("  fw %d -> %d (forward)\n", from.ToInt(), to.ToInt());
       result[from.ToInt()] = to_to;  // forward the block.
       forwarded = true;
     }
@@ -70,36 +70,36 @@ bool JumpThreading::ComputeForwarding(Zone* local_zone,
     while (!state.stack.empty()) {
       InstructionBlock* block = code->InstructionBlockAt(state.stack.top());
       // Process the instructions in a block up to a non-empty instruction.
-      TRACE(("jt [%d] B%d RPO%d\n", static_cast<int>(stack.size()),
-             block->id().ToInt(), block->rpo_number().ToInt()));
+      TRACE("jt [%d] B%d\n", static_cast<int>(stack.size()),
+            block->rpo_number().ToInt());
       bool fallthru = true;
       RpoNumber fw = block->rpo_number();
       for (int i = block->code_start(); i < block->code_end(); ++i) {
         Instruction* instr = code->InstructionAt(i);
         if (instr->IsGapMoves() && GapInstruction::cast(instr)->IsRedundant()) {
           // skip redundant gap moves.
-          TRACE(("  nop gap\n"));
+          TRACE("  nop gap\n");
           continue;
         } else if (instr->IsSourcePosition()) {
           // skip source positions.
-          TRACE(("  src pos\n"));
+          TRACE("  src pos\n");
           continue;
         } else if (FlagsModeField::decode(instr->opcode()) != kFlags_none) {
           // can't skip instructions with flags continuations.
-          TRACE(("  flags\n"));
+          TRACE("  flags\n");
           fallthru = false;
         } else if (instr->IsNop()) {
           // skip nops.
-          TRACE(("  nop\n"));
+          TRACE("  nop\n");
           continue;
         } else if (instr->arch_opcode() == kArchJmp) {
           // try to forward the jump instruction.
-          TRACE(("  jmp\n"));
+          TRACE("  jmp\n");
           fw = code->InputRpo(instr, 0);
           fallthru = false;
         } else {
           // can't skip other instructions.
-          TRACE(("  other\n"));
+          TRACE("  other\n");
           fallthru = false;
         }
         break;
@@ -120,14 +120,12 @@ bool JumpThreading::ComputeForwarding(Zone* local_zone,
 
   if (FLAG_trace_turbo_jt) {
     for (int i = 0; i < static_cast<int>(result.size()); i++) {
-      TRACE(("RPO%d B%d ", i,
-             code->InstructionBlockAt(RpoNumber::FromInt(i))->id().ToInt()));
+      TRACE("B%d ", i);
       int to = result[i].ToInt();
       if (i != to) {
-        TRACE(("-> B%d\n",
-               code->InstructionBlockAt(RpoNumber::FromInt(to))->id().ToInt()));
+        TRACE("-> B%d\n", to);
       } else {
-        TRACE(("\n"));
+        TRACE("\n");
       }
     }
   }
@@ -157,7 +155,7 @@ void JumpThreading::ApplyForwarding(ZoneVector<RpoNumber>& result,
       } else if (instr->arch_opcode() == kArchJmp) {
         if (skip[block_num]) {
           // Overwrite a redundant jump with a nop.
-          TRACE(("jt-fw nop @%d\n", i));
+          TRACE("jt-fw nop @%d\n", i);
           instr->OverwriteWithNop();
         }
         fallthru = false;  // jumps don't fall through to the next block.

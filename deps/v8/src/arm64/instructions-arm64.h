@@ -121,8 +121,16 @@ class Instruction {
     return InstructionBits() & mask;
   }
 
+  V8_INLINE const Instruction* following(int count = 1) const {
+    return InstructionAtOffset(count * static_cast<int>(kInstructionSize));
+  }
+
   V8_INLINE Instruction* following(int count = 1) {
     return InstructionAtOffset(count * static_cast<int>(kInstructionSize));
+  }
+
+  V8_INLINE const Instruction* preceding(int count = 1) const {
+    return following(-count);
   }
 
   V8_INLINE Instruction* preceding(int count = 1) {
@@ -187,6 +195,14 @@ class Instruction {
 
   bool IsAdr() const {
     return Mask(PCRelAddressingMask) == ADR;
+  }
+
+  bool IsBrk() const { return Mask(ExceptionMask) == BRK; }
+
+  bool IsUnresolvedInternalReference() const {
+    // Unresolved internal references are encoded as two consecutive brk
+    // instructions.
+    return IsBrk() && following()->IsBrk();
   }
 
   bool IsLogicalImmediate() const {
@@ -306,6 +322,15 @@ class Instruction {
     return 0;
   }
 
+  int ImmUnresolvedInternalReference() const {
+    DCHECK(IsUnresolvedInternalReference());
+    // Unresolved references are encoded as two consecutive brk instructions.
+    // The associated immediate is made of the two 16-bit payloads.
+    int32_t high16 = ImmException();
+    int32_t low16 = following()->ImmException();
+    return (high16 << 16) | low16;
+  }
+
   bool IsBranchAndLinkToRegister() const {
     return Mask(UnconditionalBranchToRegisterMask) == BLR;
   }
@@ -349,6 +374,7 @@ class Instruction {
   // Patch a PC-relative offset to refer to 'target'. 'this' may be a branch or
   // a PC-relative addressing instruction.
   void SetImmPCOffsetTarget(Instruction* target);
+  void SetUnresolvedInternalReferenceImmTarget(Instruction* target);
   // Patch a literal load instruction to load from 'source'.
   void SetImmLLiteral(Instruction* source);
 
@@ -359,13 +385,18 @@ class Instruction {
 
   enum CheckAlignment { NO_CHECK, CHECK_ALIGNMENT };
 
-  V8_INLINE Instruction* InstructionAtOffset(
-      int64_t offset,
-      CheckAlignment check = CHECK_ALIGNMENT) {
-    Address addr = reinterpret_cast<Address>(this) + offset;
+  V8_INLINE const Instruction* InstructionAtOffset(
+      int64_t offset, CheckAlignment check = CHECK_ALIGNMENT) const {
     // The FUZZ_disasm test relies on no check being done.
-    DCHECK(check == NO_CHECK || IsAddressAligned(addr, kInstructionSize));
-    return Cast(addr);
+    DCHECK(check == NO_CHECK || IsAligned(offset, kInstructionSize));
+    return this + offset;
+  }
+
+  V8_INLINE Instruction* InstructionAtOffset(
+      int64_t offset, CheckAlignment check = CHECK_ALIGNMENT) {
+    // The FUZZ_disasm test relies on no check being done.
+    DCHECK(check == NO_CHECK || IsAligned(offset, kInstructionSize));
+    return this + offset;
   }
 
   template<typename T> V8_INLINE static Instruction* Cast(T src) {

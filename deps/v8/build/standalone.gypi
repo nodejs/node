@@ -146,10 +146,16 @@
       }, {
         'v8_enable_gdbjit%': 0,
       }],
-      ['(OS=="linux" or OS=="mac") and (target_arch=="ia32" or target_arch=="x64")', {
+      ['(OS=="linux" or OS=="mac") and (target_arch=="ia32" or target_arch=="x64") and \
+        (v8_target_arch!="x87")', {
         'clang%': 1,
       }, {
         'clang%': 0,
+      }],
+      ['host_arch!="ppc" and host_arch!="ppc64" and host_arch!="ppc64le"', {
+        'host_clang%': '1',
+      }, {
+        'host_clang%': '0',
       }],
     ],
     # Default ARM variable settings.
@@ -175,16 +181,11 @@
     'default_configuration': 'Debug',
     'configurations': {
       'DebugBaseCommon': {
-        'cflags': [ '-g', '-O0' ],
         'conditions': [
-          ['(v8_target_arch=="ia32" or v8_target_arch=="x87") and \
-            OS=="linux"', {
-            'defines': [
-              '_GLIBCXX_DEBUG'
-            ],
-          }],
-          [ 'OS=="aix"', {
-            'cflags': [ '-gxcoff' ],
+          ['OS=="aix"', {
+            'cflags': [ '-g', '-Og', '-gxcoff' ],
+          }, {
+            'cflags': [ '-g', '-O0' ],
           }],
         ],
       },
@@ -198,6 +199,19 @@
         # Xcode insists on this empty entry.
       },
     },
+    'conditions':[
+      ['(clang==1 or host_clang==1) and OS!="win"', {
+        # This is here so that all files get recompiled after a clang roll and
+        # when turning clang on or off.
+        # (defines are passed via the command line, and build systems rebuild
+        # things when their commandline changes). Nothing should ever read this
+        # define.
+        'defines': ['CR_CLANG_REVISION=<!(<(DEPTH)/tools/clang/scripts/update.sh --print-revision)'],
+        'cflags+': [
+          '-Wno-format-pedantic',
+        ],
+      }],
+    ],
     'target_conditions': [
       ['v8_code == 0', {
         'defines!': [
@@ -205,8 +219,33 @@
         ],
         'conditions': [
           ['os_posix == 1 and OS != "mac"', {
+            # We don't want to get warnings from third-party code,
+            # so remove any existing warning-enabling flags like -Wall.
             'cflags!': [
+              '-pedantic',
+              '-Wall',
               '-Werror',
+              '-Wextra',
+            ],
+            'cflags+': [
+              # Clang considers the `register` keyword as deprecated, but
+              # ICU uses it all over the place.
+              '-Wno-deprecated-register',
+              # ICU uses its own deprecated functions.
+              '-Wno-deprecated-declarations',
+              # ICU prefers `a && b || c` over `(a && b) || c`.
+              '-Wno-logical-op-parentheses',
+              # ICU has some `unsigned < 0` checks.
+              '-Wno-tautological-compare',
+              # uresdata.c has switch(RES_GET_TYPE(x)) code. The
+              # RES_GET_TYPE macro returns an UResType enum, but some switch
+              # statement contains case values that aren't part of that
+              # enum (e.g. URES_TABLE32 which is in UResInternalType). This
+              # is on purpose.
+              '-Wno-switch',
+            ],
+            'cflags_cc!': [
+              '-Wnon-virtual-dtor',
             ],
           }],
           ['OS == "mac"', {
@@ -292,7 +331,6 @@
         'cflags': [
           '-Wall',
           '<(werror)',
-          '-W',
           '-Wno-unused-parameter',
           '-Wno-long-long',
           '-pthread',
@@ -304,7 +342,7 @@
         'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti', '-std=gnu++0x' ],
         'ldflags': [ '-pthread', ],
         'conditions': [
-          [ 'host_arch=="ppc64"', {
+          [ 'host_arch=="ppc64" and OS!="aix"', {
             'cflags': [ '-mminimal-toc' ],
           }],
           [ 'visibility=="hidden" and v8_enable_backtrace==0', {
@@ -323,7 +361,6 @@
         'cflags': [
           '-Wall',
           '<(werror)',
-          '-W',
           '-Wno-unused-parameter',
           '-fno-exceptions',
           # Don't warn about the "struct foo f = {0};" initialization pattern.
@@ -466,7 +503,6 @@
           'WARNING_CFLAGS': [
             '-Wall',
             '-Wendif-labels',
-            '-W',
             '-Wno-unused-parameter',
             # Don't warn about the "struct foo f = {0};" initialization pattern.
             '-Wno-missing-field-initializers',
@@ -492,6 +528,31 @@
         ],  # target_conditions
       },  # target_defaults
     }],  # OS=="mac"
+    ['clang!=1 and host_clang==1 and target_arch!="ia32" and target_arch!="x64"', {
+      'make_global_settings': [
+        ['CC.host', '../<(clang_dir)/bin/clang'],
+        ['CXX.host', '../<(clang_dir)/bin/clang++'],
+      ],
+    }],
+    ['clang==0 and host_clang==1 and target_arch!="ia32" and target_arch!="x64"', {
+      'target_conditions': [
+        ['_toolset=="host"', {
+          'cflags_cc': [ '-std=gnu++11', ],
+        }],
+      ],
+      'target_defaults': {
+        'target_conditions': [
+          ['_toolset=="host"', { 'cflags!': [ '-Wno-unused-local-typedefs' ]}],
+        ],
+      },
+    }],
+    ['clang==1 and "<(GENERATOR)"=="ninja"', {
+      # See http://crbug.com/110262
+      'target_defaults': {
+        'cflags': [ '-fcolor-diagnostics' ],
+        'xcode_settings': { 'OTHER_CFLAGS': [ '-fcolor-diagnostics' ] },
+      },
+    }],
     ['clang==1 and ((OS!="mac" and OS!="ios") or clang_xcode==0) '
         'and OS!="win" and "<(GENERATOR)"=="make"', {
       'make_global_settings': [

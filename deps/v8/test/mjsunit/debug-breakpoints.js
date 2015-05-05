@@ -29,6 +29,8 @@
 // Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
 
+Debug.setListener(function() {});
+
 function f() {a=1;b=2}
 function g() {
   a=1;

@@ -18,9 +18,14 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   // Collect stack and context locals.
   ZoneList<Variable*> stack_locals(scope->StackLocalCount(), zone);
   ZoneList<Variable*> context_locals(scope->ContextLocalCount(), zone);
-  scope->CollectStackAndContextLocals(&stack_locals, &context_locals);
+  ZoneList<Variable*> strong_mode_free_variables(0, zone);
+
+  scope->CollectStackAndContextLocals(&stack_locals, &context_locals,
+                                      &strong_mode_free_variables);
   const int stack_local_count = stack_locals.length();
   const int context_local_count = context_locals.length();
+  const int strong_mode_free_variable_count =
+      strong_mode_free_variables.length();
   // Make sure we allocate the correct amount.
   DCHECK(scope->StackLocalCount() == stack_local_count);
   DCHECK(scope->ContextLocalCount() == context_local_count);
@@ -49,9 +54,10 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
 
   const bool has_function_name = function_name_info != NONE;
   const int parameter_count = scope->num_parameters();
-  const int length = kVariablePartIndex
-      + parameter_count + stack_local_count + 2 * context_local_count
-      + (has_function_name ? 2 : 0);
+  const int length = kVariablePartIndex + parameter_count + stack_local_count +
+                     2 * context_local_count +
+                     3 * strong_mode_free_variable_count +
+                     (has_function_name ? 2 : 0);
 
   Factory* factory = isolate->factory();
   Handle<ScopeInfo> scope_info = factory->NewScopeInfo(length);
@@ -64,11 +70,14 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
               FunctionVariableMode::encode(function_variable_mode) |
               AsmModuleField::encode(scope->asm_module()) |
               AsmFunctionField::encode(scope->asm_function()) |
-              IsSimpleParameterListField::encode(simple_parameter_list);
+              IsSimpleParameterListField::encode(simple_parameter_list) |
+              BlockScopeIsClassScopeField::encode(scope->is_class_scope()) |
+              FunctionKindField::encode(scope->function_kind());
   scope_info->SetFlags(flags);
   scope_info->SetParameterCount(parameter_count);
   scope_info->SetStackLocalCount(stack_local_count);
   scope_info->SetContextLocalCount(context_local_count);
+  scope_info->SetStrongModeFreeVariableCount(strong_mode_free_variable_count);
 
   int index = kVariablePartIndex;
   // Add parameters.
@@ -109,6 +118,25 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
         ContextLocalInitFlag::encode(var->initialization_flag()) |
         ContextLocalMaybeAssignedFlag::encode(var->maybe_assigned());
     scope_info->set(index++, Smi::FromInt(value));
+  }
+
+  DCHECK(index == scope_info->StrongModeFreeVariableNameEntriesIndex());
+  for (int i = 0; i < strong_mode_free_variable_count; ++i) {
+    scope_info->set(index++, *strong_mode_free_variables[i]->name());
+  }
+
+  DCHECK(index == scope_info->StrongModeFreeVariablePositionEntriesIndex());
+  for (int i = 0; i < strong_mode_free_variable_count; ++i) {
+    // Unfortunately, the source code positions are stored as int even though
+    // int32_t would be enough (given the maximum source code length).
+    Handle<Object> start_position = factory->NewNumberFromInt(
+        static_cast<int32_t>(strong_mode_free_variables[i]
+                                 ->strong_mode_reference_start_position()));
+    scope_info->set(index++, *start_position);
+    Handle<Object> end_position = factory->NewNumberFromInt(
+        static_cast<int32_t>(strong_mode_free_variables[i]
+                                 ->strong_mode_reference_end_position()));
+    scope_info->set(index++, *end_position);
   }
 
   // If present, add the function variable name and its index.
@@ -283,6 +311,35 @@ bool ScopeInfo::LocalIsSynthetic(int var) {
 }
 
 
+String* ScopeInfo::StrongModeFreeVariableName(int var) {
+  DCHECK(0 <= var && var < StrongModeFreeVariableCount());
+  int info_index = StrongModeFreeVariableNameEntriesIndex() + var;
+  return String::cast(get(info_index));
+}
+
+
+int ScopeInfo::StrongModeFreeVariableStartPosition(int var) {
+  DCHECK(0 <= var && var < StrongModeFreeVariableCount());
+  int info_index = StrongModeFreeVariablePositionEntriesIndex() + var * 2;
+  int32_t value = 0;
+  bool ok = get(info_index)->ToInt32(&value);
+  USE(ok);
+  DCHECK(ok);
+  return value;
+}
+
+
+int ScopeInfo::StrongModeFreeVariableEndPosition(int var) {
+  DCHECK(0 <= var && var < StrongModeFreeVariableCount());
+  int info_index = StrongModeFreeVariablePositionEntriesIndex() + var * 2 + 1;
+  int32_t value = 0;
+  bool ok = get(info_index)->ToInt32(&value);
+  USE(ok);
+  DCHECK(ok);
+  return value;
+}
+
+
 int ScopeInfo::StackSlotIndex(String* name) {
   DCHECK(name->IsInternalizedString());
   if (length() > 0) {
@@ -373,6 +430,16 @@ int ScopeInfo::FunctionContextSlotIndex(String* name, VariableMode* mode) {
 }
 
 
+bool ScopeInfo::block_scope_is_class_scope() {
+  return BlockScopeIsClassScopeField::decode(Flags());
+}
+
+
+FunctionKind ScopeInfo::function_kind() {
+  return FunctionKindField::decode(Flags());
+}
+
+
 bool ScopeInfo::CopyContextLocalsToScopeObject(Handle<ScopeInfo> scope_info,
                                                Handle<Context> context,
                                                Handle<JSObject> scope_object) {
@@ -420,8 +487,20 @@ int ScopeInfo::ContextLocalInfoEntriesIndex() {
 }
 
 
-int ScopeInfo::FunctionNameEntryIndex() {
+int ScopeInfo::StrongModeFreeVariableNameEntriesIndex() {
   return ContextLocalInfoEntriesIndex() + ContextLocalCount();
+}
+
+
+int ScopeInfo::StrongModeFreeVariablePositionEntriesIndex() {
+  return StrongModeFreeVariableNameEntriesIndex() +
+         StrongModeFreeVariableCount();
+}
+
+
+int ScopeInfo::FunctionNameEntryIndex() {
+  return StrongModeFreeVariablePositionEntriesIndex() +
+         2 * StrongModeFreeVariableCount();
 }
 
 
@@ -560,8 +639,8 @@ Handle<ModuleInfo> ModuleInfo::Create(Isolate* isolate,
   int i = 0;
   for (ModuleDescriptor::Iterator it = descriptor->iterator(); !it.done();
        it.Advance(), ++i) {
-    Variable* var = scope->LookupLocal(it.name());
-    info->set_name(i, *(it.name()->string()));
+    Variable* var = scope->LookupLocal(it.local_name());
+    info->set_name(i, *(it.export_name()->string()));
     info->set_mode(i, var->mode());
     DCHECK(var->index() >= 0);
     info->set_index(i, var->index());

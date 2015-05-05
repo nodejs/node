@@ -6,7 +6,6 @@
 #define V8_COMPILER_TYPER_H_
 
 #include "src/compiler/graph.h"
-#include "src/compiler/opcodes.h"
 #include "src/types.h"
 
 namespace v8 {
@@ -63,8 +62,6 @@ class Typer {
   Type* random_fun_;
   LazyTypeCache* cache_;
 
-  ZoneVector<double> weaken_min_limits_;
-  ZoneVector<double> weaken_max_limits_;
   DISALLOW_COPY_AND_ASSIGN(Typer);
 };
 

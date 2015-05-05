@@ -643,19 +643,12 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Exception handling
 
-  // Push a new try handler and link into try handler chain.
-  void PushTryHandler(StackHandler::Kind kind, int handler_index);
+  // Push a new stack handler and link into stack handler chain.
+  void PushStackHandler();
 
-  // Unlink the stack handler on top of the stack from the try handler chain.
+  // Unlink the stack handler on top of the stack from the stack handler chain.
   // Must preserve the result register.
-  void PopTryHandler();
-
-  // Passes thrown value to the handler of top of the try handler chain.
-  void Throw(Register value);
-
-  // Propagates an uncatchable exception to the top of the current JS stack's
-  // handler chain.
-  void ThrowUncatchable(Register value);
+  void PopStackHandler();
 
   // ---------------------------------------------------------------------------
   // Inline caching support
@@ -810,6 +803,11 @@ class MacroAssembler: public Assembler {
 
   // ---------------------------------------------------------------------------
   // Support functions.
+
+  // Machine code version of Map::GetConstructor().
+  // |temp| holds |result|'s map when done, and |temp2| its instance type.
+  void GetMapConstructor(Register result, Register map, Register temp,
+                         Register temp2);
 
   // Try to get function prototype of a function and puts the value in
   // the result register. Checks that the function really is a
@@ -1463,10 +1461,6 @@ class MacroAssembler: public Assembler {
   inline void GetMarkBits(Register addr_reg,
                           Register bitmap_reg,
                           Register mask_reg);
-
-  // Helper for throwing exceptions.  Compute a handler address and jump to
-  // it.  See the implementation for register usage.
-  void JumpToHandlerEntry();
 
   // Compute memory operands for safepoint stack slots.
   static int SafepointRegisterStackIndex(int reg_code);

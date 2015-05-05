@@ -30,23 +30,10 @@ class PrepareBranchRevision(Step):
   MESSAGE = "Check from which revision to branch off."
 
   def RunStep(self):
-    if self._options.revision:
-      self["push_hash"], tree_object = self.GitLog(
-          n=1, format="\"%H %T\"", git_hash=self._options.revision).split(" ")
-    else:
-      self["push_hash"], tree_object = self.GitLog(
-          n=1, format="\"%H %T\"", branch="origin/master").split(" ")
-    print "Release revision %s" % self["push_hash"]
+    self["push_hash"] = (self._options.revision or
+                         self.GitLog(n=1, format="%H", branch="origin/master"))
     assert self["push_hash"]
-
-    pending_tuples = self.GitLog(
-        n=200, format="\"%H %T\"", branch="refs/pending/heads/master")
-    for hsh, tree in map(lambda s: s.split(" "), pending_tuples.splitlines()):
-      if tree == tree_object:
-        self["pending_hash"] = hsh
-        break
-    print "Pending release revision %s" % self["pending_hash"]
-    assert self["pending_hash"]
+    print "Release revision %s" % self["push_hash"]
 
 
 class IncrementVersion(Step):
@@ -174,7 +161,7 @@ class MakeBranch(Step):
 
   def RunStep(self):
     self.Git("reset --hard origin/master")
-    self.Git("checkout -b work-branch %s" % self["pending_hash"])
+    self.Git("checkout -b work-branch %s" % self["push_hash"])
     self.GitCheckoutFile(CHANGELOG_FILE, self["latest_version"])
     self.GitCheckoutFile(VERSION_FILE, self["latest_version"])
 
@@ -229,8 +216,7 @@ class PushBranch(Step):
   def RunStep(self):
     pushspecs = [
       "refs/heads/work-branch:refs/pending/heads/%s" % self["version"],
-      "%s:refs/pending-tags/heads/%s" %
-      (self["pending_hash"], self["version"]),
+      "%s:refs/pending-tags/heads/%s" % (self["push_hash"], self["version"]),
       "%s:refs/heads/%s" % (self["push_hash"], self["version"]),
     ]
     cmd = "push origin %s" % " ".join(pushspecs)

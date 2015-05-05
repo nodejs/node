@@ -7,7 +7,6 @@
 // This file relies on the fact that the following declaration has been made
 // in runtime.js and symbol.js:
 // var $Object = global.Object;
-// var $Symbol = global.Symbol;
 
 DefaultObjectToString = ObjectToStringHarmony;
 // ES6 draft 08-24-14, section 19.1.3.6
@@ -26,7 +25,7 @@ function ObjectToStringHarmony() {
 function HarmonyToStringExtendSymbolPrototype() {
   %CheckIsBootstrapping();
 
-  InstallConstants($Symbol, $Array(
+  InstallConstants(global.Symbol, $Array(
     // TODO(dslomov, caitp): Move to symbol.js when shipping
    "toStringTag", symbolToStringTag
   ));

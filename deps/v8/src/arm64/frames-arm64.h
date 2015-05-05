@@ -99,11 +99,6 @@ inline Object* JavaScriptFrame::function_slot_object() const {
 }
 
 
-inline void StackHandler::SetFp(Address slot, Address fp) {
-  Memory::Address_at(slot) = fp;
-}
-
-
 } }  // namespace v8::internal
 
 #endif  // V8_ARM64_FRAMES_ARM64_H_

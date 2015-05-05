@@ -108,7 +108,12 @@ class Unique {
   }
 
   template <class S> static Unique<T> cast(Unique<S> that) {
-    return Unique<T>(that.raw_address_, Handle<T>::cast(that.handle_));
+    // Allow fetching location() to unsafe-cast the handle. This is necessary
+    // since we can't concurrently safe-cast. Safe-casting requires looking at
+    // the heap which may be moving concurrently to the compiler thread.
+    AllowHandleDereference allow_deref;
+    return Unique<T>(that.raw_address_,
+                     Handle<T>(reinterpret_cast<T**>(that.handle_.location())));
   }
 
   inline bool IsInitialized() const {

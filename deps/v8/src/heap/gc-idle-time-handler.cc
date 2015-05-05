@@ -13,9 +13,10 @@ const double GCIdleTimeHandler::kConservativeTimeRatio = 0.9;
 const size_t GCIdleTimeHandler::kMaxMarkCompactTimeInMs = 1000;
 const size_t GCIdleTimeHandler::kMaxFinalIncrementalMarkCompactTimeInMs = 1000;
 const size_t GCIdleTimeHandler::kMinTimeForFinalizeSweeping = 100;
-const int GCIdleTimeHandler::kMaxMarkCompactsInIdleRound = 7;
+const int GCIdleTimeHandler::kMaxMarkCompactsInIdleRound = 2;
 const int GCIdleTimeHandler::kIdleScavengeThreshold = 5;
 const double GCIdleTimeHandler::kHighContextDisposalRate = 100;
+const size_t GCIdleTimeHandler::kMinTimeForOverApproximatingWeakClosureInMs = 1;
 
 
 void GCIdleTimeAction::Print() {
@@ -116,7 +117,7 @@ bool GCIdleTimeHandler::ShouldDoScavenge(
     size_t scavenge_speed_in_bytes_per_ms,
     size_t new_space_allocation_throughput_in_bytes_per_ms) {
   size_t new_space_allocation_limit =
-      kMaxFrameRenderingIdleTime * scavenge_speed_in_bytes_per_ms;
+      kMaxScheduledIdleTime * scavenge_speed_in_bytes_per_ms;
 
   // If the limit is larger than the new space size, then scavenging used to be
   // really fast. We can take advantage of the whole new space.
@@ -132,8 +133,7 @@ bool GCIdleTimeHandler::ShouldDoScavenge(
   } else {
     // We have to trigger scavenge before we reach the end of new space.
     new_space_allocation_limit -=
-        new_space_allocation_throughput_in_bytes_per_ms *
-        kMaxFrameRenderingIdleTime;
+        new_space_allocation_throughput_in_bytes_per_ms * kMaxScheduledIdleTime;
   }
 
   if (scavenge_speed_in_bytes_per_ms == 0) {
@@ -153,9 +153,10 @@ bool GCIdleTimeHandler::ShouldDoScavenge(
 bool GCIdleTimeHandler::ShouldDoMarkCompact(
     size_t idle_time_in_ms, size_t size_of_objects,
     size_t mark_compact_speed_in_bytes_per_ms) {
-  return idle_time_in_ms >=
-         EstimateMarkCompactTime(size_of_objects,
-                                 mark_compact_speed_in_bytes_per_ms);
+  return idle_time_in_ms >= kMaxScheduledIdleTime &&
+         idle_time_in_ms >=
+             EstimateMarkCompactTime(size_of_objects,
+                                     mark_compact_speed_in_bytes_per_ms);
 }
 
 
@@ -176,11 +177,29 @@ bool GCIdleTimeHandler::ShouldDoFinalIncrementalMarkCompact(
 }
 
 
+bool GCIdleTimeHandler::ShouldDoOverApproximateWeakClosure(
+    size_t idle_time_in_ms) {
+  // TODO(jochen): Estimate the time it will take to build the object groups.
+  return idle_time_in_ms >= kMinTimeForOverApproximatingWeakClosureInMs;
+}
+
+
+GCIdleTimeAction GCIdleTimeHandler::NothingOrDone() {
+  if (idle_times_which_made_no_progress_since_last_idle_round_ >=
+      kMaxNoProgressIdleTimesPerIdleRound) {
+    return GCIdleTimeAction::Done();
+  } else {
+    idle_times_which_made_no_progress_since_last_idle_round_++;
+    return GCIdleTimeAction::Nothing();
+  }
+}
+
+
 // The following logic is implemented by the controller:
 // (1) If we don't have any idle time, do nothing, unless a context was
 // disposed, incremental marking is stopped, and the heap is small. Then do
 // a full GC.
-// (2) If the new space is almost full and we can affort a Scavenge or if the
+// (2) If the new space is almost full and we can afford a Scavenge or if the
 // next Scavenge will very likely take long, then a Scavenge is performed.
 // (3) If there is currently no MarkCompact idle round going on, we start a
 // new idle round if enough garbage was created. Otherwise we do not perform
@@ -229,33 +248,23 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
     if (ShouldDoMarkCompact(static_cast<size_t>(idle_time_in_ms),
                             heap_state.size_of_objects,
                             heap_state.mark_compact_speed_in_bytes_per_ms)) {
-      // If there are no more than two GCs left in this idle round and we are
-      // allowed to do a full GC, then make those GCs full in order to compact
-      // the code space.
-      // TODO(ulan): Once we enable code compaction for incremental marking, we
-      // can get rid of this special case and always start incremental marking.
-      int remaining_mark_sweeps =
-          kMaxMarkCompactsInIdleRound - mark_compacts_since_idle_round_started_;
-      if (static_cast<size_t>(idle_time_in_ms) > kMaxFrameRenderingIdleTime &&
-          (remaining_mark_sweeps <= 2 ||
-           !heap_state.can_start_incremental_marking)) {
-        return GCIdleTimeAction::FullGC();
-      }
-    }
-    if (!heap_state.can_start_incremental_marking) {
-      return GCIdleTimeAction::Nothing();
+      return GCIdleTimeAction::FullGC();
     }
   }
+
   // TODO(hpayer): Estimate finalize sweeping time.
-  if (heap_state.sweeping_in_progress &&
-      static_cast<size_t>(idle_time_in_ms) >= kMinTimeForFinalizeSweeping) {
-    return GCIdleTimeAction::FinalizeSweeping();
+  if (heap_state.sweeping_in_progress) {
+    if (static_cast<size_t>(idle_time_in_ms) >= kMinTimeForFinalizeSweeping) {
+      return GCIdleTimeAction::FinalizeSweeping();
+    }
+    return NothingOrDone();
   }
 
   if (heap_state.incremental_marking_stopped &&
       !heap_state.can_start_incremental_marking) {
-    return GCIdleTimeAction::Nothing();
+    return NothingOrDone();
   }
+
   size_t step_size = EstimateMarkingStepSize(
       static_cast<size_t>(kIncrementalMarkingStepTimeInMs),
       heap_state.incremental_marking_speed_in_bytes_per_ms);

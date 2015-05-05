@@ -991,10 +991,10 @@ class FastElementsAccessor
            (IsFastDoubleElementsKind(KindTraits::Kind) ==
             ((map == isolate->heap()->fixed_array_map() && length == 0) ||
              map == isolate->heap()->fixed_double_array_map())));
+    if (length == 0) return;  // nothing to do!
     DisallowHeapAllocation no_gc;
+    Handle<BackingStore> backing_store = Handle<BackingStore>::cast(elements);
     for (int i = 0; i < length; i++) {
-      HandleScope scope(isolate);
-      Handle<BackingStore> backing_store = Handle<BackingStore>::cast(elements);
       DCHECK((!IsFastSmiElementsKind(KindTraits::Kind) ||
               BackingStore::get(backing_store, i)->IsSmi()) ||
              (IsFastHoleyElementsKind(KindTraits::Kind) ==

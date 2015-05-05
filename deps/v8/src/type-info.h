@@ -42,9 +42,9 @@ class TypeFeedbackOracle: public ZoneObject {
                               IcCheckType* key_type);
   void GetLoadKeyType(TypeFeedbackId id, IcCheckType* key_type);
 
-  void PropertyReceiverTypes(TypeFeedbackId id, Handle<String> name,
+  void PropertyReceiverTypes(TypeFeedbackId id, Handle<Name> name,
                              SmallMapList* receiver_types);
-  void PropertyReceiverTypes(FeedbackVectorICSlot slot, Handle<String> name,
+  void PropertyReceiverTypes(FeedbackVectorICSlot slot, Handle<Name> name,
                              SmallMapList* receiver_types);
   void KeyedPropertyReceiverTypes(TypeFeedbackId id,
                                   SmallMapList* receiver_types,
@@ -53,8 +53,7 @@ class TypeFeedbackOracle: public ZoneObject {
   void KeyedPropertyReceiverTypes(FeedbackVectorICSlot slot,
                                   SmallMapList* receiver_types, bool* is_string,
                                   IcCheckType* key_type);
-  void AssignmentReceiverTypes(TypeFeedbackId id,
-                               Handle<String> name,
+  void AssignmentReceiverTypes(TypeFeedbackId id, Handle<Name> name,
                                SmallMapList* receiver_types);
   void KeyedAssignmentReceiverTypes(TypeFeedbackId id,
                                     SmallMapList* receiver_types,
@@ -68,9 +67,12 @@ class TypeFeedbackOracle: public ZoneObject {
   template <class T>
   void CollectReceiverTypes(T* obj, SmallMapList* types);
 
-  static bool CanRetainOtherContext(Map* map, Context* native_context);
-  static bool CanRetainOtherContext(JSFunction* function,
-                                    Context* native_context);
+  static bool IsRelevantFeedback(Map* map, Context* native_context) {
+    Object* constructor = map->GetConstructor();
+    return !constructor->IsJSFunction() ||
+           JSFunction::cast(constructor)->context()->native_context() ==
+               native_context;
+  }
 
   Handle<JSFunction> GetCallTarget(FeedbackVectorICSlot slot);
   Handle<AllocationSite> GetCallAllocationSite(FeedbackVectorICSlot slot);
@@ -104,12 +106,10 @@ class TypeFeedbackOracle: public ZoneObject {
   Isolate* isolate() const { return isolate_; }
 
  private:
-  void CollectReceiverTypes(TypeFeedbackId id,
-                            Handle<String> name,
-                            Code::Flags flags,
-                            SmallMapList* types);
+  void CollectReceiverTypes(TypeFeedbackId id, Handle<Name> name,
+                            Code::Flags flags, SmallMapList* types);
   template <class T>
-  void CollectReceiverTypes(T* obj, Handle<String> name, Code::Flags flags,
+  void CollectReceiverTypes(T* obj, Handle<Name> name, Code::Flags flags,
                             SmallMapList* types);
 
   // Returns true if there is at least one string map and if

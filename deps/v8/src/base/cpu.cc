@@ -385,6 +385,8 @@ CPU::CPU()
         case 0x37:  // SLM
         case 0x4a:
         case 0x4d:
+        case 0x4c:  // AMT
+        case 0x6e:
           is_atom_ = true;
       }
     }

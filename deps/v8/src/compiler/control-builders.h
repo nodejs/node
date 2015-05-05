@@ -167,20 +167,25 @@ class TryFinallyBuilder FINAL : public ControlBuilder {
   explicit TryFinallyBuilder(AstGraphBuilder* builder)
       : ControlBuilder(builder),
         finally_environment_(NULL),
-        token_node_(NULL) {}
+        token_node_(NULL),
+        value_node_(NULL) {}
 
   // Primitive control commands.
   void BeginTry();
-  void LeaveTry(Node* token);
-  void EndTry(Node* token);
+  void LeaveTry(Node* token, Node* value);
+  void EndTry(Node* token, Node* value);
   void EndFinally();
 
   // Returns the dispatch token value inside the 'finally' body.
   Node* GetDispatchTokenNode() const { return token_node_; }
 
+  // Returns the saved result value inside the 'finally' body.
+  Node* GetResultValueNode() const { return value_node_; }
+
  private:
   Environment* finally_environment_;  // Environment for the 'finally' body.
   Node* token_node_;                  // Node for token in 'finally' body.
+  Node* value_node_;                  // Node for value in 'finally' body.
 };
 
 }  // namespace compiler

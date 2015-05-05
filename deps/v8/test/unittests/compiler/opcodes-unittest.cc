@@ -64,6 +64,21 @@ bool IsConstantOpcode(IrOpcode::Value opcode) {
 }
 
 
+bool IsComparisonOpcode(IrOpcode::Value opcode) {
+  switch (opcode) {
+#define OPCODE(Opcode)      \
+  case IrOpcode::k##Opcode: \
+    return true;
+    JS_COMPARE_BINOP_LIST(OPCODE)
+    SIMPLIFIED_COMPARE_BINOP_LIST(OPCODE)
+    MACHINE_COMPARE_BINOP_LIST(OPCODE)
+#undef OPCODE
+    default:
+      return false;
+  }
+}
+
+
 const IrOpcode::Value kInvalidOpcode = static_cast<IrOpcode::Value>(123456789);
 
 }  // namespace
@@ -104,6 +119,16 @@ TEST(IrOpcodeTest, IsConstantOpcode) {
 #define OPCODE(Opcode)                             \
   EXPECT_EQ(IsConstantOpcode(IrOpcode::k##Opcode), \
             IrOpcode::IsConstantOpcode(IrOpcode::k##Opcode));
+  ALL_OP_LIST(OPCODE)
+#undef OPCODE
+}
+
+
+TEST(IrOpcodeTest, IsComparisonOpcode) {
+  EXPECT_FALSE(IrOpcode::IsComparisonOpcode(kInvalidOpcode));
+#define OPCODE(Opcode)                               \
+  EXPECT_EQ(IsComparisonOpcode(IrOpcode::k##Opcode), \
+            IrOpcode::IsComparisonOpcode(IrOpcode::k##Opcode));
   ALL_OP_LIST(OPCODE)
 #undef OPCODE
 }

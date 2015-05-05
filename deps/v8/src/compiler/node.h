@@ -63,11 +63,10 @@ class Node FINAL {
   void AppendInput(Zone* zone, Node* new_to);
   void InsertInput(Zone* zone, int index, Node* new_to);
   void RemoveInput(int index);
-  void RemoveAllInputs();
+  void NullAllInputs();
   void TrimInputCount(int new_input_count);
 
   int UseCount() const;
-  Node* UseAt(int index) const;
   void ReplaceUses(Node* replace_to);
 
   class InputEdges FINAL {
@@ -226,7 +225,6 @@ class Node FINAL {
   NodeId const id_;
   unsigned bit_field_;
   Use* first_use_;
-  Use* last_use_;
   union {
     // When a node is initially allocated, it uses a static buffer to hold its
     // inputs under the assumption that the number of outputs will not increase.
@@ -249,6 +247,7 @@ std::ostream& operator<<(std::ostream& os, const Node& n);
 
 // Typedefs to shorten commonly used Node containers.
 typedef ZoneDeque<Node*> NodeDeque;
+typedef ZoneSet<Node*> NodeSet;
 typedef ZoneVector<Node*> NodeVector;
 typedef ZoneVector<NodeVector> NodeVectorVector;
 

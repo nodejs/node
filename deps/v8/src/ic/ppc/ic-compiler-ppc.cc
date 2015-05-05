@@ -30,7 +30,7 @@ void PropertyICCompiler::GenerateRuntimeSetProperty(
 #define __ ACCESS_MASM(masm())
 
 
-Handle<Code> PropertyICCompiler::CompilePolymorphic(TypeHandleList* types,
+Handle<Code> PropertyICCompiler::CompilePolymorphic(MapHandleList* maps,
                                                     CodeHandleList* handlers,
                                                     Handle<Name> name,
                                                     Code::StubType type,
@@ -57,7 +57,7 @@ Handle<Code> PropertyICCompiler::CompilePolymorphic(TypeHandleList* types,
   }
 
   Label number_case;
-  Label* smi_target = IncludesNumberType(types) ? &number_case : &miss;
+  Label* smi_target = IncludesNumberMap(maps) ? &number_case : &miss;
   __ JumpIfSmi(receiver(), smi_target);
 
   // Polymorphic keyed stores may use the map register
@@ -65,21 +65,23 @@ Handle<Code> PropertyICCompiler::CompilePolymorphic(TypeHandleList* types,
   DCHECK(kind() != Code::KEYED_STORE_IC ||
          map_reg.is(ElementTransitionAndStoreDescriptor::MapRegister()));
 
-  int receiver_count = types->length();
+  int receiver_count = maps->length();
   int number_of_handled_maps = 0;
   __ LoadP(map_reg, FieldMemOperand(receiver(), HeapObject::kMapOffset));
   for (int current = 0; current < receiver_count; ++current) {
-    Handle<HeapType> type = types->at(current);
-    Handle<Map> map = IC::TypeToMap(*type, isolate());
+    Handle<Map> map = maps->at(current);
     if (!map->is_deprecated()) {
       number_of_handled_maps++;
       Handle<WeakCell> cell = Map::WeakCellForMap(map);
       __ CmpWeakValue(map_reg, cell, scratch2());
-      if (type->Is(HeapType::Number())) {
+      Label next;
+      __ bne(&next);
+      if (map->instance_type() == HEAP_NUMBER_TYPE) {
         DCHECK(!number_case.is_unused());
         __ bind(&number_case);
       }
-      __ Jump(handlers->at(current), RelocInfo::CODE_TARGET, eq);
+      __ Jump(handlers->at(current), RelocInfo::CODE_TARGET);
+      __ bind(&next);
     }
   }
   DCHECK(number_of_handled_maps != 0);

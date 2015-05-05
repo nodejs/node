@@ -236,6 +236,8 @@ inline size_t NumberToSize(Isolate* isolate,
   return result;
 }
 
+
+bool IsNonArrayIndexInteger(String* string);
 } }  // namespace v8::internal
 
 #endif  // V8_CONVERSIONS_H_

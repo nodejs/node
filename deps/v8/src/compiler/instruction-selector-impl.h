@@ -8,11 +8,23 @@
 #include "src/compiler/instruction.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/linkage.h"
+#include "src/compiler/schedule.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+// Helper struct containing data about a table or lookup switch.
+struct SwitchInfo {
+  int32_t min_value;           // minimum value of {case_values}
+  int32_t max_value;           // maximum value of {case_values}
+  size_t value_range;          // |max_value - min_value| + 1
+  size_t case_count;           // number of cases
+  int32_t* case_values;        // actual case values, unsorted
+  BasicBlock** case_branches;  // basic blocks corresponding to case values
+  BasicBlock* default_branch;  // default branch target
+};
 
 // A helper class for the instruction selector that simplifies construction of
 // Operands. This class implements a base for architecture-specific helpers.
@@ -71,6 +83,11 @@ class OperandGenerator {
   InstructionOperand UseRegister(Node* node) {
     return Use(node, UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER,
                                         UnallocatedOperand::USED_AT_START,
+                                        GetVReg(node)));
+  }
+
+  InstructionOperand UseUniqueSlot(Node* node) {
+    return Use(node, UnallocatedOperand(UnallocatedOperand::MUST_HAVE_SLOT,
                                         GetVReg(node)));
   }
 
@@ -142,7 +159,8 @@ class OperandGenerator {
   }
 
   InstructionOperand Label(BasicBlock* block) {
-    int index = sequence()->AddImmediate(Constant(block->GetRpoNumber()));
+    int index = sequence()->AddImmediate(
+        Constant(RpoNumber::FromInt(block->rpo_number())));
     return ImmediateOperand(index);
   }
 

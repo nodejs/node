@@ -103,7 +103,6 @@ class LCodeGen;
   V(LoadContextSlot)                         \
   V(LoadFieldByIndex)                        \
   V(LoadFunctionPrototype)                   \
-  V(LoadGlobalCell)                          \
   V(LoadGlobalGeneric)                       \
   V(LoadKeyed)                               \
   V(LoadKeyedGeneric)                        \
@@ -144,7 +143,6 @@ class LCodeGen;
   V(StoreCodeEntry)                          \
   V(StoreContextSlot)                        \
   V(StoreFrameContext)                       \
-  V(StoreGlobalCell)                         \
   V(StoreKeyed)                              \
   V(StoreKeyedGeneric)                       \
   V(StoreNamedField)                         \
@@ -1718,13 +1716,6 @@ class LLoadKeyedGeneric FINAL : public LTemplateInstruction<1, 3, 1> {
 };
 
 
-class LLoadGlobalCell FINAL : public LTemplateInstruction<1, 0, 0> {
- public:
-  DECLARE_CONCRETE_INSTRUCTION(LoadGlobalCell, "load-global-cell")
-  DECLARE_HYDROGEN_ACCESSOR(LoadGlobalCell)
-};
-
-
 class LLoadGlobalGeneric FINAL : public LTemplateInstruction<1, 2, 1> {
  public:
   LLoadGlobalGeneric(LOperand* context, LOperand* global_object,
@@ -1743,19 +1734,6 @@ class LLoadGlobalGeneric FINAL : public LTemplateInstruction<1, 2, 1> {
 
   Handle<Object> name() const { return hydrogen()->name(); }
   bool for_typeof() const { return hydrogen()->for_typeof(); }
-};
-
-
-class LStoreGlobalCell FINAL : public LTemplateInstruction<0, 1, 0> {
- public:
-  explicit LStoreGlobalCell(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(StoreGlobalCell, "store-global-cell")
-  DECLARE_HYDROGEN_ACCESSOR(StoreGlobalCell)
 };
 
 

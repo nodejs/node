@@ -6,6 +6,7 @@
 
 #include "src/accessors.h"
 #include "src/codegen.h"
+#include "src/cpu-profiler.h"
 #include "src/deoptimizer.h"
 #include "src/disasm.h"
 #include "src/full-codegen.h"
@@ -609,8 +610,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
   disallow_heap_allocation_ = new DisallowHeapAllocation();
 #endif  // DEBUG
   if (compiled_code_->kind() == Code::OPTIMIZED_FUNCTION) {
-    PROFILE(isolate_, CodeDeoptEvent(compiled_code_, bailout_id_, from_,
-                                     fp_to_sp_delta_));
+    PROFILE(isolate_, CodeDeoptEvent(compiled_code_, from_, fp_to_sp_delta_));
   }
   unsigned size = ComputeInputFrameSize();
   input_ = new(size) FrameDescription(size, function);
@@ -769,7 +769,7 @@ void Deoptimizer::DoComputeOutputFrames() {
            fp_to_sp_delta_);
     if (bailout_type_ == EAGER || bailout_type_ == SOFT ||
         (compiled_code_->is_hydrogen_stub())) {
-      compiled_code_->PrintDeoptLocation(trace_scope_->file(), bailout_id_);
+      compiled_code_->PrintDeoptLocation(trace_scope_->file(), from_);
     }
   }
 
@@ -3648,34 +3648,22 @@ const char* Deoptimizer::GetDeoptReason(DeoptReason deopt_reason) {
 }
 
 
-Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, int bailout_id) {
-  int last_position = 0;
-  Isolate* isolate = code->GetIsolate();
+Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, Address pc) {
+  SourcePosition last_position = SourcePosition::Unknown();
   Deoptimizer::DeoptReason last_reason = Deoptimizer::kNoReason;
   int mask = RelocInfo::ModeMask(RelocInfo::DEOPT_REASON) |
-             RelocInfo::ModeMask(RelocInfo::POSITION) |
-             RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
+             RelocInfo::ModeMask(RelocInfo::POSITION);
   for (RelocIterator it(code, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
+    if (info->pc() >= pc) return DeoptInfo(last_position, NULL, last_reason);
     if (info->rmode() == RelocInfo::POSITION) {
-      last_position = static_cast<int>(info->data());
+      int raw_position = static_cast<int>(info->data());
+      last_position = raw_position ? SourcePosition::FromRaw(raw_position)
+                                   : SourcePosition::Unknown();
     } else if (info->rmode() == RelocInfo::DEOPT_REASON) {
       last_reason = static_cast<Deoptimizer::DeoptReason>(info->data());
-    } else if (last_reason != Deoptimizer::kNoReason) {
-      if ((bailout_id ==
-           Deoptimizer::GetDeoptimizationId(isolate, info->target_address(),
-                                            Deoptimizer::EAGER)) ||
-          (bailout_id ==
-           Deoptimizer::GetDeoptimizationId(isolate, info->target_address(),
-                                            Deoptimizer::SOFT)) ||
-          (bailout_id ==
-           Deoptimizer::GetDeoptimizationId(isolate, info->target_address(),
-                                            Deoptimizer::LAZY))) {
-        CHECK(RelocInfo::IsRuntimeEntry(info->rmode()));
-        return DeoptInfo(last_position, NULL, last_reason);
-      }
     }
   }
-  return DeoptInfo(0, NULL, Deoptimizer::kNoReason);
+  return DeoptInfo(SourcePosition::Unknown(), NULL, Deoptimizer::kNoReason);
 }
 } }  // namespace v8::internal

@@ -42,8 +42,11 @@ class DetectLastRoll(Step):
   MESSAGE = "Detect commit ID of the last Chromium roll."
 
   def RunStep(self):
-    # The revision that should be rolled.
-    latest_release = self.GetLatestRelease()
+    # The revision that should be rolled. Check for the latest of the most
+    # recent releases based on commit timestamp.
+    revisions = self.GetRecentReleases(
+        max_age=self._options.max_age * DAY_IN_SECONDS)
+    assert revisions, "Didn't find any recent release."
 
     # Interpret the DEPS file to retrieve the v8 revision.
     # TODO(machenbach): This should be part or the roll-deps api of
@@ -53,36 +56,24 @@ class DetectLastRoll(Step):
 
     # The revision rolled last.
     self["last_roll"] = vars['v8_revision']
+    last_version = self.GetVersionTag(self["last_roll"])
+    assert last_version, "The last rolled v8 revision is not tagged."
 
-    # TODO(machenbach): It is possible that the auto-push script made a new
-    # fast-forward release (e.g. 4.2.3) while somebody patches the last
-    # candidate (e.g. 4.2.2.1). In this case, the auto-roller would pick
-    # the fast-forward release. Should there be a way to prioritize the
-    # patched version?
+    # There must be some progress between the last roll and the new candidate
+    # revision (i.e. we don't go backwards). The revisions are ordered newest
+    # to oldest. It is possible that the newest timestamp has no progress
+    # compared to the last roll, i.e. if the newest release is a cherry-pick
+    # on a release branch. Then we look further.
+    for revision in revisions:
+      version = self.GetVersionTag(revision)
+      assert version, "Internal error. All recent releases should have a tag"
 
-    if latest_release == self["last_roll"]:
-      # We always try to roll if the latest revision is not the revision in
-      # chromium.
+      if SortingKey(last_version) < SortingKey(version):
+        self["roll"] = revision
+        break
+    else:
       print("There is no newer v8 revision than the one in Chromium (%s)."
             % self["last_roll"])
-      return True
-
-
-class CheckClusterFuzz(Step):
-  MESSAGE = "Check ClusterFuzz api for new problems."
-
-  def RunStep(self):
-    if not os.path.exists(self.Config("CLUSTERFUZZ_API_KEY_FILE")):
-      print "Skipping ClusterFuzz check. No api key file found."
-      return False
-    api_key = FileToText(self.Config("CLUSTERFUZZ_API_KEY_FILE"))
-    # Check for open, reproducible issues that have no associated bug.
-    result = self._side_effect_handler.ReadClusterFuzzAPI(
-        api_key, job_type="linux_asan_d8_dbg", reproducible="True",
-        open="True", bug_information="",
-        revision_greater_or_equal=str(self["last_push"]))
-    if result:
-      print "Stop due to pending ClusterFuzz issues."
       return True
 
 
@@ -97,12 +88,12 @@ class RollChromium(Step):
         "--chromium", self._options.chromium,
         "--last-roll", self["last_roll"],
         "--use-commit-queue",
+        self["roll"],
       ]
       if self._options.sheriff:
-        args.extend([
-            "--sheriff", "--googlers-mapping", self._options.googlers_mapping])
+        args.append("--sheriff")
       if self._options.dry_run:
-        args.extend(["--dry-run"])
+        args.append("--dry-run")
       if self._options.work_dir:
         args.extend(["--work-dir", self._options.work_dir])
       self._side_effect_handler.Call(chromium_roll.ChromiumRoll().Run, args)
@@ -113,6 +104,8 @@ class AutoRoll(ScriptsBase):
     parser.add_argument("-c", "--chromium", required=True,
                         help=("The path to your Chromium src/ "
                               "directory to automate the V8 roll."))
+    parser.add_argument("--max-age", default=3, type=int,
+                        help="Maximum age in days of the latest release.")
     parser.add_argument("--roll", help="Call Chromium roll script.",
                         default=False, action="store_true")
 
@@ -128,14 +121,12 @@ class AutoRoll(ScriptsBase):
   def _Config(self):
     return {
       "PERSISTFILE_BASENAME": "/tmp/v8-auto-roll-tempfile",
-      "CLUSTERFUZZ_API_KEY_FILE": ".cf_api_key",
     }
 
   def _Steps(self):
     return [
       CheckActiveRoll,
       DetectLastRoll,
-      CheckClusterFuzz,
       RollChromium,
     ]
 

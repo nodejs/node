@@ -26,11 +26,11 @@ class ArmOperandConverter FINAL : public InstructionOperandConverter {
   ArmOperandConverter(CodeGenerator* gen, Instruction* instr)
       : InstructionOperandConverter(gen, instr) {}
 
-  SwVfpRegister OutputFloat32Register(int index = 0) {
+  SwVfpRegister OutputFloat32Register(size_t index = 0) {
     return ToFloat32Register(instr_->OutputAt(index));
   }
 
-  SwVfpRegister InputFloat32Register(int index) {
+  SwVfpRegister InputFloat32Register(size_t index) {
     return ToFloat32Register(instr_->InputAt(index));
   }
 
@@ -38,11 +38,11 @@ class ArmOperandConverter FINAL : public InstructionOperandConverter {
     return ToFloat64Register(op).low();
   }
 
-  LowDwVfpRegister OutputFloat64Register(int index = 0) {
+  LowDwVfpRegister OutputFloat64Register(size_t index = 0) {
     return ToFloat64Register(instr_->OutputAt(index));
   }
 
-  LowDwVfpRegister InputFloat64Register(int index) {
+  LowDwVfpRegister InputFloat64Register(size_t index) {
     return ToFloat64Register(instr_->InputAt(index));
   }
 
@@ -62,7 +62,7 @@ class ArmOperandConverter FINAL : public InstructionOperandConverter {
     return LeaveCC;
   }
 
-  Operand InputImmediate(int index) {
+  Operand InputImmediate(size_t index) {
     Constant constant = ToConstant(instr_->InputAt(index));
     switch (constant.type()) {
       case Constant::kInt32:
@@ -83,8 +83,8 @@ class ArmOperandConverter FINAL : public InstructionOperandConverter {
     return Operand::Zero();
   }
 
-  Operand InputOperand2(int first_index) {
-    const int index = first_index;
+  Operand InputOperand2(size_t first_index) {
+    const size_t index = first_index;
     switch (AddressingModeField::decode(instr_->opcode())) {
       case kMode_None:
       case kMode_Offset_RI:
@@ -115,8 +115,8 @@ class ArmOperandConverter FINAL : public InstructionOperandConverter {
     return Operand::Zero();
   }
 
-  MemOperand InputOffset(int* first_index) {
-    const int index = *first_index;
+  MemOperand InputOffset(size_t* first_index) {
+    const size_t index = *first_index;
     switch (AddressingModeField::decode(instr_->opcode())) {
       case kMode_None:
       case kMode_Operand2_I:
@@ -141,7 +141,7 @@ class ArmOperandConverter FINAL : public InstructionOperandConverter {
     return MemOperand(r0);
   }
 
-  MemOperand InputOffset(int first_index = 0) {
+  MemOperand InputOffset(size_t first_index = 0) {
     return InputOffset(&first_index);
   }
 
@@ -313,7 +313,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
                Operand(Code::kHeaderSize - kHeapObjectTag));
         __ Call(ip);
       }
-      AddSafepointAndDeopt(instr);
+      RecordCallPosition(instr);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
@@ -328,7 +328,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       __ ldr(ip, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
       __ Call(ip);
-      AddSafepointAndDeopt(instr);
+      RecordCallPosition(instr);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
@@ -348,6 +348,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       // don't emit code for nops.
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
+    case kArchDeoptimize: {
+      int deopt_state_id =
+          BuildTranslation(instr, -1, 0, OutputFrameStateCombine::Ignore());
+      AssembleDeoptimizerCall(deopt_state_id, Deoptimizer::EAGER);
+      break;
+    }
     case kArchRet:
       AssembleReturn();
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -483,6 +489,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
                i.InputInt32(2));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
+    case kArmClz:
+      __ clz(i.OutputRegister(), i.InputRegister(0));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
     case kArmCmp:
       __ cmp(i.InputRegister(0), i.InputOperand2(1));
       DCHECK_EQ(SetCC, i.OutputSBit());
@@ -558,16 +568,16 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArmVsqrtF64:
       __ vsqrt(i.OutputFloat64Register(), i.InputFloat64Register(0));
       break;
-    case kArmVfloorF64:
+    case kArmVrintmF64:
       __ vrintm(i.OutputFloat64Register(), i.InputFloat64Register(0));
       break;
-    case kArmVceilF64:
+    case kArmVrintpF64:
       __ vrintp(i.OutputFloat64Register(), i.InputFloat64Register(0));
       break;
-    case kArmVroundTruncateF64:
+    case kArmVrintzF64:
       __ vrintz(i.OutputFloat64Register(), i.InputFloat64Register(0));
       break;
-    case kArmVroundTiesAwayF64:
+    case kArmVrintaF64:
       __ vrinta(i.OutputFloat64Register(), i.InputFloat64Register(0));
       break;
     case kArmVnegF64:
@@ -611,6 +621,27 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
+    case kArmVmovLowU32F64:
+      __ VmovLow(i.OutputRegister(), i.InputFloat64Register(0));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArmVmovLowF64U32:
+      __ VmovLow(i.OutputFloat64Register(), i.InputRegister(1));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArmVmovHighU32F64:
+      __ VmovHigh(i.OutputRegister(), i.InputFloat64Register(0));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArmVmovHighF64U32:
+      __ VmovHigh(i.OutputFloat64Register(), i.InputRegister(1));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArmVmovF64U32U32:
+      __ vmov(i.OutputFloat64Register(), i.InputRegister(0),
+              i.InputRegister(1));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
     case kArmLdrb:
       __ ldrb(i.OutputRegister(), i.InputOffset());
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -620,7 +651,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmStrb: {
-      int index = 0;
+      size_t index = 0;
       MemOperand operand = i.InputOffset(&index);
       __ strb(i.InputRegister(index), operand);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -633,7 +664,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ ldrsh(i.OutputRegister(), i.InputOffset());
       break;
     case kArmStrh: {
-      int index = 0;
+      size_t index = 0;
       MemOperand operand = i.InputOffset(&index);
       __ strh(i.InputRegister(index), operand);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -643,7 +674,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ ldr(i.OutputRegister(), i.InputOffset());
       break;
     case kArmStr: {
-      int index = 0;
+      size_t index = 0;
       MemOperand operand = i.InputOffset(&index);
       __ str(i.InputRegister(index), operand);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -655,7 +686,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kArmVstrF32: {
-      int index = 0;
+      size_t index = 0;
       MemOperand operand = i.InputOffset(&index);
       __ vstr(i.InputFloat32Register(index), operand);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -666,7 +697,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmVstrF64: {
-      int index = 0;
+      size_t index = 0;
       MemOperand operand = i.InputOffset(&index);
       __ vstr(i.InputFloat64Register(index), operand);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -740,7 +771,7 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
 }
 
 
-void CodeGenerator::AssembleArchJump(BasicBlock::RpoNumber target) {
+void CodeGenerator::AssembleArchJump(RpoNumber target) {
   if (!IsNextInAssemblyOrder(target)) __ b(GetLabel(target));
 }
 
@@ -775,6 +806,7 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   ArmOperandConverter i(this, instr);
   Register input = i.InputRegister(0);
   size_t const case_count = instr->InputCount() - 2;
+  __ CheckConstPool(true, true);
   __ cmp(input, Operand(case_count));
   __ BlockConstPoolFor(case_count + 2);
   __ ldr(pc, MemOperand(pc, input, LSL, 2), lo);
@@ -785,9 +817,10 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
 }
 
 
-void CodeGenerator::AssembleDeoptimizerCall(int deoptimization_id) {
+void CodeGenerator::AssembleDeoptimizerCall(
+    int deoptimization_id, Deoptimizer::BailoutType bailout_type) {
   Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
-      isolate(), deoptimization_id, Deoptimizer::LAZY);
+      isolate(), deoptimization_id, bailout_type);
   __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
 }
 
@@ -839,6 +872,8 @@ void CodeGenerator::AssemblePrologue() {
     // remaining stack slots.
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
+    // TODO(titzer): cannot address target function == local #-1
+    __ ldr(r1, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
     DCHECK(stack_slots >= frame()->GetOsrStackSlotCount());
     stack_slots -= frame()->GetOsrStackSlotCount();
   }

@@ -27,8 +27,9 @@ class JSIntrinsicLoweringTest : public GraphTest {
   ~JSIntrinsicLoweringTest() OVERRIDE {}
 
  protected:
-  Reduction Reduce(Node* node) {
-    MachineOperatorBuilder machine(zone());
+  Reduction Reduce(Node* node, MachineOperatorBuilder::Flags flags =
+                                   MachineOperatorBuilder::kNoFlags) {
+    MachineOperatorBuilder machine(zone(), kMachPtr, flags);
     JSGraph jsgraph(isolate(), graph(), common(), javascript(), &machine);
     JSIntrinsicLowering reducer(&jsgraph);
     return reducer.Reduce(node);
@@ -39,6 +40,61 @@ class JSIntrinsicLoweringTest : public GraphTest {
  private:
   JSOperatorBuilder javascript_;
 };
+
+
+// -----------------------------------------------------------------------------
+// %_ConstructDouble
+
+
+TEST_F(JSIntrinsicLoweringTest, InlineOptimizedConstructDouble) {
+  Node* const input0 = Parameter(0);
+  Node* const input1 = Parameter(1);
+  Node* const context = Parameter(2);
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction const r = Reduce(graph()->NewNode(
+      javascript()->CallRuntime(Runtime::kInlineConstructDouble, 2), input0,
+      input1, context, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsFloat64InsertHighWord32(
+                                   IsFloat64InsertLowWord32(
+                                       IsNumberConstant(BitEq(0.0)), input1),
+                                   input0));
+}
+
+
+// -----------------------------------------------------------------------------
+// %_DoubleLo
+
+
+TEST_F(JSIntrinsicLoweringTest, InlineOptimizedDoubleLo) {
+  Node* const input = Parameter(0);
+  Node* const context = Parameter(1);
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction const r = Reduce(
+      graph()->NewNode(javascript()->CallRuntime(Runtime::kInlineDoubleLo, 1),
+                       input, context, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsFloat64ExtractLowWord32(input));
+}
+
+
+// -----------------------------------------------------------------------------
+// %_DoubleHi
+
+
+TEST_F(JSIntrinsicLoweringTest, InlineOptimizedDoubleHi) {
+  Node* const input = Parameter(0);
+  Node* const context = Parameter(1);
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction const r = Reduce(
+      graph()->NewNode(javascript()->CallRuntime(Runtime::kInlineDoubleHi, 1),
+                       input, context, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsFloat64ExtractHighWord32(input));
+}
 
 
 // -----------------------------------------------------------------------------
@@ -165,6 +221,94 @@ TEST_F(JSIntrinsicLoweringTest, InlineIsRegExp) {
           IsMerge(IsIfTrue(AllOf(CaptureEq(&branch),
                                  IsBranch(IsObjectIsSmi(input), control))),
                   AllOf(CaptureEq(&if_false), IsIfFalse(CaptureEq(&branch))))));
+}
+
+
+// -----------------------------------------------------------------------------
+// %_JSValueGetValue
+
+
+TEST_F(JSIntrinsicLoweringTest, InlineJSValueGetValue) {
+  Node* const input = Parameter(0);
+  Node* const context = Parameter(1);
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction const r = Reduce(graph()->NewNode(
+      javascript()->CallRuntime(Runtime::kInlineJSValueGetValue, 1), input,
+      context, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsLoadField(AccessBuilder::ForValue(), input, effect, control));
+}
+
+
+// -----------------------------------------------------------------------------
+// %_MathFloor
+
+
+TEST_F(JSIntrinsicLoweringTest, InlineMathFloor) {
+  Node* const input = Parameter(0);
+  Node* const context = Parameter(1);
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction const r = Reduce(
+      graph()->NewNode(javascript()->CallRuntime(Runtime::kInlineMathFloor, 1),
+                       input, context, effect, control),
+      MachineOperatorBuilder::kFloat64RoundDown);
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsFloat64RoundDown(input));
+}
+
+
+// -----------------------------------------------------------------------------
+// %_MathSqrt
+
+
+TEST_F(JSIntrinsicLoweringTest, InlineMathSqrt) {
+  Node* const input = Parameter(0);
+  Node* const context = Parameter(1);
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction const r = Reduce(
+      graph()->NewNode(javascript()->CallRuntime(Runtime::kInlineMathSqrt, 1),
+                       input, context, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsFloat64Sqrt(input));
+}
+
+
+// -----------------------------------------------------------------------------
+// %_StringGetLength
+
+
+TEST_F(JSIntrinsicLoweringTest, InlineStringGetLength) {
+  Node* const input = Parameter(0);
+  Node* const context = Parameter(1);
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction const r = Reduce(graph()->NewNode(
+      javascript()->CallRuntime(Runtime::kInlineStringGetLength, 1), input,
+      context, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsLoadField(AccessBuilder::ForStringLength(),
+                                           input, effect, control));
+}
+
+
+// -----------------------------------------------------------------------------
+// %_MathClz32
+
+
+TEST_F(JSIntrinsicLoweringTest, InlineMathClz32) {
+  Node* const input = Parameter(0);
+  Node* const context = Parameter(1);
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction const r = Reduce(
+      graph()->NewNode(javascript()->CallRuntime(Runtime::kInlineMathClz32, 1),
+                       input, context, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsWord32Clz(input));
 }
 
 

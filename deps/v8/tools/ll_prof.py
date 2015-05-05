@@ -711,6 +711,23 @@ class LibraryRepo(object):
     self.names = set()
     self.ticks = {}
 
+
+  def HasDynamicSymbols(self, filename):
+    if filename.endswith(".ko"): return False
+    process = subprocess.Popen(
+      "%s -h %s" % (OBJDUMP_BIN, filename),
+      shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    pipe = process.stdout
+    try:
+      for line in pipe:
+        match = OBJDUMP_SECTION_HEADER_RE.match(line)
+        if match and match.group(1) == 'dynsym': return True
+    finally:
+      pipe.close()
+    assert process.wait() == 0, "Failed to objdump -h %s" % filename
+    return False
+
+
   def Load(self, mmap_info, code_map, options):
     # Skip kernel mmaps when requested using the fact that their tid
     # is 0.
@@ -730,10 +747,10 @@ class LibraryRepo(object):
     # Unfortunately, section headers span two lines, so we have to
     # keep the just seen section name (from the first line in each
     # section header) in the after_section variable.
-    if mmap_info.filename.endswith(".ko"):
-      dynamic_symbols = ""
-    else:
+    if self.HasDynamicSymbols(mmap_info.filename):
       dynamic_symbols = "-T"
+    else:
+      dynamic_symbols = ""
     process = subprocess.Popen(
       "%s -h -t %s -C %s" % (OBJDUMP_BIN, dynamic_symbols, mmap_info.filename),
       shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)

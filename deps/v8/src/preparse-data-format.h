@@ -27,7 +27,7 @@ struct PreparseDataConstants {
   static const int kMessageStartPos = 0;
   static const int kMessageEndPos = 1;
   static const int kMessageArgCountPos = 2;
-  static const int kIsReferenceErrorPos = 3;
+  static const int kParseErrorTypePos = 3;
   static const int kMessageTextPos = 4;
 
   static const unsigned char kNumberTerminator = 0x80u;
