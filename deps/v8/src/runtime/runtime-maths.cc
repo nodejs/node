@@ -34,9 +34,10 @@ RUNTIME_FUNCTION(Runtime_DoubleHi) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  uint64_t integer = double_to_uint64(x);
-  integer = (integer >> 32) & 0xFFFFFFFFu;
-  return *isolate->factory()->NewNumber(static_cast<int32_t>(integer));
+  uint64_t unsigned64 = double_to_uint64(x);
+  uint32_t unsigned32 = static_cast<uint32_t>(unsigned64 >> 32);
+  int32_t signed32 = bit_cast<int32_t, uint32_t>(unsigned32);
+  return *isolate->factory()->NewNumber(signed32);
 }
 
 
@@ -44,8 +45,10 @@ RUNTIME_FUNCTION(Runtime_DoubleLo) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return *isolate->factory()->NewNumber(
-      static_cast<int32_t>(double_to_uint64(x) & 0xFFFFFFFFu));
+  uint64_t unsigned64 = double_to_uint64(x);
+  uint32_t unsigned32 = static_cast<uint32_t>(unsigned64);
+  int32_t signed32 = bit_cast<int32_t, uint32_t>(unsigned32);
+  return *isolate->factory()->NewNumber(signed32);
 }
 
 
@@ -109,7 +112,18 @@ RUNTIME_FUNCTION(Runtime_MathExpRT) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_MathFloorRT) {
+RUNTIME_FUNCTION(Runtime_MathClz32) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  isolate->counters()->math_clz32()->Increment();
+
+  CONVERT_NUMBER_CHECKED(uint32_t, x, Uint32, args[0]);
+  return *isolate->factory()->NewNumberFromUint(
+      base::bits::CountLeadingZeros32(x));
+}
+
+
+RUNTIME_FUNCTION(Runtime_MathFloor) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   isolate->counters()->math_floor()->Increment();
@@ -204,7 +218,7 @@ RUNTIME_FUNCTION(Runtime_RoundNumber) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_MathSqrtRT) {
+RUNTIME_FUNCTION(Runtime_MathSqrt) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   isolate->counters()->math_sqrt()->Increment();
@@ -224,13 +238,13 @@ RUNTIME_FUNCTION(Runtime_MathFround) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_MathPow) {
+RUNTIME_FUNCTION(Runtime_MathPow) {
   SealHandleScope shs(isolate);
   return __RT_impl_Runtime_MathPowSlow(args, isolate);
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_IsMinusZero) {
+RUNTIME_FUNCTION(Runtime_IsMinusZero) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_CHECKED(Object, obj, 0);

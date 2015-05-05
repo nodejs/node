@@ -11,6 +11,7 @@
 #include "src/codegen.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
+#include "src/ic/stub-cache.h"
 #include "src/isolate.h"
 #include "src/jsregexp.h"
 #include "src/regexp-macro-assembler.h"
@@ -929,7 +930,7 @@ void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
   __ ret(0);
 
   StubRuntimeCallHelper call_helper;
-  char_at_generator.GenerateSlow(masm, call_helper);
+  char_at_generator.GenerateSlow(masm, PART_OF_IC_HANDLER, call_helper);
 
   __ bind(&miss);
   PropertyAccessCompiler::TailCallBuiltin(
@@ -961,10 +962,17 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ movp(rcx, Operand(rdx, ArgumentsAdaptorFrameConstants::kLengthOffset));
 
   if (has_new_target()) {
+    // If the constructor was [[Call]]ed, the call will not push a new.target
+    // onto the stack. In that case the arguments array we construct is bogus,
+    // bu we do not care as the constructor throws immediately.
+    __ Cmp(rcx, Smi::FromInt(0));
+    Label skip_decrement;
+    __ j(equal, &skip_decrement);
     // Subtract 1 from smi-tagged arguments count.
     __ SmiToInteger32(rcx, rcx);
     __ decl(rcx);
     __ Integer32ToSmi(rcx, rcx);
+    __ bind(&skip_decrement);
   }
   __ movp(args.GetArgumentOperand(2), rcx);
   __ SmiToInteger64(rcx, rcx);
@@ -1048,7 +1056,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // time or if regexp entry in generated code is turned off runtime switch or
   // at compilation.
 #ifdef V8_INTERPRETED_REGEXP
-  __ TailCallRuntime(Runtime::kRegExpExecRT, 4, 1);
+  __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
 #else  // V8_INTERPRETED_REGEXP
 
   // Stack frame on entry.
@@ -1429,19 +1437,13 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ LoadRoot(rdx, Heap::kTheHoleValueRootIndex);
   __ cmpp(rax, rdx);
   __ j(equal, &runtime);
-  __ movp(pending_exception_operand, rdx);
 
-  __ CompareRoot(rax, Heap::kTerminationExceptionRootIndex);
-  Label termination_exception;
-  __ j(equal, &termination_exception, Label::kNear);
-  __ Throw(rax);
-
-  __ bind(&termination_exception);
-  __ ThrowUncatchable(rax);
+  // For exception, throw the exception again.
+  __ TailCallRuntime(Runtime::kRegExpExecReThrow, 4, 1);
 
   // Do the runtime call to execute the regexp.
   __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kRegExpExecRT, 4, 1);
+  __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
 
   // Deferred code for string handling.
   // (7) Not a long external string?  If yes, go to (10).
@@ -2427,14 +2429,13 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ CompareRoot(rax, Heap::kExceptionRootIndex);
   __ j(equal, &exception_returned);
 
-  ExternalReference pending_exception_address(
-      Isolate::kPendingExceptionAddress, isolate());
-
   // Check that there is no pending exception, otherwise we
   // should have returned the exception sentinel.
   if (FLAG_debug_code) {
     Label okay;
     __ LoadRoot(r14, Heap::kTheHoleValueRootIndex);
+    ExternalReference pending_exception_address(
+        Isolate::kPendingExceptionAddress, isolate());
     Operand pending_exception_operand =
         masm->ExternalOperand(pending_exception_address);
     __ cmpp(r14, pending_exception_operand);
@@ -2450,26 +2451,47 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // Handling of exception.
   __ bind(&exception_returned);
 
-  // Retrieve the pending exception.
-  Operand pending_exception_operand =
-      masm->ExternalOperand(pending_exception_address);
-  __ movp(rax, pending_exception_operand);
+  ExternalReference pending_handler_context_address(
+      Isolate::kPendingHandlerContextAddress, isolate());
+  ExternalReference pending_handler_code_address(
+      Isolate::kPendingHandlerCodeAddress, isolate());
+  ExternalReference pending_handler_offset_address(
+      Isolate::kPendingHandlerOffsetAddress, isolate());
+  ExternalReference pending_handler_fp_address(
+      Isolate::kPendingHandlerFPAddress, isolate());
+  ExternalReference pending_handler_sp_address(
+      Isolate::kPendingHandlerSPAddress, isolate());
 
-  // Clear the pending exception.
-  __ LoadRoot(rdx, Heap::kTheHoleValueRootIndex);
-  __ movp(pending_exception_operand, rdx);
+  // Ask the runtime for help to determine the handler. This will set rax to
+  // contain the current pending exception, don't clobber it.
+  ExternalReference find_handler(Runtime::kFindExceptionHandler, isolate());
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ movp(arg_reg_1, Immediate(0));  // argc.
+    __ movp(arg_reg_2, Immediate(0));  // argv.
+    __ Move(arg_reg_3, ExternalReference::isolate_address(isolate()));
+    __ PrepareCallCFunction(3);
+    __ CallCFunction(find_handler, 3);
+  }
 
-  // Special handling of termination exceptions which are uncatchable
-  // by javascript code.
-  Label throw_termination_exception;
-  __ CompareRoot(rax, Heap::kTerminationExceptionRootIndex);
-  __ j(equal, &throw_termination_exception);
+  // Retrieve the handler context, SP and FP.
+  __ movp(rsi, masm->ExternalOperand(pending_handler_context_address));
+  __ movp(rsp, masm->ExternalOperand(pending_handler_sp_address));
+  __ movp(rbp, masm->ExternalOperand(pending_handler_fp_address));
 
-  // Handle normal exception.
-  __ Throw(rax);
+  // If the handler is a JS frame, restore the context to the frame. Note that
+  // the context will be set to (rsi == 0) for non-JS frames.
+  Label skip;
+  __ testp(rsi, rsi);
+  __ j(zero, &skip, Label::kNear);
+  __ movp(Operand(rbp, StandardFrameConstants::kContextOffset), rsi);
+  __ bind(&skip);
 
-  __ bind(&throw_termination_exception);
-  __ ThrowUncatchable(rax);
+  // Compute the handler entry address and jump to it.
+  __ movp(rdi, masm->ExternalOperand(pending_handler_code_address));
+  __ movp(rdx, masm->ExternalOperand(pending_handler_offset_address));
+  __ leap(rdi, FieldOperand(rdi, rdx, times_1, Code::kHeaderSize));
+  __ jmp(rdi);
 }
 
 
@@ -2521,7 +2543,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 
     // Set up the roots and smi constant registers.
     // Needs to be done before any further smi loads.
-    __ InitializeSmiConstantRegister();
     __ InitializeRootRegister();
   }
 
@@ -2559,10 +2580,9 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ LoadRoot(rax, Heap::kExceptionRootIndex);
   __ jmp(&exit);
 
-  // Invoke: Link this frame into the handler chain.  There's only one
-  // handler block in this code object, so its index is 0.
+  // Invoke: Link this frame into the handler chain.
   __ bind(&invoke);
-  __ PushTryHandler(StackHandler::JS_ENTRY, 0);
+  __ PushStackHandler();
 
   // Clear any pending exceptions.
   __ LoadRoot(rax, Heap::kTheHoleValueRootIndex);
@@ -2588,7 +2608,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ call(kScratchRegister);
 
   // Unlink this frame from the handler chain.
-  __ PopTryHandler();
+  __ PopStackHandler();
 
   __ bind(&exit);
   // Check if the current stack frame is marked as the outermost JS frame.
@@ -2884,7 +2904,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
 
 
 void StringCharCodeAtGenerator::GenerateSlow(
-    MacroAssembler* masm,
+    MacroAssembler* masm, EmbedMode embed_mode,
     const RuntimeCallHelper& call_helper) {
   __ Abort(kUnexpectedFallthroughToCharCodeAtSlowCase);
 
@@ -2897,6 +2917,10 @@ void StringCharCodeAtGenerator::GenerateSlow(
               index_not_number_,
               DONT_DO_SMI_CHECK);
   call_helper.BeforeCall(masm);
+  if (FLAG_vector_ics && embed_mode == PART_OF_IC_HANDLER) {
+    __ Push(VectorLoadICDescriptor::VectorRegister());
+    __ Push(VectorLoadICDescriptor::SlotRegister());
+  }
   __ Push(object_);
   __ Push(index_);  // Consumed by runtime conversion function.
   if (index_flags_ == STRING_INDEX_IS_NUMBER) {
@@ -2912,6 +2936,10 @@ void StringCharCodeAtGenerator::GenerateSlow(
     __ movp(index_, rax);
   }
   __ Pop(object_);
+  if (FLAG_vector_ics && embed_mode == PART_OF_IC_HANDLER) {
+    __ Pop(VectorLoadICDescriptor::SlotRegister());
+    __ Pop(VectorLoadICDescriptor::VectorRegister());
+  }
   // Reload the instance type.
   __ movp(result_, FieldOperand(object_, HeapObject::kMapOffset));
   __ movzxbl(result_, FieldOperand(result_, Map::kInstanceTypeOffset));
@@ -3214,7 +3242,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   // Just jump to runtime to create the sub string.
   __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kSubString, 3, 1);
+  __ TailCallRuntime(Runtime::kSubStringRT, 3, 1);
 
   __ bind(&single_char);
   // rax: string
@@ -3451,7 +3479,7 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   // Call the runtime; it returns -1 (less), 0 (equal), or 1 (greater)
   // tagged as a small integer.
   __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
+  __ TailCallRuntime(Runtime::kStringCompareRT, 2, 1);
 }
 
 
@@ -3749,7 +3777,7 @@ void CompareICStub::GenerateStrings(MacroAssembler* masm) {
   if (equality) {
     __ TailCallRuntime(Runtime::kStringEquals, 2, 1);
   } else {
-    __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
+    __ TailCallRuntime(Runtime::kStringCompareRT, 2, 1);
   }
 
   __ bind(&miss);
@@ -4316,15 +4344,228 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
 
 void LoadICTrampolineStub::Generate(MacroAssembler* masm) {
   EmitLoadTypeFeedbackVector(masm, VectorLoadICDescriptor::VectorRegister());
-  VectorLoadStub stub(isolate(), state());
-  __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
+  VectorRawLoadStub stub(isolate(), state());
+  stub.GenerateForTrampoline(masm);
 }
 
 
 void KeyedLoadICTrampolineStub::Generate(MacroAssembler* masm) {
   EmitLoadTypeFeedbackVector(masm, VectorLoadICDescriptor::VectorRegister());
-  VectorKeyedLoadStub stub(isolate());
-  __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
+  VectorRawKeyedLoadStub stub(isolate());
+  stub.GenerateForTrampoline(masm);
+}
+
+
+static void HandleArrayCases(MacroAssembler* masm, Register receiver,
+                             Register key, Register vector, Register slot,
+                             Register feedback, Register scratch1,
+                             Register scratch2, Register scratch3,
+                             Register scratch4, bool is_polymorphic,
+                             Label* miss) {
+  // feedback initially contains the feedback array
+  Label next_loop, prepare_next;
+  Label load_smi_map, compare_map;
+  Label start_polymorphic;
+
+  Register receiver_map = scratch1;
+  Register counter = scratch2;
+  Register length = scratch3;
+  Register cached_map = scratch4;
+
+  // Receiver might not be a heap object.
+  __ JumpIfSmi(receiver, &load_smi_map);
+  __ movp(receiver_map, FieldOperand(receiver, 0));
+  __ bind(&compare_map);
+  __ movp(cached_map, FieldOperand(feedback, FixedArray::OffsetOfElementAt(0)));
+  __ cmpp(receiver_map, FieldOperand(cached_map, WeakCell::kValueOffset));
+  __ j(not_equal, &start_polymorphic);
+
+  // found, now call handler.
+  Register handler = feedback;
+  __ movp(handler, FieldOperand(feedback, FixedArray::OffsetOfElementAt(1)));
+  __ leap(handler, FieldOperand(handler, Code::kHeaderSize));
+  __ jmp(handler);
+
+  // Polymorphic, we have to loop from 2 to N
+  __ bind(&start_polymorphic);
+  __ SmiToInteger32(length, FieldOperand(feedback, FixedArray::kLengthOffset));
+  if (!is_polymorphic) {
+    // If the IC could be monomorphic we have to make sure we don't go past the
+    // end of the feedback array.
+    __ cmpl(length, Immediate(2));
+    __ j(equal, miss);
+  }
+  __ movl(counter, Immediate(2));
+
+  __ bind(&next_loop);
+  __ movp(cached_map, FieldOperand(feedback, counter, times_pointer_size,
+                                   FixedArray::kHeaderSize));
+  __ cmpp(receiver_map, FieldOperand(cached_map, WeakCell::kValueOffset));
+  __ j(not_equal, &prepare_next);
+  __ movp(handler, FieldOperand(feedback, counter, times_pointer_size,
+                                FixedArray::kHeaderSize + kPointerSize));
+  __ leap(handler, FieldOperand(handler, Code::kHeaderSize));
+  __ jmp(handler);
+
+  __ bind(&prepare_next);
+  __ addl(counter, Immediate(2));
+  __ cmpl(counter, length);
+  __ j(less, &next_loop);
+
+  // We exhausted our array of map handler pairs.
+  __ jmp(miss);
+
+  __ bind(&load_smi_map);
+  __ LoadRoot(receiver_map, Heap::kHeapNumberMapRootIndex);
+  __ jmp(&compare_map);
+}
+
+
+static void HandleMonomorphicCase(MacroAssembler* masm, Register receiver,
+                                  Register key, Register vector, Register slot,
+                                  Register weak_cell, Register integer_slot,
+                                  Label* miss) {
+  // feedback initially contains the feedback array
+  Label compare_smi_map;
+
+  // Move the weak map into the weak_cell register.
+  Register ic_map = weak_cell;
+  __ movp(ic_map, FieldOperand(weak_cell, WeakCell::kValueOffset));
+
+  // Receiver might not be a heap object.
+  __ JumpIfSmi(receiver, &compare_smi_map);
+  __ cmpp(ic_map, FieldOperand(receiver, 0));
+  __ j(not_equal, miss);
+  Register handler = weak_cell;
+  __ movp(handler, FieldOperand(vector, integer_slot, times_pointer_size,
+                                FixedArray::kHeaderSize + kPointerSize));
+  __ leap(handler, FieldOperand(handler, Code::kHeaderSize));
+  __ jmp(handler);
+
+  // In microbenchmarks, it made sense to unroll this code so that the call to
+  // the handler is duplicated for a HeapObject receiver and a Smi receiver.
+  __ bind(&compare_smi_map);
+  __ CompareRoot(ic_map, Heap::kHeapNumberMapRootIndex);
+  __ j(not_equal, miss);
+  __ movp(handler, FieldOperand(vector, integer_slot, times_pointer_size,
+                                FixedArray::kHeaderSize + kPointerSize));
+  __ leap(handler, FieldOperand(handler, Code::kHeaderSize));
+  __ jmp(handler);
+}
+
+
+void VectorRawLoadStub::Generate(MacroAssembler* masm) {
+  GenerateImpl(masm, false);
+}
+
+
+void VectorRawLoadStub::GenerateForTrampoline(MacroAssembler* masm) {
+  GenerateImpl(masm, true);
+}
+
+
+void VectorRawLoadStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
+  Register receiver = VectorLoadICDescriptor::ReceiverRegister();  // rdx
+  Register name = VectorLoadICDescriptor::NameRegister();          // rcx
+  Register vector = VectorLoadICDescriptor::VectorRegister();      // rbx
+  Register slot = VectorLoadICDescriptor::SlotRegister();          // rax
+  Register feedback = rdi;
+  Register integer_slot = r8;
+
+  __ SmiToInteger32(integer_slot, slot);
+  __ movp(feedback, FieldOperand(vector, integer_slot, times_pointer_size,
+                                 FixedArray::kHeaderSize));
+
+  // Is it a weak cell?
+  Label try_array;
+  Label not_array, smi_key, key_okay, miss;
+  __ CompareRoot(FieldOperand(feedback, 0), Heap::kWeakCellMapRootIndex);
+  __ j(not_equal, &try_array);
+  HandleMonomorphicCase(masm, receiver, name, vector, slot, feedback,
+                        integer_slot, &miss);
+
+  // Is it a fixed array?
+  __ bind(&try_array);
+  __ CompareRoot(FieldOperand(feedback, 0), Heap::kFixedArrayMapRootIndex);
+  __ j(not_equal, &not_array);
+  HandleArrayCases(masm, receiver, name, vector, slot, feedback, integer_slot,
+                   r9, r11, r15, true, &miss);
+
+  __ bind(&not_array);
+  __ CompareRoot(feedback, Heap::kmegamorphic_symbolRootIndex);
+  __ j(not_equal, &miss);
+  Code::Flags code_flags = Code::RemoveTypeAndHolderFromFlags(
+      Code::ComputeHandlerFlags(Code::LOAD_IC));
+  masm->isolate()->stub_cache()->GenerateProbe(
+      masm, Code::LOAD_IC, code_flags, false, receiver, name, feedback, no_reg);
+
+  __ bind(&miss);
+  LoadIC::GenerateMiss(masm);
+}
+
+
+void VectorRawKeyedLoadStub::Generate(MacroAssembler* masm) {
+  GenerateImpl(masm, false);
+}
+
+
+void VectorRawKeyedLoadStub::GenerateForTrampoline(MacroAssembler* masm) {
+  GenerateImpl(masm, true);
+}
+
+
+void VectorRawKeyedLoadStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
+  Register receiver = VectorLoadICDescriptor::ReceiverRegister();  // rdx
+  Register key = VectorLoadICDescriptor::NameRegister();           // rcx
+  Register vector = VectorLoadICDescriptor::VectorRegister();      // rbx
+  Register slot = VectorLoadICDescriptor::SlotRegister();          // rax
+  Register feedback = rdi;
+  Register integer_slot = r8;
+
+  __ SmiToInteger32(integer_slot, slot);
+  __ movp(feedback, FieldOperand(vector, integer_slot, times_pointer_size,
+                                 FixedArray::kHeaderSize));
+
+  // Is it a weak cell?
+  Label try_array;
+  Label not_array, smi_key, key_okay, miss;
+  __ CompareRoot(FieldOperand(feedback, 0), Heap::kWeakCellMapRootIndex);
+  __ j(not_equal, &try_array);
+  HandleMonomorphicCase(masm, receiver, key, vector, slot, feedback,
+                        integer_slot, &miss);
+
+  __ bind(&try_array);
+  // Is it a fixed array?
+  __ CompareRoot(FieldOperand(feedback, 0), Heap::kFixedArrayMapRootIndex);
+  __ j(not_equal, &not_array);
+
+  // We have a polymorphic element handler.
+  Label polymorphic, try_poly_name;
+  __ bind(&polymorphic);
+  HandleArrayCases(masm, receiver, key, vector, slot, feedback, integer_slot,
+                   r9, r11, r15, true, &miss);
+
+  __ bind(&not_array);
+  // Is it generic?
+  __ CompareRoot(feedback, Heap::kmegamorphic_symbolRootIndex);
+  __ j(not_equal, &try_poly_name);
+  Handle<Code> megamorphic_stub =
+      KeyedLoadIC::ChooseMegamorphicStub(masm->isolate());
+  __ jmp(megamorphic_stub, RelocInfo::CODE_TARGET);
+
+  __ bind(&try_poly_name);
+  // We might have a name in feedback, and a fixed array in the next slot.
+  __ cmpp(key, feedback);
+  __ j(not_equal, &miss);
+  // If the name comparison succeeded, we know we have a fixed array with
+  // at least one map/handler pair.
+  __ movp(feedback, FieldOperand(vector, integer_slot, times_pointer_size,
+                                 FixedArray::kHeaderSize + kPointerSize));
+  HandleArrayCases(masm, receiver, key, vector, slot, feedback, integer_slot,
+                   r9, r11, r15, false, &miss);
+
+  __ bind(&miss);
+  KeyedLoadIC::GenerateMiss(masm);
 }
 
 
@@ -4761,7 +5002,6 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
                                      Operand* context_restore_operand) {
   Label prologue;
   Label promote_scheduled_exception;
-  Label exception_handled;
   Label delete_allocated_handles;
   Label leave_exit_frame;
   Label write_back;
@@ -4838,13 +5078,22 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ movp(Operand(base_reg, kNextOffset), prev_next_address_reg);
   __ cmpp(prev_limit_reg, Operand(base_reg, kLimitOffset));
   __ j(not_equal, &delete_allocated_handles);
+
+  // Leave the API exit frame.
   __ bind(&leave_exit_frame);
+  bool restore_context = context_restore_operand != NULL;
+  if (restore_context) {
+    __ movp(rsi, *context_restore_operand);
+  }
+  if (stack_space_operand != nullptr) {
+    __ movp(rbx, *stack_space_operand);
+  }
+  __ LeaveApiExitFrame(!restore_context);
 
   // Check if the function scheduled an exception.
-  __ Move(rsi, scheduled_exception_address);
-  __ Cmp(Operand(rsi, 0), factory->the_hole_value());
+  __ Move(rdi, scheduled_exception_address);
+  __ Cmp(Operand(rdi, 0), factory->the_hole_value());
   __ j(not_equal, &promote_scheduled_exception);
-  __ bind(&exception_handled);
 
 #if DEBUG
   // Check if the function returned a valid JavaScript value.
@@ -4881,14 +5130,6 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ bind(&ok);
 #endif
 
-  bool restore_context = context_restore_operand != NULL;
-  if (restore_context) {
-    __ movp(rsi, *context_restore_operand);
-  }
-  if (stack_space_operand != nullptr) {
-    __ movp(rbx, *stack_space_operand);
-  }
-  __ LeaveApiExitFrame(!restore_context);
   if (stack_space_operand != nullptr) {
     DCHECK_EQ(stack_space, 0);
     __ PopReturnAddressTo(rcx);
@@ -4898,12 +5139,9 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
     __ ret(stack_space * kPointerSize);
   }
 
+  // Re-throw by promoting a scheduled exception.
   __ bind(&promote_scheduled_exception);
-  {
-    FrameScope frame(masm, StackFrame::INTERNAL);
-    __ CallRuntime(Runtime::kPromoteScheduledException, 0);
-  }
-  __ jmp(&exception_handled);
+  __ TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
 
   // HandleScope limit has changed. Delete allocated extensions.
   __ bind(&delete_allocated_handles);

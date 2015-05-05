@@ -34,7 +34,6 @@
 #include "src/disassembler.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
-#include "src/serialize.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
@@ -88,6 +87,9 @@ TEST(DisasmX64) {
   __ addq(rdi, Operand(rbp, rcx, times_4, -8));
   __ addq(rdi, Operand(rbp, rcx, times_4, -3999));
   __ addq(Operand(rbp, rcx, times_4, 12), Immediate(12));
+
+  __ bsrl(rax, r15);
+  __ bsrl(r9, Operand(rcx, times_8, 91919));
 
   __ nop();
   __ addq(rbx, Immediate(12));
@@ -436,6 +438,10 @@ TEST(DisasmX64) {
     __ subsd(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ divsd(xmm1, xmm0);
     __ divsd(xmm1, Operand(rbx, rcx, times_4, 10000));
+    __ minsd(xmm1, xmm0);
+    __ minsd(xmm1, Operand(rbx, rcx, times_4, 10000));
+    __ maxsd(xmm1, xmm0);
+    __ maxsd(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ ucomisd(xmm0, xmm1);
 
     __ andpd(xmm0, xmm1);
@@ -446,6 +452,9 @@ TEST(DisasmX64) {
     __ psrlq(xmm0, 6);
 
     __ pcmpeqd(xmm1, xmm0);
+
+    __ punpckldq(xmm1, xmm11);
+    __ punpckhdq(xmm8, xmm15);
   }
 
   // cmov.
@@ -472,6 +481,10 @@ TEST(DisasmX64) {
     if (CpuFeatures::IsSupported(SSE4_1)) {
       CpuFeatureScope scope(&assm, SSE4_1);
       __ extractps(rax, xmm1, 0);
+      __ pextrd(rbx, xmm15, 0);
+      __ pextrd(r12, xmm0, 1);
+      __ pinsrd(xmm9, r9, 0);
+      __ pinsrd(xmm5, rax, 1);
     }
   }
 
@@ -486,7 +499,11 @@ TEST(DisasmX64) {
       __ vsubsd(xmm0, xmm1, xmm2);
       __ vsubsd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
       __ vdivsd(xmm0, xmm1, xmm2);
-      __ vdivsd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
+      __ vdivsd(xmm0, xmm1, Operand(rbx, rcx, times_2, 10000));
+      __ vminsd(xmm8, xmm1, xmm2);
+      __ vminsd(xmm9, xmm1, Operand(rbx, rcx, times_8, 10000));
+      __ vmaxsd(xmm8, xmm1, xmm2);
+      __ vmaxsd(xmm9, xmm1, Operand(rbx, rcx, times_1, 10000));
     }
   }
 

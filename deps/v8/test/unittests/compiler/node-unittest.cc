@@ -48,15 +48,15 @@ TEST_F(NodeTest, NewWithInputs) {
   EXPECT_EQ(0, n0->InputCount());
   Node* n1 = Node::New(zone(), 1, &kOp1, 1, &n0, false);
   EXPECT_EQ(1, n0->UseCount());
-  EXPECT_EQ(n1, n0->UseAt(0));
+  EXPECT_THAT(n0->uses(), UnorderedElementsAre(n1));
   EXPECT_EQ(0, n1->UseCount());
   EXPECT_EQ(1, n1->InputCount());
   EXPECT_EQ(n0, n1->InputAt(0));
   Node* n0_n1[] = {n0, n1};
   Node* n2 = Node::New(zone(), 2, &kOp2, 2, n0_n1, false);
   EXPECT_EQ(2, n0->UseCount());
-  EXPECT_EQ(n1, n0->UseAt(0));
-  EXPECT_EQ(n2, n0->UseAt(1));
+  EXPECT_THAT(n0->uses(), UnorderedElementsAre(n1, n2));
+  EXPECT_THAT(n1->uses(), UnorderedElementsAre(n2));
   EXPECT_EQ(2, n2->InputCount());
   EXPECT_EQ(n0, n2->InputAt(0));
   EXPECT_EQ(n1, n2->InputAt(1));

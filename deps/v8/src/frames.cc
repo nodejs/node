@@ -380,12 +380,6 @@ Code* StackFrame::GetSafepointData(Isolate* isolate,
 }
 
 
-bool StackFrame::HasHandler() const {
-  StackHandlerIterator it(this, top_handler());
-  return !it.done();
-}
-
-
 #ifdef DEBUG
 static bool GcSafeCodeContains(HeapObject* object, Address addr);
 #endif
@@ -608,15 +602,6 @@ void StandardFrame::SetCallerFp(Address caller_fp) {
 }
 
 
-bool StandardFrame::IsExpressionInsideHandler(int n) const {
-  Address address = GetExpressionAddress(n);
-  for (StackHandlerIterator it(this, top_handler()); !it.done(); it.Advance()) {
-    if (it.handler()->includes(address)) return true;
-  }
-  return false;
-}
-
-
 void StandardFrame::IterateCompiledFrame(ObjectVisitor* v) const {
   // Make sure that we're not doing "safe" stack frame iteration. We cannot
   // possibly find pointers in optimized frames in that state.
@@ -710,12 +695,6 @@ int StubFrame::GetNumberOfIncomingArguments() const {
 
 
 void OptimizedFrame::Iterate(ObjectVisitor* v) const {
-#ifdef DEBUG
-  // Make sure that optimized frames do not contain any stack handlers.
-  StackHandlerIterator it(this, top_handler());
-  DCHECK(it.done());
-#endif
-
   IterateCompiledFrame(v);
 }
 
@@ -782,6 +761,15 @@ void JavaScriptFrame::Summarize(List<FrameSummary>* functions) {
 }
 
 
+int JavaScriptFrame::LookupExceptionHandlerInTable(int* stack_slots) {
+  Code* code = LookupCode();
+  DCHECK(!code->is_optimized_code());
+  HandlerTable* table = HandlerTable::cast(code->handler_table());
+  int pc_offset = static_cast<int>(pc() - code->entry());
+  return table->LookupRange(pc_offset, stack_slots);
+}
+
+
 void JavaScriptFrame::PrintFunctionAndOffset(JSFunction* function, Code* code,
                                              Address pc, FILE* file,
                                              bool print_line_number) {
@@ -843,66 +831,19 @@ void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
 }
 
 
-void JavaScriptFrame::SaveOperandStack(FixedArray* store,
-                                       int* stack_handler_index) const {
+void JavaScriptFrame::SaveOperandStack(FixedArray* store) const {
   int operands_count = store->length();
   DCHECK_LE(operands_count, ComputeOperandsCount());
-
-  // Visit the stack in LIFO order, saving operands and stack handlers into the
-  // array.  The saved stack handlers store a link to the next stack handler,
-  // which will allow RestoreOperandStack to rewind the handlers.
-  StackHandlerIterator it(this, top_handler());
-  int i = operands_count - 1;
-  *stack_handler_index = -1;
-  for (; !it.done(); it.Advance()) {
-    StackHandler* handler = it.handler();
-    // Save operands pushed after the handler was pushed.
-    for (; GetOperandSlot(i) < handler->address(); i--) {
-      store->set(i, GetOperand(i));
-    }
-    DCHECK_GE(i + 1, StackHandlerConstants::kSlotCount);
-    DCHECK_EQ(handler->address(), GetOperandSlot(i));
-    int next_stack_handler_index = i + 1 - StackHandlerConstants::kSlotCount;
-    handler->Unwind(isolate(), store, next_stack_handler_index,
-                    *stack_handler_index);
-    *stack_handler_index = next_stack_handler_index;
-    i -= StackHandlerConstants::kSlotCount;
-  }
-
-  // Save any remaining operands.
-  for (; i >= 0; i--) {
+  for (int i = 0; i < operands_count; i++) {
     store->set(i, GetOperand(i));
   }
 }
 
 
-void JavaScriptFrame::RestoreOperandStack(FixedArray* store,
-                                          int stack_handler_index) {
+void JavaScriptFrame::RestoreOperandStack(FixedArray* store) {
   int operands_count = store->length();
   DCHECK_LE(operands_count, ComputeOperandsCount());
-  int i = 0;
-  while (i <= stack_handler_index) {
-    if (i < stack_handler_index) {
-      // An operand.
-      DCHECK_EQ(GetOperand(i), isolate()->heap()->the_hole_value());
-      Memory::Object_at(GetOperandSlot(i)) = store->get(i);
-      i++;
-    } else {
-      // A stack handler.
-      DCHECK_EQ(i, stack_handler_index);
-      // The FixedArray store grows up.  The stack grows down.  So the operand
-      // slot for i actually points to the bottom of the top word in the
-      // handler.  The base of the StackHandler* is the address of the bottom
-      // word, which will be the last slot that is in the handler.
-      int handler_slot_index = i + StackHandlerConstants::kSlotCount - 1;
-      StackHandler *handler =
-          StackHandler::FromAddress(GetOperandSlot(handler_slot_index));
-      stack_handler_index = handler->Rewind(isolate(), store, i, fp());
-      i += StackHandlerConstants::kSlotCount;
-    }
-  }
-
-  for (; i < operands_count; i++) {
+  for (int i = 0; i < operands_count; i++) {
     DCHECK_EQ(GetOperand(i), isolate()->heap()->the_hole_value());
     Memory::Object_at(GetOperandSlot(i)) = store->get(i);
   }
@@ -1032,6 +973,16 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
     }
   }
   DCHECK(!is_constructor);
+}
+
+
+int OptimizedFrame::LookupExceptionHandlerInTable(int* stack_slots) {
+  Code* code = LookupCode();
+  DCHECK(code->is_optimized_code());
+  HandlerTable* table = HandlerTable::cast(code->handler_table());
+  int pc_offset = static_cast<int>(pc() - code->entry());
+  *stack_slots = code->stack_slots();
+  return table->LookupReturn(pc_offset);
 }
 
 
@@ -1286,7 +1237,6 @@ void JavaScriptFrame::Print(StringStream* accumulator,
     accumulator->Add("  // expression stack (top to bottom)\n");
   }
   for (int i = expressions_count - 1; i >= expressions_start; i--) {
-    if (IsExpressionInsideHandler(i)) continue;
     accumulator->Add("  [%02d] : %o\n", i, GetExpression(i));
   }
 
@@ -1335,17 +1285,6 @@ void ArgumentsAdaptorFrame::Print(StringStream* accumulator,
 
 
 void EntryFrame::Iterate(ObjectVisitor* v) const {
-  StackHandlerIterator it(this, top_handler());
-  DCHECK(!it.done());
-  StackHandler* handler = it.handler();
-  DCHECK(handler->is_js_entry());
-  handler->Iterate(v, LookupCode());
-#ifdef DEBUG
-  // Make sure that the entry frame does not contain more than one
-  // stack handler.
-  it.Advance();
-  DCHECK(it.done());
-#endif
   IteratePc(v, pc_address(), LookupCode());
 }
 
@@ -1354,17 +1293,6 @@ void StandardFrame::IterateExpressions(ObjectVisitor* v) const {
   const int offset = StandardFrameConstants::kLastObjectOffset;
   Object** base = &Memory::Object_at(sp());
   Object** limit = &Memory::Object_at(fp() + offset) + 1;
-  for (StackHandlerIterator it(this, top_handler()); !it.done(); it.Advance()) {
-    StackHandler* handler = it.handler();
-    // Traverse pointers down to - but not including - the next
-    // handler in the handler chain. Update the base to skip the
-    // handler and allow the handler to traverse its own pointers.
-    const Address address = handler->address();
-    v->VisitPointers(base, reinterpret_cast<Object**>(address));
-    base = reinterpret_cast<Object**>(address + StackHandlerConstants::kSize);
-    // Traverse the pointers in the handler itself.
-    handler->Iterate(v, LookupCode());
-  }
   v->VisitPointers(base, limit);
 }
 
@@ -1529,59 +1457,6 @@ InnerPointerToCodeCache::InnerPointerToCodeCacheEntry*
 
 // -------------------------------------------------------------------------
 
-
-void StackHandler::Unwind(Isolate* isolate,
-                          FixedArray* array,
-                          int offset,
-                          int previous_handler_offset) const {
-  STATIC_ASSERT(StackHandlerConstants::kSlotCount >= 5);
-  DCHECK_LE(0, offset);
-  DCHECK_GE(array->length(), offset + StackHandlerConstants::kSlotCount);
-  // Unwinding a stack handler into an array chains it in the opposite
-  // direction, re-using the "next" slot as a "previous" link, so that stack
-  // handlers can be later re-wound in the correct order.  Decode the "state"
-  // slot into "index" and "kind" and store them separately, using the fp slot.
-  array->set(offset, Smi::FromInt(previous_handler_offset));        // next
-  array->set(offset + 1, *code_address());                          // code
-  array->set(offset + 2, Smi::FromInt(static_cast<int>(index())));  // state
-  array->set(offset + 3, *context_address());                       // context
-  array->set(offset + 4, Smi::FromInt(static_cast<int>(kind())));   // fp
-
-  *isolate->handler_address() = next()->address();
-}
-
-
-int StackHandler::Rewind(Isolate* isolate,
-                         FixedArray* array,
-                         int offset,
-                         Address fp) {
-  STATIC_ASSERT(StackHandlerConstants::kSlotCount >= 5);
-  DCHECK_LE(0, offset);
-  DCHECK_GE(array->length(), offset + StackHandlerConstants::kSlotCount);
-  Smi* prev_handler_offset = Smi::cast(array->get(offset));
-  Code* code = Code::cast(array->get(offset + 1));
-  Smi* smi_index = Smi::cast(array->get(offset + 2));
-  Object* context = array->get(offset + 3);
-  Smi* smi_kind = Smi::cast(array->get(offset + 4));
-
-  unsigned state = KindField::encode(static_cast<Kind>(smi_kind->value())) |
-      IndexField::encode(static_cast<unsigned>(smi_index->value()));
-
-  Memory::Address_at(address() + StackHandlerConstants::kNextOffset) =
-      *isolate->handler_address();
-  Memory::Object_at(address() + StackHandlerConstants::kCodeOffset) = code;
-  Memory::uintptr_at(address() + StackHandlerConstants::kStateOffset) = state;
-  Memory::Object_at(address() + StackHandlerConstants::kContextOffset) =
-      context;
-  SetFp(address() + StackHandlerConstants::kFPOffset, fp);
-
-  *isolate->handler_address() = address();
-
-  return prev_handler_offset->value();
-}
-
-
-// -------------------------------------------------------------------------
 
 int NumRegs(RegList reglist) { return base::bits::CountPopulation32(reglist); }
 

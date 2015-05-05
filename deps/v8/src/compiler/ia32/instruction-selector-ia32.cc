@@ -17,8 +17,13 @@ class IA32OperandGenerator FINAL : public OperandGenerator {
       : OperandGenerator(selector) {}
 
   InstructionOperand UseByteRegister(Node* node) {
-    // TODO(dcarney): relax constraint.
+    // TODO(titzer): encode byte register use constraints.
     return UseFixed(node, edx);
+  }
+
+  InstructionOperand DefineAsByteRegister(Node* node) {
+    // TODO(titzer): encode byte register def constraints.
+    return DefineAsRegister(node);
   }
 
   bool CanBeImmediate(Node* node) {
@@ -119,8 +124,8 @@ class IA32OperandGenerator FINAL : public OperandGenerator {
 };
 
 
-static void VisitRRFloat64(InstructionSelector* selector, ArchOpcode opcode,
-                           Node* node) {
+static void VisitRRFloat64(InstructionSelector* selector,
+                           InstructionCode opcode, Node* node) {
   IA32OperandGenerator g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)));
@@ -132,7 +137,6 @@ void InstructionSelector::VisitLoad(Node* node) {
   MachineType typ = TypeOf(OpParameter<LoadRepresentation>(node));
 
   ArchOpcode opcode;
-  // TODO(titzer): signed/unsigned small loads
   switch (rep) {
     case kRepFloat32:
       opcode = kIA32Movss;
@@ -366,8 +370,7 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
 
   outputs[output_count++] = g.DefineSameAsFirst(node);
   if (cont->IsSet()) {
-    // TODO(turbofan): Use byte register here.
-    outputs[output_count++] = g.DefineAsRegister(cont->result());
+    outputs[output_count++] = g.DefineAsByteRegister(cont->result());
   }
 
   DCHECK_NE(0u, input_count);
@@ -375,9 +378,8 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
   DCHECK_GE(arraysize(inputs), input_count);
   DCHECK_GE(arraysize(outputs), output_count);
 
-  Instruction* instr = selector->Emit(cont->Encode(opcode), output_count,
-                                      outputs, input_count, inputs);
-  if (cont->IsBranch()) instr->MarkAsControl();
+  selector->Emit(cont->Encode(opcode), output_count, outputs, input_count,
+                 inputs);
 }
 
 
@@ -462,7 +464,7 @@ void EmitLea(InstructionSelector* selector, Node* result, Node* index,
   AddressingMode mode = g.GenerateMemoryOperandInputs(
       index, scale, base, displacement, inputs, &input_count);
 
-  DCHECK_NE(0, static_cast<int>(input_count));
+  DCHECK_NE(0u, input_count);
   DCHECK_GE(arraysize(inputs), input_count);
 
   InstructionOperand outputs[1];
@@ -503,6 +505,12 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
 }
 
 
+void InstructionSelector::VisitWord32Clz(Node* node) {
+  IA32OperandGenerator g(this);
+  Emit(kIA32Lzcnt, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
 void InstructionSelector::VisitInt32Add(Node* node) {
   IA32OperandGenerator g(this);
 
@@ -515,7 +523,7 @@ void InstructionSelector::VisitInt32Add(Node* node) {
     AddressingMode mode = g.GenerateMemoryOperandInputs(
         m.index(), m.scale(), m.base(), m.displacement(), inputs, &input_count);
 
-    DCHECK_NE(0, static_cast<int>(input_count));
+    DCHECK_NE(0u, input_count);
     DCHECK_GE(arraysize(inputs), input_count);
 
     InstructionOperand outputs[1];
@@ -646,6 +654,19 @@ void InstructionSelector::VisitFloat64Add(Node* node) {
 
 void InstructionSelector::VisitFloat64Sub(Node* node) {
   IA32OperandGenerator g(this);
+  Float64BinopMatcher m(node);
+  if (m.left().IsMinusZero() && m.right().IsFloat64RoundDown() &&
+      CanCover(m.node(), m.right().node())) {
+    if (m.right().InputAt(0)->opcode() == IrOpcode::kFloat64Sub &&
+        CanCover(m.right().node(), m.right().InputAt(0))) {
+      Float64BinopMatcher mright0(m.right().InputAt(0));
+      if (mright0.left().IsMinusZero()) {
+        Emit(kSSEFloat64Round | MiscField::encode(kRoundUp),
+             g.DefineAsRegister(node), g.UseRegister(mright0.right().node()));
+        return;
+      }
+    }
+  }
   if (IsSupported(AVX)) {
     Emit(kAVXFloat64Sub, g.DefineAsRegister(node),
          g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
@@ -689,27 +710,44 @@ void InstructionSelector::VisitFloat64Mod(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat64Max(Node* node) {
+  IA32OperandGenerator g(this);
+  if (IsSupported(AVX)) {
+    Emit(kAVXFloat64Max, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  } else {
+    Emit(kSSEFloat64Max, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  }
+}
+
+
+void InstructionSelector::VisitFloat64Min(Node* node) {
+  IA32OperandGenerator g(this);
+  if (IsSupported(AVX)) {
+    Emit(kAVXFloat64Min, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  } else {
+    Emit(kSSEFloat64Min, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
+  }
+}
+
+
 void InstructionSelector::VisitFloat64Sqrt(Node* node) {
   IA32OperandGenerator g(this);
   Emit(kSSEFloat64Sqrt, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
 }
 
 
-void InstructionSelector::VisitFloat64Floor(Node* node) {
-  DCHECK(CpuFeatures::IsSupported(SSE4_1));
-  VisitRRFloat64(this, kSSEFloat64Floor, node);
-}
-
-
-void InstructionSelector::VisitFloat64Ceil(Node* node) {
-  DCHECK(CpuFeatures::IsSupported(SSE4_1));
-  VisitRRFloat64(this, kSSEFloat64Ceil, node);
+void InstructionSelector::VisitFloat64RoundDown(Node* node) {
+  VisitRRFloat64(this, kSSEFloat64Round | MiscField::encode(kRoundDown), node);
 }
 
 
 void InstructionSelector::VisitFloat64RoundTruncate(Node* node) {
-  DCHECK(CpuFeatures::IsSupported(SSE4_1));
-  VisitRRFloat64(this, kSSEFloat64RoundTruncate, node);
+  VisitRRFloat64(this, kSSEFloat64Round | MiscField::encode(kRoundToZero),
+                 node);
 }
 
 
@@ -718,7 +756,7 @@ void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
 }
 
 
-void InstructionSelector::VisitCall(Node* node) {
+void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   IA32OperandGenerator g(this);
   const CallDescriptor* descriptor = OpParameter<const CallDescriptor*>(node);
 
@@ -745,6 +783,13 @@ void InstructionSelector::VisitCall(Node* node) {
     Emit(kIA32Push, g.NoOutput(), value);
   }
 
+  // Pass label of exception handler block.
+  CallDescriptor::Flags flags = descriptor->flags();
+  if (handler != nullptr) {
+    flags |= CallDescriptor::kHasExceptionHandler;
+    buffer.instruction_args.push_back(g.Label(handler));
+  }
+
   // Select the appropriate opcode based on the call type.
   InstructionCode opcode;
   switch (descriptor->kind()) {
@@ -759,7 +804,7 @@ void InstructionSelector::VisitCall(Node* node) {
       UNREACHABLE();
       return;
   }
-  opcode |= MiscField::encode(descriptor->flags());
+  opcode |= MiscField::encode(flags);
 
   // Emit the call instruction.
   InstructionOperand* first_output =
@@ -780,12 +825,10 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
   IA32OperandGenerator g(selector);
   if (cont->IsBranch()) {
     selector->Emit(cont->Encode(opcode), g.NoOutput(), left, right,
-                   g.Label(cont->true_block()),
-                   g.Label(cont->false_block()))->MarkAsControl();
+                   g.Label(cont->true_block()), g.Label(cont->false_block()));
   } else {
     DCHECK(cont->IsSet());
-    // TODO(titzer): Needs byte register.
-    selector->Emit(cont->Encode(opcode), g.DefineAsRegister(cont->result()),
+    selector->Emit(cont->Encode(opcode), g.DefineAsByteRegister(cont->result()),
                    left, right);
   }
 }
@@ -834,6 +877,26 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 
 void VisitWordCompare(InstructionSelector* selector, Node* node,
                       FlagsContinuation* cont) {
+  IA32OperandGenerator g(selector);
+  Int32BinopMatcher m(node);
+  if (m.left().IsLoad() && m.right().IsLoadStackPointer()) {
+    LoadMatcher<ExternalReferenceMatcher> mleft(m.left().node());
+    ExternalReference js_stack_limit =
+        ExternalReference::address_of_stack_limit(selector->isolate());
+    if (mleft.object().Is(js_stack_limit) && mleft.index().Is(0)) {
+      // Compare(Load(js_stack_limit), LoadStackPointer)
+      if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
+      InstructionCode opcode = cont->Encode(kIA32StackCheck);
+      if (cont->IsBranch()) {
+        selector->Emit(opcode, g.NoOutput(), g.Label(cont->true_block()),
+                       g.Label(cont->false_block()));
+      } else {
+        DCHECK(cont->IsSet());
+        selector->Emit(opcode, g.DefineAsRegister(cont->result()));
+      }
+      return;
+    }
+  }
   VisitWordCompare(selector, node, kIA32Cmp, cont);
 }
 
@@ -928,64 +991,31 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
 }
 
 
-void InstructionSelector::VisitSwitch(Node* node, BasicBlock* default_branch,
-                                      BasicBlock** case_branches,
-                                      int32_t* case_values, size_t case_count,
-                                      int32_t min_value, int32_t max_value) {
+void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   IA32OperandGenerator g(this);
   InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
-  InstructionOperand default_operand = g.Label(default_branch);
 
-  // Note that {value_range} can be 0 if {min_value} is -2^31 and {max_value}
-  // is 2^31-1, so don't assume that it's non-zero below.
-  size_t value_range =
-      1u + bit_cast<uint32_t>(max_value) - bit_cast<uint32_t>(min_value);
-
-  // Determine whether to issue an ArchTableSwitch or an ArchLookupSwitch
-  // instruction.
-  size_t table_space_cost = 4 + value_range;
+  // Emit either ArchTableSwitch or ArchLookupSwitch.
+  size_t table_space_cost = 4 + sw.value_range;
   size_t table_time_cost = 3;
-  size_t lookup_space_cost = 3 + 2 * case_count;
-  size_t lookup_time_cost = case_count;
-  if (case_count > 4 &&
+  size_t lookup_space_cost = 3 + 2 * sw.case_count;
+  size_t lookup_time_cost = sw.case_count;
+  if (sw.case_count > 4 &&
       table_space_cost + 3 * table_time_cost <=
           lookup_space_cost + 3 * lookup_time_cost &&
-      min_value > std::numeric_limits<int32_t>::min()) {
+      sw.min_value > std::numeric_limits<int32_t>::min()) {
     InstructionOperand index_operand = value_operand;
-    if (min_value) {
+    if (sw.min_value) {
       index_operand = g.TempRegister();
       Emit(kIA32Lea | AddressingModeField::encode(kMode_MRI), index_operand,
-           value_operand, g.TempImmediate(-min_value));
+           value_operand, g.TempImmediate(-sw.min_value));
     }
-    size_t input_count = 2 + value_range;
-    auto* inputs = zone()->NewArray<InstructionOperand>(input_count);
-    inputs[0] = index_operand;
-    std::fill(&inputs[1], &inputs[input_count], default_operand);
-    for (size_t index = 0; index < case_count; ++index) {
-      size_t value = case_values[index] - min_value;
-      BasicBlock* branch = case_branches[index];
-      DCHECK_LE(0u, value);
-      DCHECK_LT(value + 2, input_count);
-      inputs[value + 2] = g.Label(branch);
-    }
-    Emit(kArchTableSwitch, 0, nullptr, input_count, inputs, 0, nullptr)
-        ->MarkAsControl();
-    return;
+    // Generate a table lookup.
+    return EmitTableSwitch(sw, index_operand);
   }
 
   // Generate a sequence of conditional jumps.
-  size_t input_count = 2 + case_count * 2;
-  auto* inputs = zone()->NewArray<InstructionOperand>(input_count);
-  inputs[0] = value_operand;
-  inputs[1] = default_operand;
-  for (size_t index = 0; index < case_count; ++index) {
-    int32_t value = case_values[index];
-    BasicBlock* branch = case_branches[index];
-    inputs[index * 2 + 2 + 0] = g.TempImmediate(value);
-    inputs[index * 2 + 2 + 1] = g.Label(branch);
-  }
-  Emit(kArchLookupSwitch, 0, nullptr, input_count, inputs, 0, nullptr)
-      ->MarkAsControl();
+  return EmitLookupSwitch(sw, value_operand);
 }
 
 
@@ -1061,16 +1091,55 @@ void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat64ExtractLowWord32(Node* node) {
+  IA32OperandGenerator g(this);
+  Emit(kSSEFloat64ExtractLowWord32, g.DefineAsRegister(node),
+       g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitFloat64ExtractHighWord32(Node* node) {
+  IA32OperandGenerator g(this);
+  Emit(kSSEFloat64ExtractHighWord32, g.DefineAsRegister(node),
+       g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitFloat64InsertLowWord32(Node* node) {
+  IA32OperandGenerator g(this);
+  Node* left = node->InputAt(0);
+  Node* right = node->InputAt(1);
+  Float64Matcher mleft(left);
+  if (mleft.HasValue() && (bit_cast<uint64_t>(mleft.Value()) >> 32) == 0u) {
+    Emit(kSSEFloat64LoadLowWord32, g.DefineAsRegister(node), g.Use(right));
+    return;
+  }
+  Emit(kSSEFloat64InsertLowWord32, g.DefineSameAsFirst(node),
+       g.UseRegister(left), g.Use(right));
+}
+
+
+void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
+  IA32OperandGenerator g(this);
+  Node* left = node->InputAt(0);
+  Node* right = node->InputAt(1);
+  Emit(kSSEFloat64InsertHighWord32, g.DefineSameAsFirst(node),
+       g.UseRegister(left), g.Use(right));
+}
+
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
+  MachineOperatorBuilder::Flags flags =
+      MachineOperatorBuilder::kFloat64Max |
+      MachineOperatorBuilder::kFloat64Min |
+      MachineOperatorBuilder::kWord32ShiftIsSafe;
   if (CpuFeatures::IsSupported(SSE4_1)) {
-    return MachineOperatorBuilder::kFloat64Floor |
-           MachineOperatorBuilder::kFloat64Ceil |
-           MachineOperatorBuilder::kFloat64RoundTruncate |
-           MachineOperatorBuilder::kWord32ShiftIsSafe;
+    flags |= MachineOperatorBuilder::kFloat64RoundDown |
+             MachineOperatorBuilder::kFloat64RoundTruncate;
   }
-  return MachineOperatorBuilder::Flag::kNoFlags;
+  return flags;
 }
 
 }  // namespace compiler

@@ -191,6 +191,9 @@ int64_t Instruction::ImmPCOffset() {
     // All PC-relative branches.
     // Relative branch offsets are instruction-size-aligned.
     offset = ImmBranch() << kInstructionSizeLog2;
+  } else if (IsUnresolvedInternalReference()) {
+    // Internal references are always word-aligned.
+    offset = ImmUnresolvedInternalReference() << kInstructionSizeLog2;
   } else {
     // Load literal (offset from PC).
     DCHECK(IsLdrLiteral());
@@ -223,7 +226,10 @@ void Instruction::SetImmPCOffsetTarget(Instruction* target) {
     SetPCRelImmTarget(target);
   } else if (BranchType() != UnknownBranchType) {
     SetBranchImmTarget(target);
+  } else if (IsUnresolvedInternalReference()) {
+    SetUnresolvedInternalReferenceImmTarget(target);
   } else {
+    // Load literal (offset from PC).
     SetImmLLiteral(target);
   }
 }
@@ -278,7 +284,23 @@ void Instruction::SetBranchImmTarget(Instruction* target) {
 }
 
 
+void Instruction::SetUnresolvedInternalReferenceImmTarget(Instruction* target) {
+  DCHECK(IsUnresolvedInternalReference());
+  DCHECK(IsAligned(DistanceTo(target), kInstructionSize));
+
+  ptrdiff_t target_offset = DistanceTo(target) >> kInstructionSizeLog2;
+  DCHECK(is_int32(target_offset));
+  uint32_t high16 = unsigned_bitextract_32(31, 16, target_offset);
+  uint32_t low16 = unsigned_bitextract_32(15, 0, target_offset);
+
+  PatchingAssembler patcher(this, 2);
+  patcher.brk(high16);
+  patcher.brk(low16);
+}
+
+
 void Instruction::SetImmLLiteral(Instruction* source) {
+  DCHECK(IsLdrLiteral());
   DCHECK(IsAligned(DistanceTo(source), kInstructionSize));
   ptrdiff_t offset = DistanceTo(source) >> kLoadLiteralScaleLog2;
   Instr imm = Assembler::ImmLLiteral(offset);

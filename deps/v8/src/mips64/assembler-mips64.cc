@@ -32,14 +32,12 @@
 // modified significantly by Google Inc.
 // Copyright 2012 the V8 project authors. All rights reserved.
 
-
 #include "src/v8.h"
 
 #if V8_TARGET_ARCH_MIPS64
 
 #include "src/base/cpu.h"
 #include "src/mips64/assembler-mips64-inl.h"
-#include "src/serialize.h"
 
 namespace v8 {
 namespace internal {
@@ -189,27 +187,6 @@ bool RelocInfo::IsCodedSpecially() {
 
 bool RelocInfo::IsInConstantPool() {
   return false;
-}
-
-
-// Patch the code at the current address with the supplied instructions.
-void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
-  Instr* pc = reinterpret_cast<Instr*>(pc_);
-  Instr* instr = reinterpret_cast<Instr*>(instructions);
-  for (int i = 0; i < instruction_count; i++) {
-    *(pc + i) = *(instr + i);
-  }
-
-  // Indicate that code has changed.
-  CpuFeatures::FlushICache(pc_, instruction_count * Assembler::kInstrSize);
-}
-
-
-// Patch the code at the current PC with a call to the target address.
-// Additional guard instructions can be added if required.
-void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
-  // Patch the code at the current address with a call to the target.
-  UNIMPLEMENTED_MIPS();
 }
 
 
@@ -635,7 +612,7 @@ bool Assembler::IsAndImmediate(Instr instr) {
 }
 
 
-int64_t Assembler::target_at(int64_t pos, bool is_internal) {
+int Assembler::target_at(int pos, bool is_internal) {
   if (is_internal) {
     int64_t* p = reinterpret_cast<int64_t*>(buffer_ + pos);
     int64_t address = *p;
@@ -643,7 +620,8 @@ int64_t Assembler::target_at(int64_t pos, bool is_internal) {
       return kEndOfChain;
     } else {
       int64_t instr_address = reinterpret_cast<int64_t>(p);
-      int64_t delta = instr_address - address;
+      DCHECK(instr_address - address < INT_MAX);
+      int delta = static_cast<int>(instr_address - address);
       DCHECK(pos > delta);
       return pos - delta;
     }
@@ -689,7 +667,8 @@ int64_t Assembler::target_at(int64_t pos, bool is_internal) {
       return kEndOfChain;
     } else {
       uint64_t instr_address = reinterpret_cast<int64_t>(buffer_ + pos);
-      int64_t delta = instr_address - imm;
+      DCHECK(instr_address - imm < INT_MAX);
+      int delta = static_cast<int>(instr_address - imm);
       DCHECK(pos > delta);
       return pos - delta;
     }
@@ -701,7 +680,7 @@ int64_t Assembler::target_at(int64_t pos, bool is_internal) {
     } else {
       uint64_t instr_address = reinterpret_cast<int64_t>(buffer_ + pos);
       instr_address &= kImm28Mask;
-      int64_t delta = instr_address - imm28;
+      int delta = static_cast<int>(instr_address - imm28);
       DCHECK(pos > delta);
       return pos - delta;
     }
@@ -709,8 +688,7 @@ int64_t Assembler::target_at(int64_t pos, bool is_internal) {
 }
 
 
-void Assembler::target_at_put(int64_t pos, int64_t target_pos,
-                              bool is_internal) {
+void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
   if (is_internal) {
     uint64_t imm = reinterpret_cast<uint64_t>(buffer_) + target_pos;
     *reinterpret_cast<uint64_t*>(buffer_ + pos) = imm;
@@ -796,7 +774,7 @@ void Assembler::print(Label* L) {
 
 void Assembler::bind_to(Label* L, int pos) {
   DCHECK(0 <= pos && pos <= pc_offset());  // Must have valid binding position.
-  int32_t trampoline_pos = kInvalidSlotPos;
+  int trampoline_pos = kInvalidSlotPos;
   bool is_internal = false;
   if (L->is_linked() && !trampoline_emitted_) {
     unbound_labels_count_--;
@@ -804,8 +782,8 @@ void Assembler::bind_to(Label* L, int pos) {
   }
 
   while (L->is_linked()) {
-    int32_t fixup_pos = L->pos();
-    int32_t dist = pos - fixup_pos;
+    int fixup_pos = L->pos();
+    int dist = pos - fixup_pos;
     is_internal = internal_reference_positions_.find(fixup_pos) !=
                   internal_reference_positions_.end();
     next(L, is_internal);  // Call next before overwriting link with target at

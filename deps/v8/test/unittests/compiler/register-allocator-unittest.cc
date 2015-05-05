@@ -301,6 +301,31 @@ TEST_F(RegisterAllocatorTest, SplitBeforeInstruction) {
 }
 
 
+TEST_F(RegisterAllocatorTest, SplitBeforeInstruction2) {
+  const int kNumRegs = 6;
+  SetNumRegs(kNumRegs, kNumRegs);
+
+  StartBlock();
+
+  // Stack parameters/spilled values.
+  auto p_0 = Define(Slot(-1));
+  auto p_1 = Define(Slot(-2));
+
+  // Fill registers.
+  VReg values[kNumRegs];
+  for (size_t i = 0; i < arraysize(values); ++i) {
+    values[i] = Define(Reg(static_cast<int>(i)));
+  }
+
+  // values[0] and [1] will be split in the second half of this instruction.
+  EmitOOI(Reg(0), Reg(1), Reg(p_0, 0), Reg(p_1, 1));
+  EmitI(Reg(values[0]), Reg(values[1]));
+  EndBlock(Last());
+
+  Allocate();
+}
+
+
 TEST_F(RegisterAllocatorTest, NestedDiamondPhiMerge) {
   // Outer diamond.
   StartBlock();
@@ -465,6 +490,87 @@ TEST_F(RegisterAllocatorTest, RegressionLoadConstantBeforeSpill) {
 
   Allocate();
 }
+
+
+namespace {
+
+enum class ParameterType { kFixedSlot, kSlot, kRegister, kFixedRegister };
+
+const ParameterType kParameterTypes[] = {
+    ParameterType::kFixedSlot, ParameterType::kSlot, ParameterType::kRegister,
+    ParameterType::kFixedRegister};
+
+class SlotConstraintTest : public RegisterAllocatorTest,
+                           public ::testing::WithParamInterface<
+                               ::testing::tuple<ParameterType, int>> {
+ public:
+  static const int kMaxVariant = 5;
+
+ protected:
+  ParameterType parameter_type() const {
+    return ::testing::get<0>(B::GetParam());
+  }
+  int variant() const { return ::testing::get<1>(B::GetParam()); }
+
+ private:
+  typedef ::testing::WithParamInterface<::testing::tuple<ParameterType, int>> B;
+};
+}
+
+
+#if GTEST_HAS_COMBINE
+
+TEST_P(SlotConstraintTest, SlotConstraint) {
+  StartBlock();
+  VReg p_0;
+  switch (parameter_type()) {
+    case ParameterType::kFixedSlot:
+      p_0 = Parameter(Slot(-1));
+      break;
+    case ParameterType::kSlot:
+      p_0 = Parameter(Slot(-1));
+      break;
+    case ParameterType::kRegister:
+      p_0 = Parameter(Reg());
+      break;
+    case ParameterType::kFixedRegister:
+      p_0 = Parameter(Reg(1));
+      break;
+  }
+  switch (variant()) {
+    case 0:
+      EmitI(Slot(p_0), Reg(p_0));
+      break;
+    case 1:
+      EmitI(Slot(p_0));
+      break;
+    case 2:
+      EmitI(Reg(p_0));
+      EmitI(Slot(p_0));
+      break;
+    case 3:
+      EmitI(Slot(p_0));
+      EmitI(Reg(p_0));
+      break;
+    case 4:
+      EmitI(Slot(p_0, -1), Slot(p_0), Reg(p_0), Reg(p_0, 1));
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+  EndBlock(Last());
+
+  Allocate();
+}
+
+
+INSTANTIATE_TEST_CASE_P(
+    RegisterAllocatorTest, SlotConstraintTest,
+    ::testing::Combine(::testing::ValuesIn(kParameterTypes),
+                       ::testing::Range(0, SlotConstraintTest::kMaxVariant)));
+
+#endif  // GTEST_HAS_COMBINE
 
 }  // namespace compiler
 }  // namespace internal

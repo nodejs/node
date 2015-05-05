@@ -95,7 +95,8 @@ class JumpPatchSite BASE_EMBEDDED {
 void FullCodeGenerator::Generate() {
   CompilationInfo* info = info_;
   handler_table_ =
-      isolate()->factory()->NewFixedArray(function()->handler_count(), TENURED);
+      Handle<HandlerTable>::cast(isolate()->factory()->NewFixedArray(
+          HandlerTable::LengthForRange(function()->handler_count()), TENURED));
 
   profiling_counter_ = isolate()->factory()->NewCell(
       Handle<Smi>(Smi::FromInt(FLAG_interrupt_budget), isolate()));
@@ -187,7 +188,7 @@ void FullCodeGenerator::Generate() {
     Comment cmnt(masm_, "[ Allocate context");
     bool need_write_barrier = true;
     // Argument to NewContext is the function, which is still in rdi.
-    if (FLAG_harmony_scoping && info->scope()->is_script_scope()) {
+    if (info->scope()->is_script_scope()) {
       __ Push(rdi);
       __ Push(info->scope()->GetScopeInfo(info->isolate()));
       __ CallRuntime(Runtime::kNewScriptContext, 2);
@@ -232,6 +233,11 @@ void FullCodeGenerator::Generate() {
     }
   }
 
+ArgumentsAccessStub::HasNewTarget has_new_target =
+    IsSubclassConstructor(info->function()->kind())
+        ? ArgumentsAccessStub::HAS_NEW_TARGET
+        : ArgumentsAccessStub::NO_NEW_TARGET;
+
   // Possibly allocate RestParameters
   int rest_index;
   Variable* rest_param = scope()->rest_parameter(&rest_index);
@@ -240,6 +246,11 @@ void FullCodeGenerator::Generate() {
 
     int num_parameters = info->scope()->num_parameters();
     int offset = num_parameters * kPointerSize;
+    if (has_new_target == ArgumentsAccessStub::HAS_NEW_TARGET) {
+      --num_parameters;
+      ++rest_index;
+    }
+
     __ leap(rdx,
             Operand(rbp, StandardFrameConstants::kCallerSPOffset + offset));
     __ Push(rdx);
@@ -275,10 +286,6 @@ void FullCodeGenerator::Generate() {
     // The stub will rewrite receiver and parameter count if the previous
     // stack frame was an arguments adapter frame.
 
-    ArgumentsAccessStub::HasNewTarget has_new_target =
-        IsSubclassConstructor(info->function()->kind())
-            ? ArgumentsAccessStub::HAS_NEW_TARGET
-            : ArgumentsAccessStub::NO_NEW_TARGET;
     ArgumentsAccessStub::Type type;
     if (is_strict(language_mode()) || !is_simple_parameter_list()) {
       type = ArgumentsAccessStub::NEW_STRICT;
@@ -1489,7 +1496,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
         __ Move(VectorLoadICDescriptor::SlotRegister(),
                 SmiFromSlot(proxy->VariableFeedbackSlot()));
       }
-      CallLoadIC(CONTEXTUAL);
+      CallGlobalLoadIC(var->name());
       context()->Plug(rax);
       break;
     }
@@ -2132,7 +2139,6 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
 
       // catch (e) { receiver = iter; f = 'throw'; arg = e; goto l_call; }
       __ bind(&l_catch);
-      handler_table()->set(expr->index(), Smi::FromInt(l_catch.pos()));
       __ LoadRoot(load_name, Heap::kthrow_stringRootIndex);  // "throw"
       __ Push(load_name);
       __ Push(Operand(rsp, 2 * kPointerSize));               // iter
@@ -2144,16 +2150,17 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       // re-boxing.
       __ bind(&l_try);
       __ Pop(rax);                                       // result
-      __ PushTryHandler(StackHandler::CATCH, expr->index());
-      const int handler_size = StackHandlerConstants::kSize;
+      EnterTryBlock(expr->index(), &l_catch);
+      const int try_block_size = TryCatch::kElementCount * kPointerSize;
       __ Push(rax);                                      // result
       __ jmp(&l_suspend);
       __ bind(&l_continuation);
       __ jmp(&l_resume);
       __ bind(&l_suspend);
-      const int generator_object_depth = kPointerSize + handler_size;
+      const int generator_object_depth = kPointerSize + try_block_size;
       __ movp(rax, Operand(rsp, generator_object_depth));
       __ Push(rax);                                      // g
+      __ Push(Smi::FromInt(expr->index()));              // handler-index
       DCHECK(l_continuation.pos() > 0 && Smi::IsValid(l_continuation.pos()));
       __ Move(FieldOperand(rax, JSGeneratorObject::kContinuationOffset),
               Smi::FromInt(l_continuation.pos()));
@@ -2161,13 +2168,13 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ movp(rcx, rsi);
       __ RecordWriteField(rax, JSGeneratorObject::kContextOffset, rcx, rdx,
                           kDontSaveFPRegs);
-      __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
+      __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 2);
       __ movp(context_register(),
               Operand(rbp, StandardFrameConstants::kContextOffset));
       __ Pop(rax);                                       // result
       EmitReturnSequence();
       __ bind(&l_resume);                                // received in rax
-      __ PopTryHandler();
+      ExitTryBlock(expr->index());
 
       // receiver = iter; f = 'next'; arg = received;
       __ bind(&l_next);
@@ -2478,6 +2485,16 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
       __ Push(Operand(rsp, 0));  // prototype
     }
     EmitPropertyKey(property, lit->GetIdForProperty(i));
+
+    // The static prototype property is read only. We handle the non computed
+    // property name case in the parser. Since this is the only case where we
+    // need to check for an own read only property we special case this so we do
+    // not need to do this for every property.
+    if (property->is_static() && property->is_computed_name()) {
+      __ CallRuntime(Runtime::kThrowIfStaticPrototype, 1);
+      __ Push(rax);
+    }
+
     VisitForStackValue(value);
     EmitSetHomeObjectIfNeeded(value, 2);
 
@@ -2618,25 +2635,6 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     __ movp(StoreDescriptor::ReceiverRegister(), GlobalObjectOperand());
     CallStoreIC();
 
-  } else if (op == Token::INIT_CONST_LEGACY) {
-    // Const initializers need a write barrier.
-    DCHECK(!var->IsParameter());  // No const parameters.
-    if (var->IsLookupSlot()) {
-      __ Push(rax);
-      __ Push(rsi);
-      __ Push(var->name());
-      __ CallRuntime(Runtime::kInitializeLegacyConstLookupSlot, 3);
-    } else {
-      DCHECK(var->IsStackLocal() || var->IsContextSlot());
-      Label skip;
-      MemOperand location = VarOperand(var, rcx);
-      __ movp(rdx, location);
-      __ CompareRoot(rdx, Heap::kTheHoleValueRootIndex);
-      __ j(not_equal, &skip);
-      EmitStoreToStackLocalOrContextSlot(var, location);
-      __ bind(&skip);
-    }
-
   } else if (var->mode() == LET && op != Token::INIT_LET) {
     // Non-initializing assignment to let variable needs a write barrier.
     DCHECK(!var->IsLookupSlot());
@@ -2650,6 +2648,20 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     __ CallRuntime(Runtime::kThrowReferenceError, 1);
     __ bind(&assign);
     EmitStoreToStackLocalOrContextSlot(var, location);
+
+  } else if (var->mode() == CONST && op != Token::INIT_CONST) {
+    // Assignment to const variable needs a write barrier.
+    DCHECK(!var->IsLookupSlot());
+    DCHECK(var->IsStackAllocated() || var->IsContextSlot());
+    Label const_error;
+    MemOperand location = VarOperand(var, rcx);
+    __ movp(rdx, location);
+    __ CompareRoot(rdx, Heap::kTheHoleValueRootIndex);
+    __ j(not_equal, &const_error, Label::kNear);
+    __ Push(var->name());
+    __ CallRuntime(Runtime::kThrowReferenceError, 1);
+    __ bind(&const_error);
+    __ CallRuntime(Runtime::kThrowConstAssignError, 0);
 
   } else if (!var->is_const_mode() || op == Token::INIT_CONST) {
     if (var->IsLookupSlot()) {
@@ -2672,8 +2684,33 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
       }
       EmitStoreToStackLocalOrContextSlot(var, location);
     }
-  } else if (IsSignallingAssignmentToConst(var, op, language_mode())) {
-    __ CallRuntime(Runtime::kThrowConstAssignError, 0);
+
+  } else if (op == Token::INIT_CONST_LEGACY) {
+    // Const initializers need a write barrier.
+    DCHECK(var->mode() == CONST_LEGACY);
+    DCHECK(!var->IsParameter());  // No const parameters.
+    if (var->IsLookupSlot()) {
+      __ Push(rax);
+      __ Push(rsi);
+      __ Push(var->name());
+      __ CallRuntime(Runtime::kInitializeLegacyConstLookupSlot, 3);
+    } else {
+      DCHECK(var->IsStackLocal() || var->IsContextSlot());
+      Label skip;
+      MemOperand location = VarOperand(var, rcx);
+      __ movp(rdx, location);
+      __ CompareRoot(rdx, Heap::kTheHoleValueRootIndex);
+      __ j(not_equal, &skip);
+      EmitStoreToStackLocalOrContextSlot(var, location);
+      __ bind(&skip);
+    }
+
+  } else {
+    DCHECK(var->mode() == CONST_LEGACY && op != Token::INIT_CONST_LEGACY);
+    if (is_strict(language_mode())) {
+      __ CallRuntime(Runtime::kThrowConstAssignError, 0);
+    }
+    // Silently ignore store in sloppy mode.
   }
 }
 
@@ -3143,8 +3180,6 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
 
 
 void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
-  if (!ValidateSuperCall(expr)) return;
-
   Variable* new_target_var = scope()->DeclarationScope()->new_target_var();
   GetVar(result_register(), new_target_var);
   __ Push(result_register());
@@ -3649,8 +3684,8 @@ void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
   STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE == LAST_TYPE - 1);
 
   // Check if the constructor in the map is a JS function.
-  __ movp(rax, FieldOperand(rax, Map::kConstructorOffset));
-  __ CmpObjectType(rax, JS_FUNCTION_TYPE, rbx);
+  __ GetMapConstructor(rax, rax, rbx);
+  __ CmpInstanceType(rbx, JS_FUNCTION_TYPE);
   __ j(not_equal, &non_function_constructor);
 
   // rax now contains the constructor function. Grab the
@@ -3950,7 +3985,7 @@ void FullCodeGenerator::EmitStringCharCodeAt(CallRuntime* expr) {
   __ jmp(&done);
 
   NopRuntimeCallHelper call_helper;
-  generator.GenerateSlow(masm_, call_helper);
+  generator.GenerateSlow(masm_, NOT_PART_OF_IC_HANDLER, call_helper);
 
   __ bind(&done);
   context()->Plug(result);
@@ -3998,7 +4033,7 @@ void FullCodeGenerator::EmitStringCharAt(CallRuntime* expr) {
   __ jmp(&done);
 
   NopRuntimeCallHelper call_helper;
-  generator.GenerateSlow(masm_, call_helper);
+  generator.GenerateSlow(masm_, NOT_PART_OF_IC_HANDLER, call_helper);
 
   __ bind(&done);
   context()->Plug(result);
@@ -4177,7 +4212,7 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
   // Call runtime to perform the lookup.
   __ Push(cache);
   __ Push(key);
-  __ CallRuntime(Runtime::kGetFromCache, 2);
+  __ CallRuntime(Runtime::kGetFromCacheRT, 2);
 
   __ bind(&done);
   context()->Plug(rax);
@@ -4519,18 +4554,11 @@ void FullCodeGenerator::EmitDebugIsActive(CallRuntime* expr) {
 
 
 void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
-  if (expr->function() != NULL &&
-      expr->function()->intrinsic_type == Runtime::INLINE) {
-    Comment cmnt(masm_, "[ InlineRuntimeCall");
-    EmitInlineRuntimeCall(expr);
-    return;
-  }
-
-  Comment cmnt(masm_, "[ CallRuntime");
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
 
   if (expr->is_jsruntime()) {
+    Comment cmnt(masm_, "[ CallRuntime");
     // Push the builtins object as receiver.
     __ movp(rax, GlobalObjectOperand());
     __ Push(FieldOperand(rax, GlobalObject::kBuiltinsOffset));
@@ -4566,14 +4594,27 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
     context()->DropAndPlug(1, rax);
 
   } else {
-    // Push the arguments ("left-to-right").
-    for (int i = 0; i < arg_count; i++) {
-      VisitForStackValue(args->at(i));
-    }
+    const Runtime::Function* function = expr->function();
+    switch (function->function_id) {
+#define CALL_INTRINSIC_GENERATOR(Name)     \
+  case Runtime::kInline##Name: {           \
+    Comment cmnt(masm_, "[ Inline" #Name); \
+    return Emit##Name(expr);               \
+  }
+      FOR_EACH_FULL_CODE_INTRINSIC(CALL_INTRINSIC_GENERATOR)
+#undef CALL_INTRINSIC_GENERATOR
+      default: {
+        Comment cmnt(masm_, "[ CallRuntime for unhandled intrinsic");
+        // Push the arguments ("left-to-right").
+        for (int i = 0; i < arg_count; i++) {
+          VisitForStackValue(args->at(i));
+        }
 
-    // Call the C runtime.
-    __ CallRuntime(expr->function(), arg_count);
-    context()->Plug(rax);
+        // Call the C runtime.
+        __ CallRuntime(function, arg_count);
+        context()->Plug(rax);
+      }
+    }
   }
 }
 
@@ -5221,17 +5262,6 @@ void FullCodeGenerator::EnterFinallyBlock() {
       ExternalReference::address_of_pending_message_obj(isolate());
   __ Load(rdx, pending_message_obj);
   __ Push(rdx);
-
-  ExternalReference has_pending_message =
-      ExternalReference::address_of_has_pending_message(isolate());
-  __ Load(rdx, has_pending_message);
-  __ Integer32ToSmi(rdx, rdx);
-  __ Push(rdx);
-
-  ExternalReference pending_message_script =
-      ExternalReference::address_of_pending_message_script(isolate());
-  __ Load(rdx, pending_message_script);
-  __ Push(rdx);
 }
 
 
@@ -5239,17 +5269,6 @@ void FullCodeGenerator::ExitFinallyBlock() {
   DCHECK(!result_register().is(rdx));
   DCHECK(!result_register().is(rcx));
   // Restore pending message from stack.
-  __ Pop(rdx);
-  ExternalReference pending_message_script =
-      ExternalReference::address_of_pending_message_script(isolate());
-  __ Store(pending_message_script, rdx);
-
-  __ Pop(rdx);
-  __ SmiToInteger32(rdx, rdx);
-  ExternalReference has_pending_message =
-      ExternalReference::address_of_has_pending_message(isolate());
-  __ Store(has_pending_message, rdx);
-
   __ Pop(rdx);
   ExternalReference pending_message_obj =
       ExternalReference::address_of_pending_message_obj(isolate());
@@ -5264,34 +5283,6 @@ void FullCodeGenerator::ExitFinallyBlock() {
   __ Move(rcx, masm_->CodeObject());
   __ addp(rdx, rcx);
   __ jmp(rdx);
-}
-
-
-#undef __
-
-#define __ ACCESS_MASM(masm())
-
-FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
-    int* stack_depth,
-    int* context_length) {
-  // The macros used here must preserve the result register.
-
-  // Because the handler block contains the context of the finally
-  // code, we can restore it directly from there for the finally code
-  // rather than iteratively unwinding contexts via their previous
-  // links.
-  __ Drop(*stack_depth);  // Down to the handler block.
-  if (*context_length > 0) {
-    // Restore the context to its dedicated register and the stack.
-    __ movp(rsi, Operand(rsp, StackHandlerConstants::kContextOffset));
-    __ movp(Operand(rbp, StandardFrameConstants::kContextOffset), rsi);
-  }
-  __ PopTryHandler();
-  __ call(finally_entry_);
-
-  *stack_depth = 0;
-  *context_length = 0;
-  return previous_;
 }
 
 

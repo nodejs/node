@@ -18,13 +18,13 @@ Getting the Code
 
 Checkout [depot tools](http://www.chromium.org/developers/how-tos/install-depot-tools), and run
 
-> `fetch v8`
+        fetch v8
 
 This will checkout V8 into the directory `v8` and fetch all of its dependencies.
 To stay up to date, run
 
-> `git pull origin`
-> `gclient sync`
+        git pull origin
+        gclient sync
 
 For fetching all branches, add the following into your remote
 configuration in `.git/config`:

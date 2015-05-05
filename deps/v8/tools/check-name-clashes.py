@@ -11,7 +11,6 @@ import sys
 FILENAME = "src/runtime/runtime.h"
 LISTHEAD = re.compile(r"#define\s+(\w+LIST\w*)\((\w+)\)")
 LISTBODY = re.compile(r".*\\$")
-BLACKLIST = ['INLINE_FUNCTION_LIST']
 
 
 class Function(object):
@@ -32,7 +31,7 @@ def FindLists(filename):
     for line in f:
       if mode == "SEARCHING":
         match = LISTHEAD.match(line)
-        if match and match.group(1) not in BLACKLIST:
+        if match:
           mode = "APPENDING"
           current_list.append(line)
       else:

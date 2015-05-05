@@ -79,10 +79,14 @@ class DataDescriptor FINAL : public Descriptor {
                  PropertyAttributes attributes, Representation representation)
       : Descriptor(key, HeapType::Any(key->GetIsolate()), attributes, DATA,
                    representation, field_index) {}
-  DataDescriptor(Handle<Name> key, int field_index, Handle<HeapType> field_type,
+  // The field type is either a simple type or a map wrapped in a weak cell.
+  DataDescriptor(Handle<Name> key, int field_index,
+                 Handle<Object> wrapped_field_type,
                  PropertyAttributes attributes, Representation representation)
-      : Descriptor(key, field_type, attributes, DATA, representation,
-                   field_index) {}
+      : Descriptor(key, wrapped_field_type, attributes, DATA, representation,
+                   field_index) {
+    DCHECK(wrapped_field_type->IsSmi() || wrapped_field_type->IsWeakCell());
+  }
 };
 
 

@@ -35,83 +35,41 @@
 #include "src/compilation-cache.h"
 #include "src/debug.h"
 #include "src/heap/spaces.h"
-#include "src/natives.h"
 #include "src/objects.h"
+#include "src/parser.h"
 #include "src/runtime/runtime.h"
 #include "src/scopeinfo.h"
-#include "src/serialize.h"
-#include "src/snapshot.h"
+#include "src/snapshot/natives.h"
+#include "src/snapshot/serialize.h"
+#include "src/snapshot/snapshot.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 
 
-template <class T>
-static Address AddressOf(T id) {
-  return ExternalReference(id, CcTest::i_isolate()).address();
+bool DefaultSnapshotAvailable() {
+  return i::Snapshot::DefaultSnapshotBlob() != NULL;
 }
 
 
-template <class T>
-static uint32_t Encode(const ExternalReferenceEncoder& encoder, T id) {
-  return encoder.Encode(AddressOf(id));
+void DisableTurbofan() {
+  const char* flag = "--turbo-filter=\"\"";
+  FlagList::SetFlagsFromString(flag, StrLength(flag));
 }
 
 
-static uint32_t make_code(TypeCode type, int id) {
-  return static_cast<uint32_t>(type) << kReferenceTypeShift | id;
-}
-
-
-TEST(ExternalReferenceEncoder) {
-  Isolate* isolate = CcTest::i_isolate();
-  v8::V8::Initialize();
-
-  ExternalReferenceEncoder encoder(isolate);
-  CHECK_EQ(make_code(BUILTIN, Builtins::kArrayCode),
-           Encode(encoder, Builtins::kArrayCode));
-  CHECK_EQ(make_code(v8::internal::RUNTIME_FUNCTION, Runtime::kAbort),
-           Encode(encoder, Runtime::kAbort));
-  ExternalReference stack_limit_address =
-      ExternalReference::address_of_stack_limit(isolate);
-  CHECK_EQ(make_code(UNCLASSIFIED, 2),
-           encoder.Encode(stack_limit_address.address()));
-  ExternalReference real_stack_limit_address =
-      ExternalReference::address_of_real_stack_limit(isolate);
-  CHECK_EQ(make_code(UNCLASSIFIED, 3),
-           encoder.Encode(real_stack_limit_address.address()));
-  CHECK_EQ(make_code(UNCLASSIFIED, 8),
-           encoder.Encode(ExternalReference::debug_break(isolate).address()));
-  CHECK_EQ(
-      make_code(UNCLASSIFIED, 4),
-      encoder.Encode(ExternalReference::new_space_start(isolate).address()));
-  CHECK_EQ(
-      make_code(UNCLASSIFIED, 1),
-      encoder.Encode(ExternalReference::roots_array_start(isolate).address()));
-  CHECK_EQ(make_code(UNCLASSIFIED, 33),
-           encoder.Encode(ExternalReference::cpu_features().address()));
-}
-
-
-TEST(ExternalReferenceDecoder) {
-  Isolate* isolate = CcTest::i_isolate();
-  v8::V8::Initialize();
-
-  ExternalReferenceDecoder decoder(isolate);
-  CHECK_EQ(AddressOf(Builtins::kArrayCode),
-           decoder.Decode(make_code(BUILTIN, Builtins::kArrayCode)));
-  CHECK_EQ(AddressOf(Runtime::kAbort),
-           decoder.Decode(make_code(v8::internal::RUNTIME_FUNCTION,
-                                    Runtime::kAbort)));
-  CHECK_EQ(ExternalReference::address_of_stack_limit(isolate).address(),
-           decoder.Decode(make_code(UNCLASSIFIED, 2)));
-  CHECK_EQ(ExternalReference::address_of_real_stack_limit(isolate).address(),
-           decoder.Decode(make_code(UNCLASSIFIED, 3)));
-  CHECK_EQ(ExternalReference::debug_break(isolate).address(),
-           decoder.Decode(make_code(UNCLASSIFIED, 8)));
-  CHECK_EQ(ExternalReference::new_space_start(isolate).address(),
-           decoder.Decode(make_code(UNCLASSIFIED, 4)));
-}
+// TestIsolate is used for testing isolate serialization.
+class TestIsolate : public Isolate {
+ public:
+  static v8::Isolate* NewInitialized(bool enable_serializer) {
+    i::Isolate* isolate = new TestIsolate(enable_serializer);
+    v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+    v8::Isolate::Scope isolate_scope(v8_isolate);
+    isolate->Init(NULL);
+    return v8_isolate;
+  }
+  explicit TestIsolate(bool enable_serializer) : Isolate(enable_serializer) {}
+};
 
 
 void WritePayload(const Vector<const byte>& payload, const char* file_name) {
@@ -175,24 +133,20 @@ Vector<const uint8_t> ConstructSource(Vector<const uint8_t> head,
 
 // Test that the whole heap can be serialized.
 UNINITIALIZED_TEST(Serialize) {
-  if (!Snapshot::HaveASnapshotToStartFrom()) {
-    v8::Isolate::CreateParams params;
-    params.enable_serializer = true;
-    v8::Isolate* isolate = v8::Isolate::New(params);
-    Serialize(isolate);
-  }
+  DisableTurbofan();
+  if (DefaultSnapshotAvailable()) return;
+  v8::Isolate* isolate = TestIsolate::NewInitialized(true);
+  Serialize(isolate);
 }
 
 
 // Test that heap serialization is non-destructive.
 UNINITIALIZED_TEST(SerializeTwice) {
-  if (!Snapshot::HaveASnapshotToStartFrom()) {
-    v8::Isolate::CreateParams params;
-    params.enable_serializer = true;
-    v8::Isolate* isolate = v8::Isolate::New(params);
-    Serialize(isolate);
-    Serialize(isolate);
-  }
+  DisableTurbofan();
+  if (DefaultSnapshotAvailable()) return;
+  v8::Isolate* isolate = TestIsolate::NewInitialized(true);
+  Serialize(isolate);
+  Serialize(isolate);
 }
 
 
@@ -207,7 +161,7 @@ v8::Isolate* InitializeFromFile(const char* snapshot_file) {
   {
     SnapshotData snapshot_data(Vector<const byte>(str, len));
     Deserializer deserializer(&snapshot_data);
-    Isolate* isolate = Isolate::NewForTesting();
+    Isolate* isolate = new TestIsolate(false);
     v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
     v8::Isolate::Scope isolate_scope(v8_isolate);
     isolate->Init(&deserializer);
@@ -241,466 +195,538 @@ UNINITIALIZED_DEPENDENT_TEST(Deserialize, Serialize) {
   // The serialize-deserialize tests only work if the VM is built without
   // serialization.  That doesn't matter.  We don't need to be able to
   // serialize a snapshot in a VM that is booted from a snapshot.
-  if (!Snapshot::HaveASnapshotToStartFrom()) {
-    v8::Isolate* isolate = Deserialize();
-    {
-      v8::HandleScope handle_scope(isolate);
-      v8::Isolate::Scope isolate_scope(isolate);
+  DisableTurbofan();
+  if (DefaultSnapshotAvailable()) return;
+  v8::Isolate* isolate = Deserialize();
+  {
+    v8::HandleScope handle_scope(isolate);
+    v8::Isolate::Scope isolate_scope(isolate);
 
-      v8::Local<v8::Context> env = v8::Context::New(isolate);
-      env->Enter();
+    v8::Local<v8::Context> env = v8::Context::New(isolate);
+    env->Enter();
 
-      SanityCheck(isolate);
-    }
-    isolate->Dispose();
+    SanityCheck(isolate);
   }
+  isolate->Dispose();
 }
 
 
 UNINITIALIZED_DEPENDENT_TEST(DeserializeFromSecondSerialization,
                              SerializeTwice) {
-  if (!Snapshot::HaveASnapshotToStartFrom()) {
-    v8::Isolate* isolate = Deserialize();
-    {
-      v8::Isolate::Scope isolate_scope(isolate);
-      v8::HandleScope handle_scope(isolate);
+  DisableTurbofan();
+  if (DefaultSnapshotAvailable()) return;
+  v8::Isolate* isolate = Deserialize();
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope(isolate);
 
-      v8::Local<v8::Context> env = v8::Context::New(isolate);
-      env->Enter();
+    v8::Local<v8::Context> env = v8::Context::New(isolate);
+    env->Enter();
 
-      SanityCheck(isolate);
-    }
-    isolate->Dispose();
+    SanityCheck(isolate);
   }
+  isolate->Dispose();
 }
 
 
 UNINITIALIZED_DEPENDENT_TEST(DeserializeAndRunScript2, Serialize) {
-  if (!Snapshot::HaveASnapshotToStartFrom()) {
-    v8::Isolate* isolate = Deserialize();
-    {
-      v8::Isolate::Scope isolate_scope(isolate);
-      v8::HandleScope handle_scope(isolate);
+  DisableTurbofan();
+  if (DefaultSnapshotAvailable()) return;
+  v8::Isolate* isolate = Deserialize();
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope(isolate);
 
 
-      v8::Local<v8::Context> env = v8::Context::New(isolate);
-      env->Enter();
+    v8::Local<v8::Context> env = v8::Context::New(isolate);
+    env->Enter();
 
-      const char* c_source = "\"1234\".length";
-      v8::Local<v8::String> source = v8::String::NewFromUtf8(isolate, c_source);
-      v8::Local<v8::Script> script = v8::Script::Compile(source);
-      CHECK_EQ(4, script->Run()->Int32Value());
-    }
-    isolate->Dispose();
+    const char* c_source = "\"1234\".length";
+    v8::Local<v8::String> source = v8::String::NewFromUtf8(isolate, c_source);
+    v8::Local<v8::Script> script = v8::Script::Compile(source);
+    CHECK_EQ(4, script->Run()->Int32Value());
   }
+  isolate->Dispose();
 }
 
 
 UNINITIALIZED_DEPENDENT_TEST(DeserializeFromSecondSerializationAndRunScript2,
                              SerializeTwice) {
-  if (!Snapshot::HaveASnapshotToStartFrom()) {
-    v8::Isolate* isolate = Deserialize();
-    {
-      v8::Isolate::Scope isolate_scope(isolate);
-      v8::HandleScope handle_scope(isolate);
+  DisableTurbofan();
+  if (DefaultSnapshotAvailable()) return;
+  v8::Isolate* isolate = Deserialize();
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope(isolate);
 
-      v8::Local<v8::Context> env = v8::Context::New(isolate);
-      env->Enter();
+    v8::Local<v8::Context> env = v8::Context::New(isolate);
+    env->Enter();
 
-      const char* c_source = "\"1234\".length";
-      v8::Local<v8::String> source = v8::String::NewFromUtf8(isolate, c_source);
-      v8::Local<v8::Script> script = v8::Script::Compile(source);
-      CHECK_EQ(4, script->Run()->Int32Value());
-    }
-    isolate->Dispose();
+    const char* c_source = "\"1234\".length";
+    v8::Local<v8::String> source = v8::String::NewFromUtf8(isolate, c_source);
+    v8::Local<v8::Script> script = v8::Script::Compile(source);
+    CHECK_EQ(4, script->Run()->Int32Value());
   }
+  isolate->Dispose();
 }
 
 
 UNINITIALIZED_TEST(PartialSerialization) {
-  if (!Snapshot::HaveASnapshotToStartFrom()) {
-    v8::Isolate::CreateParams params;
-    params.enable_serializer = true;
-    v8::Isolate* v8_isolate = v8::Isolate::New(params);
-    Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
-    v8_isolate->Enter();
+  DisableTurbofan();
+  if (DefaultSnapshotAvailable()) return;
+  v8::Isolate* v8_isolate = TestIsolate::NewInitialized(true);
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+  v8_isolate->Enter();
+  {
+    Heap* heap = isolate->heap();
+
+    v8::Persistent<v8::Context> env;
     {
-      Heap* heap = isolate->heap();
-
-      v8::Persistent<v8::Context> env;
-      {
-        HandleScope scope(isolate);
-        env.Reset(v8_isolate, v8::Context::New(v8_isolate));
-      }
-      DCHECK(!env.IsEmpty());
-      {
-        v8::HandleScope handle_scope(v8_isolate);
-        v8::Local<v8::Context>::New(v8_isolate, env)->Enter();
-      }
-      // Make sure all builtin scripts are cached.
-      {
-        HandleScope scope(isolate);
-        for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-          isolate->bootstrapper()->NativesSourceLookup(i);
-        }
-      }
-      heap->CollectAllGarbage(Heap::kNoGCFlags);
-      heap->CollectAllGarbage(Heap::kNoGCFlags);
-
-      Object* raw_foo;
-      {
-        v8::HandleScope handle_scope(v8_isolate);
-        v8::Local<v8::String> foo = v8::String::NewFromUtf8(v8_isolate, "foo");
-        DCHECK(!foo.IsEmpty());
-        raw_foo = *(v8::Utils::OpenHandle(*foo));
-      }
-
-      int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
-      Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
-      SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
-
-      {
-        v8::HandleScope handle_scope(v8_isolate);
-        v8::Local<v8::Context>::New(v8_isolate, env)->Exit();
-      }
-      env.Reset();
-
-      SnapshotByteSink startup_sink;
-      StartupSerializer startup_serializer(isolate, &startup_sink);
-      startup_serializer.SerializeStrongReferences();
-
-      SnapshotByteSink partial_sink;
-      PartialSerializer partial_serializer(isolate, &startup_serializer,
-                                           &partial_sink);
-      partial_serializer.Serialize(&raw_foo);
-
-      startup_serializer.SerializeWeakReferences();
-
-      SnapshotData startup_snapshot(startup_serializer);
-      SnapshotData partial_snapshot(partial_serializer);
-
-      WritePayload(partial_snapshot.RawData(), FLAG_testing_serialization_file);
-      WritePayload(startup_snapshot.RawData(), startup_name.start());
-
-      startup_name.Dispose();
+      HandleScope scope(isolate);
+      env.Reset(v8_isolate, v8::Context::New(v8_isolate));
     }
-    v8_isolate->Exit();
-    v8_isolate->Dispose();
+    DCHECK(!env.IsEmpty());
+    {
+      v8::HandleScope handle_scope(v8_isolate);
+      v8::Local<v8::Context>::New(v8_isolate, env)->Enter();
+    }
+    // Make sure all builtin scripts are cached.
+    {
+      HandleScope scope(isolate);
+      for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
+        isolate->bootstrapper()->NativesSourceLookup(i);
+      }
+    }
+    heap->CollectAllGarbage(Heap::kNoGCFlags);
+    heap->CollectAllGarbage(Heap::kNoGCFlags);
+
+    Object* raw_foo;
+    {
+      v8::HandleScope handle_scope(v8_isolate);
+      v8::Local<v8::String> foo = v8::String::NewFromUtf8(v8_isolate, "foo");
+      DCHECK(!foo.IsEmpty());
+      raw_foo = *(v8::Utils::OpenHandle(*foo));
+    }
+
+    int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
+    Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
+    SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
+
+    {
+      v8::HandleScope handle_scope(v8_isolate);
+      v8::Local<v8::Context>::New(v8_isolate, env)->Exit();
+    }
+    env.Reset();
+
+    SnapshotByteSink startup_sink;
+    StartupSerializer startup_serializer(isolate, &startup_sink);
+    startup_serializer.SerializeStrongReferences();
+
+    SnapshotByteSink partial_sink;
+    PartialSerializer partial_serializer(isolate, &startup_serializer,
+                                         &partial_sink);
+    partial_serializer.Serialize(&raw_foo);
+
+    startup_serializer.SerializeWeakReferences();
+
+    SnapshotData startup_snapshot(startup_serializer);
+    SnapshotData partial_snapshot(partial_serializer);
+
+    WritePayload(partial_snapshot.RawData(), FLAG_testing_serialization_file);
+    WritePayload(startup_snapshot.RawData(), startup_name.start());
+
+    startup_name.Dispose();
   }
+  v8_isolate->Exit();
+  v8_isolate->Dispose();
 }
 
 
 UNINITIALIZED_DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
-  if (!Snapshot::HaveASnapshotToStartFrom()) {
-    int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
-    Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
-    SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
+  DisableTurbofan();
+  if (DefaultSnapshotAvailable()) return;
+  int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
+  Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
+  SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
 
-    v8::Isolate* v8_isolate = InitializeFromFile(startup_name.start());
-    CHECK(v8_isolate);
-    startup_name.Dispose();
+  v8::Isolate* v8_isolate = InitializeFromFile(startup_name.start());
+  CHECK(v8_isolate);
+  startup_name.Dispose();
+  {
+    v8::Isolate::Scope isolate_scope(v8_isolate);
+
+    const char* file_name = FLAG_testing_serialization_file;
+
+    int snapshot_size = 0;
+    byte* snapshot = ReadBytes(file_name, &snapshot_size);
+
+    Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+    HandleScope handle_scope(isolate);
+    Handle<Object> root;
+    Handle<FixedArray> outdated_contexts;
+    // Intentionally empty handle. The deserializer should not come across
+    // any references to the global proxy in this test.
+    Handle<JSGlobalProxy> global_proxy = Handle<JSGlobalProxy>::null();
     {
-      v8::Isolate::Scope isolate_scope(v8_isolate);
-
-      const char* file_name = FLAG_testing_serialization_file;
-
-      int snapshot_size = 0;
-      byte* snapshot = ReadBytes(file_name, &snapshot_size);
-
-      Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
-      HandleScope handle_scope(isolate);
-      Handle<Object> root;
-      Handle<FixedArray> outdated_contexts;
-      // Intentionally empty handle. The deserializer should not come across
-      // any references to the global proxy in this test.
-      Handle<JSGlobalProxy> global_proxy = Handle<JSGlobalProxy>::null();
-      {
-        SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
-        Deserializer deserializer(&snapshot_data);
-        root = deserializer.DeserializePartial(isolate, global_proxy,
-                                               &outdated_contexts)
-                   .ToHandleChecked();
-        CHECK_EQ(0, outdated_contexts->length());
-        CHECK(root->IsString());
-      }
-
-      Handle<Object> root2;
-      {
-        SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
-        Deserializer deserializer(&snapshot_data);
-        root2 = deserializer.DeserializePartial(isolate, global_proxy,
-                                                &outdated_contexts)
-                    .ToHandleChecked();
-        CHECK(root2->IsString());
-        CHECK(root.is_identical_to(root2));
-      }
+      SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
+      Deserializer deserializer(&snapshot_data);
+      root =
+          deserializer.DeserializePartial(isolate, global_proxy,
+                                          &outdated_contexts).ToHandleChecked();
+      CHECK_EQ(0, outdated_contexts->length());
+      CHECK(root->IsString());
     }
-    v8_isolate->Dispose();
+
+    Handle<Object> root2;
+    {
+      SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
+      Deserializer deserializer(&snapshot_data);
+      root2 =
+          deserializer.DeserializePartial(isolate, global_proxy,
+                                          &outdated_contexts).ToHandleChecked();
+      CHECK(root2->IsString());
+      CHECK(root.is_identical_to(root2));
+    }
+
+    DeleteArray(snapshot);
   }
+  v8_isolate->Dispose();
 }
 
 
 UNINITIALIZED_TEST(ContextSerialization) {
-  if (!Snapshot::HaveASnapshotToStartFrom()) {
-    v8::Isolate::CreateParams params;
-    params.enable_serializer = true;
-    v8::Isolate* v8_isolate = v8::Isolate::New(params);
-    Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
-    Heap* heap = isolate->heap();
+  DisableTurbofan();
+  if (DefaultSnapshotAvailable()) return;
+  v8::Isolate* v8_isolate = TestIsolate::NewInitialized(true);
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+  Heap* heap = isolate->heap();
+  {
+    v8::Isolate::Scope isolate_scope(v8_isolate);
+
+    v8::Persistent<v8::Context> env;
     {
-      v8::Isolate::Scope isolate_scope(v8_isolate);
-
-      v8::Persistent<v8::Context> env;
-      {
-        HandleScope scope(isolate);
-        env.Reset(v8_isolate, v8::Context::New(v8_isolate));
-      }
-      DCHECK(!env.IsEmpty());
-      {
-        v8::HandleScope handle_scope(v8_isolate);
-        v8::Local<v8::Context>::New(v8_isolate, env)->Enter();
-      }
-      // Make sure all builtin scripts are cached.
-      {
-        HandleScope scope(isolate);
-        for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-          isolate->bootstrapper()->NativesSourceLookup(i);
-        }
-      }
-      // If we don't do this then we end up with a stray root pointing at the
-      // context even after we have disposed of env.
-      heap->CollectAllGarbage(Heap::kNoGCFlags);
-
-      int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
-      Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
-      SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
-
-      {
-        v8::HandleScope handle_scope(v8_isolate);
-        v8::Local<v8::Context>::New(v8_isolate, env)->Exit();
-      }
-
-      i::Object* raw_context = *v8::Utils::OpenPersistent(env);
-
-      env.Reset();
-
-      SnapshotByteSink startup_sink;
-      StartupSerializer startup_serializer(isolate, &startup_sink);
-      startup_serializer.SerializeStrongReferences();
-
-      SnapshotByteSink partial_sink;
-      PartialSerializer partial_serializer(isolate, &startup_serializer,
-                                           &partial_sink);
-      partial_serializer.Serialize(&raw_context);
-      startup_serializer.SerializeWeakReferences();
-
-      SnapshotData startup_snapshot(startup_serializer);
-      SnapshotData partial_snapshot(partial_serializer);
-
-      WritePayload(partial_snapshot.RawData(), FLAG_testing_serialization_file);
-      WritePayload(startup_snapshot.RawData(), startup_name.start());
-
-      startup_name.Dispose();
+      HandleScope scope(isolate);
+      env.Reset(v8_isolate, v8::Context::New(v8_isolate));
     }
-    v8_isolate->Dispose();
-  }
-}
+    DCHECK(!env.IsEmpty());
+    {
+      v8::HandleScope handle_scope(v8_isolate);
+      v8::Local<v8::Context>::New(v8_isolate, env)->Enter();
+    }
+    // Make sure all builtin scripts are cached.
+    {
+      HandleScope scope(isolate);
+      for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
+        isolate->bootstrapper()->NativesSourceLookup(i);
+      }
+    }
+    // If we don't do this then we end up with a stray root pointing at the
+    // context even after we have disposed of env.
+    heap->CollectAllGarbage(Heap::kNoGCFlags);
 
-
-UNINITIALIZED_DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
-  if (!Snapshot::HaveASnapshotToStartFrom()) {
     int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
     Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
     SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
 
-    v8::Isolate* v8_isolate = InitializeFromFile(startup_name.start());
-    CHECK(v8_isolate);
-    startup_name.Dispose();
     {
-      v8::Isolate::Scope isolate_scope(v8_isolate);
-
-      const char* file_name = FLAG_testing_serialization_file;
-
-      int snapshot_size = 0;
-      byte* snapshot = ReadBytes(file_name, &snapshot_size);
-
-      Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
-      HandleScope handle_scope(isolate);
-      Handle<Object> root;
-      Handle<FixedArray> outdated_contexts;
-      Handle<JSGlobalProxy> global_proxy =
-          isolate->factory()->NewUninitializedJSGlobalProxy();
-      {
-        SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
-        Deserializer deserializer(&snapshot_data);
-        root = deserializer.DeserializePartial(isolate, global_proxy,
-                                               &outdated_contexts)
-                   .ToHandleChecked();
-        CHECK(root->IsContext());
-        CHECK(Handle<Context>::cast(root)->global_proxy() == *global_proxy);
-        CHECK_EQ(1, outdated_contexts->length());
-      }
-
-      Handle<Object> root2;
-      {
-        SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
-        Deserializer deserializer(&snapshot_data);
-        root2 = deserializer.DeserializePartial(isolate, global_proxy,
-                                                &outdated_contexts)
-                    .ToHandleChecked();
-        CHECK(root2->IsContext());
-        CHECK(!root.is_identical_to(root2));
-      }
+      v8::HandleScope handle_scope(v8_isolate);
+      v8::Local<v8::Context>::New(v8_isolate, env)->Exit();
     }
-    v8_isolate->Dispose();
+
+    i::Object* raw_context = *v8::Utils::OpenPersistent(env);
+
+    env.Reset();
+
+    SnapshotByteSink startup_sink;
+    StartupSerializer startup_serializer(isolate, &startup_sink);
+    startup_serializer.SerializeStrongReferences();
+
+    SnapshotByteSink partial_sink;
+    PartialSerializer partial_serializer(isolate, &startup_serializer,
+                                         &partial_sink);
+    partial_serializer.Serialize(&raw_context);
+    startup_serializer.SerializeWeakReferences();
+
+    SnapshotData startup_snapshot(startup_serializer);
+    SnapshotData partial_snapshot(partial_serializer);
+
+    WritePayload(partial_snapshot.RawData(), FLAG_testing_serialization_file);
+    WritePayload(startup_snapshot.RawData(), startup_name.start());
+
+    startup_name.Dispose();
   }
+  v8_isolate->Dispose();
+}
+
+
+UNINITIALIZED_DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
+  DisableTurbofan();
+  if (DefaultSnapshotAvailable()) return;
+  int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
+  Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
+  SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
+
+  v8::Isolate* v8_isolate = InitializeFromFile(startup_name.start());
+  CHECK(v8_isolate);
+  startup_name.Dispose();
+  {
+    v8::Isolate::Scope isolate_scope(v8_isolate);
+
+    const char* file_name = FLAG_testing_serialization_file;
+
+    int snapshot_size = 0;
+    byte* snapshot = ReadBytes(file_name, &snapshot_size);
+
+    Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+    HandleScope handle_scope(isolate);
+    Handle<Object> root;
+    Handle<FixedArray> outdated_contexts;
+    Handle<JSGlobalProxy> global_proxy =
+        isolate->factory()->NewUninitializedJSGlobalProxy();
+    {
+      SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
+      Deserializer deserializer(&snapshot_data);
+      root =
+          deserializer.DeserializePartial(isolate, global_proxy,
+                                          &outdated_contexts).ToHandleChecked();
+      CHECK(root->IsContext());
+      CHECK(Handle<Context>::cast(root)->global_proxy() == *global_proxy);
+      CHECK_EQ(1, outdated_contexts->length());
+    }
+
+    Handle<Object> root2;
+    {
+      SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
+      Deserializer deserializer(&snapshot_data);
+      root2 =
+          deserializer.DeserializePartial(isolate, global_proxy,
+                                          &outdated_contexts).ToHandleChecked();
+      CHECK(root2->IsContext());
+      CHECK(!root.is_identical_to(root2));
+    }
+    DeleteArray(snapshot);
+  }
+  v8_isolate->Dispose();
 }
 
 
 UNINITIALIZED_TEST(CustomContextSerialization) {
-  if (!Snapshot::HaveASnapshotToStartFrom()) {
-    v8::Isolate::CreateParams params;
-    params.enable_serializer = true;
-    v8::Isolate* v8_isolate = v8::Isolate::New(params);
-    Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+  DisableTurbofan();
+  if (DefaultSnapshotAvailable()) return;
+  v8::Isolate* v8_isolate = TestIsolate::NewInitialized(true);
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+  {
+    v8::Isolate::Scope isolate_scope(v8_isolate);
+
+    v8::Persistent<v8::Context> env;
     {
-      v8::Isolate::Scope isolate_scope(v8_isolate);
-
-      v8::Persistent<v8::Context> env;
-      {
-        HandleScope scope(isolate);
-        env.Reset(v8_isolate, v8::Context::New(v8_isolate));
-      }
-      DCHECK(!env.IsEmpty());
-      {
-        v8::HandleScope handle_scope(v8_isolate);
-        v8::Local<v8::Context>::New(v8_isolate, env)->Enter();
-        // After execution, e's function context refers to the global object.
-        CompileRun(
-            "var e;"
-            "(function() {"
-            "  e = function(s) { return eval (s); }"
-            "})();"
-            "var o = this;"
-            "var r = Math.random() + Math.cos(0);"
-            "var f = (function(a, b) { return a + b; }).bind(1, 2, 3);"
-            "var s = parseInt('12345');");
-
-        Vector<const uint8_t> source = ConstructSource(
-            STATIC_CHAR_VECTOR("function g() { return [,"),
-            STATIC_CHAR_VECTOR("1,"),
-            STATIC_CHAR_VECTOR("];} a = g(); b = g(); b.push(1);"), 100000);
-        v8::Handle<v8::String> source_str = v8::String::NewFromOneByte(
-            v8_isolate, source.start(), v8::String::kNormalString,
-            source.length());
-        CompileRun(source_str);
-        source.Dispose();
-      }
-      // Make sure all builtin scripts are cached.
-      {
-        HandleScope scope(isolate);
-        for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-          isolate->bootstrapper()->NativesSourceLookup(i);
-        }
-      }
-      // If we don't do this then we end up with a stray root pointing at the
-      // context even after we have disposed of env.
-      isolate->heap()->CollectAllAvailableGarbage("snapshotting");
-
-      int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
-      Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
-      SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
-
-      {
-        v8::HandleScope handle_scope(v8_isolate);
-        v8::Local<v8::Context>::New(v8_isolate, env)->Exit();
-      }
-
-      i::Object* raw_context = *v8::Utils::OpenPersistent(env);
-
-      env.Reset();
-
-      SnapshotByteSink startup_sink;
-      StartupSerializer startup_serializer(isolate, &startup_sink);
-      startup_serializer.SerializeStrongReferences();
-
-      SnapshotByteSink partial_sink;
-      PartialSerializer partial_serializer(isolate, &startup_serializer,
-                                           &partial_sink);
-      partial_serializer.Serialize(&raw_context);
-      startup_serializer.SerializeWeakReferences();
-
-      SnapshotData startup_snapshot(startup_serializer);
-      SnapshotData partial_snapshot(partial_serializer);
-
-      WritePayload(partial_snapshot.RawData(), FLAG_testing_serialization_file);
-      WritePayload(startup_snapshot.RawData(), startup_name.start());
-
-      startup_name.Dispose();
+      HandleScope scope(isolate);
+      env.Reset(v8_isolate, v8::Context::New(v8_isolate));
     }
-    v8_isolate->Dispose();
+    DCHECK(!env.IsEmpty());
+    {
+      v8::HandleScope handle_scope(v8_isolate);
+      v8::Local<v8::Context>::New(v8_isolate, env)->Enter();
+      // After execution, e's function context refers to the global object.
+      CompileRun(
+          "var e;"
+          "(function() {"
+          "  e = function(s) { return eval (s); }"
+          "})();"
+          "var o = this;"
+          "var r = Math.random() + Math.cos(0);"
+          "var f = (function(a, b) { return a + b; }).bind(1, 2, 3);"
+          "var s = parseInt('12345');");
+
+      Vector<const uint8_t> source = ConstructSource(
+          STATIC_CHAR_VECTOR("function g() { return [,"),
+          STATIC_CHAR_VECTOR("1,"),
+          STATIC_CHAR_VECTOR("];} a = g(); b = g(); b.push(1);"), 100000);
+      v8::Handle<v8::String> source_str = v8::String::NewFromOneByte(
+          v8_isolate, source.start(), v8::String::kNormalString,
+          source.length());
+      CompileRun(source_str);
+      source.Dispose();
+    }
+    // Make sure all builtin scripts are cached.
+    {
+      HandleScope scope(isolate);
+      for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
+        isolate->bootstrapper()->NativesSourceLookup(i);
+      }
+    }
+    // If we don't do this then we end up with a stray root pointing at the
+    // context even after we have disposed of env.
+    isolate->heap()->CollectAllAvailableGarbage("snapshotting");
+
+    int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
+    Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
+    SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
+
+    {
+      v8::HandleScope handle_scope(v8_isolate);
+      v8::Local<v8::Context>::New(v8_isolate, env)->Exit();
+    }
+
+    i::Object* raw_context = *v8::Utils::OpenPersistent(env);
+
+    env.Reset();
+
+    SnapshotByteSink startup_sink;
+    StartupSerializer startup_serializer(isolate, &startup_sink);
+    startup_serializer.SerializeStrongReferences();
+
+    SnapshotByteSink partial_sink;
+    PartialSerializer partial_serializer(isolate, &startup_serializer,
+                                         &partial_sink);
+    partial_serializer.Serialize(&raw_context);
+    startup_serializer.SerializeWeakReferences();
+
+    SnapshotData startup_snapshot(startup_serializer);
+    SnapshotData partial_snapshot(partial_serializer);
+
+    WritePayload(partial_snapshot.RawData(), FLAG_testing_serialization_file);
+    WritePayload(startup_snapshot.RawData(), startup_name.start());
+
+    startup_name.Dispose();
   }
+  v8_isolate->Dispose();
 }
 
 
 UNINITIALIZED_DEPENDENT_TEST(CustomContextDeserialization,
                              CustomContextSerialization) {
+  DisableTurbofan();
   FLAG_crankshaft = false;
-  if (!Snapshot::HaveASnapshotToStartFrom()) {
-    int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
-    Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
-    SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
+  if (DefaultSnapshotAvailable()) return;
+  int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
+  Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
+  SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
 
-    v8::Isolate* v8_isolate = InitializeFromFile(startup_name.start());
-    CHECK(v8_isolate);
-    startup_name.Dispose();
+  v8::Isolate* v8_isolate = InitializeFromFile(startup_name.start());
+  CHECK(v8_isolate);
+  startup_name.Dispose();
+  {
+    v8::Isolate::Scope isolate_scope(v8_isolate);
+
+    const char* file_name = FLAG_testing_serialization_file;
+
+    int snapshot_size = 0;
+    byte* snapshot = ReadBytes(file_name, &snapshot_size);
+
+    Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+    HandleScope handle_scope(isolate);
+    Handle<Object> root;
+    Handle<FixedArray> outdated_contexts;
+    Handle<JSGlobalProxy> global_proxy =
+        isolate->factory()->NewUninitializedJSGlobalProxy();
     {
-      v8::Isolate::Scope isolate_scope(v8_isolate);
+      SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
+      Deserializer deserializer(&snapshot_data);
+      root =
+          deserializer.DeserializePartial(isolate, global_proxy,
+                                          &outdated_contexts).ToHandleChecked();
+      CHECK_EQ(2, outdated_contexts->length());
+      CHECK(root->IsContext());
+      Handle<Context> context = Handle<Context>::cast(root);
+      CHECK(context->global_proxy() == *global_proxy);
+      Handle<String> o = isolate->factory()->NewStringFromAsciiChecked("o");
+      Handle<JSObject> global_object(context->global_object(), isolate);
+      Handle<Object> property = JSObject::GetDataProperty(global_object, o);
+      CHECK(property.is_identical_to(global_proxy));
 
-      const char* file_name = FLAG_testing_serialization_file;
-
-      int snapshot_size = 0;
-      byte* snapshot = ReadBytes(file_name, &snapshot_size);
-
-      Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
-      HandleScope handle_scope(isolate);
-      Handle<Object> root;
-      Handle<FixedArray> outdated_contexts;
-      Handle<JSGlobalProxy> global_proxy =
-          isolate->factory()->NewUninitializedJSGlobalProxy();
-      {
-        SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
-        Deserializer deserializer(&snapshot_data);
-        root = deserializer.DeserializePartial(isolate, global_proxy,
-                                               &outdated_contexts)
-                   .ToHandleChecked();
-        CHECK_EQ(2, outdated_contexts->length());
-        CHECK(root->IsContext());
-        Handle<Context> context = Handle<Context>::cast(root);
-        CHECK(context->global_proxy() == *global_proxy);
-        Handle<String> o = isolate->factory()->NewStringFromAsciiChecked("o");
-        Handle<JSObject> global_object(context->global_object(), isolate);
-        Handle<Object> property = JSObject::GetDataProperty(global_object, o);
-        CHECK(property.is_identical_to(global_proxy));
-
-        v8::Handle<v8::Context> v8_context = v8::Utils::ToLocal(context);
-        v8::Context::Scope context_scope(v8_context);
-        double r = CompileRun("r")->ToNumber(v8_isolate)->Value();
-        CHECK(r >= 1 && r <= 2);
-        int f = CompileRun("f()")->ToNumber(v8_isolate)->Int32Value();
-        CHECK_EQ(5, f);
-        f = CompileRun("e('f()')")->ToNumber(v8_isolate)->Int32Value();
-        CHECK_EQ(5, f);
-        v8::Handle<v8::String> s = CompileRun("s")->ToString(v8_isolate);
-        CHECK(s->Equals(v8_str("12345")));
-        int a = CompileRun("a.length")->ToNumber(v8_isolate)->Int32Value();
-        CHECK_EQ(100001, a);
-        int b = CompileRun("b.length")->ToNumber(v8_isolate)->Int32Value();
-        CHECK_EQ(100002, b);
-      }
+      v8::Handle<v8::Context> v8_context = v8::Utils::ToLocal(context);
+      v8::Context::Scope context_scope(v8_context);
+      double r = CompileRun("r")->ToNumber(v8_isolate)->Value();
+      CHECK(r >= 1 && r <= 2);
+      int f = CompileRun("f()")->ToNumber(v8_isolate)->Int32Value();
+      CHECK_EQ(5, f);
+      f = CompileRun("e('f()')")->ToNumber(v8_isolate)->Int32Value();
+      CHECK_EQ(5, f);
+      v8::Handle<v8::String> s = CompileRun("s")->ToString(v8_isolate);
+      CHECK(s->Equals(v8_str("12345")));
+      int a = CompileRun("a.length")->ToNumber(v8_isolate)->Int32Value();
+      CHECK_EQ(100001, a);
+      int b = CompileRun("b.length")->ToNumber(v8_isolate)->Int32Value();
+      CHECK_EQ(100002, b);
     }
-    v8_isolate->Dispose();
+    DeleteArray(snapshot);
   }
+  v8_isolate->Dispose();
+}
+
+
+TEST(PerIsolateSnapshotBlobs) {
+  DisableTurbofan();
+  const char* source1 = "function f() { return 42; }";
+  const char* source2 =
+      "function f() { return g() * 2; }"
+      "function g() { return 43; }"
+      "/./.test('a')";
+
+  v8::StartupData data1 = v8::V8::CreateSnapshotDataBlob(source1);
+  v8::StartupData data2 = v8::V8::CreateSnapshotDataBlob(source2);
+
+  v8::Isolate::CreateParams params1;
+  params1.snapshot_blob = &data1;
+  v8::Isolate* isolate1 = v8::Isolate::New(params1);
+  {
+    v8::Isolate::Scope i_scope(isolate1);
+    v8::HandleScope h_scope(isolate1);
+    v8::Local<v8::Context> context = v8::Context::New(isolate1);
+    delete[] data1.data;  // We can dispose of the snapshot blob now.
+    v8::Context::Scope c_scope(context);
+    CHECK_EQ(42, CompileRun("f()")->ToInt32(isolate1)->Int32Value());
+    CHECK(CompileRun("this.g")->IsUndefined());
+  }
+  isolate1->Dispose();
+
+  v8::Isolate::CreateParams params2;
+  params2.snapshot_blob = &data2;
+  v8::Isolate* isolate2 = v8::Isolate::New(params2);
+  {
+    v8::Isolate::Scope i_scope(isolate2);
+    v8::HandleScope h_scope(isolate2);
+    v8::Local<v8::Context> context = v8::Context::New(isolate2);
+    delete[] data2.data;  // We can dispose of the snapshot blob now.
+    v8::Context::Scope c_scope(context);
+    CHECK_EQ(86, CompileRun("f()")->ToInt32(isolate2)->Int32Value());
+    CHECK_EQ(43, CompileRun("g()")->ToInt32(isolate2)->Int32Value());
+  }
+  isolate2->Dispose();
+}
+
+
+TEST(PerIsolateSnapshotBlobsWithLocker) {
+  DisableTurbofan();
+  v8::Isolate* isolate0 = v8::Isolate::New();
+  {
+    v8::Locker locker(isolate0);
+    v8::Isolate::Scope i_scope(isolate0);
+    v8::HandleScope h_scope(isolate0);
+    v8::Local<v8::Context> context = v8::Context::New(isolate0);
+    v8::Context::Scope c_scope(context);
+    CHECK_EQ(1, CompileRun("Math.cos(0)")->ToInt32(isolate0)->Int32Value());
+  }
+  isolate0->Dispose();
+
+  const char* source1 = "function f() { return 42; }";
+
+  v8::StartupData data1 = v8::V8::CreateSnapshotDataBlob(source1);
+
+  v8::Isolate::CreateParams params1;
+  params1.snapshot_blob = &data1;
+  v8::Isolate* isolate1 = v8::Isolate::New(params1);
+  {
+    v8::Locker locker(isolate1);
+    v8::Isolate::Scope i_scope(isolate1);
+    v8::HandleScope h_scope(isolate1);
+    v8::Local<v8::Context> context = v8::Context::New(isolate1);
+    delete[] data1.data;  // We can dispose of the snapshot blob now.
+    v8::Context::Scope c_scope(context);
+    CHECK_EQ(42, CompileRun("f()")->ToInt32(isolate1)->Int32Value());
+  }
+  isolate1->Dispose();
 }
 
 
@@ -735,10 +761,10 @@ int CountBuiltins() {
 static Handle<SharedFunctionInfo> CompileScript(
     Isolate* isolate, Handle<String> source, Handle<String> name,
     ScriptData** cached_data, v8::ScriptCompiler::CompileOptions options) {
-  return Compiler::CompileScript(source, name, 0, 0, false, false,
-                                 Handle<Context>(isolate->native_context()),
-                                 NULL, cached_data, options, NOT_NATIVES_CODE,
-                                 false);
+  return Compiler::CompileScript(
+      source, name, 0, 0, false, false, Handle<Object>(),
+      Handle<Context>(isolate->native_context()), NULL, cached_data, options,
+      NOT_NATIVES_CODE, false);
 }
 
 
@@ -1346,7 +1372,9 @@ TEST(SerializeToplevelFlagChange) {
   v8::ScriptCompiler::CachedData* cache = ProduceCache(source);
 
   v8::Isolate* isolate2 = v8::Isolate::New();
+
   FLAG_allow_natives_syntax = true;  // Flag change should trigger cache reject.
+  FlagList::EnforceFlagImplications();
   {
     v8::Isolate::Scope iscope(isolate2);
     v8::HandleScope scope(isolate2);
@@ -1393,7 +1421,6 @@ TEST(SerializeToplevelBitFlip) {
 
 TEST(SerializeWithHarmonyScoping) {
   FLAG_serialize_toplevel = true;
-  FLAG_harmony_scoping = true;
 
   const char* source1 = "'use strict'; let x = 'X'";
   const char* source2 = "'use strict'; let y = 'Y'";
@@ -1453,4 +1480,72 @@ TEST(SerializeWithHarmonyScoping) {
     CHECK(result->ToString(isolate2)->Equals(v8_str("XY")));
   }
   isolate2->Dispose();
+}
+
+
+TEST(SerializeInternalReference) {
+#ifdef V8_TARGET_ARCH_ARM64
+  return;
+#endif  // V8_TARGET_ARCH_ARM64
+  // Disable experimental natives that are loaded after deserialization.
+  FLAG_turbo_deoptimization = false;
+  FLAG_context_specialization = false;
+  FLAG_always_opt = true;
+  const char* flag = "--turbo-filter=foo";
+  FlagList::SetFlagsFromString(flag, StrLength(flag));
+
+  const char* source =
+      "var foo = (function(stdlib, foreign, heap) {"
+      "  function foo(i) {"
+      "    i = i|0;"
+      "    var j = 0;"
+      "    switch (i) {"
+      "      case 0:"
+      "      case 1: j = 1; break;"
+      "      case 2:"
+      "      case 3: j = 2; break;"
+      "      case 4:"
+      "      case 5: j = foo(3) + 1; break;"
+      "      default: j = 0; break;"
+      "    }"
+      "    return j + 10;"
+      "  }"
+      "  return { foo: foo };"
+      "})(this, {}, undefined).foo;"
+      "foo(1);";
+
+  v8::StartupData data = v8::V8::CreateSnapshotDataBlob(source);
+  CHECK(data.data);
+
+  v8::Isolate::CreateParams params;
+  params.snapshot_blob = &data;
+  v8::Isolate* isolate = v8::Isolate::New(params);
+  {
+    v8::Isolate::Scope i_scope(isolate);
+    v8::HandleScope h_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    delete[] data.data;  // We can dispose of the snapshot blob now.
+    v8::Context::Scope c_scope(context);
+    v8::Handle<v8::Function> foo =
+        v8::Handle<v8::Function>::Cast(CompileRun("foo"));
+
+    // There are at least 6 internal references.
+    int mask = RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
+               RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
+    RelocIterator it(v8::Utils::OpenHandle(*foo)->code(), mask);
+    for (int i = 0; i < 6; ++i) {
+      CHECK(!it.done());
+      it.next();
+    }
+
+    CHECK(v8::Utils::OpenHandle(*foo)->code()->is_turbofanned());
+    CHECK_EQ(11, CompileRun("foo(0)")->ToInt32(isolate)->Int32Value());
+    CHECK_EQ(11, CompileRun("foo(1)")->ToInt32(isolate)->Int32Value());
+    CHECK_EQ(12, CompileRun("foo(2)")->ToInt32(isolate)->Int32Value());
+    CHECK_EQ(12, CompileRun("foo(3)")->ToInt32(isolate)->Int32Value());
+    CHECK_EQ(23, CompileRun("foo(4)")->ToInt32(isolate)->Int32Value());
+    CHECK_EQ(23, CompileRun("foo(5)")->ToInt32(isolate)->Int32Value());
+    CHECK_EQ(10, CompileRun("foo(6)")->ToInt32(isolate)->Int32Value());
+  }
+  isolate->Dispose();
 }

@@ -121,7 +121,7 @@ Address RelocInfo::target_address_address() {
   if (FLAG_enable_ool_constant_pool ||
       Assembler::IsMovW(Memory::int32_at(pc_))) {
     // We return the PC for ool constant pool since this function is used by the
-    // serializerer and expects the address to reside within the code object.
+    // serializer and expects the address to reside within the code object.
     return reinterpret_cast<Address>(pc_);
   } else {
     DCHECK(Assembler::IsLdrPcImmediateOffset(Memory::int32_at(pc_)));
@@ -184,9 +184,21 @@ void RelocInfo::set_target_object(Object* target,
 }
 
 
-Address RelocInfo::target_reference() {
+Address RelocInfo::target_external_reference() {
   DCHECK(rmode_ == EXTERNAL_REFERENCE);
   return Assembler::target_address_at(pc_, host_);
+}
+
+
+Address RelocInfo::target_internal_reference() {
+  DCHECK(rmode_ == INTERNAL_REFERENCE);
+  return Memory::Address_at(pc_);
+}
+
+
+Address RelocInfo::target_internal_reference_address() {
+  DCHECK(rmode_ == INTERNAL_REFERENCE);
+  return reinterpret_cast<Address>(pc_);
 }
 
 
@@ -298,11 +310,14 @@ Object** RelocInfo::call_object_address() {
 
 
 void RelocInfo::WipeOut() {
-  DCHECK(IsEmbeddedObject(rmode_) ||
-         IsCodeTarget(rmode_) ||
-         IsRuntimeEntry(rmode_) ||
-         IsExternalReference(rmode_));
-  Assembler::set_target_address_at(pc_, host_, NULL);
+  DCHECK(IsEmbeddedObject(rmode_) || IsCodeTarget(rmode_) ||
+         IsRuntimeEntry(rmode_) || IsExternalReference(rmode_) ||
+         IsInternalReference(rmode_));
+  if (IsInternalReference(rmode_)) {
+    Memory::Address_at(pc_) = NULL;
+  } else {
+    Assembler::set_target_address_at(pc_, host_, NULL);
+  }
 }
 
 
@@ -333,6 +348,8 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
     visitor->VisitCell(this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     visitor->VisitExternalReference(this);
+  } else if (mode == RelocInfo::INTERNAL_REFERENCE) {
+    visitor->VisitInternalReference(this);
   } else if (RelocInfo::IsCodeAgeSequence(mode)) {
     visitor->VisitCodeAgeSequence(this);
   } else if (((RelocInfo::IsJSReturn(mode) &&
@@ -358,6 +375,8 @@ void RelocInfo::Visit(Heap* heap) {
     StaticVisitor::VisitCell(heap, this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     StaticVisitor::VisitExternalReference(this);
+  } else if (mode == RelocInfo::INTERNAL_REFERENCE) {
+    StaticVisitor::VisitInternalReference(this);
   } else if (RelocInfo::IsCodeAgeSequence(mode)) {
     StaticVisitor::VisitCodeAgeSequence(heap, this);
   } else if (heap->isolate()->debug()->has_break_points() &&
@@ -531,6 +550,12 @@ void Assembler::deserialization_set_special_target_at(
   } else {
     Memory::Address_at(constant_pool_entry) = target;
   }
+}
+
+
+void Assembler::deserialization_set_target_internal_reference_at(
+    Address pc, Address target, RelocInfo::Mode mode) {
+  Memory::Address_at(pc) = target;
 }
 
 

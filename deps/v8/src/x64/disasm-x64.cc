@@ -956,8 +956,18 @@ int DisassemblerX64::AVXInstruction(byte* data) {
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
         break;
+      case 0x5d:
+        AppendToBuffer("vminsd %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0x5e:
         AppendToBuffer("vdivsd %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x5f:
+        AppendToBuffer("vmaxsd %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
         break;
@@ -1179,6 +1189,19 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         current += PrintRightXMMOperand(current);
         AppendToBuffer(",%d", (*current) & 3);
         current += 1;
+      } else if (third_byte == 0x16) {
+        get_modrm(*current, &mod, &regop, &rm);
+        AppendToBuffer("pextrd ");  // reg/m32, xmm, imm8
+        current += PrintRightOperand(current);
+        AppendToBuffer(",%s,%d", NameOfXMMRegister(regop), (*current) & 3);
+        current += 1;
+      } else if (third_byte == 0x22) {
+        get_modrm(*current, &mod, &regop, &rm);
+        AppendToBuffer("pinsrd ");  // xmm, reg/m32, imm8
+        AppendToBuffer(" %s,", NameOfXMMRegister(regop));
+        current += PrintRightOperand(current);
+        AppendToBuffer(",%d", (*current) & 3);
+        current += 1;
       } else {
         UnimplementedInstruction();
       }
@@ -1229,12 +1252,12 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         current += PrintRightXMMOperand(current);
       } else if (opcode == 0x72) {
         current += 1;
-        AppendToBuffer("%s,%s,%d", (regop == 6) ? "pslld" : "psrld",
+        AppendToBuffer("%s %s,%d", (regop == 6) ? "pslld" : "psrld",
                        NameOfXMMRegister(rm), *current & 0x7f);
         current += 1;
       } else if (opcode == 0x73) {
         current += 1;
-        AppendToBuffer("%s,%s,%d", (regop == 6) ? "psllq" : "psrlq",
+        AppendToBuffer("%s %s,%d", (regop == 6) ? "psllq" : "psrlq",
                        NameOfXMMRegister(rm), *current & 0x7f);
         current += 1;
       } else {
@@ -1251,6 +1274,10 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
           mnemonic = "comisd";
         } else if (opcode == 0x76) {
           mnemonic = "pcmpeqd";
+        } else if (opcode == 0x62) {
+          mnemonic = "punpckldq";
+        } else if (opcode == 0x6A) {
+          mnemonic = "punpckhdq";
         } else {
           UnimplementedInstruction();
         }
@@ -1526,10 +1553,14 @@ const char* DisassemblerX64::TwoByteMnemonic(byte opcode) {
       return "mulsd";
     case 0x5A:  // F2 prefix.
       return "cvtsd2ss";
+    case 0x5D:  // F2 prefix.
+      return "minsd";
     case 0x5C:  // F2 prefix.
       return "subsd";
     case 0x5E:  // F2 prefix.
       return "divsd";
+    case 0x5F:  // F2 prefix.
+      return "maxsd";
     case 0xA2:
       return "cpuid";
     case 0xA5:

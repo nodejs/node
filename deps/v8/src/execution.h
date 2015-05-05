@@ -197,6 +197,10 @@ class StackGuard FINAL {
   // stack overflow, then handle the interruption accordingly.
   Object* HandleInterrupts();
 
+  bool InterruptRequested() { return GetCurrentStackPosition() < climit(); }
+
+  void CheckAndHandleGCInterrupt();
+
  private:
   StackGuard();
 

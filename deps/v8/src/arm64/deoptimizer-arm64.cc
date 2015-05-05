@@ -115,7 +115,7 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
 
 #define __ masm()->
 
-void Deoptimizer::EntryGenerator::Generate() {
+void Deoptimizer::TableEntryGenerator::Generate() {
   GeneratePrologue();
 
   // TODO(all): This code needs to be revisited. We probably only need to save

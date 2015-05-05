@@ -179,21 +179,25 @@ void TryCatchBuilder::EndCatch() {
 void TryFinallyBuilder::BeginTry() {
   finally_environment_ = environment()->CopyAsUnreachable();
   finally_environment_->Push(the_hole());
+  finally_environment_->Push(the_hole());
 }
 
 
-void TryFinallyBuilder::LeaveTry(Node* token) {
+void TryFinallyBuilder::LeaveTry(Node* token, Node* value) {
+  environment()->Push(value);
   environment()->Push(token);
   finally_environment_->Merge(environment());
-  environment()->Pop();
+  environment()->Drop(2);
 }
 
 
-void TryFinallyBuilder::EndTry(Node* fallthrough_token) {
+void TryFinallyBuilder::EndTry(Node* fallthrough_token, Node* value) {
+  environment()->Push(value);
   environment()->Push(fallthrough_token);
   finally_environment_->Merge(environment());
-  environment()->Pop();
+  environment()->Drop(2);
   token_node_ = finally_environment_->Pop();
+  value_node_ = finally_environment_->Pop();
   set_environment(finally_environment_);
 }
 

@@ -41,8 +41,8 @@
 #include <set>
 
 #include "src/assembler.h"
+#include "src/compiler.h"
 #include "src/mips64/constants-mips64.h"
-#include "src/serialize.h"
 
 namespace v8 {
 namespace internal {
@@ -539,6 +539,11 @@ class Assembler : public AssemblerBase {
         target);
   }
 
+  // This sets the internal reference at the pc.
+  inline static void deserialization_set_target_internal_reference_at(
+      Address pc, Address target,
+      RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
+
   // Size of an instruction.
   static const int kInstrSize = sizeof(Instr);
 
@@ -554,14 +559,11 @@ class Assembler : public AssemblerBase {
   static const int kSpecialTargetSize = 0;
 
   // Number of consecutive instructions used to store 32bit/64bit constant.
-  // Before jump-optimizations, this constant was used in
-  // RelocInfo::target_address_address() function to tell serializer address of
-  // the instruction that follows LUI/ORI instruction pair. Now, with new jump
-  // optimization, where jump-through-register instruction that usually
-  // follows LUI/ORI pair is substituted with J/JAL, this constant equals
-  // to 3 instructions (LUI+ORI+J/JAL/JR/JALR).
-  static const int kInstructionsFor32BitConstant = 3;
-  static const int kInstructionsFor64BitConstant = 5;
+  // This constant was used in RelocInfo::target_address_address() function
+  // to tell serializer address of the instruction that follows
+  // LUI/ORI instruction pair.
+  static const int kInstructionsFor32BitConstant = 2;
+  static const int kInstructionsFor64BitConstant = 4;
 
   // Distance between the instruction referring to the address of the call
   // target and the return address.
@@ -584,6 +586,8 @@ class Assembler : public AssemblerBase {
   // Number of instructions used for the JS return sequence. The constant is
   // used by the debugger to patch the JS return sequence.
   static const int kJSReturnSequenceInstructions = 7;
+  static const int kJSReturnSequenceLength =
+      kJSReturnSequenceInstructions * kInstrSize;
   static const int kDebugBreakSlotInstructions = 6;
   static const int kDebugBreakSlotLength =
       kDebugBreakSlotInstructions * kInstrSize;
@@ -1060,7 +1064,7 @@ class Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(const int reason, const int raw_position);
+  void RecordDeoptReason(const int reason, const SourcePosition position);
 
   static int RelocateInternalReference(RelocInfo::Mode rmode, byte* pc,
                                        intptr_t pc_delta);
@@ -1165,13 +1169,16 @@ class Assembler : public AssemblerBase {
   // the relocation info.
   TypeFeedbackId recorded_ast_id_;
 
+  inline static void set_target_internal_reference_encoded_at(Address pc,
+                                                              Address target);
+
   int64_t buffer_space() const { return reloc_info_writer.pos() - pc_; }
 
   // Decode branch instruction at pos and return branch target pos.
-  int64_t target_at(int64_t pos, bool is_internal);
+  int target_at(int pos, bool is_internal);
 
   // Patch branch instruction at pos to branch to given branch target pos.
-  void target_at_put(int64_t pos, int64_t target_pos, bool is_internal);
+  void target_at_put(int pos, int target_pos, bool is_internal);
 
   // Say if we need to relocate with this mode.
   bool MustUseReg(RelocInfo::Mode rmode);

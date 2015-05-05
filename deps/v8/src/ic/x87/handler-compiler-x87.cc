@@ -431,6 +431,17 @@ Register PropertyHandlerCompiler::CheckPrototypes(
   if (receiver_map->IsJSGlobalObjectMap()) {
     current = isolate()->global_object();
   }
+
+  // Check access rights to the global object.  This has to happen after
+  // the map check so that we know that the object is actually a global
+  // object.
+  // This allows us to install generated handlers for accesses to the
+  // global proxy (as opposed to using slow ICs). See corresponding code
+  // in LookupForRead().
+  if (receiver_map->IsJSGlobalProxyMap()) {
+    __ CheckAccessGlobalProxy(reg, scratch1, scratch2, miss);
+  }
+
   Handle<JSObject> prototype = Handle<JSObject>::null();
   Handle<Map> current_map = receiver_map;
   Handle<Map> holder_map(holder()->map());
@@ -465,26 +476,15 @@ Register PropertyHandlerCompiler::CheckPrototypes(
     } else {
       Register map_reg = scratch1;
       __ mov(map_reg, FieldOperand(reg, HeapObject::kMapOffset));
-      if (depth != 1 || check == CHECK_ALL_MAPS) {
+      if (current_map->IsJSGlobalObjectMap()) {
+        GenerateCheckPropertyCell(masm(), Handle<JSGlobalObject>::cast(current),
+                                  name, scratch2, miss);
+      } else if (depth != 1 || check == CHECK_ALL_MAPS) {
         Handle<WeakCell> cell = Map::WeakCellForMap(current_map);
         __ CmpWeakValue(map_reg, cell, scratch2);
         __ j(not_equal, miss);
       }
 
-      // Check access rights to the global object.  This has to happen after
-      // the map check so that we know that the object is actually a global
-      // object.
-      // This allows us to install generated handlers for accesses to the
-      // global proxy (as opposed to using slow ICs). See corresponding code
-      // in LookupForRead().
-      if (current_map->IsJSGlobalProxyMap()) {
-        __ CheckAccessGlobalProxy(reg, map_reg, scratch2, miss);
-        // Restore map_reg.
-        __ mov(map_reg, FieldOperand(reg, HeapObject::kMapOffset));
-      } else if (current_map->IsJSGlobalObjectMap()) {
-        GenerateCheckPropertyCell(masm(), Handle<JSGlobalObject>::cast(current),
-                                  name, scratch2, miss);
-      }
       reg = holder_reg;  // From now on the object will be in holder_reg.
       __ mov(reg, FieldOperand(map_reg, Map::kPrototypeOffset));
     }
@@ -493,6 +493,8 @@ Register PropertyHandlerCompiler::CheckPrototypes(
     current = prototype;
     current_map = handle(current->map());
   }
+
+  DCHECK(!current_map->IsJSGlobalProxyMap());
 
   // Log the check depth.
   LOG(isolate(), IntEvent("check-maps-depth", depth + 1));
@@ -503,13 +505,6 @@ Register PropertyHandlerCompiler::CheckPrototypes(
     Handle<WeakCell> cell = Map::WeakCellForMap(current_map);
     __ CmpWeakValue(scratch1, cell, scratch2);
     __ j(not_equal, miss);
-  }
-
-  // Perform security check for access to the global object.
-  DCHECK(current_map->IsJSGlobalProxyMap() ||
-         !current_map->is_access_check_needed());
-  if (current_map->IsJSGlobalProxyMap()) {
-    __ CheckAccessGlobalProxy(reg, scratch1, scratch2, miss);
   }
 
   // Return the register containing the holder.

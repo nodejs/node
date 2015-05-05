@@ -172,10 +172,13 @@ class CommonOperatorBuilder FINAL : public ZoneObject {
   const Operator* Branch(BranchHint = BranchHint::kNone);
   const Operator* IfTrue();
   const Operator* IfFalse();
+  const Operator* IfSuccess();
+  const Operator* IfException();
   const Operator* Switch(size_t control_output_count);
   const Operator* IfValue(int32_t value);
   const Operator* IfDefault();
   const Operator* Throw();
+  const Operator* Deoptimize();
   const Operator* Return();
 
   const Operator* Start(int num_formal_parameters);
@@ -196,12 +199,13 @@ class CommonOperatorBuilder FINAL : public ZoneObject {
   const Operator* HeapConstant(const Unique<HeapObject>&);
 
   const Operator* Select(MachineType, BranchHint = BranchHint::kNone);
-  const Operator* Phi(MachineType type, int arguments);
-  const Operator* EffectPhi(int arguments);
+  const Operator* Phi(MachineType type, int value_input_count);
+  const Operator* EffectPhi(int effect_input_count);
   const Operator* EffectSet(int arguments);
   const Operator* ValueEffect(int arguments);
   const Operator* Finish(int arguments);
   const Operator* StateValues(int arguments);
+  const Operator* TypedStateValues(const ZoneVector<MachineType>* types);
   const Operator* FrameState(
       FrameStateType type, BailoutId bailout_id,
       OutputFrameStateCombine state_combine,

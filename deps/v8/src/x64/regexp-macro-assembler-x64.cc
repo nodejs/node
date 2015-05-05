@@ -11,7 +11,6 @@
 #include "src/macro-assembler.h"
 #include "src/regexp-macro-assembler.h"
 #include "src/regexp-stack.h"
-#include "src/serialize.h"
 #include "src/unicode.h"
 #include "src/x64/regexp-macro-assembler-x64.h"
 
@@ -43,10 +42,9 @@ namespace internal {
  *
  * The registers rax, rbx, r9 and r11 are free to use for computations.
  * If changed to use r12+, they should be saved as callee-save registers.
- * The macro assembler special registers r12 and r13 (kSmiConstantRegister,
- * kRootRegister) aren't special during execution of RegExp code (they don't
- * hold the values assumed when creating JS code), so no Smi or Root related
- * macro operations can be used.
+ * The macro assembler special register r13 (kRootRegister) isn't special
+ * during execution of RegExp code (it doesn't hold the value assumed when
+ * creating JS code), so Root related macro operations can be used.
  *
  * Each call to a C++ method should retain these registers.
  *

@@ -54,7 +54,7 @@
 #include "src/regexp-macro-assembler.h"
 #include "src/regexp-stack.h"
 #include "src/runtime/runtime.h"
-#include "src/serialize.h"
+#include "src/snapshot/serialize.h"
 #include "src/token.h"
 
 #if V8_TARGET_ARCH_IA32
@@ -292,11 +292,6 @@ int Label::pos() const {
 //               (Bits 6..31 of pc delta, with leading zeroes
 //                dropped, and last non-zero chunk tagged with 1.)
 
-
-#ifdef DEBUG
-const int kMaxStandardNonCompactModes = 14;
-#endif
-
 const int kTagBits = 2;
 const int kTagMask = (1 << kTagBits) - 1;
 const int kExtraTagBits = 4;
@@ -452,8 +447,6 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
 #endif
   DCHECK(rinfo->rmode() < RelocInfo::NUMBER_OF_MODES);
   DCHECK(rinfo->pc() - last_pc_ >= 0);
-  DCHECK(RelocInfo::LAST_STANDARD_NONCOMPACT_ENUM - RelocInfo::LAST_COMPACT_ENUM
-         <= kMaxStandardNonCompactModes);
   // Use unsigned delta-encoding for pc.
   uint32_t pc_delta = static_cast<uint32_t>(rinfo->pc() - last_pc_);
 
@@ -465,7 +458,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     DCHECK(begin_pos - pos_ <= RelocInfo::kMaxCallSize);
   } else if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
     // Use signed delta-encoding for id.
-    DCHECK(static_cast<int>(rinfo->data()) == rinfo->data());
+    DCHECK_EQ(static_cast<int>(rinfo->data()), rinfo->data());
     int id_delta = static_cast<int>(rinfo->data()) - last_id_;
     // Check if delta is small enough to fit in a tagged byte.
     if (is_intn(id_delta, kSmallDataBits)) {
@@ -483,12 +476,12 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     WriteTaggedData(rinfo->data(), kDeoptReasonTag);
   } else if (RelocInfo::IsPosition(rmode)) {
     // Use signed delta-encoding for position.
-    DCHECK(static_cast<int>(rinfo->data()) == rinfo->data());
+    DCHECK_EQ(static_cast<int>(rinfo->data()), rinfo->data());
     int pos_delta = static_cast<int>(rinfo->data()) - last_position_;
     if (rmode == RelocInfo::STATEMENT_POSITION) {
       WritePosition(pc_delta, pos_delta, rmode);
     } else {
-      DCHECK(rmode == RelocInfo::POSITION);
+      DCHECK_EQ(rmode, RelocInfo::POSITION);
       if (pc_delta != 0 || last_mode_ != RelocInfo::POSITION) {
         FlushPosition();
         next_position_candidate_pc_delta_ = pc_delta;
@@ -511,10 +504,14 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
                                                              : kVeneerPoolTag);
   } else {
     DCHECK(rmode > RelocInfo::LAST_COMPACT_ENUM);
-    int saved_mode = rmode - RelocInfo::LAST_COMPACT_ENUM;
+    DCHECK(rmode <= RelocInfo::LAST_STANDARD_NONCOMPACT_ENUM);
+    STATIC_ASSERT(RelocInfo::LAST_STANDARD_NONCOMPACT_ENUM -
+                      RelocInfo::LAST_COMPACT_ENUM <=
+                  kPoolExtraTag);
+    int saved_mode = rmode - RelocInfo::LAST_COMPACT_ENUM - 1;
     // For all other modes we simply use the mode as the extra tag.
     // None of these modes need a data component.
-    DCHECK(saved_mode < kPoolExtraTag);
+    DCHECK(0 <= saved_mode && saved_mode < kPoolExtraTag);
     WriteExtraTaggedPC(pc_delta, saved_mode);
   }
   last_pc_ = rinfo->pc();
@@ -721,7 +718,7 @@ void RelocIterator::next() {
         Advance(kIntSize);
       } else {
         AdvanceReadPC();
-        int rmode = extra_tag + RelocInfo::LAST_COMPACT_ENUM;
+        int rmode = extra_tag + RelocInfo::LAST_COMPACT_ENUM + 1;
         if (SetMode(static_cast<RelocInfo::Mode>(rmode))) return;
       }
     }
@@ -832,6 +829,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "external reference";
     case RelocInfo::INTERNAL_REFERENCE:
       return "internal reference";
+    case RelocInfo::INTERNAL_REFERENCE_ENCODED:
+      return "encoded internal reference";
     case RelocInfo::DEOPT_REASON:
       return "deopt reason";
     case RelocInfo::CONST_POOL:
@@ -861,8 +860,10 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
     os << "  (" << Brief(target_object()) << ")";
   } else if (rmode_ == EXTERNAL_REFERENCE) {
     ExternalReferenceEncoder ref_encoder(isolate);
-    os << " (" << ref_encoder.NameOfAddress(target_reference()) << ")  ("
-       << static_cast<const void*>(target_reference()) << ")";
+    os << " ("
+       << ref_encoder.NameOfAddress(isolate, target_external_reference())
+       << ")  (" << static_cast<const void*>(target_external_reference())
+       << ")";
   } else if (IsCodeTarget(rmode_)) {
     Code* code = Code::GetCodeFromTargetAddress(target_address());
     os << " (" << Code::Kind2String(code->kind()) << ")  ("
@@ -910,13 +911,21 @@ void RelocInfo::Verify(Isolate* isolate) {
       CHECK(code->address() == HeapObject::cast(found)->address());
       break;
     }
+    case INTERNAL_REFERENCE:
+    case INTERNAL_REFERENCE_ENCODED: {
+      Address target = target_internal_reference();
+      Address pc = target_internal_reference_address();
+      Code* code = Code::cast(isolate->FindCodeObject(pc));
+      CHECK(target >= code->instruction_start());
+      CHECK(target <= code->instruction_end());
+      break;
+    }
     case RUNTIME_ENTRY:
     case JS_RETURN:
     case COMMENT:
     case POSITION:
     case STATEMENT_POSITION:
     case EXTERNAL_REFERENCE:
-    case INTERNAL_REFERENCE:
     case DEOPT_REASON:
     case CONST_POOL:
     case VENEER_POOL:
@@ -1223,8 +1232,7 @@ ExternalReference ExternalReference::old_pointer_space_allocation_limit_address(
 
 ExternalReference ExternalReference::old_data_space_allocation_top_address(
     Isolate* isolate) {
-  return ExternalReference(
-      isolate->heap()->OldDataSpaceAllocationTopAddress());
+  return ExternalReference(isolate->heap()->OldDataSpaceAllocationTopAddress());
 }
 
 
@@ -1262,18 +1270,6 @@ ExternalReference ExternalReference::scheduled_exception_address(
 ExternalReference ExternalReference::address_of_pending_message_obj(
     Isolate* isolate) {
   return ExternalReference(isolate->pending_message_obj_address());
-}
-
-
-ExternalReference ExternalReference::address_of_has_pending_message(
-    Isolate* isolate) {
-  return ExternalReference(isolate->has_pending_message_address());
-}
-
-
-ExternalReference ExternalReference::address_of_pending_message_script(
-    Isolate* isolate) {
-  return ExternalReference(isolate->pending_message_script_address());
 }
 
 
@@ -1656,9 +1652,11 @@ bool PositionsRecorder::WriteRecordedPositions() {
 // Platform specific but identical code for all the platforms.
 
 
-void Assembler::RecordDeoptReason(const int reason, const int raw_position) {
+void Assembler::RecordDeoptReason(const int reason,
+                                  const SourcePosition position) {
   if (FLAG_trace_deopt || isolate()->cpu_profiler()->is_profiling()) {
     EnsureSpace ensure_space(this);
+    int raw_position = position.IsUnknown() ? 0 : position.raw();
     RecordRelocInfo(RelocInfo::POSITION, raw_position);
     RecordRelocInfo(RelocInfo::DEOPT_REASON, reason);
   }

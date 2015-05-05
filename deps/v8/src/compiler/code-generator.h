@@ -41,7 +41,7 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
   Isolate* isolate() const { return info_->isolate(); }
   Linkage* linkage() const { return linkage_; }
 
-  Label* GetLabel(BasicBlock::RpoNumber rpo) { return &labels_[rpo.ToSize()]; }
+  Label* GetLabel(RpoNumber rpo) { return &labels_[rpo.ToSize()]; }
 
  private:
   MacroAssembler* masm() { return &masm_; }
@@ -52,7 +52,7 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
 
   // Checks if {block} will appear directly after {current_block_} when
   // assembling code, in which case, a fall-through can be used.
-  bool IsNextInAssemblyOrder(BasicBlock::RpoNumber block) const;
+  bool IsNextInAssemblyOrder(RpoNumber block) const;
 
   // Record a safepoint with the given pointer map.
   void RecordSafepoint(PointerMap* pointers, Safepoint::Kind kind,
@@ -68,13 +68,14 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
   // ===========================================================================
 
   void AssembleArchInstruction(Instruction* instr);
-  void AssembleArchJump(BasicBlock::RpoNumber target);
+  void AssembleArchJump(RpoNumber target);
   void AssembleArchBranch(Instruction* instr, BranchInfo* branch);
   void AssembleArchBoolean(Instruction* instr, FlagsCondition condition);
   void AssembleArchLookupSwitch(Instruction* instr);
   void AssembleArchTableSwitch(Instruction* instr);
 
-  void AssembleDeoptimizerCall(int deoptimization_id);
+  void AssembleDeoptimizerCall(int deoptimization_id,
+                               Deoptimizer::BailoutType bailout_type);
 
   // Generates an architecture-specific, descriptor-specific prologue
   // to set up a stack frame.
@@ -106,8 +107,10 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
   void AssembleJumpTable(Label** targets, size_t target_count);
 
   // ===========================================================================
-  // Deoptimization table construction
-  void AddSafepointAndDeopt(Instruction* instr);
+  // ================== Deoptimization table construction. =====================
+  // ===========================================================================
+
+  void RecordCallPosition(Instruction* instr);
   void PopulateDeoptimizationData(Handle<Code> code);
   int DefineDeoptimizationLiteral(Handle<Object> literal);
   FrameStateDescriptor* GetFrameStateDescriptor(Instruction* instr,
@@ -126,6 +129,7 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
   void MarkLazyDeoptSite();
 
   // ===========================================================================
+
   struct DeoptimizationState : ZoneObject {
    public:
     BailoutId bailout_id() const { return bailout_id_; }
@@ -143,6 +147,11 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
     int pc_offset_;
   };
 
+  struct HandlerInfo {
+    Label* handler;
+    int pc_offset;
+  };
+
   friend class OutOfLineCode;
 
   Frame* const frame_;
@@ -150,13 +159,14 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
   InstructionSequence* const code_;
   CompilationInfo* const info_;
   Label* const labels_;
-  BasicBlock::RpoNumber current_block_;
+  RpoNumber current_block_;
   SourcePosition current_source_position_;
   MacroAssembler masm_;
   GapResolver resolver_;
   SafepointTableBuilder safepoints_;
+  ZoneVector<HandlerInfo> handlers_;
   ZoneDeque<DeoptimizationState*> deoptimization_states_;
-  ZoneDeque<Handle<Object> > deoptimization_literals_;
+  ZoneDeque<Handle<Object>> deoptimization_literals_;
   TranslationBuffer translations_;
   int last_lazy_deopt_pc_;
   JumpTable* jump_tables_;
