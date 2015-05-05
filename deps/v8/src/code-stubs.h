@@ -85,8 +85,8 @@ namespace internal {
   V(StringAdd)                              \
   V(ToBoolean)                              \
   V(TransitionElementsKind)                 \
-  V(VectorKeyedLoad)                        \
-  V(VectorLoad)                             \
+  V(VectorRawKeyedLoad)                     \
+  V(VectorRawLoad)                          \
   /* IC Handler stubs */                    \
   V(LoadConstant)                           \
   V(LoadField)                              \
@@ -614,7 +614,7 @@ class FastNewClosureStub : public HydrogenCodeStub {
  private:
   STATIC_ASSERT(LANGUAGE_END == 3);
   class LanguageModeBits : public BitField<LanguageMode, 0, 2> {};
-  class FunctionKindBits : public BitField<FunctionKind, 2, 7> {};
+  class FunctionKindBits : public BitField<FunctionKind, 2, 8> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewClosure);
   DEFINE_HYDROGEN_CODE_STUB(FastNewClosure, HydrogenCodeStub);
@@ -1777,6 +1777,15 @@ enum ReceiverCheckMode {
 };
 
 
+enum EmbedMode {
+  // The code being generated is part of an IC handler, which may MISS
+  // to an IC in failure cases.
+  PART_OF_IC_HANDLER,
+
+  NOT_PART_OF_IC_HANDLER
+};
+
+
 // Generates code implementing String.prototype.charCodeAt.
 //
 // Only supports the case when the receiver is a string and the index
@@ -1813,7 +1822,7 @@ class StringCharCodeAtGenerator {
   // Generates the slow case code. Must not be naturally
   // reachable. Expected to be put after a ret instruction (e.g., in
   // deferred code). Always jumps back to the fast case.
-  void GenerateSlow(MacroAssembler* masm,
+  void GenerateSlow(MacroAssembler* masm, EmbedMode embed_mode,
                     const RuntimeCallHelper& call_helper);
 
   // Skip handling slow case and directly jump to bailout.
@@ -1913,9 +1922,9 @@ class StringCharAtGenerator {
   // Generates the slow case code. Must not be naturally
   // reachable. Expected to be put after a ret instruction (e.g., in
   // deferred code). Always jumps back to the fast case.
-  void GenerateSlow(MacroAssembler* masm,
+  void GenerateSlow(MacroAssembler* masm, EmbedMode embed_mode,
                     const RuntimeCallHelper& call_helper) {
-    char_code_at_generator_.GenerateSlow(masm, call_helper);
+    char_code_at_generator_.GenerateSlow(masm, embed_mode, call_helper);
     char_from_code_generator_.GenerateSlow(masm, call_helper);
   }
 
@@ -2062,38 +2071,49 @@ class MegamorphicLoadStub : public HydrogenCodeStub {
 };
 
 
-class VectorLoadStub : public HydrogenCodeStub {
+class VectorRawLoadStub : public PlatformCodeStub {
  public:
-  explicit VectorLoadStub(Isolate* isolate, const LoadICState& state)
-      : HydrogenCodeStub(isolate) {
-    set_sub_minor_key(state.GetExtraICState());
+  explicit VectorRawLoadStub(Isolate* isolate, const LoadICState& state)
+      : PlatformCodeStub(isolate) {
+    minor_key_ = state.GetExtraICState();
   }
 
-  Code::Kind GetCodeKind() const OVERRIDE { return Code::LOAD_IC; }
+  void GenerateForTrampoline(MacroAssembler* masm);
 
-  InlineCacheState GetICState() const FINAL { return DEFAULT; }
+  virtual Code::Kind GetCodeKind() const OVERRIDE { return Code::LOAD_IC; }
 
-  ExtraICState GetExtraICState() const FINAL {
-    return static_cast<ExtraICState>(sub_minor_key());
+  virtual InlineCacheState GetICState() const FINAL OVERRIDE { return DEFAULT; }
+
+  virtual ExtraICState GetExtraICState() const FINAL OVERRIDE {
+    return static_cast<ExtraICState>(minor_key_);
   }
-
- private:
-  LoadICState state() const { return LoadICState(GetExtraICState()); }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(VectorLoadIC);
-  DEFINE_HYDROGEN_CODE_STUB(VectorLoad, HydrogenCodeStub);
+  DEFINE_PLATFORM_CODE_STUB(VectorRawLoad, PlatformCodeStub);
+
+ protected:
+  void GenerateImpl(MacroAssembler* masm, bool in_frame);
 };
 
 
-class VectorKeyedLoadStub : public VectorLoadStub {
+class VectorRawKeyedLoadStub : public PlatformCodeStub {
  public:
-  explicit VectorKeyedLoadStub(Isolate* isolate)
-      : VectorLoadStub(isolate, LoadICState(0)) {}
+  explicit VectorRawKeyedLoadStub(Isolate* isolate)
+      : PlatformCodeStub(isolate) {}
 
-  Code::Kind GetCodeKind() const OVERRIDE { return Code::KEYED_LOAD_IC; }
+  void GenerateForTrampoline(MacroAssembler* masm);
+
+  virtual Code::Kind GetCodeKind() const OVERRIDE {
+    return Code::KEYED_LOAD_IC;
+  }
+
+  virtual InlineCacheState GetICState() const FINAL OVERRIDE { return DEFAULT; }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(VectorLoadIC);
-  DEFINE_HYDROGEN_CODE_STUB(VectorKeyedLoad, VectorLoadStub);
+  DEFINE_PLATFORM_CODE_STUB(VectorRawKeyedLoad, PlatformCodeStub);
+
+ protected:
+  void GenerateImpl(MacroAssembler* masm, bool in_frame);
 };
 
 

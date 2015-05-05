@@ -24,9 +24,11 @@ class IA32OperandConverter : public InstructionOperandConverter {
   IA32OperandConverter(CodeGenerator* gen, Instruction* instr)
       : InstructionOperandConverter(gen, instr) {}
 
-  Operand InputOperand(int index) { return ToOperand(instr_->InputAt(index)); }
+  Operand InputOperand(size_t index, int extra = 0) {
+    return ToOperand(instr_->InputAt(index), extra);
+  }
 
-  Immediate InputImmediate(int index) {
+  Immediate InputImmediate(size_t index) {
     return ToImmediate(instr_->InputAt(index));
   }
 
@@ -75,8 +77,8 @@ class IA32OperandConverter : public InstructionOperandConverter {
     return Immediate(-1);
   }
 
-  static int NextOffset(int* offset) {
-    int i = *offset;
+  static size_t NextOffset(size_t* offset) {
+    size_t i = *offset;
     (*offset)++;
     return i;
   }
@@ -91,7 +93,7 @@ class IA32OperandConverter : public InstructionOperandConverter {
     return static_cast<ScaleFactor>(scale);
   }
 
-  Operand MemoryOperand(int* offset) {
+  Operand MemoryOperand(size_t* offset) {
     AddressingMode mode = AddressingModeField::decode(instr_->opcode());
     switch (mode) {
       case kMode_MR: {
@@ -154,7 +156,7 @@ class IA32OperandConverter : public InstructionOperandConverter {
     return Operand(no_reg, 0);
   }
 
-  Operand MemoryOperand(int first_input = 0) {
+  Operand MemoryOperand(size_t first_input = 0) {
     return MemoryOperand(&first_input);
   }
 };
@@ -162,7 +164,7 @@ class IA32OperandConverter : public InstructionOperandConverter {
 
 namespace {
 
-bool HasImmediateInput(Instruction* instr, int index) {
+bool HasImmediateInput(Instruction* instr, size_t index) {
   return instr->InputAt(index)->IsImmediate();
 }
 
@@ -292,7 +294,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         Register reg = i.InputRegister(0);
         __ call(Operand(reg, Code::kHeaderSize - kHeapObjectTag));
       }
-      AddSafepointAndDeopt(instr);
+      RecordCallPosition(instr);
       break;
     }
     case kArchCallJSFunction: {
@@ -304,7 +306,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ Assert(equal, kWrongFunctionContext);
       }
       __ call(FieldOperand(func, JSFunction::kCodeEntryOffset));
-      AddSafepointAndDeopt(instr);
+      RecordCallPosition(instr);
       break;
     }
     case kArchJmp:
@@ -319,6 +321,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArchNop:
       // don't emit code for nops.
       break;
+    case kArchDeoptimize: {
+      int deopt_state_id =
+          BuildTranslation(instr, -1, 0, OutputFrameStateCombine::Ignore());
+      AssembleDeoptimizerCall(deopt_state_id, Deoptimizer::EAGER);
+      break;
+    }
     case kArchRet:
       AssembleReturn();
       break;
@@ -439,6 +447,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ ror_cl(i.OutputOperand());
       }
       break;
+    case kIA32Lzcnt:
+      __ Lzcnt(i.OutputRegister(), i.InputOperand(0));
+      break;
     case kSSEFloat64Cmp:
       __ ucomisd(i.InputDoubleRegister(0), i.InputOperand(1));
       break;
@@ -453,6 +464,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kSSEFloat64Div:
       __ divsd(i.InputDoubleRegister(0), i.InputOperand(1));
+      break;
+    case kSSEFloat64Max:
+      __ maxsd(i.InputDoubleRegister(0), i.InputOperand(1));
+      break;
+    case kSSEFloat64Min:
+      __ minsd(i.InputDoubleRegister(0), i.InputOperand(1));
       break;
     case kSSEFloat64Mod: {
       // TODO(dcarney): alignment is wrong.
@@ -482,22 +499,11 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kSSEFloat64Sqrt:
       __ sqrtsd(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
-    case kSSEFloat64Floor: {
+    case kSSEFloat64Round: {
       CpuFeatureScope sse_scope(masm(), SSE4_1);
-      __ roundsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                 v8::internal::Assembler::kRoundDown);
-      break;
-    }
-    case kSSEFloat64Ceil: {
-      CpuFeatureScope sse_scope(masm(), SSE4_1);
-      __ roundsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                 v8::internal::Assembler::kRoundUp);
-      break;
-    }
-    case kSSEFloat64RoundTruncate: {
-      CpuFeatureScope sse_scope(masm(), SSE4_1);
-      __ roundsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                 v8::internal::Assembler::kRoundToZero);
+      RoundingMode const mode =
+          static_cast<RoundingMode>(MiscField::decode(instr->opcode()));
+      __ roundsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0), mode);
       break;
     }
     case kSSECvtss2sd:
@@ -523,6 +529,29 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kSSEUint32ToFloat64:
       __ LoadUint32(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
+    case kSSEFloat64ExtractLowWord32:
+      if (instr->InputAt(0)->IsDoubleStackSlot()) {
+        __ mov(i.OutputRegister(), i.InputOperand(0));
+      } else {
+        __ movd(i.OutputRegister(), i.InputDoubleRegister(0));
+      }
+      break;
+    case kSSEFloat64ExtractHighWord32:
+      if (instr->InputAt(0)->IsDoubleStackSlot()) {
+        __ mov(i.OutputRegister(), i.InputOperand(0, kDoubleSize / 2));
+      } else {
+        __ Pextrd(i.OutputRegister(), i.InputDoubleRegister(0), 1);
+      }
+      break;
+    case kSSEFloat64InsertLowWord32:
+      __ Pinsrd(i.OutputDoubleRegister(), i.InputOperand(1), 0);
+      break;
+    case kSSEFloat64InsertHighWord32:
+      __ Pinsrd(i.OutputDoubleRegister(), i.InputOperand(1), 1);
+      break;
+    case kSSEFloat64LoadLowWord32:
+      __ movd(i.OutputDoubleRegister(), i.InputOperand(0));
+      break;
     case kAVXFloat64Add: {
       CpuFeatureScope avx_scope(masm(), AVX);
       __ vaddsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
@@ -547,6 +576,18 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
                 i.InputOperand(1));
       break;
     }
+    case kAVXFloat64Max: {
+      CpuFeatureScope avx_scope(masm(), AVX);
+      __ vmaxsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputOperand(1));
+      break;
+    }
+    case kAVXFloat64Min: {
+      CpuFeatureScope avx_scope(masm(), AVX);
+      __ vminsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputOperand(1));
+      break;
+    }
     case kIA32Movsxbl:
       __ movsx_b(i.OutputRegister(), i.MemoryOperand());
       break;
@@ -554,7 +595,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ movzx_b(i.OutputRegister(), i.MemoryOperand());
       break;
     case kIA32Movb: {
-      int index = 0;
+      size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       if (HasImmediateInput(instr, index)) {
         __ mov_b(operand, i.InputInt8(index));
@@ -570,7 +611,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ movzx_w(i.OutputRegister(), i.MemoryOperand());
       break;
     case kIA32Movw: {
-      int index = 0;
+      size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       if (HasImmediateInput(instr, index)) {
         __ mov_w(operand, i.InputInt16(index));
@@ -583,7 +624,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       if (instr->HasOutput()) {
         __ mov(i.OutputRegister(), i.MemoryOperand());
       } else {
-        int index = 0;
+        size_t index = 0;
         Operand operand = i.MemoryOperand(&index);
         if (HasImmediateInput(instr, index)) {
           __ mov(operand, i.InputImmediate(index));
@@ -596,7 +637,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       if (instr->HasOutput()) {
         __ movsd(i.OutputDoubleRegister(), i.MemoryOperand());
       } else {
-        int index = 0;
+        size_t index = 0;
         Operand operand = i.MemoryOperand(&index);
         __ movsd(operand, i.InputDoubleRegister(index));
       }
@@ -605,7 +646,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       if (instr->HasOutput()) {
         __ movss(i.OutputDoubleRegister(), i.MemoryOperand());
       } else {
-        int index = 0;
+        size_t index = 0;
         Operand operand = i.MemoryOperand(&index);
         __ movss(operand, i.InputDoubleRegister(index));
       }
@@ -699,6 +740,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kCheckedStoreFloat64:
       ASSEMBLE_CHECKED_STORE_FLOAT(movsd);
       break;
+    case kIA32StackCheck: {
+      ExternalReference const stack_limit =
+          ExternalReference::address_of_stack_limit(isolate());
+      __ cmp(esp, Operand::StaticVariable(stack_limit));
+      break;
+    }
   }
 }
 
@@ -759,7 +806,7 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
 }
 
 
-void CodeGenerator::AssembleArchJump(BasicBlock::RpoNumber target) {
+void CodeGenerator::AssembleArchJump(RpoNumber target) {
   if (!IsNextInAssemblyOrder(target)) __ jmp(GetLabel(target));
 }
 
@@ -868,9 +915,10 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
 }
 
 
-void CodeGenerator::AssembleDeoptimizerCall(int deoptimization_id) {
+void CodeGenerator::AssembleDeoptimizerCall(
+    int deoptimization_id, Deoptimizer::BailoutType bailout_type) {
   Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
-      isolate(), deoptimization_id, Deoptimizer::LAZY);
+      isolate(), deoptimization_id, bailout_type);
   __ call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
 }
 
@@ -1043,6 +1091,8 @@ void CodeGenerator::AssemblePrologue() {
     // remaining stack slots.
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
+    // TODO(titzer): cannot address target function == local #-1
+    __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
     DCHECK(stack_slots >= frame()->GetOsrStackSlotCount());
     stack_slots -= frame()->GetOsrStackSlotCount();
   }
@@ -1117,7 +1167,19 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     Constant src_constant = g.ToConstant(source);
     if (src_constant.type() == Constant::kHeapObject) {
       Handle<HeapObject> src = src_constant.ToHeapObject();
-      if (destination->IsRegister()) {
+      if (info()->IsOptimizing() && src.is_identical_to(info()->context())) {
+        // Loading the context from the frame is way cheaper than materializing
+        // the actual context heap object address.
+        if (destination->IsRegister()) {
+          Register dst = g.ToRegister(destination);
+          __ mov(dst, Operand(ebp, StandardFrameConstants::kContextOffset));
+        } else {
+          DCHECK(destination->IsStackSlot());
+          Operand dst = g.ToOperand(destination);
+          __ push(Operand(ebp, StandardFrameConstants::kContextOffset));
+          __ pop(dst);
+        }
+      } else if (destination->IsRegister()) {
         Register dst = g.ToRegister(destination);
         __ LoadHeapObject(dst, src);
       } else {

@@ -637,7 +637,6 @@ TEST(CrossScriptReferences) {
 
 
 TEST(CrossScriptReferences_Simple) {
-  i::FLAG_harmony_scoping = true;
   i::FLAG_use_strict = true;
 
   v8::Isolate* isolate = CcTest::isolate();
@@ -652,7 +651,6 @@ TEST(CrossScriptReferences_Simple) {
 
 
 TEST(CrossScriptReferences_Simple2) {
-  i::FLAG_harmony_scoping = true;
   i::FLAG_use_strict = true;
 
   v8::Isolate* isolate = CcTest::isolate();
@@ -675,8 +673,6 @@ TEST(CrossScriptReferences_Simple2) {
 
 
 TEST(CrossScriptReferencesHarmony) {
-  i::FLAG_harmony_scoping = true;
-
   v8::Isolate* isolate = CcTest::isolate();
   HandleScope scope(isolate);
 
@@ -818,9 +814,27 @@ TEST(CrossScriptReferencesHarmony) {
 }
 
 
+TEST(CrossScriptReferencesHarmonyRegress) {
+  v8::Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  SimpleContext context;
+  context.Check(
+      "'use strict';"
+      "function i1() { "
+      "  let y = 10; return (typeof x2 === 'undefined' ? 0 : 2) + y"
+      "}"
+      "i1();"
+      "i1();",
+      EXPECT_RESULT, Number::New(isolate, 10));
+  context.Check(
+      "'use strict';"
+      "let x2 = 2; i1();",
+      EXPECT_RESULT, Number::New(isolate, 12));
+}
+
+
 TEST(GlobalLexicalOSR) {
   i::FLAG_use_strict = true;
-  i::FLAG_harmony_scoping = true;
 
   v8::Isolate* isolate = CcTest::isolate();
   HandleScope scope(isolate);
@@ -844,7 +858,6 @@ TEST(GlobalLexicalOSR) {
 
 TEST(CrossScriptConflicts) {
   i::FLAG_use_strict = true;
-  i::FLAG_harmony_scoping = true;
 
   HandleScope scope(CcTest::isolate());
 
@@ -880,8 +893,6 @@ TEST(CrossScriptConflicts) {
 
 
 TEST(CrossScriptDynamicLookup) {
-  i::FLAG_harmony_scoping = true;
-
   HandleScope handle_scope(CcTest::isolate());
 
   {
@@ -913,8 +924,6 @@ TEST(CrossScriptDynamicLookup) {
 
 
 TEST(CrossScriptGlobal) {
-  i::FLAG_harmony_scoping = true;
-
   HandleScope handle_scope(CcTest::isolate());
   {
     SimpleContext context;
@@ -957,8 +966,6 @@ TEST(CrossScriptGlobal) {
 
 
 TEST(CrossScriptStaticLookupUndeclared) {
-  i::FLAG_harmony_scoping = true;
-
   HandleScope handle_scope(CcTest::isolate());
 
   {
@@ -991,7 +998,6 @@ TEST(CrossScriptStaticLookupUndeclared) {
 
 
 TEST(CrossScriptLoadICs) {
-  i::FLAG_harmony_scoping = true;
   i::FLAG_allow_natives_syntax = true;
 
   HandleScope handle_scope(CcTest::isolate());
@@ -1047,7 +1053,6 @@ TEST(CrossScriptLoadICs) {
 
 
 TEST(CrossScriptStoreICs) {
-  i::FLAG_harmony_scoping = true;
   i::FLAG_allow_natives_syntax = true;
 
   HandleScope handle_scope(CcTest::isolate());
@@ -1125,7 +1130,6 @@ TEST(CrossScriptStoreICs) {
 
 
 TEST(CrossScriptAssignmentToConst) {
-  i::FLAG_harmony_scoping = true;
   i::FLAG_allow_natives_syntax = true;
 
   HandleScope handle_scope(CcTest::isolate());
@@ -1148,7 +1152,6 @@ TEST(CrossScriptAssignmentToConst) {
 
 
 TEST(Regress425510) {
-  i::FLAG_harmony_scoping = true;
   i::FLAG_allow_natives_syntax = true;
 
   HandleScope handle_scope(CcTest::isolate());
@@ -1161,5 +1164,87 @@ TEST(Regress425510) {
     for (int i = 0; i < 100; i++) {
       context.Check("o.prototype", EXPECT_EXCEPTION);
     }
+  }
+}
+
+
+TEST(Regress3941) {
+  i::FLAG_allow_natives_syntax = true;
+
+  HandleScope handle_scope(CcTest::isolate());
+
+  {
+    SimpleContext context;
+    context.Check("function f() { x = 1; }", EXPECT_RESULT,
+                  Undefined(CcTest::isolate()));
+    context.Check("'use strict'; f(); let x = 2; x", EXPECT_EXCEPTION);
+  }
+
+
+  {
+    // Train ICs.
+    SimpleContext context;
+    context.Check("function f() { x = 1; }", EXPECT_RESULT,
+                  Undefined(CcTest::isolate()));
+    for (int i = 0; i < 4; i++) {
+      context.Check("f(); x", EXPECT_RESULT, Number::New(CcTest::isolate(), 1));
+    }
+    context.Check("'use strict'; f(); let x = 2; x", EXPECT_EXCEPTION);
+  }
+
+
+  {
+    // Optimize.
+    SimpleContext context;
+    context.Check("function f() { x = 1; }", EXPECT_RESULT,
+                  Undefined(CcTest::isolate()));
+    for (int i = 0; i < 4; i++) {
+      context.Check("f(); x", EXPECT_RESULT, Number::New(CcTest::isolate(), 1));
+    }
+    context.Check("%OptimizeFunctionOnNextCall(f); f(); x", EXPECT_RESULT,
+                  Number::New(CcTest::isolate(), 1));
+
+    context.Check("'use strict'; f(); let x = 2; x", EXPECT_EXCEPTION);
+  }
+}
+
+
+TEST(Regress3941_Reads) {
+  i::FLAG_allow_natives_syntax = true;
+
+  HandleScope handle_scope(CcTest::isolate());
+
+  {
+    SimpleContext context;
+    context.Check("function f() { return x; }", EXPECT_RESULT,
+                  Undefined(CcTest::isolate()));
+    context.Check("'use strict'; f(); let x = 2; x", EXPECT_EXCEPTION);
+  }
+
+
+  {
+    // Train ICs.
+    SimpleContext context;
+    context.Check("function f() { return x; }", EXPECT_RESULT,
+                  Undefined(CcTest::isolate()));
+    for (int i = 0; i < 4; i++) {
+      context.Check("f()", EXPECT_EXCEPTION);
+    }
+    context.Check("'use strict'; f(); let x = 2; x", EXPECT_EXCEPTION);
+  }
+
+
+  {
+    // Optimize.
+    SimpleContext context;
+    context.Check("function f() { return x; }", EXPECT_RESULT,
+                  Undefined(CcTest::isolate()));
+    for (int i = 0; i < 4; i++) {
+      context.Check("f()", EXPECT_EXCEPTION);
+    }
+    context.Check("%OptimizeFunctionOnNextCall(f);", EXPECT_RESULT,
+                  Undefined(CcTest::isolate()));
+
+    context.Check("'use strict'; f(); let x = 2; x", EXPECT_EXCEPTION);
   }
 }

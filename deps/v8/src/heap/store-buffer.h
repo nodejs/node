@@ -20,8 +20,7 @@ class StoreBuffer;
 typedef void (*ObjectSlotCallback)(HeapObject** from, HeapObject* to);
 
 typedef void (StoreBuffer::*RegionCallback)(Address start, Address end,
-                                            ObjectSlotCallback slot_callback,
-                                            bool clear_maps);
+                                            ObjectSlotCallback slot_callback);
 
 // Used to implement the write barrier by collecting addresses of pointers
 // between spaces.
@@ -60,10 +59,6 @@ class StoreBuffer {
   // surviving old-to-new pointers into the store buffer to rebuild it.
   void IteratePointersToNewSpace(ObjectSlotCallback callback);
 
-  // Same as IteratePointersToNewSpace but additonally clears maps in objects
-  // referenced from the store buffer that do not contain a forwarding pointer.
-  void IteratePointersToNewSpaceAndClearMaps(ObjectSlotCallback callback);
-
   static const int kStoreBufferOverflowBit = 1 << (14 + kPointerSizeLog2);
   static const int kStoreBufferSize = kStoreBufferOverflowBit;
   static const int kStoreBufferLength = kStoreBufferSize / sizeof(Address);
@@ -88,22 +83,19 @@ class StoreBuffer {
   bool old_buffer_is_sorted() { return old_buffer_is_sorted_; }
   bool old_buffer_is_filtered() { return old_buffer_is_filtered_; }
 
-  // Goes through the store buffer removing pointers to things that have
-  // been promoted.  Rebuilds the store buffer completely if it overflowed.
-  void SortUniq();
-
   void EnsureSpace(intptr_t space_needed);
   void Verify();
 
   bool PrepareForIteration();
 
-#ifdef DEBUG
-  void Clean();
-  // Slow, for asserts only.
-  bool CellIsInStoreBuffer(Address cell);
-#endif
-
   void Filter(int flag);
+
+  // Eliminates all stale store buffer entries from the store buffer, i.e.,
+  // slots that are not part of live objects anymore. This method must be
+  // called after marking, when the whole transitive closure is known and
+  // must be called before sweeping when mark bits are still intact.
+  void ClearInvalidStoreBufferEntries();
+  void VerifyValidStoreBufferEntries();
 
  private:
   Heap* heap_;
@@ -142,17 +134,13 @@ class StoreBuffer {
   void ClearFilteringHashSets();
 
   bool SpaceAvailable(intptr_t space_needed);
-  void Uniq();
   void ExemptPopularPages(int prime_sample_step, int threshold);
 
-  // Set the map field of the object to NULL if contains a map.
-  inline void ClearDeadObject(HeapObject* object);
-
-  void IteratePointersToNewSpace(ObjectSlotCallback callback, bool clear_maps);
+  void ProcessOldToNewSlot(Address slot_address,
+                           ObjectSlotCallback slot_callback);
 
   void FindPointersToNewSpaceInRegion(Address start, Address end,
-                                      ObjectSlotCallback slot_callback,
-                                      bool clear_maps);
+                                      ObjectSlotCallback slot_callback);
 
   // For each region of pointers on a page in use from an old space call
   // visit_pointer_region callback.
@@ -163,8 +151,7 @@ class StoreBuffer {
                              RegionCallback region_callback,
                              ObjectSlotCallback slot_callback);
 
-  void IteratePointersInStoreBuffer(ObjectSlotCallback slot_callback,
-                                    bool clear_maps);
+  void IteratePointersInStoreBuffer(ObjectSlotCallback slot_callback);
 
 #ifdef VERIFY_HEAP
   void VerifyPointers(LargeObjectSpace* space);

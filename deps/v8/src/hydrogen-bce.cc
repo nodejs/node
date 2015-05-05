@@ -380,7 +380,7 @@ BoundsCheckBbData* HBoundsCheckEliminationPhase::PreProcessBlock(
     if (!i->IsBoundsCheck()) continue;
 
     HBoundsCheck* check = HBoundsCheck::cast(i);
-    int32_t offset;
+    int32_t offset = 0;
     BoundsCheckKey* key =
         BoundsCheckKey::Create(zone(), check, &offset);
     if (key == NULL) continue;

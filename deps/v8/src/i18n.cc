@@ -395,8 +395,8 @@ void SetResolvedNumberSettings(Isolate* isolate,
   Handle<String> key =
       factory->NewStringFromStaticChars("minimumSignificantDigits");
   Maybe<bool> maybe = JSReceiver::HasOwnProperty(resolved, key);
-  CHECK(maybe.has_value);
-  if (maybe.value) {
+  CHECK(maybe.IsJust());
+  if (maybe.FromJust()) {
     JSObject::SetProperty(
         resolved, factory->NewStringFromStaticChars("minimumSignificantDigits"),
         factory->NewNumberFromInt(number_format->getMinimumSignificantDigits()),
@@ -405,8 +405,8 @@ void SetResolvedNumberSettings(Isolate* isolate,
 
   key = factory->NewStringFromStaticChars("maximumSignificantDigits");
   maybe = JSReceiver::HasOwnProperty(resolved, key);
-  CHECK(maybe.has_value);
-  if (maybe.value) {
+  CHECK(maybe.IsJust());
+  if (maybe.FromJust()) {
     JSObject::SetProperty(
         resolved, factory->NewStringFromStaticChars("maximumSignificantDigits"),
         factory->NewNumberFromInt(number_format->getMaximumSignificantDigits()),
@@ -725,8 +725,8 @@ icu::SimpleDateFormat* DateFormat::UnpackDateFormat(
   Handle<String> key =
       isolate->factory()->NewStringFromStaticChars("dateFormat");
   Maybe<bool> maybe = JSReceiver::HasOwnProperty(obj, key);
-  CHECK(maybe.has_value);
-  if (maybe.value) {
+  CHECK(maybe.IsJust());
+  if (maybe.FromJust()) {
     return reinterpret_cast<icu::SimpleDateFormat*>(
         obj->GetInternalField(0));
   }
@@ -805,8 +805,8 @@ icu::DecimalFormat* NumberFormat::UnpackNumberFormat(
   Handle<String> key =
       isolate->factory()->NewStringFromStaticChars("numberFormat");
   Maybe<bool> maybe = JSReceiver::HasOwnProperty(obj, key);
-  CHECK(maybe.has_value);
-  if (maybe.value) {
+  CHECK(maybe.IsJust());
+  if (maybe.FromJust()) {
     return reinterpret_cast<icu::DecimalFormat*>(obj->GetInternalField(0));
   }
 
@@ -866,8 +866,8 @@ icu::Collator* Collator::UnpackCollator(Isolate* isolate,
                                         Handle<JSObject> obj) {
   Handle<String> key = isolate->factory()->NewStringFromStaticChars("collator");
   Maybe<bool> maybe = JSReceiver::HasOwnProperty(obj, key);
-  CHECK(maybe.has_value);
-  if (maybe.value) {
+  CHECK(maybe.IsJust());
+  if (maybe.FromJust()) {
     return reinterpret_cast<icu::Collator*>(obj->GetInternalField(0));
   }
 
@@ -931,8 +931,8 @@ icu::BreakIterator* BreakIterator::UnpackBreakIterator(Isolate* isolate,
   Handle<String> key =
       isolate->factory()->NewStringFromStaticChars("breakIterator");
   Maybe<bool> maybe = JSReceiver::HasOwnProperty(obj, key);
-  CHECK(maybe.has_value);
-  if (maybe.value) {
+  CHECK(maybe.IsJust());
+  if (maybe.FromJust()) {
     return reinterpret_cast<icu::BreakIterator*>(obj->GetInternalField(0));
   }
 

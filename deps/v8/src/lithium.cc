@@ -7,7 +7,6 @@
 #include "src/v8.h"
 
 #include "src/scopes.h"
-#include "src/serialize.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "src/ia32/lithium-ia32.h"  // NOLINT
@@ -448,6 +447,10 @@ void LChunk::RegisterWeakObjectsInOptimizedCode(Handle<Code> code) const {
     }
   }
   for (int i = 0; i < maps.length(); i++) {
+    if (maps.at(i)->dependent_code()->number_of_entries(
+            DependentCode::kWeakCodeGroup) == 0) {
+      isolate()->heap()->AddRetainedMap(maps.at(i));
+    }
     Map::AddDependentCode(maps.at(i), DependentCode::kWeakCodeGroup, code);
   }
   for (int i = 0; i < objects.length(); i++) {

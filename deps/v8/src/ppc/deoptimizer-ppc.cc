@@ -142,7 +142,7 @@ bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
 
 // This code tries to be close to ia32 code so that any changes can be
 // easily ported.
-void Deoptimizer::EntryGenerator::Generate() {
+void Deoptimizer::TableEntryGenerator::Generate() {
   GeneratePrologue();
 
   // Unlike on ARM we don't save all the registers, just the useful ones.
@@ -171,6 +171,9 @@ void Deoptimizer::EntryGenerator::Generate() {
       __ StoreP(ToRegister(i), MemOperand(sp, kPointerSize * i));
     }
   }
+
+  __ mov(ip, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
+  __ StoreP(fp, MemOperand(ip));
 
   const int kSavedRegistersAreaSize =
       (kNumberOfRegisters * kPointerSize) + kDoubleRegsSize;
@@ -353,13 +356,8 @@ void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
 
 
 void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
-#if V8_OOL_CONSTANT_POOL
-  DCHECK(FLAG_enable_ool_constant_pool);
-  SetFrameSlot(offset, value);
-#else
   // No out-of-line constant pool support.
   UNREACHABLE();
-#endif
 }
 
 

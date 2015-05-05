@@ -51,6 +51,21 @@ function TestValidMapCalls(m) {
   assertDoesNotThrow(function () { m.set(new Object) });
   assertDoesNotThrow(function () { m.has(new Object) });
   assertDoesNotThrow(function () { m.delete(new Object) });
+  assertDoesNotThrow(function () { m.get(undefined) });
+  assertDoesNotThrow(function () { m.get(null) });
+  assertDoesNotThrow(function () { m.get(0) });
+  assertDoesNotThrow(function () { m.get('a-key') });
+  assertDoesNotThrow(function () { m.get(Symbol()) });
+  assertDoesNotThrow(function () { m.has(undefined) });
+  assertDoesNotThrow(function () { m.has(null) });
+  assertDoesNotThrow(function () { m.has(0) });
+  assertDoesNotThrow(function () { m.has('a-key') });
+  assertDoesNotThrow(function () { m.has(Symbol()) });
+  assertDoesNotThrow(function () { m.delete(undefined) });
+  assertDoesNotThrow(function () { m.delete(null) });
+  assertDoesNotThrow(function () { m.delete(0) });
+  assertDoesNotThrow(function () { m.delete('a-key') });
+  assertDoesNotThrow(function () { m.delete(Symbol()) });
 }
 TestValidMapCalls(new Map);
 TestValidMapCalls(new WeakMap);
@@ -58,14 +73,11 @@ TestValidMapCalls(new WeakMap);
 
 // Test invalid getter and setter calls for WeakMap only
 function TestInvalidCalls(m) {
-  assertThrows(function () { m.get(undefined) }, TypeError);
   assertThrows(function () { m.set(undefined, 0) }, TypeError);
-  assertThrows(function () { m.get(null) }, TypeError);
   assertThrows(function () { m.set(null, 0) }, TypeError);
-  assertThrows(function () { m.get(0) }, TypeError);
   assertThrows(function () { m.set(0, 0) }, TypeError);
-  assertThrows(function () { m.get('a-key') }, TypeError);
   assertThrows(function () { m.set('a-key', 0) }, TypeError);
+  assertThrows(function () { m.set(Symbol(), 0) }, TypeError);
 }
 TestInvalidCalls(new WeakMap);
 
@@ -73,57 +85,79 @@ TestInvalidCalls(new WeakMap);
 // Test expected behavior for Sets and WeakSets
 function TestSet(set, key) {
   assertFalse(set.has(key));
-  assertSame(set, set.add(key));
-  assertTrue(set.has(key));
-  assertTrue(set.delete(key));
+  assertFalse(set.delete(key));
+  if (typeof key === 'object' && !(set instanceof WeakSet)) {
+    assertSame(set, set.add(key));
+    assertTrue(set.has(key));
+    assertTrue(set.delete(key));
+  }
   assertFalse(set.has(key));
   assertFalse(set.delete(key));
   assertFalse(set.has(key));
 }
 function TestSetBehavior(set) {
+  // Fill
   for (var i = 0; i < 20; i++) {
     TestSet(set, new Object);
     TestSet(set, i);
     TestSet(set, i / 100);
     TestSet(set, 'key-' + i);
+    TestSet(set, Symbol(i));
   }
-  var keys = [ +0, -0, +Infinity, -Infinity, true, false, null, undefined ];
+
+  var keys = [
+    -0, +0, 1, 1/3, 10, +Infinity, -Infinity, NaN, true, false, null, undefined,
+    'x', Symbol(), {}, function(){}
+  ];
   for (var i = 0; i < keys.length; i++) {
     TestSet(set, keys[i]);
   }
 }
 TestSetBehavior(new Set);
-TestSet(new WeakSet, new Object);
+TestSetBehavior(new WeakSet);
 
 
 // Test expected mapping behavior for Maps and WeakMaps
 function TestMapping(map, key, value) {
-  assertSame(map, map.set(key, value));
-  assertSame(value, map.get(key));
+  assertFalse(map.has(key));
+  assertSame(undefined, map.get(key));
+  assertFalse(map.delete(key));
+  if (typeof key === 'object' && !(map instanceof WeakMap)) {
+    assertSame(map, map.set(key, value));
+    assertSame(value, map.get(key));
+    assertTrue(map.has(key));
+    assertTrue(map.delete(key));
+  }
+  assertFalse(map.has(key));
+  assertSame(undefined, map.get(key));
+  assertFalse(map.delete(key));
+  assertFalse(map.has(key));
+  assertSame(undefined, map.get(key));
 }
-function TestMapBehavior1(m) {
+function TestMapBehavior(m) {
+  // Fill
   TestMapping(m, new Object, 23);
   TestMapping(m, new Object, 'the-value');
   TestMapping(m, new Object, new Object);
-}
-TestMapBehavior1(new Map);
-TestMapBehavior1(new WeakMap);
-
-
-// Test expected mapping behavior for Maps only
-function TestMapBehavior2(m) {
   for (var i = 0; i < 20; i++) {
     TestMapping(m, i, new Object);
     TestMapping(m, i / 10, new Object);
     TestMapping(m, 'key-' + i, new Object);
+    TestMapping(m, Symbol(i), new Object);
   }
-  // -0 is handled in TestMinusZeroMap
-  var keys = [ 0, +Infinity, -Infinity, true, false, null, undefined ];
+
+  var keys = [
+    -0, +0, 1, 1/3, 10, +Infinity, -Infinity, NaN, true, false, null, undefined,
+    'x', Symbol(), {}, function(){}
+  ];
   for (var i = 0; i < keys.length; i++) {
+    TestMapping(m, keys[i], 23);
+    TestMapping(m, keys[i], 'the-value');
     TestMapping(m, keys[i], new Object);
   }
 }
-TestMapBehavior2(new Map);
+TestMapBehavior(new Map);
+TestMapBehavior(new WeakMap);
 
 
 // Test expected querying behavior of Maps and WeakMaps
@@ -132,8 +166,6 @@ function TestQuery(m) {
   var values = [ 'x', 0, +Infinity, -Infinity, true, false, null, undefined ];
   for (var i = 0; i < values.length; i++) {
     TestMapping(m, key, values[i]);
-    assertTrue(m.has(key));
-    assertFalse(m.has(new Object));
   }
 }
 TestQuery(new Map);
@@ -144,7 +176,6 @@ TestQuery(new WeakMap);
 function TestDelete(m) {
   var key = new Object;
   TestMapping(m, key, 'to-be-deleted');
-  assertTrue(m.delete(key));
   assertFalse(m.delete(key));
   assertFalse(m.delete(new Object));
   assertSame(m.get(key), undefined);
@@ -1190,8 +1221,9 @@ function TestSetConstructorIterableValue(ctor) {
   // Strict mode is required to prevent implicit wrapping in the getter.
   Object.defineProperty(Number.prototype, Symbol.iterator, {
     get: function() {
-      assertEquals('object', typeof this);
+      assertEquals('number', typeof this);
       return function() {
+        assertEquals('number', typeof this);
         return oneAndTwo.keys();
       };
     },
@@ -1380,8 +1412,9 @@ function TestMapConstructorIterableValue(ctor) {
   // Strict mode is required to prevent implicit wrapping in the getter.
   Object.defineProperty(Number.prototype, Symbol.iterator, {
     get: function() {
-      assertEquals('object', typeof this);
+      assertEquals('number', typeof this);
       return function() {
+        assertEquals('number', typeof this);
         return oneAndTwo.entries();
       };
     },
@@ -1406,3 +1439,38 @@ TestCollectionToString(Map);
 TestCollectionToString(Set);
 TestCollectionToString(WeakMap);
 TestCollectionToString(WeakSet);
+
+
+function TestConstructorOrderOfAdderIterator(ctor, adderName) {
+  var iterable = new Map();
+  iterable.set({}, {});
+  iterable.set({}, {});
+  var iterableFunction = iterable[Symbol.iterator];
+  Object.defineProperty(iterable, Symbol.iterator, {
+    get: function() {
+      log += 'iterator';
+      return iterableFunction;
+    }
+  });
+
+  var log = '';
+  var adderFunction = ctor.prototype[adderName];
+
+  Object.defineProperty(ctor.prototype, adderName, {
+    get: function() {
+      log += adderName;
+      return adderFunction;
+    }
+  });
+
+  new ctor(iterable);
+  assertEquals(adderName + 'iterator', log);
+
+  Object.defineProperty(ctor.prototype, adderName, {
+    value: adderFunction
+  });
+}
+TestConstructorOrderOfAdderIterator(Map, 'set');
+TestConstructorOrderOfAdderIterator(Set, 'add');
+TestConstructorOrderOfAdderIterator(WeakMap, 'set');
+TestConstructorOrderOfAdderIterator(WeakSet, 'add');

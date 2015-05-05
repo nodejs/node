@@ -871,7 +871,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kInvokeFunction:
     case HValue::kLoadContextSlot:
     case HValue::kLoadFunctionPrototype:
-    case HValue::kLoadGlobalCell:
     case HValue::kLoadKeyed:
     case HValue::kLoadKeyedGeneric:
     case HValue::kMathFloorOfDiv:
@@ -887,7 +886,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kSimulate:
     case HValue::kStackCheck:
     case HValue::kStoreContextSlot:
-    case HValue::kStoreGlobalCell:
     case HValue::kStoreKeyedGeneric:
     case HValue::kStringAdd:
     case HValue::kStringCompareAndBranch:
@@ -2946,7 +2944,7 @@ Maybe<HConstant*> HConstant::CopyToTruncatedInt32(Zone* zone) {
         HConstant(DoubleToInt32(double_value_), Representation::Integer32(),
                   NotInNewSpace(), object_);
   }
-  return Maybe<HConstant*>(res != NULL, res);
+  return res != NULL ? Just(res) : Nothing<HConstant*>();
 }
 
 
@@ -2962,7 +2960,7 @@ Maybe<HConstant*> HConstant::CopyToTruncatedNumber(Isolate* isolate,
   } else if (handle->IsNull()) {
     res = new(zone) HConstant(0);
   }
-  return Maybe<HConstant*>(res != NULL, res);
+  return res != NULL ? Just(res) : Nothing<HConstant*>();
 }
 
 
@@ -3624,24 +3622,6 @@ std::ostream& HTransitionElementsKind::PrintDataTo(
 }
 
 
-std::ostream& HLoadGlobalCell::PrintDataTo(std::ostream& os) const {  // NOLINT
-  os << "[" << *cell().handle() << "]";
-  if (details_.IsConfigurable()) os << " (configurable)";
-  if (details_.IsReadOnly()) os << " (read-only)";
-  return os;
-}
-
-
-bool HLoadGlobalCell::RequiresHoleCheck() const {
-  if (!details_.IsConfigurable()) return false;
-  for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
-    HValue* use = it.value();
-    if (!use->IsChange()) return true;
-  }
-  return false;
-}
-
-
 std::ostream& HLoadGlobalGeneric::PrintDataTo(
     std::ostream& os) const {  // NOLINT
   return os << name()->ToCString().get() << " ";
@@ -3652,14 +3632,6 @@ std::ostream& HInnerAllocatedObject::PrintDataTo(
     std::ostream& os) const {  // NOLINT
   os << NameOf(base_object()) << " offset ";
   return offset()->PrintTo(os);
-}
-
-
-std::ostream& HStoreGlobalCell::PrintDataTo(std::ostream& os) const {  // NOLINT
-  os << "[" << *cell().handle() << "] = " << NameOf(value());
-  if (details_.IsConfigurable()) os << " (configurable)";
-  if (details_.IsReadOnly()) os << " (read-only)";
-  return os;
 }
 
 
@@ -3788,12 +3760,12 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
     }
   }
 
-  DCHECK((IsNewSpaceAllocation() &&
-         dominator_allocate->IsNewSpaceAllocation()) ||
-         (IsOldDataSpaceAllocation() &&
-         dominator_allocate->IsOldDataSpaceAllocation()) ||
-         (IsOldPointerSpaceAllocation() &&
-         dominator_allocate->IsOldPointerSpaceAllocation()));
+  DCHECK(
+      (IsNewSpaceAllocation() && dominator_allocate->IsNewSpaceAllocation()) ||
+      (IsOldDataSpaceAllocation() &&
+       dominator_allocate->IsOldDataSpaceAllocation()) ||
+      (IsOldPointerSpaceAllocation() &&
+       dominator_allocate->IsOldPointerSpaceAllocation()));
 
   // First update the size of the dominator allocate instruction.
   dominator_size = dominator_allocate->size();
@@ -3889,8 +3861,8 @@ HAllocate* HAllocate::GetFoldableDominator(HAllocate* dominator) {
     // We cannot hoist old space allocations over new space allocations.
     if (IsNewSpaceAllocation() || dominator->IsNewSpaceAllocation()) {
       if (FLAG_trace_allocation_folding) {
-        PrintF("#%d (%s) cannot fold into #%d (%s), new space hoisting\n",
-            id(), Mnemonic(), dominator->id(), dominator->Mnemonic());
+        PrintF("#%d (%s) cannot fold into #%d (%s), new space hoisting\n", id(),
+               Mnemonic(), dominator->id(), dominator->Mnemonic());
       }
       return NULL;
     }
@@ -3903,8 +3875,8 @@ HAllocate* HAllocate::GetFoldableDominator(HAllocate* dominator) {
     if (dominator_dominator == NULL) {
       dominating_allocate_ = dominator;
       if (FLAG_trace_allocation_folding) {
-        PrintF("#%d (%s) cannot fold into #%d (%s), different spaces\n",
-            id(), Mnemonic(), dominator->id(), dominator->Mnemonic());
+        PrintF("#%d (%s) cannot fold into #%d (%s), different spaces\n", id(),
+               Mnemonic(), dominator->id(), dominator->Mnemonic());
       }
       return NULL;
     }
@@ -3917,16 +3889,16 @@ HAllocate* HAllocate::GetFoldableDominator(HAllocate* dominator) {
     if (block()->block_id() != dominator_dominator->block()->block_id()) {
       if (FLAG_trace_allocation_folding) {
         PrintF("#%d (%s) cannot fold into #%d (%s), different basic blocks\n",
-            id(), Mnemonic(), dominator_dominator->id(),
-            dominator_dominator->Mnemonic());
+               id(), Mnemonic(), dominator_dominator->id(),
+               dominator_dominator->Mnemonic());
       }
       return NULL;
     }
 
     DCHECK((IsOldDataSpaceAllocation() &&
-           dominator_dominator->IsOldDataSpaceAllocation()) ||
+            dominator_dominator->IsOldDataSpaceAllocation()) ||
            (IsOldPointerSpaceAllocation() &&
-           dominator_dominator->IsOldPointerSpaceAllocation()));
+            dominator_dominator->IsOldPointerSpaceAllocation()));
 
     int32_t current_size = HConstant::cast(size())->GetInteger32Constant();
     HStoreNamedField* dominator_free_space_size =
@@ -4692,12 +4664,6 @@ HObjectAccess HObjectAccess::ForField(Handle<Map> map, int index,
     return HObjectAccess(kBackingStore, offset, representation, name,
                          false, false);
   }
-}
-
-
-HObjectAccess HObjectAccess::ForCellPayload(Isolate* isolate) {
-  return HObjectAccess(kInobject, Cell::kValueOffset, Representation::Tagged(),
-                       isolate->factory()->cell_value_string());
 }
 
 

@@ -26,7 +26,8 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # Those definitions should be consistent with the main Makefile
-ANDROID_ARCHES = android_ia32 android_arm android_arm64 android_mipsel android_x87
+ANDROID_ARCHES = android_ia32 android_x64 android_arm android_arm64 \
+		 android_mipsel android_x87
 MODES = release debug
 
 # Generates all combinations of ANDROID ARCHES and MODES,
@@ -66,6 +67,11 @@ else ifeq ($(ARCH), android_ia32)
   TOOLCHAIN_ARCH = x86
   TOOLCHAIN_PREFIX = i686-linux-android
   TOOLCHAIN_VER = 4.8
+else ifeq ($(ARCH), android_x64)
+  DEFINES = target_arch=x64 v8_target_arch=x64 android_target_arch=x86_64 android_target_platform=21
+  TOOLCHAIN_ARCH = x86_64
+  TOOLCHAIN_PREFIX = x86_64-linux-android
+  TOOLCHAIN_VER = 4.9
 else ifeq ($(ARCH), android_x87)
   DEFINES = target_arch=x87 v8_target_arch=x87 android_target_arch=x86 android_target_platform=14
   TOOLCHAIN_ARCH = x86

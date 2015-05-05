@@ -294,7 +294,7 @@ class RetrieveV8Releases(Step):
     releases = []
     if self._options.branch == 'recent':
       # List every release from the last 7 days.
-      revisions = self.GetRecentReleases(max_age=7 * 24 * 60 * 60)
+      revisions = self.GetRecentReleases(max_age=7 * DAY_IN_SECONDS)
       for revision in revisions:
         releases += self.GetReleaseFromRevision(revision)
     elif self._options.branch == 'all':  # pragma: no cover
@@ -334,6 +334,7 @@ class UpdateChromiumCheckout(Step):
     cwd = self._options.chromium
     self.GitCheckout("master", cwd=cwd)
     self.GitPull(cwd=cwd)
+    self.DeleteBranch(self.Config("BRANCHNAME"), cwd=cwd)
     self.GitCreateBranch(self.Config("BRANCHNAME"), cwd=cwd)
 
 
@@ -488,6 +489,7 @@ class Releases(ScriptsBase):
     parser.add_argument("--json", help="Path to a JSON file for export.")
 
   def _ProcessOptions(self, options):  # pragma: no cover
+    options.force_readline_defaults = True
     return True
 
   def _Config(self):

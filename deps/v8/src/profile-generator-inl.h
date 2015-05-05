@@ -21,12 +21,12 @@ CodeEntry::CodeEntry(Logger::LogEventsAndTags tag, const char* name,
       resource_name_(resource_name),
       line_number_(line_number),
       column_number_(column_number),
-      shared_id_(0),
       script_id_(v8::UnboundScript::kNoScriptId),
+      position_(0),
       no_frame_ranges_(NULL),
       bailout_reason_(kEmptyBailoutReason),
       deopt_reason_(kNoDeoptReason),
-      deopt_location_(0),
+      deopt_position_(SourcePosition::Unknown()),
       line_info_(line_info),
       instruction_start_(instruction_start) {}
 
@@ -48,6 +48,11 @@ ProfileNode::ProfileNode(ProfileTree* tree, CodeEntry* entry)
       children_(CodeEntriesMatch),
       id_(tree->next_node_id()),
       line_ticks_(LineTickMatch) {}
+
+
+inline unsigned ProfileNode::function_id() const {
+  return tree_->GetFunctionId(this);
+}
 } }  // namespace v8::internal
 
 #endif  // V8_PROFILE_GENERATOR_INL_H_

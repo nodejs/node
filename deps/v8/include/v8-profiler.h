@@ -168,20 +168,11 @@ class V8_EXPORT CpuProfiler {
    */
   void StartProfiling(Handle<String> title, bool record_samples = false);
 
-  /** Deprecated. Use StartProfiling instead. */
-  V8_DEPRECATED("Use StartProfiling",
-      void StartCpuProfiling(Handle<String> title,
-                             bool record_samples = false));
-
   /**
    * Stops collecting CPU profile with a given title and returns it.
    * If the title given is empty, finishes the last profile started.
    */
   CpuProfile* StopProfiling(Handle<String> title);
-
-  /** Deprecated. Use StopProfiling instead. */
-  V8_DEPRECATED("Use StopProfiling",
-      const CpuProfile* StopCpuProfiling(Handle<String> title));
 
   /**
    * Tells the profiler whether the embedder is idle.
@@ -272,10 +263,6 @@ class V8_EXPORT HeapGraphNode {
   SnapshotObjectId GetId() const;
 
   /** Returns node's own size, in bytes. */
-  V8_DEPRECATED("Use GetShallowSize instead",
-                int GetSelfSize() const);
-
-  /** Returns node's own size, in bytes. */
   size_t GetShallowSize() const;
 
   /** Returns child nodes count of the node. */
@@ -326,12 +313,6 @@ class V8_EXPORT HeapSnapshot {
     kJSON = 0  // See format description near 'Serialize' method.
   };
 
-  /** Returns heap snapshot UID (assigned by the profiler.) */
-  unsigned GetUid() const;
-
-  /** Returns heap snapshot title. */
-  Handle<String> GetTitle() const;
-
   /** Returns the root node of the heap graph. */
   const HeapGraphNode* GetRoot() const;
 
@@ -380,7 +361,8 @@ class V8_EXPORT HeapSnapshot {
    * Nodes reference strings, other nodes, and edges by their indexes
    * in corresponding arrays.
    */
-  void Serialize(OutputStream* stream, SerializationFormat format) const;
+  void Serialize(OutputStream* stream,
+                 SerializationFormat format = kJSON) const;
 };
 
 
@@ -465,10 +447,9 @@ class V8_EXPORT HeapProfiler {
   };
 
   /**
-   * Takes a heap snapshot and returns it. Title may be an empty string.
+   * Takes a heap snapshot and returns it.
    */
   const HeapSnapshot* TakeHeapSnapshot(
-      Handle<String> title,
       ActivityControl* control = NULL,
       ObjectNameResolver* global_object_name_resolver = NULL);
 
@@ -490,17 +471,19 @@ class V8_EXPORT HeapProfiler {
    * reports updates for all previous time intervals via the OutputStream
    * object. Updates on each time interval are provided as a stream of the
    * HeapStatsUpdate structure instances.
-   * The return value of the function is the last seen heap object Id.
+   * If |timestamp_us| is supplied, timestamp of the new entry will be written
+   * into it. The return value of the function is the last seen heap object Id.
    *
    * StartTrackingHeapObjects must be called before the first call to this
    * method.
    */
-  SnapshotObjectId GetHeapStats(OutputStream* stream);
+  SnapshotObjectId GetHeapStats(OutputStream* stream,
+                                int64_t* timestamp_us = NULL);
 
   /**
    * Stops tracking of heap objects population statistics, cleans up all
    * collected data. StartHeapObjectsTracking must be called again prior to
-   * calling PushHeapObjectsStats next time.
+   * calling GetHeapStats next time.
    */
   void StopTrackingHeapObjects();
 

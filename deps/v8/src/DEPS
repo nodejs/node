@@ -7,7 +7,7 @@ include_rules = [
 ]
 
 specific_include_rules = {
-  "(mksnapshot|d8)\.cc": [
+  "d8\.cc": [
     "+include/libplatform/libplatform.h",
   ],
 }

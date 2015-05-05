@@ -41,6 +41,7 @@ def DoMain(_):
   """Hook to be called from gyp without starting a separate python
   interpreter."""
   host_arch = platform.machine()
+  host_system = platform.system();
 
   # Convert machine type to format recognized by gyp.
   if re.match(r'i.86', host_arch) or host_arch == 'i86pc':
@@ -55,6 +56,13 @@ def DoMain(_):
     host_arch = 'mips64el'
   elif host_arch.startswith('mips'):
     host_arch = 'mipsel'
+
+  # Under AIX the value returned by platform.machine is not
+  # the best indicator of the host architecture
+  # AIX 6.1 which is the lowest level supported only provides
+  # a 64 bit kernel
+  if host_system == 'AIX':
+    host_arch = 'ppc64'
 
   # platform.machine is based on running kernel. It's possible to use 64-bit
   # kernel with 32-bit userland, e.g. to give linker slightly more memory.

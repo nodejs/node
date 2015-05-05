@@ -2029,7 +2029,9 @@ LInstruction* LChunkBuilder::DoCheckValue(HCheckValue* instr) {
 LInstruction* LChunkBuilder::DoCheckMaps(HCheckMaps* instr) {
   if (instr->IsStabilityCheck()) return new (zone()) LCheckMaps;
   LOperand* value = UseRegisterAtStart(instr->value());
-  LInstruction* result = AssignEnvironment(new (zone()) LCheckMaps(value));
+  LOperand* temp = TempRegister();
+  LInstruction* result =
+      AssignEnvironment(new (zone()) LCheckMaps(value, temp));
   if (instr->HasMigrationTarget()) {
     info()->MarkAsDeferredCalling();
     result = AssignPointerMap(result);
@@ -2096,14 +2098,6 @@ LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoLoadGlobalCell(HLoadGlobalCell* instr) {
-  LLoadGlobalCell* result = new (zone()) LLoadGlobalCell;
-  return instr->RequiresHoleCheck()
-             ? AssignEnvironment(DefineAsRegister(result))
-             : DefineAsRegister(result);
-}
-
-
 LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
   LOperand* global_object =
@@ -2115,17 +2109,6 @@ LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
   LLoadGlobalGeneric* result =
       new (zone()) LLoadGlobalGeneric(context, global_object, vector);
   return MarkAsCall(DefineFixed(result, r3), instr);
-}
-
-
-LInstruction* LChunkBuilder::DoStoreGlobalCell(HStoreGlobalCell* instr) {
-  LOperand* value = UseRegister(instr->value());
-  // Use a temp to check the value in the cell in the case where we perform
-  // a hole check.
-  return instr->RequiresHoleCheck()
-             ? AssignEnvironment(new (zone())
-                                 LStoreGlobalCell(value, TempRegister()))
-             : new (zone()) LStoreGlobalCell(value, NULL);
 }
 
 
