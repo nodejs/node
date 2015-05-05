@@ -347,9 +347,9 @@ def pkg_config(pkg):
     os.environ.get('PKG_CONFIG', 'pkg-config'))
   pkg_config_args = '--silence-errors'
   retval = ()
-  for flag in ['--libs', '--cflags']:
+  for flag in ['--libs-only-l', '--cflags-only-I']:
     try:
-     val = subprocess.check_output([pkg_config, pkg_config_args, flag, pkg])
+     val = subprocess.check_output([pkg_config, pkg_config_args, flag, pkg]).rstrip('\n')
     except subprocess.CalledProcessError:
       # most likely missing a .pc-file
       val = None
@@ -691,12 +691,12 @@ def configure_library(lib, output):
     
     (pkg_libs, pkg_cflags) = pkg_config(lib)
     libs = pkg_libs if pkg_libs else default_lib
-    cflags = pkg_cflags if pkg_cflags else default_cflags
+    cflags = pkg_cflags.split("-I") if pkg_cflags else default_cflags
   
     if libs:
       output['libraries'] += libs.split()
     if cflags:
-      output['include_dirs'] += cflags.split()
+      output['include_dirs'] += [cflags]
     if default_libpath:
       output['libraries'] += ['-L%s' % default_libpath]
 
