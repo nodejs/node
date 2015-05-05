@@ -156,9 +156,7 @@ Typer::Typer(Isolate* isolate, Graph* graph, MaybeHandle<Context> context)
       graph_(graph),
       context_(context),
       decorator_(NULL),
-      cache_(new (graph->zone()) LazyTypeCache(isolate, graph->zone())),
-      weaken_min_limits_(graph->zone()),
-      weaken_max_limits_(graph->zone()) {
+      cache_(new (graph->zone()) LazyTypeCache(isolate, graph->zone())) {
   Zone* zone = this->zone();
   Factory* f = isolate->factory();
 
@@ -202,20 +200,6 @@ Typer::Typer(Isolate* isolate, Graph* graph, MaybeHandle<Context> context)
   weakint_fun1_ = Type::Function(weakint, number, zone);
   random_fun_ = Type::Function(Type::OrderedNumber(), zone);
 
-  const int limits_count = 20;
-
-  weaken_min_limits_.reserve(limits_count + 1);
-  weaken_max_limits_.reserve(limits_count + 1);
-
-  double limit = 1 << 30;
-  weaken_min_limits_.push_back(0);
-  weaken_max_limits_.push_back(0);
-  for (int i = 0; i < limits_count; i++) {
-    weaken_min_limits_.push_back(-limit);
-    weaken_max_limits_.push_back(limit - 1);
-    limit *= 2;
-  }
-
   decorator_ = new (zone) Decorator(this);
   graph_->AddDecorator(decorator_);
 }
@@ -228,7 +212,8 @@ Typer::~Typer() {
 
 class Typer::Visitor : public Reducer {
  public:
-  explicit Visitor(Typer* typer) : typer_(typer) {}
+  explicit Visitor(Typer* typer)
+      : typer_(typer), weakened_nodes_(typer->zone()) {}
 
   Reduction Reduce(Node* node) OVERRIDE {
     if (node->op()->ValueOutputCount() == 0) return NoChange();
@@ -296,6 +281,7 @@ class Typer::Visitor : public Reducer {
  private:
   Typer* typer_;
   MaybeHandle<Context> context_;
+  ZoneSet<NodeId> weakened_nodes_;
 
 #define DECLARE_METHOD(x) inline Bounds Type##x(Node* node);
   DECLARE_METHOD(Start)
@@ -313,12 +299,17 @@ class Typer::Visitor : public Reducer {
   }
 
   Bounds WrapContextBoundsForInput(Node* node);
-  Type* Weaken(Type* current_type, Type* previous_type);
+  Type* Weaken(Node* node, Type* current_type, Type* previous_type);
 
   Zone* zone() { return typer_->zone(); }
   Isolate* isolate() { return typer_->isolate(); }
   Graph* graph() { return typer_->graph(); }
   MaybeHandle<Context> context() { return typer_->context(); }
+
+  void SetWeakened(NodeId node_id) { weakened_nodes_.insert(node_id); }
+  bool IsWeakened(NodeId node_id) {
+    return weakened_nodes_.find(node_id) != weakened_nodes_.end();
+  }
 
   typedef Type* (*UnaryTyperFun)(Type*, Typer* t);
   typedef Type* (*BinaryTyperFun)(Type*, Type*, Typer* t);
@@ -365,9 +356,11 @@ class Typer::Visitor : public Reducer {
     if (NodeProperties::IsTyped(node)) {
       // Widen the bounds of a previously typed node.
       Bounds previous = NodeProperties::GetBounds(node);
-      // Speed up termination in the presence of range types:
-      current.upper = Weaken(current.upper, previous.upper);
-      current.lower = Weaken(current.lower, previous.lower);
+      if (node->opcode() == IrOpcode::kPhi) {
+        // Speed up termination in the presence of range types:
+        current.upper = Weaken(node, current.upper, previous.upper);
+        current.lower = Weaken(node, current.lower, previous.lower);
+      }
 
       // Types should not get less precise.
       DCHECK(previous.lower->Is(current.lower));
@@ -726,6 +719,11 @@ Bounds Typer::Visitor::TypeFrameState(Node* node) {
 
 
 Bounds Typer::Visitor::TypeStateValues(Node* node) {
+  return Bounds(Type::None(zone()), Type::Internal(zone()));
+}
+
+
+Bounds Typer::Visitor::TypeTypedStateValues(Node* node) {
   return Bounds(Type::None(zone()), Type::Internal(zone()));
 }
 
@@ -1302,46 +1300,72 @@ Bounds Typer::Visitor::TypeJSLoadNamed(Node* node) {
 // the fixpoint calculation in case there appears to be a loop
 // in the graph. In the current implementation, we are
 // increasing the limits to the closest power of two.
-Type* Typer::Visitor::Weaken(Type* current_type, Type* previous_type) {
+Type* Typer::Visitor::Weaken(Node* node, Type* current_type,
+                             Type* previous_type) {
+  static const double kWeakenMinLimits[] = {
+      0.0, -1073741824.0, -2147483648.0, -4294967296.0, -8589934592.0,
+      -17179869184.0, -34359738368.0, -68719476736.0, -137438953472.0,
+      -274877906944.0, -549755813888.0, -1099511627776.0, -2199023255552.0,
+      -4398046511104.0, -8796093022208.0, -17592186044416.0, -35184372088832.0,
+      -70368744177664.0, -140737488355328.0, -281474976710656.0,
+      -562949953421312.0};
+  static const double kWeakenMaxLimits[] = {
+      0.0, 1073741823.0, 2147483647.0, 4294967295.0, 8589934591.0,
+      17179869183.0, 34359738367.0, 68719476735.0, 137438953471.0,
+      274877906943.0, 549755813887.0, 1099511627775.0, 2199023255551.0,
+      4398046511103.0, 8796093022207.0, 17592186044415.0, 35184372088831.0,
+      70368744177663.0, 140737488355327.0, 281474976710655.0,
+      562949953421311.0};
+  STATIC_ASSERT(arraysize(kWeakenMinLimits) == arraysize(kWeakenMaxLimits));
+
   // If the types have nothing to do with integers, return the types.
-  if (!current_type->Maybe(typer_->integer) ||
-      !previous_type->Maybe(typer_->integer)) {
+  if (!previous_type->Maybe(typer_->integer)) {
     return current_type;
   }
+  DCHECK(current_type->Maybe(typer_->integer));
 
-  Type* previous_number =
+  Type* current_integer =
+      Type::Intersect(current_type, typer_->integer, zone());
+  Type* previous_integer =
       Type::Intersect(previous_type, typer_->integer, zone());
-  Type* current_number = Type::Intersect(current_type, typer_->integer, zone());
-  if (!current_number->IsRange() || !previous_number->IsRange()) {
-    return current_type;
+
+  // Once we start weakening a node, we should always weaken.
+  if (!IsWeakened(node->id())) {
+    // Only weaken if there is range involved; we should converge quickly
+    // for all other types (the exception is a union of many constants,
+    // but we currently do not increase the number of constants in unions).
+    Type::RangeType* previous = previous_integer->GetRange();
+    Type::RangeType* current = current_integer->GetRange();
+    if (current == nullptr || previous == nullptr) {
+      return current_type;
+    }
+    // Range is involved => we are weakening.
+    SetWeakened(node->id());
   }
 
-  Type::RangeType* previous = previous_number->AsRange();
-  Type::RangeType* current = current_number->AsRange();
-
-  double current_min = current->Min();
+  double current_min = current_integer->Min();
   double new_min = current_min;
   // Find the closest lower entry in the list of allowed
   // minima (or negative infinity if there is no such entry).
-  if (current_min != previous->Min()) {
+  if (current_min != previous_integer->Min()) {
     new_min = typer_->integer->AsRange()->Min();
-    for (const auto val : typer_->weaken_min_limits_) {
-      if (val <= current_min) {
-        new_min = val;
+    for (double const min : kWeakenMinLimits) {
+      if (min <= current_min) {
+        new_min = min;
         break;
       }
     }
   }
 
-  double current_max = current->Max();
+  double current_max = current_integer->Max();
   double new_max = current_max;
   // Find the closest greater entry in the list of allowed
   // maxima (or infinity if there is no such entry).
-  if (current_max != previous->Max()) {
+  if (current_max != previous_integer->Max()) {
     new_max = typer_->integer->AsRange()->Max();
-    for (const auto val : typer_->weaken_max_limits_) {
-      if (val >= current_max) {
-        new_max = val;
+    for (double const max : kWeakenMaxLimits) {
+      if (max >= current_max) {
+        new_max = max;
         break;
       }
     }
@@ -1506,6 +1530,23 @@ Bounds Typer::Visitor::TypeJSCallRuntime(Node* node) {
     case Runtime::kInlineIsFunction:
     case Runtime::kInlineIsRegExp:
       return Bounds(Type::None(zone()), Type::Boolean(zone()));
+    case Runtime::kInlineDoubleLo:
+    case Runtime::kInlineDoubleHi:
+      return Bounds(Type::None(zone()), Type::Signed32());
+    case Runtime::kInlineConstructDouble:
+    case Runtime::kInlineMathFloor:
+    case Runtime::kInlineMathSqrt:
+    case Runtime::kInlineMathAcos:
+    case Runtime::kInlineMathAsin:
+    case Runtime::kInlineMathAtan:
+    case Runtime::kInlineMathAtan2:
+      return Bounds(Type::None(zone()), Type::Number());
+    case Runtime::kInlineMathClz32:
+      return Bounds(Type::None(), Type::Range(0, 32, zone()));
+    case Runtime::kInlineStringGetLength:
+      // The string::length property is always an unsigned smi.
+      return Bounds(Type::None(), Type::Intersect(Type::UnsignedSmall(),
+                                                  Type::TaggedSigned()));
     default:
       break;
   }
@@ -1513,17 +1554,12 @@ Bounds Typer::Visitor::TypeJSCallRuntime(Node* node) {
 }
 
 
-Bounds Typer::Visitor::TypeJSDebugger(Node* node) {
+Bounds Typer::Visitor::TypeJSStackCheck(Node* node) {
   return Bounds::Unbounded(zone());
 }
 
 
 // Simplified operators.
-
-
-Bounds Typer::Visitor::TypeAnyToBoolean(Node* node) {
-  return TypeUnaryOp(node, ToBoolean);
-}
 
 
 Bounds Typer::Visitor::TypeBooleanNot(Node* node) {
@@ -1616,15 +1652,14 @@ Bounds Typer::Visitor::TypeStringAdd(Node* node) {
 }
 
 
-static Type* ChangeRepresentation(Type* type, Type* rep, Zone* zone) {
-  // TODO(neis): Enable when expressible.
-  /*
-  return Type::Union(
-      Type::Intersect(type, Type::Semantic(), zone),
-      Type::Intersect(rep, Type::Representation(), zone), zone);
-  */
-  return type;
+namespace {
+
+Type* ChangeRepresentation(Type* type, Type* rep, Zone* zone) {
+  return Type::Union(Type::Semantic(type, zone),
+                     Type::Representation(rep, zone), zone);
 }
+
+}  // namespace
 
 
 Bounds Typer::Visitor::TypeChangeTaggedToInt32(Node* node) {
@@ -1657,9 +1692,12 @@ Bounds Typer::Visitor::TypeChangeTaggedToFloat64(Node* node) {
 Bounds Typer::Visitor::TypeChangeInt32ToTagged(Node* node) {
   Bounds arg = Operand(node, 0);
   // TODO(neis): DCHECK(arg.upper->Is(Type::Signed32()));
-  return Bounds(
-      ChangeRepresentation(arg.lower, Type::Tagged(), zone()),
-      ChangeRepresentation(arg.upper, Type::Tagged(), zone()));
+  Type* lower_rep = arg.lower->Is(Type::SignedSmall()) ? Type::TaggedSigned()
+                                                       : Type::Tagged();
+  Type* upper_rep = arg.upper->Is(Type::SignedSmall()) ? Type::TaggedSigned()
+                                                       : Type::Tagged();
+  return Bounds(ChangeRepresentation(arg.lower, lower_rep, zone()),
+                ChangeRepresentation(arg.upper, upper_rep, zone()));
 }
 
 
@@ -1801,6 +1839,11 @@ Bounds Typer::Visitor::TypeWord32Ror(Node* node) {
 
 Bounds Typer::Visitor::TypeWord32Equal(Node* node) {
   return Bounds(Type::Boolean());
+}
+
+
+Bounds Typer::Visitor::TypeWord32Clz(Node* node) {
+  return Bounds(Type::Integral32());
 }
 
 
@@ -2052,6 +2095,16 @@ Bounds Typer::Visitor::TypeFloat64Mod(Node* node) {
 }
 
 
+Bounds Typer::Visitor::TypeFloat64Max(Node* node) {
+  return Bounds(Type::Number());
+}
+
+
+Bounds Typer::Visitor::TypeFloat64Min(Node* node) {
+  return Bounds(Type::Number());
+}
+
+
 Bounds Typer::Visitor::TypeFloat64Sqrt(Node* node) {
   return Bounds(Type::Number());
 }
@@ -2072,13 +2125,7 @@ Bounds Typer::Visitor::TypeFloat64LessThanOrEqual(Node* node) {
 }
 
 
-Bounds Typer::Visitor::TypeFloat64Floor(Node* node) {
-  // TODO(sigurds): We could have a tighter bound here.
-  return Bounds(Type::Number());
-}
-
-
-Bounds Typer::Visitor::TypeFloat64Ceil(Node* node) {
+Bounds Typer::Visitor::TypeFloat64RoundDown(Node* node) {
   // TODO(sigurds): We could have a tighter bound here.
   return Bounds(Type::Number());
 }
@@ -2092,6 +2139,26 @@ Bounds Typer::Visitor::TypeFloat64RoundTruncate(Node* node) {
 
 Bounds Typer::Visitor::TypeFloat64RoundTiesAway(Node* node) {
   // TODO(sigurds): We could have a tighter bound here.
+  return Bounds(Type::Number());
+}
+
+
+Bounds Typer::Visitor::TypeFloat64ExtractLowWord32(Node* node) {
+  return Bounds(Type::Signed32());
+}
+
+
+Bounds Typer::Visitor::TypeFloat64ExtractHighWord32(Node* node) {
+  return Bounds(Type::Signed32());
+}
+
+
+Bounds Typer::Visitor::TypeFloat64InsertLowWord32(Node* node) {
+  return Bounds(Type::Number());
+}
+
+
+Bounds Typer::Visitor::TypeFloat64InsertHighWord32(Node* node) {
   return Bounds(Type::Number());
 }
 

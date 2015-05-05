@@ -34,6 +34,7 @@ class FunctionTester : public InitializedHandleScope {
         flags_(flags) {
     Compile(function);
     const uint32_t supported_flags = CompilationInfo::kContextSpecializing |
+                                     CompilationInfo::kBuiltinInliningEnabled |
                                      CompilationInfo::kInliningEnabled |
                                      CompilationInfo::kTypingEnabled;
     CHECK_EQ(0u, flags_ & ~supported_flags);
@@ -60,7 +61,6 @@ class FunctionTester : public InitializedHandleScope {
     CHECK(isolate->has_pending_exception());
     CHECK(try_catch.HasCaught());
     CHECK(no_result.is_null());
-    // TODO(mstarzinger): Temporary workaround for issue chromium:362388.
     isolate->OptionalRescheduleException(true);
   }
 
@@ -71,10 +71,8 @@ class FunctionTester : public InitializedHandleScope {
     CHECK(isolate->has_pending_exception());
     CHECK(try_catch.HasCaught());
     CHECK(no_result.is_null());
-    // TODO(mstarzinger): Calling OptionalRescheduleException is a dirty hack,
-    // it's the only way to make Message() not to assert because an external
-    // exception has been caught by the try_catch.
     isolate->OptionalRescheduleException(true);
+    CHECK(!try_catch.Message().IsEmpty());
     return try_catch.Message();
   }
 
@@ -152,9 +150,11 @@ class FunctionTester : public InitializedHandleScope {
   Handle<JSFunction> Compile(Handle<JSFunction> function) {
 // TODO(titzer): make this method private.
 #if V8_TURBOFAN_TARGET
-    CompilationInfoWithZone info(function);
+    Zone zone;
+    ParseInfo parse_info(&zone, function);
+    CompilationInfo info(&parse_info);
 
-    CHECK(Parser::ParseStatic(&info));
+    CHECK(Parser::ParseStatic(info.parse_info()));
     info.SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
     if (flags_ & CompilationInfo::kContextSpecializing) {
       info.MarkAsContextSpecializing();
@@ -165,7 +165,7 @@ class FunctionTester : public InitializedHandleScope {
     if (flags_ & CompilationInfo::kTypingEnabled) {
       info.MarkAsTypingEnabled();
     }
-    CHECK(Compiler::Analyze(&info));
+    CHECK(Compiler::Analyze(info.parse_info()));
     CHECK(Compiler::EnsureDeoptimizationSupport(&info));
 
     Pipeline pipeline(&info);
@@ -208,12 +208,14 @@ class FunctionTester : public InitializedHandleScope {
   // and replace the JSFunction's code with the result.
   Handle<JSFunction> CompileGraph(Graph* graph) {
     CHECK(Pipeline::SupportedTarget());
-    CompilationInfoWithZone info(function);
+    Zone zone;
+    ParseInfo parse_info(&zone, function);
+    CompilationInfo info(&parse_info);
 
-    CHECK(Parser::ParseStatic(&info));
+    CHECK(Parser::ParseStatic(info.parse_info()));
     info.SetOptimizing(BailoutId::None(),
                        Handle<Code>(function->shared()->code()));
-    CHECK(Compiler::Analyze(&info));
+    CHECK(Compiler::Analyze(info.parse_info()));
     CHECK(Compiler::EnsureDeoptimizationSupport(&info));
 
     Handle<Code> code = Pipeline::GenerateCodeForTesting(&info, graph);

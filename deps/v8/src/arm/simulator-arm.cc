@@ -13,6 +13,7 @@
 #include "src/arm/constants-arm.h"
 #include "src/arm/simulator-arm.h"
 #include "src/assembler.h"
+#include "src/base/bits.h"
 #include "src/codegen.h"
 #include "src/disasm.h"
 
@@ -1506,7 +1507,7 @@ int32_t Simulator::GetShiftRm(Instruction* instr, bool* carry_out) {
 int32_t Simulator::GetImm(Instruction* instr, bool* carry_out) {
   int rotate = instr->RotateValue() * 2;
   int immed8 = instr->Immed8Value();
-  int imm = (immed8 >> rotate) | (immed8 << (32 - rotate));
+  int imm = base::bits::RotateRight32(immed8, rotate);
   *carry_out = (rotate == 0) ? c_flag_ : (imm < 0);
   return imm;
 }

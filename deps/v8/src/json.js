@@ -178,7 +178,7 @@ function JSONStringify(value, replacer, space) {
   }
   var gap;
   if (IS_NUMBER(space)) {
-    space = MathMax(0, MathMin(ToInteger(space), 10));
+    space = $max(0, $min(ToInteger(space), 10));
     gap = %_SubString("          ", 0, space);
   } else if (IS_STRING(space)) {
     if (space.length > 10) {

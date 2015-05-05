@@ -572,13 +572,13 @@ RUNTIME_FUNCTION(Runtime_MaxSmi) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_NumberToString) {
+RUNTIME_FUNCTION(Runtime_NumberToString) {
   SealHandleScope shs(isolate);
   return __RT_impl_Runtime_NumberToStringRT(args, isolate);
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_IsSmi) {
+RUNTIME_FUNCTION(Runtime_IsSmi) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_CHECKED(Object, obj, 0);
@@ -586,7 +586,7 @@ RUNTIME_FUNCTION(RuntimeReference_IsSmi) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_IsNonNegativeSmi) {
+RUNTIME_FUNCTION(Runtime_IsNonNegativeSmi) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_CHECKED(Object, obj, 0);

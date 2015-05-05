@@ -5,7 +5,6 @@
 #ifndef V8_COMPILER_ALL_NODES_H_
 #define V8_COMPILER_ALL_NODES_H_
 
-#include "src/compiler/graph.h"
 #include "src/compiler/node.h"
 #include "src/zone-containers.h"
 
@@ -17,25 +16,23 @@ namespace compiler {
 // from end.
 class AllNodes {
  public:
-  // Constructor. Traverses the graph and builds the {live} and {gray} sets.
+  // Constructor. Traverses the graph and builds the {live} sets.
   AllNodes(Zone* local_zone, const Graph* graph);
 
   bool IsLive(Node* node) {
-    return node != nullptr && node->id() < static_cast<int>(state.size()) &&
-           state[node->id()] == kLive;
+    if (!node) return false;
+    size_t id = node->id();
+    return id < is_live.size() && is_live[id];
   }
 
   NodeVector live;  // Nodes reachable from end.
-  NodeVector gray;  // Nodes themselves not reachable from end, but that
-                    // appear in use lists of live nodes.
 
  private:
-  enum State { kDead, kGray, kLive };
-
-  ZoneVector<State> state;
+  BoolVector is_live;
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_ALL_NODES_H_

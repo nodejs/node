@@ -45,18 +45,17 @@ STATIC_CONST_MEMBER_DEFINITION const int BinaryOpICState::LAST_TOKEN;
 
 
 BinaryOpICState::BinaryOpICState(Isolate* isolate, ExtraICState extra_ic_state)
-    : isolate_(isolate) {
+    : fixed_right_arg_(
+          HasFixedRightArgField::decode(extra_ic_state)
+              ? Just(1 << FixedRightArgValueField::decode(extra_ic_state))
+              : Nothing<int>()),
+      isolate_(isolate) {
   op_ =
       static_cast<Token::Value>(FIRST_TOKEN + OpField::decode(extra_ic_state));
-  fixed_right_arg_ =
-      Maybe<int>(HasFixedRightArgField::decode(extra_ic_state),
-                 1 << FixedRightArgValueField::decode(extra_ic_state));
   left_kind_ = LeftKindField::decode(extra_ic_state);
-  if (fixed_right_arg_.has_value) {
-    right_kind_ = Smi::IsValid(fixed_right_arg_.value) ? SMI : INT32;
-  } else {
-    right_kind_ = RightKindField::decode(extra_ic_state);
-  }
+  right_kind_ = fixed_right_arg_.IsJust()
+                    ? (Smi::IsValid(fixed_right_arg_.FromJust()) ? SMI : INT32)
+                    : RightKindField::decode(extra_ic_state);
   result_kind_ = ResultKindField::decode(extra_ic_state);
   DCHECK_LE(FIRST_TOKEN, op_);
   DCHECK_LE(op_, LAST_TOKEN);
@@ -67,10 +66,10 @@ ExtraICState BinaryOpICState::GetExtraICState() const {
   ExtraICState extra_ic_state =
       OpField::encode(op_ - FIRST_TOKEN) | LeftKindField::encode(left_kind_) |
       ResultKindField::encode(result_kind_) |
-      HasFixedRightArgField::encode(fixed_right_arg_.has_value);
-  if (fixed_right_arg_.has_value) {
+      HasFixedRightArgField::encode(fixed_right_arg_.IsJust());
+  if (fixed_right_arg_.IsJust()) {
     extra_ic_state = FixedRightArgValueField::update(
-        extra_ic_state, WhichPowerOf2(fixed_right_arg_.value));
+        extra_ic_state, WhichPowerOf2(fixed_right_arg_.FromJust()));
   } else {
     extra_ic_state = RightKindField::update(extra_ic_state, right_kind_);
   }
@@ -89,7 +88,7 @@ void BinaryOpICState::GenerateAheadOfTime(
   do {                                                   \
     BinaryOpICState state(isolate, op);                  \
     state.left_kind_ = left_kind;                        \
-    state.fixed_right_arg_.has_value = false;            \
+    state.fixed_right_arg_ = Nothing<int>();             \
     state.right_kind_ = right_kind;                      \
     state.result_kind_ = result_kind;                    \
     Generate(isolate, state);                            \
@@ -191,8 +190,7 @@ void BinaryOpICState::GenerateAheadOfTime(
   do {                                                              \
     BinaryOpICState state(isolate, op);                             \
     state.left_kind_ = left_kind;                                   \
-    state.fixed_right_arg_.has_value = true;                        \
-    state.fixed_right_arg_.value = fixed_right_arg_value;           \
+    state.fixed_right_arg_ = Just(fixed_right_arg_value);           \
     state.right_kind_ = SMI;                                        \
     state.result_kind_ = result_kind;                               \
     Generate(isolate, state);                                       \
@@ -225,8 +223,8 @@ std::ostream& operator<<(std::ostream& os, const BinaryOpICState& s) {
   os << "(" << Token::Name(s.op_);
   if (s.CouldCreateAllocationMementos()) os << "_CreateAllocationMementos";
   os << ":" << BinaryOpICState::KindToString(s.left_kind_) << "*";
-  if (s.fixed_right_arg_.has_value) {
-    os << s.fixed_right_arg_.value;
+  if (s.fixed_right_arg_.IsJust()) {
+    os << s.fixed_right_arg_.FromJust();
   } else {
     os << BinaryOpICState::KindToString(s.right_kind_);
   }
@@ -248,9 +246,9 @@ void BinaryOpICState::Update(Handle<Object> left, Handle<Object> right,
       base::bits::IsPowerOfTwo32(fixed_right_arg_value) &&
       FixedRightArgValueField::is_valid(WhichPowerOf2(fixed_right_arg_value)) &&
       (left_kind_ == SMI || left_kind_ == INT32) &&
-      (result_kind_ == NONE || !fixed_right_arg_.has_value);
-  fixed_right_arg_ = Maybe<int32_t>(has_fixed_right_arg, fixed_right_arg_value);
-
+      (result_kind_ == NONE || !fixed_right_arg_.IsJust());
+  fixed_right_arg_ =
+      has_fixed_right_arg ? Just(fixed_right_arg_value) : Nothing<int32_t>();
   result_kind_ = UpdateKind(result, result_kind_);
 
   if (!Token::IsTruncatingBinaryOp(op_)) {

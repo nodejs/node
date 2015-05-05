@@ -152,6 +152,7 @@ RUNTIME_FUNCTION(Runtime_DateToUTC) {
 RUNTIME_FUNCTION(Runtime_DateCacheVersion) {
   HandleScope hs(isolate);
   DCHECK(args.length() == 0);
+  if (isolate->serializer_enabled()) return isolate->heap()->undefined_value();
   if (!isolate->eternal_handles()->Exists(EternalHandles::DATE_CACHE_VERSION)) {
     Handle<FixedArray> date_cache_version =
         isolate->factory()->NewFixedArray(1, TENURED);
@@ -170,7 +171,7 @@ RUNTIME_FUNCTION(Runtime_DateCacheVersion) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_DateField) {
+RUNTIME_FUNCTION(Runtime_DateField) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 2);
   CONVERT_ARG_CHECKED(Object, obj, 0);

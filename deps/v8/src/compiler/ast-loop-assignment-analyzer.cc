@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/ast-loop-assignment-analyzer.h"
+#include "src/compiler.h"
 #include "src/parser.h"
 
 namespace v8 {

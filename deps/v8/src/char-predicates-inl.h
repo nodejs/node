@@ -35,6 +35,13 @@ inline bool IsInRange(int value, int lower_limit, int higher_limit) {
       static_cast<unsigned int>(higher_limit - lower_limit);
 }
 
+inline bool IsAsciiIdentifier(uc32 c) {
+  return IsAlphaNumeric(c) || c == '$' || c == '_';
+}
+
+inline bool IsAlphaNumeric(uc32 c) {
+  return IsInRange(AsciiAlphaToLower(c), 'a', 'z') || IsDecimalDigit(c);
+}
 
 inline bool IsDecimalDigit(uc32 c) {
   // ECMA-262, 3rd, 7.8.3 (p 16)

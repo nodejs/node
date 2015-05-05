@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/graph-inl.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/machine-operator.h"
@@ -68,7 +67,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
     Node* stack = graph.NewNode(common.StateValues(0));
 
     Node* state_node =
-        graph.NewNode(common.FrameState(JS_FRAME, BailoutId(0),
+        graph.NewNode(common.FrameState(JS_FRAME, BailoutId::None(),
                                         OutputFrameStateCombine::Ignore()),
                       parameters, locals, stack, context, UndefinedConstant());
 
@@ -114,8 +113,12 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
 
   Node* Binop(const Operator* op, Node* left, Node* right) {
     // JS binops also require context, effect, and control
-    if (OperatorProperties::HasFrameStateInput(op)) {
+    if (OperatorProperties::GetFrameStateInputCount(op) == 1) {
       return graph.NewNode(op, left, right, context(),
+                           EmptyFrameState(context()), start(), control());
+    } else if (OperatorProperties::GetFrameStateInputCount(op) == 2) {
+      return graph.NewNode(op, left, right, context(),
+                           EmptyFrameState(context()),
                            EmptyFrameState(context()), start(), control());
     } else {
       return graph.NewNode(op, left, right, context(), start(), control());
@@ -124,7 +127,8 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
 
   Node* Unop(const Operator* op, Node* input) {
     // JS unops also require context, effect, and control
-    if (OperatorProperties::HasFrameStateInput(op)) {
+    if (OperatorProperties::GetFrameStateInputCount(op) > 0) {
+      DCHECK(OperatorProperties::GetFrameStateInputCount(op) == 1);
       return graph.NewNode(op, input, context(), EmptyFrameState(context()),
                            start(), control());
     } else {
@@ -134,7 +138,10 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
 
   Node* UseForEffect(Node* node) {
     // TODO(titzer): use EffectPhi after fixing EffectCount
-    if (OperatorProperties::HasFrameStateInput(javascript.ToNumber())) {
+    if (OperatorProperties::GetFrameStateInputCount(javascript.ToNumber()) >
+        0) {
+      DCHECK(OperatorProperties::GetFrameStateInputCount(
+                 javascript.ToNumber()) == 1);
       return graph.NewNode(javascript.ToNumber(), node, context(),
                            EmptyFrameState(context()), node, control());
     } else {
@@ -500,42 +507,6 @@ TEST(JSToNumberOfNumberOrOtherPrimitive) {
 }
 
 
-TEST(JSToBoolean) {
-  JSTypedLoweringTester R;
-  const Operator* op = R.javascript.ToBoolean();
-
-  {  // ToBoolean(undefined)
-    Node* r = R.ReduceUnop(op, Type::Undefined());
-    R.CheckFalse(r);
-  }
-
-  {  // ToBoolean(null)
-    Node* r = R.ReduceUnop(op, Type::Null());
-    R.CheckFalse(r);
-  }
-
-  {  // ToBoolean(boolean)
-    Node* r = R.ReduceUnop(op, Type::Boolean());
-    CHECK_EQ(IrOpcode::kParameter, r->opcode());
-  }
-
-  {  // ToBoolean(object)
-    Node* r = R.ReduceUnop(op, Type::DetectableObject());
-    R.CheckTrue(r);
-  }
-
-  {  // ToBoolean(undetectable)
-    Node* r = R.ReduceUnop(op, Type::Undetectable());
-    R.CheckFalse(r);
-  }
-
-  {  // ToBoolean(object)
-    Node* r = R.ReduceUnop(op, Type::Object());
-    CHECK_EQ(IrOpcode::kAnyToBoolean, r->opcode());
-  }
-}
-
-
 TEST(JSToString1) {
   JSTypedLoweringTester R;
 
@@ -717,24 +688,6 @@ TEST(MixedComparison1) {
 }
 
 
-TEST(UnaryNot) {
-  JSTypedLoweringTester R;
-  const Operator* opnot = R.javascript.UnaryNot();
-
-  for (size_t i = 0; i < arraysize(kJSTypes); i++) {
-    Node* orig = R.Unop(opnot, R.Parameter(kJSTypes[i]));
-    Node* r = R.reduce(orig);
-
-    if (r == orig && orig->opcode() == IrOpcode::kJSToBoolean) {
-      // The original node was turned into a ToBoolean.
-      CHECK_EQ(IrOpcode::kJSToBoolean, r->opcode());
-    } else if (r->opcode() != IrOpcode::kHeapConstant) {
-      CHECK_EQ(IrOpcode::kBooleanNot, r->opcode());
-    }
-  }
-}
-
-
 TEST(RemoveToNumberEffects) {
   FLAG_turbo_deoptimization = true;
 
@@ -749,8 +702,9 @@ TEST(RemoveToNumberEffects) {
 
     switch (i) {
       case 0:
-        // TODO(jarin) Replace with a query of FLAG_turbo_deoptimization.
-        if (OperatorProperties::HasFrameStateInput(R.javascript.ToNumber())) {
+        if (FLAG_turbo_deoptimization) {
+          DCHECK(OperatorProperties::GetFrameStateInputCount(
+                     R.javascript.ToNumber()) == 1);
           effect_use = R.graph.NewNode(R.javascript.ToNumber(), p0, R.context(),
                                        frame_state, ton, R.start());
         } else {
@@ -759,8 +713,9 @@ TEST(RemoveToNumberEffects) {
         }
         break;
       case 1:
-        // TODO(jarin) Replace with a query of FLAG_turbo_deoptimization.
-        if (OperatorProperties::HasFrameStateInput(R.javascript.ToNumber())) {
+        if (FLAG_turbo_deoptimization) {
+          DCHECK(OperatorProperties::GetFrameStateInputCount(
+                     R.javascript.ToNumber()) == 1);
           effect_use =
               R.graph.NewNode(R.javascript.ToNumber(), ton, R.context(),
                               frame_state, ton, R.start());
@@ -773,11 +728,11 @@ TEST(RemoveToNumberEffects) {
         effect_use = R.graph.NewNode(R.common.EffectPhi(1), ton, R.start());
       case 3:
         effect_use = R.graph.NewNode(R.javascript.Add(), ton, ton, R.context(),
-                                     frame_state, ton, R.start());
+                                     frame_state, frame_state, ton, R.start());
         break;
       case 4:
         effect_use = R.graph.NewNode(R.javascript.Add(), p0, p0, R.context(),
-                                     frame_state, ton, R.start());
+                                     frame_state, frame_state, ton, R.start());
         break;
       case 5:
         effect_use = R.graph.NewNode(R.common.Return(), p0, ton, R.start());

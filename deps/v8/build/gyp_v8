@@ -31,6 +31,7 @@
 # is invoked by V8 beyond what can be done in the gclient hooks.
 
 import glob
+import gyp_environment
 import os
 import platform
 import shlex
@@ -46,34 +47,6 @@ import gyp
 # Add paths so that pymod_do_main(...) can import files.
 sys.path.insert(
     1, os.path.abspath(os.path.join(v8_root, 'tools', 'generate_shim_headers')))
-
-
-def apply_gyp_environment(file_path=None):
-  """
-  Reads in a *.gyp_env file and applies the valid keys to os.environ.
-  """
-  if not file_path or not os.path.exists(file_path):
-    return
-  file_contents = open(file_path).read()
-  try:
-    file_data = eval(file_contents, {'__builtins__': None}, None)
-  except SyntaxError, e:
-    e.filename = os.path.abspath(file_path)
-    raise
-  supported_vars = ( 'V8_GYP_FILE',
-                     'V8_GYP_SYNTAX_CHECK',
-                     'GYP_DEFINES',
-                     'GYP_GENERATOR_FLAGS',
-                     'GYP_GENERATOR_OUTPUT', )
-  for var in supported_vars:
-    val = file_data.get(var)
-    if val:
-      if var in os.environ:
-        print 'INFO: Environment value for "%s" overrides value in %s.' % (
-            var, os.path.abspath(file_path)
-        )
-      else:
-        os.environ[var] = val
 
 
 def additional_include_files(args=[]):
@@ -109,13 +82,6 @@ def additional_include_files(args=[]):
 def run_gyp(args):
   rc = gyp.main(args)
 
-  # Check for landmines (reasons to clobber the build). This must be run here,
-  # rather than a separate runhooks step so that any environment modifications
-  # from above are picked up.
-  print 'Running build/landmines.py...'
-  subprocess.check_call(
-      [sys.executable, os.path.join(script_dir, 'landmines.py')])
-
   if rc != 0:
     print 'Error running GYP'
     sys.exit(rc)
@@ -124,10 +90,7 @@ def run_gyp(args):
 if __name__ == '__main__':
   args = sys.argv[1:]
 
-  if 'SKIP_V8_GYP_ENV' not in os.environ:
-    # Update the environment based on v8.gyp_env
-    gyp_env_path = os.path.join(os.path.dirname(v8_root), 'v8.gyp_env')
-    apply_gyp_environment(gyp_env_path)
+  gyp_environment.set_environment()
 
   # This could give false positives since it doesn't actually do real option
   # parsing.  Oh well.

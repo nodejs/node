@@ -37,7 +37,6 @@
 #include "src/execution.h"
 #include "src/isolate.h"
 #include "src/parser.h"
-#include "src/snapshot.h"
 #include "src/unicode-inl.h"
 #include "src/utils.h"
 #include "test/cctest/cctest.h"

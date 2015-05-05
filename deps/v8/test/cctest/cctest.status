@@ -64,9 +64,6 @@
   # are actually 13 * 38 * 5 * 128 = 316160 individual tests hidden here.
   'test-parsing/ParserSync': [PASS, NO_VARIANTS],
 
-  # Modules are busted
-  'test-parsing/ExportsMaybeAssigned': [SKIP],
-
   # This tests only the type system, so there is no point in running several
   # variants.
   'test-hydrogen-types/*': [PASS, NO_VARIANTS],
@@ -75,12 +72,24 @@
   # The cpu profiler tests are notoriously flaky.
   # BUG(2999). (test/cpu-profiler/CollectCpuProfile)
   # BUG(3287). (test-cpu-profiler/SampleWhenFrameIsNotSetup)
-  'test-cpu-profiler/*': [PASS, FLAKY],
-  'test-cpu-profiler/*': [SKIP],
+  'test-cpu-profiler/CollectCpuProfile': [SKIP],
+  'test-cpu-profiler/CollectCpuProfileSamples': [SKIP],
+  'test-cpu-profiler/FunctionApplySample': [SKIP],
+  'test-cpu-profiler/FunctionCallSample': [SKIP],
+  'test-cpu-profiler/SampleWhenFrameIsNotSetup': [SKIP],
+  'test-cpu-profiler/HotDeoptNoFrameEntry': [SKIP],
+  'test-cpu-profiler/BoundFunctionCall': [SKIP],
+  'test-cpu-profiler/CpuProfileDeepStack': [SKIP],
+  'test-cpu-profiler/JsNativeJsSample': [SKIP],
+  'test-cpu-profiler/JsNativeJsRuntimeJsSample': [SKIP],
+  'test-cpu-profiler/JsNative1JsNative2JsSample': [SKIP],
 
   # BUG(3525). Test crashes flakily.
   'test-debug/RecursiveBreakpoints': [PASS, FLAKY],
   'test-debug/RecursiveBreakpointsGlobal': [PASS, FLAKY],
+
+  # Fails sometimes.
+  'test-debug/ProcessDebugMessagesThreaded': [PASS, FLAKY],
 
   ##############################################################################
   # TurboFan compiler failures.
@@ -94,13 +103,14 @@
   # BUG(3742).
   'test-mark-compact/MarkCompactCollector': [PASS, ['arch==arm', NO_VARIANTS]],
 
-  # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
-  'test-debug/DebugStepNatives': [PASS, NO_VARIANTS],
-  'test-debug/DebugStepFunctionApply': [PASS, NO_VARIANTS],
-  'test-debug/DebugStepFunctionCall': [PASS, NO_VARIANTS],
+  # TODO(jarin): Cannot lazy-deoptimize from conversions before comparisons.
+  'test-js-typed-lowering/OrderCompareEffects': [SKIP],
 
   # TODO(jochen): Reenable after we removed the CHECK() from the marking queue.
   'test-mark-compact/MarkingDeque': [SKIP],
+
+  'test-heap/TestInternalWeakLists': [PASS, ['arch==arm', NO_VARIANTS]],
+  'test-heap/TestInternalWeakListsTraverseWithGC': [PASS, ['arch==arm', NO_VARIANTS]],
 
   ############################################################################
   # Slow tests.
@@ -114,14 +124,13 @@
 ##############################################################################
 ['arch == arm64', {
 
+  'test-cpu-profiler/CollectDeoptEvents': [PASS, FAIL],
+
   'test-api/Bug618': [PASS],
 
   # BUG(v8:3385).
   'test-serialize/DeserializeFromSecondSerialization': [PASS, FAIL],
   'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [PASS, FAIL],
-
-  # BUG(v8:2999).
-  'test-cpu-profiler/CollectCpuProfile': [PASS, FAIL],
 
   # BUG(v8:3154).
   'test-heap/ReleaseOverReservedPages': [PASS, FAIL],
@@ -180,17 +189,11 @@
 ##############################################################################
 ['system == windows', {
 
-  # BUG(2999).
-  'test-cpu-profiler/CollectCpuProfile': [PASS, FAIL],
-
   # BUG(3005).
   'test-alloc/CodeRange': [PASS, FAIL],
 
   # BUG(3331). Fails on windows.
   'test-heap/NoWeakHashTableLeakWithIncrementalMarking': [SKIP],
-
-  # BUG(v8:3433). Crashes on windows.
-  'test-cpu-profiler/FunctionApplySample': [SKIP],
 
 }],  # 'system == windows'
 
@@ -205,6 +208,8 @@
 
 ##############################################################################
 ['arch == arm', {
+
+  'test-cpu-profiler/CollectDeoptEvents': [PASS, FAIL],
 
   # BUG(355): Test crashes on ARM.
   'test-log/ProfLazyMode': [SKIP],
@@ -229,20 +234,13 @@
 
 ##############################################################################
 ['arch == mipsel or arch == mips', {
-
-  # BUG(2657): Test sometimes times out on MIPS simulator.
-  'test-thread-termination/TerminateMultipleV8ThreadsDefaultIsolate': [PASS, TIMEOUT],
+  'test-cpu-profiler/CollectDeoptEvents': [PASS, FAIL],
 
   # BUG(1075): Unresolved crashes on MIPS also.
   'test-serialize/Deserialize': [SKIP],
   'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
   'test-serialize/DeserializeAndRunScript2': [SKIP],
   'test-serialize/DeserializeFromSecondSerialization': [SKIP],
-
-  # Test requires turbofan:
-  'test-simplified-lowering/LowerStringOps_to_call_and_compare': [SKIP],
-  'codegen-tester/CompareWrapper': [SKIP],
-  'codegen-tester/ParametersEqual': [SKIP],
 }],  # 'arch == mipsel or arch == mips'
 
 ##############################################################################
@@ -260,9 +258,7 @@
 
 ##############################################################################
 ['arch == mips64el', {
-
-  # BUG(2657): Test sometimes times out on MIPS simulator.
-  'test-thread-termination/TerminateMultipleV8ThreadsDefaultIsolate': [PASS, TIMEOUT],
+  'test-cpu-profiler/CollectDeoptEvents': [PASS, FAIL],
 
   # BUG(v8:3154).
   'test-heap/ReleaseOverReservedPages': [PASS, FAIL],
@@ -272,11 +268,6 @@
   'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
   'test-serialize/DeserializeAndRunScript2': [SKIP],
   'test-serialize/DeserializeFromSecondSerialization': [SKIP],
-
-  # Test requires turbofan:
-  'test-simplified-lowering/LowerStringOps_to_call_and_compare': [SKIP],
-  'codegen-tester/CompareWrapper': [SKIP],
-  'codegen-tester/ParametersEqual': [SKIP],
 }],  # 'arch == mips64el'
 
 ##############################################################################
@@ -286,6 +277,7 @@
   'codegen-tester/CompareWrapper': [SKIP],
   'codegen-tester/ParametersEqual': [SKIP],
   'test-simplified-lowering/LowerStringOps_to_call_and_compare': [SKIP],
+  'test-serialize/SerializeInternalReference': [FAIL],
 }],  # 'arch == x87'
 
 ##############################################################################
@@ -402,8 +394,13 @@
 
 }],  # 'arch == nacl_ia32 or arch == nacl_x64'
 
-['arch == ppc64', {
-  #issue 2857
-  'test-log/EquivalenceOfLoggingAndTraversal' : [SKIP],
-}],  # 'arch == ppc64'
+##############################################################################
+['arch == ppc and simulator_run == True or arch == ppc64 and simulator_run == True', {
+
+  # Pass but take too long with the simulator.
+  'test-api/Threading1': [PASS, SLOW],
+  'test-api/Threading2': [PASS, SLOW],
+  'test-api/ExternalArrays': [PASS, SLOW],
+
+}],  # 'arch == ppc64 and simulator_run == True'
 ]

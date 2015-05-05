@@ -148,15 +148,28 @@ inline uint32_t RoundDownToPowerOfTwo32(uint32_t value) {
 }
 
 
+// Precondition: 0 <= shift < 32
 inline uint32_t RotateRight32(uint32_t value, uint32_t shift) {
   if (shift == 0) return value;
   return (value >> shift) | (value << (32 - shift));
 }
 
+// Precondition: 0 <= shift < 32
+inline uint32_t RotateLeft32(uint32_t value, uint32_t shift) {
+  if (shift == 0) return value;
+  return (value << shift) | (value >> (32 - shift));
+}
 
+// Precondition: 0 <= shift < 64
 inline uint64_t RotateRight64(uint64_t value, uint64_t shift) {
   if (shift == 0) return value;
   return (value >> shift) | (value << (64 - shift));
+}
+
+// Precondition: 0 <= shift < 64
+inline uint64_t RotateLeft64(uint64_t value, uint64_t shift) {
+  if (shift == 0) return value;
+  return (value << shift) | (value >> (64 - shift));
 }
 
 

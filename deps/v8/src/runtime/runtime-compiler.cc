@@ -47,7 +47,6 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   CONVERT_BOOLEAN_ARG_CHECKED(concurrent, 1);
-  DCHECK(isolate->use_crankshaft());
 
   Compiler::ConcurrencyMode mode =
       concurrent ? Compiler::CONCURRENT : Compiler::NOT_CONCURRENT;

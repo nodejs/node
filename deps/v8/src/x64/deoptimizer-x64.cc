@@ -134,7 +134,7 @@ bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
 
 #define __ masm()->
 
-void Deoptimizer::EntryGenerator::Generate() {
+void Deoptimizer::TableEntryGenerator::Generate() {
   GeneratePrologue();
 
   // Save all general purpose registers before messing with them.
@@ -307,7 +307,6 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Set up the roots register.
   __ InitializeRootRegister();
-  __ InitializeSmiConstantRegister();
 
   // Return to the continuation point.
   __ ret(0);

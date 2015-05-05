@@ -40,6 +40,7 @@ namespace compiler {
   V(ArchLookupSwitch)       \
   V(ArchTableSwitch)        \
   V(ArchNop)                \
+  V(ArchDeoptimize)         \
   V(ArchRet)                \
   V(ArchStackPointer)       \
   V(ArchTruncateDoubleToI)  \

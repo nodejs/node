@@ -230,6 +230,14 @@ bool IC::AddressIsOptimizedCode() const {
 }
 
 
+bool IC::AddressIsDeoptimizedCode() const {
+  Code* host =
+      isolate()->inner_pointer_to_code_cache()->GetCacheEntry(address())->code;
+  return host->kind() == Code::OPTIMIZED_FUNCTION &&
+         host->marked_for_deoptimization();
+}
+
+
 static void LookupForRead(LookupIterator* it) {
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
@@ -249,12 +257,12 @@ static void LookupForRead(LookupIterator* it) {
       case LookupIterator::ACCESS_CHECK:
         // PropertyHandlerCompiler::CheckPrototypes() knows how to emit
         // access checks for global proxies.
-        if (it->GetHolder<JSObject>()->IsJSGlobalProxy() &&
-            it->HasAccess(v8::ACCESS_GET)) {
+        if (it->GetHolder<JSObject>()->IsJSGlobalProxy() && it->HasAccess()) {
           break;
         }
         return;
       case LookupIterator::ACCESSOR:
+      case LookupIterator::INTEGER_INDEXED_EXOTIC:
       case LookupIterator::DATA:
         return;
     }
@@ -308,8 +316,7 @@ bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
     LookupIterator it(global, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
     if (it.state() == LookupIterator::ACCESS_CHECK) return false;
     if (!it.IsFound()) return false;
-    Handle<PropertyCell> cell = it.GetPropertyCell();
-    return cell->type()->IsConstant();
+    return it.property_details().cell_type() == PropertyCellType::kConstant;
   }
 
   return true;
@@ -714,7 +721,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
 
   bool use_ic = MigrateDeprecated(object) ? false : FLAG_use_ic;
 
-  if (FLAG_harmony_scoping && object->IsGlobalObject() && name->IsString()) {
+  if (object->IsGlobalObject() && name->IsString()) {
     // Look up in script context table.
     Handle<String> str_name = Handle<String>::cast(name);
     Handle<GlobalObject> global = Handle<GlobalObject>::cast(object);
@@ -942,12 +949,48 @@ Handle<Code> LoadIC::initialize_stub(Isolate* isolate,
 }
 
 
-Handle<Code> LoadIC::initialize_stub_in_optimized_code(
-    Isolate* isolate, ExtraICState extra_state) {
-  if (FLAG_vector_ics) {
-    return VectorLoadStub(isolate, LoadICState(extra_state)).GetCode();
+Handle<Code> LoadIC::load_global(Isolate* isolate, Handle<GlobalObject> global,
+                                 Handle<String> name) {
+  // This special IC doesn't work with vector ics.
+  DCHECK(!FLAG_vector_ics);
+
+  Handle<ScriptContextTable> script_contexts(
+      global->native_context()->script_context_table());
+
+  ScriptContextTable::LookupResult lookup_result;
+  if (ScriptContextTable::Lookup(script_contexts, name, &lookup_result)) {
+    return initialize_stub(isolate, LoadICState(CONTEXTUAL).GetExtraICState());
   }
-  return initialize_stub(isolate, extra_state);
+
+  Handle<Map> global_map(global->map());
+  Handle<Code> handler = PropertyHandlerCompiler::Find(
+      name, global_map, Code::LOAD_IC, kCacheOnReceiver, Code::NORMAL);
+  if (handler.is_null()) {
+    LookupIterator it(global, name);
+    if (!it.IsFound() || !it.GetHolder<JSObject>().is_identical_to(global) ||
+        it.state() != LookupIterator::DATA) {
+      return initialize_stub(isolate,
+                             LoadICState(CONTEXTUAL).GetExtraICState());
+    }
+    NamedLoadHandlerCompiler compiler(isolate, global_map, global,
+                                      kCacheOnReceiver);
+    Handle<PropertyCell> cell = it.GetPropertyCell();
+    handler = compiler.CompileLoadGlobal(cell, name, it.IsConfigurable());
+    Map::UpdateCodeCache(global_map, name, handler);
+  }
+  return PropertyICCompiler::ComputeMonomorphic(
+      Code::LOAD_IC, name, handle(global->map()), handler,
+      LoadICState(CONTEXTUAL).GetExtraICState());
+}
+
+
+Handle<Code> LoadIC::initialize_stub_in_optimized_code(
+    Isolate* isolate, ExtraICState extra_state, State initialization_state) {
+  if (FLAG_vector_ics) {
+    return VectorRawLoadStub(isolate, LoadICState(extra_state)).GetCode();
+  }
+  return PropertyICCompiler::ComputeLoad(isolate, initialization_state,
+                                         extra_state);
 }
 
 
@@ -960,11 +1003,45 @@ Handle<Code> KeyedLoadIC::initialize_stub(Isolate* isolate) {
 }
 
 
-Handle<Code> KeyedLoadIC::initialize_stub_in_optimized_code(Isolate* isolate) {
+Handle<Code> KeyedLoadIC::initialize_stub_in_optimized_code(
+    Isolate* isolate, State initialization_state) {
   if (FLAG_vector_ics) {
-    return VectorKeyedLoadStub(isolate).GetCode();
+    return VectorRawKeyedLoadStub(isolate).GetCode();
   }
-  return initialize_stub(isolate);
+  switch (initialization_state) {
+    case UNINITIALIZED:
+      return isolate->builtins()->KeyedLoadIC_Initialize();
+    case PREMONOMORPHIC:
+      return isolate->builtins()->KeyedLoadIC_PreMonomorphic();
+    case MEGAMORPHIC:
+      return isolate->builtins()->KeyedLoadIC_Megamorphic();
+    default:
+      UNREACHABLE();
+  }
+  return Handle<Code>();
+}
+
+
+Handle<Code> KeyedStoreIC::initialize_stub(Isolate* isolate,
+                                           LanguageMode language_mode,
+                                           State initialization_state) {
+  switch (initialization_state) {
+    case UNINITIALIZED:
+      return is_strict(language_mode)
+                 ? isolate->builtins()->KeyedStoreIC_Initialize_Strict()
+                 : isolate->builtins()->KeyedStoreIC_Initialize();
+    case PREMONOMORPHIC:
+      return is_strict(language_mode)
+                 ? isolate->builtins()->KeyedStoreIC_PreMonomorphic_Strict()
+                 : isolate->builtins()->KeyedStoreIC_PreMonomorphic();
+    case MEGAMORPHIC:
+      return is_strict(language_mode)
+                 ? isolate->builtins()->KeyedStoreIC_Megamorphic_Strict()
+                 : isolate->builtins()->KeyedStoreIC_Megamorphic();
+    default:
+      UNREACHABLE();
+  }
+  return Handle<Code>();
 }
 
 
@@ -1239,6 +1316,8 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
                                           lookup->GetConstantIndex());
     }
 
+    case LookupIterator::INTEGER_INDEXED_EXOTIC:
+      return slow_stub();
     case LookupIterator::ACCESS_CHECK:
     case LookupIterator::JSPROXY:
     case LookupIterator::NOT_FOUND:
@@ -1429,6 +1508,8 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
         break;
       case LookupIterator::ACCESSOR:
         return !it->IsReadOnly();
+      case LookupIterator::INTEGER_INDEXED_EXOTIC:
+        return false;
       case LookupIterator::DATA: {
         if (it->IsReadOnly()) return false;
         Handle<JSObject> holder = it->GetHolder<JSObject>();
@@ -1453,7 +1534,6 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
     }
   }
 
-  if (it->IsSpecialNumericIndex()) return false;
   it->PrepareTransitionToDataProperty(value, NONE, store_mode);
   return it->IsCacheableTransition();
 }
@@ -1462,7 +1542,7 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
 MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
                                    Handle<Object> value,
                                    JSReceiver::StoreFromKeyed store_mode) {
-  if (FLAG_harmony_scoping && object->IsGlobalObject() && name->IsString()) {
+  if (object->IsGlobalObject() && name->IsString()) {
     // Look up in script context table.
     Handle<String> str_name = Handle<String>::cast(name);
     Handle<GlobalObject> global = Handle<GlobalObject>::cast(object);
@@ -1474,7 +1554,16 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
       Handle<Context> script_context = ScriptContextTable::GetContext(
           script_contexts, lookup_result.context_index);
       if (lookup_result.mode == CONST) {
-        return TypeError("harmony_const_assign", object, name);
+        return TypeError("const_assign", object, name);
+      }
+
+      Handle<Object> previous_value =
+          FixedArray::get(script_context, lookup_result.slot_index);
+
+      if (*previous_value == *isolate()->factory()->the_hole_value()) {
+        // Do not install stubs and stay pre-monomorphic for
+        // uninitialized accesses.
+        return ReferenceError("not_defined", name);
       }
 
       if (FLAG_use_ic &&
@@ -1560,10 +1649,14 @@ Handle<Code> CallIC::initialize_stub_in_optimized_code(
 
 
 Handle<Code> StoreIC::initialize_stub(Isolate* isolate,
-                                      LanguageMode language_mode) {
+                                      LanguageMode language_mode,
+                                      State initialization_state) {
+  DCHECK(initialization_state == UNINITIALIZED ||
+         initialization_state == PREMONOMORPHIC ||
+         initialization_state == MEGAMORPHIC);
   ExtraICState extra_state = ComputeExtraICState(language_mode);
-  Handle<Code> ic =
-      PropertyICCompiler::ComputeStore(isolate, UNINITIALIZED, extra_state);
+  Handle<Code> ic = PropertyICCompiler::ComputeStore(
+      isolate, initialization_state, extra_state);
   return ic;
 }
 
@@ -1623,9 +1716,8 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
 
 static Handle<Code> PropertyCellStoreHandler(
     Isolate* isolate, Handle<JSObject> receiver, Handle<GlobalObject> holder,
-    Handle<Name> name, Handle<PropertyCell> cell, Handle<Object> value) {
-  auto union_type = PropertyCell::UpdatedType(cell, value);
-  StoreGlobalStub stub(isolate, union_type->IsConstant(),
+    Handle<Name> name, Handle<PropertyCell> cell, PropertyCellType type) {
+  StoreGlobalStub stub(isolate, type == PropertyCellType::kConstant,
                        receiver->IsJSGlobalProxy());
   auto code = stub.GetCodeCopyFromTemplate(holder, cell);
   // TODO(verwaest): Move caching of these NORMAL stubs outside as well.
@@ -1648,10 +1740,14 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
     case LookupIterator::TRANSITION: {
       auto store_target = lookup->GetStoreTarget();
       if (store_target->IsGlobalObject()) {
-        auto cell = lookup->GetTransitionPropertyCell();
-        return PropertyCellStoreHandler(
+        // TODO(dcarney): this currently just deopts. Use the transition cell.
+        auto cell = isolate()->factory()->NewPropertyCell();
+        cell->set_value(*value);
+        auto code = PropertyCellStoreHandler(
             isolate(), store_target, Handle<GlobalObject>::cast(store_target),
-            lookup->name(), cell, value);
+            lookup->name(), cell, PropertyCellType::kConstant);
+        cell->set_value(isolate()->heap()->the_hole_value());
+        return code;
       }
       Handle<Map> transition = lookup->transition_map();
       // Currently not handled by CompileStoreTransition.
@@ -1722,9 +1818,11 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
           DCHECK(holder.is_identical_to(receiver) ||
                  receiver->map()->prototype() == *holder);
           auto cell = lookup->GetPropertyCell();
+          auto union_type = PropertyCell::UpdatedType(
+              cell, value, lookup->property_details());
           return PropertyCellStoreHandler(isolate(), receiver,
                                           Handle<GlobalObject>::cast(holder),
-                                          lookup->name(), cell, value);
+                                          lookup->name(), cell, union_type);
         }
         DCHECK(holder.is_identical_to(receiver));
         return isolate()->builtins()->StoreIC_Normal();
@@ -1754,6 +1852,7 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
       break;
     }
 
+    case LookupIterator::INTEGER_INDEXED_EXOTIC:
     case LookupIterator::ACCESS_CHECK:
     case LookupIterator::JSPROXY:
     case LookupIterator::NOT_FOUND:
@@ -2100,7 +2199,9 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
     TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "slow stub");
   }
   DCHECK(!stub.is_null());
-  set_target(*stub);
+  if (!AddressIsDeoptimizedCode()) {
+    set_target(*stub);
+  }
   TRACE_IC("StoreIC", key);
 
   return store_handle;
@@ -2477,9 +2578,17 @@ MaybeHandle<Object> BinaryOpIC::Transition(
       isolate(), result, Execution::Call(isolate(), function, left, 1, &right),
       Object);
 
+  // Do not try to update the target if the code was marked for lazy
+  // deoptimization. (Since we do not relocate addresses in these
+  // code objects, an attempt to access the target could fail.)
+  if (AddressIsDeoptimizedCode()) {
+    return result;
+  }
+
   // Execution::Call can execute arbitrary JavaScript, hence potentially
   // update the state of this very IC, so we must update the stored state.
   UpdateTarget();
+
   // Compute the new state.
   BinaryOpICState old_state(isolate(), target()->extra_ic_state());
   state.Update(left, right, result);
@@ -2805,30 +2914,10 @@ RUNTIME_FUNCTION(LoadPropertyWithInterceptorOnly) {
   Handle<JSObject> holder =
       args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex);
   HandleScope scope(isolate);
-  Handle<InterceptorInfo> interceptor_info(holder->GetNamedInterceptor());
-
-  if (name->IsSymbol() && !interceptor_info->can_intercept_symbols())
-    return isolate->heap()->no_interceptor_result_sentinel();
-
-  Address getter_address = v8::ToCData<Address>(interceptor_info->getter());
-  v8::GenericNamedPropertyGetterCallback getter =
-      FUNCTION_CAST<v8::GenericNamedPropertyGetterCallback>(getter_address);
-  DCHECK(getter != NULL);
-
-  PropertyCallbackArguments callback_args(isolate, interceptor_info->data(),
-                                          *receiver, *holder);
-  {
-    // Use the interceptor getter.
-    v8::Handle<v8::Value> r =
-        callback_args.Call(getter, v8::Utils::ToLocal(name));
-    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-    if (!r.IsEmpty()) {
-      Handle<Object> result = v8::Utils::OpenHandle(*r);
-      result->VerifyApiCallResultType();
-      return *v8::Utils::OpenHandle(*r);
-    }
-  }
-
+  auto res = JSObject::GetPropertyWithInterceptor(holder, receiver, name);
+  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+  Handle<Object> result;
+  if (res.ToHandle(&result)) return *result;
   return isolate->heap()->no_interceptor_result_sentinel();
 }
 

@@ -995,9 +995,6 @@ class LiteralFixer {
                             Handle<SharedFunctionInfo> shared_info,
                             Isolate* isolate) {
     int new_literal_count = compile_info_wrapper->GetLiteralCount();
-    if (new_literal_count > 0) {
-      new_literal_count += JSFunction::kLiteralsPrefixSize;
-    }
     int old_literal_count = shared_info->num_literals();
 
     if (old_literal_count == new_literal_count) {
@@ -1013,21 +1010,8 @@ class LiteralFixer {
           CollectJSFunctions(shared_info, isolate);
       for (int i = 0; i < function_instances->length(); i++) {
         Handle<JSFunction> fun(JSFunction::cast(function_instances->get(i)));
-        Handle<FixedArray> old_literals(fun->literals());
         Handle<FixedArray> new_literals =
             isolate->factory()->NewFixedArray(new_literal_count);
-        if (new_literal_count > 0) {
-          Handle<Context> native_context;
-          if (old_literals->length() >
-              JSFunction::kLiteralNativeContextIndex) {
-            native_context = Handle<Context>(
-                JSFunction::NativeContextFromLiterals(fun->literals()));
-          } else {
-            native_context = Handle<Context>(fun->context()->native_context());
-          }
-          new_literals->set(JSFunction::kLiteralNativeContextIndex,
-              *native_context);
-        }
         fun->set_literals(*new_literals);
       }
 
@@ -1075,7 +1059,7 @@ class LiteralFixer {
     void visit(JSFunction* fun) {
       FixedArray* literals = fun->literals();
       int len = literals->length();
-      for (int j = JSFunction::kLiteralsPrefixSize; j < len; j++) {
+      for (int j = 0; j < len; j++) {
         literals->set_undefined(j);
       }
     }

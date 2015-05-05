@@ -25,8 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --turbo-deoptimization --noharmony-scoping
-// Flags: --noharmony-classes --noharmony-object-literals
+// Flags: --turbo-deoptimization
 
 function CheckStrictMode(code, exception) {
   assertDoesNotThrow(code);
@@ -286,19 +285,6 @@ CheckStrictMode("function strict() { print(--eval); }", SyntaxError);
 CheckStrictMode("function strict() { print(--arguments); }", SyntaxError);
 CheckStrictMode("function strict() { var x = --eval; }", SyntaxError);
 CheckStrictMode("function strict() { var x = --arguments; }", SyntaxError);
-
-// Use of const in strict mode is disallowed in anticipation of ES Harmony.
-CheckStrictMode("const x = 0;", SyntaxError);
-CheckStrictMode("for (const x = 0; false;) {}", SyntaxError);
-CheckStrictMode("function strict() { const x = 0; }", SyntaxError);
-
-// Strict mode only allows functions in StatementList
-CheckStrictMode("if (true) { function invalid() {} }", SyntaxError);
-CheckStrictMode("for (;false;) { function invalid() {} }", SyntaxError);
-CheckStrictMode("{ function invalid() {} }", SyntaxError);
-CheckStrictMode("try { function invalid() {} } catch(e) {}", SyntaxError);
-CheckStrictMode("try { } catch(e) { function invalid() {} }", SyntaxError);
-CheckStrictMode("function outer() {{ function invalid() {} }}", SyntaxError);
 
 // Delete of an unqualified identifier
 CheckStrictMode("delete unqualified;", SyntaxError);

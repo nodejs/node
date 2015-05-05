@@ -30,26 +30,34 @@ namespace compiler {
   V(IA32Shr)                       \
   V(IA32Sar)                       \
   V(IA32Ror)                       \
+  V(IA32Lzcnt)                     \
   V(SSEFloat64Cmp)                 \
   V(SSEFloat64Add)                 \
   V(SSEFloat64Sub)                 \
   V(SSEFloat64Mul)                 \
   V(SSEFloat64Div)                 \
   V(SSEFloat64Mod)                 \
+  V(SSEFloat64Max)                 \
+  V(SSEFloat64Min)                 \
   V(SSEFloat64Sqrt)                \
-  V(SSEFloat64Floor)               \
-  V(SSEFloat64Ceil)                \
-  V(SSEFloat64RoundTruncate)       \
+  V(SSEFloat64Round)               \
   V(SSECvtss2sd)                   \
   V(SSECvtsd2ss)                   \
   V(SSEFloat64ToInt32)             \
   V(SSEFloat64ToUint32)            \
   V(SSEInt32ToFloat64)             \
   V(SSEUint32ToFloat64)            \
+  V(SSEFloat64ExtractLowWord32)    \
+  V(SSEFloat64ExtractHighWord32)   \
+  V(SSEFloat64InsertLowWord32)     \
+  V(SSEFloat64InsertHighWord32)    \
+  V(SSEFloat64LoadLowWord32)       \
   V(AVXFloat64Add)                 \
   V(AVXFloat64Sub)                 \
   V(AVXFloat64Mul)                 \
   V(AVXFloat64Div)                 \
+  V(AVXFloat64Max)                 \
+  V(AVXFloat64Min)                 \
   V(IA32Movsxbl)                   \
   V(IA32Movzxbl)                   \
   V(IA32Movb)                      \
@@ -61,7 +69,8 @@ namespace compiler {
   V(IA32Movsd)                     \
   V(IA32Lea)                       \
   V(IA32Push)                      \
-  V(IA32StoreWriteBarrier)
+  V(IA32StoreWriteBarrier)         \
+  V(IA32StackCheck)
 
 
 // Addressing modes represent the "shape" of inputs to an instruction.
