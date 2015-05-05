@@ -36,6 +36,8 @@ class LCodeGenBase BASE_EMBEDDED {
 
   void FPRINTF_CHECKING Comment(const char* format, ...);
   void DeoptComment(const Deoptimizer::DeoptInfo& deopt_info);
+  static Deoptimizer::DeoptInfo MakeDeoptInfo(
+      LInstruction* instr, Deoptimizer::DeoptReason deopt_reason);
 
   bool GenerateBody();
   virtual void GenerateBodyInstructionPre(LInstruction* instr) {}

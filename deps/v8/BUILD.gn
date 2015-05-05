@@ -2,6 +2,10 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/android/config.gni")
+import("//build/config/arm.gni")
+import("//build/config/mips.gni")
+
 # Because standalone V8 builds are not supported, assume this is part of a
 # Chromium build.
 import("//build/module_args/v8.gni")
@@ -18,9 +22,22 @@ v8_interpreted_regexp = false
 v8_object_print = false
 v8_postmortem_support = false
 v8_use_snapshot = true
-v8_target_arch = cpu_arch
+v8_target_arch = target_cpu
 v8_random_seed = "314159265"
 v8_toolset_for_d8 = "host"
+
+# The snapshot needs to be compiled for the host, but compiled with
+# a toolchain that matches the bit-width of the target.
+#
+# TODO(GYP): For now we only support 32-bit little-endian target builds from an
+# x64 Linux host. Eventually we need to support all of the host/target
+# configurations v8 runs on.
+if (host_cpu == "x64" && host_os == "linux" &&
+    (target_cpu == "arm" || target_cpu == "mipsel" || target_cpu == "x86")) {
+  snapshot_toolchain = "//build/toolchain/linux:clang_x86"
+} else {
+  snapshot_toolchain = default_toolchain
+}
 
 ###############################################################################
 # Configurations
@@ -96,36 +113,48 @@ config("toolchain") {
   defines = []
   cflags = []
 
-  # TODO(jochen): Add support for arm subarchs, mips, mipsel.
+  # TODO(jochen): Add support for arm subarchs, mips, mipsel, mips64el.
 
   if (v8_target_arch == "arm") {
     defines += [ "V8_TARGET_ARCH_ARM" ]
-    if (arm_version == 7) {
-      defines += [ "CAN_USE_ARMV7_INSTRUCTIONS" ]
-    }
-    if (arm_fpu == "vfpv3-d16") {
-      defines += [ "CAN_USE_VFP3_INSTRUCTIONS" ]
-    }
-    if (arm_fpu == "vfpv3") {
+    if (current_cpu == "arm") {
+      if (arm_version == 7) {
+        defines += [ "CAN_USE_ARMV7_INSTRUCTIONS" ]
+      }
+      if (arm_fpu == "vfpv3-d16") {
+        defines += [ "CAN_USE_VFP3_INSTRUCTIONS" ]
+      } else if (arm_fpu == "vfpv3") {
+        defines += [
+          "CAN_USE_VFP3_INSTRUCTIONS",
+          "CAN_USE_VFP32DREGS",
+        ]
+      } else if (arm_fpu == "neon") {
+        defines += [
+          "CAN_USE_VFP3_INSTRUCTIONS",
+          "CAN_USE_VFP32DREGS",
+          "CAN_USE_NEON",
+        ]
+      }
+    } else {
+      # These defines ares used for the ARM simulator.
       defines += [
+        "CAN_USE_ARMV7_INSTRUCTIONS",
         "CAN_USE_VFP3_INSTRUCTIONS",
         "CAN_USE_VFP32DREGS",
-      ]
-    }
-    if (arm_fpu == "neon") {
-      defines += [
-        "CAN_USE_VFP3_INSTRUCTIONS",
-        "CAN_USE_VFP32DREGS",
-        "CAN_USE_NEON",
+        "USE_EABI_HARDFLOAT=0",
       ]
     }
 
     # TODO(jochen): Add support for arm_test_noprobe.
-
-    # TODO(jochen): Add support for cpu_arch != v8_target_arch/
   }
   if (v8_target_arch == "arm64") {
     defines += [ "V8_TARGET_ARCH_ARM64" ]
+  }
+  if (v8_target_arch == "mipsel") {
+    defines += [ "V8_TARGET_ARCH_MIPS" ]
+  }
+  if (v8_target_arch == "mips64el") {
+    defines += [ "V8_TARGET_ARCH_MIPS64" ]
   }
   if (v8_target_arch == "x86") {
     defines += [ "V8_TARGET_ARCH_IA32" ]
@@ -173,8 +202,8 @@ action("js2c") {
     "src/array.js",
     "src/string.js",
     "src/uri.js",
-    "src/third_party/fdlibm/fdlibm.js",
     "src/math.js",
+    "src/third_party/fdlibm/fdlibm.js",
     "src/date.js",
     "src/regexp.js",
     "src/arraybuffer.js",
@@ -192,6 +221,7 @@ action("js2c") {
     "src/debug-debugger.js",
     "src/mirror-debugger.js",
     "src/liveedit-debugger.js",
+    "src/templates.js",
     "src/macros.py",
   ]
 
@@ -230,13 +260,12 @@ action("js2c_experimental") {
     "src/macros.py",
     "src/proxy.js",
     "src/generator.js",
-    "src/harmony-string.js",
     "src/harmony-array.js",
     "src/harmony-array-includes.js",
     "src/harmony-typedarray.js",
     "src/harmony-tostring.js",
-    "src/harmony-templates.js",
     "src/harmony-regexp.js",
+    "src/harmony-reflect.js"
   ]
 
   outputs = [
@@ -322,7 +351,7 @@ action("run_mksnapshot") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   deps = [
-    ":mksnapshot($host_toolchain)",
+    ":mksnapshot($snapshot_toolchain)",
   ]
 
   script = "tools/run.py"
@@ -332,7 +361,7 @@ action("run_mksnapshot") {
   ]
 
   args = [
-    "./" + rebase_path(get_label_info(":mksnapshot($host_toolchain)",
+    "./" + rebase_path(get_label_info(":mksnapshot($snapshot_toolchain)",
                                       "root_out_dir") + "/mksnapshot",
                        root_build_dir),
     "--log-snapshot-positions",
@@ -373,7 +402,7 @@ source_set("v8_nosnapshot") {
   sources = [
     "$target_gen_dir/libraries.cc",
     "$target_gen_dir/experimental-libraries.cc",
-    "src/snapshot-empty.cc",
+    "src/snapshot/snapshot-empty.cc",
   ]
 
   configs -= [ "//build/config/compiler:chromium_code" ]
@@ -423,8 +452,8 @@ if (v8_use_external_startup_data) {
     ]
 
     sources = [
-      "src/natives-external.cc",
-      "src/snapshot-external.cc",
+      "src/snapshot/natives-external.cc",
+      "src/snapshot/snapshot-external.cc",
     ]
 
     configs -= [ "//build/config/compiler:chromium_code" ]
@@ -535,9 +564,7 @@ source_set("v8_base") {
     "src/compiler/frame.h",
     "src/compiler/gap-resolver.cc",
     "src/compiler/gap-resolver.h",
-    "src/compiler/generic-algorithm.h",
     "src/compiler/graph-builder.h",
-    "src/compiler/graph-inl.h",
     "src/compiler/graph-reducer.cc",
     "src/compiler/graph-reducer.h",
     "src/compiler/graph-replay.cc",
@@ -566,6 +593,8 @@ source_set("v8_base") {
     "src/compiler/js-intrinsic-lowering.h",
     "src/compiler/js-operator.cc",
     "src/compiler/js-operator.h",
+    "src/compiler/js-type-feedback.cc",
+    "src/compiler/js-type-feedback.h",
     "src/compiler/js-typed-lowering.cc",
     "src/compiler/js-typed-lowering.h",
     "src/compiler/jump-threading.cc",
@@ -573,6 +602,8 @@ source_set("v8_base") {
     "src/compiler/linkage-impl.h",
     "src/compiler/linkage.cc",
     "src/compiler/linkage.h",
+    "src/compiler/liveness-analyzer.cc",
+    "src/compiler/liveness-analyzer.h",
     "src/compiler/load-elimination.cc",
     "src/compiler/load-elimination.h",
     "src/compiler/loop-peeling.cc",
@@ -591,6 +622,7 @@ source_set("v8_base") {
     "src/compiler/node-cache.h",
     "src/compiler/node-marker.cc",
     "src/compiler/node-marker.h",
+    "src/compiler/node-matchers.cc",
     "src/compiler/node-matchers.h",
     "src/compiler/node-properties.cc",
     "src/compiler/node-properties.h",
@@ -631,6 +663,8 @@ source_set("v8_base") {
     "src/compiler/simplified-operator.h",
     "src/compiler/source-position.cc",
     "src/compiler/source-position.h",
+    "src/compiler/state-values-utils.cc",
+    "src/compiler/state-values-utils.h",
     "src/compiler/typer.cc",
     "src/compiler/typer.h",
     "src/compiler/value-numbering-reducer.cc",
@@ -848,7 +882,6 @@ source_set("v8_base") {
     "src/modules.cc",
     "src/modules.h",
     "src/msan.h",
-    "src/natives.h",
     "src/objects-debug.cc",
     "src/objects-inl.h",
     "src/objects-printer.cc",
@@ -860,6 +893,8 @@ source_set("v8_base") {
     "src/ostreams.h",
     "src/parser.cc",
     "src/parser.h",
+    "src/pending-compilation-error-handler.cc",
+    "src/pending-compilation-error-handler.h",
     "src/perf-jit.cc",
     "src/perf-jit.h",
     "src/preparse-data-format.h",
@@ -929,20 +964,23 @@ source_set("v8_base") {
     "src/scopeinfo.h",
     "src/scopes.cc",
     "src/scopes.h",
-    "src/serialize.cc",
-    "src/serialize.h",
     "src/small-pointer-list.h",
     "src/smart-pointers.h",
-    "src/snapshot-common.cc",
-    "src/snapshot-source-sink.cc",
-    "src/snapshot-source-sink.h",
-    "src/snapshot.h",
+    "src/snapshot/natives.h",
+    "src/snapshot/serialize.cc",
+    "src/snapshot/serialize.h",
+    "src/snapshot/snapshot-common.cc",
+    "src/snapshot/snapshot-source-sink.cc",
+    "src/snapshot/snapshot-source-sink.h",
+    "src/snapshot/snapshot.h",
     "src/string-builder.cc",
     "src/string-builder.h",
     "src/string-search.cc",
     "src/string-search.h",
     "src/string-stream.cc",
     "src/string-stream.h",
+    "src/strings-storage.cc",
+    "src/strings-storage.h",
     "src/strtod.cc",
     "src/strtod.h",
     "src/token.cc",
@@ -1356,11 +1394,11 @@ source_set("v8_libbase") {
   if (is_linux) {
     sources += [ "src/base/platform/platform-linux.cc" ]
 
-    libs = [ "rt" ]
+    libs = [ "dl", "rt" ]
   } else if (is_android) {
     defines += [ "CAN_USE_VFP_INSTRUCTIONS" ]
 
-    if (build_os == "mac") {
+    if (host_os == "mac") {
       if (current_toolchain == host_toolchain) {
         sources += [ "src/base/platform/platform-macos.cc" ]
       } else {
@@ -1425,12 +1463,12 @@ source_set("v8_libplatform") {
 # Executables
 #
 
-if (current_toolchain == host_toolchain) {
+if (current_toolchain == snapshot_toolchain) {
   executable("mksnapshot") {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
     sources = [
-      "src/mksnapshot.cc",
+      "src/snapshot/mksnapshot.cc",
     ]
 
     configs -= [ "//build/config/compiler:chromium_code" ]

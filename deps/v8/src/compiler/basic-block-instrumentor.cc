@@ -55,8 +55,7 @@ BasicBlockProfiler::Data* BasicBlockInstrumentor::Instrument(
   BasicBlockProfiler::Data* data =
       info->isolate()->GetOrCreateBasicBlockProfiler()->NewData(n_blocks);
   // Set the function name.
-  if (!info->shared_info().is_null() &&
-      info->shared_info()->name()->IsString()) {
+  if (info->has_shared_info() && info->shared_info()->name()->IsString()) {
     std::ostringstream os;
     String::cast(info->shared_info()->name())->PrintUC16(os);
     data->SetFunctionName(&os);

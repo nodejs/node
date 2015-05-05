@@ -30,12 +30,15 @@ class BasicBlock FINAL : public ZoneObject {
  public:
   // Possible control nodes that can end a block.
   enum Control {
-    kNone,    // Control not initialized yet.
-    kGoto,    // Goto a single successor block.
-    kBranch,  // Branch if true to first successor, otherwise second.
-    kSwitch,  // Table dispatch to one of the successor blocks.
-    kReturn,  // Return a value from this method.
-    kThrow    // Throw an exception.
+    kNone,        // Control not initialized yet.
+    kGoto,        // Goto a single successor block.
+    kCall,        // Call with continuation as first successor, exception
+                  // second.
+    kBranch,      // Branch if true to first successor, otherwise second.
+    kSwitch,      // Table dispatch to one of the successor blocks.
+    kDeoptimize,  // Return a value from this method.
+    kReturn,      // Return a value from this method.
+    kThrow        // Throw an exception.
   };
 
   class Id {
@@ -48,35 +51,6 @@ class BasicBlock FINAL : public ZoneObject {
    private:
     explicit Id(size_t index) : index_(index) {}
     size_t index_;
-  };
-
-  static const int kInvalidRpoNumber = -1;
-  class RpoNumber FINAL {
-   public:
-    int ToInt() const {
-      DCHECK(IsValid());
-      return index_;
-    }
-    size_t ToSize() const {
-      DCHECK(IsValid());
-      return static_cast<size_t>(index_);
-    }
-    bool IsValid() const { return index_ >= 0; }
-    static RpoNumber FromInt(int index) { return RpoNumber(index); }
-    static RpoNumber Invalid() { return RpoNumber(kInvalidRpoNumber); }
-
-    bool IsNext(const RpoNumber other) const {
-      DCHECK(IsValid());
-      return other.index_ == this->index_ + 1;
-    }
-
-    bool operator==(RpoNumber other) const {
-      return this->index_ == other.index_;
-    }
-
-   private:
-    explicit RpoNumber(int32_t index) : index_(index) {}
-    int32_t index_;
   };
 
   BasicBlock(Zone* zone, Id id);
@@ -159,7 +133,6 @@ class BasicBlock FINAL : public ZoneObject {
   int32_t loop_number() const { return loop_number_; }
   void set_loop_number(int32_t loop_number) { loop_number_ = loop_number; }
 
-  RpoNumber GetRpoNumber() const { return RpoNumber::FromInt(rpo_number_); }
   int32_t rpo_number() const { return rpo_number_; }
   void set_rpo_number(int32_t rpo_number);
 
@@ -197,7 +170,6 @@ class BasicBlock FINAL : public ZoneObject {
 
 std::ostream& operator<<(std::ostream&, const BasicBlock::Control&);
 std::ostream& operator<<(std::ostream&, const BasicBlock::Id&);
-std::ostream& operator<<(std::ostream&, const BasicBlock::RpoNumber&);
 
 
 // A schedule represents the result of assigning nodes to basic blocks
@@ -233,6 +205,10 @@ class Schedule FINAL : public ZoneObject {
   // BasicBlock building: add a goto to the end of {block}.
   void AddGoto(BasicBlock* block, BasicBlock* succ);
 
+  // BasicBlock building: add a call at the end of {block}.
+  void AddCall(BasicBlock* block, Node* call, BasicBlock* success_block,
+               BasicBlock* exception_block);
+
   // BasicBlock building: add a branch at the end of {block}.
   void AddBranch(BasicBlock* block, Node* branch, BasicBlock* tblock,
                  BasicBlock* fblock);
@@ -240,6 +216,9 @@ class Schedule FINAL : public ZoneObject {
   // BasicBlock building: add a switch at the end of {block}.
   void AddSwitch(BasicBlock* block, Node* sw, BasicBlock** succ_blocks,
                  size_t succ_count);
+
+  // BasicBlock building: add a deoptimize at the end of {block}.
+  void AddDeoptimize(BasicBlock* block, Node* input);
 
   // BasicBlock building: add a return at the end of {block}.
   void AddReturn(BasicBlock* block, Node* input);

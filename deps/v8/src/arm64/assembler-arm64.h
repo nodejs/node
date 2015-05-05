@@ -5,14 +5,15 @@
 #ifndef V8_ARM64_ASSEMBLER_ARM64_H_
 #define V8_ARM64_ASSEMBLER_ARM64_H_
 
+#include <deque>
 #include <list>
 #include <map>
 #include <vector>
 
 #include "src/arm64/instructions-arm64.h"
 #include "src/assembler.h"
+#include "src/compiler.h"
 #include "src/globals.h"
-#include "src/serialize.h"
 #include "src/utils.h"
 
 
@@ -900,6 +901,11 @@ class Assembler : public AssemblerBase {
   inline static void deserialization_set_special_target_at(
       Address constant_pool_entry, Code* code, Address target);
 
+  // This sets the internal reference at the pc.
+  inline static void deserialization_set_target_internal_reference_at(
+      Address pc, Address target,
+      RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
+
   // All addresses in the constant pool are the same size as pointers.
   static const int kSpecialTargetSize = kPointerSize;
 
@@ -951,7 +957,9 @@ class Assembler : public AssemblerBase {
 
   // Number of instructions generated for the return sequence in
   // FullCodeGenerator::EmitReturnSequence.
-  static const int kJSRetSequenceInstructions = 7;
+  static const int kJSReturnSequenceInstructions = 7;
+  static const int kJSReturnSequenceLength =
+      kJSReturnSequenceInstructions * kInstructionSize;
   // Distance between start of patched return sequence and the emitted address
   // to jump to.
   static const int kPatchReturnSequenceAddressOffset =  0;
@@ -959,7 +967,7 @@ class Assembler : public AssemblerBase {
 
   // Number of instructions necessary to be able to later patch it to a call.
   // See DebugCodegen::GenerateSlot() and
-  // BreakLocationIterator::SetDebugBreakAtSlot().
+  // BreakLocation::SetDebugBreakAtSlot().
   static const int kDebugBreakSlotInstructions = 4;
   static const int kDebugBreakSlotLength =
     kDebugBreakSlotInstructions * kInstructionSize;
@@ -1010,7 +1018,7 @@ class Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(const int reason, const int raw_position);
+  void RecordDeoptReason(const int reason, const SourcePosition position);
 
   int buffer_space() const;
 
@@ -1743,6 +1751,9 @@ class Assembler : public AssemblerBase {
   // Emit 64 bits of data in the instruction stream.
   void dc64(uint64_t data) { EmitData(&data, sizeof(data)); }
 
+  // Emit an address in the instruction stream.
+  void dcptr(Label* label);
+
   // Copy a string into the instruction stream, including the terminating NULL
   // character. The instruction pointer (pc_) is then aligned correctly for
   // subsequent instructions.
@@ -2159,6 +2170,10 @@ class Assembler : public AssemblerBase {
   // Each relocation is encoded as a variable size value
   static const int kMaxRelocSize = RelocInfoWriter::kMaxSize;
   RelocInfoWriter reloc_info_writer;
+  // Internal reference positions, required for (potential) patching in
+  // GrowBuffer(); contains only those internal references whose labels
+  // are already bound.
+  std::deque<int> internal_reference_positions_;
 
   // Relocation info records are also used during code generation as temporary
   // containers for constants and code target addresses until they are emitted

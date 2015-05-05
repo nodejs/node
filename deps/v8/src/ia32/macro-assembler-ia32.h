@@ -570,17 +570,11 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Exception handling
 
-  // Push a new try handler and link it into try handler chain.
-  void PushTryHandler(StackHandler::Kind kind, int handler_index);
+  // Push a new stack handler and link it into stack handler chain.
+  void PushStackHandler();
 
-  // Unlink the stack handler on top of the stack from the try handler chain.
-  void PopTryHandler();
-
-  // Throw to the top handler in the try hander chain.
-  void Throw(Register value);
-
-  // Throw past all JS frames to the top JS entry frame.
-  void ThrowUncatchable(Register value);
+  // Unlink the stack handler on top of the stack from the stack handler chain.
+  void PopStackHandler();
 
   // ---------------------------------------------------------------------------
   // Inline caching support
@@ -718,6 +712,10 @@ class MacroAssembler: public Assembler {
   void NegativeZeroTest(Register result, Register op1, Register op2,
                         Register scratch, Label* then_label);
 
+  // Machine code version of Map::GetConstructor().
+  // |temp| holds |result|'s map when done.
+  void GetMapConstructor(Register result, Register map, Register temp);
+
   // Try to get function prototype of a function and puts the value in
   // the result register. Checks that the function really is a
   // function and jumps to the miss label if the fast checks fail. The
@@ -814,6 +812,16 @@ class MacroAssembler: public Assembler {
   void Call(Label* target) { call(target); }
   void Push(Register src) { push(src); }
   void Pop(Register dst) { pop(dst); }
+
+  // Non-SSE2 instructions.
+  void Pextrd(Register dst, XMMRegister src, int8_t imm8);
+  void Pinsrd(XMMRegister dst, Register src, int8_t imm8) {
+    Pinsrd(dst, Operand(src), imm8);
+  }
+  void Pinsrd(XMMRegister dst, const Operand& src, int8_t imm8);
+
+  void Lzcnt(Register dst, Register src) { Lzcnt(dst, Operand(src)); }
+  void Lzcnt(Register dst, const Operand& src);
 
   // Emit call to the code we are currently generating.
   void CallSelf() {
@@ -1004,10 +1012,6 @@ class MacroAssembler: public Assembler {
   inline void GetMarkBits(Register addr_reg,
                           Register bitmap_reg,
                           Register mask_reg);
-
-  // Helper for throwing exceptions.  Compute a handler address and jump to
-  // it.  See the implementation for register usage.
-  void JumpToHandlerEntry();
 
   // Compute memory operands for safepoint stack slots.
   Operand SafepointRegisterSlot(Register reg);

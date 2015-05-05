@@ -13,8 +13,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-typedef BasicBlock::RpoNumber RpoNumber;
-
 class TestCode : public HandleAndZoneScope {
  public:
   TestCode()
@@ -32,8 +30,8 @@ class TestCode : public HandleAndZoneScope {
   int Jump(int target) {
     Start();
     InstructionOperand ops[] = {UseRpo(target)};
-    sequence_.AddInstruction(Instruction::New(main_zone(), kArchJmp, 0, NULL, 1,
-                                              ops, 0, NULL)->MarkAsControl());
+    sequence_.AddInstruction(
+        Instruction::New(main_zone(), kArchJmp, 0, NULL, 1, ops, 0, NULL));
     int pos = static_cast<int>(sequence_.instructions().size() - 1);
     End();
     return pos;
@@ -47,8 +45,8 @@ class TestCode : public HandleAndZoneScope {
     InstructionOperand ops[] = {UseRpo(ttarget), UseRpo(ftarget)};
     InstructionCode code = 119 | FlagsModeField::encode(kFlags_branch) |
                            FlagsConditionField::encode(kEqual);
-    sequence_.AddInstruction(Instruction::New(main_zone(), code, 0, NULL, 2,
-                                              ops, 0, NULL)->MarkAsControl());
+    sequence_.AddInstruction(
+        Instruction::New(main_zone(), code, 0, NULL, 2, ops, 0, NULL));
     int pos = static_cast<int>(sequence_.instructions().size() - 1);
     End();
     return pos;
@@ -87,9 +85,9 @@ class TestCode : public HandleAndZoneScope {
   }
   void Start(bool deferred = false) {
     if (current_ == NULL) {
-      current_ = new (main_zone()) InstructionBlock(
-          main_zone(), BasicBlock::Id::FromInt(rpo_number_.ToInt()),
-          rpo_number_, RpoNumber::Invalid(), RpoNumber::Invalid(), deferred);
+      current_ = new (main_zone())
+          InstructionBlock(main_zone(), rpo_number_, RpoNumber::Invalid(),
+                           RpoNumber::Invalid(), deferred);
       blocks_.push_back(current_);
       sequence_.StartBlock(rpo_number_);
     }

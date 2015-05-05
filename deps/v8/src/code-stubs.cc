@@ -620,26 +620,6 @@ CallInterfaceDescriptor StoreTransitionStub::GetCallInterfaceDescriptor() {
 }
 
 
-static void InitializeVectorLoadStub(Isolate* isolate,
-                                     CodeStubDescriptor* descriptor,
-                                     Address deoptimization_handler) {
-  DCHECK(FLAG_vector_ics);
-  descriptor->Initialize(deoptimization_handler);
-}
-
-
-void VectorLoadStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
-  InitializeVectorLoadStub(isolate(), descriptor,
-                           FUNCTION_ADDR(LoadIC_MissFromStubFailure));
-}
-
-
-void VectorKeyedLoadStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
-  InitializeVectorLoadStub(isolate(), descriptor,
-                           FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
-}
-
-
 void MegamorphicLoadStub::InitializeDescriptor(CodeStubDescriptor* d) {}
 
 
@@ -684,7 +664,7 @@ void CreateWeakCellStub::InitializeDescriptor(CodeStubDescriptor* d) {}
 void RegExpConstructResultStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {
   descriptor->Initialize(
-      Runtime::FunctionForId(Runtime::kRegExpConstructResult)->entry);
+      Runtime::FunctionForId(Runtime::kRegExpConstructResultRT)->entry);
 }
 
 
@@ -730,7 +710,7 @@ void BinaryOpWithAllocationSiteStub::InitializeDescriptor(
 
 
 void StringAddStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(Runtime::FunctionForId(Runtime::kStringAdd)->entry);
+  descriptor->Initialize(Runtime::FunctionForId(Runtime::kStringAddRT)->entry);
 }
 
 

@@ -10,7 +10,7 @@
 #include "src/heap/mark-compact.h"
 #include "src/macro-assembler.h"
 #include "src/msan.h"
-#include "src/snapshot.h"
+#include "src/snapshot/snapshot.h"
 
 namespace v8 {
 namespace internal {
@@ -45,7 +45,6 @@ HeapObjectIterator::HeapObjectIterator(Page* page,
          owner == page->heap()->old_data_space() ||
          owner == page->heap()->map_space() ||
          owner == page->heap()->cell_space() ||
-         owner == page->heap()->property_cell_space() ||
          owner == page->heap()->code_space());
   Initialize(reinterpret_cast<PagedSpace*>(owner), page->area_start(),
              page->area_end(), kOnePageOnly, size_func);
@@ -935,9 +934,6 @@ STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::CODE_SPACE) ==
               ObjectSpace::kObjectSpaceCodeSpace);
 STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::CELL_SPACE) ==
               ObjectSpace::kObjectSpaceCellSpace);
-STATIC_ASSERT(
-    static_cast<ObjectSpace>(1 << AllocationSpace::PROPERTY_CELL_SPACE) ==
-    ObjectSpace::kObjectSpacePropertyCellSpace);
 STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::MAP_SPACE) ==
               ObjectSpace::kObjectSpaceMapSpace);
 
@@ -1021,13 +1017,14 @@ Object* PagedSpace::FindObject(Address addr) {
 
 bool PagedSpace::CanExpand() {
   DCHECK(max_capacity_ % AreaSize() == 0);
-
-  if (Capacity() == max_capacity_) return false;
-
-  DCHECK(Capacity() < max_capacity_);
+  DCHECK(heap()->mark_compact_collector()->is_compacting() ||
+         Capacity() <= heap()->MaxOldGenerationSize());
+  DCHECK(heap()->CommittedOldGenerationMemory() <=
+         heap()->MaxOldGenerationSize() +
+             PagedSpace::MaxEmergencyMemoryAllocated());
 
   // Are we going to exceed capacity for this space?
-  if ((Capacity() + Page::kPageSize) > max_capacity_) return false;
+  if (!heap()->CanExpandOldGeneration(Page::kPageSize)) return false;
 
   return true;
 }
@@ -1039,7 +1036,7 @@ bool PagedSpace::Expand() {
   intptr_t size = AreaSize();
 
   if (anchor_.next_page() == &anchor_) {
-    size = Snapshot::SizeOfFirstPage(identity());
+    size = Snapshot::SizeOfFirstPage(heap()->isolate(), identity());
   }
 
   Page* p = heap()->isolate()->memory_allocator()->AllocatePage(size, this,
@@ -1049,7 +1046,10 @@ bool PagedSpace::Expand() {
   // Pages created during bootstrapping may contain immortal immovable objects.
   if (!heap()->deserialization_complete()) p->MarkNeverEvacuate();
 
-  DCHECK(Capacity() <= max_capacity_);
+  DCHECK(Capacity() <= heap()->MaxOldGenerationSize());
+  DCHECK(heap()->CommittedOldGenerationMemory() <=
+         heap()->MaxOldGenerationSize() +
+             PagedSpace::MaxEmergencyMemoryAllocated());
 
   p->InsertAfter(anchor_.prev_page());
 
@@ -1131,6 +1131,15 @@ void PagedSpace::ReleasePage(Page* page) {
 }
 
 
+intptr_t PagedSpace::MaxEmergencyMemoryAllocated() {
+  // New space and large object space.
+  static const int spaces_without_emergency_memory = 2;
+  static const int spaces_with_emergency_memory =
+      LAST_SPACE - FIRST_SPACE + 1 - spaces_without_emergency_memory;
+  return Page::kPageSize * spaces_with_emergency_memory;
+}
+
+
 void PagedSpace::CreateEmergencyMemory() {
   if (identity() == CODE_SPACE) {
     // Make the emergency block available to the allocator.
@@ -1156,6 +1165,11 @@ void PagedSpace::FreeEmergencyMemory() {
 
 
 void PagedSpace::UseEmergencyMemory() {
+  // Page::Initialize makes the chunk into a real page and adds it to the
+  // accounting for this space.  Unlike PagedSpace::Expand, we don't check
+  // CanExpand first, so we can go over the limits a little here.  That's OK,
+  // because we are in the process of compacting which will free up at least as
+  // much memory as it allocates.
   Page* page = Page::Initialize(heap(), emergency_memory_, executable(), this);
   page->InsertAfter(anchor_.prev_page());
   emergency_memory_ = NULL;
@@ -2621,7 +2635,7 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
     // If sweeper threads are active, wait for them at that point and steal
     // elements form their free-lists.
     HeapObject* object = WaitForSweeperThreadsAndRetryAllocation(size_in_bytes);
-    if (object != NULL) return object;
+    return object;
   }
 
   // Try to expand the space and allocate in the new next page.
@@ -2794,17 +2808,12 @@ void MapSpace::VerifyObject(HeapObject* object) { CHECK(object->IsMap()); }
 
 
 // -----------------------------------------------------------------------------
-// CellSpace and PropertyCellSpace implementation
+// CellSpace implementation
 // TODO(mvstanton): this is weird...the compiler can't make a vtable unless
 // there is at least one non-inlined virtual function. I would prefer to hide
 // the VerifyObject definition behind VERIFY_HEAP.
 
 void CellSpace::VerifyObject(HeapObject* object) { CHECK(object->IsCell()); }
-
-
-void PropertyCellSpace::VerifyObject(HeapObject* object) {
-  CHECK(object->IsPropertyCell());
-}
 
 
 // -----------------------------------------------------------------------------

@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 /**
  * @fileoverview Test indexing on strings with [].
  */
@@ -241,6 +243,20 @@ for (var i = 0; i < 100; ++i) {
 }
 
 var keys = [0, 10];
+var str = 'ab', arr = ['a', undefined];
+for (var i = 0; i < 100; ++i) {
+  var index = Math.floor(i / 50);
+  var key = keys[index];
+  var expected = arr[index];
+  var actual = str[key];
+  assertEquals(expected, actual);
+}
+
+// Test out of range with a heap number case.
+var num = Math.floor(4) * 0.5;
+// TODO(mvstanton): figure out a reliable way to get a heap number every time.
+// assertFalse(!%_IsSmi(num));
+var keys = [0, num];
 var str = 'ab', arr = ['a', undefined];
 for (var i = 0; i < 100; ++i) {
   var index = Math.floor(i / 50);

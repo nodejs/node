@@ -12,6 +12,7 @@
 #include "src/compiler.h"
 #include "src/cpu-profiler.h"
 #include "src/debug.h"
+#include "src/parser.h"
 #include "src/prettyprinter.h"
 #include "src/rewriter.h"
 #include "src/runtime/runtime.h"
@@ -134,13 +135,13 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info, const char* kind) {
   }
 
 #ifdef DEBUG
-  if (!info->IsStub() && print_source) {
+  if (info->parse_info() && print_source) {
     PrintF("--- Source from AST ---\n%s\n",
            PrettyPrinter(info->isolate(), info->zone())
                .PrintProgram(info->function()));
   }
 
-  if (!info->IsStub() && print_ast) {
+  if (info->parse_info() && print_ast) {
     PrintF("--- AST ---\n%s\n", AstPrinter(info->isolate(), info->zone())
                                     .PrintProgram(info->function()));
   }
@@ -181,14 +182,27 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
          (info->IsStub() && FLAG_print_code_stubs) ||
          (info->IsOptimizing() && FLAG_print_opt_code));
   if (print_code) {
-    // Print the source code if available.
-    FunctionLiteral* function = info->function();
-    bool print_source = code->kind() == Code::OPTIMIZED_FUNCTION ||
-        code->kind() == Code::FUNCTION;
+    const char* debug_name;
+    SmartArrayPointer<char> debug_name_holder;
+    if (info->IsStub()) {
+      CodeStub::Major major_key = info->code_stub()->MajorKey();
+      debug_name = CodeStub::MajorName(major_key, false);
+    } else {
+      debug_name_holder =
+          info->parse_info()->function()->debug_name()->ToCString();
+      debug_name = debug_name_holder.get();
+    }
 
     CodeTracer::Scope tracing_scope(info->isolate()->GetCodeTracer());
     OFStream os(tracing_scope.file());
+
+    // Print the source code if available.
+    FunctionLiteral* function = nullptr;
+    bool print_source =
+        info->parse_info() && (code->kind() == Code::OPTIMIZED_FUNCTION ||
+                               code->kind() == Code::FUNCTION);
     if (print_source) {
+      function = info->function();
       Handle<Script> script = info->script();
       if (!script->IsUndefined() && !script->source()->IsUndefined()) {
         os << "--- Raw source ---\n";
@@ -207,10 +221,9 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
       }
     }
     if (info->IsOptimizing()) {
-      if (FLAG_print_unopt_code) {
+      if (FLAG_print_unopt_code && info->parse_info()) {
         os << "--- Unoptimized code ---\n";
-        info->closure()->shared()->code()->Disassemble(
-            function->debug_name()->ToCString().get(), os);
+        info->closure()->shared()->code()->Disassemble(debug_name, os);
       }
       os << "--- Optimized code ---\n"
          << "optimization_id = " << info->optimization_id() << "\n";
@@ -220,12 +233,7 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
     if (print_source) {
       os << "source_position = " << function->start_position() << "\n";
     }
-    if (info->IsStub()) {
-      CodeStub::Major major_key = info->code_stub()->MajorKey();
-      code->Disassemble(CodeStub::MajorName(major_key, false), os);
-    } else {
-      code->Disassemble(function->debug_name()->ToCString().get(), os);
-    }
+    code->Disassemble(debug_name, os);
     os << "--- End code ---\n";
   }
 #endif  // ENABLE_DISASSEMBLER

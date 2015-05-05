@@ -1585,7 +1585,7 @@ TEST(jump_tables3) {
 
   __ bind(&done);
   __ ld(ra, MemOperand(sp));
-  __ addiu(sp, sp, 8);
+  __ daddiu(sp, sp, 8);
   __ jr(ra);
   __ nop();
 
@@ -1594,7 +1594,7 @@ TEST(jump_tables3) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
-//  code->Print(std::cout);
+  code->Print(std::cout);
 #endif
   F1 f = FUNCTION_CAST<F1>(code->entry());
   for (int i = 0; i < kNumCases; ++i) {

@@ -284,8 +284,9 @@ TEST(ConstantPoolCompacting) {
   Page* first_page = heap->old_data_space()->anchor()->next_page();
   {
     HandleScope scope(isolate);
+    int dummy_array_size = Page::kMaxRegularHeapObjectSize - 92 * KB;
     Handle<HeapObject> temp =
-        factory->NewFixedDoubleArray(900 * KB / kDoubleSize, TENURED);
+        factory->NewFixedDoubleArray(dummy_array_size / kDoubleSize, TENURED);
     CHECK(heap->InOldDataSpace(temp->address()));
     Handle<HeapObject> heap_ptr =
         factory->NewHeapNumber(5.0, IMMUTABLE, TENURED);

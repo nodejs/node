@@ -11223,3 +11223,173 @@ TEST(pool_size) {
 
   TEARDOWN();
 }
+
+
+TEST(jump_tables_forward) {
+  // Test jump tables with forward jumps.
+  const int kNumCases = 512;
+
+  INIT_V8();
+  SETUP_SIZE(kNumCases * 5 * kInstructionSize + 8192);
+  START();
+
+  int32_t values[kNumCases];
+  isolate->random_number_generator()->NextBytes(values, sizeof(values));
+  int32_t results[kNumCases];
+  memset(results, 0, sizeof(results));
+  uintptr_t results_ptr = reinterpret_cast<uintptr_t>(results);
+
+  Label loop;
+  Label labels[kNumCases];
+  Label done;
+
+  const Register& index = x0;
+  STATIC_ASSERT(sizeof(results[0]) == 4);
+  const Register& value = w1;
+  const Register& target = x2;
+
+  __ Mov(index, 0);
+  __ Mov(target, results_ptr);
+  __ Bind(&loop);
+
+  {
+    Assembler::BlockPoolsScope block_pools(&masm);
+    Label base;
+
+    __ Adr(x10, &base);
+    __ Ldr(x11, MemOperand(x10, index, LSL, kPointerSizeLog2));
+    __ Br(x11);
+    __ Bind(&base);
+    for (int i = 0; i < kNumCases; ++i) {
+      __ dcptr(&labels[i]);
+    }
+  }
+
+  for (int i = 0; i < kNumCases; ++i) {
+    __ Bind(&labels[i]);
+    __ Mov(value, values[i]);
+    __ B(&done);
+  }
+
+  __ Bind(&done);
+  __ Str(value, MemOperand(target, 4, PostIndex));
+  __ Add(index, index, 1);
+  __ Cmp(index, kNumCases);
+  __ B(ne, &loop);
+
+  END();
+
+  RUN();
+
+  for (int i = 0; i < kNumCases; ++i) {
+    CHECK_EQ(values[i], results[i]);
+  }
+
+  TEARDOWN();
+}
+
+
+TEST(jump_tables_backward) {
+  // Test jump tables with backward jumps.
+  const int kNumCases = 512;
+
+  INIT_V8();
+  SETUP_SIZE(kNumCases * 5 * kInstructionSize + 8192);
+  START();
+
+  int32_t values[kNumCases];
+  isolate->random_number_generator()->NextBytes(values, sizeof(values));
+  int32_t results[kNumCases];
+  memset(results, 0, sizeof(results));
+  uintptr_t results_ptr = reinterpret_cast<uintptr_t>(results);
+
+  Label loop;
+  Label labels[kNumCases];
+  Label done;
+
+  const Register& index = x0;
+  STATIC_ASSERT(sizeof(results[0]) == 4);
+  const Register& value = w1;
+  const Register& target = x2;
+
+  __ Mov(index, 0);
+  __ Mov(target, results_ptr);
+  __ B(&loop);
+
+  for (int i = 0; i < kNumCases; ++i) {
+    __ Bind(&labels[i]);
+    __ Mov(value, values[i]);
+    __ B(&done);
+  }
+
+  __ Bind(&loop);
+  {
+    Assembler::BlockPoolsScope block_pools(&masm);
+    Label base;
+
+    __ Adr(x10, &base);
+    __ Ldr(x11, MemOperand(x10, index, LSL, kPointerSizeLog2));
+    __ Br(x11);
+    __ Bind(&base);
+    for (int i = 0; i < kNumCases; ++i) {
+      __ dcptr(&labels[i]);
+    }
+  }
+
+  __ Bind(&done);
+  __ Str(value, MemOperand(target, 4, PostIndex));
+  __ Add(index, index, 1);
+  __ Cmp(index, kNumCases);
+  __ B(ne, &loop);
+
+  END();
+
+  RUN();
+
+  for (int i = 0; i < kNumCases; ++i) {
+    CHECK_EQ(values[i], results[i]);
+  }
+
+  TEARDOWN();
+}
+
+
+TEST(internal_reference_linked) {
+  // Test internal reference when they are linked in a label chain.
+
+  INIT_V8();
+  SETUP();
+  START();
+
+  Label done;
+
+  __ Mov(x0, 0);
+  __ Cbnz(x0, &done);
+
+  {
+    Assembler::BlockPoolsScope block_pools(&masm);
+    Label base;
+
+    __ Adr(x10, &base);
+    __ Ldr(x11, MemOperand(x10));
+    __ Br(x11);
+    __ Bind(&base);
+    __ dcptr(&done);
+  }
+
+  // Dead code, just to extend the label chain.
+  __ B(&done);
+  __ dcptr(&done);
+  __ Tbz(x0, 1, &done);
+
+  __ Bind(&done);
+  __ Mov(x0, 1);
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_64(0x1, x0);
+
+  TEARDOWN();
+}

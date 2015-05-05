@@ -58,8 +58,25 @@ TEST(Regress340063) {
   if (!i::FLAG_allocation_site_pretenuring) return;
   v8::HandleScope scope(CcTest::isolate());
 
+  SetUpNewSpaceWithPoisonedMementoAtTop();
+
+  // Call GC to see if we can handle a poisonous memento right after the
+  // current new space top pointer.
+  CcTest::i_isolate()->heap()->CollectAllGarbage(
+      Heap::kAbortIncrementalMarkingMask);
+}
+
+
+TEST(Regress470390) {
+  CcTest::InitializeVM();
+  if (!i::FLAG_allocation_site_pretenuring) return;
+  v8::HandleScope scope(CcTest::isolate());
 
   SetUpNewSpaceWithPoisonedMementoAtTop();
+
+  // Set the new space limit to be equal to the top.
+  Address top = CcTest::i_isolate()->heap()->new_space()->top();
+  *(CcTest::i_isolate()->heap()->new_space()->allocation_limit_address()) = top;
 
   // Call GC to see if we can handle a poisonous memento right after the
   // current new space top pointer.

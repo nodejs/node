@@ -15,7 +15,6 @@ namespace internal {
 HeapProfiler::HeapProfiler(Heap* heap)
     : ids_(new HeapObjectsMap(heap)),
       names_(new StringsStorage(heap)),
-      next_snapshot_uid_(1),
       is_tracking_object_moves_(false) {
 }
 
@@ -63,10 +62,9 @@ v8::RetainedObjectInfo* HeapProfiler::ExecuteWrapperClassCallback(
 
 
 HeapSnapshot* HeapProfiler::TakeSnapshot(
-    const char* name,
     v8::ActivityControl* control,
     v8::HeapProfiler::ObjectNameResolver* resolver) {
-  HeapSnapshot* result = new HeapSnapshot(this, name, next_snapshot_uid_++);
+  HeapSnapshot* result = new HeapSnapshot(this);
   {
     HeapSnapshotGenerator generator(result, control, resolver, heap());
     if (!generator.GenerateSnapshot()) {
@@ -82,14 +80,6 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
 }
 
 
-HeapSnapshot* HeapProfiler::TakeSnapshot(
-    String* name,
-    v8::ActivityControl* control,
-    v8::HeapProfiler::ObjectNameResolver* resolver) {
-  return TakeSnapshot(names_->GetName(name), control, resolver);
-}
-
-
 void HeapProfiler::StartHeapObjectsTracking(bool track_allocations) {
   ids_->UpdateHeapObjectsMap();
   is_tracking_object_moves_ = true;
@@ -101,8 +91,9 @@ void HeapProfiler::StartHeapObjectsTracking(bool track_allocations) {
 }
 
 
-SnapshotObjectId HeapProfiler::PushHeapObjectsStats(OutputStream* stream) {
-  return ids_->PushHeapObjectsStats(stream);
+SnapshotObjectId HeapProfiler::PushHeapObjectsStats(OutputStream* stream,
+                                                    int64_t* timestamp_us) {
+  return ids_->PushHeapObjectsStats(stream, timestamp_us);
 }
 
 
