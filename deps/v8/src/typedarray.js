@@ -162,16 +162,16 @@ function NAMESubArray(begin, end) {
 
   var srcLength = %_TypedArrayGetLength(this);
   if (beginInt < 0) {
-    beginInt = MathMax(0, srcLength + beginInt);
+    beginInt = $max(0, srcLength + beginInt);
   } else {
-    beginInt = MathMin(srcLength, beginInt);
+    beginInt = $min(srcLength, beginInt);
   }
 
   var endInt = IS_UNDEFINED(end) ? srcLength : end;
   if (endInt < 0) {
-    endInt = MathMax(0, srcLength + endInt);
+    endInt = $max(0, srcLength + endInt);
   } else {
-    endInt = MathMin(endInt, srcLength);
+    endInt = $min(endInt, srcLength);
   }
   if (endInt < beginInt) {
     endInt = beginInt;

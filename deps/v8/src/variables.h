@@ -18,7 +18,7 @@ namespace internal {
 
 class Variable: public ZoneObject {
  public:
-  enum Kind { NORMAL, THIS, NEW_TARGET, ARGUMENTS };
+  enum Kind { NORMAL, FUNCTION, THIS, NEW_TARGET, ARGUMENTS };
 
   enum Location {
     // Before and during variable allocation, a variable whose location is
@@ -47,14 +47,12 @@ class Variable: public ZoneObject {
     LOOKUP
   };
 
-  Variable(Scope* scope, const AstRawString* name, VariableMode mode,
-           bool is_valid_ref, Kind kind, InitializationFlag initialization_flag,
+  Variable(Scope* scope, const AstRawString* name, VariableMode mode, Kind kind,
+           InitializationFlag initialization_flag,
            MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
 
   // Printing support
   static const char* Mode2String(VariableMode mode);
-
-  bool IsValidReference() { return is_valid_ref_; }
 
   // The source code for an eval() call may refer to a variable that is
   // in an outer scope about which we don't know anything (it may not
@@ -98,6 +96,7 @@ class Variable: public ZoneObject {
     return initialization_flag_ == kNeedsInitialization;
   }
 
+  bool is_function() const { return kind_ == FUNCTION; }
   bool is_this() const { return kind_ == THIS; }
   bool is_new_target() const { return kind_ == NEW_TARGET; }
   bool is_arguments() const { return kind_ == ARGUMENTS; }
@@ -129,6 +128,25 @@ class Variable: public ZoneObject {
 
   static int CompareIndex(Variable* const* v, Variable* const* w);
 
+  void RecordStrongModeReference(int start_position, int end_position) {
+    // Record the earliest reference to the variable. Used in error messages for
+    // strong mode references to undeclared variables.
+    if (has_strong_mode_reference_ &&
+        strong_mode_reference_start_position_ < start_position)
+      return;
+    has_strong_mode_reference_ = true;
+    strong_mode_reference_start_position_ = start_position;
+    strong_mode_reference_end_position_ = end_position;
+  }
+
+  bool has_strong_mode_reference() const { return has_strong_mode_reference_; }
+  int strong_mode_reference_start_position() const {
+    return strong_mode_reference_start_position_;
+  }
+  int strong_mode_reference_end_position() const {
+    return strong_mode_reference_end_position_;
+  }
+
  private:
   Scope* scope_;
   const AstRawString* name_;
@@ -137,15 +155,17 @@ class Variable: public ZoneObject {
   Location location_;
   int index_;
   int initializer_position_;
+  // Tracks whether the variable is bound to a VariableProxy which is in strong
+  // mode, and if yes, the source location of the reference.
+  bool has_strong_mode_reference_;
+  int strong_mode_reference_start_position_;
+  int strong_mode_reference_end_position_;
 
   // If this field is set, this variable references the stored locally bound
   // variable, but it might be shadowed by variable bindings introduced by
   // sloppy 'eval' calls between the reference scope (inclusive) and the
   // binding scope (exclusive).
   Variable* local_if_not_shadowed_;
-
-  // Valid as a reference? (const and this are not valid, for example)
-  bool is_valid_ref_;
 
   // Usage info.
   bool force_context_allocation_;  // set by variable resolver

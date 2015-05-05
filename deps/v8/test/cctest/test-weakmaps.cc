@@ -30,7 +30,6 @@
 #include "src/v8.h"
 
 #include "src/global-handles.h"
-#include "src/snapshot.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
@@ -184,7 +183,8 @@ TEST(Regress2060a) {
 
   // Start second old-space page so that values land on evacuation candidate.
   Page* first_page = heap->old_pointer_space()->anchor()->next_page();
-  factory->NewFixedArray(900 * KB / kPointerSize, TENURED);
+  int dummy_array_size = Page::kMaxRegularHeapObjectSize - 92 * KB;
+  factory->NewFixedArray(dummy_array_size / kPointerSize, TENURED);
 
   // Fill up weak map with values on an evacuation candidate.
   {
@@ -222,7 +222,8 @@ TEST(Regress2060b) {
 
   // Start second old-space page so that keys land on evacuation candidate.
   Page* first_page = heap->old_pointer_space()->anchor()->next_page();
-  factory->NewFixedArray(900 * KB / kPointerSize, TENURED);
+  int dummy_array_size = Page::kMaxRegularHeapObjectSize - 92 * KB;
+  factory->NewFixedArray(dummy_array_size / kPointerSize, TENURED);
 
   // Fill up weak map with keys on an evacuation candidate.
   Handle<JSObject> keys[32];

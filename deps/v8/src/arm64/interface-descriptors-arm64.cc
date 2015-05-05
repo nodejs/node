@@ -261,6 +261,15 @@ void InternalArrayConstructorDescriptor::Initialize(
 }
 
 
+void CompareDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  // cp: context
+  // x1: left operand
+  // x0: right operand
+  Register registers[] = {cp, x1, x0};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
 void CompareNilDescriptor::Initialize(CallInterfaceDescriptorData* data) {
   // cp: context
   // x0: value to compare

@@ -40,7 +40,7 @@ namespace internal {
   T(COLON, ":", 0)                                                   \
   T(SEMICOLON, ";", 0)                                               \
   T(PERIOD, ".", 0)                                                  \
-  T(ELLIPSIS, "...", 0)                                               \
+  T(ELLIPSIS, "...", 0)                                              \
   T(CONDITIONAL, "?", 3)                                             \
   T(INC, "++", 0)                                                    \
   T(DEC, "--", 0)                                                    \
@@ -142,6 +142,7 @@ namespace internal {
   K(TRUE_LITERAL, "true", 0)                                         \
   K(FALSE_LITERAL, "false", 0)                                       \
   T(NUMBER, NULL, 0)                                                 \
+  T(SMI, NULL, 0)                                                    \
   T(STRING, NULL, 0)                                                 \
                                                                      \
   /* Identifiers (not keywords or future reserved words). */         \

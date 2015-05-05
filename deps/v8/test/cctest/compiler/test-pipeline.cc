@@ -17,13 +17,13 @@ using namespace v8::internal;
 using namespace v8::internal::compiler;
 
 TEST(PipelineAdd) {
-  InitializedHandleScope handles;
+  HandleAndZoneScope handles;
   const char* source = "(function(a,b) { return a + b; })";
   Handle<JSFunction> function = v8::Utils::OpenHandle(
       *v8::Handle<v8::Function>::Cast(CompileRun(source)));
-  CompilationInfoWithZone info(function);
-
-  CHECK(Compiler::ParseAndAnalyze(&info));
+  ParseInfo parse_info(handles.main_zone(), function);
+  CHECK(Compiler::ParseAndAnalyze(&parse_info));
+  CompilationInfo info(&parse_info);
 
   Pipeline pipeline(&info);
 #if V8_TURBOFAN_TARGET

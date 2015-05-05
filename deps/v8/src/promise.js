@@ -44,7 +44,7 @@ var lastMicrotaskId = 0;
       throw MakeTypeError('resolver_not_a_function', [resolver]);
     var promise = PromiseInit(this);
     try {
-      %DebugPushPromise(promise);
+      %DebugPushPromise(promise, Promise);
       resolver(function(x) { PromiseResolve(promise, x) },
                function(r) { PromiseReject(promise, r) });
     } catch (e) {
@@ -110,7 +110,7 @@ var lastMicrotaskId = 0;
 
   function PromiseHandle(value, handler, deferred) {
     try {
-      %DebugPushPromise(deferred.promise);
+      %DebugPushPromise(deferred.promise, PromiseHandle);
       DEBUG_PREPARE_STEP_IN_IF_STEPPING(handler);
       var result = handler(value);
       if (result === deferred.promise)
@@ -301,51 +301,44 @@ var lastMicrotaskId = 0;
     return IsPromise(x) ? x : new this(function(resolve) { resolve(x) });
   }
 
-  function PromiseAll(values) {
+  function PromiseAll(iterable) {
     var deferred = %_CallFunction(this, PromiseDeferred);
     var resolutions = [];
-    if (!%_IsArray(values)) {
-      deferred.reject(MakeTypeError('invalid_argument'));
-      return deferred.promise;
-    }
     try {
-      var count = values.length;
+      var count = 0;
+      var i = 0;
+      for (var value of iterable) {
+        this.resolve(value).then(
+            // Nested scope to get closure over current i.
+            // TODO(arv): Use an inner let binding once available.
+            (function(i) {
+              return function(x) {
+                resolutions[i] = x;
+                if (--count === 0) deferred.resolve(resolutions);
+              }
+            })(i),
+            function(r) { deferred.reject(r); });
+        ++i;
+        ++count;
+      }
+
       if (count === 0) {
         deferred.resolve(resolutions);
-      } else {
-        for (var i = 0; i < values.length; ++i) {
-          this.resolve(values[i]).then(
-            (function() {
-              // Nested scope to get closure over current i (and avoid .bind).
-              // TODO(rossberg): Use for-let instead once available.
-              var i_captured = i;
-              return function(x) {
-                resolutions[i_captured] = x;
-                if (--count === 0) deferred.resolve(resolutions);
-              };
-            })(),
-            function(r) { deferred.reject(r) }
-          );
-        }
       }
+
     } catch (e) {
       deferred.reject(e)
     }
     return deferred.promise;
   }
 
-  function PromiseOne(values) {
+  function PromiseRace(iterable) {
     var deferred = %_CallFunction(this, PromiseDeferred);
-    if (!%_IsArray(values)) {
-      deferred.reject(MakeTypeError('invalid_argument'));
-      return deferred.promise;
-    }
     try {
-      for (var i = 0; i < values.length; ++i) {
-        this.resolve(values[i]).then(
-          function(x) { deferred.resolve(x) },
-          function(r) { deferred.reject(r) }
-        );
+      for (var value of iterable) {
+        this.resolve(value).then(
+            function(x) { deferred.resolve(x) },
+            function(r) { deferred.reject(r) });
       }
     } catch (e) {
       deferred.reject(e)
@@ -388,7 +381,7 @@ var lastMicrotaskId = 0;
     "accept", PromiseResolved,
     "reject", PromiseRejected,
     "all", PromiseAll,
-    "race", PromiseOne,
+    "race", PromiseRace,
     "resolve", PromiseCast
   ]);
   InstallFunctions($Promise.prototype, DONT_ENUM, [

@@ -264,7 +264,7 @@ function ScriptBreakPoint(type, script_id_or_name, opt_line, opt_column,
 }
 
 
-//Creates a clone of script breakpoint that is linked to another script.
+// Creates a clone of script breakpoint that is linked to another script.
 ScriptBreakPoint.prototype.cloneForOtherScript = function (other_script) {
   var copy = new ScriptBreakPoint(Debug.ScriptBreakPointType.ScriptId,
       other_script.id, this.line_, this.column_, this.groupId_,
@@ -499,10 +499,6 @@ Debug.setListener = function(listener, opt_data) {
 };
 
 
-Debug.breakExecution = function(f) {
-  %Break();
-};
-
 Debug.breakLocations = function(f, opt_position_aligment) {
   if (!IS_FUNCTION(f)) throw new Error('Parameters have wrong types.');
   var position_aligment = IS_UNDEFINED(opt_position_aligment)
@@ -552,25 +548,12 @@ Debug.scriptSource = function(func_or_script_name) {
   return this.findScript(func_or_script_name).source;
 };
 
+
 Debug.source = function(f) {
   if (!IS_FUNCTION(f)) throw new Error('Parameters have wrong types.');
   return %FunctionGetSourceCode(f);
 };
 
-Debug.disassemble = function(f) {
-  if (!IS_FUNCTION(f)) throw new Error('Parameters have wrong types.');
-  return %DebugDisassembleFunction(f);
-};
-
-Debug.disassembleConstructor = function(f) {
-  if (!IS_FUNCTION(f)) throw new Error('Parameters have wrong types.');
-  return %DebugDisassembleConstructor(f);
-};
-
-Debug.ExecuteInDebugContext = function(f, without_debugger) {
-  if (!IS_FUNCTION(f)) throw new Error('Parameters have wrong types.');
-  return %ExecuteInDebugContext(f, !!without_debugger);
-};
 
 Debug.sourcePosition = function(f) {
   if (!IS_FUNCTION(f)) throw new Error('Parameters have wrong types.');
@@ -2584,7 +2567,3 @@ function ValueToProtocolValue_(value, mirror_serializer) {
   }
   return json;
 }
-
-Debug.TestApi = {
-  CommandProcessorResolveValue: DebugCommandProcessor.resolveValue_
-};

@@ -8,7 +8,7 @@
 namespace v8 {
 namespace internal {
 
-class CompilationInfo;
+class ParseInfo;
 
 class Rewriter {
  public:
@@ -18,7 +18,7 @@ class Rewriter {
   //
   // Assumes code has been parsed and scopes have been analyzed.  Mutates the
   // AST, so the AST should not continue to be used in the case of failure.
-  static bool Rewrite(CompilationInfo* info);
+  static bool Rewrite(ParseInfo* info);
 };
 
 

@@ -657,7 +657,7 @@ SymbolMirror.prototype.description = function() {
 
 
 SymbolMirror.prototype.toText = function() {
-  return %_CallFunction(this.value_, builtins.SymbolToString);
+  return %_CallFunction(this.value_, builtins.$symbolToString);
 }
 
 

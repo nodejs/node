@@ -30,11 +30,11 @@
 ########## Global variable definitions
 
 BASE_URL="https://code.google.com/p/v8/source/list"
-VERSION="src/version.cc"
-MAJOR="MAJOR_VERSION"
-MINOR="MINOR_VERSION"
-BUILD="BUILD_NUMBER"
-PATCH="PATCH_LEVEL"
+VERSION="include/v8-version.h"
+MAJOR="V8_MAJOR_VERSION"
+MINOR="V8_MINOR_VERSION"
+BUILD="V8_BUILD_NUMBER"
+PATCH="V8_PATCH_LEVEL"
 
 V8="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 

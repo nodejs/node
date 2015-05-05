@@ -1,3 +1,449 @@
+2015-03-30: Version 4.3.61
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-28: Version 4.3.60
+
+        Reland^2 "Filter invalid slots out from the SlotsBuffer after marking."
+        (Chromium issues 454297, 470801).
+
+        This fixes missing incremental write barrier issue when double fields
+        unboxing is enabled (Chromium issue 469146).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-27: Version 4.3.59
+
+        Use a slot that is located on a heap page when removing invalid entries
+        from the SlotsBuffer (Chromium issue 470801).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-26: Version 4.3.58
+
+        Return timestamp of the last recorded interval to the caller of
+        HeapProfiler::GetHeapStats (Chromium issue 467222).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-26: Version 4.3.57
+
+        Reland [V8] Removed SourceLocationRestrict (Chromium issue 468781).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-25: Version 4.3.56
+
+        Remove v8::Isolate::ClearInterrupt.
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-25: Version 4.3.55
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-24: Version 4.3.54
+
+        Do not assign positions to parser-generated desugarings (Chromium issue
+        468661).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-24: Version 4.3.53
+
+        Filter invalid slots out from the SlotsBuffer after marking (Chromium
+        issue 454297).
+
+        Fix OOM bug 3976 (issue 3976).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-24: Version 4.3.52
+
+        Remove calls to IdleNotification().
+
+        Save heap object tracking data in heap snapshot (Chromium issue 467222).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-24: Version 4.3.51
+
+        [V8] Removed SourceLocationRestrict (Chromium issue 468781).
+
+        [turbofan] Fix control reducer bug with walking non-control edges during
+        ConnectNTL phase (Chromium issue 469605).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-23: Version 4.3.50
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-23: Version 4.3.49
+
+        Ensure we don't overflow in BCE (Chromium issue 469148).
+
+        [turbofan] Fix lowering of Math.max for integral inputs (Chromium issue
+        468162).
+
+        Use libdl to get symbols for backtraces.
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-19: Version 4.3.48
+
+        Clarify what APIs return Maybe and MaybeLocal values (issue 3929).
+
+        Introduce explicit constant for per Context debug data set by embedder
+        (Chromium issue 466631).
+
+        Adjust key behaviour for weak collections (issues 3970, 3971, Chromium
+        issue 460083).
+
+        Turn on overapproximation of the weak closure (issue 3862).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-18: Version 4.3.47
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-17: Version 4.3.46
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-17: Version 4.3.45
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-17: Version 4.3.44
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-16: Version 4.3.43
+
+        Bugfix in hydrogen GVN (Chromium issue 467481).
+
+        Remove obsolete TakeHeapSnapshot method from API (Chromium issue
+        465651).
+
+        Beautify syntax error for unterminated argument list (Chromium issue
+        339474).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-16: Version 4.3.42
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-15: Version 4.3.41
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-14: Version 4.3.40
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-14: Version 4.3.39
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-14: Version 4.3.38
+
+        Remove --harmony-scoping flag.
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-13: Version 4.3.37
+
+        Implement TDZ in StoreIC for top-level lexicals (issue 3941).
+
+        Turn on job-based optimizing compiler (issue 3608).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-13: Version 4.3.36
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-12: Version 4.3.35
+
+        Add Cast() for Int32 and Uint32 (Chromium issue 462402).
+
+        Incorrect handling of HTransitionElementsKind in hydrogen check
+        elimination phase fixed (Chromium issue 460917).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-12: Version 4.3.34
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-12: Version 4.3.33
+
+        Fix the toolchain used to build the snapshots in GN (Chromium issues
+        395249, 465456).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-11: Version 4.3.32
+
+        Reland of Remove slots that point to unboxed doubles from the
+        StoreBuffer/SlotsBuffer (Chromium issues 454297, 465273).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-11: Version 4.3.31
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-11: Version 4.3.30
+
+        Remove uid and title from HeapSnapshot (Chromium issue 465651).
+
+        Remove deprecated CpuProfiler methods.
+
+        [turbofan] Fix --turbo-osr for OSRing into inner loop inside for-in
+        (Chromium issue 462775).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-10: Version 4.3.29
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-10: Version 4.3.28
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-10: Version 4.3.27
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-07: Version 4.3.26
+
+        Remove slots that point to unboxed doubles from the
+        StoreBuffer/SlotsBuffer (Chromium issue 454297).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-06: Version 4.3.25
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-06: Version 4.3.24
+
+        convert more things to maybe (issue 3929).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-05: Version 4.3.23
+
+        [V8] Use Function.name for stack frames in v8::StackTrace (Chromium
+        issue 17356).
+
+        Allow passing sourceMapUrl when compiling scripts (Chromium issue
+        462572).
+
+        convert compile functions to use maybe (issue 3929).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-05: Version 4.3.22
+
+        give UniquePersistent full move semantics (issue 3669).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-05: Version 4.3.21
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-04: Version 4.3.20
+
+        convert remaining object functions to maybes (issue 3929).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-04: Version 4.3.19
+
+        ARM assembler: fix undefined behaviour in fits_shifter (Chromium issues
+        444089, 463436).
+
+        Implement subclassing Arrays (issue 3930).
+
+        [es6] Fix for-const loops (issue 3983).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-04: Version 4.3.18
+
+        Implement subclassing Arrays (issue 3930).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-04: Version 4.3.17
+
+        Implement subclassing Arrays (issue 3930).
+
+        convert more object functions to return maybes (issue 3929).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-03: Version 4.3.16
+
+        check for null context on execution entry (issue 3929).
+
+        convert object::* to return maybe values (issue 3929).
+
+        Removed funky Maybe constructor and made fields private (issue 3929).
+
+        Polish Maybe API a bit, removing useless creativity and fixing some
+        signatures (issue 3929).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-02: Version 4.3.15
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-02: Version 4.3.14
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-28: Version 4.3.13
+
+        Disallow subclassing Arrays (issue 3930).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-28: Version 4.3.12
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-27: Version 4.3.11
+
+        Disallow subclassing Arrays (issue 3930).
+
+        convert Value::*Value() function to return Maybe results (issue 3929).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-27: Version 4.3.10
+
+        Convert v8::Value::To* to use MaybeLocal (issue 3929).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-26: Version 4.3.9
+
+        Add public version macros (issue 3075).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-26: Version 4.3.8
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-25: Version 4.3.7
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-25: Version 4.3.6
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-25: Version 4.3.5
+
+        Turn on job based recompilation (issue 3608).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-24: Version 4.3.4
+
+        Reland "Correctly propagate terminate exception in TryCall." (issue
+        3892).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-24: Version 4.3.3
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-24: Version 4.3.2
+
+        Update GN build files with the cpu_arch -> current_cpu change.
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-23: Version 4.3.1
+
+        Limit size of first page based on serialized data (Chromium issue
+        453111).
+
+        Performance and stability improvements on all platforms.
+
+
 2015-02-19: Version 4.2.77
 
         Make generator constructors configurable (issue 3902).

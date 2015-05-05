@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-rest-parameters
+// Flags: --harmony-rest-parameters --harmony-classes
 
 (function testRestIndex() {
   assertEquals(5, (function(...args) { return args.length; })(1,2,3,4,5));
@@ -180,3 +180,35 @@ var O = {
   assertEquals([], ((...args) => args)());
   assertEquals([1,2,3], ((...args) => args)(1,2,3));
 })();*/
+
+
+(function testRestParamsWithNewTarget() {
+  "use strict";
+  class Base {
+    constructor(...a) {
+      this.base = a;
+      assertEquals(arguments.length, a.length);
+      var args = [];
+      for (var i = 0; i < arguments.length; ++i) {
+        args.push(arguments[i]);
+      }
+      assertEquals(args, a);
+    }
+  }
+  class Child extends Base {
+    constructor(...b) {
+      super(1, 2, 3);
+      this.child = b;
+      assertEquals(arguments.length, b.length);
+      var args = [];
+      for (var i = 0; i < arguments.length; ++i) {
+        args.push(arguments[i]);
+      }
+      assertEquals(args, b);
+    }
+  }
+
+  var c = new Child(1, 2, 3);
+  assertEquals([1, 2, 3], c.child);
+  assertEquals([1, 2, 3], c.base);
+})();

@@ -385,6 +385,12 @@ class MemoryChunk {
     // to grey transition is performed in the value.
     HAS_PROGRESS_BAR,
 
+    // This flag is intended to be used for testing. Works only when both
+    // FLAG_stress_compaction and FLAG_manual_evacuation_candidates_selection
+    // are set. It forces the page to become an evacuation candidate at next
+    // candidates selection cycle.
+    FORCE_EVACUATION_CANDIDATE_FOR_TESTING,
+
     // Last flag, keep at bottom.
     NUM_MEMORY_CHUNK_FLAGS
   };
@@ -1871,6 +1877,7 @@ class PagedSpace : public Space {
   void CreateEmergencyMemory();
   void FreeEmergencyMemory();
   void UseEmergencyMemory();
+  intptr_t MaxEmergencyMemoryAllocated();
 
   bool HasEmergencyMemory() { return emergency_memory_ != NULL; }
 
@@ -2681,31 +2688,6 @@ class CellSpace : public PagedSpace {
 
  public:
   TRACK_MEMORY("CellSpace")
-};
-
-
-// -----------------------------------------------------------------------------
-// Old space for all global object property cell objects
-
-class PropertyCellSpace : public PagedSpace {
- public:
-  // Creates a property cell space object with a maximum capacity.
-  PropertyCellSpace(Heap* heap, intptr_t max_capacity, AllocationSpace id)
-      : PagedSpace(heap, max_capacity, id, NOT_EXECUTABLE) {}
-
-  virtual int RoundSizeDownToObjectAlignment(int size) {
-    if (base::bits::IsPowerOfTwo32(PropertyCell::kSize)) {
-      return RoundDown(size, PropertyCell::kSize);
-    } else {
-      return (size / PropertyCell::kSize) * PropertyCell::kSize;
-    }
-  }
-
- protected:
-  virtual void VerifyObject(HeapObject* obj);
-
- public:
-  TRACK_MEMORY("PropertyCellSpace")
 };
 
 

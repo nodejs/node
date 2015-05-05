@@ -32,16 +32,23 @@ class Callable FINAL BASE_EMBEDDED {
 class CodeFactory FINAL {
  public:
   // Initial states for ICs.
+  static Callable LoadGlobalIC(Isolate* isolate, Handle<GlobalObject> global,
+                               Handle<String> name);
   static Callable LoadIC(Isolate* isolate, ContextualMode mode);
-  static Callable LoadICInOptimizedCode(Isolate* isolate, ContextualMode mode);
+  static Callable LoadICInOptimizedCode(Isolate* isolate, ContextualMode mode,
+                                        InlineCacheState initialization_state);
   static Callable KeyedLoadIC(Isolate* isolate);
-  static Callable KeyedLoadICInOptimizedCode(Isolate* isolate);
+  static Callable KeyedLoadICInOptimizedCode(
+      Isolate* isolate, InlineCacheState initialization_state);
   static Callable CallIC(Isolate* isolate, int argc,
                          CallICState::CallType call_type);
   static Callable CallICInOptimizedCode(Isolate* isolate, int argc,
                                         CallICState::CallType call_type);
   static Callable StoreIC(Isolate* isolate, LanguageMode mode);
   static Callable KeyedStoreIC(Isolate* isolate, LanguageMode mode);
+  static Callable KeyedStoreICInOptimizedCode(
+      Isolate* isolate, LanguageMode mode,
+      InlineCacheState initialization_state);
 
   static Callable CompareIC(Isolate* isolate, Token::Value op);
 

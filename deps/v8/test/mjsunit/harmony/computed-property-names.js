@@ -277,3 +277,26 @@ function ID(x) {
   assertEquals('X', object.x);
   assertEquals(proto, Object.getPrototypeOf(object));
 })();
+
+
+(function TestExceptionInName() {
+  function MyError() {};
+  function throwMyError() {
+    throw new MyError();
+  }
+  assertThrows(function() {
+    var o = {
+      [throwMyError()]: 42
+    };
+  }, MyError);
+  assertThrows(function() {
+    var o = {
+      get [throwMyError()]() { return 42; }
+    };
+  }, MyError);
+  assertThrows(function() {
+    var o = {
+      set [throwMyError()](_) { }
+    };
+  }, MyError);
+})();
