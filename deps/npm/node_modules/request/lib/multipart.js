@@ -56,7 +56,7 @@ Multipart.prototype.setHeaders = function (chunked) {
     self.request.setHeader('content-type', 'multipart/related; boundary=' + self.boundary)
   } else {
     if (header.indexOf('boundary') !== -1) {
-      self.boundary = header.replace(/.*boundary=([^\s;])+.*/, '$1')
+      self.boundary = header.replace(/.*boundary=([^\s;]+).*/, '$1')
     } else {
       self.request.setHeader('content-type', header + '; boundary=' + self.boundary)
     }

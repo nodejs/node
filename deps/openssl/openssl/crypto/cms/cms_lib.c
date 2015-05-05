@@ -53,7 +53,7 @@
  */
 
 #include <openssl/asn1t.h>
-#include <openssl/x509.h>
+#include <openssl/x509v3.h>
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/bio.h>
@@ -592,4 +592,61 @@ STACK_OF(X509_CRL) *CMS_get1_crls(CMS_ContentInfo *cms)
         }
     }
     return crls;
+}
+
+int cms_ias_cert_cmp(CMS_IssuerAndSerialNumber *ias, X509 *cert)
+{
+    int ret;
+    ret = X509_NAME_cmp(ias->issuer, X509_get_issuer_name(cert));
+    if (ret)
+        return ret;
+    return ASN1_INTEGER_cmp(ias->serialNumber, X509_get_serialNumber(cert));
+}
+
+int cms_keyid_cert_cmp(ASN1_OCTET_STRING *keyid, X509 *cert)
+{
+    X509_check_purpose(cert, -1, -1);
+    if (!cert->skid)
+        return -1;
+    return ASN1_OCTET_STRING_cmp(keyid, cert->skid);
+}
+
+int cms_set1_ias(CMS_IssuerAndSerialNumber **pias, X509 *cert)
+{
+    CMS_IssuerAndSerialNumber *ias;
+    ias = M_ASN1_new_of(CMS_IssuerAndSerialNumber);
+    if (!ias)
+        goto err;
+    if (!X509_NAME_set(&ias->issuer, X509_get_issuer_name(cert)))
+        goto err;
+    if (!ASN1_STRING_copy(ias->serialNumber, X509_get_serialNumber(cert)))
+        goto err;
+    if (*pias)
+        M_ASN1_free_of(*pias, CMS_IssuerAndSerialNumber);
+    *pias = ias;
+    return 1;
+ err:
+    if (ias)
+        M_ASN1_free_of(ias, CMS_IssuerAndSerialNumber);
+    CMSerr(CMS_F_CMS_SET1_IAS, ERR_R_MALLOC_FAILURE);
+    return 0;
+}
+
+int cms_set1_keyid(ASN1_OCTET_STRING **pkeyid, X509 *cert)
+{
+    ASN1_OCTET_STRING *keyid = NULL;
+    X509_check_purpose(cert, -1, -1);
+    if (!cert->skid) {
+        CMSerr(CMS_F_CMS_SET1_KEYID, CMS_R_CERTIFICATE_HAS_NO_KEYID);
+        return 0;
+    }
+    keyid = ASN1_STRING_dup(cert->skid);
+    if (!keyid) {
+        CMSerr(CMS_F_CMS_SET1_KEYID, ERR_R_MALLOC_FAILURE);
+        return 0;
+    }
+    if (*pkeyid)
+        ASN1_OCTET_STRING_free(*pkeyid);
+    *pkeyid = keyid;
+    return 1;
 }

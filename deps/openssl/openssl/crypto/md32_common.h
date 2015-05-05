@@ -142,8 +142,10 @@
  */
 #undef ROTATE
 #ifndef PEDANTIC
-# if defined(_MSC_VER) || defined(__ICC)
+# if defined(_MSC_VER)
 #  define ROTATE(a,n)   _lrotl(a,n)
+# elif defined(__ICC)
+#  define ROTATE(a,n)   _rotl(a,n)
 # elif defined(__MWERKS__)
 #  if defined(__POWERPC__)
 #   define ROTATE(a,n)  __rlwinm(a,n,0,31)
@@ -213,12 +215,30 @@
                                    asm ("bswapl %0":"=r"(r):"0"(r));    \
                                    *((unsigned int *)(c))=r; (c)+=4; r; })
 #    endif
+#   elif defined(__aarch64__)
+#    if defined(__BYTE_ORDER__)
+#     if defined(__ORDER_LITTLE_ENDIAN__) && __BYTE_ORDER__==__ORDER_LITTLE_ENDIAN__
+#      define HOST_c2l(c,l)      ({ unsigned int r;              \
+                                   asm ("rev    %w0,%w1"        \
+                                        :"=r"(r)                \
+                                        :"r"(*((const unsigned int *)(c))));\
+                                   (c)+=4; (l)=r;               })
+#      define HOST_l2c(l,c)      ({ unsigned int r;              \
+                                   asm ("rev    %w0,%w1"        \
+                                        :"=r"(r)                \
+                                        :"r"((unsigned int)(l)));\
+                                   *((unsigned int *)(c))=r; (c)+=4; r; })
+#     elif defined(__ORDER_BIG_ENDIAN__) && __BYTE_ORDER__==__ORDER_BIG_ENDIAN__
+#      define HOST_c2l(c,l)      ((l)=*((const unsigned int *)(c)), (c)+=4, (l))
+#      define HOST_l2c(l,c)      (*((unsigned int *)(c))=(l), (c)+=4, (l))
+#     endif
+#    endif
 #   endif
 #  endif
-# endif
-# if defined(__s390__) || defined(__s390x__)
-#  define HOST_c2l(c,l) ((l)=*((const unsigned int *)(c)), (c)+=4, (l))
-#  define HOST_l2c(l,c) (*((unsigned int *)(c))=(l), (c)+=4, (l))
+#  if defined(__s390__) || defined(__s390x__)
+#   define HOST_c2l(c,l) ((l)=*((const unsigned int *)(c)), (c)+=4, (l))
+#   define HOST_l2c(l,c) (*((unsigned int *)(c))=(l), (c)+=4, (l))
+#  endif
 # endif
 
 # ifndef HOST_c2l
@@ -248,12 +268,12 @@
                                    (c)+=4; (l);                         })
 #   endif
 #  endif
-# endif
-# if defined(__i386) || defined(__i386__) || defined(__x86_64) || defined(__x86_64__)
-#  ifndef B_ENDIAN
-   /* See comment in DATA_ORDER_IS_BIG_ENDIAN section. */
-#   define HOST_c2l(c,l) ((l)=*((const unsigned int *)(c)), (c)+=4, l)
-#   define HOST_l2c(l,c) (*((unsigned int *)(c))=(l), (c)+=4, l)
+#  if defined(__i386) || defined(__i386__) || defined(__x86_64) || defined(__x86_64__)
+#   ifndef B_ENDIAN
+    /* See comment in DATA_ORDER_IS_BIG_ENDIAN section. */
+#    define HOST_c2l(c,l)        ((l)=*((const unsigned int *)(c)), (c)+=4, l)
+#    define HOST_l2c(l,c)        (*((unsigned int *)(c))=(l), (c)+=4, l)
+#   endif
 #  endif
 # endif
 

@@ -98,7 +98,7 @@ Local<Object> New(Isolate* isolate, Handle<String> string, enum encoding enc) {
 
   size_t length = StringBytes::Size(isolate, string, enc);
 
-  Local<Object> buf = New(length);
+  Local<Object> buf = New(isolate, length);
   char* data = Buffer::Data(buf);
   StringBytes::Write(isolate, data, length, string, enc);
 
@@ -303,10 +303,10 @@ void Base64Slice(const FunctionCallbackInfo<Value>& args) {
 void Copy(const FunctionCallbackInfo<Value> &args) {
   Environment* env = Environment::GetCurrent(args);
 
-  Local<Object> target = args[0]->ToObject(env->isolate());
-
-  if (!HasInstance(target))
+  if (!HasInstance(args[0]))
     return env->ThrowTypeError("first arg should be a Buffer");
+
+  Local<Object> target = args[0]->ToObject(env->isolate());
 
   ARGS_THIS(args.This())
   size_t target_length = target->GetIndexedPropertiesExternalArrayDataLength();
@@ -745,7 +745,6 @@ void Initialize(Handle<Object> target,
 
   env->SetMethod(target, "setupBufferJS", SetupBufferJS);
 
-  env->SetMethod(target, "byteLength", ByteLength);
   env->SetMethod(target, "byteLength", ByteLength);
   env->SetMethod(target, "compare", Compare);
   env->SetMethod(target, "fill", Fill);

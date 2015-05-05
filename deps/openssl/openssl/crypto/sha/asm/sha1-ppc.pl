@@ -9,8 +9,7 @@
 
 # I let hardware handle unaligned input(*), except on page boundaries
 # (see below for details). Otherwise straightforward implementation
-# with X vector in register bank. The module is big-endian [which is
-# not big deal as there're no little-endian targets left around].
+# with X vector in register bank.
 #
 # (*) this means that this module is inappropriate for PPC403? Does
 #     anybody know if pre-POWER3 can sustain unaligned load?
@@ -37,6 +36,10 @@ if ($flavour =~ /64/) {
 	$POP	="lwz";
 	$PUSH	="stw";
 } else { die "nonsense $flavour"; }
+
+# Define endianess based on flavour
+# i.e.: linux64le
+$LITTLE_ENDIAN = ($flavour=~/le$/) ? $SIZE_T : 0;
 
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}ppc-xlate.pl" and -f $xlate ) or
@@ -68,14 +71,28 @@ $T  ="r12";
 @X=("r16","r17","r18","r19","r20","r21","r22","r23",
     "r24","r25","r26","r27","r28","r29","r30","r31");
 
+sub loadbe {
+my ($dst, $src, $temp_reg) = @_;
+$code.=<<___ if (!$LITTLE_ENDIAN);
+	lwz	$dst,$src
+___
+$code.=<<___ if ($LITTLE_ENDIAN);
+	lwz	$temp_reg,$src
+	rotlwi	$dst,$temp_reg,8
+	rlwimi	$dst,$temp_reg,24,0,7
+	rlwimi	$dst,$temp_reg,24,16,23
+___
+}
+
 sub BODY_00_19 {
 my ($i,$a,$b,$c,$d,$e,$f)=@_;
 my $j=$i+1;
-$code.=<<___ if ($i==0);
-	lwz	@X[$i],`$i*4`($inp)
-___
+
+	# Since the last value of $f is discarded, we can use
+	# it as a temp reg to swap byte-order when needed.
+	loadbe("@X[$i]","`$i*4`($inp)",$f) if ($i==0);
+	loadbe("@X[$j]","`$j*4`($inp)",$f) if ($i<15);
 $code.=<<___ if ($i<15);
-	lwz	@X[$j],`$j*4`($inp)
 	add	$f,$K,$e
 	rotlwi	$e,$a,5
 	add	$f,$f,@X[$i]
@@ -108,31 +125,31 @@ my ($i,$a,$b,$c,$d,$e,$f)=@_;
 my $j=$i+1;
 $code.=<<___ if ($i<79);
 	add	$f,$K,$e
+	xor	$t0,$b,$d
 	rotlwi	$e,$a,5
 	xor	@X[$j%16],@X[$j%16],@X[($j+2)%16]
 	add	$f,$f,@X[$i%16]
-	xor	$t0,$b,$c
+	xor	$t0,$t0,$c
 	xor	@X[$j%16],@X[$j%16],@X[($j+8)%16]
-	add	$f,$f,$e
-	rotlwi	$b,$b,30
-	xor	$t0,$t0,$d
-	xor	@X[$j%16],@X[$j%16],@X[($j+13)%16]
 	add	$f,$f,$t0
+	rotlwi	$b,$b,30
+	xor	@X[$j%16],@X[$j%16],@X[($j+13)%16]
+	add	$f,$f,$e
 	rotlwi	@X[$j%16],@X[$j%16],1
 ___
 $code.=<<___ if ($i==79);
 	add	$f,$K,$e
+	xor	$t0,$b,$d
 	rotlwi	$e,$a,5
 	lwz	r16,0($ctx)
 	add	$f,$f,@X[$i%16]
-	xor	$t0,$b,$c
+	xor	$t0,$t0,$c
 	lwz	r17,4($ctx)
-	add	$f,$f,$e
+	add	$f,$f,$t0
 	rotlwi	$b,$b,30
 	lwz	r18,8($ctx)
-	xor	$t0,$t0,$d
 	lwz	r19,12($ctx)
-	add	$f,$f,$t0
+	add	$f,$f,$e
 	lwz	r20,16($ctx)
 ___
 }
@@ -316,6 +333,7 @@ $code.=<<___;
 	blr
 	.long	0
 	.byte	0,12,0x14,0,0,0,0,0
+.size	.sha1_block_data_order,.-.sha1_block_data_order
 ___
 $code.=<<___;
 .asciz	"SHA1 block transform for PPC, CRYPTOGAMS by <appro\@fy.chalmers.se>"

@@ -45,7 +45,6 @@ B<openssl> B<s_server>
 [B<-no_ssl3>]
 [B<-no_tls1>]
 [B<-no_dhe>]
-[B<-no_ecdhe>]
 [B<-bugs>]
 [B<-hack>]
 [B<-www>]
@@ -56,6 +55,8 @@ B<openssl> B<s_server>
 [B<-no_ticket>]
 [B<-id_prefix arg>]
 [B<-rand file(s)>]
+[B<-serverinfo file>]
+[B<-no_resumption_on_reneg>]
 [B<-status>]
 [B<-status_verbose>]
 [B<-status_timeout nsec>]
@@ -137,11 +138,6 @@ a static set of parameters hard coded into the s_server program will be used.
 
 if this option is set then no DH parameters will be loaded effectively
 disabling the ephemeral DH cipher suites.
-
-=item B<-no_ecdhe>
-
-if this option is set then no ECDH parameters will be loaded effectively
-disabling the ephemeral ECDH cipher suites.
 
 =item B<-no_tmp_rsa>
 
@@ -294,6 +290,18 @@ generator, or an EGD socket (see L<RAND_egd(3)|RAND_egd(3)>).
 Multiple files can be specified separated by a OS-dependent character.
 The separator is B<;> for MS-Windows, B<,> for OpenVMS, and B<:> for
 all others.
+
+=item B<-serverinfo file>
+
+a file containing one or more blocks of PEM data.  Each PEM block
+must encode a TLS ServerHello extension (2 bytes type, 2 bytes length,
+followed by "length" bytes of extension data).  If the client sends
+an empty TLS ClientHello extension matching the type, the corresponding
+ServerHello extension will be returned.
+
+=item B<-no_resumption_on_reneg>
+
+set SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION flag.
 
 =item B<-status>
 

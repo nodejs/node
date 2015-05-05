@@ -3,7 +3,7 @@
 =head1 NAME
 
 d2i_DSAPublicKey, i2d_DSAPublicKey, d2i_DSAPrivateKey, i2d_DSAPrivateKey,
-d2i_DSA_PUBKEY, i2d_DSA_PUBKEY, d2i_DSA_SIG, i2d_DSA_SIG - DSA key encoding
+d2i_DSA_PUBKEY, i2d_DSA_PUBKEY, d2i_DSAparams, i2d_DSAparams, d2i_DSA_SIG, i2d_DSA_SIG - DSA key encoding
 and parsing functions.
 
 =head1 SYNOPSIS

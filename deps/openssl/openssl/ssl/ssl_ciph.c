@@ -245,13 +245,11 @@ static const SSL_CIPHER cipher_aliases[] = {
      */
     {0, SSL_TXT_kRSA, 0, SSL_kRSA, 0, 0, 0, 0, 0, 0, 0, 0},
 
-    /* no such ciphersuites supported! */
     {0, SSL_TXT_kDHr, 0, SSL_kDHr, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* no such ciphersuites supported! */
     {0, SSL_TXT_kDHd, 0, SSL_kDHd, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* no such ciphersuites supported! */
     {0, SSL_TXT_kDH, 0, SSL_kDHr | SSL_kDHd, 0, 0, 0, 0, 0, 0, 0, 0},
-        {0, SSL_TXT_kEDH, 0, SSL_kEDH, 0, 0, 0, 0, 0, 0, 0, 0},
+    {0, SSL_TXT_kEDH, 0, SSL_kEDH, 0, 0, 0, 0, 0, 0, 0, 0},
+    {0, SSL_TXT_kDHE, 0, SSL_kEDH, 0, 0, 0, 0, 0, 0, 0, 0},
     {0, SSL_TXT_DH, 0, SSL_kDHr | SSL_kDHd | SSL_kEDH, 0, 0, 0, 0, 0, 0, 0,
      0},
 
@@ -261,6 +259,7 @@ static const SSL_CIPHER cipher_aliases[] = {
     {0, SSL_TXT_kECDHe, 0, SSL_kECDHe, 0, 0, 0, 0, 0, 0, 0, 0},
     {0, SSL_TXT_kECDH, 0, SSL_kECDHr | SSL_kECDHe, 0, 0, 0, 0, 0, 0, 0, 0},
     {0, SSL_TXT_kEECDH, 0, SSL_kEECDH, 0, 0, 0, 0, 0, 0, 0, 0},
+    {0, SSL_TXT_kECDHE, 0, SSL_kEECDH, 0, 0, 0, 0, 0, 0, 0, 0},
     {0, SSL_TXT_ECDH, 0, SSL_kECDHr | SSL_kECDHe | SSL_kEECDH, 0, 0, 0, 0, 0,
      0, 0, 0},
 
@@ -287,7 +286,9 @@ static const SSL_CIPHER cipher_aliases[] = {
 
     /* aliases combining key exchange and server authentication */
     {0, SSL_TXT_EDH, 0, SSL_kEDH, ~SSL_aNULL, 0, 0, 0, 0, 0, 0, 0},
+    {0, SSL_TXT_DHE, 0, SSL_kEDH, ~SSL_aNULL, 0, 0, 0, 0, 0, 0, 0},
     {0, SSL_TXT_EECDH, 0, SSL_kEECDH, ~SSL_aNULL, 0, 0, 0, 0, 0, 0, 0},
+    {0, SSL_TXT_ECDHE, 0, SSL_kEECDH, ~SSL_aNULL, 0, 0, 0, 0, 0, 0, 0},
     {0, SSL_TXT_NULL, 0, 0, 0, SSL_eNULL, 0, 0, 0, 0, 0, 0},
     {0, SSL_TXT_KRB5, 0, SSL_kKRB5, SSL_aKRB5, 0, 0, 0, 0, 0, 0, 0},
     {0, SSL_TXT_RSA, 0, SSL_kRSA, SSL_aRSA, 0, 0, 0, 0, 0, 0, 0},
@@ -343,6 +344,25 @@ static const SSL_CIPHER cipher_aliases[] = {
     {0, SSL_TXT_HIGH, 0, 0, 0, 0, 0, 0, SSL_HIGH, 0, 0, 0},
     /* FIPS 140-2 approved ciphersuite */
     {0, SSL_TXT_FIPS, 0, 0, 0, ~SSL_eNULL, 0, 0, SSL_FIPS, 0, 0, 0},
+    /* "DHE-" aliases to "EDH-" labels (for forward compatibility) */
+    {0, SSL3_TXT_DHE_DSS_DES_40_CBC_SHA, 0,
+     SSL_kDHE, SSL_aDSS, SSL_DES, SSL_SHA1, SSL_SSLV3, SSL_EXPORT | SSL_EXP40,
+     0, 0, 0,},
+    {0, SSL3_TXT_DHE_DSS_DES_64_CBC_SHA, 0,
+     SSL_kDHE, SSL_aDSS, SSL_DES, SSL_SHA1, SSL_SSLV3, SSL_NOT_EXP | SSL_LOW,
+     0, 0, 0,},
+    {0, SSL3_TXT_DHE_DSS_DES_192_CBC3_SHA, 0,
+     SSL_kDHE, SSL_aDSS, SSL_3DES, SSL_SHA1, SSL_SSLV3,
+     SSL_NOT_EXP | SSL_HIGH | SSL_FIPS, 0, 0, 0,},
+    {0, SSL3_TXT_DHE_RSA_DES_40_CBC_SHA, 0,
+     SSL_kDHE, SSL_aRSA, SSL_DES, SSL_SHA1, SSL_SSLV3, SSL_EXPORT | SSL_EXP40,
+     0, 0, 0,},
+    {0, SSL3_TXT_DHE_RSA_DES_64_CBC_SHA, 0,
+     SSL_kDHE, SSL_aRSA, SSL_DES, SSL_SHA1, SSL_SSLV3, SSL_NOT_EXP | SSL_LOW,
+     0, 0, 0,},
+    {0, SSL3_TXT_DHE_RSA_DES_192_CBC3_SHA, 0,
+     SSL_kDHE, SSL_aRSA, SSL_3DES, SSL_SHA1, SSL_SSLV3,
+     SSL_NOT_EXP | SSL_HIGH | SSL_FIPS, 0, 0, 0,},
 };
 
 /*
@@ -638,6 +658,14 @@ int ssl_cipher_get_evp(const SSL_SESSION *s, const EVP_CIPHER **enc,
                  c->algorithm_mac == SSL_SHA1 &&
                  (evp = EVP_get_cipherbyname("AES-256-CBC-HMAC-SHA1")))
             *enc = evp, *md = NULL;
+        else if (c->algorithm_enc == SSL_AES128 &&
+                 c->algorithm_mac == SSL_SHA256 &&
+                 (evp = EVP_get_cipherbyname("AES-128-CBC-HMAC-SHA256")))
+            *enc = evp, *md = NULL;
+        else if (c->algorithm_enc == SSL_AES256 &&
+                 c->algorithm_mac == SSL_SHA256 &&
+                 (evp = EVP_get_cipherbyname("AES-256-CBC-HMAC-SHA256")))
+            *enc = evp, *md = NULL;
         return (1);
     } else
         return (0);
@@ -710,8 +738,6 @@ static void ssl_cipher_get_disabled(unsigned long *mkey, unsigned long *auth,
 #ifdef OPENSSL_NO_DSA
     *auth |= SSL_aDSS;
 #endif
-    *mkey |= SSL_kDHr | SSL_kDHd; /* no such ciphersuites supported! */
-    *auth |= SSL_aDH;
 #ifdef OPENSSL_NO_DH
     *mkey |= SSL_kDHr | SSL_kDHd | SSL_kEDH;
     *auth |= SSL_aDH;
@@ -996,6 +1022,10 @@ static void ssl_cipher_apply_rule(unsigned long cipher_id,
                     cp->name, cp->algorithm_mkey, cp->algorithm_auth,
                     cp->algorithm_enc, cp->algorithm_mac, cp->algorithm_ssl,
                     cp->algo_strength);
+#endif
+#ifdef OPENSSL_SSL_DEBUG_BROKEN_PROTOCOL
+            if (cipher_id && cipher_id != cp->id)
+                continue;
 #endif
             if (algo_strength == SSL_EXP_MASK && SSL_C_IS_EXPORT(cp))
                 goto ok;
@@ -1369,10 +1399,71 @@ static int ssl_cipher_process_rulestr(const char *rule_str,
     return (retval);
 }
 
+#ifndef OPENSSL_NO_EC
+static int check_suiteb_cipher_list(const SSL_METHOD *meth, CERT *c,
+                                    const char **prule_str)
+{
+    unsigned int suiteb_flags = 0, suiteb_comb2 = 0;
+    if (!strcmp(*prule_str, "SUITEB128"))
+        suiteb_flags = SSL_CERT_FLAG_SUITEB_128_LOS;
+    else if (!strcmp(*prule_str, "SUITEB128ONLY"))
+        suiteb_flags = SSL_CERT_FLAG_SUITEB_128_LOS_ONLY;
+    else if (!strcmp(*prule_str, "SUITEB128C2")) {
+        suiteb_comb2 = 1;
+        suiteb_flags = SSL_CERT_FLAG_SUITEB_128_LOS;
+    } else if (!strcmp(*prule_str, "SUITEB192"))
+        suiteb_flags = SSL_CERT_FLAG_SUITEB_192_LOS;
+
+    if (suiteb_flags) {
+        c->cert_flags &= ~SSL_CERT_FLAG_SUITEB_128_LOS;
+        c->cert_flags |= suiteb_flags;
+    } else
+        suiteb_flags = c->cert_flags & SSL_CERT_FLAG_SUITEB_128_LOS;
+
+    if (!suiteb_flags)
+        return 1;
+    /* Check version: if TLS 1.2 ciphers allowed we can use Suite B */
+
+    if (!(meth->ssl3_enc->enc_flags & SSL_ENC_FLAG_TLS1_2_CIPHERS)) {
+        if (meth->ssl3_enc->enc_flags & SSL_ENC_FLAG_DTLS)
+            SSLerr(SSL_F_CHECK_SUITEB_CIPHER_LIST,
+                   SSL_R_ONLY_DTLS_1_2_ALLOWED_IN_SUITEB_MODE);
+        else
+            SSLerr(SSL_F_CHECK_SUITEB_CIPHER_LIST,
+                   SSL_R_ONLY_TLS_1_2_ALLOWED_IN_SUITEB_MODE);
+        return 0;
+    }
+# ifndef OPENSSL_NO_ECDH
+    switch (suiteb_flags) {
+    case SSL_CERT_FLAG_SUITEB_128_LOS:
+        if (suiteb_comb2)
+            *prule_str = "ECDHE-ECDSA-AES256-GCM-SHA384";
+        else
+            *prule_str =
+                "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384";
+        break;
+    case SSL_CERT_FLAG_SUITEB_128_LOS_ONLY:
+        *prule_str = "ECDHE-ECDSA-AES128-GCM-SHA256";
+        break;
+    case SSL_CERT_FLAG_SUITEB_192_LOS:
+        *prule_str = "ECDHE-ECDSA-AES256-GCM-SHA384";
+        break;
+    }
+    /* Set auto ECDH parameter determination */
+    c->ecdh_tmp_auto = 1;
+    return 1;
+# else
+    SSLerr(SSL_F_CHECK_SUITEB_CIPHER_LIST,
+           SSL_R_ECDH_REQUIRED_FOR_SUITEB_MODE);
+    return 0;
+# endif
+}
+#endif
+
 STACK_OF(SSL_CIPHER) *ssl_create_cipher_list(const SSL_METHOD *ssl_method, STACK_OF(SSL_CIPHER)
                                              **cipher_list, STACK_OF(SSL_CIPHER)
                                              **cipher_list_by_id,
-                                             const char *rule_str)
+                                             const char *rule_str, CERT *c)
 {
     int ok, num_of_ciphers, num_of_alias_max, num_of_group_aliases;
     unsigned long disabled_mkey, disabled_auth, disabled_enc, disabled_mac,
@@ -1387,6 +1478,10 @@ STACK_OF(SSL_CIPHER) *ssl_create_cipher_list(const SSL_METHOD *ssl_method, STACK
      */
     if (rule_str == NULL || cipher_list == NULL || cipher_list_by_id == NULL)
         return NULL;
+#ifndef OPENSSL_NO_EC
+    if (!check_suiteb_cipher_list(ssl_method, c, &rule_str))
+        return NULL;
+#endif
 
     /*
      * To reduce the work to do we only want to process the compiled
@@ -1854,6 +1949,26 @@ STACK_OF(SSL_COMP) *SSL_COMP_get_compression_methods(void)
     return (ssl_comp_methods);
 }
 
+STACK_OF(SSL_COMP) *SSL_COMP_set0_compression_methods(STACK_OF(SSL_COMP)
+                                                      *meths)
+{
+    STACK_OF(SSL_COMP) *old_meths = ssl_comp_methods;
+    ssl_comp_methods = meths;
+    return old_meths;
+}
+
+static void cmeth_free(SSL_COMP *cm)
+{
+    OPENSSL_free(cm);
+}
+
+void SSL_COMP_free_compression_methods(void)
+{
+    STACK_OF(SSL_COMP) *old_meths = ssl_comp_methods;
+    ssl_comp_methods = NULL;
+    sk_SSL_COMP_pop_free(old_meths, cmeth_free);
+}
+
 int SSL_COMP_add_compression_method(int id, COMP_METHOD *cm)
 {
     SSL_COMP *comp;
@@ -1904,5 +2019,55 @@ const char *SSL_COMP_get_name(const COMP_METHOD *comp)
         return comp->name;
     return NULL;
 }
-
 #endif
+/* For a cipher return the index corresponding to the certificate type */
+int ssl_cipher_get_cert_index(const SSL_CIPHER *c)
+{
+    unsigned long alg_k, alg_a;
+
+    alg_k = c->algorithm_mkey;
+    alg_a = c->algorithm_auth;
+
+    if (alg_k & (SSL_kECDHr | SSL_kECDHe)) {
+        /*
+         * we don't need to look at SSL_kEECDH since no certificate is needed
+         * for anon ECDH and for authenticated EECDH, the check for the auth
+         * algorithm will set i correctly NOTE: For ECDH-RSA, we need an ECC
+         * not an RSA cert but for EECDH-RSA we need an RSA cert. Placing the
+         * checks for SSL_kECDH before RSA checks ensures the correct cert is
+         * chosen.
+         */
+        return SSL_PKEY_ECC;
+    } else if (alg_a & SSL_aECDSA)
+        return SSL_PKEY_ECC;
+    else if (alg_k & SSL_kDHr)
+        return SSL_PKEY_DH_RSA;
+    else if (alg_k & SSL_kDHd)
+        return SSL_PKEY_DH_DSA;
+    else if (alg_a & SSL_aDSS)
+        return SSL_PKEY_DSA_SIGN;
+    else if (alg_a & SSL_aRSA)
+        return SSL_PKEY_RSA_ENC;
+    else if (alg_a & SSL_aKRB5)
+        /* VRS something else here? */
+        return -1;
+    else if (alg_a & SSL_aGOST94)
+        return SSL_PKEY_GOST94;
+    else if (alg_a & SSL_aGOST01)
+        return SSL_PKEY_GOST01;
+    return -1;
+}
+
+const SSL_CIPHER *ssl_get_cipher_by_char(SSL *ssl, const unsigned char *ptr)
+{
+    const SSL_CIPHER *c;
+    c = ssl->method->get_cipher_by_char(ptr);
+    if (c == NULL || c->valid == 0)
+        return NULL;
+    return c;
+}
+
+const SSL_CIPHER *SSL_CIPHER_find(SSL *ssl, const unsigned char *ptr)
+{
+    return ssl->method->get_cipher_by_char(ptr);
+}

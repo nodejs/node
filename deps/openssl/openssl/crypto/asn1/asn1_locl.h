@@ -59,6 +59,9 @@
 
 /* Internal ASN1 structures and functions: not for application use */
 
+int asn1_utctime_to_tm(struct tm *tm, const ASN1_UTCTIME *d);
+int asn1_generalizedtime_to_tm(struct tm *tm, const ASN1_GENERALIZEDTIME *d);
+
 /* ASN1 print context structure */
 
 struct asn1_pctx_st {

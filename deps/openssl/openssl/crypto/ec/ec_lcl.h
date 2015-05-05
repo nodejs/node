@@ -212,6 +212,13 @@ struct ec_group_st {
     BIGNUM order, cofactor;
     int curve_name;             /* optional NID for named curve */
     int asn1_flag;              /* flag to control the asn1 encoding */
+    /*
+     * Kludge: upper bit of ans1_flag is used to denote structure
+     * version. Is set, then last field is present. This is done
+     * for interoperation with FIPS code.
+     */
+#define EC_GROUP_ASN1_FLAG_MASK 0x7fffffff
+#define EC_GROUP_VERSION(p) (p->asn1_flag&~EC_GROUP_ASN1_FLAG_MASK)
     point_conversion_form_t asn1_form;
     unsigned char *seed;        /* optional seed for parameters (appears in
                                  * ASN1) */
@@ -252,6 +259,7 @@ struct ec_group_st {
     /* method-specific */
     int (*field_mod_func) (BIGNUM *, const BIGNUM *, const BIGNUM *,
                            BN_CTX *);
+    BN_MONT_CTX *mont_data;     /* data for ECDSA inverse */
 } /* EC_GROUP */ ;
 
 struct ec_key_st {
@@ -548,4 +556,21 @@ void ec_GFp_nistp_points_make_affine_internal(size_t num, void *point_array,
                                                                       *in));
 void ec_GFp_nistp_recode_scalar_bits(unsigned char *sign,
                                      unsigned char *digit, unsigned char in);
+#endif
+int ec_precompute_mont_data(EC_GROUP *);
+
+#ifdef ECP_NISTZ256_ASM
+/** Returns GFp methods using montgomery multiplication, with x86-64 optimized
+ * P256. See http://eprint.iacr.org/2013/816.
+ *  \return  EC_METHOD object
+ */
+const EC_METHOD *EC_GFp_nistz256_method(void);
+#endif
+
+#ifdef OPENSSL_FIPS
+EC_GROUP *FIPS_ec_group_new_curve_gfp(const BIGNUM *p, const BIGNUM *a,
+                                      const BIGNUM *b, BN_CTX *ctx);
+EC_GROUP *FIPS_ec_group_new_curve_gf2m(const BIGNUM *p, const BIGNUM *a,
+                                       const BIGNUM *b, BN_CTX *ctx);
+EC_GROUP *FIPS_ec_group_new_by_curve_name(int nid);
 #endif

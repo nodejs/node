@@ -119,14 +119,14 @@ $ git rebase --abort
 Checkout proper target branch
 
 ```text
-$ git checkout v1.x
+$ git checkout master
 ```
 
 Update the tree
 
 ```text
 $ git fetch origin
-$ git merge --ff-only origin/v1.x
+$ git merge --ff-only origin/master
 ```
 
 Apply external patches
@@ -138,13 +138,13 @@ $ curl -L https://github.com/iojs/io.js/pull/xxx.patch | git am --whitespace=fix
 Check and re-review the changes
 
 ```text
-$ git diff origin/v1.x
+$ git diff origin/master
 ```
 
 Check number of commits and commit messages
 
 ```text
-$ git log origin/v1.x...v1.x
+$ git log origin/master...master
 ```
 
 If there are multiple commits that relate to the same feature or
@@ -152,7 +152,7 @@ one with a feature and separate with a test for that feature -
 you'll need to squash them (or strictly speaking `fixup`).
 
 ```text
-$ git rebase -i origin/v1.x
+$ git rebase -i origin/master
 ```
 
 This will open a screen like this (in the default shell editor):
@@ -210,5 +210,16 @@ line.
 Time to push it:
 
 ```text
-$ git push origin v1.x
+$ git push origin master
 ```
+
+### I just made a mistake
+
+With git, there's a way to override remote trees by force pushing
+(`git push -f`). This should generally be seen as forbidden (since
+you're rewriting history on a repository other people are working
+against) but is allowed for simpler slip-ups such as typos in commit
+messages. However, you are only allowed to force push to any io.js
+branch within 10 minutes from your original push. If someone else
+pushes to the branch your commit lives in or the 10 minute period
+passes, consider the commit final.

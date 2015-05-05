@@ -1,7 +1,7 @@
 # io.js Working Groups
 
 io.js Working Groups are autonomous projects created by the
-[Technical Committee (TC)](https://github.com/iojs/io.js/blob/v1.x/GOVERNANCE.md#technical-committee).
+[Technical Committee (TC)](https://github.com/iojs/io.js/blob/master/GOVERNANCE.md#technical-committee).
 
 Working Groups can be formed at any time but must be ratified by the TC.
 Once formed the work defined in the Working Group charter is the
@@ -26,6 +26,7 @@ back in to the TC.
 * [Evangelism](#evangelism)
 * [Roadmap](#roadmap)
 * [Docker](#docker)
+* [Addon API](#addon-api)
 * [Starting a Working Group](#starting-a-wg)
 * [Bootstrap Governance](#bootstrap-governance)
 
@@ -178,6 +179,31 @@ Their responsibilities are:
 * Decide and implement image improvements and/or fixes.
 * Maintain and improve the images' documentation.
 
+
+### [Addon API](https://github.com/iojs/nan)
+
+The Addon API Working Group is responsible for maintaining the NAN project and
+corresponding _nan_ package in npm. The NAN project makes available an
+abstraction layer for native add-on authors for both Node.js and io.js,
+assisting in the writing of code that is compatible with many actively used
+versions of Node.js, io.js, V8 and libuv.
+
+Their responsibilities are:
+
+* Maintaining the [NAN](https://github.com/iojs/nan) GitHub repository,
+  including code, issues and documentation.
+* Maintaining the [addon-examples](https://github.com/iojs/node-addon-examples)
+  GitHub repository, including code, issues and documentation.
+* Maintaining the C++ Addon API within the io.js project, in subordination to
+  the io.js TC.
+* Maintaining the Addon documentation within the io.js project, in
+  subordination to the io.js TC.
+* Maintaining the _nan_ package in npm, releasing new versions as appropriate.
+* Messaging about the future of the io.js and NAN interface to give the
+  community advance notice of changes.
+
+The current members can be found in their
+[README](https://github.com/iojs/nan#collaborators).
 
 ## Starting a WG
 

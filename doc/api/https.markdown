@@ -70,7 +70,7 @@ See [http.close()][] for details.
 Makes a request to a secure web server.
 
 `options` can be an object or a string. If `options` is a string, it is
-automatically parsed with [url.parse()](url.html#url.parse).
+automatically parsed with [url.parse()](url.html#url_url_parse_urlstr_parsequerystring_slashesdenotehost).
 
 All options from [http.request()][] are valid.
 
@@ -103,11 +103,19 @@ The options argument has the following options
 
 - `host`: A domain name or IP address of the server to issue the request to.
   Defaults to `'localhost'`.
-- `hostname`: To support `url.parse()` `hostname` is preferred over `host`
+- `hostname`: Alias for `host`. To support `url.parse()` `hostname` is
+  preferred over `host`.
+- `family`: IP address family to use when resolving `host` and `hostname`.
+  Valid values are `4` or `6`. When unspecified, both IP v4 and v6 will be
+  used.
 - `port`: Port of remote server. Defaults to 443.
+- `localAddress`: Local interface to bind for network connections.
+- `socketPath`: Unix Domain Socket (use one of host:port or socketPath).
 - `method`: A string specifying the HTTP request method. Defaults to `'GET'`.
 - `path`: Request path. Defaults to `'/'`. Should include query string if any.
-  E.G. `'/index.html?page=12'`
+  E.G. `'/index.html?page=12'`. An exception is thrown when the request path
+  contains illegal characters. Currently, only spaces are rejected but that
+  may change in the future.
 - `headers`: An object containing request headers.
 - `auth`: Basic authentication i.e. `'user:password'` to compute an
   Authorization header.
@@ -179,7 +187,7 @@ Example:
 Like `http.get()` but for HTTPS.
 
 `options` can be an object or a string. If `options` is a string, it is
-automatically parsed with [url.parse()](url.html#url.parse).
+automatically parsed with [url.parse()](url.html#url_url_parse_urlstr_parsequerystring_slashesdenotehost).
 
 Example:
 

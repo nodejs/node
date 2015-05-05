@@ -3,7 +3,7 @@ npm-config(7) -- More than you probably want to know about npm configuration
 
 ## DESCRIPTION
 
-npm gets its configuration values from 6 sources, in this priority:
+npm gets its configuration values from the following sources, sorted by priority:
 
 ### Command Line Flags
 
@@ -803,6 +803,19 @@ it will install the specified tag.
 
 Also the tag that is added to the package@version specified by the `npm
 tag` command, if no explicit tag is given.
+
+### tag-version-prefix
+
+* Default: `"v"`
+* Type: String
+
+If set, alters the prefix used when tagging a new version when performing a
+version increment using  `npm-version`. To remove the prefix altogether, set it
+to the empty string: `""`.
+
+Because other tools may rely on the convention that npm version tags look like
+`v1.0.0`, _only use this property if it is absolutely necessary_. In
+particular, use care when overriding this setting for public packages.
 
 ### tmp
 

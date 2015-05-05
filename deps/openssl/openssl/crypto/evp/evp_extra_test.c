@@ -345,7 +345,7 @@ static int test_EVP_DigestVerifyInit(void)
     if (pkey == NULL ||
         !EVP_DigestVerifyInit(&md_ctx, NULL, EVP_sha256(), NULL, pkey) ||
         !EVP_DigestVerifyUpdate(&md_ctx, kMsg, sizeof(kMsg)) ||
-        !EVP_DigestVerifyFinal(&md_ctx, (unsigned char *)kSignature, sizeof(kSignature))) {
+        !EVP_DigestVerifyFinal(&md_ctx, kSignature, sizeof(kSignature))) {
         goto out;
     }
     ret = 1;

@@ -279,13 +279,17 @@ int dtls1_do_write(SSL *s, int type)
                        (int)s->d1->w_msg_hdr.msg_len +
                        DTLS1_HM_HEADER_LENGTH);
 
-    if (s->write_hash)
-        mac_size = EVP_MD_CTX_size(s->write_hash);
-    else
+    if (s->write_hash) {
+        if (s->enc_write_ctx
+            && EVP_CIPHER_CTX_mode(s->enc_write_ctx) == EVP_CIPH_GCM_MODE)
+            mac_size = 0;
+        else
+            mac_size = EVP_MD_CTX_size(s->write_hash);
+    } else
         mac_size = 0;
 
     if (s->enc_write_ctx &&
-        (EVP_CIPHER_mode(s->enc_write_ctx->cipher) & EVP_CIPH_CBC_MODE))
+        (EVP_CIPHER_CTX_mode(s->enc_write_ctx) == EVP_CIPH_CBC_MODE))
         blocksize = 2 * EVP_CIPHER_block_size(s->enc_write_ctx->cipher);
     else
         blocksize = 0;
@@ -962,59 +966,6 @@ dtls1_get_message_fragment(SSL *s, int st1, int stn, long max, int *ok)
     return (-1);
 }
 
-int dtls1_send_finished(SSL *s, int a, int b, const char *sender, int slen)
-{
-    unsigned char *p, *d;
-    int i;
-    unsigned long l;
-
-    if (s->state == a) {
-        d = (unsigned char *)s->init_buf->data;
-        p = &(d[DTLS1_HM_HEADER_LENGTH]);
-
-        i = s->method->ssl3_enc->final_finish_mac(s,
-                                                  sender, slen,
-                                                  s->s3->tmp.finish_md);
-        s->s3->tmp.finish_md_len = i;
-        memcpy(p, s->s3->tmp.finish_md, i);
-        p += i;
-        l = i;
-
-        /*
-         * Copy the finished so we can use it for renegotiation checks
-         */
-        if (s->type == SSL_ST_CONNECT) {
-            OPENSSL_assert(i <= EVP_MAX_MD_SIZE);
-            memcpy(s->s3->previous_client_finished, s->s3->tmp.finish_md, i);
-            s->s3->previous_client_finished_len = i;
-        } else {
-            OPENSSL_assert(i <= EVP_MAX_MD_SIZE);
-            memcpy(s->s3->previous_server_finished, s->s3->tmp.finish_md, i);
-            s->s3->previous_server_finished_len = i;
-        }
-
-#ifdef OPENSSL_SYS_WIN16
-        /*
-         * MSVC 1.5 does not clear the top bytes of the word unless I do
-         * this.
-         */
-        l &= 0xffff;
-#endif
-
-        d = dtls1_set_message_header(s, d, SSL3_MT_FINISHED, l, 0, l);
-        s->init_num = (int)l + DTLS1_HM_HEADER_LENGTH;
-        s->init_off = 0;
-
-        /* buffer the message to handle re-xmits */
-        dtls1_buffer_message(s, 0);
-
-        s->state = b;
-    }
-
-    /* SSL3_ST_SEND_xxxxxx_HELLO_B */
-    return (dtls1_do_write(s, SSL3_RT_HANDSHAKE));
-}
-
 /*-
  * for these 2 messages, we need to
  * ssl->enc_read_ctx                    re-init
@@ -1053,77 +1004,6 @@ int dtls1_send_change_cipher_spec(SSL *s, int a, int b)
 
     /* SSL3_ST_CW_CHANGE_B */
     return (dtls1_do_write(s, SSL3_RT_CHANGE_CIPHER_SPEC));
-}
-
-static int dtls1_add_cert_to_buf(BUF_MEM *buf, unsigned long *l, X509 *x)
-{
-    int n;
-    unsigned char *p;
-
-    n = i2d_X509(x, NULL);
-    if (!BUF_MEM_grow_clean(buf, (int)(n + (*l) + 3))) {
-        SSLerr(SSL_F_DTLS1_ADD_CERT_TO_BUF, ERR_R_BUF_LIB);
-        return 0;
-    }
-    p = (unsigned char *)&(buf->data[*l]);
-    l2n3(n, p);
-    i2d_X509(x, &p);
-    *l += n + 3;
-
-    return 1;
-}
-
-unsigned long dtls1_output_cert_chain(SSL *s, X509 *x)
-{
-    unsigned char *p;
-    int i;
-    unsigned long l = 3 + DTLS1_HM_HEADER_LENGTH;
-    BUF_MEM *buf;
-
-    /* TLSv1 sends a chain with nothing in it, instead of an alert */
-    buf = s->init_buf;
-    if (!BUF_MEM_grow_clean(buf, 10)) {
-        SSLerr(SSL_F_DTLS1_OUTPUT_CERT_CHAIN, ERR_R_BUF_LIB);
-        return (0);
-    }
-    if (x != NULL) {
-        X509_STORE_CTX xs_ctx;
-
-        if (!X509_STORE_CTX_init(&xs_ctx, s->ctx->cert_store, x, NULL)) {
-            SSLerr(SSL_F_DTLS1_OUTPUT_CERT_CHAIN, ERR_R_X509_LIB);
-            return (0);
-        }
-
-        X509_verify_cert(&xs_ctx);
-        /* Don't leave errors in the queue */
-        ERR_clear_error();
-        for (i = 0; i < sk_X509_num(xs_ctx.chain); i++) {
-            x = sk_X509_value(xs_ctx.chain, i);
-
-            if (!dtls1_add_cert_to_buf(buf, &l, x)) {
-                X509_STORE_CTX_cleanup(&xs_ctx);
-                return 0;
-            }
-        }
-        X509_STORE_CTX_cleanup(&xs_ctx);
-    }
-    /* Thawte special :-) */
-    for (i = 0; i < sk_X509_num(s->ctx->extra_certs); i++) {
-        x = sk_X509_value(s->ctx->extra_certs, i);
-        if (!dtls1_add_cert_to_buf(buf, &l, x))
-            return 0;
-    }
-
-    l -= (3 + DTLS1_HM_HEADER_LENGTH);
-
-    p = (unsigned char *)&(buf->data[DTLS1_HM_HEADER_LENGTH]);
-    l2n3(l, p);
-    l += 3;
-    p = (unsigned char *)&(buf->data[0]);
-    p = dtls1_set_message_header(s, p, SSL3_MT_CERTIFICATE, l, 0, l);
-
-    l += DTLS1_HM_HEADER_LENGTH;
-    return (l);
 }
 
 int dtls1_read_failed(SSL *s, int code)
@@ -1228,10 +1108,10 @@ int dtls1_buffer_message(SSL *s, int is_ccs)
     memcpy(frag->fragment, s->init_buf->data, s->init_num);
 
     if (is_ccs) {
+        /* For DTLS1_BAD_VER the header length is non-standard */
         OPENSSL_assert(s->d1->w_msg_hdr.msg_len +
-                       ((s->version ==
-                         DTLS1_VERSION) ? DTLS1_CCS_HEADER_LENGTH : 3) ==
-                       (unsigned int)s->init_num);
+                       ((s->version==DTLS1_BAD_VER)?3:DTLS1_CCS_HEADER_LENGTH)
+                       == (unsigned int)s->init_num);
     } else {
         OPENSSL_assert(s->d1->w_msg_hdr.msg_len +
                        DTLS1_HM_HEADER_LENGTH == (unsigned int)s->init_num);

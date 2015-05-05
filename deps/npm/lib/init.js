@@ -17,7 +17,7 @@ function init (args, cb) {
   if (!initJson.yes(npm.config)) {
     console.log(
       ["This utility will walk you through creating a package.json file."
-      ,"It only covers the most common items, and tries to guess sane defaults."
+      ,"It only covers the most common items, and tries to guess sensible defaults."
       ,""
       ,"See `npm help json` for definitive documentation on these fields"
       ,"and exactly what they do."

@@ -1,6 +1,6 @@
 /* crypto/dh/dh_err.c */
 /* ====================================================================
- * Copyright (c) 1999-2011 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2013 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -73,6 +73,9 @@ static ERR_STRING_DATA DH_str_functs[] = {
     {ERR_FUNC(DH_F_COMPUTE_KEY), "COMPUTE_KEY"},
     {ERR_FUNC(DH_F_DHPARAMS_PRINT_FP), "DHparams_print_fp"},
     {ERR_FUNC(DH_F_DH_BUILTIN_GENPARAMS), "DH_BUILTIN_GENPARAMS"},
+    {ERR_FUNC(DH_F_DH_CMS_DECRYPT), "DH_CMS_DECRYPT"},
+    {ERR_FUNC(DH_F_DH_CMS_SET_PEERKEY), "DH_CMS_SET_PEERKEY"},
+    {ERR_FUNC(DH_F_DH_CMS_SET_SHARED_INFO), "DH_CMS_SET_SHARED_INFO"},
     {ERR_FUNC(DH_F_DH_COMPUTE_KEY), "DH_compute_key"},
     {ERR_FUNC(DH_F_DH_GENERATE_KEY), "DH_generate_key"},
     {ERR_FUNC(DH_F_DH_GENERATE_PARAMETERS_EX), "DH_generate_parameters_ex"},
@@ -96,6 +99,7 @@ static ERR_STRING_DATA DH_str_reasons[] = {
     {ERR_REASON(DH_R_BN_ERROR), "bn error"},
     {ERR_REASON(DH_R_DECODE_ERROR), "decode error"},
     {ERR_REASON(DH_R_INVALID_PUBKEY), "invalid public key"},
+    {ERR_REASON(DH_R_KDF_PARAMETER_ERROR), "kdf parameter error"},
     {ERR_REASON(DH_R_KEYS_NOT_SET), "keys not set"},
     {ERR_REASON(DH_R_KEY_SIZE_TOO_SMALL), "key size too small"},
     {ERR_REASON(DH_R_MODULUS_TOO_LARGE), "modulus too large"},
@@ -103,6 +107,8 @@ static ERR_STRING_DATA DH_str_reasons[] = {
     {ERR_REASON(DH_R_NO_PARAMETERS_SET), "no parameters set"},
     {ERR_REASON(DH_R_NO_PRIVATE_VALUE), "no private value"},
     {ERR_REASON(DH_R_PARAMETER_ENCODING_ERROR), "parameter encoding error"},
+    {ERR_REASON(DH_R_PEER_KEY_ERROR), "peer key error"},
+    {ERR_REASON(DH_R_SHARED_INFO_ERROR), "shared info error"},
     {0, NULL}
 };
 

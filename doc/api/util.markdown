@@ -438,11 +438,13 @@ through the `constructor.super_` property.
 
 Marks that a method should not be used any more.
 
-    exports.puts = exports.deprecate(function() {
+    var util = require('util');
+
+    exports.puts = util.deprecate(function() {
       for (var i = 0, len = arguments.length; i < len; ++i) {
         process.stdout.write(arguments[i] + '\n');
       }
-    }, 'util.puts: Use console.log instead')
+    }, 'util.puts: Use console.log instead');
 
 It returns a modified function which warns once by default.
 

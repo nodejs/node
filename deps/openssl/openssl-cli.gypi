@@ -5,6 +5,7 @@
   'defines': [
     'MONOLITH'
   ],
+  'includes': ['openssl.gypi'],
   'sources': ['<@(openssl_cli_sources)'],
   'conditions': [
     ['OS=="solaris"', {

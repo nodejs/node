@@ -132,11 +132,13 @@ static int test1_exit(int ec)
 static void test1(const EVP_CIPHER *c, const unsigned char *key, int kn,
                   const unsigned char *iv, int in,
                   const unsigned char *plaintext, int pn,
-                  const unsigned char *ciphertext, int cn, int encdec)
+                  const unsigned char *ciphertext, int cn,
+                  const unsigned char *aad, int an,
+                  const unsigned char *tag, int tn, int encdec)
 {
     EVP_CIPHER_CTX ctx;
     unsigned char out[4096];
-    int outl, outl2;
+    int outl, outl2, mode;
 
     printf("Testing cipher %s%s\n", EVP_CIPHER_name(c),
            (encdec ==
@@ -147,15 +149,78 @@ static void test1(const EVP_CIPHER *c, const unsigned char *key, int kn,
         hexdump(stdout, "IV", iv, in);
     hexdump(stdout, "Plaintext", plaintext, pn);
     hexdump(stdout, "Ciphertext", ciphertext, cn);
-
-    if (kn != c->key_len) {
+    if (an)
+        hexdump(stdout, "AAD", aad, an);
+    if (tn)
+        hexdump(stdout, "Tag", tag, tn);
+    mode = EVP_CIPHER_mode(c);
+    if (kn != EVP_CIPHER_key_length(c)) {
         fprintf(stderr, "Key length doesn't match, got %d expected %lu\n", kn,
-                (unsigned long)c->key_len);
+                (unsigned long)EVP_CIPHER_key_length(c));
         test1_exit(5);
     }
     EVP_CIPHER_CTX_init(&ctx);
+    EVP_CIPHER_CTX_set_flags(&ctx, EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
     if (encdec != 0) {
-        if (!EVP_EncryptInit_ex(&ctx, c, NULL, key, iv)) {
+        if (mode == EVP_CIPH_GCM_MODE) {
+            if (!EVP_EncryptInit_ex(&ctx, c, NULL, NULL, NULL)) {
+                fprintf(stderr, "EncryptInit failed\n");
+                ERR_print_errors_fp(stderr);
+                test1_exit(10);
+            }
+            if (!EVP_CIPHER_CTX_ctrl(&ctx, EVP_CTRL_GCM_SET_IVLEN, in, NULL)) {
+                fprintf(stderr, "IV length set failed\n");
+                ERR_print_errors_fp(stderr);
+                test1_exit(11);
+            }
+            if (!EVP_EncryptInit_ex(&ctx, NULL, NULL, key, iv)) {
+                fprintf(stderr, "Key/IV set failed\n");
+                ERR_print_errors_fp(stderr);
+                test1_exit(12);
+            }
+            if (an && !EVP_EncryptUpdate(&ctx, NULL, &outl, aad, an)) {
+                fprintf(stderr, "AAD set failed\n");
+                ERR_print_errors_fp(stderr);
+                test1_exit(13);
+            }
+        } else if (mode == EVP_CIPH_CCM_MODE) {
+            if (!EVP_EncryptInit_ex(&ctx, c, NULL, NULL, NULL)) {
+                fprintf(stderr, "EncryptInit failed\n");
+                ERR_print_errors_fp(stderr);
+                test1_exit(10);
+            }
+            if (!EVP_CIPHER_CTX_ctrl(&ctx, EVP_CTRL_CCM_SET_IVLEN, in, NULL)) {
+                fprintf(stderr, "IV length set failed\n");
+                ERR_print_errors_fp(stderr);
+                test1_exit(11);
+            }
+            if (!EVP_CIPHER_CTX_ctrl(&ctx, EVP_CTRL_CCM_SET_TAG, tn, NULL)) {
+                fprintf(stderr, "Tag length set failed\n");
+                ERR_print_errors_fp(stderr);
+                test1_exit(11);
+            }
+            if (!EVP_EncryptInit_ex(&ctx, NULL, NULL, key, iv)) {
+                fprintf(stderr, "Key/IV set failed\n");
+                ERR_print_errors_fp(stderr);
+                test1_exit(12);
+            }
+            if (!EVP_EncryptUpdate(&ctx, NULL, &outl, NULL, pn)) {
+                fprintf(stderr, "Plaintext length set failed\n");
+                ERR_print_errors_fp(stderr);
+                test1_exit(12);
+            }
+            if (an && !EVP_EncryptUpdate(&ctx, NULL, &outl, aad, an)) {
+                fprintf(stderr, "AAD set failed\n");
+                ERR_print_errors_fp(stderr);
+                test1_exit(13);
+            }
+        } else if (mode == EVP_CIPH_WRAP_MODE) {
+            if (!EVP_EncryptInit_ex(&ctx, c, NULL, key, in ? iv : NULL)) {
+                fprintf(stderr, "EncryptInit failed\n");
+                ERR_print_errors_fp(stderr);
+                test1_exit(10);
+            }
+        } else if (!EVP_EncryptInit_ex(&ctx, c, NULL, key, iv)) {
             fprintf(stderr, "EncryptInit failed\n");
             ERR_print_errors_fp(stderr);
             test1_exit(10);
@@ -185,10 +250,93 @@ static void test1(const EVP_CIPHER *c, const unsigned char *key, int kn,
             hexdump(stderr, "Expected", ciphertext, cn);
             test1_exit(9);
         }
+        if (mode == EVP_CIPH_GCM_MODE || mode == EVP_CIPH_CCM_MODE) {
+            unsigned char rtag[16];
+            /*
+             * Note: EVP_CTRL_CCM_GET_TAG has same value as
+             * EVP_CTRL_GCM_GET_TAG
+             */
+            if (!EVP_CIPHER_CTX_ctrl(&ctx, EVP_CTRL_GCM_GET_TAG, tn, rtag)) {
+                fprintf(stderr, "Get tag failed\n");
+                ERR_print_errors_fp(stderr);
+                test1_exit(14);
+            }
+            if (memcmp(rtag, tag, tn)) {
+                fprintf(stderr, "Tag mismatch\n");
+                hexdump(stderr, "Got", rtag, tn);
+                hexdump(stderr, "Expected", tag, tn);
+                test1_exit(9);
+            }
+        }
     }
 
     if (encdec <= 0) {
-        if (!EVP_DecryptInit_ex(&ctx, c, NULL, key, iv)) {
+        if (mode == EVP_CIPH_GCM_MODE) {
+            if (!EVP_DecryptInit_ex(&ctx, c, NULL, NULL, NULL)) {
+                fprintf(stderr, "EncryptInit failed\n");
+                ERR_print_errors_fp(stderr);
+                test1_exit(10);
+            }
+            if (!EVP_CIPHER_CTX_ctrl(&ctx, EVP_CTRL_GCM_SET_IVLEN, in, NULL)) {
+                fprintf(stderr, "IV length set failed\n");
+                ERR_print_errors_fp(stderr);
+                test1_exit(11);
+            }
+            if (!EVP_DecryptInit_ex(&ctx, NULL, NULL, key, iv)) {
+                fprintf(stderr, "Key/IV set failed\n");
+                ERR_print_errors_fp(stderr);
+                test1_exit(12);
+            }
+            if (!EVP_CIPHER_CTX_ctrl
+                (&ctx, EVP_CTRL_GCM_SET_TAG, tn, (void *)tag)) {
+                fprintf(stderr, "Set tag failed\n");
+                ERR_print_errors_fp(stderr);
+                test1_exit(14);
+            }
+            if (an && !EVP_DecryptUpdate(&ctx, NULL, &outl, aad, an)) {
+                fprintf(stderr, "AAD set failed\n");
+                ERR_print_errors_fp(stderr);
+                test1_exit(13);
+            }
+        } else if (mode == EVP_CIPH_CCM_MODE) {
+            if (!EVP_DecryptInit_ex(&ctx, c, NULL, NULL, NULL)) {
+                fprintf(stderr, "DecryptInit failed\n");
+                ERR_print_errors_fp(stderr);
+                test1_exit(10);
+            }
+            if (!EVP_CIPHER_CTX_ctrl(&ctx, EVP_CTRL_CCM_SET_IVLEN, in, NULL)) {
+                fprintf(stderr, "IV length set failed\n");
+                ERR_print_errors_fp(stderr);
+                test1_exit(11);
+            }
+            if (!EVP_CIPHER_CTX_ctrl
+                (&ctx, EVP_CTRL_CCM_SET_TAG, tn, (void *)tag)) {
+                fprintf(stderr, "Tag length set failed\n");
+                ERR_print_errors_fp(stderr);
+                test1_exit(11);
+            }
+            if (!EVP_DecryptInit_ex(&ctx, NULL, NULL, key, iv)) {
+                fprintf(stderr, "Key/Nonce set failed\n");
+                ERR_print_errors_fp(stderr);
+                test1_exit(12);
+            }
+            if (!EVP_DecryptUpdate(&ctx, NULL, &outl, NULL, pn)) {
+                fprintf(stderr, "Plaintext length set failed\n");
+                ERR_print_errors_fp(stderr);
+                test1_exit(12);
+            }
+            if (an && !EVP_EncryptUpdate(&ctx, NULL, &outl, aad, an)) {
+                fprintf(stderr, "AAD set failed\n");
+                ERR_print_errors_fp(stderr);
+                test1_exit(13);
+            }
+        } else if (mode == EVP_CIPH_WRAP_MODE) {
+            if (!EVP_DecryptInit_ex(&ctx, c, NULL, key, in ? iv : NULL)) {
+                fprintf(stderr, "EncryptInit failed\n");
+                ERR_print_errors_fp(stderr);
+                test1_exit(10);
+            }
+        } else if (!EVP_DecryptInit_ex(&ctx, c, NULL, key, iv)) {
             fprintf(stderr, "DecryptInit failed\n");
             ERR_print_errors_fp(stderr);
             test1_exit(11);
@@ -200,7 +348,8 @@ static void test1(const EVP_CIPHER *c, const unsigned char *key, int kn,
             ERR_print_errors_fp(stderr);
             test1_exit(6);
         }
-        if (!EVP_DecryptFinal_ex(&ctx, out + outl, &outl2)) {
+        if (mode != EVP_CIPH_CCM_MODE
+            && !EVP_DecryptFinal_ex(&ctx, out + outl, &outl2)) {
             fprintf(stderr, "DecryptFinal failed\n");
             ERR_print_errors_fp(stderr);
             test1_exit(7);
@@ -228,7 +377,9 @@ static void test1(const EVP_CIPHER *c, const unsigned char *key, int kn,
 static int test_cipher(const char *cipher, const unsigned char *key, int kn,
                        const unsigned char *iv, int in,
                        const unsigned char *plaintext, int pn,
-                       const unsigned char *ciphertext, int cn, int encdec)
+                       const unsigned char *ciphertext, int cn,
+                       const unsigned char *aad, int an,
+                       const unsigned char *tag, int tn, int encdec)
 {
     const EVP_CIPHER *c;
 
@@ -236,7 +387,8 @@ static int test_cipher(const char *cipher, const unsigned char *key, int kn,
     if (!c)
         return 0;
 
-    test1(c, key, kn, iv, in, plaintext, pn, ciphertext, cn, encdec);
+    test1(c, key, kn, iv, in, plaintext, pn, ciphertext, cn, aad, an, tag, tn,
+          encdec);
 
     return 1;
 }
@@ -316,7 +468,7 @@ int main(int argc, char **argv)
         perror(szTestFile);
         EXIT(2);
     }
-
+    ERR_load_crypto_strings();
     /* Load up the software EVP_CIPHER and EVP_MD definitions */
     OpenSSL_add_all_ciphers();
     OpenSSL_add_all_digests();
@@ -346,9 +498,11 @@ int main(int argc, char **argv)
         char line[4096];
         char *p;
         char *cipher;
-        unsigned char *iv, *key, *plaintext, *ciphertext;
+        unsigned char *iv, *key, *plaintext, *ciphertext, *aad, *tag;
         int encdec;
         int kn, in, pn, cn;
+        int an = 0;
+        int tn = 0;
 
         if (!fgets((char *)line, sizeof line, f))
             break;
@@ -361,19 +515,37 @@ int main(int argc, char **argv)
         plaintext = ustrsep(&p, ":");
         ciphertext = ustrsep(&p, ":");
         if (p[-1] == '\n') {
-            p[-1] = '\0';
             encdec = -1;
+            p[-1] = '\0';
+            tag = aad = NULL;
+            an = tn = 0;
         } else {
-            encdec = atoi(sstrsep(&p, "\n"));
+            aad = ustrsep(&p, ":");
+            tag = ustrsep(&p, ":");
+            if (tag == NULL) {
+                p = (char *)aad;
+                tag = aad = NULL;
+                an = tn = 0;
+            }
+            if (p[-1] == '\n') {
+                encdec = -1;
+                p[-1] = '\0';
+            } else
+                encdec = atoi(sstrsep(&p, "\n"));
         }
 
         kn = convert(key);
         in = convert(iv);
         pn = convert(plaintext);
         cn = convert(ciphertext);
+        if (aad) {
+            an = convert(aad);
+            tn = convert(tag);
+        }
 
         if (!test_cipher
-            (cipher, key, kn, iv, in, plaintext, pn, ciphertext, cn, encdec)
+            (cipher, key, kn, iv, in, plaintext, pn, ciphertext, cn, aad, an,
+             tag, tn, encdec)
             && !test_digest(cipher, plaintext, pn, ciphertext, cn)) {
 #ifdef OPENSSL_NO_AES
             if (strstr(cipher, "AES") == cipher) {

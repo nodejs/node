@@ -2,7 +2,6 @@ var common = require('../common-tap.js')
 var fs = require('fs')
 var path = require('path')
 
-var chain = require('slide').chain
 var mkdirp = require('mkdirp')
 var osenv = require('osenv')
 var rimraf = require('rimraf')
@@ -25,44 +24,33 @@ test('npm version <semver> with message config', function (t) {
   npm.load({ prefix: pkg, userconfig: npmrc }, function () {
     var git = require('../../lib/utils/git.js')
 
-    var opts = { cwd: pkg, env: { PATH: process.env.PATH } }
-    chain(
-      [
-        git.chainableExec(['init'], opts),
-        git.chainableExec(['config', 'user.name', 'PhantomFaker'], opts),
-        git.chainableExec(['config', 'user.email', 'nope@not.real'], opts),
-        git.chainableExec(['add', 'package.json'], opts),
-        git.chainableExec(['add', '.npmrc'], opts),
-        git.chainableExec(['commit', '-m', 'stub package'], opts)
-      ],
-      function (er) {
-        t.ifErr(er, 'git bootstrap ran without error')
+    common.makeGitRepo({ path: pkg }, function (er) {
+      t.ifErr(er, 'git bootstrap ran without error')
 
-        common.npm(
-          [
-            'version',
-            'patch',
-            '--loglevel', 'silent'
-            // package config is picked up from env
-          ],
-          opts,
-          function (err, code, stdout, stderr) {
-            t.ifError(err, 'npm version ran without issue')
-            t.notOk(code, 'exited with a non-error code')
-            t.notOk(stderr, 'no error output')
+      common.npm(
+        [
+          'version',
+          'patch',
+          '--loglevel', 'silent'
+          // package config is picked up from env
+        ],
+        { cwd: pkg, env: { PATH: process.env.PATH } },
+        function (err, code, stdout, stderr) {
+          t.ifError(err, 'npm version ran without issue')
+          t.notOk(code, 'exited with a non-error code')
+          t.notOk(stderr, 'no error output')
 
-            git.whichAndExec(
-              ['log'],
-              { cwd: pkg, env: process.env },
-              function (er, log, stderr) {
-                t.ok(log.match(/:bookmark: 0\.1\.3/g), 'config was picked up by version')
-                t.end()
-              }
-            )
-          }
-        )
-      }
-    )
+          git.whichAndExec(
+            ['log'],
+            { cwd: pkg, env: process.env },
+            function (er, log, stderr) {
+              t.ok(log.match(/:bookmark: 0\.1\.3/g), 'config was picked up by version')
+              t.end()
+            }
+          )
+        }
+      )
+    })
   })
 })
 

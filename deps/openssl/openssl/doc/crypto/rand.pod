@@ -39,7 +39,7 @@ Since the introduction of the ENGINE API, the recommended way of controlling
 default implementations is by using the ENGINE API functions. The default
 B<RAND_METHOD>, as set by RAND_set_rand_method() and returned by
 RAND_get_rand_method(), is only used if no ENGINE has been set as the default
-"rand" implementation. Hence, these two functions are no longer the recommened
+"rand" implementation. Hence, these two functions are no longer the recommended
 way to control defaults.
 
 If an alternative B<RAND_METHOD> implementation is being used (either set

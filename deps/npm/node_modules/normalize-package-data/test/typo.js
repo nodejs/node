@@ -102,6 +102,19 @@ test('typos', function(t) {
   t.same(warnings, expect)
 
   warnings.length = 0
+  expect =
+    [ warningMessages.missingDescription,
+      warningMessages.missingRepository,
+      warningMessages.missingReadme ]
+
+  normalize({name:"name"
+            ,version:"1.2.5"
+            ,scripts:{server:"start",tests:"test"
+                     ,start:"start",test:"test"}}, warn)
+
+  t.same(warnings, expect)
+
+  warnings.length = 0
   expect = []
 
   normalize({private: true

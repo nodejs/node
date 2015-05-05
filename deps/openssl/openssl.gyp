@@ -6,13 +6,15 @@
   'variables': {
     'is_clang': 0,
     'gcc_version': 0,
-    'openssl_no_asm%': 0
+    'openssl_no_asm%': 0,
+    'llvm_version%': 0,
+    'gas_version%': 0,
   },
-  'includes': ['openssl.gypi'],
   'targets': [
     {
       'target_name': 'openssl',
       'type': '<(library)',
+      'includes': ['openssl.gypi'],
       'sources': ['<@(openssl_sources)'],
       'sources/': [
         ['exclude', 'md2/.*$'],
@@ -30,7 +32,7 @@
           'conditions': [
             ['target_arch=="arm"', {
               'defines': ['<@(openssl_defines_asm)'],
-              'sources': ['<@(openssl_sources_arm_elf_gas)'],
+              'sources': ['<@(openssl_sources_arm_void_gas)'],
             }, 'target_arch=="ia32" and OS=="mac"', {
               'defines': [
                 '<@(openssl_defines_asm)',
@@ -69,6 +71,9 @@
                 '<@(openssl_defines_x64_elf)',
               ],
               'sources': ['<@(openssl_sources_x64_elf_gas)'],
+            }, 'target_arch=="arm64"', {
+              'defines': ['<@(openssl_defines_arm64)',],
+              'sources': ['<@(openssl_sources_arm64_linux64_gas)'],
             }, {
               # Other architectures don't use assembly.
               'defines': ['OPENSSL_NO_ASM'],
@@ -96,6 +101,7 @@
     }
   ],
   'target_defaults': {
+    'includes': ['openssl.gypi'],
     'include_dirs': ['<@(openssl_default_include_dirs)'],
     'defines': ['<@(openssl_default_defines_all)'],
     'conditions': [

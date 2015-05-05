@@ -240,6 +240,12 @@ int EC_GROUP_set_generator(EC_GROUP *group, const EC_POINT *generator,
  */
 const EC_POINT *EC_GROUP_get0_generator(const EC_GROUP *group);
 
+/** Returns the montgomery data for order(Generator)
+ *  \param  group  EC_GROUP object
+ *  \return the currently used generator (possibly NULL).
+*/
+BN_MONT_CTX *EC_GROUP_get_mont_data(const EC_GROUP *group);
+
 /** Gets the order of a EC_GROUP
  *  \param  group  EC_GROUP object
  *  \param  order  BIGNUM to which the order is copied
@@ -403,6 +409,9 @@ typedef struct {
  * nitems internal groups
  */
 size_t EC_get_builtin_curves(EC_builtin_curve *r, size_t nitems);
+
+const char *EC_curve_nid2nist(int nid);
+int EC_curve_nist2nid(const char *name);
 
 /********************************************************************/
 /*                    EC_POINT functions                            */
@@ -986,10 +995,78 @@ int EC_KEY_print_fp(FILE *fp, const EC_KEY *key, int off);
 # endif
 
 # define EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ctx, nid) \
-        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, EVP_PKEY_OP_PARAMGEN, \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+                                EVP_PKEY_OP_PARAMGEN|EVP_PKEY_OP_KEYGEN, \
                                 EVP_PKEY_CTRL_EC_PARAMGEN_CURVE_NID, nid, NULL)
 
+# define EVP_PKEY_CTX_set_ec_param_enc(ctx, flag) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+                                EVP_PKEY_OP_PARAMGEN|EVP_PKEY_OP_KEYGEN, \
+                                EVP_PKEY_CTRL_EC_PARAM_ENC, flag, NULL)
+
+# define EVP_PKEY_CTX_set_ecdh_cofactor_mode(ctx, flag) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+                                EVP_PKEY_OP_DERIVE, \
+                                EVP_PKEY_CTRL_EC_ECDH_COFACTOR, flag, NULL)
+
+# define EVP_PKEY_CTX_get_ecdh_cofactor_mode(ctx) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+                                EVP_PKEY_OP_DERIVE, \
+                                EVP_PKEY_CTRL_EC_ECDH_COFACTOR, -2, NULL)
+
+# define EVP_PKEY_CTX_set_ecdh_kdf_type(ctx, kdf) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+                                EVP_PKEY_OP_DERIVE, \
+                                EVP_PKEY_CTRL_EC_KDF_TYPE, kdf, NULL)
+
+# define EVP_PKEY_CTX_get_ecdh_kdf_type(ctx) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+                                EVP_PKEY_OP_DERIVE, \
+                                EVP_PKEY_CTRL_EC_KDF_TYPE, -2, NULL)
+
+# define EVP_PKEY_CTX_set_ecdh_kdf_md(ctx, md) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+                                EVP_PKEY_OP_DERIVE, \
+                                EVP_PKEY_CTRL_EC_KDF_MD, 0, (void *)md)
+
+# define EVP_PKEY_CTX_get_ecdh_kdf_md(ctx, pmd) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+                                EVP_PKEY_OP_DERIVE, \
+                                EVP_PKEY_CTRL_GET_EC_KDF_MD, 0, (void *)pmd)
+
+# define EVP_PKEY_CTX_set_ecdh_kdf_outlen(ctx, len) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+                                EVP_PKEY_OP_DERIVE, \
+                                EVP_PKEY_CTRL_EC_KDF_OUTLEN, len, NULL)
+
+# define EVP_PKEY_CTX_get_ecdh_kdf_outlen(ctx, plen) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+                                EVP_PKEY_OP_DERIVE, \
+                        EVP_PKEY_CTRL_GET_EC_KDF_OUTLEN, 0, (void *)plen)
+
+# define EVP_PKEY_CTX_set0_ecdh_kdf_ukm(ctx, p, plen) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+                                EVP_PKEY_OP_DERIVE, \
+                                EVP_PKEY_CTRL_EC_KDF_UKM, plen, (void *)p)
+
+# define EVP_PKEY_CTX_get0_ecdh_kdf_ukm(ctx, p) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+                                EVP_PKEY_OP_DERIVE, \
+                                EVP_PKEY_CTRL_GET_EC_KDF_UKM, 0, (void *)p)
+
 # define EVP_PKEY_CTRL_EC_PARAMGEN_CURVE_NID             (EVP_PKEY_ALG_CTRL + 1)
+# define EVP_PKEY_CTRL_EC_PARAM_ENC                      (EVP_PKEY_ALG_CTRL + 2)
+# define EVP_PKEY_CTRL_EC_ECDH_COFACTOR                  (EVP_PKEY_ALG_CTRL + 3)
+# define EVP_PKEY_CTRL_EC_KDF_TYPE                       (EVP_PKEY_ALG_CTRL + 4)
+# define EVP_PKEY_CTRL_EC_KDF_MD                         (EVP_PKEY_ALG_CTRL + 5)
+# define EVP_PKEY_CTRL_GET_EC_KDF_MD                     (EVP_PKEY_ALG_CTRL + 6)
+# define EVP_PKEY_CTRL_EC_KDF_OUTLEN                     (EVP_PKEY_ALG_CTRL + 7)
+# define EVP_PKEY_CTRL_GET_EC_KDF_OUTLEN                 (EVP_PKEY_ALG_CTRL + 8)
+# define EVP_PKEY_CTRL_EC_KDF_UKM                        (EVP_PKEY_ALG_CTRL + 9)
+# define EVP_PKEY_CTRL_GET_EC_KDF_UKM                    (EVP_PKEY_ALG_CTRL + 10)
+/* KDF types */
+# define EVP_PKEY_ECDH_KDF_NONE                          1
+# define EVP_PKEY_ECDH_KDF_X9_62                         2
 
 /* BEGIN ERROR CODES */
 /*
@@ -1007,6 +1084,8 @@ void ERR_load_EC_strings(void);
 # define EC_F_D2I_ECPKPARAMETERS                          145
 # define EC_F_D2I_ECPRIVATEKEY                            146
 # define EC_F_DO_EC_KEY_PRINT                             221
+# define EC_F_ECDH_CMS_DECRYPT                            238
+# define EC_F_ECDH_CMS_SET_SHARED_INFO                    239
 # define EC_F_ECKEY_PARAM2TYPE                            223
 # define EC_F_ECKEY_PARAM_DECODE                          212
 # define EC_F_ECKEY_PRIV_DECODE                           213
@@ -1129,6 +1208,11 @@ void ERR_load_EC_strings(void);
 # define EC_F_NISTP224_PRE_COMP_NEW                       227
 # define EC_F_NISTP256_PRE_COMP_NEW                       236
 # define EC_F_NISTP521_PRE_COMP_NEW                       237
+# define EC_F_ECP_NISTZ256_GET_AFFINE                     240
+# define EC_F_ECP_NISTZ256_POINTS_MUL                     241
+# define EC_F_ECP_NISTZ256_WINDOWED_MUL                   242
+# define EC_F_ECP_NISTZ256_MULT_PRECOMPUTE                243
+# define EC_F_ECP_NISTZ256_PRE_COMP_NEW                   244
 # define EC_F_O2I_ECPUBLICKEY                             152
 # define EC_F_OLD_EC_PRIV_DECODE                          222
 # define EC_F_PKEY_EC_CTRL                                197
@@ -1157,6 +1241,7 @@ void ERR_load_EC_strings(void);
 # define EC_R_INVALID_COMPRESSED_POINT                    110
 # define EC_R_INVALID_COMPRESSION_BIT                     109
 # define EC_R_INVALID_CURVE                               141
+# define EC_R_INVALID_DIGEST                              151
 # define EC_R_INVALID_DIGEST_TYPE                         138
 # define EC_R_INVALID_ENCODING                            102
 # define EC_R_INVALID_FIELD                               103
@@ -1165,6 +1250,7 @@ void ERR_load_EC_strings(void);
 # define EC_R_INVALID_PENTANOMIAL_BASIS                   132
 # define EC_R_INVALID_PRIVATE_KEY                         123
 # define EC_R_INVALID_TRINOMIAL_BASIS                     137
+# define EC_R_KDF_PARAMETER_ERROR                         148
 # define EC_R_KEYS_NOT_SET                                140
 # define EC_R_MISSING_PARAMETERS                          124
 # define EC_R_MISSING_PRIVATE_KEY                         125
@@ -1175,9 +1261,11 @@ void ERR_load_EC_strings(void);
 # define EC_R_NO_FIELD_MOD                                133
 # define EC_R_NO_PARAMETERS_SET                           139
 # define EC_R_PASSED_NULL_PARAMETER                       134
+# define EC_R_PEER_KEY_ERROR                              149
 # define EC_R_PKPARAMETERS2GROUP_FAILURE                  127
 # define EC_R_POINT_AT_INFINITY                           106
 # define EC_R_POINT_IS_NOT_ON_CURVE                       107
+# define EC_R_SHARED_INFO_ERROR                           150
 # define EC_R_SLOT_FULL                                   108
 # define EC_R_UNDEFINED_GENERATOR                         113
 # define EC_R_UNDEFINED_ORDER                             128

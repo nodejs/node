@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 # ====================================================================
-# Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
+# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
 # details see http://www.openssl.org/~appro/cryptogams/.
@@ -16,6 +16,10 @@
 # for now can only be compiled for MIPS64 ISA] improvement is modest
 # ~17%, but it comes for free, because it's same instruction sequence.
 # Improvement coefficients are for aligned input.
+
+# September 2012.
+#
+# Add MIPS[32|64]R2 code (>25% less instructions).
 
 ######################################################################
 # There is a number of MIPS ABI in use, O32 and N32/64 are most
@@ -45,7 +49,7 @@
 # ($s0,$s1,$s2,$s3,$s4,$s5,$s6,$s7)=map("\$$_",(16..23));
 # ($gp,$sp,$fp,$ra)=map("\$$_",(28..31));
 #
-$flavour = shift; # supported flavours are o32,n32,64,nubi32,nubi64
+$flavour = shift || "o32"; # supported flavours are o32,n32,64,nubi32,nubi64
 
 if ($flavour =~ /64|n32/i) {
 	$PTR_ADD="dadd";	# incidentally works even on n32
@@ -83,6 +87,7 @@ if ($output =~ /512/) {
 	$SLL="dsll";		# shift left logical
 	$SRL="dsrl";		# shift right logical
 	$ADDU="daddu";
+	$ROTR="drotr";
 	@Sigma0=(28,34,39);
 	@Sigma1=(14,18,41);
 	@sigma0=( 7, 1, 8);	# right shift first
@@ -97,6 +102,7 @@ if ($output =~ /512/) {
 	$SLL="sll";		# shift left logical
 	$SRL="srl";		# shift right logical
 	$ADDU="addu";
+	$ROTR="rotr";
 	@Sigma0=( 2,13,22);
 	@Sigma1=( 6,11,25);
 	@sigma0=( 3, 7,18);	# right shift first
@@ -124,6 +130,10 @@ $code.=<<___ if ($i<15);
 	${LD}r	@X[1],`($i+1)*$SZ+$LSB`($inp)
 ___
 $code.=<<___	if (!$big_endian && $i<16 && $SZ==4);
+#if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS64R2)
+	wsbh	@X[0],@X[0]		# byte swap($i)
+	rotr	@X[0],@X[0],16
+#else
 	srl	$tmp0,@X[0],24		# byte swap($i)
 	srl	$tmp1,@X[0],8
 	andi	$tmp2,@X[0],0xFF00
@@ -133,8 +143,13 @@ $code.=<<___	if (!$big_endian && $i<16 && $SZ==4);
 	or	@X[0],$tmp0
 	or	$tmp1,$tmp2
 	or	@X[0],$tmp1
+#endif
 ___
 $code.=<<___	if (!$big_endian && $i<16 && $SZ==8);
+#if defined(_MIPS_ARCH_MIPS64R2)
+	dsbh	@X[0],@X[0]		# byte swap($i)
+	dshd	@X[0],@X[0]
+#else
 	ori	$tmp0,$zero,0xFF
 	dsll	$tmp2,$tmp0,32
 	or	$tmp0,$tmp2		# 0x000000FF000000FF
@@ -153,8 +168,31 @@ $code.=<<___	if (!$big_endian && $i<16 && $SZ==8);
 	dsrl	$tmp1,@X[0],32
 	dsll	@X[0],32
 	or	@X[0],$tmp1
+#endif
 ___
 $code.=<<___;
+#if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS64R2)
+	xor	$tmp2,$f,$g			# $i
+	$ROTR	$tmp0,$e,@Sigma1[0]
+	$ADDU	$T1,$X[0],$h
+	$ROTR	$tmp1,$e,@Sigma1[1]
+	and	$tmp2,$e
+	$ROTR	$h,$e,@Sigma1[2]
+	xor	$tmp0,$tmp1
+	$ROTR	$tmp1,$a,@Sigma0[0]
+	xor	$tmp2,$g			# Ch(e,f,g)
+	xor	$tmp0,$h			# Sigma1(e)
+
+	$ROTR	$h,$a,@Sigma0[1]
+	$ADDU	$T1,$tmp2
+	$LD	$tmp2,`$i*$SZ`($Ktbl)		# K[$i]
+	xor	$h,$tmp1
+	$ROTR	$tmp1,$a,@Sigma0[2]
+	$ADDU	$T1,$tmp0
+	and	$tmp0,$b,$c
+	xor	$h,$tmp1			# Sigma0(a)
+	xor	$tmp1,$b,$c
+#else
 	$ADDU	$T1,$X[0],$h			# $i
 	$SRL	$h,$e,@Sigma1[0]
 	xor	$tmp2,$f,$g
@@ -184,16 +222,15 @@ $code.=<<___;
 	xor	$h,$tmp1
 	$SLL	$tmp1,$a,`$SZ*8-@Sigma0[0]`
 	xor	$h,$tmp0
-	$ST	@X[0],`($i%16)*$SZ`($sp)	# offload to ring buffer
+	and	$tmp0,$b,$c
 	xor	$h,$tmp1			# Sigma0(a)
-
-	or	$tmp0,$a,$b
-	and	$tmp1,$a,$b
-	and	$tmp0,$c
-	or	$tmp1,$tmp0			# Maj(a,b,c)
+	xor	$tmp1,$b,$c
+#endif
+	$ST	@X[0],`($i%16)*$SZ`($sp)	# offload to ring buffer
+	$ADDU	$h,$tmp0
+	and	$tmp1,$a
 	$ADDU	$T1,$tmp2			# +=K[$i]
-	$ADDU	$h,$tmp1
-
+	$ADDU	$h,$tmp1			# +=Maj(a,b,c)
 	$ADDU	$d,$T1
 	$ADDU	$h,$T1
 ___
@@ -207,6 +244,20 @@ my $i=@_[0];
 my ($tmp0,$tmp1,$tmp2,$tmp3)=(@X[4],@X[5],@X[6],@X[7]);
 
 $code.=<<___;
+#if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS64R2)
+	$SRL	$tmp2,@X[1],@sigma0[0]		# Xupdate($i)
+	$ROTR	$tmp0,@X[1],@sigma0[1]
+	$ADDU	@X[0],@X[9]			# +=X[i+9]
+	xor	$tmp2,$tmp0
+	$ROTR	$tmp0,@X[1],@sigma0[2]
+
+	$SRL	$tmp3,@X[14],@sigma1[0]
+	$ROTR	$tmp1,@X[14],@sigma1[1]
+	xor	$tmp2,$tmp0			# sigma0(X[i+1])
+	$ROTR	$tmp0,@X[14],@sigma1[2]
+	xor	$tmp3,$tmp1
+	$ADDU	@X[0],$tmp2
+#else
 	$SRL	$tmp2,@X[1],@sigma0[0]		# Xupdate($i)
 	$ADDU	@X[0],@X[9]			# +=X[i+9]
 	$SLL	$tmp1,@X[1],`$SZ*8-@sigma0[2]`
@@ -227,7 +278,7 @@ $code.=<<___;
 	xor	$tmp3,$tmp0
 	$SRL	$tmp0,@X[14],@sigma1[2]
 	xor	$tmp3,$tmp1
-
+#endif
 	xor	$tmp3,$tmp0			# sigma1(X[i+14])
 	$ADDU	@X[0],$tmp3
 ___
@@ -242,9 +293,13 @@ $code.=<<___;
 # include <openssl/fipssyms.h>
 #endif
 
+#if defined(__mips_smartmips) && !defined(_MIPS_ARCH_MIPS32R2)
+#define _MIPS_ARCH_MIPS32R2
+#endif
+
 .text
 .set	noat
-#if !defined(__vxworks) || defined(__pic__)
+#if !defined(__mips_eabi) && (!defined(__vxworks) || defined(__pic__))
 .option	pic2
 #endif
 

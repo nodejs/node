@@ -112,7 +112,9 @@ test-all-valgrind: test-build
 	$(PYTHON) tools/test.py --mode=debug,release --valgrind
 
 test-ci:
-	$(PYTHON) tools/test.py -p tap --logfile test.tap -J parallel sequential message
+	$(PYTHON) tools/test.py -p tap --logfile test.tap --mode=release message parallel sequential
+	$(MAKE) jslint
+	$(MAKE) cpplint
 
 test-release: test-build
 	$(PYTHON) tools/test.py --mode=release
@@ -223,6 +225,7 @@ TARBALL=$(TARNAME).tar
 BINARYNAME=$(TARNAME)-$(PLATFORM)-$(ARCH)
 BINARYTAR=$(BINARYNAME).tar
 XZ=$(shell which xz > /dev/null 2>&1; echo $$?)
+XZ_COMPRESSION ?= 9
 PKG=out/$(TARNAME).pkg
 PACKAGEMAKER ?= /Developer/Applications/Utilities/PackageMaker.app/Contents/MacOS/PackageMaker
 
@@ -296,7 +299,7 @@ $(TARBALL): release-only $(NODE_EXE) doc
 	rm -rf $(TARNAME)
 	gzip -c -f -9 $(TARNAME).tar > $(TARNAME).tar.gz
 ifeq ($(XZ), 0)
-	xz -c -f -9 $(TARNAME).tar > $(TARNAME).tar.xz
+	xz -c -f -$(XZ_COMPRESSION) $(TARNAME).tar > $(TARNAME).tar.xz
 endif
 	rm $(TARNAME).tar
 
@@ -314,7 +317,7 @@ $(BINARYTAR): release-only
 	rm -rf $(BINARYNAME)
 	gzip -c -f -9 $(BINARYNAME).tar > $(BINARYNAME).tar.gz
 ifeq ($(XZ), 0)
-	xz -c -f -9 $(BINARYNAME).tar > $(BINARYNAME).tar.xz
+	xz -c -f -$(XZ_COMPRESSION) $(BINARYNAME).tar > $(BINARYNAME).tar.xz
 endif
 	rm $(BINARYNAME).tar
 

@@ -60,6 +60,15 @@
 #include "cryptlib.h"
 #include <openssl/buffer.h>
 
+size_t BUF_strnlen(const char *str, size_t maxlen)
+{
+    const char *p;
+
+    for (p = str; maxlen-- != 0 && *p != '\0'; ++p) ;
+
+    return p - str;
+}
+
 char *BUF_strdup(const char *str)
 {
     if (str == NULL)
@@ -73,6 +82,8 @@ char *BUF_strndup(const char *str, size_t siz)
 
     if (str == NULL)
         return (NULL);
+
+    siz = BUF_strnlen(str, siz);
 
     ret = OPENSSL_malloc(siz + 1);
     if (ret == NULL) {

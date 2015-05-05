@@ -26,7 +26,9 @@ NODE_EXTERN typedef void (*FreeCallback)(char* data, void* hint);
 /**
  * Return byte size of external array type.
  */
-NODE_EXTERN size_t ExternalArraySize(enum v8::ExternalArrayType type);
+NODE_DEPRECATED(
+    "Use typed arrays",
+    NODE_EXTERN size_t ExternalArraySize(enum v8::ExternalArrayType type));
 
 /**
  * Allocate external array data onto obj.
@@ -55,45 +57,58 @@ NODE_EXTERN size_t ExternalArraySize(enum v8::ExternalArrayType type);
  *             v8::Integer::NewFromUnsigned(array_length));
  * \code
  */
-NODE_EXTERN void Alloc(v8::Isolate* isolate,
-                       v8::Handle<v8::Object> obj,
-                       size_t length,
-                       enum v8::ExternalArrayType type =
-                       v8::kExternalUnsignedByteArray);
-NODE_EXTERN void Alloc(v8::Isolate* isolate,
-                       v8::Handle<v8::Object> obj,
-                       char* data,
-                       size_t length,
-                       enum v8::ExternalArrayType type =
-                       v8::kExternalUnsignedByteArray);
-NODE_EXTERN void Alloc(v8::Isolate* isolate,
-                       v8::Handle<v8::Object> obj,
-                       size_t length,
-                       FreeCallback fn,
-                       void* hint,
-                       enum v8::ExternalArrayType type =
-                       v8::kExternalUnsignedByteArray);
-NODE_EXTERN void Alloc(v8::Isolate* isolate,
-                       v8::Handle<v8::Object> obj,
-                       char* data,
-                       size_t length,
-                       FreeCallback fn,
-                       void* hint,
-                       enum v8::ExternalArrayType type =
-                       v8::kExternalUnsignedByteArray);
+NODE_DEPRECATED(
+    "Use typed arrays",
+    NODE_EXTERN void Alloc(v8::Isolate* isolate,
+                           v8::Handle<v8::Object> obj,
+                           size_t length,
+                           enum v8::ExternalArrayType type =
+                           v8::kExternalUnsignedByteArray));
+NODE_DEPRECATED(
+    "Use typed arrays",
+    NODE_EXTERN void Alloc(v8::Isolate* isolate,
+                           v8::Handle<v8::Object> obj,
+                           char* data,
+                           size_t length,
+                           enum v8::ExternalArrayType type =
+                           v8::kExternalUnsignedByteArray));
+NODE_DEPRECATED(
+    "Use typed arrays",
+    NODE_EXTERN void Alloc(v8::Isolate* isolate,
+                           v8::Handle<v8::Object> obj,
+                           size_t length,
+                           FreeCallback fn,
+                           void* hint,
+                           enum v8::ExternalArrayType type =
+                           v8::kExternalUnsignedByteArray));
+NODE_DEPRECATED(
+    "Use typed arrays",
+    NODE_EXTERN void Alloc(v8::Isolate* isolate,
+                           v8::Handle<v8::Object> obj,
+                           char* data,
+                           size_t length,
+                           FreeCallback fn,
+                           void* hint,
+                           enum v8::ExternalArrayType type =
+                           v8::kExternalUnsignedByteArray));
 
 /**
  * Free memory associated with an externally allocated object. If no external
  * memory is allocated to the object then nothing will happen.
  */
-NODE_EXTERN void AllocDispose(v8::Isolate* isolate, v8::Handle<v8::Object> obj);
+NODE_DEPRECATED(
+    "Use typed arrays",
+    NODE_EXTERN void AllocDispose(v8::Isolate* isolate,
+                                  v8::Handle<v8::Object> obj));
 
 
 /**
  * Check if the Object has externally allocated memory.
  */
-NODE_EXTERN bool HasExternalData(v8::Isolate* isolate,
-                                 v8::Local<v8::Object> obj);
+NODE_DEPRECATED(
+    "Use typed arrays",
+    NODE_EXTERN bool HasExternalData(v8::Isolate* isolate,
+                                     v8::Local<v8::Object> obj));
 
 
 // Internal use

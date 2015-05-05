@@ -18,6 +18,8 @@ i2d_X509_fp - X509 encode and decode functions
  int i2d_X509_bio(BIO *bp, X509 *x);
  int i2d_X509_fp(FILE *fp, X509 *x);
 
+ int i2d_re_X509_tbs(X509 *x, unsigned char **out);
+
 =head1 DESCRIPTION
 
 The X509 encode and decode routines encode and parse an
@@ -60,11 +62,17 @@ i2d_X509_fp() is similar to i2d_X509() except it writes
 the encoding of the structure B<x> to BIO B<bp> and it
 returns 1 for success and 0 for failure.
 
+i2d_re_X509_tbs() is similar to i2d_X509() except it encodes
+only the TBSCertificate portion of the certificate.
+
 =head1 NOTES
 
 The letters B<i> and B<d> in for example B<i2d_X509> stand for
-"internal" (that is an internal C structure) and "DER". So that
-B<i2d_X509> converts from internal to DER.
+"internal" (that is an internal C structure) and "DER". So
+B<i2d_X509> converts from internal to DER. The "re" in
+B<i2d_re_X509_tbs> stands for "re-encode", and ensures that a fresh
+encoding is generated in case the object has been modified after
+creation (see the BUGS section).
 
 The functions can also understand B<BER> forms.
 
@@ -208,6 +216,21 @@ then the encoded structure may contain invalid data or omit the
 fields entirely and will not be parsed by d2i_X509(). This may be
 fixed in future so code should not assume that i2d_X509() will
 always succeed.
+
+The encoding of the TBSCertificate portion of a certificate is cached
+in the B<X509> structure internally to improve encoding performance
+and to ensure certificate signatures are verified correctly in some
+certificates with broken (non-DER) encodings.
+
+Any function which encodes an X509 structure such as i2d_X509(),
+i2d_X509_fp() or i2d_X509_bio() may return a stale encoding if the
+B<X509> structure has been modified after deserialization or previous
+serialization.
+
+If, after modification, the B<X509> object is re-signed with X509_sign(),
+the encoding is automatically renewed. Otherwise, the encoding of the
+TBSCertificate portion of the B<X509> can be manually renewed by calling
+i2d_re_X509_tbs().
 
 =head1 RETURN VALUES
 

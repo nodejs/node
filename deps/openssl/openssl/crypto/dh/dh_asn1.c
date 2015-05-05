@@ -89,7 +89,101 @@ ASN1_SEQUENCE_cb(DHparams, dh_cb) = {
 
 IMPLEMENT_ASN1_ENCODE_FUNCTIONS_const_fname(DH, DHparams, DHparams)
 
-DH *DHparams_dup(DH *dh)
+/*
+ * Internal only structures for handling X9.42 DH: this gets translated to or
+ * from a DH structure straight away.
+ */
+
+typedef struct {
+    ASN1_BIT_STRING *seed;
+    BIGNUM *counter;
+} int_dhvparams;
+
+typedef struct {
+    BIGNUM *p;
+    BIGNUM *q;
+    BIGNUM *g;
+    BIGNUM *j;
+    int_dhvparams *vparams;
+} int_dhx942_dh;
+
+ASN1_SEQUENCE(DHvparams) = {
+        ASN1_SIMPLE(int_dhvparams, seed, ASN1_BIT_STRING),
+        ASN1_SIMPLE(int_dhvparams, counter, BIGNUM)
+} ASN1_SEQUENCE_END_name(int_dhvparams, DHvparams)
+
+ASN1_SEQUENCE(DHxparams) = {
+        ASN1_SIMPLE(int_dhx942_dh, p, BIGNUM),
+        ASN1_SIMPLE(int_dhx942_dh, g, BIGNUM),
+        ASN1_SIMPLE(int_dhx942_dh, q, BIGNUM),
+        ASN1_OPT(int_dhx942_dh, j, BIGNUM),
+        ASN1_OPT(int_dhx942_dh, vparams, DHvparams),
+} ASN1_SEQUENCE_END_name(int_dhx942_dh, DHxparams)
+
+int_dhx942_dh *d2i_int_dhx(int_dhx942_dh **a,
+                           const unsigned char **pp, long length);
+int i2d_int_dhx(const int_dhx942_dh *a, unsigned char **pp);
+
+IMPLEMENT_ASN1_ENCODE_FUNCTIONS_const_fname(int_dhx942_dh, DHxparams, int_dhx)
+
+/* Application leve function: read in X9.42 DH parameters into DH structure */
+
+DH *d2i_DHxparams(DH **a, const unsigned char **pp, long length)
 {
-    return ASN1_item_dup(ASN1_ITEM_rptr(DHparams), dh);
+    int_dhx942_dh *dhx = NULL;
+    DH *dh = NULL;
+    dh = DH_new();
+    if (!dh)
+        return NULL;
+    dhx = d2i_int_dhx(NULL, pp, length);
+    if (!dhx) {
+        DH_free(dh);
+        return NULL;
+    }
+
+    if (a) {
+        if (*a)
+            DH_free(*a);
+        *a = dh;
+    }
+
+    dh->p = dhx->p;
+    dh->q = dhx->q;
+    dh->g = dhx->g;
+    dh->j = dhx->j;
+
+    if (dhx->vparams) {
+        dh->seed = dhx->vparams->seed->data;
+        dh->seedlen = dhx->vparams->seed->length;
+        dh->counter = dhx->vparams->counter;
+        dhx->vparams->seed->data = NULL;
+        ASN1_BIT_STRING_free(dhx->vparams->seed);
+        OPENSSL_free(dhx->vparams);
+        dhx->vparams = NULL;
+    }
+
+    OPENSSL_free(dhx);
+    return dh;
+}
+
+int i2d_DHxparams(const DH *dh, unsigned char **pp)
+{
+    int_dhx942_dh dhx;
+    int_dhvparams dhv;
+    ASN1_BIT_STRING bs;
+    dhx.p = dh->p;
+    dhx.g = dh->g;
+    dhx.q = dh->q;
+    dhx.j = dh->j;
+    if (dh->counter && dh->seed && dh->seedlen > 0) {
+        bs.flags = ASN1_STRING_FLAG_BITS_LEFT;
+        bs.data = dh->seed;
+        bs.length = dh->seedlen;
+        dhv.seed = &bs;
+        dhv.counter = dh->counter;
+        dhx.vparams = &dhv;
+    } else
+        dhx.vparams = NULL;
+
+    return i2d_int_dhx(&dhx, pp);
 }

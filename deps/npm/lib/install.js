@@ -423,9 +423,9 @@ function save (where, installed, tree, pretty, hasArguments, cb) {
   var saveTarget = path.resolve(where, "package.json")
 
   asyncMap(Object.keys(tree), function (k, cb) {
-    // if "what" was a url, then save that instead.
+    // if "from" is remote, git, or hosted, then save that instead.
     var t = tree[k]
-      , u = url.parse(t.from)
+      , f = npa(t.from)
       , a = npa(t.what)
       , w = [a.name, a.spec]
 
@@ -433,7 +433,7 @@ function save (where, installed, tree, pretty, hasArguments, cb) {
     fs.stat(t.from, function (er){
       if (!er) {
         w[1] = "file:" + t.from
-      } else if (u && u.protocol) {
+      } else if (['hosted', 'git', 'remote'].indexOf(f.type) !== -1) {
         w[1] = t.from
       }
       cb(null, [w])
@@ -687,8 +687,6 @@ function installMany (what, where, context, cb) {
 
     var parent = data
 
-    var d = data.dependencies || {}
-
     // if we're explicitly installing "what" into "where", then the shrinkwrap
     // for "where" doesn't apply. This would be the case if someone were adding
     // a new package to a shrinkwrapped package. (data.dependencies will not be
@@ -696,10 +694,13 @@ function installMany (what, where, context, cb) {
     // there's no harm in using that.)
     if (context.explicit) wrap = null
 
+    var deps = data.dependencies || {}
+    var devDeps = data.devDependencies || {}
+
     // what is a list of things.
     // resolve each one.
     asyncMap( what
-            , targetResolver(where, context, d)
+            , targetResolver(where, context, deps, devDeps)
             , function (er, targets) {
 
       if (er) return cb(er)
@@ -774,7 +775,7 @@ function installMany (what, where, context, cb) {
   })
 }
 
-function targetResolver (where, context, deps) {
+function targetResolver (where, context, deps, devDeps) {
   var alreadyInstalledManually = []
     , resolveLeft = 0
     , nm = path.resolve(where, "node_modules")
@@ -807,7 +808,8 @@ function targetResolver (where, context, deps) {
           // otherwise, make sure that it's a semver match with what we want.
           var bd = parent.bundleDependencies
           var isBundled = bd && bd.indexOf(d.name) !== -1
-          var currentIsSatisfactory = semver.satisfies(d.version, deps[d.name] || "*", true)
+          var expectedVersion = deps[d.name] || (devDeps && devDeps[d.name]) || "*"
+          var currentIsSatisfactory = semver.satisfies(d.version, expectedVersion, true)
           if (isBundled || currentIsSatisfactory || deps[d.name] === d._resolved) {
             return cb(null, d.name)
           }
@@ -1128,7 +1130,16 @@ function write (target, targetFolder, context, cb_) {
               "in npm 3+. Your application will need to depend on it explicitly."
             ], pd+","+data.name)
         })
-        var pdTargetFolder = path.resolve(targetFolder, "..", "..")
+
+        // Package scopes cause an addditional tree level which needs to be
+        // considered when resolving a peerDependency's target folder.
+        var pdTargetFolder
+        if (npa(target.name).scope) {
+          pdTargetFolder = path.resolve(targetFolder, '../../..')
+        } else {
+          pdTargetFolder = path.resolve(targetFolder, '../..')
+        }
+
         var pdContext = context
         if (peerDeps.length > 0) {
           actions.push(

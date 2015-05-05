@@ -9,7 +9,7 @@ var server = net.createServer(function(client) {
 });
 
 server.listen(common.PORT, '127.0.0.1', function() {
-  net.connect(common.PORT, '127.0.0.1').on('lookup', function(err, ip, type) {
+  net.connect(common.PORT, 'localhost').on('lookup', function(err, ip, type) {
     assert.equal(err, null);
     assert.equal(ip, '127.0.0.1');
     assert.equal(type, '4');

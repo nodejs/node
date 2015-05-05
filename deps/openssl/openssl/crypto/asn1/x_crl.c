@@ -58,8 +58,8 @@
 
 #include <stdio.h>
 #include "cryptlib.h"
-#include "asn1_locl.h"
 #include <openssl/asn1t.h>
+#include "asn1_locl.h"
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 
@@ -340,6 +340,8 @@ ASN1_SEQUENCE_ref(X509_CRL, crl_cb, CRYPTO_LOCK_X509_CRL) = {
 } ASN1_SEQUENCE_END_ref(X509_CRL, X509_CRL)
 
 IMPLEMENT_ASN1_FUNCTIONS(X509_REVOKED)
+
+IMPLEMENT_ASN1_DUP_FUNCTION(X509_REVOKED)
 
 IMPLEMENT_ASN1_FUNCTIONS(X509_CRL_INFO)
 

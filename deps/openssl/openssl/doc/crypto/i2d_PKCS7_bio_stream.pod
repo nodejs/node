@@ -23,7 +23,7 @@ streaming.
 
 =head1 BUGS
 
-The prefix "d2i" is arguably wrong because the function outputs BER format.
+The prefix "i2d" is arguably wrong because the function outputs BER format.
 
 =head1 RETURN VALUES
 

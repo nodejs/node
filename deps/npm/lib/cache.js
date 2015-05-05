@@ -76,7 +76,6 @@ var npm = require("./npm.js")
   , addLocal = require("./cache/add-local.js")
   , addRemoteTarball = require("./cache/add-remote-tarball.js")
   , addRemoteGit = require("./cache/add-remote-git.js")
-  , maybeGithub = require("./cache/maybe-github.js")
   , inflight = require("inflight")
   , realizePackageSpecifier = require("realize-package-specifier")
   , npa = require("npm-package-arg")
@@ -296,14 +295,8 @@ function add (args, where, cb) {
         })
         break
       case "git":
-        addRemoteGit(p.spec, false, cb)
-        break
       case "hosted":
-        if (p.hosted.type === "github") {
-          maybeGithub(p.rawSpec, cb)
-        } else {
-          addRemoteGit(p.spec, false, cb)
-        }
+        addRemoteGit(p.rawSpec, cb)
         break
       default:
         if (p.name) return addNamed(p.name, p.spec, null, cb)

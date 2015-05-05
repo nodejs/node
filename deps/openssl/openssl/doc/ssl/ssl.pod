@@ -380,6 +380,10 @@ session instead of a context.
 
 =item int B<SSL_CTX_use_certificate_file>(SSL_CTX *ctx, char *file, int type);
 
+=item X509 *B<SSL_CTX_get0_certificate>(const SSL_CTX *ctx);
+
+=item EVP_PKEY *B<SSL_CTX_get0_privatekey>(const SSL_CTX *ctx);
+
 =item void B<SSL_CTX_set_psk_client_callback>(SSL_CTX *ctx, unsigned int (*callback)(SSL *ssl, const char *hint, char *identity, unsigned int max_identity_len, unsigned char *psk, unsigned int max_psk_len));
 
 =item int B<SSL_CTX_use_psk_identity_hint>(SSL_CTX *ctx, const char *hint);
@@ -513,7 +517,7 @@ connection defined in the B<SSL> structure.
 
 =item X509 *B<SSL_get_peer_certificate>(const SSL *ssl);
 
-=item EVP_PKEY *B<SSL_get_privatekey>(SSL *ssl);
+=item EVP_PKEY *B<SSL_get_privatekey>(const SSL *ssl);
 
 =item int B<SSL_get_quiet_shutdown>(const SSL *ssl);
 

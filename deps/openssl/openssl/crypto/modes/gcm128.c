@@ -687,7 +687,7 @@ static void gcm_gmult_1bit(u64 Xi[2], const u64 H[2])
 
 #endif
 
-#if     TABLE_BITS==4 && defined(GHASH_ASM)
+#if     TABLE_BITS==4 && (defined(GHASH_ASM) || defined(OPENSSL_CPUID_OBJ))
 # if    !defined(I386_ONLY) && \
         (defined(__i386)        || defined(__i386__)    || \
          defined(__x86_64)      || defined(__x86_64__)  || \
@@ -701,6 +701,17 @@ void gcm_gmult_clmul(u64 Xi[2], const u128 Htable[16]);
 void gcm_ghash_clmul(u64 Xi[2], const u128 Htable[16], const u8 *inp,
                      size_t len);
 
+#  if defined(__i386) || defined(__i386__) || defined(_M_IX86)
+#   define gcm_init_avx   gcm_init_clmul
+#   define gcm_gmult_avx  gcm_gmult_clmul
+#   define gcm_ghash_avx  gcm_ghash_clmul
+#  else
+void gcm_init_avx(u128 Htable[16], const u64 Xi[2]);
+void gcm_gmult_avx(u64 Xi[2], const u128 Htable[16]);
+void gcm_ghash_avx(u64 Xi[2], const u128 Htable[16], const u8 *inp,
+                   size_t len);
+#  endif
+
 #  if   defined(__i386) || defined(__i386__) || defined(_M_IX86)
 #   define GHASH_ASM_X86
 void gcm_gmult_4bit_mmx(u64 Xi[2], const u128 Htable[16]);
@@ -711,15 +722,41 @@ void gcm_gmult_4bit_x86(u64 Xi[2], const u128 Htable[16]);
 void gcm_ghash_4bit_x86(u64 Xi[2], const u128 Htable[16], const u8 *inp,
                         size_t len);
 #  endif
-# elif defined(__arm__) || defined(__arm)
+# elif defined(__arm__) || defined(__arm) || defined(__aarch64__)
 #  include "arm_arch.h"
-#  if __ARM_ARCH__>=7
+#  if __ARM_MAX_ARCH__>=7
 #   define GHASH_ASM_ARM
 #   define GCM_FUNCREF_4BIT
+#   define PMULL_CAPABLE        (OPENSSL_armcap_P & ARMV8_PMULL)
+#   if defined(__arm__) || defined(__arm)
+#    define NEON_CAPABLE        (OPENSSL_armcap_P & ARMV7_NEON)
+#   endif
+void gcm_init_neon(u128 Htable[16], const u64 Xi[2]);
 void gcm_gmult_neon(u64 Xi[2], const u128 Htable[16]);
 void gcm_ghash_neon(u64 Xi[2], const u128 Htable[16], const u8 *inp,
                     size_t len);
+void gcm_init_v8(u128 Htable[16], const u64 Xi[2]);
+void gcm_gmult_v8(u64 Xi[2], const u128 Htable[16]);
+void gcm_ghash_v8(u64 Xi[2], const u128 Htable[16], const u8 *inp,
+                  size_t len);
 #  endif
+# elif defined(__sparc__) || defined(__sparc)
+#  include "sparc_arch.h"
+#  define GHASH_ASM_SPARC
+#  define GCM_FUNCREF_4BIT
+extern unsigned int OPENSSL_sparcv9cap_P[];
+void gcm_init_vis3(u128 Htable[16], const u64 Xi[2]);
+void gcm_gmult_vis3(u64 Xi[2], const u128 Htable[16]);
+void gcm_ghash_vis3(u64 Xi[2], const u128 Htable[16], const u8 *inp,
+                    size_t len);
+# elif defined(OPENSSL_CPUID_OBJ) && (defined(__powerpc__) || defined(__ppc__) || defined(_ARCH_PPC))
+#  include "ppc_arch.h"
+#  define GHASH_ASM_PPC
+#  define GCM_FUNCREF_4BIT
+void gcm_init_p8(u128 Htable[16], const u64 Xi[2]);
+void gcm_gmult_p8(u64 Xi[2], const u128 Htable[16]);
+void gcm_ghash_p8(u64 Xi[2], const u128 Htable[16], const u8 *inp,
+                  size_t len);
 # endif
 #endif
 
@@ -768,9 +805,15 @@ void CRYPTO_gcm128_init(GCM128_CONTEXT *ctx, void *key, block128_f block)
 #  if   !defined(GHASH_ASM_X86) || defined(OPENSSL_IA32_SSE2)
     if (OPENSSL_ia32cap_P[0] & (1 << 24) && /* check FXSR bit */
         OPENSSL_ia32cap_P[1] & (1 << 1)) { /* check PCLMULQDQ bit */
-        gcm_init_clmul(ctx->Htable, ctx->H.u);
-        ctx->gmult = gcm_gmult_clmul;
-        ctx->ghash = gcm_ghash_clmul;
+        if (((OPENSSL_ia32cap_P[1] >> 22) & 0x41) == 0x41) { /* AVX+MOVBE */
+            gcm_init_avx(ctx->Htable, ctx->H.u);
+            ctx->gmult = gcm_gmult_avx;
+            ctx->ghash = gcm_ghash_avx;
+        } else {
+            gcm_init_clmul(ctx->Htable, ctx->H.u);
+            ctx->gmult = gcm_gmult_clmul;
+            ctx->ghash = gcm_ghash_clmul;
+        }
         return;
     }
 #  endif
@@ -792,13 +835,52 @@ void CRYPTO_gcm128_init(GCM128_CONTEXT *ctx, void *key, block128_f block)
     ctx->ghash = gcm_ghash_4bit;
 #  endif
 # elif  defined(GHASH_ASM_ARM)
-    if (OPENSSL_armcap_P & ARMV7_NEON) {
+#  ifdef PMULL_CAPABLE
+    if (PMULL_CAPABLE) {
+        gcm_init_v8(ctx->Htable, ctx->H.u);
+        ctx->gmult = gcm_gmult_v8;
+        ctx->ghash = gcm_ghash_v8;
+    } else
+#  endif
+#  ifdef NEON_CAPABLE
+    if (NEON_CAPABLE) {
+        gcm_init_neon(ctx->Htable, ctx->H.u);
         ctx->gmult = gcm_gmult_neon;
         ctx->ghash = gcm_ghash_neon;
+    } else
+#  endif
+    {
+        gcm_init_4bit(ctx->Htable, ctx->H.u);
+        ctx->gmult = gcm_gmult_4bit;
+#  if defined(GHASH)
+        ctx->ghash = gcm_ghash_4bit;
+#  else
+        ctx->ghash = NULL;
+#  endif
+    }
+# elif  defined(GHASH_ASM_SPARC)
+    if (OPENSSL_sparcv9cap_P[0] & SPARCV9_VIS3) {
+        gcm_init_vis3(ctx->Htable, ctx->H.u);
+        ctx->gmult = gcm_gmult_vis3;
+        ctx->ghash = gcm_ghash_vis3;
     } else {
         gcm_init_4bit(ctx->Htable, ctx->H.u);
         ctx->gmult = gcm_gmult_4bit;
         ctx->ghash = gcm_ghash_4bit;
+    }
+# elif  defined(GHASH_ASM_PPC)
+    if (OPENSSL_ppccap_P & PPC_CRYPTO207) {
+        gcm_init_p8(ctx->Htable, ctx->H.u);
+        ctx->gmult = gcm_gmult_p8;
+        ctx->ghash = gcm_ghash_p8;
+    } else {
+        gcm_init_4bit(ctx->Htable, ctx->H.u);
+        ctx->gmult = gcm_gmult_4bit;
+#  if defined(GHASH)
+        ctx->ghash = gcm_ghash_4bit;
+#  else
+        ctx->ghash = NULL;
+#  endif
     }
 # else
     gcm_init_4bit(ctx->Htable, ctx->H.u);

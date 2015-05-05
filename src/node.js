@@ -130,21 +130,21 @@
         // If -i or --interactive were passed, or stdin is a TTY.
         if (process._forceRepl || NativeModule.require('tty').isatty(0)) {
           // REPL
-          var opts = {
-            useGlobal: true,
-            ignoreUndefined: false
-          };
-          if (parseInt(process.env['NODE_NO_READLINE'], 10)) {
-            opts.terminal = false;
-          }
-          if (parseInt(process.env['NODE_DISABLE_COLORS'], 10)) {
-            opts.useColors = false;
-          }
-          var repl = Module.requireRepl().start(opts);
-          repl.on('exit', function() {
-            process.exit();
+          var cliRepl = Module.requireRepl();
+          cliRepl.createInternalRepl(process.env, function(err, repl) {
+            if (err) {
+              throw err;
+            }
+            repl.on('exit', function() {
+              if (repl._flushing) {
+                repl.pause();
+                return repl.once('flushHistory', function() {
+                  process.exit();
+                });
+              }
+              process.exit();
+            });
           });
-
         } else {
           // Read all of stdin - execute it.
           process.stdin.setEncoding('utf8');
@@ -329,19 +329,33 @@
     // Run callbacks that have no domain.
     // Using domains will cause this to be overridden.
     function _tickCallback() {
-      var callback, threw, tock;
+      var callback, args, tock;
 
       do {
         while (tickInfo[kIndex] < tickInfo[kLength]) {
           tock = nextTickQueue[tickInfo[kIndex]++];
           callback = tock.callback;
-          threw = true;
-          try {
-            callback();
-            threw = false;
-          } finally {
-            if (threw)
-              tickDone();
+          args = tock.args;
+          // Using separate callback execution functions helps to limit the
+          // scope of DEOPTs caused by using try blocks and allows direct
+          // callback invocation with small numbers of arguments to avoid the
+          // performance hit associated with using `fn.apply()`
+          if (args === undefined) {
+            doNTCallback0(callback);
+          } else {
+            switch (args.length) {
+              case 1:
+                doNTCallback1(callback, args[0]);
+                break;
+              case 2:
+                doNTCallback2(callback, args[0], args[1]);
+                break;
+              case 3:
+                doNTCallback3(callback, args[0], args[1], args[2]);
+                break;
+              default:
+                doNTCallbackMany(callback, args);
+            }
           }
           if (1e4 < tickInfo[kIndex])
             tickDone();
@@ -353,22 +367,36 @@
     }
 
     function _tickDomainCallback() {
-      var callback, domain, threw, tock;
+      var callback, domain, args, tock;
 
       do {
         while (tickInfo[kIndex] < tickInfo[kLength]) {
           tock = nextTickQueue[tickInfo[kIndex]++];
           callback = tock.callback;
           domain = tock.domain;
+          args = tock.args;
           if (domain)
             domain.enter();
-          threw = true;
-          try {
-            callback();
-            threw = false;
-          } finally {
-            if (threw)
-              tickDone();
+          // Using separate callback execution functions helps to limit the
+          // scope of DEOPTs caused by using try blocks and allows direct
+          // callback invocation with small numbers of arguments to avoid the
+          // performance hit associated with using `fn.apply()`
+          if (args === undefined) {
+            doNTCallback0(callback);
+          } else {
+            switch (args.length) {
+              case 1:
+                doNTCallback1(callback, args[0]);
+                break;
+              case 2:
+                doNTCallback2(callback, args[0], args[1]);
+                break;
+              case 3:
+                doNTCallback3(callback, args[0], args[1], args[2]);
+                break;
+              default:
+                doNTCallbackMany(callback, args);
+            }
           }
           if (1e4 < tickInfo[kIndex])
             tickDone();
@@ -381,9 +409,65 @@
       } while (tickInfo[kLength] !== 0);
     }
 
-    function TickObject(c) {
+    function doNTCallback0(callback) {
+      var threw = true;
+      try {
+        callback();
+        threw = false;
+      } finally {
+        if (threw)
+          tickDone();
+      }
+    }
+
+    function doNTCallback1(callback, arg1) {
+      var threw = true;
+      try {
+        callback(arg1);
+        threw = false;
+      } finally {
+        if (threw)
+          tickDone();
+      }
+    }
+
+    function doNTCallback2(callback, arg1, arg2) {
+      var threw = true;
+      try {
+        callback(arg1, arg2);
+        threw = false;
+      } finally {
+        if (threw)
+          tickDone();
+      }
+    }
+
+    function doNTCallback3(callback, arg1, arg2, arg3) {
+      var threw = true;
+      try {
+        callback(arg1, arg2, arg3);
+        threw = false;
+      } finally {
+        if (threw)
+          tickDone();
+      }
+    }
+
+    function doNTCallbackMany(callback, args) {
+      var threw = true;
+      try {
+        callback.apply(null, args);
+        threw = false;
+      } finally {
+        if (threw)
+          tickDone();
+      }
+    }
+
+    function TickObject(c, args) {
       this.callback = c;
       this.domain = process.domain || null;
+      this.args = args;
     }
 
     function nextTick(callback) {
@@ -391,7 +475,14 @@
       if (process._exiting)
         return;
 
-      nextTickQueue.push(new TickObject(callback));
+      var args = undefined;
+      if (arguments.length > 1) {
+        args = [];
+        for (var i = 1; i < arguments.length; i++)
+          args.push(arguments[i]);
+      }
+
+      nextTickQueue.push(new TickObject(callback, args));
       tickInfo[kLength]++;
     }
 

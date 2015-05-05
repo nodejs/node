@@ -214,12 +214,12 @@ typedef struct {
     int (*mutex_acquire) (HWCryptoHook_Mutex *);
     void (*mutex_release) (HWCryptoHook_Mutex *);
     void (*mutex_destroy) (HWCryptoHook_Mutex *);
-   /*-
-    * For greater efficiency, can use condition vars internally for
-    * synchronisation.  In this case maxsimultaneous is ignored, but
-    * the other mutex stuff must be available.  In singlethreaded
-    * programs, set everything to 0.
-    */
+    /*-
+     * For greater efficiency, can use condition vars internally for
+     * synchronisation.  In this case maxsimultaneous is ignored, but
+     * the other mutex stuff must be available.  In singlethreaded
+     * programs, set everything to 0.
+     */
     size_t condvarsize;
     int (*condvar_init) (HWCryptoHook_CondVar *,
                          HWCryptoHook_CallerContext * cactx);
@@ -227,103 +227,103 @@ typedef struct {
     void (*condvar_signal) (HWCryptoHook_CondVar *);
     void (*condvar_broadcast) (HWCryptoHook_CondVar *);
     void (*condvar_destroy) (HWCryptoHook_CondVar *);
-   /*-
-    * The semantics of acquiring and releasing mutexes and broadcasting
-    * and waiting on condition variables are expected to be those from
-    * POSIX threads (pthreads).  The mutexes may be (in pthread-speak)
-    * fast mutexes, recursive mutexes, or nonrecursive ones.
-    *
-    * The _release/_signal/_broadcast and _destroy functions must
-    * always succeed when given a valid argument; if they are given an
-    * invalid argument then the program (crypto plugin + application)
-    * has an internal error, and they should abort the program.
-    */
+    /*-
+     * The semantics of acquiring and releasing mutexes and broadcasting
+     * and waiting on condition variables are expected to be those from
+     * POSIX threads (pthreads).  The mutexes may be (in pthread-speak)
+     * fast mutexes, recursive mutexes, or nonrecursive ones.
+     *
+     * The _release/_signal/_broadcast and _destroy functions must
+     * always succeed when given a valid argument; if they are given an
+     * invalid argument then the program (crypto plugin + application)
+     * has an internal error, and they should abort the program.
+     */
     int (*getpassphrase) (const char *prompt_info,
                           int *len_io, char *buf,
                           HWCryptoHook_PassphraseContext * ppctx,
                           HWCryptoHook_CallerContext * cactx);
-   /*-
-    * Passphrases and the prompt_info, if they contain high-bit-set
-    * characters, are UTF-8.  The prompt_info may be a null pointer if
-    * no prompt information is available (it should not be an empty
-    * string).  It will not contain text like `enter passphrase';
-    * instead it might say something like `Operator Card for John
-    * Smith' or `SmartCard in nFast Module #1, Slot #1'.
-    *
-    * buf points to a buffer in which to return the passphrase; on
-    * entry *len_io is the length of the buffer.  It should be updated
-    * by the callback.  The returned passphrase should not be
-    * null-terminated by the callback.
-    */
+    /*-
+     * Passphrases and the prompt_info, if they contain high-bit-set
+     * characters, are UTF-8.  The prompt_info may be a null pointer if
+     * no prompt information is available (it should not be an empty
+     * string).  It will not contain text like `enter passphrase';
+     * instead it might say something like `Operator Card for John
+     * Smith' or `SmartCard in nFast Module #1, Slot #1'.
+     *
+     * buf points to a buffer in which to return the passphrase; on
+     * entry *len_io is the length of the buffer.  It should be updated
+     * by the callback.  The returned passphrase should not be
+     * null-terminated by the callback.
+     */
     int (*getphystoken) (const char *prompt_info,
                          const char *wrong_info,
                          HWCryptoHook_PassphraseContext * ppctx,
                          HWCryptoHook_CallerContext * cactx);
-   /*-
-    * Requests that the human user physically insert a different
-    * smartcard, DataKey, etc.  The plugin should check whether the
-    * currently inserted token(s) are appropriate, and if they are it
-    * should not make this call.
-    *
-    * prompt_info is as before.  wrong_info is a description of the
-    * currently inserted token(s) so that the user is told what
-    * something is.  wrong_info, like prompt_info, may be null, but
-    * should not be an empty string.  Its contents should be
-    * syntactically similar to that of prompt_info.
-    */
-   /*-
-    * Note that a single LoadKey operation might cause several calls to
-    * getpassphrase and/or requestphystoken.  If requestphystoken is
-    * not provided (ie, a null pointer is passed) then the plugin may
-    * not support loading keys for which authorisation by several cards
-    * is required.  If getpassphrase is not provided then cards with
-    * passphrases may not be supported.
-    *
-    * getpassphrase and getphystoken do not need to check that the
-    * passphrase has been entered correctly or the correct token
-    * inserted; the crypto plugin will do that.  If this is not the
-    * case then the crypto plugin is responsible for calling these
-    * routines again as appropriate until the correct token(s) and
-    * passphrase(s) are supplied as required, or until any retry limits
-    * implemented by the crypto plugin are reached.
-    *
-    * In either case, the application must allow the user to say `no'
-    * or `cancel' to indicate that they do not know the passphrase or
-    * have the appropriate token; this should cause the callback to
-    * return nonzero indicating error.
-    */
+    /*-
+     * Requests that the human user physically insert a different
+     * smartcard, DataKey, etc.  The plugin should check whether the
+     * currently inserted token(s) are appropriate, and if they are it
+     * should not make this call.
+     *
+     * prompt_info is as before.  wrong_info is a description of the
+     * currently inserted token(s) so that the user is told what
+     * something is.  wrong_info, like prompt_info, may be null, but
+     * should not be an empty string.  Its contents should be
+     * syntactically similar to that of prompt_info.
+     */
+    /*-
+     * Note that a single LoadKey operation might cause several calls to
+     * getpassphrase and/or requestphystoken.  If requestphystoken is
+     * not provided (ie, a null pointer is passed) then the plugin may
+     * not support loading keys for which authorisation by several cards
+     * is required.  If getpassphrase is not provided then cards with
+     * passphrases may not be supported.
+     *
+     * getpassphrase and getphystoken do not need to check that the
+     * passphrase has been entered correctly or the correct token
+     * inserted; the crypto plugin will do that.  If this is not the
+     * case then the crypto plugin is responsible for calling these
+     * routines again as appropriate until the correct token(s) and
+     * passphrase(s) are supplied as required, or until any retry limits
+     * implemented by the crypto plugin are reached.
+     *
+     * In either case, the application must allow the user to say `no'
+     * or `cancel' to indicate that they do not know the passphrase or
+     * have the appropriate token; this should cause the callback to
+     * return nonzero indicating error.
+     */
     void (*logmessage) (void *logstream, const char *message);
-   /*-
-    * A log message will be generated at least every time something goes
-    * wrong and an ErrMsgBuf is filled in (or would be if one was
-    * provided).  Other diagnostic information may be written there too,
-    * including more detailed reasons for errors which are reported in an
-    * ErrMsgBuf.
-    *
-    * When a log message is generated, this callback is called.  It
-    * should write a message to the relevant logging arrangements.
-    *
-    * The message string passed will be null-terminated and may be of arbitrary
-    * length.  It will not be prefixed by the time and date, nor by the
-    * name of the library that is generating it - if this is required,
-    * the logmessage callback must do it.  The message will not have a
-    * trailing newline (though it may contain internal newlines).
-    *
-    * If a null pointer is passed for logmessage a default function is
-    * used.  The default function treats logstream as a FILE* which has
-    * been converted to a void*.  If logstream is 0 it does nothing.
-    * Otherwise it prepends the date and time and library name and
-    * writes the message to logstream.  Each line will be prefixed by a
-    * descriptive string containing the date, time and identity of the
-    * crypto plugin.  Errors on the logstream are not reported
-    * anywhere, and the default function doesn't flush the stream, so
-    * the application must set the buffering how it wants it.
-    *
-    * The crypto plugin may also provide a facility to have copies of
-    * log messages sent elsewhere, and or for adjusting the verbosity
-    * of the log messages; any such facilities will be configured by
-    * external means.
-    */
+    /*-
+     * A log message will be generated at least every time something goes
+     * wrong and an ErrMsgBuf is filled in (or would be if one was
+     * provided).  Other diagnostic information may be written there too,
+     * including more detailed reasons for errors which are reported in an
+     * ErrMsgBuf.
+     *
+     * When a log message is generated, this callback is called.  It
+     * should write a message to the relevant logging arrangements.
+     *
+     * The message string passed will be null-terminated and may be of arbitrary
+     * length.  It will not be prefixed by the time and date, nor by the
+     * name of the library that is generating it - if this is required,
+     * the logmessage callback must do it.  The message will not have a
+     * trailing newline (though it may contain internal newlines).
+     *
+     * If a null pointer is passed for logmessage a default function is
+     * used.  The default function treats logstream as a FILE* which has
+     * been converted to a void*.  If logstream is 0 it does nothing.
+     * Otherwise it prepends the date and time and library name and
+     * writes the message to logstream.  Each line will be prefixed by a
+     * descriptive string containing the date, time and identity of the
+     * crypto plugin.  Errors on the logstream are not reported
+     * anywhere, and the default function doesn't flush the stream, so
+     * the application must set the buffering how it wants it.
+     *
+     * The crypto plugin may also provide a facility to have copies of
+     * log messages sent elsewhere, and or for adjusting the verbosity
+     * of the log messages; any such facilities will be configured by
+     * external means.
+     */
 } HWCryptoHook_InitInfo;
 
 typedef

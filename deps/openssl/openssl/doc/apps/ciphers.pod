@@ -175,14 +175,14 @@ cipher suites using RSA key exchange.
 =item B<kDHr>, B<kDHd>, B<kDH>
 
 cipher suites using DH key agreement and DH certificates signed by CAs with RSA
-and DSS keys or either respectively. Not implemented.
+and DSS keys or either respectively.
 
-=item B<kEDH>
+=item B<kDHE>, B<kEDH>
 
 cipher suites using ephemeral DH key agreement, including anonymous cipher
 suites.
 
-=item B<EDH>
+=item B<DHE>, B<EDH>
 
 cipher suites using authenticated ephemeral DH key agreement.
 
@@ -200,12 +200,12 @@ cipher suites using DH, including anonymous DH, ephemeral DH and fixed DH.
 cipher suites using fixed ECDH key agreement signed by CAs with RSA and ECDSA
 keys or either respectively.
 
-=item B<kEECDH>
+=item B<kECDHE>, B<kEECDH>
 
 cipher suites using ephemeral ECDH key agreement, including anonymous
 cipher suites.
 
-=item B<EECDHE>
+=item B<ECDHE>, B<EECDH>
 
 cipher suites using authenticated ephemeral ECDH key agreement.
 
@@ -229,7 +229,7 @@ cipher suites using DSS authentication, i.e. the certificates carry DSS keys.
 =item B<aDH>
 
 cipher suites effectively using DH authentication, i.e. the certificates carry
-DH keys.  Not implemented.
+DH keys.
 
 =item B<aECDH>
 
@@ -331,6 +331,18 @@ cipher suites using GOST 28147-89 MAC B<instead of> HMAC.
 
 cipher suites using pre-shared keys (PSK).
 
+=item B<SUITEB128>, B<SUITEB128ONLY>, B<SUITEB192>
+
+enables suite B mode operation using 128 (permitting 192 bit mode by peer)
+128 bit (not permitting 192 bit by peer) or 192 bit level of security
+respectively. If used these cipherstrings should appear first in the cipher
+list and anything after them is ignored. Setting Suite B mode has additional
+consequences required to comply with RFC6460. In particular the supported
+signature algorithms is reduced to support only ECDSA and SHA256 or SHA384,
+only the elliptic curves P-256 and P-384 can be used and only the two suite B
+compliant ciphersuites (ECDHE-ECDSA-AES128-GCM-SHA256 and
+ECDHE-ECDSA-AES256-GCM-SHA384) are permissible.
+
 =back
 
 =head1 CIPHER SUITE NAMES
@@ -353,12 +365,12 @@ e.g. DES-CBC3-SHA. In these cases, RSA authentication is used.
  SSL_RSA_WITH_DES_CBC_SHA                DES-CBC-SHA
  SSL_RSA_WITH_3DES_EDE_CBC_SHA           DES-CBC3-SHA
 
- SSL_DH_DSS_EXPORT_WITH_DES40_CBC_SHA    Not implemented.
- SSL_DH_DSS_WITH_DES_CBC_SHA             Not implemented.
- SSL_DH_DSS_WITH_3DES_EDE_CBC_SHA        Not implemented.
- SSL_DH_RSA_EXPORT_WITH_DES40_CBC_SHA    Not implemented.
- SSL_DH_RSA_WITH_DES_CBC_SHA             Not implemented.
- SSL_DH_RSA_WITH_3DES_EDE_CBC_SHA        Not implemented.
+ SSL_DH_DSS_EXPORT_WITH_DES40_CBC_SHA    EXP-DH-DSS-DES-CBC-SHA
+ SSL_DH_DSS_WITH_DES_CBC_SHA             DH-DSS-DES-CBC-SHA
+ SSL_DH_DSS_WITH_3DES_EDE_CBC_SHA        DH-DSS-DES-CBC3-SHA
+ SSL_DH_RSA_EXPORT_WITH_DES40_CBC_SHA    EXP-DH-RSA-DES-CBC-SHA
+ SSL_DH_RSA_WITH_DES_CBC_SHA             DH-RSA-DES-CBC-SHA
+ SSL_DH_RSA_WITH_3DES_EDE_CBC_SHA        DH-RSA-DES-CBC3-SHA
  SSL_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA   EXP-EDH-DSS-DES-CBC-SHA
  SSL_DHE_DSS_WITH_DES_CBC_SHA            EDH-DSS-CBC-SHA
  SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA       EDH-DSS-DES-CBC3-SHA
@@ -413,10 +425,10 @@ e.g. DES-CBC3-SHA. In these cases, RSA authentication is used.
  TLS_RSA_WITH_AES_128_CBC_SHA            AES128-SHA
  TLS_RSA_WITH_AES_256_CBC_SHA            AES256-SHA
 
- TLS_DH_DSS_WITH_AES_128_CBC_SHA         Not implemented.
- TLS_DH_DSS_WITH_AES_256_CBC_SHA         Not implemented.
- TLS_DH_RSA_WITH_AES_128_CBC_SHA         Not implemented.
- TLS_DH_RSA_WITH_AES_256_CBC_SHA         Not implemented.
+ TLS_DH_DSS_WITH_AES_128_CBC_SHA         DH-DSS-AES128-SHA
+ TLS_DH_DSS_WITH_AES_256_CBC_SHA         DH-DSS-AES256-SHA
+ TLS_DH_RSA_WITH_AES_128_CBC_SHA         DH-RSA-AES128-SHA
+ TLS_DH_RSA_WITH_AES_256_CBC_SHA         DH-RSA-AES256-SHA
 
  TLS_DHE_DSS_WITH_AES_128_CBC_SHA        DHE-DSS-AES128-SHA
  TLS_DHE_DSS_WITH_AES_256_CBC_SHA        DHE-DSS-AES256-SHA
@@ -431,10 +443,10 @@ e.g. DES-CBC3-SHA. In these cases, RSA authentication is used.
  TLS_RSA_WITH_CAMELLIA_128_CBC_SHA      CAMELLIA128-SHA
  TLS_RSA_WITH_CAMELLIA_256_CBC_SHA      CAMELLIA256-SHA
 
- TLS_DH_DSS_WITH_CAMELLIA_128_CBC_SHA   Not implemented.
- TLS_DH_DSS_WITH_CAMELLIA_256_CBC_SHA   Not implemented.
- TLS_DH_RSA_WITH_CAMELLIA_128_CBC_SHA   Not implemented.
- TLS_DH_RSA_WITH_CAMELLIA_256_CBC_SHA   Not implemented.
+ TLS_DH_DSS_WITH_CAMELLIA_128_CBC_SHA   DH-DSS-CAMELLIA128-SHA
+ TLS_DH_DSS_WITH_CAMELLIA_256_CBC_SHA   DH-DSS-CAMELLIA256-SHA
+ TLS_DH_RSA_WITH_CAMELLIA_128_CBC_SHA   DH-RSA-CAMELLIA128-SHA
+ TLS_DH_RSA_WITH_CAMELLIA_256_CBC_SHA   DH-RSA-CAMELLIA256-SHA
 
  TLS_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA  DHE-DSS-CAMELLIA128-SHA
  TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA  DHE-DSS-CAMELLIA256-SHA
@@ -448,8 +460,8 @@ e.g. DES-CBC3-SHA. In these cases, RSA authentication is used.
 
  TLS_RSA_WITH_SEED_CBC_SHA              SEED-SHA
 
- TLS_DH_DSS_WITH_SEED_CBC_SHA           Not implemented.
- TLS_DH_RSA_WITH_SEED_CBC_SHA           Not implemented.
+ TLS_DH_DSS_WITH_SEED_CBC_SHA           DH-DSS-SEED-SHA
+ TLS_DH_RSA_WITH_SEED_CBC_SHA           DH-RSA-SEED-SHA
 
  TLS_DHE_DSS_WITH_SEED_CBC_SHA          DHE-DSS-SEED-SHA
  TLS_DHE_RSA_WITH_SEED_CBC_SHA          DHE-RSA-SEED-SHA
@@ -517,15 +529,15 @@ Note: these ciphers can also be used in SSL v3.
  TLS_RSA_WITH_AES_128_GCM_SHA256           AES128-GCM-SHA256
  TLS_RSA_WITH_AES_256_GCM_SHA384           AES256-GCM-SHA384
 
- TLS_DH_RSA_WITH_AES_128_CBC_SHA256        Not implemented.
- TLS_DH_RSA_WITH_AES_256_CBC_SHA256        Not implemented.
- TLS_DH_RSA_WITH_AES_128_GCM_SHA256        Not implemented.
- TLS_DH_RSA_WITH_AES_256_GCM_SHA384        Not implemented.
+ TLS_DH_RSA_WITH_AES_128_CBC_SHA256        DH-RSA-AES128-SHA256
+ TLS_DH_RSA_WITH_AES_256_CBC_SHA256        DH-RSA-AES256-SHA256
+ TLS_DH_RSA_WITH_AES_128_GCM_SHA256        DH-RSA-AES128-GCM-SHA256
+ TLS_DH_RSA_WITH_AES_256_GCM_SHA384        DH-RSA-AES256-GCM-SHA384
 
- TLS_DH_DSS_WITH_AES_128_CBC_SHA256        Not implemented.
- TLS_DH_DSS_WITH_AES_256_CBC_SHA256        Not implemented.
- TLS_DH_DSS_WITH_AES_128_GCM_SHA256        Not implemented.
- TLS_DH_DSS_WITH_AES_256_GCM_SHA384        Not implemented.
+ TLS_DH_DSS_WITH_AES_128_CBC_SHA256        DH-DSS-AES128-SHA256
+ TLS_DH_DSS_WITH_AES_256_CBC_SHA256        DH-DSS-AES256-SHA256
+ TLS_DH_DSS_WITH_AES_128_GCM_SHA256        DH-DSS-AES128-GCM-SHA256
+ TLS_DH_DSS_WITH_AES_256_GCM_SHA384        DH-DSS-AES256-GCM-SHA384
 
  TLS_DHE_RSA_WITH_AES_128_CBC_SHA256       DHE-RSA-AES128-SHA256
  TLS_DHE_RSA_WITH_AES_256_CBC_SHA256       DHE-RSA-AES256-SHA256
@@ -580,9 +592,6 @@ Note: these ciphers can also be used in SSL v3.
  SSL_CK_DES_192_EDE3_CBC_WITH_MD5        DES-CBC3-MD5
 
 =head1 NOTES
-
-The non-ephemeral DH modes are currently unimplemented in OpenSSL
-because there is no support for DH certificates.
 
 Some compiled versions of OpenSSL may not include all the ciphers
 listed here because some ciphers were excluded at compile time.

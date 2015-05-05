@@ -60,21 +60,25 @@ sha256-armv4.S: asm/sha256-armv4.pl
 	$(PERL) $< $(PERLASM_SCHEME) $@
 
 sha1-alpha.s:	asm/sha1-alpha.pl
-	(preproc=/tmp/$$$$.$@; trap "rm $$preproc" INT; \
+	(preproc=$$$$.$@.S; trap "rm $$preproc" INT; \
 	$(PERL) asm/sha1-alpha.pl > $$preproc && \
-	$(CC) -E $$preproc > $@ && rm $$preproc)
+	$(CC) -E -P $$preproc > $@ && rm $$preproc)
 
 # Solaris make has to be explicitly told
 sha1-x86_64.s:	asm/sha1-x86_64.pl;	$(PERL) asm/sha1-x86_64.pl $(PERLASM_SCHEME) > $@
+sha1-mb-x86_64.s:	asm/sha1-mb-x86_64.pl;	$(PERL) asm/sha1-mb-x86_64.pl $(PERLASM_SCHEME) > $@
 sha256-x86_64.s:asm/sha512-x86_64.pl;	$(PERL) asm/sha512-x86_64.pl $(PERLASM_SCHEME) $@
+sha256-mb-x86_64.s:	asm/sha256-mb-x86_64.pl;	$(PERL) asm/sha256-mb-x86_64.pl $(PERLASM_SCHEME) > $@
 sha512-x86_64.s:asm/sha512-x86_64.pl;	$(PERL) asm/sha512-x86_64.pl $(PERLASM_SCHEME) $@
-sha1-sparcv9.s:	asm/sha1-sparcv9.pl;	$(PERL) asm/sha1-sparcv9.pl $@ $(CFLAGS)
-sha256-sparcv9.s:asm/sha512-sparcv9.pl;	$(PERL) asm/sha512-sparcv9.pl $@ $(CFLAGS)
-sha512-sparcv9.s:asm/sha512-sparcv9.pl;	$(PERL) asm/sha512-sparcv9.pl $@ $(CFLAGS)
+sha1-sparcv9.S:	asm/sha1-sparcv9.pl;	$(PERL) asm/sha1-sparcv9.pl $@ $(CFLAGS)
+sha256-sparcv9.S:asm/sha512-sparcv9.pl;	$(PERL) asm/sha512-sparcv9.pl $@ $(CFLAGS)
+sha512-sparcv9.S:asm/sha512-sparcv9.pl;	$(PERL) asm/sha512-sparcv9.pl $@ $(CFLAGS)
 
 sha1-ppc.s:	asm/sha1-ppc.pl;	$(PERL) asm/sha1-ppc.pl $(PERLASM_SCHEME) $@
 sha256-ppc.s:	asm/sha512-ppc.pl;	$(PERL) asm/sha512-ppc.pl $(PERLASM_SCHEME) $@
 sha512-ppc.s:	asm/sha512-ppc.pl;	$(PERL) asm/sha512-ppc.pl $(PERLASM_SCHEME) $@
+sha256p8-ppc.s:	asm/sha512p8-ppc.pl;	$(PERL) asm/sha512p8-ppc.pl $(PERLASM_SCHEME) $@
+sha512p8-ppc.s:	asm/sha512p8-ppc.pl;	$(PERL) asm/sha512p8-ppc.pl $(PERLASM_SCHEME) $@
 
 sha1-parisc.s:	asm/sha1-parisc.pl;	$(PERL) asm/sha1-parisc.pl $(PERLASM_SCHEME) $@
 sha256-parisc.s:asm/sha512-parisc.pl;	$(PERL) asm/sha512-parisc.pl $(PERLASM_SCHEME) $@
@@ -92,6 +96,9 @@ sha512-%.S:	asm/sha512-%.pl;	$(PERL) $< $(PERLASM_SCHEME) $@
 sha1-armv4-large.o:	sha1-armv4-large.S
 sha256-armv4.o:		sha256-armv4.S
 sha512-armv4.o:		sha512-armv4.S
+sha1-armv8.o:		sha1-armv8.S
+sha256-armv8.o:		sha256-armv8.S
+sha512-armv8.o:		sha512-armv8.S
 
 files:
 	$(PERL) $(TOP)/util/files.pl Makefile >> $(TOP)/MINFO

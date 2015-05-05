@@ -130,8 +130,9 @@ class TLSWrap : public crypto::SSLWrap<TLSWrap>,
   static void SetVerifyMode(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EnableSessionCallbacks(
       const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void EnableHelloParser(
+  static void EnableCertCb(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DestroySSL(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   static void GetServername(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -158,10 +159,6 @@ class TLSWrap : public crypto::SSLWrap<TLSWrap>,
   // If true - delivered EOF to the js-land, either after `close_notify`, or
   // after the `UV_EOF` on socket.
   bool eof_;
-
-#ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-  v8::Persistent<v8::Value> sni_context_;
-#endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
 };
 
 }  // namespace node

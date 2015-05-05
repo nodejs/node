@@ -209,7 +209,7 @@ the last parameter `callback` will be added as an listener for the
 The `port`, `host`, and `backlog` properties of `options`, as well as the
 optional callback function, behave as they do on a call to
 [server.listen(port, \[host\], \[backlog\], \[callback\])
-](#net_server_listen_port_host_backlog_callback). Alternatively, the `path`
+](#net_server_listen_port_hostname_backlog_callback). Alternatively, the `path`
 option can be used to specify a UNIX socket.
 
 If `exclusive` is `false` (default), then cluster workers will use the same
@@ -355,6 +355,8 @@ For TCP sockets, `options` argument should be an object which specifies:
   - `localPort`: Local port to bind to for network connections.
 
   - `family` : Version of IP stack. Defaults to `4`.
+  
+  - `lookup` : Custom lookup function. Defaults to `dns.lookup`.
 
 For local domain sockets, `options` argument should be an object which
 specifies:
@@ -608,5 +610,5 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 ['listening']: #net_event_listening
 [server.getConnections()]: #net_server_getconnections_callback
 [Readable Stream]: stream.html#stream_class_stream_readable
-[stream.setEncoding()]: stream.html#stream_stream_setencoding_encoding
-[dns.lookup()]: dns.html#dns_dns_lookup_domain_family_callback
+[stream.setEncoding()]: stream.html#stream_readable_setencoding_encoding
+[dns.lookup()]: dns.html#dns_dns_lookup_hostname_options_callback

@@ -207,13 +207,13 @@ typedef struct asn1_const_ctx_st {
 # define ASN1_OBJECT_FLAG_CRITICAL        0x02/* critical x509v3 object id */
 # define ASN1_OBJECT_FLAG_DYNAMIC_STRINGS 0x04/* internal use */
 # define ASN1_OBJECT_FLAG_DYNAMIC_DATA    0x08/* internal use */
-typedef struct asn1_object_st {
+struct asn1_object_st {
     const char *sn, *ln;
     int nid;
     int length;
     const unsigned char *data;  /* data remains const after init */
     int flags;                  /* Should we free this one */
-} ASN1_OBJECT;
+};
 
 # define ASN1_STRING_FLAG_BITS_LEFT 0x08/* Set if 0x07 has bits left value */
 /*
@@ -843,7 +843,7 @@ int ASN1_INTEGER_cmp(const ASN1_INTEGER *x, const ASN1_INTEGER *y);
 
 DECLARE_ASN1_FUNCTIONS(ASN1_ENUMERATED)
 
-int ASN1_UTCTIME_check(ASN1_UTCTIME *a);
+int ASN1_UTCTIME_check(const ASN1_UTCTIME *a);
 ASN1_UTCTIME *ASN1_UTCTIME_set(ASN1_UTCTIME *s, time_t t);
 ASN1_UTCTIME *ASN1_UTCTIME_adj(ASN1_UTCTIME *s, time_t t,
                                int offset_day, long offset_sec);
@@ -853,13 +853,15 @@ int ASN1_UTCTIME_cmp_time_t(const ASN1_UTCTIME *s, time_t t);
 time_t ASN1_UTCTIME_get(const ASN1_UTCTIME *s);
 # endif
 
-int ASN1_GENERALIZEDTIME_check(ASN1_GENERALIZEDTIME *a);
+int ASN1_GENERALIZEDTIME_check(const ASN1_GENERALIZEDTIME *a);
 ASN1_GENERALIZEDTIME *ASN1_GENERALIZEDTIME_set(ASN1_GENERALIZEDTIME *s,
                                                time_t t);
 ASN1_GENERALIZEDTIME *ASN1_GENERALIZEDTIME_adj(ASN1_GENERALIZEDTIME *s,
                                                time_t t, int offset_day,
                                                long offset_sec);
 int ASN1_GENERALIZEDTIME_set_string(ASN1_GENERALIZEDTIME *s, const char *str);
+int ASN1_TIME_diff(int *pday, int *psec,
+                   const ASN1_TIME *from, const ASN1_TIME *to);
 
 DECLARE_ASN1_FUNCTIONS(ASN1_OCTET_STRING)
 ASN1_OCTET_STRING *ASN1_OCTET_STRING_dup(const ASN1_OCTET_STRING *a);

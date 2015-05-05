@@ -14,70 +14,70 @@ if $cmd -in $t -inform p -noout -text 2>&1 | fgrep -i 'Unknown Public Key'; then
 fi
 
 echo testing req conversions
-cp $t fff.p
+cp $t req-fff.p
 
 echo "p -> d"
-$cmd -in fff.p -inform p -outform d >f.d
+$cmd -in req-fff.p -inform p -outform d >req-f.d
 if [ $? != 0 ]; then exit 1; fi
 #echo "p -> t"
-#$cmd -in fff.p -inform p -outform t >f.t
+#$cmd -in req-fff.p -inform p -outform t >req-f.t
 #if [ $? != 0 ]; then exit 1; fi
 echo "p -> p"
-$cmd -in fff.p -inform p -outform p >f.p
+$cmd -in req-fff.p -inform p -outform p >req-f.p
 if [ $? != 0 ]; then exit 1; fi
 
 echo "d -> d"
-$cmd -verify -in f.d -inform d -outform d >ff.d1
+$cmd -verify -in req-f.d -inform d -outform d >req-ff.d1
 if [ $? != 0 ]; then exit 1; fi
 #echo "t -> d"
-#$cmd -in f.t -inform t -outform d >ff.d2
+#$cmd -in req-f.t -inform t -outform d >req-ff.d2
 #if [ $? != 0 ]; then exit 1; fi
 echo "p -> d"
-$cmd -verify -in f.p -inform p -outform d >ff.d3
+$cmd -verify -in req-f.p -inform p -outform d >req-ff.d3
 if [ $? != 0 ]; then exit 1; fi
 
 #echo "d -> t"
-#$cmd -in f.d -inform d -outform t >ff.t1
+#$cmd -in req-f.d -inform d -outform t >req-ff.t1
 #if [ $? != 0 ]; then exit 1; fi
 #echo "t -> t"
-#$cmd -in f.t -inform t -outform t >ff.t2
+#$cmd -in req-f.t -inform t -outform t >req-ff.t2
 #if [ $? != 0 ]; then exit 1; fi
 #echo "p -> t"
-#$cmd -in f.p -inform p -outform t >ff.t3
+#$cmd -in req-f.p -inform p -outform t >req-ff.t3
 #if [ $? != 0 ]; then exit 1; fi
 
 echo "d -> p"
-$cmd -in f.d -inform d -outform p >ff.p1
+$cmd -in req-f.d -inform d -outform p >req-ff.p1
 if [ $? != 0 ]; then exit 1; fi
 #echo "t -> p"
-#$cmd -in f.t -inform t -outform p >ff.p2
+#$cmd -in req-f.t -inform t -outform p >req-ff.p2
 #if [ $? != 0 ]; then exit 1; fi
 echo "p -> p"
-$cmd -in f.p -inform p -outform p >ff.p3
+$cmd -in req-f.p -inform p -outform p >req-ff.p3
 if [ $? != 0 ]; then exit 1; fi
 
-cmp fff.p f.p
+cmp req-fff.p req-f.p
 if [ $? != 0 ]; then exit 1; fi
-cmp fff.p ff.p1
+cmp req-fff.p req-ff.p1
 if [ $? != 0 ]; then exit 1; fi
-#cmp fff.p ff.p2
+#cmp req-fff.p req-ff.p2
 #if [ $? != 0 ]; then exit 1; fi
-cmp fff.p ff.p3
-if [ $? != 0 ]; then exit 1; fi
-
-#cmp f.t ff.t1
-#if [ $? != 0 ]; then exit 1; fi
-#cmp f.t ff.t2
-#if [ $? != 0 ]; then exit 1; fi
-#cmp f.t ff.t3
-#if [ $? != 0 ]; then exit 1; fi
-
-cmp f.p ff.p1
-if [ $? != 0 ]; then exit 1; fi
-#cmp f.p ff.p2
-#if [ $? != 0 ]; then exit 1; fi
-cmp f.p ff.p3
+cmp req-fff.p req-ff.p3
 if [ $? != 0 ]; then exit 1; fi
 
-/bin/rm -f f.* ff.* fff.*
+#cmp req-f.t req-ff.t1
+#if [ $? != 0 ]; then exit 1; fi
+#cmp req-f.t req-ff.t2
+#if [ $? != 0 ]; then exit 1; fi
+#cmp req-f.t req-ff.t3
+#if [ $? != 0 ]; then exit 1; fi
+
+cmp req-f.p req-ff.p1
+if [ $? != 0 ]; then exit 1; fi
+#cmp req-f.p req-ff.p2
+#if [ $? != 0 ]; then exit 1; fi
+cmp req-f.p req-ff.p3
+if [ $? != 0 ]; then exit 1; fi
+
+/bin/rm -f req-f.* req-ff.* req-fff.*
 exit 0

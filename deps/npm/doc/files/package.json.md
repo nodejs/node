@@ -272,10 +272,16 @@ The URL should be a publicly available (perhaps read-only) url that can be hande
 directly to a VCS program without any modification.  It should not be a url to an
 html project page that you put in your browser.  It's for computers.
 
-For GitHub repositories you can use the same shortcut syntax you use for `npm
-install`:
+For GitHub, GitHub gist, Bitbucket, or GitLab repositories you can use the same
+shortcut syntax you use for `npm install`:
 
     "repository": "npm/npm"
+
+    "repository": "gist:11081aaa281"
+
+    "repository": "bitbucket:example/repo"
+
+    "repository": "gitlab:another/repo"
 
 ## scripts
 

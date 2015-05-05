@@ -31,6 +31,16 @@ valid_arm_float_abi = ('soft', 'softfp', 'hard')
 valid_mips_arch = ('loongson', 'r1', 'r2', 'r6', 'rx')
 valid_mips_fpu = ('fp32', 'fp64', 'fpxx')
 valid_mips_float_abi = ('soft', 'hard')
+valid_intl_modes = ('none', 'small-icu', 'full-icu', 'system-icu')
+
+# create option groups
+shared_optgroup = optparse.OptionGroup(parser, "Shared libraries",
+    "Flags that allows you to control whether you want to build against "
+    "built-in dependencies or its shared representations. If necessary, "
+    "provide multiple libraries with comma.")
+intl_optgroup = optparse.OptionGroup(parser, "Internationalization",
+    "Flags that lets you enable i18n features in io.js as well as which "
+    "library you want to build against.")
 
 # Options should be in alphabetical order but keep --prefix at the top,
 # that's arguably the one people will be looking for most.
@@ -78,89 +88,91 @@ parser.add_option("--openssl-no-asm",
     dest="openssl_no_asm",
     help="Do not build optimized assembly for OpenSSL")
 
-parser.add_option('--shared-http-parser',
+shared_optgroup.add_option('--shared-http-parser',
     action='store_true',
     dest='shared_http_parser',
     help='link to a shared http_parser DLL instead of static linking')
 
-parser.add_option('--shared-http-parser-includes',
+shared_optgroup.add_option('--shared-http-parser-includes',
     action='store',
     dest='shared_http_parser_includes',
     help='directory containing http_parser header files')
 
-parser.add_option('--shared-http-parser-libname',
+shared_optgroup.add_option('--shared-http-parser-libname',
     action='store',
     dest='shared_http_parser_libname',
     default='http_parser',
     help='alternative lib name to link to [default: %default]')
 
-parser.add_option('--shared-http-parser-libpath',
+shared_optgroup.add_option('--shared-http-parser-libpath',
     action='store',
     dest='shared_http_parser_libpath',
     help='a directory to search for the shared http_parser DLL')
 
-parser.add_option('--shared-libuv',
+shared_optgroup.add_option('--shared-libuv',
     action='store_true',
     dest='shared_libuv',
     help='link to a shared libuv DLL instead of static linking')
 
-parser.add_option('--shared-libuv-includes',
+shared_optgroup.add_option('--shared-libuv-includes',
     action='store',
     dest='shared_libuv_includes',
     help='directory containing libuv header files')
 
-parser.add_option('--shared-libuv-libname',
+shared_optgroup.add_option('--shared-libuv-libname',
     action='store',
     dest='shared_libuv_libname',
     default='uv',
     help='alternative lib name to link to [default: %default]')
 
-parser.add_option('--shared-libuv-libpath',
+shared_optgroup.add_option('--shared-libuv-libpath',
     action='store',
     dest='shared_libuv_libpath',
     help='a directory to search for the shared libuv DLL')
 
-parser.add_option('--shared-openssl',
+shared_optgroup.add_option('--shared-openssl',
     action='store_true',
     dest='shared_openssl',
     help='link to a shared OpenSSl DLL instead of static linking')
 
-parser.add_option('--shared-openssl-includes',
+shared_optgroup.add_option('--shared-openssl-includes',
     action='store',
     dest='shared_openssl_includes',
     help='directory containing OpenSSL header files')
 
-parser.add_option('--shared-openssl-libname',
+shared_optgroup.add_option('--shared-openssl-libname',
     action='store',
     dest='shared_openssl_libname',
     default='crypto,ssl',
     help='alternative lib name to link to [default: %default]')
 
-parser.add_option('--shared-openssl-libpath',
+shared_optgroup.add_option('--shared-openssl-libpath',
     action='store',
     dest='shared_openssl_libpath',
     help='a directory to search for the shared OpenSSL DLLs')
 
-parser.add_option('--shared-zlib',
+shared_optgroup.add_option('--shared-zlib',
     action='store_true',
     dest='shared_zlib',
     help='link to a shared zlib DLL instead of static linking')
 
-parser.add_option('--shared-zlib-includes',
+shared_optgroup.add_option('--shared-zlib-includes',
     action='store',
     dest='shared_zlib_includes',
     help='directory containing zlib header files')
 
-parser.add_option('--shared-zlib-libname',
+shared_optgroup.add_option('--shared-zlib-libname',
     action='store',
     dest='shared_zlib_libname',
     default='z',
     help='alternative lib name to link to [default: %default]')
 
-parser.add_option('--shared-zlib-libpath',
+shared_optgroup.add_option('--shared-zlib-libpath',
     action='store',
     dest='shared_zlib_libpath',
     help='a directory to search for the shared zlib DLL')
+
+parser.add_option_group(shared_optgroup)
 
 # TODO document when we've decided on what the tracing API and its options will
 # look like
@@ -225,32 +237,37 @@ parser.add_option('--with-etw',
     dest='with_etw',
     help='build with ETW (default is true on Windows)')
 
-parser.add_option('--download',
+parser.add_option('--with-intl',
     action='store',
-    dest='download_list',
-    help=nodedownload.help())
+    dest='with_intl',
+    default='none',
+    choices=valid_intl_modes,
+    help='Intl mode (valid choices: {0}) [default: %default]'.format(
+        ', '.join(valid_intl_modes)))
 
-parser.add_option('--with-icu-path',
+intl_optgroup.add_option('--with-icu-path',
     action='store',
     dest='with_icu_path',
     help='Path to icu.gyp (ICU i18n, Chromium version only.)')
 
-parser.add_option('--with-icu-locales',
+intl_optgroup.add_option('--with-icu-locales',
     action='store',
     dest='with_icu_locales',
     default='root,en',
     help='Comma-separated list of locales for "small-icu". "root" is assumed. '
         '[default: %default]')
 
-parser.add_option('--with-intl',
-    action='store',
-    dest='with_intl',
-    help='Intl mode: none, full-icu, small-icu [default: none]')
-
-parser.add_option('--with-icu-source',
+intl_optgroup.add_option('--with-icu-source',
     action='store',
     dest='with_icu_source',
     help='Intl mode: optional local path to icu/ dir, or path/URL of icu source archive.')
+
+intl_optgroup.add_option('--download',
+    action='store',
+    dest='download_list',
+    help=nodedownload.help())
+
+parser.add_option_group(intl_optgroup)
 
 parser.add_option('--with-perfctr',
     action='store_true',
@@ -357,11 +374,63 @@ def try_check_compiler(cc, lang):
   return (True, is_clang, clang_version, gcc_version)
 
 
+#
+# The version of asm compiler is needed for building openssl asm files.
+# See deps/openssl/openssl.gypi for detail.
+# Commands and reglar expressions to obtain its version number is taken from
+# https://github.com/openssl/openssl/blob/OpenSSL_1_0_2-stable/crypto/sha/asm/sha512-x86_64.pl#L112-L129
+#
+def get_llvm_version(cc):
+  try:
+    proc = subprocess.Popen(shlex.split(cc) + ['-v'], stdin=subprocess.PIPE,
+                            stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+  except OSError:
+    print '''io.js configure error: No acceptable C compiler found!
+
+        Please make sure you have a C compiler installed on your system and/or
+        consider adjusting the CC environment variable if you installed
+        it in a non-standard prefix.
+        '''
+    sys.exit()
+
+  match = re.search(r"(^clang version|based on LLVM) ([3-9]\.[0-9]+)",
+                    proc.communicate()[1])
+
+  if match:
+    return match.group(2)
+  else:
+    return 0
+
+
+def get_gas_version(cc):
+  try:
+    proc = subprocess.Popen(shlex.split(cc) + ['-Wa,-v', '-c', '-o',
+                                               '/dev/null', '-x',
+                                               'assembler',  '/dev/null'],
+                            stdin=subprocess.PIPE, stderr=subprocess.PIPE,
+                            stdout=subprocess.PIPE)
+  except OSError:
+    print '''io.js configure error: No acceptable C compiler found!
+
+        Please make sure you have a C compiler installed on your system and/or
+        consider adjusting the CC environment variable if you installed
+        it in a non-standard prefix.
+        '''
+    sys.exit()
+
+  match = re.match(r"GNU assembler version ([2-9]\.[0-9]+)",
+                   proc.communicate()[1])
+
+  if match:
+    return match.group(1)
+  else:
+    return 0
+
 # Note: Apple clang self-reports as clang 4.2.0 and gcc 4.2.1.  It passes
 # the version check more by accident than anything else but a more rigorous
 # check involves checking the build number against a whitelist.  I'm not
 # quite prepared to go that far yet.
-def check_compiler():
+def check_compiler(o):
   if sys.platform == 'win32':
     return
 
@@ -380,6 +449,15 @@ def check_compiler():
     # to a version that is not completely ancient.
     warn('C compiler too old, need gcc 4.2 or clang 3.2 (CC=%s)' % CC)
 
+    # Need llvm_version or gas_version when openssl asm files are compiled
+  if options.without_ssl or options.openssl_no_asm or options.shared_openssl:
+    return
+
+  if is_clang:
+    o['variables']['llvm_version'] = get_llvm_version(CC)
+  else:
+    o['variables']['gas_version'] = get_gas_version(CC)
+
 
 def cc_macros():
   """Checks predefined macros using the CC command."""
@@ -390,7 +468,7 @@ def cc_macros():
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
   except OSError:
-    print '''Node.js configure error: No acceptable C compiler found!
+    print '''io.js configure error: No acceptable C compiler found!
 
         Please make sure you have a C compiler installed on your system and/or
         consider adjusting the CC environment variable if you installed
@@ -533,13 +611,6 @@ def configure_node(o):
 
   if target_arch == 'arm':
     configure_arm(o)
-  elif (target_arch == 'arm64' and
-        not options.shared_openssl and
-        not options.without_ssl):
-    # FIXME(bnoordhuis) It's not possible to build the bundled openssl due to
-    # deps/openssl/asm/arm-elf-gas/modes/ghash-armv4.S, which is 32 bits only.
-    warn('not building openssl, arm64 not yet supported')
-    options.without_ssl = True
   elif target_arch in ('mips', 'mipsel'):
     configure_mips(o)
 
@@ -604,7 +675,7 @@ def configure_node(o):
 def configure_libz(o):
   o['variables']['node_shared_zlib'] = b(options.shared_zlib)
 
-  if b(options.shared_zlib) == True:
+  if options.shared_zlib:
     o['libraries'] += ['-l%s' % options.shared_zlib_libname]
   if options.shared_zlib_libpath:
     o['libraries'] += ['-L%s' % options.shared_zlib_libpath]
@@ -614,8 +685,8 @@ def configure_libz(o):
 
 def configure_http_parser(o):
     o['variables']['node_shared_http_parser'] = b(options.shared_http_parser)
-    
-    if b(options.shared_http_parser) == True:
+
+    if options.shared_http_parser:
       o['libraries'] += ['-l%s' % options.shared_http_parser_libname]
     if options.shared_http_parser_libpath:
         o['libraries'] += ['-L%s' % options.shared_http_parser_libpath]
@@ -626,7 +697,7 @@ def configure_http_parser(o):
 def configure_libuv(o):
   o['variables']['node_shared_libuv'] = b(options.shared_libuv)
 
-  if b(options.shared_libuv) == True:
+  if options.shared_libuv:
     o['libraries'] += ['-l%s' % options.shared_libuv_libname]
   if options.shared_libuv_libpath:
     o['libraries'] += ['-L%s' % options.shared_libuv_libpath]
@@ -758,7 +829,7 @@ def configure_intl(o):
   with_intl = options.with_intl
   with_icu_source = options.with_icu_source
   have_icu_path = bool(options.with_icu_path)
-  if have_icu_path and with_intl:
+  if have_icu_path and with_intl != 'none':
     print 'Error: Cannot specify both --with-icu-path and --with-intl'
     sys.exit(1)
   elif have_icu_path:
@@ -796,11 +867,6 @@ def configure_intl(o):
     # use the "system" .gyp
     o['variables']['icu_gyp_path'] = 'tools/icu/icu-system.gyp'
     return
-  else:
-    print 'Error: unknown value --with-intl=%s' % with_intl
-    sys.exit(1)
-  # Note: non-ICU implementations could use other 'with_intl'
-  # values.
 
   # this is just the 'deps' dir. Used for unpacking.
   icu_parent_path = os.path.join(root_dir, 'deps')
@@ -935,16 +1001,6 @@ def configure_intl(o):
         pprint.pformat(icu_config, indent=2) + '\n')
   return  # end of configure_intl
 
-# Print a warning when the compiler is too old.
-check_compiler()
-
-# determine the "flavor" (operating system) we're building for,
-# leveraging gyp's GetFlavor function
-flavor_params = {}
-if (options.dest_os):
-  flavor_params['flavor'] = options.dest_os
-flavor = GetFlavor(flavor_params)
-
 output = {
   'variables': { 'python': sys.executable },
   'include_dirs': [],
@@ -952,6 +1008,16 @@ output = {
   'defines': [],
   'cflags': [],
 }
+
+# Print a warning when the compiler is too old.
+check_compiler(output)
+
+# determine the "flavor" (operating system) we're building for,
+# leveraging gyp's GetFlavor function
+flavor_params = {}
+if (options.dest_os):
+  flavor_params['flavor'] = options.dest_os
+flavor = GetFlavor(flavor_params)
 
 configure_node(output)
 configure_libz(output)

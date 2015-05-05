@@ -2,7 +2,7 @@
 
 =head1 NAME
 
- CMS_get0_RecipientInfos, CMS_RecipientInfo_type, CMS_RecipientInfo_ktri_get0_signer_id,CMS_RecipientInfo_ktri_cert_cmp, CMS_RecipientInfo_set0_pkey, CMS_RecipientInfo_kekri_get0_id, CMS_RecipientInfo_kekri_id_cmp, CMS_RecipientInfo_set0_key, CMS_RecipientInfo_decrypt - CMS envelopedData RecipientInfo routines
+CMS_get0_RecipientInfos, CMS_RecipientInfo_type, CMS_RecipientInfo_ktri_get0_signer_id,CMS_RecipientInfo_ktri_cert_cmp, CMS_RecipientInfo_set0_pkey, CMS_RecipientInfo_kekri_get0_id, CMS_RecipientInfo_kekri_id_cmp, CMS_RecipientInfo_set0_key, CMS_RecipientInfo_decrypt, CMS_RecipientInfo_encrypt - CMS envelopedData RecipientInfo routines
 
 =head1 SYNOPSIS
 
@@ -20,6 +20,7 @@
  int CMS_RecipientInfo_set0_key(CMS_RecipientInfo *ri, unsigned char *key, size_t keylen);
 
  int CMS_RecipientInfo_decrypt(CMS_ContentInfo *cms, CMS_RecipientInfo *ri);
+ int CMS_RecipientInfo_encrypt(CMS_ContentInfo *cms, CMS_RecipientInfo *ri);
 
 =head1 DESCRIPTION
 
@@ -66,6 +67,11 @@ CMS_RecipientInfo_decrypt() attempts to decrypt CMS_RecipientInfo structure
 B<ri> in structure B<cms>. A key must have been associated with the structure
 first.
 
+CMS_RecipientInfo_encrypt() attempts to encrypt CMS_RecipientInfo structure
+B<ri> in structure B<cms>. A key must have been associated with the structure
+first and the content encryption key must be available: for example by a
+previous call to CMS_RecipientInfo_decrypt().
+
 =head1 NOTES
 
 The main purpose of these functions is to enable an application to lookup
@@ -81,6 +87,13 @@ any appropriate means it can then associated with the structure and
 CMS_RecpientInfo_decrypt() called. If successful CMS_decrypt() can be called
 with a NULL key to decrypt the enveloped content.
 
+The CMS_RecipientInfo_encrypt() can be used to add a new recipient to an
+existing enveloped data structure. Typically an application will first decrypt
+an appropriate CMS_RecipientInfo structure to make the content encrypt key
+available, it will then add a new recipient using a function such as
+CMS_add1_recipient_cert() and finally encrypt the content encryption key
+using CMS_RecipientInfo_encrypt().
+
 =head1 RETURN VALUES
 
 CMS_get0_RecipientInfos() returns all CMS_RecipientInfo structures, or NULL if
@@ -89,6 +102,7 @@ an error occurs.
 CMS_RecipientInfo_ktri_get0_signer_id(), CMS_RecipientInfo_set0_pkey(),
 CMS_RecipientInfo_kekri_get0_id(), CMS_RecipientInfo_set0_key() and
 CMS_RecipientInfo_decrypt() return 1 for success or 0 if an error occurs.
+CMS_RecipientInfo_encrypt() return 1 for success or 0 if an error occurs.
 
 CMS_RecipientInfo_ktri_cert_cmp() and CMS_RecipientInfo_kekri_cmp() return 0
 for a successful comparison and non zero otherwise.

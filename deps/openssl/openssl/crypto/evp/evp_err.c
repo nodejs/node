@@ -1,6 +1,6 @@
 /* crypto/evp/evp_err.c */
 /* ====================================================================
- * Copyright (c) 1999-2011 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2013 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -73,11 +73,13 @@ static ERR_STRING_DATA EVP_str_functs[] = {
     {ERR_FUNC(EVP_F_AESNI_INIT_KEY), "AESNI_INIT_KEY"},
     {ERR_FUNC(EVP_F_AESNI_XTS_CIPHER), "AESNI_XTS_CIPHER"},
     {ERR_FUNC(EVP_F_AES_INIT_KEY), "AES_INIT_KEY"},
+    {ERR_FUNC(EVP_F_AES_T4_INIT_KEY), "AES_T4_INIT_KEY"},
     {ERR_FUNC(EVP_F_AES_XTS), "AES_XTS"},
     {ERR_FUNC(EVP_F_AES_XTS_CIPHER), "AES_XTS_CIPHER"},
     {ERR_FUNC(EVP_F_ALG_MODULE_INIT), "ALG_MODULE_INIT"},
     {ERR_FUNC(EVP_F_CAMELLIA_INIT_KEY), "CAMELLIA_INIT_KEY"},
     {ERR_FUNC(EVP_F_CMAC_INIT), "CMAC_INIT"},
+    {ERR_FUNC(EVP_F_CMLL_T4_INIT_KEY), "CMLL_T4_INIT_KEY"},
     {ERR_FUNC(EVP_F_D2I_PKEY), "D2I_PKEY"},
     {ERR_FUNC(EVP_F_DO_SIGVER_INIT), "DO_SIGVER_INIT"},
     {ERR_FUNC(EVP_F_DSAPKEY2PKCS8), "DSAPKEY2PKCS8"},
@@ -232,6 +234,7 @@ static ERR_STRING_DATA EVP_str_reasons[] = {
     {ERR_REASON(EVP_R_UNSUPPORTED_PRIVATE_KEY_ALGORITHM),
      "unsupported private key algorithm"},
     {ERR_REASON(EVP_R_UNSUPPORTED_SALT_TYPE), "unsupported salt type"},
+    {ERR_REASON(EVP_R_WRAP_MODE_NOT_ALLOWED), "wrap mode not allowed"},
     {ERR_REASON(EVP_R_WRONG_FINAL_BLOCK_LENGTH), "wrong final block length"},
     {ERR_REASON(EVP_R_WRONG_PUBLIC_KEY_TYPE), "wrong public key type"},
     {0, NULL}

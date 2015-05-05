@@ -119,7 +119,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#if !defined(OPENSSL_SYSNAME_WIN32) && !defined(NETWARE_CLIB)
+#if !defined(OPENSSL_SYSNAME_WIN32) && !defined(OPENSSL_SYSNAME_WINCE) && !defined(NETWARE_CLIB)
 # include <strings.h>
 #endif
 #include <sys/types.h>
@@ -285,6 +285,8 @@ int str2fmt(char *s)
         return (FORMAT_PKCS12);
     else if ((*s == 'E') || (*s == 'e'))
         return (FORMAT_ENGINE);
+    else if ((*s == 'H') || (*s == 'h'))
+        return FORMAT_HTTP;
     else if ((*s == 'P') || (*s == 'p')) {
         if (s[1] == 'V' || s[1] == 'v')
             return FORMAT_PVK;
@@ -787,11 +789,71 @@ static int load_pkcs12(BIO *err, BIO *in, const char *desc,
     return ret;
 }
 
+int load_cert_crl_http(const char *url, BIO *err,
+                       X509 **pcert, X509_CRL **pcrl)
+{
+    char *host = NULL, *port = NULL, *path = NULL;
+    BIO *bio = NULL;
+    OCSP_REQ_CTX *rctx = NULL;
+    int use_ssl, rv = 0;
+    if (!OCSP_parse_url(url, &host, &port, &path, &use_ssl))
+        goto err;
+    if (use_ssl) {
+        if (err)
+            BIO_puts(err, "https not supported\n");
+        goto err;
+    }
+    bio = BIO_new_connect(host);
+    if (!bio || !BIO_set_conn_port(bio, port))
+        goto err;
+    rctx = OCSP_REQ_CTX_new(bio, 1024);
+    if (!rctx)
+        goto err;
+    if (!OCSP_REQ_CTX_http(rctx, "GET", path))
+        goto err;
+    if (!OCSP_REQ_CTX_add1_header(rctx, "Host", host))
+        goto err;
+    if (pcert) {
+        do {
+            rv = X509_http_nbio(rctx, pcert);
+        }
+        while (rv == -1);
+    } else {
+        do {
+            rv = X509_CRL_http_nbio(rctx, pcrl);
+        } while (rv == -1);
+    }
+
+ err:
+    if (host)
+        OPENSSL_free(host);
+    if (path)
+        OPENSSL_free(path);
+    if (port)
+        OPENSSL_free(port);
+    if (bio)
+        BIO_free_all(bio);
+    if (rctx)
+        OCSP_REQ_CTX_free(rctx);
+    if (rv != 1) {
+        if (bio && err)
+            BIO_printf(bio_err, "Error loading %s from %s\n",
+                       pcert ? "certificate" : "CRL", url);
+        ERR_print_errors(bio_err);
+    }
+    return rv;
+}
+
 X509 *load_cert(BIO *err, const char *file, int format,
                 const char *pass, ENGINE *e, const char *cert_descrip)
 {
     X509 *x = NULL;
     BIO *cert;
+
+    if (format == FORMAT_HTTP) {
+        load_cert_crl_http(file, err, &x, NULL);
+        return x;
+    }
 
     if ((cert = BIO_new(BIO_s_file())) == NULL) {
         ERR_print_errors(err);
@@ -847,6 +909,49 @@ X509 *load_cert(BIO *err, const char *file, int format,
     }
     if (cert != NULL)
         BIO_free(cert);
+    return (x);
+}
+
+X509_CRL *load_crl(const char *infile, int format)
+{
+    X509_CRL *x = NULL;
+    BIO *in = NULL;
+
+    if (format == FORMAT_HTTP) {
+        load_cert_crl_http(infile, bio_err, NULL, &x);
+        return x;
+    }
+
+    in = BIO_new(BIO_s_file());
+    if (in == NULL) {
+        ERR_print_errors(bio_err);
+        goto end;
+    }
+
+    if (infile == NULL)
+        BIO_set_fp(in, stdin, BIO_NOCLOSE);
+    else {
+        if (BIO_read_filename(in, infile) <= 0) {
+            perror(infile);
+            goto end;
+        }
+    }
+    if (format == FORMAT_ASN1)
+        x = d2i_X509_CRL_bio(in, NULL);
+    else if (format == FORMAT_PEM)
+        x = PEM_read_bio_X509_CRL(in, NULL, NULL, NULL);
+    else {
+        BIO_printf(bio_err, "bad input format specified for input crl\n");
+        goto end;
+    }
+    if (x == NULL) {
+        BIO_printf(bio_err, "unable to load CRL\n");
+        ERR_print_errors(bio_err);
+        goto end;
+    }
+
+ end:
+    BIO_free(in);
     return (x);
 }
 
@@ -2159,6 +2264,9 @@ int args_verify(char ***pargs, int *pargc,
     char **oldargs = *pargs;
     char *arg = **pargs, *argn = (*pargs)[1];
     time_t at_time = 0;
+    char *hostname = NULL;
+    char *email = NULL;
+    char *ipasc = NULL;
     if (!strcmp(arg, "-policy")) {
         if (!argn)
             *badarg = 1;
@@ -2212,6 +2320,21 @@ int args_verify(char ***pargs, int *pargc,
             at_time = (time_t)timestamp;
         }
         (*pargs)++;
+    } else if (strcmp(arg, "-verify_hostname") == 0) {
+        if (!argn)
+            *badarg = 1;
+        hostname = argn;
+        (*pargs)++;
+    } else if (strcmp(arg, "-verify_email") == 0) {
+        if (!argn)
+            *badarg = 1;
+        email = argn;
+        (*pargs)++;
+    } else if (strcmp(arg, "-verify_ip") == 0) {
+        if (!argn)
+            *badarg = 1;
+        ipasc = argn;
+        (*pargs)++;
     } else if (!strcmp(arg, "-ignore_critical"))
         flags |= X509_V_FLAG_IGNORE_CRITICAL;
     else if (!strcmp(arg, "-issuer_checks"))
@@ -2238,6 +2361,16 @@ int args_verify(char ***pargs, int *pargc,
         flags |= X509_V_FLAG_NOTIFY_POLICY;
     else if (!strcmp(arg, "-check_ss_sig"))
         flags |= X509_V_FLAG_CHECK_SS_SIGNATURE;
+    else if (!strcmp(arg, "-trusted_first"))
+        flags |= X509_V_FLAG_TRUSTED_FIRST;
+    else if (!strcmp(arg, "-suiteB_128_only"))
+        flags |= X509_V_FLAG_SUITEB_128_LOS_ONLY;
+    else if (!strcmp(arg, "-suiteB_128"))
+        flags |= X509_V_FLAG_SUITEB_128_LOS;
+    else if (!strcmp(arg, "-suiteB_192"))
+        flags |= X509_V_FLAG_SUITEB_192_LOS;
+    else if (!strcmp(arg, "-partial_chain"))
+        flags |= X509_V_FLAG_PARTIAL_CHAIN;
     else
         return 0;
 
@@ -2266,6 +2399,15 @@ int args_verify(char ***pargs, int *pargc,
 
     if (at_time)
         X509_VERIFY_PARAM_set_time(*pm, at_time);
+
+    if (hostname && !X509_VERIFY_PARAM_set1_host(*pm, hostname, 0))
+        *badarg = 1;
+
+    if (email && !X509_VERIFY_PARAM_set1_email(*pm, email, 0))
+        *badarg = 1;
+
+    if (ipasc && !X509_VERIFY_PARAM_set1_ip_asc(*pm, ipasc))
+        *badarg = 1;
 
  end:
 
@@ -2550,6 +2692,9 @@ void jpake_client_auth(BIO *out, BIO *conn, const char *secret)
 
     BIO_puts(out, "JPAKE authentication succeeded, setting PSK\n");
 
+    if (psk_key)
+        OPENSSL_free(psk_key);
+
     psk_key = BN_bn2hex(JPAKE_get_shared_key(ctx));
 
     BIO_pop(bconn);
@@ -2579,6 +2724,9 @@ void jpake_server_auth(BIO *out, BIO *conn, const char *secret)
 
     BIO_puts(out, "JPAKE authentication succeeded, setting PSK\n");
 
+    if (psk_key)
+        OPENSSL_free(psk_key);
+
     psk_key = BN_bn2hex(JPAKE_get_shared_key(ctx));
 
     BIO_pop(bconn);
@@ -2589,7 +2737,7 @@ void jpake_server_auth(BIO *out, BIO *conn, const char *secret)
 
 #endif
 
-#if !defined(OPENSSL_NO_TLSEXT) && !defined(OPENSSL_NO_NEXTPROTONEG)
+#ifndef OPENSSL_NO_TLSEXT
 /*-
  * next_protos_parse parses a comma separated list of strings into a string
  * in a format suitable for passing to SSL_CTX_set_next_protos_advertised.
@@ -2628,8 +2776,106 @@ unsigned char *next_protos_parse(unsigned short *outlen, const char *in)
     *outlen = len + 1;
     return out;
 }
-#endif                          /* !OPENSSL_NO_TLSEXT &&
-                                 * !OPENSSL_NO_NEXTPROTONEG */
+#endif                          /* ndef OPENSSL_NO_TLSEXT */
+
+void print_cert_checks(BIO *bio, X509 *x,
+                       const char *checkhost,
+                       const char *checkemail, const char *checkip)
+{
+    if (x == NULL)
+        return;
+    if (checkhost) {
+        BIO_printf(bio, "Hostname %s does%s match certificate\n",
+                   checkhost, X509_check_host(x, checkhost, 0, 0, NULL) == 1
+                   ? "" : " NOT");
+    }
+
+    if (checkemail) {
+        BIO_printf(bio, "Email %s does%s match certificate\n",
+                   checkemail, X509_check_email(x, checkemail, 0,
+                                                0) ? "" : " NOT");
+    }
+
+    if (checkip) {
+        BIO_printf(bio, "IP %s does%s match certificate\n",
+                   checkip, X509_check_ip_asc(x, checkip, 0) ? "" : " NOT");
+    }
+}
+
+/* Get first http URL from a DIST_POINT structure */
+
+static const char *get_dp_url(DIST_POINT *dp)
+{
+    GENERAL_NAMES *gens;
+    GENERAL_NAME *gen;
+    int i, gtype;
+    ASN1_STRING *uri;
+    if (!dp->distpoint || dp->distpoint->type != 0)
+        return NULL;
+    gens = dp->distpoint->name.fullname;
+    for (i = 0; i < sk_GENERAL_NAME_num(gens); i++) {
+        gen = sk_GENERAL_NAME_value(gens, i);
+        uri = GENERAL_NAME_get0_value(gen, &gtype);
+        if (gtype == GEN_URI && ASN1_STRING_length(uri) > 6) {
+            char *uptr = (char *)ASN1_STRING_data(uri);
+            if (!strncmp(uptr, "http://", 7))
+                return uptr;
+        }
+    }
+    return NULL;
+}
+
+/*
+ * Look through a CRLDP structure and attempt to find an http URL to
+ * downloads a CRL from.
+ */
+
+static X509_CRL *load_crl_crldp(STACK_OF(DIST_POINT) *crldp)
+{
+    int i;
+    const char *urlptr = NULL;
+    for (i = 0; i < sk_DIST_POINT_num(crldp); i++) {
+        DIST_POINT *dp = sk_DIST_POINT_value(crldp, i);
+        urlptr = get_dp_url(dp);
+        if (urlptr)
+            return load_crl(urlptr, FORMAT_HTTP);
+    }
+    return NULL;
+}
+
+/*
+ * Example of downloading CRLs from CRLDP: not usable for real world as it
+ * always downloads, doesn't support non-blocking I/O and doesn't cache
+ * anything.
+ */
+
+static STACK_OF(X509_CRL) *crls_http_cb(X509_STORE_CTX *ctx, X509_NAME *nm)
+{
+    X509 *x;
+    STACK_OF(X509_CRL) *crls = NULL;
+    X509_CRL *crl;
+    STACK_OF(DIST_POINT) *crldp;
+    x = X509_STORE_CTX_get_current_cert(ctx);
+    crldp = X509_get_ext_d2i(x, NID_crl_distribution_points, NULL, NULL);
+    crl = load_crl_crldp(crldp);
+    sk_DIST_POINT_pop_free(crldp, DIST_POINT_free);
+    if (!crl)
+        return NULL;
+    crls = sk_X509_CRL_new_null();
+    sk_X509_CRL_push(crls, crl);
+    /* Try to download delta CRL */
+    crldp = X509_get_ext_d2i(x, NID_freshest_crl, NULL, NULL);
+    crl = load_crl_crldp(crldp);
+    sk_DIST_POINT_pop_free(crldp, DIST_POINT_free);
+    if (crl)
+        sk_X509_CRL_push(crls, crl);
+    return crls;
+}
+
+void store_setup_crl_download(X509_STORE *st)
+{
+    X509_STORE_set_lookup_crls_cb(st, crls_http_cb);
+}
 
 /*
  * Platform-specific sections

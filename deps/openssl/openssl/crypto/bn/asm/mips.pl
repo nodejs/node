@@ -48,7 +48,7 @@
 # has to content with 40-85% improvement depending on benchmark and
 # key length, more for longer keys.
 
-$flavour = shift;
+$flavour = shift || "o32";
 while (($output=shift) && ($output!~/^\w[\w\-]*\.\w+$/)) {}
 open STDOUT,">$output";
 

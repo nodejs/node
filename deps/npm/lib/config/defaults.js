@@ -196,6 +196,7 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , spin: true
     , "strict-ssl": true
     , tag : "latest"
+    , "tag-version-prefix" : "v"
     , tmp : temp
     , unicode : true
     , "unsafe-perm" : process.platform === "win32"
@@ -308,6 +309,7 @@ exports.types =
   , userconfig : path
   , umask: Umask
   , version : Boolean
+  , "tag-version-prefix" : String
   , versions : Boolean
   , viewer: String
   , _exit : Boolean

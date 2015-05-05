@@ -83,6 +83,7 @@ _STACK *sk_new(int (*cmp) (const void *, const void *));
 _STACK *sk_new_null(void);
 void sk_free(_STACK *);
 void sk_pop_free(_STACK *st, void (*func) (void *));
+_STACK *sk_deep_copy(_STACK *, void *(*)(void *), void (*)(void *));
 int sk_insert(_STACK *sk, void *data, int where);
 void *sk_delete(_STACK *st, int loc);
 void *sk_delete_ptr(_STACK *st, void *p);

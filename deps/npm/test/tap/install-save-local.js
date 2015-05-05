@@ -1,65 +1,126 @@
-var common = require("../common-tap.js")
-var test = require("tap").test
-var path = require("path")
-var fs = require("fs")
-var rimraf = require("rimraf")
-var pkg = path.join(__dirname, "install-save-local", "package")
+var fs = require('graceful-fs')
+var path = require('path')
 
-var EXEC_OPTS = { }
+var mkdirp = require('mkdirp')
+var osenv = require('osenv')
+var rimraf = require('rimraf')
+var test = require('tap').test
 
-test("setup", function (t) {
-  resetPackageJSON(pkg)
-  process.chdir(pkg)
+var common = require('../common-tap.js')
+
+var root = path.join(__dirname, 'install-save-local')
+var pkg = path.join(root, 'package')
+
+var EXEC_OPTS = { cwd: pkg }
+
+var json = {
+  name: 'install-save-local',
+  version: '0.0.0'
+}
+
+var localDependency = {
+  name: 'package-local-dependency',
+  version: '0.0.0'
+}
+
+var localDevDependency = {
+  name: 'package-local-dev-dependency',
+  version: '0.0.0'
+}
+
+test('setup', function (t) {
+  setup()
   t.end()
 })
 
-test('"npm install --save ../local/path" should install local package and save to package.json', function (t) {
-  resetPackageJSON(pkg)
-  common.npm(["install", "--save", "../package-local-dependency"], EXEC_OPTS, function (err, code) {
-    t.ifError(err)
-    t.notOk(code, "npm install exited with code 0")
+test('\'npm install --save ../local/path\' should save to package.json', function (t) {
+  common.npm(
+    [
+      '--loglevel', 'silent',
+      '--save',
+      'install', '../package-local-dependency'
+    ],
+    EXEC_OPTS,
+    function (err, code) {
+      t.ifError(err, 'npm install ran without issue')
+      t.notOk(code, 'npm install exited with code 0')
 
-    var dependencyPackageJson = path.resolve(pkg, "node_modules/package-local-dependency/package.json")
-    t.ok(JSON.parse(fs.readFileSync(dependencyPackageJson, "utf8")))
+      var dependencyPackageJson = path.join(
+        pkg, 'node_modules', 'package-local-dependency', 'package.json'
+      )
+      t.ok(JSON.parse(fs.readFileSync(dependencyPackageJson, 'utf8')))
 
-    var pkgJson = JSON.parse(fs.readFileSync(pkg + "/package.json", "utf8"))
-    t.deepEqual(pkgJson.dependencies, {
-                "package-local-dependency": "file:../package-local-dependency"
-              })
-    t.end()
-  })
+      var pkgJson = JSON.parse(fs.readFileSync(pkg + '/package.json', 'utf8'))
+      t.deepEqual(
+        pkgJson.dependencies,
+        { 'package-local-dependency': 'file:../package-local-dependency' },
+        'local package saved correctly'
+      )
+      t.end()
+    }
+  )
 })
 
-test('"npm install --save-dev ../local/path" should install local package and save to package.json', function (t) {
-  resetPackageJSON(pkg)
-  common.npm(["install", "--save-dev", "../package-local-dev-dependency"], EXEC_OPTS, function (err, code) {
-    t.ifError(err)
-    t.notOk(code, "npm install exited with code 0")
+test('\'npm install --save-dev ../local/path\' should save to package.json', function (t) {
+  setup()
+  common.npm(
+    [
+      '--loglevel', 'silent',
+      '--save-dev',
+      'install', '../package-local-dev-dependency'
+    ],
+    EXEC_OPTS,
+    function (err, code) {
+      t.ifError(err, 'npm install ran without issue')
+      t.notOk(code, 'npm install exited with code 0')
 
-    var dependencyPackageJson = path.resolve(pkg, "node_modules/package-local-dev-dependency/package.json")
-    t.ok(JSON.parse(fs.readFileSync(dependencyPackageJson, "utf8")))
+      var dependencyPackageJson = path.resolve(
+        pkg, 'node_modules', 'package-local-dev-dependency', 'package.json'
+      )
+      t.ok(JSON.parse(fs.readFileSync(dependencyPackageJson, 'utf8')))
 
-    var pkgJson = JSON.parse(fs.readFileSync(pkg + "/package.json", "utf8"))
-    t.deepEqual(pkgJson.devDependencies, {
-                "package-local-dev-dependency": "file:../package-local-dev-dependency"
-              })
+      var pkgJson = JSON.parse(fs.readFileSync(pkg + '/package.json', 'utf8'))
+      t.deepEqual(
+        pkgJson.devDependencies,
+        { 'package-local-dev-dependency': 'file:../package-local-dev-dependency' },
+        'local package saved correctly'
+      )
 
-    t.end()
-  })
+      t.end()
+    }
+  )
 })
 
+test('cleanup', function (t) {
+  cleanup()
+  t.end()
+})
 
-test("cleanup", function (t) {
-  resetPackageJSON(pkg)
+function cleanup () {
+  process.chdir(osenv.tmpdir())
   process.chdir(__dirname)
-  rimraf.sync(path.resolve(pkg, "node_modules"))
-  t.end()
-})
+  rimraf.sync(root)
+}
 
-function resetPackageJSON(pkg) {
-  var pkgJson = JSON.parse(fs.readFileSync(pkg + "/package.json", "utf8"))
-  delete pkgJson.dependencies
-  delete pkgJson.devDependencies
-  var json = JSON.stringify(pkgJson, null, 2) + "\n"
-  fs.writeFileSync(pkg + "/package.json", json, "ascii")
+function setup () {
+  cleanup()
+  mkdirp.sync(pkg)
+  fs.writeFileSync(
+    path.join(pkg, 'package.json'),
+    JSON.stringify(json, null, 2)
+  )
+
+  mkdirp.sync(path.join(root, 'package-local-dependency'))
+  fs.writeFileSync(
+    path.join(root, 'package-local-dependency', 'package.json'),
+    JSON.stringify(localDependency, null, 2)
+  )
+
+  mkdirp.sync(path.join(root, 'package-local-dev-dependency'))
+  fs.writeFileSync(
+    path.join(root, 'package-local-dev-dependency', 'package.json'),
+    JSON.stringify(localDevDependency, null, 2)
+  )
+
+  process.chdir(pkg)
 }

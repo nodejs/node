@@ -71,6 +71,8 @@
 #  define md5_block_data_order md5_block_asm_data_order
 # elif defined(__ia64) || defined(__ia64__) || defined(_M_IA64)
 #  define md5_block_data_order md5_block_asm_data_order
+# elif defined(__sparc) || defined(__sparc__)
+#  define md5_block_data_order md5_block_asm_data_order
 # endif
 #endif
 

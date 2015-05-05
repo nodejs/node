@@ -1,6 +1,6 @@
 /* crypto/cms/cms_err.c */
 /* ====================================================================
- * Copyright (c) 1999-2009 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2013 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -110,6 +110,7 @@ static ERR_STRING_DATA CMS_str_functs[] = {
     {ERR_FUNC(CMS_F_CMS_ENVELOPEDDATA_INIT_BIO),
      "cms_EnvelopedData_init_bio"},
     {ERR_FUNC(CMS_F_CMS_ENVELOPED_DATA_INIT), "CMS_ENVELOPED_DATA_INIT"},
+    {ERR_FUNC(CMS_F_CMS_ENV_ASN1_CTRL), "cms_env_asn1_ctrl"},
     {ERR_FUNC(CMS_F_CMS_FINAL), "CMS_final"},
     {ERR_FUNC(CMS_F_CMS_GET0_CERTIFICATE_CHOICES),
      "CMS_GET0_CERTIFICATE_CHOICES"},
@@ -124,6 +125,17 @@ static ERR_STRING_DATA CMS_str_functs[] = {
      "CMS_ReceiptRequest_create0"},
     {ERR_FUNC(CMS_F_CMS_RECEIPT_VERIFY), "cms_Receipt_verify"},
     {ERR_FUNC(CMS_F_CMS_RECIPIENTINFO_DECRYPT), "CMS_RecipientInfo_decrypt"},
+    {ERR_FUNC(CMS_F_CMS_RECIPIENTINFO_ENCRYPT), "CMS_RecipientInfo_encrypt"},
+    {ERR_FUNC(CMS_F_CMS_RECIPIENTINFO_KARI_ENCRYPT),
+     "cms_RecipientInfo_kari_encrypt"},
+    {ERR_FUNC(CMS_F_CMS_RECIPIENTINFO_KARI_GET0_ALG),
+     "CMS_RecipientInfo_kari_get0_alg"},
+    {ERR_FUNC(CMS_F_CMS_RECIPIENTINFO_KARI_GET0_ORIG_ID),
+     "CMS_RecipientInfo_kari_get0_orig_id"},
+    {ERR_FUNC(CMS_F_CMS_RECIPIENTINFO_KARI_GET0_REKS),
+     "CMS_RecipientInfo_kari_get0_reks"},
+    {ERR_FUNC(CMS_F_CMS_RECIPIENTINFO_KARI_ORIG_ID_CMP),
+     "CMS_RecipientInfo_kari_orig_id_cmp"},
     {ERR_FUNC(CMS_F_CMS_RECIPIENTINFO_KEKRI_DECRYPT),
      "CMS_RECIPIENTINFO_KEKRI_DECRYPT"},
     {ERR_FUNC(CMS_F_CMS_RECIPIENTINFO_KEKRI_ENCRYPT),
@@ -150,6 +162,9 @@ static ERR_STRING_DATA CMS_str_functs[] = {
      "CMS_RecipientInfo_set0_password"},
     {ERR_FUNC(CMS_F_CMS_RECIPIENTINFO_SET0_PKEY),
      "CMS_RecipientInfo_set0_pkey"},
+    {ERR_FUNC(CMS_F_CMS_SD_ASN1_CTRL), "CMS_SD_ASN1_CTRL"},
+    {ERR_FUNC(CMS_F_CMS_SET1_IAS), "cms_set1_ias"},
+    {ERR_FUNC(CMS_F_CMS_SET1_KEYID), "cms_set1_keyid"},
     {ERR_FUNC(CMS_F_CMS_SET1_SIGNERIDENTIFIER), "cms_set1_SignerIdentifier"},
     {ERR_FUNC(CMS_F_CMS_SET_DETACHED), "CMS_set_detached"},
     {ERR_FUNC(CMS_F_CMS_SIGN), "CMS_sign"},
@@ -221,6 +236,7 @@ static ERR_STRING_DATA CMS_str_reasons[] = {
     {ERR_REASON(CMS_R_NOT_A_SIGNED_RECEIPT), "not a signed receipt"},
     {ERR_REASON(CMS_R_NOT_ENCRYPTED_DATA), "not encrypted data"},
     {ERR_REASON(CMS_R_NOT_KEK), "not kek"},
+    {ERR_REASON(CMS_R_NOT_KEY_AGREEMENT), "not key agreement"},
     {ERR_REASON(CMS_R_NOT_KEY_TRANSPORT), "not key transport"},
     {ERR_REASON(CMS_R_NOT_PWRI), "not pwri"},
     {ERR_REASON(CMS_R_NOT_SUPPORTED_FOR_THIS_KEY_TYPE),

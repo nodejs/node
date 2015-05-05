@@ -201,7 +201,7 @@ already been bound to a port or domain socket.
 Listening on a file descriptor is not supported on Windows.
 
 This function is asynchronous. The last parameter `callback` will be added as
-a listener for the ['listening'](net.html#event_listening_) event.
+a listener for the ['listening'](net.html#net_event_listening) event.
 See also [net.Server.listen()](net.html#net_server_listen_handle_callback).
 
 ### server.close([callback])
@@ -460,10 +460,14 @@ Options:
 
 - `host`: A domain name or IP address of the server to issue the request to.
   Defaults to `'localhost'`.
-- `hostname`: To support `url.parse()` `hostname` is preferred over `host`
+- `hostname`: Alias for `host`. To support `url.parse()` `hostname` is
+  preferred over `host`.
+- `family`: IP address family to use when resolving `host` and `hostname`.
+  Valid values are `4` or `6`. When unspecified, both IP v4 and v6 will be
+  used.
 - `port`: Port of remote server. Defaults to 80.
 - `localAddress`: Local interface to bind for network connections.
-- `socketPath`: Unix Domain Socket (use one of host:port or socketPath)
+- `socketPath`: Unix Domain Socket (use one of host:port or socketPath).
 - `method`: A string specifying the HTTP request method. Defaults to `'GET'`.
 - `path`: Request path. Defaults to `'/'`. Should include query string if any.
   E.G. `'/index.html?page=12'`. An exception is thrown when the request path
@@ -474,7 +478,7 @@ Options:
   Authorization header.
 - `agent`: Controls [Agent][] behavior. When an Agent is used request will
   default to `Connection: keep-alive`. Possible values:
- - `undefined` (default): use [global Agent][] for this host and port.
+ - `undefined` (default): use [globalAgent][] for this host and port.
  - `Agent` object: explicitly use the passed in `Agent`.
  - `false`: opts out of connection pooling with an Agent, defaults request to
    `Connection: close`.
@@ -1069,7 +1073,7 @@ authentication details.
 [EventEmitter]: events.html#events_class_events_eventemitter
 [Readable Stream]: stream.html#stream_class_stream_readable
 [Writable Stream]: stream.html#stream_class_stream_writable
-[global Agent]: #http_http_globalagent
+[globalAgent]: #http_http_globalagent
 [http.ClientRequest]: #http_class_http_clientrequest
 [http.IncomingMessage]: #http_http_incomingmessage
 [http.ServerResponse]: #http_class_http_serverresponse
@@ -1078,11 +1082,11 @@ authentication details.
 [http.request()]: #http_http_request_options_callback
 [net.Server.close()]: net.html#net_server_close_callback
 [net.Server.listen(path)]: net.html#net_server_listen_path_callback
-[net.Server.listen(port)]: net.html#net_server_listen_port_host_backlog_callback
-[response.end()]: #http_response_end_data_encoding
-[response.write()]: #http_response_write_chunk_encoding
+[net.Server.listen(port)]: net.html#net_server_listen_port_hostname_backlog_callback
+[response.end()]: #http_response_end_data_encoding_callback
+[response.write()]: #http_response_write_chunk_encoding_callback
 [response.writeContinue()]: #http_response_writecontinue
-[response.writeHead()]: #http_response_writehead_statuscode_reasonphrase_headers
+[response.writeHead()]: #http_response_writehead_statuscode_statusmessage_headers
 [socket.setKeepAlive()]: net.html#net_socket_setkeepalive_enable_initialdelay
 [socket.setNoDelay()]: net.html#net_socket_setnodelay_nodelay
 [socket.setTimeout()]: net.html#net_socket_settimeout_timeout_callback

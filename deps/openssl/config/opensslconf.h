@@ -19,10 +19,10 @@
   | --dest-os | --dest-cpu | OpenSSL target arch  | CI  |
   | --------- | ---------- | -------------------- | --- |
   | linux     | ia32       | linux-elf            | o   |
-  | linux     | x32        | patched linux-x86_64 | -   |
+  | linux     | x32        | linux-x32            | -   |
   | linux     | x64        | linux-x86_64         | o   |
   | linux     | arm        | linux-armv4          | o   |
-  | linux     | arm64      | N/A                  | -   |
+  | linux     | arm64      | linux-aarch64        | o   |
   | mac       | ia32       | darwin-i386-cc       | o   |
   | mac       | x64        | darwin64-x86-cc      | o   |
   | win       | ia32       | VC-WIN32             | -   |
@@ -90,7 +90,7 @@
 #elif defined(OPENSSL_LINUX) && defined(__arm__)
 # include "./archs/linux-armv4/opensslconf.h"
 #elif defined(OPENSSL_LINUX) && defined(__aarch64__)
-  /* Not Supported Yet */
+# include "./archs/linux-aarch64/opensslconf.h"
 #elif defined(__APPLE__) && defined(__MACH__) && defined(__i386__)
 # include "./archs/darwin-i386-cc/opensslconf.h"
 #elif defined(__APPLE__) && defined(__MACH__) && defined(__x86_64__)

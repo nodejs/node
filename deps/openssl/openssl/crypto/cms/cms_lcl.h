@@ -84,11 +84,9 @@ typedef struct CMS_KeyTransRecipientInfo_st CMS_KeyTransRecipientInfo;
 typedef struct CMS_OriginatorPublicKey_st CMS_OriginatorPublicKey;
 typedef struct CMS_OriginatorIdentifierOrKey_st CMS_OriginatorIdentifierOrKey;
 typedef struct CMS_KeyAgreeRecipientInfo_st CMS_KeyAgreeRecipientInfo;
-typedef struct CMS_OtherKeyAttribute_st CMS_OtherKeyAttribute;
 typedef struct CMS_RecipientKeyIdentifier_st CMS_RecipientKeyIdentifier;
 typedef struct CMS_KeyAgreeRecipientIdentifier_st
     CMS_KeyAgreeRecipientIdentifier;
-typedef struct CMS_RecipientEncryptedKey_st CMS_RecipientEncryptedKey;
 typedef struct CMS_KEKIdentifier_st CMS_KEKIdentifier;
 typedef struct CMS_KEKRecipientInfo_st CMS_KEKRecipientInfo;
 typedef struct CMS_PasswordRecipientInfo_st CMS_PasswordRecipientInfo;
@@ -138,6 +136,9 @@ struct CMS_SignerInfo_st {
     /* Signing certificate and key */
     X509 *signer;
     EVP_PKEY *pkey;
+    /* Digest and public key context for alternative parameters */
+    EVP_MD_CTX mctx;
+    EVP_PKEY_CTX *pctx;
 };
 
 struct CMS_SignerIdentifier_st {
@@ -194,6 +195,8 @@ struct CMS_KeyTransRecipientInfo_st {
     /* Recipient Key and cert */
     X509 *recip;
     EVP_PKEY *pkey;
+    /* Public key context for this operation */
+    EVP_PKEY_CTX *pctx;
 };
 
 struct CMS_KeyAgreeRecipientInfo_st {
@@ -202,6 +205,10 @@ struct CMS_KeyAgreeRecipientInfo_st {
     ASN1_OCTET_STRING *ukm;
     X509_ALGOR *keyEncryptionAlgorithm;
     STACK_OF(CMS_RecipientEncryptedKey) *recipientEncryptedKeys;
+    /* Public key context associated with current operation */
+    EVP_PKEY_CTX *pctx;
+    /* Cipher context for CEK wrapping */
+    EVP_CIPHER_CTX ctx;
 };
 
 struct CMS_OriginatorIdentifierOrKey_st {
@@ -221,6 +228,8 @@ struct CMS_OriginatorPublicKey_st {
 struct CMS_RecipientEncryptedKey_st {
     CMS_KeyAgreeRecipientIdentifier *rid;
     ASN1_OCTET_STRING *encryptedKey;
+    /* Public key associated with this recipient */
+    EVP_PKEY *pkey;
 };
 
 struct CMS_KeyAgreeRecipientIdentifier_st {
@@ -394,6 +403,13 @@ DECLARE_ASN1_ALLOC_FUNCTIONS(CMS_IssuerAndSerialNumber)
 # define CMS_RECIPINFO_ISSUER_SERIAL     0
 # define CMS_RECIPINFO_KEYIDENTIFIER     1
 
+# define CMS_REK_ISSUER_SERIAL           0
+# define CMS_REK_KEYIDENTIFIER           1
+
+# define CMS_OIK_ISSUER_SERIAL           0
+# define CMS_OIK_KEYIDENTIFIER           1
+# define CMS_OIK_PUBKEY                  2
+
 BIO *cms_content_bio(CMS_ContentInfo *cms);
 
 CMS_ContentInfo *cms_Data_create(void);
@@ -420,6 +436,11 @@ BIO *cms_DigestAlgorithm_init_bio(X509_ALGOR *digestAlgorithm);
 int cms_DigestAlgorithm_find_ctx(EVP_MD_CTX *mctx, BIO *chain,
                                  X509_ALGOR *mdalg);
 
+int cms_ias_cert_cmp(CMS_IssuerAndSerialNumber *ias, X509 *cert);
+int cms_keyid_cert_cmp(ASN1_OCTET_STRING *keyid, X509 *cert);
+int cms_set1_ias(CMS_IssuerAndSerialNumber **pias, X509 *cert);
+int cms_set1_keyid(ASN1_OCTET_STRING **pkeyid, X509 *cert);
+
 BIO *cms_EncryptedContent_init_bio(CMS_EncryptedContentInfo *ec);
 BIO *cms_EncryptedData_init_bio(CMS_ContentInfo *cms);
 int cms_EncryptedContent_init(CMS_EncryptedContentInfo *ec,
@@ -432,6 +453,13 @@ ASN1_OCTET_STRING *cms_encode_Receipt(CMS_SignerInfo *si);
 
 BIO *cms_EnvelopedData_init_bio(CMS_ContentInfo *cms);
 CMS_EnvelopedData *cms_get0_enveloped(CMS_ContentInfo *cms);
+int cms_env_asn1_ctrl(CMS_RecipientInfo *ri, int cmd);
+int cms_pkey_get_ri_type(EVP_PKEY *pk);
+/* KARI routines */
+int cms_RecipientInfo_kari_init(CMS_RecipientInfo *ri, X509 *recip,
+                                EVP_PKEY *pk, unsigned int flags);
+int cms_RecipientInfo_kari_encrypt(CMS_ContentInfo *cms,
+                                   CMS_RecipientInfo *ri);
 
 /* PWRI routines */
 int cms_RecipientInfo_pwri_crypt(CMS_ContentInfo *cms, CMS_RecipientInfo *ri,

@@ -277,7 +277,7 @@ extern "C" {
         */
 #    define _WIN32_WINNT 0x0400
 #   endif
-#   if !defined(OPENSSL_NO_SOCK) && defined(_WIN32_WINNT)
+#   if !defined(OPENSSL_NO_SOCK) && (defined(_WIN32_WINNT) || defined(_WIN32_WCE))
        /*
         * Just like defining _WIN32_WINNT including winsock2.h implies
         * certain "discipline" for maintaining [broad] binary compatibility.
@@ -293,6 +293,9 @@ extern "C" {
 #   include <stdio.h>
 #   include <stddef.h>
 #   include <errno.h>
+#   if defined(_WIN32_WCE) && !defined(EACCES)
+#    define EACCES   13
+#   endif
 #   include <string.h>
 #   ifdef _WIN64
 #    define strlen(s) _strlen31(s)
@@ -314,8 +317,8 @@ static __inline unsigned int _strlen31(const char *str)
 #    undef isupper
 #    undef isxdigit
 #   endif
-#   if defined(_MSC_VER) && !defined(_DLL) && defined(stdin)
-#    if _MSC_VER>=1300
+#   if defined(_MSC_VER) && !defined(_WIN32_WCE) && !defined(_DLL) && defined(stdin)
+#    if _MSC_VER>=1300 && _MSC_VER<1600
 #     undef stdin
 #     undef stdout
 #     undef stderr
@@ -323,7 +326,7 @@ FILE *__iob_func();
 #     define stdin  (&__iob_func()[0])
 #     define stdout (&__iob_func()[1])
 #     define stderr (&__iob_func()[2])
-#    elif defined(I_CAN_LIVE_WITH_LNK4049)
+#    elif _MSC_VER<1300 && defined(I_CAN_LIVE_WITH_LNK4049)
 #     undef stdin
 #     undef stdout
 #     undef stderr
@@ -497,6 +500,10 @@ typedef unsigned long clock_t;
 # endif
 
 /*************/
+
+# if defined(OPENSSL_NO_SOCK) && !defined(OPENSSL_NO_DGRAM)
+#  define OPENSSL_NO_DGRAM
+# endif
 
 # ifdef USE_SOCKETS
 #  if defined(WINDOWS) || defined(MSDOS)

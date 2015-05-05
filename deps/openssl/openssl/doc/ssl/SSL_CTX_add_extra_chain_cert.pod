@@ -32,7 +32,8 @@ Only one set of extra chain certificates can be specified per SSL_CTX
 structure. Different chains for different certificates (for example if both
 RSA and DSA certificates are specified by the same server) or different SSL
 structures with the same parent SSL_CTX cannot be specified using this
-function.
+function. For more flexibility functions such as SSL_add1_chain_cert() should
+be used instead.
 
 =head1 RETURN VALUES
 
@@ -45,5 +46,15 @@ L<ssl(3)|ssl(3)>,
 L<SSL_CTX_use_certificate(3)|SSL_CTX_use_certificate(3)>,
 L<SSL_CTX_set_client_cert_cb(3)|SSL_CTX_set_client_cert_cb(3)>,
 L<SSL_CTX_load_verify_locations(3)|SSL_CTX_load_verify_locations(3)>
+L<SSL_CTX_set0_chain(3)|SSL_CTX_set0_chain(3)>
+L<SSL_CTX_set1_chain(3)|SSL_CTX_set1_chain(3)>
+L<SSL_CTX_add0_chain_cert(3)|SSL_CTX_add0_chain_cert(3)>
+L<SSL_CTX_add1_chain_cert(3)|SSL_CTX_add1_chain_cert(3)>
+L<SSL_set0_chain(3)|SSL_set0_chain(3)>
+L<SSL_set1_chain(3)|SSL_set1_chain(3)>
+L<SSL_add0_chain_cert(3)|SSL_add0_chain_cert(3)>
+L<SSL_add1_chain_cert(3)|SSL_add1_chain_cert(3)>
+L<SSL_CTX_build_cert_chain(3)|SSL_CTX_build_cert_chain(3)>
+L<SSL_build_cert_chain(3)|SSL_build_cert_chain(3)>
 
 =cut

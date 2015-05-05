@@ -221,7 +221,7 @@ static void kboxinit(gost_ctx * c, const gost_subst_block * b)
     int i;
 
     for (i = 0; i < 256; i++) {
-        c->k87[i] = (b->k8[i >> 4] << 4 | b->k7[i & 15]) << 24;
+        c->k87[i] = (word32) (b->k8[i >> 4] << 4 | b->k7[i & 15]) << 24;
         c->k65[i] = (b->k6[i >> 4] << 4 | b->k5[i & 15]) << 16;
         c->k43[i] = (b->k4[i >> 4] << 4 | b->k3[i & 15]) << 8;
         c->k21[i] = b->k2[i >> 4] << 4 | b->k1[i & 15];
@@ -242,8 +242,8 @@ static word32 f(gost_ctx * c, word32 x)
 void gostcrypt(gost_ctx * c, const byte * in, byte * out)
 {
     register word32 n1, n2;     /* As named in the GOST */
-    n1 = in[0] | (in[1] << 8) | (in[2] << 16) | (in[3] << 24);
-    n2 = in[4] | (in[5] << 8) | (in[6] << 16) | (in[7] << 24);
+    n1 = in[0] | (in[1] << 8) | (in[2] << 16) | ((word32) in[3] << 24);
+    n2 = in[4] | (in[5] << 8) | (in[6] << 16) | ((word32) in[7] << 24);
     /* Instead of swapping halves, swap names each round */
 
     n2 ^= f(c, n1 + c->k[0]);
@@ -296,8 +296,8 @@ void gostcrypt(gost_ctx * c, const byte * in, byte * out)
 void gostdecrypt(gost_ctx * c, const byte * in, byte * out)
 {
     register word32 n1, n2;     /* As named in the GOST */
-    n1 = in[0] | (in[1] << 8) | (in[2] << 16) | (in[3] << 24);
-    n2 = in[4] | (in[5] << 8) | (in[6] << 16) | (in[7] << 24);
+    n1 = in[0] | (in[1] << 8) | (in[2] << 16) | ((word32) in[3] << 24);
+    n2 = in[4] | (in[5] << 8) | (in[6] << 16) | ((word32) in[7] << 24);
 
     n2 ^= f(c, n1 + c->k[0]);
     n1 ^= f(c, n2 + c->k[1]);
@@ -417,7 +417,8 @@ void gost_key(gost_ctx * c, const byte * k)
     int i, j;
     for (i = 0, j = 0; i < 8; i++, j += 4) {
         c->k[i] =
-            k[j] | (k[j + 1] << 8) | (k[j + 2] << 16) | (k[j + 3] << 24);
+            k[j] | (k[j + 1] << 8) | (k[j + 2] << 16) | ((word32) k[j + 3] <<
+                                                         24);
     }
 }
 
@@ -462,8 +463,10 @@ void mac_block(gost_ctx * c, byte * buffer, const byte * block)
     for (i = 0; i < 8; i++) {
         buffer[i] ^= block[i];
     }
-    n1 = buffer[0] | (buffer[1] << 8) | (buffer[2] << 16) | (buffer[3] << 24);
-    n2 = buffer[4] | (buffer[5] << 8) | (buffer[6] << 16) | (buffer[7] << 24);
+    n1 = buffer[0] | (buffer[1] << 8) | (buffer[2] << 16) | ((word32)
+                                                             buffer[3] << 24);
+    n2 = buffer[4] | (buffer[5] << 8) | (buffer[6] << 16) | ((word32)
+                                                             buffer[7] << 24);
     /* Instead of swapping halves, swap names each round */
 
     n2 ^= f(c, n1 + c->k[0]);

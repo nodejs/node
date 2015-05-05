@@ -167,6 +167,9 @@ struct dh_st {
 # define DH_CHECK_P_NOT_SAFE_PRIME       0x02
 # define DH_UNABLE_TO_CHECK_GENERATOR    0x04
 # define DH_NOT_SUITABLE_GENERATOR       0x08
+# define DH_CHECK_Q_NOT_PRIME            0x10
+# define DH_CHECK_INVALID_Q_VALUE        0x20
+# define DH_CHECK_INVALID_J_VALUE        0x40
 
 /* DH_check_pub_key error codes */
 # define DH_CHECK_PUBKEY_TOO_SMALL       0x01
@@ -217,8 +220,11 @@ int DH_check(const DH *dh, int *codes);
 int DH_check_pub_key(const DH *dh, const BIGNUM *pub_key, int *codes);
 int DH_generate_key(DH *dh);
 int DH_compute_key(unsigned char *key, const BIGNUM *pub_key, DH *dh);
+int DH_compute_key_padded(unsigned char *key, const BIGNUM *pub_key, DH *dh);
 DH *d2i_DHparams(DH **a, const unsigned char **pp, long length);
 int i2d_DHparams(const DH *a, unsigned char **pp);
+DH *d2i_DHxparams(DH **a, const unsigned char **pp, long length);
+int i2d_DHxparams(const DH *a, unsigned char **pp);
 # ifndef OPENSSL_NO_FP_API
 int DHparams_print_fp(FILE *fp, const DH *x);
 # endif
@@ -228,16 +234,109 @@ int DHparams_print(BIO *bp, const DH *x);
 int DHparams_print(char *bp, const DH *x);
 # endif
 
+/* RFC 5114 parameters */
+DH *DH_get_1024_160(void);
+DH *DH_get_2048_224(void);
+DH *DH_get_2048_256(void);
+
+/* RFC2631 KDF */
+int DH_KDF_X9_42(unsigned char *out, size_t outlen,
+                 const unsigned char *Z, size_t Zlen,
+                 ASN1_OBJECT *key_oid,
+                 const unsigned char *ukm, size_t ukmlen, const EVP_MD *md);
+
 # define EVP_PKEY_CTX_set_dh_paramgen_prime_len(ctx, len) \
         EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_DH, EVP_PKEY_OP_PARAMGEN, \
                         EVP_PKEY_CTRL_DH_PARAMGEN_PRIME_LEN, len, NULL)
+
+# define EVP_PKEY_CTX_set_dh_paramgen_subprime_len(ctx, len) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_DH, EVP_PKEY_OP_PARAMGEN, \
+                        EVP_PKEY_CTRL_DH_PARAMGEN_SUBPRIME_LEN, len, NULL)
+
+# define EVP_PKEY_CTX_set_dh_paramgen_type(ctx, typ) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_DH, EVP_PKEY_OP_PARAMGEN, \
+                        EVP_PKEY_CTRL_DH_PARAMGEN_TYPE, typ, NULL)
 
 # define EVP_PKEY_CTX_set_dh_paramgen_generator(ctx, gen) \
         EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_DH, EVP_PKEY_OP_PARAMGEN, \
                         EVP_PKEY_CTRL_DH_PARAMGEN_GENERATOR, gen, NULL)
 
+# define EVP_PKEY_CTX_set_dh_rfc5114(ctx, gen) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_DHX, EVP_PKEY_OP_PARAMGEN, \
+                        EVP_PKEY_CTRL_DH_RFC5114, gen, NULL)
+
+# define EVP_PKEY_CTX_set_dhx_rfc5114(ctx, gen) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_DHX, EVP_PKEY_OP_PARAMGEN, \
+                        EVP_PKEY_CTRL_DH_RFC5114, gen, NULL)
+
+# define EVP_PKEY_CTX_set_dh_kdf_type(ctx, kdf) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_DHX, \
+                                EVP_PKEY_OP_DERIVE, \
+                                EVP_PKEY_CTRL_DH_KDF_TYPE, kdf, NULL)
+
+# define EVP_PKEY_CTX_get_dh_kdf_type(ctx) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_DHX, \
+                                EVP_PKEY_OP_DERIVE, \
+                                EVP_PKEY_CTRL_DH_KDF_TYPE, -2, NULL)
+
+# define EVP_PKEY_CTX_set0_dh_kdf_oid(ctx, oid) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_DHX, \
+                                EVP_PKEY_OP_DERIVE, \
+                                EVP_PKEY_CTRL_DH_KDF_OID, 0, (void *)oid)
+
+# define EVP_PKEY_CTX_get0_dh_kdf_oid(ctx, poid) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_DHX, \
+                                EVP_PKEY_OP_DERIVE, \
+                                EVP_PKEY_CTRL_GET_DH_KDF_OID, 0, (void *)poid)
+
+# define EVP_PKEY_CTX_set_dh_kdf_md(ctx, md) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_DHX, \
+                                EVP_PKEY_OP_DERIVE, \
+                                EVP_PKEY_CTRL_DH_KDF_MD, 0, (void *)md)
+
+# define EVP_PKEY_CTX_get_dh_kdf_md(ctx, pmd) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_DHX, \
+                                EVP_PKEY_OP_DERIVE, \
+                                EVP_PKEY_CTRL_GET_DH_KDF_MD, 0, (void *)pmd)
+
+# define EVP_PKEY_CTX_set_dh_kdf_outlen(ctx, len) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_DHX, \
+                                EVP_PKEY_OP_DERIVE, \
+                                EVP_PKEY_CTRL_DH_KDF_OUTLEN, len, NULL)
+
+# define EVP_PKEY_CTX_get_dh_kdf_outlen(ctx, plen) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_DHX, \
+                                EVP_PKEY_OP_DERIVE, \
+                        EVP_PKEY_CTRL_GET_DH_KDF_OUTLEN, 0, (void *)plen)
+
+# define EVP_PKEY_CTX_set0_dh_kdf_ukm(ctx, p, plen) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_DHX, \
+                                EVP_PKEY_OP_DERIVE, \
+                                EVP_PKEY_CTRL_DH_KDF_UKM, plen, (void *)p)
+
+# define EVP_PKEY_CTX_get0_dh_kdf_ukm(ctx, p) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_DHX, \
+                                EVP_PKEY_OP_DERIVE, \
+                                EVP_PKEY_CTRL_GET_DH_KDF_UKM, 0, (void *)p)
+
 # define EVP_PKEY_CTRL_DH_PARAMGEN_PRIME_LEN     (EVP_PKEY_ALG_CTRL + 1)
 # define EVP_PKEY_CTRL_DH_PARAMGEN_GENERATOR     (EVP_PKEY_ALG_CTRL + 2)
+# define EVP_PKEY_CTRL_DH_RFC5114                (EVP_PKEY_ALG_CTRL + 3)
+# define EVP_PKEY_CTRL_DH_PARAMGEN_SUBPRIME_LEN  (EVP_PKEY_ALG_CTRL + 4)
+# define EVP_PKEY_CTRL_DH_PARAMGEN_TYPE          (EVP_PKEY_ALG_CTRL + 5)
+# define EVP_PKEY_CTRL_DH_KDF_TYPE               (EVP_PKEY_ALG_CTRL + 6)
+# define EVP_PKEY_CTRL_DH_KDF_MD                 (EVP_PKEY_ALG_CTRL + 7)
+# define EVP_PKEY_CTRL_GET_DH_KDF_MD             (EVP_PKEY_ALG_CTRL + 8)
+# define EVP_PKEY_CTRL_DH_KDF_OUTLEN             (EVP_PKEY_ALG_CTRL + 9)
+# define EVP_PKEY_CTRL_GET_DH_KDF_OUTLEN         (EVP_PKEY_ALG_CTRL + 10)
+# define EVP_PKEY_CTRL_DH_KDF_UKM                (EVP_PKEY_ALG_CTRL + 11)
+# define EVP_PKEY_CTRL_GET_DH_KDF_UKM            (EVP_PKEY_ALG_CTRL + 12)
+# define EVP_PKEY_CTRL_DH_KDF_OID                (EVP_PKEY_ALG_CTRL + 13)
+# define EVP_PKEY_CTRL_GET_DH_KDF_OID            (EVP_PKEY_ALG_CTRL + 14)
+
+/* KDF types */
+# define EVP_PKEY_DH_KDF_NONE                            1
+# define EVP_PKEY_DH_KDF_X9_42                           2
 
 /* BEGIN ERROR CODES */
 /*
@@ -252,6 +351,9 @@ void ERR_load_DH_strings(void);
 # define DH_F_COMPUTE_KEY                                 102
 # define DH_F_DHPARAMS_PRINT_FP                           101
 # define DH_F_DH_BUILTIN_GENPARAMS                        106
+# define DH_F_DH_CMS_DECRYPT                              117
+# define DH_F_DH_CMS_SET_PEERKEY                          118
+# define DH_F_DH_CMS_SET_SHARED_INFO                      119
 # define DH_F_DH_COMPUTE_KEY                              114
 # define DH_F_DH_GENERATE_KEY                             115
 # define DH_F_DH_GENERATE_PARAMETERS_EX                   116
@@ -273,6 +375,7 @@ void ERR_load_DH_strings(void);
 # define DH_R_BN_ERROR                                    106
 # define DH_R_DECODE_ERROR                                104
 # define DH_R_INVALID_PUBKEY                              102
+# define DH_R_KDF_PARAMETER_ERROR                         112
 # define DH_R_KEYS_NOT_SET                                108
 # define DH_R_KEY_SIZE_TOO_SMALL                          110
 # define DH_R_MODULUS_TOO_LARGE                           103
@@ -280,6 +383,8 @@ void ERR_load_DH_strings(void);
 # define DH_R_NO_PARAMETERS_SET                           107
 # define DH_R_NO_PRIVATE_VALUE                            100
 # define DH_R_PARAMETER_ENCODING_ERROR                    105
+# define DH_R_PEER_KEY_ERROR                              113
+# define DH_R_SHARED_INFO_ERROR                           114
 
 #ifdef  __cplusplus
 }

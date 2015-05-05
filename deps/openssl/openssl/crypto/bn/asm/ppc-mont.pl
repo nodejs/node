@@ -325,6 +325,7 @@ Lcopy:				; copy or in-place refresh
 	.long	0
 	.byte	0,12,4,0,0x80,12,6,0
 	.long	0
+.size	.bn_mul_mont_int,.-.bn_mul_mont_int
 
 .asciz  "Montgomery Multiplication for PPC, CRYPTOGAMS by <appro\@openssl.org>"
 ___

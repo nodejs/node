@@ -394,11 +394,22 @@ typedef struct ocsp_service_locator_st {
 
 OCSP_CERTID *OCSP_CERTID_dup(OCSP_CERTID *id);
 
-OCSP_RESPONSE *OCSP_sendreq_bio(BIO *b, char *path, OCSP_REQUEST *req);
-OCSP_REQ_CTX *OCSP_sendreq_new(BIO *io, char *path, OCSP_REQUEST *req,
+OCSP_RESPONSE *OCSP_sendreq_bio(BIO *b, const char *path, OCSP_REQUEST *req);
+OCSP_REQ_CTX *OCSP_sendreq_new(BIO *io, const char *path, OCSP_REQUEST *req,
                                int maxline);
+int OCSP_REQ_CTX_nbio(OCSP_REQ_CTX *rctx);
 int OCSP_sendreq_nbio(OCSP_RESPONSE **presp, OCSP_REQ_CTX *rctx);
+OCSP_REQ_CTX *OCSP_REQ_CTX_new(BIO *io, int maxline);
 void OCSP_REQ_CTX_free(OCSP_REQ_CTX *rctx);
+void OCSP_set_max_response_length(OCSP_REQ_CTX *rctx, unsigned long len);
+int OCSP_REQ_CTX_i2d(OCSP_REQ_CTX *rctx, const ASN1_ITEM *it,
+                     ASN1_VALUE *val);
+int OCSP_REQ_CTX_nbio_d2i(OCSP_REQ_CTX *rctx, ASN1_VALUE **pval,
+                          const ASN1_ITEM *it);
+BIO *OCSP_REQ_CTX_get0_mem_bio(OCSP_REQ_CTX *rctx);
+int OCSP_REQ_CTX_i2d(OCSP_REQ_CTX *rctx, const ASN1_ITEM *it,
+                     ASN1_VALUE *val);
+int OCSP_REQ_CTX_http(OCSP_REQ_CTX *rctx, const char *op, const char *path);
 int OCSP_REQ_CTX_set1_req(OCSP_REQ_CTX *rctx, OCSP_REQUEST *req);
 int OCSP_REQ_CTX_add1_header(OCSP_REQ_CTX *rctx,
                              const char *name, const char *value);
@@ -447,7 +458,7 @@ int OCSP_check_validity(ASN1_GENERALIZEDTIME *thisupd,
 int OCSP_request_verify(OCSP_REQUEST *req, STACK_OF(X509) *certs,
                         X509_STORE *store, unsigned long flags);
 
-int OCSP_parse_url(char *url, char **phost, char **pport, char **ppath,
+int OCSP_parse_url(const char *url, char **phost, char **pport, char **ppath,
                    int *pssl);
 
 int OCSP_id_issuer_cmp(OCSP_CERTID *a, OCSP_CERTID *b);

@@ -9,7 +9,7 @@ require("tap").test("basic", function (t) {
       name: null,
       type: "hosted",
       hosted: { type: "github" },
-      spec: "git+ssh://git@github.com/user/foo-js.git",
+      spec: "github:user/foo-js",
       raw: "user/foo-js"
     },
 
@@ -17,7 +17,7 @@ require("tap").test("basic", function (t) {
       name: null,
       type: "hosted",
       hosted: { type: "github" },
-      spec: "git+ssh://git@github.com/user/foo-js.git#bar/baz",
+      spec: "github:user/foo-js#bar/baz",
       raw: "user/foo-js#bar/baz"
     },
 
@@ -25,7 +25,7 @@ require("tap").test("basic", function (t) {
       name: null,
       type: "hosted",
       hosted: { type: "github" },
-      spec: "git+ssh://git@github.com/user..blerg--/..foo-js.git# . . . . . some . tags / / /",
+      spec: "github:user..blerg--/..foo-js# . . . . . some . tags / / /",
       raw: "user..blerg--/..foo-js# . . . . . some . tags / / /"
     },
 
@@ -33,7 +33,7 @@ require("tap").test("basic", function (t) {
       name: null,
       type: "hosted",
       hosted: { type: "github" },
-      spec: "git+ssh://git@github.com/user/foo-js.git#bar/baz/bin",
+      raw: "github:user/foo-js#bar/baz/bin",
       raw: "user/foo-js#bar/baz/bin"
     },
 
@@ -41,7 +41,7 @@ require("tap").test("basic", function (t) {
       name: "foo",
       type: "hosted",
       hosted: { type: "github" },
-      spec: "git+ssh://git@github.com/user/foo-js.git",
+      spec: "github:user/foo-js",
       raw: "foo@user/foo-js"
     },
 
@@ -49,7 +49,7 @@ require("tap").test("basic", function (t) {
       name: null,
       type: "hosted",
       hosted: { type: "github" },
-      spec: "git+ssh://git@github.com/user/foo-js.git",
+      spec: "github:user/foo-js",
       raw: "github:user/foo-js"
     },
 
@@ -65,7 +65,7 @@ require("tap").test("basic", function (t) {
       name: null,
       type: "hosted",
       hosted: { type: "github" },
-      spec: "git+ssh://git@github.com/user/foo.git",
+      spec: "git://github.com/user/foo.git",
       raw: "git://github.com/user/foo"
     },
 
@@ -73,7 +73,7 @@ require("tap").test("basic", function (t) {
       name: null,
       type: "hosted",
       hosted: { type: "github" },
-      spec: "git+ssh://git@github.com/user/foo.git",
+      spec: "https://github.com/user/foo.git",
       raw: "https://github.com/user/foo.git"
     },
 
@@ -90,8 +90,8 @@ require("tap").test("basic", function (t) {
    "foo@bar/foo": {
      name: "foo",
      type: "hosted",
-      hosted: { type: "github" },
-     spec: "git+ssh://git@github.com/bar/foo.git",
+     hosted: { type: "github" },
+     spec: "github:bar/foo",
      raw: "foo@bar/foo"
    }
   }

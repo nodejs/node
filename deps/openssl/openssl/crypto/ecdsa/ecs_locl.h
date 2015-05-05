@@ -79,8 +79,12 @@ struct ecdsa_method {
     int (*finish) (EC_KEY *eckey);
 # endif
     int flags;
-    char *app_data;
+    void *app_data;
 };
+
+/* The ECDSA_METHOD was allocated and can be freed */
+
+# define ECDSA_METHOD_FLAG_ALLOCATED 0x2
 
 /*
  * If this flag is set the ECDSA method is FIPS compliant and can be used in

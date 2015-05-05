@@ -418,19 +418,19 @@ static int get_server_hello(SSL *s)
             return (-1);
         }
     } else {
-# ifdef undef
+# if 0
         /* very bad */
         memset(s->session->session_id, 0,
                SSL_MAX_SSL_SESSION_ID_LENGTH_IN_BYTES);
         s->session->session_id_length = 0;
-        */
 # endif
-            /*
-             * we need to do this in case we were trying to reuse a client
-             * session but others are already reusing it. If this was a new
-             * 'blank' session ID, the session-id length will still be 0
-             */
-            if (s->session->session_id_length > 0) {
+
+        /*
+         * we need to do this in case we were trying to reuse a client
+         * session but others are already reusing it. If this was a new
+         * 'blank' session ID, the session-id length will still be 0
+         */
+        if (s->session->session_id_length > 0) {
             if (!ssl_get_new_session(s, 0)) {
                 ssl2_return_error(s, SSL2_PE_UNDEFINED_ERROR);
                 return (-1);

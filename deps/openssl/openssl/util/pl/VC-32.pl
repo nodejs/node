@@ -46,7 +46,6 @@ if ($FLAVOR =~ /WIN64/)
     # 
     $base_cflags= " $mf_cflag";
     my $f = $shlib || $fips ?' /MD':' /MT';
-    $lib_cflag='/Zl' if (!$shlib);	# remove /DEFAULTLIBs from static lib
     $opt_cflags=$f.' /Ox';
     $dbg_cflags=$f.'d /Od -DDEBUG -D_DEBUG';
     $lflags="/nologo /subsystem:console /opt:ref";
@@ -89,7 +88,7 @@ elsif ($FLAVOR =~ /CE/)
     $wcetgt = $ENV{'TARGETCPU'};	# just shorter name...
     SWITCH: for($wcetgt) {
 	/^X86/		&& do {	$wcecdefs.=" -Dx86 -D_X86_ -D_i386_ -Di_386_";
-				$wcelflag.=" /machine:IX86";	last; };
+				$wcelflag.=" /machine:X86";	last; };
 	/^ARMV4[IT]/	&& do { $wcecdefs.=" -DARM -D_ARM_ -D$wcetgt";
 				$wcecdefs.=" -DTHUMB -D_THUMB_" if($wcetgt=~/T$/);
 				$wcecdefs.=" -QRarch4T -QRinterwork-return";
@@ -114,25 +113,30 @@ elsif ($FLAVOR =~ /CE/)
 	  $wcelflag.=" /machine:$wcetgt";			last; };
     }
 
-    $cc='$(CC)';
+    $cc=($ENV{CC} or "cl");
     $base_cflags=' /W3 /WX /GF /Gy /nologo -DUNICODE -D_UNICODE -DOPENSSL_SYSNAME_WINCE -DWIN32_LEAN_AND_MEAN -DL_ENDIAN -DDSO_WIN32 -DNO_CHMOD -DOPENSSL_SMALL_FOOTPRINT';
     $base_cflags.=" $wcecdefs";
     $base_cflags.=' -I$(WCECOMPAT)/include'		if (defined($ENV{'WCECOMPAT'}));
     $base_cflags.=' -I$(PORTSDK_LIBPATH)/../../include'	if (defined($ENV{'PORTSDK_LIBPATH'}));
-    $opt_cflags=' /MC /O1i';	# optimize for space, but with intrinsics...
-    $dbg_cflags=' /MC /Od -DDEBUG -D_DEBUG';
+    if (`$cc 2>&1` =~ /Version ([0-9]+)\./ && $1>=14) {
+	$base_cflags.=$shlib?' /MD':' /MT';
+    } else {
+	$base_cflags.=' /MC';
+    }
+    $opt_cflags=' /O1i';	# optimize for space, but with intrinsics...
+    $dbg_cflags=' /Od -DDEBUG -D_DEBUG';
     $lflags="/nologo /opt:ref $wcelflag";
     }
 else	# Win32
     {
     $base_cflags= " $mf_cflag";
     my $f = $shlib || $fips ?' /MD':' /MT';
-    $lib_cflag='/Zl' if (!$shlib);	# remove /DEFAULTLIBs from static lib
     $ff = "/fixed";
     $opt_cflags=$f.' /Ox /O2 /Ob2';
     $dbg_cflags=$f.'d /Od -DDEBUG -D_DEBUG';
     $lflags="/nologo /subsystem:console /opt:ref";
     }
+$lib_cflag='/Zl' if (!$shlib);	# remove /DEFAULTLIBs from static lib
 $mlflags='';
 
 $out_def ="out32";	$out_def.="dll"			if ($shlib);
@@ -165,14 +169,26 @@ $rsc="rc";
 $efile="/out:";
 $exep='.exe';
 if ($no_sock)		{ $ex_libs=''; }
-elsif ($FLAVOR =~ /CE/)	{ $ex_libs='winsock.lib'; }
+elsif ($FLAVOR =~ /CE/)	{ $ex_libs='ws2.lib'; }
 else			{ $ex_libs='ws2_32.lib'; }
 
 if ($FLAVOR =~ /CE/)
 	{
-	$ex_libs.=' $(WCECOMPAT)/lib/wcecompatex.lib'	if (defined($ENV{'WCECOMPAT'}));
+	$ex_libs.=' crypt32.lib';	# for e_capi.c
+	if (defined($ENV{WCECOMPAT}))
+		{
+		$ex_libs.= ' $(WCECOMPAT)/lib';
+		if (-f "$ENV{WCECOMPAT}/lib/$ENV{TARGETCPU}/wcecompatex.lib")
+			{
+			$ex_libs.='/$(TARGETCPU)/wcecompatex.lib';
+			}
+		else
+			{
+			$ex_libs.='/wcecompatex.lib';
+			}
+		}
 	$ex_libs.=' $(PORTSDK_LIBPATH)/portlib.lib'	if (defined($ENV{'PORTSDK_LIBPATH'}));
-	$ex_libs.=' /nodefaultlib:oldnames.lib coredll.lib corelibc.lib' if ($ENV{'TARGETCPU'} eq "X86");
+	$ex_libs.=' /nodefaultlib coredll.lib corelibc.lib' if ($ENV{'TARGETCPU'} eq "X86");
 	}
 else
 	{

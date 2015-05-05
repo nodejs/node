@@ -235,3 +235,68 @@ if (typeof Symbol !== 'undefined') {
   assert.equal(util.inspect(subject, options), '[ 1, 2, 3, [length]: 3, [Symbol(symbol)]: 42 ]');
 
 }
+
+// test Set
+assert.equal(util.inspect(new Set), 'Set {}');
+assert.equal(util.inspect(new Set([1, 2, 3])), 'Set { 1, 2, 3 }');
+var set = new Set(['foo']);
+set.bar = 42;
+assert.equal(util.inspect(set, true), 'Set { \'foo\', [size]: 1, bar: 42 }');
+
+// test Map
+assert.equal(util.inspect(new Map), 'Map {}');
+assert.equal(util.inspect(new Map([[1, 'a'], [2, 'b'], [3, 'c']])),
+             'Map { 1 => \'a\', 2 => \'b\', 3 => \'c\' }');
+var map = new Map([['foo', null]]);
+map.bar = 42;
+assert.equal(util.inspect(map, true),
+             'Map { \'foo\' => null, [size]: 1, bar: 42 }');
+
+// test Promise
+assert.equal(util.inspect(Promise.resolve(3)), 'Promise { 3 }');
+assert.equal(util.inspect(Promise.reject(3)), 'Promise { <rejected> 3 }');
+assert.equal(util.inspect(new Promise(function() {})), 'Promise { <pending> }');
+var promise = Promise.resolve('foo');
+promise.bar = 42;
+assert.equal(util.inspect(promise), 'Promise { \'foo\', bar: 42 }');
+
+// Make sure it doesn't choke on polyfills. Unlike Set/Map, there is no standard
+// interface to synchronously inspect a Promise, so our techniques only work on
+// a bonafide native Promise.
+var oldPromise = Promise;
+global.Promise = function() { this.bar = 42; };
+assert.equal(util.inspect(new Promise), '{ bar: 42 }');
+global.Promise = oldPromise;
+
+
+// Test alignment of items in container
+// Assumes that the first numeric character is the start of an item.
+
+function checkAlignment(container) {
+  var lines = util.inspect(container).split('\n');
+  var pos;
+  lines.forEach(function(line) {
+    var npos = line.search(/\d/);
+    if (npos !== -1) {
+      if (pos !== undefined)
+        assert.equal(pos, npos, 'container items not aligned');
+      pos = npos;
+    }
+  });
+}
+
+var big_array = [];
+for (var i = 0; i < 100; i++) {
+  big_array.push(i);
+}
+
+checkAlignment(big_array);
+checkAlignment(function() {
+  var obj = {};
+  big_array.forEach(function(v) {
+    obj[v] = null;
+  });
+  return obj;
+}());
+checkAlignment(new Set(big_array));
+checkAlignment(new Map(big_array.map(function (y) { return [y, null] })));

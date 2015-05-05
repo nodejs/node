@@ -413,7 +413,6 @@ void ENGINE_load_gost(void);
 #  endif
 # endif
 void ENGINE_load_cryptodev(void);
-void ENGINE_load_rsax(void);
 void ENGINE_load_rdrand(void);
 void ENGINE_load_builtin_engines(void);
 

@@ -118,6 +118,12 @@ module.exports = function(items, options = {}) {
   if(options.showHeaders) {
     columnNames.forEach(columnName => {
       let column = columns[columnName]
+
+      if(!column.showHeaders){
+        headers[columnName] = '';
+        return;
+      }
+
       headers[columnName] = column.headingTransform(column.name)
     })
     items.unshift(headers)

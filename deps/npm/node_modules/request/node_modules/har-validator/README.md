@@ -47,7 +47,7 @@ har-validator --schema request request.json
 Returns `true` or `false`.
 
 - **data**: `Object` *(Required)*
-  a [log](http://www.softwareishard.com/blog/har-12-spec/#log) object
+  a full [HAR](http://www.softwareishard.com/blog/har-12-spec/) object
 
 - **callback**: `Function`
   gets two arguments (err, valid)
@@ -60,6 +60,24 @@ validate(HAR, function (e, valid) {
   if (e) console.log(e.errors)
 
   if (valid) console.log('horray!');
+});
+```
+
+### Validate.log(data [, callback])
+
+Returns `true` or `false`.
+
+- **data**: `Object` *(Required)*
+  a [log](http://www.softwareishard.com/blog/har-12-spec/#log) object
+
+- **callback**: `Function`
+  gets two arguments (err, valid)
+
+```js
+var validate = require('har-validator');
+
+validate.log(data, function (e, valid) {
+  if (e) console.log(e.errors)
 });
 ```
 

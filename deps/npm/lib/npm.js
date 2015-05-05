@@ -11,9 +11,6 @@ if (typeof WScript !== "undefined") {
 }
 
 
-// monkey-patch support for 0.6 child processes
-require('child-process-close')
-
 var EventEmitter = require("events").EventEmitter
   , npm = module.exports = new EventEmitter()
   , npmconf = require("./config/core.js")

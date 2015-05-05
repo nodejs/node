@@ -134,6 +134,8 @@ function parseUrl (res, arg, urlparse) {
       ssh:       gitHost.ssh(),
       sshUrl:    gitHost.sshurl(),
       httpsUrl:  gitHost.https(),
+      gitUrl:    gitHost.git(),
+      shortcut:  gitHost.shortcut(),
       directUrl: gitHost.file("package.json")
     }
     return res

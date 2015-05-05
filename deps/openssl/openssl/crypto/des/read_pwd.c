@@ -172,7 +172,7 @@
 # include <sys/ioctl.h>
 #endif
 
-#if defined(OPENSSL_SYS_MSDOS) && !defined(__CYGWIN32__) && !defined(OPENSSL_SYS_WINCE)
+#if defined(OPENSSL_SYS_MSDOS) && !defined(OPENSSL_SYS_WINCE)
 # include <conio.h>
 # define fgets(a,b,c) noecho_fgets(a,b,c)
 #endif

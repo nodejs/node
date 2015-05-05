@@ -208,3 +208,23 @@ int i2d_X509_AUX(X509 *a, unsigned char **pp)
         length += i2d_X509_CERT_AUX(a->aux, pp);
     return length;
 }
+
+int i2d_re_X509_tbs(X509 *x, unsigned char **pp)
+{
+    x->cert_info->enc.modified = 1;
+    return i2d_X509_CINF(x->cert_info, pp);
+}
+
+void X509_get0_signature(ASN1_BIT_STRING **psig, X509_ALGOR **palg,
+                         const X509 *x)
+{
+    if (psig)
+        *psig = x->signature;
+    if (palg)
+        *palg = x->sig_alg;
+}
+
+int X509_get_signature_nid(const X509 *x)
+{
+    return OBJ_obj2nid(x->sig_alg->algorithm);
+}

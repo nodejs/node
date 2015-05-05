@@ -1750,6 +1750,18 @@ static void GetGid(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+static void GetEUid(const FunctionCallbackInfo<Value>& args) {
+  // uid_t is an uint32_t on all supported platforms.
+  args.GetReturnValue().Set(static_cast<uint32_t>(geteuid()));
+}
+
+
+static void GetEGid(const FunctionCallbackInfo<Value>& args) {
+  // gid_t is an uint32_t on all supported platforms.
+  args.GetReturnValue().Set(static_cast<uint32_t>(getegid()));
+}
+
+
 static void SetGid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1769,6 +1781,25 @@ static void SetGid(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+static void SetEGid(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  if (!args[0]->IsUint32() && !args[0]->IsString()) {
+    return env->ThrowTypeError("setegid argument must be a number or string");
+  }
+
+  gid_t gid = gid_by_name(env->isolate(), args[0]);
+
+  if (gid == gid_not_found) {
+    return env->ThrowError("setegid group id does not exist");
+  }
+
+  if (setegid(gid)) {
+    return env->ThrowErrnoException(errno, "setegid");
+  }
+}
+
+
 static void SetUid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1784,6 +1815,25 @@ static void SetUid(const FunctionCallbackInfo<Value>& args) {
 
   if (setuid(uid)) {
     return env->ThrowErrnoException(errno, "setuid");
+  }
+}
+
+
+static void SetEUid(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  if (!args[0]->IsUint32() && !args[0]->IsString()) {
+    return env->ThrowTypeError("seteuid argument must be a number or string");
+  }
+
+  uid_t uid = uid_by_name(env->isolate(), args[0]);
+
+  if (uid == uid_not_found) {
+    return env->ThrowError("seteuid user id does not exist");
+  }
+
+  if (seteuid(uid)) {
+    return env->ThrowErrnoException(errno, "seteuid");
   }
 }
 
@@ -2821,10 +2871,14 @@ void SetupProcessObject(Environment* env,
 
 #if defined(__POSIX__) && !defined(__ANDROID__)
   env->SetMethod(process, "getuid", GetUid);
+  env->SetMethod(process, "geteuid", GetEUid);
   env->SetMethod(process, "setuid", SetUid);
+  env->SetMethod(process, "seteuid", SetEUid);
 
   env->SetMethod(process, "setgid", SetGid);
+  env->SetMethod(process, "setegid", SetEGid);
   env->SetMethod(process, "getgid", GetGid);
+  env->SetMethod(process, "getegid", GetEGid);
 
   env->SetMethod(process, "getgroups", GetGroups);
   env->SetMethod(process, "setgroups", SetGroups);

@@ -124,6 +124,8 @@ int SSL_SESSION_print(BIO *bp, const SSL_SESSION *x)
         s = "TLSv1";
     else if (x->ssl_version == DTLS1_VERSION)
         s = "DTLSv1";
+    else if (x->ssl_version == DTLS1_2_VERSION)
+        s = "DTLSv1.2";
     else if (x->ssl_version == DTLS1_BAD_VER)
         s = "DTLSv1-bad";
     else

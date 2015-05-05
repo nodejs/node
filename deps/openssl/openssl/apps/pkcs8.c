@@ -124,6 +124,16 @@ int MAIN(int argc, char **argv)
                 }
             } else
                 badarg = 1;
+        } else if (!strcmp(*args, "-v2prf")) {
+            if (args[1]) {
+                args++;
+                pbe_nid = OBJ_txt2nid(*args);
+                if (!EVP_PBE_find(EVP_PBE_TYPE_PRF, pbe_nid, NULL, NULL, 0)) {
+                    BIO_printf(bio_err, "Unknown PRF algorithm %s\n", *args);
+                    badarg = 1;
+                }
+            } else
+                badarg = 1;
         } else if (!strcmp(*args, "-inform")) {
             if (args[1]) {
                 args++;

@@ -15,6 +15,10 @@
 # compatible subroutine. There is room for minor optimization on
 # little-endian platforms...
 
+# September 2012.
+#
+# Add MIPS32r2 code (>25% less instructions).
+
 ######################################################################
 # There is a number of MIPS ABI in use, O32 and N32/64 are most
 # widely used. Then there is a new contender: NUBI. It appears that if
@@ -42,7 +46,7 @@
 # ($s0,$s1,$s2,$s3,$s4,$s5,$s6,$s7)=map("\$$_",(16..23));
 # ($gp,$sp,$fp,$ra)=map("\$$_",(28..31));
 #
-$flavour = shift; # supported flavours are o32,n32,64,nubi32,nubi64
+$flavour = shift || "o32"; # supported flavours are o32,n32,64,nubi32,nubi64
 
 if ($flavour =~ /64|n32/i) {
 	$PTR_ADD="dadd";	# incidentally works even on n32
@@ -95,6 +99,10 @@ sub BODY_00_14 {
 my ($i,$a,$b,$c,$d,$e)=@_;
 my $j=$i+1;
 $code.=<<___	if (!$big_endian);
+#if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS64R2)
+	wsbh	@X[$i],@X[$i]	# byte swap($i)
+	rotr	@X[$i],@X[$i],16
+#else
 	srl	$t0,@X[$i],24	# byte swap($i)
 	srl	$t1,@X[$i],8
 	andi	$t2,@X[$i],0xFF00
@@ -104,8 +112,22 @@ $code.=<<___	if (!$big_endian);
 	or	@X[$i],$t0
 	or	$t1,$t2
 	or	@X[$i],$t1
+#endif
 ___
 $code.=<<___;
+#if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS64R2)
+	addu	$e,$K		# $i
+	xor	$t0,$c,$d
+	rotr	$t1,$a,27
+	 lwl	@X[$j],$j*4+$MSB($inp)
+	and	$t0,$b
+	addu	$e,$t1
+	 lwr	@X[$j],$j*4+$LSB($inp)
+	xor	$t0,$d
+	addu	$e,@X[$i]
+	rotr	$b,$b,2
+	addu	$e,$t0
+#else
 	 lwl	@X[$j],$j*4+$MSB($inp)
 	sll	$t0,$a,5	# $i
 	addu	$e,$K
@@ -121,6 +143,7 @@ $code.=<<___;
 	addu	$e,@X[$i]
 	or	$b,$t2
 	addu	$e,$t0
+#endif
 ___
 }
 
@@ -129,6 +152,10 @@ my ($i,$a,$b,$c,$d,$e)=@_;
 my $j=$i+1;
 
 $code.=<<___	if (!$big_endian && $i==15);
+#if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS64R2)
+	wsbh	@X[$i],@X[$i]	# byte swap($i)
+	rotr	@X[$i],@X[$i],16
+#else
 	srl	$t0,@X[$i],24	# byte swap($i)
 	srl	$t1,@X[$i],8
 	andi	$t2,@X[$i],0xFF00
@@ -138,8 +165,24 @@ $code.=<<___	if (!$big_endian && $i==15);
 	or	@X[$i],$t0
 	or	@X[$i],$t1
 	or	@X[$i],$t2
+#endif
 ___
 $code.=<<___;
+#if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS64R2)
+	addu	$e,$K		# $i
+	 xor	@X[$j%16],@X[($j+2)%16]
+	xor	$t0,$c,$d
+	rotr	$t1,$a,27
+	 xor	@X[$j%16],@X[($j+8)%16]
+	and	$t0,$b
+	addu	$e,$t1
+	 xor	@X[$j%16],@X[($j+13)%16]
+	xor	$t0,$d
+	addu	$e,@X[$i%16]
+	 rotr	@X[$j%16],@X[$j%16],31
+	rotr	$b,$b,2
+	addu	$e,$t0
+#else
 	 xor	@X[$j%16],@X[($j+2)%16]
 	sll	$t0,$a,5	# $i
 	addu	$e,$K
@@ -159,6 +202,7 @@ $code.=<<___;
 	addu	$e,@X[$i%16]
 	or	$b,$t2
 	addu	$e,$t0
+#endif
 ___
 }
 
@@ -166,6 +210,20 @@ sub BODY_20_39 {
 my ($i,$a,$b,$c,$d,$e)=@_;
 my $j=$i+1;
 $code.=<<___ if ($i<79);
+#if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS64R2)
+	 xor	@X[$j%16],@X[($j+2)%16]
+	addu	$e,$K		# $i
+	rotr	$t1,$a,27
+	 xor	@X[$j%16],@X[($j+8)%16]
+	xor	$t0,$c,$d
+	addu	$e,$t1
+	 xor	@X[$j%16],@X[($j+13)%16]
+	xor	$t0,$b
+	addu	$e,@X[$i%16]
+	 rotr	@X[$j%16],@X[$j%16],31
+	rotr	$b,$b,2
+	addu	$e,$t0
+#else
 	 xor	@X[$j%16],@X[($j+2)%16]
 	sll	$t0,$a,5	# $i
 	addu	$e,$K
@@ -184,8 +242,24 @@ $code.=<<___ if ($i<79);
 	 or	@X[$j%16],$t1
 	or	$b,$t2
 	addu	$e,$t0
+#endif
 ___
 $code.=<<___ if ($i==79);
+#if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS64R2)
+	 lw	@X[0],0($ctx)
+	addu	$e,$K		# $i
+	 lw	@X[1],4($ctx)
+	rotr	$t1,$a,27
+	 lw	@X[2],8($ctx)
+	xor	$t0,$c,$d
+	addu	$e,$t1
+	 lw	@X[3],12($ctx)
+	xor	$t0,$b
+	addu	$e,@X[$i%16]
+	 lw	@X[4],16($ctx)
+	rotr	$b,$b,2
+	addu	$e,$t0
+#else
 	 lw	@X[0],0($ctx)
 	sll	$t0,$a,5	# $i
 	addu	$e,$K
@@ -203,6 +277,7 @@ $code.=<<___ if ($i==79);
 	addu	$e,@X[$i%16]
 	or	$b,$t2
 	addu	$e,$t0
+#endif
 ___
 }
 
@@ -210,6 +285,22 @@ sub BODY_40_59 {
 my ($i,$a,$b,$c,$d,$e)=@_;
 my $j=$i+1;
 $code.=<<___ if ($i<79);
+#if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS64R2)
+	addu	$e,$K		# $i
+	and	$t0,$c,$d
+	 xor	@X[$j%16],@X[($j+2)%16]
+	rotr	$t1,$a,27
+	addu	$e,$t0
+	 xor	@X[$j%16],@X[($j+8)%16]
+	xor	$t0,$c,$d
+	addu	$e,$t1
+	 xor	@X[$j%16],@X[($j+13)%16]
+	and	$t0,$b
+	addu	$e,@X[$i%16]
+	 rotr	@X[$j%16],@X[$j%16],31
+	rotr	$b,$b,2
+	addu	$e,$t0
+#else
 	 xor	@X[$j%16],@X[($j+2)%16]
 	sll	$t0,$a,5	# $i
 	addu	$e,$K
@@ -230,6 +321,7 @@ $code.=<<___ if ($i<79);
 	addu	$e,@X[$i%16]
 	or	$b,$t2
 	addu	$e,$t0
+#endif
 ___
 }
 
@@ -239,6 +331,10 @@ $SAVED_REGS_MASK = ($flavour =~ /nubi/i) ? 0xc0fff008 : 0xc0ff0000;
 $code=<<___;
 #ifdef OPENSSL_FIPSCANISTER
 # include <openssl/fipssyms.h>
+#endif
+
+#if defined(__mips_smartmips) && !defined(_MIPS_ARCH_MIPS32R2)
+#define _MIPS_ARCH_MIPS32R2
 #endif
 
 .text

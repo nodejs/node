@@ -402,6 +402,11 @@ int ssl23_get_client_hello(SSL *s)
     /* ensure that TLS_MAX_VERSION is up-to-date */
     OPENSSL_assert(s->version <= TLS_MAX_VERSION);
 
+    if (s->version < TLS1_2_VERSION && tls1_suiteb(s)) {
+        SSLerr(SSL_F_SSL23_GET_CLIENT_HELLO,
+               SSL_R_ONLY_TLS_1_2_ALLOWED_IN_SUITEB_MODE);
+        goto err;
+    }
 #ifdef OPENSSL_FIPS
     if (FIPS_mode() && (s->version < TLS1_VERSION)) {
         SSLerr(SSL_F_SSL23_GET_CLIENT_HELLO,

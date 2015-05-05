@@ -159,11 +159,17 @@ extern "C" {
 # define SSL3_CK_DH_RSA_DES_192_CBC3_SHA         0x03000010
 
 # define SSL3_CK_EDH_DSS_DES_40_CBC_SHA          0x03000011
+# define SSL3_CK_DHE_DSS_DES_40_CBC_SHA          SSL3_CK_EDH_DSS_DES_40_CBC_SHA
 # define SSL3_CK_EDH_DSS_DES_64_CBC_SHA          0x03000012
+# define SSL3_CK_DHE_DSS_DES_64_CBC_SHA          SSL3_CK_EDH_DSS_DES_64_CBC_SHA
 # define SSL3_CK_EDH_DSS_DES_192_CBC3_SHA        0x03000013
+# define SSL3_CK_DHE_DSS_DES_192_CBC3_SHA        SSL3_CK_EDH_DSS_DES_192_CBC3_SHA
 # define SSL3_CK_EDH_RSA_DES_40_CBC_SHA          0x03000014
+# define SSL3_CK_DHE_RSA_DES_40_CBC_SHA          SSL3_CK_EDH_RSA_DES_40_CBC_SHA
 # define SSL3_CK_EDH_RSA_DES_64_CBC_SHA          0x03000015
+# define SSL3_CK_DHE_RSA_DES_64_CBC_SHA          SSL3_CK_EDH_RSA_DES_64_CBC_SHA
 # define SSL3_CK_EDH_RSA_DES_192_CBC3_SHA        0x03000016
+# define SSL3_CK_DHE_RSA_DES_192_CBC3_SHA        SSL3_CK_EDH_RSA_DES_192_CBC3_SHA
 
 # define SSL3_CK_ADH_RC4_40_MD5                  0x03000017
 # define SSL3_CK_ADH_RC4_128_MD5                 0x03000018
@@ -220,6 +226,18 @@ extern "C" {
 # define SSL3_TXT_DH_RSA_DES_64_CBC_SHA          "DH-RSA-DES-CBC-SHA"
 # define SSL3_TXT_DH_RSA_DES_192_CBC3_SHA        "DH-RSA-DES-CBC3-SHA"
 
+# define SSL3_TXT_DHE_DSS_DES_40_CBC_SHA         "EXP-DHE-DSS-DES-CBC-SHA"
+# define SSL3_TXT_DHE_DSS_DES_64_CBC_SHA         "DHE-DSS-DES-CBC-SHA"
+# define SSL3_TXT_DHE_DSS_DES_192_CBC3_SHA       "DHE-DSS-DES-CBC3-SHA"
+# define SSL3_TXT_DHE_RSA_DES_40_CBC_SHA         "EXP-DHE-RSA-DES-CBC-SHA"
+# define SSL3_TXT_DHE_RSA_DES_64_CBC_SHA         "DHE-RSA-DES-CBC-SHA"
+# define SSL3_TXT_DHE_RSA_DES_192_CBC3_SHA       "DHE-RSA-DES-CBC3-SHA"
+
+/*
+ * This next block of six "EDH" labels is for backward compatibility with
+ * older versions of OpenSSL.  New code should use the six "DHE" labels above
+ * instead:
+ */
 # define SSL3_TXT_EDH_DSS_DES_40_CBC_SHA         "EXP-EDH-DSS-DES-CBC-SHA"
 # define SSL3_TXT_EDH_DSS_DES_64_CBC_SHA         "EDH-DSS-DES-CBC-SHA"
 # define SSL3_TXT_EDH_DSS_DES_192_CBC3_SHA       "EDH-DSS-DES-CBC3-SHA"
@@ -262,6 +280,8 @@ extern "C" {
 # define SSL3_RANDOM_SIZE                        32
 # define SSL3_SESSION_ID_SIZE                    32
 # define SSL3_RT_HEADER_LENGTH                   5
+
+# define SSL3_HM_HEADER_LENGTH                  4
 
 # ifndef SSL3_ALIGN_PAYLOAD
  /*
@@ -341,6 +361,23 @@ extern "C" {
 # define SSL3_RT_HANDSHAKE               22
 # define SSL3_RT_APPLICATION_DATA        23
 # define TLS1_RT_HEARTBEAT               24
+
+/* Pseudo content types to indicate additional parameters */
+# define TLS1_RT_CRYPTO                  0x1000
+# define TLS1_RT_CRYPTO_PREMASTER        (TLS1_RT_CRYPTO | 0x1)
+# define TLS1_RT_CRYPTO_CLIENT_RANDOM    (TLS1_RT_CRYPTO | 0x2)
+# define TLS1_RT_CRYPTO_SERVER_RANDOM    (TLS1_RT_CRYPTO | 0x3)
+# define TLS1_RT_CRYPTO_MASTER           (TLS1_RT_CRYPTO | 0x4)
+
+# define TLS1_RT_CRYPTO_READ             0x0000
+# define TLS1_RT_CRYPTO_WRITE            0x0100
+# define TLS1_RT_CRYPTO_MAC              (TLS1_RT_CRYPTO | 0x5)
+# define TLS1_RT_CRYPTO_KEY              (TLS1_RT_CRYPTO | 0x6)
+# define TLS1_RT_CRYPTO_IV               (TLS1_RT_CRYPTO | 0x7)
+# define TLS1_RT_CRYPTO_FIXED_IV         (TLS1_RT_CRYPTO | 0x8)
+
+/* Pseudo content type for SSL/TLS header info */
+# define SSL3_RT_HEADER                  0x100
 
 # define SSL3_AL_WARNING                 1
 # define SSL3_AL_FATAL                   2
@@ -436,14 +473,7 @@ typedef struct ssl3_buffer_st {
  */
 # define SSL3_FLAGS_CCS_OK                       0x0080
 
-/*
- * SSL3_FLAGS_SGC_RESTART_DONE is set when we restart a handshake because of
- * MS SGC and so prevents us from restarting the handshake in a loop. It's
- * reset on a renegotiation, so effectively limits the client to one restart
- * per negotiation. This limits the possibility of a DDoS attack where the
- * client handshakes in a loop using SGC to restart. Servers which permit
- * renegotiation can still be effected, but we can't prevent that.
- */
+/* SSL3_FLAGS_SGC_RESTART_DONE is no longer used */
 # define SSL3_FLAGS_SGC_RESTART_DONE             0x0040
 
 # ifndef OPENSSL_NO_SSL_INTERN
@@ -584,7 +614,20 @@ typedef struct ssl3_state_st {
      */
     char is_probably_safari;
 #   endif                       /* !OPENSSL_NO_EC */
-#  endif                        /* !OPENSSL_NO_TLSEXT */
+
+    /*
+     * ALPN information (we are in the process of transitioning from NPN to
+     * ALPN.)
+     */
+
+    /*
+     * In a server these point to the selected ALPN protocol after the
+     * ClientHello has been processed. In a client these contain the protocol
+     * that the server selected once the ServerHello has been processed.
+     */
+    unsigned char *alpn_selected;
+    unsigned alpn_selected_len;
+#  endif                        /* OPENSSL_NO_TLSEXT */
 } SSL3_STATE;
 
 # endif
@@ -654,6 +697,7 @@ typedef struct ssl3_state_st {
 # define SSL3_ST_SR_CLNT_HELLO_A         (0x110|SSL_ST_ACCEPT)
 # define SSL3_ST_SR_CLNT_HELLO_B         (0x111|SSL_ST_ACCEPT)
 # define SSL3_ST_SR_CLNT_HELLO_C         (0x112|SSL_ST_ACCEPT)
+# define SSL3_ST_SR_CLNT_HELLO_D         (0x115|SSL_ST_ACCEPT)
 /* write to client */
 # define DTLS1_ST_SW_HELLO_VERIFY_REQUEST_A (0x113|SSL_ST_ACCEPT)
 # define DTLS1_ST_SW_HELLO_VERIFY_REQUEST_B (0x114|SSL_ST_ACCEPT)

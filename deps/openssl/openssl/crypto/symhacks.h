@@ -166,7 +166,7 @@
 #  undef CRYPTO_get_locked_mem_ex_functions
 #  define CRYPTO_get_locked_mem_ex_functions      CRYPTO_get_locked_mem_ex_funcs
 
-/* Hack some long SSL names */
+/* Hack some long SSL/TLS names */
 #  undef SSL_CTX_set_default_verify_paths
 #  define SSL_CTX_set_default_verify_paths        SSL_CTX_set_def_verify_paths
 #  undef SSL_get_ex_data_X509_STORE_CTX_idx
@@ -183,6 +183,10 @@
 #  define SSL_CTX_set_default_passwd_cb_userdata  SSL_CTX_set_def_passwd_cb_ud
 #  undef SSL_COMP_get_compression_methods
 #  define SSL_COMP_get_compression_methods        SSL_COMP_get_compress_methods
+#  undef SSL_COMP_set0_compression_methods
+#  define SSL_COMP_set0_compression_methods       SSL_COMP_set0_compress_methods
+#  undef SSL_COMP_free_compression_methods
+#  define SSL_COMP_free_compression_methods       SSL_COMP_free_compress_methods
 #  undef ssl_add_clienthello_renegotiate_ext
 #  define ssl_add_clienthello_renegotiate_ext     ssl_add_clienthello_reneg_ext
 #  undef ssl_add_serverhello_renegotiate_ext
@@ -211,6 +215,16 @@
 #  define SSL_CTX_set_next_protos_advertised_cb   SSL_CTX_set_next_protos_adv_cb
 #  undef SSL_CTX_set_next_proto_select_cb
 #  define SSL_CTX_set_next_proto_select_cb        SSL_CTX_set_next_proto_sel_cb
+
+#  undef tls1_send_server_supplemental_data
+#  define tls1_send_server_supplemental_data      tls1_send_server_suppl_data
+#  undef tls1_send_client_supplemental_data
+#  define tls1_send_client_supplemental_data      tls1_send_client_suppl_data
+#  undef tls1_get_server_supplemental_data
+#  define tls1_get_server_supplemental_data       tls1_get_server_suppl_data
+#  undef tls1_get_client_supplemental_data
+#  define tls1_get_client_supplemental_data       tls1_get_client_suppl_data
+
 #  undef ssl3_cbc_record_digest_supported
 #  define ssl3_cbc_record_digest_supported        ssl3_cbc_record_digest_support
 #  undef ssl_check_clienthello_tlsext_late
@@ -218,7 +232,11 @@
 #  undef ssl_check_clienthello_tlsext_early
 #  define ssl_check_clienthello_tlsext_early      ssl_check_clihello_tlsext_early
 
-/* Hack some long ENGINE names */
+/* Hack some RSA long names */
+#  undef RSA_padding_check_PKCS1_OAEP_mgf1
+#  define RSA_padding_check_PKCS1_OAEP_mgf1       RSA_pad_check_PKCS1_OAEP_mgf1
+
+/* Hack some ENGINE long names */
 #  undef ENGINE_get_default_BN_mod_exp_crt
 #  define ENGINE_get_default_BN_mod_exp_crt       ENGINE_get_def_BN_mod_exp_crt
 #  undef ENGINE_set_default_BN_mod_exp_crt
@@ -427,6 +445,18 @@
 #  define CMS_OriginatorIdentifierOrKey_it        CMS_OriginatorIdOrKey_it
 #  undef cms_SignerIdentifier_get0_signer_id
 #  define cms_SignerIdentifier_get0_signer_id     cms_SignerId_get0_signer_id
+#  undef CMS_RecipientInfo_kari_get0_orig_id
+#  define CMS_RecipientInfo_kari_get0_orig_id     CMS_RecipInfo_kari_get0_orig_id
+#  undef CMS_RecipientInfo_kari_get0_reks
+#  define CMS_RecipientInfo_kari_get0_reks        CMS_RecipInfo_kari_get0_reks
+#  undef CMS_RecipientEncryptedKey_cert_cmp
+#  define CMS_RecipientEncryptedKey_cert_cmp      CMS_RecipEncryptedKey_cert_cmp
+#  undef CMS_RecipientInfo_kari_set0_pkey
+#  define CMS_RecipientInfo_kari_set0_pkey        CMS_RecipInfo_kari_set0_pkey
+#  undef CMS_RecipientEncryptedKey_get0_id
+#  define CMS_RecipientEncryptedKey_get0_id       CMS_RecipEncryptedKey_get0_id
+#  undef CMS_RecipientInfo_kari_orig_id_cmp
+#  define CMS_RecipientInfo_kari_orig_id_cmp      CMS_RecipInfo_kari_orig_id_cmp
 
 /* Hack some long DTLS1 names */
 #  undef dtls1_retransmit_buffered_messages

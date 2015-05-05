@@ -36,5 +36,5 @@ server.listen(common.PORT, '127.0.0.1', function() {
 });
 
 server.once('clientError', common.mustCall(function(err, conn) {
-  assert(/SSL3_GET_CLIENT_HELLO:wrong version number/.test(err.message));
+  assert(/:wrong version number/.test(err.message));
 }));

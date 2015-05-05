@@ -1,73 +1,137 @@
-var mkdir = require('mkdirp')
 var assert = require('assert')
-var git = require('../utils/git.js')
+var crypto = require('crypto')
 var fs = require('graceful-fs')
-var log = require('npmlog')
 var path = require('path')
 var url = require('url')
+
 var chownr = require('chownr')
-var crypto = require('crypto')
+var dezalgo = require('dezalgo')
+var hostedFromURL = require('hosted-git-info').fromUrl
+var inflight = require('inflight')
+var log = require('npmlog')
+var mkdir = require('mkdirp')
+var normalizeGitUrl = require('normalize-git-url')
+var npa = require('npm-package-arg')
+var realizePackageSpecifier = require('realize-package-specifier')
+
+var addLocal = require('./add-local.js')
+var getCacheStat = require('./get-stat.js')
+var git = require('../utils/git.js')
 var npm = require('../npm.js')
 var rm = require('../utils/gently-rm.js')
-var inflight = require('inflight')
-var getCacheStat = require('./get-stat.js')
-var addLocal = require('./add-local.js')
-var realizePackageSpecifier = require('realize-package-specifier')
-var normalizeGitUrl = require('normalize-git-url')
-var randomBytes = require('crypto').pseudoRandomBytes // only need uniqueness
 
 var remotes = path.resolve(npm.config.get('cache'), '_git-remotes')
 var templates = path.join(remotes, '_templates')
 
 var VALID_VARIABLES = [
-  'GIT_SSH',
-  'GIT_SSL_NO_VERIFY',
+  'GIT_ASKPASS',
   'GIT_PROXY_COMMAND',
-  'GIT_SSL_CAINFO'
+  'GIT_SSH',
+  'GIT_SSL_CAINFO',
+  'GIT_SSL_NO_VERIFY'
 ]
 
-module.exports = function addRemoteGit (uri, silent, cb) {
+module.exports = addRemoteGit
+function addRemoteGit (uri, _cb) {
   assert(typeof uri === 'string', 'must have git URL')
-  assert(typeof cb === 'function', 'must have callback')
+  assert(typeof _cb === 'function', 'must have callback')
+  var cb = dezalgo(_cb)
 
-  // reconstruct the URL as it was passed in – realizePackageSpecifier
-  // strips off `git+` and `maybeGithub` doesn't include it.
-  var originalURL
-  if (!/^git[+:]/.test(uri)) {
-    originalURL = 'git+' + uri
+  log.verbose('addRemoteGit', 'caching', uri)
+
+  // the URL comes in exactly as it was passed on the command line, or as
+  // normalized by normalize-package-data / read-package-json / read-installed,
+  // so figure out what to do with it using hosted-git-info
+  var parsed = hostedFromURL(uri)
+  if (parsed) {
+    // normalize GitHub syntax to org/repo (for now)
+    var from
+    if (parsed.type === 'github' && parsed.default === 'shortcut') {
+      from = parsed.path()
+    } else {
+      from = parsed.toString()
+    }
+
+    log.verbose('addRemoteGit', from, 'is a repository hosted by', parsed.type)
+
+    // prefer explicit URLs to pushing everything through shortcuts
+    if (parsed.default !== 'shortcut') {
+      return tryClone(from, parsed.toString(), false, cb)
+    }
+
+    // try git:, then git+ssh:, then git+https: before failing
+    tryGitProto(from, parsed, cb)
   } else {
-    originalURL = uri
+    // verify that this is a Git URL before continuing
+    parsed = npa(uri)
+    if (parsed.type !== 'git') {
+      return cb(new Error(uri + 'is not a Git or GitHub URL'))
+    }
+
+    tryClone(parsed.rawSpec, uri, false, cb)
+  }
+}
+
+function tryGitProto (from, hostedInfo, cb) {
+  var gitURL = hostedInfo.git()
+  if (!gitURL) return trySSH(from, hostedInfo, cb)
+
+  log.silly('tryGitProto', 'attempting to clone', gitURL)
+  tryClone(from, gitURL, true, function (er) {
+    if (er) return tryHTTPS(from, hostedInfo, cb)
+
+    cb.apply(this, arguments)
+  })
+}
+
+function tryHTTPS (from, hostedInfo, cb) {
+  var httpsURL = hostedInfo.https()
+  if (!httpsURL) {
+    return cb(new Error(from + ' can not be cloned via Git, SSH, or HTTPS'))
   }
 
-  // break apart the origin URL and the branch / tag / commitish
-  var normalized = normalizeGitUrl(uri)
-  var gitURL = normalized.url
+  log.silly('tryHTTPS', 'attempting to clone', httpsURL)
+  tryClone(from, httpsURL, true, function (er) {
+    if (er) return trySSH(from, hostedInfo, cb)
+
+    cb.apply(this, arguments)
+  })
+}
+
+function trySSH (from, hostedInfo, cb) {
+  var sshURL = hostedInfo.ssh()
+  if (!sshURL) return tryHTTPS(from, hostedInfo, cb)
+
+  log.silly('trySSH', 'attempting to clone', sshURL)
+  tryClone(from, sshURL, false, cb)
+}
+
+function tryClone (from, combinedURL, silent, cb) {
+  log.silly('tryClone', 'cloning', from, 'via', combinedURL)
+
+  var normalized = normalizeGitUrl(combinedURL)
+  var cloneURL = normalized.url
   var treeish = normalized.branch
 
   // ensure that similarly-named remotes don't collide
-  var repoID = gitURL.replace(/[^a-zA-Z0-9]+/g, '-') + '-' +
-    crypto.createHash('sha1').update(gitURL).digest('hex').slice(0, 8)
+  var repoID = cloneURL.replace(/[^a-zA-Z0-9]+/g, '-') + '-' +
+    crypto.createHash('sha1').update(cloneURL).digest('hex').slice(0, 8)
   var cachedRemote = path.join(remotes, repoID)
-
-  // set later, as the callback flow proceeds
-  var resolvedURL
-  var resolvedTreeish
-  var tmpdir
 
   cb = inflight(repoID, cb)
   if (!cb) {
-    return log.verbose('addRemoteGit', repoID, 'already in flight; waiting')
+    return log.verbose('tryClone', repoID, 'already in flight; waiting')
   }
-  log.verbose('addRemoteGit', repoID, 'not in flight; caching')
+  log.verbose('tryClone', repoID, 'not in flight; caching')
 
   // initialize the remotes cache with the correct perms
   getGitDir(function (er) {
     if (er) return cb(er)
     fs.stat(cachedRemote, function (er, s) {
-      if (er) return mirrorRemote(finish)
-      if (!s.isDirectory()) return resetRemote(finish)
+      if (er) return mirrorRemote(from, cloneURL, treeish, cachedRemote, silent, finish)
+      if (!s.isDirectory()) return resetRemote(from, cloneURL, treeish, cachedRemote, finish)
 
-      validateExistingRemote(finish)
+      validateExistingRemote(from, cloneURL, treeish, cachedRemote, finish)
     })
 
     // always set permissions on the cached remote
@@ -78,235 +142,240 @@ module.exports = function addRemoteGit (uri, silent, cb) {
       })
     }
   })
+}
 
-  // don't try too hard to hold on to a remote
-  function resetRemote (cb) {
-    log.info('addRemoteGit', 'resetting', cachedRemote)
-    rm(cachedRemote, function (er) {
-      if (er) return cb(er)
-      mirrorRemote(cb)
-    })
-  }
+// don't try too hard to hold on to a remote
+function resetRemote (from, cloneURL, treeish, cachedRemote, cb) {
+  log.info('resetRemote', 'resetting', cachedRemote, 'for', from)
+  rm(cachedRemote, function (er) {
+    if (er) return cb(er)
+    mirrorRemote(from, cloneURL, treeish, cachedRemote, false, cb)
+  })
+}
 
-  // reuse a cached remote when possible, but nuke it if it's in an
-  // inconsistent state
-  function validateExistingRemote (cb) {
-    git.whichAndExec(
-      ['config', '--get', 'remote.origin.url'],
-      { cwd: cachedRemote, env: gitEnv() },
-      function (er, stdout, stderr) {
-        var originURL
-        if (stdout) {
-          originURL = stdout.trim()
-          log.verbose('addRemoteGit', 'remote.origin.url:', originURL)
-        }
-
-        if (stderr) stderr = stderr.trim()
-        if (stderr || er) {
-          log.warn('addRemoteGit', 'resetting remote', cachedRemote, 'because of error:', stderr || er)
-          return resetRemote(cb)
-        } else if (gitURL !== originURL) {
-          log.warn(
-            'addRemoteGit',
-            'pre-existing cached repo', cachedRemote, 'points to', originURL, 'and not', gitURL
-          )
-          return resetRemote(cb)
-        }
-
-        log.verbose('addRemoteGit', 'updating existing cached remote', cachedRemote)
-        updateRemote(cb)
+// reuse a cached remote when possible, but nuke it if it's in an
+// inconsistent state
+function validateExistingRemote (from, cloneURL, treeish, cachedRemote, cb) {
+  git.whichAndExec(
+    ['config', '--get', 'remote.origin.url'],
+    { cwd: cachedRemote, env: gitEnv() },
+    function (er, stdout, stderr) {
+      var originURL
+      if (stdout) {
+        originURL = stdout.trim()
+        log.silly('validateExistingRemote', from, 'remote.origin.url:', originURL)
       }
-    )
-  }
 
-  // make a complete bare mirror of the remote repo
-  // NOTE: npm uses a blank template directory to prevent weird inconsistencies
-  // https://github.com/npm/npm/issues/5867
-  function mirrorRemote (cb) {
-    mkdir(cachedRemote, function (er) {
-      if (er) return cb(er)
+      if (stderr) stderr = stderr.trim()
+      if (stderr || er) {
+        log.warn('addRemoteGit', from, 'resetting remote', cachedRemote, 'because of error:', stderr || er)
+        return resetRemote(from, cloneURL, treeish, cachedRemote, cb)
+      } else if (cloneURL !== originURL) {
+        log.warn(
+          'addRemoteGit',
+          from,
+          'pre-existing cached repo', cachedRemote, 'points to', originURL, 'and not', cloneURL
+        )
+        return resetRemote(from, cloneURL, treeish, cachedRemote, cb)
+      }
 
-      var args = [
-        'clone',
-        '--template=' + templates,
-        '--mirror',
-        gitURL, cachedRemote
-      ]
-      git.whichAndExec(
-        ['clone', '--template=' + templates, '--mirror', gitURL, cachedRemote],
-        { cwd: cachedRemote, env: gitEnv() },
-        function (er, stdout, stderr) {
-          if (er) {
-            var combined = (stdout + '\n' + stderr).trim()
-            var command = 'git ' + args.join(' ') + ':'
-            if (silent) {
-              log.verbose(command, combined)
-            } else {
-              log.error(command, combined)
-            }
-            return cb(er)
-          }
-          log.verbose('addRemoteGit', 'git clone ' + gitURL, stdout.trim())
-          setPermissions(cb)
-        }
-      )
-    })
-  }
-
-  function setPermissions (cb) {
-    if (process.platform === 'win32') {
-      log.verbose('addRemoteGit', 'skipping chownr on Windows')
-      resolveHead(cb)
-    } else {
-      getGitDir(function (er, cs) {
-        if (er) {
-          log.error('addRemoteGit', 'could not get cache stat')
-          return cb(er)
-        }
-
-        chownr(cachedRemote, cs.uid, cs.gid, function (er) {
-          if (er) {
-            log.error(
-              'addRemoteGit',
-              'Failed to change folder ownership under npm cache for',
-              cachedRemote
-            )
-            return cb(er)
-          }
-
-          log.verbose('addRemoteGit', 'set permissions on', cachedRemote)
-          resolveHead(cb)
-        })
-      })
+      log.verbose('validateExistingRemote', from, 'is updating existing cached remote', cachedRemote)
+      updateRemote(from, cloneURL, treeish, cachedRemote, cb)
     }
-  }
+  )
+}
 
-  // always fetch the origin, even right after mirroring, because this way
-  // permissions will get set correctly
-  function updateRemote (cb) {
+// make a complete bare mirror of the remote repo
+// NOTE: npm uses a blank template directory to prevent weird inconsistencies
+// https://github.com/npm/npm/issues/5867
+function mirrorRemote (from, cloneURL, treeish, cachedRemote, silent, cb) {
+  mkdir(cachedRemote, function (er) {
+    if (er) return cb(er)
+
+    var args = [
+      'clone',
+      '--template=' + templates,
+      '--mirror',
+      cloneURL, cachedRemote
+    ]
     git.whichAndExec(
-      ['fetch', '-a', 'origin'],
+      ['clone', '--template=' + templates, '--mirror', cloneURL, cachedRemote],
       { cwd: cachedRemote, env: gitEnv() },
       function (er, stdout, stderr) {
         if (er) {
           var combined = (stdout + '\n' + stderr).trim()
-          log.error('git fetch -a origin (' + gitURL + ')', combined)
-          return cb(er)
-        }
-        log.verbose('addRemoteGit', 'git fetch -a origin (' + gitURL + ')', stdout.trim())
-
-        setPermissions(cb)
-      }
-    )
-  }
-
-  // branches and tags are both symbolic labels that can be attached to different
-  // commits, so resolve the commitish to the current actual treeish the label
-  // corresponds to
-  //
-  // important for shrinkwrap
-  function resolveHead (cb) {
-    log.verbose('addRemoteGit', 'original treeish:', treeish)
-    var args = ['rev-list', '-n1', treeish]
-    git.whichAndExec(
-      args,
-      { cwd: cachedRemote, env: gitEnv() },
-      function (er, stdout, stderr) {
-        if (er) {
-          log.error('git ' + args.join(' ') + ':', stderr)
-          return cb(er)
-        }
-
-        resolvedTreeish = stdout.trim()
-        log.silly('addRemoteGit', 'resolved treeish:', resolvedTreeish)
-
-        resolvedURL = getResolved(originalURL, resolvedTreeish)
-        log.verbose('addRemoteGit', 'resolved Git URL:', resolvedURL)
-
-        // generate a unique filename
-        tmpdir = path.join(
-          npm.tmp,
-          'git-cache-' + randomBytes(6).toString('hex'),
-          resolvedTreeish
-        )
-        log.silly('addRemoteGit', 'Git working directory:', tmpdir)
-
-        mkdir(tmpdir, function (er) {
-          if (er) return cb(er)
-
-          cloneResolved(cb)
-        })
-      }
-    )
-  }
-
-  // make a clone from the mirrored cache so we have a temporary directory in
-  // which we can check out the resolved treeish
-  function cloneResolved (cb) {
-    var args = ['clone', cachedRemote, tmpdir]
-    git.whichAndExec(
-      args,
-      { cwd: cachedRemote, env: gitEnv() },
-      function (er, stdout, stderr) {
-        stdout = (stdout + '\n' + stderr).trim()
-        if (er) {
-          log.error('git ' + args.join(' ') + ':', stderr)
-          return cb(er)
-        }
-        log.verbose('addRemoteGit', 'clone', stdout)
-
-        checkoutTreeish(cb)
-      }
-    )
-  }
-
-  // there is no safe way to do a one-step clone to a treeish that isn't
-  // guaranteed to be a branch, so explicitly check out the treeish once it's
-  // cloned
-  function checkoutTreeish (cb) {
-    var args = ['checkout', resolvedTreeish]
-    git.whichAndExec(
-      args,
-      { cwd: tmpdir, env: gitEnv() },
-      function (er, stdout, stderr) {
-        stdout = (stdout + '\n' + stderr).trim()
-        if (er) {
-          log.error('git ' + args.join(' ') + ':', stderr)
-          return cb(er)
-        }
-        log.verbose('addRemoteGit', 'checkout', stdout)
-
-        // convince addLocal that the checkout is a local dependency
-        realizePackageSpecifier(tmpdir, function (er, spec) {
-          if (er) {
-            log.error('addRemoteGit', 'Failed to map', tmpdir, 'to a package specifier')
-            return cb(er)
+          var command = 'git ' + args.join(' ') + ':'
+          if (silent) {
+            log.verbose(command, combined)
+          } else {
+            log.error(command, combined)
           }
+          return cb(er)
+        }
+        log.verbose('mirrorRemote', from, 'git clone ' + cloneURL, stdout.trim())
+        setPermissions(from, cloneURL, treeish, cachedRemote, cb)
+      }
+    )
+  })
+}
 
-          // ensure pack logic is applied
-          // https://github.com/npm/npm/issues/6400
-          addLocal(spec, null, function (er, data) {
-            if (data) {
-              log.verbose('addRemoteGit', 'data._resolved:', resolvedURL)
-              data._resolved = resolvedURL
+function setPermissions (from, cloneURL, treeish, cachedRemote, cb) {
+  if (process.platform === 'win32') {
+    log.verbose('setPermissions', from, 'skipping chownr on Windows')
+    resolveHead(from, cloneURL, treeish, cachedRemote, cb)
+  } else {
+    getGitDir(function (er, cs) {
+      if (er) {
+        log.error('setPermissions', from, 'could not get cache stat')
+        return cb(er)
+      }
 
-              // the spec passed to addLocal is not what the user originally requested,
-              // so remap
-              // https://github.com/npm/npm/issues/7121
-              if (!data._fromGitHub) {
-                log.silly('addRemoteGit', 'data._from:', originalURL)
-                data._from = originalURL
-              } else {
-                log.silly('addRemoteGit', 'data._from:', data._from, '(GitHub)')
-              }
+      chownr(cachedRemote, cs.uid, cs.gid, function (er) {
+        if (er) {
+          log.error(
+            'setPermissions',
+            'Failed to change git repository ownership under npm cache for',
+            cachedRemote
+          )
+          return cb(er)
+        }
+
+        log.verbose('setPermissions', from, 'set permissions on', cachedRemote)
+        resolveHead(from, cloneURL, treeish, cachedRemote, cb)
+      })
+    })
+  }
+}
+
+// always fetch the origin, even right after mirroring, because this way
+// permissions will get set correctly
+function updateRemote (from, cloneURL, treeish, cachedRemote, cb) {
+  git.whichAndExec(
+    ['fetch', '-a', 'origin'],
+    { cwd: cachedRemote, env: gitEnv() },
+    function (er, stdout, stderr) {
+      if (er) {
+        var combined = (stdout + '\n' + stderr).trim()
+        log.error('git fetch -a origin (' + cloneURL + ')', combined)
+        return cb(er)
+      }
+      log.verbose('updateRemote', 'git fetch -a origin (' + cloneURL + ')', stdout.trim())
+
+      setPermissions(from, cloneURL, treeish, cachedRemote, cb)
+    }
+  )
+}
+
+// branches and tags are both symbolic labels that can be attached to different
+// commits, so resolve the commitish to the current actual treeish the label
+// corresponds to
+//
+// important for shrinkwrap
+function resolveHead (from, cloneURL, treeish, cachedRemote, cb) {
+  log.verbose('resolveHead', from, 'original treeish:', treeish)
+  var args = ['rev-list', '-n1', treeish]
+  git.whichAndExec(
+    args,
+    { cwd: cachedRemote, env: gitEnv() },
+    function (er, stdout, stderr) {
+      if (er) {
+        log.error('git ' + args.join(' ') + ':', stderr)
+        return cb(er)
+      }
+
+      var resolvedTreeish = stdout.trim()
+      log.silly('resolveHead', from, 'resolved treeish:', resolvedTreeish)
+
+      var resolvedURL = getResolved(cloneURL, resolvedTreeish)
+      if (!resolvedURL) {
+        return cb(new Error(
+          'unable to clone ' + from + ' because git clone string ' +
+            cloneURL + ' is in a form npm can\'t handle'
+        ))
+      }
+      log.verbose('resolveHead', from, 'resolved Git URL:', resolvedURL)
+
+      // generate a unique filename
+      var tmpdir = path.join(
+        npm.tmp,
+        'git-cache-' + crypto.pseudoRandomBytes(6).toString('hex'),
+        resolvedTreeish
+      )
+      log.silly('resolveHead', 'Git working directory:', tmpdir)
+
+      mkdir(tmpdir, function (er) {
+        if (er) return cb(er)
+
+        cloneResolved(from, resolvedURL, resolvedTreeish, cachedRemote, tmpdir, cb)
+      })
+    }
+  )
+}
+
+// make a clone from the mirrored cache so we have a temporary directory in
+// which we can check out the resolved treeish
+function cloneResolved (from, resolvedURL, resolvedTreeish, cachedRemote, tmpdir, cb) {
+  var args = ['clone', cachedRemote, tmpdir]
+  git.whichAndExec(
+    args,
+    { cwd: cachedRemote, env: gitEnv() },
+    function (er, stdout, stderr) {
+      stdout = (stdout + '\n' + stderr).trim()
+      if (er) {
+        log.error('git ' + args.join(' ') + ':', stderr)
+        return cb(er)
+      }
+      log.verbose('cloneResolved', from, 'clone', stdout)
+
+      checkoutTreeish(from, resolvedURL, resolvedTreeish, tmpdir, cb)
+    }
+  )
+}
+
+// there is no safe way to do a one-step clone to a treeish that isn't
+// guaranteed to be a branch, so explicitly check out the treeish once it's
+// cloned
+function checkoutTreeish (from, resolvedURL, resolvedTreeish, tmpdir, cb) {
+  var args = ['checkout', resolvedTreeish]
+  git.whichAndExec(
+    args,
+    { cwd: tmpdir, env: gitEnv() },
+    function (er, stdout, stderr) {
+      stdout = (stdout + '\n' + stderr).trim()
+      if (er) {
+        log.error('git ' + args.join(' ') + ':', stderr)
+        return cb(er)
+      }
+      log.verbose('checkoutTreeish', from, 'checkout', stdout)
+
+      // convince addLocal that the checkout is a local dependency
+      realizePackageSpecifier(tmpdir, function (er, spec) {
+        if (er) {
+          log.error('addRemoteGit', 'Failed to map', tmpdir, 'to a package specifier')
+          return cb(er)
+        }
+
+        // ensure pack logic is applied
+        // https://github.com/npm/npm/issues/6400
+        addLocal(spec, null, function (er, data) {
+          if (data) {
+            if (npm.config.get('save-exact')) {
+              log.verbose('addRemoteGit', 'data._from:', resolvedURL, '(save-exact)')
+              data._from = resolvedURL
+            } else {
+              log.verbose('addRemoteGit', 'data._from:', from)
+              data._from = from
             }
 
-            cb(er, data)
-          })
+            log.verbose('addRemoteGit', 'data._resolved:', resolvedURL)
+            data._resolved = resolvedURL
+          }
+
+          cb(er, data)
         })
-      }
-    )
-  }
+      })
+    }
+  )
 }
 
 function getGitDir (cb) {
@@ -336,7 +405,12 @@ function gitEnv () {
   // git responds to env vars in some weird ways in post-receive hooks
   // so don't carry those along.
   if (gitEnv_) return gitEnv_
-  gitEnv_ = {}
+
+  // allow users to override npm's insistence on not prompting for
+  // passphrases, but default to just failing when credentials
+  // aren't available
+  gitEnv_ = { GIT_ASKPASS: 'echo' }
+
   for (var k in process.env) {
     if (!~VALID_VARIABLES.indexOf(k) && k.match(/^GIT/)) continue
     gitEnv_[k] = process.env[k]
@@ -344,19 +418,31 @@ function gitEnv () {
   return gitEnv_
 }
 
+addRemoteGit.getResolved = getResolved
 function getResolved (uri, treeish) {
+  // normalize hosted-git-info clone URLs back into regular URLs
+  // this will only work on URLs that hosted-git-info recognizes
+  // https://github.com/npm/npm/issues/7961
+  var rehydrated = hostedFromURL(uri)
+  if (rehydrated) uri = rehydrated.toString()
+
   var parsed = url.parse(uri)
+
+  // non-hosted SSH strings that are not URLs (git@whatever.com:foo.git) are
+  // no bueno
+  // https://github.com/npm/npm/issues/7961
+  if (!parsed.protocol) return
+
   parsed.hash = treeish
   if (!/^git[+:]/.test(parsed.protocol)) {
     parsed.protocol = 'git+' + parsed.protocol
   }
-  var resolved = url.format(parsed)
 
   // node incorrectly sticks a / at the start of the path We know that the host
   // won't change, so split and detect this
   // https://github.com/npm/npm/issues/3224
   var spo = uri.split(parsed.host)
-  var spr = resolved.split(parsed.host)
+  var spr = url.format(parsed).split(parsed.host)
   if (spo[1] && spo[1].charAt(0) === ':' && spr[1] && spr[1].charAt(0) === '/') {
     spr[1] = spr[1].slice(1)
   }

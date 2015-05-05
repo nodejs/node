@@ -272,8 +272,8 @@ static int test_dtls1_not_bleeding()
 {
     SETUP_HEARTBEAT_TEST_FIXTURE(dtls);
     /* Three-byte pad at the beginning for type and payload length */
-    unsigned char payload_buf[] = "   Not bleeding, sixteen spaces of padding"
-        "                ";
+    unsigned char payload_buf[MAX_PRINTABLE_CHARACTERS + 4] =
+        "   Not bleeding, sixteen spaces of padding" "                ";
     const int payload_buf_len = honest_payload_size(payload_buf);
 
     fixture.payload = &payload_buf[0];
@@ -294,9 +294,9 @@ static int test_dtls1_not_bleeding_empty_payload()
      * Three-byte pad at the beginning for type and payload length, plus a
      * NUL at the end
      */
-    unsigned char payload_buf[4 + MIN_PADDING_SIZE];
-    memset(payload_buf, ' ', sizeof(payload_buf));
-    payload_buf[sizeof(payload_buf) - 1] = '\0';
+    unsigned char payload_buf[4 + MAX_PRINTABLE_CHARACTERS];
+    memset(payload_buf, ' ', MIN_PADDING_SIZE + 3);
+    payload_buf[MIN_PADDING_SIZE + 3] = '\0';
     payload_buf_len = honest_payload_size(payload_buf);
 
     fixture.payload = &payload_buf[0];
@@ -311,7 +311,8 @@ static int test_dtls1_heartbleed()
 {
     SETUP_HEARTBEAT_TEST_FIXTURE(dtls);
     /* Three-byte pad at the beginning for type and payload length */
-    unsigned char payload_buf[] = "   HEARTBLEED                ";
+    unsigned char payload_buf[4 + MAX_PRINTABLE_CHARACTERS] =
+        "   HEARTBLEED                ";
 
     fixture.payload = &payload_buf[0];
     fixture.sent_payload_len = MAX_PRINTABLE_CHARACTERS;
@@ -328,9 +329,9 @@ static int test_dtls1_heartbleed_empty_payload()
      * Excluding the NUL at the end, one byte short of type + payload length
      * + minimum padding
      */
-    unsigned char payload_buf[MIN_PADDING_SIZE + 3];
-    memset(payload_buf, ' ', sizeof(payload_buf));
-    payload_buf[sizeof(payload_buf) - 1] = '\0';
+    unsigned char payload_buf[MAX_PRINTABLE_CHARACTERS + 4];
+    memset(payload_buf, ' ', MIN_PADDING_SIZE + 2);
+    payload_buf[MIN_PADDING_SIZE + 2] = '\0';
 
     fixture.payload = &payload_buf[0];
     fixture.sent_payload_len = MAX_PRINTABLE_CHARACTERS;
@@ -363,8 +364,8 @@ static int test_tls1_not_bleeding()
 {
     SETUP_HEARTBEAT_TEST_FIXTURE(tls);
     /* Three-byte pad at the beginning for type and payload length */
-    unsigned char payload_buf[] = "   Not bleeding, sixteen spaces of padding"
-        "                ";
+    unsigned char payload_buf[MAX_PRINTABLE_CHARACTERS + 4] =
+        "   Not bleeding, sixteen spaces of padding" "                ";
     const int payload_buf_len = honest_payload_size(payload_buf);
 
     fixture.payload = &payload_buf[0];
@@ -385,9 +386,9 @@ static int test_tls1_not_bleeding_empty_payload()
      * Three-byte pad at the beginning for type and payload length, plus a
      * NUL at the end
      */
-    unsigned char payload_buf[4 + MIN_PADDING_SIZE];
-    memset(payload_buf, ' ', sizeof(payload_buf));
-    payload_buf[sizeof(payload_buf) - 1] = '\0';
+    unsigned char payload_buf[4 + MAX_PRINTABLE_CHARACTERS];
+    memset(payload_buf, ' ', MIN_PADDING_SIZE + 3);
+    payload_buf[MIN_PADDING_SIZE + 3] = '\0';
     payload_buf_len = honest_payload_size(payload_buf);
 
     fixture.payload = &payload_buf[0];
@@ -402,7 +403,8 @@ static int test_tls1_heartbleed()
 {
     SETUP_HEARTBEAT_TEST_FIXTURE(tls);
     /* Three-byte pad at the beginning for type and payload length */
-    unsigned char payload_buf[] = "   HEARTBLEED                ";
+    unsigned char payload_buf[MAX_PRINTABLE_CHARACTERS + 4] =
+        "   HEARTBLEED                ";
 
     fixture.payload = &payload_buf[0];
     fixture.sent_payload_len = MAX_PRINTABLE_CHARACTERS;
@@ -419,9 +421,9 @@ static int test_tls1_heartbleed_empty_payload()
      * Excluding the NUL at the end, one byte short of type + payload length
      * + minimum padding
      */
-    unsigned char payload_buf[MIN_PADDING_SIZE + 3];
-    memset(payload_buf, ' ', sizeof(payload_buf));
-    payload_buf[sizeof(payload_buf) - 1] = '\0';
+    unsigned char payload_buf[MAX_PRINTABLE_CHARACTERS + 4];
+    memset(payload_buf, ' ', MIN_PADDING_SIZE + 2);
+    payload_buf[MIN_PADDING_SIZE + 2] = '\0';
 
     fixture.payload = &payload_buf[0];
     fixture.sent_payload_len = MAX_PRINTABLE_CHARACTERS;

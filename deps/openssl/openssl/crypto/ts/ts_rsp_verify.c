@@ -637,7 +637,7 @@ static int TS_compute_imprint(BIO *data, TS_TST_INFO *tst_info,
     X509_ALGOR_free(*md_alg);
     OPENSSL_free(*imprint);
     *imprint_len = 0;
-    *imprint = NULL;
+    *imprint = 0;
     return 0;
 }
 

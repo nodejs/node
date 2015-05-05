@@ -262,12 +262,30 @@ struct rsa_st {
                                 EVP_PKEY_CTRL_RSA_KEYGEN_PUBEXP, 0, pubexp)
 
 # define  EVP_PKEY_CTX_set_rsa_mgf1_md(ctx, md)  \
-                EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_RSA, EVP_PKEY_OP_TYPE_SIG,  \
+                EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_RSA, \
+                        EVP_PKEY_OP_TYPE_SIG | EVP_PKEY_OP_TYPE_CRYPT, \
                                 EVP_PKEY_CTRL_RSA_MGF1_MD, 0, (void *)md)
 
+# define  EVP_PKEY_CTX_set_rsa_oaep_md(ctx, md)  \
+                EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_RSA, EVP_PKEY_OP_TYPE_CRYPT,  \
+                                EVP_PKEY_CTRL_RSA_OAEP_MD, 0, (void *)md)
+
 # define  EVP_PKEY_CTX_get_rsa_mgf1_md(ctx, pmd) \
-                EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_RSA, EVP_PKEY_OP_TYPE_SIG,  \
+                EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_RSA, \
+                        EVP_PKEY_OP_TYPE_SIG | EVP_PKEY_OP_TYPE_CRYPT, \
                                 EVP_PKEY_CTRL_GET_RSA_MGF1_MD, 0, (void *)pmd)
+
+# define  EVP_PKEY_CTX_get_rsa_oaep_md(ctx, pmd) \
+                EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_RSA, EVP_PKEY_OP_TYPE_CRYPT,  \
+                                EVP_PKEY_CTRL_GET_RSA_OAEP_MD, 0, (void *)pmd)
+
+# define  EVP_PKEY_CTX_set0_rsa_oaep_label(ctx, l, llen) \
+                EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_RSA, EVP_PKEY_OP_TYPE_CRYPT,  \
+                                EVP_PKEY_CTRL_RSA_OAEP_LABEL, llen, (void *)l)
+
+# define  EVP_PKEY_CTX_get0_rsa_oaep_label(ctx, l)       \
+                EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_RSA, EVP_PKEY_OP_TYPE_CRYPT,  \
+                                EVP_PKEY_CTRL_GET_RSA_OAEP_LABEL, 0, (void *)l)
 
 # define EVP_PKEY_CTRL_RSA_PADDING       (EVP_PKEY_ALG_CTRL + 1)
 # define EVP_PKEY_CTRL_RSA_PSS_SALTLEN   (EVP_PKEY_ALG_CTRL + 2)
@@ -279,6 +297,12 @@ struct rsa_st {
 # define EVP_PKEY_CTRL_GET_RSA_PADDING           (EVP_PKEY_ALG_CTRL + 6)
 # define EVP_PKEY_CTRL_GET_RSA_PSS_SALTLEN       (EVP_PKEY_ALG_CTRL + 7)
 # define EVP_PKEY_CTRL_GET_RSA_MGF1_MD           (EVP_PKEY_ALG_CTRL + 8)
+
+# define EVP_PKEY_CTRL_RSA_OAEP_MD       (EVP_PKEY_ALG_CTRL + 9)
+# define EVP_PKEY_CTRL_RSA_OAEP_LABEL    (EVP_PKEY_ALG_CTRL + 10)
+
+# define EVP_PKEY_CTRL_GET_RSA_OAEP_MD   (EVP_PKEY_ALG_CTRL + 11)
+# define EVP_PKEY_CTRL_GET_RSA_OAEP_LABEL (EVP_PKEY_ALG_CTRL + 12)
 
 # define RSA_PKCS1_PADDING       1
 # define RSA_SSLV23_PADDING      2
@@ -347,6 +371,14 @@ typedef struct rsa_pss_params_st {
 
 DECLARE_ASN1_FUNCTIONS(RSA_PSS_PARAMS)
 
+typedef struct rsa_oaep_params_st {
+    X509_ALGOR *hashFunc;
+    X509_ALGOR *maskGenFunc;
+    X509_ALGOR *pSourceFunc;
+} RSA_OAEP_PARAMS;
+
+DECLARE_ASN1_FUNCTIONS(RSA_OAEP_PARAMS)
+
 # ifndef OPENSSL_NO_FP_API
 int RSA_print_fp(FILE *fp, const RSA *r, int offset);
 # endif
@@ -414,6 +446,15 @@ int RSA_padding_add_PKCS1_OAEP(unsigned char *to, int tlen,
 int RSA_padding_check_PKCS1_OAEP(unsigned char *to, int tlen,
                                  const unsigned char *f, int fl, int rsa_len,
                                  const unsigned char *p, int pl);
+int RSA_padding_add_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
+                                    const unsigned char *from, int flen,
+                                    const unsigned char *param, int plen,
+                                    const EVP_MD *md, const EVP_MD *mgf1md);
+int RSA_padding_check_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
+                                      const unsigned char *from, int flen,
+                                      int num, const unsigned char *param,
+                                      int plen, const EVP_MD *md,
+                                      const EVP_MD *mgf1md);
 int RSA_padding_add_SSLv23(unsigned char *to, int tlen,
                            const unsigned char *f, int fl);
 int RSA_padding_check_SSLv23(unsigned char *to, int tlen,
@@ -494,8 +535,10 @@ void ERR_load_RSA_strings(void);
 # define RSA_F_PKEY_RSA_SIGN                              142
 # define RSA_F_PKEY_RSA_VERIFY                            154
 # define RSA_F_PKEY_RSA_VERIFYRECOVER                     141
+# define RSA_F_RSA_ALGOR_TO_MD                            157
 # define RSA_F_RSA_BUILTIN_KEYGEN                         129
 # define RSA_F_RSA_CHECK_KEY                              123
+# define RSA_F_RSA_CMS_DECRYPT                            158
 # define RSA_F_RSA_EAY_PRIVATE_DECRYPT                    101
 # define RSA_F_RSA_EAY_PRIVATE_ENCRYPT                    102
 # define RSA_F_RSA_EAY_PUBLIC_DECRYPT                     103
@@ -504,6 +547,7 @@ void ERR_load_RSA_strings(void);
 # define RSA_F_RSA_GENERATE_KEY_EX                        155
 # define RSA_F_RSA_ITEM_VERIFY                            156
 # define RSA_F_RSA_MEMORY_LOCK                            130
+# define RSA_F_RSA_MGF1_TO_MD                             159
 # define RSA_F_RSA_NEW_METHOD                             106
 # define RSA_F_RSA_NULL                                   124
 # define RSA_F_RSA_NULL_MOD_EXP                           131
@@ -513,6 +557,7 @@ void ERR_load_RSA_strings(void);
 # define RSA_F_RSA_NULL_PUBLIC_ENCRYPT                    135
 # define RSA_F_RSA_PADDING_ADD_NONE                       107
 # define RSA_F_RSA_PADDING_ADD_PKCS1_OAEP                 121
+# define RSA_F_RSA_PADDING_ADD_PKCS1_OAEP_MGF1            160
 # define RSA_F_RSA_PADDING_ADD_PKCS1_PSS                  125
 # define RSA_F_RSA_PADDING_ADD_PKCS1_PSS_MGF1             148
 # define RSA_F_RSA_PADDING_ADD_PKCS1_TYPE_1               108
@@ -521,6 +566,7 @@ void ERR_load_RSA_strings(void);
 # define RSA_F_RSA_PADDING_ADD_X931                       127
 # define RSA_F_RSA_PADDING_CHECK_NONE                     111
 # define RSA_F_RSA_PADDING_CHECK_PKCS1_OAEP               122
+# define RSA_F_RSA_PADDING_CHECK_PKCS1_OAEP_MGF1          161
 # define RSA_F_RSA_PADDING_CHECK_PKCS1_TYPE_1             112
 # define RSA_F_RSA_PADDING_CHECK_PKCS1_TYPE_2             113
 # define RSA_F_RSA_PADDING_CHECK_SSLV23                   114
@@ -531,6 +577,7 @@ void ERR_load_RSA_strings(void);
 # define RSA_F_RSA_PRIVATE_ENCRYPT                        151
 # define RSA_F_RSA_PRIV_DECODE                            137
 # define RSA_F_RSA_PRIV_ENCODE                            138
+# define RSA_F_RSA_PSS_TO_CTX                             162
 # define RSA_F_RSA_PUBLIC_DECRYPT                         152
 # define RSA_F_RSA_PUBLIC_ENCRYPT                         153
 # define RSA_F_RSA_PUB_DECODE                             139
@@ -556,17 +603,21 @@ void ERR_load_RSA_strings(void);
 # define RSA_R_DATA_TOO_LARGE_FOR_MODULUS                 132
 # define RSA_R_DATA_TOO_SMALL                             111
 # define RSA_R_DATA_TOO_SMALL_FOR_KEY_SIZE                122
+# define RSA_R_DIGEST_DOES_NOT_MATCH                      166
 # define RSA_R_DIGEST_TOO_BIG_FOR_RSA_KEY                 112
 # define RSA_R_DMP1_NOT_CONGRUENT_TO_D                    124
 # define RSA_R_DMQ1_NOT_CONGRUENT_TO_D                    125
 # define RSA_R_D_E_NOT_CONGRUENT_TO_1                     123
 # define RSA_R_FIRST_OCTET_INVALID                        133
 # define RSA_R_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE        144
+# define RSA_R_INVALID_DIGEST                             160
 # define RSA_R_INVALID_DIGEST_LENGTH                      143
 # define RSA_R_INVALID_HEADER                             137
 # define RSA_R_INVALID_KEYBITS                            145
+# define RSA_R_INVALID_LABEL                              161
 # define RSA_R_INVALID_MESSAGE_LENGTH                     131
 # define RSA_R_INVALID_MGF1_MD                            156
+# define RSA_R_INVALID_OAEP_PARAMETERS                    162
 # define RSA_R_INVALID_PADDING                            138
 # define RSA_R_INVALID_PADDING_MODE                       141
 # define RSA_R_INVALID_PSS_PARAMETERS                     149
@@ -595,9 +646,12 @@ void ERR_load_RSA_strings(void);
 # define RSA_R_SSLV3_ROLLBACK_ATTACK                      115
 # define RSA_R_THE_ASN1_OBJECT_IDENTIFIER_IS_NOT_KNOWN_FOR_THIS_MD 116
 # define RSA_R_UNKNOWN_ALGORITHM_TYPE                     117
+# define RSA_R_UNKNOWN_DIGEST                             163
 # define RSA_R_UNKNOWN_MASK_DIGEST                        151
 # define RSA_R_UNKNOWN_PADDING_TYPE                       118
 # define RSA_R_UNKNOWN_PSS_DIGEST                         152
+# define RSA_R_UNSUPPORTED_ENCRYPTION_TYPE                164
+# define RSA_R_UNSUPPORTED_LABEL_SOURCE                   165
 # define RSA_R_UNSUPPORTED_MASK_ALGORITHM                 153
 # define RSA_R_UNSUPPORTED_MASK_PARAMETER                 154
 # define RSA_R_UNSUPPORTED_SIGNATURE_TYPE                 155

@@ -9,6 +9,7 @@ var warningMessages = require("../lib/warning_messages.json")
 var safeFormat = require("../lib/safe_format")
 
 var rpjPath = path.resolve(__dirname,"./fixtures/read-package-json.json")
+
 tap.test("normalize some package data", function(t) {
   var packageData = require(rpjPath)
   var warnings = []
@@ -143,7 +144,7 @@ tap.test("gist bugs url", function(t) {
     repository: "git@gist.github.com:123456.git"
   }
   normalize(d)
-  t.same(d.repository, { type: 'git', url: 'git@gist.github.com:123456.git' })
+  t.same(d.repository, { type: 'git', url: 'git+ssh://git@gist.github.com/123456.git' })
   t.same(d.bugs, { url: 'https://gist.github.com/123456' })
   t.end();
 });
@@ -151,21 +152,21 @@ tap.test("gist bugs url", function(t) {
 tap.test("singularize repositories", function(t) {
   var d = {repositories:["git@gist.github.com:123456.git"]}
   normalize(d)
-  t.same(d.repository, { type: 'git', url: 'git@gist.github.com:123456.git' })
+  t.same(d.repository, { type: 'git', url: 'git+ssh://git@gist.github.com/123456.git' })
   t.end()
 });
 
 tap.test("treat visionmedia/express as github repo", function(t) {
   var d = {repository: {type: "git", url: "visionmedia/express"}}
   normalize(d)
-  t.same(d.repository, { type: "git", url: "https://github.com/visionmedia/express" })
+  t.same(d.repository, { type: "git", url: "https://github.com/visionmedia/express.git" })
   t.end()
 });
 
 tap.test("treat isaacs/node-graceful-fs as github repo", function(t) {
   var d = {repository: {type: "git", url: "isaacs/node-graceful-fs"}}
   normalize(d)
-  t.same(d.repository, { type: "git", url: "https://github.com/isaacs/node-graceful-fs" })
+  t.same(d.repository, { type: "git", url: "https://github.com/isaacs/node-graceful-fs.git" })
   t.end()
 });
 
@@ -174,7 +175,7 @@ tap.test("homepage field will set to github url if repository is a github repo",
   normalize(a={
     repository: { type: "git", url: "https://github.com/isaacs/node-graceful-fs" }
   })
-  t.same(a.homepage, 'https://github.com/isaacs/node-graceful-fs')
+  t.same(a.homepage, 'https://github.com/isaacs/node-graceful-fs#readme')
   t.end()
 })
 
@@ -192,14 +193,14 @@ tap.test("homepage field will set to github gist url if repository is a shorthan
   normalize(a={
     repository: { type: "git", url: "sindresorhus/chalk" }
   })
-  t.same(a.homepage, 'https://github.com/sindresorhus/chalk')
+  t.same(a.homepage, 'https://github.com/sindresorhus/chalk#readme')
   t.end()
 })
 
-tap.test("treat isaacs/node-graceful-fs as github repo in dependencies", function(t) {
+tap.test("don't mangle github shortcuts in dependencies", function(t) {
   var d = {dependencies: {"node-graceful-fs": "isaacs/node-graceful-fs"}}
   normalize(d)
-  t.same(d.dependencies, {"node-graceful-fs": "git+https://github.com/isaacs/node-graceful-fs" })
+  t.same(d.dependencies, {"node-graceful-fs": "github:isaacs/node-graceful-fs" })
   t.end()
 });
 

@@ -779,7 +779,9 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
 static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK(args[0]->IsInt32());
+  if (!args[0]->IsInt32())
+    return env->ThrowTypeError("First argument must be file descriptor");
+
   CHECK(Buffer::HasInstance(args[1]));
 
   int fd = args[0]->Int32Value();

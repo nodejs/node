@@ -72,6 +72,16 @@ int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int len,
     unsigned char pad[HMAC_MAX_MD_CBLOCK];
 
 #ifdef OPENSSL_FIPS
+    /* If FIPS mode switch to approved implementation if possible */
+    if (FIPS_mode()) {
+        const EVP_MD *fipsmd;
+        if (md) {
+            fipsmd = FIPS_get_digestbynid(EVP_MD_type(md));
+            if (fipsmd)
+                md = fipsmd;
+        }
+    }
+
     if (FIPS_mode()) {
         /* If we have an ENGINE need to allow non FIPS */
         if ((impl || ctx->i_ctx.engine)

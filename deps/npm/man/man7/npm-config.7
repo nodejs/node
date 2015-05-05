@@ -1,9 +1,9 @@
-.TH "NPM\-CONFIG" "7" "April 2015" "" ""
+.TH "NPM\-CONFIG" "7" "May 2015" "" ""
 .SH "NAME"
 \fBnpm-config\fR \- More than you probably want to know about npm configuration
 .SH DESCRIPTION
 .P
-npm gets its configuration values from 6 sources, in this priority:
+npm gets its configuration values from the following sources, sorted by priority:
 .SS Command Line Flags
 .P
 Putting \fB\-\-foo bar\fR on the command line sets the \fBfoo\fR configuration
@@ -1101,6 +1101,22 @@ it will install the specified tag\.
 .P
 Also the tag that is added to the package@version specified by the \fBnpm
 tag\fR command, if no explicit tag is given\.
+.SS tag\-version\-prefix
+.RS 0
+.IP \(bu 2
+Default: \fB"v"\fR
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+If set, alters the prefix used when tagging a new version when performing a
+version increment using  \fBnpm\-version\fR\|\. To remove the prefix altogether, set it
+to the empty string: \fB""\fR\|\.
+.P
+Because other tools may rely on the convention that npm version tags look like
+\fBv1\.0\.0\fR, \fIonly use this property if it is absolutely necessary\fR\|\. In
+particular, use care when overriding this setting for public packages\.
 .SS tmp
 .RS 0
 .IP \(bu 2

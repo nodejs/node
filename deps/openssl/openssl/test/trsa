@@ -14,70 +14,70 @@ else
 fi
 
 echo testing rsa conversions
-cp $t fff.p
+cp $t rsa-fff.p
 
 echo "p -> d"
-$cmd -in fff.p -inform p -outform d >f.d
+$cmd -in rsa-fff.p -inform p -outform d >rsa-f.d
 if [ $? != 0 ]; then exit 1; fi
 #echo "p -> t"
-#$cmd -in fff.p -inform p -outform t >f.t
+#$cmd -in rsa-fff.p -inform p -outform t >rsa-f.t
 #if [ $? != 0 ]; then exit 1; fi
 echo "p -> p"
-$cmd -in fff.p -inform p -outform p >f.p
+$cmd -in rsa-fff.p -inform p -outform p >rsa-f.p
 if [ $? != 0 ]; then exit 1; fi
 
 echo "d -> d"
-$cmd -in f.d -inform d -outform d >ff.d1
+$cmd -in rsa-f.d -inform d -outform d >rsa-ff.d1
 if [ $? != 0 ]; then exit 1; fi
 #echo "t -> d"
-#$cmd -in f.t -inform t -outform d >ff.d2
+#$cmd -in rsa-f.t -inform t -outform d >rsa-ff.d2
 #if [ $? != 0 ]; then exit 1; fi
 echo "p -> d"
-$cmd -in f.p -inform p -outform d >ff.d3
+$cmd -in rsa-f.p -inform p -outform d >rsa-ff.d3
 if [ $? != 0 ]; then exit 1; fi
 
 #echo "d -> t"
-#$cmd -in f.d -inform d -outform t >ff.t1
+#$cmd -in rsa-f.d -inform d -outform t >rsa-ff.t1
 #if [ $? != 0 ]; then exit 1; fi
 #echo "t -> t"
-#$cmd -in f.t -inform t -outform t >ff.t2
+#$cmd -in rsa-f.t -inform t -outform t >rsa-ff.t2
 #if [ $? != 0 ]; then exit 1; fi
 #echo "p -> t"
-#$cmd -in f.p -inform p -outform t >ff.t3
+#$cmd -in rsa-f.p -inform p -outform t >rsa-ff.t3
 #if [ $? != 0 ]; then exit 1; fi
 
 echo "d -> p"
-$cmd -in f.d -inform d -outform p >ff.p1
+$cmd -in rsa-f.d -inform d -outform p >rsa-ff.p1
 if [ $? != 0 ]; then exit 1; fi
 #echo "t -> p"
-#$cmd -in f.t -inform t -outform p >ff.p2
+#$cmd -in rsa-f.t -inform t -outform p >rsa-ff.p2
 #if [ $? != 0 ]; then exit 1; fi
 echo "p -> p"
-$cmd -in f.p -inform p -outform p >ff.p3
+$cmd -in rsa-f.p -inform p -outform p >rsa-ff.p3
 if [ $? != 0 ]; then exit 1; fi
 
-cmp fff.p f.p
+cmp rsa-fff.p rsa-f.p
 if [ $? != 0 ]; then exit 1; fi
-cmp fff.p ff.p1
+cmp rsa-fff.p rsa-ff.p1
 if [ $? != 0 ]; then exit 1; fi
-#cmp fff.p ff.p2
+#cmp rsa-fff.p rsa-ff.p2
 #if [ $? != 0 ]; then exit 1; fi
-cmp fff.p ff.p3
-if [ $? != 0 ]; then exit 1; fi
-
-#cmp f.t ff.t1
-#if [ $? != 0 ]; then exit 1; fi
-#cmp f.t ff.t2
-#if [ $? != 0 ]; then exit 1; fi
-#cmp f.t ff.t3
-#if [ $? != 0 ]; then exit 1; fi
-
-cmp f.p ff.p1
-if [ $? != 0 ]; then exit 1; fi
-#cmp f.p ff.p2
-#if [ $? != 0 ]; then exit 1; fi
-cmp f.p ff.p3
+cmp rsa-fff.p rsa-ff.p3
 if [ $? != 0 ]; then exit 1; fi
 
-/bin/rm -f f.* ff.* fff.*
+#cmp rsa-f.t rsa-ff.t1
+#if [ $? != 0 ]; then exit 1; fi
+#cmp rsa-f.t rsa-ff.t2
+#if [ $? != 0 ]; then exit 1; fi
+#cmp rsa-f.t rsa-ff.t3
+#if [ $? != 0 ]; then exit 1; fi
+
+cmp rsa-f.p rsa-ff.p1
+if [ $? != 0 ]; then exit 1; fi
+#cmp rsa-f.p rsa-ff.p2
+#if [ $? != 0 ]; then exit 1; fi
+cmp rsa-f.p rsa-ff.p3
+if [ $? != 0 ]; then exit 1; fi
+
+/bin/rm -f rsa-f.* rsa-ff.* rsa-fff.*
 exit 0

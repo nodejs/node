@@ -80,7 +80,7 @@
 # include <openssl/pem.h>
 # include <openssl/rand.h>
 
-# define DEFBITS 1024
+# define DEFBITS 2048
 # undef PROG
 # define PROG genrsa_main
 

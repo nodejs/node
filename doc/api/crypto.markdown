@@ -763,10 +763,10 @@ temporary measure.
 
 [createCipher()]: #crypto_crypto_createcipher_algorithm_password
 [createCipheriv()]: #crypto_crypto_createcipheriv_algorithm_key_iv
-[crypto.createDiffieHellman()]: #crypto_crypto_creatediffiehellman_prime_encoding
+[crypto.createDiffieHellman()]: #crypto_crypto_creatediffiehellman_prime_prime_encoding_generator_generator_encoding
 [tls.createSecureContext]: tls.html#tls_tls_createsecurecontext_details
 [diffieHellman.setPublicKey()]: #crypto_diffiehellman_setpublickey_public_key_encoding
 [RFC 2412]: http://www.rfc-editor.org/rfc/rfc2412.txt
 [RFC 3526]: http://www.rfc-editor.org/rfc/rfc3526.txt
-[crypto.pbkdf2]: #crypto_crypto_pbkdf2_password_salt_iterations_keylen_callback
+[crypto.pbkdf2]: #crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
 [EVP_BytesToKey]: https://www.openssl.org/docs/crypto/EVP_BytesToKey.html

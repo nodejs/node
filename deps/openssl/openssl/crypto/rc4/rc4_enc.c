@@ -79,7 +79,7 @@ void RC4(RC4_KEY *key, size_t len, const unsigned char *indata,
     y = key->y;
     d = key->data;
 
-#if defined(RC4_CHUNK)
+#if defined(RC4_CHUNK) && !defined(PEDANTIC)
     /*-
      * The original reason for implementing this(*) was the fact that
      * pre-21164a Alpha CPUs don't have byte load/store instructions
