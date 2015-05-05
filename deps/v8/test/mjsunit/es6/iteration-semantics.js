@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-scoping --harmony-proxies
+// Flags: --harmony-proxies
 
 // Test for-of semantics.
 
@@ -200,9 +200,11 @@ assertEquals([undefined, 1, 2, 3],
                            // Done.
                            { value: 4, done: 42 }])));
 // Results that are not objects.
-assertEquals([undefined, undefined, undefined],
-             fold(append, [],
-                  results([10, "foo", /qux/, { value: 37, done: true }])));
+assertThrows(function() {
+  assertEquals([undefined, undefined, undefined],
+               fold(append, [],
+                    results([10, "foo", /qux/, { value: 37, done: true }])));
+}, TypeError);
 // Getters (shudder).
 assertEquals([1, 2],
              fold(append, [],
@@ -334,3 +336,25 @@ function poison_proxy_after(iterable, n) {
   }));
 }
 assertEquals(45, fold(sum, 0, poison_proxy_after(integers_until(10), 10)));
+
+
+function test_iterator_result_object_non_object(value, descr) {
+  var arr = [];
+  var ex;
+  var message = 'Iterator result ' + (descr || value) + ' is not an object';
+  try {
+    fold(append, arr,
+         results([{value: 1}, {}, value, {value: 2}, {done: true}]));
+  } catch (e) {
+    ex = e;
+  }
+  assertInstanceof(ex, TypeError);
+  assertEquals(message, ex.message);
+  assertArrayEquals([1, undefined], arr);
+}
+test_iterator_result_object_non_object(null);
+test_iterator_result_object_non_object(undefined);
+test_iterator_result_object_non_object(42);
+test_iterator_result_object_non_object('abc');
+test_iterator_result_object_non_object(false);
+test_iterator_result_object_non_object(Symbol('x'), 'Symbol(x)');

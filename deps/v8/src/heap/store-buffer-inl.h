@@ -49,14 +49,6 @@ void StoreBuffer::EnterDirectlyIntoStoreBuffer(Address addr) {
     }
   }
 }
-
-
-void StoreBuffer::ClearDeadObject(HeapObject* object) {
-  Address& map_field = Memory::Address_at(object->address());
-  if (heap_->map_space()->Contains(map_field)) {
-    map_field = NULL;
-  }
-}
 }
 }  // namespace v8::internal
 

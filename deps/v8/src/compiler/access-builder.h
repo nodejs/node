@@ -12,7 +12,7 @@ namespace internal {
 namespace compiler {
 
 // This access builder provides a set of static methods constructing commonly
-// used FieldAccess and ElementAccess descriptors. These descriptors server as
+// used FieldAccess and ElementAccess descriptors. These descriptors serve as
 // parameters to simplified load/store operators.
 class AccessBuilder FINAL : public AllStatic {
  public:
@@ -46,12 +46,18 @@ class AccessBuilder FINAL : public AllStatic {
   // Provides access Context slots.
   static FieldAccess ForContextSlot(size_t index);
 
+  // Provides access to the backing store of a StatsCounter.
+  static FieldAccess ForStatsCounter();
+
   // Provides access to FixedArray elements.
   static ElementAccess ForFixedArrayElement();
 
   // Provides access to Fixed{type}TypedArray and External{type}Array elements.
   static ElementAccess ForTypedArrayElement(ExternalArrayType type,
                                             bool is_external);
+
+  // Provides access to the charaters of sequential strings.
+  static ElementAccess ForSeqStringChar(String::Encoding encoding);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessBuilder);

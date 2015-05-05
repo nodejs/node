@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --turbo-filter=g --allow-natives-syntax
+// Flags: --expose-debug-as debug --turbo-filter=g --allow-natives-syntax
 
 // Test that Debug::PrepareForBreakPoints can deal with turbofan code (g)
 // on the stack.  Without deoptimization support, we will not be able to

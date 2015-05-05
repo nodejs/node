@@ -4,6 +4,7 @@
 
 #include "src/v8.h"
 
+#include "src/cpu-profiler.h"
 #include "src/ic/call-optimization.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
@@ -73,7 +74,7 @@ Handle<Code> PropertyHandlerCompiler::GetCode(Code::Kind kind,
                                               Handle<Name> name) {
   Code::Flags flags = Code::ComputeHandlerFlags(kind, type, cache_holder());
   Handle<Code> code = GetCodeWithFlags(flags, name);
-  PROFILE(isolate(), CodeCreateEvent(Logger::STUB_TAG, *code, *name));
+  PROFILE(isolate(), CodeCreateEvent(Logger::HANDLER_TAG, *code, *name));
 #ifdef DEBUG
   code->VerifyEmbeddedObjects();
 #endif
@@ -279,6 +280,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
     case LookupIterator::INTERCEPTOR:
     case LookupIterator::JSPROXY:
     case LookupIterator::NOT_FOUND:
+    case LookupIterator::INTEGER_INDEXED_EXOTIC:
       break;
     case LookupIterator::DATA:
       inline_followup =
@@ -310,10 +312,36 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
 
   Label miss;
   InterceptorVectorSlotPush(receiver());
+  bool lost_holder_register = false;
+  auto holder_orig = holder();
+  // non masking interceptors must check the entire chain, so temporarily reset
+  // the holder to be that last element for the FrontendHeader call.
+  if (holder()->GetNamedInterceptor()->non_masking()) {
+    DCHECK(!inline_followup);
+    JSObject* last = *holder();
+    PrototypeIterator iter(isolate(), last);
+    while (!iter.IsAtEnd()) {
+      lost_holder_register = true;
+      last = JSObject::cast(iter.GetCurrent());
+      iter.Advance();
+    }
+    auto last_handle = handle(last);
+    set_holder(last_handle);
+  }
   Register reg = FrontendHeader(receiver(), it->name(), &miss);
+  // Reset the holder so further calculations are correct.
+  set_holder(holder_orig);
+  if (lost_holder_register) {
+    if (*it->GetReceiver() == *holder()) {
+      reg = receiver();
+    } else {
+      // Reload lost holder register.
+      auto cell = isolate()->factory()->NewWeakCell(holder());
+      __ LoadWeakValue(reg, cell, &miss);
+    }
+  }
   FrontendFooter(it->name(), &miss);
   InterceptorVectorSlotPop(reg);
-
   if (inline_followup) {
     // TODO(368): Compile in the whole chain: all the interceptors in
     // prototypes and ultimate answer.
@@ -345,6 +373,7 @@ void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
     case LookupIterator::INTERCEPTOR:
     case LookupIterator::JSPROXY:
     case LookupIterator::NOT_FOUND:
+    case LookupIterator::INTEGER_INDEXED_EXOTIC:
     case LookupIterator::TRANSITION:
       UNREACHABLE();
     case LookupIterator::DATA: {

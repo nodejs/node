@@ -8,17 +8,17 @@ vars = {
 
 deps = {
   "v8/build/gyp":
-    Var("git_url") + "/external/gyp.git" + "@" + "34640080d08ab2a37665512e52142947def3056d",
+    Var("git_url") + "/external/gyp.git" + "@" + "d174d75bf69c682cb62af9187879e01513b35e52",
   "v8/third_party/icu":
-    Var("git_url") + "/chromium/deps/icu.git" + "@" + "4e3266f32c62d30a3f9e2232a753c60129d1e670",
+    Var("git_url") + "/chromium/deps/icu.git" + "@" + "7c81740601355556e630da515b74d889ba2f8d08",
   "v8/buildtools":
-    Var("git_url") + "/chromium/buildtools.git" + "@" + "5c5e924788fe40f7d6e0a3841ac572de2475e689",
+    Var("git_url") + "/chromium/buildtools.git" + "@" + "3b302fef93f7cc58d9b8168466905237484b2772",
   "v8/testing/gtest":
     Var("git_url") + "/external/googletest.git" + "@" + "be1868139ffe0ccd0e8e3b37292b84c821d9c8ad",
   "v8/testing/gmock":
     Var("git_url") + "/external/googlemock.git" + "@" + "29763965ab52f24565299976b936d1265cb6a271",  # from svn revision 501
   "v8/tools/clang":
-    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "f6daa55d03995e82201a3278203e7c0421a59546",
+    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "ea2f0a2d96ffc6f5a51c034db704ccc1a6543156",
 }
 
 deps_os = {
@@ -46,6 +46,17 @@ skip_child_includes = [
 ]
 
 hooks = [
+  {
+    # This clobbers when necessary (based on get_landmines.py). It must be the
+    # first hook so that other things that get/generate into the output
+    # directory will not subsequently be clobbered.
+    'name': 'landmines',
+    'pattern': '.',
+    'action': [
+        'python',
+        'v8/build/landmines.py',
+    ],
+  },
   # Pull clang-format binaries using checked-in hashes.
   {
     "name": "clang_format_win",

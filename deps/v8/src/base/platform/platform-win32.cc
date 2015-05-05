@@ -575,6 +575,11 @@ bool OS::Remove(const char* path) {
 }
 
 
+bool OS::isDirectorySeparator(const char ch) {
+  return ch == '/' || ch == '\\';
+}
+
+
 FILE* OS::OpenTemporaryFile() {
   // tmpfile_s tries to use the root dir, don't use it.
   char tempPathBuffer[MAX_PATH];

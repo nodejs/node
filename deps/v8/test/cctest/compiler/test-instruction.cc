@@ -27,20 +27,14 @@ typedef v8::internal::compiler::InstructionSequence TestInstrSeq;
 class InstructionTester : public HandleAndZoneScope {
  public:  // We're all friends here.
   InstructionTester()
-      : isolate(main_isolate()),
-        graph(zone()),
+      : graph(zone()),
         schedule(zone()),
-        fake_stub(main_isolate()),
-        info(&fake_stub, main_isolate()),
         common(zone()),
         machine(zone()),
         code(NULL) {}
 
-  Isolate* isolate;
   Graph graph;
   Schedule schedule;
-  FakeStubForTesting fake_stub;
-  CompilationInfoWithZone info;
   CommonOperatorBuilder common;
   MachineOperatorBuilder machine;
   TestInstrSeq* code;
@@ -93,8 +87,12 @@ class InstructionTester : public HandleAndZoneScope {
     return UnallocatedOperand(UnallocatedOperand::ANY, vreg).Copy(zone());
   }
 
+  RpoNumber RpoFor(BasicBlock* block) {
+    return RpoNumber::FromInt(block->rpo_number());
+  }
+
   InstructionBlock* BlockAt(BasicBlock* block) {
-    return code->InstructionBlockAt(block->GetRpoNumber());
+    return code->InstructionBlockAt(RpoFor(block));
   }
   BasicBlock* GetBasicBlock(int instruction_index) {
     const InstructionBlock* block =
@@ -131,7 +129,6 @@ TEST(InstructionBasic) {
 
   for (auto block : *blocks) {
     CHECK_EQ(block->rpo_number(), R.BlockAt(block)->rpo_number().ToInt());
-    CHECK_EQ(block->id().ToInt(), R.BlockAt(block)->id().ToInt());
     CHECK(!block->loop_end());
   }
 }
@@ -151,23 +148,23 @@ TEST(InstructionGetBasicBlock) {
 
   R.allocCode();
 
-  R.code->StartBlock(b0->GetRpoNumber());
+  R.code->StartBlock(R.RpoFor(b0));
   int i0 = R.NewInstr();
   int i1 = R.NewInstr();
-  R.code->EndBlock(b0->GetRpoNumber());
-  R.code->StartBlock(b1->GetRpoNumber());
+  R.code->EndBlock(R.RpoFor(b0));
+  R.code->StartBlock(R.RpoFor(b1));
   int i2 = R.NewInstr();
   int i3 = R.NewInstr();
   int i4 = R.NewInstr();
   int i5 = R.NewInstr();
-  R.code->EndBlock(b1->GetRpoNumber());
-  R.code->StartBlock(b2->GetRpoNumber());
+  R.code->EndBlock(R.RpoFor(b1));
+  R.code->StartBlock(R.RpoFor(b2));
   int i6 = R.NewInstr();
   int i7 = R.NewInstr();
   int i8 = R.NewInstr();
-  R.code->EndBlock(b2->GetRpoNumber());
-  R.code->StartBlock(b3->GetRpoNumber());
-  R.code->EndBlock(b3->GetRpoNumber());
+  R.code->EndBlock(R.RpoFor(b2));
+  R.code->StartBlock(R.RpoFor(b3));
+  R.code->EndBlock(R.RpoFor(b3));
 
   CHECK_EQ(b0, R.GetBasicBlock(i0));
   CHECK_EQ(b0, R.GetBasicBlock(i1));
@@ -203,11 +200,11 @@ TEST(InstructionIsGapAt) {
 
   R.allocCode();
   TestInstr* i0 = TestInstr::New(R.zone(), 100);
-  TestInstr* g = TestInstr::New(R.zone(), 103)->MarkAsControl();
-  R.code->StartBlock(b0->GetRpoNumber());
+  TestInstr* g = TestInstr::New(R.zone(), 103);
+  R.code->StartBlock(R.RpoFor(b0));
   R.code->AddInstruction(i0);
   R.code->AddInstruction(g);
-  R.code->EndBlock(b0->GetRpoNumber());
+  R.code->EndBlock(R.RpoFor(b0));
 
   CHECK(R.code->instructions().size() == 4);
   for (size_t i = 0; i < R.code->instructions().size(); ++i) {
@@ -226,18 +223,18 @@ TEST(InstructionIsGapAt2) {
 
   R.allocCode();
   TestInstr* i0 = TestInstr::New(R.zone(), 100);
-  TestInstr* g = TestInstr::New(R.zone(), 103)->MarkAsControl();
-  R.code->StartBlock(b0->GetRpoNumber());
+  TestInstr* g = TestInstr::New(R.zone(), 103);
+  R.code->StartBlock(R.RpoFor(b0));
   R.code->AddInstruction(i0);
   R.code->AddInstruction(g);
-  R.code->EndBlock(b0->GetRpoNumber());
+  R.code->EndBlock(R.RpoFor(b0));
 
   TestInstr* i1 = TestInstr::New(R.zone(), 102);
-  TestInstr* g1 = TestInstr::New(R.zone(), 104)->MarkAsControl();
-  R.code->StartBlock(b1->GetRpoNumber());
+  TestInstr* g1 = TestInstr::New(R.zone(), 104);
+  R.code->StartBlock(R.RpoFor(b1));
   R.code->AddInstruction(i1);
   R.code->AddInstruction(g1);
-  R.code->EndBlock(b1->GetRpoNumber());
+  R.code->EndBlock(R.RpoFor(b1));
 
   CHECK(R.code->instructions().size() == 8);
   for (size_t i = 0; i < R.code->instructions().size(); ++i) {
@@ -254,11 +251,11 @@ TEST(InstructionAddGapMove) {
 
   R.allocCode();
   TestInstr* i0 = TestInstr::New(R.zone(), 100);
-  TestInstr* g = TestInstr::New(R.zone(), 103)->MarkAsControl();
-  R.code->StartBlock(b0->GetRpoNumber());
+  TestInstr* g = TestInstr::New(R.zone(), 103);
+  R.code->StartBlock(R.RpoFor(b0));
   R.code->AddInstruction(i0);
   R.code->AddInstruction(g);
-  R.code->EndBlock(b0->GetRpoNumber());
+  R.code->EndBlock(R.RpoFor(b0));
 
   CHECK(R.code->instructions().size() == 4);
   for (size_t i = 0; i < R.code->instructions().size(); ++i) {

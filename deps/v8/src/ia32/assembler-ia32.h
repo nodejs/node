@@ -40,8 +40,8 @@
 #include <deque>
 
 #include "src/assembler.h"
+#include "src/compiler.h"
 #include "src/isolate.h"
-#include "src/serialize.h"
 
 namespace v8 {
 namespace internal {
@@ -277,6 +277,14 @@ inline Condition CommuteCondition(Condition cc) {
       return cc;
   }
 }
+
+
+enum RoundingMode {
+  kRoundToNearest = 0x0,
+  kRoundDown = 0x1,
+  kRoundUp = 0x2,
+  kRoundToZero = 0x3
+};
 
 
 // -----------------------------------------------------------------------------
@@ -537,6 +545,11 @@ class Assembler : public AssemblerBase {
       Address instruction_payload, Code* code, Address target) {
     set_target_address_at(instruction_payload, code, target);
   }
+
+  // This sets the internal reference at the pc.
+  inline static void deserialization_set_target_internal_reference_at(
+      Address pc, Address target,
+      RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
   static const int kSpecialTargetSize = kPointerSize;
 
@@ -1002,13 +1015,6 @@ class Assembler : public AssemblerBase {
   void ucomisd(XMMRegister dst, XMMRegister src) { ucomisd(dst, Operand(src)); }
   void ucomisd(XMMRegister dst, const Operand& src);
 
-  enum RoundingMode {
-    kRoundToNearest = 0x0,
-    kRoundDown      = 0x1,
-    kRoundUp        = 0x2,
-    kRoundToZero    = 0x3
-  };
-
   void roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);
 
   void movmskpd(Register dst, XMMRegister src);
@@ -1016,6 +1022,14 @@ class Assembler : public AssemblerBase {
 
   void cmpltsd(XMMRegister dst, XMMRegister src);
   void pcmpeqd(XMMRegister dst, XMMRegister src);
+
+  void punpckldq(XMMRegister dst, XMMRegister src);
+  void punpckhdq(XMMRegister dst, XMMRegister src);
+
+  void maxsd(XMMRegister dst, XMMRegister src) { maxsd(dst, Operand(src)); }
+  void maxsd(XMMRegister dst, const Operand& src);
+  void minsd(XMMRegister dst, XMMRegister src) { minsd(dst, Operand(src)); }
+  void minsd(XMMRegister dst, const Operand& src);
 
   void movdqa(XMMRegister dst, const Operand& src);
   void movdqa(const Operand& dst, XMMRegister src);
@@ -1241,6 +1255,18 @@ class Assembler : public AssemblerBase {
   void vdivsd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
     vsd(0x5e, dst, src1, src2);
   }
+  void vmaxsd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vmaxsd(dst, src1, Operand(src2));
+  }
+  void vmaxsd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vsd(0x5f, dst, src1, src2);
+  }
+  void vminsd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vminsd(dst, src1, Operand(src2));
+  }
+  void vminsd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vsd(0x5d, dst, src1, src2);
+  }
   void vsd(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
 
   // Prefetch src position into cache level.
@@ -1266,7 +1292,7 @@ class Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(const int reason, const int raw_position);
+  void RecordDeoptReason(const int reason, const SourcePosition position);
 
   // Writes a single byte or word of data in the code stream.  Used for
   // inline tables, e.g., jump-tables.

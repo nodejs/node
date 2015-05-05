@@ -6,7 +6,6 @@
 
 #include "src/assembler.h"
 #include "src/compilation-cache.h"
-#include "src/serialize.h"
 
 namespace v8 {
 namespace internal {

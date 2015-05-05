@@ -107,15 +107,6 @@ inline Object* JavaScriptFrame::function_slot_object() const {
 }
 
 
-inline void StackHandler::SetFp(Address slot, Address fp) {
-  if (kFPOnStackSize == 2 * kPointerSize) {
-    // Zero out the high-32 bit of FP for x32 port.
-    Memory::Address_at(slot + kPointerSize) = 0;
-  }
-  Memory::Address_at(slot) = fp;
-}
-
-
 } }  // namespace v8::internal
 
 #endif  // V8_X64_FRAMES_X64_H_

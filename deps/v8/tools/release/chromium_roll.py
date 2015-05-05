@@ -14,36 +14,31 @@ ROLL_SUMMARY = ("Summary of changes available at:\n"
                 "https://chromium.googlesource.com/v8/v8/+log/%s..%s")
 
 
+ISSUE_MSG = (
+"""Please follow these instructions for assigning/CC'ing issues:
+https://code.google.com/p/v8-wiki/wiki/TriagingIssues""")
+
 class Preparation(Step):
   MESSAGE = "Preparation."
 
   def RunStep(self):
     # Update v8 remote tracking branches.
     self.GitFetchOrigin()
+    self.Git("fetch origin +refs/tags/*:refs/tags/*")
 
 
-class DetectLastPush(Step):
-  MESSAGE = "Detect commit ID of last release."
+class PrepareRollCandidate(Step):
+  MESSAGE = "Robustness checks of the roll candidate."
 
   def RunStep(self):
-    # The revision that should be rolled.
-    self["last_push"] = self._options.last_push or self.GetLatestRelease()
-    self["push_title"] = self.GitLog(n=1, format="%s",
-                                     git_hash=self["last_push"])
+    self["roll_title"] = self.GitLog(n=1, format="%s",
+                                     git_hash=self._options.roll)
 
-    # The master revision this release is based on.
-    self["push_base"] = self.GetLatestReleaseBase()
-
-    # FIXME(machenbach): Manually specifying a revision doesn't work at the
-    # moment. Needs more complicated logic to find the correct push_base above.
-    # Maybe delete that parameter entirely?
-    assert not self._options.last_push
-
-    # Determine the master revision of the last roll.
+    # Make sure the last roll and the roll candidate are releases.
+    version = self.GetVersionTag(self._options.roll)
+    assert version, "The revision to roll is not tagged."
     version = self.GetVersionTag(self._options.last_roll)
-    assert version
-    self["last_rolled_base"] = self.GetLatestReleaseBase(version=version)
-    assert self["last_rolled_base"]
+    assert version, "The revision used as last roll is not tagged."
 
 
 class SwitchChromium(Step):
@@ -73,7 +68,7 @@ class UpdateChromiumCheckout(Step):
     # Update v8 remotes.
     self.GitFetchOrigin()
 
-    self.GitCreateBranch("v8-roll-%s" % self["last_push"],
+    self.GitCreateBranch("v8-roll-%s" % self._options.roll,
                          cwd=self._options.chromium)
 
 
@@ -83,19 +78,18 @@ class UploadCL(Step):
   def RunStep(self):
     # Patch DEPS file.
     if self.Command(
-        "roll-dep", "v8 %s" % self["last_push"],
+        "roll-dep", "v8 %s" % self._options.roll,
         cwd=self._options.chromium) is None:
-      self.Die("Failed to create deps for %s" % self["last_push"])
+      self.Die("Failed to create deps for %s" % self._options.roll)
 
     message = []
-    message.append("Update V8 to %s." % self["push_title"].lower())
+    message.append("Update V8 to %s." % self["roll_title"].lower())
 
     message.append(
-        ROLL_SUMMARY % (self["last_rolled_base"][:8], self["push_base"][:8]))
+        ROLL_SUMMARY % (self._options.last_roll[:8], self._options.roll[:8]))
 
-    if self["sheriff"]:
-      message.append("Please reply to the V8 sheriff %s in case of problems."
-          % self["sheriff"])
+    message.append(ISSUE_MSG)
+
     message.append("TBR=%s" % self._options.reviewer)
     self.GitCommit("\n\n".join(message),
                    author=self._options.author,
@@ -108,7 +102,7 @@ class UploadCL(Step):
       print "CL uploaded."
     else:
       self.GitCheckout("master", cwd=self._options.chromium)
-      self.GitDeleteBranch("v8-roll-%s" % self["last_push"],
+      self.GitDeleteBranch("v8-roll-%s" % self._options.roll,
                            cwd=self._options.chromium)
       print "Dry run - don't upload."
 
@@ -127,8 +121,8 @@ class CleanUp(Step):
 
   def RunStep(self):
     print("Congratulations, you have successfully rolled %s into "
-          "Chromium. Please don't forget to update the v8rel spreadsheet."
-          % self["last_push"])
+          "Chromium."
+          % self._options.roll)
 
     # Clean up all temporary files.
     Command("rm", "-f %s*" % self._config["PERSISTFILE_BASENAME"])
@@ -139,10 +133,9 @@ class ChromiumRoll(ScriptsBase):
     parser.add_argument("-c", "--chromium", required=True,
                         help=("The path to your Chromium src/ "
                               "directory to automate the V8 roll."))
-    parser.add_argument("-l", "--last-push",
-                        help="The git commit ID of the last candidates push.")
     parser.add_argument("--last-roll", required=True,
                         help="The git commit ID of the last rolled version.")
+    parser.add_argument("roll", nargs=1, help="Revision to roll."),
     parser.add_argument("--use-commit-queue",
                         help="Check the CQ bit on upload.",
                         default=False, action="store_true")
@@ -155,6 +148,7 @@ class ChromiumRoll(ScriptsBase):
     options.requires_editor = False
     options.force = True
     options.manual = False
+    options.roll = options.roll[0]
     return True
 
   def _Config(self):
@@ -165,7 +159,7 @@ class ChromiumRoll(ScriptsBase):
   def _Steps(self):
     return [
       Preparation,
-      DetectLastPush,
+      PrepareRollCandidate,
       DetermineV8Sheriff,
       SwitchChromium,
       UpdateChromiumCheckout,
