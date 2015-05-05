@@ -33,7 +33,6 @@
 #include "src/base/platform/platform.h"
 #include "src/factory.h"
 #include "src/macro-assembler.h"
-#include "src/serialize.h"
 
 using namespace v8::internal;
 

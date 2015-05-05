@@ -187,16 +187,25 @@ static const int kInvalidEnumCacheSentinel =
     (1 << kDescriptorIndexBitCount) - 1;
 
 
+enum class PropertyCellType {
+  kUninitialized,        // Cell is deleted or not yet defined.
+  kUndefined,            // The PREMONOMORPHIC of property cells.
+  kConstant,             // Cell has been assigned only once.
+  kMutable,              // Cell will no longer be tracked as constant.
+  kDeleted = kConstant,  // like kUninitialized, but for cells already deleted.
+  kInvalid = kMutable,   // For dictionaries not holding cells.
+};
+
+
 // PropertyDetails captures type and attributes for a property.
 // They are used both in property dictionaries and instance descriptors.
 class PropertyDetails BASE_EMBEDDED {
  public:
-  PropertyDetails(PropertyAttributes attributes,
-                  PropertyType type,
-                  int index) {
-    value_ = TypeField::encode(type)
-        | AttributesField::encode(attributes)
-        | DictionaryStorageField::encode(index);
+  PropertyDetails(PropertyAttributes attributes, PropertyType type, int index,
+                  PropertyCellType cell_type) {
+    value_ = TypeField::encode(type) | AttributesField::encode(attributes) |
+             DictionaryStorageField::encode(index) |
+             PropertyCellTypeField::encode(cell_type);
 
     DCHECK(type == this->type());
     DCHECK(attributes == this->attributes());
@@ -221,14 +230,32 @@ class PropertyDetails BASE_EMBEDDED {
              FieldIndexField::encode(field_index);
   }
 
+  static PropertyDetails Empty() {
+    return PropertyDetails(NONE, DATA, 0, PropertyCellType::kInvalid);
+  }
+
   int pointer() const { return DescriptorPointer::decode(value_); }
 
-  PropertyDetails set_pointer(int i) { return PropertyDetails(value_, i); }
+  PropertyDetails set_pointer(int i) const {
+    return PropertyDetails(value_, i);
+  }
+
+  PropertyDetails set_cell_type(PropertyCellType type) const {
+    PropertyDetails details = *this;
+    details.value_ = PropertyCellTypeField::update(details.value_, type);
+    return details;
+  }
+
+  PropertyDetails set_index(int index) const {
+    PropertyDetails details = *this;
+    details.value_ = DictionaryStorageField::update(details.value_, index);
+    return details;
+  }
 
   PropertyDetails CopyWithRepresentation(Representation representation) const {
     return PropertyDetails(value_, representation);
   }
-  PropertyDetails CopyAddAttributes(PropertyAttributes new_attributes) {
+  PropertyDetails CopyAddAttributes(PropertyAttributes new_attributes) const {
     new_attributes =
         static_cast<PropertyAttributes>(attributes() | new_attributes);
     return PropertyDetails(value_, new_attributes);
@@ -267,8 +294,6 @@ class PropertyDetails BASE_EMBEDDED {
 
   inline int field_width_in_words() const;
 
-  inline PropertyDetails AsDeleted() const;
-
   static bool IsValidIndex(int index) {
     return DictionaryStorageField::is_valid(index);
   }
@@ -276,7 +301,9 @@ class PropertyDetails BASE_EMBEDDED {
   bool IsReadOnly() const { return (attributes() & READ_ONLY) != 0; }
   bool IsConfigurable() const { return (attributes() & DONT_DELETE) == 0; }
   bool IsDontEnum() const { return (attributes() & DONT_ENUM) != 0; }
-  bool IsDeleted() const { return DeletedField::decode(value_) != 0; }
+  PropertyCellType cell_type() const {
+    return PropertyCellTypeField::decode(value_);
+  }
 
   // Bit fields in value_ (type, shift, size). Must be public so the
   // constants can be embedded in generated code.
@@ -285,8 +312,8 @@ class PropertyDetails BASE_EMBEDDED {
   class AttributesField : public BitField<PropertyAttributes, 2, 3> {};
 
   // Bit fields for normalized objects.
-  class DeletedField : public BitField<uint32_t, 5, 1> {};
-  class DictionaryStorageField : public BitField<uint32_t, 6, 24> {};
+  class PropertyCellTypeField : public BitField<PropertyCellType, 5, 2> {};
+  class DictionaryStorageField : public BitField<uint32_t, 7, 24> {};
 
   // Bit fields for fast objects.
   class RepresentationField : public BitField<uint32_t, 5, 4> {};

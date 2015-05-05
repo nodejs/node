@@ -27,49 +27,53 @@ class InstructionOperandConverter {
 
   // -- Instruction operand accesses with conversions --------------------------
 
-  Register InputRegister(int index) {
+  Register InputRegister(size_t index) {
     return ToRegister(instr_->InputAt(index));
   }
 
-  DoubleRegister InputDoubleRegister(int index) {
+  DoubleRegister InputDoubleRegister(size_t index) {
     return ToDoubleRegister(instr_->InputAt(index));
   }
 
-  double InputDouble(int index) { return ToDouble(instr_->InputAt(index)); }
+  double InputDouble(size_t index) { return ToDouble(instr_->InputAt(index)); }
 
-  int32_t InputInt32(int index) {
+  int32_t InputInt32(size_t index) {
     return ToConstant(instr_->InputAt(index)).ToInt32();
   }
 
-  int8_t InputInt8(int index) { return static_cast<int8_t>(InputInt32(index)); }
+  int8_t InputInt8(size_t index) {
+    return static_cast<int8_t>(InputInt32(index));
+  }
 
-  int16_t InputInt16(int index) {
+  int16_t InputInt16(size_t index) {
     return static_cast<int16_t>(InputInt32(index));
   }
 
-  uint8_t InputInt5(int index) {
+  uint8_t InputInt5(size_t index) {
     return static_cast<uint8_t>(InputInt32(index) & 0x1F);
   }
 
-  uint8_t InputInt6(int index) {
+  uint8_t InputInt6(size_t index) {
     return static_cast<uint8_t>(InputInt32(index) & 0x3F);
   }
 
-  Handle<HeapObject> InputHeapObject(int index) {
+  Handle<HeapObject> InputHeapObject(size_t index) {
     return ToHeapObject(instr_->InputAt(index));
   }
 
-  Label* InputLabel(int index) { return ToLabel(instr_->InputAt(index)); }
+  Label* InputLabel(size_t index) { return ToLabel(instr_->InputAt(index)); }
 
-  BasicBlock::RpoNumber InputRpo(int index) {
+  RpoNumber InputRpo(size_t index) {
     return ToRpoNumber(instr_->InputAt(index));
   }
 
-  Register OutputRegister(int index = 0) {
+  Register OutputRegister(size_t index = 0) {
     return ToRegister(instr_->OutputAt(index));
   }
 
-  Register TempRegister(int index) { return ToRegister(instr_->TempAt(index)); }
+  Register TempRegister(size_t index) {
+    return ToRegister(instr_->TempAt(index));
+  }
 
   DoubleRegister OutputDoubleRegister() {
     return ToDoubleRegister(instr_->Output());
@@ -81,7 +85,7 @@ class InstructionOperandConverter {
     return gen_->GetLabel(ToRpoNumber(op));
   }
 
-  BasicBlock::RpoNumber ToRpoNumber(InstructionOperand* op) {
+  RpoNumber ToRpoNumber(InstructionOperand* op) {
     return ToConstant(op).ToRpoNumber();
   }
 

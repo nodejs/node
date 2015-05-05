@@ -44,60 +44,8 @@ inline StackHandler* StackHandler::next() const {
 }
 
 
-inline bool StackHandler::includes(Address address) const {
-  Address start = this->address();
-  Address end = start + StackHandlerConstants::kSize;
-  return start <= address && address <= end;
-}
-
-
-inline void StackHandler::Iterate(ObjectVisitor* v, Code* holder) const {
-  v->VisitPointer(context_address());
-  v->VisitPointer(code_address());
-}
-
-
 inline StackHandler* StackHandler::FromAddress(Address address) {
   return reinterpret_cast<StackHandler*>(address);
-}
-
-
-inline bool StackHandler::is_js_entry() const {
-  return kind() == JS_ENTRY;
-}
-
-
-inline bool StackHandler::is_catch() const {
-  return kind() == CATCH;
-}
-
-
-inline bool StackHandler::is_finally() const {
-  return kind() == FINALLY;
-}
-
-
-inline StackHandler::Kind StackHandler::kind() const {
-  const int offset = StackHandlerConstants::kStateIntOffset;
-  return KindField::decode(Memory::unsigned_at(address() + offset));
-}
-
-
-inline unsigned StackHandler::index() const {
-  const int offset = StackHandlerConstants::kStateIntOffset;
-  return IndexField::decode(Memory::unsigned_at(address() + offset));
-}
-
-
-inline Object** StackHandler::context_address() const {
-  const int offset = StackHandlerConstants::kContextOffset;
-  return reinterpret_cast<Object**>(address() + offset);
-}
-
-
-inline Object** StackHandler::code_address() const {
-  const int offset = StackHandlerConstants::kCodeOffset;
-  return reinterpret_cast<Object**>(address() + offset);
 }
 
 

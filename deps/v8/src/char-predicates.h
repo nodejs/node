@@ -15,6 +15,8 @@ namespace internal {
 
 inline bool IsCarriageReturn(uc32 c);
 inline bool IsLineFeed(uc32 c);
+inline bool IsAsciiIdentifier(uc32 c);
+inline bool IsAlphaNumeric(uc32 c);
 inline bool IsDecimalDigit(uc32 c);
 inline bool IsHexDigit(uc32 c);
 inline bool IsOctalDigit(uc32 c);

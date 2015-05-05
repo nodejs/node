@@ -132,7 +132,7 @@ bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
 
 // This code tries to be close to ia32 code so that any changes can be
 // easily ported.
-void Deoptimizer::EntryGenerator::Generate() {
+void Deoptimizer::TableEntryGenerator::Generate() {
   GeneratePrologue();
 
   // Unlike on ARM we don't save all the registers, just the useful ones.

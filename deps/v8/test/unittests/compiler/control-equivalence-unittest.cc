@@ -17,7 +17,7 @@ namespace compiler {
   do {                                                    \
     Node* __n[] = {__VA_ARGS__};                          \
     ASSERT_TRUE(IsEquivalenceClass(arraysize(__n), __n)); \
-  } while (false);
+  } while (false)
 
 class ControlEquivalenceTest : public GraphTest {
  public:

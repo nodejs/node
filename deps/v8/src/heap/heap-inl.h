@@ -8,7 +8,6 @@
 #include <cmath>
 
 #include "src/base/platform/platform.h"
-#include "src/cpu-profiler.h"
 #include "src/heap/heap.h"
 #include "src/heap/store-buffer.h"
 #include "src/heap/store-buffer-inl.h"
@@ -199,8 +198,6 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
     allocation = lo_space_->AllocateRaw(size_in_bytes, NOT_EXECUTABLE);
   } else if (CELL_SPACE == space) {
     allocation = cell_space_->AllocateRaw(size_in_bytes);
-  } else if (PROPERTY_CELL_SPACE == space) {
-    allocation = property_cell_space_->AllocateRaw(size_in_bytes);
   } else {
     DCHECK(MAP_SPACE == space);
     allocation = map_space_->AllocateRaw(size_in_bytes);
@@ -242,13 +239,9 @@ void Heap::OnMoveEvent(HeapObject* target, HeapObject* source,
     heap_profiler->ObjectMoveEvent(source->address(), target->address(),
                                    size_in_bytes);
   }
-
-  if (isolate_->logger()->is_logging_code_events() ||
-      isolate_->cpu_profiler()->is_profiling()) {
-    if (target->IsSharedFunctionInfo()) {
-      PROFILE(isolate_, SharedFunctionInfoMoveEvent(source->address(),
-                                                    target->address()));
-    }
+  if (target->IsSharedFunctionInfo()) {
+    LOG_CODE_EVENT(isolate_, SharedFunctionInfoMoveEvent(source->address(),
+                                                         target->address()));
   }
 
   if (FLAG_verify_predictable) {
@@ -400,7 +393,6 @@ AllocationSpace Heap::TargetSpaceId(InstanceType type) {
   DCHECK(type != CODE_TYPE);
   DCHECK(type != ODDBALL_TYPE);
   DCHECK(type != CELL_TYPE);
-  DCHECK(type != PROPERTY_CELL_TYPE);
 
   if (type <= LAST_NAME_TYPE) {
     if (type == SYMBOL_TYPE) return OLD_POINTER_SPACE;
@@ -448,7 +440,6 @@ bool Heap::AllowedToBeMigrated(HeapObject* obj, AllocationSpace dst) {
       return dst == src && type == CODE_TYPE;
     case MAP_SPACE:
     case CELL_SPACE:
-    case PROPERTY_CELL_SPACE:
     case LO_SPACE:
       return false;
   }
@@ -556,6 +547,8 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
   if (first_word.IsForwardingAddress()) {
     HeapObject* dest = first_word.ToForwardingAddress();
     DCHECK(object->GetIsolate()->heap()->InFromSpace(*p));
+    // TODO(jochen): Remove again after fixing http://crbug.com/452095
+    CHECK((*p)->IsHeapObject() && dest->IsHeapObject());
     *p = dest;
     return;
   }
@@ -707,18 +700,12 @@ void Heap::CompletelyClearInstanceofCache() {
 
 AlwaysAllocateScope::AlwaysAllocateScope(Isolate* isolate)
     : heap_(isolate->heap()), daf_(isolate) {
-  // We shouldn't hit any nested scopes, because that requires
-  // non-handle code to call handle code. The code still works but
-  // performance will degrade, so we want to catch this situation
-  // in debug mode.
-  DCHECK(heap_->always_allocate_scope_depth_ == 0);
   heap_->always_allocate_scope_depth_++;
 }
 
 
 AlwaysAllocateScope::~AlwaysAllocateScope() {
   heap_->always_allocate_scope_depth_--;
-  DCHECK(heap_->always_allocate_scope_depth_ == 0);
 }
 
 

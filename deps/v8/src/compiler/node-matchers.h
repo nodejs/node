@@ -7,6 +7,8 @@
 
 #include <cmath>
 
+// TODO(turbofan): Move ExternalReference out of assembler.h
+#include "src/assembler.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
 #include "src/unique.h"
@@ -27,6 +29,8 @@ struct NodeMatcher {
     return op()->HasProperty(property);
   }
   Node* InputAt(int index) const { return node()->InputAt(index); }
+
+  bool IsComparison() const;
 
 #define DEFINE_IS_OPCODE(Opcode) \
   bool Is##Opcode() const { return opcode() == IrOpcode::k##Opcode; }
@@ -150,6 +154,32 @@ struct HeapObjectMatcher FINAL
     : public ValueMatcher<Unique<T>, IrOpcode::kHeapConstant> {
   explicit HeapObjectMatcher(Node* node)
       : ValueMatcher<Unique<T>, IrOpcode::kHeapConstant>(node) {}
+};
+
+
+// A pattern matcher for external reference constants.
+struct ExternalReferenceMatcher FINAL
+    : public ValueMatcher<ExternalReference, IrOpcode::kExternalConstant> {
+  explicit ExternalReferenceMatcher(Node* node)
+      : ValueMatcher<ExternalReference, IrOpcode::kExternalConstant>(node) {}
+};
+
+
+// For shorter pattern matching code, this struct matches the inputs to
+// machine-level load operations.
+template <typename Object>
+struct LoadMatcher : public NodeMatcher {
+  explicit LoadMatcher(Node* node)
+      : NodeMatcher(node), object_(InputAt(0)), index_(InputAt(1)) {}
+
+  typedef Object ObjectMatcher;
+
+  Object const& object() const { return object_; }
+  IntPtrMatcher const& index() const { return index_; }
+
+ private:
+  Object const object_;
+  IntPtrMatcher const index_;
 };
 
 

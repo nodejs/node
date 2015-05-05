@@ -2130,14 +2130,6 @@ LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoLoadGlobalCell(HLoadGlobalCell* instr) {
-  LLoadGlobalCell* result = new(zone()) LLoadGlobalCell;
-  return instr->RequiresHoleCheck()
-      ? AssignEnvironment(DefineAsRegister(result))
-      : DefineAsRegister(result);
-}
-
-
 LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* global_object =
@@ -2150,13 +2142,6 @@ LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
   LLoadGlobalGeneric* result =
       new(zone()) LLoadGlobalGeneric(context, global_object, vector);
   return MarkAsCall(DefineFixed(result, eax), instr);
-}
-
-
-LInstruction* LChunkBuilder::DoStoreGlobalCell(HStoreGlobalCell* instr) {
-  LStoreGlobalCell* result =
-      new(zone()) LStoreGlobalCell(UseRegister(instr->value()));
-  return instr->RequiresHoleCheck() ? AssignEnvironment(result) : result;
 }
 
 

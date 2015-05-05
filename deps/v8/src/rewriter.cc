@@ -4,10 +4,9 @@
 
 #include "src/v8.h"
 
-#include "src/rewriter.h"
-
 #include "src/ast.h"
-#include "src/compiler.h"
+#include "src/parser.h"
+#include "src/rewriter.h"
 #include "src/scopes.h"
 
 namespace v8 {
@@ -222,7 +221,7 @@ EXPRESSION_NODE_LIST(DEF_VISIT)
 
 // Assumes code has been parsed.  Mutates the AST, so the AST should not
 // continue to be used in the case of failure.
-bool Rewriter::Rewrite(CompilationInfo* info) {
+bool Rewriter::Rewrite(ParseInfo* info) {
   FunctionLiteral* function = info->function();
   DCHECK(function != NULL);
   Scope* scope = function->scope();

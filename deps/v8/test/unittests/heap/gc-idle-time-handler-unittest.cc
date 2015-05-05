@@ -168,7 +168,7 @@ TEST_F(GCIdleTimeHandlerTest, DoScavengeHighScavengeSpeed) {
 
 
 TEST_F(GCIdleTimeHandlerTest, ShouldDoMarkCompact) {
-  size_t idle_time_in_ms = 16;
+  size_t idle_time_in_ms = GCIdleTimeHandler::kMaxScheduledIdleTime;
   EXPECT_TRUE(GCIdleTimeHandler::ShouldDoMarkCompact(idle_time_in_ms, 0, 0));
 }
 
@@ -438,6 +438,56 @@ TEST_F(GCIdleTimeHandlerTest, ZeroIdleTimeDoNothingButStartIdleRound) {
   }
   action = handler()->Compute(0, heap_state);
   EXPECT_EQ(DO_NOTHING, action.type);
+}
+
+
+TEST_F(GCIdleTimeHandlerTest, KeepDoingDoNothingWithZeroIdleTime) {
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  for (int i = 0; i < GCIdleTimeHandler::kMaxNoProgressIdleTimesPerIdleRound;
+       i++) {
+    GCIdleTimeAction action = handler()->Compute(0, heap_state);
+    EXPECT_EQ(DO_NOTHING, action.type);
+  }
+  // Should still return DO_NOTHING if we have been given 0 deadline yet.
+  GCIdleTimeAction action = handler()->Compute(0, heap_state);
+  EXPECT_EQ(DO_NOTHING, action.type);
+}
+
+
+TEST_F(GCIdleTimeHandlerTest, DoneIfNotMakingProgressOnSweeping) {
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+
+  // Simulate sweeping being in-progress but not complete.
+  heap_state.incremental_marking_stopped = true;
+  heap_state.can_start_incremental_marking = false;
+  heap_state.sweeping_in_progress = true;
+  double idle_time_ms = 10.0;
+  for (int i = 0; i < GCIdleTimeHandler::kMaxNoProgressIdleTimesPerIdleRound;
+       i++) {
+    GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+    EXPECT_EQ(DO_NOTHING, action.type);
+  }
+  // We should return DONE after not making progress for some time.
+  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DONE, action.type);
+}
+
+
+TEST_F(GCIdleTimeHandlerTest, DoneIfNotMakingProgressOnIncrementalMarking) {
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+
+  // Simulate incremental marking stopped and not eligible to start.
+  heap_state.incremental_marking_stopped = true;
+  heap_state.can_start_incremental_marking = false;
+  double idle_time_ms = 10.0;
+  for (int i = 0; i < GCIdleTimeHandler::kMaxNoProgressIdleTimesPerIdleRound;
+       i++) {
+    GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+    EXPECT_EQ(DO_NOTHING, action.type);
+  }
+  // We should return DONE after not making progress for some time.
+  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DONE, action.type);
 }
 
 }  // namespace internal

@@ -59,24 +59,29 @@ bool Expression::IsUndefinedLiteral(Isolate* isolate) const {
 }
 
 
-VariableProxy::VariableProxy(Zone* zone, Variable* var, int position)
-    : Expression(zone, position),
+VariableProxy::VariableProxy(Zone* zone, Variable* var, int start_position,
+                             int end_position)
+    : Expression(zone, start_position),
       bit_field_(IsThisField::encode(var->is_this()) |
                  IsAssignedField::encode(false) |
                  IsResolvedField::encode(false)),
       variable_feedback_slot_(FeedbackVectorICSlot::Invalid()),
-      raw_name_(var->raw_name()) {
+      raw_name_(var->raw_name()),
+      end_position_(end_position) {
   BindTo(var);
 }
 
 
-VariableProxy::VariableProxy(Zone* zone, const AstRawString* name, bool is_this,
-                             int position)
-    : Expression(zone, position),
-      bit_field_(IsThisField::encode(is_this) | IsAssignedField::encode(false) |
+VariableProxy::VariableProxy(Zone* zone, const AstRawString* name,
+                             Variable::Kind variable_kind, int start_position,
+                             int end_position)
+    : Expression(zone, start_position),
+      bit_field_(IsThisField::encode(variable_kind == Variable::THIS) |
+                 IsAssignedField::encode(false) |
                  IsResolvedField::encode(false)),
       variable_feedback_slot_(FeedbackVectorICSlot::Invalid()),
-      raw_name_(name) {}
+      raw_name_(name),
+      end_position_(end_position) {}
 
 
 void VariableProxy::BindTo(Variable* var) {
@@ -84,6 +89,35 @@ void VariableProxy::BindTo(Variable* var) {
   set_var(var);
   set_is_resolved();
   var->set_is_used();
+}
+
+
+void VariableProxy::SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
+                                           ICSlotCache* cache) {
+  variable_feedback_slot_ = slot;
+  if (var()->IsUnallocated()) {
+    cache->Add(VariableICSlotPair(var(), slot));
+  }
+}
+
+
+FeedbackVectorRequirements VariableProxy::ComputeFeedbackRequirements(
+    Isolate* isolate, const ICSlotCache* cache) {
+  if (UsesVariableFeedbackSlot()) {
+    // VariableProxies that point to the same Variable within a function can
+    // make their loads from the same IC slot.
+    if (var()->IsUnallocated()) {
+      for (int i = 0; i < cache->length(); i++) {
+        VariableICSlotPair& pair = cache->at(i);
+        if (pair.variable() == var()) {
+          variable_feedback_slot_ = pair.slot();
+          return FeedbackVectorRequirements(0, 0);
+        }
+      }
+    }
+    return FeedbackVectorRequirements(0, 1);
+  }
+  return FeedbackVectorRequirements(0, 0);
 }
 
 
@@ -562,7 +596,8 @@ bool Call::IsUsingCallFeedbackSlot(Isolate* isolate) const {
 }
 
 
-FeedbackVectorRequirements Call::ComputeFeedbackRequirements(Isolate* isolate) {
+FeedbackVectorRequirements Call::ComputeFeedbackRequirements(
+    Isolate* isolate, const ICSlotCache* cache) {
   int ic_slots = IsUsingCallFeedbackICSlot(isolate) ? 1 : 0;
   int slots = IsUsingCallFeedbackSlot(isolate) ? 1 : 0;
   // A Call uses either a slot or an IC slot.
@@ -587,48 +622,6 @@ Call::CallType Call::GetCallType(Isolate* isolate) const {
 
   Property* property = expression()->AsProperty();
   return property != NULL ? PROPERTY_CALL : OTHER_CALL;
-}
-
-
-bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
-                               LookupIterator* it) {
-  target_ = Handle<JSFunction>::null();
-  cell_ = Handle<Cell>::null();
-  DCHECK(it->IsFound() && it->GetHolder<JSObject>().is_identical_to(global));
-  cell_ = it->GetPropertyCell();
-  if (cell_->value()->IsJSFunction()) {
-    Handle<JSFunction> candidate(JSFunction::cast(cell_->value()));
-    // If the function is in new space we assume it's more likely to
-    // change and thus prefer the general IC code.
-    if (!it->isolate()->heap()->InNewSpace(*candidate)) {
-      target_ = candidate;
-      return true;
-    }
-  }
-  return false;
-}
-
-
-void CallNew::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  FeedbackVectorSlot allocation_site_feedback_slot =
-      FLAG_pretenuring_call_new ? AllocationSiteFeedbackSlot()
-                                : CallNewFeedbackSlot();
-  allocation_site_ =
-      oracle->GetCallNewAllocationSite(allocation_site_feedback_slot);
-  is_monomorphic_ = oracle->CallNewIsMonomorphic(CallNewFeedbackSlot());
-  if (is_monomorphic_) {
-    target_ = oracle->GetCallNewTarget(CallNewFeedbackSlot());
-  }
-}
-
-
-void ObjectLiteral::Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  DCHECK(!is_computed_name());
-  TypeFeedbackId id = key()->AsLiteral()->LiteralFeedbackId();
-  SmallMapList maps;
-  oracle->CollectReceiverTypes(id, &maps);
-  receiver_type_ = maps.length() == 1 ? maps.at(0)
-                                      : Handle<Map>::null();
 }
 
 

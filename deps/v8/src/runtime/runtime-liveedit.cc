@@ -234,8 +234,9 @@ RUNTIME_FUNCTION(Runtime_LiveEditCheckAndDropActivations) {
   RUNTIME_ASSERT(shared_array->HasFastElements())
   int array_length = Smi::cast(shared_array->length())->value();
   for (int i = 0; i < array_length; i++) {
-    Handle<Object> element =
-        Object::GetElement(isolate, shared_array, i).ToHandleChecked();
+    Handle<Object> element;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, element, Object::GetElement(isolate, shared_array, i));
     RUNTIME_ASSERT(
         element->IsJSValue() &&
         Handle<JSValue>::cast(element)->value()->IsSharedFunctionInfo());

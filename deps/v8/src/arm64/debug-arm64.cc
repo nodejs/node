@@ -15,12 +15,8 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-bool BreakLocationIterator::IsDebugBreakAtReturn() {
-  return Debug::IsDebugBreakAtReturn(rinfo());
-}
 
-
-void BreakLocationIterator::SetDebugBreakAtReturn() {
+void BreakLocation::SetDebugBreakAtReturn() {
   // Patch the code emitted by FullCodeGenerator::EmitReturnSequence, changing
   // the return from JS function sequence from
   //   mov sp, fp
@@ -39,8 +35,8 @@ void BreakLocationIterator::SetDebugBreakAtReturn() {
 
   // The patching code must not overflow the space occupied by the return
   // sequence.
-  STATIC_ASSERT(Assembler::kJSRetSequenceInstructions >= 5);
-  PatchingAssembler patcher(reinterpret_cast<Instruction*>(rinfo()->pc()), 5);
+  STATIC_ASSERT(Assembler::kJSReturnSequenceInstructions >= 5);
+  PatchingAssembler patcher(reinterpret_cast<Instruction*>(pc()), 5);
   byte* entry =
       debug_info_->GetIsolate()->builtins()->Return_DebugBreak()->entry();
 
@@ -59,27 +55,7 @@ void BreakLocationIterator::SetDebugBreakAtReturn() {
 }
 
 
-void BreakLocationIterator::ClearDebugBreakAtReturn() {
-  // Reset the code emitted by EmitReturnSequence to its original state.
-  rinfo()->PatchCode(original_rinfo()->pc(),
-                     Assembler::kJSRetSequenceInstructions);
-}
-
-
-bool Debug::IsDebugBreakAtReturn(RelocInfo* rinfo) {
-  DCHECK(RelocInfo::IsJSReturn(rinfo->rmode()));
-  return rinfo->IsPatchedReturnSequence();
-}
-
-
-bool BreakLocationIterator::IsDebugBreakAtSlot() {
-  DCHECK(IsDebugBreakSlot());
-  // Check whether the debug break slot instructions have been patched.
-  return rinfo()->IsPatchedDebugBreakSlotSequence();
-}
-
-
-void BreakLocationIterator::SetDebugBreakAtSlot() {
+void BreakLocation::SetDebugBreakAtSlot() {
   // Patch the code emitted by DebugCodegen::GenerateSlots, changing the debug
   // break slot code from
   //   mov x0, x0    @ nop DEBUG_BREAK_NOP
@@ -99,7 +75,7 @@ void BreakLocationIterator::SetDebugBreakAtSlot() {
   // The patching code must not overflow the space occupied by the return
   // sequence.
   STATIC_ASSERT(Assembler::kDebugBreakSlotInstructions >= 4);
-  PatchingAssembler patcher(reinterpret_cast<Instruction*>(rinfo()->pc()), 4);
+  PatchingAssembler patcher(reinterpret_cast<Instruction*>(pc()), 4);
   byte* entry =
       debug_info_->GetIsolate()->builtins()->Slot_DebugBreak()->entry();
 
@@ -114,13 +90,6 @@ void BreakLocationIterator::SetDebugBreakAtSlot() {
   // iterate on the frames to find call to debug break slot code.
   patcher.blr(ip0);
   patcher.dc64(reinterpret_cast<int64_t>(entry));
-}
-
-
-void BreakLocationIterator::ClearDebugBreakAtSlot() {
-  DCHECK(IsDebugBreakSlot());
-  rinfo()->PatchCode(original_rinfo()->pc(),
-                     Assembler::kDebugBreakSlotInstructions);
 }
 
 

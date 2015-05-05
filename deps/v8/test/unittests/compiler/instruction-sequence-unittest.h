@@ -18,7 +18,7 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   static const int kDefaultNRegs = 4;
   static const int kNoValue = kMinInt;
 
-  typedef BasicBlock::RpoNumber Rpo;
+  typedef RpoNumber Rpo;
 
   struct VReg {
     VReg() : value_(kNoValue) {}
@@ -26,6 +26,8 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
     explicit VReg(int value) : value_(value) {}
     int value_;
   };
+
+  typedef std::pair<VReg, VReg> VRegPair;
 
   enum TestOperandType {
     kInvalid,
@@ -125,14 +127,14 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   void StartLoop(int loop_blocks);
   void EndLoop();
   void StartBlock();
-  int EndBlock(BlockCompletion completion = FallThrough());
+  Instruction* EndBlock(BlockCompletion completion = FallThrough());
 
   TestOperand Imm(int32_t imm = 0);
   VReg Define(TestOperand output_op);
   VReg Parameter(TestOperand output_op = Reg()) { return Define(output_op); }
 
-  int Return(TestOperand input_op_0);
-  int Return(VReg vreg) { return Return(Reg(vreg, 0)); }
+  Instruction* Return(TestOperand input_op_0);
+  Instruction* Return(VReg vreg) { return Return(Reg(vreg, 0)); }
 
   PhiInstruction* Phi(VReg incoming_vreg_0 = VReg(),
                       VReg incoming_vreg_1 = VReg(),
@@ -142,26 +144,29 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   void SetInput(PhiInstruction* phi, size_t input, VReg vreg);
 
   VReg DefineConstant(int32_t imm = 0);
-  int EmitNop();
-  int EmitI(size_t input_size, TestOperand* inputs);
-  int EmitI(TestOperand input_op_0 = TestOperand(),
-            TestOperand input_op_1 = TestOperand(),
-            TestOperand input_op_2 = TestOperand(),
-            TestOperand input_op_3 = TestOperand());
+  Instruction* EmitNop();
+  Instruction* EmitI(size_t input_size, TestOperand* inputs);
+  Instruction* EmitI(TestOperand input_op_0 = TestOperand(),
+                     TestOperand input_op_1 = TestOperand(),
+                     TestOperand input_op_2 = TestOperand(),
+                     TestOperand input_op_3 = TestOperand());
   VReg EmitOI(TestOperand output_op, size_t input_size, TestOperand* inputs);
   VReg EmitOI(TestOperand output_op, TestOperand input_op_0 = TestOperand(),
               TestOperand input_op_1 = TestOperand(),
               TestOperand input_op_2 = TestOperand(),
               TestOperand input_op_3 = TestOperand());
+  VRegPair EmitOOI(TestOperand output_op_0, TestOperand output_op_1,
+                   size_t input_size, TestOperand* inputs);
+  VRegPair EmitOOI(TestOperand output_op_0, TestOperand output_op_1,
+                   TestOperand input_op_0 = TestOperand(),
+                   TestOperand input_op_1 = TestOperand(),
+                   TestOperand input_op_2 = TestOperand(),
+                   TestOperand input_op_3 = TestOperand());
   VReg EmitCall(TestOperand output_op, size_t input_size, TestOperand* inputs);
   VReg EmitCall(TestOperand output_op, TestOperand input_op_0 = TestOperand(),
                 TestOperand input_op_1 = TestOperand(),
                 TestOperand input_op_2 = TestOperand(),
                 TestOperand input_op_3 = TestOperand());
-
-  // Get defining instruction vreg or value returned at instruction creation
-  // time when there is no return value.
-  const Instruction* GetInstruction(int instruction_index);
 
   InstructionBlock* current_block() const { return current_block_; }
   int num_general_registers() const { return num_general_registers_; }
@@ -172,13 +177,12 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
 
  private:
   VReg NewReg() { return VReg(sequence()->NextVirtualRegister()); }
-  int NewIndex() { return current_instruction_index_--; }
 
   static TestOperand Invalid() { return TestOperand(kInvalid, VReg()); }
 
-  int EmitBranch(TestOperand input_op);
-  int EmitFallThrough();
-  int EmitJump();
+  Instruction* EmitBranch(TestOperand input_op);
+  Instruction* EmitFallThrough();
+  Instruction* EmitJump();
   Instruction* NewInstruction(InstructionCode code, size_t outputs_size,
                               InstructionOperand* outputs,
                               size_t inputs_size = 0,
@@ -202,12 +206,13 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   InstructionBlock* NewBlock();
   void WireBlock(size_t block_offset, int jump_offset);
 
-  int Emit(int instruction_index, InstructionCode code, size_t outputs_size = 0,
-           InstructionOperand* outputs = nullptr, size_t inputs_size = 0,
-           InstructionOperand* inputs = nullptr, size_t temps_size = 0,
-           InstructionOperand* temps = nullptr, bool is_call = false);
+  Instruction* Emit(InstructionCode code, size_t outputs_size = 0,
+                    InstructionOperand* outputs = nullptr,
+                    size_t inputs_size = 0,
+                    InstructionOperand* inputs = nullptr, size_t temps_size = 0,
+                    InstructionOperand* temps = nullptr, bool is_call = false);
 
-  int AddInstruction(int instruction_index, Instruction* instruction);
+  Instruction* AddInstruction(Instruction* instruction);
 
   struct LoopData {
     Rpo loop_header_;
@@ -226,7 +231,6 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   // Block building state.
   InstructionBlocks instruction_blocks_;
   Instructions instructions_;
-  int current_instruction_index_;
   Completions completions_;
   LoopBlocks loop_blocks_;
   InstructionBlock* current_block_;

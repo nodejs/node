@@ -17,12 +17,12 @@
 #include "src/hydrogen.h"
 #include "src/isolate.h"
 #include "src/lithium-allocator.h"
-#include "src/natives.h"
 #include "src/objects.h"
 #include "src/runtime-profiler.h"
 #include "src/sampler.h"
-#include "src/serialize.h"
-#include "src/snapshot.h"
+#include "src/snapshot/natives.h"
+#include "src/snapshot/serialize.h"
+#include "src/snapshot/snapshot.h"
 
 
 namespace v8 {

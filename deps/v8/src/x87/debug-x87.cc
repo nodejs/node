@@ -13,57 +13,57 @@
 namespace v8 {
 namespace internal {
 
-bool BreakLocationIterator::IsDebugBreakAtReturn() {
-  return Debug::IsDebugBreakAtReturn(rinfo());
+// Patch the code at the current PC with a call to the target address.
+// Additional guard int3 instructions can be added if required.
+void PatchCodeWithCall(Address pc, Address target, int guard_bytes) {
+  // Call instruction takes up 5 bytes and int3 takes up one byte.
+  static const int kCallCodeSize = 5;
+  int code_size = kCallCodeSize + guard_bytes;
+
+  // Create a code patcher.
+  CodePatcher patcher(pc, code_size);
+
+// Add a label for checking the size of the code used for returning.
+#ifdef DEBUG
+  Label check_codesize;
+  patcher.masm()->bind(&check_codesize);
+#endif
+
+  // Patch the code.
+  patcher.masm()->call(target, RelocInfo::NONE32);
+
+  // Check that the size of the code generated is as expected.
+  DCHECK_EQ(kCallCodeSize,
+            patcher.masm()->SizeOfCodeGeneratedSince(&check_codesize));
+
+  // Add the requested number of int3 instructions after the call.
+  DCHECK_GE(guard_bytes, 0);
+  for (int i = 0; i < guard_bytes; i++) {
+    patcher.masm()->int3();
+  }
+
+  CpuFeatures::FlushICache(pc, code_size);
 }
 
 
 // Patch the JS frame exit code with a debug break call. See
 // CodeGenerator::VisitReturnStatement and VirtualFrame::Exit in codegen-x87.cc
 // for the precise return instructions sequence.
-void BreakLocationIterator::SetDebugBreakAtReturn() {
+void BreakLocation::SetDebugBreakAtReturn() {
   DCHECK(Assembler::kJSReturnSequenceLength >=
          Assembler::kCallInstructionLength);
-  rinfo()->PatchCodeWithCall(
-      debug_info_->GetIsolate()->builtins()->Return_DebugBreak()->entry(),
+  PatchCodeWithCall(
+      pc(), debug_info_->GetIsolate()->builtins()->Return_DebugBreak()->entry(),
       Assembler::kJSReturnSequenceLength - Assembler::kCallInstructionLength);
 }
 
 
-// Restore the JS frame exit code.
-void BreakLocationIterator::ClearDebugBreakAtReturn() {
-  rinfo()->PatchCode(original_rinfo()->pc(),
-                     Assembler::kJSReturnSequenceLength);
-}
-
-
-// A debug break in the frame exit code is identified by the JS frame exit code
-// having been patched with a call instruction.
-bool Debug::IsDebugBreakAtReturn(RelocInfo* rinfo) {
-  DCHECK(RelocInfo::IsJSReturn(rinfo->rmode()));
-  return rinfo->IsPatchedReturnSequence();
-}
-
-
-bool BreakLocationIterator::IsDebugBreakAtSlot() {
-  DCHECK(IsDebugBreakSlot());
-  // Check whether the debug break slot instructions have been patched.
-  return rinfo()->IsPatchedDebugBreakSlotSequence();
-}
-
-
-void BreakLocationIterator::SetDebugBreakAtSlot() {
+void BreakLocation::SetDebugBreakAtSlot() {
   DCHECK(IsDebugBreakSlot());
   Isolate* isolate = debug_info_->GetIsolate();
-  rinfo()->PatchCodeWithCall(
-      isolate->builtins()->Slot_DebugBreak()->entry(),
+  PatchCodeWithCall(
+      pc(), isolate->builtins()->Slot_DebugBreak()->entry(),
       Assembler::kDebugBreakSlotLength - Assembler::kCallInstructionLength);
-}
-
-
-void BreakLocationIterator::ClearDebugBreakAtSlot() {
-  DCHECK(IsDebugBreakSlot());
-  rinfo()->PatchCode(original_rinfo()->pc(), Assembler::kDebugBreakSlotLength);
 }
 
 

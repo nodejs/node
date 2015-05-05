@@ -75,15 +75,22 @@ void TypeFeedbackVector::SetKind(FeedbackVectorICSlot slot, Code::Kind kind) {
 }
 
 
+template Handle<TypeFeedbackVector> TypeFeedbackVector::Allocate(
+    Isolate* isolate, const FeedbackVectorSpec* spec);
+template Handle<TypeFeedbackVector> TypeFeedbackVector::Allocate(
+    Isolate* isolate, const ZoneFeedbackVectorSpec* spec);
+
+
 // static
-Handle<TypeFeedbackVector> TypeFeedbackVector::Allocate(
-    Isolate* isolate, const FeedbackVectorSpec& spec) {
-  const int slot_count = spec.slots();
-  const int ic_slot_count = spec.ic_slots();
+template <typename Spec>
+Handle<TypeFeedbackVector> TypeFeedbackVector::Allocate(Isolate* isolate,
+                                                        const Spec* spec) {
+  const int slot_count = spec->slots();
+  const int ic_slot_count = spec->ic_slots();
   const int index_count =
       FLAG_vector_ics ? VectorICComputer::word_count(ic_slot_count) : 0;
-  const int length =
-      slot_count + ic_slot_count + index_count + kReservedIndexCount;
+  const int length = slot_count + (ic_slot_count * elements_per_ic_slot()) +
+                     index_count + kReservedIndexCount;
   if (length == kReservedIndexCount) {
     return Handle<TypeFeedbackVector>::cast(
         isolate->factory()->empty_fixed_array());
@@ -113,7 +120,7 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::Allocate(
   Handle<TypeFeedbackVector> vector = Handle<TypeFeedbackVector>::cast(array);
   if (FLAG_vector_ics) {
     for (int i = 0; i < ic_slot_count; i++) {
-      vector->SetKind(FeedbackVectorICSlot(i), spec.GetKind(i));
+      vector->SetKind(FeedbackVectorICSlot(i), spec->GetKind(i));
     }
   }
   return vector;
@@ -207,16 +214,28 @@ Handle<FixedArray> FeedbackNexus::EnsureArrayOfSize(int length) {
 }
 
 
-void FeedbackNexus::InstallHandlers(int start_index, MapHandleList* maps,
-                                    CodeHandleList* handlers) {
+Handle<FixedArray> FeedbackNexus::EnsureExtraArrayOfSize(int length) {
   Isolate* isolate = GetIsolate();
-  Handle<FixedArray> array = handle(FixedArray::cast(GetFeedback()), isolate);
+  Handle<Object> feedback_extra = handle(GetFeedbackExtra(), isolate);
+  if (!feedback_extra->IsFixedArray() ||
+      FixedArray::cast(*feedback_extra)->length() != length) {
+    Handle<FixedArray> array = isolate->factory()->NewFixedArray(length);
+    SetFeedbackExtra(*array);
+    return array;
+  }
+  return Handle<FixedArray>::cast(feedback_extra);
+}
+
+
+void FeedbackNexus::InstallHandlers(Handle<FixedArray> array,
+                                    MapHandleList* maps,
+                                    CodeHandleList* handlers) {
   int receiver_count = maps->length();
   for (int current = 0; current < receiver_count; ++current) {
     Handle<Map> map = maps->at(current);
     Handle<WeakCell> cell = Map::WeakCellForMap(map);
-    array->set(start_index + (current * 2), *cell);
-    array->set(start_index + (current * 2 + 1), *handlers->at(current));
+    array->set(current * 2, *cell);
+    array->set(current * 2 + 1, *handlers->at(current));
   }
 }
 
@@ -224,6 +243,7 @@ void FeedbackNexus::InstallHandlers(int start_index, MapHandleList* maps,
 InlineCacheState LoadICNexus::StateFromFeedback() const {
   Isolate* isolate = GetIsolate();
   Object* feedback = GetFeedback();
+
   if (feedback == *vector()->UninitializedSentinel(isolate)) {
     return UNINITIALIZED;
   } else if (feedback == *vector()->MegamorphicSentinel(isolate)) {
@@ -233,10 +253,10 @@ InlineCacheState LoadICNexus::StateFromFeedback() const {
   } else if (feedback->IsFixedArray()) {
     // Determine state purely by our structure, don't check if the maps are
     // cleared.
-    FixedArray* array = FixedArray::cast(feedback);
-    int length = array->length();
-    DCHECK(length >= 2);
-    return length == 2 ? MONOMORPHIC : POLYMORPHIC;
+    return POLYMORPHIC;
+  } else if (feedback->IsWeakCell()) {
+    // Don't check if the map is cleared.
+    return MONOMORPHIC;
   }
 
   return UNINITIALIZED;
@@ -246,6 +266,7 @@ InlineCacheState LoadICNexus::StateFromFeedback() const {
 InlineCacheState KeyedLoadICNexus::StateFromFeedback() const {
   Isolate* isolate = GetIsolate();
   Object* feedback = GetFeedback();
+
   if (feedback == *vector()->UninitializedSentinel(isolate)) {
     return UNINITIALIZED;
   } else if (feedback == *vector()->PremonomorphicSentinel(isolate)) {
@@ -255,10 +276,14 @@ InlineCacheState KeyedLoadICNexus::StateFromFeedback() const {
   } else if (feedback->IsFixedArray()) {
     // Determine state purely by our structure, don't check if the maps are
     // cleared.
-    FixedArray* array = FixedArray::cast(feedback);
-    int length = array->length();
-    DCHECK(length >= 3);
-    return length == 3 ? MONOMORPHIC : POLYMORPHIC;
+    return POLYMORPHIC;
+  } else if (feedback->IsWeakCell()) {
+    // Don't check if the map is cleared.
+    return MONOMORPHIC;
+  } else if (feedback->IsName()) {
+    Object* extra = GetFeedbackExtra();
+    FixedArray* extra_array = FixedArray::cast(extra);
+    return extra_array->length() > 2 ? POLYMORPHIC : MONOMORPHIC;
   }
 
   return UNINITIALIZED;
@@ -268,6 +293,8 @@ InlineCacheState KeyedLoadICNexus::StateFromFeedback() const {
 InlineCacheState CallICNexus::StateFromFeedback() const {
   Isolate* isolate = GetIsolate();
   Object* feedback = GetFeedback();
+  DCHECK(!FLAG_vector_ics ||
+         GetFeedbackExtra() == *vector()->UninitializedSentinel(isolate));
 
   if (feedback == *vector()->MegamorphicSentinel(isolate)) {
     return GENERIC;
@@ -311,56 +338,68 @@ void CallICNexus::ConfigureMonomorphic(Handle<JSFunction> function) {
 
 
 void KeyedLoadICNexus::ConfigureMegamorphic() {
-  SetFeedback(*vector()->MegamorphicSentinel(GetIsolate()), SKIP_WRITE_BARRIER);
+  Isolate* isolate = GetIsolate();
+  SetFeedback(*vector()->MegamorphicSentinel(isolate), SKIP_WRITE_BARRIER);
+  SetFeedbackExtra(*vector()->UninitializedSentinel(isolate),
+                   SKIP_WRITE_BARRIER);
 }
 
 
 void LoadICNexus::ConfigureMegamorphic() {
   SetFeedback(*vector()->MegamorphicSentinel(GetIsolate()), SKIP_WRITE_BARRIER);
+  SetFeedbackExtra(*vector()->UninitializedSentinel(GetIsolate()),
+                   SKIP_WRITE_BARRIER);
 }
 
 
 void LoadICNexus::ConfigurePremonomorphic() {
   SetFeedback(*vector()->PremonomorphicSentinel(GetIsolate()),
               SKIP_WRITE_BARRIER);
+  SetFeedbackExtra(*vector()->UninitializedSentinel(GetIsolate()),
+                   SKIP_WRITE_BARRIER);
 }
 
 
 void KeyedLoadICNexus::ConfigurePremonomorphic() {
-  SetFeedback(*vector()->PremonomorphicSentinel(GetIsolate()),
-              SKIP_WRITE_BARRIER);
+  Isolate* isolate = GetIsolate();
+  SetFeedback(*vector()->PremonomorphicSentinel(isolate), SKIP_WRITE_BARRIER);
+  SetFeedbackExtra(*vector()->UninitializedSentinel(isolate),
+                   SKIP_WRITE_BARRIER);
 }
 
 
 void LoadICNexus::ConfigureMonomorphic(Handle<Map> receiver_map,
                                        Handle<Code> handler) {
-  Handle<FixedArray> array = EnsureArrayOfSize(2);
   Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
-  array->set(0, *cell);
-  array->set(1, *handler);
+  SetFeedback(*cell);
+  SetFeedbackExtra(*handler);
 }
 
 
 void KeyedLoadICNexus::ConfigureMonomorphic(Handle<Name> name,
                                             Handle<Map> receiver_map,
                                             Handle<Code> handler) {
-  Handle<FixedArray> array = EnsureArrayOfSize(3);
-  if (name.is_null()) {
-    array->set(0, Smi::FromInt(0));
-  } else {
-    array->set(0, *name);
-  }
   Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
-  array->set(1, *cell);
-  array->set(2, *handler);
+  if (name.is_null()) {
+    SetFeedback(*cell);
+    SetFeedbackExtra(*handler);
+  } else {
+    SetFeedback(*name);
+    Handle<FixedArray> array = EnsureExtraArrayOfSize(2);
+    array->set(0, *cell);
+    array->set(1, *handler);
+  }
 }
 
 
 void LoadICNexus::ConfigurePolymorphic(MapHandleList* maps,
                                        CodeHandleList* handlers) {
+  Isolate* isolate = GetIsolate();
   int receiver_count = maps->length();
-  EnsureArrayOfSize(receiver_count * 2);
-  InstallHandlers(0, maps, handlers);
+  Handle<FixedArray> array = EnsureArrayOfSize(receiver_count * 2);
+  InstallHandlers(array, maps, handlers);
+  SetFeedbackExtra(*vector()->UninitializedSentinel(isolate),
+                   SKIP_WRITE_BARRIER);
 }
 
 
@@ -368,26 +407,35 @@ void KeyedLoadICNexus::ConfigurePolymorphic(Handle<Name> name,
                                             MapHandleList* maps,
                                             CodeHandleList* handlers) {
   int receiver_count = maps->length();
-  Handle<FixedArray> array = EnsureArrayOfSize(1 + receiver_count * 2);
+  DCHECK(receiver_count > 1);
+  Handle<FixedArray> array;
   if (name.is_null()) {
-    array->set(0, Smi::FromInt(0));
+    array = EnsureArrayOfSize(receiver_count * 2);
+    SetFeedbackExtra(*vector()->UninitializedSentinel(GetIsolate()),
+                     SKIP_WRITE_BARRIER);
   } else {
-    array->set(0, *name);
+    SetFeedback(*name);
+    array = EnsureExtraArrayOfSize(receiver_count * 2);
   }
-  InstallHandlers(1, maps, handlers);
+
+  InstallHandlers(array, maps, handlers);
 }
 
 
-int FeedbackNexus::ExtractMaps(int start_index, MapHandleList* maps) const {
+int FeedbackNexus::ExtractMaps(MapHandleList* maps) const {
   Isolate* isolate = GetIsolate();
   Object* feedback = GetFeedback();
-  if (feedback->IsFixedArray()) {
+  if (feedback->IsFixedArray() || feedback->IsString()) {
     int found = 0;
+    if (feedback->IsString()) {
+      feedback = GetFeedbackExtra();
+    }
     FixedArray* array = FixedArray::cast(feedback);
     // The array should be of the form [<optional name>], then
     // [map, handler, map, handler, ... ]
-    DCHECK(array->length() >= (2 + start_index));
-    for (int i = start_index; i < array->length(); i += 2) {
+    DCHECK(array->length() >= 2);
+    for (int i = 0; i < array->length(); i += 2) {
+      DCHECK(array->get(i)->IsWeakCell());
       WeakCell* cell = WeakCell::cast(array->get(i));
       if (!cell->cleared()) {
         Map* map = Map::cast(cell->value());
@@ -396,18 +444,28 @@ int FeedbackNexus::ExtractMaps(int start_index, MapHandleList* maps) const {
       }
     }
     return found;
+  } else if (feedback->IsWeakCell()) {
+    WeakCell* cell = WeakCell::cast(feedback);
+    if (!cell->cleared()) {
+      Map* map = Map::cast(cell->value());
+      maps->Add(handle(map, isolate));
+      return 1;
+    }
   }
 
   return 0;
 }
 
 
-MaybeHandle<Code> FeedbackNexus::FindHandlerForMap(int start_index,
-                                                   Handle<Map> map) const {
+MaybeHandle<Code> FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
   Object* feedback = GetFeedback();
-  if (feedback->IsFixedArray()) {
+  if (feedback->IsFixedArray() || feedback->IsString()) {
+    if (feedback->IsString()) {
+      feedback = GetFeedbackExtra();
+    }
     FixedArray* array = FixedArray::cast(feedback);
-    for (int i = start_index; i < array->length(); i += 2) {
+    for (int i = 0; i < array->length(); i += 2) {
+      DCHECK(array->get(i)->IsWeakCell());
       WeakCell* cell = WeakCell::cast(array->get(i));
       if (!cell->cleared()) {
         Map* array_map = Map::cast(cell->value());
@@ -418,23 +476,35 @@ MaybeHandle<Code> FeedbackNexus::FindHandlerForMap(int start_index,
         }
       }
     }
+  } else if (feedback->IsWeakCell()) {
+    WeakCell* cell = WeakCell::cast(feedback);
+    if (!cell->cleared()) {
+      Map* cell_map = Map::cast(cell->value());
+      if (cell_map == *map) {
+        Code* code = Code::cast(GetFeedbackExtra());
+        DCHECK(code->kind() == Code::HANDLER);
+        return handle(code);
+      }
+    }
   }
 
   return MaybeHandle<Code>();
 }
 
 
-bool FeedbackNexus::FindHandlers(int start_index, CodeHandleList* code_list,
-                                 int length) const {
+bool FeedbackNexus::FindHandlers(CodeHandleList* code_list, int length) const {
   Object* feedback = GetFeedback();
   int count = 0;
-  if (feedback->IsFixedArray()) {
+  if (feedback->IsFixedArray() || feedback->IsString()) {
+    if (feedback->IsString()) {
+      feedback = GetFeedbackExtra();
+    }
     FixedArray* array = FixedArray::cast(feedback);
-    // The array should be of the form [<optional name>], then
-    // [map, handler, map, handler, ... ]. Be sure to skip handlers whose maps
-    // have been cleared.
-    DCHECK(array->length() >= (2 + start_index));
-    for (int i = start_index; i < array->length(); i += 2) {
+    // The array should be of the form [map, handler, map, handler, ... ].
+    // Be sure to skip handlers whose maps have been cleared.
+    DCHECK(array->length() >= 2);
+    for (int i = 0; i < array->length(); i += 2) {
+      DCHECK(array->get(i)->IsWeakCell());
       WeakCell* cell = WeakCell::cast(array->get(i));
       if (!cell->cleared()) {
         Code* code = Code::cast(array->get(i + 1));
@@ -443,13 +513,16 @@ bool FeedbackNexus::FindHandlers(int start_index, CodeHandleList* code_list,
         count++;
       }
     }
+  } else if (feedback->IsWeakCell()) {
+    WeakCell* cell = WeakCell::cast(feedback);
+    if (!cell->cleared()) {
+      Code* code = Code::cast(GetFeedbackExtra());
+      DCHECK(code->kind() == Code::HANDLER);
+      code_list->Add(handle(code));
+      count++;
+    }
   }
   return count == length;
-}
-
-
-int LoadICNexus::ExtractMaps(MapHandleList* maps) const {
-  return FeedbackNexus::ExtractMaps(0, maps);
 }
 
 
@@ -461,39 +534,10 @@ void KeyedLoadICNexus::Clear(Code* host) {
 }
 
 
-int KeyedLoadICNexus::ExtractMaps(MapHandleList* maps) const {
-  return FeedbackNexus::ExtractMaps(1, maps);
-}
-
-
-MaybeHandle<Code> LoadICNexus::FindHandlerForMap(Handle<Map> map) const {
-  return FeedbackNexus::FindHandlerForMap(0, map);
-}
-
-
-MaybeHandle<Code> KeyedLoadICNexus::FindHandlerForMap(Handle<Map> map) const {
-  return FeedbackNexus::FindHandlerForMap(1, map);
-}
-
-
-bool LoadICNexus::FindHandlers(CodeHandleList* code_list, int length) const {
-  return FeedbackNexus::FindHandlers(0, code_list, length);
-}
-
-
-bool KeyedLoadICNexus::FindHandlers(CodeHandleList* code_list,
-                                    int length) const {
-  return FeedbackNexus::FindHandlers(1, code_list, length);
-}
-
-
 Name* KeyedLoadICNexus::FindFirstName() const {
   Object* feedback = GetFeedback();
-  if (feedback->IsFixedArray()) {
-    FixedArray* array = FixedArray::cast(feedback);
-    DCHECK(array->length() >= 3);
-    Object* name = array->get(0);
-    if (name->IsName()) return Name::cast(name);
+  if (feedback->IsString()) {
+    return Name::cast(feedback);
   }
   return NULL;
 }

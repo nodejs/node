@@ -39,6 +39,14 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor& d) {
 
 
 CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
+  if (info->code_stub() != NULL) {
+    // Use the code stub interface descriptor.
+    CallInterfaceDescriptor descriptor =
+        info->code_stub()->GetCallInterfaceDescriptor();
+    return GetStubCallDescriptor(info->isolate(), zone, descriptor, 0,
+                                 CallDescriptor::kNoFlags,
+                                 Operator::kNoProperties);
+  }
   if (info->function() != NULL) {
     // If we already have the function literal, use the number of parameters
     // plus the receiver.
@@ -53,14 +61,6 @@ CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
     return GetJSCallDescriptor(zone, info->is_osr(),
                                1 + shared->internal_formal_parameter_count(),
                                CallDescriptor::kNoFlags);
-  }
-  if (info->code_stub() != NULL) {
-    // Use the code stub interface descriptor.
-    CallInterfaceDescriptor descriptor =
-        info->code_stub()->GetCallInterfaceDescriptor();
-    return GetStubCallDescriptor(info->isolate(), zone, descriptor, 0,
-                                 CallDescriptor::kNoFlags,
-                                 Operator::kNoProperties);
   }
   return NULL;  // TODO(titzer): ?
 }
@@ -114,22 +114,23 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kNewArguments:
     case Runtime::kNewClosure:
     case Runtime::kNewFunctionContext:
+    case Runtime::kNewRestParamSlow:
     case Runtime::kPushBlockContext:
     case Runtime::kPushCatchContext:
     case Runtime::kReThrow:
     case Runtime::kSetProperty:  // TODO(jarin): Is it safe?
-    case Runtime::kStringCompare:
+    case Runtime::kStringCompareRT:
     case Runtime::kStringEquals:
     case Runtime::kToFastProperties:  // TODO(jarin): Is it safe?
     case Runtime::kTraceEnter:
     case Runtime::kTraceExit:
     case Runtime::kTypeof:
-    case Runtime::kNewRestParamSlow:
       return false;
     case Runtime::kInlineArguments:
     case Runtime::kInlineCallFunction:
     case Runtime::kInlineDateField:
-    case Runtime::kInlineOptimizedGetPrototype:
+    case Runtime::kInlineDeoptimizeNow:
+    case Runtime::kInlineGetPrototype:
     case Runtime::kInlineRegExpExec:
       return true;
     default:
@@ -174,7 +175,7 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
 CallDescriptor* Linkage::GetStubCallDescriptor(
     Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
     int stack_parameter_count, CallDescriptor::Flags flags,
-    Operator::Properties properties) {
+    Operator::Properties properties, MachineType return_type) {
   UNIMPLEMENTED();
   return NULL;
 }

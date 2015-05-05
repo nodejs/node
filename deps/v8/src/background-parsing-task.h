@@ -14,18 +14,13 @@
 namespace v8 {
 namespace internal {
 
-class Parser;
-
 // Internal representation of v8::ScriptCompiler::StreamedSource. Contains all
 // data which needs to be transmitted between threads for background parsing,
 // finalizing it on the main thread, and compiling on the main thread.
 struct StreamedSource {
   StreamedSource(ScriptCompiler::ExternalSourceStream* source_stream,
                  ScriptCompiler::StreamedSource::Encoding encoding)
-      : source_stream(source_stream),
-        encoding(encoding),
-        hash_seed(0),
-        allow_lazy(false) {}
+      : source_stream(source_stream), encoding(encoding) {}
 
   // Internal implementation of v8::ScriptCompiler::StreamedSource.
   SmartPointer<ScriptCompiler::ExternalSourceStream> source_stream;
@@ -36,9 +31,8 @@ struct StreamedSource {
   // between parsing and compilation. These need to be initialized before the
   // compilation starts.
   UnicodeCache unicode_cache;
-  SmartPointer<CompilationInfo> info;
-  uint32_t hash_seed;
-  bool allow_lazy;
+  SmartPointer<Zone> zone;
+  SmartPointer<ParseInfo> info;
   SmartPointer<Parser> parser;
 
  private:
@@ -58,7 +52,6 @@ class BackgroundParsingTask : public ScriptCompiler::ScriptStreamingTask {
 
  private:
   StreamedSource* source_;  // Not owned.
-  ScriptCompiler::CompileOptions options_;
   int stack_size_;
 };
 }

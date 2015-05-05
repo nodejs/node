@@ -39,7 +39,7 @@ function g(x) {
 
 function checkNameDescriptor(f) {
   var descriptor = Object.getOwnPropertyDescriptor(f, "name");
-  assertFalse(descriptor.configurable);
+  assertTrue(descriptor.configurable);
   assertFalse(descriptor.enumerable);
   assertFalse(descriptor.writable);
 }

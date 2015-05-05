@@ -31,7 +31,7 @@ single_core() {
 
 all_cores() {
   echo "Reactivating all CPU cores"
-  for (( i=2; i<=$MAXID; i++ )); do
+  for (( i=1; i<=$MAXID; i++ )); do
     echo 1 > $CPUPATH/cpu$i/online
   done
 }
