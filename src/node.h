@@ -42,14 +42,33 @@
 #include "v8.h"  // NOLINT(build/include_order)
 #include "node_version.h"  // NODE_MODULE_VERSION
 
-#if defined(__GNUC__)
-# define NODE_DEPRECATED(message, declarator) \
+#define IOJS_MAKE_VERSION(major, minor, patch)                                \
+  ((major) * 0x1000 + (minor) * 0x100 + (patch))
+
+#ifdef __clang__
+# define IOJS_CLANG_AT_LEAST(major, minor, patch)                             \
+  (IOJS_MAKE_VERSION(major, minor, patch) <=                                  \
+   IOJS_MAKE_VERSION(__clang_major__, __clang_minor__, __clang_patchlevel__))
+#else
+# define IOJS_CLANG_AT_LEAST(major, minor, patch) (0)
+#endif
+
+#ifdef __GNUC__
+# define IOJS_GNUC_AT_LEAST(major, minor, patch)                              \
+  (IOJS_MAKE_VERSION(major, minor, patch) <=                                  \
+   IOJS_MAKE_VERSION(__GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__))
+#else
+# define IOJS_GNUC_AT_LEAST(major, minor, patch) (0)
+#endif
+
+#if IOJS_CLANG_AT_LEAST(2, 9, 0) || IOJS_GNUC_AT_LEAST(4, 5, 0)
+# define NODE_DEPRECATED(message, declarator)                                 \
     __attribute__((deprecated(message))) declarator
 #elif defined(_MSC_VER)
-# define NODE_DEPRECATED(message, declarator) \
+# define NODE_DEPRECATED(message, declarator)                                 \
     __declspec(deprecated) declarator
 #else
-# define NODE_DEPRECATED(message, declarator) \
+# define NODE_DEPRECATED(message, declarator)                                 \
     declarator
 #endif
 
