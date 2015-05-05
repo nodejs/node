@@ -661,7 +661,7 @@ publicly trusted list of CAs as given in
 <http://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt>.
 
 
-## tls.createSecurePair([context][, isServer][, requestCert][, rejectUnauthorized])
+## tls.createSecurePair([context][, isServer][, requestCert][, rejectUnauthorized][, options])
 
 Creates a new secure pair object with two streams, one of which reads/writes
 encrypted data, and one reads/writes cleartext data.
@@ -679,6 +679,8 @@ and the cleartext one is used as a replacement for the initial encrypted stream.
  - `rejectUnauthorized`: A boolean indicating whether a server should
    automatically reject clients with invalid certificates. Only applies to
    servers with `requestCert` enabled.
+
+ - `options`: An object with common SSL options. See [tls.TLSSocket][].
 
 `tls.createSecurePair()` returns a SecurePair object with `cleartext` and
 `encrypted` stream properties.
