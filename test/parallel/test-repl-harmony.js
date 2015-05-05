@@ -3,10 +3,10 @@ var common = require('../common');
 var assert = require('assert');
 
 var spawn = require('child_process').spawn;
-var args = ['--harmony', '--harmony_scoping', '--use-strict', '-i'];
+var args = ['-i'];
 var child = spawn(process.execPath, args);
 
-var input = '(function(){const y=1;y=2})()\n';
+var input = '(function(){"use strict"; const y=1;y=2})()\n';
 var expectOut = /^> TypeError: Assignment to constant variable.\n/;
 
 child.stderr.setEncoding('utf8');
