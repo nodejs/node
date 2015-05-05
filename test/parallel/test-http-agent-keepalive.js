@@ -35,7 +35,7 @@ function get(path, callback) {
   }, callback);
 }
 
-var name = 'localhost:' + common.PORT + '::';
+var name = 'localhost:' + common.PORT + ':';
 
 function checkDataAndSockets(body) {
   assert.equal(body.toString(), 'hello world');
