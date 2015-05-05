@@ -198,8 +198,8 @@ def run(args):
   # argv[2] is a custom install prefix for packagers (think DESTDIR)
   # argv[3] is a custom install prefix (think PREFIX)
   # Difference is that dst_dir won't be included in shebang lines etc.
-  if len(args) > 2:
-    dst_dir = args[2]
+  dst_dir = args[2] if len(args) > 2 else ''
+
   if len(args) > 3:
     node_prefix = args[3]
 
