@@ -14,6 +14,11 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+#define TRACE(...)                                       \
+  do {                                                   \
+    if (FLAG_trace_turbo_scheduler) PrintF(__VA_ARGS__); \
+  } while (false)
+
 // Determines control dependence equivalence classes for control nodes. Any two
 // nodes having the same set of control dependences land in one class. These
 // classes can in turn be used to:
@@ -96,16 +101,16 @@ class ControlEquivalence : public ZoneObject {
 
   // Called at pre-visit during DFS walk.
   void VisitPre(Node* node) {
-    Trace("CEQ: Pre-visit of #%d:%s\n", node->id(), node->op()->mnemonic());
+    TRACE("CEQ: Pre-visit of #%d:%s\n", node->id(), node->op()->mnemonic());
 
     // Dispense a new pre-order number.
     SetNumber(node, NewDFSNumber());
-    Trace("  Assigned DFS number is %d\n", GetNumber(node));
+    TRACE("  Assigned DFS number is %zu\n", GetNumber(node));
   }
 
   // Called at mid-visit during DFS walk.
   void VisitMid(Node* node, DFSDirection direction) {
-    Trace("CEQ: Mid-visit of #%d:%s\n", node->id(), node->op()->mnemonic());
+    TRACE("CEQ: Mid-visit of #%d:%s\n", node->id(), node->op()->mnemonic());
     BracketList& blist = GetBracketList(node);
 
     // Remove brackets pointing to this node [line:19].
@@ -118,7 +123,7 @@ class ControlEquivalence : public ZoneObject {
     }
 
     // Potentially start a new equivalence class [line:37].
-    BracketListTrace(blist);
+    BracketListTRACE(blist);
     Bracket* recent = &blist.back();
     if (recent->recent_size != blist.size()) {
       recent->recent_size = blist.size();
@@ -127,12 +132,12 @@ class ControlEquivalence : public ZoneObject {
 
     // Assign equivalence class to node.
     SetClass(node, recent->recent_class);
-    Trace("  Assigned class number is %d\n", GetClass(node));
+    TRACE("  Assigned class number is %zu\n", GetClass(node));
   }
 
   // Called at post-visit during DFS walk.
   void VisitPost(Node* node, Node* parent_node, DFSDirection direction) {
-    Trace("CEQ: Post-visit of #%d:%s\n", node->id(), node->op()->mnemonic());
+    TRACE("CEQ: Post-visit of #%d:%s\n", node->id(), node->op()->mnemonic());
     BracketList& blist = GetBracketList(node);
 
     // Remove brackets pointing to this node [line:19].
@@ -147,7 +152,7 @@ class ControlEquivalence : public ZoneObject {
 
   // Called when hitting a back edge in the DFS walk.
   void VisitBackedge(Node* from, Node* to, DFSDirection direction) {
-    Trace("CEQ: Backedge from #%d:%s to #%d:%s\n", from->id(),
+    TRACE("CEQ: Backedge from #%d:%s to #%d:%s\n", from->id(),
           from->op()->mnemonic(), to->id(), to->op()->mnemonic());
 
     // Push backedge onto the bracket list [line:25].
@@ -316,7 +321,7 @@ class ControlEquivalence : public ZoneObject {
   void BracketListDelete(BracketList& blist, Node* to, DFSDirection direction) {
     for (BracketList::iterator i = blist.begin(); i != blist.end(); /*nop*/) {
       if (i->to == to && i->direction != direction) {
-        Trace("  BList erased: {%d->%d}\n", i->from->id(), i->to->id());
+        TRACE("  BList erased: {%d->%d}\n", i->from->id(), i->to->id());
         i = blist.erase(i);
       } else {
         ++i;
@@ -324,22 +329,13 @@ class ControlEquivalence : public ZoneObject {
     }
   }
 
-  void BracketListTrace(BracketList& blist) {
+  void BracketListTRACE(BracketList& blist) {
     if (FLAG_trace_turbo_scheduler) {
-      Trace("  BList: ");
+      TRACE("  BList: ");
       for (Bracket bracket : blist) {
-        Trace("{%d->%d} ", bracket.from->id(), bracket.to->id());
+        TRACE("{%d->%d} ", bracket.from->id(), bracket.to->id());
       }
-      Trace("\n");
-    }
-  }
-
-  void Trace(const char* msg, ...) {
-    if (FLAG_trace_turbo_scheduler) {
-      va_list arguments;
-      va_start(arguments, msg);
-      base::OS::VPrint(msg, arguments);
-      va_end(arguments);
+      TRACE("\n");
     }
   }
 
@@ -349,6 +345,8 @@ class ControlEquivalence : public ZoneObject {
   int class_number_;  // Generates new equivalence class numbers on demand.
   Data node_data_;    // Per-node data stored as a side-table.
 };
+
+#undef TRACE
 
 }  // namespace compiler
 }  // namespace internal

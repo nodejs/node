@@ -2,13 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-"use strict";
-
-// This file relies on the fact that the following declaration has been made
-// in runtime.js:
-// var $Array = global.Array;
-
-// And requires following symbols to be set in the bootstrapper during genesis:
+// Expects following symbols to be set in the bootstrapper during genesis:
 // - symbolHasInstance
 // - symbolIsConcatSpreadable
 // - symbolIsRegExp
@@ -16,7 +10,17 @@
 // - symbolToStringTag
 // - symbolUnscopables
 
-var $Symbol = global.Symbol;
+var $symbolToString;
+
+(function() {
+
+"use strict";
+
+%CheckIsBootstrapping();
+
+var GlobalArray = global.Array;
+var GlobalObject = global.Object;
+var GlobalSymbol = global.Symbol;
 
 // -------------------------------------------------------------------
 
@@ -77,46 +81,40 @@ function ObjectGetOwnPropertySymbols(obj) {
 
 //-------------------------------------------------------------------
 
-function SetUpSymbol() {
-  %CheckIsBootstrapping();
+%SetCode(GlobalSymbol, SymbolConstructor);
+%FunctionSetPrototype(GlobalSymbol, new GlobalObject());
 
-  %SetCode($Symbol, SymbolConstructor);
-  %FunctionSetPrototype($Symbol, new $Object());
+InstallConstants(GlobalSymbol, GlobalArray(
+  // TODO(rossberg): expose when implemented.
+  // "hasInstance", symbolHasInstance,
+  // "isConcatSpreadable", symbolIsConcatSpreadable,
+  // "isRegExp", symbolIsRegExp,
+  "iterator", symbolIterator,
+  // TODO(dslomov, caitp): Currently defined in harmony-tostring.js ---
+  // Move here when shipping
+  // "toStringTag", symbolToStringTag,
+  "unscopables", symbolUnscopables
+));
 
-  InstallConstants($Symbol, $Array(
-    // TODO(rossberg): expose when implemented.
-    // "hasInstance", symbolHasInstance,
-    // "isConcatSpreadable", symbolIsConcatSpreadable,
-    // "isRegExp", symbolIsRegExp,
-    "iterator", symbolIterator,
-    // TODO(dslomov, caitp): Currently defined in harmony-tostring.js ---
-    // Move here when shipping
-    // "toStringTag", symbolToStringTag,
-    "unscopables", symbolUnscopables
-  ));
-  InstallFunctions($Symbol, DONT_ENUM, $Array(
-    "for", SymbolFor,
-    "keyFor", SymbolKeyFor
-  ));
+InstallFunctions(GlobalSymbol, DONT_ENUM, GlobalArray(
+  "for", SymbolFor,
+  "keyFor", SymbolKeyFor
+));
 
-  %AddNamedProperty($Symbol.prototype, "constructor", $Symbol, DONT_ENUM);
-  %AddNamedProperty(
-      $Symbol.prototype, symbolToStringTag, "Symbol", DONT_ENUM | READ_ONLY);
-  InstallFunctions($Symbol.prototype, DONT_ENUM, $Array(
-    "toString", SymbolToString,
-    "valueOf", SymbolValueOf
-  ));
-}
+%AddNamedProperty(
+    GlobalSymbol.prototype, "constructor", GlobalSymbol, DONT_ENUM);
+%AddNamedProperty(
+    GlobalSymbol.prototype, symbolToStringTag, "Symbol", DONT_ENUM | READ_ONLY);
 
-SetUpSymbol();
+InstallFunctions(GlobalSymbol.prototype, DONT_ENUM, GlobalArray(
+  "toString", SymbolToString,
+  "valueOf", SymbolValueOf
+));
 
+InstallFunctions(GlobalObject, DONT_ENUM, GlobalArray(
+  "getOwnPropertySymbols", ObjectGetOwnPropertySymbols
+));
 
-function ExtendObject() {
-  %CheckIsBootstrapping();
+$symbolToString = SymbolToString;
 
-  InstallFunctions($Object, DONT_ENUM, $Array(
-    "getOwnPropertySymbols", ObjectGetOwnPropertySymbols
-  ));
-}
-
-ExtendObject();
+})();

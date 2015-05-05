@@ -234,7 +234,8 @@ ARCHES = ia32 x64 x32 arm arm64 mips mipsel mips64el x87 ppc ppc64
 DEFAULT_ARCHES = ia32 x64 arm
 MODES = release debug optdebug
 DEFAULT_MODES = release debug
-ANDROID_ARCHES = android_ia32 android_arm android_arm64 android_mipsel android_x87
+ANDROID_ARCHES = android_ia32 android_x64 android_arm android_arm64 \
+		 android_mipsel android_x87
 NACL_ARCHES = nacl_ia32 nacl_x64
 
 # List of files that trigger Makefile regeneration:

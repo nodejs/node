@@ -27,13 +27,28 @@ class JSIntrinsicLowering FINAL : public Reducer {
   Reduction Reduce(Node* node) FINAL;
 
  private:
-  Reduction ReduceInlineIsSmi(Node* node);
-  Reduction ReduceInlineIsNonNegativeSmi(Node* node);
-  Reduction ReduceInlineIsInstanceType(Node* node, InstanceType instance_type);
-  Reduction ReduceInlineValueOf(Node* node);
+  Reduction ReduceConstructDouble(Node* node);
+  Reduction ReduceDeoptimizeNow(Node* node);
+  Reduction ReduceDoubleHi(Node* node);
+  Reduction ReduceDoubleLo(Node* node);
+  Reduction ReduceHeapObjectGetMap(Node* node);
+  Reduction ReduceIncrementStatsCounter(Node* node);
+  Reduction ReduceIsInstanceType(Node* node, InstanceType instance_type);
+  Reduction ReduceIsNonNegativeSmi(Node* node);
+  Reduction ReduceIsSmi(Node* node);
+  Reduction ReduceJSValueGetValue(Node* node);
+  Reduction ReduceMapGetInstanceType(Node* node);
+  Reduction ReduceMathClz32(Node* node);
+  Reduction ReduceMathFloor(Node* node);
+  Reduction ReduceMathSqrt(Node* node);
+  Reduction ReduceSeqStringGetChar(Node* node, String::Encoding encoding);
+  Reduction ReduceSeqStringSetChar(Node* node, String::Encoding encoding);
+  Reduction ReduceStringGetLength(Node* node);
+  Reduction ReduceValueOf(Node* node);
 
   Reduction Change(Node* node, const Operator* op);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b, Node* c);
+  Reduction ChangeToUndefined(Node* node, Node* effect = nullptr);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }

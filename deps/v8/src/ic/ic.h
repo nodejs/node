@@ -104,12 +104,12 @@ class IC {
 
   static bool IsCleared(Code* code) {
     InlineCacheState state = code->ic_state();
-    return state == UNINITIALIZED || state == PREMONOMORPHIC;
+    return !FLAG_use_ic || state == UNINITIALIZED || state == PREMONOMORPHIC;
   }
 
   static bool IsCleared(FeedbackNexus* nexus) {
     InlineCacheState state = nexus->StateFromFeedback();
-    return state == UNINITIALIZED || state == PREMONOMORPHIC;
+    return !FLAG_use_ic || state == UNINITIALIZED || state == PREMONOMORPHIC;
   }
 
   static bool ICUseVector(Code::Kind kind) {
@@ -134,6 +134,7 @@ class IC {
   Code* GetOriginalCode() const;
 
   bool AddressIsOptimizedCode() const;
+  bool AddressIsDeoptimizedCode() const;
 
   // Set the call-site target.
   inline void set_target(Code* code);
@@ -396,7 +397,9 @@ class LoadIC : public IC {
   static Handle<Code> initialize_stub(Isolate* isolate,
                                       ExtraICState extra_state);
   static Handle<Code> initialize_stub_in_optimized_code(
-      Isolate* isolate, ExtraICState extra_state);
+      Isolate* isolate, ExtraICState extra_state, State initialization_state);
+  static Handle<Code> load_global(Isolate* isolate, Handle<GlobalObject> global,
+                                  Handle<String> name);
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
                                            Handle<Name> name);
@@ -481,7 +484,8 @@ class KeyedLoadIC : public LoadIC {
       (1 << Map::kIsAccessCheckNeeded) | (1 << Map::kHasIndexedInterceptor);
 
   static Handle<Code> initialize_stub(Isolate* isolate);
-  static Handle<Code> initialize_stub_in_optimized_code(Isolate* isolate);
+  static Handle<Code> initialize_stub_in_optimized_code(
+      Isolate* isolate, State initialization_state);
   static Handle<Code> ChooseMegamorphicStub(Isolate* isolate);
   static Handle<Code> pre_monomorphic_stub(Isolate* isolate);
 
@@ -539,7 +543,8 @@ class StoreIC : public IC {
                                          LanguageMode language_mode);
 
   static Handle<Code> initialize_stub(Isolate* isolate,
-                                      LanguageMode language_mode);
+                                      LanguageMode language_mode,
+                                      State initialization_state);
 
   MUST_USE_RESULT MaybeHandle<Object> Store(
       Handle<Object> object, Handle<Name> name, Handle<Object> value,
@@ -630,6 +635,10 @@ class KeyedStoreIC : public StoreIC {
   static void GenerateMegamorphic(MacroAssembler* masm,
                                   LanguageMode language_mode);
   static void GenerateSloppyArguments(MacroAssembler* masm);
+
+  static Handle<Code> initialize_stub(Isolate* isolate,
+                                      LanguageMode language_mode,
+                                      State initialization_state);
 
  protected:
   virtual Handle<Code> pre_monomorphic_stub() const {

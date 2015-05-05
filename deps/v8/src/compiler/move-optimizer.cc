@@ -10,31 +10,9 @@ namespace compiler {
 
 namespace {
 
-MoveOperands* PrepareInsertAfter(ParallelMove* left, MoveOperands* move,
-                                 Zone* zone) {
-  auto move_ops = left->move_operands();
-  MoveOperands* replacement = nullptr;
-  MoveOperands* to_eliminate = nullptr;
-  for (auto curr = move_ops->begin(); curr != move_ops->end(); ++curr) {
-    if (curr->IsEliminated()) continue;
-    if (curr->destination()->Equals(move->source())) {
-      DCHECK(!replacement);
-      replacement = curr;
-      if (to_eliminate != nullptr) break;
-    } else if (curr->destination()->Equals(move->destination())) {
-      DCHECK(!to_eliminate);
-      to_eliminate = curr;
-      if (replacement != nullptr) break;
-    }
-  }
-  DCHECK(!(replacement == to_eliminate && replacement != nullptr));
-  if (replacement != nullptr) {
-    auto new_source = InstructionOperand::New(
-        zone, replacement->source()->kind(), replacement->source()->index());
-    move->set_source(new_source);
-  }
-  return to_eliminate;
-}
+typedef std::pair<InstructionOperand, InstructionOperand> MoveKey;
+typedef ZoneMap<MoveKey, unsigned> MoveMap;
+typedef ZoneSet<InstructionOperand> OperandSet;
 
 
 bool GapsCanMoveOver(Instruction* instr) {
@@ -75,6 +53,10 @@ void MoveOptimizer::Run() {
   for (auto* block : code()->instruction_blocks()) {
     CompressBlock(block);
   }
+  for (auto block : code()->instruction_blocks()) {
+    if (block->PredecessorCount() <= 1) continue;
+    OptimizeMerge(block);
+  }
   for (auto gap : to_finalize_) {
     FinalizeMoves(gap);
   }
@@ -90,7 +72,7 @@ void MoveOptimizer::CompressMoves(MoveOpVector* eliminated, ParallelMove* left,
     // merging the two gaps.
     for (auto op = move_ops->begin(); op != move_ops->end(); ++op) {
       if (op->IsRedundant()) continue;
-      MoveOperands* to_eliminate = PrepareInsertAfter(left, op, code_zone());
+      auto to_eliminate = left->PrepareInsertAfter(op);
       if (to_eliminate != nullptr) eliminated->push_back(to_eliminate);
     }
     // Eliminate dead moves.  Must happen before insertion of new moves as the
@@ -154,6 +136,107 @@ void MoveOptimizer::CompressBlock(InstructionBlock* block) {
     prev_gap = gap;
   }
   if (prev_gap != nullptr) to_finalize_.push_back(prev_gap);
+}
+
+
+GapInstruction* MoveOptimizer::LastGap(InstructionBlock* block) {
+  int gap_index = block->last_instruction_index() - 1;
+  auto instr = code()->instructions()[gap_index];
+  return GapInstruction::cast(instr);
+}
+
+
+void MoveOptimizer::OptimizeMerge(InstructionBlock* block) {
+  DCHECK(block->PredecessorCount() > 1);
+  // Ensure that the last instruction in all incoming blocks don't contain
+  // things that would prevent moving gap moves across them.
+  for (auto pred_index : block->predecessors()) {
+    auto pred = code()->InstructionBlockAt(pred_index);
+    auto last_instr = code()->instructions()[pred->last_instruction_index()];
+    DCHECK(!last_instr->IsGapMoves());
+    if (last_instr->IsSourcePosition()) continue;
+    if (last_instr->IsCall()) return;
+    if (last_instr->TempCount() != 0) return;
+    if (last_instr->OutputCount() != 0) return;
+    for (size_t i = 0; i < last_instr->InputCount(); ++i) {
+      auto op = last_instr->InputAt(i);
+      if (!op->IsConstant() && !op->IsImmediate()) return;
+    }
+  }
+  // TODO(dcarney): pass a ZonePool down for this?
+  MoveMap move_map(local_zone());
+  size_t correct_counts = 0;
+  // Accumulate set of shared moves.
+  for (auto pred_index : block->predecessors()) {
+    auto pred = code()->InstructionBlockAt(pred_index);
+    auto gap = LastGap(pred);
+    if (gap->parallel_moves()[0] == nullptr ||
+        gap->parallel_moves()[0]->move_operands()->is_empty()) {
+      return;
+    }
+    auto move_ops = gap->parallel_moves()[0]->move_operands();
+    for (auto op = move_ops->begin(); op != move_ops->end(); ++op) {
+      if (op->IsRedundant()) continue;
+      auto src = *op->source();
+      auto dst = *op->destination();
+      MoveKey key = {src, dst};
+      auto res = move_map.insert(std::make_pair(key, 1));
+      if (!res.second) {
+        res.first->second++;
+        if (res.first->second == block->PredecessorCount()) {
+          correct_counts++;
+        }
+      }
+    }
+  }
+  if (move_map.empty() || correct_counts != move_map.size()) return;
+  // Find insertion point.
+  GapInstruction* gap = nullptr;
+  for (int i = block->first_instruction_index();
+       i <= block->last_instruction_index(); ++i) {
+    auto instr = code()->instructions()[i];
+    if (instr->IsGapMoves()) {
+      gap = GapInstruction::cast(instr);
+      continue;
+    }
+    if (!GapsCanMoveOver(instr)) break;
+  }
+  DCHECK(gap != nullptr);
+  bool gap_initialized = true;
+  if (gap->parallel_moves()[0] == nullptr ||
+      gap->parallel_moves()[0]->move_operands()->is_empty()) {
+    to_finalize_.push_back(gap);
+  } else {
+    // Will compress after insertion.
+    gap_initialized = false;
+    std::swap(gap->parallel_moves()[0], gap->parallel_moves()[1]);
+  }
+  auto move = gap->GetOrCreateParallelMove(
+      static_cast<GapInstruction::InnerPosition>(0), code_zone());
+  // Delete relevant entries in predecessors and move everything to block.
+  bool first_iteration = true;
+  for (auto pred_index : block->predecessors()) {
+    auto pred = code()->InstructionBlockAt(pred_index);
+    auto gap = LastGap(pred);
+    auto move_ops = gap->parallel_moves()[0]->move_operands();
+    for (auto op = move_ops->begin(); op != move_ops->end(); ++op) {
+      if (op->IsRedundant()) continue;
+      MoveKey key = {*op->source(), *op->destination()};
+      auto it = move_map.find(key);
+      USE(it);
+      DCHECK(it != move_map.end());
+      if (first_iteration) {
+        move->AddMove(op->source(), op->destination(), code_zone());
+      }
+      op->Eliminate();
+    }
+    first_iteration = false;
+  }
+  // Compress.
+  if (!gap_initialized) {
+    CompressMoves(&temp_vector_0(), gap->parallel_moves()[0],
+                  gap->parallel_moves()[1]);
+  }
 }
 
 

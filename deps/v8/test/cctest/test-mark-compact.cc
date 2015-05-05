@@ -41,10 +41,10 @@
 
 #include "src/full-codegen.h"
 #include "src/global-handles.h"
-#include "src/snapshot.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
+using v8::Just;
 
 
 TEST(MarkingDeque) {
@@ -127,6 +127,7 @@ TEST(NoPromotion) {
 
 TEST(MarkCompactCollector) {
   FLAG_incremental_marking = false;
+  FLAG_retain_maps_for_n_gc = 0;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   TestHeap* heap = CcTest::test_heap();
@@ -167,9 +168,7 @@ TEST(MarkCompactCollector) {
 
   { HandleScope scope(isolate);
     Handle<String> func_name = factory->InternalizeUtf8String("theFunction");
-    v8::Maybe<bool> maybe = JSReceiver::HasOwnProperty(global, func_name);
-    CHECK(maybe.has_value);
-    CHECK(maybe.value);
+    CHECK(Just(true) == JSReceiver::HasOwnProperty(global, func_name));
     Handle<Object> func_value =
         Object::GetProperty(global, func_name).ToHandleChecked();
     CHECK(func_value->IsJSFunction());
@@ -187,9 +186,7 @@ TEST(MarkCompactCollector) {
 
   { HandleScope scope(isolate);
     Handle<String> obj_name = factory->InternalizeUtf8String("theObject");
-    v8::Maybe<bool> maybe = JSReceiver::HasOwnProperty(global, obj_name);
-    CHECK(maybe.has_value);
-    CHECK(maybe.value);
+    CHECK(Just(true) == JSReceiver::HasOwnProperty(global, obj_name));
     Handle<Object> object =
         Object::GetProperty(global, obj_name).ToHandleChecked();
     CHECK(object->IsJSObject());

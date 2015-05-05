@@ -61,6 +61,19 @@
   # TODO(turbofan): Large switch statements crash.
   'js1_5/Regress/regress-398085-01': [PASS, NO_VARIANTS],
 
+  ############################ INVALID TESTS #############################
+
+  # Function length properties are configurable in ES6
+  'ecma/Array/15.4.4.3-1': [FAIL],
+  'ecma/Array/15.4.4.4-1': [FAIL],
+  'ecma/Array/15.4.4.4-2': [FAIL],
+  'ecma/String/15.5.4.10-1': [FAIL],
+  'ecma/String/15.5.4.11-1': [FAIL],
+  'ecma/String/15.5.4.7-2': [FAIL],
+  'ecma/String/15.5.4.8-1': [FAIL],
+  'ecma/String/15.5.4.9-1': [FAIL],
+
+
   ##################### SKIPPED TESTS #####################
 
   # This test checks that we behave properly in an out-of-memory

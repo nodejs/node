@@ -584,18 +584,13 @@ void StaticMarkingVisitor<StaticVisitor>::VisitJSDataView(Map* map,
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::MarkMapContents(Heap* heap,
                                                           Map* map) {
-  // Make sure that the back pointer stored either in the map itself or
-  // inside its transitions array is marked. Skip recording the back
-  // pointer slot since map space is not compacted.
-  StaticVisitor::MarkObject(heap, HeapObject::cast(map->GetBackPointer()));
-
-  // Treat pointers in the transitions array as weak and also mark that
-  // array to prevent visiting it later. Skip recording the transition
-  // array slot, since it will be implicitly recorded when the pointer
-  // fields of this map are visited.
-  if (map->HasTransitionArray()) {
-    TransitionArray* transitions = map->transitions();
-    MarkTransitionArray(heap, transitions);
+  Object* raw_transitions = map->raw_transitions();
+  if (TransitionArray::IsSimpleTransition(raw_transitions)) {
+    StaticVisitor::VisitPointer(
+        heap, HeapObject::RawField(map, Map::kTransitionsOffset));
+  }
+  if (TransitionArray::IsFullTransitionArray(raw_transitions)) {
+    MarkTransitionArray(heap, TransitionArray::cast(raw_transitions));
   }
 
   // Since descriptor arrays are potentially shared, ensure that only the
@@ -631,20 +626,18 @@ void StaticMarkingVisitor<StaticVisitor>::MarkTransitionArray(
     Heap* heap, TransitionArray* transitions) {
   if (!StaticVisitor::MarkObjectWithoutPush(heap, transitions)) return;
 
-  // Simple transitions do not have keys nor prototype transitions.
-  if (transitions->IsSimpleTransition()) return;
-
   if (transitions->HasPrototypeTransitions()) {
     // Mark prototype transitions array but do not push it onto marking
     // stack, this will make references from it weak. We will clean dead
-    // prototype transitions in ClearNonLiveTransitions.
+    // prototype transitions in ClearNonLiveReferences.
     Object** slot = transitions->GetPrototypeTransitionsSlot();
     HeapObject* obj = HeapObject::cast(*slot);
     heap->mark_compact_collector()->RecordSlot(slot, slot, obj);
     StaticVisitor::MarkObjectWithoutPush(heap, obj);
   }
 
-  for (int i = 0; i < transitions->number_of_transitions(); ++i) {
+  int num_transitions = TransitionArray::NumberOfTransitions(transitions);
+  for (int i = 0; i < num_transitions; ++i) {
     StaticVisitor::VisitPointer(heap, transitions->GetKeySlot(i));
   }
 }
@@ -849,6 +842,8 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
                   RelocInfo::ModeMask(RelocInfo::CELL) |
                   RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
+                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
+                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
                   RelocInfo::ModeMask(RelocInfo::JS_RETURN) |
                   RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT) |
                   RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
@@ -876,6 +871,8 @@ void Code::CodeIterateBody(Heap* heap) {
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
                   RelocInfo::ModeMask(RelocInfo::CELL) |
                   RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
+                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
+                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
                   RelocInfo::ModeMask(RelocInfo::JS_RETURN) |
                   RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT) |
                   RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);

@@ -1044,6 +1044,17 @@ MUST_USE_RESULT static MaybeHandle<Object> HandleApiCallHelper(
   DCHECK(!args[0]->IsNull());
   if (args[0]->IsUndefined()) args[0] = function->global_proxy();
 
+  if (!is_construct && !fun_data->accept_any_receiver()) {
+    Handle<Object> receiver(&args[0]);
+    if (receiver->IsJSObject() && receiver->IsAccessCheckNeeded()) {
+      Handle<JSObject> js_receiver = Handle<JSObject>::cast(receiver);
+      if (!isolate->MayAccess(js_receiver)) {
+        isolate->ReportFailedAccessCheck(js_receiver);
+        RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
+      }
+    }
+  }
+
   Object* raw_holder = fun_data->GetCompatibleReceiver(isolate, args[0]);
 
   if (raw_holder->IsNull()) {
@@ -1185,7 +1196,7 @@ MUST_USE_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
   // Get the invocation callback from the function descriptor that was
   // used to create the called object.
   DCHECK(obj->map()->has_instance_call_handler());
-  JSFunction* constructor = JSFunction::cast(obj->map()->constructor());
+  JSFunction* constructor = JSFunction::cast(obj->map()->GetConstructor());
   // TODO(ishell): turn this back to a DCHECK.
   CHECK(constructor->shared()->IsApiFunction());
   Object* handler =

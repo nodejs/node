@@ -108,8 +108,9 @@ class JsonParser BASE_EMBEDDED {
         const uint8_t* expected_chars = content.ToOneByteVector().start();
         for (int i = 0; i < length; i++) {
           uint8_t c0 = input_chars[i];
-          // The expected string has to be free of \, " and characters < 0x20.
-          if (c0 != expected_chars[i]) return false;
+          if (c0 != expected_chars[i] || c0 == '"' || c0 < 0x20 || c0 == '\\') {
+            return false;
+          }
         }
         if (input_chars[length] == '"') {
           position_ = position_ + length + 1;
@@ -172,7 +173,7 @@ class JsonParser BASE_EMBEDDED {
   inline Factory* factory() { return factory_; }
   inline Handle<JSFunction> object_constructor() { return object_constructor_; }
 
-  static const int kInitialSpecialStringLength = 1024;
+  static const int kInitialSpecialStringLength = 32;
   static const int kPretenureTreshold = 100 * 1024;
 
 
@@ -244,9 +245,7 @@ MaybeHandle<Object> JsonParser<seq_one_byte>::ParseJson() {
     MessageLocation location(factory->NewScript(source_),
                              position_,
                              position_ + 1);
-    Handle<Object> error;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate(), error,
-                               factory->NewSyntaxError(message, array), Object);
+    Handle<Object> error = factory->NewSyntaxError(message, array);
     return isolate()->template Throw<Object>(error, &location);
   }
   return result;
@@ -260,6 +259,12 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonValue() {
   if (stack_check.HasOverflowed()) {
     isolate_->StackOverflow();
     return Handle<Object>::null();
+  }
+
+  if (isolate_->stack_guard()->InterruptRequested()) {
+    ExecutionAccess access(isolate_);
+    // Avoid blocking GC in long running parser (v8:3974).
+    isolate_->stack_guard()->CheckAndHandleGCInterrupt();
   }
 
   if (c0_ == '"') return ParseJsonString();
@@ -301,6 +306,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
   Handle<JSObject> json_object =
       factory()->NewJSObject(object_constructor(), pretenure_);
   Handle<Map> map(json_object->map());
+  int descriptor = 0;
   ZoneList<Handle<Object> > properties(8, zone());
   DCHECK_EQ(c0_, '{');
 
@@ -315,7 +321,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
       Advance();
 
       uint32_t index = 0;
-      if (c0_ >= '0' && c0_ <= '9') {
+      if (IsDecimalDigit(c0_)) {
         // Maybe an array index, try to parse it.
         if (c0_ == '0') {
           // With a leading zero, the string has to be "0" only to be an index.
@@ -326,7 +332,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
             if (index > 429496729U - ((d > 5) ? 1 : 0)) break;
             index = (index * 10) + d;
             Advance();
-          } while (c0_ >= '0' && c0_ <= '9');
+          } while (IsDecimalDigit(c0_));
         }
 
         if (c0_ == '"') {
@@ -360,19 +366,19 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
         bool follow_expected = false;
         Handle<Map> target;
         if (seq_one_byte) {
-          key = Map::ExpectedTransitionKey(map);
+          key = TransitionArray::ExpectedTransitionKey(map);
           follow_expected = !key.is_null() && ParseJsonString(key);
         }
         // If the expected transition hits, follow it.
         if (follow_expected) {
-          target = Map::ExpectedTransitionTarget(map);
+          target = TransitionArray::ExpectedTransitionTarget(map);
         } else {
           // If the expected transition failed, parse an internalized string and
           // try to find a matching transition.
           key = ParseJsonInternalizedString();
           if (key.is_null()) return ReportUnexpectedCharacter();
 
-          target = Map::FindTransitionToField(map, key);
+          target = TransitionArray::FindTransitionToField(map, key);
           // If a transition was found, follow it and continue.
           transitioning = !target.is_null();
         }
@@ -383,18 +389,15 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
         if (value.is_null()) return ReportUnexpectedCharacter();
 
         if (transitioning) {
-          int descriptor = map->NumberOfOwnDescriptors();
           PropertyDetails details =
               target->instance_descriptors()->GetDetails(descriptor);
           Representation expected_representation = details.representation();
 
           if (value->FitsRepresentation(expected_representation)) {
-            if (expected_representation.IsDouble()) {
-              value = Object::NewStorageFor(isolate(), value,
-                                            expected_representation);
-            } else if (expected_representation.IsHeapObject() &&
-                       !target->instance_descriptors()->GetFieldType(
-                           descriptor)->NowContains(value)) {
+            if (expected_representation.IsHeapObject() &&
+                !target->instance_descriptors()
+                     ->GetFieldType(descriptor)
+                     ->NowContains(value)) {
               Handle<HeapType> value_type(value->OptimalType(
                       isolate(), expected_representation));
               Map::GeneralizeFieldType(target, descriptor,
@@ -404,6 +407,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
                     descriptor)->NowContains(value));
             properties.Add(value, zone());
             map = target;
+            descriptor++;
             continue;
           } else {
             transitioning = false;
@@ -445,30 +449,11 @@ void JsonParser<seq_one_byte>::CommitStateToJsonObject(
   DCHECK(!json_object->map()->is_dictionary_map());
 
   DisallowHeapAllocation no_gc;
-  Factory* factory = isolate()->factory();
-  // If the |json_object|'s map is exactly the same as |map| then the
-  // |properties| values correspond to the |map| and nothing more has to be
-  // done. But if the |json_object|'s map is different then we have to
-  // iterate descriptors to ensure that properties still correspond to the
-  // map.
-  bool slow_case = json_object->map() != *map;
-  DescriptorArray* descriptors = NULL;
 
   int length = properties->length();
-  if (slow_case) {
-    descriptors = json_object->map()->instance_descriptors();
-    DCHECK(json_object->map()->NumberOfOwnDescriptors() == length);
-  }
   for (int i = 0; i < length; i++) {
     Handle<Object> value = (*properties)[i];
-    if (slow_case && value->IsMutableHeapNumber() &&
-        !descriptors->GetDetails(i).representation().IsDouble()) {
-      // Turn mutable heap numbers into immutable if the field representation
-      // is not double.
-      HeapNumber::cast(*value)->set_map(*factory->heap_number_map());
-    }
-    FieldIndex index = FieldIndex::ForPropertyIndex(*map, i);
-    json_object->FastPropertyAtPut(index, *value);
+    json_object->WriteToField(i, *value);
   }
 }
 
@@ -516,7 +501,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonNumber() {
     Advance();
     // Prefix zero is only allowed if it's the only digit before
     // a decimal point or exponent.
-    if ('0' <= c0_ && c0_ <= '9') return ReportUnexpectedCharacter();
+    if (IsDecimalDigit(c0_)) return ReportUnexpectedCharacter();
   } else {
     int i = 0;
     int digits = 0;
@@ -525,7 +510,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonNumber() {
       i = i * 10 + c0_ - '0';
       digits++;
       Advance();
-    } while (c0_ >= '0' && c0_ <= '9');
+    } while (IsDecimalDigit(c0_));
     if (c0_ != '.' && c0_ != 'e' && c0_ != 'E' && digits < 10) {
       SkipWhitespace();
       return Handle<Smi>(Smi::FromInt((negative ? -i : i)), isolate());
@@ -533,18 +518,18 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonNumber() {
   }
   if (c0_ == '.') {
     Advance();
-    if (c0_ < '0' || c0_ > '9') return ReportUnexpectedCharacter();
+    if (!IsDecimalDigit(c0_)) return ReportUnexpectedCharacter();
     do {
       Advance();
-    } while (c0_ >= '0' && c0_ <= '9');
+    } while (IsDecimalDigit(c0_));
   }
   if (AsciiAlphaToLower(c0_) == 'e') {
     Advance();
     if (c0_ == '-' || c0_ == '+') Advance();
-    if (c0_ < '0' || c0_ > '9') return ReportUnexpectedCharacter();
+    if (!IsDecimalDigit(c0_)) return ReportUnexpectedCharacter();
     do {
       Advance();
-    } while (c0_ >= '0' && c0_ <= '9');
+    } while (IsDecimalDigit(c0_));
   }
   int length = position_ - beg_pos;
   double number;

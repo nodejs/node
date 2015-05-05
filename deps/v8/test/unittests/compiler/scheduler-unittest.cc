@@ -16,6 +16,9 @@
 #include "src/compiler/verifier.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/test-utils.h"
+#include "testing/gmock/include/gmock/gmock.h"
+
+using testing::AnyOf;
 
 namespace v8 {
 namespace internal {
@@ -26,31 +29,31 @@ class SchedulerTest : public TestWithZone {
   SchedulerTest()
       : graph_(zone()), common_(zone()), simplified_(zone()), js_(zone()) {}
 
-  static Schedule* ComputeAndVerifySchedule(int expected, Graph* graph) {
+  Schedule* ComputeAndVerifySchedule(size_t expected) {
     if (FLAG_trace_turbo) {
       OFStream os(stdout);
-      os << AsDOT(*graph);
+      os << AsDOT(*graph());
     }
 
-    Schedule* schedule = Scheduler::ComputeSchedule(graph->zone(), graph,
-                                                    Scheduler::kSplitNodes);
+    Schedule* schedule =
+        Scheduler::ComputeSchedule(zone(), graph(), Scheduler::kSplitNodes);
 
     if (FLAG_trace_turbo_scheduler) {
       OFStream os(stdout);
       os << *schedule << std::endl;
     }
     ScheduleVerifier::Run(schedule);
-    CHECK_EQ(expected, GetScheduledNodeCount(schedule));
+    EXPECT_EQ(expected, GetScheduledNodeCount(schedule));
     return schedule;
   }
 
-  static int GetScheduledNodeCount(const Schedule* schedule) {
+  size_t GetScheduledNodeCount(const Schedule* schedule) {
     size_t node_count = 0;
     for (auto block : *schedule->rpo_order()) {
       node_count += block->NodeCount();
       if (block->control() != BasicBlock::kNone) ++node_count;
     }
-    return static_cast<int>(node_count);
+    return node_count;
   }
 
   Graph* graph() { return &graph_; }
@@ -71,8 +74,8 @@ class SchedulerRPOTest : public SchedulerTest {
   SchedulerRPOTest() {}
 
   // TODO(titzer): pull RPO tests out to their own file.
-  static void CheckRPONumbers(BasicBlockVector* order, size_t expected,
-                              bool loops_allowed) {
+  void CheckRPONumbers(BasicBlockVector* order, size_t expected,
+                       bool loops_allowed) {
     CHECK(expected == order->size());
     for (int i = 0; i < static_cast<int>(order->size()); i++) {
       CHECK(order->at(i)->rpo_number() == i);
@@ -83,8 +86,7 @@ class SchedulerRPOTest : public SchedulerTest {
     }
   }
 
-  static void CheckLoop(BasicBlockVector* order, BasicBlock** blocks,
-                        int body_size) {
+  void CheckLoop(BasicBlockVector* order, BasicBlock** blocks, int body_size) {
     BasicBlock* header = blocks[0];
     BasicBlock* end = header->loop_end();
     CHECK(end);
@@ -110,11 +112,9 @@ class SchedulerRPOTest : public SchedulerTest {
     BasicBlock* header() { return nodes[0]; }
     BasicBlock* last() { return nodes[count - 1]; }
     ~TestLoop() { delete[] nodes; }
-
-    void Check(BasicBlockVector* order) { CheckLoop(order, nodes, count); }
   };
 
-  static TestLoop* CreateLoop(Schedule* schedule, int count) {
+  TestLoop* CreateLoop(Schedule* schedule, int count) {
     TestLoop* loop = new TestLoop();
     loop->count = count;
     loop->nodes = new BasicBlock* [count];
@@ -130,75 +130,27 @@ class SchedulerRPOTest : public SchedulerTest {
 };
 
 
-class SchedulerTestWithIsolate : public SchedulerTest, public TestWithIsolate {
- public:
-  SchedulerTestWithIsolate() {}
-
-  Unique<HeapObject> GetUniqueUndefined() {
-    Handle<HeapObject> object =
-        Handle<HeapObject>(isolate()->heap()->undefined_value(), isolate());
-    return Unique<HeapObject>::CreateUninitialized(object);
-  }
-};
-
 namespace {
 
+const Operator kHeapConstant(IrOpcode::kHeapConstant, Operator::kPure,
+                             "HeapConstant", 0, 0, 0, 1, 0, 0);
 const Operator kIntAdd(IrOpcode::kInt32Add, Operator::kPure, "Int32Add", 2, 0,
                        0, 1, 0, 0);
+const Operator kMockCall(IrOpcode::kCall, Operator::kNoProperties, "MockCall",
+                         0, 0, 1, 1, 0, 2);
 
 }  // namespace
 
 
-TEST_F(SchedulerTest, BuildScheduleEmpty) {
-  graph()->SetStart(graph()->NewNode(common()->Start(0)));
-  graph()->SetEnd(graph()->NewNode(common()->End(), graph()->start()));
-  USE(Scheduler::ComputeSchedule(zone(), graph(), Scheduler::kNoFlags));
-}
-
-
-TEST_F(SchedulerTest, BuildScheduleOneParameter) {
-  graph()->SetStart(graph()->NewNode(common()->Start(0)));
-
-  Node* p1 = graph()->NewNode(common()->Parameter(0), graph()->start());
-  Node* ret = graph()->NewNode(common()->Return(), p1, graph()->start(),
-                               graph()->start());
-
-  graph()->SetEnd(graph()->NewNode(common()->End(), ret));
-
-  USE(Scheduler::ComputeSchedule(zone(), graph(), Scheduler::kNoFlags));
-}
-
-
-TEST_F(SchedulerTest, BuildScheduleIfSplit) {
-  graph()->SetStart(graph()->NewNode(common()->Start(3)));
-
-  Node* p1 = graph()->NewNode(common()->Parameter(0), graph()->start());
-  Node* p2 = graph()->NewNode(common()->Parameter(1), graph()->start());
-  Node* p3 = graph()->NewNode(common()->Parameter(2), graph()->start());
-  Node* p4 = graph()->NewNode(common()->Parameter(3), graph()->start());
-  Node* p5 = graph()->NewNode(common()->Parameter(4), graph()->start());
-  Node* cmp = graph()->NewNode(js()->LessThanOrEqual(), p1, p2, p3,
-                               graph()->start(), graph()->start());
-  Node* branch = graph()->NewNode(common()->Branch(), cmp, graph()->start());
-  Node* true_branch = graph()->NewNode(common()->IfTrue(), branch);
-  Node* false_branch = graph()->NewNode(common()->IfFalse(), branch);
-
-  Node* ret1 =
-      graph()->NewNode(common()->Return(), p4, graph()->start(), true_branch);
-  Node* ret2 =
-      graph()->NewNode(common()->Return(), p5, graph()->start(), false_branch);
-  Node* merge = graph()->NewNode(common()->Merge(2), ret1, ret2);
-  graph()->SetEnd(graph()->NewNode(common()->End(), merge));
-
-  ComputeAndVerifySchedule(13, graph());
-}
+// -----------------------------------------------------------------------------
+// Special reverse-post-order block ordering.
 
 
 TEST_F(SchedulerRPOTest, Degenerate1) {
   Schedule schedule(zone());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(zone(), &schedule);
   CheckRPONumbers(order, 1, false);
-  CHECK_EQ(schedule.start(), order->at(0));
+  EXPECT_EQ(schedule.start(), order->at(0));
 }
 
 
@@ -208,8 +160,8 @@ TEST_F(SchedulerRPOTest, Degenerate2) {
   schedule.AddGoto(schedule.start(), schedule.end());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(zone(), &schedule);
   CheckRPONumbers(order, 2, false);
-  CHECK_EQ(schedule.start(), order->at(0));
-  CHECK_EQ(schedule.end(), order->at(1));
+  EXPECT_EQ(schedule.start(), order->at(0));
+  EXPECT_EQ(schedule.end(), order->at(1));
 }
 
 
@@ -230,7 +182,7 @@ TEST_F(SchedulerRPOTest, Line) {
     for (size_t i = 0; i < schedule.BasicBlockCount(); i++) {
       BasicBlock* block = schedule.GetBlockById(BasicBlock::Id::FromSize(i));
       if (block->rpo_number() >= 0 && block->SuccessorCount() == 1) {
-        CHECK(block->rpo_number() + 1 == block->SuccessorAt(0)->rpo_number());
+        EXPECT_EQ(block->rpo_number() + 1, block->SuccessorAt(0)->rpo_number());
       }
     }
   }
@@ -265,7 +217,7 @@ TEST_F(SchedulerRPOTest, EndLoop) {
   schedule.AddSuccessorForTesting(schedule.start(), loop1->header());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(zone(), &schedule);
   CheckRPONumbers(order, 3, true);
-  loop1->Check(order);
+  CheckLoop(order, loop1->nodes, loop1->count);
 }
 
 
@@ -276,7 +228,7 @@ TEST_F(SchedulerRPOTest, EndLoopNested) {
   schedule.AddSuccessorForTesting(loop1->last(), schedule.start());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(zone(), &schedule);
   CheckRPONumbers(order, 3, true);
-  loop1->Check(order);
+  CheckLoop(order, loop1->nodes, loop1->count);
 }
 
 
@@ -296,10 +248,10 @@ TEST_F(SchedulerRPOTest, Diamond) {
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(zone(), &schedule);
   CheckRPONumbers(order, 4, false);
 
-  CHECK_EQ(0, A->rpo_number());
-  CHECK((B->rpo_number() == 1 && C->rpo_number() == 2) ||
-        (B->rpo_number() == 2 && C->rpo_number() == 1));
-  CHECK_EQ(3, D->rpo_number());
+  EXPECT_EQ(0, A->rpo_number());
+  EXPECT_THAT(B->rpo_number(), AnyOf(1, 2));
+  EXPECT_THAT(C->rpo_number(), AnyOf(1, 2));
+  EXPECT_EQ(3, D->rpo_number());
 }
 
 
@@ -464,11 +416,9 @@ TEST_F(SchedulerRPOTest, LoopFollow1) {
 
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(zone(), &schedule);
 
-  CHECK_EQ(static_cast<int>(schedule.BasicBlockCount()),
-           static_cast<int>(order->size()));
-
-  loop1->Check(order);
-  loop2->Check(order);
+  EXPECT_EQ(schedule.BasicBlockCount(), order->size());
+  CheckLoop(order, loop1->nodes, loop1->count);
+  CheckLoop(order, loop2->nodes, loop2->count);
 }
 
 
@@ -489,10 +439,9 @@ TEST_F(SchedulerRPOTest, LoopFollow2) {
 
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(zone(), &schedule);
 
-  CHECK_EQ(static_cast<int>(schedule.BasicBlockCount()),
-           static_cast<int>(order->size()));
-  loop1->Check(order);
-  loop2->Check(order);
+  EXPECT_EQ(schedule.BasicBlockCount(), order->size());
+  CheckLoop(order, loop1->nodes, loop1->count);
+  CheckLoop(order, loop2->nodes, loop2->count);
 }
 
 
@@ -510,10 +459,9 @@ TEST_F(SchedulerRPOTest, LoopFollowN) {
       schedule.AddSuccessorForTesting(loop2->nodes[exit], E);
       BasicBlockVector* order = Scheduler::ComputeSpecialRPO(zone(), &schedule);
 
-      CHECK_EQ(static_cast<int>(schedule.BasicBlockCount()),
-               static_cast<int>(order->size()));
-      loop1->Check(order);
-      loop2->Check(order);
+      EXPECT_EQ(schedule.BasicBlockCount(), order->size());
+      CheckLoop(order, loop1->nodes, loop1->count);
+      CheckLoop(order, loop2->nodes, loop2->count);
     }
   }
 }
@@ -539,10 +487,9 @@ TEST_F(SchedulerRPOTest, NestedLoopFollow1) {
 
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(zone(), &schedule);
 
-  CHECK_EQ(static_cast<int>(schedule.BasicBlockCount()),
-           static_cast<int>(order->size()));
-  loop1->Check(order);
-  loop2->Check(order);
+  EXPECT_EQ(schedule.BasicBlockCount(), order->size());
+  CheckLoop(order, loop1->nodes, loop1->count);
+  CheckLoop(order, loop2->nodes, loop2->count);
 
   BasicBlock* loop3[] = {B, loop1->nodes[0], loop2->nodes[0], C};
   CheckLoop(order, loop3, 4);
@@ -566,7 +513,7 @@ TEST_F(SchedulerRPOTest, LoopBackedges1) {
 
       BasicBlockVector* order = Scheduler::ComputeSpecialRPO(zone(), &schedule);
       CheckRPONumbers(order, schedule.BasicBlockCount(), true);
-      loop1->Check(order);
+      CheckLoop(order, loop1->nodes, loop1->count);
     }
   }
 }
@@ -591,7 +538,7 @@ TEST_F(SchedulerRPOTest, LoopOutedges1) {
 
       BasicBlockVector* order = Scheduler::ComputeSpecialRPO(zone(), &schedule);
       CheckRPONumbers(order, schedule.BasicBlockCount(), true);
-      loop1->Check(order);
+      CheckLoop(order, loop1->nodes, loop1->count);
     }
   }
 }
@@ -616,7 +563,7 @@ TEST_F(SchedulerRPOTest, LoopOutedges2) {
 
     BasicBlockVector* order = Scheduler::ComputeSpecialRPO(zone(), &schedule);
     CheckRPONumbers(order, schedule.BasicBlockCount(), true);
-    loop1->Check(order);
+    CheckLoop(order, loop1->nodes, loop1->count);
   }
 }
 
@@ -640,10 +587,10 @@ TEST_F(SchedulerRPOTest, LoopOutloops1) {
 
     BasicBlockVector* order = Scheduler::ComputeSpecialRPO(zone(), &schedule);
     CheckRPONumbers(order, schedule.BasicBlockCount(), true);
-    loop1->Check(order);
+    CheckLoop(order, loop1->nodes, loop1->count);
 
     for (int j = 0; j < size; j++) {
-      loopN[j]->Check(order);
+      CheckLoop(order, loopN[j]->nodes, loopN[j]->count);
       delete loopN[j];
     }
     delete[] loopN;
@@ -676,7 +623,58 @@ TEST_F(SchedulerRPOTest, LoopMultibackedge) {
 }
 
 
-TEST_F(SchedulerTestWithIsolate, BuildScheduleIfSplitWithEffects) {
+// -----------------------------------------------------------------------------
+// Graph end-to-end scheduling.
+
+
+TEST_F(SchedulerTest, BuildScheduleEmpty) {
+  graph()->SetStart(graph()->NewNode(common()->Start(0)));
+  graph()->SetEnd(graph()->NewNode(common()->End(), graph()->start()));
+  USE(Scheduler::ComputeSchedule(zone(), graph(), Scheduler::kNoFlags));
+}
+
+
+TEST_F(SchedulerTest, BuildScheduleOneParameter) {
+  graph()->SetStart(graph()->NewNode(common()->Start(0)));
+
+  Node* p1 = graph()->NewNode(common()->Parameter(0), graph()->start());
+  Node* ret = graph()->NewNode(common()->Return(), p1, graph()->start(),
+                               graph()->start());
+
+  graph()->SetEnd(graph()->NewNode(common()->End(), ret));
+
+  USE(Scheduler::ComputeSchedule(zone(), graph(), Scheduler::kNoFlags));
+}
+
+
+TEST_F(SchedulerTest, BuildScheduleIfSplit) {
+  graph()->SetStart(graph()->NewNode(common()->Start(3)));
+
+  Node* p1 = graph()->NewNode(common()->Parameter(0), graph()->start());
+  Node* p2 = graph()->NewNode(common()->Parameter(1), graph()->start());
+  Node* p3 = graph()->NewNode(common()->Parameter(2), graph()->start());
+  Node* p4 = graph()->NewNode(common()->Parameter(3), graph()->start());
+  Node* p5 = graph()->NewNode(common()->Parameter(4), graph()->start());
+  Node* cmp = graph()->NewNode(js()->LessThanOrEqual(), p1, p2, p3,
+                               graph()->start(), graph()->start());
+  Node* branch = graph()->NewNode(common()->Branch(), cmp, graph()->start());
+  Node* true_branch = graph()->NewNode(common()->IfTrue(), branch);
+  Node* false_branch = graph()->NewNode(common()->IfFalse(), branch);
+
+  Node* ret1 =
+      graph()->NewNode(common()->Return(), p4, graph()->start(), true_branch);
+  Node* ret2 =
+      graph()->NewNode(common()->Return(), p5, graph()->start(), false_branch);
+  Node* merge = graph()->NewNode(common()->Merge(2), ret1, ret2);
+  graph()->SetEnd(graph()->NewNode(common()->End(), merge));
+
+  ComputeAndVerifySchedule(13);
+}
+
+
+TEST_F(SchedulerTest, BuildScheduleIfSplitWithEffects) {
+  FLAG_turbo_deoptimization = false;
+
   const Operator* op;
 
   // Manually transcripted code for:
@@ -720,7 +718,7 @@ TEST_F(SchedulerTestWithIsolate, BuildScheduleIfSplitWithEffects) {
   Node* n3 = graph()->NewNode(op, n0);
   USE(n3);
   n11->ReplaceInput(1, n3);
-  op = common()->HeapConstant(GetUniqueUndefined());
+  op = &kHeapConstant;
   Node* n7 = graph()->NewNode(op);
   USE(n7);
   n11->ReplaceInput(2, n7);
@@ -808,11 +806,13 @@ TEST_F(SchedulerTestWithIsolate, BuildScheduleIfSplitWithEffects) {
   graph()->SetStart(n0);
   graph()->SetEnd(n23);
 
-  ComputeAndVerifySchedule(20, graph());
+  ComputeAndVerifySchedule(20);
 }
 
 
-TEST_F(SchedulerTestWithIsolate, BuildScheduleSimpleLoop) {
+TEST_F(SchedulerTest, BuildScheduleSimpleLoop) {
+  FLAG_turbo_deoptimization = false;
+
   const Operator* op;
 
   // Manually transcripted code for:
@@ -846,7 +846,7 @@ TEST_F(SchedulerTestWithIsolate, BuildScheduleSimpleLoop) {
   Node* n16 = graph()->NewNode(op, nil, nil, nil, nil);
   USE(n16);
   n16->ReplaceInput(0, n8);
-  op = common()->HeapConstant(GetUniqueUndefined());
+  op = &kHeapConstant;
   Node* n5 = graph()->NewNode(op);
   USE(n5);
   n16->ReplaceInput(1, n5);
@@ -911,11 +911,13 @@ TEST_F(SchedulerTestWithIsolate, BuildScheduleSimpleLoop) {
   graph()->SetStart(n0);
   graph()->SetEnd(n20);
 
-  ComputeAndVerifySchedule(19, graph());
+  ComputeAndVerifySchedule(19);
 }
 
 
-TEST_F(SchedulerTestWithIsolate, BuildScheduleComplexLoops) {
+TEST_F(SchedulerTest, BuildScheduleComplexLoops) {
+  FLAG_turbo_deoptimization = false;
+
   const Operator* op;
 
   // Manually transcripted code for:
@@ -961,7 +963,7 @@ TEST_F(SchedulerTestWithIsolate, BuildScheduleComplexLoops) {
   Node* n18 = graph()->NewNode(op, nil, nil, nil, nil);
   USE(n18);
   n18->ReplaceInput(0, n9);
-  op = common()->HeapConstant(GetUniqueUndefined());
+  op = &kHeapConstant;
   Node* n6 = graph()->NewNode(op);
   USE(n6);
   n18->ReplaceInput(1, n6);
@@ -1149,11 +1151,13 @@ TEST_F(SchedulerTestWithIsolate, BuildScheduleComplexLoops) {
   graph()->SetStart(n0);
   graph()->SetEnd(n46);
 
-  ComputeAndVerifySchedule(46, graph());
+  ComputeAndVerifySchedule(46);
 }
 
 
-TEST_F(SchedulerTestWithIsolate, BuildScheduleBreakAndContinue) {
+TEST_F(SchedulerTest, BuildScheduleBreakAndContinue) {
+  FLAG_turbo_deoptimization = false;
+
   const Operator* op;
 
   // Manually transcripted code for:
@@ -1201,7 +1205,7 @@ TEST_F(SchedulerTestWithIsolate, BuildScheduleBreakAndContinue) {
   Node* n20 = graph()->NewNode(op, nil, nil, nil, nil);
   USE(n20);
   n20->ReplaceInput(0, n10);
-  op = common()->HeapConstant(GetUniqueUndefined());
+  op = &kHeapConstant;
   Node* n6 = graph()->NewNode(op);
   USE(n6);
   n20->ReplaceInput(1, n6);
@@ -1469,11 +1473,13 @@ TEST_F(SchedulerTestWithIsolate, BuildScheduleBreakAndContinue) {
   graph()->SetStart(n0);
   graph()->SetEnd(n58);
 
-  ComputeAndVerifySchedule(62, graph());
+  ComputeAndVerifySchedule(62);
 }
 
 
-TEST_F(SchedulerTestWithIsolate, BuildScheduleSimpleLoopWithCodeMotion) {
+TEST_F(SchedulerTest, BuildScheduleSimpleLoopWithCodeMotion) {
+  FLAG_turbo_deoptimization = false;
+
   const Operator* op;
 
   // Manually transcripted code for:
@@ -1533,7 +1539,7 @@ TEST_F(SchedulerTestWithIsolate, BuildScheduleSimpleLoopWithCodeMotion) {
   USE(n14);
   n14->ReplaceInput(0, n9);
   n14->ReplaceInput(1, n10);
-  op = common()->HeapConstant(GetUniqueUndefined());
+  op = &kHeapConstant;
   Node* n6 = graph()->NewNode(op);
   USE(n6);
   n14->ReplaceInput(2, n6);
@@ -1583,10 +1589,7 @@ TEST_F(SchedulerTestWithIsolate, BuildScheduleSimpleLoopWithCodeMotion) {
   graph()->SetStart(n0);
   graph()->SetEnd(n22);
 
-  Schedule* schedule = ComputeAndVerifySchedule(19, graph());
-  // Make sure the integer-only add gets hoisted to a different block that the
-  // JSAdd.
-  CHECK(schedule->block(n19) != schedule->block(n20));
+  ComputeAndVerifySchedule(19);
 }
 
 
@@ -1617,7 +1620,7 @@ TARGET_TEST_F(SchedulerTest, FloatingDiamond1) {
 
   graph()->SetEnd(end);
 
-  ComputeAndVerifySchedule(13, graph());
+  ComputeAndVerifySchedule(13);
 }
 
 
@@ -1635,7 +1638,7 @@ TARGET_TEST_F(SchedulerTest, FloatingDiamond2) {
 
   graph()->SetEnd(end);
 
-  ComputeAndVerifySchedule(24, graph());
+  ComputeAndVerifySchedule(24);
 }
 
 
@@ -1654,7 +1657,7 @@ TARGET_TEST_F(SchedulerTest, FloatingDiamond3) {
 
   graph()->SetEnd(end);
 
-  ComputeAndVerifySchedule(33, graph());
+  ComputeAndVerifySchedule(33);
 }
 
 
@@ -1691,7 +1694,7 @@ TARGET_TEST_F(SchedulerTest, NestedFloatingDiamonds) {
 
   graph()->SetEnd(end);
 
-  ComputeAndVerifySchedule(23, graph());
+  ComputeAndVerifySchedule(23);
 }
 
 
@@ -1735,7 +1738,7 @@ TARGET_TEST_F(SchedulerTest, NestedFloatingDiamondWithChain) {
 
   graph()->SetEnd(end);
 
-  ComputeAndVerifySchedule(36, graph());
+  ComputeAndVerifySchedule(36);
 }
 
 
@@ -1769,7 +1772,7 @@ TARGET_TEST_F(SchedulerTest, NestedFloatingDiamondWithLoop) {
 
   graph()->SetEnd(end);
 
-  ComputeAndVerifySchedule(20, graph());
+  ComputeAndVerifySchedule(20);
 }
 
 
@@ -1802,7 +1805,7 @@ TARGET_TEST_F(SchedulerTest, LoopedFloatingDiamond1) {
 
   graph()->SetEnd(end);
 
-  ComputeAndVerifySchedule(20, graph());
+  ComputeAndVerifySchedule(20);
 }
 
 
@@ -1836,7 +1839,7 @@ TARGET_TEST_F(SchedulerTest, LoopedFloatingDiamond2) {
 
   graph()->SetEnd(end);
 
-  ComputeAndVerifySchedule(20, graph());
+  ComputeAndVerifySchedule(20);
 }
 
 
@@ -1882,7 +1885,7 @@ TARGET_TEST_F(SchedulerTest, LoopedFloatingDiamond3) {
 
   graph()->SetEnd(end);
 
-  ComputeAndVerifySchedule(28, graph());
+  ComputeAndVerifySchedule(28);
 }
 
 
@@ -1916,7 +1919,7 @@ TARGET_TEST_F(SchedulerTest, PhisPushedDownToDifferentBranches) {
 
   graph()->SetEnd(end);
 
-  ComputeAndVerifySchedule(24, graph());
+  ComputeAndVerifySchedule(24);
 }
 
 
@@ -1937,10 +1940,10 @@ TARGET_TEST_F(SchedulerTest, BranchHintTrue) {
 
   graph()->SetEnd(end);
 
-  Schedule* schedule = ComputeAndVerifySchedule(13, graph());
+  Schedule* schedule = ComputeAndVerifySchedule(13);
   // Make sure the false block is marked as deferred.
-  CHECK(!schedule->block(t)->deferred());
-  CHECK(schedule->block(f)->deferred());
+  EXPECT_FALSE(schedule->block(t)->deferred());
+  EXPECT_TRUE(schedule->block(f)->deferred());
 }
 
 
@@ -1961,10 +1964,38 @@ TARGET_TEST_F(SchedulerTest, BranchHintFalse) {
 
   graph()->SetEnd(end);
 
-  Schedule* schedule = ComputeAndVerifySchedule(13, graph());
+  Schedule* schedule = ComputeAndVerifySchedule(13);
   // Make sure the true block is marked as deferred.
-  CHECK(schedule->block(t)->deferred());
-  CHECK(!schedule->block(f)->deferred());
+  EXPECT_TRUE(schedule->block(t)->deferred());
+  EXPECT_FALSE(schedule->block(f)->deferred());
+}
+
+
+TARGET_TEST_F(SchedulerTest, CallException) {
+  Node* start = graph()->NewNode(common()->Start(1));
+  graph()->SetStart(start);
+
+  Node* p0 = graph()->NewNode(common()->Parameter(0), start);
+  Node* c1 = graph()->NewNode(&kMockCall, start);
+  Node* ok1 = graph()->NewNode(common()->IfSuccess(), c1);
+  Node* ex1 = graph()->NewNode(common()->IfException(), c1);
+  Node* c2 = graph()->NewNode(&kMockCall, ok1);
+  Node* ok2 = graph()->NewNode(common()->IfSuccess(), c2);
+  Node* ex2 = graph()->NewNode(common()->IfException(), c2);
+  Node* hdl = graph()->NewNode(common()->Merge(2), ex1, ex2);
+  Node* m = graph()->NewNode(common()->Merge(2), ok2, hdl);
+  Node* phi = graph()->NewNode(common()->Phi(kMachAnyTagged, 2), c2, p0, m);
+  Node* ret = graph()->NewNode(common()->Return(), phi, start, m);
+  Node* end = graph()->NewNode(common()->End(), ret);
+
+  graph()->SetEnd(end);
+
+  Schedule* schedule = ComputeAndVerifySchedule(17);
+  // Make sure the exception blocks as well as the handler are deferred.
+  EXPECT_TRUE(schedule->block(ex1)->deferred());
+  EXPECT_TRUE(schedule->block(ex2)->deferred());
+  EXPECT_TRUE(schedule->block(hdl)->deferred());
+  EXPECT_FALSE(schedule->block(m)->deferred());
 }
 
 
@@ -1987,7 +2018,7 @@ TARGET_TEST_F(SchedulerTest, Switch) {
 
   graph()->SetEnd(end);
 
-  ComputeAndVerifySchedule(16, graph());
+  ComputeAndVerifySchedule(16);
 }
 
 
@@ -2010,7 +2041,7 @@ TARGET_TEST_F(SchedulerTest, FloatingSwitch) {
 
   graph()->SetEnd(end);
 
-  ComputeAndVerifySchedule(16, graph());
+  ComputeAndVerifySchedule(16);
 }
 
 }  // namespace compiler

@@ -40,8 +40,8 @@
 #include <deque>
 
 #include "src/assembler.h"
+#include "src/compiler.h"
 #include "src/isolate.h"
-#include "src/serialize.h"
 
 namespace v8 {
 namespace internal {
@@ -529,6 +529,11 @@ class Assembler : public AssemblerBase {
     set_target_address_at(instruction_payload, code, target);
   }
 
+  // This sets the internal reference at the pc.
+  inline static void deserialization_set_target_internal_reference_at(
+      Address pc, Address target,
+      RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
+
   static const int kSpecialTargetSize = kPointerSize;
 
   // Distance between the address of the code target in the call instruction
@@ -941,7 +946,7 @@ class Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(const int reason, const int raw_position);
+  void RecordDeoptReason(const int reason, const SourcePosition position);
 
   // Writes a single byte or word of data in the code stream.  Used for
   // inline tables, e.g., jump-tables.

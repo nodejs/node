@@ -990,42 +990,116 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
-  static const int kArgumentsOffset = 2 * kPointerSize;
-  static const int kReceiverOffset = 3 * kPointerSize;
-  static const int kFunctionOffset = 4 * kPointerSize;
+static void Generate_CheckStackOverflow(MacroAssembler* masm,
+                                        const int calleeOffset) {
+  // eax   : the number of items to be pushed to the stack
+  //
+  // Check the stack for overflow. We are not trying to catch
+  // interruptions (e.g. debug break and preemption) here, so the "real stack
+  // limit" is checked.
+  Label okay;
+  ExternalReference real_stack_limit =
+      ExternalReference::address_of_real_stack_limit(masm->isolate());
+  __ mov(edi, Operand::StaticVariable(real_stack_limit));
+  // Make ecx the space we have left. The stack might already be overflowed
+  // here which will cause ecx to become negative.
+  __ mov(ecx, esp);
+  __ sub(ecx, edi);
+  // Make edx the space we need for the array when it is unrolled onto the
+  // stack.
+  __ mov(edx, eax);
+  __ shl(edx, kPointerSizeLog2 - kSmiTagSize);
+  // Check if the arguments will overflow the stack.
+  __ cmp(ecx, edx);
+  __ j(greater, &okay);  // Signed comparison.
+
+  // Out of stack space.
+  __ push(Operand(ebp, calleeOffset));  // push this
+  __ push(eax);
+  __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
+
+  __ bind(&okay);
+}
+
+
+static void Generate_PushAppliedArguments(MacroAssembler* masm,
+                                          const int argumentsOffset,
+                                          const int indexOffset,
+                                          const int limitOffset) {
+  // Copy all arguments from the array to the stack.
+  Label entry, loop;
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register key = LoadDescriptor::NameRegister();
+  __ mov(key, Operand(ebp, indexOffset));
+  __ jmp(&entry);
+  __ bind(&loop);
+  __ mov(receiver, Operand(ebp, argumentsOffset));  // load arguments
+
+  if (FLAG_vector_ics) {
+    // TODO(mvstanton): Vector-based ics need additional infrastructure to
+    // be embedded here. For now, just call the runtime.
+    __ push(receiver);
+    __ push(key);
+    __ CallRuntime(Runtime::kGetProperty, 2);
+  } else {
+    // Use inline caching to speed up access to arguments.
+    Handle<Code> ic = CodeFactory::KeyedLoadIC(masm->isolate()).code();
+    __ call(ic, RelocInfo::CODE_TARGET);
+    // It is important that we do not have a test instruction after the
+    // call.  A test instruction after the call is used to indicate that
+    // we have generated an inline version of the keyed load.  In this
+    // case, we know that we are not generating a test instruction next.
+  }
+
+  // Push the nth argument.
+  __ push(eax);
+
+  // Update the index on the stack and in register key.
+  __ mov(key, Operand(ebp, indexOffset));
+  __ add(key, Immediate(1 << kSmiTagSize));
+  __ mov(Operand(ebp, indexOffset), key);
+
+  __ bind(&entry);
+  __ cmp(key, Operand(ebp, limitOffset));
+  __ j(not_equal, &loop);
+
+  // On exit, the pushed arguments count is in eax, untagged
+  __ Move(eax, key);
+  __ SmiUntag(eax);
+}
+
+
+// Used by FunctionApply and ReflectApply
+static void Generate_ApplyHelper(MacroAssembler* masm, bool targetIsArgument) {
+  const int kFormalParameters = targetIsArgument ? 3 : 2;
+  const int kStackSize = kFormalParameters + 1;
+
+  // Stack at entry:
+  // esp     : return address
+  // esp[4]  : arguments
+  // esp[8]  : receiver ("this")
+  // esp[12] : function
   {
     FrameScope frame_scope(masm, StackFrame::INTERNAL);
+    // Stack frame:
+    // ebp     : Old base pointer
+    // ebp[4]  : return address
+    // ebp[8]  : function arguments
+    // ebp[12] : receiver
+    // ebp[16] : function
+    static const int kArgumentsOffset = kFPOnStackSize + kPCOnStackSize;
+    static const int kReceiverOffset = kArgumentsOffset + kPointerSize;
+    static const int kFunctionOffset = kReceiverOffset + kPointerSize;
 
     __ push(Operand(ebp, kFunctionOffset));  // push this
     __ push(Operand(ebp, kArgumentsOffset));  // push arguments
-    __ InvokeBuiltin(Builtins::APPLY_PREPARE, CALL_FUNCTION);
+    if (targetIsArgument) {
+      __ InvokeBuiltin(Builtins::REFLECT_APPLY_PREPARE, CALL_FUNCTION);
+    } else {
+      __ InvokeBuiltin(Builtins::APPLY_PREPARE, CALL_FUNCTION);
+    }
 
-    // Check the stack for overflow. We are not trying to catch
-    // interruptions (e.g. debug break and preemption) here, so the "real stack
-    // limit" is checked.
-    Label okay;
-    ExternalReference real_stack_limit =
-        ExternalReference::address_of_real_stack_limit(masm->isolate());
-    __ mov(edi, Operand::StaticVariable(real_stack_limit));
-    // Make ecx the space we have left. The stack might already be overflowed
-    // here which will cause ecx to become negative.
-    __ mov(ecx, esp);
-    __ sub(ecx, edi);
-    // Make edx the space we need for the array when it is unrolled onto the
-    // stack.
-    __ mov(edx, eax);
-    __ shl(edx, kPointerSizeLog2 - kSmiTagSize);
-    // Check if the arguments will overflow the stack.
-    __ cmp(ecx, edx);
-    __ j(greater, &okay);  // Signed comparison.
-
-    // Out of stack space.
-    __ push(Operand(ebp, 4 * kPointerSize));  // push this
-    __ push(eax);
-    __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
-    __ bind(&okay);
-    // End of stack check.
+    Generate_CheckStackOverflow(masm, kFunctionOffset);
 
     // Push current index and limit.
     const int kLimitOffset =
@@ -1088,55 +1162,20 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ bind(&push_receiver);
     __ push(ebx);
 
-    // Copy all arguments from the array to the stack.
-    Label entry, loop;
-    Register receiver = LoadDescriptor::ReceiverRegister();
-    Register key = LoadDescriptor::NameRegister();
-    __ mov(key, Operand(ebp, kIndexOffset));
-    __ jmp(&entry);
-    __ bind(&loop);
-    __ mov(receiver, Operand(ebp, kArgumentsOffset));  // load arguments
-
-    if (FLAG_vector_ics) {
-      // TODO(mvstanton): Vector-based ics need additional infrastructure to
-      // be embedded here. For now, just call the runtime.
-      __ push(receiver);
-      __ push(key);
-      __ CallRuntime(Runtime::kGetProperty, 2);
-    } else {
-      // Use inline caching to speed up access to arguments.
-      Handle<Code> ic = CodeFactory::KeyedLoadIC(masm->isolate()).code();
-      __ call(ic, RelocInfo::CODE_TARGET);
-      // It is important that we do not have a test instruction after the
-      // call.  A test instruction after the call is used to indicate that
-      // we have generated an inline version of the keyed load.  In this
-      // case, we know that we are not generating a test instruction next.
-    }
-
-    // Push the nth argument.
-    __ push(eax);
-
-    // Update the index on the stack and in register key.
-    __ mov(key, Operand(ebp, kIndexOffset));
-    __ add(key, Immediate(1 << kSmiTagSize));
-    __ mov(Operand(ebp, kIndexOffset), key);
-
-    __ bind(&entry);
-    __ cmp(key, Operand(ebp, kLimitOffset));
-    __ j(not_equal, &loop);
+    // Loop over the arguments array, pushing each value to the stack
+    Generate_PushAppliedArguments(
+        masm, kArgumentsOffset, kIndexOffset, kLimitOffset);
 
     // Call the function.
     Label call_proxy;
     ParameterCount actual(eax);
-    __ Move(eax, key);
-    __ SmiUntag(eax);
     __ mov(edi, Operand(ebp, kFunctionOffset));
     __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
     __ j(not_equal, &call_proxy);
     __ InvokeFunction(edi, actual, CALL_FUNCTION, NullCallWrapper());
 
     frame_scope.GenerateLeaveFrame();
-    __ ret(3 * kPointerSize);  // remove this, receiver, and arguments
+    __ ret(kStackSize * kPointerSize);  // remove this, receiver, and arguments
 
     // Call the function proxy.
     __ bind(&call_proxy);
@@ -1149,7 +1188,92 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
     // Leave internal frame.
   }
-  __ ret(3 * kPointerSize);  // remove this, receiver, and arguments
+  __ ret(kStackSize * kPointerSize);  // remove this, receiver, and arguments
+}
+
+
+// Used by ReflectConstruct
+static void Generate_ConstructHelper(MacroAssembler* masm) {
+  const int kFormalParameters = 3;
+  const int kStackSize = kFormalParameters + 1;
+
+  // Stack at entry:
+  // esp     : return address
+  // esp[4]  : original constructor (new.target)
+  // esp[8]  : arguments
+  // esp[16] : constructor
+  {
+    FrameScope frame_scope(masm, StackFrame::INTERNAL);
+    // Stack frame:
+    // ebp     : Old base pointer
+    // ebp[4]  : return address
+    // ebp[8]  : original constructor (new.target)
+    // ebp[12] : arguments
+    // ebp[16] : constructor
+    static const int kNewTargetOffset = kFPOnStackSize + kPCOnStackSize;
+    static const int kArgumentsOffset = kNewTargetOffset + kPointerSize;
+    static const int kFunctionOffset = kArgumentsOffset + kPointerSize;
+
+    // If newTarget is not supplied, set it to constructor
+    Label validate_arguments;
+    __ mov(eax, Operand(ebp, kNewTargetOffset));
+    __ CompareRoot(eax, Heap::kUndefinedValueRootIndex);
+    __ j(not_equal, &validate_arguments, Label::kNear);
+    __ mov(eax, Operand(ebp, kFunctionOffset));
+    __ mov(Operand(ebp, kNewTargetOffset), eax);
+
+    // Validate arguments
+    __ bind(&validate_arguments);
+    __ push(Operand(ebp, kFunctionOffset));
+    __ push(Operand(ebp, kArgumentsOffset));
+    __ push(Operand(ebp, kNewTargetOffset));
+    __ InvokeBuiltin(Builtins::REFLECT_CONSTRUCT_PREPARE, CALL_FUNCTION);
+
+    Generate_CheckStackOverflow(masm, kFunctionOffset);
+
+    // Push current index and limit.
+    const int kLimitOffset =
+        StandardFrameConstants::kExpressionsOffset - 1 * kPointerSize;
+    const int kIndexOffset = kLimitOffset - 1 * kPointerSize;
+    __ Push(eax);  // limit
+    __ push(Immediate(0));  // index
+    // Push newTarget and callee functions
+    __ push(Operand(ebp, kNewTargetOffset));
+    __ push(Operand(ebp, kFunctionOffset));
+
+    // Loop over the arguments array, pushing each value to the stack
+    Generate_PushAppliedArguments(
+        masm, kArgumentsOffset, kIndexOffset, kLimitOffset);
+
+    // Use undefined feedback vector
+    __ LoadRoot(ebx, Heap::kUndefinedValueRootIndex);
+    __ mov(edi, Operand(ebp, kFunctionOffset));
+
+    // Call the function.
+    CallConstructStub stub(masm->isolate(), SUPER_CONSTRUCTOR_CALL);
+    __ call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
+
+    __ Drop(1);
+
+    // Leave internal frame.
+  }
+  // remove this, target, arguments, and newTarget
+  __ ret(kStackSize * kPointerSize);
+}
+
+
+void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
+  Generate_ApplyHelper(masm, false);
+}
+
+
+void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
+  Generate_ApplyHelper(masm, true);
+}
+
+
+void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
+  Generate_ConstructHelper(masm);
 }
 
 

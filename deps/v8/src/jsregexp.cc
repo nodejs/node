@@ -360,10 +360,8 @@ static void CreateRegExpErrorObjectAndThrow(Handle<JSRegExp> re,
   elements->set(0, re->Pattern());
   elements->set(1, *error_message);
   Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
-  Handle<Object> error;
-  MaybeHandle<Object> maybe_error =
-      factory->NewSyntaxError("malformed_regexp", array);
-  if (maybe_error.ToHandle(&error)) isolate->Throw(*error);
+  Handle<Object> error = factory->NewSyntaxError("malformed_regexp", array);
+  isolate->Throw(*error);
 }
 
 

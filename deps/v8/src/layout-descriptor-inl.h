@@ -20,18 +20,7 @@ Handle<LayoutDescriptor> LayoutDescriptor::New(Isolate* isolate, int length) {
     // The whole bit vector fits into a smi.
     return handle(LayoutDescriptor::FromSmi(Smi::FromInt(0)), isolate);
   }
-
-  length = (length + kNumberOfBits - 1) / kNumberOfBits;
-  DCHECK(length > 0);
-
-  if (SmiValuesAre32Bits() && (length & 1)) {
-    // On 64-bit systems if the length is odd then the half-word space would be
-    // lost anyway (due to alignment and the fact that we are allocating
-    // uint32-typed array), so we increase the length of allocated array
-    // to utilize that "lost" space which could also help to avoid layout
-    // descriptor reallocations.
-    ++length;
-  }
+  length = GetSlowModeBackingStoreLength(length);
   return Handle<LayoutDescriptor>::cast(
       isolate->factory()->NewFixedTypedArray(length, kExternalUint32Array));
 }
@@ -151,6 +140,77 @@ LayoutDescriptor* LayoutDescriptor::cast_gc_safe(Object* object) {
     object = map_word.ToForwardingAddress();
   }
   return LayoutDescriptor::cast(object);
+}
+
+
+int LayoutDescriptor::GetSlowModeBackingStoreLength(int length) {
+  length = (length + kNumberOfBits - 1) / kNumberOfBits;
+  DCHECK_LT(0, length);
+
+  if (SmiValuesAre32Bits() && (length & 1)) {
+    // On 64-bit systems if the length is odd then the half-word space would be
+    // lost anyway (due to alignment and the fact that we are allocating
+    // uint32-typed array), so we increase the length of allocated array
+    // to utilize that "lost" space which could also help to avoid layout
+    // descriptor reallocations.
+    ++length;
+  }
+  return length;
+}
+
+
+int LayoutDescriptor::CalculateCapacity(Map* map, DescriptorArray* descriptors,
+                                        int num_descriptors) {
+  int inobject_properties = map->inobject_properties();
+  if (inobject_properties == 0) return 0;
+
+  DCHECK_LE(num_descriptors, descriptors->number_of_descriptors());
+
+  int layout_descriptor_length;
+  const int kMaxWordsPerField = kDoubleSize / kPointerSize;
+
+  if (num_descriptors <= kSmiValueSize / kMaxWordsPerField) {
+    // Even in the "worst" case (all fields are doubles) it would fit into
+    // a Smi, so no need to calculate length.
+    layout_descriptor_length = kSmiValueSize;
+
+  } else {
+    layout_descriptor_length = 0;
+
+    for (int i = 0; i < num_descriptors; i++) {
+      PropertyDetails details = descriptors->GetDetails(i);
+      if (!InobjectUnboxedField(inobject_properties, details)) continue;
+      int field_index = details.field_index();
+      int field_width_in_words = details.field_width_in_words();
+      layout_descriptor_length =
+          Max(layout_descriptor_length, field_index + field_width_in_words);
+    }
+  }
+  layout_descriptor_length = Min(layout_descriptor_length, inobject_properties);
+  return layout_descriptor_length;
+}
+
+
+LayoutDescriptor* LayoutDescriptor::Initialize(
+    LayoutDescriptor* layout_descriptor, Map* map, DescriptorArray* descriptors,
+    int num_descriptors) {
+  DisallowHeapAllocation no_allocation;
+  int inobject_properties = map->inobject_properties();
+
+  for (int i = 0; i < num_descriptors; i++) {
+    PropertyDetails details = descriptors->GetDetails(i);
+    if (!InobjectUnboxedField(inobject_properties, details)) {
+      DCHECK(details.location() != kField ||
+             layout_descriptor->IsTagged(details.field_index()));
+      continue;
+    }
+    int field_index = details.field_index();
+    layout_descriptor = layout_descriptor->SetRawData(field_index);
+    if (details.field_width_in_words() > 1) {
+      layout_descriptor = layout_descriptor->SetRawData(field_index + 1);
+    }
+  }
+  return layout_descriptor;
 }
 
 

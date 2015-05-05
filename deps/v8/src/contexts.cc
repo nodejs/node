@@ -122,8 +122,8 @@ static Maybe<PropertyAttributes> UnscopableLookup(LookupIterator* it) {
   Isolate* isolate = it->isolate();
 
   Maybe<PropertyAttributes> attrs = JSReceiver::GetPropertyAttributes(it);
-  DCHECK(attrs.has_value || isolate->has_pending_exception());
-  if (!attrs.has_value || attrs.value == ABSENT) return attrs;
+  DCHECK(attrs.IsJust() || isolate->has_pending_exception());
+  if (!attrs.IsJust() || attrs.FromJust() == ABSENT) return attrs;
 
   Handle<Symbol> unscopables_symbol = isolate->factory()->unscopables_symbol();
   Handle<Object> receiver = it->GetReceiver();
@@ -131,7 +131,7 @@ static Maybe<PropertyAttributes> UnscopableLookup(LookupIterator* it) {
   MaybeHandle<Object> maybe_unscopables =
       Object::GetProperty(receiver, unscopables_symbol);
   if (!maybe_unscopables.ToHandle(&unscopables)) {
-    return Maybe<PropertyAttributes>();
+    return Nothing<PropertyAttributes>();
   }
   if (!unscopables->IsSpecObject()) return attrs;
   Handle<Object> blacklist;
@@ -139,10 +139,9 @@ static Maybe<PropertyAttributes> UnscopableLookup(LookupIterator* it) {
       Object::GetProperty(unscopables, it->name());
   if (!maybe_blacklist.ToHandle(&blacklist)) {
     DCHECK(isolate->has_pending_exception());
-    return Maybe<PropertyAttributes>();
+    return Nothing<PropertyAttributes>();
   }
-  if (!blacklist->IsUndefined()) return maybe(ABSENT);
-  return attrs;
+  return blacklist->IsUndefined() ? attrs : Just(ABSENT);
 }
 
 static void GetAttributesAndBindingFlags(VariableMode mode,
@@ -172,6 +171,10 @@ static void GetAttributesAndBindingFlags(VariableMode mode,
       *binding_flags = (init_flag == kNeedsInitialization)
                            ? IMMUTABLE_CHECK_INITIALIZED_HARMONY
                            : IMMUTABLE_IS_INITIALIZED_HARMONY;
+      break;
+    case IMPORT:
+      // TODO(ES6)
+      UNREACHABLE();
       break;
     case DYNAMIC:
     case DYNAMIC_GLOBAL:
@@ -250,7 +253,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
       // Context extension objects needs to behave as if they have no
       // prototype.  So even if we want to follow prototype chains, we need
       // to only do a local lookup for context extension objects.
-      Maybe<PropertyAttributes> maybe;
+      Maybe<PropertyAttributes> maybe = Nothing<PropertyAttributes>();
       if ((flags & FOLLOW_PROTOTYPE_CHAIN) == 0 ||
           object->IsJSContextExtensionObject()) {
         maybe = JSReceiver::GetOwnPropertyAttributes(object, name);
@@ -261,11 +264,11 @@ Handle<Object> Context::Lookup(Handle<String> name,
         maybe = JSReceiver::GetPropertyAttributes(object, name);
       }
 
-      if (!maybe.has_value) return Handle<Object>();
+      if (!maybe.IsJust()) return Handle<Object>();
       DCHECK(!isolate->has_pending_exception());
-      *attributes = maybe.value;
+      *attributes = maybe.FromJust();
 
-      if (maybe.value != ABSENT) {
+      if (maybe.FromJust() != ABSENT) {
         if (FLAG_trace_contexts) {
           PrintF("=> found property in context object %p\n",
                  reinterpret_cast<void*>(*object));
@@ -276,7 +279,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
 
     // 2. Check the context proper if it has slots.
     if (context->IsFunctionContext() || context->IsBlockContext() ||
-        (FLAG_harmony_scoping && context->IsScriptContext())) {
+        context->IsScriptContext()) {
       // Use serialized scope information of functions and blocks to search
       // for the context index.
       Handle<ScopeInfo> scope_info;

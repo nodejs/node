@@ -29,6 +29,7 @@
 
 // Get the Debug object exposed from the debug context global object.
 var Debug = debug.Debug;
+var DebugCommandProcessor = debug.DebugCommandProcessor;
 
 // Accepts a function/closure 'fun' that must have a debugger statement inside.
 // A variable 'variable_name' must be initialized before debugger statement
@@ -291,18 +292,18 @@ RunPauseTest(0, 5, 'p', 2012, 2012, (function Factory() {
 
 // Test value description protocol JSON
 
-assertEquals(true, Debug.TestApi.CommandProcessorResolveValue({value: true}));
+assertEquals(true, DebugCommandProcessor.resolveValue_({value: true}));
 
-assertSame(null, Debug.TestApi.CommandProcessorResolveValue({type: "null"}));
+assertSame(null, DebugCommandProcessor.resolveValue_({type: "null"}));
 assertSame(undefined,
-    Debug.TestApi.CommandProcessorResolveValue({type: "undefined"}));
+    DebugCommandProcessor.resolveValue_({type: "undefined"}));
 
-assertSame("123", Debug.TestApi.CommandProcessorResolveValue(
+assertSame("123", DebugCommandProcessor.resolveValue_(
     {type: "string", stringDescription: "123"}));
-assertSame(123, Debug.TestApi.CommandProcessorResolveValue(
+assertSame(123, DebugCommandProcessor.resolveValue_(
     {type: "number", stringDescription: "123"}));
 
-assertSame(Number, Debug.TestApi.CommandProcessorResolveValue(
+assertSame(Number, DebugCommandProcessor.resolveValue_(
     {handle: Debug.MakeMirror(Number).handle()}));
-assertSame(RunClosureTest, Debug.TestApi.CommandProcessorResolveValue(
+assertSame(RunClosureTest, DebugCommandProcessor.resolveValue_(
     {handle: Debug.MakeMirror(RunClosureTest).handle()}));

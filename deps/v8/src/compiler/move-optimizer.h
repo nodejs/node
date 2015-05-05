@@ -30,6 +30,8 @@ class MoveOptimizer FINAL {
   void CompressBlock(InstructionBlock* blocke);
   void CompressMoves(MoveOpVector* eliminated, ParallelMove* left,
                      ParallelMove* right);
+  GapInstruction* LastGap(InstructionBlock* block);
+  void OptimizeMerge(InstructionBlock* block);
   void FinalizeMoves(GapInstruction* gap);
 
   Zone* const local_zone_;

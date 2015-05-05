@@ -271,7 +271,7 @@ function ConvertAcceptListToTypeMap(arg) {
     return arg;
 
   if (!IS_SPEC_OBJECT(arg))
-    throw MakeTypeError("observe_accept_invalid");
+    throw MakeTypeError("observe_invalid_accept");
 
   var len = ToInteger(arg.length);
   if (len < 0) len = 0;

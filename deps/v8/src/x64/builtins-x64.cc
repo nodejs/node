@@ -1051,7 +1051,87 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
+static void Generate_CheckStackOverflow(MacroAssembler* masm,
+                                        const int calleeOffset) {
+  // rax   : the number of items to be pushed to the stack
+  //
+  // Check the stack for overflow. We are not trying to catch
+  // interruptions (e.g. debug break and preemption) here, so the "real stack
+  // limit" is checked.
+  Label okay;
+  __ LoadRoot(kScratchRegister, Heap::kRealStackLimitRootIndex);
+  __ movp(rcx, rsp);
+  // Make rcx the space we have left. The stack might already be overflowed
+  // here which will cause rcx to become negative.
+  __ subp(rcx, kScratchRegister);
+  // Make rdx the space we need for the array when it is unrolled onto the
+  // stack.
+  __ PositiveSmiTimesPowerOfTwoToInteger64(rdx, rax, kPointerSizeLog2);
+  // Check if the arguments will overflow the stack.
+  __ cmpp(rcx, rdx);
+  __ j(greater, &okay);  // Signed comparison.
+
+  // Out of stack space.
+  __ Push(Operand(rbp, calleeOffset));
+  __ Push(rax);
+  __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
+
+  __ bind(&okay);
+}
+
+
+static void Generate_PushAppliedArguments(MacroAssembler* masm,
+                                          const int argumentsOffset,
+                                          const int indexOffset,
+                                          const int limitOffset) {
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register key = LoadDescriptor::NameRegister();
+
+  // Copy all arguments from the array to the stack.
+  Label entry, loop;
+  __ movp(key, Operand(rbp, indexOffset));
+  __ jmp(&entry);
+  __ bind(&loop);
+  __ movp(receiver, Operand(rbp, argumentsOffset));  // load arguments
+
+  // Use inline caching to speed up access to arguments.
+  if (FLAG_vector_ics) {
+    // TODO(mvstanton): Vector-based ics need additional infrastructure to
+    // be embedded here. For now, just call the runtime.
+    __ Push(receiver);
+    __ Push(key);
+    __ CallRuntime(Runtime::kGetProperty, 2);
+  } else {
+    Handle<Code> ic = CodeFactory::KeyedLoadIC(masm->isolate()).code();
+    __ Call(ic, RelocInfo::CODE_TARGET);
+    // It is important that we do not have a test instruction after the
+    // call.  A test instruction after the call is used to indicate that
+    // we have generated an inline version of the keyed load.  In this
+    // case, we know that we are not generating a test instruction next.
+  }
+
+  // Push the nth argument.
+  __ Push(rax);
+
+  // Update the index on the stack and in register key.
+  __ movp(key, Operand(rbp, indexOffset));
+  __ SmiAddConstant(key, key, Smi::FromInt(1));
+  __ movp(Operand(rbp, indexOffset), key);
+
+  __ bind(&entry);
+  __ cmpp(key, Operand(rbp, limitOffset));
+  __ j(not_equal, &loop);
+
+  // On exit, the pushed arguments count is in rax, untagged
+  __ SmiToInteger64(rax, key);
+}
+
+
+// Used by FunctionApply and ReflectApply
+static void Generate_ApplyHelper(MacroAssembler* masm, bool targetIsArgument) {
+  const int kFormalParameters = targetIsArgument ? 3 : 2;
+  const int kStackSize = kFormalParameters + 1;
+
   // Stack at entry:
   // rsp     : return address
   // rsp[8]  : arguments
@@ -1071,30 +1151,13 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
     __ Push(Operand(rbp, kFunctionOffset));
     __ Push(Operand(rbp, kArgumentsOffset));
-    __ InvokeBuiltin(Builtins::APPLY_PREPARE, CALL_FUNCTION);
+    if (targetIsArgument) {
+      __ InvokeBuiltin(Builtins::REFLECT_APPLY_PREPARE, CALL_FUNCTION);
+    } else {
+      __ InvokeBuiltin(Builtins::APPLY_PREPARE, CALL_FUNCTION);
+    }
 
-    // Check the stack for overflow. We are not trying to catch
-    // interruptions (e.g. debug break and preemption) here, so the "real stack
-    // limit" is checked.
-    Label okay;
-    __ LoadRoot(kScratchRegister, Heap::kRealStackLimitRootIndex);
-    __ movp(rcx, rsp);
-    // Make rcx the space we have left. The stack might already be overflowed
-    // here which will cause rcx to become negative.
-    __ subp(rcx, kScratchRegister);
-    // Make rdx the space we need for the array when it is unrolled onto the
-    // stack.
-    __ PositiveSmiTimesPowerOfTwoToInteger64(rdx, rax, kPointerSizeLog2);
-    // Check if the arguments will overflow the stack.
-    __ cmpp(rcx, rdx);
-    __ j(greater, &okay);  // Signed comparison.
-
-    // Out of stack space.
-    __ Push(Operand(rbp, kFunctionOffset));
-    __ Push(rax);
-    __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
-    __ bind(&okay);
-    // End of stack check.
+    Generate_CheckStackOverflow(masm, kFunctionOffset);
 
     // Push current index and limit.
     const int kLimitOffset =
@@ -1156,54 +1219,20 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ bind(&push_receiver);
     __ Push(rbx);
 
-    // Copy all arguments from the array to the stack.
-    Label entry, loop;
-    Register receiver = LoadDescriptor::ReceiverRegister();
-    Register key = LoadDescriptor::NameRegister();
-    __ movp(key, Operand(rbp, kIndexOffset));
-    __ jmp(&entry);
-    __ bind(&loop);
-    __ movp(receiver, Operand(rbp, kArgumentsOffset));  // load arguments
-
-    // Use inline caching to speed up access to arguments.
-    if (FLAG_vector_ics) {
-      // TODO(mvstanton): Vector-based ics need additional infrastructure to
-      // be embedded here. For now, just call the runtime.
-      __ Push(receiver);
-      __ Push(key);
-      __ CallRuntime(Runtime::kGetProperty, 2);
-    } else {
-      Handle<Code> ic = CodeFactory::KeyedLoadIC(masm->isolate()).code();
-      __ Call(ic, RelocInfo::CODE_TARGET);
-      // It is important that we do not have a test instruction after the
-      // call.  A test instruction after the call is used to indicate that
-      // we have generated an inline version of the keyed load.  In this
-      // case, we know that we are not generating a test instruction next.
-    }
-
-    // Push the nth argument.
-    __ Push(rax);
-
-    // Update the index on the stack and in register key.
-    __ movp(key, Operand(rbp, kIndexOffset));
-    __ SmiAddConstant(key, key, Smi::FromInt(1));
-    __ movp(Operand(rbp, kIndexOffset), key);
-
-    __ bind(&entry);
-    __ cmpp(key, Operand(rbp, kLimitOffset));
-    __ j(not_equal, &loop);
+    // Loop over the arguments array, pushing each value to the stack
+    Generate_PushAppliedArguments(
+        masm, kArgumentsOffset, kIndexOffset, kLimitOffset);
 
     // Call the function.
     Label call_proxy;
     ParameterCount actual(rax);
-    __ SmiToInteger32(rax, key);
     __ movp(rdi, Operand(rbp, kFunctionOffset));
     __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
     __ j(not_equal, &call_proxy);
     __ InvokeFunction(rdi, actual, CALL_FUNCTION, NullCallWrapper());
 
     frame_scope.GenerateLeaveFrame();
-    __ ret(3 * kPointerSize);  // remove this, receiver, and arguments
+    __ ret(kStackSize * kPointerSize);  // remove this, receiver, and arguments
 
     // Call the function proxy.
     __ bind(&call_proxy);
@@ -1216,7 +1245,92 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
     // Leave internal frame.
   }
-  __ ret(3 * kPointerSize);  // remove this, receiver, and arguments
+  __ ret(kStackSize * kPointerSize);  // remove this, receiver, and arguments
+}
+
+
+// Used by ReflectConstruct
+static void Generate_ConstructHelper(MacroAssembler* masm) {
+  const int kFormalParameters = 3;
+  const int kStackSize = kFormalParameters + 1;
+
+  // Stack at entry:
+  // rsp     : return address
+  // rsp[8]  : original constructor (new.target)
+  // rsp[16] : arguments
+  // rsp[24] : constructor
+  {
+    FrameScope frame_scope(masm, StackFrame::INTERNAL);
+    // Stack frame:
+    // rbp     : Old base pointer
+    // rbp[8]  : return address
+    // rbp[16] : original constructor (new.target)
+    // rbp[24] : arguments
+    // rbp[32] : constructor
+    static const int kNewTargetOffset = kFPOnStackSize + kPCOnStackSize;
+    static const int kArgumentsOffset = kNewTargetOffset + kPointerSize;
+    static const int kFunctionOffset = kArgumentsOffset + kPointerSize;
+
+    // If newTarget is not supplied, set it to constructor
+    Label validate_arguments;
+    __ movp(rax, Operand(rbp, kNewTargetOffset));
+    __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
+    __ j(not_equal, &validate_arguments, Label::kNear);
+    __ movp(rax, Operand(rbp, kFunctionOffset));
+    __ movp(Operand(rbp, kNewTargetOffset), rax);
+
+    // Validate arguments
+    __ bind(&validate_arguments);
+    __ Push(Operand(rbp, kFunctionOffset));
+    __ Push(Operand(rbp, kArgumentsOffset));
+    __ Push(Operand(rbp, kNewTargetOffset));
+    __ InvokeBuiltin(Builtins::REFLECT_CONSTRUCT_PREPARE, CALL_FUNCTION);
+
+    Generate_CheckStackOverflow(masm, kFunctionOffset);
+
+    // Push current index and limit.
+    const int kLimitOffset =
+        StandardFrameConstants::kExpressionsOffset - 1 * kPointerSize;
+    const int kIndexOffset = kLimitOffset - 1 * kPointerSize;
+    __ Push(rax);  // limit
+    __ Push(Immediate(0));  // index
+    // Push newTarget and callee functions
+    __ Push(Operand(rbp, kNewTargetOffset));
+    __ Push(Operand(rbp, kFunctionOffset));
+
+    // Loop over the arguments array, pushing each value to the stack
+    Generate_PushAppliedArguments(
+        masm, kArgumentsOffset, kIndexOffset, kLimitOffset);
+
+    // Use undefined feedback vector
+    __ LoadRoot(rbx, Heap::kUndefinedValueRootIndex);
+    __ movp(rdi, Operand(rbp, kFunctionOffset));
+
+    // Call the function.
+    CallConstructStub stub(masm->isolate(), SUPER_CONSTRUCTOR_CALL);
+    __ call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
+
+    __ Drop(1);
+
+    // Leave internal frame.
+  }
+  // remove this, target, arguments and newTarget
+  __ ret(kStackSize * kPointerSize);
+}
+
+
+void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
+  Generate_ApplyHelper(masm, false);
+}
+
+
+void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
+  Generate_ApplyHelper(masm, true);
+}
+
+
+void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
+  Generate_ConstructHelper(masm);
 }
 
 
