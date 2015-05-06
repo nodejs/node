@@ -43,13 +43,14 @@ static void log_progress(int total,
     total = 1;
 
   progress = 100 * (passed + failed + skipped + todos) / total;
-  LOGF("[%% %3d|+ %3d|- %3d|T %3d|S %3d]: %s",
-       progress,
-       passed,
-       failed,
-       todos,
-       skipped,
-       name);
+  fprintf(stderr, "[%% %3d|+ %3d|- %3d|T %3d|S %3d]: %s",
+          progress,
+          passed,
+          failed,
+          todos,
+          skipped,
+          name);
+  fflush(stderr);
 }
 
 
@@ -109,7 +110,8 @@ int run_tests(int benchmark_output) {
   }
 
   if (tap_output) {
-    LOGF("1..%d\n", total);
+    fprintf(stderr, "1..%d\n", total);
+    fflush(stderr);
   }
 
   /* Run all tests. */
@@ -184,7 +186,8 @@ void log_tap_result(int test_count,
     reason[0] = '\0';
   }
 
-  LOGF("%s %d - %s%s%s\n", result, test_count, test, directive, reason);
+  fprintf(stderr, "%s %d - %s%s%s\n", result, test_count, test, directive, reason);
+  fflush(stderr);
 }
 
 
@@ -320,49 +323,55 @@ out:
   /* Show error and output from processes if the test failed. */
   if (status != 0 || task->show_output) {
     if (tap_output) {
-      LOGF("#");
+      fprintf(stderr, "#");
     } else if (status == TEST_TODO) {
-      LOGF("\n`%s` todo\n", test);
+      fprintf(stderr, "\n`%s` todo\n", test);
     } else if (status == TEST_SKIP) {
-      LOGF("\n`%s` skipped\n", test);
+      fprintf(stderr, "\n`%s` skipped\n", test);
     } else if (status != 0) {
-      LOGF("\n`%s` failed: %s\n", test, errmsg);
+      fprintf(stderr, "\n`%s` failed: %s\n", test, errmsg);
     } else {
-      LOGF("\n");
+      fprintf(stderr, "\n");
     }
+    fflush(stderr);
 
     for (i = 0; i < process_count; i++) {
       switch (process_output_size(&processes[i])) {
        case -1:
-        LOGF("Output from process `%s`: (unavailable)\n",
-             process_get_name(&processes[i]));
+        fprintf(stderr, "Output from process `%s`: (unavailable)\n",
+                process_get_name(&processes[i]));
+        fflush(stderr);
         break;
 
        case 0:
-        LOGF("Output from process `%s`: (no output)\n",
-             process_get_name(&processes[i]));
+        fprintf(stderr, "Output from process `%s`: (no output)\n",
+                process_get_name(&processes[i]));
+        fflush(stderr);
         break;
 
        default:
-        LOGF("Output from process `%s`:\n", process_get_name(&processes[i]));
+        fprintf(stderr, "Output from process `%s`:\n", process_get_name(&processes[i]));
+        fflush(stderr);
         process_copy_output(&processes[i], fileno(stderr));
         break;
       }
     }
 
     if (!tap_output) {
-      LOG("=============================================================\n");
+      fprintf(stderr, "=============================================================\n");
     }
 
   /* In benchmark mode show concise output from the main process. */
   } else if (benchmark_output) {
     switch (process_output_size(main_proc)) {
      case -1:
-      LOGF("%s: (unavailable)\n", test);
+      fprintf(stderr, "%s: (unavailable)\n", test);
+      fflush(stderr);
       break;
 
      case 0:
-      LOGF("%s: (no output)\n", test);
+      fprintf(stderr, "%s: (no output)\n", test);
+      fflush(stderr);
       break;
 
      default:
@@ -397,7 +406,8 @@ int run_test_part(const char* test, const char* part) {
     }
   }
 
-  LOGF("No test part with that name: %s:%s\n", test, part);
+  fprintf(stderr, "No test part with that name: %s:%s\n", test, part);
+  fflush(stderr);
   return 255;
 }
 

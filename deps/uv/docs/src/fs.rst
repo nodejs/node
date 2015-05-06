@@ -162,46 +162,46 @@ API
 
 .. c:function:: int uv_fs_close(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb)
 
-    Equivalent to ``close(2)``.
+    Equivalent to :man:`close(2)`.
 
 .. c:function:: int uv_fs_open(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags, int mode, uv_fs_cb cb)
 
-    Equivalent to ``open(2)``.
+    Equivalent to :man:`open(2)`.
 
 .. c:function:: int uv_fs_read(uv_loop_t* loop, uv_fs_t* req, uv_file file, const uv_buf_t bufs[], unsigned int nbufs, int64_t offset, uv_fs_cb cb)
 
-    Equivalent to ``preadv(2)``.
+    Equivalent to :man:`preadv(2)`.
 
 .. c:function:: int uv_fs_unlink(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb)
 
-    Equivalent to ``unlink(2)``.
+    Equivalent to :man:`unlink(2)`.
 
 .. c:function:: int uv_fs_write(uv_loop_t* loop, uv_fs_t* req, uv_file file, const uv_buf_t bufs[], unsigned int nbufs, int64_t offset, uv_fs_cb cb)
 
-    Equivalent to ``pwritev(2)``.
+    Equivalent to :man:`pwritev(2)`.
 
 .. c:function:: int uv_fs_mkdir(uv_loop_t* loop, uv_fs_t* req, const char* path, int mode, uv_fs_cb cb)
 
-    Equivalent to ``mkdir(2)``.
+    Equivalent to :man:`mkdir(2)`.
 
     .. note::
         `mode` is currently not implemented on Windows.
 
 .. c:function:: int uv_fs_mkdtemp(uv_loop_t* loop, uv_fs_t* req, const char* tpl, uv_fs_cb cb)
 
-    Equivalent to ``mkdtemp(3)``.
+    Equivalent to :man:`mkdtemp(3)`.
 
     .. note::
         The result can be found as a null terminated string at `req->path`.
 
 .. c:function:: int uv_fs_rmdir(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb)
 
-    Equivalent to ``rmdir(2)``.
+    Equivalent to :man:`rmdir(2)`.
 
 .. c:function:: int uv_fs_scandir(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags, uv_fs_cb cb)
 .. c:function:: int uv_fs_scandir_next(uv_fs_t* req, uv_dirent_t* ent)
 
-    Equivalent to ``scandir(3)``, with a slightly different API. Once the callback
+    Equivalent to :man:`scandir(3)`, with a slightly different API. Once the callback
     for the request is called, the user can use :c:func:`uv_fs_scandir_next` to
     get `ent` populated with the next directory entry data. When there are no
     more entries ``UV_EOF`` will be returned.
@@ -210,49 +210,49 @@ API
 .. c:function:: int uv_fs_fstat(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb)
 .. c:function:: int uv_fs_lstat(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb)
 
-    Equivalent to ``(f/l)stat(2)``.
+    Equivalent to :man:`stat(2)`, :man:`fstat(2)` and :man:`fstat(2)` respectively.
 
 .. c:function:: int uv_fs_rename(uv_loop_t* loop, uv_fs_t* req, const char* path, const char* new_path, uv_fs_cb cb)
 
-    Equivalent to ``rename(2)``.
+    Equivalent to :man:`rename(2)`.
 
 .. c:function:: int uv_fs_fsync(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb)
 
-    Equivalent to ``fsync(2)``.
+    Equivalent to :man:`fsync(2)`.
 
 .. c:function:: int uv_fs_fdatasync(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb)
 
-    Equivalent to ``fdatasync(2)``.
+    Equivalent to :man:`fdatasync(2)`.
 
 .. c:function:: int uv_fs_ftruncate(uv_loop_t* loop, uv_fs_t* req, uv_file file, int64_t offset, uv_fs_cb cb)
 
-    Equivalent to ``ftruncate(2)``.
+    Equivalent to :man:`ftruncate(2)`.
 
 .. c:function:: int uv_fs_sendfile(uv_loop_t* loop, uv_fs_t* req, uv_file out_fd, uv_file in_fd, int64_t in_offset, size_t length, uv_fs_cb cb)
 
-    Limited equivalent to ``sendfile(2)``.
+    Limited equivalent to :man:`sendfile(2)`.
 
 .. c:function:: int uv_fs_access(uv_loop_t* loop, uv_fs_t* req, const char* path, int mode, uv_fs_cb cb)
 
-    Equivalent to ``access(2)`` on Unix. Windows uses ``GetFileAttributesW()``.
+    Equivalent to :man:`access(2)` on Unix. Windows uses ``GetFileAttributesW()``.
 
 .. c:function:: int uv_fs_chmod(uv_loop_t* loop, uv_fs_t* req, const char* path, int mode, uv_fs_cb cb)
 .. c:function:: int uv_fs_fchmod(uv_loop_t* loop, uv_fs_t* req, uv_file file, int mode, uv_fs_cb cb)
 
-    Equivalent to ``(f)chmod(2)``.
+    Equivalent to :man:`chmod(2)` and :man:`fchmod(2)` respectively.
 
 .. c:function:: int uv_fs_utime(uv_loop_t* loop, uv_fs_t* req, const char* path, double atime, double mtime, uv_fs_cb cb)
 .. c:function:: int uv_fs_futime(uv_loop_t* loop, uv_fs_t* req, uv_file file, double atime, double mtime, uv_fs_cb cb)
 
-    Equivalent to ``(f)utime(s)(2)``.
+    Equivalent to :man:`utime(2)` and :man:`futime(2)` respectively.
 
 .. c:function:: int uv_fs_link(uv_loop_t* loop, uv_fs_t* req, const char* path, const char* new_path, uv_fs_cb cb)
 
-    Equivalent to ``link(2)``.
+    Equivalent to :man:`link(2)`.
 
 .. c:function:: int uv_fs_symlink(uv_loop_t* loop, uv_fs_t* req, const char* path, const char* new_path, int flags, uv_fs_cb cb)
 
-    Equivalent to ``symlink(2)``.
+    Equivalent to :man:`symlink(2)`.
 
     .. note::
         On Windows the `flags` parameter can be specified to control how the symlink will
@@ -265,12 +265,12 @@ API
 
 .. c:function:: int uv_fs_readlink(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb)
 
-    Equivalent to ``readlink(2)``.
+    Equivalent to :man:`readlink(2)`.
 
 .. c:function:: int uv_fs_chown(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_uid_t uid, uv_gid_t gid, uv_fs_cb cb)
 .. c:function:: int uv_fs_fchown(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_uid_t uid, uv_gid_t gid, uv_fs_cb cb)
 
-    Equivalent to ``(f)chown(2)``.
+    Equivalent to :man:`chown(2)` and :man:`fchown(2)` respectively.
 
     .. note::
         These functions are not implemented on Windows.

@@ -29,7 +29,7 @@
 
 
 #define SET_REQ_STATUS(req, status)                                     \
-   (req)->overlapped.Internal = (ULONG_PTR) (status)
+   (req)->u.io.overlapped.Internal = (ULONG_PTR) (status)
 
 #define SET_REQ_ERROR(req, error)                                       \
   SET_REQ_STATUS((req), NTSTATUS_FROM_WIN32((error)))
@@ -38,7 +38,7 @@
   SET_REQ_STATUS((req), STATUS_SUCCESS)
 
 #define GET_REQ_STATUS(req)                                             \
-  ((NTSTATUS) (req)->overlapped.Internal)
+  ((NTSTATUS) (req)->u.io.overlapped.Internal)
 
 #define REQ_SUCCESS(req)                                                \
   (NT_SUCCESS(GET_REQ_STATUS((req))))
@@ -74,7 +74,7 @@
   if (!PostQueuedCompletionStatus((loop)->iocp,                         \
                                   0,                                    \
                                   0,                                    \
-                                  &((req)->overlapped))) {              \
+                                  &((req)->u.io.overlapped))) {         \
     uv_fatal_error(GetLastError(), "PostQueuedCompletionStatus");       \
   }
 
@@ -86,13 +86,24 @@ INLINE static void uv_req_init(uv_loop_t* loop, uv_req_t* req) {
 
 
 INLINE static uv_req_t* uv_overlapped_to_req(OVERLAPPED* overlapped) {
-  return CONTAINING_RECORD(overlapped, uv_req_t, overlapped);
+  return CONTAINING_RECORD(overlapped, uv_req_t, u.io.overlapped);
 }
 
 
 INLINE static void uv_insert_pending_req(uv_loop_t* loop, uv_req_t* req) {
   req->next_req = NULL;
   if (loop->pending_reqs_tail) {
+#ifdef _DEBUG
+    /* Ensure the request is not already in the queue, or the queue
+     * will get corrupted.
+     */
+    uv_req_t* current = loop->pending_reqs_tail;
+    do {
+      assert(req != current);
+      current = current->next_req;
+    } while(current != loop->pending_reqs_tail);
+#endif
+
     req->next_req = loop->pending_reqs_tail->next_req;
     loop->pending_reqs_tail->next_req = req;
     loop->pending_reqs_tail = req;

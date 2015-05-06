@@ -39,6 +39,7 @@ static void alloc_cb(uv_handle_t* handle, size_t size, uv_buf_t* buf) {
 
 static void read_cb(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
   fprintf(stdout, "got data %d\n", ++read_count);
+  fflush(stdout);
 
   if (read_count == 3)
     uv_close((uv_handle_t*) stream, NULL);
@@ -55,7 +56,8 @@ TEST_IMPL(osx_select) {
 
   fd = open("/dev/tty", O_RDONLY);
   if (fd < 0) {
-    LOGF("Cannot open /dev/tty as read-only: %s\n", strerror(errno));
+    fprintf(stderr, "Cannot open /dev/tty as read-only: %s\n", strerror(errno));
+    fflush(stderr);
     return TEST_SKIP;
   }
 
@@ -107,7 +109,8 @@ TEST_IMPL(osx_select_many_fds) {
 
   fd = open("/dev/tty", O_RDONLY);
   if (fd < 0) {
-    LOGF("Cannot open /dev/tty as read-only: %s\n", strerror(errno));
+    fprintf(stderr, "Cannot open /dev/tty as read-only: %s\n", strerror(errno));
+    fflush(stderr);
     return TEST_SKIP;
   }
 

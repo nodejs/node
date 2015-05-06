@@ -88,8 +88,8 @@ TEST_IMPL(pipe_set_non_blocking) {
   uv_close((uv_handle_t*) &pipe_handle, NULL);
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
 
-  ASSERT(0 == close(fd[1]));  /* fd[0] is closed by uv_close(). */
   ASSERT(0 == uv_thread_join(&thread));
+  ASSERT(0 == close(fd[1]));  /* fd[0] is closed by uv_close(). */
   uv_barrier_destroy(&ctx.barrier);
 
   MAKE_VALGRIND_HAPPY();

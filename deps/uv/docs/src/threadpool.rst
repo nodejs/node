@@ -18,6 +18,10 @@ libuv preallocates and initializes the maximum number of threads allowed by
 ``UV_THREADPOOL_SIZE``. This causes a relatively minor memory overhead
 (~1MB for 128 threads) but increases the performance of threading at runtime.
 
+.. note::
+    Note that even though a global thread pool which is shared across all events
+    loops is used, the functions are not thread safe.
+
 
 Data types
 ----------

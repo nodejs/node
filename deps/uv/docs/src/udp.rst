@@ -122,6 +122,10 @@ API
 
     .. versionchanged:: 1.2.1 the file descriptor is set to non-blocking mode.
 
+    .. note::
+        The passed file descriptor or SOCKET is not checked for its type, but
+        it's required that it represents a valid datagram socket.
+
 .. c:function:: int uv_udp_bind(uv_udp_t* handle, const struct sockaddr* addr, unsigned int flags)
 
     Bind the UDP handle to an IP address and port.
