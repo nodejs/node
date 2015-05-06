@@ -1604,23 +1604,22 @@ Handle<Object> Debug::GetSourceBreakLocations(
   Handle<FixedArray> locations =
       isolate->factory()->NewFixedArray(debug_info->GetBreakPointCount());
   int count = 0;
-  for (int i = 0; i < debug_info->break_points()->length(); i++) {
+  for (int i = 0; i < debug_info->break_points()->length(); ++i) {
     if (!debug_info->break_points()->get(i)->IsUndefined()) {
       BreakPointInfo* break_point_info =
           BreakPointInfo::cast(debug_info->break_points()->get(i));
-      if (break_point_info->GetBreakPointCount() > 0) {
-        Smi* position = NULL;
-        switch (position_alignment) {
-          case STATEMENT_ALIGNED:
-            position = break_point_info->statement_position();
-            break;
-          case BREAK_POSITION_ALIGNED:
-            position = break_point_info->source_position();
-            break;
-        }
-
-        locations->set(count++, position);
+      int break_points = break_point_info->GetBreakPointCount();
+      if (break_points == 0) continue;
+      Smi* position = NULL;
+      switch (position_alignment) {
+        case STATEMENT_ALIGNED:
+          position = break_point_info->statement_position();
+          break;
+        case BREAK_POSITION_ALIGNED:
+          position = break_point_info->source_position();
+          break;
       }
+      for (int j = 0; j < break_points; ++j) locations->set(count++, position);
     }
   }
   return locations;
@@ -1923,7 +1922,6 @@ static void RecompileAndRelocateSuspendedGenerators(
 static bool SkipSharedFunctionInfo(SharedFunctionInfo* shared,
                                    Object* active_code_marker) {
   if (!shared->allows_lazy_compilation()) return true;
-  if (!shared->script()->IsScript()) return true;
   Object* script = shared->script();
   if (!script->IsScript()) return true;
   if (Script::cast(script)->type()->value() == Script::TYPE_NATIVE) return true;
@@ -2203,6 +2201,21 @@ Object* Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
       if (maybe_result.is_null()) return isolate_->heap()->undefined_value();
     }
   }  // End while loop.
+
+  // JSFunctions from the same literal may not have the same shared function
+  // info. Find those JSFunctions and deduplicate the shared function info.
+  HeapIterator iterator(heap, FLAG_lazy ? HeapIterator::kNoFiltering
+                                        : HeapIterator::kFilterUnreachable);
+  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
+    if (!obj->IsJSFunction()) continue;
+    JSFunction* function = JSFunction::cast(obj);
+    SharedFunctionInfo* shared = function->shared();
+    if (shared != *target && shared->script() == target->script() &&
+        shared->start_position_and_type() ==
+            target->start_position_and_type()) {
+      function->set_shared(*target);
+    }
+  }
 
   return *target;
 }

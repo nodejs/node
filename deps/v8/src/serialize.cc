@@ -820,6 +820,8 @@ HeapObject* Deserializer::ProcessNewObjectFromSerializedCode(HeapObject* obj) {
       string->SetForwardedInternalizedString(canonical);
       return canonical;
     }
+  } else if (obj->IsScript()) {
+    Script::cast(obj)->set_id(isolate_->heap()->NextScriptId());
   }
   return obj;
 }

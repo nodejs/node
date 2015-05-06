@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_GRAPH_VISUALIZER_H_
 #define V8_COMPILER_GRAPH_VISUALIZER_H_
 
+#include <stdio.h>
 #include <iosfwd>
 
 namespace v8 {

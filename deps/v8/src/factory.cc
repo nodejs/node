@@ -826,17 +826,12 @@ Handle<ExecutableAccessorInfo> Factory::NewExecutableAccessorInfo() {
 
 
 Handle<Script> Factory::NewScript(Handle<String> source) {
-  // Generate id for this script.
-  Heap* heap = isolate()->heap();
-  int id = heap->last_script_id()->value() + 1;
-  if (!Smi::IsValid(id) || id < 0) id = 1;
-  heap->set_last_script_id(Smi::FromInt(id));
-
   // Create and initialize script object.
+  Heap* heap = isolate()->heap();
   Handle<Script> script = Handle<Script>::cast(NewStruct(SCRIPT_TYPE));
   script->set_source(*source);
   script->set_name(heap->undefined_value());
-  script->set_id(Smi::FromInt(id));
+  script->set_id(isolate()->heap()->NextScriptId());
   script->set_line_offset(Smi::FromInt(0));
   script->set_column_offset(Smi::FromInt(0));
   script->set_context_data(heap->undefined_value());
