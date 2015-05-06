@@ -88,7 +88,12 @@ void uv__stream_init(uv_loop_t* loop,
   stream->write_queue_size = 0;
 
   if (loop->emfile_fd == -1) {
-    err = uv__open_cloexec("/", O_RDONLY);
+    err = uv__open_cloexec("/dev/null", O_RDONLY);
+    if (err < 0)
+        /* In the rare case that "/dev/null" isn't mounted open "/"
+         * instead.
+         */
+        err = uv__open_cloexec("/", O_RDONLY);
     if (err >= 0)
       loop->emfile_fd = err;
   }
@@ -301,7 +306,7 @@ int uv__stream_try_select(uv_stream_t* stream, int* fd) {
   if (fds[1] > max_fd)
     max_fd = fds[1];
 
-  sread_sz = (max_fd + NBBY) / NBBY;
+  sread_sz = ROUND_UP(max_fd + 1, sizeof(uint32_t) * NBBY) / NBBY;
   swrite_sz = sread_sz;
 
   s = malloc(sizeof(*s) + sread_sz + swrite_sz);

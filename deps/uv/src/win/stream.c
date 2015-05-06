@@ -216,7 +216,7 @@ int uv_shutdown(uv_shutdown_t* req, uv_stream_t* handle, uv_shutdown_cb cb) {
   req->cb = cb;
 
   handle->flags &= ~UV_HANDLE_WRITABLE;
-  handle->shutdown_req = req;
+  handle->stream.conn.shutdown_req = req;
   handle->reqs_pending++;
   REGISTER_HANDLE_REQ(loop, handle, req);
 

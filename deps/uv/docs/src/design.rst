@@ -40,7 +40,7 @@ The I/O loop
 The I/O (or event) loop is the central part of libuv. It establishes the content for all I/O
 operations, and it's meant to be tied to a single thread. One can run multiple event loops
 as long as each runs in a different thread. The libuv event loop (or any other API involving
-the loop or handles, for that matter) **is not thread-safe** except stated otherwise.
+the loop or handles, for that matter) **is not thread-safe** except where stated otherwise.
 
 The event loop follows the rather usual single threaded asynchronous I/O approach: all (network)
 I/O is performed on non-blocking sockets which are polled using the best mechanism available
@@ -113,7 +113,7 @@ stages of a loop iteration:
 
 .. note::
     While the polling mechanism is different, libuv makes the execution model consistent
-    Unix systems and Windows.
+    across Unix systems and Windows.
 
 
 File I/O

@@ -1,4 +1,108 @@
-2015.02.27, Version 1.4.2 (Stable)
+2015.05.07, Version 1.5.0 (Stable), 4e77f74c7b95b639b3397095db1bc5bcc016c203
+
+Changes since version 1.4.2:
+
+* doc: clarify that the thread pool primites are not thread safe (Andrius
+  Bentkus)
+
+* aix: always deregister closing fds from epoll (Michael)
+
+* unix: fix glibc-2.20+ macro incompatibility (Massimiliano Torromeo)
+
+* doc: add Sphinx plugin for generating links to man pages (Saúl Ibarra
+  Corretgé)
+
+* doc: link system and library calls to man pages (Saúl Ibarra Corretgé)
+
+* doc: document uv_getnameinfo_t.{host|service} (Saúl Ibarra Corretgé)
+
+* build: update the location of gyp (Stephen von Takach)
+
+* win: name all anonymous structs and unions (TomCrypto)
+
+* linux: work around epoll bug in kernels 3.10-3.19 (Ben Noordhuis)
+
+* darwin: fix size calculation in select() fallback (Ole André Vadla Ravnås)
+
+* solaris: fix setsockopt for multicast options (Julien Gilli)
+
+* test: fix race condition in multithreaded test (Ben Noordhuis)
+
+* doc: fix long lines in tty.rst (Ben Noordhuis)
+
+* test: use UV_TTY_MODE_* values in tty test (Ben Noordhuis)
+
+* unix: don't clobber errno in uv_tty_reset_mode() (Ben Noordhuis)
+
+* unix: reject non-tty fds in uv_tty_init() (Ben Noordhuis)
+
+* win: fix pipe blocking writes (Alexis Campailla)
+
+* build: fix cross-compiling for iOS (Steven Kabbes)
+
+* win: remove unnecessary malloc.h
+
+* include: use `extern "c++"` for defining C++ code (Kazuho Oku)
+
+* unix: reap child on execvp() failure (Ryan Phillips)
+
+* windows: fix handle leak on EMFILE (Brian Green)
+
+* test: fix tty_file, close handle if initialized (Saúl Ibarra Corretgé)
+
+* doc: clarify what uv_*_open accepts (Saúl Ibarra Corretgé)
+
+* doc: clarify that we don't maintain external doc resources (Saúl Ibarra
+  Corretgé)
+
+* build: add documentation for ninja support (Devchandra Meetei Leishangthem)
+
+* doc: document uv_buf_t members (Corey Farrell)
+
+* linux: fix epoll_pwait() fallback on arm64 (Ben Noordhuis)
+
+* android: fix compilation warning (Saúl Ibarra Corretgé)
+
+* unix: don't close the fds we just setup (Sam Roberts)
+
+* test: spawn child replacing std{out,err} to stderr (Saúl Ibarra Corretgé)
+
+* unix: fix swapping fds order in uv_spawn (Saúl Ibarra Corretgé)
+
+* unix: fix potential bug if dup2 fails in uv_spawn (Saúl Ibarra Corretgé)
+
+* test: remove LOG and LOGF variadic macros (Saúl Ibarra Corretgé)
+
+* win: fix uv_fs_access on directories (Saúl Ibarra Corretgé)
+
+* win: fix of double free in uv_uptime (Per Nilsson)
+
+* unix: open "/dev/null" instead of "/" for emfile_fd (Alan Rogers)
+
+* docs: add some missing words (Daryl Haresign)
+
+* unix: clean up uv_fs_open() O_CLOEXEC logic (Ben Noordhuis)
+
+* build: set SONAME for shared library in uv.gyp (Rui Abreu Ferreira)
+
+* windows: define snprintf replacement as inline instead of static (Rui Abreu
+  Ferreira)
+
+* win: fix unlink of readonly files (João Reis)
+
+* doc: fix uv_run(UV_RUN_DEFAULT) description (Ben Noordhuis)
+
+* linux: intercept syscall when running under memory sanitizer (Keno Fischer)
+
+* aix: fix uv_interface_addresses return value (farblue68)
+
+* windows: defer reporting TCP write failure until next tick (Saúl Ibarra
+  Corretgé)
+
+* test: add test for deferred TCP write failure (Saúl Ibarra Corretgé)
+
+
+2015.02.27, Version 1.4.2 (Stable), 1a7391348a11d5450c0f69c828d5302e2cb842eb
 
 Changes since version 1.4.1:
 

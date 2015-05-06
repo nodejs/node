@@ -244,7 +244,7 @@ static void uv_udp_queue_recv(uv_loop_t* loop, uv_udp_t* handle) {
   assert(!(handle->flags & UV_HANDLE_READ_PENDING));
 
   req = &handle->recv_req;
-  memset(&req->overlapped, 0, sizeof(req->overlapped));
+  memset(&req->u.io.overlapped, 0, sizeof(req->u.io.overlapped));
 
   /*
    * Preallocate a read buffer if the number of active streams is below
@@ -272,13 +272,13 @@ static void uv_udp_queue_recv(uv_loop_t* loop, uv_udp_t* handle) {
                                       &flags,
                                       (struct sockaddr*) &handle->recv_from,
                                       &handle->recv_from_len,
-                                      &req->overlapped,
+                                      &req->u.io.overlapped,
                                       NULL);
 
     if (UV_SUCCEEDED_WITHOUT_IOCP(result == 0)) {
       /* Process the req without IOCP. */
       handle->flags |= UV_HANDLE_READ_PENDING;
-      req->overlapped.InternalHigh = bytes;
+      req->u.io.overlapped.InternalHigh = bytes;
       handle->reqs_pending++;
       uv_insert_pending_req(loop, req);
     } else if (UV_SUCCEEDED_WITH_IOCP(result == 0)) {
@@ -304,13 +304,13 @@ static void uv_udp_queue_recv(uv_loop_t* loop, uv_udp_t* handle) {
                                   1,
                                   &bytes,
                                   &flags,
-                                  &req->overlapped,
+                                  &req->u.io.overlapped,
                                   NULL);
 
     if (UV_SUCCEEDED_WITHOUT_IOCP(result == 0)) {
       /* Process the req without IOCP. */
       handle->flags |= UV_HANDLE_READ_PENDING;
-      req->overlapped.InternalHigh = bytes;
+      req->u.io.overlapped.InternalHigh = bytes;
       handle->reqs_pending++;
       uv_insert_pending_req(loop, req);
     } else if (UV_SUCCEEDED_WITH_IOCP(result == 0)) {
@@ -384,7 +384,7 @@ static int uv__send(uv_udp_send_t* req,
   req->type = UV_UDP_SEND;
   req->handle = handle;
   req->cb = cb;
-  memset(&req->overlapped, 0, sizeof(req->overlapped));
+  memset(&req->u.io.overlapped, 0, sizeof(req->u.io.overlapped));
 
   result = WSASendTo(handle->socket,
                      (WSABUF*)bufs,
@@ -393,22 +393,22 @@ static int uv__send(uv_udp_send_t* req,
                      0,
                      addr,
                      addrlen,
-                     &req->overlapped,
+                     &req->u.io.overlapped,
                      NULL);
 
   if (UV_SUCCEEDED_WITHOUT_IOCP(result == 0)) {
     /* Request completed immediately. */
-    req->queued_bytes = 0;
+    req->u.io.queued_bytes = 0;
     handle->reqs_pending++;
-    handle->send_queue_size += req->queued_bytes;
+    handle->send_queue_size += req->u.io.queued_bytes;
     handle->send_queue_count++;
     REGISTER_HANDLE_REQ(loop, handle, req);
     uv_insert_pending_req(loop, (uv_req_t*)req);
   } else if (UV_SUCCEEDED_WITH_IOCP(result == 0)) {
     /* Request queued by the kernel. */
-    req->queued_bytes = uv__count_bufs(bufs, nbufs);
+    req->u.io.queued_bytes = uv__count_bufs(bufs, nbufs);
     handle->reqs_pending++;
-    handle->send_queue_size += req->queued_bytes;
+    handle->send_queue_size += req->u.io.queued_bytes;
     handle->send_queue_count++;
     REGISTER_HANDLE_REQ(loop, handle, req);
   } else {
@@ -459,7 +459,7 @@ void uv_process_udp_recv_req(uv_loop_t* loop, uv_udp_t* handle,
     /* Successful read */
     partial = !REQ_SUCCESS(req);
     handle->recv_cb(handle,
-                    req->overlapped.InternalHigh,
+                    req->u.io.overlapped.InternalHigh,
                     &handle->recv_buffer,
                     (const struct sockaddr*) &handle->recv_from,
                     partial ? UV_UDP_PARTIAL : 0);
@@ -536,9 +536,9 @@ void uv_process_udp_send_req(uv_loop_t* loop, uv_udp_t* handle,
 
   assert(handle->type == UV_UDP);
 
-  assert(handle->send_queue_size >= req->queued_bytes);
+  assert(handle->send_queue_size >= req->u.io.queued_bytes);
   assert(handle->send_queue_count >= 1);
-  handle->send_queue_size -= req->queued_bytes;
+  handle->send_queue_size -= req->u.io.queued_bytes;
   handle->send_queue_count--;
 
   UNREGISTER_HANDLE_REQ(loop, handle, req);
