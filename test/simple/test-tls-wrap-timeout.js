@@ -44,7 +44,7 @@ var server = tls.createServer(options, function(c) {
 
 server.listen(common.PORT, function() {
   var socket = net.connect(common.PORT, function() {
-    socket.setTimeout(120, assert.fail);
+    socket.setTimeout(500, assert.fail);
 
     var tsocket = tls.connect({
       socket: socket,
