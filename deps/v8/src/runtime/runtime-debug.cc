@@ -2327,6 +2327,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetLoadedScripts) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
 
+  DebugScope debug_scope(isolate->debug());
   // Fill the script objects.
   Handle<FixedArray> instances = isolate->debug()->GetLoadedScripts();
 
@@ -2671,6 +2672,15 @@ RUNTIME_FUNCTION(Runtime_ExecuteInDebugContext) {
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, maybe_result);
   return *result;
+}
+
+
+RUNTIME_FUNCTION(Runtime_GetDebugContext) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  Handle<Context> context = isolate->debug()->GetDebugContext();
+  context->set_security_token(isolate->native_context()->security_token());
+  return context->global_proxy();
 }
 
 

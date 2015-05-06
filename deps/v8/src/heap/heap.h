@@ -1339,6 +1339,14 @@ class Heap {
     return seed;
   }
 
+  Smi* NextScriptId() {
+    int next_id = last_script_id()->value() + 1;
+    if (!Smi::IsValid(next_id) || next_id < 0) next_id = 1;
+    Smi* next_id_smi = Smi::FromInt(next_id);
+    set_last_script_id(next_id_smi);
+    return next_id_smi;
+  }
+
   void SetArgumentsAdaptorDeoptPCOffset(int pc_offset) {
     DCHECK(arguments_adaptor_deopt_pc_offset() == Smi::FromInt(0));
     set_arguments_adaptor_deopt_pc_offset(Smi::FromInt(pc_offset));

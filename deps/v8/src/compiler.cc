@@ -1455,7 +1455,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(
   result->set_is_toplevel(false);
 
   RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, result);
-  result->set_allows_lazy_compilation(allow_lazy);
+  result->set_allows_lazy_compilation(literal->AllowsLazyCompilation());
   result->set_allows_lazy_compilation_without_context(allow_lazy_without_ctx);
 
   // Set the expected number of properties for instances and return
