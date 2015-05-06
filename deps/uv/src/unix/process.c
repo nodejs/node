@@ -280,6 +280,21 @@ static void uv__process_child_init(const uv_process_options_t* options,
   if (options->flags & UV_PROCESS_DETACHED)
     setsid();
 
+  /* First duplicate low numbered fds, since it's not safe to duplicate them,
+   * they could get replaced. Example: swapping stdout and stderr; without
+   * this fd 2 (stderr) would be duplicated into fd 1, thus making both
+   * stdout and stderr go to the same fd, which was not the intention. */
+  for (fd = 0; fd < stdio_count; fd++) {
+    use_fd = pipes[fd][1];
+    if (use_fd < 0 || use_fd >= fd)
+      continue;
+    pipes[fd][1] = fcntl(use_fd, F_DUPFD, stdio_count);
+    if (pipes[fd][1] == -1) {
+      uv__write_int(error_fd, -errno);
+      _exit(127);
+    }
+  }
+
   for (fd = 0; fd < stdio_count; fd++) {
     close_fd = pipes[fd][0];
     use_fd = pipes[fd][1];
@@ -304,7 +319,12 @@ static void uv__process_child_init(const uv_process_options_t* options,
     if (fd == use_fd)
       uv__cloexec(use_fd, 0);
     else
-      dup2(use_fd, fd);
+      fd = dup2(use_fd, fd);
+
+    if (fd == -1) {
+      uv__write_int(error_fd, -errno);
+      _exit(127);
+    }
 
     if (fd <= 2)
       uv__nonblock(fd, 0);
@@ -316,8 +336,8 @@ static void uv__process_child_init(const uv_process_options_t* options,
   for (fd = 0; fd < stdio_count; fd++) {
     use_fd = pipes[fd][1];
 
-    if (use_fd >= 0 && fd != use_fd)
-      close(use_fd);
+    if (use_fd >= stdio_count)
+      uv__close(use_fd);
   }
 
   if (options->cwd != NULL && chdir(options->cwd)) {
@@ -367,6 +387,7 @@ int uv_spawn(uv_loop_t* loop,
   int err;
   int exec_errorno;
   int i;
+  int status;
 
   assert(options->file != NULL);
   assert(!(options->flags & ~(UV_PROCESS_DETACHED |
@@ -453,11 +474,17 @@ int uv_spawn(uv_loop_t* loop,
 
   if (r == 0)
     ; /* okay, EOF */
-  else if (r == sizeof(exec_errorno))
-    ; /* okay, read errorno */
-  else if (r == -1 && errno == EPIPE)
-    ; /* okay, got EPIPE */
-  else
+  else if (r == sizeof(exec_errorno)) {
+    do
+      err = waitpid(pid, &status, 0); /* okay, read errorno */
+    while (err == -1 && errno == EINTR);
+    assert(err == pid);
+  } else if (r == -1 && errno == EPIPE) {
+    do
+      err = waitpid(pid, &status, 0); /* okay, got EPIPE */
+    while (err == -1 && errno == EINTR);
+    assert(err == pid);
+  } else
     abort();
 
   uv__close(signal_pipe[0]);

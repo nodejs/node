@@ -644,13 +644,13 @@ UV_EXTERN int uv_tty_reset_mode(void);
 UV_EXTERN int uv_tty_get_winsize(uv_tty_t*, int* width, int* height);
 
 #ifdef __cplusplus
-}  /* extern "C" */
+extern "C++" {
 
 inline int uv_tty_set_mode(uv_tty_t* handle, int mode) {
   return uv_tty_set_mode(handle, static_cast<uv_tty_mode_t>(mode));
 }
 
-extern "C" {
+}
 #endif
 
 UV_EXTERN uv_handle_type uv_guess_handle(uv_file file);
@@ -799,6 +799,7 @@ struct uv_getnameinfo_s {
   UV_REQ_FIELDS
   /* read-only */
   uv_loop_t* loop;
+  /* host and service are marked as private, but they really aren't. */
   UV_GETNAMEINFO_PRIVATE_FIELDS
 };
 
