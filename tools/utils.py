@@ -89,12 +89,5 @@ def GuessArchitecture():
     return None
 
 
-def GuessWordsize():
-  if '64' in platform.machine():
-    return '64'
-  else:
-    return '32'
-
-
 def IsWindows():
   return GuessOS() == 'win32'
