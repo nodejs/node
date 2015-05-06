@@ -38,6 +38,10 @@ API
 
     .. versionchanged:: 1.2.1 the file descriptor is set to non-blocking mode.
 
+    .. note::
+        The passed file descriptor or SOCKET is not checked for its type, but
+        it's required that it represents a valid stream socket.
+
 .. c:function:: int uv_tcp_nodelay(uv_tcp_t* handle, int enable)
 
     Enable / disable Nagle's algorithm.

@@ -112,12 +112,12 @@ static void uv__fast_poll_submit_poll_req(uv_loop_t* loop, uv_poll_t* handle) {
     afd_poll_info->Handles[0].Events |= AFD_POLL_SEND | AFD_POLL_CONNECT_FAIL;
   }
 
-  memset(&req->overlapped, 0, sizeof req->overlapped);
+  memset(&req->u.io.overlapped, 0, sizeof req->u.io.overlapped);
 
   result = uv_msafd_poll((SOCKET) handle->peer_socket,
                          afd_poll_info,
                          afd_poll_info,
-                         &req->overlapped);
+                         &req->u.io.overlapped);
   if (result != 0 && WSAGetLastError() != WSA_IO_PENDING) {
     /* Queue this req, reporting an error. */
     SET_REQ_ERROR(req, WSAGetLastError());
@@ -380,7 +380,7 @@ static DWORD WINAPI uv__slow_poll_thread_proc(void* arg) {
   }
 
   SET_REQ_SUCCESS(req);
-  req->overlapped.InternalHigh = (DWORD) reported_events;
+  req->u.io.overlapped.InternalHigh = (DWORD) reported_events;
   POST_COMPLETION_FOR_REQ(handle->loop, req);
 
   return 0;
@@ -442,7 +442,7 @@ static void uv__slow_poll_process_poll_req(uv_loop_t* loop, uv_poll_t* handle,
     }
   } else {
     /* Got some events. */
-    int events = req->overlapped.InternalHigh & handle->events & ~mask_events;
+    int events = req->u.io.overlapped.InternalHigh & handle->events & ~mask_events;
     if (events != 0) {
       handle->poll_cb(handle, 0, events);
     }

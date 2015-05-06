@@ -21,7 +21,6 @@
 
 #include <assert.h>
 #include <stdlib.h>
-#include <malloc.h>
 #include <direct.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -161,8 +160,8 @@ INLINE static int fs__capture_path(uv_loop_t* loop, uv_fs_t* req,
 
 
   if (buf_sz == 0) {
-    req->pathw = NULL;
-    req->new_pathw = NULL;
+    req->file.pathw = NULL;
+    req->fs.info.new_pathw = NULL;
     req->path = NULL;
     return 0;
   }
@@ -182,10 +181,10 @@ INLINE static int fs__capture_path(uv_loop_t* loop, uv_fs_t* req,
                                   (WCHAR*) pos,
                                   pathw_len);
     assert(r == (DWORD) pathw_len);
-    req->pathw = (WCHAR*) pos;
+    req->file.pathw = (WCHAR*) pos;
     pos += r * sizeof(WCHAR);
   } else {
-    req->pathw = NULL;
+    req->file.pathw = NULL;
   }
 
   if (new_path != NULL) {
@@ -196,10 +195,10 @@ INLINE static int fs__capture_path(uv_loop_t* loop, uv_fs_t* req,
                                   (WCHAR*) pos,
                                   new_pathw_len);
     assert(r == (DWORD) new_pathw_len);
-    req->new_pathw = (WCHAR*) pos;
+    req->fs.info.new_pathw = (WCHAR*) pos;
     pos += r * sizeof(WCHAR);
   } else {
-    req->new_pathw = NULL;
+    req->fs.info.new_pathw = NULL;
   }
 
   if (!copy_path) {
@@ -388,7 +387,7 @@ void fs__open(uv_fs_t* req) {
   DWORD attributes = 0;
   HANDLE file;
   int fd, current_umask;
-  int flags = req->file_flags;
+  int flags = req->fs.info.file_flags;
 
   /* Obtain the active umask. umask() never fails and returns the previous */
   /* umask. */
@@ -450,7 +449,7 @@ void fs__open(uv_fs_t* req) {
 
   attributes |= FILE_ATTRIBUTE_NORMAL;
   if (flags & _O_CREAT) {
-    if (!((req->mode & ~current_umask) & _S_IWRITE)) {
+    if (!((req->fs.info.mode & ~current_umask) & _S_IWRITE)) {
       attributes |= FILE_ATTRIBUTE_READONLY;
     }
   }
@@ -480,7 +479,7 @@ void fs__open(uv_fs_t* req) {
   /* Setting this flag makes it possible to open a directory. */
   attributes |= FILE_FLAG_BACKUP_SEMANTICS;
 
-  file = CreateFileW(req->pathw,
+  file = CreateFileW(req->file.pathw,
                      access,
                      share,
                      NULL,
@@ -512,6 +511,7 @@ void fs__open(uv_fs_t* req) {
       SET_REQ_WIN32_ERROR(req, GetLastError());
     else
       SET_REQ_WIN32_ERROR(req, UV_UNKNOWN);
+    CloseHandle(file);
     return;
   }
 
@@ -523,7 +523,7 @@ void fs__open(uv_fs_t* req) {
 }
 
 void fs__close(uv_fs_t* req) {
-  int fd = req->fd;
+  int fd = req->file.fd;
   int result;
 
   VERIFY_FD(fd, req);
@@ -534,8 +534,8 @@ void fs__close(uv_fs_t* req) {
 
 
 void fs__read(uv_fs_t* req) {
-  int fd = req->fd;
-  int64_t offset = req->offset;
+  int fd = req->file.fd;
+  int64_t offset = req->fs.info.offset;
   HANDLE handle;
   OVERLAPPED overlapped, *overlapped_ptr;
   LARGE_INTEGER offset_;
@@ -572,13 +572,13 @@ void fs__read(uv_fs_t* req) {
     }
 
     result = ReadFile(handle,
-                      req->bufs[index].base,
-                      req->bufs[index].len,
+                      req->fs.info.bufs[index].base,
+                      req->fs.info.bufs[index].len,
                       &incremental_bytes,
                       overlapped_ptr);
     bytes += incremental_bytes;
     ++index;
-  } while (result && index < req->nbufs);
+  } while (result && index < req->fs.info.nbufs);
 
   if (result || bytes > 0) {
     SET_REQ_RESULT(req, bytes);
@@ -594,8 +594,8 @@ void fs__read(uv_fs_t* req) {
 
 
 void fs__write(uv_fs_t* req) {
-  int fd = req->fd;
-  int64_t offset = req->offset;
+  int fd = req->file.fd;
+  int64_t offset = req->fs.info.offset;
   HANDLE handle;
   OVERLAPPED overlapped, *overlapped_ptr;
   LARGE_INTEGER offset_;
@@ -630,13 +630,13 @@ void fs__write(uv_fs_t* req) {
     }
 
     result = WriteFile(handle,
-                       req->bufs[index].base,
-                       req->bufs[index].len,
+                       req->fs.info.bufs[index].base,
+                       req->fs.info.bufs[index].len,
                        &incremental_bytes,
                        overlapped_ptr);
     bytes += incremental_bytes;
     ++index;
-  } while (result && index < req->nbufs);
+  } while (result && index < req->fs.info.nbufs);
 
   if (result || bytes > 0) {
     SET_REQ_RESULT(req, bytes);
@@ -647,13 +647,13 @@ void fs__write(uv_fs_t* req) {
 
 
 void fs__rmdir(uv_fs_t* req) {
-  int result = _wrmdir(req->pathw);
+  int result = _wrmdir(req->file.pathw);
   SET_REQ_RESULT(req, result);
 }
 
 
 void fs__unlink(uv_fs_t* req) {
-  const WCHAR* pathw = req->pathw;
+  const WCHAR* pathw = req->file.pathw;
   HANDLE handle;
   BY_HANDLE_FILE_INFORMATION info;
   FILE_DISPOSITION_INFORMATION disposition;
@@ -661,7 +661,7 @@ void fs__unlink(uv_fs_t* req) {
   NTSTATUS status;
 
   handle = CreateFileW(pathw,
-                       FILE_READ_ATTRIBUTES | DELETE,
+                       FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES | DELETE,
                        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                        NULL,
                        OPEN_EXISTING,
@@ -703,6 +703,24 @@ void fs__unlink(uv_fs_t* req) {
     }
   }
 
+  if (info.dwFileAttributes & FILE_ATTRIBUTE_READONLY) {
+    /* Remove read-only attribute */
+    FILE_BASIC_INFORMATION basic = { 0 };
+
+    basic.FileAttributes = info.dwFileAttributes & ~(FILE_ATTRIBUTE_READONLY);
+
+    status = pNtSetInformationFile(handle,
+                                   &iosb,
+                                   &basic,
+                                   sizeof basic,
+                                   FileBasicInformation);
+    if (!NT_SUCCESS(status)) {
+      SET_REQ_WIN32_ERROR(req, pRtlNtStatusToDosError(status));
+      CloseHandle(handle);
+      return;
+    }
+  }
+
   /* Try to set the delete flag. */
   disposition.DeleteFile = TRUE;
   status = pNtSetInformationFile(handle,
@@ -722,7 +740,7 @@ void fs__unlink(uv_fs_t* req) {
 
 void fs__mkdir(uv_fs_t* req) {
   /* TODO: use req->mode. */
-  int result = _wmkdir(req->pathw);
+  int result = _wmkdir(req->file.pathw);
   SET_REQ_RESULT(req, result);
 }
 
@@ -740,8 +758,8 @@ void fs__mkdtemp(uv_fs_t* req) {
   uint64_t v;
   BOOL released;
 
-  len = wcslen(req->pathw);
-  ep = req->pathw + len;
+  len = wcslen(req->file.pathw);
+  ep = req->file.pathw + len;
   if (len < num_x || wcsncmp(ep - num_x, L"XXXXXX", num_x)) {
     SET_REQ_UV_ERROR(req, UV_EINVAL, ERROR_INVALID_PARAMETER);
     return;
@@ -766,7 +784,7 @@ void fs__mkdtemp(uv_fs_t* req) {
       v /= num_chars;
     }
 
-    if (_wmkdir(req->pathw) == 0) {
+    if (_wmkdir(req->file.pathw) == 0) {
       len = strlen(req->path);
       wcstombs((char*) req->path + len - num_x, ep - num_x, num_x);
       SET_REQ_RESULT(req, 0);
@@ -810,7 +828,7 @@ void fs__scandir(uv_fs_t* req) {
 
   /* Open the directory. */
   dir_handle =
-      CreateFileW(req->pathw,
+      CreateFileW(req->file.pathw,
                   FILE_LIST_DIRECTORY | SYNCHRONIZE,
                   FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                   NULL,
@@ -956,7 +974,7 @@ void fs__scandir(uv_fs_t* req) {
   SET_REQ_RESULT(req, dirents_used);
 
   /* `nbufs` will be used as index by uv_fs_scandir_next. */
-  req->nbufs = 0;
+  req->fs.info.nbufs = 0;
 
   return;
 
@@ -1125,7 +1143,7 @@ INLINE static void fs__stat_impl(uv_fs_t* req, int do_lstat) {
     flags |= FILE_FLAG_OPEN_REPARSE_POINT;
   }
 
-  handle = CreateFileW(req->pathw,
+  handle = CreateFileW(req->file.pathw,
                        FILE_READ_ATTRIBUTES,
                        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                        NULL,
@@ -1159,19 +1177,19 @@ INLINE static void fs__stat_impl(uv_fs_t* req, int do_lstat) {
 
 
 static void fs__stat(uv_fs_t* req) {
-  fs__stat_prepare_path(req->pathw);
+  fs__stat_prepare_path(req->file.pathw);
   fs__stat_impl(req, 0);
 }
 
 
 static void fs__lstat(uv_fs_t* req) {
-  fs__stat_prepare_path(req->pathw);
+  fs__stat_prepare_path(req->file.pathw);
   fs__stat_impl(req, 1);
 }
 
 
 static void fs__fstat(uv_fs_t* req) {
-  int fd = req->fd;
+  int fd = req->file.fd;
   HANDLE handle;
 
   VERIFY_FD(fd, req);
@@ -1194,7 +1212,7 @@ static void fs__fstat(uv_fs_t* req) {
 
 
 static void fs__rename(uv_fs_t* req) {
-  if (!MoveFileExW(req->pathw, req->new_pathw, MOVEFILE_REPLACE_EXISTING)) {
+  if (!MoveFileExW(req->file.pathw, req->fs.info.new_pathw, MOVEFILE_REPLACE_EXISTING)) {
     SET_REQ_WIN32_ERROR(req, GetLastError());
     return;
   }
@@ -1204,7 +1222,7 @@ static void fs__rename(uv_fs_t* req) {
 
 
 INLINE static void fs__sync_impl(uv_fs_t* req) {
-  int fd = req->fd;
+  int fd = req->file.fd;
   int result;
 
   VERIFY_FD(fd, req);
@@ -1229,7 +1247,7 @@ static void fs__fdatasync(uv_fs_t* req) {
 
 
 static void fs__ftruncate(uv_fs_t* req) {
-  int fd = req->fd;
+  int fd = req->file.fd;
   HANDLE handle;
   NTSTATUS status;
   IO_STATUS_BLOCK io_status;
@@ -1239,7 +1257,7 @@ static void fs__ftruncate(uv_fs_t* req) {
 
   handle = uv__get_osfhandle(fd);
 
-  eof_info.EndOfFile.QuadPart = req->offset;
+  eof_info.EndOfFile.QuadPart = req->fs.info.offset;
 
   status = pNtSetInformationFile(handle,
                                  &io_status,
@@ -1256,9 +1274,9 @@ static void fs__ftruncate(uv_fs_t* req) {
 
 
 static void fs__sendfile(uv_fs_t* req) {
-  int fd_in = req->fd, fd_out = req->fd_out;
-  size_t length = req->bufsml[0].len;
-  int64_t offset = req->offset;
+  int fd_in = req->file.fd, fd_out = req->fs.info.fd_out;
+  size_t length = req->fs.info.bufsml[0].len;
+  int64_t offset = req->fs.info.offset;
   const size_t max_buf_size = 65536;
   size_t buf_size = length < max_buf_size ? length : max_buf_size;
   int n, result = 0;
@@ -1303,32 +1321,39 @@ static void fs__sendfile(uv_fs_t* req) {
 
 
 static void fs__access(uv_fs_t* req) {
-  DWORD attr = GetFileAttributesW(req->pathw);
+  DWORD attr = GetFileAttributesW(req->file.pathw);
 
   if (attr == INVALID_FILE_ATTRIBUTES) {
     SET_REQ_WIN32_ERROR(req, GetLastError());
     return;
   }
 
-  if ((req->flags & W_OK) &&
-      ((attr & FILE_ATTRIBUTE_READONLY) ||
-      (attr & FILE_ATTRIBUTE_DIRECTORY))) {
+  /*
+   * Access is possible if
+   * - write access wasn't requested,
+   * - or the file isn't read-only,
+   * - or it's a directory.
+   * (Directories cannot be read-only on Windows.)
+   */
+  if (!(req->flags & W_OK) ||
+      !(attr & FILE_ATTRIBUTE_READONLY) ||
+      (attr & FILE_ATTRIBUTE_DIRECTORY)) {
+    SET_REQ_RESULT(req, 0);
+  } else {
     SET_REQ_WIN32_ERROR(req, UV_EPERM);
-    return;
   }
 
-  SET_REQ_RESULT(req, 0);
 }
 
 
 static void fs__chmod(uv_fs_t* req) {
-  int result = _wchmod(req->pathw, req->mode);
+  int result = _wchmod(req->file.pathw, req->fs.info.mode);
   SET_REQ_RESULT(req, result);
 }
 
 
 static void fs__fchmod(uv_fs_t* req) {
-  int fd = req->fd;
+  int fd = req->file.fd;
   HANDLE handle;
   NTSTATUS nt_status;
   IO_STATUS_BLOCK io_status;
@@ -1349,7 +1374,7 @@ static void fs__fchmod(uv_fs_t* req) {
     return;
   }
 
-  if (req->mode & _S_IWRITE) {
+  if (req->fs.info.mode & _S_IWRITE) {
     file_info.FileAttributes &= ~FILE_ATTRIBUTE_READONLY;
   } else {
     file_info.FileAttributes |= FILE_ATTRIBUTE_READONLY;
@@ -1387,7 +1412,7 @@ INLINE static int fs__utime_handle(HANDLE handle, double atime, double mtime) {
 static void fs__utime(uv_fs_t* req) {
   HANDLE handle;
 
-  handle = CreateFileW(req->pathw,
+  handle = CreateFileW(req->file.pathw,
                        FILE_WRITE_ATTRIBUTES,
                        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                        NULL,
@@ -1400,7 +1425,7 @@ static void fs__utime(uv_fs_t* req) {
     return;
   }
 
-  if (fs__utime_handle(handle, req->atime, req->mtime) != 0) {
+  if (fs__utime_handle(handle, req->fs.time.atime, req->fs.time.mtime) != 0) {
     SET_REQ_WIN32_ERROR(req, GetLastError());
     CloseHandle(handle);
     return;
@@ -1413,7 +1438,7 @@ static void fs__utime(uv_fs_t* req) {
 
 
 static void fs__futime(uv_fs_t* req) {
-  int fd = req->fd;
+  int fd = req->file.fd;
   HANDLE handle;
   VERIFY_FD(fd, req);
 
@@ -1424,7 +1449,7 @@ static void fs__futime(uv_fs_t* req) {
     return;
   }
 
-  if (fs__utime_handle(handle, req->atime, req->mtime) != 0) {
+  if (fs__utime_handle(handle, req->fs.time.atime, req->fs.time.mtime) != 0) {
     SET_REQ_WIN32_ERROR(req, GetLastError());
     return;
   }
@@ -1434,7 +1459,7 @@ static void fs__futime(uv_fs_t* req) {
 
 
 static void fs__link(uv_fs_t* req) {
-  DWORD r = CreateHardLinkW(req->new_pathw, req->pathw, NULL);
+  DWORD r = CreateHardLinkW(req->fs.info.new_pathw, req->file.pathw, NULL);
   if (r == 0) {
     SET_REQ_WIN32_ERROR(req, GetLastError());
   } else {
@@ -1614,9 +1639,9 @@ error:
 
 
 static void fs__symlink(uv_fs_t* req) {
-  WCHAR* pathw = req->pathw;
-  WCHAR* new_pathw = req->new_pathw;
-  int flags = req->file_flags;
+  WCHAR* pathw = req->file.pathw;
+  WCHAR* new_pathw = req->fs.info.new_pathw;
+  int flags = req->fs.info.file_flags;
   int result;
 
 
@@ -1640,7 +1665,7 @@ static void fs__symlink(uv_fs_t* req) {
 static void fs__readlink(uv_fs_t* req) {
   HANDLE handle;
 
-  handle = CreateFileW(req->pathw,
+  handle = CreateFileW(req->file.pathw,
                        0,
                        0,
                        NULL,
@@ -1739,14 +1764,14 @@ void uv_fs_req_cleanup(uv_fs_t* req) {
     return;
 
   if (req->flags & UV_FS_FREE_PATHS)
-    free(req->pathw);
+    free(req->file.pathw);
 
   if (req->flags & UV_FS_FREE_PTR)
     free(req->ptr);
 
   req->path = NULL;
-  req->pathw = NULL;
-  req->new_pathw = NULL;
+  req->file.pathw = NULL;
+  req->fs.info.new_pathw = NULL;
   req->ptr = NULL;
 
   req->flags |= UV_FS_CLEANEDUP;
@@ -1764,8 +1789,8 @@ int uv_fs_open(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags,
     return uv_translate_sys_error(err);
   }
 
-  req->file_flags = flags;
-  req->mode = mode;
+  req->fs.info.file_flags = flags;
+  req->fs.info.mode = mode;
 
   if (cb) {
     QUEUE_FS_TP_JOB(loop, req);
@@ -1779,7 +1804,7 @@ int uv_fs_open(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags,
 
 int uv_fs_close(uv_loop_t* loop, uv_fs_t* req, uv_file fd, uv_fs_cb cb) {
   uv_fs_req_init(loop, req, UV_FS_CLOSE, cb);
-  req->fd = fd;
+  req->file.fd = fd;
 
   if (cb) {
     QUEUE_FS_TP_JOB(loop, req);
@@ -1800,19 +1825,19 @@ int uv_fs_read(uv_loop_t* loop,
                uv_fs_cb cb) {
   uv_fs_req_init(loop, req, UV_FS_READ, cb);
 
-  req->fd = fd;
+  req->file.fd = fd;
 
-  req->nbufs = nbufs;
-  req->bufs = req->bufsml;
-  if (nbufs > ARRAY_SIZE(req->bufsml))
-    req->bufs = malloc(nbufs * sizeof(*bufs));
+  req->fs.info.nbufs = nbufs;
+  req->fs.info.bufs = req->fs.info.bufsml;
+  if (nbufs > ARRAY_SIZE(req->fs.info.bufsml))
+    req->fs.info.bufs = malloc(nbufs * sizeof(*bufs));
 
-  if (req->bufs == NULL)
+  if (req->fs.info.bufs == NULL)
     return UV_ENOMEM;
 
-  memcpy(req->bufs, bufs, nbufs * sizeof(*bufs));
+  memcpy(req->fs.info.bufs, bufs, nbufs * sizeof(*bufs));
 
-  req->offset = offset;
+  req->fs.info.offset = offset;
 
   if (cb) {
     QUEUE_FS_TP_JOB(loop, req);
@@ -1833,19 +1858,19 @@ int uv_fs_write(uv_loop_t* loop,
                 uv_fs_cb cb) {
   uv_fs_req_init(loop, req, UV_FS_WRITE, cb);
 
-  req->fd = fd;
+  req->file.fd = fd;
 
-  req->nbufs = nbufs;
-  req->bufs = req->bufsml;
-  if (nbufs > ARRAY_SIZE(req->bufsml))
-    req->bufs = malloc(nbufs * sizeof(*bufs));
+  req->fs.info.nbufs = nbufs;
+  req->fs.info.bufs = req->fs.info.bufsml;
+  if (nbufs > ARRAY_SIZE(req->fs.info.bufsml))
+    req->fs.info.bufs = malloc(nbufs * sizeof(*bufs));
 
-  if (req->bufs == NULL)
+  if (req->fs.info.bufs == NULL)
     return UV_ENOMEM;
 
-  memcpy(req->bufs, bufs, nbufs * sizeof(*bufs));
+  memcpy(req->fs.info.bufs, bufs, nbufs * sizeof(*bufs));
 
-  req->offset = offset;
+  req->fs.info.offset = offset;
 
   if (cb) {
     QUEUE_FS_TP_JOB(loop, req);
@@ -1889,7 +1914,7 @@ int uv_fs_mkdir(uv_loop_t* loop, uv_fs_t* req, const char* path, int mode,
     return uv_translate_sys_error(err);
   }
 
-  req->mode = mode;
+  req->fs.info.mode = mode;
 
   if (cb) {
     QUEUE_FS_TP_JOB(loop, req);
@@ -1952,7 +1977,7 @@ int uv_fs_scandir(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags,
     return uv_translate_sys_error(err);
   }
 
-  req->file_flags = flags;
+  req->fs.info.file_flags = flags;
 
   if (cb) {
     QUEUE_FS_TP_JOB(loop, req);
@@ -1996,7 +2021,7 @@ int uv_fs_symlink(uv_loop_t* loop, uv_fs_t* req, const char* path,
     return uv_translate_sys_error(err);
   }
 
-  req->file_flags = flags;
+  req->fs.info.file_flags = flags;
 
   if (cb) {
     QUEUE_FS_TP_JOB(loop, req);
@@ -2106,7 +2131,7 @@ int uv_fs_lstat(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb) {
 
 int uv_fs_fstat(uv_loop_t* loop, uv_fs_t* req, uv_file fd, uv_fs_cb cb) {
   uv_fs_req_init(loop, req, UV_FS_FSTAT, cb);
-  req->fd = fd;
+  req->file.fd = fd;
 
   if (cb) {
     QUEUE_FS_TP_JOB(loop, req);
@@ -2141,7 +2166,7 @@ int uv_fs_rename(uv_loop_t* loop, uv_fs_t* req, const char* path,
 
 int uv_fs_fsync(uv_loop_t* loop, uv_fs_t* req, uv_file fd, uv_fs_cb cb) {
   uv_fs_req_init(loop, req, UV_FS_FSYNC, cb);
-  req->fd = fd;
+  req->file.fd = fd;
 
   if (cb) {
     QUEUE_FS_TP_JOB(loop, req);
@@ -2155,7 +2180,7 @@ int uv_fs_fsync(uv_loop_t* loop, uv_fs_t* req, uv_file fd, uv_fs_cb cb) {
 
 int uv_fs_fdatasync(uv_loop_t* loop, uv_fs_t* req, uv_file fd, uv_fs_cb cb) {
   uv_fs_req_init(loop, req, UV_FS_FDATASYNC, cb);
-  req->fd = fd;
+  req->file.fd = fd;
 
   if (cb) {
     QUEUE_FS_TP_JOB(loop, req);
@@ -2171,8 +2196,8 @@ int uv_fs_ftruncate(uv_loop_t* loop, uv_fs_t* req, uv_file fd,
     int64_t offset, uv_fs_cb cb) {
   uv_fs_req_init(loop, req, UV_FS_FTRUNCATE, cb);
 
-  req->fd = fd;
-  req->offset = offset;
+  req->file.fd = fd;
+  req->fs.info.offset = offset;
 
   if (cb) {
     QUEUE_FS_TP_JOB(loop, req);
@@ -2189,10 +2214,10 @@ int uv_fs_sendfile(uv_loop_t* loop, uv_fs_t* req, uv_file fd_out,
     uv_file fd_in, int64_t in_offset, size_t length, uv_fs_cb cb) {
   uv_fs_req_init(loop, req, UV_FS_SENDFILE, cb);
 
-  req->fd = fd_in;
-  req->fd_out = fd_out;
-  req->offset = in_offset;
-  req->bufsml[0].len = length;
+  req->file.fd = fd_in;
+  req->fs.info.fd_out = fd_out;
+  req->fs.info.offset = in_offset;
+  req->fs.info.bufsml[0].len = length;
 
   if (cb) {
     QUEUE_FS_TP_JOB(loop, req);
@@ -2240,7 +2265,7 @@ int uv_fs_chmod(uv_loop_t* loop, uv_fs_t* req, const char* path, int mode,
     return uv_translate_sys_error(err);
   }
 
-  req->mode = mode;
+  req->fs.info.mode = mode;
 
   if (cb) {
     QUEUE_FS_TP_JOB(loop, req);
@@ -2256,8 +2281,8 @@ int uv_fs_fchmod(uv_loop_t* loop, uv_fs_t* req, uv_file fd, int mode,
     uv_fs_cb cb) {
   uv_fs_req_init(loop, req, UV_FS_FCHMOD, cb);
 
-  req->fd = fd;
-  req->mode = mode;
+  req->file.fd = fd;
+  req->fs.info.mode = mode;
 
   if (cb) {
     QUEUE_FS_TP_JOB(loop, req);
@@ -2280,8 +2305,8 @@ int uv_fs_utime(uv_loop_t* loop, uv_fs_t* req, const char* path, double atime,
     return uv_translate_sys_error(err);
   }
 
-  req->atime = atime;
-  req->mtime = mtime;
+  req->fs.time.atime = atime;
+  req->fs.time.mtime = mtime;
 
   if (cb) {
     QUEUE_FS_TP_JOB(loop, req);
@@ -2297,9 +2322,9 @@ int uv_fs_futime(uv_loop_t* loop, uv_fs_t* req, uv_file fd, double atime,
     double mtime, uv_fs_cb cb) {
   uv_fs_req_init(loop, req, UV_FS_FUTIME, cb);
 
-  req->fd = fd;
-  req->atime = atime;
-  req->mtime = mtime;
+  req->file.fd = fd;
+  req->fs.time.atime = atime;
+  req->fs.time.mtime = mtime;
 
   if (cb) {
     QUEUE_FS_TP_JOB(loop, req);

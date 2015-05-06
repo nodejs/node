@@ -51,6 +51,18 @@ Public members
     Loop that started this getnameinfo request and where completion will be
     reported. Readonly.
 
+.. c:member:: char[NI_MAXHOST] uv_getnameinfo_t.host
+
+    Char array containing the resulting host. It's null terminated.
+
+    .. versionchanged:: 1.3.0 the field is declared as public.
+
+.. c:member:: char[NI_MAXSERV] uv_getnameinfo_t.service
+
+    Char array containing the resulting service. It's null terminated.
+
+    .. versionchanged:: 1.3.0 the field is declared as public.
+
 .. seealso:: The :c:type:`uv_req_t` members also apply.
 
 
@@ -59,7 +71,7 @@ API
 
 .. c:function:: int uv_getaddrinfo(uv_loop_t* loop, uv_getaddrinfo_t* req, uv_getaddrinfo_cb getaddrinfo_cb, const char* node, const char* service, const struct addrinfo* hints)
 
-    Asynchronous ``getaddrinfo(3)``.
+    Asynchronous :man:`getaddrinfo(3)`.
 
     Either node or service may be NULL but not both.
 
@@ -84,7 +96,7 @@ API
 
 .. c:function:: int uv_getnameinfo(uv_loop_t* loop, uv_getnameinfo_t* req, uv_getnameinfo_cb getnameinfo_cb, const struct sockaddr* addr, int flags)
 
-    Asynchronous ``getnameinfo(3)``.
+    Asynchronous :man:`getnameinfo(3)`.
 
     Returns 0 on success or an error code < 0 on failure. If successful, the
     callback will get called sometime in the future with the lookup result.

@@ -104,7 +104,7 @@ API
 .. c:function:: int uv_listen(uv_stream_t* stream, int backlog, uv_connection_cb cb)
 
     Start listening for incoming connections. `backlog` indicates the number of
-    connections the kernel might queue, same as ``listen(2)``. When a new
+    connections the kernel might queue, same as :man:`listen(2)`. When a new
     incoming connection is received the :c:type:`uv_connection_cb` callback is
     called.
 

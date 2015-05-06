@@ -202,6 +202,44 @@ static ssize_t uv__fs_mkdtemp(uv_fs_t* req) {
 }
 
 
+static ssize_t uv__fs_open(uv_fs_t* req) {
+  static int no_cloexec_support;
+  int r;
+
+  /* Try O_CLOEXEC before entering locks */
+  if (no_cloexec_support == 0) {
+#ifdef O_CLOEXEC
+    r = open(req->path, req->flags | O_CLOEXEC, req->mode);
+    if (r >= 0)
+      return r;
+    if (errno != EINVAL)
+      return r;
+    no_cloexec_support = 1;
+#endif  /* O_CLOEXEC */
+  }
+
+  if (req->cb != NULL)
+    uv_rwlock_rdlock(&req->loop->cloexec_lock);
+
+  r = open(req->path, req->flags, req->mode);
+
+  /* In case of failure `uv__cloexec` will leave error in `errno`,
+   * so it is enough to just set `r` to `-1`.
+   */
+  if (r >= 0 && uv__cloexec(r, 1) != 0) {
+    r = uv__close(r);
+    if (r != 0 && r != -EINPROGRESS)
+      abort();
+    r = -1;
+  }
+
+  if (req->cb != NULL)
+    uv_rwlock_rdunlock(&req->loop->cloexec_lock);
+
+  return r;
+}
+
+
 static ssize_t uv__fs_read(uv_fs_t* req) {
 #if defined(__linux__)
   static int no_preadv;
@@ -661,8 +699,22 @@ static void uv__to_stat(struct stat* src, uv_stat_t* dst) {
   dst->st_birthtim.tv_nsec = src->st_birthtimespec.tv_nsec;
   dst->st_flags = src->st_flags;
   dst->st_gen = src->st_gen;
-#elif !defined(_AIX) && \
-  (defined(_BSD_SOURCE) || defined(_SVID_SOURCE) || defined(_XOPEN_SOURCE))
+#elif defined(__ANDROID__)
+  dst->st_atim.tv_sec = src->st_atime;
+  dst->st_atim.tv_nsec = src->st_atime_nsec;
+  dst->st_mtim.tv_sec = src->st_mtime;
+  dst->st_mtim.tv_nsec = src->st_mtime_nsec;
+  dst->st_ctim.tv_sec = src->st_ctime;
+  dst->st_ctim.tv_nsec = src->st_ctime_nsec;
+  dst->st_birthtim.tv_sec = src->st_ctime;
+  dst->st_birthtim.tv_nsec = src->st_ctime_nsec;
+  dst->st_flags = 0;
+  dst->st_gen = 0;
+#elif !defined(_AIX) && (       \
+    defined(_BSD_SOURCE)     || \
+    defined(_SVID_SOURCE)    || \
+    defined(_XOPEN_SOURCE)   || \
+    defined(_DEFAULT_SOURCE))
   dst->st_atim.tv_sec = src->st_atim.tv_sec;
   dst->st_atim.tv_nsec = src->st_atim.tv_nsec;
   dst->st_mtim.tv_sec = src->st_mtim.tv_sec;
@@ -729,9 +781,6 @@ static void uv__fs_work(struct uv__work* w) {
   int retry_on_eintr;
   uv_fs_t* req;
   ssize_t r;
-#ifdef O_CLOEXEC
-  static int no_cloexec_support;
-#endif  /* O_CLOEXEC */
 
   req = container_of(w, uv_fs_t, work_req);
   retry_on_eintr = !(req->fs_type == UV_FS_CLOSE);
@@ -760,6 +809,7 @@ static void uv__fs_work(struct uv__work* w) {
     X(LINK, link(req->path, req->new_path));
     X(MKDIR, mkdir(req->path, req->mode));
     X(MKDTEMP, uv__fs_mkdtemp(req));
+    X(OPEN, uv__fs_open(req));
     X(READ, uv__fs_read(req));
     X(SCANDIR, uv__fs_scandir(req));
     X(READLINK, uv__fs_readlink(req));
@@ -771,41 +821,10 @@ static void uv__fs_work(struct uv__work* w) {
     X(UNLINK, unlink(req->path));
     X(UTIME, uv__fs_utime(req));
     X(WRITE, uv__fs_write(req));
-    case UV_FS_OPEN:
-#ifdef O_CLOEXEC
-      /* Try O_CLOEXEC before entering locks */
-      if (!no_cloexec_support) {
-        r = open(req->path, req->flags | O_CLOEXEC, req->mode);
-        if (r >= 0)
-          break;
-        if (errno != EINVAL)
-          break;
-        no_cloexec_support = 1;
-      }
-#endif  /* O_CLOEXEC */
-      if (req->cb != NULL)
-        uv_rwlock_rdlock(&req->loop->cloexec_lock);
-      r = open(req->path, req->flags, req->mode);
-
-      /*
-       * In case of failure `uv__cloexec` will leave error in `errno`,
-       * so it is enough to just set `r` to `-1`.
-       */
-      if (r >= 0 && uv__cloexec(r, 1) != 0) {
-        r = uv__close(r);
-        if (r != 0 && r != -EINPROGRESS)
-          abort();
-        r = -1;
-      }
-      if (req->cb != NULL)
-        uv_rwlock_rdunlock(&req->loop->cloexec_lock);
-      break;
     default: abort();
     }
-
 #undef X
-  }
-  while (r == -1 && errno == EINTR && retry_on_eintr);
+  } while (r == -1 && errno == EINTR && retry_on_eintr);
 
   if (r == -1)
     req->result = -errno;
