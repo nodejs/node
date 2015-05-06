@@ -5,7 +5,7 @@
 ===================================
 
 Poll handles are used to watch file descriptors for readability and
-writability, similar to the purpose of poll(2).
+writability, similar to the purpose of :man:`poll(2)`.
 
 The purpose of poll handles is to enable integrating external libraries that
 rely on the event loop to signal it about the socket status changes, like
@@ -29,7 +29,7 @@ closed immediately after a call to :c:func:`uv_poll_stop` or :c:func:`uv_close`.
 
 .. note::
     On windows only sockets can be polled with poll handles. On Unix any file
-    descriptor that would be accepted by poll(2) can be used.
+    descriptor that would be accepted by :man:`poll(2)` can be used.
 
 
 Data types

@@ -707,7 +707,7 @@ int make_program_env(char* env_block[], WCHAR** dst_ptr) {
   }
 
   /* second pass: copy to UTF-16 environment block */
-  dst_copy = _malloca(env_len * sizeof(WCHAR));
+  dst_copy = malloc(env_len * sizeof(WCHAR));
   if (!dst_copy) {
     return ERROR_OUTOFMEMORY;
   }
@@ -725,7 +725,7 @@ int make_program_env(char* env_block[], WCHAR** dst_ptr) {
                                 (int) (env_len - (ptr - dst_copy)));
       if (len <= 0) {
         DWORD err = GetLastError();
-        _freea(dst_copy);
+        free(dst_copy);
         return err;
       }
       *ptr_copy++ = ptr;
@@ -767,7 +767,7 @@ int make_program_env(char* env_block[], WCHAR** dst_ptr) {
   /* final pass: copy, in sort order, and inserting required variables */
   dst = malloc((1+env_len) * sizeof(WCHAR));
   if (!dst) {
-    _freea(dst_copy);
+    free(dst_copy);
     return ERROR_OUTOFMEMORY;
   }
 
@@ -812,7 +812,7 @@ int make_program_env(char* env_block[], WCHAR** dst_ptr) {
   assert(env_len == (ptr - dst));
   *ptr = L'\0';
 
-  _freea(dst_copy);
+  free(dst_copy);
   *dst_ptr = dst;
   return 0;
 }
@@ -1124,7 +1124,7 @@ int uv_spawn(uv_loop_t* loop,
     if (fdopt->flags & UV_CREATE_PIPE &&
         fdopt->data.stream->type == UV_NAMED_PIPE &&
         ((uv_pipe_t*) fdopt->data.stream)->ipc) {
-      ((uv_pipe_t*) fdopt->data.stream)->ipc_pid = info.dwProcessId;
+      ((uv_pipe_t*) fdopt->data.stream)->pipe.conn.ipc_pid = info.dwProcessId;
     }
   }
 

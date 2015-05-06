@@ -601,12 +601,35 @@ int uv_udp_set_membership(uv_udp_t* handle,
   }
 }
 
+static int uv__setsockopt(uv_udp_t* handle,
+                         int option4,
+                         int option6,
+                         const void* val,
+                         size_t size) {
+  int r;
+
+  if (handle->flags & UV_HANDLE_IPV6)
+    r = setsockopt(handle->io_watcher.fd,
+                   IPPROTO_IPV6,
+                   option6,
+                   val,
+                   size);
+  else
+    r = setsockopt(handle->io_watcher.fd,
+                   IPPROTO_IP,
+                   option4,
+                   val,
+                   size);
+  if (r)
+    return -errno;
+
+  return 0;
+}
 
 static int uv__setsockopt_maybe_char(uv_udp_t* handle,
                                      int option4,
                                      int option6,
                                      int val) {
-  int r;
 #if defined(__sun) || defined(_AIX)
   char arg = val;
 #else
@@ -616,23 +639,7 @@ static int uv__setsockopt_maybe_char(uv_udp_t* handle,
   if (val < 0 || val > 255)
     return -EINVAL;
 
-  if (handle->flags & UV_HANDLE_IPV6)
-    r = setsockopt(handle->io_watcher.fd,
-                   IPPROTO_IPV6,
-                   option6,
-                   &arg,
-                   sizeof(arg));
-  else
-    r = setsockopt(handle->io_watcher.fd,
-                   IPPROTO_IP,
-                   option4,
-                   &arg,
-                   sizeof(arg));
-
-  if (r)
-    return -errno;
-
-  return 0;
+  return uv__setsockopt(handle, option4, option6, &arg, sizeof(arg));
 }
 
 
@@ -653,6 +660,20 @@ int uv_udp_set_ttl(uv_udp_t* handle, int ttl) {
   if (ttl < 1 || ttl > 255)
     return -EINVAL;
 
+/*
+ * On Solaris and derivatives such as SmartOS, the length of socket options
+ * is sizeof(int) for IP_TTL and IPV6_UNICAST_HOPS,
+ * so hardcode the size of these options on this platform,
+ * and use the general uv__setsockopt_maybe_char call on other platforms.
+ */
+#if defined(__sun)
+  return uv__setsockopt(handle,
+                        IP_TTL,
+                        IPV6_UNICAST_HOPS,
+                        &ttl,
+                        sizeof(ttl));
+#endif /* defined(__sun) */
+
   return uv__setsockopt_maybe_char(handle,
                                    IP_TTL,
                                    IPV6_UNICAST_HOPS,
@@ -661,6 +682,21 @@ int uv_udp_set_ttl(uv_udp_t* handle, int ttl) {
 
 
 int uv_udp_set_multicast_ttl(uv_udp_t* handle, int ttl) {
+/*
+ * On Solaris and derivatives such as SmartOS, the length of socket options
+ * is sizeof(int) for IPV6_MULTICAST_HOPS and sizeof(char) for
+ * IP_MULTICAST_TTL, so hardcode the size of the option in the IPv6 case,
+ * and use the general uv__setsockopt_maybe_char call otherwise.
+ */
+#if defined(__sun)
+  if (handle->flags & UV_HANDLE_IPV6)
+    return uv__setsockopt(handle,
+                          IP_MULTICAST_TTL,
+                          IPV6_MULTICAST_HOPS,
+                          &ttl,
+                          sizeof(ttl));
+#endif /* defined(__sun) */
+
   return uv__setsockopt_maybe_char(handle,
                                    IP_MULTICAST_TTL,
                                    IPV6_MULTICAST_HOPS,
@@ -669,6 +705,21 @@ int uv_udp_set_multicast_ttl(uv_udp_t* handle, int ttl) {
 
 
 int uv_udp_set_multicast_loop(uv_udp_t* handle, int on) {
+/*
+ * On Solaris and derivatives such as SmartOS, the length of socket options
+ * is sizeof(int) for IPV6_MULTICAST_LOOP and sizeof(char) for
+ * IP_MULTICAST_LOOP, so hardcode the size of the option in the IPv6 case,
+ * and use the general uv__setsockopt_maybe_char call otherwise.
+ */
+#if defined(__sun)
+  if (handle->flags & UV_HANDLE_IPV6)
+    return uv__setsockopt(handle,
+                          IP_MULTICAST_LOOP,
+                          IPV6_MULTICAST_LOOP,
+                          &on,
+                          sizeof(on));
+#endif /* defined(__sun) */
+
   return uv__setsockopt_maybe_char(handle,
                                    IP_MULTICAST_LOOP,
                                    IPV6_MULTICAST_LOOP,
