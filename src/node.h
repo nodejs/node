@@ -48,7 +48,7 @@
 #ifdef __clang__
 # define IOJS_CLANG_AT_LEAST(major, minor, patch)                             \
   (IOJS_MAKE_VERSION(major, minor, patch) <=                                  \
-   IOJS_MAKE_VERSION(__clang_major__, __clang_minor__, __clang_patchlevel__))
+      IOJS_MAKE_VERSION(__clang_major__, __clang_minor__, __clang_patchlevel__))
 #else
 # define IOJS_CLANG_AT_LEAST(major, minor, patch) (0)
 #endif
@@ -56,7 +56,7 @@
 #ifdef __GNUC__
 # define IOJS_GNUC_AT_LEAST(major, minor, patch)                              \
   (IOJS_MAKE_VERSION(major, minor, patch) <=                                  \
-   IOJS_MAKE_VERSION(__GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__))
+      IOJS_MAKE_VERSION(__GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__))
 #else
 # define IOJS_GNUC_AT_LEAST(major, minor, patch) (0)
 #endif
