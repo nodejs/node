@@ -34,8 +34,7 @@ string which includes their date (in UTC time) and the commit SHA at
 the HEAD of the release.
 
 **API documentation** is available in each release and nightly
-directory under _docs_. <https://iojs.org/api/> points to the the
-latest version.
+directory under _docs_. <https://iojs.org/api/> points to the latest version.
 
 ### Verifying Binaries
 
