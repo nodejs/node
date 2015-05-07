@@ -60,6 +60,13 @@ void GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
 
 
 void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  if (args.Length() < 1)
+    return env->ThrowTypeError("v8 flag is required");
+  if (!args[0]->IsString())
+    return env->ThrowTypeError("v8 flag must be a string");
+
   String::Utf8Value flags(args[0]);
   V8::SetFlagsFromString(*flags, flags.length());
 }
