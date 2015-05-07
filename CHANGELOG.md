@@ -1,5 +1,52 @@
 # io.js ChangeLog
 
+## 2015-05-07, Version 2.0.1, @rvagg
+
+### Notable changes
+
+* **async_wrap**: (Trevor Norris) [#1614](https://github.com/iojs/io.js/pull/1614)
+  - it is now possible to filter by providers
+  - bit flags have been removed and replaced with method calls on the binding object
+  - _note that this is an unstable API so feature additions and breaking changes won't change io.js semver_
+* **libuv**: resolves numerous io.js issues:
+  - [#862](https://github.com/iojs/io.js/issues/862) prevent spawning child processes with invalid stdio file descriptors
+  - [#1397](https://github.com/iojs/io.js/issues/1397) fix EPERM error with fs.access(W_OK) on Windows
+  - [#1621](https://github.com/iojs/io.js/issues/1621) build errors associated with the bundled libuv
+  - [#1512](https://github.com/iojs/io.js/issues/1512) should properly fix Windows termination errors
+* **addons**: the `NODE_DEPRECATED` macro was causing problems when compiling addons with older compilers, this should now be resolved (Ben Noordhuis) [#1626](https://github.com/iojs/io.js/pull/1626)
+* **V8**: upgrade V8 from 4.2.77.18 to 4.2.77.20 with minor fixes, including a bug preventing builds on FreeBSD
+
+### Known issues
+
+See https://github.com/iojs/io.js/labels/confirmed-bug for complete and current list of known issues.
+
+* Some problems with unreferenced timers running during `beforeExit` are still to be resolved. See [#1264](https://github.com/iojs/io.js/issues/1264).
+* Surrogate pair in REPL can freeze terminal [#690](https://github.com/iojs/io.js/issues/690)
+* `process.send()` is not synchronous as the docs suggest, a regression introduced in 1.0.2, see [#760](https://github.com/iojs/io.js/issues/760) and fix in [#774](https://github.com/iojs/io.js/issues/774)
+* Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion [#894](https://github.com/iojs/io.js/issues/894)
+* `url.resolve` may transfer the auth portion of the url when resolving between two full hosts, see [#1435](https://github.com/iojs/io.js/issues/1435).
+* readline: split escapes are processed incorrectly, see [#1403](https://github.com/iojs/io.js/issues/1403)
+
+### Commits
+
+* [[`7dde95a8bd`](https://github.com/iojs/io.js/commit/7dde95a8bd)] - **async-wrap**: remove before/after calls in init (Trevor Norris) [#1614](https://github.com/iojs/io.js/pull/1614)
+* [[`bd42ba056a`](https://github.com/iojs/io.js/commit/bd42ba056a)] - **async-wrap**: set flags using functions (Trevor Norris) [#1614](https://github.com/iojs/io.js/pull/1614)
+* [[`4b2c786449`](https://github.com/iojs/io.js/commit/4b2c786449)] - **async-wrap**: pass PROVIDER as first arg to init (Trevor Norris) [#1614](https://github.com/iojs/io.js/pull/1614)
+* [[`84bf609fd2`](https://github.com/iojs/io.js/commit/84bf609fd2)] - **async-wrap**: don't call init callback unnecessarily (Trevor Norris) [#1614](https://github.com/iojs/io.js/pull/1614)
+* [[`04cc03b029`](https://github.com/iojs/io.js/commit/04cc03b029)] - **deps**: update libuv to 1.5.0 (Saúl Ibarra Corretgé) [#1646](https://github.com/iojs/io.js/pull/1646)
+* [[`b16d9c28e8`](https://github.com/iojs/io.js/commit/b16d9c28e8)] - **deps**: upgrade v8 to 4.2.77.20 (Ben Noordhuis) [#1639](https://github.com/iojs/io.js/pull/1639)
+* [[`9ec3109272`](https://github.com/iojs/io.js/commit/9ec3109272)] - **doc**: add TC meeting 2015-04-29 minutes (Rod Vagg) [#1585](https://github.com/iojs/io.js/pull/1585)
+* [[`2c7206254c`](https://github.com/iojs/io.js/commit/2c7206254c)] - **doc**: fix typo in readme.md (AQNOUCH Mohammed) [#1643](https://github.com/iojs/io.js/pull/1643)
+* [[`71dc7152ee`](https://github.com/iojs/io.js/commit/71dc7152ee)] - **doc**: fix PR link in CHANGELOG (Brian White) [#1624](https://github.com/iojs/io.js/pull/1624)
+* [[`b97b96d05a`](https://github.com/iojs/io.js/commit/b97b96d05a)] - **install**: fix NameError (thefourtheye) [#1628](https://github.com/iojs/io.js/pull/1628)
+* [[`6ccbe75384`](https://github.com/iojs/io.js/commit/6ccbe75384)] - **js_stream**: fix buffer index in DoWrite (Shigeki Ohtsu) [#1635](https://github.com/iojs/io.js/pull/1635)
+* [[`c43855c49c`](https://github.com/iojs/io.js/commit/c43855c49c)] - **src**: export the ParseEncoding function on Windows (Ivan Kozik) [#1596](https://github.com/iojs/io.js/pull/1596)
+* [[`8315b22390`](https://github.com/iojs/io.js/commit/8315b22390)] - **src**: fix pedantic cpplint whitespace warnings (Ben Noordhuis) [#1640](https://github.com/iojs/io.js/pull/1640)
+* [[`b712af79a7`](https://github.com/iojs/io.js/commit/b712af79a7)] - **src**: fix NODE_DEPRECATED macro with old compilers (Ben Noordhuis) [#1626](https://github.com/iojs/io.js/pull/1626)
+* [[`2ed10f1349`](https://github.com/iojs/io.js/commit/2ed10f1349)] - **src**: fix minor inefficiency in Buffer::New() call (Ben Noordhuis) [#1577](https://github.com/iojs/io.js/pull/1577)
+* [[`f696c9efab`](https://github.com/iojs/io.js/commit/f696c9efab)] - **src**: fix deprecated use of Buffer::New() (Ben Noordhuis) [#1577](https://github.com/iojs/io.js/pull/1577)
+* [[`0c8f13df8f`](https://github.com/iojs/io.js/commit/0c8f13df8f)] - **tools**: remove unused GuessWordSize function (thefourtheye) [#1638](https://github.com/iojs/io.js/pull/1638)
+
 ## 2015-05-04, Version 2.0.0, @rvagg
 
 ### Breaking changes
