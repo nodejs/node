@@ -20,7 +20,7 @@ Returns an object with the following properties
 }
 ```
 
-## setFlagsFromString()
+## setFlagsFromString(string)
 
 Set additional V8 command line flags.  Use with care; changing settings
 after the VM has started may result in unpredictable behavior, including
