@@ -861,10 +861,12 @@ for (const u in parseTests) {
   const spaced = url.parse(`     \t  ${u}\n\t`);
   let expected = parseTests[u];
 
-  Object.keys(actual).forEach(function(i) {
-    if (expected[i] === undefined && actual[i] === null) {
+  Object.keys(actual).forEach(function (i) {
+    // Private properties starting with _ don't need to be checked.
+    if (i.charAt(0) === "_")
+      expected[i] = actual[i];
+    else if (expected[i] === undefined && actual[i] === null)
       expected[i] = null;
-    }
   });
 
   assert.deepEqual(actual, expected);
@@ -932,9 +934,11 @@ for (const u in parseTestsWithQueryString) {
   const actual = url.parse(u, true);
   const expected = parseTestsWithQueryString[u];
   for (const i in actual) {
-    if (actual[i] === null && expected[i] === undefined) {
+    // Private properties starting with _ don't need to be checked.
+    if (i.charAt(0) === '_')
+      expected[i] = actual[i];
+    else if (expected[i] === undefined && actual[i] === null)
       expected[i] = null;
-    }
   }
 
   assert.deepEqual(actual, expected);
@@ -1546,6 +1550,11 @@ if (relativeTests2[181][0] === './/g' &&
 relativeTests2.forEach(function(relativeTest) {
   var actual = url.resolveObject(url.parse(relativeTest[1]), relativeTest[0]);
   var expected = url.parse(relativeTest[2]);
+
+  Object.keys(actual).forEach(function (i) {
+    if (i.charAt(0) === "_")
+      expected[i] = actual[i];
+  });
 
   assert.deepEqual(actual, expected);
 
