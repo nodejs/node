@@ -294,15 +294,15 @@ parser.add_option('--without-perfctr',
     dest='without_perfctr',
     help='build without performance counters')
 
+# Dummy option for backwards compatibility
 parser.add_option('--with-snapshot',
     action='store_true',
-    dest='with_snapshot',
+    dest='unused_with_snapshot',
     help=optparse.SUPPRESS_HELP)
 
-# Dummy option for backwards compatibility.
 parser.add_option('--without-snapshot',
     action='store_true',
-    dest='unused_without_snapshot',
+    dest='without_snapshot',
     help=optparse.SUPPRESS_HELP)
 
 parser.add_option('--without-ssl',
@@ -579,10 +579,6 @@ def configure_arm(o):
     o['variables']['arm_fpu'] = 'vfpv3'
     o['variables']['arm_version'] = '7'
 
-  # Print warning when snapshot is enabled and building on armv6
-  if is_arch_armv6() and options.with_snapshot:
-    warn('when building on ARMv6, don\'t use --with-snapshot')
-
 
 def configure_mips(o):
   can_use_fpu_instructions = (options.mips_float_abi != 'soft')
@@ -604,10 +600,10 @@ def configure_node(o):
   o['variables']['host_arch'] = host_arch
   o['variables']['target_arch'] = target_arch
 
-  if target_arch != host_arch and options.with_snapshot:
-    o['variables']['want_separate_host_toolset'] = 1
-  else:
-    o['variables']['want_separate_host_toolset'] = 0
+  cross_compiling = target_arch != host_arch
+  want_snapshots = not options.without_snapshot
+  o['variables']['want_separate_host_toolset'] = int(
+      cross_compiling and want_snapshots)
 
   if target_arch == 'arm':
     configure_arm(o)
@@ -713,7 +709,7 @@ def configure_v8(o):
   o['variables']['v8_no_strict_aliasing'] = 1  # Work around compiler bugs.
   o['variables']['v8_optimized_debug'] = 0  # Compile with -O0 in debug builds.
   o['variables']['v8_random_seed'] = 0  # Use a random seed for hash tables.
-  o['variables']['v8_use_snapshot'] = b(options.with_snapshot)
+  o['variables']['v8_use_snapshot'] = 0 if options.without_snapshot else 1
 
 def configure_openssl(o):
   o['variables']['node_use_openssl'] = b(not options.without_ssl)
