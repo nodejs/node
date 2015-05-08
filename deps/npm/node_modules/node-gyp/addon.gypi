@@ -1,7 +1,9 @@
 {
   'target_defaults': {
     'type': 'loadable_module',
+    'win_delay_load_hook': 'false',
     'product_prefix': '',
+
     'include_dirs': [
       '<(node_root_dir)/src',
       '<(node_root_dir)/deps/uv/include',
@@ -13,10 +15,33 @@
         'product_extension': 'node',
         'defines': [ 'BUILDING_NODE_EXTENSION' ],
       }],
+
       ['_type=="static_library"', {
         # set to `1` to *disable* the -T thin archive 'ld' flag.
         # older linkers don't support this flag.
         'standalone_static_library': '<(standalone_static_library)'
+      }],
+
+      ['_win_delay_load_hook=="true"', {
+        # If the addon specifies `'win_delay_load_hook': 'true'` in its
+        # binding.gyp, link a delay-load hook into the DLL. This hook ensures
+        # that the addon will work regardless of whether the node/iojs binary
+        # is named node.exe, iojs.exe, or something else.
+        'conditions': [
+          [ 'OS=="win"', {
+            'sources': [
+              'src/win_delay_load_hook.c',
+            ],
+            'msvs_settings': {
+              'VCLinkerTool': {
+                'DelayLoadDLLs': [ 'iojs.exe', 'node.exe' ],
+                # Don't print a linker warning when no imports from either .exe
+                # are used.
+                'AdditionalOptions': [ '/ignore:4199' ],
+              },
+            },
+          }],
+        ],
       }],
     ],
 
