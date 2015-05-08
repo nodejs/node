@@ -1846,8 +1846,12 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ bind(&adaptor_frame);
   __ ldr(r1, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
   if (has_new_target()) {
+    __ cmp(r1, Operand(Smi::FromInt(0)));
+    Label skip_decrement;
+    __ b(eq, &skip_decrement);
     // Subtract 1 from smi-tagged arguments count.
     __ sub(r1, r1, Operand(2));
+    __ bind(&skip_decrement);
   }
   __ str(r1, MemOperand(sp, 0));
   __ add(r3, r2, Operand::PointerOffsetFromSmiKey(r1));

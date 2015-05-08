@@ -1959,10 +1959,13 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ bind(&adaptor_frame);
   __ ld(a1, MemOperand(a2, ArgumentsAdaptorFrameConstants::kLengthOffset));
   if (has_new_target()) {
+    Label skip_decrement;
+    __ Branch(&skip_decrement, eq, a1, Operand(Smi::FromInt(0)));
     // Subtract 1 from smi-tagged arguments count.
     __ SmiUntag(a1);
     __ Daddu(a1, a1, Operand(-1));
     __ SmiTag(a1);
+    __ bind(&skip_decrement);
   }
   __ sd(a1, MemOperand(sp, 0));
   __ SmiScale(at, a1, kPointerSizeLog2);

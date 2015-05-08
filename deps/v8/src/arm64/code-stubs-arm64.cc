@@ -2073,9 +2073,13 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
                     ArgumentsAdaptorFrameConstants::kLengthOffset));
   __ SmiUntag(param_count, param_count_smi);
   if (has_new_target()) {
+    __ Cmp(param_count, Operand(0));
+    Label skip_decrement;
+    __ B(eq, &skip_decrement);
     // Skip new.target: it is not a part of arguments.
     __ Sub(param_count, param_count, Operand(1));
     __ SmiTag(param_count_smi, param_count);
+    __ Bind(&skip_decrement);
   }
   __ Add(x10, caller_fp, Operand(param_count, LSL, kPointerSizeLog2));
   __ Add(params, x10, StandardFrameConstants::kCallerSPOffset);

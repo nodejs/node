@@ -3754,7 +3754,7 @@ AllocationResult Heap::CopyCode(Code* code) {
     new_constant_pool = empty_constant_pool_array();
   }
 
-  HeapObject* result;
+  HeapObject* result = NULL;
   // Allocate an object the same size as the code object.
   int obj_size = code->Size();
   allocation = AllocateRaw(obj_size, CODE_SPACE, CODE_SPACE);

@@ -1979,8 +1979,12 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ bind(&adaptor_frame);
   __ LoadP(r4, MemOperand(r5, ArgumentsAdaptorFrameConstants::kLengthOffset));
   if (has_new_target()) {
+    __ CmpSmiLiteral(r4, Smi::FromInt(0), r0);
+    Label skip_decrement;
+    __ beq(&skip_decrement);
     // Subtract 1 from smi-tagged arguments count.
     __ SubSmiLiteral(r4, r4, Smi::FromInt(1), r0);
+    __ bind(&skip_decrement);
   }
   __ StoreP(r4, MemOperand(sp, 0));
   __ SmiToPtrArrayOffset(r6, r4);
