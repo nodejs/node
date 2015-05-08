@@ -141,14 +141,37 @@ automatically set as a listener for the [secureConnection][] event.  The
   - `ciphers`: A string describing the ciphers to use or exclude, seperated by
     `:`. The default cipher suite is:
 
-        ECDHE-RSA-AES256-SHA384:DHE-RSA-AES256-SHA384:ECDHE-RSA-AES256-SHA256:
-        DHE-RSA-AES256-SHA256:ECDHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA256:
-        HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!SRP:!CAMELLIA
+        ECDHE-RSA-AES128-GCM-SHA256:
+        ECDHE-ECDSA-AES128-GCM-SHA256:
+        ECDHE-RSA-AES256-GCM-SHA384:
+        ECDHE-ECDSA-AES256-GCM-SHA384:
+        DHE-RSA-AES128-GCM-SHA256:
+        ECDHE-RSA-AES128-SHA256:
+        DHE-RSA-AES128-SHA256:
+        ECDHE-RSA-AES256-SHA384:
+        DHE-RSA-AES256-SHA384:
+        ECDHE-RSA-AES256-SHA256:
+        DHE-RSA-AES256-SHA256:
+        HIGH:
+        !aNULL:
+        !eNULL:
+        !EXPORT:
+        !DES:
+        !RC4:
+        !MD5:
+        !PSK:
+        !SRP:
+        !CAMELLIA
 
-    The default cipher suite prefers ECDHE and DHE ciphers for Perfect Forward
-    secrecy, while offering *some* backward compatibiltity. Old clients which
-    rely on insecure and deprecated RC4 or DES-based ciphers (like Internet
-    Explorer 6) aren't able to complete the handshake with the default
+    The default cipher suite prefers GCM ciphers for [Chrome's 'modern
+    cryptography' setting] and also prefers ECDHE and DHE ciphers for Perfect
+    Forward secrecy, while offering *some* backward compatibiltity.
+
+    128 bit AES is preferred over 192 and 256 bit AES in light of [specific
+    attacks affecting larger AES key sizes].
+
+    Old clients that rely on insecure and deprecated RC4 or DES-based ciphers
+    (like Internet Explorer 6) aren't able to complete the handshake with the default
     configuration. If you absolutely must support these clients, the
     [TLS recommendations] may offer a compatible cipher suite. For more details
     on the format, see the [OpenSSL cipher list format documentation].
@@ -784,6 +807,8 @@ The string representation of the local IP address.
 The numeric representation of the local port.
 
 [OpenSSL cipher list format documentation]: http://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT
+[Chrome's 'modern cryptography' setting]: http://www.chromium.org/Home/chromium-security/education/tls#TOC-Deprecation-of-TLS-Features-Algorithms-in-Chrome
+[specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
 [BEAST attacks]: http://blog.ivanristic.com/2011/10/mitigating-the-beast-attack-on-tls.html
 [tls.createServer]: #tls_tls_createserver_options_secureconnectionlistener
 [tls.createSecurePair]: #tls_tls_createsecurepair_context_isserver_requestcert_rejectunauthorized
