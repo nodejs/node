@@ -140,17 +140,15 @@ test-debugger: all
 test-npm: $(NODE_EXE)
 	rm -rf npm-cache npm-tmp npm-prefix
 	mkdir npm-cache npm-tmp npm-prefix
-	cd deps/npm ; npm_config_cache="$(shell pwd)/npm-cache" \
-	     npm_config_prefix="$(shell pwd)/npm-prefix" \
-	     npm_config_tmp="$(shell pwd)/npm-tmp" \
-	     ../../$(NODE_EXE) cli.js install --ignore-scripts
-	cd deps/npm ; npm_config_cache="$(shell pwd)/npm-cache" \
-	     npm_config_prefix="$(shell pwd)/npm-prefix" \
-	     npm_config_tmp="$(shell pwd)/npm-tmp" \
-	     ../../$(NODE_EXE) cli.js run-script test-all && \
-	     ../../$(NODE_EXE) cli.js prune --prod && \
-	     cd ../.. && \
-	     rm -rf npm-cache npm-tmp npm-prefix
+	cd deps/npm ; npm_config_cache="$(CURDIR)/npm-cache" \
+		npm_config_prefix="$(CURDIR)/npm-prefix" \
+		npm_config_tmp="$(CURDIR)/npm-tmp" \
+		../../$(NODE_EXE) cli.js install --ignore-scripts && \
+		../../$(NODE_EXE) cli.js run-script test-all && \
+		../../$(NODE_EXE) cli.js prune --prod && \
+		rm -rf node_modules/.bin && \
+		cd ../.. && \
+		rm -rf npm-cache npm-tmp npm-prefix
 
 test-npm-publish: $(NODE_EXE)
 	npm_package_config_publishtest=true ./$(NODE_EXE) deps/npm/test/run.js
