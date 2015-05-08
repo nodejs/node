@@ -315,10 +315,20 @@ exports.types =
   , _exit : Boolean
   }
 
-function getLocalAddresses() {
-  Object.keys(os.networkInterfaces()).map(function (nic) {
-    return os.networkInterfaces()[nic].filter(function (addr) {
-      return addr.family === "IPv4"
+function getLocalAddresses () {
+  var interfaces
+  // #8094: some environments require elevated permissions to enumerate
+  // interfaces, and synchronously throw EPERM when run without
+  // elevated privileges
+  try {
+    interfaces = os.networkInterfaces()
+  } catch (e) {
+    interfaces = {}
+  }
+
+  return Object.keys(interfaces).map(function (nic) {
+    return interfaces[nic].filter(function (addr) {
+      return addr.family === 'IPv4'
     })
     .map(function (addr) {
       return addr.address

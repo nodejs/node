@@ -9,10 +9,10 @@ npm-shrinkwrap(1) -- Lock down dependency versions
 
 This command locks down the versions of a package's dependencies so
 that you can control exactly which versions of each dependency will be
-used when your package is installed. The "package.json" file is still
-required if you want to use "npm install".
+used when your package is installed. The `package.json` file is still
+required if you want to use `npm install`.
 
-By default, "npm install" recursively installs the target's
+By default, `npm install` recursively installs the target's
 dependencies (as specified in package.json), choosing the latest
 available version that satisfies the dependency's semver pattern. In
 some situations, particularly when shipping software where each change
@@ -53,13 +53,13 @@ and package C:
     }
 
 If these are the only versions of A, B, and C available in the
-registry, then a normal "npm install A" will install:
+registry, then a normal `npm install A` will install:
 
     A@0.1.0
     `-- B@0.0.1
         `-- C@0.0.1
 
-However, if B@0.0.2 is published, then a fresh "npm install A" will
+However, if B@0.0.2 is published, then a fresh `npm install A` will
 install:
 
     A@0.1.0
@@ -96,7 +96,7 @@ This generates npm-shrinkwrap.json, which will look something like this:
     }
 
 The shrinkwrap command has locked down the dependencies based on
-what's currently installed in node_modules.  When "npm install"
+what's currently installed in node_modules.  When `npm install`
 installs a package with a npm-shrinkwrap.json file in the package
 root, the shrinkwrap file (rather than package.json files) completely
 drives the installation of that package and all of its dependencies
@@ -109,31 +109,31 @@ files.
 ### Using shrinkwrapped packages
 
 Using a shrinkwrapped package is no different than using any other
-package: you can "npm install" it by hand, or add a dependency to your
-package.json file and "npm install" it.
+package: you can `npm install` it by hand, or add a dependency to your
+package.json file and `npm install` it.
 
 ### Building shrinkwrapped packages
 
 To shrinkwrap an existing package:
 
-1. Run "npm install" in the package root to install the current
+1. Run `npm install` in the package root to install the current
    versions of all dependencies.
 2. Validate that the package works as expected with these versions.
-3. Run "npm shrinkwrap", add npm-shrinkwrap.json to git, and publish
+3. Run `npm shrinkwrap`, add npm-shrinkwrap.json to git, and publish
    your package.
 
 To add or update a dependency in a shrinkwrapped package:
 
-1. Run "npm install" in the package root to install the current
+1. Run `npm install` in the package root to install the current
    versions of all dependencies.
-2. Add or update dependencies. "npm install" each new or updated
+2. Add or update dependencies. `npm install` each new or updated
    package individually and then update package.json.  Note that they
    must be explicitly named in order to be installed: running `npm
    install` with no arguments will merely reproduce the existing
    shrinkwrap.
 3. Validate that the package works as expected with the new
    dependencies.
-4. Run "npm shrinkwrap", commit the new npm-shrinkwrap.json, and
+4. Run `npm shrinkwrap`, commit the new npm-shrinkwrap.json, and
    publish your package.
 
 You can use npm-outdated(1) to view dependencies with newer versions
@@ -142,13 +142,13 @@ available.
 ### Other Notes
 
 A shrinkwrap file must be consistent with the package's package.json
-file. "npm shrinkwrap" will fail if required dependencies are not
+file. `npm shrinkwrap` will fail if required dependencies are not
 already installed, since that would result in a shrinkwrap that
 wouldn't actually work. Similarly, the command will fail if there are
 extraneous packages (not referenced by package.json), since that would
 indicate that package.json is not correct.
 
-Since "npm shrinkwrap" is intended to lock down your dependencies for
+Since `npm shrinkwrap` is intended to lock down your dependencies for
 production use, `devDependencies` will not be included unless you
 explicitly set the `--dev` flag when you run `npm shrinkwrap`.  If
 installed `devDependencies` are excluded, then npm will print a

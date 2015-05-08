@@ -7,8 +7,10 @@ A folder containing a <code>package.json</code> file in its root.</li>
 </ul>
 <h2 id="description">DESCRIPTION</h2>
 <p>This is the plumbing command called by <code>npm link</code> and <code>npm install</code>.</p>
-<p>It should generally not be called directly.</p>
-<h2 id="see-also">SEE ALSO</h2>
+<p>It should generally be called during installation, but if you need to run it
+directly, run:</p>
+<pre><code>npm run-script build
+</code></pre><h2 id="see-also">SEE ALSO</h2>
 <ul>
 <li><a href="../cli/npm-install.html">npm-install(1)</a></li>
 <li><a href="../cli/npm-link.html">npm-link(1)</a></li>
