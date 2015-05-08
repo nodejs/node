@@ -352,6 +352,10 @@ void TLSWrap::EncOutCb(WriteWrap* req_wrap, int status) {
 Local<Value> TLSWrap::GetSSLError(int status, int* err, const char** msg) {
   EscapableHandleScope scope(env()->isolate());
 
+  // ssl_ is already destroyed in reading EOF by close notify alert.
+  if (ssl_ == nullptr)
+    return Local<Value>();
+
   *err = SSL_get_error(ssl_, status);
   switch (*err) {
     case SSL_ERROR_NONE:
@@ -432,7 +436,10 @@ void TLSWrap::ClearOut() {
     OnRead(UV_EOF, nullptr);
   }
 
-  if (read == -1) {
+  // We need to check whether an error occurred or the connection was
+  // shutdown cleanly (SSL_ERROR_ZERO_RETURN) even when read == 0.
+  // See iojs#1642 and SSL_read(3SSL) for details.
+  if (read <= 0) {
     int err;
     Local<Value> arg = GetSSLError(read, &err, nullptr);
 
