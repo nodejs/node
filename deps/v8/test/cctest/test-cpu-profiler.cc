@@ -793,7 +793,7 @@ class TestApiCallbacks {
     double start = v8::base::OS::TimeCurrentMillis();
     double duration = 0;
     while (duration < min_duration_ms_) {
-      v8::base::OS::Sleep(1);
+      v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(1));
       duration = v8::base::OS::TimeCurrentMillis() - start;
     }
   }

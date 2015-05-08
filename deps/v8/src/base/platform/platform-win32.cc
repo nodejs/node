@@ -821,8 +821,8 @@ void OS::Guard(void* address, const size_t size) {
 }
 
 
-void OS::Sleep(int milliseconds) {
-  ::Sleep(milliseconds);
+void OS::Sleep(TimeDelta interval) {
+  ::Sleep(static_cast<DWORD>(interval.InMilliseconds()));
 }
 
 

@@ -15166,10 +15166,12 @@ class RegExpInterruptionThread : public v8::base::Thread {
     for (regexp_interruption_data.loop_count = 0;
          regexp_interruption_data.loop_count < 7;
          regexp_interruption_data.loop_count++) {
-      v8::base::OS::Sleep(50);  // Wait a bit before requesting GC.
+      // Wait a bit before requesting GC.
+      v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(50));
       reinterpret_cast<i::Isolate*>(isolate_)->stack_guard()->RequestGC();
     }
-    v8::base::OS::Sleep(50);  // Wait a bit before terminating.
+    // Wait a bit before terminating.
+    v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(50));
     v8::V8::TerminateExecution(isolate_);
   }
 
@@ -21516,7 +21518,7 @@ class ThreadInterruptTest {
       struct sigaction action;
 
       // Ensure that we'll enter waiting condition
-      v8::base::OS::Sleep(100);
+      v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(100));
 
       // Setup signal handler
       memset(&action, 0, sizeof(action));
@@ -21527,7 +21529,7 @@ class ThreadInterruptTest {
       kill(getpid(), SIGCHLD);
 
       // Ensure that if wait has returned because of error
-      v8::base::OS::Sleep(100);
+      v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(100));
 
       // Set value and signal semaphore
       test_->sem_value_ = 1;

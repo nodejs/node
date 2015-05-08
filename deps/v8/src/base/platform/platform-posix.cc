@@ -268,9 +268,8 @@ size_t OS::AllocateAlignment() {
 }
 
 
-void OS::Sleep(int milliseconds) {
-  useconds_t ms = static_cast<useconds_t>(milliseconds);
-  usleep(1000 * ms);
+void OS::Sleep(TimeDelta interval) {
+  usleep(static_cast<useconds_t>(interval.InMicroseconds()));
 }
 
 

@@ -48,7 +48,8 @@ void OptimizingCompilerThread::Run() {
     TimerEventScope<TimerEventRecompileConcurrent> timer(isolate_);
 
     if (FLAG_concurrent_recompilation_delay != 0) {
-      base::OS::Sleep(FLAG_concurrent_recompilation_delay);
+      base::OS::Sleep(base::TimeDelta::FromMilliseconds(
+          FLAG_concurrent_recompilation_delay));
     }
 
     switch (static_cast<StopFlag>(base::Acquire_Load(&stop_thread_))) {
