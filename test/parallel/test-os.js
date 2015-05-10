@@ -90,3 +90,9 @@ switch (platform) {
 
 var EOL = os.EOL;
 assert.ok(EOL.length > 0);
+
+if (process.platform === 'win32') {
+  assert.equal(os.homedir(), process.env.USERPROFILE);
+} else {
+  assert.equal(os.homedir(), process.env.HOME);
+}
