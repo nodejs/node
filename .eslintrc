@@ -46,7 +46,8 @@ rules:
     - 2
     - 2
   ## add space after comma
-  comma-spacing: 2
+  ## set to 'warn' because of https://github.com/eslint/eslint/issues/2408
+  comma-spacing: 1
   ## put semi-colon
   semi: 2
   ## require spaces operator like var sum = 1 + 1;
@@ -56,21 +57,20 @@ rules:
   ## require parens for Constructor
   new-parens: 2
   ## max 80 length
-  max-len: 
+  max-len:
     - 2
     - 80
     - 2
 
-
   # Strict Mode
   # list: https://github.com/eslint/eslint/tree/master/docs/rules#strict-mode
   ## 'use strict' on top
-  strict: 
+  strict:
     - 2
     - "global"
 
 # Global scoped method and vars
-globals: 
+globals:
   DTRACE_HTTP_CLIENT_REQUEST: true
   LTTNG_HTTP_CLIENT_REQUEST: true
   COUNTER_HTTP_CLIENT_REQUEST: true
@@ -89,4 +89,3 @@ globals:
   DTRACE_NET_SERVER_CONNECTION: true
   LTTNG_NET_SERVER_CONNECTION: true
   COUNTER_NET_SERVER_CONNECTION: true
-
