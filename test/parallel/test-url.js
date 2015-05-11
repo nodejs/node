@@ -1584,3 +1584,7 @@ for (var i = 0; i < throws.length; i++) {
 };
 assert(url.format('') === '');
 assert(url.format({}) === '');
+
+var uri = url.parse("https://registry.lvh.me:8661/");
+delete uri.protocol;
+assert(uri.format() === '//registry.lvh.me:8661/');
