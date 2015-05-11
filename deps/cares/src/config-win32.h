@@ -1,10 +1,7 @@
-#ifndef __ARES_CONFIG_WIN32_H
-#define __ARES_CONFIG_WIN32_H
+#ifndef HEADER_CARES_CONFIG_WIN32_H
+#define HEADER_CARES_CONFIG_WIN32_H
 
-/* when building c-ares library */
-#define CARES_BUILDING_LIBRARY 1
-
-/* Copyright (C) 2004 - 2008 by Daniel Stenberg et al
+/* Copyright (C) 2004 - 2011 by Daniel Stenberg et al
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose and without fee is hereby granted, provided
@@ -17,25 +14,29 @@
  * without express or implied warranty.
  */
 
-#define ARES_
-
 /* ================================================================ */
-/*    ares/config-win32.h - Hand crafted config file for Windows    */
+/*   c-ares/config-win32.h - Hand crafted config file for Windows   */
 /* ================================================================ */
 
 /* ---------------------------------------------------------------- */
 /*                          HEADER FILES                            */
 /* ---------------------------------------------------------------- */
 
-/* Define if you have the <getopt.h> header file.  */
+/* Define if you have the <assert.h> header file. */
+#define HAVE_ASSERT_H 1
+
+/* Define if you have the <errno.h> header file. */
+#define HAVE_ERRNO_H 1
+
+/* Define if you have the <getopt.h> header file. */
 #if defined(__MINGW32__) || defined(__POCC__)
 #define HAVE_GETOPT_H 1
 #endif
 
-/* Define if you have the <limits.h> header file.  */
+/* Define if you have the <limits.h> header file. */
 #define HAVE_LIMITS_H 1
 
-/* Define if you have the <process.h> header file.  */
+/* Define if you have the <process.h> header file. */
 #ifndef __SALFORDC__
 #define HAVE_PROCESS_H 1
 #endif
@@ -44,31 +45,29 @@
 #define HAVE_SIGNAL_H 1
 
 /* Define if you have the <sys/time.h> header file */
-#if defined(__MINGW32__)
-#define HAVE_SYS_TIME_H 1
-#endif
+/* #define HAVE_SYS_TIME_H 1 */
 
-/* Define if you have the <time.h> header file.  */
+/* Define if you have the <time.h> header file. */
 #define HAVE_TIME_H 1
 
-/* Define if you have the <unistd.h> header file.  */
+/* Define if you have the <unistd.h> header file. */
 #if defined(__MINGW32__) || defined(__WATCOMC__) || defined(__LCC__) || \
     defined(__POCC__)
 #define HAVE_UNISTD_H 1
 #endif
 
-/* Define if you have the windows.h header file. */
+/* Define if you have the <windows.h> header file. */
 #define HAVE_WINDOWS_H 1
 
-/* Define if you have the <winsock.h> header file.  */
+/* Define if you have the <winsock.h> header file. */
 #define HAVE_WINSOCK_H 1
 
-/* Define if you have the <winsock2.h> header file.  */
+/* Define if you have the <winsock2.h> header file. */
 #ifndef __SALFORDC__
 #define HAVE_WINSOCK2_H 1
 #endif
 
-/* Define if you have the <ws2tcpip.h> header file.  */
+/* Define if you have the <ws2tcpip.h> header file. */
 #ifndef __SALFORDC__
 #define HAVE_WS2TCPIP_H 1
 #endif
@@ -80,20 +79,23 @@
 /* Define if sig_atomic_t is an available typedef. */
 #define HAVE_SIG_ATOMIC_T 1
 
-/* Define if you have the ANSI C header files.  */
+/* Define if you have the ANSI C header files. */
 #define STDC_HEADERS 1
 
-/* Define if you can safely include both <sys/time.h> and <time.h>.  */
+/* Define if you can safely include both <sys/time.h> and <time.h>. */
 /* #define TIME_WITH_SYS_TIME 1 */
 
 /* ---------------------------------------------------------------- */
 /*                             FUNCTIONS                            */
 /* ---------------------------------------------------------------- */
 
-/* Define if you have the closesocket function.  */
+/* Define if you have the closesocket function. */
 #define HAVE_CLOSESOCKET 1
 
-/* Define if you have the gethostname function.  */
+/* Define if you have the getenv function. */
+#define HAVE_GETENV 1
+
+/* Define if you have the gethostname function. */
 #define HAVE_GETHOSTNAME 1
 
 /* Define if you have the ioctlsocket function. */
@@ -104,9 +106,6 @@
 
 /* Define if you have the strcasecmp function. */
 /* #define HAVE_STRCASECMP 1 */
-
-/* Define if you have the getenv function. */
-#define HAVE_GETENV 1
 
 /* Define if you have the strdup function. */
 #define HAVE_STRDUP 1
@@ -183,7 +182,7 @@
 /* Define to the function return type for send. */
 #define SEND_TYPE_RETV int
 
-/* Specifics for the Watt-32 tcp/ip stack */
+/* Specifics for the Watt-32 tcp/ip stack. */
 #ifdef WATT32
   #define SOCKET              int
   #define NS_INADDRSZ         4
@@ -206,13 +205,13 @@
 /*                       TYPEDEF REPLACEMENTS                       */
 /* ---------------------------------------------------------------- */
 
-/* Define this if in_addr_t is not an available 'typedefed' type */
+/* Define if in_addr_t is not an available 'typedefed' type. */
 #define in_addr_t unsigned long
 
-/* Define as the return type of signal handlers (int or void).  */
+/* Define to the return type of signal handlers (int or void). */
 #define RETSIGTYPE void
 
-/* Define ssize_t if it is not an available 'typedefed' type */
+/* Define if ssize_t is not an available 'typedefed' type. */
 #ifndef _SSIZE_T_DEFINED
 #  if (defined(__WATCOMC__) && (__WATCOMC__ >= 1240)) || \
       defined(__POCC__) || \
@@ -230,13 +229,13 @@
 /*                            TYPE SIZES                            */
 /* ---------------------------------------------------------------- */
 
-/* The size of `int', as computed by sizeof. */
+/* Define to the size of `int', as computed by sizeof. */
 #define SIZEOF_INT 4
 
-/* The size of `short', as computed by sizeof. */
+/* Define to the size of `short', as computed by sizeof. */
 #define SIZEOF_SHORT 2
 
-/* The size of `size_t', as computed by sizeof. */
+/* Define to the size of `size_t', as computed by sizeof. */
 #if defined(_WIN64)
 #  define SIZEOF_SIZE_T 8
 #else
@@ -247,34 +246,35 @@
 /*                          STRUCT RELATED                          */
 /* ---------------------------------------------------------------- */
 
-/* Define this if you have struct addrinfo */
+/* Define if you have struct addrinfo. */
 #define HAVE_STRUCT_ADDRINFO 1
 
-/* Define this if you have struct sockaddr_storage */
-#ifndef __SALFORDC__
+/* Define if you have struct sockaddr_storage. */
+#if !defined(__SALFORDC__) && !defined(__BORLANDC__)
 #define HAVE_STRUCT_SOCKADDR_STORAGE 1
 #endif
 
-/* Define this if you have struct timeval */
+/* Define if you have struct timeval. */
 #define HAVE_STRUCT_TIMEVAL 1
 
 /* ---------------------------------------------------------------- */
 /*                        COMPILER SPECIFIC                         */
 /* ---------------------------------------------------------------- */
 
-/* Define to avoid VS2005 complaining about portable C functions */
+/* Define to avoid VS2005 complaining about portable C functions. */
 #if defined(_MSC_VER) && (_MSC_VER >= 1400)
-#define _CRT_SECURE_NO_DEPRECATE 1
-#define _CRT_NONSTDC_NO_DEPRECATE 1
+#  define _CRT_SECURE_NO_DEPRECATE 1
+#  define _CRT_NONSTDC_NO_DEPRECATE 1
 #endif
 
 /* Officially, Microsoft's Windows SDK versions 6.X do not support Windows
-   2000 as a supported build target. VS2008 default installations provide an
-   embedded Windows SDK v6.0A along with the claim that Windows 2000 is a
-   valid build target for VS2008. Popular belief is that binaries built using
-   Windows SDK versions 6.X and Windows 2000 as a build target are functional */
+   2000 as a supported build target. VS2008 default installations provide
+   an embedded Windows SDK v6.0A along with the claim that Windows 2000 is
+   a valid build target for VS2008. Popular belief is that binaries built
+   with VS2008 using Windows SDK versions 6.X and Windows 2000 as a build
+   target are functional. */
 #if defined(_MSC_VER) && (_MSC_VER >= 1500)
-#  define VS2008_MINIMUM_TARGET 0x0500
+#  define VS2008_MIN_TARGET 0x0500
 #endif
 
 /* When no build target is specified VS2008 default build target is Windows
@@ -282,18 +282,18 @@
    for VS2008 we will target the minimum Officially supported build target,
    which happens to be Windows XP. */
 #if defined(_MSC_VER) && (_MSC_VER >= 1500)
-#  define VS2008_DEFAULT_TARGET  0x0501
+#  define VS2008_DEF_TARGET  0x0501
 #endif
 
-/* VS2008 default target settings and minimum build target check */
+/* VS2008 default target settings and minimum build target check. */
 #if defined(_MSC_VER) && (_MSC_VER >= 1500)
 #  ifndef _WIN32_WINNT
-#    define _WIN32_WINNT VS2008_DEFAULT_TARGET
+#    define _WIN32_WINNT VS2008_DEF_TARGET
 #  endif
 #  ifndef WINVER
-#    define WINVER VS2008_DEFAULT_TARGET
+#    define WINVER VS2008_DEF_TARGET
 #  endif
-#  if (_WIN32_WINNT < VS2008_MINIMUM_TARGET) || (WINVER < VS2008_MINIMUM_TARGET)
+#  if (_WIN32_WINNT < VS2008_MIN_TARGET) || (WINVER < VS2008_MIN_TARGET)
 #    error VS2008 does not support Windows build targets prior to Windows 2000
 #  endif
 #endif
@@ -340,30 +340,46 @@
 /*                         IPV6 COMPATIBILITY                       */
 /* ---------------------------------------------------------------- */
 
-/* Define this if you have address family AF_INET6 */
+/* Define if you have address family AF_INET6. */
 #ifdef HAVE_WINSOCK2_H
 #define HAVE_AF_INET6 1
 #endif
 
-/* Define this if you have protocol family PF_INET6 */
+/* Define if you have protocol family PF_INET6. */
 #ifdef HAVE_WINSOCK2_H
 #define HAVE_PF_INET6 1
 #endif
 
-/* Define this if you have struct in6_addr */
+/* Define if you have struct in6_addr. */
 #ifdef HAVE_WS2TCPIP_H
 #define HAVE_STRUCT_IN6_ADDR 1
 #endif
 
-/* Define this if you have struct sockaddr_in6 */
+/* Define if you have struct sockaddr_in6. */
 #ifdef HAVE_WS2TCPIP_H
 #define HAVE_STRUCT_SOCKADDR_IN6 1
 #endif
 
-/* Define this if you have sockaddr_in6 with scopeid */
+/* Define if you have sockaddr_in6 with scopeid. */
 #ifdef HAVE_WS2TCPIP_H
 #define HAVE_SOCKADDR_IN6_SIN6_SCOPE_ID 1
 #endif
 
+/* ---------------------------------------------------------------- */
+/*                              Win CE                              */
+/* ---------------------------------------------------------------- */
 
-#endif  /* __ARES_CONFIG_WIN32_H */
+/* FIXME: A proper config-win32ce.h should be created to hold these */
+
+/*
+ *  System error codes for Windows CE
+ */
+
+#if defined(_WIN32_WCE) && !defined(HAVE_ERRNO_H)
+#  define ENOENT    ERROR_FILE_NOT_FOUND
+#  define ESRCH     ERROR_PATH_NOT_FOUND
+#  define ENOMEM    ERROR_NOT_ENOUGH_MEMORY
+#  define ENOSPC    ERROR_INVALID_PARAMETER
+#endif
+
+#endif /* HEADER_CARES_CONFIG_WIN32_H */
