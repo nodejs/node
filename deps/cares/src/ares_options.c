@@ -158,6 +158,9 @@ int ares_set_servers_csv(ares_channel channel,
      return ARES_SUCCESS; /* blank all servers */
 
   csv = malloc(i + 2);
+  if (!csv)
+    return ARES_ENOMEM;
+
   strcpy(csv, _csv);
   if (csv[i-1] != ',') { /* make parsing easier by ensuring ending ',' */
     csv[i] = ',';

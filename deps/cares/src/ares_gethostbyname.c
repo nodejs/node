@@ -188,8 +188,9 @@ static void host_callback(void *arg, int status, int timeouts,
       else if (hquery->sent_family == AF_INET6)
         {
           status = ares_parse_aaaa_reply(abuf, alen, &host, NULL, NULL);
-          if ((status == ARES_ENODATA || status == ARES_EBADRESP) &&
-               hquery->want_family == AF_UNSPEC) {
+          if ((status == ARES_ENODATA || status == ARES_EBADRESP ||
+               (status == ARES_SUCCESS && host && host->h_addr_list[0] == NULL)) &&
+                hquery->want_family == AF_UNSPEC) {
             /* The query returned something but either there were no AAAA
                records (e.g. just CNAME) or the response was malformed.  Try
                looking up A instead. */

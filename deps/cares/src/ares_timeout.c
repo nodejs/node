@@ -23,6 +23,13 @@
 #include "ares.h"
 #include "ares_private.h"
 
+/* return time offset between now and (future) check, in milliseconds */
+static long timeoffset(struct timeval *now, struct timeval *check)
+{
+  return (check->tv_sec - now->tv_sec)*1000 +
+         (check->tv_usec - now->tv_usec)/1000;
+}
+
 /* WARNING: Beware that this is linear in the number of outstanding
  * requests! You are probably far better off just calling ares_process()
  * once per second, rather than calling ares_timeout() to figure out
@@ -53,7 +60,7 @@ struct timeval *ares_timeout(ares_channel channel, struct timeval *maxtv,
       query = list_node->data;
       if (query->timeout.tv_sec == 0)
         continue;
-      offset = ares__timeoffset(&now, &query->timeout);
+      offset = timeoffset(&now, &query->timeout);
       if (offset < 0)
         offset = 0;
       if (min_offset == -1 || offset < min_offset)
