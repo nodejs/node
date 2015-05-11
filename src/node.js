@@ -134,12 +134,13 @@
           cliRepl.createInternalRepl(process.env, true, function(err, repl) {
             if (err) {
               console.log('Encountered error with persistent history support.');
-              return cliRepl.createInternalRepl(process.env, false, function (err, repl) {
+              return cliRepl.createInternalRepl(
+                process.env, false, function(err, repl) {
                 if (err) {
                   throw err;
                 }
                 repl.on('exit', process.exit);
-              })
+              });
             }
             repl.on('exit', function() {
               if (repl._flushing) {
