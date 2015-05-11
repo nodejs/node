@@ -68,11 +68,6 @@
  * Verify that some macros are actually defined.
  */
 
-#ifndef CARES_SIZEOF_LONG
-#  error "CARES_SIZEOF_LONG definition is missing!"
-   Error Compilation_aborted_CARES_SIZEOF_LONG_is_missing
-#endif
-
 #ifndef CARES_TYPEOF_ARES_SOCKLEN_T
 #  error "CARES_TYPEOF_ARES_SOCKLEN_T definition is missing!"
    Error Compilation_aborted_CARES_TYPEOF_ARES_SOCKLEN_T_is_missing
@@ -90,15 +85,6 @@
 #define CareschkszEQ(t, s) sizeof(t) == s ? 1 : -1
 
 #define CareschkszGE(t1, t2) sizeof(t1) >= sizeof(t2) ? 1 : -1
-
-/*
- * Verify that the size previously defined and expected for long
- * is the same as the one reported by sizeof() at compile time.
- */
-
-typedef char
-  __cares_rule_01__
-    [CareschkszEQ(long, CARES_SIZEOF_LONG)];
 
 /*
  * Verify that the size previously defined and expected for

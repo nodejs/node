@@ -239,7 +239,7 @@ static int single_domain(ares_channel channel, const char *name, char **s)
   /* If the name contains a trailing dot, then the single query is the name
    * sans the trailing dot.
    */
-  if (name[len - 1] == '.')
+  if ((len > 0) && (name[len - 1] == '.'))
     {
       *s = strdup(name);
       return (*s) ? ARES_SUCCESS : ARES_ENOMEM;

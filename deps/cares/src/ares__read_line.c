@@ -61,7 +61,10 @@ int ares__read_line(FILE *fp, char **buf, size_t *bufsize)
       /* Allocate more space. */
       newbuf = realloc(*buf, *bufsize * 2);
       if (!newbuf)
-        return ARES_ENOMEM;
+        {
+          free(*buf);
+          return ARES_ENOMEM;
+        }
       *buf = newbuf;
       *bufsize *= 2;
     }
