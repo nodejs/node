@@ -678,6 +678,17 @@ registry via https.</p>
 it will install the specified tag.</p>
 <p>Also the tag that is added to the package@version specified by the <code>npm
 tag</code> command, if no explicit tag is given.</p>
+<h3 id="tag-version-prefix">tag-version-prefix</h3>
+<ul>
+<li>Default: <code>&quot;v&quot;</code></li>
+<li>Type: String</li>
+</ul>
+<p>If set, alters the prefix used when tagging a new version when performing a
+version increment using  <code>npm-version</code>. To remove the prefix altogether, set it
+to the empty string: <code>&quot;&quot;</code>.</p>
+<p>Because other tools may rely on the convention that npm version tags look like
+<code>v1.0.0</code>, <em>only use this property if it is absolutely necessary</em>. In
+particular, use care when overriding this setting for public packages.</p>
 <h3 id="tmp">tmp</h3>
 <ul>
 <li>Default: TMPDIR environment variable, or &quot;/tmp&quot;</li>

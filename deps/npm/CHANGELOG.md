@@ -1,3 +1,149 @@
+### v2.9.1 (2015-04-30):
+
+#### WOW! MORE GIT FIXES! YOU LOVE THOSE!
+
+The first item below is actually a pretty big deal, as it fixes (with a
+one-word change and a much, much longer test case (thanks again,
+[@iarna](https://github.com/iarna))) a regression that's been around for months
+now. If you're depending on multiple branches of a single git dependency in a
+single project, you probably want to check out `npm@2.9.1` and verify that
+things (again?) work correctly in your project.
+
+* [`178a6ad`](https://github.com/npm/npm/commit/178a6ad540215820d16217465a5f220d8c95a313)
+  [#7202](https://github.com/npm/npm/issues/7202) When caching git
+  dependencies, do so by the whole URL, including the branch name, so that if a
+  single application depends on multiple branches from the same repository (in
+  practice, multiple version tags), every install is of the correct version,
+  instead of reusing whichever branch the caching process happened to check out
+  first.  ([@iarna](https://github.com/iarna))
+* [`63b79cc`](https://github.com/npm/npm/commit/63b79ccde092a9cb3b1f34abe43e1d2ba69c0dbf)
+  [#8084](https://github.com/npm/npm/issues/8084) Ensure that Bitbucket,
+  GitHub, and Gitlab dependencies are installed the same way as non-hosted git
+  dependencies, fixing `npm install --link`.
+  ([@laiso](https://github.com/laiso))
+
+#### DOCUMENTATION FIXES AND TWEAKS
+
+These changes may seem simple and small (except Lin's fix to the package name
+restrictions, which was more an egregious oversight on our part), but cleaner
+documentation makes npm significantly more pleasant to use. I really appreciate
+all the typo fixes, clarifications, and formatting tweaks people send us, and
+am delighted that we get so many of these pull requests. Thanks, everybody!
+
+* [`ca478dc`](https://github.com/npm/npm/commit/ca478dcaa29b8f07cd6fe515a3c4518166819291)
+  [#8137](https://github.com/npm/npm/issues/8137) Somehow, we had failed to
+  clearly document the full restrictions on package names.
+  [@linclark](https://github.com/linclark) has now fixed that, although we will
+  take with us to our graves the reasons why the maximum package name length is 214
+  characters (well, OK, it was that that was the longest name in the registry
+  when we decided to put a cap on the name length).
+  ([@linclark](https://github.com/linclark))
+* [`b574076`](https://github.com/npm/npm/commit/b5740767c320c1eff3576a8d63952534a0fbb936)
+  [#8079](https://github.com/npm/npm/issues/8079) Make the `npm shrinkwrap`
+  documentation use code formatting for examples consistently. It would be
+  great to do this for more commands HINT HINT.
+  ([@RichardLitt](https://github.com/RichardLitt))
+* [`1ff636e`](https://github.com/npm/npm/commit/1ff636e2db3852a53e38c866fed7eafdacd307fc)
+  [#8105](https://github.com/npm/npm/issues/8105) Document that the global
+  `npmrc` goes in `$PREFIX/etc/npmrc`, instead of `$PREFIX/npmrc`.
+  ([@anttti](https://github.com/anttti))
+* [`c3f2f7c`](https://github.com/npm/npm/commit/c3f2f7c299342e1c1eccc55a976a63c607f51621)
+  [#8127](https://github.com/npm/npm/issues/8127) Document how to use `npm run
+  build` directly (hint: it's different from `npm build`!).
+  ([@mikemaccana](https://github.com/mikemaccana))
+* [`873e467`](https://github.com/npm/npm/commit/873e46757e1986761b15353f94580a071adcb383)
+  [#8069](https://github.com/npm/npm/issues/8069) Take the old, dead npm
+  mailing list address out of `package.json`. It seems that people don't have
+  much trouble figuring out how to report errors to npm.
+  ([@robertkowalski](https://github.com/robertkowalski))
+
+#### ENROBUSTIFICATIONMENT
+
+* [`5abfc9c`](https://github.com/npm/npm/commit/5abfc9c9017da714e47a3aece750836b4f9af6a9)
+  [#7973](https://github.com/npm/npm/issues/7973) `npm run-script` completion
+  will only suggest run scripts, instead of including dependencies. If for some
+  reason you still wanted it to suggest dependencies, let us know.
+  ([@mantoni](https://github.com/mantoni))
+* [`4b564f0`](https://github.com/npm/npm/commit/4b564f0ce979dc74c09604f4d46fd25a2ee63804)
+  [#8081](https://github.com/npm/npm/issues/8081) Use `osenv` to parse the
+  environment's `PATH` in a platform-neutral way.
+  ([@watilde](https://github.com/watilde))
+* [`a4b6238`](https://github.com/npm/npm/commit/a4b62387b41848818973eeed056fd5c6570274f3)
+  [#8094](https://github.com/npm/npm/issues/8094) When we refactored the
+  configuration code to split out checking for IPv4 local addresses, we
+  inadvertently completely broke it by failing to return the values. In
+  addition, just the call to `os.getInterfaces()` could throw on systems where
+  querying the network configuration requires elevated privileges (e.g. Amazon
+  Lambda). Add the return, and trap errors so they don't cause npm to explode.
+  Thanks to [@mhart](https://github.com/mhart) for bringing this to our
+  attention! ([@othiym23](https://github.com/othiym23))
+
+#### DEPENDENCY UPDATES WAIT FOR NO SOPHONT
+
+* [`000cd8b`](https://github.com/npm/npm/commit/000cd8b52104942ac3404f0ad0651d82f573da37)
+  `rimraf@2.3.3`: More informative assertions on argument validation failure.
+  ([@isaacs](https://github.com/isaacs))
+* [`530a2e3`](https://github.com/npm/npm/commit/530a2e369128270f3e098f0e9be061533003b0eb)
+  `lru-cache@2.6.2`: Revert to old key access-time behavior, as it was correct
+  all along. ([@isaacs](https://github.com/isaacs))
+* [`d88958c`](https://github.com/npm/npm/commit/d88958ca02ce81b027b9919aec539d0145875a59)
+  `minimatch@2.0.7`: Feature detection and test improvements.
+  ([@isaacs](https://github.com/isaacs))
+* [`3fa39e4`](https://github.com/npm/npm/commit/3fa39e4d492609d5d045033896dcd99f7b875329)
+  `nock@1.7.1` ([@pgte](https://github.com/pgte))
+
+### v2.9.0 (2015-04-23):
+
+This week was kind of a breather to concentrate on fixing up the tests on the
+`multi-stage` branch, and not mess with git issues for a little while.
+Unfortunately, There are now enough severe git issues that we'll probably have
+to spend another couple weeks tackling them. In the meantime, enjoy these two
+small features. They're just enough to qualify for a semver-minor bump:
+
+#### NANOFEATURES
+
+* [`2799322`](https://github.com/npm/npm/commit/279932298ce5b589c5eea9439ac40b88b99c6a4a)
+  [#7426](https://github.com/npm/npm/issues/7426) Include local modules in `npm
+  outdated` and `npm update`.  ([@ArnaudRinquin](https://github.com/ArnaudRinquin))
+* [`2114862`](https://github.com/npm/npm/commit/21148620fa03a582f4ec436bb16bd472664f2737)
+  [#8014](https://github.com/npm/npm/issues/8014) The prefix used before the
+  version on version tags is now configurable via `tag-version-prefix`. Be
+  careful with this one and read the docs before using it.
+  ([@kkragenbrink](https://github.com/kkragenbrink))
+
+#### OTHER MINOR TWEAKS
+
+* [`18ce0ec`](https://github.com/npm/npm/commit/18ce0ecd2d94ad3af01e997f1396515892dd363c)
+  [#3032](https://github.com/npm/npm/issues/3032) `npm unpublish` will now use
+  the registry set in `package.json`, just like `npm publish`. This only
+  applies, for now, when unpublishing the entire package, as unpublishing a
+  single version requires the name be included on the command line and
+  therefore doesn't read from `package.json`. ([@watilde](https://github.com/watilde))
+* [`9ad2100`](https://github.com/npm/npm/commit/9ad210042242e51d52b2a8b633d8e59248f5faa4)
+  [#8008](https://github.com/npm/npm/issues/8008) Once again, when considering
+  what to install on `npm install`, include `devDependencies`.
+  ([@smikes](https://github.com/smikes))
+* [`5466260`](https://github.com/npm/npm/commit/546626059909dca1906454e820ca4e315c1795bd)
+  [#8003](https://github.com/npm/npm/issues/8003) Clarify the documentation
+  around scopes to make it easier to understand how they support private
+  packages. ([@smikes](https://github.com/smikes))
+
+#### DEPENDENCIES WILL NOT STOP UNTIL YOU ARE VERY SLEEPY
+
+* [`faf65a7`](https://github.com/npm/npm/commit/faf65a7bbb2fad13216f64ed8f1243bafe743f97)
+  `init-package-json@1.4.2`: If there are multiple validation errors and
+  warnings, ensure they all get displayed (includes a rad new way of testing
+  `init-package-json` contributed by
+  [@michaelnisi](https://github.com/michaelnisi)).
+  ([@MisumiRize](https://github.com/MisumiRize))
+* [`7f10f38`](https://github.com/npm/npm/commit/7f10f38d29a8423d7cde8103fa7b64ac728da1e0)
+  `editor@1.0.0`: `1.0.0` is literally more than `0.1.0` (no change aside from
+  version number). ([@substack](https://github.com/substack))
+* [`4979af3`](https://github.com/npm/npm/commit/4979af3fcae5a3962383b7fdad3162381e62eefe)
+  [#6805](https://github.com/npm/npm/issues/6805) `npm-registry-client@6.3.3`:
+  Decode scoped package names sent by the registry so they look nicer.
+  ([@mmalecki](https://github.com/mmalecki))
+
 ### v2.8.4 (2015-04-16):
 
 This is the fourth release of npm this week, so it's mostly just landing a few

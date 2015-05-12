@@ -115,7 +115,7 @@ function tryClone (from, combinedURL, silent, cb) {
 
   // ensure that similarly-named remotes don't collide
   var repoID = cloneURL.replace(/[^a-zA-Z0-9]+/g, '-') + '-' +
-    crypto.createHash('sha1').update(cloneURL).digest('hex').slice(0, 8)
+    crypto.createHash('sha1').update(combinedURL).digest('hex').slice(0, 8)
   var cachedRemote = path.join(remotes, repoID)
 
   cb = inflight(repoID, cb)

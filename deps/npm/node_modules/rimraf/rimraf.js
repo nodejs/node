@@ -42,13 +42,14 @@ function rimraf (p, options, cb) {
     cb = options
     options = {}
   }
-  assert(p)
-  assert(options)
-  assert(typeof cb === 'function')
+
+  assert(p, 'rimraf: missing path')
+  assert.equal(typeof p, 'string', 'rimraf: path should be a string')
+  assert(options, 'rimraf: missing options')
+  assert.equal(typeof options, 'object', 'rimraf: options should be object')
+  assert.equal(typeof cb, 'function', 'rimraf: callback function required')
 
   defaults(options)
-
-  if (!cb) throw new Error("No callback passed to rimraf()")
 
   var busyTries = 0
   var errState = null
@@ -254,8 +255,9 @@ function rimrafSync (p, options) {
   options = options || {}
   defaults(options)
 
-  assert(p)
-  assert(options)
+  assert(p, 'rimraf: missing path')
+  assert.equal(typeof p, 'string', 'rimraf: path should be a string')
+  assert(options, 'rimraf: missing options')
 
   var results
 

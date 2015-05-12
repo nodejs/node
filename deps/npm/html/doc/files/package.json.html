@@ -21,14 +21,22 @@ Those are actually required, and your package won&#39;t install without
 them.  The name and version together form an identifier that is assumed
 to be completely unique.  Changes to the package should come along with
 changes to the version.</p>
-<p>The name is what your thing is called.  Some tips:</p>
+<p>The name is what your thing is called.</p>
+<p>Some rules:</p>
 <ul>
+<li>The name must be shorter than 214 characters. This includes the scope for
+scoped packages.</li>
+<li>The name can&#39;t start with a dot or an underscore.</li>
+<li>New packages must not have uppercase letters in the name.</li>
+<li>The name ends up being part of a URL, an argument on the command line, and a
+folder name. Therefore, the name can&#39;t contain any non-URL-safe characters.</li>
+</ul>
+<p>Some tips:</p>
+<ul>
+<li>Don&#39;t use the same name as a core Node module.</li>
 <li>Don&#39;t put &quot;js&quot; or &quot;node&quot; in the name.  It&#39;s assumed that it&#39;s js, since you&#39;re
 writing a package.json file, and you can specify the engine using the &quot;engines&quot;
 field.  (See below.)</li>
-<li>The name ends up being part of a URL, an argument on the command line, and a
-folder name. Any name with non-url-safe characters will be rejected.
-Also, it can&#39;t start with a dot or an underscore.</li>
 <li>The name will probably be passed as an argument to require(), so it should
 be something short, but also reasonably descriptive.</li>
 <li>You may want to check the npm registry to see if there&#39;s something by that name
@@ -502,5 +510,5 @@ ignored.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">package.json &mdash; npm@2.8.4</p>
+<p id="footer">package.json &mdash; npm@2.9.1</p>
 

@@ -81,7 +81,7 @@ test('request call contract', function (t) {
 })
 
 test('run request through its paces', function (t) {
-  t.plan(27)
+  t.plan(28)
 
   server.expect('/request-defaults', function (req, res) {
     t.equal(req.method, 'GET', 'uses GET by default')
@@ -163,6 +163,13 @@ test('run request through its paces', function (t) {
     req.pipe(concat(function () {
       res.statusCode = 200
       res.json({ error: {} })
+    }))
+  })
+
+  server.expect('GET', '/@scoped%2Fpackage-failing', function (req, res) {
+    req.pipe(concat(function () {
+      res.statusCode = 402
+      res.json({ error: 'payment required' })
     }))
   })
 
@@ -248,5 +255,9 @@ test('run request through its paces', function (t) {
 
   client.request(common.registry + '/body-error-object', defaults, function (er) {
     t.ifError(er, 'call worked')
+  })
+
+  client.request(common.registry + '/@scoped%2Fpackage-failing', defaults, function (er) {
+    t.equals(er.message, 'payment required : @scoped/package-failing')
   })
 })
