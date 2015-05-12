@@ -840,7 +840,7 @@ def configure_intl(o):
     # ICU from pkg-config.
     o['variables']['v8_enable_i18n_support'] = 1
     pkgicu = pkg_config('icu-i18n')
-    if pkgicu[1] == None:
+    if pkgicu[0] == None:
       print 'Error: could not load pkg-config data for "icu-i18n".'
       print 'See above errors or the README.md.'
       sys.exit(1)
