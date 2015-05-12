@@ -721,6 +721,7 @@ def configure_openssl(o):
     return
   configure_library('openssl', o)
 
+
 def configure_fullystatic(o):
   if options.fully_static:
     o['libraries'] += ['-static']
