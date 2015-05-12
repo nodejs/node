@@ -90,6 +90,9 @@ You can use your own `eval` function if it has following signature:
       callback(null, result);
     }
 
+On tab completion - `eval` will be called with `.scope` as an input string. It
+is expected to return an array of scope names to be used for the auto-completion.
+
 Multiple REPLs may be started against the same running instance of io.js.  Each
 will share the same global object but will have unique I/O.
 
@@ -232,4 +235,5 @@ The following key combinations in the REPL have these special effects:
   - `<ctrl>C` - Similar to the `.break` keyword.  Terminates the current
     command.  Press twice on a blank line to forcibly exit.
   - `<ctrl>D` - Similar to the `.exit` keyword.
+  - `<tab>` - Show both global and local(scope) variables
 
