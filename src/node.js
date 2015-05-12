@@ -131,9 +131,20 @@
         if (process._forceRepl || NativeModule.require('tty').isatty(0)) {
           // REPL
           var cliRepl = Module.requireRepl();
-          cliRepl.createInternalRepl(process.env, function(err, repl) {
+          cliRepl.createInternalRepl(process.env, true, function(err, repl) {
             if (err) {
-              throw err;
+              console.error('Encountered error with persistent history support.')
+              console.error('Run with NODE_DEBUG=repl for more information.');
+              if (/repl/.test(process.env.NODE_DEBUG || '')) {
+                console.error(err.stack);
+              }
+              return cliRepl.createInternalRepl(
+                process.env, false, function(err, repl) {
+                if (err) {
+                  throw err;
+                }
+                repl.on('exit', process.exit);
+              });
             }
             repl.on('exit', function() {
               if (repl._flushing) {
