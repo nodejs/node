@@ -343,26 +343,29 @@ def b(value):
 
 
 def pkg_config(pkg):
-  pkg_config = os.environ.get('PKG_CONFIG_PATH',
-    os.environ.get('PKG_CONFIG', 'pkg-config'))
-  pkg_config_args = '--silence-errors'
+  pkg_config = 'pkg-config'
+  pkg_config = os.environ.get('PKG_CONFIG', pkg_config)
+  pkg_config = os.environ.get('PKG_CONFIG_PATH', pkg_config)
+  args = '--silence-errors'
   retval = ()
-  for flag in ['--libs-only-l', '--cflags-only-I']:
+  for flag in ['--libs-only-l', '--cflags-only-I', '--libs-only-L']:
     try:
-     val = subprocess.check_output([pkg_config, pkg_config_args, flag, pkg]).rstrip('\n')
+      val = subprocess.check_output([pkg_config, args, flag, pkg]).rstrip('\n')
     except subprocess.CalledProcessError:
       # most likely missing a .pc-file
       val = None
     except OSError:
       # no pkg-config/pkgconf installed
-      return (None, None)
+      return (None, None, None)
     retval += (val,)
   return retval
+
 
 def format_libraries(list):
   """Returns string of space separated libraries"""
   set = list.split(',')
   return ' '.join('-l{0}'.format(i) for i in set)
+
 
 def try_check_compiler(cc, lang):
   try:
@@ -681,24 +684,26 @@ def configure_node(o):
 
 
 def configure_library(lib, output):
-  shared_lib = 'shared_%s' % lib
-  output['variables']['node_%s' % shared_lib] = b(getattr(options, shared_lib))
+  shared_lib = 'shared_' + lib
+  output['variables']['node_' + shared_lib] = b(getattr(options, shared_lib))
 
   if getattr(options, shared_lib):
-    default_lib = format_libraries(getattr(options, '%s_libname' % shared_lib))
-    default_libpath = getattr(options, '%s_libpath' % shared_lib)
-    default_cflags = getattr(options, '%s_includes' % shared_lib)
-    
-    (pkg_libs, pkg_cflags) = pkg_config(lib)
-    libs = pkg_libs if pkg_libs else default_lib
+    default_cflags = getattr(options, shared_lib + '_includes')
+    default_lib = format_libraries(getattr(options, shared_lib + '_libname'))
+    default_libpath = getattr(options, shared_lib + '_libpath')
+    if default_libpath:
+      default_libpath = "-L" + default_libpath
+    (pkg_libs, pkg_cflags, pkg_libpath) = pkg_config(lib)
     cflags = pkg_cflags.split("-I") if pkg_cflags else default_cflags
+    libs = pkg_libs if pkg_libs else default_lib
+    libpath = pkg_libpath if pkg_libpath else default_libpath
   
     if libs:
       output['libraries'] += libs.split()
     if cflags:
       output['include_dirs'] += [cflags]
-    if default_libpath:
-      output['libraries'] += ['-L%s' % default_libpath]
+    if libpath:
+      output['libraries'] += [libpath]
 
 def configure_v8(o):
   o['variables']['v8_enable_gdbjit'] = 1 if options.gdb else 0
@@ -834,12 +839,13 @@ def configure_intl(o):
     # ICU from pkg-config.
     o['variables']['v8_enable_i18n_support'] = 1
     pkgicu = pkg_config('icu-i18n')
-    if not pkgicu:
+    if pkgicu[1] == None:
       print 'Error: could not load pkg-config data for "icu-i18n".'
       print 'See above errors or the README.md.'
       sys.exit(1)
-    (libs, cflags) = pkgicu
+    (libs, cflags, libpath) = pkgicu
     o['libraries'] += libs.split()
+    o['libraries'] += libpath.split()
     o['cflags'] += cflags.split()
     # use the "system" .gyp
     o['variables']['icu_gyp_path'] = 'tools/icu/icu-system.gyp'
