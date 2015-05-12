@@ -133,7 +133,11 @@
           var cliRepl = Module.requireRepl();
           cliRepl.createInternalRepl(process.env, true, function(err, repl) {
             if (err) {
-              console.log('Encountered error with persistent history support.');
+              console.error('Encountered error with persistent history support.')
+              console.error('Run with NODE_DEBUG=repl for more information.');
+              if (/repl/.test(process.env.NODE_DEBUG || '')) {
+                console.error(err.stack);
+              }
               return cliRepl.createInternalRepl(
                 process.env, false, function(err, repl) {
                 if (err) {
