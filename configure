@@ -350,7 +350,9 @@ def pkg_config(pkg):
   retval = ()
   for flag in ['--libs-only-l', '--cflags-only-I', '--libs-only-L']:
     try:
-      val = subprocess.check_output([pkg_config, args, flag, pkg]).rstrip('\n')
+      val = subprocess.check_output([pkg_config, args, flag, pkg])
+      # check_output returns bytes
+      val = val.encode().strip().rstrip('\n')
     except subprocess.CalledProcessError:
       # most likely missing a .pc-file
       val = None
@@ -697,7 +699,7 @@ def configure_library(lib, output):
     cflags = pkg_cflags.split("-I") if pkg_cflags else default_cflags
     libs = pkg_libs if pkg_libs else default_lib
     libpath = pkg_libpath if pkg_libpath else default_libpath
-  
+
     if libs:
       output['libraries'] += libs.split()
     if cflags:
