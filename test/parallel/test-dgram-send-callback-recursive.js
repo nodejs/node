@@ -8,9 +8,10 @@ const chunk = 'abc';
 var recursiveCount = 0;
 var received = 0;
 const limit = 10;
+const recursiveLimit = limit + 1;
 
 function onsend() {
-  if (recursiveCount > limit) {
+  if (recursiveCount > recursiveLimit) {
     throw new Error('infinite loop detected');
   }
   if (received < limit) {
