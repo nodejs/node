@@ -760,8 +760,15 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ mov(ecx, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
 
   if (has_new_target()) {
+    // If the constructor was [[Call]]ed, the call will not push a new.target
+    // onto the stack. In that case the arguments array we construct is bogus,
+    // bu we do not care as the constructor throws immediately.
+    __ cmp(ecx, Immediate(Smi::FromInt(0)));
+    Label skip_decrement;
+    __ j(equal, &skip_decrement);
     // Subtract 1 from smi-tagged arguments count.
     __ sub(ecx, Immediate(2));
+    __ bind(&skip_decrement);
   }
 
   __ lea(edx, Operand(edx, ecx, times_2,

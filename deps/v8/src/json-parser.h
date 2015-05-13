@@ -173,7 +173,7 @@ class JsonParser BASE_EMBEDDED {
   inline Factory* factory() { return factory_; }
   inline Handle<JSFunction> object_constructor() { return object_constructor_; }
 
-  static const int kInitialSpecialStringLength = 1024;
+  static const int kInitialSpecialStringLength = 32;
   static const int kPretenureTreshold = 100 * 1024;
 
 
