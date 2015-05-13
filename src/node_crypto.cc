@@ -77,7 +77,6 @@ namespace node {
 
 bool SSL2_ENABLE = false;
 bool SSL3_ENABLE = false;
-const char * DEFAULT_CIPHER_LIST = DEFAULT_CIPHER_LIST_HEAD;
 
 namespace crypto {
 
@@ -4852,26 +4851,6 @@ static void array_push_back(const TypeName* md,
   ctx->arr->Set(ctx->arr->Length(), OneByteString(ctx->env()->isolate(), from));
 }
 
-// borrowed from v8
-// (see http://v8.googlecode.com/svn/trunk/samples/shell.cc)
-const char* ToCString(const String::Utf8Value& value) {
-  return *value ? *value : "<string conversion failed>";
-}
-
-void DefaultCiphers(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
-  v8::String::Utf8Value key(args[0]);
-  const char * list = legacy_cipher_list(ToCString(key));
-  if (list != NULL) {
-    args.GetReturnValue().Set(
-      v8::String::NewFromUtf8(args.GetIsolate(), list));
-  } else {
-    args.GetReturnValue().Set(
-      v8::String::NewFromUtf8(args.GetIsolate(),
-                             DEFAULT_CIPHER_LIST_HEAD));
-  }
-}
 
 void GetCiphers(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
@@ -5192,8 +5171,6 @@ void InitCrypto(Handle<Object> target,
 
   NODE_DEFINE_CONSTANT(target, SSL3_ENABLE);
   NODE_DEFINE_CONSTANT(target, SSL2_ENABLE);
-  NODE_DEFINE_STRING_CONSTANT(target, DEFAULT_CIPHER_LIST);
-  NODE_SET_METHOD(target, "getLegacyCiphers", DefaultCiphers);
 }
 
 }  // namespace crypto

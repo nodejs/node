@@ -223,19 +223,6 @@ NODE_EXTERN void RunAtExit(Environment* env);
   }                                                                           \
   while (0)
 
-#define NODE_DEFINE_STRING_CONSTANT(target, constant)                         \
-  do {                                                                        \
-    v8::Isolate* isolate = v8::Isolate::GetCurrent();                         \
-    v8::Local<v8::String> constant_name =                                     \
-        v8::String::NewFromUtf8(isolate, #constant);                          \
-    v8::Local<v8::String> constant_value =                                    \
-        v8::String::NewFromUtf8(isolate, constant);                           \
-    v8::PropertyAttribute constant_attributes =                               \
-        static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);    \
-    (target)->ForceSet(constant_name, constant_value, constant_attributes);   \
-  } while (0)
-
-
 // Used to be a macro, hence the uppercase name.
 template <typename TypeName>
 inline void NODE_SET_METHOD(const TypeName& recv,
