@@ -80,3 +80,15 @@ child_process.exec(nodeBinary + ' '
     if (err) throw err;
     assert.ok(/worker terminated with code 43/.test(stdout));
   });
+
+// https://github.com/iojs/io.js/issues/1691
+var originalCwd = process.cwd();
+process.chdir(path.join(__dirname, '../fixtures/'));
+child_process.exec(nodeBinary + ' '
+  + '--expose_debug_as=v8debug '
+  + '--require ' + fixture('cluster-preload.js') + ' '
+  + 'cluster-preload-test.js',
+  function(err, stdout, stderr) {
+    if (err) throw err;
+    assert.ok(/worker terminated with code 43/.test(stdout));
+  });
