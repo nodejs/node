@@ -174,14 +174,14 @@ if "%config%"=="Debug" set test_args=--mode=debug %test_args%
 if "%config%"=="Release" set test_args=--mode=release %test_args%
 echo running 'cctest'
 "%config%\cctest"
-echo running 'python tools/test.py %test_args%'
-python tools/test.py %test_args%
+echo running 'python tools\test.py %test_args%'
+python tools\test.py %test_args%
 goto jslint
 
 :jslint
 if not defined jslint goto exit
 echo running jslint
-%config%\iojs tools/eslint/bin/eslint.js src lib --reset --quiet
+%config%\iojs tools\eslint\bin\eslint.js src lib --reset --quiet
 goto exit
 
 :create-msvs-files-failed
