@@ -1,0 +1,112 @@
+win,node-gyp: enable delay-load hook by default
+
+From: Bert Belder <bertbelder@gmail.com>
+
+The delay-load hook allows node.exe/iojs.exe to be renamed. See efadffe
+for more background.
+
+Bug: https://github.com/iojs/io.js/issues/751
+Bug: https://github.com/iojs/io.js/issues/965
+Upstream PR: https://github.com/TooTallNate/node-gyp/pull/599
+
+PR-URL: https://github.com/iojs/io.js/pull/1251
+Reviewed-By: Rod Vagg <rod@vagg.org>
+
+PR-URL: https://github.com/iojs/io.js/pull/1266
+Reviewed-By: Ben Noordhuis <info@bnoordhuis.nl>
+
+PR-URL: https://github.com/iojs/io.js/pull/1433
+Reviewed-By: Ben Noordhuis <info@bnoordhuis.nl>
+---
+ deps/npm/node_modules/node-gyp/addon.gypi          |   25 ++++++++++++++++
+ .../node-gyp/src/win_delay_load_hook.c             |   32 ++++++++++++++++++++
+ 2 files changed, 57 insertions(+)
+ create mode 100644 deps/npm/node_modules/node-gyp/src/win_delay_load_hook.c
+
+diff --git a/deps/npm/node_modules/node-gyp/addon.gypi b/deps/npm/node_modules/node-gyp/addon.gypi
+index 63fefe3..1fe142f 100644
+--- a/deps/npm/node_modules/node-gyp/addon.gypi
++++ b/deps/npm/node_modules/node-gyp/addon.gypi
+@@ -1,7 +1,9 @@
+ {
+   'target_defaults': {
+     'type': 'loadable_module',
++    'win_delay_load_hook': 'true',
+     'product_prefix': '',
++
+     'include_dirs': [
+       '<(node_root_dir)/src',
+       '<(node_root_dir)/deps/uv/include',
+@@ -13,11 +15,34 @@
+         'product_extension': 'node',
+         'defines': [ 'BUILDING_NODE_EXTENSION' ],
+       }],
++
+       ['_type=="static_library"', {
+         # set to `1` to *disable* the -T thin archive 'ld' flag.
+         # older linkers don't support this flag.
+         'standalone_static_library': '<(standalone_static_library)'
+       }],
++
++      ['_win_delay_load_hook=="true"', {
++        # If the addon specifies `'win_delay_load_hook': 'true'` in its
++        # binding.gyp, link a delay-load hook into the DLL. This hook ensures
++        # that the addon will work regardless of whether the node/iojs binary
++        # is named node.exe, iojs.exe, or something else.
++        'conditions': [
++          [ 'OS=="win"', {
++            'sources': [
++              'src/win_delay_load_hook.c',
++            ],
++            'msvs_settings': {
++              'VCLinkerTool': {
++                'DelayLoadDLLs': [ 'iojs.exe', 'node.exe' ],
++                # Don't print a linker warning when no imports from either .exe
++                # are used.
++                'AdditionalOptions': [ '/ignore:4199' ],
++              },
++            },
++          }],
++        ],
++      }],
+     ],
+ 
+     'conditions': [
+diff --git a/deps/npm/node_modules/node-gyp/src/win_delay_load_hook.c b/deps/npm/node_modules/node-gyp/src/win_delay_load_hook.c
+new file mode 100644
+index 0000000..05c4c39
+--- /dev/null
++++ b/deps/npm/node_modules/node-gyp/src/win_delay_load_hook.c
+@@ -0,0 +1,32 @@
++/*
++ * When this file is linked to a DLL, it sets up a delay-load hook that
++ * intervenes when the DLL is trying to load 'node.exe' or 'iojs.exe'
++ * dynamically. Instead of trying to locate the .exe file it'll just return
++ * a handle to the process image.
++ *
++ * This allows compiled addons to work when node.exe or iojs.exe is renamed.
++ */
++
++#ifdef _MSC_VER
++
++#define WIN32_LEAN_AND_MEAN
++#include <windows.h>
++
++#include <delayimp.h>
++#include <string.h>
++
++static FARPROC WINAPI load_exe_hook(unsigned int event, DelayLoadInfo* info) {
++  if (event != dliNotePreLoadLibrary)
++    return NULL;
++
++  if (_stricmp(info->szDll, "iojs.exe") != 0 &&
++      _stricmp(info->szDll, "node.exe") != 0)
++    return NULL;
++
++  HMODULE m = GetModuleHandle(NULL);
++  return (FARPROC) m;
++}
++
++PfnDliHook __pfnDliNotifyHook2 = load_exe_hook;
++
++#endif

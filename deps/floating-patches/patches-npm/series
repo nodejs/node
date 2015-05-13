@@ -1,0 +1,3 @@
+# This series applies on GIT commit 56e4255382ad4d2426e034624b41bbe97d18bca0
+deps-make-node-gyp-work-with
+win-node-gyp-enable-delay-load
