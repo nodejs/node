@@ -1,4 +1,27 @@
-2015.03.31, Version 0.12.2 (Stable)
+2015.05.13, Version 0.12.3 (Stable)
+
+* V8: update to 3.28.71.19
+
+* uv: upgrade to 1.5.0
+
+* npm: upgrade to 2.9.1
+
+* V8: don't busy loop in v8 cpu profiler thread (Mike Tunnicliffe)
+
+* V8: fix issue with let bindings in for loops (adamk)
+
+* debugger: don't spawn child process in remote mode (Jackson Tian)
+
+* net: do not set V4MAPPED on FreeBSD (Julien Gilli)
+
+* repl: make 'Unexpected token' errors recoverable (Julien Gilli)
+
+* src: backport ignore ENOTCONN on shutdown race (Ben Noordhuis)
+
+* src: fix backport of SIGINT crash fix on FreeBSD (Julien Gilli)
+
+
+2015.03.31, Version 0.12.2 (Stable), 523d445705027438b83b8d5958c9beeb1c8711d9
 
 * uv: Upgrade to 1.4.2
 
