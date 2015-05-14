@@ -280,6 +280,7 @@ struct fs_req_wrap {
 
 #define SYNC_DEST_CALL(func, path, dest, ...)                                 \
   fs_req_wrap req_wrap;                                                       \
+  env->PrintSyncTrace();                                                      \
   int err = uv_fs_ ## func(env->event_loop(),                                 \
                          &req_wrap.req,                                       \
                          __VA_ARGS__,                                         \

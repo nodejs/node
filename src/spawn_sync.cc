@@ -349,7 +349,9 @@ void SyncProcessRunner::Initialize(Handle<Object> target,
 
 
 void SyncProcessRunner::Spawn(const FunctionCallbackInfo<Value>& args) {
-  SyncProcessRunner p(Environment::GetCurrent(args));
+  Environment* env = Environment::GetCurrent(args);
+  env->PrintSyncTrace();
+  SyncProcessRunner p(env);
   Local<Value> result = p.Run(args[0]);
   args.GetReturnValue().Set(result);
 }

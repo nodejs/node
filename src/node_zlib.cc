@@ -181,6 +181,7 @@ class ZCtx : public AsyncWrap {
 
     if (!async) {
       // sync version
+      ctx->env()->PrintSyncTrace();
       Process(work_req);
       if (CheckError(ctx))
         AfterSync(ctx, args);

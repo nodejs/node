@@ -4630,6 +4630,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
                   EIO_PBKDF2,
                   EIO_PBKDF2After);
   } else {
+    env->PrintSyncTrace();
     Local<Value> argv[2];
     EIO_PBKDF2(req);
     EIO_PBKDF2After(req, argv);
@@ -4786,6 +4787,7 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
                   RandomBytesAfter);
     args.GetReturnValue().Set(obj);
   } else {
+    env->PrintSyncTrace();
     Local<Value> argv[2];
     RandomBytesWork(req->work_req());
     RandomBytesCheck(req, argv);
