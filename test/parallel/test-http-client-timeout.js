@@ -23,7 +23,8 @@ server.listen(options.port, options.host, function() {
   function destroy() {
     req.destroy();
   }
-  req.setTimeout(1, destroy);
+  var s = req.setTimeout(1, destroy);
+  assert.ok(s instanceof http.ClientRequest);
   req.on('error', destroy);
   req.end();
 });
