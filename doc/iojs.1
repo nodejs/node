@@ -77,13 +77,17 @@ If set to 1 then colors will not be used in the REPL.
 
   --use_strict (enforce strict mode)
         type: bool  default: false
+  --use_strong (enforce strong mode)
+        type: bool  default: false
+  --strong_mode (experimental strong language mode)
+        type: bool  default: false
   --es_staging (enable all completed harmony features)
         type: bool  default: false
   --harmony (enable all completed harmony features)
         type: bool  default: false
   --harmony_shipping (enable all shipped harmony features)
         type: bool  default: true
-  --harmony_modules (enable "harmony modules (implies block scoping)" (in progress))
+  --harmony_modules (enable "harmony modules" (in progress))
         type: bool  default: false
   --harmony_arrays (enable "harmony array methods" (in progress))
         type: bool  default: false
@@ -99,19 +103,21 @@ If set to 1 then colors will not be used in the REPL.
         type: bool  default: false
   --harmony_unicode (enable "harmony unicode escapes" (in progress))
         type: bool  default: false
+  --harmony_unicode_regexps (enable "harmony unicode regexps" (in progress))
+        type: bool  default: false
+  --harmony_rest_parameters (enable "harmony rest parameters" (in progress))
+        type: bool  default: false
+  --harmony_reflect (enable "harmony Reflect API" (in progress))
+        type: bool  default: false
+  --harmony_computed_property_names (enable "harmony computed property names")
+        type: bool  default: false
   --harmony_tostring (enable "harmony toString")
         type: bool  default: false
   --harmony_numeric_literals (enable "harmony numeric literals")
         type: bool  default: true
-  --harmony_strings (enable "harmony string methods")
-        type: bool  default: true
-  --harmony_scoping (enable "harmony block scoping")
-        type: bool  default: true
-  --harmony_classes (enable "harmony classes (implies block scoping & object literal extension)")
+  --harmony_classes (enable "harmony classes (implies object literal extension)")
         type: bool  default: true
   --harmony_object_literals (enable "harmony object literal extensions")
-        type: bool  default: true
-  --harmony_templates (enable "harmony template literals")
         type: bool  default: true
   --compiled_keyed_generic_loads (use optimizing compiler to generate keyed generic load stubs)
         type: bool  default: false
@@ -180,6 +186,8 @@ If set to 1 then colors will not be used in the REPL.
   --hydrogen_stats (print statistics for hydrogen)
         type: bool  default: false
   --trace_check_elimination (trace check elimination phase)
+        type: bool  default: false
+  --trace_environment_liveness (trace liveness of local variable slots)
         type: bool  default: false
   --trace_hydrogen (trace generated hydrogen to file)
         type: bool  default: false
@@ -286,7 +294,7 @@ If set to 1 then colors will not be used in the REPL.
   --concurrent_recompilation (optimizing hot functions asynchronously on a separate thread)
         type: bool  default: true
   --job_based_recompilation (post tasks to v8::Platform instead of using a thread for concurrent recompilation)
-        type: bool  default: false
+        type: bool  default: true
   --trace_concurrent_recompilation (track concurrent recompilation)
         type: bool  default: false
   --concurrent_recompilation_queue_length (the length of the concurrent compilation queue)
@@ -321,8 +329,12 @@ If set to 1 then colors will not be used in the REPL.
         type: bool  default: false
   --turbo_stats (print TurboFan statistics)
         type: bool  default: false
+  --turbo_splitting (split nodes during scheduling in TurboFan)
+        type: bool  default: true
   --turbo_types (use typed lowering in TurboFan)
         type: bool  default: true
+  --turbo_type_feedback (use type feedback in TurboFan)
+        type: bool  default: false
   --turbo_source_positions (track source code positions when building TurboFan IR)
         type: bool  default: false
   --context_specialization (enable context specialization in TurboFan)
@@ -331,21 +343,29 @@ If set to 1 then colors will not be used in the REPL.
         type: bool  default: false
   --turbo_inlining (enable inlining in TurboFan)
         type: bool  default: false
-  --turbo_inlining_intrinsics (enable inlining of intrinsics in TurboFan)
-        type: bool  default: false
+  --turbo_builtin_inlining (enable builtin inlining in TurboFan)
+        type: bool  default: true
   --trace_turbo_inlining (trace TurboFan inlining)
         type: bool  default: false
   --loop_assignment_analysis (perform loop assignment analysis)
         type: bool  default: true
   --turbo_profiling (enable profiling in TurboFan)
         type: bool  default: false
-  --turbo_reuse_spill_slots (reuse spill slots in TurboFan)
-        type: bool  default: true
   --turbo_delay_ssa_decon (delay ssa deconstruction in TurboFan register allocator)
+        type: bool  default: false
+  --turbo_verify_allocation (verify register allocation in TurboFan)
         type: bool  default: false
   --turbo_move_optimization (optimize gap moves in TurboFan)
         type: bool  default: true
-  --turbo_jt (enable jump threading)
+  --turbo_jt (enable jump threading in TurboFan)
+        type: bool  default: true
+  --turbo_osr (enable OSR in TurboFan)
+        type: bool  default: true
+  --turbo_exceptions (enable exception handling in TurboFan)
+        type: bool  default: false
+  --turbo_stress_loop_peeling (stress loop peeling optimization)
+        type: bool  default: false
+  --turbo_cf_optimization (optimize control flow in TurboFan)
         type: bool  default: true
   --typed_array_max_size_in_heap (threshold for in-heap typed array)
         type: int  default: 64
@@ -395,8 +415,10 @@ If set to 1 then colors will not be used in the REPL.
         type: bool  default: true
   --enable_vldr_imm (enable use of constant pools for double immediate (ARM only))
         type: bool  default: false
-  --force_long_branches (force all emitted branches to be in long mode (MIPS only))
+  --force_long_branches (force all emitted branches to be in long mode (MIPS/PPC only))
         type: bool  default: false
+  --mcpu (enable optimization for specific cpu)
+        type: string  default: auto
   --expose_natives_as (expose natives in global object)
         type: string  default: NULL
   --expose_debug_as (expose debug in global object)
@@ -446,7 +468,7 @@ If set to 1 then colors will not be used in the REPL.
   --serialize_toplevel (enable caching of toplevel scripts)
         type: bool  default: true
   --serialize_inner (enable caching of inner functions)
-        type: bool  default: false
+        type: bool  default: true
   --trace_serializer (print code serializer trace)
         type: bool  default: false
   --min_preparse_length (minimum length for automatic enable preparsing)
@@ -497,6 +519,8 @@ If set to 1 then colors will not be used in the REPL.
         type: bool  default: false
   --gc_interval (garbage collect after <n> allocations)
         type: int  default: -1
+  --retain_maps_for_n_gc (keeps maps alive for <n> old space garbage collections)
+        type: int  default: 2
   --trace_gc (print one trace line following each garbage collection)
         type: bool  default: false
   --trace_gc_nvp (print one detailed trace line in name=value format after each garbage collection)
@@ -513,7 +537,9 @@ If set to 1 then colors will not be used in the REPL.
         type: bool  default: false
   --trace_gc_verbose (print more details following each garbage collection)
         type: bool  default: false
-  --trace_fragmentation (report fragmentation for old pointer and data pages)
+  --trace_fragmentation (report fragmentation for old space)
+        type: bool  default: false
+  --trace_fragmentation_verbose (report fragmentation for old space (detailed))
         type: bool  default: false
   --collect_maps (garbage collect maps from which no objects can be reached)
         type: bool  default: true
@@ -533,11 +559,21 @@ If set to 1 then colors will not be used in the REPL.
         type: bool  default: true
   --incremental_marking_steps (do incremental marking steps)
         type: bool  default: true
+  --overapproximate_weak_closure (overapproximate weak closer to reduce atomic pause time)
+        type: bool  default: true
+  --min_progress_during_object_groups_marking (keep overapproximating the weak closure as long as we discover at least this many unmarked objects)
+        type: int  default: 128
+  --max_object_groups_marking_rounds (at most try this many times to over approximate the weak closure)
+        type: int  default: 3
   --concurrent_sweeping (use concurrent sweeping)
         type: bool  default: true
   --trace_incremental_marking (trace progress of the incremental marking)
         type: bool  default: false
   --track_gc_object_stats (track object counts and memory usage)
+        type: bool  default: false
+  --track_detached_contexts (track native contexts that are expected to be garbage collected)
+        type: bool  default: true
+  --trace_detached_contexts (trace native contexts that are expected to be garbage collected)
         type: bool  default: false
   --heap_profiler_trace_objects (Dump heap object allocations/movements/size_updates)
         type: bool  default: false
@@ -627,6 +663,12 @@ If set to 1 then colors will not be used in the REPL.
         type: bool  default: false
   --predictable (enable predictable mode)
         type: bool  default: false
+  --force_marking_deque_overflows (force overflows of marking deque by reducing it's size to 64 words)
+        type: bool  default: false
+  --stress_compaction (stress the GC compactor to flush out bugs (implies --force_marking_deque_overflows))
+        type: bool  default: false
+  --manual_evacuation_candidates_selection (Test mode only flag. It allows an unit test to select evacuation candidates pages (requires --stress_compaction).)
+        type: bool  default: false
   --help (Print usage message, including flags, on console)
         type: bool  default: true
   --dump_counters (Dump counters on exit)
@@ -637,18 +679,6 @@ If set to 1 then colors will not be used in the REPL.
         type: string  default:
   --js_arguments (Pass all remaining arguments to the script. Alias for "--".)
         type: arguments  default:
-  --gdbjit (enable GDBJIT interface (disables compacting GC))
-        type: bool  default: false
-  --gdbjit_full (enable GDBJIT interface for all code objects)
-        type: bool  default: false
-  --gdbjit_dump (dump elf objects with debug info to disk)
-        type: bool  default: false
-  --gdbjit_dump_filter (dump only objects containing this substring)
-        type: string  default:
-  --force_marking_deque_overflows (force overflows of marking deque by reducing it's size to 64 words)
-        type: bool  default: false
-  --stress_compaction (stress the GC compactor to flush out bugs (implies --force_marking_deque_overflows))
-        type: bool  default: false
   --log (Minimal logging (no API, code, GC, suspect, or handles samples).)
         type: bool  default: false
   --log_all (Log all events to the log file.)
@@ -666,6 +696,8 @@ If set to 1 then colors will not be used in the REPL.
   --log_suspect (Log suspect operations.)
         type: bool  default: false
   --prof (Log statistical profiling information (implies --log-code).)
+        type: bool  default: false
+  --prof_cpp (Like --prof, but ignore generated code.)
         type: bool  default: false
   --prof_browser_mode (Used with --prof, turns on browser-compatible mode for profiling.)
         type: bool  default: true
