@@ -15,10 +15,11 @@ var options = {
 };
 
 var server = tls.createServer(options, function(cleartext) {
-  cleartext.setTimeout(50, function() {
+  var s = cleartext.setTimeout(50, function() {
     cleartext.destroy();
     server.close();
   });
+  assert.ok(s instanceof tls.TLSSocket);
 });
 
 server.listen(common.PORT, function() {
