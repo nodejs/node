@@ -18,12 +18,13 @@ var left = killers.length;
 killers.forEach(function(killer) {
   var socket = net.createConnection(common.PORT, 'localhost');
 
-  socket.setTimeout(T, function() {
+  var s = socket.setTimeout(T, function() {
     socket.destroy();
     if (--left === 0) server.close();
     assert.ok(killer !== 0);
     clearTimeout(timeout);
   });
+  assert.ok(s instanceof net.Socket);
 
   socket.setTimeout(killer);
 

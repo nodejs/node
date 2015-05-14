@@ -17,7 +17,8 @@ var options = {
 };
 
 var server = tls.Server(options, function(socket) {
-  socket.setTimeout(100);
+  var s = socket.setTimeout(100);
+  assert.ok(s instanceof tls.TLSSocket);
 
   socket.on('timeout', function(err) {
     hadTimeout = true;

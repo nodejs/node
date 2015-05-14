@@ -231,6 +231,8 @@ destroyed automatically if they time out.  However, if you assign a
 callback to the Server's `'timeout'` event, then you are responsible
 for handling socket timeouts.
 
+Returns `server`.
+
 ### server.timeout
 
 * {Number} Default = 120000 (2 minutes)
@@ -317,6 +319,8 @@ the server, then sockets are destroyed when they time out.  If you
 assign a handler on the request, the response, or the server's
 `'timeout'` events, then it is your responsibility to handle timed out
 sockets.
+
+Returns `response`.
 
 ### response.statusCode
 
@@ -914,6 +918,8 @@ Aborts a request.  (New since v0.3.8.)
 Once a socket is assigned to this request and is connected
 [socket.setTimeout()][] will be called.
 
+Returns `request`.
+
 ### request.setNoDelay([noDelay])
 
 Once a socket is assigned to this request and is connected
@@ -1002,6 +1008,8 @@ received.  Only populated at the 'end' event.
 * `callback` {Function}
 
 Calls `message.connection.setTimeout(msecs, callback)`.
+
+Returns `message`.
 
 ### message.method
 
