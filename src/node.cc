@@ -102,6 +102,8 @@ using v8::Promise;
 using v8::PromiseRejectMessage;
 using v8::PropertyCallbackInfo;
 using v8::SealHandleScope;
+using v8::StackFrame;
+using v8::StackTrace;
 using v8::String;
 using v8::TryCatch;
 using v8::Uint32;
@@ -114,6 +116,7 @@ static bool force_repl = false;
 static bool trace_deprecation = false;
 static bool throw_deprecation = false;
 static bool abort_on_uncaught_exception = false;
+static bool trace_sync_io = false;
 static const char* eval_string = nullptr;
 static unsigned int preload_module_count = 0;
 static const char** preload_modules = nullptr;
@@ -2834,6 +2837,13 @@ void SetupProcessObject(Environment* env,
     READONLY_PROPERTY(process, "traceDeprecation", True(env->isolate()));
   }
 
+  // --trace-sync-io
+  if (trace_sync_io) {
+    READONLY_PROPERTY(process, "traceSyncIO", True(env->isolate()));
+    // Don't env->set_trace_sync_io(true) because it will be enabled
+    // after LoadEnvironment() has run.
+  }
+
   size_t exec_path_len = 2 * PATH_MAX;
   char* exec_path = new char[exec_path_len];
   Local<String> exec_path_value;
@@ -3060,6 +3070,8 @@ static void PrintHelp() {
          "  --throw-deprecation  throw an exception anytime a deprecated "
          "function is used\n"
          "  --trace-deprecation  show stack traces on deprecations\n"
+         "  --trace-sync-io      show stack trace when use of sync IO\n"
+         "                       is detected after the first tick\n"
          "  --v8-options         print v8 command line options\n"
 #if defined(NODE_HAVE_I18N_SUPPORT)
          "  --icu-data-dir=dir   set ICU data load path to dir\n"
@@ -3180,6 +3192,8 @@ static void ParseArgs(int* argc,
       no_deprecation = true;
     } else if (strcmp(arg, "--trace-deprecation") == 0) {
       trace_deprecation = true;
+    } else if (strcmp(arg, "--trace-sync-io") == 0) {
+      trace_sync_io = true;
     } else if (strcmp(arg, "--throw-deprecation") == 0) {
       throw_deprecation = true;
     } else if (strcmp(arg, "--abort-on-uncaught-exception") == 0 ||
@@ -3887,6 +3901,8 @@ static void StartNodeInstance(void* arg) {
 
     LoadEnvironment(env);
 
+    env->set_trace_sync_io(trace_sync_io);
+
     // Enable debugger
     if (instance_data->use_debug_agent())
       EnableDebug(env);
@@ -3910,6 +3926,8 @@ static void StartNodeInstance(void* arg) {
         }
       } while (more == true);
     }
+
+    env->set_trace_sync_io(false);
 
     int exit_code = EmitExit(env);
     if (instance_data->is_main())

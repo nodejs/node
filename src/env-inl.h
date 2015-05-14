@@ -176,6 +176,7 @@ inline Environment::Environment(v8::Local<v8::Context> context,
       using_abort_on_uncaught_exc_(false),
       using_asyncwrap_(false),
       printed_error_(false),
+      trace_sync_io_(false),
       debugger_agent_(this),
       context_(context->GetIsolate(), context) {
   // We'll be creating new objects so make sure we've entered the context.
@@ -323,6 +324,10 @@ inline bool Environment::printed_error() const {
 
 inline void Environment::set_printed_error(bool value) {
   printed_error_ = value;
+}
+
+inline void Environment::set_trace_sync_io(bool value) {
+  trace_sync_io_ = value;
 }
 
 inline Environment* Environment::from_cares_timer_handle(uv_timer_t* handle) {

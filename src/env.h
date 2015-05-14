@@ -420,6 +420,9 @@ class Environment {
   inline bool printed_error() const;
   inline void set_printed_error(bool value);
 
+  void PrintSyncTrace() const;
+  inline void set_trace_sync_io(bool value);
+
   inline void ThrowError(const char* errmsg);
   inline void ThrowTypeError(const char* errmsg);
   inline void ThrowRangeError(const char* errmsg);
@@ -506,6 +509,7 @@ class Environment {
   bool using_abort_on_uncaught_exc_;
   bool using_asyncwrap_;
   bool printed_error_;
+  bool trace_sync_io_;
   debugger::Agent debugger_agent_;
 
   HandleWrapQueue handle_wrap_queue_;
