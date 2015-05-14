@@ -384,6 +384,11 @@ class Isolate {
  public:
   ~Isolate();
 
+  // ISSUE-14576: allow to access process_wide_mutex_ from sampler.cc
+  static base::Mutex* GetProcessWideMutexPointer() {
+    return process_wide_mutex_.Pointer();
+  }
+
   // A thread has a PerIsolateThreadData instance for each isolate that it has
   // entered. That instance is allocated when the isolate is initially entered
   // and reused on subsequent entries.

@@ -342,6 +342,14 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
     // We require a fully initialized and entered isolate.
     return;
   }
+
+  // ISSUE-14576: To avoid deadlock, return if there is a thread lock
+  if (Isolate::GetProcessWideMutexPointer()->TryLock()) {
+    Isolate::GetProcessWideMutexPointer()->Unlock();
+  } else {
+    return;
+  }
+
   if (v8::Locker::IsActive() &&
       !isolate->thread_manager()->IsLockedByCurrentThread()) {
     return;
