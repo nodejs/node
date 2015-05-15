@@ -306,35 +306,46 @@ handling your report.
 ## Current Project Team Members
 
 The io.js project team comprises a group of core collaborators and a sub-group
-that forms the _Technical Committee_ (TC) which governs the project. For more
+that forms the _Technical Steering Committee_ (TSC) which governs the project. For more
 information about the governance of the io.js project, see
 [GOVERNANCE.md](./GOVERNANCE.md).
 
-* **Isaac Z. Schlueter** &lt;i@izs.me&gt; ([@isaacs](https://github.com/isaacs)) (Technical Committee)
-* **Ben Noordhuis** &lt;info@bnoordhuis.nl&gt; ([@bnoordhuis](https://github.com/bnoordhuis)) (Technical Committee)
-* **Bert Belder** &lt;bertbelder@gmail.com&gt; ([@piscisaureus](https://github.com/piscisaureus)) (Technical Committee)
-* **Fedor Indutny** &lt;fedor.indutny@gmail.com&gt; ([@indutny](https://github.com/indutny)) (Technical Committee)
-* **Trevor Norris** &lt;trev.norris@gmail.com&gt; ([@trevnorris](https://github.com/trevnorris)) (Technical Committee)
-* **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt; ([@chrisdickinson](https://github.com/chrisdickinson)) (Technical Committee)
+=======
+### TSC (Technical Steering Committee)
+
+* **Ben Noordhuis** &lt;info@bnoordhuis.nl&gt; ([@bnoordhuis](https://github.com/bnoordhuis))
+* **Bert Belder** &lt;bertbelder@gmail.com&gt; ([@piscisaureus](https://github.com/piscisaureus))
+* **Fedor Indutny** &lt;fedor.indutny@gmail.com&gt; ([@indutny](https://github.com/indutny))
+* **Trevor Norris** &lt;trev.norris@gmail.com&gt; ([@trevnorris](https://github.com/trevnorris))
+* **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt; ([@chrisdickinson](https://github.com/chrisdickinson))
   - Release GPG key: 9554F04D7259F04124DE6B476D5A82AC7E37093B
-* **Colin Ihrig** &lt;cjihrig@gmail.com&gt; ([@cjihrig](https://github.com/cjihrig))
-* **Mikeal Rogers** &lt;mikeal.rogers@gmail.com&gt; ([@mikeal](https://github.com/mikeal))
-* **Rod Vagg** &lt;rod@vagg.org&gt; ([@rvagg](https://github.com/rvagg)) (Technical Committee)
+* **Rod Vagg** &lt;rod@vagg.org&gt; ([@rvagg](https://github.com/rvagg))
   - Release GPG key: DD8F2338BAE7501E3DD5AC78C273792F7D83545D
+* **Jeremiah Senkpiel** &lt;fishrock123@rocketmail.com&gt; ([@fishrock123](https://github.com/fishrock123))
+  - Release GPG key: FD3A5288F042B6850C66B31F09FE44734EB7990E
+* **Colin Ihrig** &lt;cjihrig@gmail.com&gt; ([@cjihrig](https://github.com/cjihrig))
+* **Alexis Campailla** &lt;orangemocha@nodejs.org&gt; ([@orangemocha](https://github.com/orangemocha))
+* **Julien Gilli** &lt;jgilli@nodejs.org&gt; ([@misterdjules](https://github.com/misterdjules))
+* **James M Snell** &lt;jasnell@gmail.com&gt; ([@jasnell](https://github.com/jasnell))
+* **Steven R Loomis** &lt;srloomis@us.ibm.com&gt; ([@srl295](https://github.com/srl295))
+* **Michael Dawson** &lt;michael_dawson@ca.ibm.com&gt; ([@mhdawson](https://github.com/mhdawson))
+* **Shigeki Ohtsu** &lt;ohtsu@iij.ad.jp&gt; ([@shigeki](https://github.com/shigeki))
+* **Brian White** &lt;mscdex@mscdex.net&gt; ([@mscdex](https://github.com/mscdex))
+
+### Collaborators
+
+* **Isaac Z. Schlueter** &lt;i@izs.me&gt; ([@isaacs](https://github.com/isaacs))
+* **Mikeal Rogers** &lt;mikeal.rogers@gmail.com&gt; ([@mikeal](https://github.com/mikeal))
 * **Thorsten Lorenz** &lt;thlorenz@gmx.de&gt; ([@thlorenz](https://github.com/thlorenz))
 * **Stephen Belanger** &lt;admin@stephenbelanger.com&gt; ([@qard](https://github.com/qard))
-* **Jeremiah Senkpiel** &lt;fishrock123@rocketmail.com&gt; ([@fishrock123](https://github.com/fishrock123)) (Technical Committee)
-  - Release GPG key: FD3A5288F042B6850C66B31F09FE44734EB7990E
 * **Evan Lucas** &lt;evanlucas@me.com&gt; ([@evanlucas](https://github.com/evanlucas))
 * **Brendan Ashworth** &lt;brendan.ashworth@me.com&gt; ([@brendanashworth](https://github.com/brendanashworth))
 * **Vladimir Kurchatkin** &lt;vladimir.kurchatkin@gmail.com&gt; ([@vkurchatkin](https://github.com/vkurchatkin))
 * **Nikolai Vavilov** &lt;vvnicholas@gmail.com&gt; ([@seishun](https://github.com/seishun))
 * **Nicu Micleușanu** &lt;micnic90@gmail.com&gt; ([@micnic](https://github.com/micnic))
 * **Aleksey Smolenchuk** &lt;lxe@lxe.co&gt; ([@lxe](https://github.com/lxe))
-* **Shigeki Ohtsu** &lt;ohtsu@iij.ad.jp&gt; ([@shigeki](https://github.com/shigeki)) (Technical Committee)
 * **Sam Roberts** &lt;vieuxtech@gmail.com&gt; ([@sam-github](https://github.com/sam-github))
 * **Wyatt Preul** &lt;wpreul@gmail.com&gt; ([@geek](https://github.com/geek))
-* **Brian White** &lt;mscdex@mscdex.net&gt; ([@mscdex](https://github.com/mscdex)) (Technical Committee)
 * **Christian Tellnes** &lt;christian@tellnes.no&gt; ([@tellnes](https://github.com/tellnes))
 * **Robert Kowalski** &lt;rok@kowalski.gd&gt; ([@robertkowalski](https://github.com/robertkowalski))
 * **Julian Duque** &lt;julianduquej@gmail.com&gt; ([@julianduque](https://github.com/julianduque))
@@ -350,5 +361,5 @@ information about the governance of the io.js project, see
 * **Rich Trott** &lt;rtrott@gmail.com&gt; ([@Trott](https://github.com/Trott))
 * **Сковорода Никита Андреевич** &lt;chalkerx@gmail.com&gt; ([@ChALkeR](https://github.com/ChALkeR))
 
-Collaborators follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
+Collaborators & TSC members follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
 maintaining the io.js project.
