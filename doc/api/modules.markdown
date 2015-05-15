@@ -431,8 +431,8 @@ semicolons instead of colons.)
 
 `NODE_PATH` was originally created to support loading modules from
 varying paths before the current
-[module resolution](https://iojs.org/api/modules.html) algorithm was
-frozen.
+[module resolution](https://iojs.org/api/modules.html#modules_all_together)
+algorithm was frozen.
 
 `NODE_PATH` is still supported, but is less necessary now that the io.js
 ecosystem has settled on a convention for locating dependent modules.
@@ -450,9 +450,9 @@ Additionally, io.js will search in the following locations:
 Where `$HOME` is the user's home directory, and `$PREFIX` is io.js's
 configured `node_prefix`.
 
-These are mostly for historic reasons.  You are highly encouraged to
-place your dependencies locally in `node_modules` folders.  They will be
-loaded faster, and more reliably.
+These are mostly for historic reasons.  **You are highly encouraged
+to place your dependencies locally in `node_modules` folders.**  They
+will be loaded faster, and more reliably.
 
 ## Accessing the main module
 
