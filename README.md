@@ -262,7 +262,7 @@ as `deps/icu` (You'll have: `deps/icu/source/...`)
 ## Current Project Team Members
 
 The io.js project team comprises a group of core collaborators and a sub-group
-that forms the _TSC_ (TC) which governs the project. For more
+that forms the _Technical Steering Committee_ (TSC) which governs the project. For more
 information about the governance of the io.js project, see
 [GOVERNANCE.md](./GOVERNANCE.md).
 
