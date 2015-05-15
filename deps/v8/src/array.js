@@ -1480,6 +1480,7 @@ function SetUpArray() {
     find: true,
     findIndex: true,
     keys: true,
+    values: true,
   };
   %AddNamedProperty($Array.prototype, symbolUnscopables, unscopables,
       DONT_ENUM | READ_ONLY);

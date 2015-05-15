@@ -45,8 +45,11 @@ function assertHasOwnProperty(object, name, attrs) {
 
 function TestArrayPrototype() {
   assertHasOwnProperty(Array.prototype, 'entries', DONT_ENUM);
+  assertHasOwnProperty(Array.prototype, 'values', DONT_ENUM);
   assertHasOwnProperty(Array.prototype, 'keys', DONT_ENUM);
   assertHasOwnProperty(Array.prototype, Symbol.iterator, DONT_ENUM);
+
+  assertEquals(Array.prototype.values, Array.prototype[Symbol.iterator]);
 }
 TestArrayPrototype();
 
@@ -58,7 +61,7 @@ function assertIteratorResult(value, done, result) {
 
 function TestValues() {
   var array = ['a', 'b', 'c'];
-  var iterator = array[Symbol.iterator]();
+  var iterator = array.values();
   assertIteratorResult('a', false, iterator.next());
   assertIteratorResult('b', false, iterator.next());
   assertIteratorResult('c', false, iterator.next());
@@ -72,7 +75,7 @@ TestValues();
 
 function TestValuesMutate() {
   var array = ['a', 'b', 'c'];
-  var iterator = array[Symbol.iterator]();
+  var iterator = array.values();
   assertIteratorResult('a', false, iterator.next());
   assertIteratorResult('b', false, iterator.next());
   assertIteratorResult('c', false, iterator.next());
@@ -139,17 +142,17 @@ TestEntriesMutate();
 
 function TestArrayIteratorPrototype() {
   var array = [];
-  var iterator = array.keys();
+  var iterator = array.values();
 
   var ArrayIteratorPrototype = iterator.__proto__;
 
-  assertEquals(ArrayIteratorPrototype, array[Symbol.iterator]().__proto__);
+  assertEquals(ArrayIteratorPrototype, array.values().__proto__);
   assertEquals(ArrayIteratorPrototype, array.keys().__proto__);
   assertEquals(ArrayIteratorPrototype, array.entries().__proto__);
 
   assertEquals(Object.prototype, ArrayIteratorPrototype.__proto__);
 
-  assertEquals('Array Iterator', %_ClassOf(array[Symbol.iterator]()));
+  assertEquals('Array Iterator', %_ClassOf(array.values()));
   assertEquals('Array Iterator', %_ClassOf(array.keys()));
   assertEquals('Array Iterator', %_ClassOf(array.entries()));
 
@@ -166,7 +169,7 @@ function TestForArrayValues() {
   var buffer = [];
   var array = [0, 'a', true, false, null, /* hole */, undefined, NaN];
   var i = 0;
-  for (var value of array[Symbol.iterator]()) {
+  for (var value of array.values()) {
     buffer[i++] = value;
   }
 
@@ -239,7 +242,7 @@ TestForArrayValues();
 
 function TestNonOwnSlots() {
   var array = [0];
-  var iterator = array[Symbol.iterator]();
+  var iterator = array.values();
   var object = {__proto__: iterator};
 
   assertThrows(function() {
