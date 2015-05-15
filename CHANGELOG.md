@@ -1,6 +1,6 @@
 # io.js ChangeLog
 
-## 2015-05-15, Version 2.0.1, @Fishrock123
+## 2015-05-15, Version 2.0.2, @Fishrock123
 
 ### Notable changes
 
