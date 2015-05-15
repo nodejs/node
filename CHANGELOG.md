@@ -1,5 +1,54 @@
 # io.js ChangeLog
 
+## 2015-05-15, Version 2.0.1, @Fishrock123
+
+### Notable changes
+
+* **win,node-gyp**: the delay-load hook for windows addons has now been correctly enabled by default, it had wrongly defaulted to off in the release version of 2.0.0 (Bert Belder) [#1433](https://github.com/iojs/io.js/pull/1433)
+* **os**: `tmpdir()`'s trailing slash stripping has been refined to fix an issue when the temp directory is at '/'. Also considers which slash is used by the operating system. (cjihrig) [#1673](https://github.com/iojs/io.js/pull/1673)
+* **tls**: default ciphers have been updated to use gcm and aes128 (Mike MacCana) [#1660](https://github.com/iojs/io.js/pull/1660)
+* **build**: v8 snapshots have been re-enabled by default as suggested by the v8 team, since prior security issues have been resolved. This should give some perf improvements to both startup and vm context creation. (Trevor Norris) [#1663](https://github.com/iojs/io.js/pull/1663)
+* **src**: fixed preload modules not working when other flags were used before `--require` (Yosuke Furukawa) [#1694](https://github.com/iojs/io.js/pull/1694)
+* **dgram**: fixed `send()`'s callback not being asynchronous (Yosuke Furukawa) [#1313](https://github.com/iojs/io.js/pull/1313)
+* **readline**: emitKeys now keeps buffering data until it has enough to parse. This fixes an issue with parsing split escapes. (Alex Kocharin) [#1601](https://github.com/iojs/io.js/pull/1601)
+* **cluster**: works now properly emit 'disconnect' to `cluser.worker` (Oleg Elifantiev) [#1386](https://github.com/iojs/io.js/pull/1386)
+* **events**: uncaught errors now provide some context (Evan Lucas) [#1654](https://github.com/iojs/io.js/pull/1654)
+
+### Known issues
+
+See https://github.com/iojs/io.js/labels/confirmed-bug for complete and current list of known issues.
+
+* Some problems with unreferenced timers running during `beforeExit` are still to be resolved. See [#1264](https://github.com/iojs/io.js/issues/1264).
+* Surrogate pair in REPL can freeze terminal [#690](https://github.com/iojs/io.js/issues/690)
+* `process.send()` is not synchronous as the docs suggest, a regression introduced in 1.0.2, see [#760](https://github.com/iojs/io.js/issues/760) and fix in [#774](https://github.com/iojs/io.js/issues/774)
+* Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion [#894](https://github.com/iojs/io.js/issues/894)
+* `url.resolve` may transfer the auth portion of the url when resolving between two full hosts, see [#1435](https://github.com/iojs/io.js/issues/1435).
+
+### Commits
+
+* [[`8a0e5295b4`](https://github.com/iojs/io.js/commit/8a0e5295b4)] - **build**: use backslashes for paths on windows (Johan Bergström) [#1698](https://github.com/iojs/io.js/pull/1698)
+* [[`20c9a52227`](https://github.com/iojs/io.js/commit/20c9a52227)] - **build**: move --with-intl to intl optgroup (Johan Bergström) [#1680](https://github.com/iojs/io.js/pull/1680)
+* [[`36cdc7c8ac`](https://github.com/iojs/io.js/commit/36cdc7c8ac)] - **build**: re-enable V8 snapshots (Trevor Norris) [#1663](https://github.com/iojs/io.js/pull/1663)
+* [[`5883a59b21`](https://github.com/iojs/io.js/commit/5883a59b21)] - **cluster**: disconnect event not emitted correctly (Oleg Elifantiev) [#1386](https://github.com/iojs/io.js/pull/1386)
+* [[`0f850f7ae7`](https://github.com/iojs/io.js/commit/0f850f7ae7)] - **deps**: provide TXT chunk info in c-ares (Fedor Indutny)
+* [[`7e1c0e75ed`](https://github.com/iojs/io.js/commit/7e1c0e75ed)] - **deps**: sync with upstream bagder/c-ares@bba4dc5 (Ben Noordhuis) [#1678](https://github.com/iojs/io.js/pull/1678)
+* [[`18d457bd34`](https://github.com/iojs/io.js/commit/18d457bd34)] - **dgram**: call send callback asynchronously (Yosuke Furukawa) [#1313](https://github.com/iojs/io.js/pull/1313)
+* [[`8b9a1537ad`](https://github.com/iojs/io.js/commit/8b9a1537ad)] - **events**: provide better error message for unhandled error (Evan Lucas) [#1654](https://github.com/iojs/io.js/pull/1654)
+* [[`19ffb5cf1c`](https://github.com/iojs/io.js/commit/19ffb5cf1c)] - **lib**: fix eslint styles (Yosuke Furukawa) [#1539](https://github.com/iojs/io.js/pull/1539)
+* [[`76937051f8`](https://github.com/iojs/io.js/commit/76937051f8)] - **os**: refine tmpdir() trailing slash stripping (cjihrig) [#1673](https://github.com/iojs/io.js/pull/1673)
+* [[`aed6bce906`](https://github.com/iojs/io.js/commit/aed6bce906)] - **readline**: turn emitKeys into a streaming parser (Alex Kocharin) [#1601](https://github.com/iojs/io.js/pull/1601)
+* [[`0a461e5360`](https://github.com/iojs/io.js/commit/0a461e5360)] - **src**: fix preload when used with prior flags (Yosuke Furukawa) [#1694](https://github.com/nodejs/io.js/pull/1694)
+* [[`931a0d4634`](https://github.com/iojs/io.js/commit/931a0d4634)] - **src**: add type check to v8.setFlagsFromString() (Roman Klauke) [#1652](https://github.com/iojs/io.js/pull/1652)
+* [[`08d08668c9`](https://github.com/iojs/io.js/commit/08d08668c9)] - **src,deps**: replace LoadLibrary by LoadLibraryW (Cheng Zhao) [#226](https://github.com/iojs/io.js/pull/226)
+* [[`4e2f999a62`](https://github.com/iojs/io.js/commit/4e2f999a62)] - **test**: fix infinite loop detection (Yosuke Furukawa) [#1681](https://github.com/iojs/io.js/pull/1681)
+* [[`5755fc099f`](https://github.com/iojs/io.js/commit/5755fc099f)] - **tls**: update default ciphers to use gcm and aes128 (Mike MacCana) [#1660](https://github.com/iojs/io.js/pull/1660)
+* [[`966acb9916`](https://github.com/iojs/io.js/commit/966acb9916)] - **tools**: remove closure_linter to eslint on windows (Yosuke Furukawa) [#1685](https://github.com/iojs/io.js/pull/1685)
+* [[`c58264e58b`](https://github.com/iojs/io.js/commit/c58264e58b)] - **tools**: make eslint work on subdirectories (Roman Reiss) [#1686](https://github.com/iojs/io.js/pull/1686)
+* [[`0b21ab13b7`](https://github.com/iojs/io.js/commit/0b21ab13b7)] - **tools**: refactor `make test-npm` into test-npm.sh (Jeremiah Senkpiel) [#1662](https://github.com/iojs/io.js/pull/1662)
+* [[`f07b3b600b`](https://github.com/iojs/io.js/commit/f07b3b600b)] - **tools**: set eslint comma-spacing to 'warn' (Roman Reiss) [#1672](https://github.com/iojs/io.js/pull/1672)
+* [[`f9dd34d301`](https://github.com/iojs/io.js/commit/f9dd34d301)] - **tools**: replace closure-linter with eslint (Yosuke Furukawa) [#1539](https://github.com/iojs/io.js/pull/1539)
+* [[`64d3210c98`](https://github.com/iojs/io.js/commit/64d3210c98)] - **win,node-gyp**: enable delay-load hook by default (Bert Belder) [#1667](https://github.com/iojs/io.js/issues/1667)
+
 ## 2015-05-07, Version 2.0.1, @rvagg
 
 ### Notable changes
