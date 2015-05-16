@@ -90,8 +90,8 @@ You can use your own `eval` function if it has following signature:
       callback(null, result);
     }
 
-The first argument `cmd` will be assigned to the value `.scope` rather than 
-the original words when `input` stream accepts the `<tab>` keyword.
+On tab completion - `eval` will be called with `.scope` as an input string. It
+is expected to return an array of scope names to be used for the auto-completion.
 
 Multiple REPLs may be started against the same running instance of io.js.  Each
 will share the same global object but will have unique I/O.
