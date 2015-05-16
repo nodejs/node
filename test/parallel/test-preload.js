@@ -81,7 +81,7 @@ child_process.exec(nodeBinary + ' '
     assert.ok(/worker terminated with code 43/.test(stdout));
   });
 
-// https://github.com/iojs/io.js/issues/1691
+// https://github.com/nodejs/io.js/issues/1691
 var originalCwd = process.cwd();
 process.chdir(path.join(__dirname, '../fixtures/'));
 child_process.exec(nodeBinary + ' '

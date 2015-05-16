@@ -3603,7 +3603,7 @@ void Init(int* argc,
     defined(__ARM_ARCH_6T2__) || \
     defined(__ARM_ARCH_6ZK__) || \
     defined(__ARM_ARCH_6Z__)
-  // See https://github.com/iojs/io.js/issues/1376
+  // See https://github.com/nodejs/io.js/issues/1376
   // and https://code.google.com/p/v8/issues/detail?id=4019
   // TODO(bnoordhuis): Remove test/parallel/test-arm-math-exp-regress-1376.js
   // and this workaround when v8:4019 has been fixed and the patch back-ported.

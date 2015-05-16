@@ -17,7 +17,7 @@ There are three relevant Jenkins jobs that should be used for a release flow:
 
 **c.** **[iojs+release](https://jenkins-iojs.nodesource.com/job/iojs+release/)** does all of the work to build all required release assets. Promotion of the release files is a manual step once they are ready (see below).
 
-The [io.js build team](https://github.com/iojs/build) is able to provide this access to individuals authorized by the TC.
+The [io.js build team](https://github.com/nodejs/build) is able to provide this access to individuals authorized by the TC.
  
 ### 2. <iojs.org> Access
 
@@ -27,7 +27,7 @@ The Jenkins release build slaves upload their artefacts to the web server as the
 
 Nightly builds are promoted automatically on the server by a cron task for the _dist_ user.
 
-Release builds require manual promotion by an individual with SSH access to the server as the _dist_ user. The [io.js build team](https://github.com/iojs/build) is able to provide this access to individuals authorized by the TC.
+Release builds require manual promotion by an individual with SSH access to the server as the _dist_ user. The [io.js build team](https://github.com/nodejs/build) is able to provide this access to individuals authorized by the TC.
 
 ### 3. A Publicly Listed GPG Key
 

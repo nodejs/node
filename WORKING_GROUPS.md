@@ -1,7 +1,7 @@
 # io.js Working Groups
 
 io.js Working Groups are autonomous projects created by the
-[Technical Committee (TC)](https://github.com/iojs/io.js/blob/master/GOVERNANCE.md#technical-committee).
+[Technical Committee (TC)](https://github.com/nodejs/io.js/blob/master/GOVERNANCE.md#technical-committee).
 
 Working Groups can be formed at any time but must be ratified by the TC.
 Once formed the work defined in the Working Group charter is the
@@ -30,7 +30,7 @@ back in to the TC.
 * [Starting a Working Group](#starting-a-wg)
 * [Bootstrap Governance](#bootstrap-governance)
 
-### [Website](https://github.com/iojs/website)
+### [Website](https://github.com/nodejs/website)
 
 The website working group's purpose is to build and maintain a public
 website for the `io.js` project.
@@ -41,7 +41,7 @@ Its responsibilities are:
 releases and features.
 * Foster and enable a community of translators.
 
-### [Streams](https://github.com/iojs/readable-stream)
+### [Streams](https://github.com/nodejs/readable-stream)
 
 The Streams WG is dedicated to the support and improvement of the Streams API
 as used in io.js and the npm ecosystem. We seek to create a composable API that
@@ -60,7 +60,7 @@ responsibilities include:
 * Messaging about the future of streams to give the community advance notice of changes.
 
 
-### [Build](https://github.com/iojs/build)
+### [Build](https://github.com/nodejs/build)
 
 The build working group's purpose is to create and maintain a
 distributed automation infrastructure.
@@ -72,7 +72,7 @@ Its responsibilities are:
 * Creates and manages build-containers.
 
 
-### [Tracing](https://github.com/iojs/tracing-wg)
+### [Tracing](https://github.com/nodejs/tracing-wg)
 
 The tracing working group's purpose is to increase the
 transparency of software written in io.js.
@@ -105,43 +105,43 @@ language.
 
 Each language community maintains its own membership.
 
-* [iojs-ar - Arabic (اللغة العربية)](http://github.com/iojs/iojs-ar)
-* [iojs-bg - Bulgarian (български език)](http://github.com/iojs/iojs-bg)
-* [iojs-bn - Bengali (বাংলা)](http://github.com/iojs/iojs-bn)
-* [iojs-cn - Chinese (中文)](http://github.com/iojs/iojs-cn)
-* [iojs-cs - Czech (Český Jazyk)](http://github.com/iojs/iojs-cs)
-* [iojs-da - Danish (Dansk)](http://github.com/iojs/iojs-da)
-* [iojs-de - German (Deutsch)](http://github.com/iojs/iojs-de)
-* [iojs-el - Greek (Ελληνικά)](http://github.com/iojs/iojs-el)
-* [iojs-es - Spanish (Español)](http://github.com/iojs/iojs-es)
-* [iojs-fa - Persian (فارسی)](http://github.com/iojs/iojs-fa)
-* [iojs-fi - Finnish (Suomi)](http://github.com/iojs/iojs-fi)
-* [iojs-fr - French (Français)](http://github.com/iojs/iojs-fr)
-* [iojs-he - Hebrew (עברית)](http://github.com/iojs/iojs-he)
-* [iojs-hi - Hindi (फिजी बात)](http://github.com/iojs/iojs-hi)
-* [iojs-hu - Hungarian (Magyar)](http://github.com/iojs/iojs-hu)
-* [iojs-id - Indonesian (Bahasa Indonesia)](http://github.com/iojs/iojs-id)
-* [iojs-it - Italian (Italiano)](http://github.com/iojs/iojs-it)
-* [iojs-ja - Japanese (日本語)](http://github.com/iojs/iojs-ja)
-* [iojs-ka - Georgian (ქართული)](http://github.com/iojs/iojs-ka)
-* [iojs-ko - Korean (조선말)](http://github.com/iojs/iojs-ko)
-* [iojs-mk - Macedonian (Mакедонски)](http://github.com/iojs/iojs-mk)
-* [iojs-ms - Malay (بهاس ملايو)](http://github.com/iojs/iojs-ms)
-* [iojs-nl - Dutch (Nederlands)](http://github.com/iojs/iojs-nl)
-* [iojs-no - Norwegian (Norsk)](http://github.com/iojs/iojs-no)
-* [iojs-pl - Polish (Język Polski)](http://github.com/iojs/iojs-pl)
-* [iojs-pt - Portuguese (Português)](http://github.com/iojs/iojs-pt)
-* [iojs-ro - Romanian (Română)](http://github.com/iojs/iojs-ro)
-* [iojs-ru - Russian (Русский)](http://github.com/iojs/iojs-ru)
-* [iojs-sv - Swedish (Svenska)](http://github.com/iojs/iojs-sv)
-* [iojs-ta - Tamil (தமிழ்)](http://github.com/iojs/iojs-ta)
-* [iojs-tr - Turkish (Türkçe)](http://github.com/iojs/iojs-tr)
-* [iojs-tw - Taiwanese (Hō-ló)](http://github.com/iojs/iojs-tw)
-* [iojs-uk - Ukrainian (Українська)](http://github.com/iojs/iojs-uk)
-* [iojs-vi - Vietnamese (Tiếng Việtnam)](http://github.com/iojs/iojs-vi)
+* [iojs-ar - Arabic (اللغة العربية)](https://github.com/nodejs/iojs-ar)
+* [iojs-bg - Bulgarian (български език)](https://github.com/nodejs/iojs-bg)
+* [iojs-bn - Bengali (বাংলা)](https://github.com/nodejs/iojs-bn)
+* [iojs-cn - Chinese (中文)](https://github.com/nodejs/iojs-cn)
+* [iojs-cs - Czech (Český Jazyk)](https://github.com/nodejs/iojs-cs)
+* [iojs-da - Danish (Dansk)](https://github.com/nodejs/iojs-da)
+* [iojs-de - German (Deutsch)](https://github.com/nodejs/iojs-de)
+* [iojs-el - Greek (Ελληνικά)](https://github.com/nodejs/iojs-el)
+* [iojs-es - Spanish (Español)](https://github.com/nodejs/iojs-es)
+* [iojs-fa - Persian (فارسی)](https://github.com/nodejs/iojs-fa)
+* [iojs-fi - Finnish (Suomi)](https://github.com/nodejs/iojs-fi)
+* [iojs-fr - French (Français)](https://github.com/nodejs/iojs-fr)
+* [iojs-he - Hebrew (עברית)](https://github.com/nodejs/iojs-he)
+* [iojs-hi - Hindi (फिजी बात)](https://github.com/nodejs/iojs-hi)
+* [iojs-hu - Hungarian (Magyar)](https://github.com/nodejs/iojs-hu)
+* [iojs-id - Indonesian (Bahasa Indonesia)](https://github.com/nodejs/iojs-id)
+* [iojs-it - Italian (Italiano)](https://github.com/nodejs/iojs-it)
+* [iojs-ja - Japanese (日本語)](https://github.com/nodejs/iojs-ja)
+* [iojs-ka - Georgian (ქართული)](https://github.com/nodejs/iojs-ka)
+* [iojs-ko - Korean (조선말)](https://github.com/nodejs/iojs-ko)
+* [iojs-mk - Macedonian (Mакедонски)](https://github.com/nodejs/iojs-mk)
+* [iojs-ms - Malay (بهاس ملايو)](https://github.com/nodejs/iojs-ms)
+* [iojs-nl - Dutch (Nederlands)](https://github.com/nodejs/iojs-nl)
+* [iojs-no - Norwegian (Norsk)](https://github.com/nodejs/iojs-no)
+* [iojs-pl - Polish (Język Polski)](https://github.com/nodejs/iojs-pl)
+* [iojs-pt - Portuguese (Português)](https://github.com/nodejs/iojs-pt)
+* [iojs-ro - Romanian (Română)](https://github.com/nodejs/iojs-ro)
+* [iojs-ru - Russian (Русский)](https://github.com/nodejs/iojs-ru)
+* [iojs-sv - Swedish (Svenska)](https://github.com/nodejs/iojs-sv)
+* [iojs-ta - Tamil (தமிழ்)](https://github.com/nodejs/iojs-ta)
+* [iojs-tr - Turkish (Türkçe)](https://github.com/nodejs/iojs-tr)
+* [iojs-tw - Taiwanese (Hō-ló)](https://github.com/nodejs/iojs-tw)
+* [iojs-uk - Ukrainian (Українська)](https://github.com/nodejs/iojs-uk)
+* [iojs-vi - Vietnamese (Tiếng Việtnam)](https://github.com/nodejs/iojs-vi)
 
 
-### [Evangelism](https://github.com/iojs/evangelism)
+### [Evangelism](https://github.com/nodejs/evangelism)
 
 The evangelism working group promotes the accomplishments
 of io.js and lets the community know how they can get involved.
@@ -155,7 +155,7 @@ Their responsibilities are:
 content.
 
 
-### [Roadmap](https://github.com/iojs/roadmap)
+### [Roadmap](https://github.com/nodejs/roadmap)
 
 The roadmap working group is responsible for user community outreach
 and the translation of their concerns into a plan of action for io.js.
@@ -169,7 +169,7 @@ Their responsibilities are:
 * Create Pull Requests for relevant changes to [Roadmap.md](./ROADMAP.md)
 
 
-### [Docker](https://github.com/iojs/docker-iojs)
+### [Docker](https://github.com/nodejs/docker-iojs)
 
 The Docker working group's purpose is to build, maintain, and improve official
 Docker images for the `io.js` project.
@@ -180,7 +180,7 @@ Their responsibilities are:
 * Maintain and improve the images' documentation.
 
 
-### [Addon API](https://github.com/iojs/nan)
+### [Addon API](https://github.com/nodejs/nan)
 
 The Addon API Working Group is responsible for maintaining the NAN project and
 corresponding _nan_ package in npm. The NAN project makes available an
@@ -190,9 +190,9 @@ versions of Node.js, io.js, V8 and libuv.
 
 Their responsibilities are:
 
-* Maintaining the [NAN](https://github.com/iojs/nan) GitHub repository,
+* Maintaining the [NAN](https://github.com/nodejs/nan) GitHub repository,
   including code, issues and documentation.
-* Maintaining the [addon-examples](https://github.com/iojs/node-addon-examples)
+* Maintaining the [addon-examples](https://github.com/nodejs/node-addon-examples)
   GitHub repository, including code, issues and documentation.
 * Maintaining the C++ Addon API within the io.js project, in subordination to
   the io.js TC.
@@ -203,7 +203,7 @@ Their responsibilities are:
   community advance notice of changes.
 
 The current members can be found in their
-[README](https://github.com/iojs/nan#collaborators).
+[README](https://github.com/nodejs/nan#collaborators).
 
 ## Starting a WG
 
