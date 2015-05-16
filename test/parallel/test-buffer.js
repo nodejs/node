@@ -561,15 +561,6 @@ assert.equal(sb, s);
 b = new Buffer('abcde');
 assert.equal('bcde', b.slice(1).toString());
 
-// byte length
-assert.equal(14, Buffer.byteLength('Il était tué'));
-assert.equal(14, Buffer.byteLength('Il était tué', 'utf8'));
-['ucs2', 'ucs-2', 'utf16le', 'utf-16le'].forEach(function(encoding) {
-  assert.equal(24, Buffer.byteLength('Il était tué', encoding));
-});
-assert.equal(12, Buffer.byteLength('Il était tué', 'ascii'));
-assert.equal(12, Buffer.byteLength('Il était tué', 'binary'));
-
 // slice(0,0).length === 0
 assert.equal(0, Buffer('hello').slice(0, 0).length);
 
@@ -1073,10 +1064,6 @@ assert.equal(buf.readInt8(0), -1);
   // and make sure a proper slice does have a parent
   assert.ok(typeof Buffer(5).slice(0, 5).parent === 'object');
 })();
-
-// Make sure byteLength properly checks for base64 padding
-assert.equal(Buffer.byteLength('aaa=', 'base64'), 2);
-assert.equal(Buffer.byteLength('aaaa==', 'base64'), 3);
 
 // Regression test for #5482: should throw but not assert in C++ land.
 assert.throws(function() {
