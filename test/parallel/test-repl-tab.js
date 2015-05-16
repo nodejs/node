@@ -1,16 +1,41 @@
 var assert = require('assert');
 var util = require('util');
-var repl = require('./index');
+var repl = require('repl');
+var zlib = require('zlib');
+var defaultScopes = [
+  'Array',
+  'Boolean',
+  'Date',
+  'Error',
+  'EvalError',
+  'Function',
+  'Infinity',
+  'JSON',
+  'Math',
+  'NaN',
+  'Number',
+  'Object',
+  'RangeError',
+  'ReferenceError',
+  'RegExp',
+  'String',
+  'SyntaxError',
+  'TypeError',
+  'URIError',
+  'decodeURI',
+  'decodeURIComponent',
+  'encodeURI',
+  'encodeURIComponent',
+  'eval',
+  'isFinite',
+  'isNaN',
+  'parseFloat',
+  'parseInt',
+  'undefined'
+];
 
-function ArrayStream() {}
-// A stream to push an array into a REPL
-util.inherits(ArrayStream, require('stream').Stream);
-ArrayStream.prototype.readable = true;
-ArrayStream.prototype.writable = true;
-ArrayStream.prototype.resume = function() {};
-ArrayStream.prototype.write = function() {};
-
-var putIn = new ArrayStream();
+// just use builtin stream inherited from Duplex
+var putIn = zlib.createGzip();
 var testMe = repl.start('', putIn, function(cmd, context, filename, callback) {
   callback(null, cmd);
 });
@@ -19,4 +44,7 @@ testMe._domain.on('error', function (e) {
   assert.fail();
 });
 
-testMe.complete('', function () {});
+testMe.complete('', function(err, results) {
+  assert.equal(err, null);
+  assert.deepEqual(results[0], defaultScopes);
+});
