@@ -541,17 +541,11 @@ void WriteDoubleBE(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void ByteLength(const FunctionCallbackInfo<Value> &args) {
-  Environment* env = Environment::GetCurrent(args);
+void ByteLengthUtf8(const FunctionCallbackInfo<Value> &args) {
+  CHECK(args[0]->IsString());
 
-  if (!args[0]->IsString())
-    return env->ThrowTypeError("Argument must be a string");
-
-  Local<String> s = args[0]->ToString(env->isolate());
-  enum encoding e = ParseEncoding(env->isolate(), args[1], UTF8);
-
-  uint32_t size = StringBytes::Size(env->isolate(), s, e);
-  args.GetReturnValue().Set(size);
+  // Fast case: avoid StringBytes on UTF8 string. Jump to v8.
+  args.GetReturnValue().Set(args[0].As<String>()->Utf8Length());
 }
 
 
@@ -745,7 +739,7 @@ void Initialize(Handle<Object> target,
 
   env->SetMethod(target, "setupBufferJS", SetupBufferJS);
 
-  env->SetMethod(target, "byteLength", ByteLength);
+  env->SetMethod(target, "byteLengthUtf8", ByteLengthUtf8);
   env->SetMethod(target, "compare", Compare);
   env->SetMethod(target, "fill", Fill);
   env->SetMethod(target, "indexOfBuffer", IndexOfBuffer);
