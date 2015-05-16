@@ -229,13 +229,11 @@ There are a few special REPL commands:
     >.save ./file/to/save.js
   - `.load` - Load a file into the current REPL session.
     >.load ./file/to/load.js
-  - `.scope` - Show both global and local(scope) variables
-    >.scope
 
 The following key combinations in the REPL have these special effects:
 
   - `<ctrl>C` - Similar to the `.break` keyword.  Terminates the current
     command.  Press twice on a blank line to forcibly exit.
   - `<ctrl>D` - Similar to the `.exit` keyword.
-  - `<tab>` - Similar to the `.scope` keyword.
+  - `<tab>` - Show both global and local(scope) variables
 
