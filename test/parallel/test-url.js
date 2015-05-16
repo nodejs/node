@@ -1562,7 +1562,7 @@ relativeTests2.forEach(function(relativeTest) {
 
 
 
-// https://github.com/iojs/io.js/pull/1036
+// https://github.com/nodejs/io.js/pull/1036
 var throws = [
   undefined,
   null,

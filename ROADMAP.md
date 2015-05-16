@@ -54,13 +54,13 @@ Debugging is one of the first things from everyone's mouth, both developer and e
 
 The goal of io.js' effort is to build a healthy debugging and tracing ecosystem and not to try and build any "silver bullet" features for core (like the domains debacle).
 
-The [Tracing WG](https://github.com/iojs/tracing-wg) is driving this effort:
+The [Tracing WG](https://github.com/nodejs/tracing-wg) is driving this effort:
 
 * AsyncWrap improvements - basically just iterations based on feedback from people using it.
 * async-listener - userland module that will dogfood AsyncWrap as well as provide many often requested debugging features.
 * Tracing
   * Add tracing support for more platforms (LTTng, etc).
-  * [Unify the Tracing endpoint](https://github.com/iojs/io.js/issues/729).
+  * [Unify the Tracing endpoint](https://github.com/nodejs/io.js/issues/729).
   * New Chrome Debugger - Google is working on a version of Chrome's debugger that is without Chrome and can be used with io.js.
 
 ## Ecosystem Automation

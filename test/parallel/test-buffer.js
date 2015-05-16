@@ -1172,7 +1172,7 @@ assert.throws(function() {
   b.equals('abc');
 });
 
-// Regression test for https://github.com/iojs/io.js/issues/649.
+// Regression test for https://github.com/nodejs/io.js/issues/649.
 assert.throws(function() { Buffer(1422561062959).toString('utf8'); });
 
 var ps = Buffer.poolSize;
