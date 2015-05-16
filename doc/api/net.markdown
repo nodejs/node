@@ -67,8 +67,8 @@ The options are passed to both the ['net.Socket'](#net_class_net_socket)
 constructor and the ['socket.connect'](#net_socket_connect_options_connectlistener)
 method.
 
-The `connectListener` parameter will be added as an listener for the
-['connect'][] event.
+The `connectListener` parameter will be added as a listener for the
+['connect'][] event once.
 
 Here is an example of a client of the previously described echo server:
 
@@ -100,8 +100,8 @@ supplied `port` and `host`.
 
 If `host` is omitted, `'localhost'` will be assumed.
 
-The `connectListener` parameter will be added as an listener for the
-['connect'][] event.
+The `connectListener` parameter will be added as a listener for the
+['connect'][] event once.
 
 ## net.connect(path[, connectListener])
 ## net.createConnection(path[, connectListener])
@@ -110,8 +110,8 @@ A factory function, which returns a new unix
 ['net.Socket'](#net_class_net_socket) and automatically connects to the
 supplied `path`.
 
-The `connectListener` parameter will be added as an listener for the
-['connect'][] event.
+The `connectListener` parameter will be added as a listener for the
+['connect'][] event once.
 
 ## Class: net.Server
 
