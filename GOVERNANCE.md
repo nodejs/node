@@ -24,7 +24,7 @@ For the current list of TC members, see the project
 
 ## Collaborators
 
-The [iojs/io.js](https://github.com/iojs/io.js) GitHub repository is
+The [iojs/io.js](https://github.com/nodejs/io.js) GitHub repository is
 maintained by the TC and additional Collaborators who are added by the
 TC on an ongoing basis.
 
