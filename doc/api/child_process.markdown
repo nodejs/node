@@ -586,6 +586,7 @@ if it runs longer than `timeout` milliseconds. The child process is killed with
 amount of data (in bytes) allowed on stdout or stderr - if this value is
 exceeded then the child process is killed.
 
+`child_process.exec()` is unrelated to the `exec()` system call in Unix-like operating systems.
 
 ### child_process.execFile(file[, args][, options][, callback])
 
@@ -644,6 +645,8 @@ created for the child rather than the current `iojs` executable. This should be
 done with care and by default will talk over the fd represented an
 environmental variable `NODE_CHANNEL_FD` on the child process. The input and
 output on this fd is expected to be line delimited JSON objects.
+
+`child_process.fork()` is unrelated to the `fork()` system call in Unix-like operating systems.
 
 ## Synchronous Process Creation
 
