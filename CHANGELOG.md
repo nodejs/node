@@ -103,7 +103,7 @@ See https://github.com/nodejs/io.js/labels/confirmed-bug for complete and curren
 Full details at https://github.com/nodejs/io.js/wiki/Breaking-Changes#200-from-1x
 
 * V8 upgrade to 4.2, minor changes to C++ API
-* `os.tmpdir()` is now cross-platform consistent and will no longer returns a path with a trailling slash on any platform
+* `os.tmpdir()` is now cross-platform consistent and no longer returns a path with a trailing slash on any platform
 * While not a *breaking change* the 'smalloc' module has been deprecated in anticipation of it becoming unsupportable with a future upgrade to V8 4.4. See [#1451](https://github.com/nodejs/io.js/issues/1451)  for further information.
 
 _Note: a new version of the 'url' module was reverted prior to release as it was decided the potential for breakage across the npm ecosystem was too great and that more compatibility work needed to be done before releasing it. See [#1602](https://github.com/nodejs/io.js/pull/1602) for further information._
