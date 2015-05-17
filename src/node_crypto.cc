@@ -2346,8 +2346,15 @@ int Connection::SelectSNIContextCallback_(SSL *s, int *ad, void* arg) {
     if (!conn->sniObject_.IsEmpty()) {
       conn->sni_context_.Reset();
 
+      Local<Object> sni_obj = PersistentToLocal(env->isolate(),
+                                                conn->sniObject_);
+
       Local<Value> arg = PersistentToLocal(env->isolate(), conn->servername_);
-      Local<Value> ret = conn->MakeCallback(env->onselect_string(), 1, &arg);
+      Local<Value> ret = node::MakeCallback(env->isolate(),
+                                            sni_obj,
+                                            env->onselect_string(),
+                                            1,
+                                            &arg);
 
       // If ret is SecureContext
       Local<FunctionTemplate> secure_context_constructor_template =
