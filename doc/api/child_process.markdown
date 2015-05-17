@@ -586,6 +586,8 @@ if it runs longer than `timeout` milliseconds. The child process is killed with
 amount of data (in bytes) allowed on stdout or stderr - if this value is
 exceeded then the child process is killed.
 
+*Note: Unlike the `exec()` POSIX system call, `child_process.exec()` does not replace
+the existing process and uses a shell to execute the command.*
 
 ### child_process.execFile(file[, args][, options][, callback])
 
@@ -644,6 +646,9 @@ created for the child rather than the current `iojs` executable. This should be
 done with care and by default will talk over the fd represented an
 environmental variable `NODE_CHANNEL_FD` on the child process. The input and
 output on this fd is expected to be line delimited JSON objects.
+
+*Note: Unlike the `fork()` POSIX system call, `child_process.fork()` does not clone the
+current process.*
 
 ## Synchronous Process Creation
 
