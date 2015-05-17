@@ -103,7 +103,7 @@ See https://github.com/iojs/io.js/labels/confirmed-bug for complete and current 
 Full details at https://github.com/iojs/io.js/wiki/Breaking-Changes#200-from-1x
 
 * V8 upgrade to 4.2, minor changes to C++ API
-* `os.tmpdir()` is now cross-platform consistent and will no longer returns a path with a trailling slash on any platform
+* `os.tmpdir()` is now cross-platform consistent and will no longer returns a path with a trailing slash on any platform
 * While not a *breaking change* the 'smalloc' module has been deprecated in anticipation of it becoming unsupportable with a future upgrade to V8 4.4. See [#1451](https://github.com/iojs/io.js/issues/1451)  for further information.
 
 _Note: a new version of the 'url' module was reverted prior to release as it was decided the potential for breakage across the npm ecosystem was too great and that more compatibility work needed to be done before releasing it. See [#1602](https://github.com/iojs/io.js/pull/1602) for further information._
@@ -116,7 +116,7 @@ _Note: a new version of the 'url' module was reverted prior to release as it was
   - Add support for default author field to make `npm init -y` work without user-input (@othiym23) [npm/npm/d8eee6cf9d](https://github.com/npm/npm/commit/d8eee6cf9d2ff7aca68dfaed2de76824a3e0d9af)
   - Include local modules in `npm outdated` and `npm update` (@ArnaudRinquin) [npm/npm#7426](https://github.com/npm/npm/issues/7426)
   - The prefix used before the version number on `npm version` is now configurable via `tag-version-prefix` (@kkragenbrink) [npm/npm#8014](https://github.com/npm/npm/issues/8014)
-* **os**: `os.tmpdir()` is now cross-platform consistent and will no longer returns a path with a trailling slash on any platform (Christian Tellnes) [#747](https://github.com/iojs/io.js/pull/747)
+* **os**: `os.tmpdir()` is now cross-platform consistent and will no longer returns a path with a trailing slash on any platform (Christian Tellnes) [#747](https://github.com/iojs/io.js/pull/747)
 * **process**:
   - `process.nextTick()` performance has been improved by between 2-42% across the benchmark suite, notable because this is heavily used across core (Brian White) [#1571](https://github.com/iojs/io.js/pull/1571)
   - New `process.geteuid()`, `process.seteuid(id)`, `process.getegid()` and `process.setegid(id)` methods allow you to get and set effective UID and GID of the process (Evan Lucas) [#1536](https://github.com/iojs/io.js/pull/1536)
