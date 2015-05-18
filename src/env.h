@@ -193,6 +193,7 @@ namespace node {
   V(status_string, "status")                                                  \
   V(stdio_string, "stdio")                                                    \
   V(subject_string, "subject")                                                \
+  V(subject_public_key_info_string, "subjectPublicKeyInfo")                   \
   V(subjectaltname_string, "subjectaltname")                                  \
   V(sys_string, "sys")                                                        \
   V(syscall_string, "syscall")                                                \
