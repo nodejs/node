@@ -700,14 +700,15 @@ def configure_library(lib, output):
     libs = pkg_libs if pkg_libs else default_lib
     libpath = pkg_libpath if pkg_libpath else default_libpath
 
+    # libpath needs to be provided ahead libraries
+    if libpath:
+      output['libraries'] += [libpath]
     if libs:
       # libs passed to the linker cannot contain spaces.
       # (libpath on the other hand can)
       output['libraries'] += libs.split()
     if cflags:
       output['include_dirs'] += [cflags]
-    if libpath:
-      output['libraries'] += [libpath]
 
 
 def configure_v8(o):
@@ -850,10 +851,10 @@ def configure_intl(o):
       print 'See above errors or the README.md.'
       sys.exit(1)
     (libs, cflags, libpath) = pkgicu
-    # safe to split, cannot contain spaces
-    o['libraries'] += libs.split()
     # libpath provides linker path which may contain spaces
     o['libraries'] += [libpath]
+    # safe to split, cannot contain spaces
+    o['libraries'] += libs.split()
     o['cflags'] += cflags.split()
     # use the "system" .gyp
     o['variables']['icu_gyp_path'] = 'tools/icu/icu-system.gyp'
