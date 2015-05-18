@@ -365,8 +365,8 @@ def pkg_config(pkg):
 
 def format_libraries(list):
   """Returns string of space separated libraries"""
-  set = list.split(',')
-  return ' '.join('-l{0}'.format(i) for i in set)
+  libraries = list.split(',')
+  return ' '.join('-l{0}'.format(i) for i in libraries)
 
 
 def try_check_compiler(cc, lang):
