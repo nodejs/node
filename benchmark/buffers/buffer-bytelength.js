@@ -2,7 +2,7 @@ var common = require('../common');
 
 var bench = common.createBenchmark(main, {
   encoding: ['utf8', 'base64'],
-  len: [1, 2, 4, 16, 64], // x16
+  len: [1, 2, 4, 16, 64, 256], // x16
   n: [5e6]
 });
 
