@@ -72,6 +72,21 @@ object. This is useful for inspecting large complicated objects. Defaults to
 - `colors` - if `true`, then the output will be styled with ANSI color codes.
 Defaults to `false`. Colors are customizable, see below.
 
+### console.group([data][, ...])
+
+Starts a new logging group with an optional title. All console output that occurs 
+after calling this method and calling `console.groupEnd` has the same 
+indent level.
+
+### console.groupCollapsed([data][, ...])
+
+Same as `console.group`.
+
+### console.groupEnd()
+
+Closes the most recently created logging group that previously created with 
+`console.group` or `console.groupCollapsed`.
+
 ### console.time(label)
 
 Used to calculate the duration of a specific operation. To start a timer, call
