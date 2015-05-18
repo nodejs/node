@@ -17,7 +17,8 @@ inline AsyncWrap::AsyncWrap(Environment* env,
                             v8::Handle<v8::Object> object,
                             ProviderType provider,
                             AsyncWrap* parent)
-    : BaseObject(env, object), bits_(static_cast<uint32_t>(provider) << 1) {
+    : BaseObject(env, object, provider),
+      bits_(static_cast<uint32_t>(provider) << 1) {
   // Check user controlled flag to see if the init callback should run.
   if (!env->using_asyncwrap())
     return;
