@@ -586,7 +586,8 @@ if it runs longer than `timeout` milliseconds. The child process is killed with
 amount of data (in bytes) allowed on stdout or stderr - if this value is
 exceeded then the child process is killed.
 
-`child_process.exec()` is unrelated to the `exec()` system call in Unix-like operating systems.
+Unlike the `exec()` POSIX system call, `child_process.exec()` does not replace
+the existing process and uses a shell to execute the command.
 
 ### child_process.execFile(file[, args][, options][, callback])
 
@@ -646,7 +647,8 @@ done with care and by default will talk over the fd represented an
 environmental variable `NODE_CHANNEL_FD` on the child process. The input and
 output on this fd is expected to be line delimited JSON objects.
 
-`child_process.fork()` is unrelated to the `fork()` system call in Unix-like operating systems.
+Unlike the `fork()` POSIX system call, `child_process.fork()` does not clone the
+current process.
 
 ## Synchronous Process Creation
 
