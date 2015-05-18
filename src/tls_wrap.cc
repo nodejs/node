@@ -337,6 +337,9 @@ void TLSWrap::EncOutCb(WriteWrap* req_wrap, int status) {
     return;
   }
 
+  if (wrap->ssl_ == nullptr)
+    return;
+
   // Commit
   NodeBIO::FromBIO(wrap->enc_out_)->Read(nullptr, wrap->write_size_);
 
@@ -554,6 +557,7 @@ int TLSWrap::DoWrite(WriteWrap* w,
                      size_t count,
                      uv_stream_t* send_handle) {
   CHECK_EQ(send_handle, nullptr);
+  CHECK_NE(ssl_, nullptr);
 
   bool empty = true;
 
@@ -626,6 +630,11 @@ void TLSWrap::OnAfterWriteImpl(WriteWrap* w, void* ctx) {
 
 void TLSWrap::OnAllocImpl(size_t suggested_size, uv_buf_t* buf, void* ctx) {
   TLSWrap* wrap = static_cast<TLSWrap*>(ctx);
+
+  if (wrap->ssl_ == nullptr) {
+    *buf = uv_buf_init(nullptr, 0);
+    return;
+  }
 
   size_t size = 0;
   buf->base = NodeBIO::FromBIO(wrap->enc_in_)->PeekWritable(&size);
@@ -747,6 +756,10 @@ void TLSWrap::SetVerifyMode(const FunctionCallbackInfo<Value>& args) {
 void TLSWrap::EnableSessionCallbacks(
     const FunctionCallbackInfo<Value>& args) {
   TLSWrap* wrap = Unwrap<TLSWrap>(args.Holder());
+  if (wrap->ssl_ == nullptr) {
+    return wrap->env()->ThrowTypeError(
+        "EnableSessionCallbacks after destroySSL");
+  }
   wrap->enable_session_callbacks();
   NodeBIO::FromBIO(wrap->enc_in_)->set_initial(kMaxHelloLength);
   wrap->hello_parser_.Start(SSLWrap<TLSWrap>::OnClientHello,
