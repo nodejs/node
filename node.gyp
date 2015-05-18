@@ -92,6 +92,7 @@
         'src',
         'tools/msvs/genfiles',
         'deps/uv/src/ares',
+        'deps/tclap',
         '<(SHARED_INTERMEDIATE_DIR)', # for node_natives.h
         'deps/v8' # include/v8_platform.h
       ],
@@ -627,7 +628,7 @@
     {
       'target_name': 'cctest',
       'type': 'executable',
-      'dependencies': [ 
+      'dependencies': [
         'deps/gtest/gtest.gyp:gtest',
         'deps/v8/tools/gyp/v8.gyp:v8',
         'deps/v8/tools/gyp/v8.gyp:v8_libplatform'
