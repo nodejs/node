@@ -1,0 +1,369 @@
+#   Copyright (C) 2003, 2005, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; see the file COPYING3.  If not see
+# <http://www.gnu.org/licenses/>.
+
+proc load_gcc_lib { filename } {
+    global srcdir
+    load_file $srcdir/lib/$filename
+}
+
+load_lib dg.exp
+load_lib libgloss.exp
+load_gcc_lib target-libpath.exp
+load_gcc_lib wrapper.exp
+
+
+# Define libffi callbacks for dg.exp.
+
+proc libffi-dg-test-1 { target_compile prog do_what extra_tool_flags } {
+
+    # To get all \n in dg-output test strings to match printf output
+    # in a system that outputs it as \015\012 (i.e. not just \012), we
+    # need to change all \n into \r?\n.  As there is no dejagnu flag
+    # or hook to do that, we simply change the text being tested.
+    # Unfortunately, we have to know that the variable is called
+    # dg-output-text and lives in the caller of libffi-dg-test, which
+    # is two calls up.  Overriding proc dg-output would be longer and
+    # would necessarily have the same assumption.
+    upvar 2 dg-output-text output_match
+
+    if { [llength $output_match] > 1 } {
+	regsub -all "\n" [lindex $output_match 1] "\r?\n" x
+	set output_match [lreplace $output_match 1 1 $x]
+    }
+
+    # Set up the compiler flags, based on what we're going to do.
+
+    set options [list]
+    switch $do_what {
+	"compile" {
+	    set compile_type "assembly"
+	    set output_file "[file rootname [file tail $prog]].s"
+	}
+	"link" {
+	    set compile_type "executable"
+	    set output_file "[file rootname [file tail $prog]].exe"
+	    # The following line is needed for targets like the i960 where
+	    # the default output file is b.out.  Sigh.
+	}
+	"run" {
+	    set compile_type "executable"
+	    # FIXME: "./" is to cope with "." not being in $PATH.
+	    # Should this be handled elsewhere?
+	    # YES.
+	    set output_file "./[file rootname [file tail $prog]].exe"
+	    # This is the only place where we care if an executable was
+	    # created or not.  If it was, dg.exp will try to run it.
+	    remote_file build delete $output_file;
+	}
+	default {
+	    perror "$do_what: not a valid dg-do keyword"
+	    return ""
+	}
+    }
+
+    if { $extra_tool_flags != "" } {
+	lappend options "additional_flags=$extra_tool_flags"
+    }
+
+    set comp_output [libffi_target_compile "$prog" "$output_file" "$compile_type" $options];
+
+
+    return [list $comp_output $output_file]
+}
+
+
+proc libffi-dg-test { prog do_what extra_tool_flags } {
+    return [libffi-dg-test-1 target_compile $prog $do_what $extra_tool_flags]
+}
+
+proc libffi-init { args } {
+    global gluefile wrap_flags;
+    global srcdir
+    global blddirffi
+    global objdir
+    global TOOL_OPTIONS
+    global tool
+    global libffi_include
+    global libffi_link_flags
+    global tool_root_dir
+    global ld_library_path
+
+    global using_gcc
+
+    set blddirffi [pwd]/.. 
+    verbose "libffi $blddirffi"
+
+    # Are we building with GCC?
+    set tmp [grep ../config.status "GCC='yes'"]
+    if { [string match $tmp "GCC='yes'"] } {
+
+      set using_gcc "yes"
+
+    set gccdir [lookfor_file $tool_root_dir gcc/libgcc.a]
+    if {$gccdir != ""} {
+	set gccdir [file dirname $gccdir]
+    }
+    verbose "gccdir $gccdir"
+
+    set ld_library_path "."
+    append ld_library_path ":${gccdir}"
+
+    set compiler "${gccdir}/xgcc"
+    if { [is_remote host] == 0 && [which $compiler] != 0 } {
+	foreach i "[exec $compiler --print-multi-lib]" {
+	    set mldir ""
+	    regexp -- "\[a-z0-9=_/\.-\]*;" $i mldir
+	    set mldir [string trimright $mldir "\;@"]
+	    if { "$mldir" == "." } {
+		continue
+	    }
+	    if { [llength [glob -nocomplain ${gccdir}/${mldir}/libgcc_s*.so.*]] >= 1 } {
+		append ld_library_path ":${gccdir}/${mldir}"
+	    }
+	}
+    }
+ 
+    } else {
+
+      set using_gcc "no"
+
+    }
+
+    # add the library path for libffi.
+    append ld_library_path ":${blddirffi}/.libs"
+
+    verbose "ld_library_path: $ld_library_path"
+
+    # Point to the Libffi headers in libffi.
+    set libffi_include "${blddirffi}/include"
+    verbose "libffi_include $libffi_include"
+
+    set libffi_dir  "${blddirffi}/.libs"
+    verbose "libffi_dir $libffi_dir"
+    if { $libffi_dir != "" } {
+	set libffi_dir [file dirname ${libffi_dir}]
+	set libffi_link_flags "-L${libffi_dir}/.libs"
+    }
+
+    set_ld_library_path_env_vars
+    libffi_maybe_build_wrapper "${objdir}/testglue.o"
+}
+
+proc libffi_exit { } {
+    global gluefile;
+
+    if [info exists gluefile] {
+	file_on_build delete $gluefile;
+	unset gluefile;
+    }
+}
+
+proc libffi_target_compile { source dest type options } {
+    global gluefile wrap_flags;
+    global srcdir
+    global blddirffi
+    global TOOL_OPTIONS
+    global libffi_link_flags
+    global libffi_include
+    global target_triplet
+
+
+    if { [target_info needs_status_wrapper]!="" && [info exists gluefile] } {
+	lappend options "libs=${gluefile}"
+	lappend options "ldflags=$wrap_flags"
+    }
+
+    # TOOL_OPTIONS must come first, so that it doesn't override testcase
+    # specific options.
+    if [info exists TOOL_OPTIONS] {
+	lappend  options [concat "additional_flags=$TOOL_OPTIONS" $options];
+    }
+
+    # search for ffi_mips.h in srcdir, too
+    lappend options "additional_flags=-I${libffi_include} -I${srcdir}/../include  -I${libffi_include}/.."
+    lappend options "additional_flags=${libffi_link_flags}"
+
+    # Darwin needs a stack execution allowed flag.
+
+    if { [istarget "*-*-darwin9*"] || [istarget "*-*-darwin1*"]
+	 || [istarget "*-*-darwin2*"] } {
+	lappend options "additional_flags=-Wl,-allow_stack_execute"
+    }
+
+    # If you're building the compiler with --prefix set to a place
+    # where it's not yet installed, then the linker won't be able to
+    # find the libgcc used by libffi.dylib.  We could pass the
+    # -dylib_file option, but that's complicated, and it's much easier
+    # to just make the linker find libgcc using -L options.
+    if { [string match "*-*-darwin*" $target_triplet] } {
+	lappend options "libs= -shared-libgcc"
+    }
+
+    if { [string match "*-*-openbsd*" $target_triplet] } {
+	lappend options "libs= -lpthread"
+    }
+
+    lappend options "libs= -lffi"
+
+    if { [string match "aarch64*-*-linux*" $target_triplet] } {
+	lappend options "libs= -lpthread"
+    }
+
+    verbose "options: $options"
+    return [target_compile $source $dest $type $options]
+}
+
+# Utility routines.
+
+#
+# search_for -- looks for a string match in a file
+#
+proc search_for { file pattern } {
+    set fd [open $file r]
+    while { [gets $fd cur_line]>=0 } {
+	if [string match "*$pattern*" $cur_line] then {
+	    close $fd
+	    return 1
+	}
+    }
+    close $fd
+    return 0
+}
+
+# Modified dg-runtest that can cycle through a list of optimization options
+# as c-torture does.
+proc libffi-dg-runtest { testcases default-extra-flags } {
+    global runtests
+
+    foreach test $testcases {
+	# If we're only testing specific files and this isn't one of
+	# them, skip it.
+	if ![runtest_file_p $runtests $test] {
+	    continue
+	}
+
+	# Look for a loop within the source code - if we don't find one,
+	# don't pass -funroll[-all]-loops.
+	global torture_with_loops torture_without_loops
+	if [expr [search_for $test "for*("]+[search_for $test "while*("]] {
+	    set option_list $torture_with_loops
+	} else {
+	    set option_list $torture_without_loops
+	}
+
+	set nshort [file tail [file dirname $test]]/[file tail $test]
+
+	foreach flags $option_list {
+	    verbose "Testing $nshort, $flags" 1
+	    dg-test $test $flags ${default-extra-flags}
+	}
+    }
+}
+
+
+# Like check_conditional_xfail, but callable from a dg test.
+
+proc dg-xfail-if { args } {
+    set args [lreplace $args 0 0]
+    set selector "target [join [lindex $args 1]]"
+    if { [dg-process-target $selector] == "S" } {
+	global compiler_conditional_xfail_data
+	set compiler_conditional_xfail_data $args
+    }
+}
+
+proc check-flags { args } {
+
+    # The args are within another list; pull them out.
+    set args [lindex $args 0]
+
+    # The next two arguments are optional.  If they were not specified,
+    # use the defaults.
+    if { [llength $args] == 2 } {
+	lappend $args [list "*"]
+    }
+    if { [llength $args] == 3 } {
+	lappend $args [list ""]
+    }
+
+    # If the option strings are the defaults, or the same as the
+    # defaults, there is no need to call check_conditional_xfail to
+    # compare them to the actual options.
+    if { [string compare [lindex $args 2] "*"] == 0
+	 && [string compare [lindex $args 3] "" ] == 0 } {
+	set result 1    
+    } else {
+	# The target list might be an effective-target keyword, so replace
+	# the original list with "*-*-*", since we already know it matches.
+	set result [check_conditional_xfail [lreplace $args 1 1 "*-*-*"]]
+    }
+
+    return $result
+}
+
+proc dg-skip-if { args } {
+    # Verify the number of arguments.  The last two are optional.
+    set args [lreplace $args 0 0]
+    if { [llength $args] < 2 || [llength $args] > 4 } {
+        error "dg-skip-if 2: need 2, 3, or 4 arguments"
+    }
+
+    # Don't bother if we're already skipping the test.
+    upvar dg-do-what dg-do-what
+    if { [lindex ${dg-do-what} 1] == "N" } {
+      return
+    }
+
+    set selector [list target [lindex $args 1]]
+    if { [dg-process-target $selector] == "S" } {
+        if [check-flags $args] {
+            upvar dg-do-what dg-do-what
+            set dg-do-what [list [lindex ${dg-do-what} 0] "N" "P"]
+        }
+    }
+}
+
+# We need to make sure that additional_files and additional_sources
+# are both cleared out after every test.  It is not enough to clear
+# them out *before* the next test run because gcc-target-compile gets
+# run directly from some .exp files (outside of any test).  (Those
+# uses should eventually be eliminated.)
+
+# Because the DG framework doesn't provide a hook that is run at the
+# end of a test, we must replace dg-test with a wrapper.
+
+if { [info procs saved-dg-test] == [list] } {
+    rename dg-test saved-dg-test
+
+    proc dg-test { args } {
+	global additional_files
+	global additional_sources
+	global errorInfo
+
+	if { [ catch { eval saved-dg-test $args } errmsg ] } {
+	    set saved_info $errorInfo
+	    set additional_files ""
+	    set additional_sources ""
+	    error $errmsg $saved_info
+	}
+	set additional_files ""
+	set additional_sources ""
+    }
+}
+
+# Local Variables:
+# tcl-indent-level:4
+# End:

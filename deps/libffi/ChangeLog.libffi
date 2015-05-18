@@ -1,0 +1,584 @@
+2011-02-08  Andreas Tobler  <andreast@fgznet.ch>
+
+	* testsuite/lib/libffi.exp: Tweak for stand-alone mode.
+
+2009-12-25  Samuli Suominen  <ssuominen@gentoo.org>
+
+	* configure.ac: Undefine _AC_ARG_VAR_PRECIOUS for autoconf 2.64.
+	* configure: Rebuilt.
+	* fficonfig.h.in: Rebuilt.
+
+2009-06-16  Andrew Haley  <aph@redhat.com>
+
+	* testsuite/libffi.call/cls_align_sint64.c,
+	testsuite/libffi.call/cls_align_uint64.c,
+	testsuite/libffi.call/cls_longdouble_va.c,
+	testsuite/libffi.call/cls_ulonglong.c,
+	testsuite/libffi.call/return_ll1.c,
+	testsuite/libffi.call/stret_medium2.c: Fix printf format
+	specifiers.
+	* testsuite/libffi.call/huge_struct.c: Ad x86 XFAILs.
+	* testsuite/libffi.call/float2.c: Fix dg-excess-errors.
+	* testsuite/libffi.call/ffitest.h,
+	testsuite/libffi.special/ffitestcxx.h (PRIdLL, PRIuLL): Define.
+
+2009-06-12  Andrew Haley  <aph@redhat.com>
+
+	* testsuite/libffi.call/cls_align_sint64.c,
+	testsuite/libffi.call/cls_align_uint64.c,
+	testsuite/libffi.call/cls_ulonglong.c,
+	testsuite/libffi.call/return_ll1.c,
+	testsuite/libffi.call/stret_medium2.c: Fix printf format
+	specifiers.
+	testsuite/libffi.special/unwindtest.cc: include stdint.h.
+
+2009-06-11  Timothy Wall  <twall@users.sf.net>
+
+	* Makefile.am,
+        configure.ac,
+        include/ffi.h.in,
+        include/ffi_common.h,
+        src/closures.c,
+        src/dlmalloc.c,
+        src/x86/ffi.c,
+        src/x86/ffitarget.h,
+        src/x86/win64.S (new),
+	README: Added win64 support (mingw or MSVC)
+        * Makefile.in,
+        include/Makefile.in,
+        man/Makefile.in,
+        testsuite/Makefile.in,
+        configure,
+        aclocal.m4: Regenerated
+        * ltcf-c.sh: properly escape cygwin/w32 path
+        * man/ffi_call.3: Clarify size requirements for return value.
+        * src/x86/ffi64.c: Fix filename in comment.
+        * src/x86/win32.S: Remove unused extern.
+
+        * testsuite/libffi.call/closure_fn0.c,
+        testsuite/libffi.call/closure_fn1.c,
+        testsuite/libffi.call/closure_fn2.c,
+        testsuite/libffi.call/closure_fn3.c,
+        testsuite/libffi.call/closure_fn4.c,
+        testsuite/libffi.call/closure_fn5.c,
+        testsuite/libffi.call/closure_fn6.c,
+	testsuite/libffi.call/closure_stdcall.c,
+	testsuite/libffi.call/cls_12byte.c,
+	testsuite/libffi.call/cls_16byte.c,
+	testsuite/libffi.call/cls_18byte.c,
+	testsuite/libffi.call/cls_19byte.c,
+	testsuite/libffi.call/cls_1_1byte.c,
+	testsuite/libffi.call/cls_20byte.c,
+	testsuite/libffi.call/cls_20byte1.c,
+	testsuite/libffi.call/cls_24byte.c,
+	testsuite/libffi.call/cls_2byte.c,
+	testsuite/libffi.call/cls_3_1byte.c,
+	testsuite/libffi.call/cls_3byte1.c,
+ 	testsuite/libffi.call/cls_3byte2.c,
+ 	testsuite/libffi.call/cls_4_1byte.c,
+ 	testsuite/libffi.call/cls_4byte.c,
+ 	testsuite/libffi.call/cls_5_1_byte.c,
+ 	testsuite/libffi.call/cls_5byte.c,
+ 	testsuite/libffi.call/cls_64byte.c,
+ 	testsuite/libffi.call/cls_6_1_byte.c,
+ 	testsuite/libffi.call/cls_6byte.c,
+ 	testsuite/libffi.call/cls_7_1_byte.c,
+ 	testsuite/libffi.call/cls_7byte.c,
+ 	testsuite/libffi.call/cls_8byte.c,
+ 	testsuite/libffi.call/cls_9byte1.c,
+ 	testsuite/libffi.call/cls_9byte2.c,
+ 	testsuite/libffi.call/cls_align_double.c,
+ 	testsuite/libffi.call/cls_align_float.c,
+ 	testsuite/libffi.call/cls_align_longdouble.c,
+ 	testsuite/libffi.call/cls_align_longdouble_split.c,
+ 	testsuite/libffi.call/cls_align_longdouble_split2.c,
+ 	testsuite/libffi.call/cls_align_pointer.c,
+ 	testsuite/libffi.call/cls_align_sint16.c,
+ 	testsuite/libffi.call/cls_align_sint32.c,
+ 	testsuite/libffi.call/cls_align_sint64.c,
+ 	testsuite/libffi.call/cls_align_uint16.c,
+ 	testsuite/libffi.call/cls_align_uint32.c,
+ 	testsuite/libffi.call/cls_align_uint64.c,
+ 	testsuite/libffi.call/cls_dbls_struct.c,
+ 	testsuite/libffi.call/cls_double.c,
+ 	testsuite/libffi.call/cls_double_va.c,
+ 	testsuite/libffi.call/cls_float.c,
+ 	testsuite/libffi.call/cls_longdouble.c,
+ 	testsuite/libffi.call/cls_longdouble_va.c,
+ 	testsuite/libffi.call/cls_multi_schar.c,
+ 	testsuite/libffi.call/cls_multi_sshort.c,
+ 	testsuite/libffi.call/cls_multi_sshortchar.c,
+ 	testsuite/libffi.call/cls_multi_uchar.c,
+ 	testsuite/libffi.call/cls_multi_ushort.c,
+ 	testsuite/libffi.call/cls_multi_ushortchar.c,
+ 	testsuite/libffi.call/cls_pointer.c,
+ 	testsuite/libffi.call/cls_pointer_stack.c,
+ 	testsuite/libffi.call/cls_schar.c,
+ 	testsuite/libffi.call/cls_sint.c,
+ 	testsuite/libffi.call/cls_sshort.c,
+ 	testsuite/libffi.call/cls_uchar.c,
+ 	testsuite/libffi.call/cls_uint.c,
+ 	testsuite/libffi.call/cls_ulonglong.c,
+ 	testsuite/libffi.call/cls_ushort.c,
+ 	testsuite/libffi.call/err_bad_abi.c,
+ 	testsuite/libffi.call/err_bad_typedef.c,
+ 	testsuite/libffi.call/float2.c,
+ 	testsuite/libffi.call/huge_struct.c,
+ 	testsuite/libffi.call/nested_struct.c,
+ 	testsuite/libffi.call/nested_struct1.c,
+ 	testsuite/libffi.call/nested_struct10.c,
+ 	testsuite/libffi.call/nested_struct2.c,
+ 	testsuite/libffi.call/nested_struct3.c,
+ 	testsuite/libffi.call/nested_struct4.c,
+ 	testsuite/libffi.call/nested_struct5.c,
+ 	testsuite/libffi.call/nested_struct6.c,
+ 	testsuite/libffi.call/nested_struct7.c,
+ 	testsuite/libffi.call/nested_struct8.c,
+ 	testsuite/libffi.call/nested_struct9.c,
+ 	testsuite/libffi.call/problem1.c,
+ 	testsuite/libffi.call/return_ldl.c,
+ 	testsuite/libffi.call/return_ll1.c,
+ 	testsuite/libffi.call/stret_large.c,
+ 	testsuite/libffi.call/stret_large2.c,
+ 	testsuite/libffi.call/stret_medium.c,
+ 	testsuite/libffi.call/stret_medium2.c,
+        testsuite/libffi.special/unwindtest.cc: use ffi_closure_alloc instead
+        of checking for MMAP.  Use intptr_t instead of long casts.
+
+2009-06-04  Andrew Haley  <aph@redhat.com>
+
+	* src/powerpc/ffitarget.h: Fix misapplied merge from gcc.
+
+2009-06-04  Andrew Haley  <aph@redhat.com>
+
+	* src/mips/o32.S,
+	src/mips/n32.S: Fix licence formatting.
+
+2009-06-04  Andrew Haley  <aph@redhat.com>
+
+	* src/x86/darwin.S: Fix licence formatting.
+	src/x86/win32.S: Likewise.
+	src/sh64/sysv.S: Likewise.
+	src/sh/sysv.S: Likewise.
+
+2009-06-04  Andrew Haley  <aph@redhat.com>
+
+	* src/sh64/ffi.c: Remove lint directives.  Was missing from merge
+	of Andreas Tobler's patch from 2006-04-22.
+	
+2009-06-04  Andrew Haley  <aph@redhat.com>
+
+	* src/sh/ffi.c: Apply missing hunk from Alexandre Oliva's patch of
+	2007-03-07.
+
+2008-12-26  Timothy Wall  <twall@users.sf.net>
+
+	* testsuite/libffi.call/cls_longdouble.c,
+        testsuite/libffi.call/cls_longdouble_va.c,
+        testsuite/libffi.call/cls_align_longdouble.c,
+        testsuite/libffi.call/cls_align_longdouble_split.c,
+        testsuite/libffi.call/cls_align_longdouble_split2.c: mark expected
+        failures on x86_64 cygwin/mingw.
+
+2008-12-22  Timothy Wall  <twall@users.sf.net>
+
+	* testsuite/libffi.call/closure_fn0.c,
+        testsuite/libffi.call/closure_fn1.c,    
+        testsuite/libffi.call/closure_fn2.c,    
+        testsuite/libffi.call/closure_fn3.c,    
+        testsuite/libffi.call/closure_fn4.c,    
+        testsuite/libffi.call/closure_fn5.c,    
+        testsuite/libffi.call/closure_fn6.c,    
+        testsuite/libffi.call/closure_loc_fn0.c,    
+        testsuite/libffi.call/closure_stdcall.c,    
+        testsuite/libffi.call/cls_align_pointer.c,    
+        testsuite/libffi.call/cls_pointer.c,    
+        testsuite/libffi.call/cls_pointer_stack.c: use portable cast from
+        pointer to integer (intptr_t).
+        * testsuite/libffi.call/cls_longdouble.c: disable for win64.
+	
+2008-12-19  Anthony Green  <green@redhat.com>
+
+	* configure.ac: Bump version to 3.0.8.
+	* configure, doc/stamp-vti, doc/version.texi: Rebuilt.
+	* libtool-version: Increment revision.
+	* README: Update for new release.
+
+2008-11-11  Anthony Green  <green@redhat.com>
+
+	* configure.ac: Bump version to 3.0.7.
+	* configure, doc/stamp-vti, doc/version.texi: Rebuilt.
+	* libtool-version: Increment revision.
+	* README: Update for new release.
+
+2008-08-25  Andreas Tobler  <a.tobler@schweiz.org>
+
+	* src/powerpc/ffitarget.h (ffi_abi): Add FFI_LINUX and
+	FFI_LINUX_SOFT_FLOAT to the POWERPC_FREEBSD enum.
+	Add note about flag bits used for FFI_SYSV_TYPE_SMALL_STRUCT.
+	Adjust copyright notice.
+	* src/powerpc/ffi.c: Add two new flags to indicate if we have one
+	register or two register to use for FFI_SYSV structs.
+	(ffi_prep_cif_machdep): Pass the right register flag introduced above.
+	(ffi_closure_helper_SYSV): Fix the return type for
+	FFI_SYSV_TYPE_SMALL_STRUCT. Comment.
+	Adjust copyright notice.
+
+2008-07-24  Anthony Green  <green@redhat.com>
+
+	* testsuite/libffi.call/cls_dbls_struct.c,
+	testsuite/libffi.call/cls_double_va.c,
+	testsuite/libffi.call/cls_longdouble.c,
+	testsuite/libffi.call/cls_longdouble_va.c,
+	testsuite/libffi.call/cls_pointer.c,
+	testsuite/libffi.call/cls_pointer_stack.c,
+	testsuite/libffi.call/err_bad_abi.c: Clean up failures from
+	compiler warnings.
+
+2008-07-17  Anthony Green  <green@redhat.com>
+
+	* configure.ac: Bump version to 3.0.6.
+	* configure, doc/stamp-vti, doc/version.texi: Rebuilt.
+	* libtool-version: Increment revision.  Add documentation.
+	* README: Update for new release.
+
+2008-07-16  Kaz Kojima  <kkojima@gcc.gnu.org>
+
+	* src/sh/ffi.c (ffi_prep_closure_loc): Turn INSN into an unsigned
+	int.
+
+2008-07-16  Kaz Kojima  <kkojima@gcc.gnu.org>
+
+	* src/sh/sysv.S: Add .note.GNU-stack on Linux.
+	* src/sh64/sysv.S: Likewise.
+
+2008-04-03  Anthony Green  <green@redhat.com>
+
+	* libffi.pc.in (Libs): Add -L${libdir}.
+	* configure.ac: Bump version to 3.0.5.
+	* configure, doc/stamp-vti, doc/version.texi: Rebuilt.
+	* libtool-version: Increment revision.
+	* README: Update for new release.
+
+2008-04-03  Anthony Green  <green@redhat.com>
+	    Xerces Ranby  <xerxes@zafena.se>
+
+	* include/ffi.h.in: Wrap definition of target architecture to
+	protect from double definitions.
+
+2008-03-22  Moriyoshi Koizumi  <moriyoshi@gmail.com>
+
+	* src/x86/ffi.c (ffi_prep_closure_loc): Fix for bug revealed in
+	closure_loc_fn0.c.
+	* testsuite/libffi.call/closure_loc_fn0.c (closure_loc_test_fn0):
+	New test.
+
+2008-03-04  Anthony Green  <green@redhat.com>
+	    Blake Chaffin
+	    hos@tamanegi.org
+
+	* testsuite/libffi.call/cls_align_longdouble_split2.c
+          testsuite/libffi.call/cls_align_longdouble_split.c
+          testsuite/libffi.call/cls_dbls_struct.c
+          testsuite/libffi.call/cls_double_va.c
+          testsuite/libffi.call/cls_longdouble.c
+          testsuite/libffi.call/cls_longdouble_va.c
+          testsuite/libffi.call/cls_pointer.c
+          testsuite/libffi.call/cls_pointer_stack.c
+          testsuite/libffi.call/err_bad_abi.c
+          testsuite/libffi.call/err_bad_typedef.c
+          testsuite/libffi.call/huge_struct.c
+          testsuite/libffi.call/stret_large2.c
+          testsuite/libffi.call/stret_large.c
+          testsuite/libffi.call/stret_medium2.c
+          testsuite/libffi.call/stret_medium.c: New tests from Apple.
+
+2008-02-26  Jakub Jelinek  <jakub@redhat.com>
+            Anthony Green  <green@redhat.com>
+
+	* src/alpha/osf.S: Add .note.GNU-stack on Linux.
+	* src/s390/sysv.S: Likewise.
+	* src/powerpc/linux64.S: Likewise.
+	* src/powerpc/linux64_closure.S: Likewise.
+	* src/powerpc/ppc_closure.S: Likewise.
+	* src/powerpc/sysv.S: Likewise.
+	* src/x86/unix64.S: Likewise.
+	* src/x86/sysv.S: Likewise.
+	* src/sparc/v8.S: Likewise.
+	* src/sparc/v9.S: Likewise.
+	* src/m68k/sysv.S: Likewise.
+	* src/ia64/unix.S: Likewise.
+	* src/arm/sysv.S: Likewise.
+
+2008-02-26  Anthony Green  <green@redhat.com>
+            Thomas Heller  <theller@ctypes.org>
+
+	* src/x86/ffi.c (ffi_closure_SYSV_inner): Change C++ comment to C
+	comment.
+
+2008-02-26  Anthony Green  <green@redhat.org>
+            Thomas Heller  <theller@ctypes.org>
+
+	* include/ffi.h.in: Change void (*)() to void (*)(void).
+
+2008-02-26  Anthony Green  <green@redhat.org>
+            Thomas Heller  <theller@ctypes.org>
+
+	* src/alpha/ffi.c: Change void (*)() to void (*)(void).
+	src/alpha/osf.S, src/arm/ffi.c, src/frv/ffi.c, src/ia64/ffi.c,
+	src/ia64/unix.S, src/java_raw_api.c, src/m32r/ffi.c,
+	src/mips/ffi.c, src/pa/ffi.c, src/pa/hpux32.S, src/pa/linux.S,
+	src/powerpc/ffi.c, src/powerpc/ffi_darwin.c, src/raw_api.c,
+	src/s390/ffi.c, src/sh/ffi.c, src/sh64/ffi.c, src/sparc/ffi.c,
+	src/x86/ffi.c, src/x86/unix64.S, src/x86/darwin64.S,
+	src/x86/ffi64.c: Ditto.
+
+2008-02-24  Anthony Green  <green@redhat.org>
+
+	* configure.ac: Accept openbsd*, not just openbsd.
+	Bump version to 3.0.4.
+	* configure, doc/stamp-vti, doc/version.texi: Rebuilt.
+	* libtool-version: Increment revision.
+	* README: Update for new release.
+
+2008-02-22  Anthony Green  <green@redhat.com>
+
+	* README: Clean up list of tested platforms.
+
+2008-02-22  Anthony Green  <green@redhat.com>
+
+	* configure.ac: Bump version to 3.0.3.
+	* configure, doc/stamp-vti, doc/version.texi: Rebuilt.
+	* libtool-version: Increment revision.
+	* README: Update for new release.  Clean up test docs.
+
+2008-02-22  Bjoern Koenig  <bkoenig@alpha-tierchen.de>
+	    Andreas Tobler  <a.tobler@schweiz.org>
+
+	* configure.ac: Add amd64-*-freebsd* target.
+	* configure: Regenerate.
+
+2008-02-22  Thomas Heller <theller@ctypes.org>
+
+	* configure.ac: Add x86 OpenBSD support.
+	* configure: Rebuilt.
+
+2008-02-21  Thomas Heller <theller@ctypes.org>
+
+	* README: Change "make test" to "make check".
+
+2008-02-21  Anthony Green  <green@redhat.com>
+
+	* configure.ac: Bump version to 3.0.2.
+	* configure, doc/stamp-vti, doc/version.texi: Rebuilt.
+	* libtool-version: Increment revision.
+	* README: Update for new release.
+
+2008-02-21  Björn König <bkoenig@alpha-tierchen.de>
+
+	* src/x86/freebsd.S: New file.
+	* configure.ac: Add x86 FreeBSD support.
+	* Makefile.am: Ditto.
+
+2008-02-15  Anthony Green  <green@redhat.com>
+
+	* configure.ac: Bump version to 3.0.1.
+	* configure, doc/stamp-vti, doc/version.texi: Rebuilt.
+	* libtool-version: Increment revision.
+	* README: Update for new release.
+
+2008-02-15  David Daney	 <ddaney@avtrex.com>
+
+	* src/mips/ffi.c: Remove extra '>' from include directive.
+	(ffi_prep_closure_loc): Use clear_location instead of tramp.
+
+2008-02-15  Anthony Green  <green@redhat.com>
+
+	* configure.ac: Bump version to 3.0.0.
+	* configure, doc/stamp-vti, doc/version.texi: Rebuilt.
+
+2008-02-15  David Daney	 <ddaney@avtrex.com>
+
+	* src/mips/ffi.c (USE__BUILTIN___CLEAR_CACHE):
+	Define (conditionally), and use it to include cachectl.h.
+	(ffi_prep_closure_loc): Fix cache flushing.
+	* src/mips/ffitarget.h (_ABIN32, _ABI64, _ABIO32): Define.
+
+2008-02-15  Anthony Green  <green@redhat.com>
+
+        * man/ffi_call.3, man/ffi_prep_cif.3, man/ffi.3:
+	Update dates and remove all references to ffi_prep_closure.
+	* configure.ac: Bump version to 2.99.9.
+	* configure, doc/stamp-vti, doc/version.texi: Rebuilt.
+
+2008-02-15  Anthony Green  <green@redhat.com>
+
+	* man/ffi_prep_closure.3: Delete.
+	* man/Makefile.am (EXTRA_DIST): Remove ffi_prep_closure.3.
+	(man_MANS): Ditto.
+	* man/Makefile.in: Rebuilt.
+	* configure.ac: Bump version to 2.99.8.
+	* configure, doc/stamp-vti, doc/version.texi: Rebuilt.
+
+2008-02-14  Anthony Green  <green@redhat.com>
+
+	* configure.ac: Bump version to 2.99.7.
+	* configure, doc/stamp-vti, doc/version.texi: Rebuilt.
+	* include/ffi.h.in LICENSE src/debug.c src/closures.c
+          src/ffitest.c src/s390/sysv.S src/s390/ffitarget.h
+          src/types.c src/m68k/ffitarget.h src/raw_api.c src/frv/ffi.c
+          src/frv/ffitarget.h src/sh/ffi.c src/sh/sysv.S
+          src/sh/ffitarget.h src/powerpc/ffitarget.h src/pa/ffi.c
+          src/pa/ffitarget.h src/pa/linux.S src/java_raw_api.c
+          src/cris/ffitarget.h src/x86/ffi.c src/x86/sysv.S
+          src/x86/unix64.S src/x86/win32.S src/x86/ffitarget.h
+          src/x86/ffi64.c src/x86/darwin.S src/ia64/ffi.c
+          src/ia64/ffitarget.h src/ia64/ia64_flags.h src/ia64/unix.S
+          src/sparc/ffi.c src/sparc/v9.S src/sparc/ffitarget.h
+          src/sparc/v8.S src/alpha/ffi.c src/alpha/ffitarget.h
+          src/alpha/osf.S src/sh64/ffi.c src/sh64/sysv.S
+          src/sh64/ffitarget.h src/mips/ffi.c src/mips/ffitarget.h
+          src/mips/n32.S src/mips/o32.S src/arm/ffi.c src/arm/sysv.S
+          src/arm/ffitarget.h src/prep_cif.c: Update license text.
+
+2008-02-14  Anthony Green  <green@redhat.com>
+
+	* README: Update tested platforms.
+	* configure.ac: Bump version to 2.99.6.
+	* configure: Rebuilt.
+
+2008-02-14  Anthony Green  <green@redhat.com>
+
+	* configure.ac: Bump version to 2.99.5.
+	* configure: Rebuilt.
+	* Makefile.am (EXTRA_DIST): Add darwin64.S
+	* Makefile.in: Rebuilt.
+	* testsuite/lib/libffi-dg.exp: Remove libstdc++ bits from GCC tree.
+	* LICENSE: Update WARRANTY.
+
+2008-02-14  Anthony Green  <green@redhat.com>
+
+	* libffi.pc.in (libdir): Fix libdir definition.
+	* configure.ac: Bump version to 2.99.4.
+	* configure: Rebuilt.
+
+2008-02-14  Anthony Green  <green@redhat.com>
+
+	* README: Update.
+	* libffi.info: New file.
+	* doc/stamp-vti: New file.
+	* configure.ac: Bump version to 2.99.3.
+	* configure: Rebuilt.
+
+2008-02-14  Anthony Green  <green@redhat.com>
+
+	* Makefile.am (SUBDIRS): Add man dir.
+	* Makefile.in: Rebuilt.
+	* configure.ac: Create Makefile.
+	* configure: Rebuilt.
+        * man/ffi_call.3 man/ffi_prep_cif.3 man/ffi_prep_closure.3
+          man/Makefile.am man/Makefile.in: New files.
+
+2008-02-14  Tom Tromey  <tromey@redhat.com>
+
+	* aclocal.m4, Makefile.in, configure, fficonfig.h.in: Rebuilt.
+	* mdate-sh, texinfo.tex: New files.
+	* Makefile.am (info_TEXINFOS): New variable.
+	* doc/libffi.texi: New file.
+	* doc/version.texi: Likewise.
+
+2008-02-14  Anthony Green  <green@redhat.com>
+
+	* Makefile.am (AM_CFLAGS): Don't compile with -D$(TARGET).
+	(lib_LTLIBRARIES): Define.
+	(toolexeclib_LIBRARIES): Undefine.
+	* Makefile.in: Rebuilt.
+	* configure.ac: Reset version to 2.99.1.
+	* configure.in: Rebuilt.
+
+2008-02-14  Anthony Green  <green@redhat.com>
+
+	* libffi.pc.in: Use @PACKAGE_NAME@ and @PACKAGE_VERSION@.
+	* configure.ac: Reset version to 2.99.1.
+	* configure.in: Rebuilt.
+	* Makefile.am (EXTRA_DIST): Add ChangeLog.libffi.
+	* Makefile.in: Rebuilt.
+	* LICENSE: Update copyright notice.
+
+2008-02-14  Anthony Green  <green@redhat.com>
+
+	* include/Makefile.am (nodist_includes_HEADERS): Define.  Don't
+	distribute ffitarget.h or ffi.h from the build include dir.
+	* Makefile.in: Rebuilt.
+
+2008-02-14  Anthony Green  <green@redhat.com>
+
+	* include/Makefile.am (includesdir): Install headers under libdir.
+	(pkgconfigdir): Define. Install libffi.pc.
+	* include/Makefile.in: Rebuilt.
+	* libffi.pc.in: Create.
+	* libtool-version: Increment CURRENT
+	* configure.ac: Add libffi.pc.in
+	* configure: Rebuilt.
+
+2008-02-03  Anthony Green  <green@redhat.com>
+
+	* include/Makefile.am (includesdir): Fix header install with
+	DESTDIR.
+	* include/Makefile.in: Rebuilt.
+
+2008-02-03  Timothy Wall  <twall@users.sf.net>
+
+	* src/x86/ffi.c (FFI_INIT_TRAMPOLINE_STDCALL): Calculate jump return
+          offset based on code pointer, not data pointer.
+
+2008-02-01  Anthony Green  <green@redhat.com>
+
+	* include/Makefile.am: Fix header installs.
+	* Makefile.am: Ditto.
+	* include/Makefile.in: Rebuilt.
+	* Makefile.in: Ditto.
+
+2008-02-01  Anthony Green  <green@redhat.com>
+
+	* src/x86/ffi.c (FFI_INIT_TRAMPOLINE_STDCALL,
+	FFI_INIT_TRAMPOLINE): Revert my broken changes to twall's last
+	patch.
+
+2008-01-31  Anthony Green  <green@redhat.com>
+
+	* Makefile.am (EXTRA_DIST): Add missing files.
+	* testsuite/Makefile.am: Ditto.
+	* Makefile.in, testsuite/Makefile.in: Rebuilt.
+
+2008-01-31  Timothy Wall <twall@users.sf.net>
+
+	* testsuite/libffi.call/closure_stdcall.c: Add test for stdcall
+	closures.
+	* src/x86/ffitarget.h: Increase size of trampoline for stdcall
+	closures.
+	* src/x86/win32.S: Add assembly for stdcall closure.
+	* src/x86/ffi.c: Initialize stdcall closure trampoline.
+
+2008-01-30  H.J. Lu <hongjiu.lu@intel.com>
+
+	PR libffi/34612
+	* src/x86/sysv.S (ffi_closure_SYSV): Pop 4 byte from stack when
+	returning struct.
+
+	* testsuite/libffi.call/call.exp: Add "-O2 -fomit-frame-pointer"
+	tests.
+
+2008-01-30  Anthony Green  <green@redhat.com>
+
+	* Makefile.am, include/Makefile.am: Move headers to
+	libffi_la_SOURCES for new automake.
+	* Makefile.in, include/Makefile.in: Rebuilt.
+
+	* testsuite/lib/wrapper.exp: Copied from gcc tree to allow for
+	execution outside of gcc tree.
+	* testsuite/lib/target-libpath.exp: Ditto.
+
+	* testsuite/lib/libffi-dg.exp: Many changes to allow for execution
+	outside of gcc tree.
+
