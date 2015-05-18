@@ -84,8 +84,8 @@ Same as `console.group`.
 
 ### console.groupEnd()
 
-Closes the most recently created logging group that previously created with 
-`console.group` or `console.groupCollapsed`.
+Closes the most recent logging group that was created with `console.group` or
+`console.groupCollapsed`.
 
 ### console.time(label)
 
