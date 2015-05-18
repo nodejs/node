@@ -1,5 +1,44 @@
 # io.js ChangeLog
 
+## 2015-05-17, Version 1.8.2, @rvagg
+
+**Maintenance release**
+
+## Notable changes
+
+* **crypto**: significantly reduced memory usage for TLS (Fedor Indutny & Сковорода Никита Андреевич) [#1529](https://github.com/iojs/io.js/pull/1529)
+* **npm**: Upgrade npm to 2.9.0. See the [v2.8.4](https://github.com/npm/npm/releases/tag/v2.8.4) and [v2.9.0](https://github.com/npm/npm/releases/tag/v2.9.0) release notes for details. Summary:
+  - Add support for default author field to make `npm init -y` work without user-input (@othiym23) [npm/npm/d8eee6cf9d](https://github.com/npm/npm/commit/d8eee6cf9d2ff7aca68dfaed2de76824a3e0d9
+  - Include local modules in `npm outdated` and `npm update` (@ArnaudRinquin) [npm/npm#7426](https://github.com/npm/npm/issues/7426)
+  - The prefix used before the version number on `npm version` is now configurable via `tag-version-prefix` (@kkragenbrink) [npm/npm#8014](https://github.com/npm/npm/issues/8014)
+
+### Known issues
+
+* Some problems with unreferenced timers running during `beforeExit` are still to be resolved. See [#1264](https://github.com/iojs/io.js/issues/1264).
+* Surrogate pair in REPL can freeze terminal [#690](https://github.com/iojs/io.js/issues/690)
+* `process.send()` is not synchronous as the docs suggest, a regression introduced in 1.0.2, see [#760](https://github.com/iojs/io.js/issues/760) and fix in [#774](https://github.com/iojs/io.js/issues/774)
+* Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion [#894](https://github.com/iojs/io.js/issues/894)
+* `url.resolve` may transfer the auth portion of the url when resolving between two full hosts, see [#1435](https://github.com/iojs/io.js/issues/1435).
+* readline: split escapes are processed incorrectly, see [#1403](https://github.com/iojs/io.js/issues/1403)
+
+### Commits
+
+* [[`5404cbc745`](https://github.com/nodejs/io.js/commit/5404cbc745)] - **buffer**: fix copy() segfault with zero arguments (Trevor Norris) [iojs/io.js#1520](https://github.com/iojs/io.js/pull/1520)
+* [[`65dd10e9c0`](https://github.com/nodejs/io.js/commit/65dd10e9c0)] - **build**: remove -J from test-ci (Rod Vagg) [iojs/io.js#1544](https://github.com/iojs/io.js/pull/1544)
+* [[`74060bb60e`](https://github.com/nodejs/io.js/commit/74060bb60e)] - **crypto**: track external memory for SSL structures (Fedor Indutny) [iojs/io.js#1529](https://github.com/iojs/io.js/pull/1529)
+* [[`f10f379240`](https://github.com/nodejs/io.js/commit/f10f379240)] - **deps**: make node-gyp work with io.js (cjihrig) [iojs/io.js#990](https://github.com/iojs/io.js/pull/990)
+* [[`ba0e744c2c`](https://github.com/nodejs/io.js/commit/ba0e744c2c)] - **deps**: upgrade npm to 2.9.0 (Forrest L Norvell) [iojs/io.js#1583](https://github.com/iojs/io.js/pull/1583)
+* [[`b3a7da1091`](https://github.com/nodejs/io.js/commit/b3a7da1091)] - **deps**: update http_parser to 2.5.0 (Fedor Indutny) [iojs/io.js#1517](https://github.com/iojs/io.js/pull/1517)
+* [[`4030545af6`](https://github.com/nodejs/io.js/commit/4030545af6)] - **fs**: validate fd on fs.write (Julian Duque) [#1553](https://github.com/nodejs/io.js/pull/1553)
+* [[`898d423820`](https://github.com/nodejs/io.js/commit/898d423820)] - **string_decoder**: don't cache Buffer.isEncoding (Brian White) [iojs/io.js#1548](https://github.com/iojs/io.js/pull/1548)
+* [[`32a6dbcf23`](https://github.com/nodejs/io.js/commit/32a6dbcf23)] - **test**: extend timeouts for ARMv6 (Rod Vagg) [iojs/io.js#1554](https://github.com/iojs/io.js/pull/1554)
+* [[`5896fe5cd3`](https://github.com/nodejs/io.js/commit/5896fe5cd3)] - **test**: adjust Makefile/test-ci, add to vcbuild.bat (Rod Vagg) [iojs/io.js#1530](https://github.com/iojs/io.js/pull/1530)
+* [[`b72e4bc596`](https://github.com/nodejs/io.js/commit/b72e4bc596)] - **tls**: destroy singleUse context immediately (Fedor Indutny) [iojs/io.js#1529](https://github.com/iojs/io.js/pull/1529)
+* [[`1cfc455dc5`](https://github.com/nodejs/io.js/commit/1cfc455dc5)] - **tls**: zero SSL_CTX freelist for a singleUse socket (Fedor Indutny) [iojs/io.js#1529](https://github.com/iojs/io.js/pull/1529)
+* [[`7ada680519`](https://github.com/nodejs/io.js/commit/7ada680519)] - **tls**: destroy SSL once it is out of use (Fedor Indutny) [iojs/io.js#1529](https://github.com/iojs/io.js/pull/1529)
+* [[`71274b0263`](https://github.com/nodejs/io.js/commit/71274b0263)] - **tls_wrap**: use localhost if options.host is empty (Guilherme Souza) [iojs/io.js#1493](https://github.com/iojs/io.js/pull/1493)
+* [[`0eb74a8b6c`](https://github.com/nodejs/io.js/commit/0eb74a8b6c)] - **win,node-gyp**: optionally allow node.exe/iojs.exe to be renamed (Bert Belder) [iojs/io.js#1266](https://github.com/iojs/io.js/pull/1266)
+
 ## 2015-04-20, Version 1.8.1, @chrisdickinson
 
 ### Notable changes
