@@ -41,6 +41,7 @@
 #include "v8-debug.h"
 #include "v8-profiler.h"
 #include "zlib.h"
+#include "CmdLine.h"
 
 #include <errno.h>
 #include <limits.h>  // PATH_MAX
@@ -114,7 +115,7 @@ static bool force_repl = false;
 static bool trace_deprecation = false;
 static bool throw_deprecation = false;
 static bool abort_on_uncaught_exception = false;
-static const char* eval_string = nullptr;
+static std::string eval_string;
 static unsigned int preload_module_count = 0;
 static const char** preload_modules = nullptr;
 static bool use_debug_agent = false;
@@ -2786,10 +2787,10 @@ void SetupProcessObject(Environment* env,
                        env->as_external());
 
   // -e, --eval
-  if (eval_string) {
+  if (!eval_string.empty()) {
     READONLY_PROPERTY(process,
                       "_eval",
-                      String::NewFromUtf8(env->isolate(), eval_string));
+                      String::NewFromUtf8(env->isolate(), eval_string.c_str()));
   }
 
   // -p, --print
@@ -3106,17 +3107,16 @@ static void ParseArgs(int* argc,
                       const char*** exec_argv,
                       int* v8_argc,
                       const char*** v8_argv) {
+
   const unsigned int nargs = static_cast<unsigned int>(*argc);
   const char** new_exec_argv = new const char*[nargs];
   const char** new_v8_argv = new const char*[nargs];
   const char** new_argv = new const char*[nargs];
-  const char** local_preload_modules = new const char*[nargs];
 
   for (unsigned int i = 0; i < nargs; ++i) {
     new_exec_argv[i] = nullptr;
     new_v8_argv[i] = nullptr;
     new_argv[i] = nullptr;
-    local_preload_modules[i] = nullptr;
   }
 
   // exec_argv starts with the first option, the other two start with argv[0].
@@ -3126,6 +3126,143 @@ static void ParseArgs(int* argc,
   new_v8_argv[0] = argv[0];
   new_argv[0] = argv[0];
 
+  try {
+    TCLAP::CmdLine cmd("iojs", ' ', NODE_VERSION, false);
+    // Need a way to get all of the unmatched args
+    cmd.ignoreUnmatched(true);
+
+    TCLAP::SwitchArg switchH("h", "help", "show help and usage", cmd, false);
+    TCLAP::SwitchArg switchV("v", "version", "show version", cmd, false);
+    TCLAP::ValueArg<std::string> evalArg("e",
+                                         "eval",
+                                         "evaluate script",
+                                         false,
+                                         "",
+                                         "string",
+                                         cmd);
+    TCLAP::ValueArg<std::string> printArg("p",
+                                          "print",
+                                          "evaluate script and print result",
+                                          false,
+                                          "",
+                                          "string",
+                                          cmd);
+    TCLAP::SwitchArg switchI("i",
+                             "interactive",
+                             "always enter the REPL even if stdin "
+                             "does not appear to be a terminal",
+                             cmd,
+                             false);
+    TCLAP::SwitchArg noDepr("",
+                            "no-deprecation",
+                            "silence deprecation warnings",
+                            cmd,
+                            false);
+    TCLAP::SwitchArg throwDepr("",
+                               "throw-deprecation",
+                               "throw an exception anytime a deprecated "
+                               "function is used",
+                               cmd,
+                               false);
+    TCLAP::SwitchArg aUncaught("",
+                               "abort-on-uncaught-exception",
+                               "aborts on uncaught exception",
+                               cmd,
+                               false);
+    TCLAP::SwitchArg aUncaught2("",
+                                "abort_on_uncaught_exception",
+                                "aborts on uncaught exception",
+                                cmd,
+                                false);
+    TCLAP::SwitchArg v8Options("",
+                               "v8-options",
+                               "print v8 command line options",
+                               cmd,
+                               false);
+    TCLAP::MultiArg<std::string> requireModules("r",
+                                                "require",
+                                                "module to preload",
+                                                false,
+                                                "string");
+
+    TCLAP::SwitchArg exposeInternals("", "expose-internals", "", cmd, false);
+    TCLAP::SwitchArg exposeInternals2("", "expose_internals", "", cmd, false);
+    TCLAP::UnlabeledMultiArg<std::string> mainScript("mainScript",
+                                                     "script",
+                                                     false,
+                                                     "string",
+                                                     cmd);
+
+#if defined(NODE_HAVE_I18N_SUPPORT)
+    TCLAP::ValueArg icuDataDir("",
+                               "icu-data-dir",
+                               "set ICU data load path to dir",
+                               cmd,
+                               false);
+#endif
+    cmd.add(requireModules);
+
+    cmd.parse(*argc, argv);
+    if (switchH.getValue()) {
+      PrintHelp();
+      exit(0);
+    }
+
+    if (switchH.getValue()) {
+      printf("%s\n", NODE_VERSION);
+      exit(0);
+    }
+
+    if (v8Options.getValue()) {
+      new_v8_argv[new_v8_argc] = "--help";
+      new_v8_argc += 1;
+    }
+
+    bool is_eval = evalArg.isSet();
+    bool is_print = printArg.isSet();
+    print_eval = print_eval || is_print;
+    if (is_eval == true) {
+      eval_string = evalArg.getValue();
+      if (eval_string.empty()) {
+        fprintf(stderr, "%s: %s requires an argument\n", argv[0], "--eval");
+        exit(9);
+      }
+    } else if (is_print == true) {
+      eval_string = printArg.getValue();
+    }
+
+    std::vector<std::string> reqModules = requireModules.getValue();
+
+    if (reqModules.size()) {
+      CHECK(!preload_modules);
+      preload_modules = new const char*[reqModules.size()];
+      for (unsigned int i = 0; i < reqModules.size(); i++) {
+        memcpy(preload_modules,
+               reqModules[i].c_str(),
+               reqModules.size() * sizeof reqModules[i].c_str());
+      }
+    }
+
+    force_repl = switchI.getValue();
+    no_deprecation = noDepr.getValue();
+    throw_deprecation = throwDepr.getValue();
+    abort_on_uncaught_exception = aUncaught.getValue() ||
+      aUncaught2.getValue();
+
+    std::vector<std::string> unmatched = cmd.getUnmatchedArgs();
+    if (unmatched.size()) {
+      for (unsigned int i = 0; i < unmatched.size(); i++) {
+        const char* a = unmatched[i].c_str();
+        new_v8_argv[new_v8_argc] = a;
+        new_v8_argc++;
+      }
+    }
+  }
+  catch (TCLAP::ArgException &e) {
+    fprintf(stderr, "%s for arg %s", e.error().c_str(), e.argId().c_str());
+    exit(1);
+  }
+
   unsigned int index = 1;
   while (index < nargs && argv[index][0] == '-') {
     const char* const arg = argv[index];
@@ -3133,72 +3270,10 @@ static void ParseArgs(int* argc,
 
     if (ParseDebugOpt(arg)) {
       // Done, consumed by ParseDebugOpt().
-    } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
-      printf("%s\n", NODE_VERSION);
-      exit(0);
-    } else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {
-      PrintHelp();
-      exit(0);
-    } else if (strcmp(arg, "--eval") == 0 ||
-               strcmp(arg, "-e") == 0 ||
-               strcmp(arg, "--print") == 0 ||
-               strcmp(arg, "-pe") == 0 ||
-               strcmp(arg, "-p") == 0) {
-      bool is_eval = strchr(arg, 'e') != nullptr;
-      bool is_print = strchr(arg, 'p') != nullptr;
-      print_eval = print_eval || is_print;
-      // --eval, -e and -pe always require an argument.
-      if (is_eval == true) {
-        args_consumed += 1;
-        eval_string = argv[index + 1];
-        if (eval_string == nullptr) {
-          fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
-          exit(9);
-        }
-      } else if ((index + 1 < nargs) &&
-                 argv[index + 1] != nullptr &&
-                 argv[index + 1][0] != '-') {
-        args_consumed += 1;
-        eval_string = argv[index + 1];
-        if (strncmp(eval_string, "\\-", 2) == 0) {
-          // Starts with "\\-": escaped expression, drop the backslash.
-          eval_string += 1;
-        }
-      }
-    } else if (strcmp(arg, "--require") == 0 ||
-               strcmp(arg, "-r") == 0) {
-      const char* module = argv[index + 1];
-      if (module == nullptr) {
-        fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
-        exit(9);
-      }
-      args_consumed += 1;
-      local_preload_modules[preload_module_count++] = module;
-    } else if (strcmp(arg, "--interactive") == 0 || strcmp(arg, "-i") == 0) {
-      force_repl = true;
-    } else if (strcmp(arg, "--no-deprecation") == 0) {
-      no_deprecation = true;
-    } else if (strcmp(arg, "--trace-deprecation") == 0) {
-      trace_deprecation = true;
-    } else if (strcmp(arg, "--throw-deprecation") == 0) {
-      throw_deprecation = true;
-    } else if (strcmp(arg, "--abort-on-uncaught-exception") == 0 ||
-               strcmp(arg, "--abort_on_uncaught_exception") == 0) {
-      abort_on_uncaught_exception = true;
-    } else if (strcmp(arg, "--v8-options") == 0) {
-      new_v8_argv[new_v8_argc] = "--help";
-      new_v8_argc += 1;
 #if defined(NODE_HAVE_I18N_SUPPORT)
     } else if (strncmp(arg, "--icu-data-dir=", 15) == 0) {
       icu_data_dir = arg + 15;
 #endif
-    } else if (strcmp(arg, "--expose-internals") == 0 ||
-               strcmp(arg, "--expose_internals") == 0) {
-      // consumed in js
-    } else {
-      // V8 option.  Pass through as-is.
-      new_v8_argv[new_v8_argc] = arg;
-      new_v8_argc += 1;
     }
 
     memcpy(new_exec_argv + new_exec_argc,
@@ -3223,16 +3298,6 @@ static void ParseArgs(int* argc,
   memcpy(argv, new_argv, new_argc * sizeof(*argv));
   delete[] new_argv;
   *argc = static_cast<int>(new_argc);
-
-  // Copy the preload_modules from the local array to an appropriately sized
-  // global array.
-  if (preload_module_count > 0) {
-    CHECK(!preload_modules);
-    preload_modules = new const char*[preload_module_count];
-    memcpy(preload_modules, local_preload_modules,
-           preload_module_count * sizeof(*preload_modules));
-  }
-  delete[] local_preload_modules;
 }
 
 
@@ -3649,10 +3714,6 @@ void Init(int* argc,
   // the argv array or the elements it points to.
   V8::SetFlagsFromCommandLine(&v8_argc, const_cast<char**>(v8_argv), true);
 
-  // Anything that's still in v8_argv is not a V8 or a node option.
-  for (int i = 1; i < v8_argc; i++) {
-    fprintf(stderr, "%s: bad option: %s\n", argv[0], v8_argv[i]);
-  }
   delete[] v8_argv;
   v8_argv = nullptr;
 
