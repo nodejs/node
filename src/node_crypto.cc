@@ -1217,8 +1217,16 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
 
   EVP_PKEY* pkey = X509_get_pubkey(cert);
   RSA* rsa = nullptr;
-  if (pkey != nullptr)
+  if (pkey != nullptr) {
     rsa = EVP_PKEY_get1_RSA(pkey);
+
+    int pkey_size = i2d_PUBKEY(pkey, nullptr);
+    Local<Object> pkey_buff = Buffer::New(env, pkey_size);
+    unsigned char* pkey_serialized = reinterpret_cast<unsigned char*>(
+        Buffer::Data(pkey_buff));
+    i2d_PUBKEY(pkey, &pkey_serialized);
+    info->Set(env->subject_public_key_info_string(), pkey_buff);
+  }
 
   if (rsa != nullptr) {
       BN_print(bio, rsa->n);
