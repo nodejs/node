@@ -61,6 +61,7 @@ var server = tls.createServer({
 
     socket.end('hello');
     socket.resume();
+    socket.destroy();
   });
 
   socket.once('close', function() {
