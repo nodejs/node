@@ -1,3 +1,4 @@
+'use strict';
 // This tests binds to one port, then attempts to start a server on that
 // port. It should be EADDRINUSE but be able to then bind to another port.
 var common = require('../common');

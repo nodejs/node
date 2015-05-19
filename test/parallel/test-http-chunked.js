@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var http = require('http');
@@ -24,7 +25,7 @@ server.listen(common.PORT, function() {
     port: common.PORT
   }, function(x) {
     x.setEncoding('utf8');
-    x.on('data', function(c) {data += c});
+    x.on('data', function(c) {data += c;});
     x.on('error', function(e) {
       throw e;
     });
@@ -36,7 +37,7 @@ server.listen(common.PORT, function() {
       server.close();
     });
   });
-  get.on('error', function(e) {throw e});
+  get.on('error', function(e) {throw e;});
   get.end();
 
 });

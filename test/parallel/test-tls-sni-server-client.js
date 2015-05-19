@@ -1,3 +1,4 @@
+'use strict';
 if (!process.features.tls_sni) {
   console.error('Skipping because node compiled without OpenSSL or ' +
                 'with old OpenSSL version.');

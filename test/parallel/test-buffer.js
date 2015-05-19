@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -127,8 +128,8 @@ assert.strictEqual(Math.floor(c.length / 2), copied);
 for (var i = 0; i < Math.floor(c.length / 2); i++) {
   assert.strictEqual(b[b.length - Math.floor(c.length / 2) + i], c[i]);
 }
-for (var i = Math.floor(c.length /2) + 1; i < c.length; i++) {
-  assert.strictEqual(c[c.length-1], c[i]);
+for (var i = Math.floor(c.length / 2) + 1; i < c.length; i++) {
+  assert.strictEqual(c[c.length - 1], c[i]);
 }
 
 // try to copy 513 bytes, and check we don't overrun c
@@ -843,7 +844,7 @@ Buffer(Buffer(0), 0, 0);
 
 
 // GH-5110
-(function () {
+(function() {
   var buffer = new Buffer('test'),
       string = JSON.stringify(buffer);
 
@@ -1068,7 +1069,7 @@ assert.equal(buf.readInt8(0), -1);
   // see https://github.com/joyent/node/issues/5881
   SlowBuffer(0).slice(0, 1);
   // make sure a zero length slice doesn't set the .parent attribute
-  assert.equal(Buffer(5).slice(0,0).parent, undefined);
+  assert.equal(Buffer(5).slice(0, 0).parent, undefined);
   // and make sure a proper slice does have a parent
   assert.ok(typeof Buffer(5).slice(0, 5).parent === 'object');
 })();
@@ -1087,7 +1088,7 @@ assert.throws(function() {
 (function() {
   var a = [0];
   for (var i = 0; i < 7; ++i) a = a.concat(a);
-  a = a.map(function(_, i) { return i });
+  a = a.map(function(_, i) { return i; });
   var b = Buffer(a);
   var c = Buffer(b);
   assert.equal(b.length, a.length);
@@ -1100,11 +1101,11 @@ assert.throws(function() {
 })();
 
 
-assert.throws(function () {
+assert.throws(function() {
   new Buffer(smalloc.kMaxLength + 1);
 }, RangeError);
 
-assert.throws(function () {
+assert.throws(function() {
   new SlowBuffer(smalloc.kMaxLength + 1);
 }, RangeError);
 

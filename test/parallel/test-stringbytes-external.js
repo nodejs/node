@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 // minimum string size to overflow into external string space
@@ -54,7 +55,7 @@ var RADIOS = 2;
 var PRE_HALF_APEX = Math.ceil(EXTERN_APEX / 2) - RADIOS;
 var PRE_3OF4_APEX = Math.ceil((EXTERN_APEX / 4) * 3) - RADIOS;
 
-(function () {
+(function() {
   for (var j = 0; j < RADIOS * 2; j += 1) {
     var datum = b;
     var slice = datum.slice(0, PRE_HALF_APEX + j);
@@ -63,7 +64,7 @@ var PRE_3OF4_APEX = Math.ceil((EXTERN_APEX / 4) * 3) - RADIOS;
     var pumped_string2 = slice2.toString('hex');
     var decoded = new Buffer(pumped_string, 'hex');
 
-    var metadata = "\nEXTERN_APEX=1031913 - pumped_string.length="
+    var metadata = '\nEXTERN_APEX=1031913 - pumped_string.length=';
     metadata += pumped_string.length + '\n';
 
     // the string are the same?
@@ -80,7 +81,7 @@ var PRE_3OF4_APEX = Math.ceil((EXTERN_APEX / 4) * 3) - RADIOS;
   }
 })();
 
-(function () {
+(function() {
   for (var j = 0; j < RADIOS * 2; j += 1) {
     var datum = b;
     var slice = datum.slice(0, PRE_3OF4_APEX + j);
@@ -89,8 +90,8 @@ var PRE_3OF4_APEX = Math.ceil((EXTERN_APEX / 4) * 3) - RADIOS;
     var pumped_string2 = slice2.toString('base64');
     var decoded = new Buffer(pumped_string, 'base64');
 
-    var metadata = "\nEXTERN_APEX=1031913 - data=" + slice.length
-    metadata += " pumped_string.length=" + pumped_string.length + '\n';
+    var metadata = '\nEXTERN_APEX=1031913 - data=" + slice.length';
+    metadata += ' pumped_string.length=' + pumped_string.length + '\n';
 
     // the string are the same?
     for (var k = 0; k < pumped_string.length - 3; ++k) {

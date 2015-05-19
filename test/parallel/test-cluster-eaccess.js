@@ -1,5 +1,7 @@
-// test that errors propagated from cluster children are properly received in their master
-// creates an EADDRINUSE condition by also forking a child process to listen on a socket
+'use strict';
+// test that errors propagated from cluster children are properly
+// received in their master creates an EADDRINUSE condition by also
+// forking a child process to listen on a socket
 
 var common = require('../common');
 var assert = require('assert');
@@ -27,7 +29,8 @@ if (cluster.isMaster) {
     assert.equal(gotError, 1);
   });
 } else {
-  var cp = fork(common.fixturesDir + '/listen-on-socket-and-exit.js', { stdio: 'inherit' });
+  var cp = fork(common.fixturesDir + '/listen-on-socket-and-exit.js',
+                { stdio: 'inherit' });
 
   // message from the child indicates it's ready and listening
   cp.on('message', function() {

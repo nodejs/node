@@ -375,7 +375,7 @@ bench-idle:
 	./$(NODE_EXE) benchmark/idle_clients.js &
 
 jslint:
-	./$(NODE_EXE) tools/eslint/bin/eslint.js src lib --reset --quiet
+	./$(NODE_EXE) tools/eslint/bin/eslint.js src lib test --reset --quiet
 
 CPPLINT_EXCLUDE ?=
 CPPLINT_EXCLUDE += src/node_lttng.cc

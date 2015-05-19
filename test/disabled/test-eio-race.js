@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -36,7 +37,7 @@ function tryToKillEventLoop() {
 
 // Generate a lot of thread pool events
 var pos = 0;
-fs.open(filename, 'r', 0666, function(err, fd) {
+fs.open(filename, 'r', 0o666, function(err, fd) {
   if (err) throw err;
 
   function readChunk() {

@@ -1,3 +1,4 @@
+'use strict';
 // test unzipping a file that was created with a non-node gzip lib,
 // piped in as fast as possible.
 

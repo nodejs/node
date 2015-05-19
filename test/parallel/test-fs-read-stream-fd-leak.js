@@ -1,3 +1,4 @@
+'use strict';
 // Copyright io.js contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -34,12 +35,12 @@ var emptyTxt = path.join(common.fixturesDir, 'empty.txt');
 fs.open = function() {
   openCount++;
   return _fsopen.apply(null, arguments);
-}
+};
 
 fs.close = function() {
   openCount--;
   return _fsclose.apply(null, arguments);
-}
+};
 
 function testLeak(endFn, callback) {
   console.log('testing for leaks from fs.createReadStream().%s()...', endFn);
@@ -53,7 +54,8 @@ function testLeak(endFn, callback) {
     if (++i === loopCount) {
       clearTimeout(this);
       setTimeout(function() {
-        assert.equal(0, openCount, 'no leaked file descriptors using ' + endFn + '() (got ' + openCount + ')');
+        assert.equal(0, openCount, 'no leaked file descriptors using ' +
+                     endFn + '() (got ' + openCount + ')');
         openCount = 0;
         callback && setTimeout(callback, 100);
       }, 100);

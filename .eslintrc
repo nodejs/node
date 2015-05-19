@@ -8,6 +8,7 @@ ecmaFeatures:
   octalLiterals: true
   binaryLiterals: true
   generators: true
+  forOf: true
 
 rules:
   # Possible Errors
@@ -54,6 +55,10 @@ rules:
   space-infix-ops: 2
   ## require spaces return, throw, case
   space-return-throw-case: 2
+  ## no space before function, eg. 'function()'
+  space-before-function-paren: [2, "never"]
+  ## require space before blocks, eg 'function() {'
+  space-before-blocks: [2, "always"]
   ## require parens for Constructor
   new-parens: 2
   ## max 80 length

@@ -4,7 +4,7 @@ const assert = require('assert');
 const http = require('http');
 
 const server = http.createServer();
-server.on('request', function(req, res){
+server.on('request', function(req, res) {
   assert(req.headers['foo'], 'bar');
   res.end('ok');
   server.close();

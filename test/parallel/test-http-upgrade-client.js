@@ -1,3 +1,4 @@
+'use strict';
 // Verify that the 'upgrade' header causes an 'upgrade' event to be emitted to
 // the HTTP client. This test uses a raw TCP server to better control server
 // behavior.

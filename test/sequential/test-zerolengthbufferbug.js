@@ -1,3 +1,4 @@
+'use strict';
 // Serving up a zero-length buffer should work.
 
 var common = require('../common');

@@ -1,3 +1,4 @@
+'use strict';
 /*
  * This test is a regression test for joyent/node#8900.
  */

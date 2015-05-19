@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var vm = require('vm');
@@ -12,7 +13,7 @@ assert.doesNotThrow(function() {
 });
 
 assert.doesNotThrow(function() {
-    var sandbox = {};
-    vm.createContext(sandbox);
-    vm.createContext(sandbox);
+  var sandbox = {};
+  vm.createContext(sandbox);
+  vm.createContext(sandbox);
 });

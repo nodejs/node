@@ -1,30 +1,31 @@
+'use strict';
 var assert = require('assert');
 var util = require('util');
 var repl = require('repl');
 
 // A stream to push an array into a REPL
 function ArrayStream() {
-  this.run = function (data) {
+  this.run = function(data) {
     var self = this;
-    data.forEach(function (line) {
+    data.forEach(function(line) {
       self.emit('data', line + '\n');
     });
-  }
+  };
 }
 util.inherits(ArrayStream, require('stream').Stream);
 ArrayStream.prototype.readable = true;
 ArrayStream.prototype.writable = true;
-ArrayStream.prototype.resume = function () {};
-ArrayStream.prototype.write = function () {};
+ArrayStream.prototype.resume = function() {};
+ArrayStream.prototype.write = function() {};
 
-var putIn = new ArrayStream;
+var putIn = new ArrayStream();
 var testMe = repl.start('', putIn, null, true);
 
 test1();
 
-function test1(){
+function test1() {
   var gotWrite = false;
-  putIn.write = function (data) {
+  putIn.write = function(data) {
     gotWrite = true;
     if (data.length) {
 
@@ -40,7 +41,7 @@ function test1(){
   assert(gotWrite);
 }
 
-function test2(){
+function test2() {
   var gotWrite = false;
   putIn.write = function(data) {
     gotWrite = true;

@@ -1,3 +1,4 @@
+/* eslint-disable max-len, strict */
 var common = require('../common');
 var assert = require('assert');
 
@@ -170,7 +171,7 @@ function error_test() {
     { client: client_unix, send: '1 }',
       expect: '{ a: 1 }' },
     // Multiline anonymous function with comment
-    { client: client_unix, send: '(function () {',
+    { client: client_unix, send: '(function() {',
       expect: prompt_multiline },
     { client: client_unix, send: '// blah',
       expect: prompt_multiline },
@@ -181,7 +182,7 @@ function error_test() {
     // npm prompt error message
     { client: client_unix, send: 'npm install foobar',
       expect: expect_npm },
-    { client: client_unix, send: '(function () {\n\nreturn 1;\n})()',
+    { client: client_unix, send: '(function() {\n\nreturn 1;\n})()',
       expect: '1' },
     { client: client_unix, send: '{\n\na: 1\n}',
       expect: '{ a: 1 }' },

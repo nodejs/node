@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var StringDecoder = require('string_decoder').StringDecoder;
@@ -54,11 +55,11 @@ function test(encoding, input, expected, singleSequence) {
     process.stdout.write('.');
     if (output !== expected) {
       var message =
-        'Expected "'+unicodeEscape(expected)+'", '+
-        'but got "'+unicodeEscape(output)+'"\n'+
-        'Write sequence: '+JSON.stringify(sequence)+'\n'+
-        'Decoder charBuffer: 0x'+decoder.charBuffer.toString('hex')+'\n'+
-        'Full Decoder State: '+JSON.stringify(decoder, null, 2);
+        'Expected "' + unicodeEscape(expected) + '", ' +
+        'but got "' + unicodeEscape(output) + '"\n' +
+        'Write sequence: ' + JSON.stringify(sequence) + '\n' +
+        'Decoder charBuffer: 0x' + decoder.charBuffer.toString('hex') + '\n' +
+        'Full Decoder State: ' + JSON.stringify(decoder, null, 2);
       assert.fail(output, expected, message);
     }
   });
@@ -68,7 +69,7 @@ function test(encoding, input, expected, singleSequence) {
 function unicodeEscape(str) {
   var r = '';
   for (var i = 0; i < str.length; i++) {
-    r += '\\u'+str.charCodeAt(i).toString(16);
+    r += '\\u' + str.charCodeAt(i).toString(16);
   }
   return r;
 }
@@ -86,7 +87,7 @@ function unicodeEscape(str) {
 function writeSequences(length, start, sequence) {
   if (start === undefined) {
     start = 0;
-    sequence = []
+    sequence = [];
   } else if (start === length) {
     return [sequence];
   }

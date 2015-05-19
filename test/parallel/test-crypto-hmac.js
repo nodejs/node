@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -56,7 +57,7 @@ var wikipedia = [
           '4292c5ad'
     }
   },
-]
+];
 
 for (var i = 0, l = wikipedia.length; i < l; i++) {
   for (var hash in wikipedia[i]['hmac']) {

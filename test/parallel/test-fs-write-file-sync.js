@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var path = require('path');
@@ -15,14 +16,14 @@ fs._closeSync = fs.closeSync;
 fs.closeSync = closeSync;
 
 // Reset the umask for testing
-var mask = process.umask(0000);
+var mask = process.umask(0o000);
 
 // On Windows chmod is only able to manipulate read-only bit. Test if creating
 // the file in read-only mode works.
 if (isWindows) {
-  mode = 0444;
+  mode = 0o444;
 } else {
-  mode = 0755;
+  mode = 0o755;
 }
 
 // Test writeFileSync
@@ -34,7 +35,7 @@ fs.writeFileSync(file1, '123', {mode: mode});
 content = fs.readFileSync(file1, {encoding: 'utf8'});
 assert.equal('123', content);
 
-assert.equal(mode, fs.statSync(file1).mode & 0777);
+assert.equal(mode, fs.statSync(file1).mode & 0o777);
 
 removeFile(file1);
 
@@ -58,7 +59,7 @@ assert.equal(0, openCount);
 function removeFile(file) {
   try {
     if (isWindows)
-      fs.chmodSync(file, 0666);
+      fs.chmodSync(file, 0o666);
     fs.unlinkSync(file);
   } catch (err) {
     if (err && err.code !== 'ENOENT')

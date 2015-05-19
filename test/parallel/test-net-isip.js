@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var net = require('net');
@@ -29,7 +30,7 @@ assert.equal(net.isIP('::'), 6);
 assert.equal(net.isIP('0000:0000:0000:0000:0000:0000:12345:0000'), 0);
 assert.equal(net.isIP('0'), 0);
 assert.equal(net.isIP(), 0);
-assert.equal(net.isIP(""), 0);
+assert.equal(net.isIP(''), 0);
 
 assert.equal(net.isIPv4('127.0.0.1'), true);
 assert.equal(net.isIPv4('example.com'), false);

@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var stream = require('stream');
 var Readable = stream.Readable;
@@ -15,7 +16,7 @@ var stream = new Readable({
   encoding: 'utf8'
 });
 
-var source = new EE;
+var source = new EE();
 
 stream._read = function() {
   console.error('stream._read');
@@ -80,7 +81,7 @@ writer.on('finish', finish);
 
 // now emit some chunks.
 
-var chunk = "asdfg";
+var chunk = 'asdfg';
 
 var set = 0;
 readStart();

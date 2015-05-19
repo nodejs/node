@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common'),
     assert = require('assert'),
     path = require('path'),
@@ -12,15 +13,15 @@ var preloadOption = function(preloads) {
     option += '-r ' + preload + ' ';
   });
   return option;
-}
+};
 
 var fixture = function(name) {
   return path.join(__dirname, '../fixtures/' + name);
-}
+};
 
 var fixtureA = fixture('printA.js');
 var fixtureB = fixture('printB.js');
-var fixtureC = fixture('printC.js')
+var fixtureC = fixture('printC.js');
 var fixtureThrows = fixture('throws_error4.js');
 
 // test preloading a single module works

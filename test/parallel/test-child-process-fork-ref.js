@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var fork = require('child_process').fork;
@@ -10,7 +11,7 @@ if (process.argv[2] === 'child') {
     process.send('2');
   }, 200);
 
-  process.on('disconnect', function () {
+  process.on('disconnect', function() {
     process.stdout.write('3');
   });
 
@@ -19,17 +20,17 @@ if (process.argv[2] === 'child') {
 
   var ipc = [], stdout = '';
 
-  child.on('message', function (msg) {
+  child.on('message', function(msg) {
     ipc.push(msg);
 
     if (msg === '2') child.disconnect();
   });
 
-  child.stdout.on('data', function (chunk) {
+  child.stdout.on('data', function(chunk) {
     stdout += chunk;
   });
 
-  child.once('exit', function () {
+  child.once('exit', function() {
     assert.deepEqual(ipc, ['1', '2']);
     assert.equal(stdout, '3');
   });

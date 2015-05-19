@@ -1,3 +1,4 @@
+'use strict';
 // test compressing and uncompressing a string with zlib
 
 var common = require('../common');

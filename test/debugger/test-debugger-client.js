@@ -1,3 +1,4 @@
+'use strict';
 process.env.NODE_DEBUGGER_TIMEOUT = 2000;
 var common = require('../common');
 var assert = require('assert');
@@ -66,7 +67,7 @@ var d = 'Content-Length: 466\r\n\r\n' +
         '{"seq":10,"type":"event","event":"afterCompile","success":true,' +
         '"body":{"script":{"handle":1,"type":"script","name":"dns.js",' +
         '"id":34,"lineOffset":0,"columnOffset":0,"lineCount":241,' +
-        '"sourceStart":"(function (module, exports, require) {' +
+        '"sourceStart":"(function(module, exports, require) {' +
         'var dns = process.binding(\'cares\')' +
         ';\\nvar ne","sourceLength":6137,"scriptType":2,"compilationType":0,' +
         '"context":{"ref":0},"text":"dns.js (lines: 241)"}},"refs":' +
@@ -127,8 +128,8 @@ addTest(function(client, done) {
 
 
 var connectCount = 0;
-var script = 'setTimeout(function () { console.log("blah"); });' +
-             'setInterval(function () {}, 1000000);';
+var script = 'setTimeout(function() { console.log("blah"); });' +
+             'setInterval(function() {}, 1000000);';
 
 var nodeProcess;
 

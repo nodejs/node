@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -138,7 +139,7 @@ file7.on('end', function() {
   });
 });
 
-function file7Next(){
+function file7Next() {
   // This will tell us if the fd is usable again or not.
   file7 = fs.createReadStream(null, {fd: file7.fd, start: 0 });
   file7.data = '';

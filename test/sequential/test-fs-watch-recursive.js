@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var path = require('path');
@@ -23,7 +24,7 @@ if (process.platform === 'darwin') {
     try { fs.rmdirSync(testsubdir); } catch (e) { }
   };
 
-  try { fs.mkdirSync(testsubdir, 0700); } catch (e) {}
+  try { fs.mkdirSync(testsubdir, 0o700); } catch (e) {}
 
   assert.doesNotThrow(function() {
     var watcher = fs.watch(testDir, {recursive: true});

@@ -1,3 +1,4 @@
+'use strict';
 process.env.NODE_FORCE_READLINE = 1;
 
 var repl = require('./helper-debugger-repl.js');

@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var events = require('events');
@@ -9,7 +10,7 @@ function expect(expected) {
     assert.deepEqual(actual.sort(), expected.sort());
   });
   function listener(name) {
-    actual.push(name)
+    actual.push(name);
   }
   return common.mustCall(listener, expected.length);
 }
@@ -63,9 +64,9 @@ var expectLength = 2;
 e4.on('removeListener', function(name, listener) {
   assert.equal(expectLength--, this.listeners('baz').length);
 });
-e4.on('baz', function(){});
-e4.on('baz', function(){});
-e4.on('baz', function(){});
-assert.equal(e4.listeners('baz').length, expectLength+1);
+e4.on('baz', function() {});
+e4.on('baz', function() {});
+e4.on('baz', function() {});
+assert.equal(e4.listeners('baz').length, expectLength + 1);
 e4.removeAllListeners('baz');
 assert.equal(e4.listeners('baz').length, 0);

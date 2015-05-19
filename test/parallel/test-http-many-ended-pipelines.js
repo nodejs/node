@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -28,7 +29,7 @@ server.listen(common.PORT);
 var client = net.connect({ port: common.PORT, allowHalfOpen: true });
 for (var i = 0; i < numRequests; i++) {
   client.write('GET / HTTP/1.1\r\n' +
-               'Host: some.host.name\r\n'+
+               'Host: some.host.name\r\n' +
                '\r\n\r\n');
 }
 client.end();

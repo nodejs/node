@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var http = require('http');
@@ -20,7 +21,7 @@ var options = {
 var server = http.createServer(function(req, res) {
   res.writeHead(200, {'Content-Length':'2'});
   res.write('*');
-  setTimeout(function() { res.end('*') }, 100);
+  setTimeout(function() { res.end('*'); }, 100);
 });
 
 server.listen(options.port, options.host, function() {

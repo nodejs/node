@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -20,8 +21,8 @@ assert.throws(function() { process.kill('SIGTERM'); }, TypeError);
 assert.throws(function() { process.kill(null); }, TypeError);
 assert.throws(function() { process.kill(undefined); }, TypeError);
 assert.throws(function() { process.kill(+'not a number'); }, TypeError);
-assert.throws(function() { process.kill(1/0); }, TypeError);
-assert.throws(function() { process.kill(-1/0); }, TypeError);
+assert.throws(function() { process.kill(1 / 0); }, TypeError);
+assert.throws(function() { process.kill(-1 / 0); }, TypeError);
 
 // Test kill argument processing in valid cases.
 //

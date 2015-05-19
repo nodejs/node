@@ -1,3 +1,4 @@
+'use strict';
 // Flags: --abort_on_uncaught_exception
 
 var common = require('../common');
@@ -18,7 +19,7 @@ process.on('exit', function() {
   assert.equal(errors, tests.length);
 });
 
-tests.forEach(function(test) { test(); })
+tests.forEach(function(test) { test(); });
 
 function nextTick() {
   var d = domain.create();
@@ -84,10 +85,10 @@ function netServer() {
       conn.pipe(conn);
     });
     server.listen(common.PORT, '0.0.0.0', function() {
-      var conn = net.connect(common.PORT, '0.0.0.0')
+      var conn = net.connect(common.PORT, '0.0.0.0');
       conn.once('data', function() {
         throw new Error('ok');
-      })
+      });
       conn.end('ok');
       server.close();
     });

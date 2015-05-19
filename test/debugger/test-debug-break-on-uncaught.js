@@ -1,3 +1,4 @@
+'use strict';
 var path = require('path');
 var assert = require('assert');
 var spawn = require('child_process').spawn;
@@ -44,7 +45,7 @@ function runScenario(scriptName, throwsInFile, throwsOnLine, next) {
   child.on('close', function() {
     assert(asserted, 'debugger did not pause on exception');
     if (next) next();
-  })
+  });
 
   var exceptions = [];
 

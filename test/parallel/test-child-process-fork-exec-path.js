@@ -1,3 +1,4 @@
+'use strict';
 var assert = require('assert');
 var cp = require('child_process');
 var fs = require('fs');

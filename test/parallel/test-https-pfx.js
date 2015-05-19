@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var fs = require('fs');
@@ -31,8 +32,8 @@ server.listen(options.port, options.host, function() {
   var data = '';
 
   https.get(options, function(res) {
-    res.on('data', function(data_) { data += data_ });
-    res.on('end', function() { server.close() });
+    res.on('data', function(data_) { data += data_; });
+    res.on('end', function() { server.close(); });
   });
 
   process.on('exit', function() {

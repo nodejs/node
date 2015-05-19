@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var Readable = require('stream').Readable;
 var assert = require('assert');
@@ -9,7 +10,7 @@ var s = new Readable({
 
 var list = ['1', '2', '3', '4', '5', '6'];
 
-s._read = function (n) {
+s._read = function(n) {
   var one = list.shift();
   if (!one) {
     s.push(null);
@@ -24,8 +25,8 @@ var v = s.read(0);
 
 // ACTUALLY [1, 3, 5, 6, 4, 2]
 
-process.on("exit", function () {
+process.on('exit', function() {
   assert.deepEqual(s._readableState.buffer,
                    ['1', '2', '3', '4', '5', '6']);
-  console.log("ok");
+  console.log('ok');
 });

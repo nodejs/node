@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var join = require('path').join;
@@ -55,13 +56,13 @@ var filename4 = join(common.tmpDir, 'append-sync4.txt');
 fs.writeFileSync(filename4, currentFileData, { mode: m });
 
 common.error('appending to ' + filename4);
-var m = 0600;
+var m = 0o600;
 fs.appendFileSync(filename4, num, { mode: m });
 
 // windows permissions aren't unix
 if (process.platform !== 'win32') {
   var st = fs.statSync(filename4);
-  assert.equal(st.mode & 0700, m);
+  assert.equal(st.mode & 0o700, m);
 }
 
 var fileData4 = fs.readFileSync(filename4);

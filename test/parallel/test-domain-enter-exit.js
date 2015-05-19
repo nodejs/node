@@ -1,3 +1,4 @@
+'use strict';
 // Make sure the domain stack is a stack
 
 var assert = require('assert');
@@ -5,7 +6,7 @@ var domain = require('domain');
 
 function names(array) {
   return array.map(function(d) {
-    return d.name
+    return d.name;
   }).join(', ');
 }
 

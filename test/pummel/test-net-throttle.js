@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var net = require('net');
@@ -20,7 +21,8 @@ var server = net.createServer(function(connection) {
   connection.write(body.slice(part_N, 2 * part_N));
   assert.equal(false, connection.write(body.slice(2 * part_N, N)));
   console.log('bufferSize: ' + connection.bufferSize, 'expecting', N);
-  assert.ok(0 <= connection.bufferSize && connection._writableState.length <= N);
+  assert.ok(0 <= connection.bufferSize &&
+            connection._writableState.length <= N);
   connection.end();
 });
 

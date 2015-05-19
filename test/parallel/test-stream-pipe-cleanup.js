@@ -1,3 +1,4 @@
+'use strict';
 // This test asserts that Stream.prototype.pipe does not leave listeners
 // hanging on the source or dest.
 
