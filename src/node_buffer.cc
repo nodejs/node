@@ -619,6 +619,72 @@ void WriteDoubleBE(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+template <typename T, enum Endianness endianness, T (*strtoT)(const char *, char **, int base)>
+uint32_t WriteInt64Generic(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  ARGS_THIS(args[0].As<Object>())
+
+  T val;
+  if (args[1]->IsNumber()) {
+    val = args[1]->IntegerValue();
+  } else if (args[1]->IsString()) {
+    // Have to do this because strtoll/strtoull doesn't set errno to 0 on success
+    errno = 0;
+    v8::String::Utf8Value str(args[1]);
+    val = strtoT(*str, NULL, 0);
+
+    if (errno != 0) {
+      if (errno == EINVAL) {
+        env->ThrowTypeError("value is invalid");
+      } else if (errno == ERANGE) {
+        env->ThrowRangeError("value is out-of-range");
+      } else {
+        env->ThrowError("unspecified error");
+      }
+      return 0;
+    }
+  } else {
+    env->ThrowTypeError("Argument must be a string or number");
+    return 0;
+  }
+
+  uint32_t offset = args[2]->Uint32Value();
+  CHECK_LE(offset + sizeof(T), obj_length);
+
+  union NoAlias {
+    T val;
+    char bytes[sizeof(T)];
+  };
+
+  union NoAlias na = { val };
+  char* ptr = static_cast<char*>(obj_data) + offset;
+  if (endianness != GetEndianness())
+    Swizzle(na.bytes, sizeof(na.bytes));
+  memcpy(ptr, na.bytes, sizeof(na.bytes));
+  return offset + sizeof(na.bytes);
+}
+
+
+void WriteInt64LE(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(WriteInt64Generic<int64_t, kLittleEndian, strtoll>(args));
+}
+
+
+void WriteInt64BE(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(WriteInt64Generic<int64_t, kBigEndian, strtoll>(args));
+}
+
+void WriteUInt64LE(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(WriteInt64Generic<uint64_t, kLittleEndian, strtoull>(args));
+}
+
+
+void WriteUInt64BE(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(WriteInt64Generic<uint64_t, kBigEndian, strtoull>(args));
+}
+
+
 void ByteLengthUtf8(const FunctionCallbackInfo<Value> &args) {
   CHECK(args[0]->IsString());
 
@@ -837,6 +903,10 @@ void Initialize(Handle<Object> target,
   env->SetMethod(target, "writeDoubleLE", WriteDoubleLE);
   env->SetMethod(target, "writeFloatBE", WriteFloatBE);
   env->SetMethod(target, "writeFloatLE", WriteFloatLE);
+  env->SetMethod(target, "writeInt64BE", WriteInt64BE);
+  env->SetMethod(target, "writeInt64LE", WriteInt64LE);
+  env->SetMethod(target, "writeUInt64BE", WriteUInt64BE);
+  env->SetMethod(target, "writeUInt64LE", WriteUInt64LE);
 }
 
 
