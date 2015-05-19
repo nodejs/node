@@ -838,6 +838,28 @@ void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
       ptr ? static_cast<int32_t>(ptr_char - obj_data) : -1);
 }
 
+void Address(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  ASSERT(args[0]->IsObject());
+  ARGS_THIS(args[0].As<Object>())
+
+  int64_t offset = args[1]->IntegerValue();
+  char *ptr = obj_data + offset;
+
+  // pointer-size * 2 (for hex printout) + 1 null byte
+  char strbuf[(sizeof(char *) * 2) + 1];
+
+  // using stringstream and std::hex here instead of printf(%#) because
+  // of cross-platform differences experienced with the later
+  std::stringstream stream;
+  stream.rdbuf()->pubsetbuf(strbuf, sizeof(strbuf));
+
+  stream << std::hex << (intptr_t)ptr << '\0';
+
+  args.GetReturnValue().Set( node::OneByteString(env->isolate(), strbuf, strlen(strbuf)) );
+}
+
 
 // pass Buffer object to load prototype methods
 void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
@@ -883,6 +905,7 @@ void Initialize(Handle<Object> target,
 
   env->SetMethod(target, "setupBufferJS", SetupBufferJS);
 
+  env->SetMethod(target, "address", Address);
   env->SetMethod(target, "byteLengthUtf8", ByteLengthUtf8);
   env->SetMethod(target, "compare", Compare);
   env->SetMethod(target, "fill", Fill);
