@@ -1,10 +1,11 @@
+'use strict';
 var assert = require('assert');
 var vm = require('vm');
 var spawn = require('child_process').spawn;
 
 if (process.argv[2] === 'child') {
   var code = 'var j = 0;\n' +
-      'for (var i = 0; i < 1000000; i++) j += add(i, i + 1);\n'
+      'for (var i = 0; i < 1000000; i++) j += add(i, i + 1);\n' +
       'j;';
 
   var ctx = vm.createContext({

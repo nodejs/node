@@ -1,3 +1,4 @@
+'use strict';
 var repl = require('./helper-debugger-repl.js');
 
 repl.startDebugger('breakpoints.js');
@@ -7,7 +8,7 @@ var linesWithBreakpoint = [
 // We slice here, because addTest will change the given array.
 repl.addTest('sb(6)', linesWithBreakpoint.slice());
 
-var initialLines = repl.initialLines.slice()
+var initialLines = repl.initialLines.slice();
 initialLines.splice(2, 0, /Restoring/, /Warning/);
 
 // Restart the debugged script

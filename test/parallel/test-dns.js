@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -12,16 +13,16 @@ var goog = [
   '8.8.8.8',
   '8.8.4.4',
 ];
-assert.doesNotThrow(function () { dns.setServers(goog) });
+assert.doesNotThrow(function() { dns.setServers(goog); });
 assert.deepEqual(dns.getServers(), goog);
-assert.throws(function () { dns.setServers(['foobar']) });
+assert.throws(function() { dns.setServers(['foobar']); });
 assert.deepEqual(dns.getServers(), goog);
 
 var goog6 = [
   '2001:4860:4860::8888',
   '2001:4860:4860::8844',
 ];
-assert.doesNotThrow(function () { dns.setServers(goog6) });
+assert.doesNotThrow(function() { dns.setServers(goog6); });
 assert.deepEqual(dns.getServers(), goog6);
 
 goog6.push('4.4.4.4');
@@ -39,7 +40,7 @@ var portsExpected = [
 dns.setServers(ports);
 assert.deepEqual(dns.getServers(), portsExpected);
 
-assert.doesNotThrow(function () { dns.setServers([]); });
+assert.doesNotThrow(function() { dns.setServers([]); });
 assert.deepEqual(dns.getServers(), []);
 
 assert.throws(function() {

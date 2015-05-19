@@ -1,3 +1,4 @@
+'use strict';
 // Simple tests of most basic domain functionality.
 
 var common = require('../common');
@@ -15,7 +16,7 @@ d.on('error', function(er) {
   console.error('caught', er && (er.message || er));
 
   var er_message = er.message;
-  var er_path = er.path
+  var er_path = er.path;
 
   // On windows, error messages can contain full path names. If this is the
   // case, remove the directory part.
@@ -58,7 +59,8 @@ d.on('error', function(er) {
       assert.equal(typeof er.errno, 'number');
       break;
 
-    case "ENOENT: no such file or directory, open 'stream for nonexistent file'":
+    case
+    "ENOENT: no such file or directory, open 'stream for nonexistent file'":
       assert.equal(typeof er.errno, 'number');
       assert.equal(er.code, 'ENOENT');
       assert.equal(er_path, 'stream for nonexistent file');
@@ -129,7 +131,7 @@ expectCaught++;
 // set up while in the scope of the d domain.
 d.run(function() {
   process.nextTick(function() {
-    var i = setInterval(function () {
+    var i = setInterval(function() {
       clearInterval(i);
       setTimeout(function() {
         fs.stat('this file does not exist', function(er, stat) {
@@ -178,7 +180,7 @@ expectCaught++;
 
 // intercepted should never pass first argument to callback
 function fn2(data) {
-  assert.equal(data, 'data', 'should not be null err argument')
+  assert.equal(data, 'data', 'should not be null err argument');
 }
 
 var bound = d.intercept(fn2);
@@ -220,7 +222,7 @@ expectCaught++;
 var implicit;
 
 d.run(function() {
-  implicit = new events.EventEmitter;
+  implicit = new events.EventEmitter();
 });
 
 setTimeout(function() {
@@ -230,24 +232,24 @@ setTimeout(function() {
 expectCaught++;
 
 
-var result = d.run(function () {
+var result = d.run(function() {
   return 'return value';
 });
 assert.equal(result, 'return value');
 
 
 // check if the executed function take in count the applied parameters
-result = d.run(function (a, b) {
+result = d.run(function(a, b) {
   return a + ' ' + b;
 }, 'return', 'value');
 assert.equal(result, 'return value');
 
 
-var fst = fs.createReadStream('stream for nonexistent file')
-d.add(fst)
+var fst = fs.createReadStream('stream for nonexistent file');
+d.add(fst);
 expectCaught++;
 
-[42, null, , false, function(){}, 'string'].forEach(function(something) {
+[42, null, , false, function() {}, 'string'].forEach(function(something) {
   var d = new domain.Domain();
   d.run(function() {
     process.nextTick(function() {

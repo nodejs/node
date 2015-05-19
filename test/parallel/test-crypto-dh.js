@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var constants = require('constants');
@@ -58,7 +59,7 @@ assert.equal(secret1, secret3);
 // Run this one twice to make sure that the dh3 clears its error properly
 (function() {
   var c = crypto.createDecipher('aes-128-ecb', '');
-  assert.throws(function() { c.final('utf8') }, /wrong final block length/);
+  assert.throws(function() { c.final('utf8'); }, /wrong final block length/);
 })();
 
 assert.throws(function() {
@@ -67,7 +68,7 @@ assert.throws(function() {
 
 (function() {
   var c = crypto.createDecipher('aes-128-ecb', '');
-  assert.throws(function() { c.final('utf8') }, /wrong final block length/);
+  assert.throws(function() { c.final('utf8'); }, /wrong final block length/);
 })();
 
 // Create a shared using a DH group.

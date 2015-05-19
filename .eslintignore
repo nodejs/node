@@ -1,1 +1,3 @@
 lib/punycode.js
+test/fixtures
+test/**/node_modules

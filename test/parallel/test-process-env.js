@@ -1,3 +1,6 @@
+'use strict';
+/* eslint-disable max-len */
+
 // first things first, set the timezone; see tzset(3)
 process.env.TZ = 'Europe/Amsterdam';
 

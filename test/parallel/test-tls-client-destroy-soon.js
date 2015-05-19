@@ -1,3 +1,4 @@
+'use strict';
 // Create an ssl server.  First connection, validate that not resume.
 // Cache session and close connection.  Use session on second connection.
 // ASSERT resumption.

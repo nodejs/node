@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -29,7 +30,7 @@ var server = net.createServer(function(socket) {
     socket.destroy();
   }).on('close', function() {
     server.close();
-  })
+  });
 
   for (var i = 0; i < N; ++i) {
     socket.write(buf, function() { });

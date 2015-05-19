@@ -1,3 +1,4 @@
+'use strict';
 // Just test that destroying stdin doesn't mess up listening on a server.
 // This is a regression test for GH-746.
 

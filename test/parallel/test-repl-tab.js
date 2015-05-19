@@ -1,3 +1,4 @@
+'use strict';
 var assert = require('assert');
 var util = require('util');
 var repl = require('repl');
@@ -9,7 +10,7 @@ var testMe = repl.start('', putIn, function(cmd, context, filename, callback) {
   callback(null, cmd);
 });
 
-testMe._domain.on('error', function (e) {
+testMe._domain.on('error', function(e) {
   assert.fail();
 });
 

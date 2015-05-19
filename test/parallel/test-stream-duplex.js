@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -11,21 +12,21 @@ assert(stream._writableState.objectMode);
 var written;
 var read;
 
-stream._write = function (obj, _, cb) {
+stream._write = function(obj, _, cb) {
   written = obj;
   cb();
 };
 
-stream._read = function () {};
+stream._read = function() {};
 
-stream.on('data', function (obj) {
+stream.on('data', function(obj) {
   read = obj;
 });
 
 stream.push({ val: 1 });
 stream.end({ val: 2 });
 
-process.on('exit', function () {
+process.on('exit', function() {
   assert(read.val === 1);
   assert(written.val === 2);
 });

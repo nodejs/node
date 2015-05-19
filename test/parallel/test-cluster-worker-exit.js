@@ -1,3 +1,4 @@
+'use strict';
 // test-cluster-worker-exit.js
 // verifies that, when a child process exits (by calling `process.exit(code)`)
 // - the parent receives the proper events in the proper order, no duplicates
@@ -100,31 +101,31 @@ if (cluster.isWorker) {
 
 // some helper functions ...
 
-  function checkResults(expected_results, results) {
-    for (var k in expected_results) {
-      var actual = results[k],
-          expected = expected_results[k];
+function checkResults(expected_results, results) {
+  for (var k in expected_results) {
+    var actual = results[k],
+        expected = expected_results[k];
 
-      if (typeof expected === 'function') {
-        expected(r[k]);
+    if (typeof expected === 'function') {
+      expected(r[k]);
+    } else {
+      var msg = (expected[1] || '') +
+          (' [expected: ' + expected[0] + ' / actual: ' + actual + ']');
+
+      if (expected && expected.length) {
+        assert.equal(actual, expected[0], msg);
       } else {
-        var msg = (expected[1] || '') +
-            (' [expected: ' + expected[0] + ' / actual: ' + actual + ']');
-
-        if (expected && expected.length) {
-          assert.equal(actual, expected[0], msg);
-        } else {
-          assert.equal(actual, expected, msg);
-        }
+        assert.equal(actual, expected, msg);
       }
     }
   }
+}
 
-  function alive(pid) {
-    try {
-      process.kill(pid, 'SIGCONT');
-      return true;
-    } catch (e) {
-      return false;
-    }
+function alive(pid) {
+  try {
+    process.kill(pid, 'SIGCONT');
+    return true;
+  } catch (e) {
+    return false;
   }
+}

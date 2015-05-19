@@ -1,3 +1,4 @@
+'use strict';
 /* XXX Can this test be modified to not call the now-removed wait()? */
 
 var common = require('../common');

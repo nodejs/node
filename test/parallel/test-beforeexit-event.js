@@ -1,3 +1,4 @@
+'use strict';
 var assert = require('assert');
 var net = require('net');
 var util = require('util');
@@ -19,7 +20,7 @@ function tryImmediate() {
 
 function tryTimer() {
   console.log('set a timeout');
-  setTimeout(function () {
+  setTimeout(function() {
     console.log('timeout cb, do another once beforeExit');
     revivals++;
     process.once('beforeExit', tryListen);

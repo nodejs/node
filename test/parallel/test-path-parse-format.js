@@ -1,3 +1,4 @@
+'use strict';
 var assert = require('assert');
 var path = require('path');
 
@@ -30,18 +31,30 @@ var unixPaths = [
 ];
 
 var errors = [
-  {method: 'parse', input: [null], message: /Path must be a string. Received null/},
-  {method: 'parse', input: [{}], message: /Path must be a string. Received {}/},
-  {method: 'parse', input: [true], message: /Path must be a string. Received true/},
-  {method: 'parse', input: [1], message: /Path must be a string. Received 1/},
-  {method: 'parse', input: [], message: /Path must be a string. Received undefined/},
-  // {method: 'parse', input: [''], message: /Invalid path/}, // omitted because it's hard to trigger!
-  {method: 'format', input: [null], message: /Parameter 'pathObject' must be an object, not/},
-  {method: 'format', input: [''], message: /Parameter 'pathObject' must be an object, not string/},
-  {method: 'format', input: [true], message: /Parameter 'pathObject' must be an object, not boolean/},
-  {method: 'format', input: [1], message: /Parameter 'pathObject' must be an object, not number/},
-  {method: 'format', input: [{root: true}], message: /'pathObject.root' must be a string or undefined, not boolean/},
-  {method: 'format', input: [{root: 12}], message: /'pathObject.root' must be a string or undefined, not number/},
+  {method: 'parse', input: [null],
+   message: /Path must be a string. Received null/},
+  {method: 'parse', input: [{}],
+   message: /Path must be a string. Received {}/},
+  {method: 'parse', input: [true],
+   message: /Path must be a string. Received true/},
+  {method: 'parse', input: [1],
+   message: /Path must be a string. Received 1/},
+  {method: 'parse', input: [],
+   message: /Path must be a string. Received undefined/},
+  // {method: 'parse', input: [''],
+  //  message: /Invalid path/}, // omitted because it's hard to trigger!
+  {method: 'format', input: [null],
+   message: /Parameter 'pathObject' must be an object, not/},
+  {method: 'format', input: [''],
+   message: /Parameter 'pathObject' must be an object, not string/},
+  {method: 'format', input: [true],
+   message: /Parameter 'pathObject' must be an object, not boolean/},
+  {method: 'format', input: [1],
+   message: /Parameter 'pathObject' must be an object, not number/},
+  {method: 'format', input: [{root: true}],
+   message: /'pathObject.root' must be a string or undefined, not boolean/},
+  {method: 'format', input: [{root: 12}],
+   message: /'pathObject.root' must be a string or undefined, not number/},
 ];
 
 check(path.win32, winPaths);

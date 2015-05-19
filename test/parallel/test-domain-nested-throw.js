@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -50,7 +51,7 @@ function throw2() {
 function inner(throw1, throw2) {
   var domain1 = domain.createDomain();
 
-  domain1.on('error', function (err) {
+  domain1.on('error', function(err) {
     if (gotDomain1Error) {
       console.error('got domain 1 twice');
       process.exit(1);
@@ -60,7 +61,7 @@ function inner(throw1, throw2) {
     throw2();
   });
 
-  domain1.run(function () {
+  domain1.run(function() {
     throw1();
   });
 }
@@ -68,7 +69,7 @@ function inner(throw1, throw2) {
 function outer() {
   var domain2 = domain.createDomain();
 
-  domain2.on('error', function (err) {
+  domain2.on('error', function(err) {
     if (gotDomain2Error) {
       console.error('got domain 2 twice');
       process.exit(1);
@@ -76,7 +77,7 @@ function outer() {
     gotDomain2Error = true;
   });
 
-  domain2.run(function () {
+  domain2.run(function() {
     inner(throw1, throw2);
   });
 }

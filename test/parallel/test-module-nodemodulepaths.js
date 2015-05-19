@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -9,10 +10,10 @@ var file, delimiter, paths;
 
 if (isWindows) {
   file = 'C:\\Users\\Rocko Artischocko\\node_stuff\\foo';
-  delimiter = '\\'
+  delimiter = '\\';
 } else {
   file = '/usr/test/lib/node_modules/npm/foo';
-  delimiter = '/'
+  delimiter = '/';
 }
 
 paths = module._nodeModulePaths(file);

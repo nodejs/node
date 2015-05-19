@@ -1,3 +1,4 @@
+'use strict';
 // Flags: --max_old_space_size=32
 
 var assert = require('assert');

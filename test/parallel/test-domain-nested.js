@@ -1,3 +1,4 @@
+'use strict';
 // Make sure that the nested domains don't cause the domain stack to grow
 
 var assert = require('assert');
@@ -10,11 +11,11 @@ process.on('exit', function(c) {
 domain.create().run(function() {
   domain.create().run(function() {
     domain.create().run(function() {
-      domain.create().on("error", function(e) {
+      domain.create().on('error', function(e) {
           // Don't need to do anything here
       }).run(function() {
-        throw new Error("died")
-      })
-    })
-  })
-})
+        throw new Error('died');
+      });
+    });
+  });
+});

@@ -1,3 +1,4 @@
+'use strict';
 /*
  * The goal of this test is to cover the Workers' implementation of
  * Worker.prototype.destroy. Worker.prototype.destroy is called within

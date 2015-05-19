@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var path = require('path');
@@ -9,7 +10,7 @@ var expected = 'ümlaut.';
 var constants = require('constants');
 var found, found2;
 
-fs.open(fn, 'w', 0644, function(err, fd) {
+fs.open(fn, 'w', 0o644, function(err, fd) {
   if (err) throw err;
   console.log('open done');
   fs.write(fd, '', 0, 'utf8', function(err, written) {
@@ -28,7 +29,7 @@ fs.open(fn, 'w', 0644, function(err, fd) {
 });
 
 
-fs.open(fn2, constants.O_CREAT | constants.O_WRONLY | constants.O_TRUNC, 0644,
+fs.open(fn2, constants.O_CREAT | constants.O_WRONLY | constants.O_TRUNC, 0o644,
     function(err, fd) {
       if (err) throw err;
       console.log('open done');

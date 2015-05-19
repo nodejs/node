@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var Stream = require('stream');
@@ -21,7 +22,7 @@ function testSloppyMode() {
   cli.input.emit('data', `
     x = 3
   `.trim() + '\n');
-  assert.equal(cli.output.accumulator.join(''), '> 3\n> ')
+  assert.equal(cli.output.accumulator.join(''), '> 3\n> ');
   cli.output.accumulator.length = 0;
 
   cli.input.emit('data', `
@@ -53,7 +54,7 @@ function testAutoMode() {
   cli.input.emit('data', `
     x = 3
   `.trim() + '\n');
-  assert.equal(cli.output.accumulator.join(''), '> 3\n> ')
+  assert.equal(cli.output.accumulator.join(''), '> 3\n> ');
   cli.output.accumulator.length = 0;
 
   cli.input.emit('data', `
@@ -64,7 +65,7 @@ function testAutoMode() {
 
 function initRepl(mode) {
   var input = new Stream();
-  input.write = input.pause = input.resume = function(){};
+  input.write = input.pause = input.resume = function() {};
   input.readable = true;
 
   var output = new Stream();

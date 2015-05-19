@@ -1,3 +1,4 @@
+/* eslint-disable strict */
 var common = require('../common');
 var assert = require('assert');
 var vm = require('vm');
@@ -30,6 +31,6 @@ assert.equal(2, bar);
 assert.equal(1, foo);
 
 console.error('call a function');
-f = function() { foo = 100 };
+f = function() { foo = 100; };
 vm.runInThisContext('f()');
 assert.equal(100, foo);

@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var path = require('path'),
@@ -9,7 +10,7 @@ var path = require('path'),
     writeCalled = 0;
 
 
-fs.open(filename, 'w', 0644, function(err, fd) {
+fs.open(filename, 'w', 0o644, function(err, fd) {
   openCalled++;
   if (err) throw err;
 

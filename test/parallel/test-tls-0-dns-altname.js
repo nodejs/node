@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -31,8 +32,8 @@ var server = tls.createServer({
     assert.equal(cert.subjectaltname,
                  'DNS:google.com\0.evil.com, ' +
                      'DNS:just-another.com, ' +
-                     'IP Address:8.8.8.8, '+
-                     'IP Address:8.8.4.4, '+
+                     'IP Address:8.8.8.8, ' +
+                     'IP Address:8.8.4.4, ' +
                      'DNS:last.com');
     c.write('ok');
   });

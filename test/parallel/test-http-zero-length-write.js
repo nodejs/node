@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -22,7 +23,7 @@ function getSrc() {
   var chunks = [ '', 'asdf', '', 'foo', '', 'bar', '' ];
   var interval = setInterval(function() {
     if (paused)
-      return
+      return;
 
     var chunk = chunks.shift();
     if (chunk !== undefined) {

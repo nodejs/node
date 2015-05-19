@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var net = require('net');
@@ -23,7 +24,7 @@ var server = net.createServer(function(c) {
 
   if (sockets.length === 2) {
     server.close();
-    sockets.forEach(function(c) { c.destroy() });
+    sockets.forEach(function(c) { c.destroy(); });
   }
 });
 

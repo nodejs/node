@@ -1,3 +1,4 @@
+'use strict';
 // verify that connect reqs are properly cleaned up
 
 var common = require('../common');

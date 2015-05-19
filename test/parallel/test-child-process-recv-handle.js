@@ -1,3 +1,4 @@
+'use strict';
 // Test that a Linux specific quirk in the handle passing protocol is handled
 // correctly. See https://github.com/joyent/node/issues/5330 for details.
 

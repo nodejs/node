@@ -1,3 +1,4 @@
+'use strict';
 if (module.parent) {
   // signal we've been loaded as a module
   console.log('Loaded as a module, exiting with status code 42.');

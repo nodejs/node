@@ -1,3 +1,4 @@
+'use strict';
 // Make sure that the domain stack doesn't get out of hand.
 
 var common = require('../common');

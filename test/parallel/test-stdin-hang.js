@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 
 // This test *only* verifies that invoking the stdin getter does not

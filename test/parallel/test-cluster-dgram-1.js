@@ -1,3 +1,4 @@
+'use strict';
 var NUM_WORKERS = 4;
 var PACKETS_PER_WORKER = 10;
 
@@ -8,7 +9,7 @@ var dgram = require('dgram');
 
 
 if (process.platform === 'win32') {
-  console.warn("dgram clustering is currently not supported on windows.");
+  console.warn('dgram clustering is currently not supported on windows.');
   process.exit(0);
 }
 

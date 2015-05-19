@@ -1,3 +1,4 @@
+'use strict';
 // Verify that the HTTP server implementation handles multiple instances
 // of the same header as per RFC2616: joining the handful of fields by ', '
 // that support it, and dropping duplicates for other fields.
@@ -49,10 +50,12 @@ var multipleForbidden = [
 
 var srv = http.createServer(function(req, res) {
   multipleForbidden.forEach(function(header) {
-    assert.equal(req.headers[header.toLowerCase()], 'foo', 'header parsed incorrectly: ' + header);
+    assert.equal(req.headers[header.toLowerCase()],
+                 'foo', 'header parsed incorrectly: ' + header);
   });
   multipleAllowed.forEach(function(header) {
-    assert.equal(req.headers[header.toLowerCase()], 'foo, bar', 'header parsed incorrectly: ' + header);
+    assert.equal(req.headers[header.toLowerCase()],
+                 'foo, bar', 'header parsed incorrectly: ' + header);
   });
   assert.equal(req.headers['content-length'], 0);
 
@@ -65,7 +68,7 @@ var srv = http.createServer(function(req, res) {
 function makeHeader(value) {
   return function(header) {
     return [header, value];
-  }
+  };
 }
 
 var headers = []

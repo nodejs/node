@@ -1,10 +1,11 @@
+'use strict';
 // https://github.com/joyent/node/issues/4948
 
 var common = require('../common');
 var http = require('http');
 
 var reqCount = 0;
-var server = http.createServer(function(serverReq, serverRes){
+var server = http.createServer(function(serverReq, serverRes) {
   if (reqCount) {
     serverRes.end();
     server.close();
@@ -15,9 +16,10 @@ var server = http.createServer(function(serverReq, serverRes){
 
   // normally the use case would be to call an external site
   // does not require connecting locally or to itself to fail
-  var r = http.request({hostname: 'localhost', port: common.PORT}, function(res) {
+  var r = http.request({hostname: 'localhost',
+                        port: common.PORT}, function(res) {
     // required, just needs to be in the client response somewhere
-    serverRes.end(); 
+    serverRes.end();
 
     // required for test to fail
     res.on('data', function(data) { });

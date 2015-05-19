@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -13,7 +14,7 @@ code += 'function b(){}\n';
 
 // Grab the global b function as the completion value, to ensure that
 // we are getting the global function, and not some other thing
-code += '(function(){return this})().b;\n'
+code += '(function(){return this})().b;\n';
 
 var res = vm.runInContext(code, o, 'test');
 

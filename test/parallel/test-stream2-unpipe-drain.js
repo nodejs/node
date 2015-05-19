@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var stream = require('stream');
@@ -11,11 +12,11 @@ var crypto = require('crypto');
 var util = require('util');
 
 function TestWriter() {
-    stream.Writable.call(this);
+  stream.Writable.call(this);
 }
 util.inherits(TestWriter, stream.Writable);
 
-TestWriter.prototype._write = function (buffer, encoding, callback) {
+TestWriter.prototype._write = function(buffer, encoding, callback) {
   console.log('write called');
   // super slow write stream (callback never called)
 };
@@ -23,12 +24,12 @@ TestWriter.prototype._write = function (buffer, encoding, callback) {
 var dest = new TestWriter();
 
 function TestReader(id) {
-    stream.Readable.call(this);
-    this.reads = 0;
+  stream.Readable.call(this);
+  this.reads = 0;
 }
 util.inherits(TestReader, stream.Readable);
 
-TestReader.prototype._read = function (size) {
+TestReader.prototype._read = function(size) {
   this.reads += 1;
   this.push(crypto.randomBytes(size));
 };
@@ -38,13 +39,13 @@ var src2 = new TestReader();
 
 src1.pipe(dest);
 
-src1.once('readable', function () {
-  process.nextTick(function () {
+src1.once('readable', function() {
+  process.nextTick(function() {
 
     src2.pipe(dest);
 
-    src2.once('readable', function () {
-      process.nextTick(function () {
+    src2.once('readable', function() {
+      process.nextTick(function() {
 
         src1.unpipe(dest);
       });
@@ -53,7 +54,7 @@ src1.once('readable', function () {
 });
 
 
-process.on('exit', function () {
+process.on('exit', function() {
   assert.equal(src1.reads, 2);
   assert.equal(src2.reads, 2);
 });

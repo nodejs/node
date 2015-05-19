@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 
 if (!common.hasCrypto) {
@@ -29,6 +30,6 @@ var socket = tls.connect({
     // Error: Hostname/IP doesn't match certificate's altnames:
     //   "Host: undefined. is not cert's CN: localhost"
 }, function() {
-    assert(socket.authorized);
-    process.exit();
+  assert(socket.authorized);
+  process.exit();
 });

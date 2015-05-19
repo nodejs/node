@@ -1,5 +1,5 @@
 before
-*test*message*throw_custom_error.js:7
+*test*message*throw_custom_error.js:8
 throw ({ name: 'MyCustomError', message: 'This is a custom message' });
 ^
 MyCustomError: This is a custom message

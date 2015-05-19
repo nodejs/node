@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 
 var bigish = Array(200);

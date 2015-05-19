@@ -1,3 +1,4 @@
+'use strict';
 if (process.platform === 'win32') {
   // Win32 doesn't have signals, just a kindof emulation, insufficient
   // for this test to apply.

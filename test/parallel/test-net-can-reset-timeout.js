@@ -1,3 +1,4 @@
+'use strict';
 var net = require('net');
 var common = require('../common');
 var assert = require('assert');

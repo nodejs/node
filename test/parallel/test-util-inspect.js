@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var util = require('util');
@@ -92,7 +93,7 @@ var w = {
   '\\\\': 2,
   '\\\\\\': 3,
   '\\\\\\\\': 4,
-}
+};
 
 var y = ['a', 'b', 'c'];
 y['\\\\\\'] = 'd';
@@ -112,16 +113,16 @@ function test_color_style(style, input, implicit) {
   var with_color = util.inspect(input, false, 0, true);
   var expect = '\u001b[' + color[0] + 'm' + without_color +
                '\u001b[' + color[1] + 'm';
-  assert.equal(with_color, expect, 'util.inspect color for style '+style);
+  assert.equal(with_color, expect, 'util.inspect color for style ' + style);
 }
 
-test_color_style('special', function(){});
+test_color_style('special', function() {});
 test_color_style('number', 123.456);
 test_color_style('boolean', true);
 test_color_style('undefined', undefined);
 test_color_style('null', null);
 test_color_style('string', 'test string');
-test_color_style('date', new Date);
+test_color_style('date', new Date());
 test_color_style('regexp', /regexp/);
 
 // an object with "hasOwnProperty" overwritten should not throw
@@ -146,10 +147,14 @@ assert(util.inspect(subject, { depth: null }).indexOf('{ d: 0 }') !== -1);
 // "customInspect" option can enable/disable calling inspect() on objects
 subject = { inspect: function() { return 123; } };
 
-assert(util.inspect(subject, { customInspect: true }).indexOf('123') !== -1);
-assert(util.inspect(subject, { customInspect: true }).indexOf('inspect') === -1);
-assert(util.inspect(subject, { customInspect: false }).indexOf('123') === -1);
-assert(util.inspect(subject, { customInspect: false }).indexOf('inspect') !== -1);
+assert(util.inspect(subject,
+                    { customInspect: true }).indexOf('123') !== -1);
+assert(util.inspect(subject,
+                    { customInspect: true }).indexOf('inspect') === -1);
+assert(util.inspect(subject,
+                    { customInspect: false }).indexOf('123') === -1);
+assert(util.inspect(subject,
+                    { customInspect: false }).indexOf('inspect') !== -1);
 
 // custom inspect() functions should be able to return other Objects
 subject.inspect = function() { return { foo: 'bar' }; };
@@ -166,7 +171,7 @@ util.inspect(subject, { customInspectOptions: true });
 function test_lines(input) {
   var count_lines = function(str) {
     return (str.match(/\n/g) || []).length;
-  }
+  };
 
   var without_color = util.inspect(input);
   var with_color = util.inspect(input, {colors: true});
@@ -232,19 +237,20 @@ if (typeof Symbol !== 'undefined') {
   subject[Symbol('symbol')] = 42;
 
   assert.equal(util.inspect(subject), '[ 1, 2, 3 ]');
-  assert.equal(util.inspect(subject, options), '[ 1, 2, 3, [length]: 3, [Symbol(symbol)]: 42 ]');
+  assert.equal(util.inspect(subject, options),
+      '[ 1, 2, 3, [length]: 3, [Symbol(symbol)]: 42 ]');
 
 }
 
 // test Set
-assert.equal(util.inspect(new Set), 'Set {}');
+assert.equal(util.inspect(new Set()), 'Set {}');
 assert.equal(util.inspect(new Set([1, 2, 3])), 'Set { 1, 2, 3 }');
 var set = new Set(['foo']);
 set.bar = 42;
 assert.equal(util.inspect(set, true), 'Set { \'foo\', [size]: 1, bar: 42 }');
 
 // test Map
-assert.equal(util.inspect(new Map), 'Map {}');
+assert.equal(util.inspect(new Map()), 'Map {}');
 assert.equal(util.inspect(new Map([[1, 'a'], [2, 'b'], [3, 'c']])),
              'Map { 1 => \'a\', 2 => \'b\', 3 => \'c\' }');
 var map = new Map([['foo', null]]);
@@ -265,7 +271,7 @@ assert.equal(util.inspect(promise), 'Promise { \'foo\', bar: 42 }');
 // a bonafide native Promise.
 var oldPromise = Promise;
 global.Promise = function() { this.bar = 42; };
-assert.equal(util.inspect(new Promise), '{ bar: 42 }');
+assert.equal(util.inspect(new Promise()), '{ bar: 42 }');
 global.Promise = oldPromise;
 
 
@@ -299,4 +305,4 @@ checkAlignment(function() {
   return obj;
 }());
 checkAlignment(new Set(big_array));
-checkAlignment(new Map(big_array.map(function (y) { return [y, null] })));
+checkAlignment(new Map(big_array.map(function(y) { return [y, null]; })));

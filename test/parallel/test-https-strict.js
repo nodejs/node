@@ -1,3 +1,4 @@
+'use strict';
 // disable strict server certificate validation by the client
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
@@ -100,7 +101,7 @@ function listening() {
     if (listenWait === 0) {
       allListening();
     }
-  }
+  };
 }
 
 function makeReq(path, port, error, host, ca) {
@@ -127,7 +128,7 @@ function makeReq(path, port, error, host, ca) {
   }
 
   if (host) {
-    options.headers = { host: host }
+    options.headers = { host: host };
   }
   var req = https.get(options);
   expectResponseCount++;
@@ -136,7 +137,7 @@ function makeReq(path, port, error, host, ca) {
       : port === port3 ? server3
       : null;
 
-  if (!server) throw new Error('invalid port: '+port);
+  if (!server) throw new Error('invalid port: ' + port);
   server.expectCount++;
 
   req.on('response', function(res) {
@@ -150,7 +151,7 @@ function makeReq(path, port, error, host, ca) {
       server3.close();
     }
     res.resume();
-  })
+  });
 }
 
 function allListening() {

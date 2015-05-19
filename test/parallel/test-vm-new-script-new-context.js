@@ -1,3 +1,4 @@
+/* eslint-disable strict */
 var common = require('../common');
 var assert = require('assert');
 var Script = require('vm').Script;
@@ -23,7 +24,7 @@ assert.throws(function() {
 console.error('undefined reference');
 var error;
 script = new Script('foo.bar = 5;');
-assert.throws(function () {
+assert.throws(function() {
   script.runInNewContext();
 }, /not defined/);
 
@@ -48,7 +49,7 @@ assert.equal(2, foo);
 
 console.error('call a function by reference');
 script = new Script('f()');
-function changeFoo() { foo = 100 }
+function changeFoo() { foo = 100; }
 script.runInNewContext({ f: changeFoo });
 assert.equal(foo, 100);
 

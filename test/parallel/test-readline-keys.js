@@ -1,3 +1,4 @@
+'use strict';
 var EventEmitter = require('events').EventEmitter;
 var PassThrough = require('stream').PassThrough;
 var assert = require('assert');
@@ -17,7 +18,7 @@ var fo = new FakeInput();
 var rli = new Interface({ input: fi, output: fo, terminal: true });
 
 var keys = [];
-fi.on('keypress', function (s, k) {
+fi.on('keypress', function(s, k) {
   keys.push(k);
 });
 
@@ -31,13 +32,13 @@ function addTest(sequences, expectedKeys) {
     expectedKeys = [ expectedKeys ];
   }
 
-  expectedKeys = expectedKeys.map(function (k) {
+  expectedKeys = expectedKeys.map(function(k) {
     return k ? extend({ ctrl: false, meta: false, shift: false }, k) : k;
   });
 
   keys = [];
 
-  sequences.forEach(function (sequence) {
+  sequences.forEach(function(sequence) {
     fi.write(sequence);
   });
   assert.deepStrictEqual(keys, expectedKeys);

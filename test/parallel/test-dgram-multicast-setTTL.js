@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common'),
     assert = require('assert'),
     dgram = require('dgram'),
@@ -5,7 +6,7 @@ var common = require('../common'),
     socket = dgram.createSocket('udp4');
 
 socket.bind(common.PORT);
-socket.on('listening', function () {
+socket.on('listening', function() {
   socket.setMulticastTTL(16);
 
   //Try to set an invalid TTL (valid ttl is > 0 and < 256)

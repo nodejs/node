@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var path = require('path');
@@ -8,7 +9,7 @@ var data = true;
 var expected = data + '';
 var found;
 
-fs.open(fn, 'w', 0644, function(err, fd) {
+fs.open(fn, 'w', 0o644, function(err, fd) {
   if (err) throw err;
   console.log('open done');
   fs.write(fd, data, 0, 'utf8', function(err, written) {

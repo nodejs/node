@@ -181,7 +181,7 @@ goto jslint
 :jslint
 if not defined jslint goto exit
 echo running jslint
-%config%\iojs tools\eslint\bin\eslint.js src lib --reset --quiet
+%config%\iojs tools\eslint\bin\eslint.js src lib test --reset --quiet
 goto exit
 
 :create-msvs-files-failed
