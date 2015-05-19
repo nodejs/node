@@ -41,7 +41,8 @@ string will not be in the parsed object. Examples are shown for the URL
     Example: `'8080'`
 
 * `pathname`: The path section of the URL, that comes after the host and
-  before the query, including the initial slash if present.
+  before the query, including the initial slash if present. No decoding is
+  performed.
 
     Example: `'/p/a/t/h'`
 
@@ -50,7 +51,7 @@ string will not be in the parsed object. Examples are shown for the URL
 
     Example: `'?query=string'`
 
-* `path`: Concatenation of `pathname` and `search`.
+* `path`: Concatenation of `pathname` and `search`. No decoding is performed.
 
     Example: `'/p/a/t/h?query=string'`
 
@@ -72,7 +73,8 @@ Take a URL string, and return an object.
 Pass `true` as the second argument to also parse the query string using the
 `querystring` module. If `true` then the `query` property will always be
 assigned an object, and the `search` property will always be a (possibly
-empty) string.  Defaults to `false`.
+empty) string. If `false` then the `query` property will not be parsed or
+decoded. Defaults to `false`.
 
 Pass `true` as the third argument to treat `//foo/bar` as
 `{ host: 'foo', pathname: '/bar' }` rather than
