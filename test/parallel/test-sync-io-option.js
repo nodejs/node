@@ -15,24 +15,26 @@ if (process.argv[2] === 'child') {
     var execArgv = [flags.pop()];
     var args = [__filename, 'child'];
     var child = spawn(process.execPath, execArgv.concat(args));
-    var cntr = 0;
+    var stderr = '';
 
     child.stdout.on('data', function(chunk) {
       throw new Error('UNREACHABLE');
     });
 
     child.stderr.on('data', function(chunk) {
-      // Prints twice for --trace-sync-io. First for the require() and second
-      // for the fs operation.
-      if (/^WARNING[\s\S]*fs\.readFileSync/.test(chunk.toString()))
-        cntr++;
+      stderr += chunk.toString();
     });
 
-    child.on('exit', function() {
-      if (execArgv[0] === '--trace-sync-io')
-        assert.equal(cntr, 2);
-      else if (execArgv[0] === ' ')
-        assert.equal(cntr, 0);
+    child.on('close', function() {
+      var cntr1 = (stderr.match(/WARNING/g) || []).length;
+      var cntr2 = (stderr.match(/fs\.readFileSync/g) || []).length;
+      assert.equal(cntr1, cntr2);
+      if (execArgv[0] === '--trace-sync-io') {
+        // Prints 4 WARNINGS for --trace-sync-io. 1 for each sync call
+        // inside readFileSync
+        assert.equal(cntr1, 4);
+      } else if (execArgv[0] === ' ')
+        assert.equal(cntr1, 0);
       else
         throw new Error('UNREACHABLE');
 
