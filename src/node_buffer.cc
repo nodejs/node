@@ -9,7 +9,27 @@
 #include "v8.h"
 
 #include <string.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <errno.h>
 #include <limits.h>
+
+#include <fstream>
+#include <string>
+#include <sstream>
+#include <iostream> // std::hex
+
+#ifdef _WIN32
+  #define __alignof__ __alignof
+  #define snprintf(buf, bufSize, format, arg) _snprintf_s(buf, bufSize, _TRUNCATE, format, arg)
+  #define strtoll _strtoi64
+  #define strtoull _strtoui64
+  #define PRId64 "lld"
+  #define PRIu64 "llu"
+#else
+  #define __STDC_FORMAT_MACROS
+  #include <inttypes.h>
+#endif
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
@@ -34,6 +54,12 @@
   if (end < start) end = start;                                             \
   CHECK_NOT_OOB(end <= end_max);                                            \
   size_t length = end - start;
+
+// used by the ReadInt64 functions to determine whether to return a Number
+// or String, based on whether or not a JS Number will lose precision.
+// http://stackoverflow.com/q/307179/376773
+#define JS_MAX_INT +9007199254740992LL
+#define JS_MIN_INT -9007199254740992LL
 
 namespace node {
 namespace Buffer {
@@ -499,6 +525,58 @@ void ReadDoubleBE(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+template <typename T, enum Endianness endianness, T min, T max>
+void ReadInt64Generic(const FunctionCallbackInfo<Value>& args, const char *formatter) {
+  Environment* env = Environment::GetCurrent(args);
+
+  ARGS_THIS(args[0].As<Object>());
+
+  uint32_t offset = args[1]->Uint32Value();
+  CHECK_LE(offset + sizeof(T), obj_length);
+
+  union NoAlias {
+    T val;
+    char bytes[sizeof(T)];
+  };
+
+  union NoAlias na;
+  const char* ptr = static_cast<const char*>(obj_data) + offset;
+  memcpy(na.bytes, ptr, sizeof(na.bytes));
+  if (endianness != GetEndianness())
+    Swizzle(na.bytes, sizeof(na.bytes));
+
+  if (na.val < min || na.val > max) {
+    // return a String
+    char strbuf[20];
+    int len = snprintf(strbuf, sizeof(strbuf), formatter, na.val);
+    args.GetReturnValue().Set( node::OneByteString(env->isolate(), strbuf, len) );
+  } else {
+    // return a Number
+    args.GetReturnValue().Set(static_cast<double>(na.val));
+  }
+}
+
+
+void ReadInt64LE(const FunctionCallbackInfo<Value>& args) {
+  ReadInt64Generic<int64_t, kLittleEndian, JS_MIN_INT, JS_MAX_INT>(args, "%" PRId64);
+}
+
+
+void ReadInt64BE(const FunctionCallbackInfo<Value>& args) {
+  ReadInt64Generic<int64_t, kBigEndian, JS_MIN_INT, JS_MAX_INT>(args, "%" PRId64);
+}
+
+
+void ReadUInt64LE(const FunctionCallbackInfo<Value>& args) {
+  ReadInt64Generic<uint64_t, kLittleEndian, 0, JS_MAX_INT>(args, "%" PRIu64);
+}
+
+
+void ReadUInt64BE(const FunctionCallbackInfo<Value>& args) {
+  ReadInt64Generic<uint64_t, kBigEndian, 0, JS_MAX_INT>(args, "%" PRIu64);
+}
+
+
 template <typename T, enum Endianness endianness>
 uint32_t WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
   ARGS_THIS(args[0].As<Object>())
@@ -750,6 +828,10 @@ void Initialize(Handle<Object> target,
   env->SetMethod(target, "readDoubleLE", ReadDoubleLE);
   env->SetMethod(target, "readFloatBE", ReadFloatBE);
   env->SetMethod(target, "readFloatLE", ReadFloatLE);
+  env->SetMethod(target, "readInt64BE", ReadInt64BE);
+  env->SetMethod(target, "readInt64LE", ReadInt64LE);
+  env->SetMethod(target, "readUInt64BE", ReadUInt64BE);
+  env->SetMethod(target, "readUInt64LE", ReadUInt64LE);
 
   env->SetMethod(target, "writeDoubleBE", WriteDoubleBE);
   env->SetMethod(target, "writeDoubleLE", WriteDoubleLE);
