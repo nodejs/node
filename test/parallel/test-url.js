@@ -862,9 +862,10 @@ for (var u in parseTests) {
       expected = parseTests[u];
 
   Object.keys(actual).forEach(function (i) {
-    if (expected[i] === undefined && actual[i] === null) {
+    if (i.charAt(0) === "_")
+      expected[i] = actual[i];
+    else if (expected[i] === undefined && actual[i] === null)
       expected[i] = null;
-    }
   });
 
   assert.deepEqual(actual, expected);
@@ -931,11 +932,13 @@ var parseTestsWithQueryString = {
 for (var u in parseTestsWithQueryString) {
   var actual = url.parse(u, true);
   var expected = parseTestsWithQueryString[u];
-  for (var i in actual) {
-    if (actual[i] === null && expected[i] === undefined) {
+
+  Object.keys(actual).forEach(function (i) {
+    if (i.charAt(0) === "_")
+      expected[i] = actual[i];
+    else if (expected[i] === undefined && actual[i] === null)
       expected[i] = null;
-    }
-  }
+  });
 
   assert.deepEqual(actual, expected);
 }
@@ -1550,6 +1553,11 @@ relativeTests2.forEach(function(relativeTest) {
   var actual = url.resolveObject(url.parse(relativeTest[1]), relativeTest[0]),
       expected = url.parse(relativeTest[2]);
 
+  Object.keys(actual).forEach(function (i) {
+    if (i.charAt(0) === "_")
+      expected[i] = actual[i];
+  });
+
   assert.deepEqual(actual, expected);
 
   var expected = relativeTest[2],
@@ -1576,3 +1584,7 @@ for (var i = 0; i < throws.length; i++) {
 };
 assert(url.format('') === '');
 assert(url.format({}) === '');
+
+var uri = url.parse("https://registry.lvh.me:8661/");
+delete uri.protocol;
+assert(uri.format() === '//registry.lvh.me:8661/');
