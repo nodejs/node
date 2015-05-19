@@ -86,12 +86,6 @@ TLSWrap::~TLSWrap() {
   sni_context_.Reset();
 #endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
 
-  // Move all writes to pending
-  MakePending();
-
-  // And destroy
-  InvokeQueued(UV_ECANCELED);
-
   ClearError();
 }
 
@@ -770,7 +764,16 @@ void TLSWrap::EnableSessionCallbacks(
 
 void TLSWrap::DestroySSL(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* wrap = Unwrap<TLSWrap>(args.Holder());
+
+  // Move all writes to pending
+  wrap->MakePending();
+
+  // And destroy
+  wrap->InvokeQueued(UV_ECANCELED);
+
+  // Destroy the SSL structure and friends
   wrap->SSLWrap<TLSWrap>::DestroySSL();
+
   delete wrap->clear_in_;
   wrap->clear_in_ = nullptr;
 }
