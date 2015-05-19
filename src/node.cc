@@ -4,6 +4,7 @@
 #include "node_file.h"
 #include "node_http_parser.h"
 #include "node_javascript.h"
+#include "node_options.h"
 #include "node_version.h"
 
 #if defined HAVE_PERFCTR
@@ -111,18 +112,6 @@ using v8::V8;
 using v8::Value;
 using v8::kExternalUint32Array;
 
-static bool print_eval = false;
-static bool force_repl = false;
-static bool trace_deprecation = false;
-static bool throw_deprecation = false;
-static bool abort_on_uncaught_exception = false;
-static bool trace_sync_io = false;
-static const char* eval_string = nullptr;
-static unsigned int preload_module_count = 0;
-static const char** preload_modules = nullptr;
-static bool use_debug_agent = false;
-static bool debug_wait_connect = false;
-static int debug_port = 5858;
 static bool v8_is_profiling = false;
 static bool node_is_initialized = false;
 static node_module* modpending;
@@ -130,10 +119,8 @@ static node_module* modlist_builtin;
 static node_module* modlist_linked;
 static node_module* modlist_addon;
 
-#if defined(NODE_HAVE_I18N_SUPPORT)
-// Path to ICU data (for i18n / Intl)
-static const char* icu_data_dir = nullptr;
-#endif
+// cli options
+NodeOptions node_options;
 
 // used by C++ modules as well
 bool no_deprecation = false;
@@ -1266,13 +1253,13 @@ enum encoding ParseEncoding(const char* encoding,
   } else if (strcasecmp(encoding, "hex") == 0) {
     return HEX;
   } else if (strcasecmp(encoding, "raw") == 0) {
-    if (!no_deprecation) {
+    if (!node_options.no_deprecation) {
       fprintf(stderr, "'raw' (array of integers) has been removed. "
                       "Use 'binary'.\n");
     }
     return BINARY;
   } else if (strcasecmp(encoding, "raws") == 0) {
-    if (!no_deprecation) {
+    if (!node_options.no_deprecation) {
       fprintf(stderr, "'raws' encoding has been renamed to 'binary'. "
                       "Please update your code.\n");
     }
@@ -2548,14 +2535,14 @@ static Handle<Object> GetFeatures(Environment* env) {
 
 static void DebugPortGetter(Local<String> property,
                             const PropertyCallbackInfo<Value>& info) {
-  info.GetReturnValue().Set(debug_port);
+  info.GetReturnValue().Set(node_options.debug_port);
 }
 
 
 static void DebugPortSetter(Local<String> property,
                             Local<Value> value,
                             const PropertyCallbackInfo<void>& info) {
-  debug_port = value->Int32Value();
+  node_options.debug_port = value->Int32Value();
 }
 
 
@@ -2789,56 +2776,58 @@ void SetupProcessObject(Environment* env,
                        env->as_external());
 
   // -e, --eval
-  if (eval_string) {
+  if (node_options.eval_string) {
     READONLY_PROPERTY(process,
                       "_eval",
-                      String::NewFromUtf8(env->isolate(), eval_string));
+                      String::NewFromUtf8(env->isolate(),
+                                          node_options.eval_string));
   }
 
   // -p, --print
-  if (print_eval) {
+  if (node_options.print_eval) {
     READONLY_PROPERTY(process, "_print_eval", True(env->isolate()));
   }
 
   // -i, --interactive
-  if (force_repl) {
+  if (node_options.force_repl) {
     READONLY_PROPERTY(process, "_forceRepl", True(env->isolate()));
   }
 
-  if (preload_module_count) {
-    CHECK(preload_modules);
+  if (node_options.preload_module_count) {
+    CHECK(node_options.preload_modules);
     Local<Array> array = Array::New(env->isolate());
-    for (unsigned int i = 0; i < preload_module_count; ++i) {
-      Local<String> module = String::NewFromUtf8(env->isolate(),
-                                                 preload_modules[i]);
+    for (unsigned int i = 0; i < node_options.preload_module_count; ++i) {
+      Local<String> module = String::NewFromUtf8(
+          env->isolate(),
+          node_options.preload_modules[i]);
       array->Set(i, module);
     }
     READONLY_PROPERTY(process,
                       "_preload_modules",
                       array);
 
-    delete[] preload_modules;
-    preload_modules = nullptr;
-    preload_module_count = 0;
+    delete[] node_options.preload_modules;
+    node_options.preload_modules = nullptr;
+    node_options.preload_module_count = 0;
   }
 
   // --no-deprecation
-  if (no_deprecation) {
+  if (node_options.no_deprecation) {
     READONLY_PROPERTY(process, "noDeprecation", True(env->isolate()));
   }
 
   // --throw-deprecation
-  if (throw_deprecation) {
+  if (node_options.throw_deprecation) {
     READONLY_PROPERTY(process, "throwDeprecation", True(env->isolate()));
   }
 
   // --trace-deprecation
-  if (trace_deprecation) {
+  if (node_options.trace_deprecation) {
     READONLY_PROPERTY(process, "traceDeprecation", True(env->isolate()));
   }
 
   // --trace-sync-io
-  if (trace_sync_io) {
+  if (node_options.trace_sync_io) {
     READONLY_PROPERTY(process, "traceSyncIO", True(env->isolate()));
     // Don't env->set_trace_sync_io(true) because it will be enabled
     // after LoadEnvironment() has run.
@@ -3020,235 +3009,6 @@ void LoadEnvironment(Environment* env) {
   f->Call(global, 1, &arg);
 }
 
-static void PrintHelp();
-
-static bool ParseDebugOpt(const char* arg) {
-  const char* port = nullptr;
-
-  if (!strcmp(arg, "--debug")) {
-    use_debug_agent = true;
-  } else if (!strncmp(arg, "--debug=", sizeof("--debug=") - 1)) {
-    use_debug_agent = true;
-    port = arg + sizeof("--debug=") - 1;
-  } else if (!strcmp(arg, "--debug-brk")) {
-    use_debug_agent = true;
-    debug_wait_connect = true;
-  } else if (!strncmp(arg, "--debug-brk=", sizeof("--debug-brk=") - 1)) {
-    use_debug_agent = true;
-    debug_wait_connect = true;
-    port = arg + sizeof("--debug-brk=") - 1;
-  } else if (!strncmp(arg, "--debug-port=", sizeof("--debug-port=") - 1)) {
-    port = arg + sizeof("--debug-port=") - 1;
-  } else {
-    return false;
-  }
-
-  if (port != nullptr) {
-    debug_port = atoi(port);
-    if (debug_port < 1024 || debug_port > 65535) {
-      fprintf(stderr, "Debug port must be in range 1024 to 65535.\n");
-      PrintHelp();
-      exit(12);
-    }
-  }
-
-  return true;
-}
-
-static void PrintHelp() {
-  printf("Usage: iojs [options] [ -e script | script.js ] [arguments] \n"
-         "       iojs debug script.js [arguments] \n"
-         "\n"
-         "Options:\n"
-         "  -v, --version        print io.js version\n"
-         "  -e, --eval script    evaluate script\n"
-         "  -p, --print          evaluate script and print result\n"
-         "  -i, --interactive    always enter the REPL even if stdin\n"
-         "                       does not appear to be a terminal\n"
-         "  -r, --require        module to preload (option can be repeated)\n"
-         "  --no-deprecation     silence deprecation warnings\n"
-         "  --throw-deprecation  throw an exception anytime a deprecated "
-         "function is used\n"
-         "  --trace-deprecation  show stack traces on deprecations\n"
-         "  --trace-sync-io      show stack trace when use of sync IO\n"
-         "                       is detected after the first tick\n"
-         "  --v8-options         print v8 command line options\n"
-#if defined(NODE_HAVE_I18N_SUPPORT)
-         "  --icu-data-dir=dir   set ICU data load path to dir\n"
-         "                         (overrides NODE_ICU_DATA)\n"
-#if !defined(NODE_HAVE_SMALL_ICU)
-         "                       Note: linked-in ICU data is\n"
-         "                       present.\n"
-#endif
-#endif
-         "\n"
-         "Environment variables:\n"
-#ifdef _WIN32
-         "NODE_PATH              ';'-separated list of directories\n"
-#else
-         "NODE_PATH              ':'-separated list of directories\n"
-#endif
-         "                       prefixed to the module search path.\n"
-         "NODE_DISABLE_COLORS    Set to 1 to disable colors in the REPL\n"
-#if defined(NODE_HAVE_I18N_SUPPORT)
-         "NODE_ICU_DATA          Data path for ICU (Intl object) data\n"
-#if !defined(NODE_HAVE_SMALL_ICU)
-         "                       (will extend linked-in data)\n"
-#endif
-#endif
-         "\n"
-         "Documentation can be found at https://iojs.org/\n");
-}
-
-
-// Parse command line arguments.
-//
-// argv is modified in place. exec_argv and v8_argv are out arguments that
-// ParseArgs() allocates memory for and stores a pointer to the output
-// vector in.  The caller should free them with delete[].
-//
-// On exit:
-//
-//  * argv contains the arguments with node and V8 options filtered out.
-//  * exec_argv contains both node and V8 options and nothing else.
-//  * v8_argv contains argv[0] plus any V8 options
-static void ParseArgs(int* argc,
-                      const char** argv,
-                      int* exec_argc,
-                      const char*** exec_argv,
-                      int* v8_argc,
-                      const char*** v8_argv) {
-  const unsigned int nargs = static_cast<unsigned int>(*argc);
-  const char** new_exec_argv = new const char*[nargs];
-  const char** new_v8_argv = new const char*[nargs];
-  const char** new_argv = new const char*[nargs];
-  const char** local_preload_modules = new const char*[nargs];
-
-  for (unsigned int i = 0; i < nargs; ++i) {
-    new_exec_argv[i] = nullptr;
-    new_v8_argv[i] = nullptr;
-    new_argv[i] = nullptr;
-    local_preload_modules[i] = nullptr;
-  }
-
-  // exec_argv starts with the first option, the other two start with argv[0].
-  unsigned int new_exec_argc = 0;
-  unsigned int new_v8_argc = 1;
-  unsigned int new_argc = 1;
-  new_v8_argv[0] = argv[0];
-  new_argv[0] = argv[0];
-
-  unsigned int index = 1;
-  while (index < nargs && argv[index][0] == '-') {
-    const char* const arg = argv[index];
-    unsigned int args_consumed = 1;
-
-    if (ParseDebugOpt(arg)) {
-      // Done, consumed by ParseDebugOpt().
-    } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
-      printf("%s\n", NODE_VERSION);
-      exit(0);
-    } else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {
-      PrintHelp();
-      exit(0);
-    } else if (strcmp(arg, "--eval") == 0 ||
-               strcmp(arg, "-e") == 0 ||
-               strcmp(arg, "--print") == 0 ||
-               strcmp(arg, "-pe") == 0 ||
-               strcmp(arg, "-p") == 0) {
-      bool is_eval = strchr(arg, 'e') != nullptr;
-      bool is_print = strchr(arg, 'p') != nullptr;
-      print_eval = print_eval || is_print;
-      // --eval, -e and -pe always require an argument.
-      if (is_eval == true) {
-        args_consumed += 1;
-        eval_string = argv[index + 1];
-        if (eval_string == nullptr) {
-          fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
-          exit(9);
-        }
-      } else if ((index + 1 < nargs) &&
-                 argv[index + 1] != nullptr &&
-                 argv[index + 1][0] != '-') {
-        args_consumed += 1;
-        eval_string = argv[index + 1];
-        if (strncmp(eval_string, "\\-", 2) == 0) {
-          // Starts with "\\-": escaped expression, drop the backslash.
-          eval_string += 1;
-        }
-      }
-    } else if (strcmp(arg, "--require") == 0 ||
-               strcmp(arg, "-r") == 0) {
-      const char* module = argv[index + 1];
-      if (module == nullptr) {
-        fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
-        exit(9);
-      }
-      args_consumed += 1;
-      local_preload_modules[preload_module_count++] = module;
-    } else if (strcmp(arg, "--interactive") == 0 || strcmp(arg, "-i") == 0) {
-      force_repl = true;
-    } else if (strcmp(arg, "--no-deprecation") == 0) {
-      no_deprecation = true;
-    } else if (strcmp(arg, "--trace-deprecation") == 0) {
-      trace_deprecation = true;
-    } else if (strcmp(arg, "--trace-sync-io") == 0) {
-      trace_sync_io = true;
-    } else if (strcmp(arg, "--throw-deprecation") == 0) {
-      throw_deprecation = true;
-    } else if (strcmp(arg, "--abort-on-uncaught-exception") == 0 ||
-               strcmp(arg, "--abort_on_uncaught_exception") == 0) {
-      abort_on_uncaught_exception = true;
-    } else if (strcmp(arg, "--v8-options") == 0) {
-      new_v8_argv[new_v8_argc] = "--help";
-      new_v8_argc += 1;
-#if defined(NODE_HAVE_I18N_SUPPORT)
-    } else if (strncmp(arg, "--icu-data-dir=", 15) == 0) {
-      icu_data_dir = arg + 15;
-#endif
-    } else if (strcmp(arg, "--expose-internals") == 0 ||
-               strcmp(arg, "--expose_internals") == 0) {
-      // consumed in js
-    } else {
-      // V8 option.  Pass through as-is.
-      new_v8_argv[new_v8_argc] = arg;
-      new_v8_argc += 1;
-    }
-
-    memcpy(new_exec_argv + new_exec_argc,
-           argv + index,
-           args_consumed * sizeof(*argv));
-
-    new_exec_argc += args_consumed;
-    index += args_consumed;
-  }
-
-  // Copy remaining arguments.
-  const unsigned int args_left = nargs - index;
-  memcpy(new_argv + new_argc, argv + index, args_left * sizeof(*argv));
-  new_argc += args_left;
-
-  *exec_argc = new_exec_argc;
-  *exec_argv = new_exec_argv;
-  *v8_argc = new_v8_argc;
-  *v8_argv = new_v8_argv;
-
-  // Copy new_argv over argv and update argc.
-  memcpy(argv, new_argv, new_argc * sizeof(*argv));
-  delete[] new_argv;
-  *argc = static_cast<int>(new_argc);
-
-  // Copy the preload_modules from the local array to an appropriately sized
-  // global array.
-  if (preload_module_count > 0) {
-    CHECK(!preload_modules);
-    preload_modules = new const char*[preload_module_count];
-    memcpy(preload_modules, local_preload_modules,
-           preload_module_count * sizeof(*preload_modules));
-  }
-  delete[] local_preload_modules;
-}
-
 
 // Called from V8 Debug Agent TCP thread.
 static void DispatchMessagesDebugAgentCallback(Environment* env) {
@@ -3262,9 +3022,12 @@ static void StartDebug(Environment* env, bool wait) {
 
   env->debugger_agent()->set_dispatch_handler(
         DispatchMessagesDebugAgentCallback);
-  debugger_running = env->debugger_agent()->Start(debug_port, wait);
+  debugger_running = env->debugger_agent()->Start(node_options.debug_port,
+                                                  wait);
   if (debugger_running == false) {
-    fprintf(stderr, "Starting debugger on port %d failed\n", debug_port);
+    fprintf(stderr,
+            "Starting debugger on port %d failed\n",
+            node_options.debug_port);
     fflush(stderr);
     return;
   }
@@ -3634,8 +3397,8 @@ void Init(int* argc,
   // Parse a few arguments which are specific to Node.
   int v8_argc;
   const char** v8_argv;
-  ParseArgs(argc, argv, exec_argc, exec_argv, &v8_argc, &v8_argv);
-
+  node_options.ParseArgs(argc, argv, exec_argc, exec_argv, &v8_argc, &v8_argv);
+  no_deprecation = node_options.no_deprecation;
   // TODO(bnoordhuis) Intercept --prof arguments and start the CPU profiler
   // manually?  That would give us a little more control over its runtime
   // behavior but it could also interfere with the user's intentions in ways
@@ -3674,14 +3437,14 @@ void Init(int* argc,
     exit(9);
   }
 
-  if (debug_wait_connect) {
+  if (node_options.debug_wait_connect) {
     const char expose_debug_as[] = "--expose_debug_as=v8debug";
     V8::SetFlagsFromString(expose_debug_as, sizeof(expose_debug_as) - 1);
   }
 
   V8::SetArrayBufferAllocator(&ArrayBufferAllocator::the_singleton);
 
-  if (!use_debug_agent) {
+  if (!node_options.use_debug_agent) {
     RegisterDebugSignalHandler();
   }
 
@@ -3894,14 +3657,15 @@ static void StartNodeInstance(void* arg) {
     Environment* env = CreateEnvironment(isolate, context, instance_data);
     Context::Scope context_scope(context);
     if (instance_data->is_main())
-      env->set_using_abort_on_uncaught_exc(abort_on_uncaught_exception);
+      env->set_using_abort_on_uncaught_exc(
+          node_options.abort_on_uncaught_exception);
     // Start debug agent when argv has --debug
     if (instance_data->use_debug_agent())
-      StartDebug(env, debug_wait_connect);
+      StartDebug(env, node_options.debug_wait_connect);
 
     LoadEnvironment(env);
 
-    env->set_trace_sync_io(trace_sync_io);
+    env->set_trace_sync_io(node_options.trace_sync_io);
 
     // Enable debugger
     if (instance_data->use_debug_agent())
@@ -3978,7 +3742,7 @@ int Start(int argc, char** argv) {
                                    const_cast<const char**>(argv),
                                    exec_argc,
                                    exec_argv,
-                                   use_debug_agent);
+                                   node_options.use_debug_agent);
     StartNodeInstance(&instance_data);
     exit_code = instance_data.exit_code();
   }

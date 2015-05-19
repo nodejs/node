@@ -86,6 +86,7 @@
       'dependencies': [
         'node_js2c#host',
         'deps/cares/cares.gyp:cares',
+        'deps/getopt/getopt.gyp:getopt',
         'deps/v8/tools/gyp/v8.gyp:v8',
         'deps/v8/tools/gyp/v8.gyp:v8_libplatform'
       ],
@@ -94,6 +95,7 @@
         'src',
         'tools/msvs/genfiles',
         'deps/uv/src/ares',
+        'deps/getopt',
         '<(SHARED_INTERMEDIATE_DIR)', # for node_natives.h
         'deps/v8' # include/v8_platform.h
       ],
@@ -114,6 +116,7 @@
         'src/node_http_parser.cc',
         'src/node_javascript.cc',
         'src/node_main.cc',
+        'src/node_options.cc',
         'src/node_os.cc',
         'src/node_v8.cc',
         'src/node_stat_watcher.cc',
@@ -150,6 +153,7 @@
         'src/node_http_parser.h',
         'src/node_internals.h',
         'src/node_javascript.h',
+        'src/node_options.h',
         'src/node_root_certs.h',
         'src/node_version.h',
         'src/node_watchdog.h',
@@ -630,7 +634,7 @@
     {
       'target_name': 'cctest',
       'type': 'executable',
-      'dependencies': [ 
+      'dependencies': [
         'deps/gtest/gtest.gyp:gtest',
         'deps/v8/tools/gyp/v8.gyp:v8',
         'deps/v8/tools/gyp/v8.gyp:v8_libplatform'
