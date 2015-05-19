@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var net = require('net');
@@ -12,7 +13,7 @@ var server = net.createServer({ allowHalfOpen: true }, function(sock) {
     serverData += c;
   });
   sock.on('end', function() {
-    gotServerEnd = true
+    gotServerEnd = true;
     sock.end(serverData);
     server.close();
   });

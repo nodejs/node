@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var net = require('net');
@@ -14,6 +15,6 @@ net.createServer(assert.fail).listen({fd:0}).on('error', function(e) {
     case 'EINVAL':
     case 'ENOTSOCK':
       gotError = e;
-      break
+      break;
   }
 });

@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var path = require('path');
@@ -53,7 +54,7 @@ assert.equal('D', d3.D());
 assert.equal(true, common.indirectInstanceOf(d4.D, Function));
 assert.equal('D', d4.D());
 
-assert.ok((new a.SomeClass) instanceof c.SomeClass);
+assert.ok((new a.SomeClass()) instanceof c.SomeClass);
 
 common.debug('test index.js modules ids and relative loading');
 var one = require('../fixtures/nested-index/one'),
@@ -89,7 +90,7 @@ common.debug('test name clashes');
 var my_path = require('../fixtures/path');
 assert.ok(common.indirectInstanceOf(my_path.path_func, Function));
 // this one does not exist and should throw
-assert.throws(function() { require('./utils')});
+assert.throws(function() { require('./utils'); });
 
 var errorThrown = false;
 try {
@@ -187,7 +188,7 @@ assert.deepEqual(json, {
 // the appropriate children, and so on.
 
 var children = module.children.reduce(function red(set, child) {
-  var id = path.relative(path.dirname(__dirname), child.id)
+  var id = path.relative(path.dirname(__dirname), child.id);
   id = id.replace(/\\/g, '/');
   set[id] = child.children.reduce(red, {});
   return set;

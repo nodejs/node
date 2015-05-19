@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var util = require('util');
@@ -58,7 +59,8 @@ assert.deepEqual(ret, msgBuf);
 
 ret = execFileSync(process.execPath, args, { encoding: 'utf8' });
 
-assert.strictEqual(ret, msg + '\n', 'execFileSync encoding result should match');
+assert.strictEqual(ret, msg + '\n',
+                   'execFileSync encoding result should match');
 
 // Verify that the cwd option works - GH #7824
 (function() {

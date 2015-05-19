@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var path = require('path');
@@ -44,11 +45,11 @@ function closeSync() {
 
 // On Windows chmod is only able to manipulate read-only bit
 if (is_windows) {
-  mode_async = 0400;   // read-only
-  mode_sync = 0600;    // read-write
+  mode_async = 0o400;   // read-only
+  mode_sync = 0o600;    // read-write
 } else {
-  mode_async = 0777;
-  mode_sync = 0644;
+  mode_async = 0o777;
+  mode_sync = 0o644;
 }
 
 var file1 = path.join(common.fixturesDir, 'a.js'),
@@ -61,16 +62,16 @@ fs.chmod(file1, mode_async.toString(8), function(err) {
     console.log(fs.statSync(file1).mode);
 
     if (is_windows) {
-      assert.ok((fs.statSync(file1).mode & 0777) & mode_async);
+      assert.ok((fs.statSync(file1).mode & 0o777) & mode_async);
     } else {
-      assert.equal(mode_async, fs.statSync(file1).mode & 0777);
+      assert.equal(mode_async, fs.statSync(file1).mode & 0o777);
     }
 
     fs.chmodSync(file1, mode_sync);
     if (is_windows) {
-      assert.ok((fs.statSync(file1).mode & 0777) & mode_sync);
+      assert.ok((fs.statSync(file1).mode & 0o777) & mode_sync);
     } else {
-      assert.equal(mode_sync, fs.statSync(file1).mode & 0777);
+      assert.equal(mode_sync, fs.statSync(file1).mode & 0o777);
     }
     success_count++;
   }
@@ -89,16 +90,16 @@ fs.open(file2, 'a', function(err, fd) {
       console.log(fs.fstatSync(fd).mode);
 
       if (is_windows) {
-        assert.ok((fs.fstatSync(fd).mode & 0777) & mode_async);
+        assert.ok((fs.fstatSync(fd).mode & 0o777) & mode_async);
       } else {
-        assert.equal(mode_async, fs.fstatSync(fd).mode & 0777);
+        assert.equal(mode_async, fs.fstatSync(fd).mode & 0o777);
       }
 
       fs.fchmodSync(fd, mode_sync);
       if (is_windows) {
-        assert.ok((fs.fstatSync(fd).mode & 0777) & mode_sync);
+        assert.ok((fs.fstatSync(fd).mode & 0o777) & mode_sync);
       } else {
-        assert.equal(mode_sync, fs.fstatSync(fd).mode & 0777);
+        assert.equal(mode_sync, fs.fstatSync(fd).mode & 0o777);
       }
       success_count++;
       fs.close(fd);
@@ -120,10 +121,10 @@ if (fs.lchmod) {
       got_error = true;
     } else {
       console.log(fs.lstatSync(link).mode);
-      assert.equal(mode_async, fs.lstatSync(link).mode & 0777);
+      assert.equal(mode_async, fs.lstatSync(link).mode & 0o777);
 
       fs.lchmodSync(link, mode_sync);
-      assert.equal(mode_sync, fs.lstatSync(link).mode & 0777);
+      assert.equal(mode_sync, fs.lstatSync(link).mode & 0o777);
       success_count++;
     }
   });

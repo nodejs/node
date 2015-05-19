@@ -1,3 +1,4 @@
+'use strict';
 require('../common');
 var util = require('util');
 var assert = require('assert');

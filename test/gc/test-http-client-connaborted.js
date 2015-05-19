@@ -1,3 +1,4 @@
+'use strict';
 // just like test/gc/http-client.js,
 // but aborting every connection that comes in.
 
@@ -15,7 +16,7 @@ var http  = require('http'),
     assert = require('assert'),
     PORT = common.PORT;
 
-console.log('We should do '+ todo +' requests');
+console.log('We should do ' + todo + ' requests');
 
 var http = require('http');
 var server = http.createServer(serverHandler);
@@ -25,9 +26,9 @@ function getall() {
   if (count >= todo)
     return;
 
-  (function(){
+  (function() {
     function cb(res) {
-      done+=1;
+      done += 1;
       statusLater();
     }
 
@@ -39,7 +40,7 @@ function getall() {
 
     count++;
     weak(req, afterGC);
-  })()
+  })();
 
   setImmediate(getall);
 }
@@ -47,7 +48,7 @@ function getall() {
 for (var i = 0; i < 10; i++)
   getall();
 
-function afterGC(){
+function afterGC() {
   countGC ++;
 }
 

@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var http = require('http');
@@ -16,8 +17,9 @@ function run() {
   if (fn) {
     console.log('# %s', fn.name);
     fn(run);
-  } else
+  } else {
     console.log('ok');
+  }
 }
 
 test(function serverTimeout(cb) {

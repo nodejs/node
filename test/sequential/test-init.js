@@ -1,3 +1,4 @@
+'use strict';
 (function() {
   var assert = require('assert'),
       child = require('child_process'),

@@ -1,3 +1,4 @@
+'use strict';
 // This example sets a timeout then immediately attempts to disable the timeout
 // https://github.com/joyent/node/pull/2245
 

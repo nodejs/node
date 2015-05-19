@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -48,7 +49,7 @@ cat.on('exit', function(status) {
   exitStatus = status;
 });
 
-cat.on('close', function () {
+cat.on('close', function() {
   closed = true;
   if (is_windows) {
     assert.equal('hello world\r\n', response);

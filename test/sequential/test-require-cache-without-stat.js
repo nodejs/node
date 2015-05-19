@@ -1,3 +1,4 @@
+'use strict';
 // We've experienced a regression where the module loader stats a bunch of
 // directories on require() even if it's been called before. The require()
 // should caching the request.

@@ -1,3 +1,4 @@
+'use strict';
 require('../common');
 var assert = require('assert');
 var exec = require('child_process').exec;
@@ -8,7 +9,7 @@ var success_count = 0;
 var str = 'hello';
 
 // default encoding
-var child = exec("echo " + str, function(err, stdout, stderr) {
+var child = exec('echo ' + str, function(err, stdout, stderr) {
   assert.ok('string', typeof(stdout), 'Expected stdout to be a string');
   assert.ok('string', typeof(stderr), 'Expected stderr to be a string');
   assert.equal(str + os.EOL, stdout);
@@ -17,7 +18,7 @@ var child = exec("echo " + str, function(err, stdout, stderr) {
 });
 
 // no encoding (Buffers expected)
-var child = exec("echo " + str, {
+var child = exec('echo ' + str, {
   encoding: null
 }, function(err, stdout, stderr) {
   assert.ok(stdout instanceof Buffer, 'Expected stdout to be a Buffer');

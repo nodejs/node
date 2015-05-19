@@ -1,3 +1,4 @@
+'use strict';
 // Installing a custom uncaughtException handler should override the default
 // one that the cluster module installs.
 // https://github.com/joyent/node/issues/2556

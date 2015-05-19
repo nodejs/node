@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -240,7 +241,7 @@ assert.equal(
 
 // test overriding .unescape
 var prevUnescape = qs.unescape;
-qs.unescape = function (str) {
+qs.unescape = function(str) {
   return str.replace(/o/g, '_');
 };
 assert.deepEqual(qs.parse('foo=bor'), {f__: 'b_r'});

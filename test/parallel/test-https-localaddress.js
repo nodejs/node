@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common'),
     fs = require('fs'),
     assert = require('assert');
@@ -18,8 +19,8 @@ var options = {
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-var server = https.createServer(options, function (req, res) {
-  console.log("Connect from: " + req.connection.remoteAddress);
+var server = https.createServer(options, function(req, res) {
+  console.log('Connect from: ' + req.connection.remoteAddress);
   assert.equal('127.0.0.2', req.connection.remoteAddress);
 
   req.on('end', function() {
@@ -29,7 +30,7 @@ var server = https.createServer(options, function (req, res) {
   req.resume();
 });
 
-server.listen(common.PORT, "127.0.0.1", function() {
+server.listen(common.PORT, '127.0.0.1', function() {
   var options = {
     host: 'localhost',
     port: common.PORT,

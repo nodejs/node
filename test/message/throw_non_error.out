@@ -1,5 +1,5 @@
 before
-*test*message*throw_non_error.js:7
+*test*message*throw_non_error.js:8
 throw ({ foo: 'bar' });
 ^
 [object Object]

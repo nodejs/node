@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var R = require('_stream_readable');
@@ -23,7 +24,7 @@ function run() {
   fn({
     same: assert.deepEqual,
     equal: assert.equal,
-    end: function () {
+    end: function() {
       count--;
       run();
     }
@@ -31,7 +32,7 @@ function run() {
 }
 
 // ensure all tests have run
-process.on("exit", function () {
+process.on('exit', function() {
   assert.equal(count, 0);
 });
 
@@ -68,7 +69,7 @@ TestReader.prototype._read = function(n) {
     var ret = new Buffer(n);
     ret.fill('a');
 
-    console.log("this.push(ret)", ret)
+    console.log('this.push(ret)', ret);
 
     return this.push(ret);
   }.bind(this), 1);
@@ -146,32 +147,32 @@ test('setEncoding hex with read(13)', function(t) {
   tr.setEncoding('hex');
   var out = [];
   var expect =
-    [ "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "16161" ];
+    [ '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '16161' ];
 
   tr.on('readable', function flow() {
-    console.log("readable once")
+    console.log('readable once');
     var chunk;
     while (null !== (chunk = tr.read(13)))
       out.push(chunk);
   });
 
   tr.on('end', function() {
-    console.log("END")
+    console.log('END');
     t.same(out, expect);
     t.end();
   });
@@ -278,22 +279,22 @@ test('encoding: hex with read(13)', function(t) {
   var tr = new TestReader(100, { encoding: 'hex' });
   var out = [];
   var expect =
-    [ "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "16161" ];
+    [ '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '16161' ];
 
   tr.on('readable', function flow() {
     var chunk;

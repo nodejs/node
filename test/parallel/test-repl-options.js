@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common'),
     assert = require('assert'),
     Stream = require('stream'),
@@ -7,7 +8,7 @@ common.globalCheck = false;
 
 // create a dummy stream that does nothing
 var stream = new Stream();
-stream.write = stream.pause = stream.resume = function(){};
+stream.write = stream.pause = stream.resume = function() {};
 stream.readable = stream.writable = true;
 
 // 1, mostly defaults
@@ -64,3 +65,17 @@ assert.equal(r2.rli.input, r2.inputStream);
 assert.equal(r2.rli.output, r2.outputStream);
 assert.equal(r2.rli.terminal, false);
 
+<<<<<<< HEAD
+=======
+// testing out "magic" replMode
+var r3 = repl.start({
+  input: stream,
+  output: stream,
+  writer: writer,
+  replMode: repl.REPL_MODE_MAGIC,
+  historySize: 50
+});
+
+assert.equal(r3.replMode, repl.REPL_MODE_MAGIC);
+assert.equal(r3.historySize, 50);
+>>>>>>> f29762f... test: enable linting for tests

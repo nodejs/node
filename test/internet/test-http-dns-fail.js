@@ -1,3 +1,4 @@
+'use strict';
 /*
  * Repeated requests for a domain that fails to resolve
  * should trigger the error event after each attempt.

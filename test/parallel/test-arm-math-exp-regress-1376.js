@@ -1,4 +1,9 @@
+<<<<<<< HEAD
 // See https://github.com/iojs/io.js/issues/1376
+=======
+'use strict';
+// See https://github.com/nodejs/io.js/issues/1376
+>>>>>>> f29762f... test: enable linting for tests
 // and https://code.google.com/p/v8/issues/detail?id=4019
 
 Math.abs(-0.5);

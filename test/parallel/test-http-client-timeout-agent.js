@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var http = require('http');
@@ -23,35 +24,35 @@ var server = http.createServer(function(req, res) {
     res.write(reqid.toString());
     res.end();
   }
-  request_number+=1;
+  request_number += 1;
 });
 
 server.listen(options.port, options.host, function() {
   var req;
 
-  for (requests_sent = 0; requests_sent < 30; requests_sent+=1) {
+  for (requests_sent = 0; requests_sent < 30; requests_sent += 1) {
     options.path = '/' + requests_sent;
     req = http.request(options);
     req.id = requests_sent;
     req.on('response', function(res) {
       res.on('data', function(data) {
-        console.log('res#'+this.req.id+' data:'+data);
+        console.log('res#' + this.req.id + ' data:' + data);
       });
       res.on('end', function(data) {
-        console.log('res#'+this.req.id+' end');
+        console.log('res#' + this.req.id + ' end');
         requests_done += 1;
       });
     });
     req.on('close', function() {
-      console.log('req#'+this.id+' close');
+      console.log('req#' + this.id + ' close');
     });
     req.on('error', function() {
-      console.log('req#'+this.id+' error');
+      console.log('req#' + this.id + ' error');
       this.destroy();
     });
-    req.setTimeout(50, function () {
+    req.setTimeout(50, function() {
       var req = this;
-      console.log('req#'+this.id + ' timeout');
+      console.log('req#' + this.id + ' timeout');
       req.abort();
       requests_done += 1;
     });
@@ -71,5 +72,6 @@ server.listen(options.port, options.host, function() {
 
 process.on('exit', function() {
   console.error('done=%j sent=%j', requests_done, requests_sent);
-  assert.ok(requests_done == requests_sent, 'timeout on http request called too much');
+  assert.ok(requests_done == requests_sent,
+            'timeout on http request called too much');
 });

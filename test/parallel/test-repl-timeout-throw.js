@@ -1,3 +1,4 @@
+'use strict';
 var assert = require('assert');
 var common = require('../common');
 
@@ -14,10 +15,12 @@ child.stdout.on('data', function(c) {
   stdout += c;
 });
 
-child.stdin.write = function(original) { return function(c) {
-  process.stderr.write(c);
-  return original.call(child.stdin, c);
-}}(child.stdin.write);
+child.stdin.write = function(original) {
+  return function(c) {
+    process.stderr.write(c);
+    return original.call(child.stdin, c);
+  };
+}(child.stdin.write);
 
 child.stdout.once('data', function() {
   child.stdin.write('var throws = 0;');

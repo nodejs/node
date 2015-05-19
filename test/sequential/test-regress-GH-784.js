@@ -1,3 +1,4 @@
+'use strict';
 // Regression test for GH-784
 // https://github.com/joyent/node/issues/784
 //

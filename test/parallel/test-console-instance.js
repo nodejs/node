@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var Stream = require('stream');
@@ -15,7 +16,7 @@ assert.equal('function', typeof Console);
 
 // make sure that the Console constructor throws
 // when not given a writable stream instance
-assert.throws(function () {
+assert.throws(function() {
   new Console();
 }, /Console expects a writable stream/);
 

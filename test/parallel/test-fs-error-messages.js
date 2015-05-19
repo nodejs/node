@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -55,7 +56,7 @@ fs.rmdir(fn, function(err) {
   assert.ok(0 <= err.message.indexOf(fn));
 });
 
-fs.mkdir(existingFile, 0666, function(err) {
+fs.mkdir(existingFile, 0o666, function(err) {
   assert.ok(0 <= err.message.indexOf(existingFile));
 });
 
@@ -63,11 +64,11 @@ fs.rmdir(existingFile, function(err) {
   assert.ok(0 <= err.message.indexOf(existingFile));
 });
 
-fs.chmod(fn, 0666, function(err) {
+fs.chmod(fn, 0o666, function(err) {
   assert.ok(0 <= err.message.indexOf(fn));
 });
 
-fs.open(fn, 'r', 0666, function(err) {
+fs.open(fn, 'r', 0o666, function(err) {
   assert.ok(0 <= err.message.indexOf(fn));
 });
 
@@ -90,7 +91,7 @@ try {
 
 try {
   ++expected;
-  fs.mkdirSync(existingFile, 0666);
+  fs.mkdirSync(existingFile, 0o666);
 } catch (err) {
   errors.push('mkdir');
   assert.ok(0 <= err.message.indexOf(existingFile));
@@ -98,7 +99,7 @@ try {
 
 try {
   ++expected;
-  fs.chmodSync(fn, 0666);
+  fs.chmodSync(fn, 0o666);
 } catch (err) {
   errors.push('chmod');
   assert.ok(0 <= err.message.indexOf(fn));

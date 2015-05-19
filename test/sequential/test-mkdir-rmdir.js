@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var path = require('path');
@@ -9,12 +10,12 @@ var d = path.join(common.tmpDir, 'dir');
 var mkdir_error = false;
 var rmdir_error = false;
 
-fs.mkdir(d, 0666, function(err) {
+fs.mkdir(d, 0o666, function(err) {
   if (err) {
     console.log('mkdir error: ' + err.message);
     mkdir_error = true;
   } else {
-    fs.mkdir(d, 0666, function(err) {
+    fs.mkdir(d, 0o666, function(err) {
       console.log('expect EEXIST error: ', err);
       assert.ok(err.message.match(/^EEXIST/), 'got EEXIST message');
       assert.equal(err.code, 'EEXIST', 'got EEXIST code');

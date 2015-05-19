@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var domain = require('domain');
@@ -105,7 +106,8 @@ function onUnhandledFail(done) {
   }, 10);
 }
 
-asyncTest('synchronously rejected promise should trigger unhandledRejection', function(done) {
+asyncTest('synchronously rejected promise should trigger' +
+          ' unhandledRejection', function(done) {
   var e = new Error();
   onUnhandledSucceed(done, function(reason, promise) {
     assert.strictEqual(e, reason);
@@ -113,7 +115,8 @@ asyncTest('synchronously rejected promise should trigger unhandledRejection', fu
   Promise.reject(e);
 });
 
-asyncTest('synchronously rejected promise should trigger unhandledRejection', function(done) {
+asyncTest('synchronously rejected promise should trigger' +
+          ' unhandledRejection', function(done) {
   var e = new Error();
   onUnhandledSucceed(done, function(reason, promise) {
     assert.strictEqual(e, reason);
@@ -123,7 +126,8 @@ asyncTest('synchronously rejected promise should trigger unhandledRejection', fu
   });
 });
 
-asyncTest('Promise rejected after setImmediate should trigger unhandledRejection', function(done) {
+asyncTest('Promise rejected after setImmediate should trigger' +
+          ' unhandledRejection', function(done) {
   var e = new Error();
   onUnhandledSucceed(done, function(reason, promise) {
     assert.strictEqual(e, reason);
@@ -135,7 +139,8 @@ asyncTest('Promise rejected after setImmediate should trigger unhandledRejection
   });
 });
 
-asyncTest('Promise rejected after setTimeout(,1) should trigger unhandled rejection', function(done) {
+asyncTest('Promise rejected after setTimeout(,1) should trigger' +
+          ' unhandled rejection', function(done) {
   var e = new Error();
   onUnhandledSucceed(done, function(reason, promise) {
     assert.strictEqual(e, reason);
@@ -147,7 +152,8 @@ asyncTest('Promise rejected after setTimeout(,1) should trigger unhandled reject
   });
 });
 
-asyncTest('Catching a promise rejection after setImmediate is not soon enough to stop unhandledRejection', function(done) {
+asyncTest('Catching a promise rejection after setImmediate is not' +
+          ' soon enough to stop unhandledRejection', function(done) {
   var e = new Error();
   onUnhandledSucceed(done, function(reason, promise) {
     assert.strictEqual(e, reason);
@@ -155,14 +161,15 @@ asyncTest('Catching a promise rejection after setImmediate is not soon enough to
   var _reject;
   var promise = new Promise(function(_, reject) {
     _reject = reject;
-  })
+  });
   _reject(e);
   setImmediate(function() {
-    promise.then(assert.fail, function(){});
+    promise.then(assert.fail, function() {});
   });
 });
 
-asyncTest('When re-throwing new errors in a promise catch, only the re-thrown error should hit unhandledRejection', function(done) {
+asyncTest('When re-throwing new errors in a promise catch, only the' +
+          ' re-thrown error should hit unhandledRejection', function(done) {
   var e = new Error();
   var e2 = new Error();
   onUnhandledSucceed(done, function(reason, promise) {
@@ -175,7 +182,8 @@ asyncTest('When re-throwing new errors in a promise catch, only the re-thrown er
   });
 });
 
-asyncTest('Test params of unhandledRejection for a synchronously-rejected promise', function(done) {
+asyncTest('Test params of unhandledRejection for a synchronously-rejected' +
+          'promise', function(done) {
   var e = new Error();
   var e2 = new Error();
   onUnhandledSucceed(done, function(reason, promise) {
@@ -185,7 +193,9 @@ asyncTest('Test params of unhandledRejection for a synchronously-rejected promis
   var promise = Promise.reject(e);
 });
 
-asyncTest('When re-throwing new errors in a promise catch, only the re-thrown error should hit unhandledRejection: original promise rejected async with setTimeout(,1)', function(done) {
+asyncTest('When re-throwing new errors in a promise catch, only the ' +
+          're-thrown error should hit unhandledRejection: original promise' +
+          ' rejected async with setTimeout(,1)', function(done) {
   var e = new Error();
   var e2 = new Error();
   onUnhandledSucceed(done, function(reason, promise) {
@@ -202,7 +212,9 @@ asyncTest('When re-throwing new errors in a promise catch, only the re-thrown er
   });
 });
 
-asyncTest('When re-throwing new errors in a promise catch, only the re-thrown error should hit unhandledRejection: promise catch attached a process.nextTick after rejection', function(done) {
+asyncTest('When re-throwing new errors in a promise catch, only the re-thrown' +
+          ' error should hit unhandledRejection: promise catch attached a' +
+          ' process.nextTick after rejection', function(done) {
   var e = new Error();
   var e2 = new Error();
   onUnhandledSucceed(done, function(reason, promise) {
@@ -223,42 +235,50 @@ asyncTest('When re-throwing new errors in a promise catch, only the re-thrown er
   var promise2;
 });
 
-asyncTest('unhandledRejection should not be triggered if a promise catch is attached synchronously upon the promise\'s creation', function(done) {
+asyncTest('unhandledRejection should not be triggered if a promise catch is' +
+          ' attached synchronously upon the promise\'s creation',
+          function(done) {
   var e = new Error();
   onUnhandledFail(done);
-  Promise.reject(e).then(assert.fail, function(){});
+  Promise.reject(e).then(assert.fail, function() {});
 });
 
-asyncTest('unhandledRejection should not be triggered if a promise catch is attached synchronously upon the promise\'s creation', function(done) {
+asyncTest('unhandledRejection should not be triggered if a promise catch is' +
+          ' attached synchronously upon the promise\'s creation',
+          function(done) {
   var e = new Error();
   onUnhandledFail(done);
   new Promise(function(_, reject) {
     reject(e);
-  }).then(assert.fail, function(){});
+  }).then(assert.fail, function() {});
 });
 
-asyncTest('Attaching a promise catch in a process.nextTick is soon enough to prevent unhandledRejection', function(done) {
+asyncTest('Attaching a promise catch in a process.nextTick is soon enough to' +
+          ' prevent unhandledRejection', function(done) {
   var e = new Error();
   onUnhandledFail(done);
   var promise = Promise.reject(e);
   process.nextTick(function() {
-    promise.then(assert.fail, function(){});
+    promise.then(assert.fail, function() {});
   });
 });
 
-asyncTest('Attaching a promise catch in a process.nextTick is soon enough to prevent unhandledRejection', function(done) {
+asyncTest('Attaching a promise catch in a process.nextTick is soon enough to' +
+          ' prevent unhandledRejection', function(done) {
   var e = new Error();
   onUnhandledFail(done);
   var promise = new Promise(function(_, reject) {
     reject(e);
   });
   process.nextTick(function() {
-    promise.then(assert.fail, function(){});
+    promise.then(assert.fail, function() {});
   });
 });
 
 // State adapation tests
-asyncTest('catching a promise which is asynchronously rejected (via resolution to an asynchronously-rejected promise) prevents unhandledRejection', function(done) {
+asyncTest('catching a promise which is asynchronously rejected (via' +
+          'resolution to an asynchronously-rejected promise) prevents' +
+          ' unhandledRejection', function(done) {
   var e = new Error();
   onUnhandledFail(done);
   Promise.resolve().then(function() {
@@ -272,7 +292,8 @@ asyncTest('catching a promise which is asynchronously rejected (via resolution t
   });
 });
 
-asyncTest('Catching a rejected promise derived from throwing in a fulfillment handler prevents unhandledRejection', function(done) {
+asyncTest('Catching a rejected promise derived from throwing in a' +
+          ' fulfillment handler prevents unhandledRejection', function(done) {
   var e = new Error();
   onUnhandledFail(done);
   Promise.resolve().then(function() {
@@ -282,7 +303,9 @@ asyncTest('Catching a rejected promise derived from throwing in a fulfillment ha
   });
 });
 
-asyncTest('Catching a rejected promise derived from returning a synchronously-rejected promise in a fulfillment handler prevents unhandledRejection', function(done) {
+asyncTest('Catching a rejected promise derived from returning a' +
+          ' synchronously-rejected promise in a fulfillment handler' +
+          ' prevents unhandledRejection', function(done) {
   var e = new Error();
   onUnhandledFail(done);
   Promise.resolve().then(function() {
@@ -292,7 +315,9 @@ asyncTest('Catching a rejected promise derived from returning a synchronously-re
   });
 });
 
-asyncTest('A rejected promise derived from returning an asynchronously-rejected promise in a fulfillment handler does trigger unhandledRejection', function(done) {
+asyncTest('A rejected promise derived from returning an' +
+          ' asynchronously-rejected promise in a fulfillment handler' +
+          ' does trigger unhandledRejection', function(done) {
   var e = new Error();
   var _promise;
   onUnhandledSucceed(done, function(reason, promise) {
@@ -308,7 +333,8 @@ asyncTest('A rejected promise derived from returning an asynchronously-rejected 
   });
 });
 
-asyncTest('A rejected promise derived from throwing in a fulfillment handler does trigger unhandledRejection', function(done) {
+asyncTest('A rejected promise derived from throwing in a fulfillment handler' +
+          ' does trigger unhandledRejection', function(done) {
   var e = new Error();
   var _promise;
   onUnhandledSucceed(done, function(reason, promise) {
@@ -320,7 +346,9 @@ asyncTest('A rejected promise derived from throwing in a fulfillment handler doe
   });
 });
 
-asyncTest('A rejected promise derived from returning a synchronously-rejected promise in a fulfillment handler does trigger unhandledRejection', function(done) {
+asyncTest('A rejected promise derived from returning a synchronously-rejected' +
+          ' promise in a fulfillment handler does trigger unhandledRejection',
+          function(done) {
   var e = new Error();
   var _promise;
   onUnhandledSucceed(done, function(reason, promise) {
@@ -333,13 +361,16 @@ asyncTest('A rejected promise derived from returning a synchronously-rejected pr
 });
 
 // Combinations with Promise.all
-asyncTest('Catching the Promise.all() of a collection that includes a rejected promise prevents unhandledRejection', function(done) {
+asyncTest('Catching the Promise.all() of a collection that includes a' +
+          'rejected promise prevents unhandledRejection', function(done) {
   var e = new Error();
   onUnhandledFail(done);
   Promise.all([Promise.reject(e)]).then(assert.fail, function() {});
 });
 
-asyncTest('Catching the Promise.all() of a collection that includes a nextTick-async rejected promise prevents unhandledRejection', function(done) {
+asyncTest('Catching the Promise.all() of a collection that includes a ' +
+          'nextTick-async rejected promise prevents unhandledRejection',
+          function(done) {
   var e = new Error();
   onUnhandledFail(done);
   var p = new Promise(function(_, reject) {
@@ -353,7 +384,9 @@ asyncTest('Catching the Promise.all() of a collection that includes a nextTick-a
   });
 });
 
-asyncTest('Failing to catch the Promise.all() of a collection that includes a rejected promise triggers unhandledRejection for the returned promise, not the passed promise', function(done) {
+asyncTest('Failing to catch the Promise.all() of a collection that includes' +
+          ' a rejected promise triggers unhandledRejection for the returned' +
+          ' promise, not the passed promise', function(done) {
   var e = new Error();
   onUnhandledSucceed(done, function(reason, promise) {
     assert.strictEqual(e, reason);
@@ -362,7 +395,8 @@ asyncTest('Failing to catch the Promise.all() of a collection that includes a re
   var p = Promise.all([Promise.reject(e)]);
 });
 
-asyncTest('Waiting setTimeout(, 10) to catch a promise causes an unhandledRejection + rejectionHandled pair', function(done) {
+asyncTest('Waiting setTimeout(, 10) to catch a promise causes an' +
+          ' unhandledRejection + rejectionHandled pair', function(done) {
   clean();
   var unhandledPromises = [];
   var e = new Error();
@@ -387,7 +421,9 @@ asyncTest('Waiting setTimeout(, 10) to catch a promise causes an unhandledReject
   }, 10);
 });
 
-asyncTest('Waiting for some combination of process.nextTick + promise microtasks to attach a catch handler is still soon enough to prevent unhandledRejection', function(done) {
+asyncTest('Waiting for some combination of process.nextTick + promise' +
+          ' microtasks to attach a catch handler is still soon enough to' +
+          ' prevent unhandledRejection', function(done) {
   var e = new Error();
   onUnhandledFail(done);
 
@@ -404,7 +440,9 @@ asyncTest('Waiting for some combination of process.nextTick + promise microtasks
   });
 });
 
-asyncTest('Waiting for some combination of process.nextTick + promise microtasks to attach a catch handler is still soon enough to prevent unhandledRejection: inside setImmediate', function(done) {
+asyncTest('Waiting for some combination of process.nextTick + promise' +
+          ' microtasks to attach a catch handler is still soon enough to ' +
+          'prevent unhandledRejection: inside setImmediate', function(done) {
   var e = new Error();
   onUnhandledFail(done);
 
@@ -422,7 +460,9 @@ asyncTest('Waiting for some combination of process.nextTick + promise microtasks
   });
 });
 
-asyncTest('Waiting for some combination of process.nextTick + promise microtasks to attach a catch handler is still soon enough to prevent unhandledRejection: inside setTimeout', function(done) {
+asyncTest('Waiting for some combination of process.nextTick + promise ' +
+          'microtasks to attach a catch handler is still soon enough to ' +
+          'prevent unhandledRejection: inside setTimeout', function(done) {
   var e = new Error();
   onUnhandledFail(done);
 
@@ -440,7 +480,9 @@ asyncTest('Waiting for some combination of process.nextTick + promise microtasks
   }, 0);
 });
 
-asyncTest('Waiting for some combination of promise microtasks + process.nextTick to attach a catch handler is still soon enough to prevent unhandledRejection', function(done) {
+asyncTest('Waiting for some combination of promise microtasks + ' +
+          'process.nextTick to attach a catch handler is still soon enough' +
+          ' to prevent unhandledRejection', function(done) {
   var e = new Error();
   onUnhandledFail(done);
 
@@ -457,7 +499,10 @@ asyncTest('Waiting for some combination of promise microtasks + process.nextTick
   });
 });
 
-asyncTest('Waiting for some combination of promise microtasks + process.nextTick to attach a catch handler is still soon enough to prevent unhandledRejection: inside setImmediate', function(done) {
+asyncTest('Waiting for some combination of promise microtasks +' +
+          ' process.nextTick to attach a catch handler is still soon enough' +
+          ' to prevent unhandledRejection: inside setImmediate',
+          function(done) {
   var e = new Error();
   onUnhandledFail(done);
 
@@ -475,7 +520,9 @@ asyncTest('Waiting for some combination of promise microtasks + process.nextTick
   });
 });
 
-asyncTest('Waiting for some combination of promise microtasks + process.nextTick to attach a catch handler is still soon enough to prevent unhandledRejection: inside setTimeout', function(done) {
+asyncTest('Waiting for some combination of promise microtasks +' +
+          ' process.nextTick to attach a catch handler is still soon enough' +
+          ' to prevent unhandledRejection: inside setTimeout', function(done) {
   var e = new Error();
   onUnhandledFail(done);
 
@@ -493,7 +540,9 @@ asyncTest('Waiting for some combination of promise microtasks + process.nextTick
   }, 0);
 });
 
-asyncTest('setImmediate + promise microtasks is too late to attach a catch handler; unhandledRejection will be triggered in that case. (setImmediate before promise creation/rejection)', function(done) {
+asyncTest('setImmediate + promise microtasks is too late to attach a catch' +
+          ' handler; unhandledRejection will be triggered in that case.' +
+          ' (setImmediate before promise creation/rejection)', function(done) {
   var e = new Error();
   onUnhandledSucceed(done, function(reason, promise) {
     assert.strictEqual(e, reason);
@@ -501,23 +550,25 @@ asyncTest('setImmediate + promise microtasks is too late to attach a catch handl
   });
   var p = Promise.reject(e);
   setImmediate(function() {
-    Promise.resolve().then(function () {
-      p.catch(function(){});
+    Promise.resolve().then(function() {
+      p.catch(function() {});
     });
   });
 });
 
-asyncTest('setImmediate + promise microtasks is too late to attach a catch handler; unhandledRejection will be triggered in that case (setImmediate before promise creation/rejection)', function(done) {
+asyncTest('setImmediate + promise microtasks is too late to attach a catch' +
+          ' handler; unhandledRejection will be triggered in that case' +
+          ' (setImmediate before promise creation/rejection)', function(done) {
   onUnhandledSucceed(done, function(reason, promise) {
     assert.strictEqual(undefined, reason);
     assert.strictEqual(p, promise);
   });
   setImmediate(function() {
-    Promise.resolve().then(function () {
-      Promise.resolve().then(function () {
-        Promise.resolve().then(function () {
-          Promise.resolve().then(function () {
-            p.catch(function(){});
+    Promise.resolve().then(function() {
+      Promise.resolve().then(function() {
+        Promise.resolve().then(function() {
+          Promise.resolve().then(function() {
+            p.catch(function() {});
           });
         });
       });
@@ -526,18 +577,20 @@ asyncTest('setImmediate + promise microtasks is too late to attach a catch handl
   var p = Promise.reject();
 });
 
-asyncTest('setImmediate + promise microtasks is too late to attach a catch handler; unhandledRejection will be triggered in that case (setImmediate after promise creation/rejection)', function(done) {
+asyncTest('setImmediate + promise microtasks is too late to attach a catch' +
+          ' handler; unhandledRejection will be triggered in that case' +
+          ' (setImmediate after promise creation/rejection)', function(done) {
   onUnhandledSucceed(done, function(reason, promise) {
     assert.strictEqual(undefined, reason);
     assert.strictEqual(p, promise);
   });
   var p = Promise.reject();
   setImmediate(function() {
-    Promise.resolve().then(function () {
-      Promise.resolve().then(function () {
-        Promise.resolve().then(function () {
-          Promise.resolve().then(function () {
-            p.catch(function(){});
+    Promise.resolve().then(function() {
+      Promise.resolve().then(function() {
+        Promise.resolve().then(function() {
+          Promise.resolve().then(function() {
+            p.catch(function() {});
           });
         });
       });
@@ -545,7 +598,9 @@ asyncTest('setImmediate + promise microtasks is too late to attach a catch handl
   });
 });
 
-asyncTest('Promise unhandledRejection handler does not interfere with domain error handlers being given exceptions thrown from nextTick.', function(done) {
+asyncTest('Promise unhandledRejection handler does not interfere with domain' +
+          ' error handlers being given exceptions thrown from nextTick.',
+          function(done) {
   var d = domain.create();
   var domainReceivedError;
   d.on('error', function(e) {
@@ -566,7 +621,8 @@ asyncTest('Promise unhandledRejection handler does not interfere with domain err
   });
 });
 
-asyncTest('nextTick is immediately scheduled when called inside an event handler', function(done) {
+asyncTest('nextTick is immediately scheduled when called inside an event' +
+          ' handler', function(done) {
   clean();
   var e = new Error('error');
   process.on('unhandledRejection', function(reason, promise) {
@@ -576,21 +632,23 @@ asyncTest('nextTick is immediately scheduled when called inside an event handler
     });
     setTimeout(function() {
       order.push(2);
-      assert.deepEqual([1,2], order);
+      assert.deepEqual([1, 2], order);
       done();
     }, 1);
   });
   Promise.reject(e);
 });
 
-asyncTest('Throwing an error inside a rejectionHandled handler goes to unhandledException, and does not cause .catch() to throw an exception', function(done) {
+asyncTest('Throwing an error inside a rejectionHandled handler goes to' +
+          ' unhandledException, and does not cause .catch() to throw an' +
+          'exception', function(done) {
   clean();
   var e = new Error();
   var e2 = new Error();
   var tearDownException = setupException(function(err) {
-      assert.equal(e2, err);
-      tearDownException();
-      done();
+    assert.equal(e2, err);
+    tearDownException();
+    done();
   });
   process.on('rejectionHandled', function() {
     throw e2;
@@ -598,7 +656,7 @@ asyncTest('Throwing an error inside a rejectionHandled handler goes to unhandled
   var p = Promise.reject(e);
   setTimeout(function() {
     try {
-      p.catch(function(){});
+      p.catch(function() {});
     } catch (e) {
       done(new Error('fail'));
     }

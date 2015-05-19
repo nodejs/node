@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var net = require('net');
@@ -60,12 +61,12 @@ server1.listen(common.PORT, function() {
 // Test without hostname or port
 var server2 = net.createServer();
 
-server2.on('error', function (e) {
+server2.on('error', function(e) {
   console.log('Error on ip socket: ' + e.toString());
 });
 
 // Don't specify the port number
-server2.listen(function () {
+server2.listen(function() {
   var address = server2.address();
   assert.strictEqual(address.address, anycast_ipv6);
   assert.strictEqual(address.family, family_ipv6);
@@ -75,12 +76,12 @@ server2.listen(function () {
 // Test without hostname, but with a false-y port
 var server3 = net.createServer();
 
-server3.on('error', function (e) {
+server3.on('error', function(e) {
   console.log('Error on ip socket: ' + e.toString());
 });
 
 // Specify a false-y port number
-server3.listen(0, function () {
+server3.listen(0, function() {
   var address = server3.address();
   assert.strictEqual(address.address, anycast_ipv6);
   assert.strictEqual(address.family, family_ipv6);
@@ -90,12 +91,12 @@ server3.listen(0, function () {
 // Test without hostname, but with port -1
 var server4 = net.createServer();
 
-server4.on('error', function (e) {
+server4.on('error', function(e) {
   console.log('Error on ip socket: ' + e.toString());
 });
 
 // Specify -1 as port number
-server4.listen(-1, function () {
+server4.listen(-1, function() {
   var address = server4.address();
   assert.strictEqual(address.address, anycast_ipv6);
   assert.strictEqual(address.family, family_ipv6);

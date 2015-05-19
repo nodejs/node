@@ -1,3 +1,4 @@
+'use strict';
 // This test is only relevant on Windows.
 if (process.platform !== 'win32') {
   return process.exit(0);
@@ -22,8 +23,8 @@ function test(p) {
 
 test('//localhost/c$/windows/system32');
 test('//localhost/c$/windows');
-test('//localhost/c$/')
-test('\\\\localhost\\c$')
+test('//localhost/c$/');
+test('\\\\localhost\\c$');
 test('c:\\');
 test('c:');
 test(process.env.windir);

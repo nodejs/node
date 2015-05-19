@@ -1,3 +1,4 @@
+'use strict';
 // Ensure that if a dgram socket is closed before the DNS lookup completes, it
 // won't crash.
 

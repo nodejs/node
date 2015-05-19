@@ -1,3 +1,4 @@
+'use strict';
 // This tests that piping stdin will cause it to resume() as well.
 var common = require('../common');
 var assert = require('assert');

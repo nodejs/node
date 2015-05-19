@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common'),
     assert = require('assert'),
     dgram = require('dgram'),
@@ -144,7 +145,7 @@ if (process.argv[2] !== 'child') {
   // bind the address explicitly for sending
   // INADDR_BROADCAST to only one interface
   sendSocket.bind(common.PORT, bindAddress);
-  sendSocket.on('listening', function () {
+  sendSocket.on('listening', function() {
     sendSocket.setBroadcast(true);
   });
 
@@ -162,9 +163,7 @@ if (process.argv[2] !== 'child') {
 
     sendSocket.send(buf, 0, buf.length,
                     common.PORT, LOCAL_BROADCAST_HOST, function(err) {
-
           if (err) throw err;
-
           console.error('[PARENT] sent %s to %s:%s',
                         util.inspect(buf.toString()),
                         LOCAL_BROADCAST_HOST, common.PORT);

@@ -1,3 +1,4 @@
+'use strict';
 // Testing mutual send of handles: from master to worker, and from worker to
 // master.
 

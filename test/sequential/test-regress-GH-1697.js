@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var net = require('net'),
     cp = require('child_process'),
@@ -39,7 +40,7 @@ if (process.argv[2] === 'server') {
 
       // Block the event loop for 1 second
       var start = (new Date()).getTime();
-      while ((new Date).getTime() < start + 1000) {}
+      while ((new Date()).getTime() < start + 1000) {}
 
       client.write(alittle);
 

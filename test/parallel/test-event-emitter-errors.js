@@ -1,3 +1,4 @@
+'use strict';
 var EventEmitter = require('events');
 var assert = require('assert');
 

@@ -1,3 +1,4 @@
+'use strict';
 // It is not possible to send pipe handles over the IPC pipe on Windows.
 if (process.platform === 'win32') {
   process.exit(0);

@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -22,7 +23,7 @@ assert.equal(3, context.foo);
 assert.equal('lala', context.thing);
 
 // Issue GH-227:
-assert.throws(function () {
+assert.throws(function() {
   vm.runInNewContext('', null, 'some.js');
 }, TypeError);
 

@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var net = require('net');
@@ -17,4 +18,4 @@ var server = net.createServer(function(socket) {
   }).on('connect', function() {
     assert.strictEqual(client.localPort, common.PORT + 1);
   });
-})
+});

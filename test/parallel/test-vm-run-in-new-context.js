@@ -1,3 +1,4 @@
+/* eslint-disable strict */
 // Flags: --expose-gc
 
 var common = require('../common');
@@ -34,7 +35,7 @@ assert.equal(2, obj.bar);
 assert.equal(2, foo);
 
 console.error('call a function by reference');
-function changeFoo() { foo = 100 }
+function changeFoo() { foo = 100; }
 vm.runInNewContext('f()', { f: changeFoo });
 assert.equal(foo, 100);
 
@@ -44,7 +45,7 @@ vm.runInNewContext('f.a = 2', { f: f });
 assert.equal(f.a, 2);
 
 console.error('use function in context without referencing context');
-var fn = vm.runInNewContext('(function() { obj.p = {}; })', { obj: {} })
+var fn = vm.runInNewContext('(function() { obj.p = {}; })', { obj: {} });
 gc();
 fn();
 // Should not crash

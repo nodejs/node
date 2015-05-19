@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -19,8 +20,8 @@ server.listen(common.PORT, function() {
   for (var i = 0; i < 10; i++) {
     var options = { port: common.PORT };
 
-    var req = http.request(options, function (res) {
-      res.resume()
+    var req = http.request(options, function(res) {
+      res.resume();
       res.on('end', function() {
         throw new Error('gleep glorp');
       });

@@ -1,3 +1,4 @@
+'use strict';
 var assert = require('assert');
 var util = require('util');
 var join = require('path').join;
@@ -13,7 +14,7 @@ function ArrayStream() {
     data.forEach(function(line) {
       self.emit('data', line + '\n');
     });
-  }
+  };
 }
 util.inherits(ArrayStream, require('stream').Stream);
 ArrayStream.prototype.readable = true;
@@ -28,7 +29,7 @@ var testMe = repl.start('', putIn);
 
 
 var testFile = [
-  'var top = function () {',
+  'var top = function() {',
   'var inner = {one:1};'
 ];
 var saveFileName = join(common.tmpDir, 'test.save.js');

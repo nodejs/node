@@ -1,3 +1,4 @@
+'use strict';
 // test convenience methods with and without options supplied
 
 var common = require('../common');

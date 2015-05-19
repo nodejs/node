@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -25,7 +26,7 @@ w2.write(new Buffer('blerg'));
 w2.write(new Buffer('blerg'));
 w2.end();
 
-process.on('exit', function () {
+process.on('exit', function() {
   assert.equal(w._write, _write);
   assert(_writeCalled);
   assert.equal(w2._writev, _writev);

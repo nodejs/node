@@ -1,3 +1,4 @@
+'use strict';
 var assert = require('assert');
 var readline = require('readline');
 var Stream = require('stream');

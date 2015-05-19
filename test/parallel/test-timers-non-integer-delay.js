@@ -1,3 +1,4 @@
+'use strict';
 /*
  * This test makes sure that non-integer timer delays do not make the process
  * hang. See https://github.com/joyent/node/issues/8065 and

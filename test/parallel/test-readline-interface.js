@@ -1,3 +1,4 @@
+'use strict';
 var assert = require('assert');
 var readline = require('readline');
 var EventEmitter = require('events').EventEmitter;
@@ -98,7 +99,7 @@ function isWarned(emitter) {
   assert.equal(callCount, expectedLines.length - 1);
   rli.close();
 
-  // sending multiple newlines at once that does not end with a new(empty) 
+  // sending multiple newlines at once that does not end with a new(empty)
   // line and a `end` event
   fi = new FakeInput();
   rli = new readline.Interface({ input: fi, output: fi, terminal: terminal });
@@ -110,7 +111,7 @@ function isWarned(emitter) {
   });
   rli.on('close', function() {
     callCount++;
-  })
+  });
   fi.emit('data', expectedLines.join('\n'));
   fi.emit('end');
   assert.equal(callCount, expectedLines.length);
@@ -249,10 +250,14 @@ function isWarned(emitter) {
   assert.equal(readline.getStringWidth('A\ud83c\ude00BC'), 5); // surrogate
 
   // check if vt control chars are stripped
-  assert.equal(readline.stripVTControlCharacters('\u001b[31m> \u001b[39m'), '> ');
-  assert.equal(readline.stripVTControlCharacters('\u001b[31m> \u001b[39m> '), '> > ');
-  assert.equal(readline.stripVTControlCharacters('\u001b[31m\u001b[39m'), '');
-  assert.equal(readline.stripVTControlCharacters('> '), '> ');
+  assert.equal(readline
+               .stripVTControlCharacters('\u001b[31m> \u001b[39m'), '> ');
+  assert.equal(readline
+               .stripVTControlCharacters('\u001b[31m> \u001b[39m> '), '> > ');
+  assert.equal(readline
+               .stripVTControlCharacters('\u001b[31m\u001b[39m'), '');
+  assert.equal(readline
+               .stripVTControlCharacters('> '), '> ');
   assert.equal(readline.getStringWidth('\u001b[31m> \u001b[39m'), 2);
   assert.equal(readline.getStringWidth('\u001b[31m> \u001b[39m> '), 4);
   assert.equal(readline.getStringWidth('\u001b[31m\u001b[39m'), 0);
@@ -261,7 +266,7 @@ function isWarned(emitter) {
   assert.deepEqual(fi.listeners(terminal ? 'keypress' : 'data'), []);
 
   // check EventEmitter memory leak
-  for (var i=0; i<12; i++) {
+  for (var i = 0; i < 12; i++) {
     var rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout
@@ -284,7 +289,7 @@ function isWarned(emitter) {
   assert.ok(called);
 
   assert.doesNotThrow(function() {
-    rli.setPrompt("ddd> ");
+    rli.setPrompt('ddd> ');
   });
 
   assert.doesNotThrow(function() {
@@ -296,10 +301,10 @@ function isWarned(emitter) {
   });
 
   assert.doesNotThrow(function() {
-    rli.question("What do you think of node.js? ", function(answer) {
-      console.log("Thank you for your valuable feedback:", answer);
+    rli.question('What do you think of node.js? ', function(answer) {
+      console.log('Thank you for your valuable feedback:', answer);
       rli.close();
-    })
+    });
   });
 
 });

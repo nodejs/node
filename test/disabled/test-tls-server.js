@@ -1,3 +1,4 @@
+'use strict';
 // Example of new TLS API. Test with:
 //
 //     $> openssl s_client -connect localhost:12346 \

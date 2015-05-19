@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -137,13 +138,13 @@ testCipher4(new Buffer('0123456789abcd0123456789'), new Buffer('12345678'));
 // not assert. See #4886.
 (function() {
   var c = crypto.createCipher('aes-256-cbc', 'secret');
-  try { c.final('xxx') } catch (e) { /* Ignore. */ }
-  try { c.final('xxx') } catch (e) { /* Ignore. */ }
-  try { c.final('xxx') } catch (e) { /* Ignore. */ }
+  try { c.final('xxx'); } catch (e) { /* Ignore. */ }
+  try { c.final('xxx'); } catch (e) { /* Ignore. */ }
+  try { c.final('xxx'); } catch (e) { /* Ignore. */ }
   var d = crypto.createDecipher('aes-256-cbc', 'secret');
-  try { d.final('xxx') } catch (e) { /* Ignore. */ }
-  try { d.final('xxx') } catch (e) { /* Ignore. */ }
-  try { d.final('xxx') } catch (e) { /* Ignore. */ }
+  try { d.final('xxx'); } catch (e) { /* Ignore. */ }
+  try { d.final('xxx'); } catch (e) { /* Ignore. */ }
+  try { d.final('xxx'); } catch (e) { /* Ignore. */ }
 })();
 
 // Regression test for #5482: string to Cipher#update() should not assert.

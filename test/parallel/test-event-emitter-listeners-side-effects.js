@@ -1,3 +1,4 @@
+'use strict';
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 var common = require('../common');
@@ -7,7 +8,7 @@ var events = require('events');
 var EventEmitter = require('events').EventEmitter;
 var assert = require('assert');
 
-var e = new EventEmitter;
+var e = new EventEmitter();
 var fl;  // foo listeners
 
 fl = e.listeners('foo');

@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var fs = require('fs');
@@ -20,4 +21,5 @@ fs.rmdirSync(dir);
 
 assert.throws(function() { process.chdir({}); }, TypeError, 'Bad argument.');
 assert.throws(function() { process.chdir(); }, TypeError, 'Bad argument.');
-assert.throws(function() { process.chdir("x", "y"); }, TypeError, 'Bad argument.');
+assert.throws(function() { process.chdir('x', 'y'); },
+              TypeError, 'Bad argument.');

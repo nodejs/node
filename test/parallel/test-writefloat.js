@@ -1,3 +1,4 @@
+'use strict';
 /*
  * Tests to verify we're writing floats correctly
  */

@@ -1,3 +1,4 @@
+'use strict';
 // just a simple http server and client.
 
 function serverHandler(req, res) {
@@ -15,7 +16,7 @@ var http  = require('http'),
     assert = require('assert'),
     PORT = common.PORT;
 
-console.log('We should do '+ todo +' requests');
+console.log('We should do ' + todo + ' requests');
 
 var http = require('http');
 var server = http.createServer(serverHandler);
@@ -26,11 +27,11 @@ function getall() {
   if (count >= todo)
     return;
 
-  (function(){
+  (function() {
     function cb(res) {
       res.resume();
-      console.error('in cb')
-      done+=1;
+      console.error('in cb');
+      done += 1;
       res.on('end', gc);
     }
 
@@ -38,11 +39,11 @@ function getall() {
       hostname: 'localhost',
       pathname: '/',
       port: PORT
-    }, cb)
+    }, cb);
 
     count++;
     weak(req, afterGC);
-  })()
+  })();
 
   setImmediate(getall);
 }
@@ -50,7 +51,7 @@ function getall() {
 for (var i = 0; i < 10; i++)
   getall();
 
-function afterGC(){
+function afterGC() {
   countGC ++;
 }
 
