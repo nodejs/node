@@ -1,3 +1,4 @@
+'use strict';
 // Testing to send an handle twice to the parent process.
 
 var common = require('../common');

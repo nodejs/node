@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -20,7 +21,8 @@ var ret = spawnSync('sleep', ['1']);
 var stop = process.hrtime(start);
 assert.strictEqual(ret.status, 0, 'exit status should be zero');
 console.log('sleep exited', stop);
-assert.strictEqual(stop[0], 1, 'sleep should not take longer or less than 1 second');
+assert.strictEqual(stop[0], 1,
+                   'sleep should not take longer or less than 1 second');
 
 // Error test when command does not exist
 var ret_err = spawnSync('command_does_not_exist', ['bar']).error;

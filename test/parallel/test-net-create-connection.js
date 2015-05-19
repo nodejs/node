@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var net = require('net');
@@ -22,7 +23,7 @@ server.listen(tcpPort, 'localhost', function() {
   function fail(opts, errtype, msg) {
     assert.throws(function() {
       var client = net.createConnection(opts, cb);
-    }, function (err) {
+    }, function(err) {
       return err instanceof errtype && msg === err.message;
     });
   }

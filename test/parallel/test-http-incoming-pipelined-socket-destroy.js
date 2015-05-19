@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -42,7 +43,7 @@ function generator(seeds) {
     return 'GET /' + r + ' HTTP/1.1\r\n' +
            'Host: localhost:' + common.PORT + '\r\n' +
            '\r\n' +
-           '\r\n'
+           '\r\n';
   }).join('');
 }
 

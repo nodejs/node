@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -40,7 +41,7 @@ var server = tls.createServer(options, function(c) {
     }
   });
 
-  client.on('close', function (hadError) {
+  client.on('close', function(hadError) {
     assert.strictEqual(hadError, true, 'Client never errored');
   });
 });

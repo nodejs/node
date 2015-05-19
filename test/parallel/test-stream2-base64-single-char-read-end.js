@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var R = require('_stream_readable');
 var W = require('_stream_writable');
@@ -27,7 +28,7 @@ dst._write = function(chunk, enc, cb) {
 src.on('end', function() {
   assert.equal(Buffer.concat(accum) + '', 'MQ==');
   clearTimeout(timeout);
-})
+});
 
 src.pipe(dst);
 

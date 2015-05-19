@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -23,7 +24,7 @@ var t = new Transform({
 t.end(new Buffer('blerg'));
 t.resume();
 
-process.on('exit', function () {
+process.on('exit', function() {
   assert.equal(t._transform, _transform);
   assert.equal(t._flush, _flush);
   assert(_transformCalled);

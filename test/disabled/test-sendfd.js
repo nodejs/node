@@ -1,3 +1,4 @@
+'use strict';
 // Test sending and receiving a file descriptor.
 //
 // This test is pretty complex. It ends up spawning test/fixtures/recvfd.js

@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var http = require('http');
@@ -96,7 +97,7 @@ function check(tests) {
     var ctx = test.responses[current];
     console.error('<  SERVER SENDING RESPONSE', ctx);
     res.writeHead(200, ctx.headers);
-    ctx.chunks.slice(0, -1).forEach(function(chunk) { res.write(chunk) });
+    ctx.chunks.slice(0, -1).forEach(function(chunk) { res.write(chunk); });
     res.end(ctx.chunks[ctx.chunks.length - 1]);
   }
 

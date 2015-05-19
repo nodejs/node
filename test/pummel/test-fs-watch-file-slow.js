@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var path = require('path');
@@ -42,13 +43,13 @@ setTimeout(createFile, TIMEOUT);
 
 function createFile() {
   console.log('creating file');
-  fs.writeFileSync(FILENAME, "test");
+  fs.writeFileSync(FILENAME, 'test');
   setTimeout(touchFile, TIMEOUT);
 }
 
 function touchFile() {
   console.log('touch file');
-  fs.writeFileSync(FILENAME, "test");
+  fs.writeFileSync(FILENAME, 'test');
   setTimeout(removeFile, TIMEOUT);
 }
 

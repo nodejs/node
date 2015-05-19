@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -24,7 +25,7 @@ var server = net.createServer(function(sock) {
     serverData += c;
   });
   sock.on('end', function() {
-    gotServerEnd = true
+    gotServerEnd = true;
     sock.write(serverData);
     sock.end();
   });

@@ -1,3 +1,4 @@
+'use strict';
 // This test starts two clustered HTTP servers on the same port. It expects the
 // first cluster to succeed and the second cluster to fail with EADDRINUSE.
 //

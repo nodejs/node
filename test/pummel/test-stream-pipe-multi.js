@@ -1,3 +1,4 @@
+'use strict';
 // Test that having a bunch of streams piping in parallel
 // doesn't break anything.
 

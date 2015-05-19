@@ -1,3 +1,4 @@
+'use strict';
 // Flags: --expose_gc
 
 var common = require('../common');

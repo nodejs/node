@@ -1,3 +1,4 @@
+'use strict';
 // Verify that the HTTP server implementation handles multiple instances
 // of the same header as per RFC2616: joining the handful of fields by ', '
 // that support it, and dropping duplicates for other fields.

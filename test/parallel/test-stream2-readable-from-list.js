@@ -1,3 +1,4 @@
+'use strict';
 var assert = require('assert');
 var common = require('../common');
 var fromList = require('_stream_readable')._fromList;
@@ -22,7 +23,7 @@ function run() {
   fn({
     same: assert.deepEqual,
     equal: assert.equal,
-    end: function () {
+    end: function() {
       count--;
       run();
     }
@@ -30,7 +31,7 @@ function run() {
 }
 
 // ensure all tests have run
-process.on("exit", function () {
+process.on('exit', function() {
   assert.equal(count, 0);
 });
 

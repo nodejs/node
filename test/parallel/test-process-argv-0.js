@@ -1,3 +1,4 @@
+'use strict';
 var util = require('util');
 var path = require('path');
 var assert = require('assert');
@@ -7,8 +8,8 @@ var common = require('../common');
 console.error('argv=%j', process.argv);
 console.error('exec=%j', process.execPath);
 
-if (process.argv[2] !== "child") {
-  var child = spawn('./iojs', [__filename, "child"], {
+if (process.argv[2] !== 'child') {
+  var child = spawn('./iojs', [__filename, 'child'], {
     cwd: path.dirname(process.execPath)
   });
 
@@ -20,7 +21,7 @@ if (process.argv[2] !== "child") {
   child.stderr.on('data', function(chunk) {
     childErr += chunk;
   });
-  child.on('exit', function () {
+  child.on('exit', function() {
     console.error('CHILD: %s', childErr.trim().split('\n').join('\nCHILD: '));
     assert.equal(childArgv0, process.execPath);
   });

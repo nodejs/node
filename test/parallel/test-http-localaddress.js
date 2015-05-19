@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var http = require('http'),
     assert = require('assert');
@@ -7,8 +8,8 @@ if (!common.hasMultiLocalhost()) {
   process.exit();
 }
 
-var server = http.createServer(function (req, res) {
-  console.log("Connect from: " + req.connection.remoteAddress);
+var server = http.createServer(function(req, res) {
+  console.log('Connect from: ' + req.connection.remoteAddress);
   assert.equal('127.0.0.2', req.connection.remoteAddress);
 
   req.on('end', function() {
@@ -18,7 +19,7 @@ var server = http.createServer(function (req, res) {
   req.resume();
 });
 
-server.listen(common.PORT, "127.0.0.1", function() {
+server.listen(common.PORT, '127.0.0.1', function() {
   var options = { host: 'localhost',
     port: common.PORT,
     path: '/',

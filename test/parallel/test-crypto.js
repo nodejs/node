@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var util = require('util');
@@ -118,7 +119,7 @@ assert.throws(function() {
 }, /Bad input string/);
 
 assert.throws(function() {
-  var private = [
+  var priv = [
     '-----BEGIN RSA PRIVATE KEY-----',
     'MIGrAgEAAiEA+3z+1QNF2/unumadiwEr+C5vfhezsb3hp4jAnCNRpPcCAwEAAQIgQNriSQK4',
     'EFwczDhMZp2dvbcz7OUUyt36z3S4usFPHSECEQD/41K7SujrstBfoCPzwC1xAhEA+5kt4BJy',
@@ -127,7 +128,7 @@ assert.throws(function() {
     '-----END RSA PRIVATE KEY-----',
     ''
   ].join('\n');
-  crypto.createSign('RSA-SHA256').update('test').sign(private);
+  crypto.createSign('RSA-SHA256').update('test').sign(priv);
 }, /RSA_sign:digest too big for rsa key/);
 
 // Make sure memory isn't released before being returned

@@ -1,3 +1,4 @@
+'use strict';
 if (!process.features.tls_sni) {
   console.error('Skipping because node compiled without OpenSSL or ' +
                 'with old OpenSSL version.');
@@ -146,6 +147,6 @@ process.on('exit', function() {
   assert.deepEqual(serverResults, ['a.example.com', 'b.example.com',
                                    'c.wrong.com', null]);
   assert.deepEqual(clientResults, [true, true, false, false]);
-  assert.deepEqual(clientErrors, [null, null, null, "socket hang up"]);
-  assert.deepEqual(serverErrors, [null, null, null, "Invalid SNI context"]);
+  assert.deepEqual(clientErrors, [null, null, null, 'socket hang up']);
+  assert.deepEqual(serverErrors, [null, null, null, 'Invalid SNI context']);
 });

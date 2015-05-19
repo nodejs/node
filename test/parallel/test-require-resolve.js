@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var fixturesDir = common.fixturesDir;
 var assert = require('assert');

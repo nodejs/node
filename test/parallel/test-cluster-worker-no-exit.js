@@ -1,5 +1,6 @@
+'use strict';
 var assert = require('assert');
-var cluster = require('cluster')
+var cluster = require('cluster');
 var net = require('net');
 var common = require('../common');
 
@@ -21,7 +22,7 @@ var server;
 if (cluster.isMaster) {
   server = net.createServer(function(conn) {
     server.close();
-    worker.disconnect()
+    worker.disconnect();
     worker.once('disconnect', function() {
       setTimeout(function() {
         conn.destroy();

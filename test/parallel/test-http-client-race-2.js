@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var http = require('http');
@@ -79,7 +80,7 @@ server.on('listening', function() {
             req3.end();
             req3.on('response', function(res3) {
               res3.setEncoding('utf8');
-              res3.on('data', function(chunk) { body3 += chunk });
+              res3.on('data', function(chunk) { body3 += chunk; });
               res3.on('end', function() { server.close(); });
             });
           });

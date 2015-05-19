@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var cluster = require('cluster');
 var domain = require('domain');
@@ -7,7 +8,7 @@ var domain = require('domain');
 
 if (cluster.isWorker) {
   var d = domain.create();
-  d.run(function () { });
+  d.run(function() { });
 
   var http = require('http');
   http.Server(function() { }).listen(common.PORT, '127.0.0.1');

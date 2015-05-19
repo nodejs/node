@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var W = require('_stream_writable');
 var D = require('_stream_duplex');
@@ -46,7 +47,7 @@ function run() {
   fn({
     same: assert.deepEqual,
     equal: assert.equal,
-    end: function () {
+    end: function() {
       count--;
       run();
     }
@@ -54,7 +55,7 @@ function run() {
 }
 
 // ensure all tests have run
-process.on("exit", function () {
+process.on('exit', function() {
   assert.equal(count, 0);
 });
 
@@ -196,7 +197,7 @@ test('write no bufferize', function(t) {
   t.end();
 });
 
-test('write callbacks', function (t) {
+test('write callbacks', function(t) {
   var callbacks = chunks.map(function(chunk, i) {
     return [i, function(er) {
       callbacks._called[i] = chunk;
@@ -225,42 +226,42 @@ test('write callbacks', function (t) {
   tw.end();
 });
 
-test('end callback', function (t) {
+test('end callback', function(t) {
   var tw = new TestWriter();
-  tw.end(function () {
+  tw.end(function() {
     t.end();
   });
 });
 
-test('end callback with chunk', function (t) {
+test('end callback with chunk', function(t) {
   var tw = new TestWriter();
-  tw.end(new Buffer('hello world'), function () {
+  tw.end(new Buffer('hello world'), function() {
     t.end();
   });
 });
 
-test('end callback with chunk and encoding', function (t) {
+test('end callback with chunk and encoding', function(t) {
   var tw = new TestWriter();
-  tw.end('hello world', 'ascii', function () {
+  tw.end('hello world', 'ascii', function() {
     t.end();
   });
 });
 
-test('end callback after .write() call', function (t) {
+test('end callback after .write() call', function(t) {
   var tw = new TestWriter();
   tw.write(new Buffer('hello world'));
-  tw.end(function () {
+  tw.end(function() {
     t.end();
   });
 });
 
-test('end callback called after write callback', function (t) {
+test('end callback called after write callback', function(t) {
   var tw = new TestWriter();
   var writeCalledback = false;
   tw.write(new Buffer('hello world'),  function() {
     writeCalledback = true;
   });
-  tw.end(function () {
+  tw.end(function() {
     t.equal(writeCalledback, true);
     t.end();
   });

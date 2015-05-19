@@ -1,3 +1,4 @@
+'use strict';
 // Server sends a large string. Client counts bytes and pauses every few
 // seconds. Makes sure that pause and resume work properly.
 

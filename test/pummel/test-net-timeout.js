@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var net = require('net');
@@ -12,7 +13,7 @@ var echo_server = net.createServer(function(socket) {
 
   socket.on('timeout', function() {
     console.log('server timeout');
-    timeouttime = new Date;
+    timeouttime = new Date();
     console.dir(timeouttime);
     socket.destroy();
   });
@@ -53,7 +54,7 @@ echo_server.listen(common.PORT, function() {
 
       if (exchanges == 5) {
         console.log('wait for timeout - should come in ' + timeout + ' ms');
-        starttime = new Date;
+        starttime = new Date();
         console.dir(starttime);
       }
     }

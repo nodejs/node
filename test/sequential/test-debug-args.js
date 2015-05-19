@@ -1,3 +1,4 @@
+'use strict';
 // Flags: --debugger
 
 var common = require('../common');

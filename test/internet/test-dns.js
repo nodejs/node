@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert'),
     dns = require('dns'),
@@ -500,7 +501,8 @@ TEST(function test_lookup_null_all(done) {
 
 
 TEST(function test_lookup_all_ipv4(done) {
-  var req = dns.lookup('www.google.com', {all: true, family: 4}, function(err, ips) {
+  var req = dns.lookup('www.google.com', {all: true, family: 4},
+                       function(err, ips) {
     if (err) throw err;
     assert.ok(Array.isArray(ips));
     assert.ok(ips.length > 0);
@@ -518,7 +520,8 @@ TEST(function test_lookup_all_ipv4(done) {
 
 
 TEST(function test_lookup_all_ipv6(done) {
-  var req = dns.lookup('www.google.com', {all: true, family: 6}, function(err, ips) {
+  var req = dns.lookup('www.google.com', {all: true, family: 6},
+                       function(err, ips) {
     if (err) throw err;
     assert.ok(Array.isArray(ips));
     assert.ok(ips.length > 0);

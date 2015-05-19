@@ -1,3 +1,4 @@
+'use strict';
 // just like test/gc/http-client.js,
 // but with an on('error') handler that does nothing.
 
@@ -17,7 +18,7 @@ var http  = require('http'),
     assert = require('assert'),
     PORT = common.PORT;
 
-console.log('We should do '+ todo +' requests');
+console.log('We should do ' + todo + ' requests');
 
 var http = require('http');
 var server = http.createServer(serverHandler);
@@ -27,10 +28,10 @@ function getall() {
   if (count >= todo)
     return;
 
-  (function(){
+  (function() {
     function cb(res) {
       res.resume();
-      done+=1;
+      done += 1;
       statusLater();
     }
     function onerror(er) {
@@ -45,7 +46,7 @@ function getall() {
 
     count++;
     weak(req, afterGC);
-  })()
+  })();
 
   setImmediate(getall);
 }
@@ -53,7 +54,7 @@ function getall() {
 for (var i = 0; i < 10; i++)
   getall();
 
-function afterGC(){
+function afterGC() {
   countGC ++;
 }
 

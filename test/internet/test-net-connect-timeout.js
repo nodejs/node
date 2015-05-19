@@ -1,3 +1,4 @@
+'use strict';
 // This example attempts to time out before the connection is established
 // https://groups.google.com/forum/#!topic/nodejs/UE0ZbfLt6t8
 // https://groups.google.com/forum/#!topic/nodejs-dev/jR7-5UDqXkw

@@ -1,3 +1,4 @@
+'use strict';
 // see https://github.com/joyent/node/issues/3257
 
 var common = require('../common');
@@ -23,7 +24,7 @@ server.listen(common.PIPE, function() {
 
   req.write('.');
 
-  sched(function() { req.end() }, 5);
+  sched(function() { req.end(); }, 5);
 });
 
 // schedule a callback after `ticks` event loop ticks

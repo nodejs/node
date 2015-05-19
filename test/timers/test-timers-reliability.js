@@ -1,3 +1,4 @@
+'use strict';
 // FaketimeFlags: --exclude-monotonic -f '2014-07-21 09:00:00'
 
 var common = require('../common');
@@ -31,23 +32,23 @@ var intervalFired = false;
  */
 
 var monoTimer = new Timer();
-monoTimer.ontimeout = function () {
+monoTimer.ontimeout = function() {
     /*
      * Make sure that setTimeout's and setInterval's callbacks have
      * already fired, otherwise it means that they are vulnerable to
      * time drifting or inconsistent time changes.
      */
-    assert(timerFired);
-    assert(intervalFired);
+  assert(timerFired);
+  assert(intervalFired);
 };
 
 monoTimer.start(300, 0);
 
-var timer = setTimeout(function () {
-    timerFired = true;
+var timer = setTimeout(function() {
+  timerFired = true;
 }, 200);
 
-var interval = setInterval(function () {
-    intervalFired = true;
-    clearInterval(interval);
+var interval = setInterval(function() {
+  intervalFired = true;
+  clearInterval(interval);
 }, 200);

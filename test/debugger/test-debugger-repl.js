@@ -1,3 +1,4 @@
+'use strict';
 var repl = require('./helper-debugger-repl.js');
 
 repl.startDebugger('breakpoints.js');

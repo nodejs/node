@@ -1,3 +1,4 @@
+'use strict';
 // Requires special privileges
 var common = require('../common');
 var assert = require('assert');

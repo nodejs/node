@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -18,7 +19,7 @@ assert.throws(function() {
 function validateTuple(tuple) {
   assert(Array.isArray(tuple));
   assert.equal(2, tuple.length);
-  tuple.forEach(function (v) {
+  tuple.forEach(function(v) {
     assert.equal('number', typeof v);
     assert(isFinite(v));
   });

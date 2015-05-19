@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var cluster = require('cluster');
@@ -81,7 +82,8 @@ if (cluster.isWorker) {
 
     // events
     assert.ok(w.emitDisconnect, 'Disconnect event did not emit');
-    assert.ok(w.emitDisconnectInsideWorker, 'Disconnect event did not emit inside worker');
+    assert.ok(w.emitDisconnectInsideWorker,
+              'Disconnect event did not emit inside worker');
     assert.ok(c.emitDisconnect, 'Disconnect event did not emit');
     assert.ok(w.emitExit, 'Exit event did not emit');
     assert.ok(c.emitExit, 'Exit event did not emit');

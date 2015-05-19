@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var os = require('os');
@@ -14,18 +15,18 @@ if (os.type() != 'SunOS') {
 var frames = [ 'stalloogle', 'bagnoogle', 'doogle' ];
 var expected;
 
-var stalloogle = function (str) {
+var stalloogle = function(str) {
   expected = str;
   os.loadavg();
 };
 
-var bagnoogle = function (arg0, arg1) {
+var bagnoogle = function(arg0, arg1) {
   stalloogle(arg0 + ' is ' + arg1 + ' except that it is read-only');
 };
 
 var done = false;
 
-var doogle = function () {
+var doogle = function() {
   if (!done)
     setTimeout(doogle, 10);
 
@@ -46,15 +47,15 @@ var dtrace = spawn('dtrace', [ '-qwn', 'syscall::getloadavg:entry/pid == ' +
 
 var output = '';
 
-dtrace.stderr.on('data', function (data) {
+dtrace.stderr.on('data', function(data) {
   console.log('dtrace: ' + data);
 });
 
-dtrace.stdout.on('data', function (data) {
+dtrace.stdout.on('data', function(data) {
   output += data;
 });
 
-dtrace.on('exit', function (code) {
+dtrace.on('exit', function(code) {
   if (code != 0) {
     console.error('dtrace exited with code ' + code);
     process.exit(code);

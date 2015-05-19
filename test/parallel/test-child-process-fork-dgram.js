@@ -1,3 +1,4 @@
+'use strict';
 /*
  * The purpose of this test is to make sure that when forking a process,
  * sending a fd representing a UDP socket to the child and sending messages
@@ -30,7 +31,7 @@ if (process.argv[2] === 'child') {
     if (msg === 'server') {
       server = clusterServer;
 
-      server.on('message', function () {
+      server.on('message', function() {
         process.send('gotMessage');
       });
 
@@ -50,14 +51,14 @@ if (process.argv[2] === 'child') {
   var childGotMessage = false;
   var parentGotMessage = false;
 
-  server.on('message', function (msg, rinfo) {
+  server.on('message', function(msg, rinfo) {
     parentGotMessage = true;
   });
 
-  server.on('listening', function () {
+  server.on('listening', function() {
     child.send('server', server);
 
-    child.once('message', function (msg) {
+    child.once('message', function(msg) {
       if (msg === 'gotMessage') {
         childGotMessage = true;
       }
@@ -66,8 +67,8 @@ if (process.argv[2] === 'child') {
     sendMessages();
   });
 
-  var sendMessages = function () {
-    var timer = setInterval(function () {
+  var sendMessages = function() {
+    var timer = setInterval(function() {
       client.send(msg, 0, msg.length, common.PORT, '127.0.0.1', function(err) {
           if (err) throw err;
         }
@@ -85,7 +86,7 @@ if (process.argv[2] === 'child') {
     }, 1);
   };
 
-  var shutdown = function () {
+  var shutdown = function() {
     child.send('stop');
 
     server.close();
@@ -94,7 +95,7 @@ if (process.argv[2] === 'child') {
 
   server.bind(common.PORT, '127.0.0.1');
 
-  process.once('exit', function () {
+  process.once('exit', function() {
     assert(parentGotMessage);
     assert(childGotMessage);
   });

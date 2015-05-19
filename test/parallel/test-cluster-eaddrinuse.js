@@ -1,3 +1,4 @@
+'use strict';
 // Check that having a worker bind to a port that's already taken doesn't
 // leave the master process in a confused state. Releasing the port and
 // trying again should Just Work[TM].

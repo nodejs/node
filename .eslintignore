@@ -1,1 +1,4 @@
 lib/punycode.js
+test/fixtures
+test/**/node_modules
+test/parallel/test-fs-non-number-arguments-throw.js

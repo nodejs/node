@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var util = require('util');
@@ -5,20 +6,20 @@ var stream = require('stream');
 
 var passed = false;
 
-function PassThrough () {
+function PassThrough() {
   stream.Transform.call(this);
 };
 util.inherits(PassThrough, stream.Transform);
-PassThrough.prototype._transform = function (chunk, encoding, done) {
+PassThrough.prototype._transform = function(chunk, encoding, done) {
   this.push(chunk);
   done();
 };
 
-function TestStream () {
+function TestStream() {
   stream.Transform.call(this);
 };
 util.inherits(TestStream, stream.Transform);
-TestStream.prototype._transform = function (chunk, encoding, done) {
+TestStream.prototype._transform = function(chunk, encoding, done) {
   if (!passed) {
     // Char 'a' only exists in the last write
     passed = chunk.toString().indexOf('a') >= 0;
@@ -47,6 +48,6 @@ assert(s2.write('tiny'));
 setImmediate(s1.write.bind(s1), 'later');
 
 // Assert after two IO loops when all operations have been done.
-process.on('exit', function () {
+process.on('exit', function() {
   assert(passed, 'Large buffer is not handled properly by Writable Stream');
 });

@@ -1,3 +1,4 @@
+'use strict';
 // Simple tests of most basic domain functionality.
 
 var common = require('../common');

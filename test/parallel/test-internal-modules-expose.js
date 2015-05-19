@@ -1,3 +1,4 @@
+'use strict';
 // Flags: --expose_internals
 
 var common = require('../common');

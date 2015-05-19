@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var fs = require('fs');
@@ -80,7 +81,7 @@ fs.writeFileSync(filename4, currentFileData);
 
 common.error('appending to ' + filename4);
 
-var m = 0600;
+var m = 0o600;
 fs.appendFile(filename4, n, { mode: m }, function(e) {
   if (e) throw e;
 
@@ -90,7 +91,7 @@ fs.appendFile(filename4, n, { mode: m }, function(e) {
   // windows permissions aren't unix
   if (process.platform !== 'win32') {
     var st = fs.statSync(filename4);
-    assert.equal(st.mode & 0700, m);
+    assert.equal(st.mode & 0o700, m);
   }
 
   fs.readFile(filename4, function(e, buffer) {

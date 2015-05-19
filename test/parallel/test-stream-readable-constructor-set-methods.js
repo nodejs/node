@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -12,7 +13,7 @@ function _read(n) {
 var r = new Readable({ read: _read });
 r.resume();
 
-process.on('exit', function () {
+process.on('exit', function() {
   assert.equal(r._read, _read);
   assert(_readCalled);
 });

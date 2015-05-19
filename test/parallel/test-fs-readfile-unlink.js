@@ -1,3 +1,4 @@
+'use strict';
 var assert = require('assert'),
     common = require('../common'),
     fs = require('fs'),

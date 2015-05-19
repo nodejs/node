@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var path = require('path');
@@ -41,7 +42,7 @@ fs.writeFileSync(filepathOne, 'hello');
 
 assert.doesNotThrow(
     function() {
-      var watcher = fs.watch(filepathOne)
+      var watcher = fs.watch(filepathOne);
       watcher.on('change', function(event, filename) {
         assert.equal('change', event);
 
@@ -82,7 +83,7 @@ setTimeout(function() {
 }, 20);
 
 try { fs.unlinkSync(filepathThree); } catch (e) {}
-try { fs.mkdirSync(testsubdir, 0700); } catch (e) {}
+try { fs.mkdirSync(testsubdir, 0o700); } catch (e) {}
 
 assert.doesNotThrow(
     function() {
@@ -123,7 +124,7 @@ assert.throws(function() {
 oldhandle.close(); // clean up
 
 assert.throws(function() {
-  var w = fs.watchFile(__filename, {persistent:false}, function(){});
+  var w = fs.watchFile(__filename, {persistent:false}, function() {});
   oldhandle = w._handle;
   w._handle = { stop: w._handle.stop };
   w.stop();

@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var spawn = require('child_process').spawn;
@@ -26,7 +27,7 @@ function testCwd(options, forCode, forData) {
     assert.strictEqual(forCode, code);
   });
 
-  child.on('close', function () {
+  child.on('close', function() {
     forData && assert.strictEqual(forData, data.replace(/[\s\r\n]+$/, ''));
     returns--;
   });

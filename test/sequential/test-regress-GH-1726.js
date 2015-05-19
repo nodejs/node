@@ -1,3 +1,4 @@
+'use strict';
 // Open a chain of five Node processes each a child of the next. The final
 // process exits immediately. Each process in the chain is instructed to
 // exit when its child exits.
@@ -26,7 +27,7 @@ assert.ok(!child.stderr);
 console.error('gen=%d, pid=%d', gen, process.pid);
 
 /*
-var timer = setTimeout(function () {
+var timer = setTimeout(function() {
   throw new Error('timeout! gen='+gen);
 }, 1000);
 */

@@ -1,3 +1,4 @@
+'use strict';
 // test-cluster-worker-constructor.js
 // validates correct behavior of the cluster.Worker constructor
 

@@ -1,3 +1,4 @@
+'use strict';
 // Some operating systems report errors when an UDP message is sent to an
 // unreachable host. This error can be reported by sendto() and even by
 // recvfrom(). Node should not propagate this error to the user.

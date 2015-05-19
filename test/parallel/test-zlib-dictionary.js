@@ -1,3 +1,4 @@
+'use strict';
 // test compression/decompression with dictionary
 
 var common = require('../common');

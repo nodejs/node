@@ -1,3 +1,4 @@
+'use strict';
 var assert = require('assert');
 var http = require('http');
 var common = require('../common');
@@ -25,4 +26,4 @@ server.listen(common.PORT, function() {
 
 process.on('exit', function() {
   assert.equal(count, 1);
-})
+});

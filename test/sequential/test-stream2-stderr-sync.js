@@ -1,3 +1,4 @@
+'use strict';
 // Make sure that sync writes to stderr get processed before exiting.
 
 var common = require('../common');
