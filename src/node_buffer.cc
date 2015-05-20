@@ -728,6 +728,46 @@ void WriteUInt64BE(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+template <enum Endianness endianness>
+uint32_t WritePointerGeneric(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  ARGS_THIS(args[0].As<Object>())
+
+  uint32_t offset = args[2]->Uint32Value();
+  CHECK_LE(offset + sizeof(char *), obj_length);
+
+  if (!(args[1]->IsNull() || Buffer::HasInstance(args[1]))) {
+    env->ThrowTypeError("value must be a Buffer instance or null");
+    return 0;
+  }
+
+  char* ptr = static_cast<char*>(obj_data) + offset;
+
+  if (args[1]->IsNull()) {
+    *reinterpret_cast<char **>(ptr) = NULL;
+  } else {
+    char *input_ptr = Buffer::Data(args[1].As<Object>());
+    *reinterpret_cast<char **>(ptr) = input_ptr;
+
+    if (endianness != GetEndianness())
+      Swizzle(ptr, sizeof(char *));
+  }
+
+  return offset + sizeof(char *);
+}
+
+
+void WritePointerLE(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(WritePointerGeneric<kLittleEndian>(args));
+}
+
+
+void WritePointerBE(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(WritePointerGeneric<kBigEndian>(args));
+}
+
+
 void ByteLengthUtf8(const FunctionCallbackInfo<Value> &args) {
   CHECK(args[0]->IsString());
 
@@ -989,6 +1029,8 @@ void Initialize(Handle<Object> target,
   env->SetMethod(target, "writeInt64LE", WriteInt64LE);
   env->SetMethod(target, "writeUInt64BE", WriteUInt64BE);
   env->SetMethod(target, "writeUInt64LE", WriteUInt64LE);
+  env->SetMethod(target, "writePointerBE", WritePointerBE);
+  env->SetMethod(target, "writePointerLE", WritePointerLE);
 }
 
 
