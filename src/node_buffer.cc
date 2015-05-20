@@ -624,7 +624,7 @@ void WriteDoubleBE(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-template <typename T, enum Endianness endianness, T (*strtoT)(const char *, char **, int base)>
+template <typename T, enum Endianness endianness, T (*strtoT)(const char *, char **, int)>
 uint32_t WriteInt64Generic(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
