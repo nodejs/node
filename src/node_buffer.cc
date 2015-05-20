@@ -582,6 +582,44 @@ void ReadUInt64BE(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+template <enum Endianness endianness>
+void ReadPointerGeneric(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  EscapableHandleScope scope(env->isolate());
+
+  ARGS_THIS(args[0].As<Object>());
+
+  uint32_t offset = args[1]->Uint32Value();
+  CHECK_LE(offset + sizeof(char *), obj_length);
+
+  size_t size = args[2]->Uint32Value();
+
+  char* ptr = static_cast<char*>(obj_data) + offset;
+
+  union NoAlias {
+    char* val;
+    char bytes[sizeof(char**)];
+  };
+
+  union NoAlias na = { *reinterpret_cast<char **>(ptr) };
+
+  if (endianness != GetEndianness())
+    Swizzle(na.bytes, sizeof(na.bytes));
+
+  args.GetReturnValue().Set( scope.Escape( Buffer::Use(env, na.val, size) ) );
+}
+
+
+void ReadPointerLE(const FunctionCallbackInfo<Value>& args) {
+  ReadPointerGeneric<kLittleEndian>(args);
+}
+
+
+void ReadPointerBE(const FunctionCallbackInfo<Value>& args) {
+  ReadPointerGeneric<kBigEndian>(args);
+}
+
+
 template <typename T, enum Endianness endianness>
 uint32_t WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
   ARGS_THIS(args[0].As<Object>())
@@ -940,6 +978,8 @@ void Initialize(Handle<Object> target,
   env->SetMethod(target, "readInt64LE", ReadInt64LE);
   env->SetMethod(target, "readUInt64BE", ReadUInt64BE);
   env->SetMethod(target, "readUInt64LE", ReadUInt64LE);
+  env->SetMethod(target, "readPointerBE", ReadPointerBE);
+  env->SetMethod(target, "readPointerLE", ReadPointerLE);
 
   env->SetMethod(target, "writeDoubleBE", WriteDoubleBE);
   env->SetMethod(target, "writeDoubleLE", WriteDoubleLE);
