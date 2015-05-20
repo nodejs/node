@@ -183,8 +183,10 @@ automatically set as a listener for the [secureConnection][] event.  The
 
   - `dhparam`: A string or `Buffer` containing Diffie Hellman parameters,
     required for Perfect Forward Secrecy. Use `openssl dhparam` to create it.
-    If omitted or invalid, it is silently discarded and DHE ciphers won't be
-    available.
+    Its key length should be greater than or equal to 1024 bits, otherwise
+    it throws an error. It is strongly recommended to use 2048 bits or
+    more for stronger security. If omitted or invalid, it is silently
+    discarded and DHE ciphers won't be available.
 
   - `handshakeTimeout`: Abort the connection if the SSL/TLS handshake does not
     finish in this many milliseconds. The default is 120 seconds.
