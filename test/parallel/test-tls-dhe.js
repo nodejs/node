@@ -62,8 +62,9 @@ function test(keylen, expectedCipher, cb) {
 }
 
 function test512() {
-  test(512, 'DHE-RSA-AES128-SHA256', test1024);
-  ntests++;
+  assert.throws(function() {
+    test(512, 'DHE-RSA-AES128-SHA256', null);
+  }, /DH parameter is less than 1024 bits/);
 }
 
 function test1024() {
@@ -77,12 +78,13 @@ function test2048() {
 }
 
 function testError() {
-  test('error', 'ECDHE-RSA-AES128-SHA256', null);
+  test('error', 'ECDHE-RSA-AES128-SHA256', test512);
   ntests++;
 }
 
-test512();
+test1024();
 
 process.on('exit', function() {
   assert.equal(ntests, nsuccess);
+  assert.equal(ntests, 3);
 });
