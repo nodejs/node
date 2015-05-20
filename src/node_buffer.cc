@@ -948,7 +948,7 @@ void Address(const FunctionCallbackInfo<Value>& args) {
   std::stringstream stream;
   stream.rdbuf()->pubsetbuf(strbuf, sizeof(strbuf));
 
-  stream << std::hex << (intptr_t)ptr << '\0';
+  stream << std::hex << (uintptr_t)ptr << '\0';
 
   args.GetReturnValue().Set( node::OneByteString(env->isolate(), strbuf, strlen(strbuf)) );
 }
