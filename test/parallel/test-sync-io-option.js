@@ -33,10 +33,11 @@ if (process.argv[2] === 'child') {
         // Prints 4 WARNINGS for --trace-sync-io. 1 for each sync call
         // inside readFileSync
         assert.equal(cntr1, 4);
-      } else if (execArgv[0] === ' ')
+      } else if (execArgv[0] === ' ') {
         assert.equal(cntr1, 0);
-      else
+      } else {
         throw new Error('UNREACHABLE');
+      }
 
       if (flags.length > 0)
         setImmediate(runTest, flags);
