@@ -85,6 +85,7 @@ Take a parsed URL object, and return a formatted URL string.
 Here's how the formatting process works:
 
 * `href` will be ignored.
+* `path` will be ignored.
 * `protocol` is treated the same with or without the trailing `:` (colon).
   * The protocols `http`, `https`, `ftp`, `gopher`, `file` will be
     postfixed with `://` (colon-slash-slash).
