@@ -38,6 +38,7 @@ void Initialize(Handle<Object> exports,
   SET_ALIGNOF(uint64, uint64_t);
   SET_ALIGNOF(float, float);
   SET_ALIGNOF(double, double);
+  SET_ALIGNOF(longdouble, long double);
 
   // (potentially) variable alignments
   SET_ALIGNOF(bool, bool);

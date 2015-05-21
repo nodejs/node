@@ -38,6 +38,7 @@ void Initialize(Handle<Object> exports,
   SET_SIZEOF(uint64, uint64_t);
   SET_SIZEOF(float, float);
   SET_SIZEOF(double, double);
+  SET_SIZEOF(longdouble, long double);
 
   // (potentially) variable sizes
   SET_SIZEOF(bool, bool);
