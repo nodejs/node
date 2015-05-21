@@ -175,6 +175,59 @@ function isWarned(emitter) {
   assert.equal(callCount, expectedLines.length);
   rli.close();
 
+  // \t when there is no completer function should behave like an ordinary
+  //   character
+  fi = new FakeInput();
+  rli = new readline.Interface({ input: fi, output: fi, terminal: true });
+  called = false;
+  rli.on('line', function(line) {
+    assert.equal(line, '\t');
+    assert.strictEqual(called, false);
+    called = true;
+  });
+  fi.emit('data', '\t');
+  fi.emit('data', '\n');
+  assert.ok(called);
+  rli.close();
+
+  // \t does not become part of the input when there is a completer function
+  fi = new FakeInput();
+  var completer = function(line) {
+    return [[], line];
+  };
+  rli = new readline.Interface({
+    input: fi,
+    output: fi,
+    terminal: true,
+    completer: completer
+  });
+  called = false;
+  rli.on('line', function(line) {
+    assert.equal(line, 'foo');
+    assert.strictEqual(called, false);
+    called = true;
+  });
+  fi.emit('data', '\tfo\to\t');
+  fi.emit('data', '\n');
+  assert.ok(called);
+  rli.close();
+
+  // constructor throws if completer is not a function or undefined
+  fi = new FakeInput();
+  assert.throws(function() {
+    readline.createInterface({
+      input: fi,
+      completer: 'string is not valid'
+    });
+  }, function(err) {
+    if (err instanceof TypeError) {
+      if (/Argument \'completer\' must be a function/.test(err)) {
+        return true;
+      }
+    }
+    return false;
+  });
+
   // sending a multi-byte utf8 char over multiple writes
   var buf = Buffer('☮', 'utf8');
   fi = new FakeInput();
