@@ -921,6 +921,7 @@ void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
       ptr ? static_cast<int32_t>(ptr_char - obj_data) : -1);
 }
 
+
 void IsNull(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -929,11 +930,14 @@ void IsNull(const FunctionCallbackInfo<Value>& args) {
 
   ARGS_THIS(args[0].As<Object>())
 
-  int64_t offset = args[1]->IntegerValue();
+  uint32_t offset = args[1]->Uint32Value();
+  CHECK_LE(offset + sizeof(char *), obj_length);
+
   char *ptr = obj_data + offset;
 
   args.GetReturnValue().Set( ptr == NULL );
 }
+
 
 void Address(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -943,7 +947,9 @@ void Address(const FunctionCallbackInfo<Value>& args) {
 
   ARGS_THIS(args[0].As<Object>())
 
-  int64_t offset = args[1]->IntegerValue();
+  uint32_t offset = args[1]->Uint32Value();
+  CHECK_LE(offset + sizeof(char *), obj_length);
+
   char *ptr = obj_data + offset;
 
   // pointer-size * 2 (for hex printout) + 1 null byte
