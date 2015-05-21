@@ -57,7 +57,7 @@ void Initialize(Handle<Object> exports,
   // alignment of a Persistent handle to a JS object
   SET_ALIGNOF(Object, Persistent<Object>);
 
-#undef SET_alignof
+#undef SET_ALIGNOF
 }
 
 
