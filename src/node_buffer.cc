@@ -922,7 +922,11 @@ void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
 }
 
 void IsNull(const FunctionCallbackInfo<Value>& args) {
-  ASSERT(args[0]->IsObject());
+  Environment* env = Environment::GetCurrent(args);
+
+  if (!HasInstance(args[0]))
+    return env->ThrowTypeError("first arg should be a Buffer");
+
   ARGS_THIS(args[0].As<Object>())
 
   int64_t offset = args[1]->IntegerValue();
