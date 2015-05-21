@@ -931,7 +931,7 @@ void IsNull(const FunctionCallbackInfo<Value>& args) {
   ARGS_THIS(args[0].As<Object>())
 
   uint32_t offset = args[1]->Uint32Value();
-  CHECK_LE(offset + sizeof(char *), obj_length);
+  CHECK_LE(offset, obj_length);
 
   char *ptr = obj_data + offset;
 
@@ -948,7 +948,7 @@ void Address(const FunctionCallbackInfo<Value>& args) {
   ARGS_THIS(args[0].As<Object>())
 
   uint32_t offset = args[1]->Uint32Value();
-  CHECK_LE(offset + sizeof(char *), obj_length);
+  CHECK_LE(offset, obj_length);
 
   char *ptr = obj_data + offset;
 
