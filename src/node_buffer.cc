@@ -669,7 +669,7 @@ uint32_t WriteInt64Generic(const FunctionCallbackInfo<Value>& args) {
     // Have to do this because strtoll/strtoull doesn't set errno to 0 on success
     errno = 0;
     v8::String::Utf8Value str(args[1]);
-    val = strtoT(*str, NULL, 0);
+    val = strtoT(*str, nullptr, 0);
 
     if (errno != 0) {
       if (errno == EINVAL) {
@@ -739,7 +739,7 @@ uint32_t WritePointerGeneric(const FunctionCallbackInfo<Value>& args) {
   char* ptr = static_cast<char*>(obj_data) + offset;
 
   if (args[1]->IsNull()) {
-    *reinterpret_cast<char **>(ptr) = NULL;
+    *reinterpret_cast<char **>(ptr) = nullptr;
   } else {
     char *input_ptr = Buffer::Data(args[1].As<Object>());
     *reinterpret_cast<char **>(ptr) = input_ptr;
@@ -929,7 +929,7 @@ void IsNull(const FunctionCallbackInfo<Value>& args) {
 
   char *ptr = obj_data + offset;
 
-  args.GetReturnValue().Set( ptr == NULL );
+  args.GetReturnValue().Set(ptr == nullptr);
 }
 
 
