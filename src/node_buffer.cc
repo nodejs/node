@@ -671,7 +671,7 @@ uint32_t WriteInt64Generic(const FunctionCallbackInfo<Value>& args) {
   } else if (args[1]->IsString()) {
     // Have to do this because strt(u)oll doesn't set errno to 0 on success
     errno = 0;
-    v8::String::Utf8Value str(args[1]);
+    node::Utf8Value str(env->isolate(), args[1]);
     val = strtoT(*str, nullptr, 0);
 
     if (errno != 0) {
