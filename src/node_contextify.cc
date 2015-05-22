@@ -30,6 +30,7 @@ using v8::None;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::Persistent;
+using v8::PropertyAttribute;
 using v8::PropertyCallbackInfo;
 using v8::Script;
 using v8::ScriptCompiler;
@@ -406,10 +407,15 @@ class ContextifyContext {
     Local<Object> proxy_global = PersistentToLocal(isolate,
                                                    ctx->proxy_global_);
 
-    bool in_sandbox = sandbox->GetRealNamedProperty(property).IsEmpty();
-    bool in_proxy_global =
-        proxy_global->GetRealNamedProperty(property).IsEmpty();
-    if (!in_sandbox || !in_proxy_global) {
+    if (sandbox->HasRealNamedProperty(property)) {
+      PropertyAttribute propAttr =
+          sandbox->GetRealNamedPropertyAttributes(property).FromJust();
+      args.GetReturnValue().Set(propAttr);
+    } else if (proxy_global->HasRealNamedProperty(property)) {
+      PropertyAttribute propAttr =
+          proxy_global->GetRealNamedPropertyAttributes(property).FromJust();
+      args.GetReturnValue().Set(propAttr);
+    } else {
       args.GetReturnValue().Set(None);
     }
   }
