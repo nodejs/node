@@ -23,7 +23,7 @@ using v8::Uint32;
 static void Dlopen(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  const char *filename;
+  const char* filename;
   if (args[0]->IsNull()) {
     filename = nullptr;
   } else if (args[0]->IsString()) {
@@ -39,7 +39,7 @@ static void Dlopen(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowTypeError("expected a Buffer instance as second argument");
 
   Local<Object> buf = args[1].As<Object>();
-  uv_lib_t *lib = reinterpret_cast<uv_lib_t *>(Buffer::Data(buf));
+  uv_lib_t* lib = reinterpret_cast<uv_lib_t*>(Buffer::Data(buf));
 
   int r = uv_dlopen(filename, lib);
 
@@ -54,7 +54,7 @@ static void Dlclose(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowTypeError("expected a Buffer instance as first argument");
 
   Local<Object> buf = args[0].As<Object>();
-  uv_lib_t *lib = reinterpret_cast<uv_lib_t *>(Buffer::Data(buf));
+  uv_lib_t* lib = reinterpret_cast<uv_lib_t*>(Buffer::Data(buf));
 
   uv_dlclose(lib);
 }
@@ -71,9 +71,9 @@ static void Dlsym(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowTypeError("expected a Buffer instance as third argument");
 
   Local<Object> buf = args[0].As<Object>();
-  uv_lib_t *lib = reinterpret_cast<uv_lib_t *>(Buffer::Data(buf));
+  uv_lib_t* lib = reinterpret_cast<uv_lib_t*>(Buffer::Data(buf));
 
-  void *sym;
+  void* sym;
   node::Utf8Value name(env->isolate(), args[1]);
   int r = uv_dlsym(lib, *name, &sym);
 
@@ -92,7 +92,7 @@ static void Dlerror(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowTypeError("expected a Buffer instance as first argument");
 
   Local<Object> buf = args[0].As<Object>();
-  uv_lib_t *lib = reinterpret_cast<uv_lib_t *>(Buffer::Data(buf));
+  uv_lib_t* lib = reinterpret_cast<uv_lib_t*>(Buffer::Data(buf));
 
   args.GetReturnValue().Set(OneByteString(env->isolate(), uv_dlerror(lib)));
 }
