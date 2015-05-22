@@ -11,9 +11,7 @@ namespace _sizeof {
 
 using v8::Context;
 using v8::Handle;
-using v8::Isolate;
 using v8::Object;
-using v8::Persistent;
 using v8::Uint32;
 using v8::Value;
 
@@ -23,43 +21,58 @@ void Initialize(Handle<Object> exports,
                 Handle<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
-  // fixed sizes
-#define SET_SIZEOF(name, type) \
-  exports->Set(FIXED_ONE_BYTE_STRING(env->isolate(), #name ), \
-               Uint32::NewFromUnsigned(env->isolate(), static_cast<uint32_t>(sizeof( type ))));
+  Handle<Object> sizeof_obj = Object::New(env->isolate());
+  Handle<Object> alignof_obj = Object::New(env->isolate());
 
-  SET_SIZEOF(int8, int8_t);
-  SET_SIZEOF(uint8, uint8_t);
-  SET_SIZEOF(int16, int16_t);
-  SET_SIZEOF(uint16, uint16_t);
-  SET_SIZEOF(int32, int32_t);
-  SET_SIZEOF(uint32, uint32_t);
-  SET_SIZEOF(int64, int64_t);
-  SET_SIZEOF(uint64, uint64_t);
-  SET_SIZEOF(float, float);
-  SET_SIZEOF(double, double);
-  SET_SIZEOF(longdouble, long double);
+#define SET_SIZEOF(name, type) \
+  sizeof_obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), #name), \
+               Uint32::NewFromUnsigned(env->isolate(), \
+                                       static_cast<uint32_t>(sizeof(type))));
+
+#define SET_ALIGNOF(name, type) \
+  alignof_obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), #name), \
+               Uint32::NewFromUnsigned(env->isolate(), \
+                                       static_cast<uint32_t>(alignof(type))));
+
+#define SET_TYPE(name, type) \
+  SET_SIZEOF(name, type) \
+  SET_ALIGNOF(name, type)
+
+  // fixed sizes
+  SET_TYPE(int8, int8_t);
+  SET_TYPE(uint8, uint8_t);
+  SET_TYPE(int16, int16_t);
+  SET_TYPE(uint16, uint16_t);
+  SET_TYPE(int32, int32_t);
+  SET_TYPE(uint32, uint32_t);
+  SET_TYPE(int64, int64_t);
+  SET_TYPE(uint64, uint64_t);
+  SET_TYPE(float, float);
+  SET_TYPE(double, double);
 
   // (potentially) variable sizes
-  SET_SIZEOF(bool, bool);
-  SET_SIZEOF(byte, unsigned char);
-  SET_SIZEOF(char, char);
-  SET_SIZEOF(uchar, unsigned char);
-  SET_SIZEOF(short, short);
-  SET_SIZEOF(ushort, unsigned short);
-  SET_SIZEOF(int, int);
-  SET_SIZEOF(uint, unsigned int);
-  SET_SIZEOF(long, long);
-  SET_SIZEOF(ulong, unsigned long);
-  SET_SIZEOF(longlong, long long);
-  SET_SIZEOF(ulonglong, unsigned long long);
-  SET_SIZEOF(pointer, char *);
-  SET_SIZEOF(size_t, size_t);
-
-  // size of a Persistent handle to a JS object
-  SET_SIZEOF(Object, Persistent<Object>);
+  SET_TYPE(bool, bool);
+  SET_TYPE(byte, unsigned char);
+  SET_TYPE(char, char);
+  SET_TYPE(uchar, unsigned char);
+  SET_TYPE(short, short);
+  SET_TYPE(ushort, unsigned short);
+  SET_TYPE(int, int);
+  SET_TYPE(uint, unsigned int);
+  SET_TYPE(long, long);
+  SET_TYPE(ulong, unsigned long);
+  SET_TYPE(longlong, long long);
+  SET_TYPE(ulonglong, unsigned long long);
+  SET_TYPE(longdouble, long double);
+  SET_TYPE(pointer, char *);
+  SET_TYPE(size_t, size_t);
 
 #undef SET_SIZEOF
+#undef SET_ALIGNOF
+#undef SET_TYPE
+
+  exports->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "sizeof"), sizeof_obj);
+  exports->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "alignof"), alignof_obj);
 }
 
 
