@@ -797,12 +797,12 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
   if (dh == nullptr)
     return;
 
-  const int keylen = BN_num_bits(dh->p);
-  if (keylen < 1024) {
-    DH_free(dh);
+  const int size = BN_num_bits(dh->p);
+  if (size < 1024) {
     return env->ThrowError("DH parameter is less than 1024 bits");
-  } else if (keylen < 2048) {
-    fprintf(stderr, "WARNING: DH parameter is less than 2048 bits\n");
+  } else if (size < 2048) {
+    args.GetReturnValue().Set(FIXED_ONE_BYTE_STRING(
+        env->isolate(), "WARNING: DH parameter is less than 2048 bits"));
   }
 
   SSL_CTX_set_options(sc->ctx_, SSL_OP_SINGLE_DH_USE);
