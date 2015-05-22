@@ -600,6 +600,36 @@ Example:
 
     // 0.3333333333333333
 
+### buf.readPointerLE(offset, length[, noAssert])
+### buf.readPointerBE(offset, length[, noAssert])
+
+* `offset` Number
+* `length` Number
+* `noAssert` Boolean, Optional, Default: false
+* Return: Number
+
+Reads a pointer from the buffer by dereferencing at the specified
+offset with specified endian format.
+
+A new Buffer instance is returned at the memory address pointed to
+by `buf`, with its length set to `length`.
+
+Set `noAssert` to true to skip validation of `offset`. This means that `offset`
+may be beyond the end of the buffer. Defaults to `false`.
+
+__WARNING__: The "Pointer" family of functions relates to direct
+memory access, which can easily get you into trouble (segmentation
+faults, etc.) if you don't know what you're doing. Generally these
+functions are only used in relation to the `dlopen` and `ffi` modules.
+
+Example:
+
+    // assume `buf` is a pointer to some external `int` data
+    var intBuf = buf.readPointer(0, ffi.sizeof.int);
+
+    console.log(intBuf.readInt32LE(0));
+    // 6
+
 ### buf.writeUInt8(value, offset[, noAssert])
 
 * `value` Number
@@ -796,6 +826,35 @@ Example:
 
     // <Buffer 43 eb d5 b7 dd f9 5f d7>
     // <Buffer d7 5f f9 dd b7 d5 eb 43>
+
+### buf.writePointerLE(pointer, offset[, noAssert])
+### buf.writePointerBE(pointer, offset[, noAssert])
+
+* `pointer` Buffer or null
+* `offset` Number
+* `noAssert` Boolean, Optional, Default: false
+
+Writes the memory address of `pointer` to the buffer at the specified offset
+with specified endian format. If `null` is given the the NULL pointer will
+be written as the memory address.
+
+Set `noAssert` to true to skip validation of `value` and `offset`. This means
+that `value` may be too large for the specific function and `offset` may be
+beyond the end of the buffer leading to the values being silently dropped. This
+should not be used unless you are certain of correctness. Defaults to `false`.
+
+Example:
+
+    var b = new Buffer('a');
+    // <Buffer@0x103032008 61>
+
+    var b2 = new Buffer(ffi.sizeof.pointer);
+    // <Buffer@0x103032010 00 00 00 00 00 00 00 00>
+
+    buf.writePointerBE(b, 0);
+    // <Buffer@0x103032010 00 00 00 01 03 03 20 08>
+    //                              ^  ^  ^  ^  ^
+    // notice the value here is the same as the address of `b`
 
 ### buf.fill(value[, offset][, end])
 
