@@ -120,42 +120,10 @@ fetch the package by name if it is not valid.
 <pre><code>    npm install sax@&quot;&gt;=0.1.0 &lt;0.2.0&quot;
     npm install @myorg/privatepackage@&quot;&gt;=0.1.0 &lt;0.2.0&quot;
 </code></pre></li>
-<li><p><code>npm install &lt;githubname&gt;/&lt;githubrepo&gt;</code>:</p>
-<p>  Install the package at <code>https://github.com/githubname/githubrepo</code> by
-  attempting to clone it using <code>git</code>.</p>
-<p>  Example:</p>
-<pre><code>    npm install mygithubuser/myproject
-</code></pre><p> To reference a package in a generic git repo (not on GitHub), see git remote
- urls below.</p>
-</li>
-<li><p><code>npm install github:&lt;githubname&gt;/&lt;githubrepo&gt;</code>:</p>
-<p>  The same as the above, but explicitly marked as a GitHub dependency.</p>
-<p>  Example:</p>
-<pre><code>    npm install github:npm/npm
-</code></pre></li>
-<li><p><code>npm install gist:[&lt;githubname&gt;/]&lt;gistID&gt;</code>:</p>
-<p>  Install the package at <code>https://gist.github.com/gistID</code> by attempting to
-  clone it using <code>git</code>. The GitHub username associated with the gist is
-  optional and will not be saved in <code>package.json</code> if <code>--save</code> is used.</p>
-<p>  Example:</p>
-<pre><code>    npm install gist:101a11beef
-</code></pre></li>
-<li><p><code>npm install bitbucket:&lt;bitbucketname&gt;/&lt;bitbucketrepo&gt;</code>:</p>
-<p>  Install the package at <code>https://bitbucket.org/bitbucketname/bitbucketrepo</code>
-  by attempting to clone it using <code>git</code>.</p>
-<p>  Example:</p>
-<pre><code>    npm install bitbucket:mybitbucketuser/myproject
-</code></pre></li>
-<li><p><code>npm install gitlab:&lt;gitlabname&gt;/&lt;gitlabrepo&gt;</code>:</p>
-<p>  Install the package at <code>https://gitlab.com/gitlabname/gitlabrepo</code>
-  by attempting to clone it using <code>git</code>.</p>
-<p>  Example:</p>
-<pre><code>    npm install gitlab:mygitlabuser/myproject
-</code></pre></li>
 <li><p><code>npm install &lt;git remote url&gt;</code>:</p>
 <p>  Install a package by cloning a git remote url.  The format of the git
   url is:</p>
-<pre><code>    &lt;protocol&gt;://[&lt;user&gt;[:&lt;password&gt;]@]&lt;hostname&gt;&lt;separator&gt;&lt;path&gt;[#&lt;commit-ish&gt;]
+<pre><code>    &lt;protocol&gt;://[&lt;user&gt;[:&lt;password&gt;]@]&lt;hostname&gt;[:&lt;port&gt;][:/]&lt;path&gt;[#&lt;commit-ish&gt;]
 </code></pre><p>  <code>&lt;protocol&gt;</code> is one of <code>git</code>, <code>git+ssh</code>, <code>git+http</code>, or
   <code>git+https</code>.  If no <code>&lt;commit-ish&gt;</code> is specified, then <code>master</code> is
   used.</p>
@@ -163,6 +131,38 @@ fetch the package by name if it is not valid.
 <pre><code>    git+ssh://git@github.com:npm/npm.git#v1.0.27
     git+https://isaacs@github.com/npm/npm.git
     git://github.com/npm/npm.git#v1.0.27
+</code></pre></li>
+<li><p><code>npm install &lt;githubname&gt;/&lt;githubrepo&gt;[#&lt;commit-ish&gt;]</code>:</p>
+</li>
+<li><p><code>npm install github:&lt;githubname&gt;/&lt;githubrepo&gt;[#&lt;commit-ish&gt;]</code>:</p>
+<p>  Install the package at <code>https://github.com/githubname/githubrepo</code> by
+  attempting to clone it using <code>git</code>.</p>
+<p>  If you don&#39;t specify a <em>commit-ish</em> then <code>master</code> will be used.</p>
+<p>  Examples:</p>
+<pre><code>    npm install mygithubuser/myproject
+    npm install github:mygithubuser/myproject
+</code></pre></li>
+<li><p><code>npm install gist:[&lt;githubname&gt;/]&lt;gistID&gt;[#&lt;commit-ish&gt;]</code>:</p>
+<p>  Install the package at <code>https://gist.github.com/gistID</code> by attempting to
+  clone it using <code>git</code>. The GitHub username associated with the gist is
+  optional and will not be saved in <code>package.json</code> if <code>--save</code> is used.</p>
+<p>  If you don&#39;t specify a <em>commit-ish</em> then <code>master</code> will be used.</p>
+<p>  Example:</p>
+<pre><code>    npm install gist:101a11beef
+</code></pre></li>
+<li><p><code>npm install bitbucket:&lt;bitbucketname&gt;/&lt;bitbucketrepo&gt;[#&lt;commit-ish&gt;]</code>:</p>
+<p>  Install the package at <code>https://bitbucket.org/bitbucketname/bitbucketrepo</code>
+  by attempting to clone it using <code>git</code>.</p>
+<p>  If you don&#39;t specify a <em>commit-ish</em> then <code>master</code> will be used.</p>
+<p>  Example:</p>
+<pre><code>    npm install bitbucket:mybitbucketuser/myproject
+</code></pre></li>
+<li><p><code>npm install gitlab:&lt;gitlabname&gt;/&lt;gitlabrepo&gt;[#&lt;commit-ish&gt;]</code>:</p>
+<p>  Install the package at <code>https://gitlab.com/gitlabname/gitlabrepo</code>
+  by attempting to clone it using <code>git</code>.</p>
+<p>  If you don&#39;t specify a <em>commit-ish</em> then <code>master</code> will be used.</p>
+<p>  Example:</p>
+<pre><code>    npm install gitlab:mygitlabuser/myproject
 </code></pre></li>
 </ul>
 <p>You may combine multiple arguments, and even multiple types of arguments.

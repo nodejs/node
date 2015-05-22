@@ -20,6 +20,31 @@ var OPTS = {
   }
 }
 
+var readJSON = {
+  name: 'foo',
+  version: '1.0.0',
+  description: '',
+  main: 'index.js',
+  scripts: {
+    test: 'echo \"Error: no test specified\" && exit 1'
+  },
+  author: '',
+  license: 'ISC'
+}
+
+var installJSON = {
+  name: 'bar',
+  version: '1.0.0',
+  description: '',
+  main: 'index.js',
+  scripts: {
+    test: 'echo \"Error: no test specified\" && exit 1'
+  },
+  author: '',
+  license: 'ISC'
+}
+
+
 test('setup', function (t) {
   setup()
   common.npm(['ls', '-g', '--depth=0'], OPTS, function (err, c, out) {
@@ -71,30 +96,6 @@ test('cleanup', function (t) {
     })
   })
 })
-
-var readJSON = {
-  name: 'foo',
-  version: '1.0.0',
-  description: '',
-  main: 'index.js',
-  scripts: {
-    test: 'echo \"Error: no test specified\" && exit 1'
-  },
-  author: '',
-  license: 'ISC'
-}
-
-var installJSON = {
-  name: 'bar',
-  version: '1.0.0',
-  description: '',
-  main: 'index.js',
-  scripts: {
-    test: 'echo \"Error: no test specified\" && exit 1'
-  },
-  author: '',
-  license: 'ISC'
-}
 
 function cleanup () {
   rimraf.sync(linkRoot)

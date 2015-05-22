@@ -293,8 +293,11 @@ function makeArchy_ (data, long, dir, depth, parent, d) {
 
   // add giturl to name@version
   if (data._resolved) {
-    if (npa(data._resolved).type === "git")
-      out.label += " (" + data._resolved + ")"
+    var type = npa(data._resolved).type
+    var isGit = type === 'git' || type === 'hosted'
+    if (isGit) {
+      out.label += ' (' + data._resolved + ')'
+    }
   }
 
   if (long) {

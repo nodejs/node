@@ -119,5 +119,5 @@ function ls (args, cb) {
 }
 
 function edit (args, cb) {
-  return cb(new Error("npm edit ls isn't implemented yet!"))
+  return cb(new Error("npm access edit isn't implemented yet!"))
 }

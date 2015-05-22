@@ -16,6 +16,11 @@ var repo = resolve(__dirname, 'add-remote-git-file-repo')
 var git
 var cloneURL = 'git+file://' + resolve(pkg, 'child.git')
 
+var pjChild = JSON.stringify({
+  name: 'child',
+  version: '1.0.3'
+}, null, 2) + '\n'
+
 test('setup', function (t) {
   bootstrap()
   setup(function (er, r) {
@@ -44,11 +49,6 @@ test('clean', function (t) {
   cleanup()
   t.end()
 })
-
-var pjChild = JSON.stringify({
-  name: 'child',
-  version: '1.0.3'
-}, null, 2) + '\n'
 
 function bootstrap () {
   cleanup()

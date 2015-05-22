@@ -83,6 +83,102 @@ test("npm access on named package", function (t) {
   )
 })
 
+test("npm change access on unscoped package", function (t) {
+  common.npm(
+    [
+      "access",
+      "restricted", "yargs",
+      "--registry", common.registry
+    ],
+    { cwd : pkg },
+    function (er, code, stdout, stderr) {
+      t.ok(code, 'exited with Error')
+      t.ok(stderr.match(/you can't change the access level of unscoped packages/))
+      t.end()
+    }
+  )
+})
+
+test('npm access add', function (t) {
+  common.npm(
+    [
+      "access",
+      "add", "@scoped/another",
+      "--registry", common.registry
+    ],
+    { cwd : pkg },
+    function (er, code, stdout, stderr) {
+      t.ok(code, 'exited with Error')
+      t.ok(stderr.match(/npm access add isn't implemented yet!/))
+      t.end()
+    }
+  )
+})
+
+test('npm access rm', function (t) {
+  common.npm(
+    [
+      "access",
+      "rm", "@scoped/another",
+      "--registry", common.registry
+    ],
+    { cwd : pkg },
+    function (er, code, stdout, stderr) {
+      t.ok(code, 'exited with Error')
+      t.ok(stderr.match(/npm access rm isn't implemented yet!/))
+      t.end()
+    }
+  )
+})
+
+test('npm access ls', function (t) {
+  common.npm(
+    [
+      "access",
+      "ls", "@scoped/another",
+      "--registry", common.registry
+    ],
+    { cwd : pkg },
+    function (er, code, stdout, stderr) {
+      t.ok(code, 'exited with Error')
+      t.ok(stderr.match(/npm access ls isn't implemented yet!/))
+      t.end()
+    }
+  )
+})
+
+test('npm access edit', function (t) {
+  common.npm(
+    [
+      "access",
+      "edit", "@scoped/another",
+      "--registry", common.registry
+    ],
+    { cwd : pkg },
+    function (er, code, stdout, stderr) {
+      t.ok(code, 'exited with Error')
+      t.ok(stderr.match(/npm access edit isn't implemented yet!/))
+      t.end()
+    }
+  )
+})
+
+test('npm access blerg', function (t) {
+  common.npm(
+    [
+      "access",
+      "blerg", "@scoped/another",
+      "--registry", common.registry
+    ],
+    { cwd : pkg },
+    function (er, code, stdout, stderr) {
+      t.ok(code, 'exited with Error')
+      t.ok(stderr.match(/Usage:/))
+      t.end()
+    }
+  )
+})
+
 test("cleanup", function (t) {
   t.pass("cleaned up")
   rimraf.sync(pkg)

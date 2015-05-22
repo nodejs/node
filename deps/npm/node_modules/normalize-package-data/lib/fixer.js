@@ -1,4 +1,5 @@
 var semver = require("semver")
+var spdx = require('spdx');
 var hostedGitInfo = require("hosted-git-info")
 var depTypes = ["dependencies","devDependencies","optionalDependencies"]
 var extractDescription = require("./extract_description")
@@ -281,6 +282,18 @@ var fixer = module.exports = {
     if(!url.parse(data.homepage).protocol) {
       this.warn("missingProtocolHomepage")
       data.homepage = "http://" + data.homepage
+    }
+  }
+
+, fixLicenseField: function(data) {
+    if (!data.license) {
+      return this.warn("missingLicense")
+    } else if (
+      typeof(data.license) !== 'string' ||
+      data.license.length < 1 ||
+      !spdx.valid(data.license)
+    ) {
+      this.warn("nonSPDXLicense")
     }
   }
 }

@@ -37,7 +37,7 @@ test("get files", function (t) {
     })
     files.forEach(function (f) {
       try {
-        var s = fs.statSync(f)
+        var s = fs.lstatSync(f)
       } catch (er) {
         return
       }

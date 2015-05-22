@@ -16,16 +16,31 @@ them\.  The name and version together form an identifier that is assumed
 to be completely unique\.  Changes to the package should come along with
 changes to the version\.
 .P
-The name is what your thing is called\.  Some tips:
+The name is what your thing is called\.
+.P
+Some rules:
 .RS 0
+.IP \(bu 2
+The name must be shorter than 214 characters\. This includes the scope for
+scoped packages\.
+.IP \(bu 2
+The name can't start with a dot or an underscore\.
+.IP \(bu 2
+New packages must not have uppercase letters in the name\.
+.IP \(bu 2
+The name ends up being part of a URL, an argument on the command line, and a
+folder name\. Therefore, the name can't contain any non\-URL\-safe characters\.
+
+.RE
+.P
+Some tips:
+.RS 0
+.IP \(bu 2
+Don't use the same name as a core Node module\.
 .IP \(bu 2
 Don't put "js" or "node" in the name\.  It's assumed that it's js, since you're
 writing a package\.json file, and you can specify the engine using the "engines"
 field\.  (See below\.)
-.IP \(bu 2
-The name ends up being part of a URL, an argument on the command line, and a
-folder name\. Any name with non\-url\-safe characters will be rejected\.
-Also, it can't start with a dot or an underscore\.
 .IP \(bu 2
 The name will probably be passed as an argument to require(), so it should
 be something short, but also reasonably descriptive\.
@@ -92,9 +107,8 @@ If a url is provided, it will be used by the \fBnpm bugs\fR command\.
 You should specify a license for your package so that people know how they are
 permitted to use it, and any restrictions you're placing on it\.
 .P
-The simplest way, assuming you're using a common license such as BSD\-3\-Clause
-or MIT, is to just specify the standard SPDX ID of the license you're using,
-like this:
+If you're using a common license such as BSD\-2\-Clause or MIT, add a
+current SPDX license identifier for the license you're using, like this:
 .P
 .RS 2
 .nf
@@ -106,8 +120,61 @@ You can check the full list of SPDX license IDs \fIhttps://spdx\.org/licenses/\f
 Ideally you should pick one that is
 OSI \fIhttp://opensource\.org/licenses/alphabetical\fR approved\.
 .P
-It's also a good idea to include a LICENSE file at the top level in
-your package\.
+If your package is licensed under multiple common licenses, use an SPDX license
+expression syntax version 2\.0 string \fIhttp://npmjs\.com/package/spdx\fR, like this:
+.P
+.RS 2
+.nf
+{ "license" : "(ISC OR GPL\-3\.0)" }
+.fi
+.RE
+.P
+If you are using a license that hasn't been assigned an SPDX identifier, or if
+you are using a custom license, use the following valid SPDX expression:
+.P
+.RS 2
+.nf
+{ "license" : "LicenseRef\-LICENSE" }
+.fi
+.RE
+.P
+Then include a LICENSE file at the top level of the package\.
+.P
+Some old packages used license objects or a "licenses" property containing an
+array of license objects:
+.P
+.RS 2
+.nf
+// Not valid metadata
+{ "license" :
+  { "type" : "ISC"
+  , "url" : "http://opensource\.org/licenses/ISC"
+  }
+}
+
+// Not valid metadata
+{ "licenses" :
+  [
+    { "type": "MIT"
+    , "url": "http://www\.opensource\.org/licenses/mit\-license\.php"
+    }
+  , { "type": "Apache\-2\.0"
+    , "url": "http://opensource\.org/licenses/apache2\.0\.php"
+    }
+  ]
+}
+.fi
+.RE
+.P
+Those styles are now deprecated\. Instead, use SPDX expressions, like this:
+.P
+.RS 2
+.nf
+{ "license": "ISC" }
+
+{ "license": "(MIT OR Apache\-2\.0)" }
+.fi
+.RE
 .SH people fields: author, contributors
 .P
 The "author" is one person\.  "contributors" is an array of people\.  A "person"

@@ -21,14 +21,22 @@ Those are actually required, and your package won&#39;t install without
 them.  The name and version together form an identifier that is assumed
 to be completely unique.  Changes to the package should come along with
 changes to the version.</p>
-<p>The name is what your thing is called.  Some tips:</p>
+<p>The name is what your thing is called.</p>
+<p>Some rules:</p>
 <ul>
+<li>The name must be shorter than 214 characters. This includes the scope for
+scoped packages.</li>
+<li>The name can&#39;t start with a dot or an underscore.</li>
+<li>New packages must not have uppercase letters in the name.</li>
+<li>The name ends up being part of a URL, an argument on the command line, and a
+folder name. Therefore, the name can&#39;t contain any non-URL-safe characters.</li>
+</ul>
+<p>Some tips:</p>
+<ul>
+<li>Don&#39;t use the same name as a core Node module.</li>
 <li>Don&#39;t put &quot;js&quot; or &quot;node&quot; in the name.  It&#39;s assumed that it&#39;s js, since you&#39;re
 writing a package.json file, and you can specify the engine using the &quot;engines&quot;
 field.  (See below.)</li>
-<li>The name ends up being part of a URL, an argument on the command line, and a
-folder name. Any name with non-url-safe characters will be rejected.
-Also, it can&#39;t start with a dot or an underscore.</li>
 <li>The name will probably be passed as an argument to require(), so it should
 be something short, but also reasonably descriptive.</li>
 <li>You may want to check the npm registry to see if there&#39;s something by that name
@@ -72,16 +80,44 @@ you can specify the value for &quot;bugs&quot; as a simple string instead of an 
 <h2 id="license">license</h2>
 <p>You should specify a license for your package so that people know how they are
 permitted to use it, and any restrictions you&#39;re placing on it.</p>
-<p>The simplest way, assuming you&#39;re using a common license such as BSD-3-Clause
-or MIT, is to just specify the standard SPDX ID of the license you&#39;re using,
-like this:</p>
+<p>If you&#39;re using a common license such as BSD-2-Clause or MIT, add a
+current SPDX license identifier for the license you&#39;re using, like this:</p>
 <pre><code>{ &quot;license&quot; : &quot;BSD-3-Clause&quot; }
 </code></pre><p>You can check <a href="https://spdx.org/licenses/">the full list of SPDX license IDs</a>.
 Ideally you should pick one that is
 <a href="http://opensource.org/licenses/alphabetical">OSI</a> approved.</p>
-<p>It&#39;s also a good idea to include a LICENSE file at the top level in
-your package.</p>
-<h2 id="people-fields-author-contributors">people fields: author, contributors</h2>
+<p>If your package is licensed under multiple common licenses, use an <a href="http://npmjs.com/package/spdx">SPDX license
+expression syntax version 2.0 string</a>, like this:</p>
+<pre><code>{ &quot;license&quot; : &quot;(ISC OR GPL-3.0)&quot; }
+</code></pre><p>If you are using a license that hasn&#39;t been assigned an SPDX identifier, or if
+you are using a custom license, use the following valid SPDX expression:</p>
+<pre><code>{ &quot;license&quot; : &quot;LicenseRef-LICENSE&quot; }
+</code></pre><p>Then include a LICENSE file at the top level of the package.</p>
+<p>Some old packages used license objects or a &quot;licenses&quot; property containing an
+array of license objects:</p>
+<pre><code>// Not valid metadata
+{ &quot;license&quot; :
+  { &quot;type&quot; : &quot;ISC&quot;
+  , &quot;url&quot; : &quot;http://opensource.org/licenses/ISC&quot;
+  }
+}
+
+// Not valid metadata
+{ &quot;licenses&quot; :
+  [
+    { &quot;type&quot;: &quot;MIT&quot;
+    , &quot;url&quot;: &quot;http://www.opensource.org/licenses/mit-license.php&quot;
+    }
+  , { &quot;type&quot;: &quot;Apache-2.0&quot;
+    , &quot;url&quot;: &quot;http://opensource.org/licenses/apache2.0.php&quot;
+    }
+  ]
+}
+</code></pre><p>Those styles are now deprecated. Instead, use SPDX expressions, like this:</p>
+<pre><code>{ &quot;license&quot;: &quot;ISC&quot; }
+
+{ &quot;license&quot;: &quot;(MIT OR Apache-2.0)&quot; }
+</code></pre><h2 id="people-fields-author-contributors">people fields: author, contributors</h2>
 <p>The &quot;author&quot; is one person.  &quot;contributors&quot; is an array of people.  A &quot;person&quot;
 is an object with a &quot;name&quot; field and optionally &quot;url&quot; and &quot;email&quot;, like this:</p>
 <pre><code>{ &quot;name&quot; : &quot;Barney Rubble&quot;
@@ -502,5 +538,5 @@ ignored.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-json &mdash; npm@2.9.0</p>
+<p id="footer">npm-json &mdash; npm@2.10.1</p>
 

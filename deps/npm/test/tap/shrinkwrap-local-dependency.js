@@ -10,6 +10,34 @@ var PKG_DIR = path.resolve(__dirname, "shrinkwrap-local-dependency")
 var CACHE_DIR = path.resolve(PKG_DIR, "cache")
 var DEP_DIR = path.resolve(PKG_DIR, "dep")
 
+var desired = {
+  "name": "npm-test-shrinkwrap-local-dependency",
+  "version": "0.0.0",
+  "dependencies": {
+    "npm-test-shrinkwrap-local-dependency-dep": {
+      "version": "0.0.0",
+      "from": "dep",
+      "resolved": "file:dep"
+    }
+  }
+}
+
+var root = {
+  "author": "Thomas Torp",
+  "name": "npm-test-shrinkwrap-local-dependency",
+  "version": "0.0.0",
+  "dependencies": {
+    "npm-test-shrinkwrap-local-dependency-dep": "file:./dep"
+  }
+}
+
+var dependency = {
+  "author": "Thomas Torp",
+  "name": "npm-test-shrinkwrap-local-dependency-dep",
+  "version": "0.0.0"
+}
+
+
 test("shrinkwrap uses resolved with file: on local deps", function(t) {
   setup()
 
@@ -66,33 +94,6 @@ test("cleanup", function(t) {
   cleanup()
   t.end()
 })
-
-var desired = {
-  "name": "npm-test-shrinkwrap-local-dependency",
-  "version": "0.0.0",
-  "dependencies": {
-    "npm-test-shrinkwrap-local-dependency-dep": {
-      "version": "0.0.0",
-      "from": "dep",
-      "resolved": "file:dep"
-    }
-  }
-}
-
-var root = {
-  "author": "Thomas Torp",
-  "name": "npm-test-shrinkwrap-local-dependency",
-  "version": "0.0.0",
-  "dependencies": {
-    "npm-test-shrinkwrap-local-dependency-dep": "file:./dep"
-  }
-}
-
-var dependency = {
-  "author": "Thomas Torp",
-  "name": "npm-test-shrinkwrap-local-dependency-dep",
-  "version": "0.0.0"
-}
 
 function setup() {
   cleanup()
