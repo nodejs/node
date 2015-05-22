@@ -6,7 +6,6 @@ test-cluster-basic                : PASS,FLAKY
 
 [$system==win32]
 test-timers-first-fire            : PASS,FLAKY
-test-tls-server-verify            : PASS,FLAKY
 
 [$system==linux]
 test-fs-readfile-error            : PASS,FLAKY
