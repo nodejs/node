@@ -27,6 +27,18 @@ var server
 
 var EXEC_OPTS = { cwd: pkg }
 
+var fixture = {
+  'name': 'glock',
+  'version': '1.8.7',
+  'private': true,
+  'description': 'an inexplicably hostile sample package',
+  'homepage': 'https://glo.ck',
+  'repository': 'https://github.com/npm/glo.ck',
+  'dependencies': {
+    'underscore': '1.5.1'
+  }
+}
+
 test('setup', function (t) {
   setup()
   mr({ port: common.port }, function (er, s) {
@@ -84,18 +96,6 @@ test('cleanup', function (t) {
 
   t.end()
 })
-
-var fixture = {
-  'name': 'glock',
-  'version': '1.8.7',
-  'private': true,
-  'description': 'an inexplicably hostile sample package',
-  'homepage': 'https://glo.ck',
-  'repository': 'https://github.com/npm/glo.ck',
-  'dependencies': {
-    'underscore': '1.5.1'
-  }
-}
 
 function cleanup () {
   process.chdir(tmpdir())

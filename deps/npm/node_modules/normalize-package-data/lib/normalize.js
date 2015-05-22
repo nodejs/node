@@ -4,7 +4,7 @@ var fixer = require("./fixer")
 var makeWarning = require("./make_warning")
 
 var fieldsToFix = ['name','version','description','repository','modules','scripts'
-                  ,'files','bin','man','bugs','keywords','readme','homepage']
+                  ,'files','bin','man','bugs','keywords','readme','homepage','license']
 var otherThingsToFix = ['dependencies','people', 'typos']
 
 var thingsToFix = fieldsToFix.map(function(fieldName) { 

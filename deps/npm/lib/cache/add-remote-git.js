@@ -267,7 +267,7 @@ function updateRemote (from, cloneURL, treeish, cachedRemote, cb) {
 }
 
 // branches and tags are both symbolic labels that can be attached to different
-// commits, so resolve the commitish to the current actual treeish the label
+// commits, so resolve the commit-ish to the current actual treeish the label
 // corresponds to
 //
 // important for shrinkwrap

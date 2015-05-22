@@ -13,6 +13,22 @@ var dir = path.resolve(__dirname, 'bundleddependencies')
 var pkg = path.resolve(dir, 'pkg-with-bundled')
 var dep = path.resolve(dir, 'a-bundled-dep')
 
+var pj = JSON.stringify({
+  name: 'pkg-with-bundled',
+  version: '1.0.0',
+  dependencies: {
+    'a-bundled-dep': 'file:../a-bundled-dep'
+  },
+  bundledDependencies: {
+    'a-bundled-dep': 'file:../a-bundled-dep'
+  }
+}, null, 2) + '\n'
+
+var pjDep = JSON.stringify({
+  name: 'a-bundled-dep',
+  version: '2.0.0'
+}, null, 2) + '\n'
+
 test('setup', function (t) {
   bootstrap()
   t.end()
@@ -44,22 +60,6 @@ test('cleanup', function (t) {
   cleanup()
   t.end()
 })
-
-var pj = JSON.stringify({
-  name: 'pkg-with-bundled',
-  version: '1.0.0',
-  dependencies: {
-    'a-bundled-dep': 'file:../a-bundled-dep'
-  },
-  bundledDependencies: {
-    'a-bundled-dep': 'file:../a-bundled-dep'
-  }
-}, null, 2) + '\n'
-
-var pjDep = JSON.stringify({
-  name: 'a-bundled-dep',
-  version: '2.0.0'
-}, null, 2) + '\n'
 
 function bootstrap () {
   mkdirp.sync(dir)

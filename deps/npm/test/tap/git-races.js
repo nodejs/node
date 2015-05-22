@@ -154,13 +154,6 @@ function setup (cb) {
   }
 }
 
-test('setup', function (t) {
-  setup(function (er) {
-    t.ifError(er, 'setup ran OK')
-    t.end()
-  })
-})
-
 // there are two (sic) valid trees that can result we don't care which one we
 // get in npm@2
 var oneTree = [
@@ -187,8 +180,23 @@ var otherTree = [
   ]
 ]
 
+function toSimple (tree) {
+  var deps = []
+  Object.keys(tree.dependencies || {}).forEach(function (dep) {
+    deps.push(toSimple(tree.dependencies[dep]))
+  })
+  return [ tree['name'] + '@' + tree['version'], deps ]
+}
+
+test('setup', function (t) {
+  setup(function (er) {
+    t.ifError(er, 'setup ran OK')
+    t.end()
+  })
+})
+
 test('correct versions are installed for git dependency', function (t) {
-  t.plan(4)
+  t.plan(3)
   t.comment('test for https://github.com/npm/npm/issues/7202')
   npm.commands.install([], function (er) {
     t.ifError(er, 'installed OK')
@@ -203,10 +211,3 @@ test('correct versions are installed for git dependency', function (t) {
   })
 })
 
-function toSimple (tree) {
-  var deps = []
-  Object.keys(tree.dependencies || {}).forEach(function (dep) {
-    deps.push(toSimple(tree.dependencies[dep]))
-  })
-  return [ tree['name'] + '@' + tree['version'], deps ]
-}

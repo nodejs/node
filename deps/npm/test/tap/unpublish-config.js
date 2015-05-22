@@ -36,6 +36,7 @@ test('setup', function (t) {
 
 test('cursory test of unpublishing with config', function (t) {
   var child
+  t.plan(4)
   http.createServer(function (req, res) {
     t.pass('got request on the fakey fake registry')
     this.close()
@@ -44,7 +45,6 @@ test('cursory test of unpublishing with config', function (t) {
       error: 'shh no tears, only dreams now'
     }))
     child.kill()
-    t.end()
   }).listen(common.port, function () {
     t.pass('server is listening')
 

@@ -1,6 +1,7 @@
 var fs = require('fs')
 var glob = require('glob')
 var path = require('path')
+var validateLicense = require('validate-npm-package-license')
 var validateName = require('validate-npm-package-name')
 var npa = require('npm-package-arg')
 
@@ -216,4 +217,11 @@ var license = package.license ||
               config.get('init.license') ||
               config.get('init-license') ||
               'ISC'
-exports.license = yes ? license : prompt('license', license)
+exports.license = yes ? license : prompt('license', license, function (data) {
+  var its = validateLicense(data)
+  if (its.validForNewPackages) return data
+  var errors = (its.errors || []).concat(its.warnings || [])
+  var er = new Error('Sorry, ' + errors.join(' and ') + '.')
+  er.notValid = true
+  return er
+})

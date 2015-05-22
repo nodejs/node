@@ -3,7 +3,7 @@ var test = require("tap").test
 var common = require("../common-tap.js")
 var opts = { cwd: __dirname }
 var binDir = "../../node_modules/.bin"
-var fixture = path.resolve(binDir)
+var fixture = path.resolve(__dirname, binDir)
 
 test('npm bin', function (t) {
   common.npm(["bin"], opts, function (err, code, stdout, stderr) {

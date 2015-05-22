@@ -15,6 +15,12 @@ var EXEC_OPTS = {
   cwd: target
 }
 
+var json = {
+  name    : "install-man",
+  version : "1.2.3",
+  man     : [ "./install-man.1" ]
+}
+
 test("setup", function (t) {
   setup()
   t.pass("setup ran")
@@ -49,12 +55,6 @@ test("clean", function (t) {
   t.pass("cleaned up")
   t.end()
 })
-
-var json = {
-  name    : "install-man",
-  version : "1.2.3",
-  man     : [ "./install-man.1" ]
-}
 
 function setup () {
   cleanup()

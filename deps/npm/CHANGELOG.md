@@ -1,3 +1,161 @@
+### v2.10.1 (2015-05-14):
+
+#### BUG FIXES & DOCUMENTATION TWEAKS
+
+* [`dc77520`](https://github.com/npm/npm/commit/dc7752013ffce13a3d3f13e518a0052c22fc1158)
+  When getting back a 404 from a request to a private registry that uses a
+  registry path that extends past the root
+  (`http://registry.enterprise.co/path/to/registry`), display the name of the
+  nonexistent package, rather than the first element in the registry API path.
+  Sorry, Artifactory users! ([@hayes](https://github.com/hayes))
+* [`f70dea9`](https://github.com/npm/npm/commit/f70dea9b4766f6eaa55012c3e8087e9cb04fd4ce)
+  Make clearer that `--registry` can be used on a per-publish basis to push a
+  package to a non-default registry. ([@mischkl](https://github.com/mischkl))
+* [`a3e26f5`](https://github.com/npm/npm/commit/a3e26f5b4465991a941a325468ab7725670d2a94)
+  Did you know that GitHub shortcuts can have commit-ishes included
+  (`org/repo#branch`)? They can! ([@iarna](https://github.com/iarna))
+* [`0e2c091`](https://github.com/npm/npm/commit/0e2c091a539b61fdc60423b6bbaaf30c24e4b1b8)
+  Some errors from `readPackage` were being swallowed, potentially leading to
+  invalid package trees on disk. ([@smikes](https://github.com/smikes))
+
+#### DEPENDENCY UPDATES! STILL! MORE! AGAIN!
+
+* [`0b901ad`](https://github.com/npm/npm/commit/0b901ad0811d84dda6ca0755a9adc8d47825edd0)
+  `lru-cache@2.6.3`: Removed some cruft from the published package.
+  ([@isaacs](https://github.com/isaacs))
+* [`d713e0b`](https://github.com/npm/npm/commit/d713e0b14930c563e3fdb6ac6323bae2a8924652)
+  `mkdirp@0.5.1`: Made compliant with `standard`, dropped support for Node 0.6,
+  added (Travis) support for Node 0.12 and io.js.
+  ([@isaacs](https://github.com/isaacs))
+* [`a2d6578`](https://github.com/npm/npm/commit/a2d6578b6554c5c9d48fe2006751759f4da57520)
+  `glob@1.0.3`: Updated to use `tap@1`. ([@isaacs](https://github.com/isaacs))
+* [`64cd1a5`](https://github.com/npm/npm/commit/64cd1a570aaa5f24ccba190948ec9456297c97f5)
+  `fstream@ 1.0.6`: Made compliant with [`standard`](http://npm.im/standard)
+  (done by [@othiym23](https://github.com/othiym23), and then debugged and
+  fixed by [@iarna](https://github.com/iarna)), and license changed to ISC.
+  ([@othiym23](https://github.com/othiym23) /
+  [@iarna](https://github.com/iarna))
+* [`b527a7c`](https://github.com/npm/npm/commit/b527a7c2ba3c4002f443dd2c536ff4ff41a38b86)
+  `which@1.1.1`: Callers can pass in their own `PATH` instead of relying on
+  `process.env`. ([@isaacs](https://github.com/isaacs))
+
+### v2.10.0 (2015-05-8):
+
+#### THE IMPLICATIONS ARE MORE PROFOUND THAN THEY APPEAR
+
+If you've done much development in The Enterprise®™, you know that keeping
+track of software licenses is far more important than one might expect / hope /
+fear. Tracking licenses is a hassle, and while many (if not most) of us have
+(reluctantly) gotten around to setting a license to use by default with all our
+new projects (even if it's just WTFPL), that's about as far as most of us think
+about it. In big enterprise shops, ensuring that projects don't inadvertently
+use software with unacceptably encumbered licenses is serious business, and
+developers spend a surprising (and appalling) amount of time ensuring that
+licensing is covered by writing automated checkers and other license auditing
+tools.
+
+The Linux Foundation has been working on a machine-parseable syntax for license
+expressions in the form of [SPDX](https://spdx.org/), an appropriately
+enterprisey acronym. IP attorney and JavaScript culture hero [Kyle
+Mitchell](http://kemitchell.com/) has put a considerable amount of effort into
+bringing SPDX to JavaScript and Node. He's written
+[`spdx.js`](https://github.com/kemitchell/spdx.js), a JavaScript SPDX
+expression parser, and has integrated it into npm in a few different ways.
+
+For you as a user of npm, this means:
+
+* npm now has proper support for dual licensing in `package.json`, due to
+  SPDX's compound expression syntax. Run `npm help package.json` for details.
+* npm will warn you if the `package.json` for your project is either missing a
+  `"license"` field, or if the value of that field isn't a valid SPDX
+  expression (pro tip: `"BSD"` becomes `"BSD-2-Clause"` in SPDX (unless you
+  really want one of its variants); `"MIT"` and `"ISC"` are fine as-is; the
+  [full list](https://github.com/shinnn/spdx-license-ids/blob/master/spdx-license-ids.json)
+  is its own package).
+* `npm init` now demands that you use a valid SPDX expression when using it
+  interactively (pro tip: I mostly use `npm init -y`, having previously run
+  `npm config set init.license=MIT` / `npm config set init.author.email=foo` /
+  `npm config set init.author.name=me`).
+* The documentation for `package.json` has been updated to tell you how to use
+  the `"license"` field properly with SPDX.
+
+In general, this shouldn't be a big deal for anybody other than people trying
+to run their own automated license validators, but in the long run, if
+everybody switches to this format, many people's lives will be made much
+simpler. I think this is an important improvement for npm and am very thankful
+to Kyle for taking the lead on this. Also, even if you think all of this is
+completely stupid, just [choose a license](http://en.wikipedia.org/wiki/License-free_software)
+anyway. Future you will thank past you someday, unless you are
+[djb](http://cr.yp.to/), in which case you are djb, and more power to you.
+
+* [`8669f7d`](https://github.com/npm/npm/commit/8669f7d88c472ccdd60e140106ac43cca636a648)
+  [#8179](https://github.com/npm/npm/issues/8179) Document how to use SPDX in
+  `license` stanzas in `package.json`, including how to migrate from old busted
+  license declaration arrays to fancy new compound-license clauses.
+  ([@kemitchell](https://github.com/kemitchell))
+* [`98ad98c`](https://github.com/npm/npm/commit/98ad98cb11f3d3ba29a488ef1ab050b066d9c7f6)
+  [#8197](https://github.com/npm/npm/issues/8197) `init-package-json@1.5.0`
+  Ensure that packages bootstrapped with `npm init` use an SPDX-compliant
+  license expression. ([@kemitchell](https://github.com/kemitchell))
+* [`2ad3905`](https://github.com/npm/npm/commit/2ad3905e9139b0be2b22accf707b814469de813e)
+  [#8197](https://github.com/npm/npm/issues/8197)
+  `normalize-package-data@2.1.0`: Warn when a package is missing a license
+  declaration, or using a license expression that isn't valid SPDX.
+  ([@kemitchell](https://github.com/kemitchell))
+* [`127bb73`](https://github.com/npm/npm/commit/127bb73ccccc59a1267851c702d8ebd3f3a97e81)
+  [#8197](https://github.com/npm/npm/issues/8197) `tar@2.1.1`: Switch from
+  `BSD` to `ISC` for license, where the latter is valid SPDX.
+  ([@othiym23](https://github.com/othiym23))
+* [`e9a933a`](https://github.com/npm/npm/commit/e9a933a9148180d9d799f99f4154f5110ff2cace)
+  [#8197](https://github.com/npm/npm/issues/8197) `once@1.3.2`: Switch from
+  `BSD` to `ISC` for license, where the latter is valid SPDX.
+  ([@othiym23](https://github.com/othiym23))
+* [`412401f`](https://github.com/npm/npm/commit/412401fb6a19b18f3e02d97a24d4dafed650c186)
+  [#8197](https://github.com/npm/npm/issues/8197) `semver@4.3.4`: Switch from
+  `BSD` to `ISC` for license, where the latter is valid SPDX.
+  ([@othiym23](https://github.com/othiym23))
+
+As a corollary to the previous changes, I've put some work into making `npm
+install` spew out fewer pointless warnings about missing values in transitive
+dependencies. From now on, npm will only warn you about missing READMEs,
+license fields, and the like for top-level projects (including packages you
+directly install into your application, but we may relax that eventually).
+
+Practically _nobody_ liked having those warnings displayed for child
+dependencies, for the simple reason that there was very little that anybody
+could _do_ about those warnings, unless they happened to be the maintainers of
+those dependencies themselves. Since many, many projects don't have
+SPDX-compliant licenses, the number of warnings reached a level where they ran
+the risk of turning into a block of visual noise that developers (read: me, and
+probably you) would ignore forever.
+
+So I fixed it. If you still want to see the messages about child dependencies,
+they're still there, but have been pushed down a logging level to `info`. You
+can display them by running `npm install -d` or `npm install --loglevel=info`.
+
+* [`eb18245`](https://github.com/npm/npm/commit/eb18245f55fb4cd62a36867744bcd1b7be0a33e2)
+  Only warn on normalization errors for top-level dependencies. Transitive
+  dependency validation warnings are logged at `info` level.
+  ([@othiym23](https://github.com/othiym23))
+
+#### BUG FIXES
+
+* [`e40e809`](https://github.com/npm/npm/commit/e40e8095d2bc9fa4eb8f01aa22067e0068fa8a54)
+  `tap@1.0.1`: TAP: The Next Generation. Fix up many tests to they work
+  properly with the new major version of `node-tap`. Look at all the colors!
+  ([@isaacs](https://github.com/isaacs))
+* [`f9314e9`](https://github.com/npm/npm/commit/f9314e97d26532c0ef2b03e98f3ed300b7cd5026)
+  `nock@1.9.0`: Minor tweaks and bug fixes. ([@pgte](https://github.com/pgte))
+* [`45c2b1a`](https://github.com/npm/npm/commit/45c2b1aaa051733fa352074994ae6e569fd51e8b)
+  [#8187](https://github.com/npm/npm/issues/8187) `npm ls` wasn't properly
+  recognizing dependencies installed from GitHub repositories as git
+  dependencies, and so wasn't displaying them as such.
+  ([@zornme](https://github.com/zornme))
+* [`1ab57c3`](https://github.com/npm/npm/commit/1ab57c38116c0403965c92bf60121f0f251433e4)
+  In some cases, `npm help` was using something that looked like a regular
+  expression where a glob pattern should be used, and vice versa.
+  ([@isaacs](https://github.com/isaacs))
+
 ### v2.9.1 (2015-04-30):
 
 #### WOW! MORE GIT FIXES! YOU LOVE THOSE!
