@@ -662,6 +662,7 @@ template <typename T, enum Endianness endianness,
 uint32_t WriteInt64Generic(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  CHECK(args[0]->IsObject());
   ARGS_THIS(args[0].As<Object>())
 
   T val;
@@ -732,6 +733,7 @@ template <enum Endianness endianness>
 uint32_t WritePointerGeneric(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  CHECK(args[0]->IsObject());
   ARGS_THIS(args[0].As<Object>())
 
   char* ptr;
@@ -929,6 +931,7 @@ void IsNull(const FunctionCallbackInfo<Value>& args) {
   if (!HasInstance(args[0]))
     return env->ThrowTypeError("first arg should be a Buffer");
 
+  CHECK(args[0]->IsObject());
   ARGS_THIS(args[0].As<Object>())
 
   uint32_t offset = args[1]->Uint32Value();
@@ -946,6 +949,7 @@ void Address(const FunctionCallbackInfo<Value>& args) {
   if (!HasInstance(args[0]))
     return env->ThrowTypeError("first arg should be a Buffer");
 
+  CHECK(args[0]->IsObject());
   ARGS_THIS(args[0].As<Object>())
 
   uint32_t offset = args[1]->Uint32Value();
