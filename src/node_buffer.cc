@@ -745,7 +745,7 @@ uint32_t WritePointerGeneric(const FunctionCallbackInfo<Value>& args) {
     return 0;
   }
 
-  char* ptr = static_cast<char*>(obj_data) + offset;
+  ptr = static_cast<char*>(obj_data) + offset;
 
   if (args[1]->IsNull()) {
     *reinterpret_cast<char**>(ptr) = nullptr;
