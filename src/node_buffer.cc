@@ -17,7 +17,7 @@
 #include <fstream>
 #include <string>
 #include <sstream>
-#include <iostream> // std::hex
+#include <iostream>  // std::hex
 
 #ifdef _WIN32
   #define strtoll _strtoi64
@@ -523,7 +523,8 @@ void ReadDoubleBE(const FunctionCallbackInfo<Value>& args) {
 
 
 template <typename T, enum Endianness endianness, T min, T max>
-void ReadInt64Generic(const FunctionCallbackInfo<Value>& args, const char* formatter) {
+void ReadInt64Generic(const FunctionCallbackInfo<Value>& args,
+                      const char* formatter) {
   Environment* env = Environment::GetCurrent(args);
 
   ARGS_THIS(args[0].As<Object>());
@@ -546,7 +547,7 @@ void ReadInt64Generic(const FunctionCallbackInfo<Value>& args, const char* forma
     // return a String
     char strbuf[20];
     int len = snprintf(strbuf, sizeof(strbuf), formatter, na.val);
-    args.GetReturnValue().Set( node::OneByteString(env->isolate(), strbuf, len) );
+    args.GetReturnValue().Set(node::OneByteString(env->isolate(), strbuf, len));
   } else {
     // return a Number
     args.GetReturnValue().Set(static_cast<double>(na.val));
@@ -555,12 +556,14 @@ void ReadInt64Generic(const FunctionCallbackInfo<Value>& args, const char* forma
 
 
 void ReadInt64LE(const FunctionCallbackInfo<Value>& args) {
-  ReadInt64Generic<int64_t, kLittleEndian, JS_MIN_INT, JS_MAX_INT>(args, "%" PRId64);
+  ReadInt64Generic<int64_t, kLittleEndian, JS_MIN_INT, JS_MAX_INT>(args,
+                                                                   "%" PRId64);
 }
 
 
 void ReadInt64BE(const FunctionCallbackInfo<Value>& args) {
-  ReadInt64Generic<int64_t, kBigEndian, JS_MIN_INT, JS_MAX_INT>(args, "%" PRId64);
+  ReadInt64Generic<int64_t, kBigEndian, JS_MIN_INT, JS_MAX_INT>(args,
+                                                                "%" PRId64);
 }
 
 
@@ -581,16 +584,17 @@ void ReadPointerGeneric(const FunctionCallbackInfo<Value>& args) {
 
   ARGS_THIS(args[0].As<Object>());
 
+  char* ptr;
   uint32_t offset = args[1]->Uint32Value();
-  CHECK_LE(offset + sizeof(char*), obj_length);
+  CHECK_LE(offset + sizeof(ptr), obj_length);
 
   size_t size = args[2]->Uint32Value();
 
-  char* ptr = static_cast<char*>(obj_data) + offset;
+  ptr = static_cast<char*>(obj_data) + offset;
 
   union NoAlias {
     char* val;
-    char bytes[sizeof(char*)];
+    char bytes[sizeof(ptr)];
   };
 
   union NoAlias na = { *reinterpret_cast<char**>(ptr) };
@@ -598,7 +602,7 @@ void ReadPointerGeneric(const FunctionCallbackInfo<Value>& args) {
   if (endianness != GetEndianness())
     Swizzle(na.bytes, sizeof(na.bytes));
 
-  args.GetReturnValue().Set( scope.Escape( Buffer::Use(env, na.val, size) ) );
+  args.GetReturnValue().Set(scope.Escape(Buffer::Use(env, na.val, size)));
 }
 
 
@@ -654,7 +658,8 @@ void WriteDoubleBE(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-template <typename T, enum Endianness endianness, T (*strtoT)(const char*, char**, int)>
+template <typename T, enum Endianness endianness,
+         T (*strtoT)(const char*, char**, int)>
 uint32_t WriteInt64Generic(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -664,7 +669,7 @@ uint32_t WriteInt64Generic(const FunctionCallbackInfo<Value>& args) {
   if (args[1]->IsNumber()) {
     val = args[1]->IntegerValue();
   } else if (args[1]->IsString()) {
-    // Have to do this because strtoll/strtoull doesn't set errno to 0 on success
+    // Have to do this because strt(u)oll doesn't set errno to 0 on success
     errno = 0;
     v8::String::Utf8Value str(args[1]);
     val = strtoT(*str, nullptr, 0);
@@ -702,21 +707,25 @@ uint32_t WriteInt64Generic(const FunctionCallbackInfo<Value>& args) {
 
 
 void WriteInt64LE(const FunctionCallbackInfo<Value>& args) {
-  args.GetReturnValue().Set(WriteInt64Generic<int64_t, kLittleEndian, strtoll>(args));
+  args.GetReturnValue().Set(WriteInt64Generic<int64_t, kLittleEndian,
+                                              strtoll>(args));
 }
 
 
 void WriteInt64BE(const FunctionCallbackInfo<Value>& args) {
-  args.GetReturnValue().Set(WriteInt64Generic<int64_t, kBigEndian, strtoll>(args));
+  args.GetReturnValue().Set(WriteInt64Generic<int64_t, kBigEndian,
+                                              strtoll>(args));
 }
 
 void WriteUInt64LE(const FunctionCallbackInfo<Value>& args) {
-  args.GetReturnValue().Set(WriteInt64Generic<uint64_t, kLittleEndian, strtoull>(args));
+  args.GetReturnValue().Set(WriteInt64Generic<uint64_t, kLittleEndian,
+                                              strtoull>(args));
 }
 
 
 void WriteUInt64BE(const FunctionCallbackInfo<Value>& args) {
-  args.GetReturnValue().Set(WriteInt64Generic<uint64_t, kBigEndian, strtoull>(args));
+  args.GetReturnValue().Set(WriteInt64Generic<uint64_t, kBigEndian,
+                                              strtoull>(args));
 }
 
 
@@ -726,8 +735,9 @@ uint32_t WritePointerGeneric(const FunctionCallbackInfo<Value>& args) {
 
   ARGS_THIS(args[0].As<Object>())
 
+  char* ptr;
   uint32_t offset = args[2]->Uint32Value();
-  CHECK_LE(offset + sizeof(char*), obj_length);
+  CHECK_LE(offset + sizeof(ptr), obj_length);
 
   if (!(args[1]->IsNull() || Buffer::HasInstance(args[1]))) {
     env->ThrowTypeError("value must be a Buffer instance or null");
@@ -743,10 +753,10 @@ uint32_t WritePointerGeneric(const FunctionCallbackInfo<Value>& args) {
     *reinterpret_cast<char**>(ptr) = input_ptr;
 
     if (endianness != GetEndianness())
-      Swizzle(ptr, sizeof(char*));
+      Swizzle(ptr, sizeof(ptr));
   }
 
-  return offset + sizeof(char*);
+  return offset + sizeof(ptr);
 }
 
 
@@ -945,7 +955,7 @@ void Address(const FunctionCallbackInfo<Value>& args) {
   char* ptr = obj_data + offset;
 
   // pointer-size * 2 (for hex printout) + 1 null byte
-  char strbuf[(sizeof(char*) * 2) + 1];
+  char strbuf[(sizeof(ptr) * 2) + 1];
 
   // using stringstream and std::hex here instead of printf(%#) because
   // of cross-platform differences experienced with the later
@@ -954,7 +964,8 @@ void Address(const FunctionCallbackInfo<Value>& args) {
 
   stream << std::hex << (uintptr_t)ptr << '\0';
 
-  args.GetReturnValue().Set( node::OneByteString(env->isolate(), strbuf, strlen(strbuf)) );
+  args.GetReturnValue().Set(node::OneByteString(env->isolate(),
+                            strbuf, strlen(strbuf)));
 }
 
 
