@@ -388,6 +388,11 @@ Creates a new client connection to the given `port` and `host` (old API) or
 
   - `session`: A `Buffer` instance, containing TLS session.
 
+  - `minDHSize`: Minimum size of DH parameter in bits to accept a TLS
+    connection. When a server offers DH parameter with a size less
+    than this, the TLS connection is destroyed and throws an
+    error. Default: 1024.
+
 The `callback` parameter will be added as a listener for the
 ['secureConnect'][] event.
 
