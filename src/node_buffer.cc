@@ -580,7 +580,6 @@ void ReadUInt64BE(const FunctionCallbackInfo<Value>& args) {
 template <enum Endianness endianness>
 void ReadPointerGeneric(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  EscapableHandleScope scope(env->isolate());
 
   ARGS_THIS(args[0].As<Object>());
 
@@ -602,7 +601,7 @@ void ReadPointerGeneric(const FunctionCallbackInfo<Value>& args) {
   if (endianness != GetEndianness())
     Swizzle(na.bytes, sizeof(na.bytes));
 
-  args.GetReturnValue().Set(scope.Escape(Buffer::Use(env, na.val, size)));
+  args.GetReturnValue().Set(Buffer::Use(env, na.val, size));
 }
 
 
