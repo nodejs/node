@@ -25,7 +25,7 @@ static void Dlopen(const FunctionCallbackInfo<Value>& args) {
 
   const char *filename;
   if (args[0]->IsNull()) {
-    filename = NULL;
+    filename = nullptr;
   } else if (args[0]->IsString()) {
     node::Utf8Value name(env->isolate(), args[0]);
     filename = *name;
