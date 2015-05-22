@@ -235,7 +235,7 @@ authors:
 	git add AUTHORS &&\
 	git commit -m "update AUTHORS" || true
 
-publish: link doc authors
+publish: authors link doc
 	@git push origin :v$(shell npm -v) 2>&1 || true
 	git clean -fd &&\
 	git push origin $(BRANCH) &&\

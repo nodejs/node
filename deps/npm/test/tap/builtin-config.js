@@ -32,6 +32,7 @@ test("setup", function (t) {
 test("install npm into first folder", function (t) {
   var args = ["install", npm, "-g",
               "--prefix=" + folder + "/first",
+              "--ignore-scripts",
               "--cache=" + folder + "/cache",
               "--no-spin",
               "--loglevel=silent",

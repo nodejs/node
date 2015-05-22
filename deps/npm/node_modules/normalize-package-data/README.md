@@ -93,6 +93,10 @@ If `name` field is given, the value of the name field must be a string. The stri
 
 If `version` field is given, the value of the version field must be a valid *semver* string, as determined by the `semver.valid` method. See [documentation for the semver module](https://github.com/isaacs/node-semver).
 
+### Rules for license field
+
+The `license` field should be a valid *SDPDX license expression* string, as determined by the `spdx.valid` method. See [documentation for the spdx module](https://github.com/kemitchell/spdx.js).
+
 ## Credits
 
 This package contains code based on read-package-json written by Isaac Z. Schlueter. Used with permisson.

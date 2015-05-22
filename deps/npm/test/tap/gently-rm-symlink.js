@@ -15,6 +15,17 @@ var EXEC_OPTS = {
   cwd : pkg
 }
 
+
+var index = "module.exports = function () { console.log('whoop whoop') }"
+
+var fixture = {
+  name: "@test/linked",
+  version: "1.0.0",
+  bin: {
+    linked: "./index.js"
+  }
+}
+
 test("setup", function (t) {
   cleanup()
   setup()
@@ -71,17 +82,6 @@ test("cleanup", function (t) {
 
   t.end()
 })
-
-
-var index = "module.exports = function () { console.log('whoop whoop') }"
-
-var fixture = {
-  name: "@test/linked",
-  version: "1.0.0",
-  bin: {
-    linked: "./index.js"
-  }
-}
 
 function verify (t, stdout) {
   var binPath = resolve(lnk, "bin", "linked")

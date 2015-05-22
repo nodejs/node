@@ -23,6 +23,31 @@ var json = {
   }
 }
 
+var fileFail = function () {
+/**package
+* { "name": "npm-test-peer-deps-file-invalid"
+* , "main": "index.js"
+* , "version": "1.2.3"
+* , "description":"This one should conflict with the other one"
+* , "peerDependencies": { "underscore": "1.3.3" }
+* }
+**/
+  module.exports = 'I\'m just a lonely index, naked as the day I was born.'
+}.toString().split('\n').slice(1, -1).join('\n')
+
+var fileOK = function () {
+/**package
+* { "name": "npm-test-peer-deps-file"
+* , "main": "index.js"
+* , "version": "1.2.3"
+* , "description":"No package.json in sight!"
+* , "peerDependencies": { "underscore": "1.3.1" }
+* , "dependencies": { "mkdirp": "0.3.5" }
+* }
+**/
+  module.exports = 'I\'m just a lonely index, naked as the day I was born.'
+}.toString().split('\n').slice(1, -1).join('\n')
+
 test('setup', function (t) {
   cleanup()
   mkdirp.sync(cache)
@@ -75,28 +100,3 @@ function cleanup () {
   process.chdir(osenv.tmpdir())
   rimraf.sync(pkg)
 }
-
-var fileFail = function () {
-/**package
-* { "name": "npm-test-peer-deps-file-invalid"
-* , "main": "index.js"
-* , "version": "1.2.3"
-* , "description":"This one should conflict with the other one"
-* , "peerDependencies": { "underscore": "1.3.3" }
-* }
-**/
-  module.exports = 'I\'m just a lonely index, naked as the day I was born.'
-}.toString().split('\n').slice(1, -1).join('\n')
-
-var fileOK = function () {
-/**package
-* { "name": "npm-test-peer-deps-file"
-* , "main": "index.js"
-* , "version": "1.2.3"
-* , "description":"No package.json in sight!"
-* , "peerDependencies": { "underscore": "1.3.1" }
-* , "dependencies": { "mkdirp": "0.3.5" }
-* }
-**/
-  module.exports = 'I\'m just a lonely index, naked as the day I was born.'
-}.toString().split('\n').slice(1, -1).join('\n')

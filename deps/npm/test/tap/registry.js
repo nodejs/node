@@ -30,7 +30,7 @@ else {
 
 
 function runTests () {
-  var env = {}
+  var env = { TAP: 1 }
   for (var i in process.env) env[i] = process.env[i]
   env.npm = npmExec
 
@@ -52,7 +52,7 @@ function runTests () {
         env: env,
         stdio: "inherit"
       }
-      common.npm(["test"], opts, function (err, code) {
+      common.npm(["test", "--", "-Rtap"], opts, function (err, code) {
         if (err) { throw err }
         if (code) {
           return test("need test to work", function (t) {

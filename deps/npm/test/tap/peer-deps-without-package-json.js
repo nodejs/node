@@ -14,6 +14,20 @@ var pkg = path.resolve(__dirname, 'peer-deps-without-package-json')
 var cache = path.resolve(pkg, 'cache')
 var nodeModules = path.resolve(pkg, 'node_modules')
 
+var fileJS = function () {
+/**package
+* { "name": "npm-test-peer-deps-file"
+* , "main": "index.js"
+* , "version": "1.2.3"
+* , "description":"No package.json in sight!"
+* , "peerDependencies": { "underscore": "1.3.1" }
+* , "dependencies": { "mkdirp": "0.3.5" }
+* }
+**/
+
+  module.exports = 'I\'m just a lonely index, naked as the day I was born.'
+}.toString().split('\n').slice(1, -1).join('\n')
+
 test('setup', function (t) {
   t.comment('test for https://github.com/npm/npm/issues/3049')
   cleanup()
@@ -65,17 +79,3 @@ function cleanup () {
   process.chdir(osenv.tmpdir())
   rimraf.sync(pkg)
 }
-
-var fileJS = function () {
-/**package
-* { "name": "npm-test-peer-deps-file"
-* , "main": "index.js"
-* , "version": "1.2.3"
-* , "description":"No package.json in sight!"
-* , "peerDependencies": { "underscore": "1.3.1" }
-* , "dependencies": { "mkdirp": "0.3.5" }
-* }
-**/
-
-  module.exports = 'I\'m just a lonely index, naked as the day I was born.'
-}.toString().split('\n').slice(1, -1).join('\n')

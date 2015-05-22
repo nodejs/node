@@ -21,9 +21,9 @@ fs.writeFileSync(pkg + "/fixture_npmrc",
 
 test(function (t) {
   var child
+  t.plan(4)
   require("http").createServer(function (req, res) {
     t.pass("got request on the fakey fake registry")
-    t.end()
     this.close()
     res.statusCode = 500
     res.end(JSON.stringify({

@@ -14,6 +14,58 @@ var pkgScopedLocal = path.resolve(pkg, 'another-local-module')
 var pkgLocalUnderscore = path.resolve(pkg, 'underscore')
 var pkgLocalOptimist = path.resolve(pkg, 'optimist')
 
+var pjParent = JSON.stringify({
+  name: 'outdated-local',
+  version: '1.0.0',
+  dependencies: {
+    'local-module': 'file:local-module', // updated locally, not on repo
+    '@scoped/another-local-module': 'file:another-local-module', // updated locally, scoped, not on repo
+    'underscore': 'file:underscore', // updated locally, updated but lesser version on repo
+    'optimist': 'file:optimist' // updated locally, updated and greater version on repo
+  }
+}, null, 2) + '\n'
+
+var pjLocal = JSON.stringify({
+  name: 'local-module',
+  version: '1.0.0'
+}, null, 2) + '\n'
+
+var pjLocalBumped = JSON.stringify({
+  name: 'local-module',
+  version: '1.1.0'
+}, null, 2) + '\n'
+
+var pjScopedLocal = JSON.stringify({
+  name: '@scoped/another-local-module',
+  version: '1.0.0'
+}, null, 2) + '\n'
+
+var pjScopedLocalBumped = JSON.stringify({
+  name: '@scoped/another-local-module',
+  version: '1.2.0'
+}, null, 2) + '\n'
+
+var pjLocalUnderscore = JSON.stringify({
+  name: 'underscore',
+  version: '1.3.1'
+}, null, 2) + '\n'
+
+var pjLocalUnderscoreBumped = JSON.stringify({
+  name: 'underscore',
+  version: '1.6.1'
+}, null, 2) + '\n'
+
+var pjLocalOptimist = JSON.stringify({
+  name: 'optimist',
+  version: '0.4.0'
+}, null, 2) + '\n'
+
+var pjLocalOptimistBumped = JSON.stringify({
+  name: 'optimist',
+  version: '0.5.0'
+}, null, 2) + '\n'
+
+
 function mocks (server) {
   server.get('/local-module')
     .reply(404)
@@ -111,57 +163,6 @@ test('cleanup', function (t) {
   cleanup()
   t.end()
 })
-
-var pjParent = JSON.stringify({
-  name: 'outdated-local',
-  version: '1.0.0',
-  dependencies: {
-    'local-module': 'file:local-module', // updated locally, not on repo
-    '@scoped/another-local-module': 'file:another-local-module', // updated locally, scoped, not on repo
-    'underscore': 'file:underscore', // updated locally, updated but lesser version on repo
-    'optimist': 'file:optimist' // updated locally, updated and greater version on repo
-  }
-}, null, 2) + '\n'
-
-var pjLocal = JSON.stringify({
-  name: 'local-module',
-  version: '1.0.0'
-}, null, 2) + '\n'
-
-var pjLocalBumped = JSON.stringify({
-  name: 'local-module',
-  version: '1.1.0'
-}, null, 2) + '\n'
-
-var pjScopedLocal = JSON.stringify({
-  name: '@scoped/another-local-module',
-  version: '1.0.0'
-}, null, 2) + '\n'
-
-var pjScopedLocalBumped = JSON.stringify({
-  name: '@scoped/another-local-module',
-  version: '1.2.0'
-}, null, 2) + '\n'
-
-var pjLocalUnderscore = JSON.stringify({
-  name: 'underscore',
-  version: '1.3.1'
-}, null, 2) + '\n'
-
-var pjLocalUnderscoreBumped = JSON.stringify({
-  name: 'underscore',
-  version: '1.6.1'
-}, null, 2) + '\n'
-
-var pjLocalOptimist = JSON.stringify({
-  name: 'optimist',
-  version: '0.4.0'
-}, null, 2) + '\n'
-
-var pjLocalOptimistBumped = JSON.stringify({
-  name: 'optimist',
-  version: '0.5.0'
-}, null, 2) + '\n'
 
 function bootstrap () {
   mkdirp.sync(pkg)

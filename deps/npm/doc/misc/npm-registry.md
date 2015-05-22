@@ -31,9 +31,10 @@ similar) design doc to implement the APIs.
 If you set up continuous replication from the official CouchDB, and then
 set your internal CouchDB as the registry config, then you'll be able
 to read any published packages, in addition to your private ones, and by
-default will only publish internally.  If you then want to publish a
-package for the whole world to see, you can simply override the
-`--registry` config for that command.
+default will only publish internally.
+
+If you then want to publish a package for the whole world to see, you can
+simply override the `--registry` option for that `publish` command.
 
 ## I don't want my package published in the official registry. It's private.
 

@@ -15,6 +15,7 @@ test('typos', function(t) {
 
   var expect =
     [ warningMessages.missingRepository,
+      warningMessages.missingLicense,
       typoMessage('dependancies', 'dependencies'),
       typoMessage('dependecies', 'dependencies'),
       typoMessage('depdenencies', 'dependencies'),
@@ -66,7 +67,8 @@ test('typos', function(t) {
       typoMessage("bugs['name']", "bugs['url']"),
       warningMessages.nonUrlBugsUrlField,
       warningMessages.emptyNormalizedBugs,
-      warningMessages.missingReadme ]
+      warningMessages.missingReadme,
+      warningMessages.missingLicense]
 
   normalize({name:"name"
             ,version:"1.2.5"
@@ -79,6 +81,7 @@ test('typos', function(t) {
     [ warningMessages.missingDescription,
       warningMessages.missingRepository,
       warningMessages.missingReadme,
+      warningMessages.missingLicense,
       typoMessage('script', 'scripts') ]
 
   normalize({name:"name"
@@ -93,7 +96,8 @@ test('typos', function(t) {
       warningMessages.missingRepository,
       typoMessage("scripts['server']", "scripts['start']"),
       typoMessage("scripts['tests']", "scripts['test']"),
-      warningMessages.missingReadme ]
+      warningMessages.missingReadme,
+      warningMessages.missingLicense]
 
   normalize({name:"name"
             ,version:"1.2.5"
@@ -105,7 +109,8 @@ test('typos', function(t) {
   expect =
     [ warningMessages.missingDescription,
       warningMessages.missingRepository,
-      warningMessages.missingReadme ]
+      warningMessages.missingReadme,
+      warningMessages.missingLicense]
 
   normalize({name:"name"
             ,version:"1.2.5"

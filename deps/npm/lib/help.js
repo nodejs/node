@@ -63,8 +63,11 @@ function help (args, cb) {
   else if (section === "json") section = "package.json"
 
   // find either /section.n or /npm-section.n
-  var compext = "\\.+(gz|bz2|lzma|[FYzZ]|xz)$"
-  var f = "+(npm-" + section + "|" + section + ").[0-9]?(" + compext + ")"
+  // The glob is used in the glob.  The regexp is used much
+  // further down.  Globs and regexps are different
+  var compextglob = ".+(gz|bz2|lzma|[FYzZ]|xz)"
+  var compextre = "\\.(gz|bz2|lzma|[FYzZ]|xz)$"
+  var f = "+(npm-" + section + "|" + section + ").[0-9]?(" + compextglob + ")"
   return glob(manroot + "/*/" + f, function (er, mans) {
     if (er) return cb(er)
 
@@ -72,7 +75,7 @@ function help (args, cb) {
 
     mans = mans.map(function (man) {
       var ext = path.extname(man)
-      if (man.match(new RegExp(compext))) man = path.basename(man, ext)
+      if (man.match(new RegExp(compextre))) man = path.basename(man, ext)
 
       return man
     })

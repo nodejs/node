@@ -17,6 +17,18 @@ var path = require("path")
 module.exports = addNamed
 
 function getOnceFromRegistry (name, from, next, done) {
+  function fixName(err, data, json, resp) {
+    // this is only necessary until npm/npm-registry-client#80 is fixed
+    if (err && err.pkgid && err.pkgid !== name) {
+      err.message = err.message.replace(
+        new RegExp(': ' + err.pkgid.replace(/(\W)/g, '\\$1') + '$'),
+        ': ' + name
+      )
+      err.pkgid = name
+    }
+    next(err, data, json, resp)
+  }
+
   mapToRegistry(name, npm.config, function (er, uri, auth) {
     if (er) return done(er)
 
@@ -25,7 +37,7 @@ function getOnceFromRegistry (name, from, next, done) {
     if (!next) return log.verbose(from, key, "already in flight; waiting")
     else log.verbose(from, key, "not in flight; fetching")
 
-    npm.registry.get(uri, { auth : auth }, next)
+    npm.registry.get(uri, { auth : auth }, fixName)
   })
 }
 
