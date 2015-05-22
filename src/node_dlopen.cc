@@ -11,7 +11,6 @@ using v8::Boolean;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Handle;
-using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
 using v8::Number;
@@ -23,7 +22,6 @@ using v8::Uint32;
 
 static void Dlopen(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  HandleScope scope(env->isolate());
 
   const char *filename;
   if (args[0]->IsNull()) {
@@ -49,7 +47,6 @@ static void Dlopen(const FunctionCallbackInfo<Value>& args) {
 
 static void Dlclose(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  HandleScope scope(env->isolate());
 
   if (!Buffer::HasInstance(args[0]))
     return env->ThrowTypeError("expected a Buffer instance as first argument");
@@ -63,7 +60,6 @@ static void Dlclose(const FunctionCallbackInfo<Value>& args) {
 
 static void Dlsym(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  HandleScope scope(env->isolate());
 
   if (!Buffer::HasInstance(args[0]))
     return env->ThrowTypeError("expected a Buffer instance as first argument");
@@ -88,7 +84,6 @@ static void Dlsym(const FunctionCallbackInfo<Value>& args) {
 
 static void Dlerror(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  HandleScope scope(env->isolate());
 
   if (!Buffer::HasInstance(args[0]))
     return env->ThrowTypeError("expected a Buffer instance as first argument");
