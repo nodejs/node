@@ -1134,6 +1134,7 @@ void SSLWrap<Base>::AddMethods(Environment* env, Local<FunctionTemplate> t) {
   env->SetProtoMethod(t, "newSessionDone", NewSessionDone);
   env->SetProtoMethod(t, "setOCSPResponse", SetOCSPResponse);
   env->SetProtoMethod(t, "requestOCSP", RequestOCSP);
+  env->SetProtoMethod(t, "getEphemeralKeyInfo", GetEphemeralKeyInfo);
 
 #ifdef SSL_set_max_send_fragment
   env->SetProtoMethod(t, "setMaxSendFragment", SetMaxSendFragment);
@@ -1741,6 +1742,50 @@ void SSLWrap<Base>::RequestOCSP(
 
   SSL_set_tlsext_status_type(w->ssl_, TLSEXT_STATUSTYPE_ocsp);
 #endif  // NODE__HAVE_TLSEXT_STATUS_CB
+}
+
+
+template <class Base>
+void SSLWrap<Base>::GetEphemeralKeyInfo(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Base* w = Unwrap<Base>(args.Holder());
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK_NE(w->ssl_, nullptr);
+
+  // tmp key is available on only client
+  if (w->is_server())
+    return args.GetReturnValue().SetNull();
+
+  Local<Object> info = Object::New(env->isolate());
+
+  EVP_PKEY* key;
+
+  if (SSL_get_server_tmp_key(w->ssl_, &key)) {
+    switch (EVP_PKEY_id(key)) {
+      case EVP_PKEY_DH:
+        info->Set(env->type_string(),
+                  FIXED_ONE_BYTE_STRING(env->isolate(), "DH"));
+        info->Set(env->size_string(),
+                  Integer::New(env->isolate(), EVP_PKEY_bits(key)));
+        break;
+      case EVP_PKEY_EC:
+        {
+          EC_KEY* ec = EVP_PKEY_get1_EC_KEY(key);
+          int nid = EC_GROUP_get_curve_name(EC_KEY_get0_group(ec));
+          EC_KEY_free(ec);
+          info->Set(env->type_string(),
+                    FIXED_ONE_BYTE_STRING(env->isolate(), "ECDH"));
+          info->Set(env->name_string(),
+                    OneByteString(args.GetIsolate(), OBJ_nid2sn(nid)));
+          info->Set(env->size_string(),
+                    Integer::New(env->isolate(), EVP_PKEY_bits(key)));
+        }
+    }
+    EVP_PKEY_free(key);
+  }
+
+  return args.GetReturnValue().Set(info);
 }
 
 
