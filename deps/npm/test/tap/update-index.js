@@ -13,74 +13,6 @@ var CACHE_DIR = path.resolve(PKG_DIR, 'cache')
 
 var server
 
-function setup (t, mock, extra) {
-  mkdirp.sync(CACHE_DIR)
-  mr({ port: common.port, plugin: mock }, function (er, s) {
-    npm.load({ cache: CACHE_DIR, registry: common.registry }, function (err) {
-      if (extra) {
-        Object.keys(extra).forEach(function (k) {
-          npm.config.set(k, extra[k], 'user')
-        })
-      }
-      t.ifError(err, 'no error')
-      server = s
-      t.end()
-    })
-  })
-}
-
-function cleanup (t) {
-  server.close(function () {
-    rimraf.sync(PKG_DIR)
-
-    t.end()
-  })
-}
-
-test('setup basic', function (t) {
-  setup(t, mocks.basic)
-})
-
-test('request basic', function (t) {
-  updateIndex(0, function (er) {
-    t.ifError(er, 'no error')
-    t.end()
-  })
-})
-
-test('cleanup basic', cleanup)
-
-test('setup auth', function (t) {
-  setup(t, mocks.auth)
-})
-
-test('request auth failure', function (t) {
-  updateIndex(0, function (er) {
-    t.equals(er.code, 'E401', 'gotta get that auth')
-    t.ok(/^unauthorized/.test(er.message), 'unauthorized message')
-    t.end()
-  })
-})
-
-test('cleanup auth failure', cleanup)
-
-test('setup auth', function (t) {
-  // mimic as if alwaysAuth had been set
-  setup(t, mocks.auth, {
-    _auth: new Buffer('bobby:tables').toString('base64'),
-    'always-auth': true
-  })
-})
-
-test('request auth success', function (t) {
-  updateIndex(0, function (er) {
-    t.ifError(er, 'no error')
-    t.end()
-  })
-})
-
-test('cleanup auth', cleanup)
-
 var mocks = {
   basic: function (mock) {
     mock.get('/-/all').reply(200, allMock)
@@ -193,3 +125,71 @@ var allMock = {
       }
   }
 }
+
+function setup (t, mock, extra) {
+  mkdirp.sync(CACHE_DIR)
+  mr({ port: common.port, plugin: mock }, function (er, s) {
+    npm.load({ cache: CACHE_DIR, registry: common.registry }, function (err) {
+      if (extra) {
+        Object.keys(extra).forEach(function (k) {
+          npm.config.set(k, extra[k], 'user')
+        })
+      }
+      t.ifError(err, 'no error')
+      server = s
+      t.end()
+    })
+  })
+}
+
+function cleanup (t) {
+  server.close(function () {
+    rimraf.sync(PKG_DIR)
+
+    t.end()
+  })
+}
+
+test('setup basic', function (t) {
+  setup(t, mocks.basic)
+})
+
+test('request basic', function (t) {
+  updateIndex(0, function (er) {
+    t.ifError(er, 'no error')
+    t.end()
+  })
+})
+
+test('cleanup basic', cleanup)
+
+test('setup auth', function (t) {
+  setup(t, mocks.auth)
+})
+
+test('request auth failure', function (t) {
+  updateIndex(0, function (er) {
+    t.equals(er.code, 'E401', 'gotta get that auth')
+    t.ok(/^unauthorized/.test(er.message), 'unauthorized message')
+    t.end()
+  })
+})
+
+test('cleanup auth failure', cleanup)
+
+test('setup auth', function (t) {
+  // mimic as if alwaysAuth had been set
+  setup(t, mocks.auth, {
+    _auth: new Buffer('bobby:tables').toString('base64'),
+    'always-auth': true
+  })
+})
+
+test('request auth success', function (t) {
+  updateIndex(0, function (er) {
+    t.ifError(er, 'no error')
+    t.end()
+  })
+})
+
+test('cleanup auth', cleanup)

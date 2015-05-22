@@ -13,6 +13,14 @@ var EXEC_OPTS = {
   cwd : pkg
 }
 
+var fixture = {
+  name: "@test/whoops",
+  version: "1.0.0",
+  scripts: {
+    postinstall: "echo \"nope\" && exit 1"
+  }
+}
+
 test("setup", function (t) {
   cleanup()
   setup()
@@ -39,14 +47,6 @@ test("cleanup", function (t) {
   t.end()
 })
 
-
-var fixture = {
-  name: "@test/whoops",
-  version: "1.0.0",
-  scripts: {
-    postinstall: "echo \"nope\" && exit 1"
-  }
-}
 
 function cleanup () {
   rimraf.sync(pkg)

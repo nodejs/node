@@ -644,7 +644,7 @@ function installManyTop_ (what, where, context, cb) {
         return path.resolve(nm, p, "package.json")
       }), function (jsonPath, cb) {
         log.verbose('installManyTop', 'reading scoped package data from', jsonPath)
-        readJson(jsonPath, log.warn, function (er, data) {
+        readJson(jsonPath, log.info, function (er, data) {
           if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
           if (er) return cb(null, [])
           cb(null, [[data.name, data.version]])
@@ -799,7 +799,7 @@ function targetResolver (where, context, deps, devDeps) {
       asyncMap(inst, function (pkg, cb) {
         var jsonPath = path.resolve(name, pkg, 'package.json')
         log.verbose('targetResolver', 'reading package data from', jsonPath)
-        readJson(jsonPath, log.warn, function (er, d) {
+        readJson(jsonPath, log.info, function (er, d) {
           if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
           // error means it's not a package, most likely.
           if (er) return cb(null, [])
@@ -892,7 +892,8 @@ function targetResolver (where, context, deps, devDeps) {
         return cb(null, [])
       }
 
-      var isGit = npa(what).type === "git"
+      var type = npa(what).type
+      var isGit = type === "git" || type === "hosted"
 
       if (!er &&
           data &&
@@ -918,7 +919,8 @@ function installOne (target, where, context, cb) {
   // the --link flag makes this a "link" command if it's at the
   // the top level.
   var isGit = false
-  if (target && target._from) isGit = npa(target._from).type === 'git'
+  var type = npa(target._from).type
+  if (target && target._from) isGit = type === 'git' || type === 'hosted'
 
   if (where === npm.prefix && npm.config.get("link")
       && !npm.config.get("global") && !isGit) {
@@ -1095,6 +1097,7 @@ function write (target, targetFolder, context, cb_) {
       // before continuing to installing dependencies, check for a shrinkwrap.
       var opt = { dev: npm.config.get("dev") }
       readDependencies(context, targetFolder, opt, function (er, data, wrap) {
+        if (er) return cb(er);
         var deps = prepareForInstallMany(data, "dependencies", bundled, wrap,
             family)
         var depsTargetFolder = targetFolder

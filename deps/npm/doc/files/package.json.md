@@ -17,14 +17,23 @@ them.  The name and version together form an identifier that is assumed
 to be completely unique.  Changes to the package should come along with
 changes to the version.
 
-The name is what your thing is called.  Some tips:
+The name is what your thing is called.
 
+Some rules:
+
+* The name must be shorter than 214 characters. This includes the scope for
+  scoped packages.
+* The name can't start with a dot or an underscore.
+* New packages must not have uppercase letters in the name.
+* The name ends up being part of a URL, an argument on the command line, and a
+  folder name. Therefore, the name can't contain any non-URL-safe characters.
+
+Some tips:
+
+* Don't use the same name as a core Node module.
 * Don't put "js" or "node" in the name.  It's assumed that it's js, since you're
   writing a package.json file, and you can specify the engine using the "engines"
   field.  (See below.)
-* The name ends up being part of a URL, an argument on the command line, and a
-  folder name. Any name with non-url-safe characters will be rejected.
-  Also, it can't start with a dot or an underscore.
 * The name will probably be passed as an argument to require(), so it should
   be something short, but also reasonably descriptive.
 * You may want to check the npm registry to see if there's something by that name
@@ -89,9 +98,8 @@ If a url is provided, it will be used by the `npm bugs` command.
 You should specify a license for your package so that people know how they are
 permitted to use it, and any restrictions you're placing on it.
 
-The simplest way, assuming you're using a common license such as BSD-3-Clause
-or MIT, is to just specify the standard SPDX ID of the license you're using,
-like this:
+If you're using a common license such as BSD-2-Clause or MIT, add a
+current SPDX license identifier for the license you're using, like this:
 
     { "license" : "BSD-3-Clause" }
 
@@ -99,8 +107,45 @@ You can check [the full list of SPDX license IDs](https://spdx.org/licenses/).
 Ideally you should pick one that is
 [OSI](http://opensource.org/licenses/alphabetical) approved.
 
-It's also a good idea to include a LICENSE file at the top level in
-your package.
+If your package is licensed under multiple common licenses, use an [SPDX license
+expression syntax version 2.0 string](http://npmjs.com/package/spdx), like this:
+
+    { "license" : "(ISC OR GPL-3.0)" }
+
+If you are using a license that hasn't been assigned an SPDX identifier, or if
+you are using a custom license, use the following valid SPDX expression:
+
+    { "license" : "LicenseRef-LICENSE" }
+
+Then include a LICENSE file at the top level of the package.
+
+Some old packages used license objects or a "licenses" property containing an
+array of license objects:
+
+    // Not valid metadata
+    { "license" :
+      { "type" : "ISC"
+      , "url" : "http://opensource.org/licenses/ISC"
+      }
+    }
+
+    // Not valid metadata
+    { "licenses" :
+      [
+        { "type": "MIT"
+        , "url": "http://www.opensource.org/licenses/mit-license.php"
+        }
+      , { "type": "Apache-2.0"
+        , "url": "http://opensource.org/licenses/apache2.0.php"
+        }
+      ]
+    }
+
+Those styles are now deprecated. Instead, use SPDX expressions, like this:
+
+    { "license": "ISC" }
+
+    { "license": "(MIT OR Apache-2.0)" }
 
 ## people fields: author, contributors
 

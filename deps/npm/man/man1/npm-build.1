@@ -18,7 +18,14 @@ A folder containing a \fBpackage\.json\fR file in its root\.
 .P
 This is the plumbing command called by \fBnpm link\fR and \fBnpm install\fR\|\.
 .P
-It should generally not be called directly\.
+It should generally be called during installation, but if you need to run it
+directly, run:
+.P
+.RS 2
+.nf
+npm run\-script build
+.fi
+.RE
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2

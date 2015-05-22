@@ -27,6 +27,19 @@ var EXEC_OPTS = {
   cwd : pkg
 }
 
+var gitignore = "node_modules/\n"
+var npmignore = "t.js\n"
+
+var a = "console.log('hi');"
+var t = "require('tap').test(function (t) { t.pass('I am a test!'); t.end(); });"
+var fixture = {
+  "name" : "gitch",
+  "version" : "1.0.0",
+  "private" : true,
+  "main" : "a.js"
+}
+
+
 test("setup", function (t) {
   setup(function (er) {
     t.ifError(er, "setup ran OK")
@@ -83,18 +96,6 @@ function packInstallTest (spec, t) {
       )
     }
   )
-}
-
-var gitignore = "node_modules/\n"
-var npmignore = "t.js\n"
-
-var a = "console.log('hi');"
-var t = "require('tap').test(function (t) { t.pass('I am a test!'); t.end(); });"
-var fixture = {
-  "name" : "gitch",
-  "version" : "1.0.0",
-  "private" : true,
-  "main" : "a.js"
 }
 
 function cleanup () {

@@ -19,11 +19,13 @@
   ,"nonStringDescription": "'description' field should be a string"
   ,"missingDescription": "No description"
   ,"missingReadme": "No README data"
+  ,"missingLicense": "No license field."
   ,"nonEmailUrlBugsString": "Bug string field must be url, email, or {email,url}"
   ,"nonUrlBugsUrlField": "bugs.url field must be a string url. Deleted."
   ,"nonEmailBugsEmailField": "bugs.email field must be a string email. Deleted."
   ,"emptyNormalizedBugs": "Normalized value of bugs field is an empty object. Deleted."
   ,"nonUrlHomepage": "homepage field must be a string url. Deleted."
+  ,"nonSPDXLicense": "license should be a valid SPDX license expression"
   ,"missingProtocolHomepage": "homepage field must start with a protocol."
   ,"typo": "%s should probably be %s."
 }
