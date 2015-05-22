@@ -71,12 +71,13 @@ static void Dlsym(const FunctionCallbackInfo<Value>& args) {
   Local<Object> buf = args[0].As<Object>();
   uv_lib_t *lib = reinterpret_cast<uv_lib_t *>(Buffer::Data(buf));
 
-  Local<Object> sym_buf = args[2].As<Object>();
-  void *sym = reinterpret_cast<void *>(Buffer::Data(sym_buf));
-
+  void *sym;
   node::Utf8Value name(env->isolate(), args[1]);
-
   int r = uv_dlsym(lib, *name, &sym);
+
+  Local<Object> sym_buf = args[2].As<Object>();
+
+  memcpy(Buffer::Data(sym_buf), &sym, sizeof(sym));
 
   args.GetReturnValue().Set(r);
 }
