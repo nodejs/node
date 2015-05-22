@@ -306,8 +306,12 @@ Calling `unref` on a socket will allow the program to exit if this is the only
 active socket in the event system. If the socket is already `unref`d calling
 `unref` again will have no effect.
 
+Returns `socket`.
+
 ### socket.ref()
 
 Opposite of `unref`, calling `ref` on a previously `unref`d socket will *not*
 let the program exit if it's the only socket left (the default behavior). If
 the socket is `ref`d calling `ref` again will have no effect.
+
+Returns `socket`.
