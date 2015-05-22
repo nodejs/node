@@ -14,11 +14,6 @@
 #include <errno.h>
 #include <limits.h>
 
-#include <fstream>
-#include <string>
-#include <sstream>
-#include <iostream>  // std::hex
-
 #ifdef _WIN32
   #define strtoll _strtoi64
   #define strtoull _strtoui64
@@ -959,13 +954,9 @@ void Address(const FunctionCallbackInfo<Value>& args) {
 
   // pointer-size * 2 (for hex printout) + 1 null byte
   char strbuf[(sizeof(ptr) * 2) + 1];
+  const uintptr_t pointer = reinterpret_cast<uintptr_t>(ptr);
 
-  // using stringstream and std::hex here instead of printf(%#) because
-  // of cross-platform differences experienced with the later
-  std::stringstream stream;
-  stream.rdbuf()->pubsetbuf(strbuf, sizeof(strbuf));
-
-  stream << std::hex << (uintptr_t)ptr << '\0';
+  snprintf(strbuf, sizeof(strbuf), "%lx", pointer);
 
   args.GetReturnValue().Set(node::OneByteString(env->isolate(),
                             strbuf, strlen(strbuf)));
