@@ -9,6 +9,7 @@ ecmaFeatures:
   binaryLiterals: true
   generators: true
   forOf: true
+  objectLiteralShorthandProperties: true
 
 rules:
   # Possible Errors
