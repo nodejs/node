@@ -125,7 +125,7 @@ var serverKey = loadPEM('agent2-key');
 var serverCert = loadPEM('agent2-cert');
 
 
-function runClient(port, options, cb) {
+function runClient(prefix, port, options, cb) {
 
   // Client can connect in three ways:
   // - Self-signed cert
@@ -135,7 +135,7 @@ function runClient(port, options, cb) {
   var args = ['s_client', '-connect', '127.0.0.1:' + port];
 
 
-  console.log('  connecting with', options.name);
+  console.log(prefix + '  connecting with', options.name);
 
   switch (options.name) {
     case 'agent1':
@@ -176,7 +176,7 @@ function runClient(port, options, cb) {
       break;
 
     default:
-      throw new Error('Unknown agent name');
+      throw new Error(prefix + 'Unknown agent name');
   }
 
   // To test use: openssl s_client -connect localhost:8000
@@ -193,7 +193,7 @@ function runClient(port, options, cb) {
     out += d;
 
     if (!goodbye && /_unauthed/g.test(out)) {
-      console.error('  * unauthed');
+      console.error(prefix + '  * unauthed');
       goodbye = true;
       client.stdin.end('goodbye\n');
       authed = false;
@@ -201,7 +201,7 @@ function runClient(port, options, cb) {
     }
 
     if (!goodbye && /_authed/g.test(out)) {
-      console.error('  * authed');
+      console.error(prefix + '  * authed');
       goodbye = true;
       client.stdin.end('goodbye\n');
       authed = true;
@@ -212,15 +212,17 @@ function runClient(port, options, cb) {
   //client.stdout.pipe(process.stdout);
 
   client.on('exit', function(code) {
-    //assert.equal(0, code, options.name +
+    //assert.equal(0, code, prefix + options.name +
     //      ": s_client exited with error code " + code);
     if (options.shouldReject) {
-      assert.equal(true, rejected, options.name +
+      assert.equal(true, rejected, prefix + options.name +
           ' NOT rejected, but should have been');
     } else {
-      assert.equal(false, rejected, options.name +
+      assert.equal(false, rejected, prefix + options.name +
           ' rejected, but should NOT have been');
-      assert.equal(options.shouldAuth, authed);
+      assert.equal(options.shouldAuth, authed, prefix +
+          options.name + ' authed is ' + authed +
+          ' but should have been ' + options.shouldAuth);
     }
 
     cb();
@@ -231,10 +233,11 @@ function runClient(port, options, cb) {
 // Run the tests
 var successfulTests = 0;
 function runTest(port, testIndex) {
+  var prefix = testIndex + ' ';
   var tcase = testCases[testIndex];
   if (!tcase) return;
 
-  console.error("Running '%s'", tcase.title);
+  console.error(prefix + "Running '%s'", tcase.title);
 
   var cas = tcase.CAs.map(loadPEM);
 
@@ -265,7 +268,7 @@ function runTest(port, testIndex) {
     if (tcase.renegotiate && !renegotiated) {
       renegotiated = true;
       setTimeout(function() {
-        console.error('- connected, renegotiating');
+        console.error(prefix + '- connected, renegotiating');
         c.write('\n_renegotiating\n');
         return c.renegotiate({
           requestCert: true,
@@ -281,11 +284,11 @@ function runTest(port, testIndex) {
 
     connections++;
     if (c.authorized) {
-      console.error('- authed connection: ' +
+      console.error(prefix + '- authed connection: ' +
                     c.getPeerCertificate().subject.CN);
       c.write('\n_authed\n');
     } else {
-      console.error('- unauthed connection: %s', c.authorizationError);
+      console.error(prefix + '- unauthed connection: %s', c.authorizationError);
       c.write('\n_unauthed\n');
     }
   });
@@ -293,7 +296,7 @@ function runTest(port, testIndex) {
   function runNextClient(clientIndex) {
     var options = tcase.clients[clientIndex];
     if (options) {
-      runClient(port, options, function() {
+      runClient(prefix + clientIndex + ' ', port, options, function() {
         runNextClient(clientIndex + 1);
       });
     } else {
@@ -305,14 +308,14 @@ function runTest(port, testIndex) {
 
   server.listen(port, function() {
     if (tcase.debug) {
-      console.error('TLS server running on port ' + port);
+      console.error(prefix + 'TLS server running on port ' + port);
     } else {
       if (tcase.renegotiate) {
         runNextClient(0);
       } else {
         var clientsCompleted = 0;
         for (var i = 0; i < tcase.clients.length; i++) {
-          runClient(port, tcase.clients[i], function() {
+          runClient(prefix + i + ' ', port, tcase.clients[i], function() {
             clientsCompleted++;
             if (clientsCompleted === tcase.clients.length) {
               server.close();
