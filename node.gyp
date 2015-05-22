@@ -121,7 +121,6 @@
         'src/pipe_wrap.cc',
         'src/signal_wrap.cc',
         'src/sizeof.cc',
-        'src/alignof.cc',
         'src/smalloc.cc',
         'src/spawn_sync.cc',
         'src/string_bytes.cc',
