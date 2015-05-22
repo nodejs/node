@@ -617,7 +617,7 @@ by `buf`, with its length set to `length`.
 Set `noAssert` to true to skip validation of `offset`. This means that `offset`
 may be beyond the end of the buffer. Defaults to `false`.
 
-__WARNING__: The "Pointer" family of functions relates to direct
+__WARNING__: The "Pointer" family of functions relate to direct
 memory access, which can easily get you into trouble (segmentation
 faults, etc.) if you don't know what you're doing. Generally these
 functions are only used in relation to the `dlopen` and `ffi` modules.
@@ -843,6 +843,11 @@ that `value` may be too large for the specific function and `offset` may be
 beyond the end of the buffer leading to the values being silently dropped. This
 should not be used unless you are certain of correctness. Defaults to `false`.
 
+__WARNING__: The "Pointer" family of functions relate to direct
+memory access, which can easily get you into trouble (segmentation
+faults, etc.) if you don't know what you're doing. Generally these
+functions are only used in relation to the `dlopen` and `ffi` modules.
+
 Example:
 
     var b = new Buffer('a');
@@ -853,7 +858,7 @@ Example:
 
     buf.writePointerBE(b, 0);
     // <Buffer@0x103032010 00 00 00 01 03 03 20 08>
-    //                              ^  ^  ^  ^  ^
+    //                               ^  ^  ^  ^  ^
     // notice the value here is the same as the address of `b`
 
 ### buf.fill(value[, offset][, end])
