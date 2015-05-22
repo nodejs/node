@@ -30,7 +30,9 @@ static void Dlopen(const FunctionCallbackInfo<Value>& args) {
     node::Utf8Value name(env->isolate(), args[0]);
     filename = *name;
   } else {
-    return env->ThrowTypeError("expected a string filename or null as first argument");
+    return env->ThrowTypeError(
+        "expected a string filename or null as first argument"
+    );
   }
 
   if (!Buffer::HasInstance(args[1]))
@@ -106,7 +108,8 @@ void Initialize(Handle<Object> target,
   env->SetMethod(target, "dlerror", Dlerror);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "sizeof_uv_lib_t"),
-              Uint32::NewFromUnsigned(env->isolate(), static_cast<uint32_t>(sizeof(uv_lib_t))));
+              Uint32::NewFromUnsigned(env->isolate(),
+                                      static_cast<uint32_t>(sizeof(uv_lib_t))));
 }
 
 }  // namespace dlopen
