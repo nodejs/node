@@ -118,12 +118,6 @@ size_t Length(Handle<Object> obj) {
   return obj->GetIndexedPropertiesExternalArrayDataLength();
 }
 
-Local<Object> WrapNullPointer(Environment* env) {
-  size_t buf_size = 0;
-  char *ptr = reinterpret_cast<char *>(NULL);
-  return Buffer::Use(env, ptr, buf_size);
-}
-
 Local<Object> New(Isolate* isolate, Handle<String> string, enum encoding enc) {
   EscapableHandleScope scope(isolate);
 
@@ -1003,7 +997,8 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
 
   // instantiate the static NULL pointer buffer here
   // (gets moved to "buffer" module exports in `lib/buffer.js`)
-  proto->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "NULL"), WrapNullPointer(env));
+  proto->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "NULL"),
+             Buffer::Use(env, nullptr, 0));
 }
 
 void Initialize(Handle<Object> target,
