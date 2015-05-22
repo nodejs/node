@@ -809,6 +809,19 @@ See SSL_CIPHER_get_name() and SSL_CIPHER_get_version() in
 http://www.openssl.org/docs/ssl/ssl.html#DEALING_WITH_CIPHERS for more
 information.
 
+### tlsSocket.getEphemeralKeyInfo()
+
+Returns an object representing a type, name and size of parameter of
+an ephemeral key exchange in [Perfect forward Secrecy][] on a client
+connection. It returns an empty object when the key exchange is not
+ephemeral. As it is only supported on a client socket, it returns null
+if this is called on a server socket. The supported types are 'DH' and
+'ECDH'. The `name` property is only available in 'ECDH'.
+
+Example:
+
+    { type: 'ECDH', name: 'prime256v1', size: 256 }
+
 ### tlsSocket.renegotiate(options, callback)
 
 Initiate TLS renegotiation process. The `options` may contain the following
@@ -887,6 +900,7 @@ The numeric representation of the local port.
 [net.Server.address()]: net.html#net_server_address
 ['secureConnect']: #tls_event_secureconnect
 [secureConnection]: #tls_event_secureconnection
+[Perfect Forward Secrecy]: #tls_perfect_forward_secrecy
 [Stream]: stream.html#stream_stream
 [SSL_METHODS]: http://www.openssl.org/docs/ssl/ssl.html#DEALING_WITH_PROTOCOL_METHODS
 [tls.Server]: #tls_class_tls_server
