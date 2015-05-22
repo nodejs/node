@@ -27,7 +27,7 @@ static void Dlopen(const FunctionCallbackInfo<Value>& args) {
   if (args[0]->IsNull()) {
     filename = NULL;
   } else if (args[0]->IsString()) {
-    String::Utf8Value name(args[0]);
+    node::Utf8Value name(env->isolate(), args[0]);
     filename = *name;
   } else {
     return env->ThrowTypeError("expected a string filename or null as first argument");
@@ -74,7 +74,7 @@ static void Dlsym(const FunctionCallbackInfo<Value>& args) {
   Local<Object> sym_buf = args[2].As<Object>();
   void *sym = reinterpret_cast<void *>(Buffer::Data(sym_buf));
 
-  String::Utf8Value name(args[1]);
+  node::Utf8Value name(env->isolate(), args[1]);
 
   int r = uv_dlsym(lib, *name, &sym);
 
