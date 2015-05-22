@@ -64,7 +64,7 @@ void Initialize(Handle<Object> exports,
   SET_TYPE(longlong, long long);
   SET_TYPE(ulonglong, unsigned long long);
   SET_TYPE(longdouble, long double);
-  SET_TYPE(pointer, char *);
+  SET_TYPE(pointer, char*);
   SET_TYPE(size_t, size_t);
 
 #undef SET_SIZEOF
