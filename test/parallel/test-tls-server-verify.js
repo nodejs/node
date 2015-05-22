@@ -125,14 +125,14 @@ var serverKey = loadPEM('agent2-key');
 var serverCert = loadPEM('agent2-cert');
 
 
-function runClient(options, cb) {
+function runClient(port, options, cb) {
 
   // Client can connect in three ways:
   // - Self-signed cert
   // - Certificate, but not signed by CA.
   // - Certificate signed by CA.
 
-  var args = ['s_client', '-connect', '127.0.0.1:' + common.PORT];
+  var args = ['s_client', '-connect', '127.0.0.1:' + port];
 
 
   console.log('  connecting with', options.name);
@@ -230,7 +230,7 @@ function runClient(options, cb) {
 
 // Run the tests
 var successfulTests = 0;
-function runTest(testIndex) {
+function runTest(port, testIndex) {
   var tcase = testCases[testIndex];
   if (!tcase) return;
 
@@ -293,31 +293,31 @@ function runTest(testIndex) {
   function runNextClient(clientIndex) {
     var options = tcase.clients[clientIndex];
     if (options) {
-      runClient(options, function() {
+      runClient(port, options, function() {
         runNextClient(clientIndex + 1);
       });
     } else {
       server.close();
       successfulTests++;
-      runTest(testIndex + 1);
+      runTest(port, nextTest++);
     }
   }
 
-  server.listen(common.PORT, function() {
+  server.listen(port, function() {
     if (tcase.debug) {
-      console.error('TLS server running on port ' + common.PORT);
+      console.error('TLS server running on port ' + port);
     } else {
       if (tcase.renegotiate) {
         runNextClient(0);
       } else {
         var clientsCompleted = 0;
         for (var i = 0; i < tcase.clients.length; i++) {
-          runClient(tcase.clients[i], function() {
+          runClient(port, tcase.clients[i], function() {
             clientsCompleted++;
             if (clientsCompleted === tcase.clients.length) {
               server.close();
               successfulTests++;
-              runTest(testIndex + 1);
+              runTest(port, nextTest++);
             }
           });
         }
@@ -327,7 +327,9 @@ function runTest(testIndex) {
 }
 
 
-runTest(0);
+var nextTest = 0;
+runTest(common.PORT, nextTest++);
+runTest(common.PORT + 1, nextTest++);
 
 
 process.on('exit', function() {
