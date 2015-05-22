@@ -525,7 +525,7 @@ void ReadDoubleBE(const FunctionCallbackInfo<Value>& args) {
 
 
 template <typename T, enum Endianness endianness, T min, T max>
-void ReadInt64Generic(const FunctionCallbackInfo<Value>& args, const char *formatter) {
+void ReadInt64Generic(const FunctionCallbackInfo<Value>& args, const char* formatter) {
   Environment* env = Environment::GetCurrent(args);
 
   ARGS_THIS(args[0].As<Object>());
@@ -584,7 +584,7 @@ void ReadPointerGeneric(const FunctionCallbackInfo<Value>& args) {
   ARGS_THIS(args[0].As<Object>());
 
   uint32_t offset = args[1]->Uint32Value();
-  CHECK_LE(offset + sizeof(char *), obj_length);
+  CHECK_LE(offset + sizeof(char*), obj_length);
 
   size_t size = args[2]->Uint32Value();
 
@@ -592,10 +592,10 @@ void ReadPointerGeneric(const FunctionCallbackInfo<Value>& args) {
 
   union NoAlias {
     char* val;
-    char bytes[sizeof(char**)];
+    char bytes[sizeof(char*)];
   };
 
-  union NoAlias na = { *reinterpret_cast<char **>(ptr) };
+  union NoAlias na = { *reinterpret_cast<char**>(ptr) };
 
   if (endianness != GetEndianness())
     Swizzle(na.bytes, sizeof(na.bytes));
@@ -656,7 +656,7 @@ void WriteDoubleBE(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-template <typename T, enum Endianness endianness, T (*strtoT)(const char *, char **, int)>
+template <typename T, enum Endianness endianness, T (*strtoT)(const char*, char**, int)>
 uint32_t WriteInt64Generic(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -729,7 +729,7 @@ uint32_t WritePointerGeneric(const FunctionCallbackInfo<Value>& args) {
   ARGS_THIS(args[0].As<Object>())
 
   uint32_t offset = args[2]->Uint32Value();
-  CHECK_LE(offset + sizeof(char *), obj_length);
+  CHECK_LE(offset + sizeof(char*), obj_length);
 
   if (!(args[1]->IsNull() || Buffer::HasInstance(args[1]))) {
     env->ThrowTypeError("value must be a Buffer instance or null");
@@ -739,16 +739,16 @@ uint32_t WritePointerGeneric(const FunctionCallbackInfo<Value>& args) {
   char* ptr = static_cast<char*>(obj_data) + offset;
 
   if (args[1]->IsNull()) {
-    *reinterpret_cast<char **>(ptr) = nullptr;
+    *reinterpret_cast<char**>(ptr) = nullptr;
   } else {
-    char *input_ptr = Buffer::Data(args[1].As<Object>());
-    *reinterpret_cast<char **>(ptr) = input_ptr;
+    char* input_ptr = Buffer::Data(args[1].As<Object>());
+    *reinterpret_cast<char**>(ptr) = input_ptr;
 
     if (endianness != GetEndianness())
-      Swizzle(ptr, sizeof(char *));
+      Swizzle(ptr, sizeof(char*));
   }
 
-  return offset + sizeof(char *);
+  return offset + sizeof(char*);
 }
 
 
@@ -927,7 +927,7 @@ void IsNull(const FunctionCallbackInfo<Value>& args) {
   uint32_t offset = args[1]->Uint32Value();
   CHECK_LE(offset, obj_length);
 
-  char *ptr = obj_data + offset;
+  char* ptr = obj_data + offset;
 
   args.GetReturnValue().Set(ptr == nullptr);
 }
@@ -944,10 +944,10 @@ void Address(const FunctionCallbackInfo<Value>& args) {
   uint32_t offset = args[1]->Uint32Value();
   CHECK_LE(offset, obj_length);
 
-  char *ptr = obj_data + offset;
+  char* ptr = obj_data + offset;
 
   // pointer-size * 2 (for hex printout) + 1 null byte
-  char strbuf[(sizeof(char *) * 2) + 1];
+  char strbuf[(sizeof(char*) * 2) + 1];
 
   // using stringstream and std::hex here instead of printf(%#) because
   // of cross-platform differences experienced with the later
