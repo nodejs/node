@@ -307,7 +307,21 @@ function runTest(testIndex) {
     if (tcase.debug) {
       console.error('TLS server running on port ' + common.PORT);
     } else {
-      runNextClient(0);
+      if (tcase.renegotiate) {
+        runNextClient(0);
+      } else {
+        var clientsCompleted = 0;
+        for (var i = 0; i < tcase.clients.length; i++) {
+          runClient(tcase.clients[i], function() {
+            clientsCompleted++;
+            if (clientsCompleted === tcase.clients.length) {
+              server.close();
+              successfulTests++;
+              runTest(testIndex + 1);
+            }
+          });
+        }
+      }
     }
   });
 }
