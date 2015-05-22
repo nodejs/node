@@ -10,14 +10,22 @@ Those are actually required, and your package won&#39;t install without
 them.  The name and version together form an identifier that is assumed
 to be completely unique.  Changes to the package should come along with
 changes to the version.</p>
-<p>The name is what your thing is called.  Some tips:</p>
+<p>The name is what your thing is called.</p>
+<p>Some rules:</p>
 <ul>
+<li>The name must be shorter than 214 characters. This includes the scope for
+scoped packages.</li>
+<li>The name can&#39;t start with a dot or an underscore.</li>
+<li>New packages must not have uppercase letters in the name.</li>
+<li>The name ends up being part of a URL, an argument on the command line, and a
+folder name. Therefore, the name can&#39;t contain any non-URL-safe characters.</li>
+</ul>
+<p>Some tips:</p>
+<ul>
+<li>Don&#39;t use the same name as a core Node module.</li>
 <li>Don&#39;t put &quot;js&quot; or &quot;node&quot; in the name.  It&#39;s assumed that it&#39;s js, since you&#39;re
 writing a package.json file, and you can specify the engine using the &quot;engines&quot;
 field.  (See below.)</li>
-<li>The name ends up being part of a URL, an argument on the command line, and a
-folder name. Any name with non-url-safe characters will be rejected.
-Also, it can&#39;t start with a dot or an underscore.</li>
 <li>The name will probably be passed as an argument to require(), so it should
 be something short, but also reasonably descriptive.</li>
 <li>You may want to check the npm registry to see if there&#39;s something by that name

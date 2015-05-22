@@ -13,7 +13,6 @@ runScript.completion = function (opts, cb) {
 
   // see if there's already a package specified.
   var argv = opts.conf.argv.remain
-    , installedShallow = require("./utils/completion/installed-shallow.js")
 
   if (argv.length >= 4) return cb()
 
@@ -41,33 +40,11 @@ runScript.completion = function (opts, cb) {
     })
   }
 
-  // complete against the installed-shallow, and the pwd's scripts.
-  // but only packages that have scripts
-  var installed
-    , scripts
-  installedShallow(opts, function (d) {
-    return d.scripts
-  }, function (er, inst) {
-    installed = inst
-    next()
-  })
-
-  if (npm.config.get("global")) {
-    scripts = []
-    next()
-  }
-  else readJson(path.join(npm.localPrefix, "package.json"), function (er, d) {
+  readJson(path.join(npm.localPrefix, "package.json"), function (er, d) {
     if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
     d = d || {}
-    scripts = Object.keys(d.scripts || {})
-    next()
+    cb(null, Object.keys(d.scripts || {}))
   })
-
-  function next () {
-    if (!installed || !scripts) return
-
-    cb(null, scripts.concat(installed))
-  }
 }
 
 function runScript (args, cb) {

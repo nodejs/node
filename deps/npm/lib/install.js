@@ -892,7 +892,7 @@ function targetResolver (where, context, deps, devDeps) {
         return cb(null, [])
       }
 
-      var isGit = npa(what).type === "git"
+      var isGit = (npa(what).type === "git" || npa(what).type === "hosted")
 
       if (!er &&
           data &&
@@ -918,7 +918,7 @@ function installOne (target, where, context, cb) {
   // the --link flag makes this a "link" command if it's at the
   // the top level.
   var isGit = false
-  if (target && target._from) isGit = npa(target._from).type === 'git'
+  if (target && target._from) isGit = (npa(target._from).type === 'git' || npa(target._from).type === 'hosted')
 
   if (where === npm.prefix && npm.config.get("link")
       && !npm.config.get("global") && !isGit) {

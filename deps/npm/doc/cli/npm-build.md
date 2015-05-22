@@ -12,7 +12,10 @@ npm-build(1) -- Build a package
 
 This is the plumbing command called by `npm link` and `npm install`.
 
-It should generally not be called directly.
+It should generally be called during installation, but if you need to run it
+directly, run:
+
+    npm run-script build
 
 ## SEE ALSO
 
