@@ -541,8 +541,9 @@ void ReadInt64Generic(const FunctionCallbackInfo<Value>& args,
   if (na.val < min || na.val > max) {
     // return a String
     char strbuf[20];
-    int len = snprintf(strbuf, sizeof(strbuf), formatter, na.val);
-    args.GetReturnValue().Set(node::OneByteString(env->isolate(), strbuf, len));
+    snprintf(strbuf, sizeof(strbuf), formatter, na.val);
+    args.GetReturnValue().Set(node::OneByteString(env->isolate(),
+                              strbuf, strlen(strbuf)));
   } else {
     // return a Number
     args.GetReturnValue().Set(static_cast<double>(na.val));
