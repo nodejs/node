@@ -577,6 +577,7 @@ template <enum Endianness endianness>
 void ReadPointerGeneric(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  CHECK(args[0]->IsObject());
   ARGS_THIS(args[0].As<Object>());
 
   char* ptr;
@@ -597,7 +598,11 @@ void ReadPointerGeneric(const FunctionCallbackInfo<Value>& args) {
   if (endianness != GetEndianness())
     Swizzle(na.bytes, sizeof(na.bytes));
 
-  args.GetReturnValue().Set(Buffer::Use(env, na.val, size));
+  if (na.val) {
+    args.GetReturnValue().Set(Buffer::Use(env, na.val, size));
+  } else {
+    args.GetReturnValue().Set(v8::Null(env->isolate()));
+  }
 }
 
 
