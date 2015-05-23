@@ -593,7 +593,8 @@ void ReadPointerGeneric(const FunctionCallbackInfo<Value>& args) {
     char bytes[sizeof(ptr)];
   };
 
-  union NoAlias na = { *reinterpret_cast<char**>(ptr) };
+  union NoAlias na;
+  memcpy(&na.val, ptr, sizeof(&ptr));
 
   if (endianness != GetEndianness())
     Swizzle(na.bytes, sizeof(na.bytes));
@@ -738,6 +739,7 @@ uint32_t WritePointerGeneric(const FunctionCallbackInfo<Value>& args) {
   ARGS_THIS(args[0].As<Object>())
 
   char* ptr;
+  char* input_ptr;
   uint32_t offset = args[2]->Uint32Value();
   CHECK_LE(offset + sizeof(ptr), obj_length);
 
@@ -746,17 +748,17 @@ uint32_t WritePointerGeneric(const FunctionCallbackInfo<Value>& args) {
     return 0;
   }
 
-  ptr = static_cast<char*>(obj_data) + offset;
-
   if (args[1]->IsNull()) {
-    *reinterpret_cast<char**>(ptr) = nullptr;
+    input_ptr = nullptr;
   } else {
-    char* input_ptr = Buffer::Data(args[1].As<Object>());
-    *reinterpret_cast<char**>(ptr) = input_ptr;
-
-    if (endianness != GetEndianness())
-      Swizzle(ptr, sizeof(ptr));
+    input_ptr = Buffer::Data(args[1].As<Object>());
   }
+
+  ptr = static_cast<char*>(obj_data) + offset;
+  memcpy(ptr, &input_ptr, sizeof(input_ptr));
+
+  if (endianness != GetEndianness())
+    Swizzle(ptr, sizeof(ptr));
 
   return offset + sizeof(ptr);
 }
