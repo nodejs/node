@@ -950,7 +950,7 @@ Returns a String representation of the hex address of the pointer in memory.
     var b = new Buffer(1);
 
     b.address();
-    // <Buffer@0x10202ee08 00>
+    // '10202ee08'
 
 ### buffer.values()
 
