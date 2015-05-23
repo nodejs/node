@@ -935,14 +935,9 @@ void Address(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
   ARGS_THIS(args[0].As<Object>())
 
-  uint32_t offset = args[1]->Uint32Value();
-  CHECK_LE(offset, obj_length);
-
-  char* ptr = obj_data + offset;
-
   // pointer-size * 2 (for hex printout) + 1 null byte
-  char strbuf[(sizeof(ptr) * 2) + 1];
-  const uintptr_t pointer = reinterpret_cast<uintptr_t>(ptr);
+  char strbuf[(sizeof(obj_data) * 2) + 1];
+  const uintptr_t pointer = reinterpret_cast<uintptr_t>(obj_data);
 
   snprintf(strbuf, sizeof(strbuf), "%lx", pointer);
 
