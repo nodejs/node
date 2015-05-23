@@ -1,4 +1,13 @@
-2015.05.13, Version 0.12.3 (Stable)
+2015.05.22, Version 0.12.4 (Stable)
+
+* npm: upgrade to 2.10.1
+
+* V8: revert v8 Array.prototype.values() removal (cjihrig)
+
+* win: bring back xp/2k3 support (Bert Belder)
+
+
+2015.05.13, Version 0.12.3 (Stable), 03431c7d7b4b4a3054ca8ae2cfa8009e3e84a2c7
 
 * V8: update to 3.28.71.19
 
