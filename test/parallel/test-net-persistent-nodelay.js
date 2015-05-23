@@ -24,7 +24,8 @@ echoServer.on('listening', function() {
   // setNoDelay before the handle is created
   // there is probably a better way to test this
 
-  sock1.setNoDelay();
+  var s = sock1.setNoDelay();
+  assert.ok(s instanceof net.Socket);
   sock1.connect(common.PORT);
   sock1.on('end', function() {
     assert.equal(callCount, 1);
