@@ -1172,3 +1172,12 @@ Buffer.poolSize = ps;
 assert.throws(function() {
   Buffer(10).copy();
 });
+
+// Test that Buffer#address() returns a hex string
+var b = new Buffer(1);
+
+// just assert that it's a lowercase hex value with length >= 1
+var hex = /[\da-f]+/;
+
+console.log(b.address());
+assert(hex.test(b.address()));
