@@ -208,8 +208,6 @@ class ContextifyContext {
                                              GlobalPropertyDeleterCallback,
                                              GlobalPropertyEnumeratorCallback,
                                              CreateDataWrapper(env));
-    object_template->SetAccessCheckCallbacks(GlobalPropertyNamedAccessCheck,
-                                             GlobalPropertyIndexedAccessCheck);
 
     Local<Context> ctx = Context::New(env->isolate(), nullptr, object_template);
     if (!ctx.IsEmpty())
@@ -340,22 +338,6 @@ class ContextifyContext {
     Local<External> context_external = context_external_v.As<External>();
 
     return static_cast<ContextifyContext*>(context_external->Value());
-  }
-
-
-  static bool GlobalPropertyNamedAccessCheck(Local<Object> host,
-                                             Local<Value> key,
-                                             AccessType type,
-                                             Local<Value> data) {
-    return true;
-  }
-
-
-  static bool GlobalPropertyIndexedAccessCheck(Local<Object> host,
-                                               uint32_t key,
-                                               AccessType type,
-                                               Local<Value> data) {
-    return true;
   }
 
 
