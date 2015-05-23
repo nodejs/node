@@ -823,7 +823,7 @@ Returns a new WriteStream object (See `Writable Stream`).
 `options` is an object with the following defaults:
 
     { flags: 'w',
-      encoding: null,
+      defaultEncoding: 'utf8',
       fd: null,
       mode: 0666 }
 
