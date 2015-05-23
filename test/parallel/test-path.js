@@ -190,7 +190,8 @@ var joinTests =
      [['/', '//foo'], '/foo'],
      [['/', '', '/foo'], '/foo'],
      [['', '/', 'foo'], '/foo'],
-     [['', '/', '/foo'], '/foo']
+     [['', '/', '/foo'], '/foo'],
+     [['', '/', '/foo', 7], '/foo/7']
     ];
 
 // Windows-specific join tests
@@ -263,11 +264,10 @@ function fail(fn) {
 
   assert.throws(function() {
     fn.apply(null, args);
-  }, TypeError);
+  }, TypeError, args + ' threw TypeError');
 }
 
 typeErrorTests.forEach(function(test) {
-  fail(path.join, test);
   fail(path.resolve, test);
   fail(path.normalize, test);
   fail(path.isAbsolute, test);
@@ -284,6 +284,11 @@ typeErrorTests.forEach(function(test) {
   // undefined is a valid value as the second argument to basename
   if (test !== undefined) {
     fail(path.basename, 'foo', test);
+  }
+
+  // numbers are valid arguments for join
+  if (typeof test !== 'number' || isNaN(test)) {
+    fail(path.join, test);
   }
 });
 
