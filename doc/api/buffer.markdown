@@ -510,7 +510,7 @@ specified endian format.
 
 If the value is greater than `Number.MAX_SAFE_INTEGER` then a String is
 returned, otherwise a Number is returned. Because of this, it is assumed
-that you will pass the return value to JavaScript Int64 module, rather
+that you will pass the return value to a JavaScript Int64 module, rather
 than interact with the value directly.
 
 Set `noAssert` to true to skip validation of `offset`. This means that `offset`
@@ -588,7 +588,7 @@ specified endian format.
 If the value is less than `Number.MIN_SAFE_INTEGER` or greater than
 `Number.MAX_SAFE_INTEGER` then a String is returned, otherwise a Number
 is returned. Because of this, it is assumed that you will pass the
-return value to JavaScript Int64 module, rather than interact with the
+return value to a JavaScript Int64 module, rather than interact with the
 value directly.
 
 Set `noAssert` to true to skip validation of `offset`. This means that `offset`
