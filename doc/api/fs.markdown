@@ -571,8 +571,6 @@ no-op, not an error.
 
 ## fs.watch(filename[, options][, listener])
 
-    Stability: 2 - Stable.
-
 Watch for changes on `filename`, where `filename` is either a file or a
 directory.  The returned object is a [fs.FSWatcher](#fs_class_fs_fswatcher).
 
