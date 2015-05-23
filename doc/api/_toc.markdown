@@ -10,6 +10,7 @@
 * [Console](console.html)
 * [Crypto](crypto.html)
 * [Debugger](debugger.html)
+* [Dlopen](dlopen.html)
 * [DNS](dns.html)
 * [Domain](domain.html)
 * [Errors](errors.html)
