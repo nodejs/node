@@ -926,24 +926,6 @@ void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void IsNull(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  if (!HasInstance(args[0]))
-    return env->ThrowTypeError("first arg should be a Buffer");
-
-  CHECK(args[0]->IsObject());
-  ARGS_THIS(args[0].As<Object>())
-
-  uint32_t offset = args[1]->Uint32Value();
-  CHECK_LE(offset, obj_length);
-
-  char* ptr = obj_data + offset;
-
-  args.GetReturnValue().Set(ptr == nullptr);
-}
-
-
 void Address(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1019,7 +1001,6 @@ void Initialize(Handle<Object> target,
   env->SetMethod(target, "indexOfBuffer", IndexOfBuffer);
   env->SetMethod(target, "indexOfNumber", IndexOfNumber);
   env->SetMethod(target, "indexOfString", IndexOfString);
-  env->SetMethod(target, "isNull", IsNull);
 
   env->SetMethod(target, "readDoubleBE", ReadDoubleBE);
   env->SetMethod(target, "readDoubleLE", ReadDoubleLE);
