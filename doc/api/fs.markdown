@@ -534,8 +534,6 @@ The synchronous version of `fs.appendFile`.
 
 ## fs.watchFile(filename[, options], listener)
 
-    Stability: 2 - Unstable.  Use fs.watch instead, if possible.
-
 Watch for changes on `filename`. The callback `listener` will be called each
 time the file is accessed.
 
@@ -558,9 +556,11 @@ These stat objects are instances of `fs.Stat`.
 If you want to be notified when the file was modified, not just accessed
 you need to compare `curr.mtime` and `prev.mtime`.
 
-## fs.unwatchFile(filename[, listener])
+_Note: `fs.watch` is more efficient than `fs.watchFile` and `fs.unwatchFile`.
+`fs.watch` should be used instead of `fs.watchFile` and `fs.unwatchFile`
+when possible._
 
-    Stability: 2 - Unstable.  Use fs.watch instead, if possible.
+## fs.unwatchFile(filename[, listener])
 
 Stop watching for changes on `filename`. If `listener` is specified, only that
 particular listener is removed. Otherwise, *all* listeners are removed and you
@@ -569,9 +569,11 @@ have effectively stopped watching `filename`.
 Calling `fs.unwatchFile()` with a filename that is not being watched is a
 no-op, not an error.
 
-## fs.watch(filename[, options][, listener])
+_Note: `fs.watch` is more efficient than `fs.watchFile` and `fs.unwatchFile`.
+`fs.watch` should be used instead of `fs.watchFile` and `fs.unwatchFile`
+when possible._
 
-    Stability: 2 - Unstable.
+## fs.watch(filename[, options][, listener])
 
 Watch for changes on `filename`, where `filename` is either a file or a
 directory.  The returned object is a [fs.FSWatcher](#fs_class_fs_fswatcher).
