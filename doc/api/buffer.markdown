@@ -665,7 +665,8 @@ Reads a pointer from the buffer by dereferencing at the specified
 offset with specified endian format.
 
 A new Buffer instance is returned at the memory address pointed to
-by `buf`, with its length set to `length`.
+by `buf`, with its length set to `length`. If the NULL pointer is
+read, then JS `null` is returned, and `length` is disregarded.
 
 Set `noAssert` to true to skip validation of `offset`. This means that `offset`
 may be beyond the end of the buffer. Defaults to `false`.
@@ -678,10 +679,20 @@ functions are only used in relation to the `dlopen` and `ffi` modules.
 Example:
 
     // assume `buf` is a pointer to some external `int` data
-    var intBuf = buf.readPointer(0, ffi.sizeof.int);
+    var intBuf = buf.readPointerLE(0, ffi.sizeof.int);
+
+    console.log(intBuf);
+    // <Buffer@0x102832010 06 00 00 00>
 
     console.log(intBuf.readInt32LE(0));
     // 6
+
+
+    // if a NULL pointer is read, then JS `null` is returned
+    buf.fill(0);
+
+    console.log(buf.readPointerLE(0));
+    // null
 
 ### buf.writeUInt8(value, offset[, noAssert])
 
@@ -904,15 +915,20 @@ functions are only used in relation to the `dlopen` and `ffi` modules.
 Example:
 
     var b = new Buffer('a');
-    // <Buffer@0x103032008 61>
+    console.log(b.address());
+    // '103032008'
 
     var b2 = new Buffer(ffi.sizeof.pointer);
-    // <Buffer@0x103032010 00 00 00 00 00 00 00 00>
 
     buf.writePointerBE(b, 0);
     // <Buffer@0x103032010 00 00 00 01 03 03 20 08>
     //                               ^  ^  ^  ^  ^
     // notice the value here is the same as the address of `b`
+
+
+    // if null is given, then a NULL pointer is written
+    buf.writePointerBE(null, 0);
+    // <Buffer@0x103032010 00 00 00 00 00 00 00 00>
 
 ### buf.fill(value[, offset][, end])
 
