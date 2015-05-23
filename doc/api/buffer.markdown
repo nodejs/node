@@ -213,7 +213,7 @@ Supports up to 48 bits of accuracy. For example:
 
     var b = new Buffer(6);
     b.writeUIntBE(0x1234567890ab, 0, 6);
-    // <Buffer 12 34 56 78 90 ab>
+    // <Buffer@0x102800408 12 34 56 78 90 ab>
 
 Set `noAssert` to `true` to skip validation of `value` and `offset`. Defaults
 to `false`.
@@ -283,7 +283,7 @@ Example:
       });
 
     console.log(copy);
-    // <Buffer 74 65 73 74>
+    // <Buffer@0x102800408 74 65 73 74>
 
 ### buf[index]
 
@@ -718,7 +718,7 @@ Example:
 
     console.log(buf);
 
-    // <Buffer 03 04 23 42>
+    // <Buffer@0x102800408 03 04 23 42>
 
 ### buf.writeUInt16LE(value, offset[, noAssert])
 ### buf.writeUInt16BE(value, offset[, noAssert])
@@ -748,8 +748,8 @@ Example:
 
     console.log(buf);
 
-    // <Buffer de ad be ef>
-    // <Buffer ad de ef be>
+    // <Buffer@0x102800408 de ad be ef>
+    // <Buffer@0x102800408 ad de ef be>
 
 ### buf.writeUInt32LE(value, offset[, noAssert])
 ### buf.writeUInt32BE(value, offset[, noAssert])
@@ -777,8 +777,8 @@ Example:
 
     console.log(buf);
 
-    // <Buffer fe ed fa ce>
-    // <Buffer ce fa ed fe>
+    // <Buffer@0x102800408 fe ed fa ce>
+    // <Buffer@0x102800408 ce fa ed fe>
 
 ### buf.writeUInt64LE(value, offset[, noAssert])
 ### buf.writeUInt64BE(value, offset[, noAssert])
@@ -903,8 +903,8 @@ Example:
 
     console.log(buf);
 
-    // <Buffer 4f 4a fe bb>
-    // <Buffer bb fe 4a 4f>
+    // <Buffer@0x102800408 4f 4a fe bb>
+    // <Buffer@0x102800408 bb fe 4a 4f>
 
 ### buf.writeDoubleLE(value, offset[, noAssert])
 ### buf.writeDoubleBE(value, offset[, noAssert])
@@ -932,8 +932,8 @@ Example:
 
     console.log(buf);
 
-    // <Buffer 43 eb d5 b7 dd f9 5f d7>
-    // <Buffer d7 5f f9 dd b7 d5 eb 43>
+    // <Buffer@0x102800408 43 eb d5 b7 dd f9 5f d7>
+    // <Buffer@0x102800408 d7 5f f9 dd b7 d5 eb 43>
 
 ### buf.writePointerLE(pointer, offset[, noAssert])
 ### buf.writePointerBE(pointer, offset[, noAssert])
