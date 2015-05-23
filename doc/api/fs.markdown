@@ -534,7 +534,7 @@ The synchronous version of `fs.appendFile`.
 
 ## fs.watchFile(filename[, options], listener)
 
-    Stability: 2 - Unstable.  Use fs.watch instead, if possible.
+    Stability: 2 - Stable.  Use fs.watch instead, if possible.
 
 Watch for changes on `filename`. The callback `listener` will be called each
 time the file is accessed.
@@ -560,7 +560,7 @@ you need to compare `curr.mtime` and `prev.mtime`.
 
 ## fs.unwatchFile(filename[, listener])
 
-    Stability: 2 - Unstable.  Use fs.watch instead, if possible.
+    Stability: 2 - Stable.  Use fs.watch instead, if possible.
 
 Stop watching for changes on `filename`. If `listener` is specified, only that
 particular listener is removed. Otherwise, *all* listeners are removed and you
@@ -571,7 +571,7 @@ no-op, not an error.
 
 ## fs.watch(filename[, options][, listener])
 
-    Stability: 2 - Unstable.
+    Stability: 2 - Stable.
 
 Watch for changes on `filename`, where `filename` is either a file or a
 directory.  The returned object is a [fs.FSWatcher](#fs_class_fs_fswatcher).
