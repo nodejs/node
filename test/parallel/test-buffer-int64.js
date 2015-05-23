@@ -73,4 +73,14 @@ var buf = new Buffer(8);
     var val = '18446744073709551616';
     buf['writeUInt64' + endianness](val, 0);
   }, RangeError);
+
+  // should throw a TypeError upon invalid input
+  assert.throws(function () {
+    buf['writeInt64' + endianness]('bad', 0);
+  }, TypeError);
+
+  // should throw a TypeError upon invalid input
+  assert.throws(function () {
+    buf['writeUInt64' + endianness]('bad', 0);
+  }, TypeError);
 });
