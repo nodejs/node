@@ -389,7 +389,7 @@ fs.readFile('/some/file/that/does-not-exist', function nodeStyleCallback(err, da
 
 fs.readFile('/some/file/that/does-exist', function(err, data) {
   console.log(err)  // null
-  console.log(data) // <Buffer: ba dd ca fe>
+  console.log(data) // <Buffer@0x102800408 ba dd ca fe>
 })
 ```
 
