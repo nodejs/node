@@ -1003,11 +1003,6 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   proto->ForceSet(env->offset_string(),
                   Uint32::New(env->isolate(), 0),
                   v8::ReadOnly);
-
-  // instantiate the static NULL pointer buffer here
-  // (gets moved to "buffer" module exports in `lib/buffer.js`)
-  proto->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "NULL"),
-             Buffer::Use(env, nullptr, 0));
 }
 
 void Initialize(Handle<Object> target,
