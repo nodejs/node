@@ -943,6 +943,15 @@ buffer.
     var b = new Buffer(50);
     b.fill("h");
 
+### buffer.address()
+
+Returns a String representation of the hex address of the pointer in memory.
+
+    var b = new Buffer(1);
+
+    b.address();
+    // <Buffer@0x10202ee08 00>
+
 ### buffer.values()
 
 Creates iterator for buffer values (bytes). This function is called automatically
