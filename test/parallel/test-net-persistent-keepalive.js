@@ -18,7 +18,8 @@ echoServer.on('listening', function() {
   var clientConnection = new net.Socket();
   // send a keepalive packet after 1000 ms
   // and make sure it persists
-  clientConnection.setKeepAlive(true, 400);
+  var s = clientConnection.setKeepAlive(true, 400);
+  assert.ok(s instanceof net.Socket);
   clientConnection.connect(common.PORT);
   clientConnection.setTimeout(0);
 

@@ -464,6 +464,8 @@ algorithm, they buffer data before sending it off. Setting `true` for
 `noDelay` will immediately fire off data each time `socket.write()` is called.
 `noDelay` defaults to `true`.
 
+Returns `socket`.
+
 ### socket.setKeepAlive([enable][, initialDelay])
 
 Enable/disable keep-alive functionality, and optionally set the initial
@@ -474,6 +476,8 @@ Set `initialDelay` (in milliseconds) to set the delay between the last
 data packet received and the first keepalive probe. Setting 0 for
 initialDelay will leave the value unchanged from the default
 (or previous) setting. Defaults to `0`.
+
+Returns `socket`.
 
 ### socket.address()
 
