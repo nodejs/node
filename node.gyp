@@ -651,6 +651,16 @@
       'sources': [
         'test/cctest/util.cc',
       ],
-    }
+    },
+
+    # "libtest" dynamic library for "dlopen" tests
+    {
+      'target_name': 'test',
+      'type': 'shared_library',
+      'product_prefix': 'lib',
+      'sources': [
+        'test/libtest/libtest.c'
+      ],
+    },
   ] # end targets
 }
