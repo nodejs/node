@@ -24,4 +24,4 @@ EXPORT uint64_t factorial(int max) {
   return result;
 }
 
-EXPORT intptr_t factorial_addr = (intptr_t)factorial;
+EXPORT uintptr_t factorial_addr = (uintptr_t)factorial;
