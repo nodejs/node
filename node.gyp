@@ -91,6 +91,7 @@
       'include_dirs': [
         'src',
         'tools/msvs/genfiles',
+        'deps/memslab',
         'deps/uv/src/ares',
         '<(SHARED_INTERMEDIATE_DIR)', # for node_natives.h
         'deps/v8' # include/v8_platform.h
@@ -131,6 +132,7 @@
         'src/process_wrap.cc',
         'src/udp_wrap.cc',
         'src/uv.cc',
+        'deps/memslab/imembase.c',
         # headers to make for a more pleasant IDE experience
         'src/async-wrap.h',
         'src/async-wrap-inl.h',
@@ -168,6 +170,7 @@
         'src/util.h',
         'src/util-inl.h',
         'src/util.cc',
+        'deps/memslab/imembase.h',
         'deps/http_parser/http_parser.h',
         'deps/v8/include/v8.h',
         'deps/v8/include/v8-debug.h',

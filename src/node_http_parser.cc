@@ -1,6 +1,7 @@
 #include "node.h"
 #include "node_buffer.h"
 #include "node_http_parser.h"
+#include "imembase.h"
 
 #include "base-object.h"
 #include "base-object-inl.h"
@@ -90,7 +91,7 @@ struct StringPtr {
   // to leak references. See issue #2438 and test-http-parser-bad-ref.js.
   void Save() {
     if (!on_heap_ && size_ > 0) {
-      char* s = new char[size_];
+      char* s = (char*)ikmem_malloc(size_);
       memcpy(s, str_, size_);
       str_ = s;
       on_heap_ = true;
@@ -100,7 +101,7 @@ struct StringPtr {
 
   void Reset() {
     if (on_heap_) {
-      delete[] str_;
+      ikmem_free((void*)str_);
       on_heap_ = false;
     }
 
@@ -114,14 +115,10 @@ struct StringPtr {
       str_ = str;
     else if (on_heap_ || str_ + size_ != str) {
       // Non-consecutive input, make a copy on the heap.
-      // TODO(bnoordhuis) Use slab allocation, O(n) allocs is bad.
-      char* s = new char[size_ + size];
-      memcpy(s, str_, size_);
+      char* s = (char*)ikmem_realloc((void*)str_, size_ + size);
       memcpy(s + size_, str, size);
 
-      if (on_heap_)
-        delete[] str_;
-      else
+      if (!on_heap_)
         on_heap_ = true;
 
       str_ = s;

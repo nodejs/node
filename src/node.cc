@@ -41,6 +41,7 @@
 #include "v8-debug.h"
 #include "v8-profiler.h"
 #include "zlib.h"
+#include "imembase.h"
 
 #include <errno.h>
 #include <limits.h>  // PATH_MAX
@@ -3597,6 +3598,9 @@ void Init(int* argc,
           const char** argv,
           int* exec_argc,
           const char*** exec_argv) {
+
+  ikmem_init(0, 0, 0);
+
   // Initialize prog_start_time to get relative uptime.
   prog_start_time = static_cast<double>(uv_now(uv_default_loop()));
 
@@ -3989,6 +3993,8 @@ int Start(int argc, char** argv) {
 
   delete[] exec_argv;
   exec_argv = nullptr;
+
+  ikmem_destroy();
 
   return exit_code;
 }
