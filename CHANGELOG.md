@@ -1,6 +1,6 @@
 # io.js ChangeLog
 
-## 2015-05-24, Version 2.0.3, @rvagg
+## 2015-05-24, Version 2.1.0, @rvagg
 
 ### Notable changes
 
