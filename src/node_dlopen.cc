@@ -31,8 +31,7 @@ static void Dlopen(const FunctionCallbackInfo<Value>& args) {
     filename = *name;
   } else {
     return env->ThrowTypeError(
-        "expected a string filename or null as first argument"
-    );
+        "expected a string filename or null as first argument");
   }
 
   if (!Buffer::HasInstance(args[1]))
