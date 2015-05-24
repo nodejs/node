@@ -22,7 +22,6 @@ See https://github.com/nodejs/io.js/labels/confirmed-bug for complete and curren
 
 ### Commits
 
-* [[`a3ee6a5ad2`](https://github.com/nodejs/io.js/commit/a3ee6a5ad2)] - **(SEMVER-MAJOR)** 2015-05-24 io.js v2.1.0 Release (Rod Vagg) [iojs/io.js#1532](https://github.com/iojs/io.js/pull/1532)
 * [[`9da168b71f`](https://github.com/nodejs/io.js/commit/9da168b71f)] - **buffer**: optimize Buffer.byteLength (Brendan Ashworth) [#1713](https://github.com/nodejs/io.js/pull/1713)
 * [[`2b1c01c2cc`](https://github.com/nodejs/io.js/commit/2b1c01c2cc)] - **build**: refactor pkg-config for shared libraries (Johan Bergström) [#1603](https://github.com/nodejs/io.js/pull/1603)
 * [[`3c44100558`](https://github.com/nodejs/io.js/commit/3c44100558)] - **core**: set PROVIDER type as Persistent class id (Trevor Norris) [#1730](https://github.com/nodejs/io.js/pull/1730)
