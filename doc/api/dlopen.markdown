@@ -6,6 +6,17 @@ Dynamic library loader module.
 
 Use `require('dlopen')` to access this module.
 
+## dlopen.extension
+
+* String
+
+File extension used for dynamic libraries.
+
+For example, on Mac OS X:
+
+    console.log(dlopen.extension);
+    // '.dylib'
+
 ## dlopen.dlopen(name)
 
 * `name` String or `null` - library filename
