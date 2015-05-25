@@ -11,6 +11,7 @@
 #endif  // __MINGW32__
 
 #ifdef __POSIX__
+# include <limits.h>        // PATH_MAX on Solaris.
 # include <netdb.h>         // MAXHOSTNAMELEN on Solaris.
 # include <unistd.h>        // gethostname, sysconf
 # include <sys/param.h>     // MAXHOSTNAMELEN on Linux and the BSDs.
@@ -271,6 +272,25 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+static void GetHomeDirectory(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  char buf[PATH_MAX];
+
+  size_t len = sizeof(buf);
+  const int err = uv_os_homedir(buf, &len);
+
+  if (err) {
+    return env->ThrowUVException(err, "uv_os_homedir");
+  }
+
+  Local<String> home = String::NewFromUtf8(env->isolate(),
+                                           buf,
+                                           String::kNormalString,
+                                           len);
+  args.GetReturnValue().Set(home);
+}
+
+
 void Initialize(Handle<Object> target,
                 Handle<Value> unused,
                 Handle<Context> context) {
@@ -284,6 +304,7 @@ void Initialize(Handle<Object> target,
   env->SetMethod(target, "getOSType", GetOSType);
   env->SetMethod(target, "getOSRelease", GetOSRelease);
   env->SetMethod(target, "getInterfaceAddresses", GetInterfaceAddresses);
+  env->SetMethod(target, "getHomeDirectory", GetHomeDirectory);
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "isBigEndian"),
               Boolean::New(env->isolate(), IsBigEndian()));
 }

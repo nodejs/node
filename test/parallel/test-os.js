@@ -2,12 +2,13 @@
 var common = require('../common');
 var assert = require('assert');
 var os = require('os');
+var path = require('path');
 
 
 process.env.TMPDIR = '/tmpdir';
 process.env.TMP = '/tmp';
 process.env.TEMP = '/temp';
-if (process.platform === 'win32') {
+if (common.isWindows) {
   assert.equal(os.tmpdir(), '/temp');
   process.env.TEMP = '';
   assert.equal(os.tmpdir(), '/tmp');
@@ -101,3 +102,22 @@ switch (platform) {
 
 var EOL = os.EOL;
 assert.ok(EOL.length > 0);
+
+
+var home = os.homedir();
+
+console.log('homedir = ' + home);
+assert.ok(typeof home === 'string');
+assert.ok(home.indexOf(path.sep) !== -1);
+
+if (common.isWindows && process.env.USERPROFILE) {
+  assert.equal(home, process.env.USERPROFILE);
+  delete process.env.USERPROFILE;
+  assert.ok(os.homedir().indexOf(path.sep) !== -1);
+  process.env.USERPROFILE = home;
+} else if (!common.isWindows && process.env.HOME) {
+  assert.equal(home, process.env.HOME);
+  delete process.env.HOME;
+  assert.ok(os.homedir().indexOf(path.sep) !== -1);
+  process.env.HOME = home;
+}
