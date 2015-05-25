@@ -10,6 +10,10 @@ Use `require('os')` to access this module.
 
 Returns the operating system's default directory for temporary files.
 
+## os.homedir()
+
+Returns the home directory of the current user.
+
 ## os.endianness()
 
 Returns the endianness of the CPU. Possible values are `'BE'` for big endian

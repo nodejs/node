@@ -10,6 +10,7 @@ exports.fixturesDir = path.join(exports.testDir, 'fixtures');
 exports.libDir = path.join(exports.testDir, '../lib');
 exports.tmpDirName = 'tmp';
 exports.PORT = +process.env.NODE_COMMON_PORT || 12346;
+exports.isWindows = process.platform === 'win32';
 
 if (process.env.TEST_THREAD_ID) {
   // Distribute ports in parallel tests
