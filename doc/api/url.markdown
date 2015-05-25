@@ -73,8 +73,8 @@ Take a URL string, and return an object.
 Pass `true` as the second argument to also parse the query string using the
 `querystring` module. If `true` then the `query` property will always be
 assigned an object, and the `search` property will always be a (possibly
-empty) string. If `false` then the neither the `query` nor the `search`
-properties will be parsed or decoded. Defaults to `false`.
+empty) string. If `false` then the `query` property will not be parsed or
+decoded. Defaults to `false`.
 
 Pass `true` as the third argument to treat `//foo/bar` as
 `{ host: 'foo', pathname: '/bar' }` rather than
