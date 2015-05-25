@@ -39,7 +39,7 @@ void AfterAsync(uv_work_t* r) {
   delete req;
 
   if (try_catch.HasCaught()) {
-    FatalException(try_catch);
+    FatalException(isolate, try_catch);
   }
 }
 
