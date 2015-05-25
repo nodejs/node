@@ -7,12 +7,8 @@ SyntaxError: Strict mode code may not include a with statement
     at Object.exports.runInThisContext (vm.js:*)
     at Object.<anonymous> ([stdin]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at evalScript (node.js:*:*)
-    at Socket.<anonymous> (node.js:*:*)
-    at emitNone (events.js:*:*)
-    at Socket.emit (events.js:*:*)
-    at endReadableNT (_stream_readable.js:*:*)
-    at doNTCallback2 (node.js:*:*)
+    at node.js:*:*
+    at doNTCallback0 (node.js:*:*)
     at process._tickCallback (node.js:*:*)
 42
 42
@@ -25,12 +21,9 @@ Error: hello
     at Object.exports.runInThisContext (vm.js:*)
     at Object.<anonymous> ([stdin]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at evalScript (node.js:*:*)
-    at Socket.<anonymous> (node.js:*:*)
-    at emitNone (events.js:*:*)
-    at Socket.emit (events.js:*:*)
-    at endReadableNT (_stream_readable.js:*:*)
-    at doNTCallback2 (node.js:*:*)
+    at node.js:*:*
+    at doNTCallback0 (node.js:*:*)
+    at process._tickCallback (node.js:*:*)
 
 [stdin]:1
 throw new Error("hello")
@@ -40,12 +33,9 @@ Error: hello
     at Object.exports.runInThisContext (vm.js:*)
     at Object.<anonymous> ([stdin]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at evalScript (node.js:*:*)
-    at Socket.<anonymous> (node.js:*:*)
-    at emitNone (events.js:*:*)
-    at Socket.emit (events.js:*:*)
-    at endReadableNT (_stream_readable.js:*:*)
-    at doNTCallback2 (node.js:*:*)
+    at node.js:*:*
+    at doNTCallback0 (node.js:*:*)
+    at process._tickCallback (node.js:*:*)
 100
 
 [stdin]:1
@@ -56,12 +46,9 @@ ReferenceError: y is not defined
     at Object.exports.runInThisContext (vm.js:*)
     at Object.<anonymous> ([stdin]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at evalScript (node.js:*:*)
-    at Socket.<anonymous> (node.js:*:*)
-    at emitNone (events.js:*:*)
-    at Socket.emit (events.js:*:*)
-    at endReadableNT (_stream_readable.js:*:*)
-    at doNTCallback2 (node.js:*:*)
+    at node.js:*:*
+    at doNTCallback0 (node.js:*:*)
+    at process._tickCallback (node.js:*:*)
 
 [stdin]:1
 var ______________________________________________; throw 10
