@@ -1,5 +1,4 @@
 'use strict';
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 var common = require('../common');
 var assert = require('assert');
