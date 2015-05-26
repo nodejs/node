@@ -329,8 +329,6 @@ assert.equal(b.parent, d.parent);
 var b = new SlowBuffer(5);
 var c = b.slice(0, 4);
 var d = c.slice(0, 2);
-assert.equal(b, c.parent);
-assert.equal(b, d.parent);
 
 
 // Bug regression test
@@ -1075,10 +1073,6 @@ assert.equal(buf.readInt8(0), -1);
   // try to slice a zero length Buffer
   // see https://github.com/joyent/node/issues/5881
   SlowBuffer(0).slice(0, 1);
-  // make sure a zero length slice doesn't set the .parent attribute
-  assert.equal(Buffer(5).slice(0, 0).parent, undefined);
-  // and make sure a proper slice does have a parent
-  assert.ok(typeof Buffer(5).slice(0, 5).parent === 'object');
 })();
 
 // Regression test for #5482: should throw but not assert in C++ land.
@@ -1105,11 +1099,11 @@ assert.throws(function() {
 
 
 assert.throws(function() {
-  new Buffer(smalloc.kMaxLength + 1);
+  new Buffer((-1 >>> 0) + 1);
 }, RangeError);
 
 assert.throws(function() {
-  new SlowBuffer(smalloc.kMaxLength + 1);
+  new SlowBuffer((-1 >>> 0) + 1);
 }, RangeError);
 
 if (common.hasCrypto) {
