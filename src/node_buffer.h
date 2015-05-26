@@ -63,9 +63,9 @@ NODE_DEPRECATED("Use New(isolate, ...)",
 // TODO(trevnorris): should be New() for consistency
 NODE_EXTERN v8::Local<v8::Object> Use(v8::Isolate* isolate,
                                       char* data,
-                                      uint32_t len);
+                                      size_t len);
 NODE_DEPRECATED("Use Use(isolate, ...)",
-                inline v8::Local<v8::Object> Use(char* data, uint32_t len) {
+                inline v8::Local<v8::Object> Use(char* data, size_t len) {
   return Use(v8::Isolate::GetCurrent(), data, len);
 })
 
@@ -95,7 +95,7 @@ v8::Local<v8::Object> New(Environment* env,
                           size_t length,
                           smalloc::FreeCallback callback,
                           void* hint);
-v8::Local<v8::Object> Use(Environment* env, char* data, uint32_t length);
+v8::Local<v8::Object> Use(Environment* env, char* data, size_t length);
 #endif  // defined(NODE_WANT_INTERNALS)
 
 }  // namespace Buffer

@@ -17,6 +17,8 @@ namespace node {
 // Forward declaration
 class Environment;
 
+extern bool using_old_buffer;
+
 // If persistent.IsWeak() == false, then do not call persistent.Reset()
 // while the returned Local<T> is still in scope, it will destroy the
 // reference to the object.
