@@ -556,9 +556,9 @@ These stat objects are instances of `fs.Stat`.
 If you want to be notified when the file was modified, not just accessed
 you need to compare `curr.mtime` and `prev.mtime`.
 
-`fs.watch` is more efficient than `fs.watchFile` and `fs.unwatchFile`.
+_Note: `fs.watch` is more efficient than `fs.watchFile` and `fs.unwatchFile`.
 `fs.watch` should be used instead of `fs.watchFile` and `fs.unwatchFile`
-when possible.
+when possible._
 
 ## fs.unwatchFile(filename[, listener])
 
@@ -569,9 +569,9 @@ have effectively stopped watching `filename`.
 Calling `fs.unwatchFile()` with a filename that is not being watched is a
 no-op, not an error.
 
-`fs.watch` is more efficient than `fs.watchFile` and `fs.unwatchFile`.
+_Note: `fs.watch` is more efficient than `fs.watchFile` and `fs.unwatchFile`.
 `fs.watch` should be used instead of `fs.watchFile` and `fs.unwatchFile`
-when possible.
+when possible._
 
 ## fs.watch(filename[, options][, listener])
 
