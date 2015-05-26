@@ -24,13 +24,17 @@
       return env->ThrowTypeError("argument should be a Buffer");            \
   } while (0)
 
-#define ARGS_THIS(argT)                                                     \
-  Local<Object> obj = argT;                                                 \
-  size_t obj_length = obj->GetIndexedPropertiesExternalArrayDataLength();   \
-  char* obj_data = static_cast<char*>(                                      \
-    obj->GetIndexedPropertiesExternalArrayData());                          \
-  if (obj_length > 0)                                                       \
-    CHECK_NE(obj_data, nullptr);
+#define ARGS_THIS_DEC(name)                                                 \
+  size_t name##_length;                                                     \
+  char* name##_data;
+
+#define ARGS_THIS(argT, name)                                                 \
+  Local<Object> name = argT;                                                  \
+  name##_length = name->GetIndexedPropertiesExternalArrayDataLength();        \
+  name##_data = static_cast<char*>(                                           \
+    name->GetIndexedPropertiesExternalArrayData());                           \
+  if (name##_length > 0)                                                      \
+    CHECK_NE(name##_data, nullptr);
 
 #define SLICE_START_END(start_arg, end_arg, end_max)                        \
   size_t start;                                                             \
@@ -228,34 +232,38 @@ Local<Object> Use(Environment* env, char* data, uint32_t length) {
 template <encoding encoding>
 void StringSlice(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
 
   THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
-  ARGS_THIS(args.This())
 
-  if (obj_length == 0)
+  ARGS_THIS_DEC(ts_obj);
+  ARGS_THIS(args.This(), ts_obj);
+
+  if (ts_obj_length == 0)
     return args.GetReturnValue().SetEmptyString();
 
-  SLICE_START_END(args[0], args[1], obj_length)
+  SLICE_START_END(args[0], args[1], ts_obj_length)
 
   args.GetReturnValue().Set(
-      StringBytes::Encode(env->isolate(), obj_data + start, length, encoding));
+      StringBytes::Encode(isolate, ts_obj_data + start, length, encoding));
 }
 
 
 template <>
 void StringSlice<UCS2>(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  ARGS_THIS_DEC(ts_obj);
 
   THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
-  ARGS_THIS(args.This())
+  ARGS_THIS(args.This(), ts_obj);
 
-  if (obj_length == 0)
+  if (ts_obj_length == 0)
     return args.GetReturnValue().SetEmptyString();
 
-  SLICE_START_END(args[0], args[1], obj_length)
+  SLICE_START_END(args[0], args[1], ts_obj_length)
   length /= 2;
 
-  const char* data = obj_data + start;
+  const char* data = ts_obj_data + start;
   const uint16_t* buf;
   bool release = false;
 
@@ -319,13 +327,10 @@ void Base64Slice(const FunctionCallbackInfo<Value>& args) {
 void Copy(const FunctionCallbackInfo<Value> &args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (!HasInstance(args[0]))
-    return env->ThrowTypeError("first arg should be a Buffer");
-
-  Local<Object> target = args[0].As<Object>();
-
   THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
-  ARGS_THIS(args.This())
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
+  Local<Object> target_obj = args[0].As<Object>();
+
   size_t target_length = target->GetIndexedPropertiesExternalArrayDataLength();
   char* target_data = static_cast<char*>(
       target->GetIndexedPropertiesExternalArrayData());
@@ -335,13 +340,13 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
 
   CHECK_NOT_OOB(ParseArrayIndex(args[1], 0, &target_start));
   CHECK_NOT_OOB(ParseArrayIndex(args[2], 0, &source_start));
-  CHECK_NOT_OOB(ParseArrayIndex(args[3], obj_length, &source_end));
+  CHECK_NOT_OOB(ParseArrayIndex(args[3], ts_obj_length, &source_end));
 
   // Copy 0 bytes; we're done
   if (target_start >= target_length || source_start >= source_end)
     return args.GetReturnValue().Set(0);
 
-  if (source_start > obj_length)
+  if (source_start > ts_obj_length)
     return env->ThrowRangeError("out of range index");
 
   if (source_end - source_start > target_length - target_start)
@@ -349,49 +354,50 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
 
   uint32_t to_copy = MIN(MIN(source_end - source_start,
                              target_length - target_start),
-                             obj_length - source_start);
+                             ts_obj_length - source_start);
 
-  memmove(target_data + target_start, obj_data + source_start, to_copy);
+  memmove(target_data + target_start, ts_obj_data + source_start, to_copy);
   args.GetReturnValue().Set(to_copy);
 }
 
 
 void Fill(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
-  ARGS_THIS(args[0].As<Object>())
+  ARGS_THIS_DEC(ts_obj);
+  ARGS_THIS(args[0].As<Object>(), ts_obj);
 
   size_t start = args[2]->Uint32Value();
   size_t end = args[3]->Uint32Value();
   size_t length = end - start;
-  CHECK(length + start <= obj_length);
+  CHECK(length + start <= ts_obj_length);
 
   if (args[1]->IsNumber()) {
     int value = args[1]->Uint32Value() & 255;
-    memset(obj_data + start, value, length);
+    memset(ts_obj_data + start, value, length);
     return;
   }
 
   node::Utf8Value str(args.GetIsolate(), args[1]);
   size_t str_length = str.length();
   size_t in_there = str_length;
-  char* ptr = obj_data + start + str_length;
+  char* ptr = ts_obj_data + start + str_length;
 
   if (str_length == 0)
     return;
 
-  memcpy(obj_data + start, *str, MIN(str_length, length));
+  memcpy(ts_obj_data + start, *str, MIN(str_length, length));
 
   if (str_length >= length)
     return;
 
   while (in_there < length - in_there) {
-    memcpy(ptr, obj_data + start, in_there);
+    memcpy(ptr, ts_obj_data + start, in_there);
     ptr += in_there;
     in_there *= 2;
   }
 
   if (in_there < length) {
-    memcpy(ptr, obj_data + start, length - in_there);
+    memcpy(ptr, ts_obj_data + start, length - in_there);
     in_there = length;
   }
 }
@@ -400,9 +406,10 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
 template <encoding encoding>
 void StringWrite(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  ARGS_THIS_DEC(ts_obj);
 
   THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
-  ARGS_THIS(args.This())
+  ARGS_THIS(args.This(), ts_obj);
 
   if (!args[0]->IsString())
     return env->ThrowTypeError("Argument must be a string");
@@ -416,18 +423,18 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
   size_t max_length;
 
   CHECK_NOT_OOB(ParseArrayIndex(args[1], 0, &offset));
-  CHECK_NOT_OOB(ParseArrayIndex(args[2], obj_length - offset, &max_length));
+  CHECK_NOT_OOB(ParseArrayIndex(args[2], ts_obj_length - offset, &max_length));
 
-  max_length = MIN(obj_length - offset, max_length);
+  max_length = MIN(ts_obj_length - offset, max_length);
 
   if (max_length == 0)
     return args.GetReturnValue().Set(0);
 
-  if (offset >= obj_length)
+  if (offset >= ts_obj_length)
     return env->ThrowRangeError("Offset is out of bounds");
 
   uint32_t written = StringBytes::Write(env->isolate(),
-                                        obj_data + offset,
+                                        ts_obj_data + offset,
                                         max_length,
                                         str,
                                         encoding,
@@ -479,10 +486,11 @@ static inline void Swizzle(char* start, unsigned int len) {
 template <typename T, enum Endianness endianness>
 void ReadFloatGeneric(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
-  ARGS_THIS(args[0].As<Object>());
+  ARGS_THIS_DEC(ts_obj);
+  ARGS_THIS(args[0].As<Object>(), ts_obj);
 
   uint32_t offset = args[1]->Uint32Value();
-  CHECK_LE(offset + sizeof(T), obj_length);
+  CHECK_LE(offset + sizeof(T), ts_obj_length);
 
   union NoAlias {
     T val;
@@ -490,7 +498,7 @@ void ReadFloatGeneric(const FunctionCallbackInfo<Value>& args) {
   };
 
   union NoAlias na;
-  const char* ptr = static_cast<const char*>(obj_data) + offset;
+  const char* ptr = static_cast<const char*>(ts_obj_data) + offset;
   memcpy(na.bytes, ptr, sizeof(na.bytes));
   if (endianness != GetEndianness())
     Swizzle(na.bytes, sizeof(na.bytes));
@@ -521,11 +529,12 @@ void ReadDoubleBE(const FunctionCallbackInfo<Value>& args) {
 
 template <typename T, enum Endianness endianness>
 uint32_t WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
-  ARGS_THIS(args[0].As<Object>())
+  ARGS_THIS_DEC(ts_obj);
+  ARGS_THIS(args[0].As<Object>(), ts_obj);
 
   T val = args[1]->NumberValue();
   uint32_t offset = args[2]->Uint32Value();
-  CHECK_LE(offset + sizeof(T), obj_length);
+  CHECK_LE(offset + sizeof(T), ts_obj_length);
 
   union NoAlias {
     T val;
@@ -533,7 +542,7 @@ uint32_t WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
   };
 
   union NoAlias na = { val };
-  char* ptr = static_cast<char*>(obj_data) + offset;
+  char* ptr = static_cast<char*>(ts_obj_data) + offset;
   if (endianness != GetEndianness())
     Swizzle(na.bytes, sizeof(na.bytes));
   memcpy(ptr, na.bytes, sizeof(na.bytes));
@@ -575,6 +584,7 @@ void ByteLengthUtf8(const FunctionCallbackInfo<Value> &args) {
 
 void Compare(const FunctionCallbackInfo<Value> &args) {
   Environment* env = Environment::GetCurrent(args);
+
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[1]);
 
@@ -631,28 +641,30 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   ASSERT(args[2]->IsNumber());
 
   THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
-  ARGS_THIS(args[0].As<Object>());
+  ARGS_THIS_DEC(ts_obj);
+  ARGS_THIS(args[0].As<Object>(), ts_obj);
+
   node::Utf8Value str(args.GetIsolate(), args[1]);
   int32_t offset_i32 = args[2]->Int32Value();
   uint32_t offset;
 
   if (offset_i32 < 0) {
-    if (offset_i32 + static_cast<int32_t>(obj_length) < 0)
+    if (offset_i32 + static_cast<int32_t>(ts_obj_length) < 0)
       offset = 0;
     else
-      offset = static_cast<uint32_t>(obj_length + offset_i32);
+      offset = static_cast<uint32_t>(ts_obj_length + offset_i32);
   } else {
     offset = static_cast<uint32_t>(offset_i32);
   }
 
   if (str.length() == 0 ||
-      obj_length == 0 ||
+      ts_obj_length == 0 ||
       (offset != 0 && str.length() + offset <= str.length()) ||
-      str.length() + offset > obj_length)
+      str.length() + offset > ts_obj_length)
     return args.GetReturnValue().Set(-1);
 
   int32_t r =
-      IndexOf(obj_data + offset, obj_length - offset, *str, str.length());
+      IndexOf(ts_obj_data + offset, ts_obj_length - offset, *str, str.length());
   args.GetReturnValue().Set(r == -1 ? -1 : static_cast<int32_t>(r + offset));
 }
 
@@ -662,7 +674,9 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
   ASSERT(args[2]->IsNumber());
 
   THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
-  ARGS_THIS(args[0].As<Object>());
+  ARGS_THIS_DEC(ts_obj);
+  ARGS_THIS(args[0].As<Object>(), ts_obj);
+
   Local<Object> buf = args[1].As<Object>();
   int32_t offset_i32 = args[2]->Int32Value();
   size_t buf_length = buf->GetIndexedPropertiesExternalArrayDataLength();
@@ -674,22 +688,22 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
     CHECK_NE(buf_data, nullptr);
 
   if (offset_i32 < 0) {
-    if (offset_i32 + static_cast<int32_t>(obj_length) < 0)
+    if (offset_i32 + static_cast<int32_t>(ts_obj_length) < 0)
       offset = 0;
     else
-      offset = static_cast<uint32_t>(obj_length + offset_i32);
+      offset = static_cast<uint32_t>(ts_obj_length + offset_i32);
   } else {
     offset = static_cast<uint32_t>(offset_i32);
   }
 
   if (buf_length == 0 ||
-      obj_length == 0 ||
+      ts_obj_length == 0 ||
       (offset != 0 && buf_length + offset <= buf_length) ||
-      buf_length + offset > obj_length)
+      buf_length + offset > ts_obj_length)
     return args.GetReturnValue().Set(-1);
 
   int32_t r =
-    IndexOf(obj_data + offset, obj_length - offset, buf_data, buf_length);
+    IndexOf(ts_obj_data + offset, ts_obj_length - offset, buf_data, buf_length);
   args.GetReturnValue().Set(r == -1 ? -1 : static_cast<int32_t>(r + offset));
 }
 
@@ -699,27 +713,29 @@ void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
   ASSERT(args[2]->IsNumber());
 
   THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
-  ARGS_THIS(args[0].As<Object>());
+  ARGS_THIS_DEC(ts_obj);
+  ARGS_THIS(args[0].As<Object>(), ts_obj);
+
   uint32_t needle = args[1]->Uint32Value();
   int32_t offset_i32 = args[2]->Int32Value();
   uint32_t offset;
 
   if (offset_i32 < 0) {
-    if (offset_i32 + static_cast<int32_t>(obj_length) < 0)
+    if (offset_i32 + static_cast<int32_t>(ts_obj_length) < 0)
       offset = 0;
     else
-      offset = static_cast<uint32_t>(obj_length + offset_i32);
+      offset = static_cast<uint32_t>(ts_obj_length + offset_i32);
   } else {
     offset = static_cast<uint32_t>(offset_i32);
   }
 
-  if (obj_length == 0 || offset + 1 > obj_length)
+  if (ts_obj_length == 0 || offset + 1 > ts_obj_length)
     return args.GetReturnValue().Set(-1);
 
-  void* ptr = memchr(obj_data + offset, needle, obj_length - offset);
+  void* ptr = memchr(ts_obj_data + offset, needle, ts_obj_length - offset);
   char* ptr_char = static_cast<char*>(ptr);
   args.GetReturnValue().Set(
-      ptr ? static_cast<int32_t>(ptr_char - obj_data) : -1);
+      ptr ? static_cast<int32_t>(ptr_char - ts_obj_data) : -1);
 }
 
 
