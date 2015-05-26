@@ -69,8 +69,9 @@
       'lib/v8.js',
       'lib/vm.js',
       'lib/zlib.js',
-
       'lib/internal/child_process.js',
+      'lib/internal/buffer_old.js',
+      'lib/internal/buffer_new.js',
       'lib/internal/freelist.js',
       'lib/internal/smalloc.js',
       'lib/internal/socket_list.js',
