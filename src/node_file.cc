@@ -433,6 +433,26 @@ Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
   return handle_scope.Escape(stats);
 }
 
+// Used to speed up module loading.  Returns 0 if the path refers to
+// a file, 1 when it's a directory or < 0 on error (usually -ENOENT.)
+// The speedup comes from not creating thousands of Stat and Error objects.
+static void InternalModuleStat(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK(args[0]->IsString());
+  node::Utf8Value path(env->isolate(), args[0]);
+
+  uv_fs_t req;
+  int rc = uv_fs_stat(env->event_loop(), &req, *path, nullptr);
+  if (rc == 0) {
+    const uv_stat_t* const s = static_cast<const uv_stat_t*>(req.ptr);
+    rc = !!(s->st_mode & S_IFDIR);
+  }
+  uv_fs_req_cleanup(&req);
+
+  args.GetReturnValue().Set(rc);
+}
+
 static void Stat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1141,6 +1161,7 @@ void InitFs(Handle<Object> target,
   env->SetMethod(target, "rmdir", RMDir);
   env->SetMethod(target, "mkdir", MKDir);
   env->SetMethod(target, "readdir", ReadDir);
+  env->SetMethod(target, "internalModuleStat", InternalModuleStat);
   env->SetMethod(target, "stat", Stat);
   env->SetMethod(target, "lstat", LStat);
   env->SetMethod(target, "fstat", FStat);
