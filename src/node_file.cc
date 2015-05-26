@@ -22,6 +22,8 @@
 # include <io.h>
 #endif
 
+#include <vector>
+
 namespace node {
 
 using v8::Array;
@@ -431,6 +433,50 @@ Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
     return handle_scope.Escape(Local<Object>());
 
   return handle_scope.Escape(stats);
+}
+
+// Used to speed up module loading.  Returns the contents of the file as
+// a string or undefined when the file cannot be opened.  The speedup
+// comes from not creating Error objects on failure.
+static void InternalModuleReadFile(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK(args[0]->IsString());
+  node::Utf8Value path(env->isolate(), args[0]);
+
+  FILE* const stream = fopen(*path, "rb");
+  if (stream == nullptr) {
+    return;
+  }
+
+  std::vector<char> chars;
+  while (!ferror(stream)) {
+    const size_t kBlockSize = 32 << 10;
+    const size_t start = chars.size();
+    chars.resize(start + kBlockSize);
+    const size_t numchars = fread(&chars[start], 1, kBlockSize, stream);
+    if (numchars < kBlockSize) {
+      chars.resize(start + numchars);
+    }
+    if (numchars == 0) {
+      break;
+    }
+  }
+
+  CHECK_EQ(false, ferror(stream));
+  CHECK_EQ(0, fclose(stream));
+
+  size_t start = 0;
+  if (chars.size() >= 3 && 0 == memcmp(&chars[0], "\xEF\xBB\xBF", 3)) {
+    start = 3;  // Skip UTF-8 BOM.
+  }
+
+  Local<String> chars_string =
+      String::NewFromUtf8(env->isolate(),
+                          &chars[start],
+                          String::kNormalString,
+                          chars.size() - start);
+  args.GetReturnValue().Set(chars_string);
 }
 
 // Used to speed up module loading.  Returns 0 if the path refers to
@@ -1161,6 +1207,7 @@ void InitFs(Handle<Object> target,
   env->SetMethod(target, "rmdir", RMDir);
   env->SetMethod(target, "mkdir", MKDir);
   env->SetMethod(target, "readdir", ReadDir);
+  env->SetMethod(target, "internalModuleReadFile", InternalModuleReadFile);
   env->SetMethod(target, "internalModuleStat", InternalModuleStat);
   env->SetMethod(target, "stat", Stat);
   env->SetMethod(target, "lstat", LStat);
