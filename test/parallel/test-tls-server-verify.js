@@ -134,6 +134,9 @@ function runClient(prefix, port, options, cb) {
 
   var args = ['s_client', '-connect', '127.0.0.1:' + port];
 
+  // for the performance issue in s_client on Windows
+  if (process.platform === 'win32')
+    args.push('-no_rand_screen');
 
   console.log(prefix + '  connecting with', options.name);
 
