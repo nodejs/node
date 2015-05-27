@@ -236,6 +236,7 @@ static BIO *bio_c_msg = NULL;
 static int c_quiet = 0;
 static int c_ign_eof = 0;
 static int c_brief = 0;
+static int c_no_rand_screen = 0;
 
 #ifndef OPENSSL_NO_PSK
 /* Default PSK identity and key */
@@ -446,6 +447,10 @@ static void sc_usage(void)
                " -keymatexport label   - Export keying material using label\n");
     BIO_printf(bio_err,
                " -keymatexportlen len  - Export len bytes of keying material (default 20)\n");
+#ifdef OPENSSL_SYS_WINDOWS
+    BIO_printf(bio_err,
+               " -no_rand_screen  - Do not use RAND_screen() to initialize random state\n");
+#endif
 }
 
 #ifndef OPENSSL_NO_TLSEXT
@@ -1125,6 +1130,10 @@ int MAIN(int argc, char **argv)
             keymatexportlen = atoi(*(++argv));
             if (keymatexportlen == 0)
                 goto bad;
+#ifdef OPENSSL_SYS_WINDOWS
+        } else if (strcmp(*argv, "-no_rand_screen") == 0) {
+          c_no_rand_screen = 1;
+#endif
         } else {
             BIO_printf(bio_err, "unknown option %s\n", *argv);
             badop = 1;
@@ -1230,7 +1239,7 @@ int MAIN(int argc, char **argv)
     if (!load_excert(&exc, bio_err))
         goto end;
 
-    if (!app_RAND_load_file(NULL, bio_err, 1) && inrand == NULL
+    if (!app_RAND_load_file(NULL, bio_err, ++c_no_rand_screen) && inrand == NULL
         && !RAND_status()) {
         BIO_printf(bio_err,
                    "warning, not much extra random data, consider using the -rand option\n");
