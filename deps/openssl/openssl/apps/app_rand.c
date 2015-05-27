@@ -124,7 +124,13 @@ int app_RAND_load_file(const char *file, BIO *bio_e, int dont_warn)
     char buffer[200];
 
 #ifdef OPENSSL_SYS_WINDOWS
-    RAND_screen();
+    /*
+     * allocate 2 to dont_warn not to use RAND_screen() via
+     * -no_rand_screen option in s_client
+     */
+    if (dont_warn != 2) {
+      RAND_screen();
+    }
 #endif
 
     if (file == NULL)
