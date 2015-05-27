@@ -206,3 +206,13 @@ testMe.complete('require(\'n', function(error, data) {
   assert.strictEqual(error, null);
   assert.deepEqual(data, [['net'], 'n']);
 });
+
+// Make sure tab completion works on context properties
+putIn.run(['.clear']);
+
+putIn.run([
+  'var custom = "test";'
+]);
+testMe.complete('cus', function(error, data) {
+  assert.deepEqual(data, [['custom'], 'cus']);
+});
