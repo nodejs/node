@@ -839,10 +839,7 @@
   // Load preload modules
   startup.preloadModules = function() {
     if (process._preload_modules) {
-      var Module = NativeModule.require('module');
-      process._preload_modules.forEach(function(module) {
-        Module._load(module);
-      });
+      NativeModule.require('module')._preloadModules(process._preload_modules);
     }
   };
 
