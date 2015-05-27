@@ -455,7 +455,7 @@ Synchronous version of `fs.read`. Returns the number of `bytesRead`.
 ## fs.readFile(filename[, options], callback)
 
 * `filename` {String}
-* `options` {Object}
+* `options` {Object | String}
   * `encoding` {String | Null} default = `null`
   * `flag` {String} default = `'r'`
 * `callback` {Function}
@@ -472,6 +472,10 @@ contents of the file.
 
 If no encoding is specified, then the raw buffer is returned.
 
+If `options` is a string, then it specifies the encoding. Example:
+
+    fs.readFile('/etc/passwd', 'utf8', callback);
+
 
 ## fs.readFileSync(filename[, options])
 
@@ -485,7 +489,7 @@ string. Otherwise it returns a buffer.
 
 * `filename` {String}
 * `data` {String | Buffer}
-* `options` {Object}
+* `options` {Object | String}
   * `encoding` {String | Null} default = `'utf8'`
   * `mode` {Number} default = `0o666`
   * `flag` {String} default = `'w'`
@@ -504,6 +508,10 @@ Example:
       console.log('It\'s saved!');
     });
 
+If `options` is a string, then it specifies the encoding. Example:
+
+    fs.writeFile('message.txt', 'Hello io.js', 'utf8', callback);
+
 ## fs.writeFileSync(filename, data[, options])
 
 The synchronous version of `fs.writeFile`.
@@ -512,7 +520,7 @@ The synchronous version of `fs.writeFile`.
 
 * `filename` {String}
 * `data` {String | Buffer}
-* `options` {Object}
+* `options` {Object | String}
   * `encoding` {String | Null} default = `'utf8'`
   * `mode` {Number} default = `0o666`
   * `flag` {String} default = `'a'`
@@ -527,6 +535,10 @@ Example:
       if (err) throw err;
       console.log('The "data to append" was appended to file!');
     });
+
+If `options` is a string, then it specifies the encoding. Example:
+
+    fs.appendFile('message.txt', 'data to append', 'utf8', callback);
 
 ## fs.appendFileSync(filename, data[, options])
 
