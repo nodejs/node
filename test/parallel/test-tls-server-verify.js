@@ -195,7 +195,7 @@ function runClient(prefix, port, options, cb) {
     if (!goodbye && /_unauthed/g.test(out)) {
       console.error(prefix + '  * unauthed');
       goodbye = true;
-      client.stdin.end('goodbye\n');
+      client.kill();
       authed = false;
       rejected = false;
     }
@@ -203,7 +203,7 @@ function runClient(prefix, port, options, cb) {
     if (!goodbye && /_authed/g.test(out)) {
       console.error(prefix + '  * authed');
       goodbye = true;
-      client.stdin.end('goodbye\n');
+      client.kill();
       authed = true;
       rejected = false;
     }
@@ -265,6 +265,12 @@ function runTest(port, testIndex) {
 
   var renegotiated = false;
   var server = tls.Server(serverOptions, function handleConnection(c) {
+    c.on('error', function(e) {
+      // child.kill() leads ECONNRESET errro in the TLS connection of
+      // openssl s_client via spawn(). A Test result is already
+      // checked by the data of client.stdout before child.kill() so
+      // these tls errors can be ignored.
+    });
     if (tcase.renegotiate && !renegotiated) {
       renegotiated = true;
       setTimeout(function() {
