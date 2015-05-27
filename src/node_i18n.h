@@ -8,7 +8,7 @@
 namespace node {
 namespace i18n {
 
-NODE_EXTERN bool InitializeICUDirectory(const char* icu_data_path);
+bool InitializeICUDirectory(const char* icu_data_path);
 
 }  // namespace i18n
 }  // namespace node
