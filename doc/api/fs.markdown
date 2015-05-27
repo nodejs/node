@@ -455,7 +455,7 @@ Synchronous version of `fs.read`. Returns the number of `bytesRead`.
 ## fs.readFile(filename[, options], callback)
 
 * `filename` {String}
-* `options` {Object}
+* `options` {Object | String}
   * `encoding` {String | Null} default = `null`
   * `flag` {String} default = `'r'`
 * `callback` {Function}
@@ -471,6 +471,10 @@ The callback is passed two arguments `(err, data)`, where `data` is the
 contents of the file.
 
 If no encoding is specified, then the raw buffer is returned.
+
+If `options` is a string, then it specifies the encoding. Example:
+
+    fs.readFile('/etc/passwd', 'utf8', callback);
 
 
 ## fs.readFileSync(filename[, options])
