@@ -573,6 +573,12 @@ void ReadUInt64BE(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void PointerFree(char* data, void* hint) {
+  // do nothing, since Buffers returned from `readPointer*()`
+  // must not be free()'d by us since we do not own the memory
+}
+
+
 template <enum Endianness endianness>
 void ReadPointerGeneric(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -600,7 +606,8 @@ void ReadPointerGeneric(const FunctionCallbackInfo<Value>& args) {
     Swizzle(na.bytes, sizeof(na.bytes));
 
   if (na.val) {
-    args.GetReturnValue().Set(Buffer::Use(env, na.val, size));
+    args.GetReturnValue().Set(
+        Buffer::New(env, na.val, size, PointerFree, nullptr));
   } else {
     args.GetReturnValue().Set(v8::Null(env->isolate()));
   }
