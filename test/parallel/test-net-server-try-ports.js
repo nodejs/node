@@ -9,6 +9,7 @@ var connections = 0;
 
 var server1listening = false;
 var server2listening = false;
+var server2eaddrinuse = false;
 
 var server1 = net.Server(function(socket) {
   connections++;
@@ -21,9 +22,21 @@ var server2 = net.Server(function(socket) {
 });
 
 var server2errors = 0;
-server2.on('error', function() {
+server2.on('error', function(e) {
   server2errors++;
   console.error('server2 error');
+
+  if (e.code == 'EADDRINUSE') {
+    server2eaddrinuse = true;
+  }
+
+  server2.listen(common.PORT + 1, function() {
+    console.error('server2 listening');
+    server2listening = true;
+
+    server1.close();
+    server2.close();
+  });
 });
 
 
@@ -32,25 +45,12 @@ server1.listen(common.PORT, function() {
   server1listening = true;
   // This should make server2 emit EADDRINUSE
   server2.listen(common.PORT);
-
-  // Wait a bit, now try again.
-  // TODO, the listen callback should report if there was an error.
-  // Then we could avoid this very unlikely but potential race condition
-  // here.
-  setTimeout(function() {
-    server2.listen(common.PORT + 1, function() {
-      console.error('server2 listening');
-      server2listening = true;
-
-      server1.close();
-      server2.close();
-    });
-  }, 100);
 });
 
 
 process.on('exit', function() {
   assert.equal(1, server2errors);
+  assert.ok(server2eaddrinuse);
   assert.ok(server2listening);
   assert.ok(server1listening);
 });
