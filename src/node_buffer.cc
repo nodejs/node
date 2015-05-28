@@ -50,7 +50,7 @@
 
 // used by the ReadInt64 functions to determine whether to return a Number
 // or String, based on whether or not a JS Number will lose precision.
-// http://stackoverflow.com/q/307179/376773
+// http://mdn.io/max_safe_integer, http://mdn.io/min_safe_integer
 #define JS_MAX_INT +9007199254740991LL
 #define JS_MIN_INT -9007199254740991LL
 
