@@ -74,5 +74,20 @@ putIn.write = function(data) {
 };
 putIn.run(['.load ' + loadFile]);
 
+// clear the REPL
+putIn.run(['.clear']);
 
-//TODO how do I do a failed .save test?
+// NUL (\0) is disallowed in filenames in UNIX-like operating systems and
+// Windows so we can use that to test failed saves
+const invalidFileName = join(common.tmpDir, '\0\0\0\0\0');
+
+// should not break
+putIn.write = function(data) {
+  // make sure I get a failed to save message and not some other error
+  assert.equal(data, 'Failed to save:' + invalidFileName + '\n');
+  // reset to no-op
+  putIn.write = function() {};
+};
+
+// save it to a file
+putIn.run(['.save ' + invalidFileName]);
