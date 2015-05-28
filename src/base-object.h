@@ -9,9 +9,7 @@ class Environment;
 
 class BaseObject {
  public:
-  BaseObject(Environment* env,
-             v8::Local<v8::Object> handle,
-             const uint16_t class_id = 0);
+  BaseObject(Environment* env, v8::Local<v8::Object> handle);
   virtual ~BaseObject();
 
   // Returns the wrapped object.  Returns an empty handle when
