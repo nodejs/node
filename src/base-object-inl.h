@@ -10,15 +10,10 @@
 
 namespace node {
 
-inline BaseObject::BaseObject(Environment* env,
-                              v8::Local<v8::Object> handle,
-                              const uint16_t class_id)
+inline BaseObject::BaseObject(Environment* env, v8::Local<v8::Object> handle)
     : handle_(env->isolate(), handle),
       env_(env) {
   CHECK_EQ(false, handle.IsEmpty());
-  // Shift value 8 bits over to try avoiding conflict with anything else.
-  if (class_id != 0)
-    handle_.SetWrapperClassId(class_id << 8);
 }
 
 
