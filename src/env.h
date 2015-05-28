@@ -420,6 +420,9 @@ class Environment {
   inline bool printed_error() const;
   inline void set_printed_error(bool value);
 
+  inline void* heap_stats_buffer() const;
+  inline void set_heap_stats_buffer(void* buffer);
+
   void PrintSyncTrace() const;
   inline void set_trace_sync_io(bool value);
 
@@ -510,6 +513,7 @@ class Environment {
   bool using_asyncwrap_;
   bool printed_error_;
   bool trace_sync_io_;
+  void* heap_stats_buffer_;
   debugger::Agent debugger_agent_;
 
   HandleWrapQueue handle_wrap_queue_;

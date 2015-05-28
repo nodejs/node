@@ -177,6 +177,7 @@ inline Environment::Environment(v8::Local<v8::Context> context,
       using_asyncwrap_(false),
       printed_error_(false),
       trace_sync_io_(false),
+      heap_stats_buffer_(nullptr),
       debugger_agent_(this),
       context_(context->GetIsolate(), context) {
   // We'll be creating new objects so make sure we've entered the context.
@@ -198,6 +199,10 @@ inline Environment::~Environment() {
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
 #undef V
   isolate_data()->Put();
+
+  if (heap_stats_buffer_ != nullptr) {
+    free(heap_stats_buffer_);
+  }
 }
 
 inline void Environment::CleanupHandles() {
@@ -329,6 +334,15 @@ inline void Environment::set_printed_error(bool value) {
 inline void Environment::set_trace_sync_io(bool value) {
   trace_sync_io_ = value;
 }
+
+inline void* Environment::heap_stats_buffer() const {
+  return heap_stats_buffer_;
+}
+
+inline void Environment::set_heap_stats_buffer(void* buffer) {
+  heap_stats_buffer_ = buffer;
+}
+
 
 inline Environment* Environment::from_cares_timer_handle(uv_timer_t* handle) {
   return ContainerOf(&Environment::cares_timer_handle_, handle);
