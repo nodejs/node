@@ -1,22 +1,21 @@
 #include "node.h"
 #include "node_buffer.h"
+#include "node_internals.h"
 #include "v8.h"
 #include "env.h"
 #include "env-inl.h"
 #include "ffi.h"
 
-#include <stdlib.h>  // for abs()
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 namespace node {
 namespace ffi {
 
-using v8::Array;
-using v8::Boolean;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Handle;
-using v8::Integer;
 using v8::Local;
+using v8::Null;
 using v8::Number;
 using v8::Object;
 using v8::String;
@@ -32,8 +31,6 @@ static void PrepCif(const FunctionCallbackInfo<Value>& args) {
   ffi_status status;
   ffi_abi abi;
 
-  if (args.Length() != 5)
-    return env->ThrowTypeError("expected 5 arguments");
   if (!Buffer::HasInstance(args[0]))
     return env->ThrowTypeError("expected Buffer instance as first argument");
   if (!args[1]->IsNumber())
@@ -65,6 +62,70 @@ static void PrepCif(const FunctionCallbackInfo<Value>& args) {
 static void Call(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  if (!Buffer::HasInstance(args[0]))
+    return env->ThrowTypeError("expected Buffer instance as first argument");
+  if (!Buffer::HasInstance(args[1]))
+    return env->ThrowTypeError("expected Buffer instance as second argument");
+  if (!Buffer::HasInstance(args[2]))
+    return env->ThrowTypeError("expected Buffer instance as third argument");
+  if (!Buffer::HasInstance(args[3]))
+    return env->ThrowTypeError("expected Buffer instance as fourth argument");
+
+  ffi_call(
+    reinterpret_cast<ffi_cif*>(Buffer::Data(args[0].As<Object>())),
+    FFI_FN(Buffer::Data(args[1].As<Object>())),
+    reinterpret_cast<void*>(Buffer::Data(args[2].As<Object>())),
+    reinterpret_cast<void**>(Buffer::Data(args[3].As<Object>())));
+}
+
+
+void ClosureInvoke(ffi_cif *cif, void *ret, void **args, void *user_data) {
+  size_t rsize = MAX(cif->rtype->size, sizeof(ffi_arg));
+  printf("closure invoked, nargs=%d, rsize=%zu!\n", cif->nargs, rsize);
+
+  *((int *)ret) = 69;
+}
+
+
+void ClosureFree(char* data, void* hint) {
+  printf("closure will free! %p %p\n", data, hint);
+  /*
+  ffi_closure* closure = reinterpret_cast<ffi_closure*>(data);
+  ffi_closure_free(closure);
+  */
+}
+
+
+static void ClosureAlloc(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  void* code;
+  char* closure = reinterpret_cast<char*>(
+      ffi_closure_alloc(sizeof(closure), &code));
+
+  // copy memory address of executable function pointer to args[0]
+  memcpy(Buffer::Data(args[0].As<Object>()), &code, sizeof(char*));
+
+  if (closure) {
+    args.GetReturnValue().Set(
+        Buffer::New(env, closure, sizeof(ffi_closure),
+          ClosureFree, nullptr));
+  } else {
+    args.GetReturnValue().Set(Null(env->isolate()));
+  }
+}
+
+
+static void ClosurePrep(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  ffi_closure *closure = reinterpret_cast<ffi_closure*>(Buffer::Data(args[0]));
+  ffi_cif *cif = reinterpret_cast<ffi_cif*>(Buffer::Data(args[1]));
+  void *user_data = nullptr;
+  void *codeloc = reinterpret_cast<void*>(Buffer::Data(args[2]));
+
+  args.GetReturnValue().Set(
+      ffi_prep_closure_loc(closure, cif, ClosureInvoke, user_data, codeloc));
 }
 
 
@@ -155,43 +216,39 @@ void Initialize(Handle<Object> target,
 #undef SET_ENUM_VALUE
 
   Handle<Object> ftmap = Object::New(env->isolate());
-#define SET_FFI_TYPE(_type) \
-  ftmap->Set(FIXED_ONE_BYTE_STRING(env->isolate(), #_type), \
+#define SET_FFI_TYPE(name, type) \
+  ftmap->Set(FIXED_ONE_BYTE_STRING(env->isolate(), #name), \
       Buffer::Use(env->isolate(), \
-        reinterpret_cast<char*>(&ffi_type_##_type), 0))
-  SET_FFI_TYPE(void);
-  SET_FFI_TYPE(uint8);
-  SET_FFI_TYPE(sint8);
-  SET_FFI_TYPE(uint16);
-  SET_FFI_TYPE(sint16);
-  SET_FFI_TYPE(uint32);
-  SET_FFI_TYPE(sint32);
-  SET_FFI_TYPE(uint64);
-  SET_FFI_TYPE(sint64);
-  SET_FFI_TYPE(uchar);
-  SET_FFI_TYPE(schar);
-  SET_FFI_TYPE(ushort);
-  SET_FFI_TYPE(sshort);
-  SET_FFI_TYPE(uint);
-  SET_FFI_TYPE(sint);
-  SET_FFI_TYPE(float);
-  SET_FFI_TYPE(double);
-  SET_FFI_TYPE(pointer);
-  SET_FFI_TYPE(ulong);
-  SET_FFI_TYPE(slong);
-  SET_FFI_TYPE(longdouble);
+        reinterpret_cast<char*>(&ffi_type_##type), 0))
+  SET_FFI_TYPE(void, void);
+  SET_FFI_TYPE(uint8, uint8);
+  SET_FFI_TYPE(int8, sint8);
+  SET_FFI_TYPE(uint16, uint16);
+  SET_FFI_TYPE(int16, sint16);
+  SET_FFI_TYPE(uint32, uint32);
+  SET_FFI_TYPE(int32, sint32);
+  SET_FFI_TYPE(uint64, uint64);
+  SET_FFI_TYPE(int64, sint64);
+  SET_FFI_TYPE(uchar, uchar);
+  SET_FFI_TYPE(char, schar);
+  SET_FFI_TYPE(ushort, ushort);
+  SET_FFI_TYPE(short, sshort);
+  SET_FFI_TYPE(uint, uint);
+  SET_FFI_TYPE(int, sint);
+  SET_FFI_TYPE(float, float);
+  SET_FFI_TYPE(double, double);
+  SET_FFI_TYPE(pointer, pointer);
+  SET_FFI_TYPE(ulong, ulong);
+  SET_FFI_TYPE(long, slong);
+  SET_FFI_TYPE(longdouble, longdouble);
 #undef SET_FFI_TYPE
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "type"), ftmap);
 
   env->SetMethod(target, "prepCif", PrepCif);
-  //env->SetMethod(target, "prepCifVar", PrepCifVar);
   env->SetMethod(target, "call", Call);
-  //env->SetMethod(target, "callAsync", CallAsync);
 
-  // these static function pointers end up being used in the tests
-  // (see "test/parallel/test-ffi.js")
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "abs"),
-      Buffer::Use(env->isolate(), reinterpret_cast<char*>(abs), 0));
+  env->SetMethod(target, "closureAlloc", ClosureAlloc);
+  env->SetMethod(target, "closurePrep", ClosurePrep);
 }
 
 }  // namespace ffi
