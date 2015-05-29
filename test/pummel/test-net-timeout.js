@@ -79,7 +79,7 @@ process.on('exit', function() {
   assert.ok(starttime != null);
   assert.ok(timeouttime != null);
 
-  diff = timeouttime - starttime;
+  var diff = timeouttime - starttime;
   console.log('diff = ' + diff);
 
   assert.ok(timeout < diff);
