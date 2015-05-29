@@ -81,7 +81,7 @@ test('request call contract', function (t) {
 })
 
 test('run request through its paces', function (t) {
-  t.plan(28)
+  t.plan(29)
 
   server.expect('/request-defaults', function (req, res) {
     t.equal(req.method, 'GET', 'uses GET by default')

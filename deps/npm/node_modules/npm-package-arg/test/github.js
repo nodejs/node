@@ -73,7 +73,7 @@ require("tap").test("basic", function (t) {
       name: null,
       type: "hosted",
       hosted: { type: "github" },
-      spec: "https://github.com/user/foo.git",
+      spec: "git+https://github.com/user/foo.git",
       raw: "https://github.com/user/foo.git"
     },
 

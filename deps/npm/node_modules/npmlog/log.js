@@ -32,12 +32,12 @@ log.progressEnabled = false
 var gaugeTheme = undefined
 
 log.enableUnicode = function () {
-  gaugeTheme = gauge.unicode
+  gaugeTheme = Gauge.unicode
   log.gauge.setTheme(gaugeTheme)
 }
 
 log.disableUnicode = function () {
-  gaugeTheme = gauge.ascii
+  gaugeTheme = Gauge.ascii
   log.gauge.setTheme(gaugeTheme)
 }
 

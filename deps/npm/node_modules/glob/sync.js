@@ -316,8 +316,10 @@ GlobSync.prototype._readdirError = function (f, er) {
 
     default: // some unusual error.  Treat as failure.
       this.cache[this._makeAbs(f)] = false
-      if (this.strict) throw er
-      if (!this.silent) console.error('glob error', er)
+      if (this.strict)
+        throw er
+      if (!this.silent)
+        console.error('glob error', er)
       break
   }
 }

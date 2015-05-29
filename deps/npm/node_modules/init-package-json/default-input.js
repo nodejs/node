@@ -4,6 +4,7 @@ var path = require('path')
 var validateLicense = require('validate-npm-package-license')
 var validateName = require('validate-npm-package-name')
 var npa = require('npm-package-arg')
+var semver = require('semver')
 
 // more popular packages should go here, maybe?
 function isTestPkg (p) {
@@ -65,7 +66,15 @@ var version = package.version ||
               config.get('init.version') ||
               config.get('init-version') ||
               '1.0.0'
-exports.version = yes ? version : prompt('version', version)
+exports.version = yes ?
+  version :
+  prompt('version', version, function (version) {
+    if (semver.valid(version)) return version
+    var er = new Error('Invalid version: "' + version + '"')
+    er.notValid = true
+    er.again = true
+    return er
+  })
 
 if (!package.description) {
   exports.description = yes ? '' : prompt('description')
