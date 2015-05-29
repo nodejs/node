@@ -106,16 +106,12 @@ function checkResults(expected_results, results) {
     var actual = results[k],
         expected = expected_results[k];
 
-    if (typeof expected === 'function') {
-      expected(r[k]);
+    var msg = (expected[1] || '') +
+        (' [expected: ' + expected[0] + ' / actual: ' + actual + ']');
+    if (expected && expected.length) {
+      assert.equal(actual, expected[0], msg);
     } else {
-      var msg = (expected[1] || '') +
-          (' [expected: ' + expected[0] + ' / actual: ' + actual + ']');
-      if (expected && expected.length) {
-        assert.equal(actual, expected[0], msg);
-      } else {
-        assert.equal(actual, expected, msg);
-      }
+      assert.equal(actual, expected, msg);
     }
   }
 }
