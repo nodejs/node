@@ -12,12 +12,16 @@ namespace node {
 namespace ffi {
 
 using v8::Context;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::Handle;
+using v8::HandleScope;
+using v8::Isolate;
 using v8::Local;
 using v8::Null;
 using v8::Number;
 using v8::Object;
+using v8::Persistent;
 using v8::String;
 using v8::Value;
 using v8::Uint32;
@@ -27,7 +31,7 @@ static void PrepCif(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   unsigned int nargs;
-  char *rtype, *atypes, *cif;
+  char* rtype, *atypes, *cif;
   ffi_status status;
   ffi_abi abi;
 
@@ -79,20 +83,33 @@ static void Call(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void ClosureInvoke(ffi_cif *cif, void *ret, void **args, void *user_data) {
-  size_t rsize = MAX(cif->rtype->size, sizeof(ffi_arg));
-  printf("closure invoked, nargs=%d, rsize=%zu!\n", cif->nargs, rsize);
+void ArgFree(char* data, void* hint) {
+  /* do nothing */
+}
 
-  *((int *)ret) = 69;
+
+void ClosureInvoke(ffi_cif *cif, void *ret, void **args, void *user_data) {
+  // assuming we're on the JS thread here…
+  Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
+
+  Persistent<Object>* cbObjPtr =
+    reinterpret_cast<Persistent<Object>*>(user_data);
+  Local<Function> cb =
+    Local<Function>::Cast(Local<Object>::New(isolate, *cbObjPtr));
+
+  Local<Value> argv[2];
+  argv[0] = Buffer::New(isolate, reinterpret_cast<char*>(ret),
+      MAX(cif->rtype->size, sizeof(ffi_arg)), ArgFree, nullptr);
+  argv[1] = Buffer::New(isolate, reinterpret_cast<char*>(args),
+      sizeof(char*) * cif->nargs, ArgFree, nullptr);
+  MakeCallback(isolate, cb, cb, 2, argv);
 }
 
 
 void ClosureFree(char* data, void* hint) {
-  printf("closure will free! %p %p\n", data, hint);
-  /*
-  ffi_closure* closure = reinterpret_cast<ffi_closure*>(data);
-  ffi_closure_free(closure);
-  */
+  /* TODO(tootallnate): dispose of Persistent<Function> reference */
+  ffi_closure_free(hint);
 }
 
 
@@ -100,32 +117,29 @@ static void ClosureAlloc(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   void* code;
-  char* closure = reinterpret_cast<char*>(
-      ffi_closure_alloc(sizeof(closure), &code));
+  ffi_cif* cif = reinterpret_cast<ffi_cif*>(
+      Buffer::Data(args[0].As<Object>()));
 
-  // copy memory address of executable function pointer to args[0]
-  memcpy(Buffer::Data(args[0].As<Object>()), &code, sizeof(char*));
+  Persistent<Function>* cbPtr = new Persistent<Function>();
+  (*cbPtr).Reset(env->isolate(), Handle<Function>::Cast(args[1]));
 
-  if (closure) {
-    args.GetReturnValue().Set(
-        Buffer::New(env, closure, sizeof(ffi_closure),
-          ClosureFree, nullptr));
-  } else {
-    args.GetReturnValue().Set(Null(env->isolate()));
+  ffi_closure* closure = reinterpret_cast<ffi_closure*>(
+      ffi_closure_alloc(sizeof(*closure), &code));
+
+  if (!closure)
+    return env->ThrowError("ffi_closure_alloc memory allocation failed");
+
+  ffi_status status = ffi_prep_closure_loc(closure, cif,
+      ClosureInvoke, cbPtr, code);
+
+  if (status != FFI_OK) {
+    // TODO(tootallnate): relay status code as well
+    ffi_closure_free(closure);
+    return env->ThrowError("ffi_prep_closure_loc failed");
   }
-}
 
-
-static void ClosurePrep(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  ffi_closure *closure = reinterpret_cast<ffi_closure*>(Buffer::Data(args[0]));
-  ffi_cif *cif = reinterpret_cast<ffi_cif*>(Buffer::Data(args[1]));
-  void *user_data = nullptr;
-  void *codeloc = reinterpret_cast<void*>(Buffer::Data(args[2]));
-
-  args.GetReturnValue().Set(
-      ffi_prep_closure_loc(closure, cif, ClosureInvoke, user_data, codeloc));
+  args.GetReturnValue().Set(Buffer::New(env,
+        reinterpret_cast<char*>(code), 0, ClosureFree, closure));
 }
 
 
@@ -246,9 +260,7 @@ void Initialize(Handle<Object> target,
 
   env->SetMethod(target, "prepCif", PrepCif);
   env->SetMethod(target, "call", Call);
-
   env->SetMethod(target, "closureAlloc", ClosureAlloc);
-  env->SetMethod(target, "closurePrep", ClosurePrep);
 }
 
 }  // namespace ffi
