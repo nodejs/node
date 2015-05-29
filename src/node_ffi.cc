@@ -27,6 +27,13 @@ using v8::Value;
 using v8::Uint32;
 
 
+typedef struct _closure_info {
+  ffi_closure closure;
+  Persistent<Object> callback;
+  Isolate* isolate;
+} closure_info;
+
+
 static void PrepCif(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -89,57 +96,65 @@ void ArgFree(char* data, void* hint) {
 
 
 void ClosureInvoke(ffi_cif *cif, void *ret, void **args, void *user_data) {
-  // assuming we're on the JS thread here…
-  Isolate* isolate = Isolate::GetCurrent();
-  HandleScope scope(isolate);
+  closure_info* info = reinterpret_cast<closure_info*>(user_data);
 
-  Persistent<Object>* cbObjPtr =
-    reinterpret_cast<Persistent<Object>*>(user_data);
-  Local<Function> cb =
-    Local<Function>::Cast(Local<Object>::New(isolate, *cbObjPtr));
+  // assuming we're on the JS thread here…
+  HandleScope scope(info->isolate);
+
+  Local<Function> cb = Local<Function>::Cast(
+      Local<Object>::New(info->isolate, info->callback));
 
   Local<Value> argv[2];
-  argv[0] = Buffer::New(isolate, reinterpret_cast<char*>(ret),
+  argv[0] = Buffer::New(info->isolate, reinterpret_cast<char*>(ret),
       MAX(cif->rtype->size, sizeof(ffi_arg)), ArgFree, nullptr);
-  argv[1] = Buffer::New(isolate, reinterpret_cast<char*>(args),
-      sizeof(char*) * cif->nargs, ArgFree, nullptr);
-  MakeCallback(isolate, cb, cb, 2, argv);
+  argv[1] = Buffer::New(info->isolate, reinterpret_cast<char*>(args),
+      sizeof(char*) * cif->nargs, ArgFree, nullptr);  // NOLINT(runtime/sizeof)
+
+  MakeCallback(info->isolate,
+      info->isolate->GetCurrentContext()->Global(), cb, 2, argv);
 }
 
 
 void ClosureFree(char* data, void* hint) {
-  /* TODO(tootallnate): dispose of Persistent<Function> reference */
-  ffi_closure_free(hint);
+  closure_info* info = reinterpret_cast<closure_info*>(hint);
+  info->callback.Reset();
+  ffi_closure_free(info);
 }
 
 
 static void ClosureAlloc(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  if (!Buffer::HasInstance(args[0]))
+    return env->ThrowTypeError("expected Buffer instance as first argument");
+  if (!args[1]->IsFunction())
+    return env->ThrowTypeError("expected function as second argument");
+
   void* code;
   ffi_cif* cif = reinterpret_cast<ffi_cif*>(
       Buffer::Data(args[0].As<Object>()));
 
-  Persistent<Function>* cbPtr = new Persistent<Function>();
-  (*cbPtr).Reset(env->isolate(), Handle<Function>::Cast(args[1]));
+  closure_info* info = reinterpret_cast<closure_info*>(
+      ffi_closure_alloc(sizeof(*info), &code));
 
-  ffi_closure* closure = reinterpret_cast<ffi_closure*>(
-      ffi_closure_alloc(sizeof(*closure), &code));
+  info->callback.Reset(env->isolate(), args[1].As<Object>());
+  info->isolate = env->isolate();
 
-  if (!closure)
+  if (!info)
     return env->ThrowError("ffi_closure_alloc memory allocation failed");
 
-  ffi_status status = ffi_prep_closure_loc(closure, cif,
-      ClosureInvoke, cbPtr, code);
+  ffi_status status = ffi_prep_closure_loc(
+      &info->closure, cif,
+      ClosureInvoke, info, code);
 
   if (status != FFI_OK) {
     // TODO(tootallnate): relay status code as well
-    ffi_closure_free(closure);
+    ffi_closure_free(info);
     return env->ThrowError("ffi_prep_closure_loc failed");
   }
 
   args.GetReturnValue().Set(Buffer::New(env,
-        reinterpret_cast<char*>(code), 0, ClosureFree, closure));
+        reinterpret_cast<char*>(code), 0, ClosureFree, info));
 }
 
 
