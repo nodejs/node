@@ -39,18 +39,18 @@ function cleanup (er) {
   }.bind(this))
 }
 
-function cleanupSync (er) {
+function cleanupSync () {
   try {
     fs.unlinkSync(this.__atomicTmp)
   } finally {
-    return fs.WriteStream.prototype.emit.call(this, 'error', er)
+    return
   }
 }
 
 // When we *would* emit 'close' or 'finish', instead do our stuff
 WriteStream.prototype.emit = function (ev) {
   if (ev === 'error')
-    return cleanupSync(this)
+    cleanupSync.call(this)
 
   if (ev !== 'close' && ev !== 'finish')
     return fs.WriteStream.prototype.emit.apply(this, arguments)

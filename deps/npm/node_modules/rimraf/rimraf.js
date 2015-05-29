@@ -258,6 +258,7 @@ function rimrafSync (p, options) {
   assert(p, 'rimraf: missing path')
   assert.equal(typeof p, 'string', 'rimraf: path should be a string')
   assert(options, 'rimraf: missing options')
+  assert.equal(typeof options, 'object', 'rimraf: options should be object')
 
   var results
 

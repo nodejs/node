@@ -11,6 +11,7 @@ var semver = require("semver")
   , npm = require("./npm.js")
   , git = require("./utils/git.js")
   , assert = require("assert")
+  , lifecycle = require("./utils/lifecycle.js")
 
 version.usage = "npm version [<newversion> | major | minor | patch | prerelease | preminor | premajor ]\n"
               + "\n(run in package dir)\n"
@@ -26,11 +27,6 @@ function version (args, silent, cb_) {
 
   var packagePath = path.join(npm.localPrefix, "package.json")
   fs.readFile(packagePath, function (er, data) {
-    function cb (er) {
-      if (!er && !silent) console.log("v" + data.version)
-      cb_(er)
-    }
-
     if (data) data = data.toString()
     try {
       data = JSON.parse(data)
@@ -52,17 +48,30 @@ function version (args, silent, cb_) {
     if (data.version === newVersion) return cb_(new Error("Version not changed"))
     data.version = newVersion
 
-    checkGit(function (er, hasGit) {
-      if (er) return cb_(er)
+    chain([
+          [lifecycle, data, "preversion"]
+        , [version_, data, silent]
+        , [lifecycle, data, "version"]
+        , [lifecycle, data, "postversion"] ]
+        , cb_)
+  })
+}
 
-      write(data, "package.json", function (er) {
-        if (er) return cb_(er)
+function version_ (data, silent, cb_) {
+  function cb (er) {
+    if (!er && !silent) console.log("v" + data.version)
+    cb_(er)
+  }
 
-        updateShrinkwrap(newVersion, function (er, hasShrinkwrap) {
-          if (er || !hasGit) return cb(er)
+  checkGit(function (er, hasGit) {
+    if (er) return cb(new Error(er))
 
-          commit(data.version, hasShrinkwrap, cb)
-        })
+    write(data, "package.json", function (er) {
+      if (er) return cb(new Error(er))
+
+      updateShrinkwrap(data.version, function (er, hasShrinkwrap) {
+        if (er || !hasGit) return cb(er)
+        commit(data.version, hasShrinkwrap, cb)
       })
     })
   })

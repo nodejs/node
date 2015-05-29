@@ -7,7 +7,7 @@ function star (uri, params, cb) {
   assert(params && typeof params === 'object', 'must pass params to star')
   assert(typeof cb === 'function', 'must pass callback to star')
 
-  var starred = params.starred ? true : false
+  var starred = !!params.starred
 
   var auth = params.auth
   assert(auth && typeof auth === 'object', 'must pass auth to star')

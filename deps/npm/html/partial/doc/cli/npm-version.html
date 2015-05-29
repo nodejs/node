@@ -28,6 +28,12 @@ user: &quot;isaacs (http://blog.izs.me/) &lt;i@izs.me&gt;&quot;
 2048-bit RSA key, ID 6C481CF6, created 2010-08-31
 
 Enter passphrase:
+</code></pre><p>If &quot;preversion&quot;, &quot;version&quot;, &quot;postversion&quot; in the &quot;scripts&quot; property of
+the package.json, it will execute by running <code>npm version</code>. preversion
+and version ware executed before bump the package version, postversion
+was executed after bump the package version. For example to run <code>npm version</code>
+after passed all test:</p>
+<pre><code>&quot;scripts&quot;: { &quot;preversion&quot;: &quot;npm test&quot; }
 </code></pre><h2 id="configuration">CONFIGURATION</h2>
 <h3 id="git-tag-version">git-tag-version</h3>
 <ul>
@@ -38,6 +44,8 @@ Enter passphrase:
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
 <li><a href="../cli/npm-init.html">npm-init(1)</a></li>
+<li><a href="../cli/npm-run-script.html">npm-run-script(1)</a></li>
+<li><a href="../misc/npm-scripts.html">npm-scripts(7)</a></li>
 <li><a href="../files/package.json.html">package.json(5)</a></li>
 <li><a href="../misc/semver.html">semver(7)</a></li>
 <li><a href="../misc/config.html">config(7)</a></li>

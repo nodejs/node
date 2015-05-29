@@ -328,9 +328,9 @@ on Freenode IRC.
 ## Why no namespaces?
 
 npm has only one global namespace.  If you want to namespace your own packages,
-you may: simply use the `-` character to separate the names.  npm is a mostly
-anarchic system.  There is not sufficient need to impose namespace rules on
-everyone.
+you may: simply use the `-` character to separate the names or use scoped
+packages.  npm is a mostly anarchic system.  There is not sufficient need to
+impose namespace rules on everyone.
 
 As of 2.0, npm supports scoped packages, which allow you to publish a group of
 related modules without worrying about name collisions.
@@ -340,11 +340,11 @@ user named `npm` owns the scope `@npm`.  Scoped packages are published inside a
 scope by naming them as if they were files under the scope directory, e.g., by
 setting `name` in `package.json` to `@npm/npm`.
 
-Scoped packages can coexist with public npm packages in a private npm registry.
-At present (2014-11-04) scoped packages may NOT be published to the public npm
-registry.
+Scoped packages are supported by the public npm registry. The npm client is
+backwards-compatible with un-scoped registries, so it can be used to work with
+scoped and un-scoped registries at the same time.
 
-Unscoped packages can only depend on other unscoped packages.  Scoped packages
+Unscoped packages can only depend on other unscoped packages. Scoped packages
 can depend on packages from their own scope, a different scope, or the public
 registry (unscoped).
 

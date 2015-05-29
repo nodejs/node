@@ -61,6 +61,7 @@ function setopts (self, pattern, options) {
     pattern = "**/" + pattern
   }
 
+  self.silent = !!options.silent
   self.pattern = pattern
   self.strict = options.strict !== false
   self.realpath = !!options.realpath

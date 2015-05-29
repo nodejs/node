@@ -12,6 +12,7 @@ var cbCalled = false
   , rollbacks = npm.rollbacks
   , chain = require("slide").chain
   , writeStream = require("fs-write-stream-atomic")
+  , nameValidator = require("validate-npm-package-name")
 
 
 process.on("exit", function (code) {
@@ -216,8 +217,21 @@ function errorHandler (er) {
   case "E404":
     var msg = [er.message]
     if (er.pkgid && er.pkgid !== "-") {
-      msg.push("", "'"+er.pkgid+"' is not in the npm registry."
-              ,"You should bug the author to publish it (or use the name yourself!)")
+      msg.push("", "'" + er.pkgid + "' is not in the npm registry.")
+
+      var valResult = nameValidator(er.pkgid)
+
+      if (valResult.validForNewPackages) {
+        msg.push("You should bug the author to publish it (or use the name yourself!)")
+      } else {
+        msg.push("Your package name is not valid, because", "")
+
+        var errorsArray = (valResult.errors || []).concat(valResult.warnings || [])
+        errorsArray.forEach(function(item, idx) {
+          msg.push(" " + (idx + 1) + ". " + item)
+        })
+      }
+
       if (er.parent) {
         msg.push("It was specified as a dependency of '"+er.parent+"'")
       }

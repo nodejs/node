@@ -133,16 +133,23 @@ this means that future npm installs will not remember the settings that
 you have chosen\.
 .SH Using npm Programmatically
 .P
-If you would like to use npm programmatically, you can do that\.
-It's not very well documented, but it \fIis\fR rather simple\.
+Although npm can be used programmatically, its API is meant for use by the CLI
+\fIonly\fR, and no guarantees are made regarding its fitness for any other purpose\.
+If you want to use npm to reliably perform some task, the safest thing to do is
+to invoke the desired \fBnpm\fR command with appropriate arguments\.
 .P
-Most of the time, unless you actually want to do all the things that
-npm does, you should try using one of npm's dependencies rather than
-using npm itself, if possible\.
+The semantic version of npm refers to the CLI itself, rather than the
+underlying API\. \fIThe internal API is not guaranteed to remain stable even when
+npm's version indicates no breaking changes have been made according to
+semver\.\fR
 .P
-Eventually, npm will be just a thin cli wrapper around the modules
-that it depends on, but for now, there are some things that you must
-use npm itself to do\.
+If you \fIstill\fR would like to use npm programmatically, it's \fIpossible\fR\|\. The API
+isn't very well documented, but it \fIis\fR rather simple\.
+.P
+Eventually, npm will be just a thin CLI wrapper around the modules that it
+depends on, but for now, there are some things that only the CLI can do\. You
+should try using one of npm's dependencies first, and only use the API if what
+you're trying to do is only supported by npm itself\.
 .P
 .RS 2
 .nf
