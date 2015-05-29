@@ -222,8 +222,27 @@
   startup.globalVariables = function() {
     global.process = process;
     global.global = global;
-    global.GLOBAL = global;
-    global.root = global;
+    const util = NativeModule.require('util');
+
+    // Deprecate GLOBAL and root
+    ['GLOBAL', 'root'].forEach(function(name) {
+      // getter
+      const get = util.deprecate(function() {
+        return this;
+      }, `'${name}' is deprecated, use 'global'`);
+      // setter
+      const set = util.deprecate(function(value) {
+        Object.defineProperty(this, name, {
+          configurable: true,
+          writable: true,
+          enumerable: true,
+          value: value
+        });
+      }, `'${name}' is deprecated, use 'global'`);
+      // define property
+      Object.defineProperty(global, name, { get, set, configurable: true });
+    });
+
     global.Buffer = NativeModule.require('buffer').Buffer;
     process.domain = null;
     process._exiting = false;
