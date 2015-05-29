@@ -21,13 +21,16 @@ paths, etc.) then read on.</p>
 <p>There&#39;s a pretty robust install script at
 <a href="https://www.npmjs.com/install.sh">https://www.npmjs.com/install.sh</a>.  You can download that and run it.</p>
 <p>Here&#39;s an example using curl:</p>
-<pre><code>curl -L https://www.npmjs.com/install.sh | sh
-</code></pre><h3 id="slightly-fancier">Slightly Fancier</h3>
+<pre><code class="lang-sh">curl -L https://www.npmjs.com/install.sh | sh
+</code></pre>
+<h3 id="slightly-fancier">Slightly Fancier</h3>
 <p>You can set any npm configuration params with that script:</p>
-<pre><code>npm_config_prefix=/some/path sh install.sh
-</code></pre><p>Or, you can run it in uber-debuggery mode:</p>
-<pre><code>npm_debug=1 sh install.sh
-</code></pre><h3 id="even-fancier">Even Fancier</h3>
+<pre><code class="lang-sh">npm_config_prefix=/some/path sh install.sh
+</code></pre>
+<p>Or, you can run it in uber-debuggery mode:</p>
+<pre><code class="lang-sh">npm_debug=1 sh install.sh
+</code></pre>
+<h3 id="even-fancier">Even Fancier</h3>
 <p>Get the code with git.  Use <code>make</code> to build the docs and do other stuff.
 If you plan on hacking on npm, <code>make link</code> is your friend.</p>
 <p>If you&#39;ve got the npm source code, you can also semi-permanently set
@@ -46,10 +49,12 @@ git, and mess with it directly.</p>
 <p>No.</p>
 <h2 id="uninstalling">Uninstalling</h2>
 <p>So sad to see you go.</p>
-<pre><code>sudo npm uninstall npm -g
-</code></pre><p>Or, if that fails,</p>
-<pre><code>sudo make uninstall
-</code></pre><h2 id="more-severe-uninstalling">More Severe Uninstalling</h2>
+<pre><code class="lang-sh">sudo npm uninstall npm -g
+</code></pre>
+<p>Or, if that fails,</p>
+<pre><code class="lang-sh">sudo make uninstall
+</code></pre>
+<h2 id="more-severe-uninstalling">More Severe Uninstalling</h2>
 <p>Usually, the above instructions are sufficient.  That will remove
 npm, but leave behind anything you&#39;ve installed.</p>
 <p>If you would like to remove all the packages that you have installed,
@@ -57,25 +62,33 @@ then you can use the <code>npm ls</code> command to find them, and then <code>np
 remove them.</p>
 <p>To remove cruft left behind by npm 0.x, you can use the included
 <code>clean-old.sh</code> script file.  You can run it conveniently like this:</p>
-<pre><code>npm explore npm -g -- sh scripts/clean-old.sh
-</code></pre><p>npm uses two configuration files, one for per-user configs, and another
+<pre><code class="lang-sh">npm explore npm -g -- sh scripts/clean-old.sh
+</code></pre>
+<p>npm uses two configuration files, one for per-user configs, and another
 for global (every-user) configs.  You can view them by doing:</p>
-<pre><code>npm config get userconfig   # defaults to ~/.npmrc
+<pre><code class="lang-sh">npm config get userconfig   # defaults to ~/.npmrc
 npm config get globalconfig # defaults to /usr/local/etc/npmrc
-</code></pre><p>Uninstalling npm does not remove configuration files by default.  You
+</code></pre>
+<p>Uninstalling npm does not remove configuration files by default.  You
 must remove them yourself manually if you want them gone.  Note that
 this means that future npm installs will not remember the settings that
 you have chosen.</p>
 <h2 id="using-npm-programmatically">Using npm Programmatically</h2>
-<p>If you would like to use npm programmatically, you can do that.
-It&#39;s not very well documented, but it <em>is</em> rather simple.</p>
-<p>Most of the time, unless you actually want to do all the things that
-npm does, you should try using one of npm&#39;s dependencies rather than
-using npm itself, if possible.</p>
-<p>Eventually, npm will be just a thin cli wrapper around the modules
-that it depends on, but for now, there are some things that you must
-use npm itself to do.</p>
-<pre><code>var npm = require(&quot;npm&quot;)
+<p>Although npm can be used programmatically, its API is meant for use by the CLI
+<em>only</em>, and no guarantees are made regarding its fitness for any other purpose.
+If you want to use npm to reliably perform some task, the safest thing to do is
+to invoke the desired <code>npm</code> command with appropriate arguments.</p>
+<p>The semantic version of npm refers to the CLI itself, rather than the
+underlying API. <em>The internal API is not guaranteed to remain stable even when
+npm&#39;s version indicates no breaking changes have been made according to
+semver.</em></p>
+<p>If you <em>still</em> would like to use npm programmatically, it&#39;s <em>possible</em>. The API
+isn&#39;t very well documented, but it <em>is</em> rather simple.</p>
+<p>Eventually, npm will be just a thin CLI wrapper around the modules that it
+depends on, but for now, there are some things that only the CLI can do. You
+should try using one of npm&#39;s dependencies first, and only use the API if what
+you&#39;re trying to do is only supported by npm itself.</p>
+<pre><code class="lang-javascript">var npm = require(&quot;npm&quot;)
 npm.load(myConfigObject, function (er) {
   if (er) return handlError(er)
   npm.commands.install([&quot;some&quot;, &quot;args&quot;], function (er, data) {
@@ -84,7 +97,8 @@ npm.load(myConfigObject, function (er) {
   })
   npm.registry.log.on(&quot;log&quot;, function (message) { .... })
 })
-</code></pre><p>The <code>load</code> function takes an object hash of the command-line configs.
+</code></pre>
+<p>The <code>load</code> function takes an object hash of the command-line configs.
 The various <code>npm.commands.&lt;cmd&gt;</code> functions take an <strong>array</strong> of
 positional argument <strong>strings</strong>.  The last argument to any
 <code>npm.commands.&lt;cmd&gt;</code> function is a callback.  Some commands take other
@@ -115,7 +129,7 @@ specific purpose, or lack of malice in any given npm package.</p>
 <p>If you have a complaint about a package in the public npm registry,
 and cannot <a href="https://docs.npmjs.com/misc/disputes">resolve it with the package
 owner</a>, please email
-<a href="&#109;&#97;&#105;&#x6c;&#x74;&#x6f;&#x3a;&#x73;&#117;&#112;&#112;&#x6f;&#114;&#x74;&#64;&#110;&#112;&#109;&#x6a;&#x73;&#46;&#99;&#x6f;&#x6d;">&#x73;&#117;&#112;&#112;&#x6f;&#114;&#x74;&#64;&#110;&#112;&#109;&#x6a;&#x73;&#46;&#99;&#x6f;&#x6d;</a> and explain the situation.</p>
+<a href="&#109;&#x61;&#x69;&#108;&#116;&#x6f;&#58;&#x73;&#x75;&#x70;&#x70;&#x6f;&#114;&#116;&#64;&#110;&#x70;&#109;&#x6a;&#x73;&#x2e;&#x63;&#111;&#x6d;">&#x73;&#x75;&#x70;&#x70;&#x6f;&#114;&#116;&#64;&#110;&#x70;&#109;&#x6a;&#x73;&#x2e;&#x63;&#111;&#x6d;</a> and explain the situation.</p>
 <p>Any data published to The npm Registry (including user account
 information) may be removed or modified at the sole discretion of the
 npm server administrators.</p>

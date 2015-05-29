@@ -230,12 +230,7 @@ test: doc
 tag:
 	npm tag npm@$(PUBLISHTAG) latest
 
-authors:
-	@bash scripts/update-authors.sh &&\
-	git add AUTHORS &&\
-	git commit -m "update AUTHORS" || true
-
-publish: authors link doc
+publish: link doc
 	@git push origin :v$(shell npm -v) 2>&1 || true
 	git clean -fd &&\
 	git push origin $(BRANCH) &&\
@@ -248,4 +243,4 @@ release:
 sandwich:
 	@[ $$(whoami) = "root" ] && (echo "ok"; echo "ham" > sandwich) || (echo "make it yourself" && exit 13)
 
-.PHONY: all latest install dev link doc clean uninstall test man doc-clean docclean release authors
+.PHONY: all latest install dev link doc clean uninstall test man doc-clean docclean release

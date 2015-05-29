@@ -1,4 +1,4 @@
-globalconfig=/Users/rebecca/code/npm-release/test/fixtures/config/globalconfig
+globalconfig=/Users/ogd/Documents/projects/npm/npm/test/fixtures/config/globalconfig
 email=i@izs.me
 env-thing=asdf
 init.author.name=Isaac Z. Schlueter

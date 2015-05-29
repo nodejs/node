@@ -57,7 +57,7 @@ require("tap").test("basic", function (t) {
       name: null,
       type: "hosted",
       hosted: { type: "gitlab" },
-      spec: "https://gitlab.com/user/foo.git",
+      spec: "git+https://gitlab.com/user/foo.git",
       raw: "https://gitlab.com/user/foo.git"
     },
 

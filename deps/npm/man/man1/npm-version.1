@@ -50,6 +50,18 @@ user: "isaacs (http://blog\.izs\.me/) <i@izs\.me>"
 Enter passphrase:
 .fi
 .RE
+.P
+If "preversion", "version", "postversion" in the "scripts" property of
+the package\.json, it will execute by running \fBnpm version\fR\|\. preversion
+and version ware executed before bump the package version, postversion
+was executed after bump the package version\. For example to run \fBnpm version\fR
+after passed all test:
+.P
+.RS 2
+.nf
+"scripts": { "preversion": "npm test" }
+.fi
+.RE
 .SH CONFIGURATION
 .SS git\-tag\-version
 .RS 0
@@ -65,6 +77,10 @@ Commit and tag the version change\.
 .RS 0
 .IP \(bu 2
 npm help init
+.IP \(bu 2
+npm help run\-script
+.IP \(bu 2
+npm help 7 scripts
 .IP \(bu 2
 npm help 5 package\.json
 .IP \(bu 2

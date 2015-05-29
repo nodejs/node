@@ -1,7 +1,7 @@
 'use strict'
 var gitHosts = require('./git-host-info.js')
 
-var GitHost = module.exports = function (type, user, auth, project, comittish, defaultRepresentation) {
+var GitHost = module.exports = function (type, user, auth, project, committish, defaultRepresentation) {
   var gitHostInfo = this
   gitHostInfo.type = type
   Object.keys(gitHosts[type]).forEach(function (key) {
@@ -10,13 +10,13 @@ var GitHost = module.exports = function (type, user, auth, project, comittish, d
   gitHostInfo.user = user
   gitHostInfo.auth = auth
   gitHostInfo.project = project
-  gitHostInfo.comittish = comittish
+  gitHostInfo.committish = committish
   gitHostInfo.default = defaultRepresentation
 }
 GitHost.prototype = {}
 
 GitHost.prototype.hash = function () {
-  return this.comittish ? '#' + this.comittish : ''
+  return this.committish ? '#' + this.committish : ''
 }
 
 GitHost.prototype._fill = function (template, vars) {
@@ -27,17 +27,17 @@ GitHost.prototype._fill = function (template, vars) {
     if (self[key] != null && vars[key] == null) vars[key] = self[key]
   })
   var rawAuth = vars.auth
-  var rawComittish = vars.comittish
+  var rawComittish = vars.committish
   Object.keys(vars).forEach(function (key) {
     vars[key] = encodeURIComponent(vars[key])
   })
   vars['auth@'] = rawAuth ? rawAuth + '@' : ''
-  vars['#comittish'] = rawComittish ? '#' + rawComittish : ''
-  vars['/tree/comittish'] = vars.comittish
-                          ? '/' + vars.treepath + '/' + vars.comittish
+  vars['#committish'] = rawComittish ? '#' + rawComittish : ''
+  vars['/tree/committish'] = vars.committish
+                          ? '/' + vars.treepath + '/' + vars.committish
                           : ''
-  vars['/comittish'] = vars.comittish ? '/' + vars.comittish : ''
-  vars.comittish = vars.comittish || 'master'
+  vars['/committish'] = vars.committish ? '/' + vars.committish : ''
+  vars.committish = vars.committish || 'master'
   var res = template
   Object.keys(vars).forEach(function (key) {
     res = res.replace(new RegExp('[{]' + key + '[}]', 'g'), vars[key])

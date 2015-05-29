@@ -40,17 +40,23 @@ There's a pretty robust install script at
 
 Here's an example using curl:
 
-    curl -L https://www.npmjs.com/install.sh | sh
+```sh
+curl -L https://www.npmjs.com/install.sh | sh
+```
 
 ### Slightly Fancier
 
 You can set any npm configuration params with that script:
 
-    npm_config_prefix=/some/path sh install.sh
+```sh
+npm_config_prefix=/some/path sh install.sh
+```
 
 Or, you can run it in uber-debuggery mode:
 
-    npm_debug=1 sh install.sh
+```sh
+npm_debug=1 sh install.sh
+```
 
 ### Even Fancier
 
@@ -83,11 +89,14 @@ No.
 
 So sad to see you go.
 
-    sudo npm uninstall npm -g
-
+```sh
+sudo npm uninstall npm -g
+```
 Or, if that fails,
 
-    sudo make uninstall
+```sh
+sudo make uninstall
+```
 
 ## More Severe Uninstalling
 
@@ -101,13 +110,17 @@ remove them.
 To remove cruft left behind by npm 0.x, you can use the included
 `clean-old.sh` script file.  You can run it conveniently like this:
 
-    npm explore npm -g -- sh scripts/clean-old.sh
+```sh
+npm explore npm -g -- sh scripts/clean-old.sh
+```
 
 npm uses two configuration files, one for per-user configs, and another
 for global (every-user) configs.  You can view them by doing:
 
-    npm config get userconfig   # defaults to ~/.npmrc
-    npm config get globalconfig # defaults to /usr/local/etc/npmrc
+```sh
+npm config get userconfig   # defaults to ~/.npmrc
+npm config get globalconfig # defaults to /usr/local/etc/npmrc
+```
 
 Uninstalling npm does not remove configuration files by default.  You
 must remove them yourself manually if you want them gone.  Note that
@@ -116,26 +129,35 @@ you have chosen.
 
 ## Using npm Programmatically
 
-If you would like to use npm programmatically, you can do that.
-It's not very well documented, but it *is* rather simple.
+Although npm can be used programmatically, its API is meant for use by the CLI
+*only*, and no guarantees are made regarding its fitness for any other purpose.
+If you want to use npm to reliably perform some task, the safest thing to do is
+to invoke the desired `npm` command with appropriate arguments.
 
-Most of the time, unless you actually want to do all the things that
-npm does, you should try using one of npm's dependencies rather than
-using npm itself, if possible.
+The semantic version of npm refers to the CLI itself, rather than the
+underlying API. _The internal API is not guaranteed to remain stable even when
+npm's version indicates no breaking changes have been made according to
+semver._
 
-Eventually, npm will be just a thin cli wrapper around the modules
-that it depends on, but for now, there are some things that you must
-use npm itself to do.
+If you _still_ would like to use npm programmatically, it's _possible_. The API
+isn't very well documented, but it _is_ rather simple.
 
-    var npm = require("npm")
-    npm.load(myConfigObject, function (er) {
-      if (er) return handlError(er)
-      npm.commands.install(["some", "args"], function (er, data) {
-        if (er) return commandFailed(er)
-        // command succeeded, and data might have some info
-      })
-      npm.registry.log.on("log", function (message) { .... })
-    })
+Eventually, npm will be just a thin CLI wrapper around the modules that it
+depends on, but for now, there are some things that only the CLI can do. You
+should try using one of npm's dependencies first, and only use the API if what
+you're trying to do is only supported by npm itself.
+
+```javascript
+var npm = require("npm")
+npm.load(myConfigObject, function (er) {
+  if (er) return handlError(er)
+  npm.commands.install(["some", "args"], function (er, data) {
+    if (er) return commandFailed(er)
+    // command succeeded, and data might have some info
+  })
+  npm.registry.log.on("log", function (message) { .... })
+})
+```
 
 The `load` function takes an object hash of the command-line configs.
 The various `npm.commands.<cmd>` functions take an **array** of

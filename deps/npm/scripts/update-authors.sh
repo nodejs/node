@@ -1,18 +1,9 @@
 #!/bin/sh
 
-git log --reverse --format='%aN <%aE>' | perl -we '
-
+git log --reverse --format='%aN <%aE>' | perl -wnE '
 BEGIN {
-  %seen = (), @authors = ();
+  say "# Authors sorted by whether or not they\x27re me";
 }
 
-while (<>) {
-  next if $seen{$_};
-  $seen{$_} = push @authors, $_;
-}
-
-END {
-  print "# Authors sorted by whether or not they'\''re me\n";
-  print @authors;
-}
+print $seen{$_} = $_ unless $seen{$_}
 ' > AUTHORS

@@ -16,14 +16,14 @@ used when your package is installed\. The \fBpackage\.json\fR file is still
 required if you want to use \fBnpm install\fR\|\.
 .P
 By default, \fBnpm install\fR recursively installs the target's
-dependencies (as specified in package\.json), choosing the latest
+dependencies (as specified in \fBpackage\.json\fR), choosing the latest
 available version that satisfies the dependency's semver pattern\. In
 some situations, particularly when shipping software where each change
 is tightly managed, it's desirable to fully specify each version of
 each dependency recursively so that subsequent builds and deploys do
 not inadvertently pick up newer versions of a dependency that satisfy
 the semver pattern\. Specifying specific semver patterns in each
-dependency's package\.json would facilitate this, but that's not always
+dependency's \fBpackage\.json\fR would facilitate this, but that's not always
 possible or desirable, as when another author owns the npm package\.
 It's also possible to check dependencies directly into source control,
 but that may be undesirable for other reasons\.
@@ -61,7 +61,7 @@ and package C:
 .RS 2
 .nf
 {
-  "name": "C,
+  "name": "C",
   "version": "0\.0\.1"
 }
 .fi
@@ -105,7 +105,7 @@ npm shrinkwrap
 .fi
 .RE
 .P
-This generates npm\-shrinkwrap\.json, which will look something like this:
+This generates \fBnpm\-shrinkwrap\.json\fR, which will look something like this:
 .P
 .RS 2
 .nf
@@ -128,18 +128,18 @@ This generates npm\-shrinkwrap\.json, which will look something like this:
 .P
 The shrinkwrap command has locked down the dependencies based on
 what's currently installed in node_modules\.  When \fBnpm install\fR
-installs a package with a npm\-shrinkwrap\.json file in the package
-root, the shrinkwrap file (rather than package\.json files) completely
+installs a package with an \fBnpm\-shrinkwrap\.json\fR in the package
+root, the shrinkwrap file (rather than \fBpackage\.json\fR files) completely
 drives the installation of that package and all of its dependencies
 (recursively)\.  So now the author publishes A@0\.1\.0, and subsequent
 installs of this package will use B@0\.0\.1 and C@0\.0\.1, regardless the
-dependencies and versions listed in A's, B's, and C's package\.json
+dependencies and versions listed in A's, B's, and C's \fBpackage\.json\fR
 files\.
 .SS Using shrinkwrapped packages
 .P
 Using a shrinkwrapped package is no different than using any other
 package: you can \fBnpm install\fR it by hand, or add a dependency to your
-package\.json file and \fBnpm install\fR it\.
+\fBpackage\.json\fR file and \fBnpm install\fR it\.
 .SS Building shrinkwrapped packages
 .P
 To shrinkwrap an existing package:
@@ -150,7 +150,7 @@ versions of all dependencies\.
 .IP 2. 3
 Validate that the package works as expected with these versions\.
 .IP 3. 3
-Run \fBnpm shrinkwrap\fR, add npm\-shrinkwrap\.json to git, and publish
+Run \fBnpm shrinkwrap\fR, add \fBnpm\-shrinkwrap\.json\fR to git, and publish
 your package\.
 
 .RE
@@ -162,7 +162,7 @@ Run \fBnpm install\fR in the package root to install the current
 versions of all dependencies\.
 .IP 2. 3
 Add or update dependencies\. \fBnpm install\fR each new or updated
-package individually and then update package\.json\.  Note that they
+package individually and then update \fBpackage\.json\fR\|\.  Note that they
 must be explicitly named in order to be installed: running \fBnpm
 install\fR with no arguments will merely reproduce the existing
 shrinkwrap\.
@@ -170,7 +170,7 @@ shrinkwrap\.
 Validate that the package works as expected with the new
 dependencies\.
 .IP 4. 3
-Run \fBnpm shrinkwrap\fR, commit the new npm\-shrinkwrap\.json, and
+Run \fBnpm shrinkwrap\fR, commit the new \fBnpm\-shrinkwrap\.json\fR, and
 publish your package\.
 
 .RE
@@ -179,12 +179,12 @@ You can use npm help outdated to view dependencies with newer versions
 available\.
 .SS Other Notes
 .P
-A shrinkwrap file must be consistent with the package's package\.json
+A shrinkwrap file must be consistent with the package's \fBpackage\.json\fR
 file\. \fBnpm shrinkwrap\fR will fail if required dependencies are not
 already installed, since that would result in a shrinkwrap that
 wouldn't actually work\. Similarly, the command will fail if there are
-extraneous packages (not referenced by package\.json), since that would
-indicate that package\.json is not correct\.
+extraneous packages (not referenced by \fBpackage\.json\fR), since that would
+indicate that \fBpackage\.json\fR is not correct\.
 .P
 Since \fBnpm shrinkwrap\fR is intended to lock down your dependencies for
 production use, \fBdevDependencies\fR will not be included unless you

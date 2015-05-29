@@ -57,7 +57,7 @@ require("tap").test("basic", function (t) {
       name: null,
       type: "hosted",
       hosted: { type: "bitbucket" },
-      spec: "https://bitbucket.org/user/foo.git",
+      spec: "git+https://bitbucket.org/user/foo.git",
       raw: "https://bitbucket.org/user/foo.git"
     },
 

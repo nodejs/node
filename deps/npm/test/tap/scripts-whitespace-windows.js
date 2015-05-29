@@ -72,7 +72,6 @@ test('setup', function (t) {
   }, function (err, code, stdout, stderr) {
     t.ifErr(err, 'npm i ' + dep + ' finished without error')
     t.equal(code, 0, 'npm i ' + dep + ' exited ok')
-    console.log('stderr', stderr)
     t.notOk(stderr, 'no output stderr')
     t.end()
   })
@@ -81,8 +80,7 @@ test('setup', function (t) {
 test('test', function (t) {
   common.npm(['run', 'foo'], EXEC_OPTS, function (err, code, stdout, stderr) {
     stderr = stderr.trim()
-    if (stderr)
-      console.error(stderr)
+    if (stderr) console.error(stderr)
     t.ifErr(err, 'npm run finished without error')
     t.equal(code, 0, 'npm run exited ok')
     t.notOk(stderr, 'no output stderr: ' + stderr)

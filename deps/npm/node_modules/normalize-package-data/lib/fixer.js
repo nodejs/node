@@ -193,7 +193,10 @@ var fixer = module.exports = {
     modifyPeople(data, parsePerson)
   }
 
-, fixNameField: function(data, strict) {
+, fixNameField: function(data, options) {
+    if (typeof options === "boolean") options = {strict: options}
+    else if (typeof options === "undefined") options = {}
+    var strict = options.strict
     if (!data.name && !strict) {
       data.name = ""
       return
@@ -203,7 +206,7 @@ var fixer = module.exports = {
     }
     if (!strict)
       data.name = data.name.trim()
-    ensureValidName(data.name, strict)
+    ensureValidName(data.name, strict, options.allowLegacyCase)
     if (coreModuleNames.indexOf(data.name) !== -1)
       this.warn("conflictingName", data.name)
   }
@@ -314,10 +317,10 @@ function isCorrectlyEncodedName(spec) {
     spec === encodeURIComponent(spec)
 }
 
-function ensureValidName (name, strict) {
+function ensureValidName (name, strict, allowLegacyCase) {
   if (name.charAt(0) === "." ||
       !(isValidScopedPackageName(name) || isCorrectlyEncodedName(name)) ||
-      (strict && name !== name.toLowerCase()) ||
+      (strict && (!allowLegacyCase) && name !== name.toLowerCase()) ||
       name.toLowerCase() === "node_modules" ||
       name.toLowerCase() === "favicon.ico") {
         throw new Error("Invalid name: " + JSON.stringify(name))

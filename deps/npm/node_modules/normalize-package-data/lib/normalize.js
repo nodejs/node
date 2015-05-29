@@ -1,6 +1,8 @@
 module.exports = normalize
 
 var fixer = require("./fixer")
+normalize.fixer = fixer
+
 var makeWarning = require("./make_warning")
 
 var fieldsToFix = ['name','version','description','repository','modules','scripts'
