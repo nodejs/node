@@ -1367,7 +1367,7 @@ def Main():
 
   ch = logging.StreamHandler(sys.stdout)
   logger.addHandler(ch)
-  logger.setLevel('INFO')
+  logger.setLevel(logging.INFO)
   if options.logfile:
     fh = logging.FileHandler(options.logfile)
     logger.addHandler(fh)
