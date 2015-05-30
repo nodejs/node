@@ -7,8 +7,6 @@ var net = require('net');
 // This test creates 200 connections to a server and sets the server's
 // maxConnections property to 100. The first 100 connections make it through
 // and the last 100 connections are rejected.
-// TODO: test that the server can accept more connections after it reaches
-// its maximum and some are closed.
 
 var N = 200;
 var count = 0;
