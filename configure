@@ -691,7 +691,10 @@ def configure_library(lib, output):
       default_libpath = '-L' + default_libpath
     (pkg_libs, pkg_cflags, pkg_libpath) = pkg_config(lib)
     # Remove empty strings from the list of include_dirs
-    cflags = filter(None, pkg_cflags.split('-I')) if pkg_cflags else default_cflags
+    if pkg_cflags:
+      cflags = filter(None, map(str.strip, pkg_cflags.split('-I')))
+    else:
+      cflags = default_cflags
     libs = pkg_libs if pkg_libs else default_lib
     libpath = pkg_libpath if pkg_libpath else default_libpath
 
@@ -852,7 +855,7 @@ def configure_intl(o):
     # safe to split, cannot contain spaces
     o['libraries'] += libs.split()
     if cflags:
-      o['cflags'] += filter(None, cflags.split('-I'))
+      o['include_dirs'] += filter(None, map(str.strip, cflags.split('-I')))
     # use the "system" .gyp
     o['variables']['icu_gyp_path'] = 'tools/icu/icu-system.gyp'
     return
