@@ -40,7 +40,8 @@ function TEST(f) {
 
 
 function checkWrap(req) {
-  assert.ok(typeof req === 'object');
+  if (process.oldDNS)
+    assert.ok(typeof req === 'object');
 }
 
 
@@ -130,6 +131,7 @@ TEST(function test_resolveSrv(done) {
   checkWrap(req);
 });
 
+
 TEST(function test_resolveNaptr(done) {
   var req = dns.resolveNaptr('sip2sip.info', function(err, result) {
     if (err) throw err;
@@ -154,6 +156,7 @@ TEST(function test_resolveNaptr(done) {
 
   checkWrap(req);
 });
+
 
 TEST(function test_resolveSoa(done) {
   var req = dns.resolveSoa('nodejs.org', function(err, result) {
@@ -189,6 +192,7 @@ TEST(function test_resolveSoa(done) {
   checkWrap(req);
 });
 
+
 TEST(function test_resolveCname(done) {
   var req = dns.resolveCname('www.microsoft.com', function(err, names) {
     if (err) throw err;
@@ -218,6 +222,42 @@ TEST(function test_resolveTxt(done) {
   });
 
   checkWrap(req);
+});
+
+
+TEST(function test_resolveLoc(done) {
+  if (!dns.resolveLoc)
+    return done();
+
+  dns.resolveLoc('statdns.net', function(err, records) {
+    if (err) throw err;
+    assert.equal(records.length, 1);
+    assert.deepEqual(records[0], {
+      size: 0,
+      horizPrec: 22,
+      vertPrec: 19,
+      latitude: 2336026648,
+      longitude: 2165095648,
+      altitude: 9999800
+    });
+    done();
+  });
+});
+
+TEST(function test_resolveSshp(done) {
+  if (!dns.resolveSshp)
+    return done();
+
+  dns.resolveSshp('statdns.net', function(err, records) {
+    if (err) throw err;
+    assert.equal(records.length, 1);
+    assert.deepEqual(records[0], {
+      algorithm: 'DSA',
+      fpType: 'SHA1',
+      fp: '123456789abcdef67890123456789abcdef67890'
+    });
+    done();
+  });
 });
 
 

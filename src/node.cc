@@ -138,6 +138,7 @@ static bool trace_deprecation = false;
 static bool throw_deprecation = false;
 static bool trace_sync_io = false;
 static bool track_heap_objects = false;
+static bool use_old_dns = false;
 static const char* eval_string = nullptr;
 static unsigned int preload_module_count = 0;
 static const char** preload_modules = nullptr;
@@ -3035,6 +3036,11 @@ void SetupProcessObject(Environment* env,
     READONLY_PROPERTY(process, "traceDeprecation", True(env->isolate()));
   }
 
+  // --use-old-dns
+  if (use_old_dns) {
+    READONLY_PROPERTY(process, "oldDNS", True(env->isolate()));
+  }
+
   size_t exec_path_len = 2 * PATH_MAX;
   char* exec_path = new char[exec_path_len];
   Local<String> exec_path_value;
@@ -3273,6 +3279,11 @@ static void PrintHelp() {
 #if HAVE_OPENSSL
          "  --tls-cipher-list=val use an alternative default TLS cipher list\n"
 #endif
+         "  --trace-deprecation  show stack traces on deprecations\n"
+         "  --trace-sync-io      show stack trace when use of sync IO\n"
+         "                       is detected after the first tick\n"
+         "  --use-old-dns        use c-ares for DNS resolution\n"
+         "  --v8-options         print v8 command line options\n"
 #if defined(NODE_HAVE_I18N_SUPPORT)
          "  --icu-data-dir=dir    set ICU data load path to dir\n"
          "                        (overrides NODE_ICU_DATA)\n"
@@ -3402,6 +3413,8 @@ static void ParseArgs(int* argc,
       track_heap_objects = true;
     } else if (strcmp(arg, "--throw-deprecation") == 0) {
       throw_deprecation = true;
+    } else if (strcmp(arg, "--use-old-dns") == 0) {
+      use_old_dns = true;
     } else if (strcmp(arg, "--prof-process") == 0) {
       prof_process = true;
       short_circuit = true;

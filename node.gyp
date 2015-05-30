@@ -71,6 +71,7 @@
       'lib/zlib.js',
       'lib/internal/child_process.js',
       'lib/internal/cluster.js',
+      'lib/internal/dns.js',
       'lib/internal/freelist.js',
       'lib/internal/linkedlist.js',
       'lib/internal/module.js',
