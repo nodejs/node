@@ -1,10 +1,9 @@
 #include "node.h"
 #include "node_buffer.h"
-#include "node_internals.h"
+#include "node_ffi.h"
 #include "v8.h"
 #include "env.h"
 #include "env-inl.h"
-#include "ffi.h"
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
@@ -27,11 +26,36 @@ using v8::Value;
 using v8::Uint32;
 
 
-typedef struct _closure_info {
-  ffi_closure closure;
-  Persistent<Object> callback;
-  Isolate* isolate;
-} closure_info;
+ThreadedCallbackInvokation::ThreadedCallbackInvokation(
+    closure_info* info, void* ret, void** args) {
+  info_ = info;
+  ret_ = ret;
+  args_ = args;
+  next_ = nullptr;
+
+  uv_mutex_init(&mutex_);
+  uv_mutex_lock(&mutex_);
+  uv_cond_init(&cond_);
+}
+
+
+ThreadedCallbackInvokation::~ThreadedCallbackInvokation() {
+  uv_mutex_unlock(&mutex_);
+  uv_cond_destroy(&cond_);
+  uv_mutex_destroy(&mutex_);
+}
+
+
+void ThreadedCallbackInvokation::SignalDoneExecuting() {
+  uv_mutex_lock(&mutex_);
+  uv_cond_signal(&cond_);
+  uv_mutex_unlock(&mutex_);
+}
+
+
+void ThreadedCallbackInvokation::WaitForExecution() {
+  uv_cond_wait(&cond_, &mutex_);
+}
 
 
 static void PrepCif(const FunctionCallbackInfo<Value>& args) {
@@ -90,15 +114,17 @@ static void Call(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void ArgFree(char* data, void* hint) {
+static void ArgFree(char* data, void* hint) {
   /* do nothing */
 }
 
 
-void ClosureInvoke(ffi_cif *cif, void *ret, void **args, void *user_data) {
-  closure_info* info = reinterpret_cast<closure_info*>(user_data);
+/**
+ * This function MUST be called on the JS thread.
+ */
 
-  // assuming we're on the JS thread here…
+static void ClosureDispatch(closure_info* info,
+    void* ret, void** args, bool direct) {
   HandleScope scope(info->isolate);
 
   Local<Function> cb = Local<Function>::Cast(
@@ -106,16 +132,81 @@ void ClosureInvoke(ffi_cif *cif, void *ret, void **args, void *user_data) {
 
   Local<Value> argv[2];
   argv[0] = Buffer::New(info->isolate, reinterpret_cast<char*>(ret),
-      MAX(cif->rtype->size, sizeof(ffi_arg)), ArgFree, nullptr);
+      MAX(info->cif->rtype->size, sizeof(ffi_arg)),
+      ArgFree, nullptr);
   argv[1] = Buffer::New(info->isolate, reinterpret_cast<char*>(args),
-      sizeof(char*) * cif->nargs, ArgFree, nullptr);  // NOLINT(runtime/sizeof)
+      sizeof(char*) * info->cif->nargs,  // NOLINT(runtime/sizeof)
+      ArgFree, nullptr);
 
   MakeCallback(info->isolate,
       info->isolate->GetCurrentContext()->Global(), cb, 2, argv);
 }
 
 
-void ClosureFree(char* data, void* hint) {
+static void ClosureWatcherCallback(uv_async_t* w, int revents) {
+  uv_mutex_lock(&queue_mutex);
+
+  ThreadedCallbackInvokation *inv = callback_queue;
+  while (inv) {
+    ClosureDispatch(inv->info_, inv->ret_, inv->args_, false);
+    inv->SignalDoneExecuting();
+    inv = inv->next_;
+  }
+
+  uv_mutex_unlock(&queue_mutex);
+}
+
+
+/**
+ * This is the function that gets invoked when an ffi_closure function
+ * pointer is executed. Note that it may or may not be invoked on
+ * the JS thread. If we're on the JS thread, then just invoke the JS
+ * callback function directly. Otherwise we have to notify the async
+ * watcher and wait for it to call us back on the JS thread.
+ */
+
+static void ClosureInvoke(ffi_cif* cif,
+    void* ret, void** args, void* user_data) {
+  closure_info* info = reinterpret_cast<closure_info*>(user_data);
+
+  // are we executing from the JS thread?
+#ifdef WIN32
+  if (js_thread_id == GetCurrentThreadId()) {
+#else
+  uv_thread_t thread = (uv_thread_t)uv_thread_self();
+  if (uv_thread_equal(&thread, &js_thread)) {
+#endif
+    ClosureDispatch(info, ret, args, true);
+  } else {
+    // hold the event loop open while this is executing
+    uv_ref(reinterpret_cast<uv_handle_t*>(&async));
+
+    // create a temporary storage area for our invokation parameters
+    ThreadedCallbackInvokation *inv =
+      new ThreadedCallbackInvokation(info, ret, args);
+
+    // push it to the queue -- threadsafe
+    uv_mutex_lock(&queue_mutex);
+    if (callback_queue) {
+      callback_queue->next_ = inv;
+    } else {
+      callback_queue = inv;
+    }
+    uv_mutex_unlock(&queue_mutex);
+
+    // send a message to the JS thread to wake up the WatchCallback loop
+    uv_async_send(&async);
+
+    // wait for signal from JS thread
+    inv->WaitForExecution();
+
+    uv_unref(reinterpret_cast<uv_handle_t*>(&async));
+    delete inv;
+  }
+}
+
+
+static void ClosureFree(char* data, void* hint) {
   closure_info* info = reinterpret_cast<closure_info*>(hint);
   info->callback.Reset();
   ffi_closure_free(info);
@@ -139,6 +230,7 @@ static void ClosureAlloc(const FunctionCallbackInfo<Value>& args) {
 
   info->callback.Reset(env->isolate(), args[1].As<Object>());
   info->isolate = env->isolate();
+  info->cif = cif;
 
   if (!info)
     return env->ThrowError("ffi_closure_alloc memory allocation failed");
@@ -276,6 +368,22 @@ void Initialize(Handle<Object> target,
   env->SetMethod(target, "prepCif", PrepCif);
   env->SetMethod(target, "call", Call);
   env->SetMethod(target, "closureAlloc", ClosureAlloc);
+
+  // initialize our threaded invokation stuff
+#ifdef WIN32
+  js_thread_id = GetCurrentThreadId();
+#else
+  js_thread = uv_thread_self();
+#endif
+
+  callback_queue = nullptr;
+
+  uv_async_init(uv_default_loop(), &async,
+    (uv_async_cb)ClosureWatcherCallback);
+  uv_mutex_init(&queue_mutex);
+
+  // allow the event loop to exit
+  uv_unref(reinterpret_cast<uv_handle_t*>(&async));
 }
 
 }  // namespace ffi
