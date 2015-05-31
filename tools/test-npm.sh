@@ -16,7 +16,7 @@ rm -rf test-npm
 mkdir test-npm
 
 # make a copy of deps/npm to run the tests on
-cp -r deps/npm/ test-npm/
+cp -r deps/npm/. test-npm/
 
 cd test-npm
 
