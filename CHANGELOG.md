@@ -35,7 +35,7 @@ See https://github.com/nodejs/io.js/labels/confirmed-bug for complete and curren
 * [[`1bbf8d0720`](https://github.com/nodejs/io.js/commit/1bbf8d0720)] - **lib**: speed up require(), phase 2 (Ben Noordhuis) [#1801](https://github.com/nodejs/io.js/pull/1801)
 * [[`b14fd1a720`](https://github.com/nodejs/io.js/commit/b14fd1a720)] - **lib**: speed up require(), phase 1 (Ben Noordhuis) [#1801](https://github.com/nodejs/io.js/pull/1801)
 * [[`5abd4ac079`](https://github.com/nodejs/io.js/commit/5abd4ac079)] - **lib**: simplify nextTick() usage (Brian White) [#1612](https://github.com/nodejs/io.js/pull/1612)
-* [[`5759722cfa`](https://github.com/nodejs/io.js/commit/5759722cfa)] - **src**: fix module search path for preload modules (Ali Ijaz Sheikh) [#1812](https://github.com/nodejs/io.js/pull/1812)
+* [[`5759722cfa`](https://github.com/nodejs/io.js/commit/5759722cfa)] - **(SEMVER-MINOR)** **src**: fix module search path for preload modules (Ali Ijaz Sheikh) [#1812](https://github.com/nodejs/io.js/pull/1812)
 * [[`a65762cab6`](https://github.com/nodejs/io.js/commit/a65762cab6)] - **src**: remove old code (Brendan Ashworth) [#1819](https://github.com/nodejs/io.js/pull/1819)
 * [[`93a44d5228`](https://github.com/nodejs/io.js/commit/93a44d5228)] - **src**: fix deferred events not working with -e (Ben Noordhuis) [#1793](https://github.com/nodejs/io.js/pull/1793)
 * [[`8059393934`](https://github.com/nodejs/io.js/commit/8059393934)] - **test**: check error type from net.Server.listen() (Rich Trott) [#1821](https://github.com/nodejs/io.js/pull/1821)
