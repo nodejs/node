@@ -26,6 +26,10 @@ using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::Maybe;
+using v8::MaybeLocal;
+using v8::Name;
+using v8::NamedPropertyHandlerConfiguration;
 using v8::None;
 using v8::Object;
 using v8::ObjectTemplate;
@@ -202,12 +206,14 @@ class ContextifyContext {
 
     Local<ObjectTemplate> object_template =
         function_template->InstanceTemplate();
-    object_template->SetNamedPropertyHandler(GlobalPropertyGetterCallback,
+
+    NamedPropertyHandlerConfiguration config(GlobalPropertyGetterCallback,
                                              GlobalPropertySetterCallback,
                                              GlobalPropertyQueryCallback,
                                              GlobalPropertyDeleterCallback,
                                              GlobalPropertyEnumeratorCallback,
                                              CreateDataWrapper(env));
+    object_template->SetHandler(config);
 
     Local<Context> ctx = Context::New(env->isolate(), nullptr, object_template);
     if (!ctx.IsEmpty())
@@ -342,7 +348,7 @@ class ContextifyContext {
 
 
   static void GlobalPropertyGetterCallback(
-      Local<String> property,
+      Local<Name> property,
       const PropertyCallbackInfo<Value>& args) {
     Isolate* isolate = args.GetIsolate();
 
@@ -350,22 +356,26 @@ class ContextifyContext {
         Unwrap<ContextifyContext>(args.Data().As<Object>());
 
     Local<Object> sandbox = PersistentToLocal(isolate, ctx->sandbox_);
-    Local<Value> rv = sandbox->GetRealNamedProperty(property);
-    if (rv.IsEmpty()) {
+    MaybeLocal<Value> maybe_rv =
+        sandbox->GetRealNamedProperty(ctx->context(), property);
+    if (maybe_rv.IsEmpty()) {
       Local<Object> proxy_global = PersistentToLocal(isolate,
                                                      ctx->proxy_global_);
-      rv = proxy_global->GetRealNamedProperty(property);
-    }
-    if (!rv.IsEmpty() && rv == ctx->sandbox_) {
-      rv = PersistentToLocal(isolate, ctx->proxy_global_);
+      maybe_rv = proxy_global->GetRealNamedProperty(ctx->context(), property);
     }
 
-    args.GetReturnValue().Set(rv);
+    Local<Value> rv;
+    if (maybe_rv.ToLocal(&rv)) {
+      if (rv == ctx->sandbox_)
+        rv = PersistentToLocal(isolate, ctx->proxy_global_);
+
+      args.GetReturnValue().Set(rv);
+    }
   }
 
 
   static void GlobalPropertySetterCallback(
-      Local<String> property,
+      Local<Name> property,
       Local<Value> value,
       const PropertyCallbackInfo<Value>& args) {
     Isolate* isolate = args.GetIsolate();
@@ -378,7 +388,7 @@ class ContextifyContext {
 
 
   static void GlobalPropertyQueryCallback(
-      Local<String> property,
+      Local<Name> property,
       const PropertyCallbackInfo<Integer>& args) {
     Isolate* isolate = args.GetIsolate();
 
@@ -386,34 +396,38 @@ class ContextifyContext {
         Unwrap<ContextifyContext>(args.Data().As<Object>());
 
     Local<Object> sandbox = PersistentToLocal(isolate, ctx->sandbox_);
-    Local<Object> proxy_global = PersistentToLocal(isolate,
-                                                   ctx->proxy_global_);
+    Maybe<PropertyAttribute> maybe_prop_attr =
+        sandbox->GetRealNamedPropertyAttributes(ctx->context(), property);
 
-    if (sandbox->HasRealNamedProperty(property)) {
-      PropertyAttribute propAttr =
-          sandbox->GetRealNamedPropertyAttributes(property).FromJust();
-      args.GetReturnValue().Set(propAttr);
-    } else if (proxy_global->HasRealNamedProperty(property)) {
-      PropertyAttribute propAttr =
-          proxy_global->GetRealNamedPropertyAttributes(property).FromJust();
-      args.GetReturnValue().Set(propAttr);
-    } else {
-      args.GetReturnValue().Set(None);
+    if (maybe_prop_attr.IsNothing()) {
+      Local<Object> proxy_global = PersistentToLocal(isolate,
+          ctx->proxy_global_);
+
+      maybe_prop_attr =
+          proxy_global->GetRealNamedPropertyAttributes(ctx->context(),
+              property);
+    }
+
+    if (maybe_prop_attr.IsJust()) {
+      PropertyAttribute prop_attr = maybe_prop_attr.FromJust();
+      args.GetReturnValue().Set(prop_attr);
     }
   }
 
 
   static void GlobalPropertyDeleterCallback(
-      Local<String> property,
+      Local<Name> property,
       const PropertyCallbackInfo<Boolean>& args) {
     Isolate* isolate = args.GetIsolate();
 
     ContextifyContext* ctx =
         Unwrap<ContextifyContext>(args.Data().As<Object>());
+    Local<Object> sandbox = PersistentToLocal(isolate, ctx->sandbox_);
 
-    bool success = PersistentToLocal(isolate,
-                                     ctx->sandbox_)->Delete(property);
-    args.GetReturnValue().Set(success);
+    Maybe<bool> success = sandbox->Delete(ctx->context(), property);
+
+    if (success.IsJust())
+      args.GetReturnValue().Set(success.FromJust());
   }
 
 
