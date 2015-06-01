@@ -14,6 +14,8 @@ namespace Buffer {
 
 static const unsigned int kMaxLength = smalloc::kMaxLength;
 
+NODE_EXTERN typedef void (*FreeCallback)(char* data, void* hint);
+
 NODE_EXTERN bool HasInstance(v8::Handle<v8::Value> val);
 NODE_EXTERN bool HasInstance(v8::Handle<v8::Object> val);
 NODE_EXTERN char* Data(v8::Handle<v8::Value> val);
@@ -49,12 +51,12 @@ NODE_DEPRECATED("Use New(isolate, ...)",
 NODE_EXTERN v8::Local<v8::Object> New(v8::Isolate* isolate,
                                       char* data,
                                       size_t length,
-                                      smalloc::FreeCallback callback,
+                                      FreeCallback callback,
                                       void* hint);
 NODE_DEPRECATED("Use New(isolate, ...)",
                 inline v8::Local<v8::Object> New(char* data,
                                                  size_t length,
-                                                 smalloc::FreeCallback callback,
+                                                 FreeCallback callback,
                                                  void* hint) {
   return New(v8::Isolate::GetCurrent(), data, length, callback, hint);
 })
@@ -93,7 +95,7 @@ v8::Local<v8::Object> New(Environment* env, const char* data, size_t len);
 v8::Local<v8::Object> New(Environment* env,
                           char* data,
                           size_t length,
-                          smalloc::FreeCallback callback,
+                          FreeCallback callback,
                           void* hint);
 v8::Local<v8::Object> Use(Environment* env, char* data, size_t length);
 #endif  // defined(NODE_WANT_INTERNALS)
