@@ -146,12 +146,13 @@ static void ClosureDispatch(closure_info* info,
 static void ClosureWatcherCallback(uv_async_t* w, int revents) {
   uv_mutex_lock(&queue_mutex);
 
-  ThreadedCallbackInvokation *inv = callback_queue;
+  ThreadedCallbackInvokation* inv = callback_queue;
   while (inv) {
     ClosureDispatch(inv->info_, inv->ret_, inv->args_, false);
     inv->SignalDoneExecuting();
     inv = inv->next_;
   }
+  callback_queue = nullptr;
 
   uv_mutex_unlock(&queue_mutex);
 }
