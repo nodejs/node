@@ -88,6 +88,11 @@ parser.add_option("--openssl-no-asm",
     dest="openssl_no_asm",
     help="Do not build optimized assembly for OpenSSL")
 
+parser.add_option('--openssl-fips',
+    action='store',
+    dest='openssl_fips',
+    help='Build OpenSSL using FIPS canister .o file in supplied folder')
+
 shared_optgroup.add_option('--shared-http-parser',
     action='store_true',
     dest='shared_http_parser',
@@ -720,6 +725,16 @@ def configure_openssl(o):
   o['variables']['node_use_openssl'] = b(not options.without_ssl)
   o['variables']['node_shared_openssl'] = b(options.shared_openssl)
   o['variables']['openssl_no_asm'] = 1 if options.openssl_no_asm else 0
+  if options.openssl_fips:
+    o['variables']['openssl_fips'] = options.openssl_fips
+    fips_dir = os.path.join(root_dir, 'deps', 'openssl', 'fips')
+    fips_ld = os.path.abspath(os.path.join(fips_dir, 'fipsld'))
+    o['make_global_settings'] = [
+      ['LINK', fips_ld + ' <(openssl_fips)/bin/fipsld'],
+    ]
+  else:
+    o['variables']['openssl_fips'] = ''
+
 
   if options.without_ssl:
     return
@@ -1025,10 +1040,21 @@ configure_fullystatic(output)
 # move everything else to target_defaults
 variables = output['variables']
 del output['variables']
+
+# make_global_settings should be a root level element too
+if 'make_global_settings' in output:
+  make_global_settings = output['make_global_settings']
+  del output['make_global_settings']
+else:
+  make_global_settings = False
+
 output = {
   'variables': variables,
-  'target_defaults': output
+  'target_defaults': output,
 }
+if make_global_settings:
+  output['make_global_settings'] = make_global_settings
+
 pprint.pprint(output, indent=2)
 
 write('config.gypi', do_not_edit +

@@ -1,0 +1,8 @@
+#!/bin/sh
+
+# NOTE: Just a wrapper around normal fipsld
+FIPSLD=$1
+shift
+
+DIR=`dirname $0`
+FIPSLD_CC=$DIR/fipscc $FIPSLD $@

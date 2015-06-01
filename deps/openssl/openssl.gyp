@@ -9,6 +9,7 @@
     'openssl_no_asm%': 0,
     'llvm_version%': 0,
     'gas_version%': 0,
+    'openssl_fips%': 'false',
   },
   'targets': [
     {
@@ -21,6 +22,28 @@
         ['exclude', 'store/.*$']
       ],
       'conditions': [
+        # FIPS
+        ['openssl_fips != ""', {
+          'defines': [
+            'OPENSSL_FIPS',
+          ],
+          'include_dirs': [
+            '<(openssl_fips)/include',
+          ],
+
+          # Trick fipsld, it expects to see libcrypto.a
+          'product_name': 'crypto',
+
+          'direct_dependent_settings': {
+            'defines': [
+              'OPENSSL_FIPS',
+            ],
+            'include_dirs': [
+              '<(openssl_fips)/include',
+            ],
+          },
+        }],
+
         ['openssl_no_asm!=0', {
           # Disable asm
           'defines': [
