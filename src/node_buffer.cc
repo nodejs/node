@@ -110,6 +110,7 @@ size_t Length(Handle<Object> obj) {
   return obj->GetIndexedPropertiesExternalArrayDataLength();
 }
 
+
 Local<Object> New(Isolate* isolate, Handle<String> string, enum encoding enc) {
   EscapableHandleScope scope(isolate);
 
