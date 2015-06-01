@@ -301,39 +301,36 @@ void Initialize(Handle<Object> target,
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "sizeof"), sizeofmap);
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "alignof"), alignofmap);
 
-#define SET_ENUM_VALUE(_value) \
-  target->ForceSet(FIXED_ONE_BYTE_STRING(env->isolate(), #_value), \
-              Uint32::New(env->isolate(), static_cast<uint32_t>(_value)), \
+  Handle<Object> abimap = Object::New(env->isolate());
+#define SET_ABI_VALUE(name, value) \
+  abimap->ForceSet(FIXED_ONE_BYTE_STRING(env->isolate(), #name), \
+              Uint32::New(env->isolate(), static_cast<uint32_t>(value)), \
               static_cast<v8::PropertyAttribute>(v8::ReadOnly|v8::DontDelete))
-  // `ffi_status` enum values
-  SET_ENUM_VALUE(FFI_OK);
-  SET_ENUM_VALUE(FFI_BAD_TYPEDEF);
-  SET_ENUM_VALUE(FFI_BAD_ABI);
-
   // `ffi_abi` enum values
-  SET_ENUM_VALUE(FFI_DEFAULT_ABI);
-  SET_ENUM_VALUE(FFI_FIRST_ABI);
-  SET_ENUM_VALUE(FFI_LAST_ABI);
+  SET_ABI_VALUE(default, FFI_DEFAULT_ABI);
+  SET_ABI_VALUE(first, FFI_FIRST_ABI);
+  SET_ABI_VALUE(last, FFI_LAST_ABI);
   /* ---- ARM processors ---------- */
 #ifdef __arm__
-  SET_ENUM_VALUE(FFI_SYSV);
-  SET_ENUM_VALUE(FFI_VFP);
+  SET_ABI_VALUE(sysv, FFI_SYSV);
+  SET_ABI_VALUE(vfp, FFI_VFP);
   /* ---- Intel x86 Win32 ---------- */
 #elif defined(X86_WIN32)
-  SET_ENUM_VALUE(FFI_SYSV);
-  SET_ENUM_VALUE(FFI_STDCALL);
-  SET_ENUM_VALUE(FFI_THISCALL);
-  SET_ENUM_VALUE(FFI_FASTCALL);
-  SET_ENUM_VALUE(FFI_MS_CDECL);
+  SET_ABI_VALUE(sysv, FFI_SYSV);
+  SET_ABI_VALUE(stdcall, FFI_STDCALL);
+  SET_ABI_VALUE(thiscall, FFI_THISCALL);
+  SET_ABI_VALUE(fastcall, FFI_FASTCALL);
+  SET_ABI_VALUE(ms_cdecl, FFI_MS_CDECL);
 #elif defined(X86_WIN64)
-  SET_ENUM_VALUE(FFI_WIN64);
+  SET_ABI_VALUE(win64, FFI_WIN64);
 #else
   /* ---- Intel x86 and AMD x86-64 - */
-  SET_ENUM_VALUE(FFI_SYSV);
+  SET_ABI_VALUE(sysv, FFI_SYSV);
   /* Unix variants all use the same ABI for x86-64  */
-  SET_ENUM_VALUE(FFI_UNIX64);
+  SET_ABI_VALUE(unix64, FFI_UNIX64);
 #endif
-#undef SET_ENUM_VALUE
+#undef SET_ABI_VALUE
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "abi"), abimap);
 
   Handle<Object> ftmap = Object::New(env->isolate());
 #define SET_FFI_TYPE(name, type) \
@@ -362,7 +359,17 @@ void Initialize(Handle<Object> target,
   SET_FFI_TYPE(long, slong);
   SET_FFI_TYPE(longdouble, longdouble);
 #undef SET_FFI_TYPE
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "type"), ftmap);
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "types"), ftmap);
+
+#define SET_ENUM_VALUE(_value) \
+  target->ForceSet(FIXED_ONE_BYTE_STRING(env->isolate(), #_value), \
+              Uint32::New(env->isolate(), static_cast<uint32_t>(_value)), \
+              static_cast<v8::PropertyAttribute>(v8::ReadOnly|v8::DontDelete))
+  // `ffi_status` enum values
+  SET_ENUM_VALUE(FFI_OK);
+  SET_ENUM_VALUE(FFI_BAD_TYPEDEF);
+  SET_ENUM_VALUE(FFI_BAD_ABI);
+#undef SET_ENUM_VALUE
 
   env->SetMethod(target, "prepCif", PrepCif);
   env->SetMethod(target, "call", Call);
