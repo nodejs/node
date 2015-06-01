@@ -8,7 +8,6 @@ var node = process.execPath;
 var normal = [depmod];
 var noDep = ['--no-deprecation', depmod];
 var traceDep = ['--trace-deprecation', depmod];
-var throwDep = ['--throw-deprecation', depmod];
 
 execFile(node, normal, function(er, stdout, stderr) {
   console.error('normal: show deprecation warning');
@@ -36,14 +35,4 @@ execFile(node, traceDep, function(er, stdout, stderr) {
   assert.equal(stack[0], 'Trace: util.p: Use console.error() instead');
   assert.equal(stack.pop(), '\'This is deprecated\'');
   console.log('trace ok');
-});
-
-execFile(node, throwDep, function(er, stdout, stderr) {
-  console.error('--throw-deprecation: show stack');
-  assert.equal(/Error: Command failed/.test(er), true);
-  assert.equal(stdout, '');
-  var stack = stderr.trim().split('\n');
-  assert.equal(/util.js:([\d]+)/.test(stack[0]), true);
-  assert.equal(/throw new Error\(msg\)/.test(stack[1]), true);
-  console.log('throw ok');
 });
