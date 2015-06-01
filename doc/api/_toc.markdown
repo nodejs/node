@@ -14,6 +14,7 @@
 * [Domain](domain.html)
 * [Errors](errors.html)
 * [Events](events.html)
+* [FFI](ffi.html)
 * [File System](fs.html)
 * [Globals](globals.html)
 * [HTTP](http.html)
