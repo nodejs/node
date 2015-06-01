@@ -24,6 +24,44 @@ enum {
 #endif
 };
 
+// Normalize the argument vector by exploding
+// multiple options (if any). For example
+// "node -abc --scm git" -> "node -a -b -c --scm git"
+// implementation was adapted from
+// https://github.com/clibs/commander/blob/master/src/commander.c
+static char ** normalize_args(int *argc, char **argv) {
+  int size = 0;
+  int alloc = *argc + 1;
+  char **nargv = static_cast<char **>(malloc(alloc * sizeof(char *)));
+  int i;
+
+  for (i = 0; argv[i]; ++i) {
+    const char *arg = argv[i];
+    size_t len = strlen(arg);
+
+    // short flag
+    if (len > 2 && '-' == arg[0] && !strchr(arg + 1, '-')) {
+      alloc += len - 2;
+      nargv = static_cast<char **>(realloc(nargv, alloc * sizeof(char *)));
+      for (size_t j = 1; j < len; ++j) {
+        nargv[size] = static_cast<char *>(malloc(3));
+        snprintf(nargv[size], sizeof(nargv[size]), "-%c", arg[j]);
+        size++;
+      }
+      continue;
+    }
+
+    // regular arg
+    nargv[size] = static_cast<char *>(malloc(len + 1));
+    strncpy(nargv[size], arg, len + 1);
+    size++;
+  }
+
+  nargv[size] = NULL;
+  *argc = size;
+  return nargv;
+}
+
 static struct option longopts[] = {
   { "help", no_argument, nullptr, 'h', "show help and usage" },
   { "version", no_argument, nullptr, 'v', "print io.js version" },
@@ -110,14 +148,15 @@ void NodeOptions::ParseArgs(int* argc,
                             const char*** exec_argv,
                             int* v8_argc,
                             const char*** v8_argv) {
+  // normalize the args
+  // "node -pe" to "node -p -e"
+  char** largv = normalize_args(argc, const_cast<char**>(argv));
   const unsigned int nargs = static_cast<unsigned int>(*argc);
   const char** new_exec_argv = new const char*[nargs];
   const char** new_v8_argv = new const char*[nargs];
   const char** new_argv = new const char*[nargs];
   const char** local_preload_modules = new const char*[nargs];
 
-  // we are mutating the strings vector but not the strings themselves
-  char** largv = const_cast<char**>(argv);
   for (unsigned int i = 0; i < nargs; ++i) {
     new_exec_argv[i] = nullptr;
     new_v8_argv[i] = nullptr;
@@ -137,11 +176,12 @@ void NodeOptions::ParseArgs(int* argc,
   unsigned int index = 1;
   bool is_eval = false;
   bool is_print = false;
-  const char optstring[] = ":hve:p::ir:d::b::x:";
+  const char optstring[] = ":hve::p::ir:d::b::x:";
   while ((rc = getopt_long(*argc, largv, optstring, longopts, NULL)) != -1 &&
-          argv[index][0] == '-') {
+          index < nargs &&
+          largv[index][0] == '-') {
     unsigned int args_consumed = 1;
-    const char* const arg = argv[index];
+    const char* const arg = largv[index];
     switch (rc) {
       case 'h':
         PrintHelp();
@@ -162,16 +202,16 @@ void NodeOptions::ParseArgs(int* argc,
         const char* name = is_eval ? "eval" : "print";
         print_eval = print_eval || is_print;
         if (is_eval == true) {
-          eval_string = argv[index + 1];
+          eval_string = largv[index + 1];
           args_consumed += 1;
           if (eval_string == nullptr) {
-            fprintf(stderr, "%s: %s requires an argument\n", argv[0], name);
+            fprintf(stderr, "%s: %s requires an argument\n", largv[0], name);
             exit(9);
           }
         } else if ((index + 1 < nargs) &&
-                    argv[index + 1] != nullptr &&
-                    argv[index + 1][0] != '-') {
-            eval_string = argv[index + 1];
+                    largv[index + 1] != nullptr &&
+                    largv[index + 1][0] != '-') {
+            eval_string = largv[index + 1];
             args_consumed += 1;
             if (strncmp(eval_string, "\\-", 2) == 0) {
               // Starts with "\\-": escaped expression, drop the backslash.
@@ -185,10 +225,10 @@ void NodeOptions::ParseArgs(int* argc,
         break;
       case 'r':
       {
-        const char* module = argv[index + 1];
+        const char* module = largv[index + 1];
         args_consumed += 1;
         if (module == nullptr) {
-          fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
+          fprintf(stderr, "%s: %s requires an argument\n", largv[0], arg);
           exit(9);
         }
         local_preload_modules[preload_module_count++] = module;
