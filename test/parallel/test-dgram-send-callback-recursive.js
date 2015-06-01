@@ -8,7 +8,7 @@ const chunk = 'abc';
 var recursiveCount = 0;
 var received = 0;
 const limit = 10;
-const recursiveLimit = limit + 1;
+const recursiveLimit = 100;
 
 function onsend() {
   if (recursiveCount > recursiveLimit) {
