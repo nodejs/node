@@ -232,21 +232,20 @@ static void ClosureAlloc(const FunctionCallbackInfo<Value>& args) {
   info->isolate = env->isolate();
   info->cif = cif;
 
-  if (!info)
-    return env->ThrowError("ffi_closure_alloc memory allocation failed");
+  if (info) {
+    ffi_status status = ffi_prep_closure_loc(
+        &info->closure, cif,
+        ClosureInvoke, info, code);
 
-  ffi_status status = ffi_prep_closure_loc(
-      &info->closure, cif,
-      ClosureInvoke, info, code);
-
-  if (status != FFI_OK) {
-    // TODO(tootallnate): relay status code as well
-    ffi_closure_free(info);
-    return env->ThrowError("ffi_prep_closure_loc failed");
+    if (status == FFI_OK) {
+      // return a Buffer instance to the executable code function pointer
+      args.GetReturnValue().Set(Buffer::New(env,
+          reinterpret_cast<char*>(code), 0, ClosureFree, info));
+    } else {
+      ffi_closure_free(info);
+      args.GetReturnValue().Set(status);
+    }
   }
-
-  args.GetReturnValue().Set(Buffer::New(env,
-        reinterpret_cast<char*>(code), 0, ClosureFree, info));
 }
 
 
