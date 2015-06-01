@@ -64,5 +64,3 @@ assert.throws(function() {
     return true;
   }
 });
-
-//TODO do I need to test url.parse(notPrococol.example.com)?
