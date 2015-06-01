@@ -5071,6 +5071,16 @@ void InitCryptoOnce() {
   CRYPTO_set_locking_callback(crypto_lock_cb);
   CRYPTO_THREADID_set_callback(crypto_threadid_cb);
 
+#ifdef OPENSSL_FIPS
+  if (!FIPS_mode_set(1)) {
+    int r;
+    r = ERR_get_error();
+    fprintf(stderr, "openssl fips failed: %s\n", ERR_error_string(r, NULL));
+    UNREACHABLE();
+  }
+#endif  // OPENSSL_FIPS
+
+
   // Turn off compression. Saves memory and protects against CRIME attacks.
 #if !defined(OPENSSL_NO_COMP)
 #if OPENSSL_VERSION_NUMBER < 0x00908000L
