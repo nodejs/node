@@ -1068,9 +1068,8 @@ The HTTP response status message (reason phrase). E.G. `OK` or `Internal Server 
 
 The `net.Socket` object associated with the connection.
 
-With HTTPS support, use request.connection.verifyPeer() and
-request.connection.getPeerCertificate() to obtain the client's
-authentication details.
+With HTTPS support, use [request.socket.getPeerCertificate()][] to obtain the
+client's authentication details.
 
 
 ['checkContinue']: #http_event_checkcontinue
@@ -1098,5 +1097,6 @@ authentication details.
 [socket.setKeepAlive()]: net.html#net_socket_setkeepalive_enable_initialdelay
 [socket.setNoDelay()]: net.html#net_socket_setnodelay_nodelay
 [socket.setTimeout()]: net.html#net_socket_settimeout_timeout_callback
+[request.socket.getPeerCertificate()]: tls.html#tls_tlssocket_getpeercertificate_detailed
 [stream.setEncoding()]: stream.html#stream_stream_setencoding_encoding
 [url.parse()]: url.html#url_url_parse_urlstr_parsequerystring_slashesdenotehost
