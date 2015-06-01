@@ -1,5 +1,27 @@
 # io.js ChangeLog
 
+## 2015-06-01, Version 2.2.1, @rvagg
+
+### Notable changes
+
+* **http**: reverts the removal of an undocumented `client` property on client connections, this property is being used in the wild, most notably by [request](https://github.com/request/request) which is used by npm. (Michaël Zasso) [#1852](https://github.com/nodejs/io.js/pull/1852).
+
+### Known issues
+
+See https://github.com/nodejs/io.js/labels/confirmed-bug for complete and current list of known issues.
+
+* Some problems with unreferenced timers running during `beforeExit` are still to be resolved. See [#1264](https://github.com/nodejs/io.js/issues/1264).
+* Surrogate pair in REPL can freeze terminal [#690](https://github.com/nodejs/io.js/issues/690)
+* `process.send()` is not synchronous as the docs suggest, a regression introduced in 1.0.2, see [#760](https://github.com/nodejs/io.js/issues/760) and fix in [#774](https://github.com/nodejs/io.js/issues/774)
+* Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion [#894](https://github.com/nodejs/io.js/issues/894)
+* `url.resolve` may transfer the auth portion of the url when resolving between two full hosts, see [#1435](https://github.com/nodejs/io.js/issues/1435).
+
+### Commits
+
+* [[`c5a1009903`](https://github.com/nodejs/io.js/commit/c5a1009903)] - **build**: avoid passing empty strings to build flags (Johan Bergström) [#1789](https://github.com/nodejs/io.js/pull/1789)
+* [[`5d83401086`](https://github.com/nodejs/io.js/commit/5d83401086)] - **doc**: put SEMVER-MINOR on pre-load module fix 2.2.0 (Rod Vagg) 
+* [[`4d6b768e5d`](https://github.com/nodejs/io.js/commit/4d6b768e5d)] - **http**: revert deprecation of client property (Michaël Zasso) [#1852](https://github.com/nodejs/io.js/pull/1852) 
+
 ## 2015-05-31, Version 2.2.0, @rvagg
 
 ### Notable changes
