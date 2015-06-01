@@ -13,6 +13,8 @@
 #include <string.h>
 #include <limits.h>
 
+#define BUFFER_ID 0xB0E4
+
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 #define CHECK_NOT_OOB(r)                                                    \
@@ -73,11 +75,102 @@ using v8::Isolate;
 using v8::Local;
 using v8::Number;
 using v8::Object;
+using v8::Persistent;
 using v8::String;
 using v8::Uint32;
 using v8::Uint8Array;
 using v8::Value;
+using v8::WeakCallbackData;
 
+
+class CallbackInfo {
+ public:
+  static inline void Free(char* data, void* hint);
+  static inline CallbackInfo* New(Isolate* isolate,
+                                  Handle<Object> object,
+                                  FreeCallback callback,
+                                  void* hint = 0);
+  inline void Dispose(Isolate* isolate);
+  inline Persistent<Object>* persistent();
+ private:
+  static void WeakCallback(const WeakCallbackData<Object, CallbackInfo>&);
+  inline void WeakCallback(Isolate* isolate, Local<Object> object);
+  inline CallbackInfo(Isolate* isolate,
+                      Handle<Object> object,
+                      FreeCallback callback,
+                      void* hint);
+  ~CallbackInfo();
+  Persistent<Object> persistent_;
+  FreeCallback const callback_;
+  void* const hint_;
+  DISALLOW_COPY_AND_ASSIGN(CallbackInfo);
+};
+
+
+void CallbackInfo::Free(char* data, void*) {
+  ::free(data);
+}
+
+
+CallbackInfo* CallbackInfo::New(Isolate* isolate,
+                                Handle<Object> object,
+                                FreeCallback callback,
+                                void* hint) {
+  return new CallbackInfo(isolate, object, callback, hint);
+}
+
+
+void CallbackInfo::Dispose(Isolate* isolate) {
+  WeakCallback(isolate, PersistentToLocal(isolate, persistent_));
+}
+
+
+Persistent<Object>* CallbackInfo::persistent() {
+  return &persistent_;
+}
+
+
+CallbackInfo::CallbackInfo(Isolate* isolate,
+                           Handle<Object> object,
+                           FreeCallback callback,
+                           void* hint)
+    : persistent_(isolate, object),
+      callback_(callback),
+      hint_(hint) {
+  persistent_.SetWeak(this, WeakCallback);
+  persistent_.SetWrapperClassId(BUFFER_ID);
+  persistent_.MarkIndependent();
+  isolate->AdjustAmountOfExternalAllocatedMemory(sizeof(*this));
+}
+
+
+CallbackInfo::~CallbackInfo() {
+  persistent_.Reset();
+}
+
+
+void CallbackInfo::WeakCallback(
+    const WeakCallbackData<Object, CallbackInfo>& data) {
+  data.GetParameter()->WeakCallback(data.GetIsolate(), data.GetValue());
+}
+
+
+void CallbackInfo::WeakCallback(Isolate* isolate, Local<Object> object) {
+  ARGS_THIS_DEC(obj);
+  SPREAD_ARG(object, obj);
+  CHECK_EQ(obj_offset, 0);
+  CHECK_EQ(obj_c.ByteLength(), obj_length);
+
+  obj->Buffer()->Neuter();
+  callback_(obj_data, hint_);
+  int64_t change_in_bytes = -static_cast<int64_t>(sizeof(*this));
+  isolate->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
+
+  delete this;
+}
+
+
+// Buffer methods
 
 bool HasInstance(Handle<Value> val) {
   return val->IsObject() && HasInstance(val.As<Object>());
@@ -277,7 +370,7 @@ Local<Object> New(Environment* env, const char* data, size_t length) {
 Local<Object> New(Isolate* isolate,
                   char* data,
                   size_t length,
-                  smalloc::FreeCallback callback,
+                  FreeCallback callback,
                   void* hint) {
   Environment* env = Environment::GetCurrent(isolate);
   EscapableHandleScope handle_scope(env->isolate());
@@ -289,19 +382,28 @@ Local<Object> New(Isolate* isolate,
 Local<Object> New(Environment* env,
                   char* data,
                   size_t length,
-                  smalloc::FreeCallback callback,
+                  FreeCallback callback,
                   void* hint) {
   EscapableHandleScope scope(env->isolate());
 
-  // TODO(trevnorris): IMPLEMENT
-  CHECK_LE(length, kMaxLength);
+  if (using_old_buffer) {
+    CHECK_LE(length, kMaxLength);
+    Local<Value> arg = Uint32::NewFromUnsigned(env->isolate(), length);
+    Local<Object> obj =
+        env->buffer_constructor_function()->NewInstance(1, &arg);
+    smalloc::Alloc(env, obj, data, length, callback, hint);
+    return scope.Escape(obj);
+  }
 
-  Local<Value> arg = Uint32::NewFromUnsigned(env->isolate(), length);
-  Local<Object> obj = env->buffer_constructor_function()->NewInstance(1, &arg);
+  if (!IsValidSmi(length)) {
+    return Local<Object>();
+  }
 
-  smalloc::Alloc(env, obj, data, length, callback, hint);
-
-  return scope.Escape(obj);
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), data, length);
+  Local<Uint8Array> ui = Uint8Array::New(ab, 0, length);
+  ui->SetPrototype(env->buffer_prototype_object());
+  CallbackInfo::New(env->isolate(), ui, callback, hint);
+  return scope.Escape(ui);
 }
 
 
