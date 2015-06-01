@@ -678,7 +678,7 @@ functions are only used in relation to the `dlopen` and `ffi` modules.
 
 Example:
 
-    // assume `buf` is a pointer to some external `int` data
+    // assume buf is a pointer to some external int data
     var intBuf = buf.readPointerLE(0, ffi.sizeof.int);
 
     console.log(intBuf);
@@ -688,7 +688,7 @@ Example:
     // 6
 
 
-    // if a NULL pointer is read, then JS `null` is returned
+    // if a NULL pointer is read, then JS null is returned
     buf.fill(0);
 
     console.log(buf.readPointerLE(0));
@@ -798,7 +798,7 @@ should not be used unless you are certain of correctness. Defaults to `false`.
 
 Example:
 
-    var buf = new Buffer(8);
+    var buf = new Buffer(8)
 
     b.writeUInt64LE('0xffffffffffff')
 
@@ -967,7 +967,7 @@ Example:
     buf.writePointerBE(b, 0);
     // <Buffer@0x103032010 00 00 00 01 03 03 20 08>
     //                               ^  ^  ^  ^  ^
-    // notice the value here is the same as the address of `b`
+    // notice the value here is the same as the address of b
 
 
     // if null is given, then a NULL pointer is written
