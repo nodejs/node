@@ -445,7 +445,7 @@ static WCHAR* search_path(const WCHAR *file,
  * Quotes command line arguments
  * Returns a pointer to the end (next char to be written) of the buffer
  */
-WCHAR* quote_cmd_arg(const WCHAR *source, WCHAR *target) {
+WCHAR* quote_cmd_arg(const WCHAR *source, WCHAR *target, BOOL isFilePath) {
   size_t len = wcslen(source);
   size_t i;
   int quote_hit;
@@ -458,14 +458,14 @@ WCHAR* quote_cmd_arg(const WCHAR *source, WCHAR *target) {
     return target;
   }
 
-  if (NULL == wcspbrk(source, L" \t\"")) {
+  if (NULL == wcspbrk(source, L" \t\"(")) {
     /* No quotation needed */
     wcsncpy(target, source, len);
     target += len;
     return target;
   }
 
-  if (NULL == wcspbrk(source, L"\"\\")) {
+  if (NULL == wcspbrk(source, L"\"\\(")) {
     /*
      * No embedded double quotes or backlashes, so I can just wrap
      * quote marks around the whole thing.
@@ -507,6 +507,9 @@ WCHAR* quote_cmd_arg(const WCHAR *source, WCHAR *target) {
     } else if(source[i - 1] == L'"') {
       quote_hit = 1;
       *(target++) = L'\\';
+    } else if(isFilePath && source[i - 1] == L'(') {
+      quote_hit = 0;
+      *(target++) = L'^';
     } else {
       quote_hit = 0;
     }
@@ -590,7 +593,7 @@ int make_program_args(char** args, int verbatim_arguments, WCHAR** dst_ptr) {
       pos += arg_len - 1;
     } else {
       /* Quote/escape, if needed. */
-      pos = quote_cmd_arg(temp_buffer, pos);
+      pos = quote_cmd_arg(temp_buffer, pos, arg==args);
     }
 
     *pos++ = *(arg + 1) ? L' ' : L'\0';
