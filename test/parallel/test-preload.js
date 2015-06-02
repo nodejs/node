@@ -9,7 +9,6 @@ var nodeBinary = process.argv[0];
 var preloadOption = function(preloads) {
   var option = '';
   preloads.forEach(function(preload, index) {
-    // TODO: randomly pick -r or --require
     option += '-r ' + preload + ' ';
   });
   return option;
