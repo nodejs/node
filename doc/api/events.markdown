@@ -118,6 +118,10 @@ Execute each of the listeners in order with the supplied arguments.
 
 Returns `true` if event had listeners, `false` otherwise.
 
+**Note:** Objects are passed by reference, meaning that the same object can be 
+passed to multiple listeners. If a listener needs to modify a shared object, a 
+copy of the object should be made.
+
 
 ### Class Method: EventEmitter.listenerCount(emitter, event)
 
