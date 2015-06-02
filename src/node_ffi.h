@@ -25,6 +25,20 @@ typedef struct _closure_info {
 
 
 /**
+ * Created for every ffi.callAsync() invokation.
+ */
+
+typedef struct _async_call {
+  Persistent<Object> callback;
+  ffi_cif* cif;
+  char* fn;
+  void* res;
+  void** argv;
+  Isolate* isolate;
+} async_call;
+
+
+/**
  * Synchronization object to ensure following order of execution:
  *   -> WaitForExecution()     invoked
  *   -> SignalDoneExecuting()  returned

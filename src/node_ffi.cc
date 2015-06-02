@@ -103,6 +103,73 @@ static void Call(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+/*
+ * Called on the thread pool.
+ */
+
+void CallAsyncWork(uv_work_t *req) {
+  async_call *data = reinterpret_cast<async_call*>(req->data);
+
+  ffi_call(
+    data->cif,
+    FFI_FN(data->fn),
+    data->res,
+    data->argv);
+}
+
+
+/**
+ * Called on the JS thread, after CallAsyncWork() has completed.
+ */
+
+void CallAsyncDone(uv_work_t *req) {
+  async_call *data = reinterpret_cast<async_call*>(req->data);
+  HandleScope scope(data->isolate);
+
+  Local<Function> cb = Local<Function>::Cast(
+      Local<Object>::New(data->isolate, data->callback));
+
+  // invoke the registered callback function
+  MakeCallback(data->isolate,
+      data->isolate->GetCurrentContext()->Global(), cb, 0, nullptr);
+
+  // dispose of our persistent handle, and free memory
+  data->callback.Reset();
+  delete data;
+}
+
+
+static void CallAsync(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  if (!Buffer::HasInstance(args[0]))
+    return env->ThrowTypeError("expected Buffer instance as first argument");
+  if (!Buffer::HasInstance(args[1]))
+    return env->ThrowTypeError("expected Buffer instance as second argument");
+  if (!Buffer::HasInstance(args[2]))
+    return env->ThrowTypeError("expected Buffer instance as third argument");
+  if (!Buffer::HasInstance(args[3]))
+    return env->ThrowTypeError("expected Buffer instance as fourth argument");
+  if (!args[4]->IsFunction())
+    return env->ThrowTypeError("expected callback function as fifth argument");
+
+  async_call* data = new async_call;
+  data->callback.Reset(env->isolate(), args[4].As<Object>());
+  data->cif = reinterpret_cast<ffi_cif*>(Buffer::Data(args[0].As<Object>()));
+  data->fn = Buffer::Data(args[1].As<Object>());
+  data->res = reinterpret_cast<void*>(Buffer::Data(args[2].As<Object>()));
+  data->argv = reinterpret_cast<void**>(Buffer::Data(args[3].As<Object>()));
+  data->isolate = env->isolate();
+
+  uv_work_t *req = new uv_work_t;
+  req->data = data;
+
+  uv_queue_work(uv_default_loop(), req,
+      CallAsyncWork,
+      (uv_after_work_cb)CallAsyncDone);
+}
+
+
 static void ArgFree(char* data, void* hint) {
   /* do nothing */
 }
@@ -363,6 +430,7 @@ void Initialize(Handle<Object> target,
 
   env->SetMethod(target, "prepCif", PrepCif);
   env->SetMethod(target, "call", Call);
+  env->SetMethod(target, "callAsync", CallAsync);
   env->SetMethod(target, "closureAlloc", ClosureAlloc);
 
   // initialize our threaded invokation stuff
