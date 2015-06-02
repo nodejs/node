@@ -271,35 +271,31 @@ assert.equal(writeTest.toString(), 'nodejs');
 
 var asciiString = 'hello world';
 var offset = 100;
-for (var j = 0; j < 500; j++) {
 
-  for (var i = 0; i < asciiString.length; i++) {
-    b[i] = asciiString.charCodeAt(i);
-  }
-  var asciiSlice = b.toString('ascii', 0, asciiString.length);
-  assert.equal(asciiString, asciiSlice);
+for (var i = 0; i < asciiString.length; i++) {
+  b[i] = asciiString.charCodeAt(i);
+}
+var asciiSlice = b.toString('ascii', 0, asciiString.length);
+assert.equal(asciiString, asciiSlice);
 
-  var written = b.write(asciiString, offset, 'ascii');
-  assert.equal(asciiString.length, written);
-  var asciiSlice = b.toString('ascii', offset, offset + asciiString.length);
-  assert.equal(asciiString, asciiSlice);
+var written = b.write(asciiString, offset, 'ascii');
+assert.equal(asciiString.length, written);
+var asciiSlice = b.toString('ascii', offset, offset + asciiString.length);
+assert.equal(asciiString, asciiSlice);
 
-  var sliceA = b.slice(offset, offset + asciiString.length);
-  var sliceB = b.slice(offset, offset + asciiString.length);
-  for (var i = 0; i < asciiString.length; i++) {
-    assert.equal(sliceA[i], sliceB[i]);
-  }
-
-  // TODO utf8 slice tests
+var sliceA = b.slice(offset, offset + asciiString.length);
+var sliceB = b.slice(offset, offset + asciiString.length);
+for (var i = 0; i < asciiString.length; i++) {
+  assert.equal(sliceA[i], sliceB[i]);
 }
 
+// TODO utf8 slice tests
 
-for (var j = 0; j < 100; j++) {
-  var slice = b.slice(100, 150);
-  assert.equal(50, slice.length);
-  for (var i = 0; i < 50; i++) {
-    assert.equal(b[100 + i], slice[i]);
-  }
+
+var slice = b.slice(100, 150);
+assert.equal(50, slice.length);
+for (var i = 0; i < 50; i++) {
+  assert.equal(b[100 + i], slice[i]);
 }
 
 
