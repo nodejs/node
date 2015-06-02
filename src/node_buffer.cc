@@ -255,7 +255,7 @@ MaybeLocal<Object> New(Isolate* isolate,
   }
 
   Local<Object> buf;
-  if (Use(isolate, data, actual).ToLocal(&buf))
+  if (New(isolate, data, actual).ToLocal(&buf))
     return scope.Escape(buf);
 
   // Object failed to be created. Clean up resources.
@@ -319,7 +319,7 @@ MaybeLocal<Object> New(Environment* env, size_t length) {
 }
 
 
-MaybeLocal<Object> New(Isolate* isolate, const char* data, size_t length) {
+MaybeLocal<Object> Copy(Isolate* isolate, const char* data, size_t length) {
   Environment* env = Environment::GetCurrent(isolate);
   EscapableHandleScope handle_scope(env->isolate());
   Local<Object> obj;
@@ -435,11 +435,11 @@ MaybeLocal<Object> New(Environment* env,
 }
 
 
-MaybeLocal<Object> Use(Isolate* isolate, char* data, size_t length) {
+MaybeLocal<Object> New(Isolate* isolate, char* data, size_t length) {
   Environment* env = Environment::GetCurrent(isolate);
   EscapableHandleScope handle_scope(env->isolate());
   Local<Object> obj;
-  if (Buffer::Use(env, data, length).ToLocal(&obj))
+  if (Buffer::New(env, data, length).ToLocal(&obj))
     return handle_scope.Escape(obj);
   return Local<Object>();
 }
