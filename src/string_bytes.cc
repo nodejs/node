@@ -19,6 +19,7 @@ using v8::Handle;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
+using v8::Object;
 using v8::String;
 using v8::Value;
 
@@ -681,7 +682,10 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
   Local<String> val;
   switch (encoding) {
     case BUFFER:
-      return scope.Escape(Buffer::New(isolate, buf, buflen));
+      {
+        Local<Object> vbuf = Buffer::New(isolate, buf, buflen).ToLocalChecked();
+        return scope.Escape(vbuf);
+      }
 
     case ASCII:
       if (contains_non_ascii(buf, buflen)) {
