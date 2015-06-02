@@ -660,7 +660,7 @@ void TLSWrap::OnReadSelf(ssize_t nread,
   TLSWrap* wrap = static_cast<TLSWrap*>(ctx);
   Local<Object> buf_obj;
   if (buf != nullptr)
-    buf_obj = Buffer::Use(wrap->env(), buf->base, buf->len).ToLocalChecked();
+    buf_obj = Buffer::New(wrap->env(), buf->base, buf->len).ToLocalChecked();
   wrap->EmitData(nread, buf_obj, Local<Object>());
 }
 
