@@ -73,6 +73,7 @@ using v8::Handle;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
+using v8::Maybe;
 using v8::Number;
 using v8::Object;
 using v8::Persistent;
@@ -298,7 +299,13 @@ Local<Object> New(Environment* env, size_t length) {
         length,
         ArrayBufferCreationMode::kInternalized);
   Local<Uint8Array> ui = Uint8Array::New(ab, 0, length);
-  ui->SetPrototype(env->buffer_prototype_object());
+  Maybe<bool> mb =
+      ui->SetPrototype(env->context(), env->buffer_prototype_object());
+  if (!mb.FromMaybe(false)) {
+    FatalError("node::Buffer::New(Environment*, size_t)",
+               "Could not set Object prototype");
+    UNREACHABLE();
+  }
   return scope.Escape(ui);
 }
 
@@ -361,7 +368,13 @@ Local<Object> New(Environment* env, const char* data, size_t length) {
         length,
         ArrayBufferCreationMode::kInternalized);
   Local<Uint8Array> ui = Uint8Array::New(ab, 0, length);
-  ui->SetPrototype(env->buffer_prototype_object());
+  Maybe<bool> mb =
+      ui->SetPrototype(env->context(), env->buffer_prototype_object());
+  if (!mb.FromMaybe(false)) {
+    FatalError("node::Buffer::New(Environment*, char*, size_t)",
+               "Could not set Object prototype");
+    UNREACHABLE();
+  }
 
   return scope.Escape(ui);
 }
@@ -401,7 +414,14 @@ Local<Object> New(Environment* env,
 
   Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), data, length);
   Local<Uint8Array> ui = Uint8Array::New(ab, 0, length);
-  ui->SetPrototype(env->buffer_prototype_object());
+  Maybe<bool> mb =
+      ui->SetPrototype(env->context(), env->buffer_prototype_object());
+  if (!mb.FromMaybe(false)) {
+    FatalError("node::Buffer::New(Environment*, char*, size_t,"
+               " FreeCallback, void*)",
+               "Could not set Object prototype");
+    UNREACHABLE();
+  }
   CallbackInfo::New(env->isolate(), ui, callback, hint);
   return scope.Escape(ui);
 }
@@ -441,7 +461,13 @@ Local<Object> Use(Environment* env, char* data, size_t length) {
                        length,
                        ArrayBufferCreationMode::kInternalized);
   Local<Uint8Array> ui = Uint8Array::New(ab, 0, length);
-  ui->SetPrototype(env->buffer_prototype_object());
+  Maybe<bool> mb =
+      ui->SetPrototype(env->context(), env->buffer_prototype_object());
+  if (!mb.FromMaybe(false)) {
+    FatalError("node::Buffer::Use(Environment*, char*, size_t)",
+               "Could not set Object prototype");
+    UNREACHABLE();
+  }
   return scope.Escape(ui);
 }
 
@@ -473,8 +499,10 @@ void Create(const FunctionCallbackInfo<Value>& args) {
                        length,
                        ArrayBufferCreationMode::kInternalized);
   Local<Uint8Array> ui = Uint8Array::New(ab, 0, length);
-  ui->SetPrototype(env->buffer_prototype_object());
-  args.GetReturnValue().Set(ui);
+  Maybe<bool> mb =
+      ui->SetPrototype(env->context(), env->buffer_prototype_object());
+  if (mb.FromMaybe(false))
+    args.GetReturnValue().Set(ui);
 }
 
 
@@ -505,8 +533,10 @@ void Slice(const FunctionCallbackInfo<Value>& args) {
   size_t size = end - start;
   CHECK_GE(ab_c.ByteLength(), start + size);
   Local<Uint8Array> ui = Uint8Array::New(ab, start, size);
-  ui->SetPrototype(env->buffer_prototype_object());
-  args.GetReturnValue().Set(ui);
+  Maybe<bool> mb =
+      ui->SetPrototype(env->context(), env->buffer_prototype_object());
+  if (mb.FromMaybe(false))
+    args.GetReturnValue().Set(ui);
 }
 
 
