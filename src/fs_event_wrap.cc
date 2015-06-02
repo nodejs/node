@@ -86,7 +86,7 @@ void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
   FSEventWrap* wrap = Unwrap<FSEventWrap>(args.Holder());
 
   if (args.Length() < 1 || !args[0]->IsString()) {
-    return env->ThrowTypeError("Bad arguments");
+    return env->ThrowTypeError("filename must be a valid string");
   }
 
   node::Utf8Value path(env->isolate(), args[0]);
