@@ -70,6 +70,8 @@
       'lib/vm.js',
       'lib/zlib.js',
 
+      'lib/internal/buffer_old.js',
+      'lib/internal/buffer_new.js',
       'lib/internal/freelist.js',
       'lib/internal/smalloc.js',
       'lib/internal/repl.js',

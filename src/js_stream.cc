@@ -18,6 +18,7 @@ using v8::FunctionTemplate;
 using v8::Handle;
 using v8::HandleScope;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::Value;
 
@@ -88,8 +89,11 @@ int JSStream::DoWrite(WriteWrap* w,
   HandleScope scope(env()->isolate());
 
   Local<Array> bufs_arr = Array::New(env()->isolate(), count);
-  for (size_t i = 0; i < count; i++)
-    bufs_arr->Set(i, Buffer::New(env(), bufs[i].base, bufs[i].len));
+  Local<Object> buf;
+  for (size_t i = 0; i < count; i++) {
+    buf = Buffer::New(env(), bufs[i].base, bufs[i].len).ToLocalChecked();
+    bufs_arr->Set(i, buf);
+  }
 
   Local<Value> argv[] = {
     w->object(),
@@ -134,11 +138,13 @@ void JSStream::DoAlloc(const FunctionCallbackInfo<Value>& args) {
 
   uv_buf_t buf;
   wrap->OnAlloc(args[0]->Int32Value(), &buf);
-  args.GetReturnValue().Set(Buffer::New(wrap->env(),
-                                        buf.base,
-                                        buf.len,
-                                        FreeCallback,
-                                        nullptr));
+  Local<Object> vbuf = Buffer::New(
+      wrap->env(),
+      buf.base,
+      buf.len,
+      FreeCallback,
+      nullptr).ToLocalChecked();
+  return args.GetReturnValue().Set(vbuf);
 }
 
 

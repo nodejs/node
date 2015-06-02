@@ -5,6 +5,7 @@
 #include "node_http_parser.h"
 #include "node_javascript.h"
 #include "node_version.h"
+#include "node_internals.h"
 
 #if defined HAVE_PERFCTR
 #include "node_counters.h"
@@ -146,6 +147,8 @@ static uv_async_t dispatch_debug_messages_async;
 static Isolate* node_isolate = nullptr;
 static v8::Platform* default_platform;
 
+bool using_old_buffer = false;
+
 class ArrayBufferAllocator : public ArrayBuffer::Allocator {
  public:
   // Impose an upper limit to avoid out of memory errors that bring down
@@ -165,23 +168,17 @@ ArrayBufferAllocator ArrayBufferAllocator::the_singleton;
 
 
 void* ArrayBufferAllocator::Allocate(size_t length) {
-  if (length > kMaxLength)
-    return nullptr;
-  char* data = new char[length];
-  memset(data, 0, length);
-  return data;
+  return calloc(length, 1);
 }
 
 
 void* ArrayBufferAllocator::AllocateUninitialized(size_t length) {
-  if (length > kMaxLength)
-    return nullptr;
-  return new char[length];
+  return malloc(length);
 }
 
 
 void ArrayBufferAllocator::Free(void* data, size_t length) {
-  delete[] static_cast<char*>(data);
+  free(data);
 }
 
 
@@ -2844,6 +2841,11 @@ void SetupProcessObject(Environment* env,
     // after LoadEnvironment() has run.
   }
 
+  // --use-old_buffer
+  if (using_old_buffer) {
+    READONLY_PROPERTY(process, "useOldBuffer", True(env->isolate()));
+  }
+
   size_t exec_path_len = 2 * PATH_MAX;
   char* exec_path = new char[exec_path_len];
   Local<String> exec_path_value;
@@ -3072,6 +3074,7 @@ static void PrintHelp() {
          "  --trace-deprecation  show stack traces on deprecations\n"
          "  --trace-sync-io      show stack trace when use of sync IO\n"
          "                       is detected after the first tick\n"
+         "  --use-old-buffer     Revert to old Buffer implementation\n"
          "  --v8-options         print v8 command line options\n"
 #if defined(NODE_HAVE_I18N_SUPPORT)
          "  --icu-data-dir=dir   set ICU data load path to dir\n"
@@ -3208,6 +3211,10 @@ static void ParseArgs(int* argc,
 #endif
     } else if (strcmp(arg, "--expose-internals") == 0 ||
                strcmp(arg, "--expose_internals") == 0) {
+    } else if (strcmp(arg, "--use-old-buffer") == 0 ||
+               strcmp(arg, "--use_old_buffer") == 0) {
+      using_old_buffer = true;
+
       // consumed in js
     } else {
       // V8 option.  Pass through as-is.
