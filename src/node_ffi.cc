@@ -61,11 +61,6 @@ void ThreadedCallbackInvokation::WaitForExecution() {
 static void PrepCif(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  unsigned int nargs;
-  char* rtype, *atypes, *cif;
-  ffi_status status;
-  ffi_abi abi;
-
   if (!Buffer::HasInstance(args[0]))
     return env->ThrowTypeError("expected Buffer instance as first argument");
   if (!args[1]->IsNumber())
@@ -77,18 +72,12 @@ static void PrepCif(const FunctionCallbackInfo<Value>& args) {
   if (!Buffer::HasInstance(args[4]))
     return env->ThrowTypeError("expected Buffer instance as fifth argument");
 
-  cif = Buffer::Data(args[0].As<Object>());
-  abi = static_cast<ffi_abi>(args[1]->Int32Value());
-  nargs = args[2]->Uint32Value();
-  rtype = Buffer::Data(args[3].As<Object>());
-  atypes = Buffer::Data(args[4].As<Object>());
-
-  status = ffi_prep_cif(
-      reinterpret_cast<ffi_cif*>(cif),
-      abi,
-      nargs,
-      reinterpret_cast<ffi_type*>(rtype),
-      reinterpret_cast<ffi_type**>(atypes));
+  ffi_status status = ffi_prep_cif(
+      reinterpret_cast<ffi_cif*>(Buffer::Data(args[0].As<Object>())),
+      static_cast<ffi_abi>(args[1]->Int32Value()),
+      args[2]->Uint32Value(),
+      reinterpret_cast<ffi_type*>(Buffer::Data(args[3].As<Object>())),
+      reinterpret_cast<ffi_type**>(Buffer::Data(args[4].As<Object>())));
 
   args.GetReturnValue().Set(status);
 }
