@@ -704,7 +704,8 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
   switch (encoding) {
     case BUFFER:
       {
-        Local<Object> vbuf = Buffer::New(isolate, buf, buflen).ToLocalChecked();
+        Local<Object> vbuf =
+            Buffer::Copy(isolate, buf, buflen).ToLocalChecked();
         return scope.Escape(vbuf);
       }
 

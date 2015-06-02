@@ -23,55 +23,30 @@ NODE_EXTERN char* Data(v8::Handle<v8::Object> val);
 NODE_EXTERN size_t Length(v8::Handle<v8::Value> val);
 NODE_EXTERN size_t Length(v8::Handle<v8::Object> val);
 
+// public constructor - data is copied
+NODE_EXTERN v8::MaybeLocal<v8::Object> Copy(v8::Isolate* isolate,
+                                            const char* data,
+                                            size_t len);
+
 // public constructor
 NODE_EXTERN v8::MaybeLocal<v8::Object> New(v8::Isolate* isolate, size_t length);
-NODE_DEPRECATED("Use New(isolate, ...)",
-                inline v8::MaybeLocal<v8::Object> New(size_t length) {
-  return New(v8::Isolate::GetCurrent(), length);
-})
+
 // public constructor from string
 NODE_EXTERN v8::MaybeLocal<v8::Object> New(v8::Isolate* isolate,
                                            v8::Handle<v8::String> string,
                                            enum encoding enc = UTF8);
-NODE_DEPRECATED("Use New(isolate, ...)",
-                inline v8::MaybeLocal<v8::Object> New(
-                    v8::Handle<v8::String> string,
-                    enum encoding enc = UTF8) {
-  return New(v8::Isolate::GetCurrent(), string, enc);
-})
-// public constructor - data is copied
-// TODO(trevnorris): should be something like Copy()
-NODE_EXTERN v8::MaybeLocal<v8::Object> New(v8::Isolate* isolate,
-                                           const char* data,
-                                           size_t len);
-NODE_DEPRECATED("Use New(isolate, ...)",
-                inline v8::MaybeLocal<v8::Object> New(const char* data,
-                                                      size_t len) {
-  return New(v8::Isolate::GetCurrent(), data, len);
-})
+
 // public constructor - data is used, callback is passed data on object gc
 NODE_EXTERN v8::MaybeLocal<v8::Object> New(v8::Isolate* isolate,
                                            char* data,
                                            size_t length,
                                            FreeCallback callback,
                                            void* hint);
-NODE_DEPRECATED("Use New(isolate, ...)",
-                inline v8::MaybeLocal<v8::Object> New(char* data,
-                                                      size_t length,
-                                                      FreeCallback callback,
-                                                      void* hint) {
-  return New(v8::Isolate::GetCurrent(), data, length, callback, hint);
-})
 
 // public constructor - data is used.
-// TODO(trevnorris): should be New() for consistency
-NODE_EXTERN v8::MaybeLocal<v8::Object> Use(v8::Isolate* isolate,
+NODE_EXTERN v8::MaybeLocal<v8::Object> New(v8::Isolate* isolate,
                                            char* data,
                                            size_t len);
-NODE_DEPRECATED("Use Use(isolate, ...)",
-                inline v8::MaybeLocal<v8::Object> Use(char* data, size_t len) {
-  return Use(v8::Isolate::GetCurrent(), data, len);
-})
 
 // This is verbose to be explicit with inline commenting
 static inline bool IsWithinBounds(size_t off, size_t len, size_t max) {

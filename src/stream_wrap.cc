@@ -223,7 +223,7 @@ void StreamWrap::OnReadImpl(ssize_t nread,
     CHECK_EQ(pending, UV_UNKNOWN_HANDLE);
   }
 
-  Local<Object> obj = Buffer::Use(env, base, nread).ToLocalChecked();
+  Local<Object> obj = Buffer::New(env, base, nread).ToLocalChecked();
   wrap->EmitData(nread, obj, pending_obj);
 }
 
