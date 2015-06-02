@@ -68,6 +68,7 @@ using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::Maybe;
+using v8::MaybeLocal;
 using v8::Number;
 using v8::Object;
 using v8::Persistent;
@@ -228,7 +229,9 @@ size_t Length(Handle<Object> obj) {
 }
 
 
-Local<Object> New(Isolate* isolate, Handle<String> string, enum encoding enc) {
+MaybeLocal<Object> New(Isolate* isolate,
+                       Local<String> string,
+                       enum encoding enc) {
   EscapableHandleScope scope(isolate);
 
   size_t length = StringBytes::Size(isolate, string, enc);
@@ -245,19 +248,26 @@ Local<Object> New(Isolate* isolate, Handle<String> string, enum encoding enc) {
     CHECK_NE(data, nullptr);
   }
 
-  Local<Object> buf = Use(isolate, data, actual);
-  return scope.Escape(buf);
+  Local<Object> buf;
+  if (Use(isolate, data, actual).ToLocal(&buf))
+    return scope.Escape(buf);
+
+  // Object failed to be created. Clean up resources.
+  free(data);
+  return Local<Object>();
 }
 
 
-Local<Object> New(Isolate* isolate, size_t length) {
+MaybeLocal<Object> New(Isolate* isolate, size_t length) {
   EscapableHandleScope handle_scope(isolate);
-  Local<Object> obj = Buffer::New(Environment::GetCurrent(isolate), length);
-  return handle_scope.Escape(obj);
+  Local<Object> obj;
+  if (Buffer::New(Environment::GetCurrent(isolate), length).ToLocal(&obj))
+    return handle_scope.Escape(obj);
+  return Local<Object>();
 }
 
 
-Local<Object> New(Environment* env, size_t length) {
+MaybeLocal<Object> New(Environment* env, size_t length) {
   EscapableHandleScope scope(env->isolate());
 
   if (using_old_buffer) {
@@ -280,13 +290,12 @@ Local<Object> New(Environment* env, size_t length) {
   void* data;
   if (length > 0) {
     data = malloc(length);
-    // NOTE: API change. Must check .IsEmpty() on the return object to see if
-    // the data was able to be allocated.
     if (data == nullptr)
       return Local<Object>();
   } else {
     data = nullptr;
   }
+
   Local<ArrayBuffer> ab =
     ArrayBuffer::New(env->isolate(),
         data,
@@ -295,25 +304,27 @@ Local<Object> New(Environment* env, size_t length) {
   Local<Uint8Array> ui = Uint8Array::New(ab, 0, length);
   Maybe<bool> mb =
       ui->SetPrototype(env->context(), env->buffer_prototype_object());
-  if (!mb.FromMaybe(false)) {
-    FatalError("node::Buffer::New(Environment*, size_t)",
-               "Could not set Object prototype");
-    UNREACHABLE();
-  }
-  return scope.Escape(ui);
+  if (mb.FromMaybe(false))
+    return scope.Escape(ui);
+
+  // Object failed to be created. Clean up resources.
+  free(data);
+  return Local<Object>();
 }
 
 
-Local<Object> New(Isolate* isolate, const char* data, size_t length) {
+MaybeLocal<Object> New(Isolate* isolate, const char* data, size_t length) {
   Environment* env = Environment::GetCurrent(isolate);
   EscapableHandleScope handle_scope(env->isolate());
-  Local<Object> obj = Buffer::New(env, data, length);
-  return handle_scope.Escape(obj);
+  Local<Object> obj;
+  if (Buffer::New(env, data, length).ToLocal(&obj))
+    return handle_scope.Escape(obj);
+  return Local<Object>();
 }
 
 
 // Make a copy of "data". Why this isn't called "Copy", we'll never know.
-Local<Object> New(Environment* env, const char* data, size_t length) {
+MaybeLocal<Object> New(Environment* env, const char* data, size_t length) {
   EscapableHandleScope scope(env->isolate());
 
   if (using_old_buffer) {
@@ -347,8 +358,6 @@ Local<Object> New(Environment* env, const char* data, size_t length) {
   if (length > 0) {
     CHECK_NE(data, nullptr);
     new_data = malloc(length);
-    // NOTE: API change. Must check .IsEmpty() on the return object to see if
-    // the data was able to be allocated.
     if (new_data == nullptr)
       return Local<Object>();
     memcpy(new_data, data, length);
@@ -364,33 +373,34 @@ Local<Object> New(Environment* env, const char* data, size_t length) {
   Local<Uint8Array> ui = Uint8Array::New(ab, 0, length);
   Maybe<bool> mb =
       ui->SetPrototype(env->context(), env->buffer_prototype_object());
-  if (!mb.FromMaybe(false)) {
-    FatalError("node::Buffer::New(Environment*, char*, size_t)",
-               "Could not set Object prototype");
-    UNREACHABLE();
-  }
+  if (mb.FromMaybe(false))
+    return scope.Escape(ui);
 
-  return scope.Escape(ui);
+  // Object failed to be created. Clean up resources.
+  free(new_data);
+  return Local<Object>();
 }
 
 
-Local<Object> New(Isolate* isolate,
-                  char* data,
-                  size_t length,
-                  FreeCallback callback,
-                  void* hint) {
+MaybeLocal<Object> New(Isolate* isolate,
+                       char* data,
+                       size_t length,
+                       FreeCallback callback,
+                       void* hint) {
   Environment* env = Environment::GetCurrent(isolate);
   EscapableHandleScope handle_scope(env->isolate());
-  Local<Object> obj = Buffer::New(env, data, length, callback, hint);
-  return handle_scope.Escape(obj);
+  Local<Object> obj;
+  if (Buffer::New(env, data, length, callback, hint).ToLocal(&obj))
+    return handle_scope.Escape(obj);
+  return Local<Object>();
 }
 
 
-Local<Object> New(Environment* env,
-                  char* data,
-                  size_t length,
-                  FreeCallback callback,
-                  void* hint) {
+MaybeLocal<Object> New(Environment* env,
+                       char* data,
+                       size_t length,
+                       FreeCallback callback,
+                       void* hint) {
   EscapableHandleScope scope(env->isolate());
 
   if (using_old_buffer) {
@@ -410,26 +420,26 @@ Local<Object> New(Environment* env,
   Local<Uint8Array> ui = Uint8Array::New(ab, 0, length);
   Maybe<bool> mb =
       ui->SetPrototype(env->context(), env->buffer_prototype_object());
-  if (!mb.FromMaybe(false)) {
-    FatalError("node::Buffer::New(Environment*, char*, size_t,"
-               " FreeCallback, void*)",
-               "Could not set Object prototype");
-    UNREACHABLE();
-  }
+
+  if (!mb.FromMaybe(false))
+    return Local<Object>();
+
   CallbackInfo::New(env->isolate(), ui, callback, hint);
   return scope.Escape(ui);
 }
 
 
-Local<Object> Use(Isolate* isolate, char* data, size_t length) {
+MaybeLocal<Object> Use(Isolate* isolate, char* data, size_t length) {
   Environment* env = Environment::GetCurrent(isolate);
   EscapableHandleScope handle_scope(env->isolate());
-  Local<Object> obj = Buffer::Use(env, data, length);
-  return handle_scope.Escape(obj);
+  Local<Object> obj;
+  if (Buffer::Use(env, data, length).ToLocal(&obj))
+    return handle_scope.Escape(obj);
+  return Local<Object>();
 }
 
 
-Local<Object> Use(Environment* env, char* data, size_t length) {
+MaybeLocal<Object> Use(Environment* env, char* data, size_t length) {
   EscapableHandleScope scope(env->isolate());
 
   if (using_old_buffer) {
@@ -457,12 +467,9 @@ Local<Object> Use(Environment* env, char* data, size_t length) {
   Local<Uint8Array> ui = Uint8Array::New(ab, 0, length);
   Maybe<bool> mb =
       ui->SetPrototype(env->context(), env->buffer_prototype_object());
-  if (!mb.FromMaybe(false)) {
-    FatalError("node::Buffer::Use(Environment*, char*, size_t)",
-               "Could not set Object prototype");
-    UNREACHABLE();
-  }
-  return scope.Escape(ui);
+  if (mb.FromMaybe(false))
+    return scope.Escape(ui);
+  return Local<Object>();
 }
 
 
@@ -495,8 +502,9 @@ void Create(const FunctionCallbackInfo<Value>& args) {
   Local<Uint8Array> ui = Uint8Array::New(ab, 0, length);
   Maybe<bool> mb =
       ui->SetPrototype(env->context(), env->buffer_prototype_object());
-  if (mb.FromMaybe(false))
-    args.GetReturnValue().Set(ui);
+  if (!mb.FromMaybe(false))
+    return env->ThrowError("Unable to set Object prototype");
+  args.GetReturnValue().Set(ui);
 }
 
 
@@ -507,8 +515,9 @@ void CreateFromString(const FunctionCallbackInfo<Value>& args) {
   enum encoding enc = ParseEncoding(args.GetIsolate(),
                                     args[1].As<String>(),
                                     UTF8);
-  Local<Object> buf = New(args.GetIsolate(), args[0].As<String>(), enc);
-  args.GetReturnValue().Set(buf);
+  Local<Object> buf;
+  if (New(args.GetIsolate(), args[0].As<String>(), enc).ToLocal(&buf))
+    args.GetReturnValue().Set(buf);
 }
 
 
@@ -529,8 +538,9 @@ void Slice(const FunctionCallbackInfo<Value>& args) {
   Local<Uint8Array> ui = Uint8Array::New(ab, start, size);
   Maybe<bool> mb =
       ui->SetPrototype(env->context(), env->buffer_prototype_object());
-  if (mb.FromMaybe(false))
-    args.GetReturnValue().Set(ui);
+  if (!mb.FromMaybe(false))
+    env->ThrowError("Unable to set Object prototype");
+  args.GetReturnValue().Set(ui);
 }
 
 
