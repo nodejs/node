@@ -18,8 +18,7 @@ if (process.argv[2] === 'child') {
   // spawn self as child
   var child = spawn(process.argv[0], [process.argv[1], 'child']);
 
-  var gotHello = false;
-  var gotBye = false;
+  var stdout = '';
 
   child.stderr.setEncoding('utf8');
   child.stderr.on('data', function(data) {
@@ -30,17 +29,11 @@ if (process.argv[2] === 'child') {
   // check if we receive both 'hello' at start and 'goodbye' at end
   child.stdout.setEncoding('utf8');
   child.stdout.on('data', function(data) {
-    if (data.slice(0, 6) == 'hello\n') {
-      gotHello = true;
-    } else if (data.slice(data.length - 8) == 'goodbye\n') {
-      gotBye = true;
-    } else {
-      gotBye = false;
-    }
+    stdout += data;
   });
 
-  child.on('close', function(data) {
-    assert(gotHello);
-    assert(gotBye);
-  });
+  child.on('close', common.mustCall(function() {
+    assert.equal(stdout.slice(0, 6), 'hello\n');
+    assert.equal(stdout.slice(stdout.length - 8), 'goodbye\n');
+  }));
 }
