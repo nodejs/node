@@ -2899,7 +2899,7 @@ void CipherBase::GetAuthTag(const FunctionCallbackInfo<Value>& args) {
   unsigned int out_len = 0;
 
   if (cipher->GetAuthTag(&out, &out_len)) {
-    Local<Object> buf = Buffer::Use(env, out, out_len).ToLocalChecked();
+    Local<Object> buf = Buffer::New(env, out, out_len).ToLocalChecked();
     args.GetReturnValue().Set(buf);
   } else {
     env->ThrowError("Attempting to get auth tag in unsupported state");
@@ -4373,7 +4373,7 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Failed to compute ECDH key");
   }
 
-  Local<Object> buf = Buffer::Use(env, out, out_len).ToLocalChecked();
+  Local<Object> buf = Buffer::New(env, out, out_len).ToLocalChecked();
   args.GetReturnValue().Set(buf);
 }
 
@@ -4411,7 +4411,7 @@ void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Object> buf =
-      Buffer::Use(env, reinterpret_cast<char*>(out), size).ToLocalChecked();
+      Buffer::New(env, reinterpret_cast<char*>(out), size).ToLocalChecked();
   args.GetReturnValue().Set(buf);
 }
 
@@ -4438,7 +4438,7 @@ void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Object> buf =
-      Buffer::Use(env, reinterpret_cast<char*>(out), size).ToLocalChecked();
+      Buffer::New(env, reinterpret_cast<char*>(out), size).ToLocalChecked();
   args.GetReturnValue().Set(buf);
 }
 
@@ -4841,7 +4841,7 @@ void RandomBytesCheck(RandomBytesRequest* req, Local<Value> argv[2]) {
     size_t size;
     req->return_memory(&data, &size);
     argv[0] = Null(req->env()->isolate());
-    argv[1] = Buffer::Use(req->env(), data, size).ToLocalChecked();
+    argv[1] = Buffer::New(req->env(), data, size).ToLocalChecked();
   }
 }
 
