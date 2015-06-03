@@ -73,6 +73,8 @@ class FSReqWrap: public ReqWrap<uv_fs_t> {
   const char* syscall() const { return syscall_; }
   const char* data() const { return data_; }
 
+  size_t self_size() const override { return sizeof(*this); }
+
  private:
   FSReqWrap(Environment* env,
             Local<Object> req,

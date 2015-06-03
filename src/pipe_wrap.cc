@@ -37,6 +37,8 @@ using v8::Value;
 class PipeConnectWrap : public ReqWrap<uv_connect_t> {
  public:
   PipeConnectWrap(Environment* env, Local<Object> req_wrap_obj);
+
+  size_t self_size() const override { return sizeof(*this); }
 };
 
 

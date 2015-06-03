@@ -48,6 +48,7 @@ class ShutdownWrap : public ReqWrap<uv_shutdown_t>,
   }
 
   inline StreamBase* wrap() const { return wrap_; }
+  size_t self_size() const override { return sizeof(*this); }
 
  private:
   StreamBase* const wrap_;
@@ -66,6 +67,8 @@ class WriteWrap: public ReqWrap<uv_write_t>,
 
   inline StreamBase* wrap() const { return wrap_; }
 
+  size_t self_size() const override { return storage_size_; }
+
   static void NewWriteWrap(const v8::FunctionCallbackInfo<v8::Value>& args) {
     CHECK(args.IsConstructCall());
   }
@@ -76,10 +79,12 @@ class WriteWrap: public ReqWrap<uv_write_t>,
   WriteWrap(Environment* env,
             v8::Local<v8::Object> obj,
             StreamBase* wrap,
-            DoneCb cb)
+            DoneCb cb,
+            size_t storage_size)
       : ReqWrap(env, obj, AsyncWrap::PROVIDER_WRITEWRAP),
         StreamReq<WriteWrap>(cb),
-        wrap_(wrap) {
+        wrap_(wrap),
+        storage_size_(storage_size) {
     Wrap(obj, this);
   }
 
@@ -96,6 +101,7 @@ class WriteWrap: public ReqWrap<uv_write_t>,
   void operator delete(void* ptr) { UNREACHABLE(); }
 
   StreamBase* const wrap_;
+  const size_t storage_size_;
 };
 
 class StreamResource {

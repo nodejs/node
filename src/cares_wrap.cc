@@ -51,6 +51,8 @@ using v8::Value;
 class GetAddrInfoReqWrap : public ReqWrap<uv_getaddrinfo_t> {
  public:
   GetAddrInfoReqWrap(Environment* env, Local<Object> req_wrap_obj);
+
+  size_t self_size() const override { return sizeof(*this); }
 };
 
 GetAddrInfoReqWrap::GetAddrInfoReqWrap(Environment* env,
@@ -66,8 +68,10 @@ static void NewGetAddrInfoReqWrap(const FunctionCallbackInfo<Value>& args) {
 
 
 class GetNameInfoReqWrap : public ReqWrap<uv_getnameinfo_t> {
-  public:
-    GetNameInfoReqWrap(Environment* env, Local<Object> req_wrap_obj);
+ public:
+  GetNameInfoReqWrap(Environment* env, Local<Object> req_wrap_obj);
+
+  size_t self_size() const override { return sizeof(*this); }
 };
 
 GetNameInfoReqWrap::GetNameInfoReqWrap(Environment* env,
@@ -385,6 +389,8 @@ class QueryAWrap: public QueryWrap {
     return 0;
   }
 
+  size_t self_size() const override { return sizeof(*this); }
+
  protected:
   void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
@@ -422,6 +428,8 @@ class QueryAaaaWrap: public QueryWrap {
     return 0;
   }
 
+  size_t self_size() const override { return sizeof(*this); }
+
  protected:
   void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
@@ -458,6 +466,8 @@ class QueryCnameWrap: public QueryWrap {
                GetQueryArg());
     return 0;
   }
+
+  size_t self_size() const override { return sizeof(*this); }
 
  protected:
   void Parse(unsigned char* buf, int len) override {
@@ -497,6 +507,8 @@ class QueryMxWrap: public QueryWrap {
                GetQueryArg());
     return 0;
   }
+
+  size_t self_size() const override { return sizeof(*this); }
 
  protected:
   void Parse(unsigned char* buf, int len) override {
@@ -547,6 +559,8 @@ class QueryNsWrap: public QueryWrap {
     return 0;
   }
 
+  size_t self_size() const override { return sizeof(*this); }
+
  protected:
   void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
@@ -582,6 +596,8 @@ class QueryTxtWrap: public QueryWrap {
                GetQueryArg());
     return 0;
   }
+
+  size_t self_size() const override { return sizeof(*this); }
 
  protected:
   void Parse(unsigned char* buf, int len) override {
@@ -638,6 +654,8 @@ class QuerySrvWrap: public QueryWrap {
     return 0;
   }
 
+  size_t self_size() const override { return sizeof(*this); }
+
  protected:
   void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
@@ -691,6 +709,8 @@ class QueryNaptrWrap: public QueryWrap {
                GetQueryArg());
     return 0;
   }
+
+  size_t self_size() const override { return sizeof(*this); }
 
  protected:
   void Parse(unsigned char* buf, int len) override {
@@ -753,6 +773,8 @@ class QuerySoaWrap: public QueryWrap {
                GetQueryArg());
     return 0;
   }
+
+  size_t self_size() const override { return sizeof(*this); }
 
  protected:
   void Parse(unsigned char* buf, int len) override {
@@ -819,6 +841,8 @@ class GetHostByAddrWrap: public QueryWrap {
                        GetQueryArg());
     return 0;
   }
+
+  size_t self_size() const override { return sizeof(*this); }
 
  protected:
   void Parse(struct hostent* host) override {

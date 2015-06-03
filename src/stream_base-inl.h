@@ -92,7 +92,7 @@ WriteWrap* WriteWrap::New(Environment* env,
   size_t storage_size = ROUND_UP(sizeof(WriteWrap), kAlignSize) + extra;
   char* storage = new char[storage_size];
 
-  return new(storage) WriteWrap(env, obj, wrap, cb);
+  return new(storage) WriteWrap(env, obj, wrap, cb, storage_size);
 }
 
 

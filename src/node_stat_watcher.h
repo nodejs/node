@@ -22,6 +22,8 @@ class StatWatcher : public AsyncWrap {
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
 
+  size_t self_size() const override { return sizeof(*this); }
+
  private:
   static void Callback(uv_fs_poll_t* handle,
                        int status,

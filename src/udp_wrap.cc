@@ -36,6 +36,7 @@ class SendWrap : public ReqWrap<uv_udp_send_t> {
  public:
   SendWrap(Environment* env, Local<Object> req_wrap_obj, bool have_callback);
   inline bool have_callback() const;
+  size_t self_size() const override { return sizeof(*this); }
  private:
   const bool have_callback_;
 };
