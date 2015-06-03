@@ -112,11 +112,11 @@ static void uv__getaddrinfo_done(struct uv__work* w, int status) {
 
   /* See initialization in uv_getaddrinfo(). */
   if (req->hints)
-    free(req->hints);
+    uv__free(req->hints);
   else if (req->service)
-    free(req->service);
+    uv__free(req->service);
   else if (req->hostname)
-    free(req->hostname);
+    uv__free(req->hostname);
   else
     assert(0);
 
@@ -152,7 +152,7 @@ int uv_getaddrinfo(uv_loop_t* loop,
   hostname_len = hostname ? strlen(hostname) + 1 : 0;
   service_len = service ? strlen(service) + 1 : 0;
   hints_len = hints ? sizeof(*hints) : 0;
-  buf = malloc(hostname_len + service_len + hints_len);
+  buf = uv__malloc(hostname_len + service_len + hints_len);
 
   if (buf == NULL)
     return -ENOMEM;

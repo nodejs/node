@@ -279,7 +279,7 @@ int uv__stdio_create(uv_loop_t* loop,
   }
 
   /* Allocate the child stdio buffer */
-  buffer = (BYTE*) malloc(CHILD_STDIO_SIZE(count));
+  buffer = (BYTE*) uv__malloc(CHILD_STDIO_SIZE(count));
   if (buffer == NULL) {
     return ERROR_OUTOFMEMORY;
   }
@@ -459,7 +459,7 @@ void uv__stdio_destroy(BYTE* buffer) {
     }
   }
 
-  free(buffer);
+  uv__free(buffer);
 }
 
 

@@ -244,6 +244,16 @@ typedef enum {
 UV_EXTERN unsigned int uv_version(void);
 UV_EXTERN const char* uv_version_string(void);
 
+typedef void* (*uv_malloc_func)(size_t size);
+typedef void* (*uv_realloc_func)(void* ptr, size_t size);
+typedef void* (*uv_calloc_func)(size_t count, size_t size);
+typedef void (*uv_free_func)(void* ptr);
+
+UV_EXTERN int uv_replace_allocator(uv_malloc_func malloc_func,
+                                   uv_realloc_func realloc_func,
+                                   uv_calloc_func calloc_func,
+                                   uv_free_func free_func);
+
 UV_EXTERN uv_loop_t* uv_default_loop(void);
 UV_EXTERN int uv_loop_init(uv_loop_t* loop);
 UV_EXTERN int uv_loop_close(uv_loop_t* loop);
@@ -1027,6 +1037,8 @@ typedef struct {
 } uv_rusage_t;
 
 UV_EXTERN int uv_getrusage(uv_rusage_t* rusage);
+
+UV_EXTERN int uv_os_homedir(char* buffer, size_t* size);
 
 UV_EXTERN int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count);
 UV_EXTERN void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count);

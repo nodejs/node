@@ -198,7 +198,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     return -EINVAL;  /* FIXME(bnoordhuis) Translate error. */
   }
 
-  *cpu_infos = malloc(numcpus * sizeof(**cpu_infos));
+  *cpu_infos = uv__malloc(numcpus * sizeof(**cpu_infos));
   if (!(*cpu_infos))
     return -ENOMEM;  /* FIXME(bnoordhuis) Deallocate info? */
 
@@ -213,7 +213,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     cpu_info->cpu_times.idle = (uint64_t)(info[i].cpu_ticks[2]) * multiplier;
     cpu_info->cpu_times.irq = 0;
 
-    cpu_info->model = strdup(model);
+    cpu_info->model = uv__strdup(model);
     cpu_info->speed = cpuspeed/1000000;
   }
   vm_deallocate(mach_task_self(), (vm_address_t)info, msg_type);
@@ -226,10 +226,10 @@ void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
   int i;
 
   for (i = 0; i < count; i++) {
-    free(cpu_infos[i].model);
+    uv__free(cpu_infos[i].model);
   }
 
-  free(cpu_infos);
+  uv__free(cpu_infos);
 }
 
 
@@ -255,7 +255,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
     (*count)++;
   }
 
-  *addresses = malloc(*count * sizeof(**addresses));
+  *addresses = uv__malloc(*count * sizeof(**addresses));
   if (!(*addresses))
     return -ENOMEM;
 
@@ -275,7 +275,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
     if (ent->ifa_addr->sa_family == AF_LINK)
       continue;
 
-    address->name = strdup(ent->ifa_name);
+    address->name = uv__strdup(ent->ifa_name);
 
     if (ent->ifa_addr->sa_family == AF_INET6) {
       address->address.address6 = *((struct sockaddr_in6*) ent->ifa_addr);
@@ -324,8 +324,8 @@ void uv_free_interface_addresses(uv_interface_address_t* addresses,
   int i;
 
   for (i = 0; i < count; i++) {
-    free(addresses[i].name);
+    uv__free(addresses[i].name);
   }
 
-  free(addresses);
+  uv__free(addresses);
 }
