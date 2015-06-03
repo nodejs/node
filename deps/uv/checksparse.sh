@@ -103,6 +103,7 @@ test/test-get-loadavg.c
 test/test-get-memory.c
 test/test-getaddrinfo.c
 test/test-getsockname.c
+test/test-homedir.c
 test/test-hrtime.c
 test/test-idle.c
 test/test-ip6-addr.c

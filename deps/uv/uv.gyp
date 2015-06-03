@@ -110,6 +110,7 @@
               '-liphlpapi',
               '-lpsapi',
               '-lshell32',
+              '-luserenv',
               '-lws2_32'
             ],
           },
@@ -304,6 +305,7 @@
         'test/test-getnameinfo.c',
         'test/test-getsockname.c',
         'test/test-handle-fileno.c',
+        'test/test-homedir.c',
         'test/test-hrtime.c',
         'test/test-idle.c',
         'test/test-ip6-addr.c',
@@ -324,6 +326,7 @@
         'test/test-ping-pong.c',
         'test/test-pipe-bind-error.c',
         'test/test-pipe-connect-error.c',
+        'test/test-pipe-connect-prepare.c',
         'test/test-pipe-getsockname.c',
         'test/test-pipe-sendmsg.c',
         'test/test-pipe-server-close.c',

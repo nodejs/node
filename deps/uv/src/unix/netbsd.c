@@ -131,15 +131,15 @@ uint64_t uv_get_total_memory(void) {
 
 
 char** uv_setup_args(int argc, char** argv) {
-  process_title = argc ? strdup(argv[0]) : NULL;
+  process_title = argc ? uv__strdup(argv[0]) : NULL;
   return argv;
 }
 
 
 int uv_set_process_title(const char* title) {
-  if (process_title) free(process_title);
+  if (process_title) uv__free(process_title);
 
-  process_title = strdup(title);
+  process_title = uv__strdup(title);
   setproctitle("%s", title);
 
   return 0;
@@ -234,17 +234,17 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     cpuspeed = 0;
 
   size = numcpus * CPUSTATES * sizeof(*cp_times);
-  cp_times = malloc(size);
+  cp_times = uv__malloc(size);
   if (cp_times == NULL)
     return -ENOMEM;
 
   if (sysctlbyname("kern.cp_time", cp_times, &size, NULL, 0))
     return -errno;
 
-  *cpu_infos = malloc(numcpus * sizeof(**cpu_infos));
+  *cpu_infos = uv__malloc(numcpus * sizeof(**cpu_infos));
   if (!(*cpu_infos)) {
-    free(cp_times);
-    free(*cpu_infos);
+    uv__free(cp_times);
+    uv__free(*cpu_infos);
     return -ENOMEM;
   }
 
@@ -255,11 +255,11 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     cpu_info->cpu_times.sys = (uint64_t)(cp_times[CP_SYS+cur]) * multiplier;
     cpu_info->cpu_times.idle = (uint64_t)(cp_times[CP_IDLE+cur]) * multiplier;
     cpu_info->cpu_times.irq = (uint64_t)(cp_times[CP_INTR+cur]) * multiplier;
-    cpu_info->model = strdup(model);
+    cpu_info->model = uv__strdup(model);
     cpu_info->speed = (int)(cpuspeed/(uint64_t) 1e6);
     cur += CPUSTATES;
   }
-  free(cp_times);
+  uv__free(cp_times);
   return 0;
 }
 
@@ -268,10 +268,10 @@ void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
   int i;
 
   for (i = 0; i < count; i++) {
-    free(cpu_infos[i].model);
+    uv__free(cpu_infos[i].model);
   }
 
-  free(cpu_infos);
+  uv__free(cpu_infos);
 }
 
 
@@ -296,7 +296,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
     (*count)++;
   }
 
-  *addresses = malloc(*count * sizeof(**addresses));
+  *addresses = uv__malloc(*count * sizeof(**addresses));
 
   if (!(*addresses))
     return -ENOMEM;
@@ -313,7 +313,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
     if (ent->ifa_addr->sa_family != PF_INET)
       continue;
 
-    address->name = strdup(ent->ifa_name);
+    address->name = uv__strdup(ent->ifa_name);
 
     if (ent->ifa_addr->sa_family == AF_INET6) {
       address->address.address6 = *((struct sockaddr_in6*) ent->ifa_addr);
@@ -361,8 +361,8 @@ void uv_free_interface_addresses(uv_interface_address_t* addresses, int count) {
   int i;
 
   for (i = 0; i < count; i++) {
-    free(addresses[i].name);
+    uv__free(addresses[i].name);
   }
 
-  free(addresses);
+  uv__free(addresses);
 }

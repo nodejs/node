@@ -110,7 +110,7 @@ static void uv__getaddrinfo_done(struct uv__work* w, int status) {
 
   /* release input parameter memory */
   if (req->alloc != NULL) {
-    free(req->alloc);
+    uv__free(req->alloc);
     req->alloc = NULL;
   }
 
@@ -139,7 +139,7 @@ static void uv__getaddrinfo_done(struct uv__work* w, int status) {
     }
 
     /* allocate memory for addrinfo results */
-    alloc_ptr = (char*)malloc(addrinfo_len);
+    alloc_ptr = (char*)uv__malloc(addrinfo_len);
 
     /* do conversions */
     if (alloc_ptr != NULL) {
@@ -220,7 +220,7 @@ void uv_freeaddrinfo(struct addrinfo* ai) {
 
   /* release copied result memory */
   if (alloc_ptr != NULL) {
-    free(alloc_ptr);
+    uv__free(alloc_ptr);
   }
 }
 
@@ -285,7 +285,7 @@ int uv_getaddrinfo(uv_loop_t* loop,
   }
 
   /* allocate memory for inputs, and partition it as needed */
-  alloc_ptr = (char*)malloc(nodesize + servicesize + hintssize);
+  alloc_ptr = (char*)uv__malloc(nodesize + servicesize + hintssize);
   if (!alloc_ptr) {
     err = WSAENOBUFS;
     goto error;
@@ -355,7 +355,7 @@ int uv_getaddrinfo(uv_loop_t* loop,
 
 error:
   if (req != NULL && req->alloc != NULL) {
-    free(req->alloc);
+    uv__free(req->alloc);
   }
   return uv_translate_sys_error(err);
 }

@@ -207,7 +207,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   if (w)
     goto no_insert;
 
-  w = malloc(sizeof(*w) + strlen(path) + 1);
+  w = uv__malloc(sizeof(*w) + strlen(path) + 1);
   if (w == NULL)
     return -ENOMEM;
 
@@ -245,7 +245,7 @@ int uv_fs_event_stop(uv_fs_event_t* handle) {
     /* No watchers left for this path. Clean up. */
     RB_REMOVE(watcher_root, CAST(&handle->loop->inotify_watchers), w);
     uv__inotify_rm_watch(handle->loop->inotify_fd, w->wd);
-    free(w);
+    uv__free(w);
   }
 
   return 0;

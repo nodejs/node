@@ -112,11 +112,13 @@ TEST_IMPL(platform_output) {
 
     if (interfaces[i].netmask.netmask4.sin_family == AF_INET) {
       uv_ip4_name(&interfaces[i].netmask.netmask4, buffer, sizeof(buffer));
+      printf("  netmask: %s\n", buffer);
     } else if (interfaces[i].netmask.netmask4.sin_family == AF_INET6) {
       uv_ip6_name(&interfaces[i].netmask.netmask6, buffer, sizeof(buffer));
+      printf("  netmask: %s\n", buffer);
+    } else {
+      printf("  netmask: none\n");
     }
-
-    printf("  netmask: %s\n", buffer);
   }
   uv_free_interface_addresses(interfaces, count);
 

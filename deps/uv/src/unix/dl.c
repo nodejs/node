@@ -40,7 +40,7 @@ int uv_dlopen(const char* filename, uv_lib_t* lib) {
 
 void uv_dlclose(uv_lib_t* lib) {
   if (lib->errmsg) {
-    free(lib->errmsg);
+    uv__free(lib->errmsg);
     lib->errmsg = NULL;
   }
 
@@ -68,12 +68,12 @@ static int uv__dlerror(uv_lib_t* lib) {
   const char* errmsg;
 
   if (lib->errmsg)
-    free(lib->errmsg);
+    uv__free(lib->errmsg);
 
   errmsg = dlerror();
 
   if (errmsg) {
-    lib->errmsg = strdup(errmsg);
+    lib->errmsg = uv__strdup(errmsg);
     return -1;
   }
   else {
