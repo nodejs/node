@@ -45,7 +45,7 @@ include_HEADERS += include/uv-win.h include/tree.h
 AM_CPPFLAGS += -I$(top_srcdir)/src/win \
                -DWIN32_LEAN_AND_MEAN \
                -D_WIN32_WINNT=0x0600
-LIBS += -lws2_32 -lpsapi -liphlpapi -lshell32
+LIBS += -lws2_32 -lpsapi -liphlpapi -lshell32 -luserenv
 libuv_la_SOURCES += src/win/async.c \
                     src/win/atomicops-inl.h \
                     src/win/core.c \
@@ -165,6 +165,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-getnameinfo.c \
                          test/test-getsockname.c \
                          test/test-handle-fileno.c \
+                         test/test-homedir.c \
                          test/test-hrtime.c \
                          test/test-idle.c \
                          test/test-ip4-addr.c \
@@ -185,6 +186,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-ping-pong.c \
                          test/test-pipe-bind-error.c \
                          test/test-pipe-connect-error.c \
+                         test/test-pipe-connect-prepare.c \
                          test/test-pipe-getsockname.c \
                          test/test-pipe-sendmsg.c \
                          test/test-pipe-server-close.c \

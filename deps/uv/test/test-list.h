@@ -117,6 +117,7 @@ TEST_DECLARE   (pipe_bind_error_inval)
 TEST_DECLARE   (pipe_listen_without_bind)
 TEST_DECLARE   (pipe_connect_bad_name)
 TEST_DECLARE   (pipe_connect_to_file)
+TEST_DECLARE   (pipe_connect_on_prepare)
 TEST_DECLARE   (pipe_getsockname)
 TEST_DECLARE   (pipe_getsockname_abstract)
 TEST_DECLARE   (pipe_getsockname_blocking)
@@ -182,6 +183,7 @@ TEST_DECLARE   (process_title)
 TEST_DECLARE   (cwd_and_chdir)
 TEST_DECLARE   (get_memory)
 TEST_DECLARE   (handle_fileno)
+TEST_DECLARE   (homedir)
 TEST_DECLARE   (hrtime)
 TEST_DECLARE   (getaddrinfo_fail)
 TEST_DECLARE   (getaddrinfo_fail_sync)
@@ -344,6 +346,7 @@ TASK_LIST_START
 
   TEST_ENTRY  (pipe_connect_bad_name)
   TEST_ENTRY  (pipe_connect_to_file)
+  TEST_ENTRY  (pipe_connect_on_prepare)
 
   TEST_ENTRY  (pipe_server_close)
 #ifndef _WIN32
@@ -539,6 +542,8 @@ TASK_LIST_START
   TEST_ENTRY  (get_loadavg)
 
   TEST_ENTRY  (handle_fileno)
+
+  TEST_ENTRY  (homedir)
 
   TEST_ENTRY  (hrtime)
 

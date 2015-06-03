@@ -166,7 +166,7 @@ INLINE static int fs__capture_path(uv_loop_t* loop, uv_fs_t* req,
     return 0;
   }
 
-  buf = (char*) malloc(buf_sz);
+  buf = (char*) uv__malloc(buf_sz);
   if (buf == NULL) {
     return ERROR_OUTOFMEMORY;
   }
@@ -352,7 +352,7 @@ INLINE static int fs__readlink_handle(HANDLE handle, char** target_ptr,
   /* If requested, allocate memory and convert to UTF8. */
   if (target_ptr != NULL) {
     int r;
-    target = (char*) malloc(target_len + 1);
+    target = (char*) uv__malloc(target_len + 1);
     if (target == NULL) {
       SetLastError(ERROR_OUTOFMEMORY);
       return -1;
@@ -896,7 +896,7 @@ void fs__scandir(uv_fs_t* req) {
         size_t new_dirents_size =
             dirents_size == 0 ? dirents_initial_size : dirents_size << 1;
         uv__dirent_t** new_dirents =
-            realloc(dirents, new_dirents_size * sizeof *dirents);
+            uv__realloc(dirents, new_dirents_size * sizeof *dirents);
 
         if (new_dirents == NULL)
           goto out_of_memory_error;
@@ -909,7 +909,7 @@ void fs__scandir(uv_fs_t* req) {
        * includes room for the first character of the filename, but `utf8_len`
        * doesn't count the NULL terminator at this point.
        */
-      dirent = malloc(sizeof *dirent + utf8_len);
+      dirent = uv__malloc(sizeof *dirent + utf8_len);
       if (dirent == NULL)
         goto out_of_memory_error;
 
@@ -998,9 +998,9 @@ cleanup:
   if (dir_handle != INVALID_HANDLE_VALUE)
     CloseHandle(dir_handle);
   while (dirents_used > 0)
-    free(dirents[--dirents_used]);
+    uv__free(dirents[--dirents_used]);
   if (dirents != NULL)
-    free(dirents);
+    uv__free(dirents);
 }
 
 
@@ -1281,9 +1281,9 @@ static void fs__sendfile(uv_fs_t* req) {
   size_t buf_size = length < max_buf_size ? length : max_buf_size;
   int n, result = 0;
   int64_t result_offset = 0;
-  char* buf = (char*) malloc(buf_size);
+  char* buf = (char*) uv__malloc(buf_size);
   if (!buf) {
-    uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
+    uv_fatal_error(ERROR_OUTOFMEMORY, "uv__malloc");
   }
 
   if (offset != -1) {
@@ -1314,7 +1314,7 @@ static void fs__sendfile(uv_fs_t* req) {
     }
   }
 
-  free(buf);
+  uv__free(buf);
 
   SET_REQ_RESULT(req, result);
 }
@@ -1504,9 +1504,9 @@ static void fs__create_junction(uv_fs_t* req, const WCHAR* path,
       2 * (target_len + 2) * sizeof(WCHAR);
 
   /* Allocate the buffer */
-  buffer = (REPARSE_DATA_BUFFER*)malloc(needed_buf_size);
+  buffer = (REPARSE_DATA_BUFFER*)uv__malloc(needed_buf_size);
   if (!buffer) {
-    uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
+    uv_fatal_error(ERROR_OUTOFMEMORY, "uv__malloc");
   }
 
   /* Grab a pointer to the part of the buffer where filenames go */
@@ -1620,13 +1620,13 @@ static void fs__create_junction(uv_fs_t* req, const WCHAR* path,
 
   /* Clean up */
   CloseHandle(handle);
-  free(buffer);
+  uv__free(buffer);
 
   SET_REQ_RESULT(req, 0);
   return;
 
 error:
-  free(buffer);
+  uv__free(buffer);
 
   if (handle != INVALID_HANDLE_VALUE) {
     CloseHandle(handle);
@@ -1764,10 +1764,10 @@ void uv_fs_req_cleanup(uv_fs_t* req) {
     return;
 
   if (req->flags & UV_FS_FREE_PATHS)
-    free(req->file.pathw);
+    uv__free(req->file.pathw);
 
   if (req->flags & UV_FS_FREE_PTR)
-    free(req->ptr);
+    uv__free(req->ptr);
 
   req->path = NULL;
   req->file.pathw = NULL;
@@ -1830,7 +1830,7 @@ int uv_fs_read(uv_loop_t* loop,
   req->fs.info.nbufs = nbufs;
   req->fs.info.bufs = req->fs.info.bufsml;
   if (nbufs > ARRAY_SIZE(req->fs.info.bufsml))
-    req->fs.info.bufs = malloc(nbufs * sizeof(*bufs));
+    req->fs.info.bufs = uv__malloc(nbufs * sizeof(*bufs));
 
   if (req->fs.info.bufs == NULL)
     return UV_ENOMEM;
@@ -1863,7 +1863,7 @@ int uv_fs_write(uv_loop_t* loop,
   req->fs.info.nbufs = nbufs;
   req->fs.info.bufs = req->fs.info.bufsml;
   if (nbufs > ARRAY_SIZE(req->fs.info.bufsml))
-    req->fs.info.bufs = malloc(nbufs * sizeof(*bufs));
+    req->fs.info.bufs = uv__malloc(nbufs * sizeof(*bufs));
 
   if (req->fs.info.bufs == NULL)
     return UV_ENOMEM;

@@ -211,4 +211,13 @@ void uv__fs_scandir_cleanup(uv_fs_t* req);
   }                                                                           \
   while (0)
 
+
+/* Allocator prototypes */
+void *uv__calloc(size_t count, size_t size);
+char *uv__strdup(const char* s);
+char *uv__strndup(const char* s, size_t n);
+void* uv__malloc(size_t size);
+void uv__free(void* ptr);
+void* uv__realloc(void* ptr, size_t size);
+
 #endif /* UV_COMMON_H_ */

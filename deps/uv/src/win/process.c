@@ -25,8 +25,8 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <limits.h>
-#include <malloc.h>
 #include <wchar.h>
+#include <malloc.h>    /* alloca */
 
 #include "uv.h"
 #include "internal.h"
@@ -120,7 +120,7 @@ static int uv_utf8_to_utf16_alloc(const char* s, WCHAR** ws_ptr) {
     return GetLastError();
   }
 
-  ws = (WCHAR*) malloc(ws_len * sizeof(WCHAR));
+  ws = (WCHAR*) uv__malloc(ws_len * sizeof(WCHAR));
   if (ws == NULL) {
     return ERROR_OUTOFMEMORY;
   }
@@ -197,7 +197,7 @@ static WCHAR* search_path_join_test(const WCHAR* dir,
   }
 
   /* Allocate buffer for output */
-  result = result_pos = (WCHAR*)malloc(sizeof(WCHAR) *
+  result = result_pos = (WCHAR*)uv__malloc(sizeof(WCHAR) *
       (cwd_len + 1 + dir_len + 1 + name_len + 1 + ext_len + 1));
 
   /* Copy cwd */
@@ -246,7 +246,7 @@ static WCHAR* search_path_join_test(const WCHAR* dir,
     return result;
   }
 
-  free(result);
+  uv__free(result);
   return NULL;
 }
 
@@ -555,14 +555,14 @@ int make_program_args(char** args, int verbatim_arguments, WCHAR** dst_ptr) {
   dst_len = dst_len * 2 + arg_count * 2;
 
   /* Allocate buffer for the final command line. */
-  dst = (WCHAR*) malloc(dst_len * sizeof(WCHAR));
+  dst = (WCHAR*) uv__malloc(dst_len * sizeof(WCHAR));
   if (dst == NULL) {
     err = ERROR_OUTOFMEMORY;
     goto error;
   }
 
   /* Allocate temporary working buffer. */
-  temp_buffer = (WCHAR*) malloc(temp_buffer_len * sizeof(WCHAR));
+  temp_buffer = (WCHAR*) uv__malloc(temp_buffer_len * sizeof(WCHAR));
   if (temp_buffer == NULL) {
     err = ERROR_OUTOFMEMORY;
     goto error;
@@ -596,14 +596,14 @@ int make_program_args(char** args, int verbatim_arguments, WCHAR** dst_ptr) {
     *pos++ = *(arg + 1) ? L' ' : L'\0';
   }
 
-  free(temp_buffer);
+  uv__free(temp_buffer);
 
   *dst_ptr = dst;
   return 0;
 
 error:
-  free(dst);
-  free(temp_buffer);
+  uv__free(dst);
+  uv__free(temp_buffer);
   return err;
 }
 
@@ -707,7 +707,7 @@ int make_program_env(char* env_block[], WCHAR** dst_ptr) {
   }
 
   /* second pass: copy to UTF-16 environment block */
-  dst_copy = malloc(env_len * sizeof(WCHAR));
+  dst_copy = (WCHAR*)uv__malloc(env_len * sizeof(WCHAR));
   if (!dst_copy) {
     return ERROR_OUTOFMEMORY;
   }
@@ -725,7 +725,7 @@ int make_program_env(char* env_block[], WCHAR** dst_ptr) {
                                 (int) (env_len - (ptr - dst_copy)));
       if (len <= 0) {
         DWORD err = GetLastError();
-        free(dst_copy);
+        uv__free(dst_copy);
         return err;
       }
       *ptr_copy++ = ptr;
@@ -765,9 +765,9 @@ int make_program_env(char* env_block[], WCHAR** dst_ptr) {
   }
 
   /* final pass: copy, in sort order, and inserting required variables */
-  dst = malloc((1+env_len) * sizeof(WCHAR));
+  dst = uv__malloc((1+env_len) * sizeof(WCHAR));
   if (!dst) {
-    free(dst_copy);
+    uv__free(dst_copy);
     return ERROR_OUTOFMEMORY;
   }
 
@@ -812,7 +812,7 @@ int make_program_env(char* env_block[], WCHAR** dst_ptr) {
   assert(env_len == (ptr - dst));
   *ptr = L'\0';
 
-  free(dst_copy);
+  uv__free(dst_copy);
   *dst_ptr = dst;
   return 0;
 }
@@ -988,7 +988,7 @@ int uv_spawn(uv_loop_t* loop,
       goto done;
     }
 
-    cwd = (WCHAR*) malloc(cwd_len * sizeof(WCHAR));
+    cwd = (WCHAR*) uv__malloc(cwd_len * sizeof(WCHAR));
     if (cwd == NULL) {
       err = ERROR_OUTOFMEMORY;
       goto done;
@@ -1012,7 +1012,7 @@ int uv_spawn(uv_loop_t* loop,
       goto done;
     }
 
-    alloc_path = (WCHAR*) malloc(path_len * sizeof(WCHAR));
+    alloc_path = (WCHAR*) uv__malloc(path_len * sizeof(WCHAR));
     if (alloc_path == NULL) {
       err = ERROR_OUTOFMEMORY;
       goto done;
@@ -1146,12 +1146,12 @@ int uv_spawn(uv_loop_t* loop,
 
   /* Cleanup, whether we succeeded or failed. */
  done:
-  free(application);
-  free(application_path);
-  free(arguments);
-  free(cwd);
-  free(env);
-  free(alloc_path);
+  uv__free(application);
+  uv__free(application_path);
+  uv__free(arguments);
+  uv__free(cwd);
+  uv__free(env);
+  uv__free(alloc_path);
 
   if (process->child_stdio_buffer != NULL) {
     /* Clean up child stdio handles. */
