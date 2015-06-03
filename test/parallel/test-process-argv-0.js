@@ -9,7 +9,7 @@ console.error('argv=%j', process.argv);
 console.error('exec=%j', process.execPath);
 
 if (process.argv[2] !== 'child') {
-  var child = spawn('./iojs', [__filename, 'child'], {
+  var child = spawn(process.execPath, [__filename, 'child'], {
     cwd: path.dirname(process.execPath)
   });
 
