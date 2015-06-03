@@ -28,7 +28,6 @@
 import test
 import os
 import shutil
-from shutil import rmtree
 from os import mkdir
 from glob import glob
 from os.path import join, dirname, exists
@@ -50,35 +49,6 @@ class SimpleTestCase(test.TestCase):
     self.tmpdir = join(dirname(self.config.root), 'tmp')
     self.additional_flags = additional
 
-  def GetTmpDir(self):
-    return "%s.%d" % (self.tmpdir, self.thread_id)
-
-  
-  def AfterRun(self, result):
-    # delete the whole tmp dir
-    try:
-      rmtree(self.GetTmpDir())
-    except:
-      pass
-    # make it again.
-    try:
-      mkdir(self.GetTmpDir())
-    except:
-      pass
-
-  def BeforeRun(self):
-    # delete the whole tmp dir
-    try:
-      rmtree(self.GetTmpDir())
-    except:
-      pass
-    # make it again.
-    # intermittently fails on win32, so keep trying
-    while not os.path.exists(self.GetTmpDir()):
-      try:
-        mkdir(self.GetTmpDir())
-      except:
-        pass
   
   def GetLabel(self):
     return "%s %s" % (self.mode, self.GetName())
