@@ -12,6 +12,59 @@ exports.tmpDirName = 'tmp';
 exports.PORT = +process.env.NODE_COMMON_PORT || 12346;
 exports.isWindows = process.platform === 'win32';
 
+function rimrafSync(p) {
+  try {
+    var st = fs.lstatSync(p);
+  } catch (e) {
+    if (e.code === 'ENOENT')
+      return;
+  }
+
+  try {
+    if (st && st.isDirectory())
+      rmdirSync(p, null);
+    else
+      fs.unlinkSync(p);
+  } catch (e) {
+    if (e.code === 'ENOENT')
+      return;
+    if (e.code === 'EPERM')
+      return rmdirSync(p, er);
+    if (e.code !== 'EISDIR')
+      throw e;
+    rmdirSync(p, e);
+  }
+}
+
+function rmdirSync(p, originalEr) {
+  try {
+    fs.rmdirSync(p);
+  } catch (e) {
+    if (e.code === 'ENOTDIR')
+      throw originalEr;
+    if (e.code === 'ENOTEMPTY' || e.code === 'EEXIST' || e.code === 'EPERM') {
+      fs.readdirSync(p).forEach(function(f) {
+        rimrafSync(path.join(p, f));
+      });
+      fs.rmdirSync(p);
+    }
+  }
+}
+
+function refreshTmpDir() {
+  if (!process.send) { // Not a child process
+    try {
+      rimrafSync(exports.tmpDir);
+    } catch (e) {
+    }
+
+    try {
+      fs.mkdirSync(exports.tmpDir);
+    } catch (e) {
+    }
+  }
+}
+
 if (process.env.TEST_THREAD_ID) {
   // Distribute ports in parallel tests
   if (!process.env.NODE_COMMON_PORT)
@@ -20,6 +73,8 @@ if (process.env.TEST_THREAD_ID) {
   exports.tmpDirName += '.' + process.env.TEST_THREAD_ID;
 }
 exports.tmpDir = path.join(exports.testDir, exports.tmpDirName);
+
+refreshTmpDir();
 
 var opensslCli = null;
 var inFreeBSDJail = null;
