@@ -31,6 +31,8 @@ class FSEventWrap: public HandleWrap {
   static void Start(const FunctionCallbackInfo<Value>& args);
   static void Close(const FunctionCallbackInfo<Value>& args);
 
+  size_t self_size() const override { return sizeof(*this); }
+
  private:
   FSEventWrap(Environment* env, Handle<Object> object);
   virtual ~FSEventWrap() override;
