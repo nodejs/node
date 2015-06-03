@@ -28,6 +28,11 @@ var createConnection = function(index) {
       sent.push(msg);
     });
 
+    connection.on('error', function(err) {
+      assert.equal(err.code, 'ECONNRESET');
+      resolve();
+    });
+
     connection.on('data', function(e) {
       console.error('connection ' + index + ' received response');
       resolve();
