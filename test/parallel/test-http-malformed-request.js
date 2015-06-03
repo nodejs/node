@@ -28,8 +28,6 @@ server.on('listening', function() {
     c.write('GET /hello?foo=%99bar HTTP/1.1\r\n\r\n');
     c.end();
   });
-
-  // TODO add more!
 });
 
 process.on('exit', function() {
