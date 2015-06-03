@@ -26,6 +26,7 @@
       'lib/crypto.js',
       'lib/cluster.js',
       'lib/dgram.js',
+      'lib/dlopen.js',
       'lib/dns.js',
       'lib/domain.js',
       'lib/events.js',
@@ -110,6 +111,7 @@
         'src/node_buffer.cc',
         'src/node_constants.cc',
         'src/node_contextify.cc',
+        'src/node_dlopen.cc',
         'src/node_file.cc',
         'src/node_http_parser.cc',
         'src/node_javascript.cc',
@@ -651,6 +653,16 @@
       'sources': [
         'test/cctest/util.cc',
       ],
-    }
+    },
+
+    # "libtest" dynamic library for "dlopen" tests
+    {
+      'target_name': 'test',
+      'type': 'shared_library',
+      'product_prefix': 'lib',
+      'sources': [
+        'test/libtest/libtest.c'
+      ],
+    },
   ] # end targets
 }
