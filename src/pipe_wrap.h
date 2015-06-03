@@ -16,6 +16,8 @@ class PipeWrap : public StreamWrap {
                          v8::Handle<v8::Value> unused,
                          v8::Handle<v8::Context> context);
 
+  size_t self_size() const override { return sizeof(*this); }
+
  private:
   PipeWrap(Environment* env,
            v8::Handle<v8::Object> object,

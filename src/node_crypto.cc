@@ -4546,6 +4546,8 @@ class PBKDF2Request : public AsyncWrap {
     error_ = err;
   }
 
+  size_t self_size() const override { return sizeof(*this); }
+
   uv_work_t work_req_;
 
  private:
@@ -4775,6 +4777,8 @@ class RandomBytesRequest : public AsyncWrap {
   inline void set_error(unsigned long err) {
     error_ = err;
   }
+
+  size_t self_size() const override { return sizeof(*this); }
 
   uv_work_t work_req_;
 

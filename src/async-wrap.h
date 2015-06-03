@@ -8,6 +8,8 @@
 
 namespace node {
 
+#define NODE_ASYNC_ID_OFFSET 0xA1C
+
 #define NODE_ASYNC_PROVIDER_TYPES(V)                                          \
   V(NONE)                                                                     \
   V(CARES)                                                                    \
@@ -64,6 +66,8 @@ class AsyncWrap : public BaseObject {
                                             int argc,
                                             v8::Handle<v8::Value>* argv);
 
+  virtual size_t self_size() const = 0;
+
  private:
   inline AsyncWrap();
   inline bool has_async_queue() const;
@@ -73,6 +77,8 @@ class AsyncWrap : public BaseObject {
   // that will be used to call pre/post in MakeCallback.
   uint32_t bits_;
 };
+
+void LoadAsyncWrapperInfo(Environment* env);
 
 }  // namespace node
 

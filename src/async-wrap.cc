@@ -6,6 +6,7 @@
 #include "util-inl.h"
 
 #include "v8.h"
+#include "v8-profiler.h"
 
 using v8::Array;
 using v8::Context;
@@ -13,15 +14,94 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::Handle;
 using v8::HandleScope;
+using v8::HeapProfiler;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
+using v8::RetainedObjectInfo;
 using v8::TryCatch;
 using v8::Value;
 using v8::kExternalUint32Array;
 
 namespace node {
+
+static const char* const provider_names[] = {
+#define V(PROVIDER)                                                           \
+  #PROVIDER,
+  NODE_ASYNC_PROVIDER_TYPES(V)
+#undef V
+};
+
+
+class RetainedAsyncInfo: public RetainedObjectInfo {
+ public:
+  explicit RetainedAsyncInfo(uint16_t class_id, AsyncWrap* wrap);
+
+  virtual void Dispose() override;
+  virtual bool IsEquivalent(RetainedObjectInfo* other) override;
+  virtual intptr_t GetHash() override;
+  virtual const char* GetLabel() override;
+  virtual intptr_t GetSizeInBytes() override;
+
+ private:
+  const char* label_;
+  const AsyncWrap* wrap_;
+  const int length_;
+};
+
+
+RetainedAsyncInfo::RetainedAsyncInfo(uint16_t class_id, AsyncWrap* wrap)
+    : label_(provider_names[class_id - NODE_ASYNC_ID_OFFSET]),
+      wrap_(wrap),
+      length_(wrap->self_size()) {
+}
+
+
+void RetainedAsyncInfo::Dispose() {
+  delete this;
+}
+
+
+bool RetainedAsyncInfo::IsEquivalent(RetainedObjectInfo* other) {
+  return label_ == other->GetLabel() &&
+          wrap_ == static_cast<RetainedAsyncInfo*>(other)->wrap_;
+}
+
+
+intptr_t RetainedAsyncInfo::GetHash() {
+  return reinterpret_cast<intptr_t>(wrap_);
+}
+
+
+const char* RetainedAsyncInfo::GetLabel() {
+  return label_;
+}
+
+
+intptr_t RetainedAsyncInfo::GetSizeInBytes() {
+  return length_;
+}
+
+
+RetainedObjectInfo* WrapperInfo(uint16_t class_id, Handle<Value> wrapper) {
+  // No class_id should be the provider type of NONE.
+  CHECK_NE(NODE_ASYNC_ID_OFFSET, class_id);
+  CHECK(wrapper->IsObject());
+  CHECK(!wrapper.IsEmpty());
+
+  Local<Object> object = wrapper.As<Object>();
+  CHECK_GT(object->InternalFieldCount(), 0);
+
+  AsyncWrap* wrap = Unwrap<AsyncWrap>(object);
+  CHECK_NE(nullptr, wrap);
+
+  return new RetainedAsyncInfo(class_id, wrap);
+}
+
+
+// end RetainedAsyncInfo
+
 
 static void EnableHooksJS(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -68,6 +148,16 @@ static void Initialize(Handle<Object> target,
   NODE_ASYNC_PROVIDER_TYPES(V)
 #undef V
   target->Set(FIXED_ONE_BYTE_STRING(isolate, "Providers"), async_providers);
+}
+
+
+void LoadAsyncWrapperInfo(Environment* env) {
+  HeapProfiler* heap_profiler = env->isolate()->GetHeapProfiler();
+#define V(PROVIDER)                                                           \
+  heap_profiler->SetWrapperClassInfoProvider(                                 \
+      (NODE_ASYNC_ID_OFFSET + AsyncWrap::PROVIDER_ ## PROVIDER), WrapperInfo);
+  NODE_ASYNC_PROVIDER_TYPES(V)
+#undef V
 }
 
 

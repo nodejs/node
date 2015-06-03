@@ -46,6 +46,8 @@ class ProcessWrap : public HandleWrap {
                 constructor->GetFunction());
   }
 
+  size_t self_size() const override { return sizeof(*this); }
+
  private:
   static void New(const FunctionCallbackInfo<Value>& args) {
     // This constructor should not be exposed to public javascript.

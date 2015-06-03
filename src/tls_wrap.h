@@ -50,6 +50,8 @@ class TLSWrap : public crypto::SSLWrap<TLSWrap>,
 
   void NewSessionDoneCb();
 
+  size_t self_size() const override { return sizeof(*this); }
+
  protected:
   static const int kClearOutChunkSize = 1024;
 

@@ -3872,6 +3872,7 @@ Environment* CreateEnvironment(Isolate* isolate,
   env->set_process_object(process_object);
 
   SetupProcessObject(env, argc, argv, exec_argc, exec_argv);
+  LoadAsyncWrapperInfo(env);
 
   return env;
 }

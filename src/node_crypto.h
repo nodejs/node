@@ -308,6 +308,8 @@ class Connection : public SSLWrap<Connection>, public AsyncWrap {
   v8::Persistent<v8::String> servername_;
 #endif
 
+  size_t self_size() const override { return sizeof(*this); }
+
  protected:
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EncIn(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -701,6 +703,8 @@ class Certificate : public AsyncWrap {
   bool VerifySpkac(const char* data, unsigned int len);
   const char* ExportPublicKey(const char* data, int len);
   const char* ExportChallenge(const char* data, int len);
+
+  size_t self_size() const override { return sizeof(*this); }
 
  protected:
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);

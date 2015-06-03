@@ -16,6 +16,8 @@ class TCPWrap : public StreamWrap {
 
   uv_tcp_t* UVHandle();
 
+  size_t self_size() const override { return sizeof(*this); }
+
  private:
   TCPWrap(Environment* env, v8::Handle<v8::Object> object, AsyncWrap* parent);
   ~TCPWrap();
