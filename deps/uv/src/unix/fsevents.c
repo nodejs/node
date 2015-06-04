@@ -169,7 +169,7 @@ static void (*pFSEventStreamStop)(FSEventStreamRef);
         if (!uv__is_closing((handle)) && uv__is_active((handle)))             \
           block                                                               \
         /* Free allocated data */                                             \
-        free(event);                                                          \
+        uv__free(event);                                                      \
       }                                                                       \
       if (err != 0 && !uv__is_closing((handle)) && uv__is_active((handle)))   \
         (handle)->cb((handle), NULL, 0, err);                                 \
@@ -280,7 +280,7 @@ static void uv__fsevents_event_cb(ConstFSEventStreamRef streamRef,
       len = 0;
 #endif /* MAC_OS_X_VERSION_10_7 */
 
-      event = malloc(sizeof(*event) + len);
+      event = uv__malloc(sizeof(*event) + len);
       if (event == NULL)
         break;
 
@@ -425,7 +425,7 @@ static void uv__fsevents_reschedule(uv_fs_event_t* handle) {
   uv_mutex_lock(&state->fsevent_mutex);
   path_count = state->fsevent_handle_count;
   if (path_count != 0) {
-    paths = malloc(sizeof(*paths) * path_count);
+    paths = uv__malloc(sizeof(*paths) * path_count);
     if (paths == NULL) {
       uv_mutex_unlock(&state->fsevent_mutex);
       goto final;
@@ -465,7 +465,7 @@ final:
     if (cf_paths == NULL) {
       while (i != 0)
         pCFRelease(paths[--i]);
-      free(paths);
+      uv__free(paths);
     } else {
       /* CFArray takes ownership of both strings and original C-array */
       pCFRelease(cf_paths);
@@ -584,7 +584,7 @@ static int uv__fsevents_loop_init(uv_loop_t* loop) {
   if (err)
     return err;
 
-  state = calloc(1, sizeof(*state));
+  state = uv__calloc(1, sizeof(*state));
   if (state == NULL)
     return -ENOMEM;
 
@@ -662,7 +662,7 @@ fail_sem_init:
   uv_mutex_destroy(&loop->cf_mutex);
 
 fail_mutex_init:
-  free(state);
+  uv__free(state);
   return err;
 }
 
@@ -688,7 +688,7 @@ void uv__fsevents_loop_delete(uv_loop_t* loop) {
     q = QUEUE_HEAD(&loop->cf_signals);
     s = QUEUE_DATA(q, uv__cf_loop_signal_t, member);
     QUEUE_REMOVE(q);
-    free(s);
+    uv__free(s);
   }
 
   /* Destroy state */
@@ -696,7 +696,7 @@ void uv__fsevents_loop_delete(uv_loop_t* loop) {
   uv_sem_destroy(&state->fsevent_sem);
   uv_mutex_destroy(&state->fsevent_mutex);
   pCFRelease(state->signal_source);
-  free(state);
+  uv__free(state);
   loop->cf_state = NULL;
 }
 
@@ -756,7 +756,7 @@ static void uv__cf_loop_cb(void* arg) {
       uv__fsevents_reschedule(s->handle);
 
     QUEUE_REMOVE(item);
-    free(s);
+    uv__free(s);
   }
 }
 
@@ -766,7 +766,7 @@ int uv__cf_loop_signal(uv_loop_t* loop, uv_fs_event_t* handle) {
   uv__cf_loop_signal_t* item;
   uv__cf_loop_state_t* state;
 
-  item = malloc(sizeof(*item));
+  item = uv__malloc(sizeof(*item));
   if (item == NULL)
     return -ENOMEM;
 
@@ -808,7 +808,7 @@ int uv__fsevents_init(uv_fs_event_t* handle) {
    * Events will occur in other thread.
    * Initialize callback for getting them back into event loop's thread
    */
-  handle->cf_cb = malloc(sizeof(*handle->cf_cb));
+  handle->cf_cb = uv__malloc(sizeof(*handle->cf_cb));
   if (handle->cf_cb == NULL) {
     err = -ENOMEM;
     goto fail_cf_cb_malloc;
@@ -843,11 +843,11 @@ fail_loop_signal:
   uv_mutex_destroy(&handle->cf_mutex);
 
 fail_cf_mutex_init:
-  free(handle->cf_cb);
+  uv__free(handle->cf_cb);
   handle->cf_cb = NULL;
 
 fail_cf_cb_malloc:
-  free(handle->realpath);
+  uv__free(handle->realpath);
   handle->realpath = NULL;
   handle->realpath_len = 0;
 
@@ -880,7 +880,7 @@ int uv__fsevents_close(uv_fs_event_t* handle) {
   /* Wait for deinitialization */
   uv_sem_wait(&state->fsevent_sem);
 
-  uv_close((uv_handle_t*) handle->cf_cb, (uv_close_cb) free);
+  uv_close((uv_handle_t*) handle->cf_cb, (uv_close_cb) uv__free);
   handle->cf_cb = NULL;
 
   /* Free data in queue */
@@ -889,7 +889,7 @@ int uv__fsevents_close(uv_fs_event_t* handle) {
   });
 
   uv_mutex_destroy(&handle->cf_mutex);
-  free(handle->realpath);
+  uv__free(handle->realpath);
   handle->realpath = NULL;
   handle->realpath_len = 0;
 

@@ -91,7 +91,7 @@ int uv_exepath(char* buffer, size_t* size) {
   mypid = getpid();
   for (;;) {
     err = -ENOMEM;
-    argsbuf_tmp = realloc(argsbuf, argsbuf_size);
+    argsbuf_tmp = uv__realloc(argsbuf, argsbuf_size);
     if (argsbuf_tmp == NULL)
       goto out;
     argsbuf = argsbuf_tmp;
@@ -124,7 +124,7 @@ int uv_exepath(char* buffer, size_t* size) {
   err = 0;
 
 out:
-  free(argsbuf);
+  uv__free(argsbuf);
 
   return err;
 }
@@ -155,14 +155,14 @@ uint64_t uv_get_total_memory(void) {
 
 
 char** uv_setup_args(int argc, char** argv) {
-  process_title = argc ? strdup(argv[0]) : NULL;
+  process_title = argc ? uv__strdup(argv[0]) : NULL;
   return argv;
 }
 
 
 int uv_set_process_title(const char* title) {
-  if (process_title) free(process_title);
-  process_title = strdup(title);
+  if (process_title) uv__free(process_title);
+  process_title = uv__strdup(title);
   setproctitle(title);
   return 0;
 }
@@ -238,7 +238,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   if (sysctl(which, 2, &numcpus, &size, NULL, 0))
     return -errno;
 
-  *cpu_infos = malloc(numcpus * sizeof(**cpu_infos));
+  *cpu_infos = uv__malloc(numcpus * sizeof(**cpu_infos));
   if (!(*cpu_infos))
     return -ENOMEM;
 
@@ -247,7 +247,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   which[1] = HW_CPUSPEED;
   size = sizeof(cpuspeed);
   if (sysctl(which, 2, &cpuspeed, &size, NULL, 0)) {
-    SAVE_ERRNO(free(*cpu_infos));
+    SAVE_ERRNO(uv__free(*cpu_infos));
     return -errno;
   }
 
@@ -258,7 +258,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     which[2] = i;
     size = sizeof(info);
     if (sysctl(which, 3, &info, &size, NULL, 0)) {
-      SAVE_ERRNO(free(*cpu_infos));
+      SAVE_ERRNO(uv__free(*cpu_infos));
       return -errno;
     }
 
@@ -270,7 +270,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     cpu_info->cpu_times.idle = (uint64_t)(info[CP_IDLE]) * multiplier;
     cpu_info->cpu_times.irq = (uint64_t)(info[CP_INTR]) * multiplier;
 
-    cpu_info->model = strdup(model);
+    cpu_info->model = uv__strdup(model);
     cpu_info->speed = cpuspeed;
   }
 
@@ -282,10 +282,10 @@ void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
   int i;
 
   for (i = 0; i < count; i++) {
-    free(cpu_infos[i].model);
+    uv__free(cpu_infos[i].model);
   }
 
-  free(cpu_infos);
+  uv__free(cpu_infos);
 }
 
 
@@ -311,7 +311,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses,
     (*count)++;
   }
 
-  *addresses = malloc(*count * sizeof(**addresses));
+  *addresses = uv__malloc(*count * sizeof(**addresses));
 
   if (!(*addresses))
     return -ENOMEM;
@@ -328,7 +328,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses,
     if (ent->ifa_addr->sa_family != PF_INET)
       continue;
 
-    address->name = strdup(ent->ifa_name);
+    address->name = uv__strdup(ent->ifa_name);
 
     if (ent->ifa_addr->sa_family == AF_INET6) {
       address->address.address6 = *((struct sockaddr_in6*) ent->ifa_addr);
@@ -377,8 +377,8 @@ void uv_free_interface_addresses(uv_interface_address_t* addresses,
   int i;
 
   for (i = 0; i < count; i++) {
-    free(addresses[i].name);
+    uv__free(addresses[i].name);
   }
 
-  free(addresses);
+  uv__free(addresses);
 }

@@ -117,7 +117,7 @@ void uv__loop_close(uv_loop_t* loop) {
   assert(loop->nfds == 0);
 #endif
 
-  free(loop->watchers);
+  uv__free(loop->watchers);
   loop->watchers = NULL;
   loop->nwatchers = 0;
 }

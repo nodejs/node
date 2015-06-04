@@ -1,3 +1,41 @@
+2015.06.06, Version 1.6.1 (Stable), 30c8be07bb78a66fdee5141626bf53a49a17094a
+
+Changes since version 1.6.0:
+
+* unix: handle invalid _SC_GETPW_R_SIZE_MAX values (cjihrig)
+
+
+2015.06.04, Version 1.6.0 (Stable), adfccad76456061dfcf79b8df8e7dbfee51791d7
+
+Changes since version 1.5.0:
+
+* aix: fix setsockopt for multicast options (Michael)
+
+* unix: don't block for io if any io handle is primed (Saúl Ibarra Corretgé)
+
+* windows: MSVC 2015 has snprintf() (Rui Abreu Ferreira)
+
+* windows: Add VS2015 support to vcbuild.bat (Jason Williams)
+
+* doc: fix typo in tcp.rst (Igor Soarez)
+
+* linux: work around epoll bug in kernels < 2.6.37 (Ben Noordhuis)
+
+* unix,win: add uv_os_homedir() (cjihrig)
+
+* stream: fix `select()` race condition (Fedor Indutny)
+
+* unix: prevent infinite loop in uv__run_pending (Saúl Ibarra Corretgé)
+
+* unix: make sure UDP send callbacks are asynchronous (Saúl Ibarra Corretgé)
+
+* test: fix `platform_output` netmask printing. (Andrew Paprocki)
+
+* aix: add ahafs autoconf detection and README notes (Andrew Paprocki)
+
+* core: add ability to customize memory allocator (Saúl Ibarra Corretgé)
+
+
 2015.05.07, Version 1.5.0 (Stable), 4e77f74c7b95b639b3397095db1bc5bcc016c203
 
 Changes since version 1.4.2:

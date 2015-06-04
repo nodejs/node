@@ -72,7 +72,7 @@ API
     not guarantee that the call to :c:func:`uv_listen` or :c:func:`uv_tcp_connect`
     will succeed as well.
 
-    `flags` con contain ``UV_TCP_IPV6ONLY``, in which case dual-stack support
+    `flags` can contain ``UV_TCP_IPV6ONLY``, in which case dual-stack support
     is disabled and only IPv6 is used.
 
 .. c:function:: int uv_tcp_getsockname(const uv_tcp_t* handle, struct sockaddr* name, int* namelen)

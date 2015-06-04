@@ -215,7 +215,7 @@ void uv_tcp_endgame(uv_loop_t* loop, uv_tcp_t* handle) {
         }
       }
 
-      free(handle->tcp.serv.accept_reqs);
+      uv__free(handle->tcp.serv.accept_reqs);
       handle->tcp.serv.accept_reqs = NULL;
     }
 
@@ -564,9 +564,9 @@ int uv_tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb) {
 
   if(!handle->tcp.serv.accept_reqs) {
     handle->tcp.serv.accept_reqs = (uv_tcp_accept_t*)
-      malloc(uv_simultaneous_server_accepts * sizeof(uv_tcp_accept_t));
+      uv__malloc(uv_simultaneous_server_accepts * sizeof(uv_tcp_accept_t));
     if (!handle->tcp.serv.accept_reqs) {
-      uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
+      uv_fatal_error(ERROR_OUTOFMEMORY, "uv__malloc");
     }
 
     for (i = 0; i < simultaneous_accepts; i++) {

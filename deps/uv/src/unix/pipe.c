@@ -54,7 +54,7 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
     return -EINVAL;
 
   /* Make a copy of the file name, it outlives this function's scope. */
-  pipe_fname = strdup(name);
+  pipe_fname = uv__strdup(name);
   if (pipe_fname == NULL)
     return -ENOMEM;
 
@@ -88,7 +88,7 @@ err_bind:
   uv__close(sockfd);
 
 err_socket:
-  free((void*)pipe_fname);
+  uv__free((void*)pipe_fname);
   return err;
 }
 
@@ -116,7 +116,7 @@ void uv__pipe_close(uv_pipe_t* handle) {
      * another thread or process.
      */
     unlink(handle->pipe_fname);
-    free((void*)handle->pipe_fname);
+    uv__free((void*)handle->pipe_fname);
     handle->pipe_fname = NULL;
   }
 

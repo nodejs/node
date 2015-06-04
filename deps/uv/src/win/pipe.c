@@ -423,7 +423,7 @@ void uv_pipe_endgame(uv_loop_t* loop, uv_pipe_t* handle) {
                             &item->socket_info_ex.socket_info,
                             0,
                             WSA_FLAG_OVERLAPPED);
-        free(item);
+        uv__free(item);
 
         if (socket != INVALID_SOCKET)
           closesocket(socket);
@@ -444,7 +444,7 @@ void uv_pipe_endgame(uv_loop_t* loop, uv_pipe_t* handle) {
 
     if (handle->flags & UV_HANDLE_PIPESERVER) {
       assert(handle->pipe.serv.accept_reqs);
-      free(handle->pipe.serv.accept_reqs);
+      uv__free(handle->pipe.serv.accept_reqs);
       handle->pipe.serv.accept_reqs = NULL;
     }
 
@@ -478,9 +478,9 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   }
 
   handle->pipe.serv.accept_reqs = (uv_pipe_accept_t*)
-    malloc(sizeof(uv_pipe_accept_t) * handle->pipe.serv.pending_instances);
+    uv__malloc(sizeof(uv_pipe_accept_t) * handle->pipe.serv.pending_instances);
   if (!handle->pipe.serv.accept_reqs) {
-    uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
+    uv_fatal_error(ERROR_OUTOFMEMORY, "uv__malloc");
   }
 
   for (i = 0; i < handle->pipe.serv.pending_instances; i++) {
@@ -494,9 +494,9 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
 
   /* Convert name to UTF16. */
   nameSize = uv_utf8_to_utf16(name, NULL, 0) * sizeof(WCHAR);
-  handle->name = (WCHAR*)malloc(nameSize);
+  handle->name = (WCHAR*)uv__malloc(nameSize);
   if (!handle->name) {
-    uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
+    uv_fatal_error(ERROR_OUTOFMEMORY, "uv__malloc");
   }
 
   if (!uv_utf8_to_utf16(name, handle->name, nameSize / sizeof(WCHAR))) {
@@ -540,7 +540,7 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
 
 error:
   if (handle->name) {
-    free(handle->name);
+    uv__free(handle->name);
     handle->name = NULL;
   }
 
@@ -607,9 +607,9 @@ void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
 
   /* Convert name to UTF16. */
   nameSize = uv_utf8_to_utf16(name, NULL, 0) * sizeof(WCHAR);
-  handle->name = (WCHAR*)malloc(nameSize);
+  handle->name = (WCHAR*)uv__malloc(nameSize);
   if (!handle->name) {
-    uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
+    uv_fatal_error(ERROR_OUTOFMEMORY, "uv__malloc");
   }
 
   if (!uv_utf8_to_utf16(name, handle->name, nameSize / sizeof(WCHAR))) {
@@ -656,7 +656,7 @@ void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
 
 error:
   if (handle->name) {
-    free(handle->name);
+    uv__free(handle->name);
     handle->name = NULL;
   }
 
@@ -717,7 +717,7 @@ void uv_pipe_cleanup(uv_loop_t* loop, uv_pipe_t* handle) {
   uv__pipe_stop_read(handle);
 
   if (handle->name) {
-    free(handle->name);
+    uv__free(handle->name);
     handle->name = NULL;
   }
 
@@ -845,7 +845,7 @@ int uv_pipe_accept(uv_pipe_t* server, uv_stream_t* client) {
     if (err != 0)
       return err;
 
-    free(item);
+    uv__free(item);
 
   } else {
     pipe_client = (uv_pipe_t*)client;
@@ -1261,9 +1261,9 @@ static int uv_pipe_write_impl(uv_loop_t* loop,
       if (handle->pipe.conn.ipc_header_write_req.type != UV_WRITE) {
         ipc_header_req = (uv_write_t*)&handle->pipe.conn.ipc_header_write_req;
       } else {
-        ipc_header_req = (uv_write_t*)malloc(sizeof(uv_write_t));
+        ipc_header_req = (uv_write_t*)uv__malloc(sizeof(uv_write_t));
         if (!ipc_header_req) {
-          uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
+          uv_fatal_error(ERROR_OUTOFMEMORY, "uv__malloc");
         }
       }
 
@@ -1498,9 +1498,9 @@ void uv__pipe_insert_pending_socket(uv_pipe_t* handle,
                                     int tcp_connection) {
   uv__ipc_queue_item_t* item;
 
-  item = (uv__ipc_queue_item_t*) malloc(sizeof(*item));
+  item = (uv__ipc_queue_item_t*) uv__malloc(sizeof(*item));
   if (item == NULL)
-    uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
+    uv_fatal_error(ERROR_OUTOFMEMORY, "uv__malloc");
 
   memcpy(&item->socket_info_ex, info, sizeof(item->socket_info_ex));
   item->tcp_connection = tcp_connection;
@@ -1667,7 +1667,7 @@ void uv_process_pipe_write_req(uv_loop_t* loop, uv_pipe_t* handle,
     if (req == &handle->pipe.conn.ipc_header_write_req) {
       req->type = UV_UNKNOWN_REQ;
     } else {
-      free(req);
+      uv__free(req);
     }
   } else {
     if (req->cb) {
@@ -1788,7 +1788,7 @@ static void eof_timer_init(uv_pipe_t* pipe) {
   assert(pipe->pipe.conn.eof_timer == NULL);
   assert(pipe->flags & UV_HANDLE_CONNECTION);
 
-  pipe->pipe.conn.eof_timer = (uv_timer_t*) malloc(sizeof *pipe->pipe.conn.eof_timer);
+  pipe->pipe.conn.eof_timer = (uv_timer_t*) uv__malloc(sizeof *pipe->pipe.conn.eof_timer);
 
   r = uv_timer_init(pipe->loop, pipe->pipe.conn.eof_timer);
   assert(r == 0); /* timers can't fail */
@@ -1863,7 +1863,7 @@ static void eof_timer_destroy(uv_pipe_t* pipe) {
 
 static void eof_timer_close_cb(uv_handle_t* handle) {
   assert(handle->type == UV_TIMER);
-  free(handle);
+  uv__free(handle);
 }
 
 
@@ -1941,7 +1941,7 @@ static int uv__pipe_getname(const uv_pipe_t* handle, char* buffer, size_t* size)
                                       FileNameInformation);
   if (nt_status == STATUS_BUFFER_OVERFLOW) {
     name_size = sizeof(*name_info) + tmp_name_info.FileNameLength;
-    name_info = malloc(name_size);
+    name_info = uv__malloc(name_size);
     if (!name_info) {
       *size = 0;
       err = UV_ENOMEM;
@@ -2020,7 +2020,7 @@ static int uv__pipe_getname(const uv_pipe_t* handle, char* buffer, size_t* size)
   goto cleanup;
 
 error:
-  free(name_info);
+  uv__free(name_info);
 
 cleanup:
   uv__pipe_unpause_read((uv_pipe_t*)handle); /* cast away const warning */

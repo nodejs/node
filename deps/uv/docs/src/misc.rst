@@ -26,6 +26,26 @@ Data types
         .. note::
             On Windows this field is ULONG.
 
+.. c:type:: void* (*uv_malloc_func)(size_t size)
+
+        Replacement function for :man:`malloc(3)`.
+        See :c:func:`uv_replace_allocator`.
+
+.. c:type::  void* (*uv_realloc_func)(void* ptr, size_t size)
+
+        Replacement function for :man:`realloc(3)`.
+        See :c:func:`uv_replace_allocator`.
+
+.. c:type::  void* (*uv_calloc_func)(size_t count, size_t size)
+
+        Replacement function for :man:`calloc(3)`.
+        See :c:func:`uv_replace_allocator`.
+
+.. c:type:: void (*uv_free_func)(void* ptr)
+
+        Replacement function for :man:`free(3)`.
+        See :c:func:`uv_replace_allocator`.
+
 .. c:type:: uv_file
 
     Cross platform representation of a file handle.
@@ -125,6 +145,26 @@ API
 
     Returns the libuv version number as a string. For non-release versions
     "-pre" is appended, so the version number could be "1.2.3-pre".
+
+.. c:function:: int uv_replace_allocator(uv_malloc_func malloc_func, uv_realloc_func realloc_func, uv_calloc_func calloc_func, uv_free_func free_func)
+
+    .. versionadded:: 1.6.0
+
+    Override the use of the standard library's :man:`malloc(3)`,
+    :man:`calloc(3)`, :man:`realloc(3)`, :man:`free(3)`, memory allocation
+    functions.
+
+    This function must be called before any other libuv function is called or
+    after all resources have been freed and thus libuv doesn't reference
+    any allocated memory chunk.
+
+    On success, it returns 0, if any of the function pointers is NULL it
+    returns UV_EINVAL.
+
+    .. warning:: There is no protection against changing the allocator multiple
+                 times. If the user changes it they are responsible for making
+                 sure the allocator is changed while no memory was allocated with
+                 the previous allocator, or that they are compatible.
 
 .. c:function:: uv_buf_t uv_buf_init(char* base, unsigned int len)
 
@@ -226,6 +266,23 @@ API
 .. c:function:: int uv_chdir(const char* dir)
 
     Changes the current working directory.
+
+.. c:function:: int uv_os_homedir(char* buffer, size_t* size)
+
+    Gets the current user's home directory. On Windows, `uv_os_homedir()` first
+    checks the `USERPROFILE` environment variable using
+    `GetEnvironmentVariableW()`. If `USERPROFILE` is not set,
+    `GetUserProfileDirectoryW()` is called. On all other operating systems,
+    `uv_os_homedir()` first checks the `HOME` environment variable using
+    :man:`getenv(3)`. If `HOME` is not set, :man:`getpwuid_r(3)` is called. The
+    user's home directory is stored in `buffer`. When `uv_os_homedir()` is
+    called, `size` indicates the maximum size of `buffer`. On success or
+    `UV_ENOBUFS` failure, `size` is set to the string length of `buffer`.
+
+    .. warning::
+        `uv_os_homedir()` is not thread safe.
+
+    .. versionadded:: 1.6.0
 
 .. uint64_t uv_get_free_memory(void)
 .. c:function:: uint64_t uv_get_total_memory(void)

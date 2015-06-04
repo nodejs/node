@@ -185,6 +185,18 @@ OS X using the GCC or XCode toolchain.
 
 Solaris 121 and later using GCC toolchain.
 
+AIX 6 and later using GCC toolchain (see notes).
+
+### AIX Notes
+
+AIX support for filesystem events requires the non-default IBM `bos.ahafs`
+package to be installed.  This package provides the AIX Event Infrastructure
+that is detected by `autoconf`.
+[IBM documentation](http://www.ibm.com/developerworks/aix/library/au-aix_event_infrastructure/)
+describes the package in more detail.
+
+AIX support for filesystem events is not compiled when building with `gyp`.
+
 ## Patches
 
 See the [guidelines for contributing][].

@@ -184,7 +184,8 @@ enum test_status {
 #  define inline __inline
 # endif
 
-/* Emulate snprintf() on Windows, _snprintf() doesn't zero-terminate the buffer
+# if defined(_MSC_VER) && _MSC_VER < 1900
+/* Emulate snprintf() on MSVC<2015, _snprintf() doesn't zero-terminate the buffer
  * on overflow...
  */
 inline int snprintf(char* buf, size_t len, const char* fmt, ...) {
@@ -205,6 +206,7 @@ inline int snprintf(char* buf, size_t len, const char* fmt, ...) {
 
   return n;
 }
+# endif
 
 #endif
 

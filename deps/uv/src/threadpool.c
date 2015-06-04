@@ -122,7 +122,7 @@ UV_DESTRUCTOR(static void cleanup(void)) {
       abort();
 
   if (threads != default_threads)
-    free(threads);
+    uv__free(threads);
 
   uv_mutex_destroy(&mutex);
   uv_cond_destroy(&cond);
@@ -149,7 +149,7 @@ static void init_once(void) {
 
   threads = default_threads;
   if (nthreads > ARRAY_SIZE(default_threads)) {
-    threads = malloc(nthreads * sizeof(threads[0]));
+    threads = uv__malloc(nthreads * sizeof(threads[0]));
     if (threads == NULL) {
       nthreads = ARRAY_SIZE(default_threads);
       threads = default_threads;
