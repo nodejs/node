@@ -630,7 +630,8 @@ uint32_t WriteInt64Generic(const FunctionCallbackInfo<Value>& args) {
     // Have to do this because strt(u)oll doesn't set errno to 0 on success
     errno = 0;
     node::Utf8Value str(env->isolate(), args[1]);
-    val = strtoT(*str, nullptr, 0);
+
+    val = strtoT(*str, nullptr, 10);
 
     if (errno != 0) {
       if (errno == EINVAL) {
