@@ -80,7 +80,7 @@ Its responsibilities are:
 
 ### [Tracing](https://github.com/nodejs/tracing-wg)
 
-**State** : Core
+**State** : Mature
 
 The tracing working group's purpose is to increase the
 transparency of software written in io.js.
@@ -198,7 +198,7 @@ Their responsibilities are:
 
 ### [Addon API](https://github.com/nodejs/nan)
 
-**State** : Mature
+**State** : Core
 
 The Addon API Working Group is responsible for maintaining the NAN project and
 corresponding _nan_ package in npm. The NAN project makes available an
