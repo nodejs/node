@@ -5073,9 +5073,8 @@ void InitCryptoOnce() {
 
 #ifdef OPENSSL_FIPS
   if (!FIPS_mode_set(1)) {
-    int r;
-    r = ERR_get_error();
-    fprintf(stderr, "openssl fips failed: %s\n", ERR_error_string(r, NULL));
+    int err = ERR_get_error();
+    fprintf(stderr, "openssl fips failed: %s\n", ERR_error_string(err, NULL));
     UNREACHABLE();
   }
 #endif  // OPENSSL_FIPS
