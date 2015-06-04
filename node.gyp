@@ -29,6 +29,7 @@
       'lib/dns.js',
       'lib/domain.js',
       'lib/events.js',
+      'lib/ffi.js',
       'lib/freelist.js',
       'lib/fs.js',
       'lib/http.js',
@@ -86,6 +87,7 @@
       'dependencies': [
         'node_js2c#host',
         'deps/cares/cares.gyp:cares',
+        'deps/libffi/libffi.gyp:ffi',
         'deps/v8/tools/gyp/v8.gyp:v8',
         'deps/v8/tools/gyp/v8.gyp:v8_libplatform'
       ],
@@ -110,6 +112,7 @@
         'src/node_buffer.cc',
         'src/node_constants.cc',
         'src/node_contextify.cc',
+        'src/node_ffi.cc',
         'src/node_file.cc',
         'src/node_http_parser.cc',
         'src/node_javascript.cc',
@@ -146,6 +149,7 @@
         'src/node.h',
         'src/node_buffer.h',
         'src/node_constants.h',
+        'src/node_ffi.h',
         'src/node_file.h',
         'src/node_http_parser.h',
         'src/node_internals.h',

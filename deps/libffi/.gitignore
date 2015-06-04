@@ -1,0 +1,17 @@
+.libs
+.deps
+*.o
+*.lo
+.dirstamp
+*.la
+*.pdb
+*.obj
+Makefile
+config.log
+config.status
+*~
+libffi.pc
+libtool
+stamp-h1
+libffi*gz
+autom4te.cache

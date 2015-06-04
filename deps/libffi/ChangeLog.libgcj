@@ -1,0 +1,40 @@
+2004-01-14  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* configure.in: Add in AC_PREREQ(2.13)
+
+2003-02-20  Alexandre Oliva  <aoliva@redhat.com>
+
+	* configure.in: Propagate ORIGINAL_LD_FOR_MULTILIBS to
+	config.status.
+	* configure: Rebuilt.
+
+2002-01-27  Alexandre Oliva  <aoliva@redhat.com>
+
+	* configure.in (toolexecdir, toolexeclibdir): Set and AC_SUBST.
+	Remove USE_LIBDIR conditional.
+	* Makefile.am (toolexecdir, toolexeclibdir): Don't override.
+	* Makefile.in, configure: Rebuilt.
+
+Mon Aug  9 18:33:38 1999  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* include/Makefile.in: Rebuilt.
+	* Makefile.in: Rebuilt
+	* Makefile.am (toolexeclibdir): Add $(MULTISUBDIR) even for native
+	builds.
+	Use USE_LIBDIR.
+
+	* configure: Rebuilt.
+	* configure.in (USE_LIBDIR): Define for native builds.
+	Use lowercase in configure --help explanations.
+
+1999-08-08  Anthony Green  <green@cygnus.com>
+
+	* include/ffi.h.in (FFI_FN): Remove `...'.
+
+1999-08-08  Anthony Green  <green@cygnus.com>
+
+	* Makefile.in: Rebuilt.
+	* Makefile.am (AM_CFLAGS): Compile with -fexceptions.
+
+	* src/x86/sysv.S: Add exception handling metadata.
+

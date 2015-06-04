@@ -1,0 +1,7 @@
+libtool: compile:  sh /c/node-ffi/deps/libffi/msvcc.sh -DHAVE_CONFIG_H -I. -I. -I./include -Iinclude -I./src -DFFI_BUILDING -g -warn all -c src/prep_cif.c -o src/prep_cif.obj
+libtool: compile:  sh /c/node-ffi/deps/libffi/msvcc.sh -DHAVE_CONFIG_H -I. -I. -I./include -Iinclude -I./src -DFFI_BUILDING -g -warn all -c src/types.c -o src/types.obj
+libtool: compile:  sh /c/node-ffi/deps/libffi/msvcc.sh -DHAVE_CONFIG_H -I. -I. -I./include -Iinclude -I./src -DFFI_BUILDING -g -warn all -c src/raw_api.c -o src/raw_api.obj
+libtool: compile:  sh /c/node-ffi/deps/libffi/msvcc.sh -DHAVE_CONFIG_H -I. -I. -I./include -Iinclude -I./src -DFFI_BUILDING -g -warn all -c src/java_raw_api.c -o src/java_raw_api.obj
+libtool: compile:  sh /c/node-ffi/deps/libffi/msvcc.sh -DHAVE_CONFIG_H -I. -I. -I./include -Iinclude -I./src -DFFI_BUILDING -g -warn all -c src/closures.c -o src/closures.obj
+libtool: compile:  sh /c/node-ffi/deps/libffi/msvcc.sh -DHAVE_CONFIG_H -I. -I. -I./include -Iinclude -I./src -DFFI_BUILDING -g -warn all -c src/x86/ffi.c -o src/x86/ffi.obj
+libtool: compile:  sh /c/node-ffi/deps/libffi/msvcc.sh -DHAVE_CONFIG_H -I. -I. -I./include -Iinclude -I./src -DFFI_BUILDING -I. -I./include -Iinclude -I./src -DFFI_BUILDING -g -c src/x86/win32.S -o src/x86/win32.obj
