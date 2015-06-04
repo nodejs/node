@@ -254,8 +254,8 @@ instead, see
 There is a special case when sending a `{cmd: 'NODE_foo'}` message. All messages
 containing a `NODE_` prefix in its `cmd` property will not be emitted in
 the `message` event, since they are internal messages used by io.js core.
-Messages containing the prefix are emitted in the `internalMessage` event, you
-should by all means avoid using this feature, it is subject to change without notice.
+Messages containing the prefix are emitted in the `internalMessage` event.
+Avoid using this feature; it is subject to change without notice.
 
 The `sendHandle` option to `child.send()` is for sending a TCP server or
 socket object to another process. The child will receive the object as its
