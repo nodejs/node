@@ -621,6 +621,7 @@ uint32_t WriteInt64Generic(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsObject());
+  CHECK(args[1]->IsString() || args[1]->IsNumber());
   ARGS_THIS(args[0].As<Object>())
 
   T val;
@@ -644,7 +645,7 @@ uint32_t WriteInt64Generic(const FunctionCallbackInfo<Value>& args) {
       return 0;
     }
   } else {
-    env->ThrowTypeError("Argument must be a string or number");
+    UNREACHABLE():
     return 0;
   }
 
