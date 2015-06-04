@@ -26,7 +26,10 @@ ca3-key.pem:
 
 ca3-csr.pem: ca3.cnf ca3-key.pem
 	openssl req -new \
-		-extensions v3_ca -config ca3.cnf -key ca3-key.pem -out ca3-csr.pem
+		-extensions v3_ca \
+		-config ca3.cnf \
+		-key ca3-key.pem \
+		-out ca3-csr.pem
 
 ca3-cert.pem: ca3-csr.pem ca3-key.pem ca3.cnf ca1-cert.pem ca1-key.pem
 	openssl x509 -req \
@@ -39,6 +42,20 @@ ca3-cert.pem: ca3-csr.pem ca3-key.pem ca3.cnf ca1-cert.pem ca1-key.pem
 		-CAkey ca1-key.pem \
 		-CAcreateserial \
 		-out ca3-cert.pem
+
+#
+# Create Fake CNNIC Root Certificate Authority: fake-cnnic-root
+#
+
+fake-cnnic-root-key.pem:
+	openssl genrsa -out fake-cnnic-root-key.pem 2048
+
+fake-cnnic-root-cert.pem: fake-cnnic-root.cnf fake-cnnic-root-key.pem
+	openssl req -x509 -new \
+	        -key fake-cnnic-root-key.pem \
+	        -days 1024 \
+	        -out fake-cnnic-root-cert.pem \
+	        -config fake-cnnic-root.cnf
 
 #
 # agent1 is signed by ca1.
@@ -203,6 +220,30 @@ agent6-cert.pem: agent6-csr.pem ca3-cert.pem ca3-key.pem
 
 agent6-verify: agent6-cert.pem ca3-cert.pem
 	openssl verify -CAfile ca3-cert.pem agent6-cert.pem
+
+#
+# agent7 is signed by fake-cnnic-root.
+#
+
+agent7-key.pem:
+	openssl genrsa -out agent7-key.pem 2048
+
+agent7-csr.pem: agent1.cnf agent7-key.pem
+	openssl req -new -config agent7.cnf -key agent7-key.pem -out agent7-csr.pem
+
+agent7-cert.pem: agent7-csr.pem fake-cnnic-root-cert.pem fake-cnnic-root-key.pem
+	openssl x509 -req \
+		-extfile agent7.cnf \
+		-days 9999 \
+		-passin "pass:password" \
+		-in agent7-csr.pem \
+		-CA fake-cnnic-root-cert.pem \
+		-CAkey fake-cnnic-root-key.pem \
+		-CAcreateserial \
+		-out agent7-cert.pem
+
+agent7-verify: agent7-cert.pem fake-cnnic-root-cert.pem
+	openssl verify -CAfile fake-cnnic-root-cert.pem agent7-cert.pem
 
 ec-key.pem:
 	openssl ecparam -genkey -out ec-key.pem -name prime256v1
