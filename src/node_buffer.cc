@@ -573,57 +573,6 @@ void ReadUInt64BE(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void PointerFree(char* data, void* hint) {
-  // do nothing, since Buffers returned from `readPointer*()`
-  // must not be free()'d by us since we do not own the memory
-}
-
-
-template <enum Endianness endianness>
-void ReadPointerGeneric(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  CHECK(args[0]->IsObject());
-  ARGS_THIS(args[0].As<Object>());
-
-  char* ptr;
-  uint32_t offset = args[1]->Uint32Value();
-  CHECK_LE(offset + sizeof(ptr), obj_length);
-
-  size_t size = args[2]->Uint32Value();
-
-  ptr = static_cast<char*>(obj_data) + offset;
-
-  union NoAlias {
-    char* val;
-    char bytes[sizeof(ptr)];
-  };
-
-  union NoAlias na;
-  memcpy(&na.val, ptr, sizeof(&ptr));
-
-  if (endianness != GetEndianness())
-    Swizzle(na.bytes, sizeof(na.bytes));
-
-  if (na.val) {
-    args.GetReturnValue().Set(
-        Buffer::New(env, na.val, size, PointerFree, nullptr));
-  } else {
-    args.GetReturnValue().Set(v8::Null(env->isolate()));
-  }
-}
-
-
-void ReadPointerLE(const FunctionCallbackInfo<Value>& args) {
-  ReadPointerGeneric<kLittleEndian>(args);
-}
-
-
-void ReadPointerBE(const FunctionCallbackInfo<Value>& args) {
-  ReadPointerGeneric<kBigEndian>(args);
-}
-
-
 template <typename T, enum Endianness endianness>
 uint32_t WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
   ARGS_THIS(args[0].As<Object>())
@@ -735,49 +684,6 @@ void WriteUInt64LE(const FunctionCallbackInfo<Value>& args) {
 void WriteUInt64BE(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(WriteInt64Generic<uint64_t, kBigEndian,
                                               strtoull>(args));
-}
-
-
-template <enum Endianness endianness>
-uint32_t WritePointerGeneric(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  CHECK(args[0]->IsObject());
-  ARGS_THIS(args[0].As<Object>())
-
-  char* ptr;
-  char* input_ptr;
-  uint32_t offset = args[2]->Uint32Value();
-  CHECK_LE(offset + sizeof(ptr), obj_length);
-
-  if (!(args[1]->IsNull() || Buffer::HasInstance(args[1]))) {
-    env->ThrowTypeError("value must be a Buffer instance or null");
-    return 0;
-  }
-
-  if (args[1]->IsNull()) {
-    input_ptr = nullptr;
-  } else {
-    input_ptr = Buffer::Data(args[1].As<Object>());
-  }
-
-  ptr = static_cast<char*>(obj_data) + offset;
-  memcpy(ptr, &input_ptr, sizeof(input_ptr));
-
-  if (endianness != GetEndianness())
-    Swizzle(ptr, sizeof(ptr));
-
-  return offset + sizeof(ptr);
-}
-
-
-void WritePointerLE(const FunctionCallbackInfo<Value>& args) {
-  args.GetReturnValue().Set(WritePointerGeneric<kLittleEndian>(args));
-}
-
-
-void WritePointerBE(const FunctionCallbackInfo<Value>& args) {
-  args.GetReturnValue().Set(WritePointerGeneric<kBigEndian>(args));
 }
 
 
@@ -1014,8 +920,6 @@ void Initialize(Handle<Object> target,
   env->SetMethod(target, "readInt64LE", ReadInt64LE);
   env->SetMethod(target, "readUInt64BE", ReadUInt64BE);
   env->SetMethod(target, "readUInt64LE", ReadUInt64LE);
-  env->SetMethod(target, "readPointerBE", ReadPointerBE);
-  env->SetMethod(target, "readPointerLE", ReadPointerLE);
 
   env->SetMethod(target, "writeDoubleBE", WriteDoubleBE);
   env->SetMethod(target, "writeDoubleLE", WriteDoubleLE);
@@ -1025,8 +929,6 @@ void Initialize(Handle<Object> target,
   env->SetMethod(target, "writeInt64LE", WriteInt64LE);
   env->SetMethod(target, "writeUInt64BE", WriteUInt64BE);
   env->SetMethod(target, "writeUInt64LE", WriteUInt64LE);
-  env->SetMethod(target, "writePointerBE", WritePointerBE);
-  env->SetMethod(target, "writePointerLE", WritePointerLE);
 }
 
 
