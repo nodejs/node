@@ -7,9 +7,9 @@ var gitHosts = module.exports = {
     'protocols': [ 'git', 'http', 'git+ssh', 'git+https', 'ssh', 'https' ],
     'domain': 'github.com',
     'treepath': 'tree',
-    'filetemplate': 'https://{auth@}raw.githubusercontent.com/{user}/{project}/{comittish}/{path}',
+    'filetemplate': 'https://{auth@}raw.githubusercontent.com/{user}/{project}/{committish}/{path}',
     'bugstemplate': 'https://{domain}/{user}/{project}/issues',
-    'gittemplate': 'git://{auth@}{domain}/{user}/{project}.git{#comittish}'
+    'gittemplate': 'git://{auth@}{domain}/{user}/{project}.git{#committish}'
   },
   bitbucket: {
     'protocols': [ 'git+ssh', 'git+https', 'ssh', 'https' ],
@@ -20,35 +20,35 @@ var gitHosts = module.exports = {
     'protocols': [ 'git+ssh', 'git+https', 'ssh', 'https' ],
     'domain': 'gitlab.com',
     'treepath': 'tree',
-    'docstemplate': 'https://{domain}/{user}/{project}{/tree/comittish}#README',
+    'docstemplate': 'https://{domain}/{user}/{project}{/tree/committish}#README',
     'bugstemplate': 'https://{domain}/{user}/{project}/issues'
   },
   gist: {
     'protocols': [ 'git', 'git+ssh', 'git+https', 'ssh', 'https' ],
     'domain': 'gist.github.com',
     'pathmatch': /^[/](?:([^/]+)[/])?([a-z0-9]+)(?:[.]git)?$/,
-    'filetemplate': 'https://gist.githubusercontent.com/{user}/{project}/raw{/comittish}/{path}',
+    'filetemplate': 'https://gist.githubusercontent.com/{user}/{project}/raw{/committish}/{path}',
     'bugstemplate': 'https://{domain}/{project}',
-    'gittemplate': 'git://{domain}/{project}.git{#comittish}',
-    'sshtemplate': 'git@{domain}:/{project}.git{#comittish}',
-    'sshurltemplate': 'git+ssh://git@{domain}/{project}.git{#comittish}',
-    'browsetemplate': 'https://{domain}/{project}{/comittish}',
-    'docstemplate': 'https://{domain}/{project}{/comittish}',
-    'httpstemplate': 'git+https://{domain}/{project}.git{#comittish}',
-    'shortcuttemplate': '{type}:{project}{#comittish}',
-    'pathtemplate': '{project}{#comittish}'
+    'gittemplate': 'git://{domain}/{project}.git{#committish}',
+    'sshtemplate': 'git@{domain}:/{project}.git{#committish}',
+    'sshurltemplate': 'git+ssh://git@{domain}/{project}.git{#committish}',
+    'browsetemplate': 'https://{domain}/{project}{/committish}',
+    'docstemplate': 'https://{domain}/{project}{/committish}',
+    'httpstemplate': 'git+https://{domain}/{project}.git{#committish}',
+    'shortcuttemplate': '{type}:{project}{#committish}',
+    'pathtemplate': '{project}{#committish}'
   }
 }
 
 var gitHostDefaults = {
-  'sshtemplate': 'git@{domain}:{user}/{project}.git{#comittish}',
-  'sshurltemplate': 'git+ssh://git@{domain}/{user}/{project}.git{#comittish}',
-  'browsetemplate': 'https://{domain}/{user}/{project}{/tree/comittish}',
-  'docstemplate': 'https://{domain}/{user}/{project}{/tree/comittish}#readme',
-  'httpstemplate': 'git+https://{auth@}{domain}/{user}/{project}.git{#comittish}',
-  'filetemplate': 'https://{domain}/{user}/{project}/raw/{comittish}/{path}',
-  'shortcuttemplate': '{type}:{user}/{project}{#comittish}',
-  'pathtemplate': '{user}/{project}{#comittish}',
+  'sshtemplate': 'git@{domain}:{user}/{project}.git{#committish}',
+  'sshurltemplate': 'git+ssh://git@{domain}/{user}/{project}.git{#committish}',
+  'browsetemplate': 'https://{domain}/{user}/{project}{/tree/committish}',
+  'docstemplate': 'https://{domain}/{user}/{project}{/tree/committish}#readme',
+  'httpstemplate': 'git+https://{auth@}{domain}/{user}/{project}.git{#committish}',
+  'filetemplate': 'https://{domain}/{user}/{project}/raw/{committish}/{path}',
+  'shortcuttemplate': '{type}:{user}/{project}{#committish}',
+  'pathtemplate': '{user}/{project}{#committish}',
   'pathmatch': /^[/]([^/]+)[/]([^/]+?)(?:[.]git)?$/
 }
 

@@ -95,7 +95,7 @@ require("tap").test("basic", function (t) {
     "/path/to/foo": {
       name: null,
       type: "local",
-      spec: "/path/to/foo",
+      spec: path.resolve(__dirname, "/path/to/foo"),
       raw: "/path/to/foo"
     },
 

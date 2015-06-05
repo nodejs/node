@@ -37,7 +37,10 @@ var json = {
     poststart: 'exit 123',
     prerestart: 'exit 123',
     restart: 'exit 123',
-    postrestart: 'exit 123'
+    postrestart: 'exit 123',
+    preversion: 'exit 123',
+    version: 'exit 123',
+    postversion: 'exit 123'
   }
 }
 
@@ -69,7 +72,8 @@ var scripts = [
   'pretest', 'test', 'posttest',
   'prestop', 'stop', 'poststop',
   'prestart', 'start', 'poststart',
-  'prerestart', 'restart', 'postrestart'
+  'prerestart', 'restart', 'postrestart',
+  'preversion', 'version', 'postversion'
 ]
 
 scripts.forEach(function (script) {

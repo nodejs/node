@@ -1,3 +1,168 @@
+### v2.11.1 (2015-05-28):
+
+This release brought to you from poolside at the Omni Amelia Island Resort and
+JSConf 2015, which is why it's so tiny.
+
+#### CONFERENCE WIFI CAN'T STOP THESE BUG FIXES
+
+* [`cf109a6`](https://github.com/npm/npm/commit/cf109a682f38a059a994da953d5c1b4aaece5e2f)
+  [#8381](https://github.com/npm/npm/issues/8381) Documented a subtle gotcha
+  with `.npmrc`, which is that it needs to have its permissions set such that
+  only the owner can read or write the file.
+  ([@colakong](https://github.com/colakong))
+* [`180da67`](https://github.com/npm/npm/commit/180da67c9fa53103d625e2f031626c2453c7ebcd)
+  [#8365](https://github.com/npm/npm/issues/8365) Git 2.3 adds support for
+  `GIT_SSH_COMMAND`, which allows you to pass an explicit git command (with,
+  for example, a specific identity passed in on the command line).
+    ([@nmalaguti](https://github.com/nmalaguti))
+
+#### MY (VIRGIN) PINA COLADA IS GETTING LOW, BETTER UPGRADE THESE DEPENDENCIES
+
+* [`b72de41`](https://github.com/npm/npm/commit/b72de41c5cc9f0c46d3fa8f062c75bd273641474)
+  `node-gyp@2.0.0`: Use a newer version of `gyp`, and generally improve support
+  for Visual Studios and Windows.
+    ([@TooTallNate](https://github.com/TooTallNate))
+* [`8edbe21`](https://github.com/npm/npm/commit/8edbe210af41e8f248f5bb92c72de92f54fda3b1)
+  `node-gyp@2.0.1`: Don't crash when Python's version doesn't parse as valid
+  semver. ([@TooTallNate](https://github.com/TooTallNate))
+* [`ba0e0a8`](https://github.com/npm/npm/commit/ba0e0a845a4f29717aba566b416a27d1a22f5d08)
+  `glob@5.0.10`: Add coverage to tests. ([@isaacs](https://github.com/isaacs))
+* [`7333701`](https://github.com/npm/npm/commit/7333701b5d4f01673f37d64992c63c4e15864d6d)
+  `request@2.56.0`: Bug fixes and dependency upgrades.
+  ([@simov](https://github.com/simov))
+
+### v2.11.0 (2015-05-21):
+
+For the first time in a very long time, we've added new events to the life
+cycle used by `npm run-script`. Since running `npm version (major|minor|patch)`
+is typically the last thing many developers do before publishing their updated
+packages, it makes sense to add life cycle hooks to run tests or otherwise
+preflight the package before doing a full publish. Thanks, as always, to the
+indefatigable [@watilde](https://github.com/watilde) for yet another great
+usability improvement for npm!
+
+#### FEATURELETS
+
+* [`b07f7c7`](https://github.com/npm/npm/commit/b07f7c7c1e5021730b3c320f1b3a46e70f8a21ff)
+  [#7906](https://github.com/npm/npm/issues/7906)
+  Add new [`scripts`](https://github.com/npm/npm/blob/master/doc/misc/npm-scripts.md) to
+  allow you to run scripts before and after
+  the [`npm version`](https://github.com/npm/npm/blob/master/doc/cli/npm-version.md)
+  command has run. This makes it easy to, for instance, require that your
+  test suite passes before bumping the version by just adding `"preversion":
+  "npm test"` to the scripts section of your `package.json`.
+  ([@watilde](https://github.com/watilde))
+* [`8a46136`](https://github.com/npm/npm/commit/8a46136f42e416cbadb533bcf89d73d681ed421d)
+  [#8185](https://github.com/npm/npm/issues/8185)
+  When we get a "not found" error from the registry, we'll now check to see
+  if the package name you specified is invalid and if so, give you a better
+  error message. ([@thefourtheye](https://github.com/thefourtheye))
+
+#### BUG FIXES
+
+* [`9bcf573`](https://github.com/npm/npm/commit/9bcf5730bd0316f210dafea898afe9103849cea9)
+  [#8324](https://github.com/npm/npm/pull/8324) On Windows, when you've configured a
+  custom `node-gyp`, run it with node itself instead of using the default open action (which
+  is almost never what you want). ([@bangbang93](https://github.com/bangbang93))
+* [`1da9b04`](https://github.com/npm/npm/commit/1da9b0411d3416c7fca17d08cbbcfca7ae86e92d)
+  [#7195](https://github.com/npm/npm/issues/7195)
+  [#7260](https://github.com/npm/npm/issues/7260) `npm-registry-client@6.4.0`:
+  (Re-)allow publication of existing mixed-case packages (part 1).
+  ([@smikes](https://github.com/smikes))
+* [`e926783`](https://github.com/npm/npm/commit/e9267830ab261c751f12723e84d2458ae9238646)
+  [#7195](https://github.com/npm/npm/issues/7195)
+  [#7260](https://github.com/npm/npm/issues/7260)
+  `normalize-package-data@2.2.0`: (Re-)allow publication of existing mixed-case
+  packages (part 2). ([@smikes](https://github.com/smikes))
+
+#### DOCUMENTATION IMPROVEMENTS
+
+* [`f62ee05`](https://github.com/npm/npm/commit/f62ee05333b141539a8e851c620dd2e82ff06860)
+  [#8314](https://github.com/npm/npm/issues/8314) Update the README to warn
+  folks away from using the CLI's internal API. For the love of glob, just use a
+  child process to run the CLI! ([@claycarpenter](https://github.com/claycarpenter))
+* [`1093921`](https://github.com/npm/npm/commit/1093921c04db41ab46db24a170a634a4b2acd8d9)
+  [#8279](https://github.com/npm/npm/pull/8279)
+  Update the documentation to note that, yes, you can publish scoped packages to the
+  public registry now! ([@mantoni](https://github.com/mantoni))
+* [`f87cde5`](https://github.com/npm/npm/commit/f87cde5234a760d3e515ffdaacaed6f5b71dbf44)
+  [#8292](https://github.com/npm/npm/pull/8292)
+  Fix typo in an example and grammar in the description in
+  the [shrinkwrap documentation](https://github.com/npm/npm/blob/master/doc/cli/npm-shrinkwrap.md).
+  ([@vshih](https://github.com/vshih))
+* [`d3526ce`](https://github.com/npm/npm/commit/d3526ceb09a0c29fdb7d4124536ae09057d033e7)
+  Improve the formatting in
+  the [shrinkwrap documentation](https://github.com/npm/npm/blob/master/doc/cli/npm-shrinkwrap.md).
+  ([@othiym23](https://github.com/othiym23))
+* [`19fe6d2`](https://github.com/npm/npm/commit/19fe6d20883e28956ff916fe4dae42d73ee6195b)
+  [#8311](https://github.com/npm/npm/pull/8311)
+  Update [README.md](https://github.com/npm/npm#readme) to use syntax highlighting in
+  its code samples and bits of shell scripts. ([@SimenB](https://github.com/SimenB))
+
+#### DEPENDENCY UPDATES! ALWAYS AND FOREVER!
+
+* [`fc52160`](https://github.com/npm/npm/commit/fc52160d0223226fffe4166f42fdfd3b899b3c1e)
+  [#4700](https://github.com/npm/npm/issues/4700) [#5044](https://github.com/npm/npm/issues/5044)
+  `init-package-json@1.6.0`: Make entering an invalid version while running `npm init` give
+  you an immediate error and prompt you to correct it. ([@watilde](https://github.com/watilde))
+* [`738853e`](https://github.com/npm/npm/commit/738853eb1f55636476a2a410c2c04732eec9d51e)
+  [#7763](https://github.com/npm/npm/issues/7763) `fs-write-stream-atomic@1.0.3`: Fix a bug
+  where errors would not propagate, making error messages unhelpful.
+  ([@iarna](https://github.com/iarna))
+* [`6d74a2d`](https://github.com/npm/npm/commit/6d74a2d2ac7f92750cf6a2cfafae1af23b569098)
+  `npm-package-arg@4.0.1`: Fix tests on windows ([@Bacra](https://github.com)) and with
+  more recent `hosted-git-info`. ([@iarna](https://github.com/iarna))
+* [`50f7178`](https://github.com/npm/npm/commit/50f717852fbf713ef6cbc4e0a9ab42657decbbbd)
+  `hosted-git-info@2.1.4`: Correct spelling in its documentation.
+  ([@iarna](https://github.com/iarna))
+* [`d7956ca`](https://github.com/npm/npm/commit/d7956ca17c057d5383ff0d3fc5cf6ac2940b034d)
+  `glob@5.0.7`: Fix a bug where unusual error conditions could make
+  further use of the module fail. ([@isaacs](https://github.com/isaacs))
+* [`44f7d74`](https://github.com/npm/npm/commit/44f7d74c5d3181d37da7ea7949c86b344153f8d9)
+  `tap@1.1.0`: Update to the most recent tap to get a whole host of bug
+  fixes and integration with [coveralls](https://coveralls.io/).
+  ([@isaacs](https://github.com/isaacs))
+* [`c21e8a8`](https://github.com/npm/npm/commit/c21e8a8d94bcf0ad79dc583ddc53f8366d4813b3)
+  `nock@2.2.0` ([@othiym23](https://github.com/othiym23))
+
+#### LICENSE FILES FOR THE LICENSE GOD
+
+* Add missing ISC license file to package ([@kasicka](https://github.com/kasicka)):
+    * [`aa9908c`](https://github.com/npm/npm/commit/aa9908c20017729673b9d410b77f9a16b7aae8a4) `realize-package-specifier@3.0.1`
+    * [`23a3b1a`](https://github.com/npm/npm/commit/23a3b1a726b9176c70ce0ccf3cd9d25c54429bdf) `fs-vacuum@1.2.6`
+    * [`8e04bba`](https://github.com/npm/npm/commit/8e04bba830d4353d84751d21803cd127c96153a7) `dezalgo@1.0.2`
+    * [`50f7178`](https://github.com/npm/npm/commit/50f717852fbf713ef6cbc4e0a9ab42657decbbbd) `hosted-git-info@2.1.4`
+    * [`6a54917`](https://github.com/npm/npm/commit/6a54917fbd4df995495a95d4b548defd44b77c93) `write-file-atomic@1.1.2`
+    * [`971f92c`](https://github.com/npm/npm/commit/971f92c4a4e5514217d1e4db45d1ccf71a60ff19) `async-some@1.0.2`
+    * [`67b50b7`](https://github.com/npm/npm/commit/67b50b7667a42bb3340a660eb2e617e1a554d2d4) `normalize-git-url@1.0.1`
+
+#### SPDX LICENSE UPDATES
+
+* Switch license to
+  [BSD-2-Clause](http://spdx.org/licenses/BSD-2-Clause.html#licenseText) from
+  plain "BSD" ([@isaacs](https://github.com/isaacs)):
+    * [`efdb733`](https://github.com/npm/npm/commit/efdb73332eeedcad4c609796929070b62abb37ab) `npm-user-validate@0.1.2`
+    * [`e926783`](https://github.com/npm/npm/commit/e9267830ab261c751f12723e84d2458ae9238646) `normalize-package-data@2.2.0`
+* Switch license to [ISC](http://spdx.org/licenses/ISC.html#licenseText) from
+  [BSD](http://spdx.org/licenses/BSD-2-Clause.html#licenseText)
+  ([@isaacs](https://github.com/isaacs)):
+    * [`c300956`](https://github.com/npm/npm/commit/c3009565a964f0ead4ac4ab234b1a458e2365f17) `block-stream@0.0.8`
+    * [`1de1253`](https://github.com/npm/npm/commit/1de125355765fecd31e682ed0ff9d2edbeac0bb0) `lockfile@1.0.1`
+    * [`0d5698a`](https://github.com/npm/npm/commit/0d5698ab132e376c7aec93ae357c274932116220) `osenv@0.1.1`
+    * [`2e84921`](https://github.com/npm/npm/commit/2e84921474e1ffb18de9fce4616e73171fa8046d) `abbrev@1.0.6`
+    * [`872fac9`](https://github.com/npm/npm/commit/872fac9d10c11607e4d0348c08a683b84e64d30b) `chmodr@0.1.1`
+    * [`01eb7f6`](https://github.com/npm/npm/commit/01eb7f60acba584346ad8aae846657899f3b6887) `chownr@0.0.2`
+    * [`294336f`](https://github.com/npm/npm/commit/294336f0f31c7b9fe31a50075ed750db6db134d1) `read@1.0.6`
+    * [`ebdf6a1`](https://github.com/npm/npm/commit/ebdf6a14d17962cdb7128402c53b452f91d44ca7) `graceful-fs@3.0.7`
+* Switch license to [ISC](http://spdx.org/licenses/ISC.html#licenseText) from
+  [MIT](http://spdx.org/licenses/MIT.html#licenseText)
+  ([@isaacs](https://github.com/isaacs)):
+    * [`e5d237f`](https://github.com/npm/npm/commit/e5d237fc0f436dd2a89437ebf8a9632a2e35ccbe) `nopt@3.0.2`
+    * [`79fef14`](https://github.com/npm/npm/commit/79fef1421b78f044980f0d1bf0e97039b6992710) `rimraf@2.3.4`
+    * [`22527da`](https://github.com/npm/npm/commit/22527da4816e7c2746cdc0317c5fb4a85152d554) `minimatch@2.0.8`
+    * [`882ac87`](https://github.com/npm/npm/commit/882ac87a6c4123ca985d7ad4394ea5085e5b0ef5) `lru-cache@2.6.4`
+    * [`9d9d015`](https://github.com/npm/npm/commit/9d9d015a2e972f68664dda54fbb204db28b21ede) `npmlog@1.2.1`
+
 ### v2.10.1 (2015-05-14):
 
 #### BUG FIXES & DOCUMENTATION TWEAKS

@@ -6,7 +6,7 @@ var noAsyncScheduler = function() {
 if (require("./util.js").isNode) {
     var version = process.versions.node.split(".").map(Number);
     schedule = (version[0] === 0 && version[1] > 10) || (version[0] > 0)
-        ? global.setImmediate : process.nextTick;
+        ? function(fn) { global.setImmediate(fn); } : process.nextTick;
 
     if (!schedule) {
         if (typeof setImmediate !== "undefined") {

@@ -21,7 +21,7 @@ function Auth (request) {
 Auth.prototype.basic = function (user, pass, sendImmediately) {
   var self = this
   if (typeof user !== 'string' || (pass !== undefined && typeof pass !== 'string')) {
-    throw new Error('auth() received invalid user or password')
+    self.request.emit('error', new Error('auth() received invalid user or password'))
   }
   self.user = user
   self.pass = pass
@@ -115,7 +115,7 @@ Auth.prototype.onRequest = function (user, pass, sendImmediately, bearer) {
 
   var authHeader
   if (bearer === undefined && user === undefined) {
-    throw new Error('no auth mechanism defined')
+    self.request.emit('error', new Error('no auth mechanism defined'))
   } else if (bearer !== undefined) {
     authHeader = self.bearer(bearer, sendImmediately)
   } else {
@@ -136,7 +136,7 @@ Auth.prototype.onResponse = function (response) {
 
   var authHeader = c.get('www-authenticate')
   var authVerb = authHeader && authHeader.split(' ')[0].toLowerCase()
-  // debug('reauth', authVerb)
+  request.debug('reauth', authVerb)
 
   switch (authVerb) {
     case 'basic':

@@ -565,10 +565,17 @@ Glob.prototype._readdirError = function (f, er, cb) {
 
     default: // some unusual error.  Treat as failure.
       this.cache[this._makeAbs(f)] = false
-      if (this.strict) return this.emit('error', er)
-      if (!this.silent) console.error('glob error', er)
+      if (this.strict) {
+        this.emit('error', er)
+        // If the error is handled, then we abort
+        // if not, we threw out of here
+        this.abort()
+      }
+      if (!this.silent)
+        console.error('glob error', er)
       break
   }
+
   return cb()
 }
 

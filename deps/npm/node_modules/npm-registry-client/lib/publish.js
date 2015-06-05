@@ -5,7 +5,7 @@ var semver = require('semver')
 var crypto = require('crypto')
 var Stream = require('stream').Stream
 var assert = require('assert')
-var fixer = require('normalize-package-data/lib/fixer.js')
+var fixer = require('normalize-package-data').fixer
 var concat = require('concat-stream')
 
 function escaped (name) {
@@ -38,7 +38,7 @@ function publish (uri, params, cb) {
     'must pass package metadata to publish'
   )
   try {
-    fixer.fixNameField(metadata, true)
+    fixer.fixNameField(metadata, {strict: true, allowLegacyCase: true})
   } catch (er) {
     return cb(er)
   }

@@ -250,6 +250,63 @@ test("npm view <package name> <field>", function (t) {
   })
 })
 
+test("npm view with invalid package name", function (t) {
+  var invalidName = "InvalidPackage"
+      obj = {}
+  obj["/" + invalidName] = [404, {"error": "not found"}]
+
+  mr({port : common.port, mocks: {"get": obj}}, function (er, s) {
+    common.npm([
+      "view"
+    , invalidName
+    , "--registry=" + common.registry
+    ], {}, function (err, code, stdout, stderr) {
+      t.ifError(err, "view command finished successfully")
+      t.equal(code, 1, "exit not ok")
+
+      t.similar(stderr, new RegExp("is not in the npm registry"),
+        "Package should NOT be found")
+
+      t.dissimilar(stderr, new RegExp("use the name yourself!"),
+        "Suggestion should not be there")
+
+      t.similar(stderr, new RegExp("name can no longer contain capital letters"),
+        "Suggestion about Capital letter should be there")
+
+      s.close()
+      t.end()
+    })
+  })
+})
+
+
+test("npm view with valid but non existent package name", function (t) {
+  mr({port : common.port, mocks: {
+      "get": {
+          "/valid-but-non-existent-package" : [404, {"error": "not found"}]
+      }
+  }}, function (er, s) {
+    common.npm([
+      "view"
+    , "valid-but-non-existent-package"
+    , "--registry=" + common.registry
+    ], {}, function (err, code, stdout, stderr) {
+      t.ifError(err, "view command finished successfully")
+      t.equal(code, 1, "exit not ok")
+
+      t.similar(stderr,
+        new RegExp("'valid-but-non-existent-package' is not in the npm registry\."),
+        "Package should NOT be found")
+
+      t.similar(stderr, new RegExp("use the name yourself!"),
+        "Suggestion should be there")
+
+      s.close()
+      t.end()
+    })
+  })
+})
+
 test("cleanup", function (t) {
   process.chdir(osenv.tmpdir())
   rimraf.sync(t1dir)

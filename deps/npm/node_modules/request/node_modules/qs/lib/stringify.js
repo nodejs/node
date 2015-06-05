@@ -9,27 +9,38 @@ var internals = {
     delimiter: '&',
     arrayPrefixGenerators: {
         brackets: function (prefix, key) {
+
             return prefix + '[]';
         },
         indices: function (prefix, key) {
+
             return prefix + '[' + key + ']';
         },
         repeat: function (prefix, key) {
+
             return prefix;
         }
-    }
+    },
+    strictNullHandling: false
 };
 
 
-internals.stringify = function (obj, prefix, generateArrayPrefix) {
+internals.stringify = function (obj, prefix, generateArrayPrefix, strictNullHandling, filter) {
 
-    if (Utils.isBuffer(obj)) {
+    if (typeof filter === 'function') {
+        obj = filter(prefix, obj);
+    }
+    else if (Utils.isBuffer(obj)) {
         obj = obj.toString();
     }
     else if (obj instanceof Date) {
         obj = obj.toISOString();
     }
     else if (obj === null) {
+        if (strictNullHandling) {
+            return Utils.encode(prefix);
+        }
+
         obj = '';
     }
 
@@ -37,7 +48,7 @@ internals.stringify = function (obj, prefix, generateArrayPrefix) {
         typeof obj === 'number' ||
         typeof obj === 'boolean') {
 
-        return [encodeURIComponent(prefix) + '=' + encodeURIComponent(obj)];
+        return [Utils.encode(prefix) + '=' + Utils.encode(obj)];
     }
 
     var values = [];
@@ -46,14 +57,15 @@ internals.stringify = function (obj, prefix, generateArrayPrefix) {
         return values;
     }
 
-    var objKeys = Object.keys(obj);
+    var objKeys = Array.isArray(filter) ? filter : Object.keys(obj);
     for (var i = 0, il = objKeys.length; i < il; ++i) {
         var key = objKeys[i];
+
         if (Array.isArray(obj)) {
-            values = values.concat(internals.stringify(obj[key], generateArrayPrefix(prefix, key), generateArrayPrefix));
+            values = values.concat(internals.stringify(obj[key], generateArrayPrefix(prefix, key), generateArrayPrefix, strictNullHandling, filter));
         }
         else {
-            values = values.concat(internals.stringify(obj[key], prefix + '[' + key + ']', generateArrayPrefix));
+            values = values.concat(internals.stringify(obj[key], prefix + '[' + key + ']', generateArrayPrefix, strictNullHandling, filter));
         }
     }
 
@@ -65,6 +77,16 @@ module.exports = function (obj, options) {
 
     options = options || {};
     var delimiter = typeof options.delimiter === 'undefined' ? internals.delimiter : options.delimiter;
+    var strictNullHandling = typeof options.strictNullHandling === 'boolean' ? options.strictNullHandling : internals.strictNullHandling;
+    var objKeys;
+    var filter;
+    if (typeof options.filter === 'function') {
+        filter = options.filter;
+        obj = filter('', obj);
+    }
+    else if (Array.isArray(options.filter)) {
+        objKeys = filter = options.filter;
+    }
 
     var keys = [];
 
@@ -87,10 +109,12 @@ module.exports = function (obj, options) {
 
     var generateArrayPrefix = internals.arrayPrefixGenerators[arrayFormat];
 
-    var objKeys = Object.keys(obj);
+    if (!objKeys) {
+        objKeys = Object.keys(obj);
+    }
     for (var i = 0, il = objKeys.length; i < il; ++i) {
         var key = objKeys[i];
-        keys = keys.concat(internals.stringify(obj[key], key, generateArrayPrefix));
+        keys = keys.concat(internals.stringify(obj[key], key, generateArrayPrefix, strictNullHandling, filter));
     }
 
     return keys.join(delimiter);

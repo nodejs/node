@@ -216,7 +216,7 @@ def WriteVariable(output, variable_name, prepend=None):
   output.write('}')
 
 
-class CMakeTargetType:
+class CMakeTargetType(object):
   def __init__(self, command, modifier, property_modifier):
     self.command = command
     self.modifier = modifier
@@ -464,7 +464,7 @@ def WriteCopies(target_name, copies, extra_deps, path_to_gyp, output):
     extra_deps.append(copy_name)
     return
 
-  class Copy:
+  class Copy(object):
     def __init__(self, ext, command):
       self.cmake_inputs = []
       self.cmake_outputs = []
@@ -743,7 +743,7 @@ def WriteTarget(namer, qualified_target, target_dicts, build_dir, config_to_use,
     if target_output_directory is None:
       if target_type in ('executable', 'loadable_module'):
         target_output_directory = generator_default_variables['PRODUCT_DIR']
-      elif target_type in ('shared_library'):
+      elif target_type == 'shared_library':
         target_output_directory = '${builddir}/lib.${TOOLSET}'
       elif spec.get('standalone_static_library', False):
         target_output_directory = generator_default_variables['PRODUCT_DIR']

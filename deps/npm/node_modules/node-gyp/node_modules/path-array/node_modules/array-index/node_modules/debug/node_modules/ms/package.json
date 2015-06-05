@@ -1,0 +1,48 @@
+{
+  "name": "ms",
+  "version": "0.7.1",
+  "description": "Tiny ms conversion utility",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/guille/ms.js.git"
+  },
+  "main": "./index",
+  "devDependencies": {
+    "mocha": "*",
+    "expect.js": "*",
+    "serve": "*"
+  },
+  "component": {
+    "scripts": {
+      "ms/index.js": "index.js"
+    }
+  },
+  "gitHead": "713dcf26d9e6fd9dbc95affe7eff9783b7f1b909",
+  "bugs": {
+    "url": "https://github.com/guille/ms.js/issues"
+  },
+  "homepage": "https://github.com/guille/ms.js",
+  "_id": "ms@0.7.1",
+  "scripts": {},
+  "_shasum": "9cd13c03adbff25b65effde7ce864ee952017098",
+  "_from": "ms@0.7.1",
+  "_npmVersion": "2.7.5",
+  "_nodeVersion": "0.12.2",
+  "_npmUser": {
+    "name": "rauchg",
+    "email": "rauchg@gmail.com"
+  },
+  "maintainers": [
+    {
+      "name": "rauchg",
+      "email": "rauchg@gmail.com"
+    }
+  ],
+  "dist": {
+    "shasum": "9cd13c03adbff25b65effde7ce864ee952017098",
+    "tarball": "http://registry.npmjs.org/ms/-/ms-0.7.1.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/ms/-/ms-0.7.1.tgz",
+  "readme": "ERROR: No README data found!"
+}
