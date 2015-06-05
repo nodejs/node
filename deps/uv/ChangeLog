@@ -1,3 +1,10 @@
+2015.06.06, Version 1.6.1 (Stable), 30c8be07bb78a66fdee5141626bf53a49a17094a
+
+Changes since version 1.6.0:
+
+* unix: handle invalid _SC_GETPW_R_SIZE_MAX values (cjihrig)
+
+
 2015.06.04, Version 1.6.0 (Stable), adfccad76456061dfcf79b8df8e7dbfee51791d7
 
 Changes since version 1.5.0:

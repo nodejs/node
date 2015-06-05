@@ -1000,6 +1000,7 @@ int uv_os_homedir(char* buffer, size_t* size) {
   uid_t uid;
   size_t bufsize;
   size_t len;
+  long initsize;
   int r;
 
   if (buffer == NULL || size == NULL || *size == 0)
@@ -1023,10 +1024,12 @@ int uv_os_homedir(char* buffer, size_t* size) {
   }
 
   /* HOME is not set, so call getpwuid() */
-  bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
+  initsize = sysconf(_SC_GETPW_R_SIZE_MAX);
 
-  if (bufsize <= 0)
-    return -EIO;
+  if (initsize <= 0)
+    bufsize = 4096;
+  else
+    bufsize = (size_t) initsize;
 
   uid = getuid();
   buf = NULL;
