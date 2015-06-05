@@ -16,3 +16,4 @@ config.json
 coverage.*
 lib-cov
 complexity.md
+dist

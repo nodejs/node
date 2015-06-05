@@ -26,6 +26,11 @@ describe('stringify()', function () {
         expect(Qs.stringify({ a: 'b' })).to.equal('a=b');
         expect(Qs.stringify({ a: 1 })).to.equal('a=1');
         expect(Qs.stringify({ a: 1, b: 2 })).to.equal('a=1&b=2');
+        expect(Qs.stringify({ a: 'A_Z' })).to.equal('a=A_Z');
+        expect(Qs.stringify({ a: '€' })).to.equal('a=%E2%82%AC');
+        expect(Qs.stringify({ a: '' })).to.equal('a=%EE%80%80');
+        expect(Qs.stringify({ a: 'א' })).to.equal('a=%D7%90');
+        expect(Qs.stringify({ a: '𐐷' })).to.equal('a=%F0%90%90%B7');
         done();
     });
 
@@ -106,9 +111,15 @@ describe('stringify()', function () {
     it('stringifies an empty value', function (done) {
 
         expect(Qs.stringify({ a: '' })).to.equal('a=');
+        expect(Qs.stringify({ a: null }, {strictNullHandling: true})).to.equal('a');
+
         expect(Qs.stringify({ a: '', b: '' })).to.equal('a=&b=');
-        expect(Qs.stringify({ a: null })).to.equal('a=');
-        expect(Qs.stringify({ a: { b: null } })).to.equal('a%5Bb%5D=');
+        expect(Qs.stringify({ a: null, b: '' }, {strictNullHandling: true})).to.equal('a&b=');
+
+        expect(Qs.stringify({ a: { b: '' } })).to.equal('a%5Bb%5D=');
+        expect(Qs.stringify({ a: { b: null } }, {strictNullHandling: true})).to.equal('a%5Bb%5D');
+        expect(Qs.stringify({ a: { b: null } }, {strictNullHandling: false})).to.equal('a%5Bb%5D=');
+
         done();
     });
 
@@ -143,7 +154,10 @@ describe('stringify()', function () {
     it('drops keys with a value of undefined', function (done) {
 
         expect(Qs.stringify({ a: undefined })).to.equal('');
-        expect(Qs.stringify({ a: { b: undefined, c: null } })).to.equal('a%5Bc%5D=');
+
+        expect(Qs.stringify({ a: { b: undefined, c: null } }, {strictNullHandling: true})).to.equal('a%5Bc%5D');
+        expect(Qs.stringify({ a: { b: undefined, c: null } }, {strictNullHandling: false})).to.equal('a%5Bc%5D=');
+        expect(Qs.stringify({ a: { b: undefined, c: '' } })).to.equal('a%5Bc%5D=');
         done();
     });
 
@@ -163,7 +177,7 @@ describe('stringify()', function () {
 
     it('stringifies the weird object from qs', function (done) {
 
-        expect(Qs.stringify({ 'my weird field': 'q1!2"\'w$5&7/z8)?' })).to.equal('my%20weird%20field=q1!2%22\'w%245%267%2Fz8)%3F');
+        expect(Qs.stringify({ 'my weird field': '~q1!2"\'w$5&7/z8)?' })).to.equal('my%20weird%20field=~q1%212%22%27w%245%267%2Fz8%29%3F');
         done();
     });
 
@@ -205,5 +219,41 @@ describe('stringify()', function () {
         expect(Qs.stringify({ a: 'b', c: 'd' })).to.equal('a=b&c=d');
         global.Buffer = tempBuffer;
         done();
+    });
+
+    it('selects properties when filter=array', function (done) {
+
+        expect(Qs.stringify({ a: 'b' }, { filter: ['a'] })).to.equal('a=b');
+        expect(Qs.stringify({ a: 1}, { filter: [] })).to.equal('');
+        expect(Qs.stringify({ a: { b: [1, 2, 3, 4], c: 'd' }, c: 'f' }, { filter: ['a', 'b', 0, 2]})).to.equal('a%5Bb%5D%5B0%5D=1&a%5Bb%5D%5B2%5D=3');
+        done();
+
+    });
+
+    it('supports custom representations when filter=function', function (done) {
+
+        var calls = 0;
+        var obj = { a: 'b', c: 'd', e: { f: new Date(1257894000000) } };
+        var filterFunc = function (prefix, value) {
+
+            calls++;
+            if (calls === 1) {
+                expect(prefix).to.be.empty();
+                expect(value).to.equal(obj);
+            }
+            else if (prefix === 'c') {
+                return;
+            }
+            else if (value instanceof Date) {
+                expect(prefix).to.equal('e[f]');
+                return value.getTime();
+            }
+            return value;
+        };
+
+        expect(Qs.stringify(obj, { filter: filterFunc })).to.equal('a=b&e%5Bf%5D=1257894000000');
+        expect(calls).to.equal(5);
+        done();
+
     });
 });

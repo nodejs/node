@@ -1,4 +1,4 @@
-.TH "NPMRC" "5" "May 2015" "" ""
+.TH "NPMRC" "5" "June 2015" "" ""
 .SH "NAME"
 \fBnpmrc\fR \- The npm config files
 .SH DESCRIPTION
@@ -48,6 +48,11 @@ key[] = "first value"
 key[] = "second value"
 .fi
 .RE
+.P
+\fBNOTE:\fR Because local (per\-project or per\-user) \fB\|\.npmrc\fR files can contain
+sensitive credentials, they must be readable and writable \fIonly\fR by your user
+account (i\.e\. must have a mode of \fB0600\fR), otherwise they \fIwill be ignored by
+npm!\fR
 .SS Per\-project config file
 .P
 When working locally in a project, a \fB\|\.npmrc\fR file in the root of the

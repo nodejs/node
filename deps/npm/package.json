@@ -1,5 +1,5 @@
 {
-  "version": "2.11.0",
+  "version": "2.11.1",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "keywords": [
@@ -52,7 +52,7 @@
     "fstream-npm": "~1.0.2",
     "github-url-from-git": "~1.4.0",
     "github-url-from-username-repo": "~1.0.2",
-    "glob": "~5.0.7",
+    "glob": "~5.0.10",
     "graceful-fs": "~3.0.7",
     "hosted-git-info": "~2.1.4",
     "inflight": "~1.0.4",
@@ -63,7 +63,7 @@
     "lru-cache": "~2.6.4",
     "minimatch": "~2.0.8",
     "mkdirp": "~0.5.1",
-    "node-gyp": "~1.0.3",
+    "node-gyp": "~2.0.1",
     "nopt": "~3.0.2",
     "normalize-git-url": "~1.0.1",
     "normalize-package-data": "~2.2.0",
@@ -82,7 +82,7 @@
     "read-package-json": "~2.0.0",
     "readable-stream": "~1.0.33",
     "realize-package-specifier": "~3.0.1",
-    "request": "~2.55.0",
+    "request": "~2.56.0",
     "retry": "~0.6.1",
     "rimraf": "~2.3.4",
     "semver": "~4.3.4",
@@ -175,12 +175,12 @@
     "deep-equal": "~1.0.0",
     "marked": "~0.3.3",
     "marked-man": "~0.1.4",
-    "nock": "~2.2.0",
+    "nock": "~2.3.0",
     "npm-registry-couchapp": "~2.6.7",
     "npm-registry-mock": "~1.0.0",
     "require-inject": "~1.2.0",
     "sprintf-js": "~1.0.2",
-    "tap": "~1.1.0"
+    "tap": "~1.2.0"
   },
   "scripts": {
     "test-legacy": "node ./test/run.js",

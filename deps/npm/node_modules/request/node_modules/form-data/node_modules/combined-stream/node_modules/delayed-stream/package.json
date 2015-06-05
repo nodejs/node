@@ -1,0 +1,42 @@
+{
+  "author": {
+    "name": "Felix Geisendörfer",
+    "email": "felix@debuggable.com",
+    "url": "http://debuggable.com/"
+  },
+  "name": "delayed-stream",
+  "description": "Buffers events from a stream until you are ready to handle them.",
+  "version": "0.0.5",
+  "homepage": "https://github.com/felixge/node-delayed-stream",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/felixge/node-delayed-stream.git"
+  },
+  "main": "./lib/delayed_stream",
+  "engines": {
+    "node": ">=0.4.0"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "fake": "0.2.0",
+    "far": "0.0.1"
+  },
+  "_id": "delayed-stream@0.0.5",
+  "_engineSupported": true,
+  "_npmVersion": "1.0.3",
+  "_nodeVersion": "v0.4.9-pre",
+  "_defaultsLoaded": true,
+  "dist": {
+    "shasum": "d4b1f43a93e8296dfe02694f4680bc37a313c73f",
+    "tarball": "http://registry.npmjs.org/delayed-stream/-/delayed-stream-0.0.5.tgz"
+  },
+  "scripts": {},
+  "directories": {},
+  "_shasum": "d4b1f43a93e8296dfe02694f4680bc37a313c73f",
+  "_resolved": "https://registry.npmjs.org/delayed-stream/-/delayed-stream-0.0.5.tgz",
+  "_from": "delayed-stream@0.0.5",
+  "bugs": {
+    "url": "https://github.com/felixge/node-delayed-stream/issues"
+  },
+  "readme": "ERROR: No README data found!"
+}

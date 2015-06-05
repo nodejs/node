@@ -15,27 +15,26 @@ function Redirect (request) {
   this.removeRefererHeader = false
 }
 
-Redirect.prototype.onRequest = function () {
+Redirect.prototype.onRequest = function (options) {
   var self = this
-    , request = self.request
 
-  if (request.maxRedirects !== undefined) {
-    self.maxRedirects = request.maxRedirects
+  if (options.maxRedirects !== undefined) {
+    self.maxRedirects = options.maxRedirects
   }
-  if (typeof request.followRedirect === 'function') {
-    self.allowRedirect = request.followRedirect
+  if (typeof options.followRedirect === 'function') {
+    self.allowRedirect = options.followRedirect
   }
-  if (request.followRedirect !== undefined) {
-    self.followRedirects = !!request.followRedirect
+  if (options.followRedirect !== undefined) {
+    self.followRedirects = !!options.followRedirect
   }
-  if (request.followAllRedirects !== undefined) {
-    self.followAllRedirects = request.followAllRedirects
+  if (options.followAllRedirects !== undefined) {
+    self.followAllRedirects = options.followAllRedirects
   }
   if (self.followRedirects || self.followAllRedirects) {
     self.redirects = self.redirects || []
   }
-  if (request.removeRefererHeader !== undefined) {
-    self.removeRefererHeader = request.removeRefererHeader
+  if (options.removeRefererHeader !== undefined) {
+    self.removeRefererHeader = options.removeRefererHeader
   }
 }
 
@@ -46,7 +45,7 @@ Redirect.prototype.redirectTo = function (response) {
   var redirectTo = null
   if (response.statusCode >= 300 && response.statusCode < 400 && response.caseless.has('location')) {
     var location = response.caseless.get('location')
-    // debug('redirect', location)
+    request.debug('redirect', location)
 
     if (self.followAllRedirects) {
       redirectTo = location
@@ -82,12 +81,12 @@ Redirect.prototype.onResponse = function (response) {
     return false
   }
 
-
-  // debug('redirect to', redirectTo)
+  request.debug('redirect to', redirectTo)
 
   // ignore any potential response body.  it cannot possibly be useful
   // to us at this point.
-  if (request._paused) {
+  // response.resume should be defined, but check anyway before calling. Workaround for browserify.
+  if (response.resume) {
     response.resume()
   }
 

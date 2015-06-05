@@ -24,7 +24,11 @@ override the setting in the globalconfig file.</p>
 example:</p>
 <pre><code>key[] = &quot;first value&quot;
 key[] = &quot;second value&quot;
-</code></pre><h3 id="per-project-config-file">Per-project config file</h3>
+</code></pre><p><strong>NOTE:</strong> Because local (per-project or per-user) <code>.npmrc</code> files can contain
+sensitive credentials, they must be readable and writable <em>only</em> by your user
+account (i.e. must have a mode of <code>0600</code>), otherwise they <em>will be ignored by
+npm!</em></p>
+<h3 id="per-project-config-file">Per-project config file</h3>
 <p>When working locally in a project, a <code>.npmrc</code> file in the root of the
 project (ie, a sibling of <code>node_modules</code> and <code>package.json</code>) will set
 config values specific to this project.</p>
