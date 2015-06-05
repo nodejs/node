@@ -795,7 +795,7 @@ on Unix systems, it never was.
 
 Returns a new ReadStream object (See `Readable Stream`).
 
-`options` is an object with the following defaults:
+`options` is an object or string with the following defaults:
 
     { flags: 'r',
       encoding: null,
@@ -821,6 +821,7 @@ An example to read the last 10 bytes of a file which is 100 bytes long:
 
     fs.createReadStream('sample.txt', {start: 90, end: 99});
 
+If `options` is a string, then it specifies the encoding.
 
 ## Class: fs.ReadStream
 
@@ -837,7 +838,7 @@ Emitted when the ReadStream's file is opened.
 
 Returns a new WriteStream object (See `Writable Stream`).
 
-`options` is an object with the following defaults:
+`options` is an object or string with the following defaults:
 
     { flags: 'w',
       encoding: null,
@@ -854,6 +855,7 @@ Like `ReadStream` above, if `fd` is specified, `WriteStream` will ignore the
 `path` argument and will use the specified file descriptor. This means that no
 `open` event will be emitted.
 
+If `options` is a string, then it specifies the encoding.
 
 ## Class: fs.WriteStream
 
