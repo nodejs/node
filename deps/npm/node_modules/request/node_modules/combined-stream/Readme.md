@@ -1,6 +1,13 @@
-# combined-stream [![Build Status](https://travis-ci.org/felixge/node-combined-stream.svg?branch=master)](https://travis-ci.org/felixge/node-combined-stream)
+# combined-stream
 
 A stream that emits multiple other streams one after another.
+
+**NB** This module uses streams1 and will always use streams1 for
+compatibility. If you're looking for something to use for your project, please
+use a streams2 module, e.g.,
+[multistream](https://www.npmjs.com/package/multistream). Moreover, this module
+is maintained for bugfixes to current downstream consumers, so PRs which add
+features generally aren't accepted.
 
 ## Installation
 

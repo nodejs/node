@@ -246,12 +246,12 @@ module.exports = {
   },
 
   /**
-  * Converts a PKGCS#8 PEM file to an OpenSSH public key (rsa)
-  *
-  * The reverse of the above function.
-  */
+   * Converts a PKGCS#8 PEM file to an OpenSSH public key (rsa)
+   *
+   * The reverse of the above function.
+   */
   pemToRsaSSHKey: function pemToRsaSSHKey(pem, comment) {
-    assert.equal('string', typeof pem, 'typeof pem');
+    assert.equal('string', typeof (pem), 'typeof pem');
 
     // chop off the BEGIN PUBLIC KEY and END PUBLIC KEY portion
     var cleaned = pem.split('\n').slice(1, -2).join('');
@@ -289,7 +289,8 @@ module.exports = {
 
     // now, make the key
     var type = new Buffer('ssh-rsa');
-    var buffer = new Buffer(4 + type.length + 4 + modulus.length + 4 + exponent.length);
+    var buffer = new Buffer(4 + type.length + 4 + modulus.length +
+      4 + exponent.length);
     var i = 0;
     buffer.writeUInt32BE(type.length, i);     i += 4;
     type.copy(buffer, i);                     i += type.length;
@@ -298,7 +299,8 @@ module.exports = {
     buffer.writeUInt32BE(modulus.length, i);  i += 4;
     modulus.copy(buffer, i);                  i += modulus.length;
 
-    var s = type.toString() + ' ' + buffer.toString('base64') + ' ' + (comment || '');
+    var s = (type.toString() + ' ' + buffer.toString('base64') + ' ' +
+      (comment || ''));
     return s;
   }
 };

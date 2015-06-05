@@ -1,3 +1,36 @@
+### v2.11.1 (2015-05-28):
+
+This release brought to you from poolside at the Omni Amelia Island Resort and
+JSConf 2015, which is why it's so tiny.
+
+#### CONFERENCE WIFI CAN'T STOP THESE BUG FIXES
+
+* [`cf109a6`](https://github.com/npm/npm/commit/cf109a682f38a059a994da953d5c1b4aaece5e2f)
+  [#8381](https://github.com/npm/npm/issues/8381) Documented a subtle gotcha
+  with `.npmrc`, which is that it needs to have its permissions set such that
+  only the owner can read or write the file.
+  ([@colakong](https://github.com/colakong))
+* [`180da67`](https://github.com/npm/npm/commit/180da67c9fa53103d625e2f031626c2453c7ebcd)
+  [#8365](https://github.com/npm/npm/issues/8365) Git 2.3 adds support for
+  `GIT_SSH_COMMAND`, which allows you to pass an explicit git command (with,
+  for example, a specific identity passed in on the command line).
+    ([@nmalaguti](https://github.com/nmalaguti))
+
+#### MY (VIRGIN) PINA COLADA IS GETTING LOW, BETTER UPGRADE THESE DEPENDENCIES
+
+* [`b72de41`](https://github.com/npm/npm/commit/b72de41c5cc9f0c46d3fa8f062c75bd273641474)
+  `node-gyp@2.0.0`: Use a newer version of `gyp`, and generally improve support
+  for Visual Studios and Windows.
+    ([@TooTallNate](https://github.com/TooTallNate))
+* [`8edbe21`](https://github.com/npm/npm/commit/8edbe210af41e8f248f5bb92c72de92f54fda3b1)
+  `node-gyp@2.0.1`: Don't crash when Python's version doesn't parse as valid
+  semver. ([@TooTallNate](https://github.com/TooTallNate))
+* [`ba0e0a8`](https://github.com/npm/npm/commit/ba0e0a845a4f29717aba566b416a27d1a22f5d08)
+  `glob@5.0.10`: Add coverage to tests. ([@isaacs](https://github.com/isaacs))
+* [`7333701`](https://github.com/npm/npm/commit/7333701b5d4f01673f37d64992c63c4e15864d6d)
+  `request@2.56.0`: Bug fixes and dependency upgrades.
+  ([@simov](https://github.com/simov))
+
 ### v2.11.0 (2015-05-21):
 
 For the first time in a very long time, we've added new events to the life
