@@ -616,7 +616,7 @@ void WriteDoubleBE(const FunctionCallbackInfo<Value>& args) {
 
 
 template <typename T, enum Endianness endianness,
-         T (*strtoT)(const char*, char**, int)>
+         T (*strtoT)(const char*, char**, int), T min, T max>
 uint32_t WriteInt64Generic(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -628,24 +628,22 @@ uint32_t WriteInt64Generic(const FunctionCallbackInfo<Value>& args) {
   if (args[1]->IsNumber()) {
     val = args[1]->IntegerValue();
   } else if (args[1]->IsString()) {
-    // Have to do this because strt(u)oll doesn't set errno to 0 on success
-    errno = 0;
     node::Utf8Value str(env->isolate(), args[1]);
+    const char* cstr = *str;
+    char* endptr;
 
-    val = strtoT(*str, nullptr, 10);
+    errno = 0;  /* To distinguish success/failure after call */
+    val = strtoT(cstr, &endptr, 10);
 
-    if (errno != 0) {
-      if (errno == EINVAL) {
-        env->ThrowTypeError("value is invalid");
-      } else if (errno == ERANGE) {
-        env->ThrowRangeError("value is out-of-range");
-      } else {
-        env->ThrowError("unspecified error");
-      }
+    if (errno == ERANGE && (val == min || val == max)) {
+      env->ThrowRangeError("value is out-of-range");
+      return 0;
+    } else if (endptr == cstr || *endptr != '\0') {
+      env->ThrowTypeError("value is invalid");
       return 0;
     }
   } else {
-    UNREACHABLE():
+    UNREACHABLE();
     return 0;
   }
 
@@ -667,25 +665,25 @@ uint32_t WriteInt64Generic(const FunctionCallbackInfo<Value>& args) {
 
 
 void WriteInt64LE(const FunctionCallbackInfo<Value>& args) {
-  args.GetReturnValue().Set(WriteInt64Generic<int64_t, kLittleEndian,
-                                              strtoll>(args));
+  args.GetReturnValue().Set(WriteInt64Generic<int64_t, kLittleEndian, strtoll,
+                                              LLONG_MIN, LLONG_MAX>(args));
 }
 
 
 void WriteInt64BE(const FunctionCallbackInfo<Value>& args) {
-  args.GetReturnValue().Set(WriteInt64Generic<int64_t, kBigEndian,
-                                              strtoll>(args));
+  args.GetReturnValue().Set(WriteInt64Generic<int64_t, kBigEndian, strtoll,
+                                              LLONG_MIN, LLONG_MAX>(args));
 }
 
 void WriteUInt64LE(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(WriteInt64Generic<uint64_t, kLittleEndian,
-                                              strtoull>(args));
+                                              strtoull, 0, ULLONG_MAX>(args));
 }
 
 
 void WriteUInt64BE(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(WriteInt64Generic<uint64_t, kBigEndian,
-                                              strtoull>(args));
+                                              strtoull, 0, ULLONG_MAX>(args));
 }
 
 
