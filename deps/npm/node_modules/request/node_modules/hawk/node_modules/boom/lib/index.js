@@ -27,17 +27,18 @@ exports.create = function (statusCode, message, data) {
 
 internals.initialize = function (error, statusCode, message) {
 
-    Hoek.assert(Hoek.isInteger(statusCode) && statusCode >= 400, 'First argument must be a number (400+):', statusCode);
+    var numberCode = parseInt(statusCode, 10);
+    Hoek.assert(!isNaN(numberCode) && numberCode >= 400, 'First argument must be a number (400+):', statusCode);
 
     error.isBoom = true;
-    error.isServer = statusCode >= 500;
+    error.isServer = numberCode >= 500;
 
     if (!error.hasOwnProperty('data')) {
         error.data = null;
     }
 
     error.output = {
-        statusCode: statusCode,
+        statusCode: numberCode,
         payload: {},
         headers: {}
     };
@@ -290,4 +291,3 @@ exports.badImplementation = function (message, data) {
     err.isDeveloperError = true;
     return err;
 };
-

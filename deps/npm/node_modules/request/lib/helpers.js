@@ -4,7 +4,7 @@ var jsonSafeStringify = require('json-stringify-safe')
   , crypto = require('crypto')
 
 function deferMethod() {
-  if(typeof setImmediate === 'undefined') {
+  if (typeof setImmediate === 'undefined') {
     return process.nextTick
   }
 

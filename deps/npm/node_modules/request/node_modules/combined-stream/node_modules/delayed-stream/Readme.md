@@ -108,19 +108,6 @@ characters.
 If you know what you are doing, you can set this property to `Infinity` to
 disable this feature. You can also modify this property during runtime.
 
-### delayedStream.maxDataSize = 1024 * 1024
-
-The amount of data to buffer before emitting an `error`.
-
-If the underlaying source is emitting `Buffer` objects, the `maxDataSize`
-refers to bytes.
-
-If the underlaying source is emitting JavaScript strings, the size refers to
-characters.
-
-If you know what you are doing, you can set this property to `Infinity` to
-disable this feature.
-
 ### delayedStream.dataSize = 0
 
 The amount of data buffered so far.

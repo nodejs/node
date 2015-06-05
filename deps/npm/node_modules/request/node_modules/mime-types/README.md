@@ -90,13 +90,13 @@ A map of extensions by content-type.
 
 [MIT](LICENSE)
 
-[npm-image]: https://img.shields.io/npm/v/mime-types.svg?style=flat
+[npm-image]: https://img.shields.io/npm/v/mime-types.svg
 [npm-url]: https://npmjs.org/package/mime-types
-[node-version-image]: https://img.shields.io/badge/node.js-%3E%3D_0.6-brightgreen.svg?style=flat
+[node-version-image]: https://img.shields.io/node/v/mime-types.svg
 [node-version-url]: http://nodejs.org/download/
-[travis-image]: https://img.shields.io/travis/jshttp/mime-types.svg?style=flat
+[travis-image]: https://img.shields.io/travis/jshttp/mime-types/master.svg
 [travis-url]: https://travis-ci.org/jshttp/mime-types
-[coveralls-image]: https://img.shields.io/coveralls/jshttp/mime-types.svg?style=flat
+[coveralls-image]: https://img.shields.io/coveralls/jshttp/mime-types/master.svg
 [coveralls-url]: https://coveralls.io/r/jshttp/mime-types
-[downloads-image]: https://img.shields.io/npm/dm/mime-types.svg?style=flat
+[downloads-image]: https://img.shields.io/npm/dm/mime-types.svg
 [downloads-url]: https://npmjs.org/package/mime-types

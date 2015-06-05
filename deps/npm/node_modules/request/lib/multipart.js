@@ -18,7 +18,7 @@ Multipart.prototype.isChunked = function (options) {
     , parts = options.data || options
 
   if (!parts.forEach) {
-    throw new Error('Argument error, options.multipart.')
+    self.request.emit('error', new Error('Argument error, options.multipart.'))
   }
 
   if (options.chunked !== undefined) {
@@ -31,8 +31,8 @@ Multipart.prototype.isChunked = function (options) {
 
   if (!chunked) {
     parts.forEach(function (part) {
-      if(typeof part.body === 'undefined') {
-        throw new Error('Body attribute missing in multipart.')
+      if (typeof part.body === 'undefined') {
+        self.request.emit('error', new Error('Body attribute missing in multipart.'))
       }
       if (isstream(part.body)) {
         chunked = true

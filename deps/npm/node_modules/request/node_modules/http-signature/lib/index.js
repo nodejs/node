@@ -1,4 +1,4 @@
-// Copyright 2011 Joyent, Inc.  All rights reserved.
+// Copyright 2015 Joyent, Inc.
 
 var parser = require('./parser');
 var signer = require('./signer');
@@ -22,5 +22,6 @@ module.exports = {
   pemToRsaSSHKey: util.pemToRsaSSHKey,
 
   verify: verify.verifySignature,
-  verifySignature: verify.verifySignature
+  verifySignature: verify.verifySignature,
+  verifyHMAC: verify.verifyHMAC
 };

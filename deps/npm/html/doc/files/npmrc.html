@@ -35,7 +35,11 @@ override the setting in the globalconfig file.</p>
 example:</p>
 <pre><code>key[] = &quot;first value&quot;
 key[] = &quot;second value&quot;
-</code></pre><h3 id="per-project-config-file">Per-project config file</h3>
+</code></pre><p><strong>NOTE:</strong> Because local (per-project or per-user) <code>.npmrc</code> files can contain
+sensitive credentials, they must be readable and writable <em>only</em> by your user
+account (i.e. must have a mode of <code>0600</code>), otherwise they <em>will be ignored by
+npm!</em></p>
+<h3 id="per-project-config-file">Per-project config file</h3>
 <p>When working locally in a project, a <code>.npmrc</code> file in the root of the
 project (ie, a sibling of <code>node_modules</code> and <code>package.json</code>) will set
 config values specific to this project.</p>
@@ -77,5 +81,5 @@ manner.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npmrc &mdash; npm@2.11.0</p>
+<p id="footer">npmrc &mdash; npm@2.11.1</p>
 

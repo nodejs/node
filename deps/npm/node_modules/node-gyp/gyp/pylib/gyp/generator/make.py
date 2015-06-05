@@ -29,6 +29,7 @@ import gyp
 import gyp.common
 import gyp.xcode_emulation
 from gyp.common import GetEnvironFallback
+from gyp.common import GypError
 
 generator_default_variables = {
   'EXECUTABLE_PREFIX': '',
@@ -280,15 +281,7 @@ LDFLAGS.target ?= $(LDFLAGS)
 AR.target ?= $(AR)
 
 # C++ apps need to be linked with g++.
-#
-# Note: flock is used to seralize linking. Linking is a memory-intensive
-# process so running parallel links can often lead to thrashing.  To disable
-# the serialization, override LINK via an envrionment variable as follows:
-#
-#   export LINK=g++
-#
-# This will allow make to invoke N linker processes as specified in -jN.
-LINK ?= %(flock)s $(builddir)/linker.lock $(CXX.target)
+LINK ?= $(CXX.target)
 
 # TODO(evan): move all cross-compilation logic to gyp-time so we don't need
 # to replicate this environment fallback in make as well.
@@ -631,6 +624,38 @@ def QuoteSpaces(s, quote=r'\ '):
   return s.replace(' ', quote)
 
 
+# TODO: Avoid code duplication with _ValidateSourcesForMSVSProject in msvs.py.
+def _ValidateSourcesForOSX(spec, all_sources):
+  """Makes sure if duplicate basenames are not specified in the source list.
+
+  Arguments:
+    spec: The target dictionary containing the properties of the target.
+  """
+  if spec.get('type', None) != 'static_library':
+    return
+
+  basenames = {}
+  for source in all_sources:
+    name, ext = os.path.splitext(source)
+    is_compiled_file = ext in [
+        '.c', '.cc', '.cpp', '.cxx', '.m', '.mm', '.s', '.S']
+    if not is_compiled_file:
+      continue
+    basename = os.path.basename(name)  # Don't include extension.
+    basenames.setdefault(basename, []).append(source)
+
+  error = ''
+  for basename, files in basenames.iteritems():
+    if len(files) > 1:
+      error += '  %s: %s\n' % (basename, ' '.join(files))
+
+  if error:
+    print('static library %s has several files with the same basename:\n' %
+          spec['target_name'] + error + 'libtool on OS X will generate' +
+          ' warnings for them.')
+    raise GypError('Duplicate basenames in sources section, see list above')
+
+
 # Map from qualified target to path to output.
 target_outputs = {}
 # Map from qualified target to any linkable output.  A subset
@@ -640,7 +665,7 @@ target_outputs = {}
 target_link_deps = {}
 
 
-class MakefileWriter:
+class MakefileWriter(object):
   """MakefileWriter packages up the writing of one target-specific foobar.mk.
 
   Its only real entry point is Write(), and is mostly used for namespacing.
@@ -758,6 +783,10 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     # Sources.
     all_sources = spec.get('sources', []) + extra_sources
     if all_sources:
+      if self.flavor == 'mac':
+        # libtool on OS X generates warnings for duplicate basenames in the same
+        # target.
+        _ValidateSourcesForOSX(spec, all_sources)
       self.WriteSources(
           configs, deps, all_sources, extra_outputs,
           extra_link_deps, part_of_all,
@@ -1101,9 +1130,12 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     for output, res in gyp.xcode_emulation.GetMacBundleResources(
         generator_default_variables['PRODUCT_DIR'], self.xcode_settings,
         map(Sourceify, map(self.Absolutify, resources))):
-      self.WriteDoCmd([output], [res], 'mac_tool,,,copy-bundle-resource',
-                      part_of_all=True)
-      bundle_deps.append(output)
+      _, ext = os.path.splitext(output)
+      if ext != '.xcassets':
+        # Make does not supports '.xcassets' emulation.
+        self.WriteDoCmd([output], [res], 'mac_tool,,,copy-bundle-resource',
+                        part_of_all=True)
+        bundle_deps.append(output)
 
 
   def WriteMacInfoPlist(self, bundle_deps):
@@ -2036,7 +2068,6 @@ def GenerateOutput(target_list, target_dicts, data, params):
   build_file, _, _ = gyp.common.ParseQualifiedTarget(target_list[0])
   make_global_settings_array = data[build_file].get('make_global_settings', [])
   wrappers = {}
-  wrappers['LINK'] = '%s $(builddir)/linker.lock' % flock_command
   for key, value in make_global_settings_array:
     if key.endswith('_wrapper'):
       wrappers[key[:-len('_wrapper')]] = '$(abspath %s)' % value
