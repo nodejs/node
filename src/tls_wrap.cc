@@ -320,6 +320,10 @@ void TLSWrap::EncOutCb(WriteWrap* req_wrap, int status) {
   TLSWrap* wrap = req_wrap->wrap()->Cast<TLSWrap>();
   req_wrap->Dispose();
 
+  // We should not be getting here after `DestroySSL`, because all queued writes
+  // must be invoked with UV_ECANCELED
+  CHECK_NE(wrap->ssl_, nullptr);
+
   // Handle error
   if (status) {
     // Ignore errors after shutdown
@@ -330,9 +334,6 @@ void TLSWrap::EncOutCb(WriteWrap* req_wrap, int status) {
     wrap->InvokeQueued(status);
     return;
   }
-
-  if (wrap->ssl_ == nullptr)
-    return;
 
   // Commit
   NodeBIO::FromBIO(wrap->enc_out_)->Read(nullptr, wrap->write_size_);
