@@ -1387,7 +1387,8 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
   }
   switch (map()->instance_type()) {
     case MAP_TYPE:
-      os << "<Map(elements=" << Map::cast(this)->elements_kind() << ")>";
+      os << "<Map(" << ElementsKindToString(Map::cast(this)->elements_kind())
+         << ")>";
       break;
     case FIXED_ARRAY_TYPE:
       os << "<FixedArray[" << FixedArray::cast(this)->length() << "]>";
@@ -2890,6 +2891,13 @@ Handle<Map> Map::ReconfigureProperty(Handle<Map> old_map, int modify_index,
   bool transition_target_deprecated = split_map->DeprecateTarget(
       split_kind, old_descriptors->GetKey(split_nof), split_attributes,
       *new_descriptors, *new_layout_descriptor);
+
+  if (from_kind != to_kind) {
+    // There was an elements kind change in the middle of transition tree and
+    // we reconstructed the tree so that all elements kind transitions are
+    // done at the beginning, therefore the |old_map| is no longer stable.
+    old_map->NotifyLeafMapLayoutChange();
+  }
 
   // If |transition_target_deprecated| is true then the transition array
   // already contains entry for given descriptor. This means that the transition

@@ -987,6 +987,7 @@ class Heap {
   }
 
   static bool RootIsImmortalImmovable(int root_index);
+  void CheckHandleCount();
 
 #ifdef VERIFY_HEAP
   // Verify the heap is in its normal state before or after a GC.

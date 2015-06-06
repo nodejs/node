@@ -715,7 +715,7 @@ class FullCodeGenerator: public AstVisitor {
     loop_depth_--;
   }
 
-  MacroAssembler* masm() { return masm_; }
+  MacroAssembler* masm() const { return masm_; }
 
   class ExpressionContext;
   const ExpressionContext* context() { return context_; }
@@ -758,6 +758,9 @@ class FullCodeGenerator: public AstVisitor {
   void Generate();
   void PopulateDeoptimizationData(Handle<Code> code);
   void PopulateTypeFeedbackInfo(Handle<Code> code);
+
+  bool MustCreateObjectLiteralWithRuntime(ObjectLiteral* expr) const;
+  bool MustCreateArrayLiteralWithRuntime(ArrayLiteral* expr) const;
 
   Handle<HandlerTable> handler_table() { return handler_table_; }
 

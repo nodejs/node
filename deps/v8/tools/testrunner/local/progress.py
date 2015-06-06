@@ -192,10 +192,12 @@ class CompactProgressIndicator(ProgressIndicator):
   def PrintProgress(self, name):
     self.ClearLine(self.last_status_length)
     elapsed = time.time() - self.start_time
+    progress = 0 if not self.runner.total else (
+        ((self.runner.total - self.runner.remaining) * 100) //
+          self.runner.total)
     status = self.templates['status_line'] % {
       'passed': self.runner.succeeded,
-      'remaining': (((self.runner.total - self.runner.remaining) * 100) //
-                    self.runner.total),
+      'progress': progress,
       'failed': len(self.runner.failed),
       'test': name,
       'mins': int(elapsed) / 60,
@@ -212,7 +214,7 @@ class ColorProgressIndicator(CompactProgressIndicator):
   def __init__(self):
     templates = {
       'status_line': ("[%(mins)02i:%(secs)02i|"
-                      "\033[34m%%%(remaining) 4d\033[0m|"
+                      "\033[34m%%%(progress) 4d\033[0m|"
                       "\033[32m+%(passed) 4d\033[0m|"
                       "\033[31m-%(failed) 4d\033[0m]: %(test)s"),
       'stdout': "\033[1m%s\033[0m",
@@ -228,7 +230,7 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
 
   def __init__(self):
     templates = {
-      'status_line': ("[%(mins)02i:%(secs)02i|%%%(remaining) 4d|"
+      'status_line': ("[%(mins)02i:%(secs)02i|%%%(progress) 4d|"
                       "+%(passed) 4d|-%(failed) 4d]: %(test)s"),
       'stdout': '%s',
       'stderr': '%s',

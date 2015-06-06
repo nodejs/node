@@ -1007,7 +1007,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
 
         if (next_.literal_chars->one_byte_literal().length() <= 10 &&
             value <= Smi::kMaxValue && c0_ != '.' && c0_ != 'e' && c0_ != 'E') {
-          smi_value_ = static_cast<int>(value);
+          next_.smi_value_ = static_cast<int>(value);
           literal.Complete();
           HandleLeadSurrogate();
 

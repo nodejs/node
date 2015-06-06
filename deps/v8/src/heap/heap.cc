@@ -620,6 +620,7 @@ void Heap::GarbageCollectionEpilogue() {
   if (FLAG_gc_verbose) Print();
   if (FLAG_code_stats) ReportCodeStatistics("After GC");
 #endif
+  if (FLAG_check_handle_count) CheckHandleCount();
   if (FLAG_deopt_every_n_garbage_collections > 0) {
     // TODO(jkummerow/ulan/jarin): This is not safe! We can't assume that
     // the topmost optimized frame can be deoptimized safely, because it
@@ -1023,7 +1024,7 @@ bool Heap::ReserveSpace(Reservation* reservations) {
         } else {
           if (counter > 1) {
             CollectAllGarbage(
-                kReduceMemoryFootprintMask,
+                kReduceMemoryFootprintMask | kAbortIncrementalMarkingMask,
                 "failed to reserve space in paged or large "
                 "object space, trying to reduce memory footprint");
           } else {
@@ -5697,6 +5698,24 @@ void Heap::PrintHandles() {
 }
 
 #endif
+
+class CheckHandleCountVisitor : public ObjectVisitor {
+ public:
+  CheckHandleCountVisitor() : handle_count_(0) {}
+  ~CheckHandleCountVisitor() { CHECK(handle_count_ < 2000); }
+  void VisitPointers(Object** start, Object** end) {
+    handle_count_ += end - start;
+  }
+
+ private:
+  ptrdiff_t handle_count_;
+};
+
+
+void Heap::CheckHandleCount() {
+  CheckHandleCountVisitor v;
+  isolate_->handle_scope_implementer()->Iterate(&v);
+}
 
 
 Space* AllSpaces::next() {

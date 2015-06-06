@@ -1482,10 +1482,12 @@ class ObjectLiteral FINAL : public MaterializedLiteral {
   Handle<FixedArray> constant_properties() const {
     return constant_properties_;
   }
+  int properties_count() const { return constant_properties_->length() / 2; }
   ZoneList<Property*>* properties() const { return properties_; }
   bool fast_elements() const { return fast_elements_; }
   bool may_store_doubles() const { return may_store_doubles_; }
   bool has_function() const { return has_function_; }
+  bool has_elements() const { return has_elements_; }
 
   // Decide if a property should be in the object boilerplate.
   static bool IsBoilerplateProperty(Property* property);
@@ -1499,16 +1501,20 @@ class ObjectLiteral FINAL : public MaterializedLiteral {
   void CalculateEmitStore(Zone* zone);
 
   // Assemble bitfield of flags for the CreateObjectLiteral helper.
-  int ComputeFlags() const {
+  int ComputeFlags(bool disable_mementos = false) const {
     int flags = fast_elements() ? kFastElements : kNoFlags;
     flags |= has_function() ? kHasFunction : kNoFlags;
+    if (disable_mementos) {
+      flags |= kDisableMementos;
+    }
     return flags;
   }
 
   enum Flags {
     kNoFlags = 0,
     kFastElements = 1,
-    kHasFunction = 1 << 1
+    kHasFunction = 1 << 1,
+    kDisableMementos = 1 << 2
   };
 
   struct Accessors: public ZoneObject {
@@ -1533,6 +1539,7 @@ class ObjectLiteral FINAL : public MaterializedLiteral {
         properties_(properties),
         boilerplate_properties_(boilerplate_properties),
         fast_elements_(false),
+        has_elements_(false),
         may_store_doubles_(false),
         has_function_(has_function) {}
   static int parent_num_ids() { return MaterializedLiteral::num_ids(); }
@@ -1543,6 +1550,7 @@ class ObjectLiteral FINAL : public MaterializedLiteral {
   ZoneList<Property*>* properties_;
   int boilerplate_properties_;
   bool fast_elements_;
+  bool has_elements_;
   bool may_store_doubles_;
   bool has_function_;
 };
@@ -1578,6 +1586,12 @@ class ArrayLiteral FINAL : public MaterializedLiteral {
   DECLARE_NODE_TYPE(ArrayLiteral)
 
   Handle<FixedArray> constant_elements() const { return constant_elements_; }
+  ElementsKind constant_elements_kind() const {
+    DCHECK_EQ(2, constant_elements_->length());
+    return static_cast<ElementsKind>(
+        Smi::cast(constant_elements_->get(0))->value());
+  }
+
   ZoneList<Expression*>* values() const { return values_; }
 
   BailoutId CreateLiteralId() const { return BailoutId(local_id(0)); }
@@ -1593,9 +1607,11 @@ class ArrayLiteral FINAL : public MaterializedLiteral {
   void BuildConstantElements(Isolate* isolate);
 
   // Assemble bitfield of flags for the CreateArrayLiteral helper.
-  int ComputeFlags() const {
+  int ComputeFlags(bool disable_mementos = false) const {
     int flags = depth() == 1 ? kShallowElements : kNoFlags;
-    flags |= ArrayLiteral::kDisableMementos;
+    if (disable_mementos) {
+      flags |= kDisableMementos;
+    }
     return flags;
   }
 

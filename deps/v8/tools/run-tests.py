@@ -584,10 +584,6 @@ def Execute(arch, mode, args, options, suites, workspace):
   if options.report:
     verbose.PrintReport(all_tests)
 
-  if num_tests == 0:
-    print "No tests to run."
-    return 0
-
   # Run the tests, either locally or distributed on the network.
   start_time = time.time()
   progress_indicator = progress.PROGRESS_INDICATORS[options.progress]()

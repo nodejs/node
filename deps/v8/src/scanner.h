@@ -436,7 +436,7 @@ class Scanner {
   void clear_octal_position() { octal_pos_ = Location::invalid(); }
 
   // Returns the value of the last smi that was scanned.
-  int smi_value() const { return smi_value_; }
+  int smi_value() const { return current_.smi_value_; }
 
   // Seek forward to the given position.  This operation does not
   // work in general, for instance when there are pushed back
@@ -497,6 +497,7 @@ class Scanner {
     Location location;
     LiteralBuffer* literal_chars;
     LiteralBuffer* raw_literal_chars;
+    int smi_value_;
   };
 
   static const int kCharacterLookaheadBufferSize = 1;
@@ -723,9 +724,6 @@ class Scanner {
 
   // Start position of the octal literal last scanned.
   Location octal_pos_;
-
-  // Value of the last smi that was scanned.
-  int smi_value_;
 
   // One Unicode character look-ahead; c0_ < 0 at the end of the input.
   uc32 c0_;
