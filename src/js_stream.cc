@@ -163,7 +163,7 @@ template <class Wrap>
 void JSStream::Finish(const FunctionCallbackInfo<Value>& args) {
   Wrap* w = Unwrap<Wrap>(args[0].As<Object>());
 
-  w->Done(args[0]->Int32Value());
+  w->Done(args[1]->Int32Value());
 }
 
 
