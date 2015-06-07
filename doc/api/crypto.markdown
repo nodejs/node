@@ -530,7 +530,7 @@ Example (obtaining a shared secret):
 
 Creates an Elliptic Curve (EC) Diffie-Hellman key exchange object using a
 predefined curve specified by the `curve_name` string. On recent releases,
-`openssl ecparam -list_curves` will display the name and description of each 
+`openssl ecparam -list_curves` will display the name and description of each
 available elliptic curve.
 
 ## Class: ECDH
