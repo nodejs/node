@@ -179,7 +179,9 @@ automatically set as a listener for the [secureConnection][] event.  The
   - `ecdhCurve`: A string describing a named curve to use for ECDH key agreement
     or false to disable ECDH.
 
-    Defaults to `prime256v1`. Consult [RFC 4492] for more details.
+    Defaults to `prime256v1` (NIST P-256). On recent releases, `openssl ecparam
+    -list_curves` will display the name and description of each available elliptic
+    curve.
 
   - `dhparam`: A string or `Buffer` containing Diffie Hellman parameters,
     required for Perfect Forward Secrecy. Use `openssl dhparam` to create it.
