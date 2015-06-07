@@ -181,6 +181,9 @@ automatically set as a listener for the [secureConnection][] event.  The
 
     Defaults to `prime256v1`. Consult [RFC 4492] for more details.
 
+    On recent releases, `openssl ecparam -list_curves` will display the name and
+    description of each available elliptic curve.
+
   - `dhparam`: A string or `Buffer` containing Diffie Hellman parameters,
     required for Perfect Forward Secrecy. Use `openssl dhparam` to create it.
     Its key length should be greater than or equal to 1024 bits, otherwise
