@@ -96,6 +96,12 @@ assert.notEqual(-1, crypto.getHashes().indexOf('RSA-SHA1'));
 assert.equal(-1, crypto.getHashes().indexOf('rsa-sha1'));
 assertSorted(crypto.getHashes());
 
+// Assume that we have at least secp384r1.
+assert.notEqual(0, crypto.getCurves().length);
+assert.notEqual(-1, crypto.getCurves().indexOf('secp384r1'));
+assert.equal(-1, crypto.getCurves().indexOf('SECP384R1'));
+assertSorted(crypto.getCurves());
+
 // Regression tests for #5725: hex input that's not a power of two should
 // throw, not assert in C++ land.
 assert.throws(function() {

@@ -42,7 +42,7 @@ Returns an array with the names of the supported ciphers.
 Example:
 
     var ciphers = crypto.getCiphers();
-    console.log(ciphers); // ['AES-128-CBC', 'AES-128-CBC-HMAC-SHA1', ...]
+    console.log(ciphers); // ['aes-128-cbc', 'aes-128-ccm', ...]
 
 
 ## crypto.getHashes()
@@ -53,6 +53,16 @@ Example:
 
     var hashes = crypto.getHashes();
     console.log(hashes); // ['sha', 'sha1', 'sha1WithRSAEncryption', ...]
+
+
+## crypto.getCurves()
+
+Returns an array with the names of the supported elliptic curves.
+
+Example:
+
+    var curves = crypto.getCurves();
+    console.log(curves); // ['secp256k1', 'secp384r1', ...]
 
 
 ## crypto.createCredentials(details)
