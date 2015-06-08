@@ -179,9 +179,10 @@ automatically set as a listener for the [secureConnection][] event.  The
   - `ecdhCurve`: A string describing a named curve to use for ECDH key agreement
     or false to disable ECDH.
 
-    Defaults to `prime256v1` (NIST P-256). On recent releases, `openssl ecparam
-    -list_curves` will display the name and description of each available elliptic
-    curve.
+    Defaults to `prime256v1` (NIST P-256). Use [crypto.getCurves()][] to obtain
+    a list of available curve names. On recent releases,
+    `openssl ecparam -list_curves` will also display the name and description of
+    each available elliptic curve.
 
   - `dhparam`: A string or `Buffer` containing Diffie Hellman parameters,
     required for Perfect Forward Secrecy. Use `openssl dhparam` to create it.
@@ -814,6 +815,7 @@ The numeric representation of the local port.
 [Chrome's 'modern cryptography' setting]: http://www.chromium.org/Home/chromium-security/education/tls#TOC-Deprecation-of-TLS-Features-Algorithms-in-Chrome
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
 [BEAST attacks]: http://blog.ivanristic.com/2011/10/mitigating-the-beast-attack-on-tls.html
+[crypto.getCurves()]: crypto.html#crypto_crypto_getcurves
 [tls.createServer]: #tls_tls_createserver_options_secureconnectionlistener
 [tls.createSecurePair]: #tls_tls_createsecurepair_context_isserver_requestcert_rejectunauthorized
 [tls.TLSSocket]: #tls_class_tls_tlssocket
