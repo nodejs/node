@@ -539,9 +539,10 @@ Example (obtaining a shared secret):
 ## crypto.createECDH(curve_name)
 
 Creates an Elliptic Curve (EC) Diffie-Hellman key exchange object using a
-predefined curve specified by the `curve_name` string. On recent releases,
-`openssl ecparam -list_curves` will display the name and description of each
-available elliptic curve.
+predefined curve specified by the `curve_name` string. Use [getCurves()][] to
+obtain a list of available curve names. On recent releases,
+`openssl ecparam -list_curves` will also display the name and description of
+each available elliptic curve.
 
 ## Class: ECDH
 
@@ -775,6 +776,7 @@ temporary measure.
 
 [createCipher()]: #crypto_crypto_createcipher_algorithm_password
 [createCipheriv()]: #crypto_crypto_createcipheriv_algorithm_key_iv
+[getCurves()]: #crypto_crypto_getcurves
 [crypto.createDiffieHellman()]: #crypto_crypto_creatediffiehellman_prime_prime_encoding_generator_generator_encoding
 [tls.createSecureContext]: tls.html#tls_tls_createsecurecontext_details
 [diffieHellman.setPublicKey()]: #crypto_diffiehellman_setpublickey_public_key_encoding
