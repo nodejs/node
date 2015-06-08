@@ -7,13 +7,13 @@ if (!common.hasCrypto) {
   process.exit();
 }
 var tls = require('tls');
-
 var fs = require('fs');
 var net = require('net');
 
-var sent = 'hello world';
-var received = '';
+var bonkers = new Buffer(1024);
+bonkers.fill(42);
 
+var receivedError = false;
 var options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
@@ -26,23 +26,21 @@ var server = net.createServer(function(c) {
       secureContext: tls.createSecureContext(options)
     });
 
-    s.on('data', function(chunk) {
-      received += chunk;
+    s.on('_tlsError', function() {
+      receivedError = true;
     });
 
-    s.on('end', function() {
+    s.on('close', function() {
       server.close();
       s.destroy();
     });
   }, 200);
 }).listen(common.PORT, function() {
-  var c = tls.connect(common.PORT, {
-    rejectUnauthorized: false
-  }, function() {
-    c.end(sent);
+  var c = net.connect({port: common.PORT}, function() {
+    c.write(bonkers);
   });
 });
 
 process.on('exit', function() {
-  assert.equal(received, sent);
+  assert.ok(receivedError);
 });
