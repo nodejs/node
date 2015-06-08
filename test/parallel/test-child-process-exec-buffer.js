@@ -17,6 +17,16 @@ exec('echo ' + str, function(err, stdout, stderr) {
   success_count++;
 });
 
+// unicode
+var unicode = '中文';
+exec('echo ' + unicode, function(err, stdout, stderr) {
+  assert.ok('string', typeof stdout, 'Expected stdout to be a string');
+  assert.ok('string', typeof stderr, 'Expected stderr to be a string');
+  assert.equal(unicode + os.EOL, stdout);
+
+  success_count++;
+});
+
 // no encoding (Buffers expected)
 exec('echo ' + str, {
   encoding: null
@@ -29,5 +39,5 @@ exec('echo ' + str, {
 });
 
 process.on('exit', function() {
-  assert.equal(2, success_count);
+  assert.equal(3, success_count);
 });
