@@ -69,10 +69,6 @@ if (cluster.isWorker) {
     checks.worker.emitExit = true;
     checks.worker.died = !alive(worker.process.pid);
     checks.worker.emitDisconnectInsideWorker = code === 42;
-
-    process.nextTick(function() {
-      process.exit(0);
-    });
   });
 
   process.once('exit', function() {
