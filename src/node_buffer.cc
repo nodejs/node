@@ -303,12 +303,9 @@ void Base64Slice(const FunctionCallbackInfo<Value>& args) {
 void Copy(const FunctionCallbackInfo<Value> &args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (!HasInstance(args[0]))
-    return env->ThrowTypeError("first arg should be a Buffer");
+  Local<Object> target = args[1]->ToObject(env->isolate());
 
-  Local<Object> target = args[0]->ToObject(env->isolate());
-
-  ARGS_THIS(args.This())
+  ARGS_THIS(args[0].As<Object>());
   size_t target_length = target->GetIndexedPropertiesExternalArrayDataLength();
   char* target_data = static_cast<char*>(
       target->GetIndexedPropertiesExternalArrayData());
@@ -316,9 +313,9 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
   size_t source_start;
   size_t source_end;
 
-  CHECK_NOT_OOB(ParseArrayIndex(args[1], 0, &target_start));
-  CHECK_NOT_OOB(ParseArrayIndex(args[2], 0, &source_start));
-  CHECK_NOT_OOB(ParseArrayIndex(args[3], obj_length, &source_end));
+  CHECK_NOT_OOB(ParseArrayIndex(args[2], 0, &target_start));
+  CHECK_NOT_OOB(ParseArrayIndex(args[3], 0, &source_start));
+  CHECK_NOT_OOB(ParseArrayIndex(args[4], obj_length, &source_end));
 
   // Copy 0 bytes; we're done
   if (target_start >= target_length || source_start >= source_end)
@@ -723,8 +720,6 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   env->SetMethod(proto, "ucs2Write", Ucs2Write);
   env->SetMethod(proto, "utf8Write", Utf8Write);
 
-  env->SetMethod(proto, "copy", Copy);
-
   // for backwards compatibility
   proto->ForceSet(env->offset_string(),
                   Uint32::New(env->isolate(), 0),
@@ -742,6 +737,7 @@ void Initialize(Handle<Object> target,
   env->SetMethod(target, "byteLengthUtf8", ByteLengthUtf8);
   env->SetMethod(target, "compare", Compare);
   env->SetMethod(target, "fill", Fill);
+  env->SetMethod(target, "copy", Copy);
   env->SetMethod(target, "indexOfBuffer", IndexOfBuffer);
   env->SetMethod(target, "indexOfNumber", IndexOfNumber);
   env->SetMethod(target, "indexOfString", IndexOfString);

@@ -1172,3 +1172,45 @@ Buffer.poolSize = ps;
 assert.throws(function() {
   Buffer(10).copy();
 });
+
+
+// https://github.com/nodejs/io.js/issues/1485
+// C++ bindings fail assertions (die) when called on non-buffers.
+assert.equal(Buffer.prototype.toString(), '[object Object]');
+
+[null, undefined, {}, 0].forEach(function(v) {
+  assert.throws(function() {
+    Buffer.prototype.write.call(v);
+  });
+
+  assert.throws(function() {
+    Buffer.prototype.copy.call(v, new Buffer(0));
+  });
+  assert.throws(function() {
+    (new Buffer(0)).copy(v);
+  });
+
+  assert.throws(function() {
+    Buffer.prototype.equals.call(v, new Buffer('hi'));
+  });
+
+  assert.throws(function() {
+    Buffer.prototype.compare.call(v, new Buffer('hi'));
+  });
+
+  assert.throws(function() {
+    Buffer.prototype.fill.call(v);
+  });
+
+  assert.throws(function() {
+    Buffer.prototype.indexOf.call(v, 0);
+  });
+
+  assert.throws(function() {
+    Buffer.prototype.readDoubleLE.call(v, 0, false);
+  });
+
+  assert.throws(function() {
+    Buffer.prototype.writeDoubleLE.call(v, 0, 0, false);
+  });
+});
