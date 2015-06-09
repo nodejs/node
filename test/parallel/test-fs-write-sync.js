@@ -5,6 +5,7 @@ var path = require('path');
 var fs = require('fs');
 var fn = path.join(common.tmpDir, 'write.txt');
 
+common.refreshTmpDir();
 
 var foo = 'foo';
 var fd = fs.openSync(fn, 'w');

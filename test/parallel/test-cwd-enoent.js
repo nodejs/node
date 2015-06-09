@@ -11,6 +11,7 @@ if (process.platform === 'sunos' || process.platform === 'win32') {
 }
 
 var dirname = common.tmpDir + '/cwd-does-not-exist-' + process.pid;
+common.refreshTmpDir();
 fs.mkdirSync(dirname);
 process.chdir(dirname);
 fs.rmdirSync(dirname);

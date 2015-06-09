@@ -7,6 +7,8 @@ var path = require('path'),
 
 var file = path.join(common.tmpDir, 'write.txt');
 
+common.refreshTmpDir();
+
 (function() {
   var stream = fs.WriteStream(file),
       _fs_close = fs.close;

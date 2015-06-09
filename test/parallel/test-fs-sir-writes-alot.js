@@ -6,11 +6,7 @@ var join = require('path').join;
 
 var filename = join(common.tmpDir, 'out.txt');
 
-try {
-  fs.unlinkSync(filename);
-} catch (e) {
-  // might not exist, that's okay.
-}
+common.refreshTmpDir();
 
 var fd = fs.openSync(filename, 'w');
 

@@ -4,6 +4,8 @@ var assert = require('assert');
 var path = require('path');
 var fs = require('fs');
 
+common.refreshTmpDir();
+
 var filename = path.join(common.tmpDir, 'watched');
 fs.writeFileSync(filename, 'quis custodiet ipsos custodes');
 setTimeout(fs.unlinkSync, 100, filename);

@@ -10,10 +10,7 @@ var expected_tests = 4;
 var linkData = path.join(common.fixturesDir, 'cycles/');
 var linkPath = path.join(common.tmpDir, 'cycles_link');
 
-// Delete previously created link
-try {
-  fs.unlinkSync(linkPath);
-} catch (e) {}
+common.refreshTmpDir();
 
 console.log('linkData: ' + linkData);
 console.log('linkPath: ' + linkPath);

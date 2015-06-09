@@ -10,6 +10,8 @@ function unlink(pathname) {
   }
 }
 
+common.refreshTmpDir();
+
 (function() {
   var ncalls = 0;
   var pathname = common.tmpDir + '/test1';

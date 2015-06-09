@@ -111,9 +111,7 @@ fs.open(file2, 'a', function(err, fd) {
 if (fs.lchmod) {
   var link = path.join(common.tmpDir, 'symbolic-link');
 
-  try {
-    fs.unlinkSync(link);
-  } catch (er) {}
+  common.refreshTmpDir();
   fs.symlinkSync(file2, link);
 
   fs.lchmod(link, mode_async, function(err) {

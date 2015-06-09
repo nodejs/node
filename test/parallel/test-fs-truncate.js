@@ -8,6 +8,8 @@ var filename = path.resolve(tmp, 'truncate-file.txt');
 var data = new Buffer(1024 * 16);
 data.fill('x');
 
+common.refreshTmpDir();
+
 var stat;
 
 // truncateSync

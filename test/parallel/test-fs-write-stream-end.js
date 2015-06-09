@@ -4,6 +4,8 @@ var assert = require('assert');
 var path = require('path');
 var fs = require('fs');
 
+common.refreshTmpDir();
+
 (function() {
   var file = path.join(common.tmpDir, 'write-end-test0.txt');
   var stream = fs.createWriteStream(file);

@@ -4,6 +4,9 @@ var assert = require('assert');
 var path = require('path');
 var Buffer = require('buffer').Buffer;
 var fs = require('fs');
+
+common.refreshTmpDir();
+
 var fn = path.join(common.tmpDir, 'write-string-coerce.txt');
 var data = true;
 var expected = data + '';

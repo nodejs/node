@@ -7,6 +7,8 @@ var assert = require('assert');
 var http = require('http');
 var fs = require('fs');
 
+common.refreshTmpDir();
+
 var image = fs.readFileSync(common.fixturesDir + '/person.jpg');
 
 console.log('image.length = ' + image.length);

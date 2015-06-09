@@ -15,6 +15,8 @@ if (process.platform === 'darwin') {
   var relativePathOne = path.join('testsubdir', filenameOne);
   var filepathOne = path.join(testsubdir, filenameOne);
 
+  common.refreshTmpDir();
+
   process.on('exit', function() {
     assert.ok(watchSeenOne > 0);
   });

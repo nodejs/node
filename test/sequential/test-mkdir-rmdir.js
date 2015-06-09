@@ -4,6 +4,8 @@ var assert = require('assert');
 var path = require('path');
 var fs = require('fs');
 
+common.refreshTmpDir();
+
 var dirname = path.dirname(__filename);
 var d = path.join(common.tmpDir, 'dir');
 
