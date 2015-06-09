@@ -327,6 +327,7 @@ information about the governance of the io.js project, see
 * **Oleg Elifantiev** ([@Olegas](https://github.com/Olegas)) &lt;oleg@elifantiev.ru&gt;
 * **Domenic Denicola** ([@domenic](https://github.com/domenic)) &lt;d@domenic.me&gt;
 * **Rich Trott** ([@Trott](https://github.com/Trott)) &lt;rtrott@gmail.com&gt;
+* **Сковорода Никита Андреевич** ([@ChALkeR](https://github.com/ChALkeR)) &lt;chalkerx@gmail.com&gt;
 
 Collaborators follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
 maintaining the io.js project.
