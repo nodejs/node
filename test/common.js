@@ -12,7 +12,7 @@ exports.tmpDirName = 'tmp';
 exports.PORT = +process.env.NODE_COMMON_PORT || 12346;
 exports.isWindows = process.platform === 'win32';
 
-var rimrafSync = function(p) {
+function rimrafSync(p) {
   try {
     var st = fs.lstatSync(p);
   } catch (e) {
@@ -34,9 +34,9 @@ var rimrafSync = function(p) {
       throw e;
     rmdirSync(p, e);
   }
-};
+}
 
-var rmdirSync = function(p, originalEr) {
+function rmdirSync(p, originalEr) {
   try {
     fs.rmdirSync(p);
   } catch (e) {
@@ -51,9 +51,9 @@ var rmdirSync = function(p, originalEr) {
       fs.rmdirSync(p);
     }
   }
-};
+}
 
-var refreshTmpDir = function() {
+function refreshTmpDir() {
   if (!process.send) { // Not a child process
     try {
       rimrafSync(exports.tmpDir);
@@ -65,7 +65,7 @@ var refreshTmpDir = function() {
     } catch (e) {
     }
   }
-};
+}
 
 if (process.env.TEST_THREAD_ID) {
   // Distribute ports in parallel tests
