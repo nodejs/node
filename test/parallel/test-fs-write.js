@@ -10,6 +10,8 @@ var expected = 'ümlaut.';
 var constants = require('constants');
 var found, found2;
 
+common.refreshTmpDir();
+
 fs.open(fn, 'w', 0o644, function(err, fd) {
   if (err) throw err;
   console.log('open done');

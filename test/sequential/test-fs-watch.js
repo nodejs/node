@@ -32,11 +32,7 @@ process.on('exit', function() {
   assert.ok(watchSeenThree > 0);
 });
 
-// Clean up stale files (if any) from previous run.
-try { fs.unlinkSync(filepathOne); } catch (e) { }
-try { fs.unlinkSync(filepathTwoAbs); } catch (e) { }
-try { fs.unlinkSync(filepathThree); } catch (e) { }
-try { fs.rmdirSync(testsubdir); } catch (e) { }
+common.refreshTmpDir();
 
 fs.writeFileSync(filepathOne, 'hello');
 

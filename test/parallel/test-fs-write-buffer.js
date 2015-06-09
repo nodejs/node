@@ -10,6 +10,8 @@ var path = require('path'),
     writeCalled = 0;
 
 
+common.refreshTmpDir();
+
 fs.open(filename, 'w', 0o644, function(err, fd) {
   openCalled++;
   if (err) throw err;

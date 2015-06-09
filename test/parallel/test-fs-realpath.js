@@ -8,6 +8,8 @@ var async_completed = 0, async_expected = 0, unlink = [];
 var isWindows = process.platform === 'win32';
 var skipSymlinks = false;
 
+common.refreshTmpDir();
+
 var root = '/';
 if (isWindows) {
   // something like "C:\\"
@@ -575,9 +577,6 @@ function runTest() {
   var tmpDirs = ['cycles', 'cycles/folder'];
   tmpDirs.forEach(function(t) {
     t = tmp(t);
-    var s;
-    try { s = fs.statSync(t); } catch (ex) {}
-    if (s) return;
     fs.mkdirSync(t, 0o700);
   });
   fs.writeFileSync(tmp('cycles/root.js'), "console.error('roooot!');");

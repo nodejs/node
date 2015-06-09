@@ -5,6 +5,8 @@ var fs = require('fs');
 
 var filename = common.tmpDir + '/truncate-file.txt';
 
+common.refreshTmpDir();
+
 // Synchronous test.
 (function() {
   fs.writeFileSync(filename, '0123456789');

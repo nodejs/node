@@ -15,6 +15,7 @@ if (process.env.FORK) {
   process.exit();
 }
 else {
+  common.refreshTmpDir();
   try {
     fs.unlinkSync(copyPath);
   }

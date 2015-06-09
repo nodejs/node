@@ -11,8 +11,6 @@ var https = require('https');
 var fs = require('fs');
 var path = require('path');
 
-var resultFile = path.resolve(common.tmpDir, 'result');
-
 var key = fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem');
 var cert = fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem');
 

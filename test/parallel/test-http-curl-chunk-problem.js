@@ -30,6 +30,8 @@ function maybeMakeRequest() {
 }
 
 
+common.refreshTmpDir();
+
 var ddcmd = common.ddCommand(filename, 10240);
 console.log('dd command: ', ddcmd);
 

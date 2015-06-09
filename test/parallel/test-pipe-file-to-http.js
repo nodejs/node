@@ -6,6 +6,8 @@ var http = require('http');
 var path = require('path');
 var cp = require('child_process');
 
+common.refreshTmpDir();
+
 var filename = path.join(common.tmpDir || '/tmp', 'big');
 var clientReqComplete = false;
 var count = 0;

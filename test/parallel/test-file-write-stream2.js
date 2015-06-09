@@ -39,7 +39,7 @@ function removeTestFile() {
 }
 
 
-removeTestFile();
+common.refreshTmpDir();
 
 // drain at 0, return false at 10.
 file = fs.createWriteStream(filepath, {

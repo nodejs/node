@@ -5,6 +5,7 @@ var assert = require('assert');
 var path = require('path');
 var fs = require('fs');
 var fn = path.join(common.tmpDir, 'write.txt');
+common.refreshTmpDir();
 var file = fs.createWriteStream(fn, {
       highWaterMark: 10
     });

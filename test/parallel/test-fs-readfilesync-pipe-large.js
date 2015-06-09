@@ -15,6 +15,7 @@ var fs = require('fs');
 
 var filename = path.join(common.tmpDir, '/readfilesync_pipe_large_test.txt');
 var dataExpected = new Array(1000000).join('a');
+common.refreshTmpDir();
 fs.writeFileSync(filename, dataExpected);
 
 if (process.argv[2] === 'child') {

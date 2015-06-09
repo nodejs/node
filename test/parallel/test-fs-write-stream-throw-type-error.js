@@ -6,6 +6,8 @@ const path = require('path');
 
 const example = path.join(common.tmpDir, 'dummy');
 
+common.refreshTmpDir();
+
 assert.doesNotThrow(function() {
   fs.createWriteStream(example, undefined);
 });

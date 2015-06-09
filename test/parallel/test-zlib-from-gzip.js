@@ -7,6 +7,8 @@ var assert = require('assert');
 var zlib = require('zlib');
 var path = require('path');
 
+common.refreshTmpDir();
+
 var gunzip = zlib.createGunzip();
 
 var fs = require('fs');

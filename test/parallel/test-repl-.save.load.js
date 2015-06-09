@@ -5,6 +5,8 @@ var join = require('path').join;
 var fs = require('fs');
 var common = require('../common');
 
+common.refreshTmpDir();
+
 var repl = require('repl');
 
 // A stream to push an array into a REPL
