@@ -299,6 +299,7 @@ information about the governance of the io.js project, see
 * **Petka Antonov** ([@petkaantonov](https://github.com/petkaantonov)) &lt;petka_antonov@hotmail.com&gt;
 * **Yosuke Furukawa** ([@yosuke-furukawa](https://github.com/yosuke-furukawa)) &lt;yosuke.furukawa@gmail.com&gt;
 * **Alex Kocharin** ([@rlidwka](https://github.com/rlidwka)) &lt;alex@kocharin.ru&gt;
+* **Christopher Monsanto** ([@monsanto](https://github.com/monsanto)) &lt;chris@monsan.to&gt;
 
 Collaborators follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
 maintaining the io.js project.
