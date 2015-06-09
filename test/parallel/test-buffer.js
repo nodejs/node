@@ -1172,3 +1172,7 @@ Buffer.poolSize = ps;
 assert.throws(function() {
   Buffer(10).copy();
 });
+
+// https://github.com/nodejs/io.js/issues/1485
+// C++ bindings fail assertions (die) when called on non-buffers.
+assert.equal(Buffer.prototype.toString(), '[object Object]');
