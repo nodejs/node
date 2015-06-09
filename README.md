@@ -300,6 +300,7 @@ information about the governance of the io.js project, see
 * **Yosuke Furukawa** ([@yosuke-furukawa](https://github.com/yosuke-furukawa)) &lt;yosuke.furukawa@gmail.com&gt;
 * **Alex Kocharin** ([@rlidwka](https://github.com/rlidwka)) &lt;alex@kocharin.ru&gt;
 * **Christopher Monsanto** ([@monsanto](https://github.com/monsanto)) &lt;chris@monsan.to&gt;
+* **Ali Ijaz Sheikh** ([@ofrobots](https://github.com/ofrobots)) &lt;ofrobots@google.com&gt;
 
 Collaborators follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
 maintaining the io.js project.
