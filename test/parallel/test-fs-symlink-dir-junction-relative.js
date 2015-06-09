@@ -13,10 +13,7 @@ var linkPath2 = path.join(common.tmpDir, 'junction2');
 var linkTarget = path.join(common.fixturesDir);
 var linkData = '../fixtures';
 
-// Prepare.
-try { fs.mkdirSync(common.tmpDir); } catch (e) {}
-try { fs.unlinkSync(linkPath1); } catch (e) {}
-try { fs.unlinkSync(linkPath2); } catch (e) {}
+common.refreshTmpDir();
 
 // Test fs.symlink()
 fs.symlink(linkData, linkPath1, 'junction', function(err) {

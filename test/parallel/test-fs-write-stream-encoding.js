@@ -10,6 +10,8 @@ const secondEncoding = 'binary';
 const examplePath = path.join(common.fixturesDir, 'x.txt');
 const dummyPath = path.join(common.tmpDir, 'x.txt');
 
+common.refreshTmpDir();
+
 const exampleReadStream = fs.createReadStream(examplePath, {
   encoding: firstEncoding
 });

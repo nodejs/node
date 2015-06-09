@@ -21,6 +21,8 @@ var s = '南越国是前203年至前111年存在于岭南地区的一个国家�
 
 var ncallbacks = 0;
 
+common.refreshTmpDir();
+
 // test that empty file will be created and have content added
 fs.appendFile(filename, s, function(e) {
   if (e) throw e;

@@ -25,6 +25,8 @@ var data = [
 
 data = data.join('\n');
 
+common.refreshTmpDir();
+
 var buf = new Buffer(data, 'base64');
 fs.writeFileSync(join(common.tmpDir, 'test.jpg'), buf);
 

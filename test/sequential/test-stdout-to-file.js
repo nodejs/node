@@ -9,6 +9,8 @@ var scriptString = path.join(common.fixturesDir, 'print-chars.js');
 var scriptBuffer = path.join(common.fixturesDir, 'print-chars-from-buffer.js');
 var tmpFile = path.join(common.tmpDir, 'stdout.txt');
 
+common.refreshTmpDir();
+
 function test(size, useBuffer, cb) {
   var cmd = '"' + process.argv[0] + '"' +
             ' ' +

@@ -4,6 +4,8 @@ var assert = require('assert');
 var fs = require('fs');
 var join = require('path').join;
 
+common.refreshTmpDir();
+
 var filename = join(common.tmpDir, 'test.txt');
 
 common.error('writing to ' + filename);

@@ -10,6 +10,7 @@ var cluster = require('cluster');
 var http = require('http');
 
 if (cluster.isMaster) {
+  common.refreshTmpDir();
   var ok = false;
   var worker = cluster.fork();
   worker.on('message', function(msg) {

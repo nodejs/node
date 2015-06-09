@@ -39,7 +39,7 @@ function removeTestFile() {
 }
 
 
-removeTestFile();
+common.refreshTmpDir();
 
 
 function run_test_1() {

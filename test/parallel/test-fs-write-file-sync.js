@@ -26,9 +26,10 @@ if (isWindows) {
   mode = 0o755;
 }
 
+common.refreshTmpDir();
+
 // Test writeFileSync
 var file1 = path.join(common.tmpDir, 'testWriteFileSync.txt');
-removeFile(file1);
 
 fs.writeFileSync(file1, '123', {mode: mode});
 
@@ -37,11 +38,8 @@ assert.equal('123', content);
 
 assert.equal(mode, fs.statSync(file1).mode & 0o777);
 
-removeFile(file1);
-
 // Test appendFileSync
 var file2 = path.join(common.tmpDir, 'testAppendFileSync.txt');
-removeFile(file2);
 
 fs.appendFileSync(file2, 'abc', {mode: mode});
 
@@ -50,22 +48,8 @@ assert.equal('abc', content);
 
 assert.equal(mode, fs.statSync(file2).mode & mode);
 
-removeFile(file2);
-
 // Verify that all opened files were closed.
 assert.equal(0, openCount);
-
-// Removes a file if it exists.
-function removeFile(file) {
-  try {
-    if (isWindows)
-      fs.chmodSync(file, 0o666);
-    fs.unlinkSync(file);
-  } catch (err) {
-    if (err && err.code !== 'ENOENT')
-      throw err;
-  }
-}
 
 function openSync() {
   openCount++;

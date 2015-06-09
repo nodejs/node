@@ -21,6 +21,7 @@ var createFileWithPerms = function(file, mode) {
   fs.chmodSync(file, mode);
 };
 
+common.refreshTmpDir();
 createFileWithPerms(readOnlyFile, 0o444);
 createFileWithPerms(readWriteFile, 0o666);
 

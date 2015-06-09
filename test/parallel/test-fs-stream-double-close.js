@@ -3,6 +3,8 @@ var common = require('../common');
 var assert = require('assert');
 var fs = require('fs');
 
+common.refreshTmpDir();
+
 test1(fs.createReadStream(__filename));
 test2(fs.createReadStream(__filename));
 test3(fs.createReadStream(__filename));

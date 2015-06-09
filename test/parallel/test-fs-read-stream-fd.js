@@ -10,6 +10,7 @@ var input = 'hello world';
 var output = '';
 var fd, stream;
 
+common.refreshTmpDir();
 fs.writeFileSync(file, input);
 fd = fs.openSync(file, 'r');
 

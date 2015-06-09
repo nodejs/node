@@ -5,6 +5,8 @@ var http = require('http');
 var fs = require('fs');
 var path = require('path');
 
+common.refreshTmpDir();
+
 var file = path.join(common.tmpDir, 'http-pipe-fs-test.txt');
 var requests = 0;
 

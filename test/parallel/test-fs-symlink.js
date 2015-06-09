@@ -9,16 +9,13 @@ var expected_tests = 2;
 
 var is_windows = process.platform === 'win32';
 
+common.refreshTmpDir();
+
 var runtest = function(skip_symlinks) {
   if (!skip_symlinks) {
     // test creating and reading symbolic link
     var linkData = path.join(common.fixturesDir, '/cycles/root.js');
     var linkPath = path.join(common.tmpDir, 'symlink1.js');
-
-    // Delete previously created link
-    try {
-      fs.unlinkSync(linkPath);
-    } catch (e) {}
 
     fs.symlink(linkData, linkPath, function(err) {
       if (err) throw err;
@@ -35,11 +32,6 @@ var runtest = function(skip_symlinks) {
   // test creating and reading hard link
   var srcPath = path.join(common.fixturesDir, 'cycles', 'root.js');
   var dstPath = path.join(common.tmpDir, 'link1.js');
-
-  // Delete previously created link
-  try {
-    fs.unlinkSync(dstPath);
-  } catch (e) {}
 
   fs.link(srcPath, dstPath, function(err) {
     if (err) throw err;

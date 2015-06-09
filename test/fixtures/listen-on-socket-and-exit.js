@@ -3,6 +3,8 @@
 var common = require('../common');
 var net = require('net');
 
+common.refreshTmpDir();
+
 var server = net.createServer().listen(common.PIPE, function() {
   console.log('child listening');
   process.send('listening');
