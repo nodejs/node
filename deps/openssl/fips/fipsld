@@ -4,5 +4,5 @@
 FIPSLD=$1
 shift
 
-DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+DIR=`dirname $0`
 FIPSLD_CC=$DIR/fipscc $FIPSLD $@
