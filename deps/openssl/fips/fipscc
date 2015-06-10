@@ -1,6 +1,6 @@
 #!/bin/sh
 ARGS=
-CXX=${CXX:-gcc}
+CXX=${CXX:-g++}
 
 while [ "x$1" != "x" ]; do
   ARG=$1
