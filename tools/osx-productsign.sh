@@ -3,7 +3,7 @@
 set -x
 set -e
 
-if ! [ -n "$SIGN" ]; then
+if [ "X$SIGN" == "X" ]; then
   echo "No SIGN environment var.  Skipping codesign." >&2
   exit 0
 fi

@@ -85,7 +85,7 @@
     <Feature Level="1"
              Id="DocumentationShortcuts"
              Title="Online documentation shortcuts"
-             Description="Add start menu entries that link the the online documentation for io.js $(var.ProductVersion) and the io.js website.">
+             Description="Add start menu entries that link the the online documentation for io.js v$(var.FullVersion) and the io.js website.">
       <ComponentRef Id="DocumentationShortcuts"/>
     </Feature>
 
@@ -225,7 +225,7 @@
                                Type="url"/>
         <util:InternetShortcut Id="DocsShortcut"
                                Name="io.js documentation"
-                               Target="https://iojs.org/dist/v$(var.ProductVersion)/doc/api/"
+                               Target="https://iojs.org/download/$(var.DistTypeDir)/v$(var.FullVersion)/doc/api/"
                                Type="url"/>
       </Component>
     </DirectoryRef>

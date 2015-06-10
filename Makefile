@@ -5,6 +5,9 @@ PYTHON ?= python
 DESTDIR ?=
 SIGN ?=
 PREFIX ?= /usr/local
+STAGINGSERVER ?= iojs-www
+
+OSTYPE := $(shell uname -s | tr '[A-Z]' '[a-z]')
 
 # Determine EXEEXT
 EXEEXT := $(shell $(PYTHON) -c \
@@ -56,7 +59,7 @@ uninstall:
 	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
 
 clean:
-	-rm -rf out/Makefile $(NODE_EXE) $(NODE_G_EXE) out/$(BUILDTYPE)/$(NODE_EXE) blog.html email.md
+	-rm -rf out/Makefile $(NODE_EXE) $(NODE_G_EXE) out/$(BUILDTYPE)/$(NODE_EXE)
 	@if [ -d out ]; then find out/ -name '*.o' -o -name '*.a' | xargs rm -rf; fi
 	-rm -rf node_modules
 
@@ -64,7 +67,7 @@ distclean:
 	-rm -rf out
 	-rm -f config.gypi icu_config.gypi
 	-rm -f config.mk
-	-rm -rf $(NODE_EXE) $(NODE_G_EXE) blog.html email.md
+	-rm -rf $(NODE_EXE) $(NODE_G_EXE)
 	-rm -rf node_modules
 	-rm -rf deps/icu
 	-rm -rf deps/icu4c*.tgz deps/icu4c*.zip deps/icu-tmp
@@ -184,14 +187,49 @@ docclean:
 
 RAWVER=$(shell $(PYTHON) tools/getnodeversion.py)
 VERSION=v$(RAWVER)
+
+# For nightly builds, you must set DISTTYPE to "nightly", "next-nightly" or
+# "custom". For the nightly and next-nightly case, you need to set DATESTRING
+# and COMMIT in order to properly name the build.
+# For the rc case you need to set CUSTOMTAG to an appropriate CUSTOMTAG number
+
+ifndef DISTTYPE
+DISTTYPE=release
+endif
+ifeq ($(DISTTYPE),release)
 FULLVERSION=$(VERSION)
+else # ifeq ($(DISTTYPE),release)
+ifeq ($(DISTTYPE),custom)
+ifndef CUSTOMTAG
+$(error CUSTOMTAG is not set for DISTTYPE=custom)
+endif # ifndef CUSTOMTAG
+TAG=$(CUSTOMTAG)
+else # ifeq ($(DISTTYPE),custom)
+ifndef DATESTRING
+$(error DATESTRING is not set for nightly)
+endif # ifndef DATESTRING
+ifndef COMMIT
+$(error COMMIT is not set for nightly)
+endif # ifndef COMMIT
+ifneq ($(DISTTYPE),nightly)
+ifneq ($(DISTTYPE),next-nightly)
+$(error DISTTYPE is not release, custom, nightly or next-nightly)
+endif # ifneq ($(DISTTYPE),next-nightly)
+endif # ifneq ($(DISTTYPE),nightly)
+TAG=$(DISTTYPE)$(DATESTRING)$(COMMIT)
+endif # ifeq ($(DISTTYPE),custom)
+FULLVERSION=$(VERSION)-$(TAG)
+endif # ifeq ($(DISTTYPE),release)
+
+DISTTYPEDIR ?= $(DISTTYPE)
 RELEASE=$(shell sed -ne 's/\#define NODE_VERSION_IS_RELEASE \([01]\)/\1/p' src/node_version.h)
 PLATFORM=$(shell uname | tr '[:upper:]' '[:lower:]')
 NPMVERSION=v$(shell cat deps/npm/package.json | grep '"version"' | sed 's/^[^:]*: "\([^"]*\)",.*/\1/')
+
 ifeq ($(findstring x86_64,$(shell uname -m)),x86_64)
 DESTCPU ?= x64
 else
-DESTCPU ?= ia32
+DESTCPU ?= x86
 endif
 ifeq ($(DESTCPU),x64)
 ARCH=x64
@@ -202,26 +240,24 @@ else
 ARCH=x86
 endif
 endif
-ifdef NIGHTLY
-TAG = nightly-$(NIGHTLY)
-FULLVERSION=$(VERSION)-$(TAG)
+
+# enforce "x86" over "ia32" as the generally accepted way of referring to 32-bit intel
+ifeq ($(ARCH),ia32)
+override ARCH=x86
 endif
+ifeq ($(DESTCPU),ia32)
+override DESTCPU=x86
+endif
+
 TARNAME=iojs-$(FULLVERSION)
 TARBALL=$(TARNAME).tar
 BINARYNAME=$(TARNAME)-$(PLATFORM)-$(ARCH)
 BINARYTAR=$(BINARYNAME).tar
+# OSX doesn't have xz installed by default, http://macpkg.sourceforge.net/
 XZ=$(shell which xz > /dev/null 2>&1; echo $$?)
 XZ_COMPRESSION ?= 9
-PKG=out/$(TARNAME).pkg
+PKG=$(TARNAME).pkg
 PACKAGEMAKER ?= /Developer/Applications/Utilities/PackageMaker.app/Contents/MacOS/PackageMaker
-
-PKGSRC=iojs-$(DESTCPU)-$(RAWVER).tgz
-ifdef NIGHTLY
-PKGSRC=iojs-$(DESTCPU)-$(RAWVER)-$(TAG).tgz
-endif
-
-dist: doc $(TARBALL) $(PKG)
-
 PKGDIR=out/dist-osx
 
 release-only:
@@ -236,7 +272,7 @@ release-only:
 		echo "" >&2 ; \
 		exit 1 ; \
 	fi
-	@if [ "$(NIGHTLY)" != "" -o "$(RELEASE)" = "1" ]; then \
+	@if [ "$(DISTTYPE)" != "release" -o "$(RELEASE)" = "1" ]; then \
 		exit 0; \
 	else \
 	  echo "" >&2 ; \
@@ -246,29 +282,28 @@ release-only:
 		exit 1 ; \
 	fi
 
-pkg: $(PKG)
-
 $(PKG): release-only
 	rm -rf $(PKGDIR)
 	rm -rf out/deps out/Release
-	$(PYTHON) ./configure --dest-cpu=ia32 --tag=$(TAG)
-	$(MAKE) install V=$(V) DESTDIR=$(PKGDIR)/32
-	rm -rf out/deps out/Release
 	$(PYTHON) ./configure --dest-cpu=x64 --tag=$(TAG)
 	$(MAKE) install V=$(V) DESTDIR=$(PKGDIR)
-	SIGN="$(APP_SIGN)" PKGDIR="$(PKGDIR)" bash tools/osx-codesign.sh
-	lipo $(PKGDIR)/32/usr/local/bin/iojs \
-		$(PKGDIR)/usr/local/bin/iojs \
-		-output $(PKGDIR)/usr/local/bin/iojs-universal \
-		-create
-	mv $(PKGDIR)/usr/local/bin/iojs-universal $(PKGDIR)/usr/local/bin/iojs
-	rm -rf $(PKGDIR)/32
-	cat tools/osx-pkg.pmdoc/index.xml.tmpl | sed -e 's|__iojsversion__|'$(FULLVERSION)'|g' | sed -e 's|__npmversion__|'$(NPMVERSION)'|g' > tools/osx-pkg.pmdoc/index.xml
+	SIGN="$(CODESIGN_CERT)" PKGDIR="$(PKGDIR)" bash tools/osx-codesign.sh
+	cat tools/osx-pkg.pmdoc/index.xml.tmpl \
+		| sed -E "s/\\{iojsversion\\}/$(FULLVERSION)/g" \
+		| sed -E "s/\\{npmversion\\}/$(NPMVERSION)/g" \
+		> tools/osx-pkg.pmdoc/index.xml
 	$(PACKAGEMAKER) \
-		--id "org.nodejs.Node" \
+		--id "org.iojs.pkg" \
 		--doc tools/osx-pkg.pmdoc \
 		--out $(PKG)
-	SIGN="$(INT_SIGN)" PKG="$(PKG)" bash tools/osx-productsign.sh
+	SIGN="$(PRODUCTSIGN_CERT)" PKG="$(PKG)" bash tools/osx-productsign.sh
+
+pkg: $(PKG)
+
+pkg-upload: pkg
+	ssh $(STAGINGSERVER) "mkdir -p staging/$(DISTTYPEDIR)/$(FULLVERSION)"
+	scp -p iojs-$(FULLVERSION).pkg $(STAGINGSERVER):staging/$(DISTTYPEDIR)/$(FULLVERSION)/iojs-$(FULLVERSION).pkg
+	ssh $(STAGINGSERVER) "touch staging/$(DISTTYPEDIR)/$(FULLVERSION)/iojs-$(FULLVERSION).pkg.done"
 
 $(TARBALL): release-only $(NODE_EXE) doc
 	git checkout-index -a -f --prefix=$(TARNAME)/
@@ -291,6 +326,20 @@ endif
 
 tar: $(TARBALL)
 
+tar-upload: tar
+	ssh $(STAGINGSERVER) "mkdir -p staging/$(DISTTYPEDIR)/$(FULLVERSION)"
+	scp -p iojs-$(FULLVERSION).tar.gz $(STAGINGSERVER):staging/$(DISTTYPEDIR)/$(FULLVERSION)/iojs-$(FULLVERSION).tar.gz
+	ssh $(STAGINGSERVER) "touch staging/$(DISTTYPEDIR)/$(FULLVERSION)/iojs-$(FULLVERSION).tar.gz.done"
+ifeq ($(XZ), 0)
+	scp -p iojs-$(FULLVERSION).tar.xz $(STAGINGSERVER):staging/$(DISTTYPEDIR)/$(FULLVERSION)/iojs-$(FULLVERSION).tar.xz
+	ssh $(STAGINGSERVER) "touch staging/$(DISTTYPEDIR)/$(FULLVERSION)/iojs-$(FULLVERSION).tar.xz.done"
+endif
+
+doc-upload: tar
+	ssh $(STAGINGSERVER) "mkdir -p staging/$(DISTTYPEDIR)/$(FULLVERSION)"
+	scp -r out/doc/ $(STAGINGSERVER):staging/$(DISTTYPEDIR)/$(FULLVERSION)/
+	ssh $(STAGINGSERVER) "touch staging/$(DISTTYPEDIR)/$(FULLVERSION)/doc.done"
+
 $(BINARYTAR): release-only
 	rm -rf $(BINARYNAME)
 	rm -rf out/deps out/Release
@@ -309,18 +358,14 @@ endif
 
 binary: $(BINARYTAR)
 
-$(PKGSRC): release-only
-	rm -rf dist out
-	$(PYTHON) configure --prefix=/ \
-		--dest-cpu=$(DESTCPU) --tag=$(TAG) $(CONFIG_FLAGS)
-	$(MAKE) install DESTDIR=dist
-	(cd dist; find * -type f | sort) > packlist
-	pkg_info -X pkg_install | \
-		egrep '^(MACHINE_ARCH|OPSYS|OS_VERSION|PKGTOOLS_VERSION)' > build-info
-	pkg_create -B build-info -c tools/pkgsrc/comment -d tools/pkgsrc/description \
-		-f packlist -I /opt/local -p dist -U $(PKGSRC)
-
-pkgsrc: $(PKGSRC)
+binary-upload: binary
+	ssh $(STAGINGSERVER) "mkdir -p staging/$(DISTTYPEDIR)/$(FULLVERSION)"
+	scp -p iojs-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.gz $(STAGINGSERVER):staging/$(DISTTYPEDIR)/$(FULLVERSION)/iojs-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.gz
+	ssh $(STAGINGSERVER) "touch staging/$(DISTTYPEDIR)/$(FULLVERSION)/iojs-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.gz.done"
+ifeq ($(XZ), 0)
+	scp -p iojs-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.xz $(STAGINGSERVER):staging/$(DISTTYPEDIR)/$(FULLVERSION)/iojs-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.xz
+	ssh $(STAGINGSERVER) "touch staging/$(DISTTYPEDIR)/$(FULLVERSION)/iojs-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.xz.done"
+endif
 
 haswrk=$(shell which wrk > /dev/null 2>&1; echo $$?)
 wrk:

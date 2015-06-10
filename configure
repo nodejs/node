@@ -26,7 +26,7 @@ import nodedownload
 parser = optparse.OptionParser()
 
 valid_os = ('win', 'mac', 'solaris', 'freebsd', 'openbsd', 'linux', 'android')
-valid_arch = ('arm', 'arm64', 'ia32', 'mips', 'mipsel', 'x32', 'x64')
+valid_arch = ('arm', 'arm64', 'ia32', 'mips', 'mipsel', 'x32', 'x64', 'x86')
 valid_arm_float_abi = ('soft', 'softfp', 'hard')
 valid_mips_arch = ('loongson', 'r1', 'r2', 'r6', 'rx')
 valid_mips_fpu = ('fp32', 'fp64', 'fpxx')
@@ -607,6 +607,10 @@ def configure_node(o):
 
   host_arch = host_arch_win() if os.name == 'nt' else host_arch_cc()
   target_arch = options.dest_cpu or host_arch
+  # ia32 is preferred by the build tools (GYP) over x86 even if we prefer the latter
+  # the Makefile resets this to x86 afterward
+  if target_arch == 'x86':
+    target_arch = 'ia32'
   o['variables']['host_arch'] = host_arch
   o['variables']['target_arch'] = target_arch
 
