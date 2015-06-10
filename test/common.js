@@ -40,8 +40,6 @@ function rmdirSync(p, originalEr) {
   try {
     fs.rmdirSync(p);
   } catch (e) {
-    if (e.code === 'ENOENT')
-      return;
     if (e.code === 'ENOTDIR')
       throw originalEr;
     if (e.code === 'ENOTEMPTY' || e.code === 'EEXIST' || e.code === 'EPERM') {
