@@ -17,7 +17,7 @@ assert.equal(new Date('2010-02-14T12:48:40+01:00').toString(),
 assert.equal("'\\n\\u0001'", common.inspect('\n\u0001'));
 
 assert.equal('[]', common.inspect([]));
-assert.equal('{}', common.inspect(Object.create([])));
+assert.equal('Array {}', common.inspect(Object.create([])));
 assert.equal('[ 1, 2 ]', common.inspect([1, 2]));
 assert.equal('[ 1, [ 2, 3 ] ]', common.inspect([1, [2, 3]]));
 
