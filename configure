@@ -88,10 +88,10 @@ parser.add_option("--openssl-no-asm",
     dest="openssl_no_asm",
     help="Do not build optimized assembly for OpenSSL")
 
-parser.add_option("--openssl-fips",
-    action="store",
-    dest="openssl_fips",
-    help="Build OpenSSL using FIPS canister .o file in supplied folder")
+parser.add_option('--openssl-fips',
+    action='store',
+    dest='openssl_fips',
+    help='Build OpenSSL using FIPS canister .o file in supplied folder')
 
 shared_optgroup.add_option('--shared-http-parser',
     action='store_true',
