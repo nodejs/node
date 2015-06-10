@@ -15,5 +15,8 @@ Instructions:
 5. Get into io.js checkout folder
 6. `./configure --openssl-fips=/path/to/openssl-fips/out`
 7. Build io.js with `make -j`
+8. Verify with `node -p "process.versions.openssl"` (`1.0.2a-fips`)
+
+NOTE: Windows is not yet supported
 
 [0]: https://www.openssl.org/docs/fips/fipsnotes.html
