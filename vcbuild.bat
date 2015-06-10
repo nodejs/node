@@ -13,9 +13,8 @@ if /i "%1"=="/?" goto help
 
 @rem Process arguments.
 set config=Release
-set msiplatform=x86
 set target=Build
-set target_arch=ia32
+set target_arch=x86
 set debug_arg=
 set snapshot_arg=
 set noprojgen=
@@ -24,6 +23,7 @@ set nosign=
 set nosnapshot=
 set test_args=
 set msi=
+set upload=
 set licensertf=
 set jslint=
 set buildnodeweak=
@@ -41,8 +41,8 @@ if "%1"=="" goto args-done
 if /i "%1"=="debug"         set config=Debug&goto arg-ok
 if /i "%1"=="release"       set config=Release&goto arg-ok
 if /i "%1"=="clean"         set target=Clean&goto arg-ok
-if /i "%1"=="ia32"          set target_arch=ia32&goto arg-ok
-if /i "%1"=="x86"           set target_arch=ia32&goto arg-ok
+if /i "%1"=="ia32"          set target_arch=x86&goto arg-ok
+if /i "%1"=="x86"           set target_arch=x86&goto arg-ok
 if /i "%1"=="x64"           set target_arch=x64&goto arg-ok
 if /i "%1"=="noprojgen"     set noprojgen=1&goto arg-ok
 if /i "%1"=="nobuild"       set nobuild=1&goto arg-ok
@@ -61,6 +61,7 @@ if /i "%1"=="test-pummel"   set test_args=%test_args% pummel&goto arg-ok
 if /i "%1"=="test-all"      set test_args=%test_args% sequential parallel message gc internet pummel&set buildnodeweak=1&set jslint=1&goto arg-ok
 if /i "%1"=="jslint"        set jslint=1&goto arg-ok
 if /i "%1"=="msi"           set msi=1&set licensertf=1&goto arg-ok
+if /i "%1"=="upload"        set upload=1&goto arg-ok
 if /i "%1"=="small-icu"     set i18n_arg=%1&goto arg-ok
 if /i "%1"=="full-icu"      set i18n_arg=%1&goto arg-ok
 if /i "%1"=="intl-none"     set i18n_arg=%1&goto arg-ok
@@ -75,7 +76,6 @@ goto next-arg
 
 :args-done
 if "%config%"=="Debug" set debug_arg=--debug
-if "%target_arch%"=="x64" set msiplatform=x64
 if defined nosnapshot set snapshot_arg=--without-snapshot
 if defined noetw set noetw_arg=--without-etw& set noetw_msi_arg=/p:NoETW=1
 if defined noperfctr set noperfctr_arg=--without-perfctr& set noperfctr_msi_arg=/p:NoPerfCtr=1
@@ -84,9 +84,21 @@ if "%i18n_arg%"=="full-icu" set i18n_arg=--with-intl=full-icu
 if "%i18n_arg%"=="small-icu" set i18n_arg=--with-intl=small-icu
 if "%i18n_arg%"=="intl-none" set i18n_arg=--with-intl=none
 
-if defined NIGHTLY set TAG=nightly-%NIGHTLY%
+call :getnodeversion || exit /b 1
 
 @rem Set environment for msbuild
+:project-gen
+@rem Skip project generation if requested.
+if defined noprojgen goto msbuild
+
+@rem Generate the VS project.
+SETLOCAL
+  if defined VS100COMNTOOLS call "%VS100COMNTOOLS%\VCVarsQueryRegistry.bat"
+  python configure %download_arg% %i18n_arg% %debug_arg% %snapshot_arg% %noetw_arg% %noperfctr_arg% --dest-cpu=%target_arch% --tag=%TAG%
+  if errorlevel 1 goto create-msvs-files-failed
+  if not exist node.sln goto create-msvs-files-failed
+  echo Project files generated.
+ENDLOCAL
 
 @rem Look for Visual Studio 2015
 if not defined VS140COMNTOOLS goto vc-set-2013
@@ -152,19 +164,30 @@ if errorlevel 1 echo Failed to generate license.rtf&goto exit
 :msi
 @rem Skip msi generation if not requested
 if not defined msi goto run
-call :getnodeversion
-
-if not defined NIGHTLY goto msibuild
-set NODE_VERSION=%NODE_VERSION%.%NIGHTLY%
 
 :msibuild
-echo Building iojs-%NODE_VERSION%
-msbuild "%~dp0tools\msvs\msi\nodemsi.sln" /m /t:Clean,Build /p:Configuration=%config% /p:Platform=%msiplatform% /p:NodeVersion=%NODE_VERSION% %noetw_msi_arg% %noperfctr_msi_arg% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
+echo Building iojs-v%FULLVERSION%-%target_arch%.msi
+msbuild "%~dp0tools\msvs\msi\nodemsi.sln" /m /t:Clean,Build /p:Configuration=%config% /p:Platform=%target_arch% /p:NodeVersion=%NODE_VERSION% /p:FullVersion=%FULLVERSION% /p:DistTypeDir=%DISTTYPEDIR% %noetw_msi_arg% %noperfctr_msi_arg% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 goto exit
 
-if defined nosign goto run
-signtool sign /a /d "io.js" /t http://timestamp.globalsign.com/scripts/timestamp.dll Release\iojs-v%NODE_VERSION%-%msiplatform%.msi
+if defined nosign goto upload
+signtool sign /a /d "io.js" /t http://timestamp.globalsign.com/scripts/timestamp.dll iojs-v%FULLVERSION%-%target_arch%.msi
 if errorlevel 1 echo Failed to sign msi&goto exit
+
+:upload
+@rem Skip upload if not requested
+if not defined upload goto run
+
+if not defined SSHCONFIG (
+  echo SSHCONFIG is not set for upload
+  exit /b 1
+)
+if not defined STAGINGSERVER set STAGINGSERVER=iojs-www
+ssh -F %SSHCONFIG% %STAGINGSERVER% "mkdir -p staging/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%"
+scp -F %SSHCONFIG% Release\iojs.exe %STAGINGSERVER%:staging/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/iojs.exe
+scp -F %SSHCONFIG% Release\iojs.lib %STAGINGSERVER%:staging/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/iojs.lib
+scp -F %SSHCONFIG% iojs-v%FULLVERSION%-%target_arch%.msi %STAGINGSERVER%:staging/%DISTTYPEDIR%/v%FULLVERSION%/
+ssh -F %SSHCONFIG% %STAGINGSERVER% "touch staging/%DISTTYPEDIR%/v%FULLVERSION%/iojs-v%FULLVERSION%-%target_arch%.msi.done staging/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%.done"
 
 :run
 @rem Run tests if requested.
@@ -218,6 +241,46 @@ rem ***************
 
 :getnodeversion
 set NODE_VERSION=
+set TAG=
+set FULLVERSION=
+
 for /F "usebackq tokens=*" %%i in (`python "%~dp0tools\getnodeversion.py"`) do set NODE_VERSION=%%i
-if not defined NODE_VERSION echo Cannot determine current version of io.js & exit /b 1
+if not defined NODE_VERSION (
+  echo Cannot determine current version of io.js
+  exit /b 1
+)
+
+if not defined DISTTYPE set DISTTYPE=release
+if "%DISTTYPE%"=="release" (
+  set FULLVERSION=%NODE_VERSION%
+  goto exit
+)
+if "%DISTTYPE%"=="custom" (
+  if not defined CUSTOMTAG (
+    echo "CUSTOMTAG is not set for DISTTYPE=custom"
+    exit /b 1
+  )
+  set TAG=%CUSTOMTAG%
+)
+if not "%DISTTYPE%"=="custom" (
+  if not defined DATESTRING (
+    echo "DATESTRING is not set for nightly"
+    exit /b 1
+  )
+  if not defined COMMIT (
+    echo "COMMIT is not set for nightly"
+    exit /b 1
+  )
+  if not "%DISTTYPE%"=="nightly" (
+    if not "%DISTTYPE%"=="next-nightly" (
+      echo "DISTTYPE is not release, custom, nightly or next-nightly"
+      exit /b 1
+    )
+  )
+  set TAG=%DISTTYPE%%DATESTRING%%COMMIT%
+)
+set FULLVERSION=%NODE_VERSION%-%TAG%
+
+:exit
+if not defined DISTTYPEDIR set DISTTYPEDIR=%DISTTYPE%
 goto :EOF
