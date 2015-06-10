@@ -6,7 +6,7 @@
     <ProductVersion>3.5</ProductVersion>
     <ProjectGuid>{1d808ff0-b5a9-4be9-859d-b334b6f48be2}</ProjectGuid>
     <SchemaVersion>2.0</SchemaVersion>
-    <OutputName>iojs-v$(NodeVersion)-$(Platform)</OutputName>
+    <OutputName>iojs-v$(FullVersion)-$(Platform)</OutputName>
     <OutputType>Package</OutputType>
     <EnableProjectHarvesting>True</EnableProjectHarvesting>
     <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' AND '$(MSBuildExtensionsPath32)' != '' ">$(MSBuildExtensionsPath32)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
@@ -14,25 +14,25 @@
     <NodeVersion Condition=" '$(NodeVersion)' == '' ">0.0.0.0</NodeVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
-    <OutputPath>..\..\..\$(Configuration)\</OutputPath>
+    <OutputPath>..\..\..\</OutputPath>
     <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
-    <DefineConstants>Debug;ProductVersion=$(NodeVersion);NoETW=$(NoETW);NoPerfCtr=$(NoPerfCtr);NpmSourceDir=..\..\..\deps\npm\;ProgramFilesFolderId=ProgramFilesFolder</DefineConstants>
+    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NoETW=$(NoETW);NoPerfCtr=$(NoPerfCtr);NpmSourceDir=..\..\..\deps\npm\;ProgramFilesFolderId=ProgramFilesFolder</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
-    <OutputPath>..\..\..\$(Configuration)\</OutputPath>
+    <OutputPath>..\..\..\</OutputPath>
     <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
-    <DefineConstants>Debug;ProductVersion=$(NodeVersion);NoETW=$(NoETW);NoPerfCtr=$(NoPerfCtr);NpmSourceDir=..\..\..\deps\npm\;ProgramFilesFolderId=ProgramFilesFolder</DefineConstants>
+    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NoETW=$(NoETW);NoPerfCtr=$(NoPerfCtr);NpmSourceDir=..\..\..\deps\npm\;ProgramFilesFolderId=ProgramFilesFolder</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x64' ">
-    <OutputPath>..\..\..\$(Configuration)\</OutputPath>
+    <OutputPath>..\..\..\</OutputPath>
     <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
-    <DefineConstants>Debug;ProductVersion=$(NodeVersion);NoETW=$(NoETW);NoPerfCtr=$(NoPerfCtr);NpmSourceDir=..\..\..\deps\npm\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
+    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NoETW=$(NoETW);NoPerfCtr=$(NoPerfCtr);NpmSourceDir=..\..\..\deps\npm\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
     <Cultures>en-US</Cultures>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
-    <OutputPath>..\..\..\$(Configuration)\</OutputPath>
+    <OutputPath>..\..\..\</OutputPath>
     <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
-    <DefineConstants>Debug;ProductVersion=$(NodeVersion);NoETW=$(NoETW);NoPerfCtr=$(NoPerfCtr);NpmSourceDir=..\..\..\deps\npm\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
+    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NoETW=$(NoETW);NoPerfCtr=$(NoPerfCtr);NpmSourceDir=..\..\..\deps\npm\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
   </PropertyGroup>
   <PropertyGroup>
     <EnableProjectHarvesting>True</EnableProjectHarvesting>
