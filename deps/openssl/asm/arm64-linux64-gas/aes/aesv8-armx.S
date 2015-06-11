@@ -227,17 +227,17 @@ aes_v8_encrypt:
 
 .Loop_enc:
 	aese	v2.16b,v0.16b
-	ld1	{v0.4s},[x2],#16
 	aesmc	v2.16b,v2.16b
+	ld1	{v0.4s},[x2],#16
 	subs	w3,w3,#2
 	aese	v2.16b,v1.16b
-	ld1	{v1.4s},[x2],#16
 	aesmc	v2.16b,v2.16b
+	ld1	{v1.4s},[x2],#16
 	b.gt	.Loop_enc
 
 	aese	v2.16b,v0.16b
-	ld1	{v0.4s},[x2]
 	aesmc	v2.16b,v2.16b
+	ld1	{v0.4s},[x2]
 	aese	v2.16b,v1.16b
 	eor	v2.16b,v2.16b,v0.16b
 
@@ -256,17 +256,17 @@ aes_v8_decrypt:
 
 .Loop_dec:
 	aesd	v2.16b,v0.16b
-	ld1	{v0.4s},[x2],#16
 	aesimc	v2.16b,v2.16b
+	ld1	{v0.4s},[x2],#16
 	subs	w3,w3,#2
 	aesd	v2.16b,v1.16b
-	ld1	{v1.4s},[x2],#16
 	aesimc	v2.16b,v2.16b
+	ld1	{v1.4s},[x2],#16
 	b.gt	.Loop_dec
 
 	aesd	v2.16b,v0.16b
-	ld1	{v0.4s},[x2]
 	aesimc	v2.16b,v2.16b
+	ld1	{v0.4s},[x2]
 	aesd	v2.16b,v1.16b
 	eor	v2.16b,v2.16b,v0.16b
 
@@ -308,16 +308,42 @@ aes_v8_cbc_encrypt:
 	eor	v5.16b,v16.16b,v7.16b
 	b.eq	.Lcbc_enc128
 
+	ld1	{v2.4s-v3.4s},[x7]
+	add	x7,x3,#16
+	add	x6,x3,#16*4
+	add	x12,x3,#16*5
+	aese	v0.16b,v16.16b
+	aesmc	v0.16b,v0.16b
+	add	x14,x3,#16*6
+	add	x3,x3,#16*7
+	b	.Lenter_cbc_enc
+
+.align	4
 .Loop_cbc_enc:
 	aese	v0.16b,v16.16b
-	ld1	{v16.4s},[x7],#16
 	aesmc	v0.16b,v0.16b
-	subs	w6,w6,#2
+	 st1	{v6.16b},[x1],#16
+.Lenter_cbc_enc:
 	aese	v0.16b,v17.16b
-	ld1	{v17.4s},[x7],#16
 	aesmc	v0.16b,v0.16b
-	b.gt	.Loop_cbc_enc
+	aese	v0.16b,v2.16b
+	aesmc	v0.16b,v0.16b
+	ld1	{v16.4s},[x6]
+	cmp	w5,#4
+	aese	v0.16b,v3.16b
+	aesmc	v0.16b,v0.16b
+	ld1	{v17.4s},[x12]
+	b.eq	.Lcbc_enc192
 
+	aese	v0.16b,v16.16b
+	aesmc	v0.16b,v0.16b
+	ld1	{v16.4s},[x14]
+	aese	v0.16b,v17.16b
+	aesmc	v0.16b,v0.16b
+	ld1	{v17.4s},[x3]
+	nop
+
+.Lcbc_enc192:
 	aese	v0.16b,v16.16b
 	aesmc	v0.16b,v0.16b
 	 subs	x2,x2,#16
@@ -326,7 +352,6 @@ aes_v8_cbc_encrypt:
 	 csel	x8,xzr,x8,eq
 	aese	v0.16b,v18.16b
 	aesmc	v0.16b,v0.16b
-	 add	x7,x3,#16
 	aese	v0.16b,v19.16b
 	aesmc	v0.16b,v0.16b
 	 ld1	{v16.16b},[x0],x8
@@ -335,16 +360,14 @@ aes_v8_cbc_encrypt:
 	 eor	v16.16b,v16.16b,v5.16b
 	aese	v0.16b,v21.16b
 	aesmc	v0.16b,v0.16b
-	 ld1 {v17.4s},[x7],#16	// re-pre-load rndkey[1]
+	 ld1 {v17.4s},[x7]		// re-pre-load rndkey[1]
 	aese	v0.16b,v22.16b
 	aesmc	v0.16b,v0.16b
 	aese	v0.16b,v23.16b
-
-	 mov	w6,w5
 	eor	v6.16b,v0.16b,v7.16b
-	st1	{v6.16b},[x1],#16
 	b.hs	.Loop_cbc_enc
 
+	st1	{v6.16b},[x1],#16
 	b	.Lcbc_done
 
 .align	5
@@ -402,79 +425,78 @@ aes_v8_cbc_encrypt:
 
 .Loop3x_cbc_dec:
 	aesd	v0.16b,v16.16b
-	aesd	v1.16b,v16.16b
-	aesd	v18.16b,v16.16b
-	ld1	{v16.4s},[x7],#16
 	aesimc	v0.16b,v0.16b
+	aesd	v1.16b,v16.16b
 	aesimc	v1.16b,v1.16b
+	aesd	v18.16b,v16.16b
 	aesimc	v18.16b,v18.16b
+	ld1	{v16.4s},[x7],#16
 	subs	w6,w6,#2
 	aesd	v0.16b,v17.16b
-	aesd	v1.16b,v17.16b
-	aesd	v18.16b,v17.16b
-	ld1	{v17.4s},[x7],#16
 	aesimc	v0.16b,v0.16b
+	aesd	v1.16b,v17.16b
 	aesimc	v1.16b,v1.16b
+	aesd	v18.16b,v17.16b
 	aesimc	v18.16b,v18.16b
+	ld1	{v17.4s},[x7],#16
 	b.gt	.Loop3x_cbc_dec
 
 	aesd	v0.16b,v16.16b
+	aesimc	v0.16b,v0.16b
 	aesd	v1.16b,v16.16b
+	aesimc	v1.16b,v1.16b
 	aesd	v18.16b,v16.16b
+	aesimc	v18.16b,v18.16b
 	 eor	v4.16b,v6.16b,v7.16b
-	aesimc	v0.16b,v0.16b
-	aesimc	v1.16b,v1.16b
-	aesimc	v18.16b,v18.16b
-	 eor	v5.16b,v2.16b,v7.16b
-	aesd	v0.16b,v17.16b
-	aesd	v1.16b,v17.16b
-	aesd	v18.16b,v17.16b
-	 eor	v17.16b,v3.16b,v7.16b
 	 subs	x2,x2,#0x30
-	aesimc	v0.16b,v0.16b
-	aesimc	v1.16b,v1.16b
-	aesimc	v18.16b,v18.16b
-	 orr	v6.16b,v19.16b,v19.16b
+	 eor	v5.16b,v2.16b,v7.16b
 	 csel	x6,x2,x6,lo			// x6, w6, is zero at this point
-	aesd	v0.16b,v20.16b
-	aesd	v1.16b,v20.16b
-	aesd	v18.16b,v20.16b
+	aesd	v0.16b,v17.16b
+	aesimc	v0.16b,v0.16b
+	aesd	v1.16b,v17.16b
+	aesimc	v1.16b,v1.16b
+	aesd	v18.16b,v17.16b
+	aesimc	v18.16b,v18.16b
+	 eor	v17.16b,v3.16b,v7.16b
 	 add	x0,x0,x6		// x0 is adjusted in such way that
 					// at exit from the loop v1.16b-v18.16b
 					// are loaded with last "words"
-	aesimc	v0.16b,v0.16b
-	aesimc	v1.16b,v1.16b
-	aesimc	v18.16b,v18.16b
+	 orr	v6.16b,v19.16b,v19.16b
 	 mov	x7,x3
-	aesd	v0.16b,v21.16b
-	aesd	v1.16b,v21.16b
-	aesd	v18.16b,v21.16b
-	 ld1	{v2.16b},[x0],#16
+	aesd	v0.16b,v20.16b
 	aesimc	v0.16b,v0.16b
+	aesd	v1.16b,v20.16b
 	aesimc	v1.16b,v1.16b
+	aesd	v18.16b,v20.16b
+	aesimc	v18.16b,v18.16b
+	 ld1	{v2.16b},[x0],#16
+	aesd	v0.16b,v21.16b
+	aesimc	v0.16b,v0.16b
+	aesd	v1.16b,v21.16b
+	aesimc	v1.16b,v1.16b
+	aesd	v18.16b,v21.16b
 	aesimc	v18.16b,v18.16b
 	 ld1	{v3.16b},[x0],#16
 	aesd	v0.16b,v22.16b
-	aesd	v1.16b,v22.16b
-	aesd	v18.16b,v22.16b
-	 ld1	{v19.16b},[x0],#16
 	aesimc	v0.16b,v0.16b
+	aesd	v1.16b,v22.16b
 	aesimc	v1.16b,v1.16b
+	aesd	v18.16b,v22.16b
 	aesimc	v18.16b,v18.16b
-	 ld1 {v16.4s},[x7],#16	// re-pre-load rndkey[0]
+	 ld1	{v19.16b},[x0],#16
 	aesd	v0.16b,v23.16b
 	aesd	v1.16b,v23.16b
 	aesd	v18.16b,v23.16b
-
+	 ld1 {v16.4s},[x7],#16	// re-pre-load rndkey[0]
 	 add	w6,w5,#2
 	eor	v4.16b,v4.16b,v0.16b
 	eor	v5.16b,v5.16b,v1.16b
 	eor	v18.16b,v18.16b,v17.16b
 	 ld1 {v17.4s},[x7],#16	// re-pre-load rndkey[1]
-	 orr	v0.16b,v2.16b,v2.16b
 	st1	{v4.16b},[x1],#16
-	 orr	v1.16b,v3.16b,v3.16b
+	 orr	v0.16b,v2.16b,v2.16b
 	st1	{v5.16b},[x1],#16
+	 orr	v1.16b,v3.16b,v3.16b
 	st1	{v18.16b},[x1],#16
 	 orr	v18.16b,v19.16b,v19.16b
 	b.hs	.Loop3x_cbc_dec
@@ -485,39 +507,39 @@ aes_v8_cbc_encrypt:
 
 .Lcbc_dec_tail:
 	aesd	v1.16b,v16.16b
-	aesd	v18.16b,v16.16b
-	ld1	{v16.4s},[x7],#16
 	aesimc	v1.16b,v1.16b
+	aesd	v18.16b,v16.16b
 	aesimc	v18.16b,v18.16b
+	ld1	{v16.4s},[x7],#16
 	subs	w6,w6,#2
 	aesd	v1.16b,v17.16b
-	aesd	v18.16b,v17.16b
-	ld1	{v17.4s},[x7],#16
 	aesimc	v1.16b,v1.16b
+	aesd	v18.16b,v17.16b
 	aesimc	v18.16b,v18.16b
+	ld1	{v17.4s},[x7],#16
 	b.gt	.Lcbc_dec_tail
 
 	aesd	v1.16b,v16.16b
-	aesd	v18.16b,v16.16b
 	aesimc	v1.16b,v1.16b
+	aesd	v18.16b,v16.16b
 	aesimc	v18.16b,v18.16b
 	aesd	v1.16b,v17.16b
-	aesd	v18.16b,v17.16b
 	aesimc	v1.16b,v1.16b
+	aesd	v18.16b,v17.16b
 	aesimc	v18.16b,v18.16b
 	aesd	v1.16b,v20.16b
-	aesd	v18.16b,v20.16b
 	aesimc	v1.16b,v1.16b
+	aesd	v18.16b,v20.16b
 	aesimc	v18.16b,v18.16b
 	 cmn	x2,#0x20
 	aesd	v1.16b,v21.16b
-	aesd	v18.16b,v21.16b
 	aesimc	v1.16b,v1.16b
+	aesd	v18.16b,v21.16b
 	aesimc	v18.16b,v18.16b
 	 eor	v5.16b,v6.16b,v7.16b
 	aesd	v1.16b,v22.16b
-	aesd	v18.16b,v22.16b
 	aesimc	v1.16b,v1.16b
+	aesd	v18.16b,v22.16b
 	aesimc	v18.16b,v18.16b
 	 eor	v17.16b,v3.16b,v7.16b
 	aesd	v1.16b,v23.16b
@@ -583,70 +605,69 @@ aes_v8_ctr32_encrypt_blocks:
 .align	4
 .Loop3x_ctr32:
 	aese		v0.16b,v16.16b
-	aese		v1.16b,v16.16b
-	aese		v18.16b,v16.16b
-	ld1		{v16.4s},[x7],#16
 	aesmc		v0.16b,v0.16b
+	aese		v1.16b,v16.16b
 	aesmc		v1.16b,v1.16b
+	aese		v18.16b,v16.16b
 	aesmc		v18.16b,v18.16b
+	ld1		{v16.4s},[x7],#16
 	subs		w6,w6,#2
 	aese		v0.16b,v17.16b
-	aese		v1.16b,v17.16b
-	aese		v18.16b,v17.16b
-	ld1		{v17.4s},[x7],#16
 	aesmc		v0.16b,v0.16b
+	aese		v1.16b,v17.16b
 	aesmc		v1.16b,v1.16b
+	aese		v18.16b,v17.16b
 	aesmc		v18.16b,v18.16b
+	ld1		{v17.4s},[x7],#16
 	b.gt		.Loop3x_ctr32
 
 	aese		v0.16b,v16.16b
-	aese		v1.16b,v16.16b
-	aese		v18.16b,v16.16b
-	 mov		x7,x3
 	aesmc		v4.16b,v0.16b
-	 ld1		{v2.16b},[x0],#16
+	aese		v1.16b,v16.16b
 	aesmc		v5.16b,v1.16b
-	aesmc		v18.16b,v18.16b
+	 ld1		{v2.16b},[x0],#16
 	 orr		v0.16b,v6.16b,v6.16b
-	aese		v4.16b,v17.16b
+	aese		v18.16b,v16.16b
+	aesmc		v18.16b,v18.16b
 	 ld1		{v3.16b},[x0],#16
-	aese		v5.16b,v17.16b
-	aese		v18.16b,v17.16b
 	 orr		v1.16b,v6.16b,v6.16b
+	aese		v4.16b,v17.16b
 	aesmc		v4.16b,v4.16b
-	 ld1		{v19.16b},[x0],#16
+	aese		v5.16b,v17.16b
 	aesmc		v5.16b,v5.16b
+	 ld1		{v19.16b},[x0],#16
+	 mov		x7,x3
+	aese		v18.16b,v17.16b
 	aesmc		v17.16b,v18.16b
 	 orr		v18.16b,v6.16b,v6.16b
 	 add		w9,w8,#1
 	aese		v4.16b,v20.16b
+	aesmc		v4.16b,v4.16b
 	aese		v5.16b,v20.16b
-	aese		v17.16b,v20.16b
+	aesmc		v5.16b,v5.16b
 	 eor		v2.16b,v2.16b,v7.16b
 	 add		w10,w8,#2
-	aesmc		v4.16b,v4.16b
-	aesmc		v5.16b,v5.16b
+	aese		v17.16b,v20.16b
 	aesmc		v17.16b,v17.16b
 	 eor		v3.16b,v3.16b,v7.16b
 	 add		w8,w8,#3
 	aese		v4.16b,v21.16b
+	aesmc		v4.16b,v4.16b
 	aese		v5.16b,v21.16b
-	aese		v17.16b,v21.16b
+	aesmc		v5.16b,v5.16b
 	 eor		v19.16b,v19.16b,v7.16b
 	 rev		w9,w9
-	aesmc		v4.16b,v4.16b
-	 ld1	 {v16.4s},[x7],#16	// re-pre-load rndkey[0]
-	aesmc		v5.16b,v5.16b
+	aese		v17.16b,v21.16b
 	aesmc		v17.16b,v17.16b
 	 mov	v0.s[3], w9
 	 rev		w10,w10
 	aese		v4.16b,v22.16b
+	aesmc		v4.16b,v4.16b
 	aese		v5.16b,v22.16b
-	aese		v17.16b,v22.16b
+	aesmc		v5.16b,v5.16b
 	 mov	v1.s[3], w10
 	 rev		w12,w8
-	aesmc		v4.16b,v4.16b
-	aesmc		v5.16b,v5.16b
+	aese		v17.16b,v22.16b
 	aesmc		v17.16b,v17.16b
 	 mov	v18.s[3], w12
 	 subs		x2,x2,#3
@@ -654,13 +675,14 @@ aes_v8_ctr32_encrypt_blocks:
 	aese		v5.16b,v23.16b
 	aese		v17.16b,v23.16b
 
-	 mov		w6,w5
 	eor		v2.16b,v2.16b,v4.16b
+	 ld1	 {v16.4s},[x7],#16	// re-pre-load rndkey[0]
+	st1		{v2.16b},[x1],#16
 	eor		v3.16b,v3.16b,v5.16b
+	 mov		w6,w5
+	st1		{v3.16b},[x1],#16
 	eor		v19.16b,v19.16b,v17.16b
 	 ld1	 {v17.4s},[x7],#16	// re-pre-load rndkey[1]
-	st1		{v2.16b},[x1],#16
-	st1		{v3.16b},[x1],#16
 	st1		{v19.16b},[x1],#16
 	b.hs		.Loop3x_ctr32
 
@@ -672,40 +694,40 @@ aes_v8_ctr32_encrypt_blocks:
 
 .Lctr32_tail:
 	aese		v0.16b,v16.16b
-	aese		v1.16b,v16.16b
-	ld1		{v16.4s},[x7],#16
 	aesmc		v0.16b,v0.16b
+	aese		v1.16b,v16.16b
 	aesmc		v1.16b,v1.16b
+	ld1		{v16.4s},[x7],#16
 	subs		w6,w6,#2
 	aese		v0.16b,v17.16b
-	aese		v1.16b,v17.16b
-	ld1		{v17.4s},[x7],#16
 	aesmc		v0.16b,v0.16b
+	aese		v1.16b,v17.16b
 	aesmc		v1.16b,v1.16b
+	ld1		{v17.4s},[x7],#16
 	b.gt		.Lctr32_tail
 
 	aese		v0.16b,v16.16b
-	aese		v1.16b,v16.16b
 	aesmc		v0.16b,v0.16b
+	aese		v1.16b,v16.16b
 	aesmc		v1.16b,v1.16b
 	aese		v0.16b,v17.16b
-	aese		v1.16b,v17.16b
 	aesmc		v0.16b,v0.16b
+	aese		v1.16b,v17.16b
 	aesmc		v1.16b,v1.16b
 	 ld1		{v2.16b},[x0],x12
 	aese		v0.16b,v20.16b
+	aesmc		v0.16b,v0.16b
 	aese		v1.16b,v20.16b
+	aesmc		v1.16b,v1.16b
 	 ld1		{v3.16b},[x0]
-	aesmc		v0.16b,v0.16b
-	aesmc		v1.16b,v1.16b
 	aese		v0.16b,v21.16b
+	aesmc		v0.16b,v0.16b
 	aese		v1.16b,v21.16b
-	aesmc		v0.16b,v0.16b
 	aesmc		v1.16b,v1.16b
-	aese		v0.16b,v22.16b
-	aese		v1.16b,v22.16b
 	 eor		v2.16b,v2.16b,v7.16b
+	aese		v0.16b,v22.16b
 	aesmc		v0.16b,v0.16b
+	aese		v1.16b,v22.16b
 	aesmc		v1.16b,v1.16b
 	 eor		v3.16b,v3.16b,v7.16b
 	aese		v0.16b,v23.16b
