@@ -27,7 +27,7 @@ SSL_CTX_set_ecdh_auto, SSL_set_ecdh_auto - EC supported curve functions
 SSL_CTX_set1_curves() sets the supported curves for B<ctx> to B<clistlen>
 curves in the array B<clist>. The array consist of all NIDs of curves in
 preference order. For a TLS client the curves are used directly in the
-supported curves extension. For a TLS server the curves are used to
+supported curves extension. For a TLS server the curves are used to 
 determine the set of shared curves.
 
 SSL_CTX_set1_curves_list() sets the supported curves for B<ctx> to
@@ -38,7 +38,7 @@ SSL_set1_curves() and SSL_set1_curves_list() are similar except they set
 supported curves for the SSL structure B<ssl>.
 
 SSL_get1_curves() returns the set of supported curves sent by a client
-in the supported curves extension. It returns the total number of
+in the supported curves extension. It returns the total number of 
 supported curves. The B<curves> parameter can be B<NULL> to simply
 return the number of curves for memory allocation purposes. The
 B<curves> array is in the form of a set of curve NIDs in preference
@@ -53,7 +53,7 @@ so B<n> is normally set to zero. If the value B<n> is out of range,
 NID_undef is returned.
 
 SSL_CTX_set_ecdh_auto() and SSL_set_ecdh_auto() set automatic curve
-selection for server B<ctx> or B<ssl> to B<onoff>. If B<onoff> is 1 then
+selection for server B<ctx> or B<ssl> to B<onoff>. If B<onoff> is 1 then 
 the highest preference curve is automatically used for ECDH temporary
 keys used during key exchange.
 

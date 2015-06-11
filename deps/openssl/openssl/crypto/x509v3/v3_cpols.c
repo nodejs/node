@@ -230,11 +230,11 @@ static POLICYINFO *policy_section(X509V3_CTX *ctx,
                 goto merr;
             if (!sk_POLICYQUALINFO_push(pol->qualifiers, qual))
                 goto merr;
-            if(!(qual->pqualid = OBJ_nid2obj(NID_id_qt_cps))) {
+            if (!(qual->pqualid = OBJ_nid2obj(NID_id_qt_cps))) {
                 X509V3err(X509V3_F_POLICY_SECTION, ERR_R_INTERNAL_ERROR);
                 goto err;
             }
-            if(!(qual->d.cpsuri = M_ASN1_IA5STRING_new()))
+            if (!(qual->d.cpsuri = M_ASN1_IA5STRING_new()))
                 goto merr;
             if (!ASN1_STRING_set(qual->d.cpsuri, cnf->value,
                                  strlen(cnf->value)))
@@ -294,7 +294,7 @@ static POLICYQUALINFO *notice_section(X509V3_CTX *ctx,
     POLICYQUALINFO *qual;
     if (!(qual = POLICYQUALINFO_new()))
         goto merr;
-    if(!(qual->pqualid = OBJ_nid2obj(NID_id_qt_unotice))) {
+    if (!(qual->pqualid = OBJ_nid2obj(NID_id_qt_unotice))) {
         X509V3err(X509V3_F_NOTICE_SECTION, ERR_R_INTERNAL_ERROR);
         goto err;
     }
@@ -304,7 +304,7 @@ static POLICYQUALINFO *notice_section(X509V3_CTX *ctx,
     for (i = 0; i < sk_CONF_VALUE_num(unot); i++) {
         cnf = sk_CONF_VALUE_value(unot, i);
         if (!strcmp(cnf->name, "explicitText")) {
-            if(!(not->exptext = M_ASN1_VISIBLESTRING_new()))
+            if (!(not->exptext = M_ASN1_VISIBLESTRING_new()))
                 goto merr;
             if (!ASN1_STRING_set(not->exptext, cnf->value,
                                  strlen(cnf->value)))

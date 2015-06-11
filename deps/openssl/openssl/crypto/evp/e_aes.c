@@ -50,6 +50,7 @@
 
 #include <openssl/opensslconf.h>
 #ifndef OPENSSL_NO_AES
+#include <openssl/crypto.h>
 # include <openssl/evp.h>
 # include <openssl/err.h>
 # include <string.h>
@@ -1227,7 +1228,7 @@ static int aes_gcm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
 
     case EVP_CTRL_AEAD_TLS1_AAD:
         /* Save the AAD for later use */
-        if (arg != 13)
+        if (arg != EVP_AEAD_TLS1_AAD_LEN)
             return 0;
         memcpy(c->buf, ptr, arg);
         gctx->tls_aad_len = arg;
@@ -1455,7 +1456,7 @@ static int aes_gcm_tls_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
         /* Retrieve tag */
         CRYPTO_gcm128_tag(&gctx->gcm, ctx->buf, EVP_GCM_TLS_TAG_LEN);
         /* If tag mismatch wipe buffer */
-        if (memcmp(ctx->buf, in + len, EVP_GCM_TLS_TAG_LEN)) {
+        if (CRYPTO_memcmp(ctx->buf, in + len, EVP_GCM_TLS_TAG_LEN)) {
             OPENSSL_cleanse(out, len);
             goto err;
         }
@@ -1895,7 +1896,7 @@ static int aes_ccm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
             !CRYPTO_ccm128_decrypt(ccm, in, out, len)) {
             unsigned char tag[16];
             if (CRYPTO_ccm128_tag(ccm, tag, cctx->M)) {
-                if (!memcmp(tag, ctx->buf, cctx->M))
+                if (!CRYPTO_memcmp(tag, ctx->buf, cctx->M))
                     rv = len;
             }
         }

@@ -784,7 +784,7 @@ sub body_00_19_dec () {	# ((c^d)&b)^d
 sub body_20_39_dec () {	# b^d^c
     # on entry @T[0]=b^d
     return &body_40_59_dec() if ($rx==39);
-
+  
     my @r=@body_20_39;
 
 	unshift (@r,@aes256_dec[$rx])	if (@aes256_dec[$rx]);
@@ -2013,7 +2013,7 @@ sub sha1op38 {
     my $instr = shift;
     my %opcodelet = (
 		"sha1nexte" => 0xc8,
-		"sha1msg1"  => 0xc9,
+  		"sha1msg1"  => 0xc9,
 		"sha1msg2"  => 0xca	);
 
     if (defined($opcodelet{$instr}) && @_[0] =~ /%xmm([0-9]+),\s*%xmm([0-9]+)/) {

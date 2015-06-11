@@ -110,7 +110,7 @@ x86_64-gf2m.s:	asm/x86_64-gf2m.pl
 	$(PERL) asm/x86_64-gf2m.pl $(PERLASM_SCHEME) > $@
 rsaz-x86_64.s:	asm/rsaz-x86_64.pl
 	$(PERL) asm/rsaz-x86_64.pl $(PERLASM_SCHEME) > $@
-rsaz-avx2.s:	asm/rsaz-avx2.pl
+rsaz-avx2.s:	asm/rsaz-avx2.pl 
 	$(PERL) asm/rsaz-avx2.pl $(PERLASM_SCHEME) > $@
 
 bn-ia64.s:	asm/ia64.S
@@ -175,6 +175,8 @@ tests:
 
 lint:
 	lint -DLINT $(INCLUDES) $(SRC)>fluff
+
+update: bn_prime.h depend
 
 depend:
 	@[ -n "$(MAKEDEPEND)" ] # should be set by upper Makefile...

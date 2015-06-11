@@ -272,7 +272,7 @@ my %globals;
 	} else {
 	    %szmap = (	b=>"BYTE$PTR",  w=>"WORD$PTR",
 			l=>"DWORD$PTR", d=>"DWORD$PTR",
-			q=>"QWORD$PTR", o=>"OWORD$PTR",
+	    		q=>"QWORD$PTR", o=>"OWORD$PTR",
 			x=>"XMMWORD$PTR", y=>"YMMWORD$PTR", z=>"ZMMWORD$PTR" );
 
 	    $self->{label} =~ s/\./\$/g;

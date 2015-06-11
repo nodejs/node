@@ -100,7 +100,7 @@ $code.=<<___;
 	ld	[$ap+12],	$t3
 	or	$t0,	$aj,	$aj
 	add	$ap,	16,	$ap
-	stxa	$aj,	[$anp]0xe2	! converted ap[0]
+	stx	$aj,	[$anp]		! converted ap[0]
 
 	mulx	$aj,	$m0,	$lo0	! ap[0]*bp[0]
 	umulxhi	$aj,	$m0,	$hi0
@@ -150,7 +150,7 @@ $code.=<<___;
 	sllx	$t1,	32,	$aj
 	add	$ap,	8,	$ap
 	or	$t0,	$aj,	$aj
-	stxa	$aj,	[$anp]0xe2	! converted ap[j]
+	stx	$aj,	[$anp]		! converted ap[j]
 
 	ld	[$np+0],	$t2	! np[j]
 	addcc	$nlo,	$hi1,	$lo1
@@ -169,7 +169,7 @@ $code.=<<___;
 	addcc	$lo0,	$lo1,	$lo1	! np[j]*m1+ap[j]*bp[0]
 	umulxhi	$nj,	$m1,	$nj	! nhi=nj
 	addxc	%g0,	$hi1,	$hi1
-	stxa	$lo1,	[$tp]0xe2	! tp[j-1]
+	stx	$lo1,	[$tp]		! tp[j-1]
 	add	$tp,	8,	$tp	! tp++
 
 	brnz,pt	$cnt,	.L1st
@@ -182,12 +182,12 @@ $code.=<<___;
 	addxc	$nj,	%g0,	$hi1
 	addcc	$lo0,	$lo1,	$lo1	! np[j]*m1+ap[j]*bp[0]
 	addxc	%g0,	$hi1,	$hi1
-	stxa	$lo1,	[$tp]0xe2	! tp[j-1]
+	stx	$lo1,	[$tp]		! tp[j-1]
 	add	$tp,	8,	$tp
 
 	addcc	$hi0,	$hi1,	$hi1
 	addxc	%g0,	%g0,	$ovf	! upmost overflow bit
-	stxa	$hi1,	[$tp]0xe2
+	stx	$hi1,	[$tp]
 	add	$tp,	8,	$tp
 
 	ba	.Louter

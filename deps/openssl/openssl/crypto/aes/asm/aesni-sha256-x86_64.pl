@@ -542,7 +542,7 @@ my @insns = (&$body,&$body,&$body,&$body);	# 104 instructions
 	&XOP_256_00_47($j,\&body_00_15,@X);
 	push(@X,shift(@X));			# rotate(@X)
     }
-	&mov		("%r12",$_inp);		# borrow $a4
+    	&mov		("%r12",$_inp);		# borrow $a4
 	&vpand		($temp,$temp,$mask14);
 	&mov		("%r15",$_out);		# borrow $a2
 	&vpor		($iv,$iv,$temp);
@@ -793,7 +793,7 @@ my @insns = (&$body,&$body,&$body,&$body);	# 104 instructions
 	&AVX_256_00_47($j,\&body_00_15,@X);
 	push(@X,shift(@X));			# rotate(@X)
     }
-	&mov		("%r12",$_inp);		# borrow $a4
+    	&mov		("%r12",$_inp);		# borrow $a4
 	&vpand		($temp,$temp,$mask14);
 	&mov		("%r15",$_out);		# borrow $a2
 	&vpor		($iv,$iv,$temp);
@@ -879,7 +879,7 @@ if ($avx>1) {{
 ######################################################################
 # AVX2+BMI code path
 #
-my $a5=$SZ==4?"%esi":"%rsi";	# zap $inp
+my $a5=$SZ==4?"%esi":"%rsi";	# zap $inp 
 my $PUSH8=8*2*$SZ;
 use integer;
 
@@ -1499,13 +1499,13 @@ ___
 
 # EXCEPTION_DISPOSITION handler (EXCEPTION_RECORD *rec,ULONG64 frame,
 #		CONTEXT *context,DISPATCHER_CONTEXT *disp)
-if ($win64) {
+if ($win64 && $avx) {
 $rec="%rcx";
 $frame="%rdx";
 $context="%r8";
 $disp="%r9";
 
-$code.=<<___ if ($avx);
+$code.=<<___;
 .extern	__imp_RtlVirtualUnwind
 .type	se_handler,\@abi-omnipotent
 .align	16
@@ -1643,7 +1643,7 @@ $code.=<<___ if ($shaext);
 	.rva	.LSEH_end_${func}_shaext
 	.rva	.LSEH_info_${func}_shaext
 ___
-$code.=<<___ if ($avx);
+$code.=<<___;
 .section	.xdata
 .align	8
 .LSEH_info_${func}_xop:
@@ -1684,7 +1684,7 @@ sub rex {
 {
   my %opcodelet = (
 		"sha256rnds2" => 0xcb,
-		"sha256msg1"  => 0xcc,
+  		"sha256msg1"  => 0xcc,
 		"sha256msg2"  => 0xcd	);
 
   sub sha256op38 {

@@ -8,6 +8,6 @@ Curves = P-521:P-384:P-256
 # Automatic curve selection
 ECDHParameters = Automatic
 # Restricted signature algorithms
-SignatureAlgorithms = RSA+SHA512:ECDSA+SHA512
+SignatureAlgorithms = RSA+SHA512:ECDSA+SHA512 
 Certificate=server.pem
 PrivateKey=server.pem

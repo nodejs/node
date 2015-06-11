@@ -25,7 +25,7 @@ d2i_ECPKParameters, i2d_ECPKParameters, d2i_ECPKParameters_bio, i2d_ECPKParamete
 The ECPKParameters encode and decode routines encode and parse the public parameters for an
 B<EC_GROUP> structure, which represents a curve.
 
-d2i_ECPKParameters() attempts to decode B<len> bytes at B<*in>. If
+d2i_ECPKParameters() attempts to decode B<len> bytes at B<*in>. If 
 successful a pointer to the B<EC_GROUP> structure is returned. If an error
 occurred then B<NULL> is returned. If B<px> is not B<NULL> then the
 returned structure is written to B<*px>. If B<*px> is not B<NULL>
@@ -38,7 +38,7 @@ i2d_ECPKParameters() encodes the structure pointed to by B<x> into DER format.
 If B<out> is not B<NULL> is writes the DER encoded data to the buffer
 at B<*out>, and increments it to point after the data just written.
 If the return value is negative an error occurred, otherwise it
-returns the length of the encoded data.
+returns the length of the encoded data. 
 
 If B<*out> is B<NULL> memory will be allocated for a buffer and the encoded
 data written to it. In this case B<*out> is not incremented and it points to
@@ -73,7 +73,7 @@ i2d_ECPKParameters() returns the number of bytes successfully encoded or a negat
 value if an error occurs.
 
 i2d_ECPKParameters_bio(), i2d_ECPKParameters_fp(), ECPKParameters_print and ECPKParameters_print_fp
-return 1 for success and 0 if an error occurs.
+return 1 for success and 0 if an error occurs. 
 
 =head1 SEE ALSO
 

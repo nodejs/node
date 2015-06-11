@@ -1,6 +1,6 @@
 /* e_gost_err.c */
 /* ====================================================================
- * Copyright (c) 1999-2009 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2015 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -90,6 +90,7 @@ static ERR_STRING_DATA GOST_str_functs[] = {
     {ERR_FUNC(GOST_F_GOST_IMIT_CTRL), "GOST_IMIT_CTRL"},
     {ERR_FUNC(GOST_F_GOST_IMIT_FINAL), "GOST_IMIT_FINAL"},
     {ERR_FUNC(GOST_F_GOST_IMIT_UPDATE), "GOST_IMIT_UPDATE"},
+    {ERR_FUNC(GOST_F_GOST_SIGN_KEYGEN), "GOST_SIGN_KEYGEN"},
     {ERR_FUNC(GOST_F_PARAM_COPY_GOST01), "PARAM_COPY_GOST01"},
     {ERR_FUNC(GOST_F_PARAM_COPY_GOST94), "PARAM_COPY_GOST94"},
     {ERR_FUNC(GOST_F_PKEY_GOST01CP_DECRYPT), "PKEY_GOST01CP_DECRYPT"},

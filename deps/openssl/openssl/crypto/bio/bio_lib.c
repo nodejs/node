@@ -536,8 +536,10 @@ BIO *BIO_dup_chain(BIO *in)
 
         /* copy app data */
         if (!CRYPTO_dup_ex_data(CRYPTO_EX_INDEX_BIO, &new_bio->ex_data,
-                                &bio->ex_data))
+                                &bio->ex_data)) {
+            BIO_free(new_bio);
             goto err;
+        }
 
         if (ret == NULL) {
             eoc = new_bio;
@@ -549,8 +551,8 @@ BIO *BIO_dup_chain(BIO *in)
     }
     return (ret);
  err:
-    if (ret != NULL)
-        BIO_free(ret);
+    BIO_free_all(ret);
+
     return (NULL);
 }
 

@@ -66,6 +66,7 @@
 DECLARE_ASN1_ITEM(CMS_KeyAgreeRecipientInfo)
 DECLARE_ASN1_ITEM(CMS_RecipientEncryptedKey)
 DECLARE_ASN1_ITEM(CMS_OriginatorPublicKey)
+DECLARE_ASN1_ITEM(CMS_RecipientKeyIdentifier)
 
 /* Key Agreement Recipient Info (KARI) routines */
 
@@ -362,6 +363,9 @@ int cms_RecipientInfo_kari_init(CMS_RecipientInfo *ri, X509 *recip,
 
     if (flags & CMS_USE_KEYID) {
         rek->rid->type = CMS_REK_KEYIDENTIFIER;
+        rek->rid->d.rKeyId = M_ASN1_new_of(CMS_RecipientKeyIdentifier);
+        if (rek->rid->d.rKeyId == NULL)
+            return 0;
         if (!cms_set1_keyid(&rek->rid->d.rKeyId->subjectKeyIdentifier, recip))
             return 0;
     } else {

@@ -254,7 +254,7 @@ sha1_block_data_order:
 	jz	.Lialu
 ___
 $code.=<<___ if ($shaext);
-	test	\$`1<<29`,%r10d		# check SHA bit
+	test	\$`1<<29`,%r10d		# check SHA bit	
 	jnz	_shaext_shortcut
 ___
 $code.=<<___ if ($avx>1);
@@ -2039,7 +2039,7 @@ sub sha1op38 {
     my $instr = shift;
     my %opcodelet = (
 		"sha1nexte" => 0xc8,
-		"sha1msg1"  => 0xc9,
+  		"sha1msg1"  => 0xc9,
 		"sha1msg2"  => 0xca	);
 
     if (defined($opcodelet{$instr}) && @_[0] =~ /%xmm([0-9]+),\s*%xmm([0-9]+)/) {

@@ -6,4 +6,4 @@ Connect = localhost:4433
 # Only support 3 curves
 Curves = P-521:P-384:P-256
 # Restricted signature algorithms
-SignatureAlgorithms = RSA+SHA512:ECDSA+SHA512
+SignatureAlgorithms = RSA+SHA512:ECDSA+SHA512 
