@@ -2566,8 +2566,6 @@ static void PrintHelp() {
          "  --max-stack-size=val set max v8 stack size (bytes)\n"
          "  --enable-ssl2        enable ssl2\n"
          "  --enable-ssl3        enable ssl3\n"
-         "  --cipher-list=val    specify the default TLS cipher list\n"
-         "  --enable-legacy-cipher-list=v0.10.38 \n"
          "\n"
          "Environment variables:\n"
 #ifdef _WIN32
@@ -2579,8 +2577,6 @@ static void PrintHelp() {
          "NODE_MODULE_CONTEXTS   Set to 1 to load modules in their own\n"
          "                       global contexts.\n"
          "NODE_DISABLE_COLORS    Set to 1 to disable colors in the REPL\n"
-         "NODE_CIPHER_LIST       Override the default TLS cipher list\n"
-         "NODE_LEGACY_CIPHER_LIST=v0.10.38\n"
          "\n"
          "Documentation can be found at http://nodejs.org/\n");
 }
@@ -2588,7 +2584,6 @@ static void PrintHelp() {
 // Parse node command line arguments.
 static void ParseArgs(int argc, char **argv) {
   int i;
-  bool using_legacy_cipher_list = false;
 
   // TODO use parse opts
   for (i = 1; i < argc; i++) {
@@ -2657,21 +2652,6 @@ static void ParseArgs(int argc, char **argv) {
     } else if (strcmp(arg, "--throw-deprecation") == 0) {
       argv[i] = const_cast<char*>("");
       throw_deprecation = true;
-    } else if (strncmp(arg, "--cipher-list=", 14) == 0) {
-      if (!using_legacy_cipher_list) {
-        DEFAULT_CIPHER_LIST = arg + 14;
-      }
-      argv[i] = const_cast<char*>("");
-    } else if (strncmp(arg, "--enable-legacy-cipher-list=", 28) == 0) {
-      const char * legacy_list = legacy_cipher_list(arg+28);
-      if (legacy_list != NULL) {
-        using_legacy_cipher_list = true;
-        DEFAULT_CIPHER_LIST = legacy_list;
-      } else {
-        fprintf(stderr, "Error: An unknown legacy cipher list was specified\n");
-        exit(9);
-      }
-      argv[i] = const_cast<char*>("");
     } else if (argv[i][0] != '-') {
       break;
     }
@@ -2964,25 +2944,6 @@ char** Init(int argc, char *argv[]) {
     memcpy(v8argv, argv, sizeof(*argv) * option_end_index);
     v8argv[option_end_index] = const_cast<char*>("--expose_debug_as");
     v8argv[option_end_index + 1] = const_cast<char*>("v8debug");
-  }
-
-  const char * cipher_list = getenv("NODE_CIPHER_LIST");
-  if (cipher_list != NULL) {
-    DEFAULT_CIPHER_LIST = cipher_list;
-  }
-  // Allow the NODE_LEGACY_CIPHER_LIST envar to override the other
-  // cipher list options. NODE_LEGACY_CIPHER_LIST=v0.10.38 will use
-  // the cipher list from v0.10.38
-  const char * leg_cipher_id = getenv("NODE_LEGACY_CIPHER_LIST");
-  if (leg_cipher_id != NULL) {
-    const char * leg_cipher_list =
-      legacy_cipher_list(leg_cipher_id);
-    if (leg_cipher_list != NULL) {
-      DEFAULT_CIPHER_LIST = leg_cipher_list;
-    } else {
-      fprintf(stderr, "Error: An unknown legacy cipher list was specified\n");
-      exit(9);
-    }
   }
 
   // For the normal stack which moves from high to low addresses when frames

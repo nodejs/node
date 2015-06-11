@@ -71,7 +71,6 @@ const char* root_certs[] = {
 
 bool SSL2_ENABLE = false;
 bool SSL3_ENABLE = false;
-const char * DEFAULT_CIPHER_LIST = DEFAULT_CIPHER_LIST_HEAD;
 
 namespace crypto {
 
@@ -803,7 +802,7 @@ size_t ClientHelloParser::Write(const uint8_t* data, size_t len) {
   HandleScope scope;
 
   assert(state_ != kEnded);
-
+  
   // Just accumulate data, everything will be pushed to BIO later
   if (state_ == kPaused) return 0;
 
@@ -4191,21 +4190,6 @@ static void array_push_back(const TypeName* md,
   arr->Set(arr->Length(), String::New(from));
 }
 
-// borrowed from v8
-// (see http://v8.googlecode.com/svn/trunk/samples/shell.cc)
-const char* ToCString(const node::Utf8Value& value) {
-  return *value ? *value : "<string conversion failed>";
-}
-
-Handle<Value> DefaultCiphers(const Arguments& args) {
-  HandleScope scope;
-  node::Utf8Value key(args[0]);
-  const char * list = legacy_cipher_list(ToCString(key));
-  if (list == NULL) {
-    list = DEFAULT_CIPHER_LIST_HEAD;
-  }
-  return scope.Close(v8::String::New(list));
-}
 
 Handle<Value> GetCiphers(const Arguments& args) {
   HandleScope scope;
@@ -4280,13 +4264,6 @@ void InitCrypto(Handle<Object> target) {
 
   NODE_DEFINE_CONSTANT(target, SSL3_ENABLE);
   NODE_DEFINE_CONSTANT(target, SSL2_ENABLE);
-
-  (target)->ForceSet(
-      v8::String::New("DEFAULT_CIPHER_LIST"),
-      v8::String::New(DEFAULT_CIPHER_LIST),
-      static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete));
-
-  NODE_SET_METHOD(target, "getLegacyCiphers", DefaultCiphers);
 }
 
 }  // namespace crypto

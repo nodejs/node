@@ -27,7 +27,6 @@
 #include "node_object_wrap.h"
 #include "v8.h"
 
-#include <string.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
@@ -44,29 +43,10 @@
 
 #define EVP_F_EVP_DECRYPTFINAL 101
 
-#define DEFAULT_CIPHER_LIST_V10_38 "ECDHE-RSA-AES128-SHA256:"         \
-                                "AES128-GCM-SHA256:RC4:HIGH:!MD5:!aNULL:!EDH"
-
-#define DEFAULT_CIPHER_LIST_HEAD "ECDHE-RSA-AES128-SHA256:"           \
-                                "AES128-GCM-SHA256:HIGH:!RC4:!MD5:!aNULL:!EDH"
-
-static inline const char * legacy_cipher_list(const char * ver) {
-  if (ver == NULL) {
-    return NULL;
-  }
-  if (strncmp(ver, "v0.10.38", 8) == 0) {
-    return DEFAULT_CIPHER_LIST_V10_38;
-  } else {
-    return NULL;
-  }
-}
-
-
 namespace node {
 
 extern bool SSL2_ENABLE;
 extern bool SSL3_ENABLE;
-extern const char * DEFAULT_CIPHER_LIST;
 
 namespace crypto {
 
