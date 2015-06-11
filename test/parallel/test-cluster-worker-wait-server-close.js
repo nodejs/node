@@ -8,7 +8,9 @@ var net = require('net');
 if (cluster.isWorker) {
   net.createServer(function(socket) {
     // Wait for any data, then close connection
-    socket.on('data', socket.end.bind(socket));
+    socket.write('.');
+    socket.on('data', function discard() {
+    });
   }).listen(common.PORT, common.localhostIPv4);
 } else if (cluster.isMaster) {
 
@@ -22,11 +24,15 @@ if (cluster.isWorker) {
   worker.once('listening', function() {
     net.createConnection(common.PORT, common.localhostIPv4, function() {
       var socket = this;
-      worker.disconnect();
-      setTimeout(function() {
-        socket.write('.');
-        connectionDone = true;
-      }, 1000);
+      this.on('data', function() {
+        console.log('got data from client');
+        // socket definitely connected to worker if we got data
+        worker.disconnect();
+        setTimeout(function() {
+          socket.end();
+          connectionDone = true;
+        }, 1000);
+      });
     });
   });
 
