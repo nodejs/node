@@ -1,7 +1,7 @@
 ## How to upgrade openssl library in io.js
 
-This document describes the procedure to upgrade openssl from 1.0.1m
-to 1.0.2a in io.js.
+This document describes the procedure to upgrade openssl from 1.0.2a
+to 1.0.2c in io.js.
 
 
 ### Build System and Upgrading Overview
@@ -91,16 +91,16 @@ https://github.com/openssl/openssl/blob/OpenSSL_1_0_2-stable/crypto/sha/asm/sha5
 otherwise asm_obsolete are used.
 
 The following is the detail instruction steps how to upgrade openssl
-version from 1.0.1m to 1.0.2a in iojs.
+version from 1.0.2a to 1.0.2c in iojs.
 
 ### 1. Replace openssl source in `deps/openssl/openssl`
 Remove old openssl sources in `deps/openssl/openssl` .
 Get original openssl sources from
-https://www.openssl.org/source/openssl-1.0.2a.tar.gz and extract all
+https://www.openssl.org/source/openssl-1.0.2c.tar.gz and extract all
 files into `deps/openssl/openssl` .
 
 ### 2. Apply private patches
-There are three kinds of private patches to be applied in openssl-1.0.2a.
+There are three kinds of private patches to be applied in openssl-1.0.2c.
 
 - The two fixes of assembly error on ia32 win32. masm is no longer
   supported in openssl. We should move to use nasm or yasm in future
@@ -109,13 +109,8 @@ There are three kinds of private patches to be applied in openssl-1.0.2a.
 - The fix of openssl-cli built on win. Key press requirement of
   openssl-cli in win causes timeout failures of several tests.
 
-- Backport patches for alt cert feature from openssl-1.1.x. Root certs
-  of 1024bit RSA key length were deprecated in io.js. When a tls
-  server has a cross root cert, io.js client leads CERT_UNTRUSTED
-  error because openssl does not find alternate cert chains. This fix
-  supports its feature but was made the current master which is
-  openssl-1.1.x. We backported them privately into openssl-1.0.2 on
-  iojs.
+- A new `-no_rand_screen` option to openssl s_client. This makes test
+  time of test-tls-server-verify be much faster.
 
 ### 3. Replace openssl header files in `deps/openssl/openssl/include/openssl`
 all header files in `deps/openssl/openssl/include/openssl/*.h` are
@@ -126,35 +121,10 @@ file such as
 #include "../../crypto/aes/aes.h"
 ````
 ### 4. Change `opensslconf.h` so as to fit each platform.
-The opensslconf.h in each target was created in advance by typing
-`deps/openssl/openssl/Configure {target}` and copied
-into `deps/openssl/conf/archs/{target}/opensslconf.h`.
-`deps/openssl/conf/openssconf.h` includes each file according to its
-target by checking pre-defined compiler macros. These can be generated
-by using `deps/openssl/conf/Makefile`
-
-We should remove OPENSSL_CPUID_OBJ define in opensslconf.h because it
-causes build error when --openss-no-asm option is specified. Instead,
-the OPENSSL_CPUID_OBJ is defined in `deps/openssl/openssl.gypi`
-according to the configure options.
-
-One fix of opensslconf.h is needed in 64-bit MacOS.
-The current openssl release does not use RC4 asm since it explicitly
-specified as `$asm=~s/rc4\-[^:]+//;` in
-https://github.com/openssl/openssl/blob/OpenSSL_1_0_1-stable/Configure#L584
-But iojs has used RC4 asm on MacOS for long time. Fix type of RC4_INT
-into `unsigned int` in opensslconf.h of darwin64-x86_64-cc to work on
-the RC4 asm.
+No change.
 
 ### 5. Update openssl.gyp and openssl.gypi
-Sources, cflags and define parameters that depends on each target can
-be obtained via `Configure TABLE`. Its list is put in the table of
-[define and cflags changes in openssl-1.0.2a](openssl_define_list.pdf)
-
-There is no way to verify all necessary sources automatically. We can
-only carefully look at the source list and compiled objects in
-Makefile of openssl and compare the compiled objects that stored
-stored under `out/Release/obj.target/openssl/deps/openssl/' in iojs.
+No change.
 
 ### 6. ASM files for openssl
 We provide two sets of asm files. One is for the latest assembler
@@ -163,7 +133,7 @@ and the other is the older one.
 ### 6.1. asm files for the latest compiler
 This was made in `deps/openssl/asm/Makefile`
 - Updated asm files for each platforms which are required in
-  openssl-1.0.2a.
+  openssl-1.0.2c.
 - Some perl files need CC and ASM envs. Added a check if these envs
   exist. Followed asm files are to be generated with CC=gcc and
   ASM=nasm on Linux. See
