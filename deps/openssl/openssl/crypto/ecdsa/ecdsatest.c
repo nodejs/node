@@ -296,8 +296,8 @@ int test_builtin(BIO *out)
     int nid, ret = 0;
 
     /* fill digest values with some random data */
-    if (!RAND_pseudo_bytes(digest, 20) ||
-        !RAND_pseudo_bytes(wrong_digest, 20)) {
+    if (RAND_pseudo_bytes(digest, 20) <= 0 ||
+        RAND_pseudo_bytes(wrong_digest, 20) <= 0) {
         BIO_printf(out, "ERROR: unable to get random data\n");
         goto builtin_err;
     }

@@ -442,6 +442,8 @@ int MAIN(int argc, char **argv)
                    "-CApath dir    trusted certificates directory\n");
         BIO_printf(bio_err, "-CAfile file   trusted certificates file\n");
         BIO_printf(bio_err,
+                   "-no_alt_chains only ever use the first certificate chain found\n");
+        BIO_printf(bio_err,
                    "-crl_check     check revocation status of signer's certificate using CRLs\n");
         BIO_printf(bio_err,
                    "-crl_check_all check revocation status of signer's certificate chain using CRLs\n");

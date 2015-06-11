@@ -2775,7 +2775,7 @@ static void multiblock_speed(const EVP_CIPHER *evp_cipher)
 
     inp = OPENSSL_malloc(mblengths[num - 1]);
     out = OPENSSL_malloc(mblengths[num - 1] + 1024);
-    if(!inp || !out) {
+    if (!inp || !out) {
         BIO_printf(bio_err,"Out of memory\n");
         goto end;
     }
@@ -2791,7 +2791,7 @@ static void multiblock_speed(const EVP_CIPHER *evp_cipher)
         print_message(alg_name, 0, mblengths[j]);
         Time_F(START);
         for (count = 0, run = 1; run && count < 0x7fffffff; count++) {
-            unsigned char aad[13];
+            unsigned char aad[EVP_AEAD_TLS1_AAD_LEN];
             EVP_CTRL_TLS1_1_MULTIBLOCK_PARAM mb_param;
             size_t len = mblengths[j];
             int packlen;
@@ -2826,7 +2826,8 @@ static void multiblock_speed(const EVP_CIPHER *evp_cipher)
                 aad[11] = len >> 8;
                 aad[12] = len;
                 pad = EVP_CIPHER_CTX_ctrl(&ctx,
-                                          EVP_CTRL_AEAD_TLS1_AAD, 13, aad);
+                                          EVP_CTRL_AEAD_TLS1_AAD,
+                                          EVP_AEAD_TLS1_AAD_LEN, aad);
                 EVP_Cipher(&ctx, out, inp, len + pad);
             }
         }
@@ -2865,9 +2866,9 @@ static void multiblock_speed(const EVP_CIPHER *evp_cipher)
     }
 
 end:
-    if(inp)
+    if (inp)
         OPENSSL_free(inp);
-    if(out)
+    if (out)
         OPENSSL_free(out);
 }
 #endif

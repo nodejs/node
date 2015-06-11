@@ -74,7 +74,7 @@ B<prime256v1>). Curve names are case sensitive.
 
 =item B<-named_curve>
 
-This sets the temporary curve used for ephemeral ECDH modes. Only used by
+This sets the temporary curve used for ephemeral ECDH modes. Only used by 
 servers
 
 The B<value> argument is a curve name or the special value B<auto> which
@@ -85,7 +85,7 @@ can be either the B<NIST> name (e.g. B<P-256>) or an OpenSSL OID name
 =item B<-cipher>
 
 Sets the cipher suite list to B<value>. Note: syntax checking of B<value> is
-currently not performed unless a B<SSL> or B<SSL_CTX> structure is
+currently not performed unless a B<SSL> or B<SSL_CTX> structure is 
 associated with B<cctx>.
 
 =item B<-cert>
@@ -111,7 +111,7 @@ operations are permitted.
 
 =item B<-no_ssl2>, B<-no_ssl3>, B<-no_tls1>, B<-no_tls1_1>, B<-no_tls1_2>
 
-Disables protocol support for SSLv2, SSLv3, TLS 1.0, TLS 1.1 or TLS 1.2
+Disables protocol support for SSLv2, SSLv3, TLS 1.0, TLS 1.1 or TLS 1.2 
 by setting the corresponding options B<SSL_OP_NO_SSL2>, B<SSL_OP_NO_SSL3>,
 B<SSL_OP_NO_TLS1>, B<SSL_OP_NO_TLS1_1> and B<SSL_OP_NO_TLS1_2> respectively.
 
@@ -177,7 +177,7 @@ Note: the command prefix (if set) alters the recognised B<cmd> values.
 =item B<CipherString>
 
 Sets the cipher suite list to B<value>. Note: syntax checking of B<value> is
-currently not performed unless an B<SSL> or B<SSL_CTX> structure is
+currently not performed unless an B<SSL> or B<SSL_CTX> structure is 
 associated with B<cctx>.
 
 =item B<Certificate>
@@ -244,7 +244,7 @@ B<prime256v1>). Curve names are case sensitive.
 
 =item B<ECDHParameters>
 
-This sets the temporary curve used for ephemeral ECDH modes. Only used by
+This sets the temporary curve used for ephemeral ECDH modes. Only used by 
 servers
 
 The B<value> argument is a curve name or the special value B<Automatic> which
@@ -342,7 +342,7 @@ or values which cannot be overridden. For example if an application calls:
  SSL_CONF_cmd(ctx, "Protocol", "-SSLv2");
  SSL_CONF_cmd(ctx, userparam, uservalue);
 
-it will disable SSLv2 support by default but the user can override it. If
+it will disable SSLv2 support by default but the user can override it. If 
 however the call sequence is:
 
  SSL_CONF_cmd(ctx, userparam, uservalue);
@@ -372,7 +372,7 @@ can be checked instead. If -3 is returned a required argument is missing
 and an error is indicated. If 0 is returned some other error occurred and
 this can be reported back to the user.
 
-The function SSL_CONF_cmd_value_type() can be used by applications to
+The function SSL_CONF_cmd_value_type() can be used by applications to 
 check for the existence of a command or to perform additional syntax
 checking or translation of the command value. For example if the return
 value is B<SSL_CONF_TYPE_FILE> an application could translate a relative

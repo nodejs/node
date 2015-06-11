@@ -24,8 +24,12 @@
 #
 #		CBC enc		CBC dec		CTR
 # Apple A7	2.39		1.20		1.20
-# Cortex-A53	2.45		1.87		1.94
-# Cortex-A57	3.64		1.34		1.32
+# Cortex-A53	1.32		1.29		1.46
+# Cortex-A57(*)	1.95		0.85		0.93
+# Denver	1.96		0.86		0.80
+#
+# (*)	original 3.64/1.34/1.32 results were for r0p0 revision
+#	and are still same even for updated module;
 
 $flavour = shift;
 open STDOUT,">".shift;
@@ -308,17 +312,17 @@ ${prefix}_${dir}crypt:
 
 .Loop_${dir}c:
 	aes$e	$inout,$rndkey0
-	vld1.32	{$rndkey0},[$key],#16
 	aes$mc	$inout,$inout
+	vld1.32	{$rndkey0},[$key],#16
 	subs	$rounds,$rounds,#2
 	aes$e	$inout,$rndkey1
-	vld1.32	{$rndkey1},[$key],#16
 	aes$mc	$inout,$inout
+	vld1.32	{$rndkey1},[$key],#16
 	b.gt	.Loop_${dir}c
 
 	aes$e	$inout,$rndkey0
-	vld1.32	{$rndkey0},[$key]
 	aes$mc	$inout,$inout
+	vld1.32	{$rndkey0},[$key]
 	aes$e	$inout,$rndkey1
 	veor	$inout,$inout,$rndkey0
 
@@ -336,6 +340,7 @@ my ($rounds,$cnt,$key_,$step,$step1)=($enc,"w6","x7","x8","x12");
 my ($dat0,$dat1,$in0,$in1,$tmp0,$tmp1,$ivec,$rndlast)=map("q$_",(0..7));
 
 my ($dat,$tmp,$rndzero_n_last)=($dat0,$tmp0,$tmp1);
+my ($key4,$key5,$key6,$key7)=("x6","x12","x14",$key);
 
 ### q8-q15	preloaded key schedule
 
@@ -385,16 +390,42 @@ $code.=<<___;
 	veor	$rndzero_n_last,q8,$rndlast
 	b.eq	.Lcbc_enc128
 
+	vld1.32	{$in0-$in1},[$key_]
+	add	$key_,$key,#16
+	add	$key4,$key,#16*4
+	add	$key5,$key,#16*5
+	aese	$dat,q8
+	aesmc	$dat,$dat
+	add	$key6,$key,#16*6
+	add	$key7,$key,#16*7
+	b	.Lenter_cbc_enc
+
+.align	4
 .Loop_cbc_enc:
 	aese	$dat,q8
-	vld1.32	{q8},[$key_],#16
 	aesmc	$dat,$dat
-	subs	$cnt,$cnt,#2
+	 vst1.8	{$ivec},[$out],#16
+.Lenter_cbc_enc:
 	aese	$dat,q9
-	vld1.32	{q9},[$key_],#16
 	aesmc	$dat,$dat
-	b.gt	.Loop_cbc_enc
+	aese	$dat,$in0
+	aesmc	$dat,$dat
+	vld1.32	{q8},[$key4]
+	cmp	$rounds,#4
+	aese	$dat,$in1
+	aesmc	$dat,$dat
+	vld1.32	{q9},[$key5]
+	b.eq	.Lcbc_enc192
 
+	aese	$dat,q8
+	aesmc	$dat,$dat
+	vld1.32	{q8},[$key6]
+	aese	$dat,q9
+	aesmc	$dat,$dat
+	vld1.32	{q9},[$key7]
+	nop
+
+.Lcbc_enc192:
 	aese	$dat,q8
 	aesmc	$dat,$dat
 	 subs	$len,$len,#16
@@ -403,7 +434,6 @@ $code.=<<___;
 	 cclr	$step,eq
 	aese	$dat,q10
 	aesmc	$dat,$dat
-	 add	$key_,$key,#16
 	aese	$dat,q11
 	aesmc	$dat,$dat
 	 vld1.8	{q8},[$inp],$step
@@ -412,16 +442,14 @@ $code.=<<___;
 	 veor	q8,q8,$rndzero_n_last
 	aese	$dat,q13
 	aesmc	$dat,$dat
-	 vld1.32 {q9},[$key_],#16	// re-pre-load rndkey[1]
+	 vld1.32 {q9},[$key_]		// re-pre-load rndkey[1]
 	aese	$dat,q14
 	aesmc	$dat,$dat
 	aese	$dat,q15
-
-	 mov	$cnt,$rounds
 	veor	$ivec,$dat,$rndlast
-	vst1.8	{$ivec},[$out],#16
 	b.hs	.Loop_cbc_enc
 
+	vst1.8	{$ivec},[$out],#16
 	b	.Lcbc_done
 
 .align	5
@@ -483,79 +511,78 @@ $code.=<<___;
 
 .Loop3x_cbc_dec:
 	aesd	$dat0,q8
-	aesd	$dat1,q8
-	aesd	$dat2,q8
-	vld1.32	{q8},[$key_],#16
 	aesimc	$dat0,$dat0
+	aesd	$dat1,q8
 	aesimc	$dat1,$dat1
+	aesd	$dat2,q8
 	aesimc	$dat2,$dat2
+	vld1.32	{q8},[$key_],#16
 	subs	$cnt,$cnt,#2
 	aesd	$dat0,q9
-	aesd	$dat1,q9
-	aesd	$dat2,q9
-	vld1.32	{q9},[$key_],#16
 	aesimc	$dat0,$dat0
+	aesd	$dat1,q9
 	aesimc	$dat1,$dat1
+	aesd	$dat2,q9
 	aesimc	$dat2,$dat2
+	vld1.32	{q9},[$key_],#16
 	b.gt	.Loop3x_cbc_dec
 
 	aesd	$dat0,q8
+	aesimc	$dat0,$dat0
 	aesd	$dat1,q8
+	aesimc	$dat1,$dat1
 	aesd	$dat2,q8
+	aesimc	$dat2,$dat2
 	 veor	$tmp0,$ivec,$rndlast
-	aesimc	$dat0,$dat0
-	aesimc	$dat1,$dat1
-	aesimc	$dat2,$dat2
-	 veor	$tmp1,$in0,$rndlast
-	aesd	$dat0,q9
-	aesd	$dat1,q9
-	aesd	$dat2,q9
-	 veor	$tmp2,$in1,$rndlast
 	 subs	$len,$len,#0x30
-	aesimc	$dat0,$dat0
-	aesimc	$dat1,$dat1
-	aesimc	$dat2,$dat2
-	 vorr	$ivec,$in2,$in2
+	 veor	$tmp1,$in0,$rndlast
 	 mov.lo	x6,$len			// x6, $cnt, is zero at this point
-	aesd	$dat0,q12
-	aesd	$dat1,q12
-	aesd	$dat2,q12
+	aesd	$dat0,q9
+	aesimc	$dat0,$dat0
+	aesd	$dat1,q9
+	aesimc	$dat1,$dat1
+	aesd	$dat2,q9
+	aesimc	$dat2,$dat2
+	 veor	$tmp2,$in1,$rndlast
 	 add	$inp,$inp,x6		// $inp is adjusted in such way that
 					// at exit from the loop $dat1-$dat2
 					// are loaded with last "words"
-	aesimc	$dat0,$dat0
-	aesimc	$dat1,$dat1
-	aesimc	$dat2,$dat2
+	 vorr	$ivec,$in2,$in2
 	 mov	$key_,$key
-	aesd	$dat0,q13
-	aesd	$dat1,q13
-	aesd	$dat2,q13
-	 vld1.8	{$in0},[$inp],#16
+	aesd	$dat0,q12
 	aesimc	$dat0,$dat0
+	aesd	$dat1,q12
 	aesimc	$dat1,$dat1
+	aesd	$dat2,q12
+	aesimc	$dat2,$dat2
+	 vld1.8	{$in0},[$inp],#16
+	aesd	$dat0,q13
+	aesimc	$dat0,$dat0
+	aesd	$dat1,q13
+	aesimc	$dat1,$dat1
+	aesd	$dat2,q13
 	aesimc	$dat2,$dat2
 	 vld1.8	{$in1},[$inp],#16
 	aesd	$dat0,q14
-	aesd	$dat1,q14
-	aesd	$dat2,q14
-	 vld1.8	{$in2},[$inp],#16
 	aesimc	$dat0,$dat0
+	aesd	$dat1,q14
 	aesimc	$dat1,$dat1
+	aesd	$dat2,q14
 	aesimc	$dat2,$dat2
-	 vld1.32 {q8},[$key_],#16	// re-pre-load rndkey[0]
+	 vld1.8	{$in2},[$inp],#16
 	aesd	$dat0,q15
 	aesd	$dat1,q15
 	aesd	$dat2,q15
-
+	 vld1.32 {q8},[$key_],#16	// re-pre-load rndkey[0]
 	 add	$cnt,$rounds,#2
 	veor	$tmp0,$tmp0,$dat0
 	veor	$tmp1,$tmp1,$dat1
 	veor	$dat2,$dat2,$tmp2
 	 vld1.32 {q9},[$key_],#16	// re-pre-load rndkey[1]
-	 vorr	$dat0,$in0,$in0
 	vst1.8	{$tmp0},[$out],#16
-	 vorr	$dat1,$in1,$in1
+	 vorr	$dat0,$in0,$in0
 	vst1.8	{$tmp1},[$out],#16
+	 vorr	$dat1,$in1,$in1
 	vst1.8	{$dat2},[$out],#16
 	 vorr	$dat2,$in2,$in2
 	b.hs	.Loop3x_cbc_dec
@@ -566,39 +593,39 @@ $code.=<<___;
 
 .Lcbc_dec_tail:
 	aesd	$dat1,q8
-	aesd	$dat2,q8
-	vld1.32	{q8},[$key_],#16
 	aesimc	$dat1,$dat1
+	aesd	$dat2,q8
 	aesimc	$dat2,$dat2
+	vld1.32	{q8},[$key_],#16
 	subs	$cnt,$cnt,#2
 	aesd	$dat1,q9
-	aesd	$dat2,q9
-	vld1.32	{q9},[$key_],#16
 	aesimc	$dat1,$dat1
+	aesd	$dat2,q9
 	aesimc	$dat2,$dat2
+	vld1.32	{q9},[$key_],#16
 	b.gt	.Lcbc_dec_tail
 
 	aesd	$dat1,q8
-	aesd	$dat2,q8
 	aesimc	$dat1,$dat1
+	aesd	$dat2,q8
 	aesimc	$dat2,$dat2
 	aesd	$dat1,q9
-	aesd	$dat2,q9
 	aesimc	$dat1,$dat1
+	aesd	$dat2,q9
 	aesimc	$dat2,$dat2
 	aesd	$dat1,q12
-	aesd	$dat2,q12
 	aesimc	$dat1,$dat1
+	aesd	$dat2,q12
 	aesimc	$dat2,$dat2
 	 cmn	$len,#0x20
 	aesd	$dat1,q13
-	aesd	$dat2,q13
 	aesimc	$dat1,$dat1
+	aesd	$dat2,q13
 	aesimc	$dat2,$dat2
 	 veor	$tmp1,$ivec,$rndlast
 	aesd	$dat1,q14
-	aesd	$dat2,q14
 	aesimc	$dat1,$dat1
+	aesd	$dat2,q14
 	aesimc	$dat2,$dat2
 	 veor	$tmp2,$in1,$rndlast
 	aesd	$dat1,q15
@@ -699,70 +726,69 @@ $code.=<<___;
 .align	4
 .Loop3x_ctr32:
 	aese		$dat0,q8
-	aese		$dat1,q8
-	aese		$dat2,q8
-	vld1.32		{q8},[$key_],#16
 	aesmc		$dat0,$dat0
+	aese		$dat1,q8
 	aesmc		$dat1,$dat1
+	aese		$dat2,q8
 	aesmc		$dat2,$dat2
+	vld1.32		{q8},[$key_],#16
 	subs		$cnt,$cnt,#2
 	aese		$dat0,q9
-	aese		$dat1,q9
-	aese		$dat2,q9
-	vld1.32		{q9},[$key_],#16
 	aesmc		$dat0,$dat0
+	aese		$dat1,q9
 	aesmc		$dat1,$dat1
+	aese		$dat2,q9
 	aesmc		$dat2,$dat2
+	vld1.32		{q9},[$key_],#16
 	b.gt		.Loop3x_ctr32
 
 	aese		$dat0,q8
-	aese		$dat1,q8
-	aese		$dat2,q8
-	 mov		$key_,$key
 	aesmc		$tmp0,$dat0
-	 vld1.8		{$in0},[$inp],#16
+	aese		$dat1,q8
 	aesmc		$tmp1,$dat1
-	aesmc		$dat2,$dat2
+	 vld1.8		{$in0},[$inp],#16
 	 vorr		$dat0,$ivec,$ivec
-	aese		$tmp0,q9
+	aese		$dat2,q8
+	aesmc		$dat2,$dat2
 	 vld1.8		{$in1},[$inp],#16
-	aese		$tmp1,q9
-	aese		$dat2,q9
 	 vorr		$dat1,$ivec,$ivec
+	aese		$tmp0,q9
 	aesmc		$tmp0,$tmp0
-	 vld1.8		{$in2},[$inp],#16
+	aese		$tmp1,q9
 	aesmc		$tmp1,$tmp1
+	 vld1.8		{$in2},[$inp],#16
+	 mov		$key_,$key
+	aese		$dat2,q9
 	aesmc		$tmp2,$dat2
 	 vorr		$dat2,$ivec,$ivec
 	 add		$tctr0,$ctr,#1
 	aese		$tmp0,q12
+	aesmc		$tmp0,$tmp0
 	aese		$tmp1,q12
-	aese		$tmp2,q12
+	aesmc		$tmp1,$tmp1
 	 veor		$in0,$in0,$rndlast
 	 add		$tctr1,$ctr,#2
-	aesmc		$tmp0,$tmp0
-	aesmc		$tmp1,$tmp1
+	aese		$tmp2,q12
 	aesmc		$tmp2,$tmp2
 	 veor		$in1,$in1,$rndlast
 	 add		$ctr,$ctr,#3
 	aese		$tmp0,q13
+	aesmc		$tmp0,$tmp0
 	aese		$tmp1,q13
-	aese		$tmp2,q13
+	aesmc		$tmp1,$tmp1
 	 veor		$in2,$in2,$rndlast
 	 rev		$tctr0,$tctr0
-	aesmc		$tmp0,$tmp0
-	 vld1.32	 {q8},[$key_],#16	// re-pre-load rndkey[0]
-	aesmc		$tmp1,$tmp1
+	aese		$tmp2,q13
 	aesmc		$tmp2,$tmp2
 	 vmov.32	${dat0}[3], $tctr0
 	 rev		$tctr1,$tctr1
 	aese		$tmp0,q14
+	aesmc		$tmp0,$tmp0
 	aese		$tmp1,q14
-	aese		$tmp2,q14
+	aesmc		$tmp1,$tmp1
 	 vmov.32	${dat1}[3], $tctr1
 	 rev		$tctr2,$ctr
-	aesmc		$tmp0,$tmp0
-	aesmc		$tmp1,$tmp1
+	aese		$tmp2,q14
 	aesmc		$tmp2,$tmp2
 	 vmov.32	${dat2}[3], $tctr2
 	 subs		$len,$len,#3
@@ -770,13 +796,14 @@ $code.=<<___;
 	aese		$tmp1,q15
 	aese		$tmp2,q15
 
-	 mov		$cnt,$rounds
 	veor		$in0,$in0,$tmp0
+	 vld1.32	 {q8},[$key_],#16	// re-pre-load rndkey[0]
+	vst1.8		{$in0},[$out],#16
 	veor		$in1,$in1,$tmp1
+	 mov		$cnt,$rounds
+	vst1.8		{$in1},[$out],#16
 	veor		$in2,$in2,$tmp2
 	 vld1.32	 {q9},[$key_],#16	// re-pre-load rndkey[1]
-	vst1.8		{$in0},[$out],#16
-	vst1.8		{$in1},[$out],#16
 	vst1.8		{$in2},[$out],#16
 	b.hs		.Loop3x_ctr32
 
@@ -788,40 +815,40 @@ $code.=<<___;
 
 .Lctr32_tail:
 	aese		$dat0,q8
-	aese		$dat1,q8
-	vld1.32		{q8},[$key_],#16
 	aesmc		$dat0,$dat0
+	aese		$dat1,q8
 	aesmc		$dat1,$dat1
+	vld1.32		{q8},[$key_],#16
 	subs		$cnt,$cnt,#2
 	aese		$dat0,q9
-	aese		$dat1,q9
-	vld1.32		{q9},[$key_],#16
 	aesmc		$dat0,$dat0
+	aese		$dat1,q9
 	aesmc		$dat1,$dat1
+	vld1.32		{q9},[$key_],#16
 	b.gt		.Lctr32_tail
 
 	aese		$dat0,q8
-	aese		$dat1,q8
 	aesmc		$dat0,$dat0
+	aese		$dat1,q8
 	aesmc		$dat1,$dat1
 	aese		$dat0,q9
-	aese		$dat1,q9
 	aesmc		$dat0,$dat0
+	aese		$dat1,q9
 	aesmc		$dat1,$dat1
 	 vld1.8		{$in0},[$inp],$step
 	aese		$dat0,q12
+	aesmc		$dat0,$dat0
 	aese		$dat1,q12
+	aesmc		$dat1,$dat1
 	 vld1.8		{$in1},[$inp]
-	aesmc		$dat0,$dat0
-	aesmc		$dat1,$dat1
 	aese		$dat0,q13
+	aesmc		$dat0,$dat0
 	aese		$dat1,q13
-	aesmc		$dat0,$dat0
 	aesmc		$dat1,$dat1
-	aese		$dat0,q14
-	aese		$dat1,q14
 	 veor		$in0,$in0,$rndlast
+	aese		$dat0,q14
 	aesmc		$dat0,$dat0
+	aese		$dat1,q14
 	aesmc		$dat1,$dat1
 	 veor		$in1,$in1,$rndlast
 	aese		$dat0,q15
@@ -918,21 +945,21 @@ if ($flavour =~ /64/) {			######## 64-bit code
 
 	$arg =~ m/q([0-9]+),\s*\{q([0-9]+)\},\s*q([0-9]+)/o &&
 	sprintf	"vtbl.8	d%d,{q%d},d%d\n\t".
-		"vtbl.8	d%d,{q%d},d%d", 2*$1,$2,2*$3, 2*$1+1,$2,2*$3+1;
+		"vtbl.8	d%d,{q%d},d%d", 2*$1,$2,2*$3, 2*$1+1,$2,2*$3+1;	
     }
 
     sub unvdup32 {
 	my $arg=shift;
 
 	$arg =~ m/q([0-9]+),\s*q([0-9]+)\[([0-3])\]/o &&
-	sprintf	"vdup.32	q%d,d%d[%d]",$1,2*$2+($3>>1),$3&1;
+	sprintf	"vdup.32	q%d,d%d[%d]",$1,2*$2+($3>>1),$3&1;	
     }
 
     sub unvmov32 {
 	my $arg=shift;
 
 	$arg =~ m/q([0-9]+)\[([0-3])\],(.*)/o &&
-	sprintf	"vmov.32	d%d[%d],%s",2*$1+($2>>1),$2&1,$3;
+	sprintf	"vmov.32	d%d[%d],%s",2*$1+($2>>1),$2&1,$3;	
     }
 
     foreach(split("\n",$code)) {

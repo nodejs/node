@@ -375,7 +375,7 @@ static int do_generate(BIO *bio, char *genstr, char *genconf, BUF_MEM *buf)
 {
     CONF *cnf = NULL;
     int len;
-    long errline;
+    long errline = 0;
     unsigned char *p;
     ASN1_TYPE *atyp = NULL;
 

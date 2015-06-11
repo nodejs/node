@@ -275,9 +275,9 @@ $code.=<<___;
 	movq	%r9, 16(%rsp)
 	movq	%r10, 24(%rsp)
 	shrq	\$63, %rbx
-
+	
 #third iteration
-	movq	16($inp), %r9
+	movq	16($inp), %r9	
 	movq	24($inp), %rax
 	mulq	%r9
 	addq	%rax, %r12
@@ -525,7 +525,7 @@ $code.=<<___;
 	movl	$times,128+8(%rsp)
 	movq	$out, %xmm0		# off-load
 	movq	%rbp, %xmm1		# off-load
-#first iteration
+#first iteration	
 	mulx	%rax, %r8, %r9
 
 	mulx	16($inp), %rcx, %r10
@@ -561,7 +561,7 @@ $code.=<<___;
 	mov	%rax, (%rsp)
 	mov	%r8, 8(%rsp)
 
-#second iteration
+#second iteration	
 	mulx	16($inp), %rax, %rbx
 	adox	%rax, %r10
 	adcx	%rbx, %r11
@@ -600,8 +600,8 @@ $code.=<<___;
 
 	mov	%r9, 16(%rsp)
 	.byte	0x4c,0x89,0x94,0x24,0x18,0x00,0x00,0x00		# mov	%r10, 24(%rsp)
-
-#third iteration
+	
+#third iteration	
 	.byte	0xc4,0x62,0xc3,0xf6,0x8e,0x18,0x00,0x00,0x00	# mulx	24($inp), $out, %r9
 	adox	$out, %r12
 	adcx	%r9, %r13
@@ -636,8 +636,8 @@ $code.=<<___;
 
 	mov	%r11, 32(%rsp)
 	.byte	0x4c,0x89,0xa4,0x24,0x28,0x00,0x00,0x00		# mov	%r12, 40(%rsp)
-
-#fourth iteration
+	
+#fourth iteration	
 	.byte	0xc4,0xe2,0xfb,0xf6,0x9e,0x20,0x00,0x00,0x00	# mulx	32($inp), %rax, %rbx
 	adox	%rax, %r14
 	adcx	%rbx, %r15
@@ -669,8 +669,8 @@ $code.=<<___;
 
 	mov	%r13, 48(%rsp)
 	mov	%r14, 56(%rsp)
-
-#fifth iteration
+	
+#fifth iteration	
 	.byte	0xc4,0x62,0xc3,0xf6,0x9e,0x28,0x00,0x00,0x00	# mulx	40($inp), $out, %r11
 	adox	$out, %r8
 	adcx	%r11, %r9
@@ -697,8 +697,8 @@ $code.=<<___;
 
 	mov	%r15, 64(%rsp)
 	mov	%r8, 72(%rsp)
-
-#sixth iteration
+	
+#sixth iteration	
 	.byte	0xc4,0xe2,0xfb,0xf6,0x9e,0x30,0x00,0x00,0x00	# mulx	48($inp), %rax, %rbx
 	adox	%rax, %r10
 	adcx	%rbx, %r11
@@ -982,7 +982,7 @@ $code.=<<___;
 	movq	56($ap), %rax
 	movq	%rdx, %r14
 	adcq	\$0, %r14
-
+	
 	mulq	%rbx
 	 movq	%xmm4, %rbx
 	addq	%rax, %r14
@@ -1061,7 +1061,7 @@ $code.=<<___;
 	 movq	($ap), %rax
 	adcq	\$0, %rdx
 	addq	%r15, %r14
-	movq	%rdx, %r15
+	movq	%rdx, %r15	
 	adcq	\$0, %r15
 
 	leaq	128(%rbp), %rbp
@@ -1132,7 +1132,7 @@ $code.=<<___ if ($addx);
 	mulx	48($ap), %rbx, %r14
 	 lea	128(%rbp), %rbp
 	adcx	%rax, %r12
-
+	
 	mulx	56($ap), %rax, %r15
 	 movq	%xmm4, %rdx
 	adcx	%rbx, %r13
@@ -1292,7 +1292,7 @@ $code.=<<___;
 ___
 $code.=<<___ if ($addx);
 	jmp	.Lmul_scatter_tail
-
+	
 .align	32
 .Lmulx_scatter:
 	movq	($out), %rdx		# pass b[0]
@@ -1721,7 +1721,7 @@ __rsaz_512_mul:
 	movq	56($ap), %rax
 	movq	%rdx, %r14
 	adcq	\$0, %r14
-
+	
 	mulq	%rbx
 	addq	%rax, %r14
 	 movq	($ap), %rax
@@ -1798,7 +1798,7 @@ __rsaz_512_mul:
 	 movq	($ap), %rax
 	adcq	\$0, %rdx
 	addq	%r15, %r14
-	movq	%rdx, %r15
+	movq	%rdx, %r15	
 	adcq	\$0, %r15
 
 	leaq	8(%rdi), %rdi

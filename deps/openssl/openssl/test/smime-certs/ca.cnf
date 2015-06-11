@@ -63,3 +63,4 @@ subjectKeyIdentifier=hash
 authorityKeyIdentifier=keyid:always
 basicConstraints = critical,CA:true
 keyUsage = critical, cRLSign, keyCertSign
+

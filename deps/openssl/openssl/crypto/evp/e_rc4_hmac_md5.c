@@ -54,6 +54,7 @@
 
 #if !defined(OPENSSL_NO_RC4) && !defined(OPENSSL_NO_MD5)
 
+# include <openssl/crypto.h>
 # include <openssl/evp.h>
 # include <openssl/objects.h>
 # include <openssl/rc4.h>
@@ -210,7 +211,7 @@ static int rc4_hmac_md5_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
             MD5_Update(&key->md, mac, MD5_DIGEST_LENGTH);
             MD5_Final(mac, &key->md);
 
-            if (memcmp(out + plen, mac, MD5_DIGEST_LENGTH))
+            if (CRYPTO_memcmp(out + plen, mac, MD5_DIGEST_LENGTH))
                 return 0;
         } else {
             MD5_Update(&key->md, out + md5_off, len - md5_off);
@@ -258,7 +259,12 @@ static int rc4_hmac_md5_ctrl(EVP_CIPHER_CTX *ctx, int type, int arg,
     case EVP_CTRL_AEAD_TLS1_AAD:
         {
             unsigned char *p = ptr;
-            unsigned int len = p[arg - 2] << 8 | p[arg - 1];
+            unsigned int len;
+
+            if (arg != EVP_AEAD_TLS1_AAD_LEN)
+                return -1;
+
+            len = p[arg - 2] << 8 | p[arg - 1];
 
             if (!ctx->encrypt) {
                 len -= MD5_DIGEST_LENGTH;

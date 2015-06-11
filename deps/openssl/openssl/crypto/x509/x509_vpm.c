@@ -172,16 +172,17 @@ X509_VERIFY_PARAM *X509_VERIFY_PARAM_new(void)
 {
     X509_VERIFY_PARAM *param;
     X509_VERIFY_PARAM_ID *paramid;
-    param = OPENSSL_malloc(sizeof(X509_VERIFY_PARAM));
+
+    param = OPENSSL_malloc(sizeof *param);
     if (!param)
         return NULL;
-    paramid = OPENSSL_malloc(sizeof(X509_VERIFY_PARAM));
+    paramid = OPENSSL_malloc(sizeof *paramid);
     if (!paramid) {
         OPENSSL_free(param);
         return NULL;
     }
-    memset(param, 0, sizeof(X509_VERIFY_PARAM));
-    memset(paramid, 0, sizeof(X509_VERIFY_PARAM_ID));
+    memset(param, 0, sizeof *param);
+    memset(paramid, 0, sizeof *paramid);
     param->id = paramid;
     x509_verify_param_zero(param);
     return param;
@@ -189,6 +190,8 @@ X509_VERIFY_PARAM *X509_VERIFY_PARAM_new(void)
 
 void X509_VERIFY_PARAM_free(X509_VERIFY_PARAM *param)
 {
+    if (param == NULL)
+        return;
     x509_verify_param_zero(param);
     OPENSSL_free(param->id);
     OPENSSL_free(param);

@@ -117,7 +117,7 @@ void CRYPTO_thread_setup(void)
     int i;
 
     lock_cs = OPENSSL_malloc(CRYPTO_num_locks() * sizeof(HANDLE));
-    if(!lock_cs) {
+    if (!lock_cs) {
         /* Nothing we can do about this...void function! */
         return;
     }
@@ -172,7 +172,7 @@ void CRYPTO_thread_setup(void)
 # else
     lock_cs = OPENSSL_malloc(CRYPTO_num_locks() * sizeof(rwlock_t));
 # endif
-    if(!lock_cs) {
+    if (!lock_cs) {
         /* Nothing we can do about this...void function! */
         return;
     }
@@ -260,7 +260,7 @@ void CRYPTO_thread_setup(void)
     char filename[20];
 
     lock_cs = OPENSSL_malloc(CRYPTO_num_locks() * sizeof(usema_t *));
-    if(!lock_cs) {
+    if (!lock_cs) {
         /* Nothing we can do about this...void function! */
         return;
     }
@@ -328,11 +328,11 @@ void CRYPTO_thread_setup(void)
 
     lock_cs = OPENSSL_malloc(CRYPTO_num_locks() * sizeof(pthread_mutex_t));
     lock_count = OPENSSL_malloc(CRYPTO_num_locks() * sizeof(long));
-    if(!lock_cs || !lock_count) {
+    if (!lock_cs || !lock_count) {
         /* Nothing we can do about this...void function! */
-        if(lock_cs)
+        if (lock_cs)
             OPENSSL_free(lock_cs);
-        if(lock_count)
+        if (lock_count)
             OPENSSL_free(lock_count);
         return;
     }

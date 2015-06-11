@@ -790,7 +790,7 @@ bn_sqr8x_mont:
 	sub	%r11,%rsp
 .Lsqr8x_sp_done:
 	and	\$-64,%rsp
-	mov	$num,%r10
+	mov	$num,%r10	
 	neg	$num
 
 	lea	64(%rsp,$num,2),%r11	# copy of modulus

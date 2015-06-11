@@ -113,7 +113,7 @@ else
 	{
 	die "Error checking for EC support\n";
 	}
-
+    
 system ("$ossl_path no-ec2m > $null_path");
 if ($? == 0)
 	{
@@ -128,7 +128,7 @@ else
 	die "Error checking for EC2M support\n";
 	}
 
-system ("$ossl_path no-ecdh > $null_path");
+system ("$ossl_path no-ec > $null_path");
 if ($? == 0)
 	{
 	$no_ecdh = 1;
@@ -141,7 +141,7 @@ else
 	{
 	die "Error checking for ECDH support\n";
 	}
-
+    
 my @smime_pkcs7_tests = (
 
     [
@@ -447,6 +447,14 @@ my @smime_cms_param_tests = (
     [
 "enveloped content test streaming S/MIME format, ECDH",
         "-encrypt -in smcont.txt"
+          . " -stream -out test.cms"
+          . " -recip $smdir/smec1.pem",
+        "-decrypt -recip $smdir/smec1.pem -in test.cms -out smtst.txt"
+    ],
+
+    [
+"enveloped content test streaming S/MIME format, ECDH, key identifier",
+        "-encrypt -keyid -in smcont.txt"
           . " -stream -out test.cms"
           . " -recip $smdir/smec1.pem",
         "-decrypt -recip $smdir/smec1.pem -in test.cms -out smtst.txt"

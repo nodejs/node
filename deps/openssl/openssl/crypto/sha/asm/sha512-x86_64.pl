@@ -1774,7 +1774,7 @@ if ($avx>1) {{
 ######################################################################
 # AVX2+BMI code path
 #
-my $a5=$SZ==4?"%esi":"%rsi";	# zap $inp
+my $a5=$SZ==4?"%esi":"%rsi";	# zap $inp 
 my $PUSH8=8*2*$SZ;
 use integer;
 
@@ -2375,7 +2375,7 @@ sub sha256op38 {
     my $instr = shift;
     my %opcodelet = (
 		"sha256rnds2" => 0xcb,
-		"sha256msg1"  => 0xcc,
+  		"sha256msg1"  => 0xcc,
 		"sha256msg2"  => 0xcd	);
 
     if (defined($opcodelet{$instr}) && @_[0] =~ /%xmm([0-7]),\s*%xmm([0-7])/) {

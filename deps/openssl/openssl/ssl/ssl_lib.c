@@ -1510,9 +1510,13 @@ STACK_OF(SSL_CIPHER) *ssl_bytes_to_cipher_list(SSL *s, unsigned char *p,
                SSL_R_ERROR_IN_RECEIVED_CIPHER_LIST);
         return (NULL);
     }
-    if ((skp == NULL) || (*skp == NULL))
+    if ((skp == NULL) || (*skp == NULL)) {
         sk = sk_SSL_CIPHER_new_null(); /* change perhaps later */
-    else {
+        if(sk == NULL) {
+            SSLerr(SSL_F_SSL_BYTES_TO_CIPHER_LIST, ERR_R_MALLOC_FAILURE);
+            return NULL;
+        }
+    } else {
         sk = *skp;
         sk_SSL_CIPHER_zero(sk);
     }
@@ -2326,7 +2330,7 @@ void ssl_set_cert_masks(CERT *c, const SSL_CIPHER *cipher)
     if (dh_dsa_export)
         emask_k |= SSL_kDHd;
 
-    if (emask_k & (SSL_kDHr | SSL_kDHd))
+    if (mask_k & (SSL_kDHr | SSL_kDHd))
         mask_a |= SSL_aDH;
 
     if (rsa_enc || rsa_sign) {
@@ -2832,6 +2836,12 @@ const char *SSL_get_version(const SSL *s)
         return ("SSLv3");
     else if (s->version == SSL2_VERSION)
         return ("SSLv2");
+    else if (s->version == DTLS1_BAD_VER)
+        return ("DTLSv0.9");
+    else if (s->version == DTLS1_VERSION)
+        return ("DTLSv1");
+    else if (s->version == DTLS1_2_VERSION)
+        return ("DTLSv1.2");
     else
         return ("unknown");
 }
