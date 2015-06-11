@@ -275,6 +275,21 @@ asyncTest('Attaching a promise catch in a process.nextTick is soon enough to' +
   });
 });
 
+asyncTest('While inside setImmediate, catching a rejected promise derived ' +
+          'from returning a rejected promise in a fulfillment handler ' +
+          'prevents unhandledRejection', function(done) {
+  onUnhandledFail(done);
+
+  setImmediate(function() {
+    // reproduces on first tick and inside of setImmediate
+    Promise
+      .resolve('resolve')
+      .then(function() {
+        return Promise.reject('reject');
+      }).catch(function(e) {});
+  });
+});
+
 // State adapation tests
 asyncTest('catching a promise which is asynchronously rejected (via' +
           'resolution to an asynchronously-rejected promise) prevents' +
