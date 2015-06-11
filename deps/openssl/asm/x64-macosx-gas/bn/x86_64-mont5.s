@@ -2884,11 +2884,16 @@ L$sqrx4x_sub:
 
 .p2align	4
 _bn_get_bits5:
-	movq	%rdi,%r10
+	leaq	0(%rdi),%r10
+	leaq	1(%rdi),%r11
 	movl	%esi,%ecx
-	shrl	$3,%esi
-	movzwl	(%r10,%rsi,1),%eax
-	andl	$7,%ecx
+	shrl	$4,%esi
+	andl	$15,%ecx
+	leal	-8(%rcx),%eax
+	cmpl	$11,%ecx
+	cmovaq	%r11,%r10
+	cmoval	%eax,%ecx
+	movzwl	(%r10,%rsi,2),%eax
 	shrl	%cl,%eax
 	andl	$31,%eax
 	.byte	0xf3,0xc3
