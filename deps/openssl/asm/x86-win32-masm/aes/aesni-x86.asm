@@ -17,6 +17,7 @@ IF @Version LT 800
 ELSE
 .text$	SEGMENT ALIGN(64) 'CODE'
 ENDIF
+;EXTERN	_OPENSSL_ia32cap_P:NEAR
 ALIGN	16
 _aesni_encrypt	PROC PUBLIC
 $L_aesni_encrypt_begin::
@@ -36,7 +37,10 @@ DB	102,15,56,220,209
 	lea	edx,DWORD PTR 16[edx]
 	jnz	$L000enc1_loop_1
 DB	102,15,56,221,209
+	pxor	xmm0,xmm0
+	pxor	xmm1,xmm1
 	movups	XMMWORD PTR [eax],xmm2
+	pxor	xmm2,xmm2
 	ret
 _aesni_encrypt ENDP
 ALIGN	16
@@ -58,7 +62,10 @@ DB	102,15,56,222,209
 	lea	edx,DWORD PTR 16[edx]
 	jnz	$L001dec1_loop_2
 DB	102,15,56,223,209
+	pxor	xmm0,xmm0
+	pxor	xmm1,xmm1
 	movups	XMMWORD PTR [eax],xmm2
+	pxor	xmm2,xmm2
 	ret
 _aesni_decrypt ENDP
 ALIGN	16
@@ -265,17 +272,15 @@ DB	102,15,56,220,217
 	neg	ecx
 DB	102,15,56,220,225
 	pxor	xmm7,xmm0
+	movups	xmm0,XMMWORD PTR [ecx*1+edx]
 	add	ecx,16
-DB	102,15,56,220,233
-DB	102,15,56,220,241
-DB	102,15,56,220,249
-	movups	xmm0,XMMWORD PTR [ecx*1+edx-16]
-	jmp	$L_aesni_encrypt6_enter
+	jmp	$L008_aesni_encrypt6_inner
 ALIGN	16
-$L008enc6_loop:
+$L009enc6_loop:
 DB	102,15,56,220,209
 DB	102,15,56,220,217
 DB	102,15,56,220,225
+$L008_aesni_encrypt6_inner:
 DB	102,15,56,220,233
 DB	102,15,56,220,241
 DB	102,15,56,220,249
@@ -289,7 +294,7 @@ DB	102,15,56,220,232
 DB	102,15,56,220,240
 DB	102,15,56,220,248
 	movups	xmm0,XMMWORD PTR [ecx*1+edx-16]
-	jnz	$L008enc6_loop
+	jnz	$L009enc6_loop
 DB	102,15,56,220,209
 DB	102,15,56,220,217
 DB	102,15,56,220,225
@@ -320,17 +325,15 @@ DB	102,15,56,222,217
 	neg	ecx
 DB	102,15,56,222,225
 	pxor	xmm7,xmm0
+	movups	xmm0,XMMWORD PTR [ecx*1+edx]
 	add	ecx,16
-DB	102,15,56,222,233
-DB	102,15,56,222,241
-DB	102,15,56,222,249
-	movups	xmm0,XMMWORD PTR [ecx*1+edx-16]
-	jmp	$L_aesni_decrypt6_enter
+	jmp	$L010_aesni_decrypt6_inner
 ALIGN	16
-$L009dec6_loop:
+$L011dec6_loop:
 DB	102,15,56,222,209
 DB	102,15,56,222,217
 DB	102,15,56,222,225
+$L010_aesni_decrypt6_inner:
 DB	102,15,56,222,233
 DB	102,15,56,222,241
 DB	102,15,56,222,249
@@ -344,7 +347,7 @@ DB	102,15,56,222,232
 DB	102,15,56,222,240
 DB	102,15,56,222,248
 	movups	xmm0,XMMWORD PTR [ecx*1+edx-16]
-	jnz	$L009dec6_loop
+	jnz	$L011dec6_loop
 DB	102,15,56,222,209
 DB	102,15,56,222,217
 DB	102,15,56,222,225
@@ -372,14 +375,14 @@ $L_aesni_ecb_encrypt_begin::
 	mov	edx,DWORD PTR 32[esp]
 	mov	ebx,DWORD PTR 36[esp]
 	and	eax,-16
-	jz	$L010ecb_ret
+	jz	$L012ecb_ret
 	mov	ecx,DWORD PTR 240[edx]
 	test	ebx,ebx
-	jz	$L011ecb_decrypt
+	jz	$L013ecb_decrypt
 	mov	ebp,edx
 	mov	ebx,ecx
 	cmp	eax,96
-	jb	$L012ecb_enc_tail
+	jb	$L014ecb_enc_tail
 	movdqu	xmm2,XMMWORD PTR [esi]
 	movdqu	xmm3,XMMWORD PTR 16[esi]
 	movdqu	xmm4,XMMWORD PTR 32[esi]
@@ -388,9 +391,9 @@ $L_aesni_ecb_encrypt_begin::
 	movdqu	xmm7,XMMWORD PTR 80[esi]
 	lea	esi,DWORD PTR 96[esi]
 	sub	eax,96
-	jmp	$L013ecb_enc_loop6_enter
+	jmp	$L015ecb_enc_loop6_enter
 ALIGN	16
-$L014ecb_enc_loop6:
+$L016ecb_enc_loop6:
 	movups	XMMWORD PTR [edi],xmm2
 	movdqu	xmm2,XMMWORD PTR [esi]
 	movups	XMMWORD PTR 16[edi],xmm3
@@ -405,12 +408,12 @@ $L014ecb_enc_loop6:
 	lea	edi,DWORD PTR 96[edi]
 	movdqu	xmm7,XMMWORD PTR 80[esi]
 	lea	esi,DWORD PTR 96[esi]
-$L013ecb_enc_loop6_enter:
+$L015ecb_enc_loop6_enter:
 	call	__aesni_encrypt6
 	mov	edx,ebp
 	mov	ecx,ebx
 	sub	eax,96
-	jnc	$L014ecb_enc_loop6
+	jnc	$L016ecb_enc_loop6
 	movups	XMMWORD PTR [edi],xmm2
 	movups	XMMWORD PTR 16[edi],xmm3
 	movups	XMMWORD PTR 32[edi],xmm4
@@ -419,18 +422,18 @@ $L013ecb_enc_loop6_enter:
 	movups	XMMWORD PTR 80[edi],xmm7
 	lea	edi,DWORD PTR 96[edi]
 	add	eax,96
-	jz	$L010ecb_ret
-$L012ecb_enc_tail:
+	jz	$L012ecb_ret
+$L014ecb_enc_tail:
 	movups	xmm2,XMMWORD PTR [esi]
 	cmp	eax,32
-	jb	$L015ecb_enc_one
+	jb	$L017ecb_enc_one
 	movups	xmm3,XMMWORD PTR 16[esi]
-	je	$L016ecb_enc_two
+	je	$L018ecb_enc_two
 	movups	xmm4,XMMWORD PTR 32[esi]
 	cmp	eax,64
-	jb	$L017ecb_enc_three
+	jb	$L019ecb_enc_three
 	movups	xmm5,XMMWORD PTR 48[esi]
-	je	$L018ecb_enc_four
+	je	$L020ecb_enc_four
 	movups	xmm6,XMMWORD PTR 64[esi]
 	xorps	xmm7,xmm7
 	call	__aesni_encrypt6
@@ -439,49 +442,49 @@ $L012ecb_enc_tail:
 	movups	XMMWORD PTR 32[edi],xmm4
 	movups	XMMWORD PTR 48[edi],xmm5
 	movups	XMMWORD PTR 64[edi],xmm6
-	jmp	$L010ecb_ret
+	jmp	$L012ecb_ret
 ALIGN	16
-$L015ecb_enc_one:
+$L017ecb_enc_one:
 	movups	xmm0,XMMWORD PTR [edx]
 	movups	xmm1,XMMWORD PTR 16[edx]
 	lea	edx,DWORD PTR 32[edx]
 	xorps	xmm2,xmm0
-$L019enc1_loop_3:
+$L021enc1_loop_3:
 DB	102,15,56,220,209
 	dec	ecx
 	movups	xmm1,XMMWORD PTR [edx]
 	lea	edx,DWORD PTR 16[edx]
-	jnz	$L019enc1_loop_3
+	jnz	$L021enc1_loop_3
 DB	102,15,56,221,209
 	movups	XMMWORD PTR [edi],xmm2
-	jmp	$L010ecb_ret
+	jmp	$L012ecb_ret
 ALIGN	16
-$L016ecb_enc_two:
+$L018ecb_enc_two:
 	call	__aesni_encrypt2
 	movups	XMMWORD PTR [edi],xmm2
 	movups	XMMWORD PTR 16[edi],xmm3
-	jmp	$L010ecb_ret
+	jmp	$L012ecb_ret
 ALIGN	16
-$L017ecb_enc_three:
+$L019ecb_enc_three:
 	call	__aesni_encrypt3
 	movups	XMMWORD PTR [edi],xmm2
 	movups	XMMWORD PTR 16[edi],xmm3
 	movups	XMMWORD PTR 32[edi],xmm4
-	jmp	$L010ecb_ret
+	jmp	$L012ecb_ret
 ALIGN	16
-$L018ecb_enc_four:
+$L020ecb_enc_four:
 	call	__aesni_encrypt4
 	movups	XMMWORD PTR [edi],xmm2
 	movups	XMMWORD PTR 16[edi],xmm3
 	movups	XMMWORD PTR 32[edi],xmm4
 	movups	XMMWORD PTR 48[edi],xmm5
-	jmp	$L010ecb_ret
+	jmp	$L012ecb_ret
 ALIGN	16
-$L011ecb_decrypt:
+$L013ecb_decrypt:
 	mov	ebp,edx
 	mov	ebx,ecx
 	cmp	eax,96
-	jb	$L020ecb_dec_tail
+	jb	$L022ecb_dec_tail
 	movdqu	xmm2,XMMWORD PTR [esi]
 	movdqu	xmm3,XMMWORD PTR 16[esi]
 	movdqu	xmm4,XMMWORD PTR 32[esi]
@@ -490,9 +493,9 @@ $L011ecb_decrypt:
 	movdqu	xmm7,XMMWORD PTR 80[esi]
 	lea	esi,DWORD PTR 96[esi]
 	sub	eax,96
-	jmp	$L021ecb_dec_loop6_enter
+	jmp	$L023ecb_dec_loop6_enter
 ALIGN	16
-$L022ecb_dec_loop6:
+$L024ecb_dec_loop6:
 	movups	XMMWORD PTR [edi],xmm2
 	movdqu	xmm2,XMMWORD PTR [esi]
 	movups	XMMWORD PTR 16[edi],xmm3
@@ -507,12 +510,12 @@ $L022ecb_dec_loop6:
 	lea	edi,DWORD PTR 96[edi]
 	movdqu	xmm7,XMMWORD PTR 80[esi]
 	lea	esi,DWORD PTR 96[esi]
-$L021ecb_dec_loop6_enter:
+$L023ecb_dec_loop6_enter:
 	call	__aesni_decrypt6
 	mov	edx,ebp
 	mov	ecx,ebx
 	sub	eax,96
-	jnc	$L022ecb_dec_loop6
+	jnc	$L024ecb_dec_loop6
 	movups	XMMWORD PTR [edi],xmm2
 	movups	XMMWORD PTR 16[edi],xmm3
 	movups	XMMWORD PTR 32[edi],xmm4
@@ -521,18 +524,18 @@ $L021ecb_dec_loop6_enter:
 	movups	XMMWORD PTR 80[edi],xmm7
 	lea	edi,DWORD PTR 96[edi]
 	add	eax,96
-	jz	$L010ecb_ret
-$L020ecb_dec_tail:
+	jz	$L012ecb_ret
+$L022ecb_dec_tail:
 	movups	xmm2,XMMWORD PTR [esi]
 	cmp	eax,32
-	jb	$L023ecb_dec_one
+	jb	$L025ecb_dec_one
 	movups	xmm3,XMMWORD PTR 16[esi]
-	je	$L024ecb_dec_two
+	je	$L026ecb_dec_two
 	movups	xmm4,XMMWORD PTR 32[esi]
 	cmp	eax,64
-	jb	$L025ecb_dec_three
+	jb	$L027ecb_dec_three
 	movups	xmm5,XMMWORD PTR 48[esi]
-	je	$L026ecb_dec_four
+	je	$L028ecb_dec_four
 	movups	xmm6,XMMWORD PTR 64[esi]
 	xorps	xmm7,xmm7
 	call	__aesni_decrypt6
@@ -541,43 +544,51 @@ $L020ecb_dec_tail:
 	movups	XMMWORD PTR 32[edi],xmm4
 	movups	XMMWORD PTR 48[edi],xmm5
 	movups	XMMWORD PTR 64[edi],xmm6
-	jmp	$L010ecb_ret
+	jmp	$L012ecb_ret
 ALIGN	16
-$L023ecb_dec_one:
+$L025ecb_dec_one:
 	movups	xmm0,XMMWORD PTR [edx]
 	movups	xmm1,XMMWORD PTR 16[edx]
 	lea	edx,DWORD PTR 32[edx]
 	xorps	xmm2,xmm0
-$L027dec1_loop_4:
+$L029dec1_loop_4:
 DB	102,15,56,222,209
 	dec	ecx
 	movups	xmm1,XMMWORD PTR [edx]
 	lea	edx,DWORD PTR 16[edx]
-	jnz	$L027dec1_loop_4
+	jnz	$L029dec1_loop_4
 DB	102,15,56,223,209
 	movups	XMMWORD PTR [edi],xmm2
-	jmp	$L010ecb_ret
+	jmp	$L012ecb_ret
 ALIGN	16
-$L024ecb_dec_two:
+$L026ecb_dec_two:
 	call	__aesni_decrypt2
 	movups	XMMWORD PTR [edi],xmm2
 	movups	XMMWORD PTR 16[edi],xmm3
-	jmp	$L010ecb_ret
+	jmp	$L012ecb_ret
 ALIGN	16
-$L025ecb_dec_three:
+$L027ecb_dec_three:
 	call	__aesni_decrypt3
 	movups	XMMWORD PTR [edi],xmm2
 	movups	XMMWORD PTR 16[edi],xmm3
 	movups	XMMWORD PTR 32[edi],xmm4
-	jmp	$L010ecb_ret
+	jmp	$L012ecb_ret
 ALIGN	16
-$L026ecb_dec_four:
+$L028ecb_dec_four:
 	call	__aesni_decrypt4
 	movups	XMMWORD PTR [edi],xmm2
 	movups	XMMWORD PTR 16[edi],xmm3
 	movups	XMMWORD PTR 32[edi],xmm4
 	movups	XMMWORD PTR 48[edi],xmm5
-$L010ecb_ret:
+$L012ecb_ret:
+	pxor	xmm0,xmm0
+	pxor	xmm1,xmm1
+	pxor	xmm2,xmm2
+	pxor	xmm3,xmm3
+	pxor	xmm4,xmm4
+	pxor	xmm5,xmm5
+	pxor	xmm6,xmm6
+	pxor	xmm7,xmm7
 	pop	edi
 	pop	esi
 	pop	ebx
@@ -622,7 +633,7 @@ $L_aesni_ccm64_encrypt_blocks_begin::
 	lea	edx,DWORD PTR 32[ecx*1+edx]
 	sub	ebx,ecx
 DB	102,15,56,0,253
-$L028ccm64_enc_outer:
+$L030ccm64_enc_outer:
 	movups	xmm0,XMMWORD PTR [ebp]
 	mov	ecx,ebx
 	movups	xmm6,XMMWORD PTR [esi]
@@ -631,7 +642,7 @@ $L028ccm64_enc_outer:
 	xorps	xmm0,xmm6
 	xorps	xmm3,xmm0
 	movups	xmm0,XMMWORD PTR 32[ebp]
-$L029ccm64_enc2_loop:
+$L031ccm64_enc2_loop:
 DB	102,15,56,220,209
 DB	102,15,56,220,217
 	movups	xmm1,XMMWORD PTR [ecx*1+edx]
@@ -639,7 +650,7 @@ DB	102,15,56,220,217
 DB	102,15,56,220,208
 DB	102,15,56,220,216
 	movups	xmm0,XMMWORD PTR [ecx*1+edx-16]
-	jnz	$L029ccm64_enc2_loop
+	jnz	$L031ccm64_enc2_loop
 DB	102,15,56,220,209
 DB	102,15,56,220,217
 	paddq	xmm7,XMMWORD PTR 16[esp]
@@ -652,10 +663,18 @@ DB	102,15,56,221,216
 	movups	XMMWORD PTR [edi],xmm6
 DB	102,15,56,0,213
 	lea	edi,DWORD PTR 16[edi]
-	jnz	$L028ccm64_enc_outer
+	jnz	$L030ccm64_enc_outer
 	mov	esp,DWORD PTR 48[esp]
 	mov	edi,DWORD PTR 40[esp]
 	movups	XMMWORD PTR [edi],xmm3
+	pxor	xmm0,xmm0
+	pxor	xmm1,xmm1
+	pxor	xmm2,xmm2
+	pxor	xmm3,xmm3
+	pxor	xmm4,xmm4
+	pxor	xmm5,xmm5
+	pxor	xmm6,xmm6
+	pxor	xmm7,xmm7
 	pop	edi
 	pop	esi
 	pop	ebx
@@ -701,12 +720,12 @@ DB	102,15,56,0,253
 	movups	xmm1,XMMWORD PTR 16[edx]
 	lea	edx,DWORD PTR 32[edx]
 	xorps	xmm2,xmm0
-$L030enc1_loop_5:
+$L032enc1_loop_5:
 DB	102,15,56,220,209
 	dec	ecx
 	movups	xmm1,XMMWORD PTR [edx]
 	lea	edx,DWORD PTR 16[edx]
-	jnz	$L030enc1_loop_5
+	jnz	$L032enc1_loop_5
 DB	102,15,56,221,209
 	shl	ebx,4
 	mov	ecx,16
@@ -716,16 +735,16 @@ DB	102,15,56,221,209
 	sub	ecx,ebx
 	lea	edx,DWORD PTR 32[ebx*1+ebp]
 	mov	ebx,ecx
-	jmp	$L031ccm64_dec_outer
+	jmp	$L033ccm64_dec_outer
 ALIGN	16
-$L031ccm64_dec_outer:
+$L033ccm64_dec_outer:
 	xorps	xmm6,xmm2
 	movdqa	xmm2,xmm7
 	movups	XMMWORD PTR [edi],xmm6
 	lea	edi,DWORD PTR 16[edi]
 DB	102,15,56,0,213
 	sub	eax,1
-	jz	$L032ccm64_dec_break
+	jz	$L034ccm64_dec_break
 	movups	xmm0,XMMWORD PTR [ebp]
 	mov	ecx,ebx
 	movups	xmm1,XMMWORD PTR 16[ebp]
@@ -733,7 +752,7 @@ DB	102,15,56,0,213
 	xorps	xmm2,xmm0
 	xorps	xmm3,xmm6
 	movups	xmm0,XMMWORD PTR 32[ebp]
-$L033ccm64_dec2_loop:
+$L035ccm64_dec2_loop:
 DB	102,15,56,220,209
 DB	102,15,56,220,217
 	movups	xmm1,XMMWORD PTR [ecx*1+edx]
@@ -741,7 +760,7 @@ DB	102,15,56,220,217
 DB	102,15,56,220,208
 DB	102,15,56,220,216
 	movups	xmm0,XMMWORD PTR [ecx*1+edx-16]
-	jnz	$L033ccm64_dec2_loop
+	jnz	$L035ccm64_dec2_loop
 	movups	xmm6,XMMWORD PTR [esi]
 	paddq	xmm7,XMMWORD PTR 16[esp]
 DB	102,15,56,220,209
@@ -749,9 +768,9 @@ DB	102,15,56,220,217
 DB	102,15,56,221,208
 DB	102,15,56,221,216
 	lea	esi,QWORD PTR 16[esi]
-	jmp	$L031ccm64_dec_outer
+	jmp	$L033ccm64_dec_outer
 ALIGN	16
-$L032ccm64_dec_break:
+$L034ccm64_dec_break:
 	mov	ecx,DWORD PTR 240[ebp]
 	mov	edx,ebp
 	movups	xmm0,XMMWORD PTR [edx]
@@ -759,16 +778,24 @@ $L032ccm64_dec_break:
 	xorps	xmm6,xmm0
 	lea	edx,DWORD PTR 32[edx]
 	xorps	xmm3,xmm6
-$L034enc1_loop_6:
+$L036enc1_loop_6:
 DB	102,15,56,220,217
 	dec	ecx
 	movups	xmm1,XMMWORD PTR [edx]
 	lea	edx,DWORD PTR 16[edx]
-	jnz	$L034enc1_loop_6
+	jnz	$L036enc1_loop_6
 DB	102,15,56,221,217
 	mov	esp,DWORD PTR 48[esp]
 	mov	edi,DWORD PTR 40[esp]
 	movups	XMMWORD PTR [edi],xmm3
+	pxor	xmm0,xmm0
+	pxor	xmm1,xmm1
+	pxor	xmm2,xmm2
+	pxor	xmm3,xmm3
+	pxor	xmm4,xmm4
+	pxor	xmm5,xmm5
+	pxor	xmm6,xmm6
+	pxor	xmm7,xmm7
 	pop	edi
 	pop	esi
 	pop	ebx
@@ -792,7 +819,7 @@ $L_aesni_ctr32_encrypt_blocks_begin::
 	and	esp,-16
 	mov	DWORD PTR 80[esp],ebp
 	cmp	eax,1
-	je	$L035ctr32_one_shortcut
+	je	$L037ctr32_one_shortcut
 	movdqu	xmm7,XMMWORD PTR [ebx]
 	mov	DWORD PTR [esp],202182159
 	mov	DWORD PTR 4[esp],134810123
@@ -830,7 +857,7 @@ DB	102,15,56,0,202
 	pshufd	xmm2,xmm0,192
 	pshufd	xmm3,xmm0,128
 	cmp	eax,6
-	jb	$L036ctr32_tail
+	jb	$L038ctr32_tail
 	pxor	xmm7,xmm6
 	shl	ecx,4
 	mov	ebx,16
@@ -839,9 +866,9 @@ DB	102,15,56,0,202
 	sub	ebx,ecx
 	lea	edx,DWORD PTR 32[ecx*1+edx]
 	sub	eax,6
-	jmp	$L037ctr32_loop6
+	jmp	$L039ctr32_loop6
 ALIGN	16
-$L037ctr32_loop6:
+$L039ctr32_loop6:
 	pshufd	xmm4,xmm0,64
 	movdqa	xmm0,XMMWORD PTR 32[esp]
 	pshufd	xmm5,xmm1,192
@@ -895,27 +922,27 @@ DB	102,15,56,0,202
 	lea	edi,DWORD PTR 96[edi]
 	pshufd	xmm3,xmm0,128
 	sub	eax,6
-	jnc	$L037ctr32_loop6
+	jnc	$L039ctr32_loop6
 	add	eax,6
-	jz	$L038ctr32_ret
+	jz	$L040ctr32_ret
 	movdqu	xmm7,XMMWORD PTR [ebp]
 	mov	edx,ebp
 	pxor	xmm7,XMMWORD PTR 32[esp]
 	mov	ecx,DWORD PTR 240[ebp]
-$L036ctr32_tail:
+$L038ctr32_tail:
 	por	xmm2,xmm7
 	cmp	eax,2
-	jb	$L039ctr32_one
+	jb	$L041ctr32_one
 	pshufd	xmm4,xmm0,64
 	por	xmm3,xmm7
-	je	$L040ctr32_two
+	je	$L042ctr32_two
 	pshufd	xmm5,xmm1,192
 	por	xmm4,xmm7
 	cmp	eax,4
-	jb	$L041ctr32_three
+	jb	$L043ctr32_three
 	pshufd	xmm6,xmm1,128
 	por	xmm5,xmm7
-	je	$L042ctr32_four
+	je	$L044ctr32_four
 	por	xmm6,xmm7
 	call	__aesni_encrypt6
 	movups	xmm1,XMMWORD PTR [esi]
@@ -933,29 +960,29 @@ $L036ctr32_tail:
 	movups	XMMWORD PTR 32[edi],xmm4
 	movups	XMMWORD PTR 48[edi],xmm5
 	movups	XMMWORD PTR 64[edi],xmm6
-	jmp	$L038ctr32_ret
+	jmp	$L040ctr32_ret
 ALIGN	16
-$L035ctr32_one_shortcut:
+$L037ctr32_one_shortcut:
 	movups	xmm2,XMMWORD PTR [ebx]
 	mov	ecx,DWORD PTR 240[edx]
-$L039ctr32_one:
+$L041ctr32_one:
 	movups	xmm0,XMMWORD PTR [edx]
 	movups	xmm1,XMMWORD PTR 16[edx]
 	lea	edx,DWORD PTR 32[edx]
 	xorps	xmm2,xmm0
-$L043enc1_loop_7:
+$L045enc1_loop_7:
 DB	102,15,56,220,209
 	dec	ecx
 	movups	xmm1,XMMWORD PTR [edx]
 	lea	edx,DWORD PTR 16[edx]
-	jnz	$L043enc1_loop_7
+	jnz	$L045enc1_loop_7
 DB	102,15,56,221,209
 	movups	xmm6,XMMWORD PTR [esi]
 	xorps	xmm6,xmm2
 	movups	XMMWORD PTR [edi],xmm6
-	jmp	$L038ctr32_ret
+	jmp	$L040ctr32_ret
 ALIGN	16
-$L040ctr32_two:
+$L042ctr32_two:
 	call	__aesni_encrypt2
 	movups	xmm5,XMMWORD PTR [esi]
 	movups	xmm6,XMMWORD PTR 16[esi]
@@ -963,9 +990,9 @@ $L040ctr32_two:
 	xorps	xmm3,xmm6
 	movups	XMMWORD PTR [edi],xmm2
 	movups	XMMWORD PTR 16[edi],xmm3
-	jmp	$L038ctr32_ret
+	jmp	$L040ctr32_ret
 ALIGN	16
-$L041ctr32_three:
+$L043ctr32_three:
 	call	__aesni_encrypt3
 	movups	xmm5,XMMWORD PTR [esi]
 	movups	xmm6,XMMWORD PTR 16[esi]
@@ -976,9 +1003,9 @@ $L041ctr32_three:
 	xorps	xmm4,xmm7
 	movups	XMMWORD PTR 16[edi],xmm3
 	movups	XMMWORD PTR 32[edi],xmm4
-	jmp	$L038ctr32_ret
+	jmp	$L040ctr32_ret
 ALIGN	16
-$L042ctr32_four:
+$L044ctr32_four:
 	call	__aesni_encrypt4
 	movups	xmm6,XMMWORD PTR [esi]
 	movups	xmm7,XMMWORD PTR 16[esi]
@@ -992,7 +1019,18 @@ $L042ctr32_four:
 	xorps	xmm5,xmm0
 	movups	XMMWORD PTR 32[edi],xmm4
 	movups	XMMWORD PTR 48[edi],xmm5
-$L038ctr32_ret:
+$L040ctr32_ret:
+	pxor	xmm0,xmm0
+	pxor	xmm1,xmm1
+	pxor	xmm2,xmm2
+	pxor	xmm3,xmm3
+	pxor	xmm4,xmm4
+	movdqa	XMMWORD PTR 32[esp],xmm0
+	pxor	xmm5,xmm5
+	movdqa	XMMWORD PTR 48[esp],xmm0
+	pxor	xmm6,xmm6
+	movdqa	XMMWORD PTR 64[esp],xmm0
+	pxor	xmm7,xmm7
 	mov	esp,DWORD PTR 80[esp]
 	pop	edi
 	pop	esi
@@ -1015,12 +1053,12 @@ $L_aesni_xts_encrypt_begin::
 	movups	xmm1,XMMWORD PTR 16[edx]
 	lea	edx,DWORD PTR 32[edx]
 	xorps	xmm2,xmm0
-$L044enc1_loop_8:
+$L046enc1_loop_8:
 DB	102,15,56,220,209
 	dec	ecx
 	movups	xmm1,XMMWORD PTR [edx]
 	lea	edx,DWORD PTR 16[edx]
-	jnz	$L044enc1_loop_8
+	jnz	$L046enc1_loop_8
 DB	102,15,56,221,209
 	mov	esi,DWORD PTR 20[esp]
 	mov	edi,DWORD PTR 24[esp]
@@ -1044,14 +1082,14 @@ DB	102,15,56,221,209
 	mov	ebp,edx
 	mov	ebx,ecx
 	sub	eax,96
-	jc	$L045xts_enc_short
+	jc	$L047xts_enc_short
 	shl	ecx,4
 	mov	ebx,16
 	sub	ebx,ecx
 	lea	edx,DWORD PTR 32[ecx*1+edx]
-	jmp	$L046xts_enc_loop6
+	jmp	$L048xts_enc_loop6
 ALIGN	16
-$L046xts_enc_loop6:
+$L048xts_enc_loop6:
 	pshufd	xmm2,xmm0,19
 	pxor	xmm0,xmm0
 	movdqa	XMMWORD PTR [esp],xmm1
@@ -1140,23 +1178,23 @@ DB	102,15,56,220,249
 	pcmpgtd	xmm0,xmm1
 	pxor	xmm1,xmm2
 	sub	eax,96
-	jnc	$L046xts_enc_loop6
+	jnc	$L048xts_enc_loop6
 	mov	ecx,DWORD PTR 240[ebp]
 	mov	edx,ebp
 	mov	ebx,ecx
-$L045xts_enc_short:
+$L047xts_enc_short:
 	add	eax,96
-	jz	$L047xts_enc_done6x
+	jz	$L049xts_enc_done6x
 	movdqa	xmm5,xmm1
 	cmp	eax,32
-	jb	$L048xts_enc_one
+	jb	$L050xts_enc_one
 	pshufd	xmm2,xmm0,19
 	pxor	xmm0,xmm0
 	paddq	xmm1,xmm1
 	pand	xmm2,xmm3
 	pcmpgtd	xmm0,xmm1
 	pxor	xmm1,xmm2
-	je	$L049xts_enc_two
+	je	$L051xts_enc_two
 	pshufd	xmm2,xmm0,19
 	pxor	xmm0,xmm0
 	movdqa	xmm6,xmm1
@@ -1165,7 +1203,7 @@ $L045xts_enc_short:
 	pcmpgtd	xmm0,xmm1
 	pxor	xmm1,xmm2
 	cmp	eax,64
-	jb	$L050xts_enc_three
+	jb	$L052xts_enc_three
 	pshufd	xmm2,xmm0,19
 	pxor	xmm0,xmm0
 	movdqa	xmm7,xmm1
@@ -1175,7 +1213,7 @@ $L045xts_enc_short:
 	pxor	xmm1,xmm2
 	movdqa	XMMWORD PTR [esp],xmm5
 	movdqa	XMMWORD PTR 16[esp],xmm6
-	je	$L051xts_enc_four
+	je	$L053xts_enc_four
 	movdqa	XMMWORD PTR 32[esp],xmm7
 	pshufd	xmm7,xmm0,19
 	movdqa	XMMWORD PTR 48[esp],xmm1
@@ -1207,9 +1245,9 @@ $L045xts_enc_short:
 	movups	XMMWORD PTR 48[edi],xmm5
 	movups	XMMWORD PTR 64[edi],xmm6
 	lea	edi,DWORD PTR 80[edi]
-	jmp	$L052xts_enc_done
+	jmp	$L054xts_enc_done
 ALIGN	16
-$L048xts_enc_one:
+$L050xts_enc_one:
 	movups	xmm2,XMMWORD PTR [esi]
 	lea	esi,DWORD PTR 16[esi]
 	xorps	xmm2,xmm5
@@ -1217,20 +1255,20 @@ $L048xts_enc_one:
 	movups	xmm1,XMMWORD PTR 16[edx]
 	lea	edx,DWORD PTR 32[edx]
 	xorps	xmm2,xmm0
-$L053enc1_loop_9:
+$L055enc1_loop_9:
 DB	102,15,56,220,209
 	dec	ecx
 	movups	xmm1,XMMWORD PTR [edx]
 	lea	edx,DWORD PTR 16[edx]
-	jnz	$L053enc1_loop_9
+	jnz	$L055enc1_loop_9
 DB	102,15,56,221,209
 	xorps	xmm2,xmm5
 	movups	XMMWORD PTR [edi],xmm2
 	lea	edi,DWORD PTR 16[edi]
 	movdqa	xmm1,xmm5
-	jmp	$L052xts_enc_done
+	jmp	$L054xts_enc_done
 ALIGN	16
-$L049xts_enc_two:
+$L051xts_enc_two:
 	movaps	xmm6,xmm1
 	movups	xmm2,XMMWORD PTR [esi]
 	movups	xmm3,XMMWORD PTR 16[esi]
@@ -1244,9 +1282,9 @@ $L049xts_enc_two:
 	movups	XMMWORD PTR 16[edi],xmm3
 	lea	edi,DWORD PTR 32[edi]
 	movdqa	xmm1,xmm6
-	jmp	$L052xts_enc_done
+	jmp	$L054xts_enc_done
 ALIGN	16
-$L050xts_enc_three:
+$L052xts_enc_three:
 	movaps	xmm7,xmm1
 	movups	xmm2,XMMWORD PTR [esi]
 	movups	xmm3,XMMWORD PTR 16[esi]
@@ -1264,9 +1302,9 @@ $L050xts_enc_three:
 	movups	XMMWORD PTR 32[edi],xmm4
 	lea	edi,DWORD PTR 48[edi]
 	movdqa	xmm1,xmm7
-	jmp	$L052xts_enc_done
+	jmp	$L054xts_enc_done
 ALIGN	16
-$L051xts_enc_four:
+$L053xts_enc_four:
 	movaps	xmm6,xmm1
 	movups	xmm2,XMMWORD PTR [esi]
 	movups	xmm3,XMMWORD PTR 16[esi]
@@ -1288,28 +1326,28 @@ $L051xts_enc_four:
 	movups	XMMWORD PTR 48[edi],xmm5
 	lea	edi,DWORD PTR 64[edi]
 	movdqa	xmm1,xmm6
-	jmp	$L052xts_enc_done
+	jmp	$L054xts_enc_done
 ALIGN	16
-$L047xts_enc_done6x:
+$L049xts_enc_done6x:
 	mov	eax,DWORD PTR 112[esp]
 	and	eax,15
-	jz	$L054xts_enc_ret
+	jz	$L056xts_enc_ret
 	movdqa	xmm5,xmm1
 	mov	DWORD PTR 112[esp],eax
-	jmp	$L055xts_enc_steal
+	jmp	$L057xts_enc_steal
 ALIGN	16
-$L052xts_enc_done:
+$L054xts_enc_done:
 	mov	eax,DWORD PTR 112[esp]
 	pxor	xmm0,xmm0
 	and	eax,15
-	jz	$L054xts_enc_ret
+	jz	$L056xts_enc_ret
 	pcmpgtd	xmm0,xmm1
 	mov	DWORD PTR 112[esp],eax
 	pshufd	xmm5,xmm0,19
 	paddq	xmm1,xmm1
 	pand	xmm5,XMMWORD PTR 96[esp]
 	pxor	xmm5,xmm1
-$L055xts_enc_steal:
+$L057xts_enc_steal:
 	movzx	ecx,BYTE PTR [esi]
 	movzx	edx,BYTE PTR [edi-16]
 	lea	esi,DWORD PTR 1[esi]
@@ -1317,7 +1355,7 @@ $L055xts_enc_steal:
 	mov	BYTE PTR [edi],dl
 	lea	edi,DWORD PTR 1[edi]
 	sub	eax,1
-	jnz	$L055xts_enc_steal
+	jnz	$L057xts_enc_steal
 	sub	edi,DWORD PTR 112[esp]
 	mov	edx,ebp
 	mov	ecx,ebx
@@ -1327,16 +1365,30 @@ $L055xts_enc_steal:
 	movups	xmm1,XMMWORD PTR 16[edx]
 	lea	edx,DWORD PTR 32[edx]
 	xorps	xmm2,xmm0
-$L056enc1_loop_10:
+$L058enc1_loop_10:
 DB	102,15,56,220,209
 	dec	ecx
 	movups	xmm1,XMMWORD PTR [edx]
 	lea	edx,DWORD PTR 16[edx]
-	jnz	$L056enc1_loop_10
+	jnz	$L058enc1_loop_10
 DB	102,15,56,221,209
 	xorps	xmm2,xmm5
 	movups	XMMWORD PTR [edi-16],xmm2
-$L054xts_enc_ret:
+$L056xts_enc_ret:
+	pxor	xmm0,xmm0
+	pxor	xmm1,xmm1
+	pxor	xmm2,xmm2
+	movdqa	XMMWORD PTR [esp],xmm0
+	pxor	xmm3,xmm3
+	movdqa	XMMWORD PTR 16[esp],xmm0
+	pxor	xmm4,xmm4
+	movdqa	XMMWORD PTR 32[esp],xmm0
+	pxor	xmm5,xmm5
+	movdqa	XMMWORD PTR 48[esp],xmm0
+	pxor	xmm6,xmm6
+	movdqa	XMMWORD PTR 64[esp],xmm0
+	pxor	xmm7,xmm7
+	movdqa	XMMWORD PTR 80[esp],xmm0
 	mov	esp,DWORD PTR 116[esp]
 	pop	edi
 	pop	esi
@@ -1359,12 +1411,12 @@ $L_aesni_xts_decrypt_begin::
 	movups	xmm1,XMMWORD PTR 16[edx]
 	lea	edx,DWORD PTR 32[edx]
 	xorps	xmm2,xmm0
-$L057enc1_loop_11:
+$L059enc1_loop_11:
 DB	102,15,56,220,209
 	dec	ecx
 	movups	xmm1,XMMWORD PTR [edx]
 	lea	edx,DWORD PTR 16[edx]
-	jnz	$L057enc1_loop_11
+	jnz	$L059enc1_loop_11
 DB	102,15,56,221,209
 	mov	esi,DWORD PTR 20[esp]
 	mov	edi,DWORD PTR 24[esp]
@@ -1393,14 +1445,14 @@ DB	102,15,56,221,209
 	pcmpgtd	xmm0,xmm1
 	and	eax,-16
 	sub	eax,96
-	jc	$L058xts_dec_short
+	jc	$L060xts_dec_short
 	shl	ecx,4
 	mov	ebx,16
 	sub	ebx,ecx
 	lea	edx,DWORD PTR 32[ecx*1+edx]
-	jmp	$L059xts_dec_loop6
+	jmp	$L061xts_dec_loop6
 ALIGN	16
-$L059xts_dec_loop6:
+$L061xts_dec_loop6:
 	pshufd	xmm2,xmm0,19
 	pxor	xmm0,xmm0
 	movdqa	XMMWORD PTR [esp],xmm1
@@ -1489,23 +1541,23 @@ DB	102,15,56,222,249
 	pcmpgtd	xmm0,xmm1
 	pxor	xmm1,xmm2
 	sub	eax,96
-	jnc	$L059xts_dec_loop6
+	jnc	$L061xts_dec_loop6
 	mov	ecx,DWORD PTR 240[ebp]
 	mov	edx,ebp
 	mov	ebx,ecx
-$L058xts_dec_short:
+$L060xts_dec_short:
 	add	eax,96
-	jz	$L060xts_dec_done6x
+	jz	$L062xts_dec_done6x
 	movdqa	xmm5,xmm1
 	cmp	eax,32
-	jb	$L061xts_dec_one
+	jb	$L063xts_dec_one
 	pshufd	xmm2,xmm0,19
 	pxor	xmm0,xmm0
 	paddq	xmm1,xmm1
 	pand	xmm2,xmm3
 	pcmpgtd	xmm0,xmm1
 	pxor	xmm1,xmm2
-	je	$L062xts_dec_two
+	je	$L064xts_dec_two
 	pshufd	xmm2,xmm0,19
 	pxor	xmm0,xmm0
 	movdqa	xmm6,xmm1
@@ -1514,7 +1566,7 @@ $L058xts_dec_short:
 	pcmpgtd	xmm0,xmm1
 	pxor	xmm1,xmm2
 	cmp	eax,64
-	jb	$L063xts_dec_three
+	jb	$L065xts_dec_three
 	pshufd	xmm2,xmm0,19
 	pxor	xmm0,xmm0
 	movdqa	xmm7,xmm1
@@ -1524,7 +1576,7 @@ $L058xts_dec_short:
 	pxor	xmm1,xmm2
 	movdqa	XMMWORD PTR [esp],xmm5
 	movdqa	XMMWORD PTR 16[esp],xmm6
-	je	$L064xts_dec_four
+	je	$L066xts_dec_four
 	movdqa	XMMWORD PTR 32[esp],xmm7
 	pshufd	xmm7,xmm0,19
 	movdqa	XMMWORD PTR 48[esp],xmm1
@@ -1556,9 +1608,9 @@ $L058xts_dec_short:
 	movups	XMMWORD PTR 48[edi],xmm5
 	movups	XMMWORD PTR 64[edi],xmm6
 	lea	edi,DWORD PTR 80[edi]
-	jmp	$L065xts_dec_done
+	jmp	$L067xts_dec_done
 ALIGN	16
-$L061xts_dec_one:
+$L063xts_dec_one:
 	movups	xmm2,XMMWORD PTR [esi]
 	lea	esi,DWORD PTR 16[esi]
 	xorps	xmm2,xmm5
@@ -1566,20 +1618,20 @@ $L061xts_dec_one:
 	movups	xmm1,XMMWORD PTR 16[edx]
 	lea	edx,DWORD PTR 32[edx]
 	xorps	xmm2,xmm0
-$L066dec1_loop_12:
+$L068dec1_loop_12:
 DB	102,15,56,222,209
 	dec	ecx
 	movups	xmm1,XMMWORD PTR [edx]
 	lea	edx,DWORD PTR 16[edx]
-	jnz	$L066dec1_loop_12
+	jnz	$L068dec1_loop_12
 DB	102,15,56,223,209
 	xorps	xmm2,xmm5
 	movups	XMMWORD PTR [edi],xmm2
 	lea	edi,DWORD PTR 16[edi]
 	movdqa	xmm1,xmm5
-	jmp	$L065xts_dec_done
+	jmp	$L067xts_dec_done
 ALIGN	16
-$L062xts_dec_two:
+$L064xts_dec_two:
 	movaps	xmm6,xmm1
 	movups	xmm2,XMMWORD PTR [esi]
 	movups	xmm3,XMMWORD PTR 16[esi]
@@ -1593,9 +1645,9 @@ $L062xts_dec_two:
 	movups	XMMWORD PTR 16[edi],xmm3
 	lea	edi,DWORD PTR 32[edi]
 	movdqa	xmm1,xmm6
-	jmp	$L065xts_dec_done
+	jmp	$L067xts_dec_done
 ALIGN	16
-$L063xts_dec_three:
+$L065xts_dec_three:
 	movaps	xmm7,xmm1
 	movups	xmm2,XMMWORD PTR [esi]
 	movups	xmm3,XMMWORD PTR 16[esi]
@@ -1613,9 +1665,9 @@ $L063xts_dec_three:
 	movups	XMMWORD PTR 32[edi],xmm4
 	lea	edi,DWORD PTR 48[edi]
 	movdqa	xmm1,xmm7
-	jmp	$L065xts_dec_done
+	jmp	$L067xts_dec_done
 ALIGN	16
-$L064xts_dec_four:
+$L066xts_dec_four:
 	movaps	xmm6,xmm1
 	movups	xmm2,XMMWORD PTR [esi]
 	movups	xmm3,XMMWORD PTR 16[esi]
@@ -1637,20 +1689,20 @@ $L064xts_dec_four:
 	movups	XMMWORD PTR 48[edi],xmm5
 	lea	edi,DWORD PTR 64[edi]
 	movdqa	xmm1,xmm6
-	jmp	$L065xts_dec_done
+	jmp	$L067xts_dec_done
 ALIGN	16
-$L060xts_dec_done6x:
+$L062xts_dec_done6x:
 	mov	eax,DWORD PTR 112[esp]
 	and	eax,15
-	jz	$L067xts_dec_ret
+	jz	$L069xts_dec_ret
 	mov	DWORD PTR 112[esp],eax
-	jmp	$L068xts_dec_only_one_more
+	jmp	$L070xts_dec_only_one_more
 ALIGN	16
-$L065xts_dec_done:
+$L067xts_dec_done:
 	mov	eax,DWORD PTR 112[esp]
 	pxor	xmm0,xmm0
 	and	eax,15
-	jz	$L067xts_dec_ret
+	jz	$L069xts_dec_ret
 	pcmpgtd	xmm0,xmm1
 	mov	DWORD PTR 112[esp],eax
 	pshufd	xmm2,xmm0,19
@@ -1660,7 +1712,7 @@ $L065xts_dec_done:
 	pand	xmm2,xmm3
 	pcmpgtd	xmm0,xmm1
 	pxor	xmm1,xmm2
-$L068xts_dec_only_one_more:
+$L070xts_dec_only_one_more:
 	pshufd	xmm5,xmm0,19
 	movdqa	xmm6,xmm1
 	paddq	xmm1,xmm1
@@ -1674,16 +1726,16 @@ $L068xts_dec_only_one_more:
 	movups	xmm1,XMMWORD PTR 16[edx]
 	lea	edx,DWORD PTR 32[edx]
 	xorps	xmm2,xmm0
-$L069dec1_loop_13:
+$L071dec1_loop_13:
 DB	102,15,56,222,209
 	dec	ecx
 	movups	xmm1,XMMWORD PTR [edx]
 	lea	edx,DWORD PTR 16[edx]
-	jnz	$L069dec1_loop_13
+	jnz	$L071dec1_loop_13
 DB	102,15,56,223,209
 	xorps	xmm2,xmm5
 	movups	XMMWORD PTR [edi],xmm2
-$L070xts_dec_steal:
+$L072xts_dec_steal:
 	movzx	ecx,BYTE PTR 16[esi]
 	movzx	edx,BYTE PTR [edi]
 	lea	esi,DWORD PTR 1[esi]
@@ -1691,7 +1743,7 @@ $L070xts_dec_steal:
 	mov	BYTE PTR 16[edi],dl
 	lea	edi,DWORD PTR 1[edi]
 	sub	eax,1
-	jnz	$L070xts_dec_steal
+	jnz	$L072xts_dec_steal
 	sub	edi,DWORD PTR 112[esp]
 	mov	edx,ebp
 	mov	ecx,ebx
@@ -1701,16 +1753,30 @@ $L070xts_dec_steal:
 	movups	xmm1,XMMWORD PTR 16[edx]
 	lea	edx,DWORD PTR 32[edx]
 	xorps	xmm2,xmm0
-$L071dec1_loop_14:
+$L073dec1_loop_14:
 DB	102,15,56,222,209
 	dec	ecx
 	movups	xmm1,XMMWORD PTR [edx]
 	lea	edx,DWORD PTR 16[edx]
-	jnz	$L071dec1_loop_14
+	jnz	$L073dec1_loop_14
 DB	102,15,56,223,209
 	xorps	xmm2,xmm6
 	movups	XMMWORD PTR [edi],xmm2
-$L067xts_dec_ret:
+$L069xts_dec_ret:
+	pxor	xmm0,xmm0
+	pxor	xmm1,xmm1
+	pxor	xmm2,xmm2
+	movdqa	XMMWORD PTR [esp],xmm0
+	pxor	xmm3,xmm3
+	movdqa	XMMWORD PTR 16[esp],xmm0
+	pxor	xmm4,xmm4
+	movdqa	XMMWORD PTR 32[esp],xmm0
+	pxor	xmm5,xmm5
+	movdqa	XMMWORD PTR 48[esp],xmm0
+	pxor	xmm6,xmm6
+	movdqa	XMMWORD PTR 64[esp],xmm0
+	pxor	xmm7,xmm7
+	movdqa	XMMWORD PTR 80[esp],xmm0
 	mov	esp,DWORD PTR 116[esp]
 	pop	edi
 	pop	esi
@@ -1734,7 +1800,7 @@ $L_aesni_cbc_encrypt_begin::
 	mov	edx,DWORD PTR 32[esp]
 	mov	ebp,DWORD PTR 36[esp]
 	test	eax,eax
-	jz	$L072cbc_abort
+	jz	$L074cbc_abort
 	cmp	DWORD PTR 40[esp],0
 	xchg	ebx,esp
 	movups	xmm7,XMMWORD PTR [ebp]
@@ -1742,14 +1808,14 @@ $L_aesni_cbc_encrypt_begin::
 	mov	ebp,edx
 	mov	DWORD PTR 16[esp],ebx
 	mov	ebx,ecx
-	je	$L073cbc_decrypt
+	je	$L075cbc_decrypt
 	movaps	xmm2,xmm7
 	cmp	eax,16
-	jb	$L074cbc_enc_tail
+	jb	$L076cbc_enc_tail
 	sub	eax,16
-	jmp	$L075cbc_enc_loop
+	jmp	$L077cbc_enc_loop
 ALIGN	16
-$L075cbc_enc_loop:
+$L077cbc_enc_loop:
 	movups	xmm7,XMMWORD PTR [esi]
 	lea	esi,DWORD PTR 16[esi]
 	movups	xmm0,XMMWORD PTR [edx]
@@ -1757,24 +1823,25 @@ $L075cbc_enc_loop:
 	xorps	xmm7,xmm0
 	lea	edx,DWORD PTR 32[edx]
 	xorps	xmm2,xmm7
-$L076enc1_loop_15:
+$L078enc1_loop_15:
 DB	102,15,56,220,209
 	dec	ecx
 	movups	xmm1,XMMWORD PTR [edx]
 	lea	edx,DWORD PTR 16[edx]
-	jnz	$L076enc1_loop_15
+	jnz	$L078enc1_loop_15
 DB	102,15,56,221,209
 	mov	ecx,ebx
 	mov	edx,ebp
 	movups	XMMWORD PTR [edi],xmm2
 	lea	edi,DWORD PTR 16[edi]
 	sub	eax,16
-	jnc	$L075cbc_enc_loop
+	jnc	$L077cbc_enc_loop
 	add	eax,16
-	jnz	$L074cbc_enc_tail
+	jnz	$L076cbc_enc_tail
 	movaps	xmm7,xmm2
-	jmp	$L077cbc_ret
-$L074cbc_enc_tail:
+	pxor	xmm2,xmm2
+	jmp	$L079cbc_ret
+$L076cbc_enc_tail:
 	mov	ecx,eax
 DD	2767451785
 	mov	ecx,16
@@ -1785,20 +1852,20 @@ DD	2868115081
 	mov	ecx,ebx
 	mov	esi,edi
 	mov	edx,ebp
-	jmp	$L075cbc_enc_loop
+	jmp	$L077cbc_enc_loop
 ALIGN	16
-$L073cbc_decrypt:
+$L075cbc_decrypt:
 	cmp	eax,80
-	jbe	$L078cbc_dec_tail
+	jbe	$L080cbc_dec_tail
 	movaps	XMMWORD PTR [esp],xmm7
 	sub	eax,80
-	jmp	$L079cbc_dec_loop6_enter
+	jmp	$L081cbc_dec_loop6_enter
 ALIGN	16
-$L080cbc_dec_loop6:
+$L082cbc_dec_loop6:
 	movaps	XMMWORD PTR [esp],xmm0
 	movups	XMMWORD PTR [edi],xmm7
 	lea	edi,DWORD PTR 16[edi]
-$L079cbc_dec_loop6_enter:
+$L081cbc_dec_loop6_enter:
 	movdqu	xmm2,XMMWORD PTR [esi]
 	movdqu	xmm3,XMMWORD PTR 16[esi]
 	movdqu	xmm4,XMMWORD PTR 32[esi]
@@ -1828,28 +1895,28 @@ $L079cbc_dec_loop6_enter:
 	movups	XMMWORD PTR 64[edi],xmm6
 	lea	edi,DWORD PTR 80[edi]
 	sub	eax,96
-	ja	$L080cbc_dec_loop6
+	ja	$L082cbc_dec_loop6
 	movaps	xmm2,xmm7
 	movaps	xmm7,xmm0
 	add	eax,80
-	jle	$L081cbc_dec_tail_collected
+	jle	$L083cbc_dec_clear_tail_collected
 	movups	XMMWORD PTR [edi],xmm2
 	lea	edi,DWORD PTR 16[edi]
-$L078cbc_dec_tail:
+$L080cbc_dec_tail:
 	movups	xmm2,XMMWORD PTR [esi]
 	movaps	xmm6,xmm2
 	cmp	eax,16
-	jbe	$L082cbc_dec_one
+	jbe	$L084cbc_dec_one
 	movups	xmm3,XMMWORD PTR 16[esi]
 	movaps	xmm5,xmm3
 	cmp	eax,32
-	jbe	$L083cbc_dec_two
+	jbe	$L085cbc_dec_two
 	movups	xmm4,XMMWORD PTR 32[esi]
 	cmp	eax,48
-	jbe	$L084cbc_dec_three
+	jbe	$L086cbc_dec_three
 	movups	xmm5,XMMWORD PTR 48[esi]
 	cmp	eax,64
-	jbe	$L085cbc_dec_four
+	jbe	$L087cbc_dec_four
 	movups	xmm6,XMMWORD PTR 64[esi]
 	movaps	XMMWORD PTR [esp],xmm7
 	movups	xmm2,XMMWORD PTR [esi]
@@ -1867,55 +1934,62 @@ $L078cbc_dec_tail:
 	xorps	xmm6,xmm0
 	movups	XMMWORD PTR [edi],xmm2
 	movups	XMMWORD PTR 16[edi],xmm3
+	pxor	xmm3,xmm3
 	movups	XMMWORD PTR 32[edi],xmm4
+	pxor	xmm4,xmm4
 	movups	XMMWORD PTR 48[edi],xmm5
+	pxor	xmm5,xmm5
 	lea	edi,DWORD PTR 64[edi]
 	movaps	xmm2,xmm6
+	pxor	xmm6,xmm6
 	sub	eax,80
-	jmp	$L081cbc_dec_tail_collected
+	jmp	$L088cbc_dec_tail_collected
 ALIGN	16
-$L082cbc_dec_one:
+$L084cbc_dec_one:
 	movups	xmm0,XMMWORD PTR [edx]
 	movups	xmm1,XMMWORD PTR 16[edx]
 	lea	edx,DWORD PTR 32[edx]
 	xorps	xmm2,xmm0
-$L086dec1_loop_16:
+$L089dec1_loop_16:
 DB	102,15,56,222,209
 	dec	ecx
 	movups	xmm1,XMMWORD PTR [edx]
 	lea	edx,DWORD PTR 16[edx]
-	jnz	$L086dec1_loop_16
+	jnz	$L089dec1_loop_16
 DB	102,15,56,223,209
 	xorps	xmm2,xmm7
 	movaps	xmm7,xmm6
 	sub	eax,16
-	jmp	$L081cbc_dec_tail_collected
+	jmp	$L088cbc_dec_tail_collected
 ALIGN	16
-$L083cbc_dec_two:
+$L085cbc_dec_two:
 	call	__aesni_decrypt2
 	xorps	xmm2,xmm7
 	xorps	xmm3,xmm6
 	movups	XMMWORD PTR [edi],xmm2
 	movaps	xmm2,xmm3
+	pxor	xmm3,xmm3
 	lea	edi,DWORD PTR 16[edi]
 	movaps	xmm7,xmm5
 	sub	eax,32
-	jmp	$L081cbc_dec_tail_collected
+	jmp	$L088cbc_dec_tail_collected
 ALIGN	16
-$L084cbc_dec_three:
+$L086cbc_dec_three:
 	call	__aesni_decrypt3
 	xorps	xmm2,xmm7
 	xorps	xmm3,xmm6
 	xorps	xmm4,xmm5
 	movups	XMMWORD PTR [edi],xmm2
 	movaps	xmm2,xmm4
+	pxor	xmm4,xmm4
 	movups	XMMWORD PTR 16[edi],xmm3
+	pxor	xmm3,xmm3
 	lea	edi,DWORD PTR 32[edi]
 	movups	xmm7,XMMWORD PTR 32[esi]
 	sub	eax,48
-	jmp	$L081cbc_dec_tail_collected
+	jmp	$L088cbc_dec_tail_collected
 ALIGN	16
-$L085cbc_dec_four:
+$L087cbc_dec_four:
 	call	__aesni_decrypt4
 	movups	xmm1,XMMWORD PTR 16[esi]
 	movups	xmm0,XMMWORD PTR 32[esi]
@@ -1925,28 +1999,44 @@ $L085cbc_dec_four:
 	movups	XMMWORD PTR [edi],xmm2
 	xorps	xmm4,xmm1
 	movups	XMMWORD PTR 16[edi],xmm3
+	pxor	xmm3,xmm3
 	xorps	xmm5,xmm0
 	movups	XMMWORD PTR 32[edi],xmm4
+	pxor	xmm4,xmm4
 	lea	edi,DWORD PTR 48[edi]
 	movaps	xmm2,xmm5
+	pxor	xmm5,xmm5
 	sub	eax,64
-$L081cbc_dec_tail_collected:
-	and	eax,15
-	jnz	$L087cbc_dec_tail_partial
-	movups	XMMWORD PTR [edi],xmm2
-	jmp	$L077cbc_ret
+	jmp	$L088cbc_dec_tail_collected
 ALIGN	16
-$L087cbc_dec_tail_partial:
+$L083cbc_dec_clear_tail_collected:
+	pxor	xmm3,xmm3
+	pxor	xmm4,xmm4
+	pxor	xmm5,xmm5
+	pxor	xmm6,xmm6
+$L088cbc_dec_tail_collected:
+	and	eax,15
+	jnz	$L090cbc_dec_tail_partial
+	movups	XMMWORD PTR [edi],xmm2
+	pxor	xmm0,xmm0
+	jmp	$L079cbc_ret
+ALIGN	16
+$L090cbc_dec_tail_partial:
 	movaps	XMMWORD PTR [esp],xmm2
+	pxor	xmm0,xmm0
 	mov	ecx,16
 	mov	esi,esp
 	sub	ecx,eax
 DD	2767451785
-$L077cbc_ret:
+	movdqa	XMMWORD PTR [esp],xmm2
+$L079cbc_ret:
 	mov	esp,DWORD PTR 16[esp]
 	mov	ebp,DWORD PTR 36[esp]
+	pxor	xmm2,xmm2
+	pxor	xmm1,xmm1
 	movups	XMMWORD PTR [ebp],xmm7
-$L072cbc_abort:
+	pxor	xmm7,xmm7
+$L074cbc_abort:
 	pop	edi
 	pop	esi
 	pop	ebx
@@ -1955,52 +2045,62 @@ $L072cbc_abort:
 _aesni_cbc_encrypt ENDP
 ALIGN	16
 __aesni_set_encrypt_key	PROC PRIVATE
+	push	ebp
+	push	ebx
 	test	eax,eax
-	jz	$L088bad_pointer
+	jz	$L091bad_pointer
 	test	edx,edx
-	jz	$L088bad_pointer
+	jz	$L091bad_pointer
+	call	$L092pic
+$L092pic:
+	pop	ebx
+	lea	ebx,DWORD PTR ($Lkey_const-$L092pic)[ebx]
+	lea	ebp,DWORD PTR _OPENSSL_ia32cap_P
 	movups	xmm0,XMMWORD PTR [eax]
 	xorps	xmm4,xmm4
+	mov	ebp,DWORD PTR 4[ebp]
 	lea	edx,DWORD PTR 16[edx]
+	and	ebp,268437504
 	cmp	ecx,256
-	je	$L08914rounds
+	je	$L09314rounds
 	cmp	ecx,192
-	je	$L09012rounds
+	je	$L09412rounds
 	cmp	ecx,128
-	jne	$L091bad_keybits
+	jne	$L095bad_keybits
 ALIGN	16
-$L09210rounds:
+$L09610rounds:
+	cmp	ebp,268435456
+	je	$L09710rounds_alt
 	mov	ecx,9
 	movups	XMMWORD PTR [edx-16],xmm0
 DB	102,15,58,223,200,1
-	call	$L093key_128_cold
+	call	$L098key_128_cold
 DB	102,15,58,223,200,2
-	call	$L094key_128
+	call	$L099key_128
 DB	102,15,58,223,200,4
-	call	$L094key_128
+	call	$L099key_128
 DB	102,15,58,223,200,8
-	call	$L094key_128
+	call	$L099key_128
 DB	102,15,58,223,200,16
-	call	$L094key_128
+	call	$L099key_128
 DB	102,15,58,223,200,32
-	call	$L094key_128
+	call	$L099key_128
 DB	102,15,58,223,200,64
-	call	$L094key_128
+	call	$L099key_128
 DB	102,15,58,223,200,128
-	call	$L094key_128
+	call	$L099key_128
 DB	102,15,58,223,200,27
-	call	$L094key_128
+	call	$L099key_128
 DB	102,15,58,223,200,54
-	call	$L094key_128
+	call	$L099key_128
 	movups	XMMWORD PTR [edx],xmm0
 	mov	DWORD PTR 80[edx],ecx
-	xor	eax,eax
-	ret
+	jmp	$L100good_key
 ALIGN	16
-$L094key_128:
+$L099key_128:
 	movups	XMMWORD PTR [edx],xmm0
 	lea	edx,DWORD PTR 16[edx]
-$L093key_128_cold:
+$L098key_128_cold:
 	shufps	xmm4,xmm0,16
 	xorps	xmm0,xmm4
 	shufps	xmm4,xmm0,140
@@ -2009,38 +2109,91 @@ $L093key_128_cold:
 	xorps	xmm0,xmm1
 	ret
 ALIGN	16
-$L09012rounds:
+$L09710rounds_alt:
+	movdqa	xmm5,XMMWORD PTR [ebx]
+	mov	ecx,8
+	movdqa	xmm4,XMMWORD PTR 32[ebx]
+	movdqa	xmm2,xmm0
+	movdqu	XMMWORD PTR [edx-16],xmm0
+$L101loop_key128:
+DB	102,15,56,0,197
+DB	102,15,56,221,196
+	pslld	xmm4,1
+	lea	edx,DWORD PTR 16[edx]
+	movdqa	xmm3,xmm2
+	pslldq	xmm2,4
+	pxor	xmm3,xmm2
+	pslldq	xmm2,4
+	pxor	xmm3,xmm2
+	pslldq	xmm2,4
+	pxor	xmm2,xmm3
+	pxor	xmm0,xmm2
+	movdqu	XMMWORD PTR [edx-16],xmm0
+	movdqa	xmm2,xmm0
+	dec	ecx
+	jnz	$L101loop_key128
+	movdqa	xmm4,XMMWORD PTR 48[ebx]
+DB	102,15,56,0,197
+DB	102,15,56,221,196
+	pslld	xmm4,1
+	movdqa	xmm3,xmm2
+	pslldq	xmm2,4
+	pxor	xmm3,xmm2
+	pslldq	xmm2,4
+	pxor	xmm3,xmm2
+	pslldq	xmm2,4
+	pxor	xmm2,xmm3
+	pxor	xmm0,xmm2
+	movdqu	XMMWORD PTR [edx],xmm0
+	movdqa	xmm2,xmm0
+DB	102,15,56,0,197
+DB	102,15,56,221,196
+	movdqa	xmm3,xmm2
+	pslldq	xmm2,4
+	pxor	xmm3,xmm2
+	pslldq	xmm2,4
+	pxor	xmm3,xmm2
+	pslldq	xmm2,4
+	pxor	xmm2,xmm3
+	pxor	xmm0,xmm2
+	movdqu	XMMWORD PTR 16[edx],xmm0
+	mov	ecx,9
+	mov	DWORD PTR 96[edx],ecx
+	jmp	$L100good_key
+ALIGN	16
+$L09412rounds:
 	movq	xmm2,QWORD PTR 16[eax]
+	cmp	ebp,268435456
+	je	$L10212rounds_alt
 	mov	ecx,11
 	movups	XMMWORD PTR [edx-16],xmm0
 DB	102,15,58,223,202,1
-	call	$L095key_192a_cold
+	call	$L103key_192a_cold
 DB	102,15,58,223,202,2
-	call	$L096key_192b
+	call	$L104key_192b
 DB	102,15,58,223,202,4
-	call	$L097key_192a
+	call	$L105key_192a
 DB	102,15,58,223,202,8
-	call	$L096key_192b
+	call	$L104key_192b
 DB	102,15,58,223,202,16
-	call	$L097key_192a
+	call	$L105key_192a
 DB	102,15,58,223,202,32
-	call	$L096key_192b
+	call	$L104key_192b
 DB	102,15,58,223,202,64
-	call	$L097key_192a
+	call	$L105key_192a
 DB	102,15,58,223,202,128
-	call	$L096key_192b
+	call	$L104key_192b
 	movups	XMMWORD PTR [edx],xmm0
 	mov	DWORD PTR 48[edx],ecx
-	xor	eax,eax
-	ret
+	jmp	$L100good_key
 ALIGN	16
-$L097key_192a:
+$L105key_192a:
 	movups	XMMWORD PTR [edx],xmm0
 	lea	edx,DWORD PTR 16[edx]
 ALIGN	16
-$L095key_192a_cold:
+$L103key_192a_cold:
 	movaps	xmm5,xmm2
-$L098key_192b_warm:
+$L106key_192b_warm:
 	shufps	xmm4,xmm0,16
 	movdqa	xmm3,xmm2
 	xorps	xmm0,xmm4
@@ -2054,56 +2207,90 @@ $L098key_192b_warm:
 	pxor	xmm2,xmm3
 	ret
 ALIGN	16
-$L096key_192b:
+$L104key_192b:
 	movaps	xmm3,xmm0
 	shufps	xmm5,xmm0,68
 	movups	XMMWORD PTR [edx],xmm5
 	shufps	xmm3,xmm2,78
 	movups	XMMWORD PTR 16[edx],xmm3
 	lea	edx,DWORD PTR 32[edx]
-	jmp	$L098key_192b_warm
+	jmp	$L106key_192b_warm
 ALIGN	16
-$L08914rounds:
+$L10212rounds_alt:
+	movdqa	xmm5,XMMWORD PTR 16[ebx]
+	movdqa	xmm4,XMMWORD PTR 32[ebx]
+	mov	ecx,8
+	movdqu	XMMWORD PTR [edx-16],xmm0
+$L107loop_key192:
+	movq	QWORD PTR [edx],xmm2
+	movdqa	xmm1,xmm2
+DB	102,15,56,0,213
+DB	102,15,56,221,212
+	pslld	xmm4,1
+	lea	edx,DWORD PTR 24[edx]
+	movdqa	xmm3,xmm0
+	pslldq	xmm0,4
+	pxor	xmm3,xmm0
+	pslldq	xmm0,4
+	pxor	xmm3,xmm0
+	pslldq	xmm0,4
+	pxor	xmm0,xmm3
+	pshufd	xmm3,xmm0,255
+	pxor	xmm3,xmm1
+	pslldq	xmm1,4
+	pxor	xmm3,xmm1
+	pxor	xmm0,xmm2
+	pxor	xmm2,xmm3
+	movdqu	XMMWORD PTR [edx-16],xmm0
+	dec	ecx
+	jnz	$L107loop_key192
+	mov	ecx,11
+	mov	DWORD PTR 32[edx],ecx
+	jmp	$L100good_key
+ALIGN	16
+$L09314rounds:
 	movups	xmm2,XMMWORD PTR 16[eax]
-	mov	ecx,13
 	lea	edx,DWORD PTR 16[edx]
+	cmp	ebp,268435456
+	je	$L10814rounds_alt
+	mov	ecx,13
 	movups	XMMWORD PTR [edx-32],xmm0
 	movups	XMMWORD PTR [edx-16],xmm2
 DB	102,15,58,223,202,1
-	call	$L099key_256a_cold
+	call	$L109key_256a_cold
 DB	102,15,58,223,200,1
-	call	$L100key_256b
+	call	$L110key_256b
 DB	102,15,58,223,202,2
-	call	$L101key_256a
+	call	$L111key_256a
 DB	102,15,58,223,200,2
-	call	$L100key_256b
+	call	$L110key_256b
 DB	102,15,58,223,202,4
-	call	$L101key_256a
+	call	$L111key_256a
 DB	102,15,58,223,200,4
-	call	$L100key_256b
+	call	$L110key_256b
 DB	102,15,58,223,202,8
-	call	$L101key_256a
+	call	$L111key_256a
 DB	102,15,58,223,200,8
-	call	$L100key_256b
+	call	$L110key_256b
 DB	102,15,58,223,202,16
-	call	$L101key_256a
+	call	$L111key_256a
 DB	102,15,58,223,200,16
-	call	$L100key_256b
+	call	$L110key_256b
 DB	102,15,58,223,202,32
-	call	$L101key_256a
+	call	$L111key_256a
 DB	102,15,58,223,200,32
-	call	$L100key_256b
+	call	$L110key_256b
 DB	102,15,58,223,202,64
-	call	$L101key_256a
+	call	$L111key_256a
 	movups	XMMWORD PTR [edx],xmm0
 	mov	DWORD PTR 16[edx],ecx
 	xor	eax,eax
-	ret
+	jmp	$L100good_key
 ALIGN	16
-$L101key_256a:
+$L111key_256a:
 	movups	XMMWORD PTR [edx],xmm2
 	lea	edx,DWORD PTR 16[edx]
-$L099key_256a_cold:
+$L109key_256a_cold:
 	shufps	xmm4,xmm0,16
 	xorps	xmm0,xmm4
 	shufps	xmm4,xmm0,140
@@ -2112,7 +2299,7 @@ $L099key_256a_cold:
 	xorps	xmm0,xmm1
 	ret
 ALIGN	16
-$L100key_256b:
+$L110key_256b:
 	movups	XMMWORD PTR [edx],xmm0
 	lea	edx,DWORD PTR 16[edx]
 	shufps	xmm4,xmm2,16
@@ -2122,13 +2309,70 @@ $L100key_256b:
 	shufps	xmm1,xmm1,170
 	xorps	xmm2,xmm1
 	ret
-ALIGN	4
-$L088bad_pointer:
-	mov	eax,-1
+ALIGN	16
+$L10814rounds_alt:
+	movdqa	xmm5,XMMWORD PTR [ebx]
+	movdqa	xmm4,XMMWORD PTR 32[ebx]
+	mov	ecx,7
+	movdqu	XMMWORD PTR [edx-32],xmm0
+	movdqa	xmm1,xmm2
+	movdqu	XMMWORD PTR [edx-16],xmm2
+$L112loop_key256:
+DB	102,15,56,0,213
+DB	102,15,56,221,212
+	movdqa	xmm3,xmm0
+	pslldq	xmm0,4
+	pxor	xmm3,xmm0
+	pslldq	xmm0,4
+	pxor	xmm3,xmm0
+	pslldq	xmm0,4
+	pxor	xmm0,xmm3
+	pslld	xmm4,1
+	pxor	xmm0,xmm2
+	movdqu	XMMWORD PTR [edx],xmm0
+	dec	ecx
+	jz	$L113done_key256
+	pshufd	xmm2,xmm0,255
+	pxor	xmm3,xmm3
+DB	102,15,56,221,211
+	movdqa	xmm3,xmm1
+	pslldq	xmm1,4
+	pxor	xmm3,xmm1
+	pslldq	xmm1,4
+	pxor	xmm3,xmm1
+	pslldq	xmm1,4
+	pxor	xmm1,xmm3
+	pxor	xmm2,xmm1
+	movdqu	XMMWORD PTR 16[edx],xmm2
+	lea	edx,DWORD PTR 32[edx]
+	movdqa	xmm1,xmm2
+	jmp	$L112loop_key256
+$L113done_key256:
+	mov	ecx,13
+	mov	DWORD PTR 16[edx],ecx
+$L100good_key:
+	pxor	xmm0,xmm0
+	pxor	xmm1,xmm1
+	pxor	xmm2,xmm2
+	pxor	xmm3,xmm3
+	pxor	xmm4,xmm4
+	pxor	xmm5,xmm5
+	xor	eax,eax
+	pop	ebx
+	pop	ebp
 	ret
 ALIGN	4
-$L091bad_keybits:
+$L091bad_pointer:
+	mov	eax,-1
+	pop	ebx
+	pop	ebp
+	ret
+ALIGN	4
+$L095bad_keybits:
+	pxor	xmm0,xmm0
 	mov	eax,-2
+	pop	ebx
+	pop	ebp
 	ret
 __aesni_set_encrypt_key ENDP
 ALIGN	16
@@ -2150,7 +2394,7 @@ $L_aesni_set_decrypt_key_begin::
 	mov	edx,DWORD PTR 12[esp]
 	shl	ecx,4
 	test	eax,eax
-	jnz	$L102dec_key_ret
+	jnz	$L114dec_key_ret
 	lea	eax,DWORD PTR 16[ecx*1+edx]
 	movups	xmm0,XMMWORD PTR [edx]
 	movups	xmm1,XMMWORD PTR [eax]
@@ -2158,7 +2402,7 @@ $L_aesni_set_decrypt_key_begin::
 	movups	XMMWORD PTR [edx],xmm1
 	lea	edx,DWORD PTR 16[edx]
 	lea	eax,DWORD PTR [eax-16]
-$L103dec_key_inverse:
+$L115dec_key_inverse:
 	movups	xmm0,XMMWORD PTR [edx]
 	movups	xmm1,XMMWORD PTR [eax]
 DB	102,15,56,219,192
@@ -2168,17 +2412,28 @@ DB	102,15,56,219,201
 	movups	XMMWORD PTR 16[eax],xmm0
 	movups	XMMWORD PTR [edx-16],xmm1
 	cmp	eax,edx
-	ja	$L103dec_key_inverse
+	ja	$L115dec_key_inverse
 	movups	xmm0,XMMWORD PTR [edx]
 DB	102,15,56,219,192
 	movups	XMMWORD PTR [edx],xmm0
+	pxor	xmm0,xmm0
+	pxor	xmm1,xmm1
 	xor	eax,eax
-$L102dec_key_ret:
+$L114dec_key_ret:
 	ret
 _aesni_set_decrypt_key ENDP
+ALIGN	64
+$Lkey_const::
+DD	202313229,202313229,202313229,202313229
+DD	67569157,67569157,67569157,67569157
+DD	1,1,1,1
+DD	27,27,27,27
 DB	65,69,83,32,102,111,114,32,73,110,116,101,108,32,65,69
 DB	83,45,78,73,44,32,67,82,89,80,84,79,71,65,77,83
 DB	32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115
 DB	115,108,46,111,114,103,62,0
 .text$	ENDS
+.bss	SEGMENT 'BSS'
+COMM	_OPENSSL_ia32cap_P:DWORD:4
+.bss	ENDS
 END

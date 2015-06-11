@@ -495,7 +495,7 @@ gcm_ghash_neon:
 	veor		q10,q10,q9		@
 	vshl.i64	q9,q0,#63
 	veor		q10, q10, q9		@
-	veor		d1,d1,d20	@
+ 	veor		d1,d1,d20	@
 	veor		d4,d4,d21
 
 	vshr.u64	q10,q0,#1		@ 2nd phase

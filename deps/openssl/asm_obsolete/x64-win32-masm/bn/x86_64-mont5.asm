@@ -1832,11 +1832,16 @@ PUBLIC	bn_get_bits5
 
 ALIGN	16
 bn_get_bits5	PROC PUBLIC
-	mov	r10,rcx
+	lea	r10,QWORD PTR[rcx]
+	lea	r11,QWORD PTR[1+rcx]
 	mov	ecx,edx
-	shr	edx,3
-	movzx	eax,WORD PTR[rdx*1+r10]
-	and	ecx,7
+	shr	edx,4
+	and	ecx,15
+	lea	eax,DWORD PTR[((-8))+rcx]
+	cmp	ecx,11
+	cmova	r10,r11
+	cmova	ecx,eax
+	movzx	eax,WORD PTR[rdx*2+r10]
 	shr	eax,cl
 	and	eax,31
 	DB	0F3h,0C3h		;repret
