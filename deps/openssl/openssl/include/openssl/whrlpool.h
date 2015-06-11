@@ -1,1 +1,1 @@
-../../crypto/whrlpool/whrlpool.h
+#include "../../crypto/whrlpool/whrlpool.h"
