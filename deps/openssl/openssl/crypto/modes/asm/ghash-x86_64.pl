@@ -460,7 +460,7 @@ $code.=<<___;
 	psllq		\$57,$Xi		#
 	movdqa		$Xi,$T1			#
 	pslldq		\$8,$Xi
-	psrldq		\$8,$T1			#
+	psrldq		\$8,$T1			#	
 	pxor		$T2,$Xi
 	pxor		$T1,$Xhi		#
 
@@ -574,7 +574,7 @@ ___
 	&clmul64x64_T2	($Xhi,$Xi,$Hkey,$T2);
 $code.=<<___ if (0 || (&reduction_alg9($Xhi,$Xi)&&0));
 	# experimental alternative. special thing about is that there
-	# no dependency between the two multiplications...
+	# no dependency between the two multiplications... 
 	mov		\$`0xE1<<1`,%eax
 	mov		\$0xA040608020C0E000,%r10	# ((7..0)·0xE0)&0xff
 	mov		\$0x07,%r11d
@@ -749,7 +749,7 @@ $code.=<<___;
 	movdqa		$T2,$T1			#
 	pslldq		\$8,$T2
 	 pclmulqdq	\$0x00,$Hkey2,$Xln
-	psrldq		\$8,$T1			#
+	psrldq		\$8,$T1			#	
 	pxor		$T2,$Xi
 	pxor		$T1,$Xhi		#
 	movdqu		0($inp),$T1
@@ -885,7 +885,7 @@ $code.=<<___;
 	  psllq		\$57,$Xi		#
 	  movdqa	$Xi,$T1			#
 	  pslldq	\$8,$Xi
-	  psrldq	\$8,$T1			#
+	  psrldq	\$8,$T1			#	
 	  pxor		$T2,$Xi
 	pshufd		\$0b01001110,$Xhn,$Xmn
 	  pxor		$T1,$Xhi		#

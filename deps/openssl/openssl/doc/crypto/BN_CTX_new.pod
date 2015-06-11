@@ -25,7 +25,7 @@ is rather expensive when used in conjunction with repeated subroutine
 calls, the B<BN_CTX> structure is used.
 
 BN_CTX_new() allocates and initializes a B<BN_CTX>
-structure.
+structure. 
 
 BN_CTX_free() frees the components of the B<BN_CTX>, and if it was
 created by BN_CTX_new(), also the structure itself.

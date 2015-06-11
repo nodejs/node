@@ -455,8 +455,10 @@ void doencryption(void)
             rem = l % 8;
             len = l - rem;
             if (feof(DES_IN)) {
-                for (i = 7 - rem; i > 0; i--)
-                    RAND_pseudo_bytes(buf + l++, 1);
+                for (i = 7 - rem; i > 0; i--) {
+                    if (RAND_pseudo_bytes(buf + l++, 1) < 0)
+                        goto problems;
+                }
                 buf[l++] = rem;
                 ex = 1;
                 len += rem;

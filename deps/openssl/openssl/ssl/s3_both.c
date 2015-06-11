@@ -168,7 +168,7 @@ int ssl3_send_finished(SSL *s, int a, int b, const char *sender, int slen)
         i = s->method->ssl3_enc->final_finish_mac(s,
                                                   sender, slen,
                                                   s->s3->tmp.finish_md);
-        if (i == 0)
+        if (i <= 0)
             return 0;
         s->s3->tmp.finish_md_len = i;
         memcpy(p, s->s3->tmp.finish_md, i);

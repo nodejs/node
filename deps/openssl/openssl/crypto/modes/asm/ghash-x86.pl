@@ -905,7 +905,7 @@ my ($Xhi,$Xi) = @_;
 	&psllq		($Xi,57);		#
 	&movdqa		($T1,$Xi);		#
 	&pslldq		($Xi,8);
-	&psrldq		($T1,8);		#
+	&psrldq		($T1,8);		#	
 	&pxor		($Xi,$T2);
 	&pxor		($Xhi,$T1);		#
 
@@ -1075,7 +1075,7 @@ my ($Xhi,$Xi) = @_;
 	  &psllq	($Xi,57);		#
 	  &movdqa	($T1,$Xi);		#
 	  &pslldq	($Xi,8);
-	  &psrldq	($T1,8);		#
+	  &psrldq	($T1,8);		#	
 	  &pxor		($Xi,$T2);
 	  &pxor		($Xhi,$T1);		#
 	&pshufd		($T1,$Xhn,0b01001110);

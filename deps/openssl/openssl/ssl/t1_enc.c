@@ -260,7 +260,7 @@ static int tls1_PRF(long digest_mask,
         if ((m << TLS1_PRF_DGST_SHIFT) & digest_mask)
             count++;
     }
-    if(!count) {
+    if (!count) {
         /* Should never happen */
         SSLerr(SSL_F_TLS1_PRF, ERR_R_INTERNAL_ERROR);
         goto err;
@@ -404,9 +404,9 @@ int tls1_change_cipher_state(SSL *s, int which)
         }
 #endif
         /*
-         * this is done by dtls1_reset_seq_numbers for DTLS1_VERSION
+         * this is done by dtls1_reset_seq_numbers for DTLS
          */
-        if (s->version != DTLS1_VERSION)
+        if (!SSL_IS_DTLS(s))
             memset(&(s->s3->read_sequence[0]), 0, 8);
         mac_secret = &(s->s3->read_mac_secret[0]);
         mac_secret_size = &(s->s3->read_mac_secret_size);
@@ -442,9 +442,9 @@ int tls1_change_cipher_state(SSL *s, int which)
         }
 #endif
         /*
-         * this is done by dtls1_reset_seq_numbers for DTLS1_VERSION
+         * this is done by dtls1_reset_seq_numbers for DTLS
          */
-        if (s->version != DTLS1_VERSION)
+        if (!SSL_IS_DTLS(s))
             memset(&(s->s3->write_sequence[0]), 0, 8);
         mac_secret = &(s->s3->write_mac_secret[0]);
         mac_secret_size = &(s->s3->write_mac_secret_size);
@@ -803,7 +803,7 @@ int tls1_enc(SSL *s, int send)
         bs = EVP_CIPHER_block_size(ds->cipher);
 
         if (EVP_CIPHER_flags(ds->cipher) & EVP_CIPH_FLAG_AEAD_CIPHER) {
-            unsigned char buf[13], *seq;
+            unsigned char buf[EVP_AEAD_TLS1_AAD_LEN], *seq;
 
             seq = send ? s->s3->write_sequence : s->s3->read_sequence;
 
@@ -827,7 +827,10 @@ int tls1_enc(SSL *s, int send)
             buf[10] = (unsigned char)(s->version);
             buf[11] = rec->length >> 8;
             buf[12] = rec->length & 0xff;
-            pad = EVP_CIPHER_CTX_ctrl(ds, EVP_CTRL_AEAD_TLS1_AAD, 13, buf);
+            pad = EVP_CIPHER_CTX_ctrl(ds, EVP_CTRL_AEAD_TLS1_AAD,
+                                      EVP_AEAD_TLS1_AAD_LEN, buf);
+            if (pad <= 0)
+                return -1;
             if (send) {
                 l += pad;
                 rec->length += pad;

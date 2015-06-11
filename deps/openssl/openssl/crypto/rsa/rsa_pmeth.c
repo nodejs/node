@@ -254,8 +254,14 @@ static int pkey_rsa_sign(EVP_PKEY_CTX *ctx, unsigned char *sig,
                 return ret;
             ret = sltmp;
         } else if (rctx->pad_mode == RSA_X931_PADDING) {
-            if (!setup_tbuf(rctx, ctx))
+            if ((size_t)EVP_PKEY_size(ctx->pkey) < tbslen + 1) {
+                RSAerr(RSA_F_PKEY_RSA_SIGN, RSA_R_KEY_SIZE_TOO_SMALL);
                 return -1;
+            }
+            if (!setup_tbuf(rctx, ctx)) {
+                RSAerr(RSA_F_PKEY_RSA_SIGN, ERR_R_MALLOC_FAILURE);
+                return -1;
+            }
             memcpy(rctx->tbuf, tbs, tbslen);
             rctx->tbuf[tbslen] = RSA_X931_hash_id(EVP_MD_type(rctx->md));
             ret = RSA_private_encrypt(tbslen + 1, rctx->tbuf,

@@ -101,8 +101,14 @@ int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int len,
     if (md != NULL) {
         reset = 1;
         ctx->md = md;
-    } else
+    } else if (ctx->md) {
         md = ctx->md;
+    } else {
+        return 0;
+    }
+
+    if (!ctx->key_init && key == NULL)
+        return 0;
 
     if (key != NULL) {
         reset = 1;
@@ -117,13 +123,15 @@ int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int len,
                                     &ctx->key_length))
                 goto err;
         } else {
-            OPENSSL_assert(len >= 0 && len <= (int)sizeof(ctx->key));
+            if (len < 0 || len > (int)sizeof(ctx->key))
+                return 0;
             memcpy(ctx->key, key, len);
             ctx->key_length = len;
         }
         if (ctx->key_length != HMAC_MAX_MD_CBLOCK)
             memset(&ctx->key[ctx->key_length], 0,
                    HMAC_MAX_MD_CBLOCK - ctx->key_length);
+        ctx->key_init = 1;
     }
 
     if (reset) {
@@ -161,6 +169,9 @@ int HMAC_Update(HMAC_CTX *ctx, const unsigned char *data, size_t len)
     if (FIPS_mode() && !ctx->i_ctx.engine)
         return FIPS_hmac_update(ctx, data, len);
 #endif
+    if (!ctx->key_init)
+        return 0;
+
     return EVP_DigestUpdate(&ctx->md_ctx, data, len);
 }
 
@@ -172,6 +183,9 @@ int HMAC_Final(HMAC_CTX *ctx, unsigned char *md, unsigned int *len)
     if (FIPS_mode() && !ctx->i_ctx.engine)
         return FIPS_hmac_final(ctx, md, len);
 #endif
+
+    if (!ctx->key_init)
+        goto err;
 
     if (!EVP_DigestFinal_ex(&ctx->md_ctx, buf, &i))
         goto err;
@@ -191,6 +205,8 @@ void HMAC_CTX_init(HMAC_CTX *ctx)
     EVP_MD_CTX_init(&ctx->i_ctx);
     EVP_MD_CTX_init(&ctx->o_ctx);
     EVP_MD_CTX_init(&ctx->md_ctx);
+    ctx->key_init = 0;
+    ctx->md = NULL;
 }
 
 int HMAC_CTX_copy(HMAC_CTX *dctx, HMAC_CTX *sctx)
@@ -201,8 +217,11 @@ int HMAC_CTX_copy(HMAC_CTX *dctx, HMAC_CTX *sctx)
         goto err;
     if (!EVP_MD_CTX_copy(&dctx->md_ctx, &sctx->md_ctx))
         goto err;
-    memcpy(dctx->key, sctx->key, HMAC_MAX_MD_CBLOCK);
-    dctx->key_length = sctx->key_length;
+    dctx->key_init = sctx->key_init;
+    if (sctx->key_init) {
+        memcpy(dctx->key, sctx->key, HMAC_MAX_MD_CBLOCK);
+        dctx->key_length = sctx->key_length;
+    }
     dctx->md = sctx->md;
     return 1;
  err:
@@ -242,6 +261,7 @@ unsigned char *HMAC(const EVP_MD *evp_md, const void *key, int key_len,
     HMAC_CTX_cleanup(&c);
     return md;
  err:
+    HMAC_CTX_cleanup(&c);
     return NULL;
 }
 

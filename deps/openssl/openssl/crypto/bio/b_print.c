@@ -704,32 +704,29 @@ doapr_outch(char **sbuffer,
     /* If we haven't at least one buffer, someone has doe a big booboo */
     assert(*sbuffer != NULL || buffer != NULL);
 
-    if (buffer) {
-        while (*currlen >= *maxlen) {
-            if (*buffer == NULL) {
-                if (*maxlen == 0)
-                    *maxlen = 1024;
-                *buffer = OPENSSL_malloc(*maxlen);
-                if(!*buffer) {
-                    /* Panic! Can't really do anything sensible. Just return */
-                    return;
-                }
-                if (*currlen > 0) {
-                    assert(*sbuffer != NULL);
-                    memcpy(*buffer, *sbuffer, *currlen);
-                }
-                *sbuffer = NULL;
-            } else {
-                *maxlen += 1024;
-                *buffer = OPENSSL_realloc(*buffer, *maxlen);
-                if(!*buffer) {
-                    /* Panic! Can't really do anything sensible. Just return */
-                    return;
-                }
+    /* |currlen| must always be <= |*maxlen| */
+    assert(*currlen <= *maxlen);
+
+    if (buffer && *currlen == *maxlen) {
+        *maxlen += 1024;
+        if (*buffer == NULL) {
+            *buffer = OPENSSL_malloc(*maxlen);
+            if (!*buffer) {
+                /* Panic! Can't really do anything sensible. Just return */
+                return;
+            }
+            if (*currlen > 0) {
+                assert(*sbuffer != NULL);
+                memcpy(*buffer, *sbuffer, *currlen);
+            }
+            *sbuffer = NULL;
+        } else {
+            *buffer = OPENSSL_realloc(*buffer, *maxlen);
+            if (!*buffer) {
+                /* Panic! Can't really do anything sensible. Just return */
+                return;
             }
         }
-        /* What to do if *buffer is NULL? */
-        assert(*sbuffer != NULL || *buffer != NULL);
     }
 
     if (*currlen < *maxlen) {

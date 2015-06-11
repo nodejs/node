@@ -1,1 +1,1 @@
-#include "../../crypto/seed/seed.h"
+../../crypto/seed/seed.h

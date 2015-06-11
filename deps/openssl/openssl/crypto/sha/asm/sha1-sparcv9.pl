@@ -220,7 +220,7 @@ sha1_block_data_order:
 	ldd	[%o1 + 0x20], %f16
 	ldd	[%o1 + 0x28], %f18
 	ldd	[%o1 + 0x30], %f20
-	subcc	%o2, 1, %o2		! done yet?
+	subcc	%o2, 1, %o2		! done yet? 
 	ldd	[%o1 + 0x38], %f22
 	add	%o1, 0x40, %o1
 	prefetch [%o1 + 63], 20

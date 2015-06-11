@@ -67,7 +67,7 @@ while (<IN>)
 		$myoid = &process_oid($myoid);
 		}
 
-	if ($Cname eq "" && !($myln =~ / /))
+	if ($Cname eq "" && ($myln =~ /^[_A-Za-z][\w.-]*$/ ))
 		{
 		$Cname = $myln;
 		$Cname =~ s/\./_/g;

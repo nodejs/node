@@ -434,7 +434,7 @@ void X509_STORE_CTX_set_depth(X509_STORE_CTX *ctx, int depth);
 # define X509_V_FLAG_PARTIAL_CHAIN               0x80000
 /*
  * If the initial chain is not trusted, do not attempt to build an alternative
- * chain. Alternate chain checking was introduced in 1.1.0. Setting this flag
+ * chain. Alternate chain checking was introduced in 1.0.2b. Setting this flag
  * will force the behaviour to match that of previous versions.
  */
 # define X509_V_FLAG_NO_ALT_CHAINS               0x100000

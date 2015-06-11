@@ -90,6 +90,7 @@ void ERR_GOST_error(int function, int reason, char *file, int line);
 # define GOST_F_GOST_IMIT_CTRL                            114
 # define GOST_F_GOST_IMIT_FINAL                           140
 # define GOST_F_GOST_IMIT_UPDATE                          115
+# define GOST_F_GOST_SIGN_KEYGEN                          142
 # define GOST_F_PARAM_COPY_GOST01                         116
 # define GOST_F_PARAM_COPY_GOST94                         117
 # define GOST_F_PKEY_GOST01CP_DECRYPT                     118

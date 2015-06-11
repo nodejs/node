@@ -3,7 +3,7 @@
 #ifndef CHARSET_EBCDIC
 
 # include <openssl/e_os2.h>
-# if defined(PEDANTIC) || defined(__DECC) || defined(OPENSSL_SYS_MACOSX)
+# if defined(PEDANTIC) || defined(__DECC) || defined(OPENSSL_SYS_MACOSX) || defined(__clang__)
 static void *dummy = &dummy;
 # endif
 

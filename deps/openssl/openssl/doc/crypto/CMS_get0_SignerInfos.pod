@@ -25,7 +25,7 @@ associated with a specific CMS_SignerInfo structure B<si>. Either the
 keyidentifier will be set in B<keyid> or B<both> issuer name and serial number
 in B<issuer> and B<sno>.
 
-CMS_SignerInfo_get0_signature() retrieves the signature associated with
+CMS_SignerInfo_get0_signature() retrieves the signature associated with 
 B<si> in a pointer to an ASN1_OCTET_STRING structure. This pointer returned
 corresponds to the internal signature value if B<si> so it may be read or
 modified.

@@ -39,11 +39,11 @@ SSL_CTX_add_client_custom_ext, SSL_CTX_add_server_custom_ext - custom TLS extens
 
 =head1 DESCRIPTION
 
-SSL_CTX_add_client_custom_ext() adds a custom extension for a TLS client
+SSL_CTX_add_client_custom_ext() adds a custom extension for a TLS client 
 with extension type B<ext_type> and callbacks B<add_cb>, B<free_cb> and
 B<parse_cb>.
 
-SSL_CTX_add_server_custom_ext() adds a custom extension for a TLS server
+SSL_CTX_add_server_custom_ext() adds a custom extension for a TLS server 
 with extension type B<ext_type> and callbacks B<add_cb>, B<free_cb> and
 B<parse_cb>.
 
@@ -55,7 +55,7 @@ internally by OpenSSL and 0 otherwise.
 
 =head1 EXTENSION CALLBACKS
 
-The callback B<add_cb> is called to send custom extension data to be
+The callback B<add_cb> is called to send custom extension data to be 
 included in ClientHello for TLS clients or ServerHello for servers. The
 B<ext_type> parameter is set to the extension type which will be added and
 B<add_arg> to the value set when the extension handler was added.

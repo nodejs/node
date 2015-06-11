@@ -104,6 +104,7 @@ int pkey_GOST94cp_encrypt(EVP_PKEY_CTX *ctx, unsigned char *out,
     struct gost_pmeth_data *data = EVP_PKEY_CTX_get_data(ctx);
     gost_ctx cctx;
     int key_is_ephemeral = 1;
+    int tmp_outlen;
     EVP_PKEY *mykey = EVP_PKEY_CTX_get0_peerkey(ctx);
 
     /* Do not use vizir cipher parameters with cryptopro */
@@ -174,12 +175,13 @@ int pkey_GOST94cp_encrypt(EVP_PKEY_CTX *ctx, unsigned char *out,
     }
     ASN1_OBJECT_free(gkt->key_agreement_info->cipher);
     gkt->key_agreement_info->cipher = OBJ_nid2obj(param->nid);
-    *outlen = i2d_GOST_KEY_TRANSPORT(gkt, out ? &out : NULL);
-    if (*outlen <= 0) {
+    tmp_outlen = i2d_GOST_KEY_TRANSPORT(gkt, out ? &out : NULL);
+    if (tmp_outlen <= 0) {
         GOSTerr(GOST_F_PKEY_GOST94CP_ENCRYPT,
                 GOST_R_ERROR_PACKING_KEY_TRANSPORT_INFO);
         goto err;
     }
+    *outlen = tmp_outlen;
     if (!key_is_ephemeral) {
         /* Set control "public key from client certificate used" */
         if (EVP_PKEY_CTX_ctrl(ctx, -1, -1, EVP_PKEY_CTRL_PEER_KEY, 3, NULL) <=

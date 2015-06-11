@@ -1315,7 +1315,7 @@ ISO-US 10046 2 1	: dhpublicnumber		: X9.42 DH
 1 3 36 3 3 2 8 1 1 11 : brainpoolP384r1
 1 3 36 3 3 2 8 1 1 12 : brainpoolP384t1
 1 3 36 3 3 2 8 1 1 13 : brainpoolP512r1
-1 3 36 3 3 2 8 1 1 14 : brainpoolP512t1
+1 3 36 3 3 2 8 1 1 14 : brainpoolP512t1            
 
 # ECDH schemes from RFC5753
 !Alias x9-63-scheme 1 3 133 16 840 63 0

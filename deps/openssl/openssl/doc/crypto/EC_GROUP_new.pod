@@ -42,7 +42,7 @@ use a trinomial or a pentanomial for this parameter.
 
 A new curve can be constructed by calling EC_GROUP_new, using the implementation provided by B<meth> (see
 L<EC_GFp_simple_method(3)|EC_GFp_simple_method(3)>). It is then necessary to call either EC_GROUP_set_curve_GFp or
-EC_GROUP_set_curve_GF2m as appropriate to create a curve defined over Fp or over F2^m respectively.
+EC_GROUP_set_curve_GF2m as appropriate to create a curve defined over Fp or over F2^m respectively. 
 
 EC_GROUP_set_curve_GFp sets the curve parameters B<p>, B<a> and B<b> for a curve over Fp stored in B<group>.
 EC_group_get_curve_GFp obtains the previously set curve parameters.
@@ -64,7 +64,7 @@ provided. The return value is the total number of curves available (whether that
 not). Passing a NULL B<r>, or setting B<nitems> to 0 will do nothing other than return the total number of curves available.
 The EC_builtin_curve structure is defined as follows:
 
- typedef struct {
+ typedef struct { 
 	int nid;
 	const char *comment;
 	} EC_builtin_curve;

@@ -81,7 +81,7 @@ used only when backward compatibility is required.
 =head1 RETURN VALUES
 
 SHA1(), SHA224(), SHA256(), SHA384() and SHA512() return a pointer to the hash
-value.
+value. 
 
 SHA1_Init(), SHA1_Update() and SHA1_Final() and equivalent SHA224, SHA256,
 SHA384 and SHA512 functions return 1 for success, 0 otherwise.
