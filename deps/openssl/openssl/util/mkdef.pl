@@ -122,7 +122,7 @@ my @known_algorithms = ( "RC2", "RC4", "RC5", "IDEA", "DES", "BF",
 			 # SRTP
 			 "SRTP",
 			 # SSL TRACE
-			 "SSL_TRACE",
+		 	 "SSL_TRACE",
 			 # Unit testing
 			 "UNIT_TEST");
 

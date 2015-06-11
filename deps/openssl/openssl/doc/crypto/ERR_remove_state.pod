@@ -40,6 +40,6 @@ L<err(3)|err(3)>
 
 ERR_remove_state() is available in all versions of SSLeay and OpenSSL. It
 was deprecated in OpenSSL 1.0.0 when ERR_remove_thread_state was introduced
-and thread IDs were introduced to identify threads instead of 'unsigned long'.
+and thread IDs were introduced to identify threads instead of 'unsigned long'. 
 
 =cut

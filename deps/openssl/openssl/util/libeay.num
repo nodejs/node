@@ -4413,3 +4413,4 @@ ECDSA_METHOD_get_app_data               4770	EXIST::FUNCTION:ECDSA
 X509_VERIFY_PARAM_add1_host             4771	EXIST::FUNCTION:
 EC_GROUP_get_mont_data                  4772	EXIST::FUNCTION:EC
 i2d_re_X509_tbs                         4773	EXIST::FUNCTION:
+EVP_PKEY_asn1_set_item                  4774	EXIST::FUNCTION:

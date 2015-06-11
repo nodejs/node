@@ -228,6 +228,7 @@ int dtls1_connect(SSL *s)
                 (s->version & 0xff00) != (DTLS1_BAD_VER & 0xff00)) {
                 SSLerr(SSL_F_DTLS1_CONNECT, ERR_R_INTERNAL_ERROR);
                 ret = -1;
+                s->state = SSL_ST_ERR;
                 goto end;
             }
 
@@ -237,10 +238,12 @@ int dtls1_connect(SSL *s)
             if (s->init_buf == NULL) {
                 if ((buf = BUF_MEM_new()) == NULL) {
                     ret = -1;
+                    s->state = SSL_ST_ERR;
                     goto end;
                 }
                 if (!BUF_MEM_grow(buf, SSL3_RT_MAX_PLAIN_LENGTH)) {
                     ret = -1;
+                    s->state = SSL_ST_ERR;
                     goto end;
                 }
                 s->init_buf = buf;
@@ -249,12 +252,14 @@ int dtls1_connect(SSL *s)
 
             if (!ssl3_setup_buffers(s)) {
                 ret = -1;
+                s->state = SSL_ST_ERR;
                 goto end;
             }
 
             /* setup buffing BIO */
             if (!ssl_init_wbio_buffer(s, 0)) {
                 ret = -1;
+                s->state = SSL_ST_ERR;
                 goto end;
             }
 
@@ -433,6 +438,7 @@ int dtls1_connect(SSL *s)
              */
             if (!ssl3_check_cert_and_algorithm(s)) {
                 ret = -1;
+                s->state = SSL_ST_ERR;
                 goto end;
             }
             break;
@@ -564,6 +570,7 @@ int dtls1_connect(SSL *s)
 #endif
             if (!s->method->ssl3_enc->setup_key_block(s)) {
                 ret = -1;
+                s->state = SSL_ST_ERR;
                 goto end;
             }
 
@@ -571,6 +578,7 @@ int dtls1_connect(SSL *s)
                                                           SSL3_CHANGE_CIPHER_CLIENT_WRITE))
             {
                 ret = -1;
+                s->state = SSL_ST_ERR;
                 goto end;
             }
 #ifndef OPENSSL_NO_SCTP
@@ -751,6 +759,7 @@ int dtls1_connect(SSL *s)
             goto end;
             /* break; */
 
+        case SSL_ST_ERR:
         default:
             SSLerr(SSL_F_DTLS1_CONNECT, SSL_R_UNKNOWN_STATE);
             ret = -1;
@@ -842,5 +851,6 @@ static int dtls1_get_hello_verify(SSL *s)
 
  f_err:
     ssl3_send_alert(s, SSL3_AL_FATAL, al);
+    s->state = SSL_ST_ERR;
     return -1;
 }

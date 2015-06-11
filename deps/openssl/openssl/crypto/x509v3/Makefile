@@ -71,6 +71,8 @@ tests:
 lint:
 	lint -DLINT $(INCLUDES) $(SRC)>fluff
 
+update: depend
+
 depend:
 	@[ -n "$(MAKEDEPEND)" ] # should be set by upper Makefile...
 	$(MAKEDEPEND) -- $(CFLAG) $(INCLUDES) $(DEPFLAG) -- $(PROGS) $(LIBSRC)
@@ -535,26 +537,18 @@ v3_purp.o: ../../include/openssl/x509_vfy.h ../../include/openssl/x509v3.h
 v3_purp.o: ../cryptlib.h v3_purp.c
 v3_scts.o: ../../e_os.h ../../include/openssl/asn1.h
 v3_scts.o: ../../include/openssl/bio.h ../../include/openssl/buffer.h
-v3_scts.o: ../../include/openssl/comp.h ../../include/openssl/conf.h
-v3_scts.o: ../../include/openssl/crypto.h ../../include/openssl/dsa.h
-v3_scts.o: ../../include/openssl/dtls1.h ../../include/openssl/e_os2.h
-v3_scts.o: ../../include/openssl/ec.h ../../include/openssl/ecdh.h
-v3_scts.o: ../../include/openssl/ecdsa.h ../../include/openssl/err.h
-v3_scts.o: ../../include/openssl/evp.h ../../include/openssl/hmac.h
-v3_scts.o: ../../include/openssl/kssl.h ../../include/openssl/lhash.h
-v3_scts.o: ../../include/openssl/obj_mac.h ../../include/openssl/objects.h
-v3_scts.o: ../../include/openssl/opensslconf.h ../../include/openssl/opensslv.h
-v3_scts.o: ../../include/openssl/ossl_typ.h ../../include/openssl/pem.h
-v3_scts.o: ../../include/openssl/pem2.h ../../include/openssl/pkcs7.h
-v3_scts.o: ../../include/openssl/pqueue.h ../../include/openssl/rsa.h
-v3_scts.o: ../../include/openssl/safestack.h ../../include/openssl/sha.h
-v3_scts.o: ../../include/openssl/srtp.h ../../include/openssl/ssl.h
-v3_scts.o: ../../include/openssl/ssl2.h ../../include/openssl/ssl23.h
-v3_scts.o: ../../include/openssl/ssl3.h ../../include/openssl/stack.h
-v3_scts.o: ../../include/openssl/symhacks.h ../../include/openssl/tls1.h
-v3_scts.o: ../../include/openssl/x509.h ../../include/openssl/x509_vfy.h
-v3_scts.o: ../../include/openssl/x509v3.h ../../ssl/ssl_locl.h ../cryptlib.h
-v3_scts.o: v3_scts.c
+v3_scts.o: ../../include/openssl/conf.h ../../include/openssl/crypto.h
+v3_scts.o: ../../include/openssl/e_os2.h ../../include/openssl/ec.h
+v3_scts.o: ../../include/openssl/ecdh.h ../../include/openssl/ecdsa.h
+v3_scts.o: ../../include/openssl/err.h ../../include/openssl/evp.h
+v3_scts.o: ../../include/openssl/lhash.h ../../include/openssl/obj_mac.h
+v3_scts.o: ../../include/openssl/objects.h ../../include/openssl/opensslconf.h
+v3_scts.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
+v3_scts.o: ../../include/openssl/pkcs7.h ../../include/openssl/safestack.h
+v3_scts.o: ../../include/openssl/sha.h ../../include/openssl/stack.h
+v3_scts.o: ../../include/openssl/symhacks.h ../../include/openssl/x509.h
+v3_scts.o: ../../include/openssl/x509_vfy.h ../../include/openssl/x509v3.h
+v3_scts.o: ../cryptlib.h v3_scts.c
 v3_skey.o: ../../e_os.h ../../include/openssl/asn1.h
 v3_skey.o: ../../include/openssl/bio.h ../../include/openssl/buffer.h
 v3_skey.o: ../../include/openssl/conf.h ../../include/openssl/crypto.h

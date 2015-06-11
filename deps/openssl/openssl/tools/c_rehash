@@ -15,13 +15,13 @@ my $symlink_exists=eval {symlink("",""); 1};
 my $removelinks = 1;
 
 ##  Parse flags.
-while ( $ARGV[0] =~ '-.*' ) {
+while ( $ARGV[0] =~ /^-/ ) {
     my $flag = shift @ARGV;
     last if ( $flag eq '--');
-    if ( $flag =~ /-old/) {
+    if ( $flag eq '-old') {
 	    $x509hash = "-subject_hash_old";
 	    $crlhash = "-hash_old";
-    } elsif ( $flag =~ /-h/) {
+    } elsif ( $flag eq '-h') {
 	    help();
     } elsif ( $flag eq '-n' ) {
 	    $removelinks = 0;

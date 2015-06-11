@@ -365,6 +365,9 @@ char *CRYPTO_strdup(const char *str, const char *file, int line)
 {
     char *ret = CRYPTO_malloc(strlen(str) + 1, file, line);
 
+    if (ret == NULL)
+        return NULL;
+
     strcpy(ret, str);
     return ret;
 }

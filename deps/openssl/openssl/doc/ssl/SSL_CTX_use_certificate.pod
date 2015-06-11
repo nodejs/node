@@ -123,7 +123,7 @@ SSL_CTX_use_certificate_chain_file() adds the first certificate found
 in the file to the certificate store. The other certificates are added
 to the store of chain certificates using L<SSL_CTX_add1_chain_cert(3)|SSL_CTX_add1_chain_cert(3)>. Note: versions of OpenSSL before 1.0.2 only had a single
 certificate chain store for all certificate types, OpenSSL 1.0.2 and later
-have a separate chain store for each type. SSL_CTX_use_certificate_chain_file()
+have a separate chain store for each type. SSL_CTX_use_certificate_chain_file() 
 should be used instead of the SSL_CTX_use_certificate_file() function in order
 to allow the use of complete certificate chains even when no trusted CA
 storage is used or when the CA issuing the certificate shall not be added to

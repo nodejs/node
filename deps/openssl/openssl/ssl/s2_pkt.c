@@ -576,6 +576,20 @@ static int n_do_ssl_write(SSL *s, const unsigned char *buf, unsigned int len)
     s->s2->padding = p;
     s->s2->mac_data = &(s->s2->wbuf[3]);
     s->s2->wact_data = &(s->s2->wbuf[3 + mac_size]);
+
+    /*
+     * It would be clearer to write this as follows:
+     *     if (mac_size + len + p > SSL2_MAX_RECORD_LENGTH_2_BYTE_HEADER)
+     * However |len| is user input that could in theory be very large. We
+     * know |mac_size| and |p| are small, so to avoid any possibility of
+     * overflow we write it like this.
+     *
+     * In theory this should never fail because the logic above should have
+     * modified |len| if it is too big. But we are being cautious.
+     */
+    if (len > (SSL2_MAX_RECORD_LENGTH_2_BYTE_HEADER - (mac_size + p))) {
+        return -1;
+    }
     /* we copy the data into s->s2->wbuf */
     memcpy(s->s2->wact_data, buf, len);
     if (p)

@@ -5,6 +5,8 @@
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
 # details see http://www.openssl.org/~appro/cryptogams/.
+#
+# Permission to use under GPL terms is granted.
 # ====================================================================
 
 # SHA256 block procedure for ARMv4. May 2007.
@@ -151,10 +153,24 @@ ___
 }
 
 $code=<<___;
-#include "arm_arch.h"
+#ifndef __KERNEL__
+# include "arm_arch.h"
+#else
+# define __ARM_ARCH__ __LINUX_ARM_ARCH__
+# define __ARM_MAX_ARCH__ 7
+#endif
 
 .text
+#if __ARM_ARCH__<7
 .code	32
+#else
+.syntax unified
+# ifdef __thumb2__
+.thumb
+# else
+.code   32
+# endif
+#endif
 
 .type	K256,%object
 .align	5
@@ -177,7 +193,7 @@ K256:
 .word	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 .size	K256,.-K256
 .word	0				@ terminator
-#if __ARM_MAX_ARCH__>=7
+#if __ARM_MAX_ARCH__>=7 && !defined(__KERNEL__)
 .LOPENSSL_armcap:
 .word	OPENSSL_armcap_P-sha256_block_data_order
 #endif
@@ -186,9 +202,12 @@ K256:
 .global	sha256_block_data_order
 .type	sha256_block_data_order,%function
 sha256_block_data_order:
+#if __ARM_ARCH__<7
 	sub	r3,pc,#8		@ sha256_block_data_order
-	add	$len,$inp,$len,lsl#6	@ len to point at the end of inp
-#if __ARM_MAX_ARCH__>=7
+#else
+	adr	r3,sha256_block_data_order
+#endif
+#if __ARM_MAX_ARCH__>=7 && !defined(__KERNEL__)
 	ldr	r12,.LOPENSSL_armcap
 	ldr	r12,[r3,r12]		@ OPENSSL_armcap_P
 	tst	r12,#ARMV8_SHA256
@@ -196,6 +215,7 @@ sha256_block_data_order:
 	tst	r12,#ARMV7_NEON
 	bne	.LNEON
 #endif
+	add	$len,$inp,$len,lsl#6	@ len to point at the end of inp
 	stmdb	sp!,{$ctx,$inp,$len,r4-r11,lr}
 	ldmia	$ctx,{$A,$B,$C,$D,$E,$F,$G,$H}
 	sub	$Ktbl,r3,#256+32	@ K256
@@ -213,6 +233,9 @@ for($i=0;$i<16;$i++)	{ &BODY_00_15($i,@V); unshift(@V,pop(@V)); }
 $code.=".Lrounds_16_xx:\n";
 for (;$i<32;$i++)	{ &BODY_16_XX($i,@V); unshift(@V,pop(@V)); }
 $code.=<<___;
+#if __ARM_ARCH__>=7
+	ite	eq			@ Thumb2 thing, sanity check in ARM
+#endif
 	ldreq	$t3,[sp,#16*4]		@ pull ctx
 	bne	.Lrounds_16_xx
 
@@ -429,16 +452,19 @@ $code.=<<___;
 .arch	armv7-a
 .fpu	neon
 
+.global	sha256_block_data_order_neon
 .type	sha256_block_data_order_neon,%function
 .align	4
 sha256_block_data_order_neon:
 .LNEON:
 	stmdb	sp!,{r4-r12,lr}
 
+	sub	$H,sp,#16*4+16
+	adr	$Ktbl,K256
+	bic	$H,$H,#15		@ align for 128-bit stores
 	mov	$t2,sp
-	sub	sp,sp,#16*4+16		@ alloca
-	sub	$Ktbl,r3,#256+32	@ K256
-	bic	sp,sp,#15		@ align for 128-bit stores
+	mov	sp,$H			@ alloca
+	add	$len,$inp,$len,lsl#6	@ len to point at the end of inp
 
 	vld1.8		{@X[0]},[$inp]!
 	vld1.8		{@X[1]},[$inp]!
@@ -490,11 +516,13 @@ $code.=<<___;
 	ldr		$t0,[sp,#72]
 	sub		$Ktbl,$Ktbl,#256	@ rewind $Ktbl
 	teq		$inp,$t0
+	it		eq
 	subeq		$inp,$inp,#64		@ avoid SEGV
 	vld1.8		{@X[0]},[$inp]!		@ load next input block
 	vld1.8		{@X[1]},[$inp]!
 	vld1.8		{@X[2]},[$inp]!
 	vld1.8		{@X[3]},[$inp]!
+	it		ne
 	strne		$inp,[sp,#68]
 	mov		$Xfer,sp
 ___
@@ -526,10 +554,12 @@ $code.=<<___;
 	str	$D,[$t1],#4
 	stmia	$t1,{$E-$H}
 
+	ittte	ne
 	movne	$Xfer,sp
 	ldrne	$t1,[sp,#0]
 	eorne	$t2,$t2,$t2
 	ldreq	sp,[sp,#76]			@ restore original sp
+	itt	ne
 	eorne	$t3,$B,$C
 	bne	.L_00_48
 
@@ -548,13 +578,26 @@ my ($W0,$W1,$ABCD_SAVE,$EFGH_SAVE)=map("q$_",(12..15));
 my $Ktbl="r3";
 
 $code.=<<___;
-#if __ARM_MAX_ARCH__>=7
+#if __ARM_MAX_ARCH__>=7 && !defined(__KERNEL__)
+
+# ifdef __thumb2__
+#  define INST(a,b,c,d)	.byte	c,d|0xc,a,b
+# else
+#  define INST(a,b,c,d)	.byte	a,b,c,d
+# endif
+
 .type	sha256_block_data_order_armv8,%function
 .align	5
 sha256_block_data_order_armv8:
 .LARMv8:
 	vld1.32	{$ABCD,$EFGH},[$ctx]
-	sub	$Ktbl,r3,#sha256_block_data_order-K256
+# ifdef __thumb2__
+	adr	$Ktbl,.LARMv8
+	sub	$Ktbl,$Ktbl,#.LARMv8-K256
+# else
+	adrl	$Ktbl,K256
+# endif
+	add	$len,$inp,$len,lsl#6	@ len to point at the end of inp
 
 .Loop_v8:
 	vld1.8		{@MSG[0]-@MSG[1]},[$inp]!
@@ -607,6 +650,7 @@ $code.=<<___;
 
 	vadd.i32	$ABCD,$ABCD,$ABCD_SAVE
 	vadd.i32	$EFGH,$EFGH,$EFGH_SAVE
+	it		ne
 	bne		.Loop_v8
 
 	vst1.32		{$ABCD,$EFGH},[$ctx]
@@ -619,10 +663,18 @@ ___
 $code.=<<___;
 .asciz  "SHA256 block transform for ARMv4/NEON/ARMv8, CRYPTOGAMS by <appro\@openssl.org>"
 .align	2
-#if __ARM_MAX_ARCH__>=7
+#if __ARM_MAX_ARCH__>=7 && !defined(__KERNEL__)
 .comm   OPENSSL_armcap_P,4,4
 #endif
 ___
+
+open SELF,$0;
+while(<SELF>) {
+	next if (/^#!/);
+	last if (!s/^#/@/ and !/^$/);
+	print;
+}
+close SELF;
 
 {   my  %opcode = (
 	"sha256h"	=> 0xf3000c40,	"sha256h2"	=> 0xf3100c40,
@@ -638,7 +690,7 @@ ___
 	    # since ARMv7 instructions are always encoded little-endian.
 	    # correct solution is to use .inst directive, but older
 	    # assemblers don't implement it:-(
-	    sprintf ".byte\t0x%02x,0x%02x,0x%02x,0x%02x\t@ %s %s",
+	    sprintf "INST(0x%02x,0x%02x,0x%02x,0x%02x)\t@ %s %s",
 			$word&0xff,($word>>8)&0xff,
 			($word>>16)&0xff,($word>>24)&0xff,
 			$mnemonic,$arg;

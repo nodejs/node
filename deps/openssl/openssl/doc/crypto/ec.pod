@@ -104,7 +104,7 @@ ec - Elliptic Curve functions
 
  int EC_GROUP_get_basis_type(const EC_GROUP *);
  int EC_GROUP_get_trinomial_basis(const EC_GROUP *, unsigned int *k);
- int EC_GROUP_get_pentanomial_basis(const EC_GROUP *, unsigned int *k1,
+ int EC_GROUP_get_pentanomial_basis(const EC_GROUP *, unsigned int *k1, 
 	unsigned int *k2, unsigned int *k3);
  EC_GROUP *d2i_ECPKParameters(EC_GROUP **, const unsigned char **in, long len);
  int i2d_ECPKParameters(const EC_GROUP *, unsigned char **out);
@@ -136,7 +136,7 @@ ec - Elliptic Curve functions
  void EC_KEY_set_enc_flags(EC_KEY *eckey, unsigned int flags);
  point_conversion_form_t EC_KEY_get_conv_form(const EC_KEY *key);
  void EC_KEY_set_conv_form(EC_KEY *eckey, point_conversion_form_t cform);
- void *EC_KEY_get_key_method_data(EC_KEY *key,
+ void *EC_KEY_get_key_method_data(EC_KEY *key, 
 	void *(*dup_func)(void *), void (*free_func)(void *), void (*clear_free_func)(void *));
  void EC_KEY_insert_key_method_data(EC_KEY *key, void *data,
 	void *(*dup_func)(void *), void (*free_func)(void *), void (*clear_free_func)(void *));

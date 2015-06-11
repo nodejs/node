@@ -72,7 +72,7 @@ my @s=@_[12..15];
 
 sub InBasisChange {
 # input in  lsb > [b0, b1, b2, b3, b4, b5, b6, b7] < msb
-# output in lsb > [b6, b5, b0, b3, b7, b1, b4, b2] < msb
+# output in lsb > [b6, b5, b0, b3, b7, b1, b4, b2] < msb 
 my @b=@_[0..7];
 $code.=<<___;
 	veor	@b[2], @b[2], @b[1]

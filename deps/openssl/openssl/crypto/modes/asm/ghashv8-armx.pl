@@ -16,12 +16,17 @@
 # other assembly modules. Just like aesv8-armx.pl this module
 # supports both AArch32 and AArch64 execution modes.
 #
+# July 2014
+#
+# Implement 2x aggregated reduction [see ghash-x86.pl for background
+# information].
+#
 # Current performance in cycles per processed byte:
 #
 #		PMULL[2]	32-bit NEON(*)
-# Apple A7	1.76		5.62
-# Cortex-A53	1.45		8.39
-# Cortex-A57	2.22		7.61
+# Apple A7	0.92		5.62
+# Cortex-A53	1.01		8.39
+# Cortex-A57	1.17		7.61
 #
 # (*)	presented for reference/comparison purposes;
 
@@ -37,7 +42,7 @@ $inc="x12";
 
 {
 my ($Xl,$Xm,$Xh,$IN)=map("q$_",(0..3));
-my ($t0,$t1,$t2,$t3,$H,$Hhl)=map("q$_",(8..14));
+my ($t0,$t1,$t2,$xC2,$H,$Hhl,$H2)=map("q$_",(8..14));
 
 $code=<<___;
 #include "arm_arch.h"
@@ -47,107 +52,108 @@ ___
 $code.=".arch	armv8-a+crypto\n"	if ($flavour =~ /64/);
 $code.=".fpu	neon\n.code	32\n"	if ($flavour !~ /64/);
 
+################################################################################
+# void gcm_init_v8(u128 Htable[16],const u64 H[2]);
+#
+# input:	128-bit H - secret parameter E(K,0^128)
+# output:	precomputed table filled with degrees of twisted H;
+#		H is twisted to handle reverse bitness of GHASH;
+#		only few of 16 slots of Htable[16] are used;
+#		data is opaque to outside world (which allows to
+#		optimize the code independently);
+#
 $code.=<<___;
 .global	gcm_init_v8
 .type	gcm_init_v8,%function
 .align	4
 gcm_init_v8:
-	vld1.64		{$t1},[x1]		@ load H
-	vmov.i8		$t0,#0xe1
+	vld1.64		{$t1},[x1]		@ load input H
+	vmov.i8		$xC2,#0xe1
+	vshl.i64	$xC2,$xC2,#57		@ 0xc2.0
 	vext.8		$IN,$t1,$t1,#8
-	vshl.i64	$t0,$t0,#57
-	vshr.u64	$t2,$t0,#63
-	vext.8		$t0,$t2,$t0,#8		@ t0=0xc2....01
+	vshr.u64	$t2,$xC2,#63
 	vdup.32		$t1,${t1}[1]
-	vshr.u64	$t3,$IN,#63
+	vext.8		$t0,$t2,$xC2,#8		@ t0=0xc2....01
+	vshr.u64	$t2,$IN,#63
 	vshr.s32	$t1,$t1,#31		@ broadcast carry bit
-	vand		$t3,$t3,$t0
+	vand		$t2,$t2,$t0
 	vshl.i64	$IN,$IN,#1
-	vext.8		$t3,$t3,$t3,#8
+	vext.8		$t2,$t2,$t2,#8
 	vand		$t0,$t0,$t1
-	vorr		$IN,$IN,$t3		@ H<<<=1
-	veor		$IN,$IN,$t0		@ twisted H
-	vst1.64		{$IN},[x0]
+	vorr		$IN,$IN,$t2		@ H<<<=1
+	veor		$H,$IN,$t0		@ twisted H
+	vst1.64		{$H},[x0],#16		@ store Htable[0]
+
+	@ calculate H^2
+	vext.8		$t0,$H,$H,#8		@ Karatsuba pre-processing
+	vpmull.p64	$Xl,$H,$H
+	veor		$t0,$t0,$H
+	vpmull2.p64	$Xh,$H,$H
+	vpmull.p64	$Xm,$t0,$t0
+
+	vext.8		$t1,$Xl,$Xh,#8		@ Karatsuba post-processing
+	veor		$t2,$Xl,$Xh
+	veor		$Xm,$Xm,$t1
+	veor		$Xm,$Xm,$t2
+	vpmull.p64	$t2,$Xl,$xC2		@ 1st phase
+
+	vmov		$Xh#lo,$Xm#hi		@ Xh|Xm - 256-bit result
+	vmov		$Xm#hi,$Xl#lo		@ Xm is rotated Xl
+	veor		$Xl,$Xm,$t2
+
+	vext.8		$t2,$Xl,$Xl,#8		@ 2nd phase
+	vpmull.p64	$Xl,$Xl,$xC2
+	veor		$t2,$t2,$Xh
+	veor		$H2,$Xl,$t2
+
+	vext.8		$t1,$H2,$H2,#8		@ Karatsuba pre-processing
+	veor		$t1,$t1,$H2
+	vext.8		$Hhl,$t0,$t1,#8		@ pack Karatsuba pre-processed
+	vst1.64		{$Hhl-$H2},[x0]		@ store Htable[1..2]
 
 	ret
 .size	gcm_init_v8,.-gcm_init_v8
-
+___
+################################################################################
+# void gcm_gmult_v8(u64 Xi[2],const u128 Htable[16]);
+#
+# input:	Xi - current hash value;
+#		Htable - table precomputed in gcm_init_v8;
+# output:	Xi - next hash value Xi;
+#
+$code.=<<___;
 .global	gcm_gmult_v8
 .type	gcm_gmult_v8,%function
 .align	4
 gcm_gmult_v8:
 	vld1.64		{$t1},[$Xi]		@ load Xi
-	vmov.i8		$t3,#0xe1
-	vld1.64		{$H},[$Htbl]		@ load twisted H
-	vshl.u64	$t3,$t3,#57
+	vmov.i8		$xC2,#0xe1
+	vld1.64		{$H-$Hhl},[$Htbl]	@ load twisted H, ...
+	vshl.u64	$xC2,$xC2,#57
 #ifndef __ARMEB__
 	vrev64.8	$t1,$t1
 #endif
-	vext.8		$Hhl,$H,$H,#8
-	mov		$len,#0
 	vext.8		$IN,$t1,$t1,#8
-	mov		$inc,#0
-	veor		$Hhl,$Hhl,$H		@ Karatsuba pre-processing
-	mov		$inp,$Xi
-	b		.Lgmult_v8
-.size	gcm_gmult_v8,.-gcm_gmult_v8
 
-.global	gcm_ghash_v8
-.type	gcm_ghash_v8,%function
-.align	4
-gcm_ghash_v8:
-	vld1.64		{$Xl},[$Xi]		@ load [rotated] Xi
-	subs		$len,$len,#16
-	vmov.i8		$t3,#0xe1
-	mov		$inc,#16
-	vld1.64		{$H},[$Htbl]		@ load twisted H
-	cclr		$inc,eq
-	vext.8		$Xl,$Xl,$Xl,#8
-	vshl.u64	$t3,$t3,#57
-	vld1.64		{$t1},[$inp],$inc	@ load [rotated] inp
-	vext.8		$Hhl,$H,$H,#8
-#ifndef __ARMEB__
-	vrev64.8	$Xl,$Xl
-	vrev64.8	$t1,$t1
-#endif
-	veor		$Hhl,$Hhl,$H		@ Karatsuba pre-processing
-	vext.8		$IN,$t1,$t1,#8
-	b		.Loop_v8
-
-.align	4
-.Loop_v8:
-	vext.8		$t2,$Xl,$Xl,#8
-	veor		$IN,$IN,$Xl		@ inp^=Xi
-	veor		$t1,$t1,$t2		@ $t1 is rotated inp^Xi
-
-.Lgmult_v8:
 	vpmull.p64	$Xl,$H,$IN		@ H.lo·Xi.lo
 	veor		$t1,$t1,$IN		@ Karatsuba pre-processing
 	vpmull2.p64	$Xh,$H,$IN		@ H.hi·Xi.hi
-	subs		$len,$len,#16
 	vpmull.p64	$Xm,$Hhl,$t1		@ (H.lo+H.hi)·(Xi.lo+Xi.hi)
-	cclr		$inc,eq
 
 	vext.8		$t1,$Xl,$Xh,#8		@ Karatsuba post-processing
 	veor		$t2,$Xl,$Xh
 	veor		$Xm,$Xm,$t1
-	 vld1.64	{$t1},[$inp],$inc	@ load [rotated] inp
 	veor		$Xm,$Xm,$t2
-	vpmull.p64	$t2,$Xl,$t3		@ 1st phase
+	vpmull.p64	$t2,$Xl,$xC2		@ 1st phase of reduction
 
 	vmov		$Xh#lo,$Xm#hi		@ Xh|Xm - 256-bit result
 	vmov		$Xm#hi,$Xl#lo		@ Xm is rotated Xl
-#ifndef __ARMEB__
-	 vrev64.8	$t1,$t1
-#endif
 	veor		$Xl,$Xm,$t2
-	 vext.8		$IN,$t1,$t1,#8
 
-	vext.8		$t2,$Xl,$Xl,#8		@ 2nd phase
-	vpmull.p64	$Xl,$Xl,$t3
+	vext.8		$t2,$Xl,$Xl,#8		@ 2nd phase of reduction
+	vpmull.p64	$Xl,$Xl,$xC2
 	veor		$t2,$t2,$Xh
 	veor		$Xl,$Xl,$t2
-	b.hs		.Loop_v8
 
 #ifndef __ARMEB__
 	vrev64.8	$Xl,$Xl
@@ -155,6 +161,168 @@ gcm_ghash_v8:
 	vext.8		$Xl,$Xl,$Xl,#8
 	vst1.64		{$Xl},[$Xi]		@ write out Xi
 
+	ret
+.size	gcm_gmult_v8,.-gcm_gmult_v8
+___
+################################################################################
+# void gcm_ghash_v8(u64 Xi[2],const u128 Htable[16],const u8 *inp,size_t len);
+#
+# input:	table precomputed in gcm_init_v8;
+#		current hash value Xi;
+#		pointer to input data;
+#		length of input data in bytes, but divisible by block size;
+# output:	next hash value Xi;
+#
+$code.=<<___;
+.global	gcm_ghash_v8
+.type	gcm_ghash_v8,%function
+.align	4
+gcm_ghash_v8:
+___
+$code.=<<___		if ($flavour !~ /64/);
+	vstmdb		sp!,{d8-d15}		@ 32-bit ABI says so
+___
+$code.=<<___;
+	vld1.64		{$Xl},[$Xi]		@ load [rotated] Xi
+						@ "[rotated]" means that
+						@ loaded value would have
+						@ to be rotated in order to
+						@ make it appear as in
+						@ alorithm specification
+	subs		$len,$len,#32		@ see if $len is 32 or larger
+	mov		$inc,#16		@ $inc is used as post-
+						@ increment for input pointer;
+						@ as loop is modulo-scheduled
+						@ $inc is zeroed just in time
+						@ to preclude oversteping
+						@ inp[len], which means that
+						@ last block[s] are actually
+						@ loaded twice, but last
+						@ copy is not processed
+	vld1.64		{$H-$Hhl},[$Htbl],#32	@ load twisted H, ..., H^2
+	vmov.i8		$xC2,#0xe1
+	vld1.64		{$H2},[$Htbl]
+	cclr		$inc,eq			@ is it time to zero $inc?
+	vext.8		$Xl,$Xl,$Xl,#8		@ rotate Xi
+	vld1.64		{$t0},[$inp],#16	@ load [rotated] I[0]
+	vshl.u64	$xC2,$xC2,#57		@ compose 0xc2.0 constant
+#ifndef __ARMEB__
+	vrev64.8	$t0,$t0
+	vrev64.8	$Xl,$Xl
+#endif
+	vext.8		$IN,$t0,$t0,#8		@ rotate I[0]
+	b.lo		.Lodd_tail_v8		@ $len was less than 32
+___
+{ my ($Xln,$Xmn,$Xhn,$In) = map("q$_",(4..7));
+	#######
+	# Xi+2 =[H*(Ii+1 + Xi+1)] mod P =
+	#	[(H*Ii+1) + (H*Xi+1)] mod P =
+	#	[(H*Ii+1) + H^2*(Ii+Xi)] mod P
+	#
+$code.=<<___;
+	vld1.64		{$t1},[$inp],$inc	@ load [rotated] I[1]
+#ifndef __ARMEB__
+	vrev64.8	$t1,$t1
+#endif
+	vext.8		$In,$t1,$t1,#8
+	veor		$IN,$IN,$Xl		@ I[i]^=Xi
+	vpmull.p64	$Xln,$H,$In		@ H·Ii+1
+	veor		$t1,$t1,$In		@ Karatsuba pre-processing
+	vpmull2.p64	$Xhn,$H,$In
+	b		.Loop_mod2x_v8
+
+.align	4
+.Loop_mod2x_v8:
+	vext.8		$t2,$IN,$IN,#8
+	subs		$len,$len,#32		@ is there more data?
+	vpmull.p64	$Xl,$H2,$IN		@ H^2.lo·Xi.lo
+	cclr		$inc,lo			@ is it time to zero $inc?
+
+	 vpmull.p64	$Xmn,$Hhl,$t1
+	veor		$t2,$t2,$IN		@ Karatsuba pre-processing
+	vpmull2.p64	$Xh,$H2,$IN		@ H^2.hi·Xi.hi
+	veor		$Xl,$Xl,$Xln		@ accumulate
+	vpmull2.p64	$Xm,$Hhl,$t2		@ (H^2.lo+H^2.hi)·(Xi.lo+Xi.hi)
+	 vld1.64	{$t0},[$inp],$inc	@ load [rotated] I[i+2]
+
+	veor		$Xh,$Xh,$Xhn
+	 cclr		$inc,eq			@ is it time to zero $inc?
+	veor		$Xm,$Xm,$Xmn
+
+	vext.8		$t1,$Xl,$Xh,#8		@ Karatsuba post-processing
+	veor		$t2,$Xl,$Xh
+	veor		$Xm,$Xm,$t1
+	 vld1.64	{$t1},[$inp],$inc	@ load [rotated] I[i+3]
+#ifndef __ARMEB__
+	 vrev64.8	$t0,$t0
+#endif
+	veor		$Xm,$Xm,$t2
+	vpmull.p64	$t2,$Xl,$xC2		@ 1st phase of reduction
+
+#ifndef __ARMEB__
+	 vrev64.8	$t1,$t1
+#endif
+	vmov		$Xh#lo,$Xm#hi		@ Xh|Xm - 256-bit result
+	vmov		$Xm#hi,$Xl#lo		@ Xm is rotated Xl
+	 vext.8		$In,$t1,$t1,#8
+	 vext.8		$IN,$t0,$t0,#8
+	veor		$Xl,$Xm,$t2
+	 vpmull.p64	$Xln,$H,$In		@ H·Ii+1
+	veor		$IN,$IN,$Xh		@ accumulate $IN early
+
+	vext.8		$t2,$Xl,$Xl,#8		@ 2nd phase of reduction
+	vpmull.p64	$Xl,$Xl,$xC2
+	veor		$IN,$IN,$t2
+	 veor		$t1,$t1,$In		@ Karatsuba pre-processing
+	veor		$IN,$IN,$Xl
+	 vpmull2.p64	$Xhn,$H,$In
+	b.hs		.Loop_mod2x_v8		@ there was at least 32 more bytes
+
+	veor		$Xh,$Xh,$t2
+	vext.8		$IN,$t0,$t0,#8		@ re-construct $IN
+	adds		$len,$len,#32		@ re-construct $len
+	veor		$Xl,$Xl,$Xh		@ re-construct $Xl
+	b.eq		.Ldone_v8		@ is $len zero?
+___
+}
+$code.=<<___;
+.Lodd_tail_v8:
+	vext.8		$t2,$Xl,$Xl,#8
+	veor		$IN,$IN,$Xl		@ inp^=Xi
+	veor		$t1,$t0,$t2		@ $t1 is rotated inp^Xi
+
+	vpmull.p64	$Xl,$H,$IN		@ H.lo·Xi.lo
+	veor		$t1,$t1,$IN		@ Karatsuba pre-processing
+	vpmull2.p64	$Xh,$H,$IN		@ H.hi·Xi.hi
+	vpmull.p64	$Xm,$Hhl,$t1		@ (H.lo+H.hi)·(Xi.lo+Xi.hi)
+
+	vext.8		$t1,$Xl,$Xh,#8		@ Karatsuba post-processing
+	veor		$t2,$Xl,$Xh
+	veor		$Xm,$Xm,$t1
+	veor		$Xm,$Xm,$t2
+	vpmull.p64	$t2,$Xl,$xC2		@ 1st phase of reduction
+
+	vmov		$Xh#lo,$Xm#hi		@ Xh|Xm - 256-bit result
+	vmov		$Xm#hi,$Xl#lo		@ Xm is rotated Xl
+	veor		$Xl,$Xm,$t2
+
+	vext.8		$t2,$Xl,$Xl,#8		@ 2nd phase of reduction
+	vpmull.p64	$Xl,$Xl,$xC2
+	veor		$t2,$t2,$Xh
+	veor		$Xl,$Xl,$t2
+
+.Ldone_v8:
+#ifndef __ARMEB__
+	vrev64.8	$Xl,$Xl
+#endif
+	vext.8		$Xl,$Xl,$Xl,#8
+	vst1.64		{$Xl},[$Xi]		@ write out Xi
+
+___
+$code.=<<___		if ($flavour !~ /64/);
+	vldmia		sp!,{d8-d15}		@ 32-bit ABI says so
+___
+$code.=<<___;
 	ret
 .size	gcm_ghash_v8,.-gcm_ghash_v8
 ___
@@ -222,7 +390,7 @@ if ($flavour =~ /64/) {			######## 64-bit code
     foreach(split("\n",$code)) {
 	s/\b[wx]([0-9]+)\b/r$1/go;		# new->old registers
 	s/\bv([0-9])\.[12468]+[bsd]\b/q$1/go;	# new->old registers
-        s/\/\/\s?/@ /o;				# new->old style commentary
+	s/\/\/\s?/@ /o;				# new->old style commentary
 
 	# fix up remainig new-style suffixes
 	s/\],#[0-9]+/]!/o;
@@ -234,7 +402,7 @@ if ($flavour =~ /64/) {			######## 64-bit code
 	s/^(\s+)b\./$1b/o						or
 	s/^(\s+)ret/$1bx\tlr/o;
 
-        print $_,"\n";
+	print $_,"\n";
     }
 }
 

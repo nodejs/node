@@ -1,1 +1,1 @@
-#include "../../crypto/des/des.h"
+../../crypto/des/des.h

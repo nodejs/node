@@ -60,7 +60,16 @@
 #include "cryptlib.h"
 #include <openssl/asn1.h>
 #include <openssl/x509v3.h>
-#include "../ssl/ssl_locl.h"
+
+/* Signature and hash algorithms from RFC 5246 */
+#define TLSEXT_hash_sha256                              4
+
+#define TLSEXT_signature_rsa                            1
+#define TLSEXT_signature_ecdsa                          3
+
+
+#define n2s(c,s)        ((s=(((unsigned int)(c[0]))<< 8)| \
+                            (((unsigned int)(c[1]))    )),c+=2)
 
 #if (defined(_WIN32) || defined(_WIN64)) && !defined(__MINGW32__)
 # define SCT_TIMESTAMP unsigned __int64

@@ -426,14 +426,14 @@ LEAF(bn_add_words)
 	sltu	v0,t2,ta2
 	sd	t2,-16(a0)
 	daddu	v0,t8
-
+	
 	daddu	ta3,t3
 	sltu	t9,ta3,t3
 	daddu	t3,ta3,v0
 	sltu	v0,t3,ta3
 	sd	t3,-8(a0)
 	daddu	v0,t9
-
+	
 	.set	noreorder
 	bgtzl	AT,.L_bn_add_words_loop
 	ld	t0,0(a1)
@@ -721,7 +721,7 @@ LEAF(bn_div_words)
 	b	.L_bn_div_words_inner_loop2
 	dsubu	QT,1
 	.set	reorder
-.L_bn_div_words_inner_loop2_done:
+.L_bn_div_words_inner_loop2_done:	
 #undef	HH
 
 	dsubu	a0,t3,t0

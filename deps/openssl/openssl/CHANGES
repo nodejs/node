@@ -2,6 +2,90 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 1.0.2a and 1.0.2b [11 Jun 2015]
+
+  *) Malformed ECParameters causes infinite loop
+
+     When processing an ECParameters structure OpenSSL enters an infinite loop
+     if the curve specified is over a specially malformed binary polynomial
+     field.
+
+     This can be used to perform denial of service against any
+     system which processes public keys, certificate requests or
+     certificates.  This includes TLS clients and TLS servers with
+     client authentication enabled.
+
+     This issue was reported to OpenSSL by Joseph Barr-Pixton.
+     (CVE-2015-1788)
+     [Andy Polyakov]
+
+  *) Exploitable out-of-bounds read in X509_cmp_time
+
+     X509_cmp_time does not properly check the length of the ASN1_TIME
+     string and can read a few bytes out of bounds. In addition,
+     X509_cmp_time accepts an arbitrary number of fractional seconds in the
+     time string.
+
+     An attacker can use this to craft malformed certificates and CRLs of
+     various sizes and potentially cause a segmentation fault, resulting in
+     a DoS on applications that verify certificates or CRLs. TLS clients
+     that verify CRLs are affected. TLS clients and servers with client
+     authentication enabled may be affected if they use custom verification
+     callbacks.
+
+     This issue was reported to OpenSSL by Robert Swiecki (Google), and
+     independently by Hanno Böck.
+     (CVE-2015-1789)
+     [Emilia Käsper]
+
+  *) PKCS7 crash with missing EnvelopedContent
+
+     The PKCS#7 parsing code does not handle missing inner EncryptedContent
+     correctly. An attacker can craft malformed ASN.1-encoded PKCS#7 blobs
+     with missing content and trigger a NULL pointer dereference on parsing.
+
+     Applications that decrypt PKCS#7 data or otherwise parse PKCS#7
+     structures from untrusted sources are affected. OpenSSL clients and
+     servers are not affected.
+
+     This issue was reported to OpenSSL by Michal Zalewski (Google).
+     (CVE-2015-1790)
+     [Emilia Käsper]
+
+  *) CMS verify infinite loop with unknown hash function
+
+     When verifying a signedData message the CMS code can enter an infinite loop
+     if presented with an unknown hash function OID. This can be used to perform
+     denial of service against any system which verifies signedData messages using
+     the CMS code.
+     This issue was reported to OpenSSL by Johannes Bauer.
+     (CVE-2015-1792)
+     [Stephen Henson]
+
+  *) Race condition handling NewSessionTicket
+
+     If a NewSessionTicket is received by a multi-threaded client when attempting to
+     reuse a previous ticket then a race condition can occur potentially leading to
+     a double free of the ticket data.
+     (CVE-2015-1791)
+     [Matt Caswell]
+
+  *) Removed support for the two export grade static DH ciphersuites
+     EXP-DH-RSA-DES-CBC-SHA and EXP-DH-DSS-DES-CBC-SHA. These two ciphersuites
+     were newly added (along with a number of other static DH ciphersuites) to
+     1.0.2. However the two export ones have *never* worked since they were
+     introduced. It seems strange in any case to be adding new export
+     ciphersuites, and given "logjam" it also does not seem correct to fix them.
+     [Matt Caswell]
+
+  *) Only support 256-bit or stronger elliptic curves with the
+     'ecdh_auto' setting (server) or by default (client). Of supported
+     curves, prefer P-256 (both).
+     [Emilia Kasper]
+
+  *) Reject DH handshakes with parameters shorter than 768 bits.
+     [Kurt Roeckx and Emilia Kasper]
+
  Changes between 1.0.2 and 1.0.2a [19 Mar 2015]
 
   *) ClientHello sigalgs DoS fix
@@ -373,7 +457,7 @@
      [Steve Henson]
 
   *) Add new "valid_flags" field to CERT_PKEY structure which determines what
-     the certificate can be used for (if anything). Set valid_flags field
+     the certificate can be used for (if anything). Set valid_flags field 
      in new tls1_check_chain function. Simplify ssl_set_cert_masks which used
      to have similar checks in it.
 
@@ -416,7 +500,7 @@
   *) Fix OCSP checking.
      [Rob Stradling <rob.stradling@comodo.com> and Ben Laurie]
 
-  *) Initial experimental support for explicitly trusted non-root CAs.
+  *) Initial experimental support for explicitly trusted non-root CAs. 
      OpenSSL still tries to build a complete chain to a root but if an
      intermediate CA has a trust setting included that is used. The first
      setting is used: whether to trust (e.g., -addtrust option to the x509
@@ -467,7 +551,7 @@
      to set list of supported curves.
      [Steve Henson]
 
-  *) New ctrls to retrieve supported signature algorithms and
+  *) New ctrls to retrieve supported signature algorithms and 
      supported curve values as an array of NIDs. Extend openssl utility
      to print out received values.
      [Steve Henson]

@@ -285,6 +285,10 @@ STACK_OF(CONF_VALUE) *X509V3_parse_list(const char *line)
     int state;
     /* We are going to modify the line so copy it first */
     linebuf = BUF_strdup(line);
+    if (linebuf == NULL) {
+        X509V3err(X509V3_F_X509V3_PARSE_LIST, ERR_R_MALLOC_FAILURE);
+        goto err;
+    }
     state = HDR_NAME;
     ntmp = NULL;
     /* Go through all characters */
@@ -807,7 +811,7 @@ static const unsigned char *valid_star(const unsigned char *p, size_t len,
          */
         if (p[i] == '*') {
             int atstart = (state & LABEL_START);
-            int atend = (i == len - 1 || p[i + i] == '.');
+            int atend = (i == len - 1 || p[i + 1] == '.');
             /*-
              * At most one wildcard per pattern.
              * No wildcards in IDNA labels.

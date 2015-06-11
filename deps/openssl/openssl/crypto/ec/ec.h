@@ -1097,6 +1097,12 @@ void ERR_load_EC_strings(void);
 # define EC_F_ECPARAMETERS_PRINT_FP                       148
 # define EC_F_ECPKPARAMETERS_PRINT                        149
 # define EC_F_ECPKPARAMETERS_PRINT_FP                     150
+# define EC_F_ECP_NISTZ256_GET_AFFINE                     240
+# define EC_F_ECP_NISTZ256_MULT_PRECOMPUTE                243
+# define EC_F_ECP_NISTZ256_POINTS_MUL                     241
+# define EC_F_ECP_NISTZ256_PRE_COMP_NEW                   244
+# define EC_F_ECP_NISTZ256_SET_WORDS                      245
+# define EC_F_ECP_NISTZ256_WINDOWED_MUL                   242
 # define EC_F_ECP_NIST_MOD_192                            203
 # define EC_F_ECP_NIST_MOD_224                            204
 # define EC_F_ECP_NIST_MOD_256                            205
@@ -1208,11 +1214,6 @@ void ERR_load_EC_strings(void);
 # define EC_F_NISTP224_PRE_COMP_NEW                       227
 # define EC_F_NISTP256_PRE_COMP_NEW                       236
 # define EC_F_NISTP521_PRE_COMP_NEW                       237
-# define EC_F_ECP_NISTZ256_GET_AFFINE                     240
-# define EC_F_ECP_NISTZ256_POINTS_MUL                     241
-# define EC_F_ECP_NISTZ256_WINDOWED_MUL                   242
-# define EC_F_ECP_NISTZ256_MULT_PRECOMPUTE                243
-# define EC_F_ECP_NISTZ256_PRE_COMP_NEW                   244
 # define EC_F_O2I_ECPUBLICKEY                             152
 # define EC_F_OLD_EC_PRIV_DECODE                          222
 # define EC_F_PKEY_EC_CTRL                                197

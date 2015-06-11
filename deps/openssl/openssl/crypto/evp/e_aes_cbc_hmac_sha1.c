@@ -94,7 +94,7 @@ typedef struct {
         defined(_M_AMD64)       || defined(_M_X64)      || \
         defined(__INTEL__)      )
 
-extern unsigned int OPENSSL_ia32cap_P[3];
+extern unsigned int OPENSSL_ia32cap_P[];
 #  define AESNI_CAPABLE   (1<<(57-32))
 
 int aesni_set_encrypt_key(const unsigned char *userKey, int bits,
@@ -845,7 +845,12 @@ static int aesni_cbc_hmac_sha1_ctrl(EVP_CIPHER_CTX *ctx, int type, int arg,
     case EVP_CTRL_AEAD_TLS1_AAD:
         {
             unsigned char *p = ptr;
-            unsigned int len = p[arg - 2] << 8 | p[arg - 1];
+            unsigned int len;
+
+            if (arg != EVP_AEAD_TLS1_AAD_LEN)
+                return -1;
+ 
+            len = p[arg - 2] << 8 | p[arg - 1];
 
             if (ctx->encrypt) {
                 key->payload_length = len;
@@ -862,8 +867,6 @@ static int aesni_cbc_hmac_sha1_ctrl(EVP_CIPHER_CTX *ctx, int type, int arg,
                                AES_BLOCK_SIZE) & -AES_BLOCK_SIZE)
                              - len);
             } else {
-                if (arg > 13)
-                    arg = 13;
                 memcpy(key->aux.tls_aad, ptr, arg);
                 key->payload_length = arg;
 

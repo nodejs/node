@@ -361,11 +361,22 @@ static int ssl3_get_record(SSL *s)
             if (version != s->version) {
                 SSLerr(SSL_F_SSL3_GET_RECORD, SSL_R_WRONG_VERSION_NUMBER);
                 if ((s->version & 0xFF00) == (version & 0xFF00)
-                    && !s->enc_write_ctx && !s->write_hash)
+                    && !s->enc_write_ctx && !s->write_hash) {
+                    if (rr->type == SSL3_RT_ALERT) {
+                        /*
+                         * The record is using an incorrect version number, but
+                         * what we've got appears to be an alert. We haven't
+                         * read the body yet to check whether its a fatal or
+                         * not - but chances are it is. We probably shouldn't
+                         * send a fatal alert back. We'll just end.
+                         */
+                         goto err;
+                    }
                     /*
                      * Send back error using their minor version number :-)
                      */
                     s->version = (unsigned short)version;
+                }
                 al = SSL_AD_PROTOCOL_VERSION;
                 goto f_err;
             }
@@ -708,7 +719,7 @@ int ssl3_write_bytes(SSL *s, int type, const void *buf_, int len)
                 packlen *= 4;
 
             wb->buf = OPENSSL_malloc(packlen);
-            if(!wb->buf) {
+            if (!wb->buf) {
                 SSLerr(SSL_F_SSL3_WRITE_BYTES, ERR_R_MALLOC_FAILURE);
                 return -1;
             }

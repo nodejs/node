@@ -1,6 +1,6 @@
 /* crypto/ec/ec_err.c */
 /* ====================================================================
- * Copyright (c) 1999-2014 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2015 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -89,6 +89,13 @@ static ERR_STRING_DATA EC_str_functs[] = {
     {ERR_FUNC(EC_F_ECPARAMETERS_PRINT_FP), "ECParameters_print_fp"},
     {ERR_FUNC(EC_F_ECPKPARAMETERS_PRINT), "ECPKParameters_print"},
     {ERR_FUNC(EC_F_ECPKPARAMETERS_PRINT_FP), "ECPKParameters_print_fp"},
+    {ERR_FUNC(EC_F_ECP_NISTZ256_GET_AFFINE), "ecp_nistz256_get_affine"},
+    {ERR_FUNC(EC_F_ECP_NISTZ256_MULT_PRECOMPUTE),
+     "ecp_nistz256_mult_precompute"},
+    {ERR_FUNC(EC_F_ECP_NISTZ256_POINTS_MUL), "ecp_nistz256_points_mul"},
+    {ERR_FUNC(EC_F_ECP_NISTZ256_PRE_COMP_NEW), "ecp_nistz256_pre_comp_new"},
+    {ERR_FUNC(EC_F_ECP_NISTZ256_SET_WORDS), "ecp_nistz256_set_words"},
+    {ERR_FUNC(EC_F_ECP_NISTZ256_WINDOWED_MUL), "ecp_nistz256_windowed_mul"},
     {ERR_FUNC(EC_F_ECP_NIST_MOD_192), "ECP_NIST_MOD_192"},
     {ERR_FUNC(EC_F_ECP_NIST_MOD_224), "ECP_NIST_MOD_224"},
     {ERR_FUNC(EC_F_ECP_NIST_MOD_256), "ECP_NIST_MOD_256"},
@@ -239,12 +246,6 @@ static ERR_STRING_DATA EC_str_functs[] = {
     {ERR_FUNC(EC_F_NISTP224_PRE_COMP_NEW), "NISTP224_PRE_COMP_NEW"},
     {ERR_FUNC(EC_F_NISTP256_PRE_COMP_NEW), "NISTP256_PRE_COMP_NEW"},
     {ERR_FUNC(EC_F_NISTP521_PRE_COMP_NEW), "NISTP521_PRE_COMP_NEW"},
-    {ERR_FUNC(EC_F_ECP_NISTZ256_GET_AFFINE), "ecp_nistz256_get_affine"},
-    {ERR_FUNC(EC_F_ECP_NISTZ256_POINTS_MUL), "ecp_nistz256_points_mul"},
-    {ERR_FUNC(EC_F_ECP_NISTZ256_WINDOWED_MUL), "ecp_nistz256_windowed_mul"},
-    {ERR_FUNC(EC_F_ECP_NISTZ256_MULT_PRECOMPUTE),
-     "ecp_nistz256_mult_precompute"},
-    {ERR_FUNC(EC_F_ECP_NISTZ256_PRE_COMP_NEW), "ecp_nistz256_pre_comp_new"},
     {ERR_FUNC(EC_F_O2I_ECPUBLICKEY), "o2i_ECPublicKey"},
     {ERR_FUNC(EC_F_OLD_EC_PRIV_DECODE), "OLD_EC_PRIV_DECODE"},
     {ERR_FUNC(EC_F_PKEY_EC_CTRL), "PKEY_EC_CTRL"},
