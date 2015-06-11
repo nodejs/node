@@ -39,14 +39,9 @@ rules:
   # Stylistic Issues
   # list: https://github.com/eslint/eslint/tree/master/docs/rules#stylistic-issues
   ## use single quote, we can use double quote when escape chars
-  quotes:
-    - 2
-    - "single"
-    - "avoid-escape"
+  quotes: [2, "single", "avoid-escape"]
   ## 2 space indentation
-  indent:
-    - 2
-    - 2
+  indent: [2, 2]
   ## add space after comma
   ## set to 'warn' because of https://github.com/eslint/eslint/issues/2408
   comma-spacing: 1
@@ -63,35 +58,40 @@ rules:
   ## require parens for Constructor
   new-parens: 2
   ## max 80 length
-  max-len:
-    - 2
-    - 80
-    - 2
+  max-len: [2, 80, 2]
 
   # Strict Mode
   # list: https://github.com/eslint/eslint/tree/master/docs/rules#strict-mode
   ## 'use strict' on top
-  strict:
-    - 2
-    - "global"
+  strict: [2, "global"]
+
+  # Variables
+  # list: https://github.com/eslint/eslint/tree/master/docs/rules#variables
+  ## disallow use of undefined variables (globals)
+  no-undef: 2
+
+  # Custom rules in tools/eslint-rules
+  require-buffer: 2
 
 # Global scoped method and vars
 globals:
-  DTRACE_HTTP_CLIENT_REQUEST: true
-  LTTNG_HTTP_CLIENT_REQUEST: true
-  COUNTER_HTTP_CLIENT_REQUEST: true
-  DTRACE_HTTP_CLIENT_RESPONSE: true
-  LTTNG_HTTP_CLIENT_RESPONSE: true
-  COUNTER_HTTP_CLIENT_RESPONSE: true
-  DTRACE_HTTP_SERVER_REQUEST: true
-  LTTNG_HTTP_SERVER_REQUEST: true
-  COUNTER_HTTP_SERVER_REQUEST: true
-  DTRACE_HTTP_SERVER_RESPONSE: true
-  LTTNG_HTTP_SERVER_RESPONSE: true
-  COUNTER_HTTP_SERVER_RESPONSE: true
-  DTRACE_NET_STREAM_END: true
-  LTTNG_NET_STREAM_END: true
-  COUNTER_NET_SERVER_CONNECTION_CLOSE: true
-  DTRACE_NET_SERVER_CONNECTION: true
-  LTTNG_NET_SERVER_CONNECTION: true
-  COUNTER_NET_SERVER_CONNECTION: true
+  DTRACE_HTTP_CLIENT_REQUEST           : false
+  LTTNG_HTTP_CLIENT_REQUEST            : false
+  COUNTER_HTTP_CLIENT_REQUEST          : false
+  DTRACE_HTTP_CLIENT_RESPONSE          : false
+  LTTNG_HTTP_CLIENT_RESPONSE           : false
+  COUNTER_HTTP_CLIENT_RESPONSE         : false
+  DTRACE_HTTP_SERVER_REQUEST           : false
+  LTTNG_HTTP_SERVER_REQUEST            : false
+  COUNTER_HTTP_SERVER_REQUEST          : false
+  DTRACE_HTTP_SERVER_RESPONSE          : false
+  LTTNG_HTTP_SERVER_RESPONSE           : false
+  COUNTER_HTTP_SERVER_RESPONSE         : false
+  DTRACE_NET_STREAM_END                : false
+  LTTNG_NET_STREAM_END                 : false
+  COUNTER_NET_SERVER_CONNECTION_CLOSE  : false
+  DTRACE_NET_SERVER_CONNECTION         : false
+  LTTNG_NET_SERVER_CONNECTION          : false
+  COUNTER_NET_SERVER_CONNECTION        : false
+  escape                               : false
+  unescape                             : false
