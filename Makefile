@@ -87,16 +87,16 @@ test-valgrind: all
 	$(PYTHON) tools/test.py --mode=release --valgrind sequential parallel message
 
 test/gc/node_modules/weak/build/Release/weakref.node: $(NODE_EXE)
-	./$(NODE_EXE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
+	$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
 		--directory="$(shell pwd)/test/gc/node_modules/weak" \
 		--nodedir="$(shell pwd)"
 
 build-addons: $(NODE_EXE)
 	rm -rf test/addons/doc-*/
-	./$(NODE_EXE) tools/doc/addon-verify.js
+	$(NODE) tools/doc/addon-verify.js
 	$(foreach dir, \
 			$(sort $(dir $(wildcard test/addons/*/*.gyp))), \
-			./$(NODE_EXE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
+			$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
 					--directory="$(shell pwd)/$(dir)" \
 					--nodedir="$(shell pwd)" && ) echo "build done"
 
@@ -153,7 +153,7 @@ test-npm: $(NODE_EXE)
 	     rm -rf npm-cache npm-tmp npm-prefix
 
 test-npm-publish: $(NODE_EXE)
-	npm_package_config_publishtest=true ./$(NODE_EXE) deps/npm/test/run.js
+	npm_package_config_publishtest=true $(NODE) deps/npm/test/run.js
 
 test-addons: test-build
 	$(PYTHON) tools/test.py --mode=release addons
@@ -185,10 +185,10 @@ out/doc/%: doc/%
 	cp -r $< $@
 
 out/doc/api/%.json: doc/api/%.markdown $(NODE_EXE)
-	out/Release/$(NODE_EXE) tools/doc/generate.js --format=json $< > $@
+	$(NODE) tools/doc/generate.js --format=json $< > $@
 
 out/doc/api/%.html: doc/api/%.markdown $(NODE_EXE)
-	out/Release/$(NODE_EXE) tools/doc/generate.js --format=html --template=doc/template.html $< > $@
+	$(NODE) tools/doc/generate.js --format=html --template=doc/template.html $< > $@
 
 docopen: out/doc/api/all.html
 	-google-chrome out/doc/api/all.html
@@ -382,9 +382,9 @@ bench-http-simple:
 	 benchmark/http_simple_bench.sh
 
 bench-idle:
-	./$(NODE_EXE) benchmark/idle_server.js &
+	$(NODE) benchmark/idle_server.js &
 	sleep 1
-	./$(NODE_EXE) benchmark/idle_clients.js &
+	$(NODE) benchmark/idle_clients.js &
 
 jslintfix:
 	PYTHONPATH=tools/closure_linter/:tools/gflags/ $(PYTHON) tools/closure_linter/closure_linter/fixjsstyle.py --strict --nojsdoc -r lib/ -r src/ --exclude_files lib/punycode.js
