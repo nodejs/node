@@ -326,6 +326,7 @@ information about the governance of the io.js project, see
 * **Ali Ijaz Sheikh** ([@ofrobots](https://github.com/ofrobots)) &lt;ofrobots@google.com&gt;
 * **Oleg Elifantiev** ([@Olegas](https://github.com/Olegas)) &lt;oleg@elifantiev.ru&gt;
 * **Domenic Denicola** ([@domenic](https://github.com/domenic)) &lt;d@domenic.me&gt;
+* **Rich Trott** ([@Trott](https://github.com/Trott)) &lt;rtrott@gmail.com&gt;
 
 Collaborators follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
 maintaining the io.js project.
