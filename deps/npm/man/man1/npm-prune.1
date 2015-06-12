@@ -18,8 +18,10 @@ removed\.
 Extraneous packages are packages that are not listed on the parent
 package's dependencies list\.
 .P
-If the \fB\-\-production\fR flag is specified, this command will remove the
-packages specified in your \fBdevDependencies\fR\|\.
+If the \fB\-\-production\fR flag is specified or the \fBNODE_ENV\fR environment
+variable is set to \fBproduction\fR, this command will remove the packages
+specified in your \fBdevDependencies\fR\|\. Setting \fB\-\-production=false\fR will
+negate \fBNODE_ENV\fR being set to \fBproduction\fR\|\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2

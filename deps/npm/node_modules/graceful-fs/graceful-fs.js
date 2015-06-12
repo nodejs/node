@@ -128,7 +128,7 @@ Req.prototype.done = function (er, result) {
   var tryAgain = false
   if (er) {
     var code = er.code
-    var tryAgain = code === "EMFILE"
+    var tryAgain = code === "EMFILE" || code === "ENFILE"
     if (process.platform === "win32")
       tryAgain = tryAgain || code === "OK"
   }
