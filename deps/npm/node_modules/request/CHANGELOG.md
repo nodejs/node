@@ -1,5 +1,8 @@
 ## Change Log
 
+### v2.57.0 (2015/05/31)
+- [#1615](https://github.com/request/request/pull/1615) Replace '.client' with '.socket' as the former was deprecated in 2.2.0. (@ChALkeR)
+
 ### v2.56.0 (2015/05/28)
 - [#1610](https://github.com/request/request/pull/1610) Bump module dependencies (@simov)
 - [#1600](https://github.com/request/request/pull/1600) Extract the querystring logic into separate module (@simov)

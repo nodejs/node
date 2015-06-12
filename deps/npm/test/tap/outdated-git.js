@@ -1,8 +1,8 @@
-var fs = require('graceful-fs')
 var path = require('path')
 
 var test = require('tap').test
 var mkdirp = require('mkdirp')
+var fs = require("graceful-fs")
 var rimraf = require('rimraf')
 
 var common = require('../common-tap.js')
@@ -18,9 +18,9 @@ var json = {
   version: '0.0.1',
   main: 'index.js',
   dependencies: {
+    'foo-github': 'robertkowalski/foo',
     'foo-private': 'git://github.com/robertkowalski/foo-private.git',
-    'foo-private-credentials': 'git://user:pass@github.com/robertkowalski/foo-private.git',
-    'foo-github': 'robertkowalski/foo'
+    'foo-private-credentials': 'git://user:pass@github.com/robertkowalski/foo-private.git'
   }
 }
 
@@ -36,9 +36,9 @@ test('discovers new versions in outdated', function (t) {
     npm.commands.outdated([], function (er, d) {
       t.equal(d[0][3], 'git')
       t.equal(d[0][4], 'git')
-      t.equal(d[0][5], 'git://github.com/robertkowalski/foo-private.git')
-      t.equal(d[1][5], 'git://user:pass@github.com/robertkowalski/foo-private.git')
-      t.equal(d[2][5], 'github:robertkowalski/foo')
+      t.equal(d[0][5], 'github:robertkowalski/foo')
+      t.equal(d[1][5], 'git://github.com/robertkowalski/foo-private.git')
+      t.equal(d[2][5], 'git://user:pass@github.com/robertkowalski/foo-private.git')
     })
   })
 })

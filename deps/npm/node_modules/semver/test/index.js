@@ -148,7 +148,7 @@ test('\nrange tests', function(t) {
     ['>=*', '0.2.4'],
     ['', '1.0.0'],
     ['*', '1.2.3'],
-    ['*', 'v1.2.3-foo', true],
+    ['*', 'v1.2.3', true],
     ['>=1.0.0', '1.0.0'],
     ['>=1.0.0', '1.0.1'],
     ['>=1.0.0', '1.1.0'],
@@ -301,6 +301,7 @@ test('\nnegative range tests', function(t) {
     ['^1.2.3', '2.0.0-alpha'],
     ['^1.2.3', '1.2.2'],
     ['^1.2', '1.1.9'],
+    ['*', 'v1.2.3-foo', true],
     // invalid ranges never satisfied!
     ['blerg', '1.2.3'],
     ['git+https://user:password0123@github.com/foo', '123.0.0', true],

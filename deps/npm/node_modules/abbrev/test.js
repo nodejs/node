@@ -2,7 +2,7 @@ var abbrev = require('./abbrev.js')
 var assert = require("assert")
 var util = require("util")
 
-console.log("TAP Version 13")
+console.log("TAP version 13")
 var count = 0
 
 function test (list, expect) {
@@ -44,4 +44,4 @@ test(["a", "ab", "abc", "abcd", "abcde", "acde"],
 , acde: 'acde'
 })
 
-console.log("0..%d", count)
+console.log("1..%d", count)

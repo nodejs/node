@@ -8,8 +8,10 @@ provided, then only packages matching one of the supplied names are
 removed.</p>
 <p>Extraneous packages are packages that are not listed on the parent
 package&#39;s dependencies list.</p>
-<p>If the <code>--production</code> flag is specified, this command will remove the
-packages specified in your <code>devDependencies</code>.</p>
+<p>If the <code>--production</code> flag is specified or the <code>NODE_ENV</code> environment
+variable is set to <code>production</code>, this command will remove the packages
+specified in your <code>devDependencies</code>. Setting <code>--production=false</code> will
+negate <code>NODE_ENV</code> being set to <code>production</code>.</p>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
 <li><a href="../cli/npm-rm.html">npm-rm(1)</a></li>
