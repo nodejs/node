@@ -9,6 +9,7 @@
 namespace node {
 
 class Environment;
+class HandleCleanup;
 
 // Rules:
 //
@@ -32,6 +33,8 @@ class Environment;
 
 class HandleWrap : public AsyncWrap {
  public:
+  typedef void (*HandleWillForceCloseCb)(HandleWrap* wrap, uv_handle_t* handle);
+
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Ref(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Unref(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -49,19 +52,31 @@ class HandleWrap : public AsyncWrap {
              AsyncWrap::ProviderType provider,
              AsyncWrap* parent = nullptr);
   virtual ~HandleWrap() override;
+  virtual void RegisterHandleCleanup(uv_handle_t* handle,
+                                     HandleWillForceCloseCb cb = nullptr);
 
  private:
+  class CallbackContainer {
+    explicit CallbackContainer(HandleWillForceCloseCb cb) : cb_(cb) {}
+    HandleWillForceCloseCb cb_;
+    friend class HandleWrap;
+  };
+  static void HandleCleanupCallback(Environment* env,
+                                    uv_handle_t* handle,
+                                    void* arg);
   friend class Environment;
   friend void GetActiveHandles(const v8::FunctionCallbackInfo<v8::Value>&);
   static void OnClose(uv_handle_t* handle);
   ListNode<HandleWrap> handle_wrap_queue_;
   unsigned int flags_;
+  HandleCleanup* hc_ = nullptr;
   // Using double underscore due to handle_ member in tcp_wrap. Probably
   // tcp_wrap should rename it's member to 'handle'.
   uv_handle_t* handle__;
 
   static const unsigned int kUnref = 1;
   static const unsigned int kCloseCallback = 2;
+  static const unsigned int kEnvironmentCleanup = 4;
 };
 
 

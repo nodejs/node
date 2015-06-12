@@ -38,7 +38,7 @@
 
     // Do not initialize channel in debugger agent, it deletes env variable
     // and the main thread won't see it.
-    if (process.argv[1] !== '--debug-agent')
+    if (process.argv[1] !== '--debug-agent' && process.isMainInstance)
       startup.processChannel();
 
     startup.processRawDebug();
@@ -49,8 +49,17 @@
     // are running from a script and running the REPL - but there are a few
     // others like the debugger or running --eval arguments. Here we decide
     // which mode we run in.
-
-    if (NativeModule.exists('_third_party_main')) {
+    if (process.isWorkerInstance) {
+      // Sets up the Worker wrapper object
+      NativeModule.require('worker');
+      var path = NativeModule.require('path');
+      process.argv[1] = path.resolve(process.argv[1]);
+      var Module = NativeModule.require('module');
+      process._runMain = function() {
+        delete process._runMain;
+        Module.runMain();
+      };
+    } else if (NativeModule.exists('_third_party_main')) {
       // To allow people to extend Node in different ways, this hook allows
       // one to drop a file lib/_third_party_main.js into the build
       // directory which will be executed instead of Node's normal loading.
@@ -220,6 +229,10 @@
       // If someone handled it, then great.  otherwise, die in C++ land
       // since that means that we'll exit the process, emit the 'exit' event
       if (!caught) {
+        if (process.isWorkerInstance) {
+          NativeModule.require('worker')._workerFatalError(er);
+          return true;
+        }
         try {
           if (!process._exiting) {
             process._exiting = true;
@@ -582,6 +595,7 @@
     });
 
     process.__defineGetter__('stdin', function() {
+      if (process.isWorkerInstance) return null;
       if (stdin) return stdin;
 
       var tty_wrap = process.binding('tty_wrap');
@@ -657,10 +671,12 @@
       return stdin;
     });
 
-    process.openStdin = function() {
-      process.stdin.resume();
-      return process.stdin;
-    };
+    if (process.isMainInstance) {
+      process.openStdin = function() {
+        process.stdin.resume();
+        return process.stdin;
+      };
+    }
   };
 
   startup.processKillAndExit = function() {
@@ -733,7 +749,6 @@
           var errnoException = NativeModule.require('util')._errnoException;
           throw errnoException(err, 'uv_signal_start');
         }
-
         signalWraps[type] = wrap;
       }
     });
@@ -746,7 +761,6 @@
       }
     });
   };
-
 
   startup.processChannel = function() {
     // If we were spawned with env NODE_CHANNEL_FD then load that up and

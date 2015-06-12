@@ -2,6 +2,7 @@
 #define SRC_UTIL_INL_H_
 
 #include "util.h"
+#include "uv.h"
 
 namespace node {
 
@@ -86,6 +87,15 @@ void ListHead<T, M>::PushFront(T* element) {
 template <typename T, ListNodeMember(T) M>
 bool ListHead<T, M>::IsEmpty() const {
   return head_.IsEmpty();
+}
+
+template <typename T, ListNodeMember(T) M>
+void ListHead<T, M>::Remove(T* element) {
+  CHECK_NE(element, nullptr);
+  CHECK(!IsEmpty());
+  ListNode<T>* node = &(element->*M);
+  CHECK(!node->IsEmpty());
+  node->Remove();
 }
 
 template <typename T, ListNodeMember(T) M>
@@ -197,6 +207,90 @@ TypeName* Unwrap(v8::Local<v8::Object> object) {
   void* pointer = object->GetAlignedPointerFromInternalField(0);
   return static_cast<TypeName*>(pointer);
 }
+
+void BarrierInitAndWait(uv_barrier_t* barrier, int count) {
+  CHECK_EQ(uv_barrier_init(barrier, count), 0);
+  if (uv_barrier_wait(barrier) != 0)
+    uv_barrier_destroy(barrier);
+}
+
+void BarrierWait(uv_barrier_t* barrier) {
+  if (uv_barrier_wait(barrier) != 0)
+    uv_barrier_destroy(barrier);
+}
+
+class ScopedLock {
+  public:
+    class Mutex {
+      public:
+        explicit Mutex(uv_mutex_t* lock) : lock_(lock) {
+          if (lock_ != nullptr)
+            uv_mutex_lock(lock_);
+        }
+
+        void unlock() {
+          if (!unlocked_ && lock_ != nullptr) {
+            uv_mutex_unlock(lock_);
+            unlocked_ = true;
+          }
+        }
+
+        ~Mutex() {
+          unlock();
+        }
+
+      private:
+        uv_mutex_t* lock_;
+        bool unlocked_ = false;
+        DISALLOW_COPY_AND_ASSIGN(Mutex);
+    };
+
+    class Read {
+      public:
+        explicit Read(uv_rwlock_t* lock) : lock_(lock) {
+          if (lock_ != nullptr)
+            uv_rwlock_rdlock(lock_);
+        }
+
+        void unlock() {
+          if (!unlocked_ && lock_ != nullptr) {
+            uv_rwlock_rdunlock(lock_);
+            unlocked_ = true;
+          }
+        }
+
+        ~Read() {
+          unlock();
+        }
+      private:
+        uv_rwlock_t* lock_;
+        bool unlocked_ = false;
+        DISALLOW_COPY_AND_ASSIGN(Read);
+    };
+
+    class Write {
+      public:
+        explicit Write(uv_rwlock_t* lock) : lock_(lock) {
+          if (lock_ != nullptr)
+            uv_rwlock_wrlock(lock_);
+        }
+
+        void unlock() {
+          if (!unlocked_ && lock_ != nullptr) {
+            uv_rwlock_wrunlock(lock_);
+            unlocked_ = true;
+          }
+        }
+
+        ~Write() {
+          unlock();
+        }
+      private:
+        uv_rwlock_t* lock_;
+        bool unlocked_ = false;
+        DISALLOW_COPY_AND_ASSIGN(Write);
+    };
+};
 
 }  // namespace node
 
