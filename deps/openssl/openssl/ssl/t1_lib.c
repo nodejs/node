@@ -2016,12 +2016,12 @@ static int ssl_scan_clienthello_tlsext(SSL *s, unsigned char **p,
 
     s->srtp_profile = NULL;
 
-    if (data >= (d + n - 2)) {
-        if (data != d + n)
-            goto err;
-        else
-            goto ri_check;
-    }
+    if (data == d + n)
+        goto ri_check;
+
+    if (data > (d + n - 2))
+        goto err;
+
     n2s(data, len);
 
     if (data > (d + n - len))

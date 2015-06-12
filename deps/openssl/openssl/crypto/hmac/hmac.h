@@ -79,7 +79,6 @@ typedef struct hmac_ctx_st {
     EVP_MD_CTX o_ctx;
     unsigned int key_length;
     unsigned char key[HMAC_MAX_MD_CBLOCK];
-    int key_init;
 } HMAC_CTX;
 
 # define HMAC_size(e)    (EVP_MD_size((e)->md))
