@@ -90,7 +90,7 @@ Common options are:
     a FIN packet when the other end of the socket sends a FIN packet.
     Defaults to `false`.  See ['end'][] event for more information.
 
-The `connectListener` parameter will be added as an listener for the
+The `connectListener` parameter will be added as a listener for the
 ['connect'][] event.
 
 Here is an example of a client of echo server as described previously:
@@ -119,7 +119,7 @@ changed to
 
 Creates a TCP connection to `port` on `host`. If `host` is omitted,
 `'localhost'` will be assumed.
-The `connectListener` parameter will be added as an listener for the
+The `connectListener` parameter will be added as a listener for the
 ['connect'][] event.
 
 Is a factory method which returns a new ['net.Socket'](#net_class_net_socket).
@@ -128,7 +128,7 @@ Is a factory method which returns a new ['net.Socket'](#net_class_net_socket).
 ## net.createConnection(path[, connectListener])
 
 Creates unix socket connection to `path`.
-The `connectListener` parameter will be added as an listener for the
+The `connectListener` parameter will be added as a listener for the
 ['connect'][] event.
 
 A factory method which returns a new ['net.Socket'](#net_class_net_socket).
@@ -150,7 +150,7 @@ parameter is 511 (not 512).
 
 This function is asynchronous.  When the server has been bound,
 ['listening'][] event will be emitted.  The last parameter `callback`
-will be added as an listener for the ['listening'][] event.
+will be added as a listener for the ['listening'][] event.
 
 One issue some users run into is getting `EADDRINUSE` errors. This means that
 another server is already running on the requested port. One way of handling this
@@ -178,7 +178,7 @@ Start a local socket server listening for connections on the given `path`.
 
 This function is asynchronous.  When the server has been bound,
 ['listening'][] event will be emitted.  The last parameter `callback`
-will be added as an listener for the ['listening'][] event.
+will be added as a listener for the ['listening'][] event.
 
 On UNIX, the local domain is usually known as the UNIX domain. The path is a
 filesystem path name. It is subject to the same naming conventions and
@@ -212,7 +212,7 @@ Listening on a file descriptor is not supported on Windows.
 
 This function is asynchronous.  When the server has been bound,
 ['listening'][] event will be emitted.
-the last parameter `callback` will be added as an listener for the
+the last parameter `callback` will be added as a listener for the
 ['listening'][] event.
 
 ### server.listen(options[, callback])
@@ -374,7 +374,7 @@ This function is asynchronous. When the ['connect'][] event is emitted the
 socket is established. If there is a problem connecting, the `'connect'` event
 will not be emitted, the `'error'` event will be emitted with the exception.
 
-The `connectListener` parameter will be added as an listener for the
+The `connectListener` parameter will be added as a listener for the
 ['connect'][] event.
 
 

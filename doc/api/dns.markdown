@@ -81,7 +81,7 @@ See [supported `getaddrinfo` flags](#dns_supported_getaddrinfo_flags) below for
 more information on supported flags.
 
 The callback has arguments `(err, address, family)`.  The `address` argument
-is a string representation of a IP v4 or v6 address. The `family` argument
+is a string representation of an IP v4 or v6 address. The `family` argument
 is either the integer 4 or 6 and denotes the family of `address` (not
 necessarily the value initially passed to `lookup`).
 
@@ -155,7 +155,7 @@ attribute (e.g. `[{'priority': 10, 'exchange': 'mx.example.com'},...]`).
 ## dns.resolveTxt(hostname, callback)
 
 The same as `dns.resolve()`, but only for text queries (`TXT` records).
-`addresses` is an 2-d array of the text records available for `hostname` (e.g.,
+`addresses` is a 2-d array of the text records available for `hostname` (e.g.,
 `[ ['v=spf1 ip4:0.0.0.0 ', '~all' ] ]`). Each sub-array contains TXT chunks of
 one record. Depending on the use case, the could be either joined together or
 treated separately.

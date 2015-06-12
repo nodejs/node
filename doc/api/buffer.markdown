@@ -43,7 +43,7 @@ Creating a typed array from a `Buffer` works with the following caveats:
 
 2. The buffer's memory is interpreted as an array, not a byte array.  That is,
    `new Uint32Array(new Buffer([1,2,3,4]))` creates a 4-element `Uint32Array`
-   with elements `[1,2,3,4]`, not an `Uint32Array` with a single element
+   with elements `[1,2,3,4]`, not a `Uint32Array` with a single element
    `[0x1020304]` or `[0x4030201]`.
 
 NOTE: Node.js v0.8 simply retained a reference to the buffer in `array.buffer`
