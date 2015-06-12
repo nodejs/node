@@ -4,6 +4,8 @@ var mkdirp = require('mkdirp');
 var test = require('tap').test;
 var p = require('path').resolve(__dirname, 'files');
 
+process.chdir(__dirname)
+
 // Make sure to reserve the stderr fd
 process.stderr.write('');
 

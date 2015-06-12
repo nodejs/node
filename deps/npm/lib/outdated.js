@@ -48,6 +48,12 @@ function outdated (args, silent, cb) {
   outdated_(args, dir, {}, 0, function (er, list) {
     if (!list) list = []
     if (er || silent || list.length === 0) return cb(er, list)
+    list.sort(function(a, b) {
+      var aa = a[1].toLowerCase()
+        , bb = b[1].toLowerCase()
+      return aa === bb ? 0
+           : aa < bb ? -1 : 1
+    })
     if (npm.config.get("json")) {
       console.log(makeJSON(list))
     } else if (npm.config.get("parseable")) {
