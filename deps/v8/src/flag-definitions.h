@@ -177,7 +177,7 @@ DEFINE_IMPLICATION(use_strong, strong_mode)
 
 DEFINE_BOOL(es_staging, false, "enable all completed harmony features")
 DEFINE_BOOL(harmony, false, "enable all completed harmony features")
-DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony fetaures")
+DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 DEFINE_IMPLICATION(harmony, es_staging)
 DEFINE_IMPLICATION(es_staging, harmony)
 
