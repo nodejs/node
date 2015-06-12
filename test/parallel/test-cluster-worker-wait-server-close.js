@@ -22,10 +22,12 @@ if (cluster.isWorker) {
   worker.once('listening', function() {
     net.createConnection(common.PORT, common.localhostIPv4, function() {
       var socket = this;
-      worker.disconnect();
       setTimeout(function() {
-        socket.write('.');
-        connectionDone = true;
+        worker.disconnect();
+        setTimeout(function() {
+          socket.write('.');
+          connectionDone = true;
+        }, 1000);
       }, 1000);
     });
   });
