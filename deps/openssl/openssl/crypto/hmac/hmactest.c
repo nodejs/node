@@ -233,7 +233,12 @@ test5:
         err++;
         goto test6;
     }
-    if (!HMAC_Init_ex(&ctx, NULL, 0, EVP_sha256(), NULL)) {
+    if (HMAC_Init_ex(&ctx, NULL, 0, EVP_sha256(), NULL)) {
+        printf("Should disallow changing MD without a new key (test 5)\n");
+        err++;
+        goto test6;
+    }
+    if (!HMAC_Init_ex(&ctx, test[4].key, test[4].key_len, EVP_sha256(), NULL)) {
         printf("Failed to reinitialise HMAC (test 5)\n");
         err++;
         goto test6;
