@@ -103,6 +103,18 @@ ENDLOCAL
 @rem Skip project generation if requested.
 if defined nobuild goto sign
 
+@rem Look for Visual Studio 2015
+if not defined VS140COMNTOOLS goto vc-set-2013
+if not exist "%VS140COMNTOOLS%\..\..\vc\vcvarsall.bat" goto vc-set-2013
+if "%VCVARS_VER%" NEQ "140" (
+  call "%VS140COMNTOOLS%\..\..\vc\vcvarsall.bat"
+  SET VCVARS_VER=140
+)
+if not defined VCINSTALLDIR goto vc-set-2013
+set GYP_MSVS_VERSION=2015
+goto msbuild-found
+
+:vc-set-2013
 @rem Look for Visual Studio 2013
 if not defined VS120COMNTOOLS goto msbuild-not-found
 if not exist "%VS120COMNTOOLS%\..\..\vc\vcvarsall.bat" goto msbuild-not-found
