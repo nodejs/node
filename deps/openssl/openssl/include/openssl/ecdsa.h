@@ -1,1 +1,1 @@
-#include "../../crypto/ecdsa/ecdsa.h"
+../../crypto/ecdsa/ecdsa.h

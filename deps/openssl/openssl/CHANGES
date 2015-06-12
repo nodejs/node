@@ -2,6 +2,12 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 1.0.2b and 1.0.2c [12 Jun 2015]
+
+  *) Fix HMAC ABI incompatibility. The previous version introduced an ABI
+     incompatibility in the handling of HMAC. The previous ABI has now been
+     restored.
+
  Changes between 1.0.2a and 1.0.2b [11 Jun 2015]
 
   *) Malformed ECParameters causes infinite loop
