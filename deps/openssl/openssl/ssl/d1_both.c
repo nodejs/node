@@ -485,6 +485,12 @@ long dtls1_get_message(SSL *s, int st1, int stn, int mt, long max, int *ok)
         return i;
     }
 
+    if (mt >= 0 && s->s3->tmp.message_type != mt) {
+        al = SSL_AD_UNEXPECTED_MESSAGE;
+        SSLerr(SSL_F_DTLS1_GET_MESSAGE, SSL_R_UNEXPECTED_MESSAGE);
+        goto f_err;
+    }
+
     p = (unsigned char *)s->init_buf->data;
     msg_len = msg_hdr->msg_len;
 
@@ -869,6 +875,20 @@ dtls1_get_message_fragment(SSL *s, int st1, int stn, long max, int *ok)
     /* parse the message fragment header */
     dtls1_get_message_header(wire, &msg_hdr);
 
+    len = msg_hdr.msg_len;
+    frag_off = msg_hdr.frag_off;
+    frag_len = msg_hdr.frag_len;
+
+    /*
+     * We must have at least frag_len bytes left in the record to be read.
+     * Fragments must not span records.
+     */
+    if (frag_len > s->s3->rrec.length) {
+        al = SSL3_AD_ILLEGAL_PARAMETER;
+        SSLerr(SSL_F_DTLS1_GET_MESSAGE_FRAGMENT, SSL_R_BAD_LENGTH);
+        goto f_err;
+    }
+
     /*
      * if this is a future (or stale) message it gets buffered
      * (or dropped)--no further processing at this time
@@ -878,10 +898,6 @@ dtls1_get_message_fragment(SSL *s, int st1, int stn, long max, int *ok)
     if (msg_hdr.seq != s->d1->handshake_read_seq
         && !(s->d1->listen && msg_hdr.seq == 1))
         return dtls1_process_out_of_seq_message(s, &msg_hdr, ok);
-
-    len = msg_hdr.msg_len;
-    frag_off = msg_hdr.frag_off;
-    frag_len = msg_hdr.frag_len;
 
     if (frag_len && frag_len < len)
         return dtls1_reassemble_fragment(s, &msg_hdr, ok);
@@ -913,17 +929,16 @@ dtls1_get_message_fragment(SSL *s, int st1, int stn, long max, int *ok)
     if ((al = dtls1_preprocess_fragment(s, &msg_hdr, max)))
         goto f_err;
 
-    /* XDTLS:  ressurect this when restart is in place */
-    s->state = stn;
-
     if (frag_len > 0) {
         unsigned char *p =
             (unsigned char *)s->init_buf->data + DTLS1_HM_HEADER_LENGTH;
 
         i = s->method->ssl_read_bytes(s, SSL3_RT_HANDSHAKE,
                                       &p[frag_off], frag_len, 0);
+
         /*
-         * XDTLS: fix this--message fragments cannot span multiple packets
+         * This shouldn't ever fail due to NBIO because we already checked
+         * that we have enough data in the record
          */
         if (i <= 0) {
             s->rwstate = SSL_READING;
@@ -944,6 +959,7 @@ dtls1_get_message_fragment(SSL *s, int st1, int stn, long max, int *ok)
     }
 
     *ok = 1;
+    s->state = stn;
 
     /*
      * Note that s->init_num is *not* used as current offset in
@@ -1540,7 +1556,10 @@ int dtls1_process_heartbeat(SSL *s)
         memcpy(bp, pl, payload);
         bp += payload;
         /* Random padding */
-        RAND_pseudo_bytes(bp, padding);
+        if (RAND_pseudo_bytes(bp, padding) < 0) {
+            OPENSSL_free(buffer);
+            return -1;
+        }
 
         r = dtls1_write_bytes(s, TLS1_RT_HEARTBEAT, buffer, write_length);
 
@@ -1574,7 +1593,7 @@ int dtls1_process_heartbeat(SSL *s)
 int dtls1_heartbeat(SSL *s)
 {
     unsigned char *buf, *p;
-    int ret;
+    int ret = -1;
     unsigned int payload = 18;  /* Sequence number + random bytes */
     unsigned int padding = 16;  /* Use minimum padding */
 
@@ -1622,10 +1641,12 @@ int dtls1_heartbeat(SSL *s)
     /* Sequence number */
     s2n(s->tlsext_hb_seq, p);
     /* 16 random bytes */
-    RAND_pseudo_bytes(p, 16);
+    if (RAND_pseudo_bytes(p, 16) < 0)
+        goto err;
     p += 16;
     /* Random padding */
-    RAND_pseudo_bytes(p, padding);
+    if (RAND_pseudo_bytes(p, padding) < 0)
+        goto err;
 
     ret = dtls1_write_bytes(s, TLS1_RT_HEARTBEAT, buf, 3 + payload + padding);
     if (ret >= 0) {
@@ -1638,6 +1659,7 @@ int dtls1_heartbeat(SSL *s)
         s->tlsext_hb_pending = 1;
     }
 
+err:
     OPENSSL_free(buf);
 
     return ret;

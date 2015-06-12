@@ -454,7 +454,8 @@ int SRP_Calc_A_param(SSL *s)
 {
     unsigned char rnd[SSL_MAX_MASTER_KEY_LENGTH];
 
-    RAND_bytes(rnd, sizeof(rnd));
+    if (RAND_bytes(rnd, sizeof(rnd)) <= 0)
+        return -1;
     s->srp_ctx.a = BN_bin2bn(rnd, sizeof(rnd), s->srp_ctx.a);
     OPENSSL_cleanse(rnd, sizeof(rnd));
 

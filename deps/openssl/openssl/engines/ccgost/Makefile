@@ -66,12 +66,13 @@ links:
 
 tests:
 
-depend:
-	@if [ -z "$(THIS)" ]; then \
-	    $(MAKE) -f $(TOP)/Makefile reflect THIS=$@; \
-	else \
-	    $(MAKEDEPEND) -- $(CFLAG) $(INCLUDES) $(DEPFLAG) -- $(PROGS) $(LIBSRC); \
-	fi
+update: local_depend
+	@if [ -z "$(THIS)" ]; then $(MAKE) -f $(TOP)/Makefile reflect THIS=$@; fi
+
+depend: local_depend
+	@if [ -z "$(THIS)" ]; then $(MAKE) -f $(TOP)/Makefile reflect THIS=$@; fi
+local_depend:
+	@[ -z "$(THIS)" ] || $(MAKEDEPEND) -- $(CFLAG) $(INCLUDES) $(DEPFLAG) -- $(PROGS) $(LIBSRC)
 
 files:
 
@@ -262,8 +263,9 @@ gost_sign.o: ../../include/openssl/buffer.h ../../include/openssl/crypto.h
 gost_sign.o: ../../include/openssl/dsa.h ../../include/openssl/e_os2.h
 gost_sign.o: ../../include/openssl/ec.h ../../include/openssl/ecdh.h
 gost_sign.o: ../../include/openssl/ecdsa.h ../../include/openssl/engine.h
-gost_sign.o: ../../include/openssl/evp.h ../../include/openssl/lhash.h
-gost_sign.o: ../../include/openssl/obj_mac.h ../../include/openssl/objects.h
+gost_sign.o: ../../include/openssl/err.h ../../include/openssl/evp.h
+gost_sign.o: ../../include/openssl/lhash.h ../../include/openssl/obj_mac.h
+gost_sign.o: ../../include/openssl/objects.h
 gost_sign.o: ../../include/openssl/opensslconf.h
 gost_sign.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
 gost_sign.o: ../../include/openssl/pkcs7.h ../../include/openssl/rand.h

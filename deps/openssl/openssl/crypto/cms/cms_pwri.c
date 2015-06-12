@@ -231,7 +231,7 @@ static int kek_unwrap_key(unsigned char *out, size_t *outlen,
         return 0;
     }
     tmp = OPENSSL_malloc(inlen);
-    if(!tmp)
+    if (!tmp)
         return 0;
     /* setup IV by decrypting last two blocks */
     EVP_DecryptUpdate(ctx, tmp + inlen - 2 * blocklen, &outl,
@@ -297,8 +297,9 @@ static int kek_wrap_key(unsigned char *out, size_t *outlen,
         out[3] = in[2] ^ 0xFF;
         memcpy(out + 4, in, inlen);
         /* Add random padding to end */
-        if (olen > inlen + 4)
-            RAND_pseudo_bytes(out + 4 + inlen, olen - 4 - inlen);
+        if (olen > inlen + 4
+            && RAND_pseudo_bytes(out + 4 + inlen, olen - 4 - inlen) < 0)
+            return 0;
         /* Encrypt twice */
         EVP_EncryptUpdate(ctx, out, &dummy, out, olen);
         EVP_EncryptUpdate(ctx, out, &dummy, out, olen);

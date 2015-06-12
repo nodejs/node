@@ -19,6 +19,7 @@ B<openssl> B<s_client>
 [B<-pass arg>]
 [B<-CApath directory>]
 [B<-CAfile filename>]
+[B<-no_alt_chains>]
 [B<-reconnect>]
 [B<-pause>]
 [B<-showcerts>]
@@ -116,7 +117,7 @@ also used when building the client certificate chain.
 A file containing trusted certificates to use during server authentication
 and to use when attempting to build the client certificate chain.
 
-=item B<-purpose, -ignore_critical, -issuer_checks, -crl_check, -crl_check_all, -policy_check, -extended_crl, -x509_strict, -policy -check_ss_sig>
+=item B<-purpose, -ignore_critical, -issuer_checks, -crl_check, -crl_check_all, -policy_check, -extended_crl, -x509_strict, -policy -check_ss_sig -no_alt_chains>
 
 Set various certificate chain valiadition option. See the
 L<B<verify>|verify(1)> manual page for details.
@@ -346,5 +347,9 @@ information whenever a session is renegotiated.
 =head1 SEE ALSO
 
 L<sess_id(1)|sess_id(1)>, L<s_server(1)|s_server(1)>, L<ciphers(1)|ciphers(1)>
+
+=head1 HISTORY
+
+The -no_alt_chains options was first added to OpenSSL 1.0.1n and 1.0.2b.
 
 =cut

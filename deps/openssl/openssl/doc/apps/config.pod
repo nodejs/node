@@ -277,6 +277,59 @@ priority and B</tmp> used if neither is defined:
  # The above value is used if TEMP isn't in the environment
  tmpfile=${ENV::TEMP}/tmp.filename
 
+Simple OpenSSL library configuration example to enter FIPS mode:
+
+ # Default appname: should match "appname" parameter (if any)
+ # supplied to CONF_modules_load_file et al.
+ openssl_conf = openssl_conf_section
+
+ [openssl_conf_section]
+ # Configuration module list
+ alg_section = evp_sect
+
+ [evp_sect]
+ # Set to "yes" to enter FIPS mode if supported
+ fips_mode = yes
+
+Note: in the above example you will get an error in non FIPS capable versions
+of OpenSSL.
+
+More complex OpenSSL library configuration. Add OID and don't enter FIPS mode:
+
+ # Default appname: should match "appname" parameter (if any)
+ # supplied to CONF_modules_load_file et al.
+ openssl_conf = openssl_conf_section
+
+ [openssl_conf_section]
+ # Configuration module list
+ alg_section = evp_sect
+ oid_section = new_oids
+
+ [evp_sect]
+ # This will have no effect as FIPS mode is off by default.
+ # Set to "yes" to enter FIPS mode, if supported
+ fips_mode = no
+
+ [new_oids]
+ # New OID, just short name
+ newoid1 = 1.2.3.4.1
+ # New OID shortname and long name
+ newoid2 = New OID 2 long name, 1.2.3.4.2
+
+The above examples can be used with with any application supporting library
+configuration if "openssl_conf" is modified to match the appropriate "appname".
+
+For example if the second sample file above is saved to "example.cnf" then
+the command line:
+
+ OPENSSL_CONF=example.cnf openssl asn1parse -genstr OID:1.2.3.4.1
+
+will output:
+
+    0:d=0  hl=2 l=   4 prim: OBJECT            :newoid1
+
+showing that the OID "newoid1" has been added as "1.2.3.4.1".
+
 =head1 BUGS
 
 Currently there is no way to include characters using the octal B<\nnn>

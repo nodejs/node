@@ -137,6 +137,11 @@ int BN_lshift(BIGNUM *r, const BIGNUM *a, int n)
     bn_check_top(r);
     bn_check_top(a);
 
+    if (n < 0) {
+        BNerr(BN_F_BN_LSHIFT, BN_R_INVALID_SHIFT);
+        return 0;
+    }
+
     r->neg = a->neg;
     nw = n / BN_BITS2;
     if (bn_wexpand(r, a->top + nw + 1) == NULL)
@@ -173,6 +178,11 @@ int BN_rshift(BIGNUM *r, const BIGNUM *a, int n)
 
     bn_check_top(r);
     bn_check_top(a);
+
+    if (n < 0) {
+        BNerr(BN_F_BN_RSHIFT, BN_R_INVALID_SHIFT);
+        return 0;
+    }
 
     nw = n / BN_BITS2;
     rb = n % BN_BITS2;

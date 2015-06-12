@@ -2,6 +2,83 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 1.0.1n and 1.0.1o [12 Jun 2015]
+
+  *) Fix HMAC ABI incompatibility. The previous version introduced an ABI
+     incompatibility in the handling of HMAC. The previous ABI has now been
+     restored.
+
+ Changes between 1.0.1m and 1.0.1n [11 Jun 2015]
+
+  *) Malformed ECParameters causes infinite loop
+
+     When processing an ECParameters structure OpenSSL enters an infinite loop
+     if the curve specified is over a specially malformed binary polynomial
+     field.
+
+     This can be used to perform denial of service against any
+     system which processes public keys, certificate requests or
+     certificates.  This includes TLS clients and TLS servers with
+     client authentication enabled.
+
+     This issue was reported to OpenSSL by Joseph Barr-Pixton.
+     (CVE-2015-1788)
+     [Andy Polyakov]
+
+  *) Exploitable out-of-bounds read in X509_cmp_time
+
+     X509_cmp_time does not properly check the length of the ASN1_TIME
+     string and can read a few bytes out of bounds. In addition,
+     X509_cmp_time accepts an arbitrary number of fractional seconds in the
+     time string.
+
+     An attacker can use this to craft malformed certificates and CRLs of
+     various sizes and potentially cause a segmentation fault, resulting in
+     a DoS on applications that verify certificates or CRLs. TLS clients
+     that verify CRLs are affected. TLS clients and servers with client
+     authentication enabled may be affected if they use custom verification
+     callbacks.
+
+     This issue was reported to OpenSSL by Robert Swiecki (Google), and
+     independently by Hanno B�ck.
+     (CVE-2015-1789)
+     [Emilia K�sper]
+
+  *) PKCS7 crash with missing EnvelopedContent
+
+     The PKCS#7 parsing code does not handle missing inner EncryptedContent
+     correctly. An attacker can craft malformed ASN.1-encoded PKCS#7 blobs
+     with missing content and trigger a NULL pointer dereference on parsing.
+
+     Applications that decrypt PKCS#7 data or otherwise parse PKCS#7
+     structures from untrusted sources are affected. OpenSSL clients and
+     servers are not affected.
+
+     This issue was reported to OpenSSL by Michal Zalewski (Google).
+     (CVE-2015-1790)
+     [Emilia K�sper]
+
+  *) CMS verify infinite loop with unknown hash function
+
+     When verifying a signedData message the CMS code can enter an infinite loop
+     if presented with an unknown hash function OID. This can be used to perform
+     denial of service against any system which verifies signedData messages using
+     the CMS code.
+     This issue was reported to OpenSSL by Johannes Bauer.
+     (CVE-2015-1792)
+     [Stephen Henson]
+
+  *) Race condition handling NewSessionTicket
+
+     If a NewSessionTicket is received by a multi-threaded client when attempting to
+     reuse a previous ticket then a race condition can occur potentially leading to
+     a double free of the ticket data.
+     (CVE-2015-1791)
+     [Matt Caswell]
+
+  *) Reject DH handshakes with parameters shorter than 768 bits.
+     [Kurt Roeckx and Emilia Kasper]
+
  Changes between 1.0.1l and 1.0.1m [19 Mar 2015]
 
   *) Segmentation fault in ASN1_TYPE_cmp fix

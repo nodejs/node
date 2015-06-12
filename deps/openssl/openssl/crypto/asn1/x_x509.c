@@ -177,7 +177,7 @@ X509 *d2i_X509_AUX(X509 **a, const unsigned char **pp, long length)
     /* Save start position */
     q = *pp;
 
-    if(!a || *a == NULL) {
+    if (!a || *a == NULL) {
         freeret = 1;
     }
     ret = d2i_X509(a, pp, length);
@@ -192,7 +192,7 @@ X509 *d2i_X509_AUX(X509 **a, const unsigned char **pp, long length)
         goto err;
     return ret;
  err:
-    if(freeret) {
+    if (freeret) {
         X509_free(ret);
         if (a)
             *a = NULL;

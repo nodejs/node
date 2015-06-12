@@ -85,7 +85,7 @@ int EC_GROUP_check(const EC_GROUP *group, BN_CTX *ctx)
         ECerr(EC_F_EC_GROUP_CHECK, EC_R_UNDEFINED_GENERATOR);
         goto err;
     }
-    if (!EC_POINT_is_on_curve(group, group->generator, ctx)) {
+    if (EC_POINT_is_on_curve(group, group->generator, ctx) <= 0) {
         ECerr(EC_F_EC_GROUP_CHECK, EC_R_POINT_IS_NOT_ON_CURVE);
         goto err;
     }

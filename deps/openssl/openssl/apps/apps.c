@@ -572,7 +572,7 @@ int password_callback(char *buf, int bufsiz, int verify, PW_CB_DATA *cb_tmp)
         char *prompt = NULL;
 
         prompt = UI_construct_prompt(ui, "pass phrase", prompt_info);
-        if(!prompt) {
+        if (!prompt) {
             BIO_printf(bio_err, "Out of memory\n");
             UI_free(ui);
             return 0;
@@ -586,7 +586,7 @@ int password_callback(char *buf, int bufsiz, int verify, PW_CB_DATA *cb_tmp)
                                      PW_MIN_LENGTH, bufsiz - 1);
         if (ok >= 0 && verify) {
             buff = (char *)OPENSSL_malloc(bufsiz);
-            if(!buff) {
+            if (!buff) {
                 BIO_printf(bio_err, "Out of memory\n");
                 UI_free(ui);
                 OPENSSL_free(prompt);
@@ -2238,6 +2238,8 @@ int args_verify(char ***pargs, int *pargc,
         flags |= X509_V_FLAG_NOTIFY_POLICY;
     else if (!strcmp(arg, "-check_ss_sig"))
         flags |= X509_V_FLAG_CHECK_SS_SIGNATURE;
+    else if (!strcmp(arg, "-no_alt_chains"))
+        flags |= X509_V_FLAG_NO_ALT_CHAINS;
     else
         return 0;
 

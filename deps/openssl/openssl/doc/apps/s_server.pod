@@ -33,6 +33,7 @@ B<openssl> B<s_server>
 [B<-state>]
 [B<-CApath directory>]
 [B<-CAfile filename>]
+[B<-no_alt_chains>]
 [B<-nocert>]
 [B<-cipher cipherlist>]
 [B<-serverpref>]
@@ -177,6 +178,10 @@ A file containing trusted certificates to use during client authentication
 and to use when attempting to build the server certificate chain. The list
 is also used in the list of acceptable client CAs passed to the client when
 a certificate is requested.
+
+=item B<-no_alt_chains>
+
+See the L<B<verify>|verify(1)> manual page for details.
 
 =item B<-state>
 
@@ -397,5 +402,9 @@ unknown cipher suites a client says it supports.
 =head1 SEE ALSO
 
 L<sess_id(1)|sess_id(1)>, L<s_client(1)|s_client(1)>, L<ciphers(1)|ciphers(1)>
+
+=head1 HISTORY
+
+The -no_alt_chains options was first added to OpenSSL 1.0.1n and 1.0.2b.
 
 =cut

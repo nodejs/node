@@ -5,6 +5,18 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.0.1n and OpenSSL 1.0.1o [12 Jun 2015]
+
+      o Fix HMAC ABI incompatibility
+
+  Major changes between OpenSSL 1.0.1m and OpenSSL 1.0.1n [11 Jun 2015]
+
+      o Malformed ECParameters causes infinite loop (CVE-2015-1788)
+      o Exploitable out-of-bounds read in X509_cmp_time (CVE-2015-1789)
+      o PKCS7 crash with missing EnvelopedContent (CVE-2015-1790)
+      o CMS verify infinite loop with unknown hash function (CVE-2015-1792)
+      o Race condition handling NewSessionTicket (CVE-2015-1791)
+
   Major changes between OpenSSL 1.0.1l and OpenSSL 1.0.1m [19 Mar 2015]
 
       o Segmentation fault in ASN1_TYPE_cmp fix (CVE-2015-0286)

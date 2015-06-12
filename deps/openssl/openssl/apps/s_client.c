@@ -180,13 +180,6 @@ typedef unsigned int u_int;
 # include <fcntl.h>
 #endif
 
-/* Use Windows API with STD_INPUT_HANDLE when checking for input?
-   Don't look at OPENSSL_SYS_MSDOS for this, since it is always defined if
-   OPENSSL_SYS_WINDOWS is defined */
-#if defined(OPENSSL_SYS_WINDOWS) && !defined(OPENSSL_SYS_WINCE) && defined(STD_INPUT_HANDLE)
-#define OPENSSL_USE_STD_INPUT_HANDLE
-#endif
-
 #undef PROG
 #define PROG    s_client_main
 
@@ -329,6 +322,8 @@ static void sc_usage(void)
                " -pass arg     - private key file pass phrase source\n");
     BIO_printf(bio_err, " -CApath arg   - PEM format directory of CA's\n");
     BIO_printf(bio_err, " -CAfile arg   - PEM format file of CA's\n");
+    BIO_printf(bio_err,
+               " -no_alt_chains - only ever use the first certificate chain found\n");
     BIO_printf(bio_err,
                " -reconnect    - Drop and re-make the connection with the same Session-ID\n");
     BIO_printf(bio_err,
@@ -554,7 +549,7 @@ static char *MS_CALLBACK ssl_give_srp_client_pwd_cb(SSL *s, void *arg)
     PW_CB_DATA cb_tmp;
     int l;
 
-    if(!pass) {
+    if (!pass) {
         BIO_printf(bio_err, "Malloc failure\n");
         return NULL;
     }
@@ -1184,13 +1179,12 @@ int MAIN(int argc, char **argv)
     if (!set_cert_key_stuff(ctx, cert, key))
         goto end;
 
-    if ((!SSL_CTX_load_verify_locations(ctx, CAfile, CApath)) ||
-        (!SSL_CTX_set_default_verify_paths(ctx))) {
-        /*
-         * BIO_printf(bio_err,"error setting default verify locations\n");
-         */
+    if ((CAfile || CApath)
+        && !SSL_CTX_load_verify_locations(ctx, CAfile, CApath)) {
         ERR_print_errors(bio_err);
-        /* goto end; */
+    }
+    if (!SSL_CTX_set_default_verify_paths(ctx)) {
+        ERR_print_errors(bio_err);
     }
 #ifndef OPENSSL_NO_TLSEXT
     if (servername != NULL) {
@@ -1590,7 +1584,10 @@ int MAIN(int argc, char **argv)
                     tv.tv_usec = 0;
                     i = select(width, (void *)&readfds, (void *)&writefds,
                                NULL, &tv);
-#if defined(OPENSSL_USE_STD_INPUT_HANDLE)
+# if defined(OPENSSL_SYS_WINCE) || defined(OPENSSL_SYS_MSDOS)
+                    if (!i && (!_kbhit() || !read_tty))
+                        continue;
+# else
                     if (!i && (!((_kbhit())
                                  || (WAIT_OBJECT_0 ==
                                      WaitForSingleObject(GetStdHandle
@@ -1598,8 +1595,6 @@ int MAIN(int argc, char **argv)
                                                          0)))
                                || !read_tty))
                         continue;
-#else
-                    if(!i && (!_kbhit() || !read_tty) ) continue;
 # endif
                 } else
                     i = select(width, (void *)&readfds, (void *)&writefds,
@@ -1798,12 +1793,12 @@ int MAIN(int argc, char **argv)
             }
         }
 #if defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_MSDOS)
-#if defined(OPENSSL_USE_STD_INPUT_HANDLE)
+# if defined(OPENSSL_SYS_WINCE) || defined(OPENSSL_SYS_MSDOS)
+        else if (_kbhit())
+# else
         else if ((_kbhit())
                  || (WAIT_OBJECT_0 ==
                      WaitForSingleObject(GetStdHandle(STD_INPUT_HANDLE), 0)))
-#else
-        else if (_kbhit())
 # endif
 #elif defined (OPENSSL_SYS_NETWARE)
         else if (_kbhit())

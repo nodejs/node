@@ -131,7 +131,7 @@ static void do_free_upto(BIO *f, BIO *upto)
             BIO_free(f);
             f = tbio;
         }
-        while (f != upto);
+        while (f && f != upto);
     } else
         BIO_free_all(f);
 }

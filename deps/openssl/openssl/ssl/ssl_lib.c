@@ -1440,9 +1440,13 @@ STACK_OF(SSL_CIPHER) *ssl_bytes_to_cipher_list(SSL *s, unsigned char *p,
                SSL_R_ERROR_IN_RECEIVED_CIPHER_LIST);
         return (NULL);
     }
-    if ((skp == NULL) || (*skp == NULL))
+    if ((skp == NULL) || (*skp == NULL)) {
         sk = sk_SSL_CIPHER_new_null(); /* change perhaps later */
-    else {
+        if(sk == NULL) {
+            SSLerr(SSL_F_SSL_BYTES_TO_CIPHER_LIST, ERR_R_MALLOC_FAILURE);
+            return NULL;
+        }
+    } else {
         sk = *skp;
         sk_SSL_CIPHER_zero(sk);
     }

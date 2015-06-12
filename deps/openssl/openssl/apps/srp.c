@@ -435,7 +435,7 @@ int MAIN(int argc, char **argv)
 # ifdef OPENSSL_SYS_VMS
             len = strlen(s) + sizeof(CONFIG_FILE);
             tofree = OPENSSL_malloc(len);
-            if(!tofree) {
+            if (!tofree) {
                 BIO_printf(bio_err, "Out of memory\n");
                 goto err;
             }
@@ -443,7 +443,7 @@ int MAIN(int argc, char **argv)
 # else
             len = strlen(s) + sizeof(CONFIG_FILE) + 1;
             tofree = OPENSSL_malloc(len);
-            if(!tofree) {
+            if (!tofree) {
                 BIO_printf(bio_err, "Out of memory\n");
                 goto err;
             }

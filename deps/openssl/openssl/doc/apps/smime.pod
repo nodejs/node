@@ -15,6 +15,7 @@ B<openssl> B<smime>
 [B<-pk7out>]
 [B<-[cipher]>]
 [B<-in file>]
+[B<-no_alt_chains>]
 [B<-certfile file>]
 [B<-signer file>]
 [B<-recip  file>]
@@ -259,7 +260,7 @@ portion of a message so they may be included manually. If signing
 then many S/MIME mail clients check the signers certificate's email
 address matches that specified in the From: address.
 
-=item B<-purpose, -ignore_critical, -issuer_checks, -crl_check, -crl_check_all, -policy_check, -extended_crl, -x509_strict, -policy -check_ss_sig>
+=item B<-purpose, -ignore_critical, -issuer_checks, -crl_check, -crl_check_all, -policy_check, -extended_crl, -x509_strict, -policy -check_ss_sig -no_alt_chains>
 
 Set various options of certificate chain verification. See
 L<B<verify>|verify(1)> manual page for details.
@@ -441,5 +442,6 @@ structures may cause parsing errors.
 The use of multiple B<-signer> options and the B<-resign> command were first
 added in OpenSSL 1.0.0
 
+The -no_alt_chains options was first added to OpenSSL 1.0.1n and 1.0.2b.
 
 =cut

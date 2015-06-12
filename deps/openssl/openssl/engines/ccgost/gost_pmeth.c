@@ -502,7 +502,7 @@ static int pkey_gost_mac_ctrl_str(EVP_PKEY_CTX *ctx,
         long keylen;
         int ret;
         unsigned char *keybuf = string_to_hex(value, &keylen);
-        if (keylen != 32) {
+        if (!keybuf || keylen != 32) {
             GOSTerr(GOST_F_PKEY_GOST_MAC_CTRL_STR,
                     GOST_R_INVALID_MAC_KEY_LENGTH);
             OPENSSL_free(keybuf);
