@@ -1,3 +1,13 @@
+## 2.9.27 (2015-05-30)
+
+Bugfixes:
+
+ - Fix `sinon.useFakeTimers()` breaking scheduler ([#631](.))
+
+Misc:
+
+ - Add nw testing facilities (`node tools/test --nw`)
+
 ## 2.9.26 (2015-05-25)
 
 Bugfixes:

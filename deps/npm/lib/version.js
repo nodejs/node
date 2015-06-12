@@ -31,14 +31,15 @@ function version (args, silent, cb_) {
     try {
       data = JSON.parse(data)
     }
-    catch (er) {
+    catch (e) {
+      er = e
       data = null
     }
 
     if (!args.length) return dump(data, cb_)
 
     if (er) {
-      log.error("version", "No package.json found")
+      log.error("version", "No valid package.json found")
       return cb_(er)
     }
 
@@ -47,12 +48,15 @@ function version (args, silent, cb_) {
     if (!newVersion) return cb_(version.usage)
     if (data.version === newVersion) return cb_(new Error("Version not changed"))
     data.version = newVersion
+    var lifecycleData = Object.create(data)
+    lifecycleData._id = data.name + "@" + newVersion
 
+    var where = npm.prefix
     chain([
-          [lifecycle, data, "preversion"]
+          [lifecycle, lifecycleData, "preversion", where]
         , [version_, data, silent]
-        , [lifecycle, data, "version"]
-        , [lifecycle, data, "postversion"] ]
+        , [lifecycle, lifecycleData, "version", where]
+        , [lifecycle, lifecycleData, "postversion", where] ]
         , cb_)
   })
 }

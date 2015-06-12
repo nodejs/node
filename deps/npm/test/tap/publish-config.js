@@ -29,7 +29,7 @@ test(function (t) {
     res.end(JSON.stringify({
       error: "sshhh. naptime nao. \\^O^/ <(YAWWWWN!)"
     }))
-    child.kill()
+    child.kill('SIGHUP')
   }).listen(common.port, function () {
     t.pass("server is listening")
 

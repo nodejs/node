@@ -313,7 +313,7 @@ getJSONFromSomewhere().then(function(jsonString) {
 });
 ```
 
-Here any kind of unexpected error will automatically reported on `stderr` along with a stack trace because we only register a handler for the expected `SyntaxError`.
+Here any kind of unexpected error will be automatically reported on `stderr` along with a stack trace because we only register a handler for the expected `SyntaxError`.
 
 Ok, so, that's pretty neat. But actually not many libraries define error types and it is in fact a complete ghetto out there with ad hoc strings being attached as some arbitrary property name like `.name`, `.type`, `.code`, not having any property at all or even throwing strings as errors and so on. So how can we still listen for expected errors?
 

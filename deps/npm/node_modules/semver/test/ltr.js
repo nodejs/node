@@ -70,7 +70,8 @@ test('\nltr tests', function(t) {
     ['^1', '1.0.0-0'],
     ['>=0.7.x', '0.7.0-asdf'],
     ['1', '1.0.0beta', true],
-    ['>=0.7.x', '0.6.2']
+    ['>=0.7.x', '0.6.2'],
+    ['>1.2.3', '1.3.0-alpha']
   ].forEach(function(tuple) {
     var range = tuple[0];
     var version = tuple[1];
@@ -83,7 +84,7 @@ test('\nltr tests', function(t) {
 
 test('\nnegative ltr tests', function(t) {
   // [range, version, loose]
-  // Version should NOT be greater than range
+  // Version should NOT be less than range
   [
     ['~ 1.0', '1.1.0'],
     ['~0.6.1-1', '0.6.1-1'],
@@ -93,7 +94,6 @@ test('\nnegative ltr tests', function(t) {
     ['>=*', '0.2.4'],
     ['', '1.0.0', true],
     ['*', '1.2.3'],
-    ['*', 'v1.2.3-foo'],
     ['>=1.0.0', '1.0.0'],
     ['>=1.0.0', '1.0.1'],
     ['>=1.0.0', '1.1.0'],
