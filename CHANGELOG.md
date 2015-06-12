@@ -1,5 +1,98 @@
 # io.js ChangeLog
 
+## 2015-06-12, Version 2.3.0, @rvagg
+
+### Notable changes
+
+* 
+
+### Known issues
+
+See https://github.com/nodejs/io.js/labels/confirmed-bug for complete and current list of known issues.
+
+* Some problems with unreferenced timers running during `beforeExit` are still to be resolved. See [#1264](https://github.com/nodejs/io.js/issues/1264).
+* Surrogate pair in REPL can freeze terminal [#690](https://github.com/nodejs/io.js/issues/690)
+* `process.send()` is not synchronous as the docs suggest, a regression introduced in 1.0.2, see [#760](https://github.com/nodejs/io.js/issues/760) and fix in [#774](https://github.com/nodejs/io.js/issues/774)
+* Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion [#894](https://github.com/nodejs/io.js/issues/894)
+* `url.resolve` may transfer the auth portion of the url when resolving between two full hosts, see [#1435](https://github.com/nodejs/io.js/issues/1435).
+
+## Commits
+
+* [[`9c0a1b8cfc`](https://github.com/nodejs/io.js/commit/9c0a1b8cfc)] - **cluster**: wait on servers closing before disconnect (Oleg Elifantiev) [#1400](https://github.com/nodejs/io.js/pull/1400)
+* [[`0f68377f69`](https://github.com/nodejs/io.js/commit/0f68377f69)] - **crypto**: support FIPS mode of OpenSSL (Fedor Indutny) [#1890](https://github.com/nodejs/io.js/pull/1890)
+* [[`38d1afc24d`](https://github.com/nodejs/io.js/commit/38d1afc24d)] - **(SEMVER-MINOR)** **crypto**: add getCurves() to get supported ECs (Brian White) [#1914](https://github.com/nodejs/io.js/pull/1914)
+* [[`a4dbf45b59`](https://github.com/nodejs/io.js/commit/a4dbf45b59)] - **crypto**: update root certificates (Ben Noordhuis) [#1833](https://github.com/nodejs/io.js/pull/1833)
+* [[`81029c639a`](https://github.com/nodejs/io.js/commit/81029c639a)] - **debugger**: improve ESRCH error message (Jackson Tian) [#1863](https://github.com/nodejs/io.js/pull/1863)
+* [[`94804969b7`](https://github.com/nodejs/io.js/commit/94804969b7)] - **deps**: update asm files for openssl-1.0.2b (Shigeki Ohtsu) [#1950](https://github.com/nodejs/io.js/pull/1950)
+* [[`38444915e0`](https://github.com/nodejs/io.js/commit/38444915e0)] - **deps**: replace all headers in openssl (Shigeki Ohtsu) [#1950](https://github.com/nodejs/io.js/pull/1950)
+* [[`f62b613252`](https://github.com/nodejs/io.js/commit/f62b613252)] - **deps**: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) [#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`f624d0122c`](https://github.com/nodejs/io.js/commit/f624d0122c)] - **deps**: fix asm build error of openssl in x86_win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`dcd67cc8d7`](https://github.com/nodejs/io.js/commit/dcd67cc8d7)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`c21b24decf`](https://github.com/nodejs/io.js/commit/c21b24decf)] - **deps**: upgrade openssl sources to 1.0.2b (Shigeki Ohtsu) [#1950](https://github.com/nodejs/io.js/pull/1950)
+* [[`2dc819b09a`](https://github.com/nodejs/io.js/commit/2dc819b09a)] - **deps**: make node-gyp work with io.js (cjihrig) [iojs/io.js#990](https://github.com/iojs/io.js/pull/990)
+* [[`f41b7f12b5`](https://github.com/nodejs/io.js/commit/f41b7f12b5)] - **deps**: upgrade to npm 2.11.1 (Kat Marchán) [#1899](https://github.com/nodejs/io.js/pull/1899)
+* [[`a5bd466440`](https://github.com/nodejs/io.js/commit/a5bd466440)] - **deps**: update libuv to version 1.6.1 (Saúl Ibarra Corretgé) [#1905](https://github.com/nodejs/io.js/pull/1905)
+* [[`aa33db3238`](https://github.com/nodejs/io.js/commit/aa33db3238)] - **deps**: update libuv to version 1.6.0 (Saúl Ibarra Corretgé) [#1889](https://github.com/nodejs/io.js/pull/1889)
+* [[`0ee497f0b4`](https://github.com/nodejs/io.js/commit/0ee497f0b4)] - **deps**: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) [#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`b5cd2f0986`](https://github.com/nodejs/io.js/commit/b5cd2f0986)] - **dgram**: partially revert 18d457b (Saúl Ibarra Corretgé) [#1889](https://github.com/nodejs/io.js/pull/1889)
+* [[`cf5020fc02`](https://github.com/nodejs/io.js/commit/cf5020fc02)] - **doc**: add domenic as collaborator (Domenic Denicola) [#1942](https://github.com/nodejs/io.js/pull/1942)
+* [[`11ed5f31ab`](https://github.com/nodejs/io.js/commit/11ed5f31ab)] - **doc**: add Olegas as collaborator (Oleg Elifantiev) [#1930](https://github.com/nodejs/io.js/pull/1930)
+* [[`f500e1833b`](https://github.com/nodejs/io.js/commit/f500e1833b)] - **doc**: add ofrobots as collaborator (Ali Ijaz Sheikh)
+* [[`717724611a`](https://github.com/nodejs/io.js/commit/717724611a)] - **doc**: add monsanto as collaborator (Christopher Monsanto) [#1932](https://github.com/nodejs/io.js/pull/1932)
+* [[`7192b6688c`](https://github.com/nodejs/io.js/commit/7192b6688c)] - **doc**: add rlidwka as collaborator (Alex Kocharin) [#1929](https://github.com/nodejs/io.js/pull/1929)
+* [[`9f3a03f0d4`](https://github.com/nodejs/io.js/commit/9f3a03f0d4)] - **doc**: add references to crypto.getCurves() (Roman Reiss) [#1918](https://github.com/nodejs/io.js/pull/1918)
+* [[`ff39ecb914`](https://github.com/nodejs/io.js/commit/ff39ecb914)] - **doc**: remove comma splice (Rich Trott) [#1900](https://github.com/nodejs/io.js/pull/1900)
+* [[`deb8b87dc9`](https://github.com/nodejs/io.js/commit/deb8b87dc9)] - **doc**: add note about available ECC curves (Ryan Petschek) [#1913](https://github.com/nodejs/io.js/pull/1913)
+* [[`89a5b9040e`](https://github.com/nodejs/io.js/commit/89a5b9040e)] - **doc**: fix http.IncomingMessage.socket documentation (Сковорода Никита Андреевич) [#1867](https://github.com/nodejs/io.js/pull/1867)
+* [[`d29034b34b`](https://github.com/nodejs/io.js/commit/d29034b34b)] - **doc**: adjust changelog to clarify `client` revert (Rod Vagg) [#1859](https://github.com/nodejs/io.js/pull/1859)
+* [[`a79dece8ad`](https://github.com/nodejs/io.js/commit/a79dece8ad)] - **docs**: add return value for sync fs functions (Tyler Anton) [#1770](https://github.com/nodejs/io.js/pull/1770)
+* [[`1cb72c14c4`](https://github.com/nodejs/io.js/commit/1cb72c14c4)] - **docs**: delete unused/duplicate css files (Robert Kowalski) [#1770](https://github.com/nodejs/io.js/pull/1770)
+* [[`53a4eb3198`](https://github.com/nodejs/io.js/commit/53a4eb3198)] - **fs**: make SyncWriteStream non-enumerable (Sakthipriyan Vairamani) [#1870](https://github.com/nodejs/io.js/pull/1870)
+* [[`a011c3243f`](https://github.com/nodejs/io.js/commit/a011c3243f)] - **fs**: minor refactoring (Sakthipriyan Vairamani) [#1870](https://github.com/nodejs/io.js/pull/1870)
+* [[`8841132f30`](https://github.com/nodejs/io.js/commit/8841132f30)] - **fs**: remove inStatWatchers and use Map for lookup (Sakthipriyan Vairamani) [#1870](https://github.com/nodejs/io.js/pull/1870)
+* [[`67a11b9bcc`](https://github.com/nodejs/io.js/commit/67a11b9bcc)] - **fs**: removing unnecessary nullCheckCallNT (Sakthipriyan Vairamani) [#1870](https://github.com/nodejs/io.js/pull/1870)
+* [[`09f2a67bd8`](https://github.com/nodejs/io.js/commit/09f2a67bd8)] - **fs**: improve error message descriptions (Sakthipriyan Vairamani) [#1870](https://github.com/nodejs/io.js/pull/1870)
+* [[`2dcef83b5f`](https://github.com/nodejs/io.js/commit/2dcef83b5f)] - **fs**: use `kMaxLength` from binding (Vladimir Kurchatkin) [#1903](https://github.com/nodejs/io.js/pull/1903)
+* [[`353e26e3c7`](https://github.com/nodejs/io.js/commit/353e26e3c7)] - **(SEMVER-MINOR)** **fs**: Add string encoding option for Stream method (Yosuke Furukawa) [#1845](https://github.com/nodejs/io.js/pull/1845)
+* [[`8357c5084b`](https://github.com/nodejs/io.js/commit/8357c5084b)] - **fs**: set encoding on fs.createWriteStream (Yosuke Furukawa) [#1844](https://github.com/nodejs/io.js/pull/1844)
+* [[`02c345020a`](https://github.com/nodejs/io.js/commit/02c345020a)] - **gitignore**: don't ignore the debug npm module (Kat Marchán) [#1908](https://github.com/nodejs/io.js/pull/1908)
+* [[`b5b8ff117c`](https://github.com/nodejs/io.js/commit/b5b8ff117c)] - **lib**: don't use global Buffer (Roman Reiss) [#1794](https://github.com/nodejs/io.js/pull/1794)
+* [[`a130132c8f`](https://github.com/nodejs/io.js/commit/a130132c8f)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`6e78e5feaa`](https://github.com/nodejs/io.js/commit/6e78e5feaa)] - **(SEMVER-MINOR)** **os**: add homedir() (cjihrig) [#1791](https://github.com/nodejs/io.js/pull/1791)
+* [[`4b3d493c4b`](https://github.com/nodejs/io.js/commit/4b3d493c4b)] - **(SEMVER-MINOR)** **readline**: allow tabs in input (Rich Trott) [#1761](https://github.com/nodejs/io.js/pull/1761)
+* [[`6d95f4ff92`](https://github.com/nodejs/io.js/commit/6d95f4ff92)] - **(SEMVER-MINOR)** **smalloc**: deprecate whole module (Vladimir Kurchatkin) [#1822](https://github.com/nodejs/io.js/pull/1822)
+* [[`8c71a9241d`](https://github.com/nodejs/io.js/commit/8c71a9241d)] - **src**: hide InitializeICUDirectory symbol (Ben Noordhuis) [#1815](https://github.com/nodejs/io.js/pull/1815)
+* [[`5b6f575c1f`](https://github.com/nodejs/io.js/commit/5b6f575c1f)] - ***Revert*** "**src**: add getopt option parser" (Evan Lucas) [#1862](https://github.com/nodejs/io.js/pull/1862)
+* [[`c0e7bf2d8c`](https://github.com/nodejs/io.js/commit/c0e7bf2d8c)] - **src**: add getopt option parser (Evan Lucas) [#1804](https://github.com/nodejs/io.js/pull/1804)
+* [[`a6b8ee19b8`](https://github.com/nodejs/io.js/commit/a6b8ee19b8)] - **test**: create temp dir in common.js (Rich Trott) [#1877](https://github.com/nodejs/io.js/pull/1877)
+* [[`ff8202c6f4`](https://github.com/nodejs/io.js/commit/ff8202c6f4)] - **test**: fix undeclared variable access (Roman Reiss) [#1794](https://github.com/nodejs/io.js/pull/1794)
+* [[`d9ddd7d345`](https://github.com/nodejs/io.js/commit/d9ddd7d345)] - **test**: remove TODO comment (Rich Trott) [#1820](https://github.com/nodejs/io.js/pull/1820)
+* [[`6537fd4b55`](https://github.com/nodejs/io.js/commit/6537fd4b55)] - **test**: remove TODO (Rich Trott) [#1875](https://github.com/nodejs/io.js/pull/1875)
+* [[`a804026c9b`](https://github.com/nodejs/io.js/commit/a804026c9b)] - **test**: fix broken FreeBSD test (Santiago Gimeno) [#1881](https://github.com/nodejs/io.js/pull/1881)
+* [[`43a82f8a71`](https://github.com/nodejs/io.js/commit/43a82f8a71)] - **test**: fix test-sync-io-option (Evan Lucas) [#1840](https://github.com/nodejs/io.js/pull/1840)
+* [[`4ed25f664d`](https://github.com/nodejs/io.js/commit/4ed25f664d)] - **test**: add -no_rand_screen for tls-server-verify (Shigeki Ohtsu) [#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`4cf323d23d`](https://github.com/nodejs/io.js/commit/4cf323d23d)] - **test**: kill child in tls-server-verify for speed up (Shigeki Ohtsu) [#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`e6ccdcc1fe`](https://github.com/nodejs/io.js/commit/e6ccdcc1fe)] - **test**: improve console output of tls-server-verify (João Reis) [#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`975e5956f0`](https://github.com/nodejs/io.js/commit/975e5956f0)] - **test**: run tls-server-verify servers in parallel (João Reis) [#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`b18604ba2c`](https://github.com/nodejs/io.js/commit/b18604ba2c)] - **test**: running tls-server-verify clients in parallel (João Reis) [#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`f78c722df5`](https://github.com/nodejs/io.js/commit/f78c722df5)] - **test**: remove hardwired references to 'iojs' (Rod Vagg) [#1882](https://github.com/nodejs/io.js/pull/1882)
+* [[`bd99e8de8e`](https://github.com/nodejs/io.js/commit/bd99e8de8e)] - **test**: more test coverage for maxConnections (Rich Trott) [#1855](https://github.com/nodejs/io.js/pull/1855)
+* [[`b9267189a5`](https://github.com/nodejs/io.js/commit/b9267189a5)] - **test**: fix test-child-process-stdout-flush-exit (Santiago Gimeno) [#1868](https://github.com/nodejs/io.js/pull/1868)
+* [[`d20f018dcf`](https://github.com/nodejs/io.js/commit/d20f018dcf)] - **test**: loosen condition to detect infinite loop (Yosuke Furukawa) [#1857](https://github.com/nodejs/io.js/pull/1857)
+* [[`e0e96acc6f`](https://github.com/nodejs/io.js/commit/e0e96acc6f)] - **test**: remove smalloc add-on test (Ben Noordhuis) [#1835](https://github.com/nodejs/io.js/pull/1835)
+* [[`8704c58fc4`](https://github.com/nodejs/io.js/commit/8704c58fc4)] - **test**: remove unneeded comment task (Rich Trott) [#1858](https://github.com/nodejs/io.js/pull/1858)
+* [[`8732977536`](https://github.com/nodejs/io.js/commit/8732977536)] - **tls**: fix references to undefined `cb` (Fedor Indutny) [#1951](https://github.com/nodejs/io.js/pull/1951)
+* [[`75930bb38c`](https://github.com/nodejs/io.js/commit/75930bb38c)] - **tls**: prevent use-after-free (Fedor Indutny) [#1702](https://github.com/nodejs/io.js/pull/1702)
+* [[`5795e835a1`](https://github.com/nodejs/io.js/commit/5795e835a1)] - **tls**: emit errors on close whilst async action (Fedor Indutny) [#1702](https://github.com/nodejs/io.js/pull/1702)
+* [[`59d9734e21`](https://github.com/nodejs/io.js/commit/59d9734e21)] - **tls_wrap**: invoke queued callbacks in DestroySSL (Fedor Indutny) [#1702](https://github.com/nodejs/io.js/pull/1702)
+* [[`6e4d30286d`](https://github.com/nodejs/io.js/commit/6e4d30286d)] - **tools**: enable/add additional eslint rules (Roman Reiss) [#1794](https://github.com/nodejs/io.js/pull/1794)
+* [[`098354a9f8`](https://github.com/nodejs/io.js/commit/098354a9f8)] - **tools**: update certdata.txt (Ben Noordhuis) [#1833](https://github.com/nodejs/io.js/pull/1833)
+* [[`a2d921d6a0`](https://github.com/nodejs/io.js/commit/a2d921d6a0)] - **tools**: customize mk-ca-bundle.pl (Ben Noordhuis) [#1833](https://github.com/nodejs/io.js/pull/1833)
+* [[`5be9efca40`](https://github.com/nodejs/io.js/commit/5be9efca40)] - **tools**: update mk-ca-bundle.pl to HEAD of upstream (Ben Noordhuis) [#1833](https://github.com/nodejs/io.js/pull/1833)
+* [[`1baba0580d`](https://github.com/nodejs/io.js/commit/1baba0580d)] - **tools**: Fix copying contents of deps/npm (thefourtheye) [#1853](https://github.com/nodejs/io.js/pull/1853)
+* [[`628845b816`](https://github.com/nodejs/io.js/commit/628845b816)] - **(SEMVER-MINOR)** **util**: introduce `printDeprecationMessage` function (Vladimir Kurchatkin) [#1822](https://github.com/nodejs/io.js/pull/1822)
+* [[`91d0a8b19c`](https://github.com/nodejs/io.js/commit/91d0a8b19c)] - **(SEMVER-MAJOR)** **win,node-gyp**: enable delay-load hook by default (Bert Belder) [iojs/io.js#1433](https://github.com
+
 ## 2015-06-01, Version 2.2.1, @rvagg
 
 ### Notable changes
