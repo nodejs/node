@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var domain = require('domain');
@@ -6,7 +7,7 @@ var disposalFailed = false;
 // no matter what happens, we should increment a 10 times.
 var a = 0;
 log();
-function log(){
+function log() {
   console.log(a++, process.domain);
   if (a < 10) setTimeout(log, 20);
 }
@@ -16,7 +17,7 @@ var secondTimerRan = false;
 // in 50ms we'll throw an error.
 setTimeout(err, 50);
 setTimeout(secondTimer, 50);
-function err(){
+function err() {
   var d = domain.create();
   d.on('error', handle);
   d.run(err2);

@@ -1,8 +1,9 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
 var zlib = require('zlib');
-var gz = zlib.Gzip()
+var gz = zlib.Gzip();
 var emptyBuffer = new Buffer(0);
 var received = 0;
 gz.on('data', function(c) {

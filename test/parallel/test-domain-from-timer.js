@@ -1,3 +1,4 @@
+'use strict';
 // Simple tests of most basic domain functionality.
 
 var common = require('../common');
@@ -10,7 +11,7 @@ setTimeout(function() {
   var d = domain.create();
   d.run(function() {
     process.nextTick(function() {
-      console.trace('in nexttick', process.domain === d)
+      console.trace('in nexttick', process.domain === d);
       assert.equal(process.domain, d);
     });
   });

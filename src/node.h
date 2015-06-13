@@ -42,7 +42,35 @@
 #include "v8.h"  // NOLINT(build/include_order)
 #include "node_version.h"  // NODE_MODULE_VERSION
 
-#define NODE_DEPRECATED(msg, fn) V8_DEPRECATED(msg, fn)
+#define IOJS_MAKE_VERSION(major, minor, patch)                                \
+  ((major) * 0x1000 + (minor) * 0x100 + (patch))
+
+#ifdef __clang__
+# define IOJS_CLANG_AT_LEAST(major, minor, patch)                             \
+  (IOJS_MAKE_VERSION(major, minor, patch) <=                                  \
+      IOJS_MAKE_VERSION(__clang_major__, __clang_minor__, __clang_patchlevel__))
+#else
+# define IOJS_CLANG_AT_LEAST(major, minor, patch) (0)
+#endif
+
+#ifdef __GNUC__
+# define IOJS_GNUC_AT_LEAST(major, minor, patch)                              \
+  (IOJS_MAKE_VERSION(major, minor, patch) <=                                  \
+      IOJS_MAKE_VERSION(__GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__))
+#else
+# define IOJS_GNUC_AT_LEAST(major, minor, patch) (0)
+#endif
+
+#if IOJS_CLANG_AT_LEAST(2, 9, 0) || IOJS_GNUC_AT_LEAST(4, 5, 0)
+# define NODE_DEPRECATED(message, declarator)                                 \
+    __attribute__((deprecated(message))) declarator
+#elif defined(_MSC_VER)
+# define NODE_DEPRECATED(message, declarator)                                 \
+    __declspec(deprecated) declarator
+#else
+# define NODE_DEPRECATED(message, declarator)                                 \
+    declarator
+#endif
 
 // Forward-declare libuv loop
 struct uv_loop_s;
@@ -237,9 +265,10 @@ inline void NODE_SET_PROTOTYPE_METHOD(v8::Handle<v8::FunctionTemplate> recv,
 #define NODE_SET_PROTOTYPE_METHOD node::NODE_SET_PROTOTYPE_METHOD
 
 enum encoding {ASCII, UTF8, BASE64, UCS2, BINARY, HEX, BUFFER};
-enum encoding ParseEncoding(v8::Isolate* isolate,
-                            v8::Handle<v8::Value> encoding_v,
-                            enum encoding default_encoding = BINARY);
+NODE_EXTERN enum encoding ParseEncoding(
+    v8::Isolate* isolate,
+    v8::Handle<v8::Value> encoding_v,
+    enum encoding default_encoding = BINARY);
 NODE_DEPRECATED("Use ParseEncoding(isolate, ...)",
                 inline enum encoding ParseEncoding(
       v8::Handle<v8::Value> encoding_v,

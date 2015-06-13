@@ -1,3 +1,4 @@
+'use strict';
 var assert = require('assert');
 
 var t = new (process.binding('timer_wrap').Timer);

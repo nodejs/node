@@ -130,8 +130,13 @@ void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
    *
    * We pass in a dummy epoll_event, to work around a bug in old kernels.
    */
-  if (loop->backend_fd >= 0)
+  if (loop->backend_fd >= 0) {
+    /* Work around a bug in kernels 3.10 to 3.19 where passing a struct that
+     * has the EPOLLWAKEUP flag set generates spurious audit syslog warnings.
+     */
+    memset(&dummy, 0, sizeof(dummy));
     uv__epoll_ctl(loop->backend_fd, UV__EPOLL_CTL_DEL, fd, &dummy);
+  }
 }
 
 

@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var events = require('events');
@@ -29,12 +30,12 @@ process.on('exit', function() {
 var times_recurse_emitted = 0;
 
 e.once('e', function() {
-	e.emit('e');
-	times_recurse_emitted++;
+  e.emit('e');
+  times_recurse_emitted++;
 });
 
 e.once('e', function() {
-	times_recurse_emitted++;
+  times_recurse_emitted++;
 });
 
 e.emit('e');

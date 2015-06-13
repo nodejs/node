@@ -1,3 +1,4 @@
+'use strict';
 // Test creating and resolving relative junction or symbolic link
 
 var common = require('../common');

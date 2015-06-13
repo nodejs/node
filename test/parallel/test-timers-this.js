@@ -1,37 +1,38 @@
+'use strict';
 var assert = require('assert');
 
 var immediateThis, intervalThis, timeoutThis,
     immediateArgsThis, intervalArgsThis, timeoutArgsThis;
 
-var immediateHandler = setImmediate(function () {
+var immediateHandler = setImmediate(function() {
   immediateThis = this;
 });
 
-var immediateArgsHandler = setImmediate(function () {
+var immediateArgsHandler = setImmediate(function() {
   immediateArgsThis = this;
-}, "args ...");
+}, 'args ...');
 
-var intervalHandler = setInterval(function () {
+var intervalHandler = setInterval(function() {
   clearInterval(intervalHandler);
 
   intervalThis = this;
 });
 
-var intervalArgsHandler = setInterval(function () {
+var intervalArgsHandler = setInterval(function() {
   clearInterval(intervalArgsHandler);
 
   intervalArgsThis = this;
-}, 0, "args ...");
+}, 0, 'args ...');
 
-var timeoutHandler = setTimeout(function () {
+var timeoutHandler = setTimeout(function() {
   timeoutThis = this;
 });
 
-var timeoutArgsHandler = setTimeout(function () {
+var timeoutArgsHandler = setTimeout(function() {
   timeoutArgsThis = this;
-}, 0, "args ...");
+}, 0, 'args ...');
 
-process.once('exit', function () {
+process.once('exit', function() {
   assert.strictEqual(immediateThis, immediateHandler);
   assert.strictEqual(immediateArgsThis, immediateArgsHandler);
 

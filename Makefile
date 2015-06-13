@@ -138,19 +138,7 @@ test-debugger: all
 	$(PYTHON) tools/test.py debugger
 
 test-npm: $(NODE_EXE)
-	rm -rf npm-cache npm-tmp npm-prefix
-	mkdir npm-cache npm-tmp npm-prefix
-	cd deps/npm ; npm_config_cache="$(shell pwd)/npm-cache" \
-	     npm_config_prefix="$(shell pwd)/npm-prefix" \
-	     npm_config_tmp="$(shell pwd)/npm-tmp" \
-	     ../../$(NODE_EXE) cli.js install --ignore-scripts
-	cd deps/npm ; npm_config_cache="$(shell pwd)/npm-cache" \
-	     npm_config_prefix="$(shell pwd)/npm-prefix" \
-	     npm_config_tmp="$(shell pwd)/npm-tmp" \
-	     ../../$(NODE_EXE) cli.js run-script test-all && \
-	     ../../$(NODE_EXE) cli.js prune --prod && \
-	     cd ../.. && \
-	     rm -rf npm-cache npm-tmp npm-prefix
+	NODE_EXE=$(NODE_EXE) tools/test-npm.sh
 
 test-npm-publish: $(NODE_EXE)
 	npm_package_config_publishtest=true ./$(NODE_EXE) deps/npm/test/run.js
@@ -386,11 +374,8 @@ bench-idle:
 	sleep 1
 	./$(NODE_EXE) benchmark/idle_clients.js &
 
-jslintfix:
-	PYTHONPATH=tools/closure_linter/:tools/gflags/ $(PYTHON) tools/closure_linter/closure_linter/fixjsstyle.py --strict --nojsdoc -r lib/ -r src/ --exclude_files lib/punycode.js
-
 jslint:
-	PYTHONPATH=tools/closure_linter/:tools/gflags/ $(PYTHON) tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc -r lib/ -r src/ --exclude_files lib/punycode.js
+	./$(NODE_EXE) tools/eslint/bin/eslint.js src lib test --reset --quiet
 
 CPPLINT_EXCLUDE ?=
 CPPLINT_EXCLUDE += src/node_lttng.cc

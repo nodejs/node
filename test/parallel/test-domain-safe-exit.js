@@ -1,3 +1,4 @@
+'use strict';
 // Make sure the domain stack doesn't get clobbered by un-matched .exit()
 
 var assert = require('assert');

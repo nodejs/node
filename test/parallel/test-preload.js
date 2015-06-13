@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common'),
     assert = require('assert'),
     path = require('path'),
@@ -12,15 +13,15 @@ var preloadOption = function(preloads) {
     option += '-r ' + preload + ' ';
   });
   return option;
-}
+};
 
 var fixture = function(name) {
   return path.join(__dirname, '../fixtures/' + name);
-}
+};
 
 var fixtureA = fixture('printA.js');
 var fixtureB = fixture('printB.js');
-var fixtureC = fixture('printC.js')
+var fixtureC = fixture('printC.js');
 var fixtureThrows = fixture('throws_error4.js');
 
 // test preloading a single module works
@@ -76,6 +77,18 @@ child_process.exec(nodeBinary + ' '
 child_process.exec(nodeBinary + ' '
   + '--require ' + fixture('cluster-preload.js') + ' '
   + fixture('cluster-preload-test.js'),
+  function(err, stdout, stderr) {
+    if (err) throw err;
+    assert.ok(/worker terminated with code 43/.test(stdout));
+  });
+
+// https://github.com/iojs/io.js/issues/1691
+var originalCwd = process.cwd();
+process.chdir(path.join(__dirname, '../fixtures/'));
+child_process.exec(nodeBinary + ' '
+  + '--expose_debug_as=v8debug '
+  + '--require ' + fixture('cluster-preload.js') + ' '
+  + 'cluster-preload-test.js',
   function(err, stdout, stderr) {
     if (err) throw err;
     assert.ok(/worker terminated with code 43/.test(stdout));

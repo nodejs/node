@@ -1,10 +1,11 @@
+'use strict';
 // just like test/gc/http-client.js,
 // but with a timeout set
 
 function serverHandler(req, res) {
-  setTimeout(function () {
+  setTimeout(function() {
     req.resume();
-    res.writeHead(200)
+    res.writeHead(200);
     res.end('hello\n');
   }, 100);
 }
@@ -19,7 +20,7 @@ var http  = require('http'),
     assert = require('assert'),
     PORT = common.PORT;
 
-console.log('We should do '+ todo +' requests');
+console.log('We should do ' + todo + ' requests');
 
 var http = require('http');
 var server = http.createServer(serverHandler);
@@ -29,10 +30,10 @@ function getall() {
   if (count >= todo)
     return;
 
-  (function(){
+  (function() {
     function cb(res) {
       res.resume();
-      done+=1;
+      done += 1;
       statusLater();
     }
 
@@ -42,13 +43,13 @@ function getall() {
       port: PORT
     }, cb);
     req.on('error', cb);
-    req.setTimeout(10, function(){
-      console.log('timeout (expected)')
+    req.setTimeout(10, function() {
+      console.log('timeout (expected)');
     });
 
     count++;
     weak(req, afterGC);
-  })()
+  })();
 
   setImmediate(getall);
 }
@@ -56,7 +57,7 @@ function getall() {
 for(var i = 0; i < 10; i++)
   getall();
 
-function afterGC(){
+function afterGC() {
   countGC ++;
 }
 

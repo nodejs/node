@@ -92,7 +92,9 @@ API
     specified mode:
 
     - UV_RUN_DEFAULT: Runs the event loop until there are no more active and
-      referenced handles or requests. Always returns zero.
+      referenced handles or requests. Returns non-zero if :c:func:`uv_stop`
+      was called and there are still active handles or requests.  Returns
+      zero in all other cases.
     - UV_RUN_ONCE: Poll for i/o once. Note that this function blocks if
       there are no pending callbacks. Returns zero when done (no active handles
       or requests left), or non-zero if more callbacks are expected (meaning

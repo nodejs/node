@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -11,7 +12,7 @@ function MyWritable(fn, options) {
 
 util.inherits(MyWritable, stream.Writable);
 
-MyWritable.prototype._write = function (chunk, encoding, callback) {
+MyWritable.prototype._write = function(chunk, encoding, callback) {
   this.fn(Buffer.isBuffer(chunk), typeof chunk, encoding);
   callback();
 };

@@ -71,6 +71,7 @@ int JSStream::DoShutdown(ShutdownWrap* req_wrap) {
     req_wrap->object()
   };
 
+  req_wrap->Dispatched();
   Local<Value> res =
       MakeCallback(env()->onshutdown_string(), ARRAY_SIZE(argv), argv);
 
@@ -88,13 +89,14 @@ int JSStream::DoWrite(WriteWrap* w,
 
   Local<Array> bufs_arr = Array::New(env()->isolate(), count);
   for (size_t i = 0; i < count; i++)
-    bufs_arr->Set(i, Buffer::New(env(), bufs[0].base, bufs[0].len));
+    bufs_arr->Set(i, Buffer::New(env(), bufs[i].base, bufs[i].len));
 
   Local<Value> argv[] = {
     w->object(),
     bufs_arr
   };
 
+  w->Dispatched();
   Local<Value> res =
       MakeCallback(env()->onwrite_string(), ARRAY_SIZE(argv), argv);
 

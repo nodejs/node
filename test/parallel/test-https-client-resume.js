@@ -1,3 +1,4 @@
+'use strict';
 // Create an ssl server.  First connection, validate that not resume.
 // Cache session and close connection.  Use session on second connection.
 // ASSERT resumption.
@@ -21,7 +22,7 @@ var options = {
 var connections = 0;
 
 // create server
-var server = https.createServer(options, function(res, res) {
+var server = https.createServer(options, function(req, res) {
   res.end('Goodbye');
   connections++;
 });

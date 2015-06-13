@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var http = require('http');
 var assert = require('assert');
@@ -38,7 +39,7 @@ server.listen(common.PORT, function() {
 
     res.socket.on('close', function() {
       console.log('socket closed, but not res');
-    })
+    });
 
     // it would be nice if this worked:
     res.on('close', function() {

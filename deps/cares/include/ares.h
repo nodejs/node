@@ -29,55 +29,8 @@
 #  define WIN32
 #endif
 
-/*************************** libuv patch ***************/
-
-/*
- * We want to avoid autoconf altogether since there are a finite number of
- * operating systems and simply build c-ares. Therefore we do not want the
- * configurations provided by ares_build.h since we are always statically
- * linking c-ares into libuv. Having a system dependent ares_build.h forces
- * all users of ares.h to include the correct ares_build.h.  We do not care
- * about the linking checks provided by ares_rules.h. This would complicate
- * the libuv build process.
- */
-
-
-#if defined(WIN32)
-/* Configure process defines this to 1 when it finds out that system  */
-/* header file ws2tcpip.h must be included by the external interface. */
-/* #undef CARES_PULL_WS2TCPIP_H */
-# include <winsock2.h>
-# include <ws2tcpip.h>
-# include <windows.h>
-
-#else /* Not Windows */
-
-# include <sys/time.h>
-# include <sys/types.h>
-# include <sys/socket.h>
-#endif
-
-#if 0
-/* The size of `long', as computed by sizeof. */
-#define CARES_SIZEOF_LONG 4
-#endif
-
-/* Integral data type used for ares_socklen_t. */
-#define CARES_TYPEOF_ARES_SOCKLEN_T socklen_t
-
-#if 0
-/* The size of `ares_socklen_t', as computed by sizeof. */
-#define CARES_SIZEOF_ARES_SOCKLEN_T 4
-#endif
-
 /* Data type definition of ares_socklen_t. */
-typedef int ares_socklen_t;
-
-#if 0 /* libuv disabled */
-#include "ares_rules.h"    /* c-ares rules enforcement */
-#endif
-
-/*********************** end libuv patch ***************/
+typedef unsigned ares_socklen_t;
 
 #include <sys/types.h>
 

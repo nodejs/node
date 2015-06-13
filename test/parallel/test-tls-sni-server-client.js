@@ -1,3 +1,4 @@
+'use strict';
 if (!process.features.tls_sni) {
   console.error('Skipping because node compiled without OpenSSL or ' +
                 'with old OpenSSL version.');
@@ -35,6 +36,11 @@ var SNIContexts = {
   'asterisk.test.com': {
     key: loadPEM('agent3-key'),
     cert: loadPEM('agent3-cert')
+  },
+  'chain.example.com': {
+    key: loadPEM('agent6-key'),
+    // NOTE: Contains ca3 chain cert
+    cert: loadPEM('agent6-cert')
   }
 };
 
@@ -42,31 +48,28 @@ var serverPort = common.PORT;
 
 var clientsOptions = [{
   port: serverPort,
-  key: loadPEM('agent1-key'),
-  cert: loadPEM('agent1-cert'),
   ca: [loadPEM('ca1-cert')],
   servername: 'a.example.com',
   rejectUnauthorized: false
 }, {
   port: serverPort,
-  key: loadPEM('agent2-key'),
-  cert: loadPEM('agent2-cert'),
   ca: [loadPEM('ca2-cert')],
   servername: 'b.test.com',
   rejectUnauthorized: false
 }, {
   port: serverPort,
-  key: loadPEM('agent2-key'),
-  cert: loadPEM('agent2-cert'),
   ca: [loadPEM('ca2-cert')],
   servername: 'a.b.test.com',
   rejectUnauthorized: false
 }, {
   port: serverPort,
-  key: loadPEM('agent3-key'),
-  cert: loadPEM('agent3-cert'),
   ca: [loadPEM('ca1-cert')],
   servername: 'c.wrong.com',
+  rejectUnauthorized: false
+}, {
+  port: serverPort,
+  ca: [loadPEM('ca1-cert')],
+  servername: 'chain.example.com',
   rejectUnauthorized: false
 }];
 
@@ -79,6 +82,7 @@ var server = tls.createServer(serverOptions, function(c) {
 
 server.addContext('a.example.com', SNIContexts['a.example.com']);
 server.addContext('*.test.com', SNIContexts['asterisk.test.com']);
+server.addContext('chain.example.com', SNIContexts['chain.example.com']);
 
 server.listen(serverPort, startTest);
 
@@ -105,7 +109,9 @@ function startTest() {
 }
 
 process.on('exit', function() {
-  assert.deepEqual(serverResults, ['a.example.com', 'b.test.com',
-                                   'a.b.test.com', 'c.wrong.com']);
-  assert.deepEqual(clientResults, [true, true, false, false]);
+  assert.deepEqual(serverResults, [
+    'a.example.com', 'b.test.com', 'a.b.test.com', 'c.wrong.com',
+    'chain.example.com'
+  ]);
+  assert.deepEqual(clientResults, [true, true, false, false, true]);
 });

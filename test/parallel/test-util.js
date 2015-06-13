@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var util = require('util');
@@ -13,7 +14,7 @@ assert.equal(true, util.isArray(context('Array')()));
 assert.equal(false, util.isArray({}));
 assert.equal(false, util.isArray({ push: function() {} }));
 assert.equal(false, util.isArray(/regexp/));
-assert.equal(false, util.isArray(new Error));
+assert.equal(false, util.isArray(new Error()));
 assert.equal(false, util.isArray(Object.create(Array.prototype)));
 
 // isRegExp
@@ -33,13 +34,13 @@ assert.equal(true, util.isDate(new (context('Date'))));
 assert.equal(false, util.isDate(Date()));
 assert.equal(false, util.isDate({}));
 assert.equal(false, util.isDate([]));
-assert.equal(false, util.isDate(new Error));
+assert.equal(false, util.isDate(new Error()));
 assert.equal(false, util.isDate(Object.create(Date.prototype)));
 
 // isError
-assert.equal(true, util.isError(new Error));
-assert.equal(true, util.isError(new TypeError));
-assert.equal(true, util.isError(new SyntaxError));
+assert.equal(true, util.isError(new Error()));
+assert.equal(true, util.isError(new TypeError()));
+assert.equal(true, util.isError(new SyntaxError()));
 assert.equal(true, util.isError(new (context('Error'))));
 assert.equal(true, util.isError(new (context('TypeError'))));
 assert.equal(true, util.isError(new (context('SyntaxError'))));
@@ -53,11 +54,11 @@ assert.ok(util.isObject({}) === true);
 
 // isPrimitive
 assert.equal(false, util.isPrimitive({}));
-assert.equal(false, util.isPrimitive(new Error));
+assert.equal(false, util.isPrimitive(new Error()));
 assert.equal(false, util.isPrimitive(new Date()));
 assert.equal(false, util.isPrimitive([]));
 assert.equal(false, util.isPrimitive(/regexp/));
-assert.equal(false, util.isPrimitive(function(){}));
+assert.equal(false, util.isPrimitive(function() {}));
 assert.equal(false, util.isPrimitive(new Number(1)));
 assert.equal(false, util.isPrimitive(new String('bla')));
 assert.equal(false, util.isPrimitive(new Boolean(true)));
@@ -81,7 +82,7 @@ assert.deepEqual(util._extend({a:1, b:2}, {b:3}), {a:1, b:3});
 
 // inherits
 var ctor = function() {};
-assert.throws(function() { util.inherits(ctor, {}) }, TypeError);
-assert.throws(function() { util.inherits(ctor, null) }, TypeError);
-assert.throws(function() { util.inherits(null, ctor) }, TypeError);
-assert.doesNotThrow(function() { util.inherits(ctor, ctor) }, TypeError);
+assert.throws(function() { util.inherits(ctor, {}); }, TypeError);
+assert.throws(function() { util.inherits(ctor, null); }, TypeError);
+assert.throws(function() { util.inherits(null, ctor); }, TypeError);
+assert.doesNotThrow(function() { util.inherits(ctor, ctor); }, TypeError);

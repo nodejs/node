@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -7,17 +8,17 @@ assert.ok(process.stderr.writable);
 assert.equal('number', typeof process.stdout.fd);
 assert.equal('number', typeof process.stderr.fd);
 
-assert.throws(function () {
+assert.throws(function() {
   console.timeEnd('no such label');
 });
 
-assert.doesNotThrow(function () {
+assert.doesNotThrow(function() {
   console.time('label');
   console.timeEnd('label');
 });
 
 // an Object with a custom .inspect() function
-var custom_inspect = { foo: 'bar', inspect: function () { return 'inspect'; } };
+var custom_inspect = { foo: 'bar', inspect: function() { return 'inspect'; } };
 
 var stdout_write = global.process.stdout.write;
 var strings = [];

@@ -1,3 +1,4 @@
+'use strict';
 var net = require('net');
 var http = require('http');
 var util = require('util');

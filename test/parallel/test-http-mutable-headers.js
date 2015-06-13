@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var http = require('http');
@@ -21,10 +22,10 @@ var cookies = [
 var s = http.createServer(function(req, res) {
   switch (test) {
     case 'headers':
-      assert.throws(function() { res.setHeader() });
-      assert.throws(function() { res.setHeader('someHeader') });
-      assert.throws(function() { res.getHeader() });
-      assert.throws(function() { res.removeHeader() });
+      assert.throws(function() { res.setHeader(); });
+      assert.throws(function() { res.setHeader('someHeader'); });
+      assert.throws(function() { res.getHeader(); });
+      assert.throws(function() { res.removeHeader(); });
 
       res.setHeader('x-test-header', 'testing');
       res.setHeader('X-TEST-HEADER2', 'testing');

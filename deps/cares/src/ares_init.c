@@ -266,7 +266,10 @@ int ares_dup(ares_channel *dest, ares_channel src)
      which is most of them */
   rc = ares_save_options(src, &opts, &optmask);
   if(rc)
+  {
+    ares_destroy_options(&opts);
     return rc;
+  }
 
   /* Then create the new channel with those options */
   rc = ares_init_options(dest, &opts, optmask);
@@ -1158,20 +1161,24 @@ static int init_by_resolv_conf(ares_channel channel)
     FILE *fp;
     size_t linesize;
     int error;
+    int update_domains;
 
     /* Don't read resolv.conf and friends if we don't have to */
     if (ARES_CONFIG_CHECK(channel))
         return ARES_SUCCESS;
 
+    /* Only update search domains if they're not already specified */
+    update_domains = (channel->ndomains == -1);
+
     fp = fopen(PATH_RESOLV_CONF, "r");
     if (fp) {
       while ((status = ares__read_line(fp, &line, &linesize)) == ARES_SUCCESS)
       {
-        if ((p = try_config(line, "domain", ';')))
+        if ((p = try_config(line, "domain", ';')) && update_domains)
           status = config_domain(channel, p);
         else if ((p = try_config(line, "lookup", ';')) && !channel->lookups)
           status = config_lookup(channel, p, "bind", "file");
-        else if ((p = try_config(line, "search", ';')))
+        else if ((p = try_config(line, "search", ';')) && update_domains)
           status = set_search(channel, p);
         else if ((p = try_config(line, "nameserver", ';')) &&
                  channel->nservers == -1)
@@ -1410,7 +1417,7 @@ static int init_by_defaults(ares_channel channel)
         goto error;
       }
 
-    } WHILE_FALSE;
+    } while (res != 0);
 
     dot = strchr(hostname, '.');
     if (dot) {

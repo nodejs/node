@@ -1,3 +1,4 @@
+'use strict';
 var NUM_WORKERS = 4;
 var PACKETS_PER_WORKER = 10;
 
@@ -8,7 +9,7 @@ var dgram = require('dgram');
 
 
 if (process.platform === 'win32') {
-  console.warn("dgram clustering is currently not supported on windows.");
+  console.warn('dgram clustering is currently not supported on windows.');
   process.exit(0);
 }
 
@@ -61,5 +62,6 @@ function worker() {
   for (var i = 0; i < PACKETS_PER_WORKER; i++)
     socket.send(buf, 0, buf.length, common.PORT, '127.0.0.1');
 
-  console.log('worker %d sent %d packets', cluster.worker.id, PACKETS_PER_WORKER);
+  console.log('worker %d sent %d packets', cluster.worker.id,
+              PACKETS_PER_WORKER);
 }

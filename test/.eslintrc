@@ -1,0 +1,5 @@
+## Test-specific linter rules
+
+rules:
+  ## allow unreachable code
+  no-unreachable: 0

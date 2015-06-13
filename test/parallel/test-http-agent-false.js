@@ -1,10 +1,11 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var http = require('http');
 
-// sending `agent: false` when `port: null` is also passed in (i.e. the result of
-// a `url.parse()` call with the default port used, 80 or 443), should not result
-// in an assertion error...
+// sending `agent: false` when `port: null` is also passed in (i.e. the result
+// of a `url.parse()` call with the default port used, 80 or 443), should not
+// result in an assertion error...
 var opts = {
   host: '127.0.0.1',
   port: null,
@@ -19,8 +20,8 @@ process.on('exit', function() {
 });
 
 // we just want an "error" (no local HTTP server on port 80) or "response"
-// to happen (user happens ot have HTTP server running on port 80). As long as the
-// process doesn't crash from a C++ assertion then we're good.
+// to happen (user happens ot have HTTP server running on port 80).
+// As long as the process doesn't crash from a C++ assertion then we're good.
 var req = http.request(opts);
 req.on('response', function(res) {
   good = true;

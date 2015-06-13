@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var path = require('path');
@@ -123,7 +124,7 @@ assert.doesNotThrow(
       function a(curr, prev) {
         ++watchSeenFour;
         assert.equal(1, watchSeenFour);
-        fs.unwatchFile("." + path.sep + filenameFour, a);
+        fs.unwatchFile('.' + path.sep + filenameFour, a);
       }
       fs.watchFile(filenameFour, a);
     }

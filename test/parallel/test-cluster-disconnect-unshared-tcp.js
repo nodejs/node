@@ -1,3 +1,4 @@
+'use strict';
 process.env.NODE_CLUSTER_SCHED_POLICY = 'none';
 
 var cluster = require('cluster');
@@ -16,7 +17,7 @@ if (cluster.isMaster) {
   }
 } else {
   if (process.env.BOUND === 'y') {
-    var source = net.createServer()
+    var source = net.createServer();
 
     source.listen(0);
   }

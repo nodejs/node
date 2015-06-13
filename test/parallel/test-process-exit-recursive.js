@@ -1,3 +1,4 @@
+'use strict';
 var assert = require('assert');
 
 // recursively calling .exit() should not overflow the call stack

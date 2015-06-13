@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var fs = require('fs');
@@ -17,7 +18,7 @@ var invalidLocalAddress = '1.2.3.4';
 var gotError = false;
 
 var server = https.createServer(options, function(req, res) {
-  console.log("Connect from: " + req.connection.remoteAddress);
+  console.log('Connect from: ' + req.connection.remoteAddress);
 
   req.on('end', function() {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -26,7 +27,7 @@ var server = https.createServer(options, function(req, res) {
   req.resume();
 });
 
-server.listen(common.PORT, "127.0.0.1", function() {
+server.listen(common.PORT, '127.0.0.1', function() {
   var req = https.request({
     host: 'localhost',
     port: common.PORT,

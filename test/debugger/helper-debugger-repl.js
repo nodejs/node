@@ -1,3 +1,4 @@
+'use strict';
 process.env.NODE_DEBUGGER_TIMEOUT = 2000;
 var common = require('../common');
 var assert = require('assert');
@@ -55,7 +56,7 @@ function startDebugger(scriptToDebug) {
     quitCalled = true;
     child.stdin.write('quit');
     child.kill('SIGTERM');
-  }
+  };
 
   setTimeout(function() {
     console.error('dying badly buffer=%j', buffer);

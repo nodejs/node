@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -26,7 +27,7 @@ function makeFile(done) {
   }
 }
 
-makeFile(function () {
+makeFile(function() {
   fs.readFile(filename, function(err) {
     assert.ok(err, 'should get RangeError');
     assert.equal(err.name, 'RangeError', 'should get RangeError');
@@ -34,6 +35,6 @@ makeFile(function () {
   });
 });
 
-process.on('uncaughtException', function (err) {
+process.on('uncaughtException', function(err) {
   assert.ok(!err, 'should not throw uncaughtException');
 });

@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -9,7 +10,7 @@ var file = path.join(common.fixturesDir, 'a.js');
 
 common.error('open ' + file);
 
-fs.open(file, 'a', 0777, function(err, fd) {
+fs.open(file, 'a', 0o777, function(err, fd) {
   common.error('fd ' + fd);
   if (err) throw err;
 

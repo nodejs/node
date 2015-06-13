@@ -72,7 +72,7 @@ class SyncProcessStdioPipe {
   int Start();
   void Close();
 
-  Local<Object> GetOutputAsBuffer() const;
+  Local<Object> GetOutputAsBuffer(Isolate* isolate) const;
 
   inline bool readable() const;
   inline bool writable() const;

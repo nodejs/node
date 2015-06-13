@@ -1,3 +1,5 @@
+/* eslint-disable no-debugger */
+'use strict';
 // Server sends a large string. Client counts bytes and pauses every few
 // seconds. Makes sure that pause and resume work properly.
 var common = require('../common');
@@ -39,7 +41,7 @@ server.listen(common.PORT, function() {
 
     /*
     client.pause();
-    process.nextTick(function () {
+    process.nextTick(function() {
       client.resume();
     });
     */

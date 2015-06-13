@@ -1,3 +1,4 @@
+'use strict';
 var domain = require('domain');
 var http = require('http');
 var assert = require('assert');

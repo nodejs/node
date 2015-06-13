@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common'),
     assert = require('assert'),
     spawn = require('child_process').spawn,
@@ -9,14 +10,14 @@ var args = [
   'var e = new (require("repl")).REPLServer("foo.. "); e.context.e = e;',
 ];
 
-var p = "bar.. ";
+var p = 'bar.. ';
 
 var child = spawn(process.execPath, args);
 
 child.stdout.setEncoding('utf8');
 
 var data = '';
-child.stdout.on('data', function(d) { data += d });
+child.stdout.on('data', function(d) { data += d; });
 
 child.stdin.end(util.format("e.setPrompt('%s');%s", p, os.EOL));
 

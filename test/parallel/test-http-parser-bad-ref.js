@@ -1,3 +1,4 @@
+'use strict';
 // Run this program with valgrind or efence with --expose_gc to expose the
 // problem.
 

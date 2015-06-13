@@ -1,9 +1,10 @@
+'use strict';
 var assert = require('assert');
 var common = require('../common');
 
 var stream = require('stream');
 
-var readable = new stream.Readable;
+var readable = new stream.Readable();
 
 // _read is a noop, here.
 readable._read = Function();

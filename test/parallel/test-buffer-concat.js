@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -14,7 +15,7 @@ var flatLongLen = Buffer.concat(long, 40);
 assert(flatZero.length === 0);
 assert(flatOne.toString() === 'asdf');
 assert(flatOne === one[0]);
-assert(flatLong.toString() === (new Array(10+1).join('asdf')));
-assert(flatLongLen.toString() === (new Array(10+1).join('asdf')));
+assert(flatLong.toString() === (new Array(10 + 1).join('asdf')));
+assert(flatLongLen.toString() === (new Array(10 + 1).join('asdf')));
 
-console.log("ok");
+console.log('ok');

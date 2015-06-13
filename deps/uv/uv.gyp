@@ -39,7 +39,7 @@
               '_FILE_OFFSET_BITS=64',
             ],
           }],
-          ['OS == "mac"', {
+          ['OS in "mac ios"', {
             'defines': [ '_DARWIN_USE_64_BIT_INODE=1' ],
           }],
           ['OS == "linux"', {
@@ -167,18 +167,17 @@
               'cflags': [ '-fPIC' ],
             }],
             ['uv_library=="shared_library" and OS!="mac"', {
-              'link_settings': {
-                # Must correspond with UV_VERSION_MAJOR and UV_VERSION_MINOR
-                # in include/uv-version.h
-                'libraries': [ '-Wl,-soname,libuv.so.1.0' ],
-              },
+              # This will cause gyp to set soname
+              # Must correspond with UV_VERSION_MAJOR
+              # in include/uv-version.h
+              'product_extension': 'so.1',
             }],
           ],
         }],
-        [ 'OS in "linux mac android"', {
+        [ 'OS in "linux mac ios android"', {
           'sources': [ 'src/unix/proctitle.c' ],
         }],
-        [ 'OS=="mac"', {
+        [ 'OS in "mac ios"', {
           'sources': [
             'src/unix/darwin.c',
             'src/unix/fsevents.c',
@@ -261,7 +260,7 @@
             'libraries': [ '-lkvm' ],
           },
         }],
-        [ 'OS in "mac freebsd dragonflybsd openbsd netbsd".split()', {
+        [ 'OS in "ios mac freebsd dragonflybsd openbsd netbsd".split()', {
           'sources': [ 'src/unix/kqueue.c' ],
         }],
         ['uv_library=="shared_library"', {
@@ -364,6 +363,7 @@
         'test/test-tcp-write-to-half-open-connection.c',
         'test/test-tcp-write-after-connect.c',
         'test/test-tcp-writealot.c',
+        'test/test-tcp-write-fail.c',
         'test/test-tcp-try-write.c',
         'test/test-tcp-unexpected-read.c',
         'test/test-tcp-oob.c',

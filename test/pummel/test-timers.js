@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -11,9 +12,9 @@ clearTimeout(null);
 clearInterval(null);
 
 assert.equal(true, setTimeout instanceof Function);
-var starttime = new Date;
+var starttime = new Date();
 setTimeout(function() {
-  var endtime = new Date;
+  var endtime = new Date();
 
   var diff = endtime - starttime;
   assert.ok(diff > 0);
@@ -29,7 +30,7 @@ clearTimeout(id);
 
 setInterval(function() {
   interval_count += 1;
-  var endtime = new Date;
+  var endtime = new Date( );
 
   var diff = endtime - starttime;
   assert.ok(diff > 0);

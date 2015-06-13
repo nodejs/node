@@ -1,9 +1,10 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var net = require('net');
 
 var client, killed = false, ended = false;
-var TIMEOUT = 10 * 1000
+var TIMEOUT = 10 * 1000;
 
 client = net.createConnection(53, '8.8.8.8', function() {
   client.unref();

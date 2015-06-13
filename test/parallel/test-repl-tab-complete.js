@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var util = require('util');
@@ -11,7 +12,7 @@ function ArrayStream() {
     data.forEach(function(line) {
       self.emit('data', line + '\n');
     });
-  }
+  };
 }
 util.inherits(ArrayStream, require('stream').Stream);
 ArrayStream.prototype.readable = true;
@@ -48,7 +49,7 @@ putIn.run(['.clear']);
 
 // Tab Complete will not break in an ternary operator with ()
 putIn.run([
-  'var inner = ( true ' ,
+  'var inner = ( true ',
   '?',
   '{one: 1} : '
 ]);
@@ -60,7 +61,7 @@ putIn.run(['.clear']);
 
 // Tab Complete will return a simple local variable
 putIn.run([
-  'var top = function () {',
+  'var top = function() {',
   'var inner = {one:1};'
 ]);
 testMe.complete('inner.o', function(error, data) {
@@ -78,7 +79,7 @@ putIn.run(['.clear']);
 
 // Tab Complete will return a complex local variable
 putIn.run([
-  'var top = function () {',
+  'var top = function() {',
   'var inner = {',
   ' one:1',
   '};'
@@ -92,7 +93,7 @@ putIn.run(['.clear']);
 // Tab Complete will return a complex local variable even if the function
 // has parameters
 putIn.run([
-  'var top = function (one, two) {',
+  'var top = function(one, two) {',
   'var inner = {',
   ' one:1',
   '};'
@@ -106,7 +107,7 @@ putIn.run(['.clear']);
 // Tab Complete will return a complex local variable even if the
 // scope is nested inside an immediately executed function
 putIn.run([
-  'var top = function () {',
+  'var top = function() {',
   '(function test () {',
   'var inner = {',
   ' one:1',
@@ -121,7 +122,7 @@ putIn.run(['.clear']);
 // currently does not work, but should not break note the inner function
 // def has the params and { on a separate line
 putIn.run([
-  'var top = function () {',
+  'var top = function() {',
   'r = function test (',
   ' one, two) {',
   'var inner = {',
@@ -136,7 +137,7 @@ putIn.run(['.clear']);
 
 // currently does not work, but should not break, not the {
 putIn.run([
-  'var top = function () {',
+  'var top = function() {',
   'r = function test ()',
   '{',
   'var inner = {',
@@ -151,7 +152,7 @@ putIn.run(['.clear']);
 
 // currently does not work, but should not break
 putIn.run([
-  'var top = function () {',
+  'var top = function() {',
   'r = function test (',
   ')',
   '{',
@@ -181,7 +182,7 @@ var spaceTimeout = setTimeout(function() {
 }, 1000);
 
 testMe.complete(' ', function(error, data) {
-  assert.deepEqual(data, [[],undefined]);
+  assert.deepEqual(data, [[], undefined]);
   clearTimeout(spaceTimeout);
 });
 

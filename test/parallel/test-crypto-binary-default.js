@@ -1,3 +1,4 @@
+'use strict';
 // This is the same as test/simple/test-crypto, but from before the shift
 // to use buffers by default.
 

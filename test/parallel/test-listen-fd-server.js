@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var http = require('http');
@@ -39,7 +40,7 @@ function test() {
       server: 'localhost',
       port: PORT,
       path: '/',
-    }).on('response', function (res) {
+    }).on('response', function(res) {
       var s = '';
       res.on('data', function(c) {
         s += c.toString();
@@ -55,7 +56,7 @@ function test() {
         assert.equal(s, 'hello from child\n');
         assert.equal(res.statusCode, 200);
       });
-    })
+    });
   }
 }
 

@@ -66,13 +66,15 @@ TEST_IMPL(tty) {
 #else /* unix */
   ttyin_fd = open("/dev/tty", O_RDONLY, 0);
   if (ttyin_fd < 0) {
-    LOGF("Cannot open /dev/tty as read-only: %s\n", strerror(errno));
+    fprintf(stderr, "Cannot open /dev/tty as read-only: %s\n", strerror(errno));
+    fflush(stderr);
     return TEST_SKIP;
   }
 
   ttyout_fd = open("/dev/tty", O_WRONLY, 0);
   if (ttyout_fd < 0) {
-    LOGF("Cannot open /dev/tty as write-only: %s\n", strerror(errno));
+    fprintf(stderr, "Cannot open /dev/tty as write-only: %s\n", strerror(errno));
+    fflush(stderr);
     return TEST_SKIP;
   }
 #endif
@@ -111,12 +113,19 @@ TEST_IMPL(tty) {
   ASSERT(height > 10);
 
   /* Turn on raw mode. */
-  r = uv_tty_set_mode(&tty_in, 1);
+  r = uv_tty_set_mode(&tty_in, UV_TTY_MODE_RAW);
   ASSERT(r == 0);
 
   /* Turn off raw mode. */
-  r = uv_tty_set_mode(&tty_in, 0);
+  r = uv_tty_set_mode(&tty_in, UV_TTY_MODE_NORMAL);
   ASSERT(r == 0);
+
+  /* Calling uv_tty_reset_mode() repeatedly should not clobber errno. */
+  errno = 0;
+  ASSERT(0 == uv_tty_reset_mode());
+  ASSERT(0 == uv_tty_reset_mode());
+  ASSERT(0 == uv_tty_reset_mode());
+  ASSERT(0 == errno);
 
   /* TODO check the actual mode! */
 
@@ -126,5 +135,47 @@ TEST_IMPL(tty) {
   uv_run(loop, UV_RUN_DEFAULT);
 
   MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+
+TEST_IMPL(tty_file) {
+#ifndef _WIN32
+  uv_loop_t loop;
+  uv_tty_t tty;
+  int fd;
+
+  ASSERT(0 == uv_loop_init(&loop));
+
+  fd = open("test/fixtures/empty_file", O_RDONLY);
+  if (fd != -1) {
+    ASSERT(UV_EINVAL == uv_tty_init(&loop, &tty, fd, 1));
+    ASSERT(0 == close(fd));
+  }
+
+  fd = open("/dev/random", O_RDONLY);
+  if (fd != -1) {
+    ASSERT(UV_EINVAL == uv_tty_init(&loop, &tty, fd, 1));
+    ASSERT(0 == close(fd));
+  }
+
+  fd = open("/dev/zero", O_RDONLY);
+  if (fd != -1) {
+    ASSERT(UV_EINVAL == uv_tty_init(&loop, &tty, fd, 1));
+    ASSERT(0 == close(fd));
+  }
+
+  fd = open("/dev/tty", O_RDONLY);
+  if (fd != -1) {
+    ASSERT(0 == uv_tty_init(&loop, &tty, fd, 1));
+    ASSERT(0 == close(fd));
+    uv_close((uv_handle_t*) &tty, NULL);
+  }
+
+  ASSERT(0 == uv_run(&loop, UV_RUN_DEFAULT));
+  ASSERT(0 == uv_loop_close(&loop));
+
+  MAKE_VALGRIND_HAPPY();
+#endif
   return 0;
 }

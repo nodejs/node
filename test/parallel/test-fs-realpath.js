@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var fs = require('fs');
@@ -38,7 +39,7 @@ function tmp(p) {
 var fixturesAbsDir = common.fixturesDir;
 var tmpAbsDir = common.tmpDir;
 
-console.error("absolutes\n%s\n%s", fixturesAbsDir, tmpAbsDir);
+console.error('absolutes\n%s\n%s', fixturesAbsDir, tmpAbsDir);
 
 function asynctest(testBlock, args, callback, assertBlock) {
   async_expected++;
@@ -235,7 +236,7 @@ function test_cyclic_link_overprotection(callback) {
   var link = folder + '/cycles';
   var testPath = cycles;
   for (var i = 0; i < 10; i++) testPath += '/folder/cycles';
-  try {fs.unlinkSync(link)} catch (ex) {}
+  try {fs.unlinkSync(link);} catch (ex) {}
   fs.symlinkSync(cycles, link, 'dir');
   unlink.push(link);
   assert.equal(fs.realpathSync(testPath), path.resolve(expected));
@@ -311,7 +312,7 @@ function test_deep_symlink_mix(callback) {
   var entry = tmp('node-test-realpath-f1');
   try { fs.unlinkSync(tmp('node-test-realpath-d2/foo')); } catch (e) {}
   try { fs.rmdirSync(tmp('node-test-realpath-d2')); } catch (e) {}
-  fs.mkdirSync(tmp('node-test-realpath-d2'), 0700);
+  fs.mkdirSync(tmp('node-test-realpath-d2'), 0o700);
   try {
     [
       [entry, '../' + common.tmpDirName + '/node-test-realpath-d1/foo'],
@@ -369,12 +370,14 @@ function test_escape_cwd(cb) {
   console.log('test_escape_cwd');
   asynctest(fs.realpath, ['..'], cb, function(er, uponeActual) {
     assert.equal(upone, uponeActual,
-        'realpath("..") expected: ' + path.resolve(upone) + ' actual:' + uponeActual);
+        'realpath("..") expected: ' + path.resolve(upone) +
+        ' actual:' + uponeActual);
   });
 }
 var uponeActual = fs.realpathSync('..');
 assert.equal(upone, uponeActual,
-    'realpathSync("..") expected: ' + path.resolve(upone) + ' actual:' + uponeActual);
+    'realpathSync("..") expected: ' + path.resolve(upone) +
+    ' actual:' + uponeActual);
 
 
 // going up with .. multiple times
@@ -394,15 +397,15 @@ function test_up_multiple(cb) {
     ['a/b',
       'a'
     ].forEach(function(folder) {
-      try {fs.rmdirSync(tmp(folder))} catch (ex) {}
+      try {fs.rmdirSync(tmp(folder));} catch (ex) {}
     });
   }
   function setup() {
     cleanup();
   }
   setup();
-  fs.mkdirSync(tmp('a'), 0755);
-  fs.mkdirSync(tmp('a/b'), 0755);
+  fs.mkdirSync(tmp('a'), 0o755);
+  fs.mkdirSync(tmp('a/b'), 0o755);
   fs.symlinkSync('..', tmp('a/d'), 'dir');
   unlink.push(tmp('a/d'));
   fs.symlinkSync('..', tmp('a/b/e'), 'dir');
@@ -416,10 +419,10 @@ function test_up_multiple(cb) {
 
   assert.equal(fs.realpathSync(abedabeda), abedabeda_real);
   assert.equal(fs.realpathSync(abedabed), abedabed_real);
-  fs.realpath(abedabeda, function (er, real) {
+  fs.realpath(abedabeda, function(er, real) {
     if (er) throw er;
     assert.equal(abedabeda_real, real);
-    fs.realpath(abedabed, function (er, real) {
+    fs.realpath(abedabed, function(er, real) {
       if (er) throw er;
       assert.equal(abedabed_real, real);
       cb();
@@ -451,14 +454,14 @@ function test_abs_with_kids(cb) {
     ['/a/b/c/x.txt',
       '/a/link'
     ].forEach(function(file) {
-      try {fs.unlinkSync(root + file)} catch (ex) {}
+      try {fs.unlinkSync(root + file);} catch (ex) {}
     });
     ['/a/b/c',
       '/a/b',
       '/a',
       ''
     ].forEach(function(folder) {
-      try {fs.rmdirSync(root + folder)} catch (ex) {}
+      try {fs.rmdirSync(root + folder);} catch (ex) {}
     });
   }
   function setup() {
@@ -469,7 +472,7 @@ function test_abs_with_kids(cb) {
       '/a/b/c'
     ].forEach(function(folder) {
       console.log('mkdir ' + root + folder);
-      fs.mkdirSync(root + folder, 0700);
+      fs.mkdirSync(root + folder, 0o700);
     });
     fs.writeFileSync(root + '/a/b/c/x.txt', 'foo');
     fs.symlinkSync(root + '/a/b', root + '/a/link', type);
@@ -575,7 +578,7 @@ function runTest() {
     var s;
     try { s = fs.statSync(t); } catch (ex) {}
     if (s) return;
-    fs.mkdirSync(t, 0700);
+    fs.mkdirSync(t, 0o700);
   });
   fs.writeFileSync(tmp('cycles/root.js'), "console.error('roooot!');");
   console.error('start tests');

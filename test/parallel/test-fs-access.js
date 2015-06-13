@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var fs = require('fs');
@@ -20,8 +21,8 @@ var createFileWithPerms = function(file, mode) {
   fs.chmodSync(file, mode);
 };
 
-createFileWithPerms(readOnlyFile, 0444);
-createFileWithPerms(readWriteFile, 0666);
+createFileWithPerms(readOnlyFile, 0o444);
+createFileWithPerms(readWriteFile, 0o666);
 
 /*
  * On non-Windows supported platforms, fs.access(readOnlyFile, W_OK, ...)
@@ -112,7 +113,7 @@ assert.doesNotThrow(function() {
 
 assert.throws(function() {
   fs.accessSync(doesNotExist);
-}, function (err) {
+}, function(err) {
   return err.code === 'ENOENT' && err.path === doesNotExist;
 });
 

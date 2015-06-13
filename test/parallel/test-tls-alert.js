@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -30,7 +31,8 @@ var server = tls.Server({
   key: loadPEM('agent2-key'),
   cert:loadPEM('agent2-cert')
 }, null).listen(common.PORT, function() {
-  var args = ['s_client', '-quiet', '-tls1_1','-connect', '127.0.0.1:' + common.PORT];
+  var args = ['s_client', '-quiet', '-tls1_1',
+              '-connect', '127.0.0.1:' + common.PORT];
   var client = spawn(common.opensslCli, args);
   var out = '';
   client.stderr.setEncoding('utf8');

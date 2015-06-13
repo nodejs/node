@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -15,7 +16,8 @@ switch (process.argv[2]) {
     break;
   default:
     var start = Date.now();
-    var ret = spawnSync(process.execPath, [__filename, 'child'], {timeout: TIMER});
+    var ret = spawnSync(process.execPath, [__filename, 'child'],
+                        {timeout: TIMER});
     assert.strictEqual(ret.error.errno, 'ETIMEDOUT');
     console.log(ret);
     var end = Date.now() - start;

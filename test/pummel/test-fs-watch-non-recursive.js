@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var path = require('path');
@@ -14,7 +15,7 @@ function cleanup() {
 process.on('exit', cleanup);
 cleanup();
 
-try { fs.mkdirSync(testsubdir, 0700); } catch (e) {}
+try { fs.mkdirSync(testsubdir, 0o700); } catch (e) {}
 
 // Need a grace period, else the mkdirSync() above fires off an event.
 setTimeout(function() {

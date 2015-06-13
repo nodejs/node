@@ -1,3 +1,4 @@
+'use strict';
 /*
  * A battery of tests to help us read a series of uints
  */

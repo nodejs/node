@@ -1,3 +1,4 @@
+'use strict';
 // test-cluster-worker-init.js
 // verifies that, when a child process is forked, the cluster.worker
 // object can receive messages as expected

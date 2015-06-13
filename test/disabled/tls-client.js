@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var tls = require('tls');
 var fs = require('fs');

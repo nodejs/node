@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var events = require('events');
@@ -53,7 +54,7 @@ process.on('exit', function() {
 
 var listen1 = function listen1() {};
 var listen2 = function listen2() {};
-var e1 = new events.EventEmitter;
+var e1 = new events.EventEmitter();
 e1.once('newListener', function() {
   assert.deepEqual(e1.listeners('hello'), []);
   e1.once('newListener', function() {

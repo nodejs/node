@@ -1,3 +1,4 @@
+/* eslint-disable strict */
 try {
   var crypto = require('crypto');
 } catch (e) {

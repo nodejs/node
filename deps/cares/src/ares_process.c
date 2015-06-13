@@ -102,8 +102,7 @@ int ares__timedout(struct timeval *now,
 }
 
 /* add the specific number of milliseconds to the time in the first argument */
-int ares__timeadd(struct timeval *now,
-                  int millisecs)
+static void timeadd(struct timeval *now, int millisecs)
 {
   now->tv_sec += millisecs/1000;
   now->tv_usec += (millisecs%1000)*1000;
@@ -112,18 +111,7 @@ int ares__timeadd(struct timeval *now,
     ++(now->tv_sec);
     now->tv_usec -= 1000000;
   }
-
-  return 0;
 }
-
-/* return time offset between now and (future) check, in milliseconds */
-long ares__timeoffset(struct timeval *now,
-                      struct timeval *check)
-{
-  return (check->tv_sec - now->tv_sec)*1000 +
-         (check->tv_usec - now->tv_usec)/1000;
-}
-
 
 /*
  * generic process function
@@ -831,8 +819,7 @@ void ares__send_query(ares_channel channel, struct query *query,
     timeplus = channel->timeout << (query->try_count / channel->nservers);
     timeplus = (timeplus * (9 + (rand () & 7))) / 16;
     query->timeout = *now;
-    ares__timeadd(&query->timeout,
-                  timeplus);
+    timeadd(&query->timeout, timeplus);
     /* Keep track of queries bucketed by timeout, so we can process
      * timeout events quickly.
      */

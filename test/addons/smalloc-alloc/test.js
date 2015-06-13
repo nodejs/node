@@ -1,3 +1,4 @@
+'use strict';
 var assert = require('assert');
 var binding = require('./build/Release/binding');
 var obj = binding.alloc(16);

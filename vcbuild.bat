@@ -21,7 +21,7 @@ set snapshot_arg=
 set noprojgen=
 set nobuild=
 set nosign=
-set snapshot=
+set nosnapshot=
 set test_args=
 set msi=
 set licensertf=
@@ -47,7 +47,7 @@ if /i "%1"=="x64"           set target_arch=x64&goto arg-ok
 if /i "%1"=="noprojgen"     set noprojgen=1&goto arg-ok
 if /i "%1"=="nobuild"       set nobuild=1&goto arg-ok
 if /i "%1"=="nosign"        set nosign=1&goto arg-ok
-if /i "%1"=="snapshot"      set snapshot=1&goto arg-ok
+if /i "%1"=="nosnapshot"    set nosnapshot=1&goto arg-ok
 if /i "%1"=="noetw"         set noetw=1&goto arg-ok
 if /i "%1"=="noperfctr"     set noperfctr=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
@@ -76,7 +76,7 @@ goto next-arg
 :args-done
 if "%config%"=="Debug" set debug_arg=--debug
 if "%target_arch%"=="x64" set msiplatform=x64
-if defined snapshot set snapshot_arg=--with-snapshot
+if defined nosnapshot set snapshot_arg=--without-snapshot
 if defined noetw set noetw_arg=--without-etw& set noetw_msi_arg=/p:NoETW=1
 if defined noperfctr set noperfctr_arg=--without-perfctr& set noperfctr_msi_arg=/p:NoPerfCtr=1
 
@@ -174,15 +174,14 @@ if "%config%"=="Debug" set test_args=--mode=debug %test_args%
 if "%config%"=="Release" set test_args=--mode=release %test_args%
 echo running 'cctest'
 "%config%\cctest"
-echo running 'python tools/test.py %test_args%'
-python tools/test.py %test_args%
+echo running 'python tools\test.py %test_args%'
+python tools\test.py %test_args%
 goto jslint
 
 :jslint
 if not defined jslint goto exit
 echo running jslint
-set PYTHONPATH=tools/closure_linter/;tools/gflags/
-python tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc -r lib/ -r src/ --exclude_files lib/punycode.js
+%config%\iojs tools\eslint\bin\eslint.js src lib test --reset --quiet
 goto exit
 
 :create-msvs-files-failed

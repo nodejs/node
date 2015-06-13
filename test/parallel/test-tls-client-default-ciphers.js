@@ -1,3 +1,4 @@
+'use strict';
 var assert = require('assert');
 var common = require('../common');
 
@@ -15,7 +16,7 @@ function test1() {
   tls.createSecureContext = function(options) {
     ciphers = options.ciphers;
     throw new Done();
-  }
+  };
 
   try {
     var s = tls.connect(common.PORT);

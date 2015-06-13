@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var a = require('assert');
@@ -144,10 +145,14 @@ if (typeof Symbol === 'symbol') {
 }
 
 // primitive wrappers and object
-assert.doesNotThrow(makeBlock(a.deepEqual, new String('a'), ['a']), a.AssertionError);
-assert.doesNotThrow(makeBlock(a.deepEqual, new String('a'), {0: 'a'}), a.AssertionError);
-assert.doesNotThrow(makeBlock(a.deepEqual, new Number(1), {}), a.AssertionError);
-assert.doesNotThrow(makeBlock(a.deepEqual, new Boolean(true), {}), a.AssertionError);
+assert.doesNotThrow(makeBlock(a.deepEqual, new String('a'), ['a']),
+                    a.AssertionError);
+assert.doesNotThrow(makeBlock(a.deepEqual, new String('a'), {0: 'a'}),
+                    a.AssertionError);
+assert.doesNotThrow(makeBlock(a.deepEqual, new Number(1), {}),
+                    a.AssertionError);
+assert.doesNotThrow(makeBlock(a.deepEqual, new Boolean(true), {}),
+                    a.AssertionError);
 
 //deepStrictEqual
 assert.doesNotThrow(makeBlock(a.deepStrictEqual, new Date(2000, 3, 14),
@@ -313,9 +318,9 @@ try {
 assert.equal(true, threw,
              'a.doesNotThrow is not catching type matching errors');
 
-assert.throws(function() {assert.ifError(new Error('test error'))});
-assert.doesNotThrow(function() {assert.ifError(null)});
-assert.doesNotThrow(function() {assert.ifError()});
+assert.throws(function() {assert.ifError(new Error('test error'));});
+assert.doesNotThrow(function() {assert.ifError(null);});
+assert.doesNotThrow(function() {assert.ifError();});
 
 // make sure that validating using constructor really works
 threw = false;
@@ -373,7 +378,7 @@ function testAssertionMessage(actual, expected) {
   } catch (e) {
     assert.equal(e.toString(),
         ['AssertionError:', expected, '==', '\'\''].join(' '));
-    assert.ok(e.generatedMessage, "Message not marked as generated");
+    assert.ok(e.generatedMessage, 'Message not marked as generated');
   }
 }
 
@@ -393,7 +398,7 @@ testAssertionMessage([1, 2, 3], '[ 1, 2, 3 ]');
 testAssertionMessage(/a/, '/a/');
 testAssertionMessage(/abc/gim, '/abc/gim');
 testAssertionMessage(function f() {}, '[Function: f]');
-testAssertionMessage(function () {}, '[Function]');
+testAssertionMessage(function() {}, '[Function]');
 testAssertionMessage({}, '{}');
 testAssertionMessage(circular, '{ y: 1, x: [Circular] }');
 testAssertionMessage({a: undefined, b: null}, '{ a: undefined, b: null }');
@@ -402,7 +407,7 @@ testAssertionMessage({a: NaN, b: Infinity, c: -Infinity},
 
 // #2893
 try {
-  assert.throws(function () {
+  assert.throws(function() {
     assert.ifError(null);
   });
 } catch (e) {
@@ -415,14 +420,14 @@ assert.ok(threw);
 try {
   assert.equal(1, 2);
 } catch (e) {
-  assert.equal(e.toString().split('\n')[0], 'AssertionError: 1 == 2')
+  assert.equal(e.toString().split('\n')[0], 'AssertionError: 1 == 2');
   assert.ok(e.generatedMessage, 'Message not marked as generated');
 }
 
 try {
   assert.equal(1, 2, 'oh no');
 } catch (e) {
-  assert.equal(e.toString().split('\n')[0], 'AssertionError: oh no')
+  assert.equal(e.toString().split('\n')[0], 'AssertionError: oh no');
   assert.equal(e.generatedMessage, false,
               'Message incorrectly marked as generated');
 }
