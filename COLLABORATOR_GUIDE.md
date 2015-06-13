@@ -101,10 +101,10 @@ exactly how to format your commit messages.
 
 Additionally:
 
-- Double check PR's to make sure the person's _full name_ and email
+- Double check PRs to make sure the person's _full name_ and email
   address are correct before merging.
 - Except when updating dependencies, all commits should be self
-  contained.  Meaning, every commit should pass all tests. This makes
+  contained (meaning every commit should pass all tests). This makes
   it much easier when bisecting to find a breaking change.
 
 ### Technical HOWTO
@@ -148,8 +148,8 @@ $ git log origin/master...master
 ```
 
 If there are multiple commits that relate to the same feature or
-one with a feature and separate with a test for that feature -
-you'll need to squash them (or strictly speaking `fixup`).
+one with a feature and separate with a test for that feature,
+you'll need to use `squash` or `fixup`:
 
 ```text
 $ git rebase -i origin/master
@@ -201,11 +201,10 @@ reword 51759dc feature B
 fixup 7d6f433 test for feature B
 ```
 
-Save the file and close the editor, you'll be asked to enter new
-commit message for that commit, and everything else should go
-smoothly. Note that this is a good moment to fix incorrect commit
-logs, ensure that they are properly formatted, and add `Reviewed-By`
-line.
+Save the file and close the editor. You'll be asked to enter a new
+commit message for that commit. This is a good moment to fix incorrect
+commit logs, ensure that they are properly formatted, and add
+`Reviewed-By` lines.
 
 Time to push it:
 
@@ -215,11 +214,11 @@ $ git push origin master
 
 ### I just made a mistake
 
-With git, there's a way to override remote trees by force pushing
+With `git`, there's a way to override remote trees by force pushing
 (`git push -f`). This should generally be seen as forbidden (since
 you're rewriting history on a repository other people are working
 against) but is allowed for simpler slip-ups such as typos in commit
 messages. However, you are only allowed to force push to any io.js
 branch within 10 minutes from your original push. If someone else
-pushes to the branch your commit lives in or the 10 minute period
-passes, consider the commit final.
+pushes to the branch or the 10 minute period passes, consider the
+commit final.
