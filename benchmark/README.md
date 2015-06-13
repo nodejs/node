@@ -13,9 +13,11 @@ These are most often available through your preferred package manager.
 
 ## How to run tests
 
-There are two ways to run benchmark tests:
+There are three ways to run benchmark tests:
 
-1. Run all tests of a given type, for example, buffers
+### Run all tests of a given type
+
+For example, buffers:
 
 ```sh
 iojs benchmark/common.js buffers
@@ -24,7 +26,7 @@ iojs benchmark/common.js buffers
 The above command will find all scripts under `buffers` directory and require
 each of them as a module. When a test script is required, it creates an instance
 of `Benchmark` (a class defined in common.js). In the next tick, the `Benchmark`
-constructor iterates through the configuration object property values and run
+constructor iterates through the configuration object property values and runs
 the test function with each of the combined arguments in spawned processes. For
 example, buffers/buffer-read.js has the following configuration:
 
@@ -75,7 +77,11 @@ buffers/buffer-read.js noAssert=false buffer=fast type=UInt16BE millions=1: 244.
 ...
 ```
 
-2. Run an individual test, for example, buffer-slice.js
+The last number is the rate of operations. Higher is better.
+
+### Run an individual test
+
+For example, buffer-slice.js:
 
 ```sh
 iojs benchmark/buffers/buffer-read.js
@@ -88,7 +94,7 @@ buffers/buffer-read.js noAssert=false buffer=fast type=UInt16BE millions=1: 245.
 ...
 ```
 
-3. Run tests with options
+### Run tests with options
 
 This example will run only the first type of url test, with one iteration.
 (Note: benchmarks require __many__ iterations to be statistically accurate.)
