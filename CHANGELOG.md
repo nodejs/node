@@ -86,7 +86,7 @@ See https://github.com/nodejs/io.js/labels/confirmed-bug for complete and curren
 * [[`a130132c8f`](https://github.com/nodejs/io.js/commit/a130132c8f)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
 * [[`6e78e5feaa`](https://github.com/nodejs/io.js/commit/6e78e5feaa)] - **(SEMVER-MINOR)** **os**: add homedir() (cjihrig) [#1791](https://github.com/nodejs/io.js/pull/1791)
 * [[`d9e250295b`](https://github.com/nodejs/io.js/commit/d9e250295b)] - ***Revert*** "**readline**: allow tabs in input" (Jeremiah Senkpiel) [#1961](https://github.com/nodejs/io.js/pull/1961)
-* [[`4b3d493c4b`](https://github.com/nodejs/io.js/commit/4b3d493c4b)] - **(SEMVER-MINOR)** **readline**: allow tabs in input (Rich Trott) [#1761](https://github.com/nodejs/io.js/pull/1761)
+* [[`4b3d493c4b`](https://github.com/nodejs/io.js/commit/4b3d493c4b)] - **readline**: allow tabs in input (Rich Trott) [#1761](https://github.com/nodejs/io.js/pull/1761)
 * [[`6d95f4ff92`](https://github.com/nodejs/io.js/commit/6d95f4ff92)] - **(SEMVER-MINOR)** **smalloc**: deprecate whole module (Vladimir Kurchatkin) [#1822](https://github.com/nodejs/io.js/pull/1822)
 * [[`8c71a9241d`](https://github.com/nodejs/io.js/commit/8c71a9241d)] - **src**: hide InitializeICUDirectory symbol (Ben Noordhuis) [#1815](https://github.com/nodejs/io.js/pull/1815)
 * [[`5b6f575c1f`](https://github.com/nodejs/io.js/commit/5b6f575c1f)] - ***Revert*** "**src**: add getopt option parser" (Evan Lucas) [#1862](https://github.com/nodejs/io.js/pull/1862)
@@ -120,7 +120,7 @@ See https://github.com/nodejs/io.js/labels/confirmed-bug for complete and curren
 * [[`5be9efca40`](https://github.com/nodejs/io.js/commit/5be9efca40)] - **tools**: update mk-ca-bundle.pl to HEAD of upstream (Ben Noordhuis) [#1833](https://github.com/nodejs/io.js/pull/1833)
 * [[`1baba0580d`](https://github.com/nodejs/io.js/commit/1baba0580d)] - **tools**: Fix copying contents of deps/npm (thefourtheye) [#1853](https://github.com/nodejs/io.js/pull/1853)
 * [[`628845b816`](https://github.com/nodejs/io.js/commit/628845b816)] - **(SEMVER-MINOR)** **util**: introduce `printDeprecationMessage` function (Vladimir Kurchatkin) [#1822](https://github.com/nodejs/io.js/pull/1822)
-* [[`91d0a8b19c`](https://github.com/nodejs/io.js/commit/91d0a8b19c)] - **(SEMVER-MAJOR)** **win,node-gyp**: enable delay-load hook by default (Bert Belder) [iojs/io.js#1433](https://github.com/iojs/io.js/pull/1433)
+* [[`91d0a8b19c`](https://github.com/nodejs/io.js/commit/91d0a8b19c)] - **win,node-gyp**: enable delay-load hook by default (Bert Belder) [iojs/io.js#1433](https://github.com/iojs/io.js/pull/1433)
 
 ## 2015-06-01, Version 2.2.1, @rvagg
 
