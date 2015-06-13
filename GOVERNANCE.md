@@ -34,7 +34,7 @@ individuals are identified by the TC and their addition as
 Collaborators is discussed during the weekly TC meeting.
 
 _Note:_ If you make a significant contribution and are not considered
-for commit-access log an issue or contact a TC member directly and it
+for commit-access, log an issue or contact a TC member directly and it
 will be brought up in the next TC meeting.
 
 Modifications of the contents of the iojs/io.js repository are made on
@@ -96,8 +96,8 @@ Items are added to the TC agenda which are considered contentious or
 are modifications of governance, contribution policy, TC membership,
 or release process.
 
-The intention of the agenda is not to approve or review all patches,
-that should happen continuously on GitHub and be handled by the larger
+The intention of the agenda is not to approve or review all patches.
+That should happen continuously on GitHub and be handled by the larger
 group of Collaborators.
 
 Any community member or contributor can ask that something be added to
@@ -105,7 +105,7 @@ the next meeting's agenda by logging a GitHub Issue. Any Collaborator,
 TC member or the moderator can add the item to the agenda by adding
 the ***tc-agenda*** tag to the issue.
 
-Prior to each TC meeting the moderator will share the Agenda with
+Prior to each TC meeting, the moderator will share the Agenda with
 members of the TC. TC members can add any items they like to the
 agenda at the beginning of each meeting. The moderator and the TC
 cannot veto or remove items.
@@ -117,7 +117,7 @@ participate in a non-voting capacity. These invitees currently are:
   chosen by that project.
 
 The moderator is responsible for summarizing the discussion of each
-agenda item and send it as a pull request after the meeting.
+agenda item and sending it as a pull request after the meeting.
 
 ## Consensus Seeking Process
 
@@ -125,11 +125,11 @@ The TC follows a
 [Consensus Seeking](http://en.wikipedia.org/wiki/Consensus-seeking_decision-making)
 decision making model.
 
-When an agenda item has appeared to reach a consensus the moderator
+When an agenda item has appeared to reach a consensus, the moderator
 will ask "Does anyone object?" as a final call for dissent from the
 consensus.
 
-If an agenda item cannot reach a consensus a TC member can call for
+If an agenda item cannot reach a consensus, a TC member can call for
 either a closing vote or a vote to table the issue to the next
-meeting. The call for a vote must be seconded by a majority of the TC
+meeting. The call for a vote must be approved by a majority of the TC
 or else the discussion will continue. Simple majority wins.
