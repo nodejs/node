@@ -50,7 +50,6 @@ exec('thisisnotavalidcommand', function(err, stdout, stderr) {
 });
 
 
-
 var sleeperStart = new Date();
 exec(SLEEP3_COMMAND, { timeout: 50 }, function(err, stdout, stderr) {
   var diff = (new Date()) - sleeperStart;
@@ -60,8 +59,6 @@ exec(SLEEP3_COMMAND, { timeout: 50 }, function(err, stdout, stderr) {
   assert.ok(err.killed);
   assert.equal(err.signal, 'SIGTERM');
 });
-
-
 
 
 var startSleep3 = new Date();

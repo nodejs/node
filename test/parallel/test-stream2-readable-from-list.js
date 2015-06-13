@@ -38,7 +38,6 @@ process.on('exit', function() {
 process.nextTick(run);
 
 
-
 test('buffers', function(t) {
   // have a length
   var len = 16;

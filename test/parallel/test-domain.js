@@ -105,13 +105,11 @@ d.on('error', function(er) {
 });
 
 
-
 process.on('exit', function() {
   console.error('exit', caught, expectCaught);
   assert.equal(caught, expectCaught, 'caught the expected number of errors');
   console.log('ok');
 });
-
 
 
 // revert to using the domain when a callback is passed to nextTick in
@@ -122,7 +120,6 @@ d.run(function() {
   });
 });
 expectCaught++;
-
 
 
 // catch thrown errors no matter how many times we enter the event loop
@@ -146,7 +143,6 @@ d.run(function() {
 expectCaught++;
 
 
-
 // implicit addition of a timer created within a domain-bound context.
 d.run(function() {
   setTimeout(function() {
@@ -156,12 +152,10 @@ d.run(function() {
 expectCaught++;
 
 
-
 // Event emitters added to the domain have their errors routed.
 d.add(e);
 e.emit('error', new Error('emitted'));
 expectCaught++;
-
 
 
 // get rid of the `if (er) return cb(er)` malarky, by intercepting
@@ -175,7 +169,6 @@ function fn(er) {
 var bound = d.intercept(fn);
 bound(new Error('bound'));
 expectCaught++;
-
 
 
 // intercepted should never pass first argument to callback
@@ -208,14 +201,12 @@ setTimeout(d.bind(thrower), 100);
 expectCaught++;
 
 
-
 // Pass an intercepted function to an fs operation that fails.
 fs.open('this file does not exist', 'r', d.intercept(function(er) {
   console.error('should not get here!', er);
   throw new Error('should not get here!');
 }, true));
 expectCaught++;
-
 
 
 // implicit addition by being created within a domain-bound context.

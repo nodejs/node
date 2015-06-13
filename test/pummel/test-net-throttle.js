@@ -55,7 +55,6 @@ server.listen(common.PORT, function() {
 });
 
 
-
 process.on('exit', function() {
   assert.equal(N, chars_recved);
   assert.equal(true, npauses > 2);
