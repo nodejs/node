@@ -16,7 +16,6 @@ exitChild.on('exit', function(code, signal) {
 });
 
 
-
 var errorScript = path.join(common.fixturesDir,
                             'child_process_should_emit_error.js');
 var errorChild = spawn(process.argv[0], [errorScript]);

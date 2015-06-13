@@ -49,7 +49,6 @@ assert.equal(c_bin.toString('binary'), ucs2_control);
 assert.equal(c_ucs.toString('binary'), ucs2_control);
 
 
-
 // now let's test BASE64 and HEX ecoding/decoding
 var RADIOS = 2;
 var PRE_HALF_APEX = Math.ceil(EXTERN_APEX / 2) - RADIOS;

@@ -14,7 +14,6 @@ var util = require('util');
 var zlib = require('zlib');
 
 
-
 // emit random bytes, and keep a shasum
 function RandomReadStream(opt) {
   Stream.call(this);
@@ -128,8 +127,6 @@ HashStream.prototype.end = function(c) {
   this.emit('data', this._hash);
   this.emit('end');
 };
-
-
 
 
 var inp = new RandomReadStream({ total: 1024, block: 256, jitter: 16 });

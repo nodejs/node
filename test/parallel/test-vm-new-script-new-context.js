@@ -20,7 +20,6 @@ assert.throws(function() {
 }, /test/);
 
 
-
 console.error('undefined reference');
 var error;
 script = new Script('foo.bar = 5;');
@@ -67,5 +66,3 @@ console.error('invalid this');
 assert.throws(function() {
   script.runInNewContext.call('\'hello\';');
 }, TypeError);
-
-

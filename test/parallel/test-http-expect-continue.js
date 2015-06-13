@@ -31,7 +31,6 @@ server.on('checkContinue', function(req, res) {
 server.listen(common.PORT);
 
 
-
 server.on('listening', function() {
   var req = http.request({
     port: common.PORT,

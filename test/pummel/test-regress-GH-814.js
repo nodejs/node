@@ -19,12 +19,10 @@ var testFileFD = fs.openSync(testFileName, 'w');
 console.log(testFileName);
 
 
-
 var kBufSize = 128 * 1024;
 var PASS = true;
 var neverWrittenBuffer = newBuffer(kBufSize, 0x2e); //0x2e === '.'
 var bufPool = [];
-
 
 
 var tail = require('child_process').spawn('tail', ['-f', testFileName]);
@@ -33,7 +31,6 @@ tail.stdout.on('data', tailCB);
 function tailCB(data) {
   PASS = data.toString().indexOf('.') < 0;
 }
-
 
 
 var timeToQuit = Date.now() + 8e3; //Test during no more than this seconds.
@@ -68,5 +65,3 @@ function cb(err, written) {
     throw err;
   }
 }
-
-

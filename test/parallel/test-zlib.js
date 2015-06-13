@@ -133,7 +133,6 @@ SlowStream.prototype.end = function(chunk) {
 };
 
 
-
 // for each of the files, make sure that compressing and
 // decompressing results in the same data, for every combination
 // of the options set above.
