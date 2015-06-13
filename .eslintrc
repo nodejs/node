@@ -59,6 +59,12 @@ rules:
   new-parens: 2
   ## max 80 length
   max-len: [2, 80, 2]
+  ## max 2 consecutive empty lines
+  no-multiple-empty-lines: [2, {max: 2}]
+  ## require newline at end of files
+  eol-last: 2
+  ## no trailing spaces
+  no-trailing-spaces: 2
 
   # Strict Mode
   # list: https://github.com/eslint/eslint/tree/master/docs/rules#strict-mode
