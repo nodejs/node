@@ -113,8 +113,6 @@ test-all-valgrind: test-build
 
 test-ci:
 	$(PYTHON) tools/test.py -p tap --logfile test.tap --mode=release message parallel sequential
-	$(MAKE) jslint
-	$(MAKE) cpplint
 
 test-release: test-build
 	$(PYTHON) tools/test.py --mode=release
