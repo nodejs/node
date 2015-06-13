@@ -314,7 +314,6 @@ assert.equal(b, c.parent);
 assert.equal(b, d.parent);
 
 
-
 // Bug regression test
 var testValue = '\u00F6\u65E5\u672C\u8A9E'; // ö日本語
 var buffer = new Buffer(32);

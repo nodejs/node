@@ -155,7 +155,6 @@ assert.equal(b[0], 0xff);
 assert.equal(b[1], 0xff);
 
 
-
 // verify checking external if has external memory
 
 // check objects

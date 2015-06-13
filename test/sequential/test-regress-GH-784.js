@@ -117,17 +117,12 @@ function ping() {
 }
 
 
-
 function pingping() {
   ping();
   ping();
 }
 
-
 pingping();
-
-
-
 
 process.on('exit', function() {
   console.error("process.on('exit')");

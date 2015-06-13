@@ -79,7 +79,6 @@ var responseCount = 0;
 var pending = 0;
 
 
-
 function server(options, port) {
   var s = https.createServer(options, handler);
   s.requests = [];

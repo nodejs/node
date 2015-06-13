@@ -62,9 +62,6 @@ socket1.on('connect', function() {
 });
 
 
-
-
-
 process.on('exit', function() {
   assert.ok(gotTimeout0);
   assert.ok(!gotConnect0);
