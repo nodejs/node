@@ -289,45 +289,45 @@ that forms the _Technical Committee_ (TC) which governs the project. For more
 information about the governance of the io.js project, see
 [GOVERNANCE.md](./GOVERNANCE.md).
 
-* **Isaac Z. Schlueter** ([@isaacs](https://github.com/isaacs)) &lt;i@izs.me&gt; (Technical Committee)
-* **Ben Noordhuis** ([@bnoordhuis](https://github.com/bnoordhuis)) &lt;info@bnoordhuis.nl&gt; (Technical Committee)
-* **Bert Belder** ([@piscisaureus](https://github.com/piscisaureus)) &lt;bertbelder@gmail.com&gt; (Technical Committee)
-* **Fedor Indutny** ([@indutny](https://github.com/indutny)) &lt;fedor.indutny@gmail.com&gt; (Technical Committee)
-* **Trevor Norris** ([@trevnorris](https://github.com/trevnorris)) &lt;trev.norris@gmail.com&gt; (Technical Committee)
-* **Chris Dickinson** ([@chrisdickinson](https://github.com/chrisdickinson)) &lt;christopher.s.dickinson@gmail.com&gt; (Technical Committee)
+* **Isaac Z. Schlueter** &lt;i@izs.me&gt; ([@isaacs](https://github.com/isaacs)) (Technical Committee)
+* **Ben Noordhuis** &lt;info@bnoordhuis.nl&gt; ([@bnoordhuis](https://github.com/bnoordhuis)) (Technical Committee)
+* **Bert Belder** &lt;bertbelder@gmail.com&gt; ([@piscisaureus](https://github.com/piscisaureus)) (Technical Committee)
+* **Fedor Indutny** &lt;fedor.indutny@gmail.com&gt; ([@indutny](https://github.com/indutny)) (Technical Committee)
+* **Trevor Norris** &lt;trev.norris@gmail.com&gt; ([@trevnorris](https://github.com/trevnorris)) (Technical Committee)
+* **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt; ([@chrisdickinson](https://github.com/chrisdickinson)) (Technical Committee)
   - Release GPG key: 9554F04D7259F04124DE6B476D5A82AC7E37093B
-* **Colin Ihrig** ([@cjihrig](https://github.com/cjihrig)) &lt;cjihrig@gmail.com&gt;
-* **Mikeal Rogers** ([@mikeal](https://github.com/mikeal)) &lt;mikeal.rogers@gmail.com&gt;
-* **Rod Vagg** ([@rvagg](https://github.com/rvagg)) &lt;rod@vagg.org&gt; (Technical Committee)
+* **Colin Ihrig** &lt;cjihrig@gmail.com&gt; ([@cjihrig](https://github.com/cjihrig))
+* **Mikeal Rogers** &lt;mikeal.rogers@gmail.com&gt; ([@mikeal](https://github.com/mikeal))
+* **Rod Vagg** &lt;rod@vagg.org&gt; ([@rvagg](https://github.com/rvagg)) (Technical Committee)
   - Release GPG key: DD8F2338BAE7501E3DD5AC78C273792F7D83545D
-* **Thorsten Lorenz** ([@thlorenz](https://github.com/thlorenz)) &lt;thlorenz@gmx.de&gt;
-* **Stephen Belanger** ([@qard](https://github.com/qard)) &lt;admin@stephenbelanger.com&gt;
-* **Jeremiah Senkpiel** ([@fishrock123](https://github.com/fishrock123)) &lt;fishrock123@rocketmail.com&gt; (Technical Committee)
+* **Thorsten Lorenz** &lt;thlorenz@gmx.de&gt; ([@thlorenz](https://github.com/thlorenz))
+* **Stephen Belanger** &lt;admin@stephenbelanger.com&gt; ([@qard](https://github.com/qard))
+* **Jeremiah Senkpiel** &lt;fishrock123@rocketmail.com&gt; ([@fishrock123](https://github.com/fishrock123)) (Technical Committee)
   - Release GPG key: FD3A5288F042B6850C66B31F09FE44734EB7990E
-* **Evan Lucas** ([@evanlucas](https://github.com/evanlucas)) &lt;evanlucas@me.com&gt;
-* **Brendan Ashworth** ([@brendanashworth](https://github.com/brendanashworth)) &lt;brendan.ashworth@me.com&gt;
-* **Vladimir Kurchatkin** ([@vkurchatkin](https://github.com/vkurchatkin)) &lt;vladimir.kurchatkin@gmail.com&gt;
-* **Nikolai Vavilov** ([@seishun](https://github.com/seishun)) &lt;vvnicholas@gmail.com&gt;
-* **Nicu Micleușanu** ([@micnic](https://github.com/micnic)) &lt;micnic90@gmail.com&gt;
-* **Aleksey Smolenchuk** ([@lxe](https://github.com/lxe)) &lt;lxe@lxe.co&gt;
-* **Shigeki Ohtsu** ([@shigeki](https://github.com/shigeki)) &lt;ohtsu@iij.ad.jp&gt;
-* **Sam Roberts** ([@sam-github](https://github.com/sam-github)) &lt;vieuxtech@gmail.com&gt;
-* **Wyatt Preul** ([@geek](https://github.com/geek)) &lt;wpreul@gmail.com&gt;
-* **Brian White** ([@mscdex](https://github.com/mscdex)) &lt;mscdex@mscdex.net&gt;
-* **Christian Vaagland Tellnes** ([@tellnes](https://github.com/tellnes)) &lt;christian@tellnes.com&gt;
-* **Robert Kowalski** ([@robertkowalski](https://github.com/robertkowalski)) &lt;rok@kowalski.gd&gt;
-* **Julian Duque** ([@julianduque](https://github.com/julianduque)) &lt;julianduquej@gmail.com&gt;
-* **Johan Bergström** ([@jbergstroem](https://github.com/jbergstroem)) &lt;bugs@bergstroem.nu&gt;
-* **Roman Reiss** ([@silverwind](https://github.com/silverwind)) &lt;me@silverwind.io&gt;
-* **Petka Antonov** ([@petkaantonov](https://github.com/petkaantonov)) &lt;petka_antonov@hotmail.com&gt;
-* **Yosuke Furukawa** ([@yosuke-furukawa](https://github.com/yosuke-furukawa)) &lt;yosuke.furukawa@gmail.com&gt;
-* **Alex Kocharin** ([@rlidwka](https://github.com/rlidwka)) &lt;alex@kocharin.ru&gt;
-* **Christopher Monsanto** ([@monsanto](https://github.com/monsanto)) &lt;chris@monsan.to&gt;
-* **Ali Ijaz Sheikh** ([@ofrobots](https://github.com/ofrobots)) &lt;ofrobots@google.com&gt;
-* **Oleg Elifantiev** ([@Olegas](https://github.com/Olegas)) &lt;oleg@elifantiev.ru&gt;
-* **Domenic Denicola** ([@domenic](https://github.com/domenic)) &lt;d@domenic.me&gt;
-* **Rich Trott** ([@Trott](https://github.com/Trott)) &lt;rtrott@gmail.com&gt;
-* **Сковорода Никита Андреевич** ([@ChALkeR](https://github.com/ChALkeR)) &lt;chalkerx@gmail.com&gt;
+* **Evan Lucas** &lt;evanlucas@me.com&gt; ([@evanlucas](https://github.com/evanlucas))
+* **Brendan Ashworth** &lt;brendan.ashworth@me.com&gt; ([@brendanashworth](https://github.com/brendanashworth))
+* **Vladimir Kurchatkin** &lt;vladimir.kurchatkin@gmail.com&gt; ([@vkurchatkin](https://github.com/vkurchatkin))
+* **Nikolai Vavilov** &lt;vvnicholas@gmail.com&gt; ([@seishun](https://github.com/seishun))
+* **Nicu Micleușanu** &lt;micnic90@gmail.com&gt; ([@micnic](https://github.com/micnic))
+* **Aleksey Smolenchuk** &lt;lxe@lxe.co&gt; ([@lxe](https://github.com/lxe))
+* **Shigeki Ohtsu** &lt;ohtsu@iij.ad.jp&gt; ([@shigeki](https://github.com/shigeki))
+* **Sam Roberts** &lt;vieuxtech@gmail.com&gt; ([@sam-github](https://github.com/sam-github))
+* **Wyatt Preul** &lt;wpreul@gmail.com&gt; ([@geek](https://github.com/geek))
+* **Brian White** &lt;mscdex@mscdex.net&gt; ([@mscdex](https://github.com/mscdex))
+* **Christian Vaagland Tellnes** &lt;christian@tellnes.com&gt; ([@tellnes](https://github.com/tellnes))
+* **Robert Kowalski** &lt;rok@kowalski.gd&gt; ([@robertkowalski](https://github.com/robertkowalski))
+* **Julian Duque** &lt;julianduquej@gmail.com&gt; ([@julianduque](https://github.com/julianduque))
+* **Johan Bergström** &lt;bugs@bergstroem.nu&gt; ([@jbergstroem](https://github.com/jbergstroem))
+* **Roman Reiss** &lt;me@silverwind.io&gt; ([@silverwind](https://github.com/silverwind))
+* **Petka Antonov** &lt;petka_antonov@hotmail.com&gt; ([@petkaantonov](https://github.com/petkaantonov))
+* **Yosuke Furukawa** &lt;yosuke.furukawa@gmail.com&gt; ([@yosuke-furukawa](https://github.com/yosuke-furukawa))
+* **Alex Kocharin** &lt;alex@kocharin.ru&gt; ([@rlidwka](https://github.com/rlidwka))
+* **Christopher Monsanto** &lt;chris@monsan.to&gt; ([@monsanto](https://github.com/monsanto))
+* **Ali Ijaz Sheikh** &lt;ofrobots@google.com&gt; ([@ofrobots](https://github.com/ofrobots))
+* **Oleg Elifantiev** &lt;oleg@elifantiev.ru&gt; ([@Olegas](https://github.com/Olegas))
+* **Domenic Denicola** &lt;d@domenic.me&gt; ([@domenic](https://github.com/domenic))
+* **Rich Trott** &lt;rtrott@gmail.com&gt; ([@Trott](https://github.com/Trott))
+* **Сковорода Никита Андреевич** &lt;chalkerx@gmail.com&gt; ([@ChALkeR](https://github.com/ChALkeR))
 
 Collaborators follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
 maintaining the io.js project.
