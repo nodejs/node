@@ -52,15 +52,8 @@ function rmdirSync(p, originalEr) {
 }
 
 exports.refreshTmpDir = function() {
-  try {
-    rimrafSync(exports.tmpDir);
-  } catch (e) {
-  }
-
-  try {
-    fs.mkdirSync(exports.tmpDir);
-  } catch (e) {
-  }
+  rimrafSync(exports.tmpDir);
+  fs.mkdirSync(exports.tmpDir);
 };
 
 if (process.env.TEST_THREAD_ID) {
