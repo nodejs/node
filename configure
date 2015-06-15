@@ -366,12 +366,6 @@ def pkg_config(pkg):
   return retval
 
 
-def format_libraries(list):
-  """Returns string of space separated libraries"""
-  libraries = list.split(',')
-  return ' '.join('-l{0}'.format(i) for i in libraries)
-
-
 def try_check_compiler(cc, lang):
   try:
     proc = subprocess.Popen(shlex.split(cc) + ['-E', '-P', '-x', lang, '-'],
@@ -689,29 +683,24 @@ def configure_library(lib, output):
   output['variables']['node_' + shared_lib] = b(getattr(options, shared_lib))
 
   if getattr(options, shared_lib):
-    default_cflags = getattr(options, shared_lib + '_includes')
-    default_lib = format_libraries(getattr(options, shared_lib + '_libname'))
-    default_libpath = getattr(options, shared_lib + '_libpath')
-    if default_libpath:
-      default_libpath = '-L' + default_libpath
     (pkg_libs, pkg_cflags, pkg_libpath) = pkg_config(lib)
-    # Remove empty strings from the list of include_dirs
+
     if pkg_cflags:
-      cflags = filter(None, map(str.strip, pkg_cflags.split('-I')))
-    else:
-      cflags = default_cflags
-    libs = pkg_libs if pkg_libs else default_lib
-    libpath = pkg_libpath if pkg_libpath else default_libpath
+      output['include_dirs'] += (
+          filter(None, map(str.strip, pkg_cflags.split('-I'))))
 
     # libpath needs to be provided ahead libraries
-    if libpath:
-      output['libraries'] += [libpath]
-    if libs:
-      # libs passed to the linker cannot contain spaces.
-      # (libpath on the other hand can)
-      output['libraries'] += libs.split()
-    if cflags:
-      output['include_dirs'] += [cflags]
+    if pkg_libpath:
+      output['libraries'] += (
+          filter(None, map(str.strip, pkg_cflags.split('-L'))))
+
+    default_libs = getattr(options, shared_lib + '_libname')
+    default_libs = map('-l{0}'.format, default_libs.split(','))
+
+    if pkg_libs:
+      output['libraries'] += pkg_libs.split()
+    elif default_libs:
+      output['libraries'] += default_libs
 
 
 def configure_v8(o):
