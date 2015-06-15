@@ -70,6 +70,16 @@ Example of listening for `exit`:
     });
 
 
+## Event: 'message'
+
+* `message` {Object} a parsed JSON object or primitive value
+* `sendHandle` {Handle object} a [net.Socket][] or [net.Server][] object, or
+  undefined.
+
+Messages sent by [ChildProcess.send()][] are obtained using the `'message'`
+event on the child's process object.
+
+
 ## Event: 'beforeExit'
 
 This event is emitted when Node.js empties its event loop and has nothing else to
@@ -904,6 +914,38 @@ a diff reading, useful for benchmarks and measuring intervals:
     }, 1000);
 
 
+## process.send(message[, sendHandle][, callback])
+
+* `message` {Object}
+* `sendHandle` {Handle object}
+
+When Node.js is spawned with an IPC channel attached, it can send messages to its
+parent process using `process.send()`. Each will be received as a
+['message'](child_process.html#child_process_event_message)
+event on the parent's `ChildProcess` object.
+
+If io.js was not spawned with an IPC channel, `process.send()` will be undefined.
+
+
+## process.disconnect()
+
+Close the IPC channel to the parent process, allowing this child to exit
+gracefully once there are no other connections keeping it alive.
+
+Identical to the parent process's
+[ChildProcess.disconnect()](child_process.html#child_process_child_disconnect).
+
+If io.js was not spawned with an IPC channel, `process.disconnect()` will be
+undefined.
+
+
+### process.connected
+
+* {Boolean} Set to false after `process.disconnect()` is called
+
+If `process.connected` is false, it is no longer possible to send messages.
+
+
 ## process.mainModule
 
 Alternate way to retrieve
@@ -915,4 +957,7 @@ to the same module.
 
 As with `require.main`, it will be `undefined` if there was no entry script.
 
+[ChildProcess.send()]: child_process.html#child_process_child_send_message_sendhandle_callback
 [EventEmitter]: events.html#events_class_events_eventemitter
+[net.Server]: net.html#net_class_net_server
+[net.Socket]: net.html#net_class_net_socket
