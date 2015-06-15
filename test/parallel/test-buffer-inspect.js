@@ -14,10 +14,10 @@ b.fill('1234');
 var s = new buffer.SlowBuffer(4);
 s.fill('1234');
 
-var expected = '<Buffer 31 32 ... >';
+var expected = /<Buffer@0x[\da-f]+ 31 32 ... >/;
 
-assert.strictEqual(util.inspect(b), expected);
-assert.strictEqual(util.inspect(s), expected);
+assert(expected.test(util.inspect(b)));
+assert(expected.test(util.inspect(s)));
 
 b = new Buffer(2);
 b.fill('12');
@@ -25,14 +25,14 @@ b.fill('12');
 s = new buffer.SlowBuffer(2);
 s.fill('12');
 
-expected = '<Buffer 31 32>';
+expected = /<Buffer@0x[\da-f]+ 31 32>/;
 
-assert.strictEqual(util.inspect(b), expected);
-assert.strictEqual(util.inspect(s), expected);
+assert(expected.test(util.inspect(b)));
+assert(expected.test(util.inspect(s)));
 
 buffer.INSPECT_MAX_BYTES = Infinity;
 
 assert.doesNotThrow(function() {
-  assert.strictEqual(util.inspect(b), expected);
-  assert.strictEqual(util.inspect(s), expected);
+  assert(expected.test(util.inspect(b)));
+  assert(expected.test(util.inspect(s)));
 });

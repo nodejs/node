@@ -213,7 +213,7 @@ Supports up to 48 bits of accuracy. For example:
 
     var b = new Buffer(6);
     b.writeUIntBE(0x1234567890ab, 0, 6);
-    // <Buffer 12 34 56 78 90 ab>
+    // <Buffer@0x102800408 12 34 56 78 90 ab>
 
 Set `noAssert` to `true` to skip validation of `value` and `offset`. Defaults
 to `false`.
@@ -283,7 +283,7 @@ Example:
       });
 
     console.log(copy);
-    // <Buffer 74 65 73 74>
+    // <Buffer@0x102800408 74 65 73 74>
 
 ### buf[index]
 
@@ -498,6 +498,37 @@ Example:
     // 0x03042342
     // 0x42230403
 
+### buf.readUInt64LE(offset[, noAssert])
+### buf.readUInt64BE(offset[, noAssert])
+
+* `offset` Number
+* `noAssert` Boolean, Optional, Default: false
+* Return: Number or String
+
+Reads an unsigned 64 bit integer from the buffer at the specified offset with
+specified endian format.
+
+If the value is greater than `Number.MAX_SAFE_INTEGER` then a String is
+returned, otherwise a Number is returned. Because of this, it is assumed
+that you will pass the return value to a JavaScript Int64 module, rather
+than interact with the value directly.
+
+Set `noAssert` to true to skip validation of `offset`. This means that `offset`
+may be beyond the end of the buffer. Defaults to `false`.
+
+Example:
+
+    var buf = new Buffer(8);
+    buf[0] = buf[1] = buf[2] = buf[3] = 0x00;
+    buf[4] = buf[5] = buf[6] = buf[7] = 0xff;
+    // <Buffer@0x10187aa08 00 00 00 00 ff ff ff ff>
+
+    b.readUInt64BE(0);
+    // 4294967295
+
+    b.readUInt64LE(0);
+    // '1844674406941458432'
+
 ### buf.readInt8(offset[, noAssert])
 
 * `offset` Number
@@ -542,6 +573,28 @@ Set `noAssert` to true to skip validation of `offset`. This means that `offset`
 may be beyond the end of the buffer. Defaults to `false`.
 
 Works as `buffer.readUInt32*`, except buffer contents are treated as two's
+complement signed values.
+
+### buf.readInt64LE(offset[, noAssert])
+### buf.readInt64BE(offset[, noAssert])
+
+* `offset` Number or String
+* `noAssert` Boolean, Optional, Default: false
+* Return: Number
+
+Reads a signed 64 bit integer from the buffer at the specified offset with
+specified endian format.
+
+If the value is less than `Number.MIN_SAFE_INTEGER` or greater than
+`Number.MAX_SAFE_INTEGER` then a String is returned, otherwise a Number
+is returned. Because of this, it is assumed that you will pass the
+return value to a JavaScript Int64 module, rather than interact with the
+value directly.
+
+Set `noAssert` to true to skip validation of `offset`. This means that `offset`
+may be beyond the end of the buffer. Defaults to `false`.
+
+Works as `buffer.readUInt64*`, except buffer contents are treated as two's
 complement signed values.
 
 ### buf.readFloatLE(offset[, noAssert])
@@ -624,7 +677,7 @@ Example:
 
     console.log(buf);
 
-    // <Buffer 03 04 23 42>
+    // <Buffer@0x102800408 03 04 23 42>
 
 ### buf.writeUInt16LE(value, offset[, noAssert])
 ### buf.writeUInt16BE(value, offset[, noAssert])
@@ -654,8 +707,8 @@ Example:
 
     console.log(buf);
 
-    // <Buffer de ad be ef>
-    // <Buffer ad de ef be>
+    // <Buffer@0x102800408 de ad be ef>
+    // <Buffer@0x102800408 ad de ef be>
 
 ### buf.writeUInt32LE(value, offset[, noAssert])
 ### buf.writeUInt32BE(value, offset[, noAssert])
@@ -683,8 +736,33 @@ Example:
 
     console.log(buf);
 
-    // <Buffer fe ed fa ce>
-    // <Buffer ce fa ed fe>
+    // <Buffer@0x102800408 fe ed fa ce>
+    // <Buffer@0x102800408 ce fa ed fe>
+
+### buf.writeUInt64LE(value, offset[, noAssert])
+### buf.writeUInt64BE(value, offset[, noAssert])
+
+* `value` Number or String
+* `offset` Number
+* `noAssert` Boolean, Optional, Default: false
+
+Writes `value` to the buffer at the specified offset with specified endian
+format. Note, `value` must be a valid unsigned 64 bit integer, or a String
+representation of one.
+
+Set `noAssert` to true to skip validation of `value` and `offset`. This means
+that `value` may be too large for the specific function and `offset` may be
+beyond the end of the buffer leading to the values being silently dropped. This
+should not be used unless you are certain of correctness. Defaults to `false`.
+
+Example:
+
+    var buf = new Buffer(8)
+
+    b.writeUInt64LE('0xffffffffffff')
+
+    console.log(b);
+    // <Buffer@0x10187aa08 ff ff ff ff ff ff 00 00>
 
 ### buf.writeInt8(value, offset[, noAssert])
 
@@ -739,6 +817,25 @@ should not be used unless you are certain of correctness. Defaults to `false`.
 Works as `buffer.writeUInt32*`, except value is written out as a two's
 complement signed integer into `buffer`.
 
+### buf.writeInt64(value, offset[, noAssert])
+### buf.writeInt64(value, offset[, noAssert])
+
+* `value` Number or String
+* `offset` Number
+* `noAssert` Boolean, Optional, Default: false
+
+Writes `value` to the buffer at the specified offset with specified endian
+format. Note, `value` must be a valid signed 64 bit integer, or a String
+representation of one.
+
+Set `noAssert` to true to skip validation of `value` and `offset`. This means
+that `value` may be too large for the specific function and `offset` may be
+beyond the end of the buffer leading to the values being silently dropped. This
+should not be used unless you are certain of correctness. Defaults to `false`.
+
+Works as `buffer.writeUInt64*`, except value is written out as a two's
+complement signed integer into `buffer`.
+
 ### buf.writeFloatLE(value, offset[, noAssert])
 ### buf.writeFloatBE(value, offset[, noAssert])
 
@@ -765,8 +862,8 @@ Example:
 
     console.log(buf);
 
-    // <Buffer 4f 4a fe bb>
-    // <Buffer bb fe 4a 4f>
+    // <Buffer@0x102800408 4f 4a fe bb>
+    // <Buffer@0x102800408 bb fe 4a 4f>
 
 ### buf.writeDoubleLE(value, offset[, noAssert])
 ### buf.writeDoubleBE(value, offset[, noAssert])
@@ -794,8 +891,8 @@ Example:
 
     console.log(buf);
 
-    // <Buffer 43 eb d5 b7 dd f9 5f d7>
-    // <Buffer d7 5f f9 dd b7 d5 eb 43>
+    // <Buffer@0x102800408 43 eb d5 b7 dd f9 5f d7>
+    // <Buffer@0x102800408 d7 5f f9 dd b7 d5 eb 43>
 
 ### buf.fill(value[, offset][, end])
 
@@ -809,6 +906,15 @@ buffer.
 
     var b = new Buffer(50);
     b.fill("h");
+
+### buffer.address()
+
+Returns a String representation of the hex address of the pointer in memory.
+
+    var b = new Buffer(1);
+
+    b.address();
+    // '10202ee08'
 
 ### buffer.values()
 

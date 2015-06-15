@@ -615,7 +615,7 @@ function buildBuffer(data) {
 var x = buildBuffer([0x81, 0xa3, 0x66, 0x6f, 0x6f, 0xa3, 0x62, 0x61, 0x72]);
 
 console.log(x.inspect());
-assert.equal('<Buffer 81 a3 66 6f 6f a3 62 61 72>', x.inspect());
+assert(/<Buffer@0x[\da-f]+ 81 a3 66 6f 6f a3 62 61 72>/.test(x.inspect()));
 
 var z = x.slice(4);
 console.log(z.inspect());
@@ -1168,3 +1168,12 @@ Buffer.poolSize = ps;
 assert.throws(function() {
   Buffer(10).copy();
 });
+
+// Test that Buffer#address() returns a hex string
+var b = new Buffer(1);
+
+// just assert that it's a lowercase hex value with length >= 1
+var hex = /[\da-f]+/;
+
+console.log(b.address());
+assert(hex.test(b.address()));
