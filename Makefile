@@ -139,7 +139,7 @@ test-debugger: all
 	$(PYTHON) tools/test.py debugger
 
 test-npm: $(NODE_EXE)
-	NODE_EXE=$(NODE_EXE) tools/test-npm.sh
+	NODE=$(NODE) tools/test-npm.sh
 
 test-npm-publish: $(NODE_EXE)
 	npm_package_config_publishtest=true $(NODE) deps/npm/test/run.js
