@@ -46,7 +46,7 @@ you are listening on both events to fire a function, remember to guard against
 calling your function twice.
 
 See also [`ChildProcess#kill()`](#child_process_child_kill_signal) and
-[`ChildProcess#send()`](#child_process_child_send_message_sendhandle).
+[`ChildProcess#send()`](#child_process_child_send_message_sendhandle_callback).
 
 ### Event:  'exit'
 
@@ -85,8 +85,9 @@ and the `.connected` property is false.
 
 ### Event: 'message'
 
-* `message` {Object} a parsed JSON object or primitive value
-* `sendHandle` {Handle object} a Socket or Server object
+* `message` {Object} a parsed JSON object or primitive value.
+* `sendHandle` {Handle object} a [net.Socket][] or [net.Server][] object, or
+  undefined.
 
 Messages sent by `.send(message, [sendHandle])` are obtained using the
 `message` event.
@@ -760,3 +761,5 @@ throw.  The `Error` object will contain the entire result from
 [`child_process.spawnSync`](#child_process_child_process_spawnsync_command_args_options)
 
 [EventEmitter]: events.html#events_class_events_eventemitter
+[net.Server]: net.html#net_class_net_server
+[net.Socket]: net.html#net_class_net_socket
