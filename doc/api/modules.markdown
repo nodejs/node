@@ -145,8 +145,8 @@ A module prefixed with `'./'` is relative to the file calling `require()`.
 That is, `circle.js` must be in the same directory as `foo.js` for
 `require('./circle')` to find it.
 
-Without a leading '/' or './' to indicate a file, the module is either a
-"core module" or is loaded from a `node_modules` folder.
+Without a leading '/', './', or '../' to indicate a file, the module is either a
+core module or is loaded from a `node_modules` folder.
 
 If the given path does not exist, `require()` will throw an Error with its
 `code` property set to `'MODULE_NOT_FOUND'`.
