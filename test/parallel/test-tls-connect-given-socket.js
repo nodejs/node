@@ -43,6 +43,8 @@ var server = tls.createServer(options, function(socket) {
     });
     assert(client.readable);
     assert(client.writable);
+
+    return client;
   }
 
   // Already connected socket
@@ -53,6 +55,10 @@ var server = tls.createServer(options, function(socket) {
   // Connecting socket
   var connecting = net.connect(common.PORT);
   establish(connecting);
+
+  // Outliving socket
+  var outliving = net.connect(common.PORT);
+  establish(outliving).destroy();
 });
 
 process.on('exit', function() {
