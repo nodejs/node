@@ -41,6 +41,11 @@
 namespace node {
 namespace crypto {
 
+enum CheckResult {
+  CHECK_CERT_REVOKED = 0,
+  CHECK_OK = 1
+};
+
 extern int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx);
 
 extern X509_STORE* root_cert_store;
