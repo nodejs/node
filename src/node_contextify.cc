@@ -362,7 +362,6 @@ class ContextifyContext {
       Local<String> property,
       const PropertyCallbackInfo<Value>& args) {
     Isolate* isolate = args.GetIsolate();
-    HandleScope scope(isolate);
 
     ContextifyContext* ctx =
         Unwrap<ContextifyContext>(args.Data().As<Object>());
@@ -387,7 +386,6 @@ class ContextifyContext {
       Local<Value> value,
       const PropertyCallbackInfo<Value>& args) {
     Isolate* isolate = args.GetIsolate();
-    HandleScope scope(isolate);
 
     ContextifyContext* ctx =
         Unwrap<ContextifyContext>(args.Data().As<Object>());
@@ -400,7 +398,6 @@ class ContextifyContext {
       Local<String> property,
       const PropertyCallbackInfo<Integer>& args) {
     Isolate* isolate = args.GetIsolate();
-    HandleScope scope(isolate);
 
     ContextifyContext* ctx =
         Unwrap<ContextifyContext>(args.Data().As<Object>());
@@ -422,7 +419,6 @@ class ContextifyContext {
       Local<String> property,
       const PropertyCallbackInfo<Boolean>& args) {
     Isolate* isolate = args.GetIsolate();
-    HandleScope scope(isolate);
 
     ContextifyContext* ctx =
         Unwrap<ContextifyContext>(args.Data().As<Object>());
@@ -435,8 +431,6 @@ class ContextifyContext {
 
   static void GlobalPropertyEnumeratorCallback(
       const PropertyCallbackInfo<Array>& args) {
-    HandleScope scope(args.GetIsolate());
-
     ContextifyContext* ctx =
         Unwrap<ContextifyContext>(args.Data().As<Object>());
 
