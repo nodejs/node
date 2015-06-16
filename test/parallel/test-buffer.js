@@ -269,6 +269,8 @@ writeTest.write('e', 3, 'ascii');
 writeTest.write('j', 'ascii', 4);
 assert.equal(writeTest.toString(), 'nodejs');
 
+// ASCII slice test
+
 var asciiString = 'hello world';
 var offset = 100;
 
@@ -289,8 +291,25 @@ for (var i = 0; i < asciiString.length; i++) {
   assert.equal(sliceA[i], sliceB[i]);
 }
 
-// TODO utf8 slice tests
+// UTF-8 slice test
 
+var utf8String = '¡hέlló wôrld!';
+var offset = 100;
+
+b.write(utf8String, 0, Buffer.byteLength(utf8String), 'utf8');
+var utf8Slice = b.toString('utf8', 0, Buffer.byteLength(utf8String));
+assert.equal(utf8String, utf8Slice);
+
+var written = b.write(utf8String, offset, 'utf8');
+assert.equal(Buffer.byteLength(utf8String), written);
+utf8Slice = b.toString('utf8', offset, offset + Buffer.byteLength(utf8String));
+assert.equal(utf8String, utf8Slice);
+
+var sliceA = b.slice(offset, offset + Buffer.byteLength(utf8String));
+var sliceB = b.slice(offset, offset + Buffer.byteLength(utf8String));
+for (var i = 0; i < Buffer.byteLength(utf8String); i++) {
+  assert.equal(sliceA[i], sliceB[i]);
+}
 
 var slice = b.slice(100, 150);
 assert.equal(50, slice.length);
