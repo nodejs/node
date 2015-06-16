@@ -68,6 +68,10 @@ TC for resolution (see below).
 All bugfixes require a test case which demonstrates the defect. The
 test should *fail* before the change, and *pass* after the change.
 
+All pull requests that modify executable code should be subjected to
+continuous integration tests on the
+[project CI server](https://jenkins-iojs.nodesource.com/).
+
 ### Involving the TC
 
 Collaborators may opt to elevate pull requests or issues to the TC for
