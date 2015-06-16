@@ -2,11 +2,12 @@
 
 **Contents**
 
-* Issues and Pull Requests
-* Accepting Modifications
- - Involving the TC
-* Landing Pull Requests
- - Technical HOWTO
+* [Issues and Pull Requests](#issues-and-pull-requests)
+* [Accepting Modifications](#accepting-modifications)
+ - [Involving the TC](#involving-the-tc)
+* [Landing Pull Requests](#landing-pull-requests)
+ - [Technical HOWTO](#technical-howto)
+ - [I Just Made a Mistake](#i-just-made-a-mistake)
 
 This document contains information for Collaborators of the io.js
 project regarding maintaining the code, documentation and issues.
@@ -212,7 +213,7 @@ Time to push it:
 $ git push origin master
 ```
 
-### I just made a mistake
+### I Just Made a Mistake
 
 With `git`, there's a way to override remote trees by force pushing
 (`git push -f`). This should generally be seen as forbidden (since
