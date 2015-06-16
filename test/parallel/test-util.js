@@ -71,6 +71,10 @@ assert.equal(true, util.isPrimitive(Infinity));
 assert.equal(true, util.isPrimitive(NaN));
 assert.equal(true, util.isPrimitive(Symbol('symbol')));
 
+// isBuffer
+assert.equal(false, util.isBuffer('foo'));
+assert.equal(true, util.isBuffer(new Buffer('foo')));
+
 // _extend
 assert.deepEqual(util._extend({a:1}),             {a:1});
 assert.deepEqual(util._extend({a:1}, []),         {a:1});
