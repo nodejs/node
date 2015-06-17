@@ -71,6 +71,7 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Handle;
 using v8::HandleScope;
+using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Maybe;
@@ -1188,6 +1189,16 @@ void Initialize(Handle<Object> target,
   env->SetMethod(target, "writeDoubleLE", WriteDoubleLE);
   env->SetMethod(target, "writeFloatBE", WriteFloatBE);
   env->SetMethod(target, "writeFloatLE", WriteFloatLE);
+
+  uint32_t kMaxLength;
+  if (sizeof(int32_t) == sizeof(intptr_t) || using_old_buffer) {
+    kMaxLength = 0x3fffffff;
+  } else {
+    kMaxLength = 0x7fffffff;
+  }
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "kMaxLength"),
+              Integer::NewFromUnsigned(env->isolate(), kMaxLength)).FromJust();
 }
 
 
