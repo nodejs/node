@@ -314,7 +314,7 @@ information about the governance of the io.js project, see
 * **Sam Roberts** &lt;vieuxtech@gmail.com&gt; ([@sam-github](https://github.com/sam-github))
 * **Wyatt Preul** &lt;wpreul@gmail.com&gt; ([@geek](https://github.com/geek))
 * **Brian White** &lt;mscdex@mscdex.net&gt; ([@mscdex](https://github.com/mscdex))
-* **Christian Vaagland Tellnes** &lt;christian@tellnes.com&gt; ([@tellnes](https://github.com/tellnes))
+* **Christian Tellnes** &lt;christian@tellnes.no&gt; ([@tellnes](https://github.com/tellnes))
 * **Robert Kowalski** &lt;rok@kowalski.gd&gt; ([@robertkowalski](https://github.com/robertkowalski))
 * **Julian Duque** &lt;julianduquej@gmail.com&gt; ([@julianduque](https://github.com/julianduque))
 * **Johan Bergström** &lt;bugs@bergstroem.nu&gt; ([@jbergstroem](https://github.com/jbergstroem))
