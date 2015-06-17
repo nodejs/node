@@ -80,11 +80,6 @@ function test(keylen, expectedCipher, cb) {
   });
 }
 
-function test512() {
-  test(512, 'DHE-RSA-AES128-SHA256', test1024);
-  ntests++;
-}
-
 function test1024() {
   test(1024, 'DHE-RSA-AES128-SHA256', test2048);
   ntests++;
@@ -100,7 +95,7 @@ function testError() {
   ntests++;
 }
 
-test512();
+test1024();
 
 process.on('exit', function() {
   assert.equal(ntests, nsuccess);
