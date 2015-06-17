@@ -2,12 +2,13 @@
 
 const assert = require('assert');
 
-// Change kMaxLength for zlib to trigger the error
-// without having to allocate 1GB of buffers
-const smalloc = process.binding('smalloc');
-smalloc.kMaxLength = 128;
+// Change kMaxLength for zlib to trigger the error without having to allocate
+// large Buffers.
+const buffer = require('buffer');
+const oldkMaxLength = buffer.kMaxLength;
+buffer.kMaxLength = 128;
 const zlib = require('zlib');
-smalloc.kMaxLength = 0x3fffffff;
+buffer.kMaxLength = oldkMaxLength;
 
 const encoded = new Buffer('H4sIAAAAAAAAA0tMHFgAAIw2K/GAAAAA', 'base64');
 
