@@ -528,6 +528,20 @@ void CreateFromString(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void CreateFromArrayBuffer(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!args[0]->IsArrayBuffer())
+    return env->ThrowTypeError("argument is not an ArrayBuffer");
+  Local<ArrayBuffer> ab = args[0].As<ArrayBuffer>();
+  Local<Uint8Array> ui = Uint8Array::New(ab, 0, ab->ByteLength());
+  Maybe<bool> mb =
+      ui->SetPrototype(env->context(), env->buffer_prototype_object());
+  if (!mb.FromMaybe(false))
+    return env->ThrowError("Unable to set Object prototype");
+  args.GetReturnValue().Set(ui);
+}
+
+
 void Slice(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsUint8Array());
   CHECK(args[1]->IsNumber());
@@ -1171,6 +1185,7 @@ void Initialize(Handle<Object> target,
   env->SetMethod(target, "setupBufferJS", SetupBufferJS);
   env->SetMethod(target, "create", Create);
   env->SetMethod(target, "createFromString", CreateFromString);
+  env->SetMethod(target, "createFromArrayBuffer", CreateFromArrayBuffer);
 
   env->SetMethod(target, "slice", Slice);
   env->SetMethod(target, "byteLengthUtf8", ByteLengthUtf8);
