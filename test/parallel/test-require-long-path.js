@@ -1,17 +1,23 @@
 'use strict';
-var common = require('../common');
-var fs = require('fs');
-var path = require('path');
-var assert = require('assert');
+const common = require('../common');
+const fs = require('fs');
+const path = require('path');
 
 // make a path that is more than 260 chars long.
-var fileNameLen = Math.max(261 - common.tmpDir.length - 1, 1);
-var fileName = path.join(common.tmpDir, new Array(fileNameLen + 1).join('x'));
-var fullPath = path.resolve(fileName);
+const dirNameLen = Math.max(260 - common.tmpDir.length, 1);
+const dirName = path.join(common.tmpDir, 'x'.repeat(dirNameLen));
+const fullDirPath = path.resolve(dirName);
+
+const indexFile = path.join(fullDirPath, 'index.js');
+const otherFile = path.join(fullDirPath, 'other.js');
 
 common.refreshTmpDir();
-fs.writeFileSync(fullPath, 'module.exports = 42;');
 
-assert.equal(require(fullPath), 42);
+fs.mkdirSync(fullDirPath);
+fs.writeFileSync(indexFile, 'require("./other");');
+fs.writeFileSync(otherFile, '');
 
-fs.unlinkSync(fullPath);
+require(indexFile);
+require(otherFile);
+
+common.refreshTmpDir();
