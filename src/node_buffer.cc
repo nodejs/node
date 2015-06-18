@@ -18,6 +18,12 @@
     if (!(r)) return env->ThrowRangeError("out of range index");            \
   } while (0)
 
+#define THROW_AND_RETURN_UNLESS_BUFFER(env, obj)                            \
+  do {                                                                      \
+    if (!HasInstance(obj))                                                  \
+      return env->ThrowTypeError("argument should be a Buffer");            \
+  } while (0)
+
 #define ARGS_THIS(argT)                                                     \
   Local<Object> obj = argT;                                                 \
   size_t obj_length = obj->GetIndexedPropertiesExternalArrayDataLength();   \
@@ -223,7 +229,12 @@ template <encoding encoding>
 void StringSlice(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
   ARGS_THIS(args.This())
+
+  if (obj_length == 0)
+    return args.GetReturnValue().SetEmptyString();
+
   SLICE_START_END(args[0], args[1], obj_length)
 
   args.GetReturnValue().Set(
@@ -235,7 +246,12 @@ template <>
 void StringSlice<UCS2>(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
   ARGS_THIS(args.This())
+
+  if (obj_length == 0)
+    return args.GetReturnValue().SetEmptyString();
+
   SLICE_START_END(args[0], args[1], obj_length)
   length /= 2;
 
@@ -306,8 +322,9 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
   if (!HasInstance(args[0]))
     return env->ThrowTypeError("first arg should be a Buffer");
 
-  Local<Object> target = args[0]->ToObject(env->isolate());
+  Local<Object> target = args[0].As<Object>();
 
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
   ARGS_THIS(args.This())
   size_t target_length = target->GetIndexedPropertiesExternalArrayDataLength();
   char* target_data = static_cast<char*>(
@@ -340,6 +357,7 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
 
 
 void Fill(const FunctionCallbackInfo<Value>& args) {
+  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   ARGS_THIS(args[0].As<Object>())
 
   size_t start = args[2]->Uint32Value();
@@ -383,6 +401,7 @@ template <encoding encoding>
 void StringWrite(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
   ARGS_THIS(args.This())
 
   if (!args[0]->IsString())
@@ -459,6 +478,7 @@ static inline void Swizzle(char* start, unsigned int len) {
 
 template <typename T, enum Endianness endianness>
 void ReadFloatGeneric(const FunctionCallbackInfo<Value>& args) {
+  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   ARGS_THIS(args[0].As<Object>());
 
   uint32_t offset = args[1]->Uint32Value();
@@ -522,21 +542,25 @@ uint32_t WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
 
 
 void WriteFloatLE(const FunctionCallbackInfo<Value>& args) {
+  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   args.GetReturnValue().Set(WriteFloatGeneric<float, kLittleEndian>(args));
 }
 
 
 void WriteFloatBE(const FunctionCallbackInfo<Value>& args) {
+  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   args.GetReturnValue().Set(WriteFloatGeneric<float, kBigEndian>(args));
 }
 
 
 void WriteDoubleLE(const FunctionCallbackInfo<Value>& args) {
+  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   args.GetReturnValue().Set(WriteFloatGeneric<double, kLittleEndian>(args));
 }
 
 
 void WriteDoubleBE(const FunctionCallbackInfo<Value>& args) {
+  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   args.GetReturnValue().Set(WriteFloatGeneric<double, kBigEndian>(args));
 }
 
@@ -550,6 +574,10 @@ void ByteLengthUtf8(const FunctionCallbackInfo<Value> &args) {
 
 
 void Compare(const FunctionCallbackInfo<Value> &args) {
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[1]);
+
   Local<Object> obj_a = args[0].As<Object>();
   char* obj_a_data =
       static_cast<char*>(obj_a->GetIndexedPropertiesExternalArrayData());
@@ -599,10 +627,10 @@ int32_t IndexOf(const char* haystack,
 
 
 void IndexOfString(const FunctionCallbackInfo<Value>& args) {
-  ASSERT(args[0]->IsObject());
   ASSERT(args[1]->IsString());
   ASSERT(args[2]->IsNumber());
 
+  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   ARGS_THIS(args[0].As<Object>());
   node::Utf8Value str(args.GetIsolate(), args[1]);
   int32_t offset_i32 = args[2]->Int32Value();
@@ -630,10 +658,10 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
 
 
 void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
-  ASSERT(args[0]->IsObject());
   ASSERT(args[1]->IsObject());
   ASSERT(args[2]->IsNumber());
 
+  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   ARGS_THIS(args[0].As<Object>());
   Local<Object> buf = args[1].As<Object>();
   int32_t offset_i32 = args[2]->Int32Value();
@@ -667,10 +695,10 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
 
 
 void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
-  ASSERT(args[0]->IsObject());
   ASSERT(args[1]->IsNumber());
   ASSERT(args[2]->IsNumber());
 
+  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   ARGS_THIS(args[0].As<Object>());
   uint32_t needle = args[1]->Uint32Value();
   int32_t offset_i32 = args[2]->Int32Value();
