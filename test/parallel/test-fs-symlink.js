@@ -5,7 +5,9 @@ var path = require('path');
 var fs = require('fs');
 var exec = require('child_process').exec;
 var completed = 0;
-var expected_tests = 2;
+var expected_async = 4;
+var linkTime;
+var fileTime;
 
 var is_windows = process.platform === 'win32';
 
@@ -20,7 +22,19 @@ var runtest = function(skip_symlinks) {
     fs.symlink(linkData, linkPath, function(err) {
       if (err) throw err;
       console.log('symlink done');
-      // todo: fs.lstat?
+
+      fs.lstat(linkPath, function(err, stats) {
+        if (err) throw err;
+        linkTime = stats.mtime.getTime();
+        completed++;
+      });
+
+      fs.stat(linkPath, function(err, stats) {
+        if (err) throw err;
+        fileTime = stats.mtime.getTime();
+        completed++;
+      });
+
       fs.readlink(linkPath, function(err, destination) {
         if (err) throw err;
         assert.equal(destination, linkData);
@@ -48,7 +62,7 @@ if (is_windows) {
   // We'll only try to run symlink test if we have enough privileges.
   exec('whoami /priv', function(err, o) {
     if (err || o.indexOf('SeCreateSymbolicLinkPrivilege') == -1) {
-      expected_tests = 1;
+      expected_async = 1;
       runtest(true);
     } else {
       runtest(false);
@@ -59,6 +73,7 @@ if (is_windows) {
 }
 
 process.on('exit', function() {
-  assert.equal(completed, expected_tests);
+  assert.equal(completed, expected_async);
+  assert(linkTime !== fileTime);
 });
 
