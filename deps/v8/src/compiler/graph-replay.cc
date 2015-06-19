@@ -19,14 +19,14 @@ namespace compiler {
 
 void GraphReplayPrinter::PrintReplay(Graph* graph) {
   GraphReplayPrinter replay;
-  PrintF("  Node* nil = graph.NewNode(common_builder.Dead());\n");
+  PrintF("  Node* nil = graph()->NewNode(common()->Dead());\n");
   Zone zone;
   AllNodes nodes(&zone, graph);
 
   // Allocate the nodes first.
   for (Node* node : nodes.live) {
     PrintReplayOpCreator(node->op());
-    PrintF("  Node* n%d = graph.NewNode(op", node->id());
+    PrintF("  Node* n%d = graph()->NewNode(op", node->id());
     for (int i = 0; i < node->InputCount(); ++i) {
       PrintF(", nil");
     }
@@ -45,24 +45,25 @@ void GraphReplayPrinter::PrintReplay(Graph* graph) {
 
 void GraphReplayPrinter::PrintReplayOpCreator(const Operator* op) {
   IrOpcode::Value opcode = static_cast<IrOpcode::Value>(op->opcode());
-  const char* builder =
-      IrOpcode::IsCommonOpcode(opcode) ? "common_builder" : "js_builder";
+  const char* builder = IrOpcode::IsCommonOpcode(opcode) ? "common" : "js";
   const char* mnemonic = IrOpcode::IsCommonOpcode(opcode)
                              ? IrOpcode::Mnemonic(opcode)
                              : IrOpcode::Mnemonic(opcode) + 2;
-  PrintF("  op = %s.%s(", builder, mnemonic);
+  PrintF("  op = %s()->%s(", builder, mnemonic);
   switch (opcode) {
     case IrOpcode::kParameter:
-    case IrOpcode::kNumberConstant:
-      PrintF("0");
+      PrintF("%d", ParameterIndexOf(op));
       break;
-    case IrOpcode::kLoad:
-      PrintF("unique_name");
+    case IrOpcode::kNumberConstant:
+      PrintF("%g", OpParameter<double>(op));
       break;
     case IrOpcode::kHeapConstant:
       PrintF("unique_constant");
       break;
     case IrOpcode::kPhi:
+      PrintF("kMachAnyTagged, %d", op->ValueInputCount());
+      break;
+    case IrOpcode::kStateValues:
       PrintF("%d", op->ValueInputCount());
       break;
     case IrOpcode::kEffectPhi:
@@ -72,6 +73,12 @@ void GraphReplayPrinter::PrintReplayOpCreator(const Operator* op) {
     case IrOpcode::kMerge:
       PrintF("%d", op->ControlInputCount());
       break;
+    case IrOpcode::kStart:
+      PrintF("%d", op->ValueOutputCount() - 3);
+      break;
+    case IrOpcode::kFrameState:
+      PrintF("JS_FRAME, BailoutId(-1), OutputFrameStateCombine::Ignore()");
+      break;
     default:
       break;
   }
@@ -79,6 +86,7 @@ void GraphReplayPrinter::PrintReplayOpCreator(const Operator* op) {
 }
 
 #endif  // DEBUG
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

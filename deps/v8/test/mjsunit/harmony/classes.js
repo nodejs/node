@@ -71,6 +71,11 @@
     class C extends Math.abs {}
   }, TypeError);
   delete Math.abs.prototype;
+
+  assertThrows(function() {
+    function* g() {}
+    class C extends g {}
+  }, TypeError);
 })();
 
 
@@ -875,3 +880,69 @@ function assertAccessorDescriptor(object, name) {
   };
   new C3();
 }());
+
+
+function testClassRestrictedProperties(C) {
+  assertEquals(false, C.hasOwnProperty("arguments"));
+  assertThrows(function() { return C.arguments; }, TypeError);
+  assertThrows(function() { C.arguments = {}; }, TypeError);
+
+  assertEquals(false, C.hasOwnProperty("caller"));
+  assertThrows(function() { return C.caller; }, TypeError);
+  assertThrows(function() { C.caller = {}; }, TypeError);
+
+  assertEquals(false, (new C).method.hasOwnProperty("arguments"));
+  assertThrows(function() { return new C().method.arguments; }, TypeError);
+  assertThrows(function() { new C().method.arguments = {}; }, TypeError);
+
+  assertEquals(false, (new C).method.hasOwnProperty("caller"));
+  assertThrows(function() { return new C().method.caller; }, TypeError);
+  assertThrows(function() { new C().method.caller = {}; }, TypeError);
+}
+
+
+(function testRestrictedPropertiesStrict() {
+  "use strict";
+  class ClassWithDefaultConstructor {
+    method() {}
+  }
+  class Class {
+    constructor() {}
+    method() {}
+  }
+  class DerivedClassWithDefaultConstructor extends Class {}
+  class DerivedClass extends Class { constructor() { super(); } }
+
+  testClassRestrictedProperties(ClassWithDefaultConstructor);
+  testClassRestrictedProperties(Class);
+  testClassRestrictedProperties(DerivedClassWithDefaultConstructor);
+  testClassRestrictedProperties(DerivedClass);
+  testClassRestrictedProperties(class { method() {} });
+  testClassRestrictedProperties(class { constructor() {} method() {} });
+  testClassRestrictedProperties(class extends Class { });
+  testClassRestrictedProperties(
+      class extends Class { constructor() { super(); } });
+})();
+
+
+(function testRestrictedPropertiesSloppy() {
+  class ClassWithDefaultConstructor {
+    method() {}
+  }
+  class Class {
+    constructor() {}
+    method() {}
+  }
+  class DerivedClassWithDefaultConstructor extends Class {}
+  class DerivedClass extends Class { constructor() { super(); } }
+
+  testClassRestrictedProperties(ClassWithDefaultConstructor);
+  testClassRestrictedProperties(Class);
+  testClassRestrictedProperties(DerivedClassWithDefaultConstructor);
+  testClassRestrictedProperties(DerivedClass);
+  testClassRestrictedProperties(class { method() {} });
+  testClassRestrictedProperties(class { constructor() {} method() {} });
+  testClassRestrictedProperties(class extends Class { });
+  testClassRestrictedProperties(
+      class extends Class { constructor() { super(); } });
+})();

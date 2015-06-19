@@ -96,9 +96,9 @@ class ChangeLoweringCommonTest
     : public ChangeLoweringTest,
       public ::testing::WithParamInterface<MachineType> {
  public:
-  ~ChangeLoweringCommonTest() OVERRIDE {}
+  ~ChangeLoweringCommonTest() override {}
 
-  MachineType WordRepresentation() const FINAL { return GetParam(); }
+  MachineType WordRepresentation() const final { return GetParam(); }
 };
 
 
@@ -205,8 +205,8 @@ INSTANTIATE_TEST_CASE_P(ChangeLoweringTest, ChangeLoweringCommonTest,
 
 class ChangeLowering32Test : public ChangeLoweringTest {
  public:
-  ~ChangeLowering32Test() OVERRIDE {}
-  MachineType WordRepresentation() const FINAL { return kRepWord32; }
+  ~ChangeLowering32Test() override {}
+  MachineType WordRepresentation() const final { return kRepWord32; }
 };
 
 
@@ -343,8 +343,8 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeUint32ToTagged) {
 
 class ChangeLowering64Test : public ChangeLoweringTest {
  public:
-  ~ChangeLowering64Test() OVERRIDE {}
-  MachineType WordRepresentation() const FINAL { return kRepWord64; }
+  ~ChangeLowering64Test() override {}
+  MachineType WordRepresentation() const final { return kRepWord64; }
 };
 
 

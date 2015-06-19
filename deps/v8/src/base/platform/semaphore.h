@@ -31,7 +31,7 @@ class TimeDelta;
 // count reaches zero,  threads waiting for the semaphore blocks until the
 // count becomes non-zero.
 
-class Semaphore FINAL {
+class Semaphore final {
  public:
   explicit Semaphore(int count);
   ~Semaphore();

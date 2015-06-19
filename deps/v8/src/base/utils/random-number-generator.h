@@ -25,7 +25,7 @@ namespace base {
 // https://code.google.com/p/v8/issues/detail?id=2905
 // This class is neither reentrant nor threadsafe.
 
-class RandomNumberGenerator FINAL {
+class RandomNumberGenerator final {
  public:
   // EntropySource is used as a callback function when V8 needs a source of
   // entropy.

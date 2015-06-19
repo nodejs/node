@@ -88,8 +88,9 @@ RUNTIME_FUNCTION(Runtime_DeliverObservationChangeRecords) {
 
 
 RUNTIME_FUNCTION(Runtime_GetObservationState) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   DCHECK(args.length() == 0);
+  isolate->CountUsage(v8::Isolate::kObjectObserve);
   return isolate->heap()->observation_state();
 }
 

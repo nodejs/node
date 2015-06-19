@@ -162,9 +162,9 @@ const Register r3  = { kRegister_r3_Code };
 const Register r4  = { kRegister_r4_Code };
 const Register r5  = { kRegister_r5_Code };
 const Register r6  = { kRegister_r6_Code };
-// Used as constant pool pointer register if FLAG_enable_ool_constant_pool.
-const Register r7  = { kRegister_r7_Code };
 // Used as context register.
+const Register r7 = {kRegister_r7_Code};
+// Used as constant pool pointer register if FLAG_enable_ool_constant_pool.
 const Register r8  = { kRegister_r8_Code };
 // Used as lithium codegen scratch register.
 const Register r9  = { kRegister_r9_Code };
@@ -1251,48 +1251,69 @@ class Assembler : public AssemblerBase {
                     int fraction_bits,
                     const Condition cond = al);
 
+  void vmrs(const Register dst, const Condition cond = al);
+  void vmsr(const Register dst, const Condition cond = al);
+
   void vneg(const DwVfpRegister dst,
             const DwVfpRegister src,
             const Condition cond = al);
+  void vneg(const SwVfpRegister dst, const SwVfpRegister src,
+            const Condition cond = al);
   void vabs(const DwVfpRegister dst,
             const DwVfpRegister src,
+            const Condition cond = al);
+  void vabs(const SwVfpRegister dst, const SwVfpRegister src,
             const Condition cond = al);
   void vadd(const DwVfpRegister dst,
             const DwVfpRegister src1,
             const DwVfpRegister src2,
             const Condition cond = al);
+  void vadd(const SwVfpRegister dst, const SwVfpRegister src1,
+            const SwVfpRegister src2, const Condition cond = al);
   void vsub(const DwVfpRegister dst,
             const DwVfpRegister src1,
             const DwVfpRegister src2,
             const Condition cond = al);
+  void vsub(const SwVfpRegister dst, const SwVfpRegister src1,
+            const SwVfpRegister src2, const Condition cond = al);
   void vmul(const DwVfpRegister dst,
             const DwVfpRegister src1,
             const DwVfpRegister src2,
             const Condition cond = al);
+  void vmul(const SwVfpRegister dst, const SwVfpRegister src1,
+            const SwVfpRegister src2, const Condition cond = al);
   void vmla(const DwVfpRegister dst,
             const DwVfpRegister src1,
             const DwVfpRegister src2,
             const Condition cond = al);
+  void vmla(const SwVfpRegister dst, const SwVfpRegister src1,
+            const SwVfpRegister src2, const Condition cond = al);
   void vmls(const DwVfpRegister dst,
             const DwVfpRegister src1,
             const DwVfpRegister src2,
             const Condition cond = al);
+  void vmls(const SwVfpRegister dst, const SwVfpRegister src1,
+            const SwVfpRegister src2, const Condition cond = al);
   void vdiv(const DwVfpRegister dst,
             const DwVfpRegister src1,
             const DwVfpRegister src2,
             const Condition cond = al);
+  void vdiv(const SwVfpRegister dst, const SwVfpRegister src1,
+            const SwVfpRegister src2, const Condition cond = al);
   void vcmp(const DwVfpRegister src1,
             const DwVfpRegister src2,
+            const Condition cond = al);
+  void vcmp(const SwVfpRegister src1, const SwVfpRegister src2,
             const Condition cond = al);
   void vcmp(const DwVfpRegister src1,
             const double src2,
             const Condition cond = al);
-  void vmrs(const Register dst,
-            const Condition cond = al);
-  void vmsr(const Register dst,
+  void vcmp(const SwVfpRegister src1, const float src2,
             const Condition cond = al);
   void vsqrt(const DwVfpRegister dst,
              const DwVfpRegister src,
+             const Condition cond = al);
+  void vsqrt(const SwVfpRegister dst, const SwVfpRegister src,
              const Condition cond = al);
 
   // ARMv8 rounding instructions.
@@ -1434,7 +1455,6 @@ class Assembler : public AssemblerBase {
   // are not emitted as part of the tables generated.
   void db(uint8_t data);
   void dd(uint32_t data);
-  void dd(Label* label);
 
   // Emits the address of the code stub's first instruction.
   void emit_code_stub_address(Code* stub);

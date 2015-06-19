@@ -73,7 +73,7 @@ class Descriptor BASE_EMBEDDED {
 std::ostream& operator<<(std::ostream& os, const Descriptor& d);
 
 
-class DataDescriptor FINAL : public Descriptor {
+class DataDescriptor final : public Descriptor {
  public:
   DataDescriptor(Handle<Name> key, int field_index,
                  PropertyAttributes attributes, Representation representation)
@@ -90,7 +90,7 @@ class DataDescriptor FINAL : public Descriptor {
 };
 
 
-class DataConstantDescriptor FINAL : public Descriptor {
+class DataConstantDescriptor final : public Descriptor {
  public:
   DataConstantDescriptor(Handle<Name> key, Handle<Object> value,
                          PropertyAttributes attributes)
@@ -99,7 +99,7 @@ class DataConstantDescriptor FINAL : public Descriptor {
 };
 
 
-class AccessorConstantDescriptor FINAL : public Descriptor {
+class AccessorConstantDescriptor final : public Descriptor {
  public:
   AccessorConstantDescriptor(Handle<Name> key, Handle<Object> foreign,
                              PropertyAttributes attributes)

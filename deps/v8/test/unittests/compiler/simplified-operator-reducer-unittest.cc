@@ -24,7 +24,7 @@ class SimplifiedOperatorReducerTest : public TypedGraphTest {
  public:
   explicit SimplifiedOperatorReducerTest(int num_parameters = 1)
       : TypedGraphTest(num_parameters), simplified_(zone()) {}
-  ~SimplifiedOperatorReducerTest() OVERRIDE {}
+  ~SimplifiedOperatorReducerTest() override {}
 
  protected:
   Reduction Reduce(Node* node) {
@@ -49,7 +49,7 @@ class SimplifiedOperatorReducerTestWithParam
  public:
   explicit SimplifiedOperatorReducerTestWithParam(int num_parameters = 1)
       : SimplifiedOperatorReducerTest(num_parameters) {}
-  ~SimplifiedOperatorReducerTestWithParam() OVERRIDE {}
+  ~SimplifiedOperatorReducerTestWithParam() override {}
 };
 
 

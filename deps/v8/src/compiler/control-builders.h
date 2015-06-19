@@ -37,7 +37,7 @@ class ControlBuilder {
 
 
 // Tracks control flow for a conditional statement.
-class IfBuilder FINAL : public ControlBuilder {
+class IfBuilder final : public ControlBuilder {
  public:
   explicit IfBuilder(AstGraphBuilder* builder)
       : ControlBuilder(builder),
@@ -57,7 +57,7 @@ class IfBuilder FINAL : public ControlBuilder {
 
 
 // Tracks control flow for an iteration statement.
-class LoopBuilder FINAL : public ControlBuilder {
+class LoopBuilder final : public ControlBuilder {
  public:
   explicit LoopBuilder(AstGraphBuilder* builder)
       : ControlBuilder(builder),
@@ -72,7 +72,7 @@ class LoopBuilder FINAL : public ControlBuilder {
   void EndLoop();
 
   // Primitive support for break.
-  void Break() FINAL;
+  void Break() final;
 
   // Compound control commands for conditional break.
   void BreakUnless(Node* condition);
@@ -86,7 +86,7 @@ class LoopBuilder FINAL : public ControlBuilder {
 
 
 // Tracks control flow for a switch statement.
-class SwitchBuilder FINAL : public ControlBuilder {
+class SwitchBuilder final : public ControlBuilder {
  public:
   explicit SwitchBuilder(AstGraphBuilder* builder, int case_count)
       : ControlBuilder(builder),
@@ -105,7 +105,7 @@ class SwitchBuilder FINAL : public ControlBuilder {
   void EndSwitch();
 
   // Primitive support for break.
-  void Break() FINAL;
+  void Break() final;
 
   // The number of cases within a switch is statically known.
   size_t case_count() const { return body_environments_.size(); }
@@ -119,7 +119,7 @@ class SwitchBuilder FINAL : public ControlBuilder {
 
 
 // Tracks control flow for a block statement.
-class BlockBuilder FINAL : public ControlBuilder {
+class BlockBuilder final : public ControlBuilder {
  public:
   explicit BlockBuilder(AstGraphBuilder* builder)
       : ControlBuilder(builder), break_environment_(NULL) {}
@@ -129,7 +129,7 @@ class BlockBuilder FINAL : public ControlBuilder {
   void EndBlock();
 
   // Primitive support for break.
-  void Break() FINAL;
+  void Break() final;
 
  private:
   Environment* break_environment_;  // Environment after the block exits.
@@ -137,7 +137,7 @@ class BlockBuilder FINAL : public ControlBuilder {
 
 
 // Tracks control flow for a try-catch statement.
-class TryCatchBuilder FINAL : public ControlBuilder {
+class TryCatchBuilder final : public ControlBuilder {
  public:
   explicit TryCatchBuilder(AstGraphBuilder* builder)
       : ControlBuilder(builder),
@@ -162,7 +162,7 @@ class TryCatchBuilder FINAL : public ControlBuilder {
 
 
 // Tracks control flow for a try-finally statement.
-class TryFinallyBuilder FINAL : public ControlBuilder {
+class TryFinallyBuilder final : public ControlBuilder {
  public:
   explicit TryFinallyBuilder(AstGraphBuilder* builder)
       : ControlBuilder(builder),

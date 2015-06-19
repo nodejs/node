@@ -15,7 +15,7 @@ namespace compiler {
 class Operator;
 
 
-class OperatorProperties FINAL {
+class OperatorProperties final {
  public:
   static bool HasContextInput(const Operator* op);
   static int GetContextInputCount(const Operator* op) {

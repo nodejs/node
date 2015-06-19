@@ -9,12 +9,11 @@ var $regexpLastMatchInfoOverride;
 var harmony_regexps = false;
 var harmony_unicode_regexps = false;
 
-(function() {
+(function(global, shared, exports) {
 
 %CheckIsBootstrapping();
 
 var GlobalRegExp = global.RegExp;
-var GlobalArray = global.Array;
 
 // Property of the builtins object for recording the result of the last
 // regexp match.  The property $regexpLastMatchInfo includes the matchIndices
@@ -56,8 +55,8 @@ function DoConstructRegExp(object, pattern, flags) {
     pattern = pattern.source;
   }
 
-  pattern = IS_UNDEFINED(pattern) ? '' : ToString(pattern);
-  flags = IS_UNDEFINED(flags) ? '' : ToString(flags);
+  pattern = IS_UNDEFINED(pattern) ? '' : $toString(pattern);
+  flags = IS_UNDEFINED(flags) ? '' : $toString(flags);
 
   %RegExpInitializeAndCompile(object, pattern, flags);
 }
@@ -89,8 +88,8 @@ function RegExpCompileJS(pattern, flags) {
   // behavior.
   if (this == GlobalRegExp.prototype) {
     // We don't allow recompiling RegExp.prototype.
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['RegExp.prototype.compile', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'RegExp.prototype.compile', this);
   }
   if (IS_UNDEFINED(pattern) && %_ArgumentsLength() != 0) {
     DoConstructRegExp(this, 'undefined', flags);
@@ -147,8 +146,8 @@ function RegExpExecNoTests(regexp, string, start) {
 
 function RegExpExecJS(string) {
   if (!IS_REGEXP(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['RegExp.prototype.exec', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'RegExp.prototype.exec', this);
   }
 
   string = TO_STRING_INLINE(string);
@@ -195,8 +194,8 @@ var regexp_val;
 // else implements.
 function RegExpTest(string) {
   if (!IS_REGEXP(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['RegExp.prototype.test', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'RegExp.prototype.test', this);
   }
   string = TO_STRING_INLINE(string);
 
@@ -257,8 +256,8 @@ function TrimRegExp(regexp) {
 
 function RegExpToString() {
   if (!IS_REGEXP(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['RegExp.prototype.toString', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'RegExp.prototype.toString', this);
   }
   var result = '/' + this.source + '/';
   if (this.global) result += 'g';
@@ -364,12 +363,12 @@ function RegExpMakeCaptureGetter(n) {
     GlobalRegExp.prototype, 'constructor', GlobalRegExp, DONT_ENUM);
 %SetCode(GlobalRegExp, RegExpConstructor);
 
-InstallFunctions(GlobalRegExp.prototype, DONT_ENUM, GlobalArray(
+$installFunctions(GlobalRegExp.prototype, DONT_ENUM, [
   "exec", RegExpExecJS,
   "test", RegExpTest,
   "toString", RegExpToString,
   "compile", RegExpCompileJS
-));
+]);
 
 // The length of compile is 1 in SpiderMonkey.
 %FunctionSetLength(GlobalRegExp.prototype.compile, 1);
@@ -382,7 +381,7 @@ var RegExpGetInput = function() {
   return IS_UNDEFINED(regExpInput) ? "" : regExpInput;
 };
 var RegExpSetInput = function(string) {
-  LAST_INPUT($regexpLastMatchInfo) = ToString(string);
+  LAST_INPUT($regexpLastMatchInfo) = $toString(string);
 };
 
 %OptimizeObjectForAddingMultipleProperties(GlobalRegExp, 22);
@@ -443,4 +442,4 @@ for (var i = 1; i < 10; ++i) {
 $regexpExecNoTests = RegExpExecNoTests;
 $regexpExec = DoRegExpExec;
 
-})();
+})

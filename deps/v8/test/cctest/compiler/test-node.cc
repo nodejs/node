@@ -5,8 +5,9 @@
 #include <functional>
 
 #include "src/v8.h"
+#include "test/cctest/cctest.h"
 
-#include "graph-tester.h"
+#include "src/compiler/graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
 
@@ -130,7 +131,8 @@ static void CheckInputs(Node* node, Node** inputs, int input_count) {
 
 
 TEST(NodeUseIteratorReplaceUses) {
-  GraphTester graph;
+  Zone zone;
+  Graph graph(&zone);
   Node* n0 = graph.NewNode(&dummy_operator);
   Node* n1 = graph.NewNode(&dummy_operator, n0);
   Node* n2 = graph.NewNode(&dummy_operator, n0);
@@ -154,7 +156,8 @@ TEST(NodeUseIteratorReplaceUses) {
 
 
 TEST(NodeUseIteratorReplaceUsesSelf) {
-  GraphTester graph;
+  Zone zone;
+  Graph graph(&zone);
   Node* n0 = graph.NewNode(&dummy_operator);
   Node* n1 = graph.NewNode(&dummy_operator, n0);
 
@@ -177,7 +180,8 @@ TEST(NodeUseIteratorReplaceUsesSelf) {
 
 
 TEST(ReplaceInput) {
-  GraphTester graph;
+  Zone zone;
+  Graph graph(&zone);
   Node* n0 = graph.NewNode(&dummy_operator);
   Node* n1 = graph.NewNode(&dummy_operator);
   Node* n2 = graph.NewNode(&dummy_operator);
@@ -202,7 +206,8 @@ TEST(ReplaceInput) {
 
 
 TEST(OwnedBy) {
-  GraphTester graph;
+  Zone zone;
+  Graph graph(&zone);
 
   {
     Node* n0 = graph.NewNode(&dummy_operator);
@@ -251,7 +256,8 @@ TEST(OwnedBy) {
 
 
 TEST(Uses) {
-  GraphTester graph;
+  Zone zone;
+  Graph graph(&zone);
 
   Node* n0 = graph.NewNode(&dummy_operator);
   Node* n1 = graph.NewNode(&dummy_operator, n0);
@@ -272,7 +278,8 @@ TEST(Uses) {
 
 
 TEST(Inputs) {
-  GraphTester graph;
+  Zone zone;
+  Graph graph(&zone);
 
   Node* n0 = graph.NewNode(&dummy_operator);
   Node* n1 = graph.NewNode(&dummy_operator, n0);
@@ -299,7 +306,8 @@ TEST(Inputs) {
 
 
 TEST(RemoveInput) {
-  GraphTester graph;
+  Zone zone;
+  Graph graph(&zone);
 
   Node* n0 = graph.NewNode(&dummy_operator);
   Node* n1 = graph.NewNode(&dummy_operator, n0);
@@ -328,7 +336,8 @@ TEST(RemoveInput) {
 
 
 TEST(AppendInputsAndIterator) {
-  GraphTester graph;
+  Zone zone;
+  Graph graph(&zone);
 
   Node* n0 = graph.NewNode(&dummy_operator);
   Node* n1 = graph.NewNode(&dummy_operator, n0);
@@ -349,7 +358,8 @@ TEST(AppendInputsAndIterator) {
 
 
 TEST(NullInputsSimple) {
-  GraphTester graph;
+  Zone zone;
+  Graph graph(&zone);
 
   Node* n0 = graph.NewNode(&dummy_operator);
   Node* n1 = graph.NewNode(&dummy_operator, n0);
@@ -375,7 +385,8 @@ TEST(NullInputsSimple) {
 
 
 TEST(NullInputsAppended) {
-  GraphTester graph;
+  Zone zone;
+  Graph graph(&zone);
 
   Node* n0 = graph.NewNode(&dummy_operator);
   Node* n1 = graph.NewNode(&dummy_operator, n0);
@@ -397,7 +408,8 @@ TEST(NullInputsAppended) {
 
 
 TEST(ReplaceUsesFromAppendedInputs) {
-  GraphTester graph;
+  Zone zone;
+  Graph graph(&zone);
 
   Node* n0 = graph.NewNode(&dummy_operator);
   Node* n1 = graph.NewNode(&dummy_operator, n0);
@@ -424,7 +436,8 @@ TEST(ReplaceUsesFromAppendedInputs) {
 
 
 TEST(ReplaceInputMultipleUses) {
-  GraphTester graph;
+  Zone zone;
+  Graph graph(&zone);
 
   Node* n0 = graph.NewNode(&dummy_operator);
   Node* n1 = graph.NewNode(&dummy_operator);
@@ -441,7 +454,8 @@ TEST(ReplaceInputMultipleUses) {
 
 
 TEST(TrimInputCountInline) {
-  GraphTester graph;
+  Zone zone;
+  Graph graph(&zone);
 
   {
     Node* n0 = graph.NewNode(&dummy_operator);
@@ -508,7 +522,8 @@ TEST(TrimInputCountInline) {
 
 
 TEST(TrimInputCountOutOfLine1) {
-  GraphTester graph;
+  Zone zone;
+  Graph graph(&zone);
 
   {
     Node* n0 = graph.NewNode(&dummy_operator);
@@ -601,7 +616,8 @@ TEST(TrimInputCountOutOfLine1) {
 
 
 TEST(TrimInputCountOutOfLine2) {
-  GraphTester graph;
+  Zone zone;
+  Graph graph(&zone);
 
   {
     Node* n0 = graph.NewNode(&dummy_operator);
@@ -669,7 +685,8 @@ TEST(TrimInputCountOutOfLine2) {
 
 
 TEST(NullAllInputs) {
-  GraphTester graph;
+  Zone zone;
+  Graph graph(&zone);
 
   for (int i = 0; i < 2; i++) {
     Node* n0 = graph.NewNode(&dummy_operator);
@@ -720,7 +737,8 @@ TEST(NullAllInputs) {
 
 
 TEST(AppendAndTrim) {
-  GraphTester graph;
+  Zone zone;
+  Graph graph(&zone);
 
   Node* nodes[] = {
       graph.NewNode(&dummy_operator), graph.NewNode(&dummy_operator),

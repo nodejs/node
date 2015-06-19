@@ -58,8 +58,19 @@
   'js1_4/Functions/function-001': [PASS, NO_VARIANTS],
   'js1_5/Regress/regress-80981': [PASS, NO_VARIANTS],
 
+  # TODO(turbofan): Causes timeouts since top-level code is optimized.
+  'ecma_3/Statements/regress-324650': [PASS, NO_VARIANTS],
+  'ecma_3/Statements/regress-74474-002': [PASS, NO_VARIANTS],
+  'ecma_3/Statements/regress-74474-003': [PASS, NO_VARIANTS],
+  'js1_5/Regress/regress-111557': [PASS, NO_VARIANTS],
+  'js1_5/Regress/regress-155081-2': [PASS, NO_VARIANTS],
+  'js1_5/Regress/regress-451322': [PASS, NO_VARIANTS],
+
   # TODO(turbofan): Large switch statements crash.
   'js1_5/Regress/regress-398085-01': [PASS, NO_VARIANTS],
+
+  # TODO(mstarzinger): Investigate failure with lookup slot declaration.
+  'js1_5/Regress/regress-343713': [PASS, NO_VARIANTS],
 
   ############################ INVALID TESTS #############################
 

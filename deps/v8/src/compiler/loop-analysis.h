@@ -14,6 +14,9 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+// TODO(titzer): don't assume entry edges have a particular index.
+static const int kAssumedLoopEntryIndex = 0;  // assume loops are entered here.
+
 class LoopFinderImpl;
 
 typedef base::iterator_range<Node**> NodeRange;
@@ -139,7 +142,6 @@ class LoopTree : public ZoneObject {
   ZoneVector<int> node_to_loop_num_;
   ZoneVector<Node*> loop_nodes_;
 };
-
 
 class LoopFinder {
  public:

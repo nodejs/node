@@ -45,9 +45,7 @@ class SwitchChromium(Step):
   MESSAGE = "Switch to Chromium checkout."
 
   def RunStep(self):
-    self["v8_path"] = os.getcwd()
     cwd = self._options.chromium
-    os.chdir(cwd)
     self.InitialEnvironmentChecks(cwd)
     # Check for a clean workdir.
     if not self.GitIsWorkdirClean(cwd=cwd):  # pragma: no cover
@@ -61,25 +59,25 @@ class UpdateChromiumCheckout(Step):
   MESSAGE = "Update the checkout and create a new branch."
 
   def RunStep(self):
-    self.GitCheckout("master", cwd=self._options.chromium)
-    self.Command("gclient", "sync --nohooks", cwd=self._options.chromium)
-    self.GitPull(cwd=self._options.chromium)
+    cwd = self._options.chromium
+    self.GitCheckout("master", cwd=cwd)
+    self.DeleteBranch("work-branch", cwd=cwd)
+    self.Command("gclient", "sync --nohooks", cwd=cwd)
+    self.GitPull(cwd=cwd)
 
     # Update v8 remotes.
     self.GitFetchOrigin()
 
-    self.GitCreateBranch("v8-roll-%s" % self._options.roll,
-                         cwd=self._options.chromium)
+    self.GitCreateBranch("work-branch", cwd=cwd)
 
 
 class UploadCL(Step):
   MESSAGE = "Create and upload CL."
 
   def RunStep(self):
+    cwd = self._options.chromium
     # Patch DEPS file.
-    if self.Command(
-        "roll-dep", "v8 %s" % self._options.roll,
-        cwd=self._options.chromium) is None:
+    if self.Command("roll-dep", "v8 %s" % self._options.roll, cwd=cwd) is None:
       self.Die("Failed to create deps for %s" % self._options.roll)
 
     message = []
@@ -91,30 +89,18 @@ class UploadCL(Step):
     message.append(ISSUE_MSG)
 
     message.append("TBR=%s" % self._options.reviewer)
-    self.GitCommit("\n\n".join(message),
-                   author=self._options.author,
-                   cwd=self._options.chromium)
+    self.GitCommit("\n\n".join(message),  author=self._options.author, cwd=cwd)
     if not self._options.dry_run:
       self.GitUpload(author=self._options.author,
                      force=True,
                      cq=self._options.use_commit_queue,
-                     cwd=self._options.chromium)
+                     cwd=cwd)
       print "CL uploaded."
     else:
-      self.GitCheckout("master", cwd=self._options.chromium)
-      self.GitDeleteBranch("v8-roll-%s" % self._options.roll,
-                           cwd=self._options.chromium)
       print "Dry run - don't upload."
 
-
-# TODO(machenbach): Make this obsolete. We are only in the chromium chechout
-# for the initial .git check.
-class SwitchV8(Step):
-  MESSAGE = "Returning to V8 checkout."
-
-  def RunStep(self):
-    os.chdir(self["v8_path"])
-
+    self.GitCheckout("master", cwd=cwd)
+    self.GitDeleteBranch("work-branch", cwd=cwd)
 
 class CleanUp(Step):
   MESSAGE = "Done!"
@@ -164,7 +150,6 @@ class ChromiumRoll(ScriptsBase):
       SwitchChromium,
       UpdateChromiumCheckout,
       UploadCL,
-      SwitchV8,
       CleanUp,
     ]
 

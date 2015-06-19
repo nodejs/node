@@ -27,7 +27,6 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   const int strong_mode_free_variable_count =
       strong_mode_free_variables.length();
   // Make sure we allocate the correct amount.
-  DCHECK(scope->StackLocalCount() == stack_local_count);
   DCHECK(scope->ContextLocalCount() == context_local_count);
 
   bool simple_parameter_list =
@@ -54,8 +53,8 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
 
   const bool has_function_name = function_name_info != NONE;
   const int parameter_count = scope->num_parameters();
-  const int length = kVariablePartIndex + parameter_count + stack_local_count +
-                     2 * context_local_count +
+  const int length = kVariablePartIndex + parameter_count +
+                     (1 + stack_local_count) + 2 * context_local_count +
                      3 * strong_mode_free_variable_count +
                      (has_function_name ? 2 : 0);
 
@@ -89,9 +88,17 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   // Add stack locals' names. We are assuming that the stack locals'
   // slots are allocated in increasing order, so we can simply add
   // them to the ScopeInfo object.
+  int first_slot_index;
+  if (stack_local_count > 0) {
+    first_slot_index = stack_locals[0]->index();
+  } else {
+    first_slot_index = 0;
+  }
+  DCHECK(index == scope_info->StackLocalFirstSlotIndex());
+  scope_info->set(index++, Smi::FromInt(first_slot_index));
   DCHECK(index == scope_info->StackLocalEntriesIndex());
   for (int i = 0; i < stack_local_count; ++i) {
-    DCHECK(stack_locals[i]->index() == i);
+    DCHECK(stack_locals[i]->index() == first_slot_index + i);
     scope_info->set(index++, *stack_locals[i]->name());
   }
 
@@ -145,16 +152,12 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
     int var_index = scope->function()->proxy()->var()->index();
     scope_info->set(index++, *scope->function()->proxy()->name());
     scope_info->set(index++, Smi::FromInt(var_index));
-    DCHECK(function_name_info != STACK ||
-           (var_index == scope_info->StackLocalCount() &&
-            var_index == scope_info->StackSlotCount() - 1));
     DCHECK(function_name_info != CONTEXT ||
            var_index == scope_info->ContextLength() - 1);
   }
 
   DCHECK(index == scope_info->length());
   DCHECK(scope->num_parameters() == scope_info->ParameterCount());
-  DCHECK(scope->num_stack_slots() == scope_info->StackSlotCount());
   DCHECK(scope->num_heap_slots() == scope_info->ContextLength() ||
          (scope->num_heap_slots() == kVariablePartIndex &&
           scope_info->ContextLength() == 0));
@@ -205,8 +208,8 @@ int ScopeInfo::ContextLength() {
         FunctionVariableField::decode(Flags()) == CONTEXT;
     bool has_context = context_locals > 0 || function_name_context_slot ||
                        scope_type() == WITH_SCOPE ||
-                       (scope_type() == ARROW_SCOPE && CallsEval()) ||
-                       (scope_type() == FUNCTION_SCOPE && CallsEval()) ||
+                       (scope_type() == ARROW_SCOPE && CallsSloppyEval()) ||
+                       (scope_type() == FUNCTION_SCOPE && CallsSloppyEval()) ||
                        scope_type() == MODULE_SCOPE;
     if (has_context) {
       return Context::MIN_CONTEXT_SLOTS + context_locals +
@@ -266,6 +269,13 @@ String* ScopeInfo::StackLocalName(int var) {
   DCHECK(0 <= var && var < StackLocalCount());
   int info_index = StackLocalEntriesIndex() + var;
   return String::cast(get(info_index));
+}
+
+
+int ScopeInfo::StackLocalIndex(int var) {
+  DCHECK(0 <= var && var < StackLocalCount());
+  int first_slot_index = Smi::cast(get(StackLocalFirstSlotIndex()))->value();
+  return first_slot_index + var;
 }
 
 
@@ -343,11 +353,12 @@ int ScopeInfo::StrongModeFreeVariableEndPosition(int var) {
 int ScopeInfo::StackSlotIndex(String* name) {
   DCHECK(name->IsInternalizedString());
   if (length() > 0) {
+    int first_slot_index = Smi::cast(get(StackLocalFirstSlotIndex()))->value();
     int start = StackLocalEntriesIndex();
     int end = StackLocalEntriesIndex() + StackLocalCount();
     for (int i = start; i < end; ++i) {
       if (name == get(i)) {
-        return i - start;
+        return i - start + first_slot_index;
       }
     }
   }
@@ -453,7 +464,7 @@ bool ScopeInfo::CopyContextLocalsToScopeObject(Handle<ScopeInfo> scope_info,
     if (scope_info->LocalIsSynthetic(first_context_var + i)) continue;
     int context_index = Context::MIN_CONTEXT_SLOTS + i;
     Handle<Object> value = Handle<Object>(context->get(context_index), isolate);
-    // Do not reflect variables under TDZ in scope object.
+    // Reflect variables under TDZ as undefined in scope object.
     if (value->IsTheHole()) continue;
     RETURN_ON_EXCEPTION_VALUE(
         isolate, Runtime::DefineObjectProperty(
@@ -472,8 +483,13 @@ int ScopeInfo::ParameterEntriesIndex() {
 }
 
 
-int ScopeInfo::StackLocalEntriesIndex() {
+int ScopeInfo::StackLocalFirstSlotIndex() {
   return ParameterEntriesIndex() + ParameterCount();
+}
+
+
+int ScopeInfo::StackLocalEntriesIndex() {
+  return StackLocalFirstSlotIndex() + 1;
 }
 
 

@@ -13,7 +13,6 @@
 #include "src/codegen.h"
 #include "src/cpu-profiler.h"
 #include "src/debug.h"
-#include "src/isolate-inl.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -1261,12 +1260,42 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
         ori(rd, rd, (j.imm64_ & kImm16Mask));
       }
     } else {
-      lui(rd, (j.imm64_ >> 48) & kImm16Mask);
-      ori(rd, rd, (j.imm64_ >> 32) & kImm16Mask);
-      dsll(rd, rd, 16);
-      ori(rd, rd, (j.imm64_ >> 16) & kImm16Mask);
-      dsll(rd, rd, 16);
-      ori(rd, rd, j.imm64_ & kImm16Mask);
+      if (is_int48(j.imm64_)) {
+        if ((j.imm64_ >> 32) & kImm16Mask) {
+          lui(rd, (j.imm64_ >> 32) & kImm16Mask);
+          if ((j.imm64_ >> 16) & kImm16Mask) {
+            ori(rd, rd, (j.imm64_ >> 16) & kImm16Mask);
+          }
+        } else {
+          ori(rd, zero_reg, (j.imm64_ >> 16) & kImm16Mask);
+        }
+        dsll(rd, rd, 16);
+        if (j.imm64_ & kImm16Mask) {
+          ori(rd, rd, j.imm64_ & kImm16Mask);
+        }
+      } else {
+        lui(rd, (j.imm64_ >> 48) & kImm16Mask);
+        if ((j.imm64_ >> 32) & kImm16Mask) {
+          ori(rd, rd, (j.imm64_ >> 32) & kImm16Mask);
+        }
+        if ((j.imm64_ >> 16) & kImm16Mask) {
+          dsll(rd, rd, 16);
+          ori(rd, rd, (j.imm64_ >> 16) & kImm16Mask);
+          if (j.imm64_ & kImm16Mask) {
+            dsll(rd, rd, 16);
+            ori(rd, rd, j.imm64_ & kImm16Mask);
+          } else {
+            dsll(rd, rd, 16);
+          }
+        } else {
+          if (j.imm64_ & kImm16Mask) {
+            dsll32(rd, rd, 0);
+            ori(rd, rd, j.imm64_ & kImm16Mask);
+          } else {
+            dsll32(rd, rd, 0);
+          }
+        }
+      }
     }
   } else if (MustUseReg(j.rmode_)) {
     RecordRelocInfo(j.rmode_, j.imm64_);
@@ -1599,68 +1628,131 @@ void MacroAssembler::Madd_d(FPURegister fd, FPURegister fr, FPURegister fs,
 }
 
 
-void MacroAssembler::BranchF(Label* target,
-                             Label* nan,
-                             Condition cc,
-                             FPURegister cmp1,
-                             FPURegister cmp2,
-                             BranchDelaySlot bd) {
+void MacroAssembler::BranchFCommon(SecondaryField sizeField, Label* target,
+                                   Label* nan, Condition cond, FPURegister cmp1,
+                                   FPURegister cmp2, BranchDelaySlot bd) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  if (cc == al) {
+  if (cond == al) {
     Branch(bd, target);
     return;
+  }
+
+  if (kArchVariant == kMips64r6) {
+    sizeField = sizeField == D ? L : W;
   }
 
   DCHECK(nan || target);
   // Check for unordered (NaN) cases.
   if (nan) {
+    bool long_branch = nan->is_bound() ? is_near(nan) : is_trampoline_emitted();
     if (kArchVariant != kMips64r6) {
-      c(UN, D, cmp1, cmp2);
-      bc1t(nan);
+      if (long_branch) {
+        Label skip;
+        c(UN, D, cmp1, cmp2);
+        bc1f(&skip);
+        nop();
+        Jr(nan, bd);
+        bind(&skip);
+      } else {
+        c(UN, D, cmp1, cmp2);
+        bc1t(nan);
+        if (bd == PROTECT) {
+          nop();
+        }
+      }
     } else {
-      // Use f31 for comparison result. It has to be unavailable to lithium
+      // Use kDoubleCompareReg for comparison result. It has to be unavailable
+      // to lithium
       // register allocator.
-      DCHECK(!cmp1.is(f31) && !cmp2.is(f31));
-      cmp(UN, L, f31, cmp1, cmp2);
-      bc1nez(nan, f31);
+      DCHECK(!cmp1.is(kDoubleCompareReg) && !cmp2.is(kDoubleCompareReg));
+      if (long_branch) {
+        Label skip;
+        cmp(UN, L, kDoubleCompareReg, cmp1, cmp2);
+        bc1eqz(&skip, kDoubleCompareReg);
+        nop();
+        Jr(nan, bd);
+        bind(&skip);
+      } else {
+        cmp(UN, L, kDoubleCompareReg, cmp1, cmp2);
+        bc1nez(nan, kDoubleCompareReg);
+        if (bd == PROTECT) {
+          nop();
+        }
+      }
     }
   }
 
+  if (target) {
+    bool long_branch =
+        target->is_bound() ? is_near(target) : is_trampoline_emitted();
+    if (long_branch) {
+      Label skip;
+      Condition neg_cond = NegateFpuCondition(cond);
+      BranchShortF(sizeField, &skip, neg_cond, cmp1, cmp2, bd);
+      Jr(target, bd);
+      bind(&skip);
+    } else {
+      BranchShortF(sizeField, target, cond, cmp1, cmp2, bd);
+    }
+  }
+}
+
+
+void MacroAssembler::BranchShortF(SecondaryField sizeField, Label* target,
+                                  Condition cc, FPURegister cmp1,
+                                  FPURegister cmp2, BranchDelaySlot bd) {
   if (kArchVariant != kMips64r6) {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
     if (target) {
       // Here NaN cases were either handled by this function or are assumed to
       // have been handled by the caller.
       switch (cc) {
         case lt:
-          c(OLT, D, cmp1, cmp2);
+          c(OLT, sizeField, cmp1, cmp2);
+          bc1t(target);
+          break;
+        case ult:
+          c(ULT, sizeField, cmp1, cmp2);
           bc1t(target);
           break;
         case gt:
-          c(ULE, D, cmp1, cmp2);
+          c(ULE, sizeField, cmp1, cmp2);
+          bc1f(target);
+          break;
+        case ugt:
+          c(OLE, sizeField, cmp1, cmp2);
           bc1f(target);
           break;
         case ge:
-          c(ULT, D, cmp1, cmp2);
+          c(ULT, sizeField, cmp1, cmp2);
+          bc1f(target);
+          break;
+        case uge:
+          c(OLT, sizeField, cmp1, cmp2);
           bc1f(target);
           break;
         case le:
-          c(OLE, D, cmp1, cmp2);
+          c(OLE, sizeField, cmp1, cmp2);
+          bc1t(target);
+          break;
+        case ule:
+          c(ULE, sizeField, cmp1, cmp2);
           bc1t(target);
           break;
         case eq:
-          c(EQ, D, cmp1, cmp2);
+          c(EQ, sizeField, cmp1, cmp2);
           bc1t(target);
           break;
         case ueq:
-          c(UEQ, D, cmp1, cmp2);
+          c(UEQ, sizeField, cmp1, cmp2);
           bc1t(target);
           break;
-        case ne:
-          c(EQ, D, cmp1, cmp2);
+        case ne:  // Unordered or not equal.
+          c(EQ, sizeField, cmp1, cmp2);
           bc1f(target);
           break;
-        case nue:
-          c(UEQ, D, cmp1, cmp2);
+        case ogl:
+          c(UEQ, sizeField, cmp1, cmp2);
           bc1f(target);
           break;
         default:
@@ -1668,44 +1760,62 @@ void MacroAssembler::BranchF(Label* target,
       }
     }
   } else {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
     if (target) {
       // Here NaN cases were either handled by this function or are assumed to
       // have been handled by the caller.
       // Unsigned conditions are treated as their signed counterpart.
-      // Use f31 for comparison result, it is valid in fp64 (FR = 1) mode.
-      DCHECK(!cmp1.is(f31) && !cmp2.is(f31));
+      // Use kDoubleCompareReg for comparison result, it is valid in fp64 (FR =
+      // 1) mode.
+      DCHECK(!cmp1.is(kDoubleCompareReg) && !cmp2.is(kDoubleCompareReg));
       switch (cc) {
         case lt:
-          cmp(OLT, L, f31, cmp1, cmp2);
-          bc1nez(target, f31);
+          cmp(OLT, sizeField, kDoubleCompareReg, cmp1, cmp2);
+          bc1nez(target, kDoubleCompareReg);
+          break;
+        case ult:
+          cmp(ULT, sizeField, kDoubleCompareReg, cmp1, cmp2);
+          bc1nez(target, kDoubleCompareReg);
           break;
         case gt:
-          cmp(ULE, L, f31, cmp1, cmp2);
-          bc1eqz(target, f31);
+          cmp(ULE, sizeField, kDoubleCompareReg, cmp1, cmp2);
+          bc1eqz(target, kDoubleCompareReg);
+          break;
+        case ugt:
+          cmp(OLE, sizeField, kDoubleCompareReg, cmp1, cmp2);
+          bc1eqz(target, kDoubleCompareReg);
           break;
         case ge:
-          cmp(ULT, L, f31, cmp1, cmp2);
-          bc1eqz(target, f31);
+          cmp(ULT, sizeField, kDoubleCompareReg, cmp1, cmp2);
+          bc1eqz(target, kDoubleCompareReg);
+          break;
+        case uge:
+          cmp(OLT, sizeField, kDoubleCompareReg, cmp1, cmp2);
+          bc1eqz(target, kDoubleCompareReg);
           break;
         case le:
-          cmp(OLE, L, f31, cmp1, cmp2);
-          bc1nez(target, f31);
+          cmp(OLE, sizeField, kDoubleCompareReg, cmp1, cmp2);
+          bc1nez(target, kDoubleCompareReg);
+          break;
+        case ule:
+          cmp(ULE, sizeField, kDoubleCompareReg, cmp1, cmp2);
+          bc1nez(target, kDoubleCompareReg);
           break;
         case eq:
-          cmp(EQ, L, f31, cmp1, cmp2);
-          bc1nez(target, f31);
+          cmp(EQ, sizeField, kDoubleCompareReg, cmp1, cmp2);
+          bc1nez(target, kDoubleCompareReg);
           break;
         case ueq:
-          cmp(UEQ, L, f31, cmp1, cmp2);
-          bc1nez(target, f31);
+          cmp(UEQ, sizeField, kDoubleCompareReg, cmp1, cmp2);
+          bc1nez(target, kDoubleCompareReg);
           break;
         case ne:
-          cmp(EQ, L, f31, cmp1, cmp2);
-          bc1eqz(target, f31);
+          cmp(EQ, sizeField, kDoubleCompareReg, cmp1, cmp2);
+          bc1eqz(target, kDoubleCompareReg);
           break;
-        case nue:
-          cmp(UEQ, L, f31, cmp1, cmp2);
-          bc1eqz(target, f31);
+        case ogl:
+          cmp(UEQ, sizeField, kDoubleCompareReg, cmp1, cmp2);
+          bc1eqz(target, kDoubleCompareReg);
           break;
         default:
           CHECK(0);
@@ -1748,16 +1858,34 @@ void MacroAssembler::Move(FPURegister dst, double imm) {
     // Move the low part of the double into the lower bits of the corresponding
     // FPU register.
     if (lo != 0) {
-      li(at, Operand(lo));
-      mtc1(at, dst);
+      if (!(lo & kImm16Mask)) {
+        lui(at, (lo >> kLuiShift) & kImm16Mask);
+        mtc1(at, dst);
+      } else if (!(lo & kHiMask)) {
+        ori(at, zero_reg, lo & kImm16Mask);
+        mtc1(at, dst);
+      } else {
+        lui(at, (lo >> kLuiShift) & kImm16Mask);
+        ori(at, at, lo & kImm16Mask);
+        mtc1(at, dst);
+      }
     } else {
       mtc1(zero_reg, dst);
     }
     // Move the high part of the double into the high bits of the corresponding
     // FPU register.
     if (hi != 0) {
-      li(at, Operand(hi));
-      mthc1(at, dst);
+      if (!(hi & kImm16Mask)) {
+        lui(at, (hi >> kLuiShift) & kImm16Mask);
+        mthc1(at, dst);
+      } else if (!(hi & kHiMask)) {
+        ori(at, zero_reg, hi & kImm16Mask);
+        mthc1(at, dst);
+      } else {
+        lui(at, (hi >> kLuiShift) & kImm16Mask);
+        ori(at, at, hi & kImm16Mask);
+        mthc1(at, dst);
+      }
     } else {
       mthc1(zero_reg, dst);
     }
@@ -3059,24 +3187,6 @@ void MacroAssembler::Ret(Condition cond,
 }
 
 
-void MacroAssembler::J(Label* L, BranchDelaySlot bdslot) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-
-  uint64_t imm28;
-  imm28 = jump_address(L);
-  imm28 &= kImm28Mask;
-  { BlockGrowBufferScope block_buf_growth(this);
-    // Buffer growth (and relocation) must be blocked for internal references
-    // until associated instructions are emitted and available to be patched.
-    RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-    j(imm28);
-  }
-  // Emit a nop in the branch delay slot if required.
-  if (bdslot == PROTECT)
-    nop();
-}
-
-
 void MacroAssembler::Jr(Label* L, BranchDelaySlot bdslot) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
 
@@ -3116,6 +3226,7 @@ void MacroAssembler::Jalr(Label* L, BranchDelaySlot bdslot) {
 
 
 void MacroAssembler::DropAndRet(int drop) {
+  DCHECK(is_int16(drop * kPointerSize));
   Ret(USE_DELAY_SLOT);
   daddiu(sp, sp, drop * kPointerSize);
 }
@@ -3153,7 +3264,7 @@ void MacroAssembler::Drop(int count,
      Branch(&skip, NegateCondition(cond), reg, op);
   }
 
-  daddiu(sp, sp, count * kPointerSize);
+  Daddu(sp, sp, Operand(count * kPointerSize));
 
   if (cond != al) {
     bind(&skip);

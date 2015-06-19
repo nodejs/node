@@ -22,7 +22,7 @@ class ICUtility : public AllStatic {
 };
 
 
-class CallICState FINAL BASE_EMBEDDED {
+class CallICState final BASE_EMBEDDED {
  public:
   explicit CallICState(ExtraICState extra_ic_state);
 
@@ -54,12 +54,12 @@ class CallICState FINAL BASE_EMBEDDED {
 std::ostream& operator<<(std::ostream& os, const CallICState& s);
 
 
-class BinaryOpICState FINAL BASE_EMBEDDED {
+class BinaryOpICState final BASE_EMBEDDED {
  public:
   BinaryOpICState(Isolate* isolate, ExtraICState extra_ic_state);
-
-  BinaryOpICState(Isolate* isolate, Token::Value op)
+  BinaryOpICState(Isolate* isolate, Token::Value op, LanguageMode language_mode)
       : op_(op),
+        strong_(is_strong(language_mode)),
         left_kind_(NONE),
         right_kind_(NONE),
         result_kind_(NONE),
@@ -106,6 +106,10 @@ class BinaryOpICState FINAL BASE_EMBEDDED {
     return Max(left_kind_, right_kind_) == GENERIC;
   }
 
+  LanguageMode language_mode() const {
+    return strong_ ? LanguageMode::STRONG : LanguageMode::SLOPPY;
+  }
+
   // Returns true if the IC should enable the inline smi code (i.e. if either
   // parameter may be a smi).
   bool UseInlinedSmiCode() const {
@@ -144,13 +148,15 @@ class BinaryOpICState FINAL BASE_EMBEDDED {
   class OpField : public BitField<int, 0, 4> {};
   class ResultKindField : public BitField<Kind, 4, 3> {};
   class LeftKindField : public BitField<Kind, 7, 3> {};
+  class StrongField : public BitField<bool, 10, 1> {};
   // When fixed right arg is set, we don't need to store the right kind.
   // Thus the two fields can overlap.
-  class HasFixedRightArgField : public BitField<bool, 10, 1> {};
-  class FixedRightArgValueField : public BitField<int, 11, 4> {};
-  class RightKindField : public BitField<Kind, 11, 3> {};
+  class HasFixedRightArgField : public BitField<bool, 11, 1> {};
+  class FixedRightArgValueField : public BitField<int, 12, 4> {};
+  class RightKindField : public BitField<Kind, 12, 3> {};
 
   Token::Value op_;
+  bool strong_;
   Kind left_kind_;
   Kind right_kind_;
   Kind result_kind_;
@@ -195,7 +201,7 @@ class CompareICState {
 };
 
 
-class LoadICState FINAL BASE_EMBEDDED {
+class LoadICState final BASE_EMBEDDED {
  public:
   explicit LoadICState(ExtraICState extra_ic_state) : state_(extra_ic_state) {}
 

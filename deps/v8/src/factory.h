@@ -6,6 +6,7 @@
 #define V8_FACTORY_H_
 
 #include "src/isolate.h"
+#include "src/messages.h"
 
 namespace v8 {
 namespace internal {
@@ -13,7 +14,7 @@ namespace internal {
 class FeedbackVectorSpec;
 
 // Interface for handle based allocation.
-class Factory FINAL {
+class Factory final {
  public:
   Handle<Oddball> NewOddball(Handle<Map> map,
                              const char* to_string,
@@ -57,6 +58,9 @@ class Factory FINAL {
 
   // Create a new boxed value.
   Handle<Box> NewBox(Handle<Object> value);
+
+  // Create a new PrototypeInfo struct.
+  Handle<PrototypeInfo> NewPrototypeInfo();
 
   // Create a pre-tenured empty AccessorPair.
   Handle<AccessorPair> NewAccessorPair();
@@ -444,10 +448,16 @@ class Factory FINAL {
 
   Handle<JSTypedArray> NewJSTypedArray(ExternalArrayType type);
 
+  Handle<JSTypedArray> NewJSTypedArray(ElementsKind elements_kind);
+
   // Creates a new JSTypedArray with the specified buffer.
   Handle<JSTypedArray> NewJSTypedArray(ExternalArrayType type,
                                        Handle<JSArrayBuffer> buffer,
                                        size_t byte_offset, size_t length);
+
+  // Creates a new on-heap JSTypedArray.
+  Handle<JSTypedArray> NewJSTypedArray(ElementsKind elements_kind,
+                                       size_t number_of_elements);
 
   Handle<JSDataView> NewJSDataView();
   Handle<JSDataView> NewJSDataView(Handle<JSArrayBuffer> buffer,
@@ -479,13 +489,14 @@ class Factory FINAL {
   void BecomeJSObject(Handle<JSProxy> object);
   void BecomeJSFunction(Handle<JSProxy> object);
 
-  Handle<JSFunction> NewFunction(Handle<String> name,
-                                 Handle<Code> code,
+  Handle<JSFunction> NewFunction(Handle<String> name, Handle<Code> code,
                                  Handle<Object> prototype,
-                                 bool read_only_prototype = false);
+                                 bool read_only_prototype = false,
+                                 bool is_strict = false);
   Handle<JSFunction> NewFunction(Handle<String> name);
   Handle<JSFunction> NewFunctionWithoutPrototype(Handle<String> name,
-                                                 Handle<Code> code);
+                                                 Handle<Code> code,
+                                                 bool is_strict = false);
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
       Handle<SharedFunctionInfo> function_info,
@@ -496,7 +507,8 @@ class Factory FINAL {
                                  Handle<Object> prototype, InstanceType type,
                                  int instance_size,
                                  bool read_only_prototype = false,
-                                 bool install_constructor = false);
+                                 bool install_constructor = false,
+                                 bool is_strict = false);
   Handle<JSFunction> NewFunction(Handle<String> name,
                                  Handle<Code> code,
                                  InstanceType type,
@@ -531,6 +543,7 @@ class Factory FINAL {
   Handle<Object> NewError(const char* maker, const char* message,
                           Vector<Handle<Object> > args);
   Handle<Object> NewError(const char* message, Vector<Handle<Object> > args);
+
   Handle<Object> NewError(Handle<String> message);
   Handle<Object> NewError(const char* constructor, Handle<String> message);
 
@@ -543,20 +556,44 @@ class Factory FINAL {
   Handle<Object> NewRangeError(Handle<String> message);
 
   Handle<Object> NewInvalidStringLengthError() {
-    return NewRangeError("invalid_string_length",
-                         HandleVector<Object>(NULL, 0));
+    return NewRangeError(MessageTemplate::kInvalidStringLength);
   }
 
   Handle<Object> NewSyntaxError(const char* message, Handle<JSArray> args);
   Handle<Object> NewSyntaxError(Handle<String> message);
 
-  Handle<Object> NewReferenceError(const char* message,
-                                   Vector<Handle<Object> > args);
   Handle<Object> NewReferenceError(const char* message, Handle<JSArray> args);
   Handle<Object> NewReferenceError(Handle<String> message);
 
-  Handle<Object> NewEvalError(const char* message,
-                              Vector<Handle<Object> > args);
+  Handle<Object> NewError(const char* maker,
+                          MessageTemplate::Template template_index,
+                          Handle<Object> arg0, Handle<Object> arg1,
+                          Handle<Object> arg2);
+
+  Handle<Object> NewError(MessageTemplate::Template template_index,
+                          Handle<Object> arg0 = Handle<Object>(),
+                          Handle<Object> arg1 = Handle<Object>(),
+                          Handle<Object> arg2 = Handle<Object>());
+
+  Handle<Object> NewTypeError(MessageTemplate::Template template_index,
+                              Handle<Object> arg0 = Handle<Object>(),
+                              Handle<Object> arg1 = Handle<Object>(),
+                              Handle<Object> arg2 = Handle<Object>());
+
+  Handle<Object> NewReferenceError(MessageTemplate::Template template_index,
+                                   Handle<Object> arg0 = Handle<Object>(),
+                                   Handle<Object> arg1 = Handle<Object>(),
+                                   Handle<Object> arg2 = Handle<Object>());
+
+  Handle<Object> NewRangeError(MessageTemplate::Template template_index,
+                               Handle<Object> arg0 = Handle<Object>(),
+                               Handle<Object> arg1 = Handle<Object>(),
+                               Handle<Object> arg2 = Handle<Object>());
+
+  Handle<Object> NewEvalError(MessageTemplate::Template template_index,
+                              Handle<Object> arg0 = Handle<Object>(),
+                              Handle<Object> arg1 = Handle<Object>(),
+                              Handle<Object> arg2 = Handle<Object>());
 
   Handle<String> NumberToString(Handle<Object> number,
                                 bool check_number_string_cache = true);
@@ -611,6 +648,10 @@ class Factory FINAL {
     isolate()->heap()->set_string_table(*table);
   }
 
+  inline void set_weak_stack_trace_list(Handle<WeakFixedArray> list) {
+    isolate()->heap()->set_weak_stack_trace_list(*list);
+  }
+
   Handle<String> hidden_string() {
     return Handle<String>(&isolate()->heap()->hidden_string_);
   }
@@ -663,7 +704,7 @@ class Factory FINAL {
   // Returns the value for a known global constant (a property of the global
   // object which is neither configurable nor writable) like 'undefined'.
   // Returns a null handle when the given name is unknown.
-  Handle<Object> GlobalConstantFor(Handle<String> name);
+  Handle<Object> GlobalConstantFor(Handle<Name> name);
 
   // Converts the given boolean condition to JavaScript boolean value.
   Handle<Object> ToBoolean(bool value);

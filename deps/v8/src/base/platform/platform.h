@@ -190,8 +190,8 @@ class OS {
   // Get the Alignment guaranteed by Allocate().
   static size_t AllocateAlignment();
 
-  // Sleep for a number of milliseconds.
-  static void Sleep(const int milliseconds);
+  // Sleep for a specified time interval.
+  static void Sleep(TimeDelta interval);
 
   // Abort the current process.
   static void Abort();
@@ -210,11 +210,13 @@ class OS {
 
   class MemoryMappedFile {
    public:
+    virtual ~MemoryMappedFile() {}
+    virtual void* memory() const = 0;
+    virtual size_t size() const = 0;
+
     static MemoryMappedFile* open(const char* name);
-    static MemoryMappedFile* create(const char* name, int size, void* initial);
-    virtual ~MemoryMappedFile() { }
-    virtual void* memory() = 0;
-    virtual int size() = 0;
+    static MemoryMappedFile* create(const char* name, size_t size,
+                                    void* initial);
   };
 
   // Safe formatting print. Ensures that str is always null-terminated.
@@ -443,10 +445,6 @@ class Thread {
     return GetThreadLocal(key);
   }
 #endif
-
-  // A hint to the scheduler to let another thread run.
-  static void YieldCPU();
-
 
   // The thread name length is limited to 16 based on Linux's implementation of
   // prctl().

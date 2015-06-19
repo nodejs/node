@@ -909,7 +909,7 @@ TEST(Regress436816) {
   CHECK(object->map()->HasFastPointerLayout());
 
   // Trigger GCs and heap verification.
-  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
 }
 
 
@@ -966,7 +966,7 @@ TEST(DescriptorArrayTrimming) {
 
   // Call GC that should trim both |map|'s descriptor array and layout
   // descriptor.
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
 
   // The unused tail of the layout descriptor is now "clean" again.
   CHECK(map->layout_descriptor()->IsConsistentWithMap(*map, true));
@@ -1051,7 +1051,7 @@ TEST(DoScavenge) {
   // a pointer to a from semi-space.
   CcTest::heap()->CollectGarbage(i::NEW_SPACE, "boom");
 
-  CHECK(isolate->heap()->old_pointer_space()->Contains(*obj));
+  CHECK(isolate->heap()->old_space()->Contains(*obj));
 
   CHECK_EQ(boom_value, GetDoubleFieldValue(*obj, field_index));
 }
@@ -1064,7 +1064,7 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   Heap* heap = CcTest::heap();
-  PagedSpace* old_pointer_space = heap->old_pointer_space();
+  PagedSpace* old_space = heap->old_space();
 
   // The plan: create |obj_value| in old space and ensure that it is allocated
   // on evacuation candidate page, create |obj| with double and tagged fields
@@ -1087,7 +1087,7 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
   {
     AlwaysAllocateScope always_allocate(isolate);
     // Make sure |obj_value| is placed on an old-space evacuation candidate.
-    SimulateFullSpace(old_pointer_space);
+    SimulateFullSpace(old_space);
     obj_value = factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS, TENURED);
     ec_page = Page::FromAddress(obj_value->address());
   }
@@ -1133,11 +1133,11 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
   heap->CollectGarbage(i::NEW_SPACE);  // in survivor space now
   heap->CollectGarbage(i::NEW_SPACE);  // in old gen now
 
-  CHECK(isolate->heap()->old_pointer_space()->Contains(*obj));
-  CHECK(isolate->heap()->old_pointer_space()->Contains(*obj_value));
+  CHECK(isolate->heap()->old_space()->Contains(*obj));
+  CHECK(isolate->heap()->old_space()->Contains(*obj_value));
   CHECK(MarkCompactCollector::IsOnEvacuationCandidate(*obj_value));
 
-  heap->CollectGarbage(i::OLD_POINTER_SPACE, "boom");
+  heap->CollectGarbage(i::OLD_SPACE, "boom");
 
   // |obj_value| must be evacuated.
   CHECK(!MarkCompactCollector::IsOnEvacuationCandidate(*obj_value));
@@ -1370,7 +1370,7 @@ TEST(StoreBufferScanOnScavenge) {
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
 
-  CHECK(isolate->heap()->old_pointer_space()->Contains(*obj));
+  CHECK(isolate->heap()->old_space()->Contains(*obj));
 
   // Create temp object in the new space.
   Handle<JSArray> temp = factory->NewJSArray(FAST_ELEMENTS, NOT_TENURED);
@@ -1390,7 +1390,7 @@ TEST(StoreBufferScanOnScavenge) {
   chunk->set_scan_on_scavenge(true);
 
   // Trigger GCs and force evacuation. Should not crash there.
-  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
 
   CHECK_EQ(boom_value, GetDoubleFieldValue(*obj, field_index));
 }
@@ -1472,7 +1472,7 @@ TEST(WriteBarriersInCopyJSObject) {
   AlwaysAllocateScope aa_scope(isolate);
   Object* clone_obj = heap->CopyJSObject(jsobject).ToObjectChecked();
   Handle<JSObject> clone(JSObject::cast(clone_obj));
-  CHECK(heap->old_pointer_space()->Contains(clone->address()));
+  CHECK(heap->old_space()->Contains(clone->address()));
 
   CcTest::heap()->CollectGarbage(NEW_SPACE, "boom");
 
@@ -1489,7 +1489,7 @@ static void TestWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   Heap* heap = CcTest::heap();
-  PagedSpace* old_pointer_space = heap->old_pointer_space();
+  PagedSpace* old_space = heap->old_space();
 
   // The plan: create |obj| by |map| in old space, create |obj_value| in
   // new space and ensure that write barrier is triggered when |obj_value| is
@@ -1503,7 +1503,7 @@ static void TestWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   {
     AlwaysAllocateScope always_allocate(isolate);
     obj = factory->NewJSObjectFromMap(map, TENURED, false);
-    CHECK(old_pointer_space->Contains(*obj));
+    CHECK(old_space->Contains(*obj));
 
     obj_value = factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS);
   }
@@ -1552,7 +1552,7 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   Heap* heap = CcTest::heap();
-  PagedSpace* old_pointer_space = heap->old_pointer_space();
+  PagedSpace* old_space = heap->old_space();
 
   // The plan: create |obj| by |map| in old space, create |obj_value| in
   // old space and ensure it end up in evacuation candidate page. Start
@@ -1568,10 +1568,10 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   {
     AlwaysAllocateScope always_allocate(isolate);
     obj = factory->NewJSObjectFromMap(map, TENURED, false);
-    CHECK(old_pointer_space->Contains(*obj));
+    CHECK(old_space->Contains(*obj));
 
     // Make sure |obj_value| is placed on an old-space evacuation candidate.
-    SimulateFullSpace(old_pointer_space);
+    SimulateFullSpace(old_space);
     obj_value = factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS, TENURED);
     ec_page = Page::FromAddress(obj_value->address());
     CHECK_NE(ec_page, Page::FromAddress(obj->address()));
@@ -1618,7 +1618,7 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   obj->RawFastDoublePropertyAtPut(double_field_index, boom_value);
 
   // Trigger GC to evacuate all candidates.
-  CcTest::heap()->CollectGarbage(OLD_POINTER_SPACE, "boom");
+  CcTest::heap()->CollectGarbage(OLD_SPACE, "boom");
 
   // Ensure that the values are still there and correct.
   CHECK(!MarkCompactCollector::IsOnEvacuationCandidate(*obj_value));

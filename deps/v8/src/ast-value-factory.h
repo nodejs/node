@@ -64,13 +64,15 @@ class AstString : public ZoneObject {
 
 class AstRawString : public AstString {
  public:
-  int length() const OVERRIDE {
+  int length() const override {
     if (is_one_byte_)
       return literal_bytes_.length();
     return literal_bytes_.length() / 2;
   }
 
-  void Internalize(Isolate* isolate) OVERRIDE;
+  int byte_length() const { return literal_bytes_.length(); }
+
+  void Internalize(Isolate* isolate) override;
 
   bool AsArrayIndex(uint32_t* index) const;
 
@@ -92,9 +94,6 @@ class AstRawString : public AstString {
   uint32_t hash() const {
     return hash_;
   }
-  static bool Compare(void* a, void* b);
-
-  bool operator==(const AstRawString& rhs) const;
 
  private:
   friend class AstValueFactory;
@@ -122,9 +121,9 @@ class AstConsString : public AstString {
       : left_(left),
         right_(right) {}
 
-  int length() const OVERRIDE { return left_->length() + right_->length(); }
+  int length() const override { return left_->length() + right_->length(); }
 
-  void Internalize(Isolate* isolate) OVERRIDE;
+  void Internalize(Isolate* isolate) override;
 
  private:
   friend class AstValueFactory;
@@ -245,7 +244,7 @@ class AstValue : public ZoneObject {
   F(dot_result, ".result")                                                 \
   F(empty, "")                                                             \
   F(eval, "eval")                                                          \
-  F(get_template_callsite, "GetTemplateCallSite")                          \
+  F(get_template_callsite, "$getTemplateCallSite")                         \
   F(initialize_const_global, "initializeConstGlobal")                      \
   F(initialize_var_global, "initializeVarGlobal")                          \
   F(is_construct_call, "_IsConstructCall")                                 \
@@ -259,9 +258,14 @@ class AstValue : public ZoneObject {
   F(next, "next")                                                          \
   F(proto, "__proto__")                                                    \
   F(prototype, "prototype")                                                \
+  F(reflect_apply, "$reflectApply")                                        \
+  F(reflect_construct, "$reflectConstruct")                                \
+  F(spread_arguments, "$spreadArguments")                                  \
+  F(spread_iterable, "$spreadIterable")                                    \
   F(this, "this")                                                          \
   F(throw_iterator_result_not_an_object, "ThrowIteratorResultNotAnObject") \
-  F(to_string, "ToString")                                                 \
+  F(to_string, "$toString")                                                \
+  F(undefined, "undefined")                                                \
   F(use_asm, "use asm")                                                    \
   F(use_strong, "use strong")                                              \
   F(use_strict, "use strict")                                              \
@@ -277,7 +281,7 @@ class AstValue : public ZoneObject {
 class AstValueFactory {
  public:
   AstValueFactory(Zone* zone, uint32_t hash_seed)
-      : string_table_(AstRawString::Compare),
+      : string_table_(AstRawStringCompare),
         zone_(zone),
         isolate_(NULL),
         hash_seed_(hash_seed) {
@@ -339,6 +343,8 @@ class AstValueFactory {
   AstRawString* GetTwoByteStringInternal(Vector<const uint16_t> literal);
   AstRawString* GetString(uint32_t hash, bool is_one_byte,
                           Vector<const byte> literal_bytes);
+
+  static bool AstRawStringCompare(void* a, void* b);
 
   // All strings are copied here, one after another (no NULLs inbetween).
   HashMap string_table_;

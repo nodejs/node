@@ -6,7 +6,8 @@
 
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/platform.h"
-#include "src/isolate-inl.h"
+#include "src/debug.h"
+#include "src/isolate.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -14,7 +15,7 @@ namespace internal {
 
 namespace {
 
-struct PerThreadAssertKeyConstructTrait FINAL {
+struct PerThreadAssertKeyConstructTrait final {
   static void Construct(base::Thread::LocalStorageKey* key) {
     *key = base::Thread::CreateThreadLocalKey();
   }
@@ -31,7 +32,7 @@ PerThreadAssertKey kPerThreadAssertKey;
 }  // namespace
 
 
-class PerThreadAssertData FINAL {
+class PerThreadAssertData final {
  public:
   PerThreadAssertData() : nesting_level_(0) {
     for (int i = 0; i < LAST_PER_THREAD_ASSERT_TYPE; i++) {

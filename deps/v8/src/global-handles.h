@@ -162,14 +162,6 @@ class GlobalHandles {
     return number_of_global_handles_;
   }
 
-  // Collect up data for the weak handle callbacks after GC has completed, but
-  // before memory is reclaimed.
-  void CollectAllPhantomCallbackData();
-
-  // Collect up data for the weak handle callbacks referenced by young
-  // generation after GC has completed, but before memory is reclaimed.
-  void CollectYoungPhantomCallbackData();
-
   // Clear the weakness of a global handle.
   static void* ClearWeakness(Object** location);
 

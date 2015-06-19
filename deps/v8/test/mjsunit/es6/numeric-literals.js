@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-numeric-literals
-
 function TestOctalLiteral() {
   assertEquals(0, 0o0);
   assertEquals(0, 0O0);
@@ -69,8 +67,6 @@ function TestBinaryLiteralUsingNumberFunction() {
 TestBinaryLiteralUsingNumberFunction();
 
 
-// parseInt should (probably) not support 0b and 0o.
-// https://bugs.ecmascript.org/show_bug.cgi?id=1585
 function TestParseIntDoesNotSupportOctalNorBinary() {
   assertEquals(0, parseInt('0o77'));
   assertEquals(0, parseInt('0o77', 8));

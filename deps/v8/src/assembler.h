@@ -435,6 +435,7 @@ class RelocInfo {
   static inline bool IsEmbeddedObject(Mode mode) {
     return mode == EMBEDDED_OBJECT;
   }
+  static inline bool IsCell(Mode mode) { return mode == CELL; }
   static inline bool IsRuntimeEntry(Mode mode) {
     return mode == RUNTIME_ENTRY;
   }
@@ -939,14 +940,8 @@ class ExternalReference BASE_EMBEDDED {
   // Used for fast allocation in generated code.
   static ExternalReference new_space_allocation_top_address(Isolate* isolate);
   static ExternalReference new_space_allocation_limit_address(Isolate* isolate);
-  static ExternalReference old_pointer_space_allocation_top_address(
-      Isolate* isolate);
-  static ExternalReference old_pointer_space_allocation_limit_address(
-      Isolate* isolate);
-  static ExternalReference old_data_space_allocation_top_address(
-      Isolate* isolate);
-  static ExternalReference old_data_space_allocation_limit_address(
-      Isolate* isolate);
+  static ExternalReference old_space_allocation_top_address(Isolate* isolate);
+  static ExternalReference old_space_allocation_limit_address(Isolate* isolate);
 
   static ExternalReference mod_two_doubles_operation(Isolate* isolate);
   static ExternalReference power_double_double_function(Isolate* isolate);

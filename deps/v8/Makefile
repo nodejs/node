@@ -97,6 +97,10 @@ endif
 ifeq ($(slowdchecks), off)
   GYPFLAGS += -Dv8_enable_slow_dchecks=0
 endif
+# debugsymbols=on
+ifeq ($(debugsymbols), on)
+  GYPFLAGS += -Drelease_extra_cflags=-ggdb3
+endif
 # gdbjit=on/off
 ifeq ($(gdbjit), on)
   GYPFLAGS += -Dv8_enable_gdbjit=1

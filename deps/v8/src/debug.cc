@@ -16,7 +16,6 @@
 #include "src/execution.h"
 #include "src/full-codegen.h"
 #include "src/global-handles.h"
-#include "src/isolate-inl.h"
 #include "src/list.h"
 #include "src/log.h"
 #include "src/messages.h"
@@ -34,7 +33,6 @@ Debug::Debug(Isolate* isolate)
       message_handler_(NULL),
       command_received_(0),
       command_queue_(isolate->logger(), kQueueInitialSize),
-      event_command_queue_(isolate->logger(), kQueueInitialSize),
       is_active_(false),
       is_suppressed_(false),
       live_edit_enabled_(true),  // TODO(yangguo): set to false by default.
@@ -520,7 +518,7 @@ void ScriptCache::Add(Handle<Script> script) {
   // Create an entry in the hash map for the script.
   int id = script->id()->value();
   HashMap::Entry* entry =
-      HashMap::Lookup(reinterpret_cast<void*>(id), Hash(id), true);
+      HashMap::LookupOrInsert(reinterpret_cast<void*>(id), Hash(id));
   if (entry->value != NULL) {
 #ifdef DEBUG
     // The code deserializer may introduce duplicate Script objects.
@@ -583,7 +581,8 @@ void ScriptCache::HandleWeakScript(
   // Remove the corresponding entry from the cache.
   ScriptCache* script_cache =
       reinterpret_cast<ScriptCache*>(data.GetParameter());
-  HashMap::Entry* entry = script_cache->Lookup(key, hash, false);
+  HashMap::Entry* entry = script_cache->Lookup(key, hash);
+  DCHECK_NOT_NULL(entry);
   Object** location = reinterpret_cast<Object**>(entry->value);
   script_cache->Remove(key, hash);
 
@@ -637,7 +636,7 @@ bool Debug::CompileDebuggerScript(Isolate* isolate, int index) {
 
   // Find source and name for the requested script.
   Handle<String> source_code =
-      isolate->bootstrapper()->NativesSourceLookup(index);
+      isolate->bootstrapper()->SourceLookup<Natives>(index);
   Vector<const char> name = Natives::GetScriptName(index);
   Handle<String> script_name =
       factory->NewStringFromAscii(name).ToHandleChecked();
@@ -1843,7 +1842,7 @@ void Debug::PrepareForBreakPoints() {
   // functions as debugging does not work with optimized code.
   if (!has_break_points_) {
     if (isolate_->concurrent_recompilation_enabled()) {
-      isolate_->optimizing_compiler_thread()->Flush();
+      isolate_->optimizing_compile_dispatcher()->Flush();
     }
 
     Deoptimizer::DeoptimizeAll(isolate_);
@@ -2519,7 +2518,7 @@ MaybeHandle<Object> Debug::PromiseHasUserDefinedRejectHandler(
   Handle<JSFunction> fun = Handle<JSFunction>::cast(
       JSObject::GetDataProperty(isolate_->js_builtins_object(),
                                 isolate_->factory()->NewStringFromStaticChars(
-                                    "PromiseHasUserDefinedRejectHandler")));
+                                    "$promiseHasUserDefinedRejectHandler")));
   return Execution::Call(isolate_, fun, promise, 0, NULL);
 }
 
@@ -2746,19 +2745,6 @@ void Debug::ProcessDebugEvent(v8::DebugEvent event,
   if ((event != v8::Break || !auto_continue) && !event_listener_.is_null()) {
     CallEventCallback(event, exec_state, event_data, NULL);
   }
-  // Process pending debug commands.
-  if (event == v8::Break) {
-    while (!event_command_queue_.IsEmpty()) {
-      CommandMessage command = event_command_queue_.Get();
-      if (!event_listener_.is_null()) {
-        CallEventCallback(v8::BreakForCommand,
-                          exec_state,
-                          event_data,
-                          command.client_data());
-      }
-      command.Dispose();
-    }
-  }
 }
 
 
@@ -2818,6 +2804,7 @@ void Debug::ProcessCompileEventInDebugScope(v8::DebugEvent event,
 
 Handle<Context> Debug::GetDebugContext() {
   DebugScope debug_scope(this);
+  if (debug_scope.failed()) return Handle<Context>();
   // The global handle may be destroyed soon after.  Return it reboxed.
   return handle(*debug_context(), isolate_);
 }
@@ -2836,21 +2823,18 @@ void Debug::NotifyMessageHandler(v8::DebugEvent event,
   bool sendEventMessage = false;
   switch (event) {
     case v8::Break:
-    case v8::BreakForCommand:
       sendEventMessage = !auto_continue;
       break;
-    case v8::Exception:
-      sendEventMessage = true;
-      break;
+    case v8::NewFunction:
     case v8::BeforeCompile:
+    case v8::CompileError:
+    case v8::PromiseEvent:
+    case v8::AsyncTaskEvent:
       break;
+    case v8::Exception:
     case v8::AfterCompile:
       sendEventMessage = true;
       break;
-    case v8::NewFunction:
-      break;
-    default:
-      UNREACHABLE();
   }
 
   // The debug command interrupt flag might have been set when the command was
@@ -3027,15 +3011,6 @@ void Debug::EnqueueCommandMessage(Vector<const uint16_t> command,
   isolate_->logger()->DebugTag("Put command on command_queue.");
   command_queue_.Put(message);
   command_received_.Signal();
-
-  // Set the debug command break flag to have the command processed.
-  if (!in_debug_scope()) isolate_->stack_guard()->RequestDebugCommand();
-}
-
-
-void Debug::EnqueueDebugCommand(v8::Debug::ClientData* client_data) {
-  CommandMessage message = CommandMessage::New(Vector<uint16_t>(), client_data);
-  event_command_queue_.Put(message);
 
   // Set the debug command break flag to have the command processed.
   if (!in_debug_scope()) isolate_->stack_guard()->RequestDebugCommand();

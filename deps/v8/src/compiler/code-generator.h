@@ -28,7 +28,7 @@ struct BranchInfo {
 
 
 // Generates native code for a sequence of instructions.
-class CodeGenerator FINAL : public GapResolver::Assembler {
+class CodeGenerator final : public GapResolver::Assembler {
  public:
   explicit CodeGenerator(Frame* frame, Linkage* linkage,
                          InstructionSequence* code, CompilationInfo* info);
@@ -55,13 +55,22 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
   bool IsNextInAssemblyOrder(RpoNumber block) const;
 
   // Record a safepoint with the given pointer map.
-  void RecordSafepoint(PointerMap* pointers, Safepoint::Kind kind,
+  void RecordSafepoint(ReferenceMap* references, Safepoint::Kind kind,
                        int arguments, Safepoint::DeoptMode deopt_mode);
+
+  // Check if a heap object can be materialized by loading from the frame, which
+  // is usually way cheaper than materializing the actual heap object constant.
+  bool IsMaterializableFromFrame(Handle<HeapObject> object, int* offset_return);
+  // Check if a heap object can be materialized by loading from a heap root,
+  // which is cheaper on some platforms than materializing the actual heap
+  // object constant.
+  bool IsMaterializableFromRoot(Handle<HeapObject> object,
+                                Heap::RootListIndex* index_return);
 
   // Assemble code for the specified instruction.
   void AssembleInstruction(Instruction* instr);
-  void AssembleSourcePosition(SourcePositionInstruction* instr);
-  void AssembleGap(GapInstruction* gap);
+  void AssembleSourcePosition(Instruction* instr);
+  void AssembleGaps(Instruction* instr);
 
   // ===========================================================================
   // ============= Architecture-specific code generation methods. ==============
@@ -84,15 +93,18 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
   // to tear down a stack frame.
   void AssembleReturn();
 
+  // Generates code to deconstruct a the caller's frame, including arguments.
+  void AssembleDeconstructActivationRecord();
+
   // ===========================================================================
   // ============== Architecture-specific gap resolver methods. ================
   // ===========================================================================
 
   // Interface used by the gap resolver to emit moves and swaps.
   void AssembleMove(InstructionOperand* source,
-                    InstructionOperand* destination) FINAL;
+                    InstructionOperand* destination) final;
   void AssembleSwap(InstructionOperand* source,
-                    InstructionOperand* destination) FINAL;
+                    InstructionOperand* destination) final;
 
   // ===========================================================================
   // =================== Jump table construction methods. ======================

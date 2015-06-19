@@ -164,7 +164,7 @@ class IC {
 
   MaybeHandle<Object> TypeError(const char* type, Handle<Object> object,
                                 Handle<Object> key);
-  MaybeHandle<Object> ReferenceError(const char* type, Handle<Name> name);
+  MaybeHandle<Object> ReferenceError(Handle<Name> name);
 
   // Access the target code for the given IC address.
   static inline Code* GetTargetAtAddress(Address address,
@@ -418,7 +418,7 @@ class LoadIC : public IC {
     }
   }
 
-  Handle<Code> megamorphic_stub() OVERRIDE;
+  Handle<Code> megamorphic_stub() override;
 
   // Update the inline cache and the global stub cache based on the
   // lookup result.
@@ -426,7 +426,7 @@ class LoadIC : public IC {
 
   virtual Handle<Code> CompileHandler(LookupIterator* lookup,
                                       Handle<Object> unused,
-                                      CacheHolderFlag cache_holder) OVERRIDE;
+                                      CacheHolderFlag cache_holder) override;
 
  private:
   virtual Handle<Code> pre_monomorphic_stub() const;
@@ -556,7 +556,7 @@ class StoreIC : public IC {
 
  protected:
   // Stub accessors.
-  Handle<Code> megamorphic_stub() OVERRIDE;
+  Handle<Code> megamorphic_stub() override;
   Handle<Code> slow_stub() const;
 
   virtual Handle<Code> pre_monomorphic_stub() const {
@@ -572,7 +572,7 @@ class StoreIC : public IC {
                     JSReceiver::StoreFromKeyed store_mode);
   virtual Handle<Code> CompileHandler(LookupIterator* lookup,
                                       Handle<Object> value,
-                                      CacheHolderFlag cache_holder) OVERRIDE;
+                                      CacheHolderFlag cache_holder) override;
 
  private:
   inline void set_target(Code* code);
@@ -682,7 +682,8 @@ class BinaryOpIC : public IC {
  public:
   explicit BinaryOpIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) {}
 
-  static Builtins::JavaScript TokenToJSBuiltin(Token::Value op);
+  static Builtins::JavaScript TokenToJSBuiltin(Token::Value op,
+                                               LanguageMode language_mode);
 
   MaybeHandle<Object> Transition(Handle<AllocationSite> allocation_site,
                                  Handle<Object> left,

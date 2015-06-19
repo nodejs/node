@@ -62,65 +62,56 @@ SelectParameters const& SelectParametersOf(const Operator* const op) {
 }
 
 
-size_t hash_value(OutputFrameStateCombine const& sc) {
-  return base::hash_combine(sc.kind_, sc.parameter_);
-}
-
-
-std::ostream& operator<<(std::ostream& os, OutputFrameStateCombine const& sc) {
-  switch (sc.kind_) {
-    case OutputFrameStateCombine::kPushOutput:
-      if (sc.parameter_ == 0) return os << "Ignore";
-      return os << "Push(" << sc.parameter_ << ")";
-    case OutputFrameStateCombine::kPokeAt:
-      return os << "PokeAt(" << sc.parameter_ << ")";
-  }
-  UNREACHABLE();
-  return os;
-}
-
-
-bool operator==(FrameStateCallInfo const& lhs, FrameStateCallInfo const& rhs) {
-  return lhs.type() == rhs.type() && lhs.bailout_id() == rhs.bailout_id() &&
-         lhs.state_combine() == rhs.state_combine();
-}
-
-
-bool operator!=(FrameStateCallInfo const& lhs, FrameStateCallInfo const& rhs) {
-  return !(lhs == rhs);
-}
-
-
-size_t hash_value(FrameStateCallInfo const& info) {
-  return base::hash_combine(info.type(), info.bailout_id(),
-                            info.state_combine());
-}
-
-
-std::ostream& operator<<(std::ostream& os, FrameStateCallInfo const& info) {
-  return os << info.type() << ", " << info.bailout_id() << ", "
-            << info.state_combine();
-}
-
-
 size_t ProjectionIndexOf(const Operator* const op) {
   DCHECK_EQ(IrOpcode::kProjection, op->opcode());
   return OpParameter<size_t>(op);
 }
 
 
+int ParameterIndexOf(const Operator* const op) {
+  DCHECK_EQ(IrOpcode::kParameter, op->opcode());
+  return OpParameter<ParameterInfo>(op).index();
+}
+
+
+const ParameterInfo& ParameterInfoOf(const Operator* const op) {
+  DCHECK_EQ(IrOpcode::kParameter, op->opcode());
+  return OpParameter<ParameterInfo>(op);
+}
+
+
+bool operator==(ParameterInfo const& lhs, ParameterInfo const& rhs) {
+  return lhs.index() == rhs.index();
+}
+
+
+bool operator!=(ParameterInfo const& lhs, ParameterInfo const& rhs) {
+  return !(lhs == rhs);
+}
+
+
+size_t hash_value(ParameterInfo const& p) { return p.index(); }
+
+
+std::ostream& operator<<(std::ostream& os, ParameterInfo const& i) {
+  if (i.debug_name()) os << i.debug_name() << '#';
+  os << i.index();
+  return os;
+}
+
+
 #define CACHED_OP_LIST(V)                                  \
-  V(Always, Operator::kPure, 0, 0, 0, 1, 0, 0)             \
   V(Dead, Operator::kFoldable, 0, 0, 0, 0, 0, 1)           \
   V(End, Operator::kKontrol, 0, 0, 1, 0, 0, 0)             \
   V(IfTrue, Operator::kKontrol, 0, 0, 1, 0, 0, 1)          \
   V(IfFalse, Operator::kKontrol, 0, 0, 1, 0, 0, 1)         \
   V(IfSuccess, Operator::kKontrol, 0, 0, 1, 0, 0, 1)       \
-  V(IfException, Operator::kKontrol, 0, 0, 1, 0, 0, 1)     \
+  V(IfException, Operator::kKontrol, 0, 0, 1, 1, 0, 1)     \
   V(IfDefault, Operator::kKontrol, 0, 0, 1, 0, 0, 1)       \
-  V(Throw, Operator::kFoldable, 1, 1, 1, 0, 0, 1)          \
+  V(Throw, Operator::kKontrol, 1, 1, 1, 0, 0, 1)           \
   V(Deoptimize, Operator::kNoThrow, 1, 1, 1, 0, 0, 1)      \
   V(Return, Operator::kNoThrow, 1, 1, 1, 0, 0, 1)          \
+  V(Terminate, Operator::kNoThrow, 0, 1, 1, 0, 0, 1)       \
   V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1) \
   V(OsrLoopEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)
 
@@ -194,11 +185,11 @@ size_t ProjectionIndexOf(const Operator* const op) {
   V(14)
 
 
-struct CommonOperatorGlobalCache FINAL {
+struct CommonOperatorGlobalCache final {
 #define CACHED(Name, properties, value_input_count, effect_input_count,      \
                control_input_count, value_output_count, effect_output_count, \
                control_output_count)                                         \
-  struct Name##Operator FINAL : public Operator {                            \
+  struct Name##Operator final : public Operator {                            \
     Name##Operator()                                                         \
         : Operator(IrOpcode::k##Name, properties, #Name, value_input_count,  \
                    effect_input_count, control_input_count,                  \
@@ -210,7 +201,7 @@ struct CommonOperatorGlobalCache FINAL {
 #undef CACHED
 
   template <BranchHint kBranchHint>
-  struct BranchOperator FINAL : public Operator1<BranchHint> {
+  struct BranchOperator final : public Operator1<BranchHint> {
     BranchOperator()
         : Operator1<BranchHint>(                      // --
               IrOpcode::kBranch, Operator::kKontrol,  // opcode
@@ -223,7 +214,7 @@ struct CommonOperatorGlobalCache FINAL {
   BranchOperator<BranchHint::kFalse> kBranchFalseOperator;
 
   template <int kEffectInputCount>
-  struct EffectPhiOperator FINAL : public Operator {
+  struct EffectPhiOperator final : public Operator {
     EffectPhiOperator()
         : Operator(                                   // --
               IrOpcode::kEffectPhi, Operator::kPure,  // opcode
@@ -236,7 +227,7 @@ struct CommonOperatorGlobalCache FINAL {
 #undef CACHED_EFFECT_PHI
 
   template <size_t kInputCount>
-  struct LoopOperator FINAL : public Operator {
+  struct LoopOperator final : public Operator {
     LoopOperator()
         : Operator(                                 // --
               IrOpcode::kLoop, Operator::kKontrol,  // opcode
@@ -249,7 +240,7 @@ struct CommonOperatorGlobalCache FINAL {
 #undef CACHED_LOOP
 
   template <size_t kInputCount>
-  struct MergeOperator FINAL : public Operator {
+  struct MergeOperator final : public Operator {
     MergeOperator()
         : Operator(                                  // --
               IrOpcode::kMerge, Operator::kKontrol,  // opcode
@@ -262,7 +253,7 @@ struct CommonOperatorGlobalCache FINAL {
 #undef CACHED_MERGE
 
   template <MachineType kType, int kInputCount>
-  struct PhiOperator FINAL : public Operator1<MachineType> {
+  struct PhiOperator final : public Operator1<MachineType> {
     PhiOperator()
         : Operator1<MachineType>(               //--
               IrOpcode::kPhi, Operator::kPure,  // opcode
@@ -276,13 +267,13 @@ struct CommonOperatorGlobalCache FINAL {
 #undef CACHED_PHI
 
   template <int kIndex>
-  struct ParameterOperator FINAL : public Operator1<int> {
+  struct ParameterOperator final : public Operator1<ParameterInfo> {
     ParameterOperator()
-        : Operator1<int>(                             // --
+        : Operator1<ParameterInfo>(                   // --
               IrOpcode::kParameter, Operator::kPure,  // opcode
               "Parameter",                            // name
               1, 0, 0, 1, 0, 0,                       // counts,
-              kIndex) {}                              // parameter
+              ParameterInfo(kIndex, nullptr)) {}      // parameter and name
   };
 #define CACHED_PARAMETER(index) \
   ParameterOperator<index> kParameter##index##Operator;
@@ -290,7 +281,7 @@ struct CommonOperatorGlobalCache FINAL {
 #undef CACHED_PARAMETER
 
   template <size_t kIndex>
-  struct ProjectionOperator FINAL : public Operator1<size_t> {
+  struct ProjectionOperator final : public Operator1<size_t> {
     ProjectionOperator()
         : Operator1<size_t>(          // --
               IrOpcode::kProjection,  // opcode
@@ -305,7 +296,7 @@ struct CommonOperatorGlobalCache FINAL {
 #undef CACHED_PROJECTION
 
   template <int kInputCount>
-  struct StateValuesOperator FINAL : public Operator {
+  struct StateValuesOperator final : public Operator {
     StateValuesOperator()
         : Operator(                           // --
               IrOpcode::kStateValues,         // opcode
@@ -416,22 +407,25 @@ const Operator* CommonOperatorBuilder::Merge(int control_input_count) {
 }
 
 
-const Operator* CommonOperatorBuilder::Parameter(int index) {
-  switch (index) {
+const Operator* CommonOperatorBuilder::Parameter(int index,
+                                                 const char* debug_name) {
+  if (!debug_name) {
+    switch (index) {
 #define CACHED_PARAMETER(index) \
   case index:                   \
     return &cache_.kParameter##index##Operator;
-    CACHED_PARAMETER_LIST(CACHED_PARAMETER)
+      CACHED_PARAMETER_LIST(CACHED_PARAMETER)
 #undef CACHED_PARAMETER
-    default:
-      break;
+      default:
+        break;
+    }
   }
   // Uncached.
-  return new (zone()) Operator1<int>(         // --
-      IrOpcode::kParameter, Operator::kPure,  // opcode
-      "Parameter",                            // name
-      1, 0, 0, 1, 0, 0,                       // counts
-      index);                                 // parameter
+  return new (zone()) Operator1<ParameterInfo>(  // --
+      IrOpcode::kParameter, Operator::kPure,     // opcode
+      "Parameter",                               // name
+      1, 0, 0, 1, 0, 0,                          // counts
+      ParameterInfo(index, debug_name));         // parameter info
 }
 
 
@@ -625,11 +619,11 @@ const Operator* CommonOperatorBuilder::FrameState(
 
 
 const Operator* CommonOperatorBuilder::Call(const CallDescriptor* descriptor) {
-  class CallOperator FINAL : public Operator1<const CallDescriptor*> {
+  class CallOperator final : public Operator1<const CallDescriptor*> {
    public:
-    CallOperator(const CallDescriptor* descriptor, const char* mnemonic)
+    explicit CallOperator(const CallDescriptor* descriptor)
         : Operator1<const CallDescriptor*>(
-              IrOpcode::kCall, descriptor->properties(), mnemonic,
+              IrOpcode::kCall, descriptor->properties(), "Call",
               descriptor->InputCount() + descriptor->FrameStateCount(),
               Operator::ZeroIfPure(descriptor->properties()),
               Operator::ZeroIfEliminatable(descriptor->properties()),
@@ -637,11 +631,29 @@ const Operator* CommonOperatorBuilder::Call(const CallDescriptor* descriptor) {
               Operator::ZeroIfPure(descriptor->properties()),
               Operator::ZeroIfNoThrow(descriptor->properties()), descriptor) {}
 
-    void PrintParameter(std::ostream& os) const OVERRIDE {
+    void PrintParameter(std::ostream& os) const override {
       os << "[" << *parameter() << "]";
     }
   };
-  return new (zone()) CallOperator(descriptor, "Call");
+  return new (zone()) CallOperator(descriptor);
+}
+
+
+const Operator* CommonOperatorBuilder::TailCall(
+    const CallDescriptor* descriptor) {
+  class TailCallOperator final : public Operator1<const CallDescriptor*> {
+   public:
+    explicit TailCallOperator(const CallDescriptor* descriptor)
+        : Operator1<const CallDescriptor*>(
+              IrOpcode::kTailCall, descriptor->properties(), "TailCall",
+              descriptor->InputCount() + descriptor->FrameStateCount(), 1, 1, 0,
+              0, 1, descriptor) {}
+
+    void PrintParameter(std::ostream& os) const override {
+      os << "[" << *parameter() << "]";
+    }
+  };
+  return new (zone()) TailCallOperator(descriptor);
 }
 
 

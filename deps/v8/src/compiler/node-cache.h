@@ -27,7 +27,7 @@ class Node;
 // nodes such as constants, parameters, etc.
 template <typename Key, typename Hash = base::hash<Key>,
           typename Pred = std::equal_to<Key> >
-class NodeCache FINAL {
+class NodeCache final {
  public:
   explicit NodeCache(unsigned max = 256)
       : entries_(nullptr), size_(0), max_(max) {}

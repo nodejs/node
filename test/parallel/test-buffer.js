@@ -4,7 +4,6 @@ var assert = require('assert');
 
 var Buffer = require('buffer').Buffer;
 var SlowBuffer = require('buffer').SlowBuffer;
-var smalloc = require('smalloc');
 
 // counter to ensure unique value is always copied
 var cntr = 0;

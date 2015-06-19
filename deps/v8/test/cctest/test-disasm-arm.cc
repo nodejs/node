@@ -95,6 +95,8 @@ if (failure) { \
     V8_Fatal(__FILE__, __LINE__, "ARM Disassembler tests failed.\n"); \
   }
 
+// clang-format off
+
 
 TEST(Type0) {
   SET_UP();
@@ -480,40 +482,80 @@ TEST(Vfp) {
     COMPARE(vabs(d3, d4, mi),
             "4eb03bc4       vabsmi.f64 d3, d4");
 
+    COMPARE(vabs(s0, s1),
+            "eeb00ae0       vabs.f32 s0, s1");
+    COMPARE(vabs(s3, s4, mi),
+            "4ef01ac2       vabsmi.f32 s3, s4");
+
     COMPARE(vneg(d0, d1),
             "eeb10b41       vneg.f64 d0, d1");
     COMPARE(vneg(d3, d4, mi),
             "4eb13b44       vnegmi.f64 d3, d4");
+
+    COMPARE(vneg(s0, s1),
+            "eeb10a60       vneg.f32 s0, s1");
+    COMPARE(vneg(s3, s4, mi),
+            "4ef11a42       vnegmi.f32 s3, s4");
 
     COMPARE(vadd(d0, d1, d2),
             "ee310b02       vadd.f64 d0, d1, d2");
     COMPARE(vadd(d3, d4, d5, mi),
             "4e343b05       vaddmi.f64 d3, d4, d5");
 
+    COMPARE(vadd(s0, s1, s2),
+            "ee300a81       vadd.f32 s0, s1, s2");
+    COMPARE(vadd(s3, s4, s5, mi),
+            "4e721a22       vaddmi.f32 s3, s4, s5");
+
     COMPARE(vsub(d0, d1, d2),
             "ee310b42       vsub.f64 d0, d1, d2");
     COMPARE(vsub(d3, d4, d5, ne),
             "1e343b45       vsubne.f64 d3, d4, d5");
+
+    COMPARE(vsub(s0, s1, s2),
+            "ee300ac1       vsub.f32 s0, s1, s2");
+    COMPARE(vsub(s3, s4, s5, ne),
+            "1e721a62       vsubne.f32 s3, s4, s5");
 
     COMPARE(vmul(d2, d1, d0),
             "ee212b00       vmul.f64 d2, d1, d0");
     COMPARE(vmul(d6, d4, d5, cc),
             "3e246b05       vmulcc.f64 d6, d4, d5");
 
+    COMPARE(vmul(s2, s1, s0),
+            "ee201a80       vmul.f32 s2, s1, s0");
+    COMPARE(vmul(s6, s4, s5, cc),
+            "3e223a22       vmulcc.f32 s6, s4, s5");
+
     COMPARE(vdiv(d2, d2, d2),
             "ee822b02       vdiv.f64 d2, d2, d2");
     COMPARE(vdiv(d6, d7, d7, hi),
             "8e876b07       vdivhi.f64 d6, d7, d7");
+
+    COMPARE(vdiv(s2, s2, s2),
+            "ee811a01       vdiv.f32 s2, s2, s2");
+    COMPARE(vdiv(s6, s7, s7, hi),
+            "8e833aa3       vdivhi.f32 s6, s7, s7");
 
     COMPARE(vcmp(d0, d1),
             "eeb40b41       vcmp.f64 d0, d1");
     COMPARE(vcmp(d0, 0.0),
             "eeb50b40       vcmp.f64 d0, #0.0");
 
+    COMPARE(vcmp(s0, s1),
+            "eeb40a60       vcmp.f32 s0, s1");
+    COMPARE(vcmp(s0, 0.0f),
+            "eeb50a40       vcmp.f32 s0, #0.0");
+
     COMPARE(vsqrt(d0, d0),
             "eeb10bc0       vsqrt.f64 d0, d0");
     COMPARE(vsqrt(d2, d3, ne),
             "1eb12bc3       vsqrtne.f64 d2, d3");
+
+    COMPARE(vsqrt(s0, s0),
+            "eeb10ac0       vsqrt.f32 s0, s0");
+    COMPARE(vsqrt(s2, s3, ne),
+            "1eb11ae1       vsqrtne.f32 s2, s3");
 
     COMPARE(vmov(d0, 1.0),
             "eeb70b00       vmov.f64 d0, #1");
@@ -600,10 +642,20 @@ TEST(Vfp) {
     COMPARE(vmla(d6, d4, d5, cc),
             "3e046b05       vmlacc.f64 d6, d4, d5");
 
+    COMPARE(vmla(s2, s1, s0),
+            "ee001a80       vmla.f32 s2, s1, s0");
+    COMPARE(vmla(s6, s4, s5, cc),
+            "3e023a22       vmlacc.f32 s6, s4, s5");
+
     COMPARE(vmls(d2, d1, d0),
             "ee012b40       vmls.f64 d2, d1, d0");
     COMPARE(vmls(d6, d4, d5, cc),
             "3e046b45       vmlscc.f64 d6, d4, d5");
+
+    COMPARE(vmls(s2, s1, s0),
+            "ee001ac0       vmls.f32 s2, s1, s0");
+    COMPARE(vmls(s6, s4, s5, cc),
+            "3e023a62       vmlscc.f32 s6, s4, s5");
 
     COMPARE(vcvt_u32_f64(s0, d0),
             "eebc0bc0       vcvt.u32.f64 s0, d0");

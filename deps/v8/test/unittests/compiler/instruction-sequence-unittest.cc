@@ -109,7 +109,7 @@ Instruction* InstructionSequenceTest::EndBlock(BlockCompletion completion) {
     case kBlockEnd:
       break;
     case kFallThrough:
-      result = EmitFallThrough();
+      result = EmitJump();
       break;
     case kJump:
       CHECK(!block_returns_);
@@ -129,8 +129,7 @@ Instruction* InstructionSequenceTest::EndBlock(BlockCompletion completion) {
 
 
 InstructionSequenceTest::TestOperand InstructionSequenceTest::Imm(int32_t imm) {
-  int index = sequence()->AddImmediate(Constant(imm));
-  return TestOperand(kImmediate, index);
+  return TestOperand(kImmediate, imm);
 }
 
 
@@ -357,7 +356,7 @@ InstructionOperand* InstructionSequenceTest::ConvertInputs(
 InstructionOperand InstructionSequenceTest::ConvertInputOp(TestOperand op) {
   if (op.type_ == kImmediate) {
     CHECK_EQ(op.vreg_.value_, kNoValue);
-    return ImmediateOperand(op.value_);
+    return ImmediateOperand(ImmediateOperand::INLINE, op.value_);
   }
   CHECK_NE(op.vreg_.value_, kNoValue);
   switch (op.type_) {
@@ -442,11 +441,20 @@ InstructionBlock* InstructionSequenceTest::NewBlock() {
 void InstructionSequenceTest::WireBlocks() {
   CHECK(!current_block());
   CHECK(instruction_blocks_.size() == completions_.size());
+  CHECK(loop_blocks_.empty());
+  // Wire in end block to look like a scheduler produced cfg.
+  auto end_block = NewBlock();
+  current_block_ = nullptr;
+  sequence()->EndBlock(end_block->rpo_number());
   size_t offset = 0;
   for (const auto& completion : completions_) {
     switch (completion.type_) {
-      case kBlockEnd:
+      case kBlockEnd: {
+        auto block = instruction_blocks_[offset];
+        block->successors().push_back(end_block->rpo_number());
+        end_block->predecessors().push_back(block->rpo_number());
         break;
+      }
       case kFallThrough:  // Fallthrough.
       case kJump:
         WireBlock(offset, completion.offset_0_);

@@ -299,6 +299,117 @@ Handle<Code> NumberToStringStub::GenerateCode() {
 }
 
 
+// Returns the type string of a value; see ECMA-262, 11.4.3 (p 47).
+// Possible optimizations: put the type string into the oddballs.
+template <>
+HValue* CodeStubGraphBuilder<TypeofStub>::BuildCodeStub() {
+  Factory* factory = isolate()->factory();
+  HConstant* number_string = Add<HConstant>(factory->number_string());
+  HValue* object = GetParameter(TypeofStub::kObject);
+
+  IfBuilder is_smi(this);
+  HValue* smi_check = is_smi.If<HIsSmiAndBranch>(object);
+  is_smi.Then();
+  { Push(number_string); }
+  is_smi.Else();
+  {
+    IfBuilder is_number(this);
+    is_number.If<HCompareMap>(object, isolate()->factory()->heap_number_map());
+    is_number.Then();
+    { Push(number_string); }
+    is_number.Else();
+    {
+      HConstant* undefined_string = Add<HConstant>(factory->undefined_string());
+      HValue* map = AddLoadMap(object, smi_check);
+      HValue* instance_type = Add<HLoadNamedField>(
+          map, nullptr, HObjectAccess::ForMapInstanceType());
+      IfBuilder is_string(this);
+      is_string.If<HCompareNumericAndBranch>(
+          instance_type, Add<HConstant>(FIRST_NONSTRING_TYPE), Token::LT);
+      is_string.Then();
+      { Push(Add<HConstant>(factory->string_string())); }
+      is_string.Else();
+      {
+        HConstant* object_string = Add<HConstant>(factory->object_string());
+        IfBuilder is_oddball(this);
+        is_oddball.If<HCompareNumericAndBranch>(
+            instance_type, Add<HConstant>(ODDBALL_TYPE), Token::EQ);
+        is_oddball.Then();
+        {
+          IfBuilder is_true_or_false(this);
+          is_true_or_false.If<HCompareObjectEqAndBranch>(
+              object, graph()->GetConstantTrue());
+          is_true_or_false.OrIf<HCompareObjectEqAndBranch>(
+              object, graph()->GetConstantFalse());
+          is_true_or_false.Then();
+          { Push(Add<HConstant>(factory->boolean_string())); }
+          is_true_or_false.Else();
+          {
+            IfBuilder is_null(this);
+            is_null.If<HCompareObjectEqAndBranch>(object,
+                                                  graph()->GetConstantNull());
+            is_null.Then();
+            { Push(object_string); }
+            is_null.Else();
+            { Push(undefined_string); }
+          }
+          is_true_or_false.End();
+        }
+        is_oddball.Else();
+        {
+          IfBuilder is_symbol(this);
+          is_symbol.If<HCompareNumericAndBranch>(
+              instance_type, Add<HConstant>(SYMBOL_TYPE), Token::EQ);
+          is_symbol.Then();
+          { Push(Add<HConstant>(factory->symbol_string())); }
+          is_symbol.Else();
+          {
+            IfBuilder is_function(this);
+            HConstant* js_function = Add<HConstant>(JS_FUNCTION_TYPE);
+            HConstant* js_function_proxy =
+                Add<HConstant>(JS_FUNCTION_PROXY_TYPE);
+            is_function.If<HCompareNumericAndBranch>(instance_type, js_function,
+                                                     Token::EQ);
+            is_function.OrIf<HCompareNumericAndBranch>(
+                instance_type, js_function_proxy, Token::EQ);
+            is_function.Then();
+            { Push(Add<HConstant>(factory->function_string())); }
+            is_function.Else();
+            {
+              // Is it an undetectable object?
+              IfBuilder is_undetectable(this);
+              is_undetectable.If<HIsUndetectableAndBranch>(object);
+              is_undetectable.Then();
+              {
+                // typeof an undetectable object is 'undefined'.
+                Push(undefined_string);
+              }
+              is_undetectable.Else();
+              {
+                // For any kind of object not handled above, the spec rule for
+                // host objects gives that it is okay to return "object".
+                Push(object_string);
+              }
+            }
+            is_function.End();
+          }
+          is_symbol.End();
+        }
+        is_oddball.End();
+      }
+      is_string.End();
+    }
+    is_number.End();
+  }
+  is_smi.End();
+
+  return environment()->Pop();
+}
+
+
+Handle<Code> TypeofStub::GenerateCode() { return DoGenerateCode(this); }
+
+
 template <>
 HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
   Factory* factory = isolate()->factory();
@@ -577,12 +688,45 @@ Handle<Code> StoreScriptContextFieldStub::GenerateCode() {
 
 
 template <>
+HValue* CodeStubGraphBuilder<GrowArrayElementsStub>::BuildCodeStub() {
+  ElementsKind kind = casted_stub()->elements_kind();
+  if (IsFastDoubleElementsKind(kind)) {
+    info()->MarkAsSavesCallerDoubles();
+  }
+
+  HValue* object = GetParameter(GrowArrayElementsDescriptor::kObjectIndex);
+  HValue* key = GetParameter(GrowArrayElementsDescriptor::kKeyIndex);
+  HValue* current_capacity =
+      GetParameter(GrowArrayElementsDescriptor::kCapacityIndex);
+
+  HValue* elements = AddLoadElements(object);
+  HValue* length =
+      casted_stub()->is_js_array()
+          ? Add<HLoadNamedField>(object, static_cast<HValue*>(NULL),
+                                 HObjectAccess::ForArrayLength(kind))
+          : current_capacity;
+
+  return BuildCheckAndGrowElementsCapacity(object, elements, kind, length,
+                                           current_capacity, key);
+}
+
+
+Handle<Code> GrowArrayElementsStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
+
+template <>
 HValue* CodeStubGraphBuilder<LoadFastElementStub>::BuildCodeStub() {
+  LoadKeyedHoleMode hole_mode = casted_stub()->convert_hole_to_undefined()
+                                    ? CONVERT_HOLE_TO_UNDEFINED
+                                    : NEVER_RETURN_HOLE;
+
   HInstruction* load = BuildUncheckedMonomorphicElementAccess(
       GetParameter(LoadDescriptor::kReceiverIndex),
       GetParameter(LoadDescriptor::kNameIndex), NULL,
       casted_stub()->is_js_array(), casted_stub()->elements_kind(), LOAD,
-      NEVER_RETURN_HOLE, STANDARD_STORE);
+      hole_mode, STANDARD_STORE);
   return load;
 }
 
@@ -620,6 +764,18 @@ HValue* CodeStubGraphBuilder<LoadFieldStub>::BuildCodeStub() {
 
 
 Handle<Code> LoadFieldStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
+
+template <>
+HValue* CodeStubGraphBuilder<ArrayBufferViewLoadFieldStub>::BuildCodeStub() {
+  return BuildArrayBufferViewFieldAccessor(GetParameter(0), nullptr,
+                                           casted_stub()->index());
+}
+
+
+Handle<Code> ArrayBufferViewLoadFieldStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
@@ -1171,14 +1327,15 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
                     state.op(), left, right,
                     Type::String(zone()), right_type,
                     result_type, state.fixed_right_arg(),
-                    allocation_mode));
+                    allocation_mode, state.language_mode()));
       }
       if_leftisstring.Else();
       {
         Push(BuildBinaryOperation(
                     state.op(), left, right,
                     left_type, right_type, result_type,
-                    state.fixed_right_arg(), allocation_mode));
+                    state.fixed_right_arg(), allocation_mode,
+                    state.language_mode()));
       }
       if_leftisstring.End();
       result = Pop();
@@ -1191,14 +1348,15 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
                     state.op(), left, right,
                     left_type, Type::String(zone()),
                     result_type, state.fixed_right_arg(),
-                    allocation_mode));
+                    allocation_mode, state.language_mode()));
       }
       if_rightisstring.Else();
       {
         Push(BuildBinaryOperation(
                     state.op(), left, right,
                     left_type, right_type, result_type,
-                    state.fixed_right_arg(), allocation_mode));
+                    state.fixed_right_arg(), allocation_mode,
+                    state.language_mode()));
       }
       if_rightisstring.End();
       result = Pop();
@@ -1207,7 +1365,7 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
     result = BuildBinaryOperation(
             state.op(), left, right,
             left_type, right_type, result_type,
-            state.fixed_right_arg(), allocation_mode);
+            state.fixed_right_arg(), allocation_mode, state.language_mode());
   }
 
   // If we encounter a generic argument, the number conversion is
@@ -1241,7 +1399,8 @@ HValue* CodeStubGraphBuilder<BinaryOpWithAllocationSiteStub>::BuildCodeStub() {
 
   return BuildBinaryOperation(state.op(), left, right,
                               left_type, right_type, result_type,
-                              state.fixed_right_arg(), allocation_mode);
+                              state.fixed_right_arg(), allocation_mode,
+                              state.language_mode());
 }
 
 
@@ -1324,10 +1483,10 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
         Add<HLoadNamedField>(proxy, nullptr, HObjectAccess::ForMap());
     HValue* global =
         Add<HLoadNamedField>(proxy_map, nullptr, HObjectAccess::ForPrototype());
-    Handle<Map> placeholder_map = isolate()->factory()->meta_map();
-    HValue* cell = Add<HConstant>(Map::WeakCellForMap(placeholder_map));
-    HValue* expected_map =
-        Add<HLoadNamedField>(cell, nullptr, HObjectAccess::ForWeakCellValue());
+    HValue* map_cell = Add<HConstant>(isolate()->factory()->NewWeakCell(
+        StoreGlobalStub::global_map_placeholder(isolate())));
+    HValue* expected_map = Add<HLoadNamedField>(
+        map_cell, nullptr, HObjectAccess::ForWeakCellValue());
     HValue* map =
         Add<HLoadNamedField>(global, nullptr, HObjectAccess::ForMap());
     IfBuilder map_check(this);
@@ -1342,9 +1501,15 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
                                       HObjectAccess::ForWeakCellValue());
   Add<HCheckHeapObject>(cell);
   HObjectAccess access = HObjectAccess::ForPropertyCellValue();
+  // Load the payload of the global parameter cell. A hole indicates that the
+  // cell has been invalidated and that the store must be handled by the
+  // runtime.
   HValue* cell_contents = Add<HLoadNamedField>(cell, nullptr, access);
 
-  if (stub->is_constant()) {
+  auto cell_type = stub->cell_type();
+  if (cell_type == PropertyCellType::kConstant ||
+      cell_type == PropertyCellType::kUndefined) {
+    // This is always valid for all states a cell can be in.
     IfBuilder builder(this);
     builder.If<HCompareObjectEqAndBranch>(cell_contents, value);
     builder.Then();
@@ -1352,15 +1517,40 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
         Deoptimizer::kUnexpectedCellContentsInConstantGlobalStore);
     builder.End();
   } else {
-    // Load the payload of the global parameter cell. A hole indicates that the
-    // property has been deleted and that the store must be handled by the
-    // runtime.
     IfBuilder builder(this);
     HValue* hole_value = graph()->GetConstantHole();
     builder.If<HCompareObjectEqAndBranch>(cell_contents, hole_value);
     builder.Then();
     builder.Deopt(Deoptimizer::kUnexpectedCellContentsInGlobalStore);
     builder.Else();
+    // When dealing with constant types, the type may be allowed to change, as
+    // long as optimized code remains valid.
+    if (cell_type == PropertyCellType::kConstantType) {
+      switch (stub->constant_type()) {
+        case PropertyCellConstantType::kSmi:
+          access = access.WithRepresentation(Representation::Smi());
+          break;
+        case PropertyCellConstantType::kStableMap: {
+          // It is sufficient here to check that the value and cell contents
+          // have identical maps, no matter if they are stable or not or if they
+          // are the maps that were originally in the cell or not. If optimized
+          // code will deopt when a cell has a unstable map and if it has a
+          // dependency on a stable map, it will deopt if the map destabilizes.
+          Add<HCheckHeapObject>(value);
+          Add<HCheckHeapObject>(cell_contents);
+          HValue* expected_map = Add<HLoadNamedField>(cell_contents, nullptr,
+                                                      HObjectAccess::ForMap());
+          HValue* map =
+              Add<HLoadNamedField>(value, nullptr, HObjectAccess::ForMap());
+          IfBuilder map_check(this);
+          map_check.IfNot<HCompareObjectEqAndBranch>(expected_map, map);
+          map_check.ThenDeopt(Deoptimizer::kUnknownMap);
+          map_check.End();
+          access = access.WithRepresentation(Representation::HeapObject());
+          break;
+        }
+      }
+    }
     Add<HStoreNamedField>(cell, access, value);
     builder.End();
   }
@@ -2028,6 +2218,10 @@ HValue* CodeStubGraphBuilder<MegamorphicLoadStub>::BuildCodeStub() {
   // We shouldn't generate this when FLAG_vector_ics is true because the
   // megamorphic case is handled as part of the default stub.
   DCHECK(!FLAG_vector_ics);
+
+  // This stub tail calls, and an erected frame presents complications we don't
+  // need.
+  info()->MarkMustNotHaveEagerFrame();
 
   // Probe the stub cache.
   Add<HTailCallThroughMegamorphicCache>(receiver, name);

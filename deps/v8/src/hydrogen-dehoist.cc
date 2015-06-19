@@ -27,17 +27,18 @@ static void DehoistArrayIndex(ArrayInstructionInterface* array_operation) {
   }
 
   if (!constant->HasInteger32Value()) return;
+  v8::base::internal::CheckedNumeric<int32_t> checked_value =
+      constant->Integer32Value();
   int32_t sign = binary_operation->IsSub() ? -1 : 1;
-  int32_t value = constant->Integer32Value() * sign;
-  if (value < 0) return;
+  checked_value = checked_value * sign;
 
   // Multiply value by elements size, bailing out on overflow.
   int32_t elements_kind_size =
       1 << ElementsKindToShiftSize(array_operation->elements_kind());
-  v8::base::internal::CheckedNumeric<int32_t> multiply_result = value;
-  multiply_result = multiply_result * elements_kind_size;
-  if (!multiply_result.IsValid()) return;
-  value = multiply_result.ValueOrDie();
+  checked_value = checked_value * elements_kind_size;
+  if (!checked_value.IsValid()) return;
+  int32_t value = checked_value.ValueOrDie();
+  if (value < 0) return;
 
   // Ensure that the array operation can add value to existing base offset
   // without overflowing.

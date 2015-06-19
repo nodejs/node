@@ -38,11 +38,9 @@ Reduction JSGenericLowering::Reduce(Node* node) {
       // poor-man's representation inference here and insert manual change.
       if (!is_typing_enabled_) {
         Node* condition = node->InputAt(0);
-        if (condition->opcode() != IrOpcode::kAlways) {
-          Node* test = graph()->NewNode(machine()->WordEqual(), condition,
-                                        jsgraph()->TrueConstant());
-          node->ReplaceInput(0, test);
-        }
+        Node* test = graph()->NewNode(machine()->WordEqual(), condition,
+                                      jsgraph()->TrueConstant());
+        node->ReplaceInput(0, test);
         break;
       }
       // Fall-through.
@@ -56,7 +54,8 @@ Reduction JSGenericLowering::Reduce(Node* node) {
 
 #define REPLACE_BINARY_OP_IC_CALL(op, token)                             \
   void JSGenericLowering::Lower##op(Node* node) {                        \
-    ReplaceWithStubCall(node, CodeFactory::BinaryOpIC(isolate(), token), \
+    ReplaceWithStubCall(node, CodeFactory::BinaryOpIC(isolate(), token,  \
+                        OpParameter<LanguageMode>(node)),                \
                         CallDescriptor::kPatchableCallSiteWithNop);      \
   }
 REPLACE_BINARY_OP_IC_CALL(JSBitwiseOr, Token::BIT_OR)
@@ -92,13 +91,12 @@ REPLACE_COMPARE_IC_CALL(JSGreaterThanOrEqual, Token::GTE)
   void JSGenericLowering::Lower##op(Node* node) { \
     ReplaceWithRuntimeCall(node, fun);            \
   }
-REPLACE_RUNTIME_CALL(JSTypeOf, Runtime::kTypeof)
 REPLACE_RUNTIME_CALL(JSCreate, Runtime::kAbort)
 REPLACE_RUNTIME_CALL(JSCreateFunctionContext, Runtime::kNewFunctionContext)
 REPLACE_RUNTIME_CALL(JSCreateWithContext, Runtime::kPushWithContext)
 REPLACE_RUNTIME_CALL(JSCreateBlockContext, Runtime::kPushBlockContext)
 REPLACE_RUNTIME_CALL(JSCreateModuleContext, Runtime::kPushModuleContext)
-REPLACE_RUNTIME_CALL(JSCreateScriptContext, Runtime::kAbort)
+REPLACE_RUNTIME_CALL(JSCreateScriptContext, Runtime::kNewScriptContext)
 #undef REPLACE_RUNTIME
 
 
@@ -122,7 +120,7 @@ void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token) {
   CallDescriptor* desc_compare = Linkage::GetStubCallDescriptor(
       isolate(), zone(), callable.descriptor(), 0,
       CallDescriptor::kPatchableCallSiteWithNop | FlagsForNode(node),
-      Operator::kNoProperties, kMachInt32);
+      Operator::kNoProperties, kMachIntPtr);
 
   // Create a new call node asking a CompareIC for help.
   NodeVector inputs(zone());
@@ -138,19 +136,13 @@ void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token) {
     inputs.push_back(graph()->start());
     inputs.push_back(graph()->start());
   } else {
-    DCHECK((OperatorProperties::GetFrameStateInputCount(node->op()) == 1) ==
-           FLAG_turbo_deoptimization);
-    if (FLAG_turbo_deoptimization) {
-      inputs.push_back(NodeProperties::GetFrameStateInput(node, 0));
-    }
+    inputs.push_back(NodeProperties::GetFrameStateInput(node, 0));
     inputs.push_back(NodeProperties::GetEffectInput(node));
     inputs.push_back(NodeProperties::GetControlInput(node));
   }
   Node* compare =
       graph()->NewNode(common()->Call(desc_compare),
                        static_cast<int>(inputs.size()), &inputs.front());
-  NodeProperties::SetBounds(
-      compare, Bounds(Type::None(zone()), Type::UntaggedSigned(zone())));
 
   // Decide how the return value from the above CompareIC can be converted into
   // a JavaScript boolean oddball depending on the given token.
@@ -279,6 +271,12 @@ void JSGenericLowering::LowerJSUnaryNot(Node* node) {
 }
 
 
+void JSGenericLowering::LowerJSTypeOf(Node* node) {
+  Callable callable = CodeFactory::Typeof(isolate());
+  ReplaceWithStubCall(node, callable, CallDescriptor::kNoFlags);
+}
+
+
 void JSGenericLowering::LowerJSToBoolean(Node* node) {
   Callable callable =
       CodeFactory::ToBoolean(isolate(), ToBooleanStub::RESULT_AS_ODDBALL);
@@ -322,8 +320,11 @@ void JSGenericLowering::LowerJSLoadProperty(Node* node) {
 
 void JSGenericLowering::LowerJSLoadNamed(Node* node) {
   const LoadNamedParameters& p = LoadNamedParametersOf(node->op());
-  Callable callable = CodeFactory::LoadICInOptimizedCode(
-      isolate(), p.contextual_mode(), UNINITIALIZED);
+  Callable callable =
+      p.load_ic() == NAMED
+          ? CodeFactory::LoadICInOptimizedCode(isolate(), p.contextual_mode(),
+                                               UNINITIALIZED)
+          : CodeFactory::KeyedLoadICInOptimizedCode(isolate(), UNINITIALIZED);
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
   if (FLAG_vector_ics) {
     node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
@@ -344,7 +345,10 @@ void JSGenericLowering::LowerJSStoreProperty(Node* node) {
 
 void JSGenericLowering::LowerJSStoreNamed(Node* node) {
   const StoreNamedParameters& p = StoreNamedParametersOf(node->op());
-  Callable callable = CodeFactory::StoreIC(isolate(), p.language_mode());
+  Callable callable = p.store_ic() == NAMED
+                          ? CodeFactory::StoreIC(isolate(), p.language_mode())
+                          : CodeFactory::KeyedStoreICInOptimizedCode(
+                                isolate(), p.language_mode(), UNINITIALIZED);
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
   ReplaceWithStubCall(node, callable, CallDescriptor::kPatchableCallSite);
 }
@@ -413,6 +417,28 @@ void JSGenericLowering::LowerJSStoreContext(Node* node) {
 }
 
 
+void JSGenericLowering::LowerJSCreateClosure(Node* node) {
+  CreateClosureParameters p = CreateClosureParametersOf(node->op());
+  node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.shared_info()));
+  node->InsertInput(zone(), 2, jsgraph()->BooleanConstant(p.pretenure()));
+  ReplaceWithRuntimeCall(node, Runtime::kNewClosure);
+}
+
+
+void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
+  int literal_flags = OpParameter<int>(node->op());
+  node->InsertInput(zone(), 3, jsgraph()->SmiConstant(literal_flags));
+  ReplaceWithRuntimeCall(node, Runtime::kCreateArrayLiteral);
+}
+
+
+void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
+  int literal_flags = OpParameter<int>(node->op());
+  node->InsertInput(zone(), 3, jsgraph()->SmiConstant(literal_flags));
+  ReplaceWithRuntimeCall(node, Runtime::kCreateObjectLiteral);
+}
+
+
 void JSGenericLowering::LowerJSCreateCatchContext(Node* node) {
   Unique<String> name = OpParameter<Unique<String>>(node);
   node->InsertInput(zone(), 0, jsgraph()->HeapConstant(name));
@@ -468,8 +494,10 @@ bool JSGenericLowering::TryLowerDirectJSCall(Node* node) {
     context = jsgraph()->HeapConstant(Handle<Context>(function->context()));
   }
   node->ReplaceInput(index, context);
-  CallDescriptor* desc = Linkage::GetJSCallDescriptor(
-      zone(), false, 1 + arg_count, FlagsForNode(node));
+  CallDescriptor::Flags flags = FlagsForNode(node);
+  if (is_strict(p.language_mode())) flags |= CallDescriptor::kSupportsTailCalls;
+  CallDescriptor* desc =
+      Linkage::GetJSCallDescriptor(zone(), false, 1 + arg_count, flags);
   node->set_op(common()->Call(desc));
   return true;
 }

@@ -18,7 +18,7 @@ namespace v8 {
 namespace internal {
 
 
-class SafepointGenerator FINAL : public CallWrapper {
+class SafepointGenerator final : public CallWrapper {
  public:
   SafepointGenerator(LCodeGen* codegen,
                      LPointerMap* pointers,
@@ -460,7 +460,15 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   DCHECK(ToRegister(instr->constructor()).is(x1));
 
   __ Mov(x0, Operand(instr->arity()));
-  __ LoadRoot(x2, Heap::kUndefinedValueRootIndex);
+  if (instr->arity() == 1) {
+    // We only need the allocation site for the case we have a length argument.
+    // The case may bail out to the runtime, which will determine the correct
+    // elements kind with the site.
+    __ Mov(x2, instr->hydrogen()->site());
+  } else {
+    __ LoadRoot(x2, Heap::kUndefinedValueRootIndex);
+  }
+
 
   ElementsKind kind = instr->hydrogen()->elements_kind();
   AllocationSiteOverrideMode override_mode =
@@ -660,7 +668,7 @@ bool LCodeGen::GeneratePrologue() {
     // Sloppy mode functions and builtins need to replace the receiver with the
     // global proxy when called as functions (without an explicit receiver
     // object).
-    if (graph()->this_has_uses() && is_sloppy(info_->language_mode()) &&
+    if (is_sloppy(info_->language_mode()) && info()->MayUseThis() &&
         !info_->is_native()) {
       Label ok;
       int receiver_offset = info_->scope()->num_parameters() * kXRegSize;
@@ -703,6 +711,7 @@ bool LCodeGen::GeneratePrologue() {
     Comment(";;; Allocate local context");
     bool need_write_barrier = true;
     // Argument to NewContext is the function, which is in x1.
+    DCHECK(!info()->scope()->is_script_scope());
     if (heap_slots <= FastNewContextStub::kMaximumSlots) {
       FastNewContextStub stub(isolate(), heap_slots);
       __ CallStub(&stub);
@@ -1552,13 +1561,9 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
     flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
   }
 
-  if (instr->hydrogen()->IsOldPointerSpaceAllocation()) {
-    DCHECK(!instr->hydrogen()->IsOldDataSpaceAllocation());
+  if (instr->hydrogen()->IsOldSpaceAllocation()) {
     DCHECK(!instr->hydrogen()->IsNewSpaceAllocation());
-    flags = static_cast<AllocationFlags>(flags | PRETENURE_OLD_POINTER_SPACE);
-  } else if (instr->hydrogen()->IsOldDataSpaceAllocation()) {
-    DCHECK(!instr->hydrogen()->IsNewSpaceAllocation());
-    flags = static_cast<AllocationFlags>(flags | PRETENURE_OLD_DATA_SPACE);
+    flags = static_cast<AllocationFlags>(flags | PRETENURE);
   }
 
   if (instr->size()->IsConstantOperand()) {
@@ -1613,13 +1618,9 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
   }
   int flags = AllocateDoubleAlignFlag::encode(
       instr->hydrogen()->MustAllocateDoubleAligned());
-  if (instr->hydrogen()->IsOldPointerSpaceAllocation()) {
-    DCHECK(!instr->hydrogen()->IsOldDataSpaceAllocation());
+  if (instr->hydrogen()->IsOldSpaceAllocation()) {
     DCHECK(!instr->hydrogen()->IsNewSpaceAllocation());
-    flags = AllocateTargetSpace::update(flags, OLD_POINTER_SPACE);
-  } else if (instr->hydrogen()->IsOldDataSpaceAllocation()) {
-    DCHECK(!instr->hydrogen()->IsNewSpaceAllocation());
-    flags = AllocateTargetSpace::update(flags, OLD_DATA_SPACE);
+    flags = AllocateTargetSpace::update(flags, OLD_SPACE);
   } else {
     flags = AllocateTargetSpace::update(flags, NEW_SPACE);
   }
@@ -1771,7 +1772,8 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
   DCHECK(ToRegister(instr->right()).is(x0));
   DCHECK(ToRegister(instr->result()).is(x0));
 
-  Handle<Code> code = CodeFactory::BinaryOpIC(isolate(), instr->op()).code();
+  Handle<Code> code = CodeFactory::BinaryOpIC(
+      isolate(), instr->op(), instr->language_mode()).code();
   CallCode(code, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -2031,29 +2033,14 @@ void LCodeGen::DoTailCallThroughMegamorphicCache(
   Register extra = x5;
   Register extra2 = x6;
   Register extra3 = x7;
-  DCHECK(!FLAG_vector_ics ||
-         !AreAliased(ToRegister(instr->slot()), ToRegister(instr->vector()),
-                     scratch, extra, extra2, extra3));
 
-  // Important for the tail-call.
-  bool must_teardown_frame = NeedsEagerFrame();
-
-  if (!instr->hydrogen()->is_just_miss()) {
-    DCHECK(!instr->hydrogen()->is_keyed_load());
-
-    // The probe will tail call to a handler if found.
-    isolate()->stub_cache()->GenerateProbe(
-        masm(), Code::LOAD_IC, instr->hydrogen()->flags(), must_teardown_frame,
-        receiver, name, scratch, extra, extra2, extra3);
-  }
+  // The probe will tail call to a handler if found.
+  isolate()->stub_cache()->GenerateProbe(
+      masm(), Code::LOAD_IC, instr->hydrogen()->flags(), false, receiver, name,
+      scratch, extra, extra2, extra3);
 
   // Tail call to miss if we ended up here.
-  if (must_teardown_frame) __ LeaveFrame(StackFrame::INTERNAL);
-  if (instr->hydrogen()->is_keyed_load()) {
-    KeyedLoadIC::GenerateMiss(masm());
-  } else {
-    LoadIC::GenerateMiss(masm());
-  }
+  LoadIC::GenerateMiss(masm());
 }
 
 
@@ -2239,6 +2226,19 @@ void LCodeGen::DoCheckSmi(LCheckSmi* instr) {
   Register value = ToRegister(instr->value());
   DCHECK(!instr->result() || ToRegister(instr->result()).Is(value));
   DeoptimizeIfNotSmi(value, instr, Deoptimizer::kNotASmi);
+}
+
+
+void LCodeGen::DoCheckArrayBufferNotNeutered(
+    LCheckArrayBufferNotNeutered* instr) {
+  UseScratchRegisterScope temps(masm());
+  Register view = ToRegister(instr->view());
+  Register scratch = temps.AcquireX();
+
+  __ Ldr(scratch, FieldMemOperand(view, JSArrayBufferView::kBufferOffset));
+  __ Ldr(scratch, FieldMemOperand(scratch, JSArrayBuffer::kBitFieldOffset));
+  __ Tst(scratch, Operand(1 << JSArrayBuffer::WasNeutered::kShift));
+  DeoptimizeIf(ne, instr, Deoptimizer::kOutOfBounds);
 }
 
 
@@ -2911,13 +2911,6 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
   DCHECK(instr->IsMarkedAsCall());
   DCHECK(object.Is(x0));
 
-  DeoptimizeIfRoot(object, Heap::kUndefinedValueRootIndex, instr,
-                   Deoptimizer::kUndefined);
-
-  __ LoadRoot(null_value, Heap::kNullValueRootIndex);
-  __ Cmp(object, null_value);
-  DeoptimizeIf(eq, instr, Deoptimizer::kNull);
-
   DeoptimizeIfSmi(object, instr, Deoptimizer::kSmi);
 
   STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
@@ -2925,6 +2918,7 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
   DeoptimizeIf(le, instr, Deoptimizer::kNotAJavaScriptObject);
 
   Label use_cache, call_runtime;
+  __ LoadRoot(null_value, Heap::kNullValueRootIndex);
   __ CheckEnumCache(object, null_value, x1, x2, x3, x4, &call_runtime);
 
   __ Ldr(object, FieldMemOperand(object, HeapObject::kMapOffset));
@@ -3634,6 +3628,22 @@ void LCodeGen::DoLoadKeyedFixed(LLoadKeyedFixed* instr) {
       DeoptimizeIfRoot(result, Heap::kTheHoleValueRootIndex, instr,
                        Deoptimizer::kHole);
     }
+  } else if (instr->hydrogen()->hole_mode() == CONVERT_HOLE_TO_UNDEFINED) {
+    DCHECK(instr->hydrogen()->elements_kind() == FAST_HOLEY_ELEMENTS);
+    Label done;
+    __ CompareRoot(result, Heap::kTheHoleValueRootIndex);
+    __ B(ne, &done);
+    if (info()->IsStub()) {
+      // A stub can safely convert the hole to undefined only if the array
+      // protector cell contains (Smi) Isolate::kArrayProtectorValid. Otherwise
+      // it needs to bail out.
+      __ LoadRoot(result, Heap::kArrayProtectorRootIndex);
+      __ Ldr(result, FieldMemOperand(result, Cell::kValueOffset));
+      __ Cmp(result, Operand(Smi::FromInt(Isolate::kArrayProtectorValid)));
+      DeoptimizeIf(ne, instr, Deoptimizer::kHole);
+    }
+    __ LoadRoot(result, Heap::kUndefinedValueRootIndex);
+    __ Bind(&done);
   }
 }
 
@@ -3642,7 +3652,8 @@ void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
   DCHECK(ToRegister(instr->context()).is(cp));
   DCHECK(ToRegister(instr->object()).is(LoadDescriptor::ReceiverRegister()));
   DCHECK(ToRegister(instr->key()).is(LoadDescriptor::NameRegister()));
-  if (FLAG_vector_ics) {
+
+  if (instr->hydrogen()->HasVectorAndSlot()) {
     EmitVectorLoadICRegisters<LLoadKeyedGeneric>(instr);
   }
 
@@ -4338,7 +4349,7 @@ void LCodeGen::DoMulConstIS(LMulConstIS* instr) {
   Register left =
       is_smi ? ToRegister(instr->left()) : ToRegister32(instr->left()) ;
   int32_t right = ToInteger32(instr->right());
-  DCHECK((right > -kMaxInt) || (right < kMaxInt));
+  DCHECK((right > -kMaxInt) && (right < kMaxInt));
 
   bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
   bool bailout_on_minus_zero =
@@ -5784,9 +5795,17 @@ void LCodeGen::DoTruncateDoubleToIntOrSmi(LTruncateDoubleToIntOrSmi* instr) {
 
 
 void LCodeGen::DoTypeof(LTypeof* instr) {
-  Register input = ToRegister(instr->value());
-  __ Push(input);
-  CallRuntime(Runtime::kTypeof, 1, instr);
+  DCHECK(ToRegister(instr->value()).is(x3));
+  DCHECK(ToRegister(instr->result()).is(x0));
+  Label end, do_call;
+  Register value_register = ToRegister(instr->value());
+  __ JumpIfNotSmi(value_register, &do_call);
+  __ Mov(x0, Immediate(isolate()->factory()->number_string()));
+  __ B(&end);
+  __ Bind(&do_call);
+  TypeofStub stub(isolate());
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+  __ Bind(&end);
 }
 
 
@@ -5960,7 +5979,7 @@ void LCodeGen::DoDeferredLoadMutableDouble(LLoadFieldByIndex* instr,
 
 
 void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
-  class DeferredLoadMutableDouble FINAL : public LDeferredCode {
+  class DeferredLoadMutableDouble final : public LDeferredCode {
    public:
     DeferredLoadMutableDouble(LCodeGen* codegen,
                               LLoadFieldByIndex* instr,
@@ -5973,10 +5992,10 @@ void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
           object_(object),
           index_(index) {
     }
-    void Generate() OVERRIDE {
+    void Generate() override {
       codegen()->DoDeferredLoadMutableDouble(instr_, result_, object_, index_);
     }
-    LInstruction* instr() OVERRIDE { return instr_; }
+    LInstruction* instr() override { return instr_; }
 
    private:
     LLoadFieldByIndex* instr_;

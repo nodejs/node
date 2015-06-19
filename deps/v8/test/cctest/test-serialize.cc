@@ -68,7 +68,9 @@ class TestIsolate : public Isolate {
     isolate->Init(NULL);
     return v8_isolate;
   }
-  explicit TestIsolate(bool enable_serializer) : Isolate(enable_serializer) {}
+  explicit TestIsolate(bool enable_serializer) : Isolate(enable_serializer) {
+    set_array_buffer_allocator(CcTest::array_buffer_allocator());
+  }
 };
 
 
@@ -294,11 +296,11 @@ UNINITIALIZED_TEST(PartialSerialization) {
     {
       HandleScope scope(isolate);
       for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-        isolate->bootstrapper()->NativesSourceLookup(i);
+        isolate->bootstrapper()->SourceLookup<Natives>(i);
       }
     }
-    heap->CollectAllGarbage(Heap::kNoGCFlags);
-    heap->CollectAllGarbage(Heap::kNoGCFlags);
+    heap->CollectAllGarbage();
+    heap->CollectAllGarbage();
 
     Object* raw_foo;
     {
@@ -417,12 +419,12 @@ UNINITIALIZED_TEST(ContextSerialization) {
     {
       HandleScope scope(isolate);
       for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-        isolate->bootstrapper()->NativesSourceLookup(i);
+        isolate->bootstrapper()->SourceLookup<Natives>(i);
       }
     }
     // If we don't do this then we end up with a stray root pointing at the
     // context even after we have disposed of env.
-    heap->CollectAllGarbage(Heap::kNoGCFlags);
+    heap->CollectAllGarbage();
 
     int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
     Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
@@ -552,7 +554,7 @@ UNINITIALIZED_TEST(CustomContextSerialization) {
     {
       HandleScope scope(isolate);
       for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-        isolate->bootstrapper()->NativesSourceLookup(i);
+        isolate->bootstrapper()->SourceLookup<Natives>(i);
       }
     }
     // If we don't do this then we end up with a stray root pointing at the
@@ -669,6 +671,8 @@ TEST(PerIsolateSnapshotBlobs) {
 
   v8::Isolate::CreateParams params1;
   params1.snapshot_blob = &data1;
+  params1.array_buffer_allocator = CcTest::array_buffer_allocator();
+
   v8::Isolate* isolate1 = v8::Isolate::New(params1);
   {
     v8::Isolate::Scope i_scope(isolate1);
@@ -683,6 +687,7 @@ TEST(PerIsolateSnapshotBlobs) {
 
   v8::Isolate::CreateParams params2;
   params2.snapshot_blob = &data2;
+  params2.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate2 = v8::Isolate::New(params2);
   {
     v8::Isolate::Scope i_scope(isolate2);
@@ -699,7 +704,9 @@ TEST(PerIsolateSnapshotBlobs) {
 
 TEST(PerIsolateSnapshotBlobsWithLocker) {
   DisableTurbofan();
-  v8::Isolate* isolate0 = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate0 = v8::Isolate::New(create_params);
   {
     v8::Locker locker(isolate0);
     v8::Isolate::Scope i_scope(isolate0);
@@ -716,6 +723,7 @@ TEST(PerIsolateSnapshotBlobsWithLocker) {
 
   v8::Isolate::CreateParams params1;
   params1.snapshot_blob = &data1;
+  params1.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate1 = v8::Isolate::New(params1);
   {
     v8::Locker locker(isolate1);
@@ -1074,13 +1082,13 @@ TEST(SerializeToplevelThreeBigStrings) {
   Heap* heap = isolate->heap();
   CHECK(heap->InSpace(
       *v8::Utils::OpenHandle(*CompileRun("a")->ToString(CcTest::isolate())),
-      OLD_DATA_SPACE));
+      OLD_SPACE));
   CHECK(heap->InSpace(
       *v8::Utils::OpenHandle(*CompileRun("b")->ToString(CcTest::isolate())),
-      OLD_DATA_SPACE));
+      OLD_SPACE));
   CHECK(heap->InSpace(
       *v8::Utils::OpenHandle(*CompileRun("c")->ToString(CcTest::isolate())),
-      OLD_DATA_SPACE));
+      OLD_SPACE));
 
   delete cache;
   source_a.Dispose();
@@ -1303,7 +1311,9 @@ static void SerializerCodeEventListener(const v8::JitCodeEvent* event) {
 
 v8::ScriptCompiler::CachedData* ProduceCache(const char* source) {
   v8::ScriptCompiler::CachedData* cache;
-  v8::Isolate* isolate1 = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate1 = v8::Isolate::New(create_params);
   {
     v8::Isolate::Scope iscope(isolate1);
     v8::HandleScope scope(isolate1);
@@ -1337,7 +1347,9 @@ TEST(SerializeToplevelIsolates) {
   const char* source = "function f() { return 'abc'; }; f() + 'def'";
   v8::ScriptCompiler::CachedData* cache = ProduceCache(source);
 
-  v8::Isolate* isolate2 = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate2 = v8::Isolate::New(create_params);
   isolate2->SetJitCodeEventHandler(v8::kJitCodeEventDefault,
                                    SerializerCodeEventListener);
   toplevel_test_code_event_found = false;
@@ -1371,7 +1383,9 @@ TEST(SerializeToplevelFlagChange) {
   const char* source = "function f() { return 'abc'; }; f() + 'def'";
   v8::ScriptCompiler::CachedData* cache = ProduceCache(source);
 
-  v8::Isolate* isolate2 = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate2 = v8::Isolate::New(create_params);
 
   FLAG_allow_natives_syntax = true;  // Flag change should trigger cache reject.
   FlagList::EnforceFlagImplications();
@@ -1401,7 +1415,9 @@ TEST(SerializeToplevelBitFlip) {
   // Random bit flip.
   const_cast<uint8_t*>(cache->data)[337] ^= 0x40;
 
-  v8::Isolate* isolate2 = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate2 = v8::Isolate::New(create_params);
   {
     v8::Isolate::Scope iscope(isolate2);
     v8::HandleScope scope(isolate2);
@@ -1428,7 +1444,9 @@ TEST(SerializeWithHarmonyScoping) {
 
   v8::ScriptCompiler::CachedData* cache;
 
-  v8::Isolate* isolate1 = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate1 = v8::Isolate::New(create_params);
   {
     v8::Isolate::Scope iscope(isolate1);
     v8::HandleScope scope(isolate1);
@@ -1456,7 +1474,7 @@ TEST(SerializeWithHarmonyScoping) {
   }
   isolate1->Dispose();
 
-  v8::Isolate* isolate2 = v8::Isolate::New();
+  v8::Isolate* isolate2 = v8::Isolate::New(create_params);
   {
     v8::Isolate::Scope iscope(isolate2);
     v8::HandleScope scope(isolate2);
@@ -1484,9 +1502,9 @@ TEST(SerializeWithHarmonyScoping) {
 
 
 TEST(SerializeInternalReference) {
-#ifdef V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64
   return;
-#endif  // V8_TARGET_ARCH_ARM64
+#endif
   // Disable experimental natives that are loaded after deserialization.
   FLAG_turbo_deoptimization = false;
   FLAG_context_specialization = false;
@@ -1519,6 +1537,7 @@ TEST(SerializeInternalReference) {
 
   v8::Isolate::CreateParams params;
   params.snapshot_blob = &data;
+  params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(params);
   {
     v8::Isolate::Scope i_scope(isolate);
@@ -1548,4 +1567,12 @@ TEST(SerializeInternalReference) {
     CHECK_EQ(10, CompileRun("foo(6)")->ToInt32(isolate)->Int32Value());
   }
   isolate->Dispose();
+}
+
+
+TEST(SerializationMemoryStats) {
+  FLAG_profile_deserialization = true;
+  FLAG_always_opt = false;
+  v8::StartupData blob = v8::V8::CreateSnapshotDataBlob();
+  delete[] blob.data;
 }

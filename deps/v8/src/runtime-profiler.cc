@@ -15,7 +15,6 @@
 #include "src/full-codegen.h"
 #include "src/global-handles.h"
 #include "src/heap/mark-compact.h"
-#include "src/isolate-inl.h"
 #include "src/scopeinfo.h"
 
 namespace v8 {
