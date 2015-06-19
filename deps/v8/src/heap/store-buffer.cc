@@ -33,6 +33,9 @@ StoreBuffer::StoreBuffer(Heap* heap)
 
 
 void StoreBuffer::SetUp() {
+  // Allocate 3x the buffer size, so that we can start the new store buffer
+  // aligned to 2x the size.  This lets us use a bit test to detect the end of
+  // the area.
   virtual_memory_ = new base::VirtualMemory(kStoreBufferSize * 3);
   uintptr_t start_as_int =
       reinterpret_cast<uintptr_t>(virtual_memory_->address());
@@ -40,17 +43,22 @@ void StoreBuffer::SetUp() {
       reinterpret_cast<Address*>(RoundUp(start_as_int, kStoreBufferSize * 2));
   limit_ = start_ + (kStoreBufferSize / kPointerSize);
 
+  // Reserve space for the larger old buffer.
   old_virtual_memory_ =
       new base::VirtualMemory(kOldStoreBufferLength * kPointerSize);
   old_top_ = old_start_ =
       reinterpret_cast<Address*>(old_virtual_memory_->address());
   // Don't know the alignment requirements of the OS, but it is certainly not
   // less than 0xfff.
-  DCHECK((reinterpret_cast<uintptr_t>(old_start_) & 0xfff) == 0);
-  int initial_length =
-      static_cast<int>(base::OS::CommitPageSize() / kPointerSize);
-  DCHECK(initial_length > 0);
-  DCHECK(initial_length <= kOldStoreBufferLength);
+  CHECK((reinterpret_cast<uintptr_t>(old_start_) & 0xfff) == 0);
+  CHECK(kStoreBufferSize >= base::OS::CommitPageSize());
+  // Initial size of the old buffer is as big as the buffer for new pointers.
+  // This means even if we later fail to enlarge the old buffer due to OOM from
+  // the OS, we will still be able to empty the new pointer buffer into the old
+  // buffer.
+  int initial_length = static_cast<int>(kStoreBufferSize / kPointerSize);
+  CHECK(initial_length > 0);
+  CHECK(initial_length <= kOldStoreBufferLength);
   old_limit_ = old_start_ + initial_length;
   old_reserved_limit_ = old_start_ + kOldStoreBufferLength;
 
@@ -116,11 +124,12 @@ void StoreBuffer::EnsureSpace(intptr_t space_needed) {
   while (old_limit_ - old_top_ < space_needed &&
          old_limit_ < old_reserved_limit_) {
     size_t grow = old_limit_ - old_start_;  // Double size.
-    if (!old_virtual_memory_->Commit(reinterpret_cast<void*>(old_limit_),
-                                     grow * kPointerSize, false)) {
-      V8::FatalProcessOutOfMemory("StoreBuffer::EnsureSpace");
+    if (old_virtual_memory_->Commit(reinterpret_cast<void*>(old_limit_),
+                                    grow * kPointerSize, false)) {
+      old_limit_ += grow;
+    } else {
+      break;
     }
-    old_limit_ += grow;
   }
 
   if (SpaceAvailable(space_needed)) return;
@@ -197,6 +206,8 @@ void StoreBuffer::ExemptPopularPages(int prime_sample_step, int threshold) {
   }
   if (created_new_scan_on_scavenge_pages) {
     Filter(MemoryChunk::SCAN_ON_SCAVENGE);
+    heap_->isolate()->CountUsage(
+        v8::Isolate::UseCounterFeature::kStoreBufferOverflow);
   }
   old_buffer_is_filtered_ = true;
 }
@@ -380,7 +391,8 @@ void StoreBuffer::ClearInvalidStoreBufferEntries() {
   LargeObjectIterator it(heap_->lo_space());
   for (HeapObject* object = it.Next(); object != NULL; object = it.Next()) {
     MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
-    if (chunk->scan_on_scavenge() && !Marking::MarkBitFrom(object).Get()) {
+    if (chunk->scan_on_scavenge() &&
+        Marking::IsWhite(Marking::MarkBitFrom(object))) {
       chunk->set_scan_on_scavenge(false);
     }
   }
@@ -466,7 +478,7 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
                 heap_->mark_compact_collector()->EnsureSweepingCompleted();
               }
             }
-            CHECK(page->owner() == heap_->old_pointer_space());
+            CHECK(page->owner() == heap_->old_space());
             HeapObjectIterator iterator(page, NULL);
             for (HeapObject* heap_object = iterator.Next(); heap_object != NULL;
                  heap_object = iterator.Next()) {
@@ -534,9 +546,7 @@ void StoreBuffer::Compact() {
   // functions to reduce the number of unnecessary clashes.
   hash_sets_are_empty_ = false;  // Hash sets are in use.
   for (Address* current = start_; current < top; current++) {
-    DCHECK(!heap_->cell_space()->Contains(*current));
     DCHECK(!heap_->code_space()->Contains(*current));
-    DCHECK(!heap_->old_data_space()->Contains(*current));
     uintptr_t int_addr = reinterpret_cast<uintptr_t>(*current);
     // Shift out the last bits including any tags.
     int_addr >>= kPointerSizeLog2;

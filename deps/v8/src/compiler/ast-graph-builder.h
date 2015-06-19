@@ -47,13 +47,13 @@ class AstGraphBuilder : public AstVisitor {
   }
 
  protected:
-#define DECLARE_VISIT(type) void Visit##type(type* node) OVERRIDE;
+#define DECLARE_VISIT(type) void Visit##type(type* node) override;
   // Visiting functions for AST nodes make this an AstVisitor.
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
   // Visiting function for declarations list is overridden.
-  void VisitDeclarations(ZoneList<Declaration*>* declarations) OVERRIDE;
+  void VisitDeclarations(ZoneList<Declaration*>* declarations) override;
 
  private:
   class AstContext;
@@ -245,8 +245,9 @@ class AstGraphBuilder : public AstVisitor {
   // Builder to create a receiver check for sloppy mode.
   Node* BuildPatchReceiverToGlobalProxy(Node* receiver);
 
-  // Builders to create local function and block contexts.
-  Node* BuildLocalFunctionContext(Node* context, Node* closure);
+  // Builders to create local function, script and block contexts.
+  Node* BuildLocalFunctionContext(Node* context);
+  Node* BuildLocalScriptContext(Scope* scope);
   Node* BuildLocalBlockContext(Scope* scope);
 
   // Builder to create an arguments object if it is used.
@@ -300,6 +301,7 @@ class AstGraphBuilder : public AstVisitor {
   Node* BuildThrowError(Node* exception, BailoutId bailout_id);
   Node* BuildThrowReferenceError(Variable* var, BailoutId bailout_id);
   Node* BuildThrowConstAssignError(BailoutId bailout_id);
+  Node* BuildThrowStaticPrototypeError(BailoutId bailout_id);
 
   // Builders for dynamic hole-checks at runtime.
   Node* BuildHoleCheckSilent(Node* value, Node* for_hole, Node* not_hole);
@@ -383,6 +385,7 @@ class AstGraphBuilder::Environment : public ZoneObject {
 
   int parameters_count() const { return parameters_count_; }
   int locals_count() const { return locals_count_; }
+  int context_chain_length() { return static_cast<int>(contexts_.size()); }
   int stack_height() {
     return static_cast<int>(values()->size()) - parameters_count_ -
            locals_count_;
@@ -393,9 +396,13 @@ class AstGraphBuilder::Environment : public ZoneObject {
   Node* Lookup(Variable* variable);
   void MarkAllLocalsLive();
 
+  // Operations on the context chain.
   Node* Context() const { return contexts_.back(); }
   void PushContext(Node* context) { contexts()->push_back(context); }
   void PopContext() { contexts()->pop_back(); }
+  void TrimContextChain(int trim_to_length) {
+    contexts()->resize(trim_to_length);
+  }
 
   // Operations on the operand stack.
   void Push(Node* node) {
@@ -427,7 +434,7 @@ class AstGraphBuilder::Environment : public ZoneObject {
     DCHECK(depth >= 0 && depth <= stack_height());
     values()->erase(values()->end() - depth, values()->end());
   }
-  void Trim(int trim_to_height) {
+  void TrimStack(int trim_to_height) {
     int depth = stack_height() - trim_to_height;
     DCHECK(depth >= 0 && depth <= stack_height());
     values()->erase(values()->end() - depth, values()->end());
@@ -476,8 +483,6 @@ class AstGraphBuilder::Environment : public ZoneObject {
     PrepareForLoop(assigned, is_osr);
     return CopyAndShareLiveness();
   }
-
-  int ContextStackDepth() { return static_cast<int>(contexts_.size()); }
 
  private:
   AstGraphBuilder* builder_;

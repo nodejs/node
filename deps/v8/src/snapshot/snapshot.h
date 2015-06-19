@@ -5,8 +5,8 @@
 #include "src/isolate.h"
 #include "src/snapshot/serialize.h"
 
-#ifndef V8_SNAPSHOT_H_
-#define V8_SNAPSHOT_H_
+#ifndef V8_SNAPSHOT_SNAPSHOT_H_
+#define V8_SNAPSHOT_SNAPSHOT_H_
 
 namespace v8 {
 namespace internal {
@@ -90,4 +90,4 @@ void SetSnapshotFromFile(StartupData* snapshot_blob);
 
 } }  // namespace v8::internal
 
-#endif  // V8_SNAPSHOT_H_
+#endif  // V8_SNAPSHOT_SNAPSHOT_H_

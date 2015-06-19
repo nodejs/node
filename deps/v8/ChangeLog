@@ -1,3 +1,481 @@
+2015-05-11: Version 4.4.63
+
+        Let Runtime_GrowArrayElements accept non-Smi numbers as |key| (Chromium
+        issue 485410).
+
+        Make one copy for all TypedArray methods (issue 4085).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-09: Version 4.4.62
+
+        [turbofan] Fix handling of OsrLoopEntry in ControlReducer::ConnectNTL()
+        (Chromium issue 485908).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-08: Version 4.4.61
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-08: Version 4.4.60
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-08: Version 4.4.59
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-07: Version 4.4.58
+
+        TypedArray.prototype.every method (issue 3578).
+
+        [V8] Reland https://codereview.chromium.org/1121833003/ (Chromium issue
+        480652).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-07: Version 4.4.57
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-06: Version 4.4.56
+
+        Shard v8_base.lib on Windows to avoid 2G .lib limit (Chromium issue
+        485155).
+
+        Implement a 'trial parse' step, that will abort pre-parsing excessively
+        long and trivial functions, so that they can be eagerly compiled after
+        all. This essentially allows the parser to renege on its earlier
+        decision to lazy-parse, if additional information suggests it was a bad
+        decision (Chromium issue 470930).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-06: Version 4.4.55
+
+        Handle the case when derived constructor is [[Call]]ed with 0 args
+        (Chromium issue 474783).
+
+        freed_nodes in global-handles should be addititive (Chromium issues
+        479796, 484671).
+
+        [V8] Reland https://codereview.chromium.org/1100993003/ (Chromium issue
+        480652).
+
+        [es6] When comparing two symbols we may need to throw a TypeError (issue
+        4073).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-06: Version 4.4.54
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-05: Version 4.4.53
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-05: Version 4.4.52
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-04: Version 4.4.51
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-04: Version 4.4.50
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-01: Version 4.4.49
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-01: Version 4.4.48
+
+        [V8] Use previous token location as EOS token location (Chromium issue
+        480652).
+
+        Implement kToBeExecutedOnceCodeAge (Chromium issue 470930).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-30: Version 4.4.47
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-30: Version 4.4.46
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-29: Version 4.4.45
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-29: Version 4.4.44
+
+        Pass ArrayBuffer::Allocator via Isolate::CreateParams.
+
+        Fix unobservable constructor replacement on prototype maps (Chromium
+        issue 478522).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-29: Version 4.4.43
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-28: Version 4.4.42
+
+        MIPS: Fix FP load/store with large offsets from base register (Chromium
+        issue 481519).
+
+        Extending v8::GetHeapStatistics to return total available size (Chromium
+        issue 476013).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-28: Version 4.4.41
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-28: Version 4.4.40
+
+        Do more to avoid last-resort stop-the-world GC (Chromium issue 481433).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-27: Version 4.4.39
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-27: Version 4.4.38
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-25: Version 4.4.37
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-24: Version 4.4.36
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-24: Version 4.4.35
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-24: Version 4.4.34
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-23: Version 4.4.33
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-23: Version 4.4.32
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-23: Version 4.4.31
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-22: Version 4.4.30
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-22: Version 4.4.29
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-21: Version 4.4.28
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-21: Version 4.4.27
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-20: Version 4.4.26
+
+        Allow for accessing an ArrayBuffer contents without externalizing it.
+
+        Remove support for externally backed elements from the API (issue 3996).
+
+        Deprecate 3-args ResourceConstraints::ConfigureDefaults.
+
+        Indicate that low-memory-notificatin triggered GCs are "forced".
+
+        Adding missing V8_EXPORT flag in SpaceStatistics class in v8.h (Chromium
+        issues 466141, 476013).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-20: Version 4.4.25
+
+        Turn off SupportsFlexibleFloorAndRound for Arm64 due to a bug (Chromium
+        issue 476477).
+
+        Adding V8 api to get memory statistics of spaces in V8::Heap (Chromium
+        issues 466141, 476013).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-17: Version 4.4.24
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-17: Version 4.4.23
+
+        Don't crash when reporting an access check failure for a detached global
+        proxy (Chromium issue 475884).
+
+        Use smaller heap growing factor in idle notification to start
+        incremental marking when there is idle time >16ms (Chromium issue
+        477323).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-16: Version 4.4.22
+
+        Reduce regexp compiler stack size when not optimizing regexps (Chromium
+        issue 475705).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-15: Version 4.4.21
+
+        Remove support for specifying the number of available threads.
+
+        When converting Maybe and MaybeLocal values with a check, always check.
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-15: Version 4.4.20
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-15: Version 4.4.19
+
+        Reland "Remove support for thread-based recompilation" (issue 3608).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-14: Version 4.4.18
+
+        Reland "Remove support for thread-based recompilation" (issue 3608).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-14: Version 4.4.17
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-13: Version 4.4.16
+
+        Expose ArrayBufferView::HasBuffer (issue 3996).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-13: Version 4.4.15
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-12: Version 4.4.14
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-12: Version 4.4.13
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-10: Version 4.4.12
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-10: Version 4.4.11
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-10: Version 4.4.10
+
+        Don't #define snprintf in VS2015 - it's illegal and unneeded (Chromium
+        issue 440500).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-09: Version 4.4.9
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-09: Version 4.4.8
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-08: Version 4.4.7
+
+        Make GetDebugContext a bit more robust (Chromium issue 474538).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-08: Version 4.4.6
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-08: Version 4.4.5
+
+        More robust when allocation fails during compaction (Chromium issue
+        473307).
+
+        MIPS: JSEntryTrampoline: check for stack space before pushing arguments
+        (Chromium issue 469768).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-07: Version 4.4.4
+
+        Debugger: remove debug command API.
+
+        Remove support for thread-based recompilation (issue 3608).
+
+        JSEntryTrampoline: check for stack space before pushing arguments
+        (Chromium issue 469768).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-07: Version 4.4.3
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-06: Version 4.4.2
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-06: Version 4.4.1
+
+        Support for typed arrays added to Heap::RightTrimFixedArray() (Chromium
+        issue 472513).
+
+        Expose an API on ArrayBufferView to copy out content w/o changing the
+        buffer (issue 3996).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-02: Version 4.3.66
+
+        Reland: Fix JSON parser Handle leak (previous CL 1041483004) (issue
+        3976, Chromium issue 472504).
+
+        Turn off overapproximation of the weak closure again (issue 3862).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-01: Version 4.3.65
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-01: Version 4.3.64
+
+        Performance and stability improvements on all platforms.
+
+
+2015-04-01: Version 4.3.63
+
+        [V8] Don't ignore sourceURL comment in inline scripts in .stack (issue
+        3920).
+
+        Deprecate IdleNotification().
+
+        Remove --harmony-numeric-literal flag.
+
+        Performance and stability improvements on all platforms.
+
+
+2015-03-31: Version 4.3.62
+
+        Put newspace evacuation in an EvacuationScope (Chromium issue 471554).
+
+        Fix libdl dependency on Android and remove librt hack (Chromium issue
+        469973).
+
+        Ensure that GC idle notifications either make progress or stop
+        requesting more GCs (Chromium issue 470615).
+
+        Layout descriptor must be trimmed when corresponding descriptors array
+        is trimmed to stay in sync (Chromium issue 470804).
+
+        Fix JSON parser Handle leak (issue 3976).
+
+        Performance and stability improvements on all platforms.
+
+
 2015-03-30: Version 4.3.61
 
         Performance and stability improvements on all platforms.

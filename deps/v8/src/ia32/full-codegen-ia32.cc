@@ -13,7 +13,6 @@
 #include "src/debug.h"
 #include "src/full-codegen.h"
 #include "src/ic/ic.h"
-#include "src/isolate-inl.h"
 #include "src/parser.h"
 #include "src/scopes.h"
 
@@ -115,7 +114,8 @@ void FullCodeGenerator::Generate() {
   // Sloppy mode functions and builtins need to replace the receiver with the
   // global proxy when called as functions (without an explicit receiver
   // object).
-  if (is_sloppy(info->language_mode()) && !info->is_native()) {
+  if (is_sloppy(info->language_mode()) && !info->is_native() &&
+      info->MayUseThis()) {
     Label ok;
     // +1 for return address.
     int receiver_offset = (info->scope()->num_parameters() + 1) * kPointerSize;
@@ -899,37 +899,6 @@ void FullCodeGenerator::VisitFunctionDeclaration(
 }
 
 
-void FullCodeGenerator::VisitModuleDeclaration(ModuleDeclaration* declaration) {
-  Variable* variable = declaration->proxy()->var();
-  ModuleDescriptor* descriptor = declaration->module()->descriptor();
-  DCHECK(variable->location() == Variable::CONTEXT);
-  DCHECK(descriptor->IsFrozen());
-
-  Comment cmnt(masm_, "[ ModuleDeclaration");
-  EmitDebugCheckDeclarationContext(variable);
-
-  // Load instance object.
-  __ LoadContext(eax, scope_->ContextChainLength(scope_->ScriptScope()));
-  __ mov(eax, ContextOperand(eax, descriptor->Index()));
-  __ mov(eax, ContextOperand(eax, Context::EXTENSION_INDEX));
-
-  // Assign it.
-  __ mov(ContextOperand(esi, variable->index()), eax);
-  // We know that we have written a module, which is not a smi.
-  __ RecordWriteContextSlot(esi,
-                            Context::SlotOffset(variable->index()),
-                            eax,
-                            ecx,
-                            kDontSaveFPRegs,
-                            EMIT_REMEMBERED_SET,
-                            OMIT_SMI_CHECK);
-  PrepareForBailoutForId(declaration->proxy()->id(), NO_REGISTERS);
-
-  // Traverse into body.
-  Visit(declaration->module());
-}
-
-
 void FullCodeGenerator::VisitImportDeclaration(ImportDeclaration* declaration) {
   VariableProxy* proxy = declaration->proxy();
   Variable* variable = proxy->var();
@@ -1210,6 +1179,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ push(ecx);  // Enumerable.
   __ push(ebx);  // Current entry.
   __ InvokeBuiltin(Builtins::FILTER_KEY, CALL_FUNCTION);
+  PrepareForBailoutForId(stmt->FilterId(), TOS_REG);
   __ test(eax, eax);
   __ j(equal, loop_statement.continue_label());
   __ mov(ebx, eax);
@@ -2387,7 +2357,8 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
 
   __ bind(&stub_call);
   __ mov(eax, ecx);
-  Handle<Code> code = CodeFactory::BinaryOpIC(isolate(), op).code();
+  Handle<Code> code = CodeFactory::BinaryOpIC(
+      isolate(), op, language_mode()).code();
   CallIC(code, expr->BinaryOperationFeedbackId());
   patch_site.EmitPatchInfo();
   __ jmp(&done, Label::kNear);
@@ -2531,7 +2502,8 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
 
 void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr, Token::Value op) {
   __ pop(edx);
-  Handle<Code> code = CodeFactory::BinaryOpIC(isolate(), op).code();
+  Handle<Code> code = CodeFactory::BinaryOpIC(
+      isolate(), op, language_mode()).code();
   JumpPatchSite patch_site(masm_);    // unbound, signals no inlined smi code.
   CallIC(code, expr->BinaryOperationFeedbackId());
   patch_site.EmitPatchInfo();
@@ -3005,6 +2977,21 @@ void FullCodeGenerator::EmitLoadSuperConstructor() {
 }
 
 
+void FullCodeGenerator::EmitInitializeThisAfterSuper(
+    SuperReference* super_ref) {
+  Variable* this_var = super_ref->this_var()->var();
+  GetVar(ecx, this_var);
+  __ cmp(ecx, isolate()->factory()->the_hole_value());
+  Label uninitialized_this;
+  __ j(equal, &uninitialized_this);
+  __ push(Immediate(this_var->name()));
+  __ CallRuntime(Runtime::kThrowReferenceError, 1);
+  __ bind(&uninitialized_this);
+
+  EmitVariableAssignment(this_var, Token::INIT_CONST);
+}
+
+
 void FullCodeGenerator::VisitCall(Call* expr) {
 #ifdef DEBUG
   // We want to verify that RecordJSReturnSite gets called on all paths
@@ -3219,17 +3206,7 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
 
   RecordJSReturnSite(expr);
 
-  SuperReference* super_ref = expr->expression()->AsSuperReference();
-  Variable* this_var = super_ref->this_var()->var();
-  GetVar(ecx, this_var);
-  __ cmp(ecx, isolate()->factory()->the_hole_value());
-  Label uninitialized_this;
-  __ j(equal, &uninitialized_this);
-  __ push(Immediate(this_var->name()));
-  __ CallRuntime(Runtime::kThrowReferenceError, 1);
-  __ bind(&uninitialized_this);
-
-  EmitVariableAssignment(this_var, Token::INIT_CONST);
+  EmitInitializeThisAfterSuper(expr->expression()->AsSuperReference());
   context()->Plug(eax);
 }
 
@@ -4531,26 +4508,79 @@ void FullCodeGenerator::EmitDebugIsActive(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitCallSuperWithSpread(CallRuntime* expr) {
+  // Assert: expr == CallRuntime("ReflectConstruct")
+  CallRuntime* call = expr->arguments()->at(0)->AsCallRuntime();
+  ZoneList<Expression*>* args = call->arguments();
+  DCHECK_EQ(3, args->length());
+
+  SuperReference* super_reference = args->at(0)->AsSuperReference();
+
+  // Load ReflectConstruct function
+  EmitLoadJSRuntimeFunction(call);
+
+  // Push the target function under the receiver
+  __ push(Operand(esp, 0));
+  __ mov(Operand(esp, kPointerSize), eax);
+
+  // Push super
+  EmitLoadSuperConstructor();
+  __ Push(result_register());
+
+  // Push arguments array
+  VisitForStackValue(args->at(1));
+
+  // Push NewTarget
+  DCHECK(args->at(2)->IsVariableProxy());
+  VisitForStackValue(args->at(2));
+
+  EmitCallJSRuntimeFunction(call);
+
+  // Restore context register.
+  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+  context()->DropAndPlug(1, eax);
+
+  EmitInitializeThisAfterSuper(super_reference);
+}
+
+
+void FullCodeGenerator::EmitLoadJSRuntimeFunction(CallRuntime* expr) {
+  // Push the builtins object as receiver.
+  __ mov(eax, GlobalObjectOperand());
+  __ push(FieldOperand(eax, GlobalObject::kBuiltinsOffset));
+
+  // Load the function from the receiver.
+  __ mov(LoadDescriptor::ReceiverRegister(), Operand(esp, 0));
+  __ mov(LoadDescriptor::NameRegister(), Immediate(expr->name()));
+  if (FLAG_vector_ics) {
+    __ mov(VectorLoadICDescriptor::SlotRegister(),
+           Immediate(SmiFromSlot(expr->CallRuntimeFeedbackSlot())));
+    CallLoadIC(NOT_CONTEXTUAL);
+  } else {
+    CallLoadIC(NOT_CONTEXTUAL, expr->CallRuntimeFeedbackId());
+  }
+}
+
+
+void FullCodeGenerator::EmitCallJSRuntimeFunction(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  int arg_count = args->length();
+
+  // Record source position of the IC call.
+  SetSourcePosition(expr->position());
+  CallFunctionStub stub(isolate(), arg_count, NO_CALL_FUNCTION_FLAGS);
+  __ mov(edi, Operand(esp, (arg_count + 1) * kPointerSize));
+  __ CallStub(&stub);
+}
+
+
 void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
 
   if (expr->is_jsruntime()) {
     Comment cmnt(masm_, "[ CallRuntime");
-    // Push the builtins object as receiver.
-    __ mov(eax, GlobalObjectOperand());
-    __ push(FieldOperand(eax, GlobalObject::kBuiltinsOffset));
-
-    // Load the function from the receiver.
-    __ mov(LoadDescriptor::ReceiverRegister(), Operand(esp, 0));
-    __ mov(LoadDescriptor::NameRegister(), Immediate(expr->name()));
-    if (FLAG_vector_ics) {
-      __ mov(VectorLoadICDescriptor::SlotRegister(),
-             Immediate(SmiFromSlot(expr->CallRuntimeFeedbackSlot())));
-      CallLoadIC(NOT_CONTEXTUAL);
-    } else {
-      CallLoadIC(NOT_CONTEXTUAL, expr->CallRuntimeFeedbackId());
-    }
+    EmitLoadJSRuntimeFunction(expr);
 
     // Push the target function under the receiver.
     __ push(Operand(esp, 0));
@@ -4561,11 +4591,7 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
       VisitForStackValue(args->at(i));
     }
 
-    // Record source position of the IC call.
-    SetSourcePosition(expr->position());
-    CallFunctionStub stub(isolate(), arg_count, NO_CALL_FUNCTION_FLAGS);
-    __ mov(edi, Operand(esp, (arg_count + 1) * kPointerSize));
-    __ CallStub(&stub);
+    EmitCallJSRuntimeFunction(expr);
 
     // Restore context register.
     __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
@@ -4697,10 +4723,13 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
     case Token::TYPEOF: {
       Comment cmnt(masm_, "[ UnaryOperation (TYPEOF)");
-      { StackValueContext context(this);
+      {
+        AccumulatorValueContext context(this);
         VisitForTypeofValue(expr->expression());
       }
-      __ CallRuntime(Runtime::kTypeof, 1);
+      __ mov(ebx, eax);
+      TypeofStub typeof_stub(isolate());
+      __ CallStub(&typeof_stub);
       context()->Plug(eax);
       break;
     }
@@ -4871,7 +4900,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   __ mov(edx, eax);
   __ mov(eax, Immediate(Smi::FromInt(1)));
   Handle<Code> code =
-      CodeFactory::BinaryOpIC(isolate(), expr->binary_op()).code();
+      CodeFactory::BinaryOpIC(
+          isolate(), expr->binary_op(), language_mode()).code();
   CallIC(code, expr->CountBinOpFeedbackId());
   patch_site.EmitPatchInfo();
   __ bind(&done);

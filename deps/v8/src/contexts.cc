@@ -141,7 +141,7 @@ static Maybe<PropertyAttributes> UnscopableLookup(LookupIterator* it) {
     DCHECK(isolate->has_pending_exception());
     return Nothing<PropertyAttributes>();
   }
-  return blacklist->IsUndefined() ? attrs : Just(ABSENT);
+  return blacklist->BooleanValue() ? Just(ABSENT) : attrs;
 }
 
 static void GetAttributesAndBindingFlags(VariableMode mode,

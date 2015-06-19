@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/adapters.h"
 #include "src/base/bits.h"
 #include "src/compiler/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
@@ -18,7 +19,7 @@ namespace compiler {
 
 
 // Adds Mips-specific methods for generating InstructionOperands.
-class Mips64OperandGenerator FINAL : public OperandGenerator {
+class Mips64OperandGenerator final : public OperandGenerator {
  public:
   explicit Mips64OperandGenerator(InstructionSelector* selector)
       : OperandGenerator(selector) {}
@@ -305,8 +306,7 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
 
 
 void InstructionSelector::VisitWord32Clz(Node* node) {
-  Mips64OperandGenerator g(this);
-  Emit(kMips64Clz, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+  VisitRR(this, kMips64Clz, node);
 }
 
 
@@ -369,15 +369,12 @@ void InstructionSelector::VisitInt32Mul(Node* node) {
       return;
     }
   }
-  Emit(kMips64Mul, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
-       g.UseRegister(m.right().node()));
+  VisitRRR(this, kMips64Mul, node);
 }
 
 
 void InstructionSelector::VisitInt32MulHigh(Node* node) {
-  Mips64OperandGenerator g(this);
-  Emit(kMips64MulHigh, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+  VisitRRR(this, kMips64MulHigh, node);
 }
 
 
@@ -492,35 +489,27 @@ void InstructionSelector::VisitUint64Mod(Node* node) {
 
 
 void InstructionSelector::VisitChangeFloat32ToFloat64(Node* node) {
-  Mips64OperandGenerator g(this);
-  Emit(kMips64CvtDS, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+  VisitRR(this, kMips64CvtDS, node);
 }
 
 
 void InstructionSelector::VisitChangeInt32ToFloat64(Node* node) {
-  Mips64OperandGenerator g(this);
-  Emit(kMips64CvtDW, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+  VisitRR(this, kMips64CvtDW, node);
 }
 
 
 void InstructionSelector::VisitChangeUint32ToFloat64(Node* node) {
-  Mips64OperandGenerator g(this);
-  Emit(kMips64CvtDUw, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+  VisitRR(this, kMips64CvtDUw, node);
 }
 
 
 void InstructionSelector::VisitChangeFloat64ToInt32(Node* node) {
-  Mips64OperandGenerator g(this);
-  Emit(kMips64TruncWD, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+  VisitRR(this, kMips64TruncWD, node);
 }
 
 
 void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
-  Mips64OperandGenerator g(this);
-  Emit(kMips64TruncUwD, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+  VisitRR(this, kMips64TruncUwD, node);
 }
 
 
@@ -546,13 +535,22 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
 
 
 void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
-  Mips64OperandGenerator g(this);
-  Emit(kMips64CvtSD, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+  VisitRR(this, kMips64CvtSD, node);
+}
+
+
+void InstructionSelector::VisitFloat32Add(Node* node) {
+  VisitRRR(this, kMips64AddS, node);
 }
 
 
 void InstructionSelector::VisitFloat64Add(Node* node) {
   VisitRRR(this, kMips64AddD, node);
+}
+
+
+void InstructionSelector::VisitFloat32Sub(Node* node) {
+  VisitRRR(this, kMips64SubS, node);
 }
 
 
@@ -575,8 +573,18 @@ void InstructionSelector::VisitFloat64Sub(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat32Mul(Node* node) {
+  VisitRRR(this, kMips64MulS, node);
+}
+
+
 void InstructionSelector::VisitFloat64Mul(Node* node) {
   VisitRRR(this, kMips64MulD, node);
+}
+
+
+void InstructionSelector::VisitFloat32Div(Node* node) {
+  VisitRRR(this, kMips64DivS, node);
 }
 
 
@@ -593,15 +601,35 @@ void InstructionSelector::VisitFloat64Mod(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat32Max(Node* node) { UNREACHABLE(); }
+
+
 void InstructionSelector::VisitFloat64Max(Node* node) { UNREACHABLE(); }
+
+
+void InstructionSelector::VisitFloat32Min(Node* node) { UNREACHABLE(); }
 
 
 void InstructionSelector::VisitFloat64Min(Node* node) { UNREACHABLE(); }
 
 
+void InstructionSelector::VisitFloat32Abs(Node* node) {
+  VisitRR(this, kMips64AbsS, node);
+}
+
+
+void InstructionSelector::VisitFloat64Abs(Node* node) {
+  VisitRR(this, kMips64AbsD, node);
+}
+
+
+void InstructionSelector::VisitFloat32Sqrt(Node* node) {
+  VisitRR(this, kMips64SqrtS, node);
+}
+
+
 void InstructionSelector::VisitFloat64Sqrt(Node* node) {
-  Mips64OperandGenerator g(this);
-  Emit(kMips64SqrtD, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+  VisitRR(this, kMips64SqrtD, node);
 }
 
 
@@ -624,7 +652,7 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   Mips64OperandGenerator g(this);
   const CallDescriptor* descriptor = OpParameter<const CallDescriptor*>(node);
 
-  FrameStateDescriptor* frame_state_descriptor = NULL;
+  FrameStateDescriptor* frame_state_descriptor = nullptr;
   if (descriptor->NeedsFrameState()) {
     frame_state_descriptor =
         GetFrameStateDescriptor(node->InputAt(descriptor->InputCount()));
@@ -637,19 +665,19 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
 
   int push_count = buffer.pushed_nodes.size();
   if (push_count > 0) {
-    Emit(kMips64StackClaim | MiscField::encode(push_count), g.NoOutput());
+    Emit(kMips64StackClaim, g.NoOutput(),
+         g.TempImmediate(push_count << kPointerSizeLog2));
   }
   int slot = buffer.pushed_nodes.size() - 1;
-  for (auto i = buffer.pushed_nodes.rbegin(); i != buffer.pushed_nodes.rend();
-       ++i) {
-    Emit(kMips64StoreToStackSlot | MiscField::encode(slot), g.NoOutput(),
-         g.UseRegister(*i));
+  for (Node* node : base::Reversed(buffer.pushed_nodes)) {
+    Emit(kMips64StoreToStackSlot, g.NoOutput(), g.UseRegister(node),
+         g.TempImmediate(slot << kPointerSizeLog2));
     slot--;
   }
 
   // Pass label of exception handler block.
   CallDescriptor::Flags flags = descriptor->flags();
-  if (handler != nullptr) {
+  if (handler) {
     flags |= CallDescriptor::kHasExceptionHandler;
     buffer.instruction_args.push_back(g.Label(handler));
   }
@@ -671,11 +699,96 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   opcode |= MiscField::encode(flags);
 
   // Emit the call instruction.
-  Instruction* call_instr =
-      Emit(opcode, buffer.outputs.size(), &buffer.outputs.front(),
-           buffer.instruction_args.size(), &buffer.instruction_args.front());
+  size_t const output_count = buffer.outputs.size();
+  auto* outputs = output_count ? &buffer.outputs.front() : nullptr;
+  Emit(opcode, output_count, outputs, buffer.instruction_args.size(),
+       &buffer.instruction_args.front())->MarkAsCall();
+}
 
-  call_instr->MarkAsCall();
+
+void InstructionSelector::VisitTailCall(Node* node) {
+  Mips64OperandGenerator g(this);
+  const CallDescriptor* descriptor = OpParameter<const CallDescriptor*>(node);
+  DCHECK_NE(0, descriptor->flags() & CallDescriptor::kSupportsTailCalls);
+  DCHECK_EQ(0, descriptor->flags() & CallDescriptor::kPatchableCallSite);
+  DCHECK_EQ(0, descriptor->flags() & CallDescriptor::kNeedsNopAfterCall);
+
+  // TODO(turbofan): Relax restriction for stack parameters.
+  if (descriptor->UsesOnlyRegisters() &&
+      descriptor->HasSameReturnLocationsAs(
+          linkage()->GetIncomingDescriptor())) {
+    CallBuffer buffer(zone(), descriptor, nullptr);
+
+    // Compute InstructionOperands for inputs and outputs.
+    InitializeCallBuffer(node, &buffer, true, false);
+
+    DCHECK_EQ(0u, buffer.pushed_nodes.size());
+
+    // Select the appropriate opcode based on the call type.
+    InstructionCode opcode;
+    switch (descriptor->kind()) {
+      case CallDescriptor::kCallCodeObject:
+        opcode = kArchTailCallCodeObject;
+        break;
+      case CallDescriptor::kCallJSFunction:
+        opcode = kArchTailCallJSFunction;
+        break;
+      default:
+        UNREACHABLE();
+        return;
+    }
+    opcode |= MiscField::encode(descriptor->flags());
+
+    // Emit the tailcall instruction.
+    Emit(opcode, 0, nullptr, buffer.instruction_args.size(),
+         &buffer.instruction_args.front());
+  } else {
+    FrameStateDescriptor* frame_state_descriptor =
+        descriptor->NeedsFrameState()
+            ? GetFrameStateDescriptor(
+                  node->InputAt(static_cast<int>(descriptor->InputCount())))
+            : nullptr;
+
+    CallBuffer buffer(zone(), descriptor, frame_state_descriptor);
+
+    // Compute InstructionOperands for inputs and outputs.
+    InitializeCallBuffer(node, &buffer, true, false);
+
+    int push_count = buffer.pushed_nodes.size();
+    if (push_count > 0) {
+      Emit(kMips64StackClaim, g.NoOutput(),
+           g.TempImmediate(push_count << kPointerSizeLog2));
+    }
+    int slot = buffer.pushed_nodes.size() - 1;
+    for (Node* node : base::Reversed(buffer.pushed_nodes)) {
+      Emit(kMips64StoreToStackSlot, g.NoOutput(), g.UseRegister(node),
+           g.TempImmediate(slot << kPointerSizeLog2));
+      slot--;
+    }
+
+    // Select the appropriate opcode based on the call type.
+    InstructionCode opcode;
+    switch (descriptor->kind()) {
+      case CallDescriptor::kCallCodeObject: {
+        opcode = kArchCallCodeObject;
+        break;
+      }
+      case CallDescriptor::kCallJSFunction:
+        opcode = kArchCallJSFunction;
+        break;
+      default:
+        UNREACHABLE();
+        return;
+    }
+    opcode |= MiscField::encode(descriptor->flags());
+
+    // Emit the call instruction.
+    size_t const output_count = buffer.outputs.size();
+    auto* outputs = output_count ? &buffer.outputs.front() : nullptr;
+    Emit(opcode, output_count, outputs, buffer.instruction_args.size(),
+         &buffer.instruction_args.front())->MarkAsCall();
+    Emit(kArchRet, 0, nullptr, output_count, outputs);
+  }
 }
 
 
@@ -785,7 +898,18 @@ static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
 }
 
 
-// Shared routine for multiple float compare operations.
+// Shared routine for multiple float32 compare operations.
+void VisitFloat32Compare(InstructionSelector* selector, Node* node,
+                         FlagsContinuation* cont) {
+  Mips64OperandGenerator g(selector);
+  Node* left = node->InputAt(0);
+  Node* right = node->InputAt(1);
+  VisitCompare(selector, kMips64CmpS, g.UseRegister(left), g.UseRegister(right),
+               cont);
+}
+
+
+// Shared routine for multiple float64 compare operations.
 void VisitFloat64Compare(InstructionSelector* selector, Node* node,
                          FlagsContinuation* cont) {
   Mips64OperandGenerator g(selector);
@@ -900,6 +1024,15 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
       case IrOpcode::kUint64LessThan:
         cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
         return VisitWord64Compare(selector, value, cont);
+      case IrOpcode::kFloat32Equal:
+        cont->OverwriteAndNegateIfEqual(kEqual);
+        return VisitFloat32Compare(selector, value, cont);
+      case IrOpcode::kFloat32LessThan:
+        cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
+        return VisitFloat32Compare(selector, value, cont);
+      case IrOpcode::kFloat32LessThanOrEqual:
+        cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
+        return VisitFloat32Compare(selector, value, cont);
       case IrOpcode::kFloat64Equal:
         cont->OverwriteAndNegateIfEqual(kEqual);
         return VisitFloat64Compare(selector, value, cont);
@@ -1064,6 +1197,24 @@ void InstructionSelector::VisitInt64LessThanOrEqual(Node* node) {
 void InstructionSelector::VisitUint64LessThan(Node* node) {
   FlagsContinuation cont(kUnsignedLessThan, node);
   VisitWord64Compare(this, node, &cont);
+}
+
+
+void InstructionSelector::VisitFloat32Equal(Node* node) {
+  FlagsContinuation cont(kEqual, node);
+  VisitFloat32Compare(this, node, &cont);
+}
+
+
+void InstructionSelector::VisitFloat32LessThan(Node* node) {
+  FlagsContinuation cont(kUnsignedLessThan, node);
+  VisitFloat32Compare(this, node, &cont);
+}
+
+
+void InstructionSelector::VisitFloat32LessThanOrEqual(Node* node) {
+  FlagsContinuation cont(kUnsignedLessThanOrEqual, node);
+  VisitFloat32Compare(this, node, &cont);
 }
 
 

@@ -15,8 +15,7 @@ namespace internal {
 
 MarkBit Marking::MarkBitFrom(Address addr) {
   MemoryChunk* p = MemoryChunk::FromAddress(addr);
-  return p->markbits()->MarkBitFromIndex(p->AddressToMarkbitIndex(addr),
-                                         p->ContainsOnlyData());
+  return p->markbits()->MarkBitFromIndex(p->AddressToMarkbitIndex(addr));
 }
 
 
@@ -24,15 +23,17 @@ void MarkCompactCollector::SetFlags(int flags) {
   reduce_memory_footprint_ = ((flags & Heap::kReduceMemoryFootprintMask) != 0);
   abort_incremental_marking_ =
       ((flags & Heap::kAbortIncrementalMarkingMask) != 0);
+  finalize_incremental_marking_ =
+      ((flags & Heap::kFinalizeIncrementalMarkingMask) != 0);
+  DCHECK(!finalize_incremental_marking_ || !abort_incremental_marking_);
 }
 
 
 void MarkCompactCollector::MarkObject(HeapObject* obj, MarkBit mark_bit) {
   DCHECK(Marking::MarkBitFrom(obj) == mark_bit);
-  if (!mark_bit.Get()) {
-    mark_bit.Set();
+  if (Marking::IsWhite(mark_bit)) {
+    Marking::WhiteToBlack(mark_bit);
     MemoryChunk::IncrementLiveBytesFromGC(obj->address(), obj->Size());
-    DCHECK(IsMarked(obj));
     DCHECK(obj->GetIsolate()->heap()->Contains(obj));
     marking_deque_.PushBlack(obj);
   }
@@ -40,9 +41,9 @@ void MarkCompactCollector::MarkObject(HeapObject* obj, MarkBit mark_bit) {
 
 
 void MarkCompactCollector::SetMark(HeapObject* obj, MarkBit mark_bit) {
-  DCHECK(!mark_bit.Get());
+  DCHECK(Marking::IsWhite(mark_bit));
   DCHECK(Marking::MarkBitFrom(obj) == mark_bit);
-  mark_bit.Set();
+  Marking::WhiteToBlack(mark_bit);
   MemoryChunk::IncrementLiveBytesFromGC(obj->address(), obj->Size());
 }
 
@@ -50,7 +51,7 @@ void MarkCompactCollector::SetMark(HeapObject* obj, MarkBit mark_bit) {
 bool MarkCompactCollector::IsMarked(Object* obj) {
   DCHECK(obj->IsHeapObject());
   HeapObject* heap_object = HeapObject::cast(obj);
-  return Marking::MarkBitFrom(heap_object).Get();
+  return Marking::IsBlackOrGrey(Marking::MarkBitFrom(heap_object));
 }
 
 
@@ -62,7 +63,7 @@ void MarkCompactCollector::RecordSlot(Object** anchor_slot, Object** slot,
       !ShouldSkipEvacuationSlotRecording(anchor_slot)) {
     if (!SlotsBuffer::AddTo(&slots_buffer_allocator_,
                             object_page->slots_buffer_address(), slot, mode)) {
-      EvictEvacuationCandidate(object_page);
+      EvictPopularEvacuationCandidate(object_page);
     }
   }
 }

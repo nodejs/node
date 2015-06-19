@@ -118,15 +118,25 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
   V(TruncateFloat64ToFloat32, Operator::kNoProperties, 1, 0, 1)               \
   V(TruncateFloat64ToInt32, Operator::kNoProperties, 1, 0, 1)                 \
   V(TruncateInt64ToInt32, Operator::kNoProperties, 1, 0, 1)                   \
+  V(Float32Add, Operator::kCommutative, 2, 0, 1)                              \
+  V(Float32Sub, Operator::kNoProperties, 2, 0, 1)                             \
+  V(Float32Mul, Operator::kCommutative, 2, 0, 1)                              \
+  V(Float32Div, Operator::kNoProperties, 2, 0, 1)                             \
+  V(Float32Abs, Operator::kNoProperties, 1, 0, 1)                             \
+  V(Float32Sqrt, Operator::kNoProperties, 1, 0, 1)                            \
   V(Float64Add, Operator::kCommutative, 2, 0, 1)                              \
   V(Float64Sub, Operator::kNoProperties, 2, 0, 1)                             \
   V(Float64Mul, Operator::kCommutative, 2, 0, 1)                              \
   V(Float64Div, Operator::kNoProperties, 2, 0, 1)                             \
   V(Float64Mod, Operator::kNoProperties, 2, 0, 1)                             \
+  V(Float64Abs, Operator::kNoProperties, 1, 0, 1)                             \
   V(Float64Sqrt, Operator::kNoProperties, 1, 0, 1)                            \
   V(Float64RoundDown, Operator::kNoProperties, 1, 0, 1)                       \
   V(Float64RoundTruncate, Operator::kNoProperties, 1, 0, 1)                   \
   V(Float64RoundTiesAway, Operator::kNoProperties, 1, 0, 1)                   \
+  V(Float32Equal, Operator::kCommutative, 2, 0, 1)                            \
+  V(Float32LessThan, Operator::kNoProperties, 2, 0, 1)                        \
+  V(Float32LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)                 \
   V(Float64Equal, Operator::kCommutative, 2, 0, 1)                            \
   V(Float64LessThan, Operator::kNoProperties, 2, 0, 1)                        \
   V(Float64LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)                 \
@@ -134,6 +144,8 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
   V(Float64ExtractHighWord32, Operator::kNoProperties, 1, 0, 1)               \
   V(Float64InsertLowWord32, Operator::kNoProperties, 2, 0, 1)                 \
   V(Float64InsertHighWord32, Operator::kNoProperties, 2, 0, 1)                \
+  V(Float32Max, Operator::kNoProperties, 2, 0, 1)                             \
+  V(Float32Min, Operator::kNoProperties, 2, 0, 1)                             \
   V(Float64Max, Operator::kNoProperties, 2, 0, 1)                             \
   V(Float64Min, Operator::kNoProperties, 2, 0, 1)                             \
   V(LoadStackPointer, Operator::kNoProperties, 0, 0, 1)
@@ -164,7 +176,7 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
 struct MachineOperatorGlobalCache {
 #define PURE(Name, properties, value_input_count, control_input_count,         \
              output_count)                                                     \
-  struct Name##Operator FINAL : public Operator {                              \
+  struct Name##Operator final : public Operator {                              \
     Name##Operator()                                                           \
         : Operator(IrOpcode::k##Name, Operator::kPure | properties, #Name,     \
                    value_input_count, 0, control_input_count, output_count, 0, \
@@ -175,13 +187,13 @@ struct MachineOperatorGlobalCache {
 #undef PURE
 
 #define LOAD(Type)                                                             \
-  struct Load##Type##Operator FINAL : public Operator1<LoadRepresentation> {   \
+  struct Load##Type##Operator final : public Operator1<LoadRepresentation> {   \
     Load##Type##Operator()                                                     \
         : Operator1<LoadRepresentation>(                                       \
               IrOpcode::kLoad, Operator::kNoThrow | Operator::kNoWrite,        \
               "Load", 2, 1, 1, 1, 1, 0, k##Type) {}                            \
   };                                                                           \
-  struct CheckedLoad##Type##Operator FINAL                                     \
+  struct CheckedLoad##Type##Operator final                                     \
       : public Operator1<CheckedLoadRepresentation> {                          \
     CheckedLoad##Type##Operator()                                              \
         : Operator1<CheckedLoadRepresentation>(                                \
@@ -201,17 +213,17 @@ struct MachineOperatorGlobalCache {
               "Store", 3, 1, 1, 0, 1, 0,                                       \
               StoreRepresentation(k##Type, write_barrier_kind)) {}             \
   };                                                                           \
-  struct Store##Type##NoWriteBarrier##Operator FINAL                           \
+  struct Store##Type##NoWriteBarrier##Operator final                           \
       : public Store##Type##Operator {                                         \
     Store##Type##NoWriteBarrier##Operator()                                    \
         : Store##Type##Operator(kNoWriteBarrier) {}                            \
   };                                                                           \
-  struct Store##Type##FullWriteBarrier##Operator FINAL                         \
+  struct Store##Type##FullWriteBarrier##Operator final                         \
       : public Store##Type##Operator {                                         \
     Store##Type##FullWriteBarrier##Operator()                                  \
         : Store##Type##Operator(kFullWriteBarrier) {}                          \
   };                                                                           \
-  struct CheckedStore##Type##Operator FINAL                                    \
+  struct CheckedStore##Type##Operator final                                    \
       : public Operator1<CheckedStoreRepresentation> {                         \
     CheckedStore##Type##Operator()                                             \
         : Operator1<CheckedStoreRepresentation>(                               \

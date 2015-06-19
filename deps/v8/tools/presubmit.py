@@ -341,9 +341,14 @@ class SourceProcessor(SourceFileProcessor):
                        'libraries-empty.cc',
                        'lua_binarytrees.js',
                        'memops.js',
+                       'poppler.js',
                        'primes.js',
                        'raytrace.js',
                        'regexp-pcre.js',
+                       'sqlite.js',
+                       'sqlite-change-heap.js',
+                       'sqlite-pointer-masking.js',
+                       'sqlite-safe-heap.js',
                        'gnuplot-4.6.3-emscripten.js',
                        'zlib.js']
   IGNORE_TABS = IGNORE_COPYRIGHTS + ['unicode-test.js', 'html-comments.js']

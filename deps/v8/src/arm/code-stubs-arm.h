@@ -74,7 +74,7 @@ class RecordWriteStub: public PlatformCodeStub {
     INCREMENTAL_COMPACTION
   };
 
-  bool SometimesSetsUpAFrame() OVERRIDE { return false; }
+  bool SometimesSetsUpAFrame() override { return false; }
 
   static void PatchBranchIntoNop(MacroAssembler* masm, int pos) {
     masm->instr_at_put(pos, (masm->instr_at(pos) & ~B27) | (B24 | B20));
@@ -197,9 +197,9 @@ class RecordWriteStub: public PlatformCodeStub {
     kUpdateRememberedSetOnNoNeedToInformIncrementalMarker
   };
 
-  inline Major MajorKey() const FINAL { return RecordWrite; }
+  inline Major MajorKey() const final { return RecordWrite; }
 
-  void Generate(MacroAssembler* masm) OVERRIDE;
+  void Generate(MacroAssembler* masm) override;
   void GenerateIncremental(MacroAssembler* masm, Mode mode);
   void CheckNeedsToInformIncrementalMarker(
       MacroAssembler* masm,
@@ -207,7 +207,7 @@ class RecordWriteStub: public PlatformCodeStub {
       Mode mode);
   void InformIncrementalMarker(MacroAssembler* masm);
 
-  void Activate(Code* code) OVERRIDE {
+  void Activate(Code* code) override {
     code->GetHeap()->incremental_marking()->ActivateGeneratedStub(code);
   }
 
@@ -255,7 +255,7 @@ class DirectCEntryStub: public PlatformCodeStub {
   void GenerateCall(MacroAssembler* masm, Register target);
 
  private:
-  bool NeedsImmovableCode() OVERRIDE { return true; }
+  bool NeedsImmovableCode() override { return true; }
 
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(DirectCEntry, PlatformCodeStub);
@@ -287,7 +287,7 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
                                      Register r0,
                                      Register r1);
 
-  bool SometimesSetsUpAFrame() OVERRIDE { return false; }
+  bool SometimesSetsUpAFrame() override { return false; }
 
  private:
   static const int kInlinedProbes = 4;

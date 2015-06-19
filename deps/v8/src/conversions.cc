@@ -503,53 +503,60 @@ double StringToDouble(UnicodeCache* unicode_cache, Handle<String> string,
 }
 
 
-bool IsNonArrayIndexInteger(String* string) {
-  const int kBufferSize = 64;
-  const int kUint32MaxChars = 11;
-  uint16_t buffer[kBufferSize];
-  int offset = 0;
+bool IsSpecialIndex(UnicodeCache* unicode_cache, String* string) {
+  // Max length of canonical double: -X.XXXXXXXXXXXXXXXXX-eXXX
+  const int kBufferSize = 24;
   const int length = string->length();
-  if (length == 0) return false;
-  // First iteration, check for minus, 0 followed by anything else, etc.
-  int to = std::min(offset + kUint32MaxChars, length);
-  {
-    String::WriteToFlat(string, buffer, offset, to);
-    bool negative = false;
-    if (buffer[offset] == '-') {
-      negative = true;
-      ++offset;
-      if (offset == to) return false;  // Just '-' is bad.
-    }
-    if (buffer[offset] == '0') {
-      return to == 2 && negative;  // Match just '-0'.
-    }
-    // Process positive integers.
-    if (!negative) {
-      uint64_t acc = 0;
-      for (; offset < to; ++offset) {
-        uint64_t digit = buffer[offset] - '0';
-        if (digit > 9) return false;
-        acc = 10 * acc + digit;
+  if (length == 0 || length > kBufferSize) return false;
+  uint16_t buffer[kBufferSize];
+  String::WriteToFlat(string, buffer, 0, length);
+  // If the first char is not a digit or a '-' or we can't match 'NaN' or
+  // '(-)Infinity', bailout immediately.
+  int offset = 0;
+  if (!IsDecimalDigit(buffer[0])) {
+    if (buffer[0] == '-') {
+      if (length == 1) return false;  // Just '-' is bad.
+      if (!IsDecimalDigit(buffer[1])) {
+        if (buffer[1] == 'I' && length == 9) {
+          // Allow matching of '-Infinity' below.
+        } else {
+          return false;
+        }
       }
-      // String is consumed.  Evaluate what we have.
-      if (offset == length) {
-        return acc >
-               static_cast<uint64_t>(std::numeric_limits<uint32_t>::max());
-      }
+      offset++;
+    } else if (buffer[0] == 'I' && length == 8) {
+      // Allow matching of 'Infinity' below.
+    } else if (buffer[0] == 'N' && length == 3) {
+      // Match NaN.
+      return buffer[1] == 'a' && buffer[2] == 'N';
+    } else {
+      return false;
     }
   }
-  // Consume rest of string.  If we get here, we're way out of uint32_t bounds
-  // or negative.
-  int i = offset;
-  while (true) {
-    for (; offset < to; ++offset, ++i) {
-      if (!IsDecimalDigit(buffer[i])) return false;
+  // Expected fast path: key is an integer.
+  static const int kRepresentableIntegerLength = 15;  // (-)XXXXXXXXXXXXXXX
+  if (length - offset <= kRepresentableIntegerLength) {
+    const int initial_offset = offset;
+    bool matches = true;
+    for (; offset < length; offset++) {
+      matches &= IsDecimalDigit(buffer[offset]);
     }
-    if (offset == length) break;
-    // Read next chunk.
-    to = std::min(offset + kBufferSize, length);
-    String::WriteToFlat(string, buffer, offset, to);
-    i = 0;
+    if (matches) {
+      // Match 0 and -0.
+      if (buffer[initial_offset] == '0') return initial_offset == length - 1;
+      return true;
+    }
+  }
+  // Slow path: test DoubleToString(StringToDouble(string)) == string.
+  Vector<const uint16_t> vector(buffer, length);
+  double d = StringToDouble(unicode_cache, vector, NO_FLAGS);
+  if (std::isnan(d)) return false;
+  // Compute reverse string.
+  char reverse_buffer[kBufferSize + 1];  // Result will be /0 terminated.
+  Vector<char> reverse_vector(reverse_buffer, arraysize(reverse_buffer));
+  const char* reverse_string = DoubleToCString(d, reverse_vector);
+  for (int i = 0; i < length; ++i) {
+    if (static_cast<uint16_t>(reverse_string[i]) != buffer[i]) return false;
   }
   return true;
 }

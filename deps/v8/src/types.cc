@@ -178,7 +178,7 @@ TypeImpl<Config>::BitsetType::Lub(TypeImpl* type) {
   if (type->IsConstant()) return type->AsConstant()->Bound()->AsBitset();
   if (type->IsRange()) return type->AsRange()->Bound();
   if (type->IsContext()) return kInternal & kTaggedPointer;
-  if (type->IsArray()) return kArray;
+  if (type->IsArray()) return kOtherObject;
   if (type->IsFunction()) return kOtherObject;  // TODO(rossberg): kFunction
   UNREACHABLE();
   return kNone;
@@ -234,10 +234,10 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_TYPE:
-    case JS_GLOBAL_OBJECT_TYPE:
     case JS_BUILTINS_OBJECT_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
+    case JS_ARRAY_TYPE:
     case JS_TYPED_ARRAY_TYPE:
     case JS_DATA_VIEW_TYPE:
     case JS_SET_TYPE:
@@ -248,8 +248,8 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case JS_WEAK_SET_TYPE:
       if (map->is_undetectable()) return kUndetectable;
       return kOtherObject;
-    case JS_ARRAY_TYPE:
-      return kArray;
+    case JS_GLOBAL_OBJECT_TYPE:
+      return kGlobalObject;
     case JS_FUNCTION_TYPE:
       return kOtherObject;  // TODO(rossberg): there should be a Function type.
     case JS_REGEXP_TYPE:
@@ -277,6 +277,7 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case FOREIGN_TYPE:
     case SCRIPT_TYPE:
     case CODE_TYPE:
+    case PROPERTY_CELL_TYPE:
       return kInternal & kTaggedPointer;
     default:
       UNREACHABLE();

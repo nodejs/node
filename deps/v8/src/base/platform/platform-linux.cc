@@ -142,64 +142,6 @@ void* OS::Allocate(const size_t requested,
 }
 
 
-class PosixMemoryMappedFile : public OS::MemoryMappedFile {
- public:
-  PosixMemoryMappedFile(FILE* file, void* memory, int size)
-    : file_(file), memory_(memory), size_(size) { }
-  virtual ~PosixMemoryMappedFile();
-  virtual void* memory() { return memory_; }
-  virtual int size() { return size_; }
- private:
-  FILE* file_;
-  void* memory_;
-  int size_;
-};
-
-
-OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
-  FILE* file = fopen(name, "r+");
-  if (file == NULL) return NULL;
-
-  fseek(file, 0, SEEK_END);
-  int size = ftell(file);
-
-  void* memory =
-      mmap(OS::GetRandomMmapAddr(),
-           size,
-           PROT_READ | PROT_WRITE,
-           MAP_SHARED,
-           fileno(file),
-           0);
-  return new PosixMemoryMappedFile(file, memory, size);
-}
-
-
-OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name, int size,
-    void* initial) {
-  FILE* file = fopen(name, "w+");
-  if (file == NULL) return NULL;
-  int result = fwrite(initial, size, 1, file);
-  if (result < 1) {
-    fclose(file);
-    return NULL;
-  }
-  void* memory =
-      mmap(OS::GetRandomMmapAddr(),
-           size,
-           PROT_READ | PROT_WRITE,
-           MAP_SHARED,
-           fileno(file),
-           0);
-  return new PosixMemoryMappedFile(file, memory, size);
-}
-
-
-PosixMemoryMappedFile::~PosixMemoryMappedFile() {
-  if (memory_) OS::Free(memory_, size_);
-  fclose(file_);
-}
-
-
 std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   std::vector<SharedLibraryAddress> result;
   // This function assumes that the layout of the file is as follows:
@@ -271,7 +213,7 @@ void OS::SignalCodeMovingGC() {
   // it. This injects a GC marker into the stream of events generated
   // by the kernel and allows us to synchronize V8 code log and the
   // kernel log.
-  int size = sysconf(_SC_PAGESIZE);
+  long size = sysconf(_SC_PAGESIZE);  // NOLINT(runtime/int)
   FILE* f = fopen(OS::GetGCFakeMMapFile(), "w+");
   if (f == NULL) {
     OS::PrintError("Failed to open %s\n", OS::GetGCFakeMMapFile());
@@ -286,7 +228,7 @@ void OS::SignalCodeMovingGC() {
                     PROT_READ | PROT_EXEC,
 #endif
                     MAP_PRIVATE, fileno(f), 0);
-  DCHECK(addr != MAP_FAILED);
+  DCHECK_NE(MAP_FAILED, addr);
   OS::Free(addr, size);
   fclose(f);
 }

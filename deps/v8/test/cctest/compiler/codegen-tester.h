@@ -143,7 +143,7 @@ class BinopTester {
       CHECK_EQ(CHECK_VALUE, T->Call());
       return result;
     } else {
-      return T->Call();
+      return static_cast<CType>(T->Call());
     }
   }
 
@@ -197,6 +197,17 @@ class Uint32BinopTester
     p1 = a1;
     return static_cast<uint32_t>(T->Call());
   }
+};
+
+
+// A helper class for testing code sequences that take two float parameters and
+// return a float value.
+// TODO(titzer): figure out how to return floats correctly on ia32.
+class Float32BinopTester
+    : public BinopTester<float, kMachFloat32, USE_RESULT_BUFFER> {
+ public:
+  explicit Float32BinopTester(RawMachineAssemblerTester<int32_t>* tester)
+      : BinopTester<float, kMachFloat32, USE_RESULT_BUFFER>(tester) {}
 };
 
 
@@ -334,6 +345,14 @@ class Int32BinopInputShapeTester {
 };
 
 // TODO(bmeurer): Drop this crap once we switch to GTest/Gmock.
+static inline void CheckFloatEq(volatile float x, volatile float y) {
+  if (std::isnan(x)) {
+    CHECK(std::isnan(y));
+  } else {
+    CHECK(x == y);
+  }
+}
+
 static inline void CheckDoubleEq(volatile double x, volatile double y) {
   if (std::isnan(x)) {
     CHECK(std::isnan(y));

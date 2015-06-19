@@ -104,6 +104,34 @@
 })();
 
 
+(function TestNoRestrictedPropertiesStrict() {
+  var obj = {
+    method() { "use strict"; }
+  };
+  assertFalse(obj.method.hasOwnProperty("arguments"));
+  assertThrows(function() { return obj.method.arguments; }, TypeError);
+  assertThrows(function() { obj.method.arguments = {}; }, TypeError);
+
+  assertFalse(obj.method.hasOwnProperty("caller"));
+  assertThrows(function() { return obj.method.caller; }, TypeError);
+  assertThrows(function() { obj.method.caller = {}; }, TypeError);
+})();
+
+
+(function TestNoRestrictedPropertiesSloppy() {
+  var obj = {
+    method() {}
+  };
+  assertFalse(obj.method.hasOwnProperty("arguments"));
+  assertThrows(function() { return obj.method.arguments; }, TypeError);
+  assertThrows(function() { obj.method.arguments = {}; }, TypeError);
+
+  assertFalse(obj.method.hasOwnProperty("caller"));
+  assertThrows(function() { return obj.method.caller; }, TypeError);
+  assertThrows(function() { obj.method.caller = {}; }, TypeError);
+})();
+
+
 (function TestToString() {
   var object = {
     method() { 42; }

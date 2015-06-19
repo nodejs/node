@@ -114,6 +114,15 @@ void PrintPID(const char* format, ...) {
 }
 
 
+void PrintIsolate(void* isolate, const char* format, ...) {
+  base::OS::Print("[%d:%p] ", base::OS::GetCurrentProcessId(), isolate);
+  va_list arguments;
+  va_start(arguments, format);
+  base::OS::VPrint(format, arguments);
+  va_end(arguments);
+}
+
+
 int SNPrintF(Vector<char> str, const char* format, ...) {
   va_list args;
   va_start(args, format);
@@ -203,7 +212,7 @@ char* ReadCharsFromFile(FILE* file,
   }
 
   // Get the size of the file and rewind it.
-  *size = ftell(file);
+  *size = static_cast<int>(ftell(file));
   rewind(file);
 
   char* result = NewArray<char>(*size + extra_space);

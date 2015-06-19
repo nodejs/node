@@ -32,9 +32,14 @@ v8_toolset_for_d8 = "host"
 # TODO(GYP): For now we only support 32-bit little-endian target builds from an
 # x64 Linux host. Eventually we need to support all of the host/target
 # configurations v8 runs on.
-if (host_cpu == "x64" && host_os == "linux" &&
-    (target_cpu == "arm" || target_cpu == "mipsel" || target_cpu == "x86")) {
-  snapshot_toolchain = "//build/toolchain/linux:clang_x86"
+if (host_cpu == "x64" && host_os == "linux") {
+  if (target_cpu == "arm" || target_cpu == "mipsel" || target_cpu == "x86") {
+    snapshot_toolchain = "//build/toolchain/linux:clang_x86"
+  } else if (target_cpu == "x64") {
+    snapshot_toolchain = "//build/toolchain/linux:clang_x64"
+  } else {
+    assert(false, "Need environment for this arch")
+  }
 } else {
   snapshot_toolchain = default_toolchain
 }
@@ -196,6 +201,8 @@ action("js2c") {
   inputs = [ "tools/jsmin.py" ]
 
   sources = [
+    "src/macros.py",
+    "src/messages.h",  
     "src/runtime.js",
     "src/v8natives.js",
     "src/symbol.js",
@@ -222,7 +229,6 @@ action("js2c") {
     "src/mirror-debugger.js",
     "src/liveedit-debugger.js",
     "src/templates.js",
-    "src/macros.py",
   ]
 
   outputs = [
@@ -258,6 +264,7 @@ action("js2c_experimental") {
 
   sources = [
     "src/macros.py",
+    "src/messages.h",  
     "src/proxy.js",
     "src/generator.js",
     "src/harmony-array.js",
@@ -265,7 +272,9 @@ action("js2c_experimental") {
     "src/harmony-typedarray.js",
     "src/harmony-tostring.js",
     "src/harmony-regexp.js",
-    "src/harmony-reflect.js"
+    "src/harmony-reflect.js",
+    "src/harmony-spread.js",
+    "src/harmony-object.js"
   ]
 
   outputs = [
@@ -283,6 +292,36 @@ action("js2c_experimental") {
     args += [
       "--startup_blob",
       rebase_path("$target_gen_dir/libraries_experimental.bin", root_build_dir),
+    ]
+  }
+}
+
+action("js2c_extras") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  script = "tools/js2c.py"
+
+  # The script depends on this other script, this rule causes a rebuild if it
+  # changes.
+  inputs = [ "tools/jsmin.py" ]
+
+  sources = v8_extra_library_files
+
+  outputs = [
+    "$target_gen_dir/extras-libraries.cc",
+  ]
+
+  args = [
+           rebase_path("$target_gen_dir/extras-libraries.cc",
+                       root_build_dir),
+           "EXTRAS",
+         ] + rebase_path(sources, root_build_dir)
+
+  if (v8_use_external_startup_data) {
+    outputs += [ "$target_gen_dir/libraries_extras.bin" ]
+    args += [
+      "--startup_blob",
+      rebase_path("$target_gen_dir/libraries_extras.bin", root_build_dir),
     ]
   }
 }
@@ -312,11 +351,13 @@ if (v8_use_external_startup_data) {
     deps = [
       ":js2c",
       ":js2c_experimental",
+      ":js2c_extras",
     ]
 
     sources = [
       "$target_gen_dir/libraries.bin",
       "$target_gen_dir/libraries_experimental.bin",
+      "$target_gen_dir/libraries_extras.bin",
     ]
 
     outputs = [
@@ -330,7 +371,12 @@ if (v8_use_external_startup_data) {
 }
 
 action("postmortem-metadata") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+  # Only targets in this file and the top-level visibility target can
+  # depend on this.
+  visibility = [
+    ":*",
+    "//:gn_visibility",
+  ]
 
   script = "tools/gen-postmortem-metadata.py"
 
@@ -396,12 +442,14 @@ source_set("v8_nosnapshot") {
   deps = [
     ":js2c",
     ":js2c_experimental",
+    ":js2c_extras",
     ":v8_base",
   ]
 
   sources = [
     "$target_gen_dir/libraries.cc",
     "$target_gen_dir/experimental-libraries.cc",
+    "$target_gen_dir/extras-libraries.cc",
     "src/snapshot/snapshot-empty.cc",
   ]
 
@@ -415,11 +463,17 @@ source_set("v8_nosnapshot") {
 }
 
 source_set("v8_snapshot") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+  # Only targets in this file and the top-level visibility target can
+  # depend on this.
+  visibility = [
+    ":*",
+    "//:gn_visibility",
+  ]
 
   deps = [
     ":js2c",
     ":js2c_experimental",
+    ":js2c_extras",
     ":run_mksnapshot",
     ":v8_base",
   ]
@@ -427,6 +481,7 @@ source_set("v8_snapshot") {
   sources = [
     "$target_gen_dir/libraries.cc",
     "$target_gen_dir/experimental-libraries.cc",
+    "$target_gen_dir/extras-libraries.cc",
     "$target_gen_dir/snapshot.cc",
   ]
 
@@ -446,6 +501,7 @@ if (v8_use_external_startup_data) {
     deps = [
       ":js2c",
       ":js2c_experimental",
+      ":js2c_extras",
       ":run_mksnapshot",
       ":v8_base",
       ":natives_blob",
@@ -530,6 +586,8 @@ source_set("v8_base") {
     "src/codegen.h",
     "src/compilation-cache.cc",
     "src/compilation-cache.h",
+    "src/compilation-dependencies.cc",
+    "src/compilation-dependencies.h",
     "src/compilation-statistics.cc",
     "src/compilation-statistics.h",
     "src/compiler/access-builder.cc",
@@ -555,6 +613,7 @@ source_set("v8_base") {
     "src/compiler/common-operator.h",
     "src/compiler/control-builders.cc",
     "src/compiler/control-builders.h",
+    "src/compiler/control-equivalence.cc",
     "src/compiler/control-equivalence.h",
     "src/compiler/control-flow-optimizer.cc",
     "src/compiler/control-flow-optimizer.h",
@@ -562,6 +621,10 @@ source_set("v8_base") {
     "src/compiler/control-reducer.h",
     "src/compiler/diamond.h",
     "src/compiler/frame.h",
+    "src/compiler/frame-elider.cc",
+    "src/compiler/frame-elider.h",
+    "src/compiler/frame-states.cc",
+    "src/compiler/frame-states.h",
     "src/compiler/gap-resolver.cc",
     "src/compiler/gap-resolver.h",
     "src/compiler/graph-builder.h",
@@ -665,6 +728,8 @@ source_set("v8_base") {
     "src/compiler/source-position.h",
     "src/compiler/state-values-utils.cc",
     "src/compiler/state-values-utils.h",
+    "src/compiler/tail-call-optimization.cc",
+    "src/compiler/tail-call-optimization.h",
     "src/compiler/typer.cc",
     "src/compiler/typer.h",
     "src/compiler/value-numbering-reducer.cc",
@@ -758,6 +823,8 @@ source_set("v8_base") {
     "src/heap/heap-inl.h",
     "src/heap/heap.cc",
     "src/heap/heap.h",
+    "src/heap/identity-map.cc",
+    "src/heap/identity-map.h",
     "src/heap/incremental-marking.cc",
     "src/heap/incremental-marking.h",
     "src/heap/mark-compact-inl.h",
@@ -887,8 +954,8 @@ source_set("v8_base") {
     "src/objects-printer.cc",
     "src/objects.cc",
     "src/objects.h",
-    "src/optimizing-compiler-thread.cc",
-    "src/optimizing-compiler-thread.h",
+    "src/optimizing-compile-dispatcher.cc",
+    "src/optimizing-compile-dispatcher.h",
     "src/ostreams.cc",
     "src/ostreams.h",
     "src/parser.cc",
@@ -964,6 +1031,7 @@ source_set("v8_base") {
     "src/scopeinfo.h",
     "src/scopes.cc",
     "src/scopes.h",
+    "src/signature.h",
     "src/small-pointer-list.h",
     "src/smart-pointers.h",
     "src/snapshot/natives.h",
@@ -1006,7 +1074,6 @@ source_set("v8_base") {
     "src/unicode-decoder.cc",
     "src/unicode-decoder.h",
     "src/unique.h",
-    "src/utils-inl.h",
     "src/utils.cc",
     "src/utils.h",
     "src/v8.cc",
@@ -1325,6 +1392,7 @@ source_set("v8_libbase") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   sources = [
+    "src/base/adapters.h",
     "src/base/atomicops.h",
     "src/base/atomicops_internals_arm64_gcc.h",
     "src/base/atomicops_internals_arm_gcc.h",
@@ -1398,17 +1466,15 @@ source_set("v8_libbase") {
   } else if (is_android) {
     defines += [ "CAN_USE_VFP_INSTRUCTIONS" ]
 
-    if (host_os == "mac") {
-      if (current_toolchain == host_toolchain) {
+    if (current_toolchain == host_toolchain) {
+      libs = [ "dl", "rt" ]
+      if (host_os == "mac") {
         sources += [ "src/base/platform/platform-macos.cc" ]
       } else {
         sources += [ "src/base/platform/platform-linux.cc" ]
       }
     } else {
       sources += [ "src/base/platform/platform-linux.cc" ]
-      if (current_toolchain == host_toolchain) {
-        defines += [ "V8_LIBRT_NOT_AVAILABLE" ]
-      }
     }
   } else if (is_mac) {
     sources += [ "src/base/platform/platform-macos.cc" ]
@@ -1524,7 +1590,7 @@ if (component_mode == "shared_library") {
       ":toolchain",
     ]
 
-    direct_dependent_configs = [ ":external_config" ]
+    public_configs = [ ":external_config" ]
 
     libs = []
     if (is_android && current_toolchain != host_toolchain) {
@@ -1551,7 +1617,7 @@ if (component_mode == "shared_library") {
       ]
     }
 
-    direct_dependent_configs = [ ":external_config" ]
+    public_configs = [ ":external_config" ]
   }
 }
 
@@ -1568,7 +1634,10 @@ if ((current_toolchain == host_toolchain && v8_toolset_for_d8 == "host") ||
     configs -= [ "//build/config/compiler:chromium_code" ]
     configs += [ "//build/config/compiler:no_chromium_code" ]
     configs += [
-      ":internal_config",
+      # Note: don't use :internal_config here because this target will get
+      # the :external_config applied to it by virtue of depending on :v8, and
+      # you can't have both applied to the same target.
+      ":internal_config_base",
       ":features",
       ":toolchain",
     ]

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <functional>
+#include <limits>
 
 #include "src/compiler/graph.h"
 #include "src/compiler/graph-reducer.h"
@@ -11,6 +12,9 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+bool Reducer::Finish() { return true; }
+
 
 enum class GraphReducer::State : uint8_t {
   kUnvisited,
@@ -26,6 +30,9 @@ GraphReducer::GraphReducer(Graph* graph, Zone* zone)
       reducers_(zone),
       revisit_(zone),
       stack_(zone) {}
+
+
+GraphReducer::~GraphReducer() {}
 
 
 void GraphReducer::AddReducer(Reducer* reducer) {
@@ -59,7 +66,23 @@ void GraphReducer::ReduceNode(Node* node) {
 }
 
 
-void GraphReducer::ReduceGraph() { ReduceNode(graph()->end()); }
+void GraphReducer::ReduceGraph() {
+  for (;;) {
+    ReduceNode(graph()->end());
+    // TODO(turbofan): Remove this once the dead node trimming is in the
+    // GraphReducer.
+    bool done = true;
+    for (Reducer* const reducer : reducers_) {
+      if (!reducer->Finish()) {
+        done = false;
+        break;
+      }
+    }
+    if (done) break;
+    // Reset all marks on the graph in preparation to re-reduce the graph.
+    state_.Reset(graph());
+  }
+}
 
 
 Reduction GraphReducer::Reduce(Node* const node) {
@@ -112,8 +135,8 @@ void GraphReducer::ReduceTop() {
     if (input != node && Recurse(input)) return;
   }
 
-  // Remember the node count before reduction.
-  const int node_count = graph()->NodeCount();
+  // Remember the max node id before reduction.
+  NodeId const max_id = graph()->NodeCount() - 1;
 
   // All inputs should be visited or on stack. Apply reductions to node.
   Reduction reduction = Reduce(node);
@@ -135,38 +158,53 @@ void GraphReducer::ReduceTop() {
   // After reducing the node, pop it off the stack.
   Pop();
 
-  // Revisit all uses of the node.
-  for (Node* const use : node->uses()) {
-    // Don't revisit this node if it refers to itself.
-    if (use != node) Revisit(use);
-  }
-
   // Check if we have a new replacement.
   if (replacement != node) {
-    if (node == graph()->start()) graph()->SetStart(replacement);
-    if (node == graph()->end()) graph()->SetEnd(replacement);
-    // If {node} was replaced by an old node, unlink {node} and assume that
-    // {replacement} was already reduced and finish.
-    if (replacement->id() < node_count) {
-      node->ReplaceUses(replacement);
-      node->Kill();
-    } else {
-      // Otherwise {node} was replaced by a new node. Replace all old uses of
-      // {node} with {replacement}. New nodes created by this reduction can
-      // use {node}.
-      for (Edge edge : node->use_edges()) {
-        if (edge.from()->id() < node_count) {
-          edge.UpdateTo(replacement);
-        }
-      }
-      // Unlink {node} if it's no longer used.
-      if (node->uses().empty()) {
-        node->Kill();
-      }
-
-      // If there was a replacement, reduce it after popping {node}.
-      Recurse(replacement);
+    Replace(node, replacement, max_id);
+  } else {
+    // Revisit all uses of the node.
+    for (Node* const user : node->uses()) {
+      // Don't revisit this node if it refers to itself.
+      if (user != node) Revisit(user);
     }
+  }
+}
+
+
+void GraphReducer::Replace(Node* node, Node* replacement) {
+  Replace(node, replacement, std::numeric_limits<NodeId>::max());
+}
+
+
+void GraphReducer::Replace(Node* node, Node* replacement, NodeId max_id) {
+  if (node == graph()->start()) graph()->SetStart(replacement);
+  if (node == graph()->end()) graph()->SetEnd(replacement);
+  if (replacement->id() <= max_id) {
+    // {replacement} is an old node, so unlink {node} and assume that
+    // {replacement} was already reduced and finish.
+    for (Edge edge : node->use_edges()) {
+      Node* const user = edge.from();
+      edge.UpdateTo(replacement);
+      // Don't revisit this node if it refers to itself.
+      if (user != node) Revisit(user);
+    }
+    node->Kill();
+  } else {
+    // Replace all old uses of {node} with {replacement}, but allow new nodes
+    // created by this reduction to use {node}.
+    for (Edge edge : node->use_edges()) {
+      Node* const user = edge.from();
+      if (user->id() <= max_id) {
+        edge.UpdateTo(replacement);
+        // Don't revisit this node if it refers to itself.
+        if (user != node) Revisit(user);
+      }
+    }
+    // Unlink {node} if it's no longer used.
+    if (node->uses().empty()) node->Kill();
+
+    // If there was a replacement, reduce it after popping {node}.
+    Recurse(replacement);
   }
 }
 

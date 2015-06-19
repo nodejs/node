@@ -31,7 +31,7 @@ class TimeTicks;
 // This class represents a duration of time, internally represented in
 // microseonds.
 
-class TimeDelta FINAL {
+class TimeDelta final {
  public:
   TimeDelta() : delta_(0) {}
 
@@ -159,7 +159,7 @@ class TimeDelta FINAL {
 // This class represents an absolute point in time, internally represented as
 // microseconds (s/1,000,000) since 00:00:00 UTC, January 1, 1970.
 
-class Time FINAL {
+class Time final {
  public:
   static const int64_t kMillisecondsPerSecond = 1000;
   static const int64_t kMicrosecondsPerMillisecond = 1000;
@@ -298,7 +298,7 @@ inline Time operator+(const TimeDelta& delta, const Time& time) {
 // Time::Now() may actually decrease or jump).  But note that TimeTicks may
 // "stand still", for example if the computer suspended.
 
-class TimeTicks FINAL {
+class TimeTicks final {
  public:
   TimeTicks() : ticks_(0) {}
 

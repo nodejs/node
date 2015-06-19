@@ -41,7 +41,7 @@ inline int WhichPowerOf2(uint32_t x) {
   DCHECK(base::bits::IsPowerOfTwo32(x));
   int bits = 0;
 #ifdef DEBUG
-  int original_x = x;
+  uint32_t original_x = x;
 #endif
   if (x >= 0x10000) {
     bits += 16;
@@ -62,7 +62,42 @@ inline int WhichPowerOf2(uint32_t x) {
     case 2: bits++;  // Fall through.
     case 1: break;
   }
-  DCHECK_EQ(1 << bits, original_x);
+  DCHECK_EQ(static_cast<uint32_t>(1) << bits, original_x);
+  return bits;
+}
+
+
+// X must be a power of 2.  Returns the number of trailing zeros.
+inline int WhichPowerOf2_64(uint64_t x) {
+  DCHECK(base::bits::IsPowerOfTwo64(x));
+  int bits = 0;
+#ifdef DEBUG
+  uint64_t original_x = x;
+#endif
+  if (x >= 0x100000000L) {
+    bits += 32;
+    x >>= 32;
+  }
+  if (x >= 0x10000) {
+    bits += 16;
+    x >>= 16;
+  }
+  if (x >= 0x100) {
+    bits += 8;
+    x >>= 8;
+  }
+  if (x >= 0x10) {
+    bits += 4;
+    x >>= 4;
+  }
+  switch (x) {
+    default: UNREACHABLE();
+    case 8: bits++;  // Fall through.
+    case 4: bits++;  // Fall through.
+    case 2: bits++;  // Fall through.
+    case 1: break;
+  }
+  DCHECK_EQ(static_cast<uint64_t>(1) << bits, original_x);
   return bits;
 }
 
@@ -605,7 +640,14 @@ class Collector {
   }
 
   // Resets the collector to be empty.
-  virtual void Reset();
+  virtual void Reset() {
+    for (int i = chunks_.length() - 1; i >= 0; i--) {
+      chunks_.at(i).Dispose();
+    }
+    chunks_.Rewind(0);
+    index_ = 0;
+    size_ = 0;
+  }
 
   // Total number of elements added to collector so far.
   inline int size() { return size_; }
@@ -1066,21 +1108,6 @@ class BailoutId {
 };
 
 
-template <class C>
-class ContainerPointerWrapper {
- public:
-  typedef typename C::iterator iterator;
-  typedef typename C::reverse_iterator reverse_iterator;
-  explicit ContainerPointerWrapper(C* container) : container_(container) {}
-  iterator begin() { return container_->begin(); }
-  iterator end() { return container_->end(); }
-  reverse_iterator rbegin() { return container_->rbegin(); }
-  reverse_iterator rend() { return container_->rend(); }
- private:
-  C* container_;
-};
-
-
 // ----------------------------------------------------------------------------
 // I/O support.
 
@@ -1112,6 +1139,9 @@ void FPRINTF_CHECKING PrintF(FILE* out, const char* format, ...);
 
 // Prepends the current process ID to the output.
 void PRINTF_CHECKING PrintPID(const char* format, ...);
+
+// Prepends the current process ID and given isolate pointer to the output.
+void PrintIsolate(void* isolate, const char* format, ...);
 
 // Safe formatting print. Ensures that str is always null-terminated.
 // Returns the number of chars written, or -1 if output was truncated.

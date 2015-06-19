@@ -228,7 +228,7 @@ const char* DwVfpRegister::AllocationIndexToString(int index) {
 // Implementation of RelocInfo
 
 // static
-const int RelocInfo::kApplyMask = 1 << RelocInfo::INTERNAL_REFERENCE;
+const int RelocInfo::kApplyMask = 0;
 
 
 bool RelocInfo::IsCodedSpecially() {
@@ -776,20 +776,14 @@ int Assembler::target_at(int pos) {
     // Emitted link to a label, not part of a branch.
     return instr;
   }
-  if ((instr & 7 * B25) == 5 * B25) {
-    int imm26 = ((instr & kImm24Mask) << 8) >> 6;
-    // b, bl, or blx imm24
-    if ((Instruction::ConditionField(instr) == kSpecialCondition) &&
-        ((instr & B24) != 0)) {
-      // blx uses bit 24 to encode bit 2 of imm26
-      imm26 += 2;
-    }
-    return pos + kPcLoadDelta + imm26;
+  DCHECK_EQ(5 * B25, instr & 7 * B25);  // b, bl, or blx imm24
+  int imm26 = ((instr & kImm24Mask) << 8) >> 6;
+  if ((Instruction::ConditionField(instr) == kSpecialCondition) &&
+      ((instr & B24) != 0)) {
+    // blx uses bit 24 to encode bit 2 of imm26
+    imm26 += 2;
   }
-  // Internal reference to the label.
-  DCHECK_EQ(7 * B25 | 1 * B0, instr & (7 * B25 | 1 * B0));
-  int imm26 = (((instr >> 1) & kImm24Mask) << 8) >> 6;
-  return pos + imm26;
+  return pos + kPcLoadDelta + imm26;
 }
 
 
@@ -863,25 +857,19 @@ void Assembler::target_at_put(int pos, int target_pos) {
     }
     return;
   }
-  if ((instr & 7 * B25) == 5 * B25) {
-    // b, bl, or blx imm24
-    int imm26 = target_pos - (pos + kPcLoadDelta);
-    if (Instruction::ConditionField(instr) == kSpecialCondition) {
-      // blx uses bit 24 to encode bit 2 of imm26
-      DCHECK((imm26 & 1) == 0);
-      instr = (instr & ~(B24 | kImm24Mask)) | ((imm26 & 2) >> 1) * B24;
-    } else {
-      DCHECK((imm26 & 3) == 0);
-      instr &= ~kImm24Mask;
-    }
-    int imm24 = imm26 >> 2;
-    DCHECK(is_int24(imm24));
-    instr_at_put(pos, instr | (imm24 & kImm24Mask));
-    return;
+  int imm26 = target_pos - (pos + kPcLoadDelta);
+  DCHECK_EQ(5 * B25, instr & 7 * B25);  // b, bl, or blx imm24
+  if (Instruction::ConditionField(instr) == kSpecialCondition) {
+    // blx uses bit 24 to encode bit 2 of imm26
+    DCHECK_EQ(0, imm26 & 1);
+    instr = (instr & ~(B24 | kImm24Mask)) | ((imm26 & 2) >> 1) * B24;
+  } else {
+    DCHECK_EQ(0, imm26 & 3);
+    instr &= ~kImm24Mask;
   }
-  // Patch internal reference to label.
-  DCHECK_EQ(7 * B25 | 1 * B0, instr & (7 * B25 | 1 * B0));
-  instr_at_put(pos, reinterpret_cast<Instr>(buffer_ + target_pos));
+  int imm24 = imm26 >> 2;
+  DCHECK(is_int24(imm24));
+  instr_at_put(pos, instr | (imm24 & kImm24Mask));
 }
 
 
@@ -2221,6 +2209,7 @@ void Assembler::vldr(const DwVfpRegister dst,
   // Vd(15-12) | 1011(11-8) | offset
   int u = 1;
   if (offset < 0) {
+    CHECK(offset != kMinInt);
     offset = -offset;
     u = 0;
   }
@@ -2317,6 +2306,7 @@ void Assembler::vstr(const DwVfpRegister src,
   // Vd(15-12) | 1011(11-8) | (offset/4)
   int u = 1;
   if (offset < 0) {
+    CHECK(offset != kMinInt);
     offset = -offset;
     u = 0;
   }
@@ -2365,6 +2355,7 @@ void Assembler::vstr(const SwVfpRegister src,
   // Vdst(15-12) | 1010(11-8) | (offset/4)
   int u = 1;
   if (offset < 0) {
+    CHECK(offset != kMinInt);
     offset = -offset;
     u = 0;
   }
@@ -2945,6 +2936,21 @@ void Assembler::vneg(const DwVfpRegister dst,
 }
 
 
+void Assembler::vneg(const SwVfpRegister dst, const SwVfpRegister src,
+                     const Condition cond) {
+  // Instruction details available in ARM DDI 0406C.b, A8-968.
+  // cond(31-28) | 11101(27-23) | D(22) | 11(21-20) | 0001(19-16) | Vd(15-12) |
+  // 101(11-9) | sz=0(8) | 0(7) | 1(6) | M(5) | 0(4) | Vm(3-0)
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vm, m;
+  src.split_code(&vm, &m);
+
+  emit(cond | 0x1D * B23 | d * B22 | 0x3 * B20 | B16 | vd * B12 | 0x5 * B9 |
+       B6 | m * B5 | vm);
+}
+
+
 void Assembler::vabs(const DwVfpRegister dst,
                      const DwVfpRegister src,
                      const Condition cond) {
@@ -2957,6 +2963,20 @@ void Assembler::vabs(const DwVfpRegister dst,
   src.split_code(&vm, &m);
   emit(cond | 0x1D*B23 | d*B22 | 0x3*B20 | vd*B12 | 0x5*B9 | B8 | B7 | B6 |
        m*B5 | vm);
+}
+
+
+void Assembler::vabs(const SwVfpRegister dst, const SwVfpRegister src,
+                     const Condition cond) {
+  // Instruction details available in ARM DDI 0406C.b, A8-524.
+  // cond(31-28) | 11101(27-23) | D(22) | 11(21-20) | 0000(19-16) | Vd(15-12) |
+  // 101(11-9) | sz=0(8) | 1(7) | 1(6) | M(5) | 0(4) | Vm(3-0)
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vm, m;
+  src.split_code(&vm, &m);
+  emit(cond | 0x1D * B23 | d * B22 | 0x3 * B20 | vd * B12 | 0x5 * B9 | B7 | B6 |
+       m * B5 | vm);
 }
 
 
@@ -2980,6 +3000,24 @@ void Assembler::vadd(const DwVfpRegister dst,
 }
 
 
+void Assembler::vadd(const SwVfpRegister dst, const SwVfpRegister src1,
+                     const SwVfpRegister src2, const Condition cond) {
+  // Sd = vadd(Sn, Sm) single precision floating point addition.
+  // Sd = D:Vd; Sm=M:Vm; Sn=N:Vm.
+  // Instruction details available in ARM DDI 0406C.b, A8-830.
+  // cond(31-28) | 11100(27-23)| D(22) | 11(21-20) | Vn(19-16) |
+  // Vd(15-12) | 101(11-9) | sz=0(8) | N(7) | 0(6) | M(5) | 0(4) | Vm(3-0)
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  emit(cond | 0x1C * B23 | d * B22 | 0x3 * B20 | vn * B16 | vd * B12 |
+       0x5 * B9 | n * B7 | m * B5 | vm);
+}
+
+
 void Assembler::vsub(const DwVfpRegister dst,
                      const DwVfpRegister src1,
                      const DwVfpRegister src2,
@@ -2997,6 +3035,24 @@ void Assembler::vsub(const DwVfpRegister dst,
   src2.split_code(&vm, &m);
   emit(cond | 0x1C*B23 | d*B22 | 0x3*B20 | vn*B16 | vd*B12 | 0x5*B9 | B8 |
        n*B7 | B6 | m*B5 | vm);
+}
+
+
+void Assembler::vsub(const SwVfpRegister dst, const SwVfpRegister src1,
+                     const SwVfpRegister src2, const Condition cond) {
+  // Sd = vsub(Sn, Sm) single precision floating point subtraction.
+  // Sd = D:Vd; Sm=M:Vm; Sn=N:Vm.
+  // Instruction details available in ARM DDI 0406C.b, A8-1086.
+  // cond(31-28) | 11100(27-23)| D(22) | 11(21-20) | Vn(19-16) |
+  // Vd(15-12) | 101(11-9) | sz=0(8) | N(7) | 1(6) | M(5) | 0(4) | Vm(3-0)
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  emit(cond | 0x1C * B23 | d * B22 | 0x3 * B20 | vn * B16 | vd * B12 |
+       0x5 * B9 | n * B7 | B6 | m * B5 | vm);
 }
 
 
@@ -3020,6 +3076,24 @@ void Assembler::vmul(const DwVfpRegister dst,
 }
 
 
+void Assembler::vmul(const SwVfpRegister dst, const SwVfpRegister src1,
+                     const SwVfpRegister src2, const Condition cond) {
+  // Sd = vmul(Sn, Sm) single precision floating point multiplication.
+  // Sd = D:Vd; Sm=M:Vm; Sn=N:Vm.
+  // Instruction details available in ARM DDI 0406C.b, A8-960.
+  // cond(31-28) | 11100(27-23)| D(22) | 10(21-20) | Vn(19-16) |
+  // Vd(15-12) | 101(11-9) | sz=0(8) | N(7) | 0(6) | M(5) | 0(4) | Vm(3-0)
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  emit(cond | 0x1C * B23 | d * B22 | 0x2 * B20 | vn * B16 | vd * B12 |
+       0x5 * B9 | n * B7 | m * B5 | vm);
+}
+
+
 void Assembler::vmla(const DwVfpRegister dst,
                      const DwVfpRegister src1,
                      const DwVfpRegister src2,
@@ -3038,6 +3112,22 @@ void Assembler::vmla(const DwVfpRegister dst,
 }
 
 
+void Assembler::vmla(const SwVfpRegister dst, const SwVfpRegister src1,
+                     const SwVfpRegister src2, const Condition cond) {
+  // Instruction details available in ARM DDI 0406C.b, A8-932.
+  // cond(31-28) | 11100(27-23) | D(22) | 00(21-20) | Vn(19-16) |
+  // Vd(15-12) | 101(11-9) | sz=0(8) | N(7) | op=0(6) | M(5) | 0(4) | Vm(3-0)
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  emit(cond | 0x1C * B23 | d * B22 | vn * B16 | vd * B12 | 0x5 * B9 | n * B7 |
+       m * B5 | vm);
+}
+
+
 void Assembler::vmls(const DwVfpRegister dst,
                      const DwVfpRegister src1,
                      const DwVfpRegister src2,
@@ -3053,6 +3143,22 @@ void Assembler::vmls(const DwVfpRegister dst,
   src2.split_code(&vm, &m);
   emit(cond | 0x1C*B23 | d*B22 | vn*B16 | vd*B12 | 0x5*B9 | B8 | n*B7 | B6 |
        m*B5 | vm);
+}
+
+
+void Assembler::vmls(const SwVfpRegister dst, const SwVfpRegister src1,
+                     const SwVfpRegister src2, const Condition cond) {
+  // Instruction details available in ARM DDI 0406C.b, A8-932.
+  // cond(31-28) | 11100(27-23) | D(22) | 00(21-20) | Vn(19-16) |
+  // Vd(15-12) | 101(11-9) | sz=0(8) | N(7) | op=1(6) | M(5) | 0(4) | Vm(3-0)
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  emit(cond | 0x1C * B23 | d * B22 | vn * B16 | vd * B12 | 0x5 * B9 | n * B7 |
+       B6 | m * B5 | vm);
 }
 
 
@@ -3076,6 +3182,24 @@ void Assembler::vdiv(const DwVfpRegister dst,
 }
 
 
+void Assembler::vdiv(const SwVfpRegister dst, const SwVfpRegister src1,
+                     const SwVfpRegister src2, const Condition cond) {
+  // Sd = vdiv(Sn, Sm) single precision floating point division.
+  // Sd = D:Vd; Sm=M:Vm; Sn=N:Vm.
+  // Instruction details available in ARM DDI 0406C.b, A8-882.
+  // cond(31-28) | 11101(27-23)| D(22) | 00(21-20) | Vn(19-16) |
+  // Vd(15-12) | 101(11-9) | sz=0(8) | N(7) | 0(6) | M(5) | 0(4) | Vm(3-0)
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  emit(cond | 0x1D * B23 | d * B22 | vn * B16 | vd * B12 | 0x5 * B9 | n * B7 |
+       m * B5 | vm);
+}
+
+
 void Assembler::vcmp(const DwVfpRegister src1,
                      const DwVfpRegister src2,
                      const Condition cond) {
@@ -3089,6 +3213,21 @@ void Assembler::vcmp(const DwVfpRegister src1,
   src2.split_code(&vm, &m);
   emit(cond | 0x1D*B23 | d*B22 | 0x3*B20 | 0x4*B16 | vd*B12 | 0x5*B9 | B8 | B6 |
        m*B5 | vm);
+}
+
+
+void Assembler::vcmp(const SwVfpRegister src1, const SwVfpRegister src2,
+                     const Condition cond) {
+  // vcmp(Sd, Sm) single precision floating point comparison.
+  // Instruction details available in ARM DDI 0406C.b, A8-864.
+  // cond(31-28) | 11101(27-23)| D(22) | 11(21-20) | 0100(19-16) |
+  // Vd(15-12) | 101(11-9) | sz=0(8) | E=0(7) | 1(6) | M(5) | 0(4) | Vm(3-0)
+  int vd, d;
+  src1.split_code(&vd, &d);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  emit(cond | 0x1D * B23 | d * B22 | 0x3 * B20 | 0x4 * B16 | vd * B12 |
+       0x5 * B9 | B6 | m * B5 | vm);
 }
 
 
@@ -3106,21 +3245,17 @@ void Assembler::vcmp(const DwVfpRegister src1,
 }
 
 
-void Assembler::vmsr(Register dst, Condition cond) {
-  // Instruction details available in ARM DDI 0406A, A8-652.
-  // cond(31-28) | 1110 (27-24) | 1110(23-20)| 0001 (19-16) |
-  // Rt(15-12) | 1010 (11-8) | 0(7) | 00 (6-5) | 1(4) | 0000(3-0)
-  emit(cond | 0xE*B24 | 0xE*B20 |  B16 |
-       dst.code()*B12 | 0xA*B8 | B4);
-}
-
-
-void Assembler::vmrs(Register dst, Condition cond) {
-  // Instruction details available in ARM DDI 0406A, A8-652.
-  // cond(31-28) | 1110 (27-24) | 1111(23-20)| 0001 (19-16) |
-  // Rt(15-12) | 1010 (11-8) | 0(7) | 00 (6-5) | 1(4) | 0000(3-0)
-  emit(cond | 0xE*B24 | 0xF*B20 |  B16 |
-       dst.code()*B12 | 0xA*B8 | B4);
+void Assembler::vcmp(const SwVfpRegister src1, const float src2,
+                     const Condition cond) {
+  // vcmp(Sd, #0.0) single precision floating point comparison.
+  // Instruction details available in ARM DDI 0406C.b, A8-864.
+  // cond(31-28) | 11101(27-23)| D(22) | 11(21-20) | 0101(19-16) |
+  // Vd(15-12) | 101(11-9) | sz=0(8) | E=0(7) | 1(6) | 0(5) | 0(4) | 0000(3-0)
+  DCHECK(src2 == 0.0);
+  int vd, d;
+  src1.split_code(&vd, &d);
+  emit(cond | 0x1D * B23 | d * B22 | 0x3 * B20 | 0x5 * B16 | vd * B12 |
+       0x5 * B9 | B6);
 }
 
 
@@ -3136,6 +3271,36 @@ void Assembler::vsqrt(const DwVfpRegister dst,
   src.split_code(&vm, &m);
   emit(cond | 0x1D*B23 | d*B22 | 0x3*B20 | B16 | vd*B12 | 0x5*B9 | B8 | 0x3*B6 |
        m*B5 | vm);
+}
+
+
+void Assembler::vsqrt(const SwVfpRegister dst, const SwVfpRegister src,
+                      const Condition cond) {
+  // Instruction details available in ARM DDI 0406C.b, A8-1058.
+  // cond(31-28) | 11101(27-23)| D(22) | 11(21-20) | 0001(19-16) |
+  // Vd(15-12) | 101(11-9) | sz=0(8) | 11(7-6) | M(5) | 0(4) | Vm(3-0)
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vm, m;
+  src.split_code(&vm, &m);
+  emit(cond | 0x1D * B23 | d * B22 | 0x3 * B20 | B16 | vd * B12 | 0x5 * B9 |
+       0x3 * B6 | m * B5 | vm);
+}
+
+
+void Assembler::vmsr(Register dst, Condition cond) {
+  // Instruction details available in ARM DDI 0406A, A8-652.
+  // cond(31-28) | 1110 (27-24) | 1110(23-20)| 0001 (19-16) |
+  // Rt(15-12) | 1010 (11-8) | 0(7) | 00 (6-5) | 1(4) | 0000(3-0)
+  emit(cond | 0xE * B24 | 0xE * B20 | B16 | dst.code() * B12 | 0xA * B8 | B4);
+}
+
+
+void Assembler::vmrs(Register dst, Condition cond) {
+  // Instruction details available in ARM DDI 0406A, A8-652.
+  // cond(31-28) | 1110 (27-24) | 1111(23-20)| 0001 (19-16) |
+  // Rt(15-12) | 1010 (11-8) | 0(7) | 00 (6-5) | 1(4) | 0000(3-0)
+  emit(cond | 0xE * B24 | 0xF * B20 | B16 | dst.code() * B12 | 0xA * B8 | B4);
 }
 
 
@@ -3387,16 +3552,9 @@ void Assembler::GrowBuffer() {
   reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
                                reloc_info_writer.last_pc() + pc_delta);
 
-  // Relocate internal references.
-  for (RelocIterator it(desc); !it.done(); it.next()) {
-    if (it.rinfo()->rmode() == RelocInfo::INTERNAL_REFERENCE) {
-      // Don't patch unbound internal references (bit 0 set); those are still
-      // hooked up in the Label chain and will be automatically patched once
-      // the label is bound.
-      int32_t* p = reinterpret_cast<int32_t*>(it.rinfo()->pc());
-      if ((*p & 1 * B0) == 0) *p += pc_delta;
-    }
-  }
+  // None of our relocation types are pc relative pointing outside the code
+  // buffer nor pc absolute pointing inside the code buffer, so there is no need
+  // to relocate any emitted relocation entries.
 
   // Relocate pending relocation entries.
   for (int i = 0; i < num_pending_32_bit_reloc_info_; i++) {
@@ -3437,37 +3595,6 @@ void Assembler::dd(uint32_t data) {
   CheckBuffer();
   *reinterpret_cast<uint32_t*>(pc_) = data;
   pc_ += sizeof(uint32_t);
-}
-
-
-void Assembler::dd(Label* label) {
-  CheckBuffer();
-  RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
-  if (label->is_bound()) {
-    uint32_t data = reinterpret_cast<uint32_t>(buffer_ + label->pos());
-    DCHECK_EQ(0u, data & 1 * B0);
-    *reinterpret_cast<uint32_t*>(pc_) = data;
-    pc_ += sizeof(uint32_t);
-  } else {
-    int target_pos;
-    if (label->is_linked()) {
-      // Point to previous instruction that uses the link.
-      target_pos = label->pos();
-    } else {
-      // First entry of the link chain points to itself.
-      target_pos = pc_offset();
-    }
-    label->link_to(pc_offset());
-    // Encode internal reference to unbound label. We set the least significant
-    // bit to distinguish unbound internal references in GrowBuffer() below.
-    int imm26 = target_pos - pc_offset();
-    DCHECK_EQ(0, imm26 & 3);
-    int imm24 = imm26 >> 2;
-    DCHECK(is_int24(imm24));
-    // We use bit pattern 0000111<imm24>1 because that doesn't match any branch
-    // or load that would also appear on the label chain.
-    emit(7 * B25 | ((imm24 & kImm24Mask) << 1) | 1 * B0);
-  }
 }
 
 

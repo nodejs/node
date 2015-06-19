@@ -41,11 +41,6 @@ void BreakableStatementChecker::VisitFunctionDeclaration(
 }
 
 
-void BreakableStatementChecker::VisitModuleDeclaration(
-    ModuleDeclaration* decl) {
-}
-
-
 void BreakableStatementChecker::VisitImportDeclaration(
     ImportDeclaration* decl) {
 }
@@ -53,22 +48,6 @@ void BreakableStatementChecker::VisitImportDeclaration(
 
 void BreakableStatementChecker::VisitExportDeclaration(
     ExportDeclaration* decl) {
-}
-
-
-void BreakableStatementChecker::VisitModuleLiteral(ModuleLiteral* module) {
-}
-
-
-void BreakableStatementChecker::VisitModulePath(ModulePath* module) {
-}
-
-
-void BreakableStatementChecker::VisitModuleUrl(ModuleUrl* module) {
-}
-
-
-void BreakableStatementChecker::VisitModuleStatement(ModuleStatement* stmt) {
 }
 
 
@@ -288,6 +267,9 @@ void BreakableStatementChecker::VisitCompareOperation(CompareOperation* expr) {
 }
 
 
+void BreakableStatementChecker::VisitSpread(Spread* expr) { UNREACHABLE(); }
+
+
 void BreakableStatementChecker::VisitThisFunction(ThisFunction* expr) {
 }
 
@@ -417,13 +399,13 @@ void FullCodeGenerator::PopulateTypeFeedbackInfo(Handle<Code> code) {
 
 bool FullCodeGenerator::MustCreateObjectLiteralWithRuntime(
     ObjectLiteral* expr) const {
+  int literal_flags = expr->ComputeFlags();
   // FastCloneShallowObjectStub doesn't copy elements, and object literals don't
   // support copy-on-write (COW) elements for now.
   // TODO(mvstanton): make object literals support COW elements.
-  return expr->may_store_doubles() || expr->depth() > 1 ||
-         masm()->serializer_enabled() ||
-         expr->ComputeFlags() != ObjectLiteral::kFastElements ||
-         expr->has_elements() ||
+  return masm()->serializer_enabled() ||
+         literal_flags != ObjectLiteral::kShallowProperties ||
+         literal_flags != ObjectLiteral::kFastElements ||
          expr->properties_count() >
              FastCloneShallowObjectStub::kMaximumClonedProperties;
 }
@@ -631,137 +613,13 @@ void FullCodeGenerator::DoTest(const TestContext* context) {
 }
 
 
-void FullCodeGenerator::AllocateModules(ZoneList<Declaration*>* declarations) {
-  DCHECK(scope_->is_script_scope());
-
-  for (int i = 0; i < declarations->length(); i++) {
-    ModuleDeclaration* declaration = declarations->at(i)->AsModuleDeclaration();
-    if (declaration != NULL) {
-      ModuleLiteral* module = declaration->module()->AsModuleLiteral();
-      if (module != NULL) {
-        Comment cmnt(masm_, "[ Link nested modules");
-        Scope* scope = module->body()->scope();
-        DCHECK(scope->module()->IsFrozen());
-
-        scope->module()->Allocate(scope->module_var()->index());
-
-        // Set up module context.
-        DCHECK(scope->module()->Index() >= 0);
-        __ Push(Smi::FromInt(scope->module()->Index()));
-        __ Push(scope->GetScopeInfo(isolate()));
-        __ CallRuntime(Runtime::kPushModuleContext, 2);
-        StoreToFrameField(StandardFrameConstants::kContextOffset,
-                          context_register());
-
-        AllocateModules(scope->declarations());
-
-        // Pop module context.
-        LoadContextField(context_register(), Context::PREVIOUS_INDEX);
-        // Update local stack frame context field.
-        StoreToFrameField(StandardFrameConstants::kContextOffset,
-                          context_register());
-      }
-    }
-  }
-}
-
-
-// Modules have their own local scope, represented by their own context.
-// Module instance objects have an accessor for every export that forwards
-// access to the respective slot from the module's context. (Exports that are
-// modules themselves, however, are simple data properties.)
-//
-// All modules have a _hosting_ scope/context, which (currently) is the
-// enclosing script scope. To deal with recursion, nested modules are hosted
-// by the same scope as global ones.
-//
-// For every (global or nested) module literal, the hosting context has an
-// internal slot that points directly to the respective module context. This
-// enables quick access to (statically resolved) module members by 2-dimensional
-// access through the hosting context. For example,
-//
-//   module A {
-//     let x;
-//     module B { let y; }
-//   }
-//   module C { let z; }
-//
-// allocates contexts as follows:
-//
-// [header| .A | .B | .C | A | C ]  (global)
-//           |    |    |
-//           |    |    +-- [header| z ]  (module)
-//           |    |
-//           |    +------- [header| y ]  (module)
-//           |
-//           +------------ [header| x | B ]  (module)
-//
-// Here, .A, .B, .C are the internal slots pointing to the hosted module
-// contexts, whereas A, B, C hold the actual instance objects (note that every
-// module context also points to the respective instance object through its
-// extension slot in the header).
-//
-// To deal with arbitrary recursion and aliases between modules,
-// they are created and initialized in several stages. Each stage applies to
-// all modules in the hosting script scope, including nested ones.
-//
-// 1. Allocate: for each module _literal_, allocate the module contexts and
-//    respective instance object and wire them up. This happens in the
-//    PushModuleContext runtime function, as generated by AllocateModules
-//    (invoked by VisitDeclarations in the hosting scope).
-//
-// 2. Bind: for each module _declaration_ (i.e. literals as well as aliases),
-//    assign the respective instance object to respective local variables. This
-//    happens in VisitModuleDeclaration, and uses the instance objects created
-//    in the previous stage.
-//    For each module _literal_, this phase also constructs a module descriptor
-//    for the next stage. This happens in VisitModuleLiteral.
-//
-// 3. Populate: invoke the DeclareModules runtime function to populate each
-//    _instance_ object with accessors for it exports. This is generated by
-//    DeclareModules (invoked by VisitDeclarations in the hosting scope again),
-//    and uses the descriptors generated in the previous stage.
-//
-// 4. Initialize: execute the module bodies (and other code) in sequence. This
-//    happens by the separate statements generated for module bodies. To reenter
-//    the module scopes properly, the parser inserted ModuleStatements.
-
 void FullCodeGenerator::VisitDeclarations(
     ZoneList<Declaration*>* declarations) {
-  Handle<FixedArray> saved_modules = modules_;
-  int saved_module_index = module_index_;
   ZoneList<Handle<Object> >* saved_globals = globals_;
   ZoneList<Handle<Object> > inner_globals(10, zone());
   globals_ = &inner_globals;
 
-  if (scope_->num_modules() != 0) {
-    // This is a scope hosting modules. Allocate a descriptor array to pass
-    // to the runtime for initialization.
-    Comment cmnt(masm_, "[ Allocate modules");
-    DCHECK(scope_->is_script_scope());
-    modules_ =
-        isolate()->factory()->NewFixedArray(scope_->num_modules(), TENURED);
-    module_index_ = 0;
-
-    // Generate code for allocating all modules, including nested ones.
-    // The allocated contexts are stored in internal variables in this scope.
-    AllocateModules(declarations);
-  }
-
   AstVisitor::VisitDeclarations(declarations);
-
-  if (scope_->num_modules() != 0) {
-    // TODO(ES6): This step, which creates module instance objects,
-    // can probably be delayed until an "import *" declaration
-    // reifies a module instance. Until imports are implemented,
-    // we skip it altogether.
-    //
-    // Initialize modules from descriptor array.
-    //  DCHECK(module_index_ == modules_->length());
-    //  DeclareModules(modules_);
-    modules_ = saved_modules;
-    module_index_ = saved_module_index;
-  }
 
   if (!globals_->is_empty()) {
     // Invoke the platform-dependent code generator to do the actual
@@ -774,54 +632,6 @@ void FullCodeGenerator::VisitDeclarations(
   }
 
   globals_ = saved_globals;
-}
-
-
-void FullCodeGenerator::VisitModuleLiteral(ModuleLiteral* module) {
-  Block* block = module->body();
-  Scope* saved_scope = scope();
-  scope_ = block->scope();
-  ModuleDescriptor* descriptor = scope_->module();
-
-  Comment cmnt(masm_, "[ ModuleLiteral");
-  SetStatementPosition(block);
-
-  DCHECK(!modules_.is_null());
-  DCHECK(module_index_ < modules_->length());
-  int index = module_index_++;
-
-  // Set up module context.
-  DCHECK(descriptor->Index() >= 0);
-  __ Push(Smi::FromInt(descriptor->Index()));
-  __ Push(Smi::FromInt(0));
-  __ CallRuntime(Runtime::kPushModuleContext, 2);
-  StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
-
-  {
-    Comment cmnt(masm_, "[ Declarations");
-    VisitDeclarations(scope_->declarations());
-  }
-
-  // Populate the module description.
-  Handle<ModuleInfo> description =
-      ModuleInfo::Create(isolate(), descriptor, scope_);
-  modules_->set(index, *description);
-
-  scope_ = saved_scope;
-  // Pop module context.
-  LoadContextField(context_register(), Context::PREVIOUS_INDEX);
-  // Update local stack frame context field.
-  StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
-}
-
-
-// TODO(adamk): Delete ModulePath.
-void FullCodeGenerator::VisitModulePath(ModulePath* module) {
-}
-
-
-// TODO(adamk): Delete ModuleUrl.
-void FullCodeGenerator::VisitModuleUrl(ModuleUrl* module) {
 }
 
 
@@ -1055,28 +865,6 @@ void FullCodeGenerator::VisitBlock(Block* stmt) {
     VisitStatements(stmt->statements());
     __ bind(nested_block.break_label());
   }
-}
-
-
-void FullCodeGenerator::VisitModuleStatement(ModuleStatement* stmt) {
-  Comment cmnt(masm_, "[ Module context");
-
-  DCHECK(stmt->body()->scope()->is_module_scope());
-
-  __ Push(Smi::FromInt(stmt->body()->scope()->module()->Index()));
-  __ Push(Smi::FromInt(0));
-  __ CallRuntime(Runtime::kPushModuleContext, 2);
-  StoreToFrameField(
-      StandardFrameConstants::kContextOffset, context_register());
-
-  Scope* saved_scope = scope_;
-  scope_ = stmt->body()->scope();
-  VisitStatements(stmt->body()->statements());
-  scope_ = saved_scope;
-  LoadContextField(context_register(), Context::PREVIOUS_INDEX);
-  // Update local stack frame context field.
-  StoreToFrameField(StandardFrameConstants::kContextOffset,
-                    context_register());
 }
 
 
@@ -1588,6 +1376,7 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
     __ Push(Smi::FromInt(lit->end_position()));
 
     __ CallRuntime(Runtime::kDefineClass, 6);
+    PrepareForBailoutForId(lit->CreateLiteralId(), TOS_REG);
     EmitClassDefineProperties(lit);
 
     if (lit->scope() != NULL) {
@@ -1636,6 +1425,7 @@ void FullCodeGenerator::VisitNativeFunctionLiteral(
 void FullCodeGenerator::VisitThrow(Throw* expr) {
   Comment cmnt(masm_, "[ Throw");
   VisitForStackValue(expr->exception());
+  SetSourcePosition(expr->position());
   __ CallRuntime(Runtime::kThrow, 1);
   // Never returns here.
 }
@@ -1664,6 +1454,9 @@ void FullCodeGenerator::ExitTryBlock(int index) {
   // Drop context from operand stack.
   __ Drop(TryBlockConstant::kElementCount);
 }
+
+
+void FullCodeGenerator::VisitSpread(Spread* expr) { UNREACHABLE(); }
 
 
 FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
@@ -1807,22 +1600,27 @@ bool BackEdgeTable::Verify(Isolate* isolate, Code* unoptimized) {
 FullCodeGenerator::EnterBlockScopeIfNeeded::EnterBlockScopeIfNeeded(
     FullCodeGenerator* codegen, Scope* scope, BailoutId entry_id,
     BailoutId declarations_id, BailoutId exit_id)
-    : codegen_(codegen), scope_(scope), exit_id_(exit_id) {
+    : codegen_(codegen), exit_id_(exit_id) {
   saved_scope_ = codegen_->scope();
 
   if (scope == NULL) {
     codegen_->PrepareForBailoutForId(entry_id, NO_REGISTERS);
+    needs_block_context_ = false;
   } else {
+    needs_block_context_ = scope->ContextLocalCount() > 0;
     codegen_->scope_ = scope;
     {
-      Comment cmnt(masm(), "[ Extend block context");
-      __ Push(scope->GetScopeInfo(codegen->isolate()));
-      codegen_->PushFunctionArgumentForContextAllocation();
-      __ CallRuntime(Runtime::kPushBlockContext, 2);
+      if (needs_block_context_) {
+        Comment cmnt(masm(), "[ Extend block context");
+        __ Push(scope->GetScopeInfo(codegen->isolate()));
+        codegen_->PushFunctionArgumentForContextAllocation();
+        __ CallRuntime(Runtime::kPushBlockContext, 2);
 
-      // Replace the context stored in the frame.
-      codegen_->StoreToFrameField(StandardFrameConstants::kContextOffset,
-                                  codegen_->context_register());
+        // Replace the context stored in the frame.
+        codegen_->StoreToFrameField(StandardFrameConstants::kContextOffset,
+                                    codegen_->context_register());
+      }
+      CHECK_EQ(0, scope->num_stack_slots());
       codegen_->PrepareForBailoutForId(entry_id, NO_REGISTERS);
     }
     {
@@ -1835,7 +1633,7 @@ FullCodeGenerator::EnterBlockScopeIfNeeded::EnterBlockScopeIfNeeded(
 
 
 FullCodeGenerator::EnterBlockScopeIfNeeded::~EnterBlockScopeIfNeeded() {
-  if (scope_ != NULL) {
+  if (needs_block_context_) {
     codegen_->LoadContextField(codegen_->context_register(),
                                Context::PREVIOUS_INDEX);
     // Update local stack frame context field.

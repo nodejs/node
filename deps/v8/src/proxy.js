@@ -2,31 +2,40 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+var $proxyDelegateCallAndConstruct;
+var $proxyDerivedGetTrap;
+var $proxyDerivedHasTrap;
+var $proxyDerivedHasOwnTrap;
+var $proxyDerivedKeysTrap;
+var $proxyDerivedSetTrap;
+var $proxyEnumerate;
+
+(function(global, shared, exports) {
+
 "use strict";
 
-// This file relies on the fact that the following declaration has been made
-// in runtime.js:
-// var $Object = global.Object;
+%CheckIsBootstrapping();
 
-var $Proxy = new $Object();
+var GlobalFunction = global.Function;
+var GlobalObject = global.Object;
 
 // -------------------------------------------------------------------
 
 function ProxyCreate(handler, proto) {
   if (!IS_SPEC_OBJECT(handler))
-    throw MakeTypeError("handler_non_object", ["create"])
+    throw MakeTypeError(kProxyHandlerNonObject, "create")
   if (IS_UNDEFINED(proto))
     proto = null
   else if (!(IS_SPEC_OBJECT(proto) || IS_NULL(proto)))
-    throw MakeTypeError("proto_non_object", ["create"])
+    throw MakeTypeError(kProxyProtoNonObject)
   return %CreateJSProxy(handler, proto)
 }
 
 function ProxyCreateFunction(handler, callTrap, constructTrap) {
   if (!IS_SPEC_OBJECT(handler))
-    throw MakeTypeError("handler_non_object", ["create"])
+    throw MakeTypeError(kProxyHandlerNonObject, "createFunction")
   if (!IS_SPEC_FUNCTION(callTrap))
-    throw MakeTypeError("trap_function_expected", ["createFunction", "call"])
+    throw MakeTypeError(kProxyTrapFunctionExpected, "call")
   if (IS_UNDEFINED(constructTrap)) {
     constructTrap = DerivedConstructTrap(callTrap)
   } else if (IS_SPEC_FUNCTION(constructTrap)) {
@@ -36,31 +45,11 @@ function ProxyCreateFunction(handler, callTrap, constructTrap) {
       return %Apply(construct, UNDEFINED, arguments, 0, %_ArgumentsLength());
     }
   } else {
-    throw MakeTypeError("trap_function_expected",
-                        ["createFunction", "construct"])
+    throw MakeTypeError(kProxyTrapFunctionExpected, "construct")
   }
   return %CreateJSFunctionProxy(
-    handler, callTrap, constructTrap, $Function.prototype)
+    handler, callTrap, constructTrap, GlobalFunction.prototype)
 }
-
-
-// -------------------------------------------------------------------
-
-function SetUpProxy() {
-  %CheckIsBootstrapping()
-
-  var global_proxy = %GlobalProxy(global);
-  global_proxy.Proxy = $Proxy;
-
-  // Set up non-enumerable properties of the Proxy object.
-  InstallFunctions($Proxy, DONT_ENUM, [
-    "create", ProxyCreate,
-    "createFunction", ProxyCreateFunction
-  ])
-}
-
-SetUpProxy();
-
 
 // -------------------------------------------------------------------
 // Proxy Builtins
@@ -68,7 +57,7 @@ SetUpProxy();
 function DerivedConstructTrap(callTrap) {
   return function() {
     var proto = this.prototype
-    if (!IS_SPEC_OBJECT(proto)) proto = $Object.prototype
+    if (!IS_SPEC_OBJECT(proto)) proto = GlobalObject.prototype
     var obj = { __proto__: proto };
     var result = %Apply(callTrap, obj, arguments, 0, %_ArgumentsLength());
     return IS_SPEC_OBJECT(result) ? result : obj
@@ -172,8 +161,8 @@ function DerivedEnumerateTrap() {
     var desc = this.getPropertyDescriptor(TO_STRING_INLINE(name))
     if (!IS_UNDEFINED(desc)) {
       if (!desc.configurable) {
-        throw MakeTypeError("proxy_prop_not_configurable",
-            [this, "getPropertyDescriptor", name])
+        throw MakeTypeError(kProxyPropNotConfigurable,
+                            this, name, "getPropertyDescriptor")
       }
       if (desc.enumerable) enumerableNames[count++] = names[i]
     }
@@ -186,6 +175,27 @@ function ProxyEnumerate(proxy) {
   if (IS_UNDEFINED(handler.enumerate)) {
     return %Apply(DerivedEnumerateTrap, handler, [], 0, 0)
   } else {
-    return ToNameArray(handler.enumerate(), "enumerate", false)
+    return $toNameArray(handler.enumerate(), "enumerate", false)
   }
 }
+
+//-------------------------------------------------------------------
+
+var Proxy = new GlobalObject();
+%AddNamedProperty(global, "Proxy", Proxy, DONT_ENUM);
+
+//Set up non-enumerable properties of the Proxy object.
+$installFunctions(Proxy, DONT_ENUM, [
+  "create", ProxyCreate,
+  "createFunction", ProxyCreateFunction
+])
+
+$proxyDelegateCallAndConstruct = DelegateCallAndConstruct;
+$proxyDerivedGetTrap = DerivedGetTrap;
+$proxyDerivedHasTrap = DerivedHasTrap;
+$proxyDerivedHasOwnTrap = DerivedHasOwnTrap;
+$proxyDerivedKeysTrap = DerivedKeysTrap;
+$proxyDerivedSetTrap = DerivedSetTrap;
+$proxyEnumerate = ProxyEnumerate;
+
+})

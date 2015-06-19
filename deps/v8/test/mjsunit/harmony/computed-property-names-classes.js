@@ -83,9 +83,8 @@ function ID(x) {
   // TODO(arv): It is not clear that we are adding the "standard" properties
   // in the right order. As far as I can tell the spec adds them in alphabetical
   // order.
-  assertArrayEquals(['length', 'name', 'arguments', 'caller', 'prototype',
-      'a', 'b', 'c', 'd'],
-      Object.getOwnPropertyNames(C));
+  assertArrayEquals(['length', 'name', 'prototype', 'a', 'b', 'c', 'd'],
+                    Object.getOwnPropertyNames(C));
 })();
 
 
@@ -102,8 +101,8 @@ function ID(x) {
   assertEquals('D', C[2]());
   // Array indexes first.
   assertArrayEquals([], Object.keys(C));
-  assertArrayEquals(['1', '2', 'length', 'name', 'arguments', 'caller',
-      'prototype', 'a', 'c'], Object.getOwnPropertyNames(C));
+  assertArrayEquals(['1', '2', 'length', 'name', 'prototype', 'a', 'c'],
+                    Object.getOwnPropertyNames(C));
 })();
 
 
@@ -121,9 +120,8 @@ function ID(x) {
   assertEquals('C', C.c());
   assertEquals('D', C[sym2]());
   assertArrayEquals([], Object.keys(C));
-  assertArrayEquals(['length', 'name', 'arguments', 'caller', 'prototype',
-      'a', 'c'],
-      Object.getOwnPropertyNames(C));
+  assertArrayEquals(['length', 'name', 'prototype', 'a', 'c'],
+                    Object.getOwnPropertyNames(C));
   assertArrayEquals([sym1, sym2], Object.getOwnPropertySymbols(C));
 })();
 

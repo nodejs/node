@@ -61,15 +61,13 @@ class IncrementalMarking {
 
   GCRequestType request_type() const { return request_type_; }
 
-  bool WorthActivating();
+  bool CanBeActivated();
 
-  bool ShouldActivate();
+  bool ShouldActivateEvenWithoutIdleNotification();
 
   bool WasActivated();
 
-  enum CompactionFlag { ALLOW_COMPACTION, PREVENT_COMPACTION };
-
-  void Start(CompactionFlag flag = ALLOW_COMPACTION);
+  void Start();
 
   void Stop();
 
@@ -171,19 +169,7 @@ class IncrementalMarking {
 
   void ActivateGeneratedStub(Code* stub);
 
-  void NotifyOfHighPromotionRate() {
-    if (IsMarking()) {
-      if (marking_speed_ < kFastMarking) {
-        if (FLAG_trace_gc) {
-          PrintPID(
-              "Increasing marking speed to %d "
-              "due to high promotion rate\n",
-              static_cast<int>(kFastMarking));
-        }
-        marking_speed_ = kFastMarking;
-      }
-    }
-  }
+  void NotifyOfHighPromotionRate();
 
   void EnterNoMarkingScope() { no_marking_scope_depth_++; }
 
@@ -208,7 +194,7 @@ class IncrementalMarking {
 
   void ResetStepCounters();
 
-  void StartMarking(CompactionFlag flag);
+  void StartMarking();
 
   void ActivateIncrementalWriteBarrier(PagedSpace* space);
   static void ActivateIncrementalWriteBarrier(NewSpace* space);

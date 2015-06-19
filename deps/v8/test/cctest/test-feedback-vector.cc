@@ -140,13 +140,19 @@ TEST(VectorSlotClearing) {
 
   // Fill with information
   vector->Set(FeedbackVectorSlot(0), Smi::FromInt(1));
-  vector->Set(FeedbackVectorSlot(1), *factory->fixed_array_map());
+  Handle<WeakCell> cell = factory->NewWeakCell(factory->fixed_array_map());
+  vector->Set(FeedbackVectorSlot(1), *cell);
   Handle<AllocationSite> site = factory->NewAllocationSite();
   vector->Set(FeedbackVectorSlot(2), *site);
 
+  // GC time clearing leaves slots alone.
+  vector->ClearSlotsAtGCTime(NULL);
+  Object* obj = vector->Get(FeedbackVectorSlot(1));
+  CHECK(obj->IsWeakCell() && !WeakCell::cast(obj)->cleared());
+
   vector->ClearSlots(NULL);
 
-  // The feedback vector slots are cleared. AllocationSites are granted
+  // The feedback vector slots are cleared. AllocationSites are still granted
   // an exemption from clearing, as are smis.
   CHECK_EQ(Smi::FromInt(1), vector->Get(FeedbackVectorSlot(0)));
   CHECK_EQ(*TypeFeedbackVector::UninitializedSentinel(isolate),
@@ -189,7 +195,7 @@ TEST(VectorICProfilerStatistics) {
   CHECK_EQ(1, feedback_vector->ic_generic_count());
 
   // A collection will not affect the site.
-  heap->CollectAllGarbage(i::Heap::kNoGCFlags);
+  heap->CollectAllGarbage();
   CHECK_EQ(0, feedback_vector->ic_with_type_info_count());
   CHECK_EQ(1, feedback_vector->ic_generic_count());
 
@@ -203,7 +209,7 @@ TEST(VectorICProfilerStatistics) {
 
 
   CHECK(nexus.GetFeedback()->IsAllocationSite());
-  heap->CollectAllGarbage(i::Heap::kNoGCFlags);
+  heap->CollectAllGarbage();
   CHECK_EQ(1, feedback_vector->ic_with_type_info_count());
   CHECK_EQ(0, feedback_vector->ic_generic_count());
   CHECK(nexus.GetFeedback()->IsAllocationSite());
@@ -237,7 +243,7 @@ TEST(VectorCallICStates) {
   CHECK_EQ(GENERIC, nexus.StateFromFeedback());
 
   // After a collection, state should remain GENERIC.
-  heap->CollectAllGarbage(i::Heap::kNoGCFlags);
+  heap->CollectAllGarbage();
   CHECK_EQ(GENERIC, nexus.StateFromFeedback());
 
   // A call to Array is special, it contains an AllocationSite as feedback.
@@ -247,7 +253,7 @@ TEST(VectorCallICStates) {
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
   CHECK(nexus.GetFeedback()->IsAllocationSite());
 
-  heap->CollectAllGarbage(i::Heap::kNoGCFlags);
+  heap->CollectAllGarbage();
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
 }
 
@@ -301,7 +307,7 @@ TEST(VectorLoadICStates) {
   CHECK(!nexus.FindFirstMap());
 
   // After a collection, state should not be reset to PREMONOMORPHIC.
-  heap->CollectAllGarbage(i::Heap::kNoGCFlags);
+  heap->CollectAllGarbage();
   CHECK_EQ(MEGAMORPHIC, nexus.StateFromFeedback());
 }
 

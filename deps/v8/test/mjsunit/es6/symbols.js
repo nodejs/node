@@ -504,3 +504,25 @@ function TestGetOwnPropertySymbolsOnPrimitives() {
   assertEquals(Object.getOwnPropertySymbols("OK"), []);
 }
 TestGetOwnPropertySymbolsOnPrimitives();
+
+
+function TestComparison() {
+  function lt() { var a = Symbol(); var b = Symbol(); a < b; }
+  function gt() { var a = Symbol(); var b = Symbol(); a > b; }
+  function le() { var a = Symbol(); var b = Symbol(); a <= b; }
+  function ge() { var a = Symbol(); var b = Symbol(); a >= b; }
+  function lt_same() { var a = Symbol(); a < a; }
+  function gt_same() { var a = Symbol(); a > a; }
+  function le_same() { var a = Symbol(); a <= a; }
+  function ge_same() { var a = Symbol(); a >= a; }
+
+  var throwFuncs = [lt, gt, le, ge, lt_same, gt_same, le_same, ge_same];
+
+  for (var f of throwFuncs) {
+    assertThrows(f, TypeError);
+    %OptimizeFunctionOnNextCall(f);
+    assertThrows(f, TypeError);
+    assertThrows(f, TypeError);
+  }
+}
+TestComparison();

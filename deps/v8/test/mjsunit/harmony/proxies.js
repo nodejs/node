@@ -30,6 +30,7 @@
 // overflow the system stack before the simulator stack.
 
 // Flags: --harmony-proxies --sim-stack-size=500 --turbo-deoptimization
+// Flags: --allow-natives-syntax
 
 
 // Helper.
@@ -2302,3 +2303,25 @@ function TestConstructorWithProxyPrototype2(create, handler) {
 }
 
 TestConstructorWithProxyPrototype();
+
+function TestOptWithProxyPrototype() {
+  var handler = {
+    getPropertyDescriptor: function(k) {
+      return {value: 10, configurable: true, enumerable: true, writable: true};
+    }
+  };
+
+  function C() {};
+  C.prototype = Proxy.create(handler);
+  var o = new C();
+
+  function f() {
+    return o.x;
+  }
+  assertEquals(10, f());
+  assertEquals(10, f());
+  %OptimizeFunctionOnNextCall(f);
+  assertEquals(10, f());
+}
+
+TestOptWithProxyPrototype();

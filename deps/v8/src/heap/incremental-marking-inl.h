@@ -96,8 +96,10 @@ void IncrementalMarking::BlackToGreyAndUnshift(HeapObject* obj,
       // as the program mutates the heap faster than we can incrementally
       // trace it.  In this case we switch to non-incremental marking in
       // order to finish off this marking phase.
-      if (FLAG_trace_gc) {
-        PrintPID("Hurrying incremental marking because of lack of progress\n");
+      if (FLAG_trace_incremental_marking) {
+        PrintIsolate(
+            heap()->isolate(),
+            "Hurrying incremental marking because of lack of progress\n");
       }
       marking_speed_ = kMaxMarkingSpeed;
     }

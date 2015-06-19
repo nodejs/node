@@ -241,6 +241,7 @@ Reduction ChangeLowering::ChangeTaggedToFloat64(Node* value, Node* control) {
     //     else LoadHeapNumberValue(y)
     Node* const object = NodeProperties::GetValueInput(value, 0);
     Node* const context = NodeProperties::GetContextInput(value);
+    Node* const frame_state = NodeProperties::GetFrameStateInput(value, 0);
     Node* const effect = NodeProperties::GetEffectInput(value);
     Node* const control = NodeProperties::GetControlInput(value);
 
@@ -253,12 +254,8 @@ Reduction ChangeLowering::ChangeTaggedToFloat64(Node* value, Node* control) {
         graph()->NewNode(common()->Branch(BranchHint::kFalse), check1, control);
 
     Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
-    Node* vtrue1 =
-        FLAG_turbo_deoptimization
-            ? graph()->NewNode(value->op(), object, context,
-                               NodeProperties::GetFrameStateInput(value, 0),
-                               effect, if_true1)
-            : graph()->NewNode(value->op(), object, context, effect, if_true1);
+    Node* vtrue1 = graph()->NewNode(value->op(), object, context, frame_state,
+                                    effect, if_true1);
     Node* etrue1 = vtrue1;
     {
       Node* check2 = TestNotSmi(vtrue1);

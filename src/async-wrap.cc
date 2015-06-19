@@ -22,7 +22,6 @@ using v8::Object;
 using v8::RetainedObjectInfo;
 using v8::TryCatch;
 using v8::Value;
-using v8::kExternalUint32Array;
 
 namespace node {
 

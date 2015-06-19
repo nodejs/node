@@ -44,7 +44,7 @@ char* StartupDataHandler::RelativePath(char** buffer, const char* exec_path,
   DCHECK(exec_path);
   const char* last_slash = strrchr(exec_path, '/');
   if (last_slash) {
-    int after_slash = last_slash - exec_path + 1;
+    int after_slash = static_cast<int>(last_slash - exec_path + 1);
     int name_length = static_cast<int>(strlen(name));
     *buffer = reinterpret_cast<char*>(calloc(after_slash + name_length + 1, 1));
     strncpy(*buffer, exec_path, after_slash);
@@ -75,7 +75,7 @@ void StartupDataHandler::Load(const char* blob_file,
   if (!file) return;
 
   fseek(file, 0, SEEK_END);
-  startup_data->raw_size = ftell(file);
+  startup_data->raw_size = static_cast<int>(ftell(file));
   rewind(file);
 
   startup_data->data = new char[startup_data->raw_size];

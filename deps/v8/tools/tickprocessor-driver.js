@@ -76,6 +76,7 @@ var tickProcessor = new TickProcessor(
   params.distortion,
   params.range,
   sourceMap,
-  params.timedRange);
+  params.timedRange,
+  params.pairwiseTimedRange);
 tickProcessor.processLogFile(params.logFileName);
 tickProcessor.printStatistics();

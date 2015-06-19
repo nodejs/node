@@ -17,7 +17,7 @@ class ExternalReference;
 namespace compiler {
 
 // Bundles various caches for common nodes.
-class CommonNodeCache FINAL {
+class CommonNodeCache final {
  public:
   explicit CommonNodeCache(Zone* zone) : zone_(zone) {}
   ~CommonNodeCache() {}

@@ -29,6 +29,7 @@ class NodeMarkerBase {
 
   Mark Get(Node* node);
   void Set(Node* node, Mark mark);
+  void Reset(Graph* graph);
 
  private:
   Mark mark_min_;

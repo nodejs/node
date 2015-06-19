@@ -43,12 +43,18 @@ class GenericStringUtf16CharacterStream: public BufferedUtf16CharacterStream {
                                     size_t end_position);
   virtual ~GenericStringUtf16CharacterStream();
 
+  virtual bool SetBookmark();
+  virtual void ResetToBookmark();
+
  protected:
+  static const size_t kNoBookmark = -1;
+
   virtual size_t BufferSeekForward(size_t delta);
   virtual size_t FillBuffer(size_t position);
 
   Handle<String> string_;
   size_t length_;
+  size_t bookmark_;
 };
 
 
@@ -90,7 +96,7 @@ class ExternalStreamingStream : public BufferedUtf16CharacterStream {
 
   virtual ~ExternalStreamingStream() { delete[] current_data_; }
 
-  size_t BufferSeekForward(size_t delta) OVERRIDE {
+  size_t BufferSeekForward(size_t delta) override {
     // We never need to seek forward when streaming scripts. We only seek
     // forward when we want to parse a function whose location we already know,
     // and when streaming, we don't know the locations of anything we haven't
@@ -99,7 +105,7 @@ class ExternalStreamingStream : public BufferedUtf16CharacterStream {
     return 0;
   }
 
-  size_t FillBuffer(size_t position) OVERRIDE;
+  size_t FillBuffer(size_t position) override;
 
  private:
   void HandleUtf8SplitCharacters(size_t* data_in_buffer);
@@ -129,6 +135,9 @@ class ExternalTwoByteStringUtf16CharacterStream: public Utf16CharacterStream {
     pos_--;
   }
 
+  virtual bool SetBookmark();
+  virtual void ResetToBookmark();
+
  protected:
   virtual size_t SlowSeekForward(size_t delta) {
     // Fast case always handles seeking.
@@ -140,6 +149,11 @@ class ExternalTwoByteStringUtf16CharacterStream: public Utf16CharacterStream {
   }
   Handle<ExternalTwoByteString> source_;
   const uc16* raw_data_;  // Pointer to the actual array of characters.
+
+ private:
+  static const size_t kNoBookmark = -1;
+
+  size_t bookmark_;
 };
 
 } }  // namespace v8::internal
