@@ -12,9 +12,6 @@ namespace internal {
 const double GCIdleTimeHandler::kConservativeTimeRatio = 0.9;
 const size_t GCIdleTimeHandler::kMaxMarkCompactTimeInMs = 1000;
 const size_t GCIdleTimeHandler::kMaxFinalIncrementalMarkCompactTimeInMs = 1000;
-const size_t GCIdleTimeHandler::kMinTimeForFinalizeSweeping = 100;
-const int GCIdleTimeHandler::kMaxMarkCompactsInIdleRound = 2;
-const int GCIdleTimeHandler::kIdleScavengeThreshold = 5;
 const double GCIdleTimeHandler::kHighContextDisposalRate = 100;
 const size_t GCIdleTimeHandler::kMinTimeForOverApproximatingWeakClosureInMs = 1;
 
@@ -132,8 +129,12 @@ bool GCIdleTimeHandler::ShouldDoScavenge(
         static_cast<size_t>(new_space_size * kConservativeTimeRatio);
   } else {
     // We have to trigger scavenge before we reach the end of new space.
-    new_space_allocation_limit -=
-        new_space_allocation_throughput_in_bytes_per_ms * kMaxScheduledIdleTime;
+    size_t adjust_limit = new_space_allocation_throughput_in_bytes_per_ms *
+                          kTimeUntilNextIdleEvent;
+    if (adjust_limit > new_space_allocation_limit)
+      new_space_allocation_limit = 0;
+    else
+      new_space_allocation_limit -= adjust_limit;
   }
 
   if (scavenge_speed_in_bytes_per_ms == 0) {
@@ -185,12 +186,66 @@ bool GCIdleTimeHandler::ShouldDoOverApproximateWeakClosure(
 
 
 GCIdleTimeAction GCIdleTimeHandler::NothingOrDone() {
-  if (idle_times_which_made_no_progress_since_last_idle_round_ >=
-      kMaxNoProgressIdleTimesPerIdleRound) {
+  if (idle_times_which_made_no_progress_per_mode_ >=
+      kMaxNoProgressIdleTimesPerMode) {
     return GCIdleTimeAction::Done();
   } else {
-    idle_times_which_made_no_progress_since_last_idle_round_++;
+    idle_times_which_made_no_progress_per_mode_++;
     return GCIdleTimeAction::Nothing();
+  }
+}
+
+
+// The idle time handler has three modes and transitions between them
+// as shown in the diagram:
+//
+//  kReduceLatency -----> kReduceMemory -----> kDone
+//      ^    ^                  |                |
+//      |    |                  |                |
+//      |    +------------------+                |
+//      |                                        |
+//      +----------------------------------------+
+//
+// In kReduceLatency mode the handler only starts incremental marking
+// if can_start_incremental_marking is false.
+// In kReduceMemory mode the handler can force a new GC cycle by starting
+// incremental marking even if can_start_incremental_marking is false. It can
+// cause at most X idle GCs.
+// In kDone mode the idle time handler does nothing.
+//
+// The initial mode is kReduceLatency.
+//
+// kReduceLatency => kReduceMemory transition happens if there were Y
+// consecutive long idle notifications without any mutator GC. This is our
+// notion of "mutator is idle".
+//
+// kReduceMemory => kDone transition happens after X idle GCs.
+//
+// kReduceMemory => kReduceLatency transition happens if N mutator GCs
+// were performed meaning that the mutator is active.
+//
+// kDone => kReduceLatency transition happens if there were M mutator GCs or
+// context was disposed.
+//
+// X = kMaxIdleMarkCompacts
+// Y = kLongIdleNotificationsBeforeMutatorIsIdle
+// N = #(idle GCs)
+// M = kGCsBeforeMutatorIsActive
+GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
+                                            HeapState heap_state) {
+  Mode next_mode = NextMode(heap_state);
+
+  if (next_mode != mode_) {
+    mode_ = next_mode;
+    ResetCounters();
+  }
+
+  UpdateCounters(idle_time_in_ms);
+
+  if (mode_ == kDone) {
+    return GCIdleTimeAction::Done();
+  } else {
+    return Action(idle_time_in_ms, heap_state, mode_ == kReduceMemory);
   }
 }
 
@@ -201,28 +256,23 @@ GCIdleTimeAction GCIdleTimeHandler::NothingOrDone() {
 // a full GC.
 // (2) If the new space is almost full and we can afford a Scavenge or if the
 // next Scavenge will very likely take long, then a Scavenge is performed.
-// (3) If there is currently no MarkCompact idle round going on, we start a
-// new idle round if enough garbage was created. Otherwise we do not perform
-// garbage collection to keep system utilization low.
-// (4) If incremental marking is done, we perform a full garbage collection
+// (3) If incremental marking is done, we perform a full garbage collection
 // if  we are allowed to still do full garbage collections during this idle
 // round or if we are not allowed to start incremental marking. Otherwise we
 // do not perform garbage collection to keep system utilization low.
-// (5) If sweeping is in progress and we received a large enough idle time
+// (4) If sweeping is in progress and we received a large enough idle time
 // request, we finalize sweeping here.
-// (6) If incremental marking is in progress, we perform a marking step. Note,
+// (5) If incremental marking is in progress, we perform a marking step. Note,
 // that this currently may trigger a full garbage collection.
-GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
-                                            HeapState heap_state) {
+GCIdleTimeAction GCIdleTimeHandler::Action(double idle_time_in_ms,
+                                           const HeapState& heap_state,
+                                           bool reduce_memory) {
   if (static_cast<int>(idle_time_in_ms) <= 0) {
-    if (heap_state.contexts_disposed > 0) {
-      StartIdleRound();
-    }
     if (heap_state.incremental_marking_stopped) {
       if (ShouldDoContextDisposalMarkCompact(
               heap_state.contexts_disposed,
               heap_state.contexts_disposal_rate)) {
-        return GCIdleTimeAction::FullGC();
+        return GCIdleTimeAction::FullGC(false);
       }
     }
     return GCIdleTimeAction::Nothing();
@@ -236,39 +286,109 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
     return GCIdleTimeAction::Scavenge();
   }
 
-  if (IsMarkCompactIdleRoundFinished()) {
-    if (EnoughGarbageSinceLastIdleRound()) {
-      StartIdleRound();
-    } else {
-      return GCIdleTimeAction::Done();
-    }
-  }
-
-  if (heap_state.incremental_marking_stopped) {
+  if (heap_state.incremental_marking_stopped && reduce_memory) {
     if (ShouldDoMarkCompact(static_cast<size_t>(idle_time_in_ms),
                             heap_state.size_of_objects,
                             heap_state.mark_compact_speed_in_bytes_per_ms)) {
-      return GCIdleTimeAction::FullGC();
+      return GCIdleTimeAction::FullGC(reduce_memory);
     }
   }
 
-  // TODO(hpayer): Estimate finalize sweeping time.
   if (heap_state.sweeping_in_progress) {
-    if (static_cast<size_t>(idle_time_in_ms) >= kMinTimeForFinalizeSweeping) {
+    if (heap_state.sweeping_completed) {
       return GCIdleTimeAction::FinalizeSweeping();
+    } else {
+      return NothingOrDone();
     }
-    return NothingOrDone();
   }
 
   if (heap_state.incremental_marking_stopped &&
-      !heap_state.can_start_incremental_marking) {
+      !heap_state.can_start_incremental_marking && !reduce_memory) {
     return NothingOrDone();
   }
 
   size_t step_size = EstimateMarkingStepSize(
       static_cast<size_t>(kIncrementalMarkingStepTimeInMs),
       heap_state.incremental_marking_speed_in_bytes_per_ms);
-  return GCIdleTimeAction::IncrementalMarking(step_size);
+  return GCIdleTimeAction::IncrementalMarking(step_size, reduce_memory);
+}
+
+
+void GCIdleTimeHandler::UpdateCounters(double idle_time_in_ms) {
+  if (mode_ == kReduceLatency) {
+    int gcs = scavenges_ + mark_compacts_;
+    if (gcs > 0) {
+      // There was a GC since the last notification.
+      long_idle_notifications_ = 0;
+      background_idle_notifications_ = 0;
+    }
+    idle_mark_compacts_ = 0;
+    mark_compacts_ = 0;
+    scavenges_ = 0;
+    if (idle_time_in_ms >= kMinBackgroundIdleTime) {
+      background_idle_notifications_++;
+    } else if (idle_time_in_ms >= kMinLongIdleTime) {
+      long_idle_notifications_++;
+    }
+  }
+}
+
+
+void GCIdleTimeHandler::ResetCounters() {
+  long_idle_notifications_ = 0;
+  background_idle_notifications_ = 0;
+  idle_mark_compacts_ = 0;
+  mark_compacts_ = 0;
+  scavenges_ = 0;
+  idle_times_which_made_no_progress_per_mode_ = 0;
+}
+
+
+bool GCIdleTimeHandler::IsMutatorActive(int contexts_disposed,
+                                        int mark_compacts) {
+  return contexts_disposed > 0 ||
+         mark_compacts >= kMarkCompactsBeforeMutatorIsActive;
+}
+
+
+bool GCIdleTimeHandler::IsMutatorIdle(int long_idle_notifications,
+                                      int background_idle_notifications,
+                                      int mutator_gcs) {
+  return mutator_gcs == 0 &&
+         (long_idle_notifications >=
+              kLongIdleNotificationsBeforeMutatorIsIdle ||
+          background_idle_notifications >=
+              kBackgroundIdleNotificationsBeforeMutatorIsIdle);
+}
+
+
+GCIdleTimeHandler::Mode GCIdleTimeHandler::NextMode(
+    const HeapState& heap_state) {
+  DCHECK(mark_compacts_ >= idle_mark_compacts_);
+  int mutator_gcs = scavenges_ + mark_compacts_ - idle_mark_compacts_;
+  switch (mode_) {
+    case kDone:
+      DCHECK(idle_mark_compacts_ == 0);
+      if (IsMutatorActive(heap_state.contexts_disposed, mark_compacts_)) {
+        return kReduceLatency;
+      }
+      break;
+    case kReduceLatency:
+      if (IsMutatorIdle(long_idle_notifications_,
+                        background_idle_notifications_, mutator_gcs)) {
+        return kReduceMemory;
+      }
+      break;
+    case kReduceMemory:
+      if (idle_mark_compacts_ >= kMaxIdleMarkCompacts) {
+        return kDone;
+      }
+      if (mutator_gcs > idle_mark_compacts_) {
+        return kReduceLatency;
+      }
+      break;
+  }
+  return mode_;
 }
 }
 }

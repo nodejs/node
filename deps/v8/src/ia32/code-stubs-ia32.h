@@ -76,7 +76,7 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
                                      Register r0,
                                      Register r1);
 
-  bool SometimesSetsUpAFrame() OVERRIDE { return false; }
+  bool SometimesSetsUpAFrame() override { return false; }
 
  private:
   static const int kInlinedProbes = 4;
@@ -142,7 +142,7 @@ class RecordWriteStub: public PlatformCodeStub {
     INCREMENTAL_COMPACTION
   };
 
-  bool SometimesSetsUpAFrame() OVERRIDE { return false; }
+  bool SometimesSetsUpAFrame() override { return false; }
 
   static const byte kTwoByteNopInstruction = 0x3c;  // Cmpb al, #imm8.
   static const byte kTwoByteJumpInstruction = 0xeb;  // Jmp #imm8.
@@ -339,9 +339,9 @@ class RecordWriteStub: public PlatformCodeStub {
     kUpdateRememberedSetOnNoNeedToInformIncrementalMarker
   };
 
-  inline Major MajorKey() const FINAL { return RecordWrite; }
+  inline Major MajorKey() const final { return RecordWrite; }
 
-  void Generate(MacroAssembler* masm) OVERRIDE;
+  void Generate(MacroAssembler* masm) override;
   void GenerateIncremental(MacroAssembler* masm, Mode mode);
   void CheckNeedsToInformIncrementalMarker(
       MacroAssembler* masm,
@@ -349,7 +349,7 @@ class RecordWriteStub: public PlatformCodeStub {
       Mode mode);
   void InformIncrementalMarker(MacroAssembler* masm);
 
-  void Activate(Code* code) OVERRIDE {
+  void Activate(Code* code) override {
     code->GetHeap()->incremental_marking()->ActivateGeneratedStub(code);
   }
 

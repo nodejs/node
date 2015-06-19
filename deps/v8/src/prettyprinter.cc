@@ -100,32 +100,11 @@ void CallPrinter::VisitVariableDeclaration(VariableDeclaration* node) {}
 void CallPrinter::VisitFunctionDeclaration(FunctionDeclaration* node) {}
 
 
-void CallPrinter::VisitModuleDeclaration(ModuleDeclaration* node) {
-  Find(node->module());
-}
-
-
 void CallPrinter::VisitImportDeclaration(ImportDeclaration* node) {
 }
 
 
 void CallPrinter::VisitExportDeclaration(ExportDeclaration* node) {}
-
-
-void CallPrinter::VisitModuleLiteral(ModuleLiteral* node) {
-  VisitBlock(node->body());
-}
-
-
-void CallPrinter::VisitModulePath(ModulePath* node) { Find(node->module()); }
-
-
-void CallPrinter::VisitModuleUrl(ModuleUrl* node) {}
-
-
-void CallPrinter::VisitModuleStatement(ModuleStatement* node) {
-  Find(node->body());
-}
 
 
 void CallPrinter::VisitExpressionStatement(ExpressionStatement* node) {
@@ -325,7 +304,7 @@ void CallPrinter::VisitCall(Call* node) {
 
 
 void CallPrinter::VisitCallNew(CallNew* node) {
-  bool was_found = !found_ && node->expression()->position() == position_;
+  bool was_found = !found_ && node->position() == position_;
   if (was_found) found_ = true;
   Find(node->expression(), was_found);
   FindArguments(node->arguments());
@@ -371,6 +350,13 @@ void CallPrinter::VisitCompareOperation(CompareOperation* node) {
   Find(node->left(), true);
   Print(" %s ", Token::String(node->op()));
   Find(node->right(), true);
+  Print(")");
+}
+
+
+void CallPrinter::VisitSpread(Spread* node) {
+  Print("(...");
+  Find(node->expression(), true);
   Print(")");
 }
 
@@ -467,15 +453,6 @@ void PrettyPrinter::VisitFunctionDeclaration(FunctionDeclaration* node) {
 }
 
 
-void PrettyPrinter::VisitModuleDeclaration(ModuleDeclaration* node) {
-  Print("module ");
-  PrintLiteral(node->proxy()->name(), false);
-  Print(" = ");
-  Visit(node->module());
-  Print(";");
-}
-
-
 void PrettyPrinter::VisitImportDeclaration(ImportDeclaration* node) {
   Print("import ");
   PrintLiteral(node->proxy()->name(), false);
@@ -489,30 +466,6 @@ void PrettyPrinter::VisitExportDeclaration(ExportDeclaration* node) {
   Print("export ");
   PrintLiteral(node->proxy()->name(), false);
   Print(";");
-}
-
-
-void PrettyPrinter::VisitModuleLiteral(ModuleLiteral* node) {
-  VisitBlock(node->body());
-}
-
-
-void PrettyPrinter::VisitModulePath(ModulePath* node) {
-  Visit(node->module());
-  Print(".");
-  PrintLiteral(node->name(), false);
-}
-
-
-void PrettyPrinter::VisitModuleUrl(ModuleUrl* node) {
-  Print("at ");
-  PrintLiteral(node->url(), true);
-}
-
-
-void PrettyPrinter::VisitModuleStatement(ModuleStatement* node) {
-  Print("module ");
-  Visit(node->body());
 }
 
 
@@ -870,6 +823,13 @@ void PrettyPrinter::VisitCompareOperation(CompareOperation* node) {
 }
 
 
+void PrettyPrinter::VisitSpread(Spread* node) {
+  Print("(...");
+  Visit(node->expression());
+  Print(")");
+}
+
+
 void PrettyPrinter::VisitThisFunction(ThisFunction* node) {
   Print("<this-function>");
 }
@@ -1202,13 +1162,6 @@ void AstPrinter::VisitFunctionDeclaration(FunctionDeclaration* node) {
 }
 
 
-void AstPrinter::VisitModuleDeclaration(ModuleDeclaration* node) {
-  IndentedScope indent(this, "MODULE");
-  PrintLiteralIndented("NAME", node->proxy()->name(), true);
-  Visit(node->module());
-}
-
-
 void AstPrinter::VisitImportDeclaration(ImportDeclaration* node) {
   IndentedScope indent(this, "IMPORT");
   PrintLiteralIndented("NAME", node->proxy()->name(), true);
@@ -1219,30 +1172,6 @@ void AstPrinter::VisitImportDeclaration(ImportDeclaration* node) {
 void AstPrinter::VisitExportDeclaration(ExportDeclaration* node) {
   IndentedScope indent(this, "EXPORT ");
   PrintLiteral(node->proxy()->name(), true);
-}
-
-
-void AstPrinter::VisitModuleLiteral(ModuleLiteral* node) {
-  IndentedScope indent(this, "MODULE LITERAL");
-  VisitBlock(node->body());
-}
-
-
-void AstPrinter::VisitModulePath(ModulePath* node) {
-  IndentedScope indent(this, "MODULE PATH");
-  PrintIndentedVisit("MODULE PATH PARENT", node->module());
-  PrintLiteralIndented("NAME", node->name(), true);
-}
-
-
-void AstPrinter::VisitModuleUrl(ModuleUrl* node) {
-  PrintLiteralIndented("URL", node->url(), true);
-}
-
-
-void AstPrinter::VisitModuleStatement(ModuleStatement* node) {
-  IndentedScope indent(this, "MODULE STATEMENT");
-  PrintStatements(node->body()->statements());
 }
 
 
@@ -1367,7 +1296,7 @@ void AstPrinter::VisitTryCatchStatement(TryCatchStatement* node) {
 
 
 void AstPrinter::VisitTryFinallyStatement(TryFinallyStatement* node) {
-  IndentedScope indent(this, "TRY FINALLY");
+  IndentedScope indent(this, "TRY finalLY");
   PrintIndentedVisit("TRY", node->try_block());
   PrintIndentedVisit("FINALLY", node->finally_block());
 }
@@ -1570,6 +1499,12 @@ void AstPrinter::VisitCompareOperation(CompareOperation* node) {
   IndentedScope indent(this, Token::Name(node->op()));
   Visit(node->left());
   Visit(node->right());
+}
+
+
+void AstPrinter::VisitSpread(Spread* node) {
+  IndentedScope indent(this, "...");
+  Visit(node->expression());
 }
 
 

@@ -169,7 +169,6 @@ def headers(action):
     'src/node_internals.h',
     'src/node_object_wrap.h',
     'src/node_version.h',
-    'src/smalloc.h',
   ], 'include/node/')
 
   subdir_files('deps/cares/include', 'include/node/', action)

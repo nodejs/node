@@ -268,12 +268,12 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ lw(t0, MemOperand(a0, Deoptimizer::output_offset()));  // t0 is output_.
   __ sll(a1, a1, kPointerSizeLog2);  // Count to offset.
   __ addu(a1, t0, a1);  // a1 = one past the last FrameDescription**.
-  __ jmp(&outer_loop_header);
+  __ BranchShort(&outer_loop_header);
   __ bind(&outer_push_loop);
   // Inner loop state: a2 = current FrameDescription*, a3 = loop index.
   __ lw(a2, MemOperand(t0, 0));  // output_[ix]
   __ lw(a3, MemOperand(a2, FrameDescription::frame_size_offset()));
-  __ jmp(&inner_loop_header);
+  __ BranchShort(&inner_loop_header);
   __ bind(&inner_push_loop);
   __ Subu(a3, a3, Operand(sizeof(uint32_t)));
   __ Addu(t2, a2, Operand(a3));
@@ -343,7 +343,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
       Label start;
       __ bind(&start);
       DCHECK(is_int16(i));
-      __ Branch(USE_DELAY_SLOT, &done);  // Expose delay slot.
+      __ BranchShort(USE_DELAY_SLOT, &done);  // Expose delay slot.
       __ li(at, i);  // In the delay slot.
 
       DCHECK_EQ(table_entry_size_, masm()->SizeOfCodeGeneratedSince(&start));
@@ -361,20 +361,20 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
       Label start;
       __ bind(&start);
       DCHECK(is_int16(i));
-      __ Branch(USE_DELAY_SLOT, &trampoline_jump);  // Expose delay slot.
+      __ BranchShort(USE_DELAY_SLOT, &trampoline_jump);  // Expose delay slot.
       __ li(at, - i);  // In the delay slot.
       DCHECK_EQ(table_entry_size_, masm()->SizeOfCodeGeneratedSince(&start));
     }
     // Entry with id == kMaxEntriesBranchReach - 1.
     __ bind(&trampoline_jump);
-    __ Branch(USE_DELAY_SLOT, &done_special);
+    __ BranchShort(USE_DELAY_SLOT, &done_special);
     __ li(at, -1);
 
     for (int i = kMaxEntriesBranchReach ; i < count(); i++) {
       Label start;
       __ bind(&start);
       DCHECK(is_int16(i));
-      __ Branch(USE_DELAY_SLOT, &done);  // Expose delay slot.
+      __ BranchShort(USE_DELAY_SLOT, &done);  // Expose delay slot.
       __ li(at, i);  // In the delay slot.
     }
 

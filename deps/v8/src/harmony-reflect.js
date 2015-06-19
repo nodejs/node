@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+(function(global, shared, exports) {
+
 'use strict';
 
-var $Reflect = global.Reflect;
+%CheckIsBootstrapping();
 
-function SetUpReflect() {
-  %CheckIsBootstrapping();
+var GlobalReflect = global.Reflect;
 
-  InstallFunctions($Reflect, DONT_ENUM, $Array(
-   "apply", ReflectApply,
-   "construct", ReflectConstruct
-  ));
-}
+$installFunctions(GlobalReflect, DONT_ENUM, [
+  "apply", $reflectApply,
+  "construct", $reflectConstruct
+]);
 
-SetUpReflect();
+})

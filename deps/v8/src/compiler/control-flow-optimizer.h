@@ -20,7 +20,7 @@ class MachineOperatorBuilder;
 class Node;
 
 
-class ControlFlowOptimizer FINAL {
+class ControlFlowOptimizer final {
  public:
   ControlFlowOptimizer(JSGraph* jsgraph, Zone* zone);
 

@@ -206,8 +206,8 @@ void MemoryChunk::UpdateHighWaterMark(Address mark) {
 
 
 PointerChunkIterator::PointerChunkIterator(Heap* heap)
-    : state_(kOldPointerState),
-      old_pointer_iterator_(heap->old_pointer_space()),
+    : state_(kOldSpaceState),
+      old_iterator_(heap->old_space()),
       map_iterator_(heap->map_space()),
       lo_iterator_(heap->lo_space()) {}
 
@@ -250,6 +250,25 @@ HeapObject* PagedSpace::AllocateLinearly(int size_in_bytes) {
 }
 
 
+HeapObject* PagedSpace::AllocateLinearlyDoubleAlign(int size_in_bytes) {
+  Address current_top = allocation_info_.top();
+  int alignment_size = 0;
+
+  if ((OffsetFrom(current_top) & kDoubleAlignmentMask) != 0) {
+    alignment_size = kPointerSize;
+    size_in_bytes += alignment_size;
+  }
+  Address new_top = current_top + size_in_bytes;
+  if (new_top > allocation_info_.limit()) return NULL;
+
+  allocation_info_.set_top(new_top);
+  if (alignment_size > 0)
+    return heap()->EnsureDoubleAligned(HeapObject::FromAddress(current_top),
+                                       size_in_bytes);
+  return HeapObject::FromAddress(current_top);
+}
+
+
 // Raw allocation.
 AllocationResult PagedSpace::AllocateRaw(int size_in_bytes) {
   HeapObject* object = AllocateLinearly(size_in_bytes);
@@ -273,15 +292,71 @@ AllocationResult PagedSpace::AllocateRaw(int size_in_bytes) {
 }
 
 
+// Raw allocation.
+AllocationResult PagedSpace::AllocateRawDoubleAligned(int size_in_bytes) {
+  DCHECK(identity() == OLD_SPACE);
+  HeapObject* object = AllocateLinearlyDoubleAlign(size_in_bytes);
+  int aligned_size_in_bytes = size_in_bytes + kPointerSize;
+
+  if (object == NULL) {
+    object = free_list_.Allocate(aligned_size_in_bytes);
+    if (object == NULL) {
+      object = SlowAllocateRaw(aligned_size_in_bytes);
+    }
+    if (object != NULL) {
+      object = heap()->EnsureDoubleAligned(object, aligned_size_in_bytes);
+    }
+  }
+
+  if (object != NULL) {
+    MSAN_ALLOCATED_UNINITIALIZED_MEMORY(object->address(), size_in_bytes);
+    return object;
+  }
+
+  return AllocationResult::Retry(identity());
+}
+
+
 // -----------------------------------------------------------------------------
 // NewSpace
+
+
+AllocationResult NewSpace::AllocateRawDoubleAligned(int size_in_bytes) {
+  Address old_top = allocation_info_.top();
+  int alignment_size = 0;
+  int aligned_size_in_bytes = 0;
+
+  // If double alignment is required and top pointer is not aligned, we allocate
+  // additional memory to take care of the alignment.
+  if ((OffsetFrom(old_top) & kDoubleAlignmentMask) != 0) {
+    alignment_size += kPointerSize;
+  }
+  aligned_size_in_bytes = size_in_bytes + alignment_size;
+
+  if (allocation_info_.limit() - old_top < aligned_size_in_bytes) {
+    return SlowAllocateRaw(size_in_bytes, true);
+  }
+
+  HeapObject* obj = HeapObject::FromAddress(old_top);
+  allocation_info_.set_top(allocation_info_.top() + aligned_size_in_bytes);
+  DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
+
+  if (alignment_size > 0) {
+    obj = heap()->EnsureDoubleAligned(obj, aligned_size_in_bytes);
+  }
+
+  // The slow path above ultimately goes through AllocateRaw, so this suffices.
+  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj->address(), size_in_bytes);
+
+  return obj;
+}
 
 
 AllocationResult NewSpace::AllocateRaw(int size_in_bytes) {
   Address old_top = allocation_info_.top();
 
   if (allocation_info_.limit() - old_top < size_in_bytes) {
-    return SlowAllocateRaw(size_in_bytes);
+    return SlowAllocateRaw(size_in_bytes, false);
   }
 
   HeapObject* obj = HeapObject::FromAddress(old_top);

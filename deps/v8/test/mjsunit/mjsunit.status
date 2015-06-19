@@ -76,6 +76,7 @@
   'json2': [PASS, NO_VARIANTS],
   'packed-elements': [PASS, NO_VARIANTS],
   'unbox-double-arrays': [PASS, NO_VARIANTS],
+  'unicode-test': [PASS, NO_VARIANTS],
   'whitespaces': [PASS, NO_VARIANTS],
   'compiler/osr-assert': [PASS, NO_VARIANTS],
   'regress/regress-2185-2': [PASS, NO_VARIANTS],
@@ -91,6 +92,41 @@
   # not work, but we expect it to not crash.
   'debug-step-turbofan': [PASS, FAIL],
 
+  # TODO(mstarzinger): Optimizing top-level code revealed some issues. Fix!
+  'bitops-info': [PASS, NO_VARIANTS],  # fails on ARM hardware.
+  'md5': [PASS, NO_VARIANTS],  # fails on ARM hardware.
+  'debug-break-inline': [PASS, NO_VARIANTS],  # very flaky.
+  'debug-compile-event-newfunction': [PASS, NO_VARIANTS],
+  'debug-conditional-breakpoints': [PASS, NO_VARIANTS],
+  'debug-evaluate-locals-optimized': [PASS, NO_VARIANTS],
+  'debug-evaluate-locals-optimized-double': [PASS, NO_VARIANTS],
+  'debug-evaluate-recursive': [PASS, NO_VARIANTS],  # only in no-snap debug.
+  'debug-ignore-breakpoints': [PASS, NO_VARIANTS],  # only in no-snap debug.
+  'debug-setbreakpoint': [PASS, NO_VARIANTS],  # only in no-snap debug.
+  'debug-step': [PASS, NO_VARIANTS],  # windows only.
+  'debug-step-2': [PASS, NO_VARIANTS],  # flaky in no-snap mode.
+  'debug-step-3': [PASS, NO_VARIANTS],  # flaky in no-snap mode.
+  'debug-stepframe-clearing': [PASS, NO_VARIANTS],  # only in no-snap debug.
+  'debug-stepin-call-function-stub': [PASS, NO_VARIANTS],  # only in no-snap debug.
+  'regress/regress-3717': [PASS, NO_VARIANTS],  # only in no-snap mode.
+  'regress/regress-2451': [PASS, NO_VARIANTS],  # with custom snapshot and gc-stress.
+  'debug-multiple-breakpoints': [PASS, NO_VARIANTS],  # with custom snapshot and gc-stress.
+  'debug-listbreakpoints': [PASS, NO_VARIANTS],  # arm64 nosnap with turbofan
+  'debug-enable-disable-breakpoints': [PASS, NO_VARIANTS],  #arm64 nosnap with turbofan.
+
+  # Issue 4035: unexpected frame->context() in debugger
+  'regress/regress-crbug-107996': [PASS, NO_VARIANTS],
+  'regress/regress-crbug-171715': [PASS, NO_VARIANTS],
+  'regress/regress-crbug-222893': [PASS, NO_VARIANTS],
+  'regress/regress-325676': [PASS, NO_VARIANTS],
+  'debug-evaluate-closure': [PASS, NO_VARIANTS],
+  'debug-evaluate-with': [PASS, NO_VARIANTS],
+
+  # TODO(mstarzinger): Optimizing top-level code flushed out some correctness
+  # issues on ARM and ARM64.
+  'es6/math-log2-log10': [PASS, NO_VARIANTS],  # on ARM and ARM64.
+  'mirror-script': [PASS, NO_VARIANTS],  # on ARM64 only.
+
   # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
   'debug-evaluate-const': [PASS, NO_VARIANTS],
   'debug-evaluate-locals': [PASS, NO_VARIANTS],
@@ -101,6 +137,17 @@
   'debug-stepout-scope-part2': [PASS, NO_VARIANTS],
   'debug-stepout-scope-part3': [PASS, NO_VARIANTS],
   'es6/debug-evaluate-blockscopes': [PASS, NO_VARIANTS],
+  # issue 4055:
+  'es6/generators-debug-scopes': [PASS, NO_VARIANTS],
+
+  # TODO(titzer): --always-opt incorrectly disables CrankShaft soft deopt points
+  'result-table-min': [PASS, NO_VARIANTS],
+  'result-table-max': [PASS, NO_VARIANTS],
+  # TODO(titzer): too slow in --turbo mode due to O(n^2) graph verification.
+  'regress/regress-1122': [PASS, NO_VARIANTS],
+
+  # issue 4078:
+  'allocation-site-info': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
@@ -119,8 +166,9 @@
   'regress/regress-crbug-217858': [PASS, ['mode == debug', SKIP]],
 
   ##############################################################################
-  # Only regexp stuff tested, no need for extensive Crankshaft tests.
+  # Only RegExp stuff tested, no need for extensive optimizing compiler tests.
   'regexp-global': [PASS, NO_VARIANTS],
+  'third_party/regexp-pcre': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # No need to waste time for this test.
@@ -178,10 +226,6 @@
   # nosse2. Also for arm novfp3.
   'regress/regress-2989': [FAIL, NO_VARIANTS, ['system == linux and arch == x87 or arch == arm and simulator == True', PASS]],
 
-  # BUG(v8:3985). Wrong materialization of arguments object after throwing
-  # an exception.
-  'regress/regress-3985': [PASS, FAIL],
-
   # Skip endain dependent test for mips due to different typed views of the same
   # array buffer.
   'nans': [PASS, ],
@@ -191,6 +235,8 @@
 
   # Too slow for slow variants.
   'asm/embenchen/*': [PASS, SLOW, FAST_VARIANTS],
+  'asm/poppler/*': [PASS, SLOW, FAST_VARIANTS],
+  'asm/sqlite3/*': [PASS, SLOW, FAST_VARIANTS],
 
   # BUG(v8:3838).
   'regress/regress-3116': [PASS, ['isolates', FLAKY]],
@@ -244,16 +290,19 @@
 
   # Issue 3723.
   'regress/regress-3717': [SKIP],
-  # Issue 3924.
-  'mjsunit/debug-clearbreakpointgroup': [SKIP],
-  # Issue 3969.
-  'mjsunit/debug-references': [SKIP],
+  # Issue 478788.
+  'es7/object-observe': [SKIP],
+
+  # Issue 3803.
+  'es6/generators-iteration': [PASS, FLAKY],
 }],  # 'gc_stress == True'
 
 ##############################################################################
 ['byteorder == big', {
   # Emscripten requires little-endian, skip all tests on big endian platforms.
   'asm/embenchen/*': [SKIP],
+  'asm/poppler/*': [SKIP],
+  'asm/sqlite3/*': [SKIP],
 }],  # 'byteorder == big'
 
 ##############################################################################
@@ -299,6 +348,9 @@
 
   # BUG(v8:3457).
   'deserialize-reference': [PASS, FAIL],
+
+  # BUG(v8:4016)
+  'regress/regress-crbug-467047': [SKIP],
 
   # Slow tests.
   'array-concat': [PASS, SLOW],
@@ -357,6 +409,17 @@
   'big-object-literal': [SKIP],
   'regress/regress-crbug-178790': [SKIP],
 }],  # 'asan == True'
+
+##############################################################################
+['msan == True', {
+  # Skip tests not suitable for MSAN.
+  'big-array-literal': [SKIP],
+  # ICU upstream issues.
+  'date': [SKIP],
+  'deep-recursion': [SKIP],
+  'regress/regress-builtinbust-7': [SKIP],
+  'string-localecompare': [SKIP],
+}],  # 'msan == True'
 
 ##############################################################################
 ['arch == arm or arch == android_arm', {

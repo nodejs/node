@@ -15,11 +15,8 @@ namespace base {
 #if V8_OS_POSIX
 
 ConditionVariable::ConditionVariable() {
-  // TODO(bmeurer): The test for V8_LIBRT_NOT_AVAILABLE is a temporary
-  // hack to support cross-compiling Chrome for Android in AOSP. Remove
-  // this once AOSP is fixed.
 #if (V8_OS_FREEBSD || V8_OS_NETBSD || V8_OS_OPENBSD || \
-     (V8_OS_LINUX && V8_LIBC_GLIBC)) && !V8_LIBRT_NOT_AVAILABLE
+     (V8_OS_LINUX && V8_LIBC_GLIBC))
   // On Free/Net/OpenBSD and Linux with glibc we can change the time
   // source for pthread_cond_timedwait() to use the monotonic clock.
   pthread_condattr_t attr;
@@ -81,11 +78,8 @@ bool ConditionVariable::WaitFor(Mutex* mutex, const TimeDelta& rel_time) {
   result = pthread_cond_timedwait_relative_np(
       &native_handle_, &mutex->native_handle(), &ts);
 #else
-  // TODO(bmeurer): The test for V8_LIBRT_NOT_AVAILABLE is a temporary
-  // hack to support cross-compiling Chrome for Android in AOSP. Remove
-  // this once AOSP is fixed.
 #if (V8_OS_FREEBSD || V8_OS_NETBSD || V8_OS_OPENBSD || \
-     (V8_OS_LINUX && V8_LIBC_GLIBC)) && !V8_LIBRT_NOT_AVAILABLE
+     (V8_OS_LINUX && V8_LIBC_GLIBC))
   // On Free/Net/OpenBSD and Linux with glibc we can change the time
   // source for pthread_cond_timedwait() to use the monotonic clock.
   result = clock_gettime(CLOCK_MONOTONIC, &ts);

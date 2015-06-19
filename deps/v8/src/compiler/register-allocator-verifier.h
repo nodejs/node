@@ -14,7 +14,7 @@ namespace compiler {
 class InstructionOperand;
 class InstructionSequence;
 
-class RegisterAllocatorVerifier FINAL : public ZoneObject {
+class RegisterAllocatorVerifier final : public ZoneObject {
  public:
   RegisterAllocatorVerifier(Zone* zone, const RegisterConfiguration* config,
                             const InstructionSequence* sequence);

@@ -6,27 +6,26 @@
 #define V8_COMPILER_OPCODES_H_
 
 // Opcodes for control operators.
-#define INNER_CONTROL_OP_LIST(V) \
-  V(Dead)                        \
-  V(Loop)                        \
-  V(Branch)                      \
-  V(Switch)                      \
-  V(IfTrue)                      \
-  V(IfFalse)                     \
-  V(IfSuccess)                   \
-  V(IfException)                 \
-  V(IfValue)                     \
-  V(IfDefault)                   \
-  V(Merge)                       \
-  V(Deoptimize)                  \
-  V(Return)                      \
-  V(OsrNormalEntry)              \
-  V(OsrLoopEntry)                \
-  V(Throw)
-
 #define CONTROL_OP_LIST(V) \
-  INNER_CONTROL_OP_LIST(V) \
   V(Start)                 \
+  V(Dead)                  \
+  V(Loop)                  \
+  V(Branch)                \
+  V(Switch)                \
+  V(IfTrue)                \
+  V(IfFalse)               \
+  V(IfSuccess)             \
+  V(IfException)           \
+  V(IfValue)               \
+  V(IfDefault)             \
+  V(Merge)                 \
+  V(Deoptimize)            \
+  V(Return)                \
+  V(TailCall)              \
+  V(Terminate)             \
+  V(OsrNormalEntry)        \
+  V(OsrLoopEntry)          \
+  V(Throw)                 \
   V(End)
 
 // Opcodes for constant operators.
@@ -56,8 +55,7 @@
 
 #define COMMON_OP_LIST(V) \
   CONSTANT_OP_LIST(V)     \
-  INNER_OP_LIST(V)        \
-  V(Always)
+  INNER_OP_LIST(V)
 
 // Opcodes for JavaScript operators.
 #define JS_COMPARE_BINOP_LIST(V) \
@@ -109,6 +107,9 @@
 
 #define JS_OBJECT_OP_LIST(V) \
   V(JSCreate)                \
+  V(JSCreateClosure)         \
+  V(JSCreateLiteralArray)    \
+  V(JSCreateLiteralObject)   \
   V(JSLoadProperty)          \
   V(JSLoadNamed)             \
   V(JSStoreProperty)         \
@@ -172,6 +173,7 @@
   V(ChangeFloat64ToTagged)         \
   V(ChangeBoolToBit)               \
   V(ChangeBitToBool)               \
+  V(Allocate)                      \
   V(LoadField)                     \
   V(LoadBuffer)                    \
   V(LoadElement)                   \
@@ -192,6 +194,9 @@
   V(Int64LessThan)                    \
   V(Int64LessThanOrEqual)             \
   V(Uint64LessThan)                   \
+  V(Float32Equal)                     \
+  V(Float32LessThan)                  \
+  V(Float32LessThanOrEqual)           \
   V(Float64Equal)                     \
   V(Float64LessThan)                  \
   V(Float64LessThanOrEqual)
@@ -243,6 +248,14 @@
   V(TruncateFloat64ToFloat32)   \
   V(TruncateFloat64ToInt32)     \
   V(TruncateInt64ToInt32)       \
+  V(Float32Add)                 \
+  V(Float32Sub)                 \
+  V(Float32Mul)                 \
+  V(Float32Div)                 \
+  V(Float32Max)                 \
+  V(Float32Min)                 \
+  V(Float32Abs)                 \
+  V(Float32Sqrt)                \
   V(Float64Add)                 \
   V(Float64Sub)                 \
   V(Float64Mul)                 \
@@ -250,6 +263,7 @@
   V(Float64Mod)                 \
   V(Float64Max)                 \
   V(Float64Min)                 \
+  V(Float64Abs)                 \
   V(Float64Sqrt)                \
   V(Float64RoundDown)           \
   V(Float64RoundTruncate)       \
@@ -296,12 +310,12 @@ class IrOpcode {
 
   // Returns true if opcode for common operator.
   static bool IsCommonOpcode(Value value) {
-    return kDead <= value && value <= kAlways;
+    return kStart <= value && value <= kProjection;
   }
 
   // Returns true if opcode for control operator.
   static bool IsControlOpcode(Value value) {
-    return kDead <= value && value <= kEnd;
+    return kStart <= value && value <= kEnd;
   }
 
   // Returns true if opcode for JavaScript operator.

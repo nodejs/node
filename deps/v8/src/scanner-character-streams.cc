@@ -130,13 +130,27 @@ size_t BufferedUtf16CharacterStream::SlowSeekForward(size_t delta) {
 
 GenericStringUtf16CharacterStream::GenericStringUtf16CharacterStream(
     Handle<String> data, size_t start_position, size_t end_position)
-    : string_(data), length_(end_position) {
+    : string_(data), length_(end_position), bookmark_(kNoBookmark) {
   DCHECK(end_position >= start_position);
   pos_ = start_position;
 }
 
 
 GenericStringUtf16CharacterStream::~GenericStringUtf16CharacterStream() { }
+
+
+bool GenericStringUtf16CharacterStream::SetBookmark() {
+  bookmark_ = pos_;
+  return true;
+}
+
+
+void GenericStringUtf16CharacterStream::ResetToBookmark() {
+  DCHECK(bookmark_ != kNoBookmark);
+  pos_ = bookmark_;
+  buffer_cursor_ = buffer_;
+  buffer_end_ = buffer_ + FillBuffer(pos_);
+}
 
 
 size_t GenericStringUtf16CharacterStream::BufferSeekForward(size_t delta) {
@@ -447,17 +461,29 @@ ExternalTwoByteStringUtf16CharacterStream::
     ~ExternalTwoByteStringUtf16CharacterStream() { }
 
 
-ExternalTwoByteStringUtf16CharacterStream
-    ::ExternalTwoByteStringUtf16CharacterStream(
-        Handle<ExternalTwoByteString> data,
-        int start_position,
+ExternalTwoByteStringUtf16CharacterStream::
+    ExternalTwoByteStringUtf16CharacterStream(
+        Handle<ExternalTwoByteString> data, int start_position,
         int end_position)
     : Utf16CharacterStream(),
       source_(data),
-      raw_data_(data->GetTwoByteData(start_position)) {
+      raw_data_(data->GetTwoByteData(start_position)),
+      bookmark_(kNoBookmark) {
   buffer_cursor_ = raw_data_,
   buffer_end_ = raw_data_ + (end_position - start_position);
   pos_ = start_position;
 }
 
+
+bool ExternalTwoByteStringUtf16CharacterStream::SetBookmark() {
+  bookmark_ = pos_;
+  return true;
+}
+
+
+void ExternalTwoByteStringUtf16CharacterStream::ResetToBookmark() {
+  DCHECK(bookmark_ != kNoBookmark);
+  pos_ = bookmark_;
+  buffer_cursor_ = raw_data_ + bookmark_;
+}
 } }  // namespace v8::internal

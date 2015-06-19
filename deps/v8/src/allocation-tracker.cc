@@ -262,8 +262,8 @@ static uint32_t SnapshotObjectIdHash(SnapshotObjectId id) {
 
 unsigned AllocationTracker::AddFunctionInfo(SharedFunctionInfo* shared,
                                             SnapshotObjectId id) {
-  HashMap::Entry* entry = id_to_function_info_index_.Lookup(
-      reinterpret_cast<void*>(id), SnapshotObjectIdHash(id), true);
+  HashMap::Entry* entry = id_to_function_info_index_.LookupOrInsert(
+      reinterpret_cast<void*>(id), SnapshotObjectIdHash(id));
   if (entry->value == NULL) {
     FunctionInfo* info = new FunctionInfo();
     info->name = names_->GetFunctionName(shared->DebugName());

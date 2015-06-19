@@ -36,7 +36,7 @@ bool HUint32AnalysisPhase::IsSafeUint32Use(HValue* val, HValue* use) {
   // Operations that operate on bits are safe.
   if (use->IsBitwise() || use->IsShl() || use->IsSar() || use->IsShr()) {
     return true;
-  } else if (use->IsSimulate()) {
+  } else if (use->IsSimulate() || use->IsArgumentsObject()) {
     // Deoptimization has special support for uint32.
     return true;
   } else if (use->IsChange()) {

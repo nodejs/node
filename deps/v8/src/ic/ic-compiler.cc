@@ -110,7 +110,15 @@ Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphic(
 Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphicHandler(
     Handle<Map> receiver_map) {
   Isolate* isolate = receiver_map->GetIsolate();
+  bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
   ElementsKind elements_kind = receiver_map->elements_kind();
+
+  // No need to check for an elements-free prototype chain here, the generated
+  // stub code needs to check that dynamically anyway.
+  bool convert_hole_to_undefined =
+      is_js_array && elements_kind == FAST_HOLEY_ELEMENTS &&
+      *receiver_map == isolate->get_initial_js_array_map(elements_kind);
+
   Handle<Code> stub;
   if (receiver_map->has_indexed_interceptor()) {
     stub = LoadIndexedInterceptorStub(isolate).GetCode();
@@ -122,9 +130,8 @@ Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphicHandler(
   } else if (receiver_map->has_fast_elements() ||
              receiver_map->has_external_array_elements() ||
              receiver_map->has_fixed_typed_array_elements()) {
-    stub = LoadFastElementStub(isolate,
-                               receiver_map->instance_type() == JS_ARRAY_TYPE,
-                               elements_kind).GetCode();
+    stub = LoadFastElementStub(isolate, is_js_array, elements_kind,
+                               convert_hole_to_undefined).GetCode();
   } else {
     stub = LoadDictionaryElementStub(isolate).GetCode();
   }

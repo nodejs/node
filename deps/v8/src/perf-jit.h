@@ -33,13 +33,6 @@
 namespace v8 {
 namespace internal {
 
-// TODO(jarin) For now, we disable perf integration on Android because of a
-// build problem - when building the snapshot with AOSP, librt is not
-// available, so we cannot use the clock_gettime function. To fix this, we
-// should thread through the V8_LIBRT_NOT_AVAILABLE flag here and only disable
-// the perf integration when this flag is present (the perf integration is not
-// needed when generating snapshot, so it is fine to ifdef it away).
-
 #if V8_OS_LINUX
 
 // Linux perf tool logging support

@@ -36,11 +36,23 @@
     'public_api': {
       'filepath': 'include/',
     },
+    'snapshot': {
+      'filepath': 'src/snapshot/',
+    },
+    'debugger': {
+      'filepath': 'src/debug\.(cc|h)|src/.*-debugger\.js|src/runtime/runtime-debug\.cc',
+    },
   },
 
   'WATCHLISTS': {
     'public_api': [
       'phajdan.jr@chromium.org',
+    ],
+    'snapshot': [
+      'yangguo@chromium.org',
+    ],
+    'debugger': [
+      'yangguo@chromium.org',
     ],
   },
 }

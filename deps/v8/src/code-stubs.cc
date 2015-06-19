@@ -268,7 +268,8 @@ MaybeHandle<Code> CodeStub::GetCode(Isolate* isolate, uint32_t key) {
 void BinaryOpICStub::GenerateAheadOfTime(Isolate* isolate) {
   // Generate the uninitialized versions of the stub.
   for (int op = Token::BIT_OR; op <= Token::MOD; ++op) {
-    BinaryOpICStub stub(isolate, static_cast<Token::Value>(op));
+    BinaryOpICStub stub(isolate, static_cast<Token::Value>(op),
+                        LanguageMode::SLOPPY);
     stub.GetCode();
   }
 
@@ -632,6 +633,9 @@ void FastNewClosureStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
 void FastNewContextStub::InitializeDescriptor(CodeStubDescriptor* d) {}
 
 
+void TypeofStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {}
+
+
 void NumberToStringStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   NumberToStringDescriptor call_descriptor(isolate());
   descriptor->Initialize(
@@ -714,6 +718,19 @@ void StringAddStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
 }
 
 
+void GrowArrayElementsStub::InitializeDescriptor(
+    CodeStubDescriptor* descriptor) {
+  descriptor->Initialize(
+      Runtime::FunctionForId(Runtime::kGrowArrayElements)->entry);
+}
+
+
+void TypeofStub::GenerateAheadOfTime(Isolate* isolate) {
+  TypeofStub stub(isolate);
+  stub.GetCode();
+}
+
+
 void CreateAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
   CreateAllocationSiteStub stub(isolate);
   stub.GetCode();
@@ -748,6 +765,21 @@ void StoreElementStub::Generate(MacroAssembler* masm) {
     case SLOPPY_ARGUMENTS_ELEMENTS:
       UNREACHABLE();
       break;
+  }
+}
+
+
+// static
+void StoreFastElementStub::GenerateAheadOfTime(Isolate* isolate) {
+  StoreFastElementStub(isolate, false, FAST_HOLEY_ELEMENTS, STANDARD_STORE)
+      .GetCode();
+  StoreFastElementStub(isolate, false, FAST_HOLEY_ELEMENTS,
+                       STORE_AND_GROW_NO_TRANSITION).GetCode();
+  for (int i = FIRST_FAST_ELEMENTS_KIND; i <= LAST_FAST_ELEMENTS_KIND; i++) {
+    ElementsKind kind = static_cast<ElementsKind>(i);
+    StoreFastElementStub(isolate, true, kind, STANDARD_STORE).GetCode();
+    StoreFastElementStub(isolate, true, kind, STORE_AND_GROW_NO_TRANSITION)
+        .GetCode();
   }
 }
 

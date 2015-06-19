@@ -138,6 +138,21 @@ void Node::ReplaceUses(Node* that) {
 }
 
 
+bool Node::OwnedBy(Node const* owner1, Node const* owner2) const {
+  unsigned mask = 0;
+  for (Use* use = first_use_; use; use = use->next) {
+    if (use->from == owner1) {
+      mask |= 1;
+    } else if (use->from == owner2) {
+      mask |= 2;
+    } else {
+      return false;
+    }
+  }
+  return mask == 3;
+}
+
+
 void Node::Input::Update(Node* new_to) {
   Node* old_to = this->to;
   if (new_to == old_to) return;  // Nothing to do.

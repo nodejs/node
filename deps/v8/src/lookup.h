@@ -12,7 +12,7 @@
 namespace v8 {
 namespace internal {
 
-class LookupIterator FINAL BASE_EMBEDDED {
+class LookupIterator final BASE_EMBEDDED {
  public:
   enum Configuration {
     // Configuration bits.
@@ -142,7 +142,7 @@ class LookupIterator FINAL BASE_EMBEDDED {
   Handle<Object> GetDataValue() const;
   // Usually returns the value that was passed in, but may perform
   // non-observable modifications on it, such as internalize strings.
-  Handle<Object> WriteDataValue(Handle<Object> value);
+  void WriteDataValue(Handle<Object> value);
   void InternalizeName();
 
  private:

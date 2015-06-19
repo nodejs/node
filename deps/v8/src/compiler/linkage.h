@@ -27,10 +27,22 @@ class LinkageLocation {
  public:
   explicit LinkageLocation(int location) : location_(location) {}
 
+  bool is_register() const {
+    return 0 <= location_ && location_ <= ANY_REGISTER;
+  }
+
   static const int16_t ANY_REGISTER = 1023;
   static const int16_t MAX_STACK_SLOT = 32767;
 
   static LinkageLocation AnyRegister() { return LinkageLocation(ANY_REGISTER); }
+
+  bool operator==(const LinkageLocation& other) const {
+    return location_ == other.location_;
+  }
+
+  bool operator!=(const LinkageLocation& other) const {
+    return !(*this == other);
+  }
 
  private:
   friend class CallDescriptor;
@@ -46,7 +58,7 @@ typedef Signature<LinkageLocation> LocationSignature;
 
 // Describes a call to various parts of the compiler. Every call has the notion
 // of a "target", which is the first input to the call.
-class CallDescriptor FINAL : public ZoneObject {
+class CallDescriptor final : public ZoneObject {
  public:
   // Describes the kind of this call, which determines the target.
   enum Kind {
@@ -61,6 +73,7 @@ class CallDescriptor FINAL : public ZoneObject {
     kPatchableCallSite = 1u << 1,
     kNeedsNopAfterCall = 1u << 2,
     kHasExceptionHandler = 1u << 3,
+    kSupportsTailCalls = 1u << 4,
     kPatchableCallSiteWithNop = kPatchableCallSite | kNeedsNopAfterCall
   };
   typedef base::Flags<Flag> Flags;
@@ -108,6 +121,7 @@ class CallDescriptor FINAL : public ZoneObject {
   Flags flags() const { return flags_; }
 
   bool NeedsFrameState() const { return flags() & kNeedsFrameState; }
+  bool SupportsTailCalls() const { return flags() & kSupportsTailCalls; }
 
   LinkageLocation GetReturnLocation(size_t index) const {
     return location_sig_->GetReturn(index);
@@ -136,6 +150,10 @@ class CallDescriptor FINAL : public ZoneObject {
   RegList CalleeSavedRegisters() const { return callee_saved_registers_; }
 
   const char* debug_name() const { return debug_name_; }
+
+  bool UsesOnlyRegisters() const;
+
+  bool HasSameReturnLocationsAs(const CallDescriptor* other) const;
 
  private:
   friend class Linkage;

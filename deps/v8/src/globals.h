@@ -8,6 +8,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <ostream>
+
 #include "src/base/build_config.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -238,6 +240,20 @@ enum LanguageMode {
 };
 
 
+inline std::ostream& operator<<(std::ostream& os, LanguageMode mode) {
+  switch (mode) {
+    case SLOPPY:
+      return os << "sloppy";
+    case STRICT:
+      return os << "strict";
+    case STRONG:
+      return os << "strong";
+    default:
+      return os << "unknown";
+  }
+}
+
+
 inline bool is_sloppy(LanguageMode language_mode) {
   return (language_mode & STRICT_BIT) == 0;
 }
@@ -408,18 +424,16 @@ typedef bool (*WeakSlotCallbackWithHeap)(Heap* heap, Object** pointer);
 // consecutive.
 // Keep this enum in sync with the ObjectSpace enum in v8.h
 enum AllocationSpace {
-  NEW_SPACE,          // Semispaces collected with copying collector.
-  OLD_POINTER_SPACE,  // May contain pointers to new space.
-  OLD_DATA_SPACE,     // Must not have pointers to new space.
-  CODE_SPACE,         // No pointers to new space, marked executable.
-  MAP_SPACE,          // Only and all map objects.
-  CELL_SPACE,         // Only and all cell objects.
-  LO_SPACE,           // Promoted large objects.
+  NEW_SPACE,   // Semispaces collected with copying collector.
+  OLD_SPACE,   // May contain pointers to new space.
+  CODE_SPACE,  // No pointers to new space, marked executable.
+  MAP_SPACE,   // Only and all map objects.
+  LO_SPACE,    // Promoted large objects.
 
   FIRST_SPACE = NEW_SPACE,
   LAST_SPACE = LO_SPACE,
-  FIRST_PAGED_SPACE = OLD_POINTER_SPACE,
-  LAST_PAGED_SPACE = CELL_SPACE
+  FIRST_PAGED_SPACE = OLD_SPACE,
+  LAST_PAGED_SPACE = MAP_SPACE
 };
 const int kSpaceTagSize = 3;
 const int kSpaceTagMask = (1 << kSpaceTagSize) - 1;
@@ -626,6 +640,10 @@ struct AccessorDescriptor {
 #define CODE_POINTER_ALIGN(value)                               \
   (((value) + kCodeAlignmentMask) & ~kCodeAlignmentMask)
 
+// DOUBLE_POINTER_ALIGN returns the value algined for double pointers.
+#define DOUBLE_POINTER_ALIGN(value) \
+  (((value) + kDoubleAlignmentMask) & ~kDoubleAlignmentMask)
+
 // Support for tracking C++ memory allocation.  Insert TRACK_MEMORY("Fisk")
 // inside a C++ class and new and delete will be overloaded so logging is
 // performed.
@@ -655,6 +673,10 @@ enum CpuFeature {
   SAHF,
   AVX,
   FMA3,
+  BMI1,
+  BMI2,
+  LZCNT,
+  POPCNT,
   ATOM,
   // ARM
   VFP3,

@@ -16,6 +16,7 @@
 #include "src/ic/ic-inl.h"
 #include "src/ic/ic-compiler.h"
 #include "src/ic/stub-cache.h"
+#include "src/messages.h"
 #include "src/prototype.h"
 #include "src/runtime/runtime.h"
 
@@ -369,10 +370,10 @@ MaybeHandle<Object> IC::TypeError(const char* type, Handle<Object> object,
 }
 
 
-MaybeHandle<Object> IC::ReferenceError(const char* type, Handle<Name> name) {
+MaybeHandle<Object> IC::ReferenceError(Handle<Name> name) {
   HandleScope scope(isolate());
-  THROW_NEW_ERROR(isolate(), NewReferenceError(type, HandleVector(&name, 1)),
-                  Object);
+  THROW_NEW_ERROR(
+      isolate(), NewReferenceError(MessageTemplate::kNotDefined, name), Object);
 }
 
 
@@ -737,7 +738,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
       if (*result == *isolate()->factory()->the_hole_value()) {
         // Do not install stubs and stay pre-monomorphic for
         // uninitialized accesses.
-        return ReferenceError("not_defined", name);
+        return ReferenceError(name);
       }
 
       if (use_ic && LoadScriptContextFieldStub::Accepted(&lookup_result)) {
@@ -767,7 +768,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
       return result;
     }
   }
-  return ReferenceError("not_defined", name);
+  return ReferenceError(name);
 }
 
 
@@ -1005,7 +1006,7 @@ Handle<Code> KeyedLoadIC::initialize_stub(Isolate* isolate) {
 
 Handle<Code> KeyedLoadIC::initialize_stub_in_optimized_code(
     Isolate* isolate, State initialization_state) {
-  if (FLAG_vector_ics) {
+  if (FLAG_vector_ics && initialization_state != MEGAMORPHIC) {
     return VectorRawKeyedLoadStub(isolate).GetCode();
   }
   switch (initialization_state) {
@@ -1219,16 +1220,19 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
 
     case LookupIterator::ACCESSOR: {
       // Use simple field loads for some well-known callback properties.
-      if (receiver_is_holder) {
-        DCHECK(receiver->IsJSObject());
-        Handle<JSObject> js_receiver = Handle<JSObject>::cast(receiver);
-        int object_offset;
-        if (Accessors::IsJSObjectFieldAccessor(map, lookup->name(),
-                                               &object_offset)) {
-          FieldIndex index =
-              FieldIndex::ForInObjectOffset(object_offset, js_receiver->map());
-          return SimpleFieldLoad(index);
-        }
+      // The method will only return true for absolute truths based on the
+      // receiver maps.
+      int object_offset;
+      if (Accessors::IsJSObjectFieldAccessor(map, lookup->name(),
+                                             &object_offset)) {
+        FieldIndex index = FieldIndex::ForInObjectOffset(object_offset, *map);
+        return SimpleFieldLoad(index);
+      }
+      if (Accessors::IsJSArrayBufferViewFieldAccessor(map, lookup->name(),
+                                                      &object_offset)) {
+        FieldIndex index = FieldIndex::ForInObjectOffset(object_offset, *map);
+        ArrayBufferViewLoadFieldStub stub(isolate(), index);
+        return stub.GetCode();
       }
 
       Handle<Object> accessors = lookup->GetAccessors();
@@ -1563,7 +1567,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
       if (*previous_value == *isolate()->factory()->the_hole_value()) {
         // Do not install stubs and stay pre-monomorphic for
         // uninitialized accesses.
-        return ReferenceError("not_defined", name);
+        return ReferenceError(name);
       }
 
       if (FLAG_use_ic &&
@@ -1717,7 +1721,11 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
 static Handle<Code> PropertyCellStoreHandler(
     Isolate* isolate, Handle<JSObject> receiver, Handle<GlobalObject> holder,
     Handle<Name> name, Handle<PropertyCell> cell, PropertyCellType type) {
-  StoreGlobalStub stub(isolate, type == PropertyCellType::kConstant,
+  auto constant_type = Nothing<PropertyCellConstantType>();
+  if (type == PropertyCellType::kConstantType) {
+    constant_type = Just(cell->GetConstantType());
+  }
+  StoreGlobalStub stub(isolate, type, constant_type,
                        receiver->IsJSGlobalProxy());
   auto code = stub.GetCodeCopyFromTemplate(holder, cell);
   // TODO(verwaest): Move caching of these NORMAL stubs outside as well.
@@ -1818,11 +1826,12 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
           DCHECK(holder.is_identical_to(receiver) ||
                  receiver->map()->prototype() == *holder);
           auto cell = lookup->GetPropertyCell();
-          auto union_type = PropertyCell::UpdatedType(
+          auto updated_type = PropertyCell::UpdatedType(
               cell, value, lookup->property_details());
-          return PropertyCellStoreHandler(isolate(), receiver,
-                                          Handle<GlobalObject>::cast(holder),
-                                          lookup->name(), cell, union_type);
+          auto code = PropertyCellStoreHandler(
+              isolate(), receiver, Handle<GlobalObject>::cast(holder),
+              lookup->name(), cell, updated_type);
+          return code;
         }
         DCHECK(holder.is_identical_to(receiver));
         return isolate()->builtins()->StoreIC_Normal();
@@ -2571,7 +2580,7 @@ MaybeHandle<Object> BinaryOpIC::Transition(
 
   // Compute the actual result using the builtin for the binary operation.
   Object* builtin = isolate()->js_builtins_object()->javascript_builtin(
-      TokenToJSBuiltin(state.op()));
+      TokenToJSBuiltin(state.op(), state.language_mode()));
   Handle<JSFunction> function = handle(JSFunction::cast(builtin), isolate());
   Handle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -2808,43 +2817,38 @@ RUNTIME_FUNCTION(Unreachable) {
 }
 
 
-Builtins::JavaScript BinaryOpIC::TokenToJSBuiltin(Token::Value op) {
-  switch (op) {
-    default:
-      UNREACHABLE();
-    case Token::ADD:
-      return Builtins::ADD;
-      break;
-    case Token::SUB:
-      return Builtins::SUB;
-      break;
-    case Token::MUL:
-      return Builtins::MUL;
-      break;
-    case Token::DIV:
-      return Builtins::DIV;
-      break;
-    case Token::MOD:
-      return Builtins::MOD;
-      break;
-    case Token::BIT_OR:
-      return Builtins::BIT_OR;
-      break;
-    case Token::BIT_AND:
-      return Builtins::BIT_AND;
-      break;
-    case Token::BIT_XOR:
-      return Builtins::BIT_XOR;
-      break;
-    case Token::SAR:
-      return Builtins::SAR;
-      break;
-    case Token::SHR:
-      return Builtins::SHR;
-      break;
-    case Token::SHL:
-      return Builtins::SHL;
-      break;
+Builtins::JavaScript BinaryOpIC::TokenToJSBuiltin(Token::Value op,
+                                                  LanguageMode language_mode) {
+  if (is_strong(language_mode)) {
+    switch (op) {
+      default: UNREACHABLE();
+      case Token::ADD: return Builtins::ADD_STRONG;
+      case Token::SUB: return Builtins::SUB_STRONG;
+      case Token::MUL: return Builtins::MUL_STRONG;
+      case Token::DIV: return Builtins::DIV_STRONG;
+      case Token::MOD: return Builtins::MOD_STRONG;
+      case Token::BIT_OR: return Builtins::BIT_OR_STRONG;
+      case Token::BIT_AND: return Builtins::BIT_AND_STRONG;
+      case Token::BIT_XOR: return Builtins::BIT_XOR_STRONG;
+      case Token::SAR: return Builtins::SAR_STRONG;
+      case Token::SHR: return Builtins::SHR_STRONG;
+      case Token::SHL: return Builtins::SHL_STRONG;
+    }
+  } else {
+    switch (op) {
+      default: UNREACHABLE();
+      case Token::ADD: return Builtins::ADD;
+      case Token::SUB: return Builtins::SUB;
+      case Token::MUL: return Builtins::MUL;
+      case Token::DIV: return Builtins::DIV;
+      case Token::MOD: return Builtins::MOD;
+      case Token::BIT_OR: return Builtins::BIT_OR;
+      case Token::BIT_AND: return Builtins::BIT_AND;
+      case Token::BIT_XOR: return Builtins::BIT_XOR;
+      case Token::SAR: return Builtins::SAR;
+      case Token::SHR: return Builtins::SHR;
+      case Token::SHL: return Builtins::SHL;
+    }
   }
 }
 
@@ -2934,7 +2938,7 @@ static Object* ThrowReferenceError(Isolate* isolate, Name* name) {
   // Throw a reference error.
   Handle<Name> name_handle(name);
   THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewReferenceError("not_defined", HandleVector(&name_handle, 1)));
+      isolate, NewReferenceError(MessageTemplate::kNotDefined, name_handle));
 }
 
 

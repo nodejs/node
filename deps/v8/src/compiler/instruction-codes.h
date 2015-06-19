@@ -35,7 +35,9 @@ namespace compiler {
 // Most opcodes specify a single instruction.
 #define ARCH_OPCODE_LIST(V) \
   V(ArchCallCodeObject)     \
+  V(ArchTailCallCodeObject) \
   V(ArchCallJSFunction)     \
+  V(ArchTailCallJSFunction) \
   V(ArchJmp)                \
   V(ArchLookupSwitch)       \
   V(ArchTableSwitch)        \
@@ -127,11 +129,11 @@ typedef int32_t InstructionCode;
 // for code generation. We encode the instruction, addressing mode, and flags
 // continuation into a single InstructionCode which is stored as part of
 // the instruction.
-typedef BitField<ArchOpcode, 0, 7> ArchOpcodeField;
-typedef BitField<AddressingMode, 7, 5> AddressingModeField;
-typedef BitField<FlagsMode, 12, 2> FlagsModeField;
-typedef BitField<FlagsCondition, 14, 4> FlagsConditionField;
-typedef BitField<int, 14, 18> MiscField;
+typedef BitField<ArchOpcode, 0, 8> ArchOpcodeField;
+typedef BitField<AddressingMode, 8, 5> AddressingModeField;
+typedef BitField<FlagsMode, 13, 2> FlagsModeField;
+typedef BitField<FlagsCondition, 15, 4> FlagsConditionField;
+typedef BitField<int, 19, 13> MiscField;
 
 }  // namespace compiler
 }  // namespace internal

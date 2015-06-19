@@ -39,12 +39,26 @@ function isFunction(obj) {
 }
 
 function isV8Native(name) {
-  return name == "GeneratorFunctionPrototype" ||
+  return name == "GeneratorFunction" ||
+      name == "GeneratorFunctionPrototype" ||
       name == "SetIterator" ||
       name == "MapIterator" ||
       name == "ArrayIterator" ||
       name == "StringIterator";
 }
+var V8NativePrototypes = {
+  GeneratorFunction: Function.prototype,
+  // TODO(jugglinmike): Update the following values to the %IteratorPrototype%
+  //                    intrinsic once it is implemented.
+  // Issue 3568: Generator Prototype should have an object between itself
+  //             and Object.prototype
+  // https://code.google.com/p/v8/issues/detail?id=3568
+  GeneratorFunctionPrototype: Object.prototype,
+  SetIterator: Object.prototype,
+  MapIterator: Object.prototype,
+  ArrayIterator: Object.prototype,
+  StringIterator: Object.prototype
+};
 
 function checkConstructor(func, name) {
   // A constructor is a function with a prototype and properties on the
@@ -62,7 +76,7 @@ function checkConstructor(func, name) {
   assertFalse(proto_desc.writable, name);
   assertFalse(proto_desc.configurable, name);
   var prototype = proto_desc.value;
-  assertEquals(isV8Native(name) ? Object.prototype : null,
+  assertEquals(V8NativePrototypes[name] || null,
                Object.getPrototypeOf(prototype),
                name);
   for (var i = 0; i < propNames.length; i++) {

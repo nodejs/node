@@ -45,7 +45,7 @@ class AstLoopAssignmentAnalyzer : public AstVisitor {
 
   LoopAssignmentAnalysis* Analyze();
 
-#define DECLARE_VISIT(type) void Visit##type(type* node) OVERRIDE;
+#define DECLARE_VISIT(type) void Visit##type(type* node) override;
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 

@@ -70,7 +70,6 @@ class ThreadA : public v8::base::Thread {
     do {
       {
         v8::Unlocker unlocker(CcTest::isolate());
-        Thread::YieldCPU();
       }
     } while (turn != SECOND_TIME_FILL_CACHE);
 
@@ -97,13 +96,11 @@ class ThreadB : public v8::base::Thread {
           v8::Context::Scope context_scope(context);
 
           // Clear the caches by forcing major GC.
-          CcTest::heap()->CollectAllGarbage(v8::internal::Heap::kNoGCFlags);
+          CcTest::heap()->CollectAllGarbage();
           turn = SECOND_TIME_FILL_CACHE;
           break;
         }
       }
-
-      Thread::YieldCPU();
     } while (true);
   }
 };

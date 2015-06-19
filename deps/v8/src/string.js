@@ -6,11 +6,10 @@ var $stringCharAt;
 var $stringIndexOf;
 var $stringSubstring;
 
-(function() {
+(function(global, shared, exports) {
 
 %CheckIsBootstrapping();
 
-var GlobalArray = global.Array;
 var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
 
@@ -30,7 +29,7 @@ function StringConstructor(x) {
 // ECMA-262 section 15.5.4.2
 function StringToString() {
   if (!IS_STRING(this) && !IS_STRING_WRAPPER(this)) {
-    throw new $TypeError('String.prototype.toString is not generic');
+    throw MakeTypeError(kNotGeneric, 'String.prototype.toString');
   }
   return %_ValueOf(this);
 }
@@ -39,7 +38,7 @@ function StringToString() {
 // ECMA-262 section 15.5.4.3
 function StringValueOf() {
   if (!IS_STRING(this) && !IS_STRING_WRAPPER(this)) {
-    throw new $TypeError('String.prototype.valueOf is not generic');
+    throw MakeTypeError(kNotGeneric, 'String.prototype.valueOf');
   }
   return %_ValueOf(this);
 }
@@ -114,7 +113,7 @@ function StringLastIndexOfJS(pat /* position */) {  // length == 1
   var patLength = pat.length;
   var index = subLength - patLength;
   if (%_ArgumentsLength() > 1) {
-    var position = ToNumber(%_Arguments(1));
+    var position = $toNumber(%_Arguments(1));
     if (!NUMBER_IS_NAN(position)) {
       position = TO_INTEGER(position);
       if (position < 0) {
@@ -180,8 +179,7 @@ function StringNormalizeJS(form) {
   var form = form ? TO_STRING_INLINE(form) : 'NFC';
   var normalizationForm = NORMALIZATION_FORMS.indexOf(form);
   if (normalizationForm === -1) {
-    throw new $RangeError('The normalization form should be one of '
-        + NORMALIZATION_FORMS.join(', ') + '.');
+    throw MakeRangeError(kNormalizationForm, NORMALIZATION_FORMS.join(', '));
   }
 
   return %_ValueOf(this);
@@ -293,7 +291,7 @@ function StringReplace(search, replace) {
 
   // Compute the string to replace with.
   if (IS_SPEC_FUNCTION(replace)) {
-    var receiver = %GetDefaultReceiver(replace);
+    var receiver = UNDEFINED;
     result += %_CallFunction(receiver, search, start, subject, replace);
   } else {
     reusableMatchInfo[CAPTURE0] = start;
@@ -442,7 +440,6 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
     // function.
     var match_start = 0;
     var override = new InternalPackedArray(null, 0, subject);
-    var receiver = %GetDefaultReceiver(replace);
     for (var i = 0; i < len; i++) {
       var elem = res[i];
       if (%_IsSmi(elem)) {
@@ -459,7 +456,7 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
         override[1] = match_start;
         $regexpLastMatchInfoOverride = override;
         var func_result =
-            %_CallFunction(receiver, elem, match_start, subject, replace);
+            %_CallFunction(UNDEFINED, elem, match_start, subject, replace);
         // Overwrite the i'th element in the results with the string we got
         // back from the callback function.
         res[i] = TO_STRING_INLINE(func_result);
@@ -467,14 +464,13 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
       }
     }
   } else {
-    var receiver = %GetDefaultReceiver(replace);
     for (var i = 0; i < len; i++) {
       var elem = res[i];
       if (!%_IsSmi(elem)) {
         // elem must be an Array.
         // Use the apply argument as backing for global RegExp properties.
         $regexpLastMatchInfoOverride = elem;
-        var func_result = %Apply(replace, receiver, elem, 0, elem.length);
+        var func_result = %Apply(replace, UNDEFINED, elem, 0, elem.length);
         // Overwrite the i'th element in the results with the string we got
         // back from the callback function.
         res[i] = TO_STRING_INLINE(func_result);
@@ -502,12 +498,11 @@ function StringReplaceNonGlobalRegExpWithFunction(subject, regexp, replace) {
   // The number of captures plus one for the match.
   var m = NUMBER_OF_CAPTURES(matchInfo) >> 1;
   var replacement;
-  var receiver = %GetDefaultReceiver(replace);
   if (m == 1) {
     // No captures, only the match, which is always valid.
     var s = %_SubString(subject, index, endOfMatch);
     // Don't call directly to avoid exposing the built-in global object.
-    replacement = %_CallFunction(receiver, s, index, subject, replace);
+    replacement = %_CallFunction(UNDEFINED, s, index, subject, replace);
   } else {
     var parameters = new InternalArray(m + 2);
     for (var j = 0; j < m; j++) {
@@ -516,7 +511,7 @@ function StringReplaceNonGlobalRegExpWithFunction(subject, regexp, replace) {
     parameters[j] = index;
     parameters[j + 1] = subject;
 
-    replacement = %Apply(replace, receiver, parameters, 0, j + 2);
+    replacement = %Apply(replace, UNDEFINED, parameters, 0, j + 2);
   }
 
   result += replacement;  // The add method converts to string if necessary.
@@ -808,7 +803,7 @@ function StringTrimRight() {
 function StringFromCharCode(code) {
   var n = %_ArgumentsLength();
   if (n == 1) {
-    if (!%_IsSmi(code)) code = ToNumber(code);
+    if (!%_IsSmi(code)) code = $toNumber(code);
     return %_StringCharFromCode(code & 0xffff);
   }
 
@@ -816,7 +811,7 @@ function StringFromCharCode(code) {
   var i;
   for (i = 0; i < n; i++) {
     var code = %_Arguments(i);
-    if (!%_IsSmi(code)) code = ToNumber(code) & 0xffff;
+    if (!%_IsSmi(code)) code = $toNumber(code) & 0xffff;
     if (code < 0) code = code & 0xffff;
     if (code > 0xff) break;
     %_OneByteSeqStringSetChar(i, code, one_byte);
@@ -827,7 +822,7 @@ function StringFromCharCode(code) {
   var two_byte = %NewString(n - i, NEW_TWO_BYTE_STRING);
   for (var j = 0; i < n; i++, j++) {
     var code = %_Arguments(i);
-    if (!%_IsSmi(code)) code = ToNumber(code) & 0xffff;
+    if (!%_IsSmi(code)) code = $toNumber(code) & 0xffff;
     %_TwoByteSeqStringSetChar(j, code, two_byte);
   }
   return one_byte + two_byte;
@@ -935,12 +930,10 @@ function StringRepeat(count) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.repeat");
 
   var s = TO_STRING_INLINE(this);
-  var n = ToInteger(count);
+  var n = $toInteger(count);
   // The maximum string length is stored in a smi, so a longer repeat
   // must result in a range error.
-  if (n < 0 || n > %_MaxSmi()) {
-    throw MakeRangeError("invalid_count_value", []);
-  }
+  if (n < 0 || n > %_MaxSmi()) throw MakeRangeError(kInvalidCountValue);
 
   var r = "";
   while (true) {
@@ -959,15 +952,14 @@ function StringStartsWith(searchString /* position */) {  // length == 1
   var s = TO_STRING_INLINE(this);
 
   if (IS_REGEXP(searchString)) {
-    throw MakeTypeError("first_argument_not_regexp",
-                        ["String.prototype.startsWith"]);
+    throw MakeTypeError(kFirstArgumentNotRegExp, "String.prototype.startsWith");
   }
 
   var ss = TO_STRING_INLINE(searchString);
   var pos = 0;
   if (%_ArgumentsLength() > 1) {
     pos = %_Arguments(1);  // position
-    pos = ToInteger(pos);
+    pos = $toInteger(pos);
   }
 
   var s_len = s.length;
@@ -988,8 +980,7 @@ function StringEndsWith(searchString /* position */) {  // length == 1
   var s = TO_STRING_INLINE(this);
 
   if (IS_REGEXP(searchString)) {
-    throw MakeTypeError("first_argument_not_regexp",
-                        ["String.prototype.endsWith"]);
+    throw MakeTypeError(kFirstArgumentNotRegExp, "String.prototype.endsWith");
   }
 
   var ss = TO_STRING_INLINE(searchString);
@@ -998,7 +989,7 @@ function StringEndsWith(searchString /* position */) {  // length == 1
   if (%_ArgumentsLength() > 1) {
     var arg = %_Arguments(1);  // position
     if (!IS_UNDEFINED(arg)) {
-      pos = ToInteger(arg);
+      pos = $toInteger(arg);
     }
   }
 
@@ -1020,15 +1011,14 @@ function StringIncludes(searchString /* position */) {  // length == 1
   var s = TO_STRING_INLINE(this);
 
   if (IS_REGEXP(searchString)) {
-    throw MakeTypeError("first_argument_not_regexp",
-                        ["String.prototype.includes"]);
+    throw MakeTypeError(kFirstArgumentNotRegExp, "String.prototype.includes");
   }
 
   var ss = TO_STRING_INLINE(searchString);
   var pos = 0;
   if (%_ArgumentsLength() > 1) {
     pos = %_Arguments(1);  // position
-    pos = ToInteger(pos);
+    pos = $toInteger(pos);
   }
 
   var s_len = s.length;
@@ -1073,10 +1063,10 @@ function StringFromCodePoint(_) {  // length = 1
   for (index = 0; index < length; index++) {
     code = %_Arguments(index);
     if (!%_IsSmi(code)) {
-      code = ToNumber(code);
+      code = $toNumber(code);
     }
     if (code < 0 || code > 0x10FFFF || code !== TO_INTEGER(code)) {
-      throw MakeRangeError("invalid_code_point", [code]);
+      throw MakeRangeError(kInvalidCodePoint, code);
     }
     if (code <= 0xFFFF) {
       result += %_StringCharFromCode(code);
@@ -1097,18 +1087,18 @@ function StringFromCodePoint(_) {  // length = 1
 function StringRaw(callSite) {
   // TODO(caitp): Use rest parameters when implemented
   var numberOfSubstitutions = %_ArgumentsLength();
-  var cooked = ToObject(callSite);
-  var raw = ToObject(cooked.raw);
-  var literalSegments = ToLength(raw.length);
+  var cooked = $toObject(callSite);
+  var raw = $toObject(cooked.raw);
+  var literalSegments = $toLength(raw.length);
   if (literalSegments <= 0) return "";
 
-  var result = ToString(raw[0]);
+  var result = $toString(raw[0]);
 
   for (var i = 1; i < literalSegments; ++i) {
     if (i < numberOfSubstitutions) {
-      result += ToString(%_Arguments(i));
+      result += $toString(%_Arguments(i));
     }
-    result += ToString(raw[i]);
+    result += $toString(raw[i]);
   }
 
   return result;
@@ -1125,14 +1115,14 @@ function StringRaw(callSite) {
     GlobalString.prototype, "constructor", GlobalString, DONT_ENUM);
 
 // Set up the non-enumerable functions on the String object.
-InstallFunctions(GlobalString, DONT_ENUM, GlobalArray(
+$installFunctions(GlobalString, DONT_ENUM, [
   "fromCharCode", StringFromCharCode,
   "fromCodePoint", StringFromCodePoint,
   "raw", StringRaw
-));
+]);
 
 // Set up the non-enumerable functions on the String prototype object.
-InstallFunctions(GlobalString.prototype, DONT_ENUM, GlobalArray(
+$installFunctions(GlobalString.prototype, DONT_ENUM, [
   "valueOf", StringValueOf,
   "toString", StringToString,
   "charAt", StringCharAtJS,
@@ -1175,10 +1165,10 @@ InstallFunctions(GlobalString.prototype, DONT_ENUM, GlobalArray(
   "strike", StringStrike,
   "sub", StringSub,
   "sup", StringSup
-));
+]);
 
 $stringCharAt = StringCharAtJS;
 $stringIndexOf = StringIndexOfJS;
 $stringSubstring = StringSubstring;
 
-})();
+})

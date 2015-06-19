@@ -21,9 +21,6 @@ bool OperatorProperties::HasContextInput(const Operator* op) {
 
 // static
 int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
-  if (!FLAG_turbo_deoptimization) {
-    return 0;
-  }
   switch (op->opcode()) {
     case IrOpcode::kFrameState:
       return 1;
@@ -51,7 +48,12 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     case IrOpcode::kJSLessThanOrEqual:
     case IrOpcode::kJSNotEqual:
 
+    // Object operations
+    case IrOpcode::kJSCreateLiteralArray:
+    case IrOpcode::kJSCreateLiteralObject:
+
     // Context operations
+    case IrOpcode::kJSCreateScriptContext:
     case IrOpcode::kJSCreateWithContext:
 
     // Conversions

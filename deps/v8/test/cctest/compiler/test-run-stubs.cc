@@ -37,11 +37,11 @@ class StringLengthStubTF : public CodeStub {
 
   StringLengthStubTF(uint32_t key, Isolate* isolate) : CodeStub(key, isolate) {}
 
-  CallInterfaceDescriptor GetCallInterfaceDescriptor() OVERRIDE {
+  CallInterfaceDescriptor GetCallInterfaceDescriptor() override {
     return LoadDescriptor(isolate());
   };
 
-  Handle<Code> GenerateCode() OVERRIDE {
+  Handle<Code> GenerateCode() override {
     Zone zone;
     // Build a "hybrid" CompilationInfo for a JSFunction/CodeStub pair.
     ParseInfo parse_info(&zone, GetFunction(isolate(), "STRING_LENGTH_STUB"));
@@ -53,11 +53,11 @@ class StringLengthStubTF : public CodeStub {
     return Pipeline(&info).GenerateCode();
   }
 
-  Major MajorKey() const OVERRIDE { return StringLength; };
-  Code::Kind GetCodeKind() const OVERRIDE { return Code::HANDLER; }
-  InlineCacheState GetICState() const OVERRIDE { return MONOMORPHIC; }
-  ExtraICState GetExtraICState() const OVERRIDE { return Code::LOAD_IC; }
-  Code::StubType GetStubType() const OVERRIDE { return Code::FAST; }
+  Major MajorKey() const override { return StringLength; };
+  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
+  InlineCacheState GetICState() const override { return MONOMORPHIC; }
+  ExtraICState GetExtraICState() const override { return Code::LOAD_IC; }
+  Code::StubType GetStubType() const override { return Code::FAST; }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(StringLengthStubTF);

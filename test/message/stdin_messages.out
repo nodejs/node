@@ -15,7 +15,7 @@ SyntaxError: Strict mode code may not include a with statement
 
 [stdin]:1
 throw new Error("hello")
-      ^
+^
 Error: hello
     at [stdin]:1:*
     at Object.exports.runInThisContext (vm.js:*)
@@ -27,7 +27,7 @@ Error: hello
 
 [stdin]:1
 throw new Error("hello")
-      ^
+^
 Error: hello
     at [stdin]:1:*
     at Object.exports.runInThisContext (vm.js:*)

@@ -71,35 +71,35 @@ class AstGraphBuilder::AstContext BASE_EMBEDDED {
 
 
 // Context to evaluate expression for its side effects only.
-class AstGraphBuilder::AstEffectContext FINAL : public AstContext {
+class AstGraphBuilder::AstEffectContext final : public AstContext {
  public:
   explicit AstEffectContext(AstGraphBuilder* owner)
       : AstContext(owner, Expression::kEffect) {}
-  ~AstEffectContext() FINAL;
-  void ProduceValue(Node* value) FINAL;
-  Node* ConsumeValue() FINAL;
+  ~AstEffectContext() final;
+  void ProduceValue(Node* value) final;
+  Node* ConsumeValue() final;
 };
 
 
 // Context to evaluate expression for its value (and side effects).
-class AstGraphBuilder::AstValueContext FINAL : public AstContext {
+class AstGraphBuilder::AstValueContext final : public AstContext {
  public:
   explicit AstValueContext(AstGraphBuilder* owner)
       : AstContext(owner, Expression::kValue) {}
-  ~AstValueContext() FINAL;
-  void ProduceValue(Node* value) FINAL;
-  Node* ConsumeValue() FINAL;
+  ~AstValueContext() final;
+  void ProduceValue(Node* value) final;
+  Node* ConsumeValue() final;
 };
 
 
 // Context to evaluate expression for a condition value (and side effects).
-class AstGraphBuilder::AstTestContext FINAL : public AstContext {
+class AstGraphBuilder::AstTestContext final : public AstContext {
  public:
   explicit AstTestContext(AstGraphBuilder* owner)
       : AstContext(owner, Expression::kTest) {}
-  ~AstTestContext() FINAL;
-  void ProduceValue(Node* value) FINAL;
-  Node* ConsumeValue() FINAL;
+  ~AstTestContext() final;
+  void ProduceValue(Node* value) final;
+  Node* ConsumeValue() final;
 };
 
 
@@ -112,7 +112,7 @@ class AstGraphBuilder::ContextScope BASE_EMBEDDED {
       : builder_(builder),
         outer_(builder->execution_context()),
         scope_(scope),
-        depth_(builder_->environment()->ContextStackDepth()) {
+        depth_(builder_->environment()->context_chain_length()) {
     builder_->environment()->PushContext(context);  // Push.
     builder_->set_execution_context(this);
   }
@@ -120,7 +120,7 @@ class AstGraphBuilder::ContextScope BASE_EMBEDDED {
   ~ContextScope() {
     builder_->set_execution_context(outer_);  // Pop.
     builder_->environment()->PopContext();
-    CHECK_EQ(depth_, builder_->environment()->ContextStackDepth());
+    CHECK_EQ(depth_, builder_->environment()->context_chain_length());
   }
 
   // Current scope during visitation.
@@ -146,6 +146,7 @@ class AstGraphBuilder::ControlScope BASE_EMBEDDED {
   explicit ControlScope(AstGraphBuilder* builder)
       : builder_(builder),
         outer_(builder->execution_control()),
+        context_length_(builder->environment()->context_chain_length()),
         stack_height_(builder->environment()->stack_height()) {
     builder_->set_execution_control(this);  // Push.
   }
@@ -193,11 +194,13 @@ class AstGraphBuilder::ControlScope BASE_EMBEDDED {
 
   Environment* environment() { return builder_->environment(); }
   AstGraphBuilder* builder() const { return builder_; }
+  int context_length() const { return context_length_; }
   int stack_height() const { return stack_height_; }
 
  private:
   AstGraphBuilder* builder_;
   ControlScope* outer_;
+  int context_length_;
   int stack_height_;
 };
 
@@ -276,7 +279,7 @@ class AstGraphBuilder::ControlScopeForBreakable : public ControlScope {
       : ControlScope(owner), target_(target), control_(control) {}
 
  protected:
-  virtual bool Execute(Command cmd, Statement* target, Node* value) OVERRIDE {
+  virtual bool Execute(Command cmd, Statement* target, Node* value) override {
     if (target != target_) return false;  // We are not the command target.
     switch (cmd) {
       case CMD_BREAK:
@@ -304,7 +307,7 @@ class AstGraphBuilder::ControlScopeForIteration : public ControlScope {
       : ControlScope(owner), target_(target), control_(control) {}
 
  protected:
-  virtual bool Execute(Command cmd, Statement* target, Node* value) OVERRIDE {
+  virtual bool Execute(Command cmd, Statement* target, Node* value) override {
     if (target != target_) return false;  // We are not the command target.
     switch (cmd) {
       case CMD_BREAK:
@@ -338,7 +341,7 @@ class AstGraphBuilder::ControlScopeForCatch : public ControlScope {
   }
 
  protected:
-  virtual bool Execute(Command cmd, Statement* target, Node* value) OVERRIDE {
+  virtual bool Execute(Command cmd, Statement* target, Node* value) override {
     switch (cmd) {
       case CMD_THROW:
         control_->Throw(value);
@@ -369,7 +372,7 @@ class AstGraphBuilder::ControlScopeForFinally : public ControlScope {
   }
 
  protected:
-  virtual bool Execute(Command cmd, Statement* target, Node* value) OVERRIDE {
+  virtual bool Execute(Command cmd, Statement* target, Node* value) override {
     Node* token = commands_->RecordCommand(cmd, target, value);
     control_->LeaveTry(token, value);
     return true;
@@ -407,8 +410,8 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
 
 Node* AstGraphBuilder::GetFunctionClosure() {
   if (!function_closure_.is_set()) {
-    const Operator* op =
-        common()->Parameter(Linkage::kJSFunctionCallClosureParamIndex);
+    const Operator* op = common()->Parameter(
+        Linkage::kJSFunctionCallClosureParamIndex, "%closure");
     Node* node = NewNode(op, graph()->start());
     function_closure_.set(node);
   }
@@ -425,7 +428,8 @@ void AstGraphBuilder::CreateFunctionContext(bool constant_context) {
 
 Node* AstGraphBuilder::NewOuterContextParam() {
   // Parameter (arity + 1) is special for the outer context of the function
-  const Operator* op = common()->Parameter(info()->num_parameters() + 1);
+  const Operator* op =
+      common()->Parameter(info()->num_parameters() + 1, "%context");
   return NewNode(op, graph()->start());
 }
 
@@ -433,7 +437,8 @@ Node* AstGraphBuilder::NewOuterContextParam() {
 Node* AstGraphBuilder::NewCurrentContextOsrValue() {
   // TODO(titzer): use a real OSR value here; a parameter works by accident.
   // Parameter (arity + 1) is special for the outer context of the function
-  const Operator* op = common()->Parameter(info()->num_parameters() + 1);
+  const Operator* op =
+      common()->Parameter(info()->num_parameters() + 1, "%osr-context");
   return NewNode(op, graph()->start());
 }
 
@@ -450,9 +455,6 @@ bool AstGraphBuilder::CreateGraph(bool constant_context, bool stack_check) {
   Environment env(this, scope, graph()->start());
   set_environment(&env);
 
-  // Initialize control scope.
-  ControlScope control(this);
-
   if (info()->is_osr()) {
     // Use OSR normal entry as the start of the top-level environment.
     // It will be replaced with {Dead} after typing and optimizations.
@@ -462,6 +464,9 @@ bool AstGraphBuilder::CreateGraph(bool constant_context, bool stack_check) {
   // Initialize the incoming context.
   CreateFunctionContext(constant_context);
   ContextScope incoming(this, scope, function_context_.get());
+
+  // Initialize control scope.
+  ControlScope control(this);
 
   // Build receiver check for sloppy mode if necessary.
   // TODO(mstarzinger/verwaest): Should this be moved back into the CallIC?
@@ -473,9 +478,7 @@ bool AstGraphBuilder::CreateGraph(bool constant_context, bool stack_check) {
   int heap_slots = info()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
   if (heap_slots > 0) {
     // Push a new inner context scope for the function.
-    Node* closure = GetFunctionClosure();
-    Node* inner_context =
-        BuildLocalFunctionContext(function_context_.get(), closure);
+    Node* inner_context = BuildLocalFunctionContext(function_context_.get());
     ContextScope top_context(this, scope, inner_context);
     CreateGraphBody(stack_check);
   } else {
@@ -509,6 +512,13 @@ void AstGraphBuilder::CreateGraphBody(bool stack_check) {
   // Emit tracing call if requested to do so.
   if (FLAG_trace) {
     NewNode(javascript()->CallRuntime(Runtime::kTraceEnter, 0));
+  }
+
+  // Visit illegal re-declaration and bail out if it exists.
+  if (scope->HasIllegalRedeclaration()) {
+    AstEffectContext for_effect(this);
+    scope->VisitIllegalRedeclaration(this);
+    return;
   }
 
   // Visit implicit declaration of the function name.
@@ -574,6 +584,20 @@ static LhsKind DetermineLhsKind(Expression* expr) {
 }
 
 
+static const char* GetDebugParameterName(Zone* zone, Scope* scope, int index) {
+#if DEBUG
+  const AstRawString* name = scope->parameter(index)->raw_name();
+  if (name && name->length() > 0) {
+    char* data = zone->NewArray<char>(name->length() + 1);
+    data[name->length()] = 0;
+    memcpy(data, name->raw_data(), name->length());
+    return data;
+  }
+#endif
+  return nullptr;
+}
+
+
 AstGraphBuilder::Environment::Environment(AstGraphBuilder* builder,
                                           Scope* scope,
                                           Node* control_dependency)
@@ -591,15 +615,16 @@ AstGraphBuilder::Environment::Environment(AstGraphBuilder* builder,
   DCHECK_EQ(scope->num_parameters() + 1, parameters_count());
 
   // Bind the receiver variable.
-  Node* receiver = builder->graph()->NewNode(common()->Parameter(0),
+  Node* receiver = builder->graph()->NewNode(common()->Parameter(0, "%this"),
                                              builder->graph()->start());
   values()->push_back(receiver);
 
   // Bind all parameter variables. The parameter indices are shifted by 1
   // (receiver is parameter index -1 but environment index 0).
   for (int i = 0; i < scope->num_parameters(); ++i) {
-    Node* parameter = builder->graph()->NewNode(common()->Parameter(i + 1),
-                                                builder->graph()->start());
+    const char* debug_name = GetDebugParameterName(graph()->zone(), scope, i);
+    Node* parameter = builder->graph()->NewNode(
+        common()->Parameter(i + 1, debug_name), builder->graph()->start());
     values()->push_back(parameter);
   }
 
@@ -720,7 +745,9 @@ void AstGraphBuilder::Environment::UpdateStateValuesWithCache(
 
 Node* AstGraphBuilder::Environment::Checkpoint(
     BailoutId ast_id, OutputFrameStateCombine combine) {
-  if (!FLAG_turbo_deoptimization) return nullptr;
+  if (!builder()->info()->is_deoptimization_enabled()) {
+    return builder()->jsgraph()->EmptyFrameState();
+  }
 
   UpdateStateValues(&parameters_node_, 0, parameters_count());
   UpdateStateValuesWithCache(&locals_node_, parameters_count(), locals_count());
@@ -813,7 +840,8 @@ void AstGraphBuilder::ControlScope::PerformCommand(Command command,
   Environment* env = environment()->CopyAsUnreachable();
   ControlScope* current = this;
   while (current != NULL) {
-    environment()->Trim(current->stack_height());
+    environment()->TrimStack(current->stack_height());
+    environment()->TrimContextChain(current->context_length());
     if (current->Execute(command, target, value)) break;
     current = current->outer_;
   }
@@ -970,11 +998,6 @@ void AstGraphBuilder::VisitFunctionDeclaration(FunctionDeclaration* decl) {
 }
 
 
-void AstGraphBuilder::VisitModuleDeclaration(ModuleDeclaration* decl) {
-  UNREACHABLE();
-}
-
-
 void AstGraphBuilder::VisitImportDeclaration(ImportDeclaration* decl) {
   UNREACHABLE();
 }
@@ -983,15 +1006,6 @@ void AstGraphBuilder::VisitImportDeclaration(ImportDeclaration* decl) {
 void AstGraphBuilder::VisitExportDeclaration(ExportDeclaration* decl) {
   UNREACHABLE();
 }
-
-
-void AstGraphBuilder::VisitModuleLiteral(ModuleLiteral* modl) { UNREACHABLE(); }
-
-
-void AstGraphBuilder::VisitModulePath(ModulePath* modl) { UNREACHABLE(); }
-
-
-void AstGraphBuilder::VisitModuleUrl(ModuleUrl* modl) { UNREACHABLE(); }
 
 
 void AstGraphBuilder::VisitBlock(Block* stmt) {
@@ -1003,17 +1017,17 @@ void AstGraphBuilder::VisitBlock(Block* stmt) {
     VisitStatements(stmt->statements());
   } else {
     // Visit declarations and statements in a block scope.
-    Node* context = BuildLocalBlockContext(stmt->scope());
-    ContextScope scope(this, stmt->scope(), context);
-    VisitDeclarations(stmt->scope()->declarations());
-    VisitStatements(stmt->statements());
+    if (stmt->scope()->ContextLocalCount() > 0) {
+      Node* context = BuildLocalBlockContext(stmt->scope());
+      ContextScope scope(this, stmt->scope(), context);
+      VisitDeclarations(stmt->scope()->declarations());
+      VisitStatements(stmt->statements());
+    } else {
+      VisitDeclarations(stmt->scope()->declarations());
+      VisitStatements(stmt->statements());
+    }
   }
   if (stmt->labels() != NULL) block.EndBlock();
-}
-
-
-void AstGraphBuilder::VisitModuleStatement(ModuleStatement* stmt) {
-  UNREACHABLE();
 }
 
 
@@ -1243,7 +1257,8 @@ void AstGraphBuilder::VisitForInBody(ForInStatement* stmt) {
   Node* obj = environment()->Peek(4);
 
   // Check loop termination condition.
-  Node* exit_cond = NewNode(javascript()->LessThan(), index, cache_length);
+  Node* exit_cond = NewNode(javascript()->LessThan(LanguageMode::SLOPPY),
+                            index, cache_length);
   // TODO(jarin): provide real bailout id.
   PrepareFrameState(exit_cond, BailoutId::None());
   for_loop.BreakUnless(exit_cond);
@@ -1266,10 +1281,10 @@ void AstGraphBuilder::VisitForInBody(ForInStatement* stmt) {
         JSBuiltinsObject::OffsetOfFunctionWithId(Builtins::FILTER_KEY));
     // result is either the string key or Smi(0) indicating the property
     // is gone.
-    Node* res = NewNode(javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS),
-                        function, obj, value);
-    // TODO(jarin): provide real bailout id.
-    PrepareFrameState(res, BailoutId::None());
+    Node* res = NewNode(
+        javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS, language_mode()),
+        function, obj, value);
+    PrepareFrameState(res, stmt->FilterId(), OutputFrameStateCombine::Push());
     Node* property_missing =
         NewNode(javascript()->StrictEqual(), res, jsgraph()->ZeroConstant());
     {
@@ -1278,7 +1293,8 @@ void AstGraphBuilder::VisitForInBody(ForInStatement* stmt) {
       is_property_missing.Then();
       // Inc counter and continue.
       Node* index_inc =
-          NewNode(javascript()->Add(), index, jsgraph()->OneConstant());
+          NewNode(javascript()->Add(LanguageMode::SLOPPY), index,
+                  jsgraph()->OneConstant());
       // TODO(jarin): provide real bailout id.
       PrepareFrameStateAfterAndBefore(index_inc, BailoutId::None(),
                                       OutputFrameStateCombine::Ignore(),
@@ -1302,7 +1318,8 @@ void AstGraphBuilder::VisitForInBody(ForInStatement* stmt) {
 
   // Inc counter and continue.
   Node* index_inc =
-      NewNode(javascript()->Add(), index, jsgraph()->OneConstant());
+      NewNode(javascript()->Add(LanguageMode::SLOPPY), index,
+              jsgraph()->OneConstant());
   // TODO(jarin): provide real bailout id.
   PrepareFrameStateAfterAndBefore(index_inc, BailoutId::None(),
                                   OutputFrameStateCombine::Ignore(),
@@ -1448,10 +1465,9 @@ void AstGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
   }
 
   // Create node to instantiate a new closure.
-  Node* info = jsgraph()->Constant(shared_info);
-  Node* pretenure = jsgraph()->BooleanConstant(expr->pretenure());
-  const Operator* op = javascript()->CallRuntime(Runtime::kNewClosure, 3);
-  Node* value = NewNode(op, context, info, pretenure);
+  PretenureFlag pretenure = expr->pretenure() ? TENURED : NOT_TENURED;
+  const Operator* op = javascript()->CreateClosure(shared_info, pretenure);
+  Node* value = NewNode(op, context);
   ast_context()->ProduceValue(value);
 }
 
@@ -1462,10 +1478,15 @@ void AstGraphBuilder::VisitClassLiteral(ClassLiteral* expr) {
     VisitClassLiteralContents(expr);
   } else {
     // Visit declarations and class literal in a block scope.
-    Node* context = BuildLocalBlockContext(expr->scope());
-    ContextScope scope(this, expr->scope(), context);
-    VisitDeclarations(expr->scope()->declarations());
-    VisitClassLiteralContents(expr);
+    if (expr->scope()->ContextLocalCount() > 0) {
+      Node* context = BuildLocalBlockContext(expr->scope());
+      ContextScope scope(this, expr->scope(), context);
+      VisitDeclarations(expr->scope()->declarations());
+      VisitClassLiteralContents(expr);
+    } else {
+      VisitDeclarations(expr->scope()->declarations());
+      VisitClassLiteralContents(expr);
+    }
   }
 }
 
@@ -1488,6 +1509,8 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
   Node* end = jsgraph()->Constant(expr->end_position());
   const Operator* opc = javascript()->CallRuntime(Runtime::kDefineClass, 6);
   Node* literal = NewNode(opc, name, extends, constructor, script, start, end);
+  PrepareFrameState(literal, expr->CreateLiteralId(),
+                    OutputFrameStateCombine::Push());
 
   // The prototype is ensured to exist by Runtime_DefineClass. No access check
   // is needed here since the constructor is created by the class literal.
@@ -1564,7 +1587,6 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
     BuildVariableAssignment(var, literal, Token::INIT_CONST, BailoutId::None());
   }
 
-  PrepareFrameState(literal, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(literal);
 }
 
@@ -1627,10 +1649,9 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
       BuildLoadObjectField(closure, JSFunction::kLiteralsOffset);
   Node* literal_index = jsgraph()->Constant(expr->literal_index());
   Node* constants = jsgraph()->Constant(expr->constant_properties());
-  Node* flags = jsgraph()->Constant(expr->ComputeFlags(true));
   const Operator* op =
-      javascript()->CallRuntime(Runtime::kCreateObjectLiteral, 4);
-  Node* literal = NewNode(op, literals_array, literal_index, constants, flags);
+      javascript()->CreateLiteralObject(expr->ComputeFlags(true));
+  Node* literal = NewNode(op, literals_array, literal_index, constants);
   PrepareFrameState(literal, expr->CreateLiteralId(),
                     OutputFrameStateCombine::Push());
 
@@ -1819,10 +1840,9 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
       BuildLoadObjectField(closure, JSFunction::kLiteralsOffset);
   Node* literal_index = jsgraph()->Constant(expr->literal_index());
   Node* constants = jsgraph()->Constant(expr->constant_elements());
-  Node* flags = jsgraph()->Constant(expr->ComputeFlags(true));
   const Operator* op =
-      javascript()->CallRuntime(Runtime::kCreateArrayLiteral, 4);
-  Node* literal = NewNode(op, literals_array, literal_index, constants, flags);
+      javascript()->CreateLiteralArray(expr->ComputeFlags(true));
+  Node* literal = NewNode(op, literals_array, literal_index, constants);
   PrepareFrameState(literal, expr->CreateLiteralId(),
                     OutputFrameStateCombine::Push());
 
@@ -2165,7 +2185,8 @@ void AstGraphBuilder::VisitCall(Call* expr) {
   }
 
   // Create node to perform the function call.
-  const Operator* call = javascript()->CallFunction(args->length() + 2, flags);
+  const Operator* call =
+      javascript()->CallFunction(args->length() + 2, flags, language_mode());
   Node* value = ProcessArguments(call, args->length() + 2);
   PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(value);
@@ -2209,7 +2230,8 @@ void AstGraphBuilder::VisitCallJSRuntime(CallRuntime* expr) {
   VisitForValues(args);
 
   // Create node to perform the JS runtime call.
-  const Operator* call = javascript()->CallFunction(args->length() + 2, flags);
+  const Operator* call =
+      javascript()->CallFunction(args->length() + 2, flags, language_mode());
   Node* value = ProcessArguments(call, args->length() + 2);
   PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(value);
@@ -2409,16 +2431,16 @@ void AstGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       op = javascript()->StrictNotEqual();
       break;
     case Token::LT:
-      op = javascript()->LessThan();
+      op = javascript()->LessThan(language_mode());
       break;
     case Token::GT:
-      op = javascript()->GreaterThan();
+      op = javascript()->GreaterThan(language_mode());
       break;
     case Token::LTE:
-      op = javascript()->LessThanOrEqual();
+      op = javascript()->LessThanOrEqual(language_mode());
       break;
     case Token::GTE:
-      op = javascript()->GreaterThanOrEqual();
+      op = javascript()->GreaterThanOrEqual(language_mode());
       break;
     case Token::INSTANCEOF:
       op = javascript()->InstanceOf();
@@ -2438,6 +2460,9 @@ void AstGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(value);
 }
+
+
+void AstGraphBuilder::VisitSpread(Spread* expr) { UNREACHABLE(); }
 
 
 void AstGraphBuilder::VisitThisFunction(ThisFunction* expr) {
@@ -2470,7 +2495,8 @@ void AstGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
   Node* flags = jsgraph()->Constant(encoded_flags);
   Node* pairs = jsgraph()->Constant(data);
   const Operator* op = javascript()->CallRuntime(Runtime::kDeclareGlobals, 3);
-  NewNode(op, current_context(), pairs, flags);
+  Node* call = NewNode(op, current_context(), pairs, flags);
+  PrepareFrameState(call, BailoutId::Declarations());
   globals()->clear();
 }
 
@@ -2484,6 +2510,12 @@ void AstGraphBuilder::VisitIfNotNull(Statement* stmt) {
 void AstGraphBuilder::VisitIterationBody(IterationStatement* stmt,
                                          LoopBuilder* loop) {
   ControlScopeForIteration scope(this, stmt, loop);
+  // TODO(mstarzinger): For now we only allow to interrupt non-asm.js code,
+  // which is a gigantic hack and should be extended to all code at some point.
+  if (!info()->shared_info()->asm_function()) {
+    Node* node = NewNode(javascript()->StackCheck());
+    PrepareFrameState(node, stmt->StackCheckId());
+  }
   Visit(stmt->body());
 }
 
@@ -2610,10 +2642,7 @@ Node* AstGraphBuilder::BuildPatchReceiverToGlobalProxy(Node* receiver) {
   // There is no need to perform patching if the receiver is never used. Note
   // that scope predicates are purely syntactical, a call to eval might still
   // inspect the receiver value.
-  if (!info()->scope()->uses_this() && !info()->scope()->inner_uses_this() &&
-      !info()->scope()->calls_sloppy_eval()) {
-    return receiver;
-  }
+  if (!info()->MayUseThis()) return receiver;
 
   IfBuilder receiver_check(this);
   Node* undefined = jsgraph()->UndefinedConstant();
@@ -2629,10 +2658,14 @@ Node* AstGraphBuilder::BuildPatchReceiverToGlobalProxy(Node* receiver) {
 }
 
 
-Node* AstGraphBuilder::BuildLocalFunctionContext(Node* context, Node* closure) {
+Node* AstGraphBuilder::BuildLocalFunctionContext(Node* context) {
+  Node* closure = GetFunctionClosure();
+
   // Allocate a new local context.
-  const Operator* op = javascript()->CreateFunctionContext();
-  Node* local_context = NewNode(op, closure);
+  Node* local_context =
+      info()->scope()->is_script_scope()
+          ? BuildLocalScriptContext(info()->scope())
+          : NewNode(javascript()->CreateFunctionContext(), closure);
 
   // Copy parameters into context if necessary.
   int num_parameters = info()->scope()->num_parameters();
@@ -2652,12 +2685,25 @@ Node* AstGraphBuilder::BuildLocalFunctionContext(Node* context, Node* closure) {
 }
 
 
+Node* AstGraphBuilder::BuildLocalScriptContext(Scope* scope) {
+  Node* closure = GetFunctionClosure();
+
+  // Allocate a new local context.
+  const Operator* op = javascript()->CreateScriptContext();
+  Node* scope_info = jsgraph()->Constant(scope->GetScopeInfo(isolate()));
+  Node* local_context = NewNode(op, closure, scope_info);
+  PrepareFrameState(local_context, BailoutId::FunctionEntry());
+
+  return local_context;
+}
+
+
 Node* AstGraphBuilder::BuildLocalBlockContext(Scope* scope) {
   Node* closure = GetFunctionClosure();
 
   // Allocate a new local context.
   const Operator* op = javascript()->CreateBlockContext();
-  Node* scope_info = jsgraph()->Constant(scope->GetScopeInfo(info_->isolate()));
+  Node* scope_info = jsgraph()->Constant(scope->GetScopeInfo(isolate()));
   Node* local_context = NewNode(op, scope_info, closure);
 
   return local_context;
@@ -2699,16 +2745,10 @@ Node* AstGraphBuilder::BuildRestArgumentsArray(Variable* rest, int index) {
 
 Node* AstGraphBuilder::BuildHoleCheckSilent(Node* value, Node* for_hole,
                                             Node* not_hole) {
-  IfBuilder hole_check(this);
   Node* the_hole = jsgraph()->TheHoleConstant();
   Node* check = NewNode(javascript()->StrictEqual(), value, the_hole);
-  hole_check.If(check);
-  hole_check.Then();
-  environment()->Push(for_hole);
-  hole_check.Else();
-  environment()->Push(not_hole);
-  hole_check.End();
-  return environment()->Pop();
+  return NewNode(common()->Select(kMachAnyTagged, BranchHint::kFalse), check,
+                 for_hole, not_hole);
 }
 
 
@@ -2737,13 +2777,8 @@ Node* AstGraphBuilder::BuildThrowIfStaticPrototype(Node* name,
   Node* check = NewNode(javascript()->StrictEqual(), name, prototype_string);
   prototype_check.If(check);
   prototype_check.Then();
-  {
-    const Operator* op =
-        javascript()->CallRuntime(Runtime::kThrowStaticPrototypeError, 0);
-    Node* call = NewNode(op);
-    PrepareFrameState(call, bailout_id);
-    environment()->Push(call);
-  }
+  Node* error = BuildThrowStaticPrototypeError(bailout_id);
+  environment()->Push(error);
   prototype_check.Else();
   environment()->Push(name);
   prototype_check.End();
@@ -3102,7 +3137,9 @@ Node* AstGraphBuilder::BuildThrowError(Node* exception, BailoutId bailout_id) {
   const Operator* op = javascript()->CallRuntime(Runtime::kThrow, 1);
   Node* call = NewNode(op, exception);
   PrepareFrameState(call, bailout_id);
-  return call;
+  Node* control = NewNode(common()->Throw(), call);
+  UpdateControlDependencyToLeaveFunction(control);
+  return control;
 }
 
 
@@ -3113,7 +3150,9 @@ Node* AstGraphBuilder::BuildThrowReferenceError(Variable* variable,
       javascript()->CallRuntime(Runtime::kThrowReferenceError, 1);
   Node* call = NewNode(op, variable_name);
   PrepareFrameState(call, bailout_id);
-  return call;
+  Node* control = NewNode(common()->Throw(), call);
+  UpdateControlDependencyToLeaveFunction(control);
+  return control;
 }
 
 
@@ -3122,7 +3161,20 @@ Node* AstGraphBuilder::BuildThrowConstAssignError(BailoutId bailout_id) {
       javascript()->CallRuntime(Runtime::kThrowConstAssignError, 0);
   Node* call = NewNode(op);
   PrepareFrameState(call, bailout_id);
-  return call;
+  Node* control = NewNode(common()->Throw(), call);
+  UpdateControlDependencyToLeaveFunction(control);
+  return control;
+}
+
+
+Node* AstGraphBuilder::BuildThrowStaticPrototypeError(BailoutId bailout_id) {
+  const Operator* op =
+      javascript()->CallRuntime(Runtime::kThrowStaticPrototypeError, 0);
+  Node* call = NewNode(op);
+  PrepareFrameState(call, bailout_id);
+  Node* control = NewNode(common()->Throw(), call);
+  UpdateControlDependencyToLeaveFunction(control);
+  return control;
 }
 
 
@@ -3145,37 +3197,37 @@ Node* AstGraphBuilder::BuildBinaryOp(Node* left, Node* right, Token::Value op) {
   const Operator* js_op;
   switch (op) {
     case Token::BIT_OR:
-      js_op = javascript()->BitwiseOr();
+      js_op = javascript()->BitwiseOr(language_mode());
       break;
     case Token::BIT_AND:
-      js_op = javascript()->BitwiseAnd();
+      js_op = javascript()->BitwiseAnd(language_mode());
       break;
     case Token::BIT_XOR:
-      js_op = javascript()->BitwiseXor();
+      js_op = javascript()->BitwiseXor(language_mode());
       break;
     case Token::SHL:
-      js_op = javascript()->ShiftLeft();
+      js_op = javascript()->ShiftLeft(language_mode());
       break;
     case Token::SAR:
-      js_op = javascript()->ShiftRight();
+      js_op = javascript()->ShiftRight(language_mode());
       break;
     case Token::SHR:
-      js_op = javascript()->ShiftRightLogical();
+      js_op = javascript()->ShiftRightLogical(language_mode());
       break;
     case Token::ADD:
-      js_op = javascript()->Add();
+      js_op = javascript()->Add(language_mode());
       break;
     case Token::SUB:
-      js_op = javascript()->Subtract();
+      js_op = javascript()->Subtract(language_mode());
       break;
     case Token::MUL:
-      js_op = javascript()->Multiply();
+      js_op = javascript()->Multiply(language_mode());
       break;
     case Token::DIV:
-      js_op = javascript()->Divide();
+      js_op = javascript()->Divide(language_mode());
       break;
     case Token::MOD:
-      js_op = javascript()->Modulus();
+      js_op = javascript()->Modulus(language_mode());
       break;
     default:
       UNREACHABLE();
@@ -3296,7 +3348,7 @@ Node* AstGraphBuilder::MakeNode(const Operator* op, int value_input_count,
       if (!result->op()->HasProperty(Operator::kNoThrow) && inside_try_scope) {
         Node* on_exception = graph()->NewNode(common()->IfException(), result);
         environment_->UpdateControlDependency(on_exception);
-        execution_control()->ThrowValue(result);
+        execution_control()->ThrowValue(on_exception);
       }
       // Add implicit success continuation for throwing nodes.
       if (!result->op()->HasProperty(Operator::kNoThrow)) {
@@ -3322,8 +3374,7 @@ void AstGraphBuilder::UpdateControlDependencyToLeaveFunction(Node* exit) {
 
 void AstGraphBuilder::Environment::Merge(Environment* other) {
   DCHECK(values_.size() == other->values_.size());
-  // TODO(titzer): make context stack heights match.
-  DCHECK(contexts_.size() <= other->contexts_.size());
+  DCHECK(contexts_.size() == other->contexts_.size());
 
   // Nothing to do if the other environment is dead.
   if (other->IsMarkedAsUnreachable()) return;
@@ -3338,10 +3389,7 @@ void AstGraphBuilder::Environment::Merge(Environment* other) {
         graph()->NewNode(common()->Merge(1), arraysize(inputs), inputs, true);
     effect_dependency_ = other->effect_dependency_;
     values_ = other->values_;
-    // TODO(titzer): make context stack heights match.
-    size_t min = std::min(contexts_.size(), other->contexts_.size());
     contexts_ = other->contexts_;
-    contexts_.resize(min, nullptr);
     return;
   }
 

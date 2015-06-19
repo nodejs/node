@@ -24,18 +24,18 @@ class StringAllocator {
 
 
 // Normal allocator uses new[] and delete[].
-class HeapStringAllocator FINAL : public StringAllocator {
+class HeapStringAllocator final : public StringAllocator {
  public:
   ~HeapStringAllocator() { DeleteArray(space_); }
-  char* allocate(unsigned bytes) OVERRIDE;
-  char* grow(unsigned* bytes) OVERRIDE;
+  char* allocate(unsigned bytes) override;
+  char* grow(unsigned* bytes) override;
 
  private:
   char* space_;
 };
 
 
-class FmtElm FINAL {
+class FmtElm final {
  public:
   FmtElm(int value) : type_(INT) {  // NOLINT
     data_.u_int_ = value;
@@ -75,7 +75,7 @@ class FmtElm FINAL {
 };
 
 
-class StringStream FINAL {
+class StringStream final {
  public:
   explicit StringStream(StringAllocator* allocator):
     allocator_(allocator),

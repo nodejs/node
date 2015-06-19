@@ -19,7 +19,7 @@
 #include "src/handles.h"
 #include "src/hashmap.h"
 #include "src/heap/heap.h"
-#include "src/optimizing-compiler-thread.h"
+#include "src/optimizing-compile-dispatcher.h"
 #include "src/regexp-stack.h"
 #include "src/runtime/runtime.h"
 #include "src/runtime-profiler.h"
@@ -386,7 +386,6 @@ typedef List<HeapObject*> DebugObjectCache;
   V(HTracer*, htracer, NULL)                                                   \
   V(CodeTracer*, code_tracer, NULL)                                            \
   V(bool, fp_stubs_generated, false)                                           \
-  V(int, max_available_threads, 0)                                             \
   V(uint32_t, per_isolate_assert_data, 0xFFFFFFFFu)                            \
   V(PromiseRejectCallback, promise_reject_callback, NULL)                      \
   V(const v8::StartupData*, snapshot_blob, NULL)                               \
@@ -713,9 +712,11 @@ class Isolate {
       int frame_limit,
       StackTrace::StackTraceOptions options);
 
+  enum PrintStackMode { kPrintStackConcise, kPrintStackVerbose };
   void PrintCurrentStackTrace(FILE* out);
-  void PrintStack(StringStream* accumulator);
-  void PrintStack(FILE* out);
+  void PrintStack(StringStream* accumulator,
+                  PrintStackMode mode = kPrintStackVerbose);
+  void PrintStack(FILE* out, PrintStackMode mode = kPrintStackVerbose);
   Handle<String> StackTraceString();
   NO_INLINE(void PushStackTraceAndDie(unsigned int magic,
                                       Object* object,
@@ -726,9 +727,10 @@ class Isolate {
       StackTrace::StackTraceOptions options);
   Handle<Object> CaptureSimpleStackTrace(Handle<JSObject> error_object,
                                          Handle<Object> caller);
-  void CaptureAndSetDetailedStackTrace(Handle<JSObject> error_object);
-  void CaptureAndSetSimpleStackTrace(Handle<JSObject> error_object,
-                                     Handle<Object> caller);
+  MaybeHandle<JSObject> CaptureAndSetDetailedStackTrace(
+      Handle<JSObject> error_object);
+  MaybeHandle<JSObject> CaptureAndSetSimpleStackTrace(
+      Handle<JSObject> error_object, Handle<Object> caller);
   Handle<JSArray> GetDetailedStackTrace(Handle<JSObject> error_object);
   Handle<JSArray> GetDetailedFromSimpleStackTrace(
       Handle<JSObject> error_object);
@@ -762,7 +764,7 @@ class Isolate {
 
   // Find the correct handler for the current pending exception. This also
   // clears and returns the current pending exception.
-  Object* FindHandler();
+  Object* UnwindAndFindHandler();
 
   // Tries to predict whether an exception will be caught. Note that this can
   // only produce an estimate, because it is undecidable whether a finally
@@ -986,7 +988,9 @@ class Isolate {
   }
 
   bool serializer_enabled() const { return serializer_enabled_; }
-  bool snapshot_available() const { return snapshot_blob_ != NULL; }
+  bool snapshot_available() const {
+    return snapshot_blob_ != NULL && snapshot_blob_->raw_size != 0;
+  }
 
   bool IsDead() { return has_fatal_error_; }
   void SignalFatalError() { has_fatal_error_ = true; }
@@ -1012,7 +1016,28 @@ class Isolate {
 
   Map* get_initial_js_array_map(ElementsKind kind);
 
+  static const int kArrayProtectorValid = 1;
+  static const int kArrayProtectorInvalid = 0;
+
   bool IsFastArrayConstructorPrototypeChainIntact();
+
+  // On intent to set an element in object, make sure that appropriate
+  // notifications occur if the set is on the elements of the array or
+  // object prototype. Also ensure that changes to prototype chain between
+  // Array and Object fire notifications.
+  void UpdateArrayProtectorOnSetElement(Handle<JSObject> object);
+  void UpdateArrayProtectorOnSetLength(Handle<JSObject> object) {
+    UpdateArrayProtectorOnSetElement(object);
+  }
+  void UpdateArrayProtectorOnSetPrototype(Handle<JSObject> object) {
+    UpdateArrayProtectorOnSetElement(object);
+  }
+  void UpdateArrayProtectorOnNormalizeElements(Handle<JSObject> object) {
+    UpdateArrayProtectorOnSetElement(object);
+  }
+
+  // Returns true if array is the initial array prototype in any native context.
+  bool IsAnyInitialArrayPrototype(Handle<JSArray> array);
 
   CallInterfaceDescriptorData* call_descriptor_data(int index);
 
@@ -1026,20 +1051,20 @@ class Isolate {
 
   bool concurrent_recompilation_enabled() {
     // Thread is only available with flag enabled.
-    DCHECK(optimizing_compiler_thread_ == NULL ||
+    DCHECK(optimizing_compile_dispatcher_ == NULL ||
            FLAG_concurrent_recompilation);
-    return optimizing_compiler_thread_ != NULL;
+    return optimizing_compile_dispatcher_ != NULL;
   }
 
   bool concurrent_osr_enabled() const {
     // Thread is only available with flag enabled.
-    DCHECK(optimizing_compiler_thread_ == NULL ||
+    DCHECK(optimizing_compile_dispatcher_ == NULL ||
            FLAG_concurrent_recompilation);
-    return optimizing_compiler_thread_ != NULL && FLAG_concurrent_osr;
+    return optimizing_compile_dispatcher_ != NULL && FLAG_concurrent_osr;
   }
 
-  OptimizingCompilerThread* optimizing_compiler_thread() {
-    return optimizing_compiler_thread_;
+  OptimizingCompileDispatcher* optimizing_compile_dispatcher() {
+    return optimizing_compile_dispatcher_;
   }
 
   int id() const { return static_cast<int>(id_); }
@@ -1058,7 +1083,7 @@ class Isolate {
 
   void* stress_deopt_count_address() { return &stress_deopt_count_; }
 
-  inline base::RandomNumberGenerator* random_number_generator();
+  base::RandomNumberGenerator* random_number_generator();
 
   // Given an address occupied by a live code object, return that object.
   Object* FindCodeObject(Address a);
@@ -1091,8 +1116,6 @@ class Isolate {
   BasicBlockProfiler* GetOrCreateBasicBlockProfiler();
   BasicBlockProfiler* basic_block_profiler() { return basic_block_profiler_; }
 
-  static Isolate* NewForTesting() { return new Isolate(false); }
-
   std::string GetTurboCfgFileName();
 
 #if TRACE_MAPS
@@ -1121,6 +1144,13 @@ class Isolate {
   void CheckDetachedContextsAfterGC();
 
   List<Object*>* partial_snapshot_cache() { return &partial_snapshot_cache_; }
+
+  void set_array_buffer_allocator(v8::ArrayBuffer::Allocator* allocator) {
+    array_buffer_allocator_ = allocator;
+  }
+  v8::ArrayBuffer::Allocator* array_buffer_allocator() const {
+    return array_buffer_allocator_;
+  }
 
  protected:
   explicit Isolate(bool enable_serializer);
@@ -1223,6 +1253,10 @@ class Isolate {
   // If there is no external try-catch or message was successfully propagated,
   // then return true.
   bool PropagatePendingExceptionToExternalTryCatch();
+
+  // Remove per-frame stored materialized objects when we are unwinding
+  // the frame.
+  void RemoveMaterializedObjectsOnUnwind(StackFrame* frame);
 
   // Traverse prototype chain to find out whether the object is derived from
   // the Error object.
@@ -1327,7 +1361,7 @@ class Isolate {
 #endif
 
   DeferredHandles* deferred_handles_head_;
-  OptimizingCompilerThread* optimizing_compiler_thread_;
+  OptimizingCompileDispatcher* optimizing_compile_dispatcher_;
 
   // Counts deopt points if deopt_every_n_times is enabled.
   unsigned int stress_deopt_count_;
@@ -1346,9 +1380,11 @@ class Isolate {
 
   List<Object*> partial_snapshot_cache_;
 
+  v8::ArrayBuffer::Allocator* array_buffer_allocator_;
+
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;
-  friend class OptimizingCompilerThread;
+  friend class OptimizingCompileDispatcher;
   friend class SweeperThread;
   friend class ThreadManager;
   friend class Simulator;
@@ -1390,7 +1426,7 @@ class PromiseOnStack {
 // versions of GCC. See V8 issue 122 for details.
 class SaveContext BASE_EMBEDDED {
  public:
-  inline explicit SaveContext(Isolate* isolate);
+  explicit SaveContext(Isolate* isolate);
 
   ~SaveContext() {
     isolate_->set_context(context_.is_null() ? NULL : *context_);
@@ -1503,7 +1539,7 @@ class PostponeInterruptsScope BASE_EMBEDDED {
 };
 
 
-class CodeTracer FINAL : public Malloced {
+class CodeTracer final : public Malloced {
  public:
   explicit CodeTracer(int isolate_id)
       : file_(NULL),

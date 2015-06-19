@@ -904,7 +904,7 @@ void Logger::CodeDeoptEvent(Code* code, Address pc, int fp_to_sp_delta) {
 
 void Logger::CurrentTimeEvent() {
   if (!log_->IsEnabled()) return;
-  DCHECK(FLAG_log_internal_timer_events);
+  DCHECK(FLAG_log_timer_events || FLAG_prof_cpp);
   Log::MessageBuilder msg(log_);
   int since_epoch = static_cast<int>(timer_.Elapsed().InMicroseconds());
   msg.Append("current-time,%ld", since_epoch);

@@ -163,7 +163,7 @@ class GitRecipesMixin(object):
 
   @Strip
   def GitLog(self, n=0, format="", grep="", git_hash="", parent_hash="",
-             branch="", reverse=False, **kwargs):
+             branch="", path=None, reverse=False, **kwargs):
     assert not (git_hash and parent_hash)
     args = ["log"]
     if n > 0:
@@ -179,7 +179,14 @@ class GitRecipesMixin(object):
     if parent_hash:
       args.append("%s^" % parent_hash)
     args.append(branch)
+    if path:
+      args.extend(["--", path])
     return self.Git(MakeArgs(args), **kwargs)
+
+  def GitShowFile(self, refspec, path, **kwargs):
+    assert refspec
+    assert path
+    return self.Git(MakeArgs(["show", "%s:%s" % (refspec, path)]), **kwargs)
 
   def GitGetPatch(self, git_hash, **kwargs):
     assert git_hash
@@ -241,8 +248,8 @@ class GitRecipesMixin(object):
   def GitPull(self, **kwargs):
     self.Git("pull", **kwargs)
 
-  def GitFetchOrigin(self, **kwargs):
-    self.Git("fetch origin", **kwargs)
+  def GitFetchOrigin(self, *refspecs, **kwargs):
+    self.Git(MakeArgs(["fetch", "origin"] + list(refspecs)), **kwargs)
 
   @Strip
   # Copied from bot_update.py and modified for svn-like numbers only.
@@ -273,3 +280,6 @@ class GitRecipesMixin(object):
         return match.group(1)
     raise GitFailedException("Couldn't determine commit position for %s" %
                              git_hash)
+
+  def GitGetHashOfTag(self, tag_name, **kwargs):
+    return self.Git("rev-list -1 " + tag_name).strip().encode("ascii", "ignore")

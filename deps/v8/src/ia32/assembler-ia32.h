@@ -954,11 +954,18 @@ class Assembler : public AssemblerBase {
   void mulss(XMMRegister dst, const Operand& src);
   void divss(XMMRegister dst, XMMRegister src) { divss(dst, Operand(src)); }
   void divss(XMMRegister dst, const Operand& src);
+  void sqrtss(XMMRegister dst, XMMRegister src) { sqrtss(dst, Operand(src)); }
+  void sqrtss(XMMRegister dst, const Operand& src);
 
   void ucomiss(XMMRegister dst, XMMRegister src) { ucomiss(dst, Operand(src)); }
   void ucomiss(XMMRegister dst, const Operand& src);
   void movaps(XMMRegister dst, XMMRegister src);
   void shufps(XMMRegister dst, XMMRegister src, byte imm8);
+
+  void maxss(XMMRegister dst, XMMRegister src) { maxss(dst, Operand(src)); }
+  void maxss(XMMRegister dst, const Operand& src);
+  void minss(XMMRegister dst, XMMRegister src) { minss(dst, Operand(src)); }
+  void minss(XMMRegister dst, const Operand& src);
 
   void andps(XMMRegister dst, const Operand& src);
   void andps(XMMRegister dst, XMMRegister src) { andps(dst, Operand(src)); }
@@ -1269,6 +1276,152 @@ class Assembler : public AssemblerBase {
   }
   void vsd(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
 
+  void vaddss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vaddss(dst, src1, Operand(src2));
+  }
+  void vaddss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vss(0x58, dst, src1, src2);
+  }
+  void vsubss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vsubss(dst, src1, Operand(src2));
+  }
+  void vsubss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vss(0x5c, dst, src1, src2);
+  }
+  void vmulss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vmulss(dst, src1, Operand(src2));
+  }
+  void vmulss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vss(0x59, dst, src1, src2);
+  }
+  void vdivss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vdivss(dst, src1, Operand(src2));
+  }
+  void vdivss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vss(0x5e, dst, src1, src2);
+  }
+  void vmaxss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vmaxss(dst, src1, Operand(src2));
+  }
+  void vmaxss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vss(0x5f, dst, src1, src2);
+  }
+  void vminss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vminss(dst, src1, Operand(src2));
+  }
+  void vminss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vss(0x5d, dst, src1, src2);
+  }
+  void vss(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
+
+  // BMI instruction
+  void andn(Register dst, Register src1, Register src2) {
+    andn(dst, src1, Operand(src2));
+  }
+  void andn(Register dst, Register src1, const Operand& src2) {
+    bmi1(0xf2, dst, src1, src2);
+  }
+  void bextr(Register dst, Register src1, Register src2) {
+    bextr(dst, Operand(src1), src2);
+  }
+  void bextr(Register dst, const Operand& src1, Register src2) {
+    bmi1(0xf7, dst, src2, src1);
+  }
+  void blsi(Register dst, Register src) { blsi(dst, Operand(src)); }
+  void blsi(Register dst, const Operand& src) {
+    Register ireg = {3};
+    bmi1(0xf3, ireg, dst, src);
+  }
+  void blsmsk(Register dst, Register src) { blsmsk(dst, Operand(src)); }
+  void blsmsk(Register dst, const Operand& src) {
+    Register ireg = {2};
+    bmi1(0xf3, ireg, dst, src);
+  }
+  void blsr(Register dst, Register src) { blsr(dst, Operand(src)); }
+  void blsr(Register dst, const Operand& src) {
+    Register ireg = {1};
+    bmi1(0xf3, ireg, dst, src);
+  }
+  void tzcnt(Register dst, Register src) { tzcnt(dst, Operand(src)); }
+  void tzcnt(Register dst, const Operand& src);
+
+  void lzcnt(Register dst, Register src) { lzcnt(dst, Operand(src)); }
+  void lzcnt(Register dst, const Operand& src);
+
+  void popcnt(Register dst, Register src) { popcnt(dst, Operand(src)); }
+  void popcnt(Register dst, const Operand& src);
+
+  void bzhi(Register dst, Register src1, Register src2) {
+    bzhi(dst, Operand(src1), src2);
+  }
+  void bzhi(Register dst, const Operand& src1, Register src2) {
+    bmi2(kNone, 0xf5, dst, src2, src1);
+  }
+  void mulx(Register dst1, Register dst2, Register src) {
+    mulx(dst1, dst2, Operand(src));
+  }
+  void mulx(Register dst1, Register dst2, const Operand& src) {
+    bmi2(kF2, 0xf6, dst1, dst2, src);
+  }
+  void pdep(Register dst, Register src1, Register src2) {
+    pdep(dst, src1, Operand(src2));
+  }
+  void pdep(Register dst, Register src1, const Operand& src2) {
+    bmi2(kF2, 0xf5, dst, src1, src2);
+  }
+  void pext(Register dst, Register src1, Register src2) {
+    pext(dst, src1, Operand(src2));
+  }
+  void pext(Register dst, Register src1, const Operand& src2) {
+    bmi2(kF3, 0xf5, dst, src1, src2);
+  }
+  void sarx(Register dst, Register src1, Register src2) {
+    sarx(dst, Operand(src1), src2);
+  }
+  void sarx(Register dst, const Operand& src1, Register src2) {
+    bmi2(kF3, 0xf7, dst, src2, src1);
+  }
+  void shlx(Register dst, Register src1, Register src2) {
+    shlx(dst, Operand(src1), src2);
+  }
+  void shlx(Register dst, const Operand& src1, Register src2) {
+    bmi2(k66, 0xf7, dst, src2, src1);
+  }
+  void shrx(Register dst, Register src1, Register src2) {
+    shrx(dst, Operand(src1), src2);
+  }
+  void shrx(Register dst, const Operand& src1, Register src2) {
+    bmi2(kF2, 0xf7, dst, src2, src1);
+  }
+  void rorx(Register dst, Register src, byte imm8) {
+    rorx(dst, Operand(src), imm8);
+  }
+  void rorx(Register dst, const Operand& src, byte imm8);
+
+#define PACKED_OP_LIST(V) \
+  V(and, 0x54)            \
+  V(xor, 0x57)
+
+#define AVX_PACKED_OP_DECLARE(name, opcode)                                  \
+  void v##name##ps(XMMRegister dst, XMMRegister src1, XMMRegister src2) {    \
+    vps(opcode, dst, src1, Operand(src2));                                   \
+  }                                                                          \
+  void v##name##ps(XMMRegister dst, XMMRegister src1, const Operand& src2) { \
+    vps(opcode, dst, src1, src2);                                            \
+  }                                                                          \
+  void v##name##pd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {    \
+    vpd(opcode, dst, src1, Operand(src2));                                   \
+  }                                                                          \
+  void v##name##pd(XMMRegister dst, XMMRegister src1, const Operand& src2) { \
+    vpd(opcode, dst, src1, src2);                                            \
+  }
+
+  PACKED_OP_LIST(AVX_PACKED_OP_DECLARE);
+  void vps(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
+  void vps(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
+  void vpd(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
+  void vpd(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
+
   // Prefetch src position into cache level.
   // Level 1, 2 or 3 specifies CPU cache level. Level 0 specifies a
   // non-temporal
@@ -1380,10 +1533,12 @@ class Assembler : public AssemblerBase {
 
   // Emit vex prefix
   enum SIMDPrefix { kNone = 0x0, k66 = 0x1, kF3 = 0x2, kF2 = 0x3 };
-  enum VectorLength { kL128 = 0x0, kL256 = 0x4, kLIG = kL128 };
+  enum VectorLength { kL128 = 0x0, kL256 = 0x4, kLIG = kL128, kLZ = kL128 };
   enum VexW { kW0 = 0x0, kW1 = 0x80, kWIG = kW0 };
-  enum LeadingOpcode { k0F = 0x1, k0F38 = 0x2, k0F3A = 0x2 };
+  enum LeadingOpcode { k0F = 0x1, k0F38 = 0x2, k0F3A = 0x3 };
   inline void emit_vex_prefix(XMMRegister v, VectorLength l, SIMDPrefix pp,
+                              LeadingOpcode m, VexW w);
+  inline void emit_vex_prefix(Register v, VectorLength l, SIMDPrefix pp,
                               LeadingOpcode m, VexW w);
 
   // labels
@@ -1395,6 +1550,11 @@ class Assembler : public AssemblerBase {
   inline void disp_at_put(Label* L, Displacement disp);
   inline void emit_disp(Label* L, Displacement::Type type);
   inline void emit_near_disp(Label* L);
+
+  // Most BMI instructions are similiar.
+  void bmi1(byte op, Register reg, Register vreg, const Operand& rm);
+  void bmi2(SIMDPrefix pp, byte op, Register reg, Register vreg,
+            const Operand& rm);
 
   // record reloc info for current pc_
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);

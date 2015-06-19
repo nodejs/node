@@ -29,5 +29,5 @@
 
 // Test call of JS runtime functions.
 
-var a = %GlobalParseInt("21", 16);
-assertEquals(33, a);
+var a = %$isNaN(0/0);
+assertEquals(true, a);

@@ -10,7 +10,6 @@
   assertThrows("function f() { 'use strong'; 0 == 0 }", SyntaxError);
   assertThrows("'use strong'; function f() { 0 == 0 }", SyntaxError);
   assertThrows("'use strong'; function f() { function g() { 0 == 0 } }", SyntaxError);
-  assertThrows("'use strong'; eval('function f() { 0 == 0 }')", SyntaxError);
   assertTrue(eval("function f() { 'use strong' } 0 == 0"));
   assertTrue(eval("eval('\\\'use strong\\\''); 0 == 0"));
 })();
