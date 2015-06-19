@@ -13,12 +13,12 @@
 
 namespace {
 
-class DefaultPlatformEnvironment FINAL : public ::testing::Environment {
+class DefaultPlatformEnvironment final : public ::testing::Environment {
  public:
   DefaultPlatformEnvironment() : platform_(NULL) {}
   ~DefaultPlatformEnvironment() {}
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     EXPECT_EQ(NULL, platform_);
     platform_ = v8::platform::CreateDefaultPlatform();
     ASSERT_TRUE(platform_ != NULL);
@@ -26,7 +26,7 @@ class DefaultPlatformEnvironment FINAL : public ::testing::Environment {
     ASSERT_TRUE(v8::V8::Initialize());
   }
 
-  virtual void TearDown() OVERRIDE {
+  virtual void TearDown() override {
     ASSERT_TRUE(platform_ != NULL);
     v8::V8::Dispose();
     v8::V8::ShutdownPlatform();

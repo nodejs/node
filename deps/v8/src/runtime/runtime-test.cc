@@ -175,15 +175,14 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   if (isolate->concurrent_recompilation_enabled() &&
       sync_with_compiler_thread) {
     while (function->IsInOptimizationQueue()) {
-      isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
-      base::OS::Sleep(50);
+      isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
+      base::OS::Sleep(base::TimeDelta::FromMilliseconds(50));
     }
   }
   if (FLAG_always_opt) {
-    // We may have always opt, but that is more best-effort than a real
-    // promise, so we still say "no" if it is not optimized.
-    return function->IsOptimized() ? Smi::FromInt(3)   // 3 == "always".
-                                   : Smi::FromInt(2);  // 2 == "no".
+    // With --always-opt, optimization status expectations might not
+    // match up, so just return a sentinel.
+    return Smi::FromInt(3);  // 3 == "always".
   }
   if (FLAG_deopt_every_n_times) {
     return Smi::FromInt(6);  // 6 == "maybe deopted".
@@ -200,7 +199,7 @@ RUNTIME_FUNCTION(Runtime_UnblockConcurrentRecompilation) {
   DCHECK(args.length() == 0);
   RUNTIME_ASSERT(FLAG_block_concurrent_recompilation);
   RUNTIME_ASSERT(isolate->concurrent_recompilation_enabled());
-  isolate->optimizing_compiler_thread()->Unblock();
+  isolate->optimizing_compile_dispatcher()->Unblock();
   return isolate->heap()->undefined_value();
 }
 

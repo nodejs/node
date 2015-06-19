@@ -11,12 +11,12 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class ValueNumberingReducer FINAL : public Reducer {
+class ValueNumberingReducer final : public Reducer {
  public:
   explicit ValueNumberingReducer(Zone* zone);
   ~ValueNumberingReducer();
 
-  Reduction Reduce(Node* node) OVERRIDE;
+  Reduction Reduce(Node* node) override;
 
  private:
   enum { kInitialCapacity = 256u, kCapacityToSizeRatio = 2u };

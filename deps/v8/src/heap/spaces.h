@@ -43,11 +43,11 @@ class Isolate;
 //
 // During scavenges and mark-sweep collections we sometimes (after a store
 // buffer overflow) iterate intergenerational pointers without decoding heap
-// object maps so if the page belongs to old pointer space or large object
-// space it is essential to guarantee that the page does not contain any
+// object maps so if the page belongs to old space or large object space
+// it is essential to guarantee that the page does not contain any
 // garbage pointers to new space: every pointer aligned word which satisfies
 // the Heap::InNewSpace() predicate must be a pointer to a live heap object in
-// new space. Thus objects in old pointer and large object spaces should have a
+// new space. Thus objects in old space and large object spaces should have a
 // special layout (e.g. no bare integer fields). This requirement does not
 // apply to map space which is iterated in a special fashion. However we still
 // require pointer fields of dead maps to be cleaned.
@@ -102,11 +102,7 @@ class MarkBit {
  public:
   typedef uint32_t CellType;
 
-  inline MarkBit(CellType* cell, CellType mask, bool data_only)
-      : cell_(cell), mask_(mask), data_only_(data_only) {}
-
-  inline CellType* cell() { return cell_; }
-  inline CellType mask() { return mask_; }
+  inline MarkBit(CellType* cell, CellType mask) : cell_(cell), mask_(mask) {}
 
 #ifdef DEBUG
   bool operator==(const MarkBit& other) {
@@ -114,29 +110,27 @@ class MarkBit {
   }
 #endif
 
-  inline void Set() { *cell_ |= mask_; }
-  inline bool Get() { return (*cell_ & mask_) != 0; }
-  inline void Clear() { *cell_ &= ~mask_; }
-
-  inline bool data_only() { return data_only_; }
+ private:
+  inline CellType* cell() { return cell_; }
+  inline CellType mask() { return mask_; }
 
   inline MarkBit Next() {
     CellType new_mask = mask_ << 1;
     if (new_mask == 0) {
-      return MarkBit(cell_ + 1, 1, data_only_);
+      return MarkBit(cell_ + 1, 1);
     } else {
-      return MarkBit(cell_, new_mask, data_only_);
+      return MarkBit(cell_, new_mask);
     }
   }
 
- private:
+  inline void Set() { *cell_ |= mask_; }
+  inline bool Get() { return (*cell_ & mask_) != 0; }
+  inline void Clear() { *cell_ &= ~mask_; }
+
   CellType* cell_;
   CellType mask_;
-  // This boolean indicates that the object is in a data-only space with no
-  // pointers.  This enables some optimizations when marking.
-  // It is expected that this field is inlined and turned into control flow
-  // at the place where the MarkBit object is created.
-  bool data_only_;
+
+  friend class Marking;
 };
 
 
@@ -187,10 +181,10 @@ class Bitmap {
     return reinterpret_cast<Bitmap*>(addr);
   }
 
-  inline MarkBit MarkBitFromIndex(uint32_t index, bool data_only = false) {
+  inline MarkBit MarkBitFromIndex(uint32_t index) {
     MarkBit::CellType mask = 1 << (index & kBitIndexMask);
     MarkBit::CellType* cell = this->cells() + (index >> kBitsPerCellLog2);
-    return MarkBit(cell, mask, data_only);
+    return MarkBit(cell, mask);
   }
 
   static inline void Clear(MemoryChunk* chunk);
@@ -370,10 +364,10 @@ class MemoryChunk {
     IN_FROM_SPACE,  // Mutually exclusive with IN_TO_SPACE.
     IN_TO_SPACE,    // All pages in new space has one of these two set.
     NEW_SPACE_BELOW_AGE_MARK,
-    CONTAINS_ONLY_DATA,
     EVACUATION_CANDIDATE,
     RESCAN_ON_EVACUATION,
     NEVER_EVACUATE,  // May contain immortal immutables.
+    POPULAR_PAGE,    // Slots buffer of this page overflowed on the previous GC.
 
     // WAS_SWEPT indicates that marking bits have been cleared by the sweeper,
     // otherwise marking bits are still intact.
@@ -570,8 +564,6 @@ class MemoryChunk {
   Executability executable() {
     return IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
   }
-
-  bool ContainsOnlyData() { return IsFlagSet(CONTAINS_ONLY_DATA); }
 
   bool InNewSpace() {
     return (flags_ & ((1 << IN_FROM_SPACE) | (1 << IN_TO_SPACE))) != 0;
@@ -849,6 +841,15 @@ class Space : public Malloced {
   // Returns size of objects. Can differ from the allocated size
   // (e.g. see LargeObjectSpace).
   virtual intptr_t SizeOfObjects() { return Size(); }
+
+  // Return the total amount of memory committed for new space.
+  virtual intptr_t CommittedMemory() = 0;
+
+  // Approximate amount of physical memory committed for this space.
+  virtual size_t CommittedPhysicalMemory() = 0;
+
+  // Return the available bytes without growing.
+  virtual intptr_t Available() = 0;
 
   virtual int RoundSizeDownToObjectAlignment(int size) {
     if (id_ == CODE_SPACE) {
@@ -1691,13 +1692,13 @@ class PagedSpace : public Space {
 
   // Total amount of memory committed for this space.  For paged
   // spaces this equals the capacity.
-  intptr_t CommittedMemory() { return Capacity(); }
+  intptr_t CommittedMemory() override { return Capacity(); }
 
   // The maximum amount of memory ever committed for this space.
   intptr_t MaximumCommittedMemory() { return accounting_stats_.MaxCapacity(); }
 
   // Approximate amount of physical memory committed for this space.
-  size_t CommittedPhysicalMemory();
+  size_t CommittedPhysicalMemory() override;
 
   struct SizeStats {
     intptr_t Total() {
@@ -1732,17 +1733,17 @@ class PagedSpace : public Space {
   // The bytes in the linear allocation area are not included in this total
   // because updating the stats would slow down allocation.  New pages are
   // immediately added to the free list so they show up here.
-  intptr_t Available() { return free_list_.available(); }
+  intptr_t Available() override { return free_list_.available(); }
 
   // Allocated bytes in this space.  Garbage bytes that were not found due to
   // concurrent sweeping are counted as being allocated!  The bytes in the
   // current linear allocation area (between top and limit) are also counted
   // here.
-  virtual intptr_t Size() { return accounting_stats_.Size(); }
+  intptr_t Size() override { return accounting_stats_.Size(); }
 
   // As size, but the bytes in lazily swept pages are estimated and the bytes
   // in the current linear allocation area are not included.
-  virtual intptr_t SizeOfObjects();
+  intptr_t SizeOfObjects() override;
 
   // Wasted bytes in this space.  These are just the bytes that were thrown away
   // due to being too small to use for allocation.  They do not include the
@@ -1764,6 +1765,11 @@ class PagedSpace : public Space {
   // Allocate the requested number of bytes in the space if possible, return a
   // failure object if not.
   MUST_USE_RESULT inline AllocationResult AllocateRaw(int size_in_bytes);
+
+  // Allocate the requested number of bytes in the space double aligned if
+  // possible, return a failure object if not.
+  MUST_USE_RESULT inline AllocationResult AllocateRawDoubleAligned(
+      int size_in_bytes);
 
   // Give a block of memory to the space's free list.  It might be added to
   // the free list or accounted as waste.
@@ -1817,7 +1823,7 @@ class PagedSpace : public Space {
 
 #ifdef DEBUG
   // Print meta info and objects in this space.
-  virtual void Print();
+  void Print() override;
 
   // Reports statistics for the space
   void ReportStatistics();
@@ -1924,6 +1930,10 @@ class PagedSpace : public Space {
   // Generic fast case allocation function that tries linear allocation at the
   // address denoted by top in allocation_info_.
   inline HeapObject* AllocateLinearly(int size_in_bytes);
+
+  // Generic fast case allocation function that tries double aligned linear
+  // allocation at the address denoted by top in allocation_info_.
+  inline HeapObject* AllocateLinearlyDoubleAlign(int size_in_bytes);
 
   // If sweeping is still in progress try to sweep unswept pages. If that is
   // not successful, wait for the sweeper threads and re-try free-list
@@ -2142,11 +2152,25 @@ class SemiSpace : public Space {
   }
 
   // If we don't have these here then SemiSpace will be abstract.  However
-  // they should never be called.
-  virtual intptr_t Size() {
+  // they should never be called:
+
+  intptr_t Size() override {
     UNREACHABLE();
     return 0;
   }
+
+  intptr_t SizeOfObjects() override { return Size(); }
+
+  intptr_t CommittedMemory() override {
+    UNREACHABLE();
+    return 0;
+  }
+
+  intptr_t Available() override {
+    UNREACHABLE();
+    return 0;
+  }
+
 
   bool is_committed() { return committed_; }
   bool Commit();
@@ -2160,7 +2184,7 @@ class SemiSpace : public Space {
 #endif
 
 #ifdef DEBUG
-  virtual void Print();
+  void Print() override;
   // Validate a range of of addresses in a SemiSpace.
   // The "from" address must be on a page prior to the "to" address,
   // in the linked page order, or it must be earlier on the same page.
@@ -2190,7 +2214,7 @@ class SemiSpace : public Space {
   size_t MaximumCommittedMemory() { return maximum_committed_; }
 
   // Approximate amount of physical memory committed for this space.
-  size_t CommittedPhysicalMemory();
+  size_t CommittedPhysicalMemory() override;
 
  private:
   // Flips the semispace between being from-space and to-space.
@@ -2369,7 +2393,7 @@ class NewSpace : public Space {
   }
 
   // Return the allocated bytes in the active semispace.
-  virtual intptr_t Size() {
+  intptr_t Size() override {
     return pages_used_ * NewSpacePage::kAreaSize +
            static_cast<int>(top() - to_space_.page_low());
   }
@@ -2394,7 +2418,7 @@ class NewSpace : public Space {
   }
 
   // Return the total amount of memory committed for new space.
-  intptr_t CommittedMemory() {
+  intptr_t CommittedMemory() override {
     if (from_space_.is_committed()) return 2 * Capacity();
     return TotalCapacity();
   }
@@ -2406,10 +2430,10 @@ class NewSpace : public Space {
   }
 
   // Approximate amount of physical memory committed for this space.
-  size_t CommittedPhysicalMemory();
+  size_t CommittedPhysicalMemory() override;
 
   // Return the available bytes without growing.
-  intptr_t Available() { return Capacity() - Size(); }
+  intptr_t Available() override { return Capacity() - Size(); }
 
   // Return the maximum capacity of a semispace.
   int MaximumCapacity() {
@@ -2476,6 +2500,9 @@ class NewSpace : public Space {
     return allocation_info_.limit_address();
   }
 
+  MUST_USE_RESULT INLINE(
+      AllocationResult AllocateRawDoubleAligned(int size_in_bytes));
+
   MUST_USE_RESULT INLINE(AllocationResult AllocateRaw(int size_in_bytes));
 
   // Reset the allocation pointer to the beginning of the active semispace.
@@ -2526,7 +2553,7 @@ class NewSpace : public Space {
 
 #ifdef DEBUG
   // Print the active semispace.
-  virtual void Print() { to_space_.Print(); }
+  void Print() override { to_space_.Print(); }
 #endif
 
   // Iterates the active semispace to collect statistics.
@@ -2593,7 +2620,8 @@ class NewSpace : public Space {
   HistogramInfo* allocated_histogram_;
   HistogramInfo* promoted_histogram_;
 
-  MUST_USE_RESULT AllocationResult SlowAllocateRaw(int size_in_bytes);
+  MUST_USE_RESULT AllocationResult
+  SlowAllocateRaw(int size_in_bytes, bool double_aligned);
 
   friend class SemiSpaceIterator;
 
@@ -2603,7 +2631,7 @@ class NewSpace : public Space {
 
 
 // -----------------------------------------------------------------------------
-// Old object space (excluding map objects)
+// Old object space (includes the old space of objects and code space)
 
 class OldSpace : public PagedSpace {
  public:
@@ -2667,31 +2695,6 @@ class MapSpace : public PagedSpace {
 
 
 // -----------------------------------------------------------------------------
-// Old space for simple property cell objects
-
-class CellSpace : public PagedSpace {
- public:
-  // Creates a property cell space object with a maximum capacity.
-  CellSpace(Heap* heap, intptr_t max_capacity, AllocationSpace id)
-      : PagedSpace(heap, max_capacity, id, NOT_EXECUTABLE) {}
-
-  virtual int RoundSizeDownToObjectAlignment(int size) {
-    if (base::bits::IsPowerOfTwo32(Cell::kSize)) {
-      return RoundDown(size, Cell::kSize);
-    } else {
-      return (size / Cell::kSize) * Cell::kSize;
-    }
-  }
-
- protected:
-  virtual void VerifyObject(HeapObject* obj);
-
- public:
-  TRACK_MEMORY("CellSpace")
-};
-
-
-// -----------------------------------------------------------------------------
 // Large objects ( > Page::kMaxHeapObjectSize ) are allocated and managed by
 // the large object space. A large object is allocated from OS heap with
 // extra padding bytes (Page::kPageSize + Page::kObjectStartOffset).
@@ -2722,18 +2725,18 @@ class LargeObjectSpace : public Space {
   bool CanAllocateSize(int size) { return Size() + size <= max_capacity_; }
 
   // Available bytes for objects in this space.
-  inline intptr_t Available();
+  inline intptr_t Available() override;
 
-  virtual intptr_t Size() { return size_; }
+  intptr_t Size() override { return size_; }
 
-  virtual intptr_t SizeOfObjects() { return objects_size_; }
+  intptr_t SizeOfObjects() override { return objects_size_; }
 
   intptr_t MaximumCommittedMemory() { return maximum_committed_; }
 
-  intptr_t CommittedMemory() { return Size(); }
+  intptr_t CommittedMemory() override { return Size(); }
 
   // Approximate amount of physical memory committed for this space.
-  size_t CommittedPhysicalMemory();
+  size_t CommittedPhysicalMemory() override;
 
   int PageCount() { return page_count_; }
 
@@ -2761,7 +2764,7 @@ class LargeObjectSpace : public Space {
 #endif
 
 #ifdef DEBUG
-  virtual void Print();
+  void Print() override;
   void ReportStatistics();
   void CollectCodeStatistics();
 #endif
@@ -2812,9 +2815,9 @@ class PointerChunkIterator BASE_EMBEDDED {
   // Return NULL when the iterator is done.
   MemoryChunk* next() {
     switch (state_) {
-      case kOldPointerState: {
-        if (old_pointer_iterator_.has_next()) {
-          return old_pointer_iterator_.next();
+      case kOldSpaceState: {
+        if (old_iterator_.has_next()) {
+          return old_iterator_.next();
         }
         state_ = kMapState;
         // Fall through.
@@ -2851,9 +2854,9 @@ class PointerChunkIterator BASE_EMBEDDED {
 
 
  private:
-  enum State { kOldPointerState, kMapState, kLargeObjectState, kFinishedState };
+  enum State { kOldSpaceState, kMapState, kLargeObjectState, kFinishedState };
   State state_;
-  PageIterator old_pointer_iterator_;
+  PageIterator old_iterator_;
   PageIterator map_iterator_;
   LargeObjectIterator lo_iterator_;
 };

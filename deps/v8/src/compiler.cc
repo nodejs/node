@@ -17,7 +17,6 @@
 #include "src/full-codegen.h"
 #include "src/gdb-jit.h"
 #include "src/hydrogen.h"
-#include "src/isolate-inl.h"
 #include "src/lithium.h"
 #include "src/liveedit.h"
 #include "src/messages.h"
@@ -63,7 +62,7 @@ PARSE_INFO_GETTER(Handle<Script>, script)
 PARSE_INFO_GETTER(bool, is_eval)
 PARSE_INFO_GETTER(bool, is_native)
 PARSE_INFO_GETTER(bool, is_module)
-PARSE_INFO_GETTER(LanguageMode, language_mode)
+PARSE_INFO_GETTER_WITH_DEFAULT(LanguageMode, language_mode, STRICT)
 PARSE_INFO_GETTER_WITH_DEFAULT(Handle<JSFunction>, closure,
                                Handle<JSFunction>::null())
 PARSE_INFO_GETTER(FunctionLiteral*, function)
@@ -87,7 +86,7 @@ class CompilationInfoWithZone : public CompilationInfo {
   // called when cast as a CompilationInfo.
   virtual ~CompilationInfoWithZone() {
     DisableFutureOptimization();
-    RollbackDependencies();
+    dependencies()->Rollback();
     delete parse_info_;
     parse_info_ = nullptr;
   }
@@ -116,7 +115,9 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info)
   if (isolate_->debug()->is_active()) MarkAsDebug();
   if (FLAG_context_specialization) MarkAsContextSpecializing();
   if (FLAG_turbo_builtin_inlining) MarkAsBuiltinInliningEnabled();
+  if (FLAG_turbo_deoptimization) MarkAsDeoptimizationEnabled();
   if (FLAG_turbo_inlining) MarkAsInliningEnabled();
+  if (FLAG_turbo_source_positions) MarkAsSourcePositionsEnabled();
   if (FLAG_turbo_splitting) MarkAsSplittingEnabled();
   if (FLAG_turbo_types) MarkAsTypingEnabled();
 
@@ -143,6 +144,7 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub,
       osr_ast_id_(BailoutId::None()),
       zone_(zone),
       deferred_handles_(nullptr),
+      dependencies_(isolate, zone),
       bailout_reason_(kNoReason),
       prologue_offset_(Code::kPrologueOffsetNotSet),
       no_frame_ranges_(isolate->cpu_profiler()->is_profiling()
@@ -153,10 +155,7 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub,
       opt_count_(has_shared_info() ? shared_info()->opt_count() : 0),
       parameter_count_(0),
       optimization_id_(-1),
-      aborted_due_to_dependency_change_(false),
-      osr_expr_stack_height_(0) {
-  std::fill_n(dependencies_, DependentCode::kGroupCount, nullptr);
-}
+      osr_expr_stack_height_(0) {}
 
 
 CompilationInfo::~CompilationInfo() {
@@ -166,57 +165,8 @@ CompilationInfo::~CompilationInfo() {
 #ifdef DEBUG
   // Check that no dependent maps have been added or added dependent maps have
   // been rolled back or committed.
-  for (int i = 0; i < DependentCode::kGroupCount; i++) {
-    DCHECK(!dependencies_[i]);
-  }
+  DCHECK(dependencies()->IsEmpty());
 #endif  // DEBUG
-}
-
-
-void CompilationInfo::CommitDependencies(Handle<Code> code) {
-  bool has_dependencies = false;
-  for (int i = 0; i < DependentCode::kGroupCount; i++) {
-    has_dependencies |=
-        dependencies_[i] != NULL && dependencies_[i]->length() > 0;
-  }
-  // Avoid creating a weak cell for code with no dependencies.
-  if (!has_dependencies) return;
-
-  AllowDeferredHandleDereference get_object_wrapper;
-  WeakCell* cell = *Code::WeakCellFor(code);
-  for (int i = 0; i < DependentCode::kGroupCount; i++) {
-    ZoneList<Handle<HeapObject> >* group_objects = dependencies_[i];
-    if (group_objects == NULL) continue;
-    DCHECK(!object_wrapper_.is_null());
-    for (int j = 0; j < group_objects->length(); j++) {
-      DependentCode::DependencyGroup group =
-          static_cast<DependentCode::DependencyGroup>(i);
-      Foreign* info = *object_wrapper();
-      DependentCode* dependent_code =
-          DependentCode::ForObject(group_objects->at(j), group);
-      dependent_code->UpdateToFinishedCode(group, info, cell);
-    }
-    dependencies_[i] = NULL;  // Zone-allocated, no need to delete.
-  }
-}
-
-
-void CompilationInfo::RollbackDependencies() {
-  AllowDeferredHandleDereference get_object_wrapper;
-  // Unregister from all dependent maps if not yet committed.
-  for (int i = 0; i < DependentCode::kGroupCount; i++) {
-    ZoneList<Handle<HeapObject> >* group_objects = dependencies_[i];
-    if (group_objects == NULL) continue;
-    for (int j = 0; j < group_objects->length(); j++) {
-      DependentCode::DependencyGroup group =
-          static_cast<DependentCode::DependencyGroup>(i);
-      Foreign* info = *object_wrapper();
-      DependentCode* dependent_code =
-          DependentCode::ForObject(group_objects->at(j), group);
-      dependent_code->RemoveCompilationInfo(group, info);
-    }
-    dependencies_[i] = NULL;  // Zone-allocated, no need to delete.
-  }
 }
 
 
@@ -251,7 +201,8 @@ bool CompilationInfo::ShouldSelfOptimize() {
 
 
 void CompilationInfo::EnsureFeedbackVector() {
-  if (feedback_vector_.is_null()) {
+  if (feedback_vector_.is_null() ||
+      feedback_vector_->SpecDiffersFrom(function()->feedback_vector_spec())) {
     feedback_vector_ = isolate()->factory()->NewTypeFeedbackVector(
         function()->feedback_vector_spec());
   }
@@ -260,6 +211,12 @@ void CompilationInfo::EnsureFeedbackVector() {
 
 bool CompilationInfo::is_simple_parameter_list() {
   return scope()->is_simple_parameter_list();
+}
+
+
+bool CompilationInfo::MayUseThis() const {
+  return scope()->uses_this() || scope()->inner_uses_this() ||
+         scope()->calls_sloppy_eval();
 }
 
 
@@ -323,7 +280,7 @@ class HOptimizedGraphBuilderWithPositions: public HOptimizedGraphBuilder {
   }
 
 #define DEF_VISIT(type)                                      \
-  void Visit##type(type* node) OVERRIDE {                    \
+  void Visit##type(type* node) override {                    \
     SourcePosition old_position = SourcePosition::Unknown(); \
     if (node->position() != RelocInfo::kNoPosition) {        \
       old_position = source_position();                      \
@@ -338,7 +295,7 @@ class HOptimizedGraphBuilderWithPositions: public HOptimizedGraphBuilder {
 #undef DEF_VISIT
 
 #define DEF_VISIT(type)                                      \
-  void Visit##type(type* node) OVERRIDE {                    \
+  void Visit##type(type* node) override {                    \
     SourcePosition old_position = SourcePosition::Unknown(); \
     if (node->position() != RelocInfo::kNoPosition) {        \
       old_position = source_position();                      \
@@ -353,10 +310,9 @@ class HOptimizedGraphBuilderWithPositions: public HOptimizedGraphBuilder {
 #undef DEF_VISIT
 
 #define DEF_VISIT(type)                        \
-  void Visit##type(type* node) OVERRIDE {      \
+  void Visit##type(type* node) override {      \
     HOptimizedGraphBuilder::Visit##type(node); \
   }
-  MODULE_NODE_LIST(DEF_VISIT)
   DECLARATION_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 };
@@ -371,35 +327,11 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     return RetryOptimization(kDebuggerHasBreakPoints);
   }
 
-  // Limit the number of times we re-compile a functions with
-  // the optimizing compiler.
+  // Limit the number of times we try to optimize functions.
   const int kMaxOptCount =
       FLAG_deopt_every_n_times == 0 ? FLAG_max_opt_count : 1000;
   if (info()->opt_count() > kMaxOptCount) {
     return AbortOptimization(kOptimizedTooManyTimes);
-  }
-
-  // Due to an encoding limit on LUnallocated operands in the Lithium
-  // language, we cannot optimize functions with too many formal parameters
-  // or perform on-stack replacement for function with too many
-  // stack-allocated local variables.
-  //
-  // The encoding is as a signed value, with parameters and receiver using
-  // the negative indices and locals the non-negative ones.
-  const int parameter_limit = -LUnallocated::kMinFixedSlotIndex;
-  Scope* scope = info()->scope();
-  if ((scope->num_parameters() + 1) > parameter_limit) {
-    return AbortOptimization(kTooManyParameters);
-  }
-
-  const int locals_limit = LUnallocated::kMaxFixedSlotIndex;
-  if (info()->is_osr() &&
-      scope->num_parameters() + 1 + scope->num_stack_slots() > locals_limit) {
-    return AbortOptimization(kTooManyParametersLocals);
-  }
-
-  if (scope->HasIllegalRedeclaration()) {
-    return AbortOptimization(kFunctionWithIllegalRedeclaration);
   }
 
   // Check the whitelist for Crankshaft.
@@ -407,7 +339,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     return AbortOptimization(kHydrogenFilter);
   }
 
-  // Crankshaft requires a version of fullcode with deoptimization support.
+  // Optimization requires a version of fullcode with deoptimization support.
   // Recompile the unoptimized version of the code if the current version
   // doesn't have deoptimization support already.
   // Otherwise, if we are gathering compilation time and space statistics
@@ -428,9 +360,11 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
 
   DCHECK(info()->shared_info()->has_deoptimization_support());
 
-  // Check the whitelist for TurboFan.
-  if ((FLAG_turbo_asm && info()->shared_info()->asm_function()) ||
-      info()->closure()->PassesFilter(FLAG_turbo_filter)) {
+  // Check the enabling conditions for TurboFan.
+  if (((FLAG_turbo_asm && info()->shared_info()->asm_function()) ||
+       info()->closure()->PassesFilter(FLAG_turbo_filter)) &&
+      (FLAG_turbo_osr || !info()->is_osr())) {
+    // Use TurboFan for the compilation.
     if (FLAG_trace_opt) {
       OFStream os(stdout);
       os << "[compiling method " << Brief(*info()->closure())
@@ -443,6 +377,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
       info()->MarkAsContextSpecializing();
     } else if (FLAG_turbo_type_feedback) {
       info()->MarkAsTypeFeedbackEnabled();
+      info()->EnsureFeedbackVector();
     }
 
     Timer t(this, &time_taken_to_create_graph_);
@@ -453,8 +388,28 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     }
   }
 
-  // Do not use Crankshaft if the code is intended to be serialized.
-  if (!isolate()->use_crankshaft()) return SetLastStatus(FAILED);
+  if (!isolate()->use_crankshaft()) {
+    // Crankshaft is entirely disabled.
+    return SetLastStatus(FAILED);
+  }
+
+  Scope* scope = info()->scope();
+  if (LUnallocated::TooManyParameters(scope->num_parameters())) {
+    // Crankshaft would require too many Lithium operands.
+    return AbortOptimization(kTooManyParameters);
+  }
+
+  if (info()->is_osr() &&
+      LUnallocated::TooManyParametersOrStackSlots(scope->num_parameters(),
+                                                  scope->num_stack_slots())) {
+    // Crankshaft would require too many Lithium operands.
+    return AbortOptimization(kTooManyParametersLocals);
+  }
+
+  if (scope->HasIllegalRedeclaration()) {
+    // Crankshaft cannot handle illegal redeclarations.
+    return AbortOptimization(kFunctionWithIllegalRedeclaration);
+  }
 
   if (FLAG_trace_opt) {
     OFStream os(stdout);
@@ -492,7 +447,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
 
   if (graph_ == NULL) return SetLastStatus(BAILED_OUT);
 
-  if (info()->HasAbortedDueToDependencyChange()) {
+  if (info()->dependencies()->HasAborted()) {
     // Dependency has changed during graph creation. Let's try again later.
     return RetryOptimization(kBailedOutDueToDependencyChange);
   }
@@ -532,6 +487,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::GenerateCode() {
   DCHECK(last_status() == SUCCEEDED);
   // TODO(turbofan): Currently everything is done in the first phase.
   if (!info()->code().is_null()) {
+    info()->dependencies()->Commit(info()->code());
     if (FLAG_turbo_deoptimization) {
       info()->parse_info()->context()->native_context()->AddOptimizedCode(
           *info()->code());
@@ -540,7 +496,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::GenerateCode() {
     return last_status();
   }
 
-  DCHECK(!info()->HasAbortedDueToDependencyChange());
+  DCHECK(!info()->dependencies()->HasAborted());
   DisallowCodeDependencyChange no_dependency_change;
   DisallowJavascriptExecution no_js(isolate());
   {  // Scope for timer.
@@ -819,7 +775,7 @@ static bool GetOptimizedCodeNow(CompilationInfo* info) {
 
 static bool GetOptimizedCodeLater(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
-  if (!isolate->optimizing_compiler_thread()->IsQueueAvailable()) {
+  if (!isolate->optimizing_compile_dispatcher()->IsQueueAvailable()) {
     if (FLAG_trace_concurrent_recompilation) {
       PrintF("  ** Compilation queue full, will retry optimizing ");
       info->closure()->ShortPrint();
@@ -840,7 +796,7 @@ static bool GetOptimizedCodeLater(CompilationInfo* info) {
   OptimizedCompileJob* job = new (info->zone()) OptimizedCompileJob(info);
   OptimizedCompileJob::Status status = job->CreateGraph();
   if (status != OptimizedCompileJob::SUCCEEDED) return false;
-  isolate->optimizing_compiler_thread()->QueueForOptimization(job);
+  isolate->optimizing_compile_dispatcher()->QueueForOptimization(job);
 
   if (FLAG_trace_concurrent_recompilation) {
     PrintF("  ** Queued ");
@@ -1397,7 +1353,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(
 
   // Generate code
   Handle<ScopeInfo> scope_info;
-  if (FLAG_lazy && allow_lazy && !literal->is_parenthesized()) {
+  if (FLAG_lazy && allow_lazy && !literal->should_eager_compile()) {
     Handle<Code> code = isolate->builtins()->CompileLazy();
     info.SetCode(code);
     // There's no need in theory for a lazy-compiled function to have a type
@@ -1415,6 +1371,10 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(
     // appropriately sized.
     DCHECK(!info.code().is_null());
     scope_info = ScopeInfo::Create(info.isolate(), info.zone(), info.scope());
+    if (literal->should_eager_compile() &&
+        literal->should_be_used_once_hint()) {
+      info.code()->MarkToBeExecutedOnce(isolate);
+    }
   } else {
     return Handle<SharedFunctionInfo>::null();
   }
@@ -1472,6 +1432,18 @@ MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
   }
   current_code->set_profiler_ticks(0);
 
+  // TODO(mstarzinger): We cannot properly deserialize a scope chain containing
+  // an eval scope and hence would fail at parsing the eval source again.
+  if (shared->disable_optimization_reason() == kEval) {
+    return MaybeHandle<Code>();
+  }
+
+  // TODO(mstarzinger): We cannot properly deserialize a scope chain for the
+  // builtin context, hence Genesis::InstallExperimentalNatives would fail.
+  if (shared->is_toplevel() && isolate->bootstrapper()->IsActive()) {
+    return MaybeHandle<Code>();
+  }
+
   info->SetOptimizing(osr_ast_id, current_code);
 
   if (mode == CONCURRENT) {
@@ -1509,7 +1481,7 @@ Handle<Code> Compiler::GetConcurrentlyOptimizedCode(OptimizedCompileJob* job) {
   if (job->last_status() == OptimizedCompileJob::SUCCEEDED) {
     if (shared->optimization_disabled()) {
       job->RetryOptimization(kOptimizationDisabled);
-    } else if (info->HasAbortedDueToDependencyChange()) {
+    } else if (info->dependencies()->HasAborted()) {
       job->RetryOptimization(kBailedOutDueToDependencyChange);
     } else if (isolate->debug()->has_break_points()) {
       job->RetryOptimization(kDebuggerHasBreakPoints);

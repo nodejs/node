@@ -49,7 +49,7 @@ class ThreadLocalStorageTest : public Thread, public ::testing::Test {
     }
   }
 
-  void Run() FINAL {
+  void Run() final {
     for (size_t i = 0; i < arraysize(keys_); i++) {
       CHECK(!Thread::HasThreadLocal(keys_[i]));
     }

@@ -12,31 +12,28 @@
 
 var $symbolToString;
 
-(function() {
+(function(global, shared, exports) {
 
 "use strict";
 
 %CheckIsBootstrapping();
 
-var GlobalArray = global.Array;
 var GlobalObject = global.Object;
 var GlobalSymbol = global.Symbol;
 
 // -------------------------------------------------------------------
 
 function SymbolConstructor(x) {
-  if (%_IsConstructCall()) {
-    throw MakeTypeError('not_constructor', ["Symbol"]);
-  }
+  if (%_IsConstructCall()) throw MakeTypeError(kNotConstructor, "Symbol");
   // NOTE: Passing in a Symbol value will throw on ToString().
-  return %CreateSymbol(IS_UNDEFINED(x) ? x : ToString(x));
+  return %CreateSymbol(IS_UNDEFINED(x) ? x : $toString(x));
 }
 
 
 function SymbolToString() {
   if (!(IS_SYMBOL(this) || IS_SYMBOL_WRAPPER(this))) {
-    throw MakeTypeError(
-      'incompatible_method_receiver', ["Symbol.prototype.toString", this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        "Symbol.prototype.toString", this);
   }
   var description = %SymbolDescription(%_ValueOf(this));
   return "Symbol(" + (IS_UNDEFINED(description) ? "" : description) + ")";
@@ -45,8 +42,8 @@ function SymbolToString() {
 
 function SymbolValueOf() {
   if (!(IS_SYMBOL(this) || IS_SYMBOL_WRAPPER(this))) {
-    throw MakeTypeError(
-      'incompatible_method_receiver', ["Symbol.prototype.valueOf", this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        "Symbol.prototype.valueOf", this);
   }
   return %_ValueOf(this);
 }
@@ -72,11 +69,11 @@ function SymbolKeyFor(symbol) {
 
 // ES6 19.1.2.8
 function ObjectGetOwnPropertySymbols(obj) {
-  obj = ToObject(obj);
+  obj = $toObject(obj);
 
   // TODO(arv): Proxies use a shared trap for String and Symbol keys.
 
-  return ObjectGetOwnPropertyKeys(obj, PROPERTY_ATTRIBUTES_STRING);
+  return $objectGetOwnPropertyKeys(obj, PROPERTY_ATTRIBUTES_STRING);
 }
 
 //-------------------------------------------------------------------
@@ -84,7 +81,7 @@ function ObjectGetOwnPropertySymbols(obj) {
 %SetCode(GlobalSymbol, SymbolConstructor);
 %FunctionSetPrototype(GlobalSymbol, new GlobalObject());
 
-InstallConstants(GlobalSymbol, GlobalArray(
+$installConstants(GlobalSymbol, [
   // TODO(rossberg): expose when implemented.
   // "hasInstance", symbolHasInstance,
   // "isConcatSpreadable", symbolIsConcatSpreadable,
@@ -94,27 +91,27 @@ InstallConstants(GlobalSymbol, GlobalArray(
   // Move here when shipping
   // "toStringTag", symbolToStringTag,
   "unscopables", symbolUnscopables
-));
+]);
 
-InstallFunctions(GlobalSymbol, DONT_ENUM, GlobalArray(
+$installFunctions(GlobalSymbol, DONT_ENUM, [
   "for", SymbolFor,
   "keyFor", SymbolKeyFor
-));
+]);
 
 %AddNamedProperty(
     GlobalSymbol.prototype, "constructor", GlobalSymbol, DONT_ENUM);
 %AddNamedProperty(
     GlobalSymbol.prototype, symbolToStringTag, "Symbol", DONT_ENUM | READ_ONLY);
 
-InstallFunctions(GlobalSymbol.prototype, DONT_ENUM, GlobalArray(
+$installFunctions(GlobalSymbol.prototype, DONT_ENUM, [
   "toString", SymbolToString,
   "valueOf", SymbolValueOf
-));
+]);
 
-InstallFunctions(GlobalObject, DONT_ENUM, GlobalArray(
+$installFunctions(GlobalObject, DONT_ENUM, [
   "getOwnPropertySymbols", ObjectGetOwnPropertySymbols
-));
+]);
 
 $symbolToString = SymbolToString;
 
-})();
+})

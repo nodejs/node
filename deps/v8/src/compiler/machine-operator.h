@@ -29,7 +29,7 @@ typedef MachineType LoadRepresentation;
 
 // A Store needs a MachineType and a WriteBarrierKind in order to emit the
 // correct write barrier.
-class StoreRepresentation FINAL {
+class StoreRepresentation final {
  public:
   StoreRepresentation(MachineType machine_type,
                       WriteBarrierKind write_barrier_kind)
@@ -68,20 +68,22 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const*);
 // Interface for building machine-level operators. These operators are
 // machine-level but machine-independent and thus define a language suitable
 // for generating code to run on architectures such as ia32, x64, arm, etc.
-class MachineOperatorBuilder FINAL : public ZoneObject {
+class MachineOperatorBuilder final : public ZoneObject {
  public:
   // Flags that specify which operations are available. This is useful
   // for operations that are unsupported by some back-ends.
   enum Flag {
     kNoFlags = 0u,
-    kFloat64Max = 1u << 0,
-    kFloat64Min = 1u << 1,
-    kFloat64RoundDown = 1u << 2,
-    kFloat64RoundTruncate = 1u << 3,
-    kFloat64RoundTiesAway = 1u << 4,
-    kInt32DivIsSafe = 1u << 5,
-    kUint32DivIsSafe = 1u << 6,
-    kWord32ShiftIsSafe = 1u << 7
+    kFloat32Max = 1u << 0,
+    kFloat32Min = 1u << 1,
+    kFloat64Max = 1u << 2,
+    kFloat64Min = 1u << 3,
+    kFloat64RoundDown = 1u << 4,
+    kFloat64RoundTruncate = 1u << 5,
+    kFloat64RoundTiesAway = 1u << 6,
+    kInt32DivIsSafe = 1u << 7,
+    kUint32DivIsSafe = 1u << 8,
+    kWord32ShiftIsSafe = 1u << 9
   };
   typedef base::Flags<Flag, unsigned> Flags;
 
@@ -156,7 +158,16 @@ class MachineOperatorBuilder FINAL : public ZoneObject {
   const Operator* TruncateFloat64ToInt32();  // JavaScript semantics.
   const Operator* TruncateInt64ToInt32();
 
-  // Floating point operators always operate with IEEE 754 round-to-nearest.
+  // Floating point operators always operate with IEEE 754 round-to-nearest
+  // (single-precision).
+  const Operator* Float32Add();
+  const Operator* Float32Sub();
+  const Operator* Float32Mul();
+  const Operator* Float32Div();
+  const Operator* Float32Sqrt();
+
+  // Floating point operators always operate with IEEE 754 round-to-nearest
+  // (double-precision).
   const Operator* Float64Add();
   const Operator* Float64Sub();
   const Operator* Float64Mul();
@@ -164,16 +175,33 @@ class MachineOperatorBuilder FINAL : public ZoneObject {
   const Operator* Float64Mod();
   const Operator* Float64Sqrt();
 
-  // Floating point comparisons complying to IEEE 754.
+  // Floating point comparisons complying to IEEE 754 (single-precision).
+  const Operator* Float32Equal();
+  const Operator* Float32LessThan();
+  const Operator* Float32LessThanOrEqual();
+
+  // Floating point comparisons complying to IEEE 754 (double-precision).
   const Operator* Float64Equal();
   const Operator* Float64LessThan();
   const Operator* Float64LessThanOrEqual();
 
-  // Floating point min/max complying to IEEE 754.
+  // Floating point min/max complying to IEEE 754 (single-precision).
+  const Operator* Float32Max();
+  const Operator* Float32Min();
+  bool HasFloat32Max() { return flags_ & kFloat32Max; }
+  bool HasFloat32Min() { return flags_ & kFloat32Min; }
+
+  // Floating point min/max complying to IEEE 754 (double-precision).
   const Operator* Float64Max();
   const Operator* Float64Min();
   bool HasFloat64Max() { return flags_ & kFloat64Max; }
   bool HasFloat64Min() { return flags_ & kFloat64Min; }
+
+  // Floating point abs complying to IEEE 754 (single-precision).
+  const Operator* Float32Abs();
+
+  // Floating point abs complying to IEEE 754 (double-precision).
+  const Operator* Float64Abs();
 
   // Floating point rounding.
   const Operator* Float64RoundDown();

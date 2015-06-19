@@ -51,32 +51,41 @@ Reduction CommonOperatorReducer::ReducePhi(Node* node) {
     Node* vtrue = NodeProperties::GetValueInput(node, 0);
     Node* vfalse = NodeProperties::GetValueInput(node, 1);
     Node* merge = NodeProperties::GetControlInput(node);
-    Node* if_true = NodeProperties::GetControlInput(merge, 0);
-    Node* if_false = NodeProperties::GetControlInput(merge, 1);
-    if (if_true->opcode() != IrOpcode::kIfTrue) {
-      std::swap(if_true, if_false);
-      std::swap(vtrue, vfalse);
-    }
-    if (if_true->opcode() == IrOpcode::kIfTrue &&
-        if_false->opcode() == IrOpcode::kIfFalse &&
-        if_true->InputAt(0) == if_false->InputAt(0)) {
-      Node* branch = if_true->InputAt(0);
-      Node* cond = branch->InputAt(0);
-      if (cond->opcode() == IrOpcode::kFloat64LessThan) {
-        if (cond->InputAt(0) == vtrue && cond->InputAt(1) == vfalse &&
+    DiamondMatcher matcher(merge);
+    if (matcher.Matched()) {
+      if (matcher.IfTrue() == merge->InputAt(1)) std::swap(vtrue, vfalse);
+      Node* cond = matcher.Branch()->InputAt(0);
+      if (cond->opcode() == IrOpcode::kFloat32LessThan) {
+        Float32BinopMatcher mcond(cond);
+        if (mcond.left().Is(0.0) && mcond.right().Equals(vtrue) &&
+            vfalse->opcode() == IrOpcode::kFloat32Sub) {
+          Float32BinopMatcher mvfalse(vfalse);
+          if (mvfalse.left().IsZero() && mvfalse.right().Equals(vtrue)) {
+            return Change(node, machine()->Float32Abs(), vtrue);
+          }
+        }
+        if (mcond.left().Equals(vtrue) && mcond.right().Equals(vfalse) &&
+            machine()->HasFloat32Min()) {
+          return Change(node, machine()->Float32Min(), vtrue, vfalse);
+        } else if (mcond.left().Equals(vfalse) && mcond.right().Equals(vtrue) &&
+                   machine()->HasFloat32Max()) {
+          return Change(node, machine()->Float32Max(), vtrue, vfalse);
+        }
+      } else if (cond->opcode() == IrOpcode::kFloat64LessThan) {
+        Float64BinopMatcher mcond(cond);
+        if (mcond.left().Is(0.0) && mcond.right().Equals(vtrue) &&
+            vfalse->opcode() == IrOpcode::kFloat64Sub) {
+          Float64BinopMatcher mvfalse(vfalse);
+          if (mvfalse.left().IsZero() && mvfalse.right().Equals(vtrue)) {
+            return Change(node, machine()->Float64Abs(), vtrue);
+          }
+        }
+        if (mcond.left().Equals(vtrue) && mcond.right().Equals(vfalse) &&
             machine()->HasFloat64Min()) {
-          node->set_op(machine()->Float64Min());
-          node->ReplaceInput(0, vtrue);
-          node->ReplaceInput(1, vfalse);
-          node->TrimInputCount(2);
-          return Changed(node);
-        } else if (cond->InputAt(0) == vfalse && cond->InputAt(1) == vtrue &&
+          return Change(node, machine()->Float64Min(), vtrue, vfalse);
+        } else if (mcond.left().Equals(vfalse) && mcond.right().Equals(vtrue) &&
                    machine()->HasFloat64Max()) {
-          node->set_op(machine()->Float64Max());
-          node->ReplaceInput(0, vtrue);
-          node->ReplaceInput(1, vfalse);
-          node->TrimInputCount(2);
-          return Changed(node);
+          return Change(node, machine()->Float64Max(), vtrue, vfalse);
         }
       }
     }
@@ -98,24 +107,70 @@ Reduction CommonOperatorReducer::ReduceSelect(Node* node) {
   Node* vtrue = NodeProperties::GetValueInput(node, 1);
   Node* vfalse = NodeProperties::GetValueInput(node, 2);
   if (vtrue == vfalse) return Replace(vtrue);
-  if (cond->opcode() == IrOpcode::kFloat64LessThan) {
-    if (cond->InputAt(0) == vtrue && cond->InputAt(1) == vfalse &&
-        machine()->HasFloat64Min()) {
-      node->set_op(machine()->Float64Min());
-      node->ReplaceInput(0, vtrue);
-      node->ReplaceInput(1, vfalse);
-      node->TrimInputCount(2);
-      return Changed(node);
-    } else if (cond->InputAt(0) == vfalse && cond->InputAt(1) == vtrue &&
-               machine()->HasFloat64Max()) {
-      node->set_op(machine()->Float64Max());
-      node->ReplaceInput(0, vtrue);
-      node->ReplaceInput(1, vfalse);
-      node->TrimInputCount(2);
-      return Changed(node);
+  switch (cond->opcode()) {
+    case IrOpcode::kHeapConstant: {
+      HeapObjectMatcher<HeapObject> mcond(cond);
+      return Replace(mcond.Value().handle()->BooleanValue() ? vtrue : vfalse);
     }
+    case IrOpcode::kFloat32LessThan: {
+      Float32BinopMatcher mcond(cond);
+      if (mcond.left().Is(0.0) && mcond.right().Equals(vtrue) &&
+          vfalse->opcode() == IrOpcode::kFloat32Sub) {
+        Float32BinopMatcher mvfalse(vfalse);
+        if (mvfalse.left().IsZero() && mvfalse.right().Equals(vtrue)) {
+          return Change(node, machine()->Float32Abs(), vtrue);
+        }
+      }
+      if (mcond.left().Equals(vtrue) && mcond.right().Equals(vfalse) &&
+          machine()->HasFloat32Min()) {
+        return Change(node, machine()->Float32Min(), vtrue, vfalse);
+      } else if (mcond.left().Equals(vfalse) && mcond.right().Equals(vtrue) &&
+                 machine()->HasFloat32Max()) {
+        return Change(node, machine()->Float32Max(), vtrue, vfalse);
+      }
+      break;
+    }
+    case IrOpcode::kFloat64LessThan: {
+      Float64BinopMatcher mcond(cond);
+      if (mcond.left().Is(0.0) && mcond.right().Equals(vtrue) &&
+          vfalse->opcode() == IrOpcode::kFloat64Sub) {
+        Float64BinopMatcher mvfalse(vfalse);
+        if (mvfalse.left().IsZero() && mvfalse.right().Equals(vtrue)) {
+          return Change(node, machine()->Float64Abs(), vtrue);
+        }
+      }
+      if (mcond.left().Equals(vtrue) && mcond.right().Equals(vfalse) &&
+          machine()->HasFloat64Min()) {
+        return Change(node, machine()->Float64Min(), vtrue, vfalse);
+      } else if (mcond.left().Equals(vfalse) && mcond.right().Equals(vtrue) &&
+                 machine()->HasFloat64Max()) {
+        return Change(node, machine()->Float64Max(), vtrue, vfalse);
+      }
+      break;
+    }
+    default:
+      break;
   }
   return NoChange();
+}
+
+
+Reduction CommonOperatorReducer::Change(Node* node, Operator const* op,
+                                        Node* a) {
+  node->set_op(op);
+  node->ReplaceInput(0, a);
+  node->TrimInputCount(1);
+  return Changed(node);
+}
+
+
+Reduction CommonOperatorReducer::Change(Node* node, Operator const* op, Node* a,
+                                        Node* b) {
+  node->set_op(op);
+  node->ReplaceInput(0, a);
+  node->ReplaceInput(1, b);
+  node->TrimInputCount(2);
+  return Changed(node);
 }
 
 

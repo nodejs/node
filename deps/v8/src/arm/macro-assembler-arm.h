@@ -483,6 +483,12 @@ class MacroAssembler: public Assembler {
     VFPCanonicalizeNaN(value, value, cond);
   }
 
+  // Compare single values and move the result to the normal condition flags.
+  void VFPCompareAndSetFlags(const SwVfpRegister src1, const SwVfpRegister src2,
+                             const Condition cond = al);
+  void VFPCompareAndSetFlags(const SwVfpRegister src1, const float src2,
+                             const Condition cond = al);
+
   // Compare double values and move the result to the normal condition flags.
   void VFPCompareAndSetFlags(const DwVfpRegister src1,
                              const DwVfpRegister src2,
@@ -490,6 +496,15 @@ class MacroAssembler: public Assembler {
   void VFPCompareAndSetFlags(const DwVfpRegister src1,
                              const double src2,
                              const Condition cond = al);
+
+  // Compare single values and then load the fpscr flags to a register.
+  void VFPCompareAndLoadFlags(const SwVfpRegister src1,
+                              const SwVfpRegister src2,
+                              const Register fpscr_flags,
+                              const Condition cond = al);
+  void VFPCompareAndLoadFlags(const SwVfpRegister src1, const float src2,
+                              const Register fpscr_flags,
+                              const Condition cond = al);
 
   // Compare double values and then load the fpscr flags to a register.
   void VFPCompareAndLoadFlags(const DwVfpRegister src1,
@@ -709,7 +724,7 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Allocation support
 
-  // Allocate an object in new space or old pointer space. The object_size is
+  // Allocate an object in new space or old space. The object_size is
   // specified either in bytes or in words if the allocation flag SIZE_IN_WORDS
   // is passed. If the space is exhausted control continues at the gc_required
   // label. The allocated object is returned in result. If the flag

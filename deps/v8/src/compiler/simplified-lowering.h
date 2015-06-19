@@ -18,7 +18,7 @@ namespace compiler {
 class RepresentationChanger;
 class SourcePositionTable;
 
-class SimplifiedLowering FINAL {
+class SimplifiedLowering final {
  public:
   SimplifiedLowering(JSGraph* jsgraph, Zone* zone,
                      SourcePositionTable* source_positions)
@@ -28,6 +28,7 @@ class SimplifiedLowering FINAL {
   void LowerAllNodes();
 
   // TODO(titzer): These are exposed for direct testing. Use a friend class.
+  void DoAllocate(Node* node);
   void DoLoadField(Node* node);
   void DoStoreField(Node* node);
   // TODO(turbofan): The output_type can be removed once the result of the

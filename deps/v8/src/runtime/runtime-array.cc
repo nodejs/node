@@ -5,6 +5,7 @@
 #include "src/v8.h"
 
 #include "src/arguments.h"
+#include "src/messages.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {
@@ -906,8 +907,7 @@ RUNTIME_FUNCTION(Runtime_ArrayConcat) {
 
   if (visitor.exceeds_array_limit()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewRangeError("invalid_array_length", HandleVector<Object>(NULL, 0)));
+        isolate, NewRangeError(MessageTemplate::kInvalidArrayLength));
   }
   return *visitor.ToArray();
 }
@@ -1045,15 +1045,20 @@ static Object* ArrayConstructorCommon(Isolate* isolate,
 
   bool holey = false;
   bool can_use_type_feedback = true;
+  bool can_inline_array_constructor = true;
   if (caller_args->length() == 1) {
     Handle<Object> argument_one = caller_args->at<Object>(0);
     if (argument_one->IsSmi()) {
       int value = Handle<Smi>::cast(argument_one)->value();
-      if (value < 0 || value >= JSObject::kInitialMaxFastElementArray) {
+      if (value < 0 || JSArray::SetElementsLengthWouldNormalize(isolate->heap(),
+                                                                argument_one)) {
         // the array is a dictionary in this case.
         can_use_type_feedback = false;
       } else if (value != 0) {
         holey = true;
+        if (value >= JSObject::kInitialMaxFastElementArray) {
+          can_inline_array_constructor = false;
+        }
       }
     } else {
       // Non-smi length argument produces a dictionary
@@ -1104,7 +1109,8 @@ static Object* ArrayConstructorCommon(Isolate* isolate,
   RETURN_FAILURE_ON_EXCEPTION(
       isolate, ArrayConstructInitializeElements(array, caller_args));
   if (!site.is_null() &&
-      (old_kind != array->GetElementsKind() || !can_use_type_feedback)) {
+      (old_kind != array->GetElementsKind() || !can_use_type_feedback ||
+       !can_inline_array_constructor)) {
     // The arguments passed in caused a transition. This kind of complexity
     // can't be dealt with in the inlined hydrogen array constructor case.
     // We must mark the allocationsite as un-inlinable.
@@ -1209,6 +1215,45 @@ RUNTIME_FUNCTION(Runtime_NormalizeElements) {
                  !array->IsJSGlobalProxy());
   JSObject::NormalizeElements(array);
   return *array;
+}
+
+
+// GrowArrayElements returns a sentinel Smi if the object was normalized.
+RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  CONVERT_NUMBER_CHECKED(int, key, Int32, args[1]);
+
+  if (key < 0) {
+    return object->elements();
+  }
+
+  uint32_t capacity = static_cast<uint32_t>(object->elements()->length());
+  uint32_t index = static_cast<uint32_t>(key);
+
+  if (index >= capacity) {
+    if (object->WouldConvertToSlowElements(index)) {
+      // We don't want to allow operations that cause lazy deopt. Return a Smi
+      // as a signal that optimized code should eagerly deoptimize.
+      return Smi::FromInt(0);
+    }
+
+    uint32_t new_capacity = JSObject::NewElementsCapacity(index + 1);
+    ElementsKind kind = object->GetElementsKind();
+    if (IsFastDoubleElementsKind(kind)) {
+      JSObject::SetFastDoubleElementsCapacity(object, new_capacity);
+    } else {
+      JSObject::SetFastElementsCapacitySmiMode set_capacity_mode =
+          object->HasFastSmiElements() ? JSObject::kAllowSmiElements
+                                       : JSObject::kDontAllowSmiElements;
+      JSObject::SetFastElementsCapacity(object, new_capacity,
+                                        set_capacity_mode);
+    }
+  }
+
+  // On success, return the fixed array elements.
+  return object->elements();
 }
 
 

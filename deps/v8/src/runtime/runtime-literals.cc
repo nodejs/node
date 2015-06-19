@@ -237,6 +237,7 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
   CONVERT_SMI_ARG_CHECKED(flags, 3);
   bool should_have_fast_elements = (flags & ObjectLiteral::kFastElements) != 0;
   bool has_function_literal = (flags & ObjectLiteral::kHasFunction) != 0;
+  bool enable_mementos = (flags & ObjectLiteral::kDisableMementos) == 0;
 
   RUNTIME_ASSERT(literals_index >= 0 && literals_index < literals->length());
 
@@ -267,7 +268,7 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
         Handle<JSObject>(JSObject::cast(site->transition_info()), isolate);
   }
 
-  AllocationSiteUsageContext usage_context(isolate, site, true);
+  AllocationSiteUsageContext usage_context(isolate, site, enable_mementos);
   usage_context.EnterNewScope();
   MaybeHandle<Object> maybe_copy =
       JSObject::DeepCopy(boilerplate, &usage_context);

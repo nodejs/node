@@ -83,8 +83,8 @@ class InstructionTester : public HandleAndZoneScope {
     return code->AddInstruction(instr);
   }
 
-  UnallocatedOperand* NewUnallocated(int vreg) {
-    return UnallocatedOperand(UnallocatedOperand::ANY, vreg).Copy(zone());
+  UnallocatedOperand Unallocated(int vreg) {
+    return UnallocatedOperand(UnallocatedOperand::ANY, vreg);
   }
 
   RpoNumber RpoFor(BasicBlock* block) {
@@ -206,10 +206,7 @@ TEST(InstructionIsGapAt) {
   R.code->AddInstruction(g);
   R.code->EndBlock(R.RpoFor(b0));
 
-  CHECK(R.code->instructions().size() == 4);
-  for (size_t i = 0; i < R.code->instructions().size(); ++i) {
-    CHECK_EQ(i % 2 == 0, R.code->instructions()[i]->IsGapMoves());
-  }
+  CHECK(R.code->instructions().size() == 2);
 }
 
 
@@ -236,10 +233,7 @@ TEST(InstructionIsGapAt2) {
   R.code->AddInstruction(g1);
   R.code->EndBlock(R.RpoFor(b1));
 
-  CHECK(R.code->instructions().size() == 8);
-  for (size_t i = 0; i < R.code->instructions().size(); ++i) {
-    CHECK_EQ(i % 2 == 0, R.code->instructions()[i]->IsGapMoves());
-  }
+  CHECK(R.code->instructions().size() == 4);
 }
 
 
@@ -257,27 +251,20 @@ TEST(InstructionAddGapMove) {
   R.code->AddInstruction(g);
   R.code->EndBlock(R.RpoFor(b0));
 
-  CHECK(R.code->instructions().size() == 4);
-  for (size_t i = 0; i < R.code->instructions().size(); ++i) {
-    CHECK_EQ(i % 2 == 0, R.code->instructions()[i]->IsGapMoves());
-  }
+  CHECK(R.code->instructions().size() == 2);
 
-  int indexes[] = {0, 2, -1};
-  for (int i = 0; indexes[i] >= 0; i++) {
-    int index = indexes[i];
-
-    UnallocatedOperand* op1 = R.NewUnallocated(index + 6);
-    UnallocatedOperand* op2 = R.NewUnallocated(index + 12);
-
-    R.code->AddGapMove(index, op1, op2);
-    GapInstruction* gap = R.code->GapAt(index);
-    ParallelMove* move = gap->GetParallelMove(GapInstruction::START);
+  int index = 0;
+  for (auto instr : R.code->instructions()) {
+    UnallocatedOperand op1 = R.Unallocated(index++);
+    UnallocatedOperand op2 = R.Unallocated(index++);
+    instr->GetOrCreateParallelMove(TestInstr::START, R.zone())
+        ->AddMove(op1, op2);
+    ParallelMove* move = instr->GetParallelMove(TestInstr::START);
     CHECK(move);
-    const ZoneList<MoveOperands>* move_operands = move->move_operands();
-    CHECK_EQ(1, move_operands->length());
-    MoveOperands* cur = &move_operands->at(0);
-    CHECK_EQ(op1, cur->source());
-    CHECK_EQ(op2, cur->destination());
+    CHECK_EQ(1u, move->size());
+    MoveOperands* cur = move->at(0);
+    CHECK(op1.Equals(cur->source()));
+    CHECK(op2.Equals(cur->destination()));
   }
 }
 
@@ -321,15 +308,15 @@ TEST(InstructionOperands) {
         CHECK(k == m->TempCount());
 
         for (size_t z = 0; z < i; z++) {
-          CHECK(outputs[z].Equals(m->OutputAt(z)));
+          CHECK(outputs[z].Equals(*m->OutputAt(z)));
         }
 
         for (size_t z = 0; z < j; z++) {
-          CHECK(inputs[z].Equals(m->InputAt(z)));
+          CHECK(inputs[z].Equals(*m->InputAt(z)));
         }
 
         for (size_t z = 0; z < k; z++) {
-          CHECK(temps[z].Equals(m->TempAt(z)));
+          CHECK(temps[z].Equals(*m->TempAt(z)));
         }
       }
     }

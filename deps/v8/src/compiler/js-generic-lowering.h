@@ -22,12 +22,12 @@ class Linkage;
 
 
 // Lowers JS-level operators to runtime and IC calls in the "generic" case.
-class JSGenericLowering FINAL : public Reducer {
+class JSGenericLowering final : public Reducer {
  public:
   JSGenericLowering(bool is_typing_enabled, JSGraph* jsgraph);
-  ~JSGenericLowering() FINAL;
+  ~JSGenericLowering() final;
 
-  Reduction Reduce(Node* node) FINAL;
+  Reduction Reduce(Node* node) final;
 
  protected:
 #define DECLARE_LOWER(x) void Lower##x(Node* node);

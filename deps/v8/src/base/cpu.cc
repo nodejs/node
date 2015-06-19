@@ -52,22 +52,23 @@ namespace base {
 #if !V8_LIBC_MSVCRT
 
 static V8_INLINE void __cpuid(int cpu_info[4], int info_type) {
+// Clear ecx to align with __cpuid() of MSVC:
+// https://msdn.microsoft.com/en-us/library/hskdteyh.aspx
 #if defined(__i386__) && defined(__pic__)
   // Make sure to preserve ebx, which contains the pointer
   // to the GOT in case we're generating PIC.
-  __asm__ volatile (
-    "mov %%ebx, %%edi\n\t"
-    "cpuid\n\t"
-    "xchg %%edi, %%ebx\n\t"
-    : "=a"(cpu_info[0]), "=D"(cpu_info[1]), "=c"(cpu_info[2]), "=d"(cpu_info[3])
-    : "a"(info_type)
-  );
+  __asm__ volatile(
+      "mov %%ebx, %%edi\n\t"
+      "cpuid\n\t"
+      "xchg %%edi, %%ebx\n\t"
+      : "=a"(cpu_info[0]), "=D"(cpu_info[1]), "=c"(cpu_info[2]),
+        "=d"(cpu_info[3])
+      : "a"(info_type), "c"(0));
 #else
-  __asm__ volatile (
-    "cpuid \n\t"
-    : "=a"(cpu_info[0]), "=b"(cpu_info[1]), "=c"(cpu_info[2]), "=d"(cpu_info[3])
-    : "a"(info_type)
-  );
+  __asm__ volatile("cpuid \n\t"
+                   : "=a"(cpu_info[0]), "=b"(cpu_info[1]), "=c"(cpu_info[2]),
+                     "=d"(cpu_info[3])
+                   : "a"(info_type), "c"(0));
 #endif  // defined(__i386__) && defined(__pic__)
 }
 
@@ -177,7 +178,7 @@ int __detect_mips_arch_revision(void) {
 #endif
 
 // Extract the information exposed by the kernel via /proc/cpuinfo.
-class CPUInfo FINAL {
+class CPUInfo final {
  public:
   CPUInfo() : datalen_(0) {
     // Get the size of the cpuinfo file by reading it until the end. This is
@@ -325,6 +326,10 @@ CPU::CPU()
       has_osxsave_(false),
       has_avx_(false),
       has_fma3_(false),
+      has_bmi1_(false),
+      has_bmi2_(false),
+      has_lzcnt_(false),
+      has_popcnt_(false),
       has_idiva_(false),
       has_neon_(false),
       has_thumb2_(false),
@@ -371,6 +376,7 @@ CPU::CPU()
     has_ssse3_ = (cpu_info[2] & 0x00000200) != 0;
     has_sse41_ = (cpu_info[2] & 0x00080000) != 0;
     has_sse42_ = (cpu_info[2] & 0x00100000) != 0;
+    has_popcnt_ = (cpu_info[2] & 0x00800000) != 0;
     has_osxsave_ = (cpu_info[2] & 0x08000000) != 0;
     has_avx_ = (cpu_info[2] & 0x10000000) != 0;
     has_fma3_ = (cpu_info[2] & 0x00001000) != 0;
@@ -392,10 +398,13 @@ CPU::CPU()
     }
   }
 
-#if V8_HOST_ARCH_IA32
-  // SAHF is always available in compat/legacy mode,
-  has_sahf_ = true;
-#else
+  // There are separate feature flags for VEX-encoded GPR instructions.
+  if (num_ids >= 7) {
+    __cpuid(cpu_info, 7);
+    has_bmi1_ = (cpu_info[1] & 0x00000008) != 0;
+    has_bmi2_ = (cpu_info[1] & 0x00000100) != 0;
+  }
+
   // Query extended IDs.
   __cpuid(cpu_info, 0x80000000);
   unsigned num_ext_ids = cpu_info[0];
@@ -403,10 +412,10 @@ CPU::CPU()
   // Interpret extended CPU feature information.
   if (num_ext_ids > 0x80000000) {
     __cpuid(cpu_info, 0x80000001);
+    has_lzcnt_ = (cpu_info[2] & 0x00000020) != 0;
     // SAHF must be probed in long mode.
     has_sahf_ = (cpu_info[2] & 0x00000001) != 0;
   }
-#endif
 
 #elif V8_HOST_ARCH_ARM
 

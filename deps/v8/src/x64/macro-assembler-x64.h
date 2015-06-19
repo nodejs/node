@@ -1140,7 +1140,7 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Allocation support
 
-  // Allocate an object in new space or old pointer space. If the given space
+  // Allocate an object in new space or old space. If the given space
   // is exhausted control continues at the gc_required label. The allocated
   // object is returned in result and end of the new object is returned in
   // result_end. The register scratch can be passed as no_reg in which case

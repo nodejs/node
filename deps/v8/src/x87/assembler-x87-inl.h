@@ -205,6 +205,7 @@ Cell* RelocInfo::target_cell() {
 void RelocInfo::set_target_cell(Cell* cell,
                                 WriteBarrierMode write_barrier_mode,
                                 ICacheFlushMode icache_flush_mode) {
+  DCHECK(cell->IsCell());
   DCHECK(rmode_ == RelocInfo::CELL);
   Address address = cell->address() + Cell::kValueOffset;
   Memory::Address_at(pc_) = address;

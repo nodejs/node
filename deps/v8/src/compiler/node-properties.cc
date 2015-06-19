@@ -119,6 +119,15 @@ bool NodeProperties::IsControlEdge(Edge edge) {
 
 
 // static
+bool NodeProperties::IsExceptionalCall(Node* node) {
+  for (Node* const use : node->uses()) {
+    if (use->opcode() == IrOpcode::kIfException) return true;
+  }
+  return false;
+}
+
+
+// static
 void NodeProperties::ReplaceContextInput(Node* node, Node* context) {
   node->ReplaceInput(FirstContextIndex(node), context);
 }

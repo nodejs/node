@@ -2,9 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Called from a desugaring in the parser.
+
+var $getTemplateCallSite;
+
+(function(global, shared, exports) {
+
 "use strict";
 
-var callSiteCache = new $Map;
+%CheckIsBootstrapping();
+
+var callSiteCache = new global.Map;
+var mapGetFn = global.Map.prototype.get;
+var mapSetFn = global.Map.prototype.set;
+
 
 function SameCallSiteElements(rawStrings, other) {
   var length = rawStrings.length;
@@ -21,7 +32,7 @@ function SameCallSiteElements(rawStrings, other) {
 
 
 function GetCachedCallSite(siteObj, hash) {
-  var obj = %MapGet(callSiteCache, hash);
+  var obj = %_CallFunction(callSiteCache, hash, mapGetFn);
 
   if (IS_UNDEFINED(obj)) return;
 
@@ -33,13 +44,13 @@ function GetCachedCallSite(siteObj, hash) {
 
 
 function SetCachedCallSite(siteObj, hash) {
-  var obj = %MapGet(callSiteCache, hash);
+  var obj = %_CallFunction(callSiteCache, hash, mapGetFn);
   var array;
 
   if (IS_UNDEFINED(obj)) {
     array = new InternalArray(1);
     array[0] = siteObj;
-    %MapSet(callSiteCache, hash, array);
+    %_CallFunction(callSiteCache, hash, array, mapSetFn);
   } else {
     obj.push(siteObj);
   }
@@ -48,7 +59,7 @@ function SetCachedCallSite(siteObj, hash) {
 }
 
 
-function GetTemplateCallSite(siteObj, rawStrings, hash) {
+$getTemplateCallSite = function(siteObj, rawStrings, hash) {
   var cached = GetCachedCallSite(rawStrings, hash);
 
   if (!IS_UNDEFINED(cached)) return cached;
@@ -58,3 +69,5 @@ function GetTemplateCallSite(siteObj, rawStrings, hash) {
 
   return SetCachedCallSite(%ObjectFreeze(siteObj), hash);
 }
+
+})

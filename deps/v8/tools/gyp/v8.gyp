@@ -31,6 +31,7 @@
     'v8_code': 1,
     'v8_random_seed%': 314159265,
     'embed_script%': "",
+    'v8_extra_library_files%': [],
     'mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
   },
   'includes': ['../../build/toolchain.gypi', '../../build/features.gypi'],
@@ -38,42 +39,12 @@
     {
       'target_name': 'v8',
       'dependencies_traverse': 1,
+      'dependencies': ['v8_maybe_snapshot'],
       'conditions': [
         ['want_separate_host_toolset==1', {
           'toolsets': ['host', 'target'],
         }, {
           'toolsets': ['target'],
-        }],
-
-        ['v8_use_snapshot=="true" and v8_use_external_startup_data==0', {
-          # The dependency on v8_base should come from a transitive
-          # dependency however the Android toolchain requires libv8_base.a
-          # to appear before libv8_snapshot.a so it's listed explicitly.
-          'dependencies': ['v8_base', 'v8_snapshot'],
-        }],
-        ['v8_use_snapshot!="true" and v8_use_external_startup_data==0', {
-          # The dependency on v8_base should come from a transitive
-          # dependency however the Android toolchain requires libv8_base.a
-          # to appear before libv8_snapshot.a so it's listed explicitly.
-          'dependencies': ['v8_base', 'v8_nosnapshot'],
-        }],
-        ['v8_use_external_startup_data==1 and want_separate_host_toolset==1', {
-          'dependencies': ['v8_base', 'v8_external_snapshot'],
-          'target_conditions': [
-            ['_toolset=="host"', {
-              'inputs': [
-                '<(PRODUCT_DIR)/snapshot_blob_host.bin',
-              ],
-            }, {
-              'inputs': [
-                '<(PRODUCT_DIR)/snapshot_blob.bin',
-              ],
-            }],
-          ],
-        }],
-        ['v8_use_external_startup_data==1 and want_separate_host_toolset==0', {
-          'dependencies': ['v8_base', 'v8_external_snapshot'],
-          'inputs': [ '<(PRODUCT_DIR)/snapshot_blob.bin', ],
         }],
         ['component=="shared_library"', {
           'type': '<(component)',
@@ -127,6 +98,50 @@
       },
     },
     {
+      # This rule delegates to either v8_snapshot, v8_nosnapshot, or
+      # v8_external_snapshot, depending on the current variables.
+      # The intention is to make the 'calling' rules a bit simpler.
+      'target_name': 'v8_maybe_snapshot',
+      'type': 'none',
+      'conditions': [
+        ['v8_use_snapshot!="true"', {
+          # The dependency on v8_base should come from a transitive
+          # dependency however the Android toolchain requires libv8_base.a
+          # to appear before libv8_snapshot.a so it's listed explicitly.
+          'dependencies': ['v8_base', 'v8_nosnapshot'],
+        }],
+        ['v8_use_snapshot=="true" and v8_use_external_startup_data==0', {
+          # The dependency on v8_base should come from a transitive
+          # dependency however the Android toolchain requires libv8_base.a
+          # to appear before libv8_snapshot.a so it's listed explicitly.
+          'dependencies': ['v8_base', 'v8_snapshot'],
+        }],
+        ['v8_use_snapshot=="true" and v8_use_external_startup_data==1 and want_separate_host_toolset==0', {
+          'dependencies': ['v8_base', 'v8_external_snapshot'],
+          'inputs': [ '<(PRODUCT_DIR)/snapshot_blob.bin', ],
+        }],
+        ['v8_use_snapshot=="true" and v8_use_external_startup_data==1 and want_separate_host_toolset==1', {
+          'dependencies': ['v8_base', 'v8_external_snapshot'],
+          'target_conditions': [
+            ['_toolset=="host"', {
+              'inputs': [
+                '<(PRODUCT_DIR)/snapshot_blob_host.bin',
+              ],
+            }, {
+              'inputs': [
+                '<(PRODUCT_DIR)/snapshot_blob.bin',
+              ],
+            }],
+          ],
+        }],
+        ['want_separate_host_toolset==1', {
+          'toolsets': ['host', 'target'],
+        }, {
+          'toolsets': ['target'],
+        }],
+      ]
+    },
+    {
       'target_name': 'v8_snapshot',
       'type': 'static_library',
       'conditions': [
@@ -165,6 +180,7 @@
       'sources': [
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
+        '<(SHARED_INTERMEDIATE_DIR)/extras-libraries.cc',
         '<(INTERMEDIATE_DIR)/snapshot.cc',
       ],
       'actions': [
@@ -209,6 +225,7 @@
       'sources': [
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
+        '<(SHARED_INTERMEDIATE_DIR)/extras-libraries.cc',
         '../../src/snapshot/snapshot-empty.cc',
       ],
       'conditions': [
@@ -408,6 +425,8 @@
         '../../src/codegen.h',
         '../../src/compilation-cache.cc',
         '../../src/compilation-cache.h',
+        '../../src/compilation-dependencies.cc',
+        '../../src/compilation-dependencies.h',
         '../../src/compilation-statistics.cc',
         '../../src/compilation-statistics.h',
         '../../src/compiler/access-builder.cc',
@@ -433,6 +452,7 @@
         '../../src/compiler/common-operator.h',
         '../../src/compiler/control-builders.cc',
         '../../src/compiler/control-builders.h',
+        '../../src/compiler/control-equivalence.cc',
         '../../src/compiler/control-equivalence.h',
         '../../src/compiler/control-flow-optimizer.cc',
         '../../src/compiler/control-flow-optimizer.h',
@@ -440,6 +460,10 @@
         '../../src/compiler/control-reducer.h',
         '../../src/compiler/diamond.h',
         '../../src/compiler/frame.h',
+        '../../src/compiler/frame-elider.cc',
+        '../../src/compiler/frame-elider.h',
+        "../../src/compiler/frame-states.cc",
+        "../../src/compiler/frame-states.h",
         '../../src/compiler/gap-resolver.cc',
         '../../src/compiler/gap-resolver.h',
         '../../src/compiler/graph-builder.h',
@@ -544,6 +568,8 @@
         '../../src/compiler/source-position.h',
         '../../src/compiler/state-values-utils.cc',
         '../../src/compiler/state-values-utils.h',
+        '../../src/compiler/tail-call-optimization.cc',
+        '../../src/compiler/tail-call-optimization.h',
         '../../src/compiler/typer.cc',
         '../../src/compiler/typer.h',
         '../../src/compiler/value-numbering-reducer.cc',
@@ -637,6 +663,8 @@
         '../../src/heap/heap-inl.h',
         '../../src/heap/heap.cc',
         '../../src/heap/heap.h',
+        '../../src/heap/identity-map.cc',
+        '../../src/heap/identity-map.h',
         '../../src/heap/incremental-marking-inl.h',
         '../../src/heap/incremental-marking.cc',
         '../../src/heap/incremental-marking.h',
@@ -732,9 +760,9 @@
         '../../src/jsregexp-inl.h',
         '../../src/jsregexp.cc',
         '../../src/jsregexp.h',
-	'../../src/layout-descriptor-inl.h',
-	'../../src/layout-descriptor.cc',
-	'../../src/layout-descriptor.h',
+        '../../src/layout-descriptor-inl.h',
+        '../../src/layout-descriptor.cc',
+        '../../src/layout-descriptor.h',
         '../../src/list-inl.h',
         '../../src/list.h',
         '../../src/lithium-allocator-inl.h',
@@ -766,8 +794,8 @@
         '../../src/objects-printer.cc',
         '../../src/objects.cc',
         '../../src/objects.h',
-        '../../src/optimizing-compiler-thread.cc',
-        '../../src/optimizing-compiler-thread.h',
+        '../../src/optimizing-compile-dispatcher.cc',
+        '../../src/optimizing-compile-dispatcher.h',
         '../../src/ostreams.cc',
         '../../src/ostreams.h',
         '../../src/parser.cc',
@@ -843,6 +871,7 @@
         '../../src/scopeinfo.h',
         '../../src/scopes.cc',
         '../../src/scopes.h',
+        '../../src/signature.h',
         '../../src/small-pointer-list.h',
         '../../src/smart-pointers.h',
         '../../src/snapshot/natives.h',
@@ -887,7 +916,6 @@
         '../../src/unicode-decoder.cc',
         '../../src/unicode-decoder.h',
         '../../src/unique.h',
-        '../../src/utils-inl.h',
         '../../src/utils.cc',
         '../../src/utils.h',
         '../../src/v8.cc',
@@ -1262,6 +1290,10 @@
             'gyp_generators': '<!(echo $GYP_GENERATORS)',
           },
           'msvs_disabled_warnings': [4351, 4355, 4800],
+          # When building Official, the .lib is too large and exceeds the 2G
+          # limit. This breaks it into multiple pieces to avoid the limit.
+          # See http://crbug.com/485155.
+          'msvs_shard': 4,
         }],
         ['component=="shared_library"', {
           'defines': [
@@ -1313,6 +1345,7 @@
         '../..',
       ],
       'sources': [
+        '../../src/base/adapters.h',
         '../../src/base/atomicops.h',
         '../../src/base/atomicops_internals_arm64_gcc.h',
         '../../src/base/atomicops_internals_arm_gcc.h',
@@ -1393,8 +1426,17 @@
               '../../src/base/platform/platform-posix.cc'
             ],
             'link_settings': {
-              'libraries': [
-                '-ldl'
+              'target_conditions': [
+                ['_toolset=="host"', {
+                  # Only include libdl and librt on host builds because they
+                  # are included by default on Android target builds, and we
+                  # don't want to re-include them here since this will change
+                  # library order and break (see crbug.com/469973).
+                  'libraries': [
+                    '-ldl',
+                    '-lrt'
+                  ]
+                }]
               ]
             },
             'conditions': [
@@ -1411,28 +1453,6 @@
                   }],
                 ],
               }, {
-                # TODO(bmeurer): What we really want here, is this:
-                #
-                # 'link_settings': {
-                #   'target_conditions': [
-                #     ['_toolset=="host"', {
-                #       'libraries': [
-                #         '-lrt'
-                #       ]
-                #     }]
-                #   ]
-                # },
-                #
-                # but we can't do this right now, as the AOSP does not support
-                # linking against the host librt, so we need to work around this
-                # for now, using the following hack (see platform/time.cc):
-                'target_conditions': [
-                  ['_toolset=="host"', {
-                    'defines': [
-                      'V8_LIBRT_NOT_AVAILABLE=1',
-                    ],
-                  }],
-                ],
                 'sources': [
                   '../../src/base/platform/platform-linux.cc'
                 ]
@@ -1623,6 +1643,7 @@
               '../../tools/concatenate-files.py',
               '<(SHARED_INTERMEDIATE_DIR)/libraries.bin',
               '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental.bin',
+              '<(SHARED_INTERMEDIATE_DIR)/libraries-extras.bin',
             ],
             'conditions': [
               ['want_separate_host_toolset==1', {
@@ -1684,6 +1705,8 @@
       ],
       'variables': {
         'library_files': [
+          '../../src/macros.py',
+          '../../src/messages.h',
           '../../src/runtime.js',
           '../../src/v8natives.js',
           '../../src/symbol.js',
@@ -1710,10 +1733,10 @@
           '../../src/mirror-debugger.js',
           '../../src/liveedit-debugger.js',
           '../../src/templates.js',
-          '../../src/macros.py',
         ],
         'experimental_library_files': [
           '../../src/macros.py',
+          '../../src/messages.h',
           '../../src/proxy.js',
           '../../src/generator.js',
           '../../src/harmony-array.js',
@@ -1721,10 +1744,13 @@
           '../../src/harmony-tostring.js',
           '../../src/harmony-typedarray.js',
           '../../src/harmony-regexp.js',
-          '../../src/harmony-reflect.js'
+          '../../src/harmony-reflect.js',
+          '../../src/harmony-spread.js',
+          '../../src/harmony-object.js'
         ],
         'libraries_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries.bin',
         'libraries_experimental_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental.bin',
+        'libraries_extras_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-extras.bin',
       },
       'actions': [
         {
@@ -1732,7 +1758,7 @@
           'inputs': [
             '../../tools/js2c.py',
             '<@(library_files)',
-            '<@(i18n_library_files)',
+            '<@(i18n_library_files)'
           ],
           'outputs': [
             '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
@@ -1743,7 +1769,7 @@
             '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
             'CORE',
             '<@(library_files)',
-            '<@(i18n_library_files)',
+            '<@(i18n_library_files)'
           ],
           'conditions': [
             [ 'v8_use_external_startup_data==1', {
@@ -1775,6 +1801,31 @@
               'outputs': ['<@(libraries_experimental_bin_file)'],
               'action': [
                 '--startup_blob', '<@(libraries_experimental_bin_file)'
+              ],
+            }],
+          ],
+        },
+        {
+          'action_name': 'js2c_extras',
+          'inputs': [
+            '../../tools/js2c.py',
+            '<@(v8_extra_library_files)',
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/extras-libraries.cc',
+          ],
+          'action': [
+            'python',
+            '../../tools/js2c.py',
+            '<(SHARED_INTERMEDIATE_DIR)/extras-libraries.cc',
+            'EXTRAS',
+            '<@(v8_extra_library_files)',
+          ],
+          'conditions': [
+            [ 'v8_use_external_startup_data==1', {
+              'outputs': ['<@(libraries_extras_bin_file)'],
+              'action': [
+                '--startup_blob', '<@(libraries_extras_bin_file)',
               ],
             }],
           ],

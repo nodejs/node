@@ -498,7 +498,47 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Local,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
-  CheckScopeContent({}, 0, exec_state);
+  CheckScopeContent({x:undefined}, 0, exec_state);
 };
 uninitialized_1();
+EndTest();
+
+
+// Block scopes shadowing
+BeginTest("Block scopes shadowing 1");
+function shadowing_1() {
+  let i = 0;
+  {
+    let i = 5;
+    debugger;
+    assertEquals(27, i);
+  }
+  assertEquals(0, i);
+  debugger;
+  assertEquals(27, i);
+}
+
+listener_delegate = function (exec_state) {
+  exec_state.frame(0).evaluate("i = 27");
+}
+shadowing_1();
+EndTest();
+
+
+// Block scopes shadowing
+BeginTest("Block scopes shadowing 2");
+function shadowing_2() {
+  let i = 0;
+  {
+    let j = 5;
+    debugger;
+    assertEquals(27, j);
+  }
+  assertEquals(0, i);
+}
+
+listener_delegate = function (exec_state) {
+  exec_state.frame(0).evaluate("j = 27");
+}
+shadowing_2();
 EndTest();

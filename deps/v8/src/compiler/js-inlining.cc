@@ -235,7 +235,7 @@ Reduction Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call) {
     Node* use = edge.from();
     switch (use->opcode()) {
       case IrOpcode::kParameter: {
-        int index = 1 + OpParameter<int>(use->op());
+        int index = 1 + ParameterIndexOf(use->op());
         if (index < inliner_inputs && index < inlinee_context_index) {
           // There is an input from the call, and the index is a value
           // projection but not the context, so rewire the input.
@@ -360,20 +360,18 @@ Reduction JSInliner::Reduce(Node* node) {
 
   Inlinee inlinee(visitor.GetCopy(graph.start()), visitor.GetCopy(graph.end()));
 
-  if (FLAG_turbo_deoptimization) {
-    Node* outer_frame_state = call.frame_state();
-    // Insert argument adaptor frame if required.
-    if (call.formal_arguments() != inlinee.formal_parameters()) {
-      outer_frame_state =
-          CreateArgumentsAdaptorFrameState(&call, function, info.zone());
-    }
+  Node* outer_frame_state = call.frame_state();
+  // Insert argument adaptor frame if required.
+  if (call.formal_arguments() != inlinee.formal_parameters()) {
+    outer_frame_state =
+        CreateArgumentsAdaptorFrameState(&call, function, info.zone());
+  }
 
-    for (Node* node : visitor.copies()) {
-      if (node && node->opcode() == IrOpcode::kFrameState) {
-        DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
-        AddClosureToFrameState(node, function);
-        NodeProperties::ReplaceFrameStateInput(node, 0, outer_frame_state);
-      }
+  for (Node* node : visitor.copies()) {
+    if (node && node->opcode() == IrOpcode::kFrameState) {
+      DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
+      AddClosureToFrameState(node, function);
+      NodeProperties::ReplaceFrameStateInput(node, 0, outer_frame_state);
     }
   }
 

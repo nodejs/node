@@ -394,7 +394,7 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
           *flag->maybe_bool_variable() = MaybeBoolFlag::Create(true, !is_bool);
           break;
         case Flag::TYPE_INT:
-          *flag->int_variable() = strtol(value, &endp, 10);  // NOLINT
+          *flag->int_variable() = static_cast<int>(strtol(value, &endp, 10));
           break;
         case Flag::TYPE_FLOAT:
           *flag->float_variable() = strtod(value, &endp);

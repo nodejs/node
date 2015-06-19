@@ -147,7 +147,7 @@ inline std::ostream& operator<<(std::ostream& os, Unique<T> uniq) {
 
 
 template <typename T>
-class UniqueSet FINAL : public ZoneObject {
+class UniqueSet final : public ZoneObject {
  public:
   // Constructor. A new set will be empty.
   UniqueSet() : size_(0), capacity_(0), array_(NULL) { }

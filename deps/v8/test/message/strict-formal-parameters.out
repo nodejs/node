@@ -1,0 +1,4 @@
+*%(basename)s:6: SyntaxError: Strict mode function may not have duplicate parameter names
+function foo(b, a, a, d) { return a }
+                   ^
+SyntaxError: Strict mode function may not have duplicate parameter names

@@ -509,7 +509,7 @@ class SequentialStringKey : public HashTableKey {
   explicit SequentialStringKey(Vector<const Char> string, uint32_t seed)
       : string_(string), hash_field_(0), seed_(seed) { }
 
-  uint32_t Hash() OVERRIDE {
+  uint32_t Hash() override {
     hash_field_ = StringHasher::HashSequentialString<Char>(string_.start(),
                                                            string_.length(),
                                                            seed_);
@@ -520,7 +520,7 @@ class SequentialStringKey : public HashTableKey {
   }
 
 
-  uint32_t HashForObject(Object* other) OVERRIDE {
+  uint32_t HashForObject(Object* other) override {
     return String::cast(other)->Hash();
   }
 
@@ -535,11 +535,11 @@ class OneByteStringKey : public SequentialStringKey<uint8_t> {
   OneByteStringKey(Vector<const uint8_t> str, uint32_t seed)
       : SequentialStringKey<uint8_t>(str, seed) { }
 
-  bool IsMatch(Object* string) OVERRIDE {
+  bool IsMatch(Object* string) override {
     return String::cast(string)->IsOneByteEqualTo(string_);
   }
 
-  Handle<Object> AsHandle(Isolate* isolate) OVERRIDE;
+  Handle<Object> AsHandle(Isolate* isolate) override;
 };
 
 
@@ -550,7 +550,7 @@ class SeqOneByteSubStringKey : public HashTableKey {
     DCHECK(string_->IsSeqOneByteString());
   }
 
-  uint32_t Hash() OVERRIDE {
+  uint32_t Hash() override {
     DCHECK(length_ >= 0);
     DCHECK(from_ + length_ <= string_->length());
     const uint8_t* chars = string_->GetChars() + from_;
@@ -561,12 +561,12 @@ class SeqOneByteSubStringKey : public HashTableKey {
     return result;
   }
 
-  uint32_t HashForObject(Object* other) OVERRIDE {
+  uint32_t HashForObject(Object* other) override {
     return String::cast(other)->Hash();
   }
 
-  bool IsMatch(Object* string) OVERRIDE;
-  Handle<Object> AsHandle(Isolate* isolate) OVERRIDE;
+  bool IsMatch(Object* string) override;
+  Handle<Object> AsHandle(Isolate* isolate) override;
 
  private:
   Handle<SeqOneByteString> string_;
@@ -581,11 +581,11 @@ class TwoByteStringKey : public SequentialStringKey<uc16> {
   explicit TwoByteStringKey(Vector<const uc16> str, uint32_t seed)
       : SequentialStringKey<uc16>(str, seed) { }
 
-  bool IsMatch(Object* string) OVERRIDE {
+  bool IsMatch(Object* string) override {
     return String::cast(string)->IsTwoByteEqualTo(string_);
   }
 
-  Handle<Object> AsHandle(Isolate* isolate) OVERRIDE;
+  Handle<Object> AsHandle(Isolate* isolate) override;
 };
 
 
@@ -595,11 +595,11 @@ class Utf8StringKey : public HashTableKey {
   explicit Utf8StringKey(Vector<const char> string, uint32_t seed)
       : string_(string), hash_field_(0), seed_(seed) { }
 
-  bool IsMatch(Object* string) OVERRIDE {
+  bool IsMatch(Object* string) override {
     return String::cast(string)->IsUtf8EqualTo(string_);
   }
 
-  uint32_t Hash() OVERRIDE {
+  uint32_t Hash() override {
     if (hash_field_ != 0) return hash_field_ >> String::kHashShift;
     hash_field_ = StringHasher::ComputeUtf8Hash(string_, seed_, &chars_);
     uint32_t result = hash_field_ >> String::kHashShift;
@@ -607,11 +607,11 @@ class Utf8StringKey : public HashTableKey {
     return result;
   }
 
-  uint32_t HashForObject(Object* other) OVERRIDE {
+  uint32_t HashForObject(Object* other) override {
     return String::cast(other)->Hash();
   }
 
-  Handle<Object> AsHandle(Isolate* isolate) OVERRIDE {
+  Handle<Object> AsHandle(Isolate* isolate) override {
     if (hash_field_ == 0) Hash();
     return isolate->factory()->NewInternalizedStringFromUtf8(
         string_, chars_, hash_field_);
@@ -1849,6 +1849,12 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
 }
 
 
+bool JSObject::WouldConvertToSlowElements(Handle<Object> key) {
+  uint32_t index;
+  return key->ToArrayIndex(&index) && WouldConvertToSlowElements(index);
+}
+
+
 void JSObject::SetMapAndElements(Handle<JSObject> object,
                                  Handle<Map> new_map,
                                  Handle<FixedArrayBase> value) {
@@ -1896,17 +1902,7 @@ void Oddball::set_kind(byte value) {
 }
 
 
-Object* Cell::value() const {
-  return READ_FIELD(this, kValueOffset);
-}
-
-
-void Cell::set_value(Object* val, WriteBarrierMode ignored) {
-  // The write barrier is not used for global property cells.
-  DCHECK(!val->IsPropertyCell() && !val->IsCell());
-  WRITE_FIELD(this, kValueOffset, val);
-}
-
+ACCESSORS(Cell, value, Object, kValueOffset)
 ACCESSORS(PropertyCell, dependent_code, DependentCode, kDependentCodeOffset)
 ACCESSORS(PropertyCell, value, Object, kValueOffset)
 
@@ -1921,7 +1917,13 @@ void WeakCell::clear() {
 
 void WeakCell::initialize(HeapObject* val) {
   WRITE_FIELD(this, kValueOffset, val);
-  WRITE_BARRIER(GetHeap(), this, kValueOffset, val);
+  Heap* heap = GetHeap();
+  // We just have to execute the generational barrier here because we never
+  // mark through a weak cell and collect evacuation candidates when we process
+  // all weak cells.
+  if (heap->InNewSpace(val)) {
+    heap->RecordWrite(address(), kValueOffset);
+  }
 }
 
 
@@ -1989,9 +1991,7 @@ int JSObject::GetHeaderSize() {
     case JS_MESSAGE_OBJECT_TYPE:
       return JSMessageObject::kSize;
     default:
-      // TODO(jkummerow): Re-enable this. Blink currently hits this
-      // from its CustomElementConstructorBuilder.
-      // UNREACHABLE();
+      UNREACHABLE();
       return 0;
   }
 }
@@ -2368,7 +2368,7 @@ bool WeakFixedArray::IsEmptySlot(int index) const {
 }
 
 
-void WeakFixedArray::clear(int index) {
+void WeakFixedArray::Clear(int index) {
   FixedArray::cast(this)->set(index + kFirstIndex, Smi::FromInt(0));
 }
 
@@ -3257,18 +3257,21 @@ DescriptorArray::WhitenessWitness::~WhitenessWitness() {
 }
 
 
-template<typename Derived, typename Shape, typename Key>
-int HashTable<Derived, Shape, Key>::ComputeCapacity(int at_least_space_for) {
-  const int kMinCapacity = 32;
+int HashTableBase::ComputeCapacity(int at_least_space_for) {
+  const int kMinCapacity = 4;
   int capacity = base::bits::RoundUpToPowerOfTwo32(at_least_space_for * 2);
-  if (capacity < kMinCapacity) {
-    capacity = kMinCapacity;  // Guarantee min capacity.
-  }
-  return capacity;
+  return Max(capacity, kMinCapacity);
 }
 
 
-template<typename Derived, typename Shape, typename Key>
+int HashTableBase::ComputeCapacityForSerialization(int at_least_space_for) {
+  const int kMinCapacity = 1;
+  int capacity = base::bits::RoundUpToPowerOfTwo32(at_least_space_for);
+  return Max(capacity, kMinCapacity);
+}
+
+
+template <typename Derived, typename Shape, typename Key>
 int HashTable<Derived, Shape, Key>::FindEntry(Key key) {
   return FindEntry(GetIsolate(), key);
 }
@@ -4308,28 +4311,12 @@ typename Traits::ElementType FixedTypedArray<Traits>::get_scalar(int index) {
 }
 
 
-template<> inline
-FixedTypedArray<Float64ArrayTraits>::ElementType
-    FixedTypedArray<Float64ArrayTraits>::get_scalar(int index) {
-  DCHECK((index >= 0) && (index < this->length()));
-  return READ_DOUBLE_FIELD(this, ElementOffset(index));
-}
-
-
 template <class Traits>
 void FixedTypedArray<Traits>::set(int index, ElementType value) {
   DCHECK((index >= 0) && (index < this->length()));
   ElementType* ptr = reinterpret_cast<ElementType*>(
       FIELD_ADDR(this, kDataOffset));
   ptr[index] = value;
-}
-
-
-template<> inline
-void FixedTypedArray<Float64ArrayTraits>::set(
-    int index, Float64ArrayTraits::ElementType value) {
-  DCHECK((index >= 0) && (index < this->length()));
-  WRITE_DOUBLE_FIELD(this, ElementOffset(index), value);
 }
 
 
@@ -4385,23 +4372,25 @@ Handle<Object> FixedTypedArray<Traits>::get(
 
 template <class Traits>
 Handle<Object> FixedTypedArray<Traits>::SetValue(
-    Handle<FixedTypedArray<Traits> > array,
-    uint32_t index,
-    Handle<Object> value) {
+    Handle<JSObject> holder, Handle<FixedTypedArray<Traits> > array,
+    uint32_t index, Handle<Object> value) {
   ElementType cast_value = Traits::defaultValue();
-  if (index < static_cast<uint32_t>(array->length())) {
-    if (value->IsSmi()) {
-      int int_value = Handle<Smi>::cast(value)->value();
-      cast_value = from_int(int_value);
-    } else if (value->IsHeapNumber()) {
-      double double_value = Handle<HeapNumber>::cast(value)->value();
-      cast_value = from_double(double_value);
-    } else {
-      // Clamp undefined to the default value. All other types have been
-      // converted to a number type further up in the call chain.
-      DCHECK(value->IsUndefined());
+  Handle<JSArrayBufferView> view = Handle<JSArrayBufferView>::cast(holder);
+  if (!view->WasNeutered()) {
+    if (index < static_cast<uint32_t>(array->length())) {
+      if (value->IsSmi()) {
+        int int_value = Handle<Smi>::cast(value)->value();
+        cast_value = from_int(int_value);
+      } else if (value->IsHeapNumber()) {
+        double double_value = Handle<HeapNumber>::cast(value)->value();
+        cast_value = from_double(double_value);
+      } else {
+        // Clamp undefined to the default value. All other types have been
+        // converted to a number type further up in the call chain.
+        DCHECK(value->IsUndefined());
+      }
+      array->set(index, cast_value);
     }
-    array->set(index, cast_value);
   }
   return Traits::ToHandle(array->GetIsolate(), cast_value);
 }
@@ -4584,9 +4573,7 @@ void Map::set_unused_property_fields(int value) {
 }
 
 
-byte Map::bit_field() {
-  return READ_BYTE_FIELD(this, kBitFieldOffset);
-}
+byte Map::bit_field() const { return READ_BYTE_FIELD(this, kBitFieldOffset); }
 
 
 void Map::set_bit_field(byte value) {
@@ -4594,9 +4581,7 @@ void Map::set_bit_field(byte value) {
 }
 
 
-byte Map::bit_field2() {
-  return READ_BYTE_FIELD(this, kBitField2Offset);
-}
+byte Map::bit_field2() const { return READ_BYTE_FIELD(this, kBitField2Offset); }
 
 
 void Map::set_bit_field2(byte value) {
@@ -4659,7 +4644,7 @@ void Map::set_is_prototype_map(bool value) {
   set_bit_field2(IsPrototypeMapBits::update(bit_field2(), value));
 }
 
-bool Map::is_prototype_map() {
+bool Map::is_prototype_map() const {
   return IsPrototypeMapBits::decode(bit_field2());
 }
 
@@ -5353,7 +5338,7 @@ void Map::set_bit_field3(uint32_t bits) {
 }
 
 
-uint32_t Map::bit_field3() {
+uint32_t Map::bit_field3() const {
   return READ_UINT32_FIELD(this, kBitField3Offset);
 }
 
@@ -5395,7 +5380,21 @@ Map* Map::ElementsTransitionMap() {
 }
 
 
-ACCESSORS(Map, raw_transitions, Object, kTransitionsOffset)
+ACCESSORS(Map, raw_transitions, Object, kTransitionsOrPrototypeInfoOffset)
+
+
+Object* Map::prototype_info() const {
+  DCHECK(is_prototype_map());
+  return READ_FIELD(this, Map::kTransitionsOrPrototypeInfoOffset);
+}
+
+
+void Map::set_prototype_info(Object* value, WriteBarrierMode mode) {
+  DCHECK(is_prototype_map());
+  WRITE_FIELD(this, Map::kTransitionsOrPrototypeInfoOffset, value);
+  CONDITIONAL_WRITE_BARRIER(
+      GetHeap(), this, Map::kTransitionsOrPrototypeInfoOffset, value, mode);
+}
 
 
 void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
@@ -5454,6 +5453,10 @@ ACCESSORS(ExecutableAccessorInfo, setter, Object, kSetterOffset)
 ACCESSORS(ExecutableAccessorInfo, data, Object, kDataOffset)
 
 ACCESSORS(Box, value, Object, kValueOffset)
+
+ACCESSORS(PrototypeInfo, prototype_users, Object, kPrototypeUsersOffset)
+ACCESSORS(PrototypeInfo, validity_cell, Object, kValidityCellOffset)
+ACCESSORS(PrototypeInfo, constructor_name, Object, kConstructorNameOffset)
 
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
@@ -6417,48 +6420,103 @@ void JSArrayBuffer::set_backing_store(void* value, WriteBarrierMode mode) {
 
 
 ACCESSORS(JSArrayBuffer, byte_length, Object, kByteLengthOffset)
-ACCESSORS_TO_SMI(JSArrayBuffer, flag, kFlagOffset)
 
 
-bool JSArrayBuffer::is_external() {
-  return BooleanBit::get(flag(), kIsExternalBit);
+void JSArrayBuffer::set_bit_field(uint32_t bits) {
+  if (kInt32Size != kPointerSize) {
+#if V8_TARGET_LITTLE_ENDIAN
+    WRITE_UINT32_FIELD(this, kBitFieldSlot + kInt32Size, 0);
+#else
+    WRITE_UINT32_FIELD(this, kBitFieldSlot, 0);
+#endif
+  }
+  WRITE_UINT32_FIELD(this, kBitFieldOffset, bits);
 }
+
+
+uint32_t JSArrayBuffer::bit_field() const {
+  return READ_UINT32_FIELD(this, kBitFieldOffset);
+}
+
+
+bool JSArrayBuffer::is_external() { return IsExternal::decode(bit_field()); }
 
 
 void JSArrayBuffer::set_is_external(bool value) {
-  set_flag(BooleanBit::set(flag(), kIsExternalBit, value));
-}
-
-
-bool JSArrayBuffer::should_be_freed() {
-  return BooleanBit::get(flag(), kShouldBeFreed);
-}
-
-
-void JSArrayBuffer::set_should_be_freed(bool value) {
-  set_flag(BooleanBit::set(flag(), kShouldBeFreed, value));
+  set_bit_field(IsExternal::update(bit_field(), value));
 }
 
 
 bool JSArrayBuffer::is_neuterable() {
-  return BooleanBit::get(flag(), kIsNeuterableBit);
+  return IsNeuterable::decode(bit_field());
 }
 
 
 void JSArrayBuffer::set_is_neuterable(bool value) {
-  set_flag(BooleanBit::set(flag(), kIsNeuterableBit, value));
+  set_bit_field(IsNeuterable::update(bit_field(), value));
 }
 
 
-ACCESSORS(JSArrayBuffer, weak_next, Object, kWeakNextOffset)
-ACCESSORS(JSArrayBuffer, weak_first_view, Object, kWeakFirstViewOffset)
+bool JSArrayBuffer::was_neutered() { return WasNeutered::decode(bit_field()); }
+
+
+void JSArrayBuffer::set_was_neutered(bool value) {
+  set_bit_field(WasNeutered::update(bit_field(), value));
+}
+
+
+Object* JSArrayBufferView::byte_offset() const {
+  if (WasNeutered()) return Smi::FromInt(0);
+  return Object::cast(READ_FIELD(this, kByteOffsetOffset));
+}
+
+
+void JSArrayBufferView::set_byte_offset(Object* value, WriteBarrierMode mode) {
+  WRITE_FIELD(this, kByteOffsetOffset, value);
+  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kByteOffsetOffset, value, mode);
+}
+
+
+Object* JSArrayBufferView::byte_length() const {
+  if (WasNeutered()) return Smi::FromInt(0);
+  return Object::cast(READ_FIELD(this, kByteLengthOffset));
+}
+
+
+void JSArrayBufferView::set_byte_length(Object* value, WriteBarrierMode mode) {
+  WRITE_FIELD(this, kByteLengthOffset, value);
+  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kByteLengthOffset, value, mode);
+}
 
 
 ACCESSORS(JSArrayBufferView, buffer, Object, kBufferOffset)
-ACCESSORS(JSArrayBufferView, byte_offset, Object, kByteOffsetOffset)
-ACCESSORS(JSArrayBufferView, byte_length, Object, kByteLengthOffset)
-ACCESSORS(JSArrayBufferView, weak_next, Object, kWeakNextOffset)
-ACCESSORS(JSTypedArray, length, Object, kLengthOffset)
+#ifdef VERIFY_HEAP
+ACCESSORS(JSArrayBufferView, raw_byte_offset, Object, kByteOffsetOffset)
+ACCESSORS(JSArrayBufferView, raw_byte_length, Object, kByteLengthOffset)
+#endif
+
+
+bool JSArrayBufferView::WasNeutered() const {
+  return JSArrayBuffer::cast(buffer())->was_neutered();
+}
+
+
+Object* JSTypedArray::length() const {
+  if (WasNeutered()) return Smi::FromInt(0);
+  return Object::cast(READ_FIELD(this, kLengthOffset));
+}
+
+
+void JSTypedArray::set_length(Object* value, WriteBarrierMode mode) {
+  WRITE_FIELD(this, kLengthOffset, value);
+  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kLengthOffset, value, mode);
+}
+
+
+#ifdef VERIFY_HEAP
+ACCESSORS(JSTypedArray, raw_length, Object, kLengthOffset)
+#endif
+
 
 ACCESSORS(JSRegExp, data, Object, kDataOffset)
 
@@ -6996,11 +7054,12 @@ bool AccessorInfo::IsCompatibleReceiver(Object* receiver) {
 }
 
 
-void ExecutableAccessorInfo::clear_setter() {
-  auto foreign = GetIsolate()->factory()->NewForeign(
+// static
+void ExecutableAccessorInfo::ClearSetter(Handle<ExecutableAccessorInfo> info) {
+  auto foreign = info->GetIsolate()->factory()->NewForeign(
       reinterpret_cast<v8::internal::Address>(
           reinterpret_cast<intptr_t>(nullptr)));
-  set_setter(*foreign);
+  info->set_setter(*foreign);
 }
 
 
@@ -7195,6 +7254,17 @@ void JSArray::EnsureSize(Handle<JSArray> array, int required_size) {
 void JSArray::set_length(Smi* length) {
   // Don't need a write barrier for a Smi.
   set_length(static_cast<Object*>(length), SKIP_WRITE_BARRIER);
+}
+
+
+bool JSArray::SetElementsLengthWouldNormalize(
+    Heap* heap, Handle<Object> new_length_handle) {
+  // If the new array won't fit in a some non-trivial fraction of the max old
+  // space size, then force it to go dictionary mode.
+  int max_fast_array_size =
+      static_cast<int>((heap->MaxOldGenerationSize() / kDoubleSize) / 4);
+  return new_length_handle->IsNumber() &&
+         NumberToInt32(*new_length_handle) >= max_fast_array_size;
 }
 
 
@@ -7456,7 +7526,7 @@ Object* JSMapIterator::CurrentValue() {
 }
 
 
-class String::SubStringRange::iterator FINAL {
+class String::SubStringRange::iterator final {
  public:
   typedef std::forward_iterator_tag iterator_category;
   typedef int difference_type;

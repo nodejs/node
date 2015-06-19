@@ -13,7 +13,7 @@ SyntaxError: Strict mode code may not include a with statement
 42
 [eval]:1
 throw new Error("hello")
-      ^
+^
 Error: hello
     at [eval]:1:7
     at Object.exports.runInThisContext (vm.js:*)
@@ -24,7 +24,7 @@ Error: hello
     at process._tickCallback (node.js:*:*)
 [eval]:1
 throw new Error("hello")
-      ^
+^
 Error: hello
     at [eval]:1:7
     at Object.exports.runInThisContext (vm.js:*)

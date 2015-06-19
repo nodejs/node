@@ -35,12 +35,17 @@
     'component%': 'static_library',
     'clang_dir%': 'third_party/llvm-build/Release+Asserts',
     'clang_xcode%': 0,
+    # Track where uninitialized memory originates from. From fastest to
+    # slowest: 0 - no tracking, 1 - track only the initial allocation site, 2
+    # - track the chain of stores leading from allocation site to use site.
+    'msan_track_origins%': 1,
     'visibility%': 'hidden',
     'v8_enable_backtrace%': 0,
     'v8_enable_i18n_support%': 1,
     'v8_deprecation_warnings': 1,
     'msvs_multi_core_compile%': '1',
     'mac_deployment_target%': '10.5',
+    'release_extra_cflags%': '',
     'variables': {
       'variables': {
         'variables': {
@@ -65,6 +70,10 @@
       'host_arch%': '<(host_arch)',
       'target_arch%': '<(target_arch)',
       'v8_target_arch%': '<(target_arch)',
+      'asan%': 0,
+      'lsan%': 0,
+      'msan%': 0,
+      'tsan%': 0,
 
       # goma settings.
       # 1 to use goma.
@@ -86,6 +95,10 @@
     'werror%': '-Werror',
     'use_goma%': '<(use_goma)',
     'gomadir%': '<(gomadir)',
+    'asan%': '<(asan)',
+    'lsan%': '<(lsan)',
+    'msan%': '<(msan)',
+    'tsan%': '<(tsan)',
 
     # .gyp files or targets should set v8_code to 1 if they build V8 specific
     # code, as opposed to external code.  This variable is used to control such
@@ -157,6 +170,10 @@
       }, {
         'host_clang%': '0',
       }],
+      ['asan==1 or lsan==1 or msan==1 or tsan==1', {
+        'clang%': 1,
+        'use_allocator%': 'none',
+      }],
     ],
     # Default ARM variable settings.
     'arm_version%': 'default',
@@ -196,7 +213,7 @@
         # Xcode insists on this empty entry.
       },
       'Release': {
-        # Xcode insists on this empty entry.
+        'cflags+': ['<@(release_extra_cflags)'],
       },
     },
     'conditions':[
@@ -226,6 +243,7 @@
               '-Wall',
               '-Werror',
               '-Wextra',
+              '-Wshorten-64-to-32',
             ],
             'cflags+': [
               # Clang considers the `register` keyword as deprecated, but
@@ -302,6 +320,36 @@
         ],
       },
     }],
+    ['msan==1 and OS!="mac"', {
+      'target_defaults': {
+        'cflags_cc+': [
+          '-fno-omit-frame-pointer',
+          '-gline-tables-only',
+          '-fsanitize=memory',
+          '-fsanitize-memory-track-origins=<(msan_track_origins)',
+          '-fPIC',
+        ],
+        'cflags+': [
+          '-fPIC',
+        ],
+        'cflags!': [
+          '-fno-exceptions',
+          '-fomit-frame-pointer',
+        ],
+        'ldflags': [
+          '-fsanitize=memory',
+        ],
+        'defines': [
+          'MEMORY_SANITIZER',
+        ],
+        'dependencies': [
+          # Use libc++ (third_party/libc++ and third_party/libc++abi) instead of
+          # stdlibc++ as standard library. This is intended to use for instrumented
+          # builds.
+          '<(DEPTH)/buildtools/third_party/libc++/libc++.gyp:libcxx_proxy',
+        ],
+      },
+    }],
     ['asan==1 and OS=="mac"', {
       'target_defaults': {
         'xcode_settings': {
@@ -342,6 +390,11 @@
         'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti', '-std=gnu++0x' ],
         'ldflags': [ '-pthread', ],
         'conditions': [
+          # TODO(arm64): It'd be nice to enable this for arm64 as well,
+          # but the Assembler requires some serious fixing first.
+          [ 'clang==1 and v8_target_arch=="x64"', {
+            'cflags': [ '-Wshorten-64-to-32' ],
+          }],
           [ 'host_arch=="ppc64" and OS!="aix"', {
             'cflags': [ '-mminimal-toc' ],
           }],

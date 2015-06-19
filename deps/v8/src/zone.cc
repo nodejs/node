@@ -264,8 +264,8 @@ Address Zone::NewExpand(size_t size) {
   // Check for address overflow.
   // (Should not happen since the segment is guaranteed to accomodate
   // size bytes + header and alignment padding)
-  DCHECK_GE(reinterpret_cast<uintptr_t>(position_),
-            reinterpret_cast<uintptr_t>(result));
+  DCHECK(reinterpret_cast<uintptr_t>(position_) >=
+         reinterpret_cast<uintptr_t>(result));
   limit_ = segment->end();
   DCHECK(position_ <= limit_);
   return result;

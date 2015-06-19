@@ -161,22 +161,62 @@ Node* PeeledIteration::map(Node* node) {
 }
 
 
+static void FindLoopExits(LoopTree* loop_tree, LoopTree::Loop* loop,
+                          NodeVector& exits, NodeVector& rets) {
+  // Look for returns and if projections that are outside the loop but whose
+  // control input is inside the loop.
+  for (Node* node : loop_tree->LoopNodes(loop)) {
+    for (Node* use : node->uses()) {
+      if (!loop_tree->Contains(loop, use)) {
+        if (IrOpcode::IsIfProjectionOpcode(use->opcode())) {
+          // This is a branch from inside the loop to outside the loop.
+          exits.push_back(use);
+        } else if (use->opcode() == IrOpcode::kReturn &&
+                   loop_tree->Contains(loop,
+                                       NodeProperties::GetControlInput(use))) {
+          // This is a return from inside the loop.
+          rets.push_back(use);
+        }
+      }
+    }
+  }
+}
+
+
+bool LoopPeeler::CanPeel(LoopTree* loop_tree, LoopTree::Loop* loop) {
+  Zone zone;
+  NodeVector exits(&zone);
+  NodeVector rets(&zone);
+  FindLoopExits(loop_tree, loop, exits, rets);
+  return exits.size() <= 1u;
+}
+
+
 PeeledIteration* LoopPeeler::Peel(Graph* graph, CommonOperatorBuilder* common,
                                   LoopTree* loop_tree, LoopTree::Loop* loop,
                                   Zone* tmp_zone) {
-  PeeledIterationImpl* iter = new (tmp_zone) PeeledIterationImpl(tmp_zone);
-  Peeling peeling(graph, tmp_zone, loop->TotalSize() * 2 + 2,
-                  &iter->node_pairs_);
+  //============================================================================
+  // Find the loop exit region to determine if this loop can be peeled.
+  //============================================================================
+  NodeVector exits(tmp_zone);
+  NodeVector rets(tmp_zone);
+  FindLoopExits(loop_tree, loop, exits, rets);
+
+  if (exits.size() != 1) return nullptr;  // not peelable currently.
 
   //============================================================================
   // Construct the peeled iteration.
   //============================================================================
+  PeeledIterationImpl* iter = new (tmp_zone) PeeledIterationImpl(tmp_zone);
+  size_t estimated_peeled_size =
+      5 + (loop->TotalSize() + exits.size() + rets.size()) * 2;
+  Peeling peeling(graph, tmp_zone, estimated_peeled_size, &iter->node_pairs_);
+
   Node* dead = graph->NewNode(common->Dead());
 
   // Map the loop header nodes to their entry values.
   for (Node* node : loop_tree->HeaderNodes(loop)) {
-    // TODO(titzer): assuming loop entry at index 0.
-    peeling.Insert(node, node->InputAt(0));
+    peeling.Insert(node, node->InputAt(kAssumedLoopEntryIndex));
   }
 
   // Copy all the nodes of loop body for the peeled iteration.
@@ -227,69 +267,23 @@ PeeledIteration* LoopPeeler::Peel(Graph* graph, CommonOperatorBuilder* common,
   loop_node->ReplaceInput(0, new_entry);
 
   //============================================================================
-  // Find the loop exit region.
-  //============================================================================
-  NodeVector exits(tmp_zone);
-  Node* end = NULL;
-  for (Node* node : loop_tree->LoopNodes(loop)) {
-    for (Node* use : node->uses()) {
-      if (!loop_tree->Contains(loop, use)) {
-        if (node->opcode() == IrOpcode::kBranch &&
-            (use->opcode() == IrOpcode::kIfTrue ||
-             use->opcode() == IrOpcode::kIfFalse)) {
-          // This is a branch from inside the loop to outside the loop.
-          exits.push_back(use);
-        }
-      }
-    }
-  }
-
-  if (exits.size() == 0) return iter;  // no exits => NTL
-
-  if (exits.size() == 1) {
-    // Only one exit, so {end} is that exit.
-    end = exits[0];
-  } else {
-    // {end} should be the common merge from the exits.
-    NodeVector rets(tmp_zone);
-    for (Node* exit : exits) {
-      Node* found = NULL;
-      for (Node* use : exit->uses()) {
-        if (use->opcode() == IrOpcode::kMerge) {
-          found = use;
-          if (end == NULL) {
-            end = found;
-          } else {
-            CHECK_EQ(end, found);  // it should be unique!
-          }
-        } else if (use->opcode() == IrOpcode::kReturn) {
-          found = use;
-          rets.push_back(found);
-        }
-      }
-      // There should be a merge or a return for each exit.
-      CHECK(found);
-    }
-    // Return nodes, the end merge, and the phis associated with the end merge
-    // must be duplicated as well.
-    for (Node* node : rets) exits.push_back(node);
-    if (end != NULL) {
-      exits.push_back(end);
-      for (Node* use : end->uses()) {
-        if (NodeProperties::IsPhi(use)) exits.push_back(use);
-      }
-    }
-  }
-
-  //============================================================================
   // Duplicate the loop exit region and add a merge.
   //============================================================================
+
+  // Currently we are limited to peeling loops with a single exit. The exit is
+  // the postdominator of the loop (ignoring returns).
+  Node* postdom = exits[0];
+  for (Node* node : rets) exits.push_back(node);
+  for (Node* use : postdom->uses()) {
+    if (NodeProperties::IsPhi(use)) exits.push_back(use);
+  }
+
   NodeRange exit_range(&exits[0], &exits[0] + exits.size());
   peeling.CopyNodes(graph, tmp_zone, dead, exit_range);
 
-  Node* merge = graph->NewNode(common->Merge(2), end, peeling.map(end));
-  end->ReplaceUses(merge);
-  merge->ReplaceInput(0, end);  // HULK SMASH!!
+  Node* merge = graph->NewNode(common->Merge(2), postdom, peeling.map(postdom));
+  postdom->ReplaceUses(merge);
+  merge->ReplaceInput(0, postdom);  // input 0 overwritten by above line.
 
   // Find and update all the edges into either the loop or exit region.
   for (int i = 0; i < 2; i++) {

@@ -130,25 +130,35 @@ function TestBasics(object) {
     assertEquals(3, z);
   }
 
-  object[Symbol.unscopables] = {x: true};
-  with (object) {
-    assertEquals(1, x);
-    assertEquals(5, y);
-    assertEquals(3, z);
+  var truthyValues = [true, 1, 'x', {}, Symbol()];
+  for (var truthyValue of truthyValues) {
+    object[Symbol.unscopables] = {x: truthyValue};
+    with (object) {
+      assertEquals(1, x);
+      assertEquals(5, y);
+      assertEquals(3, z);
+    }
   }
 
-  object[Symbol.unscopables] = {x: 0, y: true};
-  with (object) {
-    assertEquals(1, x);
-    assertEquals(2, y);
-    assertEquals(3, z);
+  var falsyValues = [false, 0, -0, NaN, '', null, undefined];
+  for (var falsyValue of falsyValues) {
+    object[Symbol.unscopables] = {x: falsyValue, y: true};
+    with (object) {
+      assertEquals(4, x);
+      assertEquals(2, y);
+      assertEquals(3, z);
+    }
   }
 
-  object[Symbol.unscopables] = {x: 0, y: undefined};
-  with (object) {
-    assertEquals(1, x);
-    assertEquals(5, y);
-    assertEquals(3, z);
+  for (var xFalsy of falsyValues) {
+    for (var yFalsy of falsyValues) {
+      object[Symbol.unscopables] = {x: xFalsy, y: yFalsy};
+      with (object) {
+        assertEquals(4, x);
+        assertEquals(5, y);
+        assertEquals(3, z);
+      }
+    }
   }
 }
 runTest(TestBasics);

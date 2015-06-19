@@ -574,6 +574,47 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
 }
 
 
+enum IsTagged { kEaxIsSmiTagged, kEaxIsUntaggedInt };
+
+
+// Clobbers ecx, edx, edi; preserves all other registers.
+static void Generate_CheckStackOverflow(MacroAssembler* masm,
+                                        const int calleeOffset,
+                                        IsTagged eax_is_tagged) {
+  // eax   : the number of items to be pushed to the stack
+  //
+  // Check the stack for overflow. We are not trying to catch
+  // interruptions (e.g. debug break and preemption) here, so the "real stack
+  // limit" is checked.
+  Label okay;
+  ExternalReference real_stack_limit =
+      ExternalReference::address_of_real_stack_limit(masm->isolate());
+  __ mov(edi, Operand::StaticVariable(real_stack_limit));
+  // Make ecx the space we have left. The stack might already be overflowed
+  // here which will cause ecx to become negative.
+  __ mov(ecx, esp);
+  __ sub(ecx, edi);
+  // Make edx the space we need for the array when it is unrolled onto the
+  // stack.
+  __ mov(edx, eax);
+  int smi_tag = eax_is_tagged == kEaxIsSmiTagged ? kSmiTagSize : 0;
+  __ shl(edx, kPointerSizeLog2 - smi_tag);
+  // Check if the arguments will overflow the stack.
+  __ cmp(ecx, edx);
+  __ j(greater, &okay);  // Signed comparison.
+
+  // Out of stack space.
+  __ push(Operand(ebp, calleeOffset));  // push this
+  if (eax_is_tagged == kEaxIsUntaggedInt) {
+    __ SmiTag(eax);
+  }
+  __ push(eax);
+  __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
+
+  __ bind(&okay);
+}
+
+
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
@@ -598,6 +639,14 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Load the number of arguments and setup pointer to the arguments.
     __ mov(eax, Operand(ebx, EntryFrameConstants::kArgcOffset));
     __ mov(ebx, Operand(ebx, EntryFrameConstants::kArgvOffset));
+
+    // Check if we have enough stack space to push all arguments.
+    // The function is the first thing that was pushed above after entering
+    // the internal frame.
+    const int kFunctionOffset =
+        InternalFrameConstants::kCodeOffset - kPointerSize;
+    // Expects argument count in eax. Clobbers ecx, edx, edi.
+    Generate_CheckStackOverflow(masm, kFunctionOffset, kEaxIsUntaggedInt);
 
     // Copy arguments to the stack in a loop.
     Label loop, entry;
@@ -752,6 +801,11 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
 
 void Builtins::Generate_MarkCodeAsExecutedTwice(MacroAssembler* masm) {
   GenerateMakeCodeYoungAgainCommon(masm);
+}
+
+
+void Builtins::Generate_MarkCodeAsToBeExecutedOnce(MacroAssembler* masm) {
+  Generate_MarkCodeAsExecutedOnce(masm);
 }
 
 
@@ -990,38 +1044,6 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 }
 
 
-static void Generate_CheckStackOverflow(MacroAssembler* masm,
-                                        const int calleeOffset) {
-  // eax   : the number of items to be pushed to the stack
-  //
-  // Check the stack for overflow. We are not trying to catch
-  // interruptions (e.g. debug break and preemption) here, so the "real stack
-  // limit" is checked.
-  Label okay;
-  ExternalReference real_stack_limit =
-      ExternalReference::address_of_real_stack_limit(masm->isolate());
-  __ mov(edi, Operand::StaticVariable(real_stack_limit));
-  // Make ecx the space we have left. The stack might already be overflowed
-  // here which will cause ecx to become negative.
-  __ mov(ecx, esp);
-  __ sub(ecx, edi);
-  // Make edx the space we need for the array when it is unrolled onto the
-  // stack.
-  __ mov(edx, eax);
-  __ shl(edx, kPointerSizeLog2 - kSmiTagSize);
-  // Check if the arguments will overflow the stack.
-  __ cmp(ecx, edx);
-  __ j(greater, &okay);  // Signed comparison.
-
-  // Out of stack space.
-  __ push(Operand(ebp, calleeOffset));  // push this
-  __ push(eax);
-  __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
-
-  __ bind(&okay);
-}
-
-
 static void Generate_PushAppliedArguments(MacroAssembler* masm,
                                           const int argumentsOffset,
                                           const int indexOffset,
@@ -1035,21 +1057,13 @@ static void Generate_PushAppliedArguments(MacroAssembler* masm,
   __ bind(&loop);
   __ mov(receiver, Operand(ebp, argumentsOffset));  // load arguments
 
-  if (FLAG_vector_ics) {
-    // TODO(mvstanton): Vector-based ics need additional infrastructure to
-    // be embedded here. For now, just call the runtime.
-    __ push(receiver);
-    __ push(key);
-    __ CallRuntime(Runtime::kGetProperty, 2);
-  } else {
-    // Use inline caching to speed up access to arguments.
-    Handle<Code> ic = CodeFactory::KeyedLoadIC(masm->isolate()).code();
-    __ call(ic, RelocInfo::CODE_TARGET);
-    // It is important that we do not have a test instruction after the
-    // call.  A test instruction after the call is used to indicate that
-    // we have generated an inline version of the keyed load.  In this
-    // case, we know that we are not generating a test instruction next.
-  }
+  // Use inline caching to speed up access to arguments.
+  Handle<Code> ic = masm->isolate()->builtins()->KeyedLoadIC_Megamorphic();
+  __ call(ic, RelocInfo::CODE_TARGET);
+  // It is important that we do not have a test instruction after the
+  // call.  A test instruction after the call is used to indicate that
+  // we have generated an inline version of the keyed load.  In this
+  // case, we know that we are not generating a test instruction next.
 
   // Push the nth argument.
   __ push(eax);
@@ -1099,7 +1113,7 @@ static void Generate_ApplyHelper(MacroAssembler* masm, bool targetIsArgument) {
       __ InvokeBuiltin(Builtins::APPLY_PREPARE, CALL_FUNCTION);
     }
 
-    Generate_CheckStackOverflow(masm, kFunctionOffset);
+    Generate_CheckStackOverflow(masm, kFunctionOffset, kEaxIsSmiTagged);
 
     // Push current index and limit.
     const int kLimitOffset =
@@ -1229,7 +1243,7 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
     __ push(Operand(ebp, kNewTargetOffset));
     __ InvokeBuiltin(Builtins::REFLECT_CONSTRUCT_PREPARE, CALL_FUNCTION);
 
-    Generate_CheckStackOverflow(masm, kFunctionOffset);
+    Generate_CheckStackOverflow(masm, kFunctionOffset, kEaxIsSmiTagged);
 
     // Push current index and limit.
     const int kLimitOffset =

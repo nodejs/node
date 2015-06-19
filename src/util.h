@@ -195,8 +195,6 @@ class Utf8Value {
     char str_st_[1024];
 };
 
-inline bool IsValidSmi(int64_t value);
-
 }  // namespace node
 
 #endif  // SRC_UTIL_H_

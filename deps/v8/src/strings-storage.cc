@@ -117,7 +117,7 @@ size_t StringsStorage::GetUsedMemorySize() const {
 
 HashMap::Entry* StringsStorage::GetEntry(const char* str, int len) {
   uint32_t hash = StringHasher::HashSequentialString(str, len, hash_seed_);
-  return names_.Lookup(const_cast<char*>(str), hash, true);
+  return names_.LookupOrInsert(const_cast<char*>(str), hash);
 }
 }
 }  // namespace v8::internal

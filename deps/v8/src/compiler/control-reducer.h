@@ -23,21 +23,18 @@ class ControlReducer {
  public:
   // Perform branch folding and dead code elimination on the graph.
   static void ReduceGraph(Zone* zone, JSGraph* graph,
-                          CommonOperatorBuilder* builder);
+                          int max_phis_for_select = 0);
 
   // Trim nodes in the graph that are not reachable from end.
   static void TrimGraph(Zone* zone, JSGraph* graph);
 
   // Reduces a single merge node and attached phis.
-  static Node* ReduceMerge(JSGraph* graph, CommonOperatorBuilder* builder,
-                           Node* node);
+  static Node* ReduceMerge(JSGraph* graph, Node* node,
+                           int max_phis_for_select = 0);
 
   // Testing interface.
-  static Node* ReducePhiForTesting(JSGraph* graph,
-                                   CommonOperatorBuilder* builder, Node* node);
-  static Node* ReduceIfNodeForTesting(JSGraph* graph,
-                                      CommonOperatorBuilder* builder,
-                                      Node* node);
+  static Node* ReducePhiForTesting(JSGraph* graph, Node* node);
+  static Node* ReduceIfNodeForTesting(JSGraph* graph, Node* node);
 };
 }
 }

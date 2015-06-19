@@ -7,6 +7,7 @@
 #include <limits>
 
 #include "src/base/bits.h"
+#include "src/base/utils/random-number-generator.h"
 #include "src/codegen.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
@@ -421,6 +422,32 @@ TEST(RunLoopDecrement) {
 }
 
 
+TEST(RunLoopIncrementFloat32) {
+  RawMachineAssemblerTester<int32_t> m;
+
+  // x = -3.0f; while(x < 10f) { x = x + 0.5f; } return (int) (double) x;
+  MLabel header, body;
+  MLabel* end = m.Exit();
+  Node* minus_3 = m.Float32Constant(-3.0f);
+  Node* ten = m.Float32Constant(10.0f);
+
+  m.Goto(&header);
+
+  m.Bind(&header);
+  Node* phi = m.Phi(kMachFloat32, minus_3, ten);
+  m.Branch(m.Float32LessThan(phi, ten), &body, end);
+
+  m.Bind(&body);
+  phi->ReplaceInput(1, m.Float32Add(phi, m.Float32Constant(0.5f)));
+  m.Goto(&header);
+
+  m.Bind(end);
+  m.Return(m.ChangeFloat64ToInt32(m.ChangeFloat32ToFloat64(phi)));
+
+  CHECK_EQ(10, m.Call());
+}
+
+
 TEST(RunLoopIncrementFloat64) {
   RawMachineAssemblerTester<int32_t> m;
 
@@ -590,6 +617,33 @@ TEST(RunLoadInt32Offset) {
 }
 
 
+TEST(RunLoadStoreFloat32Offset) {
+  float p1 = 0.0f;  // loads directly from this location.
+  float p2 = 0.0f;  // and stores directly into this location.
+
+  FOR_INT32_INPUTS(i) {
+    int32_t magic = 0x2342aabb + *i * 3;
+    RawMachineAssemblerTester<int32_t> m;
+    int32_t offset = *i;
+    byte* from = reinterpret_cast<byte*>(&p1) - offset;
+    byte* to = reinterpret_cast<byte*>(&p2) - offset;
+    // generate load [#base + #index]
+    Node* load =
+        m.Load(kMachFloat32, m.PointerConstant(from), m.IntPtrConstant(offset));
+    m.Store(kMachFloat32, m.PointerConstant(to), m.IntPtrConstant(offset),
+            load);
+    m.Return(m.Int32Constant(magic));
+
+    FOR_FLOAT32_INPUTS(j) {
+      p1 = *j;
+      p2 = *j - 5;
+      CHECK_EQ(magic, m.Call());
+      CheckDoubleEq(p1, p2);
+    }
+  }
+}
+
+
 TEST(RunLoadStoreFloat64Offset) {
   double p1 = 0;  // loads directly from this location.
   double p2 = 0;  // and stores directly into this location.
@@ -602,8 +656,9 @@ TEST(RunLoadStoreFloat64Offset) {
     byte* to = reinterpret_cast<byte*>(&p2) - offset;
     // generate load [#base + #index]
     Node* load =
-        m.Load(kMachFloat64, m.PointerConstant(from), m.Int32Constant(offset));
-    m.Store(kMachFloat64, m.PointerConstant(to), m.Int32Constant(offset), load);
+        m.Load(kMachFloat64, m.PointerConstant(from), m.IntPtrConstant(offset));
+    m.Store(kMachFloat64, m.PointerConstant(to), m.IntPtrConstant(offset),
+            load);
     m.Return(m.Int32Constant(magic));
 
     FOR_FLOAT64_INPUTS(j) {
@@ -2981,9 +3036,9 @@ static void RunLoadStore(MachineType rep) {
     RawMachineAssemblerTester<int32_t> m;
     int32_t OK = 0x29000 + x;
     Node* base = m.PointerConstant(buffer);
-    Node* index0 = m.Int32Constant(x * sizeof(buffer[0]));
+    Node* index0 = m.IntPtrConstant(x * sizeof(buffer[0]));
     Node* load = m.Load(rep, base, index0);
-    Node* index1 = m.Int32Constant(y * sizeof(buffer[0]));
+    Node* index1 = m.IntPtrConstant(y * sizeof(buffer[0]));
     m.Store(rep, base, index1, load);
     m.Return(m.Int32Constant(OK));
 
@@ -3004,6 +3059,42 @@ TEST(RunLoadStore) {
   RunLoadStore<void*>(kMachAnyTagged);
   RunLoadStore<float>(kMachFloat32);
   RunLoadStore<double>(kMachFloat64);
+}
+
+
+TEST(RunFloat32Binop) {
+  RawMachineAssemblerTester<int32_t> m;
+  float result;
+
+  const Operator* ops[] = {m.machine()->Float32Add(), m.machine()->Float32Sub(),
+                           m.machine()->Float32Mul(), m.machine()->Float32Div(),
+                           NULL};
+
+  float inf = std::numeric_limits<float>::infinity();
+  const Operator* inputs[] = {
+      m.common()->Float32Constant(0.0f),   m.common()->Float32Constant(1.0f),
+      m.common()->Float32Constant(1.0f),   m.common()->Float32Constant(0.0f),
+      m.common()->Float32Constant(0.0f),   m.common()->Float32Constant(-1.0f),
+      m.common()->Float32Constant(-1.0f),  m.common()->Float32Constant(0.0f),
+      m.common()->Float32Constant(0.22f),  m.common()->Float32Constant(-1.22f),
+      m.common()->Float32Constant(-1.22f), m.common()->Float32Constant(0.22f),
+      m.common()->Float32Constant(inf),    m.common()->Float32Constant(0.22f),
+      m.common()->Float32Constant(inf),    m.common()->Float32Constant(-inf),
+      NULL};
+
+  for (int i = 0; ops[i] != NULL; i++) {
+    for (int j = 0; inputs[j] != NULL; j += 2) {
+      RawMachineAssemblerTester<int32_t> m;
+      Node* a = m.NewNode(inputs[j]);
+      Node* b = m.NewNode(inputs[j + 1]);
+      Node* binop = m.NewNode(ops[i], a, b);
+      Node* base = m.PointerConstant(&result);
+      Node* zero = m.IntPtrConstant(0);
+      m.Store(kMachFloat32, base, zero, binop);
+      m.Return(m.Int32Constant(i + j));
+      CHECK_EQ(i + j, m.Call());
+    }
+  }
 }
 
 
@@ -3043,6 +3134,23 @@ TEST(RunFloat64Binop) {
 }
 
 
+TEST(RunDeadFloat32Binops) {
+  RawMachineAssemblerTester<int32_t> m;
+
+  const Operator* ops[] = {m.machine()->Float32Add(), m.machine()->Float32Sub(),
+                           m.machine()->Float32Mul(), m.machine()->Float32Div(),
+                           NULL};
+
+  for (int i = 0; ops[i] != NULL; i++) {
+    RawMachineAssemblerTester<int32_t> m;
+    int constant = 0x53355 + i;
+    m.NewNode(ops[i], m.Float32Constant(0.1f), m.Float32Constant(1.11f));
+    m.Return(m.Int32Constant(constant));
+    CHECK_EQ(constant, m.Call());
+  }
+}
+
+
 TEST(RunDeadFloat64Binops) {
   RawMachineAssemblerTester<int32_t> m;
 
@@ -3060,6 +3168,21 @@ TEST(RunDeadFloat64Binops) {
 }
 
 
+TEST(RunFloat32AddP) {
+  RawMachineAssemblerTester<int32_t> m;
+  Float32BinopTester bt(&m);
+
+  bt.AddReturn(m.Float32Add(bt.param0, bt.param1));
+
+  FOR_FLOAT32_INPUTS(pl) {
+    FOR_FLOAT32_INPUTS(pr) {
+      float expected = *pl + *pr;
+      CheckFloatEq(expected, bt.call(*pl, *pr));
+    }
+  }
+}
+
+
 TEST(RunFloat64AddP) {
   RawMachineAssemblerTester<int32_t> m;
   Float64BinopTester bt(&m);
@@ -3070,6 +3193,61 @@ TEST(RunFloat64AddP) {
     FOR_FLOAT64_INPUTS(pr) {
       double expected = *pl + *pr;
       CheckDoubleEq(expected, bt.call(*pl, *pr));
+    }
+  }
+}
+
+
+TEST(RunFloat32SubP) {
+  RawMachineAssemblerTester<int32_t> m;
+  Float32BinopTester bt(&m);
+
+  bt.AddReturn(m.Float32Sub(bt.param0, bt.param1));
+
+  FOR_FLOAT32_INPUTS(pl) {
+    FOR_FLOAT32_INPUTS(pr) {
+      float expected = *pl - *pr;
+      CheckFloatEq(expected, bt.call(*pl, *pr));
+    }
+  }
+}
+
+
+TEST(RunFloat32SubImm1) {
+  float input = 0.0f;
+  float output = 0.0f;
+
+  FOR_FLOAT32_INPUTS(i) {
+    RawMachineAssemblerTester<int32_t> m;
+    Node* t0 = m.LoadFromPointer(&input, kMachFloat32);
+    Node* t1 = m.Float32Sub(m.Float32Constant(*i), t0);
+    m.StoreToPointer(&output, kMachFloat32, t1);
+    m.Return(m.Int32Constant(0));
+    FOR_FLOAT32_INPUTS(j) {
+      input = *j;
+      float expected = *i - input;
+      CHECK_EQ(0, m.Call());
+      CheckFloatEq(expected, output);
+    }
+  }
+}
+
+
+TEST(RunFloat32SubImm2) {
+  float input = 0.0f;
+  float output = 0.0f;
+
+  FOR_FLOAT32_INPUTS(i) {
+    RawMachineAssemblerTester<int32_t> m;
+    Node* t0 = m.LoadFromPointer(&input, kMachFloat32);
+    Node* t1 = m.Float32Sub(t0, m.Float32Constant(*i));
+    m.StoreToPointer(&output, kMachFloat32, t1);
+    m.Return(m.Int32Constant(0));
+    FOR_FLOAT32_INPUTS(j) {
+      input = *j;
+      float expected = input - *i;
+      CHECK_EQ(0, m.Call());
+      CheckFloatEq(expected, output);
     }
   }
 }
@@ -3125,6 +3303,21 @@ TEST(RunFloat64SubImm2) {
       double expected = input - *i;
       CHECK_EQ(0, m.Call());
       CheckDoubleEq(expected, output);
+    }
+  }
+}
+
+
+TEST(RunFloat32MulP) {
+  RawMachineAssemblerTester<int32_t> m;
+  Float32BinopTester bt(&m);
+
+  bt.AddReturn(m.Float32Mul(bt.param0, bt.param1));
+
+  FOR_FLOAT32_INPUTS(pl) {
+    FOR_FLOAT32_INPUTS(pr) {
+      float expected = *pl * *pr;
+      CheckFloatEq(expected, bt.call(*pl, *pr));
     }
   }
 }
@@ -3259,6 +3452,21 @@ TEST(RunFloat64MulImm) {
         CHECK_EQ(0, m.Call());
         CheckDoubleEq(expected, output);
       }
+    }
+  }
+}
+
+
+TEST(RunFloat32DivP) {
+  RawMachineAssemblerTester<int32_t> m;
+  Float32BinopTester bt(&m);
+
+  bt.AddReturn(m.Float32Div(bt.param0, bt.param1));
+
+  FOR_FLOAT32_INPUTS(pl) {
+    FOR_FLOAT32_INPUTS(pr) {
+      float expected = *pl / *pr;
+      CheckFloatEq(expected, bt.call(*pl, *pr));
     }
   }
 }
@@ -3616,6 +3824,31 @@ TEST(RunLoopPhiInduction2) {
   m.Return(phi);
 
   CHECK_EQ(false_val, m.Call());
+}
+
+
+TEST(RunFloatDiamond) {
+  RawMachineAssemblerTester<int32_t> m;
+
+  const int magic = 99645;
+  float buffer = 0.1f;
+  float constant = 99.99f;
+
+  MLabel blocka, blockb, end;
+  Node* k1 = m.Float32Constant(constant);
+  Node* k2 = m.Float32Constant(0 - constant);
+  m.Branch(m.Int32Constant(0), &blocka, &blockb);
+  m.Bind(&blocka);
+  m.Goto(&end);
+  m.Bind(&blockb);
+  m.Goto(&end);
+  m.Bind(&end);
+  Node* phi = m.Phi(kMachFloat32, k2, k1);
+  m.Store(kMachFloat32, m.PointerConstant(&buffer), m.IntPtrConstant(0), phi);
+  m.Return(m.Int32Constant(magic));
+
+  CHECK_EQ(magic, m.Call());
+  CHECK(constant == buffer);
 }
 
 
@@ -4709,6 +4942,38 @@ TEST(RunFloat64InsertHighWord32) {
       CHECK_EQ(0, m.Call(*j));
       CHECK_EQ(expected, result);
     }
+  }
+}
+
+
+TEST(RunFloat32Abs) {
+  float input = -1.0;
+  float result = 0.0;
+  RawMachineAssemblerTester<int32_t> m;
+  m.StoreToPointer(&result, kMachFloat32,
+                   m.Float32Abs(m.LoadFromPointer(&input, kMachFloat32)));
+  m.Return(m.Int32Constant(0));
+  FOR_FLOAT32_INPUTS(i) {
+    input = *i;
+    float expected = std::abs(input);
+    CHECK_EQ(0, m.Call());
+    CheckFloatEq(expected, result);
+  }
+}
+
+
+TEST(RunFloat64Abs) {
+  double input = -1.0;
+  double result = 0.0;
+  RawMachineAssemblerTester<int32_t> m;
+  m.StoreToPointer(&result, kMachFloat64,
+                   m.Float64Abs(m.LoadFromPointer(&input, kMachFloat64)));
+  m.Return(m.Int32Constant(0));
+  FOR_FLOAT64_INPUTS(i) {
+    input = *i;
+    double expected = std::abs(input);
+    CHECK_EQ(0, m.Call());
+    CheckDoubleEq(expected, result);
   }
 }
 
