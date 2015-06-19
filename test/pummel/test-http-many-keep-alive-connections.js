@@ -19,8 +19,7 @@ server.once('connection', function(c) {
   connection = c;
 });
 
-server.listen(common.PORT, function() {
-  var callee = arguments.callee;
+server.listen(common.PORT, function connect() {
   var request = http.get({
     port: common.PORT,
     path: '/',
@@ -30,7 +29,7 @@ server.listen(common.PORT, function() {
   }, function(res) {
     res.on('end', function() {
       if (++responses < expected) {
-        callee();
+        connect();
       } else {
         server.close();
       }
