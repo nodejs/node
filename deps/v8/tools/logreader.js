@@ -36,9 +36,11 @@
  * @param {Array.<Object>} dispatchTable A table used for parsing and processing
  *     log records.
  * @param {boolean} timedRange Ignore ticks outside timed range.
+ * @param {boolean} pairwiseTimedRange Ignore ticks outside pairs of timer
+ *     markers.
  * @constructor
  */
-function LogReader(dispatchTable, timedRange) {
+function LogReader(dispatchTable, timedRange, pairwiseTimedRange) {
   /**
    * @type {Array.<Object>}
    */
@@ -48,6 +50,14 @@ function LogReader(dispatchTable, timedRange) {
    * @type {boolean}
    */
   this.timedRange_ = timedRange;
+
+  /**
+   * @type {boolean}
+   */
+  this.pairwiseTimedRange_ = pairwiseTimedRange;
+  if (pairwiseTimedRange) {
+    this.timedRange_ = true;
+  }
 
   /**
    * Current line.
@@ -109,6 +119,10 @@ LogReader.prototype.processLogLine = function(line) {
     if (this.hasSeenTimerMarker_) {
       this.processLog_(this.logLinesSinceLastTimerMarker_);
       this.logLinesSinceLastTimerMarker_ = [];
+      // In pairwise mode, a "current-time" line ends the timed range.
+      if (this.pairwiseTimedRange_) {
+        this.hasSeenTimerMarker_ = false;
+      }
     } else {
       this.hasSeenTimerMarker_ = true;
     }

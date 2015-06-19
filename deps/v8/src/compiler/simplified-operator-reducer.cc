@@ -100,6 +100,21 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       if (m.HasValue()) return ReplaceNumber(FastUI2D(m.Value()));
       break;
     }
+    case IrOpcode::kStoreField: {
+      // TODO(turbofan): Poor man's store elimination, remove this once we have
+      // a fully featured store elimination in place.
+      Node* const effect = node->InputAt(2);
+      if (effect->op()->Equals(node->op()) && effect->OwnedBy(node) &&
+          effect->InputAt(0) == node->InputAt(0)) {
+        // The {effect} is a store to the same field in the same object, and
+        // {node} is the only effect observer, so we can kill {effect} and
+        // instead make {node} depend on the incoming effect to {effect}.
+        node->ReplaceInput(2, effect->InputAt(2));
+        effect->Kill();
+        return Changed(node);
+      }
+      break;
+    }
     default:
       break;
   }

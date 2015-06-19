@@ -54,19 +54,26 @@ using v8::internal::StrLength;
 namespace {
 
 
+#define SETUP_FLAGS()                            \
+  bool saved_log = i::FLAG_log;                  \
+  bool saved_prof = i::FLAG_prof;                \
+  i::FLAG_log = true;                            \
+  i::FLAG_prof = true;                           \
+  i::FLAG_logfile = i::Log::kLogToTemporaryFile; \
+  i::FLAG_logfile_per_isolate = false
+
+
 class ScopedLoggerInitializer {
  public:
-  ScopedLoggerInitializer()
-      : saved_log_(i::FLAG_log),
-        saved_prof_(i::FLAG_prof),
+  ScopedLoggerInitializer(bool saved_log, bool saved_prof, v8::Isolate* isolate)
+      : saved_log_(saved_log),
+        saved_prof_(saved_prof),
         temp_file_(NULL),
-        // Need to run this prior to creating the scope.
-        trick_to_run_init_flags_(init_flags_()),
-        isolate_(v8::Isolate::New()),
-        isolate_scope_(isolate_),
-        scope_(isolate_),
-        env_(v8::Context::New(isolate_)),
-        logger_(reinterpret_cast<i::Isolate*>(isolate_)->logger()) {
+        isolate_(isolate),
+        isolate_scope_(isolate),
+        scope_(isolate),
+        env_(v8::Context::New(isolate)),
+        logger_(reinterpret_cast<i::Isolate*>(isolate)->logger()) {
     env_->Enter();
   }
 
@@ -93,18 +100,9 @@ class ScopedLoggerInitializer {
   }
 
  private:
-  static bool init_flags_() {
-    i::FLAG_log = true;
-    i::FLAG_prof = true;
-    i::FLAG_logfile = i::Log::kLogToTemporaryFile;
-    i::FLAG_logfile_per_isolate = false;
-    return false;
-  }
-
   const bool saved_log_;
   const bool saved_prof_;
   FILE* temp_file_;
-  const bool trick_to_run_init_flags_;
   v8::Isolate* isolate_;
   v8::Isolate::Scope isolate_scope_;
   v8::HandleScope scope_;
@@ -192,7 +190,7 @@ class LoopingJsThread : public LoopingThread {
             "var j; for (var i=0; i<10000; ++i) { j = Math.sin(i); }");
       }
       context.Dispose();
-      i::OS::Sleep(1);
+      i::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(1));
     }
   }
 };
@@ -212,7 +210,7 @@ class LoopingNonJsThread : public LoopingThread {
     SignalRunning();
     while (IsRunning()) {
       i = std::sin(i);
-      i::OS::Sleep(1);
+      i::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(1));
     }
   }
 };
@@ -337,10 +335,12 @@ static void ObjMethod1(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 
 TEST(LogCallbacks) {
-  v8::Isolate* isolate;
+  SETUP_FLAGS();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   {
-    ScopedLoggerInitializer initialize_logger;
-    isolate = initialize_logger.isolate();
+    ScopedLoggerInitializer initialize_logger(saved_log, saved_prof, isolate);
     Logger* logger = initialize_logger.logger();
 
     v8::Local<v8::FunctionTemplate> obj = v8::Local<v8::FunctionTemplate>::New(
@@ -390,10 +390,12 @@ static void Prop2Getter(v8::Local<v8::String> property,
 
 
 TEST(LogAccessorCallbacks) {
-  v8::Isolate* isolate;
+  SETUP_FLAGS();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   {
-    ScopedLoggerInitializer initialize_logger;
-    isolate = initialize_logger.isolate();
+    ScopedLoggerInitializer initialize_logger(saved_log, saved_prof, isolate);
     Logger* logger = initialize_logger.logger();
 
     v8::Local<v8::FunctionTemplate> obj = v8::Local<v8::FunctionTemplate>::New(
@@ -446,10 +448,12 @@ TEST(EquivalenceOfLoggingAndTraversal) {
   // are using V8.
 
   // Start with profiling to capture all code events from the beginning.
-  v8::Isolate* isolate;
+  SETUP_FLAGS();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   {
-    ScopedLoggerInitializer initialize_logger;
-    isolate = initialize_logger.isolate();
+    ScopedLoggerInitializer initialize_logger(saved_log, saved_prof, isolate);
     Logger* logger = initialize_logger.logger();
 
     // Compile and run a function that creates other functions.
@@ -508,10 +512,12 @@ TEST(EquivalenceOfLoggingAndTraversal) {
 
 
 TEST(LogVersion) {
-  v8::Isolate* isolate;
+  SETUP_FLAGS();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   {
-    ScopedLoggerInitializer initialize_logger;
-    isolate = initialize_logger.isolate();
+    ScopedLoggerInitializer initialize_logger(saved_log, saved_prof, isolate);
     bool exists = false;
     i::Vector<const char> log(
         i::ReadFile(initialize_logger.StopLoggingGetTempFile(), &exists, true));

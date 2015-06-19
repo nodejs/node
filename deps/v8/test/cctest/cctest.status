@@ -91,26 +91,39 @@
   # Fails sometimes.
   'test-debug/ProcessDebugMessagesThreaded': [PASS, FLAKY],
 
+  # BUG(2340). Preprocessing stack traces is disabled at the moment.
+  'test-heap/PreprocessStackTrace': [FAIL],
+
   ##############################################################################
   # TurboFan compiler failures.
+
+  # TODO(mstarzinger): control edges are messed up in exception tests.
+  'test-run-jsexceptions/*': [PASS, NO_VARIANTS],
 
   # Some tests are just too slow to run for now.
   'test-api/Threading*': [PASS, NO_VARIANTS],
   'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [PASS, NO_VARIANTS],
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, NO_VARIANTS],
+  'test-serialize/SerializeToplevelLargeCodeObject': [PASS, NO_VARIANTS],
   'test-debug/ThreadedDebugging': [PASS, NO_VARIANTS],
   'test-debug/DebugBreakLoop': [PASS, NO_VARIANTS],
   # BUG(3742).
   'test-mark-compact/MarkCompactCollector': [PASS, ['arch==arm', NO_VARIANTS]],
+
+  # TODO(mstarzinger): The rewriter is not being called when top-level code is
+  # optimized and hence scripts don't "return" the correct value. Fix this.
+  'test-compiler/CompileFunctionInContext*': [PASS, NO_VARIANTS],
+
+  # TODO(mstarzinger): Crankshaft messes with debugger, investigate and fix!
+  'test-debug/BreakPointThroughJavaScript': [PASS, NO_VARIANTS],  # in no-snap mode.
+  'test-debug/ScriptBreakPointByIdThroughJavaScript': [PASS, NO_VARIANTS],
+  'test-debug/ScriptBreakPointByNameThroughJavaScript': [PASS, NO_VARIANTS],
 
   # TODO(jarin): Cannot lazy-deoptimize from conversions before comparisons.
   'test-js-typed-lowering/OrderCompareEffects': [SKIP],
 
   # TODO(jochen): Reenable after we removed the CHECK() from the marking queue.
   'test-mark-compact/MarkingDeque': [SKIP],
-
-  'test-heap/TestInternalWeakLists': [PASS, ['arch==arm', NO_VARIANTS]],
-  'test-heap/TestInternalWeakListsTraverseWithGC': [PASS, ['arch==arm', NO_VARIANTS]],
 
   ############################################################################
   # Slow tests.
@@ -119,6 +132,9 @@
   'test-api/Threading3': [PASS, ['mode == debug', SLOW]],
   'test-api/Threading4': [PASS, ['mode == debug', SLOW]],
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
+
+  # TODO(machenbach, mvstanton): Flaky in debug on all platforms.
+  'test-lockers/LockerUnlocker': [PASS, ['mode == debug', FLAKY]],
 }],  # ALWAYS
 
 ##############################################################################
@@ -173,6 +189,12 @@
   # Skip tests not suitable for ASAN.
   'test-assembler-x64/AssemblerX64XchglOperations': [SKIP],
 }],  # 'asan == True'
+
+##############################################################################
+['msan == True', {
+  # ICU upstream issues.
+  'test-strings/CountBreakIterator': [SKIP],
+}],  # 'msan == True'
 
 ##############################################################################
 ['no_snap == True', {
@@ -250,6 +272,7 @@
 
   # TODO(mips-team): Currently fails on mips board.
   'test-simplified-lowering/RunNumberMultiply_TruncatingToUint32': [SKIP],
+  'test-simplified-lowering/RunNumberDivide_2_TruncatingToUint32': [SKIP],
   'test-parsing/TooManyArguments': [SKIP],
   'test-api/Threading3': [SKIP],
   'test-api/RequestInterruptTestWithNativeAccessor': [SKIP],
@@ -393,6 +416,14 @@
   'test-accessors/Gc' : [SKIP],
 
 }],  # 'arch == nacl_ia32 or arch == nacl_x64'
+
+##############################################################################
+['system == aix and arch == ppc64', {
+
+  # BUG 2857
+  'test-log/EquivalenceOfLoggingAndTraversal' : [SKIP],
+
+}],  # 'system == aix and arch == ppc64'
 
 ##############################################################################
 ['arch == ppc and simulator_run == True or arch == ppc64 and simulator_run == True', {

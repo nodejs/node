@@ -146,5 +146,12 @@ void ContextOnlyDescriptor::Initialize(CallInterfaceDescriptorData* data) {
   data->Initialize(arraysize(registers), registers, NULL);
 }
 
+
+void GrowArrayElementsDescriptor::Initialize(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {ContextRegister(), ObjectRegister(), KeyRegister(),
+                          CapacityRegister()};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
 }
 }  // namespace v8::internal

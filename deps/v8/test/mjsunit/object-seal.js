@@ -25,33 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Tests the Object.seal and Object.isSealed methods - ES 15.2.3.9 and
-// ES 15.2.3.12
+// Tests the Object.seal and Object.isSealed methods - ES 19.1.2.17 and
+// ES 19.1.2.13
 
 // Flags: --allow-natives-syntax --noalways-opt
 
-// Test that we throw an error if an object is not passed as argument.
-var non_objects = new Array(undefined, null, 1, -1, 0, 42.43);
+// Test that we return obj if non-object is passed as argument
+var non_objects = new Array(undefined, null, 1, -1, 0, 42.43, Symbol("test"));
 for (var key in non_objects) {
-  var exception = false;
-  try {
-    Object.seal(non_objects[key]);
-  } catch(e) {
-    exception = true;
-    assertTrue(/Object.seal called on non-object/.test(e));
-  }
-  assertTrue(exception);
+  assertSame(non_objects[key], Object.seal(non_objects[key]));
 }
 
+// Test that isFrozen always returns true for non-objects
 for (var key in non_objects) {
-  exception = false;
-  try {
-    Object.isSealed(non_objects[key]);
-  } catch(e) {
-    exception = true;
-    assertTrue(/Object.isSealed called on non-object/.test(e));
-  }
-  assertTrue(exception);
+  assertTrue(Object.isSealed(non_objects[key]));
 }
 
 // Test normal data properties.
@@ -396,3 +383,9 @@ assertTrue(%HasFastProperties(obj));
 Object.seal(obj);
 assertTrue(%HasFastProperties(obj));
 assertTrue(Object.isSealed(obj));
+
+function Sealed() {}
+Object.seal(Sealed);
+assertDoesNotThrow(function() { return new Sealed(); });
+Sealed.prototype.prototypeExists = true;
+assertTrue((new Sealed()).prototypeExists);

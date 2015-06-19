@@ -2,22 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+(function(global, shared, exports) {
+
 "use strict";
 
-// This file relies on the fact that the following declarations have been made
-// in runtime.js:
-// var $Function = global.Function;
+%CheckIsBootstrapping();
+
+var GlobalFunction = global.Function;
 
 // ----------------------------------------------------------------------------
-
 
 // Generator functions and objects are specified by ES6, sections 15.19.3 and
 // 15.19.4.
 
 function GeneratorObjectNext(value) {
   if (!IS_GENERATOR(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['[Generator].prototype.next', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        '[Generator].prototype.next', this);
   }
 
   var continuation = %GeneratorGetContinuation(this);
@@ -35,14 +36,15 @@ function GeneratorObjectNext(value) {
     return { value: void 0, done: true };
   } else {
     // Generator is running.
-    throw MakeTypeError('generator_running', []);
+    throw MakeTypeError(kGeneratorRunning);
   }
 }
 
+
 function GeneratorObjectThrow(exn) {
   if (!IS_GENERATOR(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['[Generator].prototype.throw', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        '[Generator].prototype.throw', this);
   }
 
   var continuation = %GeneratorGetContinuation(this);
@@ -59,55 +61,53 @@ function GeneratorObjectThrow(exn) {
     throw exn;
   } else {
     // Generator is running.
-    throw MakeTypeError('generator_running', []);
+    throw MakeTypeError(kGeneratorRunning);
   }
 }
+
 
 function GeneratorObjectIterator() {
   return this;
 }
 
-function GeneratorFunctionPrototypeConstructor(x) {
-  if (%_IsConstructCall()) {
-    throw MakeTypeError('not_constructor', ['GeneratorFunctionPrototype']);
-  }
-}
 
 function GeneratorFunctionConstructor(arg1) {  // length == 1
-  return NewFunctionFromString(arguments, 'function*');
+  var source = $newFunctionString(arguments, 'function*');
+  var global_proxy = %GlobalProxy(GeneratorFunctionConstructor);
+  // Compile the string in the constructor and not a helper so that errors
+  // appear to come from here.
+  var f = %_CallFunction(global_proxy, %CompileString(source, true));
+  %FunctionMarkNameShouldPrintAsAnonymous(f);
+  return f;
 }
 
+// ----------------------------------------------------------------------------
 
-function SetUpGenerators() {
-  %CheckIsBootstrapping();
+// Both Runtime_GeneratorNext and Runtime_GeneratorThrow are supported by
+// neither Crankshaft nor TurboFan, disable optimization of wrappers here.
+%NeverOptimizeFunction(GeneratorObjectNext);
+%NeverOptimizeFunction(GeneratorObjectThrow);
 
-  // Both Runtime_GeneratorNext and Runtime_GeneratorThrow are supported by
-  // neither Crankshaft nor TurboFan, disable optimization of wrappers here.
-  %NeverOptimizeFunction(GeneratorObjectNext);
-  %NeverOptimizeFunction(GeneratorObjectThrow);
+// Set up non-enumerable functions on the generator prototype object.
+var GeneratorObjectPrototype = GeneratorFunctionPrototype.prototype;
+$installFunctions(GeneratorObjectPrototype,
+                 DONT_ENUM,
+                 ["next", GeneratorObjectNext,
+                  "throw", GeneratorObjectThrow]);
 
-  // Set up non-enumerable functions on the generator prototype object.
-  var GeneratorObjectPrototype = GeneratorFunctionPrototype.prototype;
-  InstallFunctions(GeneratorObjectPrototype,
-                   DONT_ENUM | DONT_DELETE | READ_ONLY,
-                   ["next", GeneratorObjectNext,
-                    "throw", GeneratorObjectThrow]);
+$setFunctionName(GeneratorObjectIterator, symbolIterator);
+%AddNamedProperty(GeneratorObjectPrototype, symbolIterator,
+    GeneratorObjectIterator, DONT_ENUM | DONT_DELETE | READ_ONLY);
+%AddNamedProperty(GeneratorObjectPrototype, "constructor",
+    GeneratorFunctionPrototype, DONT_ENUM | READ_ONLY);
+%AddNamedProperty(GeneratorObjectPrototype,
+    symbolToStringTag, "Generator", DONT_ENUM | READ_ONLY);
+%InternalSetPrototype(GeneratorFunctionPrototype, GlobalFunction.prototype);
+%AddNamedProperty(GeneratorFunctionPrototype,
+    symbolToStringTag, "GeneratorFunction", DONT_ENUM | READ_ONLY);
+%AddNamedProperty(GeneratorFunctionPrototype, "constructor",
+    GeneratorFunction, DONT_ENUM | READ_ONLY);
+%InternalSetPrototype(GeneratorFunction, GlobalFunction);
+%SetCode(GeneratorFunction, GeneratorFunctionConstructor);
 
-  %FunctionSetName(GeneratorObjectIterator, '[Symbol.iterator]');
-  %AddNamedProperty(GeneratorObjectPrototype, symbolIterator,
-      GeneratorObjectIterator, DONT_ENUM | DONT_DELETE | READ_ONLY);
-  %AddNamedProperty(GeneratorObjectPrototype, "constructor",
-      GeneratorFunctionPrototype, DONT_ENUM | READ_ONLY);
-  %AddNamedProperty(GeneratorObjectPrototype,
-      symbolToStringTag, "Generator", DONT_ENUM | READ_ONLY);
-  %InternalSetPrototype(GeneratorFunctionPrototype, $Function.prototype);
-  %AddNamedProperty(GeneratorFunctionPrototype,
-      symbolToStringTag, "GeneratorFunction", DONT_ENUM | READ_ONLY);
-  %SetCode(GeneratorFunctionPrototype, GeneratorFunctionPrototypeConstructor);
-  %AddNamedProperty(GeneratorFunctionPrototype, "constructor",
-      GeneratorFunction, DONT_ENUM | READ_ONLY);
-  %InternalSetPrototype(GeneratorFunction, $Function);
-  %SetCode(GeneratorFunction, GeneratorFunctionConstructor);
-}
-
-SetUpGenerators();
+})

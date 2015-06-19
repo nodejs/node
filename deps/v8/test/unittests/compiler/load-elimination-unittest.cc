@@ -15,7 +15,7 @@ namespace compiler {
 class LoadEliminationTest : public GraphTest {
  public:
   LoadEliminationTest() : GraphTest(3), simplified_(zone()) {}
-  ~LoadEliminationTest() OVERRIDE {}
+  ~LoadEliminationTest() override {}
 
  protected:
   Reduction Reduce(Node* node) {

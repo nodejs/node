@@ -440,8 +440,6 @@ class Debug {
   void SetMessageHandler(v8::Debug::MessageHandler handler);
   void EnqueueCommandMessage(Vector<const uint16_t> command,
                              v8::Debug::ClientData* client_data = NULL);
-  // Enqueue a debugger command to the command queue for event listeners.
-  void EnqueueDebugCommand(v8::Debug::ClientData* client_data = NULL);
   MUST_USE_RESULT MaybeHandle<Object> Call(Handle<JSFunction> fun,
                                            Handle<Object> data);
   Handle<Context> GetDebugContext();
@@ -669,7 +667,6 @@ class Debug {
   static const int kQueueInitialSize = 4;
   base::Semaphore command_received_;  // Signaled for each command received.
   LockingCommandMessageQueue command_queue_;
-  LockingCommandMessageQueue event_command_queue_;
 
   bool is_active_;
   bool is_suppressed_;

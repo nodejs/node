@@ -183,7 +183,8 @@ class ElementsAccessor {
  protected:
   friend class SloppyArgumentsElementsAccessor;
 
-  virtual uint32_t GetCapacity(Handle<FixedArrayBase> backing_store) = 0;
+  virtual uint32_t GetCapacity(Handle<JSObject> holder,
+                               Handle<FixedArrayBase> backing_store) = 0;
 
   // Element handlers distinguish between indexes and keys when they manipulate
   // elements.  Indexes refer to elements in terms of their location in the

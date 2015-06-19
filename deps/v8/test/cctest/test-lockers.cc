@@ -98,7 +98,9 @@ class KangarooThread : public v8::base::Thread {
 
 // Migrates an isolate from one thread to another
 TEST(KangarooIsolates) {
-  v8::Isolate* isolate = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   i::SmartPointer<KangarooThread> thread1;
   {
     v8::Locker locker(isolate);
@@ -209,13 +211,16 @@ static void StartJoinAndDeleteThreads(const i::List<JoinableThread*>& threads) {
 
 // Run many threads all locking on the same isolate
 TEST(IsolateLockingStress) {
+  i::FLAG_always_opt = false;
 #if V8_TARGET_ARCH_MIPS
   const int kNThreads = 50;
 #else
   const int kNThreads = 100;
 #endif
   i::List<JoinableThread*> threads(kNThreads);
-  v8::Isolate* isolate = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   for (int i = 0; i < kNThreads; i++) {
     threads.Add(new IsolateLockingThreadWithLocalContext(isolate));
   }
@@ -250,12 +255,15 @@ class IsolateNestedLockingThread : public JoinableThread {
 
 // Run  many threads with nested locks
 TEST(IsolateNestedLocking) {
+  i::FLAG_always_opt = false;
 #if V8_TARGET_ARCH_MIPS
   const int kNThreads = 50;
 #else
   const int kNThreads = 100;
 #endif
-  v8::Isolate* isolate = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   i::List<JoinableThread*> threads(kNThreads);
   for (int i = 0; i < kNThreads; i++) {
     threads.Add(new IsolateNestedLockingThread(isolate));
@@ -292,13 +300,16 @@ class SeparateIsolatesLocksNonexclusiveThread : public JoinableThread {
 
 // Run parallel threads that lock and access different isolates in parallel
 TEST(SeparateIsolatesLocksNonexclusive) {
+  i::FLAG_always_opt = false;
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
   const int kNThreads = 50;
 #else
   const int kNThreads = 100;
 #endif
-  v8::Isolate* isolate1 = v8::Isolate::New();
-  v8::Isolate* isolate2 = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate1 = v8::Isolate::New(create_params);
+  v8::Isolate* isolate2 = v8::Isolate::New(create_params);
   i::List<JoinableThread*> threads(kNThreads);
   for (int i = 0; i < kNThreads; i++) {
     threads.Add(new SeparateIsolatesLocksNonexclusiveThread(isolate1,
@@ -369,13 +380,16 @@ class LockerUnlockerThread : public JoinableThread {
 
 // Use unlocker inside of a Locker, multiple threads.
 TEST(LockerUnlocker) {
+  i::FLAG_always_opt = false;
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
   const int kNThreads = 50;
 #else
   const int kNThreads = 100;
 #endif
   i::List<JoinableThread*> threads(kNThreads);
-  v8::Isolate* isolate = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   for (int i = 0; i < kNThreads; i++) {
     threads.Add(new LockerUnlockerThread(isolate));
   }
@@ -423,13 +437,16 @@ class LockTwiceAndUnlockThread : public JoinableThread {
 
 // Use Unlocker inside two Lockers.
 TEST(LockTwiceAndUnlock) {
+  i::FLAG_always_opt = false;
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
   const int kNThreads = 50;
 #else
   const int kNThreads = 100;
 #endif
   i::List<JoinableThread*> threads(kNThreads);
-  v8::Isolate* isolate = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   for (int i = 0; i < kNThreads; i++) {
     threads.Add(new LockTwiceAndUnlockThread(isolate));
   }
@@ -491,8 +508,10 @@ class LockAndUnlockDifferentIsolatesThread : public JoinableThread {
 
 // Lock two isolates and unlock one of them.
 TEST(LockAndUnlockDifferentIsolates) {
-  v8::Isolate* isolate1 = v8::Isolate::New();
-  v8::Isolate* isolate2 = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate1 = v8::Isolate::New(create_params);
+  v8::Isolate* isolate2 = v8::Isolate::New(create_params);
   LockAndUnlockDifferentIsolatesThread thread(isolate1, isolate2);
   thread.Start();
   thread.Join();
@@ -551,7 +570,9 @@ TEST(LockUnlockLockMultithreaded) {
 #else
   const int kNThreads = 100;
 #endif
-  v8::Isolate* isolate = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   i::List<JoinableThread*> threads(kNThreads);
   {
     v8::Locker locker_(isolate);
@@ -626,7 +647,9 @@ TEST(LockUnlockLockDefaultIsolateMultithreaded) {
 
 TEST(Regress1433) {
   for (int i = 0; i < 10; i++) {
-    v8::Isolate* isolate = v8::Isolate::New();
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
     {
       v8::Locker lock(isolate);
       v8::Isolate::Scope isolate_scope(isolate);
@@ -657,7 +680,9 @@ class IsolateGenesisThread : public JoinableThread {
   {}
 
   virtual void Run() {
-    v8::Isolate* isolate = v8::Isolate::New();
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
     {
       v8::Isolate::Scope isolate_scope(isolate);
       CHECK(!i::Isolate::Current()->has_installed_extensions());
@@ -668,6 +693,7 @@ class IsolateGenesisThread : public JoinableThread {
     }
     isolate->Dispose();
   }
+
  private:
   int count_;
   const char** extension_names_;

@@ -91,7 +91,7 @@ TEST_F(InstructionSelectorTest, ChangeFloat32ToFloat64WithParameter) {
   m.Return(m.ChangeFloat32ToFloat64(m.Parameter(0)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kSSECvtss2sd, s[0]->arch_opcode());
+  EXPECT_EQ(kSSEFloat32ToFloat64, s[0]->arch_opcode());
   EXPECT_EQ(1U, s[0]->InputCount());
   EXPECT_EQ(1U, s[0]->OutputCount());
 }
@@ -102,7 +102,7 @@ TEST_F(InstructionSelectorTest, TruncateFloat64ToFloat32WithParameter) {
   m.Return(m.TruncateFloat64ToFloat32(m.Parameter(0)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kSSECvtsd2ss, s[0]->arch_opcode());
+  EXPECT_EQ(kSSEFloat64ToFloat32, s[0]->arch_opcode());
   EXPECT_EQ(1U, s[0]->InputCount());
   EXPECT_EQ(1U, s[0]->OutputCount());
 }
@@ -635,6 +635,76 @@ TEST_F(InstructionSelectorTest, Int32MulHigh) {
 }
 
 
+// -----------------------------------------------------------------------------
+// Floating point operations.
+
+
+TEST_F(InstructionSelectorTest, Float32Abs) {
+  {
+    StreamBuilder m(this, kMachFloat32, kMachFloat32);
+    Node* const p0 = m.Parameter(0);
+    Node* const n = m.Float32Abs(p0);
+    m.Return(n);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kSSEFloat32Abs, s[0]->arch_opcode());
+    ASSERT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_TRUE(s.IsSameAsFirst(s[0]->Output()));
+    EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+    EXPECT_EQ(kFlags_none, s[0]->flags_mode());
+  }
+  {
+    StreamBuilder m(this, kMachFloat32, kMachFloat32);
+    Node* const p0 = m.Parameter(0);
+    Node* const n = m.Float32Abs(p0);
+    m.Return(n);
+    Stream s = m.Build(AVX);
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kAVXFloat32Abs, s[0]->arch_opcode());
+    ASSERT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+    EXPECT_EQ(kFlags_none, s[0]->flags_mode());
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Float64Abs) {
+  {
+    StreamBuilder m(this, kMachFloat64, kMachFloat64);
+    Node* const p0 = m.Parameter(0);
+    Node* const n = m.Float64Abs(p0);
+    m.Return(n);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kSSEFloat64Abs, s[0]->arch_opcode());
+    ASSERT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_TRUE(s.IsSameAsFirst(s[0]->Output()));
+    EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+    EXPECT_EQ(kFlags_none, s[0]->flags_mode());
+  }
+  {
+    StreamBuilder m(this, kMachFloat64, kMachFloat64);
+    Node* const p0 = m.Parameter(0);
+    Node* const n = m.Float64Abs(p0);
+    m.Return(n);
+    Stream s = m.Build(AVX);
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kAVXFloat64Abs, s[0]->arch_opcode());
+    ASSERT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+    EXPECT_EQ(kFlags_none, s[0]->flags_mode());
+  }
+}
+
+
 TEST_F(InstructionSelectorTest, Float64BinopArithmetic) {
   {
     StreamBuilder m(this, kMachFloat64, kMachFloat64, kMachFloat64);
@@ -663,6 +733,70 @@ TEST_F(InstructionSelectorTest, Float64BinopArithmetic) {
     EXPECT_EQ(kSSEFloat64Mul, s[1]->arch_opcode());
     EXPECT_EQ(kSSEFloat64Sub, s[2]->arch_opcode());
     EXPECT_EQ(kSSEFloat64Div, s[3]->arch_opcode());
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Float32SubWithMinusZeroAndParameter) {
+  {
+    StreamBuilder m(this, kMachFloat32, kMachFloat32);
+    Node* const p0 = m.Parameter(0);
+    Node* const n = m.Float32Sub(m.Float32Constant(-0.0f), p0);
+    m.Return(n);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kSSEFloat32Neg, s[0]->arch_opcode());
+    ASSERT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+    EXPECT_EQ(kFlags_none, s[0]->flags_mode());
+  }
+  {
+    StreamBuilder m(this, kMachFloat32, kMachFloat32);
+    Node* const p0 = m.Parameter(0);
+    Node* const n = m.Float32Sub(m.Float32Constant(-0.0f), p0);
+    m.Return(n);
+    Stream s = m.Build(AVX);
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kAVXFloat32Neg, s[0]->arch_opcode());
+    ASSERT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+    EXPECT_EQ(kFlags_none, s[0]->flags_mode());
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Float64SubWithMinusZeroAndParameter) {
+  {
+    StreamBuilder m(this, kMachFloat64, kMachFloat64);
+    Node* const p0 = m.Parameter(0);
+    Node* const n = m.Float64Sub(m.Float64Constant(-0.0), p0);
+    m.Return(n);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kSSEFloat64Neg, s[0]->arch_opcode());
+    ASSERT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+    EXPECT_EQ(kFlags_none, s[0]->flags_mode());
+  }
+  {
+    StreamBuilder m(this, kMachFloat64, kMachFloat64);
+    Node* const p0 = m.Parameter(0);
+    Node* const n = m.Float64Sub(m.Float64Constant(-0.0), p0);
+    m.Return(n);
+    Stream s = m.Build(AVX);
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kAVXFloat64Neg, s[0]->arch_opcode());
+    ASSERT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+    EXPECT_EQ(kFlags_none, s[0]->flags_mode());
   }
 }
 

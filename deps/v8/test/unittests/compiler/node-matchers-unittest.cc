@@ -19,7 +19,7 @@ namespace compiler {
 class NodeMatcherTest : public GraphTest {
  public:
   NodeMatcherTest() : machine_(zone()) {}
-  ~NodeMatcherTest() OVERRIDE {}
+  ~NodeMatcherTest() override {}
 
   MachineOperatorBuilder* machine() { return &machine_; }
 
@@ -725,6 +725,224 @@ TEST_F(NodeMatcherTest, ScaledWithOffset64Matcher) {
   BaseWithIndexAndDisplacement64Matcher match50(
       graph()->NewNode(a_op, m3, temp));
   CheckBaseWithIndexAndDisplacement(&match50, m3, 0, b0, d15);
+}
+
+
+TEST_F(NodeMatcherTest, BranchMatcher_match) {
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+
+  {
+    Node* branch = graph()->NewNode(common()->Branch(), zero, graph()->start());
+    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    BranchMatcher matcher(branch);
+    EXPECT_TRUE(matcher.Matched());
+    EXPECT_EQ(branch, matcher.Branch());
+    EXPECT_EQ(if_true, matcher.IfTrue());
+    EXPECT_EQ(if_false, matcher.IfFalse());
+  }
+
+  {
+    Node* branch = graph()->NewNode(common()->Branch(), zero, graph()->start());
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+    BranchMatcher matcher(branch);
+    EXPECT_TRUE(matcher.Matched());
+    EXPECT_EQ(branch, matcher.Branch());
+    EXPECT_EQ(if_true, matcher.IfTrue());
+    EXPECT_EQ(if_false, matcher.IfFalse());
+  }
+
+  {
+    Node* branch = graph()->NewNode(common()->Branch(), zero, graph()->start());
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* other = graph()->NewNode(common()->IfValue(33), branch);
+    BranchMatcher matcher(branch);
+    EXPECT_TRUE(matcher.Matched());
+    EXPECT_EQ(branch, matcher.Branch());
+    EXPECT_EQ(if_true, matcher.IfTrue());
+    EXPECT_EQ(if_false, matcher.IfFalse());
+    USE(other);
+  }
+}
+
+
+TEST_F(NodeMatcherTest, BranchMatcher_fail) {
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+
+  {
+    Node* branch = graph()->NewNode(common()->Branch(), zero, graph()->start());
+    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+    BranchMatcher matcher(branch);
+    EXPECT_FALSE(matcher.Matched());
+    USE(if_true);
+  }
+
+  {
+    Node* branch = graph()->NewNode(common()->Branch(), zero, graph()->start());
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    BranchMatcher matcher(branch);
+    EXPECT_FALSE(matcher.Matched());
+    USE(if_false);
+  }
+
+  {
+    BranchMatcher matcher(zero);
+    EXPECT_FALSE(matcher.Matched());
+  }
+
+  {
+    Node* branch = graph()->NewNode(common()->Branch(), zero, graph()->start());
+    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    EXPECT_TRUE(BranchMatcher(branch).Matched());
+    EXPECT_FALSE(BranchMatcher(if_true).Matched());
+    EXPECT_FALSE(BranchMatcher(if_false).Matched());
+  }
+
+  {
+    Node* sw = graph()->NewNode(common()->Switch(5), zero, graph()->start());
+    Node* if_true = graph()->NewNode(common()->IfTrue(), sw);
+    Node* if_false = graph()->NewNode(common()->IfFalse(), sw);
+    EXPECT_FALSE(BranchMatcher(sw).Matched());
+    EXPECT_FALSE(BranchMatcher(if_true).Matched());
+    EXPECT_FALSE(BranchMatcher(if_false).Matched());
+  }
+
+  {
+    Node* branch = graph()->NewNode(common()->Branch(), zero, graph()->start());
+    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* if_value = graph()->NewNode(common()->IfValue(2), branch);
+    BranchMatcher matcher(branch);
+    EXPECT_FALSE(matcher.Matched());
+    EXPECT_FALSE(BranchMatcher(if_true).Matched());
+    EXPECT_FALSE(BranchMatcher(if_value).Matched());
+  }
+}
+
+
+TEST_F(NodeMatcherTest, DiamondMatcher_match) {
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+
+  {
+    Node* branch = graph()->NewNode(common()->Branch(), zero, graph()->start());
+    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+    DiamondMatcher matcher(merge);
+    EXPECT_TRUE(matcher.Matched());
+    EXPECT_EQ(branch, matcher.Branch());
+    EXPECT_EQ(if_true, matcher.IfTrue());
+    EXPECT_EQ(if_false, matcher.IfFalse());
+    EXPECT_EQ(merge, matcher.Merge());
+  }
+
+  {
+    Node* branch = graph()->NewNode(common()->Branch(), zero, graph()->start());
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+    DiamondMatcher matcher(merge);
+    EXPECT_TRUE(matcher.Matched());
+    EXPECT_EQ(branch, matcher.Branch());
+    EXPECT_EQ(if_true, matcher.IfTrue());
+    EXPECT_EQ(if_false, matcher.IfFalse());
+    EXPECT_EQ(merge, matcher.Merge());
+  }
+
+  {
+    Node* branch = graph()->NewNode(common()->Branch(), zero, graph()->start());
+    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Node* merge = graph()->NewNode(common()->Merge(2), if_false, if_true);
+    DiamondMatcher matcher(merge);
+    EXPECT_TRUE(matcher.Matched());
+    EXPECT_EQ(branch, matcher.Branch());
+    EXPECT_EQ(if_true, matcher.IfTrue());
+    EXPECT_EQ(if_false, matcher.IfFalse());
+    EXPECT_EQ(merge, matcher.Merge());
+  }
+}
+
+
+TEST_F(NodeMatcherTest, DiamondMatcher_fail) {
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+
+  {
+    Node* branch = graph()->NewNode(common()->Branch(), zero, graph()->start());
+    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* if_value = graph()->NewNode(common()->IfValue(1), branch);
+    Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_value);
+    DiamondMatcher matcher(merge);
+    EXPECT_FALSE(matcher.Matched());
+  }
+
+  {
+    Node* branch = graph()->NewNode(common()->Branch(), zero, graph()->start());
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Node* if_value = graph()->NewNode(common()->IfValue(1), branch);
+    Node* merge = graph()->NewNode(common()->Merge(2), if_false, if_value);
+    DiamondMatcher matcher(merge);
+    EXPECT_FALSE(matcher.Matched());
+  }
+
+  {
+    Node* branch = graph()->NewNode(common()->Branch(), zero, graph()->start());
+    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+    DiamondMatcher matcher(merge);
+    EXPECT_TRUE(matcher.Matched());
+    EXPECT_EQ(branch, matcher.Branch());
+    EXPECT_EQ(if_true, matcher.IfTrue());
+    EXPECT_EQ(if_false, matcher.IfFalse());
+    EXPECT_EQ(merge, matcher.Merge());
+
+    EXPECT_FALSE(DiamondMatcher(branch).Matched());  // Must be the merge.
+    EXPECT_FALSE(DiamondMatcher(if_true).Matched());
+    EXPECT_FALSE(DiamondMatcher(if_false).Matched());
+  }
+
+  {
+    Node* branch = graph()->NewNode(common()->Branch(), zero, graph()->start());
+    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Node* merge = graph()->NewNode(common()->Merge(3), if_true, if_false,
+                                   graph()->start());
+    DiamondMatcher matcher(merge);
+    EXPECT_FALSE(matcher.Matched());  // Too many inputs to merge.
+  }
+
+  {
+    Node* branch = graph()->NewNode(common()->Branch(), zero, graph()->start());
+    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* if_false = graph()->start();
+    Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+    DiamondMatcher matcher(merge);
+    EXPECT_FALSE(matcher.Matched());
+  }
+
+  {
+    Node* branch = graph()->NewNode(common()->Branch(), zero, graph()->start());
+    Node* if_true = graph()->start();
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+    DiamondMatcher matcher(merge);
+    EXPECT_FALSE(matcher.Matched());
+  }
+
+  {
+    Node* branch1 =
+        graph()->NewNode(common()->Branch(), zero, graph()->start());
+    Node* branch2 =
+        graph()->NewNode(common()->Branch(), zero, graph()->start());
+    Node* if_true = graph()->NewNode(common()->IfTrue(), branch1);
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch2);
+    Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+    DiamondMatcher matcher(merge);
+    EXPECT_FALSE(matcher.Matched());
+  }
 }
 
 

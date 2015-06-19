@@ -20,7 +20,7 @@ namespace base {
 // other enum value and passed on to a function that takes an int or unsigned
 // int.
 template <typename T, typename S = int>
-class Flags FINAL {
+class Flags final {
  public:
   typedef T flag_type;
   typedef S mask_type;

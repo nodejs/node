@@ -21,7 +21,6 @@ namespace internal {
   V(FunctionName)                 \
   V(FunctionLength)               \
   V(FunctionPrototype)            \
-  V(RegExpSource)                 \
   V(ScriptColumnOffset)           \
   V(ScriptCompilationType)        \
   V(ScriptContextData)            \
@@ -80,6 +79,14 @@ class Accessors : public AllStatic {
   // If true, *object_offset contains offset of object field.
   static bool IsJSObjectFieldAccessor(Handle<Map> map, Handle<Name> name,
                                       int* object_offset);
+
+  // Returns true for properties that are accessors to ArrayBufferView and
+  // derived classes fields. If true, *object_offset contains offset of
+  // object field. The caller still has to check whether the underlying
+  // buffer was neutered.
+  static bool IsJSArrayBufferViewFieldAccessor(Handle<Map> map,
+                                               Handle<Name> name,
+                                               int* object_offset);
 
   static Handle<AccessorInfo> MakeAccessor(
       Isolate* isolate,

@@ -101,7 +101,8 @@ void RawMachineAssembler::Switch(Node* index, Label* default_label,
 
 
 void RawMachineAssembler::Return(Node* value) {
-  schedule()->AddReturn(CurrentBlock(), value);
+  Node* ret = NewNode(common()->Return(), value);
+  schedule()->AddReturn(CurrentBlock(), ret);
   current_block_ = NULL;
 }
 
@@ -183,7 +184,9 @@ Node* RawMachineAssembler::MakeNode(const Operator* op, int input_count,
   Node* node = graph()->NewNode(op, input_count, inputs, incomplete);
   BasicBlock* block = op->opcode() == IrOpcode::kParameter ? schedule()->start()
                                                            : CurrentBlock();
-  schedule()->AddNode(block, node);
+  if (op->opcode() != IrOpcode::kReturn) {
+    schedule()->AddNode(block, node);
+  }
   return node;
 }
 

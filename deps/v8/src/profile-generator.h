@@ -37,16 +37,6 @@ class JITLineInfoTable : public Malloced {
 };
 
 
-struct DeoptInfo {
-  const char* deopt_reason;
-  struct Frame {
-    int script_id;
-    int position;
-  };
-  std::vector<Frame> stack;
-};
-
-
 class CodeEntry {
  public:
   // CodeEntry doesn't own name strings, just references them.
@@ -83,7 +73,7 @@ class CodeEntry {
     deopt_position_ = position;
     pc_offset_ = pc_offset;
   }
-  DeoptInfo GetDeoptInfo();
+  CpuProfileDeoptInfo GetDeoptInfo();
   const char* deopt_reason() const { return deopt_reason_; }
   SourcePosition deopt_position() const { return deopt_position_; }
   bool has_deopt_info() const { return !deopt_position_.IsUnknown(); }
@@ -173,7 +163,9 @@ class ProfileNode {
   bool GetLineTicks(v8::CpuProfileNode::LineTick* entries,
                     unsigned int length) const;
   void CollectDeoptInfo(CodeEntry* entry);
-  const std::vector<DeoptInfo>& deopt_infos() const { return deopt_infos_; }
+  const std::vector<CpuProfileDeoptInfo>& deopt_infos() const {
+    return deopt_infos_;
+  }
 
   void Print(int indent);
 
@@ -196,7 +188,7 @@ class ProfileNode {
   unsigned id_;
   HashMap line_ticks_;
 
-  std::vector<DeoptInfo> deopt_infos_;
+  std::vector<CpuProfileDeoptInfo> deopt_infos_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfileNode);
 };

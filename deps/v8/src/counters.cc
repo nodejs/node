@@ -79,8 +79,25 @@ Counters::Counters(Isolate* isolate) {
     HISTOGRAM_PERCENTAGE_LIST(HP)
 #undef HP
 
+
+// Exponential histogram assigns bucket limits to points
+// p[1], p[2], ... p[n] such that p[i+1] / p[i] = constant.
+// The constant factor is equal to the n-th root of (high / low),
+// where the n is the number of buckets, the low is the lower limit,
+// the high is the upper limit.
+// For n = 50, low = 1000, high = 500000: the factor = 1.13.
 #define HM(name, caption) \
     name##_ = Histogram(#caption, 1000, 500000, 50, isolate);
+  HISTOGRAM_LEGACY_MEMORY_LIST(HM)
+#undef HM
+// For n = 100, low = 4000, high = 2000000: the factor = 1.06.
+#define HM(name, caption) \
+  name##_ = Histogram(#caption, 4000, 2000000, 100, isolate);
+  HISTOGRAM_MEMORY_LIST(HM)
+#undef HM
+
+#define HM(name, caption) \
+  aggregated_##name##_ = AggregatedMemoryHistogram<Histogram>(&name##_);
     HISTOGRAM_MEMORY_LIST(HM)
 #undef HM
 
@@ -173,7 +190,7 @@ void Counters::ResetHistograms() {
 #undef HP
 
 #define HM(name, caption) name##_.Reset();
-    HISTOGRAM_MEMORY_LIST(HM)
+    HISTOGRAM_LEGACY_MEMORY_LIST(HM)
 #undef HM
 }
 

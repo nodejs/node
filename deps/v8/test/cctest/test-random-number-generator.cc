@@ -29,7 +29,6 @@
 #include "test/cctest/cctest.h"
 
 #include "src/base/utils/random-number-generator.h"
-#include "src/isolate-inl.h"
 
 using namespace v8::internal;
 
@@ -40,7 +39,9 @@ static const int64_t kRandomSeeds[] = {-1, 1, 42, 100, 1234567890, 987654321};
 TEST(RandomSeedFlagIsUsed) {
   for (unsigned n = 0; n < arraysize(kRandomSeeds); ++n) {
     FLAG_random_seed = static_cast<int>(kRandomSeeds[n]);
-    v8::Isolate* i = v8::Isolate::New();
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    v8::Isolate* i = v8::Isolate::New(create_params);
     v8::base::RandomNumberGenerator& rng =
         *reinterpret_cast<Isolate*>(i)->random_number_generator();
     CHECK_EQ(kRandomSeeds[n], rng.initial_seed());

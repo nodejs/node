@@ -89,8 +89,9 @@ static bool WaitOnFD(int fd,
   if (total_timeout != -1) {
     struct timeval time_now;
     gettimeofday(&time_now, NULL);
-    int seconds = time_now.tv_sec - start_time.tv_sec;
-    gone = seconds * 1000 + (time_now.tv_usec - start_time.tv_usec) / 1000;
+    time_t seconds = time_now.tv_sec - start_time.tv_sec;
+    gone = static_cast<int>(seconds * 1000 +
+                            (time_now.tv_usec - start_time.tv_usec) / 1000);
     if (gone >= total_timeout) return false;
   }
   FD_ZERO(&readfds);
@@ -125,12 +126,12 @@ static bool TimeIsOut(const struct timeval& start_time, const int& total_time) {
   struct timeval time_now;
   gettimeofday(&time_now, NULL);
   // Careful about overflow.
-  int seconds = time_now.tv_sec - start_time.tv_sec;
+  int seconds = static_cast<int>(time_now.tv_sec - start_time.tv_sec);
   if (seconds > 100) {
     if (seconds * 1000 > total_time) return true;
     return false;
   }
-  int useconds = time_now.tv_usec - start_time.tv_usec;
+  int useconds = static_cast<int>(time_now.tv_usec - start_time.tv_usec);
   if (seconds * 1000000 + useconds > total_time * 1000) {
     return true;
   }
@@ -264,7 +265,7 @@ static void ExecSubprocess(int* exec_error_fds,
   // Only get here if the exec failed.  Write errno to the parent to tell
   // them it went wrong.  If it went well the pipe is closed.
   int err = errno;
-  int bytes_written;
+  ssize_t bytes_written;
   do {
     bytes_written = write(exec_error_fds[kWriteFD], &err, sizeof(err));
   } while (bytes_written == -1 && errno == EINTR);
@@ -275,7 +276,7 @@ static void ExecSubprocess(int* exec_error_fds,
 // Runs in the parent process.  Checks that the child was able to exec (closing
 // the file desriptor), or reports an error if it failed.
 static bool ChildLaunchedOK(Isolate* isolate, int* exec_error_fds) {
-  int bytes_read;
+  ssize_t bytes_read;
   int err;
   do {
     bytes_read = read(exec_error_fds[kReadFD], &err, sizeof(err));
@@ -308,9 +309,8 @@ static Handle<Value> GetStdout(Isolate* isolate,
 
   int bytes_read;
   do {
-    bytes_read = read(child_fd,
-                      buffer + fullness,
-                      kStdoutReadBufferSize - fullness);
+    bytes_read = static_cast<int>(
+        read(child_fd, buffer + fullness, kStdoutReadBufferSize - fullness));
     if (bytes_read == -1) {
       if (errno == EAGAIN) {
         if (!WaitOnFD(child_fd,

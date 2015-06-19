@@ -17,7 +17,7 @@ class Operator;
 class CommonOperatorBuilder;
 
 // A facade that simplifies access to the different kinds of inputs to a node.
-class NodeProperties FINAL {
+class NodeProperties final {
  public:
   // ---------------------------------------------------------------------------
   // Input layout.
@@ -72,6 +72,7 @@ class NodeProperties FINAL {
     return IrOpcode::IsPhiOpcode(node->opcode());
   }
 
+  static bool IsExceptionalCall(Node* node);
 
   // ---------------------------------------------------------------------------
   // Miscellaneous mutators.

@@ -25,7 +25,7 @@ class ControlFlowOptimizerTest : public GraphTest {
         machine_(zone()),
         javascript_(zone()),
         jsgraph_(isolate(), graph(), common(), javascript(), machine()) {}
-  ~ControlFlowOptimizerTest() OVERRIDE {}
+  ~ControlFlowOptimizerTest() override {}
 
  protected:
   void Optimize() {
@@ -76,11 +76,8 @@ TEST_F(ControlFlowOptimizerTest, BuildSwitch1) {
 TEST_F(ControlFlowOptimizerTest, BuildSwitch2) {
   Node* input = Parameter(0);
   Node* context = Parameter(1);
-  Node* index = FLAG_turbo_deoptimization
-                    ? graph()->NewNode(javascript()->ToNumber(), input, context,
-                                       EmptyFrameState(), start(), start())
-                    : graph()->NewNode(javascript()->ToNumber(), input, context,
-                                       start(), start());
+  Node* index = graph()->NewNode(javascript()->ToNumber(), input, context,
+                                 EmptyFrameState(), start(), start());
   Node* if_success = graph()->NewNode(common()->IfSuccess(), index);
   Node* branch0 = graph()->NewNode(
       common()->Branch(),

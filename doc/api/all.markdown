@@ -26,7 +26,6 @@
 @include querystring
 @include readline
 @include repl
-@include smalloc
 @include stream
 @include string_decoder
 @include timers

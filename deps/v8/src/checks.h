@@ -11,7 +11,6 @@
 namespace v8 {
 
 class Value;
-template <class T> class Handle;
 
 namespace internal {
 

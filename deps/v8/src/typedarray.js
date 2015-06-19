@@ -2,15 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+(function(global, shared, exports) {
+
 "use strict";
 
-// This file relies on the fact that the following declaration has been made
-// in runtime.js:
-// var $Array = global.Array;
-var $ArrayBuffer = global.ArrayBuffer;
+%CheckIsBootstrapping();
 
+var GlobalArray = global.Array;
+var GlobalArrayBuffer = global.ArrayBuffer;
+var GlobalDataView = global.DataView;
+var GlobalObject = global.Object;
 
-// --------------- Typed Arrays ---------------------
 macro TYPED_ARRAYS(FUNCTION)
 // arrayIds below should be synchronized with Runtime_TypedArrayInitialize.
 FUNCTION(1, Uint8Array, 1)
@@ -24,14 +26,22 @@ FUNCTION(8, Float64Array, 8)
 FUNCTION(9, Uint8ClampedArray, 1)
 endmacro
 
+macro DECLARE_GLOBALS(INDEX, NAME, SIZE)
+var GlobalNAME = global.NAME;
+endmacro
+
+TYPED_ARRAYS(DECLARE_GLOBALS)
+
+// --------------- Typed Arrays ---------------------
+
 macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
 function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
   if (!IS_UNDEFINED(byteOffset)) {
       byteOffset =
-          ToPositiveInteger(byteOffset,  "invalid_typed_array_length");
+          $toPositiveInteger(byteOffset, kInvalidTypedArrayLength);
   }
   if (!IS_UNDEFINED(length)) {
-      length = ToPositiveInteger(length, "invalid_typed_array_length");
+      length = $toPositiveInteger(length, kInvalidTypedArrayLength);
   }
 
   var bufferByteLength = %_ArrayBufferGetByteLength(buffer);
@@ -42,11 +52,11 @@ function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
     offset = byteOffset;
 
     if (offset % ELEMENT_SIZE !== 0) {
-      throw MakeRangeError("invalid_typed_array_alignment",
-          ["start offset", "NAME", ELEMENT_SIZE]);
+      throw MakeRangeError(kInvalidTypedArrayAlignment,
+                           "start offset", "NAME", ELEMENT_SIZE);
     }
     if (offset > bufferByteLength) {
-      throw MakeRangeError("invalid_typed_array_offset");
+      throw MakeRangeError(kInvalidTypedArrayOffset);
     }
   }
 
@@ -54,8 +64,8 @@ function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
   var newLength;
   if (IS_UNDEFINED(length)) {
     if (bufferByteLength % ELEMENT_SIZE !== 0) {
-      throw MakeRangeError("invalid_typed_array_alignment",
-        ["byte length", "NAME", ELEMENT_SIZE]);
+      throw MakeRangeError(kInvalidTypedArrayAlignment,
+                           "byte length", "NAME", ELEMENT_SIZE);
     }
     newByteLength = bufferByteLength - offset;
     newLength = newByteLength / ELEMENT_SIZE;
@@ -65,20 +75,20 @@ function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
   }
   if ((offset + newByteLength > bufferByteLength)
       || (newLength > %_MaxSmi())) {
-    throw MakeRangeError("invalid_typed_array_length");
+    throw MakeRangeError(kInvalidTypedArrayLength);
   }
   %_TypedArrayInitialize(obj, ARRAY_ID, buffer, offset, newByteLength);
 }
 
 function NAMEConstructByLength(obj, length) {
   var l = IS_UNDEFINED(length) ?
-    0 : ToPositiveInteger(length, "invalid_typed_array_length");
+    0 : $toPositiveInteger(length, kInvalidTypedArrayLength);
   if (l > %_MaxSmi()) {
-    throw MakeRangeError("invalid_typed_array_length");
+    throw MakeRangeError(kInvalidTypedArrayLength);
   }
   var byteLength = l * ELEMENT_SIZE;
   if (byteLength > %_TypedArrayMaxSizeInHeap()) {
-    var buffer = new $ArrayBuffer(byteLength);
+    var buffer = new GlobalArrayBuffer(byteLength);
     %_TypedArrayInitialize(obj, ARRAY_ID, buffer, 0, byteLength);
   } else {
     %_TypedArrayInitialize(obj, ARRAY_ID, null, 0, byteLength);
@@ -87,10 +97,10 @@ function NAMEConstructByLength(obj, length) {
 
 function NAMEConstructByArrayLike(obj, arrayLike) {
   var length = arrayLike.length;
-  var l = ToPositiveInteger(length, "invalid_typed_array_length");
+  var l = $toPositiveInteger(length, kInvalidTypedArrayLength);
 
   if (l > %_MaxSmi()) {
-    throw MakeRangeError("invalid_typed_array_length");
+    throw MakeRangeError(kInvalidTypedArrayLength);
   }
   if(!%TypedArrayInitializeFromArrayLike(obj, ARRAY_ID, arrayLike, l)) {
     for (var i = 0; i < l; i++) {
@@ -112,48 +122,41 @@ function NAMEConstructor(arg1, arg2, arg3) {
       NAMEConstructByArrayLike(this, arg1);
     }
   } else {
-    throw MakeTypeError("constructor_not_function", ["NAME"])
+    throw MakeTypeError(kConstructorNotFunction, "NAME")
   }
 }
 
 function NAME_GetBuffer() {
   if (!(%_ClassOf(this) === 'NAME')) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ["NAME.buffer", this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver, "NAME.buffer", this);
   }
   return %TypedArrayGetBuffer(this);
 }
 
 function NAME_GetByteLength() {
   if (!(%_ClassOf(this) === 'NAME')) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ["NAME.byteLength", this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver, "NAME.byteLength", this);
   }
   return %_ArrayBufferViewGetByteLength(this);
 }
 
 function NAME_GetByteOffset() {
   if (!(%_ClassOf(this) === 'NAME')) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ["NAME.byteOffset", this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver, "NAME.byteOffset", this);
   }
   return %_ArrayBufferViewGetByteOffset(this);
 }
 
 function NAME_GetLength() {
   if (!(%_ClassOf(this) === 'NAME')) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ["NAME.length", this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver, "NAME.length", this);
   }
   return %_TypedArrayGetLength(this);
 }
 
-var $NAME = global.NAME;
-
 function NAMESubArray(begin, end) {
   if (!(%_ClassOf(this) === 'NAME')) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ["NAME.subarray", this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver, "NAME.subarray", this);
   }
   var beginInt = TO_INTEGER(begin);
   if (!IS_UNDEFINED(end)) {
@@ -179,8 +182,8 @@ function NAMESubArray(begin, end) {
   var newLength = endInt - beginInt;
   var beginByteOffset =
       %_ArrayBufferViewGetByteOffset(this) + beginInt * ELEMENT_SIZE;
-  return new $NAME(%TypedArrayGetBuffer(this),
-                   beginByteOffset, newLength);
+  return new GlobalNAME(%TypedArrayGetBuffer(this),
+                        beginByteOffset, newLength);
 }
 endmacro
 
@@ -243,7 +246,7 @@ function TypedArraySetFromOverlappingTypedArray(target, source, offset) {
   }
   var rightIndex = CopyRightPart();
 
-  var temp = new $Array(rightIndex + 1 - leftIndex);
+  var temp = new GlobalArray(rightIndex + 1 - leftIndex);
   for (var i = leftIndex; i <= rightIndex; i++) {
     temp[i - leftIndex] = source[i];
   }
@@ -254,12 +257,10 @@ function TypedArraySetFromOverlappingTypedArray(target, source, offset) {
 
 function TypedArraySet(obj, offset) {
   var intOffset = IS_UNDEFINED(offset) ? 0 : TO_INTEGER(offset);
-  if (intOffset < 0) {
-    throw MakeTypeError("typed_array_set_negative_offset");
-  }
+  if (intOffset < 0) throw MakeTypeError(kTypedArraySetNegativeOffset);
 
   if (intOffset > %_MaxSmi()) {
-    throw MakeRangeError("typed_array_set_source_too_large");
+    throw MakeRangeError(kTypedArraySetSourceTooLarge);
   }
   switch (%TypedArraySetFastCases(this, obj, intOffset)) {
     // These numbers should be synchronized with runtime.cc.
@@ -279,12 +280,12 @@ function TypedArraySet(obj, offset) {
             // instead of silently ignoring the call, so that
             // the user knows (s)he did something wrong.
             // (Consistent with Firefox and Blink/WebKit)
-            throw MakeTypeError("invalid_argument");
+            throw MakeTypeError(kInvalidArgument);
         }
         return;
       }
       if (intOffset + l > this.length) {
-        throw MakeRangeError("typed_array_set_source_too_large");
+        throw MakeRangeError(kTypedArraySetSourceTooLarge);
       }
       TypedArraySetFromArrayLike(this, obj, l, intOffset);
       return;
@@ -300,47 +301,41 @@ function TypedArrayGetToStringTag() {
 
 // -------------------------------------------------------------------
 
-function SetupTypedArrays() {
 macro SETUP_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
-  %CheckIsBootstrapping();
-  %SetCode(global.NAME, NAMEConstructor);
-  %FunctionSetPrototype(global.NAME, new $Object());
+  %SetCode(GlobalNAME, NAMEConstructor);
+  %FunctionSetPrototype(GlobalNAME, new GlobalObject());
 
-  %AddNamedProperty(global.NAME, "BYTES_PER_ELEMENT", ELEMENT_SIZE,
+  %AddNamedProperty(GlobalNAME, "BYTES_PER_ELEMENT", ELEMENT_SIZE,
                     READ_ONLY | DONT_ENUM | DONT_DELETE);
-  %AddNamedProperty(global.NAME.prototype,
+  %AddNamedProperty(GlobalNAME.prototype,
                     "constructor", global.NAME, DONT_ENUM);
-  %AddNamedProperty(global.NAME.prototype,
+  %AddNamedProperty(GlobalNAME.prototype,
                     "BYTES_PER_ELEMENT", ELEMENT_SIZE,
                     READ_ONLY | DONT_ENUM | DONT_DELETE);
-  InstallGetter(global.NAME.prototype, "buffer", NAME_GetBuffer);
-  InstallGetter(global.NAME.prototype, "byteOffset", NAME_GetByteOffset);
-  InstallGetter(global.NAME.prototype, "byteLength", NAME_GetByteLength);
-  InstallGetter(global.NAME.prototype, "length", NAME_GetLength);
-  InstallGetter(global.NAME.prototype, symbolToStringTag,
-                TypedArrayGetToStringTag);
-  InstallFunctions(global.NAME.prototype, DONT_ENUM, $Array(
-        "subarray", NAMESubArray,
-        "set", TypedArraySet
-  ));
+  $installGetter(GlobalNAME.prototype, "buffer", NAME_GetBuffer);
+  $installGetter(GlobalNAME.prototype, "byteOffset", NAME_GetByteOffset,
+                 DONT_ENUM | DONT_DELETE);
+  $installGetter(GlobalNAME.prototype, "byteLength", NAME_GetByteLength,
+                 DONT_ENUM | DONT_DELETE);
+  $installGetter(GlobalNAME.prototype, "length", NAME_GetLength,
+                 DONT_ENUM | DONT_DELETE);
+  $installGetter(GlobalNAME.prototype, symbolToStringTag,
+                 TypedArrayGetToStringTag);
+  $installFunctions(GlobalNAME.prototype, DONT_ENUM, [
+    "subarray", NAMESubArray,
+    "set", TypedArraySet
+  ]);
 endmacro
 
 TYPED_ARRAYS(SETUP_TYPED_ARRAY)
-}
-
-SetupTypedArrays();
 
 // --------------------------- DataView -----------------------------
 
-var $DataView = global.DataView;
-
 function DataViewConstructor(buffer, byteOffset, byteLength) { // length = 3
   if (%_IsConstructCall()) {
-    if (!IS_ARRAYBUFFER(buffer)) {
-      throw MakeTypeError('data_view_not_array_buffer', []);
-    }
+    if (!IS_ARRAYBUFFER(buffer)) throw MakeTypeError(kDataViewNotArrayBuffer);
     if (!IS_UNDEFINED(byteOffset)) {
-        byteOffset = ToPositiveInteger(byteOffset, 'invalid_data_view_offset');
+        byteOffset = $toPositiveInteger(byteOffset, kInvalidDataViewOffset);
     }
     if (!IS_UNDEFINED(byteLength)) {
         byteLength = TO_INTEGER(byteLength);
@@ -349,42 +344,39 @@ function DataViewConstructor(buffer, byteOffset, byteLength) { // length = 3
     var bufferByteLength = %_ArrayBufferGetByteLength(buffer);
 
     var offset = IS_UNDEFINED(byteOffset) ?  0 : byteOffset;
-    if (offset > bufferByteLength) {
-      throw MakeRangeError('invalid_data_view_offset');
-    }
+    if (offset > bufferByteLength) throw MakeRangeError(kInvalidDataViewOffset);
 
     var length = IS_UNDEFINED(byteLength)
         ? bufferByteLength - offset
         : byteLength;
     if (length < 0 || offset + length > bufferByteLength) {
-      throw new MakeRangeError('invalid_data_view_length');
+      throw new MakeRangeError(kInvalidDataViewLength);
     }
     %_DataViewInitialize(this, buffer, offset, length);
   } else {
-    throw MakeTypeError('constructor_not_function', ["DataView"]);
+    throw MakeTypeError(kConstructorNotFunction, "DataView");
   }
 }
 
 function DataViewGetBufferJS() {
   if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['DataView.buffer', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver, 'DataView.buffer', this);
   }
   return %DataViewGetBuffer(this);
 }
 
 function DataViewGetByteOffset() {
   if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['DataView.byteOffset', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'DataView.byteOffset', this);
   }
   return %_ArrayBufferViewGetByteOffset(this);
 }
 
 function DataViewGetByteLength() {
   if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['DataView.byteLength', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'DataView.byteLength', this);
   }
   return %_ArrayBufferViewGetByteLength(this);
 }
@@ -400,83 +392,69 @@ macro DATA_VIEW_TYPES(FUNCTION)
   FUNCTION(Float64)
 endmacro
 
-function ToPositiveDataViewOffset(offset) {
-  return ToPositiveInteger(offset, 'invalid_data_view_accessor_offset');
-}
-
 
 macro DATA_VIEW_GETTER_SETTER(TYPENAME)
 function DataViewGetTYPENAMEJS(offset, little_endian) {
   if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['DataView.getTYPENAME', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'DataView.getTYPENAME', this);
   }
-  if (%_ArgumentsLength() < 1) {
-    throw MakeTypeError('invalid_argument');
-  }
-  return %DataViewGetTYPENAME(this,
-                          ToPositiveDataViewOffset(offset),
-                          !!little_endian);
+  if (%_ArgumentsLength() < 1) throw MakeTypeError(kInvalidArgument);
+  offset = $toPositiveInteger(offset, kInvalidDataViewAccessorOffset);
+  return %DataViewGetTYPENAME(this, offset, !!little_endian);
 }
 
 function DataViewSetTYPENAMEJS(offset, value, little_endian) {
   if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['DataView.setTYPENAME', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'DataView.setTYPENAME', this);
   }
-  if (%_ArgumentsLength() < 2) {
-    throw MakeTypeError('invalid_argument');
-  }
-  %DataViewSetTYPENAME(this,
-                   ToPositiveDataViewOffset(offset),
-                   TO_NUMBER_INLINE(value),
-                   !!little_endian);
+  if (%_ArgumentsLength() < 2) throw MakeTypeError(kInvalidArgument);
+  offset = $toPositiveInteger(offset, kInvalidDataViewAccessorOffset);
+  %DataViewSetTYPENAME(this, offset, TO_NUMBER_INLINE(value), !!little_endian);
 }
 endmacro
 
 DATA_VIEW_TYPES(DATA_VIEW_GETTER_SETTER)
 
-function SetupDataView() {
-  %CheckIsBootstrapping();
+// Setup the DataView constructor.
+%SetCode(GlobalDataView, DataViewConstructor);
+%FunctionSetPrototype(GlobalDataView, new GlobalObject);
 
-  // Setup the DataView constructor.
-  %SetCode($DataView, DataViewConstructor);
-  %FunctionSetPrototype($DataView, new $Object);
+// Set up constructor property on the DataView prototype.
+%AddNamedProperty(GlobalDataView.prototype, "constructor", GlobalDataView,
+                  DONT_ENUM);
+%AddNamedProperty(GlobalDataView.prototype, symbolToStringTag, "DataView",
+                  READ_ONLY|DONT_ENUM);
 
-  // Set up constructor property on the DataView prototype.
-  %AddNamedProperty($DataView.prototype, "constructor", $DataView, DONT_ENUM);
-  %AddNamedProperty(
-      $DataView.prototype, symbolToStringTag, "DataView", READ_ONLY|DONT_ENUM);
+$installGetter(GlobalDataView.prototype, "buffer", DataViewGetBufferJS);
+$installGetter(GlobalDataView.prototype, "byteOffset", DataViewGetByteOffset);
+$installGetter(GlobalDataView.prototype, "byteLength", DataViewGetByteLength);
 
-  InstallGetter($DataView.prototype, "buffer", DataViewGetBufferJS);
-  InstallGetter($DataView.prototype, "byteOffset", DataViewGetByteOffset);
-  InstallGetter($DataView.prototype, "byteLength", DataViewGetByteLength);
+$installFunctions(GlobalDataView.prototype, DONT_ENUM, [
+  "getInt8", DataViewGetInt8JS,
+  "setInt8", DataViewSetInt8JS,
 
-  InstallFunctions($DataView.prototype, DONT_ENUM, $Array(
-      "getInt8", DataViewGetInt8JS,
-      "setInt8", DataViewSetInt8JS,
+  "getUint8", DataViewGetUint8JS,
+  "setUint8", DataViewSetUint8JS,
 
-      "getUint8", DataViewGetUint8JS,
-      "setUint8", DataViewSetUint8JS,
+  "getInt16", DataViewGetInt16JS,
+  "setInt16", DataViewSetInt16JS,
 
-      "getInt16", DataViewGetInt16JS,
-      "setInt16", DataViewSetInt16JS,
+  "getUint16", DataViewGetUint16JS,
+  "setUint16", DataViewSetUint16JS,
 
-      "getUint16", DataViewGetUint16JS,
-      "setUint16", DataViewSetUint16JS,
+  "getInt32", DataViewGetInt32JS,
+  "setInt32", DataViewSetInt32JS,
 
-      "getInt32", DataViewGetInt32JS,
-      "setInt32", DataViewSetInt32JS,
+  "getUint32", DataViewGetUint32JS,
+  "setUint32", DataViewSetUint32JS,
 
-      "getUint32", DataViewGetUint32JS,
-      "setUint32", DataViewSetUint32JS,
+  "getFloat32", DataViewGetFloat32JS,
+  "setFloat32", DataViewSetFloat32JS,
 
-      "getFloat32", DataViewGetFloat32JS,
-      "setFloat32", DataViewSetFloat32JS,
+  "getFloat64", DataViewGetFloat64JS,
+  "setFloat64", DataViewSetFloat64JS
+]);
 
-      "getFloat64", DataViewGetFloat64JS,
-      "setFloat64", DataViewSetFloat64JS
-  ));
-}
-
-SetupDataView();
+})

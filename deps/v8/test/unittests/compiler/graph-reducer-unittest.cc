@@ -3,11 +3,10 @@
 // found in the LICENSE file.
 
 #include "src/compiler/graph.h"
-#include "src/compiler/graph-reducer.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
+#include "test/unittests/compiler/graph-reducer-unittest.h"
 #include "test/unittests/test-utils.h"
-#include "testing/gmock/include/gmock/gmock.h"
 
 using testing::_;
 using testing::DefaultValue;
@@ -55,9 +54,9 @@ struct MockReducer : public Reducer {
 
 
 // Replaces all "A" operators with "B" operators without creating new nodes.
-class InPlaceABReducer : public Reducer {
+class InPlaceABReducer final : public Reducer {
  public:
-  virtual Reduction Reduce(Node* node) {
+  Reduction Reduce(Node* node) final {
     switch (node->op()->opcode()) {
       case kOpcodeA0:
         EXPECT_EQ(0, node->InputCount());
@@ -78,10 +77,11 @@ class InPlaceABReducer : public Reducer {
 
 
 // Replaces all "A" operators with "B" operators by allocating new nodes.
-class NewABReducer : public Reducer {
+class NewABReducer final : public Reducer {
  public:
   explicit NewABReducer(Graph* graph) : graph_(graph) {}
-  virtual Reduction Reduce(Node* node) {
+
+  Reduction Reduce(Node* node) final {
     switch (node->op()->opcode()) {
       case kOpcodeA0:
         EXPECT_EQ(0, node->InputCount());
@@ -96,15 +96,18 @@ class NewABReducer : public Reducer {
     }
     return NoChange();
   }
-  Graph* graph_;
+
+ private:
+  Graph* const graph_;
 };
 
 
 // Wraps all "kOpA0" nodes in "kOpB1" operators by allocating new nodes.
-class A0Wrapper FINAL : public Reducer {
+class A0Wrapper final : public Reducer {
  public:
   explicit A0Wrapper(Graph* graph) : graph_(graph) {}
-  virtual Reduction Reduce(Node* node) OVERRIDE {
+
+  Reduction Reduce(Node* node) final {
     switch (node->op()->opcode()) {
       case kOpcodeA0:
         EXPECT_EQ(0, node->InputCount());
@@ -112,15 +115,18 @@ class A0Wrapper FINAL : public Reducer {
     }
     return NoChange();
   }
-  Graph* graph_;
+
+ private:
+  Graph* const graph_;
 };
 
 
 // Wraps all "kOpB0" nodes in two "kOpC1" operators by allocating new nodes.
-class B0Wrapper FINAL : public Reducer {
+class B0Wrapper final : public Reducer {
  public:
   explicit B0Wrapper(Graph* graph) : graph_(graph) {}
-  virtual Reduction Reduce(Node* node) OVERRIDE {
+
+  Reduction Reduce(Node* node) final {
     switch (node->op()->opcode()) {
       case kOpcodeB0:
         EXPECT_EQ(0, node->InputCount());
@@ -128,13 +134,16 @@ class B0Wrapper FINAL : public Reducer {
     }
     return NoChange();
   }
-  Graph* graph_;
+
+ private:
+  Graph* const graph_;
 };
 
 
 // Replaces all "kOpA1" nodes with the first input.
-class A1Forwarder : public Reducer {
-  virtual Reduction Reduce(Node* node) {
+class A1Forwarder final : public Reducer {
+ public:
+  Reduction Reduce(Node* node) final {
     switch (node->op()->opcode()) {
       case kOpcodeA1:
         EXPECT_EQ(1, node->InputCount());
@@ -146,8 +155,9 @@ class A1Forwarder : public Reducer {
 
 
 // Replaces all "kOpB1" nodes with the first input.
-class B1Forwarder : public Reducer {
-  virtual Reduction Reduce(Node* node) {
+class B1Forwarder final : public Reducer {
+ public:
+  Reduction Reduce(Node* node) final {
     switch (node->op()->opcode()) {
       case kOpcodeB1:
         EXPECT_EQ(1, node->InputCount());
@@ -159,9 +169,9 @@ class B1Forwarder : public Reducer {
 
 
 // Replaces all "B" operators with "C" operators without creating new nodes.
-class InPlaceBCReducer : public Reducer {
+class InPlaceBCReducer final : public Reducer {
  public:
-  virtual Reduction Reduce(Node* node) {
+  Reduction Reduce(Node* node) final {
     switch (node->op()->opcode()) {
       case kOpcodeB0:
         EXPECT_EQ(0, node->InputCount());
@@ -182,8 +192,9 @@ class InPlaceBCReducer : public Reducer {
 
 
 // Swaps the inputs to "kOp2A" and "kOp2B" nodes based on ids.
-class AB2Sorter : public Reducer {
-  virtual Reduction Reduce(Node* node) {
+class AB2Sorter final : public Reducer {
+ public:
+  Reduction Reduce(Node* node) final {
     switch (node->op()->opcode()) {
       case kOpcodeA2:
       case kOpcodeB2:
@@ -200,8 +211,57 @@ class AB2Sorter : public Reducer {
   }
 };
 
-
 }  // namespace
+
+
+class AdvancedReducerTest : public TestWithZone {
+ public:
+  AdvancedReducerTest() : graph_(zone()) {}
+
+ protected:
+  Graph* graph() { return &graph_; }
+
+ private:
+  Graph graph_;
+};
+
+
+TEST_F(AdvancedReducerTest, Replace) {
+  struct DummyReducer final : public AdvancedReducer {
+    explicit DummyReducer(Editor* editor) : AdvancedReducer(editor) {}
+    Reduction Reduce(Node* node) final {
+      Replace(node, node);
+      return NoChange();
+    }
+  };
+  StrictMock<MockAdvancedReducerEditor> e;
+  DummyReducer r(&e);
+  Node* node0 = graph()->NewNode(&kOpA0);
+  Node* node1 = graph()->NewNode(&kOpA1, node0);
+  EXPECT_CALL(e, Replace(node0, node0));
+  EXPECT_CALL(e, Replace(node1, node1));
+  EXPECT_FALSE(r.Reduce(node0).Changed());
+  EXPECT_FALSE(r.Reduce(node1).Changed());
+}
+
+
+TEST_F(AdvancedReducerTest, Revisit) {
+  struct DummyReducer final : public AdvancedReducer {
+    explicit DummyReducer(Editor* editor) : AdvancedReducer(editor) {}
+    Reduction Reduce(Node* node) final {
+      Revisit(node);
+      return NoChange();
+    }
+  };
+  StrictMock<MockAdvancedReducerEditor> e;
+  DummyReducer r(&e);
+  Node* node0 = graph()->NewNode(&kOpA0);
+  Node* node1 = graph()->NewNode(&kOpA1, node0);
+  EXPECT_CALL(e, Revisit(node0));
+  EXPECT_CALL(e, Revisit(node1));
+  EXPECT_FALSE(r.Reduce(node0).Changed());
+  EXPECT_FALSE(r.Reduce(node1).Changed());
+}
 
 
 class GraphReducerTest : public TestWithZone {
@@ -573,6 +633,8 @@ TEST_F(GraphReducerTest, Sorter1) {
 }
 
 
+namespace {
+
 // Generate a node graph with the given permutations.
 void GenDAG(Graph* graph, int* p3, int* p2, int* p1) {
   Node* level4 = graph->NewNode(&kOpA0);
@@ -590,6 +652,8 @@ void GenDAG(Graph* graph, int* p3, int* p2, int* p1) {
   Node* end = graph->NewNode(&kOpA2, level1[p1[0]], level1[p1[1]]);
   graph->SetEnd(end);
 }
+
+}  // namespace
 
 
 TEST_F(GraphReducerTest, SortForwardReduce) {
@@ -666,7 +730,6 @@ TEST_F(GraphReducerTest, Order) {
     }
   }
 }
-
 
 }  // namespace compiler
 }  // namespace internal

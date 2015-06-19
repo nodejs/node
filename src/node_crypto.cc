@@ -4870,13 +4870,8 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
   }
 
   const int64_t size = args[0]->IntegerValue();
-  if (using_old_buffer) {
-    if (size > Buffer::kMaxLength)
-      return env->ThrowTypeError("size > Buffer::kMaxLength");
-  } else {
-    if (!IsValidSmi(size))
-      return env->ThrowRangeError("size is not a valid Smi");
-  }
+  if (size < 0 || size > Buffer::kMaxLength)
+    return env->ThrowRangeError("size is not a valid Smi");
 
   Local<Object> obj = Object::New(env->isolate());
   RandomBytesRequest* req = new RandomBytesRequest(env, obj, size);

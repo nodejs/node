@@ -358,6 +358,124 @@ class AggregatedHistogramTimerScope {
 };
 
 
+// AggretatedMemoryHistogram collects (time, value) sample pairs and turns
+// them into time-uniform samples for the backing historgram, such that the
+// backing histogram receives one sample every T ms, where the T is controlled
+// by the FLAG_histogram_interval.
+//
+// More formally: let F be a real-valued function that maps time to sample
+// values. We define F as a linear interpolation between adjacent samples. For
+// each time interval [x; x + T) the backing histogram gets one sample value
+// that is the average of F(t) in the interval.
+template <typename Histogram>
+class AggregatedMemoryHistogram {
+ public:
+  AggregatedMemoryHistogram()
+      : is_initialized_(false),
+        start_ms_(0.0),
+        last_ms_(0.0),
+        aggregate_value_(0.0),
+        last_value_(0.0),
+        backing_histogram_(NULL) {}
+
+  explicit AggregatedMemoryHistogram(Histogram* backing_histogram)
+      : AggregatedMemoryHistogram() {
+    backing_histogram_ = backing_histogram;
+  }
+
+  // Invariants that hold before and after AddSample if
+  // is_initialized_ is true:
+  //
+  // 1) For we processed samples that came in before start_ms_ and sent the
+  // corresponding aggregated samples to backing histogram.
+  // 2) (last_ms_, last_value_) is the last received sample.
+  // 3) last_ms_ < start_ms_ + FLAG_histogram_interval.
+  // 4) aggregate_value_ is the average of the function that is constructed by
+  // linearly interpolating samples received between start_ms_ and last_ms_.
+  void AddSample(double current_ms, double current_value);
+
+ private:
+  double Aggregate(double current_ms, double current_value);
+  bool is_initialized_;
+  double start_ms_;
+  double last_ms_;
+  double aggregate_value_;
+  double last_value_;
+  Histogram* backing_histogram_;
+};
+
+
+template <typename Histogram>
+void AggregatedMemoryHistogram<Histogram>::AddSample(double current_ms,
+                                                     double current_value) {
+  if (!is_initialized_) {
+    aggregate_value_ = current_value;
+    start_ms_ = current_ms;
+    last_value_ = current_value;
+    last_ms_ = current_ms;
+    is_initialized_ = true;
+  } else {
+    const double kEpsilon = 1e-6;
+    const int kMaxSamples = 1000;
+    if (current_ms < last_ms_ + kEpsilon) {
+      // Two samples have the same time, remember the last one.
+      last_value_ = current_value;
+    } else {
+      double sample_interval_ms = FLAG_histogram_interval;
+      double end_ms = start_ms_ + sample_interval_ms;
+      if (end_ms <= current_ms + kEpsilon) {
+        // Linearly interpolate between the last_ms_ and the current_ms.
+        double slope = (current_value - last_value_) / (current_ms - last_ms_);
+        int i;
+        // Send aggregated samples to the backing histogram from the start_ms
+        // to the current_ms.
+        for (i = 0; i < kMaxSamples && end_ms <= current_ms + kEpsilon; i++) {
+          double end_value = last_value_ + (end_ms - last_ms_) * slope;
+          double sample_value;
+          if (i == 0) {
+            // Take aggregate_value_ into account.
+            sample_value = Aggregate(end_ms, end_value);
+          } else {
+            // There is no aggregate_value_ for i > 0.
+            sample_value = (last_value_ + end_value) / 2;
+          }
+          backing_histogram_->AddSample(static_cast<int>(sample_value + 0.5));
+          last_value_ = end_value;
+          last_ms_ = end_ms;
+          end_ms += sample_interval_ms;
+        }
+        if (i == kMaxSamples) {
+          // We hit the sample limit, ignore the remaining samples.
+          aggregate_value_ = current_value;
+          start_ms_ = current_ms;
+        } else {
+          aggregate_value_ = last_value_;
+          start_ms_ = last_ms_;
+        }
+      }
+      aggregate_value_ = current_ms > start_ms_ + kEpsilon
+                             ? Aggregate(current_ms, current_value)
+                             : aggregate_value_;
+      last_value_ = current_value;
+      last_ms_ = current_ms;
+    }
+  }
+}
+
+
+template <typename Histogram>
+double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
+                                                       double current_value) {
+  double interval_ms = current_ms - start_ms_;
+  double value = (current_value + last_value_) / 2;
+  // The aggregate_value_ is the average for [start_ms_; last_ms_].
+  // The value is the average for [last_ms_; current_ms].
+  // Return the weighted average of the aggregate_value_ and the value.
+  return aggregate_value_ * ((last_ms_ - start_ms_) / interval_ms) +
+         value * ((current_ms - last_ms_) / interval_ms);
+}
+
+
 #define HISTOGRAM_RANGE_LIST(HR)                                              \
   /* Generic range histograms */                                              \
   HR(detached_context_age_in_gc, V8.DetachedContextAgeInGC, 0, 20, 21)        \
@@ -399,39 +517,31 @@ class AggregatedHistogramTimerScope {
 #define HISTOGRAM_PERCENTAGE_LIST(HP)                                          \
   /* Heap fragmentation. */                                                    \
   HP(external_fragmentation_total, V8.MemoryExternalFragmentationTotal)        \
-  HP(external_fragmentation_old_pointer_space,                                 \
-     V8.MemoryExternalFragmentationOldPointerSpace)                            \
-  HP(external_fragmentation_old_data_space,                                    \
-     V8.MemoryExternalFragmentationOldDataSpace)                               \
+  HP(external_fragmentation_old_space, V8.MemoryExternalFragmentationOldSpace) \
   HP(external_fragmentation_code_space,                                        \
      V8.MemoryExternalFragmentationCodeSpace)                                  \
   HP(external_fragmentation_map_space, V8.MemoryExternalFragmentationMapSpace) \
-  HP(external_fragmentation_cell_space,                                        \
-     V8.MemoryExternalFragmentationCellSpace)                                  \
   HP(external_fragmentation_lo_space, V8.MemoryExternalFragmentationLoSpace)   \
   /* Percentages of heap committed to each space. */                           \
   HP(heap_fraction_new_space, V8.MemoryHeapFractionNewSpace)                   \
-  HP(heap_fraction_old_pointer_space, V8.MemoryHeapFractionOldPointerSpace)    \
-  HP(heap_fraction_old_data_space, V8.MemoryHeapFractionOldDataSpace)          \
+  HP(heap_fraction_old_space, V8.MemoryHeapFractionOldSpace)                   \
   HP(heap_fraction_code_space, V8.MemoryHeapFractionCodeSpace)                 \
   HP(heap_fraction_map_space, V8.MemoryHeapFractionMapSpace)                   \
-  HP(heap_fraction_cell_space, V8.MemoryHeapFractionCellSpace)                 \
   HP(heap_fraction_lo_space, V8.MemoryHeapFractionLoSpace)                     \
   /* Percentage of crankshafted codegen. */                                    \
   HP(codegen_fraction_crankshaft, V8.CodegenFractionCrankshaft)
 
 
-#define HISTOGRAM_MEMORY_LIST(HM)                                     \
-  HM(heap_sample_total_committed, V8.MemoryHeapSampleTotalCommitted)  \
-  HM(heap_sample_total_used, V8.MemoryHeapSampleTotalUsed)            \
-  HM(heap_sample_map_space_committed,                                 \
-     V8.MemoryHeapSampleMapSpaceCommitted)                            \
-  HM(heap_sample_cell_space_committed,                                \
-     V8.MemoryHeapSampleCellSpaceCommitted)                           \
-  HM(heap_sample_code_space_committed,                                \
-     V8.MemoryHeapSampleCodeSpaceCommitted)                           \
-  HM(heap_sample_maximum_committed,                                   \
-     V8.MemoryHeapSampleMaximumCommitted)                             \
+#define HISTOGRAM_LEGACY_MEMORY_LIST(HM)                                      \
+  HM(heap_sample_total_committed, V8.MemoryHeapSampleTotalCommitted)          \
+  HM(heap_sample_total_used, V8.MemoryHeapSampleTotalUsed)                    \
+  HM(heap_sample_map_space_committed, V8.MemoryHeapSampleMapSpaceCommitted)   \
+  HM(heap_sample_code_space_committed, V8.MemoryHeapSampleCodeSpaceCommitted) \
+  HM(heap_sample_maximum_committed, V8.MemoryHeapSampleMaximumCommitted)
+
+#define HISTOGRAM_MEMORY_LIST(HM)                   \
+  HM(memory_heap_committed, V8.MemoryHeapCommitted) \
+  HM(memory_heap_used, V8.MemoryHeapUsed)
 
 
 // WARNING: STATS_COUNTER_LIST_* is a very large macro that is causing MSVC
@@ -590,23 +700,15 @@ class AggregatedHistogramTimerScope {
   SC(new_space_bytes_available, V8.MemoryNewSpaceBytesAvailable)               \
   SC(new_space_bytes_committed, V8.MemoryNewSpaceBytesCommitted)               \
   SC(new_space_bytes_used, V8.MemoryNewSpaceBytesUsed)                         \
-  SC(old_pointer_space_bytes_available,                                        \
-     V8.MemoryOldPointerSpaceBytesAvailable)                                   \
-  SC(old_pointer_space_bytes_committed,                                        \
-     V8.MemoryOldPointerSpaceBytesCommitted)                                   \
-  SC(old_pointer_space_bytes_used, V8.MemoryOldPointerSpaceBytesUsed)          \
-  SC(old_data_space_bytes_available, V8.MemoryOldDataSpaceBytesAvailable)      \
-  SC(old_data_space_bytes_committed, V8.MemoryOldDataSpaceBytesCommitted)      \
-  SC(old_data_space_bytes_used, V8.MemoryOldDataSpaceBytesUsed)                \
+  SC(old_space_bytes_available, V8.MemoryOldSpaceBytesAvailable)               \
+  SC(old_space_bytes_committed, V8.MemoryOldSpaceBytesCommitted)               \
+  SC(old_space_bytes_used, V8.MemoryOldSpaceBytesUsed)                         \
   SC(code_space_bytes_available, V8.MemoryCodeSpaceBytesAvailable)             \
   SC(code_space_bytes_committed, V8.MemoryCodeSpaceBytesCommitted)             \
   SC(code_space_bytes_used, V8.MemoryCodeSpaceBytesUsed)                       \
   SC(map_space_bytes_available, V8.MemoryMapSpaceBytesAvailable)               \
   SC(map_space_bytes_committed, V8.MemoryMapSpaceBytesCommitted)               \
   SC(map_space_bytes_used, V8.MemoryMapSpaceBytesUsed)                         \
-  SC(cell_space_bytes_available, V8.MemoryCellSpaceBytesAvailable)             \
-  SC(cell_space_bytes_committed, V8.MemoryCellSpaceBytesCommitted)             \
-  SC(cell_space_bytes_used, V8.MemoryCellSpaceBytesUsed)                       \
   SC(lo_space_bytes_available, V8.MemoryLoSpaceBytesAvailable)                 \
   SC(lo_space_bytes_committed, V8.MemoryLoSpaceBytesCommitted)                 \
   SC(lo_space_bytes_used, V8.MemoryLoSpaceBytesUsed)
@@ -637,6 +739,14 @@ class Counters {
 
 #define HM(name, caption) \
   Histogram* name() { return &name##_; }
+  HISTOGRAM_LEGACY_MEMORY_LIST(HM)
+  HISTOGRAM_MEMORY_LIST(HM)
+#undef HM
+
+#define HM(name, caption)                                     \
+  AggregatedMemoryHistogram<Histogram>* aggregated_##name() { \
+    return &aggregated_##name##_;                             \
+  }
   HISTOGRAM_MEMORY_LIST(HM)
 #undef HM
 
@@ -687,6 +797,7 @@ class Counters {
     HISTOGRAM_PERCENTAGE_LIST(PERCENTAGE_ID)
 #undef PERCENTAGE_ID
 #define MEMORY_ID(name, caption) k_##name,
+    HISTOGRAM_LEGACY_MEMORY_LIST(MEMORY_ID)
     HISTOGRAM_MEMORY_LIST(MEMORY_ID)
 #undef MEMORY_ID
 #define COUNTER_ID(name, caption) k_##name,
@@ -735,6 +846,12 @@ class Counters {
 
 #define HM(name, caption) \
   Histogram name##_;
+  HISTOGRAM_LEGACY_MEMORY_LIST(HM)
+  HISTOGRAM_MEMORY_LIST(HM)
+#undef HM
+
+#define HM(name, caption) \
+  AggregatedMemoryHistogram<Histogram> aggregated_##name##_;
   HISTOGRAM_MEMORY_LIST(HM)
 #undef HM
 

@@ -42,7 +42,7 @@ enum LazyCachedType {
 
 // Constructs and caches types lazily.
 // TODO(turbofan): these types could be globally cached or cached per isolate.
-class LazyTypeCache FINAL : public ZoneObject {
+class LazyTypeCache final : public ZoneObject {
  public:
   explicit LazyTypeCache(Isolate* isolate, Zone* zone)
       : isolate_(isolate), zone_(zone) {
@@ -141,10 +141,10 @@ class LazyTypeCache FINAL : public ZoneObject {
 };
 
 
-class Typer::Decorator FINAL : public GraphDecorator {
+class Typer::Decorator final : public GraphDecorator {
  public:
   explicit Decorator(Typer* typer) : typer_(typer) {}
-  void Decorate(Node* node, bool incomplete) FINAL;
+  void Decorate(Node* node, bool incomplete) final;
 
  private:
   Typer* typer_;
@@ -215,7 +215,7 @@ class Typer::Visitor : public Reducer {
   explicit Visitor(Typer* typer)
       : typer_(typer), weakened_nodes_(typer->zone()) {}
 
-  Reduction Reduce(Node* node) OVERRIDE {
+  Reduction Reduce(Node* node) override {
     if (node->op()->ValueOutputCount() == 0) return NoChange();
     switch (node->opcode()) {
 #define DECLARE_CASE(x) \
@@ -228,6 +228,7 @@ class Typer::Visitor : public Reducer {
   case IrOpcode::k##x:  \
     return UpdateBounds(node, Type##x(node));
       DECLARE_CASE(Start)
+      DECLARE_CASE(IfException)
       // VALUE_OP_LIST without JS_SIMPLE_BINOP_LIST:
       COMMON_OP_LIST(DECLARE_CASE)
       SIMPLIFIED_OP_LIST(DECLARE_CASE)
@@ -239,8 +240,24 @@ class Typer::Visitor : public Reducer {
 #undef DECLARE_CASE
 
 #define DECLARE_CASE(x) case IrOpcode::k##x:
+      DECLARE_CASE(Dead)
+      DECLARE_CASE(Loop)
+      DECLARE_CASE(Branch)
+      DECLARE_CASE(IfTrue)
+      DECLARE_CASE(IfFalse)
+      DECLARE_CASE(IfSuccess)
+      DECLARE_CASE(Switch)
+      DECLARE_CASE(IfValue)
+      DECLARE_CASE(IfDefault)
+      DECLARE_CASE(Merge)
+      DECLARE_CASE(Deoptimize)
+      DECLARE_CASE(Return)
+      DECLARE_CASE(TailCall)
+      DECLARE_CASE(Terminate)
+      DECLARE_CASE(OsrNormalEntry)
+      DECLARE_CASE(OsrLoopEntry)
+      DECLARE_CASE(Throw)
       DECLARE_CASE(End)
-      INNER_CONTROL_OP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
       break;
     }
@@ -256,6 +273,7 @@ class Typer::Visitor : public Reducer {
 
 #define DECLARE_CASE(x) case IrOpcode::k##x: return Type##x(node);
       DECLARE_CASE(Start)
+      DECLARE_CASE(IfException)
       // VALUE_OP_LIST without JS_SIMPLE_BINOP_LIST:
       COMMON_OP_LIST(DECLARE_CASE)
       SIMPLIFIED_OP_LIST(DECLARE_CASE)
@@ -267,8 +285,24 @@ class Typer::Visitor : public Reducer {
 #undef DECLARE_CASE
 
 #define DECLARE_CASE(x) case IrOpcode::k##x:
+      DECLARE_CASE(Dead)
+      DECLARE_CASE(Loop)
+      DECLARE_CASE(Branch)
+      DECLARE_CASE(IfTrue)
+      DECLARE_CASE(IfFalse)
+      DECLARE_CASE(IfSuccess)
+      DECLARE_CASE(Switch)
+      DECLARE_CASE(IfValue)
+      DECLARE_CASE(IfDefault)
+      DECLARE_CASE(Merge)
+      DECLARE_CASE(Deoptimize)
+      DECLARE_CASE(Return)
+      DECLARE_CASE(TailCall)
+      DECLARE_CASE(Terminate)
+      DECLARE_CASE(OsrNormalEntry)
+      DECLARE_CASE(OsrLoopEntry)
+      DECLARE_CASE(Throw)
       DECLARE_CASE(End)
-      INNER_CONTROL_OP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
       break;
     }
@@ -285,6 +319,7 @@ class Typer::Visitor : public Reducer {
 
 #define DECLARE_METHOD(x) inline Bounds Type##x(Node* node);
   DECLARE_METHOD(Start)
+  DECLARE_METHOD(IfException)
   VALUE_OP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 
@@ -602,12 +637,12 @@ Bounds Typer::Visitor::TypeStart(Node* node) {
 }
 
 
-// Common operators.
-
-
-Bounds Typer::Visitor::TypeAlways(Node* node) {
-  return Bounds(Type::None(zone()), Type::Boolean(zone()));
+Bounds Typer::Visitor::TypeIfException(Node* node) {
+  return Bounds::Unbounded(zone());
 }
+
+
+// Common operators.
 
 
 Bounds Typer::Visitor::TypeParameter(Node* node) {
@@ -1275,6 +1310,21 @@ Bounds Typer::Visitor::TypeJSCreate(Node* node) {
 }
 
 
+Bounds Typer::Visitor::TypeJSCreateClosure(Node* node) {
+  return Bounds(Type::None(), Type::OtherObject());
+}
+
+
+Bounds Typer::Visitor::TypeJSCreateLiteralArray(Node* node) {
+  return Bounds(Type::None(), Type::OtherObject());
+}
+
+
+Bounds Typer::Visitor::TypeJSCreateLiteralObject(Node* node) {
+  return Bounds(Type::None(), Type::OtherObject());
+}
+
+
 Type* Typer::Visitor::JSLoadPropertyTyper(Type* object, Type* name, Typer* t) {
   // TODO(rossberg): Use range types and sized array types to filter undefined.
   if (object->IsArray() && name->Is(Type::Integral32())) {
@@ -1408,18 +1458,21 @@ Bounds Typer::Visitor::TypeJSInstanceOf(Node* node) {
 
 
 Bounds Typer::Visitor::TypeJSLoadContext(Node* node) {
+  ContextAccess access = OpParameter<ContextAccess>(node);
   Bounds outer = Operand(node, 0);
   Type* context_type = outer.upper;
+  Type* upper = (access.index() == Context::GLOBAL_OBJECT_INDEX)
+                    ? Type::GlobalObject()
+                    : Type::Any();
   if (context_type->Is(Type::None())) {
     // Upper bound of context is not yet known.
-    return Bounds(Type::None(), Type::Any());
+    return Bounds(Type::None(), upper);
   }
 
   DCHECK(context_type->Maybe(Type::Internal()));
   // TODO(rossberg): More precisely, instead of the above assertion, we should
   // back-propagate the constraint that it has to be a subtype of Internal.
 
-  ContextAccess access = OpParameter<ContextAccess>(node);
   MaybeHandle<Context> context;
   if (context_type->IsConstant()) {
     context = Handle<Context>::cast(context_type->AsConstant()->Value());
@@ -1427,8 +1480,6 @@ Bounds Typer::Visitor::TypeJSLoadContext(Node* node) {
   // Walk context chain (as far as known), mirroring dynamic lookup.
   // Since contexts are mutable, the information is only useful as a lower
   // bound.
-  // TODO(rossberg): Could use scope info to fix upper bounds for constant
-  // bindings if we know that this code is never shared.
   for (size_t i = access.depth(); i > 0; --i) {
     if (context_type->IsContext()) {
       context_type = context_type->AsContext()->Outer();
@@ -1439,15 +1490,13 @@ Bounds Typer::Visitor::TypeJSLoadContext(Node* node) {
       context = handle(context.ToHandleChecked()->previous(), isolate());
     }
   }
-  if (context.is_null()) {
-    return Bounds::Unbounded(zone());
-  } else {
-    Handle<Object> value =
+  Type* lower = Type::None();
+  if (!context.is_null()) {
+    lower = TypeConstant(
         handle(context.ToHandleChecked()->get(static_cast<int>(access.index())),
-               isolate());
-    Type* lower = TypeConstant(value);
-    return Bounds(lower, Type::Any());
+               isolate()));
   }
+  return Bounds(lower, upper);
 }
 
 
@@ -1544,9 +1593,7 @@ Bounds Typer::Visitor::TypeJSCallRuntime(Node* node) {
     case Runtime::kInlineMathClz32:
       return Bounds(Type::None(), Type::Range(0, 32, zone()));
     case Runtime::kInlineStringGetLength:
-      // The string::length property is always an unsigned smi.
-      return Bounds(Type::None(), Type::Intersect(Type::UnsignedSmall(),
-                                                  Type::TaggedSigned()));
+      return Bounds(Type::None(), Type::Range(0, String::kMaxLength, zone()));
     default:
       break;
   }
@@ -1733,6 +1780,11 @@ Bounds Typer::Visitor::TypeChangeBitToBool(Node* node) {
   // TODO(neis): DCHECK(arg.upper->Is(Type::Boolean()));
   return Bounds(ChangeRepresentation(arg.lower, Type::TaggedPointer(), zone()),
                 ChangeRepresentation(arg.upper, Type::TaggedPointer(), zone()));
+}
+
+
+Bounds Typer::Visitor::TypeAllocate(Node* node) {
+  return Bounds(Type::TaggedPointer());
 }
 
 
@@ -2070,6 +2122,62 @@ Bounds Typer::Visitor::TypeTruncateInt64ToInt32(Node* node) {
 }
 
 
+Bounds Typer::Visitor::TypeFloat32Add(Node* node) {
+  return Bounds(Type::Number());
+}
+
+
+Bounds Typer::Visitor::TypeFloat32Sub(Node* node) {
+  return Bounds(Type::Number());
+}
+
+
+Bounds Typer::Visitor::TypeFloat32Mul(Node* node) {
+  return Bounds(Type::Number());
+}
+
+
+Bounds Typer::Visitor::TypeFloat32Div(Node* node) {
+  return Bounds(Type::Number());
+}
+
+
+Bounds Typer::Visitor::TypeFloat32Max(Node* node) {
+  return Bounds(Type::Number());
+}
+
+
+Bounds Typer::Visitor::TypeFloat32Min(Node* node) {
+  return Bounds(Type::Number());
+}
+
+
+Bounds Typer::Visitor::TypeFloat32Abs(Node* node) {
+  // TODO(turbofan): We should be able to infer a better type here.
+  return Bounds(Type::Number());
+}
+
+
+Bounds Typer::Visitor::TypeFloat32Sqrt(Node* node) {
+  return Bounds(Type::Number());
+}
+
+
+Bounds Typer::Visitor::TypeFloat32Equal(Node* node) {
+  return Bounds(Type::Boolean());
+}
+
+
+Bounds Typer::Visitor::TypeFloat32LessThan(Node* node) {
+  return Bounds(Type::Boolean());
+}
+
+
+Bounds Typer::Visitor::TypeFloat32LessThanOrEqual(Node* node) {
+  return Bounds(Type::Boolean());
+}
+
+
 Bounds Typer::Visitor::TypeFloat64Add(Node* node) {
   return Bounds(Type::Number());
 }
@@ -2101,6 +2209,12 @@ Bounds Typer::Visitor::TypeFloat64Max(Node* node) {
 
 
 Bounds Typer::Visitor::TypeFloat64Min(Node* node) {
+  return Bounds(Type::Number());
+}
+
+
+Bounds Typer::Visitor::TypeFloat64Abs(Node* node) {
+  // TODO(turbofan): We should be able to infer a better type here.
   return Bounds(Type::Number());
 }
 

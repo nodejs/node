@@ -29,6 +29,7 @@ class CommonOperatorBuilder;
 // Implements loop peeling.
 class LoopPeeler {
  public:
+  static bool CanPeel(LoopTree* loop_tree, LoopTree::Loop* loop);
   static PeeledIteration* Peel(Graph* graph, CommonOperatorBuilder* common,
                                LoopTree* loop_tree, LoopTree::Loop* loop,
                                Zone* tmp_zone);

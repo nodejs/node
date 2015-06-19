@@ -90,20 +90,20 @@ class InstructionOperandConverter {
   }
 
   Register ToRegister(InstructionOperand* op) {
-    DCHECK(op->IsRegister());
-    return Register::FromAllocationIndex(op->index());
+    return Register::FromAllocationIndex(RegisterOperand::cast(op)->index());
   }
 
   DoubleRegister ToDoubleRegister(InstructionOperand* op) {
-    DCHECK(op->IsDoubleRegister());
-    return DoubleRegister::FromAllocationIndex(op->index());
+    return DoubleRegister::FromAllocationIndex(
+        DoubleRegisterOperand::cast(op)->index());
   }
 
   Constant ToConstant(InstructionOperand* op) {
     if (op->IsImmediate()) {
-      return gen_->code()->GetImmediate(op->index());
+      return gen_->code()->GetImmediate(ImmediateOperand::cast(op));
     }
-    return gen_->code()->GetConstant(op->index());
+    return gen_->code()->GetConstant(
+        ConstantOperand::cast(op)->virtual_register());
   }
 
   double ToDouble(InstructionOperand* op) { return ToConstant(op).ToFloat64(); }

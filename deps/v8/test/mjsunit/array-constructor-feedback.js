@@ -26,7 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --expose-gc
-// Flags: --noalways-opt
 
 // Test element kind of objects.
 
@@ -216,4 +215,22 @@ function assertKind(expected, obj, name_opt) {
   if (4 != %GetOptimizationStatus(bar)) {
     assertFalse(isHoley(a));
   }
+})();
+
+// Test: Make sure that crankshaft continues with feedback for large arrays.
+(function() {
+  function bar(len) { return new Array(len); }
+  var size = 100001;
+  // Perform a gc, because we are allocating a very large array and if a gc
+  // happens during the allocation we could lose our memento.
+  gc();
+  bar(size)[0] = 'string';
+  var res = bar(size);
+  assertKind(elements_kind.fast, bar(size));
+    %OptimizeFunctionOnNextCall(bar);
+  assertKind(elements_kind.fast, bar(size));
+  // But there is a limit, based on the size of the old generation, currently
+  // 22937600, but double it to prevent the test being too brittle.
+  var large_size = 22937600 * 2;
+  assertKind(elements_kind.dictionary, bar(large_size));
 })();

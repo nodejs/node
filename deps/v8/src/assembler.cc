@@ -40,6 +40,7 @@
 #include "src/base/functional.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/platform.h"
+#include "src/base/utils/random-number-generator.h"
 #include "src/builtins.h"
 #include "src/codegen.h"
 #include "src/counters.h"
@@ -49,7 +50,6 @@
 #include "src/execution.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
-#include "src/isolate-inl.h"
 #include "src/jsregexp.h"
 #include "src/regexp-macro-assembler.h"
 #include "src/regexp-stack.h"
@@ -1216,30 +1216,15 @@ ExternalReference ExternalReference::new_space_allocation_limit_address(
 }
 
 
-ExternalReference ExternalReference::old_pointer_space_allocation_top_address(
+ExternalReference ExternalReference::old_space_allocation_top_address(
     Isolate* isolate) {
-  return ExternalReference(
-      isolate->heap()->OldPointerSpaceAllocationTopAddress());
+  return ExternalReference(isolate->heap()->OldSpaceAllocationTopAddress());
 }
 
 
-ExternalReference ExternalReference::old_pointer_space_allocation_limit_address(
+ExternalReference ExternalReference::old_space_allocation_limit_address(
     Isolate* isolate) {
-  return ExternalReference(
-      isolate->heap()->OldPointerSpaceAllocationLimitAddress());
-}
-
-
-ExternalReference ExternalReference::old_data_space_allocation_top_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->heap()->OldDataSpaceAllocationTopAddress());
-}
-
-
-ExternalReference ExternalReference::old_data_space_allocation_limit_address(
-    Isolate* isolate) {
-  return ExternalReference(
-      isolate->heap()->OldDataSpaceAllocationLimitAddress());
+  return ExternalReference(isolate->heap()->OldSpaceAllocationLimitAddress());
 }
 
 
@@ -1630,19 +1615,20 @@ bool PositionsRecorder::WriteRecordedPositions() {
     EnsureSpace ensure_space(assembler_);
     assembler_->RecordRelocInfo(RelocInfo::STATEMENT_POSITION,
                                 state_.current_statement_position);
-    state_.written_statement_position = state_.current_statement_position;
     written = true;
   }
+  state_.written_statement_position = state_.current_statement_position;
 
   // Write the position if it is different from what was written last time and
-  // also different from the written statement position.
+  // also different from the statement position that was just written.
   if (state_.current_position != state_.written_position &&
-      state_.current_position != state_.written_statement_position) {
+      (state_.current_position != state_.written_statement_position ||
+       !written)) {
     EnsureSpace ensure_space(assembler_);
     assembler_->RecordRelocInfo(RelocInfo::POSITION, state_.current_position);
-    state_.written_position = state_.current_position;
     written = true;
   }
+  state_.written_position = state_.current_position;
 
   // Return whether something was written.
   return written;

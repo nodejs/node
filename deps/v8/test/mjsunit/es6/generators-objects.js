@@ -84,7 +84,6 @@ function TestGeneratorObjectMethods() {
     assertThrows(function() { iter.next.call(non_generator); }, TypeError);
     assertThrows(function() { iter.next.call(non_generator, 1); }, TypeError);
     assertThrows(function() { iter.throw.call(non_generator, 1); }, TypeError);
-    assertThrows(function() { iter.close.call(non_generator); }, TypeError);
   }
 
   TestNonGenerator(1);

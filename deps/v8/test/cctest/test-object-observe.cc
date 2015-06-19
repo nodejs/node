@@ -429,7 +429,7 @@ TEST(ObservationWeakMap) {
   CHECK_EQ(1, NumberOfElements(callbackInfoMap));
   CHECK_EQ(1, NumberOfElements(objectInfoMap));
   CHECK_EQ(1, NumberOfElements(notifierObjectInfoMap));
-  i_isolate->heap()->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
+  i_isolate->heap()->CollectAllGarbage();
   CHECK_EQ(0, NumberOfElements(callbackInfoMap));
   CHECK_EQ(0, NumberOfElements(objectInfoMap));
   CHECK_EQ(0, NumberOfElements(notifierObjectInfoMap));
@@ -682,7 +682,7 @@ static void CheckSurvivingGlobalObjectsCount(int expected) {
   // the first garbage collection but some of the maps have already
   // been marked at that point.  Therefore some of the maps are not
   // collected until the second garbage collection.
-  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
   CcTest::heap()->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
   int count = GetGlobalObjectsCount();
 #ifdef DEBUG
@@ -833,4 +833,55 @@ TEST(APIAccessorsShouldNotNotify) {
   CHECK(CompileRun("records")->IsNull());
   CompileRun("Object.defineProperty(obj, 'accessor', { value: 44 });");
   CHECK(CompileRun("records")->IsNull());
+}
+
+
+namespace {
+
+int* global_use_counts = NULL;
+
+void MockUseCounterCallback(v8::Isolate* isolate,
+                            v8::Isolate::UseCounterFeature feature) {
+  ++global_use_counts[feature];
+}
+}
+
+
+TEST(UseCountObjectObserve) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+  LocalContext env;
+  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
+  global_use_counts = use_counts;
+  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+  CompileRun(
+      "var obj = {};"
+      "Object.observe(obj, function(){})");
+  CHECK_EQ(1, use_counts[v8::Isolate::kObjectObserve]);
+  CompileRun(
+      "var obj2 = {};"
+      "Object.observe(obj2, function(){})");
+  // Only counts the first use of observe in a given context.
+  CHECK_EQ(1, use_counts[v8::Isolate::kObjectObserve]);
+  {
+    LocalContext env2;
+    CompileRun(
+        "var obj = {};"
+        "Object.observe(obj, function(){})");
+  }
+  // Counts different contexts separately.
+  CHECK_EQ(2, use_counts[v8::Isolate::kObjectObserve]);
+}
+
+
+TEST(UseCountObjectGetNotifier) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+  LocalContext env;
+  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
+  global_use_counts = use_counts;
+  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+  CompileRun("var obj = {}");
+  CompileRun("Object.getNotifier(obj)");
+  CHECK_EQ(1, use_counts[v8::Isolate::kObjectObserve]);
 }

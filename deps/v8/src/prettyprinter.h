@@ -25,7 +25,7 @@ class CallPrinter : public AstVisitor {
   void Find(AstNode* node, bool print = false);
 
 // Individual nodes
-#define DECLARE_VISIT(type) void Visit##type(type* node) OVERRIDE;
+#define DECLARE_VISIT(type) void Visit##type(type* node) override;
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
@@ -67,7 +67,7 @@ class PrettyPrinter: public AstVisitor {
   static void PrintOut(Isolate* isolate, Zone* zone, AstNode* node);
 
   // Individual nodes
-#define DECLARE_VISIT(type) void Visit##type(type* node) OVERRIDE;
+#define DECLARE_VISIT(type) void Visit##type(type* node) override;
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 

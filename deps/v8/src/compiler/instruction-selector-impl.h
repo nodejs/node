@@ -119,8 +119,7 @@ class OperandGenerator {
   }
 
   InstructionOperand UseImmediate(Node* node) {
-    int index = sequence()->AddImmediate(ToConstant(node));
-    return ImmediateOperand(index);
+    return sequence()->AddImmediate(ToConstant(node));
   }
 
   InstructionOperand UseLocation(Node* node, LinkageLocation location,
@@ -138,7 +137,7 @@ class OperandGenerator {
     UnallocatedOperand op = UnallocatedOperand(
         UnallocatedOperand::MUST_HAVE_REGISTER,
         UnallocatedOperand::USED_AT_START, sequence()->NextVirtualRegister());
-    sequence()->MarkAsDouble(op.virtual_register());
+    sequence()->MarkAsRepresentation(kRepFloat64, op.virtual_register());
     return op;
   }
 
@@ -149,8 +148,7 @@ class OperandGenerator {
   }
 
   InstructionOperand TempImmediate(int32_t imm) {
-    int index = sequence()->AddImmediate(Constant(imm));
-    return ImmediateOperand(index);
+    return sequence()->AddImmediate(Constant(imm));
   }
 
   InstructionOperand TempLocation(LinkageLocation location, MachineType type) {
@@ -159,9 +157,8 @@ class OperandGenerator {
   }
 
   InstructionOperand Label(BasicBlock* block) {
-    int index = sequence()->AddImmediate(
+    return sequence()->AddImmediate(
         Constant(RpoNumber::FromInt(block->rpo_number())));
-    return ImmediateOperand(index);
   }
 
  protected:
@@ -246,7 +243,7 @@ class OperandGenerator {
 // The whole instruction is treated as a unit by the register allocator, and
 // thus no spills or moves can be introduced between the flags-setting
 // instruction and the branch or set it should be combined with.
-class FlagsContinuation FINAL {
+class FlagsContinuation final {
  public:
   FlagsContinuation() : mode_(kFlags_none) {}
 

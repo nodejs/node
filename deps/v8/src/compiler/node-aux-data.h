@@ -31,9 +31,60 @@ class NodeAuxData {
     return (id < aux_data_.size()) ? aux_data_[id] : T();
   }
 
+  class const_iterator;
+  friend class const_iterator;
+
+  const_iterator begin() const;
+  const_iterator end() const;
+
  private:
   ZoneVector<T> aux_data_;
 };
+
+
+template <class T>
+class NodeAuxData<T>::const_iterator {
+ public:
+  typedef std::forward_iterator_tag iterator_category;
+  typedef int difference_type;
+  typedef std::pair<size_t, T> value_type;
+  typedef value_type* pointer;
+  typedef value_type& reference;
+
+  const_iterator(const ZoneVector<T>* data, size_t current)
+      : data_(data), current_(current) {}
+  const_iterator(const const_iterator& other)
+      : data_(other.data_), current_(other.current_) {}
+
+  value_type operator*() const {
+    return std::make_pair(current_, (*data_)[current_]);
+  }
+  bool operator==(const const_iterator& other) const {
+    return current_ == other.current_ && data_ == other.data_;
+  }
+  bool operator!=(const const_iterator& other) const {
+    return !(*this == other);
+  }
+  const_iterator& operator++() {
+    ++current_;
+    return *this;
+  }
+  const_iterator operator++(int);
+
+ private:
+  const ZoneVector<T>* data_;
+  size_t current_;
+};
+
+template <class T>
+typename NodeAuxData<T>::const_iterator NodeAuxData<T>::begin() const {
+  return typename NodeAuxData<T>::const_iterator(&aux_data_, 0);
+}
+
+template <class T>
+typename NodeAuxData<T>::const_iterator NodeAuxData<T>::end() const {
+  return typename NodeAuxData<T>::const_iterator(&aux_data_, aux_data_.size());
+}
 
 }  // namespace compiler
 }  // namespace internal

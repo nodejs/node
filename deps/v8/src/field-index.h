@@ -17,7 +17,7 @@ class Map;
 // from a property index. When available, the wrapper class captures additional
 // information to allow the field index to be translated back into the property
 // index it was originally generated from.
-class FieldIndex FINAL {
+class FieldIndex final {
  public:
   static FieldIndex ForPropertyIndex(Map* map,
                                      int index,
