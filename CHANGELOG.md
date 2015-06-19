@@ -1,5 +1,73 @@
 # io.js ChangeLog
 
+## 2015-06-23, Version 2.3.1, @rvagg
+
+### Notable changes
+
+* **module**: The number of syscalls made during a `require()` have been significantly reduced again (see [#1801](https://github.com/nodejs/io.js/pull/1801) from v2.2.0 for previous work), which should lead to a performance improvement (Pierre Inglebert) [#1920](https://github.com/nodejs/io.js/pull/1920).
+* **npm**:
+  * Upgrade to [v2.11.2](https://github.com/npm/npm/releases/tag/v2.11.2) (Rebecca Turner) [#1956](https://github.com/nodejs/io.js/pull/1956).
+  * Upgrade to [v2.11.3](https://github.com/npm/npm/releases/tag/v2.11.3) (Forrest L Norvell) [#2018](https://github.com/nodejs/io.js/pull/2018).
+* **zlib**: A bug was discovered where the process would abort if the final part of a zlib decompression results in a buffer that would exceed the maximum length of `0x3fffffff` bytes (~1GiB). This was likely to only occur during buffered decompression (rather than streaming). This is now fixed and will instead result in a thrown `RangeError` (Michaël Zasso) [#1811](https://github.com/nodejs/io.js/pull/1811).
+
+### Known issues
+
+See https://github.com/nodejs/io.js/labels/confirmed-bug for complete and current list of known issues.
+
+* Some problems with unreferenced timers running during `beforeExit` are still to be resolved. See [#1264](https://github.com/nodejs/io.js/issues/1264).
+* Surrogate pair in REPL can freeze terminal [#690](https://github.com/nodejs/io.js/issues/690)
+* `process.send()` is not synchronous as the docs suggest, a regression introduced in 1.0.2, see [#760](https://github.com/nodejs/io.js/issues/760) and fix in [#774](https://github.com/nodejs/io.js/issues/774)
+* Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion [#894](https://github.com/nodejs/io.js/issues/894)
+* `url.resolve` may transfer the auth portion of the url when resolving between two full hosts, see [#1435](https://github.com/nodejs/io.js/issues/1435).
+
+## Commits
+
+* [[`e56758a5e0`](https://github.com/nodejs/io.js/commit/e56758a5e0)] - **async-wrap**: add provider id and object info cb (Trevor Norris) [#1896](https://github.com/nodejs/io.js/pull/1896)
+* [[`d5637e67c9`](https://github.com/nodejs/io.js/commit/d5637e67c9)] - **buffer**: fix cyclic dependency with util (Brendan Ashworth) [#1988](https://github.com/nodejs/io.js/pull/1988)
+* [[`c5353d7c62`](https://github.com/nodejs/io.js/commit/c5353d7c62)] - **build**: remove lint from test-ci on windows (Johan Bergström) [#2004](https://github.com/nodejs/io.js/pull/2004)
+* [[`c207e8d223`](https://github.com/nodejs/io.js/commit/c207e8d223)] - **build**: fix pkg-config output parsing in configure (Ben Noordhuis) [#1986](https://github.com/nodejs/io.js/pull/1986)
+* [[`8d8a26e8f7`](https://github.com/nodejs/io.js/commit/8d8a26e8f7)] - **build**: don't run lint from test-ci (Johan Bergström) [#1965](https://github.com/nodejs/io.js/pull/1965)
+* [[`1ec53c044d`](https://github.com/nodejs/io.js/commit/1ec53c044d)] - **build**: simplify execution of built binary (Johan Bergström) [#1955](https://github.com/nodejs/io.js/pull/1955)
+* [[`3beb880716`](https://github.com/nodejs/io.js/commit/3beb880716)] - **crypto**: add cert check to CNNIC Whitelist (Shigeki Ohtsu) [#1895](https://github.com/nodejs/io.js/pull/1895)
+* [[`48c0fb8b1a`](https://github.com/nodejs/io.js/commit/48c0fb8b1a)] - **deps**: make node-gyp work with io.js (cjihrig) [iojs/io.js#990](https://github.com/iojs/io.js/pull/990)
+* [[`6a359b1ce9`](https://github.com/nodejs/io.js/commit/6a359b1ce9)] - **deps**: upgrade to npm 2.11.3 (Forrest L Norvell) [#2018](https://github.com/nodejs/io.js/pull/2018)
+* [[`6aab2f3b9a`](https://github.com/nodejs/io.js/commit/6aab2f3b9a)] - **deps**: make node-gyp work with io.js (cjihrig) [iojs/io.js#990](https://github.com/iojs/io.js/pull/990)
+* [[`3e12561b55`](https://github.com/nodejs/io.js/commit/3e12561b55)] - **deps**: upgrade to npm 2.11.2 (Rebecca Turner) [#1956](https://github.com/nodejs/io.js/pull/1956)
+* [[`8ac50819b6`](https://github.com/nodejs/io.js/commit/8ac50819b6)] - **doc**: add security section to README.md (Rod Vagg) [#1948](https://github.com/nodejs/io.js/pull/1948)
+* [[`1f93b63b11`](https://github.com/nodejs/io.js/commit/1f93b63b11)] - **doc**: change the info to the same as in gitconfig (Christian Tellnes) [#2000](https://github.com/nodejs/io.js/pull/2000)
+* [[`0cf94e6856`](https://github.com/nodejs/io.js/commit/0cf94e6856)] - **doc**: mention CI in Collaborator Guide (Rich Trott) [#1995](https://github.com/nodejs/io.js/pull/1995)
+* [[`7a3006efe4`](https://github.com/nodejs/io.js/commit/7a3006efe4)] - **doc**: add TOC links to Collaborator Guide (Rich Trott) [#1994](https://github.com/nodejs/io.js/pull/1994)
+* [[`30638b150f`](https://github.com/nodejs/io.js/commit/30638b150f)] - **doc**: add TSC meeting notes 2015-06-10 (Bert Belder) [#1943](https://github.com/nodejs/io.js/pull/1943)
+* [[`c4ec04136b`](https://github.com/nodejs/io.js/commit/c4ec04136b)] - **doc**: reformat authors section (Johan Bergström) [#1966](https://github.com/nodejs/io.js/pull/1966)
+* [[`96165f9be2`](https://github.com/nodejs/io.js/commit/96165f9be2)] - **doc**: minor clarification in the modules API doc. (Сковорода Никита Андреевич) [#1983](https://github.com/nodejs/io.js/pull/1983)
+* [[`5c2707c1b2`](https://github.com/nodejs/io.js/commit/5c2707c1b2)] - **doc**: benchmark/README.md copyedit (Rich Trott) [#1970](https://github.com/nodejs/io.js/pull/1970)
+* [[`74fdf732d0`](https://github.com/nodejs/io.js/commit/74fdf732d0)] - **doc**: copyedit COLLABORATOR_GUIDE.md (Rich Trott) [#1964](https://github.com/nodejs/io.js/pull/1964)
+* [[`5fe6e83640`](https://github.com/nodejs/io.js/commit/5fe6e83640)] - **doc**: copyedit GOVERNANCE.md (Rich Trott) [#1963](https://github.com/nodejs/io.js/pull/1963)
+* [[`428526544c`](https://github.com/nodejs/io.js/commit/428526544c)] - **doc**: add ChALkeR as collaborator (Сковорода Никита Андреевич) [#1927](https://github.com/nodejs/io.js/pull/1927)
+* [[`5dfe0d5d61`](https://github.com/nodejs/io.js/commit/5dfe0d5d61)] - **doc**: remove irrelevant SEMVER-MINOR & MAJOR (Rod Vagg)
+* [[`fb8811d95e`](https://github.com/nodejs/io.js/commit/fb8811d95e)] - **lib,test**: fix whitespace issues (Roman Reiss) [#1971](https://github.com/nodejs/io.js/pull/1971)
+* [[`a4f4909f3d`](https://github.com/nodejs/io.js/commit/a4f4909f3d)] - **module**: fix stat with long paths on Windows (Michaël Zasso) [#2013](https://github.com/nodejs/io.js/pull/2013)
+* [[`a71ee93afe`](https://github.com/nodejs/io.js/commit/a71ee93afe)] - **module**: reduce syscalls during require search (Pierre Inglebert) [#1920](https://github.com/nodejs/io.js/pull/1920)
+* [[`671e64ac73`](https://github.com/nodejs/io.js/commit/671e64ac73)] - **module**: allow long paths for require on Windows (Michaël Zasso)
+* [[`061342a500`](https://github.com/nodejs/io.js/commit/061342a500)] - **net**: Defer reading until listeners could be added (James Hartig) [#1496](https://github.com/nodejs/io.js/pull/1496)
+* [[`5d2b846d11`](https://github.com/nodejs/io.js/commit/5d2b846d11)] - **test**: assert tmp and fixture dirs different (Rich Trott) [#2015](https://github.com/nodejs/io.js/pull/2015)
+* [[`b0990ef45d`](https://github.com/nodejs/io.js/commit/b0990ef45d)] - **test**: confirm symlink (Rich Trott) [#2014](https://github.com/nodejs/io.js/pull/2014)
+* [[`3ba4f71fc4`](https://github.com/nodejs/io.js/commit/3ba4f71fc4)] - **test**: check result as early as possible (Rich Trott) [#2007](https://github.com/nodejs/io.js/pull/2007)
+* [[`0abcf44d6b`](https://github.com/nodejs/io.js/commit/0abcf44d6b)] - **test**: add Buffer slice UTF-8 test (Rich Trott) [#1989](https://github.com/nodejs/io.js/pull/1989)
+* [[`88c1831ff4`](https://github.com/nodejs/io.js/commit/88c1831ff4)] - **test**: tmpdir creation failures should fail tests (Rich Trott) [#1976](https://github.com/nodejs/io.js/pull/1976)
+* [[`52a822d944`](https://github.com/nodejs/io.js/commit/52a822d944)] - **test**: fix test-cluster-worker-disconnect (Santiago Gimeno) [#1919](https://github.com/nodejs/io.js/pull/1919)
+* [[`7c79490bfb`](https://github.com/nodejs/io.js/commit/7c79490bfb)] - **test**: only refresh tmpDir for tests that need it (Rich Trott) [#1954](https://github.com/nodejs/io.js/pull/1954)
+* [[`88d7904c0b`](https://github.com/nodejs/io.js/commit/88d7904c0b)] - **test**: remove test repetition (Rich Trott) [#1874](https://github.com/nodejs/io.js/pull/1874)
+* [[`91dfb5e094`](https://github.com/nodejs/io.js/commit/91dfb5e094)] - **tools**: make test-npm work without global npm (Jeremiah Senkpiel) [#1926](https://github.com/nodejs/io.js/pull/1926)
+* [[`3777f41562`](https://github.com/nodejs/io.js/commit/3777f41562)] - **tools**: enable whitespace related rules in eslint (Roman Reiss) [#1971](https://github.com/nodejs/io.js/pull/1971)
+* [[`626432d843`](https://github.com/nodejs/io.js/commit/626432d843)] - **util**: dont repeat isBuffer (Brendan Ashworth) [#1988](https://github.com/nodejs/io.js/pull/1988)
+* [[`1d79f572f1`](https://github.com/nodejs/io.js/commit/1d79f572f1)] - **util**: move deprecate() to internal module (Brendan Ashworth) [#1988](https://github.com/nodejs/io.js/pull/1988)
+* [[`4b4b1760b5`](https://github.com/nodejs/io.js/commit/4b4b1760b5)] - **v8**: cherry-pick uclibc build patch from upstream (Ben Noordhuis) [#1974](https://github.com/nodejs/io.js/pull/1974)
+* [[`5d0cee46bb`](https://github.com/nodejs/io.js/commit/5d0cee46bb)] - **vm**: remove unnecessary HandleScopes (Ben Noordhuis) [#2001](https://github.com/nodejs/io.js/pull/2001)
+* [[`0ecf9457b5`](https://github.com/nodejs/io.js/commit/0ecf9457b5)] - **win,node-gyp**: enable delay-load hook by default (Bert Belder) [iojs/io.js#1433](https://github.com/iojs/io.js/pull/1433)
+* [[`953b3e75e8`](https://github.com/nodejs/io.js/commit/953b3e75e8)] - **win,node-gyp**: enable delay-load hook by default (Bert Belder) [iojs/io.js#1433](https://github.com/iojs/io.js/pull/1433)
+* [[`3806d875d3`](https://github.com/nodejs/io.js/commit/3806d875d3)] - **zlib**: prevent uncaught exception in zlibBuffer (Michaël Zasso) [#1811](https://github.com/nodejs/io.js/pull/1811)
+
 ## 2015-06-13, Version 2.3.0, @rvagg
 
 ### Notable changes
