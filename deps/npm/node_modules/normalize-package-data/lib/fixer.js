@@ -50,6 +50,7 @@ var fixer = module.exports = {
     if (typeof data.scripts !== "object") {
       this.warn("nonObjectScripts")
       delete data.scripts
+      return
     }
     Object.keys(data.scripts).forEach(function (k) {
       if (typeof data.scripts[k] !== "string") {

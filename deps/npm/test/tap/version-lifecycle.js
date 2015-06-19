@@ -22,7 +22,8 @@ test('npm version <semver> with failing preversion lifecycle script', function (
       preversion: './fail.sh'
     }
   }), 'utf8')
-  fs.writeFileSync(path.resolve(pkg, 'fail.sh'), 'exit 50', {mode: 448})
+  fs.writeFileSync(path.resolve(pkg, 'fail.sh'), 'exit 50', 'utf8')
+  fs.chmodSync(path.resolve(pkg, 'fail.sh'), 448)
   npm.load({cache: cache, registry: common.registry}, function () {
     var version = require('../../lib/version')
     version(['patch'], function (err) {
@@ -44,7 +45,8 @@ test('npm version <semver> with failing postversion lifecycle script', function 
       postversion: './fail.sh'
     }
   }), 'utf8')
-  fs.writeFileSync(path.resolve(pkg, 'fail.sh'), 'exit 50', {mode: 448})
+  fs.writeFileSync(path.resolve(pkg, 'fail.sh'), 'exit 50', 'utf8')
+  fs.chmodSync(path.resolve(pkg, 'fail.sh'), 448)
   npm.load({cache: cache, registry: common.registry}, function () {
     var version = require('../../lib/version')
     version(['patch'], function (err) {
