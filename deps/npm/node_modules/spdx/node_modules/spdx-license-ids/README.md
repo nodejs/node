@@ -52,4 +52,4 @@ var spdxLicenseIds = require('spdx-license-ids'); //=> ['Glide', 'Abstyles', 'AF
 
 ## License
 
-[The Uicense](./LICENSE).
+[The Unlicense](./LICENSE).
