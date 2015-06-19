@@ -55,16 +55,6 @@ class Verifier::Visitor {
   Node* ValueInput(Node* node, int i = 0) {
     return NodeProperties::GetValueInput(node, i);
   }
-  FieldAccess Field(Node* node) {
-    DCHECK(node->opcode() == IrOpcode::kLoadField ||
-           node->opcode() == IrOpcode::kStoreField);
-    return OpParameter<FieldAccess>(node);
-  }
-  ElementAccess Element(Node* node) {
-    DCHECK(node->opcode() == IrOpcode::kLoadElement ||
-           node->opcode() == IrOpcode::kStoreElement);
-    return OpParameter<ElementAccess>(node);
-  }
   void CheckNotTyped(Node* node) {
     if (NodeProperties::IsTyped(node)) {
       std::ostringstream str;
@@ -178,16 +168,6 @@ void Verifier::Visitor::Check(Node* node) {
   }
 
   switch (node->opcode()) {
-    case IrOpcode::kAlways:
-      // Always has no inputs.
-      CHECK_EQ(0, input_count);
-      // Always uses are Branch.
-      for (auto use : node->uses()) {
-        CHECK(use->opcode() == IrOpcode::kBranch);
-      }
-      // Type is boolean.
-      CheckUpperIs(node, Type::Boolean());
-      break;
     case IrOpcode::kStart:
       // Start has no inputs.
       CHECK_EQ(0, input_count);
@@ -228,13 +208,20 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is empty.
       CheckNotTyped(node);
       break;
-    case IrOpcode::kIfSuccess:
-    case IrOpcode::kIfException: {
+    case IrOpcode::kIfSuccess: {
       // IfSuccess and IfException continuation only on throwing nodes.
       Node* input = NodeProperties::GetControlInput(node, 0);
       CHECK(!input->op()->HasProperty(Operator::kNoThrow));
       // Type is empty.
       CheckNotTyped(node);
+      break;
+    }
+    case IrOpcode::kIfException: {
+      // IfSuccess and IfException continuation only on throwing nodes.
+      Node* input = NodeProperties::GetControlInput(node, 0);
+      CHECK(!input->op()->HasProperty(Operator::kNoThrow));
+      // Type can be anything.
+      CheckUpperIs(node, Type::Any());
       break;
     }
     case IrOpcode::kSwitch: {
@@ -295,6 +282,15 @@ void Verifier::Visitor::Check(Node* node) {
       // TODO(rossberg): what are the constraints on these?
       // Type is empty.
       CheckNotTyped(node);
+      break;
+    case IrOpcode::kTerminate:
+      CHECK_EQ(IrOpcode::kLoop,
+               NodeProperties::GetControlInput(node)->opcode());
+      // Type is empty.
+      CheckNotTyped(node);
+      CHECK_EQ(1, control_count);
+      CHECK_EQ(1, effect_count);
+      CHECK_EQ(2, input_count);
       break;
     case IrOpcode::kOsrNormalEntry:
     case IrOpcode::kOsrLoopEntry:
@@ -433,6 +429,9 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kCall:
       // TODO(rossberg): what are the constraints on these?
       break;
+    case IrOpcode::kTailCall:
+      // TODO(bmeurer): what are the constraints on these?
+      break;
 
     // JavaScript operators
     // --------------------
@@ -494,6 +493,15 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kJSCreate:
       // Type is Object.
       CheckUpperIs(node, Type::Object());
+      break;
+    case IrOpcode::kJSCreateClosure:
+      // Type is Function.
+      CheckUpperIs(node, Type::OtherObject());
+      break;
+    case IrOpcode::kJSCreateLiteralArray:
+    case IrOpcode::kJSCreateLiteralObject:
+      // Type is OtherObject.
+      CheckUpperIs(node, Type::OtherObject());
       break;
     case IrOpcode::kJSLoadProperty:
     case IrOpcode::kJSLoadNamed:
@@ -629,6 +637,10 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::Any());
       CheckUpperIs(node, Type::Boolean());
       break;
+    case IrOpcode::kAllocate:
+      CheckValueInputIs(node, 0, Type::PlainNumber());
+      CheckUpperIs(node, Type::TaggedPointer());
+      break;
 
     case IrOpcode::kChangeTaggedToInt32: {
       // Signed32 /\ Tagged -> Signed32 /\ UntaggedInt32
@@ -707,7 +719,7 @@ void Verifier::Visitor::Check(Node* node) {
       // Object -> fieldtype
       // TODO(rossberg): activate once machine ops are typed.
       // CheckValueInputIs(node, 0, Type::Object());
-      // CheckUpperIs(node, Field(node).type));
+      // CheckUpperIs(node, FieldAccessOf(node->op()).type));
       break;
     case IrOpcode::kLoadBuffer:
       break;
@@ -715,13 +727,13 @@ void Verifier::Visitor::Check(Node* node) {
       // Object -> elementtype
       // TODO(rossberg): activate once machine ops are typed.
       // CheckValueInputIs(node, 0, Type::Object());
-      // CheckUpperIs(node, Element(node).type));
+      // CheckUpperIs(node, ElementAccessOf(node->op()).type));
       break;
     case IrOpcode::kStoreField:
       // (Object, fieldtype) -> _|_
       // TODO(rossberg): activate once machine ops are typed.
       // CheckValueInputIs(node, 0, Type::Object());
-      // CheckValueInputIs(node, 1, Field(node).type));
+      // CheckValueInputIs(node, 1, FieldAccessOf(node->op()).type));
       CheckNotTyped(node);
       break;
     case IrOpcode::kStoreBuffer:
@@ -730,7 +742,7 @@ void Verifier::Visitor::Check(Node* node) {
       // (Object, elementtype) -> _|_
       // TODO(rossberg): activate once machine ops are typed.
       // CheckValueInputIs(node, 0, Type::Object());
-      // CheckValueInputIs(node, 1, Element(node).type));
+      // CheckValueInputIs(node, 1, ElementAccessOf(node->op()).type));
       CheckNotTyped(node);
       break;
 
@@ -780,6 +792,17 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kUint64Div:
     case IrOpcode::kUint64Mod:
     case IrOpcode::kUint64LessThan:
+    case IrOpcode::kFloat32Add:
+    case IrOpcode::kFloat32Sub:
+    case IrOpcode::kFloat32Mul:
+    case IrOpcode::kFloat32Div:
+    case IrOpcode::kFloat32Max:
+    case IrOpcode::kFloat32Min:
+    case IrOpcode::kFloat32Abs:
+    case IrOpcode::kFloat32Sqrt:
+    case IrOpcode::kFloat32Equal:
+    case IrOpcode::kFloat32LessThan:
+    case IrOpcode::kFloat32LessThanOrEqual:
     case IrOpcode::kFloat64Add:
     case IrOpcode::kFloat64Sub:
     case IrOpcode::kFloat64Mul:
@@ -787,6 +810,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kFloat64Mod:
     case IrOpcode::kFloat64Max:
     case IrOpcode::kFloat64Min:
+    case IrOpcode::kFloat64Abs:
     case IrOpcode::kFloat64Sqrt:
     case IrOpcode::kFloat64RoundDown:
     case IrOpcode::kFloat64RoundTruncate:

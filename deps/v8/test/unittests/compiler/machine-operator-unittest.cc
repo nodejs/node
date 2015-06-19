@@ -200,17 +200,23 @@ const PureOperator kPureOperators[] = {
     PURE(ChangeUint32ToFloat64, 1, 0, 1), PURE(ChangeUint32ToUint64, 1, 0, 1),
     PURE(TruncateFloat64ToFloat32, 1, 0, 1),
     PURE(TruncateFloat64ToInt32, 1, 0, 1), PURE(TruncateInt64ToInt32, 1, 0, 1),
-    PURE(Float64Add, 2, 0, 1), PURE(Float64Sub, 2, 0, 1),
-    PURE(Float64Mul, 2, 0, 1), PURE(Float64Div, 2, 0, 1),
-    PURE(Float64Mod, 2, 0, 1), PURE(Float64Sqrt, 1, 0, 1),
+    PURE(Float32Add, 2, 0, 1), PURE(Float32Sub, 2, 0, 1),
+    PURE(Float32Mul, 2, 0, 1), PURE(Float32Div, 2, 0, 1),
+    PURE(Float32Abs, 1, 0, 1), PURE(Float32Sqrt, 1, 0, 1),
+    PURE(Float32Equal, 2, 0, 1), PURE(Float32LessThan, 2, 0, 1),
+    PURE(Float32LessThanOrEqual, 2, 0, 1), PURE(Float32Max, 2, 0, 1),
+    PURE(Float32Min, 2, 0, 1), PURE(Float64Add, 2, 0, 1),
+    PURE(Float64Sub, 2, 0, 1), PURE(Float64Mul, 2, 0, 1),
+    PURE(Float64Div, 2, 0, 1), PURE(Float64Mod, 2, 0, 1),
+    PURE(Float64Abs, 1, 0, 1), PURE(Float64Sqrt, 1, 0, 1),
     PURE(Float64Equal, 2, 0, 1), PURE(Float64LessThan, 2, 0, 1),
-    PURE(Float64LessThanOrEqual, 2, 0, 1), PURE(LoadStackPointer, 0, 0, 1),
+    PURE(Float64LessThanOrEqual, 2, 0, 1), PURE(Float64Max, 2, 0, 1),
+    PURE(Float64Min, 2, 0, 1), PURE(LoadStackPointer, 0, 0, 1),
     PURE(Float64RoundDown, 1, 0, 1), PURE(Float64RoundTruncate, 1, 0, 1),
     PURE(Float64RoundTiesAway, 1, 0, 1), PURE(Float64ExtractLowWord32, 1, 0, 1),
     PURE(Float64ExtractHighWord32, 1, 0, 1),
     PURE(Float64InsertLowWord32, 2, 0, 1),
-    PURE(Float64InsertHighWord32, 2, 0, 1), PURE(Float64Max, 2, 0, 1),
-    PURE(Float64Min, 2, 0, 1)
+    PURE(Float64InsertHighWord32, 2, 0, 1)
 #undef PURE
 };
 

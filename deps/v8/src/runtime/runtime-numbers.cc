@@ -185,13 +185,7 @@ RUNTIME_FUNCTION(Runtime_StringToNumber) {
   }
 
   // Slower case.
-  int flags = ALLOW_HEX;
-  if (FLAG_harmony_numeric_literals) {
-    // The current spec draft has not updated "ToNumber Applied to the String
-    // Type", https://bugs.ecmascript.org/show_bug.cgi?id=1584
-    flags |= ALLOW_OCTAL | ALLOW_BINARY;
-  }
-
+  int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
   return *isolate->factory()->NewNumber(
       StringToDouble(isolate->unicode_cache(), subject, flags));
 }
@@ -557,14 +551,6 @@ RUNTIME_FUNCTION(Runtime_SmiLexicographicCompare) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_GetRootNaN) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
-  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
-  return isolate->heap()->nan_value();
-}
-
-
 RUNTIME_FUNCTION(Runtime_MaxSmi) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 0);
@@ -592,6 +578,13 @@ RUNTIME_FUNCTION(Runtime_IsNonNegativeSmi) {
   CONVERT_ARG_CHECKED(Object, obj, 0);
   return isolate->heap()->ToBoolean(obj->IsSmi() &&
                                     Smi::cast(obj)->value() >= 0);
+}
+
+
+RUNTIME_FUNCTION(Runtime_GetRootNaN) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 0);
+  return isolate->heap()->nan_value();
 }
 }
 }  // namespace v8::internal

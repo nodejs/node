@@ -162,9 +162,6 @@
 //  V8_HAS_CXX11_ALIGNAS        - alignas specifier supported
 //  V8_HAS_CXX11_ALIGNOF        - alignof(type) operator supported
 //  V8_HAS_CXX11_STATIC_ASSERT  - static_assert() supported
-//  V8_HAS_CXX11_DELETE         - deleted functions supported
-//  V8_HAS_CXX11_FINAL          - final marker supported
-//  V8_HAS_CXX11_OVERRIDE       - override marker supported
 //
 // Compiler-specific feature detection
 //
@@ -190,7 +187,6 @@
 //  V8_HAS_DECLSPEC_DEPRECATED          - __declspec(deprecated) supported
 //  V8_HAS_DECLSPEC_NOINLINE            - __declspec(noinline) supported
 //  V8_HAS_DECLSPEC_SELECTANY           - __declspec(selectany) supported
-//  V8_HAS___FINAL                      - __final supported in non-C++11 mode
 //  V8_HAS___FORCEINLINE                - __forceinline supported
 //
 // Note that testing for compilers and/or features must be done using #if
@@ -230,9 +226,6 @@
 
 # define V8_HAS_CXX11_ALIGNAS (__has_feature(cxx_alignas))
 # define V8_HAS_CXX11_STATIC_ASSERT (__has_feature(cxx_static_assert))
-# define V8_HAS_CXX11_DELETE (__has_feature(cxx_deleted_functions))
-# define V8_HAS_CXX11_FINAL (__has_feature(cxx_override_control))
-# define V8_HAS_CXX11_OVERRIDE (__has_feature(cxx_override_control))
 
 #elif defined(__GNUC__)
 
@@ -274,12 +267,6 @@
 #  define V8_HAS_CXX11_ALIGNAS (V8_GNUC_PREREQ(4, 8, 0))
 #  define V8_HAS_CXX11_ALIGNOF (V8_GNUC_PREREQ(4, 8, 0))
 #  define V8_HAS_CXX11_STATIC_ASSERT (V8_GNUC_PREREQ(4, 3, 0))
-#  define V8_HAS_CXX11_DELETE (V8_GNUC_PREREQ(4, 4, 0))
-#  define V8_HAS_CXX11_OVERRIDE (V8_GNUC_PREREQ(4, 7, 0))
-#  define V8_HAS_CXX11_FINAL (V8_GNUC_PREREQ(4, 7, 0))
-# else
-// '__final' is a non-C++11 GCC synonym for 'final', per GCC r176655.
-#  define V8_HAS___FINAL (V8_GNUC_PREREQ(4, 7, 0))
 # endif
 
 #elif defined(_MSC_VER)
@@ -287,9 +274,6 @@
 # define V8_CC_MSVC 1
 
 # define V8_HAS___ALIGNOF 1
-
-# define V8_HAS_CXX11_FINAL 1
-# define V8_HAS_CXX11_OVERRIDE 1
 
 # define V8_HAS_DECLSPEC_ALIGN 1
 # define V8_HAS_DECLSPEC_DEPRECATED 1
@@ -354,26 +338,6 @@ declarator __attribute__((deprecated))
 #else
 # define V8_UNLIKELY(condition) (condition)
 # define V8_LIKELY(condition) (condition)
-#endif
-
-
-// A macro to specify that a method is deleted from the corresponding class.
-// Any attempt to use the method will always produce an error at compile time
-// when this macro can be implemented (i.e. if the compiler supports C++11).
-// If the current compiler does not support C++11, use of the annotated method
-// will still cause an error, but the error will most likely occur at link time
-// rather than at compile time. As a backstop, method declarations using this
-// macro should be private.
-// Use like:
-//   class A {
-//    private:
-//     A(const A& other) V8_DELETE;
-//     A& operator=(const A& other) V8_DELETE;
-//   };
-#if V8_HAS_CXX11_DELETE
-# define V8_DELETE = delete
-#else
-# define V8_DELETE /* NOT SUPPORTED */
 #endif
 
 

@@ -7,7 +7,7 @@ namespace {
 inline void Test(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* const isolate = args.GetIsolate();
   const v8::HeapSnapshot* const heap_snapshot =
-      isolate->GetHeapProfiler()->TakeHeapSnapshot(v8::String::Empty(isolate));
+      isolate->GetHeapProfiler()->TakeHeapSnapshot();
   struct : public v8::OutputStream {
     WriteResult WriteAsciiChunk(char*, int) override { return kContinue; }
     void EndOfStream() override {}

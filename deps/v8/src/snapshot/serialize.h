@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_SERIALIZE_H_
-#define V8_SERIALIZE_H_
+#ifndef V8_SNAPSHOT_SERIALIZE_H_
+#define V8_SNAPSHOT_SERIALIZE_H_
 
 #include "src/hashmap.h"
 #include "src/heap-profiler.h"
@@ -81,7 +81,10 @@ class AddressMapBase {
 
   inline static HashMap::Entry* LookupEntry(HashMap* map, HeapObject* obj,
                                             bool insert) {
-    return map->Lookup(Key(obj), Hash(obj), insert);
+    if (insert) {
+      map->LookupOrInsert(Key(obj), Hash(obj));
+    }
+    return map->Lookup(Key(obj), Hash(obj));
   }
 
  private:
@@ -299,23 +302,27 @@ class SerializerDeserializer: public ObjectVisitor {
   static int nop() { return kNop; }
 
   // No reservation for large object space necessary.
-  static const int kNumberOfPreallocatedSpaces = LO_SPACE;
+  static const int kNumberOfPreallocatedSpaces = LAST_PAGED_SPACE + 1;
   static const int kNumberOfSpaces = LAST_SPACE + 1;
 
  protected:
   // ---------- byte code range 0x00..0x7f ----------
   // Byte codes in this range represent Where, HowToCode and WhereToPoint.
   // Where the pointed-to object can be found:
+  // The static assert below will trigger when the number of preallocated spaces
+  // changed. If that happens, update the bytecode ranges in the comments below.
+  STATIC_ASSERT(5 == kNumberOfSpaces);
   enum Where {
-    // 0x00..0x05  Allocate new object, in specified space.
+    // 0x00..0x04  Allocate new object, in specified space.
     kNewObject = 0,
+    // 0x05        Unused (including 0x25, 0x45, 0x65).
     // 0x06        Unused (including 0x26, 0x46, 0x66).
     // 0x07        Unused (including 0x27, 0x47, 0x67).
-    // 0x08..0x0d  Reference to previous object from space.
+    // 0x08..0x0c  Reference to previous object from space.
     kBackref = 0x08,
     // 0x0e        Unused (including 0x2e, 0x4e, 0x6e).
     // 0x0f        Unused (including 0x2f, 0x4f, 0x6f).
-    // 0x10..0x15  Reference to previous object from space after skip.
+    // 0x10..0x14  Reference to previous object from space after skip.
     kBackrefWithSkip = 0x10,
     // 0x16        Unused (including 0x36, 0x56, 0x76).
     // 0x17        Unused (including 0x37, 0x57, 0x77).
@@ -601,7 +608,7 @@ class Serializer : public SerializerDeserializer {
  public:
   Serializer(Isolate* isolate, SnapshotByteSink* sink);
   ~Serializer();
-  void VisitPointers(Object** start, Object** end) OVERRIDE;
+  void VisitPointers(Object** start, Object** end) override;
 
   void EncodeReservations(List<SerializedData::Reservation>* out) const;
 
@@ -609,6 +616,10 @@ class Serializer : public SerializerDeserializer {
 
   BackReferenceMap* back_reference_map() { return &back_reference_map_; }
   RootIndexMap* root_index_map() { return &root_index_map_; }
+
+#ifdef OBJECT_PRINT
+  void CountInstanceType(Map* map, int size);
+#endif  // OBJECT_PRINT
 
  protected:
   class ObjectSerializer : public ObjectVisitor {
@@ -711,6 +722,8 @@ class Serializer : public SerializerDeserializer {
 
   SnapshotByteSink* sink() const { return sink_; }
 
+  void OutputStatistics(const char* name);
+
   Isolate* isolate_;
 
   SnapshotByteSink* sink_;
@@ -739,6 +752,12 @@ class Serializer : public SerializerDeserializer {
 
   List<byte> code_buffer_;
 
+#ifdef OBJECT_PRINT
+  static const int kInstanceTypes = 256;
+  int* instance_type_count_;
+  size_t* instance_type_size_;
+#endif  // OBJECT_PRINT
+
   DISALLOW_COPY_AND_ASSIGN(Serializer);
 };
 
@@ -754,10 +773,12 @@ class PartialSerializer : public Serializer {
     InitializeCodeAddressMap();
   }
 
+  ~PartialSerializer() { OutputStatistics("PartialSerializer"); }
+
   // Serialize the objects reachable from a single object pointer.
   void Serialize(Object** o);
   virtual void SerializeObject(HeapObject* o, HowToCode how_to_code,
-                               WhereToPoint where_to_point, int skip) OVERRIDE;
+                               WhereToPoint where_to_point, int skip) override;
 
  private:
   int PartialSnapshotCacheIndex(HeapObject* o);
@@ -767,9 +788,8 @@ class PartialSerializer : public Serializer {
     // unique ID, and deserializing several partial snapshots containing script
     // would cause dupes.
     DCHECK(!o->IsScript());
-    return o->IsName() || o->IsSharedFunctionInfo() ||
-           o->IsHeapNumber() || o->IsCode() ||
-           o->IsScopeInfo() ||
+    return o->IsName() || o->IsSharedFunctionInfo() || o->IsHeapNumber() ||
+           o->IsCode() || o->IsScopeInfo() || o->IsExecutableAccessorInfo() ||
            o->map() ==
                startup_serializer_->isolate()->heap()->fixed_cow_array_map();
   }
@@ -796,9 +816,11 @@ class StartupSerializer : public Serializer {
     InitializeCodeAddressMap();
   }
 
+  ~StartupSerializer() { OutputStatistics("StartupSerializer"); }
+
   // The StartupSerializer has to serialize the root array, which is slightly
   // different.
-  void VisitPointers(Object** start, Object** end) OVERRIDE;
+  void VisitPointers(Object** start, Object** end) override;
 
   // Serialize the current state of the heap.  The order is:
   // 1) Strong references.
@@ -806,7 +828,7 @@ class StartupSerializer : public Serializer {
   // 3) Weak references (e.g. the string table).
   virtual void SerializeStrongReferences();
   virtual void SerializeObject(HeapObject* o, HowToCode how_to_code,
-                               WhereToPoint where_to_point, int skip) OVERRIDE;
+                               WhereToPoint where_to_point, int skip) override;
   void SerializeWeakReferences();
   void Serialize() {
     SerializeStrongReferences();
@@ -852,8 +874,10 @@ class CodeSerializer : public Serializer {
     back_reference_map_.AddSourceString(source);
   }
 
+  ~CodeSerializer() { OutputStatistics("CodeSerializer"); }
+
   virtual void SerializeObject(HeapObject* o, HowToCode how_to_code,
-                               WhereToPoint where_to_point, int skip) OVERRIDE;
+                               WhereToPoint where_to_point, int skip) override;
 
   void SerializeBuiltin(int builtin_index, HowToCode how_to_code,
                         WhereToPoint where_to_point);
@@ -977,4 +1001,4 @@ class SerializedCodeData : public SerializedData {
 };
 } }  // namespace v8::internal
 
-#endif  // V8_SERIALIZE_H_
+#endif  // V8_SNAPSHOT_SERIALIZE_H_

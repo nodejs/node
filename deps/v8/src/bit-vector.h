@@ -66,7 +66,7 @@ class BitVector : public ZoneObject {
       : length_(length),
         data_length_(SizeFor(length)),
         data_(zone->NewArray<uintptr_t>(data_length_)) {
-    DCHECK(length > 0);
+    DCHECK_LE(0, length);
     Clear();
   }
 
@@ -77,7 +77,10 @@ class BitVector : public ZoneObject {
     CopyFrom(other);
   }
 
-  static int SizeFor(int length) { return 1 + ((length - 1) / kDataBits); }
+  static int SizeFor(int length) {
+    if (length == 0) return 1;
+    return 1 + ((length - 1) / kDataBits);
+  }
 
   void CopyFrom(const BitVector& other) {
     DCHECK(other.length() <= length());

@@ -305,9 +305,9 @@ var obj = {
     assertTrue(cooked0.enumerable);
 
     var raw0 = Object.getOwnPropertyDescriptor(cs.raw, "0");
-    assertFalse(cooked0.writable);
-    assertFalse(cooked0.configurable);
-    assertTrue(cooked0.enumerable);
+    assertFalse(raw0.writable);
+    assertFalse(raw0.configurable);
+    assertTrue(raw0.enumerable);
 
     var length = Object.getOwnPropertyDescriptor(cs, "length");
     assertFalse(length.writable);

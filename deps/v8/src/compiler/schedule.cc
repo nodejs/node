@@ -108,6 +108,8 @@ std::ostream& operator<<(std::ostream& os, const BasicBlock::Control& c) {
       return os << "switch";
     case BasicBlock::kDeoptimize:
       return os << "deoptimize";
+    case BasicBlock::kTailCall:
+      return os << "tailcall";
     case BasicBlock::kReturn:
       return os << "return";
     case BasicBlock::kThrow:
@@ -230,6 +232,14 @@ void Schedule::AddSwitch(BasicBlock* block, Node* sw, BasicBlock** succ_blocks,
     AddSuccessor(block, succ_blocks[index]);
   }
   SetControlInput(block, sw);
+}
+
+
+void Schedule::AddTailCall(BasicBlock* block, Node* input) {
+  DCHECK_EQ(BasicBlock::kNone, block->control());
+  block->set_control(BasicBlock::kTailCall);
+  SetControlInput(block, input);
+  if (block != end()) AddSuccessor(block, end());
 }
 
 

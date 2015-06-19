@@ -185,7 +185,6 @@ namespace node {
   V(session_id_string, "sessionId")                                           \
   V(signal_string, "signal")                                                  \
   V(size_string, "size")                                                      \
-  V(smalloc_p_string, "_smalloc_p")                                           \
   V(sni_context_err_string, "Invalid SNI context")                            \
   V(sni_context_string, "sni_context")                                        \
   V(speed_string, "speed")                                                    \
@@ -407,9 +406,6 @@ class Environment {
   inline ares_channel* cares_channel_ptr();
   inline ares_task_list* cares_task_list();
 
-  inline bool using_smalloc_alloc_cb() const;
-  inline void set_using_smalloc_alloc_cb(bool value);
-
   inline bool using_abort_on_uncaught_exc() const;
   inline void set_using_abort_on_uncaught_exc(bool value);
 
@@ -424,6 +420,9 @@ class Environment {
 
   void PrintSyncTrace() const;
   inline void set_trace_sync_io(bool value);
+
+  inline uint32_t* heap_statistics_buffer() const;
+  inline void set_heap_statistics_buffer(uint32_t* pointer);
 
   inline void ThrowError(const char* errmsg);
   inline void ThrowTypeError(const char* errmsg);
@@ -507,7 +506,6 @@ class Environment {
   uv_timer_t cares_timer_handle_;
   ares_channel cares_channel_;
   ares_task_list cares_task_list_;
-  bool using_smalloc_alloc_cb_;
   bool using_domains_;
   bool using_abort_on_uncaught_exc_;
   bool using_asyncwrap_;
@@ -520,6 +518,8 @@ class Environment {
   ListHead<HandleCleanup,
            &HandleCleanup::handle_cleanup_queue_> handle_cleanup_queue_;
   int handle_cleanup_waiting_;
+
+  uint32_t* heap_statistics_buffer_ = nullptr;
 
 #define V(PropertyName, TypeName)                                             \
   v8::Persistent<TypeName> PropertyName ## _;

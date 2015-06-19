@@ -182,7 +182,7 @@ TEST(WeakSet_Regress2060a) {
   Handle<JSWeakSet> weakset = AllocateJSWeakSet(isolate);
 
   // Start second old-space page so that values land on evacuation candidate.
-  Page* first_page = heap->old_pointer_space()->anchor()->next_page();
+  Page* first_page = heap->old_space()->anchor()->next_page();
   int dummy_array_size = Page::kMaxRegularHeapObjectSize - 92 * KB;
   factory->NewFixedArray(dummy_array_size / kPointerSize, TENURED);
 
@@ -199,7 +199,7 @@ TEST(WeakSet_Regress2060a) {
 
   // Force compacting garbage collection.
   CHECK(FLAG_always_compact);
-  heap->CollectAllGarbage(Heap::kNoGCFlags);
+  heap->CollectAllGarbage();
 }
 
 
@@ -221,7 +221,7 @@ TEST(WeakSet_Regress2060b) {
       factory->function_string());
 
   // Start second old-space page so that keys land on evacuation candidate.
-  Page* first_page = heap->old_pointer_space()->anchor()->next_page();
+  Page* first_page = heap->old_space()->anchor()->next_page();
   int dummy_array_size = Page::kMaxRegularHeapObjectSize - 92 * KB;
   factory->NewFixedArray(dummy_array_size / kPointerSize, TENURED);
 
@@ -241,7 +241,7 @@ TEST(WeakSet_Regress2060b) {
   // Force compacting garbage collection. The subsequent collections are used
   // to verify that key references were actually updated.
   CHECK(FLAG_always_compact);
-  heap->CollectAllGarbage(Heap::kNoGCFlags);
-  heap->CollectAllGarbage(Heap::kNoGCFlags);
-  heap->CollectAllGarbage(Heap::kNoGCFlags);
+  heap->CollectAllGarbage();
+  heap->CollectAllGarbage();
+  heap->CollectAllGarbage();
 }

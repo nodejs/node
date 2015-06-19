@@ -339,11 +339,11 @@ inline bool ToLocal(v8::internal::MaybeHandle<v8::internal::Object> maybe,
   }
 
 
-#define MAKE_TO_LOCAL_TYPED_ARRAY(Type, typeName, TYPE, ctype, size)        \
-  Local<v8::Type##Array> Utils::ToLocal##Type##Array(                       \
-      v8::internal::Handle<v8::internal::JSTypedArray> obj) {               \
-    DCHECK(obj->type() == kExternal##Type##Array);                          \
-    return Convert<v8::internal::JSTypedArray, v8::Type##Array>(obj);       \
+#define MAKE_TO_LOCAL_TYPED_ARRAY(Type, typeName, TYPE, ctype, size)  \
+  Local<v8::Type##Array> Utils::ToLocal##Type##Array(                 \
+      v8::internal::Handle<v8::internal::JSTypedArray> obj) {         \
+    DCHECK(obj->type() == v8::internal::kExternal##Type##Array);      \
+    return Convert<v8::internal::JSTypedArray, v8::Type##Array>(obj); \
   }
 
 

@@ -56,6 +56,11 @@ const Register MathPowIntegerDescriptor::exponent() {
 }
 
 
+const Register GrowArrayElementsDescriptor::ObjectRegister() { return eax; }
+const Register GrowArrayElementsDescriptor::KeyRegister() { return ebx; }
+const Register GrowArrayElementsDescriptor::CapacityRegister() { return ecx; }
+
+
 void FastNewClosureDescriptor::Initialize(CallInterfaceDescriptorData* data) {
   Register registers[] = {esi, ebx};
   data->Initialize(arraysize(registers), registers, NULL);
@@ -77,6 +82,12 @@ void ToNumberDescriptor::Initialize(CallInterfaceDescriptorData* data) {
 
 void NumberToStringDescriptor::Initialize(CallInterfaceDescriptorData* data) {
   Register registers[] = {esi, eax};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
+void TypeofDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {esi, ebx};
   data->Initialize(arraysize(registers), registers, NULL);
 }
 

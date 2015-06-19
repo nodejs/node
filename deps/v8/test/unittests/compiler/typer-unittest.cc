@@ -225,72 +225,99 @@ int32_t bit_xor(int32_t x, int32_t y) { return x ^ y; }
 
 
 TEST_F(TyperTest, TypeJSAdd) {
-  TestBinaryArithOp(javascript_.Add(), std::plus<double>());
+  TestBinaryArithOp(javascript_.Add(LanguageMode::SLOPPY), std::plus<double>());
+  TestBinaryArithOp(javascript_.Add(LanguageMode::STRONG), std::plus<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSSubtract) {
-  TestBinaryArithOp(javascript_.Subtract(), std::minus<double>());
+  TestBinaryArithOp(javascript_.Subtract(LanguageMode::SLOPPY),
+                    std::minus<double>());
+  TestBinaryArithOp(javascript_.Subtract(LanguageMode::STRONG),
+                    std::minus<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSMultiply) {
-  TestBinaryArithOp(javascript_.Multiply(), std::multiplies<double>());
+  TestBinaryArithOp(javascript_.Multiply(LanguageMode::SLOPPY),
+                    std::multiplies<double>());
+  TestBinaryArithOp(javascript_.Multiply(LanguageMode::STRONG),
+                    std::multiplies<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSDivide) {
-  TestBinaryArithOp(javascript_.Divide(), std::divides<double>());
+  TestBinaryArithOp(javascript_.Divide(LanguageMode::SLOPPY),
+                    std::divides<double>());
+  TestBinaryArithOp(javascript_.Divide(LanguageMode::STRONG),
+                    std::divides<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSModulus) {
-  TestBinaryArithOp(javascript_.Modulus(), modulo);
+  TestBinaryArithOp(javascript_.Modulus(LanguageMode::SLOPPY), modulo);
+  TestBinaryArithOp(javascript_.Modulus(LanguageMode::STRONG), modulo);
 }
 
 
 TEST_F(TyperTest, TypeJSBitwiseOr) {
-  TestBinaryBitOp(javascript_.BitwiseOr(), bit_or);
+  TestBinaryBitOp(javascript_.BitwiseOr(LanguageMode::SLOPPY), bit_or);
+  TestBinaryBitOp(javascript_.BitwiseOr(LanguageMode::STRONG), bit_or);
 }
 
 
 TEST_F(TyperTest, TypeJSBitwiseAnd) {
-  TestBinaryBitOp(javascript_.BitwiseAnd(), bit_and);
+  TestBinaryBitOp(javascript_.BitwiseAnd(LanguageMode::SLOPPY), bit_and);
+  TestBinaryBitOp(javascript_.BitwiseAnd(LanguageMode::STRONG), bit_and);
 }
 
 
 TEST_F(TyperTest, TypeJSBitwiseXor) {
-  TestBinaryBitOp(javascript_.BitwiseXor(), bit_xor);
+  TestBinaryBitOp(javascript_.BitwiseXor(LanguageMode::SLOPPY), bit_xor);
+  TestBinaryBitOp(javascript_.BitwiseXor(LanguageMode::STRONG), bit_xor);
 }
 
 
 TEST_F(TyperTest, TypeJSShiftLeft) {
-  TestBinaryBitOp(javascript_.ShiftLeft(), shift_left);
+  TestBinaryBitOp(javascript_.ShiftLeft(LanguageMode::SLOPPY), shift_left);
+  TestBinaryBitOp(javascript_.ShiftLeft(LanguageMode::STRONG), shift_left);
 }
 
 
 TEST_F(TyperTest, TypeJSShiftRight) {
-  TestBinaryBitOp(javascript_.ShiftRight(), shift_right);
+  TestBinaryBitOp(javascript_.ShiftRight(LanguageMode::SLOPPY), shift_right);
+  TestBinaryBitOp(javascript_.ShiftRight(LanguageMode::STRONG), shift_right);
 }
 
 
 TEST_F(TyperTest, TypeJSLessThan) {
-  TestBinaryCompareOp(javascript_.LessThan(), std::less<double>());
+  TestBinaryCompareOp(javascript_.LessThan(LanguageMode::SLOPPY),
+                      std::less<double>());
+  TestBinaryCompareOp(javascript_.LessThan(LanguageMode::STRONG),
+                      std::less<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSLessThanOrEqual) {
-  TestBinaryCompareOp(javascript_.LessThanOrEqual(), std::less_equal<double>());
+  TestBinaryCompareOp(javascript_.LessThanOrEqual(LanguageMode::SLOPPY),
+                      std::less_equal<double>());
+  TestBinaryCompareOp(javascript_.LessThanOrEqual(LanguageMode::STRONG),
+                      std::less_equal<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSGreaterThan) {
-  TestBinaryCompareOp(javascript_.GreaterThan(), std::greater<double>());
+  TestBinaryCompareOp(javascript_.GreaterThan(LanguageMode::SLOPPY),
+                      std::greater<double>());
+  TestBinaryCompareOp(javascript_.GreaterThan(LanguageMode::STRONG),
+                      std::greater<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSGreaterThanOrEqual) {
-  TestBinaryCompareOp(javascript_.GreaterThanOrEqual(),
+  TestBinaryCompareOp(javascript_.GreaterThanOrEqual(LanguageMode::SLOPPY),
+                      std::greater_equal<double>());
+  TestBinaryCompareOp(javascript_.GreaterThanOrEqual(LanguageMode::STRONG),
                       std::greater_equal<double>());
 }
 
@@ -326,21 +353,24 @@ TEST_F(TyperTest, TypeJSStrictNotEqual) {
   V(Equal)              \
   V(NotEqual)           \
   V(StrictEqual)        \
-  V(StrictNotEqual)     \
-  V(LessThan)           \
-  V(GreaterThan)        \
-  V(LessThanOrEqual)    \
-  V(GreaterThanOrEqual) \
-  V(BitwiseOr)          \
-  V(BitwiseXor)         \
-  V(BitwiseAnd)         \
-  V(ShiftLeft)          \
-  V(ShiftRight)         \
-  V(ShiftRightLogical)  \
-  V(Add)                \
-  V(Subtract)           \
-  V(Multiply)           \
-  V(Divide)             \
+  V(StrictNotEqual)
+
+
+#define JSBINOP_WITH_STRONG_LIST(V) \
+  V(LessThan)                       \
+  V(GreaterThan)                    \
+  V(LessThanOrEqual)                \
+  V(GreaterThanOrEqual)             \
+  V(BitwiseOr)                      \
+  V(BitwiseXor)                     \
+  V(BitwiseAnd)                     \
+  V(ShiftLeft)                      \
+  V(ShiftRight)                     \
+  V(ShiftRightLogical)              \
+  V(Add)                            \
+  V(Subtract)                       \
+  V(Multiply)                       \
+  V(Divide)                         \
   V(Modulus)
 
 
@@ -349,6 +379,15 @@ TEST_F(TyperTest, TypeJSStrictNotEqual) {
     TestBinaryMonotonicity(javascript_.name()); \
   }
 JSBINOP_LIST(TEST_FUNC)
+#undef TEST_FUNC
+
+
+#define TEST_FUNC(name)                                             \
+  TEST_F(TyperTest, Monotonicity_##name) {                          \
+    TestBinaryMonotonicity(javascript_.name(LanguageMode::SLOPPY)); \
+    TestBinaryMonotonicity(javascript_.name(LanguageMode::STRONG)); \
+  }
+JSBINOP_WITH_STRONG_LIST(TEST_FUNC)
 #undef TEST_FUNC
 
 

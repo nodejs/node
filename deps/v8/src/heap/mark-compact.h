@@ -50,7 +50,10 @@ class Marking {
 
   // White markbits: 00 - this is required by the mark bit clearer.
   static const char* kWhiteBitPattern;
-  INLINE(static bool IsWhite(MarkBit mark_bit)) { return !mark_bit.Get(); }
+  INLINE(static bool IsWhite(MarkBit mark_bit)) {
+    DCHECK(!IsImpossible(mark_bit));
+    return !mark_bit.Get();
+  }
 
   // Grey markbits: 11
   static const char* kGreyBitPattern;
@@ -58,19 +61,51 @@ class Marking {
     return mark_bit.Get() && mark_bit.Next().Get();
   }
 
+  // IsBlackOrGrey assumes that the first bit is set for black or grey
+  // objects.
+  INLINE(static bool IsBlackOrGrey(MarkBit mark_bit)) { return mark_bit.Get(); }
+
   INLINE(static void MarkBlack(MarkBit mark_bit)) {
     mark_bit.Set();
     mark_bit.Next().Clear();
   }
 
-  INLINE(static void BlackToGrey(MarkBit markbit)) { markbit.Next().Set(); }
+  INLINE(static void MarkWhite(MarkBit mark_bit)) {
+    mark_bit.Clear();
+    mark_bit.Next().Clear();
+  }
+
+  INLINE(static void BlackToWhite(MarkBit markbit)) {
+    DCHECK(IsBlack(markbit));
+    markbit.Clear();
+  }
+
+  INLINE(static void GreyToWhite(MarkBit markbit)) {
+    DCHECK(IsGrey(markbit));
+    markbit.Clear();
+    markbit.Next().Clear();
+  }
+
+  INLINE(static void BlackToGrey(MarkBit markbit)) {
+    DCHECK(IsBlack(markbit));
+    markbit.Next().Set();
+  }
 
   INLINE(static void WhiteToGrey(MarkBit markbit)) {
+    DCHECK(IsWhite(markbit));
     markbit.Set();
     markbit.Next().Set();
   }
 
-  INLINE(static void GreyToBlack(MarkBit markbit)) { markbit.Next().Clear(); }
+  INLINE(static void WhiteToBlack(MarkBit markbit)) {
+    DCHECK(IsWhite(markbit));
+    markbit.Set();
+  }
+
+  INLINE(static void GreyToBlack(MarkBit markbit)) {
+    DCHECK(IsGrey(markbit));
+    markbit.Next().Clear();
+  }
 
   INLINE(static void BlackToGrey(HeapObject* obj)) {
     BlackToGrey(MarkBitFrom(obj));
@@ -80,6 +115,10 @@ class Marking {
     markbit.Set();
     markbit.Next().Set();
   }
+
+  static void SetAllMarkBitsInRange(MarkBit start, MarkBit end);
+  static void ClearAllMarkBitsOfCellsContainedInRange(MarkBit start,
+                                                      MarkBit end);
 
   void TransferMark(Address old_start, Address new_start);
 
@@ -280,6 +319,7 @@ class SlotsBuffer {
   enum SlotType {
     EMBEDDED_OBJECT_SLOT,
     RELOCATED_CODE_OBJECT,
+    CELL_TARGET_SLOT,
     CODE_TARGET_SLOT,
     CODE_ENTRY_SLOT,
     DEBUG_TARGET_SLOT,
@@ -293,6 +333,8 @@ class SlotsBuffer {
         return "EMBEDDED_OBJECT_SLOT";
       case RELOCATED_CODE_OBJECT:
         return "RELOCATED_CODE_OBJECT";
+      case CELL_TARGET_SLOT:
+        return "CELL_TARGET_SLOT";
       case CODE_TARGET_SLOT:
         return "CODE_TARGET_SLOT";
       case CODE_ENTRY_SLOT:
@@ -598,27 +640,6 @@ class MarkCompactCollector {
         ->IsEvacuationCandidate();
   }
 
-  INLINE(void EvictEvacuationCandidate(Page* page)) {
-    if (FLAG_trace_fragmentation) {
-      PrintF("Page %p is too popular. Disabling evacuation.\n",
-             reinterpret_cast<void*>(page));
-    }
-
-    // TODO(gc) If all evacuation candidates are too popular we
-    // should stop slots recording entirely.
-    page->ClearEvacuationCandidate();
-
-    // We were not collecting slots on this page that point
-    // to other evacuation candidates thus we have to
-    // rescan the page after evacuation to discover and update all
-    // pointers to evacuated objects.
-    if (page->owner()->identity() == OLD_DATA_SPACE) {
-      evacuation_candidates_.RemoveElement(page);
-    } else {
-      page->SetFlag(Page::RESCAN_ON_EVACUATION);
-    }
-  }
-
   void RecordRelocSlot(RelocInfo* rinfo, Object* target);
   void RecordCodeEntrySlot(Address slot, Code* target);
   void RecordCodeTargetPatch(Address pc, Code* target);
@@ -637,6 +658,10 @@ class MarkCompactCollector {
   void ClearMarkbits();
 
   bool abort_incremental_marking() const { return abort_incremental_marking_; }
+
+  bool finalize_incremental_marking() const {
+    return finalize_incremental_marking_;
+  }
 
   bool is_compacting() const { return compacting_; }
 
@@ -679,7 +704,7 @@ class MarkCompactCollector {
 
   MarkingDeque* marking_deque() { return &marking_deque_; }
 
-  void EnsureMarkingDequeIsCommittedAndInitialize();
+  void EnsureMarkingDequeIsCommittedAndInitialize(size_t max_size = 4 * MB);
 
   void InitializeMarkingDeque();
 
@@ -703,6 +728,7 @@ class MarkCompactCollector {
   bool WillBeDeoptimized(Code* code);
   void RemoveDeadInvalidatedCode();
   void ProcessInvalidatedCode(ObjectVisitor* visitor);
+  void EvictPopularEvacuationCandidate(Page* page);
   void ClearInvalidSlotsBufferEntries(PagedSpace* space);
   void ClearInvalidStoreAndSlotsBufferEntries();
 
@@ -726,6 +752,8 @@ class MarkCompactCollector {
   bool reduce_memory_footprint_;
 
   bool abort_incremental_marking_;
+
+  bool finalize_incremental_marking_;
 
   MarkingParity marking_parity_;
 
@@ -918,8 +946,7 @@ class MarkCompactCollector {
   List<Page*> evacuation_candidates_;
   List<Code*> invalidated_code_;
 
-  SmartPointer<FreeList> free_list_old_data_space_;
-  SmartPointer<FreeList> free_list_old_pointer_space_;
+  SmartPointer<FreeList> free_list_old_space_;
 
   friend class Heap;
 };

@@ -16,7 +16,7 @@ namespace internal {
 
 class CompilationInfo;
 
-class CompilationStatistics FINAL : public Malloced {
+class CompilationStatistics final : public Malloced {
  public:
   CompilationStatistics() {}
 

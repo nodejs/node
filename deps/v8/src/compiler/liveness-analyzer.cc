@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/liveness-analyzer.h"
+#include "src/base/adapters.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/liveness-analyzer.h"
 #include "src/compiler/node.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/state-values-utils.h"
@@ -97,8 +98,7 @@ void LivenessAnalyzerBlock::Process(BitVector* result,
   // Copy the bitvector to the target bit vector.
   result->CopyFrom(live_);
 
-  for (auto i = entries_.rbegin(); i != entries_.rend(); i++) {
-    auto entry = *i;
+  for (auto entry : base::Reversed(entries_)) {
     switch (entry.kind()) {
       case Entry::kLookup:
         result->Add(entry.var());

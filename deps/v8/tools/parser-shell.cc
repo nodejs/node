@@ -45,6 +45,16 @@
 
 using namespace v8::internal;
 
+class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+ public:
+  virtual void* Allocate(size_t length) {
+    void* data = AllocateUninitialized(length);
+    return data == NULL ? data : memset(data, 0, length);
+  }
+  virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
+  virtual void Free(void* data, size_t) { free(data); }
+};
+
 class StringResource8 : public v8::String::ExternalOneByteStringResource {
  public:
   StringResource8(const char* data, int length)
@@ -152,7 +162,10 @@ int main(int argc, char* argv[]) {
       fnames.push_back(std::string(argv[i]));
     }
   }
-  v8::Isolate* isolate = v8::Isolate::New();
+  ArrayBufferAllocator array_buffer_allocator;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = &array_buffer_allocator;
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   {
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);

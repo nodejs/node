@@ -33,7 +33,7 @@ class Segment;
 //
 // Note: The implementation is inherently not thread safe. Do not use
 // from multi-threaded code.
-class Zone FINAL {
+class Zone final {
  public:
   Zone();
   ~Zone();
@@ -140,7 +140,7 @@ class ZoneObject {
 
 // The ZoneScope is used to automatically call DeleteAll() on a
 // Zone when the ZoneScope is destroyed (i.e. goes out of scope)
-class ZoneScope FINAL {
+class ZoneScope final {
  public:
   explicit ZoneScope(Zone* zone) : zone_(zone) { }
   ~ZoneScope() { zone_->DeleteAll(); }
@@ -154,7 +154,7 @@ class ZoneScope FINAL {
 
 // The ZoneAllocationPolicy is used to specialize generic data
 // structures to allocate themselves and their elements in the Zone.
-class ZoneAllocationPolicy FINAL {
+class ZoneAllocationPolicy final {
  public:
   explicit ZoneAllocationPolicy(Zone* zone) : zone_(zone) { }
   void* New(size_t size) { return zone()->New(size); }
@@ -171,7 +171,7 @@ class ZoneAllocationPolicy FINAL {
 // Zone. ZoneLists cannot be deleted individually; you can delete all
 // objects in the Zone by calling Zone::DeleteAll().
 template <typename T>
-class ZoneList FINAL : public List<T, ZoneAllocationPolicy> {
+class ZoneList final : public List<T, ZoneAllocationPolicy> {
  public:
   // Construct a new ZoneList with the given capacity; the length is
   // always zero. The capacity must be non-negative.
@@ -223,7 +223,7 @@ class ZoneList FINAL : public List<T, ZoneAllocationPolicy> {
 // different configurations of a concrete splay tree (see splay-tree.h).
 // The tree itself and all its elements are allocated in the Zone.
 template <typename Config>
-class ZoneSplayTree FINAL : public SplayTree<Config, ZoneAllocationPolicy> {
+class ZoneSplayTree final : public SplayTree<Config, ZoneAllocationPolicy> {
  public:
   explicit ZoneSplayTree(Zone* zone)
       : SplayTree<Config, ZoneAllocationPolicy>(ZoneAllocationPolicy(zone)) {}

@@ -18,7 +18,7 @@ namespace compiler {
 
 
 // Adds Arm64-specific methods to convert InstructionOperands.
-class Arm64OperandConverter FINAL : public InstructionOperandConverter {
+class Arm64OperandConverter final : public InstructionOperandConverter {
  public:
   Arm64OperandConverter(CodeGenerator* gen, Instruction* instr)
       : InstructionOperandConverter(gen, instr) {}
@@ -75,6 +75,10 @@ class Arm64OperandConverter FINAL : public InstructionOperandConverter {
         return Operand(InputRegister32(index), UXTB);
       case kMode_Operand2_R_UXTH:
         return Operand(InputRegister32(index), UXTH);
+      case kMode_Operand2_R_SXTB:
+        return Operand(InputRegister32(index), SXTB);
+      case kMode_Operand2_R_SXTH:
+        return Operand(InputRegister32(index), SXTH);
       case kMode_MRI:
       case kMode_MRR:
         break;
@@ -99,6 +103,10 @@ class Arm64OperandConverter FINAL : public InstructionOperandConverter {
         return Operand(InputRegister64(index), UXTB);
       case kMode_Operand2_R_UXTH:
         return Operand(InputRegister64(index), UXTH);
+      case kMode_Operand2_R_SXTB:
+        return Operand(InputRegister64(index), SXTB);
+      case kMode_Operand2_R_SXTH:
+        return Operand(InputRegister64(index), SXTH);
       case kMode_MRI:
       case kMode_MRR:
         break;
@@ -117,6 +125,8 @@ class Arm64OperandConverter FINAL : public InstructionOperandConverter {
       case kMode_Operand2_R_ROR_I:
       case kMode_Operand2_R_UXTB:
       case kMode_Operand2_R_UXTH:
+      case kMode_Operand2_R_SXTB:
+      case kMode_Operand2_R_SXTH:
         break;
       case kMode_MRI:
         *first_index += 2;
@@ -178,7 +188,8 @@ class Arm64OperandConverter FINAL : public InstructionOperandConverter {
     DCHECK(!op->IsDoubleRegister());
     DCHECK(op->IsStackSlot() || op->IsDoubleStackSlot());
     // The linkage computes where all spill slots are located.
-    FrameOffset offset = linkage()->GetFrameOffset(op->index(), frame(), 0);
+    FrameOffset offset = linkage()->GetFrameOffset(
+        AllocatedOperand::cast(op)->index(), frame(), 0);
     return MemOperand(offset.from_stack_pointer() ? masm->StackPointer() : fp,
                       offset.offset());
   }
@@ -187,12 +198,12 @@ class Arm64OperandConverter FINAL : public InstructionOperandConverter {
 
 namespace {
 
-class OutOfLineLoadNaN32 FINAL : public OutOfLineCode {
+class OutOfLineLoadNaN32 final : public OutOfLineCode {
  public:
   OutOfLineLoadNaN32(CodeGenerator* gen, DoubleRegister result)
       : OutOfLineCode(gen), result_(result) {}
 
-  void Generate() FINAL {
+  void Generate() final {
     __ Fmov(result_, std::numeric_limits<float>::quiet_NaN());
   }
 
@@ -201,12 +212,12 @@ class OutOfLineLoadNaN32 FINAL : public OutOfLineCode {
 };
 
 
-class OutOfLineLoadNaN64 FINAL : public OutOfLineCode {
+class OutOfLineLoadNaN64 final : public OutOfLineCode {
  public:
   OutOfLineLoadNaN64(CodeGenerator* gen, DoubleRegister result)
       : OutOfLineCode(gen), result_(result) {}
 
-  void Generate() FINAL {
+  void Generate() final {
     __ Fmov(result_, std::numeric_limits<double>::quiet_NaN());
   }
 
@@ -215,12 +226,12 @@ class OutOfLineLoadNaN64 FINAL : public OutOfLineCode {
 };
 
 
-class OutOfLineLoadZero FINAL : public OutOfLineCode {
+class OutOfLineLoadZero final : public OutOfLineCode {
  public:
   OutOfLineLoadZero(CodeGenerator* gen, Register result)
       : OutOfLineCode(gen), result_(result) {}
 
-  void Generate() FINAL { __ Mov(result_, 0); }
+  void Generate() final { __ Mov(result_, 0); }
 
  private:
   Register const result_;
@@ -332,6 +343,20 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
   } while (0)
 
 
+void CodeGenerator::AssembleDeconstructActivationRecord() {
+  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  int stack_slots = frame()->GetSpillSlotCount();
+  if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
+    __ Mov(jssp, fp);
+    __ Pop(fp, lr);
+    int pop_count = descriptor->IsJSFunctionCall()
+                        ? static_cast<int>(descriptor->JSParameterCount())
+                        : 0;
+    __ Drop(pop_count);
+  }
+}
+
+
 // Assembles an instruction after register allocation, producing machine code.
 void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   Arm64OperandConverter i(this, instr);
@@ -350,6 +375,18 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       RecordCallPosition(instr);
       break;
     }
+    case kArchTailCallCodeObject: {
+      AssembleDeconstructActivationRecord();
+      if (instr->InputAt(0)->IsImmediate()) {
+        __ Jump(Handle<Code>::cast(i.InputHeapObject(0)),
+                RelocInfo::CODE_TARGET);
+      } else {
+        Register target = i.InputRegister(0);
+        __ Add(target, target, Code::kHeaderSize - kHeapObjectTag);
+        __ Jump(target);
+      }
+      break;
+    }
     case kArchCallJSFunction: {
       EnsureSpaceForLazyDeopt();
       Register func = i.InputRegister(0);
@@ -364,6 +401,21 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Ldr(x10, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
       __ Call(x10);
       RecordCallPosition(instr);
+      break;
+    }
+    case kArchTailCallJSFunction: {
+      Register func = i.InputRegister(0);
+      if (FLAG_debug_code) {
+        // Check the function's context matches the context argument.
+        UseScratchRegisterScope scope(masm());
+        Register temp = scope.AcquireX();
+        __ Ldr(temp, FieldMemOperand(func, JSFunction::kContextOffset));
+        __ cmp(cp, temp);
+        __ Assert(eq, kWrongFunctionContext);
+      }
+      AssembleDeconstructActivationRecord();
+      __ Ldr(x10, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
+      __ Jump(x10);
       break;
     }
     case kArchJmp:
@@ -590,13 +642,17 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64Sxtw:
       __ Sxtw(i.OutputRegister(), i.InputRegister32(0));
       break;
+    case kArm64Sbfx32:
+      __ Sbfx(i.OutputRegister32(), i.InputRegister32(0), i.InputInt5(1),
+              i.InputInt5(2));
+      break;
     case kArm64Ubfx:
-      __ Ubfx(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
-              i.InputInt8(2));
+      __ Ubfx(i.OutputRegister(), i.InputRegister(0), i.InputInt6(1),
+              i.InputInt6(2));
       break;
     case kArm64Ubfx32:
-      __ Ubfx(i.OutputRegister32(), i.InputRegister32(0), i.InputInt8(1),
-              i.InputInt8(2));
+      __ Ubfx(i.OutputRegister32(), i.InputRegister32(0), i.InputInt5(1),
+              i.InputInt5(2));
       break;
     case kArm64Bfi:
       __ Bfi(i.OutputRegister(), i.InputRegister(1), i.InputInt6(2),
@@ -644,6 +700,46 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64Tst32:
       __ Tst(i.InputRegister32(0), i.InputOperand32(1));
       break;
+    case kArm64Float32Cmp:
+      if (instr->InputAt(1)->IsDoubleRegister()) {
+        __ Fcmp(i.InputFloat32Register(0), i.InputFloat32Register(1));
+      } else {
+        DCHECK(instr->InputAt(1)->IsImmediate());
+        // 0.0 is the only immediate supported by fcmp instructions.
+        DCHECK(i.InputDouble(1) == 0.0);
+        __ Fcmp(i.InputFloat32Register(0), i.InputDouble(1));
+      }
+      break;
+    case kArm64Float32Add:
+      __ Fadd(i.OutputFloat32Register(), i.InputFloat32Register(0),
+              i.InputFloat32Register(1));
+      break;
+    case kArm64Float32Sub:
+      __ Fsub(i.OutputFloat32Register(), i.InputFloat32Register(0),
+              i.InputFloat32Register(1));
+      break;
+    case kArm64Float32Mul:
+      __ Fmul(i.OutputFloat32Register(), i.InputFloat32Register(0),
+              i.InputFloat32Register(1));
+      break;
+    case kArm64Float32Div:
+      __ Fdiv(i.OutputFloat32Register(), i.InputFloat32Register(0),
+              i.InputFloat32Register(1));
+      break;
+    case kArm64Float32Max:
+      __ Fmax(i.OutputFloat32Register(), i.InputFloat32Register(0),
+              i.InputFloat32Register(1));
+      break;
+    case kArm64Float32Min:
+      __ Fmin(i.OutputFloat32Register(), i.InputFloat32Register(0),
+              i.InputFloat32Register(1));
+      break;
+    case kArm64Float32Abs:
+      __ Fabs(i.OutputFloat32Register(), i.InputFloat32Register(0));
+      break;
+    case kArm64Float32Sqrt:
+      __ Fsqrt(i.OutputFloat32Register(), i.InputFloat32Register(0));
+      break;
     case kArm64Float64Cmp:
       if (instr->InputAt(1)->IsDoubleRegister()) {
         __ Fcmp(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
@@ -681,6 +777,20 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
                        0, 2);
       break;
     }
+    case kArm64Float64Max:
+      __ Fmax(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+              i.InputDoubleRegister(1));
+      break;
+    case kArm64Float64Min:
+      __ Fmin(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+              i.InputDoubleRegister(1));
+      break;
+    case kArm64Float64Abs:
+      __ Fabs(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      break;
+    case kArm64Float64Neg:
+      __ Fneg(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      break;
     case kArm64Float64Sqrt:
       __ Fsqrt(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
@@ -732,14 +842,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Fmov(i.OutputFloat64Register(), i.InputRegister(0));
       break;
     }
-    case kArm64Float64Max:
-      __ Fmax(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-              i.InputDoubleRegister(1));
-      break;
-    case kArm64Float64Min:
-      __ Fmin(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-              i.InputDoubleRegister(1));
-      break;
     case kArm64Ldrb:
       __ Ldrb(i.OutputRegister(), i.MemoryOperand());
       break;
@@ -1070,7 +1172,16 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       Register dst = destination->IsRegister() ? g.ToRegister(destination)
                                                : scope.AcquireX();
       if (src.type() == Constant::kHeapObject) {
-        __ LoadObject(dst, src.ToHeapObject());
+        Handle<HeapObject> src_object = src.ToHeapObject();
+        Heap::RootListIndex index;
+        int offset;
+        if (IsMaterializableFromFrame(src_object, &offset)) {
+          __ Ldr(dst, MemOperand(fp, offset));
+        } else if (IsMaterializableFromRoot(src_object, &index)) {
+          __ LoadRoot(dst, index);
+        } else {
+          __ LoadObject(dst, src_object);
+        }
       } else {
         __ Mov(dst, g.ToImmediate(source));
       }

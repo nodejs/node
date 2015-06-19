@@ -8,6 +8,7 @@
 #include "src/allocation.h"
 #include "src/ast.h"
 #include "src/bailout-reason.h"
+#include "src/compilation-dependencies.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -125,7 +126,9 @@ class CompilationInfo {
     kDisableFutureOptimization = 1 << 12,
     kSplittingEnabled = 1 << 13,
     kBuiltinInliningEnabled = 1 << 14,
-    kTypeFeedbackEnabled = 1 << 15
+    kTypeFeedbackEnabled = 1 << 15,
+    kDeoptimizationEnabled = 1 << 16,
+    kSourcePositionsEnabled = 1 << 17
   };
 
   explicit CompilationInfo(ParseInfo* parse_info);
@@ -145,6 +148,7 @@ class CompilationInfo {
   Handle<JSFunction> closure() const;
   FunctionLiteral* function() const;
   Scope* scope() const;
+  bool MayUseThis() const;
   Handle<Context> context() const;
   Handle<SharedFunctionInfo> shared_info() const;
   bool has_shared_info() const;
@@ -214,6 +218,18 @@ class CompilationInfo {
 
   bool is_type_feedback_enabled() const {
     return GetFlag(kTypeFeedbackEnabled);
+  }
+
+  void MarkAsDeoptimizationEnabled() { SetFlag(kDeoptimizationEnabled); }
+
+  bool is_deoptimization_enabled() const {
+    return GetFlag(kDeoptimizationEnabled);
+  }
+
+  void MarkAsSourcePositionsEnabled() { SetFlag(kSourcePositionsEnabled); }
+
+  bool is_source_positions_enabled() const {
+    return GetFlag(kSourcePositionsEnabled);
   }
 
   void MarkAsInliningEnabled() { SetFlag(kInliningEnabled); }
@@ -299,18 +315,6 @@ class CompilationInfo {
     deferred_handles_ = deferred_handles;
   }
 
-  ZoneList<Handle<HeapObject> >* dependencies(
-      DependentCode::DependencyGroup group) {
-    if (dependencies_[group] == NULL) {
-      dependencies_[group] = new(zone_) ZoneList<Handle<HeapObject> >(2, zone_);
-    }
-    return dependencies_[group];
-  }
-
-  void CommitDependencies(Handle<Code> code);
-
-  void RollbackDependencies();
-
   void ReopenHandlesInNewHandleScope() {
     unoptimized_code_ = Handle<Code>(*unoptimized_code_);
   }
@@ -363,23 +367,7 @@ class CompilationInfo {
   int TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
                            SourcePosition position, int pareint_id);
 
-  Handle<Foreign> object_wrapper() {
-    if (object_wrapper_.is_null()) {
-      object_wrapper_ =
-          isolate()->factory()->NewForeign(reinterpret_cast<Address>(this));
-    }
-    return object_wrapper_;
-  }
-
-  void AbortDueToDependencyChange() {
-    DCHECK(!OptimizingCompilerThread::IsOptimizerThread(isolate()));
-    aborted_due_to_dependency_change_ = true;
-  }
-
-  bool HasAbortedDueToDependencyChange() const {
-    DCHECK(!OptimizingCompilerThread::IsOptimizerThread(isolate()));
-    return aborted_due_to_dependency_change_;
-  }
+  CompilationDependencies* dependencies() { return &dependencies_; }
 
   bool HasSameOsrEntry(Handle<JSFunction> function, BailoutId osr_ast_id) {
     return osr_ast_id_ == osr_ast_id && function.is_identical_to(closure());
@@ -462,7 +450,8 @@ class CompilationInfo {
 
   DeferredHandles* deferred_handles_;
 
-  ZoneList<Handle<HeapObject> >* dependencies_[DependentCode::kGroupCount];
+  // Dependencies for this compilation, e.g. stable maps.
+  CompilationDependencies dependencies_;
 
   BailoutReason bailout_reason_;
 
@@ -479,13 +468,7 @@ class CompilationInfo {
   // Number of parameters used for compilation of stubs that require arguments.
   int parameter_count_;
 
-  Handle<Foreign> object_wrapper_;
-
   int optimization_id_;
-
-  // This flag is used by the main thread to track whether this compilation
-  // should be abandoned due to dependency change.
-  bool aborted_due_to_dependency_change_;
 
   int osr_expr_stack_height_;
 

@@ -43,8 +43,8 @@ PASS Array.__proto__ is Object.__proto__
 PASS Date.__proto__ is Object.__proto__
 PASS Number.__proto__ is Object.__proto__
 PASS String.__proto__ is Object.__proto__
-PASS Object.getPrototypeOf('') threw exception TypeError: Object.getPrototypeOf called on non-object.
-PASS Object.getPrototypeOf(0) threw exception TypeError: Object.getPrototypeOf called on non-object.
+PASS Object.getPrototypeOf('') is String.prototype
+PASS Object.getPrototypeOf(0) is Number.prototype
 PASS Object.getPrototypeOf([]) is Array.prototype
 PASS Object.getPrototypeOf({}) is Object.prototype
 PASS Object.getPrototypeOf(new Date) is Date.prototype

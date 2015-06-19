@@ -15,9 +15,9 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class ZonePool FINAL {
+class ZonePool final {
  public:
-  class Scope FINAL {
+  class Scope final {
    public:
     explicit Scope(ZonePool* zone_pool) : zone_pool_(zone_pool), zone_(NULL) {}
     ~Scope() { Destroy(); }
@@ -37,7 +37,7 @@ class ZonePool FINAL {
     DISALLOW_COPY_AND_ASSIGN(Scope);
   };
 
-  class StatsScope FINAL {
+  class StatsScope final {
    public:
     explicit StatsScope(ZonePool* zone_pool);
     ~StatsScope();

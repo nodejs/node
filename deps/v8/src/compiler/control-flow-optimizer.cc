@@ -123,13 +123,7 @@ bool ControlFlowOptimizer::TryCloneBranch(Node* node) {
     return false;
   }
   // Grab the IfTrue/IfFalse projections of the Branch.
-  Node* control_projections[2];
-  NodeProperties::CollectControlProjections(branch, control_projections,
-                                            arraysize(control_projections));
-  Node* if_true = control_projections[0];
-  Node* if_false = control_projections[1];
-  DCHECK_EQ(IrOpcode::kIfTrue, if_true->opcode());
-  DCHECK_EQ(IrOpcode::kIfFalse, if_false->opcode());
+  BranchMatcher matcher(branch);
   // Check/collect other Phi/EffectPhi nodes hanging off the Merge.
   NodeVector phis(zone());
   for (Node* const use : merge->uses()) {
@@ -150,7 +144,8 @@ bool ControlFlowOptimizer::TryCloneBranch(Node* node) {
       if (NodeProperties::IsPhi(edge.from())) {
         control = NodeProperties::GetControlInput(control, edge.index());
       }
-      if (control != if_true && control != if_false) return false;
+      if (control != matcher.IfTrue() && control != matcher.IfFalse())
+        return false;
     }
     phis.push_back(use);
   }
@@ -185,16 +180,16 @@ bool ControlFlowOptimizer::TryCloneBranch(Node* node) {
       if (NodeProperties::IsPhi(edge.from())) {
         control = NodeProperties::GetControlInput(control, edge.index());
       }
-      DCHECK(control == if_true || control == if_false);
-      edge.UpdateTo((control == if_true) ? phi_true : phi_false);
+      DCHECK(control == matcher.IfTrue() || control == matcher.IfFalse());
+      edge.UpdateTo((control == matcher.IfTrue()) ? phi_true : phi_false);
     }
     phi->Kill();
   }
   // Fix up IfTrue and IfFalse and kill all dead nodes.
-  if_false->ReplaceUses(merge_false);
-  if_true->ReplaceUses(merge_true);
-  if_false->Kill();
-  if_true->Kill();
+  matcher.IfFalse()->ReplaceUses(merge_false);
+  matcher.IfTrue()->ReplaceUses(merge_true);
+  matcher.IfFalse()->Kill();
+  matcher.IfTrue()->Kill();
   branch->Kill();
   cond->Kill();
   merge->Kill();
@@ -219,12 +214,11 @@ bool ControlFlowOptimizer::TryBuildSwitch(Node* node) {
   Node* if_false;
   Node* if_true;
   while (true) {
-    Node* control_projections[2];
-    NodeProperties::CollectControlProjections(branch, control_projections, 2);
-    if_true = control_projections[0];
-    if_false = control_projections[1];
-    DCHECK_EQ(IrOpcode::kIfTrue, if_true->opcode());
-    DCHECK_EQ(IrOpcode::kIfFalse, if_false->opcode());
+    BranchMatcher matcher(branch);
+    DCHECK(matcher.Matched());
+
+    if_true = matcher.IfTrue();
+    if_false = matcher.IfFalse();
 
     auto it = if_false->uses().begin();
     if (it == if_false->uses().end()) break;
@@ -256,8 +250,6 @@ bool ControlFlowOptimizer::TryBuildSwitch(Node* node) {
 
   DCHECK_EQ(IrOpcode::kBranch, node->opcode());
   DCHECK_EQ(IrOpcode::kBranch, branch->opcode());
-  DCHECK_EQ(IrOpcode::kIfTrue, if_true->opcode());
-  DCHECK_EQ(IrOpcode::kIfFalse, if_false->opcode());
   if (branch == node) {
     DCHECK_EQ(1u, values.size());
     return false;

@@ -26,26 +26,25 @@
 var kMath;
 var rempio2result;
 
-(function() {
+(function(global, shared, exports) {
   
 "use strict";
 
 %CheckIsBootstrapping();
 
 var GlobalMath = global.Math;
-var GlobalArray = global.Array;
 
 //-------------------------------------------------------------------
 
-const INVPIO2 = kMath[0];
-const PIO2_1  = kMath[1];
-const PIO2_1T = kMath[2];
-const PIO2_2  = kMath[3];
-const PIO2_2T = kMath[4];
-const PIO2_3  = kMath[5];
-const PIO2_3T = kMath[6];
-const PIO4    = kMath[32];
-const PIO4LO  = kMath[33];
+define INVPIO2 = kMath[0];
+define PIO2_1  = kMath[1];
+define PIO2_1T = kMath[2];
+define PIO2_2  = kMath[3];
+define PIO2_2T = kMath[4];
+define PIO2_3  = kMath[5];
+define PIO2_3T = kMath[6];
+define PIO4    = kMath[32];
+define PIO4LO  = kMath[33];
 
 // Compute k and r such that x - k*pi/2 = r where |r| < pi/4. For
 // precision, r is returned as two values y0 and y1 such that r = y0 + y1
@@ -150,12 +149,12 @@ endmacro
 //     then                   3    2
 //          sin(x) = X + (S1*X + (X *(r-Y/2)+Y))
 //
-const S1 = -1.66666666666666324348e-01;
-const S2 = 8.33333333332248946124e-03;
-const S3 = -1.98412698298579493134e-04;
-const S4 = 2.75573137070700676789e-06;
-const S5 = -2.50507602534068634195e-08;
-const S6 = 1.58969099521155010221e-10;
+define S1 = -1.66666666666666324348e-01;
+define S2 = 8.33333333332248946124e-03;
+define S3 = -1.98412698298579493134e-04;
+define S4 = 2.75573137070700676789e-06;
+define S5 = -2.50507602534068634195e-08;
+define S6 = 1.58969099521155010221e-10;
 
 macro RETURN_KERNELSIN(X, Y, SIGN)
   var z = X * X;
@@ -196,12 +195,12 @@ endmacro
 //     magnitude of the latter is at least a quarter of X*X/2,
 //     thus, reducing the rounding error in the subtraction.
 //
-const C1 = 4.16666666666666019037e-02;
-const C2 = -1.38888888888741095749e-03;
-const C3 = 2.48015872894767294178e-05;
-const C4 = -2.75573143513906633035e-07;
-const C5 = 2.08757232129817482790e-09;
-const C6 = -1.13596475577881948265e-11;
+define C1 = 4.16666666666666019037e-02;
+define C2 = -1.38888888888741095749e-03;
+define C3 = 2.48015872894767294178e-05;
+define C4 = -2.75573143513906633035e-07;
+define C5 = 2.08757232129817482790e-09;
+define C6 = -1.13596475577881948265e-11;
 
 macro RETURN_KERNELCOS(X, Y, SIGN)
   var ix = %_DoubleHi(X) & 0x7fffffff;
@@ -441,14 +440,14 @@ function MathTan(x) {
 //
 //       See HP-15C Advanced Functions Handbook, p.193.
 //
-const LN2_HI    = kMath[34];
-const LN2_LO    = kMath[35];
-const TWO_THIRD = kMath[36];
+define LN2_HI    = kMath[34];
+define LN2_LO    = kMath[35];
+define TWO_THIRD = kMath[36];
 macro KLOG1P(x)
 (kMath[37+x])
 endmacro
 // 2^54
-const TWO54 = 18014398509481984;
+define TWO54 = 18014398509481984;
 
 function MathLog1p(x) {
   x = x * 1;  // Convert to number.
@@ -627,8 +626,8 @@ function MathLog1p(x) {
 //      For IEEE double 
 //          if x > 7.09782712893383973096e+02 then expm1(x) overflow
 //
-const KEXPM1_OVERFLOW = kMath[44];
-const INVLN2          = kMath[45];
+define KEXPM1_OVERFLOW = kMath[44];
+define INVLN2          = kMath[45];
 macro KEXPM1(x)
 (kMath[46+x])
 endmacro
@@ -750,9 +749,9 @@ function MathExpm1(x) {
 //      sinh(x) is |x| if x is +Infinity, -Infinity, or NaN.
 //      only sinh(0)=0 is exact for finite x.
 //
-const KSINH_OVERFLOW = kMath[51];
-const TWO_M28 = 3.725290298461914e-9;  // 2^-28, empty lower half
-const LOG_MAXD = 709.7822265625;  // 0x40862e42 00000000, empty lower half
+define KSINH_OVERFLOW = kMath[51];
+define TWO_M28 = 3.725290298461914e-9;  // 2^-28, empty lower half
+define LOG_MAXD = 709.7822265625;  // 0x40862e42 00000000, empty lower half
 
 function MathSinh(x) {
   x = x * 1;  // Convert to number.
@@ -802,7 +801,7 @@ function MathSinh(x) {
 //      cosh(x) is |x| if x is +INF, -INF, or NaN.
 //      only cosh(0)=1 is exact for finite x.
 //
-const KCOSH_OVERFLOW = kMath[51];
+define KCOSH_OVERFLOW = kMath[51];
 
 function MathCosh(x) {
   x = x * 1;  // Convert to number.
@@ -860,9 +859,9 @@ function MathCosh(x) {
 //      log10(10**N) = N  for N=0,1,...,22.
 //
 
-const IVLN10 = kMath[52];
-const LOG10_2HI = kMath[53];
-const LOG10_2LO = kMath[54];
+define IVLN10 = kMath[52];
+define LOG10_2HI = kMath[53];
+define LOG10_2LO = kMath[54];
 
 function MathLog10(x) {
   x = x * 1;  // Convert to number.
@@ -887,12 +886,12 @@ function MathLog10(x) {
   if (hx >= 0x7ff00000) return x;
 
   k += (hx >> 20) - 1023;
-  i = (k & 0x80000000) >> 31;
+  var i = (k & 0x80000000) >>> 31;
   hx = (hx & 0x000fffff) | ((0x3ff - i) << 20);
-  y = k + i;
+  var y = k + i;
   x = %_ConstructDouble(hx, lx);
 
-  z = y * LOG10_2LO + IVLN10 * %_MathLogRT(x);
+  var z = y * LOG10_2LO + IVLN10 * %_MathLogRT(x);
   return z + y * LOG10_2HI;
 }
 
@@ -910,8 +909,8 @@ function MathLog10(x) {
 // log2(x) = w1 + w2
 // where w1 has 53-24 = 29 bits of trailing zeroes.
 
-const DP_H = kMath[64];
-const DP_L = kMath[65];
+define DP_H = kMath[64];
+define DP_L = kMath[65];
 
 // Polynomial coefficients for (3/2)*(log2(x) - 2*s - 2/3*s^3)
 macro KLOG2(x)
@@ -919,11 +918,11 @@ macro KLOG2(x)
 endmacro
 
 // cp = 2/(3*ln(2)). Note that cp_h + cp_l is cp, but with more accuracy.
-const CP = kMath[61];
-const CP_H = kMath[62];
-const CP_L = kMath[63];
+define CP = kMath[61];
+define CP_H = kMath[62];
+define CP_L = kMath[63];
 // 2^53
-const TWO53 = 9007199254740992; 
+define TWO53 = 9007199254740992; 
 
 function MathLog2(x) {
   x = x * 1;  // Convert to number.
@@ -1013,7 +1012,7 @@ function MathLog2(x) {
 
 //-------------------------------------------------------------------
 
-InstallFunctions(GlobalMath, DONT_ENUM, GlobalArray(
+$installFunctions(GlobalMath, DONT_ENUM, [
   "cos", MathCos,
   "sin", MathSin,
   "tan", MathTan,
@@ -1023,9 +1022,9 @@ InstallFunctions(GlobalMath, DONT_ENUM, GlobalArray(
   "log2", MathLog2,
   "log1p", MathLog1p,
   "expm1", MathExpm1
-));
+]);
 
 %SetInlineBuiltinFlag(MathSin);
 %SetInlineBuiltinFlag(MathCos);
 
-})();
+})

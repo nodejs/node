@@ -45,6 +45,13 @@ FieldAccess AccessBuilder::ForJSArrayBufferBackingStore() {
 
 
 // static
+FieldAccess AccessBuilder::ForFixedArrayLength() {
+  return {kTaggedBase, FixedArray::kLengthOffset, MaybeHandle<Name>(),
+          Type::TaggedSigned(), kMachAnyTagged};
+}
+
+
+// static
 FieldAccess AccessBuilder::ForExternalArrayPointer() {
   return {kTaggedBase, ExternalArray::kExternalPointerOffset,
           MaybeHandle<Name>(), Type::UntaggedPointer(), kMachPtr};
@@ -59,10 +66,9 @@ FieldAccess AccessBuilder::ForMapInstanceType() {
 
 
 // static
-FieldAccess AccessBuilder::ForStringLength() {
+FieldAccess AccessBuilder::ForStringLength(Zone* zone) {
   return {kTaggedBase, String::kLengthOffset, Handle<Name>(),
-          Type::Intersect(Type::UnsignedSmall(), Type::TaggedSigned()),
-          kMachAnyTagged};
+          Type::Range(0, String::kMaxLength, zone), kMachAnyTagged};
 }
 
 
@@ -85,6 +91,13 @@ FieldAccess AccessBuilder::ForContextSlot(size_t index) {
 // static
 FieldAccess AccessBuilder::ForStatsCounter() {
   return {kUntaggedBase, 0, MaybeHandle<Name>(), Type::Signed32(), kMachInt32};
+}
+
+
+// static
+FieldAccess AccessBuilder::ForPropertyCellValue() {
+  return {kTaggedBase, PropertyCell::kValueOffset, Handle<Name>(), Type::Any(),
+          kMachAnyTagged};
 }
 
 

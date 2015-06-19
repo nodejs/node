@@ -99,7 +99,7 @@ class AllowNativesSyntaxNoInlining {
 // Abort any ongoing incremental marking to make sure that all weak global
 // handle callbacks are processed.
 static void NonIncrementalGC(i::Isolate* isolate) {
-  isolate->heap()->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
+  isolate->heap()->CollectAllGarbage();
 }
 
 
@@ -349,7 +349,9 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationADDString) {
   i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   AllowNativesSyntaxNoInlining options;
-  v8::Isolate* isolate = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   isolate->Enter();
   {
@@ -451,7 +453,9 @@ static void TestDeoptimizeBinaryOpHelper(LocalContext* env,
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationADD) {
   i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
-  v8::Isolate* isolate = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   isolate->Enter();
   {
@@ -472,7 +476,9 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationADD) {
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationSUB) {
   i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
-  v8::Isolate* isolate = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   isolate->Enter();
   {
@@ -493,7 +499,9 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationSUB) {
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationMUL) {
   i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
-  v8::Isolate* isolate = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   isolate->Enter();
   {
@@ -514,7 +522,9 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationMUL) {
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationDIV) {
   i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
-  v8::Isolate* isolate = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   isolate->Enter();
   {
@@ -535,7 +545,9 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationDIV) {
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationMOD) {
   i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
-  v8::Isolate* isolate = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   isolate->Enter();
   {
@@ -556,7 +568,9 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationMOD) {
 UNINITIALIZED_TEST(DeoptimizeCompare) {
   i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
-  v8::Isolate* isolate = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   isolate->Enter();
   {
@@ -611,7 +625,9 @@ UNINITIALIZED_TEST(DeoptimizeCompare) {
 UNINITIALIZED_TEST(DeoptimizeLoadICStoreIC) {
   i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
-  v8::Isolate* isolate = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   isolate->Enter();
   {
@@ -702,7 +718,9 @@ UNINITIALIZED_TEST(DeoptimizeLoadICStoreIC) {
 UNINITIALIZED_TEST(DeoptimizeLoadICStoreICNested) {
   i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
-  v8::Isolate* isolate = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   isolate->Enter();
   {

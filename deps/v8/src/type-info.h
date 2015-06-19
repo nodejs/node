@@ -23,8 +23,8 @@ class TypeFeedbackOracle: public ZoneObject {
                      Handle<TypeFeedbackVector> feedback_vector,
                      Handle<Context> native_context);
 
-  bool LoadIsUninitialized(TypeFeedbackId id);
-  bool LoadIsUninitialized(FeedbackVectorICSlot slot);
+  InlineCacheState LoadInlineCacheState(TypeFeedbackId id);
+  InlineCacheState LoadInlineCacheState(FeedbackVectorICSlot slot);
   bool StoreIsUninitialized(TypeFeedbackId id);
   bool CallIsUninitialized(FeedbackVectorICSlot slot);
   bool CallIsMonomorphic(FeedbackVectorICSlot slot);

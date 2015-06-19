@@ -10,22 +10,20 @@ var $floor;
 var $max;
 var $min;
 
-(function() {
+(function(global, shared, exports) {
 
 "use strict";
 
 %CheckIsBootstrapping();
 
 var GlobalObject = global.Object;
-var GlobalArray = global.Array;
 
 //-------------------------------------------------------------------
 
 // ECMA 262 - 15.8.2.1
 function MathAbs(x) {
   x = +x;
-  if (x > 0) return x;
-  return 0 - x;
+  return (x > 0) ? x : 0 - x;
 }
 
 // ECMA 262 - 15.8.2.2
@@ -90,7 +88,7 @@ function MathMax(arg1, arg2) {  // length == 2
   var r = -INFINITY;
   for (var i = 0; i < length; i++) {
     var n = %_Arguments(i);
-    if (!IS_NUMBER(n)) n = NonNumberToNumber(n);
+    n = TO_NUMBER_INLINE(n);
     // Make sure +0 is considered greater than -0.
     if (NUMBER_IS_NAN(n) || n > r || (r === 0 && n === 0 && %_IsMinusZero(r))) {
       r = n;
@@ -117,7 +115,7 @@ function MathMin(arg1, arg2) {  // length == 2
   var r = INFINITY;
   for (var i = 0; i < length; i++) {
     var n = %_Arguments(i);
-    if (!IS_NUMBER(n)) n = NonNumberToNumber(n);
+    n = TO_NUMBER_INLINE(n);
     // Make sure -0 is considered less than +0.
     if (NUMBER_IS_NAN(n) || n < r || (r === 0 && n === 0 && %_IsMinusZero(n))) {
       r = n;
@@ -177,7 +175,7 @@ function MathTrunc(x) {
 
 // ES6 draft 09-27-13, section 20.2.2.33.
 function MathTanh(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
+  x = TO_NUMBER_INLINE(x);
   // Idempotent for +/-0.
   if (x === 0) return x;
   // Returns +/-1 for +/-Infinity.
@@ -189,7 +187,7 @@ function MathTanh(x) {
 
 // ES6 draft 09-27-13, section 20.2.2.5.
 function MathAsinh(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
+  x = TO_NUMBER_INLINE(x);
   // Idempotent for NaN, +/-0 and +/-Infinity.
   if (x === 0 || !NUMBER_IS_FINITE(x)) return x;
   if (x > 0) return MathLog(x + %_MathSqrt(x * x + 1));
@@ -199,7 +197,7 @@ function MathAsinh(x) {
 
 // ES6 draft 09-27-13, section 20.2.2.3.
 function MathAcosh(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
+  x = TO_NUMBER_INLINE(x);
   if (x < 1) return NAN;
   // Idempotent for NaN and +Infinity.
   if (!NUMBER_IS_FINITE(x)) return x;
@@ -208,7 +206,7 @@ function MathAcosh(x) {
 
 // ES6 draft 09-27-13, section 20.2.2.7.
 function MathAtanh(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
+  x = TO_NUMBER_INLINE(x);
   // Idempotent for +/-0.
   if (x === 0) return x;
   // Returns NaN for NaN and +/- Infinity.
@@ -226,7 +224,7 @@ function MathHypot(x, y) {  // Function length is 2.
   var max = 0;
   for (var i = 0; i < length; i++) {
     var n = %_Arguments(i);
-    if (!IS_NUMBER(n)) n = NonNumberToNumber(n);
+    n = TO_NUMBER_INLINE(n);
     if (n === INFINITY || n === -INFINITY) return INFINITY;
     n = MathAbs(n);
     if (n > max) max = n;
@@ -263,7 +261,7 @@ function MathClz32JS(x) {
 // Using initial approximation adapted from Kahan's cbrt and 4 iterations
 // of Newton's method.
 function MathCbrt(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
+  x = TO_NUMBER_INLINE(x);
   if (x == 0 || !NUMBER_IS_FINITE(x)) return x;
   return x >= 0 ? CubeRoot(x) : -CubeRoot(-x);
 }
@@ -296,7 +294,7 @@ var Math = new MathConstructor();
 %AddNamedProperty(Math, symbolToStringTag, "Math", READ_ONLY | DONT_ENUM);
 
 // Set up math constants.
-InstallConstants(Math, GlobalArray(
+$installConstants(Math, [
   // ECMA-262, section 15.8.1.1.
   "E", 2.7182818284590452354,
   // ECMA-262, section 15.8.1.2.
@@ -309,11 +307,11 @@ InstallConstants(Math, GlobalArray(
   "PI", 3.1415926535897932,
   "SQRT1_2", 0.7071067811865476,
   "SQRT2", 1.4142135623730951
-));
+]);
 
 // Set up non-enumerable functions of the Math object and
 // set their names.
-InstallFunctions(Math, DONT_ENUM, GlobalArray(
+$installFunctions(Math, DONT_ENUM, [
   "random", MathRandom,
   "abs", MathAbs,
   "acos", MathAcosJS,
@@ -340,7 +338,7 @@ InstallFunctions(Math, DONT_ENUM, GlobalArray(
   "fround", MathFroundJS,
   "clz32", MathClz32JS,
   "cbrt", MathCbrt
-));
+]);
 
 %SetInlineBuiltinFlag(MathAbs);
 %SetInlineBuiltinFlag(MathAcosJS);
@@ -362,4 +360,4 @@ $floor = MathFloorJS;
 $max = MathMax;
 $min = MathMin;
 
-})();
+})

@@ -484,7 +484,7 @@ void LChunk::CommitDependencies(Handle<Code> code) const {
     Map::AddDependentCode(map, DependentCode::kPrototypeCheckGroup, code);
   }
 
-  info_->CommitDependencies(code);
+  info_->dependencies()->Commit(code);
   RegisterWeakObjectsInOptimizedCode(code);
 }
 

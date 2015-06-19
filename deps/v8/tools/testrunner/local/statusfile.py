@@ -106,7 +106,7 @@ def _AddOutcome(result, new):
 def _ParseOutcomeList(rule, outcomes, target_dict, variables):
   result = set([])
   if type(outcomes) == str:
-   outcomes = [outcomes]
+    outcomes = [outcomes]
   for item in outcomes:
     if type(item) == str:
       _AddOutcome(result, item)

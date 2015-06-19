@@ -30,8 +30,6 @@
 
 #include "src/v8.h"
 
-#include "src/isolate-inl.h"
-
 #ifndef TEST
 #define TEST(Name)                                                             \
   static void Test##Name();                                                    \
@@ -147,6 +145,15 @@ class CcTest {
     return isolate()->GetCurrentContext()->Global();
   }
 
+  static v8::ArrayBuffer::Allocator* array_buffer_allocator() {
+    return allocator_;
+  }
+
+  static void set_array_buffer_allocator(
+      v8::ArrayBuffer::Allocator* allocator) {
+    allocator_ = allocator;
+  }
+
   // TODO(dcarney): Remove.
   // This must be called first in a test.
   static void InitializeVM() {
@@ -180,6 +187,7 @@ class CcTest {
   bool initialize_;
   CcTest* prev_;
   static CcTest* last_;
+  static v8::ArrayBuffer::Allocator* allocator_;
   static v8::Isolate* isolate_;
   static bool initialize_called_;
   static v8::base::Atomic32 isolate_used_;

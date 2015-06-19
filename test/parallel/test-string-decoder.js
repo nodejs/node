@@ -23,9 +23,6 @@ test(
   '\u02e4\u0064\u12e4\u0030\u3045'
 );
 
-// CESU-8
-test('utf-8', new Buffer('EDA0BDEDB18D', 'hex'), '\ud83d\udc4d'); // thumbs up
-
 // UCS-2
 test('ucs2', new Buffer('ababc', 'ucs2'), 'ababc');
 

@@ -16,9 +16,11 @@ namespace internal {
 // they are maintained by scopes, and referred to from VariableProxies and Slots
 // after binding and variable allocation.
 
+class ClassVariable;
+
 class Variable: public ZoneObject {
  public:
-  enum Kind { NORMAL, FUNCTION, THIS, NEW_TARGET, ARGUMENTS };
+  enum Kind { NORMAL, FUNCTION, CLASS, THIS, NEW_TARGET, ARGUMENTS };
 
   enum Location {
     // Before and during variable allocation, a variable whose location is
@@ -50,6 +52,8 @@ class Variable: public ZoneObject {
   Variable(Scope* scope, const AstRawString* name, VariableMode mode, Kind kind,
            InitializationFlag initialization_flag,
            MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
+
+  virtual ~Variable() {}
 
   // Printing support
   static const char* Mode2String(VariableMode mode);
@@ -97,9 +101,15 @@ class Variable: public ZoneObject {
   }
 
   bool is_function() const { return kind_ == FUNCTION; }
+  bool is_class() const { return kind_ == CLASS; }
   bool is_this() const { return kind_ == THIS; }
   bool is_new_target() const { return kind_ == NEW_TARGET; }
   bool is_arguments() const { return kind_ == ARGUMENTS; }
+
+  ClassVariable* AsClassVariable() {
+    DCHECK(is_class());
+    return reinterpret_cast<ClassVariable*>(this);
+  }
 
   // True if the variable is named eval and not known to be shadowed.
   bool is_possibly_eval(Isolate* isolate) const {
@@ -174,7 +184,27 @@ class Variable: public ZoneObject {
   MaybeAssignedFlag maybe_assigned_;
 };
 
+class ClassVariable : public Variable {
+ public:
+  ClassVariable(Scope* scope, const AstRawString* name, VariableMode mode,
+                InitializationFlag initialization_flag,
+                MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
+                int declaration_group_start = -1)
+      : Variable(scope, name, mode, Variable::CLASS, initialization_flag,
+                 maybe_assigned_flag),
+        declaration_group_start_(declaration_group_start) {}
 
+  int declaration_group_start() const { return declaration_group_start_; }
+  void set_declaration_group_start(int declaration_group_start) {
+    declaration_group_start_ = declaration_group_start;
+  }
+
+ private:
+  // For classes we keep track of consecutive groups of delcarations. They are
+  // needed for strong mode scoping checks. TODO(marja, rossberg): Implement
+  // checks for functions too.
+  int declaration_group_start_;
+};
 } }  // namespace v8::internal
 
 #endif  // V8_VARIABLES_H_

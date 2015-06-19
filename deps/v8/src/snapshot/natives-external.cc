@@ -159,6 +159,7 @@ void ReadNatives() {
     NativesHolder<CORE>::set(NativesStore::MakeFromScriptsSource(&bytes));
     NativesHolder<EXPERIMENTAL>::set(
         NativesStore::MakeFromScriptsSource(&bytes));
+    NativesHolder<EXTRAS>::set(NativesStore::MakeFromScriptsSource(&bytes));
     DCHECK(!bytes.HasMore());
   }
 }
@@ -185,6 +186,7 @@ void SetNativesFromFile(StartupData* natives_blob) {
 void DisposeNatives() {
   NativesHolder<CORE>::Dispose();
   NativesHolder<EXPERIMENTAL>::Dispose();
+  NativesHolder<EXTRAS>::Dispose();
 }
 
 
@@ -229,6 +231,7 @@ Vector<const char> NativesCollection<type>::GetScriptsSource() {
 // my choice to elide them. This we'll explicitly instantiate these.
 template class NativesCollection<CORE>;
 template class NativesCollection<EXPERIMENTAL>;
+template class NativesCollection<EXTRAS>;
 
 }  // namespace v8::internal
 }  // namespace v8

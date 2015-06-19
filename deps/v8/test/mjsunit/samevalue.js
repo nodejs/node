@@ -32,71 +32,73 @@
 var obj1 = {x: 10, y: 11, z: "test"};
 var obj2 = {x: 10, y: 11, z: "test"};
 
-assertTrue(natives.SameValue(0, 0));
-assertTrue(natives.SameValue(+0, +0));
-assertTrue(natives.SameValue(-0, -0));
-assertTrue(natives.SameValue(1, 1));
-assertTrue(natives.SameValue(2, 2));
-assertTrue(natives.SameValue(-1, -1));
-assertTrue(natives.SameValue(0.5, 0.5));
-assertTrue(natives.SameValue(true, true));
-assertTrue(natives.SameValue(false, false));
-assertTrue(natives.SameValue(NaN, NaN));
-assertTrue(natives.SameValue(null, null));
-assertTrue(natives.SameValue("foo", "foo"));
-assertTrue(natives.SameValue(obj1, obj1));
+var sameValue = natives.$sameValue;
+
+assertTrue(sameValue(0, 0));
+assertTrue(sameValue(+0, +0));
+assertTrue(sameValue(-0, -0));
+assertTrue(sameValue(1, 1));
+assertTrue(sameValue(2, 2));
+assertTrue(sameValue(-1, -1));
+assertTrue(sameValue(0.5, 0.5));
+assertTrue(sameValue(true, true));
+assertTrue(sameValue(false, false));
+assertTrue(sameValue(NaN, NaN));
+assertTrue(sameValue(null, null));
+assertTrue(sameValue("foo", "foo"));
+assertTrue(sameValue(obj1, obj1));
 // Undefined values.
-assertTrue(natives.SameValue());
-assertTrue(natives.SameValue(undefined, undefined));
+assertTrue(sameValue());
+assertTrue(sameValue(undefined, undefined));
 
-assertFalse(natives.SameValue(0,1));
-assertFalse(natives.SameValue("foo", "bar"));
-assertFalse(natives.SameValue(obj1, obj2));
-assertFalse(natives.SameValue(true, false));
+assertFalse(sameValue(0,1));
+assertFalse(sameValue("foo", "bar"));
+assertFalse(sameValue(obj1, obj2));
+assertFalse(sameValue(true, false));
 
-assertFalse(natives.SameValue(obj1, true));
-assertFalse(natives.SameValue(obj1, "foo"));
-assertFalse(natives.SameValue(obj1, 1));
-assertFalse(natives.SameValue(obj1, undefined));
-assertFalse(natives.SameValue(obj1, NaN));
+assertFalse(sameValue(obj1, true));
+assertFalse(sameValue(obj1, "foo"));
+assertFalse(sameValue(obj1, 1));
+assertFalse(sameValue(obj1, undefined));
+assertFalse(sameValue(obj1, NaN));
 
-assertFalse(natives.SameValue(undefined, true));
-assertFalse(natives.SameValue(undefined, "foo"));
-assertFalse(natives.SameValue(undefined, 1));
-assertFalse(natives.SameValue(undefined, obj1));
-assertFalse(natives.SameValue(undefined, NaN));
+assertFalse(sameValue(undefined, true));
+assertFalse(sameValue(undefined, "foo"));
+assertFalse(sameValue(undefined, 1));
+assertFalse(sameValue(undefined, obj1));
+assertFalse(sameValue(undefined, NaN));
 
-assertFalse(natives.SameValue(NaN, true));
-assertFalse(natives.SameValue(NaN, "foo"));
-assertFalse(natives.SameValue(NaN, 1));
-assertFalse(natives.SameValue(NaN, obj1));
-assertFalse(natives.SameValue(NaN, undefined));
+assertFalse(sameValue(NaN, true));
+assertFalse(sameValue(NaN, "foo"));
+assertFalse(sameValue(NaN, 1));
+assertFalse(sameValue(NaN, obj1));
+assertFalse(sameValue(NaN, undefined));
 
-assertFalse(natives.SameValue("foo", true));
-assertFalse(natives.SameValue("foo", 1));
-assertFalse(natives.SameValue("foo", obj1));
-assertFalse(natives.SameValue("foo", undefined));
-assertFalse(natives.SameValue("foo", NaN));
+assertFalse(sameValue("foo", true));
+assertFalse(sameValue("foo", 1));
+assertFalse(sameValue("foo", obj1));
+assertFalse(sameValue("foo", undefined));
+assertFalse(sameValue("foo", NaN));
 
-assertFalse(natives.SameValue(true, 1));
-assertFalse(natives.SameValue(true, obj1));
-assertFalse(natives.SameValue(true, undefined));
-assertFalse(natives.SameValue(true, NaN));
-assertFalse(natives.SameValue(true, "foo"));
+assertFalse(sameValue(true, 1));
+assertFalse(sameValue(true, obj1));
+assertFalse(sameValue(true, undefined));
+assertFalse(sameValue(true, NaN));
+assertFalse(sameValue(true, "foo"));
 
-assertFalse(natives.SameValue(1, true));
-assertFalse(natives.SameValue(1, obj1));
-assertFalse(natives.SameValue(1, undefined));
-assertFalse(natives.SameValue(1, NaN));
-assertFalse(natives.SameValue(1, "foo"));
+assertFalse(sameValue(1, true));
+assertFalse(sameValue(1, obj1));
+assertFalse(sameValue(1, undefined));
+assertFalse(sameValue(1, NaN));
+assertFalse(sameValue(1, "foo"));
 
 // Special string cases.
-assertFalse(natives.SameValue("1", 1));
-assertFalse(natives.SameValue("true", true));
-assertFalse(natives.SameValue("false", false));
-assertFalse(natives.SameValue("undefined", undefined));
-assertFalse(natives.SameValue("NaN", NaN));
+assertFalse(sameValue("1", 1));
+assertFalse(sameValue("true", true));
+assertFalse(sameValue("false", false));
+assertFalse(sameValue("undefined", undefined));
+assertFalse(sameValue("NaN", NaN));
 
 // -0 and +0 are should be different
-assertFalse(natives.SameValue(+0, -0));
-assertFalse(natives.SameValue(-0, +0));
+assertFalse(sameValue(+0, -0));
+assertFalse(sameValue(-0, +0));

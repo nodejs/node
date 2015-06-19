@@ -27,6 +27,6 @@
 
 // Flags: --allow-natives-syntax
 var single_function_good = "(function() { return 5; })";
-%CompileString(single_function_good, true, 0);
+%CompileString(single_function_good, true);
 var single_function_bad = "(function() { return 5; })();";
-%CompileString(single_function_bad, true, 0);
+%CompileString(single_function_bad, true);

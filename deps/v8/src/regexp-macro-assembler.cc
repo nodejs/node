@@ -42,30 +42,82 @@ bool NativeRegExpMacroAssembler::CanReadUnaligned() {
 const byte* NativeRegExpMacroAssembler::StringCharacterPosition(
     String* subject,
     int start_index) {
-  // Not just flat, but ultra flat.
-  DCHECK(subject->IsExternalString() || subject->IsSeqString());
+  if (subject->IsConsString()) {
+    subject = ConsString::cast(subject)->first();
+  } else if (subject->IsSlicedString()) {
+    start_index += SlicedString::cast(subject)->offset();
+    subject = SlicedString::cast(subject)->parent();
+  }
   DCHECK(start_index >= 0);
   DCHECK(start_index <= subject->length());
-  if (subject->IsOneByteRepresentation()) {
-    const byte* address;
-    if (StringShape(subject).IsExternal()) {
-      const uint8_t* data = ExternalOneByteString::cast(subject)->GetChars();
-      address = reinterpret_cast<const byte*>(data);
-    } else {
-      DCHECK(subject->IsSeqOneByteString());
-      const uint8_t* data = SeqOneByteString::cast(subject)->GetChars();
-      address = reinterpret_cast<const byte*>(data);
-    }
-    return address + start_index;
-  }
-  const uc16* data;
-  if (StringShape(subject).IsExternal()) {
-    data = ExternalTwoByteString::cast(subject)->GetChars();
+  if (subject->IsSeqOneByteString()) {
+    return reinterpret_cast<const byte*>(
+        SeqOneByteString::cast(subject)->GetChars() + start_index);
+  } else if (subject->IsSeqTwoByteString()) {
+    return reinterpret_cast<const byte*>(
+        SeqTwoByteString::cast(subject)->GetChars() + start_index);
+  } else if (subject->IsExternalOneByteString()) {
+    return reinterpret_cast<const byte*>(
+        ExternalOneByteString::cast(subject)->GetChars() + start_index);
   } else {
-    DCHECK(subject->IsSeqTwoByteString());
-    data = SeqTwoByteString::cast(subject)->GetChars();
+    return reinterpret_cast<const byte*>(
+        ExternalTwoByteString::cast(subject)->GetChars() + start_index);
   }
-  return reinterpret_cast<const byte*>(data + start_index);
+}
+
+
+int NativeRegExpMacroAssembler::CheckStackGuardState(
+    Isolate* isolate, int start_index, bool is_direct_call,
+    Address* return_address, Code* re_code, String** subject,
+    const byte** input_start, const byte** input_end) {
+  DCHECK(re_code->instruction_start() <= *return_address);
+  DCHECK(*return_address <= re_code->instruction_end());
+  int return_value = 0;
+  // Prepare for possible GC.
+  HandleScope handles(isolate);
+  Handle<Code> code_handle(re_code);
+  Handle<String> subject_handle(*subject);
+  bool is_one_byte = subject_handle->IsOneByteRepresentationUnderneath();
+
+  StackLimitCheck check(isolate);
+  if (check.JsHasOverflowed()) {
+    isolate->StackOverflow();
+    return_value = EXCEPTION;
+  } else if (is_direct_call) {
+    // If not real stack overflow the stack guard was used to interrupt
+    // execution for another purpose.  If this is a direct call from JavaScript
+    // retry the RegExp forcing the call through the runtime system.
+    // Currently the direct call cannot handle a GC.
+    return_value = RETRY;
+  } else {
+    Object* result = isolate->stack_guard()->HandleInterrupts();
+    if (result->IsException()) return_value = EXCEPTION;
+  }
+
+  DisallowHeapAllocation no_gc;
+
+  if (*code_handle != re_code) {  // Return address no longer valid
+    intptr_t delta = code_handle->address() - re_code->address();
+    // Overwrite the return address on the stack.
+    *return_address += delta;
+  }
+
+  // If we continue, we need to update the subject string addresses.
+  if (return_value == 0) {
+    // String encoding might have changed.
+    if (subject_handle->IsOneByteRepresentationUnderneath() != is_one_byte) {
+      // If we changed between an LATIN1 and an UC16 string, the specialized
+      // code cannot be used, and we need to restart regexp matching from
+      // scratch (including, potentially, compiling a new version of the code).
+      return_value = RETRY;
+    } else {
+      *subject = *subject_handle;
+      intptr_t byte_length = *input_end - *input_start;
+      *input_start = StringCharacterPosition(*subject, start_index);
+      *input_end = *input_start + byte_length;
+    }
+  }
+  return return_value;
 }
 
 

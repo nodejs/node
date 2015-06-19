@@ -21,12 +21,12 @@ namespace compiler {
 class JSGraph;
 class MachineOperatorBuilder;
 
-class SimplifiedOperatorReducer FINAL : public Reducer {
+class SimplifiedOperatorReducer final : public Reducer {
  public:
   explicit SimplifiedOperatorReducer(JSGraph* jsgraph);
-  ~SimplifiedOperatorReducer() FINAL;
+  ~SimplifiedOperatorReducer() final;
 
-  Reduction Reduce(Node* node) FINAL;
+  Reduction Reduce(Node* node) final;
 
  private:
   Reduction Change(Node* node, const Operator* op, Node* a);

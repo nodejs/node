@@ -271,7 +271,7 @@ void ObjectLiteral::CalculateEmitStore(Zone* zone) {
     // If there is an existing entry do not emit a store unless the previous
     // entry was also an accessor.
     uint32_t hash = literal->Hash();
-    ZoneHashMap::Entry* entry = table.Lookup(literal, hash, true, allocator);
+    ZoneHashMap::Entry* entry = table.LookupOrInsert(literal, hash, allocator);
     if (entry->value != NULL) {
       auto previous_kind =
           static_cast<ObjectLiteral::Property*>(entry->value)->kind();
@@ -789,12 +789,12 @@ bool RegExpCapture::IsAnchoredAtEnd() {
 // in as many cases as possible, to make it more difficult for incorrect
 // parses to look as correct ones which is likely if the input and
 // output formats are alike.
-class RegExpUnparser FINAL : public RegExpVisitor {
+class RegExpUnparser final : public RegExpVisitor {
  public:
   RegExpUnparser(std::ostream& os, Zone* zone) : os_(os), zone_(zone) {}
   void VisitCharacterRange(CharacterRange that);
-#define MAKE_CASE(Name) virtual void* Visit##Name(RegExp##Name*,          \
-                                                  void* data) OVERRIDE;
+#define MAKE_CASE(Name) \
+  virtual void* Visit##Name(RegExp##Name*, void* data) override;
   FOR_EACH_REG_EXP_TREE_TYPE(MAKE_CASE)
 #undef MAKE_CASE
  private:
@@ -1004,7 +1004,7 @@ uint32_t Literal::Hash() {
 bool Literal::Match(void* literal1, void* literal2) {
   const AstValue* x = static_cast<Literal*>(literal1)->raw_value();
   const AstValue* y = static_cast<Literal*>(literal2)->raw_value();
-  return (x->IsString() && y->IsString() && *x->AsString() == *y->AsString()) ||
+  return (x->IsString() && y->IsString() && x->AsString() == y->AsString()) ||
          (x->IsNumber() && y->IsNumber() && x->AsNumber() == y->AsNumber());
 }
 

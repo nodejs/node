@@ -34,10 +34,10 @@ class DefaultPlatform : public Platform {
 
   // v8::Platform implementation.
   virtual void CallOnBackgroundThread(
-      Task* task, ExpectedRuntime expected_runtime) OVERRIDE;
+      Task* task, ExpectedRuntime expected_runtime) override;
   virtual void CallOnForegroundThread(v8::Isolate* isolate,
-                                      Task* task) OVERRIDE;
-  double MonotonicallyIncreasingTime() OVERRIDE;
+                                      Task* task) override;
+  double MonotonicallyIncreasingTime() override;
 
  private:
   static const int kMaxThreadPoolSize;

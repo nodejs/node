@@ -52,6 +52,7 @@ static bool disable_automatic_dispose_ = false;
 CcTest* CcTest::last_ = NULL;
 bool CcTest::initialize_called_ = false;
 v8::base::Atomic32 CcTest::isolate_used_ = 0;
+v8::ArrayBuffer::Allocator* CcTest::allocator_ = NULL;
 v8::Isolate* CcTest::isolate_ = NULL;
 
 
@@ -88,7 +89,9 @@ void CcTest::Run() {
     CHECK(initialization_state_ != kUnintialized);
     initialization_state_ = kInitialized;
     if (isolate_ == NULL) {
-      isolate_ = v8::Isolate::New();
+      v8::Isolate::CreateParams create_params;
+      create_params.array_buffer_allocator = allocator_;
+      isolate_ = v8::Isolate::New(create_params);
     }
     isolate_->Enter();
   }
@@ -175,7 +178,7 @@ int main(int argc, char* argv[]) {
 #endif
 
   CcTestArrayBufferAllocator array_buffer_allocator;
-  v8::V8::SetArrayBufferAllocator(&array_buffer_allocator);
+  CcTest::set_array_buffer_allocator(&array_buffer_allocator);
 
   i::PrintExtension print_extension;
   v8::RegisterExtension(&print_extension);

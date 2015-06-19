@@ -18,12 +18,12 @@ class Linkage;
 class MachineOperatorBuilder;
 class Operator;
 
-class ChangeLowering FINAL : public Reducer {
+class ChangeLowering final : public Reducer {
  public:
   explicit ChangeLowering(JSGraph* jsgraph) : jsgraph_(jsgraph) {}
-  ~ChangeLowering() FINAL;
+  ~ChangeLowering() final;
 
-  Reduction Reduce(Node* node) FINAL;
+  Reduction Reduce(Node* node) final;
 
  private:
   Node* HeapNumberValueIndexConstant();

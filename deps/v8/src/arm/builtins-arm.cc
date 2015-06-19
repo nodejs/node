@@ -830,6 +830,42 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
 }
 
 
+enum IsTagged { kArgcIsSmiTagged, kArgcIsUntaggedInt };
+
+
+// Clobbers r2; preserves all other registers.
+static void Generate_CheckStackOverflow(MacroAssembler* masm,
+                                        const int calleeOffset, Register argc,
+                                        IsTagged argc_is_tagged) {
+  // Check the stack for overflow. We are not trying to catch
+  // interruptions (e.g. debug break and preemption) here, so the "real stack
+  // limit" is checked.
+  Label okay;
+  __ LoadRoot(r2, Heap::kRealStackLimitRootIndex);
+  // Make r2 the space we have left. The stack might already be overflowed
+  // here which will cause r2 to become negative.
+  __ sub(r2, sp, r2);
+  // Check if the arguments will overflow the stack.
+  if (argc_is_tagged == kArgcIsSmiTagged) {
+    __ cmp(r2, Operand::PointerOffsetFromSmiKey(argc));
+  } else {
+    DCHECK(argc_is_tagged == kArgcIsUntaggedInt);
+    __ cmp(r2, Operand(argc, LSL, kPointerSizeLog2));
+  }
+  __ b(gt, &okay);  // Signed comparison.
+
+  // Out of stack space.
+  __ ldr(r1, MemOperand(fp, calleeOffset));
+  if (argc_is_tagged == kArgcIsUntaggedInt) {
+    __ SmiTag(argc);
+  }
+  __ Push(r1, argc);
+  __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
+
+  __ bind(&okay);
+}
+
+
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
   // Called from Generate_JS_Entry
@@ -856,6 +892,14 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Push the function and the receiver onto the stack.
     __ push(r1);
     __ push(r2);
+
+    // Check if we have enough stack space to push all arguments.
+    // The function is the first thing that was pushed above after entering
+    // the internal frame.
+    const int kFunctionOffset =
+        InternalFrameConstants::kCodeOffset - kPointerSize;
+    // Clobbers r2.
+    Generate_CheckStackOverflow(masm, kFunctionOffset, r3, kArgcIsUntaggedInt);
 
     // Copy arguments to the stack in a loop.
     // r1: function
@@ -1015,6 +1059,11 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
 
 void Builtins::Generate_MarkCodeAsExecutedTwice(MacroAssembler* masm) {
   GenerateMakeCodeYoungAgainCommon(masm);
+}
+
+
+void Builtins::Generate_MarkCodeAsToBeExecutedOnce(MacroAssembler* masm) {
+  Generate_MarkCodeAsExecutedOnce(masm);
 }
 
 
@@ -1336,61 +1385,41 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 }
 
 
-static void Generate_CheckStackOverflow(MacroAssembler* masm,
-                                        const int calleeOffset) {
-  // Check the stack for overflow. We are not trying to catch
-  // interruptions (e.g. debug break and preemption) here, so the "real stack
-  // limit" is checked.
-  Label okay;
-  __ LoadRoot(r2, Heap::kRealStackLimitRootIndex);
-  // Make r2 the space we have left. The stack might already be overflowed
-  // here which will cause r2 to become negative.
-  __ sub(r2, sp, r2);
-  // Check if the arguments will overflow the stack.
-  __ cmp(r2, Operand::PointerOffsetFromSmiKey(r0));
-  __ b(gt, &okay);  // Signed comparison.
-
-  // Out of stack space.
-  __ ldr(r1, MemOperand(fp, calleeOffset));
-  __ Push(r1, r0);
-  __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
-
-  __ bind(&okay);
-}
-
-
 static void Generate_PushAppliedArguments(MacroAssembler* masm,
                                           const int argumentsOffset,
                                           const int indexOffset,
                                           const int limitOffset) {
   Label entry, loop;
-  __ ldr(r0, MemOperand(fp, indexOffset));
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register key = LoadDescriptor::NameRegister();
+
+  __ ldr(key, MemOperand(fp, indexOffset));
   __ b(&entry);
 
-  // Load the current argument from the arguments array and push it to the
-  // stack.
-  // r0: current argument index
+  // Load the current argument from the arguments array.
   __ bind(&loop);
-  __ ldr(r1, MemOperand(fp, argumentsOffset));
-  __ Push(r1, r0);
+  __ ldr(receiver, MemOperand(fp, argumentsOffset));
 
-  // Call the runtime to access the property in the arguments array.
-  __ CallRuntime(Runtime::kGetProperty, 2);
+  // Use inline caching to speed up access to arguments.
+  Handle<Code> ic = masm->isolate()->builtins()->KeyedLoadIC_Megamorphic();
+  __ Call(ic, RelocInfo::CODE_TARGET);
+
+  // Push the nth argument.
   __ push(r0);
 
-  // Use inline caching to access the arguments.
-  __ ldr(r0, MemOperand(fp, indexOffset));
-  __ add(r0, r0, Operand(1 << kSmiTagSize));
-  __ str(r0, MemOperand(fp, indexOffset));
+  __ ldr(key, MemOperand(fp, indexOffset));
+  __ add(key, key, Operand(1 << kSmiTagSize));
+  __ str(key, MemOperand(fp, indexOffset));
 
   // Test if the copy loop has finished copying all the elements from the
   // arguments object.
   __ bind(&entry);
   __ ldr(r1, MemOperand(fp, limitOffset));
-  __ cmp(r0, r1);
+  __ cmp(key, r1);
   __ b(ne, &loop);
 
   // On exit, the pushed arguments count is in r0, untagged
+  __ mov(r0, key);
   __ SmiUntag(r0);
 }
 
@@ -1416,7 +1445,7 @@ static void Generate_ApplyHelper(MacroAssembler* masm, bool targetIsArgument) {
       __ InvokeBuiltin(Builtins::APPLY_PREPARE, CALL_FUNCTION);
     }
 
-    Generate_CheckStackOverflow(masm, kFunctionOffset);
+    Generate_CheckStackOverflow(masm, kFunctionOffset, r0, kArgcIsSmiTagged);
 
     // Push current limit and index.
     const int kIndexOffset =
@@ -1544,7 +1573,7 @@ static void Generate_ConstructHelper(MacroAssembler* masm) {
     __ push(r0);
     __ InvokeBuiltin(Builtins::REFLECT_CONSTRUCT_PREPARE, CALL_FUNCTION);
 
-    Generate_CheckStackOverflow(masm, kFunctionOffset);
+    Generate_CheckStackOverflow(masm, kFunctionOffset, r0, kArgcIsSmiTagged);
 
     // Push current limit and index.
     const int kIndexOffset =

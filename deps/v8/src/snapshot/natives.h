@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_NATIVES_H_
-#define V8_NATIVES_H_
+#ifndef V8_SNAPSHOT_NATIVES_H_
+#define V8_SNAPSHOT_NATIVES_H_
 
 #include "src/vector.h"
 
@@ -12,9 +12,7 @@ namespace v8 { class StartupData; }  // Forward declaration.
 namespace v8 {
 namespace internal {
 
-enum NativeType {
-  CORE, EXPERIMENTAL, D8, TEST
-};
+enum NativeType { CORE, EXPERIMENTAL, EXTRAS, D8, TEST };
 
 template <NativeType type>
 class NativesCollection {
@@ -36,6 +34,7 @@ class NativesCollection {
 
 typedef NativesCollection<CORE> Natives;
 typedef NativesCollection<EXPERIMENTAL> ExperimentalNatives;
+typedef NativesCollection<EXTRAS> ExtraNatives;
 
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
 // Used for reading the natives at runtime. Implementation in natives-empty.cc
@@ -46,4 +45,4 @@ void DisposeNatives();
 
 } }  // namespace v8::internal
 
-#endif  // V8_NATIVES_H_
+#endif  // V8_SNAPSHOT_NATIVES_H_

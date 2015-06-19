@@ -122,6 +122,7 @@ TEST_F(NodeTest, OwnedBy) {
   EXPECT_FALSE(n0->OwnedBy(n1));
   EXPECT_FALSE(n0->OwnedBy(n2));
   EXPECT_TRUE(n1->OwnedBy(n2));
+  EXPECT_TRUE(n0->OwnedBy(n1, n2));
   n2->ReplaceInput(0, n2);
   EXPECT_TRUE(n0->OwnedBy(n1));
   EXPECT_TRUE(n1->OwnedBy(n2));
