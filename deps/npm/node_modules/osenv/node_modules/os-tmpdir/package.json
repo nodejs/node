@@ -1,0 +1,70 @@
+{
+  "name": "os-tmpdir",
+  "version": "1.0.1",
+  "description": "Node.js os.tmpdir() ponyfill",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/os-tmpdir.git"
+  },
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "scripts": {
+    "test": "node test.js"
+  },
+  "files": [
+    "index.js"
+  ],
+  "keywords": [
+    "built-in",
+    "core",
+    "ponyfill",
+    "polyfill",
+    "shim",
+    "os",
+    "tmpdir",
+    "tempdir",
+    "tmp",
+    "temp",
+    "dir",
+    "directory",
+    "env",
+    "environment"
+  ],
+  "devDependencies": {
+    "ava": "0.0.4"
+  },
+  "gitHead": "5c5d355f81378980db629d60128ad03e02b1c1e5",
+  "bugs": {
+    "url": "https://github.com/sindresorhus/os-tmpdir/issues"
+  },
+  "homepage": "https://github.com/sindresorhus/os-tmpdir",
+  "_id": "os-tmpdir@1.0.1",
+  "_shasum": "e9b423a1edaf479882562e92ed71d7743a071b6e",
+  "_from": "os-tmpdir@>=1.0.0 <2.0.0",
+  "_npmVersion": "2.9.1",
+  "_nodeVersion": "0.12.3",
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "dist": {
+    "shasum": "e9b423a1edaf479882562e92ed71d7743a071b6e",
+    "tarball": "http://registry.npmjs.org/os-tmpdir/-/os-tmpdir-1.0.1.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/os-tmpdir/-/os-tmpdir-1.0.1.tgz",
+  "readme": "ERROR: No README data found!"
+}
