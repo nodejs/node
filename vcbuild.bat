@@ -103,31 +103,57 @@ call :getnodeversion || exit /b 1
 @rem Set environment for msbuild
 
 @rem Look for Visual Studio 2015
+echo Looking for Visual Studio 2015
 if not defined VS140COMNTOOLS goto vc-set-2013
 if not exist "%VS140COMNTOOLS%\..\..\vc\vcvarsall.bat" goto vc-set-2013
+echo Found Visual Studio 2015
+if defined msi (
+  echo Looking for WiX installation for Visual Studio 2015...
+  if not exist "%WIX%\SDK\VS2015" (
+    echo Failed to find WiX install for Visual Studio 2015
+    echo VS2015 support for WiX is only present starting at version 3.10
+    goto vc-set-2013
+  )
+)
 if "%VCVARS_VER%" NEQ "140" (
   call "%VS140COMNTOOLS%\..\..\vc\vcvarsall.bat"
   SET VCVARS_VER=140
 )
 if not defined VCINSTALLDIR goto vc-set-2013
 set GYP_MSVS_VERSION=2015
+set PLATFORM_TOOLSET=v140
 goto msbuild-found
 
 :vc-set-2013
 @rem Look for Visual Studio 2013
+echo Looking for Visual Studio 2013
 if not defined VS120COMNTOOLS goto msbuild-not-found
 if not exist "%VS120COMNTOOLS%\..\..\vc\vcvarsall.bat" goto msbuild-not-found
+echo Found Visual Studio 2013
+if defined msi (
+  echo Looking for WiX installation for Visual Studio 2013...
+  if not exist "%WIX%\SDK\VS2013" (
+    echo Failed to find WiX install for Visual Studio 2013
+    echo VS2013 support for WiX is only present starting at version 3.8
+    goto vc-set-2012
+  )
+)
 if "%VCVARS_VER%" NEQ "120" (
   call "%VS120COMNTOOLS%\..\..\vc\vcvarsall.bat"
   SET VCVARS_VER=120
 )
 if not defined VCINSTALLDIR goto msbuild-not-found
 set GYP_MSVS_VERSION=2013
+set PLATFORM_TOOLSET=v120
 goto msbuild-found
 
 :msbuild-not-found
 echo Failed to find Visual Studio installation.
 goto exit
+
+:wix-not-found
+echo Build skipped. To generate installer, you need to install Wix.
+goto run
 
 :msbuild-found
 
@@ -170,7 +196,7 @@ if not defined msi goto run
 
 :msibuild
 echo Building node-v%FULLVERSION%-%target_arch%.msi
-msbuild "%~dp0tools\msvs\msi\nodemsi.sln" /m /t:Clean,Build /p:Configuration=%config% /p:Platform=%target_arch% /p:NodeVersion=%NODE_VERSION% /p:FullVersion=%FULLVERSION% /p:DistTypeDir=%DISTTYPEDIR% %noetw_msi_arg% %noperfctr_msi_arg% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
+msbuild "%~dp0tools\msvs\msi\nodemsi.sln" /m /t:Clean,Build /p:PlatformToolset=%PLATFORM_TOOLSET% /p:GypMsvsVersion=%GYP_MSVS_VERSION% /p:Configuration=%config% /p:Platform=%target_arch% /p:NodeVersion=%NODE_VERSION% /p:FullVersion=%FULLVERSION% /p:DistTypeDir=%DISTTYPEDIR% %noetw_msi_arg% %noperfctr_msi_arg% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 goto exit
 
 if defined nosign goto upload
