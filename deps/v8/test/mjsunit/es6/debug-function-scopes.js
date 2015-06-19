@@ -107,13 +107,10 @@ var f2 = (function() {
 
 var mirror = Debug.MakeMirror(f2);
 
-assertEquals(6, mirror.scopeCount());
+assertEquals(5, mirror.scopeCount());
 
-// Implementation artifact: l4 isn't used in closure, but still it is saved.
-CheckScope(mirror.scope(0), { l4: 11 }, ScopeType.Block);
-
-CheckScope(mirror.scope(1), { l3: 9 }, ScopeType.Block);
-CheckScope(mirror.scope(2), { l1: 6, l2: 7 }, ScopeType.Block);
-CheckScope(mirror.scope(3), { v1:3, l0: 0, v3: 5, v6: 11 }, ScopeType.Closure);
-CheckScope(mirror.scope(4), { top_level_let: 255 }, ScopeType.Script);
-CheckScope(mirror.scope(5), {}, ScopeType.Global);
+CheckScope(mirror.scope(0), { l3: 9 }, ScopeType.Block);
+CheckScope(mirror.scope(1), { l2: 7 }, ScopeType.Block);
+CheckScope(mirror.scope(2), { v1:3, l0: 0, v3: 5, v6: 11 }, ScopeType.Closure);
+CheckScope(mirror.scope(3), { top_level_let: 255 }, ScopeType.Script);
+CheckScope(mirror.scope(4), {}, ScopeType.Global);

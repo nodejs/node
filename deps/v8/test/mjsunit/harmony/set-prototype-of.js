@@ -64,15 +64,9 @@ var valuesWithoutNull = coercibleValues.concat(undefined);
 function TestSetPrototypeOfCoercibleValues() {
   for (var i = 0; i < coercibleValues.length; i++) {
     var value = coercibleValues[i];
-    assertThrows(function() {
-      Object.getPrototypeOf(value);
-    }, TypeError);
-
+    var proto = Object.getPrototypeOf(value);
     assertEquals(Object.setPrototypeOf(value, {}), value);
-
-    assertThrows(function() {
-      Object.getPrototypeOf(value);
-    }, TypeError);
+    assertSame(proto, Object.getPrototypeOf(value));
   }
 }
 TestSetPrototypeOfCoercibleValues();

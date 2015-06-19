@@ -128,6 +128,9 @@ struct ParameterTraits<T*> {
   static uintptr_t Cast(void* r) { return reinterpret_cast<uintptr_t>(r); }
 };
 
+
+#if !V8_TARGET_ARCH_32_BIT
+
 // Additional template specialization required for mips64 to sign-extend
 // parameters defined by calling convention.
 template <>
@@ -141,6 +144,9 @@ struct ParameterTraits<uint32_t> {
     return static_cast<int64_t>(static_cast<int32_t>(r));
   }
 };
+
+#endif  // !V8_TARGET_ARCH_64_BIT
+
 
 class CallHelper {
  public:

@@ -34,7 +34,7 @@ std::ostream& operator<<(std::ostream&, BaseTaggedness);
 
 
 // An access descriptor for loads/stores of array buffers.
-class BufferAccess FINAL {
+class BufferAccess final {
  public:
   explicit BufferAccess(ExternalArrayType external_array_type)
       : external_array_type_(external_array_type) {}
@@ -124,7 +124,7 @@ ElementAccess const& ElementAccessOf(const Operator* op) WARN_UNUSED_RESULT;
 //   - Bool: a tagged pointer to either the canonical JS #false or
 //           the canonical JS #true object
 //   - Bit: an untagged integer 0 or 1, but word-sized
-class SimplifiedOperatorBuilder FINAL {
+class SimplifiedOperatorBuilder final {
  public:
   explicit SimplifiedOperatorBuilder(Zone* zone);
 
@@ -162,6 +162,8 @@ class SimplifiedOperatorBuilder FINAL {
 
   const Operator* ObjectIsSmi();
   const Operator* ObjectIsNonNegativeSmi();
+
+  const Operator* Allocate(PretenureFlag pretenure = NOT_TENURED);
 
   const Operator* LoadField(FieldAccess const&);
   const Operator* StoreField(FieldAccess const&);

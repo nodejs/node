@@ -52,7 +52,7 @@ struct Counter {
 class LoopPeelingTest : public GraphTest {
  public:
   LoopPeelingTest() : GraphTest(1), machine_(zone()) {}
-  ~LoopPeelingTest() OVERRIDE {}
+  ~LoopPeelingTest() override {}
 
  protected:
   MachineOperatorBuilder machine_;
@@ -71,10 +71,13 @@ class LoopPeelingTest : public GraphTest {
 
   PeeledIteration* PeelOne() {
     LoopTree* loop_tree = GetLoopTree();
-    return Peel(loop_tree, loop_tree->outer_loops()[0]);
+    LoopTree::Loop* loop = loop_tree->outer_loops()[0];
+    EXPECT_TRUE(LoopPeeler::CanPeel(loop_tree, loop));
+    return Peel(loop_tree, loop);
   }
 
   PeeledIteration* Peel(LoopTree* loop_tree, LoopTree::Loop* loop) {
+    EXPECT_TRUE(LoopPeeler::CanPeel(loop_tree, loop));
     PeeledIteration* peeled =
         LoopPeeler::Peel(graph(), common(), loop_tree, loop, zone());
     if (FLAG_trace_turbo_graph) {
@@ -443,6 +446,49 @@ TEST_F(LoopPeelingTest, TwoBackedgeLoopWithCounter) {
       r, IsReturn(IsPhi(kMachAnyTagged, phi, IsInt32Constant(0),
                         AllOf(CaptureEq(&merge), IsMerge(b1.if_false, b1f))),
                   start(), CaptureEq(&merge)));
+}
+
+
+TEST_F(LoopPeelingTest, TwoExitLoop_nope) {
+  Node* p0 = Parameter(0);
+  Node* loop = graph()->NewNode(common()->Loop(2), start(), start());
+  Branch b1 = NewBranch(p0, loop);
+  Branch b2 = NewBranch(p0, b1.if_true);
+
+  loop->ReplaceInput(1, b2.if_true);
+  Node* merge = graph()->NewNode(common()->Merge(2), b1.if_false, b2.if_false);
+  InsertReturn(p0, start(), merge);
+
+  {
+    LoopTree* loop_tree = GetLoopTree();
+    LoopTree::Loop* loop = loop_tree->outer_loops()[0];
+    EXPECT_FALSE(LoopPeeler::CanPeel(loop_tree, loop));
+  }
+}
+
+
+const Operator kMockCall(IrOpcode::kCall, Operator::kNoProperties, "MockCall",
+                         0, 0, 1, 1, 0, 2);
+
+
+TEST_F(LoopPeelingTest, TwoExitLoopWithCall_nope) {
+  Node* p0 = Parameter(0);
+  Node* loop = graph()->NewNode(common()->Loop(2), start(), start());
+  Branch b1 = NewBranch(p0, loop);
+
+  Node* call = graph()->NewNode(&kMockCall, b1.if_true);
+  Node* if_success = graph()->NewNode(common()->IfSuccess(), call);
+  Node* if_exception = graph()->NewNode(common()->IfException(), call);
+
+  loop->ReplaceInput(1, if_success);
+  Node* merge = graph()->NewNode(common()->Merge(2), b1.if_false, if_exception);
+  InsertReturn(p0, start(), merge);
+
+  {
+    LoopTree* loop_tree = GetLoopTree();
+    LoopTree::Loop* loop = loop_tree->outer_loops()[0];
+    EXPECT_FALSE(LoopPeeler::CanPeel(loop_tree, loop));
+  }
 }
 
 

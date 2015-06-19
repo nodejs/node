@@ -1621,7 +1621,7 @@ class KnownMap(HeapObject):
 
 COMMENT_RE = re.compile(r"^C (0x[0-9a-fA-F]+) (.*)$")
 PAGEADDRESS_RE = re.compile(
-    r"^P (mappage|pointerpage|datapage) (0x[0-9a-fA-F]+)$")
+    r"^P (mappage|oldpage) (0x[0-9a-fA-F]+)$")
 
 
 class InspectionInfo(object):
@@ -1698,8 +1698,7 @@ class InspectionPadawan(object):
     self.reader = reader
     self.heap = heap
     self.known_first_map_page = 0
-    self.known_first_data_page = 0
-    self.known_first_pointer_page = 0
+    self.known_first_old_page = 0
 
   def __getattr__(self, name):
     """An InspectionPadawan can be used instead of V8Heap, even though
@@ -1715,13 +1714,11 @@ class InspectionPadawan(object):
 
   def IsInKnownOldSpace(self, tagged_address):
     page_address = tagged_address & ~self.heap.PageAlignmentMask()
-    return page_address in [self.known_first_data_page,
-                            self.known_first_pointer_page]
+    return page_address == self.known_first_old_page
 
   def ContainingKnownOldSpaceName(self, tagged_address):
     page_address = tagged_address & ~self.heap.PageAlignmentMask()
-    if page_address == self.known_first_data_page: return "OLD_DATA_SPACE"
-    if page_address == self.known_first_pointer_page: return "OLD_POINTER_SPACE"
+    if page_address == self.known_first_old_page: return "OLD_SPACE"
     return None
 
   def SenseObject(self, tagged_address):
@@ -1778,11 +1775,9 @@ class InspectionPadawan(object):
 
   def PrintKnowledge(self):
     print "  known_first_map_page = %s\n"\
-          "  known_first_data_page = %s\n"\
-          "  known_first_pointer_page = %s" % (
+          "  known_first_old_page = %s" % (
           self.reader.FormatIntPtr(self.known_first_map_page),
-          self.reader.FormatIntPtr(self.known_first_data_page),
-          self.reader.FormatIntPtr(self.known_first_pointer_page))
+          self.reader.FormatIntPtr(self.known_first_old_page))
 
 WEB_HEADER = """
 <!DOCTYPE html>
@@ -2124,12 +2119,10 @@ class InspectionWebFormatter(object):
 
     self.padawan = InspectionPadawan(self.reader, self.heap)
     self.comments = InspectionInfo(minidump_name, self.reader)
-    self.padawan.known_first_data_page = (
-        self.comments.get_page_address("datapage"))
+    self.padawan.known_first_old_page = (
+        self.comments.get_page_address("oldpage"))
     self.padawan.known_first_map_page = (
         self.comments.get_page_address("mappage"))
-    self.padawan.known_first_pointer_page = (
-        self.comments.get_page_address("pointerpage"))
 
   def set_comment(self, straddress, comment):
     try:
@@ -2141,12 +2134,10 @@ class InspectionWebFormatter(object):
   def set_page_address(self, kind, straddress):
     try:
       address = int(straddress, 0)
-      if kind == "datapage":
-        self.padawan.known_first_data_page = address
+      if kind == "oldpage":
+        self.padawan.known_first_old_page = address
       elif kind == "mappage":
         self.padawan.known_first_map_page = address
-      elif kind == "pointerpage":
-        self.padawan.known_first_pointer_page = address
       self.comments.save_page_address(kind, address)
     except ValueError:
       print "Invalid address"
@@ -2384,7 +2375,7 @@ class InspectionWebFormatter(object):
       f.write(address_fmt % self.format_address(slot))
       f.write("  ")
       self.td_from_address(f, maybe_address)
-      f.write(":&nbsp; %s &nbsp;</td>\n" % straddress)
+      f.write(":&nbsp;%s&nbsp;</td>\n" % straddress)
       f.write("  <td>")
       if maybe_address != None:
         self.output_comment_box(
@@ -2617,12 +2608,9 @@ class InspectionWebFormatter(object):
       page_address = address & ~self.heap.PageAlignmentMask()
 
       f.write("Page info: \n")
-      self.output_page_info(f, "data", self.padawan.known_first_data_page, \
+      self.output_page_info(f, "old", self.padawan.known_first_old_page, \
                             page_address)
       self.output_page_info(f, "map", self.padawan.known_first_map_page, \
-                            page_address)
-      self.output_page_info(f, "pointer", \
-                            self.padawan.known_first_pointer_page, \
                             page_address)
 
       if not self.reader.IsValidAddress(address):
@@ -2925,14 +2913,14 @@ class InspectionShell(cmd.Cmd):
     """
     self.padawan.PrintKnowledge()
 
-  def do_kd(self, address):
+  def do_ko(self, address):
     """
      Teach V8 heap layout information to the inspector. Set the first
-     data-space page by passing any pointer into that page.
+     old space page by passing any pointer into that page.
     """
     address = int(address, 16)
     page_address = address & ~self.heap.PageAlignmentMask()
-    self.padawan.known_first_data_page = page_address
+    self.padawan.known_first_old_page = page_address
 
   def do_km(self, address):
     """
@@ -2942,15 +2930,6 @@ class InspectionShell(cmd.Cmd):
     address = int(address, 16)
     page_address = address & ~self.heap.PageAlignmentMask()
     self.padawan.known_first_map_page = page_address
-
-  def do_kp(self, address):
-    """
-     Teach V8 heap layout information to the inspector. Set the first
-     pointer-space page by passing any pointer into that page.
-    """
-    address = int(address, 16)
-    page_address = address & ~self.heap.PageAlignmentMask()
-    self.padawan.known_first_pointer_page = page_address
 
   def do_list(self, smth):
     """

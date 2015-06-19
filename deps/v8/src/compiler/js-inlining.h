@@ -14,7 +14,7 @@ namespace compiler {
 
 class JSCallFunctionAccessor;
 
-class JSInliner FINAL : public Reducer {
+class JSInliner final : public Reducer {
  public:
   enum Mode { kBuiltinsInlining, kGeneralInlining };
 
@@ -22,7 +22,7 @@ class JSInliner FINAL : public Reducer {
             JSGraph* jsgraph)
       : mode_(mode), local_zone_(local_zone), info_(info), jsgraph_(jsgraph) {}
 
-  Reduction Reduce(Node* node) FINAL;
+  Reduction Reduce(Node* node) final;
 
  private:
   Mode const mode_;

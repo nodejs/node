@@ -37,13 +37,13 @@ from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.objects import testcase
 
-TEST_262_ARCHIVE_REVISION = "61113db"  # This is the 2014-10-23 revision.
-TEST_262_ARCHIVE_MD5 = "261e69b4a97a4bfc18225cf3938daf50"
+TEST_262_ARCHIVE_REVISION = "43acf61"  # This is the 2015-03-31 revision.
+TEST_262_ARCHIVE_MD5 = "a77a0352a0462be98e50522a15b7a3c4"
 TEST_262_URL = "https://github.com/tc39/test262/tarball/%s"
-TEST_262_HARNESS_FILES = ["sta.js"]
+TEST_262_HARNESS_FILES = ["sta.js", "assert.js"]
 
-TEST_262_SUITE_PATH = ["data", "test", "suite"]
-TEST_262_HARNESS_PATH = ["data", "test", "harness"]
+TEST_262_SUITE_PATH = ["data", "test"]
+TEST_262_HARNESS_PATH = ["data", "harness"]
 TEST_262_TOOLS_PATH = ["data", "tools", "packaging"]
 
 class Test262TestSuite(testsuite.TestSuite):

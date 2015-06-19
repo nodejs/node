@@ -56,8 +56,10 @@ static v8::Local<v8::Function> GetFunction(v8::Context* env, const char* name) {
 }
 
 
-static int offset(const char* src, const char* substring) {
-  return static_cast<int>(strstr(src, substring) - src);
+static size_t offset(const char* src, const char* substring) {
+  const char* it = strstr(src, substring);
+  CHECK(it);
+  return static_cast<size_t>(it - src);
 }
 
 
@@ -805,7 +807,7 @@ class TestApiCallbacks {
     double start = v8::base::OS::TimeCurrentMillis();
     double duration = 0;
     while (duration < min_duration_ms_) {
-      v8::base::OS::Sleep(1);
+      v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(1));
       duration = v8::base::OS::TimeCurrentMillis() - start;
     }
   }
@@ -1176,7 +1178,7 @@ TEST(FunctionCallSample) {
 
   // Collect garbage that might have be generated while installing
   // extensions.
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage();
 
   CompileRun(call_function_test_source);
   v8::Local<v8::Function> function = GetFunction(*env, "start");
@@ -1719,7 +1721,7 @@ const char* GetBranchDeoptReason(i::CpuProfile* iprofile, const char* branch[],
   v8::CpuProfile* profile = reinterpret_cast<v8::CpuProfile*>(iprofile);
   const ProfileNode* iopt_function = NULL;
   iopt_function = GetSimpleBranch(profile, branch, length);
-  CHECK_EQ(1, iopt_function->deopt_infos().size());
+  CHECK_EQ(1U, iopt_function->deopt_infos().size());
   return iopt_function->deopt_infos()[0].deopt_reason;
 }
 
@@ -1898,12 +1900,13 @@ TEST(DeoptAtFirstLevelInlinedSource) {
   const char* branch[] = {"", "test"};
   const ProfileNode* itest_node =
       GetSimpleBranch(profile, branch, arraysize(branch));
-  const std::vector<i::DeoptInfo>& deopt_infos = itest_node->deopt_infos();
-  CHECK_EQ(1, deopt_infos.size());
+  const std::vector<v8::CpuProfileDeoptInfo>& deopt_infos =
+      itest_node->deopt_infos();
+  CHECK_EQ(1U, deopt_infos.size());
 
-  const i::DeoptInfo& info = deopt_infos[0];
+  const v8::CpuProfileDeoptInfo& info = deopt_infos[0];
   CHECK_EQ(reason(i::Deoptimizer::kNotAHeapNumber), info.deopt_reason);
-  CHECK_EQ(2, info.stack.size());
+  CHECK_EQ(2U, info.stack.size());
   CHECK_EQ(inlined_script_id, info.stack[0].script_id);
   CHECK_EQ(offset(inlined_source, "left /"), info.stack[0].position);
   CHECK_EQ(script_id, info.stack[1].script_id);
@@ -1970,12 +1973,13 @@ TEST(DeoptAtSecondLevelInlinedSource) {
   const char* branch[] = {"", "test1"};
   const ProfileNode* itest_node =
       GetSimpleBranch(profile, branch, arraysize(branch));
-  const std::vector<i::DeoptInfo>& deopt_infos = itest_node->deopt_infos();
-  CHECK_EQ(1, deopt_infos.size());
+  const std::vector<v8::CpuProfileDeoptInfo>& deopt_infos =
+      itest_node->deopt_infos();
+  CHECK_EQ(1U, deopt_infos.size());
 
-  const i::DeoptInfo info = deopt_infos[0];
+  const v8::CpuProfileDeoptInfo info = deopt_infos[0];
   CHECK_EQ(reason(i::Deoptimizer::kNotAHeapNumber), info.deopt_reason);
-  CHECK_EQ(3, info.stack.size());
+  CHECK_EQ(3U, info.stack.size());
   CHECK_EQ(inlined_script_id, info.stack[0].script_id);
   CHECK_EQ(offset(inlined_source, "left /"), info.stack[0].position);
   CHECK_EQ(script_id, info.stack[1].script_id);
@@ -2027,7 +2031,7 @@ TEST(DeoptUntrackedFunction) {
   const char* branch[] = {"", "test"};
   const ProfileNode* itest_node =
       GetSimpleBranch(profile, branch, arraysize(branch));
-  CHECK_EQ(0, itest_node->deopt_infos().size());
+  CHECK_EQ(0U, itest_node->deopt_infos().size());
 
   iprofiler->DeleteProfile(iprofile);
 }

@@ -30,6 +30,7 @@
 #include "src/deoptimizer.h"
 #include "src/execution.h"
 #include "src/global-handles.h"
+#include "src/heap/spaces.h"
 #include "src/heap-profiler.h"
 #include "src/heap-snapshot-generator-inl.h"
 #include "src/icu_util.h"
@@ -217,14 +218,10 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
   heap_stats.new_space_size = &new_space_size;
   int new_space_capacity;
   heap_stats.new_space_capacity = &new_space_capacity;
-  intptr_t old_pointer_space_size;
-  heap_stats.old_pointer_space_size = &old_pointer_space_size;
-  intptr_t old_pointer_space_capacity;
-  heap_stats.old_pointer_space_capacity = &old_pointer_space_capacity;
-  intptr_t old_data_space_size;
-  heap_stats.old_data_space_size = &old_data_space_size;
-  intptr_t old_data_space_capacity;
-  heap_stats.old_data_space_capacity = &old_data_space_capacity;
+  intptr_t old_space_size;
+  heap_stats.old_space_size = &old_space_size;
+  intptr_t old_space_capacity;
+  heap_stats.old_space_capacity = &old_space_capacity;
   intptr_t code_space_size;
   heap_stats.code_space_size = &code_space_size;
   intptr_t code_space_capacity;
@@ -233,10 +230,6 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
   heap_stats.map_space_size = &map_space_size;
   intptr_t map_space_capacity;
   heap_stats.map_space_capacity = &map_space_capacity;
-  intptr_t cell_space_size;
-  heap_stats.cell_space_size = &cell_space_size;
-  intptr_t cell_space_capacity;
-  heap_stats.cell_space_capacity = &cell_space_capacity;
   intptr_t lo_space_size;
   heap_stats.lo_space_size = &lo_space_size;
   int global_handle_count;
@@ -327,8 +320,25 @@ bool RunExtraCode(Isolate* isolate, const char* utf8_source) {
 }
 
 
+namespace {
+
+class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+ public:
+  virtual void* Allocate(size_t length) {
+    void* data = AllocateUninitialized(length);
+    return data == NULL ? data : memset(data, 0, length);
+  }
+  virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
+  virtual void Free(void* data, size_t) { free(data); }
+};
+
+}  // namespace
+
+
 StartupData V8::CreateSnapshotDataBlob(const char* custom_source) {
   i::Isolate* internal_isolate = new i::Isolate(true);
+  ArrayBufferAllocator allocator;
+  internal_isolate->set_array_buffer_allocator(&allocator);
   Isolate* isolate = reinterpret_cast<Isolate*>(internal_isolate);
   StartupData result = {NULL, 0};
   {
@@ -353,7 +363,7 @@ StartupData V8::CreateSnapshotDataBlob(const char* custom_source) {
       {
         HandleScope scope(isolate);
         for (int i = 0; i < i::Natives::GetBuiltinsCount(); i++) {
-          internal_isolate->bootstrapper()->NativesSourceLookup(i);
+          internal_isolate->bootstrapper()->SourceLookup<i::Natives>(i);
         }
       }
       // If we don't do this then we end up with a stray root pointing at the
@@ -452,6 +462,11 @@ ResourceConstraints::ResourceConstraints()
 void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
                                             uint64_t virtual_memory_limit,
                                             uint32_t number_of_processors) {
+  ConfigureDefaults(physical_memory, virtual_memory_limit);
+}
+
+void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
+                                            uint64_t virtual_memory_limit) {
 #if V8_OS_ANDROID
   // Android has higher physical memory requirements before raising the maximum
   // heap size limits since it has no swap space.
@@ -482,8 +497,6 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
     set_max_executable_size(i::Heap::kMaxExecutableSizeHugeMemoryDevice);
   }
 
-  set_max_available_threads(i::Max(i::Min(number_of_processors, 4u), 1u));
-
   if (virtual_memory_limit > 0 && i::kRequiresCodeRange) {
     // Reserve no more than 1/8 of the memory for the code range, but at most
     // kMaximalCodeRangeSize.
@@ -509,8 +522,6 @@ void SetResourceConstraints(i::Isolate* isolate,
     uintptr_t limit = reinterpret_cast<uintptr_t>(constraints.stack_limit());
     isolate->stack_guard()->SetStackLimit(limit);
   }
-
-  isolate->set_max_available_threads(constraints.max_available_threads());
 }
 
 
@@ -592,8 +603,8 @@ Local<Value> V8::GetEternal(Isolate* v8_isolate, int index) {
 }
 
 
-void V8::CheckIsJust(bool is_just) {
-  Utils::ApiCheck(is_just, "v8::FromJust", "Maybe value is Nothing.");
+void V8::FromJustIsNothing() {
+  Utils::ApiCheck(false, "v8::FromJust", "Maybe value is Nothing.");
 }
 
 
@@ -1187,8 +1198,9 @@ void FunctionTemplate::RemovePrototype() {
 // --- O b j e c t T e m p l a t e ---
 
 
-Local<ObjectTemplate> ObjectTemplate::New(Isolate* isolate) {
-  return New(reinterpret_cast<i::Isolate*>(isolate), Local<FunctionTemplate>());
+Local<ObjectTemplate> ObjectTemplate::New(
+    Isolate* isolate, v8::Handle<FunctionTemplate> constructor) {
+  return New(reinterpret_cast<i::Isolate*>(isolate), constructor);
 }
 
 
@@ -1696,8 +1708,8 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
   }
 
   i::Handle<i::String> str = Utils::OpenHandle(*(source->source_string));
-  i::SharedFunctionInfo* raw_result = NULL;
-  { i::HandleScope scope(isolate);
+  i::Handle<i::SharedFunctionInfo> result;
+  {
     i::HistogramTimerScope total(isolate->counters()->compile_script(), true);
     i::Handle<i::Object> name_obj;
     i::Handle<i::Object> source_map_url;
@@ -1726,7 +1738,7 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
     if (!source->source_map_url.IsEmpty()) {
       source_map_url = Utils::OpenHandle(*(source->source_map_url));
     }
-    i::Handle<i::SharedFunctionInfo> result = i::Compiler::CompileScript(
+    result = i::Compiler::CompileScript(
         str, name_obj, line_offset, column_offset, is_embedder_debug_script,
         is_shared_cross_origin, source_map_url, isolate->native_context(), NULL,
         &script_data, options, i::NOT_NATIVES_CODE, is_module);
@@ -1739,7 +1751,6 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
       script_data = NULL;
     }
     RETURN_ON_FAILED_EXECUTION(UnboundScript);
-    raw_result = *result;
 
     if ((options == kProduceParserCache || options == kProduceCodeCache) &&
         script_data != NULL) {
@@ -1753,7 +1764,6 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
     }
     delete script_data;
   }
-  i::Handle<i::SharedFunctionInfo> result(raw_result, isolate);
   RETURN_ESCAPED(ToApiHandle<UnboundScript>(result));
 }
 
@@ -1952,59 +1962,53 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
                                            const ScriptOrigin& origin) {
   PREPARE_FOR_EXECUTION(context, "v8::ScriptCompiler::Compile()", Script);
   i::StreamedSource* source = v8_source->impl();
-  i::SharedFunctionInfo* raw_result = nullptr;
-  {
-    i::HandleScope scope(isolate);
-    i::Handle<i::String> str = Utils::OpenHandle(*(full_source_string));
-    i::Handle<i::Script> script = isolate->factory()->NewScript(str);
-    if (!origin.ResourceName().IsEmpty()) {
-      script->set_name(*Utils::OpenHandle(*(origin.ResourceName())));
-    }
-    if (!origin.ResourceLineOffset().IsEmpty()) {
-      script->set_line_offset(i::Smi::FromInt(
-          static_cast<int>(origin.ResourceLineOffset()->Value())));
-    }
-    if (!origin.ResourceColumnOffset().IsEmpty()) {
-      script->set_column_offset(i::Smi::FromInt(
-          static_cast<int>(origin.ResourceColumnOffset()->Value())));
-    }
-    if (!origin.ResourceIsSharedCrossOrigin().IsEmpty()) {
-      script->set_is_shared_cross_origin(
-          origin.ResourceIsSharedCrossOrigin()->IsTrue());
-    }
-    if (!origin.ResourceIsEmbedderDebugScript().IsEmpty()) {
-      script->set_is_embedder_debug_script(
-          origin.ResourceIsEmbedderDebugScript()->IsTrue());
-    }
-    if (!origin.SourceMapUrl().IsEmpty()) {
-      script->set_source_mapping_url(
-          *Utils::OpenHandle(*(origin.SourceMapUrl())));
-    }
-
-    source->info->set_script(script);
-    source->info->set_context(isolate->native_context());
-
-    // Do the parsing tasks which need to be done on the main thread. This will
-    // also handle parse errors.
-    source->parser->Internalize(isolate, script,
-                                source->info->function() == nullptr);
-    source->parser->HandleSourceURLComments(isolate, script);
-
-    i::Handle<i::SharedFunctionInfo> result;
-    if (source->info->function() != nullptr) {
-      // Parsing has succeeded.
-      result = i::Compiler::CompileStreamedScript(script, source->info.get(),
-                                                  str->length());
-    }
-    has_pending_exception = result.is_null();
-    if (has_pending_exception) isolate->ReportPendingMessages();
-    RETURN_ON_FAILED_EXECUTION(Script);
-
-    source->info->clear_script();  // because script goes out of scope.
-    raw_result = *result;          // TODO(titzer): use CloseAndEscape?
+  i::Handle<i::String> str = Utils::OpenHandle(*(full_source_string));
+  i::Handle<i::Script> script = isolate->factory()->NewScript(str);
+  if (!origin.ResourceName().IsEmpty()) {
+    script->set_name(*Utils::OpenHandle(*(origin.ResourceName())));
+  }
+  if (!origin.ResourceLineOffset().IsEmpty()) {
+    script->set_line_offset(i::Smi::FromInt(
+        static_cast<int>(origin.ResourceLineOffset()->Value())));
+  }
+  if (!origin.ResourceColumnOffset().IsEmpty()) {
+    script->set_column_offset(i::Smi::FromInt(
+        static_cast<int>(origin.ResourceColumnOffset()->Value())));
+  }
+  if (!origin.ResourceIsSharedCrossOrigin().IsEmpty()) {
+    script->set_is_shared_cross_origin(
+        origin.ResourceIsSharedCrossOrigin()->IsTrue());
+  }
+  if (!origin.ResourceIsEmbedderDebugScript().IsEmpty()) {
+    script->set_is_embedder_debug_script(
+        origin.ResourceIsEmbedderDebugScript()->IsTrue());
+  }
+  if (!origin.SourceMapUrl().IsEmpty()) {
+    script->set_source_mapping_url(
+        *Utils::OpenHandle(*(origin.SourceMapUrl())));
   }
 
-  i::Handle<i::SharedFunctionInfo> result(raw_result, isolate);
+  source->info->set_script(script);
+  source->info->set_context(isolate->native_context());
+
+  // Do the parsing tasks which need to be done on the main thread. This will
+  // also handle parse errors.
+  source->parser->Internalize(isolate, script,
+                              source->info->function() == nullptr);
+  source->parser->HandleSourceURLComments(isolate, script);
+
+  i::Handle<i::SharedFunctionInfo> result;
+  if (source->info->function() != nullptr) {
+    // Parsing has succeeded.
+    result = i::Compiler::CompileStreamedScript(script, source->info.get(),
+                                                str->length());
+  }
+  has_pending_exception = result.is_null();
+  if (has_pending_exception) isolate->ReportPendingMessages();
+  RETURN_ON_FAILED_EXECUTION(Script);
+
+  source->info->clear_script();  // because script goes out of scope.
+
   Local<UnboundScript> generic = ToApiHandle<UnboundScript>(result);
   if (generic.IsEmpty()) return Local<Script>();
   Local<Script> bound = generic->BindToCurrentContext();
@@ -2285,8 +2289,8 @@ Maybe<int> Message::GetLineNumber(Local<Context> context) const {
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Message::GetLineNumber()", int);
   i::Handle<i::Object> result;
   has_pending_exception =
-      !CallV8HeapFunction(isolate, "GetLineNumber", Utils::OpenHandle(this))
-           .ToHandle(&result);
+      !CallV8HeapFunction(isolate, "$messageGetLineNumber",
+                          Utils::OpenHandle(this)).ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(int);
   return Just(static_cast<int>(result->Number()));
 }
@@ -2315,8 +2319,9 @@ Maybe<int> Message::GetStartColumn(Local<Context> context) const {
                                   int);
   auto self = Utils::OpenHandle(this);
   i::Handle<i::Object> start_col_obj;
-  has_pending_exception = !CallV8HeapFunction(isolate, "GetPositionInLine",
-                                              self).ToHandle(&start_col_obj);
+  has_pending_exception =
+      !CallV8HeapFunction(isolate, "$messageGetPositionInLine", self)
+           .ToHandle(&start_col_obj);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(int);
   return Just(static_cast<int>(start_col_obj->Number()));
 }
@@ -2333,8 +2338,9 @@ Maybe<int> Message::GetEndColumn(Local<Context> context) const {
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Message::GetEndColumn()", int);
   auto self = Utils::OpenHandle(this);
   i::Handle<i::Object> start_col_obj;
-  has_pending_exception = !CallV8HeapFunction(isolate, "GetPositionInLine",
-                                              self).ToHandle(&start_col_obj);
+  has_pending_exception =
+      !CallV8HeapFunction(isolate, "$messageGetPositionInLine", self)
+           .ToHandle(&start_col_obj);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(int);
   int start = self->start_position();
   int end = self->end_position();
@@ -2363,8 +2369,8 @@ MaybeLocal<String> Message::GetSourceLine(Local<Context> context) const {
   PREPARE_FOR_EXECUTION(context, "v8::Message::GetSourceLine()", String);
   i::Handle<i::Object> result;
   has_pending_exception =
-      !CallV8HeapFunction(isolate, "GetSourceLine", Utils::OpenHandle(this))
-           .ToHandle(&result);
+      !CallV8HeapFunction(isolate, "$messageGetSourceLine",
+                          Utils::OpenHandle(this)).ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION(String);
   Local<String> str;
   if (result->IsString()) {
@@ -2688,11 +2694,11 @@ bool Value::IsTypedArray() const {
 }
 
 
-#define VALUE_IS_TYPED_ARRAY(Type, typeName, TYPE, ctype, size)            \
-  bool Value::Is##Type##Array() const {                                    \
-    i::Handle<i::Object> obj = Utils::OpenHandle(this);                    \
-    return obj->IsJSTypedArray() &&                                        \
-           i::JSTypedArray::cast(*obj)->type() == kExternal##Type##Array;  \
+#define VALUE_IS_TYPED_ARRAY(Type, typeName, TYPE, ctype, size)              \
+  bool Value::Is##Type##Array() const {                                      \
+    i::Handle<i::Object> obj = Utils::OpenHandle(this);                      \
+    return obj->IsJSTypedArray() &&                                          \
+           i::JSTypedArray::cast(*obj)->type() == i::kExternal##Type##Array; \
   }
 
 TYPED_ARRAYS(VALUE_IS_TYPED_ARRAY)
@@ -3106,11 +3112,10 @@ void v8::TypedArray::CheckCast(Value* that) {
 #define CHECK_TYPED_ARRAY_CAST(Type, typeName, TYPE, ctype, size)             \
   void v8::Type##Array::CheckCast(Value* that) {                              \
     i::Handle<i::Object> obj = Utils::OpenHandle(that);                       \
-    Utils::ApiCheck(obj->IsJSTypedArray() &&                                  \
-                    i::JSTypedArray::cast(*obj)->type() ==                    \
-                        kExternal##Type##Array,                               \
-                    "v8::" #Type "Array::Cast()",                             \
-                    "Could not convert to " #Type "Array");                   \
+    Utils::ApiCheck(                                                          \
+        obj->IsJSTypedArray() &&                                              \
+            i::JSTypedArray::cast(*obj)->type() == i::kExternal##Type##Array, \
+        "v8::" #Type "Array::Cast()", "Could not convert to " #Type "Array"); \
   }
 
 
@@ -3585,7 +3590,7 @@ MaybeLocal<Value> v8::Object::GetOwnPropertyDescriptor(Local<Context> context,
   i::Handle<i::Object> args[] = { obj, key_name };
   i::Handle<i::Object> result;
   has_pending_exception =
-      !CallV8HeapFunction(isolate, "ObjectGetOwnPropertyDescriptor",
+      !CallV8HeapFunction(isolate, "$objectGetOwnPropertyDescriptor",
                           isolate->factory()->undefined_value(),
                           arraysize(args), args).ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION(Value);
@@ -4209,147 +4214,6 @@ bool v8::Object::DeleteHiddenValue(v8::Handle<v8::String> key) {
       isolate->factory()->InternalizeString(key_obj);
   i::JSObject::DeleteHiddenProperty(self, key_string);
   return true;
-}
-
-
-namespace {
-
-static i::ElementsKind GetElementsKindFromExternalArrayType(
-    ExternalArrayType array_type) {
-  switch (array_type) {
-#define ARRAY_TYPE_TO_ELEMENTS_KIND(Type, type, TYPE, ctype, size)            \
-    case kExternal##Type##Array:                                              \
-      return i::EXTERNAL_##TYPE##_ELEMENTS;
-
-    TYPED_ARRAYS(ARRAY_TYPE_TO_ELEMENTS_KIND)
-#undef ARRAY_TYPE_TO_ELEMENTS_KIND
-  }
-  UNREACHABLE();
-  return i::DICTIONARY_ELEMENTS;
-}
-
-
-void PrepareExternalArrayElements(i::Handle<i::JSObject> object,
-                                  void* data,
-                                  ExternalArrayType array_type,
-                                  int length) {
-  i::Isolate* isolate = object->GetIsolate();
-  i::Handle<i::ExternalArray> array =
-      isolate->factory()->NewExternalArray(length, array_type, data);
-
-  i::Handle<i::Map> external_array_map =
-      i::JSObject::GetElementsTransitionMap(
-          object,
-          GetElementsKindFromExternalArrayType(array_type));
-
-  i::JSObject::SetMapAndElements(object, external_array_map, array);
-}
-
-}  // namespace
-
-
-void v8::Object::SetIndexedPropertiesToPixelData(uint8_t* data, int length) {
-  auto self = Utils::OpenHandle(this);
-  auto isolate = self->GetIsolate();
-  ENTER_V8(isolate);
-  i::HandleScope scope(isolate);
-  if (!Utils::ApiCheck(length >= 0 &&
-                       length <= i::ExternalUint8ClampedArray::kMaxLength,
-                       "v8::Object::SetIndexedPropertiesToPixelData()",
-                       "length exceeds max acceptable value")) {
-    return;
-  }
-  if (!Utils::ApiCheck(!self->IsJSArray(),
-                       "v8::Object::SetIndexedPropertiesToPixelData()",
-                       "JSArray is not supported")) {
-    return;
-  }
-  PrepareExternalArrayElements(self, data, kExternalUint8ClampedArray, length);
-}
-
-
-bool v8::Object::HasIndexedPropertiesInPixelData() {
-  auto self = Utils::OpenHandle(this);
-  return self->HasExternalUint8ClampedElements();
-}
-
-
-uint8_t* v8::Object::GetIndexedPropertiesPixelData() {
-  auto self = Utils::OpenHandle(this);
-  if (self->HasExternalUint8ClampedElements()) {
-    return i::ExternalUint8ClampedArray::cast(self->elements())->
-        external_uint8_clamped_pointer();
-  }
-  return nullptr;
-}
-
-
-int v8::Object::GetIndexedPropertiesPixelDataLength() {
-  auto self = Utils::OpenHandle(this);
-  if (self->HasExternalUint8ClampedElements()) {
-    return i::ExternalUint8ClampedArray::cast(self->elements())->length();
-  }
-  return -1;
-}
-
-
-void v8::Object::SetIndexedPropertiesToExternalArrayData(
-    void* data,
-    ExternalArrayType array_type,
-    int length) {
-  auto self = Utils::OpenHandle(this);
-  auto isolate = self->GetIsolate();
-  ENTER_V8(isolate);
-  i::HandleScope scope(isolate);
-  if (!Utils::ApiCheck(length >= 0 && length <= i::ExternalArray::kMaxLength,
-                       "v8::Object::SetIndexedPropertiesToExternalArrayData()",
-                       "length exceeds max acceptable value")) {
-    return;
-  }
-  if (!Utils::ApiCheck(!self->IsJSArray(),
-                       "v8::Object::SetIndexedPropertiesToExternalArrayData()",
-                       "JSArray is not supported")) {
-    return;
-  }
-  PrepareExternalArrayElements(self, data, array_type, length);
-}
-
-
-bool v8::Object::HasIndexedPropertiesInExternalArrayData() {
-  auto self = Utils::OpenHandle(this);
-  return self->HasExternalArrayElements();
-}
-
-
-void* v8::Object::GetIndexedPropertiesExternalArrayData() {
-  auto self = Utils::OpenHandle(this);
-  if (self->HasExternalArrayElements()) {
-    return i::ExternalArray::cast(self->elements())->external_pointer();
-  }
-  return nullptr;
-}
-
-
-ExternalArrayType v8::Object::GetIndexedPropertiesExternalArrayDataType() {
-  auto self = Utils::OpenHandle(this);
-  switch (self->elements()->map()->instance_type()) {
-#define INSTANCE_TYPE_TO_ARRAY_TYPE(Type, type, TYPE, ctype, size)            \
-    case i::EXTERNAL_##TYPE##_ARRAY_TYPE:                                     \
-      return kExternal##Type##Array;
-    TYPED_ARRAYS(INSTANCE_TYPE_TO_ARRAY_TYPE)
-#undef INSTANCE_TYPE_TO_ARRAY_TYPE
-    default:
-      return static_cast<ExternalArrayType>(-1);
-  }
-}
-
-
-int v8::Object::GetIndexedPropertiesExternalArrayDataLength() {
-  auto self = Utils::OpenHandle(this);
-  if (self->HasExternalArrayElements()) {
-    return i::ExternalArray::cast(self->elements())->length();
-  }
-  return -1;
 }
 
 
@@ -5477,6 +5341,13 @@ HeapStatistics::HeapStatistics(): total_heap_size_(0),
                                   heap_size_limit_(0) { }
 
 
+HeapSpaceStatistics::HeapSpaceStatistics(): space_name_(0),
+                                            space_size_(0),
+                                            space_used_size_(0),
+                                            space_available_size_(0),
+                                            physical_space_size_(0) { }
+
+
 bool v8::V8::InitializeICU(const char* icu_data_file) {
   return i::InitializeICU(icu_data_file);
 }
@@ -6275,7 +6146,7 @@ Maybe<bool> Promise::Resolver::Resolve(Local<Context> context,
 
 void Promise::Resolver::Resolve(Handle<Value> value) {
   auto context = ContextFromHeapObject(Utils::OpenHandle(this));
-  Resolve(context, value);
+  USE(Resolve(context, value));
 }
 
 
@@ -6297,7 +6168,7 @@ Maybe<bool> Promise::Resolver::Reject(Local<Context> context,
 
 void Promise::Resolver::Reject(Handle<Value> value) {
   auto context = ContextFromHeapObject(Utils::OpenHandle(this));
-  Reject(context, value);
+  USE(Reject(context, value));
 }
 
 
@@ -6383,9 +6254,13 @@ bool v8::ArrayBuffer::IsNeuterable() const {
 
 v8::ArrayBuffer::Contents v8::ArrayBuffer::Externalize() {
   i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
   Utils::ApiCheck(!self->is_external(), "v8::ArrayBuffer::Externalize",
                   "ArrayBuffer already externalized");
   self->set_is_external(true);
+  isolate->heap()->UnregisterArrayBuffer(isolate->heap()->InNewSpace(*self),
+                                         self->backing_store());
+
   return GetContents();
 }
 
@@ -6462,31 +6337,21 @@ Local<ArrayBuffer> v8::ArrayBufferView::Buffer() {
 
 
 size_t v8::ArrayBufferView::CopyContents(void* dest, size_t byte_length) {
-  i::Handle<i::JSArrayBufferView> obj = Utils::OpenHandle(this);
-  i::Isolate* isolate = obj->GetIsolate();
-  size_t byte_offset = i::NumberToSize(isolate, obj->byte_offset());
+  i::Handle<i::JSArrayBufferView> self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
+  size_t byte_offset = i::NumberToSize(isolate, self->byte_offset());
   size_t bytes_to_copy =
-      i::Min(byte_length, i::NumberToSize(isolate, obj->byte_length()));
+      i::Min(byte_length, i::NumberToSize(isolate, self->byte_length()));
   if (bytes_to_copy) {
     i::DisallowHeapAllocation no_gc;
-    const char* source = nullptr;
-    if (obj->IsJSDataView()) {
-      i::Handle<i::JSDataView> data_view(i::JSDataView::cast(*obj));
-      i::Handle<i::JSArrayBuffer> buffer(
-          i::JSArrayBuffer::cast(data_view->buffer()));
-      source = reinterpret_cast<char*>(buffer->backing_store());
-    } else {
-      DCHECK(obj->IsJSTypedArray());
-      i::Handle<i::JSTypedArray> typed_array(i::JSTypedArray::cast(*obj));
-      if (typed_array->buffer()->IsSmi()) {
-        i::Handle<i::FixedTypedArrayBase> fixed_array(
-            i::FixedTypedArrayBase::cast(typed_array->elements()));
-        source = reinterpret_cast<char*>(fixed_array->DataPtr());
-      } else {
-        i::Handle<i::JSArrayBuffer> buffer(
-            i::JSArrayBuffer::cast(typed_array->buffer()));
-        source = reinterpret_cast<char*>(buffer->backing_store());
-      }
+    i::Handle<i::JSArrayBuffer> buffer(i::JSArrayBuffer::cast(self->buffer()));
+    const char* source = reinterpret_cast<char*>(buffer->backing_store());
+    if (source == nullptr) {
+      DCHECK(self->IsJSTypedArray());
+      i::Handle<i::JSTypedArray> typed_array(i::JSTypedArray::cast(*self));
+      i::Handle<i::FixedTypedArrayBase> fixed_array(
+          i::FixedTypedArrayBase::cast(typed_array->elements()));
+      source = reinterpret_cast<char*>(fixed_array->DataPtr());
     }
     memcpy(dest, source + byte_offset, bytes_to_copy);
   }
@@ -6495,11 +6360,9 @@ size_t v8::ArrayBufferView::CopyContents(void* dest, size_t byte_length) {
 
 
 bool v8::ArrayBufferView::HasBuffer() const {
-  i::Handle<i::JSArrayBufferView> obj = Utils::OpenHandle(this);
-  if (obj->IsJSDataView()) return true;
-  DCHECK(obj->IsJSTypedArray());
-  i::Handle<i::JSTypedArray> typed_array(i::JSTypedArray::cast(*obj));
-  return !typed_array->buffer()->IsSmi();
+  i::Handle<i::JSArrayBufferView> self = Utils::OpenHandle(this);
+  i::Handle<i::JSArrayBuffer> buffer(i::JSArrayBuffer::cast(self->buffer()));
+  return buffer->backing_store() != nullptr;
 }
 
 
@@ -6536,7 +6399,7 @@ size_t v8::TypedArray::Length() {
     }                                                                        \
     i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*array_buffer);   \
     i::Handle<i::JSTypedArray> obj = isolate->factory()->NewJSTypedArray(    \
-        v8::kExternal##Type##Array, buffer, byte_offset, length);            \
+        i::kExternal##Type##Array, buffer, byte_offset, length);             \
     return Utils::ToLocal##Type##Array(obj);                                 \
   }
 
@@ -6888,9 +6751,20 @@ Isolate* Isolate::GetCurrent() {
 }
 
 
+Isolate* Isolate::New() {
+  Isolate::CreateParams create_params;
+  return New(create_params);
+}
+
+
 Isolate* Isolate::New(const Isolate::CreateParams& params) {
   i::Isolate* isolate = new i::Isolate(false);
   Isolate* v8_isolate = reinterpret_cast<Isolate*>(isolate);
+  if (params.array_buffer_allocator != NULL) {
+    isolate->set_array_buffer_allocator(params.array_buffer_allocator);
+  } else {
+    isolate->set_array_buffer_allocator(i::V8::ArrayBufferAllocator());
+  }
   if (params.snapshot_blob != NULL) {
     isolate->set_snapshot_blob(params.snapshot_blob);
   } else {
@@ -7017,8 +6891,34 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   heap_statistics->total_heap_size_executable_ =
       heap->CommittedMemoryExecutable();
   heap_statistics->total_physical_size_ = heap->CommittedPhysicalMemory();
+  heap_statistics->total_available_size_ = heap->Available();
   heap_statistics->used_heap_size_ = heap->SizeOfObjects();
   heap_statistics->heap_size_limit_ = heap->MaxReserved();
+}
+
+
+size_t Isolate::NumberOfHeapSpaces() {
+  return i::LAST_SPACE - i::FIRST_SPACE + 1;
+}
+
+
+bool Isolate::GetHeapSpaceStatistics(HeapSpaceStatistics* space_statistics,
+                                     size_t index) {
+  if (!space_statistics)
+    return false;
+  if (index > i::LAST_SPACE || index < i::FIRST_SPACE)
+    return false;
+
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  i::Heap* heap = isolate->heap();
+  i::Space* space = heap->space(static_cast<int>(index));
+
+  space_statistics->space_name_ = heap->GetSpaceName(static_cast<int>(index));
+  space_statistics->space_size_ = space->CommittedMemory();
+  space_statistics->space_used_size_ = space->SizeOfObjects();
+  space_statistics->space_available_size_ = space->Available();
+  space_statistics->physical_space_size_ = space->CommittedPhysicalMemory();
+  return true;
 }
 
 
@@ -7408,12 +7308,6 @@ bool Debug::CheckDebugBreak(Isolate* isolate) {
 }
 
 
-void Debug::DebugBreakForCommand(Isolate* isolate, ClientData* data) {
-  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  internal_isolate->debug()->EnqueueDebugCommand(data);
-}
-
-
 void Debug::SetMessageHandler(v8::Debug::MessageHandler handler) {
   i::Isolate* isolate = i::Isolate::Current();
   ENTER_V8(isolate);
@@ -7587,6 +7481,12 @@ const CpuProfileNode* CpuProfileNode::GetChild(int index) const {
   const i::ProfileNode* child =
       reinterpret_cast<const i::ProfileNode*>(this)->children()->at(index);
   return reinterpret_cast<const CpuProfileNode*>(child);
+}
+
+
+const std::vector<CpuProfileDeoptInfo>& CpuProfileNode::GetDeoptInfos() const {
+  const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
+  return node->deopt_infos();
 }
 
 

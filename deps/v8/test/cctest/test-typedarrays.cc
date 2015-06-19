@@ -72,7 +72,9 @@ TEST(CopyContentsView) {
 TEST(AllocateNotExternal) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  void* memory = V8::ArrayBufferAllocator()->Allocate(1024);
+  void* memory = reinterpret_cast<Isolate*>(env->GetIsolate())
+                     ->array_buffer_allocator()
+                     ->Allocate(1024);
   v8::Local<v8::ArrayBuffer> buffer =
       v8::ArrayBuffer::New(env->GetIsolate(), memory, 1024,
                            v8::ArrayBufferCreationMode::kInternalized);

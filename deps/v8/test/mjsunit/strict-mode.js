@@ -1010,7 +1010,35 @@ repeat(10, function() {
 })();
 
 
-function CheckPillDescriptor(func, name) {
+function CheckFunctionPillDescriptor(func, name) {
+
+  function CheckPill(pill) {
+    assertEquals("function", typeof pill);
+    assertInstanceof(pill, Function);
+    pill.property = "value";
+    assertEquals(pill.value, undefined);
+    assertThrows(function() { 'use strict'; pill.property = "value"; },
+                 TypeError);
+    assertThrows(pill, TypeError);
+    assertEquals(pill.prototype, (function(){}).prototype);
+    var d = Object.getOwnPropertyDescriptor(pill, "prototype");
+    assertFalse(d.writable);
+    assertFalse(d.configurable);
+    assertFalse(d.enumerable);
+  }
+
+  // Poisoned accessors are no longer own properties
+  func = Object.getPrototypeOf(func);
+  var descriptor = Object.getOwnPropertyDescriptor(func, name);
+  CheckPill(descriptor.get)
+  CheckPill(descriptor.set);
+  assertFalse(descriptor.enumerable);
+  // In ES6, restricted function properties are configurable
+  assertTrue(descriptor.configurable);
+}
+
+
+function CheckArgumentsPillDescriptor(func, name) {
 
   function CheckPill(pill) {
     assertEquals("function", typeof pill);
@@ -1056,12 +1084,12 @@ function CheckPillDescriptor(func, name) {
   assertThrows(function() { third.caller = 42; }, TypeError);
   assertThrows(function() { third.arguments = 42; }, TypeError);
 
-  CheckPillDescriptor(strict, "caller");
-  CheckPillDescriptor(strict, "arguments");
-  CheckPillDescriptor(another, "caller");
-  CheckPillDescriptor(another, "arguments");
-  CheckPillDescriptor(third, "caller");
-  CheckPillDescriptor(third, "arguments");
+  CheckFunctionPillDescriptor(strict, "caller");
+  CheckFunctionPillDescriptor(strict, "arguments");
+  CheckFunctionPillDescriptor(another, "caller");
+  CheckFunctionPillDescriptor(another, "arguments");
+  CheckFunctionPillDescriptor(third, "caller");
+  CheckFunctionPillDescriptor(third, "arguments");
 })();
 
 
@@ -1093,15 +1121,15 @@ function CheckPillDescriptor(func, name) {
   }
 
   var args = strict();
-  CheckPillDescriptor(args, "caller");
-  CheckPillDescriptor(args, "callee");
+  CheckArgumentsPillDescriptor(args, "caller");
+  CheckArgumentsPillDescriptor(args, "callee");
 
   args = strict(17, "value", strict);
   assertEquals(17, args[0])
   assertEquals("value", args[1])
   assertEquals(strict, args[2]);
-  CheckPillDescriptor(args, "caller");
-  CheckPillDescriptor(args, "callee");
+  CheckArgumentsPillDescriptor(args, "caller");
+  CheckArgumentsPillDescriptor(args, "callee");
 
   function outer() {
     "use strict";
@@ -1112,15 +1140,15 @@ function CheckPillDescriptor(func, name) {
   }
 
   var args = outer()();
-  CheckPillDescriptor(args, "caller");
-  CheckPillDescriptor(args, "callee");
+  CheckArgumentsPillDescriptor(args, "caller");
+  CheckArgumentsPillDescriptor(args, "callee");
 
   args = outer()(17, "value", strict);
   assertEquals(17, args[0])
   assertEquals("value", args[1])
   assertEquals(strict, args[2]);
-  CheckPillDescriptor(args, "caller");
-  CheckPillDescriptor(args, "callee");
+  CheckArgumentsPillDescriptor(args, "caller");
+  CheckArgumentsPillDescriptor(args, "callee");
 })();
 
 

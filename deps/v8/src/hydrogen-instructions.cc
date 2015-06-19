@@ -8,7 +8,6 @@
 #include "src/double.h"
 #include "src/factory.h"
 #include "src/hydrogen-infer-representation.h"
-#include "src/property-details-inl.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "src/ia32/lithium-ia32.h"  // NOLINT
@@ -855,6 +854,7 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kCallRuntime:
     case HValue::kCallWithDescriptor:
     case HValue::kChange:
+    case HValue::kCheckArrayBufferNotNeutered:
     case HValue::kCheckHeapObject:
     case HValue::kCheckInstanceType:
     case HValue::kCheckMapValue:
@@ -2230,7 +2230,9 @@ int32_t InductionVariableData::ComputeIncrement(HPhi* phi,
     HSub* operation = HSub::cast(phi_operand);
     if (operation->left() == phi &&
         operation->right()->IsInteger32Constant()) {
-      return -operation->right()->GetInteger32Constant();
+      int constant = operation->right()->GetInteger32Constant();
+      if (constant == kMinInt) return 0;
+      return -constant;
     }
   }
 
@@ -3196,13 +3198,18 @@ Range* HLoadNamedField::InferRange(Zone* zone) {
 Range* HLoadKeyed::InferRange(Zone* zone) {
   switch (elements_kind()) {
     case EXTERNAL_INT8_ELEMENTS:
+    case INT8_ELEMENTS:
       return new(zone) Range(kMinInt8, kMaxInt8);
     case EXTERNAL_UINT8_ELEMENTS:
     case EXTERNAL_UINT8_CLAMPED_ELEMENTS:
+    case UINT8_ELEMENTS:
+    case UINT8_CLAMPED_ELEMENTS:
       return new(zone) Range(kMinUInt8, kMaxUInt8);
     case EXTERNAL_INT16_ELEMENTS:
+    case INT16_ELEMENTS:
       return new(zone) Range(kMinInt16, kMaxInt16);
     case EXTERNAL_UINT16_ELEMENTS:
+    case UINT16_ELEMENTS:
       return new(zone) Range(kMinUInt16, kMaxUInt16);
     default:
       return HValue::InferRange(zone);
@@ -3527,6 +3534,10 @@ bool HLoadKeyed::RequiresHoleCheck() const {
     return false;
   }
 
+  if (hole_mode() == CONVERT_HOLE_TO_UNDEFINED) {
+    return false;
+  }
+
   return !UsesMustHandleHole();
 }
 
@@ -3729,8 +3740,12 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
     return false;
   }
 
-  dominator_allocate = GetFoldableDominator(dominator_allocate);
-  if (dominator_allocate == NULL) {
+
+  if (!IsFoldable(dominator_allocate)) {
+    if (FLAG_trace_allocation_folding) {
+      PrintF("#%d (%s) cannot fold into #%d (%s), different spaces\n", id(),
+             Mnemonic(), dominator->id(), dominator->Mnemonic());
+    }
     return false;
   }
 
@@ -3762,10 +3777,7 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
 
   DCHECK(
       (IsNewSpaceAllocation() && dominator_allocate->IsNewSpaceAllocation()) ||
-      (IsOldDataSpaceAllocation() &&
-       dominator_allocate->IsOldDataSpaceAllocation()) ||
-      (IsOldPointerSpaceAllocation() &&
-       dominator_allocate->IsOldPointerSpaceAllocation()));
+      (IsOldSpaceAllocation() && dominator_allocate->IsOldSpaceAllocation()));
 
   // First update the size of the dominator allocate instruction.
   dominator_size = dominator_allocate->size();
@@ -3856,70 +3868,6 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
 }
 
 
-HAllocate* HAllocate::GetFoldableDominator(HAllocate* dominator) {
-  if (!IsFoldable(dominator)) {
-    // We cannot hoist old space allocations over new space allocations.
-    if (IsNewSpaceAllocation() || dominator->IsNewSpaceAllocation()) {
-      if (FLAG_trace_allocation_folding) {
-        PrintF("#%d (%s) cannot fold into #%d (%s), new space hoisting\n", id(),
-               Mnemonic(), dominator->id(), dominator->Mnemonic());
-      }
-      return NULL;
-    }
-
-    HAllocate* dominator_dominator = dominator->dominating_allocate_;
-
-    // We can hoist old data space allocations over an old pointer space
-    // allocation and vice versa. For that we have to check the dominator
-    // of the dominator allocate instruction.
-    if (dominator_dominator == NULL) {
-      dominating_allocate_ = dominator;
-      if (FLAG_trace_allocation_folding) {
-        PrintF("#%d (%s) cannot fold into #%d (%s), different spaces\n", id(),
-               Mnemonic(), dominator->id(), dominator->Mnemonic());
-      }
-      return NULL;
-    }
-
-    // We can just fold old space allocations that are in the same basic block,
-    // since it is not guaranteed that we fill up the whole allocated old
-    // space memory.
-    // TODO(hpayer): Remove this limitation and add filler maps for each each
-    // allocation as soon as we have store elimination.
-    if (block()->block_id() != dominator_dominator->block()->block_id()) {
-      if (FLAG_trace_allocation_folding) {
-        PrintF("#%d (%s) cannot fold into #%d (%s), different basic blocks\n",
-               id(), Mnemonic(), dominator_dominator->id(),
-               dominator_dominator->Mnemonic());
-      }
-      return NULL;
-    }
-
-    DCHECK((IsOldDataSpaceAllocation() &&
-            dominator_dominator->IsOldDataSpaceAllocation()) ||
-           (IsOldPointerSpaceAllocation() &&
-            dominator_dominator->IsOldPointerSpaceAllocation()));
-
-    int32_t current_size = HConstant::cast(size())->GetInteger32Constant();
-    HStoreNamedField* dominator_free_space_size =
-        dominator->filler_free_space_size_;
-    if (dominator_free_space_size != NULL) {
-      // We already hoisted one old space allocation, i.e., we already installed
-      // a filler map. Hence, we just have to update the free space size.
-      dominator->UpdateFreeSpaceFiller(current_size);
-    } else {
-      // This is the first old space allocation that gets hoisted. We have to
-      // install a filler map since the follwing allocation may cause a GC.
-      dominator->CreateFreeSpaceFiller(current_size);
-    }
-
-    // We can hoist the old space allocation over the actual dominator.
-    return dominator_dominator;
-  }
-  return dominator;
-}
-
-
 void HAllocate::UpdateFreeSpaceFiller(int32_t free_space_size) {
   DCHECK(filler_free_space_size_ != NULL);
   Zone* zone = block()->zone();
@@ -3987,8 +3935,7 @@ void HAllocate::ClearNextMapWord(int offset) {
 std::ostream& HAllocate::PrintDataTo(std::ostream& os) const {  // NOLINT
   os << NameOf(size()) << " (";
   if (IsNewSpaceAllocation()) os << "N";
-  if (IsOldPointerSpaceAllocation()) os << "P";
-  if (IsOldDataSpaceAllocation()) os << "D";
+  if (IsOldSpaceAllocation()) os << "P";
   if (MustAllocateDoubleAligned()) os << "A";
   if (MustPrefillWithFiller()) os << "F";
   return os << ")";
@@ -4037,7 +3984,8 @@ bool HStoreKeyed::NeedsCanonicalization() {
 
 #define DEFINE_NEW_H_SIMPLE_ARITHMETIC_INSTR(HInstr, op)                     \
   HInstruction* HInstr::New(Isolate* isolate, Zone* zone, HValue* context,   \
-                            HValue* left, HValue* right) {                   \
+                            HValue* left, HValue* right,                     \
+                            LanguageMode language_mode) {                    \
     if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {  \
       HConstant* c_left = HConstant::cast(left);                             \
       HConstant* c_right = HConstant::cast(right);                           \
@@ -4049,7 +3997,7 @@ bool HStoreKeyed::NeedsCanonicalization() {
         return H_CONSTANT_DOUBLE(double_res);                                \
       }                                                                      \
     }                                                                        \
-    return new (zone) HInstr(context, left, right);                          \
+    return new (zone) HInstr(context, left, right, language_mode);           \
   }
 
 
@@ -4062,6 +4010,7 @@ DEFINE_NEW_H_SIMPLE_ARITHMETIC_INSTR(HSub, -)
 
 HInstruction* HStringAdd::New(Isolate* isolate, Zone* zone, HValue* context,
                               HValue* left, HValue* right,
+                              LanguageMode language_mode,
                               PretenureFlag pretenure_flag,
                               StringAddFlags flags,
                               Handle<AllocationSite> allocation_site) {
@@ -4080,7 +4029,8 @@ HInstruction* HStringAdd::New(Isolate* isolate, Zone* zone, HValue* context,
     }
   }
   return new(zone) HStringAdd(
-      context, left, right, pretenure_flag, flags, allocation_site);
+      context, left, right, language_mode, pretenure_flag, flags,
+      allocation_site);
 }
 
 
@@ -4278,7 +4228,8 @@ HInstruction* HMathMinMax::New(Isolate* isolate, Zone* zone, HValue* context,
 
 
 HInstruction* HMod::New(Isolate* isolate, Zone* zone, HValue* context,
-                        HValue* left, HValue* right) {
+                        HValue* left, HValue* right,
+                        LanguageMode language_mode) {
   if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_left = HConstant::cast(left);
     HConstant* c_right = HConstant::cast(right);
@@ -4297,12 +4248,13 @@ HInstruction* HMod::New(Isolate* isolate, Zone* zone, HValue* context,
       }
     }
   }
-  return new(zone) HMod(context, left, right);
+  return new(zone) HMod(context, left, right, language_mode);
 }
 
 
 HInstruction* HDiv::New(Isolate* isolate, Zone* zone, HValue* context,
-                        HValue* left, HValue* right) {
+                        HValue* left, HValue* right,
+                        LanguageMode language_mode) {
   // If left and right are constant values, try to return a constant value.
   if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_left = HConstant::cast(left);
@@ -4321,12 +4273,13 @@ HInstruction* HDiv::New(Isolate* isolate, Zone* zone, HValue* context,
       }
     }
   }
-  return new(zone) HDiv(context, left, right);
+  return new(zone) HDiv(context, left, right, language_mode);
 }
 
 
 HInstruction* HBitwise::New(Isolate* isolate, Zone* zone, HValue* context,
-                            Token::Value op, HValue* left, HValue* right) {
+                            Token::Value op, HValue* left, HValue* right,
+                            LanguageMode language_mode) {
   if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_left = HConstant::cast(left);
     HConstant* c_right = HConstant::cast(right);
@@ -4351,13 +4304,14 @@ HInstruction* HBitwise::New(Isolate* isolate, Zone* zone, HValue* context,
       return H_CONSTANT_INT(result);
     }
   }
-  return new(zone) HBitwise(context, op, left, right);
+  return new(zone) HBitwise(context, op, left, right, language_mode);
 }
 
 
 #define DEFINE_NEW_H_BITWISE_INSTR(HInstr, result)                          \
   HInstruction* HInstr::New(Isolate* isolate, Zone* zone, HValue* context,  \
-                            HValue* left, HValue* right) {                  \
+                            HValue* left, HValue* right,                    \
+                            LanguageMode language_mode) {                   \
     if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) { \
       HConstant* c_left = HConstant::cast(left);                            \
       HConstant* c_right = HConstant::cast(right);                          \
@@ -4365,7 +4319,7 @@ HInstruction* HBitwise::New(Isolate* isolate, Zone* zone, HValue* context,
         return H_CONSTANT_INT(result);                                      \
       }                                                                     \
     }                                                                       \
-    return new (zone) HInstr(context, left, right);                         \
+    return new (zone) HInstr(context, left, right, language_mode);          \
   }
 
 
@@ -4378,7 +4332,8 @@ c_left->NumberValueAsInteger32() << (c_right->NumberValueAsInteger32() & 0x1f))
 
 
 HInstruction* HShr::New(Isolate* isolate, Zone* zone, HValue* context,
-                        HValue* left, HValue* right) {
+                        HValue* left, HValue* right,
+                        LanguageMode language_mode) {
   if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_left = HConstant::cast(left);
     HConstant* c_right = HConstant::cast(right);
@@ -4391,7 +4346,7 @@ HInstruction* HShr::New(Isolate* isolate, Zone* zone, HValue* context,
       return H_CONSTANT_INT(static_cast<uint32_t>(left_val) >> right_val);
     }
   }
-  return new(zone) HShr(context, left, right);
+  return new(zone) HShr(context, left, right, language_mode);
 }
 
 

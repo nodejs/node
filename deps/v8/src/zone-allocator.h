@@ -57,6 +57,8 @@ class zone_allocator {
     return zone_ != other.zone_;
   }
 
+  Zone* zone() { return zone_; }
+
  private:
   zone_allocator();
   Zone* zone_;

@@ -215,15 +215,16 @@ class LinkageHelper {
     // The target for C calls is always an address (i.e. machine pointer).
     MachineType target_type = kMachPtr;
     LinkageLocation target_loc = LinkageLocation::AnyRegister();
-    return new (zone) CallDescriptor(  // --
-        CallDescriptor::kCallAddress,  // kind
-        target_type,                   // target MachineType
-        target_loc,                    // target location
-        msig,                          // machine_sig
-        locations.Build(),             // location_sig
-        0,                             // js_parameter_count
-        Operator::kNoProperties,       // properties
-        LinkageTraits::CCalleeSaveRegisters(), CallDescriptor::kNoFlags,
+    return new (zone) CallDescriptor(           // --
+        CallDescriptor::kCallAddress,           // kind
+        target_type,                            // target MachineType
+        target_loc,                             // target location
+        msig,                                   // machine_sig
+        locations.Build(),                      // location_sig
+        0,                                      // js_parameter_count
+        Operator::kNoProperties,                // properties
+        LinkageTraits::CCalleeSaveRegisters(),  // callee-saved registers
+        CallDescriptor::kNoFlags,               // flags
         "c-call");
   }
 

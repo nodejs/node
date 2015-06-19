@@ -31,6 +31,16 @@ namespace compiler {
   V(IA32Sar)                       \
   V(IA32Ror)                       \
   V(IA32Lzcnt)                     \
+  V(SSEFloat32Cmp)                 \
+  V(SSEFloat32Add)                 \
+  V(SSEFloat32Sub)                 \
+  V(SSEFloat32Mul)                 \
+  V(SSEFloat32Div)                 \
+  V(SSEFloat32Max)                 \
+  V(SSEFloat32Min)                 \
+  V(SSEFloat32Abs)                 \
+  V(SSEFloat32Neg)                 \
+  V(SSEFloat32Sqrt)                \
   V(SSEFloat64Cmp)                 \
   V(SSEFloat64Add)                 \
   V(SSEFloat64Sub)                 \
@@ -39,10 +49,12 @@ namespace compiler {
   V(SSEFloat64Mod)                 \
   V(SSEFloat64Max)                 \
   V(SSEFloat64Min)                 \
+  V(SSEFloat64Abs)                 \
+  V(SSEFloat64Neg)                 \
   V(SSEFloat64Sqrt)                \
   V(SSEFloat64Round)               \
-  V(SSECvtss2sd)                   \
-  V(SSECvtsd2ss)                   \
+  V(SSEFloat32ToFloat64)           \
+  V(SSEFloat64ToFloat32)           \
   V(SSEFloat64ToInt32)             \
   V(SSEFloat64ToUint32)            \
   V(SSEInt32ToFloat64)             \
@@ -52,12 +64,22 @@ namespace compiler {
   V(SSEFloat64InsertLowWord32)     \
   V(SSEFloat64InsertHighWord32)    \
   V(SSEFloat64LoadLowWord32)       \
+  V(AVXFloat32Add)                 \
+  V(AVXFloat32Sub)                 \
+  V(AVXFloat32Mul)                 \
+  V(AVXFloat32Div)                 \
+  V(AVXFloat32Max)                 \
+  V(AVXFloat32Min)                 \
   V(AVXFloat64Add)                 \
   V(AVXFloat64Sub)                 \
   V(AVXFloat64Mul)                 \
   V(AVXFloat64Div)                 \
   V(AVXFloat64Max)                 \
   V(AVXFloat64Min)                 \
+  V(AVXFloat64Abs)                 \
+  V(AVXFloat64Neg)                 \
+  V(AVXFloat32Abs)                 \
+  V(AVXFloat32Neg)                 \
   V(IA32Movsxbl)                   \
   V(IA32Movzxbl)                   \
   V(IA32Movb)                      \

@@ -73,7 +73,37 @@
 namespace v8 {
 
 namespace {
+
+const int MB = 1024 * 1024;
+
+
+class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+ public:
+  virtual void* Allocate(size_t length) {
+    void* data = AllocateUninitialized(length);
+    return data == NULL ? data : memset(data, 0, length);
+  }
+  virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
+  virtual void Free(void* data, size_t) { free(data); }
+};
+
+
+class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+ public:
+  void* Allocate(size_t length) override {
+    size_t actual_length = length > 10 * MB ? 1 : length;
+    void* data = AllocateUninitialized(actual_length);
+    return data == NULL ? data : memset(data, 0, actual_length);
+  }
+  void* AllocateUninitialized(size_t length) override {
+    return length > 10 * MB ? malloc(1) : malloc(length);
+  }
+  void Free(void* p, size_t) override { free(p); }
+};
+
+
 v8::Platform* g_platform = NULL;
+
 }  // namespace
 
 
@@ -167,10 +197,7 @@ Persistent<Context> Shell::evaluation_context_;
 ShellOptions Shell::options;
 const char* Shell::kPrompt = "d8> ";
 
-
 #ifndef V8_SHARED
-const int MB = 1024 * 1024;
-
 bool CounterMap::Match(void* key1, void* key2) {
   const char* name1 = reinterpret_cast<const char*>(key1);
   const char* name2 = reinterpret_cast<const char*>(key2);
@@ -199,7 +226,10 @@ ScriptCompiler::CachedData* CompileForCachedData(
     name_buffer = new uint16_t[name_length];
     name_string->Write(name_buffer, 0, name_length);
   }
-  Isolate* temp_isolate = Isolate::New();
+  ShellArrayBufferAllocator allocator;
+  Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = &allocator;
+  Isolate* temp_isolate = Isolate::New(create_params);
   ScriptCompiler::CachedData* result = NULL;
   {
     Isolate::Scope isolate_scope(temp_isolate);
@@ -471,6 +501,8 @@ void Shell::RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
   data->realms_[index].Reset();
+  isolate->ContextDisposedNotification();
+  isolate->IdleNotificationDeadline(g_platform->MonotonicallyIncreasingTime());
 }
 
 
@@ -924,8 +956,13 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
                        FunctionTemplate::New(isolate, ReadLine));
   global_template->Set(String::NewFromUtf8(isolate, "load"),
                        FunctionTemplate::New(isolate, Load));
-  global_template->Set(String::NewFromUtf8(isolate, "quit"),
-                       FunctionTemplate::New(isolate, Quit));
+  // Some Emscripten-generated code tries to call 'quit', which in turn would
+  // call C's exit(). This would lead to memory leaks, because there is no way
+  // we can terminate cleanly then, so we need a way to hide 'quit'.
+  if (!options.omit_quit) {
+    global_template->Set(String::NewFromUtf8(isolate, "quit"),
+                         FunctionTemplate::New(isolate, Quit));
+  }
   global_template->Set(String::NewFromUtf8(isolate, "version"),
                        FunctionTemplate::New(isolate, Version));
 
@@ -1108,30 +1145,35 @@ static char* ReadChars(Isolate* isolate, const char* name, int* size_out) {
   if (file == NULL) return NULL;
 
   fseek(file, 0, SEEK_END);
-  int size = ftell(file);
+  size_t size = ftell(file);
   rewind(file);
 
   char* chars = new char[size + 1];
   chars[size] = '\0';
-  for (int i = 0; i < size;) {
-    int read = static_cast<int>(fread(&chars[i], 1, size - i, file));
-    i += read;
+  for (size_t i = 0; i < size;) {
+    i += fread(&chars[i], 1, size - i, file);
+    if (ferror(file)) {
+      fclose(file);
+      delete[] chars;
+      return nullptr;
+    }
   }
   fclose(file);
-  *size_out = size;
+  *size_out = static_cast<int>(size);
   return chars;
 }
 
 
 struct DataAndPersistent {
   uint8_t* data;
-  Persistent<ArrayBuffer> handle;
+  int byte_length;
+  Global<ArrayBuffer> handle;
 };
 
 
 static void ReadBufferWeakCallback(
-    const v8::WeakCallbackData<ArrayBuffer, DataAndPersistent>& data) {
-  size_t byte_length = data.GetValue()->ByteLength();
+    const v8::WeakCallbackInfo<DataAndPersistent>& data) {
+  int byte_length = data.GetParameter()->byte_length;
   data.GetIsolate()->AdjustAmountOfExternalAllocatedMemory(
       -static_cast<intptr_t>(byte_length));
 
@@ -1159,10 +1201,12 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
     Throw(args.GetIsolate(), "Error reading file");
     return;
   }
+  data->byte_length = length;
   Handle<v8::ArrayBuffer> buffer =
       ArrayBuffer::New(isolate, data->data, length);
   data->handle.Reset(isolate, buffer);
-  data->handle.SetWeak(data, ReadBufferWeakCallback);
+  data->handle.SetWeak(data, ReadBufferWeakCallback,
+                       v8::WeakCallbackType::kParameter);
   data->handle.MarkIndependent();
   isolate->AdjustAmountOfExternalAllocatedMemory(length);
 
@@ -1277,7 +1321,10 @@ base::Thread::Options SourceGroup::GetThreadOptions() {
 
 
 void SourceGroup::ExecuteInThread() {
-  Isolate* isolate = Isolate::New();
+  ShellArrayBufferAllocator allocator;
+  Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = &allocator;
+  Isolate* isolate = Isolate::New(create_params);
   do {
     next_semaphore_.Wait();
     {
@@ -1373,6 +1420,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       options.invoke_weak_callbacks = true;
       // TODO(jochen) See issue 3351
       options.send_idle_notification = true;
+      argv[i] = NULL;
+    } else if (strcmp(argv[i], "--omit-quit") == 0) {
+      options.omit_quit = true;
       argv[i] = NULL;
     } else if (strcmp(argv[i], "-f") == 0) {
       // Ignore any -f flags for compatibility with other stand-alone
@@ -1571,25 +1621,6 @@ static void DumpHeapConstants(i::Isolate* isolate) {
 #endif  // !V8_SHARED
 
 
-class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
- public:
-  virtual void* Allocate(size_t length) {
-    void* data = AllocateUninitialized(length);
-    return data == NULL ? data : memset(data, 0, length);
-  }
-  virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
-  virtual void Free(void* data, size_t) { free(data); }
-};
-
-
-class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
- public:
-  void* Allocate(size_t) OVERRIDE { return malloc(1); }
-  void* AllocateUninitialized(size_t length) OVERRIDE { return malloc(1); }
-  void Free(void* p, size_t) OVERRIDE { free(p); }
-};
-
-
 int Shell::Main(int argc, char* argv[]) {
 #if (defined(_WIN32) || defined(_WIN64))
   UINT new_flags =
@@ -1618,15 +1649,15 @@ int Shell::Main(int argc, char* argv[]) {
   SetFlagsFromString("--trace-hydrogen-file=hydrogen.cfg");
   SetFlagsFromString("--trace-turbo-cfg-file=turbo.cfg");
   SetFlagsFromString("--redirect-code-traces-to=code.asm");
+  int result = 0;
+  Isolate::CreateParams create_params;
   ShellArrayBufferAllocator array_buffer_allocator;
   MockArrayBufferAllocator mock_arraybuffer_allocator;
   if (options.mock_arraybuffer_allocator) {
-    v8::V8::SetArrayBufferAllocator(&mock_arraybuffer_allocator);
+    create_params.array_buffer_allocator = &mock_arraybuffer_allocator;
   } else {
-    v8::V8::SetArrayBufferAllocator(&array_buffer_allocator);
+    create_params.array_buffer_allocator = &array_buffer_allocator;
   }
-  int result = 0;
-  Isolate::CreateParams create_params;
 #if !defined(V8_SHARED) && defined(ENABLE_GDB_JIT_INTERFACE)
   if (i::FLAG_gdbjit) {
     create_params.code_event_handler = i::GDBJITInterface::EventHandler;
@@ -1638,8 +1669,7 @@ int Shell::Main(int argc, char* argv[]) {
 #ifndef V8_SHARED
   create_params.constraints.ConfigureDefaults(
       base::SysInfo::AmountOfPhysicalMemory(),
-      base::SysInfo::AmountOfVirtualMemory(),
-      base::SysInfo::NumberOfProcessors());
+      base::SysInfo::AmountOfVirtualMemory());
 
   Shell::counter_map_ = new CounterMap();
   if (i::FLAG_dump_counters || i::FLAG_track_gc_object_stats) {

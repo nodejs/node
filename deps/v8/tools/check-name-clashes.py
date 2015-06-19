@@ -9,7 +9,7 @@ import re
 import sys
 
 FILENAME = "src/runtime/runtime.h"
-LISTHEAD = re.compile(r"#define\s+(\w+LIST\w*)\((\w+)\)")
+LISTHEAD = re.compile(r"#define\s+(FOR_EACH_\w+)\((\w+)\)")
 LISTBODY = re.compile(r".*\\$")
 
 

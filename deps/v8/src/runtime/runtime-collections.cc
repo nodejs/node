@@ -11,6 +11,60 @@
 namespace v8 {
 namespace internal {
 
+
+RUNTIME_FUNCTION(Runtime_StringGetRawHashField) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, string, 0);
+  return *isolate->factory()->NewNumberFromUint(string->hash_field());
+}
+
+
+RUNTIME_FUNCTION(Runtime_TheHole) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 0);
+  return isolate->heap()->the_hole_value();
+}
+
+
+RUNTIME_FUNCTION(Runtime_FixedArrayGet) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_CHECKED(FixedArray, object, 0);
+  CONVERT_SMI_ARG_CHECKED(index, 1);
+  return object->get(index);
+}
+
+
+RUNTIME_FUNCTION(Runtime_FixedArraySet) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 3);
+  CONVERT_ARG_CHECKED(FixedArray, object, 0);
+  CONVERT_SMI_ARG_CHECKED(index, 1);
+  CONVERT_ARG_CHECKED(Object, value, 2);
+  object->set(index, value);
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(Runtime_JSCollectionGetTable) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSObject, object, 0);
+  RUNTIME_ASSERT(object->IsJSSet() || object->IsJSMap());
+  return static_cast<JSCollection*>(object)->table();
+}
+
+
+RUNTIME_FUNCTION(Runtime_GenericHash) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  Handle<Smi> hash = Object::GetOrCreateHash(isolate, object);
+  return *hash;
+}
+
+
 RUNTIME_FUNCTION(Runtime_SetInitialize) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
@@ -21,38 +75,25 @@ RUNTIME_FUNCTION(Runtime_SetInitialize) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_SetAdd) {
+RUNTIME_FUNCTION(Runtime_SetGrow) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()));
-  table = OrderedHashSet::Add(table, key);
+  table = OrderedHashSet::EnsureGrowable(table);
   holder->set_table(*table);
-  return *holder;
+  return isolate->heap()->undefined_value();
 }
 
 
-RUNTIME_FUNCTION(Runtime_SetHas) {
+RUNTIME_FUNCTION(Runtime_SetShrink) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()));
-  return isolate->heap()->ToBoolean(table->Contains(key));
-}
-
-
-RUNTIME_FUNCTION(Runtime_SetDelete) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()));
-  bool was_present = false;
-  table = OrderedHashSet::Remove(table, key, &was_present);
+  table = OrderedHashSet::Shrink(table);
   holder->set_table(*table);
-  return isolate->heap()->ToBoolean(was_present);
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -64,15 +105,6 @@ RUNTIME_FUNCTION(Runtime_SetClear) {
   table = OrderedHashSet::Clear(table);
   holder->set_table(*table);
   return isolate->heap()->undefined_value();
-}
-
-
-RUNTIME_FUNCTION(Runtime_SetGetSize) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
-  Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()));
-  return Smi::FromInt(table->NumberOfElements());
 }
 
 
@@ -141,39 +173,14 @@ RUNTIME_FUNCTION(Runtime_MapInitialize) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_MapGet) {
+RUNTIME_FUNCTION(Runtime_MapShrink) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()));
-  Handle<Object> lookup(table->Lookup(key), isolate);
-  return lookup->IsTheHole() ? isolate->heap()->undefined_value() : *lookup;
-}
-
-
-RUNTIME_FUNCTION(Runtime_MapHas) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()));
-  Handle<Object> lookup(table->Lookup(key), isolate);
-  return isolate->heap()->ToBoolean(!lookup->IsTheHole());
-}
-
-
-RUNTIME_FUNCTION(Runtime_MapDelete) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()));
-  bool was_present = false;
-  Handle<OrderedHashMap> new_table =
-      OrderedHashMap::Remove(table, key, &was_present);
-  holder->set_table(*new_table);
-  return isolate->heap()->ToBoolean(was_present);
+  table = OrderedHashMap::Shrink(table);
+  holder->set_table(*table);
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -188,25 +195,14 @@ RUNTIME_FUNCTION(Runtime_MapClear) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_MapSet) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()));
-  Handle<OrderedHashMap> new_table = OrderedHashMap::Put(table, key, value);
-  holder->set_table(*new_table);
-  return *holder;
-}
-
-
-RUNTIME_FUNCTION(Runtime_MapGetSize) {
+RUNTIME_FUNCTION(Runtime_MapGrow) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
   Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()));
-  return Smi::FromInt(table->NumberOfElements());
+  table = OrderedHashMap::EnsureGrowable(table);
+  holder->set_table(*table);
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -270,6 +266,11 @@ RUNTIME_FUNCTION(Runtime_GetWeakMapEntries) {
   }
   Handle<FixedArray> entries =
       isolate->factory()->NewFixedArray(max_entries * 2);
+  // Allocation can cause GC can delete weak elements. Reload.
+  if (max_entries > table->NumberOfElements()) {
+    max_entries = table->NumberOfElements();
+  }
+
   {
     DisallowHeapAllocation no_gc;
     int count = 0;

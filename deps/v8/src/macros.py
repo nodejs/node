@@ -28,58 +28,58 @@
 # Dictionary that is passed as defines for js2c.py.
 # Used for defines that must be defined for all native JS files.
 
-const NONE        = 0;
-const READ_ONLY   = 1;
-const DONT_ENUM   = 2;
-const DONT_DELETE = 4;
-const NEW_ONE_BYTE_STRING = true;
-const NEW_TWO_BYTE_STRING = false;
+define NONE        = 0;
+define READ_ONLY   = 1;
+define DONT_ENUM   = 2;
+define DONT_DELETE = 4;
+define NEW_ONE_BYTE_STRING = true;
+define NEW_TWO_BYTE_STRING = false;
 
 # Constants used for getter and setter operations.
-const GETTER = 0;
-const SETTER = 1;
+define GETTER = 0;
+define SETTER = 1;
 
-const NO_HINT     = 0;
-const NUMBER_HINT = 1;
-const STRING_HINT = 2;
+define NO_HINT     = 0;
+define NUMBER_HINT = 1;
+define STRING_HINT = 2;
 
 # For date.js.
-const HoursPerDay      = 24;
-const MinutesPerHour   = 60;
-const SecondsPerMinute = 60;
-const msPerSecond      = 1000;
-const msPerMinute      = 60000;
-const msPerHour        = 3600000;
-const msPerDay         = 86400000;
-const msPerMonth       = 2592000000;
+define HoursPerDay      = 24;
+define MinutesPerHour   = 60;
+define SecondsPerMinute = 60;
+define msPerSecond      = 1000;
+define msPerMinute      = 60000;
+define msPerHour        = 3600000;
+define msPerDay         = 86400000;
+define msPerMonth       = 2592000000;
 
 # Note: kDayZeroInJulianDay = ToJulianDay(1970, 0, 1).
-const kInvalidDate        = 'Invalid Date';
-const kDayZeroInJulianDay = 2440588;
-const kMonthMask          = 0x1e0;
-const kDayMask            = 0x01f;
-const kYearShift          = 9;
-const kMonthShift         = 5;
+define kInvalidDate        = 'Invalid Date';
+define kDayZeroInJulianDay = 2440588;
+define kMonthMask          = 0x1e0;
+define kDayMask            = 0x01f;
+define kYearShift          = 9;
+define kMonthShift         = 5;
 
 # Limits for parts of the date, so that we support all the dates that
 # ECMA 262 - 15.9.1.1 requires us to, but at the same time be sure that
 # the date (days since 1970) is in SMI range.
-const kMinYear  = -1000000;
-const kMaxYear  = 1000000;
-const kMinMonth = -10000000;
-const kMaxMonth = 10000000;
+define kMinYear  = -1000000;
+define kMaxYear  = 1000000;
+define kMinMonth = -10000000;
+define kMaxMonth = 10000000;
 
 # Safe maximum number of arguments to push to stack, when multiplied by
 # pointer size. Used by Function.prototype.apply(), Reflect.apply() and
 # Reflect.construct().
-const kSafeArgumentsLength = 0x800000;
+define kSafeArgumentsLength = 0x800000;
 
 # Strict mode flags for passing to %SetProperty
-const kSloppyMode = 0;
-const kStrictMode = 1;
+define kSloppyMode = 0;
+define kStrictMode = 1;
 
 # Native cache ids.
-const STRING_TO_REGEXP_CACHE_ID = 0;
+define STRING_TO_REGEXP_CACHE_ID = 0;
 
 # Type query macros.
 #
@@ -133,26 +133,26 @@ macro IS_SPEC_FUNCTION(arg) = (%_ClassOf(arg) === 'Function');
 
 # Macro for ES6 CheckObjectCoercible
 # Will throw a TypeError of the form "[functionName] called on null or undefined".
-macro CHECK_OBJECT_COERCIBLE(arg, functionName) = if (IS_NULL_OR_UNDEFINED(arg) && !IS_UNDETECTABLE(arg)) throw MakeTypeError('called_on_null_or_undefined', [functionName]);
+macro CHECK_OBJECT_COERCIBLE(arg, functionName) = if (IS_NULL_OR_UNDEFINED(arg) && !IS_UNDETECTABLE(arg)) throw MakeTypeError(kCalledOnNullOrUndefined, functionName);
 
 # Indices in bound function info retrieved by %BoundFunctionGetBindings(...).
-const kBoundFunctionIndex = 0;
-const kBoundThisIndex = 1;
-const kBoundArgumentsStartIndex = 2;
+define kBoundFunctionIndex = 0;
+define kBoundThisIndex = 1;
+define kBoundArgumentsStartIndex = 2;
 
 # Inline macros. Use %IS_VAR to make sure arg is evaluated only once.
 macro NUMBER_IS_NAN(arg) = (!%_IsSmi(%IS_VAR(arg)) && !(arg == arg));
 macro NUMBER_IS_FINITE(arg) = (%_IsSmi(%IS_VAR(arg)) || ((arg == arg) && (arg != 1/0) && (arg != -1/0)));
-macro TO_INTEGER(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : %NumberToInteger(ToNumber(arg)));
-macro TO_INTEGER_FOR_SIDE_EFFECT(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : ToNumber(arg));
-macro TO_INTEGER_MAP_MINUS_ZERO(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : %NumberToIntegerMapMinusZero(ToNumber(arg)));
+macro TO_INTEGER(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : %NumberToInteger($toNumber(arg)));
+macro TO_INTEGER_FOR_SIDE_EFFECT(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : $toNumber(arg));
+macro TO_INTEGER_MAP_MINUS_ZERO(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : %NumberToIntegerMapMinusZero($toNumber(arg)));
 macro TO_INT32(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : (arg >> 0));
 macro TO_UINT32(arg) = (arg >>> 0);
-macro TO_STRING_INLINE(arg) = (IS_STRING(%IS_VAR(arg)) ? arg : NonStringToString(arg));
-macro TO_NUMBER_INLINE(arg) = (IS_NUMBER(%IS_VAR(arg)) ? arg : NonNumberToNumber(arg));
-macro TO_OBJECT_INLINE(arg) = (IS_SPEC_OBJECT(%IS_VAR(arg)) ? arg : ToObject(arg));
+macro TO_STRING_INLINE(arg) = (IS_STRING(%IS_VAR(arg)) ? arg : $nonStringToString(arg));
+macro TO_NUMBER_INLINE(arg) = (IS_NUMBER(%IS_VAR(arg)) ? arg : $nonNumberToNumber(arg));
+macro TO_OBJECT_INLINE(arg) = (IS_SPEC_OBJECT(%IS_VAR(arg)) ? arg : $toObject(arg));
 macro JSON_NUMBER_TO_STRING(arg) = ((%_IsSmi(%IS_VAR(arg)) || arg - arg == 0) ? %_NumberToString(arg) : "null");
-macro HAS_OWN_PROPERTY(obj, index) = (%_CallFunction(obj, index, ObjectHasOwnProperty));
+macro HAS_OWN_PROPERTY(arg, index) = (%_CallFunction(arg, index, $objectHasOwnProperty));
 macro SHOULD_CREATE_WRAPPER(functionName, receiver) = (!IS_SPEC_OBJECT(receiver) && %IsSloppyModeFunction(functionName));
 macro HAS_INDEX(array, index, is_array) = ((is_array && %_HasFastPackedElements(%IS_VAR(array))) ? (index < array.length) : (index in array));
 
@@ -169,29 +169,29 @@ macro SET_PRIVATE(obj, sym, val) = (obj[sym] = val);
 macro DELETE_PRIVATE(obj, sym) = (delete obj[sym]);
 
 # Constants.  The compiler constant folds them.
-const NAN = $NaN;
-const INFINITY = (1/0);
-const UNDEFINED = (void 0);
+define NAN = $NaN;
+define INFINITY = (1/0);
+define UNDEFINED = (void 0);
 
 # Macros implemented in Python.
 python macro CHAR_CODE(str) = ord(str[1]);
 
 # Constants used on an array to implement the properties of the RegExp object.
-const REGEXP_NUMBER_OF_CAPTURES = 0;
-const REGEXP_FIRST_CAPTURE = 3;
+define REGEXP_NUMBER_OF_CAPTURES = 0;
+define REGEXP_FIRST_CAPTURE = 3;
 
 # We can't put macros in macros so we use constants here.
 # REGEXP_NUMBER_OF_CAPTURES
 macro NUMBER_OF_CAPTURES(array) = ((array)[0]);
 
 # Limit according to ECMA 262 15.9.1.1
-const MAX_TIME_MS = 8640000000000000;
+define MAX_TIME_MS = 8640000000000000;
 # Limit which is MAX_TIME_MS + msPerMonth.
-const MAX_TIME_BEFORE_UTC = 8640002592000000;
+define MAX_TIME_BEFORE_UTC = 8640002592000000;
 
 # Gets the value of a Date object. If arg is not a Date object
 # a type error is thrown.
-macro CHECK_DATE(arg) = if (%_ClassOf(arg) !== 'Date') ThrowDateTypeError();
+macro CHECK_DATE(arg) = if (%_ClassOf(arg) !== 'Date') throw MakeTypeError(kDateType);
 macro LOCAL_DATE_VALUE(arg) = (%_DateField(arg, 0) + %_DateField(arg, 21));
 macro UTC_DATE_VALUE(arg)    = (%_DateField(arg, 0));
 
@@ -223,14 +223,14 @@ macro SET_UTC_DATE_VALUE(arg, value) = (%DateSetValue(arg, value, 1));
 macro SET_LOCAL_DATE_VALUE(arg, value) = (%DateSetValue(arg, value, 0));
 
 # Last input and last subject of regexp matches.
-const LAST_SUBJECT_INDEX = 1;
+define LAST_SUBJECT_INDEX = 1;
 macro LAST_SUBJECT(array) = ((array)[1]);
 macro LAST_INPUT(array) = ((array)[2]);
 
 # REGEXP_FIRST_CAPTURE
 macro CAPTURE(index) = (3 + (index));
-const CAPTURE0 = 3;
-const CAPTURE1 = 4;
+define CAPTURE0 = 3;
+define CAPTURE1 = 4;
 
 # For the regexp capture override array.  This has the same
 # format as the arguments to a function called from
@@ -243,40 +243,67 @@ macro OVERRIDE_CAPTURE(override, index) = ((override)[(index)]);
 
 # PropertyDescriptor return value indices - must match
 # PropertyDescriptorIndices in runtime-object.cc.
-const IS_ACCESSOR_INDEX = 0;
-const VALUE_INDEX = 1;
-const GETTER_INDEX = 2;
-const SETTER_INDEX = 3;
-const WRITABLE_INDEX = 4;
-const ENUMERABLE_INDEX = 5;
-const CONFIGURABLE_INDEX = 6;
+define IS_ACCESSOR_INDEX = 0;
+define VALUE_INDEX = 1;
+define GETTER_INDEX = 2;
+define SETTER_INDEX = 3;
+define WRITABLE_INDEX = 4;
+define ENUMERABLE_INDEX = 5;
+define CONFIGURABLE_INDEX = 6;
 
 # For messages.js
 # Matches Script::Type from objects.h
-const TYPE_NATIVE = 0;
-const TYPE_EXTENSION = 1;
-const TYPE_NORMAL = 2;
+define TYPE_NATIVE = 0;
+define TYPE_EXTENSION = 1;
+define TYPE_NORMAL = 2;
 
 # Matches Script::CompilationType from objects.h
-const COMPILATION_TYPE_HOST = 0;
-const COMPILATION_TYPE_EVAL = 1;
-const COMPILATION_TYPE_JSON = 2;
+define COMPILATION_TYPE_HOST = 0;
+define COMPILATION_TYPE_EVAL = 1;
+define COMPILATION_TYPE_JSON = 2;
 
 # Matches Messages::kNoLineNumberInfo from v8.h
-const kNoLineNumberInfo = 0;
+define kNoLineNumberInfo = 0;
 
 # Matches PropertyAttributes from property-details.h
-const PROPERTY_ATTRIBUTES_NONE = 0;
-const PROPERTY_ATTRIBUTES_STRING = 8;
-const PROPERTY_ATTRIBUTES_SYMBOLIC = 16;
-const PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL = 32;
+define PROPERTY_ATTRIBUTES_NONE = 0;
+define PROPERTY_ATTRIBUTES_STRING = 8;
+define PROPERTY_ATTRIBUTES_SYMBOLIC = 16;
+define PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL = 32;
 
 # Use for keys, values and entries iterators.
-const ITERATOR_KIND_KEYS = 1;
-const ITERATOR_KIND_VALUES = 2;
-const ITERATOR_KIND_ENTRIES = 3;
+define ITERATOR_KIND_KEYS = 1;
+define ITERATOR_KIND_VALUES = 2;
+define ITERATOR_KIND_ENTRIES = 3;
+
+macro FIXED_ARRAY_GET(array, index) = (%_FixedArrayGet(array, (index) | 0));
+macro FIXED_ARRAY_SET(array, index, value) = (%_FixedArraySet(array, (index) | 0, value));
+# TODO(adamk): Find a more robust way to force Smi representation.
+macro FIXED_ARRAY_SET_SMI(array, index, value) = (FIXED_ARRAY_SET(array, index, (value) | 0));
+
+macro ORDERED_HASH_TABLE_BUCKET_COUNT(table) = (FIXED_ARRAY_GET(table, 0));
+macro ORDERED_HASH_TABLE_ELEMENT_COUNT(table) = (FIXED_ARRAY_GET(table, 1));
+macro ORDERED_HASH_TABLE_SET_ELEMENT_COUNT(table, count) = (FIXED_ARRAY_SET_SMI(table, 1, count));
+macro ORDERED_HASH_TABLE_DELETED_COUNT(table) = (FIXED_ARRAY_GET(table, 2));
+macro ORDERED_HASH_TABLE_SET_DELETED_COUNT(table, count) = (FIXED_ARRAY_SET_SMI(table, 2, count));
+macro ORDERED_HASH_TABLE_BUCKET_AT(table, bucket) = (FIXED_ARRAY_GET(table, 3 + (bucket)));
+macro ORDERED_HASH_TABLE_SET_BUCKET_AT(table, bucket, entry) = (FIXED_ARRAY_SET(table, 3 + (bucket), entry));
+
+macro ORDERED_HASH_TABLE_HASH_TO_BUCKET(hash, numBuckets) = (hash & ((numBuckets) - 1));
+
+macro ORDERED_HASH_SET_ENTRY_TO_INDEX(entry, numBuckets) = (3 + (numBuckets) + ((entry) << 1));
+macro ORDERED_HASH_SET_KEY_AT(table, entry, numBuckets) = (FIXED_ARRAY_GET(table, ORDERED_HASH_SET_ENTRY_TO_INDEX(entry, numBuckets)));
+macro ORDERED_HASH_SET_CHAIN_AT(table, entry, numBuckets) = (FIXED_ARRAY_GET(table, ORDERED_HASH_SET_ENTRY_TO_INDEX(entry, numBuckets) + 1));
+
+macro ORDERED_HASH_MAP_ENTRY_TO_INDEX(entry, numBuckets) = (3 + (numBuckets) + ((entry) * 3));
+macro ORDERED_HASH_MAP_KEY_AT(table, entry, numBuckets) = (FIXED_ARRAY_GET(table, ORDERED_HASH_MAP_ENTRY_TO_INDEX(entry, numBuckets)));
+macro ORDERED_HASH_MAP_VALUE_AT(table, entry, numBuckets) = (FIXED_ARRAY_GET(table, ORDERED_HASH_MAP_ENTRY_TO_INDEX(entry, numBuckets) + 1));
+macro ORDERED_HASH_MAP_CHAIN_AT(table, entry, numBuckets) = (FIXED_ARRAY_GET(table, ORDERED_HASH_MAP_ENTRY_TO_INDEX(entry, numBuckets) + 2));
+
+# Must match OrderedHashTable::kNotFound.
+define NOT_FOUND = -1;
 
 # Check whether debug is active.
-const DEBUG_IS_ACTIVE = (%_DebugIsActive() != 0);
+define DEBUG_IS_ACTIVE = (%_DebugIsActive() != 0);
 macro DEBUG_IS_STEPPING(function) = (%_DebugIsActive() != 0 && %DebugCallbackSupportsStepping(function));
 macro DEBUG_PREPARE_STEP_IN_IF_STEPPING(function) = if (DEBUG_IS_STEPPING(function)) %DebugPrepareStepInIfStepping(function);

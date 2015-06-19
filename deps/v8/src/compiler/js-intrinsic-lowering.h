@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_JS_INTRINSIC_LOWERING_H_
 #define V8_COMPILER_JS_INTRINSIC_LOWERING_H_
 
+#include "src/compiler/common-operator.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/simplified-operator.h"
 
@@ -19,12 +20,12 @@ class MachineOperatorBuilder;
 
 
 // Lowers certain JS-level runtime calls.
-class JSIntrinsicLowering FINAL : public Reducer {
+class JSIntrinsicLowering final : public Reducer {
  public:
   explicit JSIntrinsicLowering(JSGraph* jsgraph);
-  ~JSIntrinsicLowering() FINAL {}
+  ~JSIntrinsicLowering() final {}
 
-  Reduction Reduce(Node* node) FINAL;
+  Reduction Reduce(Node* node) final;
 
  private:
   Reduction ReduceConstructDouble(Node* node);
@@ -44,6 +45,7 @@ class JSIntrinsicLowering FINAL : public Reducer {
   Reduction ReduceSeqStringGetChar(Node* node, String::Encoding encoding);
   Reduction ReduceSeqStringSetChar(Node* node, String::Encoding encoding);
   Reduction ReduceStringGetLength(Node* node);
+  Reduction ReduceUnLikely(Node* node, BranchHint hint);
   Reduction ReduceValueOf(Node* node);
 
   Reduction Change(Node* node, const Operator* op);

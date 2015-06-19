@@ -110,7 +110,7 @@ void CalculateFirstPageSizes(bool is_default_snapshot,
     }
     PrintF(
         "Deserialization will reserve:\n"
-        "%10d bytes for startup\n"
+        "%10d bytes per isolate\n"
         "%10d bytes per context\n",
         startup_total, context_total);
   }

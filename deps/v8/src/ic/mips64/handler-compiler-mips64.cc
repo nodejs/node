@@ -402,14 +402,38 @@ void NamedStoreHandlerCompiler::GenerateFieldTypeChecks(HeapType* field_type,
 
 Register PropertyHandlerCompiler::CheckPrototypes(
     Register object_reg, Register holder_reg, Register scratch1,
-    Register scratch2, Handle<Name> name, Label* miss,
-    PrototypeCheckType check) {
+    Register scratch2, Handle<Name> name, Label* miss, PrototypeCheckType check,
+    ReturnHolder return_what) {
   Handle<Map> receiver_map = map();
 
   // Make sure there's no overlap between holder and object registers.
   DCHECK(!scratch1.is(object_reg) && !scratch1.is(holder_reg));
   DCHECK(!scratch2.is(object_reg) && !scratch2.is(holder_reg) &&
          !scratch2.is(scratch1));
+
+  if (FLAG_eliminate_prototype_chain_checks) {
+    Handle<Cell> validity_cell =
+        Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
+    if (!validity_cell.is_null()) {
+      DCHECK_EQ(Smi::FromInt(Map::kPrototypeChainValid),
+                validity_cell->value());
+      __ li(scratch1, Operand(validity_cell));
+      __ ld(scratch1, FieldMemOperand(scratch1, Cell::kValueOffset));
+      __ Branch(miss, ne, scratch1,
+                Operand(Smi::FromInt(Map::kPrototypeChainValid)));
+    }
+
+    // The prototype chain of primitives (and their JSValue wrappers) depends
+    // on the native context, which can't be guarded by validity cells.
+    // |object_reg| holds the native context specific prototype in this case;
+    // we need to check its map.
+    if (check == CHECK_ALL_MAPS) {
+      __ ld(scratch1, FieldMemOperand(object_reg, HeapObject::kMapOffset));
+      Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
+      __ GetWeakValue(scratch2, cell);
+      __ Branch(miss, ne, scratch1, Operand(scratch2));
+    }
+  }
 
   // Keep track of the current object in register reg.
   Register reg = object_reg;
@@ -455,30 +479,36 @@ Register PropertyHandlerCompiler::CheckPrototypes(
              current->property_dictionary()->FindEntry(name) ==
                  NameDictionary::kNotFound);
 
+      if (FLAG_eliminate_prototype_chain_checks && depth > 1) {
+        // TODO(jkummerow): Cache and re-use weak cell.
+        __ LoadWeakValue(reg, isolate()->factory()->NewWeakCell(current), miss);
+      }
       GenerateDictionaryNegativeLookup(masm(), miss, reg, name, scratch1,
                                        scratch2);
-
-      __ ld(scratch1, FieldMemOperand(reg, HeapObject::kMapOffset));
-      reg = holder_reg;  // From now on the object will be in holder_reg.
-      __ ld(reg, FieldMemOperand(scratch1, Map::kPrototypeOffset));
+      if (!FLAG_eliminate_prototype_chain_checks) {
+        __ ld(scratch1, FieldMemOperand(reg, HeapObject::kMapOffset));
+        __ ld(holder_reg, FieldMemOperand(scratch1, Map::kPrototypeOffset));
+      }
     } else {
       Register map_reg = scratch1;
-      __ ld(map_reg, FieldMemOperand(reg, HeapObject::kMapOffset));
-
+      if (!FLAG_eliminate_prototype_chain_checks) {
+        __ ld(map_reg, FieldMemOperand(reg, HeapObject::kMapOffset));
+      }
       if (current_map->IsJSGlobalObjectMap()) {
         GenerateCheckPropertyCell(masm(), Handle<JSGlobalObject>::cast(current),
                                   name, scratch2, miss);
-      } else if (depth != 1 || check == CHECK_ALL_MAPS) {
+      } else if (!FLAG_eliminate_prototype_chain_checks &&
+                 (depth != 1 || check == CHECK_ALL_MAPS)) {
         Handle<WeakCell> cell = Map::WeakCellForMap(current_map);
         __ GetWeakValue(scratch2, cell);
         __ Branch(miss, ne, scratch2, Operand(map_reg));
       }
-
-      reg = holder_reg;  // From now on the object will be in holder_reg.
-
-      __ ld(reg, FieldMemOperand(map_reg, Map::kPrototypeOffset));
+      if (!FLAG_eliminate_prototype_chain_checks) {
+        __ ld(holder_reg, FieldMemOperand(map_reg, Map::kPrototypeOffset));
+      }
     }
 
+    reg = holder_reg;  // From now on the object will be in holder_reg.
     // Go to the next object in the prototype chain.
     current = prototype;
     current_map = handle(current->map());
@@ -489,7 +519,8 @@ Register PropertyHandlerCompiler::CheckPrototypes(
   // Log the check depth.
   LOG(isolate(), IntEvent("check-maps-depth", depth + 1));
 
-  if (depth != 0 || check == CHECK_ALL_MAPS) {
+  if (!FLAG_eliminate_prototype_chain_checks &&
+      (depth != 0 || check == CHECK_ALL_MAPS)) {
     // Check the holder map.
     __ ld(scratch1, FieldMemOperand(reg, HeapObject::kMapOffset));
     Handle<WeakCell> cell = Map::WeakCellForMap(current_map);
@@ -497,8 +528,13 @@ Register PropertyHandlerCompiler::CheckPrototypes(
     __ Branch(miss, ne, scratch2, Operand(scratch1));
   }
 
+  bool return_holder = return_what == RETURN_HOLDER;
+  if (FLAG_eliminate_prototype_chain_checks && return_holder && depth != 0) {
+    __ LoadWeakValue(reg, isolate()->factory()->NewWeakCell(current), miss);
+  }
+
   // Return the register containing the holder.
-  return reg;
+  return return_holder ? reg : no_reg;
 }
 
 
@@ -713,7 +749,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
     PushVectorAndSlot();
   }
 
-  FrontendHeader(receiver(), name, &miss);
+  FrontendHeader(receiver(), name, &miss, DONT_RETURN_ANYTHING);
 
   // Get the value from the cell.
   Register result = StoreDescriptor::ValueRegister();

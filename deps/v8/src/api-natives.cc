@@ -3,10 +3,14 @@
 // found in the LICENSE file.
 
 #include "src/api-natives.h"
-#include "src/isolate-inl.h"
+
+#include "src/api.h"
+#include "src/isolate.h"
+#include "src/lookup.h"
 
 namespace v8 {
 namespace internal {
+
 
 namespace {
 

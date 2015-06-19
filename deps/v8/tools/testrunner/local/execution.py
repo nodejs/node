@@ -230,11 +230,14 @@ class Runner(object):
     try:
       it = pool.imap_unordered(RunTest, queue)
       for result in it:
-        test = test_map[result[0]]
+        if result.heartbeat:
+          self.indicator.Heartbeat()
+          continue
+        test = test_map[result.value[0]]
         if self.context.predictable:
-          update_perf = self._ProcessTestPredictable(test, result, pool)
+          update_perf = self._ProcessTestPredictable(test, result.value, pool)
         else:
-          update_perf = self._ProcessTestNormal(test, result, pool)
+          update_perf = self._ProcessTestNormal(test, result.value, pool)
         if update_perf:
           self._RunPerfSafe(lambda: self.perfdata.UpdatePerfData(test))
     finally:

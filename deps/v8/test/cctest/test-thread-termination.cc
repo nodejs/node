@@ -192,7 +192,6 @@ TEST(TerminateOnlyV8ThreadFromOtherThread) {
   // Run a loop that will be infinite if thread termination does not work.
   v8::Handle<v8::String> source = v8::String::NewFromUtf8(
       CcTest::isolate(), "try { loop(); fail(); } catch(e) { fail(); }");
-  i::FLAG_turbo_osr = false;  // TODO(titzer): interrupts in TF loops.
   v8::Script::Compile(source)->Run();
 
   thread.Join();
@@ -377,7 +376,6 @@ void MicrotaskLoopForever(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // Enqueue another should-not-run task to ensure we clean out the queue
   // when we terminate.
   isolate->EnqueueMicrotask(v8::Function::New(isolate, MicrotaskShouldNotRun));
-  i::FLAG_turbo_osr = false;  // TODO(titzer): interrupts in TF loops.
   CompileRun("terminate(); while (true) { }");
   CHECK(v8::V8::IsExecutionTerminating());
 }

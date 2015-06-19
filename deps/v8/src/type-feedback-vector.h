@@ -134,6 +134,8 @@ class TypeFeedbackVector : public FixedArray {
 
   inline int ic_metadata_length() const;
 
+  bool SpecDiffersFrom(const ZoneFeedbackVectorSpec* other_spec) const;
+
   int Slots() const {
     if (length() == 0) return 0;
     return Max(
@@ -195,7 +197,11 @@ class TypeFeedbackVector : public FixedArray {
                                          Handle<TypeFeedbackVector> vector);
 
   // Clears the vector slots and the vector ic slots.
-  void ClearSlots(SharedFunctionInfo* shared);
+  void ClearSlots(SharedFunctionInfo* shared) { ClearSlotsImpl(shared, true); }
+  void ClearSlotsAtGCTime(SharedFunctionInfo* shared) {
+    ClearSlotsImpl(shared, false);
+  }
+
   void ClearICSlots(SharedFunctionInfo* shared) {
     ClearICSlotsImpl(shared, true);
   }
@@ -237,10 +243,26 @@ class TypeFeedbackVector : public FixedArray {
   typedef BitSetComputer<VectorICKind, kVectorICKindBits, kSmiValueSize,
                          uint32_t> VectorICComputer;
 
+  void ClearSlotsImpl(SharedFunctionInfo* shared, bool force_clear);
   void ClearICSlotsImpl(SharedFunctionInfo* shared, bool force_clear);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(TypeFeedbackVector);
 };
+
+
+// The following asserts protect an optimization in type feedback vector
+// code that looks into the contents of a slot assuming to find a String,
+// a Symbol, an AllocationSite, a WeakCell, or a FixedArray.
+STATIC_ASSERT(WeakCell::kSize >= 2 * kPointerSize);
+STATIC_ASSERT(WeakCell::kValueOffset == AllocationSite::kTransitionInfoOffset);
+STATIC_ASSERT(WeakCell::kValueOffset == FixedArray::kLengthOffset);
+STATIC_ASSERT(WeakCell::kValueOffset == Name::kHashFieldSlot);
+// Verify that an empty hash field looks like a tagged object, but can't
+// possibly be confused with a pointer.
+STATIC_ASSERT((Name::kEmptyHashField & kHeapObjectTag) == kHeapObjectTag);
+STATIC_ASSERT(Name::kEmptyHashField == 0x3);
+// Verify that a set hash field will not look like a tagged object.
+STATIC_ASSERT(Name::kHashNotComputedMask == kHeapObjectTag);
 
 
 // A FeedbackNexus is the combination of a TypeFeedbackVector and a slot.
@@ -335,17 +357,17 @@ class CallICNexus : public FeedbackNexus {
   void ConfigureMonomorphicArray();
   void ConfigureMonomorphic(Handle<JSFunction> function);
 
-  InlineCacheState StateFromFeedback() const OVERRIDE;
+  InlineCacheState StateFromFeedback() const override;
 
-  int ExtractMaps(MapHandleList* maps) const OVERRIDE {
+  int ExtractMaps(MapHandleList* maps) const override {
     // CallICs don't record map feedback.
     return 0;
   }
-  MaybeHandle<Code> FindHandlerForMap(Handle<Map> map) const OVERRIDE {
+  MaybeHandle<Code> FindHandlerForMap(Handle<Map> map) const override {
     return MaybeHandle<Code>();
   }
   virtual bool FindHandlers(CodeHandleList* code_list,
-                            int length = -1) const OVERRIDE {
+                            int length = -1) const override {
     return length == 0;
   }
 };
@@ -370,7 +392,7 @@ class LoadICNexus : public FeedbackNexus {
 
   void ConfigurePolymorphic(MapHandleList* maps, CodeHandleList* handlers);
 
-  InlineCacheState StateFromFeedback() const OVERRIDE;
+  InlineCacheState StateFromFeedback() const override;
 };
 
 
@@ -396,8 +418,8 @@ class KeyedLoadICNexus : public FeedbackNexus {
   void ConfigurePolymorphic(Handle<Name> name, MapHandleList* maps,
                             CodeHandleList* handlers);
 
-  InlineCacheState StateFromFeedback() const OVERRIDE;
-  Name* FindFirstName() const OVERRIDE;
+  InlineCacheState StateFromFeedback() const override;
+  Name* FindFirstName() const override;
 };
 }
 }  // namespace v8::internal

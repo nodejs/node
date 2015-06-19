@@ -379,8 +379,8 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
     CHECK_EQ(code->kind(), Code::OPTIMIZED_FUNCTION);
     Object* next = code->next_code_link();
 
-    if (code->marked_for_deoptimization() &&
-        (!code->is_turbofanned() || FLAG_turbo_deoptimization)) {
+    if (code->marked_for_deoptimization()) {
+      DCHECK(!code->is_turbofanned() || FLAG_turbo_deoptimization);
       // Put the code into the list for later patching.
       codes.Add(code, &zone);
 
@@ -829,14 +829,17 @@ void Deoptimizer::DoComputeOutputFrames() {
       case Translation::REGISTER:
       case Translation::INT32_REGISTER:
       case Translation::UINT32_REGISTER:
+      case Translation::BOOL_REGISTER:
       case Translation::DOUBLE_REGISTER:
       case Translation::STACK_SLOT:
       case Translation::INT32_STACK_SLOT:
       case Translation::UINT32_STACK_SLOT:
+      case Translation::BOOL_STACK_SLOT:
       case Translation::DOUBLE_STACK_SLOT:
       case Translation::LITERAL:
       case Translation::ARGUMENTS_OBJECT:
-      default:
+      case Translation::DUPLICATED_OBJECT:
+      case Translation::CAPTURED_OBJECT:
         FATAL("Unsupported translation");
         break;
     }
@@ -2014,7 +2017,8 @@ void Deoptimizer::MaterializeHeapObjects(JavaScriptFrameIterator* it) {
   }
 
   if (prev_materialized_count_ > 0) {
-    materialized_store->Remove(stack_fp_);
+    bool removed = materialized_store->Remove(stack_fp_);
+    CHECK(removed);
   }
 }
 
@@ -2101,10 +2105,12 @@ void Deoptimizer::DoTranslateObjectAndSkip(TranslationIterator* iterator) {
     case Translation::REGISTER:
     case Translation::INT32_REGISTER:
     case Translation::UINT32_REGISTER:
+    case Translation::BOOL_REGISTER:
     case Translation::DOUBLE_REGISTER:
     case Translation::STACK_SLOT:
     case Translation::INT32_STACK_SLOT:
     case Translation::UINT32_STACK_SLOT:
+    case Translation::BOOL_STACK_SLOT:
     case Translation::DOUBLE_STACK_SLOT:
     case Translation::LITERAL: {
       // The value is not part of any materialized object, so we can ignore it.
@@ -2223,10 +2229,8 @@ void Deoptimizer::DoTranslateObject(TranslationIterator* iterator,
                "      object @0x%08" V8PRIxPTR ": [field #%d] <- ",
                reinterpret_cast<intptr_t>(object_slot),
                field_index);
-        PrintF(trace_scope_->file(),
-               "%" V8PRIdPTR " ; uint %s (%s)\n", value,
-               converter.NameOfCPURegister(input_reg),
-               TraceValueType(is_smi));
+        PrintF(trace_scope_->file(), "%" V8PRIuPTR " ; uint %s (%s)\n", value,
+               converter.NameOfCPURegister(input_reg), TraceValueType(is_smi));
       }
       if (is_smi) {
         intptr_t tagged_value =
@@ -2235,6 +2239,28 @@ void Deoptimizer::DoTranslateObject(TranslationIterator* iterator,
       } else {
         double double_value = static_cast<double>(static_cast<uint32_t>(value));
         AddObjectDoubleValue(double_value);
+      }
+      return;
+    }
+
+    case Translation::BOOL_REGISTER: {
+      int input_reg = iterator->Next();
+      uintptr_t value = static_cast<uintptr_t>(input_->GetRegister(input_reg));
+      bool is_smi = (value <= static_cast<uintptr_t>(Smi::kMaxValue));
+      if (trace_scope_ != NULL) {
+        PrintF(trace_scope_->file(),
+               "      object @0x%08" V8PRIxPTR ": [field #%d] <- ",
+               reinterpret_cast<intptr_t>(object_slot), field_index);
+        PrintF(trace_scope_->file(), "%" V8PRIuPTR " ; bool %s (%s)\n", value,
+               converter.NameOfCPURegister(input_reg), TraceValueType(is_smi));
+      }
+      if (value == 0) {
+        AddObjectTaggedValue(
+            reinterpret_cast<intptr_t>(isolate_->heap()->false_value()));
+      } else {
+        DCHECK_EQ(1U, value);
+        AddObjectTaggedValue(
+            reinterpret_cast<intptr_t>(isolate_->heap()->true_value()));
       }
       return;
     }
@@ -2311,8 +2337,7 @@ void Deoptimizer::DoTranslateObject(TranslationIterator* iterator,
                "      object @0x%08" V8PRIxPTR ": [field #%d] <- ",
                reinterpret_cast<intptr_t>(object_slot),
                field_index);
-        PrintF(trace_scope_->file(),
-               "%" V8PRIdPTR " ; [sp + %d] (uint %s)\n",
+        PrintF(trace_scope_->file(), "%" V8PRIuPTR " ; [sp + %d] (uint %s)\n",
                value, input_offset, TraceValueType(is_smi));
       }
       if (is_smi) {
@@ -2322,6 +2347,30 @@ void Deoptimizer::DoTranslateObject(TranslationIterator* iterator,
       } else {
         double double_value = static_cast<double>(static_cast<uint32_t>(value));
         AddObjectDoubleValue(double_value);
+      }
+      return;
+    }
+
+    case Translation::BOOL_STACK_SLOT: {
+      int input_slot_index = iterator->Next();
+      unsigned input_offset = input_->GetOffsetFromSlotIndex(input_slot_index);
+      uintptr_t value =
+          static_cast<uintptr_t>(input_->GetFrameSlot(input_offset));
+      bool is_smi = (value <= static_cast<uintptr_t>(Smi::kMaxValue));
+      if (trace_scope_ != NULL) {
+        PrintF(trace_scope_->file(),
+               "      object @0x%08" V8PRIxPTR ": [field #%d] <- ",
+               reinterpret_cast<intptr_t>(object_slot), field_index);
+        PrintF(trace_scope_->file(), "%" V8PRIuPTR " ; [sp + %d] (bool %s)\n",
+               value, input_offset, TraceValueType(is_smi));
+      }
+      if (value == 0) {
+        AddObjectTaggedValue(
+            reinterpret_cast<intptr_t>(isolate_->heap()->false_value()));
+      } else {
+        DCHECK_EQ(1U, value);
+        AddObjectTaggedValue(
+            reinterpret_cast<intptr_t>(isolate_->heap()->true_value()));
       }
       return;
     }
@@ -2508,6 +2557,31 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       return;
     }
 
+    case Translation::BOOL_REGISTER: {
+      int input_reg = iterator->Next();
+      uintptr_t value = static_cast<uintptr_t>(input_->GetRegister(input_reg));
+      bool is_smi = value <= static_cast<uintptr_t>(Smi::kMaxValue);
+      if (trace_scope_ != NULL) {
+        PrintF(trace_scope_->file(),
+               "    0x%08" V8PRIxPTR ": [top + %d] <- %" V8PRIuPTR
+               " ; bool %s (%s)\n",
+               output_[frame_index]->GetTop() + output_offset, output_offset,
+               value, converter.NameOfCPURegister(input_reg),
+               TraceValueType(is_smi));
+      }
+      if (value == 0) {
+        output_[frame_index]->SetFrameSlot(
+            output_offset,
+            reinterpret_cast<intptr_t>(isolate_->heap()->false_value()));
+      } else {
+        DCHECK_EQ(1U, value);
+        output_[frame_index]->SetFrameSlot(
+            output_offset,
+            reinterpret_cast<intptr_t>(isolate_->heap()->true_value()));
+      }
+      return;
+    }
+
     case Translation::DOUBLE_REGISTER: {
       int input_reg = iterator->Next();
       double value = input_->GetDoubleRegister(input_reg);
@@ -2604,6 +2678,32 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
         AddDoubleValue(output_[frame_index]->GetTop() + output_offset,
                        static_cast<double>(static_cast<uint32_t>(value)));
         output_[frame_index]->SetFrameSlot(output_offset, kPlaceholder);
+      }
+      return;
+    }
+
+    case Translation::BOOL_STACK_SLOT: {
+      int input_slot_index = iterator->Next();
+      unsigned input_offset = input_->GetOffsetFromSlotIndex(input_slot_index);
+      uintptr_t value =
+          static_cast<uintptr_t>(input_->GetFrameSlot(input_offset));
+      bool is_smi = value <= static_cast<uintptr_t>(Smi::kMaxValue);
+      if (trace_scope_ != NULL) {
+        PrintF(trace_scope_->file(), "    0x%08" V8PRIxPTR ": ",
+               output_[frame_index]->GetTop() + output_offset);
+        PrintF(trace_scope_->file(),
+               "[top + %d] <- %" V8PRIuPTR " ; [sp + %d] (uint32 %s)\n",
+               output_offset, value, input_offset, TraceValueType(is_smi));
+      }
+      if (value == 0) {
+        output_[frame_index]->SetFrameSlot(
+            output_offset,
+            reinterpret_cast<intptr_t>(isolate_->heap()->false_value()));
+      } else {
+        DCHECK_EQ(1U, value);
+        output_[frame_index]->SetFrameSlot(
+            output_offset,
+            reinterpret_cast<intptr_t>(isolate_->heap()->true_value()));
       }
       return;
     }
@@ -2806,7 +2906,10 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   MemoryChunk* chunk = data->deopt_entry_code_[type];
   CHECK(static_cast<int>(Deoptimizer::GetMaxDeoptTableSize()) >=
         desc.instr_size);
-  chunk->CommitArea(desc.instr_size);
+  if (!chunk->CommitArea(desc.instr_size)) {
+    V8::FatalProcessOutOfMemory(
+        "Deoptimizer::EnsureCodeForDeoptimizationEntry");
+  }
   CopyBytes(chunk->area_start(), desc.buffer,
       static_cast<size_t>(desc.instr_size));
   CpuFeatures::FlushICache(chunk->area_start(), desc.instr_size);
@@ -2902,6 +3005,8 @@ Object* FrameDescription::GetExpression(int index) {
 
 
 void TranslationBuffer::Add(int32_t value, Zone* zone) {
+  // This wouldn't handle kMinInt correctly if it ever encountered it.
+  DCHECK(value != kMinInt);
   // Encode the sign bit in the least significant bit.
   bool is_negative = (value < 0);
   uint32_t bits = ((is_negative ? -value : value) << 1) |
@@ -3018,6 +3123,12 @@ void Translation::StoreUint32Register(Register reg) {
 }
 
 
+void Translation::StoreBoolRegister(Register reg) {
+  buffer_->Add(BOOL_REGISTER, zone());
+  buffer_->Add(reg.code(), zone());
+}
+
+
 void Translation::StoreDoubleRegister(DoubleRegister reg) {
   buffer_->Add(DOUBLE_REGISTER, zone());
   buffer_->Add(DoubleRegister::ToAllocationIndex(reg), zone());
@@ -3038,6 +3149,12 @@ void Translation::StoreInt32StackSlot(int index) {
 
 void Translation::StoreUint32StackSlot(int index) {
   buffer_->Add(UINT32_STACK_SLOT, zone());
+  buffer_->Add(index, zone());
+}
+
+
+void Translation::StoreBoolStackSlot(int index) {
+  buffer_->Add(BOOL_STACK_SLOT, zone());
   buffer_->Add(index, zone());
 }
 
@@ -3074,10 +3191,12 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
     case REGISTER:
     case INT32_REGISTER:
     case UINT32_REGISTER:
+    case BOOL_REGISTER:
     case DOUBLE_REGISTER:
     case STACK_SLOT:
     case INT32_STACK_SLOT:
     case UINT32_STACK_SLOT:
+    case BOOL_STACK_SLOT:
     case DOUBLE_STACK_SLOT:
     case LITERAL:
     case COMPILED_STUB_FRAME:
@@ -3141,6 +3260,7 @@ SlotRef SlotRefValueBuilder::ComputeSlotForNextArgument(
     case Translation::REGISTER:
     case Translation::INT32_REGISTER:
     case Translation::UINT32_REGISTER:
+    case Translation::BOOL_REGISTER:
     case Translation::DOUBLE_REGISTER:
       // We are at safepoint which corresponds to call.  All registers are
       // saved by caller so there would be no live registers at this
@@ -3163,6 +3283,12 @@ SlotRef SlotRefValueBuilder::ComputeSlotForNextArgument(
       int slot_index = iterator->Next();
       Address slot_addr = SlotAddress(frame, slot_index);
       return SlotRef(slot_addr, SlotRef::UINT32);
+    }
+
+    case Translation::BOOL_STACK_SLOT: {
+      int slot_index = iterator->Next();
+      Address slot_addr = SlotAddress(frame, slot_index);
+      return SlotRef(slot_addr, SlotRef::BOOLBIT);
     }
 
     case Translation::DOUBLE_STACK_SLOT: {
@@ -3322,6 +3448,20 @@ Handle<Object> SlotRef::GetValue(Isolate* isolate) {
       }
     }
 
+    case BOOLBIT: {
+#if V8_TARGET_BIG_ENDIAN && V8_HOST_ARCH_64_BIT
+      uint32_t value = Memory::uint32_at(addr_ + kIntSize);
+#else
+      uint32_t value = Memory::uint32_at(addr_);
+#endif
+      if (value == 0) {
+        return isolate->factory()->false_value();
+      } else {
+        DCHECK_EQ(1U, value);
+        return isolate->factory()->true_value();
+      }
+    }
+
     case DOUBLE: {
       double value = read_double_value(addr_);
       return isolate->factory()->NewNumber(value);
@@ -3394,6 +3534,7 @@ Handle<Object> SlotRefValueBuilder::GetNext(Isolate* isolate, int lvl) {
     case SlotRef::TAGGED:
     case SlotRef::INT32:
     case SlotRef::UINT32:
+    case SlotRef::BOOLBIT:
     case SlotRef::DOUBLE:
     case SlotRef::LITERAL:
       return slot.GetValue(isolate);
@@ -3539,17 +3680,21 @@ void MaterializedObjectStore::Set(Address fp,
 }
 
 
-void MaterializedObjectStore::Remove(Address fp) {
+bool MaterializedObjectStore::Remove(Address fp) {
   int index = StackIdToIndex(fp);
+  if (index == -1) {
+    return false;
+  }
   CHECK_GE(index, 0);
 
   frame_fps_.Remove(index);
-  Handle<FixedArray> array = GetStackEntries();
+  FixedArray* array = isolate()->heap()->materialized_objects();
   CHECK_LT(index, array->length());
   for (int i = index; i < frame_fps_.length(); i++) {
     array->set(i, array->get(i + 1));
   }
   array->set(frame_fps_.length(), isolate()->heap()->undefined_value());
+  return true;
 }
 
 

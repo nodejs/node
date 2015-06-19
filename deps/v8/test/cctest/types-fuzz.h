@@ -76,6 +76,7 @@ class Types {
     uninitialized = isolate->factory()->uninitialized_value();
     SmiConstant = Type::Constant(smi, region);
     Signed32Constant = Type::Constant(signed32, region);
+
     ObjectConstant1 = Type::Constant(object1, region);
     ObjectConstant2 = Type::Constant(object2, region);
     ArrayConstant = Type::Constant(array, region);

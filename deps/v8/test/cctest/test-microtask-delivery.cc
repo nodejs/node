@@ -36,7 +36,9 @@ namespace {
 class HarmonyIsolate {
  public:
   HarmonyIsolate() {
-    isolate_ = Isolate::New();
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    isolate_ = Isolate::New(create_params);
     isolate_->Enter();
   }
 

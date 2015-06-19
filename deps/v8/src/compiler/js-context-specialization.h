@@ -19,7 +19,7 @@ class JSContextSpecializer : public Reducer {
  public:
   explicit JSContextSpecializer(JSGraph* jsgraph) : jsgraph_(jsgraph) {}
 
-  Reduction Reduce(Node* node) OVERRIDE;
+  Reduction Reduce(Node* node) override;
 
   // Visible for unit testing.
   Reduction ReduceJSLoadContext(Node* node);

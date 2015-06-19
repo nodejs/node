@@ -75,7 +75,6 @@ class AllocationSiteUsageContext : public AllocationSiteContext {
       // Advance current site
       Object* nested_site = current()->nested_site();
       // Something is wrong if we advance to the end of the list here.
-      DCHECK(nested_site->IsAllocationSite());
       update_current_site(AllocationSite::cast(nested_site));
     }
     return Handle<AllocationSite>(*current(), isolate());

@@ -523,3 +523,23 @@ TEST(Type0) {
 
   VERIFY_RUN();
 }
+
+
+//  Tests only seleqz, selnez, seleqz.fmt and selnez.fmt
+TEST(Type1) {
+  if (IsMipsArchVariant(kMips32r6)) {
+    SET_UP();
+    COMPARE(seleqz(a0, a1, a2), "00a62035       seleqz    a0, a1, a2");
+    COMPARE(selnez(a0, a1, a2), "00a62037       selnez    a0, a1, a2");
+
+
+    COMPARE(seleqz(D, f3, f4, f5), "462520d4       seleqz.d    f3, f4, f5");
+    COMPARE(selnez(D, f3, f4, f5), "462520d7       selnez.d    f3, f4, f5");
+
+    COMPARE(min_d(f3, f4, f5), "462520dc       min.d    f3, f4, f5");
+    COMPARE(max_d(f3, f4, f5), "462520de       max.d    f3, f4, f5");
+    COMPARE(rint_d(f8, f6), "4620321a       rint.d    f8, f6");
+
+    VERIFY_RUN();
+  }
+}

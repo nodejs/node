@@ -22,7 +22,6 @@ enum DebugEvent {
   CompileError = 6,
   PromiseEvent = 7,
   AsyncTaskEvent = 8,
-  BreakForCommand = 9
 };
 
 
@@ -169,13 +168,6 @@ class V8_EXPORT Debug {
 
   // Check if a debugger break is scheduled in the given isolate.
   static bool CheckDebugBreak(Isolate* isolate);
-
-  // Break execution of JavaScript in the given isolate (this method
-  // can be invoked from a non-VM thread) for further client command
-  // execution on a VM thread. Client data is then passed in
-  // EventDetails to EventCallback2 at the moment when the VM actually
-  // stops.
-  static void DebugBreakForCommand(Isolate* isolate, ClientData* data);
 
   // Message based interface. The message protocol is JSON.
   static void SetMessageHandler(MessageHandler handler);

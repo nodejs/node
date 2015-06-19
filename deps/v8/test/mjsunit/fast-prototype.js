@@ -56,7 +56,7 @@ function DoProtoMagic(proto, set__proto__) {
 }
 
 
-function test(use_new, add_first, set__proto__, same_map_as) {
+function test(use_new, add_first, set__proto__) {
   var proto = use_new ? new Super() : {};
 
   // New object is fast.
@@ -74,16 +74,8 @@ function test(use_new, add_first, set__proto__, same_map_as) {
     // Still fast
     assertTrue(%HasFastProperties(proto));
     AddProps(proto);
-    if (set__proto__) {
-      // After we add all those properties it went slow mode again :-(
-      assertFalse(%HasFastProperties(proto));
-    } else {
-      // .prototype keeps it fast.
-      assertTrue(%HasFastProperties(proto));
-    }
-  }
-  if (same_map_as && !add_first && set__proto__) {
-    assertTrue(%HaveSameMap(same_map_as, proto));
+    // Still fast.
+    assertTrue(%HasFastProperties(proto));
   }
   return proto;
 }
@@ -96,9 +88,7 @@ for (var i = 0; i < 4; i++) {
   var use_new = ((i & 2) != 0);
 
   test(use_new, true, set__proto__);
-
-  var last = test(use_new, false, set__proto__);
-  test(use_new, false, set__proto__, last);
+  test(use_new, false, set__proto__);
 }
 
 

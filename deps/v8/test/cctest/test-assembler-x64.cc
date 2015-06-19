@@ -31,6 +31,7 @@
 #include "src/v8.h"
 
 #include "src/base/platform/platform.h"
+#include "src/base/utils/random-number-generator.h"
 #include "src/factory.h"
 #include "src/macro-assembler.h"
 #include "src/ostreams.h"
@@ -1185,6 +1186,798 @@ TEST(AssemblerX64FMA_ss) {
 
   F8 f = FUNCTION_CAST<F8>(code->entry());
   CHECK_EQ(0, f(9.26621069e-05f, -2.4607749f, -1.09587872f));
+}
+
+
+TEST(AssemblerX64SSE_ss) {
+  CcTest::InitializeVM();
+
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[1024];
+  Assembler assm(isolate, buffer, sizeof(buffer));
+  {
+    Label exit;
+    // arguments in xmm0, xmm1 and xmm2
+    __ movl(rax, Immediate(0));
+
+    __ movaps(xmm3, xmm0);
+    __ maxss(xmm3, xmm1);
+    __ ucomiss(xmm3, xmm1);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(1));
+
+    __ movaps(xmm3, xmm1);
+    __ minss(xmm3, xmm2);
+    __ ucomiss(xmm3, xmm1);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(2));
+
+    __ movaps(xmm3, xmm2);
+    __ subss(xmm3, xmm1);
+    __ ucomiss(xmm3, xmm0);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(3));
+
+    __ movaps(xmm3, xmm0);
+    __ addss(xmm3, xmm1);
+    __ ucomiss(xmm3, xmm2);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(4));
+
+    __ movaps(xmm3, xmm0);
+    __ mulss(xmm3, xmm1);
+    __ ucomiss(xmm3, xmm1);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(5));
+
+    __ movaps(xmm3, xmm0);
+    __ divss(xmm3, xmm1);
+    __ mulss(xmm3, xmm2);
+    __ mulss(xmm3, xmm1);
+    __ ucomiss(xmm3, xmm2);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(6));
+
+    // result in eax
+    __ bind(&exit);
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+
+  F8 f = FUNCTION_CAST<F8>(code->entry());
+  int res = f(1.0f, 2.0f, 3.0f);
+  PrintF("f(1,2,3) = %d\n", res);
+  CHECK_EQ(6, res);
+}
+
+
+TEST(AssemblerX64AVX_ss) {
+  CcTest::InitializeVM();
+  if (!CpuFeatures::IsSupported(AVX)) return;
+
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[1024];
+  Assembler assm(isolate, buffer, sizeof(buffer));
+  {
+    CpuFeatureScope avx_scope(&assm, AVX);
+    Label exit;
+    // arguments in xmm0, xmm1 and xmm2
+    __ movl(rax, Immediate(0));
+
+    __ vmaxss(xmm3, xmm0, xmm1);
+    __ vucomiss(xmm3, xmm1);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(1));
+
+    __ vminss(xmm3, xmm1, xmm2);
+    __ vucomiss(xmm3, xmm1);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(2));
+
+    __ vsubss(xmm3, xmm2, xmm1);
+    __ vucomiss(xmm3, xmm0);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(3));
+
+    __ vaddss(xmm3, xmm0, xmm1);
+    __ vucomiss(xmm3, xmm2);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(4));
+
+    __ vmulss(xmm3, xmm0, xmm1);
+    __ vucomiss(xmm3, xmm1);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(5));
+
+    __ vdivss(xmm3, xmm0, xmm1);
+    __ vmulss(xmm3, xmm3, xmm2);
+    __ vmulss(xmm3, xmm3, xmm1);
+    __ vucomiss(xmm3, xmm2);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(6));
+
+    // result in eax
+    __ bind(&exit);
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+
+  F8 f = FUNCTION_CAST<F8>(code->entry());
+  int res = f(1.0f, 2.0f, 3.0f);
+  PrintF("f(1,2,3) = %d\n", res);
+  CHECK_EQ(6, res);
+}
+
+
+TEST(AssemblerX64AVX_sd) {
+  CcTest::InitializeVM();
+  if (!CpuFeatures::IsSupported(AVX)) return;
+
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[1024];
+  Assembler assm(isolate, buffer, sizeof(buffer));
+  {
+    CpuFeatureScope avx_scope(&assm, AVX);
+    Label exit;
+    // arguments in xmm0, xmm1 and xmm2
+    __ movl(rax, Immediate(0));
+
+    __ vmaxsd(xmm3, xmm0, xmm1);
+    __ vucomisd(xmm3, xmm1);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(1));
+
+    __ vminsd(xmm3, xmm1, xmm2);
+    __ vucomisd(xmm3, xmm1);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(2));
+
+    __ vsubsd(xmm3, xmm2, xmm1);
+    __ vucomisd(xmm3, xmm0);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(3));
+
+    __ vaddsd(xmm3, xmm0, xmm1);
+    __ vucomisd(xmm3, xmm2);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(4));
+
+    __ vmulsd(xmm3, xmm0, xmm1);
+    __ vucomisd(xmm3, xmm1);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(5));
+
+    __ vdivsd(xmm3, xmm0, xmm1);
+    __ vmulsd(xmm3, xmm3, xmm2);
+    __ vmulsd(xmm3, xmm3, xmm1);
+    __ vucomisd(xmm3, xmm2);
+    __ j(parity_even, &exit);
+    __ j(not_equal, &exit);
+    __ movl(rax, Immediate(6));
+
+    // result in eax
+    __ bind(&exit);
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+
+  F7 f = FUNCTION_CAST<F7>(code->entry());
+  int res = f(1.0, 2.0, 3.0);
+  PrintF("f(1,2,3) = %d\n", res);
+  CHECK_EQ(6, res);
+}
+
+
+TEST(AssemblerX64BMI1) {
+  CcTest::InitializeVM();
+  if (!CpuFeatures::IsSupported(BMI1)) return;
+
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[1024];
+  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  {
+    CpuFeatureScope fscope(&assm, BMI1);
+    Label exit;
+
+    __ movq(rcx, V8_UINT64_C(0x1122334455667788));  // source operand
+    __ pushq(rcx);                                  // For memory operand
+
+    // andn
+    __ movq(rdx, V8_UINT64_C(0x1000000020000000));
+
+    __ movl(rax, Immediate(1));  // Test number
+    __ andnq(r8, rdx, rcx);
+    __ movq(r9, V8_UINT64_C(0x0122334455667788));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ andnq(r8, rdx, Operand(rsp, 0));
+    __ movq(r9, V8_UINT64_C(0x0122334455667788));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ andnl(r8, rdx, rcx);
+    __ movq(r9, V8_UINT64_C(0x0000000055667788));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ andnl(r8, rdx, Operand(rsp, 0));
+    __ movq(r9, V8_UINT64_C(0x0000000055667788));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    // bextr
+    __ movq(rdx, V8_UINT64_C(0x0000000000002808));
+
+    __ incq(rax);
+    __ bextrq(r8, rcx, rdx);
+    __ movq(r9, V8_UINT64_C(0x0000003344556677));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ bextrq(r8, Operand(rsp, 0), rdx);
+    __ movq(r9, V8_UINT64_C(0x0000003344556677));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ bextrl(r8, rcx, rdx);
+    __ movq(r9, V8_UINT64_C(0x0000000000556677));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ bextrl(r8, Operand(rsp, 0), rdx);
+    __ movq(r9, V8_UINT64_C(0x0000000000556677));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    // blsi
+    __ incq(rax);
+    __ blsiq(r8, rcx);
+    __ movq(r9, V8_UINT64_C(0x0000000000000008));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ blsiq(r8, Operand(rsp, 0));
+    __ movq(r9, V8_UINT64_C(0x0000000000000008));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ blsil(r8, rcx);
+    __ movq(r9, V8_UINT64_C(0x0000000000000008));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ blsil(r8, Operand(rsp, 0));
+    __ movq(r9, V8_UINT64_C(0x0000000000000008));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    // blsmsk
+    __ incq(rax);
+    __ blsmskq(r8, rcx);
+    __ movq(r9, V8_UINT64_C(0x000000000000000f));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ blsmskq(r8, Operand(rsp, 0));
+    __ movq(r9, V8_UINT64_C(0x000000000000000f));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ blsmskl(r8, rcx);
+    __ movq(r9, V8_UINT64_C(0x000000000000000f));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ blsmskl(r8, Operand(rsp, 0));
+    __ movq(r9, V8_UINT64_C(0x000000000000000f));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    // blsr
+    __ incq(rax);
+    __ blsrq(r8, rcx);
+    __ movq(r9, V8_UINT64_C(0x1122334455667780));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ blsrq(r8, Operand(rsp, 0));
+    __ movq(r9, V8_UINT64_C(0x1122334455667780));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ blsrl(r8, rcx);
+    __ movq(r9, V8_UINT64_C(0x0000000055667780));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ blsrl(r8, Operand(rsp, 0));
+    __ movq(r9, V8_UINT64_C(0x0000000055667780));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    // tzcnt
+    __ incq(rax);
+    __ tzcntq(r8, rcx);
+    __ movq(r9, V8_UINT64_C(0x0000000000000003));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ tzcntq(r8, Operand(rsp, 0));
+    __ movq(r9, V8_UINT64_C(0x0000000000000003));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ tzcntl(r8, rcx);
+    __ movq(r9, V8_UINT64_C(0x0000000000000003));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ tzcntl(r8, Operand(rsp, 0));
+    __ movq(r9, V8_UINT64_C(0x0000000000000003));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ xorl(rax, rax);
+    __ bind(&exit);
+    __ popq(rcx);
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+
+  F0 f = FUNCTION_CAST<F0>(code->entry());
+  CHECK_EQ(0, f());
+}
+
+
+TEST(AssemblerX64LZCNT) {
+  CcTest::InitializeVM();
+  if (!CpuFeatures::IsSupported(LZCNT)) return;
+
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[256];
+  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  {
+    CpuFeatureScope fscope(&assm, LZCNT);
+    Label exit;
+
+    __ movq(rcx, V8_UINT64_C(0x1122334455667788));  // source operand
+    __ pushq(rcx);                                  // For memory operand
+
+    __ movl(rax, Immediate(1));  // Test number
+    __ lzcntq(r8, rcx);
+    __ movq(r9, V8_UINT64_C(0x0000000000000003));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ lzcntq(r8, Operand(rsp, 0));
+    __ movq(r9, V8_UINT64_C(0x0000000000000003));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ lzcntl(r8, rcx);
+    __ movq(r9, V8_UINT64_C(0x0000000000000001));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ lzcntl(r8, Operand(rsp, 0));
+    __ movq(r9, V8_UINT64_C(0x0000000000000001));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ xorl(rax, rax);
+    __ bind(&exit);
+    __ popq(rcx);
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+
+  F0 f = FUNCTION_CAST<F0>(code->entry());
+  CHECK_EQ(0, f());
+}
+
+
+TEST(AssemblerX64POPCNT) {
+  CcTest::InitializeVM();
+  if (!CpuFeatures::IsSupported(POPCNT)) return;
+
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[256];
+  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  {
+    CpuFeatureScope fscope(&assm, POPCNT);
+    Label exit;
+
+    __ movq(rcx, V8_UINT64_C(0x1111111111111100));  // source operand
+    __ pushq(rcx);                                  // For memory operand
+
+    __ movl(rax, Immediate(1));  // Test number
+    __ popcntq(r8, rcx);
+    __ movq(r9, V8_UINT64_C(0x000000000000000e));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ popcntq(r8, Operand(rsp, 0));
+    __ movq(r9, V8_UINT64_C(0x000000000000000e));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ popcntl(r8, rcx);
+    __ movq(r9, V8_UINT64_C(0x0000000000000006));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ popcntl(r8, Operand(rsp, 0));
+    __ movq(r9, V8_UINT64_C(0x0000000000000006));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ xorl(rax, rax);
+    __ bind(&exit);
+    __ popq(rcx);
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+
+  F0 f = FUNCTION_CAST<F0>(code->entry());
+  CHECK_EQ(0, f());
+}
+
+
+TEST(AssemblerX64BMI2) {
+  CcTest::InitializeVM();
+  if (!CpuFeatures::IsSupported(BMI2)) return;
+
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[2048];
+  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  {
+    CpuFeatureScope fscope(&assm, BMI2);
+    Label exit;
+    __ pushq(rbx);                                  // save rbx
+    __ movq(rcx, V8_UINT64_C(0x1122334455667788));  // source operand
+    __ pushq(rcx);                                  // For memory operand
+
+    // bzhi
+    __ movq(rdx, V8_UINT64_C(0x0000000000000009));
+
+    __ movl(rax, Immediate(1));  // Test number
+    __ bzhiq(r8, rcx, rdx);
+    __ movq(r9, V8_UINT64_C(0x0000000000000188));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ bzhiq(r8, Operand(rsp, 0), rdx);
+    __ movq(r9, V8_UINT64_C(0x0000000000000188));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ bzhil(r8, rcx, rdx);
+    __ movq(r9, V8_UINT64_C(0x0000000000000188));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ bzhil(r8, Operand(rsp, 0), rdx);
+    __ movq(r9, V8_UINT64_C(0x0000000000000188));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    // mulx
+    __ movq(rdx, V8_UINT64_C(0x0000000000001000));
+
+    __ incq(rax);
+    __ mulxq(r8, r9, rcx);
+    __ movq(rbx, V8_UINT64_C(0x0000000000000112));  // expected result
+    __ cmpq(r8, rbx);
+    __ j(not_equal, &exit);
+    __ movq(rbx, V8_UINT64_C(0x2334455667788000));  // expected result
+    __ cmpq(r9, rbx);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ mulxq(r8, r9, Operand(rsp, 0));
+    __ movq(rbx, V8_UINT64_C(0x0000000000000112));  // expected result
+    __ cmpq(r8, rbx);
+    __ j(not_equal, &exit);
+    __ movq(rbx, V8_UINT64_C(0x2334455667788000));  // expected result
+    __ cmpq(r9, rbx);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ mulxl(r8, r9, rcx);
+    __ movq(rbx, V8_UINT64_C(0x0000000000000556));  // expected result
+    __ cmpq(r8, rbx);
+    __ j(not_equal, &exit);
+    __ movq(rbx, V8_UINT64_C(0x0000000067788000));  // expected result
+    __ cmpq(r9, rbx);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ mulxl(r8, r9, Operand(rsp, 0));
+    __ movq(rbx, V8_UINT64_C(0x0000000000000556));  // expected result
+    __ cmpq(r8, rbx);
+    __ j(not_equal, &exit);
+    __ movq(rbx, V8_UINT64_C(0x0000000067788000));  // expected result
+    __ cmpq(r9, rbx);
+    __ j(not_equal, &exit);
+
+    // pdep
+    __ movq(rdx, V8_UINT64_C(0xfffffffffffffff0));
+
+    __ incq(rax);
+    __ pdepq(r8, rdx, rcx);
+    __ movq(r9, V8_UINT64_C(0x1122334455667400));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ pdepq(r8, rdx, Operand(rsp, 0));
+    __ movq(r9, V8_UINT64_C(0x1122334455667400));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ pdepl(r8, rdx, rcx);
+    __ movq(r9, V8_UINT64_C(0x0000000055667400));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ pdepl(r8, rdx, Operand(rsp, 0));
+    __ movq(r9, V8_UINT64_C(0x0000000055667400));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    // pext
+    __ movq(rdx, V8_UINT64_C(0xfffffffffffffff0));
+
+    __ incq(rax);
+    __ pextq(r8, rdx, rcx);
+    __ movq(r9, V8_UINT64_C(0x0000000003fffffe));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ pextq(r8, rdx, Operand(rsp, 0));
+    __ movq(r9, V8_UINT64_C(0x0000000003fffffe));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ pextl(r8, rdx, rcx);
+    __ movq(r9, V8_UINT64_C(0x000000000000fffe));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ pextl(r8, rdx, Operand(rsp, 0));
+    __ movq(r9, V8_UINT64_C(0x000000000000fffe));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    // sarx
+    __ movq(rdx, V8_UINT64_C(0x0000000000000004));
+
+    __ incq(rax);
+    __ sarxq(r8, rcx, rdx);
+    __ movq(r9, V8_UINT64_C(0x0112233445566778));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ sarxq(r8, Operand(rsp, 0), rdx);
+    __ movq(r9, V8_UINT64_C(0x0112233445566778));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ sarxl(r8, rcx, rdx);
+    __ movq(r9, V8_UINT64_C(0x0000000005566778));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ sarxl(r8, Operand(rsp, 0), rdx);
+    __ movq(r9, V8_UINT64_C(0x0000000005566778));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    // shlx
+    __ movq(rdx, V8_UINT64_C(0x0000000000000004));
+
+    __ incq(rax);
+    __ shlxq(r8, rcx, rdx);
+    __ movq(r9, V8_UINT64_C(0x1223344556677880));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ shlxq(r8, Operand(rsp, 0), rdx);
+    __ movq(r9, V8_UINT64_C(0x1223344556677880));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ shlxl(r8, rcx, rdx);
+    __ movq(r9, V8_UINT64_C(0x0000000056677880));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ shlxl(r8, Operand(rsp, 0), rdx);
+    __ movq(r9, V8_UINT64_C(0x0000000056677880));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    // shrx
+    __ movq(rdx, V8_UINT64_C(0x0000000000000004));
+
+    __ incq(rax);
+    __ shrxq(r8, rcx, rdx);
+    __ movq(r9, V8_UINT64_C(0x0112233445566778));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ shrxq(r8, Operand(rsp, 0), rdx);
+    __ movq(r9, V8_UINT64_C(0x0112233445566778));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ shrxl(r8, rcx, rdx);
+    __ movq(r9, V8_UINT64_C(0x0000000005566778));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ shrxl(r8, Operand(rsp, 0), rdx);
+    __ movq(r9, V8_UINT64_C(0x0000000005566778));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    // rorx
+    __ incq(rax);
+    __ rorxq(r8, rcx, 0x4);
+    __ movq(r9, V8_UINT64_C(0x8112233445566778));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ rorxq(r8, Operand(rsp, 0), 0x4);
+    __ movq(r9, V8_UINT64_C(0x8112233445566778));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ rorxl(r8, rcx, 0x4);
+    __ movq(r9, V8_UINT64_C(0x0000000085566778));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ incq(rax);
+    __ rorxl(r8, Operand(rsp, 0), 0x4);
+    __ movq(r9, V8_UINT64_C(0x0000000085566778));  // expected result
+    __ cmpq(r8, r9);
+    __ j(not_equal, &exit);
+
+    __ xorl(rax, rax);
+    __ bind(&exit);
+    __ popq(rcx);
+    __ popq(rbx);
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+
+  F0 f = FUNCTION_CAST<F0>(code->entry());
+  CHECK_EQ(0, f());
 }
 
 

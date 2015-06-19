@@ -29,7 +29,7 @@ TEST(ConditionVariable, WaitForAfterNofityOnSameThread) {
 
 namespace {
 
-class ThreadWithMutexAndConditionVariable FINAL : public Thread {
+class ThreadWithMutexAndConditionVariable final : public Thread {
  public:
   ThreadWithMutexAndConditionVariable()
       : Thread(Options("ThreadWithMutexAndConditionVariable")),
@@ -37,7 +37,7 @@ class ThreadWithMutexAndConditionVariable FINAL : public Thread {
         finished_(false) {}
   virtual ~ThreadWithMutexAndConditionVariable() {}
 
-  virtual void Run() OVERRIDE {
+  virtual void Run() override {
     LockGuard<Mutex> lock_guard(&mutex_);
     running_ = true;
     cv_.NotifyOne();
@@ -108,7 +108,7 @@ TEST(ConditionVariable, MultipleThreadsWithSeparateConditionVariables) {
 
 namespace {
 
-class ThreadWithSharedMutexAndConditionVariable FINAL : public Thread {
+class ThreadWithSharedMutexAndConditionVariable final : public Thread {
  public:
   ThreadWithSharedMutexAndConditionVariable()
       : Thread(Options("ThreadWithSharedMutexAndConditionVariable")),
@@ -118,7 +118,7 @@ class ThreadWithSharedMutexAndConditionVariable FINAL : public Thread {
         mutex_(NULL) {}
   virtual ~ThreadWithSharedMutexAndConditionVariable() {}
 
-  virtual void Run() OVERRIDE {
+  virtual void Run() override {
     LockGuard<Mutex> lock_guard(mutex_);
     running_ = true;
     cv_->NotifyAll();
@@ -218,7 +218,7 @@ TEST(ConditionVariable, MultipleThreadsWithSharedSeparateConditionVariables) {
 
 namespace {
 
-class LoopIncrementThread FINAL : public Thread {
+class LoopIncrementThread final : public Thread {
  public:
   LoopIncrementThread(int rem, int* counter, int limit, int thread_count,
                       ConditionVariable* cv, Mutex* mutex)
@@ -233,7 +233,7 @@ class LoopIncrementThread FINAL : public Thread {
     EXPECT_EQ(0, limit % thread_count);
   }
 
-  virtual void Run() OVERRIDE {
+  virtual void Run() override {
     int last_count = -1;
     while (true) {
       LockGuard<Mutex> lock_guard(mutex_);

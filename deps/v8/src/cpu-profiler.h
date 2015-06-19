@@ -11,7 +11,7 @@
 #include "src/circular-queue.h"
 #include "src/compiler.h"
 #include "src/sampler.h"
-#include "src/unbound-queue.h"
+#include "src/unbound-queue-inl.h"
 
 namespace v8 {
 namespace internal {

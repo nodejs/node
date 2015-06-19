@@ -28,7 +28,7 @@ namespace base {
 // architectures. For each architecture the file cpu_<arch>.cc contains the
 // implementation of these static functions.
 
-class CPU FINAL {
+class CPU final {
  public:
   CPU();
 
@@ -86,6 +86,10 @@ class CPU FINAL {
   bool has_osxsave() const { return has_osxsave_; }
   bool has_avx() const { return has_avx_; }
   bool has_fma3() const { return has_fma3_; }
+  bool has_bmi1() const { return has_bmi1_; }
+  bool has_bmi2() const { return has_bmi2_; }
+  bool has_lzcnt() const { return has_lzcnt_; }
+  bool has_popcnt() const { return has_popcnt_; }
   bool is_atom() const { return is_atom_; }
 
   // arm features
@@ -125,6 +129,10 @@ class CPU FINAL {
   bool has_osxsave_;
   bool has_avx_;
   bool has_fma3_;
+  bool has_bmi1_;
+  bool has_bmi2_;
+  bool has_lzcnt_;
+  bool has_popcnt_;
   bool has_idiva_;
   bool has_neon_;
   bool has_thumb2_;

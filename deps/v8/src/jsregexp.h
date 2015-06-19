@@ -406,7 +406,7 @@ FOR_EACH_REG_EXP_TREE_TYPE(FORWARD_DECLARE)
 #undef FORWARD_DECLARE
 
 
-class TextElement FINAL BASE_EMBEDDED {
+class TextElement final BASE_EMBEDDED {
  public:
   enum TextType {
     ATOM,
@@ -570,7 +570,7 @@ extern int kUninitializedRegExpNodePlaceHolder;
 class RegExpNode: public ZoneObject {
  public:
   explicit RegExpNode(Zone* zone)
-  : replacement_(NULL), trace_count_(0), zone_(zone) {
+      : replacement_(NULL), on_work_list_(false), trace_count_(0), zone_(zone) {
     bm_info_[0] = bm_info_[1] = NULL;
   }
   virtual ~RegExpNode();
@@ -618,6 +618,7 @@ class RegExpNode: public ZoneObject {
   // EatsAtLeast, GetQuickCheckDetails.  The budget argument is used to limit
   // the number of nodes we are willing to look at in order to create this data.
   static const int kRecursionBudget = 200;
+  bool KeepRecursing(RegExpCompiler* compiler);
   virtual void FillInBMInfo(int offset,
                             int budget,
                             BoyerMooreLookahead* bm,
@@ -658,6 +659,9 @@ class RegExpNode: public ZoneObject {
   // the deferred actions in the current trace and generating a goto.
   static const int kMaxCopiesCodeGenerated = 10;
 
+  bool on_work_list() { return on_work_list_; }
+  void set_on_work_list(bool value) { on_work_list_ = value; }
+
   NodeInfo* info() { return &info_; }
 
   BoyerMooreLookahead* bm_info(bool not_at_start) {
@@ -679,6 +683,7 @@ class RegExpNode: public ZoneObject {
  private:
   static const int kFirstCharBudget = 10;
   Label label_;
+  bool on_work_list_;
   NodeInfo info_;
   // This variable keeps track of how many times code has been generated for
   // this node (in different traces).  We don't keep track of where the

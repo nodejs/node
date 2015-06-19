@@ -57,7 +57,7 @@ class Processor: public AstVisitor {
   }
 
   // Node visitors.
-#define DEF_VISIT(type) virtual void Visit##type(type* node) OVERRIDE;
+#define DEF_VISIT(type) virtual void Visit##type(type* node) override;
   AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
@@ -84,13 +84,6 @@ void Processor::VisitBlock(Block* node) {
   // returns 'undefined'. To obtain the same behavior with v8, we need
   // to prevent rewriting in that case.
   if (!node->is_initializer_block()) Process(node->statements());
-}
-
-
-void Processor::VisitModuleStatement(ModuleStatement* node) {
-  bool set_after_body = is_set_;
-  Visit(node->body());
-  is_set_ = is_set_ && set_after_body;
 }
 
 
@@ -201,12 +194,8 @@ void Processor::VisitWithStatement(WithStatement* node) {
 // Do nothing:
 void Processor::VisitVariableDeclaration(VariableDeclaration* node) {}
 void Processor::VisitFunctionDeclaration(FunctionDeclaration* node) {}
-void Processor::VisitModuleDeclaration(ModuleDeclaration* node) {}
 void Processor::VisitImportDeclaration(ImportDeclaration* node) {}
 void Processor::VisitExportDeclaration(ExportDeclaration* node) {}
-void Processor::VisitModuleLiteral(ModuleLiteral* node) {}
-void Processor::VisitModulePath(ModulePath* node) {}
-void Processor::VisitModuleUrl(ModuleUrl* node) {}
 void Processor::VisitEmptyStatement(EmptyStatement* node) {}
 void Processor::VisitReturnStatement(ReturnStatement* node) {}
 void Processor::VisitDebuggerStatement(DebuggerStatement* node) {}

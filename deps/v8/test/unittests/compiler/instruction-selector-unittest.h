@@ -22,7 +22,7 @@ class InstructionSelectorTest : public TestWithContext,
                                 public TestWithIsolateAndZone {
  public:
   InstructionSelectorTest();
-  ~InstructionSelectorTest() OVERRIDE;
+  ~InstructionSelectorTest() override;
 
   base::RandomNumberGenerator* rng() { return &rng_; }
 
@@ -34,7 +34,7 @@ class InstructionSelectorTest : public TestWithContext,
     kAllExceptNopInstructions
   };
 
-  class StreamBuilder FINAL : public RawMachineAssembler {
+  class StreamBuilder final : public RawMachineAssembler {
    public:
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type)
         : RawMachineAssembler(test->isolate(),
@@ -73,7 +73,9 @@ class InstructionSelectorTest : public TestWithContext,
       return Build(InstructionSelector::Features(), mode);
     }
     Stream Build(InstructionSelector::Features features,
-                 StreamBuilderMode mode = kTargetInstructions);
+                 StreamBuilderMode mode = kTargetInstructions,
+                 InstructionSelector::SourcePositionMode source_position_mode =
+                     InstructionSelector::kAllSourcePositions);
 
    private:
     MachineSignature* MakeMachineSignature(Zone* zone,
@@ -117,7 +119,7 @@ class InstructionSelectorTest : public TestWithContext,
     InstructionSelectorTest* test_;
   };
 
-  class Stream FINAL {
+  class Stream final {
    public:
     size_t size() const { return instructions_.size(); }
     const Instruction* operator[](size_t index) const {
@@ -166,7 +168,9 @@ class InstructionSelectorTest : public TestWithContext,
     }
 
     int ToVreg(const InstructionOperand* operand) const {
-      if (operand->IsConstant()) return operand->index();
+      if (operand->IsConstant()) {
+        return ConstantOperand::cast(operand)->virtual_register();
+      }
       EXPECT_EQ(InstructionOperand::UNALLOCATED, operand->kind());
       return UnallocatedOperand::cast(operand)->virtual_register();
     }
@@ -202,14 +206,19 @@ class InstructionSelectorTest : public TestWithContext,
     Constant ToConstant(const InstructionOperand* operand) const {
       ConstantMap::const_iterator i;
       if (operand->IsConstant()) {
-        i = constants_.find(operand->index());
+        i = constants_.find(ConstantOperand::cast(operand)->virtual_register());
+        EXPECT_EQ(ConstantOperand::cast(operand)->virtual_register(), i->first);
         EXPECT_FALSE(constants_.end() == i);
       } else {
         EXPECT_EQ(InstructionOperand::IMMEDIATE, operand->kind());
-        i = immediates_.find(operand->index());
+        auto imm = ImmediateOperand::cast(operand);
+        if (imm->type() == ImmediateOperand::INLINE) {
+          return Constant(imm->inline_value());
+        }
+        i = immediates_.find(imm->indexed_value());
+        EXPECT_EQ(imm->indexed_value(), i->first);
         EXPECT_FALSE(immediates_.end() == i);
       }
-      EXPECT_EQ(operand->index(), i->first);
       return i->second;
     }
 

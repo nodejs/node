@@ -35,7 +35,7 @@ class Object;
   V(JSArray, 0xe21)       /* 0000 1110 0010 0001 */ \
   V(None, 0xfff)          /* 0000 1111 1111 1111 */
 
-class HType FINAL {
+class HType final {
  public:
   #define DECLARE_CONSTRUCTOR(Name, mask) \
     static HType Name() WARN_UNUSED_RESULT { return HType(k##Name); }

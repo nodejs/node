@@ -268,14 +268,18 @@ assertEquals([true, 0, undefined], s());
 
 // Check that property descriptors are correct (unconfigurable, unenumerable,
 // and both get and set is the ThrowTypeError function).
-var cdesc = Object.getOwnPropertyDescriptor(f, "caller");
-var adesc = Object.getOwnPropertyDescriptor(f, "arguments");
+//
+// Poisoned accessors are no longer own properties --- get them from the
+// prototype
+var f_proto = Object.getPrototypeOf(f);
+var cdesc = Object.getOwnPropertyDescriptor(f_proto, "caller");
+var adesc = Object.getOwnPropertyDescriptor(f_proto, "arguments");
 
 assertFalse(cdesc.enumerable);
-assertFalse(cdesc.configurable);
+assertTrue(cdesc.configurable);
 
 assertFalse(adesc.enumerable);
-assertFalse(adesc.configurable);
+assertTrue(adesc.configurable);
 
 assertSame(cdesc.get, cdesc.set);
 assertSame(cdesc.get, adesc.get);

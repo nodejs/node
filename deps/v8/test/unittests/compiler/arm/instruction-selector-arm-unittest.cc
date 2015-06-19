@@ -31,12 +31,38 @@ std::ostream& operator<<(std::ostream& os, const DPI& dpi) {
 }
 
 
-static const DPI kDPIs[] = {
+const DPI kDPIs[] = {
     {&RawMachineAssembler::Word32And, "Word32And", kArmAnd, kArmAnd, kArmTst},
     {&RawMachineAssembler::Word32Or, "Word32Or", kArmOrr, kArmOrr, kArmOrr},
     {&RawMachineAssembler::Word32Xor, "Word32Xor", kArmEor, kArmEor, kArmTeq},
     {&RawMachineAssembler::Int32Add, "Int32Add", kArmAdd, kArmAdd, kArmCmn},
     {&RawMachineAssembler::Int32Sub, "Int32Sub", kArmSub, kArmRsb, kArmCmp}};
+
+
+// Floating point arithmetic instructions.
+struct FAI {
+  Constructor constructor;
+  const char* constructor_name;
+  MachineType machine_type;
+  ArchOpcode arch_opcode;
+};
+
+
+std::ostream& operator<<(std::ostream& os, const FAI& fai) {
+  return os << fai.constructor_name;
+}
+
+
+const FAI kFAIs[] = {
+    {&RawMachineAssembler::Float32Add, "Float32Add", kMachFloat32, kArmVaddF32},
+    {&RawMachineAssembler::Float64Add, "Float64Add", kMachFloat64, kArmVaddF64},
+    {&RawMachineAssembler::Float32Sub, "Float32Sub", kMachFloat32, kArmVsubF32},
+    {&RawMachineAssembler::Float64Sub, "Float64Sub", kMachFloat64, kArmVsubF64},
+    {&RawMachineAssembler::Float32Mul, "Float32Mul", kMachFloat32, kArmVmulF32},
+    {&RawMachineAssembler::Float64Mul, "Float64Mul", kMachFloat64, kArmVmulF64},
+    {&RawMachineAssembler::Float32Div, "Float32Div", kMachFloat32, kArmVdivF32},
+    {&RawMachineAssembler::Float64Div, "Float64Div", kMachFloat64,
+     kArmVdivF64}};
 
 
 // Data processing instructions with overflow.
@@ -53,10 +79,10 @@ std::ostream& operator<<(std::ostream& os, const ODPI& odpi) {
 }
 
 
-static const ODPI kODPIs[] = {{&RawMachineAssembler::Int32AddWithOverflow,
-                               "Int32AddWithOverflow", kArmAdd, kArmAdd},
-                              {&RawMachineAssembler::Int32SubWithOverflow,
-                               "Int32SubWithOverflow", kArmSub, kArmRsb}};
+const ODPI kODPIs[] = {{&RawMachineAssembler::Int32AddWithOverflow,
+                        "Int32AddWithOverflow", kArmAdd, kArmAdd},
+                       {&RawMachineAssembler::Int32SubWithOverflow,
+                        "Int32SubWithOverflow", kArmSub, kArmRsb}};
 
 
 // Shifts.
@@ -75,50 +101,34 @@ std::ostream& operator<<(std::ostream& os, const Shift& shift) {
 }
 
 
-static const Shift kShifts[] = {
-    {&RawMachineAssembler::Word32Sar, "Word32Sar", 1, 32,
-     kMode_Operand2_R_ASR_I, kMode_Operand2_R_ASR_R},
-    {&RawMachineAssembler::Word32Shl, "Word32Shl", 0, 31,
-     kMode_Operand2_R_LSL_I, kMode_Operand2_R_LSL_R},
-    {&RawMachineAssembler::Word32Shr, "Word32Shr", 1, 32,
-     kMode_Operand2_R_LSR_I, kMode_Operand2_R_LSR_R},
-    {&RawMachineAssembler::Word32Ror, "Word32Ror", 1, 31,
-     kMode_Operand2_R_ROR_I, kMode_Operand2_R_ROR_R}};
+const Shift kShifts[] = {{&RawMachineAssembler::Word32Sar, "Word32Sar", 1, 32,
+                          kMode_Operand2_R_ASR_I, kMode_Operand2_R_ASR_R},
+                         {&RawMachineAssembler::Word32Shl, "Word32Shl", 0, 31,
+                          kMode_Operand2_R_LSL_I, kMode_Operand2_R_LSL_R},
+                         {&RawMachineAssembler::Word32Shr, "Word32Shr", 1, 32,
+                          kMode_Operand2_R_LSR_I, kMode_Operand2_R_LSR_R},
+                         {&RawMachineAssembler::Word32Ror, "Word32Ror", 1, 31,
+                          kMode_Operand2_R_ROR_I, kMode_Operand2_R_ROR_R}};
 
 
 // Immediates (random subset).
-static const int32_t kImmediates[] = {
+const int32_t kImmediates[] = {
     std::numeric_limits<int32_t>::min(), -2147483617, -2147483606, -2113929216,
-    -2080374784,                         -1996488704, -1879048192, -1459617792,
-    -1358954496,                         -1342177265, -1275068414, -1073741818,
-    -1073741777,                         -855638016,  -805306368,  -402653184,
-    -268435444,                          -16777216,   0,           35,
-    61,                                  105,         116,         171,
-    245,                                 255,         692,         1216,
-    1248,                                1520,        1600,        1888,
-    3744,                                4080,        5888,        8384,
-    9344,                                9472,        9792,        13312,
-    15040,                               15360,       20736,       22272,
-    23296,                               32000,       33536,       37120,
-    45824,                               47872,       56320,       59392,
-    65280,                               72704,       101376,      147456,
-    161792,                              164864,      167936,      173056,
-    195584,                              209920,      212992,      356352,
-    655360,                              704512,      716800,      851968,
-    901120,                              1044480,     1523712,     2572288,
-    3211264,                             3588096,     3833856,     3866624,
-    4325376,                             5177344,     6488064,     7012352,
-    7471104,                             14090240,    16711680,    19398656,
-    22282240,                            28573696,    30408704,    30670848,
-    43253760,                            54525952,    55312384,    56623104,
-    68157440,                            115343360,   131072000,   187695104,
-    188743680,                           195035136,   197132288,   203423744,
-    218103808,                           267386880,   268435470,   285212672,
-    402653185,                           415236096,   595591168,   603979776,
-    603979778,                           629145600,   1073741835,  1073741855,
-    1073741861,                          1073741884,  1157627904,  1476395008,
-    1476395010,                          1610612741,  2030043136,  2080374785,
-    2097152000};
+    -2080374784, -1996488704, -1879048192, -1459617792, -1358954496,
+    -1342177265, -1275068414, -1073741818, -1073741777, -855638016, -805306368,
+    -402653184, -268435444, -16777216, 0, 35, 61, 105, 116, 171, 245, 255, 692,
+    1216, 1248, 1520, 1600, 1888, 3744, 4080, 5888, 8384, 9344, 9472, 9792,
+    13312, 15040, 15360, 20736, 22272, 23296, 32000, 33536, 37120, 45824, 47872,
+    56320, 59392, 65280, 72704, 101376, 147456, 161792, 164864, 167936, 173056,
+    195584, 209920, 212992, 356352, 655360, 704512, 716800, 851968, 901120,
+    1044480, 1523712, 2572288, 3211264, 3588096, 3833856, 3866624, 4325376,
+    5177344, 6488064, 7012352, 7471104, 14090240, 16711680, 19398656, 22282240,
+    28573696, 30408704, 30670848, 43253760, 54525952, 55312384, 56623104,
+    68157440, 115343360, 131072000, 187695104, 188743680, 195035136, 197132288,
+    203423744, 218103808, 267386880, 268435470, 285212672, 402653185, 415236096,
+    595591168, 603979776, 603979778, 629145600, 1073741835, 1073741855,
+    1073741861, 1073741884, 1157627904, 1476395008, 1476395010, 1610612741,
+    2030043136, 2080374785, 2097152000};
 
 }  // namespace
 
@@ -1217,7 +1227,7 @@ std::ostream& operator<<(std::ostream& os, const MemoryAccess& memacc) {
 }
 
 
-static const MemoryAccess kMemoryAccesses[] = {
+const MemoryAccess kMemoryAccesses[] = {
     {kMachInt8,
      kArmLdrsb,
      kArmStrb,
@@ -1482,19 +1492,100 @@ INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
 // Floating point comparisons.
 
 
-const Comparison kFPComparisons[] = {
+namespace {
+
+const Comparison kF32Comparisons[] = {
+    {&RawMachineAssembler::Float32Equal, "Float32Equal", kEqual, kNotEqual},
+    {&RawMachineAssembler::Float32LessThan, "Float32LessThan",
+     kUnsignedLessThan, kUnsignedGreaterThanOrEqual},
+    {&RawMachineAssembler::Float32LessThanOrEqual, "Float32LessThanOrEqual",
+     kUnsignedLessThanOrEqual, kUnsignedGreaterThan}};
+
+}  // namespace
+
+typedef InstructionSelectorTestWithParam<Comparison>
+    InstructionSelectorF32ComparisonTest;
+
+
+TEST_P(InstructionSelectorF32ComparisonTest, WithParameters) {
+  const Comparison& cmp = GetParam();
+  StreamBuilder m(this, kMachInt32, kMachFloat32, kMachFloat32);
+  m.Return((m.*cmp.constructor)(m.Parameter(0), m.Parameter(1)));
+  Stream const s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArmVcmpF32, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+  EXPECT_EQ(cmp.flags_condition, s[0]->flags_condition());
+}
+
+
+TEST_P(InstructionSelectorF32ComparisonTest, NegatedWithParameters) {
+  const Comparison& cmp = GetParam();
+  StreamBuilder m(this, kMachInt32, kMachFloat32, kMachFloat32);
+  m.Return(
+      m.WordBinaryNot((m.*cmp.constructor)(m.Parameter(0), m.Parameter(1))));
+  Stream const s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArmVcmpF32, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+  EXPECT_EQ(cmp.negated_flags_condition, s[0]->flags_condition());
+}
+
+
+TEST_P(InstructionSelectorF32ComparisonTest, WithImmediateZeroOnRight) {
+  const Comparison& cmp = GetParam();
+  StreamBuilder m(this, kMachInt32, kMachFloat32);
+  m.Return((m.*cmp.constructor)(m.Parameter(0), m.Float32Constant(0.0)));
+  Stream const s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArmVcmpF32, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+  EXPECT_EQ(cmp.flags_condition, s[0]->flags_condition());
+}
+
+
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
+                        InstructionSelectorF32ComparisonTest,
+                        ::testing::ValuesIn(kF32Comparisons));
+
+
+TEST_F(InstructionSelectorTest, Float32EqualWithImmediateZeroOnLeft) {
+  StreamBuilder m(this, kMachInt32, kMachFloat32);
+  m.Return(m.Float32Equal(m.Float32Constant(0.0f), m.Parameter(0)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArmVcmpF32, s[0]->arch_opcode());
+  EXPECT_EQ(2U, s[0]->InputCount());
+  EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+  EXPECT_EQ(kEqual, s[0]->flags_condition());
+}
+
+
+namespace {
+
+const Comparison kF64Comparisons[] = {
     {&RawMachineAssembler::Float64Equal, "Float64Equal", kEqual, kNotEqual},
     {&RawMachineAssembler::Float64LessThan, "Float64LessThan",
      kUnsignedLessThan, kUnsignedGreaterThanOrEqual},
     {&RawMachineAssembler::Float64LessThanOrEqual, "Float64LessThanOrEqual",
      kUnsignedLessThanOrEqual, kUnsignedGreaterThan}};
 
+}  // namespace
 
 typedef InstructionSelectorTestWithParam<Comparison>
-    InstructionSelectorFPComparisonTest;
+    InstructionSelectorF64ComparisonTest;
 
 
-TEST_P(InstructionSelectorFPComparisonTest, WithParameters) {
+TEST_P(InstructionSelectorF64ComparisonTest, WithParameters) {
   const Comparison& cmp = GetParam();
   StreamBuilder m(this, kMachInt32, kMachFloat64, kMachFloat64);
   m.Return((m.*cmp.constructor)(m.Parameter(0), m.Parameter(1)));
@@ -1508,7 +1599,7 @@ TEST_P(InstructionSelectorFPComparisonTest, WithParameters) {
 }
 
 
-TEST_P(InstructionSelectorFPComparisonTest, NegatedWithParameters) {
+TEST_P(InstructionSelectorF64ComparisonTest, NegatedWithParameters) {
   const Comparison& cmp = GetParam();
   StreamBuilder m(this, kMachInt32, kMachFloat64, kMachFloat64);
   m.Return(
@@ -1523,7 +1614,7 @@ TEST_P(InstructionSelectorFPComparisonTest, NegatedWithParameters) {
 }
 
 
-TEST_P(InstructionSelectorFPComparisonTest, WithImmediateZeroOnRight) {
+TEST_P(InstructionSelectorF64ComparisonTest, WithImmediateZeroOnRight) {
   const Comparison& cmp = GetParam();
   StreamBuilder m(this, kMachInt32, kMachFloat64);
   m.Return((m.*cmp.constructor)(m.Parameter(0), m.Float64Constant(0.0)));
@@ -1539,8 +1630,8 @@ TEST_P(InstructionSelectorFPComparisonTest, WithImmediateZeroOnRight) {
 
 
 INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorFPComparisonTest,
-                        ::testing::ValuesIn(kFPComparisons));
+                        InstructionSelectorF64ComparisonTest,
+                        ::testing::ValuesIn(kF64Comparisons));
 
 
 TEST_F(InstructionSelectorTest, Float64EqualWithImmediateZeroOnLeft) {
@@ -1558,7 +1649,171 @@ TEST_F(InstructionSelectorTest, Float64EqualWithImmediateZeroOnLeft) {
 
 
 // -----------------------------------------------------------------------------
-// Miscellaneous.
+// Floating point arithmetic.
+
+
+typedef InstructionSelectorTestWithParam<FAI> InstructionSelectorFAITest;
+
+
+TEST_P(InstructionSelectorFAITest, Parameters) {
+  const FAI& fai = GetParam();
+  StreamBuilder m(this, fai.machine_type, fai.machine_type, fai.machine_type);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const r = (m.*fai.constructor)(p0, p1);
+  m.Return(r);
+  Stream const s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(fai.arch_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_None, s[0]->addressing_mode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->OutputAt(0)));
+  EXPECT_EQ(kFlags_none, s[0]->flags_mode());
+}
+
+
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorFAITest,
+                        ::testing::ValuesIn(kFAIs));
+
+
+TEST_F(InstructionSelectorTest, Float32Abs) {
+  StreamBuilder m(this, kMachFloat32, kMachFloat32);
+  Node* const p0 = m.Parameter(0);
+  Node* const n = m.Float32Abs(p0);
+  m.Return(n);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArmVabsF32, s[0]->arch_opcode());
+  ASSERT_EQ(1U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+}
+
+
+TEST_F(InstructionSelectorTest, Float64Abs) {
+  StreamBuilder m(this, kMachFloat64, kMachFloat64);
+  Node* const p0 = m.Parameter(0);
+  Node* const n = m.Float64Abs(p0);
+  m.Return(n);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArmVabsF64, s[0]->arch_opcode());
+  ASSERT_EQ(1U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+}
+
+
+TEST_F(InstructionSelectorTest, Float32AddWithFloat32Mul) {
+  {
+    StreamBuilder m(this, kMachFloat32, kMachFloat32, kMachFloat32,
+                    kMachFloat32);
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    Node* const p2 = m.Parameter(2);
+    Node* const n = m.Float32Add(m.Float32Mul(p0, p1), p2);
+    m.Return(n);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArmVmlaF32, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p2), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(2)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_TRUE(
+        UnallocatedOperand::cast(s[0]->Output())->HasSameAsInputPolicy());
+    EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+    EXPECT_EQ(kFlags_none, s[0]->flags_mode());
+  }
+  {
+    StreamBuilder m(this, kMachFloat32, kMachFloat32, kMachFloat32,
+                    kMachFloat32);
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    Node* const p2 = m.Parameter(2);
+    Node* const n = m.Float32Add(p0, m.Float32Mul(p1, p2));
+    m.Return(n);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArmVmlaF32, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(s.ToVreg(p2), s.ToVreg(s[0]->InputAt(2)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_TRUE(
+        UnallocatedOperand::cast(s[0]->Output())->HasSameAsInputPolicy());
+    EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+    EXPECT_EQ(kFlags_none, s[0]->flags_mode());
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Float64AddWithFloat64Mul) {
+  {
+    StreamBuilder m(this, kMachFloat64, kMachFloat64, kMachFloat64,
+                    kMachFloat64);
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    Node* const p2 = m.Parameter(2);
+    Node* const n = m.Float64Add(m.Float64Mul(p0, p1), p2);
+    m.Return(n);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArmVmlaF64, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p2), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(2)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_TRUE(
+        UnallocatedOperand::cast(s[0]->Output())->HasSameAsInputPolicy());
+    EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+    EXPECT_EQ(kFlags_none, s[0]->flags_mode());
+  }
+  {
+    StreamBuilder m(this, kMachFloat64, kMachFloat64, kMachFloat64,
+                    kMachFloat64);
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    Node* const p2 = m.Parameter(2);
+    Node* const n = m.Float64Add(p0, m.Float64Mul(p1, p2));
+    m.Return(n);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArmVmlaF64, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(s.ToVreg(p2), s.ToVreg(s[0]->InputAt(2)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_TRUE(
+        UnallocatedOperand::cast(s[0]->Output())->HasSameAsInputPolicy());
+    EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+    EXPECT_EQ(kFlags_none, s[0]->flags_mode());
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Float32SubWithMinusZero) {
+  StreamBuilder m(this, kMachFloat32, kMachFloat32);
+  Node* const p0 = m.Parameter(0);
+  Node* const n = m.Float32Sub(m.Float32Constant(-0.0f), p0);
+  m.Return(n);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArmVnegF32, s[0]->arch_opcode());
+  ASSERT_EQ(1U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+}
 
 
 TEST_F(InstructionSelectorTest, Float64SubWithMinusZero) {
@@ -1574,6 +1829,84 @@ TEST_F(InstructionSelectorTest, Float64SubWithMinusZero) {
   ASSERT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
 }
+
+
+TEST_F(InstructionSelectorTest, Float32SubWithFloat32Mul) {
+  StreamBuilder m(this, kMachFloat32, kMachFloat32, kMachFloat32, kMachFloat32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const p2 = m.Parameter(2);
+  Node* const n = m.Float32Sub(p0, m.Float32Mul(p1, p2));
+  m.Return(n);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArmVmlsF32, s[0]->arch_opcode());
+  ASSERT_EQ(3U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  EXPECT_EQ(s.ToVreg(p2), s.ToVreg(s[0]->InputAt(2)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_TRUE(UnallocatedOperand::cast(s[0]->Output())->HasSameAsInputPolicy());
+  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+  EXPECT_EQ(kFlags_none, s[0]->flags_mode());
+}
+
+
+TEST_F(InstructionSelectorTest, Float64SubWithFloat64Mul) {
+  StreamBuilder m(this, kMachFloat64, kMachFloat64, kMachFloat64, kMachFloat64);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const p2 = m.Parameter(2);
+  Node* const n = m.Float64Sub(p0, m.Float64Mul(p1, p2));
+  m.Return(n);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArmVmlsF64, s[0]->arch_opcode());
+  ASSERT_EQ(3U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  EXPECT_EQ(s.ToVreg(p2), s.ToVreg(s[0]->InputAt(2)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_TRUE(UnallocatedOperand::cast(s[0]->Output())->HasSameAsInputPolicy());
+  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+  EXPECT_EQ(kFlags_none, s[0]->flags_mode());
+}
+
+
+TEST_F(InstructionSelectorTest, Float32Sqrt) {
+  StreamBuilder m(this, kMachFloat32, kMachFloat32);
+  Node* const p0 = m.Parameter(0);
+  Node* const n = m.Float32Sqrt(p0);
+  m.Return(n);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArmVsqrtF32, s[0]->arch_opcode());
+  ASSERT_EQ(1U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+  EXPECT_EQ(kFlags_none, s[0]->flags_mode());
+}
+
+
+TEST_F(InstructionSelectorTest, Float64Sqrt) {
+  StreamBuilder m(this, kMachFloat64, kMachFloat64);
+  Node* const p0 = m.Parameter(0);
+  Node* const n = m.Float64Sqrt(p0);
+  m.Return(n);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArmVsqrtF64, s[0]->arch_opcode());
+  ASSERT_EQ(1U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+  EXPECT_EQ(kFlags_none, s[0]->flags_mode());
+}
+
+
+// -----------------------------------------------------------------------------
+// Miscellaneous.
 
 
 TEST_F(InstructionSelectorTest, Int32AddWithInt32Mul) {
