@@ -56,20 +56,20 @@ class AstRawStringInternalizationKey : public HashTableKey {
   explicit AstRawStringInternalizationKey(const AstRawString* string)
       : string_(string) {}
 
-  bool IsMatch(Object* other) OVERRIDE {
+  bool IsMatch(Object* other) override {
     if (string_->is_one_byte_)
       return String::cast(other)->IsOneByteEqualTo(string_->literal_bytes_);
     return String::cast(other)->IsTwoByteEqualTo(
         Vector<const uint16_t>::cast(string_->literal_bytes_));
   }
 
-  uint32_t Hash() OVERRIDE { return string_->hash() >> Name::kHashShift; }
+  uint32_t Hash() override { return string_->hash() >> Name::kHashShift; }
 
-  uint32_t HashForObject(Object* key) OVERRIDE {
+  uint32_t HashForObject(Object* key) override {
     return String::cast(key)->Hash();
   }
 
-  Handle<Object> AsHandle(Isolate* isolate) OVERRIDE {
+  Handle<Object> AsHandle(Isolate* isolate) override {
     if (string_->is_one_byte_)
       return isolate->factory()->NewOneByteInternalizedString(
           string_->literal_bytes_, string_->hash());
@@ -111,19 +111,6 @@ bool AstRawString::IsOneByteEqualTo(const char* data) const {
     return !strncmp(token, data, length);
   }
   return false;
-}
-
-
-bool AstRawString::Compare(void* a, void* b) {
-  return *static_cast<AstRawString*>(a) == *static_cast<AstRawString*>(b);
-}
-
-bool AstRawString::operator==(const AstRawString& rhs) const {
-  if (is_one_byte_ != rhs.is_one_byte_) return false;
-  if (hash_ != rhs.hash_) return false;
-  int len = literal_bytes_.length();
-  if (rhs.literal_bytes_.length() != len) return false;
-  return memcmp(literal_bytes_.start(), rhs.literal_bytes_.start(), len) == 0;
 }
 
 
@@ -363,7 +350,7 @@ AstRawString* AstValueFactory::GetString(uint32_t hash, bool is_one_byte,
   // against the AstRawStrings which are in the string_table_. We should not
   // return this AstRawString.
   AstRawString key(is_one_byte, literal_bytes, hash);
-  HashMap::Entry* entry = string_table_.Lookup(&key, hash, true);
+  HashMap::Entry* entry = string_table_.LookupOrInsert(&key, hash);
   if (entry->value == NULL) {
     // Copy literal contents for later comparison.
     int length = literal_bytes.length();
@@ -382,4 +369,13 @@ AstRawString* AstValueFactory::GetString(uint32_t hash, bool is_one_byte,
 }
 
 
+bool AstValueFactory::AstRawStringCompare(void* a, void* b) {
+  const AstRawString* lhs = static_cast<AstRawString*>(a);
+  const AstRawString* rhs = static_cast<AstRawString*>(b);
+  if (lhs->is_one_byte() != rhs->is_one_byte()) return false;
+  if (lhs->hash() != rhs->hash()) return false;
+  int len = lhs->byte_length();
+  if (rhs->byte_length() != len) return false;
+  return memcmp(lhs->raw_data(), rhs->raw_data(), len) == 0;
+}
 } }  // namespace v8::internal

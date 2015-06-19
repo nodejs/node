@@ -29,7 +29,7 @@ using ::testing::Matcher;
 class GraphTest : public TestWithContext, public TestWithIsolateAndZone {
  public:
   explicit GraphTest(int num_parameters = 1);
-  ~GraphTest() OVERRIDE;
+  ~GraphTest() override;
 
  protected:
   Node* start() { return graph()->start(); }
@@ -66,7 +66,7 @@ class GraphTest : public TestWithContext, public TestWithIsolateAndZone {
 class TypedGraphTest : public GraphTest {
  public:
   explicit TypedGraphTest(int num_parameters = 1);
-  ~TypedGraphTest() OVERRIDE;
+  ~TypedGraphTest() override;
 
  protected:
   Node* Parameter(int32_t index = 0) { return GraphTest::Parameter(index); }

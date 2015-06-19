@@ -89,6 +89,7 @@ class Decoder {
   void PrintXImm21(Instruction* instr);
   void PrintXImm26(Instruction* instr);
   void PrintCode(Instruction* instr);   // For break and trap instructions.
+  void PrintFormat(Instruction* instr);  // For floating format postfix.
   // Printing of instruction name.
   void PrintInstructionName(Instruction* instr);
 
@@ -99,7 +100,16 @@ class Decoder {
   void Format(Instruction* instr, const char* format);
   void Unknown(Instruction* instr);
 
+
   // Each of these functions decodes one particular instruction type.
+  bool DecodeTypeRegisterRsType(Instruction* instr);
+  void DecodeTypeRegisterSRsType(Instruction* instr);
+  void DecodeTypeRegisterDRsType(Instruction* instr);
+  void DecodeTypeRegisterLRsType(Instruction* instr);
+  void DecodeTypeRegisterWRsType(Instruction* instr);
+  void DecodeTypeRegisterSPECIAL(Instruction* instr);
+  void DecodeTypeRegisterSPECIAL2(Instruction* instr);
+  void DecodeTypeRegisterSPECIAL3(Instruction* instr);
   void DecodeTypeRegister(Instruction* instr);
   void DecodeTypeImmediate(Instruction* instr);
   void DecodeTypeJump(Instruction* instr);
@@ -289,6 +299,29 @@ void Decoder::PrintCode(Instruction* instr) {
 }
 
 
+void Decoder::PrintFormat(Instruction* instr) {
+  char formatLetter = ' ';
+  switch (instr->RsFieldRaw()) {
+    case S:
+      formatLetter = 's';
+      break;
+    case D:
+      formatLetter = 'd';
+      break;
+    case W:
+      formatLetter = 'w';
+      break;
+    case L:
+      formatLetter = 'l';
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+  PrintChar(formatLetter);
+}
+
+
 // Printing of instruction name.
 void Decoder::PrintInstructionName(Instruction* instr) {
 }
@@ -419,6 +452,9 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       PrintCc(instr);
       return 2;
     }
+    case 't':
+      PrintFormat(instr);
+      return 1;
   }
   UNREACHABLE();
   return -1;
@@ -449,6 +485,449 @@ void Decoder::Unknown(Instruction* instr) {
 }
 
 
+bool Decoder::DecodeTypeRegisterRsType(Instruction* instr) {
+  switch (instr->FunctionFieldRaw()) {
+    case RINT:
+      Format(instr, "rint.'t    'fd, 'fs");
+      break;
+    case MIN:
+      Format(instr, "min.'t    'fd, 'fs, 'ft");
+      break;
+    case MAX:
+      Format(instr, "max.'t    'fd, 'fs, 'ft");
+      break;
+    case MINA:
+      Format(instr, "mina.'t   'fd, 'fs, 'ft");
+      break;
+    case MAXA:
+      Format(instr, "maxa.'t   'fd, 'fs, 'ft");
+      break;
+    case SEL:
+      Format(instr, "sel.'t      'fd, 'fs, 'ft");
+      break;
+    case SELEQZ_C:
+      Format(instr, "seleqz.'t    'fd, 'fs, 'ft");
+      break;
+    case SELNEZ_C:
+      Format(instr, "selnez.'t    'fd, 'fs, 'ft");
+      break;
+    case ADD_D:
+      Format(instr, "add.'t   'fd, 'fs, 'ft");
+      break;
+    case SUB_D:
+      Format(instr, "sub.'t   'fd, 'fs, 'ft");
+      break;
+    case MUL_D:
+      Format(instr, "mul.'t   'fd, 'fs, 'ft");
+      break;
+    case DIV_D:
+      Format(instr, "div.'t   'fd, 'fs, 'ft");
+      break;
+    case ABS_D:
+      Format(instr, "abs.'t   'fd, 'fs");
+      break;
+    case MOV_D:
+      Format(instr, "mov.'t   'fd, 'fs");
+      break;
+    case NEG_D:
+      Format(instr, "neg.'t   'fd, 'fs");
+      break;
+    case SQRT_D:
+      Format(instr, "sqrt.'t  'fd, 'fs");
+      break;
+    case CVT_W_D:
+      Format(instr, "cvt.w.'t 'fd, 'fs");
+      break;
+    case CVT_L_D:
+      Format(instr, "cvt.l.'t 'fd, 'fs");
+      break;
+    case TRUNC_W_D:
+      Format(instr, "trunc.w.'t 'fd, 'fs");
+      break;
+    case TRUNC_L_D:
+      Format(instr, "trunc.l.'t 'fd, 'fs");
+      break;
+    case ROUND_W_D:
+      Format(instr, "round.w.'t 'fd, 'fs");
+      break;
+    case FLOOR_W_D:
+      Format(instr, "floor.w.'t 'fd, 'fs");
+      break;
+    case CEIL_W_D:
+      Format(instr, "ceil.w.'t 'fd, 'fs");
+      break;
+    case CVT_S_D:
+      Format(instr, "cvt.s.'t 'fd, 'fs");
+      break;
+    case C_F_D:
+      Format(instr, "c.f.'t   'fs, 'ft, 'Cc");
+      break;
+    case C_UN_D:
+      Format(instr, "c.un.'t  'fs, 'ft, 'Cc");
+      break;
+    case C_EQ_D:
+      Format(instr, "c.eq.'t  'fs, 'ft, 'Cc");
+      break;
+    case C_UEQ_D:
+      Format(instr, "c.ueq.'t 'fs, 'ft, 'Cc");
+      break;
+    case C_OLT_D:
+      Format(instr, "c.olt.'t 'fs, 'ft, 'Cc");
+      break;
+    case C_ULT_D:
+      Format(instr, "c.ult.'t 'fs, 'ft, 'Cc");
+      break;
+    case C_OLE_D:
+      Format(instr, "c.ole.'t 'fs, 'ft, 'Cc");
+      break;
+    case C_ULE_D:
+      Format(instr, "c.ule.'t 'fs, 'ft, 'Cc");
+      break;
+    default:
+      return false;
+  }
+  return true;
+}
+
+
+void Decoder::DecodeTypeRegisterSRsType(Instruction* instr) {
+  if (!DecodeTypeRegisterRsType(instr)) {
+    switch (instr->FunctionFieldRaw()) {
+      case CVT_D_S:
+        Format(instr, "cvt.d.'t 'fd, 'fs");
+        break;
+      default:
+        Format(instr, "unknown.cop1.'t");
+        break;
+    }
+  }
+}
+
+
+void Decoder::DecodeTypeRegisterDRsType(Instruction* instr) {
+  if (!DecodeTypeRegisterRsType(instr)) {
+    Format(instr, "unknown.cop1.'t");
+  }
+}
+
+
+void Decoder::DecodeTypeRegisterLRsType(Instruction* instr) {
+  switch (instr->FunctionFieldRaw()) {
+    case CVT_D_L:
+      Format(instr, "cvt.d.l 'fd, 'fs");
+      break;
+    case CVT_S_L:
+      Format(instr, "cvt.s.l 'fd, 'fs");
+      break;
+    case CMP_UN:
+      Format(instr, "cmp.un.d  'fd,  'fs, 'ft");
+      break;
+    case CMP_EQ:
+      Format(instr, "cmp.eq.d  'fd,  'fs, 'ft");
+      break;
+    case CMP_UEQ:
+      Format(instr, "cmp.ueq.d  'fd,  'fs, 'ft");
+      break;
+    case CMP_LT:
+      Format(instr, "cmp.lt.d  'fd,  'fs, 'ft");
+      break;
+    case CMP_ULT:
+      Format(instr, "cmp.ult.d  'fd,  'fs, 'ft");
+      break;
+    case CMP_LE:
+      Format(instr, "cmp.le.d  'fd,  'fs, 'ft");
+      break;
+    case CMP_ULE:
+      Format(instr, "cmp.ule.d  'fd,  'fs, 'ft");
+      break;
+    case CMP_OR:
+      Format(instr, "cmp.or.d  'fd,  'fs, 'ft");
+      break;
+    case CMP_UNE:
+      Format(instr, "cmp.une.d  'fd,  'fs, 'ft");
+      break;
+    case CMP_NE:
+      Format(instr, "cmp.ne.d  'fd,  'fs, 'ft");
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+void Decoder::DecodeTypeRegisterWRsType(Instruction* instr) {
+  switch (instr->FunctionValue()) {
+    case CVT_S_W:  // Convert word to float (single).
+      Format(instr, "cvt.s.w 'fd, 'fs");
+      break;
+    case CVT_D_W:  // Convert word to double.
+      Format(instr, "cvt.d.w 'fd, 'fs");
+      break;
+    case CMP_AF:
+      Format(instr, "cmp.af.s    'fd, 'fs, 'ft");
+      break;
+    case CMP_UN:
+      Format(instr, "cmp.un.s    'fd, 'fs, 'ft");
+      break;
+    case CMP_EQ:
+      Format(instr, "cmp.eq.s    'fd, 'fs, 'ft");
+      break;
+    case CMP_UEQ:
+      Format(instr, "cmp.ueq.s   'fd, 'fs, 'ft");
+      break;
+    case CMP_LT:
+      Format(instr, "cmp.lt.s    'fd, 'fs, 'ft");
+      break;
+    case CMP_ULT:
+      Format(instr, "cmp.ult.s   'fd, 'fs, 'ft");
+      break;
+    case CMP_LE:
+      Format(instr, "cmp.le.s    'fd, 'fs, 'ft");
+      break;
+    case CMP_ULE:
+      Format(instr, "cmp.ule.s   'fd, 'fs, 'ft");
+      break;
+    case CMP_OR:
+      Format(instr, "cmp.or.s    'fd, 'fs, 'ft");
+      break;
+    case CMP_UNE:
+      Format(instr, "cmp.une.s   'fd, 'fs, 'ft");
+      break;
+    case CMP_NE:
+      Format(instr, "cmp.ne.s    'fd, 'fs, 'ft");
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+void Decoder::DecodeTypeRegisterSPECIAL(Instruction* instr) {
+  switch (instr->FunctionFieldRaw()) {
+    case JR:
+      Format(instr, "jr      'rs");
+      break;
+    case JALR:
+      Format(instr, "jalr    'rs");
+      break;
+    case SLL:
+      if (0x0 == static_cast<int>(instr->InstructionBits()))
+        Format(instr, "nop");
+      else
+        Format(instr, "sll     'rd, 'rt, 'sa");
+      break;
+    case SRL:
+      if (instr->RsValue() == 0) {
+        Format(instr, "srl     'rd, 'rt, 'sa");
+      } else {
+        if (IsMipsArchVariant(kMips32r2)) {
+          Format(instr, "rotr    'rd, 'rt, 'sa");
+        } else {
+          Unknown(instr);
+        }
+      }
+      break;
+    case SRA:
+      Format(instr, "sra     'rd, 'rt, 'sa");
+      break;
+    case SLLV:
+      Format(instr, "sllv    'rd, 'rt, 'rs");
+      break;
+    case SRLV:
+      if (instr->SaValue() == 0) {
+        Format(instr, "srlv    'rd, 'rt, 'rs");
+      } else {
+        if (IsMipsArchVariant(kMips32r2)) {
+          Format(instr, "rotrv   'rd, 'rt, 'rs");
+        } else {
+          Unknown(instr);
+        }
+      }
+      break;
+    case SRAV:
+      Format(instr, "srav    'rd, 'rt, 'rs");
+      break;
+    case MFHI:
+      if (instr->Bits(25, 16) == 0) {
+        Format(instr, "mfhi    'rd");
+      } else {
+        if ((instr->FunctionFieldRaw() == CLZ_R6) && (instr->FdValue() == 1)) {
+          Format(instr, "clz     'rd, 'rs");
+        } else if ((instr->FunctionFieldRaw() == CLO_R6) &&
+                   (instr->FdValue() == 1)) {
+          Format(instr, "clo     'rd, 'rs");
+        }
+      }
+      break;
+    case MFLO:
+      Format(instr, "mflo    'rd");
+      break;
+    case MULT:  // @Mips32r6 == MUL_MUH.
+      if (!IsMipsArchVariant(kMips32r6)) {
+        Format(instr, "mult    'rs, 'rt");
+      } else {
+        if (instr->SaValue() == MUL_OP) {
+          Format(instr, "mul    'rd, 'rs, 'rt");
+        } else {
+          Format(instr, "muh    'rd, 'rs, 'rt");
+        }
+      }
+      break;
+    case MULTU:  // @Mips32r6 == MUL_MUH_U.
+      if (!IsMipsArchVariant(kMips32r6)) {
+        Format(instr, "multu   'rs, 'rt");
+      } else {
+        if (instr->SaValue() == MUL_OP) {
+          Format(instr, "mulu   'rd, 'rs, 'rt");
+        } else {
+          Format(instr, "muhu   'rd, 'rs, 'rt");
+        }
+      }
+      break;
+    case DIV:  // @Mips32r6 == DIV_MOD.
+      if (!IsMipsArchVariant(kMips32r6)) {
+        Format(instr, "div     'rs, 'rt");
+      } else {
+        if (instr->SaValue() == DIV_OP) {
+          Format(instr, "div    'rd, 'rs, 'rt");
+        } else {
+          Format(instr, "mod    'rd, 'rs, 'rt");
+        }
+      }
+      break;
+    case DIVU:  // @Mips32r6 == DIV_MOD_U.
+      if (!IsMipsArchVariant(kMips32r6)) {
+        Format(instr, "divu    'rs, 'rt");
+      } else {
+        if (instr->SaValue() == DIV_OP) {
+          Format(instr, "divu   'rd, 'rs, 'rt");
+        } else {
+          Format(instr, "modu   'rd, 'rs, 'rt");
+        }
+      }
+      break;
+    case ADD:
+      Format(instr, "add     'rd, 'rs, 'rt");
+      break;
+    case ADDU:
+      Format(instr, "addu    'rd, 'rs, 'rt");
+      break;
+    case SUB:
+      Format(instr, "sub     'rd, 'rs, 'rt");
+      break;
+    case SUBU:
+      Format(instr, "subu    'rd, 'rs, 'rt");
+      break;
+    case AND:
+      Format(instr, "and     'rd, 'rs, 'rt");
+      break;
+    case OR:
+      if (0 == instr->RsValue()) {
+        Format(instr, "mov     'rd, 'rt");
+      } else if (0 == instr->RtValue()) {
+        Format(instr, "mov     'rd, 'rs");
+      } else {
+        Format(instr, "or      'rd, 'rs, 'rt");
+      }
+      break;
+    case XOR:
+      Format(instr, "xor     'rd, 'rs, 'rt");
+      break;
+    case NOR:
+      Format(instr, "nor     'rd, 'rs, 'rt");
+      break;
+    case SLT:
+      Format(instr, "slt     'rd, 'rs, 'rt");
+      break;
+    case SLTU:
+      Format(instr, "sltu    'rd, 'rs, 'rt");
+      break;
+    case BREAK:
+      Format(instr, "break, code: 'code");
+      break;
+    case TGE:
+      Format(instr, "tge     'rs, 'rt, code: 'code");
+      break;
+    case TGEU:
+      Format(instr, "tgeu    'rs, 'rt, code: 'code");
+      break;
+    case TLT:
+      Format(instr, "tlt     'rs, 'rt, code: 'code");
+      break;
+    case TLTU:
+      Format(instr, "tltu    'rs, 'rt, code: 'code");
+      break;
+    case TEQ:
+      Format(instr, "teq     'rs, 'rt, code: 'code");
+      break;
+    case TNE:
+      Format(instr, "tne     'rs, 'rt, code: 'code");
+      break;
+    case MOVZ:
+      Format(instr, "movz    'rd, 'rs, 'rt");
+      break;
+    case MOVN:
+      Format(instr, "movn    'rd, 'rs, 'rt");
+      break;
+    case MOVCI:
+      if (instr->Bit(16)) {
+        Format(instr, "movt    'rd, 'rs, 'bc");
+      } else {
+        Format(instr, "movf    'rd, 'rs, 'bc");
+      }
+      break;
+    case SELEQZ_S:
+      Format(instr, "seleqz    'rd, 'rs, 'rt");
+      break;
+    case SELNEZ_S:
+      Format(instr, "selnez    'rd, 'rs, 'rt");
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+void Decoder::DecodeTypeRegisterSPECIAL2(Instruction* instr) {
+  switch (instr->FunctionFieldRaw()) {
+    case MUL:
+      Format(instr, "mul     'rd, 'rs, 'rt");
+      break;
+    case CLZ:
+      if (!IsMipsArchVariant(kMips32r6)) {
+        Format(instr, "clz     'rd, 'rs");
+      }
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+void Decoder::DecodeTypeRegisterSPECIAL3(Instruction* instr) {
+  switch (instr->FunctionFieldRaw()) {
+    case INS: {
+      if (IsMipsArchVariant(kMips32r2)) {
+        Format(instr, "ins     'rt, 'rs, 'sa, 'ss2");
+      } else {
+        Unknown(instr);
+      }
+      break;
+    }
+    case EXT: {
+      if (IsMipsArchVariant(kMips32r2)) {
+        Format(instr, "ext     'rt, 'rs, 'sa, 'ss1");
+      } else {
+        Unknown(instr);
+      }
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+}
+
+
 void Decoder::DecodeTypeRegister(Instruction* instr) {
   switch (instr->OpcodeFieldRaw()) {
     case COP1:    // Coprocessor instructions.
@@ -475,147 +954,17 @@ void Decoder::DecodeTypeRegister(Instruction* instr) {
         case MTHC1:
           Format(instr, "mthc1   'rt, 'fs");
           break;
-        case D:
-          switch (instr->FunctionFieldRaw()) {
-            case ADD_D:
-              Format(instr, "add.d   'fd, 'fs, 'ft");
-              break;
-            case SUB_D:
-              Format(instr, "sub.d   'fd, 'fs, 'ft");
-              break;
-            case MUL_D:
-              Format(instr, "mul.d   'fd, 'fs, 'ft");
-              break;
-            case DIV_D:
-              Format(instr, "div.d   'fd, 'fs, 'ft");
-              break;
-            case ABS_D:
-              Format(instr, "abs.d   'fd, 'fs");
-              break;
-            case MOV_D:
-              Format(instr, "mov.d   'fd, 'fs");
-              break;
-            case NEG_D:
-              Format(instr, "neg.d   'fd, 'fs");
-              break;
-            case SQRT_D:
-              Format(instr, "sqrt.d  'fd, 'fs");
-              break;
-            case CVT_W_D:
-              Format(instr, "cvt.w.d 'fd, 'fs");
-              break;
-            case CVT_L_D:
-              Format(instr, "cvt.l.d 'fd, 'fs");
-              break;
-            case TRUNC_W_D:
-              Format(instr, "trunc.w.d 'fd, 'fs");
-              break;
-            case TRUNC_L_D:
-              Format(instr, "trunc.l.d 'fd, 'fs");
-              break;
-            case ROUND_W_D:
-              Format(instr, "round.w.d 'fd, 'fs");
-              break;
-            case FLOOR_W_D:
-              Format(instr, "floor.w.d 'fd, 'fs");
-              break;
-            case CEIL_W_D:
-              Format(instr, "ceil.w.d 'fd, 'fs");
-              break;
-            case CVT_S_D:
-              Format(instr, "cvt.s.d 'fd, 'fs");
-              break;
-            case C_F_D:
-              Format(instr, "c.f.d   'fs, 'ft, 'Cc");
-              break;
-            case C_UN_D:
-              Format(instr, "c.un.d  'fs, 'ft, 'Cc");
-              break;
-            case C_EQ_D:
-              Format(instr, "c.eq.d  'fs, 'ft, 'Cc");
-              break;
-            case C_UEQ_D:
-              Format(instr, "c.ueq.d 'fs, 'ft, 'Cc");
-              break;
-            case C_OLT_D:
-              Format(instr, "c.olt.d 'fs, 'ft, 'Cc");
-              break;
-            case C_ULT_D:
-              Format(instr, "c.ult.d 'fs, 'ft, 'Cc");
-              break;
-            case C_OLE_D:
-              Format(instr, "c.ole.d 'fs, 'ft, 'Cc");
-              break;
-            case C_ULE_D:
-              Format(instr, "c.ule.d 'fs, 'ft, 'Cc");
-              break;
-            default:
-              Format(instr, "unknown.cop1.d");
-              break;
-          }
-          break;
         case S:
-          switch (instr->FunctionFieldRaw()) {
-            case CVT_D_S:
-              Format(instr, "cvt.d.s 'fd, 'fs");
-              break;
-            default:
-              UNIMPLEMENTED_MIPS();
-          }
+          DecodeTypeRegisterSRsType(instr);
           break;
-        case W:
-          switch (instr->FunctionFieldRaw()) {
-            case CVT_S_W:   // Convert word to float (single).
-              Format(instr, "cvt.s.w 'fd, 'fs");
-              break;
-            case CVT_D_W:   // Convert word to double.
-              Format(instr, "cvt.d.w 'fd, 'fs");
-              break;
-            default:
-              UNREACHABLE();
-          }
+        case D:
+          DecodeTypeRegisterDRsType(instr);
           break;
         case L:
-          switch (instr->FunctionFieldRaw()) {
-            case CVT_D_L:
-              Format(instr, "cvt.d.l 'fd, 'fs");
-              break;
-            case CVT_S_L:
-              Format(instr, "cvt.s.l 'fd, 'fs");
-              break;
-            case CMP_UN:
-              Format(instr, "cmp.un.d  'fd,  'fs, 'ft");
-              break;
-            case CMP_EQ:
-              Format(instr, "cmp.eq.d  'fd,  'fs, 'ft");
-              break;
-            case CMP_UEQ:
-              Format(instr, "cmp.ueq.d  'fd,  'fs, 'ft");
-              break;
-            case CMP_LT:
-              Format(instr, "cmp.lt.d  'fd,  'fs, 'ft");
-              break;
-            case CMP_ULT:
-              Format(instr, "cmp.ult.d  'fd,  'fs, 'ft");
-              break;
-            case CMP_LE:
-              Format(instr, "cmp.le.d  'fd,  'fs, 'ft");
-              break;
-            case CMP_ULE:
-              Format(instr, "cmp.ule.d  'fd,  'fs, 'ft");
-              break;
-            case CMP_OR:
-              Format(instr, "cmp.or.d  'fd,  'fs, 'ft");
-              break;
-            case CMP_UNE:
-              Format(instr, "cmp.une.d  'fd,  'fs, 'ft");
-              break;
-            case CMP_NE:
-              Format(instr, "cmp.ne.d  'fd,  'fs, 'ft");
-              break;
-            default:
-              UNREACHABLE();
-          }
+          DecodeTypeRegisterLRsType(instr);
+          break;
+        case W:
+          DecodeTypeRegisterWRsType(instr);
           break;
         case PS:
           UNIMPLEMENTED_MIPS();
@@ -634,225 +983,13 @@ void Decoder::DecodeTypeRegister(Instruction* instr) {
       }
       break;
     case SPECIAL:
-      switch (instr->FunctionFieldRaw()) {
-        case JR:
-          Format(instr, "jr      'rs");
-          break;
-        case JALR:
-          Format(instr, "jalr    'rs");
-          break;
-        case SLL:
-          if ( 0x0 == static_cast<int>(instr->InstructionBits()))
-            Format(instr, "nop");
-          else
-            Format(instr, "sll     'rd, 'rt, 'sa");
-          break;
-        case SRL:
-          if (instr->RsValue() == 0) {
-            Format(instr, "srl     'rd, 'rt, 'sa");
-          } else {
-            if (IsMipsArchVariant(kMips32r2)) {
-              Format(instr, "rotr    'rd, 'rt, 'sa");
-            } else {
-              Unknown(instr);
-            }
-          }
-          break;
-        case SRA:
-          Format(instr, "sra     'rd, 'rt, 'sa");
-          break;
-        case SLLV:
-          Format(instr, "sllv    'rd, 'rt, 'rs");
-          break;
-        case SRLV:
-          if (instr->SaValue() == 0) {
-            Format(instr, "srlv    'rd, 'rt, 'rs");
-          } else {
-            if (IsMipsArchVariant(kMips32r2)) {
-              Format(instr, "rotrv   'rd, 'rt, 'rs");
-            } else {
-              Unknown(instr);
-            }
-          }
-          break;
-        case SRAV:
-          Format(instr, "srav    'rd, 'rt, 'rs");
-          break;
-        case MFHI:
-          if (instr->Bits(25, 16) == 0) {
-            Format(instr, "mfhi    'rd");
-          } else {
-            if ((instr->FunctionFieldRaw() == CLZ_R6)
-                && (instr->FdValue() == 1)) {
-              Format(instr, "clz     'rd, 'rs");
-            } else if ((instr->FunctionFieldRaw() == CLO_R6)
-                && (instr->FdValue() == 1)) {
-              Format(instr, "clo     'rd, 'rs");
-            }
-          }
-          break;
-        case MFLO:
-          Format(instr, "mflo    'rd");
-          break;
-        case MULT:  // @Mips32r6 == MUL_MUH.
-          if (!IsMipsArchVariant(kMips32r6)) {
-            Format(instr, "mult    'rs, 'rt");
-          } else {
-            if (instr->SaValue() == MUL_OP) {
-              Format(instr, "mul    'rd, 'rs, 'rt");
-            } else {
-              Format(instr, "muh    'rd, 'rs, 'rt");
-            }
-          }
-          break;
-        case MULTU:  // @Mips32r6 == MUL_MUH_U.
-          if (!IsMipsArchVariant(kMips32r6)) {
-            Format(instr, "multu   'rs, 'rt");
-          } else {
-            if (instr->SaValue() == MUL_OP) {
-              Format(instr, "mulu   'rd, 'rs, 'rt");
-            } else {
-              Format(instr, "muhu   'rd, 'rs, 'rt");
-            }
-          }
-          break;
-        case DIV:  // @Mips32r6 == DIV_MOD.
-          if (!IsMipsArchVariant(kMips32r6)) {
-            Format(instr, "div     'rs, 'rt");
-          } else {
-            if (instr->SaValue() == DIV_OP) {
-              Format(instr, "div    'rd, 'rs, 'rt");
-            } else {
-              Format(instr, "mod    'rd, 'rs, 'rt");
-            }
-          }
-          break;
-        case DIVU:  // @Mips32r6 == DIV_MOD_U.
-          if (!IsMipsArchVariant(kMips32r6)) {
-            Format(instr, "divu    'rs, 'rt");
-          } else {
-            if (instr->SaValue() == DIV_OP) {
-              Format(instr, "divu   'rd, 'rs, 'rt");
-            } else {
-              Format(instr, "modu   'rd, 'rs, 'rt");
-            }
-          }
-          break;
-        case ADD:
-          Format(instr, "add     'rd, 'rs, 'rt");
-          break;
-        case ADDU:
-          Format(instr, "addu    'rd, 'rs, 'rt");
-          break;
-        case SUB:
-          Format(instr, "sub     'rd, 'rs, 'rt");
-          break;
-        case SUBU:
-          Format(instr, "subu    'rd, 'rs, 'rt");
-          break;
-        case AND:
-          Format(instr, "and     'rd, 'rs, 'rt");
-          break;
-        case OR:
-          if (0 == instr->RsValue()) {
-            Format(instr, "mov     'rd, 'rt");
-          } else if (0 == instr->RtValue()) {
-            Format(instr, "mov     'rd, 'rs");
-          } else {
-            Format(instr, "or      'rd, 'rs, 'rt");
-          }
-          break;
-        case XOR:
-          Format(instr, "xor     'rd, 'rs, 'rt");
-          break;
-        case NOR:
-          Format(instr, "nor     'rd, 'rs, 'rt");
-          break;
-        case SLT:
-          Format(instr, "slt     'rd, 'rs, 'rt");
-          break;
-        case SLTU:
-          Format(instr, "sltu    'rd, 'rs, 'rt");
-          break;
-        case BREAK:
-          Format(instr, "break, code: 'code");
-          break;
-        case TGE:
-          Format(instr, "tge     'rs, 'rt, code: 'code");
-          break;
-        case TGEU:
-          Format(instr, "tgeu    'rs, 'rt, code: 'code");
-          break;
-        case TLT:
-          Format(instr, "tlt     'rs, 'rt, code: 'code");
-          break;
-        case TLTU:
-          Format(instr, "tltu    'rs, 'rt, code: 'code");
-          break;
-        case TEQ:
-          Format(instr, "teq     'rs, 'rt, code: 'code");
-          break;
-        case TNE:
-          Format(instr, "tne     'rs, 'rt, code: 'code");
-          break;
-        case MOVZ:
-          Format(instr, "movz    'rd, 'rs, 'rt");
-          break;
-        case MOVN:
-          Format(instr, "movn    'rd, 'rs, 'rt");
-          break;
-        case MOVCI:
-          if (instr->Bit(16)) {
-            Format(instr, "movt    'rd, 'rs, 'bc");
-          } else {
-            Format(instr, "movf    'rd, 'rs, 'bc");
-          }
-          break;
-        case SELEQZ_S:
-          Format(instr, "seleqz    'rd, 'rs, 'rt");
-          break;
-        case SELNEZ_S:
-          Format(instr, "selnez    'rd, 'rs, 'rt");
-          break;
-        default:
-          UNREACHABLE();
-      }
+      DecodeTypeRegisterSPECIAL(instr);
       break;
     case SPECIAL2:
-      switch (instr->FunctionFieldRaw()) {
-        case MUL:
-          Format(instr, "mul     'rd, 'rs, 'rt");
-          break;
-        case CLZ:
-          if (!IsMipsArchVariant(kMips32r6)) {
-            Format(instr, "clz     'rd, 'rs");
-          }
-          break;
-        default:
-          UNREACHABLE();
-      }
+      DecodeTypeRegisterSPECIAL2(instr);
       break;
     case SPECIAL3:
-      switch (instr->FunctionFieldRaw()) {
-        case INS: {
-          if (IsMipsArchVariant(kMips32r2)) {
-            Format(instr, "ins     'rt, 'rs, 'sa, 'ss2");
-          } else {
-            Unknown(instr);
-          }
-          break;
-        }
-        case EXT: {
-          if (IsMipsArchVariant(kMips32r2)) {
-            Format(instr, "ext     'rt, 'rs, 'sa, 'ss1");
-          } else {
-            Unknown(instr);
-          }
-          break;
-        }
-        default:
-          UNREACHABLE();
-      }
+      DecodeTypeRegisterSPECIAL3(instr);
       break;
     default:
       UNREACHABLE();
@@ -876,138 +1013,6 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
           break;
         case BC1NEZ:
           Format(instr, "bc1nez    'ft, 'imm16u");
-          break;
-        case W:  // CMP.S instruction.
-          switch (instr->FunctionValue()) {
-            case CMP_AF:
-              Format(instr, "cmp.af.S    'ft, 'fs, 'fd");
-              break;
-            case CMP_UN:
-              Format(instr, "cmp.un.S    'ft, 'fs, 'fd");
-              break;
-            case CMP_EQ:
-              Format(instr, "cmp.eq.S    'ft, 'fs, 'fd");
-              break;
-            case CMP_UEQ:
-              Format(instr, "cmp.ueq.S   'ft, 'fs, 'fd");
-              break;
-            case CMP_LT:
-              Format(instr, "cmp.lt.S    'ft, 'fs, 'fd");
-              break;
-            case CMP_ULT:
-              Format(instr, "cmp.ult.S   'ft, 'fs, 'fd");
-              break;
-            case CMP_LE:
-              Format(instr, "cmp.le.S    'ft, 'fs, 'fd");
-              break;
-            case CMP_ULE:
-              Format(instr, "cmp.ule.S   'ft, 'fs, 'fd");
-              break;
-            case CMP_OR:
-              Format(instr, "cmp.or.S    'ft, 'fs, 'fd");
-              break;
-            case CMP_UNE:
-              Format(instr, "cmp.une.S   'ft, 'fs, 'fd");
-              break;
-            case CMP_NE:
-              Format(instr, "cmp.ne.S    'ft, 'fs, 'fd");
-              break;
-            default:
-              UNREACHABLE();
-          }
-          break;
-        case L:  // CMP.D instruction.
-          switch (instr->FunctionValue()) {
-            case CMP_AF:
-              Format(instr, "cmp.af.D    'ft, 'fs, 'fd");
-              break;
-            case CMP_UN:
-              Format(instr, "cmp.un.D    'ft, 'fs, 'fd");
-              break;
-            case CMP_EQ:
-              Format(instr, "cmp.eq.D    'ft, 'fs, 'fd");
-              break;
-            case CMP_UEQ:
-              Format(instr, "cmp.ueq.D   'ft, 'fs, 'fd");
-              break;
-            case CMP_LT:
-              Format(instr, "cmp.lt.D    'ft, 'fs, 'fd");
-              break;
-            case CMP_ULT:
-              Format(instr, "cmp.ult.D   'ft, 'fs, 'fd");
-              break;
-            case CMP_LE:
-              Format(instr, "cmp.le.D    'ft, 'fs, 'fd");
-              break;
-            case CMP_ULE:
-              Format(instr, "cmp.ule.D   'ft, 'fs, 'fd");
-              break;
-            case CMP_OR:
-              Format(instr, "cmp.or.D    'ft, 'fs, 'fd");
-              break;
-            case CMP_UNE:
-              Format(instr, "cmp.une.D   'ft, 'fs, 'fd");
-              break;
-            case CMP_NE:
-              Format(instr, "cmp.ne.D    'ft, 'fs, 'fd");
-              break;
-            default:
-              UNREACHABLE();
-          }
-          break;
-        case S:
-          switch (instr->FunctionValue()) {
-            case SEL:
-              Format(instr, "sel.S    'ft, 'fs, 'fd");
-              break;
-            case SELEQZ_C:
-              Format(instr, "seleqz.S 'ft, 'fs, 'fd");
-              break;
-            case SELNEZ_C:
-              Format(instr, "selnez.S 'ft, 'fs, 'fd");
-              break;
-            case MIN:
-              Format(instr, "min.S    'ft, 'fs, 'fd");
-              break;
-            case MINA:
-              Format(instr, "mina.S   'ft, 'fs, 'fd");
-              break;
-            case MAX:
-              Format(instr, "max.S    'ft, 'fs, 'fd");
-              break;
-            case MAXA:
-              Format(instr, "maxa.S   'ft, 'fs, 'fd");
-              break;
-            default:
-              UNREACHABLE();
-          }
-          break;
-        case D:
-          switch (instr->FunctionValue()) {
-            case SEL:
-              Format(instr, "sel.D    'ft, 'fs, 'fd");
-              break;
-            case SELEQZ_C:
-              Format(instr, "seleqz.D 'ft, 'fs, 'fd");
-              break;
-            case SELNEZ_C:
-              Format(instr, "selnez.D 'ft, 'fs, 'fd");
-              break;
-            case MIN:
-              Format(instr, "min.D    'ft, 'fs, 'fd");
-              break;
-            case MINA:
-              Format(instr, "mina.D   'ft, 'fs, 'fd");
-              break;
-            case MAX:
-              Format(instr, "max.D    'ft, 'fs, 'fd");
-              break;
-            case MAXA:
-              Format(instr, "maxa.D   'ft, 'fs, 'fd");
-              break;
-            default:
-              UNREACHABLE();
-          }
           break;
         default:
           UNREACHABLE();

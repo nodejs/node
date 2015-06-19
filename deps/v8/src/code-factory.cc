@@ -53,7 +53,7 @@ Callable CodeFactory::KeyedLoadICInOptimizedCode(
     Isolate* isolate, InlineCacheState initialization_state) {
   auto code = KeyedLoadIC::initialize_stub_in_optimized_code(
       isolate, initialization_state);
-  if (FLAG_vector_ics) {
+  if (FLAG_vector_ics && initialization_state != MEGAMORPHIC) {
     return Callable(code, VectorLoadICDescriptor(isolate));
   }
   return Callable(code, LoadDescriptor(isolate));
@@ -112,8 +112,9 @@ Callable CodeFactory::CompareIC(Isolate* isolate, Token::Value op) {
 
 
 // static
-Callable CodeFactory::BinaryOpIC(Isolate* isolate, Token::Value op) {
-  BinaryOpICStub stub(isolate, op);
+Callable CodeFactory::BinaryOpIC(Isolate* isolate, Token::Value op,
+                                 LanguageMode language_mode) {
+  BinaryOpICStub stub(isolate, op, language_mode);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 
@@ -138,6 +139,37 @@ Callable CodeFactory::ToNumber(Isolate* isolate) {
 Callable CodeFactory::StringAdd(Isolate* isolate, StringAddFlags flags,
                                 PretenureFlag pretenure_flag) {
   StringAddStub stub(isolate, flags, pretenure_flag);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+
+// static
+Callable CodeFactory::Typeof(Isolate* isolate) {
+  TypeofStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+
+// static
+Callable CodeFactory::FastCloneShallowArray(Isolate* isolate) {
+  // TODO(mstarzinger): Thread through AllocationSiteMode at some point.
+  FastCloneShallowArrayStub stub(isolate, DONT_TRACK_ALLOCATION_SITE);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+
+// static
+Callable CodeFactory::FastCloneShallowObject(Isolate* isolate, int length) {
+  FastCloneShallowObjectStub stub(isolate, length);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+
+// static
+Callable CodeFactory::FastNewClosure(Isolate* isolate,
+                                     LanguageMode language_mode,
+                                     FunctionKind kind) {
+  FastNewClosureStub stub(isolate, language_mode, kind);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 

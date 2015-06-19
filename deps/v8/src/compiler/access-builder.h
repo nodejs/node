@@ -14,7 +14,7 @@ namespace compiler {
 // This access builder provides a set of static methods constructing commonly
 // used FieldAccess and ElementAccess descriptors. These descriptors serve as
 // parameters to simplified load/store operators.
-class AccessBuilder FINAL : public AllStatic {
+class AccessBuilder final : public AllStatic {
  public:
   // Provides access to HeapObject::map() field.
   static FieldAccess ForMap();
@@ -31,6 +31,9 @@ class AccessBuilder FINAL : public AllStatic {
   // Provides access to JSArrayBuffer::backing_store() field.
   static FieldAccess ForJSArrayBufferBackingStore();
 
+  // Provides access to FixedArray::length() field.
+  static FieldAccess ForFixedArrayLength();
+
   // Provides access to ExternalArray::external_pointer() field.
   static FieldAccess ForExternalArrayPointer();
 
@@ -38,7 +41,7 @@ class AccessBuilder FINAL : public AllStatic {
   static FieldAccess ForMapInstanceType();
 
   // Provides access to String::length() field.
-  static FieldAccess ForStringLength();
+  static FieldAccess ForStringLength(Zone* zone);
 
   // Provides access to JSValue::value() field.
   static FieldAccess ForValue();
@@ -48,6 +51,9 @@ class AccessBuilder FINAL : public AllStatic {
 
   // Provides access to the backing store of a StatsCounter.
   static FieldAccess ForStatsCounter();
+
+  // Provides access to PropertyCell::value() field.
+  static FieldAccess ForPropertyCellValue();
 
   // Provides access to FixedArray elements.
   static ElementAccess ForFixedArrayElement();

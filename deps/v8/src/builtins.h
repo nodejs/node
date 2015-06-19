@@ -28,6 +28,7 @@ enum BuiltinExtraArguments {
   CODE_AGE_LIST_WITH_ARG(CODE_AGE_LIST_IGNORE_ARG, V)
 
 #define CODE_AGE_LIST_COMPLETE(V)                  \
+  V(ToBeExecutedOnce)                              \
   V(NotExecuted)                                   \
   V(ExecutedOnce)                                  \
   V(NoAge)                                         \
@@ -41,26 +42,26 @@ enum BuiltinExtraArguments {
 
 
 // Define list of builtins implemented in C++.
-#define BUILTIN_LIST_C(V)                                           \
-  V(Illegal, NO_EXTRA_ARGUMENTS)                                    \
-                                                                    \
-  V(EmptyFunction, NO_EXTRA_ARGUMENTS)                              \
-                                                                    \
-  V(ArrayPush, NO_EXTRA_ARGUMENTS)                                  \
-  V(ArrayPop, NO_EXTRA_ARGUMENTS)                                   \
-  V(ArrayShift, NO_EXTRA_ARGUMENTS)                                 \
-  V(ArrayUnshift, NO_EXTRA_ARGUMENTS)                               \
-  V(ArraySlice, NO_EXTRA_ARGUMENTS)                                 \
-  V(ArraySplice, NO_EXTRA_ARGUMENTS)                                \
-  V(ArrayConcat, NO_EXTRA_ARGUMENTS)                                \
-                                                                    \
-  V(HandleApiCall, NEEDS_CALLED_FUNCTION)                           \
-  V(HandleApiCallConstruct, NEEDS_CALLED_FUNCTION)                  \
-  V(HandleApiCallAsFunction, NO_EXTRA_ARGUMENTS)                    \
-  V(HandleApiCallAsConstructor, NO_EXTRA_ARGUMENTS)                 \
-                                                                    \
-  V(StrictModePoisonPill, NO_EXTRA_ARGUMENTS)                       \
-  V(GeneratorPoisonPill, NO_EXTRA_ARGUMENTS)
+#define BUILTIN_LIST_C(V)                                    \
+  V(Illegal, NO_EXTRA_ARGUMENTS)                             \
+                                                             \
+  V(EmptyFunction, NO_EXTRA_ARGUMENTS)                       \
+                                                             \
+  V(ArrayPush, NO_EXTRA_ARGUMENTS)                           \
+  V(ArrayPop, NO_EXTRA_ARGUMENTS)                            \
+  V(ArrayShift, NO_EXTRA_ARGUMENTS)                          \
+  V(ArrayUnshift, NO_EXTRA_ARGUMENTS)                        \
+  V(ArraySlice, NO_EXTRA_ARGUMENTS)                          \
+  V(ArraySplice, NO_EXTRA_ARGUMENTS)                         \
+  V(ArrayConcat, NO_EXTRA_ARGUMENTS)                         \
+                                                             \
+  V(HandleApiCall, NEEDS_CALLED_FUNCTION)                    \
+  V(HandleApiCallConstruct, NEEDS_CALLED_FUNCTION)           \
+  V(HandleApiCallAsFunction, NO_EXTRA_ARGUMENTS)             \
+  V(HandleApiCallAsConstructor, NO_EXTRA_ARGUMENTS)          \
+                                                             \
+  V(RestrictedFunctionPropertiesThrower, NO_EXTRA_ARGUMENTS) \
+  V(RestrictedStrictArgumentsPropertiesThrower, NO_EXTRA_ARGUMENTS)
 
 // Define list of builtins implemented in assembly.
 #define BUILTIN_LIST_A(V)                                                      \
@@ -122,6 +123,7 @@ enum BuiltinExtraArguments {
   V(OsrAfterStackCheck, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
   V(StackCheck, BUILTIN, UNINITIALIZED, kNoExtraICState)                       \
                                                                                \
+  V(MarkCodeAsToBeExecutedOnce, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
   V(MarkCodeAsExecutedOnce, BUILTIN, UNINITIALIZED, kNoExtraICState)           \
   V(MarkCodeAsExecutedTwice, BUILTIN, UNINITIALIZED, kNoExtraICState)          \
   CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, V)
@@ -170,16 +172,27 @@ enum BuiltinExtraArguments {
   V(STRICT_EQUALS, 1)                      \
   V(COMPARE, 2)                            \
   V(ADD, 1)                                \
+  V(ADD_STRONG, 1)                         \
   V(SUB, 1)                                \
+  V(SUB_STRONG, 1)                         \
   V(MUL, 1)                                \
+  V(MUL_STRONG, 1)                         \
   V(DIV, 1)                                \
+  V(DIV_STRONG, 1)                         \
   V(MOD, 1)                                \
+  V(MOD_STRONG, 1)                         \
   V(BIT_OR, 1)                             \
+  V(BIT_OR_STRONG, 1)                      \
   V(BIT_AND, 1)                            \
+  V(BIT_AND_STRONG, 1)                     \
   V(BIT_XOR, 1)                            \
+  V(BIT_XOR_STRONG, 1)                     \
   V(SHL, 1)                                \
+  V(SHL_STRONG, 1)                         \
   V(SAR, 1)                                \
+  V(SAR_STRONG, 1)                         \
   V(SHR, 1)                                \
+  V(SHR_STRONG, 1)                         \
   V(DELETE, 2)                             \
   V(IN, 1)                                 \
   V(INSTANCE_OF, 1)                        \
@@ -193,7 +206,9 @@ enum BuiltinExtraArguments {
   V(TO_STRING, 0)                          \
   V(TO_NAME, 0)                            \
   V(STRING_ADD_LEFT, 1)                    \
+  V(STRING_ADD_LEFT_STRONG, 1)             \
   V(STRING_ADD_RIGHT, 1)                   \
+  V(STRING_ADD_RIGHT_STRONG, 1)            \
   V(APPLY_PREPARE, 1)                      \
   V(REFLECT_APPLY_PREPARE, 1)              \
   V(REFLECT_CONSTRUCT_PREPARE, 2)          \
@@ -340,6 +355,7 @@ class Builtins {
   CODE_AGE_LIST(DECLARE_CODE_AGE_BUILTIN_GENERATOR)
 #undef DECLARE_CODE_AGE_BUILTIN_GENERATOR
 
+  static void Generate_MarkCodeAsToBeExecutedOnce(MacroAssembler* masm);
   static void Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm);
   static void Generate_MarkCodeAsExecutedTwice(MacroAssembler* masm);
 

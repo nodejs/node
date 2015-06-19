@@ -215,6 +215,12 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
 
   static const byte* StringCharacterPosition(String* subject, int start_index);
 
+  static int CheckStackGuardState(Isolate* isolate, int start_index,
+                                  bool is_direct_call, Address* return_address,
+                                  Code* re_code, String** subject,
+                                  const byte** input_start,
+                                  const byte** input_end);
+
   // Byte map of one byte characters with a 0xff if the character is a word
   // character (digit, letter or underscore) and 0x00 otherwise.
   // Used by generated RegExp code.

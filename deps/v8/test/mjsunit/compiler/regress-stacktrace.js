@@ -48,5 +48,4 @@ try {
   assertTrue(p1 != -1);
   assertTrue(p3 < p2);
   assertTrue(p2 < p1);
-  print(stack);
 }

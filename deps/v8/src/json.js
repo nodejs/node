@@ -2,14 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+var $jsonSerializeAdapter;
+
+(function(global, shared, exports) {
+
 "use strict";
 
-// This file relies on the fact that the following declarations have been made
-// in runtime.js:
-// var $Array = global.Array;
-// var $String = global.String;
+%CheckIsBootstrapping();
 
-var $JSON = global.JSON;
+var GlobalJSON = global.JSON;
 
 // -------------------------------------------------------------------
 
@@ -19,12 +20,12 @@ function Revive(holder, name, reviver) {
     if (IS_ARRAY(val)) {
       var length = val.length;
       for (var i = 0; i < length; i++) {
-        var newElement = Revive(val, $String(i), reviver);
+        var newElement = Revive(val, %_NumberToString(i), reviver);
         val[i] = newElement;
       }
     } else {
       for (var p in val) {
-        if (%_CallFunction(val, p, ObjectHasOwnProperty)) {
+        if (%_CallFunction(val, p, $objectHasOwnProperty)) {
           var newElement = Revive(val, p, reviver);
           if (IS_UNDEFINED(newElement)) {
             delete val[p];
@@ -38,6 +39,7 @@ function Revive(holder, name, reviver) {
   return %_CallFunction(holder, name, val, reviver);
 }
 
+
 function JSONParse(text, reviver) {
   var unfiltered = %ParseJson(TO_STRING_INLINE(text));
   if (IS_SPEC_FUNCTION(reviver)) {
@@ -47,16 +49,17 @@ function JSONParse(text, reviver) {
   }
 }
 
+
 function SerializeArray(value, replacer, stack, indent, gap) {
   if (!%PushIfAbsent(stack, value)) {
-    throw MakeTypeError('circular_structure', $Array());
+    throw MakeTypeError('circular_structure', []);
   }
   var stepback = indent;
   indent += gap;
   var partial = new InternalArray();
   var len = value.length;
   for (var i = 0; i < len; i++) {
-    var strP = JSONSerialize($String(i), value, replacer, stack,
+    var strP = JSONSerialize(%_NumberToString(i), value, replacer, stack,
                              indent, gap);
     if (IS_UNDEFINED(strP)) {
       strP = "null";
@@ -77,9 +80,10 @@ function SerializeArray(value, replacer, stack, indent, gap) {
   return final;
 }
 
+
 function SerializeObject(value, replacer, stack, indent, gap) {
   if (!%PushIfAbsent(stack, value)) {
-    throw MakeTypeError('circular_structure', $Array());
+    throw MakeTypeError('circular_structure', []);
   }
   var stepback = indent;
   indent += gap;
@@ -87,7 +91,7 @@ function SerializeObject(value, replacer, stack, indent, gap) {
   if (IS_ARRAY(replacer)) {
     var length = replacer.length;
     for (var i = 0; i < length; i++) {
-      if (%_CallFunction(replacer, i, ObjectHasOwnProperty)) {
+      if (%_CallFunction(replacer, i, $objectHasOwnProperty)) {
         var p = replacer[i];
         var strP = JSONSerialize(p, value, replacer, stack, indent, gap);
         if (!IS_UNDEFINED(strP)) {
@@ -100,7 +104,7 @@ function SerializeObject(value, replacer, stack, indent, gap) {
     }
   } else {
     for (var p in value) {
-      if (%_CallFunction(value, p, ObjectHasOwnProperty)) {
+      if (%_CallFunction(value, p, $objectHasOwnProperty)) {
         var strP = JSONSerialize(p, value, replacer, stack, indent, gap);
         if (!IS_UNDEFINED(strP)) {
           var member = %QuoteJSONString(p) + ":";
@@ -124,6 +128,7 @@ function SerializeObject(value, replacer, stack, indent, gap) {
   stack.pop();
   return final;
 }
+
 
 function JSONSerialize(key, holder, replacer, stack, indent, gap) {
   var value = holder[key];
@@ -149,10 +154,10 @@ function JSONSerialize(key, holder, replacer, stack, indent, gap) {
     if (IS_ARRAY(value)) {
       return SerializeArray(value, replacer, stack, indent, gap);
     } else if (IS_NUMBER_WRAPPER(value)) {
-      value = ToNumber(value);
+      value = $toNumber(value);
       return JSON_NUMBER_TO_STRING(value);
     } else if (IS_STRING_WRAPPER(value)) {
-      return %QuoteJSONString(ToString(value));
+      return %QuoteJSONString($toString(value));
     } else if (IS_BOOLEAN_WRAPPER(value)) {
       return %_ValueOf(value) ? "true" : "false";
     } else {
@@ -171,14 +176,14 @@ function JSONStringify(value, replacer, space) {
   if (IS_OBJECT(space)) {
     // Unwrap 'space' if it is wrapped
     if (IS_NUMBER_WRAPPER(space)) {
-      space = ToNumber(space);
+      space = $toNumber(space);
     } else if (IS_STRING_WRAPPER(space)) {
-      space = ToString(space);
+      space = $toString(space);
     }
   }
   var gap;
   if (IS_NUMBER(space)) {
-    space = $max(0, $min(ToInteger(space), 10));
+    space = $max(0, $min($toInteger(space), 10));
     gap = %_SubString("          ", 0, space);
   } else if (IS_STRING(space)) {
     if (space.length > 10) {
@@ -198,9 +203,9 @@ function JSONStringify(value, replacer, space) {
     for (var i = 0; i < length; i++) {
       var item = replacer[i];
       if (IS_STRING_WRAPPER(item)) {
-        item = ToString(item);
+        item = $toString(item);
       } else {
-        if (IS_NUMBER_WRAPPER(item)) item = ToNumber(item);
+        if (IS_NUMBER_WRAPPER(item)) item = $toNumber(item);
         if (IS_NUMBER(item)) item = %_NumberToString(item);
       }
       if (IS_STRING(item) && seen_properties[item] != seen_sentinel) {
@@ -214,30 +219,24 @@ function JSONStringify(value, replacer, space) {
   return JSONSerialize('', {'': value}, replacer, new InternalArray(), "", gap);
 }
 
-
 // -------------------------------------------------------------------
 
-function SetUpJSON() {
-  %CheckIsBootstrapping();
+%AddNamedProperty(GlobalJSON, symbolToStringTag, "JSON", READ_ONLY | DONT_ENUM);
 
-  %AddNamedProperty($JSON, symbolToStringTag, "JSON", READ_ONLY | DONT_ENUM);
-
-  // Set up non-enumerable properties of the JSON object.
-  InstallFunctions($JSON, DONT_ENUM, $Array(
-    "parse", JSONParse,
-    "stringify", JSONStringify
-  ));
-}
-
-SetUpJSON();
-
+// Set up non-enumerable properties of the JSON object.
+$installFunctions(GlobalJSON, DONT_ENUM, [
+  "parse", JSONParse,
+  "stringify", JSONStringify
+]);
 
 // -------------------------------------------------------------------
 // JSON Builtins
 
-function JSONSerializeAdapter(key, object) {
+$jsonSerializeAdapter = function(key, object) {
   var holder = {};
   holder[key] = object;
   // No need to pass the actual holder since there is no replacer function.
   return JSONSerialize(key, holder, UNDEFINED, new InternalArray(), "", "");
 }
+
+})

@@ -9,7 +9,7 @@
 namespace v8 {
 namespace internal {
 
-class HInstructionMap FINAL : public ZoneObject {
+class HInstructionMap final : public ZoneObject {
  public:
   HInstructionMap(Zone* zone, SideEffectsTracker* side_effects_tracker)
       : array_size_(0),
@@ -70,7 +70,7 @@ class HInstructionMap FINAL : public ZoneObject {
 };
 
 
-class HSideEffectMap FINAL BASE_EMBEDDED {
+class HSideEffectMap final BASE_EMBEDDED {
  public:
   HSideEffectMap();
   explicit HSideEffectMap(HSideEffectMap* other);

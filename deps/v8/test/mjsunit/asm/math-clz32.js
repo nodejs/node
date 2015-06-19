@@ -27,5 +27,5 @@ for (var i = 0; i < 32; ++i) {
 }
 for (var i = -2147483648; i < 2147483648; i += 3999773) {
   assertEquals(%MathClz32(i), f(i));
-  assertEquals(%_MathClz32(i), f(i));
+  assertEquals(%MathClz32(i), %_MathClz32(i >>> 0));
 }

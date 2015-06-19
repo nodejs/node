@@ -207,6 +207,10 @@ class Simulator {
   bool test_fcsr_bit(uint32_t cc);
   bool set_fcsr_round_error(double original, double rounded);
   bool set_fcsr_round64_error(double original, double rounded);
+  void round_according_to_fcsr(double toRound, double& rounded,
+                               int32_t& rounded_int, double fs);
+  void round64_according_to_fcsr(double toRound, double& rounded,
+                                 int64_t& rounded_int, double fs);
 
   // Special case of set_register and get_register to access the raw PC value.
   void set_pc(int64_t value);
@@ -312,6 +316,45 @@ class Simulator {
   inline int32_t SetDoubleHIW(double* addr);
   inline int32_t SetDoubleLOW(double* addr);
 
+  // functions called from DecodeTypeRegister
+  void DecodeTypeRegisterCOP1(Instruction* instr, const int32_t& rs_reg,
+                              const int64_t& rs, const uint64_t& rs_u,
+                              const int32_t& rt_reg, const int64_t& rt,
+                              const uint64_t& rt_u, const int32_t& rd_reg,
+                              const int32_t& fr_reg, const int32_t& fs_reg,
+                              const int32_t& ft_reg, const int32_t& fd_reg,
+                              int64_t& alu_out);
+
+  void DecodeTypeRegisterCOP1X(Instruction* instr, const int32_t& fr_reg,
+                               const int32_t& fs_reg, const int32_t& ft_reg,
+                               const int32_t& fd_reg);
+
+  void DecodeTypeRegisterSPECIAL(
+      Instruction* instr, const int64_t& rs_reg, const int64_t& rs,
+      const uint64_t& rs_u, const int64_t& rt_reg, const int64_t& rt,
+      const uint64_t& rt_u, const int64_t& rd_reg, const int32_t& fr_reg,
+      const int32_t& fs_reg, const int32_t& ft_reg, const int64_t& fd_reg,
+      int64_t& i64hilo, uint64_t& u64hilo, int64_t& alu_out, bool& do_interrupt,
+      int64_t& current_pc, int64_t& next_pc, int64_t& return_addr_reg,
+      int64_t& i128resultH, int64_t& i128resultL);
+
+  void DecodeTypeRegisterSPECIAL2(Instruction* instr, const int64_t& rd_reg,
+                                  int64_t& alu_out);
+
+  void DecodeTypeRegisterSPECIAL3(Instruction* instr, const int64_t& rt_reg,
+                                  int64_t& alu_out);
+
+  void DecodeTypeRegisterSRsType(Instruction* instr, const int32_t& fs_reg,
+                                 const int32_t& ft_reg, const int32_t& fd_reg);
+
+  void DecodeTypeRegisterDRsType(Instruction* instr, const int32_t& fs_reg,
+                                 const int32_t& ft_reg, const int32_t& fd_reg);
+
+  void DecodeTypeRegisterWRsType(Instruction* instr, const int32_t& fs_reg,
+                                 const int32_t& fd_reg, int64_t& alu_out);
+
+  void DecodeTypeRegisterLRsType(Instruction* instr, const int32_t& fs_reg,
+                                 const int32_t& fd_reg, const int32_t& ft_reg);
   // Executing is handled based on the instruction type.
   void DecodeTypeRegister(Instruction* instr);
 

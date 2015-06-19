@@ -1,7 +1,6 @@
 {
     "commit_burst_delay": 60,
     "commit_user": "commit-bot@chromium.org",
-    "committer_project": "v8",
     "cq_status_url": "https://chromium-cq-status.appspot.com",
     "git_repo_url": "https://chromium.googlesource.com/v8/v8",
     "hide_ref_in_committed_msg": true,
@@ -13,11 +12,14 @@
     "skip_throttle_users": [
         "commit-bot@chromium.org"
     ],
-    "tree_status_url": "https://v8-status.appspot.com",
     "verifiers_no_patch": {
         "experimental_try_job_verifier": {},
-        "reviewer_lgtm_verifier": {},
-        "tree_status_verifier": {},
+        "reviewer_lgtm_verifier": {
+            "committer_project": "v8"
+        },
+        "tree_status_verifier": {
+            "tree_status_url": "https://v8-status.appspot.com"
+        },
         "try_job_verifier": {
             "launched": {
                 "tryserver.v8": {
@@ -25,6 +27,9 @@
                         "defaulttests"
                     ],
                     "v8_linux64_asan_rel": [
+                        "defaulttests"
+                    ],
+                    "v8_linux64_avx2_rel": [
                         "defaulttests"
                     ],
                     "v8_linux64_rel": [
@@ -45,6 +50,12 @@
                     "v8_linux_gcc_compile_rel": [
                         "defaulttests"
                     ],
+                    "v8_linux_mipsel_compile_rel": [
+                        "defaulttests"
+                    ],
+                    "v8_linux_mips64el_compile_rel": [
+                        "defaulttests"
+                    ],
                     "v8_linux_nodcheck_rel": [
                         "defaulttests"
                     ],
@@ -63,6 +74,9 @@
                     "v8_win_compile_dbg": [
                         "defaulttests"
                     ],
+                    "v8_win_nosnap_shared_compile_rel": [
+                        "defaulttests"
+                    ],
                     "v8_win_rel": [
                         "defaulttests"
                     ]
@@ -70,5 +84,6 @@
             },
             "triggered": {}
         }
-    }
+    },
+    "version": 1
 }

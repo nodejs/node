@@ -2,14 +2,88 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+(function(global, shared, exports) {
+
 "use strict";
 
-// This file relies on the fact that the following declaration has been made
-// in runtime.js:
-// var $Array = global.Array;
+%CheckIsBootstrapping();
 
-var $Set = global.Set;
-var $Map = global.Map;
+var GlobalMap = global.Map;
+var GlobalObject = global.Object;
+var GlobalSet = global.Set;
+
+// -------------------------------------------------------------------
+
+function HashToEntry(table, hash, numBuckets) {
+  var bucket = ORDERED_HASH_TABLE_HASH_TO_BUCKET(hash, numBuckets);
+  return ORDERED_HASH_TABLE_BUCKET_AT(table, bucket);
+}
+%SetInlineBuiltinFlag(HashToEntry);
+
+
+function SetFindEntry(table, numBuckets, key, hash) {
+  var keyIsNaN = $numberIsNaN(key);
+  for (var entry = HashToEntry(table, hash, numBuckets);
+       entry !== NOT_FOUND;
+       entry = ORDERED_HASH_SET_CHAIN_AT(table, entry, numBuckets)) {
+    var candidate = ORDERED_HASH_SET_KEY_AT(table, entry, numBuckets);
+    if (key === candidate) {
+      return entry;
+    }
+    if (keyIsNaN && $numberIsNaN(candidate)) {
+      return entry;
+    }
+  }
+  return NOT_FOUND;
+}
+%SetInlineBuiltinFlag(SetFindEntry);
+
+
+function MapFindEntry(table, numBuckets, key, hash) {
+  var keyIsNaN = $numberIsNaN(key);
+  for (var entry = HashToEntry(table, hash, numBuckets);
+       entry !== NOT_FOUND;
+       entry = ORDERED_HASH_MAP_CHAIN_AT(table, entry, numBuckets)) {
+    var candidate = ORDERED_HASH_MAP_KEY_AT(table, entry, numBuckets);
+    if (key === candidate) {
+      return entry;
+    }
+    if (keyIsNaN && $numberIsNaN(candidate)) {
+      return entry;
+    }
+  }
+  return NOT_FOUND;
+}
+%SetInlineBuiltinFlag(MapFindEntry);
+
+
+function ComputeIntegerHash(key, seed) {
+  var hash = key;
+  hash = hash ^ seed;
+  hash = ~hash + (hash << 15);  // hash = (hash << 15) - hash - 1;
+  hash = hash ^ (hash >>> 12);
+  hash = hash + (hash << 2);
+  hash = hash ^ (hash >>> 4);
+  hash = (hash * 2057) | 0;  // hash = (hash + (hash << 3)) + (hash << 11);
+  hash = hash ^ (hash >>> 16);
+  return hash;
+}
+%SetInlineBuiltinFlag(ComputeIntegerHash);
+
+
+function GetHash(key) {
+  if (%_IsSmi(key)) {
+    return ComputeIntegerHash(key, 0);
+  }
+  if (IS_STRING(key)) {
+    var field = %_StringGetRawHashField(key);
+    if ((field & 1 /* Name::kHashNotComputedMask */) === 0) {
+      return field >>> 2 /* Name::kHashShift */;
+    }
+  }
+  return %GenericHash(key);
+}
+%SetInlineBuiltinFlag(GetHash);
 
 
 // -------------------------------------------------------------------
@@ -17,7 +91,7 @@ var $Map = global.Map;
 
 function SetConstructor(iterable) {
   if (!%_IsConstructCall()) {
-    throw MakeTypeError('constructor_not_function', ['Set']);
+    throw MakeTypeError(kConstructorNotFunction, "Set");
   }
 
   %_SetInitialize(this);
@@ -25,7 +99,7 @@ function SetConstructor(iterable) {
   if (!IS_NULL_OR_UNDEFINED(iterable)) {
     var adder = this.add;
     if (!IS_SPEC_FUNCTION(adder)) {
-      throw MakeTypeError('property_not_function', ['add', this]);
+      throw MakeTypeError(kPropertyNotFunction, 'add', this);
     }
 
     for (var value of iterable) {
@@ -35,10 +109,9 @@ function SetConstructor(iterable) {
 }
 
 
-function SetAddJS(key) {
+function SetAdd(key) {
   if (!IS_SET(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['Set.prototype.add', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver, 'Set.prototype.add', this);
   }
   // Normalize -0 to +0 as required by the spec.
   // Even though we use SameValueZero as the comparison for the keys we don't
@@ -47,41 +120,82 @@ function SetAddJS(key) {
   if (key === 0) {
     key = 0;
   }
-  return %_SetAdd(this, key);
+  var table = %_JSCollectionGetTable(this);
+  var numBuckets = ORDERED_HASH_TABLE_BUCKET_COUNT(table);
+  var hash = GetHash(key);
+  if (SetFindEntry(table, numBuckets, key, hash) !== NOT_FOUND) return this;
+
+  var nof = ORDERED_HASH_TABLE_ELEMENT_COUNT(table);
+  var nod = ORDERED_HASH_TABLE_DELETED_COUNT(table);
+  var capacity = numBuckets << 1;
+  if ((nof + nod) >= capacity) {
+    // Need to grow, bail out to runtime.
+    %SetGrow(this);
+    // Re-load state from the grown backing store.
+    table = %_JSCollectionGetTable(this);
+    numBuckets = ORDERED_HASH_TABLE_BUCKET_COUNT(table);
+    nof = ORDERED_HASH_TABLE_ELEMENT_COUNT(table);
+    nod = ORDERED_HASH_TABLE_DELETED_COUNT(table);
+  }
+  var entry = nof + nod;
+  var index = ORDERED_HASH_SET_ENTRY_TO_INDEX(entry, numBuckets);
+  var bucket = ORDERED_HASH_TABLE_HASH_TO_BUCKET(hash, numBuckets);
+  var chainEntry = ORDERED_HASH_TABLE_BUCKET_AT(table, bucket);
+  ORDERED_HASH_TABLE_SET_BUCKET_AT(table, bucket, entry);
+  ORDERED_HASH_TABLE_SET_ELEMENT_COUNT(table, nof + 1);
+  FIXED_ARRAY_SET(table, index, key);
+  FIXED_ARRAY_SET_SMI(table, index + 1, chainEntry);
+  return this;
 }
 
 
-function SetHasJS(key) {
+function SetHas(key) {
   if (!IS_SET(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['Set.prototype.has', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver, 'Set.prototype.has', this);
   }
-  return %_SetHas(this, key);
+  var table = %_JSCollectionGetTable(this);
+  var numBuckets = ORDERED_HASH_TABLE_BUCKET_COUNT(table);
+  var hash = GetHash(key);
+  return SetFindEntry(table, numBuckets, key, hash) !== NOT_FOUND;
 }
 
 
-function SetDeleteJS(key) {
+function SetDelete(key) {
   if (!IS_SET(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['Set.prototype.delete', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'Set.prototype.delete', this);
   }
-  return %_SetDelete(this, key);
+  var table = %_JSCollectionGetTable(this);
+  var numBuckets = ORDERED_HASH_TABLE_BUCKET_COUNT(table);
+  var hash = GetHash(key);
+  var entry = SetFindEntry(table, numBuckets, key, hash);
+  if (entry === NOT_FOUND) return false;
+
+  var nof = ORDERED_HASH_TABLE_ELEMENT_COUNT(table) - 1;
+  var nod = ORDERED_HASH_TABLE_DELETED_COUNT(table) + 1;
+  var index = ORDERED_HASH_SET_ENTRY_TO_INDEX(entry, numBuckets);
+  FIXED_ARRAY_SET(table, index, %_TheHole());
+  ORDERED_HASH_TABLE_SET_ELEMENT_COUNT(table, nof);
+  ORDERED_HASH_TABLE_SET_DELETED_COUNT(table, nod);
+  if (nof < (numBuckets >>> 1)) %SetShrink(this);
+  return true;
 }
 
 
-function SetGetSizeJS() {
+function SetGetSize() {
   if (!IS_SET(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['Set.prototype.size', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'Set.prototype.size', this);
   }
-  return %_SetGetSize(this);
+  var table = %_JSCollectionGetTable(this);
+  return ORDERED_HASH_TABLE_ELEMENT_COUNT(table);
 }
 
 
 function SetClearJS() {
   if (!IS_SET(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['Set.prototype.clear', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'Set.prototype.clear', this);
   }
   %_SetClear(this);
 }
@@ -89,17 +203,15 @@ function SetClearJS() {
 
 function SetForEach(f, receiver) {
   if (!IS_SET(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['Set.prototype.forEach', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'Set.prototype.forEach', this);
   }
 
-  if (!IS_SPEC_FUNCTION(f)) {
-    throw MakeTypeError('called_non_callable', [f]);
-  }
+  if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
   var needs_wrapper = false;
-  if (IS_NULL_OR_UNDEFINED(receiver)) {
-    receiver = %GetDefaultReceiver(f) || receiver;
-  } else {
+  if (IS_NULL(receiver)) {
+    if (%IsSloppyModeFunction(f)) receiver = UNDEFINED;
+  } else if (!IS_UNDEFINED(receiver)) {
     needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
   }
 
@@ -110,37 +222,31 @@ function SetForEach(f, receiver) {
   while (%SetIteratorNext(iterator, value_array)) {
     if (stepping) %DebugPrepareStepInIfStepping(f);
     key = value_array[0];
-    var new_receiver = needs_wrapper ? ToObject(receiver) : receiver;
+    var new_receiver = needs_wrapper ? $toObject(receiver) : receiver;
     %_CallFunction(new_receiver, key, key, this, f);
   }
 }
 
-
 // -------------------------------------------------------------------
 
-function SetUpSet() {
-  %CheckIsBootstrapping();
+%SetCode(GlobalSet, SetConstructor);
+%FunctionSetLength(GlobalSet, 0);
+%FunctionSetPrototype(GlobalSet, new GlobalObject());
+%AddNamedProperty(GlobalSet.prototype, "constructor", GlobalSet, DONT_ENUM);
+%AddNamedProperty(GlobalSet.prototype, symbolToStringTag, "Set",
+                  DONT_ENUM | READ_ONLY);
 
-  %SetCode($Set, SetConstructor);
-  %FunctionSetPrototype($Set, new $Object());
-  %AddNamedProperty($Set.prototype, "constructor", $Set, DONT_ENUM);
-  %AddNamedProperty(
-      $Set.prototype, symbolToStringTag, "Set", DONT_ENUM | READ_ONLY);
+%FunctionSetLength(SetForEach, 1);
 
-  %FunctionSetLength(SetForEach, 1);
-
-  // Set up the non-enumerable functions on the Set prototype object.
-  InstallGetter($Set.prototype, "size", SetGetSizeJS);
-  InstallFunctions($Set.prototype, DONT_ENUM, $Array(
-    "add", SetAddJS,
-    "has", SetHasJS,
-    "delete", SetDeleteJS,
-    "clear", SetClearJS,
-    "forEach", SetForEach
-  ));
-}
-
-SetUpSet();
+// Set up the non-enumerable functions on the Set prototype object.
+$installGetter(GlobalSet.prototype, "size", SetGetSize);
+$installFunctions(GlobalSet.prototype, DONT_ENUM, [
+  "add", SetAdd,
+  "has", SetHas,
+  "delete", SetDelete,
+  "clear", SetClearJS,
+  "forEach", SetForEach
+]);
 
 
 // -------------------------------------------------------------------
@@ -148,7 +254,7 @@ SetUpSet();
 
 function MapConstructor(iterable) {
   if (!%_IsConstructCall()) {
-    throw MakeTypeError('constructor_not_function', ['Map']);
+    throw MakeTypeError(kConstructorNotFunction, "Map");
   }
 
   %_MapInitialize(this);
@@ -156,12 +262,12 @@ function MapConstructor(iterable) {
   if (!IS_NULL_OR_UNDEFINED(iterable)) {
     var adder = this.set;
     if (!IS_SPEC_FUNCTION(adder)) {
-      throw MakeTypeError('property_not_function', ['set', this]);
+      throw MakeTypeError(kPropertyNotFunction, 'set', this);
     }
 
     for (var nextItem of iterable) {
       if (!IS_SPEC_OBJECT(nextItem)) {
-        throw MakeTypeError('iterator_value_not_an_object', [nextItem]);
+        throw MakeTypeError(kIteratorValueNotAnObject, nextItem);
       }
       %_CallFunction(this, nextItem[0], nextItem[1], adder);
     }
@@ -169,19 +275,24 @@ function MapConstructor(iterable) {
 }
 
 
-function MapGetJS(key) {
+function MapGet(key) {
   if (!IS_MAP(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['Map.prototype.get', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'Map.prototype.get', this);
   }
-  return %_MapGet(this, key);
+  var table = %_JSCollectionGetTable(this);
+  var numBuckets = ORDERED_HASH_TABLE_BUCKET_COUNT(table);
+  var hash = GetHash(key);
+  var entry = MapFindEntry(table, numBuckets, key, hash);
+  if (entry === NOT_FOUND) return UNDEFINED;
+  return ORDERED_HASH_MAP_VALUE_AT(table, entry, numBuckets);
 }
 
 
-function MapSetJS(key, value) {
+function MapSet(key, value) {
   if (!IS_MAP(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['Map.prototype.set', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'Map.prototype.set', this);
   }
   // Normalize -0 to +0 as required by the spec.
   // Even though we use SameValueZero as the comparison for the keys we don't
@@ -190,41 +301,91 @@ function MapSetJS(key, value) {
   if (key === 0) {
     key = 0;
   }
-  return %_MapSet(this, key, value);
+
+  var table = %_JSCollectionGetTable(this);
+  var numBuckets = ORDERED_HASH_TABLE_BUCKET_COUNT(table);
+  var hash = GetHash(key);
+  var entry = MapFindEntry(table, numBuckets, key, hash);
+  if (entry !== NOT_FOUND) {
+    var existingIndex = ORDERED_HASH_MAP_ENTRY_TO_INDEX(entry, numBuckets);
+    FIXED_ARRAY_SET(table, existingIndex + 1, value);
+    return this;
+  }
+
+  var nof = ORDERED_HASH_TABLE_ELEMENT_COUNT(table);
+  var nod = ORDERED_HASH_TABLE_DELETED_COUNT(table);
+  var capacity = numBuckets << 1;
+  if ((nof + nod) >= capacity) {
+    // Need to grow, bail out to runtime.
+    %MapGrow(this);
+    // Re-load state from the grown backing store.
+    table = %_JSCollectionGetTable(this);
+    numBuckets = ORDERED_HASH_TABLE_BUCKET_COUNT(table);
+    nof = ORDERED_HASH_TABLE_ELEMENT_COUNT(table);
+    nod = ORDERED_HASH_TABLE_DELETED_COUNT(table);
+  }
+  entry = nof + nod;
+  var index = ORDERED_HASH_MAP_ENTRY_TO_INDEX(entry, numBuckets);
+  var bucket = ORDERED_HASH_TABLE_HASH_TO_BUCKET(hash, numBuckets);
+  var chainEntry = ORDERED_HASH_TABLE_BUCKET_AT(table, bucket);
+  ORDERED_HASH_TABLE_SET_BUCKET_AT(table, bucket, entry);
+  ORDERED_HASH_TABLE_SET_ELEMENT_COUNT(table, nof + 1);
+  FIXED_ARRAY_SET(table, index, key);
+  FIXED_ARRAY_SET(table, index + 1, value);
+  FIXED_ARRAY_SET(table, index + 2, chainEntry);
+  return this;
 }
 
 
-function MapHasJS(key) {
+function MapHas(key) {
   if (!IS_MAP(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['Map.prototype.has', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'Map.prototype.has', this);
   }
-  return %_MapHas(this, key);
+  var table = %_JSCollectionGetTable(this);
+  var numBuckets = ORDERED_HASH_TABLE_BUCKET_COUNT(table);
+  var hash = GetHash(key);
+  return MapFindEntry(table, numBuckets, key, hash) !== NOT_FOUND;
 }
 
 
-function MapDeleteJS(key) {
+function MapDelete(key) {
   if (!IS_MAP(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['Map.prototype.delete', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'Map.prototype.delete', this);
   }
-  return %_MapDelete(this, key);
+  var table = %_JSCollectionGetTable(this);
+  var numBuckets = ORDERED_HASH_TABLE_BUCKET_COUNT(table);
+  var hash = GetHash(key);
+  var entry = MapFindEntry(table, numBuckets, key, hash);
+  if (entry === NOT_FOUND) return false;
+
+  var nof = ORDERED_HASH_TABLE_ELEMENT_COUNT(table) - 1;
+  var nod = ORDERED_HASH_TABLE_DELETED_COUNT(table) + 1;
+  var index = ORDERED_HASH_MAP_ENTRY_TO_INDEX(entry, numBuckets);
+  FIXED_ARRAY_SET(table, index, %_TheHole());
+  FIXED_ARRAY_SET(table, index + 1, %_TheHole());
+  ORDERED_HASH_TABLE_SET_ELEMENT_COUNT(table, nof);
+  ORDERED_HASH_TABLE_SET_DELETED_COUNT(table, nod);
+  if (nof < (numBuckets >>> 1)) %MapShrink(this);
+  return true;
 }
 
 
-function MapGetSizeJS() {
+function MapGetSize() {
   if (!IS_MAP(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['Map.prototype.size', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'Map.prototype.size', this);
   }
-  return %_MapGetSize(this);
+  var table = %_JSCollectionGetTable(this);
+  return ORDERED_HASH_TABLE_ELEMENT_COUNT(table);
 }
 
 
 function MapClearJS() {
   if (!IS_MAP(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['Map.prototype.clear', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'Map.prototype.clear', this);
   }
   %_MapClear(this);
 }
@@ -232,17 +393,15 @@ function MapClearJS() {
 
 function MapForEach(f, receiver) {
   if (!IS_MAP(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['Map.prototype.forEach', this]);
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'Map.prototype.forEach', this);
   }
 
-  if (!IS_SPEC_FUNCTION(f)) {
-    throw MakeTypeError('called_non_callable', [f]);
-  }
+  if (!IS_SPEC_FUNCTION(f)) throw MakeTypeError(kCalledNonCallable, f);
   var needs_wrapper = false;
-  if (IS_NULL_OR_UNDEFINED(receiver)) {
-    receiver = %GetDefaultReceiver(f) || receiver;
-  } else {
+  if (IS_NULL(receiver)) {
+    if (%IsSloppyModeFunction(f)) receiver = UNDEFINED;
+  } else if (!IS_UNDEFINED(receiver)) {
     needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
   }
 
@@ -251,35 +410,31 @@ function MapForEach(f, receiver) {
   var value_array = [UNDEFINED, UNDEFINED];
   while (%MapIteratorNext(iterator, value_array)) {
     if (stepping) %DebugPrepareStepInIfStepping(f);
-    var new_receiver = needs_wrapper ? ToObject(receiver) : receiver;
+    var new_receiver = needs_wrapper ? $toObject(receiver) : receiver;
     %_CallFunction(new_receiver, value_array[1], value_array[0], this, f);
   }
 }
 
-
 // -------------------------------------------------------------------
 
-function SetUpMap() {
-  %CheckIsBootstrapping();
+%SetCode(GlobalMap, MapConstructor);
+%FunctionSetLength(GlobalMap, 0);
+%FunctionSetPrototype(GlobalMap, new GlobalObject());
+%AddNamedProperty(GlobalMap.prototype, "constructor", GlobalMap, DONT_ENUM);
+%AddNamedProperty(
+    GlobalMap.prototype, symbolToStringTag, "Map", DONT_ENUM | READ_ONLY);
 
-  %SetCode($Map, MapConstructor);
-  %FunctionSetPrototype($Map, new $Object());
-  %AddNamedProperty($Map.prototype, "constructor", $Map, DONT_ENUM);
-  %AddNamedProperty(
-      $Map.prototype, symbolToStringTag, "Map", DONT_ENUM | READ_ONLY);
+%FunctionSetLength(MapForEach, 1);
 
-  %FunctionSetLength(MapForEach, 1);
+// Set up the non-enumerable functions on the Map prototype object.
+$installGetter(GlobalMap.prototype, "size", MapGetSize);
+$installFunctions(GlobalMap.prototype, DONT_ENUM, [
+  "get", MapGet,
+  "set", MapSet,
+  "has", MapHas,
+  "delete", MapDelete,
+  "clear", MapClearJS,
+  "forEach", MapForEach
+]);
 
-  // Set up the non-enumerable functions on the Map prototype object.
-  InstallGetter($Map.prototype, "size", MapGetSizeJS);
-  InstallFunctions($Map.prototype, DONT_ENUM, $Array(
-    "get", MapGetJS,
-    "set", MapSetJS,
-    "has", MapHasJS,
-    "delete", MapDeleteJS,
-    "clear", MapClearJS,
-    "forEach", MapForEach
-  ));
-}
-
-SetUpMap();
+})

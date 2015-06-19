@@ -16,6 +16,7 @@
 #include "src/compiler.h"
 #include "src/globals.h"
 #include "src/objects.h"
+#include "src/scopes.h"
 
 namespace v8 {
 namespace internal {
@@ -41,7 +42,7 @@ class BreakableStatementChecker: public AstVisitor {
 
  private:
   // AST node visit functions.
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node) OVERRIDE;
+#define DECLARE_VISIT(type) virtual void Visit##type(type* node) override;
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
@@ -220,8 +221,9 @@ class FullCodeGenerator: public AstVisitor {
     virtual ~NestedBlock() {}
 
     virtual NestedStatement* Exit(int* stack_depth, int* context_length) {
-      if (statement()->AsBlock()->scope() != NULL) {
-        ++(*context_length);
+      auto block_scope = statement()->AsBlock()->scope();
+      if (block_scope != nullptr) {
+        if (block_scope->ContextLocalCount() > 0) ++(*context_length);
       }
       return previous_;
     }
@@ -416,15 +418,10 @@ class FullCodeGenerator: public AstVisitor {
 
   void VisitInDuplicateContext(Expression* expr);
 
-  void VisitDeclarations(ZoneList<Declaration*>* declarations) OVERRIDE;
+  void VisitDeclarations(ZoneList<Declaration*>* declarations) override;
   void DeclareModules(Handle<FixedArray> descriptions);
   void DeclareGlobals(Handle<FixedArray> pairs);
   int DeclareGlobalsFlags();
-
-  // Generate code to allocate all (including nested) modules and contexts.
-  // Because of recursive linking and the presence of module alias declarations,
-  // this has to be a separate pass _before_ populating or executing any module.
-  void AllocateModules(ZoneList<Declaration*>* declarations);
 
   // Generate code to create an iterator result object.  The "value" property is
   // set to a value popped from the stack, and "done" is set according to the
@@ -558,7 +555,8 @@ class FullCodeGenerator: public AstVisitor {
   F(RegExpConstructResult)                \
   F(GetFromCache)                         \
   F(NumberToString)                       \
-  F(DebugIsActive)
+  F(DebugIsActive)                        \
+  F(CallSuperWithSpread)
 
 #define GENERATOR_DECLARATION(Name) void Emit##Name(CallRuntime* call);
   FOR_EACH_FULL_CODE_INTRINSIC(GENERATOR_DECLARATION)
@@ -588,6 +586,10 @@ class FullCodeGenerator: public AstVisitor {
   // Platform-specific support for allocating a new closure based on
   // the given function info.
   void EmitNewClosure(Handle<SharedFunctionInfo> info, bool pretenure);
+
+  // Re-usable portions of CallRuntime
+  void EmitLoadJSRuntimeFunction(CallRuntime* expr);
+  void EmitCallJSRuntimeFunction(CallRuntime* expr);
 
   // Platform-specific support for compiling assignments.
 
@@ -686,6 +688,7 @@ class FullCodeGenerator: public AstVisitor {
   void EmitSetHomeObjectIfNeeded(Expression* initializer, int offset);
 
   void EmitLoadSuperConstructor();
+  void EmitInitializeThisAfterSuper(SuperReference* super_ref);
 
   void CallIC(Handle<Code> code,
               TypeFeedbackId id = TypeFeedbackId::None());
@@ -745,7 +748,7 @@ class FullCodeGenerator: public AstVisitor {
   void PushFunctionArgumentForContextAllocation();
 
   // AST node visit functions.
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node) OVERRIDE;
+#define DECLARE_VISIT(type) virtual void Visit##type(type* node) override;
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
@@ -758,6 +761,9 @@ class FullCodeGenerator: public AstVisitor {
   void Generate();
   void PopulateDeoptimizationData(Handle<Code> code);
   void PopulateTypeFeedbackInfo(Handle<Code> code);
+
+  bool MustCreateObjectLiteralWithRuntime(ObjectLiteral* expr) const;
+  bool MustCreateArrayLiteralWithRuntime(ArrayLiteral* expr) const;
 
   Handle<HandlerTable> handler_table() { return handler_table_; }
 
@@ -959,9 +965,9 @@ class FullCodeGenerator: public AstVisitor {
     MacroAssembler* masm() const { return codegen_->masm(); }
 
     FullCodeGenerator* codegen_;
-    Scope* scope_;
     Scope* saved_scope_;
     BailoutId exit_id_;
+    bool needs_block_context_;
   };
 
   MacroAssembler* masm_;

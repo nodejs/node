@@ -28,7 +28,8 @@ InstructionSelectorTest::~InstructionSelectorTest() {}
 
 InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
     InstructionSelector::Features features,
-    InstructionSelectorTest::StreamBuilderMode mode) {
+    InstructionSelectorTest::StreamBuilderMode mode,
+    InstructionSelector::SourcePositionMode source_position_mode) {
   Schedule* schedule = Export();
   if (FLAG_trace_turbo) {
     OFStream out(stdout);
@@ -44,7 +45,8 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
                                instruction_blocks);
   SourcePositionTable source_position_table(graph());
   InstructionSelector selector(test_->zone(), node_count, &linkage, &sequence,
-                               schedule, &source_position_table, features);
+                               schedule, &source_position_table,
+                               source_position_mode, features);
   selector.SelectInstructions();
   if (FLAG_trace_turbo) {
     OFStream out(stdout);
@@ -76,28 +78,32 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
       InstructionOperand* output = instr->OutputAt(i);
       EXPECT_NE(InstructionOperand::IMMEDIATE, output->kind());
       if (output->IsConstant()) {
-        s.constants_.insert(std::make_pair(
-            output->index(), sequence.GetConstant(output->index())));
+        int vreg = ConstantOperand::cast(output)->virtual_register();
+        s.constants_.insert(std::make_pair(vreg, sequence.GetConstant(vreg)));
       }
     }
     for (size_t i = 0; i < instr->InputCount(); ++i) {
       InstructionOperand* input = instr->InputAt(i);
       EXPECT_NE(InstructionOperand::CONSTANT, input->kind());
       if (input->IsImmediate()) {
-        s.immediates_.insert(std::make_pair(
-            input->index(), sequence.GetImmediate(input->index())));
+        auto imm = ImmediateOperand::cast(input);
+        if (imm->type() == ImmediateOperand::INDEXED) {
+          int index = imm->indexed_value();
+          s.immediates_.insert(
+              std::make_pair(index, sequence.GetImmediate(imm)));
+        }
       }
     }
     s.instructions_.push_back(instr);
   }
   for (auto i : s.virtual_registers_) {
     int const virtual_register = i.second;
-    if (sequence.IsDouble(virtual_register)) {
+    if (sequence.IsFloat(virtual_register)) {
       EXPECT_FALSE(sequence.IsReference(virtual_register));
       s.doubles_.insert(virtual_register);
     }
     if (sequence.IsReference(virtual_register)) {
-      EXPECT_FALSE(sequence.IsDouble(virtual_register));
+      EXPECT_FALSE(sequence.IsFloat(virtual_register));
       s.references_.insert(virtual_register);
     }
   }

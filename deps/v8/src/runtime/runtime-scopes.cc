@@ -7,6 +7,7 @@
 #include "src/accessors.h"
 #include "src/arguments.h"
 #include "src/frames-inl.h"
+#include "src/messages.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/scopeinfo.h"
 #include "src/scopes.h"
@@ -239,11 +240,16 @@ RUNTIME_FUNCTION(Runtime_DeclareLookupSlot) {
 
   // TODO(verwaest): This case should probably not be covered by this function,
   // but by DeclareGlobals instead.
-  if ((attributes != ABSENT && holder->IsJSGlobalObject()) ||
-      (context_arg->has_extension() &&
-       context_arg->extension()->IsJSGlobalObject())) {
+  if (attributes != ABSENT && holder->IsJSGlobalObject()) {
     return DeclareGlobals(isolate, Handle<JSGlobalObject>::cast(holder), name,
                           value, attr, is_var, is_const, is_function);
+  }
+  if (context_arg->has_extension() &&
+      context_arg->extension()->IsJSGlobalObject()) {
+    Handle<JSGlobalObject> global(
+        JSGlobalObject::cast(context_arg->extension()), isolate);
+    return DeclareGlobals(isolate, global, name, value, attr, is_var, is_const,
+                          is_function);
   }
 
   if (attributes != ABSENT) {
@@ -662,7 +668,7 @@ RUNTIME_FUNCTION(Runtime_PushWithContext) {
     if (!maybe_object.ToHandle(&extension_object)) {
       Handle<Object> handle = args.at<Object>(0);
       THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewTypeError("with_expression", HandleVector(&handle, 1)));
+          isolate, NewTypeError(MessageTemplate::kWithExpression, handle));
     }
   }
 
@@ -905,7 +911,7 @@ static ObjectPair LoadLookupSlotHelper(Arguments args, Isolate* isolate,
       case IMMUTABLE_CHECK_INITIALIZED_HARMONY:
         if (value->IsTheHole()) {
           Handle<Object> error = isolate->factory()->NewReferenceError(
-              "not_defined", HandleVector(&name, 1));
+              MessageTemplate::kNotDefined, name);
           isolate->Throw(*error);
           return MakePair(isolate->heap()->exception(), NULL);
         }
@@ -953,7 +959,7 @@ static ObjectPair LoadLookupSlotHelper(Arguments args, Isolate* isolate,
   if (throw_error) {
     // The property doesn't exist - throw exception.
     Handle<Object> error = isolate->factory()->NewReferenceError(
-        "not_defined", HandleVector(&name, 1));
+        MessageTemplate::kNotDefined, name);
     isolate->Throw(*error);
     return MakePair(isolate->heap()->exception(), NULL);
   } else {
@@ -1015,7 +1021,7 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot) {
   } else if (is_strict(language_mode)) {
     // If absent in strict mode: throw.
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewReferenceError("not_defined", HandleVector(&name, 1)));
+        isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
   } else {
     // If absent in sloppy mode: add the property to the global object.
     object = Handle<JSReceiver>(context->global_object());

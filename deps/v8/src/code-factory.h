@@ -15,7 +15,7 @@ namespace v8 {
 namespace internal {
 
 // Associates a body of code with an interface descriptor.
-class Callable FINAL BASE_EMBEDDED {
+class Callable final BASE_EMBEDDED {
  public:
   Callable(Handle<Code> code, CallInterfaceDescriptor descriptor)
       : code_(code), descriptor_(descriptor) {}
@@ -29,7 +29,7 @@ class Callable FINAL BASE_EMBEDDED {
 };
 
 
-class CodeFactory FINAL {
+class CodeFactory final {
  public:
   // Initial states for ICs.
   static Callable LoadGlobalIC(Isolate* isolate, Handle<GlobalObject> global,
@@ -52,7 +52,8 @@ class CodeFactory FINAL {
 
   static Callable CompareIC(Isolate* isolate, Token::Value op);
 
-  static Callable BinaryOpIC(Isolate* isolate, Token::Value op);
+  static Callable BinaryOpIC(Isolate* isolate, Token::Value op,
+                             LanguageMode language_mode);
 
   // Code stubs. Add methods here as needed to reduce dependency on
   // code-stubs.h.
@@ -64,6 +65,14 @@ class CodeFactory FINAL {
 
   static Callable StringAdd(Isolate* isolate, StringAddFlags flags,
                             PretenureFlag pretenure_flag);
+
+  static Callable Typeof(Isolate* isolate);
+
+  static Callable FastCloneShallowArray(Isolate* isolate);
+  static Callable FastCloneShallowObject(Isolate* isolate, int length);
+
+  static Callable FastNewClosure(Isolate* isolate, LanguageMode language_mode,
+                                 FunctionKind kind);
 
   static Callable AllocateHeapNumber(Isolate* isolate);
 

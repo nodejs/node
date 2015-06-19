@@ -199,6 +199,8 @@ inline Environment::~Environment() {
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
 #undef V
   isolate_data()->Put();
+
+  delete[] heap_statistics_buffer_;
 }
 
 inline void Environment::CleanupHandles() {
@@ -333,6 +335,16 @@ inline void Environment::set_printed_error(bool value) {
 
 inline void Environment::set_trace_sync_io(bool value) {
   trace_sync_io_ = value;
+}
+
+inline uint32_t* Environment::heap_statistics_buffer() const {
+  CHECK_NE(heap_statistics_buffer_, nullptr);
+  return heap_statistics_buffer_;
+}
+
+inline void Environment::set_heap_statistics_buffer(uint32_t* pointer) {
+  CHECK_EQ(heap_statistics_buffer_, nullptr);  // Should be set only once.
+  heap_statistics_buffer_ = pointer;
 }
 
 inline Environment* Environment::from_cares_timer_handle(uv_timer_t* handle) {

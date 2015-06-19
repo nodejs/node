@@ -190,71 +190,118 @@ static int LookupMapping(const int32_t* table,
 }
 
 
-uchar Utf8::CalculateValue(const byte* str, size_t length, size_t* cursor) {
-  // We only get called for non-ASCII characters.
-  if (length == 1) {
+static inline size_t NonASCIISequenceLength(byte first) {
+  // clang-format off
+  static const uint8_t lengths[256] = {
+      // The first 128 entries correspond to ASCII characters.
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      // The following 64 entries correspond to continuation bytes.
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      // The next are two invalid overlong encodings and 30 two-byte sequences.
+      0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+      2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+      // 16 three-byte sequences.
+      3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+      // 5 four-byte sequences, followed by sequences that could only encode
+      // code points outside of the unicode range.
+      4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  // clang-format on
+  return lengths[first];
+}
+
+
+static inline bool IsContinuationCharacter(byte chr) {
+  return chr >= 0x80 && chr <= 0xBF;
+}
+
+
+// This method decodes an UTF-8 value according to RFC 3629.
+uchar Utf8::CalculateValue(const byte* str, size_t max_length, size_t* cursor) {
+  size_t length = NonASCIISequenceLength(str[0]);
+  if (length == 0 || max_length < length) {
     *cursor += 1;
     return kBadChar;
   }
-  byte first = str[0];
-  byte second = str[1] ^ 0x80;
-  if (second & 0xC0) {
-    *cursor += 1;
-    return kBadChar;
-  }
-  if (first < 0xE0) {
-    if (first < 0xC0) {
-      *cursor += 1;
-      return kBadChar;
-    }
-    uchar code_point = ((first << 6) | second) & kMaxTwoByteChar;
-    if (code_point <= kMaxOneByteChar) {
+  if (length == 2) {
+    if (!IsContinuationCharacter(str[1])) {
       *cursor += 1;
       return kBadChar;
     }
     *cursor += 2;
-    return code_point;
+    return ((str[0] << 6) + str[1]) - 0x00003080;
   }
-  if (length == 2) {
-    *cursor += 1;
-    return kBadChar;
-  }
-  byte third = str[2] ^ 0x80;
-  if (third & 0xC0) {
-    *cursor += 1;
-    return kBadChar;
-  }
-  if (first < 0xF0) {
-    uchar code_point = ((((first << 6) | second) << 6) | third)
-        & kMaxThreeByteChar;
-    if (code_point <= kMaxTwoByteChar) {
+  if (length == 3) {
+    switch (str[0]) {
+      case 0xE0:
+        // Overlong three-byte sequence.
+        if (str[1] < 0xA0 || str[1] > 0xBF) {
+          *cursor += 1;
+          return kBadChar;
+        }
+        break;
+      case 0xED:
+        // High and low surrogate halves.
+        if (str[1] < 0x80 || str[1] > 0x9F) {
+          *cursor += 1;
+          return kBadChar;
+        }
+        break;
+      default:
+        if (!IsContinuationCharacter(str[1])) {
+          *cursor += 1;
+          return kBadChar;
+        }
+    }
+    if (!IsContinuationCharacter(str[2])) {
       *cursor += 1;
       return kBadChar;
     }
     *cursor += 3;
-    return code_point;
+    return ((str[0] << 12) + (str[1] << 6) + str[2]) - 0x000E2080;
   }
-  if (length == 3) {
+  DCHECK(length == 4);
+  switch (str[0]) {
+    case 0xF0:
+      // Overlong four-byte sequence.
+      if (str[1] < 0x90 || str[1] > 0xBF) {
+        *cursor += 1;
+        return kBadChar;
+      }
+      break;
+    case 0xF4:
+      // Code points outside of the unicode range.
+      if (str[1] < 0x80 || str[1] > 0x8F) {
+        *cursor += 1;
+        return kBadChar;
+      }
+      break;
+    default:
+      if (!IsContinuationCharacter(str[1])) {
+        *cursor += 1;
+        return kBadChar;
+      }
+  }
+  if (!IsContinuationCharacter(str[2])) {
     *cursor += 1;
     return kBadChar;
   }
-  byte fourth = str[3] ^ 0x80;
-  if (fourth & 0xC0) {
+  if (!IsContinuationCharacter(str[3])) {
     *cursor += 1;
     return kBadChar;
   }
-  if (first < 0xF8) {
-    uchar code_point = (((((first << 6 | second) << 6) | third) << 6) | fourth)
-        & kMaxFourByteChar;
-    if (code_point <= kMaxThreeByteChar) {
-      *cursor += 1;
-      return kBadChar;
-    }
-    *cursor += 4;
-    return code_point;
-  }
-  *cursor += 1;
-  return kBadChar;
+  *cursor += 4;
+  return ((str[0] << 18) + (str[1] << 12) + (str[2] << 6) + str[3]) -
+         0x03C82080;
 }
 
 

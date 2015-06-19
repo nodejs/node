@@ -5,36 +5,25 @@
 #include "test/unittests/test-utils.h"
 
 #include "src/base/platform/time.h"
+#include "src/debug.h"
 #include "src/flags.h"
-#include "src/isolate-inl.h"
+#include "src/isolate.h"
 
 namespace v8 {
 
-std::ostream& operator<<(std::ostream& os, ExternalArrayType type) {
-  switch (type) {
-    case kExternalInt8Array:
-      return os << "ExternalInt8Array";
-    case kExternalUint8Array:
-      return os << "ExternalUint8Array";
-    case kExternalInt16Array:
-      return os << "ExternalInt16Array";
-    case kExternalUint16Array:
-      return os << "ExternalUint16Array";
-    case kExternalInt32Array:
-      return os << "ExternalInt32Array";
-    case kExternalUint32Array:
-      return os << "ExternalUint32Array";
-    case kExternalFloat32Array:
-      return os << "ExternalFloat32Array";
-    case kExternalFloat64Array:
-      return os << "ExternalFloat64Array";
-    case kExternalUint8ClampedArray:
-      return os << "ExternalUint8ClampedArray";
+class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+ public:
+  virtual void* Allocate(size_t length) {
+    void* data = AllocateUninitialized(length);
+    return data == NULL ? data : memset(data, 0, length);
   }
-  UNREACHABLE();
-  return os;
-}
+  virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
+  virtual void Free(void* data, size_t) { free(data); }
+};
 
+
+// static
+ArrayBufferAllocator* TestWithIsolate::array_buffer_allocator_ = NULL;
 
 // static
 Isolate* TestWithIsolate::isolate_ = NULL;
@@ -51,7 +40,10 @@ TestWithIsolate::~TestWithIsolate() {}
 void TestWithIsolate::SetUpTestCase() {
   Test::SetUpTestCase();
   EXPECT_EQ(NULL, isolate_);
-  isolate_ = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  array_buffer_allocator_ = new ArrayBufferAllocator;
+  create_params.array_buffer_allocator = array_buffer_allocator_;
+  isolate_ = v8::Isolate::New(create_params);
   EXPECT_TRUE(isolate_ != NULL);
 }
 
@@ -61,6 +53,7 @@ void TestWithIsolate::TearDownTestCase() {
   ASSERT_TRUE(isolate_ != NULL);
   isolate_->Dispose();
   isolate_ = NULL;
+  delete array_buffer_allocator_;
   Test::TearDownTestCase();
 }
 

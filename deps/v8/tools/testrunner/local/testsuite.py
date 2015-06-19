@@ -38,7 +38,7 @@ from ..objects import testcase
 VARIANT_FLAGS = {
     "default": [],
     "stress": ["--stress-opt", "--always-opt"],
-    "turbofan": ["--turbo-deoptimization", "--turbo-filter=*", "--always-opt"],
+    "turbofan": ["--turbo", "--always-opt"],
     "nocrankshaft": ["--nocrankshaft"]}
 
 FAST_VARIANT_FLAGS = [
@@ -93,7 +93,10 @@ class TestSuite(object):
     if testcase.outcomes and statusfile.OnlyStandardVariant(testcase.outcomes):
       return [[]]
     if testcase.outcomes and statusfile.OnlyFastVariants(testcase.outcomes):
-      return filter(lambda flags: flags in FAST_VARIANT_FLAGS, default_flags)
+      # FAST_VARIANTS implies no --always-opt.
+      return [ filter(lambda flag: flag != "--always-opt", f)
+               for f in filter(lambda flags: flags in FAST_VARIANT_FLAGS,
+                               default_flags) ]
     return default_flags
 
   def DownloadData(self):
@@ -268,6 +271,9 @@ class GoogleTestSuite(TestSuite):
             ["--gtest_random_seed=%s" % context.random_seed] +
             ["--gtest_print_time=0"] +
             context.mode_flags)
+
+  def VariantFlags(self, testcase, default_flags):
+    return [[]]
 
   def shell(self):
     return self.name

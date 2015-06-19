@@ -7,8 +7,8 @@
 
 namespace node {
 
+using v8::ArrayBuffer;
 using v8::Context;
-using v8::ExternalArrayType;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::Handle;
@@ -18,6 +18,7 @@ using v8::Local;
 using v8::Object;
 using v8::String;
 using v8::Uint32;
+using v8::Uint32Array;
 using v8::V8;
 using v8::Value;
 
@@ -29,31 +30,16 @@ using v8::Value;
   V(4, heap_size_limit, kHeapSizeLimitIndex)
 
 #define V(a, b, c) +1
-static const size_t kHeapStatisticsBufferLength = HEAP_STATISTICS_PROPERTIES(V);
+static const size_t kHeapStatisticsPropertiesCount =
+    HEAP_STATISTICS_PROPERTIES(V);
 #undef V
 
-static const ExternalArrayType kHeapStatisticsBufferType =
-    v8::kExternalUint32Array;
-
-void GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
-  CHECK(args.Length() == 1 && args[0]->IsObject());
-
-  Isolate* isolate = args.GetIsolate();
+void UpdateHeapStatisticsArrayBuffer(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   HeapStatistics s;
-  isolate->GetHeapStatistics(&s);
-  Local<Object> obj = args[0].As<Object>();
-  uint32_t* data =
-      static_cast<uint32_t*>(obj->GetIndexedPropertiesExternalArrayData());
-
-  CHECK_NE(data, nullptr);
-  ASSERT_EQ(obj->GetIndexedPropertiesExternalArrayDataType(),
-            kHeapStatisticsBufferType);
-  ASSERT_EQ(obj->GetIndexedPropertiesExternalArrayDataLength(),
-            kHeapStatisticsBufferLength);
-
-#define V(i, name, _)                                                         \
-  data[i] = static_cast<uint32_t>(s.name());
-
+  env->isolate()->GetHeapStatistics(&s);
+  uint32_t* const buffer = env->heap_statistics_buffer();
+#define V(index, name, _) buffer[index] = static_cast<uint32_t>(s.name());
   HEAP_STATISTICS_PROPERTIES(V)
 #undef V
 }
@@ -76,18 +62,21 @@ void InitializeV8Bindings(Handle<Object> target,
                           Handle<Value> unused,
                           Handle<Context> context) {
   Environment* env = Environment::GetCurrent(context);
-  env->SetMethod(target, "getHeapStatistics", GetHeapStatistics);
+  env->SetMethod(target,
+                 "updateHeapStatisticsArrayBuffer",
+                 UpdateHeapStatisticsArrayBuffer);
   env->SetMethod(target, "setFlagsFromString", SetFlagsFromString);
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(),
-                                    "kHeapStatisticsBufferLength"),
-              Uint32::NewFromUnsigned(env->isolate(),
-                                      kHeapStatisticsBufferLength));
+  env->set_heap_statistics_buffer(new uint32_t[kHeapStatisticsPropertiesCount]);
+
+  const size_t heap_statistics_buffer_byte_length =
+      sizeof(*env->heap_statistics_buffer()) * kHeapStatisticsPropertiesCount;
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(),
-                                    "kHeapStatisticsBufferType"),
-              Uint32::NewFromUnsigned(env->isolate(),
-                                      kHeapStatisticsBufferType));
+                                    "heapStatisticsArrayBuffer"),
+              ArrayBuffer::New(env->isolate(),
+                               env->heap_statistics_buffer(),
+                               heap_statistics_buffer_byte_length));
 
 #define V(i, _, name)                                                         \
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), #name),                   \

@@ -67,7 +67,7 @@ class MachineOperatorReducerTestWithParam
  public:
   explicit MachineOperatorReducerTestWithParam(int num_parameters = 2)
       : MachineOperatorReducerTest(num_parameters) {}
-  ~MachineOperatorReducerTestWithParam() OVERRIDE {}
+  ~MachineOperatorReducerTestWithParam() override {}
 };
 
 

@@ -1,14 +1,16 @@
-
 // Copyright 2015 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "src/compiler/js-intrinsic-lowering.h"
 
+#include <stack>
+
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/operator-properties.h"
 
 namespace v8 {
 namespace internal {
@@ -48,6 +50,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceIsSmi(node);
     case Runtime::kInlineJSValueGetValue:
       return ReduceJSValueGetValue(node);
+    case Runtime::kInlineLikely:
+      return ReduceUnLikely(node, BranchHint::kTrue);
     case Runtime::kInlineMapGetInstanceType:
       return ReduceMapGetInstanceType(node);
     case Runtime::kInlineMathClz32:
@@ -66,6 +70,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceSeqStringGetChar(node, String::TWO_BYTE_ENCODING);
     case Runtime::kInlineTwoByteSeqStringSetChar:
       return ReduceSeqStringSetChar(node, String::TWO_BYTE_ENCODING);
+    case Runtime::kInlineUnlikely:
+      return ReduceUnLikely(node, BranchHint::kFalse);
     case Runtime::kInlineValueOf:
       return ReduceValueOf(node);
     default:
@@ -89,6 +95,7 @@ Reduction JSIntrinsicLowering::ReduceConstructDouble(Node* node) {
 
 
 Reduction JSIntrinsicLowering::ReduceDeoptimizeNow(Node* node) {
+  // TODO(jarin): This should not depend on the global flag.
   if (!FLAG_turbo_deoptimization) return NoChange();
 
   Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
@@ -288,8 +295,32 @@ Reduction JSIntrinsicLowering::ReduceStringGetLength(Node* node) {
   Node* value = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  return Change(node, simplified()->LoadField(AccessBuilder::ForStringLength()),
+  return Change(node, simplified()->LoadField(
+                          AccessBuilder::ForStringLength(graph()->zone())),
                 value, effect, control);
+}
+
+
+Reduction JSIntrinsicLowering::ReduceUnLikely(Node* node, BranchHint hint) {
+  std::stack<Node*> nodes_to_visit;
+  nodes_to_visit.push(node);
+  while (!nodes_to_visit.empty()) {
+    Node* current = nodes_to_visit.top();
+    nodes_to_visit.pop();
+    for (Node* use : current->uses()) {
+      if (use->opcode() == IrOpcode::kJSToBoolean) {
+        // We have to "look through" ToBoolean calls.
+        nodes_to_visit.push(use);
+      } else if (use->opcode() == IrOpcode::kBranch) {
+        // Actually set the hint on any branch using the intrinsic node.
+        use->set_op(common()->Branch(hint));
+      }
+    }
+  }
+  // Apart from adding hints to branchs nodes, this is the identity function.
+  Node* value = NodeProperties::GetValueInput(node, 0);
+  NodeProperties::ReplaceWithValue(node, value);
+  return Changed(value);
 }
 
 

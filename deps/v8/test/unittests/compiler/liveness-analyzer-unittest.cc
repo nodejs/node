@@ -79,14 +79,14 @@ class LivenessAnalysisTest : public GraphTest {
           locals_count_(locals_count),
           replacement_(replacement) {}
 
-    void DescribeTo(std::ostream* os) const OVERRIDE {
+    void DescribeTo(std::ostream* os) const override {
       *os << "is a frame state with '" << liveness_
           << "' liveness, empty "
              "parameters and empty expression stack";
     }
 
     bool MatchAndExplain(Node* frame_state,
-                         MatchResultListener* listener) const OVERRIDE {
+                         MatchResultListener* listener) const override {
       if (frame_state == NULL) {
         *listener << "which is NULL";
         return false;

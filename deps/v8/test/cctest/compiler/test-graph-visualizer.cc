@@ -20,6 +20,10 @@
 using namespace v8::internal;
 using namespace v8::internal::compiler;
 
+static Operator dummy_operator(IrOpcode::kParameter, Operator::kNoWrite,
+                               "dummy", 0, 0, 0, 1, 0, 0);
+
+
 TEST(NodeWithNullInputReachableFromEnd) {
   HandleAndZoneScope scope;
   Graph graph(scope.main_zone());
@@ -87,6 +91,34 @@ TEST(NodeWithNullControlReachableFromStart) {
   Node* merge = graph.NewNode(common.Merge(2), start, start);
   merge->ReplaceInput(1, NULL);
   graph.SetEnd(merge);
+
+  OFStream os(stdout);
+  os << AsDOT(graph);
+  SourcePositionTable table(&graph);
+  os << AsJSON(graph, &table);
+}
+
+
+TEST(NodeNetworkOfDummiesReachableFromEnd) {
+  HandleAndZoneScope scope;
+  Graph graph(scope.main_zone());
+  CommonOperatorBuilder common(scope.main_zone());
+
+  Node* start = graph.NewNode(common.Start(0));
+  graph.SetStart(start);
+  Node* n2 = graph.NewNode(&dummy_operator, graph.start());
+  Node* n3 = graph.NewNode(&dummy_operator, graph.start());
+  Node* n4 = graph.NewNode(&dummy_operator, n2);
+  Node* n5 = graph.NewNode(&dummy_operator, n2);
+  Node* n6 = graph.NewNode(&dummy_operator, n3);
+  Node* n7 = graph.NewNode(&dummy_operator, n3);
+  Node* n8 = graph.NewNode(&dummy_operator, n5);
+  Node* n9 = graph.NewNode(&dummy_operator, n5);
+  Node* n10 = graph.NewNode(&dummy_operator, n9);
+  Node* n11 = graph.NewNode(&dummy_operator, n9);
+  Node* end_dependencies[6] = {n4, n8, n10, n11, n6, n7};
+  Node* end = graph.NewNode(&dummy_operator, 6, end_dependencies);
+  graph.SetEnd(end);
 
   OFStream os(stdout);
   os << AsDOT(graph);

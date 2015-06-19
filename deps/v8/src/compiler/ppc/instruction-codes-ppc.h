@@ -12,16 +12,11 @@ namespace compiler {
 // PPC-specific opcodes that specify which assembly sequence to emit.
 // Most opcodes specify a single instruction.
 #define TARGET_ARCH_OPCODE_LIST(V) \
-  V(PPC_And32)                     \
-  V(PPC_And64)                     \
-  V(PPC_AndComplement32)           \
-  V(PPC_AndComplement64)           \
-  V(PPC_Or32)                      \
-  V(PPC_Or64)                      \
-  V(PPC_OrComplement32)            \
-  V(PPC_OrComplement64)            \
-  V(PPC_Xor32)                     \
-  V(PPC_Xor64)                     \
+  V(PPC_And)                       \
+  V(PPC_AndComplement)             \
+  V(PPC_Or)                        \
+  V(PPC_OrComplement)              \
+  V(PPC_Xor)                       \
   V(PPC_ShiftLeft32)               \
   V(PPC_ShiftLeft64)               \
   V(PPC_ShiftRight32)              \
@@ -30,49 +25,46 @@ namespace compiler {
   V(PPC_ShiftRightAlg64)           \
   V(PPC_RotRight32)                \
   V(PPC_RotRight64)                \
-  V(PPC_Not32)                     \
-  V(PPC_Not64)                     \
+  V(PPC_Not)                       \
   V(PPC_RotLeftAndMask32)          \
   V(PPC_RotLeftAndClear64)         \
   V(PPC_RotLeftAndClearLeft64)     \
   V(PPC_RotLeftAndClearRight64)    \
-  V(PPC_Add32)                     \
+  V(PPC_Add)                       \
   V(PPC_AddWithOverflow32)         \
-  V(PPC_Add64)                     \
-  V(PPC_AddFloat64)                \
-  V(PPC_Sub32)                     \
+  V(PPC_AddDouble)                 \
+  V(PPC_Sub)                       \
   V(PPC_SubWithOverflow32)         \
-  V(PPC_Sub64)                     \
-  V(PPC_SubFloat64)                \
+  V(PPC_SubDouble)                 \
   V(PPC_Mul32)                     \
   V(PPC_Mul64)                     \
   V(PPC_MulHigh32)                 \
   V(PPC_MulHighU32)                \
-  V(PPC_MulFloat64)                \
+  V(PPC_MulDouble)                 \
   V(PPC_Div32)                     \
   V(PPC_Div64)                     \
   V(PPC_DivU32)                    \
   V(PPC_DivU64)                    \
-  V(PPC_DivFloat64)                \
+  V(PPC_DivDouble)                 \
   V(PPC_Mod32)                     \
   V(PPC_Mod64)                     \
   V(PPC_ModU32)                    \
   V(PPC_ModU64)                    \
-  V(PPC_ModFloat64)                \
-  V(PPC_Neg32)                     \
-  V(PPC_Neg64)                     \
-  V(PPC_NegFloat64)                \
-  V(PPC_SqrtFloat64)               \
-  V(PPC_FloorFloat64)              \
-  V(PPC_CeilFloat64)               \
-  V(PPC_TruncateFloat64)           \
-  V(PPC_RoundFloat64)              \
-  V(PPC_MaxFloat64)                \
-  V(PPC_MinFloat64)                \
+  V(PPC_ModDouble)                 \
+  V(PPC_Neg)                       \
+  V(PPC_NegDouble)                 \
+  V(PPC_SqrtDouble)                \
+  V(PPC_FloorDouble)               \
+  V(PPC_CeilDouble)                \
+  V(PPC_TruncateDouble)            \
+  V(PPC_RoundDouble)               \
+  V(PPC_MaxDouble)                 \
+  V(PPC_MinDouble)                 \
+  V(PPC_AbsDouble)                 \
   V(PPC_Cntlz32)                   \
   V(PPC_Cmp32)                     \
   V(PPC_Cmp64)                     \
-  V(PPC_CmpFloat64)                \
+  V(PPC_CmpDouble)                 \
   V(PPC_Tst32)                     \
   V(PPC_Tst64)                     \
   V(PPC_Push)                      \
@@ -81,17 +73,17 @@ namespace compiler {
   V(PPC_ExtendSignWord32)          \
   V(PPC_Uint32ToUint64)            \
   V(PPC_Int64ToInt32)              \
-  V(PPC_Int32ToFloat64)            \
-  V(PPC_Uint32ToFloat64)           \
-  V(PPC_Float32ToFloat64)          \
-  V(PPC_Float64ToInt32)            \
-  V(PPC_Float64ToUint32)           \
-  V(PPC_Float64ToFloat32)          \
-  V(PPC_Float64ExtractLowWord32)   \
-  V(PPC_Float64ExtractHighWord32)  \
-  V(PPC_Float64InsertLowWord32)    \
-  V(PPC_Float64InsertHighWord32)   \
-  V(PPC_Float64Construct)          \
+  V(PPC_Int32ToDouble)             \
+  V(PPC_Uint32ToDouble)            \
+  V(PPC_Float32ToDouble)           \
+  V(PPC_DoubleToInt32)             \
+  V(PPC_DoubleToUint32)            \
+  V(PPC_DoubleToFloat32)           \
+  V(PPC_DoubleExtractLowWord32)    \
+  V(PPC_DoubleExtractHighWord32)   \
+  V(PPC_DoubleInsertLowWord32)     \
+  V(PPC_DoubleInsertHighWord32)    \
+  V(PPC_DoubleConstruct)           \
   V(PPC_LoadWordS8)                \
   V(PPC_LoadWordU8)                \
   V(PPC_LoadWordS16)               \
@@ -99,13 +91,13 @@ namespace compiler {
   V(PPC_LoadWordS32)               \
   V(PPC_LoadWord64)                \
   V(PPC_LoadFloat32)               \
-  V(PPC_LoadFloat64)               \
+  V(PPC_LoadDouble)                \
   V(PPC_StoreWord8)                \
   V(PPC_StoreWord16)               \
   V(PPC_StoreWord32)               \
   V(PPC_StoreWord64)               \
   V(PPC_StoreFloat32)              \
-  V(PPC_StoreFloat64)              \
+  V(PPC_StoreDouble)               \
   V(PPC_StoreWriteBarrier)
 
 

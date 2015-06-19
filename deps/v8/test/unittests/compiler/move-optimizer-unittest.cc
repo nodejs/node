@@ -11,33 +11,29 @@ namespace compiler {
 
 class MoveOptimizerTest : public InstructionSequenceTest {
  public:
-  GapInstruction* LastGap() {
-    return GapInstruction::cast(*(sequence()->instructions().rbegin() + 1));
+  Instruction* LastInstruction() { return sequence()->instructions().back(); }
+
+  void AddMove(Instruction* instr, TestOperand from, TestOperand to,
+               Instruction::GapPosition pos = Instruction::START) {
+    auto parallel_move = instr->GetOrCreateParallelMove(pos, zone());
+    parallel_move->AddMove(ConvertMoveArg(from), ConvertMoveArg(to));
   }
 
-  void AddMove(GapInstruction* gap, TestOperand from, TestOperand to,
-               GapInstruction::InnerPosition pos = GapInstruction::START) {
-    auto parallel_move = gap->GetOrCreateParallelMove(pos, zone());
-    parallel_move->AddMove(ConvertMoveArg(from), ConvertMoveArg(to), zone());
-  }
-
-  int NonRedundantSize(ParallelMove* move) {
+  int NonRedundantSize(ParallelMove* moves) {
     int i = 0;
-    auto ops = move->move_operands();
-    for (auto op = ops->begin(); op != ops->end(); ++op) {
-      if (op->IsRedundant()) continue;
+    for (auto move : *moves) {
+      if (move->IsRedundant()) continue;
       i++;
     }
     return i;
   }
 
-  bool Contains(ParallelMove* move, TestOperand from_op, TestOperand to_op) {
+  bool Contains(ParallelMove* moves, TestOperand from_op, TestOperand to_op) {
     auto from = ConvertMoveArg(from_op);
     auto to = ConvertMoveArg(to_op);
-    auto ops = move->move_operands();
-    for (auto op = ops->begin(); op != ops->end(); ++op) {
-      if (op->IsRedundant()) continue;
-      if (op->source()->Equals(from) && op->destination()->Equals(to)) {
+    for (auto move : *moves) {
+      if (move->IsRedundant()) continue;
+      if (move->source().Equals(from) && move->destination().Equals(to)) {
         return true;
       }
     }
@@ -64,38 +60,38 @@ class MoveOptimizerTest : public InstructionSequenceTest {
   }
 
  private:
-  InstructionOperand* ConvertMoveArg(TestOperand op) {
+  InstructionOperand ConvertMoveArg(TestOperand op) {
     CHECK_EQ(kNoValue, op.vreg_.value_);
     CHECK_NE(kNoValue, op.value_);
     switch (op.type_) {
       case kConstant:
-        return ConstantOperand::New(op.value_, zone());
+        return ConstantOperand(op.value_);
       case kFixedSlot:
-        return StackSlotOperand::New(op.value_, zone());
+        return StackSlotOperand(kRepWord32, op.value_);
       case kFixedRegister:
         CHECK(0 <= op.value_ && op.value_ < num_general_registers());
-        return RegisterOperand::New(op.value_, zone());
+        return RegisterOperand(kRepWord32, op.value_);
       default:
         break;
     }
     CHECK(false);
-    return nullptr;
+    return InstructionOperand();
   }
 };
 
 
 TEST_F(MoveOptimizerTest, RemovesRedundant) {
   StartBlock();
-  EmitNop();
-  AddMove(LastGap(), Reg(0), Reg(1));
-  EmitNop();
-  AddMove(LastGap(), Reg(1), Reg(0));
+  auto first_instr = EmitNop();
+  AddMove(first_instr, Reg(0), Reg(1));
+  auto last_instr = EmitNop();
+  AddMove(last_instr, Reg(1), Reg(0));
   EndBlock(Last());
 
   Optimize();
 
-  auto gap = LastGap();
-  auto move = gap->parallel_moves()[0];
+  CHECK_EQ(0, NonRedundantSize(first_instr->parallel_moves()[0]));
+  auto move = last_instr->parallel_moves()[0];
   CHECK_EQ(1, NonRedundantSize(move));
   CHECK(Contains(move, Reg(0), Reg(1)));
 }
@@ -105,7 +101,7 @@ TEST_F(MoveOptimizerTest, SplitsConstants) {
   StartBlock();
   EndBlock(Last());
 
-  auto gap = LastGap();
+  auto gap = LastInstruction();
   AddMove(gap, Const(1), Slot(0));
   AddMove(gap, Const(1), Slot(1));
   AddMove(gap, Const(1), Reg(0));
@@ -131,18 +127,20 @@ TEST_F(MoveOptimizerTest, SimpleMerge) {
 
   StartBlock();
   EndBlock(Jump(2));
-  AddMove(LastGap(), Reg(0), Reg(1));
+  AddMove(LastInstruction(), Reg(0), Reg(1));
 
   StartBlock();
   EndBlock(Jump(1));
-  AddMove(LastGap(), Reg(0), Reg(1));
+  AddMove(LastInstruction(), Reg(0), Reg(1));
 
   StartBlock();
   EndBlock(Last());
 
+  auto last = LastInstruction();
+
   Optimize();
 
-  auto move = LastGap()->parallel_moves()[0];
+  auto move = last->parallel_moves()[0];
   CHECK_EQ(1, NonRedundantSize(move));
   CHECK(Contains(move, Reg(0), Reg(1)));
 }
@@ -154,24 +152,26 @@ TEST_F(MoveOptimizerTest, SimpleMergeCycle) {
 
   StartBlock();
   EndBlock(Jump(2));
-  auto gap_0 = LastGap();
+  auto gap_0 = LastInstruction();
   AddMove(gap_0, Reg(0), Reg(1));
-  AddMove(LastGap(), Reg(1), Reg(0));
+  AddMove(LastInstruction(), Reg(1), Reg(0));
 
   StartBlock();
   EndBlock(Jump(1));
-  auto gap_1 = LastGap();
+  auto gap_1 = LastInstruction();
   AddMove(gap_1, Reg(0), Reg(1));
   AddMove(gap_1, Reg(1), Reg(0));
 
   StartBlock();
   EndBlock(Last());
 
+  auto last = LastInstruction();
+
   Optimize();
 
-  CHECK(gap_0->IsRedundant());
-  CHECK(gap_1->IsRedundant());
-  auto move = LastGap()->parallel_moves()[0];
+  CHECK(gap_0->AreMovesRedundant());
+  CHECK(gap_1->AreMovesRedundant());
+  auto move = last->parallel_moves()[0];
   CHECK_EQ(2, NonRedundantSize(move));
   CHECK(Contains(move, Reg(0), Reg(1)));
   CHECK(Contains(move, Reg(1), Reg(0)));

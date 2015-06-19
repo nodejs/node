@@ -316,6 +316,8 @@ void TransitionArray::SetNumberOfPrototypeTransitions(
 int TransitionArray::NumberOfTransitions(Object* raw_transitions) {
   if (CanStoreSimpleTransition(raw_transitions)) return 0;
   if (IsSimpleTransition(raw_transitions)) return 1;
+  // Prototype maps don't have transitions.
+  if (raw_transitions->IsPrototypeInfo()) return 0;
   DCHECK(IsFullTransitionArray(raw_transitions));
   return TransitionArray::cast(raw_transitions)->number_of_transitions();
 }

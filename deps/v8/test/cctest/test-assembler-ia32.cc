@@ -30,6 +30,7 @@
 #include "src/v8.h"
 
 #include "src/base/platform/platform.h"
+#include "src/base/utils/random-number-generator.h"
 #include "src/disassembler.h"
 #include "src/factory.h"
 #include "src/macro-assembler.h"
@@ -1041,6 +1042,352 @@ TEST(AssemblerX64FMA_ss) {
 
   F10 f = FUNCTION_CAST<F10>(code->entry());
   CHECK_EQ(0, f(9.26621069e-05f, -2.4607749f, -1.09587872f));
+}
+
+
+TEST(AssemblerIa32BMI1) {
+  CcTest::InitializeVM();
+  if (!CpuFeatures::IsSupported(BMI1)) return;
+
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[1024];
+  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  {
+    CpuFeatureScope fscope(&assm, BMI1);
+    Label exit;
+
+    __ push(ebx);                         // save ebx
+    __ mov(ecx, Immediate(0x55667788u));  // source operand
+    __ push(ecx);                         // For memory operand
+
+    // andn
+    __ mov(edx, Immediate(0x20000000u));
+
+    __ mov(eax, Immediate(1));  // Test number
+    __ andn(ebx, edx, ecx);
+    __ cmp(ebx, Immediate(0x55667788u));  // expected result
+    __ j(not_equal, &exit);
+
+    __ inc(eax);
+    __ andn(ebx, edx, Operand(esp, 0));
+    __ cmp(ebx, Immediate(0x55667788u));  // expected result
+    __ j(not_equal, &exit);
+
+    // bextr
+    __ mov(edx, Immediate(0x00002808u));
+
+    __ inc(eax);
+    __ bextr(ebx, ecx, edx);
+    __ cmp(ebx, Immediate(0x00556677u));  // expected result
+    __ j(not_equal, &exit);
+
+    __ inc(eax);
+    __ bextr(ebx, Operand(esp, 0), edx);
+    __ cmp(ebx, Immediate(0x00556677u));  // expected result
+    __ j(not_equal, &exit);
+
+    // blsi
+    __ inc(eax);
+    __ blsi(ebx, ecx);
+    __ cmp(ebx, Immediate(0x00000008u));  // expected result
+    __ j(not_equal, &exit);
+
+    __ inc(eax);
+    __ blsi(ebx, Operand(esp, 0));
+    __ cmp(ebx, Immediate(0x00000008u));  // expected result
+    __ j(not_equal, &exit);
+
+    // blsmsk
+    __ inc(eax);
+    __ blsmsk(ebx, ecx);
+    __ cmp(ebx, Immediate(0x0000000fu));  // expected result
+    __ j(not_equal, &exit);
+
+    __ inc(eax);
+    __ blsmsk(ebx, Operand(esp, 0));
+    __ cmp(ebx, Immediate(0x0000000fu));  // expected result
+    __ j(not_equal, &exit);
+
+    // blsr
+    __ inc(eax);
+    __ blsr(ebx, ecx);
+    __ cmp(ebx, Immediate(0x55667780u));  // expected result
+    __ j(not_equal, &exit);
+
+    __ inc(eax);
+    __ blsr(ebx, Operand(esp, 0));
+    __ cmp(ebx, Immediate(0x55667780u));  // expected result
+    __ j(not_equal, &exit);
+
+    // tzcnt
+    __ inc(eax);
+    __ tzcnt(ebx, ecx);
+    __ cmp(ebx, Immediate(3));  // expected result
+    __ j(not_equal, &exit);
+
+    __ inc(eax);
+    __ tzcnt(ebx, Operand(esp, 0));
+    __ cmp(ebx, Immediate(3));  // expected result
+    __ j(not_equal, &exit);
+
+    __ xor_(eax, eax);
+    __ bind(&exit);
+    __ pop(ecx);
+    __ pop(ebx);
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+
+  F0 f = FUNCTION_CAST<F0>(code->entry());
+  CHECK_EQ(0, f());
+}
+
+
+TEST(AssemblerIa32LZCNT) {
+  CcTest::InitializeVM();
+  if (!CpuFeatures::IsSupported(LZCNT)) return;
+
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[256];
+  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  {
+    CpuFeatureScope fscope(&assm, LZCNT);
+    Label exit;
+
+    __ push(ebx);                         // save ebx
+    __ mov(ecx, Immediate(0x55667788u));  // source operand
+    __ push(ecx);                         // For memory operand
+
+    __ mov(eax, Immediate(1));  // Test number
+    __ lzcnt(ebx, ecx);
+    __ cmp(ebx, Immediate(1));  // expected result
+    __ j(not_equal, &exit);
+
+    __ inc(eax);
+    __ lzcnt(ebx, Operand(esp, 0));
+    __ cmp(ebx, Immediate(1));  // expected result
+    __ j(not_equal, &exit);
+
+    __ xor_(eax, eax);
+    __ bind(&exit);
+    __ pop(ecx);
+    __ pop(ebx);
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+
+  F0 f = FUNCTION_CAST<F0>(code->entry());
+  CHECK_EQ(0, f());
+}
+
+
+TEST(AssemblerIa32POPCNT) {
+  CcTest::InitializeVM();
+  if (!CpuFeatures::IsSupported(POPCNT)) return;
+
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[256];
+  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  {
+    CpuFeatureScope fscope(&assm, POPCNT);
+    Label exit;
+
+    __ push(ebx);                         // save ebx
+    __ mov(ecx, Immediate(0x11111100u));  // source operand
+    __ push(ecx);                         // For memory operand
+
+    __ mov(eax, Immediate(1));  // Test number
+    __ popcnt(ebx, ecx);
+    __ cmp(ebx, Immediate(6));  // expected result
+    __ j(not_equal, &exit);
+
+    __ inc(eax);
+    __ popcnt(ebx, Operand(esp, 0));
+    __ cmp(ebx, Immediate(6));  // expected result
+    __ j(not_equal, &exit);
+
+    __ xor_(eax, eax);
+    __ bind(&exit);
+    __ pop(ecx);
+    __ pop(ebx);
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+
+  F0 f = FUNCTION_CAST<F0>(code->entry());
+  CHECK_EQ(0, f());
+}
+
+
+TEST(AssemblerIa32BMI2) {
+  CcTest::InitializeVM();
+  if (!CpuFeatures::IsSupported(BMI2)) return;
+
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[2048];
+  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  {
+    CpuFeatureScope fscope(&assm, BMI2);
+    Label exit;
+
+    __ push(ebx);                         // save ebx
+    __ push(esi);                         // save esi
+    __ mov(ecx, Immediate(0x55667788u));  // source operand
+    __ push(ecx);                         // For memory operand
+
+    // bzhi
+    __ mov(edx, Immediate(9));
+
+    __ mov(eax, Immediate(1));  // Test number
+    __ bzhi(ebx, ecx, edx);
+    __ cmp(ebx, Immediate(0x00000188u));  // expected result
+    __ j(not_equal, &exit);
+
+    __ inc(eax);
+    __ bzhi(ebx, Operand(esp, 0), edx);
+    __ cmp(ebx, Immediate(0x00000188u));  // expected result
+    __ j(not_equal, &exit);
+
+    // mulx
+    __ mov(edx, Immediate(0x00001000u));
+
+    __ inc(eax);
+    __ mulx(ebx, esi, ecx);
+    __ cmp(ebx, Immediate(0x00000556u));  // expected result
+    __ j(not_equal, &exit);
+    __ cmp(esi, Immediate(0x67788000u));  // expected result
+    __ j(not_equal, &exit);
+
+    __ inc(eax);
+    __ mulx(ebx, esi, Operand(esp, 0));
+    __ cmp(ebx, Immediate(0x00000556u));  // expected result
+    __ j(not_equal, &exit);
+    __ cmp(esi, Immediate(0x67788000u));  // expected result
+    __ j(not_equal, &exit);
+
+    // pdep
+    __ mov(edx, Immediate(0xfffffff0u));
+
+    __ inc(eax);
+    __ pdep(ebx, edx, ecx);
+    __ cmp(ebx, Immediate(0x55667400u));  // expected result
+    __ j(not_equal, &exit);
+
+    __ inc(eax);
+    __ pdep(ebx, edx, Operand(esp, 0));
+    __ cmp(ebx, Immediate(0x55667400u));  // expected result
+    __ j(not_equal, &exit);
+
+    // pext
+    __ mov(edx, Immediate(0xfffffff0u));
+
+    __ inc(eax);
+    __ pext(ebx, edx, ecx);
+    __ cmp(ebx, Immediate(0x0000fffeu));  // expected result
+    __ j(not_equal, &exit);
+
+    __ inc(eax);
+    __ pext(ebx, edx, Operand(esp, 0));
+    __ cmp(ebx, Immediate(0x0000fffeu));  // expected result
+    __ j(not_equal, &exit);
+
+    // sarx
+    __ mov(edx, Immediate(4));
+
+    __ inc(eax);
+    __ sarx(ebx, ecx, edx);
+    __ cmp(ebx, Immediate(0x05566778u));  // expected result
+    __ j(not_equal, &exit);
+
+    __ inc(eax);
+    __ sarx(ebx, Operand(esp, 0), edx);
+    __ cmp(ebx, Immediate(0x05566778u));  // expected result
+    __ j(not_equal, &exit);
+
+    // shlx
+    __ mov(edx, Immediate(4));
+
+    __ inc(eax);
+    __ shlx(ebx, ecx, edx);
+    __ cmp(ebx, Immediate(0x56677880u));  // expected result
+    __ j(not_equal, &exit);
+
+    __ inc(eax);
+    __ shlx(ebx, Operand(esp, 0), edx);
+    __ cmp(ebx, Immediate(0x56677880u));  // expected result
+    __ j(not_equal, &exit);
+
+    // shrx
+    __ mov(edx, Immediate(4));
+
+    __ inc(eax);
+    __ shrx(ebx, ecx, edx);
+    __ cmp(ebx, Immediate(0x05566778u));  // expected result
+    __ j(not_equal, &exit);
+
+    __ inc(eax);
+    __ shrx(ebx, Operand(esp, 0), edx);
+    __ cmp(ebx, Immediate(0x05566778u));  // expected result
+    __ j(not_equal, &exit);
+
+    // rorx
+    __ inc(eax);
+    __ rorx(ebx, ecx, 0x4);
+    __ cmp(ebx, Immediate(0x85566778u));  // expected result
+    __ j(not_equal, &exit);
+
+    __ inc(eax);
+    __ rorx(ebx, Operand(esp, 0), 0x4);
+    __ cmp(ebx, Immediate(0x85566778u));  // expected result
+    __ j(not_equal, &exit);
+
+    __ xor_(eax, eax);
+    __ bind(&exit);
+    __ pop(ecx);
+    __ pop(esi);
+    __ pop(ebx);
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+
+  F0 f = FUNCTION_CAST<F0>(code->entry());
+  CHECK_EQ(0, f());
 }
 
 

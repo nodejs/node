@@ -47,3 +47,26 @@ var fives = [];
   if (v % 5 === 0) fives.push(v);
 });
 assertEquals([5, 10], fives);
+
+(function testRestrictedFunctionPropertiesStrict() {
+  var arrowFn = () => { "use strict"; };
+  assertFalse(arrowFn.hasOwnProperty("arguments"));
+  assertThrows(function() { return arrowFn.arguments; }, TypeError);
+  assertThrows(function() { arrowFn.arguments = {}; }, TypeError);
+
+  assertFalse(arrowFn.hasOwnProperty("caller"));
+  assertThrows(function() { return arrowFn.caller; }, TypeError);
+  assertThrows(function() { arrowFn.caller = {}; }, TypeError);
+})();
+
+
+(function testRestrictedFunctionPropertiesSloppy() {
+  var arrowFn = () => {};
+  assertFalse(arrowFn.hasOwnProperty("arguments"));
+  assertThrows(function() { return arrowFn.arguments; }, TypeError);
+  assertThrows(function() { arrowFn.arguments = {}; }, TypeError);
+
+  assertFalse(arrowFn.hasOwnProperty("caller"));
+  assertThrows(function() { return arrowFn.caller; }, TypeError);
+  assertThrows(function() { arrowFn.caller = {}; }, TypeError);
+})();

@@ -22,8 +22,7 @@ Debug.DebugEvent = { Break: 1,
                      AfterCompile: 5,
                      CompileError: 6,
                      PromiseEvent: 7,
-                     AsyncTaskEvent: 8,
-                     BreakForCommand: 9 };
+                     AsyncTaskEvent: 8 };
 
 // Types of exceptions that can be broken upon.
 Debug.ExceptionBreak = { Caught : 0,
@@ -203,7 +202,8 @@ BreakPoint.prototype.isTriggered = function(exec_state) {
     try {
       var mirror = exec_state.frame(0).evaluate(this.condition());
       // If no sensible mirror or non true value break point not triggered.
-      if (!(mirror instanceof ValueMirror) || !%ToBoolean(mirror.value_)) {
+      if (!(mirror instanceof ValueMirror) ||
+          !builtins.$toBoolean(mirror.value_)) {
         return false;
       }
     } catch (e) {
@@ -925,8 +925,8 @@ function ExecutionState(break_id) {
 ExecutionState.prototype.prepareStep = function(opt_action, opt_count,
     opt_callframe) {
   var action = Debug.StepAction.StepIn;
-  if (!IS_UNDEFINED(opt_action)) action = %ToNumber(opt_action);
-  var count = opt_count ? %ToNumber(opt_count) : 1;
+  if (!IS_UNDEFINED(opt_action)) action = builtins.$toNumber(opt_action);
+  var count = opt_count ? builtins.$toNumber(opt_count) : 1;
   var callFrameId = 0;
   if (!IS_UNDEFINED(opt_callframe)) {
     callFrameId = opt_callframe.details_.frameId();
@@ -960,7 +960,7 @@ ExecutionState.prototype.frame = function(opt_index) {
 };
 
 ExecutionState.prototype.setSelectedFrame = function(index) {
-  var i = %ToNumber(index);
+  var i = builtins.$toNumber(index);
   if (i < 0 || i >= this.frameCount()) throw new Error('Illegal frame index.');
   this.selected_frame = i;
 };
@@ -1403,7 +1403,7 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(
         response = this.createResponse();
       }
       response.success = false;
-      response.message = %ToString(e);
+      response.message = builtins.$toString(e);
     }
 
     // Return the response as a JSON encoded string.
@@ -1420,7 +1420,7 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(
               '"request_seq":' + request.seq + ',' +
               '"type":"response",' +
               '"success":false,' +
-              '"message":"Internal error: ' + %ToString(e) + '"}';
+              '"message":"Internal error: ' + builtins.$toString(e) + '"}';
     }
   } catch (e) {
     // Failed in one of the catch blocks above - most generic error.
@@ -1441,7 +1441,7 @@ DebugCommandProcessor.prototype.continueRequest_ = function(request, response) {
 
     // Get the stepcount argument if any.
     if (stepcount) {
-      count = %ToNumber(stepcount);
+      count = builtins.$toNumber(stepcount);
       if (count < 0) {
         throw new Error('Invalid stepcount argument "' + stepcount + '".');
       }
@@ -1514,7 +1514,7 @@ DebugCommandProcessor.prototype.setBreakPointRequest_ =
       // Find the function through a global evaluate.
       f = this.exec_state_.evaluateGlobal(target).value();
     } catch (e) {
-      response.failed('Error: "' + %ToString(e) +
+      response.failed('Error: "' + builtins.$toString(e) +
                       '" evaluating "' + target + '"');
       return;
     }
@@ -1603,7 +1603,7 @@ DebugCommandProcessor.prototype.changeBreakPointRequest_ = function(
   }
 
   // Pull out arguments.
-  var break_point = %ToNumber(request.arguments.breakpoint);
+  var break_point = builtins.$toNumber(request.arguments.breakpoint);
   var enabled = request.arguments.enabled;
   var condition = request.arguments.condition;
   var ignoreCount = request.arguments.ignoreCount;
@@ -1679,7 +1679,7 @@ DebugCommandProcessor.prototype.clearBreakPointRequest_ = function(
   }
 
   // Pull out arguments.
-  var break_point = %ToNumber(request.arguments.breakpoint);
+  var break_point = builtins.$toNumber(request.arguments.breakpoint);
 
   // Check for legal arguments.
   if (!break_point) {
@@ -1936,7 +1936,7 @@ DebugCommandProcessor.prototype.scopeRequest_ = function(request, response) {
   // With no scope argument just return top scope.
   var scope_index = 0;
   if (request.arguments && !IS_UNDEFINED(request.arguments.number)) {
-    scope_index = %ToNumber(request.arguments.number);
+    scope_index = builtins.$toNumber(request.arguments.number);
     if (scope_index < 0 || scope_holder.scopeCount() <= scope_index) {
       return response.failed('Invalid scope number');
     }
@@ -2000,7 +2000,7 @@ DebugCommandProcessor.prototype.setVariableValueRequest_ =
   if (IS_UNDEFINED(scope_description.number)) {
     response.failed('Missing scope number');
   }
-  var scope_index = %ToNumber(scope_description.number);
+  var scope_index = builtins.$toNumber(scope_description.number);
 
   var scope = scope_holder.scope(scope_index);
 
@@ -2078,7 +2078,7 @@ DebugCommandProcessor.prototype.evaluateRequest_ = function(request, response) {
 
   // Check whether a frame was specified.
   if (!IS_UNDEFINED(frame)) {
-    var frame_number = %ToNumber(frame);
+    var frame_number = builtins.$toNumber(frame);
     if (frame_number < 0 || frame_number >= this.exec_state_.frameCount()) {
       return response.failed('Invalid frame "' + frame + '"');
     }
@@ -2110,7 +2110,7 @@ DebugCommandProcessor.prototype.lookupRequest_ = function(request, response) {
 
   // Set 'includeSource' option for script lookup.
   if (!IS_UNDEFINED(request.arguments.includeSource)) {
-    var includeSource = %ToBoolean(request.arguments.includeSource);
+    var includeSource = builtins.$toBoolean(request.arguments.includeSource);
     response.setOption('includeSource', includeSource);
   }
 
@@ -2178,7 +2178,7 @@ DebugCommandProcessor.prototype.sourceRequest_ = function(request, response) {
     to_line = request.arguments.toLine;
 
     if (!IS_UNDEFINED(request.arguments.frame)) {
-      var frame_number = %ToNumber(request.arguments.frame);
+      var frame_number = builtins.$toNumber(request.arguments.frame);
       if (frame_number < 0 || frame_number >= this.exec_state_.frameCount()) {
         return response.failed('Invalid frame "' + frame + '"');
       }
@@ -2214,7 +2214,7 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
   if (request.arguments) {
     // Pull out arguments.
     if (!IS_UNDEFINED(request.arguments.types)) {
-      types = %ToNumber(request.arguments.types);
+      types = builtins.$toNumber(request.arguments.types);
       if (isNaN(types) || types < 0) {
         return response.failed('Invalid types "' +
                                request.arguments.types + '"');
@@ -2222,7 +2222,7 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
     }
 
     if (!IS_UNDEFINED(request.arguments.includeSource)) {
-      includeSource = %ToBoolean(request.arguments.includeSource);
+      includeSource = builtins.$toBoolean(request.arguments.includeSource);
       response.setOption('includeSource', includeSource);
     }
 
@@ -2237,7 +2237,7 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
     var filterStr = null;
     var filterNum = null;
     if (!IS_UNDEFINED(request.arguments.filter)) {
-      var num = %ToNumber(request.arguments.filter);
+      var num = builtins.$toNumber(request.arguments.filter);
       if (!isNaN(num)) {
         filterNum = num;
       }
@@ -2373,7 +2373,7 @@ DebugCommandProcessor.prototype.restartFrameRequest_ = function(
   var frame_mirror;
   // Check whether a frame was specified.
   if (!IS_UNDEFINED(frame)) {
-    var frame_number = %ToNumber(frame);
+    var frame_number = builtins.$toNumber(frame);
     if (frame_number < 0 || frame_number >= this.exec_state_.frameCount()) {
       return response.failed('Invalid frame "' + frame + '"');
     }

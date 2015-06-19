@@ -198,14 +198,6 @@ TypeName* Unwrap(v8::Local<v8::Object> object) {
   return static_cast<TypeName*>(pointer);
 }
 
-inline bool IsValidSmi(int64_t value) {
-  if (sizeof(int32_t) == sizeof(intptr_t)) {
-    return value >= -0x40000000LL && value <= 0x3fffffffLL;
-  } else {
-    return value >= -0x80000000LL && value <= 0x7fffffffLL;
-  }
-}
-
 }  // namespace node
 
 #endif  // SRC_UTIL_INL_H_

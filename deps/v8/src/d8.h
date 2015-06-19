@@ -58,18 +58,14 @@ class CounterMap {
  public:
   CounterMap(): hash_map_(Match) { }
   Counter* Lookup(const char* name) {
-    i::HashMap::Entry* answer = hash_map_.Lookup(
-        const_cast<char*>(name),
-        Hash(name),
-        false);
+    i::HashMap::Entry* answer =
+        hash_map_.Lookup(const_cast<char*>(name), Hash(name));
     if (!answer) return NULL;
     return reinterpret_cast<Counter*>(answer->value);
   }
   void Set(const char* name, Counter* value) {
-    i::HashMap::Entry* answer = hash_map_.Lookup(
-        const_cast<char*>(name),
-        Hash(name),
-        true);
+    i::HashMap::Entry* answer =
+        hash_map_.LookupOrInsert(const_cast<char*>(name), Hash(name));
     DCHECK(answer != NULL);
     answer->value = value;
   }
@@ -200,6 +196,7 @@ class ShellOptions {
         last_run(true),
         send_idle_notification(false),
         invoke_weak_callbacks(false),
+        omit_quit(false),
         stress_opt(false),
         stress_deopt(false),
         interactive_shell(false),
@@ -226,6 +223,7 @@ class ShellOptions {
   bool last_run;
   bool send_idle_notification;
   bool invoke_weak_callbacks;
+  bool omit_quit;
   bool stress_opt;
   bool stress_deopt;
   bool interactive_shell;
@@ -389,24 +387,6 @@ class Shell : public i::AllStatic {
   static Handle<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);
   static Handle<FunctionTemplate> CreateArrayBufferTemplate(FunctionCallback);
   static Handle<FunctionTemplate> CreateArrayTemplate(FunctionCallback);
-  static Handle<Value> CreateExternalArrayBuffer(Isolate* isolate,
-                                                 Handle<Object> buffer,
-                                                 int32_t size);
-  static Handle<Object> CreateExternalArray(Isolate* isolate,
-                                            Handle<Object> array,
-                                            Handle<Object> buffer,
-                                            ExternalArrayType type,
-                                            int32_t length,
-                                            int32_t byteLength,
-                                            int32_t byteOffset,
-                                            int32_t element_size);
-  static void CreateExternalArray(
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      ExternalArrayType type,
-      int32_t element_size);
-  static void ExternalArrayWeakCallback(Isolate* isolate,
-                                        Persistent<Object>* object,
-                                        uint8_t* data);
 };
 
 

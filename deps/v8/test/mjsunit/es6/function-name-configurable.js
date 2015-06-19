@@ -90,10 +90,10 @@ test(testFunctionToString);
 
   function f() {}
   delete f.name;
-  assertEquals('Empty', f.name);
+  assertEquals('', f.name);
 
   f.name = 42;
-  assertEquals('Empty', f.name);  // non writable prototype property.
+  assertEquals('', f.name);  // non writable prototype property.
   assertFalse(f.hasOwnProperty('name'));
 
   Object.defineProperty(Function.prototype, 'name', {writable: true});
@@ -108,7 +108,7 @@ test(testFunctionToString);
   function f() {}
   assertTrue(delete f.name);
   assertFalse(f.hasOwnProperty('name'));
-  assertEquals('Empty', f.name);
+  assertEquals('', f.name);
 
   assertTrue(delete Function.prototype.name);
   assertEquals(undefined, f.name);

@@ -308,14 +308,16 @@ BoundsCheckTable::BoundsCheckTable(Zone* zone)
 BoundsCheckBbData** BoundsCheckTable::LookupOrInsert(BoundsCheckKey* key,
                                                      Zone* zone) {
   return reinterpret_cast<BoundsCheckBbData**>(
-      &(Lookup(key, key->Hash(), true, ZoneAllocationPolicy(zone))->value));
+      &(ZoneHashMap::LookupOrInsert(key, key->Hash(),
+                                    ZoneAllocationPolicy(zone))->value));
 }
 
 
 void BoundsCheckTable::Insert(BoundsCheckKey* key,
                               BoundsCheckBbData* data,
                               Zone* zone) {
-  Lookup(key, key->Hash(), true, ZoneAllocationPolicy(zone))->value = data;
+  ZoneHashMap::LookupOrInsert(key, key->Hash(), ZoneAllocationPolicy(zone))
+      ->value = data;
 }
 
 

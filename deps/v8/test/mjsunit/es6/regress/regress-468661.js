@@ -9,7 +9,7 @@ var exception = null;
 var break_count = 0;
 
 var expected_values =
-  [ReferenceError, ReferenceError, 0, 0, 0, 0, 0, 1, ReferenceError, ReferenceError];
+  [ReferenceError, undefined, 0, 0, 0, 0, 1, ReferenceError, ReferenceError];
 
 function listener(event, exec_state, event_data, data) {
   try {
@@ -39,6 +39,7 @@ function listener(event, exec_state, event_data, data) {
         assertTrue(v instanceof ReferenceError);
       } else {
         assertSame(expected_values[break_count], v);
+
       }
       ++break_count;
 
@@ -62,14 +63,14 @@ var sum = 0;
   debugger; // Break 0.
 
   for (let i=0; // Break 1.
-       i < 1;   // Break 2. // Break 3. // Break 6. // Break 7.
+       i < 1;   // Break 2. // Break 5. // Break 6.
        i++) {
-    let key = i; // Break 4.
-    sum += key;   // Break 5.
+    let key = i; // Break 3.
+    sum += key;   // Break 4.
   }
-}()); // Break 8.
+}()); // Break 7.
 
-assertNull(exception); // Break 9.
+assertNull(exception); // Break 8.
 assertEquals(expected_breaks, break_count);
 
 Debug.setListener(null);

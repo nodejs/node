@@ -108,9 +108,9 @@ using v8::StackTrace;
 using v8::String;
 using v8::TryCatch;
 using v8::Uint32;
+using v8::Uint32Array;
 using v8::V8;
 using v8::Value;
-using v8::kExternalUint32Array;
 
 static bool print_eval = false;
 static bool force_repl = false;
@@ -147,8 +147,6 @@ static uv_async_t dispatch_debug_messages_async;
 
 static Isolate* node_isolate = nullptr;
 static v8::Platform* default_platform;
-
-bool using_old_buffer = false;
 
 class ArrayBufferAllocator : public ArrayBuffer::Allocator {
  public:
@@ -944,20 +942,19 @@ void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
   env->set_tick_callback_function(tick_callback_function);
 
   CHECK(args[0]->IsArray());
-  CHECK(args[1]->IsObject());
-
   env->set_domain_array(args[0].As<Array>());
-
-  Local<Object> domain_flag_obj = args[1].As<Object>();
-  Environment::DomainFlag* domain_flag = env->domain_flag();
-  domain_flag_obj->SetIndexedPropertiesToExternalArrayData(
-      domain_flag->fields(),
-      kExternalUint32Array,
-      domain_flag->fields_count());
 
   // Do a little housekeeping.
   env->process_object()->Delete(
       FIXED_ONE_BYTE_STRING(args.GetIsolate(), "_setupDomainUse"));
+
+  uint32_t* const fields = env->domain_flag()->fields();
+  uint32_t const fields_count = env->domain_flag()->fields_count();
+
+  Local<ArrayBuffer> array_buffer =
+      ArrayBuffer::New(env->isolate(), fields, sizeof(*fields) * fields_count);
+
+  args.GetReturnValue().Set(Uint32Array::New(array_buffer, 0, fields_count));
 }
 
 void RunMicrotasks(const FunctionCallbackInfo<Value>& args) {
@@ -968,24 +965,25 @@ void RunMicrotasks(const FunctionCallbackInfo<Value>& args) {
 void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK(args[0]->IsObject());
-  CHECK(args[1]->IsFunction());
-  CHECK(args[2]->IsObject());
+  CHECK(args[0]->IsFunction());
+  CHECK(args[1]->IsObject());
 
-  // Values use to cross communicate with processNextTick.
-  Local<Object> tick_info_obj = args[0].As<Object>();
-  tick_info_obj->SetIndexedPropertiesToExternalArrayData(
-      env->tick_info()->fields(),
-      kExternalUint32Array,
-      env->tick_info()->fields_count());
+  env->set_tick_callback_function(args[0].As<Function>());
 
-  env->set_tick_callback_function(args[1].As<Function>());
-
-  env->SetMethod(args[2].As<Object>(), "runMicrotasks", RunMicrotasks);
+  env->SetMethod(args[1].As<Object>(), "runMicrotasks", RunMicrotasks);
 
   // Do a little housekeeping.
   env->process_object()->Delete(
       FIXED_ONE_BYTE_STRING(args.GetIsolate(), "_setupNextTick"));
+
+  // Values use to cross communicate with processNextTick.
+  uint32_t* const fields = env->tick_info()->fields();
+  uint32_t const fields_count = env->tick_info()->fields_count();
+
+  Local<ArrayBuffer> array_buffer =
+      ArrayBuffer::New(env->isolate(), fields, sizeof(*fields) * fields_count);
+
+  args.GetReturnValue().Set(Uint32Array::New(array_buffer, 0, fields_count));
 }
 
 void PromiseRejectCallback(PromiseRejectMessage message) {
@@ -2833,11 +2831,6 @@ void SetupProcessObject(Environment* env,
     READONLY_PROPERTY(process, "traceDeprecation", True(env->isolate()));
   }
 
-  // --use-old_buffer
-  if (using_old_buffer) {
-    READONLY_PROPERTY(process, "useOldBuffer", True(env->isolate()));
-  }
-
   size_t exec_path_len = 2 * PATH_MAX;
   char* exec_path = new char[exec_path_len];
   Local<String> exec_path_value;
@@ -3207,10 +3200,6 @@ static void ParseArgs(int* argc,
 #endif
     } else if (strcmp(arg, "--expose-internals") == 0 ||
                strcmp(arg, "--expose_internals") == 0) {
-    } else if (strcmp(arg, "--use-old-buffer") == 0 ||
-               strcmp(arg, "--use_old_buffer") == 0) {
-      using_old_buffer = true;
-
       // consumed in js
     } else {
       // V8 option.  Pass through as-is.

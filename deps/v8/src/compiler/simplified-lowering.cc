@@ -111,13 +111,9 @@ class RepresentationSelector {
       Node* node = *i;
       TRACE(" visit #%d: %s\n", node->id(), node->op()->mnemonic());
       // Reuse {VisitNode()} so the representation rules are in one place.
-      if (FLAG_turbo_source_positions) {
-        SourcePositionTable::Scope scope(
-            source_positions_, source_positions_->GetSourcePosition(node));
-        VisitNode(node, GetUseInfo(node), lowering);
-      } else {
-        VisitNode(node, GetUseInfo(node), lowering);
-      }
+      SourcePositionTable::Scope scope(
+          source_positions_, source_positions_->GetSourcePosition(node));
+      VisitNode(node, GetUseInfo(node), lowering);
     }
 
     // Perform the final replacements.
@@ -319,15 +315,18 @@ class RepresentationSelector {
   MachineType GetRepresentationForPhi(Node* node, MachineTypeUnion use) {
     // Phis adapt to the output representation their uses demand.
     Type* upper = NodeProperties::GetBounds(node).upper;
-    if ((use & kRepMask) == kRepTagged) {
+    if ((use & kRepMask) == kRepFloat32) {
+      // only float32 uses.
+      return kRepFloat32;
+    } else if ((use & kRepMask) == kRepFloat64) {
+      // only float64 uses.
+      return kRepFloat64;
+    } else if ((use & kRepMask) == kRepTagged) {
       // only tagged uses.
       return kRepTagged;
     } else if (upper->Is(Type::Integral32())) {
       // Integer within [-2^31, 2^32[ range.
-      if ((use & kRepMask) == kRepFloat64) {
-        // only float64 uses.
-        return kRepFloat64;
-      } else if (upper->Is(Type::Signed32()) || upper->Is(Type::Unsigned32())) {
+      if (upper->Is(Type::Signed32()) || upper->Is(Type::Unsigned32())) {
         // multiple uses, but we are within 32 bits range => pick kRepWord32.
         return kRepWord32;
       } else if (((use & kRepMask) == kRepWord32 &&
@@ -501,12 +500,12 @@ class RepresentationSelector {
         SetOutput(node, kRepTagged | changer_->TypeFromUpperBound(upper));
         return;
       }
-      case IrOpcode::kAlways:
-        return VisitLeaf(node, kRepBit);
       case IrOpcode::kInt32Constant:
         return VisitLeaf(node, kRepWord32);
       case IrOpcode::kInt64Constant:
         return VisitLeaf(node, kRepWord64);
+      case IrOpcode::kFloat32Constant:
+        return VisitLeaf(node, kRepFloat32);
       case IrOpcode::kFloat64Constant:
         return VisitLeaf(node, kRepFloat64);
       case IrOpcode::kExternalConstant:
@@ -782,6 +781,13 @@ class RepresentationSelector {
         if (lower()) lowering->DoStringAdd(node);
         break;
       }
+      case IrOpcode::kAllocate: {
+        ProcessInput(node, 0, kMachAnyTagged);
+        ProcessRemainingInputs(node, 1);
+        SetOutput(node, kMachAnyTagged);
+        if (lower()) lowering->DoAllocate(node);
+        break;
+      }
       case IrOpcode::kLoadField: {
         FieldAccess access = FieldAccessOf(node->op());
         ProcessInput(node, 0, changer_->TypeForBasePointer(access));
@@ -1014,6 +1020,7 @@ class RepresentationSelector {
       case IrOpcode::kFloat64Mod:
       case IrOpcode::kFloat64Min:
         return VisitFloat64Binop(node);
+      case IrOpcode::kFloat64Abs:
       case IrOpcode::kFloat64Sqrt:
       case IrOpcode::kFloat64RoundDown:
       case IrOpcode::kFloat64RoundTruncate:
@@ -1155,6 +1162,23 @@ WriteBarrierKind ComputeWriteBarrierKind(BaseTaggedness base_is_tagged,
 }
 
 }  // namespace
+
+
+void SimplifiedLowering::DoAllocate(Node* node) {
+  PretenureFlag pretenure = OpParameter<PretenureFlag>(node->op());
+  AllocationSpace space = pretenure == TENURED ? OLD_SPACE : NEW_SPACE;
+  Runtime::FunctionId f = Runtime::kAllocateInTargetSpace;
+  Operator::Properties props = node->op()->properties();
+  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(zone(), f, 2, props);
+  node->set_op(common()->Call(desc));
+  ExternalReference ref(f, jsgraph()->isolate());
+  int32_t flags = AllocateTargetSpace::encode(space);
+  node->InsertInput(graph()->zone(), 0, jsgraph()->CEntryStubConstant(1));
+  node->InsertInput(graph()->zone(), 2, jsgraph()->SmiConstant(flags));
+  node->InsertInput(graph()->zone(), 3, jsgraph()->ExternalConstant(ref));
+  node->InsertInput(graph()->zone(), 4, jsgraph()->Int32Constant(2));
+  node->InsertInput(graph()->zone(), 5, jsgraph()->NoContextConstant());
+}
 
 
 void SimplifiedLowering::DoLoadField(Node* node) {
@@ -1301,7 +1325,6 @@ void SimplifiedLowering::DoStringAdd(Node* node) {
 
 
 Node* SimplifiedLowering::StringComparison(Node* node, bool requires_ordering) {
-  CEntryStub stub(jsgraph()->isolate(), 1);
   Runtime::FunctionId f =
       requires_ordering ? Runtime::kStringCompareRT : Runtime::kStringEquals;
   ExternalReference ref(f, jsgraph()->isolate());
@@ -1310,12 +1333,12 @@ Node* SimplifiedLowering::StringComparison(Node* node, bool requires_ordering) {
   // interface descriptor is available for it.
   CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(zone(), f, 2, props);
   return graph()->NewNode(common()->Call(desc),
-                          jsgraph()->HeapConstant(stub.GetCode()),
+                          jsgraph()->CEntryStubConstant(1),
                           NodeProperties::GetValueInput(node, 0),
                           NodeProperties::GetValueInput(node, 1),
                           jsgraph()->ExternalConstant(ref),
                           jsgraph()->Int32Constant(2),
-                          jsgraph()->UndefinedConstant());
+                          jsgraph()->NoContextConstant());
 }
 
 

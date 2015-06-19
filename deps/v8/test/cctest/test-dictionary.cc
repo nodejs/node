@@ -110,7 +110,6 @@ TEST(HashMap) {
   v8::HandleScope scope(context->GetIsolate());
   Isolate* isolate = CcTest::i_isolate();
   TestHashMap(ObjectHashTable::New(isolate, 23));
-  TestHashMap(isolate->factory()->NewOrderedHashMap());
 }
 
 
@@ -182,7 +181,7 @@ static void TestHashSetCausesGC(Handle<HashSet> table) {
   // Simulate a full heap so that generating an identity hash code
   // in subsequent calls will request GC.
   SimulateFullSpace(CcTest::heap()->new_space());
-  SimulateFullSpace(CcTest::heap()->old_pointer_space());
+  SimulateFullSpace(CcTest::heap()->old_space());
 
   // Calling Contains() should not cause GC ever.
   int gc_count = isolate->heap()->gc_count();
@@ -198,15 +197,6 @@ static void TestHashSetCausesGC(Handle<HashSet> table) {
   // Calling Add() should cause GC.
   table = HashSet::Add(table, key);
   CHECK(gc_count < isolate->heap()->gc_count());
-}
-
-
-TEST(ObjectHashSetCausesGC) {
-  i::FLAG_stress_compaction = false;
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Isolate* isolate = CcTest::i_isolate();
-  TestHashSetCausesGC(isolate->factory()->NewOrderedHashSet());
 }
 #endif
 
@@ -228,7 +218,7 @@ static void TestHashMapCausesGC(Handle<HashMap> table) {
   // Simulate a full heap so that generating an identity hash code
   // in subsequent calls will request GC.
   SimulateFullSpace(CcTest::heap()->new_space());
-  SimulateFullSpace(CcTest::heap()->old_pointer_space());
+  SimulateFullSpace(CcTest::heap()->old_space());
 
   // Calling Lookup() should not cause GC ever.
   CHECK(table->Lookup(key)->IsTheHole());
@@ -246,9 +236,7 @@ TEST(ObjectHashTableCausesGC) {
   v8::HandleScope scope(context->GetIsolate());
   Isolate* isolate = CcTest::i_isolate();
   TestHashMapCausesGC(ObjectHashTable::New(isolate, 1));
-  TestHashMapCausesGC(isolate->factory()->NewOrderedHashMap());
 }
 #endif
-
 
 }

@@ -285,7 +285,7 @@ static void TransferOsrValueTypesFromLoopPhis(Zone* zone, Node* osr_loop_entry,
 }
 
 
-bool OsrHelper::Deconstruct(JSGraph* jsgraph, CommonOperatorBuilder* common,
+void OsrHelper::Deconstruct(JSGraph* jsgraph, CommonOperatorBuilder* common,
                             Zone* tmp_zone) {
   Graph* graph = jsgraph->graph();
   Node* osr_normal_entry = nullptr;
@@ -303,7 +303,7 @@ bool OsrHelper::Deconstruct(JSGraph* jsgraph, CommonOperatorBuilder* common,
   if (osr_loop_entry == nullptr) {
     // No OSR entry found, do nothing.
     CHECK(osr_normal_entry);
-    return true;
+    return;
   }
 
   for (Node* use : osr_loop_entry->uses()) {
@@ -339,14 +339,12 @@ bool OsrHelper::Deconstruct(JSGraph* jsgraph, CommonOperatorBuilder* common,
   // but we need to avoid that because the osr_loop is reachable through
   // the second input, so reduce it and its phis manually.
   osr_loop->ReplaceInput(0, dead);
-  Node* node = ControlReducer::ReduceMerge(jsgraph, common, osr_loop);
+  Node* node = ControlReducer::ReduceMerge(jsgraph, osr_loop);
   if (node != osr_loop) osr_loop->ReplaceUses(node);
 
   // Run the normal control reduction, which naturally trims away the dead
   // parts of the graph.
-  ControlReducer::ReduceGraph(tmp_zone, jsgraph, common);
-
-  return true;
+  ControlReducer::ReduceGraph(tmp_zone, jsgraph);
 }
 
 

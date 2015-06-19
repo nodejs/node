@@ -332,15 +332,15 @@ Handle<Object> LookupIterator::GetDataValue() const {
 }
 
 
-Handle<Object> LookupIterator::WriteDataValue(Handle<Object> value) {
+void LookupIterator::WriteDataValue(Handle<Object> value) {
   DCHECK_EQ(DATA, state_);
   Handle<JSObject> holder = GetHolder<JSObject>();
   if (holder_map_->is_dictionary_map()) {
     Handle<NameDictionary> property_dictionary =
         handle(holder->property_dictionary());
     if (holder->IsGlobalObject()) {
-      value = PropertyCell::UpdateCell(property_dictionary, dictionary_entry(),
-                                       value, property_details_);
+      PropertyCell::UpdateCell(property_dictionary, dictionary_entry(), value,
+                               property_details_);
     } else {
       property_dictionary->ValueAtPut(dictionary_entry(), *value);
     }
@@ -349,7 +349,6 @@ Handle<Object> LookupIterator::WriteDataValue(Handle<Object> value) {
   } else {
     DCHECK_EQ(v8::internal::DATA_CONSTANT, property_details_.type());
   }
-  return value;
 }
 
 
@@ -364,7 +363,7 @@ bool LookupIterator::IsIntegerIndexedExotic(JSReceiver* holder) {
   if (name()->IsString()) {
     Handle<String> name_string = Handle<String>::cast(name());
     if (name_string->length() != 0) {
-      result = IsNonArrayIndexInteger(*name_string);
+      result = IsSpecialIndex(isolate_->unicode_cache(), *name_string);
     }
   }
   exotic_index_state_ =

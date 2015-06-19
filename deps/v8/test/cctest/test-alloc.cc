@@ -38,8 +38,15 @@ using namespace v8::internal;
 static AllocationResult AllocateAfterFailures() {
   static int attempts = 0;
 
-  if (++attempts < 3) return AllocationResult::Retry();
+  // The first 4 times we simulate a full heap, by returning retry.
+  if (++attempts < 4) return AllocationResult::Retry();
+
+  // Expose some private stuff on Heap.
   TestHeap* heap = CcTest::test_heap();
+
+  // Now that we have returned 'retry' 4 times, we are in a last-chance
+  // scenario, with always_allocate.  See CALL_AND_RETRY.  Test that all
+  // allocations succeed.
 
   // New space.
   SimulateFullSpace(heap->new_space());
@@ -55,18 +62,18 @@ static AllocationResult AllocateAfterFailures() {
   heap->CopyJSObject(JSObject::cast(object)).ToObjectChecked();
 
   // Old data space.
-  SimulateFullSpace(heap->old_data_space());
+  SimulateFullSpace(heap->old_space());
   heap->AllocateByteArray(100, TENURED).ToObjectChecked();
 
   // Old pointer space.
-  SimulateFullSpace(heap->old_pointer_space());
+  SimulateFullSpace(heap->old_space());
   heap->AllocateFixedArray(10000, TENURED).ToObjectChecked();
 
   // Large object space.
   static const int kLargeObjectSpaceFillerLength = 3 * (Page::kPageSize / 10);
   static const int kLargeObjectSpaceFillerSize = FixedArray::SizeFor(
       kLargeObjectSpaceFillerLength);
-  DCHECK(kLargeObjectSpaceFillerSize > heap->old_pointer_space()->AreaSize());
+  DCHECK(kLargeObjectSpaceFillerSize > heap->old_space()->AreaSize());
   while (heap->OldGenerationSpaceAvailable() > kLargeObjectSpaceFillerSize) {
     heap->AllocateFixedArray(
         kLargeObjectSpaceFillerLength, TENURED).ToObjectChecked();

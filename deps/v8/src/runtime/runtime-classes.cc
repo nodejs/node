@@ -7,7 +7,9 @@
 
 #include "src/v8.h"
 
-#include "src/isolate-inl.h"
+#include "src/arguments.h"
+#include "src/debug.h"
+#include "src/messages.h"
 #include "src/runtime/runtime.h"
 #include "src/runtime/runtime-utils.h"
 
@@ -20,21 +22,15 @@ RUNTIME_FUNCTION(Runtime_ThrowNonMethodError) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
   THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewReferenceError("non_method", HandleVector<Object>(NULL, 0)));
-}
-
-
-static Object* ThrowUnsupportedSuper(Isolate* isolate) {
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate,
-      NewReferenceError("unsupported_super", HandleVector<Object>(NULL, 0)));
+      isolate, NewReferenceError(MessageTemplate::kNonMethod));
 }
 
 
 RUNTIME_FUNCTION(Runtime_ThrowUnsupportedSuperError) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
-  return ThrowUnsupportedSuper(isolate);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewReferenceError(MessageTemplate::kUnsupportedSuper));
 }
 
 
@@ -42,8 +38,7 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructorNonCallableError) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
   THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate,
-      NewTypeError("constructor_noncallable", HandleVector<Object>(NULL, 0)));
+      isolate, NewTypeError(MessageTemplate::kConstructorNonCallable));
 }
 
 
@@ -51,8 +46,7 @@ RUNTIME_FUNCTION(Runtime_ThrowArrayNotSubclassableError) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
   THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate,
-      NewTypeError("array_not_subclassable", HandleVector<Object>(NULL, 0)));
+      isolate, NewTypeError(MessageTemplate::kArrayNotSubclassable));
 }
 
 
@@ -118,6 +112,12 @@ RUNTIME_FUNCTION(Runtime_DefineClass) {
     if (super_class->IsNull()) {
       prototype_parent = isolate->factory()->null_value();
     } else if (super_class->IsSpecFunction()) {
+      if (Handle<JSFunction>::cast(super_class)->shared()->is_generator()) {
+        Handle<Object> args[1] = {super_class};
+        THROW_NEW_ERROR_RETURN_FAILURE(
+            isolate,
+            NewTypeError("extends_value_generator", HandleVector(args, 1)));
+      }
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, prototype_parent,
           Runtime::GetObjectProperty(isolate, super_class,
@@ -140,7 +140,7 @@ RUNTIME_FUNCTION(Runtime_DefineClass) {
 
   Handle<Map> map =
       isolate->factory()->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
-  map->SetPrototype(prototype_parent);
+  Map::SetPrototype(map, prototype_parent);
   map->SetConstructor(*constructor);
   Handle<JSObject> prototype = isolate->factory()->NewJSObjectFromMap(map);
 
@@ -454,6 +454,12 @@ RUNTIME_FUNCTION(Runtime_HandleStepInForDerivedConstructors) {
 
 
 RUNTIME_FUNCTION(Runtime_DefaultConstructorCallSuper) {
+  UNIMPLEMENTED();
+  return nullptr;
+}
+
+
+RUNTIME_FUNCTION(Runtime_CallSuperWithSpread) {
   UNIMPLEMENTED();
   return nullptr;
 }

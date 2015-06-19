@@ -101,6 +101,7 @@ enum BindingFlags {
   V(TO_LENGTH_FUN_INDEX, JSFunction, to_length_fun)                            \
   V(GLOBAL_EVAL_FUN_INDEX, JSFunction, global_eval_fun)                        \
   V(ARRAY_BUFFER_FUN_INDEX, JSFunction, array_buffer_fun)                      \
+  V(ARRAY_BUFFER_MAP_INDEX, Map, array_buffer_map)                             \
   V(UINT8_ARRAY_FUN_INDEX, JSFunction, uint8_array_fun)                        \
   V(INT8_ARRAY_FUN_INDEX, JSFunction, int8_array_fun)                          \
   V(UINT16_ARRAY_FUN_INDEX, JSFunction, uint16_array_fun)                      \
@@ -352,6 +353,7 @@ class Context: public FixedArray {
     TO_BOOLEAN_FUN_INDEX,
     GLOBAL_EVAL_FUN_INDEX,
     ARRAY_BUFFER_FUN_INDEX,
+    ARRAY_BUFFER_MAP_INDEX,
     UINT8_ARRAY_FUN_INDEX,
     INT8_ARRAY_FUN_INDEX,
     UINT16_ARRAY_FUN_INDEX,
@@ -582,17 +584,16 @@ class Context: public FixedArray {
     }
 
     if (IsConstructor(kind)) {
-      return is_strong(language_mode) ? STRONG_CONSTRUCTOR_MAP_INDEX :
-             is_strict(language_mode) ? STRICT_FUNCTION_MAP_INDEX
-                                      : SLOPPY_FUNCTION_MAP_INDEX;
+      // Use strict function map (no own "caller" / "arguments")
+      return is_strong(language_mode) ? STRONG_CONSTRUCTOR_MAP_INDEX
+                                      : STRICT_FUNCTION_MAP_INDEX;
     }
 
     if (IsArrowFunction(kind) || IsConciseMethod(kind) ||
         IsAccessorFunction(kind)) {
-      return is_strong(language_mode) ? STRONG_FUNCTION_MAP_INDEX :
-             is_strict(language_mode) ?
-                 STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX :
-                 SLOPPY_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX;
+      return is_strong(language_mode)
+                 ? STRONG_FUNCTION_MAP_INDEX
+                 : STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX;
     }
 
     return is_strong(language_mode) ? STRONG_FUNCTION_MAP_INDEX :

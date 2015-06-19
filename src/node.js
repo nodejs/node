@@ -267,10 +267,6 @@
     // Used to run V8's micro task queue.
     var _runMicrotasks = {};
 
-    // This tickInfo thing is used so that the C++ code in src/node.cc
-    // can have easy accesss to our nextTick state, and avoid unnecessary
-    var tickInfo = {};
-
     // *Must* match Environment::TickInfo::Fields in src/env.h.
     var kIndex = 0;
     var kLength = 1;
@@ -280,7 +276,10 @@
     process._tickCallback = _tickCallback;
     process._tickDomainCallback = _tickDomainCallback;
 
-    process._setupNextTick(tickInfo, _tickCallback, _runMicrotasks);
+    // This tickInfo thing is used so that the C++ code in src/node.cc
+    // can have easy accesss to our nextTick state, and avoid unnecessary
+    // calls into JS land.
+    const tickInfo = process._setupNextTick(_tickCallback, _runMicrotasks);
 
     _runMicrotasks = _runMicrotasks.runMicrotasks;
 
