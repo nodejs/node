@@ -1,3 +1,5 @@
+'use strict';
+
 var assert = require('assert');
 
 var HTTPParser = require('_http_parser');

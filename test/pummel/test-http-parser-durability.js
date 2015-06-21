@@ -1,3 +1,5 @@
+'use strict';
+
 var assert = require('assert');
 var inspect = require('util').inspect;
 var format = require('util').format;
@@ -1628,8 +1630,9 @@ cases.forEach(function(testCase) {
                            testCase.name);
       reqEvents.shift();
       message.body = data.toString('binary', offset, offset + len);
-    } else
+    } else {
       message.body += data.toString('binary', offset, offset + len);
+    }
   }
 
   function onComplete() {
@@ -1787,8 +1790,8 @@ cases.forEach(function(testCase) {
       if (!cases[j].shouldKeepAlive || cases[j].error !== undefined)
         continue;
       for (var k = responsesStart; k < cases.length; ++k) {
-         if (cases[i].error !== undefined)
-           continue;
+        if (cases[i].error !== undefined)
+          continue;
         testMultiple3(cases[i], cases[j], cases[k]);
       }
     }
@@ -2243,8 +2246,9 @@ function testMultiple3(case1, case2, case3) {
   if (hasUpgrade) {
     var lastMessage = messages.slice(-1)[0];
     upgradeMessageFix(total, ret, lastMessage, case1, case2, case3);
-  } else
+  } else {
     assert.strictEqual(ret, total.length);
+  }
 
   assertMessageEquals(messages[0], case1);
   if (messages.length > 1)
