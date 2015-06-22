@@ -4,7 +4,6 @@ var assert = require('assert');
 
 // simulate `cat readfile.js | node readfile.js`
 
-// TODO: Have some way to make this work on windows.
 if (process.platform === 'win32') {
   console.error('No /dev/stdin on windows.  Skipping test.');
   process.exit();
