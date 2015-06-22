@@ -2,10 +2,6 @@
 var common = require('../common');
 var assert = require('assert');
 
-// TODO Improved this test. test_ca.pem is too small. A proper test would
-// great a large utf8 (with multibyte chars) file and stream it in,
-// performing sanity checks throughout.
-
 var path = require('path');
 var fs = require('fs');
 var fn = path.join(common.fixturesDir, 'elipses.txt');
