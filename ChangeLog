@@ -1,4 +1,17 @@
-2015.03.23, Version 0.10.38 (Maintenance)
+2015.06.18, Version 0.10.39 (Maintenance)
+
+* openssl: upgrade to 1.0.1o (Addressing multiple CVEs)
+
+* install: fix source path for openssl headers (Oguz Bastemur)
+
+* install: make sure opensslconf.h is overwritten (Oguz Bastemur)
+
+* timers: fix timeout when added in timer's callback (Julien Gilli)
+
+* windows: broadcast WM_SETTINGCHANGE after install (Mathias Küsel)
+
+
+2015.03.23, Version 0.10.38 (Maintenance), 0b5731a63cc40c4fe9275c79158fe0a5dd4d1609
 
 * openssl: upgrade to 1.0.1m (Addressing multiple CVEs)
 
