@@ -133,6 +133,12 @@ verification. If this flag is set then additional status codes will be sent
 to the verification callback and it B<must> be prepared to handle such cases
 without assuming they are hard errors.
 
+The B<X509_V_FLAG_NO_ALT_CHAINS> flag suppresses checking for alternative
+chains. By default, when building a certificate chain, if the first certificate
+chain found is not trusted, then OpenSSL will continue to check to see if an
+alternative chain can be found that is trusted. With this flag set the behaviour
+will match that of OpenSSL versions prior to 1.0.1n and 1.0.2b.
+
 =head1 NOTES
 
 The above functions should be used to manipulate verification parameters
@@ -166,6 +172,6 @@ L<X509_verify_cert(3)|X509_verify_cert(3)>
 
 =head1 HISTORY
 
-TBA
+The B<X509_V_FLAG_NO_ALT_CHAINS> flag was added in OpenSSL 1.0.1n and 1.0.2b
 
 =cut

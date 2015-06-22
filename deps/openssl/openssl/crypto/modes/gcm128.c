@@ -1622,7 +1622,7 @@ int CRYPTO_gcm128_finish(GCM128_CONTEXT *ctx, const unsigned char *tag,
     ctx->Xi.u[1] ^= ctx->EK0.u[1];
 
     if (tag && len <= sizeof(ctx->Xi))
-        return memcmp(ctx->Xi.c, tag, len);
+        return CRYPTO_memcmp(ctx->Xi.c, tag, len);
     else
         return -1;
 }

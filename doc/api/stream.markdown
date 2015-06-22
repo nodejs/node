@@ -581,14 +581,20 @@ is valid and is set. Otherwise returns `false`.
 Call this method when no more data will be written to the stream.  If
 supplied, the callback is attached as a listener on the `finish` event.
 
-Calling [`write()`][] after calling [`end()`][] will raise an error.
-
 ```javascript
 // write 'hello, ' and then end with 'world!'
 var file = fs.createWriteStream('example.txt');
 file.write('hello, ');
 file.end('world!');
-// writing more now is not allowed!
+```
+
+Calling [`write()`][] after calling [`end()`][] will raise an error:
+
+```javascript
+// end with 'world!' and then write with 'hello, ' will raise an error
+var file = fs.createWriteStream('example.txt');
+file.end('world!');
+file.write('hello, ');
 ```
 
 #### Event: 'finish'

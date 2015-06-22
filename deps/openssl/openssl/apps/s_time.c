@@ -302,7 +302,7 @@ static int parseArgs(int argc, char **argv)
             if (--argc < 1)
                 goto bad;
             maxTime = atoi(*(++argv));
-            if(maxTime <= 0) {
+            if (maxTime <= 0) {
                 BIO_printf(bio_err, "time must be > 0\n");
                 badop = 1;
             }

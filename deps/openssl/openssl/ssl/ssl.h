@@ -1544,6 +1544,7 @@ extern "C" {
 # define SSL_ST_BEFORE                   0x4000
 # define SSL_ST_OK                       0x03
 # define SSL_ST_RENEGOTIATE              (0x04|SSL_ST_INIT)
+# define SSL_ST_ERR                      0x05
 
 # define SSL_CB_LOOP                     0x01
 # define SSL_CB_EXIT                     0x02
@@ -2303,6 +2304,7 @@ void ERR_load_SSL_strings(void);
 # define SSL_F_SSL3_CHANGE_CIPHER_STATE                   129
 # define SSL_F_SSL3_CHECK_CERT_AND_ALGORITHM              130
 # define SSL_F_SSL3_CHECK_CLIENT_HELLO                    304
+# define SSL_F_SSL3_CHECK_FINISHED                        339
 # define SSL_F_SSL3_CLIENT_HELLO                          131
 # define SSL_F_SSL3_CONNECT                               132
 # define SSL_F_SSL3_CTRL                                  213
@@ -2408,6 +2410,7 @@ void ERR_load_SSL_strings(void);
 # define SSL_F_SSL_READ                                   223
 # define SSL_F_SSL_RSA_PRIVATE_DECRYPT                    187
 # define SSL_F_SSL_RSA_PUBLIC_ENCRYPT                     188
+# define SSL_F_SSL_SESSION_DUP                            348
 # define SSL_F_SSL_SESSION_NEW                            189
 # define SSL_F_SSL_SESSION_PRINT_FP                       190
 # define SSL_F_SSL_SESSION_SET1_ID_CONTEXT                312
@@ -2522,6 +2525,7 @@ void ERR_load_SSL_strings(void);
 # define SSL_R_DATA_LENGTH_TOO_LONG                       146
 # define SSL_R_DECRYPTION_FAILED                          147
 # define SSL_R_DECRYPTION_FAILED_OR_BAD_RECORD_MAC        281
+# define SSL_R_DH_KEY_TOO_SMALL                           372
 # define SSL_R_DH_PUBLIC_VALUE_LENGTH_IS_WRONG            148
 # define SSL_R_DIGEST_CHECK_FAILED                        149
 # define SSL_R_DTLS_MESSAGE_TOO_BIG                       334

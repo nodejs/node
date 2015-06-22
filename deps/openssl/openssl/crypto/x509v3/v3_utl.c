@@ -285,6 +285,10 @@ STACK_OF(CONF_VALUE) *X509V3_parse_list(const char *line)
     int state;
     /* We are going to modify the line so copy it first */
     linebuf = BUF_strdup(line);
+    if (linebuf == NULL) {
+        X509V3err(X509V3_F_X509V3_PARSE_LIST, ERR_R_MALLOC_FAILURE);
+        goto err;
+    }
     state = HDR_NAME;
     ntmp = NULL;
     /* Go through all characters */

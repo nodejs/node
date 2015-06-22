@@ -96,6 +96,9 @@ int DES_enc_write(int fd, const void *_buf, int len,
     const unsigned char *cp;
     static int start = 1;
 
+    if (len < 0)
+        return -1;
+
     if (outbuf == NULL) {
         outbuf = OPENSSL_malloc(BSIZE + HDRSIZE);
         if (outbuf == NULL)
@@ -132,7 +135,9 @@ int DES_enc_write(int fd, const void *_buf, int len,
     if (len < 8) {
         cp = shortbuf;
         memcpy(shortbuf, buf, len);
-        RAND_pseudo_bytes(shortbuf + len, 8 - len);
+        if (RAND_pseudo_bytes(shortbuf + len, 8 - len) < 0) {
+            return -1;
+        }
         rnum = 8;
     } else {
         cp = buf;

@@ -117,6 +117,9 @@ const char *SSL_state_string_long(const SSL *s)
     case SSL_ST_OK | SSL_ST_ACCEPT:
         str = "ok/accept SSL initialization";
         break;
+    case SSL_ST_ERR:
+        str = "error";
+        break;
 #ifndef OPENSSL_NO_SSL2
     case SSL2_ST_CLIENT_START_ENCRYPTION:
         str = "SSLv2 client start encryption";
@@ -495,6 +498,9 @@ const char *SSL_state_string(const SSL *s)
         break;
     case SSL_ST_OK:
         str = "SSLOK ";
+        break;
+    case SSL_ST_ERR:
+        str = "SSLERR";
         break;
 #ifndef OPENSSL_NO_SSL2
     case SSL2_ST_CLIENT_START_ENCRYPTION:

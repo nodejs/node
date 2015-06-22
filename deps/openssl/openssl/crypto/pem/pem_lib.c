@@ -435,7 +435,7 @@ int PEM_ASN1_write_bio(i2d_of_void *i2d, const char *name, BIO *bp,
 int PEM_do_header(EVP_CIPHER_INFO *cipher, unsigned char *data, long *plen,
                   pem_password_cb *callback, void *u)
 {
-    int i, j, o, klen;
+    int i = 0, j, o, klen;
     long len;
     EVP_CIPHER_CTX ctx;
     unsigned char key[EVP_MAX_KEY_LENGTH];

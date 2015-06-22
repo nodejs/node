@@ -142,7 +142,7 @@ static unsigned long added_obj_hash(const ADDED_OBJ *ca)
         return 0;
     }
     ret &= 0x3fffffffL;
-    ret |= ca->type << 30L;
+    ret |= ((unsigned long)ca->type) << 30L;
     return (ret);
 }
 
@@ -400,6 +400,8 @@ static int obj_cmp(const ASN1_OBJECT *const *ap, const unsigned int *bp)
     j = (a->length - b->length);
     if (j)
         return (j);
+    if (a->length == 0)
+        return 0;
     return (memcmp(a->data, b->data, a->length));
 }
 
@@ -414,6 +416,9 @@ int OBJ_obj2nid(const ASN1_OBJECT *a)
         return (NID_undef);
     if (a->nid != 0)
         return (a->nid);
+
+    if (a->length == 0)
+        return NID_undef;
 
     if (added != NULL) {
         ad.type = ADDED_DATA;

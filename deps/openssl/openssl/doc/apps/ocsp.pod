@@ -29,6 +29,7 @@ B<openssl> B<ocsp>
 [B<-path>]
 [B<-CApath dir>]
 [B<-CAfile file>]
+[B<-no_alt_chains>]]
 [B<-VAfile file>]
 [B<-validity_period n>]
 [B<-status_age n>]
@@ -142,6 +143,10 @@ connection timeout to the OCSP responder in seconds
 
 file or pathname containing trusted CA certificates. These are used to verify
 the signature on the OCSP response.
+
+=item B<-no_alt_chains>
+
+See L<B<verify>|verify(1)> manual page for details.
 
 =item B<-verify_other file>
 
@@ -379,3 +384,9 @@ second file.
 
  openssl ocsp -index demoCA/index.txt -rsigner rcert.pem -CA demoCA/cacert.pem
      -reqin req.der -respout resp.der
+
+=head1 HISTORY
+
+The -no_alt_chains options was first added to OpenSSL 1.0.1n and 1.0.2b.
+
+=cut

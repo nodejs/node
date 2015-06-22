@@ -806,8 +806,6 @@ int OPENSSL_isservice(void)
     if (_OPENSSL_isservice.p != (void *)-1)
         return (*_OPENSSL_isservice.f) ();
 
-    (void)GetDesktopWindow();   /* return value is ignored */
-
     h = GetProcessWindowStation();
     if (h == NULL)
         return -1;

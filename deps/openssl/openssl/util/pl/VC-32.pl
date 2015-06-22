@@ -341,7 +341,7 @@ sub do_link_rule
 	my($target,$files,$dep_libs,$libs,$standalone)=@_;
 	local($ret,$_);
 	$file =~ s/\//$o/g if $o ne '/';
-	$n=&bname($targer);
+	$n=&bname($target);
 	$ret.="$target: $files $dep_libs\n";
 	if ($standalone == 1)
 		{

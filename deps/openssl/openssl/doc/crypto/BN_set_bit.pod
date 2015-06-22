@@ -37,12 +37,12 @@ BN_mask_bits() truncates B<a> to an B<n> bit number
 shorter than B<n> bits.
 
 BN_lshift() shifts B<a> left by B<n> bits and places the result in
-B<r> (C<r=a*2^n>). BN_lshift1() shifts B<a> left by one and places
-the result in B<r> (C<r=2*a>).
+B<r> (C<r=a*2^n>). Note that B<n> must be non-negative. BN_lshift1() shifts
+B<a> left by one and places the result in B<r> (C<r=2*a>).
 
 BN_rshift() shifts B<a> right by B<n> bits and places the result in
-B<r> (C<r=a/2^n>). BN_rshift1() shifts B<a> right by one and places
-the result in B<r> (C<r=a/2>).
+B<r> (C<r=a/2^n>). Note that B<n> must be non-negative. BN_rshift1() shifts
+B<a> right by one and places the result in B<r> (C<r=a/2>).
 
 For the shift functions, B<r> and B<a> may be the same variable.
 

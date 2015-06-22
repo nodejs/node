@@ -71,7 +71,12 @@ char *BN_bn2hex(const BIGNUM *a)
     char *buf;
     char *p;
 
-    buf = (char *)OPENSSL_malloc(a->top * BN_BYTES * 2 + 2);
+    if (a->neg && BN_is_zero(a)) {
+        /* "-0" == 3 bytes including NULL terminator */
+        buf = OPENSSL_malloc(3);
+    } else {
+        buf = OPENSSL_malloc(a->top * BN_BYTES * 2 + 2);
+    }
     if (buf == NULL) {
         BNerr(BN_F_BN_BN2HEX, ERR_R_MALLOC_FAILURE);
         goto err;

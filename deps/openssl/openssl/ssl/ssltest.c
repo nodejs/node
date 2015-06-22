@@ -336,7 +336,9 @@ static void sv_usage(void)
             " -bytes <val>  - number of bytes to swap between client/server\n");
 #ifndef OPENSSL_NO_DH
     fprintf(stderr,
-            " -dhe1024      - use 1024 bit key (safe prime) for DHE\n");
+            " -dhe512       - use 512 bit key for DHE (to test failure)\n");
+    fprintf(stderr,
+            " -dhe1024      - use 1024 bit key (safe prime) for DHE (default, no-op)\n");
     fprintf(stderr,
             " -dhe1024dsa   - use 1024 bit key (with 160-bit subprime) for DHE\n");
     fprintf(stderr, " -no_dhe       - disable DHE\n");
@@ -531,7 +533,7 @@ int main(int argc, char *argv[])
     long bytes = 256L;
 #ifndef OPENSSL_NO_DH
     DH *dh;
-    int dhe1024 = 0, dhe1024dsa = 0;
+    int dhe512 = 0, dhe1024dsa = 0;
 #endif
 #ifndef OPENSSL_NO_ECDH
     EC_KEY *ecdh = NULL;
@@ -611,19 +613,19 @@ int main(int argc, char *argv[])
             debug = 1;
         else if (strcmp(*argv, "-reuse") == 0)
             reuse = 1;
-        else if (strcmp(*argv, "-dhe1024") == 0) {
+        else if (strcmp(*argv, "-dhe512") == 0) {
 #ifndef OPENSSL_NO_DH
-            dhe1024 = 1;
+            dhe512 = 1;
 #else
             fprintf(stderr,
-                    "ignoring -dhe1024, since I'm compiled without DH\n");
+                    "ignoring -dhe512, since I'm compiled without DH\n");
 #endif
         } else if (strcmp(*argv, "-dhe1024dsa") == 0) {
 #ifndef OPENSSL_NO_DH
             dhe1024dsa = 1;
 #else
             fprintf(stderr,
-                    "ignoring -dhe1024, since I'm compiled without DH\n");
+                    "ignoring -dhe1024dsa, since I'm compiled without DH\n");
 #endif
         } else if (strcmp(*argv, "-no_dhe") == 0)
             no_dhe = 1;
@@ -905,10 +907,10 @@ int main(int argc, char *argv[])
              */
             SSL_CTX_set_options(s_ctx, SSL_OP_SINGLE_DH_USE);
             dh = get_dh1024dsa();
-        } else if (dhe1024)
-            dh = get_dh1024();
-        else
+        } else if (dhe512)
             dh = get_dh512();
+        else
+            dh = get_dh1024();
         SSL_CTX_set_tmp_dh(s_ctx, dh);
         DH_free(dh);
     }

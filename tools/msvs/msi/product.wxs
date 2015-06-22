@@ -237,6 +237,19 @@
       </Component>
     </DirectoryRef>
 
+    <Binary Id='BroadcastEnvironmentUpdate'
+            SourceFile='$(var.custom_actions.TargetDir)$(var.custom_actions.TargetName).dll' />
+
+    <CustomAction Id="BroadcastEnvironmentUpdate"
+                  BinaryKey="BroadcastEnvironmentUpdate"
+                  DllEntry="BroadcastEnvironmentUpdate"
+                  Execute="immediate"
+                  Return="check" />
+
+    <InstallExecuteSequence>
+      <Custom Action='BroadcastEnvironmentUpdate' After='InstallFinalize'/>
+    </InstallExecuteSequence>
+
     <UI Id="NodeInstallUI">
       <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8"/>
       <TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12"/>

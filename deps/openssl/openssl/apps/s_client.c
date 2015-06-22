@@ -331,6 +331,8 @@ static void sc_usage(void)
     BIO_printf(bio_err, " -CApath arg   - PEM format directory of CA's\n");
     BIO_printf(bio_err, " -CAfile arg   - PEM format file of CA's\n");
     BIO_printf(bio_err,
+               " -no_alt_chains - only ever use the first certificate chain found\n");
+    BIO_printf(bio_err,
                " -reconnect    - Drop and re-make the connection with the same Session-ID\n");
     BIO_printf(bio_err,
                " -pause        - sleep(1) after each read(2) and write(2) system call\n");
@@ -559,7 +561,7 @@ static char *MS_CALLBACK ssl_give_srp_client_pwd_cb(SSL *s, void *arg)
     PW_CB_DATA cb_tmp;
     int l;
 
-    if(!pass) {
+    if (!pass) {
         BIO_printf(bio_err, "Malloc failure\n");
         return NULL;
     }
@@ -1193,13 +1195,12 @@ int MAIN(int argc, char **argv)
     if (!set_cert_key_stuff(ctx, cert, key))
         goto end;
 
-    if ((!SSL_CTX_load_verify_locations(ctx, CAfile, CApath)) ||
-        (!SSL_CTX_set_default_verify_paths(ctx))) {
-        /*
-         * BIO_printf(bio_err,"error setting default verify locations\n");
-         */
+    if ((CAfile || CApath)
+        && !SSL_CTX_load_verify_locations(ctx, CAfile, CApath)) {
         ERR_print_errors(bio_err);
-        /* goto end; */
+    }
+    if (!SSL_CTX_set_default_verify_paths(ctx)) {
+        ERR_print_errors(bio_err);
     }
 #ifndef OPENSSL_NO_TLSEXT
     if (servername != NULL) {

@@ -202,7 +202,8 @@ int dsa_builtin_paramgen(DSA *ret, size_t bits, size_t qbits,
                 goto err;
 
             if (!seed_len) {
-                RAND_pseudo_bytes(seed, qsize);
+                if (RAND_pseudo_bytes(seed, qsize) < 0)
+                    goto err;
                 seed_is_random = 1;
             } else {
                 seed_is_random = 0;

@@ -503,7 +503,12 @@ static int aesni_cbc_hmac_sha1_ctrl(EVP_CIPHER_CTX *ctx, int type, int arg,
     case EVP_CTRL_AEAD_TLS1_AAD:
         {
             unsigned char *p = ptr;
-            unsigned int len = p[arg - 2] << 8 | p[arg - 1];
+            unsigned int len;
+
+            if (arg != EVP_AEAD_TLS1_AAD_LEN)
+                return -1;
+ 
+            len = p[arg - 2] << 8 | p[arg - 1];
 
             if (ctx->encrypt) {
                 key->payload_length = len;
@@ -520,8 +525,6 @@ static int aesni_cbc_hmac_sha1_ctrl(EVP_CIPHER_CTX *ctx, int type, int arg,
                                AES_BLOCK_SIZE) & -AES_BLOCK_SIZE)
                              - len);
             } else {
-                if (arg > 13)
-                    arg = 13;
                 memcpy(key->aux.tls_aad, ptr, arg);
                 key->payload_length = arg;
 
