@@ -1,4 +1,23 @@
-2015.05.22, Version 0.12.4 (Stable)
+2015.06.22, Version 0.12.5 (Stable)
+
+* openssl: upgrade to 1.0.1o (Addressing multiple CVEs)
+
+* npm: upgrade to 2.11.2
+
+* uv: upgrade to 1.6.1
+
+* V8: avoid deadlock when profiling is active (Dmitri Melikyan)
+
+* install: fix source path for openssl headers (Oguz Bastemur)
+
+* install: make sure opensslconf.h is overwritten (Oguz Bastemur)
+
+* timers: fix timeout when added in timer's callback (Julien Gilli)
+
+* windows: broadcast WM_SETTINGCHANGE after install (Mathias Küsel)
+
+
+2015.05.22, Version 0.12.4 (Stable), 0a604e92e258c5ee2752d763e50721e35053f135
 
 * npm: upgrade to 2.10.1
 
