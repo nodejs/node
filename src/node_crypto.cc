@@ -942,7 +942,7 @@ void SecureContext::GetTicketKeys(const FunctionCallbackInfo<Value>& args) {
 
   SecureContext* wrap = Unwrap<SecureContext>(args.Holder());
 
-  Local<Object> buff = Buffer::New(wrap->env(), 48);
+  Local<Object> buff = Buffer::New(wrap->env(), 48).ToLocalChecked();
   if (SSL_CTX_get_tlsext_ticket_keys(wrap->ctx_,
                                      Buffer::Data(buff),
                                      Buffer::Length(buff)) != 1) {
@@ -1006,7 +1006,7 @@ void SecureContext::GetCertificate(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(Null(env->isolate()));
 
   int size = i2d_X509(cert, nullptr);
-  Local<Object> buff = Buffer::New(env, size);
+  Local<Object> buff = Buffer::New(env, size).ToLocalChecked();
   unsigned char* serialized = reinterpret_cast<unsigned char*>(
       Buffer::Data(buff));
   i2d_X509(cert, &serialized);
@@ -1109,15 +1109,16 @@ int SSLWrap<Base>::NewSessionCallback(SSL* s, SSL_SESSION* sess) {
     return 0;
 
   // Serialize session
-  Local<Object> buff = Buffer::New(env, size);
+  Local<Object> buff = Buffer::New(env, size).ToLocalChecked();
   unsigned char* serialized = reinterpret_cast<unsigned char*>(
       Buffer::Data(buff));
   memset(serialized, 0, size);
   i2d_SSL_SESSION(sess, &serialized);
 
-  Local<Object> session = Buffer::New(env,
-                                      reinterpret_cast<char*>(sess->session_id),
-                                      sess->session_id_length);
+  Local<Object> session = Buffer::New(
+      env,
+      reinterpret_cast<char*>(sess->session_id),
+      sess->session_id_length).ToLocalChecked();
   Local<Value> argv[] = { session, buff };
   w->new_session_wait_ = true;
   w->MakeCallback(env->onnewsession_string(), ARRAY_SIZE(argv), argv);
@@ -1138,7 +1139,7 @@ void SSLWrap<Base>::OnClientHello(void* arg,
   Local<Object> buff = Buffer::New(
       env,
       reinterpret_cast<const char*>(hello.session_id()),
-      hello.session_size());
+      hello.session_size()).ToLocalChecked();
   hello_obj->Set(env->session_id_string(), buff);
   if (hello.servername() == nullptr) {
     hello_obj->Set(env->servername_string(), String::Empty(env->isolate()));
@@ -1349,7 +1350,7 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
 
   // Raw DER certificate
   int size = i2d_X509(cert, nullptr);
-  Local<Object> buff = Buffer::New(env, size);
+  Local<Object> buff = Buffer::New(env, size).ToLocalChecked();
   unsigned char* serialized = reinterpret_cast<unsigned char*>(
       Buffer::Data(buff));
   i2d_X509(cert, &serialized);
@@ -1596,11 +1597,12 @@ void SSLWrap<Base>::GetTLSTicket(const FunctionCallbackInfo<Value>& args) {
   if (sess == nullptr || sess->tlsext_tick == nullptr)
     return;
 
-  Local<Object> buf = Buffer::New(env,
-                                  reinterpret_cast<char*>(sess->tlsext_tick),
-                                  sess->tlsext_ticklen);
+  Local<Object> buff = Buffer::New(
+      env,
+      reinterpret_cast<char*>(sess->tlsext_tick),
+      sess->tlsext_ticklen).ToLocalChecked();
 
-  args.GetReturnValue().Set(buf);
+  args.GetReturnValue().Set(buff);
 }
 
 
@@ -1880,7 +1882,7 @@ int SSLWrap<Base>::TLSExtStatusCallback(SSL* s, void* arg) {
       arg = Buffer::New(
           env,
           reinterpret_cast<char*>(const_cast<unsigned char*>(resp)),
-          len);
+          len).ToLocalChecked();
     }
 
     w->MakeCallback(env->onocspresponse_string(), 1, &arg);
@@ -2890,7 +2892,7 @@ void CipherBase::GetAuthTag(const FunctionCallbackInfo<Value>& args) {
   unsigned int out_len = 0;
 
   if (cipher->GetAuthTag(&out, &out_len)) {
-    Local<Object> buf = Buffer::Use(env, out, out_len);
+    Local<Object> buf = Buffer::New(env, out, out_len).ToLocalChecked();
     args.GetReturnValue().Set(buf);
   } else {
     env->ThrowError("Attempting to get auth tag in unsupported state");
@@ -3007,7 +3009,8 @@ void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
                             "Trying to add data in unsupported state");
   }
 
-  Local<Object> buf = Buffer::New(env, reinterpret_cast<char*>(out), out_len);
+  Local<Object> buf =
+      Buffer::New(env, reinterpret_cast<char*>(out), out_len).ToLocalChecked();
   if (out)
     delete[] out;
 
@@ -3082,8 +3085,11 @@ void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  args.GetReturnValue().Set(
-      Buffer::New(env, reinterpret_cast<char*>(out_value), out_len));
+  Local<Object> buf = Buffer::New(
+      env,
+      reinterpret_cast<char*>(out_value),
+      out_len).ToLocalChecked();
+  args.GetReturnValue().Set(buf);
   delete[] out_value;
 }
 
@@ -3861,8 +3867,11 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  args.GetReturnValue().Set(
-      Buffer::New(env, reinterpret_cast<char*>(out_value), out_len));
+  Local<Object> vbuf = Buffer::New(
+      env,
+      reinterpret_cast<char*>(out_value),
+      out_len).ToLocalChecked();
+  args.GetReturnValue().Set(vbuf);
   delete[] out_value;
 }
 
@@ -4357,7 +4366,8 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Failed to compute ECDH key");
   }
 
-  args.GetReturnValue().Set(Buffer::Use(env, out, out_len));
+  Local<Object> buf = Buffer::New(env, out, out_len).ToLocalChecked();
+  args.GetReturnValue().Set(buf);
 }
 
 
@@ -4393,9 +4403,9 @@ void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Failed to get public key");
   }
 
-  args.GetReturnValue().Set(Buffer::Use(env,
-                                        reinterpret_cast<char*>(out),
-                                        size));
+  Local<Object> buf =
+      Buffer::New(env, reinterpret_cast<char*>(out), size).ToLocalChecked();
+  args.GetReturnValue().Set(buf);
 }
 
 
@@ -4420,9 +4430,9 @@ void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Failed to convert ECDH private key to Buffer");
   }
 
-  args.GetReturnValue().Set(Buffer::Use(env,
-                                        reinterpret_cast<char*>(out),
-                                        size));
+  Local<Object> buf =
+      Buffer::New(env, reinterpret_cast<char*>(out), size).ToLocalChecked();
+  args.GetReturnValue().Set(buf);
 }
 
 
@@ -4824,7 +4834,7 @@ void RandomBytesCheck(RandomBytesRequest* req, Local<Value> argv[2]) {
     size_t size;
     req->return_memory(&data, &size);
     argv[0] = Null(req->env()->isolate());
-    argv[1] = Buffer::Use(req->env()->isolate(), data, size);
+    argv[1] = Buffer::New(req->env(), data, size).ToLocalChecked();
   }
 }
 
@@ -4852,9 +4862,13 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowTypeError("size must be a number >= 0");
   }
 
-  const uint32_t size = args[0]->Uint32Value();
-  if (size > Buffer::kMaxLength) {
-    return env->ThrowTypeError("size > Buffer::kMaxLength");
+  const int64_t size = args[0]->IntegerValue();
+  if (using_old_buffer) {
+    if (size > Buffer::kMaxLength)
+      return env->ThrowTypeError("size > Buffer::kMaxLength");
+  } else {
+    if (!IsValidSmi(size))
+      return env->ThrowRangeError("size is not a valid Smi");
   }
 
   Local<Object> obj = Object::New(env->isolate());

@@ -408,7 +408,7 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
   }
 
   char* base = static_cast<char*>(realloc(buf->base, nread));
-  argv[2] = Buffer::Use(env, base, nread);
+  argv[2] = Buffer::New(env, base, nread).ToLocalChecked();
   argv[3] = AddressToJS(env, addr);
   wrap->MakeCallback(env->onmessage_string(), ARRAY_SIZE(argv), argv);
 }

@@ -114,7 +114,9 @@ assigned a random port number and is bound to the "all interfaces" address
 An optional callback may be specified to detect DNS errors or for determining
 when it's safe to reuse the `buf` object.  Note that DNS lookups delay the time
 to send for at least one tick.  The only way to know for sure that the datagram
-has been sent is by using a callback.
+has been sent is by using a callback. If an error occurs and a callback is
+given, the error will be the first argument to the callback. If a callback is
+not given, the error is emitted as an `'error'` event on the `socket` object.
 
 With consideration for multi-byte characters, `offset` and `length` will
 be calculated with respect to

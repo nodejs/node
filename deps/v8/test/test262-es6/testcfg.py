@@ -57,9 +57,6 @@ class Test262TestSuite(testsuite.TestSuite):
     self.harness += [os.path.join(self.root, "harness-adapt.js")]
     self.ParseTestRecord = None
 
-  def CommonTestName(self, testcase):
-    return testcase.path.split(os.path.sep)[-1]
-
   def ListTests(self, context):
     tests = []
     for dirname, dirs, files in os.walk(self.testroot):

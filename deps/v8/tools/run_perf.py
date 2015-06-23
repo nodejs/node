@@ -111,6 +111,7 @@ ARCH_GUESS = utils.DefaultArch()
 SUPPORTED_ARCHS = ["android_arm",
                    "android_arm64",
                    "android_ia32",
+                   "android_x64",
                    "arm",
                    "ia32",
                    "mips",
@@ -533,13 +534,20 @@ class AndroidPlatform(Platform):  # pragma: no cover
     logging.info("adb -s %s %s" % (str(self.device), cmd))
     return self.adb.SendCommand(cmd, timeout_time=60)
 
-  def _PushFile(self, host_dir, file_name, target_rel="."):
+  def _PushFile(self, host_dir, file_name, target_rel=".",
+                skip_if_missing=False):
     file_on_host = os.path.join(host_dir, file_name)
     file_on_device_tmp = os.path.join(
         AndroidPlatform.DEVICE_DIR, "_tmp_", file_name)
     file_on_device = os.path.join(
         AndroidPlatform.DEVICE_DIR, target_rel, file_name)
     folder_on_device = os.path.dirname(file_on_device)
+
+    # Only attempt to push files that exist.
+    if not os.path.exists(file_on_host):
+      if not skip_if_missing:
+        logging.critical('Missing file on host: %s' % file_on_host)
+      return
 
     # Only push files not yet pushed in one execution.
     if file_on_host in self.pushed:
@@ -568,6 +576,12 @@ class AndroidPlatform(Platform):  # pragma: no cover
       bench_abs = suite_dir
 
     self._PushFile(self.shell_dir, node.binary)
+
+    # Push external startup data. Backwards compatible for revisions where
+    # these files didn't exist.
+    self._PushFile(self.shell_dir, "natives_blob.bin", skip_if_missing=True)
+    self._PushFile(self.shell_dir, "snapshot_blob.bin", skip_if_missing=True)
+
     if isinstance(node, Runnable):
       self._PushFile(bench_abs, node.main, bench_rel)
     for resource in node.resources:

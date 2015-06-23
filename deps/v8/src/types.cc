@@ -267,7 +267,7 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
       // Also, it doesn't apply elsewhere. 8-(
       // We ought to find a cleaner solution for compiling stubs parameterised
       // over type or class variables, esp ones with bounds...
-      return kDetectable;
+      return kDetectable & kTaggedPointer;
     case DECLARED_ACCESSOR_INFO_TYPE:
     case EXECUTABLE_ACCESSOR_INFO_TYPE:
     case SHARED_FUNCTION_INFO_TYPE:
@@ -777,7 +777,7 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Intersect(
     bits &= ~number_bits;
     result->Set(0, BitsetType::New(bits, region));
   }
-  return NormalizeUnion(result, size);
+  return NormalizeUnion(result, size, region);
 }
 
 
@@ -992,7 +992,7 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Union(
 
   size = AddToUnion(type1, result, size, region);
   size = AddToUnion(type2, result, size, region);
-  return NormalizeUnion(result, size);
+  return NormalizeUnion(result, size, region);
 }
 
 
@@ -1016,9 +1016,9 @@ int TypeImpl<Config>::AddToUnion(
 }
 
 
-template<class Config>
+template <class Config>
 typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::NormalizeUnion(
-    UnionHandle unioned, int size) {
+    UnionHandle unioned, int size, Region* region) {
   DCHECK(size >= 1);
   DCHECK(unioned->Get(0)->IsBitset());
   // If the union has just one element, return it.
@@ -1032,8 +1032,11 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::NormalizeUnion(
     if (representation == unioned->Get(1)->Representation()) {
       return unioned->Get(1);
     }
-    // TODO(jarin) If the element at 1 is range of constant, slap
-    // the representation on it and return that.
+    if (unioned->Get(1)->IsRange()) {
+      return RangeType::New(unioned->Get(1)->AsRange()->Min(),
+                            unioned->Get(1)->AsRange()->Max(), unioned->Get(0),
+                            region);
+    }
   }
   unioned->Shrink(size);
   SLOW_DCHECK(unioned->Wellformed());

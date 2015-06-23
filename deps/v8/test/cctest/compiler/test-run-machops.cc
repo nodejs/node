@@ -4436,6 +4436,26 @@ TEST(RunInt32SubWithOverflowInBranchP) {
 }
 
 
+TEST(RunWord64EqualInBranchP) {
+  int64_t input;
+  MLabel blocka, blockb;
+  RawMachineAssemblerTester<int64_t> m;
+  if (!m.machine()->Is64()) return;
+  Node* value = m.LoadFromPointer(&input, kMachInt64);
+  m.Branch(m.Word64Equal(value, m.Int64Constant(0)), &blocka, &blockb);
+  m.Bind(&blocka);
+  m.Return(m.Int32Constant(1));
+  m.Bind(&blockb);
+  m.Return(m.Int32Constant(2));
+  input = V8_INT64_C(0);
+  CHECK_EQ(1, m.Call());
+  input = V8_INT64_C(1);
+  CHECK_EQ(2, m.Call());
+  input = V8_INT64_C(0x100000000);
+  CHECK_EQ(2, m.Call());
+}
+
+
 TEST(RunChangeInt32ToInt64P) {
   if (kPointerSize < 8) return;
   int64_t actual = -1;
@@ -4627,6 +4647,72 @@ TEST(RunFloat32Constant) {
 }
 
 
+TEST(RunFloat64ExtractLowWord32) {
+  uint64_t input = 0;
+  RawMachineAssemblerTester<int32_t> m;
+  m.Return(m.Float64ExtractLowWord32(m.LoadFromPointer(&input, kMachFloat64)));
+  FOR_FLOAT64_INPUTS(i) {
+    input = bit_cast<uint64_t>(*i);
+    int32_t expected = bit_cast<int32_t>(static_cast<uint32_t>(input));
+    CHECK_EQ(expected, m.Call());
+  }
+}
+
+
+TEST(RunFloat64ExtractHighWord32) {
+  uint64_t input = 0;
+  RawMachineAssemblerTester<int32_t> m;
+  m.Return(m.Float64ExtractHighWord32(m.LoadFromPointer(&input, kMachFloat64)));
+  FOR_FLOAT64_INPUTS(i) {
+    input = bit_cast<uint64_t>(*i);
+    int32_t expected = bit_cast<int32_t>(static_cast<uint32_t>(input >> 32));
+    CHECK_EQ(expected, m.Call());
+  }
+}
+
+
+TEST(RunFloat64InsertLowWord32) {
+  uint64_t input = 0;
+  uint64_t result = 0;
+  RawMachineAssemblerTester<int32_t> m(kMachInt32);
+  m.StoreToPointer(
+      &result, kMachFloat64,
+      m.Float64InsertLowWord32(m.LoadFromPointer(&input, kMachFloat64),
+                               m.Parameter(0)));
+  m.Return(m.Int32Constant(0));
+  FOR_FLOAT64_INPUTS(i) {
+    FOR_INT32_INPUTS(j) {
+      input = bit_cast<uint64_t>(*i);
+      uint64_t expected = (input & ~(V8_UINT64_C(0xFFFFFFFF))) |
+                          (static_cast<uint64_t>(bit_cast<uint32_t>(*j)));
+      CHECK_EQ(0, m.Call(*j));
+      CHECK_EQ(expected, result);
+    }
+  }
+}
+
+
+TEST(RunFloat64InsertHighWord32) {
+  uint64_t input = 0;
+  uint64_t result = 0;
+  RawMachineAssemblerTester<int32_t> m(kMachInt32);
+  m.StoreToPointer(
+      &result, kMachFloat64,
+      m.Float64InsertHighWord32(m.LoadFromPointer(&input, kMachFloat64),
+                                m.Parameter(0)));
+  m.Return(m.Int32Constant(0));
+  FOR_FLOAT64_INPUTS(i) {
+    FOR_INT32_INPUTS(j) {
+      input = bit_cast<uint64_t>(*i);
+      uint64_t expected = (input & ~(V8_UINT64_C(0xFFFFFFFF) << 32)) |
+                          (static_cast<uint64_t>(bit_cast<uint32_t>(*j)) << 32);
+      CHECK_EQ(0, m.Call(*j));
+      CHECK_EQ(expected, result);
+    }
+  }
+}
+
+
 static double two_30 = 1 << 30;             // 2^30 is a smi boundary.
 static double two_52 = two_30 * (1 << 22);  // 2^52 is a precision boundary.
 static double kValues[] = {0.1,
@@ -4725,13 +4811,13 @@ static double kValues[] = {0.1,
                            -two_52 + 1 - 0.7};
 
 
-TEST(RunFloat64Floor) {
+TEST(RunFloat64RoundDown1) {
   double input = -1.0;
   double result = 0.0;
   RawMachineAssemblerTester<int32_t> m;
-  if (!m.machine()->HasFloat64Floor()) return;
+  if (!m.machine()->HasFloat64RoundDown()) return;
   m.StoreToPointer(&result, kMachFloat64,
-                   m.Float64Floor(m.LoadFromPointer(&input, kMachFloat64)));
+                   m.Float64RoundDown(m.LoadFromPointer(&input, kMachFloat64)));
   m.Return(m.Int32Constant(0));
   for (size_t i = 0; i < arraysize(kValues); ++i) {
     input = kValues[i];
@@ -4742,13 +4828,16 @@ TEST(RunFloat64Floor) {
 }
 
 
-TEST(RunFloat64Ceil) {
+TEST(RunFloat64RoundDown2) {
   double input = -1.0;
   double result = 0.0;
   RawMachineAssemblerTester<int32_t> m;
-  if (!m.machine()->HasFloat64Ceil()) return;
+  if (!m.machine()->HasFloat64RoundDown()) return;
   m.StoreToPointer(&result, kMachFloat64,
-                   m.Float64Ceil(m.LoadFromPointer(&input, kMachFloat64)));
+                   m.Float64Sub(m.Float64Constant(-0.0),
+                                m.Float64RoundDown(m.Float64Sub(
+                                    m.Float64Constant(-0.0),
+                                    m.LoadFromPointer(&input, kMachFloat64)))));
   m.Return(m.Int32Constant(0));
   for (size_t i = 0; i < arraysize(kValues); ++i) {
     input = kValues[i];
@@ -4763,7 +4852,7 @@ TEST(RunFloat64RoundTruncate) {
   double input = -1.0;
   double result = 0.0;
   RawMachineAssemblerTester<int32_t> m;
-  if (!m.machine()->HasFloat64Ceil()) return;
+  if (!m.machine()->HasFloat64RoundTruncate()) return;
   m.StoreToPointer(
       &result, kMachFloat64,
       m.Float64RoundTruncate(m.LoadFromPointer(&input, kMachFloat64)));
@@ -4793,4 +4882,5 @@ TEST(RunFloat64RoundTiesAway) {
     CHECK_EQ(expected, result);
   }
 }
+
 #endif  // V8_TURBOFAN_TARGET

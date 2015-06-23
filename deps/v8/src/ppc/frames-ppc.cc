@@ -21,38 +21,22 @@ namespace internal {
 Register JavaScriptFrame::fp_register() { return v8::internal::fp; }
 Register JavaScriptFrame::context_register() { return cp; }
 Register JavaScriptFrame::constant_pool_pointer_register() {
-#if V8_OOL_CONSTANT_POOL
-  DCHECK(FLAG_enable_ool_constant_pool);
-  return kConstantPoolRegister;
-#else
   UNREACHABLE();
   return no_reg;
-#endif
 }
 
 
 Register StubFailureTrampolineFrame::fp_register() { return v8::internal::fp; }
 Register StubFailureTrampolineFrame::context_register() { return cp; }
 Register StubFailureTrampolineFrame::constant_pool_pointer_register() {
-#if V8_OOL_CONSTANT_POOL
-  DCHECK(FLAG_enable_ool_constant_pool);
-  return kConstantPoolRegister;
-#else
   UNREACHABLE();
   return no_reg;
-#endif
 }
 
 
 Object*& ExitFrame::constant_pool_slot() const {
-#if V8_OOL_CONSTANT_POOL
-  DCHECK(FLAG_enable_ool_constant_pool);
-  const int offset = ExitFrameConstants::kConstantPoolOffset;
-  return Memory::Object_at(fp() + offset);
-#else
   UNREACHABLE();
   return Memory::Object_at(NULL);
-#endif
 }
 }
 }  // namespace v8::internal

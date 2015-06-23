@@ -543,15 +543,10 @@ void FlagList::PrintHelp() {
 }
 
 
-// static
-void FlagList::EnforceFlagImplications() {
-#define FLAG_MODE_DEFINE_IMPLICATIONS
-#include "src/flag-definitions.h"
-#undef FLAG_MODE_DEFINE_IMPLICATIONS
-}
+static uint32_t flag_hash = 0;
 
 
-uint32_t FlagList::Hash() {
+void ComputeFlagListHash() {
   std::ostringstream modified_args_as_string;
 #ifdef DEBUG
   modified_args_as_string << "debug";
@@ -564,7 +559,19 @@ uint32_t FlagList::Hash() {
     }
   }
   std::string args(modified_args_as_string.str());
-  return static_cast<uint32_t>(
+  flag_hash = static_cast<uint32_t>(
       base::hash_range(args.c_str(), args.c_str() + args.length()));
 }
+
+
+// static
+void FlagList::EnforceFlagImplications() {
+#define FLAG_MODE_DEFINE_IMPLICATIONS
+#include "src/flag-definitions.h"
+#undef FLAG_MODE_DEFINE_IMPLICATIONS
+  ComputeFlagListHash();
+}
+
+
+uint32_t FlagList::Hash() { return flag_hash; }
 } }  // namespace v8::internal

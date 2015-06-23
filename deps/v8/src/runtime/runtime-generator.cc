@@ -31,7 +31,6 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
   generator->set_receiver(frame->receiver());
   generator->set_continuation(0);
   generator->set_operand_stack(isolate->heap()->empty_fixed_array());
-  generator->set_stack_handler_index(-1);
 
   return *generator;
 }
@@ -39,7 +38,7 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
 
 RUNTIME_FUNCTION(Runtime_SuspendJSGeneratorObject) {
   HandleScope handle_scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK(args.length() == 1 || args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator_object, 0);
 
   JavaScriptFrameIterator stack_iterator(isolate);
@@ -52,28 +51,34 @@ RUNTIME_FUNCTION(Runtime_SuspendJSGeneratorObject) {
   DCHECK_LT(0, generator_object->continuation());
 
   // We expect there to be at least two values on the operand stack: the return
-  // value of the yield expression, and the argument to this runtime call.
+  // value of the yield expression, and the arguments to this runtime call.
   // Neither of those should be saved.
   int operands_count = frame->ComputeOperandsCount();
-  DCHECK_GE(operands_count, 2);
-  operands_count -= 2;
+  DCHECK_GE(operands_count, 1 + args.length());
+  operands_count -= 1 + args.length();
+
+  // Second argument indicates that we need to patch the handler table because
+  // a delegating yield introduced a try-catch statement at expression level,
+  // hence the operand count was off when we statically computed it.
+  // TODO(mstarzinger): This special case disappears with do-expressions.
+  if (args.length() == 2) {
+    CONVERT_SMI_ARG_CHECKED(handler_index, 1);
+    Handle<Code> code(frame->unchecked_code());
+    Handle<HandlerTable> table(HandlerTable::cast(code->handler_table()));
+    int handler_depth = operands_count - TryBlockConstant::kElementCount;
+    table->SetRangeDepth(handler_index, handler_depth);
+  }
 
   if (operands_count == 0) {
     // Although it's semantically harmless to call this function with an
     // operands_count of zero, it is also unnecessary.
     DCHECK_EQ(generator_object->operand_stack(),
               isolate->heap()->empty_fixed_array());
-    DCHECK_EQ(generator_object->stack_handler_index(), -1);
-    // If there are no operands on the stack, there shouldn't be a handler
-    // active either.
-    DCHECK(!frame->HasHandler());
   } else {
-    int stack_handler_index = -1;
     Handle<FixedArray> operand_stack =
         isolate->factory()->NewFixedArray(operands_count);
-    frame->SaveOperandStack(*operand_stack, &stack_handler_index);
+    frame->SaveOperandStack(*operand_stack);
     generator_object->set_operand_stack(*operand_stack);
-    generator_object->set_stack_handler_index(stack_handler_index);
   }
 
   return isolate->heap()->undefined_value();
@@ -115,10 +120,8 @@ RUNTIME_FUNCTION(Runtime_ResumeJSGeneratorObject) {
   FixedArray* operand_stack = generator_object->operand_stack();
   int operands_count = operand_stack->length();
   if (operands_count != 0) {
-    frame->RestoreOperandStack(operand_stack,
-                               generator_object->stack_handler_index());
+    frame->RestoreOperandStack(operand_stack);
     generator_object->set_operand_stack(isolate->heap()->empty_fixed_array());
-    generator_object->set_stack_handler_index(-1);
   }
 
   JSGeneratorObject::ResumeMode resume_mode =
@@ -213,13 +216,13 @@ RUNTIME_FUNCTION(Runtime_FunctionIsGenerator) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_GeneratorNext) {
+RUNTIME_FUNCTION(Runtime_GeneratorNext) {
   UNREACHABLE();  // Optimization disabled in SetUpGenerators().
   return NULL;
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_GeneratorThrow) {
+RUNTIME_FUNCTION(Runtime_GeneratorThrow) {
   UNREACHABLE();  // Optimization disabled in SetUpGenerators().
   return NULL;
 }

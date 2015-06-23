@@ -58,4 +58,4 @@ f(10, o3);
 
 // The old code is already deoptimized, but f still points to it.
 // Disassembling it will crash.
-%DebugDisassembleFunction(f);
+%DisassembleFunction(f);

@@ -12,7 +12,7 @@
 /**
  * Support for Persistent containers.
  *
- * C++11 embedders can use STL containers with UniquePersistent values,
+ * C++11 embedders can use STL containers with Global values,
  * but pre-C++11 does not support the required move semantic and hence
  * may want these container classes.
  */
@@ -22,7 +22,10 @@ typedef uintptr_t PersistentContainerValue;
 static const uintptr_t kPersistentContainerNotFound = 0;
 enum PersistentContainerCallbackType {
   kNotWeak,
-  kWeak
+  // These correspond to v8::WeakCallbackType
+  kWeakWithParameter,
+  kWeakWithInternalFields,
+  kWeak = kWeakWithParameter  // For backwards compatibility.  Deprecate.
 };
 
 
@@ -101,12 +104,12 @@ class DefaultPersistentValueMapTraits : public StdMapTraits<K, V> {
     return K();
   }
   static void DisposeCallbackData(WeakCallbackDataType* data) { }
-  static void Dispose(Isolate* isolate, UniquePersistent<V> value, K key) { }
+  static void Dispose(Isolate* isolate, Global<V> value, K key) {}
 };
 
 
 template <typename K, typename V>
-class DefaultPhantomPersistentValueMapTraits : public StdMapTraits<K, V> {
+class DefaultGlobalMapTraits : public StdMapTraits<K, V> {
  private:
   template <typename T>
   struct RemovePointer;
@@ -114,25 +117,26 @@ class DefaultPhantomPersistentValueMapTraits : public StdMapTraits<K, V> {
  public:
   // Weak callback & friends:
   static const PersistentContainerCallbackType kCallbackType = kNotWeak;
-  typedef PersistentValueMap<
-      K, V, DefaultPhantomPersistentValueMapTraits<K, V> > MapType;
-  typedef void PhantomCallbackDataType;
+  typedef PersistentValueMap<K, V, DefaultGlobalMapTraits<K, V> > MapType;
+  typedef void WeakCallbackInfoType;
 
-  static PhantomCallbackDataType* PhantomCallbackParameter(MapType* map,
-                                                           const K& key,
-                                                           Local<V> value) {
-    return NULL;
+  static WeakCallbackInfoType* WeakCallbackParameter(MapType* map, const K& key,
+                                                     Local<V> value) {
+    return nullptr;
   }
-  static MapType* MapFromPhantomCallbackData(
-      const PhantomCallbackData<PhantomCallbackDataType>& data) {
-    return NULL;
+  static MapType* MapFromWeakCallbackInfo(
+      const WeakCallbackInfo<WeakCallbackInfoType>& data) {
+    return nullptr;
   }
-  static K KeyFromPhantomCallbackData(
-      const PhantomCallbackData<PhantomCallbackDataType>& data) {
+  static K KeyFromWeakCallbackInfo(
+      const WeakCallbackInfo<WeakCallbackInfoType>& data) {
     return K();
   }
-  static void DisposeCallbackData(PhantomCallbackDataType* data) {}
-  static void Dispose(Isolate* isolate, UniquePersistent<V> value, K key) {}
+  static void DisposeCallbackData(WeakCallbackInfoType* data) {}
+  static void Dispose(Isolate* isolate, Global<V> value, K key) {}
+  static void DisposeWeak(Isolate* isolate,
+                          const WeakCallbackInfo<WeakCallbackInfoType>& data,
+                          K key) {}
 
  private:
   template <typename T>
@@ -143,8 +147,8 @@ class DefaultPhantomPersistentValueMapTraits : public StdMapTraits<K, V> {
 
 
 /**
- * A map wrapper that allows using UniquePersistent as a mapped value.
- * C++11 embedders don't need this class, as they can use UniquePersistent
+ * A map wrapper that allows using Global as a mapped value.
+ * C++11 embedders don't need this class, as they can use Global
  * directly in std containers.
  *
  * The map relies on a backing map, whose type and accessors are described
@@ -203,7 +207,7 @@ class PersistentValueMapBase {
   /**
    * Return value for key and remove it from the map.
    */
-  UniquePersistent<V> Remove(const K& key) {
+  Global<V> Remove(const K& key) {
     return Release(Traits::Remove(&impl_, key)).Pass();
   }
 
@@ -255,7 +259,7 @@ class PersistentValueMapBase {
    private:
     friend class PersistentValueMapBase;
     friend class PersistentValueMap<K, V, Traits>;
-    friend class PhantomPersistentValueMap<K, V, Traits>;
+    friend class GlobalValueMap<K, V, Traits>;
 
     explicit PersistentValueReference(PersistentContainerValue value)
         : value_(value) { }
@@ -293,30 +297,35 @@ class PersistentValueMapBase {
     return reinterpret_cast<V*>(v);
   }
 
-  static PersistentContainerValue ClearAndLeak(
-      UniquePersistent<V>* persistent) {
+  static PersistentContainerValue ClearAndLeak(Global<V>* persistent) {
     V* v = persistent->val_;
     persistent->val_ = 0;
     return reinterpret_cast<PersistentContainerValue>(v);
   }
 
-  static PersistentContainerValue Leak(UniquePersistent<V>* persistent) {
+  static PersistentContainerValue Leak(Global<V>* persistent) {
     return reinterpret_cast<PersistentContainerValue>(persistent->val_);
   }
 
   /**
-   * Return a container value as UniquePersistent and make sure the weak
+   * Return a container value as Global and make sure the weak
    * callback is properly disposed of. All remove functionality should go
    * through this.
    */
-  static UniquePersistent<V> Release(PersistentContainerValue v) {
-    UniquePersistent<V> p;
+  static Global<V> Release(PersistentContainerValue v) {
+    Global<V> p;
     p.val_ = FromVal(v);
     if (Traits::kCallbackType != kNotWeak && p.IsWeak()) {
       Traits::DisposeCallbackData(
           p.template ClearWeak<typename Traits::WeakCallbackDataType>());
     }
     return p.Pass();
+  }
+
+  void RemoveWeak(const K& key) {
+    Global<V> p;
+    p.val_ = FromVal(Traits::Remove(&impl_, key));
+    p.Reset();
   }
 
  private:
@@ -351,17 +360,17 @@ class PersistentValueMap : public PersistentValueMapBase<K, V, Traits> {
   /**
    * Put value into map. Depending on Traits::kIsWeak, the value will be held
    * by the map strongly or weakly.
-   * Returns old value as UniquePersistent.
+   * Returns old value as Global.
    */
-  UniquePersistent<V> Set(const K& key, Local<V> value) {
-    UniquePersistent<V> persistent(this->isolate(), value);
+  Global<V> Set(const K& key, Local<V> value) {
+    Global<V> persistent(this->isolate(), value);
     return SetUnique(key, &persistent);
   }
 
   /**
    * Put value into map, like Set(const K&, Local<V>).
    */
-  UniquePersistent<V> Set(const K& key, UniquePersistent<V> value) {
+  Global<V> Set(const K& key, Global<V> value) {
     return SetUnique(key, &value);
   }
 
@@ -369,7 +378,7 @@ class PersistentValueMap : public PersistentValueMapBase<K, V, Traits> {
    * Put the value into the map, and set the 'weak' callback when demanded
    * by the Traits class.
    */
-  UniquePersistent<V> SetUnique(const K& key, UniquePersistent<V>* persistent) {
+  Global<V> SetUnique(const K& key, Global<V>* persistent) {
     if (Traits::kCallbackType != kNotWeak) {
       Local<V> value(Local<V>::New(this->isolate(), *persistent));
       persistent->template SetWeak<typename Traits::WeakCallbackDataType>(
@@ -384,8 +393,8 @@ class PersistentValueMap : public PersistentValueMapBase<K, V, Traits> {
    * Put a value into the map and update the reference.
    * Restrictions of GetReference apply here as well.
    */
-  UniquePersistent<V> Set(const K& key, UniquePersistent<V> value,
-                          PersistentValueReference* reference) {
+  Global<V> Set(const K& key, Global<V> value,
+                PersistentValueReference* reference) {
     *reference = this->Leak(&value);
     return SetUnique(key, &value);
   }
@@ -406,9 +415,9 @@ class PersistentValueMap : public PersistentValueMapBase<K, V, Traits> {
 
 
 template <typename K, typename V, typename Traits>
-class PhantomPersistentValueMap : public PersistentValueMapBase<K, V, Traits> {
+class GlobalValueMap : public PersistentValueMapBase<K, V, Traits> {
  public:
-  explicit PhantomPersistentValueMap(Isolate* isolate)
+  explicit GlobalValueMap(Isolate* isolate)
       : PersistentValueMapBase<K, V, Traits>(isolate) {}
 
   typedef
@@ -418,17 +427,17 @@ class PhantomPersistentValueMap : public PersistentValueMapBase<K, V, Traits> {
   /**
    * Put value into map. Depending on Traits::kIsWeak, the value will be held
    * by the map strongly or weakly.
-   * Returns old value as UniquePersistent.
+   * Returns old value as Global.
    */
-  UniquePersistent<V> Set(const K& key, Local<V> value) {
-    UniquePersistent<V> persistent(this->isolate(), value);
+  Global<V> Set(const K& key, Local<V> value) {
+    Global<V> persistent(this->isolate(), value);
     return SetUnique(key, &persistent);
   }
 
   /**
    * Put value into map, like Set(const K&, Local<V>).
    */
-  UniquePersistent<V> Set(const K& key, UniquePersistent<V> value) {
+  Global<V> Set(const K& key, Global<V> value) {
     return SetUnique(key, &value);
   }
 
@@ -436,11 +445,16 @@ class PhantomPersistentValueMap : public PersistentValueMapBase<K, V, Traits> {
    * Put the value into the map, and set the 'weak' callback when demanded
    * by the Traits class.
    */
-  UniquePersistent<V> SetUnique(const K& key, UniquePersistent<V>* persistent) {
+  Global<V> SetUnique(const K& key, Global<V>* persistent) {
     if (Traits::kCallbackType != kNotWeak) {
+      WeakCallbackType callback_type =
+          Traits::kCallbackType == kWeakWithInternalFields
+              ? WeakCallbackType::kInternalFields
+              : WeakCallbackType::kParameter;
       Local<V> value(Local<V>::New(this->isolate(), *persistent));
-      persistent->template SetPhantom<typename Traits::WeakCallbackDataType>(
-          Traits::WeakCallbackParameter(this, key, value), WeakCallback, 0, 1);
+      persistent->template SetWeak<typename Traits::WeakCallbackDataType>(
+          Traits::WeakCallbackParameter(this, key, value), WeakCallback,
+          callback_type);
     }
     PersistentContainerValue old_value =
         Traits::Set(this->impl(), key, this->ClearAndLeak(persistent));
@@ -451,33 +465,32 @@ class PhantomPersistentValueMap : public PersistentValueMapBase<K, V, Traits> {
    * Put a value into the map and update the reference.
    * Restrictions of GetReference apply here as well.
    */
-  UniquePersistent<V> Set(const K& key, UniquePersistent<V> value,
-                          PersistentValueReference* reference) {
+  Global<V> Set(const K& key, Global<V> value,
+                PersistentValueReference* reference) {
     *reference = this->Leak(&value);
     return SetUnique(key, &value);
   }
 
  private:
   static void WeakCallback(
-      const PhantomCallbackData<typename Traits::WeakCallbackDataType>& data) {
+      const WeakCallbackInfo<typename Traits::WeakCallbackDataType>& data) {
     if (Traits::kCallbackType != kNotWeak) {
-      PhantomPersistentValueMap<K, V, Traits>* persistentValueMap =
-          Traits::MapFromPhantomCallbackData(data);
-      K key = Traits::KeyFromPhantomCallbackData(data);
-      Traits::Dispose(data.GetIsolate(), persistentValueMap->Remove(key).Pass(),
-                      key);
-      Traits::DisposeCallbackData(data.GetParameter());
+      GlobalValueMap<K, V, Traits>* persistentValueMap =
+          Traits::MapFromWeakCallbackInfo(data);
+      K key = Traits::KeyFromWeakCallbackInfo(data);
+      persistentValueMap->RemoveWeak(key);
+      Traits::DisposeWeak(data.GetIsolate(), data, key);
     }
   }
 };
 
 
 /**
- * A map that uses UniquePersistent as value and std::map as the backing
+ * A map that uses Global as value and std::map as the backing
  * implementation. Persistents are held non-weak.
  *
  * C++11 embedders don't need this class, as they can use
- * UniquePersistent directly in std containers.
+ * Global directly in std containers.
  */
 template<typename K, typename V,
     typename Traits = DefaultPersistentValueMapTraits<K, V> >
@@ -514,8 +527,8 @@ class DefaultPersistentValueVectorTraits {
 
 
 /**
- * A vector wrapper that safely stores UniquePersistent values.
- * C++11 embedders don't need this class, as they can use UniquePersistent
+ * A vector wrapper that safely stores Global values.
+ * C++11 embedders don't need this class, as they can use Global
  * directly in std containers.
  *
  * This class relies on a backing vector implementation, whose type and methods
@@ -536,14 +549,14 @@ class PersistentValueVector {
    * Append a value to the vector.
    */
   void Append(Local<V> value) {
-    UniquePersistent<V> persistent(isolate_, value);
+    Global<V> persistent(isolate_, value);
     Traits::Append(&impl_, ClearAndLeak(&persistent));
   }
 
   /**
    * Append a persistent's value to the vector.
    */
-  void Append(UniquePersistent<V> persistent) {
+  void Append(Global<V> persistent) {
     Traits::Append(&impl_, ClearAndLeak(&persistent));
   }
 
@@ -574,7 +587,7 @@ class PersistentValueVector {
   void Clear() {
     size_t length = Traits::Size(&impl_);
     for (size_t i = 0; i < length; i++) {
-      UniquePersistent<V> p;
+      Global<V> p;
       p.val_ = FromVal(Traits::Get(&impl_, i));
     }
     Traits::Clear(&impl_);
@@ -589,8 +602,7 @@ class PersistentValueVector {
   }
 
  private:
-  static PersistentContainerValue ClearAndLeak(
-      UniquePersistent<V>* persistent) {
+  static PersistentContainerValue ClearAndLeak(Global<V>* persistent) {
     V* v = persistent->val_;
     persistent->val_ = 0;
     return reinterpret_cast<PersistentContainerValue>(v);
@@ -606,4 +618,4 @@ class PersistentValueVector {
 
 }  // namespace v8
 
-#endif  // V8_UTIL_H_
+#endif  // V8_UTIL_H

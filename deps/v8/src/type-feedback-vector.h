@@ -12,17 +12,43 @@
 #include "src/heap/heap.h"
 #include "src/isolate.h"
 #include "src/objects.h"
+#include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 
 class FeedbackVectorSpec {
  public:
-  FeedbackVectorSpec() : slots_(0), ic_slots_(0) {}
-  FeedbackVectorSpec(int slots, int ic_slots)
-      : slots_(slots), ic_slots_(ic_slots) {
-    if (FLAG_vector_ics) ic_slot_kinds_.resize(ic_slots);
+  FeedbackVectorSpec() : slots_(0), has_ic_slot_(false) {}
+  explicit FeedbackVectorSpec(int slots) : slots_(slots), has_ic_slot_(false) {}
+  FeedbackVectorSpec(int slots, Code::Kind ic_slot_kind)
+      : slots_(slots), has_ic_slot_(true), ic_kind_(ic_slot_kind) {}
+
+  int slots() const { return slots_; }
+
+  int ic_slots() const { return has_ic_slot_ ? 1 : 0; }
+
+  Code::Kind GetKind(int ic_slot) const {
+    DCHECK(FLAG_vector_ics && has_ic_slot_ && ic_slot == 0);
+    return ic_kind_;
   }
+
+ private:
+  int slots_;
+  bool has_ic_slot_;
+  Code::Kind ic_kind_;
+};
+
+
+class ZoneFeedbackVectorSpec {
+ public:
+  explicit ZoneFeedbackVectorSpec(Zone* zone)
+      : slots_(0), ic_slots_(0), ic_slot_kinds_(zone) {}
+
+  ZoneFeedbackVectorSpec(Zone* zone, int slots, int ic_slots)
+      : slots_(slots),
+        ic_slots_(ic_slots),
+        ic_slot_kinds_(FLAG_vector_ics ? ic_slots : 0, zone) {}
 
   int slots() const { return slots_; }
   void increase_slots(int count) { slots_ += count; }
@@ -46,7 +72,7 @@ class FeedbackVectorSpec {
  private:
   int slots_;
   int ic_slots_;
-  std::vector<unsigned char> ic_slot_kinds_;
+  ZoneVector<unsigned char> ic_slot_kinds_;
 };
 
 
@@ -73,6 +99,8 @@ class TypeFeedbackVector : public FixedArray {
   static const int kFirstICSlotIndex = 0;
   static const int kWithTypesIndex = 1;
   static const int kGenericCountIndex = 2;
+
+  static int elements_per_ic_slot() { return FLAG_vector_ics ? 2 : 1; }
 
   int first_ic_slot_index() const {
     DCHECK(length() >= kReservedIndexCount);
@@ -114,7 +142,7 @@ class TypeFeedbackVector : public FixedArray {
 
   int ICSlots() const {
     if (length() == 0) return 0;
-    return length() - first_ic_slot_index();
+    return (length() - first_ic_slot_index()) / elements_per_ic_slot();
   }
 
   // Conversion from a slot or ic slot to an integer index to the underlying
@@ -127,7 +155,7 @@ class TypeFeedbackVector : public FixedArray {
   int GetIndex(FeedbackVectorICSlot slot) const {
     int first_ic_slot = first_ic_slot_index();
     DCHECK(slot.ToInt() < ICSlots());
-    return first_ic_slot + slot.ToInt();
+    return first_ic_slot + slot.ToInt() * elements_per_ic_slot();
   }
 
   // Conversion from an integer index to either a slot or an ic slot. The caller
@@ -140,7 +168,8 @@ class TypeFeedbackVector : public FixedArray {
 
   FeedbackVectorICSlot ToICSlot(int index) const {
     DCHECK(index >= first_ic_slot_index() && index < length());
-    return FeedbackVectorICSlot(index - first_ic_slot_index());
+    int ic_slot = (index - first_ic_slot_index()) / elements_per_ic_slot();
+    return FeedbackVectorICSlot(ic_slot);
   }
 
   Object* Get(FeedbackVectorSlot slot) const { return get(GetIndex(slot)); }
@@ -158,8 +187,9 @@ class TypeFeedbackVector : public FixedArray {
   // IC slots need metadata to recognize the type of IC.
   Code::Kind GetKind(FeedbackVectorICSlot slot) const;
 
+  template <typename Spec>
   static Handle<TypeFeedbackVector> Allocate(Isolate* isolate,
-                                             const FeedbackVectorSpec& spec);
+                                             const Spec* spec);
 
   static Handle<TypeFeedbackVector> Copy(Isolate* isolate,
                                          Handle<TypeFeedbackVector> vector);
@@ -244,14 +274,17 @@ class FeedbackNexus {
   void FindAllMaps(MapHandleList* maps) const { ExtractMaps(maps); }
 
   virtual InlineCacheState StateFromFeedback() const = 0;
-  virtual int ExtractMaps(MapHandleList* maps) const = 0;
-  virtual MaybeHandle<Code> FindHandlerForMap(Handle<Map> map) const = 0;
-  virtual bool FindHandlers(CodeHandleList* code_list, int length = -1) const {
-    return length == 0;
-  }
+  virtual int ExtractMaps(MapHandleList* maps) const;
+  virtual MaybeHandle<Code> FindHandlerForMap(Handle<Map> map) const;
+  virtual bool FindHandlers(CodeHandleList* code_list, int length = -1) const;
   virtual Name* FindFirstName() const { return NULL; }
 
   Object* GetFeedback() const { return vector()->Get(slot()); }
+  Object* GetFeedbackExtra() const {
+    DCHECK(TypeFeedbackVector::elements_per_ic_slot() > 1);
+    int extra_index = vector()->GetIndex(slot()) + 1;
+    return vector()->get(extra_index);
+  }
 
  protected:
   Isolate* GetIsolate() const { return vector()->GetIsolate(); }
@@ -261,13 +294,17 @@ class FeedbackNexus {
     vector()->Set(slot(), feedback, mode);
   }
 
+  void SetFeedbackExtra(Object* feedback_extra,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER) {
+    DCHECK(TypeFeedbackVector::elements_per_ic_slot() > 1);
+    int index = vector()->GetIndex(slot()) + 1;
+    vector()->set(index, feedback_extra, mode);
+  }
+
   Handle<FixedArray> EnsureArrayOfSize(int length);
-  void InstallHandlers(int start_index, MapHandleList* maps,
+  Handle<FixedArray> EnsureExtraArrayOfSize(int length);
+  void InstallHandlers(Handle<FixedArray> array, MapHandleList* maps,
                        CodeHandleList* handlers);
-  int ExtractMaps(int start_index, MapHandleList* maps) const;
-  MaybeHandle<Code> FindHandlerForMap(int start_index, Handle<Map> map) const;
-  bool FindHandlers(int start_index, CodeHandleList* code_list,
-                    int length) const;
 
  private:
   // The reason for having a vector handle and a raw pointer is that we can and
@@ -334,10 +371,6 @@ class LoadICNexus : public FeedbackNexus {
   void ConfigurePolymorphic(MapHandleList* maps, CodeHandleList* handlers);
 
   InlineCacheState StateFromFeedback() const OVERRIDE;
-  int ExtractMaps(MapHandleList* maps) const OVERRIDE;
-  MaybeHandle<Code> FindHandlerForMap(Handle<Map> map) const OVERRIDE;
-  virtual bool FindHandlers(CodeHandleList* code_list,
-                            int length = -1) const OVERRIDE;
 };
 
 
@@ -364,10 +397,6 @@ class KeyedLoadICNexus : public FeedbackNexus {
                             CodeHandleList* handlers);
 
   InlineCacheState StateFromFeedback() const OVERRIDE;
-  int ExtractMaps(MapHandleList* maps) const OVERRIDE;
-  MaybeHandle<Code> FindHandlerForMap(Handle<Map> map) const OVERRIDE;
-  virtual bool FindHandlers(CodeHandleList* code_list,
-                            int length = -1) const OVERRIDE;
   Name* FindFirstName() const OVERRIDE;
 };
 }

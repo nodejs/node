@@ -124,6 +124,59 @@ TEST_F(MoveOptimizerTest, SplitsConstants) {
   CHECK(Contains(move, Reg(0), Slot(2)));
 }
 
+
+TEST_F(MoveOptimizerTest, SimpleMerge) {
+  StartBlock();
+  EndBlock(Branch(Imm(), 1, 2));
+
+  StartBlock();
+  EndBlock(Jump(2));
+  AddMove(LastGap(), Reg(0), Reg(1));
+
+  StartBlock();
+  EndBlock(Jump(1));
+  AddMove(LastGap(), Reg(0), Reg(1));
+
+  StartBlock();
+  EndBlock(Last());
+
+  Optimize();
+
+  auto move = LastGap()->parallel_moves()[0];
+  CHECK_EQ(1, NonRedundantSize(move));
+  CHECK(Contains(move, Reg(0), Reg(1)));
+}
+
+
+TEST_F(MoveOptimizerTest, SimpleMergeCycle) {
+  StartBlock();
+  EndBlock(Branch(Imm(), 1, 2));
+
+  StartBlock();
+  EndBlock(Jump(2));
+  auto gap_0 = LastGap();
+  AddMove(gap_0, Reg(0), Reg(1));
+  AddMove(LastGap(), Reg(1), Reg(0));
+
+  StartBlock();
+  EndBlock(Jump(1));
+  auto gap_1 = LastGap();
+  AddMove(gap_1, Reg(0), Reg(1));
+  AddMove(gap_1, Reg(1), Reg(0));
+
+  StartBlock();
+  EndBlock(Last());
+
+  Optimize();
+
+  CHECK(gap_0->IsRedundant());
+  CHECK(gap_1->IsRedundant());
+  auto move = LastGap()->parallel_moves()[0];
+  CHECK_EQ(2, NonRedundantSize(move));
+  CHECK(Contains(move, Reg(0), Reg(1)));
+  CHECK(Contains(move, Reg(1), Reg(0)));
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

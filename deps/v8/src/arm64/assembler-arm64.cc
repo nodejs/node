@@ -171,7 +171,7 @@ CPURegList CPURegList::GetSafepointSavedRegisters() {
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo
 
-const int RelocInfo::kApplyMask = 0;
+const int RelocInfo::kApplyMask = 1 << RelocInfo::INTERNAL_REFERENCE;
 
 
 bool RelocInfo::IsCodedSpecially() {
@@ -185,26 +185,6 @@ bool RelocInfo::IsCodedSpecially() {
 bool RelocInfo::IsInConstantPool() {
   Instruction* instr = reinterpret_cast<Instruction*>(pc_);
   return instr->IsLdrLiteralX();
-}
-
-
-void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
-  // Patch the code at the current address with the supplied instructions.
-  Instr* pc = reinterpret_cast<Instr*>(pc_);
-  Instr* instr = reinterpret_cast<Instr*>(instructions);
-  for (int i = 0; i < instruction_count; i++) {
-    *(pc + i) = *(instr + i);
-  }
-
-  // Indicate that code has changed.
-  CpuFeatures::FlushICache(pc_, instruction_count * kInstructionSize);
-}
-
-
-// Patch the code at the current PC with a call to the target address.
-// Additional guard instructions can be added if required.
-void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
-  UNIMPLEMENTED();
 }
 
 
@@ -752,7 +732,15 @@ void Assembler::bind(Label* label) {
     DCHECK(prevlinkoffset >= 0);
 
     // Update the link to point to the label.
-    link->SetImmPCOffsetTarget(reinterpret_cast<Instruction*>(pc_));
+    if (link->IsUnresolvedInternalReference()) {
+      // Internal references do not get patched to an instruction but directly
+      // to an address.
+      internal_reference_positions_.push_back(linkoffset);
+      PatchingAssembler patcher(link, 2);
+      patcher.dc64(reinterpret_cast<uintptr_t>(pc_));
+    } else {
+      link->SetImmPCOffsetTarget(reinterpret_cast<Instruction*>(pc_));
+    }
 
     // Link the label to the previous link in the chain.
     if (linkoffset - prevlinkoffset == kStartOfLabelLinkChain) {
@@ -2080,6 +2068,50 @@ void Assembler::ucvtf(const FPRegister& fd,
 }
 
 
+void Assembler::dcptr(Label* label) {
+  RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
+  if (label->is_bound()) {
+    // The label is bound, so it does not need to be updated and the internal
+    // reference should be emitted.
+    //
+    // In this case, label->pos() returns the offset of the label from the
+    // start of the buffer.
+    internal_reference_positions_.push_back(pc_offset());
+    dc64(reinterpret_cast<uintptr_t>(buffer_ + label->pos()));
+  } else {
+    int32_t offset;
+    if (label->is_linked()) {
+      // The label is linked, so the internal reference should be added
+      // onto the end of the label's link chain.
+      //
+      // In this case, label->pos() returns the offset of the last linked
+      // instruction from the start of the buffer.
+      offset = label->pos() - pc_offset();
+      DCHECK(offset != kStartOfLabelLinkChain);
+    } else {
+      // The label is unused, so it now becomes linked and the internal
+      // reference is at the start of the new link chain.
+      offset = kStartOfLabelLinkChain;
+    }
+    // The instruction at pc is now the last link in the label's chain.
+    label->link_to(pc_offset());
+
+    // Traditionally the offset to the previous instruction in the chain is
+    // encoded in the instruction payload (e.g. branch range) but internal
+    // references are not instructions so while unbound they are encoded as
+    // two consecutive brk instructions. The two 16-bit immediates are used
+    // to encode the offset.
+    offset >>= kInstructionSizeLog2;
+    DCHECK(is_int32(offset));
+    uint32_t high16 = unsigned_bitextract_32(31, 16, offset);
+    uint32_t low16 = unsigned_bitextract_32(15, 0, offset);
+
+    brk(high16);
+    brk(low16);
+  }
+}
+
+
 // Note:
 // Below, a difference in case for the same letter indicates a
 // negated bit.
@@ -2839,6 +2871,12 @@ void Assembler::GrowBuffer() {
   // buffer nor pc absolute pointing inside the code buffer, so there is no need
   // to relocate any emitted relocation entries.
 
+  // Relocate internal references.
+  for (auto pos : internal_reference_positions_) {
+    intptr_t* p = reinterpret_cast<intptr_t*>(buffer_ + pos);
+    *p += pc_delta;
+  }
+
   // Pending relocation entries are also relative, no need to relocate.
 }
 
@@ -2848,6 +2886,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   RelocInfo rinfo(reinterpret_cast<byte*>(pc_), rmode, data, NULL);
   if (((rmode >= RelocInfo::JS_RETURN) &&
        (rmode <= RelocInfo::DEBUG_BREAK_SLOT)) ||
+      (rmode == RelocInfo::INTERNAL_REFERENCE) ||
       (rmode == RelocInfo::CONST_POOL) ||
       (rmode == RelocInfo::VENEER_POOL) ||
       (rmode == RelocInfo::DEOPT_REASON)) {
@@ -2857,6 +2896,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
            || RelocInfo::IsComment(rmode)
            || RelocInfo::IsDeoptReason(rmode)
            || RelocInfo::IsPosition(rmode)
+           || RelocInfo::IsInternalReference(rmode)
            || RelocInfo::IsConstPool(rmode)
            || RelocInfo::IsVeneerPool(rmode));
     // These modes do not need an entry in the constant pool.

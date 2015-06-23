@@ -34,15 +34,15 @@ import sys
 import urllib
 
 from common_includes import *
-import push_to_candidates
+import create_release
 
 
 class Preparation(Step):
   MESSAGE = "Preparation."
 
   def RunStep(self):
-    self.InitialEnvironmentChecks(self.default_cwd)
-    self.CommonPrepare()
+    # Fetch unfetched revisions.
+    self.vc.Fetch()
 
 
 class FetchCandidate(Step):
@@ -67,11 +67,11 @@ class LastReleaseBailout(Step):
       return True
 
 
-class PushToCandidates(Step):
-  MESSAGE = "Pushing to candidates if specified."
+class CreateRelease(Step):
+  MESSAGE = "Creating release if specified."
 
   def RunStep(self):
-    print "Pushing candidate %s to candidates." % self["candidate"]
+    print "Creating release for %s." % self["candidate"]
 
     args = [
       "--author", self._options.author,
@@ -83,16 +83,15 @@ class PushToCandidates(Step):
     if self._options.work_dir:
       args.extend(["--work-dir", self._options.work_dir])
 
-    # TODO(machenbach): Update the script before calling it.
     if self._options.push:
       self._side_effect_handler.Call(
-          push_to_candidates.PushToCandidates().Run, args)
+          create_release.CreateRelease().Run, args)
 
 
 class AutoPush(ScriptsBase):
   def _PrepareOptions(self, parser):
     parser.add_argument("-p", "--push",
-                        help="Push to candidates. Dry run if unspecified.",
+                        help="Create release. Dry run if unspecified.",
                         default=False, action="store_true")
 
   def _ProcessOptions(self, options):
@@ -112,7 +111,7 @@ class AutoPush(ScriptsBase):
       Preparation,
       FetchCandidate,
       LastReleaseBailout,
-      PushToCandidates,
+      CreateRelease,
     ]
 
 

@@ -125,8 +125,8 @@ void Verifier::Visitor::Check(Node* node) {
   CHECK_EQ(input_count, node->InputCount());
 
   // Verify that frame state has been inserted for the nodes that need it.
-  if (OperatorProperties::HasFrameStateInput(node->op())) {
-    Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  for (int i = 0; i < frame_state_count; i++) {
+    Node* frame_state = NodeProperties::GetFrameStateInput(node, i);
     CHECK(frame_state->opcode() == IrOpcode::kFrameState ||
           // kFrameState uses undefined as a sentinel.
           (node->opcode() == IrOpcode::kFrameState &&
@@ -228,6 +228,15 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is empty.
       CheckNotTyped(node);
       break;
+    case IrOpcode::kIfSuccess:
+    case IrOpcode::kIfException: {
+      // IfSuccess and IfException continuation only on throwing nodes.
+      Node* input = NodeProperties::GetControlInput(node, 0);
+      CHECK(!input->op()->HasProperty(Operator::kNoThrow));
+      // Type is empty.
+      CheckNotTyped(node);
+      break;
+    }
     case IrOpcode::kSwitch: {
       // Switch uses are Case and Default.
       int count_case = 0, count_default = 0;
@@ -273,6 +282,10 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is empty.
       CheckNotTyped(node);
       break;
+    case IrOpcode::kDeoptimize:
+      // TODO(rossberg): check successor is End
+      // Type is empty.
+      CheckNotTyped(node);
     case IrOpcode::kReturn:
       // TODO(rossberg): check successor is End
       // Type is empty.
@@ -414,6 +427,7 @@ void Verifier::Visitor::Check(Node* node) {
       // TODO(jarin): what are the constraints on these?
       break;
     case IrOpcode::kStateValues:
+    case IrOpcode::kTypedStateValues:
       // TODO(jarin): what are the constraints on these?
       break;
     case IrOpcode::kCall:
@@ -532,17 +546,17 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kJSCallFunction:
     case IrOpcode::kJSCallRuntime:
     case IrOpcode::kJSYield:
-    case IrOpcode::kJSDebugger:
       // Type can be anything.
       CheckUpperIs(node, Type::Any());
       break;
 
+    case IrOpcode::kJSStackCheck:
+      // Type is empty.
+      CheckNotTyped(node);
+      break;
+
     // Simplified operators
     // -------------------------------
-    case IrOpcode::kAnyToBoolean:
-      // Type is Boolean.
-      CheckUpperIs(node, Type::Boolean());
-      break;
     case IrOpcode::kBooleanNot:
       // Boolean -> Boolean
       CheckValueInputIs(node, 0, Type::Boolean());
@@ -604,10 +618,6 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kReferenceEqual: {
       // (Unique, Any) -> Boolean  and
       // (Any, Unique) -> Boolean
-      if (typing == TYPED) {
-        CHECK(bounds(ValueInput(node, 0)).upper->Is(Type::Unique()) ||
-              bounds(ValueInput(node, 1)).upper->Is(Type::Unique()));
-      }
       CheckUpperIs(node, Type::Boolean());
       break;
     }
@@ -736,6 +746,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kWord32Sar:
     case IrOpcode::kWord32Ror:
     case IrOpcode::kWord32Equal:
+    case IrOpcode::kWord32Clz:
     case IrOpcode::kWord64And:
     case IrOpcode::kWord64Or:
     case IrOpcode::kWord64Xor:
@@ -774,9 +785,10 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kFloat64Mul:
     case IrOpcode::kFloat64Div:
     case IrOpcode::kFloat64Mod:
+    case IrOpcode::kFloat64Max:
+    case IrOpcode::kFloat64Min:
     case IrOpcode::kFloat64Sqrt:
-    case IrOpcode::kFloat64Floor:
-    case IrOpcode::kFloat64Ceil:
+    case IrOpcode::kFloat64RoundDown:
     case IrOpcode::kFloat64RoundTruncate:
     case IrOpcode::kFloat64RoundTiesAway:
     case IrOpcode::kFloat64Equal:
@@ -792,13 +804,17 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kChangeFloat32ToFloat64:
     case IrOpcode::kChangeFloat64ToInt32:
     case IrOpcode::kChangeFloat64ToUint32:
+    case IrOpcode::kFloat64ExtractLowWord32:
+    case IrOpcode::kFloat64ExtractHighWord32:
+    case IrOpcode::kFloat64InsertLowWord32:
+    case IrOpcode::kFloat64InsertHighWord32:
     case IrOpcode::kLoadStackPointer:
     case IrOpcode::kCheckedLoad:
     case IrOpcode::kCheckedStore:
       // TODO(rossberg): Check.
       break;
   }
-}
+}  // NOLINT(readability/fn_size)
 
 
 void Verifier::Run(Graph* graph, Typing typing) {
@@ -806,7 +822,23 @@ void Verifier::Run(Graph* graph, Typing typing) {
   CHECK_NOT_NULL(graph->end());
   Zone zone;
   Visitor visitor(&zone, typing);
-  for (Node* node : AllNodes(&zone, graph).live) visitor.Check(node);
+  AllNodes all(&zone, graph);
+  for (Node* node : all.live) visitor.Check(node);
+
+  // Check the uniqueness of projections.
+  for (Node* proj : all.live) {
+    if (proj->opcode() != IrOpcode::kProjection) continue;
+    Node* node = proj->InputAt(0);
+    for (Node* other : node->uses()) {
+      if (all.IsLive(other) && other != proj &&
+          other->opcode() == IrOpcode::kProjection &&
+          ProjectionIndexOf(other->op()) == ProjectionIndexOf(proj->op())) {
+        V8_Fatal(__FILE__, __LINE__,
+                 "Node #%d:%s has duplicate projections #%d and #%d",
+                 node->id(), node->op()->mnemonic(), proj->id(), other->id());
+      }
+    }
+  }
 }
 
 
@@ -856,7 +888,7 @@ static void CheckInputsDominate(Schedule* schedule, BasicBlock* block,
                           use_pos)) {
       V8_Fatal(__FILE__, __LINE__,
                "Node #%d:%s in B%d is not dominated by input@%d #%d:%s",
-               node->id(), node->op()->mnemonic(), block->id().ToInt(), j,
+               node->id(), node->op()->mnemonic(), block->rpo_number(), j,
                input->id(), input->op()->mnemonic());
     }
   }
@@ -869,8 +901,8 @@ static void CheckInputsDominate(Schedule* schedule, BasicBlock* block,
     if (!Dominates(schedule, ctl, node)) {
       V8_Fatal(__FILE__, __LINE__,
                "Node #%d:%s in B%d is not dominated by control input #%d:%s",
-               node->id(), node->op()->mnemonic(), block->id(), ctl->id(),
-               ctl->op()->mnemonic());
+               node->id(), node->op()->mnemonic(), block->rpo_number(),
+               ctl->id(), ctl->op()->mnemonic());
     }
   }
 }
@@ -964,7 +996,7 @@ void ScheduleVerifier::Run(Schedule* schedule) {
       BasicBlock* idom = block->dominator();
       if (idom != NULL && !block_doms->Contains(idom->id().ToInt())) {
         V8_Fatal(__FILE__, __LINE__, "Block B%d is not dominated by B%d",
-                 block->id().ToInt(), idom->id().ToInt());
+                 block->rpo_number(), idom->rpo_number());
       }
       for (size_t s = 0; s < block->SuccessorCount(); s++) {
         BasicBlock* succ = block->SuccessorAt(s);
@@ -1002,7 +1034,7 @@ void ScheduleVerifier::Run(Schedule* schedule) {
             !dominators[idom->id().ToSize()]->Contains(dom->id().ToInt())) {
           V8_Fatal(__FILE__, __LINE__,
                    "Block B%d is not immediately dominated by B%d",
-                   block->id().ToInt(), idom->id().ToInt());
+                   block->rpo_number(), idom->rpo_number());
         }
       }
     }

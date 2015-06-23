@@ -47,6 +47,7 @@ Matcher<Node*> IsLoop(const Matcher<Node*>& control0_matcher,
                       const Matcher<Node*>& control2_matcher);
 Matcher<Node*> IsIfTrue(const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsIfFalse(const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsIfSuccess(const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsSwitch(const Matcher<Node*>& value_matcher,
                         const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsIfValue(const Matcher<int32_t>& value_matcher,
@@ -100,7 +101,6 @@ Matcher<Node*> IsCall(const Matcher<CallDescriptor*>& descriptor_matcher,
                       const Matcher<Node*>& effect_matcher,
                       const Matcher<Node*>& control_matcher);
 
-Matcher<Node*> IsAnyToBoolean(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsBooleanNot(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberEqual(const Matcher<Node*>& lhs_matcher,
                              const Matcher<Node*>& rhs_matcher);
@@ -169,6 +169,7 @@ Matcher<Node*> IsWord32Ror(const Matcher<Node*>& lhs_matcher,
                            const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsWord32Equal(const Matcher<Node*>& lhs_matcher,
                              const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsWord32Clz(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsWord64And(const Matcher<Node*>& lhs_matcher,
                            const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsWord64Shl(const Matcher<Node*>& lhs_matcher,
@@ -202,13 +203,22 @@ Matcher<Node*> IsChangeUint32ToUint64(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsTruncateFloat64ToFloat32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsTruncateFloat64ToInt32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsTruncateInt64ToInt32(const Matcher<Node*>& input_matcher);
+Matcher<Node*> IsFloat64Max(const Matcher<Node*>& lhs_matcher,
+                            const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsFloat64Min(const Matcher<Node*>& lhs_matcher,
+                            const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsFloat64Sub(const Matcher<Node*>& lhs_matcher,
                             const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsFloat64Sqrt(const Matcher<Node*>& input_matcher);
-Matcher<Node*> IsFloat64Floor(const Matcher<Node*>& input_matcher);
-Matcher<Node*> IsFloat64Ceil(const Matcher<Node*>& input_matcher);
+Matcher<Node*> IsFloat64RoundDown(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsFloat64RoundTruncate(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsFloat64RoundTiesAway(const Matcher<Node*>& input_matcher);
+Matcher<Node*> IsFloat64ExtractLowWord32(const Matcher<Node*>& input_matcher);
+Matcher<Node*> IsFloat64ExtractHighWord32(const Matcher<Node*>& input_matcher);
+Matcher<Node*> IsFloat64InsertLowWord32(const Matcher<Node*>& lhs_matcher,
+                                        const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsFloat64InsertHighWord32(const Matcher<Node*>& lhs_matcher,
+                                         const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsToNumber(const Matcher<Node*>& base_matcher,
                           const Matcher<Node*>& context_matcher,
                           const Matcher<Node*>& effect_matcher,
