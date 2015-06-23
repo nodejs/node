@@ -425,7 +425,7 @@ Local<Object> AddressToJS(Environment* env,
     uv_inet_ntop(AF_INET6, &a6->sin6_addr, ip, sizeof ip);
     port = ntohs(a6->sin6_port);
     info->Set(env->address_string(), OneByteString(env->isolate(), ip));
-    info->Set(env->family_string(), env->ipv6_string());
+    info->Set(env->family_string(), Integer::New(env->isolate(), 6));
     info->Set(env->port_string(), Integer::New(env->isolate(), port));
     break;
 
@@ -434,7 +434,7 @@ Local<Object> AddressToJS(Environment* env,
     uv_inet_ntop(AF_INET, &a4->sin_addr, ip, sizeof ip);
     port = ntohs(a4->sin_port);
     info->Set(env->address_string(), OneByteString(env->isolate(), ip));
-    info->Set(env->family_string(), env->ipv4_string());
+    info->Set(env->family_string(), Integer::New(env->isolate(), 4));
     info->Set(env->port_string(), Integer::New(env->isolate(), port));
     break;
 

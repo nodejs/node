@@ -193,8 +193,9 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
   char netmask[INET6_ADDRSTRLEN];
   char mac[18];
   Local<Object> ret, o;
-  Local<String> name, family;
+  Local<String> name;
   Local<Array> ifarr;
+  unsigned int family;
 
   int err = uv_interface_addresses(&interfaces, &count);
 
@@ -238,20 +239,24 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
     if (interfaces[i].address.address4.sin_family == AF_INET) {
       uv_ip4_name(&interfaces[i].address.address4, ip, sizeof(ip));
       uv_ip4_name(&interfaces[i].netmask.netmask4, netmask, sizeof(netmask));
-      family = env->ipv4_string();
+      family = 4;
     } else if (interfaces[i].address.address4.sin_family == AF_INET6) {
       uv_ip6_name(&interfaces[i].address.address6, ip, sizeof(ip));
       uv_ip6_name(&interfaces[i].netmask.netmask6, netmask, sizeof(netmask));
-      family = env->ipv6_string();
+      family = 6;
     } else {
       strncpy(ip, "<unknown sa family>", INET6_ADDRSTRLEN);
-      family = env->unknown_string();
+      family = 0;
     }
 
     o = Object::New(env->isolate());
     o->Set(env->address_string(), OneByteString(env->isolate(), ip));
     o->Set(env->netmask_string(), OneByteString(env->isolate(), netmask));
-    o->Set(env->family_string(), family);
+    if (family > 0) {
+      o->Set(env->family_string(), Integer::New(env->isolate(), family));
+    } else {
+      o->Set(env->family_string(), Undefined(env->isolate()));
+    }
     o->Set(env->mac_string(), FIXED_ONE_BYTE_STRING(env->isolate(), mac));
 
     if (interfaces[i].address.address4.sin_family == AF_INET6) {

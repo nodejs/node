@@ -5,7 +5,7 @@ var dgram = require('dgram');
 
 // IPv4 Test
 var socket_ipv4 = dgram.createSocket('udp4');
-var family_ipv4 = 'IPv4';
+var family_ipv4 = 4;
 
 socket_ipv4.on('listening', function() {
   var address_ipv4 = socket_ipv4.address();
@@ -25,7 +25,7 @@ socket_ipv4.bind(common.PORT, common.localhostIPv4);
 // IPv6 Test
 var localhost_ipv6 = '::1';
 var socket_ipv6 = dgram.createSocket('udp6');
-var family_ipv6 = 'IPv6';
+var family_ipv6 = 6;
 
 socket_ipv6.on('listening', function() {
   var address_ipv6 = socket_ipv6.address();

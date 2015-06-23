@@ -4,7 +4,7 @@ var assert = require('assert');
 var net = require('net');
 
 // Test on IPv4 Server
-var family_ipv4 = 'IPv4';
+var family_ipv4 = 4;
 var server_ipv4 = net.createServer();
 
 server_ipv4.on('error', function(e) {
@@ -21,7 +21,7 @@ server_ipv4.listen(common.PORT, common.localhostIPv4, function() {
 
 // Test on IPv6 Server
 var localhost_ipv6 = '::1';
-var family_ipv6 = 'IPv6';
+var family_ipv6 = 6;
 var server_ipv6 = net.createServer();
 
 server_ipv6.on('error', function(e) {
