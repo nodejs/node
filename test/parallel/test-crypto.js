@@ -18,20 +18,7 @@ var caPem = fs.readFileSync(common.fixturesDir + '/test_ca.pem', 'ascii');
 var certPem = fs.readFileSync(common.fixturesDir + '/test_cert.pem', 'ascii');
 var certPfx = fs.readFileSync(common.fixturesDir + '/test_cert.pfx');
 var keyPem = fs.readFileSync(common.fixturesDir + '/test_key.pem', 'ascii');
-
-
-// TODO(indunty): move to a separate test eventually
-try {
-  var tls = require('tls');
-  var context = tls.createSecureContext({
-    key: keyPem,
-    cert: certPem,
-    ca: caPem
-  });
-} catch (e) {
-  console.log('Not compiled with OPENSSL support.');
-  process.exit();
-}
+var tls = require('tls');
 
 // 'this' safety
 // https://github.com/joyent/node/issues/6690
