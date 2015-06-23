@@ -9,8 +9,8 @@ var conns = 0, conns_closed = 0;
 var remoteAddrCandidates = [ common.localhostIPv4 ];
 if (common.hasIPv6) remoteAddrCandidates.push('::ffff:127.0.0.1');
 
-var remoteFamilyCandidates = ['IPv4'];
-if (common.hasIPv6) remoteFamilyCandidates.push('IPv6');
+var remoteFamilyCandidates = [4];
+if (common.hasIPv6) remoteFamilyCandidates.push(6);
 
 var server = net.createServer(function(socket) {
   conns++;

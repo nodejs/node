@@ -74,7 +74,7 @@ process.on('exit', function() {
 
   var expectedConnectionKey1;
 
-  if (address1.family === 'IPv6')
+  if (address1.family === 6)
     expectedConnectionKey1 = '6::::' + address1.port;
   else
     expectedConnectionKey1 = '4:0.0.0.0:' + address1.port;
