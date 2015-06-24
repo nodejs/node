@@ -694,6 +694,11 @@ This is an encrypted stream.
 A proxy to the underlying socket's bytesWritten accessor, this will return
 the total bytes written to the socket, *including the TLS overhead*.
 
+## Class: CleartextStream
+
+The CleartextStream class in Node.js version v0.10.39 and prior has been
+deprecated and removed.
+
 ## Class: tls.TLSSocket
 
 This is a wrapped version of [net.Socket][] that does transparent encryption
