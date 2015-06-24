@@ -797,6 +797,9 @@ there's no file descriptor leak.  If `autoClose` is set to true (default
 behavior), on `error` or `end` the file descriptor will be closed
 automatically.
 
+`mode` sets the file mode (permission and sticky bits), but only if the
+file was created.
+
 An example to read the last 10 bytes of a file which is 100 bytes long:
 
     fs.createReadStream('sample.txt', {start: 90, end: 99});
