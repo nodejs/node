@@ -164,6 +164,34 @@ readable.on('readable', function() {
 Once the internal buffer is drained, a `readable` event will fire
 again when more data is available.
 
+The `readable` event is not emitted in the "flowing" mode with the
+sole exception of the last one, on end-of-stream.
+
+The 'readable' event indicates that the stream has new information:
+either new data is available or the end of the stream has been reached.
+In the former case, `.read()` will return that data. In the latter case,
+`.read()` will return null. For instance, in the following example, `foo.txt`
+is an empty file:
+
+```javascript
+var fs = require('fs');
+var rr = fs.createReadStream('foo.txt');
+rr.on('readable', function() {
+  console.log('readable:', rr.read());
+});
+rr.on('end', function() {
+  console.log('end');
+});
+```
+
+The output of running this script is:
+
+```
+bash-3.2$ node test.js
+readable: null
+end
+```
+
 #### Event: 'data'
 
 * `chunk` {Buffer | String} The chunk of data.
@@ -221,7 +249,9 @@ returns it.  If there is no data available, then it will return
 `null`.
 
 If you pass in a `size` argument, then it will return that many
-bytes.  If `size` bytes are not available, then it will return `null`.
+bytes.  If `size` bytes are not available, then it will return `null`,
+unless we've ended, in which case it will return the data remaining
+in the buffer.
 
 If you do not specify a `size` argument, then it will return all the
 data in the internal buffer.
@@ -242,6 +272,9 @@ readable.on('readable', function() {
 
 If this method returns a data chunk, then it will also trigger the
 emission of a [`'data'` event][].
+
+Note that calling `readable.read([size])` after the `end` event has been
+triggered will return `null`. No runtime error will be raised.
 
 #### readable.setEncoding(encoding)
 
@@ -414,6 +447,9 @@ parser, which needs to "un-consume" some data that it has
 optimistically pulled out of the source, so that the stream can be
 passed on to some other party.
 
+Note that `stream.unshift(chunk)` cannot be called after the `end` event
+has been triggered; a runtime error will be raised.
+
 If you find that you must often call `stream.unshift(chunk)` in your
 programs, consider implementing a [Transform][] stream instead.  (See API
 for Stream Implementors, below.)
@@ -452,6 +488,13 @@ function parseHeader(stream, callback) {
   }
 }
 ```
+Note that, unlike `stream.push(chunk)`, `stream.unshift(chunk)` will not
+end the reading process by resetting the internal reading state of the
+stream. This can cause unexpected results if `unshift` is called during a
+read (i.e. from within a `_read` implementation on a custom stream). Following
+the call to `unshift` with an immediate `stream.push('')` will reset the
+reading state appropriately, however it is best to simply avoid calling
+`unshift` while in the process of performing a read.
 
 #### readable.wrap(stream)
 
@@ -883,6 +926,10 @@ SimpleProtocol.prototype._read = function(n) {
       // back into the read queue so that our consumer will see it.
       var b = chunk.slice(split);
       this.unshift(b);
+      // calling unshift by itself does not reset the reading state
+      // of the stream; since we're inside _read, doing an additional
+      // push('') will reset the state appropriately.
+      this.push('');
 
       // and let them know that we are done parsing the header.
       this.emit('header', this.header);
@@ -922,24 +969,22 @@ initialized.
 
 * `size` {Number} Number of bytes to read asynchronously
 
-Note: **Implement this function, but do NOT call it directly.**
+Note: **Implement this method, but do NOT call it directly.**
 
-This function should NOT be called directly.  It should be implemented
-by child classes, and only called by the internal Readable class
-methods.
+This method is prefixed with an underscore because it is internal to the
+class that defines it and should only be called by the internal Readable
+class methods. All Readable stream implementations must provide a _read
+method to fetch data from the underlying resource.
 
-All Readable stream implementations must provide a `_read` method to
-fetch data from the underlying resource.
+When _read is called, if data is available from the resource, `_read` should
+start pushing that data into the read queue by calling `this.push(dataChunk)`.
+`_read` should continue reading from the resource and pushing data until push
+returns false, at which point it should stop reading from the resource. Only
+when _read is called again after it has stopped should it start reading
+more data from the resource and pushing that data onto the queue.
 
-This method is prefixed with an underscore because it is internal to
-the class that defines it, and should not be called directly by user
-programs.  However, you **are** expected to override this method in
-your own extension classes.
-
-When data is available, put it into the read queue by calling
-`readable.push(chunk)`.  If `push` returns false, then you should stop
-reading.  When `_read` is called again, you should start pushing more
-data.
+Note: once the `_read()` method is called, it will not be called again until
+the `push` method is called.
 
 The `size` argument is advisory.  Implementations where a "read" is a
 single call that returns data can use this to know how much data to
@@ -955,19 +1000,16 @@ becomes available.  There is no need, for example to "wait" until
   Buffer encoding, such as `'utf8'` or `'ascii'`
 * return {Boolean} Whether or not more pushes should be performed
 
-Note: **This function should be called by Readable implementors, NOT
+Note: **This method should be called by Readable implementors, NOT
 by consumers of Readable streams.**
 
-The `_read()` function will not be called again until at least one
-`push(chunk)` call is made.
+If a value other than null is passed, The `push()` method adds a chunk of data
+into the queue for subsequent stream processors to consume. If `null` is
+passed, it signals the end of the stream (EOF), after which no more data
+can be written.
 
-The `Readable` class works by putting data into a read queue to be
-pulled out later by calling the `read()` method when the `'readable'`
-event fires.
-
-The `push()` method will explicitly insert some data into the read
-queue.  If it is called with `null` then it will signal the end of the
-data (EOF).
+The data added with `push` can be pulled out by calling the `read()` method
+when the `'readable'`event fires.
 
 This API is designed to be as flexible as possible.  For example,
 you may be wrapping a lower-level source which has some sort of
@@ -1315,7 +1357,7 @@ for examples and testing, but there are occasionally use cases where
 it can come in handy as a building block for novel sorts of streams.
 
 
-## Simplified Constructor API 
+## Simplified Constructor API
 
 <!--type=misc-->
 

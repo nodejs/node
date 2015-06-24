@@ -2184,7 +2184,7 @@ static void OnFatalError(const char* location, const char* message) {
 
 NO_RETURN void FatalError(const char* location, const char* message) {
   OnFatalError(location, message);
-  // to supress compiler warning
+  // to suppress compiler warning
   abort();
 }
 
