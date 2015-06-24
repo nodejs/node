@@ -1,19 +1,23 @@
 'use strict';
 var util = require('util');
+var assert = require('assert');
 var EventEmitter = require('events').EventEmitter;
+var called = false;
 
-var TestClass = function () {};
-TestClass.prototype = new EventEmitter;
-
-function listener_n1() {
-	// This one is okay to be called!
+function TestClass() {
 }
-function listener_n2() {
-	throw new Error("This one should not be called!")
+TestClass.prototype = new EventEmitter();
+
+function okListener() {
+  called = true;
+}
+function brokenListener() {
+  throw new Error('This one should not be called!');
 }
 
 var ok = new TestClass();
 var broken = new TestClass();
-broken.on('end', listener_n2);
-ok.on('end', listener_n1);
+broken.on('end', okListener);
+ok.on('end', brokenListener);
 ok.emit('end');
+assert.ok(called, 'The ok listener should have been called');
