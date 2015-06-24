@@ -126,7 +126,7 @@ test/parallel/ directory.  Look at other tests to see how they should be
 structured (license boilerplate, common includes, etc.).
 
 ```text
-$ make jslint test
+$ ./configure && make -j8 test
 ```
 
 Make sure the linter is happy and that all tests pass.  Please, do not submit
@@ -142,9 +142,11 @@ $ python tools/test.py -v --mode=release parallel/test-stream2-transform
 You can run tests directly with iojs:
 
 ```text
-$ iojs ./test/parallel/test-streams2-transform.js
+$ ./iojs ./test/parallel/test-stream2-transform.js
 ```
 
+Remember to recompile with `make -j8` in between test runs if you change
+core modules.
 
 ### Step 6: Push
 
