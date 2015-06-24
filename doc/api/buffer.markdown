@@ -43,7 +43,7 @@ Creating a typed array from a `Buffer` works with the following caveats:
 
 2. The buffer's memory is interpreted as an array, not a byte array.  That is,
    `new Uint32Array(new Buffer([1,2,3,4]))` creates a 4-element `Uint32Array`
-   with elements `[1,2,3,4]`, not an `Uint32Array` with a single element
+   with elements `[1,2,3,4]`, not a `Uint32Array` with a single element
    `[0x1020304]` or `[0x4030201]`.
 
 NOTE: Node.js v0.8 simply retained a reference to the buffer in `array.buffer`
@@ -66,6 +66,10 @@ Allocates a new buffer of `size` bytes.  `size` must be less than
 1,073,741,824 bytes (1 GB) on 32 bits architectures or
 2,147,483,648 bytes (2 GB) on 64 bits architectures,
 otherwise a `RangeError` is thrown.
+
+Unlike `ArrayBuffers`, the underlying memory for buffers is not initialized. So
+the contents of a newly created `Buffer` is unknown. Use `buf.fill(0)`to
+initialize a buffer to zeroes.
 
 ### new Buffer(array)
 
