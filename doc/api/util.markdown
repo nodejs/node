@@ -261,7 +261,7 @@ through the `constructor.super_` property.
 
 Marks that a method should not be used any more.
 
-    exports.puts = exports.deprecate(function() {
+    exports.puts = util.deprecate(function() {
       for (var i = 0, len = arguments.length; i < len; ++i) {
         process.stdout.write(arguments[i] + '\n');
       }
