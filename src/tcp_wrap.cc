@@ -37,6 +37,7 @@ using v8::Value;
 class TCPConnectWrap : public ReqWrap<uv_connect_t> {
  public:
   TCPConnectWrap(Environment* env, Local<Object> req_wrap_obj);
+  size_t self_size() const override { return sizeof(*this); }
 };
 
 

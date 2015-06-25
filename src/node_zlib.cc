@@ -535,6 +535,8 @@ class ZCtx : public AsyncWrap {
     }
   }
 
+  size_t self_size() const override { return sizeof(*this); }
+
  private:
   void Ref() {
     if (++refs_ == 1) {

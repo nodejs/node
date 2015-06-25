@@ -280,7 +280,16 @@ Instructions:
   [#io.js on Freenode.net](http://webchat.freenode.net?channels=io.js&uio=d4)
 * [iojs/io.js on Gitter](https://gitter.im/nodejs/io.js)
 
+## Security
 
+All security bugs in io.js are taken seriously and should be reported by
+emailing security@iojs.org. This will be delivered to a subset of the project
+team who handle security issues. Please don't disclose security bugs
+public until they have been handled by the security team.
+
+Your email will be acknowledged within 24 hours, and you’ll receive a more
+detailed response to your email within 48 hours indicating the next steps in
+handling your report.
 
 ## Current Project Team Members
 
@@ -314,7 +323,7 @@ information about the governance of the io.js project, see
 * **Sam Roberts** &lt;vieuxtech@gmail.com&gt; ([@sam-github](https://github.com/sam-github))
 * **Wyatt Preul** &lt;wpreul@gmail.com&gt; ([@geek](https://github.com/geek))
 * **Brian White** &lt;mscdex@mscdex.net&gt; ([@mscdex](https://github.com/mscdex))
-* **Christian Vaagland Tellnes** &lt;christian@tellnes.com&gt; ([@tellnes](https://github.com/tellnes))
+* **Christian Tellnes** &lt;christian@tellnes.no&gt; ([@tellnes](https://github.com/tellnes))
 * **Robert Kowalski** &lt;rok@kowalski.gd&gt; ([@robertkowalski](https://github.com/robertkowalski))
 * **Julian Duque** &lt;julianduquej@gmail.com&gt; ([@julianduque](https://github.com/julianduque))
 * **Johan Bergström** &lt;bugs@bergstroem.nu&gt; ([@jbergstroem](https://github.com/jbergstroem))

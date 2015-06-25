@@ -13,7 +13,6 @@ var net = require('net');
 
 var sent = 'hello world';
 var received = '';
-var ended = 0;
 
 var options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
@@ -32,7 +31,6 @@ var server = net.createServer(function(c) {
     });
 
     s.on('end', function() {
-      ended++;
       server.close();
       s.destroy();
     });
@@ -47,5 +45,4 @@ var server = net.createServer(function(c) {
 
 process.on('exit', function() {
   assert.equal(received, sent);
-  assert.equal(ended, 1);
 });

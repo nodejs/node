@@ -37,6 +37,8 @@ class UDPWrap: public HandleWrap {
   static v8::Local<v8::Object> Instantiate(Environment* env, AsyncWrap* parent);
   uv_udp_t* UVHandle();
 
+  size_t self_size() const override { return sizeof(*this); }
+
  private:
   UDPWrap(Environment* env, v8::Handle<v8::Object> object, AsyncWrap* parent);
 

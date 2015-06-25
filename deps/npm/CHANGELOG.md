@@ -1,3 +1,34 @@
+### v2.11.3 (2015-06-11):
+
+This was a very quiet week. This release was done by
+[@iarna](https://github.com/iarna), while the rest of the team hangs out at
+NodeConf Adventure!
+
+#### TESTS IN 0.8 FAIL LESS
+
+* [`5b3b3c2`](https://github.com/npm/npm/commit/5b3b3c2)
+  [#8491](//github.com/npm/npm/pull/8491)
+  Updates a test to use only 0.8 compatible features
+  ([@watilde](https://github.com/watilde))
+
+#### THE TREADMILL OF UPDATES NEVER CEASES
+
+* [`9f439da`](https://github.com/npm/npm/commit/9f439da)
+  `spdx@0.4.1`: License range updates
+  (@kemitchell)[https://github.com/kemitchell]
+* [`2dd055b`](https://github.com/npm/npm/commit/2dd055b)
+  `normalize-package-data@2.2.1`: Fixes a crashing bug when the package.json
+  `scripts` property is not an object.
+  (@iarna)[https://github.com/iarna]
+* [`e02e85d`](https://github.com/npm/npm/commit/e02e85d)
+  `osenv@0.1.2`: Switches to using the `os-tmpdir` module instead of
+  `os.tmpdir()` for greate consistency in behavior between node versions.
+  (@iarna)[https://github.com/iarna]
+* [`a6f0265`](https://github.com/npm/npm/commit/a6f0265)
+  `ini@1.3.4` (@isaacs)[https://github.com/isaacs]
+* [`7395977`](https://github.com/npm/npm/commit/7395977)
+  `rimraf@2.4.0` (@isaacs)[https://github.com/isaacs]
+
 ### v2.11.2 (2015-06-04):
 
 Another small release this week, brought to you by the latest addition to the
@@ -14,7 +45,7 @@ while it lasts. :3
 * [`31aada4`](https://github.com/npm/npm/commit/31aada4ccc369c0903ff7f233f464955d12c6fe2)
   [#8401](https://github.com/npm/npm/issues/8401) `npm outdated` output is just
   that much nicer to consume now, due to sorting by name.
-  [@watilde](https://github.com/watilde)
+  ([@watilde](https://github.com/watilde))
 * [`458a919`](https://github.com/npm/npm/commit/458a91925d8b20c5e672ba71a86745aad654abaf)
   [#8469](https://github.com/npm/npm/pull/8469) Explicitly set `cwd` for
   `preversion`, `version`, and `postversion` scripts. This makes the scripts
@@ -42,10 +73,11 @@ while it lasts. :3
 #### VERSION NUMBERS HAVE NEVER BEEN BIGGER
 
 * [`c929fd1`](https://github.com/npm/npm/commit/c929fd1d0604b5878ed05706447e078d3e41f5b3)
-  `readable-steam@1.1.13`: Manually installed `v1.1.13` (steams3) to make deduping more reliable on `npm@<3`.
-  ([@othiym23](https://github.com/othiym23))
+  `readable-stream@1.1.13`: Manually deduped `v1.1.13` (streams3) to make
+  deduping more reliable on `npm@<3`. ([@othiym23](https://github.com/othiym23))
 * [`a9b4b78`](https://github.com/npm/npm/commit/a9b4b78dcc85571fd1cdd737903f7f37a5e6a755)
-  `request@2.57.0`: Replace dependency on IncomingMessage's `.client` with `.socket` as the former was deprecated in 2.2.0.
+  `request@2.57.0`: Replace dependency on IncomingMessage's `.client` with
+  `.socket` as the former was deprecated in io.js 2.2.0.
   ([@othiym23](https://github.com/othiym23))
 * [`4b5e557`](https://github.com/npm/npm/commit/4b5e557a23cdefd521ad154111e3d4dcc81f1cdb)
   `abbrev@1.0.7`: Better testing, with coverage.
