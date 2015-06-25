@@ -775,6 +775,10 @@ on Unix systems, it never was.
 
 Returns a new ReadStream object (See `Readable Stream`).
 
+Be aware that, unlike the default value set for `highWaterMark` on a
+readable stream (16kB), the stream returned by this method has a
+default value of 64kB for the same parameter.
+
 `options` is an object with the following defaults:
 
     { flags: 'r',
