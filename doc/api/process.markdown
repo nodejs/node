@@ -104,15 +104,17 @@ Example of listening for `uncaughtException`:
 Note that `uncaughtException` is a very crude mechanism for exception
 handling.
 
-Don't use it, use [domains](domain.html) instead. If you do use it, restart
-your application after every unhandled exception!
-
 Do *not* use it as the io.js equivalent of `On Error Resume Next`. An
 unhandled exception means your application - and by extension io.js itself -
 is in an undefined state. Blindly resuming means *anything* could happen.
 
 Think of resuming as pulling the power cord when you are upgrading your system.
 Nine out of ten times nothing happens - but the 10th time, your system is bust.
+
+`uncaughtException` should be used to perform synchronous cleanup before
+shutting down the process. It is not safe to resume normal operation after
+`uncaughtException`. If you do use it, restart your application after every
+unhandled exception!
 
 You have been warned.
 
