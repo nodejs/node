@@ -527,7 +527,7 @@ event will indicate when it is appropriate to begin writing more data
 to the stream.
 
 ```javascript
-// Write the data to the supplied writable stream 1MM times.
+// Write the data to the supplied writable stream one million times.
 // Be attentive to back-pressure.
 function writeOneMillionTimes(writer, data, encoding, callback) {
   var i = 1000000;
