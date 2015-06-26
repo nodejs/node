@@ -164,6 +164,9 @@ readable.on('readable', function() {
 Once the internal buffer is drained, a `readable` event will fire
 again when more data is available.
 
+The `readable` event is not emitted in the "flowing" mode with the
+sole exception of the last one, on end-of-stream.
+
 #### Event: 'data'
 
 * `chunk` {Buffer | String} The chunk of data.
@@ -181,6 +184,9 @@ readable.on('data', function(chunk) {
   console.log('got %d bytes of data', chunk.length);
 });
 ```
+Note that the `readable` event should not be used together with `data`
+because the assigning the latter switches the stream into "flowing" mode,
+so the `readable` event will not be emitted.
 
 #### Event: 'end'
 
