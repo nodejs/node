@@ -10,33 +10,74 @@ if (!common.hasCrypto) {
 var tls = require('tls');
 var fs = require('fs');
 var path = require('path');
+var finished = 0;
 
-var error = false;
+function filenamePEM(n) {
+  return path.join(common.fixturesDir, 'keys', n + '.pem');
+}
 
-// agent7-cert.pem is issued by the fake CNNIC root CA so that its
-// hash is not listed in the whitelist.
-var options = {
-  key: fs.readFileSync(path.join(common.fixturesDir, 'keys/agent7-key.pem')),
-  cert: fs.readFileSync(path.join(common.fixturesDir, 'keys/agent7-cert.pem'))
-};
+function loadPEM(n) {
+  return fs.readFileSync(filenamePEM(n));
+}
 
-var server = tls.createServer(options, function(s) {
-  s.resume();
-}).listen(common.PORT, function() {
-  var client = tls.connect({
-    port: common.PORT,
-    rejectUnauthorized: true,
+var testCases = [
+  { // Test 0: for the check of a cert not existed in the whitelist.
+    // agent7-cert.pem is issued by the fake CNNIC root CA so that its
+    // hash is not listed in the whitelist.
     // fake-cnnic-root-cert has the same subject name as the original
     // rootCA.
-    ca: [fs.readFileSync(path.join(common.fixturesDir,
-                                   'keys/fake-cnnic-root-cert.pem'))]
+    serverOpts: {
+      key: loadPEM('agent7-key'),
+      cert: loadPEM('agent7-cert')
+    },
+    clientOpts: {
+      port: common.PORT,
+      rejectUnauthorized: true,
+      ca: [loadPEM('fake-cnnic-root-cert')]
+    },
+    errorCode: 'CERT_REVOKED'
+  },
+  // Test 1: for the fix of iojs#2061
+  // agent6-cert.pem is signed by intermidate cert of ca3.
+  // The server has a cert chain of agent6->ca3->ca1(root) but
+  // tls.connect should be failed with an error of
+  // UNABLE_TO_GET_ISSUER_CERT_LOCALLY since the root CA of ca1 is not
+  // installed locally.
+  {
+    serverOpts: {
+      ca: loadPEM('ca3-key'),
+      key: loadPEM('agent6-key'),
+      cert: loadPEM('agent6-cert')
+    },
+    clientOpts: {
+      port: common.PORT,
+      rejectUnauthorized: true
+    },
+    errorCode: 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY'
+  }
+];
+
+function runTest(tindex) {
+  var tcase = testCases[tindex];
+
+  if (!tcase) return;
+
+  var server = tls.createServer(tcase.serverOpts, function(s) {
+    s.resume();
+  }).listen(common.PORT, function() {
+    var client = tls.connect(tcase.clientOpts);
+    client.on('error', function(e) {
+      assert.strictEqual(e.code, tcase.errorCode);
+      server.close(function() {
+        finished++;
+        runTest(tindex + 1);
+      });
+    });
   });
-  client.on('error', function(e) {
-    assert.strictEqual(e.code, 'CERT_REVOKED');
-    error = true;
-    server.close();
-  });
-});
+}
+
+runTest(0);
+
 process.on('exit', function() {
-  assert(error);
+  assert.equal(finished, testCases.length);
 });

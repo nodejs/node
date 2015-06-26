@@ -2310,7 +2310,7 @@ inline CheckResult CheckWhitelistedServerCert(X509_STORE_CTX* ctx) {
 inline int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx) {
   // Failure on verification of the cert is handled in
   // Connection::VerifyError.
-  if (preverify_ok == 0)
+  if (preverify_ok == 0 || X509_STORE_CTX_get_error(ctx) != X509_V_OK)
     return 1;
 
   // Server does not need to check the whitelist.
