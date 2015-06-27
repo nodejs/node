@@ -9,7 +9,7 @@ Most of the http benchmarks require [`wrk`][wrk] and [`ab`][ab] (ApacheBench) be
 These may be available through your preferred package manager.
 
 If they are not available:
-- `wrk` may easily built [from source](https://github.com/wg/wrk) via `make`.
+- `wrk` may easily be built [from source][wrk] via `make`.
 - `ab` is sometimes bundled in a package called `apache2-utils`.
 
 [wrk]: https://github.com/wg/wrk
