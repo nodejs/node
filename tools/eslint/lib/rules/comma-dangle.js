@@ -25,7 +25,7 @@ module.exports = function (context) {
     function checkForTrailingComma(node) {
         var items = node.properties || node.elements,
             length = items.length,
-            nodeIsMultiLine = node.loc.start.line !== node.loc.end.line,
+            lastTokenOnNewLine,
             lastItem,
             penultimateToken,
             hasDanglingComma;
@@ -39,9 +39,10 @@ module.exports = function (context) {
                 if (forbidDangle && hasDanglingComma) {
                     context.report(lastItem, penultimateToken.loc.start, UNEXPECTED_MESSAGE);
                 } else if (allowDangle === "always-multiline") {
-                    if (hasDanglingComma && !nodeIsMultiLine) {
+                    lastTokenOnNewLine = node.loc.end.line !== penultimateToken.loc.end.line;
+                    if (hasDanglingComma && !lastTokenOnNewLine) {
                         context.report(lastItem, penultimateToken.loc.start, UNEXPECTED_MESSAGE);
-                    } else if (!hasDanglingComma && nodeIsMultiLine) {
+                    } else if (!hasDanglingComma && lastTokenOnNewLine) {
                         context.report(lastItem, penultimateToken.loc.end, MISSING_MESSAGE);
                     }
                 } else if (allowDangle === "always" && !hasDanglingComma) {
@@ -56,3 +57,9 @@ module.exports = function (context) {
         "ArrayExpression": checkForTrailingComma
     };
 };
+
+module.exports.schema = [
+    {
+        "enum": ["always", "always-multiline", "never"]
+    }
+];

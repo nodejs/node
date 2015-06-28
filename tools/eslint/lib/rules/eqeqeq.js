@@ -88,3 +88,9 @@ module.exports = function(context) {
     };
 
 };
+
+module.exports.schema = [
+    {
+        "enum": ["smart", "allow-null"]
+    }
+];

@@ -46,7 +46,7 @@ module.exports = function (context) {
         if (context.options[0] === "tab") {
             indentChar = "\t";
             indentSize = 1;
-        } else if (typeof context.options[0] === "number") {
+        } else /* istanbul ignore else : this will be caught by options validation */ if (typeof context.options[0] === "number") {
             indentSize = context.options[0];
         }
 
@@ -462,3 +462,25 @@ module.exports = function (context) {
     };
 
 };
+
+module.exports.schema = [
+    {
+        "oneOf": [
+            {
+                "enum": ["tab"]
+            },
+            {
+                "type": "integer"
+            }
+        ]
+    },
+    {
+        "type": "object",
+        "properties": {
+            "indentSwitchCase": {
+                "type": "boolean"
+            }
+        },
+        "additionalProperties": false
+    }
+];

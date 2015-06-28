@@ -35,7 +35,7 @@ function last(arr) {
  * @returns {boolean} True if the candidate property is part of the group.
  */
 function continuesPropertyGroup(lastMember, candidate) {
-    var groupEndLine = lastMember.loc.end.line,
+    var groupEndLine = lastMember.loc.start.line,
         candidateStartLine = candidate.loc.start.line,
         comments, i;
 
@@ -305,3 +305,21 @@ module.exports = function(context) {
     }
 
 };
+
+module.exports.schema = [
+    {
+        "type": "object",
+        "properties": {
+            "align": {
+                "enum": ["colon", "value"]
+            },
+            "beforeColon": {
+                "type": "boolean"
+            },
+            "afterColon": {
+                "type": "boolean"
+            }
+        },
+        "additionalProperties": false
+    }
+];

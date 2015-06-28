@@ -45,6 +45,7 @@ function translateOptions(cliOptions) {
         globals: cliOptions.global,
         ignore: cliOptions.ignore,
         ignorePath: cliOptions.ignorePath,
+        ignorePattern: cliOptions.ignorePattern,
         configFile: cliOptions.config,
         rulePaths: cliOptions.rulesdir,
         reset: cliOptions.reset,

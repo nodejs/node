@@ -97,3 +97,15 @@ module.exports = function(context) {
     };
 
 };
+
+module.exports.schema = [
+    {
+        "type": "object",
+        "properties": {
+            "properties": {
+                "enum": ["always", "never"]
+            }
+        },
+        "additionalProperties": false
+    }
+];
