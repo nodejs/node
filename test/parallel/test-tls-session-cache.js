@@ -11,8 +11,8 @@ if (!common.hasCrypto) {
   process.exit();
 }
 
-doTest({ tickets: false } , function() {
-  doTest({ tickets: true } , function() {
+doTest({ tickets: false }, function() {
+  doTest({ tickets: true }, function() {
     console.error('all done');
   });
 });
