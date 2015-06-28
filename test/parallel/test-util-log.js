@@ -21,7 +21,7 @@ var tests = [
   {input: function() {}, output: '[Function]'},
   {input: parseInt('not a number', 10), output: 'NaN'},
   {input: {answer: 42}, output: '{ answer: 42 }'},
-  {input: [1,2,3], output: '[ 1, 2, 3 ]'}
+  {input: [1, 2, 3], output: '[ 1, 2, 3 ]'}
 ];
 
 // test util.log()

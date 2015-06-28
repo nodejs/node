@@ -47,20 +47,20 @@ var clientsOptions = [{
   crl: serverOptions.crl,
   NPNProtocols: ['a', 'b', 'c'],
   rejectUnauthorized: false
-},{
+}, {
   port: serverPort,
   key: serverOptions.key,
   cert: serverOptions.cert,
   crl: serverOptions.crl,
   NPNProtocols: ['c', 'b', 'e'],
   rejectUnauthorized: false
-},{
+}, {
   port: serverPort,
   key: serverOptions.key,
   cert: serverOptions.cert,
   crl: serverOptions.crl,
   rejectUnauthorized: false
-},{
+}, {
   port: serverPort,
   key: serverOptions.key,
   cert: serverOptions.cert,

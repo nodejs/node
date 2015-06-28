@@ -8,7 +8,7 @@ var assert = require('assert');
 var dgram = require('dgram');
 
 var socket = dgram.createSocket('udp4');
-var buf = Buffer([1,2,3,4]);
+var buf = Buffer([1, 2, 3, 4]);
 
 function ok() {}
 socket.send(buf, 0, 0, common.PORT, '127.0.0.1', ok); // useful? no
