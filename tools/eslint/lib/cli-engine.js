@@ -27,7 +27,8 @@ var fs = require("fs"),
     traverse = require("./util/traverse"),
     IgnoredPaths = require("./ignored-paths"),
     Config = require("./config"),
-    util = require("./util");
+    util = require("./util"),
+    validator = require("./config-validator");
 
 //------------------------------------------------------------------------------
 // Typedefs
@@ -154,30 +155,33 @@ function calculateStatsPerRun(results) {
 }
 
 /**
- * Processes an individual file using ESLint. Files used here are known to
- * exist, so no need to check that here.
- * @param {string} filename The filename of the file being checked.
+ * Processes an source code using ESLint.
+ * @param {string} text The source code to check.
  * @param {Object} configHelper The configuration options for ESLint.
- * @returns {Result} The results for linting on this file.
+ * @param {string} filename An optional string representing the texts filename.
+ * @returns {Result} The results for linting on this text.
  * @private
  */
-function processFile(filename, configHelper) {
+function processText(text, configHelper, filename) {
 
     // clear all existing settings for a new file
     eslint.reset();
 
-    var filePath = path.resolve(filename),
+    var filePath,
         config,
-        text,
         messages,
         stats,
         fileExtension = path.extname(filename),
         processor;
 
-    debug("Linting " + filePath);
+    if (filename) {
+        filePath = path.resolve(filename);
+    }
+
+    filename = filename || "<text>";
+    debug("Linting " + filename);
     config = configHelper.getConfig(filePath);
     loadPlugins(config.plugins);
-    text = fs.readFileSync(path.resolve(filename), "utf8");
 
     for (var plugin in loadedPlugins) {
         if (loadedPlugins[plugin].processors && Object.keys(loadedPlugins[plugin].processors).indexOf(fileExtension) >= 0) {
@@ -208,35 +212,38 @@ function processFile(filename, configHelper) {
 }
 
 /**
- * Processes an source code using ESLint.
- * @param {string} text The source code to check.
+ * Processes an individual file using ESLint. Files used here are known to
+ * exist, so no need to check that here.
+ * @param {string} filename The filename of the file being checked.
  * @param {Object} configHelper The configuration options for ESLint.
- * @param {string} filename An optional string representing the texts filename.
- * @returns {Result} The results for linting on this text.
+ * @returns {Result} The results for linting on this file.
  * @private
  */
-function processText(text, configHelper, filename) {
+function processFile(filename, configHelper) {
 
-    // clear all existing settings for a new file
-    eslint.reset();
+    var text = fs.readFileSync(path.resolve(filename), "utf8");
 
-    var config,
-        messages,
-        stats;
+    return processText(text, configHelper, filename);
+}
 
-    filename = filename || "<text>";
-    debug("Linting " + filename);
-    config = configHelper.getConfig();
-    loadPlugins(config.plugins);
-    messages = eslint.verify(text, config, filename);
-
-    stats = calculateStatsPerFile(messages);
-
+/**
+ * Returns result with warning by ignore settings
+ * @param {string} filePath File path of checked code
+ * @returns {Result} Result with single warning
+ * @private
+ */
+function createIgnoreResult(filePath) {
     return {
-        filePath: filename,
-        messages: messages,
-        errorCount: stats.errorCount,
-        warningCount: stats.warningCount
+        filePath: filePath,
+        messages: [
+            {
+                fatal: false,
+                severity: 1,
+                message: "File ignored because of your .eslintignore file. Use --no-ignore to override."
+            }
+        ],
+        errorCount: 0,
+        warningCount: 1
     };
 }
 
@@ -265,12 +272,28 @@ function CLIEngine(options) {
         });
     }
 
-    loadPlugins(this.options.plugins);
+    Object.keys(this.options.rules || {}).forEach(function(name) {
+        validator.validateRuleOptions(name, this.options.rules[name], "CLI");
+    }.bind(this));
 }
 
 CLIEngine.prototype = {
 
     constructor: CLIEngine,
+
+    /**
+     * Add a plugin by passing it's configuration
+     * @param {string} name Name of the plugin.
+     * @param {Object} pluginobject Plugin configuration object.
+     * @returns {void}
+     */
+    addPlugin: function(name, pluginobject) {
+        var pluginNameWithoutPrefix = util.removePluginPrefix(util.removeNameSpace(name));
+        if (pluginobject.rules) {
+            rules.import(pluginobject.rules, pluginNameWithoutPrefix);
+        }
+        loadedPlugins[pluginNameWithoutPrefix] = pluginobject;
+    },
 
     /**
      * Executes the current configuration on an array of file and directory names.
@@ -303,18 +326,7 @@ CLIEngine.prototype = {
         if (options.ignore) {
             files.forEach(function(file) {
                 if (fs.statSync(path.resolve(file)).isFile() && processed.indexOf(file) === -1) {
-                    results.push({
-                        filePath: file,
-                        messages: [
-                            {
-                                fatal: false,
-                                severity: 1,
-                                message: "File ignored because of your .eslintignore file. Use --no-ignore to override."
-                            }
-                        ],
-                        errorCount: 0,
-                        warningCount: 1
-                    });
+                    results.push(createIgnoreResult(file));
                 }
             });
         }
@@ -336,11 +348,19 @@ CLIEngine.prototype = {
      */
     executeOnText: function(text, filename) {
 
-        var configHelper = new Config(this.options),
-            results = [],
-            stats;
+        var results = [],
+            stats,
+            options = this.options,
+            configHelper = new Config(options),
+            ignoredPaths = IgnoredPaths.load(options),
+            exclude = ignoredPaths.contains.bind(ignoredPaths);
 
-        results.push(processText(text, configHelper, filename));
+        if (filename && options.ignore && exclude(filename)) {
+            results.push(createIgnoreResult(filename));
+        } else {
+            results.push(processText(text, configHelper, filename));
+        }
+
         stats = calculateStatsPerRun(results);
 
         return {
@@ -414,8 +434,6 @@ CLIEngine.prototype = {
         } else {
             return null;
         }
-
-
     }
 
 };

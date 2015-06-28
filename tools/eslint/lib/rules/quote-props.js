@@ -64,3 +64,9 @@ module.exports = function(context) {
     };
 
 };
+
+module.exports.schema = [
+    {
+        "enum": ["always", "as-needed"]
+    }
+];

@@ -26,15 +26,6 @@ module.exports = function(context) {
     }
 
     /**
-    * Checks if the type is a unary word expression
-    * @param {string} type value of AST token
-    * @returns {boolean} Whether the word is in the list of known words
-    */
-    function isWordExpression(type) {
-        return ["delete", "new", "typeof", "void"].indexOf(type) !== -1;
-    }
-
-    /**
     * Check if the node's child argument is an "ObjectExpression"
     * @param {ASTnode} node AST node
     * @returns {boolean} Whether or not the argument's type is "ObjectExpression"
@@ -74,7 +65,7 @@ module.exports = function(context) {
             firstToken = tokens[0],
             secondToken = tokens[1];
 
-        if (isWordExpression(firstToken.value)) {
+        if ((node.type === "NewExpression" || node.prefix) && firstToken.type === "Keyword") {
             checkUnaryWordOperatorForSpaces(node, firstToken, secondToken);
             return void 0;
         }
@@ -116,3 +107,18 @@ module.exports = function(context) {
     };
 
 };
+
+module.exports.schema = [
+    {
+        "type": "object",
+        "properties": {
+            "words": {
+                "type": "boolean"
+            },
+            "nonwords": {
+                "type": "boolean"
+            }
+        },
+        "additionalProperties": false
+    }
+];

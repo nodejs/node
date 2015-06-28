@@ -80,6 +80,14 @@ module.exports = function(context) {
                 line: operatorToken.loc.end.line,
                 column: operatorToken.loc.end.column
             }, "'" + operator + "' should be placed at the end of the line.");
+
+        } else if (style === "none") {
+
+            context.report(node, {
+                line: operatorToken.loc.end.line,
+                column: operatorToken.loc.end.column
+            }, "There should be no line break before or after '" + operator + "'");
+
         }
     }
 
@@ -98,3 +106,9 @@ module.exports = function(context) {
         }
     };
 };
+
+module.exports.schema = [
+    {
+        "enum": ["after", "before", "none"]
+    }
+];

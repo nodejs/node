@@ -57,7 +57,11 @@ module.exports = function(context) {
 
                 case "ArrayPattern":
                     param.elements.forEach(function(element) {
-                        markParam(element.name);
+
+                        // Arrays can be sparse (unwanted arguments)
+                        if (element !== null) {
+                            markParam(element.name);
+                        }
                     });
                     break;
 
@@ -81,3 +85,5 @@ module.exports = function(context) {
     };
 
 };
+
+module.exports.schema = [];

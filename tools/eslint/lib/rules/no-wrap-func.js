@@ -19,7 +19,7 @@ module.exports = function(context) {
      * @private
      */
     function checkFunction(node) {
-        var previousToken, nextToken;
+        var previousToken, nextToken, isCall;
 
         if (node.type === "ArrowFunctionExpression" &&
                 /(?:Call|New|Logical|Binary|Conditional|Update)Expression/.test(node.parent.type)
@@ -27,12 +27,31 @@ module.exports = function(context) {
             return;
         }
 
-        if (!/CallExpression|NewExpression/.test(node.parent.type)) {
-            previousToken = context.getTokenBefore(node);
-            nextToken = context.getTokenAfter(node);
-            if (previousToken.value === "(" && nextToken.value === ")") {
-                context.report(node, "Wrapping non-IIFE function literals in parens is unnecessary.");
+        // (function() {}).foo
+        if (node.parent.type === "MemberExpression" && node.parent.object === node) {
+            return;
+        }
+
+        // (function(){})()
+        isCall = /CallExpression|NewExpression/.test(node.parent.type);
+        if (isCall && node.parent.callee === node) {
+            return;
+        }
+
+        previousToken = context.getTokenBefore(node);
+        nextToken = context.getTokenAfter(node);
+
+        // f(function(){}) and new f(function(){})
+        if (isCall) {
+
+            // if the previousToken is right after the callee
+            if (node.parent.callee.range[1] === previousToken.range[0]) {
+                return;
             }
+        }
+
+        if (previousToken.value === "(" && nextToken.value === ")") {
+            context.report(node, "Wrapping non-IIFE function literals in parens is unnecessary.");
         }
     }
 
@@ -42,3 +61,5 @@ module.exports = function(context) {
     };
 
 };
+
+module.exports.schema = [];

@@ -35,3 +35,15 @@ module.exports = function(context) {
         }
     };
 };
+
+module.exports.schema = [
+    {
+        "type": "object",
+        "properties": {
+            "ignoreCase": {
+                "type": "boolean"
+            }
+        },
+        "additionalProperties": false
+    }
+];

@@ -1,6 +1,7 @@
 /**
  * @fileoverview Disallow trailing spaces at the end of lines.
  * @author Nodeca Team <https://github.com/nodeca>
+ * @copyright 2015 Greg Cochard
  */
 "use strict";
 
@@ -10,7 +11,13 @@
 
 module.exports = function(context) {
 
-    var TRAILER = "[ \t\u00a0\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u200b\u2028\u2029\u3000]+$";
+    var BLANK_CLASS = "[ \t\u00a0\u2000-\u200b\u2028\u2029\u3000]",
+        SKIP_BLANK = "^" + BLANK_CLASS + "*$",
+        NONBLANK = BLANK_CLASS + "$";
+
+    var options = context.options[0] || {},
+        skipBlankLines = options.skipBlankLines || false;
+
 
     //--------------------------------------------------------------------------
     // Public
@@ -20,27 +27,48 @@ module.exports = function(context) {
 
         "Program": function checkTrailingSpaces(node) {
 
-            // Let's hack. Since Esprima does not return whitespace nodes,
-            // fetch the source code and do black magic via regexps.
+            // Let's hack. Since Espree does not return whitespace nodes,
+            // fetch the source code and do matching via regexps.
 
             var src = context.getSource(),
-                re = new RegExp(TRAILER, "mg"),
-                match, lines, location;
+                re = new RegExp(NONBLANK),
+                skipMatch = new RegExp(SKIP_BLANK),
+                matches, lines = src.split(/\r?\n/), location;
 
-            while ((match = re.exec(src)) !== null) {
-                lines = src.slice(0, re.lastIndex).split(/\r?\n/g);
+            for (var i = 0, ii = lines.length; i < ii; i++) {
 
-                location = {
-                    line: lines.length,
-                    column: lines[lines.length - 1].length - match[0].length + 1
-                };
+                matches = re.exec(lines[i]);
+                if (matches) {
 
-                // Passing node is a bit dirty, because message data will contain
-                // big text in `source`. But... who cares :) ?
-                // One more kludge will not make worse the bloody wizardry of this plugin.
-                context.report(node, location, "Trailing spaces not allowed.");
+                    // If the line has only whitespace, and skipBlankLines
+                    // is true, don't report it
+                    if (skipBlankLines && skipMatch.test(lines[i])) {
+                        continue;
+                    }
+                    location = {
+                        line: i + 1,
+                        column: lines[i].length - matches[0].length + 1
+                    };
+
+                    // Passing node is a bit dirty, because message data will contain
+                    // big text in `source`. But... who cares :) ?
+                    // One more kludge will not make worse the bloody wizardry of this plugin.
+                    context.report(node, location, "Trailing spaces not allowed.");
+                }
             }
         }
 
     };
 };
+
+module.exports.schema = [
+    {
+        "type": "object",
+        "properties": {
+            "skipBlankLines": {
+                "type": "boolean"
+            }
+        },
+        "additionalProperties": false
+    }
+];
