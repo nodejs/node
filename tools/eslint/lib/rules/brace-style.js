@@ -33,6 +33,15 @@ module.exports = function(context) {
         return node && node.type === "BlockStatement";
     }
 
+    /**
+     * Check if the token is an punctuator with a value of curly brace
+     * @param {object} token - Token to check
+     * @returns {boolean} true if its a curly punctuator
+     * @private
+     */
+    function isCurlyPunctuator(token) {
+        return token.value === "{" || token.value === "}";
+    }
 
     /**
      * Binds a list of properties to a function that verifies that the opening
@@ -97,7 +106,7 @@ module.exports = function(context) {
                 tokens = context.getTokensBefore(node.alternate, 2);
 
                 if (style === "1tbs") {
-                    if (tokens[0].loc.start.line !== tokens[1].loc.start.line) {
+                    if (tokens[0].loc.start.line !== tokens[1].loc.start.line && isCurlyPunctuator(tokens[0]) ) {
                         context.report(node.alternate, CLOSE_MESSAGE);
                     }
                 } else if (style === "stroustrup") {
@@ -202,3 +211,18 @@ module.exports = function(context) {
     };
 
 };
+
+module.exports.schema = [
+    {
+        "enum": ["1tbs", "stroustrup"]
+    },
+    {
+        "type": "object",
+        "properties": {
+            "allowSingleLine": {
+                "type": "boolean"
+            }
+        },
+        "additionalProperties": false
+    }
+];

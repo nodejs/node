@@ -32,9 +32,9 @@ module.exports = function(context) {
         return result;
     }
 
-    var tabWidth = context.options[1];
+    var tabWidth = context.options[1] || 4;
 
-    var maxLength = context.options[0],
+    var maxLength = context.options[0] || 80,
         tabString = stringRepeat(" ", tabWidth);
 
     //--------------------------------------------------------------------------
@@ -63,3 +63,14 @@ module.exports = function(context) {
     };
 
 };
+
+module.exports.schema = [
+    {
+        "type": "integer",
+        "minimum": 0
+    },
+    {
+        "type": "integer",
+        "minimum": 0
+    }
+];

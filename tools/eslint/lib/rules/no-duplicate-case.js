@@ -25,6 +25,12 @@ module.exports = function(context) {
             return node.type + typeof node.name + node.name;
         } else if (node.type === "MemberExpression") {
             return node.type + getHash(node.object) + getHash(node.property);
+        } else if (node.type === "CallExpression") {
+            return node.type + getHash(node.callee) + node.arguments.map(getHash).join("");
+        } else if (node.type === "BinaryExpression") {
+            return node.type + getHash(node.left) + node.operator + getHash(node.right);
+        } else if (node.type === "ConditionalExpression") {
+            return node.type + getHash(node.test) + getHash(node.consequent) + getHash(node.alternate);
         }
     }
 
@@ -57,3 +63,5 @@ module.exports = function(context) {
     };
 
 };
+
+module.exports.schema = [];

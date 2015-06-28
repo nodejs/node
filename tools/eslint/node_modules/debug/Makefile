@@ -16,7 +16,7 @@ all: dist/debug.js
 install: node_modules
 
 clean:
-	@rm -rf node_modules dist
+	@rm -rf dist
 
 dist:
 	@mkdir -p $@
@@ -26,8 +26,11 @@ dist/debug.js: node_modules browser.js debug.js dist
 		--standalone debug \
 		. > $@
 
+distclean: clean
+	@rm -rf node_modules
+
 node_modules: package.json
 	@NODE_ENV= $(NPM) install
 	@touch node_modules
 
-.PHONY: all install clean
+.PHONY: all install clean distclean
