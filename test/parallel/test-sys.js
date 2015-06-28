@@ -75,7 +75,7 @@ assert.equal('{ readonly: [Getter] }',
              common.inspect({get readonly() {}}));
 
 assert.equal('{ readwrite: [Getter/Setter] }',
-             common.inspect({get readwrite() {},set readwrite(val) {}}));
+             common.inspect({get readwrite() {}, set readwrite(val) {}}));
 
 assert.equal('{ writeonly: [Setter] }',
              common.inspect({set writeonly(val) {}}));
