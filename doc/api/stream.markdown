@@ -227,7 +227,9 @@ returns it.  If there is no data available, then it will return
 `null`.
 
 If you pass in a `size` argument, then it will return that many
-bytes.  If `size` bytes are not available, then it will return `null`.
+bytes.  If `size` bytes are not available, then it will return `null`,
+unless we've ended, in which case it will return the data remaining 
+in the buffer.
 
 If you do not specify a `size` argument, then it will return all the
 data in the internal buffer.
