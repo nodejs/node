@@ -43,8 +43,7 @@ rules:
   ## 2 space indentation
   indent: [2, 2]
   ## add space after comma
-  ## set to 'warn' because of https://github.com/eslint/eslint/issues/2408
-  comma-spacing: 1
+  comma-spacing: 2
   ## put semi-colon
   semi: 2
   ## require spaces operator like var sum = 1 + 1;

@@ -128,3 +128,9 @@ module.exports = function(context) {
     };
 
 };
+
+module.exports.schema = [
+    {
+        "enum": ["always", "never"]
+    }
+];

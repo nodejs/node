@@ -44,20 +44,30 @@ module.exports = function(context) {
                 return;
             }
 
-            if (node.value.type === "ArrowFunctionExpression" && APPLY_TO_METHODS) {
+            if (node.kind === "get" || node.kind === "set") {
+                return;
+            }
 
-                // {x: ()=>{}} should be written as {x() {}}
-                context.report(node, "Expected method shorthand.");
-            } else if (node.value.type === "FunctionExpression" && APPLY_TO_METHODS) {
+            if (node.value.type === "FunctionExpression" && node.value.id == null && APPLY_TO_METHODS) {
 
                 // {x: function(){}} should be written as {x() {}}
                 context.report(node, "Expected method shorthand.");
-            } else if (node.key.name === node.value.name && APPLY_TO_PROPS) {
+            } else if (node.value.type === "Identifier" && node.key.name === node.value.name && APPLY_TO_PROPS) {
 
                 // {x: x} should be written as {x}
+                context.report(node, "Expected property shorthand.");
+            } else if (node.value.type === "Identifier" && node.key.type === "Literal" && node.key.value === node.value.name && APPLY_TO_PROPS) {
+
+                // {"x": x} should be written as {x}
                 context.report(node, "Expected property shorthand.");
             }
         }
     };
 
 };
+
+module.exports.schema = [
+    {
+        "enum": ["always", "methods", "properties", "never"]
+    }
+];

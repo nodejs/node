@@ -230,7 +230,7 @@ module.exports = function(context) {
                 lastSpecifier = node.specifiers[node.specifiers.length - 1];
 
             // don't do anything for namespace or default imports
-            if (firstSpecifier.type === "ImportSpecifier" && lastSpecifier.type === "ImportSpecifier") {
+            if (firstSpecifier && lastSpecifier && firstSpecifier.type === "ImportSpecifier" && lastSpecifier.type === "ImportSpecifier") {
                 var first = context.getTokenBefore(firstSpecifier),
                     second = context.getFirstToken(firstSpecifier),
                     penultimate = context.getLastToken(lastSpecifier),
@@ -242,6 +242,9 @@ module.exports = function(context) {
         },
 
         ExportNamedDeclaration: function(node) {
+            if (!node.specifiers.length) {
+                return;
+            }
 
             var firstSpecifier = node.specifiers[0],
                 lastSpecifier = node.specifiers[node.specifiers.length - 1],
@@ -270,3 +273,33 @@ module.exports = function(context) {
     };
 
 };
+
+module.exports.schema = [
+    {
+        "enum": ["always", "never"]
+    },
+    {
+        "type": "object",
+        "properties": {
+            "singleValue": {
+                "type": "boolean"
+            },
+            "objectsInArrays": {
+                "type": "boolean"
+            },
+            "arraysInArrays": {
+                "type": "boolean"
+            },
+            "arraysInObjects": {
+                "type": "boolean"
+            },
+            "objectsInObjects": {
+                "type": "boolean"
+            },
+            "propertyName": {
+                "type": "boolean"
+            }
+        },
+        "additionalProperties": false
+    }
+];

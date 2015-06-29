@@ -1,6 +1,4 @@
-/* js-yaml 3.3.0 https://github.com/nodeca/js-yaml */!function(e){if("object"==typeof exports&&"undefined"!=typeof module)module.exports=e();else if("function"==typeof define&&define.amd)define([],e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.jsyaml=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-
-},{}],2:[function(require,module,exports){
+/* js-yaml 3.3.1 https://github.com/nodeca/js-yaml */(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.jsyaml = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 'use strict';
 
 
@@ -41,7 +39,7 @@ module.exports.parse          = deprecated('parse');
 module.exports.compose        = deprecated('compose');
 module.exports.addConstructor = deprecated('addConstructor');
 
-},{"./js-yaml/dumper":4,"./js-yaml/exception":5,"./js-yaml/loader":6,"./js-yaml/schema":8,"./js-yaml/schema/core":9,"./js-yaml/schema/default_full":10,"./js-yaml/schema/default_safe":11,"./js-yaml/schema/failsafe":12,"./js-yaml/schema/json":13,"./js-yaml/type":14}],3:[function(require,module,exports){
+},{"./js-yaml/dumper":3,"./js-yaml/exception":4,"./js-yaml/loader":5,"./js-yaml/schema":7,"./js-yaml/schema/core":8,"./js-yaml/schema/default_full":9,"./js-yaml/schema/default_safe":10,"./js-yaml/schema/failsafe":11,"./js-yaml/schema/json":12,"./js-yaml/type":13}],2:[function(require,module,exports){
 'use strict';
 
 
@@ -104,7 +102,7 @@ module.exports.repeat         = repeat;
 module.exports.isNegativeZero = isNegativeZero;
 module.exports.extend         = extend;
 
-},{}],4:[function(require,module,exports){
+},{}],3:[function(require,module,exports){
 'use strict';
 
 /*eslint-disable no-use-before-define*/
@@ -221,6 +219,7 @@ function State(options) {
   this.skipInvalid = options['skipInvalid'] || false;
   this.flowLevel   = (common.isNothing(options['flowLevel']) ? -1 : options['flowLevel']);
   this.styleMap    = compileStyleMap(this.schema, options['styles'] || null);
+  this.sortKeys    = options['sortKeys'] || false;
 
   this.implicitTypes = this.schema.compiledImplicit;
   this.explicitTypes = this.schema.compiledExplicit;
@@ -706,6 +705,18 @@ function writeBlockMapping(state, level, object, compact) {
       explicitPair,
       pairBuffer;
 
+  // Allow sorting keys so that the output file is deterministic
+  if (state.sortKeys === true) {
+    // Default sorting
+    objectKeyList.sort();
+  } else if (typeof state.sortKeys === 'function') {
+    // Custom sort function
+    objectKeyList.sort(state.sortKeys);
+  } else if (state.sortKeys) {
+    // Something is wrong
+    throw new YAMLException('sortKeys must be a boolean or a function');
+  }
+
   for (index = 0, length = objectKeyList.length; index < length; index += 1) {
     pairBuffer = '';
 
@@ -935,7 +946,7 @@ function safeDump(input, options) {
 module.exports.dump     = dump;
 module.exports.safeDump = safeDump;
 
-},{"./common":3,"./exception":5,"./schema/default_full":10,"./schema/default_safe":11}],5:[function(require,module,exports){
+},{"./common":2,"./exception":4,"./schema/default_full":9,"./schema/default_safe":10}],4:[function(require,module,exports){
 'use strict';
 
 
@@ -962,7 +973,7 @@ YAMLException.prototype.toString = function toString(compact) {
 
 module.exports = YAMLException;
 
-},{}],6:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
 'use strict';
 
 /*eslint-disable max-len,no-use-before-define*/
@@ -988,7 +999,7 @@ var CHOMPING_STRIP = 2;
 var CHOMPING_KEEP  = 3;
 
 
-var PATTERN_NON_PRINTABLE         = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x84\x86-\x9F\uD800-\uDFFF\uFFFE\uFFFF]/;
+var PATTERN_NON_PRINTABLE         = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x84\x86-\x9F\uFFFE\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF]/;
 var PATTERN_NON_ASCII_LINE_BREAKS = /[\x85\u2028\u2029]/;
 var PATTERN_FLOW_INDICATORS       = /[,\[\]\{\}]/;
 var PATTERN_TAG_HANDLE            = /^(?:!|!!|![a-z\-]+!)$/i;
@@ -2550,7 +2561,7 @@ module.exports.load        = load;
 module.exports.safeLoadAll = safeLoadAll;
 module.exports.safeLoad    = safeLoad;
 
-},{"./common":3,"./exception":5,"./mark":7,"./schema/default_full":10,"./schema/default_safe":11}],7:[function(require,module,exports){
+},{"./common":2,"./exception":4,"./mark":6,"./schema/default_full":9,"./schema/default_safe":10}],6:[function(require,module,exports){
 'use strict';
 
 
@@ -2630,7 +2641,7 @@ Mark.prototype.toString = function toString(compact) {
 
 module.exports = Mark;
 
-},{"./common":3}],8:[function(require,module,exports){
+},{"./common":2}],7:[function(require,module,exports){
 'use strict';
 
 /*eslint-disable max-len*/
@@ -2736,7 +2747,7 @@ Schema.create = function createSchema() {
 
 module.exports = Schema;
 
-},{"./common":3,"./exception":5,"./type":14}],9:[function(require,module,exports){
+},{"./common":2,"./exception":4,"./type":13}],8:[function(require,module,exports){
 // Standard YAML's Core schema.
 // http://www.yaml.org/spec/1.2/spec.html#id2804923
 //
@@ -2756,7 +2767,7 @@ module.exports = new Schema({
   ]
 });
 
-},{"../schema":8,"./json":13}],10:[function(require,module,exports){
+},{"../schema":7,"./json":12}],9:[function(require,module,exports){
 // JS-YAML's default schema for `load` function.
 // It is not described in the YAML specification.
 //
@@ -2783,7 +2794,7 @@ module.exports = Schema.DEFAULT = new Schema({
   ]
 });
 
-},{"../schema":8,"../type/js/function":19,"../type/js/regexp":20,"../type/js/undefined":21,"./default_safe":11}],11:[function(require,module,exports){
+},{"../schema":7,"../type/js/function":18,"../type/js/regexp":19,"../type/js/undefined":20,"./default_safe":10}],10:[function(require,module,exports){
 // JS-YAML's default schema for `safeLoad` function.
 // It is not described in the YAML specification.
 //
@@ -2813,7 +2824,7 @@ module.exports = new Schema({
   ]
 });
 
-},{"../schema":8,"../type/binary":15,"../type/merge":23,"../type/omap":25,"../type/pairs":26,"../type/set":28,"../type/timestamp":30,"./core":9}],12:[function(require,module,exports){
+},{"../schema":7,"../type/binary":14,"../type/merge":22,"../type/omap":24,"../type/pairs":25,"../type/set":27,"../type/timestamp":29,"./core":8}],11:[function(require,module,exports){
 // Standard YAML's Failsafe schema.
 // http://www.yaml.org/spec/1.2/spec.html#id2802346
 
@@ -2832,7 +2843,7 @@ module.exports = new Schema({
   ]
 });
 
-},{"../schema":8,"../type/map":22,"../type/seq":27,"../type/str":29}],13:[function(require,module,exports){
+},{"../schema":7,"../type/map":21,"../type/seq":26,"../type/str":28}],12:[function(require,module,exports){
 // Standard YAML's JSON schema.
 // http://www.yaml.org/spec/1.2/spec.html#id2803231
 //
@@ -2859,7 +2870,7 @@ module.exports = new Schema({
   ]
 });
 
-},{"../schema":8,"../type/bool":16,"../type/float":17,"../type/int":18,"../type/null":24,"./failsafe":12}],14:[function(require,module,exports){
+},{"../schema":7,"../type/bool":15,"../type/float":16,"../type/int":17,"../type/null":23,"./failsafe":11}],13:[function(require,module,exports){
 'use strict';
 
 var YAMLException = require('./exception');
@@ -2922,7 +2933,7 @@ function Type(tag, options) {
 
 module.exports = Type;
 
-},{"./exception":5}],15:[function(require,module,exports){
+},{"./exception":4}],14:[function(require,module,exports){
 'use strict';
 
 /*eslint-disable no-bitwise*/
@@ -3058,7 +3069,7 @@ module.exports = new Type('tag:yaml.org,2002:binary', {
   represent: representYamlBinary
 });
 
-},{"../type":14,"buffer":1}],16:[function(require,module,exports){
+},{"../type":13,"buffer":30}],15:[function(require,module,exports){
 'use strict';
 
 var Type = require('../type');
@@ -3097,7 +3108,7 @@ module.exports = new Type('tag:yaml.org,2002:bool', {
   defaultStyle: 'lowercase'
 });
 
-},{"../type":14}],17:[function(require,module,exports){
+},{"../type":13}],16:[function(require,module,exports){
 'use strict';
 
 var common = require('../common');
@@ -3207,7 +3218,7 @@ module.exports = new Type('tag:yaml.org,2002:float', {
   defaultStyle: 'lowercase'
 });
 
-},{"../common":3,"../type":14}],18:[function(require,module,exports){
+},{"../common":2,"../type":13}],17:[function(require,module,exports){
 'use strict';
 
 var common = require('../common');
@@ -3392,7 +3403,7 @@ module.exports = new Type('tag:yaml.org,2002:int', {
   }
 });
 
-},{"../common":3,"../type":14}],19:[function(require,module,exports){
+},{"../common":2,"../type":13}],18:[function(require,module,exports){
 'use strict';
 
 var esprima;
@@ -3480,7 +3491,7 @@ module.exports = new Type('tag:yaml.org,2002:js/function', {
   represent: representJavascriptFunction
 });
 
-},{"../../type":14,"esprima":"esprima"}],20:[function(require,module,exports){
+},{"../../type":13,"esprima":"esprima"}],19:[function(require,module,exports){
 'use strict';
 
 var Type = require('../../type');
@@ -3566,7 +3577,7 @@ module.exports = new Type('tag:yaml.org,2002:js/regexp', {
   represent: representJavascriptRegExp
 });
 
-},{"../../type":14}],21:[function(require,module,exports){
+},{"../../type":13}],20:[function(require,module,exports){
 'use strict';
 
 var Type = require('../../type');
@@ -3596,7 +3607,7 @@ module.exports = new Type('tag:yaml.org,2002:js/undefined', {
   represent: representJavascriptUndefined
 });
 
-},{"../../type":14}],22:[function(require,module,exports){
+},{"../../type":13}],21:[function(require,module,exports){
 'use strict';
 
 var Type = require('../type');
@@ -3606,7 +3617,7 @@ module.exports = new Type('tag:yaml.org,2002:map', {
   construct: function (data) { return null !== data ? data : {}; }
 });
 
-},{"../type":14}],23:[function(require,module,exports){
+},{"../type":13}],22:[function(require,module,exports){
 'use strict';
 
 var Type = require('../type');
@@ -3620,7 +3631,7 @@ module.exports = new Type('tag:yaml.org,2002:merge', {
   resolve: resolveYamlMerge
 });
 
-},{"../type":14}],24:[function(require,module,exports){
+},{"../type":13}],23:[function(require,module,exports){
 'use strict';
 
 var Type = require('../type');
@@ -3658,7 +3669,7 @@ module.exports = new Type('tag:yaml.org,2002:null', {
   defaultStyle: 'lowercase'
 });
 
-},{"../type":14}],25:[function(require,module,exports){
+},{"../type":13}],24:[function(require,module,exports){
 'use strict';
 
 var Type = require('../type');
@@ -3716,7 +3727,7 @@ module.exports = new Type('tag:yaml.org,2002:omap', {
   construct: constructYamlOmap
 });
 
-},{"../type":14}],26:[function(require,module,exports){
+},{"../type":13}],25:[function(require,module,exports){
 'use strict';
 
 var Type = require('../type');
@@ -3779,7 +3790,7 @@ module.exports = new Type('tag:yaml.org,2002:pairs', {
   construct: constructYamlPairs
 });
 
-},{"../type":14}],27:[function(require,module,exports){
+},{"../type":13}],26:[function(require,module,exports){
 'use strict';
 
 var Type = require('../type');
@@ -3789,7 +3800,7 @@ module.exports = new Type('tag:yaml.org,2002:seq', {
   construct: function (data) { return null !== data ? data : []; }
 });
 
-},{"../type":14}],28:[function(require,module,exports){
+},{"../type":13}],27:[function(require,module,exports){
 'use strict';
 
 var Type = require('../type');
@@ -3824,7 +3835,7 @@ module.exports = new Type('tag:yaml.org,2002:set', {
   construct: constructYamlSet
 });
 
-},{"../type":14}],29:[function(require,module,exports){
+},{"../type":13}],28:[function(require,module,exports){
 'use strict';
 
 var Type = require('../type');
@@ -3834,7 +3845,7 @@ module.exports = new Type('tag:yaml.org,2002:str', {
   construct: function (data) { return null !== data ? data : ''; }
 });
 
-},{"../type":14}],30:[function(require,module,exports){
+},{"../type":13}],29:[function(require,module,exports){
 'use strict';
 
 var Type = require('../type');
@@ -3934,7 +3945,9 @@ module.exports = new Type('tag:yaml.org,2002:timestamp', {
   represent: representYamlTimestamp
 });
 
-},{"../type":14}],"/":[function(require,module,exports){
+},{"../type":13}],30:[function(require,module,exports){
+
+},{}],"/":[function(require,module,exports){
 'use strict';
 
 
@@ -3943,5 +3956,5 @@ var yaml = require('./lib/js-yaml.js');
 
 module.exports = yaml;
 
-},{"./lib/js-yaml.js":2}]},{},[])("/")
+},{"./lib/js-yaml.js":1}]},{},[])("/")
 });

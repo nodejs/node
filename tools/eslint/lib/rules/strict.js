@@ -234,3 +234,9 @@ module.exports = function(context) {
     return modes[mode || "deprecated"];
 
 };
+
+module.exports.schema = [
+    {
+        "enum": ["never", "global", "function"]
+    }
+];
