@@ -1485,7 +1485,11 @@ void Logger::LogCodeObject(Object* object) {
         tag = Logger::STUB_TAG;
         break;
       case Code::BUILTIN:
-        description = "A builtin from the snapshot";
+        description =
+            Isolate::Current()->builtins()->Lookup(code_object->entry());
+        if (description == NULL) {
+          description = "A builtin from the snapshot";
+        }
         tag = Logger::BUILTIN_TAG;
         break;
       case Code::KEYED_LOAD_IC:
