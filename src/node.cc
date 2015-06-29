@@ -1427,7 +1427,7 @@ static Handle<Value> Umask(const Arguments& args) {
       node::Utf8Value str(args[0]);
 
       // Parse the octal string.
-      for (int i = 0; i < str.length(); i++) {
+      for (size_t i = 0; i < str.length(); i++) {
         char c = (*str)[i];
         if (c > '7' || c < '0') {
           return ThrowException(Exception::TypeError(
