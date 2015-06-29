@@ -1662,8 +1662,8 @@ class DependencyGraphNode(object):
       if dependency.ref is None:
         continue
       if dependency.ref not in dependencies:
-        dependencies.add(dependency.ref)
         dependency.DeepDependencies(dependencies)
+        dependencies.add(dependency.ref)
 
     return dependencies
 
@@ -2488,6 +2488,35 @@ def ValidateTargetType(target, target_dict):
                                                              target_type))
 
 
+def ValidateSourcesInTarget(target, target_dict, build_file,
+                            duplicate_basename_check):
+  if not duplicate_basename_check:
+    return
+  if target_dict.get('type', None) != 'static_library':
+    return
+  sources = target_dict.get('sources', [])
+  basenames = {}
+  for source in sources:
+    name, ext = os.path.splitext(source)
+    is_compiled_file = ext in [
+        '.c', '.cc', '.cpp', '.cxx', '.m', '.mm', '.s', '.S']
+    if not is_compiled_file:
+      continue
+    basename = os.path.basename(name)  # Don't include extension.
+    basenames.setdefault(basename, []).append(source)
+
+  error = ''
+  for basename, files in basenames.iteritems():
+    if len(files) > 1:
+      error += '  %s: %s\n' % (basename, ' '.join(files))
+
+  if error:
+    print('static library %s has several files with the same basename:\n' %
+          target + error + 'libtool on Mac cannot handle that. Use '
+          '--no-duplicate-basename-check to disable this validation.')
+    raise GypError('Duplicate basenames in sources section, see list above')
+
+
 def ValidateRulesInTarget(target, target_dict, extra_sources_for_rules):
   """Ensures that the rules sections in target_dict are valid and consistent,
   and determines which sources they apply to.
@@ -2708,7 +2737,7 @@ def SetGeneratorGlobals(generator_input_info):
 
 
 def Load(build_files, variables, includes, depth, generator_input_info, check,
-         circular_check, parallel, root_targets):
+         circular_check, duplicate_basename_check, parallel, root_targets):
   SetGeneratorGlobals(generator_input_info)
   # A generator can have other lists (in addition to sources) be processed
   # for rules.
@@ -2840,6 +2869,8 @@ def Load(build_files, variables, includes, depth, generator_input_info, check,
     target_dict = targets[target]
     build_file = gyp.common.BuildFile(target)
     ValidateTargetType(target, target_dict)
+    ValidateSourcesInTarget(target, target_dict, build_file,
+                            duplicate_basename_check)
     ValidateRulesInTarget(target, target_dict, extra_sources_for_rules)
     ValidateRunAsInTarget(target, target_dict, build_file)
     ValidateActionsInTarget(target, target_dict, build_file)
