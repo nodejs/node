@@ -183,7 +183,10 @@ class Target(object):
   added_to_compile_targets: used when determining if the target was added to the
     set of targets that needs to be built.
   in_roots: true if this target is a descendant of one of the root nodes.
-  is_executable: true if the type of target is executable."""
+  is_executable: true if the type of target is executable.
+  is_static_library: true if the type of target is static_library.
+  is_or_has_linked_ancestor: true if the target does a link (eg executable), or
+    if there is a target in back_deps that does a link."""
   def __init__(self, name):
     self.deps = set()
     self.match_status = MATCH_STATUS_TBD
@@ -196,6 +199,8 @@ class Target(object):
     self.added_to_compile_targets = False
     self.in_roots = False
     self.is_executable = False
+    self.is_static_library = False
+    self.is_or_has_linked_ancestor = False
 
 
 class Config(object):
@@ -266,8 +271,8 @@ def _GetOrCreateTargetByName(targets, target_name):
 def _DoesTargetTypeRequireBuild(target_dict):
   """Returns true if the target type is such that it needs to be built."""
   # If a 'none' target has rules or actions we assume it requires a build.
-  return target_dict['type'] != 'none' or \
-      target_dict.get('actions') or target_dict.get('rules')
+  return bool(target_dict['type'] != 'none' or
+              target_dict.get('actions') or target_dict.get('rules'))
 
 
 def _GenerateTargets(data, target_list, target_dicts, toplevel_dir, files,
@@ -309,7 +314,11 @@ def _GenerateTargets(data, target_list, target_dicts, toplevel_dir, files,
     target.visited = True
     target.requires_build = _DoesTargetTypeRequireBuild(
         target_dicts[target_name])
-    target.is_executable = target_dicts[target_name]['type'] == 'executable'
+    target_type = target_dicts[target_name]['type']
+    target.is_executable = target_type == 'executable'
+    target.is_static_library = target_type == 'static_library'
+    target.is_or_has_linked_ancestor = (target_type == 'executable' or
+                                        target_type == 'shared_library')
 
     build_file = gyp.common.ParseQualifiedTarget(target_name)[0]
     if not build_file in build_file_in_files:
@@ -378,6 +387,7 @@ def _DoesTargetDependOn(target):
   for dep in target.deps:
     if _DoesTargetDependOn(dep):
       target.match_status = MATCH_STATUS_MATCHES_BY_DEPENDENCY
+      print '\t', target.name, 'matches by dep', dep.name
       return True
   target.match_status = MATCH_STATUS_DOESNT_MATCH
   return False
@@ -388,6 +398,7 @@ def _GetTargetsDependingOn(possible_targets):
   directly on indirectly) on the matched targets.
   possible_targets: targets to search from."""
   found = []
+  print 'Targets that matched by dependency:'
   for target in possible_targets:
     if _DoesTargetDependOn(target):
       found.append(target)
@@ -411,14 +422,27 @@ def _AddBuildTargets(target, roots, add_if_no_ancestor, result):
     _AddBuildTargets(back_dep_target, roots, False, result)
     target.added_to_compile_targets |= back_dep_target.added_to_compile_targets
     target.in_roots |= back_dep_target.in_roots
+    target.is_or_has_linked_ancestor |= (
+      back_dep_target.is_or_has_linked_ancestor)
 
   # Always add 'executable' targets. Even though they may be built by other
   # targets that depend upon them it makes detection of what is going to be
   # built easier.
+  # And always add static_libraries that have no dependencies on them from
+  # linkables. This is necessary as the other dependencies on them may be
+  # static libraries themselves, which are not compile time dependencies.
   if target.in_roots and \
         (target.is_executable or
          (not target.added_to_compile_targets and
-          (add_if_no_ancestor or target.requires_build))):
+          (add_if_no_ancestor or target.requires_build)) or
+         (target.is_static_library and add_if_no_ancestor and
+          not target.is_or_has_linked_ancestor)):
+    print '\t\tadding to build targets', target.name, 'executable', \
+           target.is_executable, 'added_to_compile_targets', \
+           target.added_to_compile_targets, 'add_if_no_ancestor', \
+           add_if_no_ancestor, 'requires_build', target.requires_build, \
+           'is_static_library', target.is_static_library, \
+           'is_or_has_linked_ancestor', target.is_or_has_linked_ancestor
     result.add(target)
     target.added_to_compile_targets = True
 
@@ -429,6 +453,7 @@ def _GetBuildTargets(matching_targets, roots):
   roots: set of root targets in the build files to search from."""
   result = set()
   for target in matching_targets:
+    print '\tfinding build targets for match', target.name
     _AddBuildTargets(target, roots, True, result)
   return result
 
@@ -536,6 +561,10 @@ def GenerateOutput(target_list, target_dicts, data, params):
       data, target_list, target_dicts, toplevel_dir, frozenset(config.files),
       params['build_files'])
 
+    print 'roots:'
+    for root in roots:
+      print '\t', root.name
+
     unqualified_mapping = _GetUnqualifiedToTargetMapping(all_targets,
                                                          config.targets)
     invalid_targets = None
@@ -544,10 +573,20 @@ def GenerateOutput(target_list, target_dicts, data, params):
 
     if matching_targets:
       search_targets = _LookupTargets(config.targets, unqualified_mapping)
+      print 'supplied targets'
+      for target in config.targets:
+        print '\t', target
+      print 'expanded supplied targets'
+      for target in search_targets:
+        print '\t', target.name
       matched_search_targets = _GetTargetsDependingOn(search_targets)
+      print 'raw matched search targets:'
+      for target in matched_search_targets:
+        print '\t', target.name
       # Reset the visited status for _GetBuildTargets.
       for target in all_targets.itervalues():
         target.visited = False
+      print 'Finding build targets'
       build_targets = _GetBuildTargets(matching_targets, roots)
       matched_search_targets = [gyp.common.ParseQualifiedTarget(target.name)[1]
                                 for target in matched_search_targets]
