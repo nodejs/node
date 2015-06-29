@@ -1648,7 +1648,7 @@ void Logger::LogCodeObject(Object* object) {
       tag = Logger::REG_EXP_TAG;
       break;
     case Code::BUILTIN:
-      description = "A builtin from the snapshot";
+      description = isolate_->builtins()->name(code_object->builtin_index());
       tag = Logger::BUILTIN_TAG;
       break;
     case Code::HANDLER:
