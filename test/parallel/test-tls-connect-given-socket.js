@@ -43,16 +43,33 @@ var server = tls.createServer(options, function(socket) {
     });
     assert(client.readable);
     assert(client.writable);
+
+    return client;
   }
 
-  // Already connected socket
-  var connected = net.connect(common.PORT, function() {
-    establish(connected);
-  });
+  // Immediate death socket
+  var immediateDeath = net.connect(common.PORT);
+  establish(immediateDeath).destroy();
 
-  // Connecting socket
-  var connecting = net.connect(common.PORT);
-  establish(connecting);
+  // Outliving
+  var outlivingTCP = net.connect(common.PORT);
+  outlivingTCP.on('connect', function() {
+    outlivingTLS.destroy();
+    next();
+  });
+  var outlivingTLS = establish(outlivingTCP);
+
+  function next() {
+    // Already connected socket
+    var connected = net.connect(common.PORT, function() {
+      establish(connected);
+    });
+
+    // Connecting socket
+    var connecting = net.connect(common.PORT);
+    establish(connecting);
+
+  }
 });
 
 process.on('exit', function() {
