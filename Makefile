@@ -347,7 +347,7 @@ doc-upload: tar
 
 $(TARBALL)-headers: config.gypi release-only
 	$(PYTHON) ./configure --prefix=/ --dest-cpu=$(DESTCPU) --tag=$(TAG) $(CONFIG_FLAGS)
-	HEADERS_ONLY=1 $(PYTHON) tools/install.py install '$(TARNAME)' '$(PREFIX)'
+	HEADERS_ONLY=1 $(PYTHON) tools/install.py install '$(TARNAME)' '/'
 	find $(TARNAME)/ -type l | xargs rm # annoying on windows
 	tar -cf $(TARNAME)-headers.tar $(TARNAME)
 	rm -rf $(TARNAME)
