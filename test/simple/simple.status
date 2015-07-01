@@ -3,6 +3,8 @@ prefix simple
 test-crypto-domains               : PASS,FLAKY
 test-debug-signal-cluster         : PASS,FLAKY
 test-cluster-basic                : PASS,FLAKY
+test-microtask-queue-run          : PASS,FLAKY
+test-microtask-queue-run-domain   : PASS,FLAKY
 
 [$system==win32]
 test-timers-first-fire            : PASS,FLAKY
