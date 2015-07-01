@@ -485,7 +485,6 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
 
   THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
-
   SPREAD_ARG(args.This(), ts_obj);
 
   if (ts_obj_length == 0)
@@ -503,9 +502,7 @@ void StringSlice<UCS2>(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
-
   SPREAD_ARG(args.This(), ts_obj);
-  SLICE_START_END(args[0], args[1], ts_obj_length)
 
   if (ts_obj_length == 0)
     return args.GetReturnValue().SetEmptyString();
@@ -579,9 +576,7 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
 
   THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
-
-  Local<Object> target_obj = args[0]->ToObject(env->isolate());
-
+  Local<Object> target_obj = args[0].As<Object>();
   SPREAD_ARG(args.This(), ts_obj);
   SPREAD_ARG(target_obj, target);
 
@@ -834,7 +829,6 @@ void Compare(const FunctionCallbackInfo<Value> &args) {
 
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[1]);
-
   SPREAD_ARG(args[0], obj_a);
   SPREAD_ARG(args[1], obj_b);
 

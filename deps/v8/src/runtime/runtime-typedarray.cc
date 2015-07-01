@@ -27,15 +27,15 @@ void Runtime::SetupArrayBuffer(Isolate* isolate,
   array_buffer->set_is_external(is_external);
   array_buffer->set_is_neuterable(true);
 
-  Handle<Object> byte_length =
-      isolate->factory()->NewNumberFromSize(allocated_length);
-  CHECK(byte_length->IsSmi() || byte_length->IsHeapNumber());
-  array_buffer->set_byte_length(*byte_length);
-
   if (data && !is_external) {
     isolate->heap()->RegisterNewArrayBuffer(
         isolate->heap()->InNewSpace(*array_buffer), data, allocated_length);
   }
+
+  Handle<Object> byte_length =
+      isolate->factory()->NewNumberFromSize(allocated_length);
+  CHECK(byte_length->IsSmi() || byte_length->IsHeapNumber());
+  array_buffer->set_byte_length(*byte_length);
 }
 
 
