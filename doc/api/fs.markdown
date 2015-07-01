@@ -576,6 +576,9 @@ These stat objects are instances of `fs.Stat`.
 If you want to be notified when the file was modified, not just accessed
 you need to compare `curr.mtime` and `prev.mtime`.
 
+_Note: when an `fs.watchFile` operation results in an `ENOENT` error, it will
+invoke the callback once. This is a change in functionality since v0.10._
+
 _Note: `fs.watch` is more efficient than `fs.watchFile` and `fs.unwatchFile`.
 `fs.watch` should be used instead of `fs.watchFile` and `fs.unwatchFile`
 when possible._
