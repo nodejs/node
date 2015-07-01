@@ -9662,15 +9662,7 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
           HObjectAccess::ForMapAndOffset(initial_map,
                                          JSObject::kElementsOffset),
           empty_fixed_array);
-      if (initial_map->inobject_properties() != 0) {
-        HConstant* undefined = graph()->GetConstantUndefined();
-        for (int i = 0; i < initial_map->inobject_properties(); i++) {
-          int property_offset = initial_map->GetInObjectPropertyOffset(i);
-          Add<HStoreNamedField>(receiver,
-              HObjectAccess::ForMapAndOffset(initial_map, property_offset),
-              undefined);
-        }
-      }
+      BuildInitializeInobjectProperties(receiver, initial_map);
     }
 
     // Replace the constructor function with a newly allocated receiver using
@@ -9709,6 +9701,20 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
     HInstruction* call =
         PreProcessCall(New<HCallNew>(function, argument_count));
     return ast_context()->ReturnInstruction(call, expr->id());
+  }
+}
+
+
+void HOptimizedGraphBuilder::BuildInitializeInobjectProperties(
+    HValue* receiver, Handle<Map> initial_map) {
+  if (initial_map->inobject_properties() != 0) {
+    HConstant* undefined = graph()->GetConstantUndefined();
+    for (int i = 0; i < initial_map->inobject_properties(); i++) {
+      int property_offset = initial_map->GetInObjectPropertyOffset(i);
+      Add<HStoreNamedField>(receiver, HObjectAccess::ForMapAndOffset(
+                                          initial_map, property_offset),
+                            undefined);
+    }
   }
 }
 
@@ -11282,13 +11288,13 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
     Handle<JSObject> boilerplate_object,
     AllocationSiteUsageContext* site_context) {
   NoObservableSideEffectsScope no_effects(this);
-  InstanceType instance_type = boilerplate_object->map()->instance_type();
+  Handle<Map> initial_map(boilerplate_object->map());
+  InstanceType instance_type = initial_map->instance_type();
   DCHECK(instance_type == JS_ARRAY_TYPE || instance_type == JS_OBJECT_TYPE);
 
   HType type = instance_type == JS_ARRAY_TYPE
       ? HType::JSArray() : HType::JSObject();
-  HValue* object_size_constant = Add<HConstant>(
-      boilerplate_object->map()->instance_size());
+  HValue* object_size_constant = Add<HConstant>(initial_map->instance_size());
 
   PretenureFlag pretenure_flag = NOT_TENURED;
   Handle<AllocationSite> current_site(*site_context->current(), isolate());
@@ -11312,6 +11318,11 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
       empty_fixed_array);
 
   BuildEmitObjectHeader(boilerplate_object, object);
+
+  // Similarly to the elements pointer, there is no guarantee that all
+  // property allocations can get folded, so pre-initialize all in-object
+  // properties to a safe value.
+  BuildInitializeInobjectProperties(object, initial_map);
 
   Handle<FixedArrayBase> elements(boilerplate_object->elements());
   int elements_size = (elements->length() > 0 &&
@@ -11351,8 +11362,8 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
   }
 
   // Copy in-object properties.
-  if (boilerplate_object->map()->NumberOfFields() != 0 ||
-      boilerplate_object->map()->unused_property_fields() > 0) {
+  if (initial_map->NumberOfFields() != 0 ||
+      initial_map->unused_property_fields() > 0) {
     BuildEmitInObjectProperties(boilerplate_object, object, site_context,
                                 pretenure_flag);
   }

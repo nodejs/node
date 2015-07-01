@@ -2706,6 +2706,9 @@ Handle<Map> Map::ReconfigureProperty(Handle<Map> old_map, int modify_index,
                  target_descriptors->GetFieldType(modify_index)));
     }
 #endif
+    if (*target_map != *old_map) {
+      old_map->NotifyLeafMapLayoutChange();
+    }
     return target_map;
   }
 
@@ -2959,13 +2962,6 @@ Handle<Map> Map::ReconfigureProperty(Handle<Map> old_map, int modify_index,
       split_kind, old_descriptors->GetKey(split_nof), split_attributes,
       *new_descriptors, *new_layout_descriptor);
 
-  if (from_kind != to_kind) {
-    // There was an elements kind change in the middle of transition tree and
-    // we reconstructed the tree so that all elements kind transitions are
-    // done at the beginning, therefore the |old_map| is no longer stable.
-    old_map->NotifyLeafMapLayoutChange();
-  }
-
   // If |transition_target_deprecated| is true then the transition array
   // already contains entry for given descriptor. This means that the transition
   // could be inserted regardless of whether transitions array is full or not.
@@ -2975,6 +2971,8 @@ Handle<Map> Map::ReconfigureProperty(Handle<Map> old_map, int modify_index,
                                             new_kind, new_attributes,
                                             "GenAll_CantHaveMoreTransitions");
   }
+
+  old_map->NotifyLeafMapLayoutChange();
 
   if (FLAG_trace_generalization && modify_index >= 0) {
     PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
