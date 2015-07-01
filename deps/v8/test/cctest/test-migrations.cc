@@ -437,9 +437,9 @@ TEST(ReconfigureAccessorToNonExistingDataField) {
 
   Handle<Map> new_map = Map::ReconfigureProperty(
       map, 0, kData, NONE, Representation::None(), none_type, FORCE_FIELD);
-  // |map| did not change.
+  // |map| did not change except marked unstable.
   CHECK(!map->is_deprecated());
-  CHECK(map->is_stable());
+  CHECK(!map->is_stable());
   CHECK(expectations.Check(*map));
 
   expectations.SetDataField(0, NONE, Representation::None(), none_type);
@@ -601,12 +601,14 @@ static void TestGeneralizeRepresentation(
   CHECK(expectations.Check(*new_map));
 
   if (is_detached_map) {
+    CHECK(!map->is_stable());
     CHECK(map->is_deprecated());
     CHECK_NE(*map, *new_map);
     CHECK_EQ(expected_field_type_dependency && !field_owner->is_deprecated(),
              info.dependencies()->HasAborted());
 
   } else if (expected_deprecation) {
+    CHECK(!map->is_stable());
     CHECK(map->is_deprecated());
     CHECK(field_owner->is_deprecated());
     CHECK_NE(*map, *new_map);
@@ -614,6 +616,7 @@ static void TestGeneralizeRepresentation(
 
   } else {
     CHECK(!field_owner->is_deprecated());
+    CHECK(map->is_stable());  // Map did not change, must be left stable.
     CHECK_EQ(*map, *new_map);
 
     CHECK_EQ(expected_field_type_dependency, info.dependencies()->HasAborted());
@@ -654,6 +657,12 @@ static void TestGeneralizeRepresentation(
           to_type, expected_representation, expected_type, expected_deprecation,
           expected_field_type_dependency);
     }
+
+    // Check that reconfiguration to the very same field works correctly.
+    Representation representation = from_representation;
+    Handle<HeapType> type = from_type;
+    TestGeneralizeRepresentation(-1, 2, representation, type, representation,
+                                 type, representation, type, false, false);
   }
 }
 
@@ -877,6 +886,7 @@ TEST(GeneralizeRepresentationWithAccessorProperties) {
 
     expectations.SetDataField(i, Representation::Double(), any_type);
 
+    CHECK(!map->is_stable());
     CHECK(map->is_deprecated());
     CHECK_NE(*map, *new_map);
     CHECK(i == 0 || maps[i - 1]->is_deprecated());
@@ -962,7 +972,8 @@ static void TestReconfigureDataFieldAttribute_GeneralizeRepresentation(
   Handle<Map> new_map =
       Map::ReconfigureExistingProperty(map2, kSplitProp, kData, NONE);
 
-  // |map2| should be left unchanged.
+  // |map2| should be left unchanged but marked unstable.
+  CHECK(!map2->is_stable());
   CHECK(!map2->is_deprecated());
   CHECK_NE(*map2, *new_map);
   CHECK(expectations2.Check(*map2));
@@ -1047,7 +1058,8 @@ static void TestReconfigureDataFieldAttribute_GeneralizeRepresentationTrivial(
   Handle<Map> new_map =
       Map::ReconfigureExistingProperty(map2, kSplitProp, kData, NONE);
 
-  // |map2| should be left unchanged.
+  // |map2| should be left unchanged but marked unstable.
+  CHECK(!map2->is_stable());
   CHECK(!map2->is_deprecated());
   CHECK_NE(*map2, *new_map);
   CHECK(expectations2.Check(*map2));
@@ -1183,6 +1195,8 @@ struct CheckDeprecated {
 struct CheckSameMap {
   void Check(Handle<Map> map, Handle<Map> new_map,
              const Expectations& expectations) {
+    // |map| was not reconfigured, therefore it should stay stable.
+    CHECK(map->is_stable());
     CHECK(!map->is_deprecated());
     CHECK_EQ(*map, *new_map);
 
@@ -1192,6 +1206,21 @@ struct CheckSameMap {
     // Update deprecated |map|, it should become |new_map|.
     Handle<Map> updated_map = Map::Update(map);
     CHECK_EQ(*new_map, *updated_map);
+  }
+};
+
+
+// Checks that given |map| is NOT deprecated and matches expectations.
+// |new_map| is unrelated to |map|.
+struct CheckUnrelated {
+  void Check(Handle<Map> map, Handle<Map> new_map,
+             const Expectations& expectations) {
+    CHECK(!map->is_deprecated());
+    CHECK_NE(*map, *new_map);
+    CHECK(expectations.Check(*map));
+
+    CHECK(new_map->is_stable());
+    CHECK(!new_map->is_deprecated());
   }
 };
 
@@ -1289,7 +1318,8 @@ static void TestReconfigureProperty_CustomPropertyAfterTargetMap(
   Handle<Map> new_map =
       Map::ReconfigureExistingProperty(map2, kSplitProp, kData, NONE);
 
-  // |map2| should be left unchanged.
+  // |map2| should be left unchanged but marked unstable.
+  CHECK(!map2->is_stable());
   CHECK(!map2->is_deprecated());
   CHECK_NE(*map2, *new_map);
   CHECK(expectations2.Check(*map2));
@@ -1366,6 +1396,40 @@ TEST(ReconfigureDataFieldAttribute_DataConstantToDataFieldAfterTargetMap) {
 }
 
 
+TEST(ReconfigureDataFieldAttribute_DataConstantToAccConstantAfterTargetMap) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  struct TestConfig {
+    Handle<JSFunction> js_func_;
+    Handle<AccessorPair> pair_;
+    TestConfig() {
+      Isolate* isolate = CcTest::i_isolate();
+      Factory* factory = isolate->factory();
+      js_func_ = factory->NewFunction(factory->empty_string());
+      pair_ = CreateAccessorPair(true, true);
+    }
+
+    Handle<Map> AddPropertyAtBranch(int branch_id, Expectations& expectations,
+                                    Handle<Map> map) {
+      CHECK(branch_id == 1 || branch_id == 2);
+      if (branch_id == 1) {
+        return expectations.AddDataConstant(map, NONE, js_func_);
+      } else {
+        return expectations.AddAccessorConstant(map, NONE, pair_);
+      }
+    }
+
+    void UpdateExpectations(int property_index, Expectations& expectations) {}
+  };
+
+  TestConfig config;
+  // These are completely separate branches in transition tree.
+  CheckUnrelated checker;
+  TestReconfigureProperty_CustomPropertyAfterTargetMap(config, checker);
+}
+
+
 TEST(ReconfigureDataFieldAttribute_SameAccessorConstantAfterTargetMap) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -1382,9 +1446,8 @@ TEST(ReconfigureDataFieldAttribute_SameAccessorConstantAfterTargetMap) {
       return expectations.AddAccessorConstant(map, NONE, pair_);
     }
 
-    bool UpdateExpectations(int property_index, Expectations& expectations) {
+    void UpdateExpectations(int property_index, Expectations& expectations) {
       // Two branches are "compatible" so the |map1| should NOT be deprecated.
-      return false;
     }
   };
 
@@ -1433,6 +1496,37 @@ TEST(ReconfigureDataFieldAttribute_AccConstantToAccFieldAfterTargetMap) {
     CheckCopyGeneralizeAllRepresentations checker;
     TestReconfigureProperty_CustomPropertyAfterTargetMap(config, checker);
   }
+}
+
+
+TEST(ReconfigureDataFieldAttribute_AccConstantToDataFieldAfterTargetMap) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  struct TestConfig {
+    Handle<AccessorPair> pair_;
+    TestConfig() { pair_ = CreateAccessorPair(true, true); }
+
+    Handle<Map> AddPropertyAtBranch(int branch_id, Expectations& expectations,
+                                    Handle<Map> map) {
+      CHECK(branch_id == 1 || branch_id == 2);
+      if (branch_id == 1) {
+        return expectations.AddAccessorConstant(map, NONE, pair_);
+      } else {
+        Isolate* isolate = CcTest::i_isolate();
+        Handle<HeapType> any_type = HeapType::Any(isolate);
+        return expectations.AddDataField(map, NONE, Representation::Smi(),
+                                         any_type);
+      }
+    }
+
+    void UpdateExpectations(int property_index, Expectations& expectations) {}
+  };
+
+  TestConfig config;
+  // These are completely separate branches in transition tree.
+  CheckUnrelated checker;
+  TestReconfigureProperty_CustomPropertyAfterTargetMap(config, checker);
 }
 
 
@@ -1487,6 +1581,7 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
   // transition tree.
   CHECK(map->is_deprecated());
   CHECK(!split_map->is_deprecated());
+  CHECK(map2->is_stable());
   CHECK(!map2->is_deprecated());
 
   // Fill in transition tree of |map2| so that it can't have more transitions.
@@ -1932,7 +2027,8 @@ struct FieldGeneralizationChecker {
     Handle<Map> updated_map = Map::Update(map1);
     CHECK_EQ(*map2, *updated_map);
 
-    expectations2.SetDataField(descriptor_, representation_, heap_type_);
+    expectations2.SetDataField(descriptor_, attributes_, representation_,
+                               heap_type_);
     CHECK(expectations2.Check(*map2));
   }
 };

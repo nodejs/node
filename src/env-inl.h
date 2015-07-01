@@ -172,7 +172,6 @@ inline Environment::Environment(v8::Local<v8::Context> context,
     : isolate_(context->GetIsolate()),
       isolate_data_(IsolateData::GetOrCreate(context->GetIsolate(), loop)),
       timer_base_(uv_now(loop)),
-      using_smalloc_alloc_cb_(false),
       using_domains_(false),
       using_abort_on_uncaught_exc_(false),
       using_asyncwrap_(false),
@@ -291,14 +290,6 @@ inline Environment::TickInfo* Environment::tick_info() {
 
 inline uint64_t Environment::timer_base() const {
   return timer_base_;
-}
-
-inline bool Environment::using_smalloc_alloc_cb() const {
-  return using_smalloc_alloc_cb_;
-}
-
-inline void Environment::set_using_smalloc_alloc_cb(bool value) {
-  using_smalloc_alloc_cb_ = value;
 }
 
 inline bool Environment::using_abort_on_uncaught_exc() const {
