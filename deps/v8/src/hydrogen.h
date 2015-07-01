@@ -2506,6 +2506,9 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void BuildInlinedCallArray(Expression* expression, int argument_count,
                              Handle<AllocationSite> site);
 
+  void BuildInitializeInobjectProperties(HValue* receiver,
+                                         Handle<Map> initial_map);
+
   class PropertyAccessInfo {
    public:
     PropertyAccessInfo(HOptimizedGraphBuilder* builder,
