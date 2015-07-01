@@ -152,38 +152,6 @@ static uv_async_t dispatch_debug_messages_async;
 static Isolate* node_isolate = nullptr;
 static v8::Platform* default_platform;
 
-class ArrayBufferAllocator : public ArrayBuffer::Allocator {
- public:
-  // Impose an upper limit to avoid out of memory errors that bring down
-  // the process.
-  static const size_t kMaxLength = 0x3fffffff;
-  static ArrayBufferAllocator the_singleton;
-  virtual ~ArrayBufferAllocator() = default;
-  virtual void* Allocate(size_t length) override;
-  virtual void* AllocateUninitialized(size_t length) override;
-  virtual void Free(void* data, size_t length) override;
- private:
-  ArrayBufferAllocator() = default;
-  DISALLOW_COPY_AND_ASSIGN(ArrayBufferAllocator);
-};
-
-ArrayBufferAllocator ArrayBufferAllocator::the_singleton;
-
-
-void* ArrayBufferAllocator::Allocate(size_t length) {
-  return calloc(length, 1);
-}
-
-
-void* ArrayBufferAllocator::AllocateUninitialized(size_t length) {
-  return malloc(length);
-}
-
-
-void ArrayBufferAllocator::Free(void* data, size_t length) {
-  free(data);
-}
-
 
 static void CheckImmediate(uv_check_t* handle) {
   Environment* env = Environment::from_immediate_check_handle(handle);
@@ -3711,8 +3679,6 @@ void Init(int* argc,
     V8::SetFlagsFromString(expose_debug_as, sizeof(expose_debug_as) - 1);
   }
 
-  V8::SetArrayBufferAllocator(&ArrayBufferAllocator::the_singleton);
-
   if (!use_debug_agent) {
     RegisterDebugSignalHandler();
   }
@@ -3914,7 +3880,10 @@ Environment* CreateEnvironment(Isolate* isolate,
 // node instance.
 static void StartNodeInstance(void* arg) {
   NodeInstanceData* instance_data = static_cast<NodeInstanceData*>(arg);
-  Isolate* isolate = Isolate::New();
+  Isolate::CreateParams params;
+  ArrayBufferAllocator array_buffer_allocator;
+  params.array_buffer_allocator = &array_buffer_allocator;
+  Isolate* isolate = Isolate::New(params);
   if (track_heap_objects) {
     isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
   }
