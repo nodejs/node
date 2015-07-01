@@ -415,6 +415,7 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
      << pre_allocated_property_fields() << "\n";
   os << " - unused property fields: " << unused_property_fields() << "\n";
   if (is_deprecated()) os << " - deprecated_map\n";
+  if (is_stable()) os << " - stable_map\n";
   if (is_dictionary_map()) os << " - dictionary_map\n";
   if (is_prototype_map()) {
     os << " - prototype_map\n";

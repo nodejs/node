@@ -179,7 +179,7 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
       base::OS::Sleep(base::TimeDelta::FromMilliseconds(50));
     }
   }
-  if (FLAG_always_opt) {
+  if (FLAG_always_opt || FLAG_prepare_always_opt) {
     // With --always-opt, optimization status expectations might not
     // match up, so just return a sentinel.
     return Smi::FromInt(3);  // 3 == "always".
