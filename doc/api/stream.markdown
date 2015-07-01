@@ -228,7 +228,7 @@ returns it.  If there is no data available, then it will return
 
 If you pass in a `size` argument, then it will return that many
 bytes.  If `size` bytes are not available, then it will return `null`,
-unless we've ended, in which case it will return the data remaining 
+unless we've ended, in which case it will return the data remaining
 in the buffer.
 
 If you do not specify a `size` argument, then it will return all the
@@ -250,6 +250,9 @@ readable.on('readable', function() {
 
 If this method returns a data chunk, then it will also trigger the
 emission of a [`'data'` event][].
+
+Note that calling `readable.read([size])` after the `end` event has been
+triggered will return `null`. No runtime error will be raised.
 
 #### readable.setEncoding(encoding)
 
@@ -421,6 +424,9 @@ This is useful in certain cases where a stream is being consumed by a
 parser, which needs to "un-consume" some data that it has
 optimistically pulled out of the source, so that the stream can be
 passed on to some other party.
+
+Note that `stream.unshift(chunk)` cannot be called after the `end` event
+has been triggered; a runtime error will be raised.
 
 If you find that you must often call `stream.unshift(chunk)` in your
 programs, consider implementing a [Transform][] stream instead.  (See API
