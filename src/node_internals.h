@@ -226,6 +226,20 @@ NODE_DEPRECATED("Use ThrowUVException(isolate)",
   return ThrowUVException(isolate, errorno, syscall, message, path);
 })
 
+struct ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+  virtual void* Allocate(size_t size) {
+    return calloc(size, 1);
+  }
+
+  virtual void* AllocateUninitialized(size_t size) {
+    return malloc(size);
+  }
+
+  virtual void Free(void* data, size_t) {
+    free(data);
+  }
+};
+
 enum NodeInstanceType { MAIN, WORKER };
 
 class NodeInstanceData {
