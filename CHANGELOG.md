@@ -1,5 +1,66 @@
 # io.js ChangeLog
 
+## 2015-07-01, Version 2.3.2, @rvagg
+
+### Notable changes
+
+* **build**:
+  - Added support for compiling with Microsoft Visual C++ 2015
+  - Started building and distributing headers-only tarballs along with binaries
+
+### Known issues
+
+See https://github.com/nodejs/io.js/labels/confirmed-bug for complete and current list of known issues.
+
+* Some problems with unreferenced timers running during `beforeExit` are still to be resolved. See [#1264](https://github.com/nodejs/io.js/issues/1264).
+* Surrogate pair in REPL can freeze terminal [#690](https://github.com/nodejs/io.js/issues/690)
+* `process.send()` is not synchronous as the docs suggest, a regression introduced in 1.0.2, see [#760](https://github.com/nodejs/io.js/issues/760) and fix in [#774](https://github.com/nodejs/io.js/issues/774)
+* Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion [#894](https://github.com/nodejs/io.js/issues/894)
+* `url.resolve` may transfer the auth portion of the url when resolving between two full hosts, see [#1435](https://github.com/nodejs/io.js/issues/1435).
+
+## Commits
+
+* [[`9180140231`](https://github.com/nodejs/io.js/commit/9180140231)] - **_stream_wrap**: prevent use after free in TLS (Fedor Indutny) [#1910](https://github.com/nodejs/io.js/pull/1910)
+* [[`05a73c0f25`](https://github.com/nodejs/io.js/commit/05a73c0f25)] - **benchmark**: make concurrent requests configurable (Rich Trott) [#2068](https://github.com/nodejs/io.js/pull/2068)
+* [[`f52d73352e`](https://github.com/nodejs/io.js/commit/f52d73352e)] - **benchmark**: fix typo in README (Rich Trott) [#2067](https://github.com/nodejs/io.js/pull/2067)
+* [[`1cd9eeb556`](https://github.com/nodejs/io.js/commit/1cd9eeb556)] - **buffer**: prevent abort on bad proto (Trevor Norris) [#2012](https://github.com/nodejs/io.js/pull/2012)
+* [[`8350f3a3a2`](https://github.com/nodejs/io.js/commit/8350f3a3a2)] - **buffer**: optimize Buffer#toString() (Ben Noordhuis) [#2027](https://github.com/nodejs/io.js/pull/2027)
+* [[`628a3ab093`](https://github.com/nodejs/io.js/commit/628a3ab093)] - **build**: add tar-headers target for headers-only tar (Rod Vagg) [#1975](https://github.com/nodejs/io.js/pull/1975)
+* [[`dcbb9e1da6`](https://github.com/nodejs/io.js/commit/dcbb9e1da6)] - **build**: update build targets for io.js (Rod Vagg) [#1938](https://github.com/nodejs/io.js/pull/1938)
+* [[`c87c34c242`](https://github.com/nodejs/io.js/commit/c87c34c242)] - **build**: fix cherry-pick ooops, fix comment wording (Rod Vagg) [#2036](https://github.com/nodejs/io.js/pull/2036)
+* [[`4208dc4fef`](https://github.com/nodejs/io.js/commit/4208dc4fef)] - **build**: add MSVS 2015 support (Rod Vagg) [#2036](https://github.com/nodejs/io.js/pull/2036)
+* [[`834a365113`](https://github.com/nodejs/io.js/commit/834a365113)] - **build**: DTrace is enabled by default on darwin (Evan Lucas) [#2019](https://github.com/nodejs/io.js/pull/2019)
+* [[`c0c0d73269`](https://github.com/nodejs/io.js/commit/c0c0d73269)] - **build,win**: set env before generating projects (Alexis Campailla) [joyent/node#20109](https://github.com/joyent/node/pull/20109)
+* [[`9e890fe8b4`](https://github.com/nodejs/io.js/commit/9e890fe8b4)] - **crypto**: fix VerifyCallback in case of verify error (Shigeki Ohtsu) [#2064](https://github.com/nodejs/io.js/pull/2064)
+* [[`1f371e3988`](https://github.com/nodejs/io.js/commit/1f371e3988)] - **deps**: copy all openssl header files to include dir (Shigeki Ohtsu) [#2016](https://github.com/nodejs/io.js/pull/2016)
+* [[`c370bd3aea`](https://github.com/nodejs/io.js/commit/c370bd3aea)] - **doc**: make the abbreviation 1MM clear (Ivan Yan) [#2053](https://github.com/nodejs/io.js/pull/2053)
+* [[`54d5437566`](https://github.com/nodejs/io.js/commit/54d5437566)] - **doc**: Added sample command to test iojs build (Jimmy Hsu) [#850](https://github.com/nodejs/io.js/pull/850)
+* [[`f1f1b7e597`](https://github.com/nodejs/io.js/commit/f1f1b7e597)] - **doc**: add TSC meeting minutes 2015-06-17 (Rod Vagg) [#2048](https://github.com/nodejs/io.js/pull/2048)
+* [[`dbd5dc932d`](https://github.com/nodejs/io.js/commit/dbd5dc932d)] - **doc**: clarify prerequisites in benchmark/README.md (Jeremiah Senkpiel) [#2034](https://github.com/nodejs/io.js/pull/2034)
+* [[`50dbc8e143`](https://github.com/nodejs/io.js/commit/50dbc8e143)] - **doc**: add TSC meeting minutes 2015-05-27 (Rod Vagg) [#2037](https://github.com/nodejs/io.js/pull/2037)
+* [[`941ad362a7`](https://github.com/nodejs/io.js/commit/941ad362a7)] - **doc**: archive io.js TC minutes (Rod Vagg) 
+* [[`644b2eaa89`](https://github.com/nodejs/io.js/commit/644b2eaa89)] - **doc**: rename tc-meetings to tsc-meetings (Rod Vagg) 
+* [[`1330ee3b27`](https://github.com/nodejs/io.js/commit/1330ee3b27)] - **doc**: add TC meeting 2015-05-13 minutes (Rod Vagg) [#1700](https://github.com/nodejs/io.js/pull/1700)
+* [[`392e8fd64e`](https://github.com/nodejs/io.js/commit/392e8fd64e)] - **doc**: add @shigeki and @mscdex to TC (Rod Vagg) [#2008](https://github.com/nodejs/io.js/pull/2008)
+* [[`af249fa8a1`](https://github.com/nodejs/io.js/commit/af249fa8a1)] - **net**: wrap connect in nextTick (Evan Lucas) [#2054](https://github.com/nodejs/io.js/pull/2054)
+* [[`7f63449fde`](https://github.com/nodejs/io.js/commit/7f63449fde)] - **net**: fix debug for dnsopts (Evan Lucas) [#2059](https://github.com/nodejs/io.js/pull/2059)
+* [[`eabed2f518`](https://github.com/nodejs/io.js/commit/eabed2f518)] - **repl**: remove obsolete TODO (Rich Trott) [#2081](https://github.com/nodejs/io.js/pull/2081)
+* [[`a198c68b56`](https://github.com/nodejs/io.js/commit/a198c68b56)] - **repl**: make 'Unexpected token' errors recoverable (Julien Gilli) [#2052](https://github.com/nodejs/io.js/pull/2052)
+* [[`d735b2c6ef`](https://github.com/nodejs/io.js/commit/d735b2c6ef)] - **repl**: fix tab completion for a non-global context (Sangmin Yoon) [#2052](https://github.com/nodejs/io.js/pull/2052)
+* [[`8cee8f54fc`](https://github.com/nodejs/io.js/commit/8cee8f54fc)] - **src**: nix stdin _readableState.reading manipulation (Chris Dickinson) [#454](https://github.com/nodejs/io.js/pull/454)
+* [[`856c11f8c8`](https://github.com/nodejs/io.js/commit/856c11f8c8)] - **test**: purge stale disabled tests (Rich Trott) [#2045](https://github.com/nodejs/io.js/pull/2045)
+* [[`4d5089e181`](https://github.com/nodejs/io.js/commit/4d5089e181)] - **test**: do not swallow OpenSSL support error (Rich Trott) [#2042](https://github.com/nodejs/io.js/pull/2042)
+* [[`06721fe005`](https://github.com/nodejs/io.js/commit/06721fe005)] - **test**: fix test-repl-tab-complete.js (cjihrig) [#2052](https://github.com/nodejs/io.js/pull/2052)
+* [[`8e9089ac35`](https://github.com/nodejs/io.js/commit/8e9089ac35)] - **test**: check for error on Windows (Rich Trott) [#2035](https://github.com/nodejs/io.js/pull/2035)
+* [[`776a65ebcd`](https://github.com/nodejs/io.js/commit/776a65ebcd)] - **test**: remove obsolete TODO comments (Rich Trott) [#2033](https://github.com/nodejs/io.js/pull/2033)
+* [[`bdfeb798ad`](https://github.com/nodejs/io.js/commit/bdfeb798ad)] - **test**: remove obsolete TODO comments (Rich Trott) [#2032](https://github.com/nodejs/io.js/pull/2032)
+* [[`58e914f9bc`](https://github.com/nodejs/io.js/commit/58e914f9bc)] - **tools**: fix gyp to work on MacOSX without XCode (Shigeki Ohtsu) [iojs/io.js#1325](https://github.com/iojs/io.js/pull/1325)
+* [[`99cbbc0a13`](https://github.com/nodejs/io.js/commit/99cbbc0a13)] - **tools**: update gyp to 25ed9ac (Ben Noordhuis) [#2074](https://github.com/nodejs/io.js/pull/2074)
+* [[`e3f9335c40`](https://github.com/nodejs/io.js/commit/e3f9335c40)] - **tools**: re-enable comma-spacing linter rule (Roman Reiss) [#2072](https://github.com/nodejs/io.js/pull/2072)
+* [[`d91e10b3bd`](https://github.com/nodejs/io.js/commit/d91e10b3bd)] - **tools**: update eslint to 0.24.0 (Roman Reiss) [#2072](https://github.com/nodejs/io.js/pull/2072)
+* [[`6c61ca5325`](https://github.com/nodejs/io.js/commit/6c61ca5325)] - **url**: fix typo in comment (Rich Trott) [#2071](https://github.com/nodejs/io.js/pull/2071)
+* [[`1a51f0058c`](https://github.com/nodejs/io.js/commit/1a51f0058c)] - **v8**: cherry-pick JitCodeEvent patch from upstream (Ben Noordhuis) [#2075](https://github.com/nodejs/io.js/pull/2075) 
+
 ## 2015-06-23, Version 2.3.1, @rvagg
 
 ### Notable changes
