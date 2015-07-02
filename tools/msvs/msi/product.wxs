@@ -33,6 +33,14 @@
     <Property Id="INSTALLDIR">
       <RegistrySearch Id="InstallPathRegistry"
                       Type="raw"
+                      Root="HKLM"
+                      Key="$(var.RegistryKeyPath)"
+                      Name="InstallPath"/>
+      <!-- Also need to search under HKCU to support upgrading from old
+           versions. If we wanted to disable backward compatibility, this
+           second search could be deleted. -->
+      <RegistrySearch Id="InstallPathRegistryCU"
+                      Type="raw"
                       Root="HKCU"
                       Key="$(var.RegistryKeyPath)"
                       Name="InstallPath"/>
@@ -44,8 +52,9 @@
              Description="Install the core Node.js runtime (node.exe)."
              Absent="disallow">
       <ComponentRef Id="NodeExecutable"/>
+      <ComponentRef Id="NodeRegistryEntries"/>
       <ComponentRef Id="NodeVarsScript"/>
-      <ComponentRef Id="NodeStartMenuAndRegistryEntries"/>
+      <ComponentRef Id="NodeStartMenu"/>
       <ComponentRef Id="AppData" />
       <ComponentGroupRef Id="Product.Generated"/>
 
@@ -117,6 +126,20 @@
         <File Id="node.exe" KeyPath="yes" Source="$(var.SourceDir)\node.exe"/>
       </Component>
 
+      <Component Id="NodeRegistryEntries">
+        <RegistryValue Root="HKLM"
+                       Key="$(var.RegistryKeyPath)"
+                       Name="InstallPath"
+                       Type="string"
+                       Value="[INSTALLDIR]"
+                       KeyPath="yes"/>
+        <RegistryValue Root="HKLM"
+                       Key="$(var.RegistryKeyPath)"
+                       Name="Version"
+                       Type="string"
+                       Value="$(var.ProductVersion)"/>
+      </Component>
+
       <Component Id="NodeVarsScript">
         <File Id="nodevars.bat" KeyPath="yes" Source="$(var.RepoDir)\tools\msvs\nodevars.bat"/>
       </Component>
@@ -139,18 +162,15 @@
     </DirectoryRef>
 
     <DirectoryRef Id="ApplicationProgramsFolder">
-      <Component Id="NodeStartMenuAndRegistryEntries">
+      <Component Id="NodeStartMenu">
+        <!-- RegistryValue needed because every Component must have a KeyPath.
+             Because of ICE43, the Root must be HKCU. -->
         <RegistryValue Root="HKCU"
-                       Key="$(var.RegistryKeyPath)"
-                       Name="InstallPath"
-                       Type="string"
-                       Value="[INSTALLDIR]"
+                       Key="$(var.RegistryKeyPath)\Components"
+                       Name="NodeStartMenuShortcuts"
+                       Type="integer"
+                       Value="1"
                        KeyPath="yes"/>
-        <RegistryValue Root="HKCU"
-                       Key="$(var.RegistryKeyPath)"
-                       Name="Version"
-                       Type="string"
-                       Value="$(var.ProductVersion)"/>
         <Shortcut Id="NodeVarsScriptShortcut"
                   Name="Node.js command prompt"
                   Target="[%ComSpec]"
