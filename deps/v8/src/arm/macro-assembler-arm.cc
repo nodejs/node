@@ -691,28 +691,28 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
 
 void MacroAssembler::PushFixedFrame(Register marker_reg) {
   DCHECK(!marker_reg.is_valid() || marker_reg.code() < cp.code());
-  stm(db_w, sp, (marker_reg.is_valid() ? marker_reg.bit() : 0) |
-                cp.bit() |
-                (FLAG_enable_ool_constant_pool ? pp.bit() : 0) |
-                fp.bit() |
-                lr.bit());
+  stm(db_w, sp, (marker_reg.is_valid() ? marker_reg.bit() : 0) | cp.bit() |
+                    (FLAG_enable_embedded_constant_pool ? pp.bit() : 0) |
+                    fp.bit() | lr.bit());
 }
 
 
 void MacroAssembler::PopFixedFrame(Register marker_reg) {
   DCHECK(!marker_reg.is_valid() || marker_reg.code() < cp.code());
-  ldm(ia_w, sp, (marker_reg.is_valid() ? marker_reg.bit() : 0) |
-                cp.bit() |
-                (FLAG_enable_ool_constant_pool ? pp.bit() : 0) |
-                fp.bit() |
-                lr.bit());
+  ldm(ia_w, sp, (marker_reg.is_valid() ? marker_reg.bit() : 0) | cp.bit() |
+                    (FLAG_enable_embedded_constant_pool ? pp.bit() : 0) |
+                    fp.bit() | lr.bit());
 }
 
 
 // Push and pop all registers that can hold pointers.
 void MacroAssembler::PushSafepointRegisters() {
-  // Safepoints expect a block of contiguous register values starting with r0:
-  DCHECK(((1 << kNumSafepointSavedRegisters) - 1) == kSafepointSavedRegisters);
+  // Safepoints expect a block of contiguous register values starting with r0.
+  // except when FLAG_enable_embedded_constant_pool, which omits pp.
+  DCHECK(kSafepointSavedRegisters ==
+         (FLAG_enable_embedded_constant_pool
+              ? ((1 << (kNumSafepointSavedRegisters + 1)) - 1) & ~pp.bit()
+              : (1 << kNumSafepointSavedRegisters) - 1));
   // Safepoints expect a block of kNumSafepointRegisters values on the
   // stack, so adjust the stack for unsaved registers.
   const int num_unsaved = kNumSafepointRegisters - kNumSafepointSavedRegisters;
@@ -742,6 +742,10 @@ void MacroAssembler::LoadFromSafepointRegisterSlot(Register dst, Register src) {
 int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   // The registers are pushed starting with the highest encoding,
   // which means that lowest encodings are closest to the stack pointer.
+  if (FLAG_enable_embedded_constant_pool && reg_code > pp.code()) {
+    // RegList omits pp.
+    reg_code -= 1;
+  }
   DCHECK(reg_code >= 0 && reg_code < kNumSafepointRegisters);
   return reg_code;
 }
@@ -985,13 +989,20 @@ void MacroAssembler::VmovLow(DwVfpRegister dst, Register src) {
 }
 
 
+void MacroAssembler::LoadConstantPoolPointerRegisterFromCodeTargetAddress(
+    Register code_target_address) {
+  DCHECK(FLAG_enable_embedded_constant_pool);
+  ldr(pp, MemOperand(code_target_address,
+                     Code::kConstantPoolOffset - Code::kHeaderSize));
+  add(pp, pp, code_target_address);
+}
+
+
 void MacroAssembler::LoadConstantPoolPointerRegister() {
-  if (FLAG_enable_ool_constant_pool) {
-    int constant_pool_offset = Code::kConstantPoolOffset - Code::kHeaderSize -
-        pc_offset() - Instruction::kPCReadOffset;
-    DCHECK(ImmediateFitsAddrMode2Instruction(constant_pool_offset));
-    ldr(pp, MemOperand(pc, constant_pool_offset));
-  }
+  DCHECK(FLAG_enable_embedded_constant_pool);
+  int entry_offset = pc_offset() + Instruction::kPCReadOffset;
+  sub(ip, pc, Operand(entry_offset));
+  LoadConstantPoolPointerRegisterFromCodeTargetAddress(ip);
 }
 
 
@@ -1000,9 +1011,9 @@ void MacroAssembler::StubPrologue() {
   Push(Smi::FromInt(StackFrame::STUB));
   // Adjust FP to point to saved FP.
   add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
-  if (FLAG_enable_ool_constant_pool) {
+  if (FLAG_enable_embedded_constant_pool) {
     LoadConstantPoolPointerRegister();
-    set_ool_constant_pool_available(true);
+    set_constant_pool_available(true);
   }
 }
 
@@ -1025,9 +1036,9 @@ void MacroAssembler::Prologue(bool code_pre_aging) {
       add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
     }
   }
-  if (FLAG_enable_ool_constant_pool) {
+  if (FLAG_enable_embedded_constant_pool) {
     LoadConstantPoolPointerRegister();
-    set_ool_constant_pool_available(true);
+    set_constant_pool_available(true);
   }
 }
 
@@ -1036,7 +1047,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type,
                                 bool load_constant_pool_pointer_reg) {
   // r0-r3: preserved
   PushFixedFrame();
-  if (FLAG_enable_ool_constant_pool && load_constant_pool_pointer_reg) {
+  if (FLAG_enable_embedded_constant_pool && load_constant_pool_pointer_reg) {
     LoadConstantPoolPointerRegister();
   }
   mov(ip, Operand(Smi::FromInt(type)));
@@ -1056,9 +1067,9 @@ int MacroAssembler::LeaveFrame(StackFrame::Type type) {
 
   // Drop the execution stack down to the frame pointer and restore
   // the caller frame pointer, return address and constant pool pointer
-  // (if FLAG_enable_ool_constant_pool).
+  // (if FLAG_enable_embedded_constant_pool).
   int frame_ends;
-  if (FLAG_enable_ool_constant_pool) {
+  if (FLAG_enable_embedded_constant_pool) {
     add(sp, fp, Operand(StandardFrameConstants::kConstantPoolOffset));
     frame_ends = pc_offset();
     ldm(ia_w, sp, pp.bit() | fp.bit() | lr.bit());
@@ -1084,7 +1095,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
     mov(ip, Operand::Zero());
     str(ip, MemOperand(fp, ExitFrameConstants::kSPOffset));
   }
-  if (FLAG_enable_ool_constant_pool) {
+  if (FLAG_enable_embedded_constant_pool) {
     str(pp, MemOperand(fp, ExitFrameConstants::kConstantPoolOffset));
   }
   mov(ip, Operand(CodeObject()));
@@ -1103,7 +1114,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
     //   fp - ExitFrameConstants::kFrameSize -
     //   DwVfpRegister::kMaxNumRegisters * kDoubleSize,
     // since the sp slot, code slot and constant pool slot (if
-    // FLAG_enable_ool_constant_pool) were pushed after the fp.
+    // FLAG_enable_embedded_constant_pool) were pushed after the fp.
   }
 
   // Reserve place for the return address and stack space and align the frame
@@ -1183,7 +1194,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
 #endif
 
   // Tear down the exit frame, pop the arguments, and return.
-  if (FLAG_enable_ool_constant_pool) {
+  if (FLAG_enable_embedded_constant_pool) {
     ldr(pp, MemOperand(fp, ExitFrameConstants::kConstantPoolOffset));
   }
   mov(sp, Operand(fp));
@@ -1559,6 +1570,7 @@ void MacroAssembler::GetNumberHash(Register t0, Register scratch) {
   add(t0, t0, scratch);
   // hash = hash ^ (hash >> 16);
   eor(t0, t0, Operand(t0, LSR, 16));
+  bic(t0, t0, Operand(0xc0000000u));
 }
 
 
@@ -3162,7 +3174,7 @@ void MacroAssembler::InitializeFieldsWithFiller(Register start_offset,
   str(filler, MemOperand(start_offset, kPointerSize, PostIndex));
   bind(&entry);
   cmp(start_offset, end_offset);
-  b(lt, &loop);
+  b(lo, &loop);
 }
 
 
@@ -3390,7 +3402,7 @@ void MacroAssembler::CallCFunctionHelper(Register function,
   if (ActivationFrameAlignment() > kPointerSize) {
     ldr(sp, MemOperand(sp, stack_passed_arguments * kPointerSize));
   } else {
-    add(sp, sp, Operand(stack_passed_arguments * sizeof(kPointerSize)));
+    add(sp, sp, Operand(stack_passed_arguments * kPointerSize));
   }
 }
 
@@ -3401,7 +3413,7 @@ void MacroAssembler::GetRelocatedValueLocation(Register ldr_location,
   Label small_constant_pool_load, load_result;
   ldr(result, MemOperand(ldr_location));
 
-  if (FLAG_enable_ool_constant_pool) {
+  if (FLAG_enable_embedded_constant_pool) {
     // Check if this is an extended constant pool load.
     and_(scratch, result, Operand(GetConsantPoolLoadMask()));
     teq(scratch, Operand(GetConsantPoolLoadPattern()));
@@ -3455,7 +3467,7 @@ void MacroAssembler::GetRelocatedValueLocation(Register ldr_location,
 
   bind(&load_result);
   // Get the address of the constant.
-  if (FLAG_enable_ool_constant_pool) {
+  if (FLAG_enable_embedded_constant_pool) {
     add(result, pp, Operand(result));
   } else {
     add(result, ldr_location, Operand(result));

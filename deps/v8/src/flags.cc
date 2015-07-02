@@ -574,4 +574,5 @@ void FlagList::EnforceFlagImplications() {
 
 
 uint32_t FlagList::Hash() { return flag_hash; }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

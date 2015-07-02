@@ -84,4 +84,5 @@ Address RegExpStack::EnsureCapacity(size_t size) {
 }
 
 
-}}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

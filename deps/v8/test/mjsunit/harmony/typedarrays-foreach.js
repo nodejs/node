@@ -85,8 +85,13 @@ function TestTypedArrayForEach(constructor) {
   assertEquals(42, a[1]);
 
   // Neutering the buffer backing the typed array mid-way should
-  // still make .forEach() finish, and the array should keep being
-  // empty after neutering it.
+  // still make .forEach() finish, but exiting early due to the missing
+  // elements, and the array should keep being empty after detaching it.
+  // TODO(dehrenberg): According to the ES6 spec, accessing or testing
+  // for members on a detached TypedArray should throw, so really this
+  // should throw in the third iteration. However, this behavior matches
+  // the Khronos spec.
+  a = new constructor(3);
   count = 0;
   a.forEach(function (n, index, array) {
     if (count > 0) %ArrayBufferNeuter(array.buffer);
@@ -133,6 +138,16 @@ function TestTypedArrayForEach(constructor) {
     constructor.prototype.forEach.call(a, function (x) { count++ });
     assertEquals(a.length, count);
   }
+
+  // Shadowing length doesn't affect forEach, unlike Array.prototype.forEach
+  a = new constructor([1, 2]);
+  Object.defineProperty(a, 'length', {value: 1});
+  var x = 0;
+  assertEquals(a.forEach(function(elt) { x += elt; }), undefined);
+  assertEquals(x, 3);
+  assertEquals(Array.prototype.forEach.call(a,
+      function(elt) { x += elt; }), undefined);
+  assertEquals(x, 4);
 }
 
 for (i = 0; i < typedArrayConstructors.length; i++) {

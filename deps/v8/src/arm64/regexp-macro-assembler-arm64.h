@@ -20,6 +20,7 @@ class RegExpMacroAssemblerARM64: public NativeRegExpMacroAssembler {
   RegExpMacroAssemblerARM64(Isolate* isolate, Zone* zone, Mode mode,
                             int registers_to_save);
   virtual ~RegExpMacroAssemblerARM64();
+  virtual void AbortedCodeGeneration() { masm_->AbortedCodeGeneration(); }
   virtual int stack_limit_slack();
   virtual void AdvanceCurrentPosition(int by);
   virtual void AdvanceRegister(int reg, int by);

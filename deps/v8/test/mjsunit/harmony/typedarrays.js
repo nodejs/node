@@ -276,6 +276,43 @@ function TestTypedArray(constr, elementSize, typicalElement) {
   assertFalse(!!desc.writable);
   assertFalse(!!desc.set);
   assertEquals("function", typeof desc.get);
+
+  // Test that the constructor can be called with an iterable
+  function* gen() { for (var i = 0; i < 10; i++) yield i; }
+  var genArr = new constr(gen());
+  assertEquals(10, genArr.length);
+  assertEquals(0, genArr[0]);
+  assertEquals(9, genArr[9]);
+  // Arrays can be converted to TypedArrays
+  genArr = new constr([1, 2, 3]);
+  assertEquals(3, genArr.length);
+  assertEquals(1, genArr[0]);
+  assertEquals(3, genArr[2]);
+  // Redefining Array.prototype[Symbol.iterator] still works
+  var arrayIterator = Array.prototype[Symbol.iterator];
+  Array.prototype[Symbol.iterator] = gen;
+  genArr = new constr([1, 2, 3]);
+  assertEquals(10, genArr.length);
+  assertEquals(0, genArr[0]);
+  assertEquals(9, genArr[9]);
+  Array.prototype[Symbol.iterator] = arrayIterator;
+  // Other array-like things can be made into a TypedArray
+  var myObject = { 0: 5, 1: 6, length: 2 };
+  genArr = new constr(myObject);
+  assertEquals(2, genArr.length);
+  assertEquals(5, genArr[0]);
+  assertEquals(6, genArr[1]);
+  // Iterator takes precedence over array-like, and the property
+  // is read only once.
+  var iteratorReadCount = 0;
+  Object.defineProperty(myObject, Symbol.iterator, {
+    get: function() { iteratorReadCount++; return gen; }
+  });
+  genArr = new constr(myObject);
+  assertEquals(10, genArr.length);
+  assertEquals(0, genArr[0]);
+  assertEquals(9, genArr[9]);
+  assertEquals(1, iteratorReadCount);
 }
 
 TestTypedArray(Uint8Array, 1, 0xFF);

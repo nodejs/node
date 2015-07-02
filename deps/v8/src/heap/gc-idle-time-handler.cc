@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/flags.h"
 #include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/gc-tracer.h"
 #include "src/utils.h"
@@ -51,6 +52,7 @@ void GCIdleTimeHandler::HeapState::Print() {
   PrintF("incremental_marking_stopped=%d ", incremental_marking_stopped);
   PrintF("can_start_incremental_marking=%d ", can_start_incremental_marking);
   PrintF("sweeping_in_progress=%d ", sweeping_in_progress);
+  PrintF("has_low_allocation_rate=%d", has_low_allocation_rate);
   PrintF("mark_compact_speed=%" V8_PTR_PREFIX "d ",
          mark_compact_speed_in_bytes_per_ms);
   PrintF("incremental_marking_speed=%" V8_PTR_PREFIX "d ",
@@ -58,7 +60,7 @@ void GCIdleTimeHandler::HeapState::Print() {
   PrintF("scavenge_speed=%" V8_PTR_PREFIX "d ", scavenge_speed_in_bytes_per_ms);
   PrintF("new_space_size=%" V8_PTR_PREFIX "d ", used_new_space_size);
   PrintF("new_space_capacity=%" V8_PTR_PREFIX "d ", new_space_capacity);
-  PrintF("new_space_allocation_throughput=%" V8_PTR_PREFIX "d",
+  PrintF("new_space_allocation_throughput=%" V8_PTR_PREFIX "d ",
          new_space_allocation_throughput_in_bytes_per_ms);
 }
 
@@ -122,8 +124,8 @@ bool GCIdleTimeHandler::ShouldDoScavenge(
     new_space_allocation_limit = new_space_size;
   }
 
-  // We do not know the allocation throughput before the first Scavenge.
-  // TODO(hpayer): Estimate allocation throughput before the first Scavenge.
+  // We do not know the allocation throughput before the first scavenge.
+  // TODO(hpayer): Estimate allocation throughput before the first scavenge.
   if (new_space_allocation_throughput_in_bytes_per_ms == 0) {
     new_space_allocation_limit =
         static_cast<size_t>(new_space_size * kConservativeTimeRatio);
@@ -131,10 +133,17 @@ bool GCIdleTimeHandler::ShouldDoScavenge(
     // We have to trigger scavenge before we reach the end of new space.
     size_t adjust_limit = new_space_allocation_throughput_in_bytes_per_ms *
                           kTimeUntilNextIdleEvent;
-    if (adjust_limit > new_space_allocation_limit)
+    if (adjust_limit > new_space_allocation_limit) {
       new_space_allocation_limit = 0;
-    else
+    } else {
       new_space_allocation_limit -= adjust_limit;
+    }
+  }
+
+  // The allocated new space limit to trigger a scavange has to be at least
+  // kMinimumNewSpaceSizeToPerformScavenge.
+  if (new_space_allocation_limit < kMinimumNewSpaceSizeToPerformScavenge) {
+    new_space_allocation_limit = kMinimumNewSpaceSizeToPerformScavenge;
   }
 
   if (scavenge_speed_in_bytes_per_ms == 0) {
@@ -254,15 +263,20 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
 // (1) If we don't have any idle time, do nothing, unless a context was
 // disposed, incremental marking is stopped, and the heap is small. Then do
 // a full GC.
-// (2) If the new space is almost full and we can afford a Scavenge or if the
-// next Scavenge will very likely take long, then a Scavenge is performed.
-// (3) If incremental marking is done, we perform a full garbage collection
+// (2) If the context disposal rate is high and we cannot perform a full GC,
+// we do nothing until the context disposal rate becomes lower.
+// (3) If the new space is almost full and we can affort a scavenge or if the
+// next scavenge will very likely take long, then a scavenge is performed.
+// (4) If there is currently no MarkCompact idle round going on, we start a
+// new idle round if enough garbage was created. Otherwise we do not perform
+// garbage collection to keep system utilization low.
+// (5) If incremental marking is done, we perform a full garbage collection
 // if  we are allowed to still do full garbage collections during this idle
 // round or if we are not allowed to start incremental marking. Otherwise we
 // do not perform garbage collection to keep system utilization low.
-// (4) If sweeping is in progress and we received a large enough idle time
+// (6) If sweeping is in progress and we received a large enough idle time
 // request, we finalize sweeping here.
-// (5) If incremental marking is in progress, we perform a marking step. Note,
+// (7) If incremental marking is in progress, we perform a marking step. Note,
 // that this currently may trigger a full garbage collection.
 GCIdleTimeAction GCIdleTimeHandler::Action(double idle_time_in_ms,
                                            const HeapState& heap_state,
@@ -276,6 +290,13 @@ GCIdleTimeAction GCIdleTimeHandler::Action(double idle_time_in_ms,
       }
     }
     return GCIdleTimeAction::Nothing();
+  }
+
+  // We are in a context disposal GC scenario. Don't do anything if we do not
+  // get the right idle signal.
+  if (ShouldDoContextDisposalMarkCompact(heap_state.contexts_disposed,
+                                         heap_state.contexts_disposal_rate)) {
+    return NothingOrDone();
   }
 
   if (ShouldDoScavenge(
@@ -302,8 +323,9 @@ GCIdleTimeAction GCIdleTimeHandler::Action(double idle_time_in_ms,
     }
   }
 
-  if (heap_state.incremental_marking_stopped &&
-      !heap_state.can_start_incremental_marking && !reduce_memory) {
+  if (!FLAG_incremental_marking ||
+      (heap_state.incremental_marking_stopped &&
+       !heap_state.can_start_incremental_marking && !reduce_memory)) {
     return NothingOrDone();
   }
 
@@ -380,7 +402,8 @@ GCIdleTimeHandler::Mode GCIdleTimeHandler::NextMode(
       }
       break;
     case kReduceMemory:
-      if (idle_mark_compacts_ >= kMaxIdleMarkCompacts) {
+      if (idle_mark_compacts_ >= kMaxIdleMarkCompacts ||
+          (idle_mark_compacts_ > 0 && !next_gc_likely_to_collect_more_)) {
         return kDone;
       }
       if (mutator_gcs > idle_mark_compacts_) {

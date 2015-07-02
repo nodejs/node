@@ -894,4 +894,5 @@ void HGlobalValueNumberingPhase::AnalyzeGraph() {
   }
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

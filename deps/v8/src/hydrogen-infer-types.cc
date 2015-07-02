@@ -51,4 +51,5 @@ void HInferTypesPhase::InferTypes(int from_inclusive, int to_inclusive) {
   }
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

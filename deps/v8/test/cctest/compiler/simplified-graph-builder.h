@@ -92,9 +92,6 @@ class SimplifiedGraphBuilder : public GraphBuilder {
   Node* StringLessThanOrEqual(Node* a, Node* b) {
     return NewNode(simplified()->StringLessThanOrEqual(), a, b);
   }
-  Node* StringAdd(Node* a, Node* b) {
-    return NewNode(simplified()->StringAdd(), a, b);
-  }
 
   Node* ChangeTaggedToInt32(Node* a) {
     return NewNode(simplified()->ChangeTaggedToInt32(), a);

@@ -2,16 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-(function(global, shared, exports) {
+(function(global, utils) {
 
 "use strict";
 
 %CheckIsBootstrapping();
 
-var GlobalObject = global.Object;
+// -------------------------------------------------------------------
+// Imports
+
 var GlobalString = global.String;
 
-//-------------------------------------------------------------------
+var ArrayIteratorCreateResultObject;
+
+utils.Import(function(from) {
+  ArrayIteratorCreateResultObject = from.ArrayIteratorCreateResultObject;
+});
+
+// -------------------------------------------------------------------
 
 var stringIteratorIteratedStringSymbol =
     GLOBAL_PRIVATE("StringIterator#iteratedString");
@@ -31,12 +39,6 @@ function CreateStringIterator(string) {
 }
 
 
-// 21.1.5.2.2 %StringIteratorPrototype%[@@iterator]
-function StringIteratorIterator() {
-  return this;
-}
-
-
 // 21.1.5.2.1 %StringIteratorPrototype%.next( )
 function StringIteratorNext() {
   var iterator = $toObject(this);
@@ -48,7 +50,7 @@ function StringIteratorNext() {
 
   var s = GET_PRIVATE(iterator, stringIteratorIteratedStringSymbol);
   if (IS_UNDEFINED(s)) {
-    return $iteratorCreateResultObject(UNDEFINED, true);
+    return ArrayIteratorCreateResultObject(UNDEFINED, true);
   }
 
   var position = GET_PRIVATE(iterator, stringIteratorNextIndexSymbol);
@@ -57,7 +59,7 @@ function StringIteratorNext() {
   if (position >= length) {
     SET_PRIVATE(iterator, stringIteratorIteratedStringSymbol,
                 UNDEFINED);
-    return $iteratorCreateResultObject(UNDEFINED, true);
+    return ArrayIteratorCreateResultObject(UNDEFINED, true);
   }
 
   var first = %_StringCharCodeAt(s, position);
@@ -74,7 +76,7 @@ function StringIteratorNext() {
 
   SET_PRIVATE(iterator, stringIteratorNextIndexSymbol, position);
 
-  return $iteratorCreateResultObject(resultString, false);
+  return ArrayIteratorCreateResultObject(resultString, false);
 }
 
 
@@ -85,19 +87,16 @@ function StringPrototypeIterator() {
 
 //-------------------------------------------------------------------
 
-%FunctionSetPrototype(StringIterator, new GlobalObject());
+%FunctionSetPrototype(StringIterator, {__proto__: $iteratorPrototype});
 %FunctionSetInstanceClassName(StringIterator, 'String Iterator');
 
-$installFunctions(StringIterator.prototype, DONT_ENUM, [
+utils.InstallFunctions(StringIterator.prototype, DONT_ENUM, [
   'next', StringIteratorNext
 ]);
-$setFunctionName(StringIteratorIterator, symbolIterator);
-%AddNamedProperty(StringIterator.prototype, symbolIterator,
-                  StringIteratorIterator, DONT_ENUM);
 %AddNamedProperty(StringIterator.prototype, symbolToStringTag,
                   "String Iterator", READ_ONLY | DONT_ENUM);
 
-$setFunctionName(StringPrototypeIterator, symbolIterator);
+utils.SetFunctionName(StringPrototypeIterator, symbolIterator);
 %AddNamedProperty(GlobalString.prototype, symbolIterator,
                   StringPrototypeIterator, DONT_ENUM);
 

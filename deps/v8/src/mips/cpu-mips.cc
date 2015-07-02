@@ -54,6 +54,7 @@ void CpuFeatures::FlushICache(void* start, size_t size) {
 #endif  // USE_SIMULATOR.
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_MIPS

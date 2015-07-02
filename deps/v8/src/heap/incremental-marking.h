@@ -67,13 +67,11 @@ class IncrementalMarking {
 
   bool WasActivated();
 
-  void Start();
+  void Start(int mark_compact_flags);
 
   void Stop();
 
   void MarkObjectGroups();
-
-  void PrepareForScavenge();
 
   void UpdateMarkingDequeAfterScavenge();
 

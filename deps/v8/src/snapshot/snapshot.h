@@ -38,7 +38,8 @@ class Snapshot : public AllStatic {
 
   static bool HaveASnapshotToStartFrom(Isolate* isolate) {
     // Do not use snapshots if the isolate is used to create snapshots.
-    return isolate->snapshot_blob() != NULL;
+    return isolate->snapshot_blob() != NULL &&
+           isolate->snapshot_blob()->data != NULL;
   }
 
   static bool EmbedsScript(Isolate* isolate);

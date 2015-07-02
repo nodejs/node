@@ -184,4 +184,5 @@ void HMergeRemovableSimulatesPhase::Run() {
   engine.AnalyzeDominatedBlocks(graph()->blocks()->at(0), state);
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -197,6 +197,7 @@
   'S15.9.5.7_A3_T2': [FAIL],
   'S15.9.5.8_A3_T2': [FAIL],
   'S15.9.5.9_A3_T2': [FAIL],
+  '15.3.4.5-15-2': [FAIL],
 
   # Object.getPrototypeOf wraps primitive values in ES6.
   '15.2.3.2-1': [FAIL],

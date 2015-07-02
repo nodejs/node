@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug --allow-natives-syntax --turbo-deoptimization
+// Flags: --expose-debug-as debug --allow-natives-syntax
 // The functions used for testing backtraces. They are at the top to make the
 // testing of source line/column easier.
 
@@ -165,6 +165,10 @@ function CheckScopeContent(content, number, exec_state) {
   // ignore this.
   var scope_size = scope.scopeObject().properties().length;
   if (!scope.scopeObject().property('arguments').isUndefined()) {
+    scope_size--;
+  }
+  // Ditto for 'this'.
+  if (!scope.scopeObject().property('this').isUndefined()) {
     scope_size--;
   }
   // Skip property with empty name.

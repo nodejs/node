@@ -60,8 +60,8 @@ static Handle<JSFunction> Compile(const char* source) {
   Handle<String> source_code = isolate->factory()->NewStringFromUtf8(
       CStrVector(source)).ToHandleChecked();
   Handle<SharedFunctionInfo> shared_function = Compiler::CompileScript(
-      source_code, Handle<String>(), 0, 0, false, false, Handle<Object>(),
-      Handle<Context>(isolate->native_context()), NULL, NULL,
+      source_code, Handle<String>(), 0, 0, v8::ScriptOriginOptions(),
+      Handle<Object>(), Handle<Context>(isolate->native_context()), NULL, NULL,
       v8::ScriptCompiler::kNoCompileOptions, NOT_NATIVES_CODE, false);
   return isolate->factory()->NewFunctionFromSharedFunctionInfo(
       shared_function, isolate->native_context());
@@ -362,7 +362,7 @@ TEST(FeedbackVectorUnaffectedByScopeChanges) {
   // Now a feedback vector is allocated.
   CHECK(f->shared()->is_compiled());
   int expected_slots = 0;
-  int expected_ic_slots = FLAG_vector_ics ? 2 : 1;
+  int expected_ic_slots = 2;
   CHECK_EQ(expected_slots, f->shared()->feedback_vector()->Slots());
   CHECK_EQ(expected_ic_slots, f->shared()->feedback_vector()->ICSlots());
 }
@@ -370,36 +370,88 @@ TEST(FeedbackVectorUnaffectedByScopeChanges) {
 
 // Test that optimized code for different closures is actually shared
 // immediately by the FastNewClosureStub when run in the same context.
-TEST(OptimizedCodeSharing) {
-  // Skip test if --cache-optimized-code is not activated by default because
-  // FastNewClosureStub that is baked into the snapshot is incorrect.
-  if (!FLAG_cache_optimized_code) return;
+TEST(OptimizedCodeSharing1) {
   FLAG_stress_compaction = false;
   FLAG_allow_natives_syntax = true;
+  FLAG_cache_optimized_code = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   for (int i = 0; i < 10; i++) {
     LocalContext env;
     env->Global()->Set(v8::String::NewFromUtf8(CcTest::isolate(), "x"),
                        v8::Integer::New(CcTest::isolate(), i));
-    CompileRun("function MakeClosure() {"
-               "  return function() { return x; };"
-               "}"
-               "var closure0 = MakeClosure();"
-               "%DebugPrint(closure0());"
-               "%OptimizeFunctionOnNextCall(closure0);"
-               "%DebugPrint(closure0());"
-               "var closure1 = MakeClosure();"
-               "var closure2 = MakeClosure();");
+    CompileRun(
+        "function MakeClosure() {"
+        "  return function() { return x; };"
+        "}"
+        "var closure0 = MakeClosure();"
+        "%DebugPrint(closure0());"
+        "%OptimizeFunctionOnNextCall(closure0);"
+        "%DebugPrint(closure0());"
+        "var closure1 = MakeClosure();"
+        "var closure2 = MakeClosure();");
     Handle<JSFunction> fun1 = v8::Utils::OpenHandle(
         *v8::Local<v8::Function>::Cast(env->Global()->Get(v8_str("closure1"))));
     Handle<JSFunction> fun2 = v8::Utils::OpenHandle(
         *v8::Local<v8::Function>::Cast(env->Global()->Get(v8_str("closure2"))));
-    CHECK(fun1->IsOptimized()
-          || !CcTest::i_isolate()->use_crankshaft() || !fun1->IsOptimizable());
-    CHECK(fun2->IsOptimized()
-          || !CcTest::i_isolate()->use_crankshaft() || !fun2->IsOptimizable());
+    CHECK(fun1->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
+    CHECK(fun2->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
     CHECK_EQ(fun1->code(), fun2->code());
+  }
+}
+
+
+// Test that optimized code for different closures is actually shared
+// immediately by the FastNewClosureStub when run different contexts.
+TEST(OptimizedCodeSharing2) {
+  if (FLAG_stress_compaction) return;
+  FLAG_allow_natives_syntax = true;
+  FLAG_cache_optimized_code = true;
+  FLAG_turbo_cache_shared_code = true;
+  const char* flag = "--turbo-filter=*";
+  FlagList::SetFlagsFromString(flag, StrLength(flag));
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Script> script = v8_compile(
+      "function MakeClosure() {"
+      "  return function() { return x; };"
+      "}");
+  Handle<Code> reference_code;
+  {
+    LocalContext env;
+    env->Global()->Set(v8::String::NewFromUtf8(CcTest::isolate(), "x"),
+                       v8::Integer::New(CcTest::isolate(), 23));
+    script->GetUnboundScript()->BindToCurrentContext()->Run();
+    CompileRun(
+        "var closure0 = MakeClosure();"
+        "%DebugPrint(closure0());"
+        "%OptimizeFunctionOnNextCall(closure0);"
+        "%DebugPrint(closure0());");
+    Handle<JSFunction> fun0 = v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(env->Global()->Get(v8_str("closure0"))));
+    CHECK(fun0->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
+    reference_code = handle(fun0->code());
+  }
+  for (int i = 0; i < 10; i++) {
+    LocalContext env;
+    env->Global()->Set(v8::String::NewFromUtf8(CcTest::isolate(), "x"),
+                       v8::Integer::New(CcTest::isolate(), i));
+    script->GetUnboundScript()->BindToCurrentContext()->Run();
+    CompileRun(
+        "var closure0 = MakeClosure();"
+        "%DebugPrint(closure0());"
+        "%OptimizeFunctionOnNextCall(closure0);"
+        "%DebugPrint(closure0());"
+        "var closure1 = MakeClosure();"
+        "var closure2 = MakeClosure();");
+    Handle<JSFunction> fun1 = v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(env->Global()->Get(v8_str("closure1"))));
+    Handle<JSFunction> fun2 = v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(env->Global()->Get(v8_str("closure2"))));
+    CHECK(fun1->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
+    CHECK(fun2->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
+    CHECK_EQ(*reference_code, fun1->code());
+    CHECK_EQ(*reference_code, fun2->code());
   }
 }
 
@@ -533,6 +585,9 @@ static void CheckCodeForUnsafeLiteral(Handle<JSFunction> f) {
     int decode_size =
         Min(f->code()->instruction_size(),
             static_cast<int>(f->code()->back_edge_table_offset()));
+    if (FLAG_enable_embedded_constant_pool) {
+      decode_size = Min(decode_size, f->code()->constant_pool_offset());
+    }
     Address end = pc + decode_size;
 
     v8::internal::EmbeddedVector<char, 128> decode_buffer;

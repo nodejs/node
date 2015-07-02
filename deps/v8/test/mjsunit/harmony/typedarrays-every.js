@@ -85,8 +85,9 @@ function TestTypedArrayForEach(constructor) {
   // still make .forEach() finish, and the array should keep being
   // empty after neutering it.
   count = 0;
-  a = new constructor(2);
+  a = new constructor(3);
   result = a.every(function (n, index, array) {
+    assertFalse(array[index] === undefined);  // don't get here if neutered
     if (count > 0) %ArrayBufferNeuter(array.buffer);
     array[index] = n + 1;
     count++;
@@ -134,6 +135,16 @@ function TestTypedArrayForEach(constructor) {
     constructor.prototype.every.call(a, function (x) { count++; return true; });
     assertEquals(a.length, count);
   }
+
+  // Shadowing length doesn't affect every, unlike Array.prototype.every
+  a = new constructor([1, 2]);
+  Object.defineProperty(a, 'length', {value: 1});
+  var x = 0;
+  assertEquals(a.every(function(elt) { x += elt; return true; }), true);
+  assertEquals(x, 3);
+  assertEquals(Array.prototype.every.call(a,
+      function(elt) { x += elt; return true; }), true);
+  assertEquals(x, 4);
 }
 
 for (i = 0; i < typedArrayConstructors.length; i++) {

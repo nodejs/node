@@ -482,7 +482,7 @@ TEST(EquivalenceOfLoggingAndTraversal) {
     i::Vector<const char> source = TestSources::GetScriptsSource();
     v8::Handle<v8::String> source_str = v8::String::NewFromUtf8(
         isolate, source.start(), v8::String::kNormalString, source.length());
-    v8::TryCatch try_catch;
+    v8::TryCatch try_catch(isolate);
     v8::Handle<v8::Script> script = CompileWithOrigin(source_str, "");
     if (script.IsEmpty()) {
       v8::String::Utf8Value exception(try_catch.Exception());

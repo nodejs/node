@@ -240,4 +240,5 @@ void Log::MessageBuilder::WriteToLogFile() {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

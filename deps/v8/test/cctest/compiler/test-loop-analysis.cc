@@ -41,7 +41,7 @@ class LoopFinderTester : HandleAndZoneScope {
         graph(main_zone()),
         jsgraph(main_isolate(), &graph, &common, NULL, NULL),
         start(graph.NewNode(common.Start(1))),
-        end(graph.NewNode(common.End(), start)),
+        end(graph.NewNode(common.End(1), start)),
         p0(graph.NewNode(common.Parameter(0), start)),
         zero(jsgraph.Int32Constant(0)),
         one(jsgraph.OneConstant()),

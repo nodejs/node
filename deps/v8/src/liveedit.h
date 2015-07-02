@@ -249,7 +249,7 @@ class JSArrayBasedStruct {
 
  protected:
   void SetField(int field_position, Handle<Object> value) {
-    JSObject::SetElement(array_, field_position, value, NONE, SLOPPY).Assert();
+    JSObject::SetElement(array_, field_position, value, SLOPPY).Assert();
   }
 
   void SetSmiValueField(int field_position, int value) {

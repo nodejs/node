@@ -78,22 +78,55 @@ void DefaultPlatform::EnsureInitialized() {
 }
 
 
+Task* DefaultPlatform::PopTaskInMainThreadQueue(v8::Isolate* isolate) {
+  auto it = main_thread_queue_.find(isolate);
+  if (it == main_thread_queue_.end() || it->second.empty()) {
+    return NULL;
+  }
+  Task* task = it->second.front();
+  it->second.pop();
+  return task;
+}
+
+
+Task* DefaultPlatform::PopTaskInMainThreadDelayedQueue(v8::Isolate* isolate) {
+  auto it = main_thread_delayed_queue_.find(isolate);
+  if (it == main_thread_delayed_queue_.end() || it->second.empty()) {
+    return NULL;
+  }
+  double now = MonotonicallyIncreasingTime();
+  std::pair<double, Task*> deadline_and_task = it->second.top();
+  if (deadline_and_task.first > now) {
+    return NULL;
+  }
+  it->second.pop();
+  return deadline_and_task.second;
+}
+
+
 bool DefaultPlatform::PumpMessageLoop(v8::Isolate* isolate) {
   Task* task = NULL;
   {
     base::LockGuard<base::Mutex> guard(&lock_);
-    std::map<v8::Isolate*, std::queue<Task*> >::iterator it =
-        main_thread_queue_.find(isolate);
-    if (it == main_thread_queue_.end() || it->second.empty()) {
+
+    // Move delayed tasks that hit their deadline to the main queue.
+    task = PopTaskInMainThreadDelayedQueue(isolate);
+    while (task != NULL) {
+      main_thread_queue_[isolate].push(task);
+      task = PopTaskInMainThreadDelayedQueue(isolate);
+    }
+
+    task = PopTaskInMainThreadQueue(isolate);
+
+    if (task == NULL) {
       return false;
     }
-    task = it->second.front();
-    it->second.pop();
   }
   task->Run();
   delete task;
   return true;
 }
+
 
 void DefaultPlatform::CallOnBackgroundThread(Task *task,
                                              ExpectedRuntime expected_runtime) {
@@ -105,6 +138,14 @@ void DefaultPlatform::CallOnBackgroundThread(Task *task,
 void DefaultPlatform::CallOnForegroundThread(v8::Isolate* isolate, Task* task) {
   base::LockGuard<base::Mutex> guard(&lock_);
   main_thread_queue_[isolate].push(task);
+}
+
+
+void DefaultPlatform::CallDelayedOnForegroundThread(Isolate* isolate,
+                                                    Task* task,
+                                                    double delay_in_seconds) {
+  double deadline = MonotonicallyIncreasingTime() + delay_in_seconds;
+  main_thread_delayed_queue_[isolate].push(std::make_pair(deadline, task));
 }
 
 

@@ -1641,7 +1641,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             } else if (*data == 0x16) {
               data++;
               int mod, regop, rm;
-              get_modrm(*data, &mod, &regop, &rm);
+              get_modrm(*data, &mod, &rm, &regop);
               int8_t imm8 = static_cast<int8_t>(data[1]);
               AppendToBuffer("pextrd %s,%s,%d",
                              NameOfCPURegister(regop),

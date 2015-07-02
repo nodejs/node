@@ -129,17 +129,8 @@ class BreakLocation {
 
  private:
   BreakLocation(Handle<DebugInfo> debug_info, RelocInfo* rinfo,
-                RelocInfo* original_rinfo, int position, int statement_position)
-      : debug_info_(debug_info),
-        pc_offset_(static_cast<int>(rinfo->pc() - debug_info->code()->entry())),
-        original_pc_offset_(static_cast<int>(
-            original_rinfo->pc() - debug_info->original_code()->entry())),
-        rmode_(rinfo->rmode()),
-        original_rmode_(original_rinfo->rmode()),
-        data_(rinfo->data()),
-        original_data_(original_rinfo->data()),
-        position_(position),
-        statement_position_(statement_position) {}
+                RelocInfo* original_rinfo, int position,
+                int statement_position);
 
   class Iterator {
    public:
@@ -186,6 +177,7 @@ class BreakLocation {
     int break_index_;
     int position_;
     int statement_position_;
+    bool has_immediate_position_;
 
     DisallowHeapAllocation no_gc_;
 
@@ -228,31 +220,22 @@ class BreakLocation {
 // to it is created and that weak handle is stored in the cache. The weak handle
 // callback takes care of removing the script from the cache. The key used in
 // the cache is the script id.
-class ScriptCache : private HashMap {
+class ScriptCache {
  public:
   explicit ScriptCache(Isolate* isolate);
-  virtual ~ScriptCache() { Clear(); }
+  ~ScriptCache();
 
   // Add script to the cache.
   void Add(Handle<Script> script);
 
   // Return the scripts in the cache.
-  Handle<FixedArray> GetScripts();
-
- private:
-  // Calculate the hash value from the key (script id).
-  static uint32_t Hash(int key) {
-    return ComputeIntegerHash(key, v8::internal::kZeroHashSeed);
+  Handle<FixedArray> GetScripts() {
+    return WeakValueHashTable::GetWeakValues(table_);
   }
 
-  // Clear the cache releasing all the weak handles.
-  void Clear();
-
-  // Weak handle callback for scripts in the cache.
-  static void HandleWeakScript(
-      const v8::WeakCallbackData<v8::Value, void>& data);
-
+ private:
   Isolate* isolate_;
+  Handle<WeakValueHashTable> table_;
 };
 
 
@@ -498,6 +481,9 @@ class Debug {
   static Handle<DebugInfo> GetDebugInfo(Handle<SharedFunctionInfo> shared);
   static bool HasDebugInfo(Handle<SharedFunctionInfo> shared);
 
+  template <typename C>
+  bool CompileToRevealInnerFunctions(C* compilable);
+
   // This function is used in FunctionNameUsing* tests.
   Handle<Object> FindSharedFunctionInfoInScript(Handle<Script> script,
                                                 int position);
@@ -534,7 +520,8 @@ class Debug {
   static void RecordEvalCaller(Handle<Script> script);
 
   bool CheckExecutionState(int id) {
-    return !debug_context().is_null() && break_id() != 0 && break_id() == id;
+    return is_active() && !debug_context().is_null() && break_id() != 0 &&
+           break_id() == id;
   }
 
   // Flags and states.

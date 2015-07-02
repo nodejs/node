@@ -241,7 +241,7 @@ class JavaScriptMinifier(object):
       # A regexp that matches a literal string surrounded by 'single quotes'.
       single_quoted_string = r"'(?:[^'\\]|\\.)*'"
       # A regexp that matches a template string
-      template_string = r"`(?:[^'\\]|\\.)*`"
+      template_string = r"`(?:[^`\\]|\\.)*`"
       # A regexp that matches a regexp literal surrounded by /slashes/.
       # Don't allow a regexp to have a ) before the first ( since that's a
       # syntax error and it's probably just two unrelated slashes.

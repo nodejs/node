@@ -586,5 +586,5 @@ RUNTIME_FUNCTION(Runtime_GetRootNaN) {
   DCHECK(args.length() == 0);
   return isolate->heap()->nan_value();
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

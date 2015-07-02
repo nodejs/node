@@ -98,11 +98,6 @@ class Accessors : public AllStatic {
   static Handle<ExecutableAccessorInfo> CloneAccessor(
       Isolate* isolate,
       Handle<ExecutableAccessorInfo> accessor);
-
-
- private:
-  // Helper functions.
-  static Handle<Object> FlattenNumber(Isolate* isolate, Handle<Object> value);
 };
 
 } }  // namespace v8::internal

@@ -102,4 +102,5 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

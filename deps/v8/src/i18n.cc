@@ -947,4 +947,5 @@ void BreakIterator::DeleteBreakIterator(
   DestroyGlobalHandle(data);
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

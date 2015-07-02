@@ -560,4 +560,5 @@ bool IsSpecialIndex(UnicodeCache* unicode_cache, String* string) {
   }
   return true;
 }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

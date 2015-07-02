@@ -35,6 +35,7 @@ FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 SELF_SCRIPT_PATTERN = re.compile(r"//\s+Env: TEST_FILE_NAME")
 MODULE_PATTERN = re.compile(r"^// MODULE$", flags=re.MULTILINE)
+NO_HARNESS_PATTERN = re.compile(r"^// NO HARNESS$", flags=re.MULTILINE)
 
 
 class MjsunitTestSuite(testsuite.TestSuite):
@@ -79,7 +80,7 @@ class MjsunitTestSuite(testsuite.TestSuite):
       env = ["-e", "TEST_FILE_NAME=\"%s\"" % testfilename.replace("\\", "\\\\")]
       files = env + files
 
-    if not context.no_harness:
+    if not context.no_harness and not NO_HARNESS_PATTERN.search(source):
       files.append(os.path.join(self.root, "mjsunit.js"))
 
     if MODULE_PATTERN.search(source):

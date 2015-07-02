@@ -92,9 +92,15 @@ class ExternalStreamingStream : public BufferedUtf16CharacterStream {
         current_data_(NULL),
         current_data_offset_(0),
         current_data_length_(0),
-        utf8_split_char_buffer_length_(0) {}
+        utf8_split_char_buffer_length_(0),
+        bookmark_(0),
+        bookmark_utf8_split_char_buffer_length_(0) {}
 
-  virtual ~ExternalStreamingStream() { delete[] current_data_; }
+  virtual ~ExternalStreamingStream() {
+    delete[] current_data_;
+    bookmark_buffer_.Dispose();
+    bookmark_data_.Dispose();
+  }
 
   size_t BufferSeekForward(size_t delta) override {
     // We never need to seek forward when streaming scripts. We only seek
@@ -107,8 +113,12 @@ class ExternalStreamingStream : public BufferedUtf16CharacterStream {
 
   size_t FillBuffer(size_t position) override;
 
+  virtual bool SetBookmark() override;
+  virtual void ResetToBookmark() override;
+
  private:
   void HandleUtf8SplitCharacters(size_t* data_in_buffer);
+  void FlushCurrent();
 
   ScriptCompiler::ExternalSourceStream* source_stream_;
   v8::ScriptCompiler::StreamedSource::Encoding encoding_;
@@ -118,6 +128,14 @@ class ExternalStreamingStream : public BufferedUtf16CharacterStream {
   // For converting UTF-8 characters which are split across two data chunks.
   uint8_t utf8_split_char_buffer_[4];
   size_t utf8_split_char_buffer_length_;
+
+  // Bookmark support. See comments in ExternalStreamingStream::SetBookmark
+  // for additional details.
+  size_t bookmark_;
+  Vector<uint16_t> bookmark_buffer_;
+  Vector<uint8_t> bookmark_data_;
+  uint8_t bookmark_utf8_split_char_buffer_[4];
+  size_t bookmark_utf8_split_char_buffer_length_;
 };
 
 

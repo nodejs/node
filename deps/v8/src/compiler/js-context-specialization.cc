@@ -5,9 +5,11 @@
 #include "src/compiler/js-context-specialization.h"
 
 #include "src/compiler/common-operator.h"
+#include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
+#include "src/contexts.h"
 
 namespace v8 {
 namespace internal {
@@ -27,7 +29,7 @@ Reduction JSContextSpecializer::Reduce(Node* node) {
 Reduction JSContextSpecializer::ReduceJSLoadContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadContext, node->opcode());
 
-  HeapObjectMatcher<Context> m(NodeProperties::GetValueInput(node, 0));
+  HeapObjectMatcher m(NodeProperties::GetValueInput(node, 0));
   // If the context is not constant, no reduction can occur.
   if (!m.HasValue()) {
     return NoChange();
@@ -36,9 +38,9 @@ Reduction JSContextSpecializer::ReduceJSLoadContext(Node* node) {
   const ContextAccess& access = ContextAccessOf(node->op());
 
   // Find the right parent context.
-  Context* context = *m.Value().handle();
+  Handle<Context> context = Handle<Context>::cast(m.Value().handle());
   for (size_t i = access.depth(); i > 0; --i) {
-    context = context->previous();
+    context = handle(context->previous(), isolate());
   }
 
   // If the access itself is mutable, only fold-in the parent.
@@ -50,13 +52,11 @@ Reduction JSContextSpecializer::ReduceJSLoadContext(Node* node) {
     const Operator* op = jsgraph_->javascript()->LoadContext(
         0, access.index(), access.immutable());
     node->set_op(op);
-    Handle<Object> context_handle =
-        Handle<Object>(context, jsgraph_->isolate());
-    node->ReplaceInput(0, jsgraph_->Constant(context_handle));
+    node->ReplaceInput(0, jsgraph_->Constant(context));
     return Changed(node);
   }
-  Handle<Object> value = Handle<Object>(
-      context->get(static_cast<int>(access.index())), jsgraph_->isolate());
+  Handle<Object> value =
+      handle(context->get(static_cast<int>(access.index())), isolate());
 
   // Even though the context slot is immutable, the context might have escaped
   // before the function to which it belongs has initialized the slot.
@@ -70,7 +70,7 @@ Reduction JSContextSpecializer::ReduceJSLoadContext(Node* node) {
   // TODO(titzer): record the specialization for sharing code across multiple
   // contexts that have the same value in the corresponding context slot.
   Node* constant = jsgraph_->Constant(value);
-  NodeProperties::ReplaceWithValue(node, constant);
+  ReplaceWithValue(node, constant);
   return Replace(constant);
 }
 
@@ -78,7 +78,7 @@ Reduction JSContextSpecializer::ReduceJSLoadContext(Node* node) {
 Reduction JSContextSpecializer::ReduceJSStoreContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSStoreContext, node->opcode());
 
-  HeapObjectMatcher<Context> m(NodeProperties::GetValueInput(node, 0));
+  HeapObjectMatcher m(NodeProperties::GetValueInput(node, 0));
   // If the context is not constant, no reduction can occur.
   if (!m.HasValue()) {
     return NoChange();
@@ -92,18 +92,22 @@ Reduction JSContextSpecializer::ReduceJSStoreContext(Node* node) {
   }
 
   // Find the right parent context.
-  Context* context = *m.Value().handle();
+  Handle<Context> context = Handle<Context>::cast(m.Value().handle());
   for (size_t i = access.depth(); i > 0; --i) {
-    context = context->previous();
+    context = handle(context->previous(), isolate());
   }
 
-  const Operator* op = jsgraph_->javascript()->StoreContext(0, access.index());
-  node->set_op(op);
-  Handle<Object> new_context_handle =
-      Handle<Object>(context, jsgraph_->isolate());
-  node->ReplaceInput(0, jsgraph_->Constant(new_context_handle));
-
+  node->set_op(javascript()->StoreContext(0, access.index()));
+  node->ReplaceInput(0, jsgraph_->Constant(context));
   return Changed(node);
+}
+
+
+Isolate* JSContextSpecializer::isolate() const { return jsgraph()->isolate(); }
+
+
+JSOperatorBuilder* JSContextSpecializer::javascript() const {
+  return jsgraph()->javascript();
 }
 
 }  // namespace compiler

@@ -59,8 +59,8 @@ bool Variable::IsGlobalObjectProperty() const {
   // Temporaries are never global, they must always be allocated in the
   // activation frame.
   return (IsDynamicVariableMode(mode_) ||
-          (IsDeclaredVariableMode(mode_) && !IsLexicalVariableMode(mode_)))
-      && scope_ != NULL && scope_->is_script_scope();
+          (IsDeclaredVariableMode(mode_) && !IsLexicalVariableMode(mode_))) &&
+         scope_ != NULL && scope_->is_script_scope() && !is_this();
 }
 
 
@@ -71,4 +71,5 @@ int Variable::CompareIndex(Variable* const* v, Variable* const* w) {
   return x - y;
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

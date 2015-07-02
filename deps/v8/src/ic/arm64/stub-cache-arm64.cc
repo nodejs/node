@@ -116,8 +116,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
   // extra3 don't conflict with the vector and slot registers, which need
   // to be preserved for a handler call or miss.
   if (IC::ICUseVector(ic_kind)) {
-    Register vector = VectorLoadICDescriptor::VectorRegister();
-    Register slot = VectorLoadICDescriptor::SlotRegister();
+    Register vector = LoadWithVectorDescriptor::VectorRegister();
+    Register slot = LoadWithVectorDescriptor::SlotRegister();
     DCHECK(!AreAliased(vector, slot, scratch, extra, extra2, extra3));
   }
 #endif
@@ -157,7 +157,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
   __ IncrementCounter(counters->megamorphic_stub_cache_misses(), 1, extra2,
                       extra3);
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_ARM64

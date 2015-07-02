@@ -26,6 +26,12 @@ RegExpMacroAssemblerTracer::~RegExpMacroAssemblerTracer() {
 }
 
 
+void RegExpMacroAssemblerTracer::AbortedCodeGeneration() {
+  PrintF(" AbortedCodeGeneration\n");
+  assembler_->AbortedCodeGeneration();
+}
+
+
 // This is used for printing out debugging information.  It makes an integer
 // that is closely related to the address of an object.
 static int LabelToInt(Label* label) {
@@ -409,4 +415,5 @@ Handle<HeapObject> RegExpMacroAssemblerTracer::GetCode(Handle<String> source) {
   return assembler_->GetCode(source);
 }
 
-}}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

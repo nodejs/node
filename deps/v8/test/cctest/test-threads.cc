@@ -32,12 +32,7 @@
 #include "src/isolate.h"
 
 
-enum Turn {
-  FILL_CACHE,
-  CLEAN_CACHE,
-  SECOND_TIME_FILL_CACHE,
-  DONE
-};
+enum Turn { FILL_CACHE, CLEAN_CACHE, SECOND_TIME_FILL_CACHE, CACHE_DONE };
 
 static Turn turn = FILL_CACHE;
 
@@ -76,7 +71,7 @@ class ThreadA : public v8::base::Thread {
     // Rerun the script.
     CHECK(script->Run()->IsTrue());
 
-    turn = DONE;
+    turn = CACHE_DONE;
   }
 };
 
@@ -116,7 +111,7 @@ TEST(JSFunctionResultCachesInTwoThreads) {
   threadA.Join();
   threadB.Join();
 
-  CHECK_EQ(DONE, turn);
+  CHECK_EQ(CACHE_DONE, turn);
 }
 
 class ThreadIdValidationThread : public v8::base::Thread {

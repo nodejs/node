@@ -34,7 +34,7 @@ class TestCase(object):
     self.path = path          # string, e.g. 'div-mod', 'test-api/foo'
     self.flags = flags or []  # list of strings, flags specific to this test
     self.dependency = dependency  # |path| for testcase that must be run first
-    self.outcomes = None
+    self.outcomes = set([])
     self.output = None
     self.id = None  # int, used to map result back to TestCase instance
     self.duration = None  # assigned during execution

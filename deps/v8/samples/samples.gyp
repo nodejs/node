@@ -62,6 +62,12 @@
       ],
     },
     {
+      'target_name': 'hello-world',
+      'sources': [
+        'hello-world.cc',
+      ],
+    },
+    {
       'target_name': 'process',
       'sources': [
         'process.cc',

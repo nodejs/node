@@ -14,17 +14,6 @@ namespace internal {
 namespace compiler {
 
 
-// Helper method that assumes replacement nodes are pure values that don't
-// produce an effect. Replaces {node} with {reduction} and relaxes effects.
-static Reduction ReplaceWithPureReduction(Node* node, Reduction reduction) {
-  if (reduction.Changed()) {
-    NodeProperties::ReplaceWithValue(node, reduction.replacement());
-    return reduction;
-  }
-  return Reducer::NoChange();
-}
-
-
 // Helper class to access JSCallFunction nodes that are potential candidates
 // for reduction when they have a BuiltinFunctionId associated with them.
 class JSCallReduction {
@@ -35,7 +24,7 @@ class JSCallReduction {
   // constant callee being a well-known builtin with a BuiltinFunctionId.
   bool HasBuiltinFunctionId() {
     if (node_->opcode() != IrOpcode::kJSCallFunction) return false;
-    HeapObjectMatcher<Object> m(NodeProperties::GetValueInput(node_, 0));
+    HeapObjectMatcher m(NodeProperties::GetValueInput(node_, 0));
     if (!m.HasValue() || !m.Value().handle()->IsJSFunction()) return false;
     Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value().handle());
     return function->shared()->HasBuiltinFunctionId();
@@ -44,7 +33,7 @@ class JSCallReduction {
   // Retrieves the BuiltinFunctionId as described above.
   BuiltinFunctionId GetBuiltinFunctionId() {
     DCHECK_EQ(IrOpcode::kJSCallFunction, node_->opcode());
-    HeapObjectMatcher<Object> m(NodeProperties::GetValueInput(node_, 0));
+    HeapObjectMatcher m(NodeProperties::GetValueInput(node_, 0));
     Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value().handle());
     return function->shared()->builtin_function_id();
   }
@@ -96,8 +85,10 @@ class JSCallReduction {
 };
 
 
-JSBuiltinReducer::JSBuiltinReducer(JSGraph* jsgraph)
-    : jsgraph_(jsgraph), simplified_(jsgraph->zone()) {}
+JSBuiltinReducer::JSBuiltinReducer(Editor* editor, JSGraph* jsgraph)
+    : AdvancedReducer(editor),
+      jsgraph_(jsgraph),
+      simplified_(jsgraph->zone()) {}
 
 
 // ECMA-262, section 15.8.2.11.
@@ -153,21 +144,30 @@ Reduction JSBuiltinReducer::ReduceMathFround(Node* node) {
 
 
 Reduction JSBuiltinReducer::Reduce(Node* node) {
+  Reduction reduction = NoChange();
   JSCallReduction r(node);
 
   // Dispatch according to the BuiltinFunctionId if present.
   if (!r.HasBuiltinFunctionId()) return NoChange();
   switch (r.GetBuiltinFunctionId()) {
     case kMathMax:
-      return ReplaceWithPureReduction(node, ReduceMathMax(node));
+      reduction = ReduceMathMax(node);
+      break;
     case kMathImul:
-      return ReplaceWithPureReduction(node, ReduceMathImul(node));
+      reduction = ReduceMathImul(node);
+      break;
     case kMathFround:
-      return ReplaceWithPureReduction(node, ReduceMathFround(node));
+      reduction = ReduceMathFround(node);
+      break;
     default:
       break;
   }
-  return NoChange();
+
+  // Replace builtin call assuming replacement nodes are pure values that don't
+  // produce an effect. Replaces {node} with {reduction} and relaxes effects.
+  if (reduction.Changed()) ReplaceWithValue(node, reduction.replacement());
+
+  return reduction;
 }
 
 

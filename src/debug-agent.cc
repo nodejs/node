@@ -160,7 +160,10 @@ void Agent::Stop() {
 
 void Agent::WorkerRun() {
   static const char* argv[] = { "node", "--debug-agent" };
-  Isolate* isolate = Isolate::New();
+  Isolate::CreateParams params;
+  ArrayBufferAllocator array_buffer_allocator;
+  params.array_buffer_allocator = &array_buffer_allocator;
+  Isolate* isolate = Isolate::New(params);
   {
     Locker locker(isolate);
     Isolate::Scope isolate_scope(isolate);

@@ -1580,13 +1580,11 @@ class ScheduleLateNodeVisitor {
 
   Node* CloneNode(Node* node) {
     int const input_count = node->InputCount();
-    Node** const inputs = scheduler_->zone_->NewArray<Node*>(input_count);
     for (int index = 0; index < input_count; ++index) {
       Node* const input = node->InputAt(index);
       scheduler_->IncrementUnscheduledUseCount(input, index, node);
-      inputs[index] = input;
     }
-    Node* copy = scheduler_->graph_->NewNode(node->op(), input_count, inputs);
+    Node* const copy = scheduler_->graph_->CloneNode(node);
     TRACE(("clone #%d:%s -> #%d\n"), node->id(), node->op()->mnemonic(),
           copy->id());
     scheduler_->node_data_.resize(copy->id() + 1,

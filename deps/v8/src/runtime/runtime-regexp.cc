@@ -7,6 +7,7 @@
 #include "src/arguments.h"
 #include "src/jsregexp-inl.h"
 #include "src/jsregexp.h"
+#include "src/messages.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/string-builder.h"
 #include "src/string-search.h"
@@ -637,7 +638,11 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
   // fresly allocated page or on an already swept page. Hence, the sweeper
   // thread can not get confused with the filler creation. No synchronization
   // needed.
-  heap->CreateFillerObjectAt(end_of_string, delta);
+  // TODO(hpayer): We should shrink the large object page if the size
+  // of the object changed significantly.
+  if (!heap->lo_space()->Contains(*answer)) {
+    heap->CreateFillerObjectAt(end_of_string, delta);
+  }
   heap->AdjustLiveBytes(answer->address(), -delta, Heap::CONCURRENT_TO_SWEEPER);
   return *answer;
 }
@@ -912,11 +917,9 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
   bool success = false;
   JSRegExp::Flags flags = RegExpFlagsFromString(flags_string, &success);
   if (!success) {
-    Handle<FixedArray> element = factory->NewFixedArray(1);
-    element->set(0, *flags_string);
-    Handle<JSArray> args = factory->NewJSArrayWithElements(element);
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewSyntaxError("invalid_regexp_flags", args));
+        isolate,
+        NewSyntaxError(MessageTemplate::kInvalidRegExpFlags, flags_string));
   }
 
   Handle<String> escaped_source;
@@ -1186,5 +1189,5 @@ RUNTIME_FUNCTION(Runtime_IsRegExp) {
   CONVERT_ARG_CHECKED(Object, obj, 0);
   return isolate->heap()->ToBoolean(obj->IsJSRegExp());
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

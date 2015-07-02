@@ -5,14 +5,18 @@
 // This file contains support for URI manipulations written in
 // JavaScript.
 
-(function(global, shared, exports) {
+(function(global, utils) {
 
 "use strict";
 
 %CheckIsBootstrapping();
 
+//- ------------------------------------------------------------------
+// Imports
+
 var GlobalObject = global.Object;
 var GlobalArray = global.Array;
+var InternalArray = utils.InternalArray;
 
 // -------------------------------------------------------------------
 // Define internal helper functions.
@@ -160,11 +164,12 @@ function URIDecodeOctets(octets, result, index) {
 
 // ECMA-262, section 15.1.3
 function Encode(uri, unescape) {
+  uri = TO_STRING_INLINE(uri);
   var uriLength = uri.length;
   var array = new InternalArray(uriLength);
   var index = 0;
   for (var k = 0; k < uriLength; k++) {
-    var cc1 = uri.charCodeAt(k);
+    var cc1 = %_StringCharCodeAt(uri, k);
     if (unescape(cc1)) {
       array[index++] = cc1;
     } else {
@@ -174,7 +179,7 @@ function Encode(uri, unescape) {
       } else {
         k++;
         if (k == uriLength) throw MakeURIError();
-        var cc2 = uri.charCodeAt(k);
+        var cc2 = %_StringCharCodeAt(uri, k);
         if (cc2 < 0xDC00 || cc2 > 0xDFFF) throw MakeURIError();
         index = URIEncodePair(cc1, cc2, array, index);
       }
@@ -190,6 +195,7 @@ function Encode(uri, unescape) {
 
 // ECMA-262, section 15.1.3
 function Decode(uri, reserved) {
+  uri = TO_STRING_INLINE(uri);
   var uriLength = uri.length;
   var one_byte = %NewString(uriLength, NEW_ONE_BYTE_STRING);
   var index = 0;
@@ -197,15 +203,18 @@ function Decode(uri, reserved) {
 
   // Optimistically assume one-byte string.
   for ( ; k < uriLength; k++) {
-    var code = uri.charCodeAt(k);
+    var code = %_StringCharCodeAt(uri, k);
     if (code == 37) {  // '%'
       if (k + 2 >= uriLength) throw MakeURIError();
-      var cc = URIHexCharsToCharCode(uri.charCodeAt(k+1), uri.charCodeAt(k+2));
+      var cc = URIHexCharsToCharCode(%_StringCharCodeAt(uri, k+1),
+                                     %_StringCharCodeAt(uri, k+2));
       if (cc >> 7) break;  // Assumption wrong, two-byte string.
       if (reserved(cc)) {
         %_OneByteSeqStringSetChar(index++, 37, one_byte);  // '%'.
-        %_OneByteSeqStringSetChar(index++, uri.charCodeAt(k+1), one_byte);
-        %_OneByteSeqStringSetChar(index++, uri.charCodeAt(k+2), one_byte);
+        %_OneByteSeqStringSetChar(index++, %_StringCharCodeAt(uri, k+1),
+                                  one_byte);
+        %_OneByteSeqStringSetChar(index++, %_StringCharCodeAt(uri, k+2),
+                                  one_byte);
       } else {
         %_OneByteSeqStringSetChar(index++, cc, one_byte);
       }
@@ -224,10 +233,11 @@ function Decode(uri, reserved) {
   index = 0;
 
   for ( ; k < uriLength; k++) {
-    var code = uri.charCodeAt(k);
+    var code = %_StringCharCodeAt(uri, k);
     if (code == 37) {  // '%'
       if (k + 2 >= uriLength) throw MakeURIError();
-      var cc = URIHexCharsToCharCode(uri.charCodeAt(++k), uri.charCodeAt(++k));
+      var cc = URIHexCharsToCharCode(%_StringCharCodeAt(uri, ++k),
+                                     %_StringCharCodeAt(uri, ++k));
       if (cc >> 7) {
         var n = 0;
         while (((cc << ++n) & 0x80) != 0) { }
@@ -236,15 +246,17 @@ function Decode(uri, reserved) {
         octets[0] = cc;
         if (k + 3 * (n - 1) >= uriLength) throw MakeURIError();
         for (var i = 1; i < n; i++) {
-          if (uri.charAt(++k) != '%') throw MakeURIError();
-          octets[i] = URIHexCharsToCharCode(uri.charCodeAt(++k),
-                                            uri.charCodeAt(++k));
+          if (uri[++k] != '%') throw MakeURIError();
+          octets[i] = URIHexCharsToCharCode(%_StringCharCodeAt(uri, ++k),
+                                            %_StringCharCodeAt(uri, ++k));
         }
         index = URIDecodeOctets(octets, two_byte, index);
       } else  if (reserved(cc)) {
         %_TwoByteSeqStringSetChar(index++, 37, two_byte);  // '%'.
-        %_TwoByteSeqStringSetChar(index++, uri.charCodeAt(k - 1), two_byte);
-        %_TwoByteSeqStringSetChar(index++, uri.charCodeAt(k), two_byte);
+        %_TwoByteSeqStringSetChar(index++, %_StringCharCodeAt(uri, k - 1),
+                                  two_byte);
+        %_TwoByteSeqStringSetChar(index++, %_StringCharCodeAt(uri, k),
+                                  two_byte);
       } else {
         %_TwoByteSeqStringSetChar(index++, cc, two_byte);
       }
@@ -356,7 +368,7 @@ function URIEncodeComponent(component) {
 
 // Set up non-enumerable URI functions on the global object and set
 // their names.
-$installFunctions(global, DONT_ENUM, [
+utils.InstallFunctions(global, DONT_ENUM, [
   "escape", URIEscapeJS,
   "unescape", URIUnescapeJS,
   "decodeURI", URIDecode,

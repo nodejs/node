@@ -261,6 +261,12 @@ class ContextifyContext {
     if (script_source.IsEmpty())
       return;  // Exception pending.
     Local<Context> debug_context = Debug::GetDebugContext();
+    if (debug_context.IsEmpty()) {
+      // Force-load the debug context.
+      Debug::GetMirror(args.GetIsolate()->GetCurrentContext(), args[0]);
+      debug_context = Debug::GetDebugContext();
+      CHECK(!debug_context.IsEmpty());
+    }
     Environment* env = Environment::GetCurrent(args);
     ScopedEnvironment env_scope(debug_context, env);
     Context::Scope context_scope(debug_context);

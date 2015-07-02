@@ -85,7 +85,6 @@ class ConstructFrameConstants : public AllStatic {
  public:
   // FP-relative.
   static const int kImplicitReceiverOffset = -5 * kPointerSize;
-  static const int kConstructorOffset      = kMinInt;
   static const int kLengthOffset           = -4 * kPointerSize;
   static const int kCodeOffset = StandardFrameConstants::kExpressionsOffset;
 
