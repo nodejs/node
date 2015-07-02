@@ -117,7 +117,7 @@ Example: compile and execute code that increments a global variable and sets a
 new one. These globals are contained in the sandbox.
 
     var util = require('util');
-    var vm = require('vm'),
+    var vm = require('vm');
 
     var sandbox = {
       animal: 'cat',
