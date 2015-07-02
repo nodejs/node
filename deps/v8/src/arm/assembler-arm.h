@@ -94,7 +94,7 @@ const int kRegister_pc_Code = 15;
 struct Register {
   static const int kNumRegisters = 16;
   static const int kMaxNumAllocatableRegisters =
-      FLAG_enable_ool_constant_pool ? 8 : 9;
+      FLAG_enable_embedded_constant_pool ? 8 : 9;
   static const int kSizeInBytes = 4;
 
   inline static int NumAllocatableRegisters();
@@ -122,7 +122,7 @@ struct Register {
       "r7",
       "r8",
     };
-    if (FLAG_enable_ool_constant_pool && (index >= 7)) {
+    if (FLAG_enable_embedded_constant_pool && (index >= 7)) {
       return names[index + 1];
     }
     return names[index];
@@ -164,7 +164,7 @@ const Register r5  = { kRegister_r5_Code };
 const Register r6  = { kRegister_r6_Code };
 // Used as context register.
 const Register r7 = {kRegister_r7_Code};
-// Used as constant pool pointer register if FLAG_enable_ool_constant_pool.
+// Used as constant pool pointer register if FLAG_enable_embedded_constant_pool.
 const Register r8  = { kRegister_r8_Code };
 // Used as lithium codegen scratch register.
 const Register r9  = { kRegister_r9_Code };
@@ -651,52 +651,6 @@ class NeonListOperand BASE_EMBEDDED {
 };
 
 
-// Class used to build a constant pool.
-class ConstantPoolBuilder BASE_EMBEDDED {
- public:
-  ConstantPoolBuilder();
-  ConstantPoolArray::LayoutSection AddEntry(Assembler* assm,
-                                            const RelocInfo& rinfo);
-  void Relocate(int pc_delta);
-  bool IsEmpty();
-  Handle<ConstantPoolArray> New(Isolate* isolate);
-  void Populate(Assembler* assm, ConstantPoolArray* constant_pool);
-
-  inline ConstantPoolArray::LayoutSection current_section() const {
-    return current_section_;
-  }
-
-  inline ConstantPoolArray::NumberOfEntries* number_of_entries(
-      ConstantPoolArray::LayoutSection section) {
-    return &number_of_entries_[section];
-  }
-
-  inline ConstantPoolArray::NumberOfEntries* small_entries() {
-    return number_of_entries(ConstantPoolArray::SMALL_SECTION);
-  }
-
-  inline ConstantPoolArray::NumberOfEntries* extended_entries() {
-    return number_of_entries(ConstantPoolArray::EXTENDED_SECTION);
-  }
-
- private:
-  struct ConstantPoolEntry {
-    ConstantPoolEntry(RelocInfo rinfo, ConstantPoolArray::LayoutSection section,
-                      int merged_index)
-        : rinfo_(rinfo), section_(section), merged_index_(merged_index) {}
-
-    RelocInfo rinfo_;
-    ConstantPoolArray::LayoutSection section_;
-    int merged_index_;
-  };
-
-  ConstantPoolArray::Type GetConstantPoolType(RelocInfo::Mode rmode);
-
-  std::vector<ConstantPoolEntry> entries_;
-  ConstantPoolArray::LayoutSection current_section_;
-  ConstantPoolArray::NumberOfEntries number_of_entries_[2];
-};
-
 struct VmovIndex {
   unsigned char index;
 };
@@ -754,19 +708,16 @@ class Assembler : public AssemblerBase {
 
   // Return the address in the constant pool of the code target address used by
   // the branch/call instruction at pc, or the object in a mov.
-  INLINE(static Address constant_pool_entry_address(
-    Address pc, ConstantPoolArray* constant_pool));
+  INLINE(static Address constant_pool_entry_address(Address pc,
+                                                    Address constant_pool));
 
   // Read/Modify the code target address in the branch/call instruction at pc.
-  INLINE(static Address target_address_at(Address pc,
-                                          ConstantPoolArray* constant_pool));
-  INLINE(static void set_target_address_at(Address pc,
-                                           ConstantPoolArray* constant_pool,
-                                           Address target,
-                                           ICacheFlushMode icache_flush_mode =
-                                               FLUSH_ICACHE_IF_NEEDED));
+  INLINE(static Address target_address_at(Address pc, Address constant_pool));
+  INLINE(static void set_target_address_at(
+      Address pc, Address constant_pool, Address target,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
   INLINE(static Address target_address_at(Address pc, Code* code)) {
-    ConstantPoolArray* constant_pool = code ? code->constant_pool() : NULL;
+    Address constant_pool = code ? code->constant_pool() : NULL;
     return target_address_at(pc, constant_pool);
   }
   INLINE(static void set_target_address_at(Address pc,
@@ -774,7 +725,7 @@ class Assembler : public AssemblerBase {
                                            Address target,
                                            ICacheFlushMode icache_flush_mode =
                                                FLUSH_ICACHE_IF_NEEDED)) {
-    ConstantPoolArray* constant_pool = code ? code->constant_pool() : NULL;
+    Address constant_pool = code ? code->constant_pool() : NULL;
     set_target_address_at(pc, constant_pool, target, icache_flush_mode);
   }
 
@@ -841,6 +792,9 @@ class Assembler : public AssemblerBase {
   // possible to align the pc offset to a multiple
   // of m. m must be a power of 2 (>= 4).
   void Align(int m);
+  // Insert the smallest number of zero bytes possible to align the pc offset
+  // to a mulitple of m. m must be a power of 2 (>= 2).
+  void DataAlign(int m);
   // Aligns code to something that's optimal for a jump target for the platform.
   void CodeTargetAlign();
 
@@ -1450,11 +1404,13 @@ class Assembler : public AssemblerBase {
   void RecordConstPool(int size);
 
   // Writes a single byte or word of data in the code stream.  Used
-  // for inline tables, e.g., jump-tables. The constant pool should be
-  // emitted before any use of db and dd to ensure that constant pools
+  // for inline tables, e.g., jump-tables. CheckConstantPool() should be
+  // called before any use of db/dd/dq/dp to ensure that constant pools
   // are not emitted as part of the tables generated.
   void db(uint8_t data);
   void dd(uint32_t data);
+  void dq(uint64_t data);
+  void dp(uintptr_t data) { dd(data); }
 
   // Emits the address of the code stub's first instruction.
   void emit_code_stub_address(Code* stub);
@@ -1526,8 +1482,8 @@ class Assembler : public AssemblerBase {
   static const int kMaxDistToIntPool = 4*KB;
   static const int kMaxDistToFPPool = 1*KB;
   // All relocations could be integer, it therefore acts as the limit.
-  static const int kMaxNumPending32RelocInfo = kMaxDistToIntPool/kInstrSize;
-  static const int kMaxNumPending64RelocInfo = kMaxDistToFPPool/kInstrSize;
+  static const int kMaxNumPending32Constants = kMaxDistToIntPool / kInstrSize;
+  static const int kMaxNumPending64Constants = kMaxDistToFPPool / kInstrSize;
 
   // Postpone the generation of the constant pool for the specified number of
   // instructions.
@@ -1536,17 +1492,19 @@ class Assembler : public AssemblerBase {
   // Check if is time to emit a constant pool.
   void CheckConstPool(bool force_emit, bool require_jump);
 
-  // Allocate a constant pool of the correct size for the generated code.
-  Handle<ConstantPoolArray> NewConstantPool(Isolate* isolate);
-
-  // Generate the constant pool for the generated code.
-  void PopulateConstantPool(ConstantPoolArray* constant_pool);
-
-  bool use_extended_constant_pool() const {
-    return constant_pool_builder_.current_section() ==
-           ConstantPoolArray::EXTENDED_SECTION;
+  int EmitEmbeddedConstantPool() {
+    DCHECK(FLAG_enable_embedded_constant_pool);
+    return constant_pool_builder_.Emit(this);
   }
 
+  bool ConstantPoolAccessIsInOverflow() const {
+    return constant_pool_builder_.NextAccess(ConstantPoolEntry::INTPTR) ==
+           ConstantPoolEntry::OVERFLOWED;
+  }
+
+  void PatchConstantPoolAccessInstruction(int pc_offset, int offset,
+                                          ConstantPoolEntry::Access access,
+                                          ConstantPoolEntry::Type type);
 
  protected:
   // Relocation for a type-recording IC has the AST id added to it.  This
@@ -1581,10 +1539,10 @@ class Assembler : public AssemblerBase {
       // Max pool start (if we need a jump and an alignment).
       int start = pc_offset() + kInstrSize + 2 * kPointerSize;
       // Check the constant pool hasn't been blocked for too long.
-      DCHECK((num_pending_32_bit_reloc_info_ == 0) ||
-             (start + num_pending_64_bit_reloc_info_ * kDoubleSize <
+      DCHECK((num_pending_32_bit_constants_ == 0) ||
+             (start + num_pending_64_bit_constants_ * kDoubleSize <
               (first_const_pool_32_use_ + kMaxDistToIntPool)));
-      DCHECK((num_pending_64_bit_reloc_info_ == 0) ||
+      DCHECK((num_pending_64_bit_constants_ == 0) ||
              (start < (first_const_pool_64_use_ + kMaxDistToFPPool)));
 #endif
       // Two cases:
@@ -1643,20 +1601,20 @@ class Assembler : public AssemblerBase {
   static const int kMaxRelocSize = RelocInfoWriter::kMaxSize;
   RelocInfoWriter reloc_info_writer;
 
-  // Relocation info records are also used during code generation as temporary
+  // ConstantPoolEntry records are used during code generation as temporary
   // containers for constants and code target addresses until they are emitted
-  // to the constant pool. These pending relocation info records are temporarily
-  // stored in a separate buffer until a constant pool is emitted.
+  // to the constant pool. These records are temporarily stored in a separate
+  // buffer until a constant pool is emitted.
   // If every instruction in a long sequence is accessing the pool, we need one
   // pending relocation entry per instruction.
 
-  // The buffers of pending relocation info.
-  RelocInfo pending_32_bit_reloc_info_[kMaxNumPending32RelocInfo];
-  RelocInfo pending_64_bit_reloc_info_[kMaxNumPending64RelocInfo];
-  // Number of pending reloc info entries in the 32 bits buffer.
-  int num_pending_32_bit_reloc_info_;
-  // Number of pending reloc info entries in the 64 bits buffer.
-  int num_pending_64_bit_reloc_info_;
+  // The buffers of pending constant pool entries.
+  ConstantPoolEntry pending_32_bit_constants_[kMaxNumPending32Constants];
+  ConstantPoolEntry pending_64_bit_constants_[kMaxNumPending64Constants];
+  // Number of pending constant pool entries in the 32 bits buffer.
+  int num_pending_32_bit_constants_;
+  // Number of pending constant pool entries in the 64 bits buffer.
+  int num_pending_64_bit_constants_;
 
   ConstantPoolBuilder constant_pool_builder_;
 
@@ -1685,15 +1643,12 @@ class Assembler : public AssemblerBase {
   void bind_to(Label* L, int pos);
   void next(Label* L);
 
-  enum UseConstantPoolMode {
-    USE_CONSTANT_POOL,
-    DONT_USE_CONSTANT_POOL
-  };
-
   // Record reloc info for current pc_
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
-  void RecordRelocInfo(const RelocInfo& rinfo);
-  ConstantPoolArray::LayoutSection ConstantPoolAddEntry(const RelocInfo& rinfo);
+  ConstantPoolEntry::Access ConstantPoolAddEntry(int position,
+                                                 RelocInfo::Mode rmode,
+                                                 intptr_t value);
+  ConstantPoolEntry::Access ConstantPoolAddEntry(int position, double value);
 
   friend class RelocInfo;
   friend class CodePatcher;

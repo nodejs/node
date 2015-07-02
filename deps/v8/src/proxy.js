@@ -2,24 +2,30 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var $proxyDelegateCallAndConstruct;
 var $proxyDerivedGetTrap;
 var $proxyDerivedHasTrap;
-var $proxyDerivedHasOwnTrap;
-var $proxyDerivedKeysTrap;
 var $proxyDerivedSetTrap;
 var $proxyEnumerate;
 
-(function(global, shared, exports) {
+(function(global, utils) {
 
 "use strict";
 
 %CheckIsBootstrapping();
 
+// ----------------------------------------------------------------------------
+// Imports
+
 var GlobalFunction = global.Function;
 var GlobalObject = global.Object;
 
-// -------------------------------------------------------------------
+var ToNameArray;
+
+utils.Import(function(from) {
+  ToNameArray = from.ToNameArray;
+});
+
+//----------------------------------------------------------------------------
 
 function ProxyCreate(handler, proto) {
   if (!IS_SPEC_OBJECT(handler))
@@ -175,7 +181,7 @@ function ProxyEnumerate(proxy) {
   if (IS_UNDEFINED(handler.enumerate)) {
     return %Apply(DerivedEnumerateTrap, handler, [], 0, 0)
   } else {
-    return $toNameArray(handler.enumerate(), "enumerate", false)
+    return ToNameArray(handler.enumerate(), "enumerate", false)
   }
 }
 
@@ -185,17 +191,23 @@ var Proxy = new GlobalObject();
 %AddNamedProperty(global, "Proxy", Proxy, DONT_ENUM);
 
 //Set up non-enumerable properties of the Proxy object.
-$installFunctions(Proxy, DONT_ENUM, [
+utils.InstallFunctions(Proxy, DONT_ENUM, [
   "create", ProxyCreate,
   "createFunction", ProxyCreateFunction
 ])
 
-$proxyDelegateCallAndConstruct = DelegateCallAndConstruct;
+// -------------------------------------------------------------------
+// Exports
+
 $proxyDerivedGetTrap = DerivedGetTrap;
 $proxyDerivedHasTrap = DerivedHasTrap;
-$proxyDerivedHasOwnTrap = DerivedHasOwnTrap;
-$proxyDerivedKeysTrap = DerivedKeysTrap;
 $proxyDerivedSetTrap = DerivedSetTrap;
 $proxyEnumerate = ProxyEnumerate;
+
+utils.Export(function(to) {
+  to.ProxyDelegateCallAndConstruct = DelegateCallAndConstruct;
+  to.ProxyDerivedHasOwnTrap = DerivedHasOwnTrap;
+  to.ProxyDerivedKeysTrap = DerivedKeysTrap;
+});
 
 })

@@ -886,8 +886,8 @@ class MacroAssembler : public Assembler {
 
   template<typename Field>
   void DecodeField(Register dst, Register src) {
-    static const uint64_t shift = Field::kShift;
-    static const uint64_t setbits = CountSetBits(Field::kMask, 32);
+    static const int shift = Field::kShift;
+    static const int setbits = CountSetBits(Field::kMask, 32);
     Ubfx(dst, src, shift, setbits);
   }
 

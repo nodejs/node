@@ -344,6 +344,8 @@ class RepresentationSelector {
     } else if (upper->Is(Type::Number())) {
       // multiple uses => pick kRepFloat64.
       return kRepFloat64;
+    } else if (upper->Is(Type::Internal())) {
+      return kMachPtr;
     }
     return kRepTagged;
   }
@@ -444,7 +446,9 @@ class RepresentationSelector {
   }
 
   bool CanLowerToInt32Binop(Node* node, MachineTypeUnion use) {
-    return BothInputsAre(node, Type::Signed32()) && !CanObserveNonInt32(use);
+    return BothInputsAre(node, Type::Signed32()) &&
+           (!CanObserveNonInt32(use) ||
+            NodeProperties::GetBounds(node).upper->Is(Type::Signed32()));
   }
 
   bool CanLowerToInt32AdditiveBinop(Node* node, MachineTypeUnion use) {
@@ -453,7 +457,9 @@ class RepresentationSelector {
   }
 
   bool CanLowerToUint32Binop(Node* node, MachineTypeUnion use) {
-    return BothInputsAre(node, Type::Unsigned32()) && !CanObserveNonUint32(use);
+    return BothInputsAre(node, Type::Unsigned32()) &&
+           (!CanObserveNonUint32(use) ||
+            NodeProperties::GetBounds(node).upper->Is(Type::Unsigned32()));
   }
 
   bool CanLowerToUint32AdditiveBinop(Node* node, MachineTypeUnion use) {
@@ -776,11 +782,6 @@ class RepresentationSelector {
         if (lower()) lowering->DoStringLessThanOrEqual(node);
         break;
       }
-      case IrOpcode::kStringAdd: {
-        VisitBinop(node, kMachAnyTagged, kMachAnyTagged);
-        if (lower()) lowering->DoStringAdd(node);
-        break;
-      }
       case IrOpcode::kAllocate: {
         ProcessInput(node, 0, kMachAnyTagged);
         ProcessRemainingInputs(node, 1);
@@ -1037,6 +1038,7 @@ class RepresentationSelector {
       case IrOpcode::kFloat64InsertHighWord32:
         return VisitBinop(node, kMachFloat64, kMachInt32, kMachFloat64);
       case IrOpcode::kLoadStackPointer:
+      case IrOpcode::kLoadFramePointer:
         return VisitLeaf(node, kMachPtr);
       case IrOpcode::kStateValues:
         VisitStateValues(node);
@@ -1083,7 +1085,7 @@ class RepresentationSelector {
 
  private:
   JSGraph* jsgraph_;
-  int count_;                       // number of nodes in the graph
+  size_t const count_;              // number of nodes in the graph
   NodeInfo* info_;                  // node id -> usage information
   NodeVector nodes_;                // collected nodes
   NodeVector replacements_;         // replacements to be done after lowering
@@ -1268,7 +1270,7 @@ void SimplifiedLowering::DoLoadBuffer(Node* node, MachineType output_type,
     Node* ephi = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, merge);
 
     // Replace effect uses of {node} with the {ephi}.
-    NodeProperties::ReplaceWithValue(node, node, ephi);
+    NodeProperties::ReplaceUses(node, node, ephi);
 
     // Turn the {node} into a Phi.
     node->set_op(common()->Phi(output_type, 2));
@@ -1304,23 +1306,6 @@ void SimplifiedLowering::DoStoreElement(Node* node) {
                           ComputeWriteBarrierKind(access.base_is_tagged,
                                                   access.machine_type, type))));
   node->ReplaceInput(1, ComputeIndex(access, node->InputAt(1)));
-}
-
-
-void SimplifiedLowering::DoStringAdd(Node* node) {
-  Operator::Properties properties = node->op()->properties();
-  Callable callable = CodeFactory::StringAdd(
-      jsgraph()->isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
-  CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-      jsgraph()->isolate(), zone(), callable.descriptor(), 0, flags,
-      properties);
-  node->set_op(common()->Call(desc));
-  node->InsertInput(graph()->zone(), 0,
-                    jsgraph()->HeapConstant(callable.code()));
-  node->AppendInput(graph()->zone(), jsgraph()->UndefinedConstant());
-  node->AppendInput(graph()->zone(), graph()->start());
-  node->AppendInput(graph()->zone(), graph()->start());
 }
 
 

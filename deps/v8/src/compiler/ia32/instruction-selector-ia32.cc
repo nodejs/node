@@ -830,19 +830,43 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   // Compute InstructionOperands for inputs and outputs.
   InitializeCallBuffer(node, &buffer, true, true);
 
-  // Push any stack arguments.
-  for (Node* node : base::Reversed(buffer.pushed_nodes)) {
-    // TODO(titzer): handle pushing double parameters.
-    InstructionOperand value =
-        g.CanBeImmediate(node)
-            ? g.UseImmediate(node)
-            : IsSupported(ATOM) ? g.UseRegister(node) : g.Use(node);
-    Emit(kIA32Push, g.NoOutput(), value);
+  // Prepare for C function call.
+  if (descriptor->IsCFunctionCall()) {
+    InstructionOperand temps[] = {g.TempRegister()};
+    size_t const temp_count = arraysize(temps);
+    Emit(kArchPrepareCallCFunction |
+             MiscField::encode(static_cast<int>(descriptor->CParameterCount())),
+         0, nullptr, 0, nullptr, temp_count, temps);
+
+    // Poke any stack arguments.
+    for (size_t n = 0; n < buffer.pushed_nodes.size(); ++n) {
+      if (Node* node = buffer.pushed_nodes[n]) {
+        int const slot = static_cast<int>(n);
+        InstructionOperand value =
+            g.CanBeImmediate(node) ? g.UseImmediate(node) : g.UseRegister(node);
+        Emit(kIA32Poke | MiscField::encode(slot), g.NoOutput(), value);
+      }
+    }
+  } else {
+    // Push any stack arguments.
+    for (Node* node : base::Reversed(buffer.pushed_nodes)) {
+      // TODO(titzer): handle pushing double parameters.
+      InstructionOperand value =
+          g.CanBeImmediate(node)
+              ? g.UseImmediate(node)
+              : IsSupported(ATOM) ? g.UseRegister(node) : g.Use(node);
+      Emit(kIA32Push, g.NoOutput(), value);
+    }
   }
 
   // Pass label of exception handler block.
   CallDescriptor::Flags flags = descriptor->flags();
   if (handler) {
+    DCHECK_EQ(IrOpcode::kIfException, handler->front()->opcode());
+    IfExceptionHint hint = OpParameter<IfExceptionHint>(handler->front());
+    if (hint == IfExceptionHint::kLocallyCaught) {
+      flags |= CallDescriptor::kHasLocalCatchHandler;
+    }
     flags |= CallDescriptor::kHasExceptionHandler;
     buffer.instruction_args.push_back(g.Label(handler));
   }
@@ -850,18 +874,21 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   // Select the appropriate opcode based on the call type.
   InstructionCode opcode;
   switch (descriptor->kind()) {
-    case CallDescriptor::kCallCodeObject: {
-      opcode = kArchCallCodeObject;
+    case CallDescriptor::kCallAddress:
+      opcode =
+          kArchCallCFunction |
+          MiscField::encode(static_cast<int>(descriptor->CParameterCount()));
       break;
-    }
+    case CallDescriptor::kCallCodeObject:
+      opcode = kArchCallCodeObject | MiscField::encode(flags);
+      break;
     case CallDescriptor::kCallJSFunction:
-      opcode = kArchCallJSFunction;
+      opcode = kArchCallJSFunction | MiscField::encode(flags);
       break;
     default:
       UNREACHABLE();
       return;
   }
-  opcode |= MiscField::encode(flags);
 
   // Emit the call instruction.
   size_t const output_count = buffer.outputs.size();

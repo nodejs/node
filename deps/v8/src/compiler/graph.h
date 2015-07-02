@@ -26,7 +26,7 @@ typedef uint32_t Mark;
 
 // NodeIds are identifying numbers for nodes that can be used to index auxiliary
 // out-of-line data associated with each node.
-typedef int32_t NodeId;
+typedef uint32_t NodeId;
 
 
 class Graph : public ZoneObject {
@@ -74,6 +74,14 @@ class Graph : public ZoneObject {
     Node* nodes[] = {n1, n2, n3, n4, n5, n6, n7, n8};
     return NewNode(op, arraysize(nodes), nodes);
   }
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
+                Node* n5, Node* n6, Node* n7, Node* n8, Node* n9) {
+    Node* nodes[] = {n1, n2, n3, n4, n5, n6, n7, n8, n9};
+    return NewNode(op, arraysize(nodes), nodes);
+  }
+
+  // Clone the {node}, and assign a new node id to the copy.
+  Node* CloneNode(const Node* node);
 
   template <class Visitor>
   inline void VisitNodeInputsFromEnd(Visitor* visitor);
@@ -85,9 +93,9 @@ class Graph : public ZoneObject {
   void SetStart(Node* start) { start_ = start; }
   void SetEnd(Node* end) { end_ = end; }
 
-  int NodeCount() const { return next_node_id_; }
+  size_t NodeCount() const { return next_node_id_; }
 
-  void Decorate(Node* node, bool incomplete);
+  void Decorate(Node* node);
   void AddDecorator(GraphDecorator* decorator);
   void RemoveDecorator(GraphDecorator* decorator);
 
@@ -112,7 +120,7 @@ class Graph : public ZoneObject {
 class GraphDecorator : public ZoneObject {
  public:
   virtual ~GraphDecorator() {}
-  virtual void Decorate(Node* node, bool incomplete) = 0;
+  virtual void Decorate(Node* node) = 0;
 };
 
 }  // namespace compiler

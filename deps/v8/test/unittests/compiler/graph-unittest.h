@@ -50,6 +50,8 @@ class GraphTest : public TestWithContext, public TestWithIsolateAndZone {
   Node* TrueConstant();
   Node* UndefinedConstant();
 
+  Node* EmptyFrameState();
+
   Matcher<Node*> IsFalseConstant();
   Matcher<Node*> IsTrueConstant();
   Matcher<Node*> IsUndefinedConstant();

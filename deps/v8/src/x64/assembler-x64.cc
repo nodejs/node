@@ -3883,6 +3883,12 @@ void Assembler::dd(uint32_t data) {
 }
 
 
+void Assembler::dq(uint64_t data) {
+  EnsureSpace ensure_space(this);
+  emitq(data);
+}
+
+
 void Assembler::dq(Label* label) {
   EnsureSpace ensure_space(this);
   if (label->is_bound()) {
@@ -3921,20 +3927,6 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
 }
 
 
-Handle<ConstantPoolArray> Assembler::NewConstantPool(Isolate* isolate) {
-  // No out-of-line constant pool support.
-  DCHECK(!FLAG_enable_ool_constant_pool);
-  return isolate->factory()->empty_constant_pool_array();
-}
-
-
-void Assembler::PopulateConstantPool(ConstantPoolArray* constant_pool) {
-  // No out-of-line constant pool support.
-  DCHECK(!FLAG_enable_ool_constant_pool);
-  return;
-}
-
-
 const int RelocInfo::kApplyMask = RelocInfo::kCodeTargetMask |
     1 << RelocInfo::RUNTIME_ENTRY |
     1 << RelocInfo::INTERNAL_REFERENCE |
@@ -3954,6 +3946,7 @@ bool RelocInfo::IsInConstantPool() {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_X64

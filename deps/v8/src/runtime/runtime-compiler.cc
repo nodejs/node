@@ -168,10 +168,9 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
 
 
 static bool IsSuitableForOnStackReplacement(Isolate* isolate,
-                                            Handle<JSFunction> function,
-                                            Handle<Code> current_code) {
+                                            Handle<JSFunction> function) {
   // Keep track of whether we've succeeded in optimizing.
-  if (!current_code->optimizable()) return false;
+  if (function->shared()->optimization_disabled()) return false;
   // If we are trying to do OSR when there are already optimized
   // activations of the function, it means (a) the function is directly or
   // indirectly recursive and (b) an optimized invocation has been
@@ -253,7 +252,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
       PrintF(" at AST id %d]\n", ast_id.ToInt());
     }
     result = Compiler::GetConcurrentlyOptimizedCode(job);
-  } else if (IsSuitableForOnStackReplacement(isolate, function, caller_code)) {
+  } else if (IsSuitableForOnStackReplacement(isolate, function)) {
     if (FLAG_trace_osr) {
       PrintF("[OSR - Compiling: ");
       function->PrintName();
@@ -382,11 +381,10 @@ RUNTIME_FUNCTION(Runtime_CompileString) {
 }
 
 
-static ObjectPair CompileGlobalEval(Isolate* isolate, Handle<String> source,
-                                    Handle<SharedFunctionInfo> outer_info,
-                                    Handle<Object> receiver,
-                                    LanguageMode language_mode,
-                                    int scope_position) {
+static Object* CompileGlobalEval(Isolate* isolate, Handle<String> source,
+                                 Handle<SharedFunctionInfo> outer_info,
+                                 LanguageMode language_mode,
+                                 int scope_position) {
   Handle<Context> context = Handle<Context>(isolate->context());
   Handle<Context> native_context = Handle<Context>(context->native_context());
 
@@ -400,7 +398,7 @@ static ObjectPair CompileGlobalEval(Isolate* isolate, Handle<String> source,
     MaybeHandle<Object> maybe_error = isolate->factory()->NewEvalError(
         MessageTemplate::kCodeGenFromStrings, error_message);
     if (maybe_error.ToHandle(&error)) isolate->Throw(*error);
-    return MakePair(isolate->heap()->exception(), NULL);
+    return isolate->heap()->exception();
   }
 
   // Deal with a normal eval call with a string argument. Compile it
@@ -411,14 +409,14 @@ static ObjectPair CompileGlobalEval(Isolate* isolate, Handle<String> source,
       isolate, compiled,
       Compiler::GetFunctionFromEval(source, outer_info, context, language_mode,
                                     restriction, scope_position),
-      MakePair(isolate->heap()->exception(), NULL));
-  return MakePair(*compiled, *receiver);
+      isolate->heap()->exception());
+  return *compiled;
 }
 
 
-RUNTIME_FUNCTION_RETURN_PAIR(Runtime_ResolvePossiblyDirectEval) {
+RUNTIME_FUNCTION(Runtime_ResolvePossiblyDirectEval) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 6);
+  DCHECK(args.length() == 5);
 
   Handle<Object> callee = args.at<Object>(0);
 
@@ -429,17 +427,17 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_ResolvePossiblyDirectEval) {
   // the first argument without doing anything).
   if (*callee != isolate->native_context()->global_eval_fun() ||
       !args[1]->IsString()) {
-    return MakePair(*callee, isolate->heap()->undefined_value());
+    return *callee;
   }
 
+  DCHECK(args[3]->IsSmi());
+  DCHECK(is_valid_language_mode(args.smi_at(3)));
+  LanguageMode language_mode = static_cast<LanguageMode>(args.smi_at(3));
   DCHECK(args[4]->IsSmi());
-  DCHECK(is_valid_language_mode(args.smi_at(4)));
-  LanguageMode language_mode = static_cast<LanguageMode>(args.smi_at(4));
-  DCHECK(args[5]->IsSmi());
   Handle<SharedFunctionInfo> outer_info(args.at<JSFunction>(2)->shared(),
                                         isolate);
   return CompileGlobalEval(isolate, args.at<String>(1), outer_info,
-                           args.at<Object>(3), language_mode, args.smi_at(5));
+                           language_mode, args.smi_at(4));
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

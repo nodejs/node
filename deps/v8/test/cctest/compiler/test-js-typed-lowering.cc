@@ -38,10 +38,10 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
         simplified(main_zone()),
         common(main_zone()),
         graph(main_zone()),
-        typer(main_isolate(), &graph, MaybeHandle<Context>()),
+        typer(main_isolate(), &graph),
         context_node(NULL) {
     graph.SetStart(graph.NewNode(common.Start(num_parameters)));
-    graph.SetEnd(graph.NewNode(common.End()));
+    graph.SetEnd(graph.NewNode(common.End(1)));
     typer.Run();
   }
 
@@ -79,17 +79,19 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
     Node* locals = graph.NewNode(common.StateValues(0));
     Node* stack = graph.NewNode(common.StateValues(0));
 
-    Node* state_node =
-        graph.NewNode(common.FrameState(JS_FRAME, BailoutId::None(),
-                                        OutputFrameStateCombine::Ignore()),
-                      parameters, locals, stack, context, UndefinedConstant());
+    Node* state_node = graph.NewNode(
+        common.FrameState(BailoutId::None(), OutputFrameStateCombine::Ignore(),
+                          nullptr),
+        parameters, locals, stack, context, UndefinedConstant());
 
     return state_node;
   }
 
   Node* reduce(Node* node) {
     JSGraph jsgraph(main_isolate(), &graph, &common, &javascript, &machine);
-    JSTypedLowering reducer(&jsgraph, main_zone());
+    // TODO(titzer): mock the GraphReducer here for better unit testing.
+    GraphReducer graph_reducer(main_zone(), &graph);
+    JSTypedLowering reducer(&graph_reducer, &jsgraph, main_zone());
     Reduction reduction = reducer.Reduce(node);
     if (reduction.Changed()) return reduction.replacement();
     return node;
@@ -460,8 +462,9 @@ TEST(JSToNumber_replacement) {
 
   for (size_t i = 0; i < arraysize(types); i++) {
     Node* n = R.Parameter(types[i]);
-    Node* c = R.graph.NewNode(R.javascript.ToNumber(), n, R.context(),
-                              R.start(), R.start());
+    Node* c =
+        R.graph.NewNode(R.javascript.ToNumber(), n, R.context(),
+                        R.EmptyFrameState(R.context()), R.start(), R.start());
     Node* effect_use = R.UseForEffect(c);
     Node* add = R.graph.NewNode(R.simplified.ReferenceEqual(Type::Any()), n, c);
 
@@ -688,18 +691,20 @@ TEST_WITH_STRONG(MixedComparison1) {
     for (size_t j = 0; j < arraysize(types); j++) {
       Node* p1 = R.Parameter(types[j], 1);
       {
-        Node* cmp = R.Binop(R.javascript.LessThan(language_mode), p0, p1);
+        const Operator* less_than = R.javascript.LessThan(language_mode);
+        Node* cmp = R.Binop(less_than, p0, p1);
         Node* r = R.reduce(cmp);
-
-        if (!types[i]->Maybe(Type::String()) ||
-            !types[j]->Maybe(Type::String())) {
-          if (types[i]->Is(Type::String()) && types[j]->Is(Type::String())) {
-            R.CheckPureBinop(R.simplified.StringLessThan(), r);
-          } else {
-            R.CheckPureBinop(R.simplified.NumberLessThan(), r);
-          }
+        if (types[i]->Is(Type::String()) && types[j]->Is(Type::String())) {
+          R.CheckPureBinop(R.simplified.StringLessThan(), r);
+        } else if ((types[i]->Is(Type::Number()) &&
+                    types[j]->Is(Type::Number())) ||
+                   (!is_strong(language_mode) &&
+                    (!types[i]->Maybe(Type::String()) ||
+                     !types[j]->Maybe(Type::String())))) {
+          R.CheckPureBinop(R.simplified.NumberLessThan(), r);
         } else {
-          CHECK_EQ(cmp, r);  // No reduction of mixed types.
+          // No reduction of mixed types.
+          CHECK_EQ(r->op(), less_than);
         }
       }
     }
@@ -708,8 +713,6 @@ TEST_WITH_STRONG(MixedComparison1) {
 
 
 TEST_WITH_STRONG(RemoveToNumberEffects) {
-  FLAG_turbo_deoptimization = true;
-
   JSTypedLoweringTester R;
 
   Node* effect_use = NULL;
@@ -721,27 +724,16 @@ TEST_WITH_STRONG(RemoveToNumberEffects) {
 
     switch (i) {
       case 0:
-        if (FLAG_turbo_deoptimization) {
-          DCHECK(OperatorProperties::GetFrameStateInputCount(
-                     R.javascript.ToNumber()) == 1);
-          effect_use = R.graph.NewNode(R.javascript.ToNumber(), p0, R.context(),
-                                       frame_state, ton, R.start());
-        } else {
+        DCHECK(OperatorProperties::GetFrameStateInputCount(
+                   R.javascript.ToNumber()) == 1);
         effect_use = R.graph.NewNode(R.javascript.ToNumber(), p0, R.context(),
-                                     ton, R.start());
-        }
+                                     frame_state, ton, R.start());
         break;
       case 1:
-        if (FLAG_turbo_deoptimization) {
-          DCHECK(OperatorProperties::GetFrameStateInputCount(
-                     R.javascript.ToNumber()) == 1);
-          effect_use =
-              R.graph.NewNode(R.javascript.ToNumber(), ton, R.context(),
-                              frame_state, ton, R.start());
-        } else {
-          effect_use = R.graph.NewNode(R.javascript.ToNumber(), ton,
-                                       R.context(), ton, R.start());
-        }
+        DCHECK(OperatorProperties::GetFrameStateInputCount(
+                   R.javascript.ToNumber()) == 1);
+        effect_use = R.graph.NewNode(R.javascript.ToNumber(), ton, R.context(),
+                                     frame_state, ton, R.start());
         break;
       case 2:
         effect_use = R.graph.NewNode(R.common.EffectPhi(1), ton, R.start());
@@ -950,8 +942,6 @@ TEST(OrderNumberBinopEffects1) {
       R.simplified.NumberMultiply(),
       R.javascript.Divide(LanguageMode::SLOPPY),
       R.simplified.NumberDivide(),
-      R.javascript.Modulus(LanguageMode::SLOPPY),
-      R.simplified.NumberModulus(),
   };
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {
@@ -982,8 +972,6 @@ TEST(OrderNumberBinopEffects2) {
       R.simplified.NumberMultiply(),
       R.javascript.Divide(LanguageMode::SLOPPY),
       R.simplified.NumberDivide(),
-      R.javascript.Modulus(LanguageMode::SLOPPY),
-      R.simplified.NumberModulus(),
   };
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {

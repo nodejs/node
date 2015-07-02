@@ -145,7 +145,8 @@ class TestCodeRangeScope {
   DISALLOW_COPY_AND_ASSIGN(TestCodeRangeScope);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 
 static void VerifyMemoryChunk(Isolate* isolate,
@@ -358,8 +359,9 @@ TEST(NewSpace) {
   CHECK(new_space.HasBeenSetUp());
 
   while (new_space.Available() >= Page::kMaxRegularHeapObjectSize) {
-    Object* obj = new_space.AllocateRaw(
-        Page::kMaxRegularHeapObjectSize).ToObjectChecked();
+    Object* obj =
+        new_space.AllocateRawUnaligned(Page::kMaxRegularHeapObjectSize)
+            .ToObjectChecked();
     CHECK(new_space.Contains(HeapObject::cast(obj)));
   }
 
@@ -384,7 +386,7 @@ TEST(OldSpace) {
   CHECK(s->SetUp());
 
   while (s->Available() > 0) {
-    s->AllocateRaw(Page::kMaxRegularHeapObjectSize).ToObjectChecked();
+    s->AllocateRawUnaligned(Page::kMaxRegularHeapObjectSize).ToObjectChecked();
   }
 
   s->TearDown();
@@ -437,6 +439,9 @@ TEST(SizeOfFirstPageIsLargeEnough) {
   if (!isolate->snapshot_available()) return;
   if (Snapshot::EmbedsScript(isolate)) return;
 
+  // If this test fails due to enabling experimental natives that are not part
+  // of the snapshot, we may need to adjust CalculateFirstPageSizes.
+
   // Freshly initialized VM gets by with one page per space.
   for (int i = FIRST_PAGED_SPACE; i <= LAST_PAGED_SPACE; i++) {
     // Debug code can be very large, so skip CODE_SPACE if we are generating it.
@@ -485,7 +490,8 @@ UNINITIALIZED_TEST(NewSpaceGrowsToTargetCapacity) {
       // Try to allocate out of the new space. A new page should be added and
       // the
       // allocation should succeed.
-      v8::internal::AllocationResult allocation = new_space->AllocateRaw(80);
+      v8::internal::AllocationResult allocation =
+          new_space->AllocateRawUnaligned(80);
       CHECK(!allocation.IsRetry());
       CHECK(new_space->CommittedMemory() == 2 * Page::kPageSize);
 

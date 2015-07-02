@@ -66,11 +66,13 @@ class ZoneLinkedList : public std::list<T, zone_allocator<T>> {
 // A wrapper subclass std::priority_queue to make it easy to construct one
 // that uses a zone allocator.
 template <typename T, typename Compare = std::less<T>>
-class ZonePriorityQueue : public std::priority_queue<T, ZoneVector<T>> {
+class ZonePriorityQueue
+    : public std::priority_queue<T, ZoneVector<T>, Compare> {
  public:
   // Constructs an empty list.
   explicit ZonePriorityQueue(Zone* zone)
-      : std::priority_queue<T, ZoneVector<T>>(Compare(), ZoneVector<T>(zone)) {}
+      : std::priority_queue<T, ZoneVector<T>, Compare>(Compare(),
+                                                       ZoneVector<T>(zone)) {}
 };
 
 

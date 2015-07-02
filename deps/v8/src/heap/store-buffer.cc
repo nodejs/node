@@ -483,36 +483,47 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
             for (HeapObject* heap_object = iterator.Next(); heap_object != NULL;
                  heap_object = iterator.Next()) {
               // We iterate over objects that contain new space pointers only.
-              bool may_contain_raw_values = heap_object->MayContainRawValues();
-              if (!may_contain_raw_values) {
-                Address obj_address = heap_object->address();
-                const int start_offset = HeapObject::kHeaderSize;
-                const int end_offset = heap_object->Size();
-#if V8_DOUBLE_FIELDS_UNBOXING
-                LayoutDescriptorHelper helper(heap_object->map());
-                bool has_only_tagged_fields = helper.all_fields_tagged();
+              Address obj_address = heap_object->address();
+              const int start_offset = HeapObject::kHeaderSize;
+              const int end_offset = heap_object->Size();
 
-                if (!has_only_tagged_fields) {
-                  for (int offset = start_offset; offset < end_offset;) {
-                    int end_of_region_offset;
-                    if (helper.IsTagged(offset, end_offset,
-                                        &end_of_region_offset)) {
-                      FindPointersToNewSpaceInRegion(
-                          obj_address + offset,
-                          obj_address + end_of_region_offset, slot_callback);
-                    }
-                    offset = end_of_region_offset;
-                  }
-                } else {
-#endif
+              switch (heap_object->ContentType()) {
+                case HeapObjectContents::kTaggedValues: {
                   Address start_address = obj_address + start_offset;
                   Address end_address = obj_address + end_offset;
                   // Object has only tagged fields.
                   FindPointersToNewSpaceInRegion(start_address, end_address,
                                                  slot_callback);
-#if V8_DOUBLE_FIELDS_UNBOXING
+                  break;
                 }
-#endif
+
+                case HeapObjectContents::kMixedValues: {
+                  if (heap_object->IsFixedTypedArrayBase()) {
+                    FindPointersToNewSpaceInRegion(
+                        obj_address + FixedTypedArrayBase::kBasePointerOffset,
+                        obj_address + FixedTypedArrayBase::kHeaderSize,
+                        slot_callback);
+                  } else if (FLAG_unbox_double_fields) {
+                    LayoutDescriptorHelper helper(heap_object->map());
+                    DCHECK(!helper.all_fields_tagged());
+                    for (int offset = start_offset; offset < end_offset;) {
+                      int end_of_region_offset;
+                      if (helper.IsTagged(offset, end_offset,
+                                          &end_of_region_offset)) {
+                        FindPointersToNewSpaceInRegion(
+                            obj_address + offset,
+                            obj_address + end_of_region_offset, slot_callback);
+                      }
+                      offset = end_of_region_offset;
+                    }
+                  } else {
+                    UNREACHABLE();
+                  }
+                  break;
+                }
+
+                case HeapObjectContents::kRawValues:
+                  break;
               }
             }
           }
@@ -579,5 +590,5 @@ void StoreBuffer::Compact() {
   }
   heap_->isolate()->counters()->store_buffer_compactions()->Increment();
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

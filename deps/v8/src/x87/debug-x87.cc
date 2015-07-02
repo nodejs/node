@@ -182,10 +182,8 @@ void DebugCodegen::GenerateLoadICDebugBreak(MacroAssembler* masm) {
   // Register state for IC load call (from ic-x87.cc).
   Register receiver = LoadDescriptor::ReceiverRegister();
   Register name = LoadDescriptor::NameRegister();
-  RegList regs = receiver.bit() | name.bit();
-  if (FLAG_vector_ics) {
-    regs |= VectorLoadICTrampolineDescriptor::SlotRegister().bit();
-  }
+  Register slot = LoadDescriptor::SlotRegister();
+  RegList regs = receiver.bit() | name.bit() | slot.bit();
   Generate_DebugBreakCallHelper(masm, regs, 0, false);
 }
 
@@ -195,8 +193,11 @@ void DebugCodegen::GenerateStoreICDebugBreak(MacroAssembler* masm) {
   Register receiver = StoreDescriptor::ReceiverRegister();
   Register name = StoreDescriptor::NameRegister();
   Register value = StoreDescriptor::ValueRegister();
-  Generate_DebugBreakCallHelper(
-      masm, receiver.bit() | name.bit() | value.bit(), 0, false);
+  RegList regs = receiver.bit() | name.bit() | value.bit();
+  if (FLAG_vector_stores) {
+    regs |= VectorStoreICDescriptor::SlotRegister().bit();
+  }
+  Generate_DebugBreakCallHelper(masm, regs, 0, false);
 }
 
 
@@ -208,11 +209,7 @@ void DebugCodegen::GenerateKeyedLoadICDebugBreak(MacroAssembler* masm) {
 
 void DebugCodegen::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) {
   // Register state for keyed IC store call (from ic-x87.cc).
-  Register receiver = StoreDescriptor::ReceiverRegister();
-  Register name = StoreDescriptor::NameRegister();
-  Register value = StoreDescriptor::ValueRegister();
-  Generate_DebugBreakCallHelper(
-      masm, receiver.bit() | name.bit() | value.bit(), 0, false);
+  GenerateStoreICDebugBreak(masm);
 }
 
 
@@ -325,6 +322,7 @@ const bool LiveEdit::kFrameDropperSupported = true;
 
 #undef __
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_X87

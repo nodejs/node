@@ -20,7 +20,7 @@ class ClassVariable;
 
 class Variable: public ZoneObject {
  public:
-  enum Kind { NORMAL, FUNCTION, CLASS, THIS, NEW_TARGET, ARGUMENTS };
+  enum Kind { NORMAL, FUNCTION, CLASS, THIS, ARGUMENTS };
 
   enum Location {
     // Before and during variable allocation, a variable whose location is
@@ -103,8 +103,17 @@ class Variable: public ZoneObject {
   bool is_function() const { return kind_ == FUNCTION; }
   bool is_class() const { return kind_ == CLASS; }
   bool is_this() const { return kind_ == THIS; }
-  bool is_new_target() const { return kind_ == NEW_TARGET; }
   bool is_arguments() const { return kind_ == ARGUMENTS; }
+
+  // For script scopes, the "this" binding is provided by a ScriptContext added
+  // to the global's ScriptContextTable.  This binding might not statically
+  // resolve to a Variable::THIS binding, instead being DYNAMIC_LOCAL.  However
+  // any variable named "this" does indeed refer to a Variable::THIS binding;
+  // the grammar ensures this to be the case.  So wherever a "this" binding
+  // might be provided by the global, use HasThisName instead of is_this().
+  bool HasThisName(Isolate* isolate) const {
+    return is_this() || *name() == *isolate->factory()->this_string();
+  }
 
   ClassVariable* AsClassVariable() {
     DCHECK(is_class());

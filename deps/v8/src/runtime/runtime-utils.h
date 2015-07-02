@@ -5,6 +5,7 @@
 #ifndef V8_RUNTIME_RUNTIME_UTILS_H_
 #define V8_RUNTIME_RUNTIME_UTILS_H_
 
+#include "src/runtime/runtime.h"
 
 namespace v8 {
 namespace internal {
@@ -53,6 +54,17 @@ namespace internal {
 #define CONVERT_DOUBLE_ARG_CHECKED(name, index) \
   RUNTIME_ASSERT(args[index]->IsNumber());      \
   double name = args.number_at(index);
+
+
+// Cast the given argument to a size_t and store its value in a variable with
+// the given name.  If the argument is not a size_t call IllegalOperation and
+// return.
+#define CONVERT_SIZE_ARG_CHECKED(name, index)            \
+  RUNTIME_ASSERT(args[index]->IsNumber());               \
+  Handle<Object> name##_object = args.at<Object>(index); \
+  size_t name = 0;                                       \
+  RUNTIME_ASSERT(TryNumberToSize(isolate, *name##_object, &name));
+
 
 // Call the specified converter on the object *comand store the result in
 // a variable of the specified type with the given name.  If the

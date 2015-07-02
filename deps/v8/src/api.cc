@@ -188,14 +188,16 @@ static ScriptOrigin GetScriptOriginForScript(i::Isolate* isolate,
   i::Handle<i::Object> source_map_url(script->source_mapping_url(), isolate);
   v8::Isolate* v8_isolate =
       reinterpret_cast<v8::Isolate*>(script->GetIsolate());
+  ScriptOriginOptions options(script->origin_options());
   v8::ScriptOrigin origin(
       Utils::ToLocal(scriptName),
       v8::Integer::New(v8_isolate, script->line_offset()->value()),
       v8::Integer::New(v8_isolate, script->column_offset()->value()),
-      v8::Boolean::New(v8_isolate, script->is_shared_cross_origin()),
+      v8::Boolean::New(v8_isolate, options.IsSharedCrossOrigin()),
       v8::Integer::New(v8_isolate, script->id()->value()),
-      v8::Boolean::New(v8_isolate, script->is_embedder_debug_script()),
-      Utils::ToLocal(source_map_url));
+      v8::Boolean::New(v8_isolate, options.IsEmbedderDebugScript()),
+      Utils::ToLocal(source_map_url),
+      v8::Boolean::New(v8_isolate, options.IsOpaque()));
   return origin;
 }
 
@@ -211,6 +213,12 @@ void i::FatalProcessOutOfMemory(const char* location) {
 // When V8 cannot allocated memory FatalProcessOutOfMemory is called.
 // The default fatal error handler is called and execution is stopped.
 void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
+  i::Isolate* isolate = i::Isolate::Current();
+  char last_few_messages[Heap::kTraceRingBufferSize + 1];
+  char js_stacktrace[Heap::kStacktraceBufferSize + 1];
+  memset(last_few_messages, 0, Heap::kTraceRingBufferSize + 1);
+  memset(js_stacktrace, 0, Heap::kStacktraceBufferSize + 1);
+
   i::HeapStats heap_stats;
   int start_marker;
   heap_stats.start_marker = &start_marker;
@@ -252,13 +260,19 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
   heap_stats.size_per_type = size_per_type;
   int os_error;
   heap_stats.os_error = &os_error;
+  heap_stats.last_few_messages = last_few_messages;
+  heap_stats.js_stacktrace = js_stacktrace;
   int end_marker;
   heap_stats.end_marker = &end_marker;
-  i::Isolate* isolate = i::Isolate::Current();
   if (isolate->heap()->HasBeenSetUp()) {
     // BUG(1718): Don't use the take_snapshot since we don't support
     // HeapIterator here without doing a special GC.
     isolate->heap()->RecordStats(&heap_stats, false);
+    char* first_newline = strchr(last_few_messages, '\n');
+    if (first_newline == NULL || first_newline[1] == '\0')
+      first_newline = last_few_messages;
+    PrintF("\n<--- Last few GCs --->\n%s\n", first_newline);
+    PrintF("\n<--- JS stacktrace --->\n%s\n", js_stacktrace);
   }
   Utils::ApiCheck(false, location, "Allocation failed - process out of memory");
   // If the fatal error handler returns, we stop execution.
@@ -299,24 +313,32 @@ void V8::SetSnapshotDataBlob(StartupData* snapshot_blob) {
 }
 
 
-bool RunExtraCode(Isolate* isolate, const char* utf8_source) {
+bool RunExtraCode(Isolate* isolate, Local<Context> context,
+                  const char* utf8_source) {
   // Run custom script if provided.
   base::ElapsedTimer timer;
   timer.Start();
-  TryCatch try_catch;
-  Local<String> source_string = String::NewFromUtf8(isolate, utf8_source);
-  if (try_catch.HasCaught()) return false;
-  ScriptOrigin origin(String::NewFromUtf8(isolate, "<embedded script>"));
+  TryCatch try_catch(isolate);
+  Local<String> source_string;
+  if (!String::NewFromUtf8(isolate, utf8_source, NewStringType::kNormal)
+           .ToLocal(&source_string)) {
+    return false;
+  }
+  Local<String> resource_name =
+      String::NewFromUtf8(isolate, "<embedded script>", NewStringType::kNormal)
+          .ToLocalChecked();
+  ScriptOrigin origin(resource_name);
   ScriptCompiler::Source source(source_string, origin);
-  Local<Script> script = ScriptCompiler::Compile(isolate, &source);
-  if (try_catch.HasCaught()) return false;
-  script->Run();
+  Local<Script> script;
+  if (!ScriptCompiler::Compile(context, &source).ToLocal(&script)) return false;
+  if (script->Run(context).IsEmpty()) return false;
   if (i::FLAG_profile_deserialization) {
     i::PrintF("Executing custom snapshot script took %0.3f ms\n",
               timer.Elapsed().InMillisecondsF());
   }
   timer.Stop();
-  return !try_catch.HasCaught();
+  CHECK(!try_catch.HasCaught());
+  return true;
 }
 
 
@@ -345,17 +367,19 @@ StartupData V8::CreateSnapshotDataBlob(const char* custom_source) {
     base::ElapsedTimer timer;
     timer.Start();
     Isolate::Scope isolate_scope(isolate);
+    internal_isolate->set_creating_default_snapshot(true);
     internal_isolate->Init(NULL);
     Persistent<Context> context;
     i::Snapshot::Metadata metadata;
     {
       HandleScope handle_scope(isolate);
       Handle<Context> new_context = Context::New(isolate);
+      internal_isolate->set_creating_default_snapshot(false);
       context.Reset(isolate, new_context);
       if (custom_source != NULL) {
         metadata.set_embeds_script(true);
         Context::Scope context_scope(new_context);
-        if (!RunExtraCode(isolate, custom_source)) context.Reset();
+        if (!RunExtraCode(isolate, new_context, custom_source)) context.Reset();
       }
     }
     if (!context.IsEmpty()) {
@@ -379,7 +403,7 @@ StartupData V8::CreateSnapshotDataBlob(const char* custom_source) {
       i::SnapshotByteSink context_sink;
       i::PartialSerializer context_ser(internal_isolate, &ser, &context_sink);
       context_ser.Serialize(&raw_context);
-      ser.SerializeWeakReferences();
+      ser.SerializeWeakReferencesAndDeferred();
 
       result = i::Snapshot::CreateSnapshotBlob(ser, context_ser, metadata);
     }
@@ -1523,6 +1547,12 @@ ScriptCompiler::CachedData::~CachedData() {
 }
 
 
+bool ScriptCompiler::ExternalSourceStream::SetBookmark() { return false; }
+
+
+void ScriptCompiler::ExternalSourceStream::ResetToBookmark() { UNREACHABLE(); }
+
+
 ScriptCompiler::StreamedSource::StreamedSource(ExternalSourceStream* stream,
                                                Encoding encoding)
     : impl_(new i::StreamedSource(stream, encoding)) {}
@@ -1560,7 +1590,8 @@ Local<Script> UnboundScript::BindToCurrentContext() {
         pending_error_handler_.ReportMessageAt(
             scope_info->StrongModeFreeVariableStartPosition(i),
             scope_info->StrongModeFreeVariableEndPosition(i),
-            "strong_unbound_global", name_string, i::kReferenceError);
+            i::MessageTemplate::kStrongUnboundGlobal, name_string,
+            i::kReferenceError);
         i::Handle<i::Script> script(i::Script::cast(function_info->script()));
         pending_error_handler_.ThrowPendingError(isolate, script);
         isolate->ReportPendingMessages();
@@ -1684,15 +1715,6 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
   PREPARE_FOR_EXECUTION_WITH_ISOLATE(
       isolate, "v8::ScriptCompiler::CompileUnbound()", UnboundScript);
 
-  // Support the old API for a transition period:
-  // - kProduceToCache -> kProduceParserCache
-  // - kNoCompileOptions + cached_data != NULL -> kConsumeParserCache
-  if (options == kProduceDataToCache) {
-    options = kProduceParserCache;
-  } else if (options == kNoCompileOptions && source->cached_data) {
-    options = kConsumeParserCache;
-  }
-
   // Don't try to produce any kind of cache when the debugger is loaded.
   if (isolate->debug()->is_loaded() &&
       (options == kProduceParserCache || options == kProduceCodeCache)) {
@@ -1715,8 +1737,6 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
     i::Handle<i::Object> source_map_url;
     int line_offset = 0;
     int column_offset = 0;
-    bool is_embedder_debug_script = false;
-    bool is_shared_cross_origin = false;
     if (!source->resource_name.IsEmpty()) {
       name_obj = Utils::OpenHandle(*(source->resource_name));
     }
@@ -1727,21 +1747,13 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
       column_offset =
           static_cast<int>(source->resource_column_offset->Value());
     }
-    if (!source->resource_is_shared_cross_origin.IsEmpty()) {
-      is_shared_cross_origin =
-          source->resource_is_shared_cross_origin->IsTrue();
-    }
-    if (!source->resource_is_embedder_debug_script.IsEmpty()) {
-      is_embedder_debug_script =
-          source->resource_is_embedder_debug_script->IsTrue();
-    }
     if (!source->source_map_url.IsEmpty()) {
       source_map_url = Utils::OpenHandle(*(source->source_map_url));
     }
     result = i::Compiler::CompileScript(
-        str, name_obj, line_offset, column_offset, is_embedder_debug_script,
-        is_shared_cross_origin, source_map_url, isolate->native_context(), NULL,
-        &script_data, options, i::NOT_NATIVES_CODE, is_module);
+        str, name_obj, line_offset, column_offset, source->resource_options,
+        source_map_url, isolate->native_context(), NULL, &script_data, options,
+        i::NOT_NATIVES_CODE, is_module);
     has_pending_exception = result.is_null();
     if (has_pending_exception && script_data != NULL) {
       // This case won't happen during normal operation; we have compiled
@@ -1975,14 +1987,7 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
     script->set_column_offset(i::Smi::FromInt(
         static_cast<int>(origin.ResourceColumnOffset()->Value())));
   }
-  if (!origin.ResourceIsSharedCrossOrigin().IsEmpty()) {
-    script->set_is_shared_cross_origin(
-        origin.ResourceIsSharedCrossOrigin()->IsTrue());
-  }
-  if (!origin.ResourceIsEmbedderDebugScript().IsEmpty()) {
-    script->set_is_embedder_debug_script(
-        origin.ResourceIsEmbedderDebugScript()->IsTrue());
-  }
+  script->set_origin_options(origin.Options());
   if (!origin.SourceMapUrl().IsEmpty()) {
     script->set_source_mapping_url(
         *Utils::OpenHandle(*(origin.SourceMapUrl())));
@@ -2056,8 +2061,10 @@ Local<Script> Script::Compile(v8::Handle<String> source,
 
 Local<Script> Script::Compile(v8::Handle<String> source,
                               v8::Handle<String> file_name) {
+  auto str = Utils::OpenHandle(*source);
+  auto context = ContextFromHeapObject(str);
   ScriptOrigin origin(file_name);
-  return Compile(source, &origin);
+  return Compile(context, source, &origin).FromMaybe(Local<Script>());
 }
 
 
@@ -2361,7 +2368,18 @@ bool Message::IsSharedCrossOrigin() const {
   auto self = Utils::OpenHandle(this);
   auto script = i::Handle<i::JSValue>::cast(
       i::Handle<i::Object>(self->script(), isolate));
-  return i::Script::cast(script->value())->is_shared_cross_origin();
+  return i::Script::cast(script->value())
+      ->origin_options()
+      .IsSharedCrossOrigin();
+}
+
+bool Message::IsOpaque() const {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ENTER_V8(isolate);
+  auto self = Utils::OpenHandle(this);
+  auto script = i::Handle<i::JSValue>::cast(
+      i::Handle<i::Object>(self->script(), isolate));
+  return i::Script::cast(script->value())->origin_options().IsOpaque();
 }
 
 
@@ -2535,7 +2553,8 @@ void NativeWeakMap::Set(Handle<Value> v8_key, Handle<Value> v8_value) {
     DCHECK(false);
     return;
   }
-  i::Runtime::WeakCollectionSet(weak_collection, key, value);
+  int32_t hash = i::Object::GetOrCreateHash(isolate, key)->value();
+  i::Runtime::WeakCollectionSet(weak_collection, key, value, hash);
 }
 
 
@@ -2680,7 +2699,8 @@ bool Value::IsArray() const {
 
 
 bool Value::IsArrayBuffer() const {
-  return Utils::OpenHandle(this)->IsJSArrayBuffer();
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  return obj->IsJSArrayBuffer() && !i::JSArrayBuffer::cast(*obj)->is_shared();
 }
 
 
@@ -2701,6 +2721,7 @@ bool Value::IsTypedArray() const {
            i::JSTypedArray::cast(*obj)->type() == i::kExternal##Type##Array; \
   }
 
+
 TYPED_ARRAYS(VALUE_IS_TYPED_ARRAY)
 
 #undef VALUE_IS_TYPED_ARRAY
@@ -2708,6 +2729,12 @@ TYPED_ARRAYS(VALUE_IS_TYPED_ARRAY)
 
 bool Value::IsDataView() const {
   return Utils::OpenHandle(this)->IsJSDataView();
+}
+
+
+bool Value::IsSharedArrayBuffer() const {
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  return obj->IsJSArrayBuffer() && i::JSArrayBuffer::cast(*obj)->is_shared();
 }
 
 
@@ -3071,6 +3098,20 @@ void v8::Array::CheckCast(Value* that) {
 }
 
 
+void v8::Map::CheckCast(Value* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  Utils::ApiCheck(obj->IsJSMap(), "v8::Map::Cast()",
+                  "Could not convert to Map");
+}
+
+
+void v8::Set::CheckCast(Value* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  Utils::ApiCheck(obj->IsJSSet(), "v8::Set::Cast()",
+                  "Could not convert to Set");
+}
+
+
 void v8::Promise::CheckCast(Value* that) {
   Utils::ApiCheck(that->IsPromise(),
                   "v8::Promise::Cast()",
@@ -3087,9 +3128,9 @@ void v8::Promise::Resolver::CheckCast(Value* that) {
 
 void v8::ArrayBuffer::CheckCast(Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  Utils::ApiCheck(obj->IsJSArrayBuffer(),
-                  "v8::ArrayBuffer::Cast()",
-                  "Could not convert to ArrayBuffer");
+  Utils::ApiCheck(
+      obj->IsJSArrayBuffer() && !i::JSArrayBuffer::cast(*obj)->is_shared(),
+      "v8::ArrayBuffer::Cast()", "Could not convert to ArrayBuffer");
 }
 
 
@@ -3129,6 +3170,15 @@ void v8::DataView::CheckCast(Value* that) {
   Utils::ApiCheck(obj->IsJSDataView(),
                   "v8::DataView::Cast()",
                   "Could not convert to DataView");
+}
+
+
+void v8::SharedArrayBuffer::CheckCast(Value* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  Utils::ApiCheck(
+      obj->IsJSArrayBuffer() && i::JSArrayBuffer::cast(*obj)->is_shared(),
+      "v8::SharedArrayBuffer::Cast()",
+      "Could not convert to SharedArrayBuffer");
 }
 
 
@@ -3426,8 +3476,8 @@ Maybe<bool> v8::Object::Set(v8::Local<v8::Context> context, uint32_t index,
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Object::Set()", bool);
   auto self = Utils::OpenHandle(this);
   auto value_obj = Utils::OpenHandle(*value);
-  has_pending_exception = i::JSObject::SetElement(
-      self, index, value_obj, NONE, i::SLOPPY).is_null();
+  has_pending_exception =
+      i::JSReceiver::SetElement(self, index, value_obj, i::SLOPPY).is_null();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
 }
@@ -3439,6 +3489,101 @@ bool v8::Object::Set(uint32_t index, v8::Handle<Value> value) {
 }
 
 
+Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
+                                           v8::Local<Name> key,
+                                           v8::Local<Value> value) {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Object::CreateDataProperty()",
+                                  bool);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Name> key_obj = Utils::OpenHandle(*key);
+  i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
+
+  i::LookupIterator it = i::LookupIterator::PropertyOrElement(
+      isolate, self, key_obj, i::LookupIterator::OWN);
+  Maybe<bool> result = i::JSObject::CreateDataProperty(&it, value_obj);
+  has_pending_exception = result.IsNothing();
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return result;
+}
+
+
+Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
+                                           uint32_t index,
+                                           v8::Local<Value> value) {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Object::CreateDataProperty()",
+                                  bool);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
+
+  i::LookupIterator it(isolate, self, index, i::LookupIterator::OWN);
+  Maybe<bool> result = i::JSObject::CreateDataProperty(&it, value_obj);
+  has_pending_exception = result.IsNothing();
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return result;
+}
+
+
+Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
+                                          v8::Local<Name> key,
+                                          v8::Local<Value> value,
+                                          v8::PropertyAttribute attributes) {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Object::DefineOwnProperty()",
+                                  bool);
+  auto self = Utils::OpenHandle(this);
+  auto key_obj = Utils::OpenHandle(*key);
+  auto value_obj = Utils::OpenHandle(*value);
+
+  if (self->IsAccessCheckNeeded() && !isolate->MayAccess(self)) {
+    isolate->ReportFailedAccessCheck(self);
+    return Nothing<bool>();
+  }
+
+  i::Handle<i::FixedArray> desc = isolate->factory()->NewFixedArray(3);
+  desc->set(0, isolate->heap()->ToBoolean(!(attributes & v8::ReadOnly)));
+  desc->set(1, isolate->heap()->ToBoolean(!(attributes & v8::DontEnum)));
+  desc->set(2, isolate->heap()->ToBoolean(!(attributes & v8::DontDelete)));
+  i::Handle<i::JSArray> desc_array =
+      isolate->factory()->NewJSArrayWithElements(desc, i::FAST_ELEMENTS, 3);
+  i::Handle<i::Object> args[] = {self, key_obj, value_obj, desc_array};
+  i::Handle<i::Object> result;
+  has_pending_exception =
+      !CallV8HeapFunction(isolate, "$objectDefineOwnProperty",
+                          isolate->factory()->undefined_value(),
+                          arraysize(args), args).ToHandle(&result);
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return Just(result->BooleanValue());
+}
+
+
+MUST_USE_RESULT
+static i::MaybeHandle<i::Object> DefineObjectProperty(
+    i::Handle<i::JSObject> js_object, i::Handle<i::Object> key,
+    i::Handle<i::Object> value, PropertyAttributes attrs) {
+  i::Isolate* isolate = js_object->GetIsolate();
+  // Check if the given key is an array index.
+  uint32_t index = 0;
+  if (key->ToArrayIndex(&index)) {
+    return i::JSObject::SetOwnElementIgnoreAttributes(js_object, index, value,
+                                                      attrs);
+  }
+
+  i::Handle<i::Name> name;
+  if (key->IsName()) {
+    name = i::Handle<i::Name>::cast(key);
+  } else {
+    // Call-back into JavaScript to convert the key to a string.
+    i::Handle<i::Object> converted;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, converted,
+                                     i::Execution::ToString(isolate, key),
+                                     i::MaybeHandle<i::Object>());
+    name = i::Handle<i::String>::cast(converted);
+  }
+
+  return i::JSObject::DefinePropertyOrElementIgnoreAttributes(js_object, name,
+                                                              value, attrs);
+}
+
+
 Maybe<bool> v8::Object::ForceSet(v8::Local<v8::Context> context,
                                  v8::Local<Value> key, v8::Local<Value> value,
                                  v8::PropertyAttribute attribs) {
@@ -3446,11 +3591,9 @@ Maybe<bool> v8::Object::ForceSet(v8::Local<v8::Context> context,
   auto self = Utils::OpenHandle(this);
   auto key_obj = Utils::OpenHandle(*key);
   auto value_obj = Utils::OpenHandle(*value);
-  has_pending_exception = i::Runtime::DefineObjectProperty(
-      self,
-      key_obj,
-      value_obj,
-      static_cast<PropertyAttributes>(attribs)).is_null();
+  has_pending_exception =
+      DefineObjectProperty(self, key_obj, value_obj,
+                           static_cast<PropertyAttributes>(attribs)).is_null();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
 }
@@ -3458,14 +3601,18 @@ Maybe<bool> v8::Object::ForceSet(v8::Local<v8::Context> context,
 
 bool v8::Object::ForceSet(v8::Handle<Value> key, v8::Handle<Value> value,
                           v8::PropertyAttribute attribs) {
-  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
-  return ForceSet(context, key, value, attribs).FromMaybe(false);
-}
-
-
-bool v8::Object::SetPrivate(v8::Handle<Private> key, v8::Handle<Value> value) {
-  return ForceSet(v8::Handle<Value>(reinterpret_cast<Value*>(*key)),
-                  value, DontEnum);
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  PREPARE_FOR_EXECUTION_GENERIC(isolate, Local<Context>(),
+                                "v8::Object::ForceSet", false, i::HandleScope,
+                                false);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
+  i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
+  has_pending_exception =
+      DefineObjectProperty(self, key_obj, value_obj,
+                           static_cast<PropertyAttributes>(attribs)).is_null();
+  EXCEPTION_BAILOUT_CHECK_SCOPED(isolate, false);
+  return true;
 }
 
 
@@ -3475,7 +3622,7 @@ i::MaybeHandle<i::Object> DeleteObjectProperty(
     i::Isolate* isolate, i::Handle<i::JSReceiver> receiver,
     i::Handle<i::Object> key, i::LanguageMode language_mode) {
   // Check if the given key is an array index.
-  uint32_t index;
+  uint32_t index = 0;
   if (key->ToArrayIndex(&index)) {
     // In Firefox/SpiderMonkey, Safari and Opera you can access the
     // characters of a string using [] notation.  In the case of a
@@ -3484,7 +3631,7 @@ i::MaybeHandle<i::Object> DeleteObjectProperty(
     // underlying string does nothing with the deletion, we can ignore
     // such deletions.
     if (receiver->IsStringObjectWithCharacterAt(index)) {
-      return isolate->factory()->true_value();
+      return isolate->factory()->false_value();
     }
 
     return i::JSReceiver::DeleteElement(receiver, index, language_mode);
@@ -3502,9 +3649,6 @@ i::MaybeHandle<i::Object> DeleteObjectProperty(
     name = i::Handle<i::String>::cast(converted);
   }
 
-  if (name->IsString()) {
-    name = i::String::Flatten(i::Handle<i::String>::cast(name));
-  }
   return i::JSReceiver::DeleteProperty(receiver, name, language_mode);
 }
 
@@ -3544,11 +3688,6 @@ MaybeLocal<Value> v8::Object::Get(Local<Context> context, uint32_t index) {
 Local<Value> v8::Object::Get(uint32_t index) {
   auto context = ContextFromHeapObject(Utils::OpenHandle(this));
   RETURN_TO_LOCAL_UNCHECKED(Get(context, index), Value);
-}
-
-
-Local<Value> v8::Object::GetPrivate(v8::Handle<Private> key) {
-  return Get(v8::Handle<Value>(reinterpret_cast<Value*>(*key)));
 }
 
 
@@ -3707,11 +3846,13 @@ MaybeLocal<String> v8::Object::ObjectProtoToString(Local<Context> context) {
   //   return "[object " + c + "]";
 
   if (!name->IsString()) {
-    return v8::String::NewFromUtf8(v8_isolate, "[object ]");
+    return v8::String::NewFromUtf8(v8_isolate, "[object ]",
+                                   NewStringType::kNormal);
   }
   auto class_name = i::Handle<i::String>::cast(name);
   if (i::String::Equals(class_name, isolate->factory()->Arguments_string())) {
-    return v8::String::NewFromUtf8(v8_isolate, "[object Object]");
+    return v8::String::NewFromUtf8(v8_isolate, "[object Object]",
+                                   NewStringType::kNormal);
   }
   if (internal::FLAG_harmony_tostring) {
     PREPARE_FOR_EXECUTION(context, "v8::Object::ObjectProtoToString()", String);
@@ -3747,8 +3888,8 @@ MaybeLocal<String> v8::Object::ObjectProtoToString(Local<Context> context) {
   i::MemCopy(ptr, postfix, postfix_len * v8::internal::kCharSize);
 
   // Copy the buffer into a heap-allocated string and return it.
-  return v8::String::NewFromUtf8(v8_isolate, buf.start(), String::kNormalString,
-                                 buf_len);
+  return v8::String::NewFromUtf8(v8_isolate, buf.start(),
+                                 NewStringType::kNormal, buf_len);
 }
 
 
@@ -3783,18 +3924,13 @@ bool v8::Object::Delete(v8::Handle<Value> key) {
 }
 
 
-bool v8::Object::DeletePrivate(v8::Handle<Private> key) {
-  return Delete(v8::Handle<Value>(reinterpret_cast<Value*>(*key)));
-}
-
-
 Maybe<bool> v8::Object::Has(Local<Context> context, Local<Value> key) {
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Object::Get()", bool);
   auto self = Utils::OpenHandle(this);
   auto key_obj = Utils::OpenHandle(*key);
   Maybe<bool> maybe = Nothing<bool>();
   // Check if the given key is an array index.
-  uint32_t index;
+  uint32_t index = 0;
   if (key_obj->ToArrayIndex(&index)) {
     maybe = i::JSReceiver::HasElement(self, index);
   } else {
@@ -3813,13 +3949,6 @@ Maybe<bool> v8::Object::Has(Local<Context> context, Local<Value> key) {
 bool v8::Object::Has(v8::Handle<Value> key) {
   auto context = ContextFromHeapObject(Utils::OpenHandle(this));
   return Has(context, key).FromMaybe(false);
-}
-
-
-bool v8::Object::HasPrivate(v8::Handle<Private> key) {
-  // TODO(rossberg): this should use HasOwnProperty, but we'd need to
-  // generalise that to a (noy yet existant) Name argument first.
-  return Has(v8::Handle<Value>(reinterpret_cast<Value*>(*key)));
 }
 
 
@@ -4032,8 +4161,9 @@ MaybeLocal<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
   i::PrototypeIterator iter(isolate, self);
   if (iter.IsAtEnd()) return MaybeLocal<Value>();
   auto proto = i::PrototypeIterator::GetCurrent(iter);
-  i::LookupIterator it(self, key_obj, i::Handle<i::JSReceiver>::cast(proto),
-                       i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
+  i::LookupIterator it = i::LookupIterator::PropertyOrElement(
+      isolate, self, key_obj, i::Handle<i::JSReceiver>::cast(proto),
+      i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   Local<Value> result;
   has_pending_exception = !ToLocal<Value>(i::Object::GetProperty(&it), &result);
   RETURN_ON_FAILED_EXECUTION(Value);
@@ -4061,8 +4191,9 @@ v8::Object::GetRealNamedPropertyAttributesInPrototypeChain(
   i::PrototypeIterator iter(isolate, self);
   if (iter.IsAtEnd()) return Nothing<PropertyAttribute>();
   auto proto = i::PrototypeIterator::GetCurrent(iter);
-  i::LookupIterator it(self, key_obj, i::Handle<i::JSReceiver>::cast(proto),
-                       i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
+  i::LookupIterator it = i::LookupIterator::PropertyOrElement(
+      isolate, self, key_obj, i::Handle<i::JSReceiver>::cast(proto),
+      i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   auto result = i::JSReceiver::GetPropertyAttributes(&it);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(PropertyAttribute);
   if (!it.IsFound()) return Nothing<PropertyAttribute>();
@@ -4086,8 +4217,9 @@ MaybeLocal<Value> v8::Object::GetRealNamedProperty(Local<Context> context,
   PREPARE_FOR_EXECUTION(context, "v8::Object::GetRealNamedProperty()", Value);
   auto self = Utils::OpenHandle(this);
   auto key_obj = Utils::OpenHandle(*key);
-  i::LookupIterator it(self, key_obj,
-                       i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
+  i::LookupIterator it = i::LookupIterator::PropertyOrElement(
+      isolate, self, key_obj,
+      i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   Local<Value> result;
   has_pending_exception = !ToLocal<Value>(i::Object::GetProperty(&it), &result);
   RETURN_ON_FAILED_EXECUTION(Value);
@@ -4109,8 +4241,9 @@ Maybe<PropertyAttribute> v8::Object::GetRealNamedPropertyAttributes(
       PropertyAttribute);
   auto self = Utils::OpenHandle(this);
   auto key_obj = Utils::OpenHandle(*key);
-  i::LookupIterator it(self, key_obj,
-                       i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
+  i::LookupIterator it = i::LookupIterator::PropertyOrElement(
+      isolate, self, key_obj,
+      i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   auto result = i::JSReceiver::GetPropertyAttributes(&it);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(PropertyAttribute);
   if (!it.IsFound()) return Nothing<PropertyAttribute>();
@@ -4305,21 +4438,27 @@ Local<v8::Value> Object::CallAsConstructor(int argc,
 }
 
 
-Local<Function> Function::New(Isolate* v8_isolate,
-                              FunctionCallback callback,
-                              Local<Value> data,
-                              int length) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+MaybeLocal<Function> Function::New(Local<Context> context,
+                                   FunctionCallback callback, Local<Value> data,
+                                   int length) {
+  i::Isolate* isolate = Utils::OpenHandle(*context)->GetIsolate();
   LOG_API(isolate, "Function::New");
   ENTER_V8(isolate);
-  return FunctionTemplateNew(
-      isolate, callback, data, Local<Signature>(), length, true)->
-      GetFunction();
+  return FunctionTemplateNew(isolate, callback, data, Local<Signature>(),
+                             length, true)->GetFunction(context);
+}
+
+
+Local<Function> Function::New(Isolate* v8_isolate, FunctionCallback callback,
+                              Local<Value> data, int length) {
+  return Function::New(v8_isolate->GetCurrentContext(), callback, data, length)
+      .FromMaybe(Local<Function>());
 }
 
 
 Local<v8::Object> Function::NewInstance() const {
-  return NewInstance(0, NULL);
+  return NewInstance(Isolate::GetCurrent()->GetCurrentContext(), 0, NULL)
+      .FromMaybe(Local<Object>());
 }
 
 
@@ -4399,7 +4538,7 @@ Handle<Value> Function::GetDisplayName() const {
   i::Handle<i::String> property_name =
       isolate->factory()->NewStringFromStaticChars("displayName");
   i::Handle<i::Object> value =
-      i::JSObject::GetDataProperty(func, property_name);
+      i::JSReceiver::GetDataProperty(func, property_name);
   if (value->IsString()) {
     i::Handle<i::String> name = i::Handle<i::String>::cast(value);
     if (name->length() > 0) return Utils::ToLocal(name);
@@ -5177,11 +5316,6 @@ Local<Value> Symbol::Name() const {
 }
 
 
-Local<Value> Private::Name() const {
-  return reinterpret_cast<const Symbol*>(this)->Name();
-}
-
-
 double Number::Value() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   return obj->Number();
@@ -5254,7 +5388,6 @@ void v8::Object::SetInternalField(int index, v8::Handle<Value> value) {
   if (!InternalFieldOK(obj, index, location)) return;
   i::Handle<i::Object> val = Utils::OpenHandle(*value);
   obj->SetInternalField(index, *val);
-  DCHECK(value->Equals(GetInternalField(index)));
 }
 
 
@@ -5348,6 +5481,12 @@ HeapSpaceStatistics::HeapSpaceStatistics(): space_name_(0),
                                             physical_space_size_(0) { }
 
 
+HeapObjectStatistics::HeapObjectStatistics()
+    : object_type_(nullptr),
+      object_sub_type_(nullptr),
+      object_count_(0),
+      object_size_(0) {}
+
 bool v8::V8::InitializeICU(const char* icu_data_file) {
   return i::InitializeICU(icu_data_file);
 }
@@ -5436,7 +5575,12 @@ Local<Context> v8::Context::New(
   if (extensions == NULL) extensions = &no_extensions;
   i::Handle<i::Context> env =
       CreateEnvironment(isolate, extensions, global_template, global_object);
-  if (env.is_null()) return Local<Context>();
+  if (env.is_null()) {
+    if (isolate->has_pending_exception()) {
+      isolate->OptionalRescheduleException(true);
+    }
+    return Local<Context>();
+  }
   return Utils::ToLocal(scope.CloseAndEscape(env));
 }
 
@@ -5488,6 +5632,14 @@ void Context::DetachGlobal() {
   i::Isolate* isolate = context->GetIsolate();
   ENTER_V8(isolate);
   isolate->bootstrapper()->DetachGlobal(context);
+}
+
+
+Local<v8::Object> Context::GetExtrasExportsObject() {
+  i::Handle<i::Context> context = Utils::OpenHandle(this);
+  i::Isolate* isolate = context->GetIsolate();
+  i::Handle<i::JSObject> exports(context->extras_exports_object(), isolate);
+  return Utils::ToLocal(exports);
 }
 
 
@@ -6074,8 +6226,9 @@ MaybeLocal<Object> Array::CloneElementAt(Local<Context> context,
   if (!paragon->IsJSObject()) return Local<Object>();
   i::Handle<i::JSObject> paragon_handle(i::JSObject::cast(paragon));
   Local<Object> result;
-  has_pending_exception = ToLocal<Object>(
-      isolate->factory()->CopyJSObject(paragon_handle), &result);
+  has_pending_exception =
+      !ToLocal<Object>(isolate->factory()->CopyJSObject(paragon_handle),
+                       &result);
   RETURN_ON_FAILED_EXECUTION(Object);
   RETURN_ESCAPED(result);
 }
@@ -6087,18 +6240,222 @@ Local<Object> Array::CloneElementAt(uint32_t index) {
 }
 
 
+Local<v8::Map> v8::Map::New(Isolate* isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  LOG_API(i_isolate, "Map::New");
+  ENTER_V8(i_isolate);
+  i::Handle<i::JSMap> obj = i_isolate->factory()->NewJSMap();
+  return Utils::ToLocal(obj);
+}
+
+
+size_t v8::Map::Size() const {
+  i::Handle<i::JSMap> obj = Utils::OpenHandle(this);
+  return i::OrderedHashMap::cast(obj->table())->NumberOfElements();
+}
+
+
+void Map::Clear() {
+  auto self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
+  LOG_API(isolate, "Map::Clear");
+  ENTER_V8(isolate);
+  i::Runtime::JSMapClear(isolate, self);
+}
+
+
+MaybeLocal<Value> Map::Get(Local<Context> context, Local<Value> key) {
+  PREPARE_FOR_EXECUTION(context, "Map::Get", Value);
+  auto self = Utils::OpenHandle(this);
+  Local<Value> result;
+  i::Handle<i::Object> argv[] = {Utils::OpenHandle(*key)};
+  has_pending_exception =
+      !ToLocal<Value>(i::Execution::Call(isolate, isolate->map_get(), self,
+                                         arraysize(argv), argv, false),
+                      &result);
+  RETURN_ON_FAILED_EXECUTION(Value);
+  RETURN_ESCAPED(result);
+}
+
+
+MaybeLocal<Map> Map::Set(Local<Context> context, Local<Value> key,
+                         Local<Value> value) {
+  PREPARE_FOR_EXECUTION(context, "Map::Set", Map);
+  auto self = Utils::OpenHandle(this);
+  i::Handle<i::Object> result;
+  i::Handle<i::Object> argv[] = {Utils::OpenHandle(*key),
+                                 Utils::OpenHandle(*value)};
+  has_pending_exception =
+      !i::Execution::Call(isolate, isolate->map_set(), self, arraysize(argv),
+                          argv, false).ToHandle(&result);
+  RETURN_ON_FAILED_EXECUTION(Map);
+  RETURN_ESCAPED(Local<Map>::Cast(Utils::ToLocal(result)));
+}
+
+
+Maybe<bool> Map::Has(Local<Context> context, Local<Value> key) {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, "Map::Has", bool);
+  auto self = Utils::OpenHandle(this);
+  i::Handle<i::Object> result;
+  i::Handle<i::Object> argv[] = {Utils::OpenHandle(*key)};
+  has_pending_exception =
+      !i::Execution::Call(isolate, isolate->map_has(), self, arraysize(argv),
+                          argv, false).ToHandle(&result);
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return Just(result->IsTrue());
+}
+
+
+Maybe<bool> Map::Delete(Local<Context> context, Local<Value> key) {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, "Map::Delete", bool);
+  auto self = Utils::OpenHandle(this);
+  i::Handle<i::Object> result;
+  i::Handle<i::Object> argv[] = {Utils::OpenHandle(*key)};
+  has_pending_exception =
+      !i::Execution::Call(isolate, isolate->map_delete(), self, arraysize(argv),
+                          argv, false).ToHandle(&result);
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return Just(result->IsTrue());
+}
+
+
+Local<Array> Map::AsArray() const {
+  i::Handle<i::JSMap> obj = Utils::OpenHandle(this);
+  i::Isolate* isolate = obj->GetIsolate();
+  i::Factory* factory = isolate->factory();
+  LOG_API(isolate, "Map::AsArray");
+  ENTER_V8(isolate);
+  i::Handle<i::OrderedHashMap> table(i::OrderedHashMap::cast(obj->table()));
+  int size = table->NumberOfElements();
+  int length = size * 2;
+  i::Handle<i::FixedArray> result = factory->NewFixedArray(length);
+  for (int i = 0; i < size; ++i) {
+    if (table->KeyAt(i)->IsTheHole()) continue;
+    result->set(i * 2, table->KeyAt(i));
+    result->set(i * 2 + 1, table->ValueAt(i));
+  }
+  i::Handle<i::JSArray> result_array =
+      factory->NewJSArrayWithElements(result, i::FAST_ELEMENTS, length);
+  return Utils::ToLocal(result_array);
+}
+
+
+MaybeLocal<Map> Map::FromArray(Local<Context> context, Local<Array> array) {
+  PREPARE_FOR_EXECUTION(context, "Map::FromArray", Map);
+  if (array->Length() % 2 != 0) {
+    return MaybeLocal<Map>();
+  }
+  i::Handle<i::Object> result;
+  i::Handle<i::Object> argv[] = {Utils::OpenHandle(*array)};
+  has_pending_exception =
+      !i::Execution::Call(isolate, isolate->map_from_array(),
+                          isolate->factory()->undefined_value(),
+                          arraysize(argv), argv, false).ToHandle(&result);
+  RETURN_ON_FAILED_EXECUTION(Map);
+  RETURN_ESCAPED(Local<Map>::Cast(Utils::ToLocal(result)));
+}
+
+
+Local<v8::Set> v8::Set::New(Isolate* isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  LOG_API(i_isolate, "Set::New");
+  ENTER_V8(i_isolate);
+  i::Handle<i::JSSet> obj = i_isolate->factory()->NewJSSet();
+  return Utils::ToLocal(obj);
+}
+
+
+size_t v8::Set::Size() const {
+  i::Handle<i::JSSet> obj = Utils::OpenHandle(this);
+  return i::OrderedHashSet::cast(obj->table())->NumberOfElements();
+}
+
+
+void Set::Clear() {
+  auto self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
+  LOG_API(isolate, "Set::Clear");
+  ENTER_V8(isolate);
+  i::Runtime::JSSetClear(isolate, self);
+}
+
+
+MaybeLocal<Set> Set::Add(Local<Context> context, Local<Value> key) {
+  PREPARE_FOR_EXECUTION(context, "Set::Add", Set);
+  auto self = Utils::OpenHandle(this);
+  i::Handle<i::Object> result;
+  i::Handle<i::Object> argv[] = {Utils::OpenHandle(*key)};
+  has_pending_exception =
+      !i::Execution::Call(isolate, isolate->set_add(), self, arraysize(argv),
+                          argv, false).ToHandle(&result);
+  RETURN_ON_FAILED_EXECUTION(Set);
+  RETURN_ESCAPED(Local<Set>::Cast(Utils::ToLocal(result)));
+}
+
+
+Maybe<bool> Set::Has(Local<Context> context, Local<Value> key) {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, "Set::Has", bool);
+  auto self = Utils::OpenHandle(this);
+  i::Handle<i::Object> result;
+  i::Handle<i::Object> argv[] = {Utils::OpenHandle(*key)};
+  has_pending_exception =
+      !i::Execution::Call(isolate, isolate->set_has(), self, arraysize(argv),
+                          argv, false).ToHandle(&result);
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return Just(result->IsTrue());
+}
+
+
+Maybe<bool> Set::Delete(Local<Context> context, Local<Value> key) {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, "Set::Delete", bool);
+  auto self = Utils::OpenHandle(this);
+  i::Handle<i::Object> result;
+  i::Handle<i::Object> argv[] = {Utils::OpenHandle(*key)};
+  has_pending_exception =
+      !i::Execution::Call(isolate, isolate->set_delete(), self, arraysize(argv),
+                          argv, false).ToHandle(&result);
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return Just(result->IsTrue());
+}
+
+
+Local<Array> Set::AsArray() const {
+  i::Handle<i::JSSet> obj = Utils::OpenHandle(this);
+  i::Isolate* isolate = obj->GetIsolate();
+  i::Factory* factory = isolate->factory();
+  LOG_API(isolate, "Set::AsArray");
+  ENTER_V8(isolate);
+  i::Handle<i::OrderedHashSet> table(i::OrderedHashSet::cast(obj->table()));
+  int length = table->NumberOfElements();
+  i::Handle<i::FixedArray> result = factory->NewFixedArray(length);
+  for (int i = 0; i < length; ++i) {
+    i::Object* key = table->KeyAt(i);
+    if (!key->IsTheHole()) {
+      result->set(i, key);
+    }
+  }
+  i::Handle<i::JSArray> result_array =
+      factory->NewJSArrayWithElements(result, i::FAST_ELEMENTS, length);
+  return Utils::ToLocal(result_array);
+}
+
+
+MaybeLocal<Set> Set::FromArray(Local<Context> context, Local<Array> array) {
+  PREPARE_FOR_EXECUTION(context, "Set::FromArray", Set);
+  i::Handle<i::Object> result;
+  i::Handle<i::Object> argv[] = {Utils::OpenHandle(*array)};
+  has_pending_exception =
+      !i::Execution::Call(isolate, isolate->set_from_array(),
+                          isolate->factory()->undefined_value(),
+                          arraysize(argv), argv, false).ToHandle(&result);
+  RETURN_ON_FAILED_EXECUTION(Set);
+  RETURN_ESCAPED(Local<Set>::Cast(Utils::ToLocal(result)));
+}
+
+
 bool Value::IsPromise() const {
   auto self = Utils::OpenHandle(this);
-  if (!self->IsJSObject()) return false;
-  auto js_object = i::Handle<i::JSObject>::cast(self);
-  // Promises can't have access checks.
-  if (js_object->map()->is_access_check_needed()) return false;
-  auto isolate = js_object->GetIsolate();
-  // TODO(dcarney): this should just be read from the symbol registry so as not
-  // to be context dependent.
-  auto key = isolate->promise_status();
-  // Shouldn't be possible to throw here.
-  return i::JSObject::HasRealNamedProperty(js_object, key).FromJust();
+  return i::Object::IsPromise(self);
 }
 
 
@@ -6238,7 +6595,7 @@ bool Promise::HasHandler() {
   LOG_API(isolate, "Promise::HasRejectHandler");
   ENTER_V8(isolate);
   i::Handle<i::Symbol> key = isolate->factory()->promise_has_handler_symbol();
-  return i::JSObject::GetDataProperty(promise, key)->IsTrue();
+  return i::JSReceiver::GetDataProperty(promise, key)->IsTrue();
 }
 
 
@@ -6300,7 +6657,7 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(Isolate* isolate, size_t byte_length) {
   LOG_API(i_isolate, "v8::ArrayBuffer::New(size_t)");
   ENTER_V8(i_isolate);
   i::Handle<i::JSArrayBuffer> obj =
-      i_isolate->factory()->NewJSArrayBuffer();
+      i_isolate->factory()->NewJSArrayBuffer(i::SharedFlag::kNotShared);
   i::Runtime::SetupArrayBufferAllocatingData(i_isolate, obj, byte_length);
   return Utils::ToLocal(obj);
 }
@@ -6313,7 +6670,7 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(Isolate* isolate, void* data,
   LOG_API(i_isolate, "v8::ArrayBuffer::New(void*, size_t)");
   ENTER_V8(i_isolate);
   i::Handle<i::JSArrayBuffer> obj =
-      i_isolate->factory()->NewJSArrayBuffer();
+      i_isolate->factory()->NewJSArrayBuffer(i::SharedFlag::kNotShared);
   i::Runtime::SetupArrayBuffer(i_isolate, obj,
                                mode == ArrayBufferCreationMode::kExternalized,
                                data, byte_length);
@@ -6380,27 +6737,49 @@ size_t v8::ArrayBufferView::ByteLength() {
 
 size_t v8::TypedArray::Length() {
   i::Handle<i::JSTypedArray> obj = Utils::OpenHandle(this);
-  return static_cast<size_t>(obj->length()->Number());
+  return static_cast<size_t>(obj->length_value());
 }
 
 
-#define TYPED_ARRAY_NEW(Type, type, TYPE, ctype, size)                       \
-  Local<Type##Array> Type##Array::New(Handle<ArrayBuffer> array_buffer,      \
-                                      size_t byte_offset, size_t length) {   \
-    i::Isolate* isolate = Utils::OpenHandle(*array_buffer)->GetIsolate();    \
-    LOG_API(isolate,                                                         \
-            "v8::" #Type "Array::New(Handle<ArrayBuffer>, size_t, size_t)"); \
-    ENTER_V8(isolate);                                                       \
-    if (!Utils::ApiCheck(length <= static_cast<size_t>(i::Smi::kMaxValue),   \
-                         "v8::" #Type                                        \
-                         "Array::New(Handle<ArrayBuffer>, size_t, size_t)",  \
-                         "length exceeds max allowed value")) {              \
-      return Local<Type##Array>();                                           \
-    }                                                                        \
-    i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*array_buffer);   \
-    i::Handle<i::JSTypedArray> obj = isolate->factory()->NewJSTypedArray(    \
-        i::kExternal##Type##Array, buffer, byte_offset, length);             \
-    return Utils::ToLocal##Type##Array(obj);                                 \
+#define TYPED_ARRAY_NEW(Type, type, TYPE, ctype, size)                         \
+  Local<Type##Array> Type##Array::New(Handle<ArrayBuffer> array_buffer,        \
+                                      size_t byte_offset, size_t length) {     \
+    i::Isolate* isolate = Utils::OpenHandle(*array_buffer)->GetIsolate();      \
+    LOG_API(isolate,                                                           \
+            "v8::" #Type "Array::New(Handle<ArrayBuffer>, size_t, size_t)");   \
+    ENTER_V8(isolate);                                                         \
+    if (!Utils::ApiCheck(length <= static_cast<size_t>(i::Smi::kMaxValue),     \
+                         "v8::" #Type                                          \
+                         "Array::New(Handle<ArrayBuffer>, size_t, size_t)",    \
+                         "length exceeds max allowed value")) {                \
+      return Local<Type##Array>();                                             \
+    }                                                                          \
+    i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*array_buffer);     \
+    i::Handle<i::JSTypedArray> obj = isolate->factory()->NewJSTypedArray(      \
+        i::kExternal##Type##Array, buffer, byte_offset, length);               \
+    return Utils::ToLocal##Type##Array(obj);                                   \
+  }                                                                            \
+  Local<Type##Array> Type##Array::New(                                         \
+      Handle<SharedArrayBuffer> shared_array_buffer, size_t byte_offset,       \
+      size_t length) {                                                         \
+    CHECK(i::FLAG_harmony_sharedarraybuffer);                                  \
+    i::Isolate* isolate =                                                      \
+        Utils::OpenHandle(*shared_array_buffer)->GetIsolate();                 \
+    LOG_API(isolate, "v8::" #Type                                              \
+                     "Array::New(Handle<SharedArrayBuffer>, size_t, size_t)"); \
+    ENTER_V8(isolate);                                                         \
+    if (!Utils::ApiCheck(                                                      \
+            length <= static_cast<size_t>(i::Smi::kMaxValue),                  \
+            "v8::" #Type                                                       \
+            "Array::New(Handle<SharedArrayBuffer>, size_t, size_t)",           \
+            "length exceeds max allowed value")) {                             \
+      return Local<Type##Array>();                                             \
+    }                                                                          \
+    i::Handle<i::JSArrayBuffer> buffer =                                       \
+        Utils::OpenHandle(*shared_array_buffer);                               \
+    i::Handle<i::JSTypedArray> obj = isolate->factory()->NewJSTypedArray(      \
+        i::kExternal##Type##Array, buffer, byte_offset, length);               \
+    return Utils::ToLocal##Type##Array(obj);                                   \
   }
 
 
@@ -6411,11 +6790,88 @@ Local<DataView> DataView::New(Handle<ArrayBuffer> array_buffer,
                               size_t byte_offset, size_t byte_length) {
   i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*array_buffer);
   i::Isolate* isolate = buffer->GetIsolate();
-  LOG_API(isolate, "v8::DataView::New(void*, size_t, size_t)");
+  LOG_API(isolate, "v8::DataView::New(Handle<ArrayBuffer>, size_t, size_t)");
   ENTER_V8(isolate);
   i::Handle<i::JSDataView> obj =
       isolate->factory()->NewJSDataView(buffer, byte_offset, byte_length);
   return Utils::ToLocal(obj);
+}
+
+
+Local<DataView> DataView::New(Handle<SharedArrayBuffer> shared_array_buffer,
+                              size_t byte_offset, size_t byte_length) {
+  CHECK(i::FLAG_harmony_sharedarraybuffer);
+  i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*shared_array_buffer);
+  i::Isolate* isolate = buffer->GetIsolate();
+  LOG_API(isolate,
+          "v8::DataView::New(Handle<SharedArrayBuffer>, size_t, size_t)");
+  ENTER_V8(isolate);
+  i::Handle<i::JSDataView> obj =
+      isolate->factory()->NewJSDataView(buffer, byte_offset, byte_length);
+  return Utils::ToLocal(obj);
+}
+
+
+bool v8::SharedArrayBuffer::IsExternal() const {
+  return Utils::OpenHandle(this)->is_external();
+}
+
+
+v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::Externalize() {
+  i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
+  Utils::ApiCheck(!self->is_external(), "v8::SharedArrayBuffer::Externalize",
+                  "SharedArrayBuffer already externalized");
+  self->set_is_external(true);
+  isolate->heap()->UnregisterArrayBuffer(isolate->heap()->InNewSpace(*self),
+                                         self->backing_store());
+  return GetContents();
+}
+
+
+v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::GetContents() {
+  i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
+  size_t byte_length = static_cast<size_t>(self->byte_length()->Number());
+  Contents contents;
+  contents.data_ = self->backing_store();
+  contents.byte_length_ = byte_length;
+  return contents;
+}
+
+
+size_t v8::SharedArrayBuffer::ByteLength() const {
+  i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
+  return static_cast<size_t>(obj->byte_length()->Number());
+}
+
+
+Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(Isolate* isolate,
+                                                    size_t byte_length) {
+  CHECK(i::FLAG_harmony_sharedarraybuffer);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  LOG_API(i_isolate, "v8::SharedArrayBuffer::New(size_t)");
+  ENTER_V8(i_isolate);
+  i::Handle<i::JSArrayBuffer> obj =
+      i_isolate->factory()->NewJSArrayBuffer(i::SharedFlag::kShared);
+  i::Runtime::SetupArrayBufferAllocatingData(i_isolate, obj, byte_length, true,
+                                             i::SharedFlag::kShared);
+  return Utils::ToLocalShared(obj);
+}
+
+
+Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(
+    Isolate* isolate, void* data, size_t byte_length,
+    ArrayBufferCreationMode mode) {
+  CHECK(i::FLAG_harmony_sharedarraybuffer);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  LOG_API(i_isolate, "v8::SharedArrayBuffer::New(void*, size_t)");
+  ENTER_V8(i_isolate);
+  i::Handle<i::JSArrayBuffer> obj =
+      i_isolate->factory()->NewJSArrayBuffer(i::SharedFlag::kShared);
+  i::Runtime::SetupArrayBuffer(i_isolate, obj,
+                               mode == ArrayBufferCreationMode::kExternalized,
+                               data, byte_length, i::SharedFlag::kShared);
+  return Utils::ToLocalShared(obj);
 }
 
 
@@ -6479,38 +6935,6 @@ Local<Symbol> v8::Symbol::GetUnscopables(Isolate* isolate) {
 Local<Symbol> v8::Symbol::GetToStringTag(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   return Utils::ToLocal(i_isolate->factory()->to_string_tag_symbol());
-}
-
-
-Local<Private> v8::Private::New(Isolate* isolate, Local<String> name) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, "Private::New()");
-  ENTER_V8(i_isolate);
-  i::Handle<i::Symbol> symbol = i_isolate->factory()->NewPrivateSymbol();
-  if (!name.IsEmpty()) symbol->set_name(*Utils::OpenHandle(*name));
-  Local<Symbol> result = Utils::ToLocal(symbol);
-  return v8::Handle<Private>(reinterpret_cast<Private*>(*result));
-}
-
-
-Local<Private> v8::Private::ForApi(Isolate* isolate, Local<String> name) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Handle<i::String> i_name = Utils::OpenHandle(*name);
-  i::Handle<i::JSObject> registry = i_isolate->GetSymbolRegistry();
-  i::Handle<i::String> part = i_isolate->factory()->private_api_string();
-  i::Handle<i::JSObject> privates =
-      i::Handle<i::JSObject>::cast(
-          i::Object::GetPropertyOrElement(registry, part).ToHandleChecked());
-  i::Handle<i::Object> symbol =
-      i::Object::GetPropertyOrElement(privates, i_name).ToHandleChecked();
-  if (!symbol->IsSymbol()) {
-    DCHECK(symbol->IsUndefined());
-    symbol = i_isolate->factory()->NewPrivateSymbol();
-    i::Handle<i::Symbol>::cast(symbol)->set_name(*i_name);
-    i::JSObject::SetProperty(privates, i_name, symbol, i::STRICT).Assert();
-  }
-  Local<Symbol> result = Utils::ToLocal(i::Handle<i::Symbol>::cast(symbol));
-  return v8::Handle<Private>(reinterpret_cast<Private*>(*result));
 }
 
 
@@ -6904,9 +7328,8 @@ size_t Isolate::NumberOfHeapSpaces() {
 
 bool Isolate::GetHeapSpaceStatistics(HeapSpaceStatistics* space_statistics,
                                      size_t index) {
-  if (!space_statistics)
-    return false;
-  if (index > i::LAST_SPACE || index < i::FIRST_SPACE)
+  if (!space_statistics) return false;
+  if (!i::Heap::IsValidAllocationSpace(static_cast<i::AllocationSpace>(index)))
     return false;
 
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
@@ -6918,6 +7341,38 @@ bool Isolate::GetHeapSpaceStatistics(HeapSpaceStatistics* space_statistics,
   space_statistics->space_used_size_ = space->SizeOfObjects();
   space_statistics->space_available_size_ = space->Available();
   space_statistics->physical_space_size_ = space->CommittedPhysicalMemory();
+  return true;
+}
+
+
+size_t Isolate::NumberOfTrackedHeapObjectTypes() {
+  return i::Heap::OBJECT_STATS_COUNT;
+}
+
+
+bool Isolate::GetHeapObjectStatisticsAtLastGC(
+    HeapObjectStatistics* object_statistics, size_t type_index) {
+  if (!object_statistics) return false;
+  if (type_index >= i::Heap::OBJECT_STATS_COUNT) return false;
+  if (!i::FLAG_track_gc_object_stats) return false;
+
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  i::Heap* heap = isolate->heap();
+  const char* object_type;
+  const char* object_sub_type;
+  size_t object_count = heap->object_count_last_gc(type_index);
+  size_t object_size = heap->object_size_last_gc(type_index);
+  if (!heap->GetObjectTypeName(type_index, &object_type, &object_sub_type)) {
+    // There should be no objects counted when the type is unknown.
+    DCHECK_EQ(object_count, 0U);
+    DCHECK_EQ(object_size, 0U);
+    return false;
+  }
+
+  object_statistics->object_type_ = object_type;
+  object_statistics->object_sub_type_ = object_sub_type;
+  object_statistics->object_count_ = object_count;
+  object_statistics->object_size_ = object_size;
   return true;
 }
 
@@ -7191,13 +7646,15 @@ void Isolate::VisitHandlesForPartialDependence(
 
 String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj)
     : str_(NULL), length_(0) {
-  i::Isolate* isolate = i::Isolate::Current();
   if (obj.IsEmpty()) return;
+  i::Isolate* isolate = i::Isolate::Current();
+  Isolate* v8_isolate = reinterpret_cast<Isolate*>(isolate);
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
-  TryCatch try_catch;
-  Handle<String> str = obj->ToString(reinterpret_cast<v8::Isolate*>(isolate));
-  if (str.IsEmpty()) return;
+  Local<Context> context = v8_isolate->GetCurrentContext();
+  TryCatch try_catch(v8_isolate);
+  Handle<String> str;
+  if (!obj->ToString(context).ToLocal(&str)) return;
   i::Handle<i::String> i_str = Utils::OpenHandle(*str);
   length_ = v8::Utf8Length(*i_str, isolate);
   str_ = i::NewArray<char>(length_ + 1);
@@ -7212,13 +7669,15 @@ String::Utf8Value::~Utf8Value() {
 
 String::Value::Value(v8::Handle<v8::Value> obj)
     : str_(NULL), length_(0) {
-  i::Isolate* isolate = i::Isolate::Current();
   if (obj.IsEmpty()) return;
+  i::Isolate* isolate = i::Isolate::Current();
+  Isolate* v8_isolate = reinterpret_cast<Isolate*>(isolate);
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
-  TryCatch try_catch;
-  Handle<String> str = obj->ToString(reinterpret_cast<v8::Isolate*>(isolate));
-  if (str.IsEmpty()) return;
+  Local<Context> context = v8_isolate->GetCurrentContext();
+  TryCatch try_catch(v8_isolate);
+  Handle<String> str;
+  if (!obj->ToString(context).ToLocal(&str)) return;
   length_ = str->Length();
   str_ = i::NewArray<uint16_t>(length_ + 1);
   str->Write(str_);
@@ -7230,19 +7689,19 @@ String::Value::~Value() {
 }
 
 
-#define DEFINE_ERROR(NAME)                                                    \
-  Local<Value> Exception::NAME(v8::Handle<v8::String> raw_message) {          \
-    i::Isolate* isolate = i::Isolate::Current();                              \
-    LOG_API(isolate, #NAME);                                                  \
-    ENTER_V8(isolate);                                                        \
-    i::Object* error;                                                         \
-    {                                                                         \
-      i::HandleScope scope(isolate);                                          \
-      i::Handle<i::String> message = Utils::OpenHandle(*raw_message);         \
-      error = *isolate->factory()->New##NAME(message);                        \
-    }                                                                         \
-    i::Handle<i::Object> result(error, isolate);                              \
-    return Utils::ToLocal(result);                                            \
+#define DEFINE_ERROR(NAME)                                            \
+  Local<Value> Exception::NAME(v8::Handle<v8::String> raw_message) {  \
+    i::Isolate* isolate = i::Isolate::Current();                      \
+    LOG_API(isolate, #NAME);                                          \
+    ENTER_V8(isolate);                                                \
+    i::Object* error;                                                 \
+    {                                                                 \
+      i::HandleScope scope(isolate);                                  \
+      i::Handle<i::String> message = Utils::OpenHandle(*raw_message); \
+      error = *isolate->factory()->NewError("$" #NAME, message);      \
+    }                                                                 \
+    i::Handle<i::Object> result(error, isolate);                      \
+    return Utils::ToLocal(result);                                    \
   }
 
 DEFINE_ERROR(RangeError)
@@ -7384,13 +7843,25 @@ void Debug::ProcessDebugMessages() {
 Local<Context> Debug::GetDebugContext() {
   i::Isolate* isolate = i::Isolate::Current();
   ENTER_V8(isolate);
-  return Utils::ToLocal(i::Isolate::Current()->debug()->GetDebugContext());
+  return Utils::ToLocal(isolate->debug()->GetDebugContext());
 }
 
 
 void Debug::SetLiveEditEnabled(Isolate* isolate, bool enable) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
   internal_isolate->debug()->set_live_edit_enabled(enable);
+}
+
+
+MaybeLocal<Array> Debug::GetInternalProperties(Isolate* v8_isolate,
+                                               Local<Value> value) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  ENTER_V8(isolate);
+  i::Handle<i::Object> val = Utils::OpenHandle(*value);
+  i::Handle<i::JSArray> result;
+  if (!i::Runtime::GetInternalProperties(isolate, val).ToHandle(&result))
+    return MaybeLocal<Array>();
+  return Utils::ToLocal(result);
 }
 
 
@@ -8038,4 +8509,5 @@ void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -6,18 +6,22 @@
 #define V8_COMPILER_JS_CONTEXT_SPECIALIZATION_H_
 
 #include "src/compiler/graph-reducer.h"
-#include "src/compiler/js-graph.h"
-#include "src/contexts.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
+// Forward declarations.
+class JSGraph;
+class JSOperatorBuilder;
+
+
 // Specializes a given JSGraph to a given context, potentially constant folding
 // some {LoadContext} nodes or strength reducing some {StoreContext} nodes.
-class JSContextSpecializer : public Reducer {
+class JSContextSpecializer : public AdvancedReducer {
  public:
-  explicit JSContextSpecializer(JSGraph* jsgraph) : jsgraph_(jsgraph) {}
+  JSContextSpecializer(Editor* editor, JSGraph* jsgraph)
+      : AdvancedReducer(editor), jsgraph_(jsgraph) {}
 
   Reduction Reduce(Node* node) override;
 
@@ -26,10 +30,17 @@ class JSContextSpecializer : public Reducer {
   Reduction ReduceJSStoreContext(Node* node);
 
  private:
-  JSGraph* jsgraph_;
+  Isolate* isolate() const;
+  JSOperatorBuilder* javascript() const;
+  JSGraph* jsgraph() const { return jsgraph_; }
+
+  JSGraph* const jsgraph_;
+
+  DISALLOW_COPY_AND_ASSIGN(JSContextSpecializer);
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_JS_CONTEXT_SPECIALIZATION_H_

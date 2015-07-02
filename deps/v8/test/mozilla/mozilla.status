@@ -63,6 +63,7 @@
   'ecma_3/Statements/regress-74474-002': [PASS, NO_VARIANTS],
   'ecma_3/Statements/regress-74474-003': [PASS, NO_VARIANTS],
   'js1_5/Regress/regress-111557': [PASS, NO_VARIANTS],
+  'js1_5/Regress/regress-155081': [PASS, NO_VARIANTS],
   'js1_5/Regress/regress-155081-2': [PASS, NO_VARIANTS],
   'js1_5/Regress/regress-451322': [PASS, NO_VARIANTS],
 

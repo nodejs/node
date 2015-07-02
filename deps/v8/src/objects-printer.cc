@@ -60,11 +60,11 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       HeapNumber::cast(this)->HeapNumberPrint(os);
       os << ">";
       break;
+    case FLOAT32X4_TYPE:
+      Float32x4::cast(this)->Float32x4Print(os);
+      break;
     case FIXED_DOUBLE_ARRAY_TYPE:
       FixedDoubleArray::cast(this)->FixedDoubleArrayPrint(os);
-      break;
-    case CONSTANT_POOL_ARRAY_TYPE:
-      ConstantPoolArray::cast(this)->ConstantPoolArrayPrint(os);
       break;
     case FIXED_ARRAY_TYPE:
       FixedArray::cast(this)->FixedArrayPrint(os);
@@ -255,6 +255,8 @@ void JSObject::PrintProperties(std::ostream& os) {  // NOLINT
           break;
       }
     }
+  } else if (IsGlobalObject()) {
+    global_dictionary()->Print(os);
   } else {
     property_dictionary()->Print(os);
   }
@@ -400,7 +402,6 @@ void Symbol::SymbolPrint(std::ostream& os) {  // NOLINT
     os << " (" << PrivateSymbolToName() << ")";
   }
   os << "\n - private: " << is_private();
-  os << "\n - own: " << is_own();
   os << "\n";
 }
 
@@ -503,43 +504,6 @@ void FixedDoubleArray::FixedDoubleArrayPrint(std::ostream& os) {  // NOLINT
 }
 
 
-void ConstantPoolArray::ConstantPoolArrayPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "ConstantPoolArray");
-  os << " - length: " << length();
-  for (int i = 0; i <= last_index(INT32, SMALL_SECTION); i++) {
-    if (i < last_index(INT64, SMALL_SECTION)) {
-      os << "\n  [" << i << "]: double: " << get_int64_entry_as_double(i);
-    } else if (i <= last_index(CODE_PTR, SMALL_SECTION)) {
-      os << "\n  [" << i << "]: code target pointer: "
-         << reinterpret_cast<void*>(get_code_ptr_entry(i));
-    } else if (i <= last_index(HEAP_PTR, SMALL_SECTION)) {
-      os << "\n  [" << i << "]: heap pointer: "
-         << reinterpret_cast<void*>(get_heap_ptr_entry(i));
-    } else if (i <= last_index(INT32, SMALL_SECTION)) {
-      os << "\n  [" << i << "]: int32: " << get_int32_entry(i);
-    }
-  }
-  if (is_extended_layout()) {
-    os << "\n  Extended section:";
-    for (int i = first_extended_section_index();
-         i <= last_index(INT32, EXTENDED_SECTION); i++) {
-      if (i < last_index(INT64, EXTENDED_SECTION)) {
-        os << "\n  [" << i << "]: double: " << get_int64_entry_as_double(i);
-      } else if (i <= last_index(CODE_PTR, EXTENDED_SECTION)) {
-        os << "\n  [" << i << "]: code target pointer: "
-           << reinterpret_cast<void*>(get_code_ptr_entry(i));
-      } else if (i <= last_index(HEAP_PTR, EXTENDED_SECTION)) {
-        os << "\n  [" << i << "]: heap pointer: "
-           << reinterpret_cast<void*>(get_heap_ptr_entry(i));
-      } else if (i <= last_index(INT32, EXTENDED_SECTION)) {
-        os << "\n  [" << i << "]: int32: " << get_int32_entry(i);
-      }
-    }
-  }
-  os << "\n";
-}
-
-
 void JSValue::JSValuePrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "ValueObject");
   value()->Print(os);
@@ -548,8 +512,8 @@ void JSValue::JSValuePrint(std::ostream& os) {  // NOLINT
 
 void JSMessageObject::JSMessageObjectPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "JSMessageObject");
-  os << " - type: " << Brief(type());
-  os << "\n - arguments: " << Brief(arguments());
+  os << " - type: " << type();
+  os << "\n - arguments: " << Brief(argument());
   os << "\n - start_position: " << start_position();
   os << "\n - end_position: " << end_position();
   os << "\n - script: " << Brief(script());
@@ -610,7 +574,7 @@ void JSDate::JSDatePrint(std::ostream& os) {  // NOLINT
     os << " - time = NaN\n";
   } else {
     // TODO(svenpanne) Add some basic formatting to our streams.
-    Vector<char> buf = Vector<char>::New(100);
+    ScopedVector<char> buf(100);
     SNPrintF(
         buf, " - time = %s %04d/%02d/%02d %02d:%02d:%02d\n",
         weekdays[weekday()->IsSmi() ? Smi::cast(weekday())->value() + 1 : 0],
@@ -1019,6 +983,7 @@ void Script::ScriptPrint(std::ostream& os) {  // NOLINT
   os << "\n - eval from shared: " << Brief(eval_from_shared());
   os << "\n - eval from instructions offset: "
      << Brief(eval_from_instructions_offset());
+  os << "\n - shared function infos: " << Brief(shared_function_infos());
   os << "\n";
 }
 
@@ -1212,4 +1177,5 @@ void JSObject::PrintTransitions(std::ostream& os) {  // NOLINT
   TransitionArray::PrintTransitions(os, map()->raw_transitions());
 }
 #endif  // defined(DEBUG) || defined(OBJECT_PRINT)
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

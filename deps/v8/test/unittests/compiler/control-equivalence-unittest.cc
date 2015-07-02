@@ -27,7 +27,7 @@ class ControlEquivalenceTest : public GraphTest {
 
  protected:
   void ComputeEquivalence(Node* node) {
-    graph()->SetEnd(graph()->NewNode(common()->End(), node));
+    graph()->SetEnd(graph()->NewNode(common()->End(1), node));
     if (FLAG_trace_turbo) {
       OFStream os(stdout);
       os << AsDOT(*graph());
@@ -41,7 +41,7 @@ class ControlEquivalenceTest : public GraphTest {
   }
 
   bool IsEquivalenceClass(size_t length, Node** nodes) {
-    BitVector in_class(graph()->NodeCount(), zone());
+    BitVector in_class(static_cast<int>(graph()->NodeCount()), zone());
     size_t expected_class = classes_[nodes[0]->id()];
     for (size_t i = 0; i < length; ++i) {
       in_class.Add(nodes[i]->id());
@@ -79,7 +79,7 @@ class ControlEquivalenceTest : public GraphTest {
   }
 
   Node* End(Node* control) {
-    return Store(graph()->NewNode(common()->End(), control));
+    return Store(graph()->NewNode(common()->End(1), control));
   }
 
  private:

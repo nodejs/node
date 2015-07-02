@@ -388,6 +388,14 @@ void Assembler::mov_b(Register dst, const Operand& src) {
 }
 
 
+void Assembler::mov_b(const Operand& dst, const Immediate& src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xC6);
+  emit_operand(eax, dst);
+  EMIT(static_cast<int8_t>(src.x_));
+}
+
+
 void Assembler::mov_b(const Operand& dst, int8_t imm8) {
   EnsureSpace ensure_space(this);
   EMIT(0xC6);
@@ -427,6 +435,16 @@ void Assembler::mov_w(const Operand& dst, int16_t imm16) {
   emit_operand(eax, dst);
   EMIT(static_cast<int8_t>(imm16 & 0xff));
   EMIT(static_cast<int8_t>(imm16 >> 8));
+}
+
+
+void Assembler::mov_w(const Operand& dst, const Immediate& src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0xC7);
+  emit_operand(eax, dst);
+  EMIT(static_cast<int8_t>(src.x_ & 0xff));
+  EMIT(static_cast<int8_t>(src.x_ >> 8));
 }
 
 
@@ -1698,6 +1716,20 @@ void Assembler::fsub_i(int i) {
 }
 
 
+void Assembler::fsubr_d(const Operand& adr) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xDC);
+  emit_operand(ebp, adr);
+}
+
+
+void Assembler::fsub_d(const Operand& adr) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xDC);
+  emit_operand(esp, adr);
+}
+
+
 void Assembler::fisub_s(const Operand& adr) {
   EnsureSpace ensure_space(this);
   EMIT(0xDA);
@@ -1717,9 +1749,30 @@ void Assembler::fmul(int i) {
 }
 
 
+void Assembler::fmul_d(const Operand& adr) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xDC);
+  emit_operand(ecx, adr);
+}
+
+
 void Assembler::fdiv(int i) {
   EnsureSpace ensure_space(this);
   emit_farith(0xDC, 0xF8, i);
+}
+
+
+void Assembler::fdiv_d(const Operand& adr) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xDC);
+  emit_operand(esi, adr);
+}
+
+
+void Assembler::fdivr_d(const Operand& adr) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xDC);
+  emit_operand(edi, adr);
 }
 
 
@@ -2028,6 +2081,12 @@ void Assembler::dd(uint32_t data) {
 }
 
 
+void Assembler::dq(uint64_t data) {
+  EnsureSpace ensure_space(this);
+  emit_q(data);
+}
+
+
 void Assembler::dd(Label* label) {
   EnsureSpace ensure_space(this);
   RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
@@ -2044,20 +2103,6 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   }
   RelocInfo rinfo(pc_, rmode, data, NULL);
   reloc_info_writer.Write(&rinfo);
-}
-
-
-Handle<ConstantPoolArray> Assembler::NewConstantPool(Isolate* isolate) {
-  // No out-of-line constant pool support.
-  DCHECK(!FLAG_enable_ool_constant_pool);
-  return isolate->factory()->empty_constant_pool_array();
-}
-
-
-void Assembler::PopulateConstantPool(ConstantPoolArray* constant_pool) {
-  // No out-of-line constant pool support.
-  DCHECK(!FLAG_enable_ool_constant_pool);
-  return;
 }
 
 
@@ -2086,6 +2131,7 @@ void LogGeneratedCodeCoverage(const char* file_line) {
 
 #endif
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_X87

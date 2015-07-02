@@ -94,6 +94,7 @@ class Primitive;
 class Promise;
 class RawOperationDescriptor;
 class Script;
+class SharedArrayBuffer;
 class Signature;
 class StartupData;
 class StackFrame;
@@ -102,7 +103,6 @@ class String;
 class StringObject;
 class Symbol;
 class SymbolObject;
-class Private;
 class Uint32;
 class Utils;
 class Value;
@@ -311,7 +311,6 @@ class Local {
   friend class String;
   friend class Object;
   friend class Context;
-  friend class Private;
   template<class F> friend class internal::CustomArguments;
   friend Local<Primitive> Undefined(Isolate* isolate);
   friend Local<Primitive> Null(Isolate* isolate);
@@ -418,11 +417,11 @@ class WeakCallbackInfo {
   V8_INLINE void* GetInternalField(int index) const;
 
   V8_INLINE V8_DEPRECATE_SOON("use indexed version",
-                              void* GetInternalField1()) const {
+                              void* GetInternalField1() const) {
     return internal_fields_[0];
   }
   V8_INLINE V8_DEPRECATE_SOON("use indexed version",
-                              void* GetInternalField2()) const {
+                              void* GetInternalField2() const) {
     return internal_fields_[1];
   }
 
@@ -835,8 +834,11 @@ class Global : public PersistentBase<T> {
   typedef void MoveOnlyTypeForCPP03;
 
  private:
+  template <class F>
+  friend class ReturnValue;
   Global(Global&) = delete;
   void operator=(Global&) = delete;
+  V8_INLINE T* operator*() const { return this->val_; }
 };
 
 
@@ -973,6 +975,38 @@ class V8_EXPORT Data {
 
 
 /**
+ * The optional attributes of ScriptOrigin.
+ */
+class ScriptOriginOptions {
+ public:
+  V8_INLINE ScriptOriginOptions(bool is_embedder_debug_script = false,
+                                bool is_shared_cross_origin = false,
+                                bool is_opaque = false)
+      : flags_((is_embedder_debug_script ? kIsEmbedderDebugScript : 0) |
+               (is_shared_cross_origin ? kIsSharedCrossOrigin : 0) |
+               (is_opaque ? kIsOpaque : 0)) {}
+  V8_INLINE ScriptOriginOptions(int flags)
+      : flags_(flags &
+               (kIsEmbedderDebugScript | kIsSharedCrossOrigin | kIsOpaque)) {}
+  bool IsEmbedderDebugScript() const {
+    return (flags_ & kIsEmbedderDebugScript) != 0;
+  }
+  bool IsSharedCrossOrigin() const {
+    return (flags_ & kIsSharedCrossOrigin) != 0;
+  }
+  bool IsOpaque() const { return (flags_ & kIsOpaque) != 0; }
+  int Flags() const { return flags_; }
+
+ private:
+  enum {
+    kIsEmbedderDebugScript = 1,
+    kIsSharedCrossOrigin = 1 << 1,
+    kIsOpaque = 1 << 2
+  };
+  const int flags_;
+};
+
+/**
  * The origin, within a file, of a script.
  */
 class ScriptOrigin {
@@ -984,31 +1018,23 @@ class ScriptOrigin {
       Handle<Boolean> resource_is_shared_cross_origin = Handle<Boolean>(),
       Handle<Integer> script_id = Handle<Integer>(),
       Handle<Boolean> resource_is_embedder_debug_script = Handle<Boolean>(),
-      Handle<Value> source_map_url = Handle<Value>())
-      : resource_name_(resource_name),
-        resource_line_offset_(resource_line_offset),
-        resource_column_offset_(resource_column_offset),
-        resource_is_embedder_debug_script_(resource_is_embedder_debug_script),
-        resource_is_shared_cross_origin_(resource_is_shared_cross_origin),
-        script_id_(script_id),
-        source_map_url_(source_map_url) {}
+      Handle<Value> source_map_url = Handle<Value>(),
+      Handle<Boolean> resource_is_opaque = Handle<Boolean>());
   V8_INLINE Handle<Value> ResourceName() const;
   V8_INLINE Handle<Integer> ResourceLineOffset() const;
   V8_INLINE Handle<Integer> ResourceColumnOffset() const;
   /**
     * Returns true for embedder's debugger scripts
     */
-  V8_INLINE Handle<Boolean> ResourceIsEmbedderDebugScript() const;
-  V8_INLINE Handle<Boolean> ResourceIsSharedCrossOrigin() const;
   V8_INLINE Handle<Integer> ScriptID() const;
   V8_INLINE Handle<Value> SourceMapUrl() const;
+  V8_INLINE ScriptOriginOptions Options() const { return options_; }
 
  private:
   Handle<Value> resource_name_;
   Handle<Integer> resource_line_offset_;
   Handle<Integer> resource_column_offset_;
-  Handle<Boolean> resource_is_embedder_debug_script_;
-  Handle<Boolean> resource_is_shared_cross_origin_;
+  ScriptOriginOptions options_;
   Handle<Integer> script_id_;
   Handle<Value> source_map_url_;
 };
@@ -1160,8 +1186,7 @@ class V8_EXPORT ScriptCompiler {
     Handle<Value> resource_name;
     Handle<Integer> resource_line_offset;
     Handle<Integer> resource_column_offset;
-    Handle<Boolean> resource_is_embedder_debug_script;
-    Handle<Boolean> resource_is_shared_cross_origin;
+    ScriptOriginOptions resource_options;
     Handle<Value> source_map_url;
 
     // Cached data from previous compilation (if a kConsume*Cache flag is
@@ -1174,7 +1199,7 @@ class V8_EXPORT ScriptCompiler {
    * For streaming incomplete script data to V8. The embedder should implement a
    * subclass of this class.
    */
-  class ExternalSourceStream {
+  class V8_EXPORT ExternalSourceStream {
    public:
     virtual ~ExternalSourceStream() {}
 
@@ -1196,6 +1221,23 @@ class V8_EXPORT ScriptCompiler {
      * V8 has parsed the data it received so far.
      */
     virtual size_t GetMoreData(const uint8_t** src) = 0;
+
+    /**
+     * V8 calls this method to set a 'bookmark' at the current position in
+     * the source stream, for the purpose of (maybe) later calling
+     * ResetToBookmark. If ResetToBookmark is called later, then subsequent
+     * calls to GetMoreData should return the same data as they did when
+     * SetBookmark was called earlier.
+     *
+     * The embedder may return 'false' to indicate it cannot provide this
+     * functionality.
+     */
+    virtual bool SetBookmark();
+
+    /**
+     * V8 calls this to return to a previously set bookmark.
+     */
+    virtual void ResetToBookmark();
   };
 
 
@@ -1242,10 +1284,7 @@ class V8_EXPORT ScriptCompiler {
     kProduceParserCache,
     kConsumeParserCache,
     kProduceCodeCache,
-    kConsumeCodeCache,
-
-    // Support the previous API for a transition period.
-    kProduceDataToCache
+    kConsumeCodeCache
   };
 
   /**
@@ -1390,7 +1429,7 @@ class V8_EXPORT Message {
  public:
   Local<String> Get() const;
 
-  V8_DEPRECATE_SOON("Use maybe version", Local<String> GetSourceLine()) const;
+  V8_DEPRECATE_SOON("Use maybe version", Local<String> GetSourceLine() const);
   V8_WARN_UNUSED_RESULT MaybeLocal<String> GetSourceLine(
       Local<Context> context) const;
 
@@ -1416,7 +1455,7 @@ class V8_EXPORT Message {
   /**
    * Returns the number, 1-based, of the line where the error occurred.
    */
-  V8_DEPRECATE_SOON("Use maybe version", int GetLineNumber()) const;
+  V8_DEPRECATE_SOON("Use maybe version", int GetLineNumber() const);
   V8_WARN_UNUSED_RESULT Maybe<int> GetLineNumber(Local<Context> context) const;
 
   /**
@@ -1435,14 +1474,14 @@ class V8_EXPORT Message {
    * Returns the index within the line of the first character where
    * the error occurred.
    */
-  V8_DEPRECATE_SOON("Use maybe version", int GetStartColumn()) const;
+  V8_DEPRECATE_SOON("Use maybe version", int GetStartColumn() const);
   V8_WARN_UNUSED_RESULT Maybe<int> GetStartColumn(Local<Context> context) const;
 
   /**
    * Returns the index within the line of the last character where
    * the error occurred.
    */
-  V8_DEPRECATE_SOON("Use maybe version", int GetEndColumn()) const;
+  V8_DEPRECATE_SOON("Use maybe version", int GetEndColumn() const);
   V8_WARN_UNUSED_RESULT Maybe<int> GetEndColumn(Local<Context> context) const;
 
   /**
@@ -1450,6 +1489,7 @@ class V8_EXPORT Message {
    * this Message was generated to V8.
    */
   bool IsSharedCrossOrigin() const;
+  bool IsOpaque() const;
 
   // TODO(1245381): Print to a string instead of on a FILE.
   static void PrintCurrentStackTrace(Isolate* isolate, FILE* out);
@@ -1781,37 +1821,31 @@ class V8_EXPORT Value : public Data {
 
   /**
    * Returns true if this value is a Map.
-   * This is an experimental feature.
    */
   bool IsMap() const;
 
   /**
    * Returns true if this value is a Set.
-   * This is an experimental feature.
    */
   bool IsSet() const;
 
   /**
    * Returns true if this value is a Map Iterator.
-   * This is an experimental feature.
    */
   bool IsMapIterator() const;
 
   /**
    * Returns true if this value is a Set Iterator.
-   * This is an experimental feature.
    */
   bool IsSetIterator() const;
 
   /**
    * Returns true if this value is a WeakMap.
-   * This is an experimental feature.
    */
   bool IsWeakMap() const;
 
   /**
    * Returns true if this value is a WeakSet.
-   * This is an experimental feature.
    */
   bool IsWeakSet() const;
 
@@ -1888,10 +1922,23 @@ class V8_EXPORT Value : public Data {
   bool IsFloat64Array() const;
 
   /**
+   * Returns true if this value is a SIMD Float32x4.
+   * This is an experimental feature.
+   */
+  bool IsFloat32x4() const;
+
+  /**
    * Returns true if this value is a DataView.
    * This is an experimental feature.
    */
   bool IsDataView() const;
+
+  /**
+   * Returns true if this value is a SharedArrayBuffer.
+   * This is an experimental feature.
+   */
+  bool IsSharedArrayBuffer() const;
+
 
   V8_WARN_UNUSED_RESULT MaybeLocal<Boolean> ToBoolean(
       Local<Context> context) const;
@@ -1910,39 +1957,39 @@ class V8_EXPORT Value : public Data {
   V8_WARN_UNUSED_RESULT MaybeLocal<Int32> ToInt32(Local<Context> context) const;
 
   V8_DEPRECATE_SOON("Use maybe version",
-                    Local<Boolean> ToBoolean(Isolate* isolate)) const;
+                    Local<Boolean> ToBoolean(Isolate* isolate) const);
   V8_DEPRECATE_SOON("Use maybe version",
-                    Local<Number> ToNumber(Isolate* isolate)) const;
+                    Local<Number> ToNumber(Isolate* isolate) const);
   V8_DEPRECATE_SOON("Use maybe version",
-                    Local<String> ToString(Isolate* isolate)) const;
+                    Local<String> ToString(Isolate* isolate) const);
   V8_DEPRECATE_SOON("Use maybe version",
-                    Local<String> ToDetailString(Isolate* isolate)) const;
+                    Local<String> ToDetailString(Isolate* isolate) const);
   V8_DEPRECATE_SOON("Use maybe version",
-                    Local<Object> ToObject(Isolate* isolate)) const;
+                    Local<Object> ToObject(Isolate* isolate) const);
   V8_DEPRECATE_SOON("Use maybe version",
-                    Local<Integer> ToInteger(Isolate* isolate)) const;
+                    Local<Integer> ToInteger(Isolate* isolate) const);
   V8_DEPRECATE_SOON("Use maybe version",
-                    Local<Uint32> ToUint32(Isolate* isolate)) const;
+                    Local<Uint32> ToUint32(Isolate* isolate) const);
   V8_DEPRECATE_SOON("Use maybe version",
-                    Local<Int32> ToInt32(Isolate* isolate)) const;
+                    Local<Int32> ToInt32(Isolate* isolate) const);
 
   inline V8_DEPRECATE_SOON("Use maybe version",
-                           Local<Boolean> ToBoolean()) const;
-  inline V8_DEPRECATE_SOON("Use maybe version", Local<Number> ToNumber()) const;
-  inline V8_DEPRECATE_SOON("Use maybe version", Local<String> ToString()) const;
+                           Local<Boolean> ToBoolean() const);
+  inline V8_DEPRECATE_SOON("Use maybe version", Local<Number> ToNumber() const);
+  inline V8_DEPRECATE_SOON("Use maybe version", Local<String> ToString() const);
   inline V8_DEPRECATE_SOON("Use maybe version",
-                           Local<String> ToDetailString()) const;
-  inline V8_DEPRECATE_SOON("Use maybe version", Local<Object> ToObject()) const;
+                           Local<String> ToDetailString() const);
+  inline V8_DEPRECATE_SOON("Use maybe version", Local<Object> ToObject() const);
   inline V8_DEPRECATE_SOON("Use maybe version",
-                           Local<Integer> ToInteger()) const;
-  inline V8_DEPRECATE_SOON("Use maybe version", Local<Uint32> ToUint32()) const;
-  inline V8_DEPRECATE_SOON("Use maybe version", Local<Int32> ToInt32()) const;
+                           Local<Integer> ToInteger() const);
+  inline V8_DEPRECATE_SOON("Use maybe version", Local<Uint32> ToUint32() const);
+  inline V8_DEPRECATE_SOON("Use maybe version", Local<Int32> ToInt32() const);
 
   /**
    * Attempts to convert a string to an array index.
    * Returns an empty handle if the conversion fails.
    */
-  V8_DEPRECATE_SOON("Use maybe version", Local<Uint32> ToArrayIndex()) const;
+  V8_DEPRECATE_SOON("Use maybe version", Local<Uint32> ToArrayIndex() const);
   V8_WARN_UNUSED_RESULT MaybeLocal<Uint32> ToArrayIndex(
       Local<Context> context) const;
 
@@ -1954,14 +2001,14 @@ class V8_EXPORT Value : public Data {
       Local<Context> context) const;
   V8_WARN_UNUSED_RESULT Maybe<int32_t> Int32Value(Local<Context> context) const;
 
-  V8_DEPRECATE_SOON("Use maybe version", bool BooleanValue()) const;
-  V8_DEPRECATE_SOON("Use maybe version", double NumberValue()) const;
-  V8_DEPRECATE_SOON("Use maybe version", int64_t IntegerValue()) const;
-  V8_DEPRECATE_SOON("Use maybe version", uint32_t Uint32Value()) const;
-  V8_DEPRECATE_SOON("Use maybe version", int32_t Int32Value()) const;
+  V8_DEPRECATE_SOON("Use maybe version", bool BooleanValue() const);
+  V8_DEPRECATE_SOON("Use maybe version", double NumberValue() const);
+  V8_DEPRECATE_SOON("Use maybe version", int64_t IntegerValue() const);
+  V8_DEPRECATE_SOON("Use maybe version", uint32_t Uint32Value() const);
+  V8_DEPRECATE_SOON("Use maybe version", int32_t Int32Value() const);
 
   /** JS == */
-  V8_DEPRECATE_SOON("Use maybe version", bool Equals(Handle<Value> that)) const;
+  V8_DEPRECATE_SOON("Use maybe version", bool Equals(Handle<Value> that) const);
   V8_WARN_UNUSED_RESULT Maybe<bool> Equals(Local<Context> context,
                                            Handle<Value> that) const;
   bool StrictEquals(Handle<Value> that) const;
@@ -2425,34 +2472,6 @@ class V8_EXPORT Symbol : public Name {
 
 
 /**
- * A private symbol
- *
- * This is an experimental feature. Use at your own risk.
- */
-class V8_EXPORT Private : public Data {
- public:
-  // Returns the print name string of the private symbol, or undefined if none.
-  Local<Value> Name() const;
-
-  // Create a private symbol. If name is not empty, it will be the description.
-  static Local<Private> New(
-      Isolate *isolate, Local<String> name = Local<String>());
-
-  // Retrieve a global private symbol. If a symbol with this name has not
-  // been retrieved in the same isolate before, it is created.
-  // Note that private symbols created this way are never collected, so
-  // they should only be used for statically fixed properties.
-  // Also, there is only one global name space for the names used as keys.
-  // To minimize the potential for clashes, use qualified names as keys,
-  // e.g., "Class#property".
-  static Local<Private> ForApi(Isolate *isolate, Local<String> name);
-
- private:
-  Private();
-};
-
-
-/**
  * A JavaScript number value (ECMA-262, 4.3.20)
  */
 class V8_EXPORT Number : public Primitive {
@@ -2571,6 +2590,30 @@ class V8_EXPORT Object : public Value {
   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
                                         Local<Value> value);
 
+  // Implements CreateDataProperty (ECMA-262, 7.3.4).
+  //
+  // Defines a configurable, writable, enumerable property with the given value
+  // on the object unless the property already exists and is not configurable
+  // or the object is not extensible.
+  //
+  // Returns true on success.
+  V8_WARN_UNUSED_RESULT Maybe<bool> CreateDataProperty(Local<Context> context,
+                                                       Local<Name> key,
+                                                       Local<Value> value);
+  V8_WARN_UNUSED_RESULT Maybe<bool> CreateDataProperty(Local<Context> context,
+                                                       uint32_t index,
+                                                       Local<Value> value);
+
+  // Implements DefineOwnProperty.
+  //
+  // In general, CreateDataProperty will be faster, however, does not allow
+  // for specifying attributes.
+  //
+  // Returns true on success.
+  V8_WARN_UNUSED_RESULT Maybe<bool> DefineOwnProperty(
+      Local<Context> context, Local<Name> key, Local<Value> value,
+      PropertyAttribute attributes = None);
+
   // Sets an own property on this object bypassing interceptors and
   // overriding accessors or read-only properties.
   //
@@ -2579,12 +2622,13 @@ class V8_EXPORT Object : public Value {
   // will only be returned if the interceptor doesn't return a value.
   //
   // Note also that this only works for named properties.
-  V8_DEPRECATE_SOON("Use maybe version",
+  V8_DEPRECATE_SOON("Use CreateDataProperty",
                     bool ForceSet(Handle<Value> key, Handle<Value> value,
                                   PropertyAttribute attribs = None));
-  // TODO(dcarney): mark V8_WARN_UNUSED_RESULT
-  Maybe<bool> ForceSet(Local<Context> context, Local<Value> key,
-                       Local<Value> value, PropertyAttribute attribs = None);
+  V8_DEPRECATE_SOON("Use CreateDataProperty",
+                    Maybe<bool> ForceSet(Local<Context> context,
+                                         Local<Value> key, Local<Value> value,
+                                         PropertyAttribute attribs = None));
 
   V8_DEPRECATE_SOON("Use maybe version", Local<Value> Get(Handle<Value> key));
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
@@ -2654,18 +2698,6 @@ class V8_EXPORT Object : public Value {
                            Handle<Function> setter = Handle<Function>(),
                            PropertyAttribute attribute = None,
                            AccessControl settings = DEFAULT);
-
-  /**
-   * Functionality for private properties.
-   * This is an experimental feature, use at your own risk.
-   * Note: Private properties are inherited. Do not rely on this, since it may
-   * change.
-   */
-  // TODO(dcarney): convert these or remove?
-  bool HasPrivate(Handle<Private> key);
-  bool SetPrivate(Handle<Private> key, Handle<Value> value);
-  bool DeletePrivate(Handle<Private> key);
-  Local<Value> GetPrivate(Handle<Private> key);
 
   /**
    * Returns an array containing the names of the enumerable properties
@@ -2941,6 +2973,89 @@ class V8_EXPORT Array : public Object {
 };
 
 
+/**
+ * An instance of the built-in Map constructor (ECMA-262, 6th Edition, 23.1.1).
+ */
+class V8_EXPORT Map : public Object {
+ public:
+  size_t Size() const;
+  void Clear();
+  V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
+                                              Local<Value> key);
+  V8_WARN_UNUSED_RESULT MaybeLocal<Map> Set(Local<Context> context,
+                                            Local<Value> key,
+                                            Local<Value> value);
+  V8_WARN_UNUSED_RESULT Maybe<bool> Has(Local<Context> context,
+                                        Local<Value> key);
+  V8_WARN_UNUSED_RESULT Maybe<bool> Delete(Local<Context> context,
+                                           Local<Value> key);
+
+  /**
+   * Returns an array of length Size() * 2, where index N is the Nth key and
+   * index N + 1 is the Nth value.
+   */
+  Local<Array> AsArray() const;
+
+  /**
+   * Creates a new empty Map.
+   */
+  static Local<Map> New(Isolate* isolate);
+
+  /**
+   * Creates a new Map containing the elements of array, which must be formatted
+   * in the same manner as the array returned from AsArray().
+   * Guaranteed to be side-effect free if the array contains no holes.
+   */
+  static V8_WARN_UNUSED_RESULT MaybeLocal<Map> FromArray(Local<Context> context,
+                                                         Local<Array> array);
+
+  V8_INLINE static Map* Cast(Value* obj);
+
+ private:
+  Map();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * An instance of the built-in Set constructor (ECMA-262, 6th Edition, 23.2.1).
+ */
+class V8_EXPORT Set : public Object {
+ public:
+  size_t Size() const;
+  void Clear();
+  V8_WARN_UNUSED_RESULT MaybeLocal<Set> Add(Local<Context> context,
+                                            Local<Value> key);
+  V8_WARN_UNUSED_RESULT Maybe<bool> Has(Local<Context> context,
+                                        Local<Value> key);
+  V8_WARN_UNUSED_RESULT Maybe<bool> Delete(Local<Context> context,
+                                           Local<Value> key);
+
+  /**
+   * Returns an array of the keys in this Set.
+   */
+  Local<Array> AsArray() const;
+
+  /**
+   * Creates a new empty Set.
+   */
+  static Local<Set> New(Isolate* isolate);
+
+  /**
+   * Creates a new Set containing the items in array.
+   * Guaranteed to be side-effect free if the array contains no holes.
+   */
+  static V8_WARN_UNUSED_RESULT MaybeLocal<Set> FromArray(Local<Context> context,
+                                                         Local<Array> array);
+
+  V8_INLINE static Set* Cast(Value* obj);
+
+ private:
+  Set();
+  static void CheckCast(Value* obj);
+};
+
+
 template<typename T>
 class ReturnValue {
  public:
@@ -2949,8 +3064,13 @@ class ReturnValue {
     TYPE_CHECK(T, S);
   }
   // Handle setters
-  template <typename S> V8_INLINE void Set(const Persistent<S>& handle);
-  template <typename S> V8_INLINE void Set(const Handle<S> handle);
+  template <typename S>
+  V8_INLINE V8_DEPRECATE_SOON("Use Global<> instead",
+                              void Set(const Persistent<S>& handle));
+  template <typename S>
+  V8_INLINE void Set(const Global<S>& handle);
+  template <typename S>
+  V8_INLINE void Set(const Local<S> handle);
   // Fast primitive setters
   V8_INLINE void Set(bool value);
   V8_INLINE void Set(double i);
@@ -3066,18 +3186,22 @@ class V8_EXPORT Function : public Object {
    * Create a function in the current execution context
    * for a given FunctionCallback.
    */
-  static Local<Function> New(Isolate* isolate,
-                             FunctionCallback callback,
-                             Local<Value> data = Local<Value>(),
-                             int length = 0);
+  static MaybeLocal<Function> New(Local<Context> context,
+                                  FunctionCallback callback,
+                                  Local<Value> data = Local<Value>(),
+                                  int length = 0);
+  static V8_DEPRECATE_SOON(
+      "Use maybe version",
+      Local<Function> New(Isolate* isolate, FunctionCallback callback,
+                          Local<Value> data = Local<Value>(), int length = 0));
 
   V8_DEPRECATE_SOON("Use maybe version",
-                    Local<Object> NewInstance(int argc,
-                                              Handle<Value> argv[])) const;
+                    Local<Object> NewInstance(int argc, Handle<Value> argv[])
+                        const);
   V8_WARN_UNUSED_RESULT MaybeLocal<Object> NewInstance(
       Local<Context> context, int argc, Handle<Value> argv[]) const;
 
-  V8_DEPRECATE_SOON("Use maybe version", Local<Object> NewInstance()) const;
+  V8_DEPRECATE_SOON("Use maybe version", Local<Object> NewInstance() const);
   V8_WARN_UNUSED_RESULT MaybeLocal<Object> NewInstance(
       Local<Context> context) const {
     return NewInstance(context, 0, nullptr);
@@ -3312,7 +3436,7 @@ class V8_EXPORT ArrayBuffer : public Object {
       ArrayBufferCreationMode mode = ArrayBufferCreationMode::kExternalized);
 
   /**
-   * Returns true if ArrayBuffer is extrenalized, that is, does not
+   * Returns true if ArrayBuffer is externalized, that is, does not
    * own its memory block.
    */
   bool IsExternal() const;
@@ -3447,6 +3571,8 @@ class V8_EXPORT Uint8Array : public TypedArray {
  public:
   static Local<Uint8Array> New(Handle<ArrayBuffer> array_buffer,
                                size_t byte_offset, size_t length);
+  static Local<Uint8Array> New(Handle<SharedArrayBuffer> shared_array_buffer,
+                               size_t byte_offset, size_t length);
   V8_INLINE static Uint8Array* Cast(Value* obj);
 
  private:
@@ -3463,6 +3589,9 @@ class V8_EXPORT Uint8ClampedArray : public TypedArray {
  public:
   static Local<Uint8ClampedArray> New(Handle<ArrayBuffer> array_buffer,
                                size_t byte_offset, size_t length);
+  static Local<Uint8ClampedArray> New(
+      Handle<SharedArrayBuffer> shared_array_buffer, size_t byte_offset,
+      size_t length);
   V8_INLINE static Uint8ClampedArray* Cast(Value* obj);
 
  private:
@@ -3478,6 +3607,8 @@ class V8_EXPORT Int8Array : public TypedArray {
  public:
   static Local<Int8Array> New(Handle<ArrayBuffer> array_buffer,
                                size_t byte_offset, size_t length);
+  static Local<Int8Array> New(Handle<SharedArrayBuffer> shared_array_buffer,
+                              size_t byte_offset, size_t length);
   V8_INLINE static Int8Array* Cast(Value* obj);
 
  private:
@@ -3494,6 +3625,8 @@ class V8_EXPORT Uint16Array : public TypedArray {
  public:
   static Local<Uint16Array> New(Handle<ArrayBuffer> array_buffer,
                                size_t byte_offset, size_t length);
+  static Local<Uint16Array> New(Handle<SharedArrayBuffer> shared_array_buffer,
+                                size_t byte_offset, size_t length);
   V8_INLINE static Uint16Array* Cast(Value* obj);
 
  private:
@@ -3509,6 +3642,8 @@ class V8_EXPORT Uint16Array : public TypedArray {
 class V8_EXPORT Int16Array : public TypedArray {
  public:
   static Local<Int16Array> New(Handle<ArrayBuffer> array_buffer,
+                               size_t byte_offset, size_t length);
+  static Local<Int16Array> New(Handle<SharedArrayBuffer> shared_array_buffer,
                                size_t byte_offset, size_t length);
   V8_INLINE static Int16Array* Cast(Value* obj);
 
@@ -3526,6 +3661,8 @@ class V8_EXPORT Uint32Array : public TypedArray {
  public:
   static Local<Uint32Array> New(Handle<ArrayBuffer> array_buffer,
                                size_t byte_offset, size_t length);
+  static Local<Uint32Array> New(Handle<SharedArrayBuffer> shared_array_buffer,
+                                size_t byte_offset, size_t length);
   V8_INLINE static Uint32Array* Cast(Value* obj);
 
  private:
@@ -3541,6 +3678,8 @@ class V8_EXPORT Uint32Array : public TypedArray {
 class V8_EXPORT Int32Array : public TypedArray {
  public:
   static Local<Int32Array> New(Handle<ArrayBuffer> array_buffer,
+                               size_t byte_offset, size_t length);
+  static Local<Int32Array> New(Handle<SharedArrayBuffer> shared_array_buffer,
                                size_t byte_offset, size_t length);
   V8_INLINE static Int32Array* Cast(Value* obj);
 
@@ -3558,6 +3697,8 @@ class V8_EXPORT Float32Array : public TypedArray {
  public:
   static Local<Float32Array> New(Handle<ArrayBuffer> array_buffer,
                                size_t byte_offset, size_t length);
+  static Local<Float32Array> New(Handle<SharedArrayBuffer> shared_array_buffer,
+                                 size_t byte_offset, size_t length);
   V8_INLINE static Float32Array* Cast(Value* obj);
 
  private:
@@ -3574,6 +3715,8 @@ class V8_EXPORT Float64Array : public TypedArray {
  public:
   static Local<Float64Array> New(Handle<ArrayBuffer> array_buffer,
                                size_t byte_offset, size_t length);
+  static Local<Float64Array> New(Handle<SharedArrayBuffer> shared_array_buffer,
+                                 size_t byte_offset, size_t length);
   V8_INLINE static Float64Array* Cast(Value* obj);
 
  private:
@@ -3590,10 +3733,111 @@ class V8_EXPORT DataView : public ArrayBufferView {
  public:
   static Local<DataView> New(Handle<ArrayBuffer> array_buffer,
                              size_t byte_offset, size_t length);
+  static Local<DataView> New(Handle<SharedArrayBuffer> shared_array_buffer,
+                             size_t byte_offset, size_t length);
   V8_INLINE static DataView* Cast(Value* obj);
 
  private:
   DataView();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * An instance of the built-in SharedArrayBuffer constructor.
+ * This API is experimental and may change significantly.
+ */
+class V8_EXPORT SharedArrayBuffer : public Object {
+ public:
+  /**
+   * The contents of an |SharedArrayBuffer|. Externalization of
+   * |SharedArrayBuffer| returns an instance of this class, populated, with a
+   * pointer to data and byte length.
+   *
+   * The Data pointer of SharedArrayBuffer::Contents is always allocated with
+   * |ArrayBuffer::Allocator::Allocate| by the allocator specified in
+   * v8::Isolate::CreateParams::array_buffer_allocator.
+   *
+   * This API is experimental and may change significantly.
+   */
+  class V8_EXPORT Contents {  // NOLINT
+   public:
+    Contents() : data_(NULL), byte_length_(0) {}
+
+    void* Data() const { return data_; }
+    size_t ByteLength() const { return byte_length_; }
+
+   private:
+    void* data_;
+    size_t byte_length_;
+
+    friend class SharedArrayBuffer;
+  };
+
+
+  /**
+   * Data length in bytes.
+   */
+  size_t ByteLength() const;
+
+  /**
+   * Create a new SharedArrayBuffer. Allocate |byte_length| bytes.
+   * Allocated memory will be owned by a created SharedArrayBuffer and
+   * will be deallocated when it is garbage-collected,
+   * unless the object is externalized.
+   */
+  static Local<SharedArrayBuffer> New(Isolate* isolate, size_t byte_length);
+
+  /**
+   * Create a new SharedArrayBuffer over an existing memory block.  The created
+   * array buffer is immediately in externalized state unless otherwise
+   * specified. The memory block will not be reclaimed when a created
+   * SharedArrayBuffer is garbage-collected.
+   */
+  static Local<SharedArrayBuffer> New(
+      Isolate* isolate, void* data, size_t byte_length,
+      ArrayBufferCreationMode mode = ArrayBufferCreationMode::kExternalized);
+
+  /**
+   * Returns true if SharedArrayBuffer is externalized, that is, does not
+   * own its memory block.
+   */
+  bool IsExternal() const;
+
+  /**
+   * Make this SharedArrayBuffer external. The pointer to underlying memory
+   * block and byte length are returned as |Contents| structure. After
+   * SharedArrayBuffer had been etxrenalized, it does no longer owns the memory
+   * block. The caller should take steps to free memory when it is no longer
+   * needed.
+   *
+   * The memory block is guaranteed to be allocated with |Allocator::Allocate|
+   * by the allocator specified in
+   * v8::Isolate::CreateParams::array_buffer_allocator.
+   *
+   */
+  Contents Externalize();
+
+  /**
+   * Get a pointer to the ArrayBuffer's underlying memory block without
+   * externalizing it. If the ArrayBuffer is not externalized, this pointer
+   * will become invalid as soon as the ArrayBuffer became garbage collected.
+   *
+   * The embedder should make sure to hold a strong reference to the
+   * ArrayBuffer while accessing this pointer.
+   *
+   * The memory block is guaranteed to be allocated with |Allocator::Allocate|
+   * by the allocator specified in
+   * v8::Isolate::CreateParams::array_buffer_allocator.
+   */
+  Contents GetContents();
+
+  V8_INLINE static SharedArrayBuffer* Cast(Value* obj);
+
+  static const int kInternalFieldCount = V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT;
+
+ private:
+  SharedArrayBuffer();
   static void CheckCast(Value* obj);
 };
 
@@ -4815,6 +5059,24 @@ class V8_EXPORT HeapSpaceStatistics {
 };
 
 
+class V8_EXPORT HeapObjectStatistics {
+ public:
+  HeapObjectStatistics();
+  const char* object_type() { return object_type_; }
+  const char* object_sub_type() { return object_sub_type_; }
+  size_t object_count() { return object_count_; }
+  size_t object_size() { return object_size_; }
+
+ private:
+  const char* object_type_;
+  const char* object_sub_type_;
+  size_t object_count_;
+  size_t object_size_;
+
+  friend class Isolate;
+};
+
+
 class RetainedObjectInfo;
 
 
@@ -5107,6 +5369,7 @@ class V8_EXPORT Isolate {
     kStoreBufferOverflow = 4,
     kSlotsBufferOverflow = 5,
     kObjectObserve = 6,
+    kForcedGC = 7,
     kUseCounterFeatureCount  // This enum value must be last.
   };
 
@@ -5125,7 +5388,7 @@ class V8_EXPORT Isolate {
    */
   static Isolate* New(const CreateParams& params);
 
-  static V8_DEPRECATE_SOON("Always pass CreateParams", Isolate* New());
+  static V8_DEPRECATED("Always pass CreateParams", Isolate* New());
 
   /**
    * Returns the entered isolate for the current thread or NULL in
@@ -5201,6 +5464,23 @@ class V8_EXPORT Isolate {
    */
   bool GetHeapSpaceStatistics(HeapSpaceStatistics* space_statistics,
                               size_t index);
+
+  /**
+   * Returns the number of types of objects tracked in the heap at GC.
+   */
+  size_t NumberOfTrackedHeapObjectTypes();
+
+  /**
+   * Get statistics about objects in the heap.
+   *
+   * \param object_statistics The HeapObjectStatistics object to fill in
+   *   statistics of objects of given type, which were live in the previous GC.
+   * \param type_index The index of the type of object to fill details about,
+   *   which ranges from 0 to NumberOfTrackedHeapObjectTypes() - 1.
+   * \returns true on success.
+   */
+  bool GetHeapObjectStatisticsAtLastGC(HeapObjectStatistics* object_statistics,
+                                       size_t type_index);
 
   /**
    * Get a call stack sample from the isolate.
@@ -6174,7 +6454,7 @@ class V8_EXPORT TryCatch {
    * Returns the .stack property of the thrown object.  If no .stack
    * property is present an empty handle is returned.
    */
-  V8_DEPRECATE_SOON("Use maybe version.", Local<Value> StackTrace()) const;
+  V8_DEPRECATE_SOON("Use maybe version.", Local<Value> StackTrace() const);
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> StackTrace(
       Local<Context> context) const;
 
@@ -6369,6 +6649,12 @@ class V8_EXPORT Context {
    * currently has a special meaning for Chrome's debugger.
    */
   V8_INLINE Local<Value> GetEmbedderData(int index);
+
+  /**
+   * Gets the exports object used by V8 extras. Extra natives get a reference
+   * to this object and can use it to export functionality.
+   */
+  Local<Object> GetExtrasExportsObject();
 
   /**
    * Sets the embedder data with the given index, growing the data as
@@ -6672,7 +6958,7 @@ class Internals {
   static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
   static const int kFixedArrayHeaderSize = 2 * kApiPointerSize;
   static const int kContextHeaderSize = 2 * kApiPointerSize;
-  static const int kContextEmbedderDataIndex = 77;
+  static const int kContextEmbedderDataIndex = 80;
   static const int kFullStringRepresentationMask = 0x07;
   static const int kStringEncodingMask = 0x4;
   static const int kExternalTwoByteRepresentationTag = 0x02;
@@ -6708,7 +6994,7 @@ class Internals {
   static const int kJSObjectType = 0xbe;
   static const int kFirstNonstringType = 0x80;
   static const int kOddballType = 0x83;
-  static const int kForeignType = 0x86;
+  static const int kForeignType = 0x87;
 
   static const int kUndefinedOddballKind = 5;
   static const int kNullOddballKind = 3;
@@ -7064,9 +7350,20 @@ void ReturnValue<T>::Set(const Persistent<S>& handle) {
   }
 }
 
-template<typename T>
-template<typename S>
-void ReturnValue<T>::Set(const Handle<S> handle) {
+template <typename T>
+template <typename S>
+void ReturnValue<T>::Set(const Global<S>& handle) {
+  TYPE_CHECK(T, S);
+  if (V8_UNLIKELY(handle.IsEmpty())) {
+    *value_ = GetDefaultValue();
+  } else {
+    *value_ = *reinterpret_cast<internal::Object**>(*handle);
+  }
+}
+
+template <typename T>
+template <typename S>
+void ReturnValue<T>::Set(const Local<S> handle) {
   TYPE_CHECK(T, S);
   if (V8_UNLIKELY(handle.IsEmpty())) {
     *value_ = GetDefaultValue();
@@ -7225,6 +7522,24 @@ int FunctionCallbackInfo<T>::Length() const {
   return length_;
 }
 
+ScriptOrigin::ScriptOrigin(Handle<Value> resource_name,
+                           Handle<Integer> resource_line_offset,
+                           Handle<Integer> resource_column_offset,
+                           Handle<Boolean> resource_is_shared_cross_origin,
+                           Handle<Integer> script_id,
+                           Handle<Boolean> resource_is_embedder_debug_script,
+                           Handle<Value> source_map_url,
+                           Handle<Boolean> resource_is_opaque)
+    : resource_name_(resource_name),
+      resource_line_offset_(resource_line_offset),
+      resource_column_offset_(resource_column_offset),
+      options_(!resource_is_embedder_debug_script.IsEmpty() &&
+                   resource_is_embedder_debug_script->IsTrue(),
+               !resource_is_shared_cross_origin.IsEmpty() &&
+                   resource_is_shared_cross_origin->IsTrue(),
+               !resource_is_opaque.IsEmpty() && resource_is_opaque->IsTrue()),
+      script_id_(script_id),
+      source_map_url_(source_map_url) {}
 
 Handle<Value> ScriptOrigin::ResourceName() const {
   return resource_name_;
@@ -7238,16 +7553,6 @@ Handle<Integer> ScriptOrigin::ResourceLineOffset() const {
 
 Handle<Integer> ScriptOrigin::ResourceColumnOffset() const {
   return resource_column_offset_;
-}
-
-
-Handle<Boolean> ScriptOrigin::ResourceIsEmbedderDebugScript() const {
-  return resource_is_embedder_debug_script_;
-}
-
-
-Handle<Boolean> ScriptOrigin::ResourceIsSharedCrossOrigin() const {
-  return resource_is_shared_cross_origin_;
 }
 
 
@@ -7265,8 +7570,7 @@ ScriptCompiler::Source::Source(Local<String> string, const ScriptOrigin& origin,
       resource_name(origin.ResourceName()),
       resource_line_offset(origin.ResourceLineOffset()),
       resource_column_offset(origin.ResourceColumnOffset()),
-      resource_is_embedder_debug_script(origin.ResourceIsEmbedderDebugScript()),
-      resource_is_shared_cross_origin(origin.ResourceIsSharedCrossOrigin()),
+      resource_options(origin.Options()),
       source_map_url(origin.SourceMapUrl()),
       cached_data(data) {}
 
@@ -7293,7 +7597,9 @@ Handle<Boolean> Boolean::New(Isolate* isolate, bool value) {
 
 
 void Template::Set(Isolate* isolate, const char* name, v8::Handle<Data> value) {
-  Set(v8::String::NewFromUtf8(isolate, name), value);
+  Set(v8::String::NewFromUtf8(isolate, name, NewStringType::kNormal)
+          .ToLocalChecked(),
+      value);
 }
 
 
@@ -7446,41 +7752,51 @@ template <class T> Value* Value::Cast(T* value) {
 
 
 Local<Boolean> Value::ToBoolean() const {
-  return ToBoolean(Isolate::GetCurrent());
+  return ToBoolean(Isolate::GetCurrent()->GetCurrentContext())
+      .FromMaybe(Local<Boolean>());
 }
 
 
 Local<Number> Value::ToNumber() const {
-  return ToNumber(Isolate::GetCurrent());
+  return ToNumber(Isolate::GetCurrent()->GetCurrentContext())
+      .FromMaybe(Local<Number>());
 }
 
 
 Local<String> Value::ToString() const {
-  return ToString(Isolate::GetCurrent());
+  return ToString(Isolate::GetCurrent()->GetCurrentContext())
+      .FromMaybe(Local<String>());
 }
 
 
 Local<String> Value::ToDetailString() const {
-  return ToDetailString(Isolate::GetCurrent());
+  return ToDetailString(Isolate::GetCurrent()->GetCurrentContext())
+      .FromMaybe(Local<String>());
 }
 
 
 Local<Object> Value::ToObject() const {
-  return ToObject(Isolate::GetCurrent());
+  return ToObject(Isolate::GetCurrent()->GetCurrentContext())
+      .FromMaybe(Local<Object>());
 }
 
 
 Local<Integer> Value::ToInteger() const {
-  return ToInteger(Isolate::GetCurrent());
+  return ToInteger(Isolate::GetCurrent()->GetCurrentContext())
+      .FromMaybe(Local<Integer>());
 }
 
 
 Local<Uint32> Value::ToUint32() const {
-  return ToUint32(Isolate::GetCurrent());
+  return ToUint32(Isolate::GetCurrent()->GetCurrentContext())
+      .FromMaybe(Local<Uint32>());
 }
 
 
-Local<Int32> Value::ToInt32() const { return ToInt32(Isolate::GetCurrent()); }
+Local<Int32> Value::ToInt32() const {
+  return ToInt32(Isolate::GetCurrent()->GetCurrentContext())
+      .FromMaybe(Local<Int32>());
+}
 
 
 Boolean* Boolean::Cast(v8::Value* value) {
@@ -7603,6 +7919,22 @@ Array* Array::Cast(v8::Value* value) {
 }
 
 
+Map* Map::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Map*>(value);
+}
+
+
+Set* Set::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Set*>(value);
+}
+
+
 Promise* Promise::Cast(v8::Value* value) {
 #ifdef V8_ENABLE_CHECKS
   CheckCast(value);
@@ -7720,6 +8052,14 @@ DataView* DataView::Cast(v8::Value* value) {
   CheckCast(value);
 #endif
   return static_cast<DataView*>(value);
+}
+
+
+SharedArrayBuffer* SharedArrayBuffer::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<SharedArrayBuffer*>(value);
 }
 
 

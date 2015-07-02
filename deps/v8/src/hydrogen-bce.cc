@@ -231,12 +231,15 @@ class BoundsCheckBbData: public ZoneObject {
           HArithmeticBinaryOperation::cast(index_raw);
       HValue* left_input = index->left();
       HValue* right_input = index->right();
+      HValue* context = index->context();
       bool must_move_index = false;
       bool must_move_left_input = false;
       bool must_move_right_input = false;
+      bool must_move_context = false;
       for (HInstruction* cursor = end_of_scan_range; cursor != insert_before;) {
         if (cursor == left_input) must_move_left_input = true;
         if (cursor == right_input) must_move_right_input = true;
+        if (cursor == context) must_move_context = true;
         if (cursor == index) must_move_index = true;
         if (cursor->previous() == NULL) {
           cursor = cursor->block()->dominator()->end();
@@ -257,6 +260,11 @@ class BoundsCheckBbData: public ZoneObject {
       if (must_move_right_input) {
         HConstant::cast(right_input)->Unlink();
         HConstant::cast(right_input)->InsertBefore(index);
+      }
+      if (must_move_context) {
+        // Contexts are always constants.
+        HConstant::cast(context)->Unlink();
+        HConstant::cast(context)->InsertBefore(index);
       }
     } else if (index_raw->IsConstant()) {
       HConstant* index = HConstant::cast(index_raw);
@@ -465,4 +473,5 @@ void HBoundsCheckEliminationPhase::PostProcessBlock(
   }
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

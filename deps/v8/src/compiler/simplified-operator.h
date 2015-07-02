@@ -149,7 +149,6 @@ class SimplifiedOperatorBuilder final {
   const Operator* StringEqual();
   const Operator* StringLessThan();
   const Operator* StringLessThanOrEqual();
-  const Operator* StringAdd();
 
   const Operator* ChangeTaggedToInt32();
   const Operator* ChangeTaggedToUint32();

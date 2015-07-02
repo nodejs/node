@@ -375,4 +375,5 @@ void HBoundsCheckHoistingPhase::HoistRedundantBoundsChecks() {
   }
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

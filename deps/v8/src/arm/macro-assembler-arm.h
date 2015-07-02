@@ -437,7 +437,7 @@ class MacroAssembler: public Assembler {
   }
 
   // Push a fixed frame, consisting of lr, fp, constant pool (if
-  // FLAG_enable_ool_constant_pool), context and JS function / marker id if
+  // FLAG_enable_embedded_constant_pool), context and JS function / marker id if
   // marker_reg is a valid register.
   void PushFixedFrame(Register marker_reg = no_reg);
   void PopFixedFrame(Register marker_reg = no_reg);
@@ -1441,6 +1441,11 @@ class MacroAssembler: public Assembler {
   void JumpIfDictionaryInPrototypeChain(Register object, Register scratch0,
                                         Register scratch1, Label* found);
 
+  // Loads the constant pool pointer (pp) register.
+  void LoadConstantPoolPointerRegisterFromCodeTargetAddress(
+      Register code_target_address);
+  void LoadConstantPoolPointerRegister();
+
  private:
   void CallCFunctionHelper(Register function,
                            int num_reg_arguments,
@@ -1481,9 +1486,6 @@ class MacroAssembler: public Assembler {
   static int SafepointRegisterStackIndex(int reg_code);
   MemOperand SafepointRegisterSlot(Register reg);
   MemOperand SafepointRegistersAndDoublesSlot(Register reg);
-
-  // Loads the constant pool pointer (pp) register.
-  void LoadConstantPoolPointerRegister();
 
   bool generating_stub_;
   bool has_frame_;

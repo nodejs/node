@@ -81,13 +81,20 @@ class Decoder {
   void PrintSs2(Instruction* instr);
   void PrintBc(Instruction* instr);
   void PrintCc(Instruction* instr);
+  void PrintBp2(Instruction* instr);
   void PrintFunction(Instruction* instr);
   void PrintSecondaryField(Instruction* instr);
   void PrintUImm16(Instruction* instr);
   void PrintSImm16(Instruction* instr);
   void PrintXImm16(Instruction* instr);
+  void PrintXImm18(Instruction* instr);
+  void PrintSImm18(Instruction* instr);
+  void PrintXImm19(Instruction* instr);
+  void PrintSImm19(Instruction* instr);
   void PrintXImm21(Instruction* instr);
+  void PrintSImm21(Instruction* instr);
   void PrintXImm26(Instruction* instr);
+  void PrintSImm26(Instruction* instr);
   void PrintCode(Instruction* instr);   // For break and trap instructions.
   void PrintFormat(Instruction* instr);  // For floating format postfix.
   // Printing of instruction name.
@@ -236,6 +243,12 @@ void Decoder::PrintCc(Instruction* instr) {
 }
 
 
+void Decoder::PrintBp2(Instruction* instr) {
+  int bp2 = instr->Bp2Value();
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", bp2);
+}
+
+
 // Print 16-bit unsigned immediate value.
 void Decoder::PrintUImm16(Instruction* instr) {
   int32_t imm = instr->Imm16Value();
@@ -257,6 +270,38 @@ void Decoder::PrintXImm16(Instruction* instr) {
 }
 
 
+// Print 18-bit signed immediate value.
+void Decoder::PrintSImm18(Instruction* instr) {
+  int32_t imm =
+      ((instr->Imm18Value()) << (32 - kImm18Bits)) >> (32 - kImm18Bits);
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+}
+
+
+// Print 18-bit hexa immediate value.
+void Decoder::PrintXImm18(Instruction* instr) {
+  int32_t imm = instr->Imm18Value();
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
+}
+
+
+// Print 19-bit hexa immediate value.
+void Decoder::PrintXImm19(Instruction* instr) {
+  int32_t imm = instr->Imm19Value();
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
+}
+
+
+// Print 19-bit signed immediate value.
+void Decoder::PrintSImm19(Instruction* instr) {
+  int32_t imm19 = instr->Imm19Value();
+  // set sign
+  imm19 <<= (32 - kImm19Bits);
+  imm19 >>= (32 - kImm19Bits);
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm19);
+}
+
+
 // Print 21-bit immediate value.
 void Decoder::PrintXImm21(Instruction* instr) {
   uint32_t imm = instr->Imm21Value();
@@ -264,10 +309,30 @@ void Decoder::PrintXImm21(Instruction* instr) {
 }
 
 
-// Print 26-bit immediate value.
+// Print 21-bit signed immediate value.
+void Decoder::PrintSImm21(Instruction* instr) {
+  int32_t imm21 = instr->Imm21Value();
+  // set sign
+  imm21 <<= (32 - kImm21Bits);
+  imm21 >>= (32 - kImm21Bits);
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm21);
+}
+
+
+// Print 26-bit hex immediate value.
 void Decoder::PrintXImm26(Instruction* instr) {
   uint32_t imm = instr->Imm26Value() << kImmFieldShift;
   out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
+}
+
+
+// Print 26-bit signed immediate value.
+void Decoder::PrintSImm26(Instruction* instr) {
+  int32_t imm26 = instr->Imm26Value();
+  // set sign
+  imm26 <<= (32 - kImm26Bits);
+  imm26 >>= (32 - kImm26Bits);
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm26);
 }
 
 
@@ -389,25 +454,75 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
     }
     case 'i': {   // 'imm16u or 'imm26.
       if (format[3] == '1') {
-        DCHECK(STRING_STARTS_WITH(format, "imm16"));
-        if (format[5] == 's') {
-          DCHECK(STRING_STARTS_WITH(format, "imm16s"));
-          PrintSImm16(instr);
-        } else if (format[5] == 'u') {
-          DCHECK(STRING_STARTS_WITH(format, "imm16u"));
-          PrintSImm16(instr);
-        } else {
-          DCHECK(STRING_STARTS_WITH(format, "imm16x"));
-          PrintXImm16(instr);
+        if (format[4] == '6') {
+          DCHECK(STRING_STARTS_WITH(format, "imm16"));
+          switch (format[5]) {
+            case 's':
+              DCHECK(STRING_STARTS_WITH(format, "imm16s"));
+              PrintSImm16(instr);
+              break;
+            case 'u':
+              DCHECK(STRING_STARTS_WITH(format, "imm16u"));
+              PrintSImm16(instr);
+              break;
+            case 'x':
+              DCHECK(STRING_STARTS_WITH(format, "imm16x"));
+              PrintXImm16(instr);
+              break;
+          }
+          return 6;
+        } else if (format[4] == '8') {
+          DCHECK(STRING_STARTS_WITH(format, "imm18"));
+          switch (format[5]) {
+            case 's':
+              DCHECK(STRING_STARTS_WITH(format, "imm18s"));
+              PrintSImm18(instr);
+              break;
+            case 'x':
+              DCHECK(STRING_STARTS_WITH(format, "imm18x"));
+              PrintXImm18(instr);
+              break;
+          }
+          return 6;
+        } else if (format[4] == '9') {
+          DCHECK(STRING_STARTS_WITH(format, "imm19"));
+          switch (format[5]) {
+            case 's':
+              DCHECK(STRING_STARTS_WITH(format, "imm19s"));
+              PrintSImm19(instr);
+              break;
+            case 'x':
+              DCHECK(STRING_STARTS_WITH(format, "imm19x"));
+              PrintXImm19(instr);
+              break;
+          }
+          return 6;
+        }
+      } else if (format[3] == '2' && format[4] == '1') {
+        DCHECK(STRING_STARTS_WITH(format, "imm21"));
+        switch (format[5]) {
+          case 's':
+            DCHECK(STRING_STARTS_WITH(format, "imm21s"));
+            PrintSImm21(instr);
+            break;
+          case 'x':
+            DCHECK(STRING_STARTS_WITH(format, "imm21x"));
+            PrintXImm21(instr);
+            break;
         }
         return 6;
-      } else if (format[3] == '2' && format[4] == '1') {
-        DCHECK(STRING_STARTS_WITH(format, "imm21x"));
-        PrintXImm21(instr);
-        return 6;
       } else if (format[3] == '2' && format[4] == '6') {
-        DCHECK(STRING_STARTS_WITH(format, "imm26x"));
-        PrintXImm26(instr);
+        DCHECK(STRING_STARTS_WITH(format, "imm26"));
+        switch (format[5]) {
+          case 's':
+            DCHECK(STRING_STARTS_WITH(format, "imm26s"));
+            PrintSImm26(instr);
+            break;
+          case 'x':
+            DCHECK(STRING_STARTS_WITH(format, "imm26x"));
+            PrintXImm26(instr);
+            break;
+        }
         return 6;
       }
     }
@@ -442,10 +557,23 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
         }
       }
     }
-    case 'b': {   // 'bc - Special for bc1 cc field.
-      DCHECK(STRING_STARTS_WITH(format, "bc"));
-      PrintBc(instr);
-      return 2;
+    case 'b': {
+      switch (format[1]) {
+        case 'c': {  // 'bc - Special for bc1 cc field.
+          DCHECK(STRING_STARTS_WITH(format, "bc"));
+          PrintBc(instr);
+          return 2;
+        }
+        case 'p': {
+          switch (format[2]) {
+            case '2': {  // 'bp2
+              DCHECK(STRING_STARTS_WITH(format, "bp2"));
+              PrintBp2(instr);
+              return 3;
+            }
+          }
+        }
+      }
     }
     case 'C': {   // 'Cc - Special for c.xx.d cc field.
       DCHECK(STRING_STARTS_WITH(format, "Cc"));
@@ -511,6 +639,19 @@ bool Decoder::DecodeTypeRegisterRsType(Instruction* instr) {
     case SELNEZ_C:
       Format(instr, "selnez.'t    'fd, 'fs, 'ft");
       break;
+    case MOVZ_C:
+      Format(instr, "movz.'t    'fd, 'fs, 'rt");
+      break;
+    case MOVN_C:
+      Format(instr, "movn.'t    'fd, 'fs, 'rt");
+      break;
+    case MOVF:
+      if (instr->Bit(16)) {
+        Format(instr, "movt.'t    'fd, 'fs, 'Cc");
+      } else {
+        Format(instr, "movf.'t    'fd, 'fs, 'Cc");
+      }
+      break;
     case ADD_D:
       Format(instr, "add.'t   'fd, 'fs, 'ft");
       break;
@@ -535,6 +676,12 @@ bool Decoder::DecodeTypeRegisterRsType(Instruction* instr) {
     case SQRT_D:
       Format(instr, "sqrt.'t  'fd, 'fs");
       break;
+    case RECIP_D:
+      Format(instr, "recip.'t  'fd, 'fs");
+      break;
+    case RSQRT_D:
+      Format(instr, "rsqrt.'t  'fd, 'fs");
+      break;
     case CVT_W_D:
       Format(instr, "cvt.w.'t 'fd, 'fs");
       break;
@@ -550,11 +697,23 @@ bool Decoder::DecodeTypeRegisterRsType(Instruction* instr) {
     case ROUND_W_D:
       Format(instr, "round.w.'t 'fd, 'fs");
       break;
+    case ROUND_L_D:
+      Format(instr, "round.l.'t 'fd, 'fs");
+      break;
     case FLOOR_W_D:
       Format(instr, "floor.w.'t 'fd, 'fs");
       break;
+    case FLOOR_L_D:
+      Format(instr, "floor.l.'t 'fd, 'fs");
+      break;
     case CEIL_W_D:
       Format(instr, "ceil.w.'t 'fd, 'fs");
+      break;
+    case CLASS_D:
+      Format(instr, "class.'t 'fd, 'fs");
+      break;
+    case CEIL_L_D:
+      Format(instr, "ceil.l.'t 'fd, 'fs");
       break;
     case CVT_S_D:
       Format(instr, "cvt.s.'t 'fd, 'fs");
@@ -618,6 +777,9 @@ void Decoder::DecodeTypeRegisterLRsType(Instruction* instr) {
       break;
     case CVT_S_L:
       Format(instr, "cvt.s.l 'fd, 'fs");
+      break;
+    case CMP_AF:
+      Format(instr, "cmp.af.d  'fd,  'fs, 'ft");
       break;
     case CMP_UN:
       Format(instr, "cmp.un.d  'fd,  'fs, 'ft");
@@ -907,7 +1069,7 @@ void Decoder::DecodeTypeRegisterSPECIAL2(Instruction* instr) {
 void Decoder::DecodeTypeRegisterSPECIAL3(Instruction* instr) {
   switch (instr->FunctionFieldRaw()) {
     case INS: {
-      if (IsMipsArchVariant(kMips32r2)) {
+      if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
         Format(instr, "ins     'rt, 'rs, 'sa, 'ss2");
       } else {
         Unknown(instr);
@@ -915,10 +1077,45 @@ void Decoder::DecodeTypeRegisterSPECIAL3(Instruction* instr) {
       break;
     }
     case EXT: {
-      if (IsMipsArchVariant(kMips32r2)) {
+      if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
         Format(instr, "ext     'rt, 'rs, 'sa, 'ss1");
       } else {
         Unknown(instr);
+      }
+      break;
+    }
+    case BSHFL: {
+      int sa = instr->SaFieldRaw() >> kSaShift;
+      switch (sa) {
+        case BITSWAP: {
+          if (IsMipsArchVariant(kMips32r6)) {
+            Format(instr, "bitswap 'rd, 'rt");
+          } else {
+            Unknown(instr);
+          }
+          break;
+        }
+        case SEB:
+        case SEH:
+        case WSBH:
+          UNREACHABLE();
+          break;
+        default: {
+          sa >>= kBp2Bits;
+          switch (sa) {
+            case ALIGN: {
+              if (IsMipsArchVariant(kMips32r6)) {
+                Format(instr, "align  'rd, 'rs, 'rt, 'bp2");
+              } else {
+                Unknown(instr);
+              }
+              break;
+            }
+            default:
+              UNREACHABLE();
+              break;
+          }
+        }
       }
       break;
     }
@@ -1045,6 +1242,12 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
     case BEQ:
       Format(instr, "beq     'rs, 'rt, 'imm16u");
       break;
+    case BC:
+      Format(instr, "bc      'imm26s");
+      break;
+    case BALC:
+      Format(instr, "balc    'imm26s");
+      break;
     case BNE:
       Format(instr, "bne     'rs, 'rt, 'imm16u");
       break;
@@ -1110,13 +1313,17 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
         UNREACHABLE();
       }
       break;
-    case BEQZC:
-      if (instr->RsFieldRaw() != 0) {
-        Format(instr, "beqzc   'rs, 'imm21x");
+    case POP66:
+      if (instr->RsValue() == JIC) {
+        Format(instr, "jic     'rt, 'imm16s");
+      } else {
+        Format(instr, "beqzc   'rs, 'imm21s");
       }
       break;
-    case BNEZC:
-      if (instr->RsFieldRaw() != 0) {
+    case POP76:
+      if (instr->RsValue() == JIALC) {
+        Format(instr, "jialc   'rt, 'imm16x");
+      } else {
         Format(instr, "bnezc   'rs, 'imm21x");
       }
       break;
@@ -1228,6 +1435,35 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
     case SDC1:
       Format(instr, "sdc1    'ft, 'imm16s('rs)");
       break;
+    case PCREL: {
+      int32_t imm21 = instr->Imm21Value();
+      // rt field: 5-bits checking
+      uint8_t rt = (imm21 >> kImm16Bits);
+      switch (rt) {
+        case ALUIPC:
+          Format(instr, "aluipc  'rs, 'imm16s");
+          break;
+        case AUIPC:
+          Format(instr, "auipc   'rs, 'imm16s");
+          break;
+        default: {
+          // rt field: checking of the most significant 2-bits
+          rt = (imm21 >> kImm19Bits);
+          switch (rt) {
+            case LWPC:
+              Format(instr, "lwpc    'rs, 'imm19s");
+              break;
+            case ADDIUPC:
+              Format(instr, "addiupc 'rs, 'imm19s");
+              break;
+            default:
+              UNREACHABLE();
+              break;
+          }
+        }
+      }
+      break;
+    }
     default:
       printf("a 0x%x \n", instr->OpcodeFieldRaw());
       UNREACHABLE();
@@ -1279,8 +1515,8 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
 }
 
 
-} }  // namespace v8::internal
-
+}  // namespace internal
+}  // namespace v8
 
 
 //------------------------------------------------------------------------------

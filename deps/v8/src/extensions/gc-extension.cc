@@ -19,8 +19,12 @@ v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunctionTemplate(
 
 void GCExtension::GC(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetIsolate()->RequestGarbageCollectionForTesting(
-      args[0]->BooleanValue() ? v8::Isolate::kMinorGarbageCollection
-                              : v8::Isolate::kFullGarbageCollection);
+      args[0]
+              ->BooleanValue(args.GetIsolate()->GetCurrentContext())
+              .FromMaybe(false)
+          ? v8::Isolate::kMinorGarbageCollection
+          : v8::Isolate::kFullGarbageCollection);
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

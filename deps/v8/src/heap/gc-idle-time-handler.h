@@ -136,6 +136,9 @@ class GCIdleTimeHandler {
   // lower bound for the scavenger speed.
   static const size_t kInitialConservativeScavengeSpeed = 100 * KB;
 
+  // The minimum size of allocated new space objects to trigger a scavenge.
+  static const size_t kMinimumNewSpaceSizeToPerformScavenge = MB / 2;
+
   // If contexts are disposed at a higher rate a full gc is triggered.
   static const double kHighContextDisposalRate;
 
@@ -178,6 +181,7 @@ class GCIdleTimeHandler {
     bool can_start_incremental_marking;
     bool sweeping_in_progress;
     bool sweeping_completed;
+    bool has_low_allocation_rate;
     size_t mark_compact_speed_in_bytes_per_ms;
     size_t incremental_marking_speed_in_bytes_per_ms;
     size_t final_incremental_mark_compact_speed_in_bytes_per_ms;
@@ -194,13 +198,17 @@ class GCIdleTimeHandler {
         long_idle_notifications_(0),
         background_idle_notifications_(0),
         idle_times_which_made_no_progress_per_mode_(0),
+        next_gc_likely_to_collect_more_(false),
         mode_(kReduceLatency) {}
 
   GCIdleTimeAction Compute(double idle_time_in_ms, HeapState heap_state);
 
   void NotifyIdleMarkCompact() { ++idle_mark_compacts_; }
 
-  void NotifyMarkCompact() { ++mark_compacts_; }
+  void NotifyMarkCompact(bool next_gc_likely_to_collect_more) {
+    next_gc_likely_to_collect_more_ = next_gc_likely_to_collect_more;
+    ++mark_compacts_;
+  }
 
   void NotifyScavenge() { ++scavenges_; }
 
@@ -257,6 +265,8 @@ class GCIdleTimeHandler {
   int background_idle_notifications_;
   // Idle notifications with no progress in the current mode.
   int idle_times_which_made_no_progress_per_mode_;
+
+  bool next_gc_likely_to_collect_more_;
 
   Mode mode_;
 

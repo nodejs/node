@@ -41,9 +41,6 @@ class JSGenericLowering final : public Reducer {
   void ReplaceWithBuiltinCall(Node* node, Builtins::JavaScript id, int args);
   void ReplaceWithRuntimeCall(Node* node, Runtime::FunctionId f, int args = -1);
 
-  // Helper for optimization of JSCallFunction.
-  bool TryLowerDirectJSCall(Node* node);
-
   Zone* zone() const;
   Isolate* isolate() const;
   JSGraph* jsgraph() const { return jsgraph_; }

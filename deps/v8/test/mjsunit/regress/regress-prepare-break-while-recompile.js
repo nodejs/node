@@ -54,8 +54,10 @@ foo();
 // and (shared) unoptimized code on foo, and sets both to lazy-compile builtin.
 // Clear the break point immediately after to deactivate the debugger.
 // Do all of this after compile graph has been created.
+Debug.setListener(function(){});
 Debug.setBreakPoint(bar, 0, 0);
 Debug.clearAllBreakPoints();
+Debug.setListener(null);
 
 // At this point, concurrent recompilation is still blocked.
 assertUnoptimized(foo, "no sync");

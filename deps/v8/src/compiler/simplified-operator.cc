@@ -174,7 +174,6 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
   V(StringEqual, Operator::kCommutative, 2)             \
   V(StringLessThan, Operator::kNoProperties, 2)         \
   V(StringLessThanOrEqual, Operator::kNoProperties, 2)  \
-  V(StringAdd, Operator::kNoProperties, 2)              \
   V(ChangeTaggedToInt32, Operator::kNoProperties, 1)    \
   V(ChangeTaggedToUint32, Operator::kNoProperties, 1)   \
   V(ChangeTaggedToFloat64, Operator::kNoProperties, 1)  \

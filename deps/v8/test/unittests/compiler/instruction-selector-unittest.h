@@ -10,8 +10,8 @@
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/compiler/instruction-selector.h"
-#include "src/compiler/raw-machine-assembler.h"
 #include "src/macro-assembler.h"
+#include "test/unittests/compiler/raw-machine-assembler.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -37,22 +37,25 @@ class InstructionSelectorTest : public TestWithContext,
   class StreamBuilder final : public RawMachineAssembler {
    public:
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type)
-        : RawMachineAssembler(test->isolate(),
-                              new (test->zone()) Graph(test->zone()),
-                              MakeMachineSignature(test->zone(), return_type)),
+        : RawMachineAssembler(
+              test->isolate(), new (test->zone()) Graph(test->zone()),
+              MakeMachineSignature(test->zone(), return_type), kMachPtr,
+              MachineOperatorBuilder::kAllOptionalOps),
           test_(test) {}
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
                   MachineType parameter0_type)
         : RawMachineAssembler(
               test->isolate(), new (test->zone()) Graph(test->zone()),
-              MakeMachineSignature(test->zone(), return_type, parameter0_type)),
+              MakeMachineSignature(test->zone(), return_type, parameter0_type),
+              kMachPtr, MachineOperatorBuilder::kAllOptionalOps),
           test_(test) {}
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
                   MachineType parameter0_type, MachineType parameter1_type)
         : RawMachineAssembler(
               test->isolate(), new (test->zone()) Graph(test->zone()),
               MakeMachineSignature(test->zone(), return_type, parameter0_type,
-                                   parameter1_type)),
+                                   parameter1_type),
+              kMachPtr, MachineOperatorBuilder::kAllOptionalOps),
           test_(test) {}
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
                   MachineType parameter0_type, MachineType parameter1_type,
@@ -60,7 +63,8 @@ class InstructionSelectorTest : public TestWithContext,
         : RawMachineAssembler(
               test->isolate(), new (test->zone()) Graph(test->zone()),
               MakeMachineSignature(test->zone(), return_type, parameter0_type,
-                                   parameter1_type, parameter2_type)),
+                                   parameter1_type, parameter2_type),
+              kMachPtr, MachineOperatorBuilder::kAllOptionalOps),
           test_(test) {}
 
     Stream Build(CpuFeature feature) {
@@ -76,6 +80,9 @@ class InstructionSelectorTest : public TestWithContext,
                  StreamBuilderMode mode = kTargetInstructions,
                  InstructionSelector::SourcePositionMode source_position_mode =
                      InstructionSelector::kAllSourcePositions);
+
+    const FrameStateFunctionInfo* GetFrameStateFunctionInfo(int parameter_count,
+                                                            int local_count);
 
    private:
     MachineSignature* MakeMachineSignature(Zone* zone,

@@ -93,8 +93,9 @@ std::pair<v8::base::TimeDelta, v8::base::TimeDelta> RunBaselineParser(
     }
   }
   v8::base::TimeDelta parse_time1, parse_time2;
-  Handle<Script> script = Isolate::Current()->factory()->NewScript(
-      v8::Utils::OpenHandle(*source_handle));
+  Handle<Script> script =
+      reinterpret_cast<i::Isolate*>(isolate)->factory()->NewScript(
+          v8::Utils::OpenHandle(*source_handle));
   i::ScriptData* cached_data_impl = NULL;
   // First round of parsing (produce data to cache).
   {

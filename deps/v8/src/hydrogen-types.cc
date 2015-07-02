@@ -70,4 +70,5 @@ std::ostream& operator<<(std::ostream& os, const HType& t) {
   return os;
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

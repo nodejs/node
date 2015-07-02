@@ -57,5 +57,5 @@ const AstRawString* ModuleDescriptor::LookupLocalExport(
   DCHECK_NOT_NULL(entry->value);
   return static_cast<const AstRawString*>(entry->value);
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

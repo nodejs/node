@@ -27,4 +27,5 @@ void FreeBufferExtension::FreeBuffer(
                                           contents.ByteLength());
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

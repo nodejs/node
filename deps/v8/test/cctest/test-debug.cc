@@ -115,8 +115,9 @@ class DebugLocalContext {
         v8::Utils::OpenHandle(*context_->Global())));
     Handle<v8::internal::String> debug_string =
         factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("debug"));
-    v8::internal::Runtime::DefineObjectProperty(global, debug_string,
-        handle(debug_context->global_proxy(), isolate), DONT_ENUM).Check();
+    v8::internal::JSObject::SetOwnPropertyIgnoreAttributes(
+        global, debug_string, handle(debug_context->global_proxy()), DONT_ENUM)
+        .Check();
   }
 
  private:
@@ -211,7 +212,7 @@ static int SetScriptBreakPointByIdFromJS(v8::Isolate* isolate, int script_id,
   }
   buffer[SMALL_STRING_BUFFER_SIZE - 1] = '\0';
   {
-    v8::TryCatch try_catch;
+    v8::TryCatch try_catch(isolate);
     v8::Handle<v8::String> str =
         v8::String::NewFromUtf8(isolate, buffer.start());
     v8::Handle<v8::Value> value = v8::Script::Compile(str)->Run();
@@ -240,7 +241,7 @@ static int SetScriptBreakPointByNameFromJS(v8::Isolate* isolate,
   }
   buffer[SMALL_STRING_BUFFER_SIZE - 1] = '\0';
   {
-    v8::TryCatch try_catch;
+    v8::TryCatch try_catch(isolate);
     v8::Handle<v8::String> str =
         v8::String::NewFromUtf8(isolate, buffer.start());
     v8::Handle<v8::Value> value = v8::Script::Compile(str)->Run();
@@ -425,7 +426,8 @@ void CheckDebuggerUnloaded(bool check_functions) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 
 // Check that the debugger has been fully unloaded.
@@ -443,6 +445,7 @@ void CheckDebugBreakFunction(DebugLocalContext* env,
                              const char* source, const char* name,
                              int position, v8::internal::RelocInfo::Mode mode,
                              Code* debug_break) {
+  EnableDebugger();
   i::Debug* debug = CcTest::i_isolate()->debug();
 
   // Create function and set the break point.
@@ -486,6 +489,8 @@ void CheckDebugBreakFunction(DebugLocalContext* env,
     i::RelocInfo rinfo = location.rinfo();
     CHECK(!rinfo.IsPatchedReturnSequence());
   }
+
+  DisableDebugger();
 }
 
 
@@ -984,12 +989,10 @@ TEST(DebugStub) {
                           v8::internal::RelocInfo::CODE_TARGET,
                           CcTest::i_isolate()->builtins()->builtin(
                               Builtins::kStoreIC_DebugBreak));
-  CheckDebugBreakFunction(&env,
-                          "function f3(){var a=x;}", "f3",
-                          0,
-                          v8::internal::RelocInfo::CODE_TARGET,
-                          CcTest::i_isolate()->builtins()->builtin(
-                              Builtins::kLoadIC_DebugBreak));
+  CheckDebugBreakFunction(
+      &env, "function f3(){x();}", "f3", 0,
+      v8::internal::RelocInfo::CODE_TARGET,
+      CcTest::i_isolate()->builtins()->builtin(Builtins::kLoadIC_DebugBreak));
 
 // TODO(1240753): Make the test architecture independent or split
 // parts of the debugger into architecture dependent files. This
@@ -999,29 +1002,21 @@ TEST(DebugStub) {
   CheckDebugBreakFunction(
       &env,
       "function f4(){var index='propertyName'; var a={}; a[index] = 'x';}",
-      "f4",
-      0,
-      v8::internal::RelocInfo::CODE_TARGET,
+      "f4", 39, v8::internal::RelocInfo::CODE_TARGET,
       CcTest::i_isolate()->builtins()->builtin(
           Builtins::kKeyedStoreIC_DebugBreak));
   CheckDebugBreakFunction(
       &env,
       "function f5(){var index='propertyName'; var a={}; return a[index];}",
-      "f5",
-      0,
-      v8::internal::RelocInfo::CODE_TARGET,
+      "f5", 39, v8::internal::RelocInfo::CODE_TARGET,
       CcTest::i_isolate()->builtins()->builtin(
           Builtins::kKeyedLoadIC_DebugBreak));
 #endif
 
-  CheckDebugBreakFunction(
-      &env,
-      "function f6(a){return a==null;}",
-      "f6",
-      0,
-      v8::internal::RelocInfo::CODE_TARGET,
-      CcTest::i_isolate()->builtins()->builtin(
-          Builtins::kCompareNilIC_DebugBreak));
+  CheckDebugBreakFunction(&env, "function f6(){(0==null)()}", "f6", 0,
+                          v8::internal::RelocInfo::CODE_TARGET,
+                          CcTest::i_isolate()->builtins()->builtin(
+                              Builtins::kCompareNilIC_DebugBreak));
 
   // Check the debug break code stubs for call ICs with different number of
   // parameters.
@@ -1064,6 +1059,7 @@ TEST(DebugInfo) {
   CHECK_EQ(0, v8::internal::GetDebuggedFunctions()->length());
   CHECK(!HasDebugInfo(foo));
   CHECK(!HasDebugInfo(bar));
+  EnableDebugger();
   // One function (foo) is debugged.
   int bp1 = SetBreakPoint(foo, 0);
   CHECK_EQ(1, v8::internal::GetDebuggedFunctions()->length());
@@ -1081,6 +1077,7 @@ TEST(DebugInfo) {
   CHECK(HasDebugInfo(bar));
   // No functions are debugged.
   ClearBreakPoint(bp2);
+  DisableDebugger();
   CHECK_EQ(0, v8::internal::GetDebuggedFunctions()->length());
   CHECK(!HasDebugInfo(foo));
   CHECK(!HasDebugInfo(bar));
@@ -2288,10 +2285,11 @@ TEST(RemoveBreakPointInBreak) {
 
   v8::Local<v8::Function> foo =
       CompileFunction(&env, "function foo(){a=1;}", "foo");
-  debug_event_remove_break_point = SetBreakPoint(foo, 0);
 
   // Register the debug event listener pasing the function
   v8::Debug::SetDebugEventListener(DebugEventRemoveBreakPoint, foo);
+
+  debug_event_remove_break_point = SetBreakPoint(foo, 0);
 
   break_point_hit_count = 0;
   foo->Call(env->Global(), 0, NULL);
@@ -2779,10 +2777,10 @@ TEST(DebugStepLinear) {
   // Run foo to allow it to get optimized.
   CompileRun("a=0; b=0; c=0; foo();");
 
-  SetBreakPoint(foo, 3);
-
   // Register a debug event listener which steps and counts.
   v8::Debug::SetDebugEventListener(DebugEventStep);
+
+  SetBreakPoint(foo, 3);
 
   step_action = StepIn;
   break_point_hit_count = 0;
@@ -3823,6 +3821,48 @@ TEST(DebugStepFunctionCall) {
 }
 
 
+// Test that step in works with Function.call.apply.
+TEST(DebugStepFunctionCallApply) {
+  DebugLocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  // Create a function for testing stepping.
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env,
+                      "function bar() { }"
+                      "function foo(){ debugger;"
+                      "                Function.call.apply(bar);"
+                      "                Function.call.apply(Function.call, "
+                      "[Function.call, bar]);"
+                      "}",
+                      "foo");
+
+  // Register a debug event listener which steps and counts.
+  v8::Debug::SetDebugEventListener(DebugEventStep);
+  step_action = StepIn;
+
+  break_point_hit_count = 0;
+  foo->Call(env->Global(), 0, NULL);
+  CHECK_EQ(5, break_point_hit_count);
+
+  v8::Debug::SetDebugEventListener(NULL);
+  CheckDebuggerUnloaded();
+
+  // Register a debug event listener which just counts.
+  v8::Debug::SetDebugEventListener(DebugEventBreakPointHitCount);
+
+  break_point_hit_count = 0;
+  foo->Call(env->Global(), 0, NULL);
+
+  // Without stepping only the debugger statement is hit.
+  CHECK_EQ(1, break_point_hit_count);
+
+  v8::Debug::SetDebugEventListener(NULL);
+  CheckDebuggerUnloaded();
+}
+
+
 // Tests that breakpoint will be hit if it's set in script.
 TEST(PauseInScript) {
   DebugLocalContext env;
@@ -3856,6 +3896,13 @@ TEST(PauseInScript) {
 }
 
 
+static void DebugEventCounterCheck(int caught, int uncaught, int message) {
+  CHECK_EQ(caught, exception_hit_count);
+  CHECK_EQ(uncaught, uncaught_exception_hit_count);
+  CHECK_EQ(message, message_callback_count);
+}
+
+
 // Test break on exceptions. For each exception break combination the number
 // of debug event exception callbacks and message callbacks are collected. The
 // number of debug event exception callbacks are used to check that the
@@ -3875,6 +3922,15 @@ TEST(BreakOnException) {
                       "caught");
   v8::Local<v8::Function> notCaught =
       CompileFunction(&env, "function notCaught(){throws();}", "notCaught");
+  v8::Local<v8::Function> notCaughtFinally = CompileFunction(
+      &env, "function notCaughtFinally(){try{throws();}finally{}}",
+      "notCaughtFinally");
+  // In this edge case, even though this finally does not propagate the
+  // exception, the debugger considers this uncaught, since we want to break
+  // at the first throw for the general case where finally implicitly rethrows.
+  v8::Local<v8::Function> edgeCaseFinally = CompileFunction(
+      &env, "function caughtFinally(){L:try{throws();}finally{break L;}}",
+      "caughtFinally");
 
   v8::V8::AddMessageListener(MessageCallbackCount);
   v8::Debug::SetDebugEventListener(DebugEventCounter);
@@ -3883,121 +3939,150 @@ TEST(BreakOnException) {
   DebugEventCounterClear();
   MessageCallbackCountClear();
   caught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(0, exception_hit_count);
-  CHECK_EQ(0, uncaught_exception_hit_count);
-  CHECK_EQ(0, message_callback_count);
+  DebugEventCounterCheck(0, 0, 0);
   notCaught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(0, exception_hit_count);
-  CHECK_EQ(0, uncaught_exception_hit_count);
-  CHECK_EQ(1, message_callback_count);
+  DebugEventCounterCheck(0, 0, 1);
+  notCaughtFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(0, 0, 2);
+  edgeCaseFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(0, 0, 2);
 
   // No break on exception
   DebugEventCounterClear();
   MessageCallbackCountClear();
   ChangeBreakOnException(false, false);
   caught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(0, exception_hit_count);
-  CHECK_EQ(0, uncaught_exception_hit_count);
-  CHECK_EQ(0, message_callback_count);
+  DebugEventCounterCheck(0, 0, 0);
   notCaught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(0, exception_hit_count);
-  CHECK_EQ(0, uncaught_exception_hit_count);
-  CHECK_EQ(1, message_callback_count);
+  DebugEventCounterCheck(0, 0, 1);
+  notCaughtFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(0, 0, 2);
+  edgeCaseFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(0, 0, 2);
 
   // Break on uncaught exception
   DebugEventCounterClear();
   MessageCallbackCountClear();
   ChangeBreakOnException(false, true);
   caught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(0, exception_hit_count);
-  CHECK_EQ(0, uncaught_exception_hit_count);
-  CHECK_EQ(0, message_callback_count);
+  DebugEventCounterCheck(0, 0, 0);
   notCaught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(1, exception_hit_count);
-  CHECK_EQ(1, uncaught_exception_hit_count);
-  CHECK_EQ(1, message_callback_count);
+  DebugEventCounterCheck(1, 1, 1);
+  notCaughtFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(2, 2, 2);
+  edgeCaseFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(3, 3, 2);
 
   // Break on exception and uncaught exception
   DebugEventCounterClear();
   MessageCallbackCountClear();
   ChangeBreakOnException(true, true);
   caught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(1, exception_hit_count);
-  CHECK_EQ(0, uncaught_exception_hit_count);
-  CHECK_EQ(0, message_callback_count);
+  DebugEventCounterCheck(1, 0, 0);
   notCaught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(2, exception_hit_count);
-  CHECK_EQ(1, uncaught_exception_hit_count);
-  CHECK_EQ(1, message_callback_count);
+  DebugEventCounterCheck(2, 1, 1);
+  notCaughtFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(3, 2, 2);
+  edgeCaseFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(4, 3, 2);
 
   // Break on exception
   DebugEventCounterClear();
   MessageCallbackCountClear();
   ChangeBreakOnException(true, false);
   caught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(1, exception_hit_count);
-  CHECK_EQ(0, uncaught_exception_hit_count);
-  CHECK_EQ(0, message_callback_count);
+  DebugEventCounterCheck(1, 0, 0);
   notCaught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(2, exception_hit_count);
-  CHECK_EQ(1, uncaught_exception_hit_count);
-  CHECK_EQ(1, message_callback_count);
+  DebugEventCounterCheck(2, 1, 1);
+  notCaughtFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(3, 2, 2);
+  edgeCaseFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(4, 3, 2);
 
   // No break on exception using JavaScript
   DebugEventCounterClear();
   MessageCallbackCountClear();
   ChangeBreakOnExceptionFromJS(env->GetIsolate(), false, false);
   caught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(0, exception_hit_count);
-  CHECK_EQ(0, uncaught_exception_hit_count);
-  CHECK_EQ(0, message_callback_count);
+  DebugEventCounterCheck(0, 0, 0);
   notCaught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(0, exception_hit_count);
-  CHECK_EQ(0, uncaught_exception_hit_count);
-  CHECK_EQ(1, message_callback_count);
+  DebugEventCounterCheck(0, 0, 1);
+  notCaughtFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(0, 0, 2);
+  edgeCaseFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(0, 0, 2);
 
   // Break on uncaught exception using JavaScript
   DebugEventCounterClear();
   MessageCallbackCountClear();
   ChangeBreakOnExceptionFromJS(env->GetIsolate(), false, true);
   caught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(0, exception_hit_count);
-  CHECK_EQ(0, uncaught_exception_hit_count);
-  CHECK_EQ(0, message_callback_count);
+  DebugEventCounterCheck(0, 0, 0);
   notCaught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(1, exception_hit_count);
-  CHECK_EQ(1, uncaught_exception_hit_count);
-  CHECK_EQ(1, message_callback_count);
+  DebugEventCounterCheck(1, 1, 1);
+  notCaughtFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(2, 2, 2);
+  edgeCaseFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(3, 3, 2);
 
   // Break on exception and uncaught exception using JavaScript
   DebugEventCounterClear();
   MessageCallbackCountClear();
   ChangeBreakOnExceptionFromJS(env->GetIsolate(), true, true);
   caught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(1, exception_hit_count);
-  CHECK_EQ(0, message_callback_count);
-  CHECK_EQ(0, uncaught_exception_hit_count);
+  DebugEventCounterCheck(1, 0, 0);
   notCaught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(2, exception_hit_count);
-  CHECK_EQ(1, uncaught_exception_hit_count);
-  CHECK_EQ(1, message_callback_count);
+  DebugEventCounterCheck(2, 1, 1);
+  notCaughtFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(3, 2, 2);
+  edgeCaseFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(4, 3, 2);
 
   // Break on exception using JavaScript
   DebugEventCounterClear();
   MessageCallbackCountClear();
   ChangeBreakOnExceptionFromJS(env->GetIsolate(), true, false);
   caught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(1, exception_hit_count);
-  CHECK_EQ(0, uncaught_exception_hit_count);
-  CHECK_EQ(0, message_callback_count);
+  DebugEventCounterCheck(1, 0, 0);
   notCaught->Call(env->Global(), 0, NULL);
-  CHECK_EQ(2, exception_hit_count);
-  CHECK_EQ(1, uncaught_exception_hit_count);
-  CHECK_EQ(1, message_callback_count);
+  DebugEventCounterCheck(2, 1, 1);
+  notCaughtFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(3, 2, 2);
+  edgeCaseFinally->Call(env->Global(), 0, NULL);
+  DebugEventCounterCheck(4, 3, 2);
 
   v8::Debug::SetDebugEventListener(NULL);
   CheckDebuggerUnloaded();
   v8::V8::RemoveMessageListeners(MessageCallbackCount);
+}
+
+
+static void try_finally_original_message(v8::Handle<v8::Message> message,
+                                         v8::Handle<v8::Value> data) {
+  CHECK_EQ(2, message->GetLineNumber());
+  CHECK_EQ(2, message->GetStartColumn());
+  message_callback_count++;
+}
+
+
+TEST(TryFinallyOriginalMessage) {
+  // Test that the debugger plays nicely with the pending message.
+  message_callback_count = 0;
+  DebugEventCounterClear();
+  v8::V8::AddMessageListener(try_finally_original_message);
+  v8::Debug::SetDebugEventListener(DebugEventCounter);
+  ChangeBreakOnException(true, true);
+  DebugLocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  CompileRun(
+      "try {\n"
+      "  throw 1;\n"
+      "} finally {\n"
+      "}\n");
+  DebugEventCounterCheck(1, 1, 1);
+  v8::Debug::SetDebugEventListener(NULL);
+  v8::V8::RemoveMessageListeners(try_finally_original_message);
 }
 
 
@@ -4023,7 +4108,7 @@ TEST(EvalJSInDebugEventListenerOnNativeReThrownException) {
 
   // ReThrow native error
   {
-    v8::TryCatch tryCatch;
+    v8::TryCatch tryCatch(env->GetIsolate());
     env->GetIsolate()->ThrowException(v8::Exception::TypeError(
         v8::String::NewFromUtf8(env->GetIsolate(), "Type error")));
     CHECK(tryCatch.HasCaught());
@@ -5532,11 +5617,6 @@ TEST(RecursiveBreakpointsGlobal) {
 }
 
 
-static void DummyDebugEventListener(
-    const v8::Debug::EventDetails& event_details) {
-}
-
-
 TEST(SetDebugEventListenerOnUninitializedVM) {
   v8::Debug::SetDebugEventListener(DummyDebugEventListener);
 }
@@ -5602,7 +5682,7 @@ static void CheckDataParameter(
   CHECK(v8::Debug::Call(debugger_call_with_data, data)->IsString());
 
   for (int i = 0; i < 3; i++) {
-    v8::TryCatch catcher;
+    v8::TryCatch catcher(args.GetIsolate());
     CHECK(v8::Debug::Call(debugger_call_with_data).IsEmpty());
     CHECK(catcher.HasCaught());
     CHECK(catcher.Exception()->IsString());
@@ -5910,7 +5990,7 @@ TEST(DebugGetLoadedScripts) {
       v8::String::NewExternal(env->GetIsolate(), &source_ext_str);
   v8::Handle<v8::Script> evil_script(v8::Script::Compile(source));
   // "use" evil_script to make the compiler happy.
-  (void) evil_script;
+  USE(evil_script);
   Handle<i::ExternalTwoByteString> i_source(
       i::ExternalTwoByteString::cast(*v8::Utils::OpenHandle(*source)));
   // This situation can happen if source was an external string disposed
@@ -5919,12 +5999,23 @@ TEST(DebugGetLoadedScripts) {
 
   bool allow_natives_syntax = i::FLAG_allow_natives_syntax;
   i::FLAG_allow_natives_syntax = true;
-  CompileRun(
-      "var scripts = %DebugGetLoadedScripts();"
-      "var count = scripts.length;"
-      "for (var i = 0; i < count; ++i) {"
-      "  scripts[i].line_ends;"
-      "}");
+  EnableDebugger();
+  v8::MaybeLocal<v8::Value> result =
+      CompileRun(env.context(),
+                 "var scripts = %DebugGetLoadedScripts();"
+                 "var count = scripts.length;"
+                 "for (var i = 0; i < count; ++i) {"
+                 "  var lines = scripts[i].lineCount();"
+                 "  if (lines < 1) throw 'lineCount';"
+                 "  var last = -1;"
+                 "  for (var j = 0; j < lines; ++j) {"
+                 "    var end = scripts[i].lineEnd(j);"
+                 "    if (last >= end) throw 'lineEnd';"
+                 "    last = end;"
+                 "  }"
+                 "}");
+  CHECK(!result.IsEmpty());
+  DisableDebugger();
   // Must not crash while accessing line_ends.
   i::FLAG_allow_natives_syntax = allow_natives_syntax;
 
@@ -6492,6 +6583,8 @@ TEST(ProvisionalBreakpointOnLineOutOfRange) {
   const char* script = "function f() {};";
   const char* resource_name = "test_resource";
 
+  v8::Debug::SetMessageHandler(AfterCompileMessageHandler);
+
   // Set a couple of provisional breakpoint on lines out of the script lines
   // range.
   int sbp1 = SetScriptBreakPointByNameFromJS(env->GetIsolate(), resource_name,
@@ -6500,7 +6593,6 @@ TEST(ProvisionalBreakpointOnLineOutOfRange) {
       SetScriptBreakPointByNameFromJS(env->GetIsolate(), resource_name, 5, 5);
 
   after_compile_message_count = 0;
-  v8::Debug::SetMessageHandler(AfterCompileMessageHandler);
 
   v8::ScriptOrigin origin(
       v8::String::NewFromUtf8(env->GetIsolate(), resource_name),
@@ -6925,6 +7017,13 @@ TEST(DebugContextIsPreservedBetweenAccesses) {
 }
 
 
+TEST(NoDebugContextWhenDebuggerDisabled) {
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Debug::GetDebugContext();
+  CHECK(context.IsEmpty());
+}
+
+
 static v8::Handle<v8::Value> expected_callback_data;
 static void DebugEventContextChecker(const v8::Debug::EventDetails& details) {
   CHECK(details.GetEventContext() == expected_context);
@@ -7260,7 +7359,7 @@ static void DebugEventStepNext(
 
 
 static void RunScriptInANewCFrame(const char* source) {
-  v8::TryCatch try_catch;
+  v8::TryCatch try_catch(CcTest::isolate());
   CompileRun(source);
   CHECK(try_catch.HasCaught());
 }
@@ -7440,7 +7539,7 @@ TEST(DebugBreakOffThreadTerminate) {
   v8::Debug::SetDebugEventListener(DebugBreakTriggerTerminate);
   TerminationThread terminator(isolate);
   terminator.Start();
-  v8::TryCatch try_catch;
+  v8::TryCatch try_catch(env->GetIsolate());
   v8::Debug::DebugBreak(isolate);
   CompileRun("while (true);");
   CHECK(try_catch.HasTerminated());
@@ -7456,7 +7555,7 @@ static void DebugEventExpectNoException(
 
 static void TryCatchWrappedThrowCallback(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::TryCatch try_catch;
+  v8::TryCatch try_catch(args.GetIsolate());
   CompileRun("throw 'rejection';");
   CHECK(try_catch.HasCaught());
 }

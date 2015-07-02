@@ -143,6 +143,16 @@ void BlockBuilder::Break() {
 }
 
 
+void BlockBuilder::BreakWhen(Node* condition, BranchHint hint) {
+  IfBuilder control_if(builder_);
+  control_if.If(condition, hint);
+  control_if.Then();
+  Break();
+  control_if.Else();
+  control_if.End();
+}
+
+
 void BlockBuilder::EndBlock() {
   break_environment_->Merge(environment());
   set_environment(break_environment_);
@@ -150,6 +160,7 @@ void BlockBuilder::EndBlock() {
 
 
 void TryCatchBuilder::BeginTry() {
+  exit_environment_ = environment()->CopyAsUnreachable();
   catch_environment_ = environment()->CopyAsUnreachable();
   catch_environment_->Push(the_hole());
 }
@@ -164,7 +175,7 @@ void TryCatchBuilder::Throw(Node* exception) {
 
 
 void TryCatchBuilder::EndTry() {
-  exit_environment_ = environment();
+  exit_environment_->Merge(environment());
   exception_node_ = catch_environment_->Pop();
   set_environment(catch_environment_);
 }

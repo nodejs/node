@@ -329,7 +329,7 @@ UNINITIALIZED_TEST(PartialSerialization) {
                                          &partial_sink);
     partial_serializer.Serialize(&raw_foo);
 
-    startup_serializer.SerializeWeakReferences();
+    startup_serializer.SerializeWeakReferencesAndDeferred();
 
     SnapshotData startup_snapshot(startup_serializer);
     SnapshotData partial_snapshot(partial_serializer);
@@ -447,7 +447,7 @@ UNINITIALIZED_TEST(ContextSerialization) {
     PartialSerializer partial_serializer(isolate, &startup_serializer,
                                          &partial_sink);
     partial_serializer.Serialize(&raw_context);
-    startup_serializer.SerializeWeakReferences();
+    startup_serializer.SerializeWeakReferencesAndDeferred();
 
     SnapshotData startup_snapshot(startup_serializer);
     SnapshotData partial_snapshot(partial_serializer);
@@ -493,7 +493,7 @@ UNINITIALIZED_DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
                                           &outdated_contexts).ToHandleChecked();
       CHECK(root->IsContext());
       CHECK(Handle<Context>::cast(root)->global_proxy() == *global_proxy);
-      CHECK_EQ(1, outdated_contexts->length());
+      CHECK_EQ(2, outdated_contexts->length());
     }
 
     Handle<Object> root2;
@@ -582,7 +582,7 @@ UNINITIALIZED_TEST(CustomContextSerialization) {
     PartialSerializer partial_serializer(isolate, &startup_serializer,
                                          &partial_sink);
     partial_serializer.Serialize(&raw_context);
-    startup_serializer.SerializeWeakReferences();
+    startup_serializer.SerializeWeakReferencesAndDeferred();
 
     SnapshotData startup_snapshot(startup_serializer);
     SnapshotData partial_snapshot(partial_serializer);
@@ -628,13 +628,13 @@ UNINITIALIZED_DEPENDENT_TEST(CustomContextDeserialization,
       root =
           deserializer.DeserializePartial(isolate, global_proxy,
                                           &outdated_contexts).ToHandleChecked();
-      CHECK_EQ(2, outdated_contexts->length());
+      CHECK_EQ(3, outdated_contexts->length());
       CHECK(root->IsContext());
       Handle<Context> context = Handle<Context>::cast(root);
       CHECK(context->global_proxy() == *global_proxy);
       Handle<String> o = isolate->factory()->NewStringFromAsciiChecked("o");
       Handle<JSObject> global_object(context->global_object(), isolate);
-      Handle<Object> property = JSObject::GetDataProperty(global_object, o);
+      Handle<Object> property = JSReceiver::GetDataProperty(global_object, o);
       CHECK(property.is_identical_to(global_proxy));
 
       v8::Handle<v8::Context> v8_context = v8::Utils::ToLocal(context);
@@ -702,6 +702,57 @@ TEST(PerIsolateSnapshotBlobs) {
 }
 
 
+static void SerializationFunctionTemplate(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  args.GetReturnValue().Set(args[0]);
+}
+
+
+TEST(PerIsolateSnapshotBlobsOutdatedContextWithOverflow) {
+  DisableTurbofan();
+
+  const char* source1 =
+      "var o = {};"
+      "(function() {"
+      "  function f1(x) { return f2(x) instanceof Array; }"
+      "  function f2(x) { return foo.bar(x); }"
+      "  o.a = f2.bind(null);"
+      "  o.b = 1;"
+      "  o.c = 2;"
+      "  o.d = 3;"
+      "  o.e = 4;"
+      "})();\n";
+
+  const char* source2 = "o.a(42)";
+
+  v8::StartupData data = v8::V8::CreateSnapshotDataBlob(source1);
+
+  v8::Isolate::CreateParams params;
+  params.snapshot_blob = &data;
+  params.array_buffer_allocator = CcTest::array_buffer_allocator();
+
+  v8::Isolate* isolate = v8::Isolate::New(params);
+  {
+    v8::Isolate::Scope i_scope(isolate);
+    v8::HandleScope h_scope(isolate);
+
+    v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
+    v8::Local<v8::ObjectTemplate> property = v8::ObjectTemplate::New(isolate);
+    v8::Local<v8::FunctionTemplate> function =
+        v8::FunctionTemplate::New(isolate, SerializationFunctionTemplate);
+    property->Set(isolate, "bar", function);
+    global->Set(isolate, "foo", property);
+
+    v8::Local<v8::Context> context = v8::Context::New(isolate, NULL, global);
+    delete[] data.data;  // We can dispose of the snapshot blob now.
+    v8::Context::Scope c_scope(context);
+    v8::Local<v8::Value> result = CompileRun(source2);
+    CHECK(v8_str("42")->Equals(result));
+  }
+  isolate->Dispose();
+}
+
+
 TEST(PerIsolateSnapshotBlobsWithLocker) {
   DisableTurbofan();
   v8::Isolate::CreateParams create_params;
@@ -738,6 +789,44 @@ TEST(PerIsolateSnapshotBlobsWithLocker) {
 }
 
 
+TEST(SnapshotBlobsStackOverflow) {
+  DisableTurbofan();
+  const char* source =
+      "var a = [0];"
+      "var b = a;"
+      "for (var i = 0; i < 10000; i++) {"
+      "  var c = [i];"
+      "  b.push(c);"
+      "  b.push(c);"
+      "  b = c;"
+      "}";
+
+  v8::StartupData data = v8::V8::CreateSnapshotDataBlob(source);
+
+  v8::Isolate::CreateParams params;
+  params.snapshot_blob = &data;
+  params.array_buffer_allocator = CcTest::array_buffer_allocator();
+
+  v8::Isolate* isolate = v8::Isolate::New(params);
+  {
+    v8::Isolate::Scope i_scope(isolate);
+    v8::HandleScope h_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    delete[] data.data;  // We can dispose of the snapshot blob now.
+    v8::Context::Scope c_scope(context);
+    const char* test =
+        "var sum = 0;"
+        "while (a) {"
+        "  sum += a[0];"
+        "  a = a[1];"
+        "}"
+        "sum";
+    CHECK_EQ(9999 * 5000, CompileRun(test)->ToInt32(isolate)->Int32Value());
+  }
+  isolate->Dispose();
+}
+
+
 TEST(TestThatAlwaysSucceeds) {
 }
 
@@ -770,7 +859,7 @@ static Handle<SharedFunctionInfo> CompileScript(
     Isolate* isolate, Handle<String> source, Handle<String> name,
     ScriptData** cached_data, v8::ScriptCompiler::CompileOptions options) {
   return Compiler::CompileScript(
-      source, name, 0, 0, false, false, Handle<Object>(),
+      source, name, 0, 0, v8::ScriptOriginOptions(), Handle<Object>(),
       Handle<Context>(isolate->native_context()), NULL, cached_data, options,
       NOT_NATIVES_CODE, false);
 }
@@ -849,7 +938,7 @@ TEST(CodeCachePromotedToCompilationCache) {
       isolate, src, src, &cache, v8::ScriptCompiler::kConsumeCodeCache);
 
   CHECK(isolate->compilation_cache()
-            ->LookupScript(src, src, 0, 0, false, false,
+            ->LookupScript(src, src, 0, 0, v8::ScriptOriginOptions(),
                            isolate->native_context(), SLOPPY)
             .ToHandleChecked()
             .is_identical_to(copy));
@@ -1009,11 +1098,11 @@ TEST(SerializeToplevelLargeStrings) {
       Execution::Call(isolate, copy_fun, global, 0, NULL).ToHandleChecked();
 
   CHECK_EQ(6 * 1999999, Handle<String>::cast(copy_result)->length());
-  Handle<Object> property = JSObject::GetDataProperty(
+  Handle<Object> property = JSReceiver::GetDataProperty(
       isolate->global_object(), f->NewStringFromAsciiChecked("s"));
   CHECK(isolate->heap()->InSpace(HeapObject::cast(*property), LO_SPACE));
-  property = JSObject::GetDataProperty(isolate->global_object(),
-                                       f->NewStringFromAsciiChecked("t"));
+  property = JSReceiver::GetDataProperty(isolate->global_object(),
+                                         f->NewStringFromAsciiChecked("t"));
   CHECK(isolate->heap()->InSpace(HeapObject::cast(*property), LO_SPACE));
   // Make sure we do not serialize too much, e.g. include the source string.
   CHECK_LT(cache->length(), 13000000);
@@ -1506,7 +1595,6 @@ TEST(SerializeInternalReference) {
   return;
 #endif
   // Disable experimental natives that are loaded after deserialization.
-  FLAG_turbo_deoptimization = false;
   FLAG_context_specialization = false;
   FLAG_always_opt = true;
   const char* flag = "--turbo-filter=foo";
@@ -1567,6 +1655,31 @@ TEST(SerializeInternalReference) {
     CHECK_EQ(10, CompileRun("foo(6)")->ToInt32(isolate)->Int32Value());
   }
   isolate->Dispose();
+}
+
+
+TEST(Regress503552) {
+  // Test that the code serializer can deal with weak cells that form a linked
+  // list during incremental marking.
+
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+
+  HandleScope scope(isolate);
+  Handle<String> source = isolate->factory()->NewStringFromAsciiChecked(
+      "function f() {} function g() {}");
+  ScriptData* script_data = NULL;
+  Handle<SharedFunctionInfo> shared = Compiler::CompileScript(
+      source, Handle<String>(), 0, 0, v8::ScriptOriginOptions(),
+      Handle<Object>(), Handle<Context>(isolate->native_context()), NULL,
+      &script_data, v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE,
+      false);
+  delete script_data;
+
+  SimulateIncrementalMarking(isolate->heap());
+
+  script_data = CodeSerializer::Serialize(isolate, shared, source);
+  delete script_data;
 }
 
 

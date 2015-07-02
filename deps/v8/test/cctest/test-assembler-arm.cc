@@ -175,17 +175,17 @@ TEST(3) {
   __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
   __ sub(fp, ip, Operand(4));
   __ mov(r4, Operand(r0));
-  __ ldr(r0, MemOperand(r4, OFFSET_OF(T, i)));
+  __ ldr(r0, MemOperand(r4, offsetof(T, i)));
   __ mov(r2, Operand(r0, ASR, 1));
-  __ str(r2, MemOperand(r4, OFFSET_OF(T, i)));
-  __ ldrsb(r2, MemOperand(r4, OFFSET_OF(T, c)));
+  __ str(r2, MemOperand(r4, offsetof(T, i)));
+  __ ldrsb(r2, MemOperand(r4, offsetof(T, c)));
   __ add(r0, r2, Operand(r0));
   __ mov(r2, Operand(r2, LSL, 2));
-  __ strb(r2, MemOperand(r4, OFFSET_OF(T, c)));
-  __ ldrsh(r2, MemOperand(r4, OFFSET_OF(T, s)));
+  __ strb(r2, MemOperand(r4, offsetof(T, c)));
+  __ ldrsh(r2, MemOperand(r4, offsetof(T, s)));
   __ add(r0, r2, Operand(r0));
   __ mov(r2, Operand(r2, ASR, 3));
-  __ strh(r2, MemOperand(r4, OFFSET_OF(T, s)));
+  __ strh(r2, MemOperand(r4, offsetof(T, s)));
   __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
 
   CodeDesc desc;
@@ -247,68 +247,68 @@ TEST(4) {
     __ sub(fp, ip, Operand(4));
 
     __ mov(r4, Operand(r0));
-    __ vldr(d6, r4, OFFSET_OF(T, a));
-    __ vldr(d7, r4, OFFSET_OF(T, b));
+    __ vldr(d6, r4, offsetof(T, a));
+    __ vldr(d7, r4, offsetof(T, b));
     __ vadd(d5, d6, d7);
-    __ vstr(d5, r4, OFFSET_OF(T, c));
+    __ vstr(d5, r4, offsetof(T, c));
 
     __ vmla(d5, d6, d7);
     __ vmls(d5, d5, d6);
 
     __ vmov(r2, r3, d5);
     __ vmov(d4, r2, r3);
-    __ vstr(d4, r4, OFFSET_OF(T, b));
+    __ vstr(d4, r4, offsetof(T, b));
 
     // Load t.x and t.y, switch values, and store back to the struct.
-    __ vldr(s0, r4, OFFSET_OF(T, x));
-    __ vldr(s31, r4, OFFSET_OF(T, y));
+    __ vldr(s0, r4, offsetof(T, x));
+    __ vldr(s31, r4, offsetof(T, y));
     __ vmov(s16, s0);
     __ vmov(s0, s31);
     __ vmov(s31, s16);
-    __ vstr(s0, r4, OFFSET_OF(T, x));
-    __ vstr(s31, r4, OFFSET_OF(T, y));
+    __ vstr(s0, r4, offsetof(T, x));
+    __ vstr(s31, r4, offsetof(T, y));
 
     // Move a literal into a register that can be encoded in the instruction.
     __ vmov(d4, 1.0);
-    __ vstr(d4, r4, OFFSET_OF(T, e));
+    __ vstr(d4, r4, offsetof(T, e));
 
     // Move a literal into a register that requires 64 bits to encode.
     // 0x3ff0000010000000 = 1.000000059604644775390625
     __ vmov(d4, 1.000000059604644775390625);
-    __ vstr(d4, r4, OFFSET_OF(T, d));
+    __ vstr(d4, r4, offsetof(T, d));
 
     // Convert from floating point to integer.
     __ vmov(d4, 2.0);
     __ vcvt_s32_f64(s31, d4);
-    __ vstr(s31, r4, OFFSET_OF(T, i));
+    __ vstr(s31, r4, offsetof(T, i));
 
     // Convert from integer to floating point.
     __ mov(lr, Operand(42));
     __ vmov(s31, lr);
     __ vcvt_f64_s32(d4, s31);
-    __ vstr(d4, r4, OFFSET_OF(T, f));
+    __ vstr(d4, r4, offsetof(T, f));
 
     // Convert from fixed point to floating point.
     __ mov(lr, Operand(2468));
     __ vmov(s8, lr);
     __ vcvt_f64_s32(d4, 2);
-    __ vstr(d4, r4, OFFSET_OF(T, j));
+    __ vstr(d4, r4, offsetof(T, j));
 
     // Test vabs.
-    __ vldr(d1, r4, OFFSET_OF(T, g));
+    __ vldr(d1, r4, offsetof(T, g));
     __ vabs(d0, d1);
-    __ vstr(d0, r4, OFFSET_OF(T, g));
-    __ vldr(d2, r4, OFFSET_OF(T, h));
+    __ vstr(d0, r4, offsetof(T, g));
+    __ vldr(d2, r4, offsetof(T, h));
     __ vabs(d0, d2);
-    __ vstr(d0, r4, OFFSET_OF(T, h));
+    __ vstr(d0, r4, offsetof(T, h));
 
     // Test vneg.
-    __ vldr(d1, r4, OFFSET_OF(T, m));
+    __ vldr(d1, r4, offsetof(T, m));
     __ vneg(d0, d1);
-    __ vstr(d0, r4, OFFSET_OF(T, m));
-    __ vldr(d1, r4, OFFSET_OF(T, n));
+    __ vstr(d0, r4, offsetof(T, m));
+    __ vldr(d1, r4, offsetof(T, n));
     __ vneg(d0, d1);
-    __ vstr(d0, r4, OFFSET_OF(T, n));
+    __ vstr(d0, r4, offsetof(T, n));
 
     __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
 
@@ -647,19 +647,19 @@ TEST(8) {
   __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
   __ sub(fp, ip, Operand(4));
 
-  __ add(r4, r0, Operand(OFFSET_OF(D, a)));
+  __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(D, a))));
   __ vldm(ia_w, r4, d0, d3);
   __ vldm(ia_w, r4, d4, d7);
 
-  __ add(r4, r0, Operand(OFFSET_OF(D, a)));
+  __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(D, a))));
   __ vstm(ia_w, r4, d6, d7);
   __ vstm(ia_w, r4, d0, d5);
 
-  __ add(r4, r1, Operand(OFFSET_OF(F, a)));
+  __ add(r4, r1, Operand(static_cast<int32_t>(offsetof(F, a))));
   __ vldm(ia_w, r4, s0, s3);
   __ vldm(ia_w, r4, s4, s7);
 
-  __ add(r4, r1, Operand(OFFSET_OF(F, a)));
+  __ add(r4, r1, Operand(static_cast<int32_t>(offsetof(F, a))));
   __ vstm(ia_w, r4, s6, s7);
   __ vstm(ia_w, r4, s0, s5);
 
@@ -753,22 +753,22 @@ TEST(9) {
   __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
   __ sub(fp, ip, Operand(4));
 
-  __ add(r4, r0, Operand(OFFSET_OF(D, a)));
+  __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(D, a))));
   __ vldm(ia, r4, d0, d3);
   __ add(r4, r4, Operand(4 * 8));
   __ vldm(ia, r4, d4, d7);
 
-  __ add(r4, r0, Operand(OFFSET_OF(D, a)));
+  __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(D, a))));
   __ vstm(ia, r4, d6, d7);
   __ add(r4, r4, Operand(2 * 8));
   __ vstm(ia, r4, d0, d5);
 
-  __ add(r4, r1, Operand(OFFSET_OF(F, a)));
+  __ add(r4, r1, Operand(static_cast<int32_t>(offsetof(F, a))));
   __ vldm(ia, r4, s0, s3);
   __ add(r4, r4, Operand(4 * 4));
   __ vldm(ia, r4, s4, s7);
 
-  __ add(r4, r1, Operand(OFFSET_OF(F, a)));
+  __ add(r4, r1, Operand(static_cast<int32_t>(offsetof(F, a))));
   __ vstm(ia, r4, s6, s7);
   __ add(r4, r4, Operand(2 * 4));
   __ vstm(ia, r4, s0, s5);
@@ -863,19 +863,19 @@ TEST(10) {
   __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
   __ sub(fp, ip, Operand(4));
 
-  __ add(r4, r0, Operand(OFFSET_OF(D, h) + 8));
+  __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(D, h)) + 8));
   __ vldm(db_w, r4, d4, d7);
   __ vldm(db_w, r4, d0, d3);
 
-  __ add(r4, r0, Operand(OFFSET_OF(D, h) + 8));
+  __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(D, h)) + 8));
   __ vstm(db_w, r4, d0, d5);
   __ vstm(db_w, r4, d6, d7);
 
-  __ add(r4, r1, Operand(OFFSET_OF(F, h) + 4));
+  __ add(r4, r1, Operand(static_cast<int32_t>(offsetof(F, h)) + 4));
   __ vldm(db_w, r4, s4, s7);
   __ vldm(db_w, r4, s0, s3);
 
-  __ add(r4, r1, Operand(OFFSET_OF(F, h) + 4));
+  __ add(r4, r1, Operand(static_cast<int32_t>(offsetof(F, h)) + 4));
   __ vstm(db_w, r4, s0, s5);
   __ vstm(db_w, r4, s6, s7);
 
@@ -951,28 +951,28 @@ TEST(11) {
   Assembler assm(isolate, NULL, 0);
 
   // Test HeapObject untagging.
-  __ ldr(r1, MemOperand(r0, OFFSET_OF(I, a)));
+  __ ldr(r1, MemOperand(r0, offsetof(I, a)));
   __ mov(r1, Operand(r1, ASR, 1), SetCC);
   __ adc(r1, r1, Operand(r1), LeaveCC, cs);
-  __ str(r1, MemOperand(r0, OFFSET_OF(I, a)));
+  __ str(r1, MemOperand(r0, offsetof(I, a)));
 
-  __ ldr(r2, MemOperand(r0, OFFSET_OF(I, b)));
+  __ ldr(r2, MemOperand(r0, offsetof(I, b)));
   __ mov(r2, Operand(r2, ASR, 1), SetCC);
   __ adc(r2, r2, Operand(r2), LeaveCC, cs);
-  __ str(r2, MemOperand(r0, OFFSET_OF(I, b)));
+  __ str(r2, MemOperand(r0, offsetof(I, b)));
 
   // Test corner cases.
   __ mov(r1, Operand(0xffffffff));
   __ mov(r2, Operand::Zero());
   __ mov(r3, Operand(r1, ASR, 1), SetCC);  // Set the carry.
   __ adc(r3, r1, Operand(r2));
-  __ str(r3, MemOperand(r0, OFFSET_OF(I, c)));
+  __ str(r3, MemOperand(r0, offsetof(I, c)));
 
   __ mov(r1, Operand(0xffffffff));
   __ mov(r2, Operand::Zero());
   __ mov(r3, Operand(r2, ASR, 1), SetCC);  // Unset the carry.
   __ adc(r3, r1, Operand(r2));
-  __ str(r3, MemOperand(r0, OFFSET_OF(I, d)));
+  __ str(r3, MemOperand(r0, offsetof(I, d)));
 
   __ mov(pc, Operand(lr));
 
@@ -1048,9 +1048,9 @@ TEST(13) {
 
     // Load a, b, c into d16, d17, d18.
     __ mov(r4, Operand(r0));
-    __ vldr(d16, r4, OFFSET_OF(T, a));
-    __ vldr(d17, r4, OFFSET_OF(T, b));
-    __ vldr(d18, r4, OFFSET_OF(T, c));
+    __ vldr(d16, r4, offsetof(T, a));
+    __ vldr(d17, r4, offsetof(T, b));
+    __ vldr(d18, r4, offsetof(T, c));
 
     __ vneg(d25, d16);
     __ vadd(d25, d25, d17);
@@ -1066,12 +1066,12 @@ TEST(13) {
 
     // Store d16, d17, d18 into a, b, c.
     __ mov(r4, Operand(r0));
-    __ vstr(d16, r4, OFFSET_OF(T, a));
-    __ vstr(d17, r4, OFFSET_OF(T, b));
-    __ vstr(d18, r4, OFFSET_OF(T, c));
+    __ vstr(d16, r4, offsetof(T, a));
+    __ vstr(d17, r4, offsetof(T, b));
+    __ vstr(d18, r4, offsetof(T, c));
 
     // Load x, y, z into d29-d31.
-    __ add(r4, r0, Operand(OFFSET_OF(T, x)));
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, x))));
     __ vldm(ia_w, r4, d29, d31);
 
     // Swap d29 and d30 via r registers.
@@ -1084,7 +1084,7 @@ TEST(13) {
     __ vcvt_f64_u32(d31, s1);
 
     // Store d29-d31 into x, y, z.
-    __ add(r4, r0, Operand(OFFSET_OF(T, x)));
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, x))));
     __ vstm(ia_w, r4, d29, d31);
 
     // Move constants into d20, d21, d22 and store into i, j, k.
@@ -1094,13 +1094,13 @@ TEST(13) {
     __ mov(r2, Operand(1079146608));
     __ vmov(d22, VmovIndexLo, r1);
     __ vmov(d22, VmovIndexHi, r2);
-    __ add(r4, r0, Operand(OFFSET_OF(T, i)));
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, i))));
     __ vstm(ia_w, r4, d20, d22);
     // Move d22 into low and high.
     __ vmov(r4, VmovIndexLo, d22);
-    __ str(r4, MemOperand(r0, OFFSET_OF(T, low)));
+    __ str(r4, MemOperand(r0, offsetof(T, low)));
     __ vmov(r4, VmovIndexHi, d22);
-    __ str(r4, MemOperand(r0, OFFSET_OF(T, high)));
+    __ str(r4, MemOperand(r0, offsetof(T, high)));
 
     __ ldm(ia_w, sp, r4.bit() | pc.bit());
 
@@ -1164,16 +1164,16 @@ TEST(14) {
   __ vmsr(r1);
   __ bind(&fpscr_done);
 
-  __ vldr(d0, r0, OFFSET_OF(T, left));
-  __ vldr(d1, r0, OFFSET_OF(T, right));
+  __ vldr(d0, r0, offsetof(T, left));
+  __ vldr(d1, r0, offsetof(T, right));
   __ vadd(d2, d0, d1);
-  __ vstr(d2, r0, OFFSET_OF(T, add_result));
+  __ vstr(d2, r0, offsetof(T, add_result));
   __ vsub(d2, d0, d1);
-  __ vstr(d2, r0, OFFSET_OF(T, sub_result));
+  __ vstr(d2, r0, offsetof(T, sub_result));
   __ vmul(d2, d0, d1);
-  __ vstr(d2, r0, OFFSET_OF(T, mul_result));
+  __ vstr(d2, r0, offsetof(T, mul_result));
   __ vdiv(d2, d0, d1);
-  __ vstr(d2, r0, OFFSET_OF(T, div_result));
+  __ vstr(d2, r0, offsetof(T, div_result));
 
   __ mov(pc, Operand(lr));
 
@@ -1264,23 +1264,23 @@ TEST(15) {
 
     __ stm(db_w, sp, r4.bit() | lr.bit());
     // Move 32 bytes with neon.
-    __ add(r4, r0, Operand(OFFSET_OF(T, src0)));
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, src0))));
     __ vld1(Neon8, NeonListOperand(d0, 4), NeonMemOperand(r4));
-    __ add(r4, r0, Operand(OFFSET_OF(T, dst0)));
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, dst0))));
     __ vst1(Neon8, NeonListOperand(d0, 4), NeonMemOperand(r4));
 
     // Expand 8 bytes into 8 words(16 bits).
-    __ add(r4, r0, Operand(OFFSET_OF(T, srcA0)));
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, srcA0))));
     __ vld1(Neon8, NeonListOperand(d0), NeonMemOperand(r4));
     __ vmovl(NeonU8, q0, d0);
-    __ add(r4, r0, Operand(OFFSET_OF(T, dstA0)));
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, dstA0))));
     __ vst1(Neon8, NeonListOperand(d0, 2), NeonMemOperand(r4));
 
     // The same expansion, but with different source and destination registers.
-    __ add(r4, r0, Operand(OFFSET_OF(T, srcA0)));
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, srcA0))));
     __ vld1(Neon8, NeonListOperand(d1), NeonMemOperand(r4));
     __ vmovl(NeonU8, q1, d1);
-    __ add(r4, r0, Operand(OFFSET_OF(T, dstA4)));
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, dstA4))));
     __ vst1(Neon8, NeonListOperand(d2, 2), NeonMemOperand(r4));
 
     __ ldm(ia_w, sp, r4.bit() | pc.bit());
@@ -1367,24 +1367,24 @@ TEST(16) {
   __ stm(db_w, sp, r4.bit() | lr.bit());
 
   __ mov(r4, Operand(r0));
-  __ ldr(r0, MemOperand(r4, OFFSET_OF(T, src0)));
-  __ ldr(r1, MemOperand(r4, OFFSET_OF(T, src1)));
+  __ ldr(r0, MemOperand(r4, offsetof(T, src0)));
+  __ ldr(r1, MemOperand(r4, offsetof(T, src1)));
 
   __ pkhbt(r2, r0, Operand(r1, LSL, 8));
-  __ str(r2, MemOperand(r4, OFFSET_OF(T, dst0)));
+  __ str(r2, MemOperand(r4, offsetof(T, dst0)));
 
   __ pkhtb(r2, r0, Operand(r1, ASR, 8));
-  __ str(r2, MemOperand(r4, OFFSET_OF(T, dst1)));
+  __ str(r2, MemOperand(r4, offsetof(T, dst1)));
 
   __ uxtb16(r2, r0, 8);
-  __ str(r2, MemOperand(r4, OFFSET_OF(T, dst2)));
+  __ str(r2, MemOperand(r4, offsetof(T, dst2)));
 
   __ uxtb(r2, r0, 8);
-  __ str(r2, MemOperand(r4, OFFSET_OF(T, dst3)));
+  __ str(r2, MemOperand(r4, offsetof(T, dst3)));
 
-  __ ldr(r0, MemOperand(r4, OFFSET_OF(T, src2)));
+  __ ldr(r0, MemOperand(r4, offsetof(T, src2)));
   __ uxtab(r2, r0, r1, 8);
-  __ str(r2, MemOperand(r4, OFFSET_OF(T, dst4)));
+  __ str(r2, MemOperand(r4, offsetof(T, dst4)));
 
   __ ldm(ia_w, sp, r4.bit() | pc.bit());
 
@@ -1461,11 +1461,11 @@ TEST(sdiv) {
 
     __ mov(r3, Operand(r0));
 
-    __ ldr(r0, MemOperand(r3, OFFSET_OF(T, dividend)));
-    __ ldr(r1, MemOperand(r3, OFFSET_OF(T, divisor)));
+    __ ldr(r0, MemOperand(r3, offsetof(T, dividend)));
+    __ ldr(r1, MemOperand(r3, offsetof(T, divisor)));
 
     __ sdiv(r2, r0, r1);
-    __ str(r2, MemOperand(r3, OFFSET_OF(T, result)));
+    __ str(r2, MemOperand(r3, offsetof(T, result)));
 
   __ bx(lr);
 
@@ -1525,11 +1525,11 @@ TEST(udiv) {
 
     __ mov(r3, Operand(r0));
 
-    __ ldr(r0, MemOperand(r3, OFFSET_OF(T, dividend)));
-    __ ldr(r1, MemOperand(r3, OFFSET_OF(T, divisor)));
+    __ ldr(r0, MemOperand(r3, offsetof(T, dividend)));
+    __ ldr(r1, MemOperand(r3, offsetof(T, divisor)));
 
     __ sdiv(r2, r0, r1);
-    __ str(r2, MemOperand(r3, OFFSET_OF(T, result)));
+    __ str(r2, MemOperand(r3, offsetof(T, result)));
 
     __ bx(lr);
 
@@ -1917,29 +1917,29 @@ TEST(ARMv8_vrintX) {
     __ mov(r4, Operand(r0));
 
     // Test vrinta
-    __ vldr(d6, r4, OFFSET_OF(T, input));
+    __ vldr(d6, r4, offsetof(T, input));
     __ vrinta(d5, d6);
-    __ vstr(d5, r4, OFFSET_OF(T, ar));
+    __ vstr(d5, r4, offsetof(T, ar));
 
     // Test vrintn
-    __ vldr(d6, r4, OFFSET_OF(T, input));
+    __ vldr(d6, r4, offsetof(T, input));
     __ vrintn(d5, d6);
-    __ vstr(d5, r4, OFFSET_OF(T, nr));
+    __ vstr(d5, r4, offsetof(T, nr));
 
     // Test vrintp
-    __ vldr(d6, r4, OFFSET_OF(T, input));
+    __ vldr(d6, r4, offsetof(T, input));
     __ vrintp(d5, d6);
-    __ vstr(d5, r4, OFFSET_OF(T, pr));
+    __ vstr(d5, r4, offsetof(T, pr));
 
     // Test vrintm
-    __ vldr(d6, r4, OFFSET_OF(T, input));
+    __ vldr(d6, r4, offsetof(T, input));
     __ vrintm(d5, d6);
-    __ vstr(d5, r4, OFFSET_OF(T, mr));
+    __ vstr(d5, r4, offsetof(T, mr));
 
     // Test vrintz
-    __ vldr(d6, r4, OFFSET_OF(T, input));
+    __ vldr(d6, r4, offsetof(T, input));
     __ vrintz(d5, d6);
-    __ vstr(d5, r4, OFFSET_OF(T, zr));
+    __ vstr(d5, r4, offsetof(T, zr));
 
     __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
 

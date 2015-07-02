@@ -120,8 +120,9 @@ bool NodeProperties::IsControlEdge(Edge edge) {
 
 // static
 bool NodeProperties::IsExceptionalCall(Node* node) {
-  for (Node* const use : node->uses()) {
-    if (use->opcode() == IrOpcode::kIfException) return true;
+  for (Edge const edge : node->use_edges()) {
+    if (!NodeProperties::IsControlEdge(edge)) continue;
+    if (edge.from()->opcode() == IrOpcode::kIfException) return true;
   }
   return false;
 }
@@ -163,40 +164,31 @@ void NodeProperties::RemoveNonValueInputs(Node* node) {
 void NodeProperties::MergeControlToEnd(Graph* graph,
                                        CommonOperatorBuilder* common,
                                        Node* node) {
-  // Connect the node to the merge exiting the graph.
-  Node* end_pred = NodeProperties::GetControlInput(graph->end());
-  if (end_pred->opcode() == IrOpcode::kMerge) {
-    int inputs = end_pred->op()->ControlInputCount() + 1;
-    end_pred->AppendInput(graph->zone(), node);
-    end_pred->set_op(common->Merge(inputs));
-  } else {
-    Node* merge = graph->NewNode(common->Merge(2), end_pred, node);
-    NodeProperties::ReplaceControlInput(graph->end(), merge);
-  }
+  graph->end()->AppendInput(graph->zone(), node);
+  graph->end()->set_op(common->End(graph->end()->InputCount()));
 }
 
 
 // static
-void NodeProperties::ReplaceWithValue(Node* node, Node* value, Node* effect,
-                                      Node* control) {
-  if (!effect && node->op()->EffectInputCount() > 0) {
-    effect = NodeProperties::GetEffectInput(node);
-  }
-  if (control == nullptr && node->op()->ControlInputCount() > 0) {
-    control = NodeProperties::GetControlInput(node);
-  }
-
+void NodeProperties::ReplaceUses(Node* node, Node* value, Node* effect,
+                                 Node* success, Node* exception) {
   // Requires distinguishing between value, effect and control edges.
   for (Edge edge : node->use_edges()) {
     if (IsControlEdge(edge)) {
-      DCHECK_EQ(IrOpcode::kIfSuccess, edge.from()->opcode());
-      DCHECK_NOT_NULL(control);
-      edge.from()->ReplaceUses(control);
-      edge.UpdateTo(NULL);
+      if (edge.from()->opcode() == IrOpcode::kIfSuccess) {
+        DCHECK_NOT_NULL(success);
+        edge.UpdateTo(success);
+      } else if (edge.from()->opcode() == IrOpcode::kIfException) {
+        DCHECK_NOT_NULL(exception);
+        edge.UpdateTo(exception);
+      } else {
+        UNREACHABLE();
+      }
     } else if (IsEffectEdge(edge)) {
       DCHECK_NOT_NULL(effect);
       edge.UpdateTo(effect);
     } else {
+      DCHECK_NOT_NULL(value);
       edge.UpdateTo(value);
     }
   }
@@ -223,7 +215,9 @@ void NodeProperties::CollectControlProjections(Node* node, Node** projections,
   std::memset(projections, 0, sizeof(*projections) * projection_count);
 #endif
   size_t if_value_index = 0;
-  for (Node* const use : node->uses()) {
+  for (Edge const edge : node->use_edges()) {
+    if (!IsControlEdge(edge)) continue;
+    Node* use = edge.from();
     size_t index;
     switch (use->opcode()) {
       case IrOpcode::kIfTrue:
@@ -235,11 +229,11 @@ void NodeProperties::CollectControlProjections(Node* node, Node** projections,
         index = 1;
         break;
       case IrOpcode::kIfSuccess:
-        DCHECK_EQ(IrOpcode::kCall, node->opcode());
+        DCHECK(!node->op()->HasProperty(Operator::kNoThrow));
         index = 0;
         break;
       case IrOpcode::kIfException:
-        DCHECK_EQ(IrOpcode::kCall, node->opcode());
+        DCHECK(!node->op()->HasProperty(Operator::kNoThrow));
         index = 1;
         break;
       case IrOpcode::kIfValue:
