@@ -72,12 +72,6 @@ class SimulatorStack : public v8::internal::AllStatic {
 
 #else  // !defined(USE_SIMULATOR)
 
-enum ReverseByteMode {
-  Reverse16 = 0,
-  Reverse32 = 1,
-  Reverse64 = 2
-};
-
 
 // The proper way to initialize a simulated system register (such as NZCV) is as
 // follows:
@@ -168,6 +162,8 @@ class Simulator : public DecoderVisitor {
   // System functions.
 
   static void Initialize(Isolate* isolate);
+
+  static void TearDown(HashMap* i_cache, Redirection* first);
 
   static Simulator* current(v8::internal::Isolate* isolate);
 
@@ -706,9 +702,6 @@ class Simulator : public DecoderVisitor {
   template <typename T>
   void BitfieldHelper(Instruction* instr);
 
-  uint64_t ReverseBits(uint64_t value, unsigned num_bits);
-  uint64_t ReverseBytes(uint64_t value, ReverseByteMode mode);
-
   template <typename T>
   T FPDefaultNaN() const;
 
@@ -884,10 +877,10 @@ class Simulator : public DecoderVisitor {
       FUNCTION_ADDR(entry),                                                    \
       p0, p1, p2, p3, p4))
 
-#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7, p8)  \
-  Simulator::current(Isolate::Current())->CallRegExp(                          \
-      entry,                                                                   \
-      p0, p1, p2, p3, p4, p5, p6, p7, NULL, p8)
+#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7, p8) \
+  static_cast<int>(                                                           \
+      Simulator::current(Isolate::Current())                                  \
+          ->CallRegExp(entry, p0, p1, p2, p3, p4, p5, p6, p7, NULL, p8))
 
 
 // The simulator has its own stack. Thus it has a different stack limit from

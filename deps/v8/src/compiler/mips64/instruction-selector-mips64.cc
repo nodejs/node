@@ -393,7 +393,7 @@ void InstructionSelector::VisitInt64Mul(Node* node) {
   Int64BinopMatcher m(node);
   // TODO(dusmil): Add optimization for shifts larger than 32.
   if (m.right().HasValue() && m.right().Value() > 0) {
-    int64_t value = m.right().Value();
+    int32_t value = static_cast<int32_t>(m.right().Value());
     if (base::bits::IsPowerOfTwo32(value)) {
       Emit(kMips64Dshl | AddressingModeField::encode(kMode_None),
            g.DefineAsRegister(node), g.UseRegister(m.left().node()),
@@ -654,30 +654,50 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
 
   FrameStateDescriptor* frame_state_descriptor = nullptr;
   if (descriptor->NeedsFrameState()) {
-    frame_state_descriptor =
-        GetFrameStateDescriptor(node->InputAt(descriptor->InputCount()));
+    frame_state_descriptor = GetFrameStateDescriptor(
+        node->InputAt(static_cast<int>(descriptor->InputCount())));
   }
 
   CallBuffer buffer(zone(), descriptor, frame_state_descriptor);
 
   // Compute InstructionOperands for inputs and outputs.
-  InitializeCallBuffer(node, &buffer, true, false);
+  InitializeCallBuffer(node, &buffer, true, true);
 
-  int push_count = buffer.pushed_nodes.size();
-  if (push_count > 0) {
-    Emit(kMips64StackClaim, g.NoOutput(),
-         g.TempImmediate(push_count << kPointerSizeLog2));
-  }
-  int slot = buffer.pushed_nodes.size() - 1;
-  for (Node* node : base::Reversed(buffer.pushed_nodes)) {
-    Emit(kMips64StoreToStackSlot, g.NoOutput(), g.UseRegister(node),
-         g.TempImmediate(slot << kPointerSizeLog2));
-    slot--;
+  // Prepare for C function call.
+  if (descriptor->IsCFunctionCall()) {
+    Emit(kArchPrepareCallCFunction |
+             MiscField::encode(static_cast<int>(descriptor->CParameterCount())),
+         0, nullptr, 0, nullptr);
+
+    // Poke any stack arguments.
+    int slot = kCArgSlotCount;
+    for (Node* node : buffer.pushed_nodes) {
+      Emit(kMips64StoreToStackSlot, g.NoOutput(), g.UseRegister(node),
+           g.TempImmediate(slot << kPointerSizeLog2));
+      ++slot;
+    }
+  } else {
+    const int32_t push_count = static_cast<int32_t>(buffer.pushed_nodes.size());
+    if (push_count > 0) {
+      Emit(kMips64StackClaim, g.NoOutput(),
+           g.TempImmediate(push_count << kPointerSizeLog2));
+    }
+    int32_t slot = push_count - 1;
+    for (Node* node : base::Reversed(buffer.pushed_nodes)) {
+      Emit(kMips64StoreToStackSlot, g.NoOutput(), g.UseRegister(node),
+           g.TempImmediate(slot << kPointerSizeLog2));
+      slot--;
+    }
   }
 
   // Pass label of exception handler block.
   CallDescriptor::Flags flags = descriptor->flags();
   if (handler) {
+    DCHECK_EQ(IrOpcode::kIfException, handler->front()->opcode());
+    IfExceptionHint hint = OpParameter<IfExceptionHint>(handler->front());
+    if (hint == IfExceptionHint::kLocallyCaught) {
+      flags |= CallDescriptor::kHasLocalCatchHandler;
+    }
     flags |= CallDescriptor::kHasExceptionHandler;
     buffer.instruction_args.push_back(g.Label(handler));
   }
@@ -685,12 +705,16 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   // Select the appropriate opcode based on the call type.
   InstructionCode opcode;
   switch (descriptor->kind()) {
-    case CallDescriptor::kCallCodeObject: {
-      opcode = kArchCallCodeObject;
+    case CallDescriptor::kCallAddress:
+      opcode =
+          kArchCallCFunction |
+          MiscField::encode(static_cast<int>(descriptor->CParameterCount()));
       break;
-    }
+    case CallDescriptor::kCallCodeObject:
+      opcode = kArchCallCodeObject | MiscField::encode(flags);
+      break;
     case CallDescriptor::kCallJSFunction:
-      opcode = kArchCallJSFunction;
+      opcode = kArchCallJSFunction | MiscField::encode(flags);
       break;
     default:
       UNREACHABLE();
@@ -754,12 +778,12 @@ void InstructionSelector::VisitTailCall(Node* node) {
     // Compute InstructionOperands for inputs and outputs.
     InitializeCallBuffer(node, &buffer, true, false);
 
-    int push_count = buffer.pushed_nodes.size();
+    const int32_t push_count = static_cast<int32_t>(buffer.pushed_nodes.size());
     if (push_count > 0) {
       Emit(kMips64StackClaim, g.NoOutput(),
            g.TempImmediate(push_count << kPointerSizeLog2));
     }
-    int slot = buffer.pushed_nodes.size() - 1;
+    int slot = push_count - 1;
     for (Node* node : base::Reversed(buffer.pushed_nodes)) {
       Emit(kMips64StoreToStackSlot, g.NoOutput(), g.UseRegister(node),
            g.TempImmediate(slot << kPointerSizeLog2));

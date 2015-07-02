@@ -54,8 +54,14 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
 
 int GetDefaultHeaderSizeForElementsKind(ElementsKind elements_kind) {
   STATIC_ASSERT(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
-  return IsExternalArrayElementsKind(elements_kind)
-      ? 0 : (FixedArray::kHeaderSize - kHeapObjectTag);
+
+  if (IsExternalArrayElementsKind(elements_kind)) {
+    return 0;
+  } else if (IsFixedTypedArrayElementsKind(elements_kind)) {
+    return FixedTypedArrayBase::kDataOffset - kHeapObjectTag;
+  } else {
+    return FixedArray::kHeaderSize - kHeapObjectTag;
+  }
 }
 
 
@@ -195,4 +201,5 @@ bool IsMoreGeneralElementsKindTransition(ElementsKind from_kind,
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

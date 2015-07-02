@@ -267,14 +267,21 @@ void BreakableStatementChecker::VisitCompareOperation(CompareOperation* expr) {
 }
 
 
-void BreakableStatementChecker::VisitSpread(Spread* expr) { UNREACHABLE(); }
+void BreakableStatementChecker::VisitSpread(Spread* expr) {
+  Visit(expr->expression());
+}
 
 
 void BreakableStatementChecker::VisitThisFunction(ThisFunction* expr) {
 }
 
 
-void BreakableStatementChecker::VisitSuperReference(SuperReference* expr) {}
+void BreakableStatementChecker::VisitSuperPropertyReference(
+    SuperPropertyReference* expr) {}
+
+
+void BreakableStatementChecker::VisitSuperCallReference(
+    SuperCallReference* expr) {}
 
 
 #define __ ACCESS_MASM(masm())
@@ -310,14 +317,11 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
 
   Code::Flags flags = Code::ComputeFlags(Code::FUNCTION);
   Handle<Code> code = CodeGenerator::MakeCodeEpilogue(&masm, flags, info);
-  code->set_optimizable(info->IsOptimizable() &&
-                        !info->function()->dont_optimize() &&
-                        info->function()->scope()->AllowsLazyCompilation());
   cgen.PopulateDeoptimizationData(code);
   cgen.PopulateTypeFeedbackInfo(code);
+  cgen.PopulateHandlerTable(code);
   code->set_has_deoptimization_support(info->HasDeoptimizationSupport());
   code->set_has_reloc_info_for_serialization(info->will_serialize());
-  code->set_handler_table(*cgen.handler_table());
   code->set_compiled_optimizable(info->IsOptimizable());
   code->set_allow_osr_at_loop_nesting_level(0);
   code->set_profiler_ticks(0);
@@ -397,6 +401,32 @@ void FullCodeGenerator::PopulateTypeFeedbackInfo(Handle<Code> code) {
 }
 
 
+void FullCodeGenerator::PopulateHandlerTable(Handle<Code> code) {
+  int handler_table_size = static_cast<int>(handler_table_.size());
+  Handle<HandlerTable> table =
+      Handle<HandlerTable>::cast(isolate()->factory()->NewFixedArray(
+          HandlerTable::LengthForRange(handler_table_size), TENURED));
+  for (int i = 0; i < handler_table_size; ++i) {
+    HandlerTable::CatchPrediction prediction =
+        handler_table_[i].try_catch_depth > 0 ? HandlerTable::CAUGHT
+                                              : HandlerTable::UNCAUGHT;
+    table->SetRangeStart(i, handler_table_[i].range_start);
+    table->SetRangeEnd(i, handler_table_[i].range_end);
+    table->SetRangeHandler(i, handler_table_[i].handler_offset, prediction);
+    table->SetRangeDepth(i, handler_table_[i].stack_depth);
+  }
+  code->set_handler_table(*table);
+}
+
+
+int FullCodeGenerator::NewHandlerTableEntry() {
+  int index = static_cast<int>(handler_table_.size());
+  HandlerTableEntry entry = {0, 0, 0, 0, 0};
+  handler_table_.push_back(entry);
+  return index;
+}
+
+
 bool FullCodeGenerator::MustCreateObjectLiteralWithRuntime(
     ObjectLiteral* expr) const {
   int literal_flags = expr->ComputeFlags();
@@ -413,7 +443,8 @@ bool FullCodeGenerator::MustCreateObjectLiteralWithRuntime(
 
 bool FullCodeGenerator::MustCreateArrayLiteralWithRuntime(
     ArrayLiteral* expr) const {
-  return expr->depth() > 1 ||
+  // TODO(rossberg): Teach strong mode to FastCloneShallowArrayStub.
+  return expr->depth() > 1 || expr->is_strong() ||
          expr->values()->length() > JSObject::kInitialMaxFastElementArray;
 }
 
@@ -438,20 +469,16 @@ void FullCodeGenerator::PrepareForBailout(Expression* node, State state) {
 
 
 void FullCodeGenerator::CallLoadIC(ContextualMode contextual_mode,
+                                   LanguageMode language_mode,
                                    TypeFeedbackId id) {
-  Handle<Code> ic = CodeFactory::LoadIC(isolate(), contextual_mode).code();
+  Handle<Code> ic =
+      CodeFactory::LoadIC(isolate(), contextual_mode, language_mode).code();
   CallIC(ic, id);
 }
 
 
 void FullCodeGenerator::CallGlobalLoadIC(Handle<String> name) {
-  if (masm()->serializer_enabled() || FLAG_vector_ics) {
-    // Vector-ICs don't work with LoadGlobalIC.
-    return CallLoadIC(CONTEXTUAL);
-  }
-  Handle<Code> ic = CodeFactory::LoadGlobalIC(
-                        isolate(), isolate()->global_object(), name).code();
-  CallIC(ic, TypeFeedbackId::None());
+  return CallLoadIC(CONTEXTUAL);
 }
 
 
@@ -675,7 +702,13 @@ void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
 }
 
 
-void FullCodeGenerator::VisitSuperReference(SuperReference* super) {
+void FullCodeGenerator::VisitSuperPropertyReference(
+    SuperPropertyReference* super) {
+  __ CallRuntime(Runtime::kThrowUnsupportedSuperError, 0);
+}
+
+
+void FullCodeGenerator::VisitSuperCallReference(SuperCallReference* super) {
   __ CallRuntime(Runtime::kThrowUnsupportedSuperError, 0);
 }
 
@@ -985,6 +1018,12 @@ void FullCodeGenerator::EmitPropertyKey(ObjectLiteralProperty* property,
 }
 
 
+void FullCodeGenerator::EmitLoadSuperConstructor(SuperCallReference* ref) {
+  VisitForStackValue(ref->this_function_var());
+  __ CallRuntime(Runtime::kGetPrototype, 1);
+}
+
+
 void FullCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   Comment cmnt(masm_, "[ ReturnStatement");
   SetStatementPosition(stmt);
@@ -1189,6 +1228,9 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   Label try_entry, handler_entry, exit;
   __ jmp(&try_entry);
   __ bind(&handler_entry);
+  PrepareForBailoutForId(stmt->HandlerId(), NO_REGISTERS);
+  ClearPendingMessage();
+
   // Exception handler code, the exception is in the result register.
   // Extend the context before executing the catch block.
   { Comment cmnt(masm_, "[ Extend catch context");
@@ -1214,11 +1256,15 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
 
   // Try block code. Sets up the exception handler chain.
   __ bind(&try_entry);
-  EnterTryBlock(stmt->index(), &handler_entry);
+
+  try_catch_depth_++;
+  int handler_index = NewHandlerTableEntry();
+  EnterTryBlock(handler_index, &handler_entry);
   { TryCatch try_body(this);
     Visit(stmt->try_block());
   }
-  ExitTryBlock(stmt->index());
+  ExitTryBlock(handler_index);
+  try_catch_depth_--;
   __ bind(&exit);
 }
 
@@ -1252,6 +1298,8 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // Jump to try-handler setup and try-block code.
   __ jmp(&try_entry);
   __ bind(&handler_entry);
+  PrepareForBailoutForId(stmt->HandlerId(), NO_REGISTERS);
+
   // Exception handler code.  This code is only executed when an exception
   // is thrown.  The exception is in the result register, and must be
   // preserved by the finally block.  Call the finally block and then
@@ -1270,11 +1318,12 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
   // Set up try handler.
   __ bind(&try_entry);
-  EnterTryBlock(stmt->index(), &handler_entry);
+  int handler_index = NewHandlerTableEntry();
+  EnterTryBlock(handler_index, &handler_entry);
   { TryFinally try_body(this, &finally_entry);
     Visit(stmt->try_block());
   }
-  ExitTryBlock(stmt->index());
+  ExitTryBlock(handler_index);
   // Execute the finally block on the way out.  Clobber the unpredictable
   // value in the result register with one that's safe for GC because the
   // finally block will unconditionally preserve the result register on the
@@ -1341,7 +1390,7 @@ void FullCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
 
   // Build the function boilerplate and instantiate it.
   Handle<SharedFunctionInfo> function_info =
-      Compiler::BuildFunctionInfo(expr, script(), info_);
+      Compiler::GetSharedFunctionInfo(expr, script(), info_);
   if (function_info.is_null()) {
     SetStackOverflow();
     return;
@@ -1377,13 +1426,22 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
 
     __ CallRuntime(Runtime::kDefineClass, 6);
     PrepareForBailoutForId(lit->CreateLiteralId(), TOS_REG);
-    EmitClassDefineProperties(lit);
+
+    int store_slot_index = 0;
+    EmitClassDefineProperties(lit, &store_slot_index);
 
     if (lit->scope() != NULL) {
       DCHECK_NOT_NULL(lit->class_variable_proxy());
+      FeedbackVectorICSlot slot = FLAG_vector_stores
+                                      ? lit->GetNthSlot(store_slot_index++)
+                                      : FeedbackVectorICSlot::Invalid();
       EmitVariableAssignment(lit->class_variable_proxy()->var(),
-                             Token::INIT_CONST);
+                             Token::INIT_CONST, slot);
     }
+
+    // Verify that compilation exactly consumed the number of store ic slots
+    // that the ClassLiteral node had to offer.
+    DCHECK(!FLAG_vector_stores || store_slot_index == lit->slot_count());
   }
 
   context()->Plug(result_register());
@@ -1394,15 +1452,19 @@ void FullCodeGenerator::VisitNativeFunctionLiteral(
     NativeFunctionLiteral* expr) {
   Comment cmnt(masm_, "[ NativeFunctionLiteral");
 
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate());
+
   // Compute the function template for the native function.
   Handle<String> name = expr->name();
   v8::Handle<v8::FunctionTemplate> fun_template =
-      expr->extension()->GetNativeFunctionTemplate(
-          reinterpret_cast<v8::Isolate*>(isolate()), v8::Utils::ToLocal(name));
+      expr->extension()->GetNativeFunctionTemplate(v8_isolate,
+                                                   v8::Utils::ToLocal(name));
   DCHECK(!fun_template.IsEmpty());
 
   // Instantiate the function and create a shared function info from it.
-  Handle<JSFunction> fun = Utils::OpenHandle(*fun_template->GetFunction());
+  Handle<JSFunction> fun = Utils::OpenHandle(
+      *fun_template->GetFunction(v8_isolate->GetCurrentContext())
+           .ToLocalChecked());
   const int literals = fun->NumberOfLiterals();
   Handle<Code> code = Handle<Code>(fun->shared()->code());
   Handle<Code> construct_stub = Handle<Code>(fun->shared()->construct_stub());
@@ -1431,16 +1493,18 @@ void FullCodeGenerator::VisitThrow(Throw* expr) {
 }
 
 
-void FullCodeGenerator::EnterTryBlock(int index, Label* handler) {
-  handler_table()->SetRangeStart(index, masm()->pc_offset());
-  handler_table()->SetRangeHandler(index, handler->pos());
+void FullCodeGenerator::EnterTryBlock(int handler_index, Label* handler) {
+  HandlerTableEntry* entry = &handler_table_[handler_index];
+  entry->range_start = masm()->pc_offset();
+  entry->handler_offset = handler->pos();
+  entry->try_catch_depth = try_catch_depth_;
 
   // Determine expression stack depth of try statement.
   int stack_depth = info_->scope()->num_stack_slots();  // Include stack locals.
   for (NestedStatement* current = nesting_stack_; current != NULL; /*nop*/) {
     current = current->AccumulateDepth(&stack_depth);
   }
-  handler_table()->SetRangeDepth(index, stack_depth);
+  entry->stack_depth = stack_depth;
 
   // Push context onto operand stack.
   STATIC_ASSERT(TryBlockConstant::kElementCount == 1);
@@ -1448,8 +1512,9 @@ void FullCodeGenerator::EnterTryBlock(int index, Label* handler) {
 }
 
 
-void FullCodeGenerator::ExitTryBlock(int index) {
-  handler_table()->SetRangeEnd(index, masm()->pc_offset());
+void FullCodeGenerator::ExitTryBlock(int handler_index) {
+  HandlerTableEntry* entry = &handler_table_[handler_index];
+  entry->range_end = masm()->pc_offset();
 
   // Drop context from operand stack.
   __ Drop(TryBlockConstant::kElementCount);
@@ -1648,4 +1713,5 @@ FullCodeGenerator::EnterBlockScopeIfNeeded::~EnterBlockScopeIfNeeded() {
 #undef __
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -220,7 +220,7 @@ bool JsHttpRequestProcessor::ExecuteScript(Handle<String> script) {
 
   // We're just about to compile the script; set up an error handler to
   // catch any exceptions the script might throw.
-  TryCatch try_catch;
+  TryCatch try_catch(GetIsolate());
 
   // Compile the script and check for errors.
   Handle<Script> compiled_script = Script::Compile(script);
@@ -281,7 +281,7 @@ bool JsHttpRequestProcessor::Process(HttpRequest* request) {
   Handle<Object> request_obj = WrapRequest(request);
 
   // Set up an exception handler before calling the Process function
-  TryCatch try_catch;
+  TryCatch try_catch(GetIsolate());
 
   // Invoke the process function, giving the global object as 'this'
   // and one argument, the request.

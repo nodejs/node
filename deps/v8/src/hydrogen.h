@@ -331,6 +331,7 @@ class HGraph final : public ZoneObject {
   HConstant* GetConstantMinus1();
   HConstant* GetConstantTrue();
   HConstant* GetConstantFalse();
+  HConstant* GetConstantBool(bool value);
   HConstant* GetConstantHole();
   HConstant* GetConstantNull();
   HConstant* GetInvalidContext();
@@ -1352,9 +1353,9 @@ class HGraphBuilder {
                                     HValue* key);
 
   HValue* BuildUncheckedDictionaryElementLoad(HValue* receiver,
-                                              HValue* elements,
-                                              HValue* key,
-                                              HValue* hash);
+                                              HValue* elements, HValue* key,
+                                              HValue* hash,
+                                              LanguageMode language_mode);
 
   HValue* BuildRegExpConstructResult(HValue* length,
                                      HValue* index,
@@ -1429,15 +1430,12 @@ class HGraphBuilder {
                         HValue** operand,
                         HValue** shift_amount);
 
-  HValue* BuildBinaryOperation(Token::Value op,
-                               HValue* left,
-                               HValue* right,
-                               Type* left_type,
-                               Type* right_type,
-                               Type* result_type,
-                               Maybe<int> fixed_right_arg,
+  HValue* BuildBinaryOperation(Token::Value op, HValue* left, HValue* right,
+                               Type* left_type, Type* right_type,
+                               Type* result_type, Maybe<int> fixed_right_arg,
                                HAllocationMode allocation_mode,
-                               LanguageMode language_mode);
+                               Strength strength,
+                               BailoutId opt_id = BailoutId::None());
 
   HLoadNamedField* AddLoadFixedArrayLength(HValue *object,
                                            HValue *dependency = NULL);
@@ -2175,6 +2173,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 #define FOR_EACH_HYDROGEN_INTRINSIC(F) \
   F(IsSmi)                             \
   F(IsArray)                           \
+  F(IsTypedArray)                      \
   F(IsRegExp)                          \
   F(IsJSProxy)                         \
   F(IsConstructCall)                   \
@@ -2183,7 +2182,9 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(Arguments)                         \
   F(ValueOf)                           \
   F(SetValueOf)                        \
+  F(IsDate)                            \
   F(DateField)                         \
+  F(ThrowNotDateError)                 \
   F(StringCharFromCode)                \
   F(StringCharAt)                      \
   F(OneByteSeqStringSetChar)           \
@@ -2466,10 +2467,11 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
       ExternalArrayType array_type,
       bool is_zero_byte_offset,
       HValue* buffer, HValue* byte_offset, HValue* length);
-  HValue* BuildAllocateFixedTypedArray(
-      ExternalArrayType array_type, size_t element_size,
-      ElementsKind fixed_elements_kind,
-      HValue* byte_length, HValue* length);
+  HValue* BuildAllocateFixedTypedArray(ExternalArrayType array_type,
+                                       size_t element_size,
+                                       ElementsKind fixed_elements_kind,
+                                       HValue* byte_length, HValue* length,
+                                       bool initialize);
 
   // TODO(adamk): Move all OrderedHashTable functions to their own class.
   HValue* BuildOrderedHashTableHashToBucket(HValue* hash, HValue* num_buckets);

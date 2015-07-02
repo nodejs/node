@@ -37,7 +37,7 @@ void SimplifiedGraphBuilder::Return(Node* value) {
 
 
 void SimplifiedGraphBuilder::End() {
-  Node* end = graph()->NewNode(common()->End(), return_);
+  Node* end = graph()->NewNode(common()->End(1), return_);
   graph()->SetEnd(end);
 }
 

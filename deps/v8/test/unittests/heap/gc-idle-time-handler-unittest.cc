@@ -67,7 +67,7 @@ class GCIdleTimeHandlerTest : public ::testing::Test {
       GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
       EXPECT_EQ(expected, action.type);
       EXPECT_TRUE(action.reduce_memory);
-      handler()->NotifyMarkCompact();
+      handler()->NotifyMarkCompact(true);
       handler()->NotifyIdleMarkCompact();
     }
     handler()->Compute(idle_time_ms, heap_state);
@@ -82,7 +82,7 @@ class GCIdleTimeHandlerTest : public ::testing::Test {
     for (int i = 0; i < limit; i++) {
       GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
       EXPECT_EQ(DONE, action.type);
-      handler()->NotifyMarkCompact();
+      handler()->NotifyMarkCompact(true);
     }
     handler()->Compute(idle_time_ms, heap_state);
     EXPECT_EQ(GCIdleTimeHandler::kReduceLatency, handler()->mode());
@@ -94,7 +94,7 @@ class GCIdleTimeHandlerTest : public ::testing::Test {
   static const size_t kScavengeSpeed = 100 * KB;
   static const size_t kNewSpaceCapacity = 1 * MB;
   static const size_t kNewSpaceAllocationThroughput = 10 * KB;
-  static const int kMaxNotifications = 100;
+  static const int kMaxNotifications = 1000;
 
  private:
   GCIdleTimeHandler handler_;
@@ -219,6 +219,18 @@ TEST_F(GCIdleTimeHandlerTest, DoScavengeHighScavengeSpeed) {
 }
 
 
+TEST_F(GCIdleTimeHandlerTest, DoNotScavengeSmallNewSpaceSize) {
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  heap_state.used_new_space_size = (MB / 2) - 1;
+  heap_state.scavenge_speed_in_bytes_per_ms = kNewSpaceCapacity;
+  int idle_time_ms = 16;
+  EXPECT_FALSE(GCIdleTimeHandler::ShouldDoScavenge(
+      idle_time_ms, heap_state.new_space_capacity,
+      heap_state.used_new_space_size, heap_state.scavenge_speed_in_bytes_per_ms,
+      heap_state.new_space_allocation_throughput_in_bytes_per_ms));
+}
+
+
 TEST_F(GCIdleTimeHandlerTest, ShouldDoMarkCompact) {
   size_t idle_time_ms = GCIdleTimeHandler::kMaxScheduledIdleTime;
   EXPECT_TRUE(GCIdleTimeHandler::ShouldDoMarkCompact(idle_time_ms, 0, 0));
@@ -269,6 +281,7 @@ TEST_F(GCIdleTimeHandlerTest, ContextDisposeHighRate) {
   for (int mode = 0; mode < 1; mode++) {
     GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
     EXPECT_EQ(DO_FULL_GC, action.type);
+    heap_state.contexts_disposal_rate = 0.0;
     TransitionToReduceMemoryMode(heap_state);
   }
 }
@@ -283,6 +296,7 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeZeroIdleTime) {
   for (int mode = 0; mode < 1; mode++) {
     GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
     EXPECT_EQ(DO_FULL_GC, action.type);
+    heap_state.contexts_disposal_rate = 0.0;
     TransitionToReduceMemoryMode(heap_state);
   }
 }
@@ -291,7 +305,8 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeZeroIdleTime) {
 TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeSmallIdleTime1) {
   GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
   heap_state.contexts_disposed = 1;
-  heap_state.contexts_disposal_rate = 1.0;
+  heap_state.contexts_disposal_rate =
+      GCIdleTimeHandler::kHighContextDisposalRate;
   heap_state.incremental_marking_stopped = true;
   size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
   double idle_time_ms =
@@ -299,6 +314,7 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeSmallIdleTime1) {
   for (int mode = 0; mode < 1; mode++) {
     GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
     EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
+    heap_state.contexts_disposal_rate = 0.0;
     TransitionToReduceMemoryMode(heap_state);
   }
 }
@@ -307,13 +323,15 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeSmallIdleTime1) {
 TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeSmallIdleTime2) {
   GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
   heap_state.contexts_disposed = 1;
-  heap_state.contexts_disposal_rate = 1.0;
+  heap_state.contexts_disposal_rate =
+      GCIdleTimeHandler::kHighContextDisposalRate;
   size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
   double idle_time_ms =
       static_cast<double>(heap_state.size_of_objects / speed - 1);
   for (int mode = 0; mode < 1; mode++) {
     GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
     EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
+    heap_state.contexts_disposal_rate = 0.0;
     TransitionToReduceMemoryMode(heap_state);
   }
 }
@@ -444,7 +462,7 @@ TEST_F(GCIdleTimeHandlerTest, StopEventually1) {
   for (int i = 0; i < kMaxNotifications && !stopped; i++) {
     GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
     if (action.type == DO_INCREMENTAL_MARKING || action.type == DO_FULL_GC) {
-      handler()->NotifyMarkCompact();
+      handler()->NotifyMarkCompact(true);
       handler()->NotifyIdleMarkCompact();
     }
     if (action.type == DONE) stopped = true;
@@ -561,7 +579,7 @@ TEST_F(GCIdleTimeHandlerTest, StayInReduceLatencyModeBecauseOfMarkCompacts) {
   for (int i = 0; i < kMaxNotifications; i++) {
     GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
     EXPECT_TRUE(DO_NOTHING == action.type || DONE == action.type);
-    if ((i + 1) % limit == 0) handler()->NotifyMarkCompact();
+    if ((i + 1) % limit == 0) handler()->NotifyMarkCompact(true);
     EXPECT_EQ(GCIdleTimeHandler::kReduceLatency, handler()->mode());
   }
 }
@@ -586,7 +604,7 @@ TEST_F(GCIdleTimeHandlerTest, ReduceMemoryToReduceLatency) {
       // ReduceMemory mode should tolerate one mutator GC per idle GC.
       handler()->NotifyScavenge();
       // Notify idle GC.
-      handler()->NotifyMarkCompact();
+      handler()->NotifyMarkCompact(true);
       handler()->NotifyIdleMarkCompact();
     }
     // Transition to ReduceLatency mode after doing |idle_gc| idle GCs.
@@ -617,7 +635,7 @@ TEST_F(GCIdleTimeHandlerTest, ReduceMemoryToDone) {
     // ReduceMemory mode should tolerate one mutator GC per idle GC.
     handler()->NotifyScavenge();
     // Notify idle GC.
-    handler()->NotifyMarkCompact();
+    handler()->NotifyMarkCompact(true);
     handler()->NotifyIdleMarkCompact();
   }
   action = handler()->Compute(idle_time_ms, heap_state);
@@ -678,6 +696,22 @@ TEST_F(GCIdleTimeHandlerTest, BackgroundReduceLatencyToReduceMemory) {
   }
   handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(GCIdleTimeHandler::kReduceMemory, handler()->mode());
+}
+
+
+TEST_F(GCIdleTimeHandlerTest, SkipUselessGCs) {
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  heap_state.incremental_marking_stopped = false;
+  heap_state.can_start_incremental_marking = true;
+  TransitionToReduceMemoryMode(heap_state);
+  EXPECT_EQ(GCIdleTimeHandler::kReduceMemory, handler()->mode());
+  double idle_time_ms = GCIdleTimeHandler::kMinLongIdleTime;
+  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
+  handler()->NotifyMarkCompact(false);
+  handler()->NotifyIdleMarkCompact();
+  action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DONE, action.type);
 }
 
 }  // namespace internal

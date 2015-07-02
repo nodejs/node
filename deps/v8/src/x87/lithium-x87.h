@@ -122,6 +122,7 @@ class LCodeGen;
   V(MathPowHalf)                             \
   V(MathRound)                               \
   V(MathSqrt)                                \
+  V(MaybeGrowElements)                       \
   V(ModByConstI)                             \
   V(ModByPowerOf2I)                          \
   V(ModI)                                    \
@@ -155,7 +156,6 @@ class LCodeGen;
   V(StringCompareAndBranch)                  \
   V(SubI)                                    \
   V(TaggedToI)                               \
-  V(TailCallThroughMegamorphicCache)         \
   V(ThisFunction)                            \
   V(ToFastProperties)                        \
   V(TransitionElementsKind)                  \
@@ -482,26 +482,6 @@ class LCallStub final : public LTemplateInstruction<1, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(CallStub, "call-stub")
   DECLARE_HYDROGEN_ACCESSOR(CallStub)
-};
-
-
-class LTailCallThroughMegamorphicCache final
-    : public LTemplateInstruction<0, 3, 0> {
- public:
-  LTailCallThroughMegamorphicCache(LOperand* context, LOperand* receiver,
-                                   LOperand* name) {
-    inputs_[0] = context;
-    inputs_[1] = receiver;
-    inputs_[2] = name;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-  LOperand* receiver() { return inputs_[1]; }
-  LOperand* name() { return inputs_[2]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(TailCallThroughMegamorphicCache,
-                               "tail-call-through-megamorphic-cache")
-  DECLARE_HYDROGEN_ACCESSOR(TailCallThroughMegamorphicCache)
 };
 
 
@@ -1202,6 +1182,8 @@ class LCmpT final : public LTemplateInstruction<1, 3, 0> {
   DECLARE_CONCRETE_INSTRUCTION(CmpT, "cmp-t")
   DECLARE_HYDROGEN_ACCESSOR(CompareGeneric)
 
+  Strength strength() { return hydrogen()->strength(); }
+
   LOperand* context() { return inputs_[0]; }
   Token::Value op() const { return hydrogen()->token(); }
 };
@@ -1567,7 +1549,7 @@ class LArithmeticT final : public LTemplateInstruction<1, 3, 0> {
 
   DECLARE_HYDROGEN_ACCESSOR(BinaryOperation)
 
-  LanguageMode language_mode() { return hydrogen()->language_mode(); }
+  Strength strength() { return hydrogen()->strength(); }
 
  private:
   Token::Value op_;
@@ -2197,17 +2179,22 @@ class LStoreNamedField final : public LTemplateInstruction<0, 2, 2> {
 };
 
 
-class LStoreNamedGeneric final : public LTemplateInstruction<0, 3, 0> {
+class LStoreNamedGeneric final : public LTemplateInstruction<0, 3, 2> {
  public:
-  LStoreNamedGeneric(LOperand* context, LOperand* object, LOperand* value) {
+  LStoreNamedGeneric(LOperand* context, LOperand* object, LOperand* value,
+                     LOperand* slot, LOperand* vector) {
     inputs_[0] = context;
     inputs_[1] = object;
     inputs_[2] = value;
+    temps_[0] = slot;
+    temps_[1] = vector;
   }
 
   LOperand* context() { return inputs_[0]; }
   LOperand* object() { return inputs_[1]; }
   LOperand* value() { return inputs_[2]; }
+  LOperand* temp_slot() { return temps_[0]; }
+  LOperand* temp_vector() { return temps_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreNamedGeneric, "store-named-generic")
   DECLARE_HYDROGEN_ACCESSOR(StoreNamedGeneric)
@@ -2249,22 +2236,24 @@ class LStoreKeyed final : public LTemplateInstruction<0, 3, 0> {
 };
 
 
-class LStoreKeyedGeneric final : public LTemplateInstruction<0, 4, 0> {
+class LStoreKeyedGeneric final : public LTemplateInstruction<0, 4, 2> {
  public:
-  LStoreKeyedGeneric(LOperand* context,
-                     LOperand* object,
-                     LOperand* key,
-                     LOperand* value) {
+  LStoreKeyedGeneric(LOperand* context, LOperand* object, LOperand* key,
+                     LOperand* value, LOperand* slot, LOperand* vector) {
     inputs_[0] = context;
     inputs_[1] = object;
     inputs_[2] = key;
     inputs_[3] = value;
+    temps_[0] = slot;
+    temps_[1] = vector;
   }
 
   LOperand* context() { return inputs_[0]; }
   LOperand* object() { return inputs_[1]; }
   LOperand* key() { return inputs_[2]; }
   LOperand* value() { return inputs_[3]; }
+  LOperand* temp_slot() { return temps_[0]; }
+  LOperand* temp_vector() { return temps_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedGeneric, "store-keyed-generic")
   DECLARE_HYDROGEN_ACCESSOR(StoreKeyedGeneric)
@@ -2320,6 +2309,28 @@ class LTrapAllocationMemento final : public LTemplateInstruction<0, 1, 1> {
 
   DECLARE_CONCRETE_INSTRUCTION(TrapAllocationMemento,
                                "trap-allocation-memento")
+};
+
+
+class LMaybeGrowElements final : public LTemplateInstruction<1, 5, 0> {
+ public:
+  LMaybeGrowElements(LOperand* context, LOperand* object, LOperand* elements,
+                     LOperand* key, LOperand* current_capacity) {
+    inputs_[0] = context;
+    inputs_[1] = object;
+    inputs_[2] = elements;
+    inputs_[3] = key;
+    inputs_[4] = current_capacity;
+  }
+
+  LOperand* context() { return inputs_[0]; }
+  LOperand* object() { return inputs_[1]; }
+  LOperand* elements() { return inputs_[2]; }
+  LOperand* key() { return inputs_[3]; }
+  LOperand* current_capacity() { return inputs_[4]; }
+
+  DECLARE_HYDROGEN_ACCESSOR(MaybeGrowElements)
+  DECLARE_CONCRETE_INSTRUCTION(MaybeGrowElements, "maybe-grow-elements")
 };
 
 

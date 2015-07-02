@@ -552,7 +552,7 @@ THREADED_TEST(AccessorPropertyCrossContext) {
   v8::Handle<v8::Function> fun = v8::Function::New(isolate, check_contexts);
   LocalContext switch_context;
   switch_context->Global()->Set(v8_str("fun"), fun);
-  v8::TryCatch try_catch;
+  v8::TryCatch try_catch(isolate);
   expected_current_context = env.local();
   expected_calling_context = switch_context.local();
   CompileRun(

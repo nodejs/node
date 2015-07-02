@@ -33,16 +33,17 @@
   'includes': ['toolchain.gypi'],
   'variables': {
     'component%': 'static_library',
-    'clang_dir%': 'third_party/llvm-build/Release+Asserts',
     'clang_xcode%': 0,
     # Track where uninitialized memory originates from. From fastest to
     # slowest: 0 - no tracking, 1 - track only the initial allocation site, 2
     # - track the chain of stores leading from allocation site to use site.
-    'msan_track_origins%': 1,
+    'msan_track_origins%': 2,
     'visibility%': 'hidden',
     'v8_enable_backtrace%': 0,
     'v8_enable_i18n_support%': 1,
     'v8_deprecation_warnings': 1,
+    # TODO(jochen): Turn this on.
+    'v8_imminent_deprecation_warnings%': 0,
     'msvs_multi_core_compile%': '1',
     'mac_deployment_target%': '10.5',
     'release_extra_cflags%': '',
@@ -66,7 +67,9 @@
         },
         'host_arch%': '<(host_arch)',
         'target_arch%': '<(host_arch)',
+        'base_dir%': '<!(cd <(DEPTH) && python -c "import os; print os.getcwd()")',
       },
+      'base_dir%': '<(base_dir)',
       'host_arch%': '<(host_arch)',
       'target_arch%': '<(target_arch)',
       'v8_target_arch%': '<(target_arch)',
@@ -74,6 +77,16 @@
       'lsan%': 0,
       'msan%': 0,
       'tsan%': 0,
+      # Enable coverage gathering instrumentation in sanitizer tools. This flag
+      # also controls coverage granularity (1 for function-level, 2 for
+      # block-level, 3 for edge-level).
+      'sanitizer_coverage%': 0,
+      # Use libc++ (buildtools/third_party/libc++ and
+      # buildtools/third_party/libc++abi) instead of stdlibc++ as standard
+      # library. This is intended to be used for instrumented builds.
+      'use_custom_libcxx%': 0,
+
+      'clang_dir%': '<(base_dir)/third_party/llvm-build/Release+Asserts',
 
       # goma settings.
       # 1 to use goma.
@@ -87,9 +100,17 @@
         }, {
           'gomadir': '<!(/bin/echo -n ${HOME}/goma)',
         }],
+        ['host_arch!="ppc" and host_arch!="ppc64" and host_arch!="ppc64le"', {
+          'host_clang%': '1',
+        }, {
+          'host_clang%': '0',
+        }],
       ],
     },
+    'base_dir%': '<(base_dir)',
+    'clang_dir%': '<(clang_dir)',
     'host_arch%': '<(host_arch)',
+    'host_clang%': '<(host_clang)',
     'target_arch%': '<(target_arch)',
     'v8_target_arch%': '<(v8_target_arch)',
     'werror%': '-Werror',
@@ -99,6 +120,11 @@
     'lsan%': '<(lsan)',
     'msan%': '<(msan)',
     'tsan%': '<(tsan)',
+    'sanitizer_coverage%': '<(sanitizer_coverage)',
+    'use_custom_libcxx%': '<(use_custom_libcxx)',
+
+    # Add a simple extra solely for the purpose of the cctests
+    'v8_extra_library_files': ['../test/cctest/test-extra.js'],
 
     # .gyp files or targets should set v8_code to 1 if they build V8 specific
     # code, as opposed to external code.  This variable is used to control such
@@ -160,19 +186,131 @@
         'v8_enable_gdbjit%': 0,
       }],
       ['(OS=="linux" or OS=="mac") and (target_arch=="ia32" or target_arch=="x64") and \
-        (v8_target_arch!="x87")', {
+        (v8_target_arch!="x87" and v8_target_arch!="x32")', {
         'clang%': 1,
       }, {
         'clang%': 0,
       }],
-      ['host_arch!="ppc" and host_arch!="ppc64" and host_arch!="ppc64le"', {
-        'host_clang%': '1',
-      }, {
-        'host_clang%': '0',
-      }],
       ['asan==1 or lsan==1 or msan==1 or tsan==1', {
         'clang%': 1,
         'use_allocator%': 'none',
+      }],
+      ['asan==1 and OS=="linux"', {
+        'use_custom_libcxx%': 1,
+      }],
+      ['tsan==1', {
+        'use_custom_libcxx%': 1,
+      }],
+      ['msan==1', {
+        # Use a just-built, MSan-instrumented libc++ instead of the system-wide
+        # libstdc++. This is required to avoid false positive reports whenever
+        # the C++ standard library is used.
+        'use_custom_libcxx%': 1,
+      }],
+      ['OS=="linux"', {
+        # Gradually roll out v8_use_external_startup_data.
+        # Should eventually be default enabled on all platforms.
+        'v8_use_external_startup_data%': 1,
+      }],
+      ['OS=="android"', {
+        # Location of Android NDK.
+        'variables': {
+          'variables': {
+            # The Android toolchain needs to use the absolute path to the NDK
+            # because it is used at different levels in the GYP files.
+            'android_ndk_root%': '<(base_dir)/third_party/android_tools/ndk/',
+            'android_host_arch%': "<!(uname -m | sed -e 's/i[3456]86/x86/')",
+            'host_os%': "<!(uname -s | sed -e 's/Linux/linux/;s/Darwin/mac/')",
+          },
+
+          # Copy conditionally-set variables out one scope.
+          'android_ndk_root%': '<(android_ndk_root)',
+          'host_os%': '<(host_os)',
+
+          'conditions': [
+            ['target_arch == "ia32"', {
+              'android_toolchain%': '<(android_ndk_root)/toolchains/x86-4.9/prebuilt/<(host_os)-<(android_host_arch)/bin',
+              'android_target_arch%': 'x86',
+              'android_target_platform%': '16',
+            }],
+            ['target_arch == "x64"', {
+              'android_toolchain%': '<(android_ndk_root)/toolchains/x86_64-4.9/prebuilt/<(host_os)-<(android_host_arch)/bin',
+              'android_target_arch%': 'x86_64',
+              'android_target_platform%': '21',
+            }],
+            ['target_arch=="arm"', {
+              'android_toolchain%': '<(android_ndk_root)/toolchains/arm-linux-androideabi-4.9/prebuilt/<(host_os)-<(android_host_arch)/bin',
+              'android_target_arch%': 'arm',
+              'android_target_platform%': '16',
+              'arm_version%': 7,
+            }],
+            ['target_arch == "arm64"', {
+              'android_toolchain%': '<(android_ndk_root)/toolchains/aarch64-linux-android-4.9/prebuilt/<(host_os)-<(android_host_arch)/bin',
+              'android_target_arch%': 'arm64',
+              'android_target_platform%': '21',
+              'arm_version%': 'default',
+            }],
+            ['target_arch == "mipsel"', {
+              'android_toolchain%': '<(android_ndk_root)/toolchains/mipsel-linux-android-4.9/prebuilt/<(host_os)-<(android_host_arch)/bin',
+              'android_target_arch%': 'mips',
+              'android_target_platform%': '16',
+            }],
+            ['target_arch == "mips64el"', {
+              'android_toolchain%': '<(android_ndk_root)/toolchains/mips64el-linux-android-4.9/prebuilt/<(host_os)-<(android_host_arch)/bin',
+              'android_target_arch%': 'mips64',
+              'android_target_platform%': '21',
+            }],
+          ],
+        },
+
+        # Copy conditionally-set variables out one scope.
+        'android_target_arch%': '<(android_target_arch)',
+        'android_target_platform%': '<(android_target_platform)',
+        'android_toolchain%': '<(android_toolchain)',
+        'arm_version%': '<(arm_version)',
+        'host_os%': '<(host_os)',
+
+        'conditions': [
+          ['android_ndk_root==""', {
+            'variables': {
+              'android_sysroot': '<(android_toolchain)/sysroot/',
+              'android_stlport': '<(android_toolchain)/sources/cxx-stl/stlport/',
+            },
+            'android_include': '<(android_sysroot)/usr/include',
+            'conditions': [
+              ['target_arch=="x64"', {
+                'android_lib': '<(android_sysroot)/usr/lib64',
+              }, {
+                'android_lib': '<(android_sysroot)/usr/lib',
+              }],
+            ],
+            'android_stlport_include': '<(android_stlport)/stlport',
+            'android_stlport_libs': '<(android_stlport)/libs',
+          }, {
+            'variables': {
+              'android_sysroot': '<(android_ndk_root)/platforms/android-<(android_target_platform)/arch-<(android_target_arch)',
+              'android_stlport': '<(android_ndk_root)/sources/cxx-stl/stlport/',
+            },
+            'android_include': '<(android_sysroot)/usr/include',
+            'conditions': [
+              ['target_arch=="x64"', {
+                'android_lib': '<(android_sysroot)/usr/lib64',
+              }, {
+                'android_lib': '<(android_sysroot)/usr/lib',
+              }],
+            ],
+            'android_stlport_include': '<(android_stlport)/stlport',
+            'android_stlport_libs': '<(android_stlport)/libs',
+          }],
+        ],
+        'android_stlport_library': 'stlport_static',
+      }],  # OS=="android"
+      ['host_clang==1', {
+        'host_cc': '<(clang_dir)/bin/clang',
+        'host_cxx': '<(clang_dir)/bin/clang++',
+      }, {
+        'host_cc': '<!(which gcc)',
+        'host_cxx': '<!(which g++)',
       }],
     ],
     # Default ARM variable settings.
@@ -194,6 +332,11 @@
   'target_defaults': {
     'variables': {
       'v8_code%': '<(v8_code)',
+      'conditions':[
+        ['OS=="android"', {
+          'host_os%': '<(host_os)',
+        }],
+      ],
     },
     'default_configuration': 'Debug',
     'configurations': {
@@ -283,96 +426,148 @@
     ],
   },
   'conditions': [
-    ['asan==1 and OS!="mac"', {
+    ['os_posix==1 and OS!="mac"', {
       'target_defaults': {
-        'cflags_cc+': [
-          '-fno-omit-frame-pointer',
-          '-gline-tables-only',
-          '-fsanitize=address',
-          '-w',  # http://crbug.com/162783
-        ],
-        'cflags!': [
-          '-fomit-frame-pointer',
-        ],
-        'ldflags': [
-          '-fsanitize=address',
-        ],
-      },
-    }],
-    ['tsan==1 and OS!="mac"', {
-      'target_defaults': {
-        'cflags+': [
-          '-fno-omit-frame-pointer',
-          '-gline-tables-only',
-          '-fsanitize=thread',
-          '-fPIC',
-          '-Wno-c++11-extensions',
-        ],
-        'cflags!': [
-          '-fomit-frame-pointer',
-        ],
-        'ldflags': [
-          '-fsanitize=thread',
-          '-pie',
-        ],
-        'defines': [
-          'THREAD_SANITIZER',
-        ],
-      },
-    }],
-    ['msan==1 and OS!="mac"', {
-      'target_defaults': {
-        'cflags_cc+': [
-          '-fno-omit-frame-pointer',
-          '-gline-tables-only',
-          '-fsanitize=memory',
-          '-fsanitize-memory-track-origins=<(msan_track_origins)',
-          '-fPIC',
-        ],
-        'cflags+': [
-          '-fPIC',
-        ],
-        'cflags!': [
-          '-fno-exceptions',
-          '-fomit-frame-pointer',
-        ],
-        'ldflags': [
-          '-fsanitize=memory',
-        ],
-        'defines': [
-          'MEMORY_SANITIZER',
-        ],
-        'dependencies': [
-          # Use libc++ (third_party/libc++ and third_party/libc++abi) instead of
-          # stdlibc++ as standard library. This is intended to use for instrumented
-          # builds.
-          '<(DEPTH)/buildtools/third_party/libc++/libc++.gyp:libcxx_proxy',
-        ],
-      },
-    }],
-    ['asan==1 and OS=="mac"', {
-      'target_defaults': {
-        'xcode_settings': {
-          'OTHER_CFLAGS+': [
-            '-fno-omit-frame-pointer',
-            '-gline-tables-only',
-            '-fsanitize=address',
-            '-w',  # http://crbug.com/162783
-          ],
-          'OTHER_CFLAGS!': [
-            '-fomit-frame-pointer',
-          ],
-        },
-        'target_conditions': [
-          ['_type!="static_library"', {
-            'xcode_settings': {'OTHER_LDFLAGS': ['-fsanitize=address']},
+        'conditions': [
+          # Common options for AddressSanitizer, LeakSanitizer,
+          # ThreadSanitizer and MemorySanitizer.
+          ['asan==1 or lsan==1 or tsan==1 or msan==1', {
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'cflags': [
+                  '-fno-omit-frame-pointer',
+                  '-gline-tables-only',
+                ],
+                'cflags!': [
+                  '-fomit-frame-pointer',
+                ],
+              }],
+            ],
+          }],
+          ['asan==1', {
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'cflags': [
+                  '-fsanitize=address',
+                ],
+                'ldflags': [
+                  '-fsanitize=address',
+                ],
+                'defines': [
+                  'ADDRESS_SANITIZER',
+                ],
+              }],
+            ],
+          }],
+          ['lsan==1', {
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'cflags': [
+                  '-fsanitize=leak',
+                ],
+                'ldflags': [
+                  '-fsanitize=leak',
+                ],
+                'defines': [
+                  'LEAK_SANITIZER',
+                ],
+              }],
+            ],
+          }],
+          ['tsan==1', {
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'cflags': [
+                  '-fsanitize=thread',
+                ],
+                'ldflags': [
+                  '-fsanitize=thread',
+                ],
+                'defines': [
+                  'THREAD_SANITIZER',
+                ],
+              }],
+            ],
+          }],
+          ['msan==1', {
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'cflags': [
+                  '-fsanitize=memory',
+                  '-fsanitize-memory-track-origins=<(msan_track_origins)',
+                ],
+                'ldflags': [
+                  '-fsanitize=memory',
+                ],
+                'defines': [
+                  'MEMORY_SANITIZER',
+                ],
+              }],
+            ],
+          }],
+          ['use_custom_libcxx==1', {
+            'dependencies': [
+              '<(DEPTH)/buildtools/third_party/libc++/libc++.gyp:libcxx_proxy',
+            ],
+          }],
+          ['sanitizer_coverage!=0', {
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'cflags': [
+                  '-fsanitize-coverage=<(sanitizer_coverage)',
+                ],
+                'defines': [
+                  'SANITIZER_COVERAGE',
+                ],
+              }],
+            ],
           }],
         ],
-        'dependencies': [
-          '<(DEPTH)/build/mac/asan.gyp:asan_dynamic_runtime',
-        ],
       },
     }],
+    ['OS=="mac"', {
+      'target_defaults': {
+       'conditions': [
+          ['asan==1', {
+            'xcode_settings': {
+              # FIXME(machenbach): This is outdated compared to common.gypi.
+              'OTHER_CFLAGS+': [
+                '-fno-omit-frame-pointer',
+                '-gline-tables-only',
+                '-fsanitize=address',
+                '-w',  # http://crbug.com/162783
+              ],
+              'OTHER_CFLAGS!': [
+                '-fomit-frame-pointer',
+              ],
+              'defines': [
+                'ADDRESS_SANITIZER',
+              ],
+            },
+            'dependencies': [
+              '<(DEPTH)/build/mac/asan.gyp:asan_dynamic_runtime',
+            ],
+            'target_conditions': [
+              ['_type!="static_library"', {
+                'xcode_settings': {'OTHER_LDFLAGS': ['-fsanitize=address']},
+              }],
+            ],
+          }],
+          ['sanitizer_coverage!=0', {
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'cflags': [
+                  '-fsanitize-coverage=<(sanitizer_coverage)',
+                ],
+                'defines': [
+                  'SANITIZER_COVERAGE',
+                ],
+              }],
+            ],
+          }],
+        ],
+      },  # target_defaults
+    }],  # OS=="mac"
     ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
        or OS=="netbsd" or OS=="aix"', {
       'target_defaults': {
@@ -382,17 +577,20 @@
           '-Wno-unused-parameter',
           '-Wno-long-long',
           '-pthread',
-          '-fno-exceptions',
           '-pedantic',
           # Don't warn about the "struct foo f = {0};" initialization pattern.
           '-Wno-missing-field-initializers',
         ],
-        'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti', '-std=gnu++0x' ],
+        'cflags_cc': [
+          '-Wnon-virtual-dtor',
+          '-fno-exceptions',
+          '-fno-rtti',
+          '-std=gnu++0x',
+        ],
         'ldflags': [ '-pthread', ],
         'conditions': [
-          # TODO(arm64): It'd be nice to enable this for arm64 as well,
-          # but the Assembler requires some serious fixing first.
-          [ 'clang==1 and v8_target_arch=="x64"', {
+          [ 'clang==1 and (v8_target_arch=="x64" or v8_target_arch=="arm64" \
+            or v8_target_arch=="mips64el")', {
             'cflags': [ '-Wshorten-64-to-32' ],
           }],
           [ 'host_arch=="ppc64" and OS!="aix"', {
@@ -415,11 +613,15 @@
           '-Wall',
           '<(werror)',
           '-Wno-unused-parameter',
-          '-fno-exceptions',
           # Don't warn about the "struct foo f = {0};" initialization pattern.
           '-Wno-missing-field-initializers',
         ],
-        'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti', '-std=gnu++0x' ],
+        'cflags_cc': [
+          '-Wnon-virtual-dtor',
+          '-fno-exceptions',
+          '-fno-rtti',
+          '-std=gnu++0x',
+        ],
         'conditions': [
           [ 'visibility=="hidden"', {
             'cflags': [ '-fvisibility=hidden' ],
@@ -581,10 +783,214 @@
         ],  # target_conditions
       },  # target_defaults
     }],  # OS=="mac"
+    ['OS=="android"', {
+      'target_defaults': {
+        'defines': [
+          'ANDROID',
+          'V8_ANDROID_LOG_STDOUT',
+        ],
+        'configurations': {
+          'Release': {
+            'cflags': [
+              '-fomit-frame-pointer',
+            ],
+          },  # Release
+        },  # configurations
+        'cflags': [ '-Wno-abi', '-Wall', '-W', '-Wno-unused-parameter'],
+        'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti', '-fno-exceptions',
+                       # Note: Using -std=c++0x will define __STRICT_ANSI__, which
+                       # in turn will leave out some template stuff for 'long
+                       # long'.  What we want is -std=c++11, but this is not
+                       # supported by GCC 4.6 or Xcode 4.2
+                       '-std=gnu++0x' ],
+        'target_conditions': [
+          ['_toolset=="target"', {
+            'cflags!': [
+              '-pthread',  # Not supported by Android toolchain.
+            ],
+            'cflags': [
+              '-ffunction-sections',
+              '-funwind-tables',
+              '-fstack-protector',
+              '-fno-short-enums',
+              '-finline-limit=64',
+              '-Wa,--noexecstack',
+              # Note: This include is in cflags to ensure that it comes after
+              # all of the includes.
+              '-I<(android_include)',
+              '-I<(android_stlport_include)',
+            ],
+            'cflags_cc': [
+              '-Wno-error=non-virtual-dtor',  # TODO(michaelbai): Fix warnings.
+            ],
+            'defines': [
+              'ANDROID',
+              #'__GNU_SOURCE=1',  # Necessary for clone()
+              'USE_STLPORT=1',
+              '_STLP_USE_PTR_SPECIALIZATIONS=1',
+              'HAVE_OFF64_T',
+              'HAVE_SYS_UIO_H',
+              'ANDROID_BINSIZE_HACK', # Enable temporary hacks to reduce binsize.
+            ],
+            'ldflags!': [
+              '-pthread',  # Not supported by Android toolchain.
+            ],
+            'ldflags': [
+              '-nostdlib',
+              '-Wl,--no-undefined',
+              '-Wl,-rpath-link=<(android_lib)',
+              '-L<(android_lib)',
+            ],
+            'libraries!': [
+                '-lrt',  # librt is built into Bionic.
+                # Not supported by Android toolchain.
+                # Where do these come from?  Can't find references in
+                # any Chromium gyp or gypi file.  Maybe they come from
+                # gyp itself?
+                '-lpthread', '-lnss3', '-lnssutil3', '-lsmime3', '-lplds4', '-lplc4', '-lnspr4',
+              ],
+              'libraries': [
+                '-l<(android_stlport_library)',
+                # Manually link the libgcc.a that the cross compiler uses.
+                '<!(<(android_toolchain)/*-gcc -print-libgcc-file-name)',
+                '-lc',
+                '-ldl',
+                '-lstdc++',
+                '-lm',
+            ],
+            'conditions': [
+              ['target_arch == "arm"', {
+                'ldflags': [
+                  # Enable identical code folding to reduce size.
+                  '-Wl,--icf=safe',
+                ],
+              }],
+              ['target_arch=="arm" and arm_version==7', {
+                'cflags': [
+                  '-march=armv7-a',
+                  '-mtune=cortex-a8',
+                  '-mfpu=vfp3',
+                ],
+                'ldflags': [
+                  '-L<(android_stlport_libs)/armeabi-v7a',
+                ],
+              }],
+              ['target_arch=="arm" and arm_version < 7', {
+                'ldflags': [
+                  '-L<(android_stlport_libs)/armeabi',
+                ],
+              }],
+              ['target_arch=="x64"', {
+                'ldflags': [
+                  '-L<(android_stlport_libs)/x86_64',
+                ],
+              }],
+              ['target_arch=="arm64"', {
+                'ldflags': [
+                  '-L<(android_stlport_libs)/arm64-v8a',
+                ],
+              }],
+              ['target_arch=="ia32" or target_arch=="x87"', {
+                # The x86 toolchain currently has problems with stack-protector.
+                'cflags!': [
+                  '-fstack-protector',
+                ],
+                'cflags': [
+                  '-fno-stack-protector',
+                ],
+                'ldflags': [
+                  '-L<(android_stlport_libs)/x86',
+                ],
+              }],
+              ['target_arch=="mipsel"', {
+                # The mips toolchain currently has problems with stack-protector.
+                'cflags!': [
+                  '-fstack-protector',
+                  '-U__linux__'
+                ],
+                'cflags': [
+                  '-fno-stack-protector',
+                ],
+                'ldflags': [
+                  '-L<(android_stlport_libs)/mips',
+                ],
+              }],
+              ['(target_arch=="arm" or target_arch=="arm64" or target_arch=="x64" or target_arch=="ia32") and component!="shared_library"', {
+                'cflags': [
+                  '-fPIE',
+                ],
+                'ldflags': [
+                  '-pie',
+                ],
+              }],
+            ],
+            'target_conditions': [
+              ['_type=="executable"', {
+                'conditions': [
+                  ['target_arch=="arm64" or target_arch=="x64"', {
+                    'ldflags': [
+                      '-Wl,-dynamic-linker,/system/bin/linker64',
+                    ],
+                  }, {
+                    'ldflags': [
+                      '-Wl,-dynamic-linker,/system/bin/linker',
+                    ],
+                  }]
+                ],
+                'ldflags': [
+                  '-Bdynamic',
+                  '-Wl,-z,nocopyreloc',
+                  # crtbegin_dynamic.o should be the last item in ldflags.
+                  '<(android_lib)/crtbegin_dynamic.o',
+                ],
+                'libraries': [
+                  # crtend_android.o needs to be the last item in libraries.
+                  # Do not add any libraries after this!
+                  '<(android_lib)/crtend_android.o',
+                ],
+              }],
+              ['_type=="shared_library"', {
+                'ldflags': [
+                  '-Wl,-shared,-Bsymbolic',
+                  '<(android_lib)/crtbegin_so.o',
+                ],
+              }],
+              ['_type=="static_library"', {
+                'ldflags': [
+                  # Don't export symbols from statically linked libraries.
+                  '-Wl,--exclude-libs=ALL',
+                ],
+              }],
+            ],
+          }],  # _toolset=="target"
+          # Settings for building host targets using the system toolchain.
+          ['_toolset=="host"', {
+            'cflags': [ '-pthread' ],
+            'ldflags': [ '-pthread' ],
+            'ldflags!': [
+              '-Wl,-z,noexecstack',
+              '-Wl,--gc-sections',
+              '-Wl,-O1',
+              '-Wl,--as-needed',
+            ],
+          }],
+        ],  # target_conditions
+      },  # target_defaults
+    }],  # OS=="android"
+    ['OS=="android" and clang==0', {
+      # Hardcode the compiler names in the Makefile so that
+      # it won't depend on the environment at make time.
+      'make_global_settings': [
+        ['CC', '<!(/bin/echo -n <(android_toolchain)/*-gcc)'],
+        ['CXX', '<!(/bin/echo -n <(android_toolchain)/*-g++)'],
+        ['CC.host', '<(host_cc)'],
+        ['CXX.host', '<(host_cxx)'],
+      ],
+    }],
     ['clang!=1 and host_clang==1 and target_arch!="ia32" and target_arch!="x64"', {
       'make_global_settings': [
-        ['CC.host', '../<(clang_dir)/bin/clang'],
-        ['CXX.host', '../<(clang_dir)/bin/clang++'],
+        ['CC.host', '<(clang_dir)/bin/clang'],
+        ['CXX.host', '<(clang_dir)/bin/clang++'],
       ],
     }],
     ['clang==0 and host_clang==1 and target_arch!="ia32" and target_arch!="x64"', {
@@ -609,8 +1015,8 @@
     ['clang==1 and ((OS!="mac" and OS!="ios") or clang_xcode==0) '
         'and OS!="win" and "<(GENERATOR)"=="make"', {
       'make_global_settings': [
-        ['CC', '../<(clang_dir)/bin/clang'],
-        ['CXX', '../<(clang_dir)/bin/clang++'],
+        ['CC', '<(clang_dir)/bin/clang'],
+        ['CXX', '<(clang_dir)/bin/clang++'],
         ['CC.host', '$(CC)'],
         ['CXX.host', '$(CXX)'],
       ],
@@ -627,7 +1033,7 @@
     ['clang==1 and OS=="win"', {
       'make_global_settings': [
         # On Windows, gyp's ninja generator only looks at CC.
-        ['CC', '../<(clang_dir)/bin/clang-cl'],
+        ['CC', '<(clang_dir)/bin/clang-cl'],
       ],
     }],
     # TODO(yyanagisawa): supports GENERATOR==make

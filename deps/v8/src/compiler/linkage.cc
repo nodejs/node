@@ -51,11 +51,11 @@ bool CallDescriptor::HasSameReturnLocationsAs(
 CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
   if (info->code_stub() != NULL) {
     // Use the code stub interface descriptor.
-    CallInterfaceDescriptor descriptor =
-        info->code_stub()->GetCallInterfaceDescriptor();
-    return GetStubCallDescriptor(info->isolate(), zone, descriptor, 0,
-                                 CallDescriptor::kNoFlags,
-                                 Operator::kNoProperties);
+    CodeStub* stub = info->code_stub();
+    CallInterfaceDescriptor descriptor = stub->GetCallInterfaceDescriptor();
+    return GetStubCallDescriptor(
+        info->isolate(), zone, descriptor, stub->GetStackParameterCount(),
+        CallDescriptor::kNoFlags, Operator::kNoProperties);
   }
   if (info->function() != NULL) {
     // If we already have the function literal, use the number of parameters
@@ -105,18 +105,18 @@ FrameOffset Linkage::GetFrameOffset(int spill_slot, Frame* frame,
 
 
 // static
-bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
+int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
   // Most runtime functions need a FrameState. A few chosen ones that we know
   // not to call into arbitrary JavaScript, not to throw, and not to deoptimize
   // are blacklisted here and can be called without a FrameState.
   switch (function) {
     case Runtime::kAllocateInTargetSpace:
+    case Runtime::kDateField:
     case Runtime::kDefineClassMethod:              // TODO(jarin): Is it safe?
     case Runtime::kDefineGetterPropertyUnchecked:  // TODO(jarin): Is it safe?
     case Runtime::kDefineSetterPropertyUnchecked:  // TODO(jarin): Is it safe?
-    case Runtime::kForInCacheArrayLength:
-    case Runtime::kForInInit:
-    case Runtime::kForInNext:
+    case Runtime::kForInDone:
+    case Runtime::kForInStep:
     case Runtime::kNewArguments:
     case Runtime::kNewClosure:
     case Runtime::kNewFunctionContext:
@@ -124,20 +124,21 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kPushBlockContext:
     case Runtime::kPushCatchContext:
     case Runtime::kReThrow:
-    case Runtime::kSetProperty:  // TODO(jarin): Is it safe?
     case Runtime::kStringCompareRT:
     case Runtime::kStringEquals:
     case Runtime::kToFastProperties:  // TODO(jarin): Is it safe?
     case Runtime::kTraceEnter:
     case Runtime::kTraceExit:
-      return false;
+      return 0;
     case Runtime::kInlineArguments:
     case Runtime::kInlineCallFunction:
-    case Runtime::kInlineDateField:
-    case Runtime::kInlineDeoptimizeNow:
+    case Runtime::kInlineGetCallerJSFunction:
     case Runtime::kInlineGetPrototype:
     case Runtime::kInlineRegExpExec:
-      return true;
+      return 1;
+    case Runtime::kInlineDeoptimizeNow:
+    case Runtime::kInlineThrowNotDateError:
+      return 2;
     default:
       break;
   }
@@ -145,9 +146,9 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
   // Most inlined runtime functions (except the ones listed above) can be called
   // without a FrameState or will be lowered by JSIntrinsicLowering internally.
   const Runtime::Function* const f = Runtime::FunctionForId(function);
-  if (f->intrinsic_type == Runtime::IntrinsicType::INLINE) return false;
+  if (f->intrinsic_type == Runtime::IntrinsicType::INLINE) return 0;
 
-  return true;
+  return 1;
 }
 
 
@@ -203,6 +204,6 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
   return NULL;
 }
 #endif  // !V8_TURBOFAN_BACKEND
-}
-}
-}  // namespace v8::internal::compiler
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

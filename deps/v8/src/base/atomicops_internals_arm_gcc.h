@@ -59,11 +59,11 @@ inline void MemoryBarrier() {
 // variant of the target architecture is being used. This tests against
 // any known ARMv6 or ARMv7 variant, where it is possible to directly
 // use ldrex/strex instructions to implement fast atomic operations.
-#if defined(__ARM_ARCH_7__) || defined(__ARM_ARCH_7A__) || \
+#if defined(__ARM_ARCH_7__) || defined(__ARM_ARCH_7A__) ||  \
     defined(__ARM_ARCH_7R__) || defined(__ARM_ARCH_7M__) || \
-    defined(__ARM_ARCH_6__) || defined(__ARM_ARCH_6J__) || \
+    defined(__ARM_ARCH_6__) || defined(__ARM_ARCH_6J__) ||  \
     defined(__ARM_ARCH_6K__) || defined(__ARM_ARCH_6Z__) || \
-    defined(__ARM_ARCH_6KZ__) || defined(__ARM_ARCH_6T2__)
+    defined(__ARM_ARCH_6ZK__) || defined(__ARM_ARCH_6T2__)
 
 inline Atomic32 NoBarrier_CompareAndSwap(volatile Atomic32* ptr,
                                          Atomic32 old_value,

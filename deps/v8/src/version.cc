@@ -79,4 +79,5 @@ void Version::GetSONAME(Vector<char> str) {
   }
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

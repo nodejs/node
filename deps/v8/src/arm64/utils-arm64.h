@@ -61,6 +61,49 @@ uint64_t LargestPowerOf2Divisor(uint64_t value);
 int MaskToBit(uint64_t mask);
 
 
+template <typename T>
+T ReverseBits(T value) {
+  DCHECK((sizeof(value) == 1) || (sizeof(value) == 2) || (sizeof(value) == 4) ||
+         (sizeof(value) == 8));
+  T result = 0;
+  for (unsigned i = 0; i < (sizeof(value) * 8); i++) {
+    result = (result << 1) | (value & 1);
+    value >>= 1;
+  }
+  return result;
+}
+
+
+template <typename T>
+T ReverseBytes(T value, int block_bytes_log2) {
+  DCHECK((sizeof(value) == 4) || (sizeof(value) == 8));
+  DCHECK((1U << block_bytes_log2) <= sizeof(value));
+  // Split the 64-bit value into an 8-bit array, where b[0] is the least
+  // significant byte, and b[7] is the most significant.
+  uint8_t bytes[8];
+  uint64_t mask = 0xff00000000000000;
+  for (int i = 7; i >= 0; i--) {
+    bytes[i] = (static_cast<uint64_t>(value) & mask) >> (i * 8);
+    mask >>= 8;
+  }
+
+  // Permutation tables for REV instructions.
+  //  permute_table[0] is used by REV16_x, REV16_w
+  //  permute_table[1] is used by REV32_x, REV_w
+  //  permute_table[2] is used by REV_x
+  DCHECK((0 < block_bytes_log2) && (block_bytes_log2 < 4));
+  static const uint8_t permute_table[3][8] = {{6, 7, 4, 5, 2, 3, 0, 1},
+                                              {4, 5, 6, 7, 0, 1, 2, 3},
+                                              {0, 1, 2, 3, 4, 5, 6, 7}};
+  T result = 0;
+  for (int i = 0; i < 8; i++) {
+    result <<= 8;
+    result |= bytes[permute_table[block_bytes_log2 - 1][i]];
+  }
+  return result;
+}
+
+
 // NaN tests.
 inline bool IsSignallingNaN(double num) {
   uint64_t raw = double_to_rawbits(num);

@@ -49,5 +49,5 @@ RUNTIME_FUNCTION(Runtime_ParseJson) {
                                          : JsonParser<false>::Parse(source));
   return *result;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

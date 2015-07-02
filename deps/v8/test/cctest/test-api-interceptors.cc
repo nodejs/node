@@ -1007,10 +1007,11 @@ THREADED_TEST(PropertyHandlerInPrototype) {
 }
 
 
+bool is_bootstrapping = false;
 static void PrePropertyHandlerGet(
     Local<Name> key, const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
-  if (v8_str("pre")->Equals(key)) {
+  if (!is_bootstrapping && v8_str("pre")->Equals(key)) {
     info.GetReturnValue().Set(v8_str("PrePropertyHandler: pre"));
   }
 }
@@ -1018,7 +1019,7 @@ static void PrePropertyHandlerGet(
 
 static void PrePropertyHandlerQuery(
     Local<Name> key, const v8::PropertyCallbackInfo<v8::Integer>& info) {
-  if (v8_str("pre")->Equals(key)) {
+  if (!is_bootstrapping && v8_str("pre")->Equals(key)) {
     info.GetReturnValue().Set(static_cast<int32_t>(v8::None));
   }
 }
@@ -1030,7 +1031,9 @@ THREADED_TEST(PrePropertyHandler) {
   v8::Handle<v8::FunctionTemplate> desc = v8::FunctionTemplate::New(isolate);
   desc->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
       PrePropertyHandlerGet, 0, PrePropertyHandlerQuery));
+  is_bootstrapping = true;
   LocalContext env(NULL, desc->InstanceTemplate());
+  is_bootstrapping = false;
   CompileRun("var pre = 'Object: pre'; var on = 'Object: on';");
   v8::Handle<Value> result_pre = CompileRun("pre");
   CHECK(v8_str("PrePropertyHandler: pre")->Equals(result_pre));
@@ -2021,9 +2024,9 @@ THREADED_TEST(Enumerators) {
       "k.a = 0;"
       "k[5] = 0;"
       "k.b = 0;"
-      "k[4294967295] = 0;"
+      "k[4294967294] = 0;"
       "k.c = 0;"
-      "k[4294967296] = 0;"
+      "k[4294967295] = 0;"
       "k.d = 0;"
       "k[140000] = 0;"
       "k.e = 0;"
@@ -2046,7 +2049,7 @@ THREADED_TEST(Enumerators) {
   CHECK(v8_str("10")->Equals(result->Get(v8::Integer::New(isolate, 1))));
   CHECK(v8_str("140000")->Equals(result->Get(v8::Integer::New(isolate, 2))));
   CHECK(
-      v8_str("4294967295")->Equals(result->Get(v8::Integer::New(isolate, 3))));
+      v8_str("4294967294")->Equals(result->Get(v8::Integer::New(isolate, 3))));
   // Indexed interceptor properties in the order they are returned
   // from the enumerator interceptor.
   CHECK(v8_str("0")->Equals(result->Get(v8::Integer::New(isolate, 4))));
@@ -2056,7 +2059,7 @@ THREADED_TEST(Enumerators) {
   CHECK(v8_str("b")->Equals(result->Get(v8::Integer::New(isolate, 7))));
   CHECK(v8_str("c")->Equals(result->Get(v8::Integer::New(isolate, 8))));
   CHECK(
-      v8_str("4294967296")->Equals(result->Get(v8::Integer::New(isolate, 9))));
+      v8_str("4294967295")->Equals(result->Get(v8::Integer::New(isolate, 9))));
   CHECK(v8_str("d")->Equals(result->Get(v8::Integer::New(isolate, 10))));
   CHECK(v8_str("e")->Equals(result->Get(v8::Integer::New(isolate, 11))));
   CHECK(v8_str("30000000000")
@@ -2533,7 +2536,8 @@ static int interceptor_call_count = 0;
 static void InterceptorICRefErrorGetter(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
-  if (v8_str("x")->Equals(name) && interceptor_call_count++ < 20) {
+  if (!is_bootstrapping && v8_str("x")->Equals(name) &&
+      interceptor_call_count++ < 20) {
     info.GetReturnValue().Set(call_ic_function2);
   }
 }
@@ -2548,7 +2552,9 @@ THREADED_TEST(InterceptorICReferenceErrors) {
   v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(
       v8::NamedPropertyHandlerConfiguration(InterceptorICRefErrorGetter));
+  is_bootstrapping = true;
   LocalContext context(0, templ, v8::Handle<Value>());
+  is_bootstrapping = false;
   call_ic_function2 = v8_compile("function h(x) { return x; }; h")->Run();
   v8::Handle<Value> value = CompileRun(
       "function f() {"
@@ -2577,6 +2583,7 @@ static int interceptor_ic_exception_get_count = 0;
 static void InterceptorICExceptionGetter(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
+  if (is_bootstrapping) return;
   if (v8_str("x")->Equals(name) && ++interceptor_ic_exception_get_count < 20) {
     info.GetReturnValue().Set(call_ic_function3);
   }
@@ -2596,7 +2603,9 @@ THREADED_TEST(InterceptorICGetterExceptions) {
   v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(
       v8::NamedPropertyHandlerConfiguration(InterceptorICExceptionGetter));
+  is_bootstrapping = true;
   LocalContext context(0, templ, v8::Handle<Value>());
+  is_bootstrapping = false;
   call_ic_function3 = v8_compile("function h(x) { return x; }; h")->Run();
   v8::Handle<Value> value = CompileRun(
       "function f() {"
@@ -3103,21 +3112,25 @@ THREADED_TEST(IndexedAllCanReadInterceptor) {
   ExpectInt32("checked[15]", 17);
   CHECK(!CompileRun("Object.getOwnPropertyDescriptor(checked, '15')")
              ->IsUndefined());
-  CHECK_EQ(3, access_check_data.count);
+  CHECK_EQ(2, access_check_data.count);
 
   access_check_data.result = false;
   ExpectInt32("checked[15]", intercept_data_0.value);
-  // Note: this should throw but without a LookupIterator it's complicated.
-  CHECK(!CompileRun("Object.getOwnPropertyDescriptor(checked, '15')")
-             ->IsUndefined());
-  CHECK_EQ(6, access_check_data.count);
+  {
+    v8::TryCatch try_catch(isolate);
+    CompileRun("Object.getOwnPropertyDescriptor(checked, '15')");
+    CHECK(try_catch.HasCaught());
+  }
+  CHECK_EQ(4, access_check_data.count);
 
   intercept_data_1.should_intercept = true;
   ExpectInt32("checked[15]", intercept_data_1.value);
-  // Note: this should throw but without a LookupIterator it's complicated.
-  CHECK(!CompileRun("Object.getOwnPropertyDescriptor(checked, '15')")
-             ->IsUndefined());
-  CHECK_EQ(9, access_check_data.count);
+  {
+    v8::TryCatch try_catch(isolate);
+    CompileRun("Object.getOwnPropertyDescriptor(checked, '15')");
+    CHECK(try_catch.HasCaught());
+  }
+  CHECK_EQ(6, access_check_data.count);
 }
 
 

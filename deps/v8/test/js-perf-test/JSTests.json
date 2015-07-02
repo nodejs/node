@@ -3,6 +3,7 @@
   "run_count": 5,
   "run_count_android_arm": 3,
   "run_count_android_arm64": 3,
+  "timeout": 120,
   "units": "score",
   "total": true,
   "resources": ["base.js"],
@@ -27,7 +28,6 @@
       "path": ["Classes"],
       "main": "run.js",
       "resources": ["super.js", "default-constructor.js"],
-      "flags": ["--harmony-classes"],
       "results_regexp": "^%s\\-Classes\\(Score\\): (.+)$",
       "tests": [
         {"name": "Super"},
@@ -104,6 +104,26 @@
       "results_regexp": "^%s\\-Object\\(Score\\): (.+)$",
       "tests": [
         {"name": "Assign"}
+      ]
+    },
+    {
+      "name": "Scope",
+      "path": ["Scope"],
+      "main": "run.js",
+      "resources": ["with.js"],
+      "results_regexp": "^%s\\-Scope\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "With"}
+      ]
+    },
+    {
+      "name": "Exceptions",
+      "path": ["Exceptions"],
+      "main": "run.js",
+      "resources": ["try-catch.js"],
+      "results_regexp": "^%s\\-Exceptions\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Try-Catch"}
       ]
     }
   ]

@@ -188,7 +188,12 @@ class IncrementalMarkingMarkingVisitor
       } while (scan_until_end && start_offset < object_size);
       chunk->set_progress_bar(start_offset);
       if (start_offset < object_size) {
-        heap->mark_compact_collector()->marking_deque()->UnshiftGrey(object);
+        if (Marking::IsGrey(Marking::MarkBitFrom(object))) {
+          heap->mark_compact_collector()->marking_deque()->UnshiftGrey(object);
+        } else {
+          DCHECK(Marking::IsBlack(Marking::MarkBitFrom(object)));
+          heap->mark_compact_collector()->marking_deque()->UnshiftBlack(object);
+        }
         heap->incremental_marking()->NotifyIncompleteScanOfObject(
             object_size - (start_offset - already_scanned_offset));
       }
@@ -467,7 +472,7 @@ static void PatchIncrementalMarkingRecordWriteStubs(
 }
 
 
-void IncrementalMarking::Start() {
+void IncrementalMarking::Start(int mark_compact_flags) {
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] Start\n");
   }
@@ -482,7 +487,9 @@ void IncrementalMarking::Start() {
   was_activated_ = true;
 
   if (!heap_->mark_compact_collector()->sweeping_in_progress()) {
+    heap_->mark_compact_collector()->SetFlags(mark_compact_flags);
     StartMarking();
+    heap_->mark_compact_collector()->SetFlags(Heap::kNoGCFlags);
   } else {
     if (FLAG_trace_incremental_marking) {
       PrintF("[IncrementalMarking] Start sweeping.\n");
@@ -511,7 +518,8 @@ void IncrementalMarking::StartMarking() {
 
   PatchIncrementalMarkingRecordWriteStubs(heap_, mode);
 
-  heap_->mark_compact_collector()->EnsureMarkingDequeIsCommittedAndInitialize();
+  heap_->mark_compact_collector()->EnsureMarkingDequeIsCommittedAndInitialize(
+      MarkCompactCollector::kMaxMarkingDequeSize);
 
   ActivateIncrementalWriteBarrier();
 
@@ -571,16 +579,6 @@ void IncrementalMarking::MarkObjectGroups() {
 }
 
 
-void IncrementalMarking::PrepareForScavenge() {
-  if (!IsMarking()) return;
-  NewSpacePageIterator it(heap_->new_space()->FromSpaceStart(),
-                          heap_->new_space()->FromSpaceEnd());
-  while (it.has_next()) {
-    Bitmap::Clear(it.next());
-  }
-}
-
-
 void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
   if (!IsMarking()) return;
 
@@ -632,10 +630,7 @@ void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
 
 
 void IncrementalMarking::VisitObject(Map* map, HeapObject* obj, int size) {
-  MarkBit map_mark_bit = Marking::MarkBitFrom(map);
-  if (Marking::IsWhite(map_mark_bit)) {
-    WhiteToGreyAndPush(map, map_mark_bit);
-  }
+  MarkObject(heap_, map);
 
   IncrementalMarkingMarkingVisitor::IterateBody(map, obj);
 
@@ -831,7 +826,7 @@ void IncrementalMarking::Epilogue() {
 
 void IncrementalMarking::OldSpaceStep(intptr_t allocated) {
   if (IsStopped() && ShouldActivateEvenWithoutIdleNotification()) {
-    Start();
+    Start(Heap::kNoGCFlags);
   } else {
     Step(allocated * kFastMarking / kInitialMarkingSpeed, GC_VIA_STACK_GUARD);
   }
@@ -1033,5 +1028,5 @@ void IncrementalMarking::IncrementIdleMarkingDelayCounter() {
 void IncrementalMarking::ClearIdleMarkingDelayCounter() {
   idle_marking_delay_counter_ = 0;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

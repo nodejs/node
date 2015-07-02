@@ -253,4 +253,5 @@ bool CodeGenerator::RecordPositions(MacroAssembler* masm,
   return false;
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

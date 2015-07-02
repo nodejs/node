@@ -183,23 +183,28 @@ Node* JSGraph::ExternalConstant(ExternalReference reference) {
 }
 
 
+Node* JSGraph::ExternalConstant(Runtime::FunctionId function_id) {
+  return ExternalConstant(ExternalReference(function_id, isolate()));
+}
+
+
 Node* JSGraph::EmptyFrameState() {
   Node* empty_frame_state = cached_nodes_[kEmptyFrameState];
   if (!empty_frame_state || empty_frame_state->IsDead()) {
     Node* state_values = graph()->NewNode(common()->StateValues(0));
     empty_frame_state = graph()->NewNode(
-        common()->FrameState(JS_FRAME, BailoutId::None(),
-                             OutputFrameStateCombine::Ignore()),
+        common()->FrameState(BailoutId::None(),
+                             OutputFrameStateCombine::Ignore(), nullptr),
         state_values, state_values, state_values, NoContextConstant(),
-        UndefinedConstant());
+        UndefinedConstant(), graph()->start());
     cached_nodes_[kEmptyFrameState] = empty_frame_state;
   }
   return empty_frame_state;
 }
 
 
-Node* JSGraph::DeadControl() {
-  return CACHED(kDeadControl, graph()->NewNode(common()->Dead()));
+Node* JSGraph::Dead() {
+  return CACHED(kDead, graph()->NewNode(common()->Dead()));
 }
 
 

@@ -20,7 +20,6 @@ class ElementsAccessor {
   explicit ElementsAccessor(const char* name) : name_(name) { }
   virtual ~ElementsAccessor() { }
 
-  virtual ElementsKind kind() const = 0;
   const char* name() const { return name_; }
 
   // Checks the elements of an object for consistency, asserting when a problem
@@ -48,33 +47,11 @@ class ElementsAccessor {
   // can optionally pass in the backing store to use for the check, which must
   // be compatible with the ElementsKind of the ElementsAccessor. If
   // backing_store is NULL, the holder->elements() is used as the backing store.
-  MUST_USE_RESULT virtual MaybeHandle<Object> Get(
-      Handle<Object> receiver,
-      Handle<JSObject> holder,
-      uint32_t key,
-      Handle<FixedArrayBase> backing_store) = 0;
+  virtual Handle<Object> Get(Handle<JSObject> holder, uint32_t key,
+                             Handle<FixedArrayBase> backing_store) = 0;
 
-  MUST_USE_RESULT inline MaybeHandle<Object> Get(
-      Handle<Object> receiver,
-      Handle<JSObject> holder,
-      uint32_t key) {
-    return Get(receiver, holder, key, handle(holder->elements()));
-  }
-
-  // Returns an element's attributes, or ABSENT if there is no such
-  // element. This method doesn't iterate up the prototype chain.  The caller
-  // can optionally pass in the backing store to use for the check, which must
-  // be compatible with the ElementsKind of the ElementsAccessor. If
-  // backing_store is NULL, the holder->elements() is used as the backing store.
-  MUST_USE_RESULT virtual PropertyAttributes GetAttributes(
-      Handle<JSObject> holder,
-      uint32_t key,
-      Handle<FixedArrayBase> backing_store) = 0;
-
-  MUST_USE_RESULT inline PropertyAttributes GetAttributes(
-      Handle<JSObject> holder,
-      uint32_t key) {
-    return GetAttributes(holder, key, handle(holder->elements()));
+  inline Handle<Object> Get(Handle<JSObject> holder, uint32_t key) {
+    return Get(holder, key, handle(holder->elements()));
   }
 
   // Returns an element's accessors, or NULL if the element does not exist or
@@ -82,14 +59,12 @@ class ElementsAccessor {
   // can optionally pass in the backing store to use for the check, which must
   // be compatible with the ElementsKind of the ElementsAccessor. If
   // backing_store is NULL, the holder->elements() is used as the backing store.
-  MUST_USE_RESULT virtual MaybeHandle<AccessorPair> GetAccessorPair(
-      Handle<JSObject> holder,
-      uint32_t key,
+  virtual MaybeHandle<AccessorPair> GetAccessorPair(
+      Handle<JSObject> holder, uint32_t key,
       Handle<FixedArrayBase> backing_store) = 0;
 
-  MUST_USE_RESULT inline MaybeHandle<AccessorPair> GetAccessorPair(
-      Handle<JSObject> holder,
-      uint32_t key) {
+  inline MaybeHandle<AccessorPair> GetAccessorPair(Handle<JSObject> holder,
+                                                   uint32_t key) {
     return GetAccessorPair(holder, key, handle(holder->elements()));
   }
 
@@ -98,24 +73,11 @@ class ElementsAccessor {
   // changing array sizes as defined in EcmaScript 5.1 15.4.5.2, i.e. array that
   // have non-deletable elements can only be shrunk to the size of highest
   // element that is non-deletable.
-  MUST_USE_RESULT virtual MaybeHandle<Object> SetLength(
-      Handle<JSArray> holder,
-      Handle<Object> new_length) = 0;
+  virtual void SetLength(Handle<JSArray> holder, uint32_t new_length) = 0;
 
-  // Modifies both the length and capacity of a JSArray, resizing the underlying
-  // backing store as necessary. This method does NOT honor the semantics of
-  // EcmaScript 5.1 15.4.5.2, arrays can be shrunk beyond non-deletable
-  // elements. This method should only be called for array expansion OR by
-  // runtime JavaScript code that use InternalArrays and don't care about
-  // EcmaScript 5.1 semantics.
-  virtual void SetCapacityAndLength(
-      Handle<JSArray> array,
-      int capacity,
-      int length) = 0;
-
-  // Deletes an element in an object, returning a new elements backing store.
-  MUST_USE_RESULT virtual MaybeHandle<Object> Delete(
-      Handle<JSObject> holder, uint32_t key, LanguageMode language_mode) = 0;
+  // Deletes an element in an object.
+  virtual void Delete(Handle<JSObject> holder, uint32_t key,
+                      LanguageMode language_mode) = 0;
 
   // If kCopyToEnd is specified as the copy_size to CopyElements, it copies all
   // of elements from source after source_start to the destination array.
@@ -158,16 +120,12 @@ class ElementsAccessor {
       *from_holder, 0, from_kind, to, 0, kCopyToEndAndInitializeToHole);
   }
 
-  MUST_USE_RESULT virtual MaybeHandle<FixedArray> AddElementsToFixedArray(
-      Handle<Object> receiver, Handle<JSObject> holder, Handle<FixedArray> to,
-      Handle<FixedArrayBase> from, FixedArray::KeyFilter filter) = 0;
+  virtual void GrowCapacityAndConvert(Handle<JSObject> object,
+                                      uint32_t capacity) = 0;
 
-  MUST_USE_RESULT inline MaybeHandle<FixedArray> AddElementsToFixedArray(
-      Handle<Object> receiver, Handle<JSObject> holder, Handle<FixedArray> to,
-      FixedArray::KeyFilter filter) {
-    return AddElementsToFixedArray(receiver, holder, to,
-                                   handle(holder->elements()), filter);
-  }
+  virtual Handle<FixedArray> AddElementsToFixedArray(
+      Handle<JSObject> receiver, Handle<FixedArray> to,
+      FixedArray::KeyFilter filter) = 0;
 
   // Returns a shared ElementsAccessor for the specified ElementsKind.
   static ElementsAccessor* ForKind(ElementsKind elements_kind) {
@@ -180,11 +138,24 @@ class ElementsAccessor {
   static void InitializeOncePerProcess();
   static void TearDown();
 
+  virtual void Set(FixedArrayBase* backing_store, uint32_t key,
+                   Object* value) = 0;
+  virtual void Reconfigure(Handle<JSObject> object,
+                           Handle<FixedArrayBase> backing_store, uint32_t index,
+                           Handle<Object> value,
+                           PropertyAttributes attributes) = 0;
+  virtual void Add(Handle<JSObject> object, uint32_t index,
+                   Handle<Object> value, PropertyAttributes attributes,
+                   uint32_t new_capacity) = 0;
+
  protected:
   friend class SloppyArgumentsElementsAccessor;
+  friend class LookupIterator;
 
-  virtual uint32_t GetCapacity(Handle<JSObject> holder,
-                               Handle<FixedArrayBase> backing_store) = 0;
+  static ElementsAccessor* ForArray(FixedArrayBase* array);
+
+  virtual uint32_t GetCapacity(JSObject* holder,
+                               FixedArrayBase* backing_store) = 0;
 
   // Element handlers distinguish between indexes and keys when they manipulate
   // elements.  Indexes refer to elements in terms of their location in the
@@ -194,8 +165,14 @@ class ElementsAccessor {
   // keys are equivalent to indexes, and GetKeyForIndex returns the same value
   // it is passed. In the NumberDictionary ElementsAccessor, GetKeyForIndex maps
   // the index to a key using the KeyAt method on the NumberDictionary.
-  virtual uint32_t GetKeyForIndex(Handle<FixedArrayBase> backing_store,
+  virtual uint32_t GetKeyForIndex(FixedArrayBase* backing_store,
                                   uint32_t index) = 0;
+  virtual uint32_t GetIndexForKey(JSObject* holder,
+                                  FixedArrayBase* backing_store,
+                                  uint32_t key) = 0;
+  virtual PropertyDetails GetDetails(FixedArrayBase* backing_store,
+                                     uint32_t index) = 0;
+  virtual bool HasIndex(FixedArrayBase* backing_store, uint32_t key) = 0;
 
  private:
   static ElementsAccessor** elements_accessors_;

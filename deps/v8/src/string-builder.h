@@ -384,7 +384,7 @@ class IncrementalStringBuilder {
   }
 
   // Add the current part to the accumulator.
-  void Accumulate();
+  void Accumulate(Handle<String> new_part);
 
   // Finish the current part and allocate a new part.
   void Extend();

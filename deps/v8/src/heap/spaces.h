@@ -678,11 +678,11 @@ class MemoryChunk {
   base::AtomicWord parallel_sweeping_;
 
   // PagedSpace free-list statistics.
-  intptr_t available_in_small_free_list_;
-  intptr_t available_in_medium_free_list_;
-  intptr_t available_in_large_free_list_;
-  intptr_t available_in_huge_free_list_;
-  intptr_t non_available_small_blocks_;
+  int available_in_small_free_list_;
+  int available_in_medium_free_list_;
+  int available_in_large_free_list_;
+  int available_in_huge_free_list_;
+  int non_available_small_blocks_;
 
   static MemoryChunk* Initialize(Heap* heap, Address base, size_t size,
                                  Address area_start, Address area_end,
@@ -776,16 +776,22 @@ class Page : public MemoryChunk {
 
   void ResetFreeListStatistics();
 
+  int LiveBytesFromFreeList() {
+    return area_size() - non_available_small_blocks_ -
+           available_in_small_free_list_ - available_in_medium_free_list_ -
+           available_in_large_free_list_ - available_in_huge_free_list_;
+  }
+
 #define FRAGMENTATION_STATS_ACCESSORS(type, name) \
   type name() { return name##_; }                 \
   void set_##name(type name) { name##_ = name; }  \
   void add_##name(type name) { name##_ += name; }
 
-  FRAGMENTATION_STATS_ACCESSORS(intptr_t, non_available_small_blocks)
-  FRAGMENTATION_STATS_ACCESSORS(intptr_t, available_in_small_free_list)
-  FRAGMENTATION_STATS_ACCESSORS(intptr_t, available_in_medium_free_list)
-  FRAGMENTATION_STATS_ACCESSORS(intptr_t, available_in_large_free_list)
-  FRAGMENTATION_STATS_ACCESSORS(intptr_t, available_in_huge_free_list)
+  FRAGMENTATION_STATS_ACCESSORS(int, non_available_small_blocks)
+  FRAGMENTATION_STATS_ACCESSORS(int, available_in_small_free_list)
+  FRAGMENTATION_STATS_ACCESSORS(int, available_in_medium_free_list)
+  FRAGMENTATION_STATS_ACCESSORS(int, available_in_large_free_list)
+  FRAGMENTATION_STATS_ACCESSORS(int, available_in_huge_free_list)
 
 #undef FRAGMENTATION_STATS_ACCESSORS
 
@@ -1700,18 +1706,6 @@ class PagedSpace : public Space {
   // Approximate amount of physical memory committed for this space.
   size_t CommittedPhysicalMemory() override;
 
-  struct SizeStats {
-    intptr_t Total() {
-      return small_size_ + medium_size_ + large_size_ + huge_size_;
-    }
-
-    intptr_t small_size_;
-    intptr_t medium_size_;
-    intptr_t large_size_;
-    intptr_t huge_size_;
-  };
-
-  void ObtainFreeListStatistics(Page* p, SizeStats* sizes);
   void ResetFreeListStatistics();
 
   // Sets the capacity, the available space and the wasted space to zero.
@@ -1764,12 +1758,18 @@ class PagedSpace : public Space {
 
   // Allocate the requested number of bytes in the space if possible, return a
   // failure object if not.
-  MUST_USE_RESULT inline AllocationResult AllocateRaw(int size_in_bytes);
+  MUST_USE_RESULT inline AllocationResult AllocateRawUnaligned(
+      int size_in_bytes);
 
   // Allocate the requested number of bytes in the space double aligned if
   // possible, return a failure object if not.
-  MUST_USE_RESULT inline AllocationResult AllocateRawDoubleAligned(
-      int size_in_bytes);
+  MUST_USE_RESULT inline AllocationResult AllocateRawAligned(
+      int size_in_bytes, AllocationAlignment alignment);
+
+  // Allocate the requested number of bytes in the space and consider allocation
+  // alignment if needed.
+  MUST_USE_RESULT inline AllocationResult AllocateRaw(
+      int size_in_bytes, AllocationAlignment alignment);
 
   // Give a block of memory to the space's free list.  It might be added to
   // the free list or accounted as waste.
@@ -1931,9 +1931,11 @@ class PagedSpace : public Space {
   // address denoted by top in allocation_info_.
   inline HeapObject* AllocateLinearly(int size_in_bytes);
 
-  // Generic fast case allocation function that tries double aligned linear
-  // allocation at the address denoted by top in allocation_info_.
-  inline HeapObject* AllocateLinearlyDoubleAlign(int size_in_bytes);
+  // Generic fast case allocation function that tries aligned linear allocation
+  // at the address denoted by top in allocation_info_. Writes the aligned
+  // allocation size, which includes the filler size, to size_in_bytes.
+  inline HeapObject* AllocateLinearlyAligned(int* size_in_bytes,
+                                             AllocationAlignment alignment);
 
   // If sweeping is still in progress try to sweep unswept pages. If that is
   // not successful, wait for the sweeper threads and re-try free-list
@@ -2252,9 +2254,6 @@ class SemiSpace : public Space {
 
   friend class SemiSpaceIterator;
   friend class NewSpacePageIterator;
-
- public:
-  TRACK_MEMORY("SemiSpace")
 };
 
 
@@ -2435,6 +2434,25 @@ class NewSpace : public Space {
   // Return the available bytes without growing.
   intptr_t Available() override { return Capacity() - Size(); }
 
+  intptr_t PagesFromStart(Address addr) {
+    return static_cast<intptr_t>(addr - bottom()) / Page::kPageSize;
+  }
+
+  size_t AllocatedSinceLastGC() {
+    intptr_t allocated = top() - to_space_.age_mark();
+    if (allocated < 0) {
+      // Runtime has lowered the top below the age mark.
+      return 0;
+    }
+    // Correctly account for non-allocatable regions at the beginning of
+    // each page from the age_mark() to the top().
+    intptr_t pages =
+        PagesFromStart(top()) - PagesFromStart(to_space_.age_mark());
+    allocated -= pages * (NewSpacePage::kObjectStartOffset);
+    DCHECK(0 <= allocated && allocated <= Size());
+    return static_cast<size_t>(allocated);
+  }
+
   // Return the maximum capacity of a semispace.
   int MaximumCapacity() {
     DCHECK(to_space_.MaximumTotalCapacity() ==
@@ -2500,10 +2518,14 @@ class NewSpace : public Space {
     return allocation_info_.limit_address();
   }
 
-  MUST_USE_RESULT INLINE(
-      AllocationResult AllocateRawDoubleAligned(int size_in_bytes));
+  MUST_USE_RESULT INLINE(AllocationResult AllocateRawAligned(
+      int size_in_bytes, AllocationAlignment alignment));
 
-  MUST_USE_RESULT INLINE(AllocationResult AllocateRaw(int size_in_bytes));
+  MUST_USE_RESULT INLINE(
+      AllocationResult AllocateRawUnaligned(int size_in_bytes));
+
+  MUST_USE_RESULT INLINE(AllocationResult AllocateRaw(
+      int size_in_bytes, AllocationAlignment alignment));
 
   // Reset the allocation pointer to the beginning of the active semispace.
   void ResetAllocationInfo();
@@ -2580,6 +2602,8 @@ class NewSpace : public Space {
     return from_space_.Uncommit();
   }
 
+  bool IsFromSpaceCommitted() { return from_space_.is_committed(); }
+
   inline intptr_t inline_allocation_limit_step() {
     return inline_allocation_limit_step_;
   }
@@ -2621,12 +2645,9 @@ class NewSpace : public Space {
   HistogramInfo* promoted_histogram_;
 
   MUST_USE_RESULT AllocationResult
-  SlowAllocateRaw(int size_in_bytes, bool double_aligned);
+  SlowAllocateRaw(int size_in_bytes, AllocationAlignment alignment);
 
   friend class SemiSpaceIterator;
-
- public:
-  TRACK_MEMORY("NewSpace")
 };
 
 
@@ -2640,9 +2661,6 @@ class OldSpace : public PagedSpace {
   OldSpace(Heap* heap, intptr_t max_capacity, AllocationSpace id,
            Executability executable)
       : PagedSpace(heap, max_capacity, id, executable) {}
-
- public:
-  TRACK_MEMORY("OldSpace")
 };
 
 
@@ -2688,9 +2706,6 @@ class MapSpace : public PagedSpace {
   }
 
   const int max_map_space_pages_;
-
- public:
-  TRACK_MEMORY("MapSpace")
 };
 
 
@@ -2784,9 +2799,6 @@ class LargeObjectSpace : public Space {
   HashMap chunk_map_;
 
   friend class LargeObjectIterator;
-
- public:
-  TRACK_MEMORY("LargeObjectSpace")
 };
 
 

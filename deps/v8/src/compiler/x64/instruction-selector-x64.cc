@@ -27,6 +27,10 @@ class X64OperandGenerator final : public OperandGenerator {
         const int64_t value = OpParameter<int64_t>(node);
         return value == static_cast<int64_t>(static_cast<int32_t>(value));
       }
+      case IrOpcode::kNumberConstant: {
+        const double value = OpParameter<double>(node);
+        return bit_cast<int64_t>(value) == 0;
+      }
       default:
         return false;
     }
@@ -1034,19 +1038,41 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   // Compute InstructionOperands for inputs and outputs.
   InitializeCallBuffer(node, &buffer, true, true);
 
-  // Push any stack arguments.
-  for (Node* node : base::Reversed(buffer.pushed_nodes)) {
-    // TODO(titzer): handle pushing double parameters.
-    InstructionOperand value =
-        g.CanBeImmediate(node)
-            ? g.UseImmediate(node)
-            : IsSupported(ATOM) ? g.UseRegister(node) : g.Use(node);
-    Emit(kX64Push, g.NoOutput(), value);
+  // Prepare for C function call.
+  if (descriptor->IsCFunctionCall()) {
+    Emit(kArchPrepareCallCFunction |
+             MiscField::encode(static_cast<int>(descriptor->CParameterCount())),
+         0, nullptr, 0, nullptr);
+
+    // Poke any stack arguments.
+    for (size_t n = 0; n < buffer.pushed_nodes.size(); ++n) {
+      if (Node* node = buffer.pushed_nodes[n]) {
+        int const slot = static_cast<int>(n);
+        InstructionOperand value =
+            g.CanBeImmediate(node) ? g.UseImmediate(node) : g.UseRegister(node);
+        Emit(kX64Poke | MiscField::encode(slot), g.NoOutput(), value);
+      }
+    }
+  } else {
+    // Push any stack arguments.
+    for (Node* node : base::Reversed(buffer.pushed_nodes)) {
+      // TODO(titzer): handle pushing double parameters.
+      InstructionOperand value =
+          g.CanBeImmediate(node)
+              ? g.UseImmediate(node)
+              : IsSupported(ATOM) ? g.UseRegister(node) : g.Use(node);
+      Emit(kX64Push, g.NoOutput(), value);
+    }
   }
 
   // Pass label of exception handler block.
   CallDescriptor::Flags flags = descriptor->flags();
   if (handler) {
+    DCHECK_EQ(IrOpcode::kIfException, handler->front()->opcode());
+    IfExceptionHint hint = OpParameter<IfExceptionHint>(handler->front());
+    if (hint == IfExceptionHint::kLocallyCaught) {
+      flags |= CallDescriptor::kHasLocalCatchHandler;
+    }
     flags |= CallDescriptor::kHasExceptionHandler;
     buffer.instruction_args.push_back(g.Label(handler));
   }
@@ -1054,17 +1080,21 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   // Select the appropriate opcode based on the call type.
   InstructionCode opcode;
   switch (descriptor->kind()) {
+    case CallDescriptor::kCallAddress:
+      opcode =
+          kArchCallCFunction |
+          MiscField::encode(static_cast<int>(descriptor->CParameterCount()));
+      break;
     case CallDescriptor::kCallCodeObject:
-      opcode = kArchCallCodeObject;
+      opcode = kArchCallCodeObject | MiscField::encode(flags);
       break;
     case CallDescriptor::kCallJSFunction:
-      opcode = kArchCallJSFunction;
+      opcode = kArchCallJSFunction | MiscField::encode(flags);
       break;
     default:
       UNREACHABLE();
       return;
   }
-  opcode |= MiscField::encode(flags);
 
   // Emit the call instruction.
   size_t const output_count = buffer.outputs.size();
@@ -1304,9 +1334,27 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
       case IrOpcode::kUint32LessThanOrEqual:
         cont.OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
         return VisitWordCompare(this, value, kX64Cmp32, &cont);
-      case IrOpcode::kWord64Equal:
+      case IrOpcode::kWord64Equal: {
         cont.OverwriteAndNegateIfEqual(kEqual);
+        Int64BinopMatcher m(value);
+        if (m.right().Is(0)) {
+          // Try to combine the branch with a comparison.
+          Node* const user = m.node();
+          Node* const value = m.left().node();
+          if (CanCover(user, value)) {
+            switch (value->opcode()) {
+              case IrOpcode::kInt64Sub:
+                return VisitWord64Compare(this, value, &cont);
+              case IrOpcode::kWord64And:
+                return VisitWordCompare(this, value, kX64Test, &cont);
+              default:
+                break;
+            }
+          }
+          return VisitCompareZero(this, value, kX64Cmp, &cont);
+        }
         return VisitWord64Compare(this, value, &cont);
+      }
       case IrOpcode::kInt64LessThan:
         cont.OverwriteAndNegateIfEqual(kSignedLessThan);
         return VisitWord64Compare(this, value, &cont);
@@ -1469,25 +1517,12 @@ void InstructionSelector::VisitUint32LessThanOrEqual(Node* node) {
 
 
 void InstructionSelector::VisitWord64Equal(Node* const node) {
-  Node* user = node;
   FlagsContinuation cont(kEqual, node);
-  Int64BinopMatcher m(user);
+  Int64BinopMatcher m(node);
   if (m.right().Is(0)) {
-    Node* value = m.left().node();
-
-    // Try to combine with comparisons against 0 by simply inverting the branch.
-    while (CanCover(user, value) && value->opcode() == IrOpcode::kWord64Equal) {
-      Int64BinopMatcher m(value);
-      if (m.right().Is(0)) {
-        user = value;
-        value = m.left().node();
-        cont.Negate();
-      } else {
-        break;
-      }
-    }
-
-    // Try to combine the branch with a comparison.
+    // Try to combine the equality check with a comparison.
+    Node* const user = m.node();
+    Node* const value = m.left().node();
     if (CanCover(user, value)) {
       switch (value->opcode()) {
         case IrOpcode::kInt64Sub:
@@ -1498,7 +1533,6 @@ void InstructionSelector::VisitWord64Equal(Node* const node) {
           break;
       }
     }
-    return VisitCompareZero(this, value, kX64Cmp, &cont);
   }
   VisitWord64Compare(this, node, &cont);
 }

@@ -295,4 +295,5 @@ int Disassembler::Decode(Isolate* isolate, std::ostream* os, byte* begin,
 
 #endif  // ENABLE_DISASSEMBLER
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -7,6 +7,7 @@
 
 #include "src/allocation.h"
 #include "src/hashmap.h"
+#include "src/messages.h"
 #include "src/preparse-data-format.h"
 
 namespace v8 {
@@ -52,13 +53,13 @@ class ParserRecorder {
 
   // Logs the scope and some details of a function literal in the source.
   virtual void LogFunction(int start, int end, int literals, int properties,
-                           LanguageMode language_mode,
-                           bool uses_super_property) = 0;
+                           LanguageMode language_mode, bool uses_super_property,
+                           bool calls_eval) = 0;
 
   // Logs an error message and marks the log as containing an error.
   // Further logging will be ignored, and ExtractData will return a vector
   // representing the error only.
-  virtual void LogMessage(int start, int end, const char* message,
+  virtual void LogMessage(int start, int end, MessageTemplate::Template message,
                           const char* argument_opt,
                           ParseErrorType error_type) = 0;
 
@@ -76,21 +77,22 @@ class SingletonLogger : public ParserRecorder {
   void Reset() { has_error_ = false; }
 
   virtual void LogFunction(int start, int end, int literals, int properties,
-                           LanguageMode language_mode,
-                           bool scope_uses_super_property) {
+                           LanguageMode language_mode, bool uses_super_property,
+                           bool calls_eval) {
     DCHECK(!has_error_);
     start_ = start;
     end_ = end;
     literals_ = literals;
     properties_ = properties;
     language_mode_ = language_mode;
-    scope_uses_super_property_ = scope_uses_super_property;
+    uses_super_property_ = uses_super_property;
+    calls_eval_ = calls_eval;
   }
 
   // Logs an error message and marks the log as containing an error.
   // Further logging will be ignored, and ExtractData will return a vector
   // representing the error only.
-  virtual void LogMessage(int start, int end, const char* message,
+  virtual void LogMessage(int start, int end, MessageTemplate::Template message,
                           const char* argument_opt, ParseErrorType error_type) {
     if (has_error_) return;
     has_error_ = true;
@@ -117,15 +119,19 @@ class SingletonLogger : public ParserRecorder {
     DCHECK(!has_error_);
     return language_mode_;
   }
-  bool scope_uses_super_property() const {
+  bool uses_super_property() const {
     DCHECK(!has_error_);
-    return scope_uses_super_property_;
+    return uses_super_property_;
+  }
+  bool calls_eval() const {
+    DCHECK(!has_error_);
+    return calls_eval_;
   }
   ParseErrorType error_type() const {
     DCHECK(has_error_);
     return error_type_;
   }
-  const char* message() {
+  MessageTemplate::Template message() {
     DCHECK(has_error_);
     return message_;
   }
@@ -142,9 +148,10 @@ class SingletonLogger : public ParserRecorder {
   int literals_;
   int properties_;
   LanguageMode language_mode_;
-  bool scope_uses_super_property_;
+  bool uses_super_property_;
+  bool calls_eval_;
   // For error messages.
-  const char* message_;
+  MessageTemplate::Template message_;
   const char* argument_opt_;
   ParseErrorType error_type_;
 };
@@ -161,20 +168,21 @@ class CompleteParserRecorder : public ParserRecorder {
   virtual ~CompleteParserRecorder() {}
 
   virtual void LogFunction(int start, int end, int literals, int properties,
-                           LanguageMode language_mode,
-                           bool scope_uses_super_property) {
+                           LanguageMode language_mode, bool uses_super_property,
+                           bool calls_eval) {
     function_store_.Add(start);
     function_store_.Add(end);
     function_store_.Add(literals);
     function_store_.Add(properties);
     function_store_.Add(language_mode);
-    function_store_.Add(scope_uses_super_property);
+    function_store_.Add(uses_super_property);
+    function_store_.Add(calls_eval);
   }
 
   // Logs an error message and marks the log as containing an error.
   // Further logging will be ignored, and ExtractData will return a vector
   // representing the error only.
-  virtual void LogMessage(int start, int end, const char* message,
+  virtual void LogMessage(int start, int end, MessageTemplate::Template message,
                           const char* argument_opt, ParseErrorType error_type);
   ScriptData* GetScriptData();
 
@@ -188,9 +196,6 @@ class CompleteParserRecorder : public ParserRecorder {
 
  private:
   void WriteString(Vector<const char> str);
-
-  // Write a non-negative number to the symbol store.
-  void WriteNumber(int number);
 
   Collector<unsigned> function_store_;
   unsigned preamble_[PreparseDataConstants::kHeaderSize];

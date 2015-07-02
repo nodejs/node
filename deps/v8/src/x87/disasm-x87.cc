@@ -726,6 +726,21 @@ int DisassemblerX87::MemoryFPUInstruction(int escape_opcode,
         case 0:
           mnem = "fadd_d";
           break;
+        case 1:
+          mnem = "fmul_d";
+          break;
+        case 4:
+          mnem = "fsub_d";
+          break;
+        case 5:
+          mnem = "fsubr_d";
+          break;
+        case 6:
+          mnem = "fdiv_d";
+          break;
+        case 7:
+          mnem = "fdivr_d";
+          break;
         default:
           UnimplementedInstruction();
       }
@@ -1292,7 +1307,7 @@ int DisassemblerX87::InstructionDecode(v8::internal::Vector<char> out_buffer,
             } else if (*data == 0x16) {
               data++;
               int mod, regop, rm;
-              get_modrm(*data, &mod, &regop, &rm);
+              get_modrm(*data, &mod, &rm, &regop);
               int8_t imm8 = static_cast<int8_t>(data[1]);
               AppendToBuffer("pextrd %s,%s,%d",
                              NameOfCPURegister(regop),

@@ -53,4 +53,5 @@ void TriggerFailureExtension::TriggerSlowAssertFalse(
   SLOW_DCHECK(false);
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
