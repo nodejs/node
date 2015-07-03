@@ -155,6 +155,7 @@ unsigned Utf8::Length(uchar c, int previous) {
 
 Utf8DecoderBase::Utf8DecoderBase()
   : unbuffered_start_(NULL),
+    unbuffered_length_(0),
     utf16_length_(0),
     last_byte_of_buffer_unused_(false) {}
 
@@ -194,8 +195,7 @@ unsigned Utf8Decoder<kBufferSize>::WriteUtf16(uint16_t* data,
   if (length <= buffer_length) return length;
   DCHECK(unbuffered_start_ != NULL);
   // Copy the rest the slow way.
-  WriteUtf16Slow(unbuffered_start_,
-                 data + buffer_length,
+  WriteUtf16Slow(unbuffered_start_, unbuffered_length_, data + buffer_length,
                  length - buffer_length);
   return length;
 }

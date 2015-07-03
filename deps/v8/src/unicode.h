@@ -172,10 +172,10 @@ class Utf8DecoderBase {
              unsigned buffer_length,
              const uint8_t* stream,
              unsigned stream_length);
-  static void WriteUtf16Slow(const uint8_t* stream,
-                             uint16_t* data,
-                             unsigned length);
+  static void WriteUtf16Slow(const uint8_t* stream, unsigned stream_length,
+                             uint16_t* data, unsigned length);
   const uint8_t* unbuffered_start_;
+  unsigned unbuffered_length_;
   unsigned utf16_length_;
   bool last_byte_of_buffer_unused_;
  private:
