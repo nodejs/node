@@ -1,5 +1,27 @@
 # io.js ChangeLog
 
+## 2015-07-04, Version 2.3.3, @Fishrock123
+
+### Notable changes
+
+* **deps**: Fixed an out-of-band write in utf8 decoder. **This is an important security update** as it can be used to cause a denial of service attack.
+
+### Known issues
+
+See https://github.com/nodejs/io.js/labels/confirmed-bug for complete and current list of known issues.
+
+* Some problems with unreferenced timers running during `beforeExit` are still to be resolved. See [#1264](https://github.com/nodejs/io.js/issues/1264).
+* Surrogate pair in REPL can freeze terminal. [#690](https://github.com/nodejs/io.js/issues/690)
+* `process.send()` is not synchronous as the docs suggest, a regression introduced in 1.0.2, see [#760](https://github.com/nodejs/io.js/issues/760).
+* Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion. [#894](https://github.com/nodejs/io.js/issues/894)
+* `url.resolve` may transfer the auth portion of the url when resolving between two full hosts, see [#1435](https://github.com/nodejs/io.js/issues/1435).
+
+## Commits
+
+* [[`030f8045c7`](https://github.com/nodejs/io.js/commit/030f8045c7)] - **deps**: fix out-of-band write in utf8 decoder (Fedor Indutny)
+* [[`0f09b8db28`](https://github.com/nodejs/io.js/commit/0f09b8db28)] - **doc**: don't recommend domains for error handling (Benjamin Gruenbaum) [#2056](https://github.com/nodejs/io.js/pull/2056)
+* [[`9cd44bb2b6`](https://github.com/nodejs/io.js/commit/9cd44bb2b6)] - **util**: prepend '(node) ' to deprecation messages (Sakthipriyan Vairamani) [#1892](https://github.com/nodejs/io.js/pull/1892)
+
 ## 2015-07-01, Version 2.3.2, @rvagg
 
 ### Notable changes
@@ -38,8 +60,8 @@ See https://github.com/nodejs/io.js/labels/confirmed-bug for complete and curren
 * [[`f1f1b7e597`](https://github.com/nodejs/io.js/commit/f1f1b7e597)] - **doc**: add TSC meeting minutes 2015-06-17 (Rod Vagg) [#2048](https://github.com/nodejs/io.js/pull/2048)
 * [[`dbd5dc932d`](https://github.com/nodejs/io.js/commit/dbd5dc932d)] - **doc**: clarify prerequisites in benchmark/README.md (Jeremiah Senkpiel) [#2034](https://github.com/nodejs/io.js/pull/2034)
 * [[`50dbc8e143`](https://github.com/nodejs/io.js/commit/50dbc8e143)] - **doc**: add TSC meeting minutes 2015-05-27 (Rod Vagg) [#2037](https://github.com/nodejs/io.js/pull/2037)
-* [[`941ad362a7`](https://github.com/nodejs/io.js/commit/941ad362a7)] - **doc**: archive io.js TC minutes (Rod Vagg) 
-* [[`644b2eaa89`](https://github.com/nodejs/io.js/commit/644b2eaa89)] - **doc**: rename tc-meetings to tsc-meetings (Rod Vagg) 
+* [[`941ad362a7`](https://github.com/nodejs/io.js/commit/941ad362a7)] - **doc**: archive io.js TC minutes (Rod Vagg)
+* [[`644b2eaa89`](https://github.com/nodejs/io.js/commit/644b2eaa89)] - **doc**: rename tc-meetings to tsc-meetings (Rod Vagg)
 * [[`1330ee3b27`](https://github.com/nodejs/io.js/commit/1330ee3b27)] - **doc**: add TC meeting 2015-05-13 minutes (Rod Vagg) [#1700](https://github.com/nodejs/io.js/pull/1700)
 * [[`392e8fd64e`](https://github.com/nodejs/io.js/commit/392e8fd64e)] - **doc**: add @shigeki and @mscdex to TC (Rod Vagg) [#2008](https://github.com/nodejs/io.js/pull/2008)
 * [[`af249fa8a1`](https://github.com/nodejs/io.js/commit/af249fa8a1)] - **net**: wrap connect in nextTick (Evan Lucas) [#2054](https://github.com/nodejs/io.js/pull/2054)
@@ -59,7 +81,7 @@ See https://github.com/nodejs/io.js/labels/confirmed-bug for complete and curren
 * [[`e3f9335c40`](https://github.com/nodejs/io.js/commit/e3f9335c40)] - **tools**: re-enable comma-spacing linter rule (Roman Reiss) [#2072](https://github.com/nodejs/io.js/pull/2072)
 * [[`d91e10b3bd`](https://github.com/nodejs/io.js/commit/d91e10b3bd)] - **tools**: update eslint to 0.24.0 (Roman Reiss) [#2072](https://github.com/nodejs/io.js/pull/2072)
 * [[`6c61ca5325`](https://github.com/nodejs/io.js/commit/6c61ca5325)] - **url**: fix typo in comment (Rich Trott) [#2071](https://github.com/nodejs/io.js/pull/2071)
-* [[`1a51f0058c`](https://github.com/nodejs/io.js/commit/1a51f0058c)] - **v8**: cherry-pick JitCodeEvent patch from upstream (Ben Noordhuis) [#2075](https://github.com/nodejs/io.js/pull/2075) 
+* [[`1a51f0058c`](https://github.com/nodejs/io.js/commit/1a51f0058c)] - **v8**: cherry-pick JitCodeEvent patch from upstream (Ben Noordhuis) [#2075](https://github.com/nodejs/io.js/pull/2075)
 
 ## 2015-06-23, Version 2.3.1, @rvagg
 
@@ -270,8 +292,8 @@ See https://github.com/nodejs/io.js/labels/confirmed-bug for complete and curren
 ### Commits
 
 * [[`c5a1009903`](https://github.com/nodejs/io.js/commit/c5a1009903)] - **build**: avoid passing empty strings to build flags (Johan Bergström) [#1789](https://github.com/nodejs/io.js/pull/1789)
-* [[`5d83401086`](https://github.com/nodejs/io.js/commit/5d83401086)] - **doc**: put SEMVER-MINOR on pre-load module fix 2.2.0 (Rod Vagg) 
-* [[`4d6b768e5d`](https://github.com/nodejs/io.js/commit/4d6b768e5d)] - **http**: revert deprecation of client property (Michaël Zasso) [#1852](https://github.com/nodejs/io.js/pull/1852) 
+* [[`5d83401086`](https://github.com/nodejs/io.js/commit/5d83401086)] - **doc**: put SEMVER-MINOR on pre-load module fix 2.2.0 (Rod Vagg)
+* [[`4d6b768e5d`](https://github.com/nodejs/io.js/commit/4d6b768e5d)] - **http**: revert deprecation of client property (Michaël Zasso) [#1852](https://github.com/nodejs/io.js/pull/1852)
 
 ## 2015-05-31, Version 2.2.0, @rvagg
 
