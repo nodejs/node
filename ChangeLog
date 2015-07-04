@@ -1,4 +1,9 @@
-2015.06.22, Version 0.12.5 (Stable)
+2015.07.03, Version 0.12.6 (Stable)
+
+* V8: fix out-of-band write in utf8 decoder
+
+
+2015.06.22, Version 0.12.5 (Stable), 61c6abf00898fe00eb7fcf2c23ba0b01cf12034c
 
 * openssl: upgrade to 1.0.1o (Addressing multiple CVEs)
 
