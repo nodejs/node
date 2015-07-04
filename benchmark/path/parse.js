@@ -10,16 +10,19 @@ var bench = common.createBenchmark(main, {
 function main(conf) {
   var n = +conf.n;
   var p = path[conf.type];
+  var test = conf.type === 'win32'
+    ? 'C:\\path\\dir\\index.html'
+    : '/home/user/dir/index.html';
 
   // Force optimization before starting the benchmark
-  p.resolve('foo/bar', '/tmp/file/', '..', 'a/../subfile');
+  p.parse(test);
   v8.setFlagsFromString('--allow_natives_syntax');
-  eval('%OptimizeFunctionOnNextCall(p.resolve)');
-  p.resolve('foo/bar', '/tmp/file/', '..', 'a/../subfile');
+  eval('%OptimizeFunctionOnNextCall(p.parse)');
+  p.parse(test);
 
   bench.start();
   for (var i = 0; i < n; i++) {
-    p.resolve('foo/bar', '/tmp/file/', '..', 'a/../subfile');
+    p.parse(test);
   }
   bench.end(n);
 }
