@@ -12,14 +12,15 @@ function main(conf) {
   var p = path[conf.type];
 
   // Force optimization before starting the benchmark
-  p.resolve('foo/bar', '/tmp/file/', '..', 'a/../subfile');
+  p.extname('index.html');
   v8.setFlagsFromString('--allow_natives_syntax');
-  eval('%OptimizeFunctionOnNextCall(p.resolve)');
-  p.resolve('foo/bar', '/tmp/file/', '..', 'a/../subfile');
+  eval('%OptimizeFunctionOnNextCall(p.extname)');
+  p.extname('index.html');
 
   bench.start();
   for (var i = 0; i < n; i++) {
-    p.resolve('foo/bar', '/tmp/file/', '..', 'a/../subfile');
+    p.extname('index.html');
+    p.extname('index');
   }
   bench.end(n);
 }
