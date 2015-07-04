@@ -23,9 +23,10 @@ class Utf8DecoderBase {
   // The first buffer_length utf16 chars are cached in the buffer.
   void Reset(uint16_t* buffer, unsigned buffer_length, const uint8_t* stream,
              unsigned stream_length);
-  static void WriteUtf16Slow(const uint8_t* stream, uint16_t* data,
-                             unsigned length);
+  static void WriteUtf16Slow(const uint8_t* stream, unsigned stream_length,
+                             uint16_t* data, unsigned length);
   const uint8_t* unbuffered_start_;
+  unsigned unbuffered_length_;
   unsigned utf16_length_;
   bool last_byte_of_buffer_unused_;
 
@@ -48,6 +49,7 @@ class Utf8Decoder : public Utf8DecoderBase {
 
 Utf8DecoderBase::Utf8DecoderBase()
     : unbuffered_start_(NULL),
+      unbuffered_length_(0),
       utf16_length_(0),
       last_byte_of_buffer_unused_(false) {}
 
@@ -85,7 +87,7 @@ unsigned Utf8Decoder<kBufferSize>::WriteUtf16(uint16_t* data,
   if (length <= buffer_length) return length;
   DCHECK(unbuffered_start_ != NULL);
   // Copy the rest the slow way.
-  WriteUtf16Slow(unbuffered_start_, data + buffer_length,
+  WriteUtf16Slow(unbuffered_start_, unbuffered_length_, data + buffer_length,
                  length - buffer_length);
   return length;
 }
