@@ -1413,16 +1413,7 @@ void AppendExceptionLine(Environment* env,
   if (arrow_str.IsEmpty() || err_obj.IsEmpty() || !err_obj->IsNativeError())
     goto print;
 
-  msg = err_obj->Get(env->message_string());
-  stack = err_obj->Get(env->stack_string());
-
-  if (msg.IsEmpty() || stack.IsEmpty())
-    goto print;
-
-  err_obj->Set(env->message_string(),
-               String::Concat(arrow_str, msg->ToString(env->isolate())));
-  err_obj->Set(env->stack_string(),
-               String::Concat(arrow_str, stack->ToString(env->isolate())));
+  err_obj->SetHiddenValue(env->arrow_message_string(), arrow_str);
   return;
 
  print:
@@ -1442,17 +1433,27 @@ static void ReportException(Environment* env,
   AppendExceptionLine(env, er, message);
 
   Local<Value> trace_value;
+  Local<Value> arrow;
 
-  if (er->IsUndefined() || er->IsNull())
+  if (er->IsUndefined() || er->IsNull()) {
     trace_value = Undefined(env->isolate());
-  else
-    trace_value = er->ToObject(env->isolate())->Get(env->stack_string());
+  } else {
+    Local<Object> err_obj = er->ToObject(env->isolate());
+
+    trace_value = err_obj->Get(env->stack_string());
+    arrow = err_obj->GetHiddenValue(env->arrow_message_string());
+  }
 
   node::Utf8Value trace(env->isolate(), trace_value);
 
   // range errors have a trace member set to undefined
   if (trace.length() > 0 && !trace_value->IsUndefined()) {
-    fprintf(stderr, "%s\n", *trace);
+    if (arrow.IsEmpty() || !arrow->IsString()) {
+      fprintf(stderr, "%s\n", *trace);
+    } else {
+      node::Utf8Value arrow_string(env->isolate(), arrow);
+      fprintf(stderr, "%s\n%s\n", *arrow_string, *trace);
+    }
   } else {
     // this really only happens for RangeErrors, since they're the only
     // kind that won't have all this info in the trace, or when non-Error
@@ -1476,7 +1477,17 @@ static void ReportException(Environment* env,
     } else {
       node::Utf8Value name_string(env->isolate(), name);
       node::Utf8Value message_string(env->isolate(), message);
-      fprintf(stderr, "%s: %s\n", *name_string, *message_string);
+
+      if (arrow.IsEmpty() || !arrow->IsString()) {
+        fprintf(stderr, "%s: %s\n", *name_string, *message_string);
+      } else {
+        node::Utf8Value arrow_string(env->isolate(), arrow);
+        fprintf(stderr,
+                "%s\n%s: %s\n",
+                *arrow_string,
+                *name_string,
+                *message_string);
+      }
     }
   }
 
