@@ -44,6 +44,7 @@ namespace node {
   V(address_string, "address")                                                \
   V(args_string, "args")                                                      \
   V(argv_string, "argv")                                                      \
+  V(arrow_message_string, "arrowMessage")                                     \
   V(async, "async")                                                           \
   V(async_queue_string, "_asyncQueue")                                        \
   V(atime_string, "atime")                                                    \
