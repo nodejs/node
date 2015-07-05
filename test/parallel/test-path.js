@@ -178,8 +178,6 @@ var joinTests =
      [['/', '.'], '/'],
      [['/', '..'], '/'],
      [['/', '..', '..'], '/'],
-     [[''], '.'],
-     [['', ''], '.'],
      [[' /foo'], ' /foo'],
      [[' ', 'foo'], ' /foo'],
      [[' ', '.'], ' '],
@@ -413,3 +411,19 @@ if (isWindows)
   assert.deepEqual(path, path.win32, 'should be win32 path module');
 else
   assert.deepEqual(path, path.posix, 'should be posix path module');
+
+const err = /path must not be a zero length string/;
+const os = ['win32', 'posix'];
+const functions = ['join', 'normalize', 'isAbsolute', 'relative'];
+const params = [[['']], [['']], [['']], [['', ''], ['.', ''], ['', '.']]];
+
+os.forEach(function(os) {
+  functions.forEach(function(fn, idx) {
+    params[idx].forEach(function(args) {
+      const call = `path.${os}.${fn}(${args.map(JSON.stringify).join(', ')})`;
+      assert.throws(function() {
+        path[os][fn].apply(null, args);
+      }, err, `${call} didn't throw expected Error`);
+    });
+  });
+});
