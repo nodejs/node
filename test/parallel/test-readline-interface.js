@@ -192,6 +192,24 @@ function isWarned(emitter) {
   assert.equal(callCount, 1);
   rli.close();
 
+  // Regression test for repl freeze, #1968:
+  // check that nothing fails if 'keypress' event throws.
+  fi = new FakeInput();
+  rli = new readline.Interface({ input: fi, output: fi, terminal: true });
+  var keys = [];
+  fi.on('keypress', function(key) {
+    keys.push(key);
+    if (key === 'X') {
+      throw new Error('bad thing happened');
+    }
+  });
+  try {
+    fi.emit('data', 'fooX');
+  } catch(e) { }
+  fi.emit('data', 'bar');
+  assert.equal(keys.join(''), 'fooXbar');
+  rli.close();
+
   // calling readline without `new`
   fi = new FakeInput();
   rli = readline.Interface({ input: fi, output: fi, terminal: terminal });
