@@ -43,7 +43,7 @@ var componentSpecific = {
 };
 
 var componentInclude = ['name', 'description', 'version', 'keywords',
-  'license'];
+  'license', 'main'];
 
 var bowerJson = _.merge({}, _.pick(packageJson, bowerInclude), bowerSpecific);
 var componentJson = _.merge({}, _.pick(packageJson, componentInclude), componentSpecific);

@@ -1,4 +1,4 @@
-.TH "PACKAGE\.JSON" "5" "June 2015" "" ""
+.TH "PACKAGE\.JSON" "5" "July 2015" "" ""
 .SH "NAME"
 \fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SH DESCRIPTION
@@ -134,11 +134,11 @@ you are using a custom license, use the following valid SPDX expression:
 .P
 .RS 2
 .nf
-{ "license" : "LicenseRef\-LICENSE" }
+{ "license" : "SEE LICENSE IN <filename>" }
 .fi
 .RE
 .P
-Then include a LICENSE file at the top level of the package\.
+Then include a file named \fB<filename>\fR at the top level of the package\.
 .P
 Some old packages used license objects or a "licenses" property containing an
 array of license objects:
@@ -175,6 +175,17 @@ Those styles are now deprecated\. Instead, use SPDX expressions, like this:
 { "license": "(MIT OR Apache\-2\.0)" }
 .fi
 .RE
+.P
+Finally, if you do not wish to grant others the right to use a private or
+unpublished package under any terms:
+.P
+.RS 2
+.nf
+{ "license": "UNLICENSED"}
+.fi
+.RE
+.P
+Consider also setting \fB"private": true\fR to prevent accidental publication\.
 .SH people fields: author, contributors
 .P
 The "author" is one person\.  "contributors" is an array of people\.  A "person"

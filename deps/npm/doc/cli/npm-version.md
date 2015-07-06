@@ -11,8 +11,8 @@ Run this in a package directory to bump the version and write the new
 data back to `package.json` and, if present, `npm-shrinkwrap.json`.
 
 The `newversion` argument should be a valid semver string, *or* a
-valid second argument to semver.inc (one of "patch", "minor", "major",
-"prepatch", "preminor", "premajor", "prerelease"). In the second case,
+valid second argument to semver.inc (one of `patch`, `minor`, `major`,
+`prepatch`, `preminor`, `premajor`, `prerelease`). In the second case,
 the existing version will be incremented by 1 in the specified field.
 
 If run in a git repo, it will also create a version commit and tag, and fail if
@@ -40,11 +40,11 @@ in your git config for this to work properly.  For example:
 
     Enter passphrase:
 
-If "preversion", "version", "postversion" in the "scripts" property of
-the package.json, it will execute by running `npm version`. preversion
-and version ware executed before bump the package version, postversion
-was executed after bump the package version. For example to run `npm version`
-after passed all test:
+If `preversion`, `version`, or `postversion` are in the `scripts` property of
+the package.json, they will be executed as part of running `npm version`.
+`preversion` and `version` are executed before bumping the package version, and
+`postversion` is executed afterwards. For example, to run `npm version` only if
+all tests pass:
 
     "scripts": { "preversion": "npm test" }
 

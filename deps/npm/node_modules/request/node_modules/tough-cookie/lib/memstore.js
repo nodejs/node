@@ -41,6 +41,8 @@ function MemoryCookieStore() {
 util.inherits(MemoryCookieStore, Store);
 exports.MemoryCookieStore = MemoryCookieStore;
 MemoryCookieStore.prototype.idx = null;
+
+// Since it's just a struct in RAM, this Store is synchronous
 MemoryCookieStore.prototype.synchronous = true;
 
 // force a default depth:
@@ -116,21 +118,21 @@ MemoryCookieStore.prototype.putCookie = function(cookie, cb) {
   cb(null);
 };
 
-MemoryCookieStore.prototype.updateCookie = function updateCookie(oldCookie, newCookie, cb) {
+MemoryCookieStore.prototype.updateCookie = function(oldCookie, newCookie, cb) {
   // updateCookie() may avoid updating cookies that are identical.  For example,
   // lastAccessed may not be important to some stores and an equality
   // comparison could exclude that field.
   this.putCookie(newCookie,cb);
 };
 
-MemoryCookieStore.prototype.removeCookie = function removeCookie(domain, path, key, cb) {
+MemoryCookieStore.prototype.removeCookie = function(domain, path, key, cb) {
   if (this.idx[domain] && this.idx[domain][path] && this.idx[domain][path][key]) {
     delete this.idx[domain][path][key];
   }
   cb(null);
 };
 
-MemoryCookieStore.prototype.removeCookies = function removeCookies(domain, path, cb) {
+MemoryCookieStore.prototype.removeCookies = function(domain, path, cb) {
   if (this.idx[domain]) {
     if (path) {
       delete this.idx[domain][path];
@@ -139,4 +141,30 @@ MemoryCookieStore.prototype.removeCookies = function removeCookies(domain, path,
     }
   }
   return cb(null);
+};
+
+MemoryCookieStore.prototype.getAllCookies = function(cb) {
+  var cookies = [];
+  var idx = this.idx;
+
+  var domains = Object.keys(idx);
+  domains.forEach(function(domain) {
+    var paths = Object.keys(idx[domain]);
+    paths.forEach(function(path) {
+      var keys = Object.keys(idx[domain][path]);
+      keys.forEach(function(key) {
+        if (key !== null) {
+          cookies.push(idx[domain][path][key]);
+        }
+      });
+    });
+  });
+
+  // Sort by creationIndex so deserializing retains the creation order.
+  // When implementing your own store, this SHOULD retain the order too
+  cookies.sort(function(a,b) {
+    return (a.creationIndex||0) - (b.creationIndex||0);
+  });
+
+  cb(null, cookies);
 };

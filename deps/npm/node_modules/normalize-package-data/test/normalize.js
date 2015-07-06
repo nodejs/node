@@ -160,7 +160,7 @@ tap.test("license field should be a valid SPDX expression", function(t) {
     [ warningMessages.missingDescription,
       warningMessages.missingRepository,
       warningMessages.missingReadme,
-      warningMessages.nonSPDXLicense]
+      warningMessages.invalidLicense]
   t.same(warnings, expect)
   t.end()
 })

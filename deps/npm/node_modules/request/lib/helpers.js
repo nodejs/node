@@ -46,10 +46,19 @@ function toBase64 (str) {
   return (new Buffer(str || '', 'utf8')).toString('base64')
 }
 
+function copy (obj) {
+  var o = {}
+  Object.keys(obj).forEach(function (i) {
+    o[i] = obj[i]
+  })
+  return o
+}
+
 exports.isFunction            = isFunction
 exports.paramsHaveRequestBody = paramsHaveRequestBody
 exports.safeStringify         = safeStringify
 exports.md5                   = md5
 exports.isReadStream          = isReadStream
 exports.toBase64              = toBase64
+exports.copy                  = copy
 exports.defer                 = deferMethod()

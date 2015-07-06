@@ -6,6 +6,7 @@ var test = require('tap').test
 
 test('the basics', function (t) {
   var i = path.join(__dirname, 'basic.input')
+  rimraf.sync(__dirname + '/package.json')
   init(__dirname, i, { foo: 'bar' }, function (er, data) {
     if (er) throw er
     var expect = {
@@ -18,6 +19,7 @@ test('the basics', function (t) {
       config: { foo: 'bar' },
       package: {}
     }
+    console.log('')
     t.same(data, expect)
     t.end()
   })

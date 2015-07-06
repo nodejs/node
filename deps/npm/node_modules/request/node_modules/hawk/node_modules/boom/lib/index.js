@@ -99,20 +99,27 @@ exports.unauthorized = function (message, scheme, attributes) {          // Or f
         // function (message, scheme, attributes)
 
         wwwAuthenticate = scheme;
+
+        if (attributes || message) {
+            err.output.payload.attributes = {};
+        }
+
         if (attributes) {
             var names = Object.keys(attributes);
             for (i = 0, il = names.length; i < il; ++i) {
+                var name = names[i];
                 if (i) {
                     wwwAuthenticate += ',';
                 }
 
-                var value = attributes[names[i]];
+                var value = attributes[name];
                 if (value === null ||
                     value === undefined) {              // Value can be zero
 
                     value = '';
                 }
-                wwwAuthenticate += ' ' + names[i] + '="' + Hoek.escapeHeaderAttribute(value.toString()) + '"';
+                wwwAuthenticate += ' ' + name + '="' + Hoek.escapeHeaderAttribute(value.toString()) + '"';
+                err.output.payload.attributes[name] = value;
             }
         }
 
@@ -121,6 +128,7 @@ exports.unauthorized = function (message, scheme, attributes) {          // Or f
                 wwwAuthenticate += ',';
             }
             wwwAuthenticate += ' error="' + Hoek.escapeHeaderAttribute(message) + '"';
+            err.output.payload.attributes.error = message;
         }
         else {
             err.isMissing = true;

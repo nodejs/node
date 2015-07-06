@@ -5,7 +5,9 @@ var common = require('./lib/common')
 
 test('license', function (t) {
   init(__dirname, '', {}, function (er, data) {
-    t.ok(!er, 'should not error')
+    if (er)
+      throw er
+
     var wanted = {
       name: 'the-name',
       version: '1.0.0',
@@ -15,7 +17,8 @@ test('license', function (t) {
       author: '',
       main: 'basic.js'
     }
-    t.same(data, wanted)
+    console.log('')
+    t.has(data, wanted)
     t.end()
   })
   common.drive([
