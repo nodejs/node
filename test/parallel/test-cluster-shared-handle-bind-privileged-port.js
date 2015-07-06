@@ -5,12 +5,12 @@ var cluster = require('cluster');
 var net = require('net');
 
 if (process.platform === 'win32') {
-  console.log('Skipping test, not reliable on Windows.');
+  console.log('1..0 # Skipped: not reliable on Windows');
   process.exit(0);
 }
 
 if (process.getuid() === 0) {
-  console.log('Do not run this test as root.');
+  console.log('1..0 # Skipped: as this test should not be run as `root`');
   process.exit(0);
 }
 

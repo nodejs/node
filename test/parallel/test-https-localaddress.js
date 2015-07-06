@@ -10,7 +10,7 @@ if (!common.hasCrypto) {
 var https = require('https');
 
 if (!common.hasMultiLocalhost()) {
-  console.log('Skipping platform-specific test.');
+  console.log('1..0 # Skipped: platform-specific test.');
   process.exit();
 }
 

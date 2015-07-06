@@ -3,7 +3,7 @@
 
 // FIXME add sunos support
 if ('linux freebsd darwin'.indexOf(process.platform) === -1) {
-  console.error('Skipping test, platform not supported.');
+  console.log(`1..0 # Skipped: Unsupported platform [${process.platform}]`);
   process.exit();
 }
 

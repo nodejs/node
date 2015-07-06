@@ -24,7 +24,7 @@ if (!haveIntl) {
       '"Intl" object is NOT present but v8_enable_i18n_support is ' +
       enablei18n;
   assert.equal(enablei18n, false, erMsg);
-  console.log('Skipping Intl tests because Intl object not present.');
+  console.log('1..0 # Skipped: Intl tests because Intl object not present.');
 
 } else {
   var erMsg =
@@ -46,8 +46,8 @@ if (!haveIntl) {
 
   // If list is specified and doesn't contain 'en' then return.
   if (process.config.variables.icu_locales && !haveLocale('en')) {
-    console.log('Skipping detailed Intl tests because English is not listed ' +
-                'as supported.');
+    console.log('1..0 # Skipped: detailed Intl tests because English is not ' +
+                'listed as supported.');
     // Smoke test. Does it format anything, or fail?
     console.log('Date(0) formatted to: ' + dtf.format(date0));
     return;

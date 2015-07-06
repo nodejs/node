@@ -4,7 +4,7 @@ var http = require('http'),
     assert = require('assert');
 
 if (!common.hasMultiLocalhost()) {
-  console.log('Skipping platform-specific test.');
+  console.log('1..0 # Skipped: platform-specific test.');
   process.exit();
 }
 
