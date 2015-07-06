@@ -19,7 +19,7 @@ function LinkReader (props) {
   }
 
   if (!((props.type === 'Link' && props.Link) ||
-        (props.type === 'SymbolicLink' && props.SymbolicLink))) {
+    (props.type === 'SymbolicLink' && props.SymbolicLink))) {
     throw new Error('Non-link type ' + props.type)
   }
 

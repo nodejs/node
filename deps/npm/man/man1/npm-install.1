@@ -1,4 +1,4 @@
-.TH "NPM\-INSTALL" "1" "June 2015" "" ""
+.TH "NPM\-INSTALL" "1" "July 2015" "" ""
 .SH "NAME"
 \fBnpm-install\fR \- Install a package
 .SH SYNOPSIS
@@ -193,14 +193,33 @@ fetch the package by name if it is not valid\.
   \fB<protocol>\fR is one of \fBgit\fR, \fBgit+ssh\fR, \fBgit+http\fR, or
   \fBgit+https\fR\|\.  If no \fB<commit\-ish>\fR is specified, then \fBmaster\fR is
   used\.
-  Examples:
+  The following git environment variables are recognized by npm and will be added
+  to the environment when running git:
+.RS 0
+.IP \(bu 2
+\fBGIT_ASKPASS\fR
+.IP \(bu 2
+\fBGIT_PROXY_COMMAND\fR
+.IP \(bu 2
+\fBGIT_SSH\fR
+.IP \(bu 2
+\fBGIT_SSH_COMMAND\fR
+.IP \(bu 2
+\fBGIT_SSL_CAINFO\fR
+.IP \(bu 2
+\fBGIT_SSL_NO_VERIFY\fR
+See the git man page for details\.
+Examples:
 .P
 .RS 2
 .nf
-    git+ssh://git@github\.com:npm/npm\.git#v1\.0\.27
-    git+https://isaacs@github\.com/npm/npm\.git
-    git://github\.com/npm/npm\.git#v1\.0\.27
+npm install git+ssh://git@github\.com:npm/npm\.git#v1\.0\.27
+npm install git+https://isaacs@github\.com/npm/npm\.git
+npm install git://github\.com/npm/npm\.git#v1\.0\.27
+GIT_SSH_COMMAND='ssh \-i ~/\.ssh/custom_ident' npm install git+ssh://git@github\.com:npm/npm\.git
 .fi
+.RE
+
 .RE
 .IP \(bu 2
 \fBnpm install <githubname>/<githubrepo>[#<commit\-ish>]\fR:

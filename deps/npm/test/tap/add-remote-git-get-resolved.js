@@ -74,9 +74,16 @@ test('add-remote-git#get-resolved HTTPS', function (t) {
 test('add-remote-git#get-resolved edge cases', function (t) {
   var getResolved = require('../../lib/cache/add-remote-git.js').getResolved
 
-  t.notOk(
-    getResolved('git@bananaboat.com:galbi.git', 'decadacefadabade'),
-    'non-hosted Git SSH non-URI strings are invalid'
+  t.equal(
+    getResolved('git+ssh://user@bananaboat.com:galbi/blah.git', 'decadacefadabade'),
+    'git+ssh://user@bananaboat.com:galbi/blah.git#decadacefadabade',
+    'don\'t break non-hosted scp-style locations'
+  )
+
+  t.equal(
+    getResolved('git+ssh://bananaboat:galbi/blah', 'decadacefadabade'),
+    'git+ssh://bananaboat:galbi/blah#decadacefadabade',
+    'don\'t break non-hosted scp-style locations'
   )
 
   t.equal(
@@ -86,16 +93,16 @@ test('add-remote-git#get-resolved edge cases', function (t) {
   )
 
   t.equal(
+    getResolved('git+ssh://git.bananaboat.net:/foo', 'decadacefadabade'),
+    'git+ssh://git.bananaboat.net:/foo#decadacefadabade',
+    'don\'t break non-hosted SSH URLs'
+  )
+
+  t.equal(
     getResolved('git://gitbub.com/foo/bar.git', 'decadacefadabade'),
     'git://gitbub.com/foo/bar.git#decadacefadabade',
     'don\'t break non-hosted git: URLs'
   )
 
-  t.comment('test for https://github.com/npm/npm/issues/3224')
-  t.equal(
-    getResolved('git+ssh://git@git.example.com:my-repo.git#9abe82cb339a70065e75300f62b742622774693c', 'decadacefadabade'),
-    'git+ssh://git@git.example.com:my-repo.git#decadacefadabade',
-    'preserve weird colon in semi-standard ssh:// URLs'
-  )
   t.end()
 })

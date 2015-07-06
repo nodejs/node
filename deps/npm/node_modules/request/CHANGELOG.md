@@ -1,5 +1,11 @@
 ## Change Log
 
+### v2.58.0 (2015/06/16)
+- [#1638](https://github.com/request/request/pull/1638) Use the `extend` module to deep extend in the defaults method (@simov)
+- [#1631](https://github.com/request/request/pull/1631) Move tunnel logic into separate module (@simov)
+- [#1634](https://github.com/request/request/pull/1634) Fix OAuth query transport_method (@simov)
+- [#1603](https://github.com/request/request/pull/1603) Add codecov (@simov)
+
 ### v2.57.0 (2015/05/31)
 - [#1615](https://github.com/request/request/pull/1615) Replace '.client' with '.socket' as the former was deprecated in 2.2.0. (@ChALkeR)
 

@@ -200,6 +200,7 @@ describe('unauthorized()', function () {
         var err = Boom.unauthorized('boom', 'Test', { a: 1, b: 'something', c: null, d: 0 });
         expect(err.output.statusCode).to.equal(401);
         expect(err.output.headers['WWW-Authenticate']).to.equal('Test a="1", b="something", c="", d="0", error="boom"');
+        expect(err.output.payload.attributes).to.deep.equal({ a: 1, b: 'something', c: '', d: 0, error: 'boom' });
         done();
     });
 

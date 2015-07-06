@@ -32,22 +32,22 @@ Abstract.prototype.warn = function (msg, code) {
   var er = decorate(msg, code, self)
   if (!self.listeners('warn')) {
     console.error('%s %s\n' +
-                  'path = %s\n' +
-                  'syscall = %s\n' +
-                  'fstream_type = %s\n' +
-                  'fstream_path = %s\n' +
-                  'fstream_unc_path = %s\n' +
-                  'fstream_class = %s\n' +
-                  'fstream_stack =\n%s\n',
-                  code || 'UNKNOWN',
-                  er.stack,
-                  er.path,
-                  er.syscall,
-                  er.fstream_type,
-                  er.fstream_path,
-                  er.fstream_unc_path,
-                  er.fstream_class,
-                  er.fstream_stack.join('\n'))
+    'path = %s\n' +
+    'syscall = %s\n' +
+    'fstream_type = %s\n' +
+    'fstream_path = %s\n' +
+    'fstream_unc_path = %s\n' +
+    'fstream_class = %s\n' +
+    'fstream_stack =\n%s\n',
+      code || 'UNKNOWN',
+      er.stack,
+      er.path,
+      er.syscall,
+      er.fstream_type,
+      er.fstream_path,
+      er.fstream_unc_path,
+      er.fstream_class,
+      er.fstream_stack.join('\n'))
   } else {
     self.emit('warn', er)
   }

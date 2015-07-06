@@ -17,7 +17,7 @@ tap.test('--yes defaults', function (t) {
   init(__dirname, __dirname, {yes: 'yes'}, function (er, data) {
     if (er) throw er
 
-    t.same(EXPECT, data, 'used the default data')
+    t.has(data, EXPECT, 'used the default data')
     t.end()
   })
 })

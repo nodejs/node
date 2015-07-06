@@ -1,4 +1,4 @@
-.TH "NPM\-VERSION" "1" "June 2015" "" ""
+.TH "NPM\-VERSION" "1" "July 2015" "" ""
 .SH "NAME"
 \fBnpm-version\fR \- Bump a package version
 .SH SYNOPSIS
@@ -14,8 +14,8 @@ Run this in a package directory to bump the version and write the new
 data back to \fBpackage\.json\fR and, if present, \fBnpm\-shrinkwrap\.json\fR\|\.
 .P
 The \fBnewversion\fR argument should be a valid semver string, \fIor\fR a
-valid second argument to semver\.inc (one of "patch", "minor", "major",
-"prepatch", "preminor", "premajor", "prerelease")\. In the second case,
+valid second argument to semver\.inc (one of \fBpatch\fR, \fBminor\fR, \fBmajor\fR,
+\fBprepatch\fR, \fBpreminor\fR, \fBpremajor\fR, \fBprerelease\fR)\. In the second case,
 the existing version will be incremented by 1 in the specified field\.
 .P
 If run in a git repo, it will also create a version commit and tag, and fail if
@@ -51,11 +51,11 @@ Enter passphrase:
 .fi
 .RE
 .P
-If "preversion", "version", "postversion" in the "scripts" property of
-the package\.json, it will execute by running \fBnpm version\fR\|\. preversion
-and version ware executed before bump the package version, postversion
-was executed after bump the package version\. For example to run \fBnpm version\fR
-after passed all test:
+If \fBpreversion\fR, \fBversion\fR, or \fBpostversion\fR are in the \fBscripts\fR property of
+the package\.json, they will be executed as part of running \fBnpm version\fR\|\.
+\fBpreversion\fR and \fBversion\fR are executed before bumping the package version, and
+\fBpostversion\fR is executed afterwards\. For example, to run \fBnpm version\fR only if
+all tests pass:
 .P
 .RS 2
 .nf
