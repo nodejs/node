@@ -37,7 +37,7 @@ server_ipv6.listen(common.PORT, localhost_ipv6, function() {
 });
 
 if (!common.hasIPv6) {
-  console.error('Skipping ipv6 part of test, no IPv6 support');
+  console.log('1..0 # Skipped: ipv6 part of test, no IPv6 support');
   return;
 }
 

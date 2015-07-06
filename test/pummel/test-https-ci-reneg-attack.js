@@ -13,7 +13,7 @@ var https = require('https');
 var fs = require('fs');
 
 if (!common.opensslCli) {
-  console.error('Skipping because node compiled without OpenSSL CLI.');
+  console.log('1..0 # Skipped: node compiled without OpenSSL CLI.');
   process.exit(0);
 }
 

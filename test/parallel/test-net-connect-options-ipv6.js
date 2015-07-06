@@ -5,7 +5,7 @@ var net = require('net');
 var dns = require('dns');
 
 if (!common.hasIPv6) {
-  console.error('Skipping test, no IPv6 support');
+  console.log('1..0 # Skipped: no IPv6 support');
   return;
 }
 

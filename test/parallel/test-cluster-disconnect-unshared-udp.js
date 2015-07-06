@@ -1,6 +1,6 @@
 'use strict';
 if (process.platform === 'win32') {
-  console.log('skipping test on windows, where clustered dgram is ENOTSUP');
+  console.log('1..0 # Skipped: on windows, because clustered dgram is ENOTSUP');
   process.exit(0);
 }
 
