@@ -466,6 +466,13 @@ function parseHeader(stream, callback) {
   }
 }
 ```
+Note that, unlike `stream.push(chunk)`, `stream.unshift(chunk)` will not
+end the reading process by resetting the internal reading state of the
+stream. This can cause unexpected results if `unshift` is called during a
+read (i.e. from within a `_read` implementation on a custom stream). Following
+the call to `unshift` with an immediate `stream.push('')` will reset the
+reading state appropriately, however it is best to simply avoid calling
+`unshift` while in the process of performing a read.
 
 #### readable.wrap(stream)
 
@@ -905,6 +912,10 @@ SimpleProtocol.prototype._read = function(n) {
       // back into the read queue so that our consumer will see it.
       var b = chunk.slice(split);
       this.unshift(b);
+      // calling unshift by itself does not reset the reading state
+      // of the stream; since we're inside _read, doing an additional
+      // push('') will reset the state appropriately.
+      this.push('');
 
       // and let them know that we are done parsing the header.
       this.emit('header', this.header);
@@ -946,19 +957,19 @@ initialized.
 
 Note: **Implement this method, but do NOT call it directly.**
 
-This method is prefixed with an underscore because it is internal to the 
-class that defines it and should only be called by the internal Readable 
-class methods. All Readable stream implementations must provide a _read 
+This method is prefixed with an underscore because it is internal to the
+class that defines it and should only be called by the internal Readable
+class methods. All Readable stream implementations must provide a _read
 method to fetch data from the underlying resource.
 
-When _read is called, if data is available from the resource, `_read` should 
-start pushing that data into the read queue by calling `this.push(dataChunk)`. 
-`_read` should continue reading from the resource and pushing data until push 
-returns false, at which point it should stop reading from the resource. Only 
-when _read is called again after it has stopped should it start reading 
+When _read is called, if data is available from the resource, `_read` should
+start pushing that data into the read queue by calling `this.push(dataChunk)`.
+`_read` should continue reading from the resource and pushing data until push
+returns false, at which point it should stop reading from the resource. Only
+when _read is called again after it has stopped should it start reading
 more data from the resource and pushing that data onto the queue.
 
-Note: once the `_read()` method is called, it will not be called again until 
+Note: once the `_read()` method is called, it will not be called again until
 the `push` method is called.
 
 The `size` argument is advisory.  Implementations where a "read" is a
@@ -978,12 +989,12 @@ becomes available.  There is no need, for example to "wait" until
 Note: **This method should be called by Readable implementors, NOT
 by consumers of Readable streams.**
 
-If a value other than null is passed, The `push()` method adds a chunk of data 
-into the queue for subsequent stream processors to consume. If `null` is 
-passed, it signals the end of the stream (EOF), after which no more data 
+If a value other than null is passed, The `push()` method adds a chunk of data
+into the queue for subsequent stream processors to consume. If `null` is
+passed, it signals the end of the stream (EOF), after which no more data
 can be written.
 
-The data added with `push` can be pulled out by calling the `read()` method 
+The data added with `push` can be pulled out by calling the `read()` method
 when the `'readable'`event fires.
 
 This API is designed to be as flexible as possible.  For example,
