@@ -5,7 +5,7 @@ var cluster = require('cluster');
 var net = require('net');
 
 if (process.platform === 'win32') {
-  console.log('Skipping test, not reliable on Windows.');
+  console.log('1..0 # Skipped: not reliable on Windows.');
   process.exit(0);
 }
 

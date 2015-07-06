@@ -10,7 +10,7 @@ var cluster = require('cluster');
 console.error('Cluster listen fd test', process.argv.slice(2));
 
 if (process.platform === 'win32') {
-  console.error('This test is disabled on windows.');
+  console.log('1..0 # Skipped: This test is disabled on windows.');
   return;
 }
 

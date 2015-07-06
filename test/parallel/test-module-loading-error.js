@@ -13,7 +13,7 @@ var error_desc = {
 var dlerror_msg = error_desc[process.platform];
 
 if (!dlerror_msg) {
-  console.error('Skipping test, platform not supported.');
+  console.log('1..0 # Skipped: platform not supported.');
   process.exit();
 }
 

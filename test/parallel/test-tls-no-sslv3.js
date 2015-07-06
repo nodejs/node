@@ -12,7 +12,7 @@ var fs = require('fs');
 var spawn = require('child_process').spawn;
 
 if (common.opensslCli === false) {
-  console.error('Skipping because openssl command cannot be executed');
+  console.log('1..0 # Skipped: node compiled without OpenSSL CLI.');
   process.exit(0);
 }
 

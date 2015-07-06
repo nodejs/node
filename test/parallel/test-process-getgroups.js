@@ -4,7 +4,7 @@ var assert = require('assert');
 var exec = require('child_process').exec;
 
 if (process.platform === 'darwin') {
-  console.log('Skipping. Output of `id -G` is unreliable on Darwin.');
+  console.log('1..0 # Skipped: Output of `id -G` is unreliable on Darwin.');
   return;
 }
 

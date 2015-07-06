@@ -16,7 +16,7 @@ dgram.createSocket('udp4').bind(common.PORT + 0, common.mustCall(function() {
 }));
 
 if (!common.hasIPv6) {
-  console.error('Skipping udp6 part of test, no IPv6 support');
+  console.log('1..0 # Skipped: udp6 part of test, because no IPv6 support');
   return;
 }
 

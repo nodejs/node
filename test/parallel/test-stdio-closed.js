@@ -4,7 +4,7 @@ var assert = require('assert');
 var spawn = require('child_process').spawn;
 
 if (process.platform === 'win32') {
-  console.log('Skipping test, platform not supported.');
+  console.log('1..0 # Skipped: platform not supported.');
   return;
 }
 

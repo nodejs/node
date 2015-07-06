@@ -1,6 +1,6 @@
 'use strict';
 if (process.platform === 'win32') {
-  console.log('skipping this test because there is no wrk on windows');
+  console.log('1..0 # Skipped: no `wrk` on windows');
   process.exit(0);
 }
 
