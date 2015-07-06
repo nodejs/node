@@ -1,0 +1,70 @@
+{
+  "name": "extend",
+  "author": {
+    "name": "Stefan Thomas",
+    "email": "justmoon@members.fsf.org",
+    "url": "http://www.justmoon.net"
+  },
+  "version": "2.0.1",
+  "description": "Port of jQuery.extend for node.js and the browser",
+  "main": "index",
+  "scripts": {
+    "test": "npm run lint && node test/index.js && npm run coverage-quiet",
+    "coverage": "covert test/index.js",
+    "coverage-quiet": "covert test/index.js --quiet",
+    "lint": "jscs *.js */*.js"
+  },
+  "contributors": [
+    {
+      "name": "Jordan Harband",
+      "url": "https://github.com/ljharb"
+    }
+  ],
+  "keywords": [
+    "extend",
+    "clone",
+    "merge"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/justmoon/node-extend.git"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "tape": "^4.0.0",
+    "covert": "^1.0.1",
+    "jscs": "^1.11.3"
+  },
+  "license": "MIT",
+  "gitHead": "ce3790222d3d2051f728f74be9565f155ed599c3",
+  "bugs": {
+    "url": "https://github.com/justmoon/node-extend/issues"
+  },
+  "homepage": "https://github.com/justmoon/node-extend#readme",
+  "_id": "extend@2.0.1",
+  "_shasum": "1ee8010689e7395ff9448241c98652bc759a8260",
+  "_from": "extend@>=2.0.1 <2.1.0",
+  "_npmVersion": "2.8.3",
+  "_nodeVersion": "1.8.1",
+  "_npmUser": {
+    "name": "ljharb",
+    "email": "ljharb@gmail.com"
+  },
+  "dist": {
+    "shasum": "1ee8010689e7395ff9448241c98652bc759a8260",
+    "tarball": "http://registry.npmjs.org/extend/-/extend-2.0.1.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "justmoon",
+      "email": "justmoon@members.fsf.org"
+    },
+    {
+      "name": "ljharb",
+      "email": "ljharb@gmail.com"
+    }
+  ],
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/extend/-/extend-2.0.1.tgz",
+  "readme": "ERROR: No README data found!"
+}

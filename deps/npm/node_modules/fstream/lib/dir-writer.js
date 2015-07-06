@@ -23,7 +23,7 @@ function DirWriter (props) {
   // should already be established as a Directory type
   if (props.type !== 'Directory' || !props.Directory) {
     self.error('Non-directory type ' + props.type + ' ' +
-               JSON.stringify(props), null, true)
+      JSON.stringify(props), null, true)
   }
 
   Writer.call(this, props)
@@ -102,7 +102,7 @@ DirWriter.prototype._process = function () {
   do {
     pp = p._path || p.path
     if (pp === self.root._path || pp === self._path ||
-        (pp && pp.indexOf(self._path) === 0)) {
+      (pp && pp.indexOf(self._path) === 0)) {
       // console.error('DW Exit (recursive)', entry.basename, self._path)
       self._processing = false
       if (entry._collected) entry.pipe()

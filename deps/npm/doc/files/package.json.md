@@ -115,9 +115,9 @@ expression syntax version 2.0 string](http://npmjs.com/package/spdx), like this:
 If you are using a license that hasn't been assigned an SPDX identifier, or if
 you are using a custom license, use the following valid SPDX expression:
 
-    { "license" : "LicenseRef-LICENSE" }
+    { "license" : "SEE LICENSE IN <filename>" }
 
-Then include a LICENSE file at the top level of the package.
+Then include a file named `<filename>` at the top level of the package.
 
 Some old packages used license objects or a "licenses" property containing an
 array of license objects:
@@ -146,6 +146,13 @@ Those styles are now deprecated. Instead, use SPDX expressions, like this:
     { "license": "ISC" }
 
     { "license": "(MIT OR Apache-2.0)" }
+
+Finally, if you do not wish to grant others the right to use a private or
+unpublished package under any terms:
+
+    { "license": "UNLICENSED"}
+
+Consider also setting `"private": true` to prevent accidental publication.
 
 ## people fields: author, contributors
 

@@ -5,8 +5,8 @@
 <p>Run this in a package directory to bump the version and write the new
 data back to <code>package.json</code> and, if present, <code>npm-shrinkwrap.json</code>.</p>
 <p>The <code>newversion</code> argument should be a valid semver string, <em>or</em> a
-valid second argument to semver.inc (one of &quot;patch&quot;, &quot;minor&quot;, &quot;major&quot;,
-&quot;prepatch&quot;, &quot;preminor&quot;, &quot;premajor&quot;, &quot;prerelease&quot;). In the second case,
+valid second argument to semver.inc (one of <code>patch</code>, <code>minor</code>, <code>major</code>,
+<code>prepatch</code>, <code>preminor</code>, <code>premajor</code>, <code>prerelease</code>). In the second case,
 the existing version will be incremented by 1 in the specified field.</p>
 <p>If run in a git repo, it will also create a version commit and tag, and fail if
 the repo is not clean.  This behavior is controlled by <code>git-tag-version</code> (see
@@ -28,11 +28,11 @@ user: &quot;isaacs (http://blog.izs.me/) &lt;i@izs.me&gt;&quot;
 2048-bit RSA key, ID 6C481CF6, created 2010-08-31
 
 Enter passphrase:
-</code></pre><p>If &quot;preversion&quot;, &quot;version&quot;, &quot;postversion&quot; in the &quot;scripts&quot; property of
-the package.json, it will execute by running <code>npm version</code>. preversion
-and version ware executed before bump the package version, postversion
-was executed after bump the package version. For example to run <code>npm version</code>
-after passed all test:</p>
+</code></pre><p>If <code>preversion</code>, <code>version</code>, or <code>postversion</code> are in the <code>scripts</code> property of
+the package.json, they will be executed as part of running <code>npm version</code>.
+<code>preversion</code> and <code>version</code> are executed before bumping the package version, and
+<code>postversion</code> is executed afterwards. For example, to run <code>npm version</code> only if
+all tests pass:</p>
 <pre><code>&quot;scripts&quot;: { &quot;preversion&quot;: &quot;npm test&quot; }
 </code></pre><h2 id="configuration">CONFIGURATION</h2>
 <h3 id="git-tag-version">git-tag-version</h3>
