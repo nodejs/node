@@ -167,6 +167,32 @@ again when more data is available.
 The `readable` event is not emitted in the "flowing" mode with the
 sole exception of the last one, on end-of-stream.
 
+Note that the `'readable'` event indicates only that data *can* be
+read from the stream. It does not indicate whether there is actual
+data to be consumed. The callback passed to handle the `'readable'`
+event must be prepared to handle a `null` response from
+`readable.read([size])`. For instance, in the following example, `foo.txt`
+is an empty file:
+
+```javascript
+var fs = require('fs');
+var rr = fs.createReadStream('foo.txt');
+rr.on('readable', function() {
+  console.log('readable:', rr.read());
+});
+rr.on('end', function() {
+  console.log('end');
+});
+```
+
+The output of running this script is:
+
+```
+bash-3.2$ node test.js
+readable: null
+end
+```
+
 #### Event: 'data'
 
 * `chunk` {Buffer | String} The chunk of data.
