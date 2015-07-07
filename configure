@@ -26,7 +26,8 @@ import nodedownload
 parser = optparse.OptionParser()
 
 valid_os = ('win', 'mac', 'solaris', 'freebsd', 'openbsd', 'linux', 'android')
-valid_arch = ('arm', 'arm64', 'ia32', 'mips', 'mipsel', 'x32', 'x64', 'x86')
+valid_arch = ('arm', 'arm64', 'ia32', 'mips', 'mipsel', 'ppc', 'ppc64', 'x32',
+              'x64')
 valid_arm_float_abi = ('soft', 'softfp', 'hard')
 valid_mips_arch = ('loongson', 'r1', 'r2', 'r6', 'rx')
 valid_mips_fpu = ('fp32', 'fp64', 'fpxx')
@@ -545,6 +546,8 @@ def host_arch_cc():
     '__arm__'     : 'arm',
     '__i386__'    : 'ia32',
     '__mips__'    : 'mips',
+    '__PPC64__'   : 'ppc64',
+    '__PPC__'     : 'ppc',
     '__x86_64__'  : 'x64',
   }
 
@@ -620,6 +623,7 @@ def configure_node(o):
     target_arch = 'ia32'
   o['variables']['host_arch'] = host_arch
   o['variables']['target_arch'] = target_arch
+  o['variables']['node_byteorder'] = sys.byteorder
 
   cross_compiling = target_arch != host_arch
   want_snapshots = not options.without_snapshot
