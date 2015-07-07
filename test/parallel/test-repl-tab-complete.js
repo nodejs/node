@@ -1,4 +1,7 @@
 'use strict';
+
+// Flags: --harmony-proxies
+
 var common = require('../common');
 var assert = require('assert');
 var util = require('util');
@@ -231,4 +234,17 @@ putIn.run([
 ]);
 testMe.complete('cus', common.mustCall(function(error, data) {
   assert.deepEqual(data, [['custom'], 'cus']);
+}));
+
+// Make sure tab completion doesn't crash REPL with half-baked proxy objects.
+// See: https://github.com/nodejs/io.js/issues/2119
+putIn.run(['.clear']);
+
+putIn.run([
+  'var proxy = Proxy.create({});'
+]);
+
+testMe.complete('proxy.', common.mustCall(function(error, data) {
+  assert.strictEqual(error, null);
+  assert.deepEqual(data, [[], 'proxy.']);
 }));
