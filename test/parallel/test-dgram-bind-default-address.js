@@ -6,7 +6,7 @@ var dgram = require('dgram');
 // skip test in FreeBSD jails since 0.0.0.0 will resolve to default interface
 if (common.inFreeBSDJail) {
   console.log('1..0 # Skipped: In a FreeBSD jail');
-  process.exit();
+  return;
 }
 
 dgram.createSocket('udp4').bind(common.PORT + 0, common.mustCall(function() {

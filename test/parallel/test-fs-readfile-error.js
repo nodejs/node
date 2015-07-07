@@ -8,7 +8,7 @@ var path = require('path');
 // the directory there.
 if (process.platform === 'freebsd') {
   console.log('1..0 # Skipped: platform not supported.');
-  process.exit();
+  return;
 }
 
 var callbacks = 0;

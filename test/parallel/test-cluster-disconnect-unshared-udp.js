@@ -1,7 +1,7 @@
 'use strict';
 if (process.platform === 'win32') {
   console.log('1..0 # Skipped: on windows, because clustered dgram is ENOTSUP');
-  process.exit(0);
+  return;
 }
 
 var cluster = require('cluster');

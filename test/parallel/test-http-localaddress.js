@@ -5,7 +5,7 @@ var http = require('http'),
 
 if (!common.hasMultiLocalhost()) {
   console.log('1..0 # Skipped: platform-specific test.');
-  process.exit();
+  return;
 }
 
 var server = http.createServer(function(req, res) {

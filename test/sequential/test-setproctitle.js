@@ -4,7 +4,7 @@
 // FIXME add sunos support
 if ('linux freebsd darwin'.indexOf(process.platform) === -1) {
   console.log(`1..0 # Skipped: Unsupported platform [${process.platform}]`);
-  process.exit();
+  return;
 }
 
 var common = require('../common');
