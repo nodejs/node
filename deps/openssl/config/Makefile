@@ -4,7 +4,8 @@ COPT = no-shared no-symlinks
 
 ARCHS = BSD-x86 BSD-x86_64 VC-WIN32 VC-WIN64A darwin64-x86_64-cc  \
 darwin-i386-cc linux-aarch64 linux-armv4 linux-elf linux-x32 \
-linux-x86_64 solaris-x86-gcc solaris64-x86_64-gcc
+linux-x86_64 linux-ppc linux-ppc64 solaris-x86-gcc \
+solaris64-x86_64-gcc
 
 CFG = opensslconf.h
 SRC_CFG = ../openssl/crypto/$(CFG)

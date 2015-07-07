@@ -242,7 +242,15 @@ else
 ifeq ($(DESTCPU),arm)
 ARCH=arm
 else
+ifeq ($(DESTCPU),ppc64)
+ARCH=ppc64
+else
+ifeq ($(DESTCPU),ppc)
+ARCH=ppc
+else
 ARCH=x86
+endif
+endif
 endif
 endif
 
