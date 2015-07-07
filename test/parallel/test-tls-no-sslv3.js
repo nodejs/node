@@ -4,7 +4,7 @@ var assert = require('assert');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
-  process.exit();
+  return;
 }
 var tls = require('tls');
 
@@ -13,7 +13,7 @@ var spawn = require('child_process').spawn;
 
 if (common.opensslCli === false) {
   console.log('1..0 # Skipped: node compiled without OpenSSL CLI.');
-  process.exit(0);
+  return;
 }
 
 var cert = fs.readFileSync(common.fixturesDir + '/test_cert.pem');

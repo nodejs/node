@@ -5,7 +5,7 @@ var util = require('util');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
-  process.exit();
+  return;
 }
 var tls = require('tls');
 

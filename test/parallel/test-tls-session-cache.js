@@ -3,12 +3,12 @@ var common = require('../common');
 
 if (!common.opensslCli) {
   console.log('1..0 # Skipped: node compiled without OpenSSL CLI.');
-  process.exit(0);
+  return;
 }
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
-  process.exit();
+  return;
 }
 
 doTest({ tickets: false }, function() {

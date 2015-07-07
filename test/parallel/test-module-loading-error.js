@@ -14,7 +14,7 @@ var dlerror_msg = error_desc[process.platform];
 
 if (!dlerror_msg) {
   console.log('1..0 # Skipped: platform not supported.');
-  process.exit();
+  return;
 }
 
 try {

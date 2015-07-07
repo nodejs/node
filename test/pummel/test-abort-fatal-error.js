@@ -4,7 +4,7 @@ var common = require('../common');
 
 if (process.platform === 'win32') {
   console.log('1..0 # Skipped: no RLIMIT_NOFILE on Windows');
-  process.exit(0);
+  return;
 }
 
 var exec = require('child_process').exec;

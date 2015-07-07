@@ -3,7 +3,7 @@ var common = require('../common');
 
 if (!common.opensslCli) {
   console.log('1..0 # Skipped: node compiled without OpenSSL CLI.');
-  process.exit(0);
+  return;
 }
 
 // This is a rather complex test which sets up various TLS servers with node
@@ -101,7 +101,7 @@ var testCases =
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
-  process.exit();
+  return;
 }
 var tls = require('tls');
 
