@@ -146,6 +146,7 @@ if defined nobuild goto sign
 @rem Build the sln with msbuild.
 msbuild node.sln /m /t:%target% /p:Configuration=%config% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 goto exit
+if "%target%" == "Clean" goto exit
 
 :sign
 @rem Skip signing if the `nosign` option was specified.
