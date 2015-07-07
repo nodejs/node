@@ -205,7 +205,7 @@ CoC](http://www.rust-lang.org/conduct.html).
 * Private harassment is also unacceptable. No matter who you are, if
   you feel you have been or are being harassed or made uncomfortable
   by a community member, please contact one of the channel ops or any
-  of the TC members immediately with a capture (log, photo, email) of
+  of the TSC members immediately with a capture (log, photo, email) of
   the harassment if possible.  Whether you're a regular contributor or
   a newcomer, we care about making this community a safe place for you
   and we've got your back.
