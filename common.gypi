@@ -225,6 +225,14 @@
             'cflags': [ '-m64' ],
             'ldflags': [ '-m64' ],
           }],
+          [ 'target_arch=="ppc"', {
+            'cflags': [ '-m32' ],
+            'ldflags': [ '-m32' ],
+          }],
+          [ 'target_arch=="ppc64"', {
+	    'cflags': [ '-m64', '-mminimal-toc' ],
+	    'ldflags': [ '-m64' ],
+	   }],
           [ 'OS=="solaris"', {
             'cflags': [ '-pthreads' ],
             'ldflags': [ '-pthreads' ],
