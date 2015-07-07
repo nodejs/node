@@ -65,9 +65,10 @@ class ContextifyContext {
   explicit ContextifyContext(Environment* env, Local<Object> sandbox)
       : env_(env),
         sandbox_(env->isolate(), sandbox),
-        context_(env->isolate(), CreateV8Context(env)),
         // Wait for sandbox_, proxy_global_, and context_ to die
         references_(0) {
+    context_.Reset(env->isolate(), CreateV8Context(env));
+
     sandbox_.SetWeak(this, WeakCallback<Object, kSandbox>);
     sandbox_.MarkIndependent();
     references_++;
@@ -361,6 +362,10 @@ class ContextifyContext {
     ContextifyContext* ctx =
         Unwrap<ContextifyContext>(args.Data().As<Object>());
 
+    // Stil initializing
+    if (ctx->context_.IsEmpty())
+      return;
+
     Local<Object> sandbox = PersistentToLocal(isolate, ctx->sandbox_);
     MaybeLocal<Value> maybe_rv =
         sandbox->GetRealNamedProperty(ctx->context(), property);
@@ -389,6 +394,10 @@ class ContextifyContext {
     ContextifyContext* ctx =
         Unwrap<ContextifyContext>(args.Data().As<Object>());
 
+    // Stil initializing
+    if (ctx->context_.IsEmpty())
+      return;
+
     PersistentToLocal(isolate, ctx->sandbox_)->Set(property, value);
   }
 
@@ -400,6 +409,10 @@ class ContextifyContext {
 
     ContextifyContext* ctx =
         Unwrap<ContextifyContext>(args.Data().As<Object>());
+
+    // Stil initializing
+    if (ctx->context_.IsEmpty())
+      return;
 
     Local<Object> sandbox = PersistentToLocal(isolate, ctx->sandbox_);
     Maybe<PropertyAttribute> maybe_prop_attr =
@@ -428,6 +441,11 @@ class ContextifyContext {
 
     ContextifyContext* ctx =
         Unwrap<ContextifyContext>(args.Data().As<Object>());
+
+    // Stil initializing
+    if (ctx->context_.IsEmpty())
+      return;
+
     Local<Object> sandbox = PersistentToLocal(isolate, ctx->sandbox_);
 
     Maybe<bool> success = sandbox->Delete(ctx->context(), property);
@@ -441,6 +459,10 @@ class ContextifyContext {
       const PropertyCallbackInfo<Array>& args) {
     ContextifyContext* ctx =
         Unwrap<ContextifyContext>(args.Data().As<Object>());
+
+    // Stil initializing
+    if (ctx->context_.IsEmpty())
+      return;
 
     Local<Object> sandbox = PersistentToLocal(args.GetIsolate(), ctx->sandbox_);
     args.GetReturnValue().Set(sandbox->GetPropertyNames());
