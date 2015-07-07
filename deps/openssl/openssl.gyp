@@ -43,7 +43,13 @@
             ],
           },
         }],
-
+        [ 'node_byteorder=="big"', {
+            # Define Big Endian
+            'defines': ['B_ENDIAN']
+          }, {
+            # Define Little Endian
+           'defines':['L_ENDIAN']
+        }],
         ['openssl_no_asm!=0', {
           # Disable asm
           'defines': [
