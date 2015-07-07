@@ -6,12 +6,12 @@ var net = require('net');
 
 if (process.platform === 'win32') {
   console.log('1..0 # Skipped: not reliable on Windows');
-  process.exit(0);
+  return;
 }
 
 if (process.getuid() === 0) {
   console.log('1..0 # Skipped: as this test should not be run as `root`');
-  process.exit(0);
+  return;
 }
 
 if (cluster.isMaster) {

@@ -7,7 +7,7 @@ var path = require('path');
 
 if (process.platform === 'win32') {
   console.log('1..0 # Skipped: No /dev/stdin on windows.');
-  process.exit();
+  return;
 }
 
 var fs = require('fs');

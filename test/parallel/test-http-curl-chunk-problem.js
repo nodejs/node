@@ -3,7 +3,7 @@ var common = require('../common');
 var assert = require('assert');
 if (!common.opensslCli) {
   console.log('1..0 # Skipped: node compiled without OpenSSL CLI.');
-  process.exit(0);
+  return;
 }
 
 // http://groups.google.com/group/nodejs/browse_thread/thread/f66cd3c960406919

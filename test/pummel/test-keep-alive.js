@@ -1,7 +1,7 @@
 'use strict';
 if (process.platform === 'win32') {
   console.log('1..0 # Skipped: no `wrk` on windows');
-  process.exit(0);
+  return;
 }
 
 // This test requires the program 'wrk'

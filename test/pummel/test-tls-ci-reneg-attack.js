@@ -5,7 +5,7 @@ var spawn = require('child_process').spawn;
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
-  process.exit();
+  return;
 }
 var tls = require('tls');
 
@@ -13,7 +13,7 @@ var fs = require('fs');
 
 if (!common.opensslCli) {
   console.log('1..0 # Skipped: node compiled without OpenSSL CLI.');
-  process.exit(0);
+  return;
 }
 
 // renegotiation limits to test

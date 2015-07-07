@@ -3,7 +3,7 @@ var common = require('../common');
 
 if (!common.opensslCli) {
   console.log('1..0 # Skipped: node compiled without OpenSSL CLI.');
-  process.exit(0);
+  return;
 }
 
 var assert = require('assert');
@@ -14,7 +14,7 @@ var spawn = require('child_process').spawn;
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
-  process.exit();
+  return;
 }
 var https = require('https');
 
