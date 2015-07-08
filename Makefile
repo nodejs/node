@@ -185,6 +185,11 @@ docopen: out/doc/api/all.html
 docclean:
 	-rm -rf out/doc
 
+run-ci:
+	$(PYTHON) ./configure $(CONFIG_FLAGS)
+	$(MAKE)
+	$(MAKE) test-ci
+
 RAWVER=$(shell $(PYTHON) tools/getnodeversion.py)
 VERSION=v$(RAWVER)
 
@@ -464,4 +469,4 @@ lint: jslint cpplint
 	dynamiclib test test-all test-addons build-addons website-upload pkg \
 	blog blogclean tar binary release-only bench-http-simple bench-idle \
 	bench-all bench bench-misc bench-array bench-buffer bench-net \
-	bench-http bench-fs bench-tls cctest
+	bench-http bench-fs bench-tls cctest run-ci
