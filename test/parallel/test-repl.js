@@ -232,6 +232,16 @@ function error_test() {
     { client: client_unix, send: '\'the\\\n\\\nfourtheye\'\n',
       expect: prompt_multiline + prompt_multiline +
               '\'thefourtheye\'\n' + prompt_unix },
+    // Regression test for https://github.com/nodejs/io.js/issues/597
+    { client: client_unix,
+      send: '/(.)(.)(.)(.)(.)(.)(.)(.)(.)/.test(\'123456789\')\n',
+      expect: `true\n${prompt_unix}` },
+    // the following test's result depends on the RegEx's match from the above
+    { client: client_unix,
+      send: 'RegExp.$1\nRegExp.$2\nRegExp.$3\nRegExp.$4\nRegExp.$5\n' +
+            'RegExp.$6\nRegExp.$7\nRegExp.$8\nRegExp.$9\n',
+      expect: ['\'1\'\n', '\'2\'\n', '\'3\'\n', '\'4\'\n', '\'5\'\n', '\'6\'\n',
+               '\'7\'\n', '\'8\'\n', '\'9\'\n'].join(`${prompt_unix}`) },
   ]);
 }
 
