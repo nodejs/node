@@ -38,6 +38,7 @@ set noperfctr_msi_arg=
 set i18n_arg=
 set download_arg=
 set build_release=
+set flaky_tests_arg=
 
 :next-arg
 if "%1"=="" goto args-done
@@ -72,6 +73,7 @@ if /i "%1"=="full-icu"      set i18n_arg=%1&goto arg-ok
 if /i "%1"=="intl-none"     set i18n_arg=%1&goto arg-ok
 if /i "%1"=="download-all"  set download_arg="--download=all"&goto arg-ok
 if /i "%1"=="build-release" set build_release=1&goto arg-ok
+if /i "%1"=="ignore-flaky"  set flaky_tests_arg=--flaky-tests=dontcare&goto arg-ok
 
 echo Warning: ignoring invalid command line option `%1`.
 
@@ -205,7 +207,7 @@ if "%config%"=="Release" set test_args=--mode=release
 set test_args=%test_args% --arch=%target_arch% 
 
 if "%test%"=="test" set test_args=%test_args% simple message
-if "%test%"=="test-ci" set test_args=%test_args% -p tap --logfile test.tap simple message internet
+if "%test%"=="test-ci" set test_args=%test_args% -p tap --logfile test.tap %flaky_tests_arg% simple message internet 
 if "%test%"=="test-internet" set test_args=%test_args% internet
 if "%test%"=="test-pummel" set test_args=%test_args% pummel
 if "%test%"=="test-simple" set test_args=%test_args% simple

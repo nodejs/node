@@ -6,6 +6,7 @@ NINJA ?= ninja
 DESTDIR ?=
 SIGN ?=
 PREFIX ?= /usr/local
+FLAKY_TESTS ?= run
 
 NODE ?= ./node
 
@@ -128,7 +129,7 @@ test-all-valgrind: test-build
 	$(PYTHON) tools/test.py --mode=debug,release --valgrind
 
 test-ci:
-	$(PYTHON) tools/test.py -p tap --logfile test.tap --mode=release --arch=$(DESTCPU) simple message internet
+	$(PYTHON) tools/test.py -p tap --logfile test.tap --mode=release --arch=$(DESTCPU) --flaky-tests=$(FLAKY_TESTS) simple message internet
 
 test-release: test-build
 	$(PYTHON) tools/test.py --mode=release
