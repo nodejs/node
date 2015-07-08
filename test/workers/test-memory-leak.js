@@ -7,6 +7,7 @@ if (process.isMainInstance) {
   var assert = require('assert');
   var util = require('util');
   var Worker = require('worker');
+  var common = require('../common');
   var checks = 0;
 
   var rss = function() {
@@ -20,21 +21,10 @@ if (process.isMainInstance) {
       var promises = [];
       var k = 4;
       while(k--)
-        promises.push(runWorker());
+        promises.push(common.runTestInsideWorker(__filename));
       return Promise.all(promises);
     }).then(function() {
       console.log(rss());
     });
   }
-}
-
-process.on('unhandledRejection', function(e) {
-  throw e;
-});
-
-
-function runWorker() {
-  return new Promise(function(resolve) {
-    new Worker(__filename, {keepAlive: false}).on('exit', resolve);
-  });
 }

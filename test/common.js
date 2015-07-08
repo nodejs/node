@@ -453,3 +453,26 @@ exports.fileExists = function(pathname) {
     return false;
   }
 };
+
+exports.runTestInsideWorker = function(testFilePath) {
+  const Worker = require("worker");
+  return new Promise(function(resolve, reject) {
+    var worker = new Worker(testFilePath, {keepAlive: false});
+    worker.on('exit', function(exitCode) {
+      if (exitCode === 0)
+        resolve();
+      else
+        reject(new Error(util.format(
+            '%s exited with code %s', testFile, exitCode)));
+    });
+
+    worker.on('error', function(e) {
+        reject(new Error(util.format(
+            'Running %s inside worker failed:\n%s', testFilePath, e.stack)));
+    });
+  });
+};
+
+process.on('unhandledRejection', function(e) {
+  throw e;
+});

@@ -260,7 +260,10 @@ assert.equal(util.inspect(map, true),
 
 // test Promise
 assert.equal(util.inspect(Promise.resolve(3)), 'Promise { 3 }');
-assert.equal(util.inspect(Promise.reject(3)), 'Promise { <rejected> 3 }');
+var rejectedPromise = Promise.reject(3);
+// Handle rejection.
+rejectedPromise.catch(function(){});
+assert.equal(util.inspect(rejectedPromise), 'Promise { <rejected> 3 }');
 assert.equal(util.inspect(new Promise(function() {})), 'Promise { <pending> }');
 var promise = Promise.resolve('foo');
 promise.bar = 42;
