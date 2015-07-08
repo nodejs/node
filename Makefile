@@ -101,6 +101,9 @@ test-all-http1: all
 test-all-valgrind: all
 	$(PYTHON) tools/test.py --mode=debug,release --valgrind
 
+test-ci:
+	$(PYTHON) tools/test.py -p tap --logfile test.tap --mode=release --arch=$(DESTCPU) simple message internet
+
 test-release: all
 	$(PYTHON) tools/test.py --mode=release
 
