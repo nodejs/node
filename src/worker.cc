@@ -187,14 +187,13 @@ void WorkerContext::PostMessageToWorker(
 }
 
 void WorkerContext::WrapperNew(const FunctionCallbackInfo<Value>& args) {
-  HandleScope handle_scope(args.GetIsolate());
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   if (!args.IsConstructCall())
     return env->ThrowError("Illegal invocation");
   if (args.Length() < 1)
     return env->ThrowError("entryModulePath is required");
 
-  Local<Object> recv = args.This().As<Object>();
+  Local<Object> recv = args.Holder();
   Local<Function> init = recv->Get(env->worker_init_symbol()).As<Function>();
   CHECK(init->IsFunction());
   Local<Value>* argv = new Local<Value>[args.Length()];
@@ -691,5 +690,5 @@ v8::Platform* WorkerContext::platform() {
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(WorkerContext,
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(worker_context,
                                   node::WorkerContext::Initialize)
