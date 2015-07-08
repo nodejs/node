@@ -257,8 +257,8 @@ class TapProgressIndicator(SimpleProgressIndicator):
       for l in output.output.stdout.splitlines():
         logger.info('#' + l)
     elif output.HasSkipped():
-      skip = skip_regex.findall(output.output.stdout)      
-      logger.info('ok %i - %s # skip %s' % (self._done, command, skip[0]))
+      skip = skip_regex.search(output.output.stdout).group(1)     
+      logger.info('ok %i - %s # skip %s' % (self._done, command, skip))
     else:
       logger.info('ok %i - %s' % (self._done, command))
 
