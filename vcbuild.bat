@@ -61,7 +61,8 @@ if /i "%1"=="test-simple"   set test=test-simple&goto arg-ok
 if /i "%1"=="test-message"  set test=test-message&goto arg-ok
 if /i "%1"=="test-gc"       set test=test-gc&set buildnodeweak=1&goto arg-ok
 if /i "%1"=="test-all"      set test=test-all&set buildnodeweak=1&goto arg-ok
-if /i "%1"=="test"          set test=test&goto arg-ok
+if /i "%1"=="test-ci"       set test=test-ci&set nosnapshot=1&goto arg-ok
+if /i "%1"=="test"          set test=test&set jslint=1&goto arg-ok
 @rem Include small-icu support with MSI installer
 if /i "%1"=="msi"           set msi=1&set licensertf=1&set download_arg="--download=all"&set i18n_arg=small-icu&goto arg-ok
 if /i "%1"=="upload"        set upload=1&goto arg-ok
@@ -81,7 +82,6 @@ goto next-arg
 
 :args-done
 if defined upload goto upload
-if defined jslint goto jslint
 
 if defined build_release (
   set nosnapshot=1
@@ -197,12 +197,15 @@ if errorlevel 1 echo Failed to sign msi&goto exit
 
 :run
 @rem Run tests if requested.
-if "%test%"=="" goto exit
+if "%test%"=="" goto jslint
 
 if "%config%"=="Debug" set test_args=--mode=debug
 if "%config%"=="Release" set test_args=--mode=release
 
+set test_args=%test_args% --arch=%target_arch% 
+
 if "%test%"=="test" set test_args=%test_args% simple message
+if "%test%"=="test-ci" set test_args=%test_args% -p tap --logfile test.tap simple message internet
 if "%test%"=="test-internet" set test_args=%test_args% internet
 if "%test%"=="test-pummel" set test_args=%test_args% pummel
 if "%test%"=="test-simple" set test_args=%test_args% simple
@@ -224,8 +227,7 @@ goto exit
 :run-tests
 echo running 'python tools/test.py %test_args%'
 python tools/test.py %test_args%
-if "%test%"=="test" goto jslint
-goto exit
+goto jslint
 
 :create-msvs-files-failed
 echo Failed to create vc project files. 
@@ -243,6 +245,7 @@ scp Release\node.pdb node@nodejs.org:~/web/nodejs.org/dist/v%NODE_VERSION%/node.
 goto exit
 
 :jslint
+if not defined jslint goto exit
 echo running jslint
 set PYTHONPATH=tools/closure_linter/
 python tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc -r lib/ -r src/ --exclude_files lib/punycode.js
