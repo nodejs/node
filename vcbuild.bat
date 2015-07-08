@@ -35,6 +35,7 @@ set noetw_msi_arg=
 set noperfctr=
 set noperfctr_arg=
 set noperfctr_msi_arg=
+set flaky_tests_arg=
 
 :next-arg
 if "%1"=="" goto args-done
@@ -64,6 +65,7 @@ if /i "%1"=="msi"           set msi=1&set licensertf=1&goto arg-ok
 if /i "%1"=="upload"        set upload=1&goto arg-ok
 if /i "%1"=="jslint"        set jslint=1&goto arg-ok
 if /i "%1"=="build-release" set nosnapshot=1&set config=Release&set msi=1&set licensertf=1&goto arg-ok
+if /i "%1"=="ignore-flaky"  set flaky_tests_arg=--flaky-tests=dontcare&goto arg-ok
 
 echo Warning: ignoring invalid command line option `%1`.
 
@@ -174,7 +176,7 @@ if "%config%"=="Release" set test_args=--mode=release
 set test_args=%test_args% --arch=%target_arch% 
 
 if "%test%"=="test" set test_args=%test_args% simple message
-if "%test%"=="test-ci" set test_args=%test_args% -p tap --logfile test.tap simple message internet
+if "%test%"=="test-ci" set test_args=%test_args% -p tap --logfile test.tap %flaky_tests_arg% simple message internet 
 if "%test%"=="test-internet" set test_args=%test_args% internet
 if "%test%"=="test-pummel" set test_args=%test_args% pummel
 if "%test%"=="test-simple" set test_args=%test_args% simple
