@@ -27,7 +27,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
 import imp
 import logging
 import optparse
@@ -256,8 +255,9 @@ class TapProgressIndicator(SimpleProgressIndicator):
       for l in output.output.stdout.splitlines():
         logger.info('#' + l)
     elif output.HasSkipped():
-      logger.info('ok %i - %s # skip %s' % (self._done, command,
-        output.output.stdout.replace('1..0 # Skipped:', '').strip()))
+      skip = re.findall('# SKIP\S+ (.+)', output.output.stdout.strip(),
+        re.IGNORECASE)      
+      logger.info('ok %i - %s # skip %s' % (self._done, command, skip[0]))
     else:
       logger.info('ok %i - %s' % (self._done, command))
 
@@ -475,8 +475,9 @@ class TestOutput(object):
     return not outcome in self.test.outcomes
 
   def HasSkipped(self):
-    s = '1..0 # Skipped:'
-    return self.store_unexpected_output and self.output.stdout.startswith(s)
+    skip = re.search('# SKIP\S+ (.+)', self.output.stdout.strip(),
+      re.IGNORECASE)
+    return self.store_unexpected_output and skip
 
   def HasPreciousOutput(self):
     return self.UnexpectedOutput() and self.store_unexpected_output
