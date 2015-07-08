@@ -199,6 +199,11 @@ docopen: out/doc/api/all.html
 docclean:
 	-rm -rf out/doc
 
+run-ci:
+	$(PYTHON) ./configure --without-snapshot $(CONFIG_FLAGS)
+	$(MAKE)
+	$(MAKE) test-ci
+
 RAWVER=$(shell $(PYTHON) tools/getnodeversion.py)
 VERSION=v$(RAWVER)
 NODE_DOC_VERSION=$(VERSION)
@@ -385,4 +390,8 @@ cpplint:
 
 lint: jslint cpplint
 
-.PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean check uninstall install install-includes install-bin all staticlib dynamiclib test test-all website-upload pkg blog blogclean tar binary release-only bench-http-simple bench-idle bench-all bench bench-misc bench-array bench-buffer bench-net bench-http bench-fs bench-tls
+.PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean \
+	check uninstall install install-includes install-bin all staticlib \
+	dynamiclib test test-all website-upload pkg blog blogclean tar binary \
+	release-only bench-http-simple bench-idle bench-all bench bench-misc \
+	bench-array bench-buffer bench-net bench-http bench-fs bench-tls run-ci
