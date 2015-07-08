@@ -455,7 +455,7 @@ exports.fileExists = function(pathname) {
 };
 
 exports.runTestInsideWorker = function(testFilePath) {
-  const Worker = require("worker");
+  const Worker = require('worker');
   return new Promise(function(resolve, reject) {
     var worker = new Worker(testFilePath, {keepAlive: false});
     worker.on('exit', function(exitCode) {
@@ -467,8 +467,8 @@ exports.runTestInsideWorker = function(testFilePath) {
     });
 
     worker.on('error', function(e) {
-        reject(new Error(util.format(
-            'Running %s inside worker failed:\n%s', testFilePath, e.stack)));
+      reject(new Error(util.format(
+          'Running %s inside worker failed:\n%s', testFilePath, e.stack)));
     });
   });
 };
