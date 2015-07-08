@@ -1,12 +1,12 @@
 // Flags: --experimental-workers
-
+'use strict';
 
 var assert = require('assert');
 var Worker = require('worker');
 var checks = 0;
 
 if (process.isMainInstance) {
-  var timer = setInterval(function(){}, 1000);;
+  var timer = setInterval(function() {}, 1000);;
   var aWorker = new Worker(__filename);
   aWorker.on('exit', function() {
     checks++;

@@ -1,4 +1,5 @@
 // Flags: --experimental-workers
+'use strict';
 
 var assert = require('assert');
 var Worker = require('worker');
@@ -41,14 +42,14 @@ if (process.isMainInstance) {
       messages[subWorkerId] = 0;
       var worker = new Worker(__filename);
       worker.on('message', function(data) {
-          var count = ++messages[data.id];
-          if (count === MESSAGES_PER_GRAND_CHILD_WORKER) {
-            Worker.postMessage({id: mainData.id});
-          }
+        var count = ++messages[data.id];
+        if (count === MESSAGES_PER_GRAND_CHILD_WORKER) {
+          Worker.postMessage({id: mainData.id});
+        }
       });
       worker.postMessage({id: subWorkerId});
     }
-  }
+  };
 
   var runGrandChildWorker = function(data) {
     var l = MESSAGES_PER_GRAND_CHILD_WORKER;
@@ -114,6 +115,6 @@ if (process.isMainInstance) {
         id: data.id
       });
     }
-  }
+  };
 
 }

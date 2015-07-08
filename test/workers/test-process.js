@@ -1,4 +1,6 @@
 // Flags: --experimental-workers
+'use strict';
+
 var assert = require('assert');
 var util = require('util');
 var Worker = require('worker');
@@ -50,10 +52,10 @@ function runTestInsideWorker(testFile) {
     worker.on('error', function(e) {
       console.error(testFile + ' failed');
       reject(e);
-    })
+    });
     worker.on('exit', function(exitCode) {
       if (exitCode === 0)
-        resolve()
+        resolve();
       else
         reject(new Error(util.format(
             '%s exited with code %s', testFile, exitCode)));

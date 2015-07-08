@@ -1,4 +1,5 @@
 // Flags: --experimental-workers
+'use strict';
 
 var assert = require('assert');
 var Worker = require('worker');
@@ -20,7 +21,7 @@ if (process.isMainInstance) {
     }
   });
   process.on('beforeExit', function() {
-    assert.deepEqual([0,1,2,3].sort(), ids.sort());
+    assert.deepEqual([0, 1, 2, 3].sort(), ids.sort());
   });
 } else {
   Worker.on('message', function(data) {

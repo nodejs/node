@@ -1,4 +1,5 @@
 // Flags: --experimental-workers
+'use strict';
 
 var assert = require('assert');
 var Worker = require('worker');
@@ -25,7 +26,7 @@ if (process.isMainInstance) {
     setImmediate(f);
   });
   (function() {
-    [1337,2,3].map(function(value) {
+    [1337, 2, 3].map(function(value) {
       process.exit(value);
     });
   })();

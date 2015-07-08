@@ -1809,6 +1809,7 @@ static void SetGid(const FunctionCallbackInfo<Value>& args) {
 
 static void SetEGid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  CHECK(env->is_main_instance());
 
   if (!args[0]->IsUint32() && !args[0]->IsString()) {
     return env->ThrowTypeError("setegid argument must be a number or string");
@@ -1848,6 +1849,7 @@ static void SetUid(const FunctionCallbackInfo<Value>& args) {
 
 static void SetEUid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  CHECK(env->is_main_instance());
 
   if (!args[0]->IsUint32() && !args[0]->IsString()) {
     return env->ThrowTypeError("seteuid argument must be a number or string");
@@ -2943,12 +2945,14 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "getuid", GetUid);
   env->SetMethod(process, "geteuid", GetEUid);
   env->SetMethod(process, "getgid", GetGid);
+  env->SetMethod(process, "getegid", GetEGid);
   env->SetMethod(process, "getgroups", GetGroups);
 
   if (env->is_main_instance()) {
     env->SetMethod(process, "setuid", SetUid);
-    env->SetMethod(process, "setegid", SetEGid);
+    env->SetMethod(process, "seteuid", SetEUid);
     env->SetMethod(process, "setgid", SetGid);
+    env->SetMethod(process, "setegid", SetEGid);
     env->SetMethod(process, "setgroups", SetGroups);
     env->SetMethod(process, "initgroups", InitGroups);
   }
@@ -3969,8 +3973,6 @@ void InitializeEnvironment(Environment* env,
 
   SetupProcessObject(env, argc, argv, exec_argc, exec_argv);
   LoadAsyncWrapperInfo(env);
-
-  return env;
 }
 
 

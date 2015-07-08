@@ -1,4 +1,5 @@
 // Flags: --experimental-workers
+'use strict';
 
 var assert = require('assert');
 var Worker = require('worker');
