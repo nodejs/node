@@ -49,6 +49,7 @@ from datetime import datetime
 from Queue import Queue, Empty
 
 logger = logging.getLogger('testrunner')
+is_skipped = re.compile(r"# SKIP\S+ (.+)", re.IGNORECASE)
 
 VERBOSE = False
 
@@ -256,8 +257,7 @@ class TapProgressIndicator(SimpleProgressIndicator):
       for l in output.output.stdout.splitlines():
         logger.info('#' + l)
     elif output.HasSkipped():
-      skip = re.findall('# SKIP\S+ (.+)', output.output.stdout,
-        re.IGNORECASE)      
+      skip = is_skipped.findall(output.output.stdout)      
       logger.info('ok %i - %s # skip %s' % (self._done, command, skip[0]))
     else:
       logger.info('ok %i - %s' % (self._done, command))
@@ -476,8 +476,7 @@ class TestOutput(object):
     return not outcome in self.test.outcomes
 
   def HasSkipped(self):
-    skip = re.search('# SKIP\S+ (.+)', self.output.stdout,
-      re.IGNORECASE)
+    skip = is_skipped.search(self.output.stdout)
     return self.store_unexpected_output and skip
 
   def HasPreciousOutput(self):
