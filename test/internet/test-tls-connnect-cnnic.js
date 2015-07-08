@@ -7,6 +7,13 @@
 //     0x44, 0xB5, 0x00, 0x76, 0x48, 0x11, 0x41, 0xED },
 // },
 // in src/CNNICHashWhitelist.inc
+
+var common = require('../common');
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  process.exit();
+}
+
 var tls = require('tls');
 var socket = tls.connect(443, 'www1.cnnic.cn', function() {
   socket.resume();
