@@ -195,6 +195,7 @@ int main(int argc, char *argv[])
     }
     printf("test 4 ok\n");
 test5:
+    HMAC_CTX_cleanup(&ctx);
     HMAC_CTX_init(&ctx);
     if (HMAC_Init_ex(&ctx, test[4].key, test[4].key_len, NULL, NULL)) {
         printf("Should fail to initialise HMAC with empty MD (test 5)\n");
@@ -284,6 +285,7 @@ test5:
         printf("test 5 ok\n");
     }
 test6:
+    HMAC_CTX_cleanup(&ctx);
     HMAC_CTX_init(&ctx);
     if (!HMAC_Init_ex(&ctx, test[7].key, test[7].key_len, EVP_sha1(), NULL)) {
         printf("Failed to initialise HMAC (test 6)\n");
@@ -314,6 +316,7 @@ test6:
         printf("test 6 ok\n");
     }
 end:
+    HMAC_CTX_cleanup(&ctx);
     EXIT(err);
     return (0);
 }
