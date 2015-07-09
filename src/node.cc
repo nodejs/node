@@ -3066,7 +3066,8 @@ static void PrintHelp() {
          "  --trace-deprecation   show stack traces on deprecations\n"
          "  --trace-sync-io       show stack trace when use of sync IO\n"
          "                        is detected after the first tick\n"
-         "  --track-heap-objects  track heap object allocations for heap snapshots\n"
+         "  --track-heap-objects  track heap object allocations for heap"
+         "snapshots\n"
          "  --v8-options          print v8 command line options\n"
 #if defined(NODE_HAVE_I18N_SUPPORT)
          "  --icu-data-dir=dir    set ICU data load path to dir\n"
@@ -3880,7 +3881,11 @@ Environment* CreateEnvironment(Isolate* isolate,
 static void StartNodeInstance(void* arg) {
   NodeInstanceData* instance_data = static_cast<NodeInstanceData*>(arg);
   Isolate* isolate = Isolate::New();
-    // Fetch a reference to the main isolate, so we have a reference to it
+  if (track_heap_objects) {
+    isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
+  }
+
+  // Fetch a reference to the main isolate, so we have a reference to it
   // even when we need it to access it from another (debugger) thread.
   if (instance_data->is_main())
     node_isolate = isolate;
@@ -3900,9 +3905,6 @@ static void StartNodeInstance(void* arg) {
     LoadEnvironment(env);
 
     env->set_trace_sync_io(trace_sync_io);
-    if (track_heap_objects) {
-      env->isolate()->GetHeapProfiler()->StartTrackingHeapObjects(true);
-    }
 
     // Enable debugger
     if (instance_data->use_debug_agent())
