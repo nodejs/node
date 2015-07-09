@@ -3066,7 +3066,7 @@ static void PrintHelp() {
          "  --trace-deprecation   show stack traces on deprecations\n"
          "  --trace-sync-io       show stack trace when use of sync IO\n"
          "                        is detected after the first tick\n"
-         "  --track-heap-objects  track heap object allocations for heap"
+         "  --track-heap-objects  track heap object allocations for heap "
          "snapshots\n"
          "  --v8-options          print v8 command line options\n"
 #if defined(NODE_HAVE_I18N_SUPPORT)
