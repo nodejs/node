@@ -1,5 +1,40 @@
 # io.js ChangeLog
 
+## 2015-07-09, Version 2.3.4, @Fishrock123
+
+### Notable changes
+
+* **openssl**: Upgrade to 1.0.2d, fixes CVE-2015-1793 (Alternate Chains Certificate Forgery) (Shigeki Ohtsu) [#2141](https://github.com/nodejs/io.js/pull/2141).
+* **npm**: Upgraded to v2.12.1, release notes can be found in <https://github.com/npm/npm/releases/tag/v2.12.0> and <https://github.com/npm/npm/releases/tag/v2.12.1> (Kat Marchán) [#2112](https://github.com/nodejs/io.js/pull/2112).
+
+### Known issues
+
+See https://github.com/nodejs/io.js/labels/confirmed-bug for complete and current list of known issues.
+
+* Some problems with unreferenced timers running during `beforeExit` are still to be resolved. See [#1264](https://github.com/nodejs/io.js/issues/1264).
+* Surrogate pair in REPL can freeze terminal. [#690](https://github.com/nodejs/io.js/issues/690)
+* `process.send()` is not synchronous as the docs suggest, a regression introduced in 1.0.2, see [#760](https://github.com/nodejs/io.js/issues/760).
+* Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion. [#894](https://github.com/nodejs/io.js/issues/894)
+* `url.resolve` may transfer the auth portion of the url when resolving between two full hosts, see [#1435](https://github.com/nodejs/io.js/issues/1435).
+
+### Commits
+
+* [[`0d15161c24`](https://github.com/nodejs/io.js/commit/0d15161c24)] - **benchmark**: Add some path benchmarks for #1778 (Nathan Woltman) [#1778](https://github.com/nodejs/io.js/pull/1778)
+* [[`c70e68fa32`](https://github.com/nodejs/io.js/commit/c70e68fa32)] - **deps**: update deps/openssl/conf/arch/*/opensslconf.h (Shigeki Ohtsu) [#2141](https://github.com/nodejs/io.js/pull/2141)
+* [[`ca93f7f2e6`](https://github.com/nodejs/io.js/commit/ca93f7f2e6)] - **deps**: upgrade openssl sources to 1.0.2d (Shigeki Ohtsu) [#2141](https://github.com/nodejs/io.js/pull/2141)
+* [[`b18c841ec1`](https://github.com/nodejs/io.js/commit/b18c841ec1)] - **deps**: make node-gyp work with io.js (cjihrig) [iojs/io.js#990](https://github.com/iojs/io.js/pull/990)
+* [[`863cdbdd08`](https://github.com/nodejs/io.js/commit/863cdbdd08)] - **deps**: upgrade to npm 2.12.1 (Kat Marchán) [#2112](https://github.com/nodejs/io.js/pull/2112)
+* [[`84b3915764`](https://github.com/nodejs/io.js/commit/84b3915764)] - **doc**: document current release procedure (Rod Vagg) [#2099](https://github.com/nodejs/io.js/pull/2099)
+* [[`46140334cd`](https://github.com/nodejs/io.js/commit/46140334cd)] - **doc**: update AUTHORS list (Rod Vagg) [#2100](https://github.com/nodejs/io.js/pull/2100)
+* [[`bca53dce76`](https://github.com/nodejs/io.js/commit/bca53dce76)] - **path**: refactor for performance and consistency (Nathan Woltman) [#1778](https://github.com/nodejs/io.js/pull/1778)
+* [[`6bef15afe7`](https://github.com/nodejs/io.js/commit/6bef15afe7)] - **src**: remove traceSyncIO property from process (Bradley Meck) [#2143](https://github.com/nodejs/io.js/pull/2143)
+* [[`2ba1740ba1`](https://github.com/nodejs/io.js/commit/2ba1740ba1)] - **test**: add missing crypto checks (Johan Bergström) [#2129](https://github.com/nodejs/io.js/pull/2129)
+* [[`180fd392ca`](https://github.com/nodejs/io.js/commit/180fd392ca)] - **test**: refactor test-repl-tab-complete (Sakthipriyan Vairamani) [#2122](https://github.com/nodejs/io.js/pull/2122)
+* [[`fb05c8e27d`](https://github.com/nodejs/io.js/commit/fb05c8e27d)] - ***Revert*** "**test**: add test for missing `close`/`finish` event" (Fedor Indutny)
+* [[`9436a860cb`](https://github.com/nodejs/io.js/commit/9436a860cb)] - **test**: add test for missing `close`/`finish` event (Mark Plomer) [iojs/io.js#1373](https://github.com/iojs/io.js/pull/1373)
+* [[`ee3ce2ed88`](https://github.com/nodejs/io.js/commit/ee3ce2ed88)] - **tools**: install gdbinit from v8 to $PREFIX/share (Ali Ijaz Sheikh) [#2123](https://github.com/nodejs/io.js/pull/2123)
+* [[`dd523c75da`](https://github.com/nodejs/io.js/commit/dd523c75da)] - **win,node-gyp**: enable delay-load hook by default (Bert Belder) [iojs/io.js#1433](https://github.com/iojs/io.js/pull/1433)
+
 ## 2015-07-04, Version 2.3.3, @Fishrock123
 
 ### Notable changes
