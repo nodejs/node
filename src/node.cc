@@ -117,6 +117,7 @@ static bool trace_deprecation = false;
 static bool throw_deprecation = false;
 static bool abort_on_uncaught_exception = false;
 static bool trace_sync_io = false;
+static bool track_heap_objects = false;
 static const char* eval_string = nullptr;
 static unsigned int preload_module_count = 0;
 static const char** preload_modules = nullptr;
@@ -3053,40 +3054,42 @@ static void PrintHelp() {
          "       iojs debug script.js [arguments] \n"
          "\n"
          "Options:\n"
-         "  -v, --version        print io.js version\n"
-         "  -e, --eval script    evaluate script\n"
-         "  -p, --print          evaluate script and print result\n"
-         "  -i, --interactive    always enter the REPL even if stdin\n"
-         "                       does not appear to be a terminal\n"
-         "  -r, --require        module to preload (option can be repeated)\n"
-         "  --no-deprecation     silence deprecation warnings\n"
-         "  --throw-deprecation  throw an exception anytime a deprecated "
+         "  -v, --version         print io.js version\n"
+         "  -e, --eval script     evaluate script\n"
+         "  -p, --print           evaluate script and print result\n"
+         "  -i, --interactive     always enter the REPL even if stdin\n"
+         "                        does not appear to be a terminal\n"
+         "  -r, --require         module to preload (option can be repeated)\n"
+         "  --no-deprecation      silence deprecation warnings\n"
+         "  --throw-deprecation   throw an exception anytime a deprecated "
          "function is used\n"
-         "  --trace-deprecation  show stack traces on deprecations\n"
-         "  --trace-sync-io      show stack trace when use of sync IO\n"
-         "                       is detected after the first tick\n"
-         "  --v8-options         print v8 command line options\n"
+         "  --trace-deprecation   show stack traces on deprecations\n"
+         "  --trace-sync-io       show stack trace when use of sync IO\n"
+         "                        is detected after the first tick\n"
+         "  --track-heap-objects  track heap object allocations for heap "
+         "snapshots\n"
+         "  --v8-options          print v8 command line options\n"
 #if defined(NODE_HAVE_I18N_SUPPORT)
-         "  --icu-data-dir=dir   set ICU data load path to dir\n"
-         "                         (overrides NODE_ICU_DATA)\n"
+         "  --icu-data-dir=dir    set ICU data load path to dir\n"
+         "                          (overrides NODE_ICU_DATA)\n"
 #if !defined(NODE_HAVE_SMALL_ICU)
-         "                       Note: linked-in ICU data is\n"
-         "                       present.\n"
+         "                        Note: linked-in ICU data is\n"
+         "                        present.\n"
 #endif
 #endif
          "\n"
          "Environment variables:\n"
 #ifdef _WIN32
-         "NODE_PATH              ';'-separated list of directories\n"
+         "NODE_PATH               ';'-separated list of directories\n"
 #else
-         "NODE_PATH              ':'-separated list of directories\n"
+         "NODE_PATH               ':'-separated list of directories\n"
 #endif
-         "                       prefixed to the module search path.\n"
-         "NODE_DISABLE_COLORS    Set to 1 to disable colors in the REPL\n"
+         "                        prefixed to the module search path.\n"
+         "NODE_DISABLE_COLORS     Set to 1 to disable colors in the REPL\n"
 #if defined(NODE_HAVE_I18N_SUPPORT)
-         "NODE_ICU_DATA          Data path for ICU (Intl object) data\n"
+         "NODE_ICU_DATA           Data path for ICU (Intl object) data\n"
 #if !defined(NODE_HAVE_SMALL_ICU)
-         "                       (will extend linked-in data)\n"
+         "                        (will extend linked-in data)\n"
 #endif
 #endif
          "\n"
@@ -3187,6 +3190,8 @@ static void ParseArgs(int* argc,
       trace_deprecation = true;
     } else if (strcmp(arg, "--trace-sync-io") == 0) {
       trace_sync_io = true;
+    } else if (strcmp(arg, "--track-heap-objects") == 0) {
+      track_heap_objects = true;
     } else if (strcmp(arg, "--throw-deprecation") == 0) {
       throw_deprecation = true;
     } else if (strcmp(arg, "--abort-on-uncaught-exception") == 0 ||
@@ -3876,7 +3881,11 @@ Environment* CreateEnvironment(Isolate* isolate,
 static void StartNodeInstance(void* arg) {
   NodeInstanceData* instance_data = static_cast<NodeInstanceData*>(arg);
   Isolate* isolate = Isolate::New();
-    // Fetch a reference to the main isolate, so we have a reference to it
+  if (track_heap_objects) {
+    isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
+  }
+
+  // Fetch a reference to the main isolate, so we have a reference to it
   // even when we need it to access it from another (debugger) thread.
   if (instance_data->is_main())
     node_isolate = isolate;
