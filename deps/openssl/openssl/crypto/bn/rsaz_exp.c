@@ -42,6 +42,8 @@
 
 #include "rsaz_exp.h"
 
+#ifdef RSAZ_ENABLED
+
 /*
  * See crypto/bn/asm/rsaz-avx2.pl for further details.
  */
@@ -334,3 +336,11 @@ void RSAZ_512_mod_exp(BN_ULONG result[8],
 
     OPENSSL_cleanse(storage, sizeof(storage));
 }
+
+#else
+
+# if defined(PEDANTIC) || defined(__DECC) || defined(__clang__)
+static void *dummy = &dummy;
+# endif
+
+#endif
