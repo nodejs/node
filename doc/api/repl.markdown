@@ -237,3 +237,26 @@ The following key combinations in the REPL have these special effects:
   - `<ctrl>D` - Similar to the `.exit` keyword.
   - `<tab>` - Show both global and local(scope) variables
 
+
+### Overriding representation of Objects in REPL
+
+REPL module internally uses
+[`util.inspect`](https://iojs.org/api/util.html#util_util_inspect_object_options),
+ by default, to print the actual values. But, `util.inspect` delegates the call
+ to the object's `inspect` function, if it has one. You can read more about
+ this delegation,
+ [here](https://iojs.org/api/util.html#util_custom_inspect_function_on_objects).
+
+So, if you have defined an `inspect` function on an object, like this
+
+    > var obj = { foo: 'this will not show up in the inspect() output' };
+    undefined
+    > obj.inspect = function(depth) {
+    ...   return { bar: 'baz' };
+    ... };
+    [Function]
+
+and try to print `obj` in REPL, it will invoke the custom `inspect` function
+
+    > obj
+    { bar: 'baz' }
