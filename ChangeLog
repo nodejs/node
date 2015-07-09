@@ -1,4 +1,15 @@
-2015.07.03, Version 0.12.6 (Stable)
+2015.07.09, Version 0.12.7 (Stable)
+
+* openssl: upgrade to 1.0.1p
+
+* npm: upgrade to 2.11.3
+
+* V8: cherry-pick JitCodeEvent patch from upstream (Ben Noordhuis)
+
+* win,msi: create npm folder in AppData directory (Steven Rockarts)
+
+
+2015.07.03, Version 0.12.6 (Stable), 0be9a77bb18ec15b4fb6a1fb0762f313b7351201
 
 * V8: fix out-of-band write in utf8 decoder
 
