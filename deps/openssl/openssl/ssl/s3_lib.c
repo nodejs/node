@@ -3084,7 +3084,7 @@ void ssl3_clear(SSL *s)
     }
 #if !defined(OPENSSL_NO_TLSEXT)
     if (s->s3->alpn_selected) {
-        free(s->s3->alpn_selected);
+        OPENSSL_free(s->s3->alpn_selected);
         s->s3->alpn_selected = NULL;
     }
 #endif

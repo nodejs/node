@@ -146,16 +146,15 @@ echo test sslv2/sslv3 with both client and server authentication via BIO pair an
 $ssltest -bio_pair -server_auth -client_auth -app_verify $CA $extra || exit 1
 
 test_cipher() {
-  local cipher=$1
-  local protocol=$2
-    echo "Testing $cipher"
+    _cipher=$1
+    echo "Testing $_cipher"
     prot=""
-    if [ $protocol = "SSLv3" ] ; then
+    if [ $2 = "SSLv3" ] ; then
       prot="-ssl3"
     fi
-    $ssltest -cipher $cipher $prot
+    $ssltest -cipher $_cipher $prot
     if [ $? -ne 0 ] ; then
-	  echo "Failed $cipher"
+	  echo "Failed $_cipher"
 	  exit 1
     fi
 }
@@ -254,16 +253,16 @@ if ../util/shlib_wrap.sh ../apps/openssl no-srp; then
   echo skipping SRP tests
 else
   echo test tls1 with SRP
-  $ssltest -tls1 -cipher SRP -srpuser test -srppass abc123
+  $ssltest -tls1 -cipher SRP -srpuser test -srppass abc123 || exit 1
 
   echo test tls1 with SRP via BIO pair
-  $ssltest -bio_pair -tls1 -cipher SRP -srpuser test -srppass abc123
+  $ssltest -bio_pair -tls1 -cipher SRP -srpuser test -srppass abc123 || exit 1
 
   echo test tls1 with SRP auth
-  $ssltest -tls1 -cipher aSRP -srpuser test -srppass abc123
+  $ssltest -tls1 -cipher aSRP -srpuser test -srppass abc123 || exit 1
 
   echo test tls1 with SRP auth via BIO pair
-  $ssltest -bio_pair -tls1 -cipher aSRP -srpuser test -srppass abc123
+  $ssltest -bio_pair -tls1 -cipher aSRP -srpuser test -srppass abc123 || exit 1
 fi
 
 #############################################################################

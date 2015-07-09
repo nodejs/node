@@ -2780,7 +2780,7 @@ int ssl3_get_client_key_exchange(SSL *s)
 
         if (s->session->psk_identity != NULL)
             OPENSSL_free(s->session->psk_identity);
-        s->session->psk_identity = BUF_strdup((char *)p);
+        s->session->psk_identity = BUF_strndup((char *)p, i);
         if (s->session->psk_identity == NULL) {
             SSLerr(SSL_F_SSL3_GET_CLIENT_KEY_EXCHANGE, ERR_R_MALLOC_FAILURE);
             goto psk_err;
