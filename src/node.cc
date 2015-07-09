@@ -2837,13 +2837,6 @@ void SetupProcessObject(Environment* env,
     READONLY_PROPERTY(process, "traceDeprecation", True(env->isolate()));
   }
 
-  // --trace-sync-io
-  if (trace_sync_io) {
-    READONLY_PROPERTY(process, "traceSyncIO", True(env->isolate()));
-    // Don't env->set_trace_sync_io(true) because it will be enabled
-    // after LoadEnvironment() has run.
-  }
-
   size_t exec_path_len = 2 * PATH_MAX;
   char* exec_path = new char[exec_path_len];
   Local<String> exec_path_value;
