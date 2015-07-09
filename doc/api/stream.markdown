@@ -167,11 +167,10 @@ again when more data is available.
 The `readable` event is not emitted in the "flowing" mode with the
 sole exception of the last one, on end-of-stream.
 
-Note that the `'readable'` event indicates only that data *can* be
-read from the stream. It does not indicate whether there is actual
-data to be consumed. The callback passed to handle the `'readable'`
-event must be prepared to handle a `null` response from
-`readable.read([size])`. For instance, in the following example, `foo.txt`
+The 'readable' event indicates that the stream has new information:
+either new data is available or the end of the stream has been reached.
+In the former case, `.read()` will return that data. In the latter case,
+`.read()` will return null. For instance, in the following example, `foo.txt`
 is an empty file:
 
 ```javascript
