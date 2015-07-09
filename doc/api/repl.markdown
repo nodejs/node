@@ -237,3 +237,27 @@ The following key combinations in the REPL have these special effects:
   - `<ctrl>D` - Similar to the `.exit` keyword.
   - `<tab>` - Show both global and local(scope) variables
 
+
+### Customizing Object displays in the REPL
+
+The REPL module internally uses
+[util.inspect()][], when printing values. However, `util.inspect` delegates the
+ call to the object's `inspect()` function, if it has one. You can read more
+ about this delegation [here][].
+
+For example, if you have defined an `inspect()` function on an object, like this:
+
+    > var obj = { foo: 'this will not show up in the inspect() output' };
+    undefined
+    > obj.inspect = function() {
+    ...   return { bar: 'baz' };
+    ... };
+    [Function]
+
+and try to print `obj` in REPL, it will invoke the custom `inspect()` function:
+
+    > obj
+    { bar: 'baz' }
+
+[util.inspect()]: util.html#util_util_inspect_object_options
+[here]: util.html#util_custom_inspect_function_on_objects
