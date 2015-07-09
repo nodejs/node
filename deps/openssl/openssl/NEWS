@@ -5,6 +5,10 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.0.1o and OpenSSL 1.0.1p [9 Jul 2015]
+
+      o Alternate chains certificate forgery (CVE-2015-1793)
+
   Major changes between OpenSSL 1.0.1n and OpenSSL 1.0.1o [12 Jun 2015]
 
       o Fix HMAC ABI incompatibility

@@ -162,6 +162,14 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
         X509err(X509_F_X509_VERIFY_CERT, X509_R_NO_CERT_SET_FOR_US_TO_VERIFY);
         return -1;
     }
+    if (ctx->chain != NULL) {
+        /*
+         * This X509_STORE_CTX has already been used to verify a cert. We
+         * cannot do another one.
+         */
+        X509err(X509_F_X509_VERIFY_CERT, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+        return -1;
+    }
 
     cb = ctx->verify_cb;
 
@@ -169,15 +177,13 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
      * first we make sure the chain we are going to build is present and that
      * the first entry is in place
      */
-    if (ctx->chain == NULL) {
-        if (((ctx->chain = sk_X509_new_null()) == NULL) ||
-            (!sk_X509_push(ctx->chain, ctx->cert))) {
-            X509err(X509_F_X509_VERIFY_CERT, ERR_R_MALLOC_FAILURE);
-            goto end;
-        }
-        CRYPTO_add(&ctx->cert->references, 1, CRYPTO_LOCK_X509);
-        ctx->last_untrusted = 1;
+    if (((ctx->chain = sk_X509_new_null()) == NULL) ||
+        (!sk_X509_push(ctx->chain, ctx->cert))) {
+        X509err(X509_F_X509_VERIFY_CERT, ERR_R_MALLOC_FAILURE);
+        goto end;
     }
+    CRYPTO_add(&ctx->cert->references, 1, CRYPTO_LOCK_X509);
+    ctx->last_untrusted = 1;
 
     /* We use a temporary STACK so we can chop and hack at it */
     if (ctx->untrusted != NULL
@@ -306,7 +312,7 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
          * if the user hasn't switched off alternate chain checking
          */
         retry = 0;
-        if (j == ctx->last_untrusted &&
+        if (num == ctx->last_untrusted &&
             !(ctx->param->flags & X509_V_FLAG_NO_ALT_CHAINS)) {
             while (j-- > 1) {
                 xtmp2 = sk_X509_value(ctx->chain, j - 1);
@@ -328,8 +334,8 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
                         xtmp = sk_X509_pop(ctx->chain);
                         X509_free(xtmp);
                         num--;
-                        ctx->last_untrusted--;
                     }
+                    ctx->last_untrusted = sk_X509_num(ctx->chain);
                     retry = 1;
                     break;
                 }

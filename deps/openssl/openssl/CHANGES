@@ -2,6 +2,21 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 1.0.1o and 1.0.1p [9 Jul 2015]
+
+  *) Alternate chains certificate forgery
+
+     During certificate verfification, OpenSSL will attempt to find an
+     alternative certificate chain if the first attempt to build such a chain
+     fails. An error in the implementation of this logic can mean that an
+     attacker could cause certain checks on untrusted certificates to be
+     bypassed, such as the CA flag, enabling them to use a valid leaf
+     certificate to act as a CA and "issue" an invalid certificate.
+
+     This issue was reported to OpenSSL by Adam Langley/David Benjamin
+     (Google/BoringSSL).
+     [Matt Caswell]
+
  Changes between 1.0.1n and 1.0.1o [12 Jun 2015]
 
   *) Fix HMAC ABI incompatibility. The previous version introduced an ABI

@@ -1,1 +1,1 @@
-#include "../../crypto/ripemd/ripemd.h"
+../../crypto/ripemd/ripemd.h
