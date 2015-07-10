@@ -158,6 +158,23 @@ NODE_EXTERN void Init(int* argc,
                       int* exec_argc,
                       const char*** exec_argv);
 
+
+enum logger_func_type {
+  LOGGER_FUNC_TYPE_STDERR = 0,
+  LOGGER_FUNC_TYPE_STDOUT = 1,
+
+  LOGGER_FUNC_TYPE_LOG = 2,
+  LOGGER_FUNC_TYPE_INFO = 3,
+  LOGGER_FUNC_TYPE_WARN = 4,
+  LOGGER_FUNC_TYPE_ERROR = 5,
+  LOGGER_FUNC_TYPE_DIR = 6
+};
+
+typedef bool (*logger_func)(logger_func_type func_type, const char* fmt, ...);
+
+NODE_EXTERN logger_func SetLogger(logger_func func);
+
+
 class Environment;
 
 NODE_EXTERN Environment* CreateEnvironment(v8::Isolate* isolate,

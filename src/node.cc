@@ -143,6 +143,8 @@ static uv_async_t dispatch_debug_messages_async;
 static Isolate* node_isolate = nullptr;
 static v8::Platform* default_platform;
 
+static logger_func custom_logger = nullptr;
+
 class ArrayBufferAllocator : public ArrayBuffer::Allocator {
  public:
   // Impose an upper limit to avoid out of memory errors that bring down
@@ -920,6 +922,50 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
 #endif
 
 
+#define LOG_STDERR(...)                                                       \
+  if (custom_logger == NULL ||                                                \
+      !custom_logger(LOGGER_FUNC_TYPE_STDERR, __VA_ARGS__))                   \
+  {                                                                           \
+    fprintf(stderr, __VA_ARGS__);                                             \
+    fflush(stderr);                                                           \
+  }
+
+
+#define LOG_STDOUT(...)                                                       \
+  if (custom_logger == NULL ||                                                \
+      !custom_logger(LOGGER_FUNC_TYPE_STDOUT, __VA_ARGS__))                   \
+  {                                                                           \
+    fprintf(stdout, __VA_ARGS__);                                             \
+    fflush(stdout);                                                           \
+  }
+
+
+logger_func SetLogger(logger_func func) {
+  logger_func prev = custom_logger;
+  custom_logger = func;
+  return prev;
+}
+
+
+void LoggerCallback(const FunctionCallbackInfo<Value>& args) {
+  if (custom_logger) {
+    Environment* env = Environment::GetCurrent(args);
+
+    HandleScope scope(env->isolate());
+
+    CHECK(args[0]->IsNumber());
+    CHECK(args[1]->IsString());
+
+    logger_func_type func_type =
+        static_cast<logger_func_type>(args[0]->IntegerValue());
+    node::Utf8Value message(env->isolate(), args[1].As<String>());
+
+    if (custom_logger(func_type, *message))
+      args.GetReturnValue().Set(True(env->isolate()));
+  }
+}
+
+
 void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -935,7 +981,7 @@ void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
       process_object->Get(tick_callback_function_key).As<Function>();
 
   if (!tick_callback_function->IsFunction()) {
-    fprintf(stderr, "process._tickDomainCallback assigned to non-function\n");
+    LOG_STDERR("process._tickDomainCallback assigned to non-function\n");
     abort();
   }
 
@@ -1264,14 +1310,14 @@ enum encoding ParseEncoding(const char* encoding,
     return HEX;
   } else if (strcasecmp(encoding, "raw") == 0) {
     if (!no_deprecation) {
-      fprintf(stderr, "'raw' (array of integers) has been removed. "
-                      "Use 'binary'.\n");
+      LOG_STDERR("'raw' (array of integers) has been removed. "
+                 "Use 'binary'.\n");
     }
     return BINARY;
   } else if (strcasecmp(encoding, "raws") == 0) {
     if (!no_deprecation) {
-      fprintf(stderr, "'raws' encoding has been renamed to 'binary'. "
-                      "Please update your code.\n");
+      LOG_STDERR("'raws' encoding has been renamed to 'binary'. "
+                 "Please update your code.\n");
     }
     return BINARY;
   } else {
@@ -1310,8 +1356,8 @@ ssize_t DecodeBytes(Isolate* isolate,
   HandleScope scope(isolate);
 
   if (val->IsArray()) {
-    fprintf(stderr, "'raw' encoding (array of integers) has been removed. "
-                    "Use 'binary'.\n");
+    LOG_STDERR("'raw' encoding (array of integers) has been removed. "
+               "Use 'binary'.\n");
     UNREACHABLE();
     return -1;
   }
@@ -1433,7 +1479,7 @@ void AppendExceptionLine(Environment* env,
     return;
   env->set_printed_error(true);
   uv_tty_reset_mode();
-  fprintf(stderr, "\n%s", arrow);
+  LOG_STDERR("\n%s", arrow);
 }
 
 
@@ -1455,7 +1501,7 @@ static void ReportException(Environment* env,
 
   // range errors have a trace member set to undefined
   if (trace.length() > 0 && !trace_value->IsUndefined()) {
-    fprintf(stderr, "%s\n", *trace);
+    LOG_STDERR("%s\n", *trace);
   } else {
     // this really only happens for RangeErrors, since they're the only
     // kind that won't have all this info in the trace, or when non-Error
@@ -1475,15 +1521,13 @@ static void ReportException(Environment* env,
         name->IsUndefined()) {
       // Not an error object. Just print as-is.
       node::Utf8Value message(env->isolate(), er);
-      fprintf(stderr, "%s\n", *message);
+      LOG_STDERR("%s\n", *message);
     } else {
       node::Utf8Value name_string(env->isolate(), name);
       node::Utf8Value message_string(env->isolate(), message);
-      fprintf(stderr, "%s: %s\n", *name_string, *message_string);
+      LOG_STDERR("%s: %s\n", *name_string, *message_string);
     }
   }
-
-  fflush(stderr);
 }
 
 
@@ -2115,11 +2159,10 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
 
 static void OnFatalError(const char* location, const char* message) {
   if (location) {
-    fprintf(stderr, "FATAL ERROR: %s %s\n", location, message);
+    LOG_STDERR("FATAL ERROR: %s %s\n", location, message);
   } else {
-    fprintf(stderr, "FATAL ERROR: %s\n", message);
+    LOG_STDERR("FATAL ERROR: %s\n", message);
   }
-  fflush(stderr);
   abort();
 }
 
@@ -2851,6 +2894,23 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "_setupPromises", SetupPromises);
   env->SetMethod(process, "_setupDomainUse", SetupDomainUse);
 
+  // Readonly _logger method
+  v8::Local<v8::Function> logger =
+      env->NewFunctionTemplate(LoggerCallback)->GetFunction();
+  READONLY_PROPERTY(process, "_logger", logger);
+  logger->SetName(v8::String::NewFromUtf8(env->isolate(), "_logger"));
+  // Logger function type constants
+  READONLY_PROPERTY(logger, "LOGGER_FUNC_TYPE_LOG",
+                    Integer::New(env->isolate(), LOGGER_FUNC_TYPE_LOG));
+  READONLY_PROPERTY(logger, "LOGGER_FUNC_TYPE_INFO",
+                    Integer::New(env->isolate(), LOGGER_FUNC_TYPE_INFO));
+  READONLY_PROPERTY(logger, "LOGGER_FUNC_TYPE_WARN",
+                    Integer::New(env->isolate(), LOGGER_FUNC_TYPE_WARN));
+  READONLY_PROPERTY(logger, "LOGGER_FUNC_TYPE_ERROR",
+                    Integer::New(env->isolate(), LOGGER_FUNC_TYPE_ERROR));
+  READONLY_PROPERTY(logger, "LOGGER_FUNC_TYPE_DIR",
+                    Integer::New(env->isolate(), LOGGER_FUNC_TYPE_DIR));
+
   // pre-set _events object for faster emit checks
   process->Set(env->events_string(), Object::New(env->isolate()));
 }
@@ -2885,8 +2945,7 @@ static void RawDebug(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.Length() == 1 && args[0]->IsString() &&
         "must be called with a single string");
   node::Utf8Value message(args.GetIsolate(), args[0]);
-  fprintf(stderr, "%s\n", *message);
-  fflush(stderr);
+  LOG_STDERR("%s\n", *message);
 }
 
 
@@ -2982,7 +3041,7 @@ static bool ParseDebugOpt(const char* arg) {
   if (port != nullptr) {
     debug_port = atoi(port);
     if (debug_port < 1024 || debug_port > 65535) {
-      fprintf(stderr, "Debug port must be in range 1024 to 65535.\n");
+      LOG_STDERR("Debug port must be in range 1024 to 65535.\n");
       PrintHelp();
       exit(12);
     }
@@ -2992,7 +3051,8 @@ static bool ParseDebugOpt(const char* arg) {
 }
 
 static void PrintHelp() {
-  printf("Usage: iojs [options] [ -e script | script.js ] [arguments] \n"
+  LOG_STDOUT(
+         "Usage: iojs [options] [ -e script | script.js ] [arguments] \n"
          "       iojs debug script.js [arguments] \n"
          "\n"
          "Options:\n"
@@ -3080,7 +3140,7 @@ static void ParseArgs(int* argc,
     if (ParseDebugOpt(arg)) {
       // Done, consumed by ParseDebugOpt().
     } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
-      printf("%s\n", NODE_VERSION);
+      LOG_STDOUT("%s\n", NODE_VERSION);
       exit(0);
     } else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {
       PrintHelp();
@@ -3098,7 +3158,7 @@ static void ParseArgs(int* argc,
         args_consumed += 1;
         eval_string = argv[index + 1];
         if (eval_string == nullptr) {
-          fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
+          LOG_STDERR("%s: %s requires an argument\n", argv[0], arg);
           exit(9);
         }
       } else if ((index + 1 < nargs) &&
@@ -3115,7 +3175,7 @@ static void ParseArgs(int* argc,
                strcmp(arg, "-r") == 0) {
       const char* module = argv[index + 1];
       if (module == nullptr) {
-        fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
+        LOG_STDERR("%s: %s requires an argument\n", argv[0], arg);
         exit(9);
       }
       args_consumed += 1;
@@ -3196,8 +3256,7 @@ static void StartDebug(Environment* env, bool wait) {
         DispatchMessagesDebugAgentCallback);
   debugger_running = env->debugger_agent()->Start(debug_port, wait);
   if (debugger_running == false) {
-    fprintf(stderr, "Starting debugger on port %d failed\n", debug_port);
-    fflush(stderr);
+    LOG_STDERR("Starting debugger on port %d failed\n", debug_port);
     return;
   }
 }
@@ -3227,7 +3286,7 @@ static void EnableDebug(Environment* env) {
 // Called from the main thread.
 static void DispatchDebugMessagesAsyncCallback(uv_async_t* handle) {
   if (debugger_running == false) {
-    fprintf(stderr, "Starting debugger agent.\n");
+    LOG_STDERR("Starting debugger agent.\n");
 
     HandleScope scope(node_isolate);
     Environment* env = Environment::GetCurrent(node_isolate);
@@ -3597,7 +3656,7 @@ void Init(int* argc,
 
   // Anything that's still in v8_argv is not a V8 or a node option.
   for (int i = 1; i < v8_argc; i++) {
-    fprintf(stderr, "%s: bad option: %s\n", argv[0], v8_argv[i]);
+    LOG_STDERR("%s: bad option: %s\n", argv[0], v8_argv[i]);
   }
   delete[] v8_argv;
   v8_argv = nullptr;
