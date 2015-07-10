@@ -339,10 +339,13 @@ Tell people where the bulk of your library is\.  Nothing special is done
 with the lib folder in any way, but it's useful meta info\.
 .SS directories\.bin
 .P
-If you specify a \fBbin\fR directory, then all the files in that folder will
-be added as children of the \fBbin\fR path\.
+If you specify a \fBbin\fR directory in \fBdirectories\.bin\fR, all the files in
+that folder will be added\.
 .P
-If you have a \fBbin\fR path already, then this has no effect\.
+Because of the way the \fBbin\fR directive works, specifying both a
+\fBbin\fR path and setting \fBdirectories\.bin\fR is an error\. If you want to
+specify individual files, use \fBbin\fR, and for all the files in an
+existing \fBbin\fR directory, use \fBdirectories\.bin\fR\|\.
 .SS directories\.man
 .P
 A folder that is full of man pages\.  Sugar to generate a "man" array by

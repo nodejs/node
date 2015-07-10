@@ -279,6 +279,7 @@ Unix:
 Windows:
 
 * <http://github.com/marcelklehr/nodist>
+* <https://github.com/coreybutler/nvm-windows>
 * <https://github.com/hakobera/nvmw>
 * <https://github.com/nanjingboy/nvmw>
 

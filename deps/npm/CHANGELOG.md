@@ -1,3 +1,103 @@
+### v2.13.0 (2015-07-02):
+
+#### FORREST IS OUT! LET'S SNEAK IN ALL THE THINGS!
+
+Well, not _everything_. Just a couple of goodies, like the new `npm ping`
+command, and the ability to add files to the commits created by `npm version`
+with the new version hooks. There's also a couple of bugfixes in `npm` itself
+and some of its dependencies. Here we go!
+
+#### YES HELLO THIS IS NPM REGISTRY SORRY NO DOG HERE
+
+Yes, that's right! We now have a dedicated `npm ping` command. It's super simple
+and super easy. You ping. We tell you whether you pinged right by saying hello
+right back. This should help out folks dealing with things like proxy issues or
+other registry-access debugging issues. Give it a shot!
+
+This addresses [#5750](https://github.com/npm/npm/issues/5750), and will help
+with the `npm doctor` stuff descripbed in
+[#6756](https://github.com/npm/npm/issues/6756).
+
+* [`f1f7a85`](https://github.com/npm/npm/commit/f1f7a85)
+  Add ping command to CLI
+  ([@michaelnisi](https://github.com/michaelnisi))
+* [`8cec629`](https://github.com/npm/npm/commit/8cec629)
+  Add ping command to npm-registry-client
+  ([@michaelnisi](https://github.com/michaelnisi))
+* [`0c0c92d`](https://github.com/npm/npm/0c0c92d)
+  Fixed ping command issues (added docs, tests, fixed minor bugs, etc)
+  ([@zkat](https://github.com/zkat))
+
+#### I'VE WANTED THIS FOR `version` SINCE LIKE LITERALLY FOREVER AND A DAY
+
+Seriously! This patch lets you add files to the `version` commit before it's
+made, So you can add additional metadata files, more automated changes to
+`package.json`, or even generate `CHANGELOG.md` automatically pre-commit if
+you're into that sort of thing. I'm so happy this is there I can't even. Do you
+have other fun usecases for this? Tell
+[npmbot (@npmjs)](http://twitter.com/npmjs) about it!
+
+* [`582f170`](https://github.com/npm/npm/commit/582f170)
+  [#8620](https://github.com/npm/npm/issues/8620) version: Allow scripts to add
+  files to the commit.
+  ([@jamestalmage](https://github.com/jamestalmage))
+
+#### ALL YOUR FILE DESCRIPTORS ARE BELONG TO US
+
+We've had problems in the past with things like `EMFILE` errors popping up when
+trying to install packages with a bunch of dependencies. Isaac patched up
+[`graceful-fs`](https://github.com/isaacs/node-graceful-fs) to handle this case
+better, so we should be seeing fewer of those.
+
+* [`022691a`](https://github.com/npm/npm/commit/022691a)
+  `graceful-fs@4.1.2`: Updated so we can monkey patch globally.
+  ([@isaacs](https://github.com/isaacs))
+* [`c9fb0fd`](https://github.com/npm/npm/commit/c9fb0fd)
+  Globally monkey-patch graceful-fs. This should fix some errors when installing
+  packages with lots of dependencies.
+  ([@isaacs](https://github.com/isaacs))
+
+#### READ THE FINE DOCS. THEY'VE IMPROVED
+
+* [`5587d0d`](https://github.com/npm/npm/commit/5587d0d)
+  Nice clarification for `directories.bin`
+  ([@ujane](https://github.com/ujane))
+* [`20673c7`](https://github.com/npm/npm/commit/20673c7)
+  Hey, Windows folks! Check out
+  [`nvm-windows`](https://github.com/coreybutler/nvm-windows)
+  ([@ArtskydJ](https://github.com/ArtskydJ))
+
+#### MORE NUMBERS! MORE VALUE!
+
+* [`5afa2d5`](https://github.com/npm/npm/commit/5afa2d5)
+  `validate-npm-package-name@2.2.2`: Documented package name rules in README
+  ([@zeusdeux](https://github.com/zeusdeux))
+* [`021f4d9`](https://github.com/npm/npm/commit/021f4d9)
+  `rimraf@2.4.1`: [#74](https://github.com/isaacs/rimraf/issues/74) Use async
+  function for bin (to better handle Window's `EBUSY`)
+  ([@isaacs](https://github.com/isaacs))
+* [`5223432`](https://github.com/npm/npm/commit/5223432)
+  `osenv@0.1.3`: Use `os.homedir()` polyfill for more reliable output. io.js
+  added the function and the polyfill does a better job than the prior solution.
+  ([@sindresorhus](https://github.com/sindresorhus))
+* [`8ebbc90`](https://github.com/npm/npm/commit/8ebbc90)
+  `npm-cache-filename@1.0.2`: Make sure different git references get different
+  cache folders. This should prevent `foo/bar#v1.0` and `foo/bar#master` from
+  sharing the same cache folder.
+  ([@tomekwi](https://github.com/tomekwi))
+* [`367b854`](https://github.com/npm/npm/commit/367b854)
+  `lru-cache@2.6.5`: Minor test/typo changes
+  ([@isaacs](https://github.com/isaacs))
+* [`9fcae61`](https://github.com/npm/npm/commit/9fcae61)
+  `glob@5.0.13`: Tiny doc change + stop firing 'match' events for ignored items.
+  ([@isaacs](https://github.com/isaacs))
+
+#### OH AND ONE MORE THING
+
+* [`7827249`](https://github.com/npm/npm/commit/7827249)
+  `PeerDependencies` errors now include the package version.
+  ([@NickHeiner](https://github.com/NickHeiner))
+
 ### v2.12.1 (2015-06-25):
 
 #### HEY WHERE DID EVERYBODY GO

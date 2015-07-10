@@ -208,9 +208,12 @@ you&#39;ll see that it has directories for doc, lib, and man.</p>
 <p>Tell people where the bulk of your library is.  Nothing special is done
 with the lib folder in any way, but it&#39;s useful meta info.</p>
 <h3 id="directories-bin">directories.bin</h3>
-<p>If you specify a <code>bin</code> directory, then all the files in that folder will
-be added as children of the <code>bin</code> path.</p>
-<p>If you have a <code>bin</code> path already, then this has no effect.</p>
+<p>If you specify a <code>bin</code> directory in <code>directories.bin</code>, all the files in
+that folder will be added.</p>
+<p>Because of the way the <code>bin</code> directive works, specifying both a
+<code>bin</code> path and setting <code>directories.bin</code> is an error. If you want to
+specify individual files, use <code>bin</code>, and for all the files in an
+existing <code>bin</code> directory, use <code>directories.bin</code>.</p>
 <h3 id="directories-man">directories.man</h3>
 <p>A folder that is full of man pages.  Sugar to generate a &quot;man&quot; array by
 walking the folder.</p>
@@ -542,5 +545,5 @@ ignored.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">package.json &mdash; npm@2.12.1</p>
+<p id="footer">package.json &mdash; npm@2.13.0</p>
 

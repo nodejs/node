@@ -57,6 +57,7 @@ var ownProp = common.ownProp
 var inflight = require('inflight')
 var util = require('util')
 var childrenIgnored = common.childrenIgnored
+var isIgnored = common.isIgnored
 
 var once = require('once')
 
@@ -430,6 +431,9 @@ Glob.prototype._emitMatch = function (index, e) {
     return
 
   if (this.matches[index][e])
+    return
+
+  if (isIgnored(this, e))
     return
 
   if (this.paused) {
