@@ -189,6 +189,8 @@ class Utf8Value {
       return length_;
     };
 
+    static bool IsValidUtf8(const uint8_t* const, const size_t);
+    static size_t StripInvalidUtf8Glyphs(uint8_t* const, const size_t);
   private:
     size_t length_;
     char* str_;
