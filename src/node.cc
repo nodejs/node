@@ -1092,8 +1092,6 @@ Handle<Value> MakeCallback(Environment* env,
         return Undefined(env->isolate());
     }
   }
-  env->tick_callback_function()->Call(process, 0, nullptr);
-  CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
 
   if (try_catch.HasCaught()) {
     return Undefined(env->isolate());
