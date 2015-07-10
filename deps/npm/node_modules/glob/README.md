@@ -262,7 +262,6 @@ the filesystem.
 * `matchBase` Perform a basename-only match if the pattern does not
   contain any slash characters.  That is, `*.js` would be treated as
   equivalent to `**/*.js`, matching all js files in all directories.
-* `nonull` Return the pattern when no matches are found.
 * `nodir` Do not match directories, only files.  (Note: to match
   *only* directories, simply put a `/` at the end of the pattern.)
 * `ignore` Add a pattern or an array of patterns to exclude matches.

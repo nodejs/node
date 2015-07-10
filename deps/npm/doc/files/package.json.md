@@ -283,10 +283,13 @@ with the lib folder in any way, but it's useful meta info.
 
 ### directories.bin
 
-If you specify a `bin` directory, then all the files in that folder will
-be added as children of the `bin` path.
+If you specify a `bin` directory in `directories.bin`, all the files in
+that folder will be added.
 
-If you have a `bin` path already, then this has no effect.
+Because of the way the `bin` directive works, specifying both a
+`bin` path and setting `directories.bin` is an error. If you want to
+specify individual files, use `bin`, and for all the files in an
+existing `bin` directory, use `directories.bin`.
 
 ### directories.man
 

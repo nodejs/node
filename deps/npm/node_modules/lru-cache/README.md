@@ -54,7 +54,7 @@ away.
 
 ## API
 
-* `set(key, value, max)`
+* `set(key, value, maxAge)`
 * `get(key) => value`
 
     Both of these will update the "recently used"-ness of the key.
