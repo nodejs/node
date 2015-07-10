@@ -8,7 +8,7 @@ knowledge of several libraries:
    creating objects, calling functions, etc.  Documented mostly in the
    `v8.h` header file (`deps/v8/include/v8.h` in the Node source
    tree), which is also available
-   [online](http://izs.me/v8-docs/main.html).
+   [online](http://v8dox.com/).
 
  - [libuv](https://github.com/joyent/libuv), C event loop library.
    Anytime one needs to wait for a file descriptor to become readable,
