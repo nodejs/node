@@ -123,8 +123,8 @@ vows
       },
       "null": {
         topic: function(f) { return f(null) },
-        "looks good": function(str) {
-          assert.match(str, /"maxAge":null/);
+        "absent": function(str) {
+          assert.match(str, /(?!"maxAge":null)/); // NB: negative RegExp
         }
       }
     },

@@ -102,3 +102,18 @@ module.exports = function(context) {
         }
     };
 };
+
+module.exports.schema = [
+    {
+        "type": "object",
+        "properties": {
+            "allowKeywords": {
+                "type": "boolean"
+            },
+            "allowPattern": {
+                "type": "string"
+            }
+        },
+        "additionalProperties": false
+    }
+];

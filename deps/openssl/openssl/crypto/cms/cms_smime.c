@@ -374,7 +374,7 @@ int CMS_verify(CMS_ContentInfo *cms, STACK_OF(X509) *certs,
         tmpin = BIO_new_mem_buf(ptr, len);
         if (tmpin == NULL) {
             CMSerr(CMS_F_CMS_VERIFY, ERR_R_MALLOC_FAILURE);
-            return 0;
+            goto err2;
         }
     } else
         tmpin = dcont;
@@ -405,6 +405,7 @@ int CMS_verify(CMS_ContentInfo *cms, STACK_OF(X509) *certs,
     else
         BIO_free_all(cmsbio);
 
+ err2:
     if (cms_certs)
         sk_X509_pop_free(cms_certs, X509_free);
     if (crls)

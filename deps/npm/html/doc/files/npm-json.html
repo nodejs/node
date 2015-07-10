@@ -91,8 +91,8 @@ expression syntax version 2.0 string</a>, like this:</p>
 <pre><code>{ &quot;license&quot; : &quot;(ISC OR GPL-3.0)&quot; }
 </code></pre><p>If you are using a license that hasn&#39;t been assigned an SPDX identifier, or if
 you are using a custom license, use the following valid SPDX expression:</p>
-<pre><code>{ &quot;license&quot; : &quot;LicenseRef-LICENSE&quot; }
-</code></pre><p>Then include a LICENSE file at the top level of the package.</p>
+<pre><code>{ &quot;license&quot; : &quot;SEE LICENSE IN &lt;filename&gt;&quot; }
+</code></pre><p>Then include a file named <code>&lt;filename&gt;</code> at the top level of the package.</p>
 <p>Some old packages used license objects or a &quot;licenses&quot; property containing an
 array of license objects:</p>
 <pre><code>// Not valid metadata
@@ -117,7 +117,11 @@ array of license objects:</p>
 <pre><code>{ &quot;license&quot;: &quot;ISC&quot; }
 
 { &quot;license&quot;: &quot;(MIT OR Apache-2.0)&quot; }
-</code></pre><h2 id="people-fields-author-contributors">people fields: author, contributors</h2>
+</code></pre><p>Finally, if you do not wish to grant others the right to use a private or
+unpublished package under any terms:</p>
+<pre><code>{ &quot;license&quot;: &quot;UNLICENSED&quot;}
+</code></pre><p>Consider also setting <code>&quot;private&quot;: true</code> to prevent accidental publication.</p>
+<h2 id="people-fields-author-contributors">people fields: author, contributors</h2>
 <p>The &quot;author&quot; is one person.  &quot;contributors&quot; is an array of people.  A &quot;person&quot;
 is an object with a &quot;name&quot; field and optionally &quot;url&quot; and &quot;email&quot;, like this:</p>
 <pre><code>{ &quot;name&quot; : &quot;Barney Rubble&quot;
@@ -538,5 +542,5 @@ ignored.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-json &mdash; npm@2.11.3</p>
+<p id="footer">npm-json &mdash; npm@2.12.1</p>
 

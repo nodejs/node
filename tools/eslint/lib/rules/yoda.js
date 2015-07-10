@@ -20,6 +20,15 @@ function isComparisonOperator(operator) {
 }
 
 /**
+ * Determines whether an operator is an equality operator.
+ * @param {String} operator The operator to check.
+ * @returns {boolean} Whether or not it is an equality operator.
+ */
+function isEqualityOperator(operator) {
+    return (/^(==|===)$/).test(operator);
+}
+
+/**
  * Determines whether an operator is one used in a range test.
  * Allowed operators are `<` and `<=`.
  * @param {String} operator The operator to check.
@@ -110,6 +119,7 @@ module.exports = function (context) {
     // Default to "never" (!always) if no option
     var always = (context.options[0] === "always");
     var exceptRange = (context.options[1] && context.options[1].exceptRange);
+    var onlyEquality = (context.options[1] && context.options[1].onlyEquality);
 
     /**
      * Determines whether node represents a range test.
@@ -187,6 +197,7 @@ module.exports = function (context) {
             // Comparisons must always be yoda-style: if ("blue" === color)
             if (
                 (node.right.type === "Literal" || looksLikeLiteral(node.right)) &&
+                !(!isEqualityOperator(node.operator) && onlyEquality) &&
                 isComparisonOperator(node.operator) &&
                 !(exceptRange && isRangeTest(context.getAncestors().pop()))
             ) {
@@ -198,6 +209,7 @@ module.exports = function (context) {
             // Comparisons must never be yoda-style (default)
             if (
                 (node.left.type === "Literal" || looksLikeLiteral(node.left)) &&
+                !(!isEqualityOperator(node.operator) && onlyEquality) &&
                 isComparisonOperator(node.operator) &&
                 !(exceptRange && isRangeTest(context.getAncestors().pop()))
             ) {
@@ -208,3 +220,21 @@ module.exports = function (context) {
     };
 
 };
+
+module.exports.schema = [
+    {
+        "enum": ["always", "never"]
+    },
+    {
+        "type": "object",
+        "properties": {
+            "exceptRange": {
+                "type": "boolean"
+            },
+            "onlyEquality": {
+                "type": "boolean"
+            }
+        },
+        "additionalProperties": false
+    }
+];

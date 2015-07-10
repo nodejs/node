@@ -113,7 +113,7 @@ Writer.prototype._create = function () {
   fs[self.props.follow ? 'stat' : 'lstat'](self._path, function (er) {
     if (er) {
       return self.warn('Cannot create ' + self._path + '\n' +
-                       'Unsupported type: ' + self.type, 'ENOTSUP')
+        'Unsupported type: ' + self.type, 'ENOTSUP')
     }
     self._finish()
   })
@@ -179,7 +179,7 @@ function create (self) {
 function endChmod (self, want, current, path, cb) {
   var wantMode = want.mode
   var chmod = want.follow || self.type !== 'SymbolicLink'
-            ? 'chmod' : 'lchmod'
+    ? 'chmod' : 'lchmod'
 
   if (!fs[chmod]) return cb()
   if (typeof wantMode !== 'number') return cb()
@@ -196,13 +196,13 @@ function endChown (self, want, current, path, cb) {
   if (process.platform === 'win32') return cb()
   if (!process.getuid || process.getuid() !== 0) return cb()
   if (typeof want.uid !== 'number' &&
-      typeof want.gid !== 'number') return cb()
+    typeof want.gid !== 'number') return cb()
 
   if (current.uid === want.uid &&
-      current.gid === want.gid) return cb()
+    current.gid === want.gid) return cb()
 
   var chown = (self.props.follow || self.type !== 'SymbolicLink')
-            ? 'chown' : 'lchown'
+    ? 'chown' : 'lchown'
   if (!fs[chown]) return cb()
 
   if (typeof want.uid !== 'number') want.uid = current.uid
@@ -215,7 +215,7 @@ function endUtimes (self, want, current, path, cb) {
   if (!fs.utimes || process.platform === 'win32') return cb()
 
   var utimes = (want.follow || self.type !== 'SymbolicLink')
-             ? 'utimes' : 'lutimes'
+    ? 'utimes' : 'lutimes'
 
   if (utimes === 'lutimes' && !fs[utimes]) {
     utimes = 'utimes'
@@ -235,7 +235,7 @@ function endUtimes (self, want, current, path, cb) {
   if (!isDate(meM)) meA = new Date(meM)
 
   if (meA.getTime() === curA.getTime() &&
-      meM.getTime() === curM.getTime()) return cb()
+    meM.getTime() === curM.getTime()) return cb()
 
   fs[utimes](path, meA, meM, cb)
 }
@@ -274,8 +274,8 @@ Writer.prototype._finish = function () {
         // doesn't exist yet (especially if it was intended as a symlink),
         // so swallow ENOENT errors here and just soldier on.
         if (er.code === 'ENOENT' &&
-            (self.type === 'Link' || self.type === 'SymbolicLink') &&
-            process.platform === 'win32') {
+          (self.type === 'Link' || self.type === 'SymbolicLink') &&
+          process.platform === 'win32') {
           self.ready = true
           self.emit('ready')
           self.emit('end')

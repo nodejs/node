@@ -115,11 +115,10 @@ There are three kinds of private patches to be applied in openssl-1.0.2c.
 ### 3. Replace openssl header files in `deps/openssl/openssl/include/openssl`
 all header files in `deps/openssl/openssl/include/openssl/*.h` are
 symbolic links in the distributed release tar.gz. They cause issues in
-Windows. They are replaced into the files to include a real header
-file such as
-````
-#include "../../crypto/aes/aes.h"
-````
+Windows. They are copied from the real files of symlink origin into
+the include directory. During installation, they also copied into
+`PREFIX/node/include` by tools/install.py.
+
 ### 4. Change `opensslconf.h` so as to fit each platform.
 No change.
 

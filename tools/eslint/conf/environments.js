@@ -28,6 +28,9 @@ module.exports = {
             "handle-callback-err": [2, "err"]
         }
     },
+    worker: {
+        globals: globals.worker
+    },
     amd: {
         globals: globals.amd
     },
@@ -51,6 +54,12 @@ module.exports = {
     },
     meteor: {
         globals: globals.meteor
+    },
+    mongo: {
+        globals: globals.mongo
+    },
+    applescript: {
+        globals: globals.applescript
     },
     es6: {
         ecmaFeatures: {

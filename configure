@@ -230,7 +230,7 @@ parser.add_option('--with-mips-float-abi',
 parser.add_option('--with-dtrace',
     action='store_true',
     dest='with_dtrace',
-    help='build with DTrace (default is true on sunos)')
+    help='build with DTrace (default is true on sunos and darwin)')
 
 parser.add_option('--with-lttng',
     action='store_true',

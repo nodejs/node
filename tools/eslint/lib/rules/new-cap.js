@@ -67,8 +67,8 @@ function calculateCapIsNewExceptions(config) {
 module.exports = function(context) {
 
     var config = context.options[0] || {};
-    config.newIsCap = config.newIsCap === false ? false : true;
-    config.capIsNew = config.capIsNew === false ? false : true;
+    config.newIsCap = config.newIsCap !== false;
+    config.capIsNew = config.capIsNew !== false;
 
     var newIsCapExceptions = checkArray(config, "newIsCapExceptions", []).reduce(invert, {});
 
@@ -195,3 +195,30 @@ module.exports = function(context) {
 
     return listeners;
 };
+
+module.exports.schema = [
+    {
+        "type": "object",
+        "properties": {
+            "newIsCap": {
+                "type": "boolean"
+            },
+            "capIsNew": {
+                "type": "boolean"
+            },
+            "newIsCapExceptions": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                }
+            },
+            "capIsNewExceptions": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                }
+            }
+        },
+        "additionalProperties": false
+    }
+];

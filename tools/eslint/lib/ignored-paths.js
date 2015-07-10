@@ -96,6 +96,10 @@ IgnoredPaths.load = function (options) {
         patterns = [];
     }
 
+    if (options.ignorePattern) {
+        patterns.push(options.ignorePattern);
+    }
+
     return new IgnoredPaths(patterns);
 };
 

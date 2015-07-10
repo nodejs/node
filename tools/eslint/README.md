@@ -3,6 +3,7 @@
 [![Test coverage][coveralls-image]][coveralls-url]
 [![Downloads][downloads-image]][downloads-url]
 [![Bountysource](https://www.bountysource.com/badge/tracker?tracker_id=282608)](https://www.bountysource.com/trackers/282608-eslint?utm_source=282608&utm_medium=shield&utm_campaign=TRACKER_BADGE)
+[![Join the chat at https://gitter.im/eslint/eslint](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/eslint/eslint?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 # ESLint
 
@@ -22,7 +23,25 @@ You can install ESLint using npm:
 
 ## Usage
 
+If it's your first time using ESLint, you should set up a config file using `--init`:
+
+    eslint --init
+
+After that, you can run ESLint on any JavaScript file:
+
     eslint test.js test2.js
+
+## Team
+
+These folks keep the project moving and are resources for help:
+
+* Nicholas C. Zakas ([@nzakas](https://github.com/nzakas)) - project lead
+* Ilya Volodin ([@ilyavolodin](https://github.com/ilyavolodin)) - reviewer
+* Brandon Mills ([@btmills](https://github.com/btmills)) - reviewer
+* Mathias Schreck ([@lo1tuma](https://github.com/lo1tuma)) - committer
+* Gyandeep Singh ([@gyandeeps](https://github.com/gyandeeps)) - committer
+* Jamund Ferguson ([@xjamundx](https://github.com/xjamundx)) - committer
+
 
 ## Frequently Asked Questions
 
@@ -34,11 +53,15 @@ I do like JSHint. And I like Anton and Rick. Neither of those were deciding fact
 
 That's not really a question, but I got it. I'm not trying to convince you that ESLint is better than JSHint. The only thing I know is that ESLint is better than JSHint for what I'm doing. In the off chance you're doing something similar, it might be better for you. Otherwise, keep using JSHint, I'm certainly not going to tell you to stop using it.
 
-### How does ESLint performance compare to JSHint?
+### How does ESLint performance compare to JSHint and JSCS?
 
 ESLint is slower than JSHint, usually 2-3x slower on a single file. This is because ESLint uses Espree to construct an AST before it can evaluate your code whereas JSHint evaluates your code as it's being parsed. The speed is also based on the number of rules you enable; the more rules you enable, the slower the process.
 
 Despite being slower, we believe that ESLint is fast enough to replace JSHint without causing significant pain.
+
+ESLint is faster than JSCS, as ESLint uses a single-pass traversal for analysis whereas JSCS using a querying model.
+
+If you are using both JSHint and JSCS on your files, then using just ESLint will be faster.
 
 ### Is ESLint just linting or does it also check style?
 
@@ -50,6 +73,7 @@ The following projects are using ESLint to validate their JavaScript:
 
 * [Drupal](https://www.drupal.org/node/2274223)
 * [Esprima](https://github.com/ariya/esprima)
+* [io.js](https://github.com/iojs/io.js/commit/f9dd34d301ab385ae316769b85ef916f9b70b6f6)
 * [WebKit](https://bugs.webkit.org/show_bug.cgi?id=125048)
 
 In addition, the following companies are using ESLint internally to validate their JavaScript:
@@ -62,11 +86,19 @@ In addition, the following companies are using ESLint internally to validate the
 
 ### What about ECMAScript 6 support?
 
-We are implementing ECMAScript 6 support piece-by-piece starting with version 0.12.0. You'll be able to opt-in to any ECMAScript 6 feature you want to use.
+ESLint has full support for ECMAScript 6. By default, this support is off. You can enable ECMAScript 6 support through [configuration](http://eslint.org/docs/user-guide/configuring).
+
+### Does ESLint support JSX?
+
+Yes, ESLint natively supports parsing JSX syntax (this must be enabled in [configuration](http://eslint.org/docs/user-guide/configuring).). Please note that supporting JSX syntax *is not* the same as supporting React. React applies specific semantics to JSX syntax that ESLint doesn't recognize. We recommend using [eslint-plugin-react](https://www.npmjs.com/package/eslint-plugin-react) if you are using React and want React semantics.
+
+### What about ECMAScript 7/2016 and experimental features?
+
+ESLint doesn't natively support experimental ECMAScript language features. You can use [babel-eslint](https://github.com/babel/babel-eslint) to use any option available in Babel.
 
 ### Where to ask for help?
 
-Join our [Mailing List](https://groups.google.com/group/eslint)
+Join our [Mailing List](https://groups.google.com/group/eslint) or [Chatroom](https://gitter.im/eslint/eslint)
 
 
 [npm-image]: https://img.shields.io/npm/v/eslint.svg?style=flat-square

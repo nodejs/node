@@ -254,7 +254,13 @@ function printData (data, name, cb) {
     })
   })
 
-  console.log(msg)
+  // preserve output symmetry by adding a whitespace-only line at the end if
+  // there's one at the beginning
+  if (/^\s*\n/.test(msg)) msg += "\n"
+
+  // print directly to stdout to not unnecessarily add blank lines
+  process.stdout.write(msg)
+
   cb(null, data)
 }
 function cleanup (data) {

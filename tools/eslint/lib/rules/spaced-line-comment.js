@@ -69,3 +69,21 @@ module.exports = function(context) {
 
     };
 };
+
+module.exports.schema = [
+    {
+        "enum": ["always", "never"]
+    },
+    {
+        "type": "object",
+        "properties": {
+            "exceptions": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                }
+            }
+        },
+        "additionalProperties": false
+    }
+];

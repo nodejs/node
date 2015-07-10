@@ -1,6 +1,7 @@
 'use strict'
 
-var qs = require('qs')
+var url = require('url')
+  , qs = require('qs')
   , caseless = require('caseless')
   , uuid = require('node-uuid')
   , oauth = require('oauth-sign')
@@ -129,7 +130,9 @@ OAuth.prototype.onRequest = function (_oauth) {
       break
 
     case 'query':
-      self.request.path = (query ? '&' : '?') + self.concatParams(oa, '&')
+      var href = self.request.uri.href += (query ? '&' : '?') + self.concatParams(oa, '&')
+      self.request.uri = url.parse(href)
+      self.request.path = self.request.uri.path
       break
 
     case 'body':

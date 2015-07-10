@@ -175,3 +175,21 @@ module.exports = function(context) {
 
     return nodes;
 };
+
+module.exports.schema = [
+    {
+        "enum": ["first", "last"]
+    },
+    {
+        "type": "object",
+        "properties": {
+            "exceptions": {
+                "type": "object",
+                "additionalProperties": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "additionalProperties": false
+    }
+];

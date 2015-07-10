@@ -32,6 +32,12 @@
   if (name##_length > 0)                                                      \
     CHECK_NE(name##_data, nullptr);
 
+#define THROW_AND_RETURN_UNLESS_BUFFER(env, obj)                            \
+  do {                                                                      \
+    if (!HasInstance(obj))                                                  \
+      return env->ThrowTypeError("argument should be a Buffer");            \
+  } while (0)
+
 #define SLICE_START_END(start_arg, end_arg, end_max)                        \
   size_t start;                                                             \
   size_t end;                                                               \
@@ -478,7 +484,12 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
   SPREAD_ARG(args.This(), ts_obj);
+
+  if (ts_obj_length == 0)
+    return args.GetReturnValue().SetEmptyString();
+
   SLICE_START_END(args[0], args[1], ts_obj_length)
 
   args.GetReturnValue().Set(
@@ -490,7 +501,12 @@ template <>
 void StringSlice<UCS2>(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
   SPREAD_ARG(args.This(), ts_obj);
+
+  if (ts_obj_length == 0)
+    return args.GetReturnValue().SetEmptyString();
+
   SLICE_START_END(args[0], args[1], ts_obj_length)
   length /= 2;
 
@@ -558,10 +574,9 @@ void Base64Slice(const FunctionCallbackInfo<Value>& args) {
 void Copy(const FunctionCallbackInfo<Value> &args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (!HasInstance(args[0]))
-    return env->ThrowTypeError("first arg should be a Buffer");
-
-  Local<Object> target_obj = args[0]->ToObject(env->isolate());
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
+  Local<Object> target_obj = args[0].As<Object>();
   SPREAD_ARG(args.This(), ts_obj);
   SPREAD_ARG(target_obj, target);
 
@@ -593,6 +608,7 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
 
 
 void Fill(const FunctionCallbackInfo<Value>& args) {
+  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   SPREAD_ARG(args[0], ts_obj);
 
   size_t start = args[2]->Uint32Value();
@@ -636,6 +652,7 @@ template <encoding encoding>
 void StringWrite(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
   SPREAD_ARG(args.This(), ts_obj);
 
   if (!args[0]->IsString())
@@ -712,6 +729,7 @@ static inline void Swizzle(char* start, unsigned int len) {
 
 template <typename T, enum Endianness endianness>
 void ReadFloatGeneric(const FunctionCallbackInfo<Value>& args) {
+  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   SPREAD_ARG(args[0], ts_obj);
 
   uint32_t offset = args[1]->Uint32Value();
@@ -775,21 +793,25 @@ uint32_t WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
 
 
 void WriteFloatLE(const FunctionCallbackInfo<Value>& args) {
+  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   args.GetReturnValue().Set(WriteFloatGeneric<float, kLittleEndian>(args));
 }
 
 
 void WriteFloatBE(const FunctionCallbackInfo<Value>& args) {
+  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   args.GetReturnValue().Set(WriteFloatGeneric<float, kBigEndian>(args));
 }
 
 
 void WriteDoubleLE(const FunctionCallbackInfo<Value>& args) {
+  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   args.GetReturnValue().Set(WriteFloatGeneric<double, kLittleEndian>(args));
 }
 
 
 void WriteDoubleBE(const FunctionCallbackInfo<Value>& args) {
+  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   args.GetReturnValue().Set(WriteFloatGeneric<double, kBigEndian>(args));
 }
 
@@ -803,6 +825,10 @@ void ByteLengthUtf8(const FunctionCallbackInfo<Value> &args) {
 
 
 void Compare(const FunctionCallbackInfo<Value> &args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[1]);
   SPREAD_ARG(args[0], obj_a);
   SPREAD_ARG(args[1], obj_b);
 
@@ -845,10 +871,10 @@ int32_t IndexOf(const char* haystack,
 
 
 void IndexOfString(const FunctionCallbackInfo<Value>& args) {
-  ASSERT(args[0]->IsObject());
   ASSERT(args[1]->IsString());
   ASSERT(args[2]->IsNumber());
 
+  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   SPREAD_ARG(args[0], ts_obj);
 
   node::Utf8Value str(args.GetIsolate(), args[1]);
@@ -877,10 +903,10 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
 
 
 void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
-  ASSERT(args[0]->IsObject());
   ASSERT(args[1]->IsObject());
   ASSERT(args[2]->IsNumber());
 
+  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   SPREAD_ARG(args[0], ts_obj);
   SPREAD_ARG(args[1], buf);
   const int32_t offset_i32 = args[2]->Int32Value();
@@ -911,10 +937,10 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
 
 
 void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
-  ASSERT(args[0]->IsObject());
   ASSERT(args[1]->IsNumber());
   ASSERT(args[2]->IsNumber());
 
+  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   SPREAD_ARG(args[0], ts_obj);
 
   uint32_t needle = args[1]->Uint32Value();

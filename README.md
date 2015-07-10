@@ -119,6 +119,12 @@ To read the documentation:
 $ man doc/iojs.1
 ```
 
+To test if io.js was built correctly:
+
+```
+$ iojs -e "console.log('Hello from io.js ' + process.version)"
+```
+
 ### Windows
 
 Prerequisites:
@@ -138,6 +144,12 @@ To run the tests:
 
 ```text
 > vcbuild test
+```
+
+To test if io.js was built correctly:
+
+```
+$ iojs -e "console.log('Hello from io.js ' + process.version)"
 ```
 
 ### Android / Android based devices, aka. Firefox OS
@@ -319,10 +331,10 @@ information about the governance of the io.js project, see
 * **Nikolai Vavilov** &lt;vvnicholas@gmail.com&gt; ([@seishun](https://github.com/seishun))
 * **Nicu Micleușanu** &lt;micnic90@gmail.com&gt; ([@micnic](https://github.com/micnic))
 * **Aleksey Smolenchuk** &lt;lxe@lxe.co&gt; ([@lxe](https://github.com/lxe))
-* **Shigeki Ohtsu** &lt;ohtsu@iij.ad.jp&gt; ([@shigeki](https://github.com/shigeki))
+* **Shigeki Ohtsu** &lt;ohtsu@iij.ad.jp&gt; ([@shigeki](https://github.com/shigeki)) (Technical Committee)
 * **Sam Roberts** &lt;vieuxtech@gmail.com&gt; ([@sam-github](https://github.com/sam-github))
 * **Wyatt Preul** &lt;wpreul@gmail.com&gt; ([@geek](https://github.com/geek))
-* **Brian White** &lt;mscdex@mscdex.net&gt; ([@mscdex](https://github.com/mscdex))
+* **Brian White** &lt;mscdex@mscdex.net&gt; ([@mscdex](https://github.com/mscdex)) (Technical Committee)
 * **Christian Tellnes** &lt;christian@tellnes.no&gt; ([@tellnes](https://github.com/tellnes))
 * **Robert Kowalski** &lt;rok@kowalski.gd&gt; ([@robertkowalski](https://github.com/robertkowalski))
 * **Julian Duque** &lt;julianduquej@gmail.com&gt; ([@julianduque](https://github.com/julianduque))

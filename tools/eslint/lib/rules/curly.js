@@ -101,3 +101,9 @@ module.exports = function(context) {
     };
 
 };
+
+module.exports.schema = [
+    {
+        "enum": ["all", "multi", "multi-line"]
+    }
+];

@@ -16,7 +16,7 @@ function LinkWriter (props) {
 
   // should already be established as a Link type
   if (!((props.type === 'Link' && props.Link) ||
-        (props.type === 'SymbolicLink' && props.SymbolicLink))) {
+    (props.type === 'SymbolicLink' && props.SymbolicLink))) {
     throw new Error('Non-link type ' + props.type)
   }
 
@@ -66,8 +66,8 @@ function create (self, lp, link) {
     // windows in some nice fashion.
     if (er) {
       if ((er.code === 'ENOENT' ||
-           er.code === 'EACCES' ||
-           er.code === 'EPERM') && process.platform === 'win32') {
+        er.code === 'EACCES' ||
+        er.code === 'EPERM') && process.platform === 'win32') {
         self.ready = true
         self.emit('ready')
         self.emit('end')

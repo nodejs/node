@@ -5,8 +5,12 @@ io.js APIs.
 
 ## Prerequisites
 
-Most of the http benchmarks require [`wrk`][wrk] and [`ab`][ab] being installed.
-These are most often available through your preferred package manager.
+Most of the http benchmarks require [`wrk`][wrk] and [`ab`][ab] (ApacheBench) being installed.
+These may be available through your preferred package manager.
+
+If they are not available:
+- `wrk` may easily be built [from source][wrk] via `make`.
+- `ab` is sometimes bundled in a package called `apache2-utils`.
 
 [wrk]: https://github.com/wg/wrk
 [ab]: http://httpd.apache.org/docs/2.2/programs/ab.html

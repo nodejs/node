@@ -6,19 +6,17 @@ var http = require('http')
   , util = require('util')
   , stream = require('stream')
   , zlib = require('zlib')
-  , helpers = require('./lib/helpers')
   , bl = require('bl')
   , hawk = require('hawk')
   , aws = require('aws-sign2')
   , httpSignature = require('http-signature')
   , mime = require('mime-types')
-  , tunnel = require('tunnel-agent')
   , stringstream = require('stringstream')
   , caseless = require('caseless')
   , ForeverAgent = require('forever-agent')
   , FormData = require('form-data')
+  , helpers = require('./lib/helpers')
   , cookies = require('./lib/cookies')
-  , copy = require('./lib/copy')
   , getProxyFromURI = require('./lib/getProxyFromURI')
   , Querystring = require('./lib/querystring').Querystring
   , Har = require('./lib/har').Har
@@ -26,45 +24,17 @@ var http = require('http')
   , OAuth = require('./lib/oauth').OAuth
   , Multipart = require('./lib/multipart').Multipart
   , Redirect = require('./lib/redirect').Redirect
+  , Tunnel = require('./lib/tunnel').Tunnel
 
 var safeStringify = helpers.safeStringify
   , isReadStream = helpers.isReadStream
   , toBase64 = helpers.toBase64
   , defer = helpers.defer
+  , copy = helpers.copy
   , globalCookieJar = cookies.jar()
 
 
 var globalPool = {}
-
-var defaultProxyHeaderWhiteList = [
-  'accept',
-  'accept-charset',
-  'accept-encoding',
-  'accept-language',
-  'accept-ranges',
-  'cache-control',
-  'content-encoding',
-  'content-language',
-  'content-length',
-  'content-location',
-  'content-md5',
-  'content-range',
-  'content-type',
-  'connection',
-  'date',
-  'expect',
-  'max-forwards',
-  'pragma',
-  'referer',
-  'te',
-  'transfer-encoding',
-  'user-agent',
-  'via'
-]
-
-var defaultProxyHeaderExclusiveList = [
-  'proxy-authorization'
-]
 
 function filterForNonReserved(reserved, options) {
   // Filter out properties that are not reserved.
@@ -94,103 +64,6 @@ function filterOutReservedFunctions(reserved, options) {
   }
   return object
 
-}
-
-function constructProxyHost(uriObject) {
-  var port = uriObject.portA
-    , protocol = uriObject.protocol
-    , proxyHost = uriObject.hostname + ':'
-
-  if (port) {
-    proxyHost += port
-  } else if (protocol === 'https:') {
-    proxyHost += '443'
-  } else {
-    proxyHost += '80'
-  }
-
-  return proxyHost
-}
-
-function constructProxyHeaderWhiteList(headers, proxyHeaderWhiteList) {
-  var whiteList = proxyHeaderWhiteList
-    .reduce(function (set, header) {
-      set[header.toLowerCase()] = true
-      return set
-    }, {})
-
-  return Object.keys(headers)
-    .filter(function (header) {
-      return whiteList[header.toLowerCase()]
-    })
-    .reduce(function (set, header) {
-      set[header] = headers[header]
-      return set
-    }, {})
-}
-
-function getTunnelOption(self, options) {
-  // Tunnel HTTPS by default, or if a previous request in the redirect chain
-  // was tunneled.  Allow the user to override this setting.
-
-  // If self.tunnel is already set (because this is a redirect), use the
-  // existing value.
-  if (typeof self.tunnel !== 'undefined') {
-    return self.tunnel
-  }
-
-  // If options.tunnel is set (the user specified a value), use it.
-  if (typeof options.tunnel !== 'undefined') {
-    return options.tunnel
-  }
-
-  // If the destination is HTTPS, tunnel.
-  if (self.uri.protocol === 'https:') {
-    return true
-  }
-
-  // Otherwise, leave tunnel unset, because if a later request in the redirect
-  // chain is HTTPS then that request (and any subsequent ones) should be
-  // tunneled.
-  return undefined
-}
-
-function constructTunnelOptions(request) {
-  var proxy = request.proxy
-
-  var tunnelOptions = {
-    proxy : {
-      host      : proxy.hostname,
-      port      : +proxy.port,
-      proxyAuth : proxy.auth,
-      headers   : request.proxyHeaders
-    },
-    headers            : request.headers,
-    ca                 : request.ca,
-    cert               : request.cert,
-    key                : request.key,
-    passphrase         : request.passphrase,
-    pfx                : request.pfx,
-    ciphers            : request.ciphers,
-    rejectUnauthorized : request.rejectUnauthorized,
-    secureOptions      : request.secureOptions,
-    secureProtocol     : request.secureProtocol
-  }
-
-  return tunnelOptions
-}
-
-function constructTunnelFnName(uri, proxy) {
-  var uriProtocol = (uri.protocol === 'https:' ? 'https' : 'http')
-  var proxyProtocol = (proxy.protocol === 'https:' ? 'Https' : 'Http')
-  return [uriProtocol, proxyProtocol].join('Over')
-}
-
-function getTunnelFn(request) {
-  var uri = request.uri
-  var proxy = request.proxy
-  var tunnelFnName = constructTunnelFnName(uri, proxy)
-  return tunnel[tunnelFnName]
 }
 
 // Function for properly handling a connection error
@@ -262,6 +135,7 @@ function Request (options) {
   self._oauth = new OAuth(self)
   self._multipart = new Multipart(self)
   self._redirect = new Redirect(self)
+  self._tunnel = new Tunnel(self)
   self.init(options)
 }
 
@@ -275,37 +149,6 @@ function debug() {
   }
 }
 Request.prototype.debug = debug
-
-Request.prototype.setupTunnel = function () {
-  var self = this
-
-  if (typeof self.proxy === 'string') {
-    self.proxy = url.parse(self.proxy)
-  }
-
-  if (!self.proxy || !self.tunnel) {
-    return false
-  }
-
-  // Setup Proxy Header Exclusive List and White List
-  self.proxyHeaderExclusiveList = self.proxyHeaderExclusiveList || []
-  self.proxyHeaderWhiteList = self.proxyHeaderWhiteList || defaultProxyHeaderWhiteList
-  var proxyHeaderExclusiveList = self.proxyHeaderExclusiveList.concat(defaultProxyHeaderExclusiveList)
-  var proxyHeaderWhiteList = self.proxyHeaderWhiteList.concat(proxyHeaderExclusiveList)
-
-  // Setup Proxy Headers and Proxy Headers Host
-  // Only send the Proxy White Listed Header names
-  self.proxyHeaders = constructProxyHeaderWhiteList(self.headers, proxyHeaderWhiteList)
-  self.proxyHeaders.host = constructProxyHost(self.uri)
-  proxyHeaderExclusiveList.forEach(self.removeHeader, self)
-
-  // Set Agent from Tunnel Data
-  var tunnelFn = getTunnelFn(self)
-  var tunnelOptions = constructTunnelOptions(self)
-  self.agent = tunnelFn(tunnelOptions)
-
-  return true
-}
 
 Request.prototype.init = function (options) {
   // init() contains all the code to setup the request object.
@@ -450,9 +293,9 @@ Request.prototype.init = function (options) {
     self.proxy = getProxyFromURI(self.uri)
   }
 
-  self.tunnel = getTunnelOption(self, options)
+  self.tunnel = self._tunnel.isEnabled(options)
   if (self.proxy) {
-    self.setupTunnel()
+    self._tunnel.setup(options)
   }
 
   self._redirect.onRequest(options)
@@ -750,7 +593,7 @@ Request.prototype._updateProtocol = function () {
     // previously was doing http, now doing https
     // if it's https, then we might need to tunnel now.
     if (self.proxy) {
-      if (self.setupTunnel()) {
+      if (self._tunnel.setup()) {
         return
       }
     }
@@ -1545,10 +1388,10 @@ Request.prototype.destroy = function () {
 }
 
 Request.defaultProxyHeaderWhiteList =
-  defaultProxyHeaderWhiteList.slice()
+  Tunnel.defaultProxyHeaderWhiteList.slice()
 
 Request.defaultProxyHeaderExclusiveList =
-  defaultProxyHeaderExclusiveList.slice()
+  Tunnel.defaultProxyHeaderExclusiveList.slice()
 
 // Exports
 

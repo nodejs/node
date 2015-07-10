@@ -87,18 +87,6 @@ if "%i18n_arg%"=="intl-none" set i18n_arg=--with-intl=none
 call :getnodeversion || exit /b 1
 
 @rem Set environment for msbuild
-:project-gen
-@rem Skip project generation if requested.
-if defined noprojgen goto msbuild
-
-@rem Generate the VS project.
-SETLOCAL
-  if defined VS100COMNTOOLS call "%VS100COMNTOOLS%\VCVarsQueryRegistry.bat"
-  python configure %download_arg% %i18n_arg% %debug_arg% %snapshot_arg% %noetw_arg% %noperfctr_arg% --dest-cpu=%target_arch% --tag=%TAG%
-  if errorlevel 1 goto create-msvs-files-failed
-  if not exist node.sln goto create-msvs-files-failed
-  echo Project files generated.
-ENDLOCAL
 
 @rem Look for Visual Studio 2015
 if not defined VS140COMNTOOLS goto vc-set-2013
@@ -146,6 +134,7 @@ if defined nobuild goto sign
 @rem Build the sln with msbuild.
 msbuild node.sln /m /t:%target% /p:Configuration=%config% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 goto exit
+if "%target%" == "Clean" goto exit
 
 :sign
 @rem Skip signing if the `nosign` option was specified.

@@ -22,6 +22,22 @@ module.exports = function(context) {
 
     // the index of the last comment that was checked
     var lastCommentIndex = 0;
+    var allComments;
+
+    /**
+     * Determines the length of comment between 2 tokens
+     * @param {Object} left - The left token object.
+     * @param {Object} right - The right token object.
+     * @returns {number} Length of comment in between tokens
+     */
+    function getCommentLengthBetweenTokens(left, right) {
+        return allComments.reduce(function(val, comment) {
+            if (left.range[1] <= comment.range[0] && comment.range[1] <= right.range[0]) {
+                val = val + comment.range[1] - comment.range[0];
+            }
+            return val;
+        }, 0);
+    }
 
     /**
      * Determines whether two adjacent tokens have whitespace between them.
@@ -31,7 +47,8 @@ module.exports = function(context) {
      */
     function isSpaced(left, right) {
         var punctuationLength = context.getTokensBetween(left, right).length; // the length of any parenthesis
-        return (left.range[1] + punctuationLength) < right.range[0];
+        var commentLenth = getCommentLengthBetweenTokens(left, right);
+        return (left.range[1] + punctuationLength + commentLenth) < right.range[0];
     }
 
     /**
@@ -130,12 +147,12 @@ module.exports = function(context) {
         "Program": function() {
 
             var source = context.getSource(),
-                allComments = context.getAllComments(),
                 pattern = /,/g,
                 commaToken,
                 previousToken,
                 nextToken;
 
+            allComments = context.getAllComments();
             while (pattern.test(source)) {
 
                 // do not flag anything inside of comments
@@ -157,3 +174,18 @@ module.exports = function(context) {
     };
 
 };
+
+module.exports.schema = [
+    {
+        "type": "object",
+        "properties": {
+            "before": {
+                "type": "boolean"
+            },
+            "after": {
+                "type": "boolean"
+            }
+        },
+        "additionalProperties": false
+    }
+];

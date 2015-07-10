@@ -148,6 +148,7 @@ int main(int argc, char **argv)
     ERR_remove_thread_state(NULL);
     ERR_free_strings();
     CRYPTO_mem_leaks(bio_err);
+    BIO_free(bio_err);
 
     return 0;
 }

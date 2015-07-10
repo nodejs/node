@@ -92,3 +92,15 @@ module.exports = function(context) {
     };
 
 };
+
+module.exports.schema = [
+    {
+        "type": "object",
+        "properties": {
+            "int32Hint": {
+                "type": "boolean"
+            }
+        },
+        "additionalProperties": false
+    }
+];
