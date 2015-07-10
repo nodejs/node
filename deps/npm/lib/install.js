@@ -122,10 +122,11 @@ function install (args, cb_) {
       if (er) return cb_(er)
 
       if (problem) {
-        var peerInvalidError = new Error("The package " + problem.name +
+        var peerInvalidError = new Error("The package " + problem._id +
           " does not satisfy its siblings' peerDependencies requirements!")
         peerInvalidError.code = "EPEERINVALID"
         peerInvalidError.packageName = problem.name
+        peerInvalidError.packageVersion = problem.version
         peerInvalidError.peersDepending = problem.peersDepending
         return cb(peerInvalidError)
       }
@@ -287,7 +288,7 @@ function findPeerInvalid_ (packageMap, fpiList) {
             peer.peerDependencies[packageName]
         }
       }
-      return { name: pkg.name, peersDepending: peersDepending }
+      return { name: pkg.name, peersDepending: peersDepending, version: pkg.version, _id: pkg._id }
     }
 
     if (pkg.dependencies) {
