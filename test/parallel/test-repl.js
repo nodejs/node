@@ -189,7 +189,11 @@ function error_test() {
     { client: client_unix, send: 'url.format("http://google.com")',
       expect: 'http://google.com/' },
     { client: client_unix, send: 'var path = 42; path',
-      expect: '42' }
+      expect: '42' },
+    // this makes sure that we don't print `undefined` when we actually print
+    // the error message
+    { client: client_unix, send: '.invalid_repl_command',
+      expect: 'Invalid REPL keyword\n' + prompt_unix },
   ]);
 }
 
