@@ -225,6 +225,13 @@ function error_test() {
     // using REPL command "help" within a string literal should still work
     { client: client_unix, send: '\'thefourth\\\n.help\neye\'',
       expect: /'thefourtheye'/ },
+    // empty lines in the REPL should be allowed
+    { client: client_unix, send: '\n\r\n\r\n',
+      expect: prompt_unix + prompt_unix + prompt_unix },
+    // empty lines in the string literals should not affect the string
+    { client: client_unix, send: '\'the\\\n\\\nfourtheye\'\n',
+      expect: prompt_multiline + prompt_multiline +
+              '\'thefourtheye\'\n' + prompt_unix },
   ]);
 }
 
