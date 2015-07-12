@@ -162,3 +162,20 @@ added.
 This event is emitted *after* a listener is removed.  When this event is
 triggered, the listener has been removed from the array of listeners for the
 `event`.
+
+### Inheriting from 'EventEmitter'
+
+Inheriting from `EventEmitter` is no different from inheriting from any other
+constructor function. For example:
+
+    'use strict';
+    const util = require('util');
+    const EventEmitter = require('events').EventEmitter;
+
+    function MyEventEmitter() {
+      // Initialize necessary properties from `EventEmitter` in this instance
+      EventEmitter.call(this);
+    }
+
+    // Inherit functions from `EventEmitter`'s prototype
+    util.inherits(MyEventEmitter, EventEmitter);
