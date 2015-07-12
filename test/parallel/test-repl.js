@@ -194,6 +194,10 @@ function error_test() {
     // the error message
     { client: client_unix, send: '.invalid_repl_command',
       expect: 'Invalid REPL keyword\n' + prompt_unix },
+    // this makes sure that we don't crash when we use an inherited property as
+    // a REPL command
+    { client: client_unix, send: '.toString',
+      expect: 'Invalid REPL keyword\n' + prompt_unix },
   ]);
 }
 
