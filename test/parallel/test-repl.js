@@ -198,6 +198,33 @@ function error_test() {
     // a REPL command
     { client: client_unix, send: '.toString',
       expect: 'Invalid REPL keyword\n' + prompt_unix },
+    // fail when we are not inside a String and a line continuation is used
+    { client: client_unix, send: '[] \\',
+      expect: /^SyntaxError: Unexpected token ILLEGAL/ },
+    // do not fail when a String is created with line continuation
+    { client: client_unix, send: '\'the\\\nfourth\\\neye\'',
+      expect: prompt_multiline + prompt_multiline +
+              '\'thefourtheye\'\n' + prompt_unix },
+    // Don't fail when a partial String is created and line continuation is used
+    // with whitespace characters at the end of the string. We are to ignore it.
+    // This test is to make sure that we properly remove the whitespace
+    // characters at the end of line, unlike the buggy `trimWhitespace` function
+    { client: client_unix, send: '  \t    .break  \t  ',
+      expect: prompt_unix },
+    // multiline strings preserve whitespace characters in them
+    { client: client_unix, send: '\'the \\\n   fourth\t\t\\\n  eye  \'',
+      expect: prompt_multiline + prompt_multiline +
+              '\'the    fourth\\t\\t  eye  \'\n' + prompt_unix },
+    // more than one multiline strings also should preserve whitespace chars
+    { client: client_unix, send: '\'the \\\n   fourth\' +  \'\t\t\\\n  eye  \'',
+      expect: prompt_multiline + prompt_multiline +
+              '\'the    fourth\\t\\t  eye  \'\n' + prompt_unix },
+    // using REPL commands within a string literal should still work
+    { client: client_unix, send: '\'\\\n.break',
+      expect: prompt_unix },
+    // using REPL command "help" within a string literal should still work
+    { client: client_unix, send: '\'thefourth\\\n.help\neye\'',
+      expect: /'thefourtheye'/ },
   ]);
 }
 
