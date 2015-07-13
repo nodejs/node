@@ -256,11 +256,13 @@ class TapProgressIndicator(SimpleProgressIndicator):
         logger.info('#' + l)
       for l in output.output.stdout.splitlines():
         logger.info('#' + l)
-    elif output.HasSkipped():
-      skip = skip_regex.search(output.output.stdout).group(1)     
-      logger.info('ok %i - %s # skip %s' % (self._done, command, skip))
     else:
-      logger.info('ok %i - %s' % (self._done, command))
+      skip = skip_regex.search(output.output.stdout)
+      if skip:
+        logger.info('ok %i - %s # skip %s' %
+          (self._done, command, skip.group(1)))
+      else:
+        logger.info('ok %i - %s' % (self._done, command))
 
     duration = output.test.duration
 
@@ -474,10 +476,6 @@ class TestOutput(object):
     else:
       outcome = PASS
     return not outcome in self.test.outcomes
-
-  def HasSkipped(self):
-    skip = skip_regex.search(self.output.stdout)
-    return self.store_unexpected_output and skip
 
   def HasPreciousOutput(self):
     return self.UnexpectedOutput() and self.store_unexpected_output
