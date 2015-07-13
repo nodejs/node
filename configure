@@ -495,7 +495,10 @@ def configure_node(o):
   o['variables']['clang'] = 1 if is_clang else 0
 
   if not is_clang and cc_version != 0:
-    o['variables']['gcc_version'] = 10 * cc_version[0] + cc_version[1]
+    try:
+      o['variables']['gcc_version'] = 10 * cc_version[0] + cc_version[1]
+    except IndexError:
+      o['variables']['gcc_version'] = 10 * cc_version[0]
 
   # clang has always supported -fvisibility=hidden, right?
   if not is_clang and cc_version < (4,0,0):
