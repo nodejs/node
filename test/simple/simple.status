@@ -1,6 +1,5 @@
 prefix simple
 
-test-crypto-domains               : PASS,FLAKY
 test-debug-signal-cluster         : PASS,FLAKY
 test-cluster-basic                : PASS,FLAKY
 test-microtask-queue-run          : PASS,FLAKY
@@ -10,10 +9,6 @@ test-microtask-queue-run-domain   : PASS,FLAKY
 test-timers-first-fire            : PASS,FLAKY
 
 [$system==linux]
-test-fs-readfile-error            : PASS,FLAKY
-test-net-GH-5504                  : PASS,FLAKY
-test-stdin-script-child           : PASS,FLAKY
-test-util-debug                   : PASS,FLAKY
 
 [$system==macos]
 test-fs-watch                     : PASS,FLAKY

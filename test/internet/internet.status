@@ -3,4 +3,3 @@ prefix internet
 test-dns                          : PASS,FLAKY
 
 [$system==solaris]
-test-http-dns-fail                : PASS,FLAKY
