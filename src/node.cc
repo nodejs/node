@@ -1,5 +1,6 @@
 #include "node.h"
 #include "node_buffer.h"
+#include "node_builtins.h"
 #include "node_constants.h"
 #include "node_file.h"
 #include "node_http_parser.h"
@@ -2280,6 +2281,10 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
   } else if (!strcmp(*module_v, "natives")) {
     exports = Object::New(env->isolate());
     DefineJavaScript(env, exports);
+    cache->Set(module, exports);
+  } else if (!strcmp(*module_v, "builtins")) {
+    exports = Object::New(env->isolate());
+    DefineBuiltins(env, exports, modlist_builtin);
     cache->Set(module, exports);
   } else {
     char errmsg[1024];
