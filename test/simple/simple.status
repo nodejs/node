@@ -1,1 +1,36 @@
 prefix simple
+
+test-http-client-timeout-event          : PASS,FLAKY
+test-http-pipeline-flood                : PASS,FLAKY
+test-child-process-fork-net2            : PASS,FLAKY
+test-tls-session-cache                  : PASS,FLAKY
+test-net-GH-5504                        : PASS,FLAKY
+test-debugger-repl-restart              : PASS,FLAKY
+test-http-curl-chunk-problem            : PASS,FLAKY
+test-fs-empty-readStream                : PASS,FLAKY
+
+[$system==win32]
+test-cluster-bind-twice-v2              : PASS,FLAKY
+test-pipe-file-to-http                  : PASS,FLAKY
+test-stream2-stderr-sync                : PASS,FLAKY
+test-tls-securepair-server              : PASS,FLAKY
+test-timers-first-fire                  : PASS,FLAKY
+ 
+[$system==linux]
+test-abort-fatal-error                  : PASS,FLAKY
+test-debugger-client                    : PASS,FLAKY
+test-process-argv-0                     : PASS,FLAKY
+test-cluster-master-kill                : PASS,FLAKY
+test-cluster-worker-kill                : PASS,FLAKY
+test-timers-ordering                    : PASS,FLAKY
+test-cluster-master-error               : PASS,FLAKY
+
+[$system==macos]
+test-http-exit-delay                    : PASS,FLAKY
+
+[$system==solaris]
+test-abort-fatal-error                  : PASS,FLAKY
+test-debugger-repl                      : PASS,FLAKY
+test-debugger-repl-break-in-module      : PASS,FLAKY
+test-debugger-repl-utf8                 : PASS,FLAKY
+test-net-server-max-connections         : PASS,FLAKY

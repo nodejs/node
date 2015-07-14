@@ -1,1 +1,11 @@
 prefix internet
+
+test-dns                                : PASS,FLAKY
+
+[$system==win32]
+ 
+[$system==linux]
+
+[$system==macos]
+
+[$system==solaris]
