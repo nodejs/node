@@ -207,7 +207,8 @@ TARGET_TEST_F(InstructionSelectorTest, ReturnZero) {
 
 TARGET_TEST_F(InstructionSelectorTest, TruncateFloat64ToInt32WithParameter) {
   StreamBuilder m(this, kMachInt32, kMachFloat64);
-  m.Return(m.TruncateFloat64ToInt32(m.Parameter(0)));
+  m.Return(
+      m.TruncateFloat64ToInt32(TruncationMode::kJavaScript, m.Parameter(0)));
   Stream s = m.Build(kAllInstructions);
   ASSERT_EQ(4U, s.size());
   EXPECT_EQ(kArchNop, s[0]->arch_opcode());

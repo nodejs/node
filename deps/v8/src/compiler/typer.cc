@@ -582,16 +582,6 @@ Bounds Typer::Visitor::TypeParameter(Node* node) {
 
 
 Bounds Typer::Visitor::TypeOsrValue(Node* node) {
-  if (node->InputAt(0)->opcode() == IrOpcode::kOsrLoopEntry) {
-    // Before deconstruction, OSR values have type {None} to avoid polluting
-    // the types of phis and other nodes in the graph.
-    return Bounds(Type::None(), Type::None());
-  }
-  if (NodeProperties::IsTyped(node)) {
-    // After deconstruction, OSR values may have had a type explicitly set.
-    return NodeProperties::GetBounds(node);
-  }
-  // Otherwise, be conservative.
   return Bounds::Unbounded(zone());
 }
 
@@ -1657,6 +1647,21 @@ Bounds Typer::Visitor::TypeNumberModulus(Node* node) {
 }
 
 
+Bounds Typer::Visitor::TypeNumberShiftLeft(Node* node) {
+  return Bounds(Type::None(zone()), Type::Signed32(zone()));
+}
+
+
+Bounds Typer::Visitor::TypeNumberShiftRight(Node* node) {
+  return Bounds(Type::None(zone()), Type::Signed32(zone()));
+}
+
+
+Bounds Typer::Visitor::TypeNumberShiftRightLogical(Node* node) {
+  return Bounds(Type::None(zone()), Type::Unsigned32(zone()));
+}
+
+
 Bounds Typer::Visitor::TypeNumberToInt32(Node* node) {
   return TypeUnaryOp(node, NumberToInt32);
 }
@@ -2048,6 +2053,11 @@ Bounds Typer::Visitor::TypeUint64Div(Node* node) {
 
 
 Bounds Typer::Visitor::TypeUint64LessThan(Node* node) {
+  return Bounds(Type::Boolean());
+}
+
+
+Bounds Typer::Visitor::TypeUint64LessThanOrEqual(Node* node) {
   return Bounds(Type::Boolean());
 }
 

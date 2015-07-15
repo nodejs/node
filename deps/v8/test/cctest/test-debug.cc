@@ -969,82 +969,6 @@ static void MessageCallbackCount(v8::Handle<v8::Message> message,
 
 // --- T h e   A c t u a l   T e s t s
 
-
-// Test that the debug break function is the expected one for different kinds
-// of break locations.
-TEST(DebugStub) {
-  using ::v8::internal::Builtins;
-  using ::v8::internal::Isolate;
-  DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-
-  CheckDebugBreakFunction(&env,
-                          "function f1(){}", "f1",
-                          0,
-                          v8::internal::RelocInfo::JS_RETURN,
-                          NULL);
-  CheckDebugBreakFunction(&env,
-                          "function f2(){x=1;}", "f2",
-                          0,
-                          v8::internal::RelocInfo::CODE_TARGET,
-                          CcTest::i_isolate()->builtins()->builtin(
-                              Builtins::kStoreIC_DebugBreak));
-  CheckDebugBreakFunction(
-      &env, "function f3(){x();}", "f3", 0,
-      v8::internal::RelocInfo::CODE_TARGET,
-      CcTest::i_isolate()->builtins()->builtin(Builtins::kLoadIC_DebugBreak));
-
-// TODO(1240753): Make the test architecture independent or split
-// parts of the debugger into architecture dependent files. This
-// part currently disabled as it is not portable between IA32/ARM.
-// Currently on ICs for keyed store/load on ARM.
-#if !defined (__arm__) && !defined(__thumb__)
-  CheckDebugBreakFunction(
-      &env,
-      "function f4(){var index='propertyName'; var a={}; a[index] = 'x';}",
-      "f4", 39, v8::internal::RelocInfo::CODE_TARGET,
-      CcTest::i_isolate()->builtins()->builtin(
-          Builtins::kKeyedStoreIC_DebugBreak));
-  CheckDebugBreakFunction(
-      &env,
-      "function f5(){var index='propertyName'; var a={}; return a[index];}",
-      "f5", 39, v8::internal::RelocInfo::CODE_TARGET,
-      CcTest::i_isolate()->builtins()->builtin(
-          Builtins::kKeyedLoadIC_DebugBreak));
-#endif
-
-  CheckDebugBreakFunction(&env, "function f6(){(0==null)()}", "f6", 0,
-                          v8::internal::RelocInfo::CODE_TARGET,
-                          CcTest::i_isolate()->builtins()->builtin(
-                              Builtins::kCompareNilIC_DebugBreak));
-
-  // Check the debug break code stubs for call ICs with different number of
-  // parameters.
-  // TODO(verwaest): XXX update test.
-  // Handle<Code> debug_break_0 = v8::internal::ComputeCallDebugBreak(0);
-  // Handle<Code> debug_break_1 = v8::internal::ComputeCallDebugBreak(1);
-  // Handle<Code> debug_break_4 = v8::internal::ComputeCallDebugBreak(4);
-
-  // CheckDebugBreakFunction(&env,
-  //                         "function f4_0(){x();}", "f4_0",
-  //                         0,
-  //                         v8::internal::RelocInfo::CODE_TARGET,
-  //                         *debug_break_0);
-
-  // CheckDebugBreakFunction(&env,
-  //                         "function f4_1(){x(1);}", "f4_1",
-  //                         0,
-  //                         v8::internal::RelocInfo::CODE_TARGET,
-  //                         *debug_break_1);
-
-  // CheckDebugBreakFunction(&env,
-  //                         "function f4_4(){x(1,2,3,4);}", "f4_4",
-  //                         0,
-  //                         v8::internal::RelocInfo::CODE_TARGET,
-  //                         *debug_break_4);
-}
-
-
 // Test that the debug info in the VM is in sync with the functions being
 // debugged.
 TEST(DebugInfo) {
@@ -2346,7 +2270,7 @@ TEST(DebuggerStatementBreakpoint) {
     v8::Local<v8::Function> foo = v8::Local<v8::Function>::Cast(
         env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "foo")));
 
-    // The debugger statement triggers breakpint hit
+    // The debugger statement triggers breakpoint hit
     foo->Call(env->Global(), 0, NULL);
     CHECK_EQ(1, break_point_hit_count);
 
@@ -3270,6 +3194,13 @@ TEST(DebugStepDoWhile) {
   v8::Local<v8::Function> foo = CompileFunction(&env, src, "foo");
   SetBreakPoint(foo, 8);  // "var a = 0;"
 
+  // Looping 0 times.
+  step_action = StepIn;
+  break_point_hit_count = 0;
+  v8::Handle<v8::Value> argv_0[argc] = {v8::Number::New(isolate, 0)};
+  foo->Call(env->Global(), argc, argv_0);
+  CHECK_EQ(4, break_point_hit_count);
+
   // Looping 10 times.
   step_action = StepIn;
   break_point_hit_count = 0;
@@ -3312,19 +3243,26 @@ TEST(DebugStepFor) {
 
   SetBreakPoint(foo, 8);  // "a = 1;"
 
+  // Looping 0 times.
+  step_action = StepIn;
+  break_point_hit_count = 0;
+  v8::Handle<v8::Value> argv_0[argc] = {v8::Number::New(isolate, 0)};
+  foo->Call(env->Global(), argc, argv_0);
+  CHECK_EQ(4, break_point_hit_count);
+
   // Looping 10 times.
   step_action = StepIn;
   break_point_hit_count = 0;
   v8::Handle<v8::Value> argv_10[argc] = { v8::Number::New(isolate, 10) };
   foo->Call(env->Global(), argc, argv_10);
-  CHECK_EQ(45, break_point_hit_count);
+  CHECK_EQ(34, break_point_hit_count);
 
   // Looping 100 times.
   step_action = StepIn;
   break_point_hit_count = 0;
   v8::Handle<v8::Value> argv_100[argc] = { v8::Number::New(isolate, 100) };
   foo->Call(env->Global(), argc, argv_100);
-  CHECK_EQ(405, break_point_hit_count);
+  CHECK_EQ(304, break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(NULL);
@@ -3539,14 +3477,14 @@ TEST(DebugConditional) {
   step_action = StepIn;
   break_point_hit_count = 0;
   foo->Call(env->Global(), 0, NULL);
-  CHECK_EQ(5, break_point_hit_count);
+  CHECK_EQ(4, break_point_hit_count);
 
   step_action = StepIn;
   break_point_hit_count = 0;
   const int argc = 1;
   v8::Handle<v8::Value> argv_true[argc] = { v8::True(isolate) };
   foo->Call(env->Global(), argc, argv_true);
-  CHECK_EQ(5, break_point_hit_count);
+  CHECK_EQ(4, break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(NULL);

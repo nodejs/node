@@ -124,7 +124,7 @@ class CommonOperatorBuilder final : public ZoneObject {
   const Operator* Return();
   const Operator* Terminate();
 
-  const Operator* Start(int num_formal_parameters);
+  const Operator* Start(int value_output_count);
   const Operator* Loop(int control_input_count);
   const Operator* Merge(int control_input_count);
   const Operator* Parameter(int index, const char* debug_name = nullptr);

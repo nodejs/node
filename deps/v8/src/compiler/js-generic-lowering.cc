@@ -529,6 +529,9 @@ void JSGenericLowering::LowerJSCallFunction(Node* node) {
   CallFunctionStub stub(isolate(), arg_count, p.flags());
   CallInterfaceDescriptor d = stub.GetCallInterfaceDescriptor();
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
+  if (p.AllowTailCalls()) {
+    flags |= CallDescriptor::kSupportsTailCalls;
+  }
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
       isolate(), zone(), d, static_cast<int>(p.arity() - 1), flags);
   Node* stub_code = jsgraph()->HeapConstant(stub.GetCode());

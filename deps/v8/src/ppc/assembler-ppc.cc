@@ -219,6 +219,7 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
                                                kMaxBlockTrampolineSectionSize;
   internal_trampoline_exception_ = false;
   last_bound_pos_ = 0;
+  optimizable_cmpi_pos_ = -1;
   trampoline_emitted_ = FLAG_force_long_branches;
   unbound_labels_count_ = 0;
   ClearRecordedAstId();
@@ -1030,9 +1031,17 @@ void Assembler::cmpl(Register src1, Register src2, CRegister cr) {
 void Assembler::cmpwi(Register src1, const Operand& src2, CRegister cr) {
   intptr_t imm16 = src2.imm_;
   int L = 0;
+  int pos = pc_offset();
   DCHECK(is_int16(imm16));
   DCHECK(cr.code() >= 0 && cr.code() <= 7);
   imm16 &= kImm16Mask;
+
+  // For cmpwi against 0, save postition and cr for later examination
+  // of potential optimization.
+  if (imm16 == 0 && pos > 0 && last_bound_pos_ != pos) {
+    optimizable_cmpi_pos_ = pos;
+    cmpi_cr_ = cr;
+  }
   emit(CMPI | cr.code() * B23 | L * B21 | src1.code() * B16 | imm16);
 }
 

@@ -1,3 +1,66 @@
+2015-07-08: Version 4.5.103
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-08: Version 4.5.102
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-07: Version 4.5.101
+
+        Move compatible receiver check from CompileHandler to UpdateCaches
+        (Chromium issue 505374).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-07: Version 4.5.100
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-07: Version 4.5.99
+
+        unicode-decoder: fix out-of-band write in utf16 (issue 4274).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-06: Version 4.5.98
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-04: Version 4.5.97
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-03: Version 4.5.96
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-03: Version 4.5.95
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-02: Version 4.5.94
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-02: Version 4.5.93
+
+        Include Harmony Array/TypedArray methods unconditionally (Chromium issue
+        504629).
+
+        Performance and stability improvements on all platforms.
+
+
 2015-07-02: Version 4.5.92
 
         Performance and stability improvements on all platforms.

@@ -82,6 +82,63 @@ TEST(CodeGenInt32Binop) {
 }
 
 
+#if V8_TURBOFAN_BACKEND_64
+static Node* Int64Input(RawMachineAssemblerTester<int64_t>* m, int index) {
+  switch (index) {
+    case 0:
+      return m->Parameter(0);
+    case 1:
+      return m->Parameter(1);
+    case 2:
+      return m->Int64Constant(0);
+    case 3:
+      return m->Int64Constant(1);
+    case 4:
+      return m->Int64Constant(-1);
+    case 5:
+      return m->Int64Constant(0xff);
+    case 6:
+      return m->Int64Constant(0x0123456789abcdefLL);
+    case 7:
+      return m->Load(kMachInt64, m->PointerConstant(NULL));
+    default:
+      return NULL;
+  }
+}
+
+
+TEST(CodeGenInt64Binop) {
+  RawMachineAssemblerTester<void> m;
+
+  const Operator* kOps[] = {
+      m.machine()->Word64And(), m.machine()->Word64Or(),
+      m.machine()->Word64Xor(), m.machine()->Word64Shl(),
+      m.machine()->Word64Shr(), m.machine()->Word64Sar(),
+      m.machine()->Word64Equal(), m.machine()->Int64Add(),
+      m.machine()->Int64Sub(), m.machine()->Int64Mul(), m.machine()->Int64Div(),
+      m.machine()->Uint64Div(), m.machine()->Int64Mod(),
+      m.machine()->Uint64Mod(), m.machine()->Int64LessThan(),
+      m.machine()->Int64LessThanOrEqual(), m.machine()->Uint64LessThan(),
+      m.machine()->Uint64LessThanOrEqual()};
+
+  for (size_t i = 0; i < arraysize(kOps); ++i) {
+    for (int j = 0; j < 8; j++) {
+      for (int k = 0; k < 8; k++) {
+        RawMachineAssemblerTester<int64_t> m(kMachInt64, kMachInt64);
+        Node* a = Int64Input(&m, j);
+        Node* b = Int64Input(&m, k);
+        m.Return(m.NewNode(kOps[i], a, b));
+        m.GenerateCode();
+      }
+    }
+  }
+}
+
+
+// TODO(titzer): add tests that run 64-bit integer operations.
+#endif  // V8_TURBOFAN_BACKEND_64
+
+
 TEST(RunGoto) {
   RawMachineAssemblerTester<int32_t> m;
   int constant = 99999;
@@ -4783,7 +4840,8 @@ TEST(RunTruncateFloat64ToInt32P) {
                  {-1.7976931348623157e+308, 0}};
   double input = -1.0;
   RawMachineAssemblerTester<int32_t> m;
-  m.Return(m.TruncateFloat64ToInt32(m.LoadFromPointer(&input, kMachFloat64)));
+  m.Return(m.TruncateFloat64ToInt32(TruncationMode::kJavaScript,
+                                    m.LoadFromPointer(&input, kMachFloat64)));
   for (size_t i = 0; i < arraysize(kValues); ++i) {
     input = kValues[i].from;
     uint64_t expected = static_cast<int64_t>(kValues[i].raw);

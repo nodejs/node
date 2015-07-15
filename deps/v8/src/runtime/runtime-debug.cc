@@ -681,11 +681,13 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
       if (scope_info->LocalIsSynthetic(i)) continue;
       Handle<String> name(scope_info->LocalName(i));
       VariableMode mode;
+      VariableLocation location;
       InitializationFlag init_flag;
       MaybeAssignedFlag maybe_assigned_flag;
       locals->set(local * 2, *name);
       int context_slot_index = ScopeInfo::ContextSlotIndex(
-          scope_info, name, &mode, &init_flag, &maybe_assigned_flag);
+          scope_info, name, &mode, &location, &init_flag, &maybe_assigned_flag);
+      DCHECK(VariableLocation::CONTEXT == location);
       Object* value = context->get(context_slot_index);
       locals->set(local * 2 + 1, value);
       local++;
@@ -856,10 +858,11 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
 static bool ParameterIsShadowedByContextLocal(Handle<ScopeInfo> info,
                                               Handle<String> parameter_name) {
   VariableMode mode;
+  VariableLocation location;
   InitializationFlag init_flag;
   MaybeAssignedFlag maybe_assigned_flag;
-  return ScopeInfo::ContextSlotIndex(info, parameter_name, &mode, &init_flag,
-                                     &maybe_assigned_flag) != -1;
+  return ScopeInfo::ContextSlotIndex(info, parameter_name, &mode, &location,
+                                     &init_flag, &maybe_assigned_flag) != -1;
 }
 
 
@@ -872,14 +875,15 @@ static Handle<Context> MaterializeReceiver(Isolate* isolate,
   Handle<Object> receiver;
   switch (scope_info->scope_type()) {
     case FUNCTION_SCOPE: {
-      VariableMode variable_mode;
+      VariableMode mode;
+      VariableLocation location;
       InitializationFlag init_flag;
       MaybeAssignedFlag maybe_assigned_flag;
 
       // Don't bother creating a fake context node if "this" is in the context
       // already.
       if (ScopeInfo::ContextSlotIndex(
-              scope_info, isolate->factory()->this_string(), &variable_mode,
+              scope_info, isolate->factory()->this_string(), &mode, &location,
               &init_flag, &maybe_assigned_flag) >= 0) {
         return target;
       }
@@ -1077,10 +1081,12 @@ static bool SetContextLocalValue(Isolate* isolate, Handle<ScopeInfo> scope_info,
     Handle<String> next_name(scope_info->ContextLocalName(i));
     if (String::Equals(variable_name, next_name)) {
       VariableMode mode;
+      VariableLocation location;
       InitializationFlag init_flag;
       MaybeAssignedFlag maybe_assigned_flag;
-      int context_index = ScopeInfo::ContextSlotIndex(
-          scope_info, next_name, &mode, &init_flag, &maybe_assigned_flag);
+      int context_index =
+          ScopeInfo::ContextSlotIndex(scope_info, next_name, &mode, &location,
+                                      &init_flag, &maybe_assigned_flag);
       context->set(context_index, *new_value);
       return true;
     }
@@ -2671,6 +2677,14 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluate) {
 }
 
 
+static inline bool IsDebugContext(Isolate* isolate, Context* context) {
+  // Try to unwrap script context if it exist.
+  if (context->IsScriptContext()) context = context->previous();
+  DCHECK_NOT_NULL(context);
+  return context == *isolate->debug()->debug_context();
+}
+
+
 RUNTIME_FUNCTION(Runtime_DebugEvaluateGlobal) {
   HandleScope scope(isolate);
 
@@ -2690,7 +2704,7 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluateGlobal) {
   // Enter the top context from before the debugger was invoked.
   SaveContext save(isolate);
   SaveContext* top = &save;
-  while (top != NULL && *top->context() == *isolate->debug()->debug_context()) {
+  while (top != NULL && IsDebugContext(isolate, *top->context())) {
     top = top->prev();
   }
   if (top != NULL) {
@@ -3195,6 +3209,17 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncTaskEvent) {
 RUNTIME_FUNCTION(Runtime_DebugIsActive) {
   SealHandleScope shs(isolate);
   return Smi::FromInt(isolate->debug()->is_active());
+}
+
+
+RUNTIME_FUNCTION(Runtime_DebugHandleStepIntoAccessor) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  Debug* debug = isolate->debug();
+  // Handle stepping into constructors if step into is active.
+  if (debug->StepInActive()) debug->HandleStepIn(function, false);
+  return *isolate->factory()->undefined_value();
 }
 
 

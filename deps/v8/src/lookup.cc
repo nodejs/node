@@ -223,6 +223,28 @@ void LookupIterator::ApplyTransitionToDataProperty() {
 }
 
 
+void LookupIterator::Delete() {
+  Handle<JSObject> holder = Handle<JSObject>::cast(holder_);
+  if (IsElement()) {
+    ElementsAccessor* accessor = holder->GetElementsAccessor();
+    accessor->Delete(holder, number_);
+  } else {
+    PropertyNormalizationMode mode = holder->map()->is_prototype_map()
+                                         ? KEEP_INOBJECT_PROPERTIES
+                                         : CLEAR_INOBJECT_PROPERTIES;
+
+    if (holder->HasFastProperties()) {
+      JSObject::NormalizeProperties(holder, mode, 0, "DeletingProperty");
+      holder_map_ = handle(holder->map(), isolate_);
+      ReloadPropertyInformation();
+    }
+    // TODO(verwaest): Get rid of the name_ argument.
+    JSObject::DeleteNormalizedProperty(holder, name_, number_);
+    JSObject::ReoptimizeIfPrototype(holder);
+  }
+}
+
+
 void LookupIterator::TransitionToAccessorProperty(
     AccessorComponent component, Handle<Object> accessor,
     PropertyAttributes attributes) {

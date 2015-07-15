@@ -182,6 +182,8 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony fetaures")
 DEFINE_IMPLICATION(harmony, es_staging)
 DEFINE_IMPLICATION(es_staging, harmony)
 
+DEFINE_BOOL(legacy_const, true, "legacy semantics for const in sloppy mode")
+
 // Features that are still work in progress (behind individual flags).
 #define HARMONY_INPROGRESS(V)                                   \
   V(harmony_modules, "harmony modules")                         \
@@ -197,19 +199,19 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_new_target, "harmony new.target")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED(V)                                      \
-  V(harmony_tostring, "harmony toString")
+#define HARMONY_STAGED(V)                                       \
+  V(harmony_tostring, "harmony toString")                       \
+  V(harmony_concat_spreadable, "harmony isConcatSpreadable")    \
+  V(harmony_rest_parameters, "harmony rest parameters")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                                             \
-  V(harmony_arrays, "harmony array methods")                            \
   V(harmony_arrow_functions, "harmony arrow functions")                 \
   V(harmony_computed_property_names, "harmony computed property names") \
   V(harmony_spreadcalls, "harmony spread-calls")                        \
   V(harmony_spread_arrays, "harmony spread in array literals")          \
   V(harmony_unicode, "harmony unicode escapes")                         \
-  V(harmony_object, "harmony Object methods")                           \
-  V(harmony_rest_parameters, "harmony rest parameters")
+  V(harmony_object, "harmony Object methods")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
 // from HARMONY_SHIPPING, all occurrences of the FLAG_ variable are removed,

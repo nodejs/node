@@ -311,7 +311,7 @@ TEST(VectorLoadICSlotSharing) {
   // Function f has 3 LoadICs, one for each o, but the ICs share the same
   // feedback vector IC slot.
   CompileRun(
-      "var o = 10;"
+      "o = 10;"
       "function f() {"
       "  var x = o + 10;"
       "  return o + x + o;"

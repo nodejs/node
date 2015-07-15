@@ -484,9 +484,6 @@ class Deoptimizer : public Malloced {
   // Deoptimize all code in the given isolate.
   static void DeoptimizeAll(Isolate* isolate);
 
-  // Deoptimize code associated with the given global object.
-  static void DeoptimizeGlobalObject(JSObject* object);
-
   // Deoptimizes all optimized code that has been previously marked
   // (via code->set_marked_for_deoptimization) and unlinks all functions that
   // refer to that code.

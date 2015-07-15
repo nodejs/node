@@ -674,7 +674,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   __ movp(rdi, Operand(rdi, Context::SlotOffset(kIndex)));
   __ jmp(&instantiate, Label::kNear);
 
-  const int kAliasedIndex = Context::ALIASED_ARGUMENTS_MAP_INDEX;
+  const int kAliasedIndex = Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX;
   __ bind(&has_mapped_parameters);
   __ movp(rdi, Operand(rdi, Context::SlotOffset(kAliasedIndex)));
   __ bind(&instantiate);

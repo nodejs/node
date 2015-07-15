@@ -15,18 +15,40 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-Reduction JSContextSpecializer::Reduce(Node* node) {
-  if (node->opcode() == IrOpcode::kJSLoadContext) {
-    return ReduceJSLoadContext(node);
-  }
-  if (node->opcode() == IrOpcode::kJSStoreContext) {
-    return ReduceJSStoreContext(node);
+Reduction JSContextSpecialization::Reduce(Node* node) {
+  switch (node->opcode()) {
+    case IrOpcode::kParameter:
+      return ReduceParameter(node);
+    case IrOpcode::kJSLoadContext:
+      return ReduceJSLoadContext(node);
+    case IrOpcode::kJSStoreContext:
+      return ReduceJSStoreContext(node);
+    default:
+      break;
   }
   return NoChange();
 }
 
 
-Reduction JSContextSpecializer::ReduceJSLoadContext(Node* node) {
+Reduction JSContextSpecialization::ReduceParameter(Node* node) {
+  DCHECK_EQ(IrOpcode::kParameter, node->opcode());
+  Node* const start = NodeProperties::GetValueInput(node, 0);
+  DCHECK_EQ(IrOpcode::kStart, start->opcode());
+  int const index = ParameterIndexOf(node->op());
+  // The context is always the last parameter to a JavaScript function, and
+  // {Parameter} indices start at -1, so value outputs of {Start} look like
+  // this: closure, receiver, param0, ..., paramN, context.
+  if (index == start->op()->ValueOutputCount() - 2) {
+    Handle<Context> context_constant;
+    if (context().ToHandle(&context_constant)) {
+      return Replace(jsgraph()->Constant(context_constant));
+    }
+  }
+  return NoChange();
+}
+
+
+Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadContext, node->opcode());
 
   HeapObjectMatcher m(NodeProperties::GetValueInput(node, 0));
@@ -75,7 +97,7 @@ Reduction JSContextSpecializer::ReduceJSLoadContext(Node* node) {
 }
 
 
-Reduction JSContextSpecializer::ReduceJSStoreContext(Node* node) {
+Reduction JSContextSpecialization::ReduceJSStoreContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSStoreContext, node->opcode());
 
   HeapObjectMatcher m(NodeProperties::GetValueInput(node, 0));
@@ -103,10 +125,12 @@ Reduction JSContextSpecializer::ReduceJSStoreContext(Node* node) {
 }
 
 
-Isolate* JSContextSpecializer::isolate() const { return jsgraph()->isolate(); }
+Isolate* JSContextSpecialization::isolate() const {
+  return jsgraph()->isolate();
+}
 
 
-JSOperatorBuilder* JSContextSpecializer::javascript() const {
+JSOperatorBuilder* JSContextSpecialization::javascript() const {
   return jsgraph()->javascript();
 }
 

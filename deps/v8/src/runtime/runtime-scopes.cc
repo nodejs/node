@@ -383,11 +383,7 @@ static Handle<JSObject> NewSloppyArguments(Isolate* isolate,
       Handle<FixedArray> parameter_map =
           isolate->factory()->NewFixedArray(mapped_count + 2, NOT_TENURED);
       parameter_map->set_map(isolate->heap()->sloppy_arguments_elements_map());
-
-      Handle<Map> map = Map::Copy(handle(result->map()), "NewSloppyArguments");
-      map->set_elements_kind(SLOPPY_ARGUMENTS_ELEMENTS);
-
-      result->set_map(*map);
+      result->set_map(isolate->native_context()->fast_aliased_arguments_map());
       result->set_elements(*parameter_map);
 
       // Store the context and the arguments array at the beginning of the
@@ -636,7 +632,6 @@ RUNTIME_FUNCTION(Runtime_NewScriptContext) {
   Handle<ScriptContextTable> script_context_table(
       native_context->script_context_table());
 
-  Handle<String> clashed_name;
   Object* name_clash_result =
       FindNameClash(scope_info, global_object, script_context_table);
   if (isolate->has_pending_exception()) return name_clash_result;
@@ -644,12 +639,16 @@ RUNTIME_FUNCTION(Runtime_NewScriptContext) {
   // Script contexts have a canonical empty function as their closure, not the
   // anonymous closure containing the global code.  See
   // FullCodeGenerator::PushFunctionArgumentForContextAllocation.
-  Handle<JSFunction> closure(native_context->closure());
+  Handle<JSFunction> closure(global_object->IsJSBuiltinsObject()
+                                 ? *function
+                                 : native_context->closure());
   Handle<Context> result =
       isolate->factory()->NewScriptContext(closure, scope_info);
 
+  result->InitializeGlobalSlots();
+
   DCHECK(function->context() == isolate->context());
-  DCHECK(function->context()->global_object() == result->global_object());
+  DCHECK(*global_object == result->global_object());
 
   Handle<ScriptContextTable> new_script_context_table =
       ScriptContextTable::Extend(script_context_table, result);

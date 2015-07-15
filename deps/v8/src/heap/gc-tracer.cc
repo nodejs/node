@@ -277,11 +277,6 @@ void GCTracer::SampleAllocation(double current_ms,
   size_t old_generation_allocated_bytes =
       old_generation_counter_bytes - old_generation_allocation_counter_bytes_;
   double duration = current_ms - allocation_time_ms_;
-  const double kMinDurationMs = 100;
-  if (duration < kMinDurationMs) {
-    // Do not sample small durations to avoid precision errors.
-    return;
-  }
   allocation_time_ms_ = current_ms;
   new_space_allocation_counter_bytes_ = new_space_counter_bytes;
   old_generation_allocation_counter_bytes_ = old_generation_counter_bytes;

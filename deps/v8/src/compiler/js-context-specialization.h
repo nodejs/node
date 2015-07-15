@@ -18,25 +18,28 @@ class JSOperatorBuilder;
 
 // Specializes a given JSGraph to a given context, potentially constant folding
 // some {LoadContext} nodes or strength reducing some {StoreContext} nodes.
-class JSContextSpecializer : public AdvancedReducer {
+class JSContextSpecialization final : public AdvancedReducer {
  public:
-  JSContextSpecializer(Editor* editor, JSGraph* jsgraph)
-      : AdvancedReducer(editor), jsgraph_(jsgraph) {}
+  JSContextSpecialization(Editor* editor, JSGraph* jsgraph,
+                          MaybeHandle<Context> context)
+      : AdvancedReducer(editor), jsgraph_(jsgraph), context_(context) {}
 
-  Reduction Reduce(Node* node) override;
+  Reduction Reduce(Node* node) final;
 
-  // Visible for unit testing.
+ private:
+  Reduction ReduceParameter(Node* node);
   Reduction ReduceJSLoadContext(Node* node);
   Reduction ReduceJSStoreContext(Node* node);
 
- private:
   Isolate* isolate() const;
   JSOperatorBuilder* javascript() const;
   JSGraph* jsgraph() const { return jsgraph_; }
+  MaybeHandle<Context> context() const { return context_; }
 
   JSGraph* const jsgraph_;
+  MaybeHandle<Context> context_;
 
-  DISALLOW_COPY_AND_ASSIGN(JSContextSpecializer);
+  DISALLOW_COPY_AND_ASSIGN(JSContextSpecialization);
 };
 
 }  // namespace compiler

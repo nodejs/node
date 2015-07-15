@@ -12,6 +12,24 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+std::ostream& operator<<(std::ostream& os, TruncationMode mode) {
+  switch (mode) {
+    case TruncationMode::kJavaScript:
+      return os << "JavaScript";
+    case TruncationMode::kRoundToZero:
+      return os << "RoundToZero";
+  }
+  UNREACHABLE();
+  return os;
+}
+
+
+TruncationMode TruncationModeOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kTruncateFloat64ToInt32, op->opcode());
+  return OpParameter<TruncationMode>(op);
+}
+
+
 std::ostream& operator<<(std::ostream& os, WriteBarrierKind kind) {
   switch (kind) {
     case kNoWriteBarrier:
@@ -101,13 +119,14 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
   V(Int64Add, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)       \
   V(Int64Sub, Operator::kNoProperties, 2, 0, 1)                               \
   V(Int64Mul, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)       \
-  V(Int64Div, Operator::kNoProperties, 2, 0, 1)                               \
-  V(Int64Mod, Operator::kNoProperties, 2, 0, 1)                               \
+  V(Int64Div, Operator::kNoProperties, 2, 1, 1)                               \
+  V(Int64Mod, Operator::kNoProperties, 2, 1, 1)                               \
   V(Int64LessThan, Operator::kNoProperties, 2, 0, 1)                          \
   V(Int64LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)                   \
-  V(Uint64Div, Operator::kNoProperties, 2, 0, 1)                              \
+  V(Uint64Div, Operator::kNoProperties, 2, 1, 1)                              \
+  V(Uint64Mod, Operator::kNoProperties, 2, 1, 1)                              \
   V(Uint64LessThan, Operator::kNoProperties, 2, 0, 1)                         \
-  V(Uint64Mod, Operator::kNoProperties, 2, 0, 1)                              \
+  V(Uint64LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)                  \
   V(ChangeFloat32ToFloat64, Operator::kNoProperties, 1, 0, 1)                 \
   V(ChangeFloat64ToInt32, Operator::kNoProperties, 1, 0, 1)                   \
   V(ChangeFloat64ToUint32, Operator::kNoProperties, 1, 0, 1)                  \
@@ -116,7 +135,6 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
   V(ChangeUint32ToFloat64, Operator::kNoProperties, 1, 0, 1)                  \
   V(ChangeUint32ToUint64, Operator::kNoProperties, 1, 0, 1)                   \
   V(TruncateFloat64ToFloat32, Operator::kNoProperties, 1, 0, 1)               \
-  V(TruncateFloat64ToInt32, Operator::kNoProperties, 1, 0, 1)                 \
   V(TruncateInt64ToInt32, Operator::kNoProperties, 1, 0, 1)                   \
   V(Float32Abs, Operator::kNoProperties, 1, 0, 1)                             \
   V(Float32Add, Operator::kCommutative, 2, 0, 1)                              \
@@ -189,6 +207,19 @@ struct MachineOperatorGlobalCache {
   PURE_OP_LIST(PURE)
   PURE_OPTIONAL_OP_LIST(PURE)
 #undef PURE
+
+  template <TruncationMode kMode>
+  struct TruncateFloat64ToInt32Operator final
+      : public Operator1<TruncationMode> {
+    TruncateFloat64ToInt32Operator()
+        : Operator1<TruncationMode>(IrOpcode::kTruncateFloat64ToInt32,
+                                    Operator::kPure, "TruncateFloat64ToInt32",
+                                    1, 0, 0, 1, 0, 0, kMode) {}
+  };
+  TruncateFloat64ToInt32Operator<TruncationMode::kJavaScript>
+      kTruncateFloat64ToInt32JavaScript;
+  TruncateFloat64ToInt32Operator<TruncationMode::kRoundToZero>
+      kTruncateFloat64ToInt32RoundToZero;
 
 #define LOAD(Type)                                                             \
   struct Load##Type##Operator final : public Operator1<LoadRepresentation> {   \
@@ -266,6 +297,20 @@ PURE_OP_LIST(PURE)
   }
 PURE_OPTIONAL_OP_LIST(PURE)
 #undef PURE
+
+
+const Operator* MachineOperatorBuilder::TruncateFloat64ToInt32(
+    TruncationMode mode) {
+  switch (mode) {
+    case TruncationMode::kJavaScript:
+      return &cache_.kTruncateFloat64ToInt32JavaScript;
+    case TruncationMode::kRoundToZero:
+      return &cache_.kTruncateFloat64ToInt32RoundToZero;
+  }
+  UNREACHABLE();
+  return nullptr;
+}
+
 
 const Operator* MachineOperatorBuilder::Load(LoadRepresentation rep) {
   switch (rep) {

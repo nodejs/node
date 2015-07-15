@@ -216,6 +216,7 @@ class LookupIterator final BASE_EMBEDDED {
   void ApplyTransitionToDataProperty();
   void ReconfigureDataProperty(Handle<Object> value,
                                PropertyAttributes attributes);
+  void Delete();
   void TransitionToAccessorProperty(AccessorComponent component,
                                     Handle<Object> accessor,
                                     PropertyAttributes attributes);

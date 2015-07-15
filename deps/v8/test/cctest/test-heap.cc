@@ -6029,7 +6029,9 @@ TEST(SlotsBufferObjectSlotsRemoval) {
   buffer->Add(HeapObject::RawField(*array, FixedArray::kHeaderSize));
   DCHECK(reinterpret_cast<void*>(buffer->Get(0)) ==
          HeapObject::RawField(*array, FixedArray::kHeaderSize));
-  SlotsBuffer::RemoveObjectSlots(CcTest::i_isolate()->heap(), buffer, *array);
+  SlotsBuffer::RemoveObjectSlots(CcTest::i_isolate()->heap(), buffer,
+                                 array->address(),
+                                 array->address() + array->Size());
   DCHECK(reinterpret_cast<void*>(buffer->Get(0)) ==
          HeapObject::RawField(heap->empty_fixed_array(),
                               FixedArrayBase::kLengthOffset));
@@ -6042,7 +6044,9 @@ TEST(SlotsBufferObjectSlotsRemoval) {
          reinterpret_cast<Object**>(SlotsBuffer::EMBEDDED_OBJECT_SLOT));
   DCHECK(reinterpret_cast<void*>(buffer->Get(2)) ==
          HeapObject::RawField(*array, FixedArray::kHeaderSize));
-  SlotsBuffer::RemoveObjectSlots(CcTest::i_isolate()->heap(), buffer, *array);
+  SlotsBuffer::RemoveObjectSlots(CcTest::i_isolate()->heap(), buffer,
+                                 array->address(),
+                                 array->address() + array->Size());
   DCHECK(reinterpret_cast<void*>(buffer->Get(1)) ==
          HeapObject::RawField(heap->empty_fixed_array(),
                               FixedArrayBase::kLengthOffset));

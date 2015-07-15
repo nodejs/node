@@ -111,5 +111,21 @@ TEST(DefaultPlatformTest, PumpMessageLoopNoStarvation) {
   EXPECT_TRUE(platform.PumpMessageLoop(isolate));
 }
 
+
+TEST(DefaultPlatformTest, PendingDelayedTasksAreDestroyedOnShutdown) {
+  InSequence s;
+
+  int dummy;
+  Isolate* isolate = reinterpret_cast<Isolate*>(&dummy);
+
+  {
+    DefaultPlatformWithMockTime platform;
+    StrictMock<MockTask>* task = new StrictMock<MockTask>;
+    platform.CallDelayedOnForegroundThread(isolate, task, 10);
+    EXPECT_CALL(*task, Die());
+  }
+}
+
+
 }  // namespace platform
 }  // namespace v8

@@ -229,7 +229,7 @@ class CallSite {
   T(StrongArity,                                                               \
     "In strong mode, calling a function with too few arguments is deprecated") \
   T(StrongDeleteProperty,                                                      \
-    "On strong object %, deletion of property % is deprecated")                \
+    "Deleting property '%' of strong object '%' is deprecated")                \
   T(StrongImplicitConversion,                                                  \
     "In strong mode, implicit conversions are deprecated")                     \
   T(StrongRedefineDisallowed,                                                  \
@@ -259,7 +259,6 @@ class CallSite {
     "In strong mode, using an undeclared global variable '%' is not allowed")  \
   T(UnsupportedSuper, "Unsupported reference to 'super'")                      \
   /* RangeError */                                                             \
-  T(ArrayLengthOutOfRange, "defineProperty() array length out of range")       \
   T(DateRange, "Provided date is not in valid range.")                         \
   T(ExpectedLocation, "Expected Area/Location for time zone, got %")           \
   T(InvalidArrayBufferLength, "Invalid array buffer length")                   \

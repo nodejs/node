@@ -1436,18 +1436,21 @@ void AstPrinter::VisitVariableProxy(VariableProxy* node) {
   EmbeddedVector<char, 128> buf;
   int pos = SNPrintF(buf, "VAR PROXY");
   switch (var->location()) {
-    case Variable::UNALLOCATED:
+    case VariableLocation::UNALLOCATED:
       break;
-    case Variable::PARAMETER:
+    case VariableLocation::PARAMETER:
       SNPrintF(buf + pos, " parameter[%d]", var->index());
       break;
-    case Variable::LOCAL:
+    case VariableLocation::LOCAL:
       SNPrintF(buf + pos, " local[%d]", var->index());
       break;
-    case Variable::CONTEXT:
+    case VariableLocation::CONTEXT:
       SNPrintF(buf + pos, " context[%d]", var->index());
       break;
-    case Variable::LOOKUP:
+    case VariableLocation::GLOBAL:
+      SNPrintF(buf + pos, " global[%d]", var->index());
+      break;
+    case VariableLocation::LOOKUP:
       SNPrintF(buf + pos, " lookup");
       break;
   }

@@ -1880,8 +1880,9 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
 
   __ Ldr(sloppy_args_map,
          ContextMemOperand(global_ctx, Context::SLOPPY_ARGUMENTS_MAP_INDEX));
-  __ Ldr(aliased_args_map,
-         ContextMemOperand(global_ctx, Context::ALIASED_ARGUMENTS_MAP_INDEX));
+  __ Ldr(
+      aliased_args_map,
+      ContextMemOperand(global_ctx, Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX));
   __ Cmp(mapped_params, 0);
   __ CmovX(sloppy_args_map, aliased_args_map, ne);
 

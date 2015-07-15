@@ -1792,7 +1792,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   const int kNormalOffset =
       Context::SlotOffset(Context::SLOPPY_ARGUMENTS_MAP_INDEX);
   const int kAliasedOffset =
-      Context::SlotOffset(Context::ALIASED_ARGUMENTS_MAP_INDEX);
+      Context::SlotOffset(Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX);
 
   __ LoadP(r7,
            MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));

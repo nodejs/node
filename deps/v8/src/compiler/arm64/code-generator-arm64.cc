@@ -351,10 +351,6 @@ void CodeGenerator::AssembleDeconstructActivationRecord() {
   if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
     __ Mov(jssp, fp);
     __ Pop(fp, lr);
-    int pop_count = descriptor->IsJSFunctionCall()
-                        ? static_cast<int>(descriptor->JSParameterCount())
-                        : 0;
-    __ Drop(pop_count);
   }
 }
 
@@ -711,7 +707,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Cmp(i.InputRegister(0), i.InputOperand(1));
       break;
     case kArm64Cmp32:
-      __ Cmp(i.InputRegister32(0), i.InputOperand32(1));
+      __ Cmp(i.InputRegister32(0), i.InputOperand2_32(1));
       break;
     case kArm64Cmn:
       __ Cmn(i.InputRegister(0), i.InputOperand(1));
@@ -1184,8 +1180,12 @@ void CodeGenerator::AssembleReturn() {
       __ Pop(fp, lr);
       int pop_count = descriptor->IsJSFunctionCall()
                           ? static_cast<int>(descriptor->JSParameterCount())
-                          : 0;
-      __ Drop(pop_count);
+                          : (info()->IsStub()
+                                 ? info()->code_stub()->GetStackParameterCount()
+                                 : 0);
+      if (pop_count != 0) {
+        __ Drop(pop_count);
+      }
       __ Ret();
     }
   } else {

@@ -74,7 +74,8 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
 
           ElementsAccessor* accessor = js_object->GetElementsAccessor();
           FixedArrayBase* backing_store = js_object->elements();
-          number_ = accessor->GetIndexForKey(js_object, backing_store, index_);
+          number_ =
+              accessor->GetEntryForIndex(js_object, backing_store, index_);
           if (number_ == kMaxUInt32) return NOT_FOUND;
           property_details_ = accessor->GetDetails(backing_store, number_);
         }

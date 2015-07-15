@@ -877,7 +877,6 @@ class AllocationSiteCreationContext;
 class AllocationSiteUsageContext;
 class Cell;
 class ConsString;
-class DictionaryElementsAccessor;
 class ElementsAccessor;
 class FixedArrayBase;
 class FunctionLiteral;
@@ -1687,6 +1686,9 @@ class JSReceiver: public HeapObject {
       Handle<JSReceiver> object, uint32_t index);
 
   // Implementation of [[Delete]], ECMA-262 5th edition, section 8.12.7.
+  MUST_USE_RESULT static MaybeHandle<Object> DeletePropertyOrElement(
+      Handle<JSReceiver> object, Handle<Name> name,
+      LanguageMode language_mode = SLOPPY);
   MUST_USE_RESULT static MaybeHandle<Object> DeleteProperty(
       Handle<JSReceiver> object, Handle<Name> name,
       LanguageMode language_mode = SLOPPY);
@@ -1832,8 +1834,8 @@ class JSObject: public JSReceiver {
   inline bool HasFixedFloat32Elements();
   inline bool HasFixedFloat64Elements();
 
-  bool HasFastArgumentsElements();
-  bool HasDictionaryArgumentsElements();
+  inline bool HasFastArgumentsElements();
+  inline bool HasSlowArgumentsElements();
   inline SeededNumberDictionary* element_dictionary();  // Gets slow elements.
 
   // Requires: HasFastElements().
@@ -2289,8 +2291,11 @@ class JSObject: public JSReceiver {
   // Gets the current elements capacity and the number of used elements.
   void GetElementsCapacityAndUsage(int* capacity, int* used);
 
+  // Deletes an existing named property in a normalized object.
+  static void DeleteNormalizedProperty(Handle<JSObject> object,
+                                       Handle<Name> name, int entry);
+
  private:
-  friend class DictionaryElementsAccessor;
   friend class JSReceiver;
   friend class Object;
 
@@ -2314,10 +2319,6 @@ class JSObject: public JSReceiver {
 
   MUST_USE_RESULT static MaybeHandle<Object> DeletePropertyWithInterceptor(
       LookupIterator* it);
-
-  // Deletes an existing named property in a normalized object.
-  static void DeleteNormalizedProperty(Handle<JSObject> object,
-                                       Handle<Name> name);
 
   bool ReferencesObjectFromElements(FixedArray* elements,
                                     ElementsKind kind,
@@ -4010,7 +4011,8 @@ class ScopeInfo : public FixedArray {
   // If the slot is present and mode != NULL, sets *mode to the corresponding
   // mode for that variable.
   static int ContextSlotIndex(Handle<ScopeInfo> scope_info, Handle<String> name,
-                              VariableMode* mode, InitializationFlag* init_flag,
+                              VariableMode* mode, VariableLocation* location,
+                              InitializationFlag* init_flag,
                               MaybeAssignedFlag* maybe_assigned_flag);
 
   // Lookup support for serialized scope info. Returns the
@@ -4060,6 +4062,7 @@ class ScopeInfo : public FixedArray {
   V(ParameterCount)               \
   V(StackLocalCount)              \
   V(ContextLocalCount)            \
+  V(ContextGlobalCount)           \
   V(StrongModeFreeVariableCount)
 
 #define FIELD_ACCESSORS(name)                            \
@@ -4128,11 +4131,17 @@ class ScopeInfo : public FixedArray {
   int StackLocalFirstSlotIndex();
   int StackLocalEntriesIndex();
   int ContextLocalNameEntriesIndex();
+  int ContextGlobalNameEntriesIndex();
   int ContextLocalInfoEntriesIndex();
+  int ContextGlobalInfoEntriesIndex();
   int StrongModeFreeVariableNameEntriesIndex();
   int StrongModeFreeVariablePositionEntriesIndex();
   int ReceiverEntryIndex();
   int FunctionNameEntryIndex();
+
+  int Lookup(Handle<String> name, int start, int end, VariableMode* mode,
+             VariableLocation* location, InitializationFlag* init_flag,
+             MaybeAssignedFlag* maybe_assigned_flag);
 
   // Used for the function name variable for named function expressions, and for
   // the receiver.
@@ -5705,7 +5714,7 @@ class Map: public HeapObject {
   }
 
   inline bool has_sloppy_arguments_elements() {
-    return elements_kind() == SLOPPY_ARGUMENTS_ELEMENTS;
+    return IsSloppyArgumentsElements(elements_kind());
   }
 
   inline bool has_external_array_elements() {
@@ -5718,11 +5727,6 @@ class Map: public HeapObject {
 
   inline bool has_dictionary_elements() {
     return IsDictionaryElementsKind(elements_kind());
-  }
-
-  inline bool has_slow_elements_kind() {
-    return elements_kind() == DICTIONARY_ELEMENTS
-        || elements_kind() == SLOPPY_ARGUMENTS_ELEMENTS;
   }
 
   static bool IsValidElementsTransition(ElementsKind from_kind,
@@ -6023,7 +6027,8 @@ class Map: public HeapObject {
   static void AppendCallbackDescriptors(Handle<Map> map,
                                         Handle<Object> descriptors);
 
-  static inline int SlackForArraySize(int old_size, int size_limit);
+  static inline int SlackForArraySize(bool is_prototype_map, int old_size,
+                                      int size_limit);
 
   static void EnsureDescriptorSlack(Handle<Map> map, int slack);
 
@@ -6049,7 +6054,8 @@ class Map: public HeapObject {
   // Returns the transitioned map for this map with the most generic
   // elements_kind that's found in |candidates|, or null handle if no match is
   // found at all.
-  Handle<Map> FindTransitionedMap(MapHandleList* candidates);
+  static Handle<Map> FindTransitionedMap(Handle<Map> map,
+                                         MapHandleList* candidates);
 
   bool CanTransition() {
     // Only JSObject and subtypes have map transitions and back pointers.
@@ -10453,13 +10459,16 @@ class CallHandlerInfo: public Struct {
 class TemplateInfo: public Struct {
  public:
   DECL_ACCESSORS(tag, Object)
+  inline int number_of_properties() const;
+  inline void set_number_of_properties(int value);
   DECL_ACCESSORS(property_list, Object)
   DECL_ACCESSORS(property_accessors, Object)
 
   DECLARE_VERIFIER(TemplateInfo)
 
   static const int kTagOffset = HeapObject::kHeaderSize;
-  static const int kPropertyListOffset = kTagOffset + kPointerSize;
+  static const int kNumberOfProperties = kTagOffset + kPointerSize;
+  static const int kPropertyListOffset = kNumberOfProperties + kPointerSize;
   static const int kPropertyAccessorsOffset =
       kPropertyListOffset + kPointerSize;
   static const int kHeaderSize = kPropertyAccessorsOffset + kPointerSize;

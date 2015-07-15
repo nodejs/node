@@ -86,6 +86,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceValueOf(node);
     case Runtime::kInlineIsMinusZero:
       return ReduceIsMinusZero(node);
+    case Runtime::kInlineFixedArrayGet:
+      return ReduceFixedArrayGet(node);
     case Runtime::kInlineFixedArraySet:
       return ReduceFixedArraySet(node);
     case Runtime::kInlineGetTypeFeedbackVector:
@@ -94,6 +96,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceGetCallerJSFunction(node);
     case Runtime::kInlineThrowNotDateError:
       return ReduceThrowNotDateError(node);
+    case Runtime::kInlineCallFunction:
+      return ReduceCallFunction(node);
     default:
       break;
   }
@@ -445,6 +449,17 @@ Reduction JSIntrinsicLowering::ReduceIsMinusZero(Node* node) {
 }
 
 
+Reduction JSIntrinsicLowering::ReduceFixedArrayGet(Node* node) {
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  return Change(
+      node, simplified()->LoadElement(AccessBuilder::ForFixedArrayElement()),
+      base, index, effect, control);
+}
+
+
 Reduction JSIntrinsicLowering::ReduceFixedArraySet(Node* node) {
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
@@ -513,6 +528,21 @@ Reduction JSIntrinsicLowering::ReduceThrowNotDateError(Node* node) {
 }
 
 
+Reduction JSIntrinsicLowering::ReduceCallFunction(Node* node) {
+  CallRuntimeParameters params = OpParameter<CallRuntimeParameters>(node->op());
+  size_t arity = params.arity();
+  node->set_op(javascript()->CallFunction(arity, NO_CALL_FUNCTION_FLAGS, STRICT,
+                                          VectorSlotPair(), ALLOW_TAIL_CALLS));
+  Node* function = node->InputAt(static_cast<int>(arity - 1));
+  while (--arity != 0) {
+    node->ReplaceInput(static_cast<int>(arity),
+                       node->InputAt(static_cast<int>(arity - 1)));
+  }
+  node->ReplaceInput(0, function);
+  return Changed(node);
+}
+
+
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
                                       Node* b) {
   node->set_op(op);
@@ -536,6 +566,19 @@ Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
 }
 
 
+Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
+                                      Node* b, Node* c, Node* d) {
+  node->set_op(op);
+  node->ReplaceInput(0, a);
+  node->ReplaceInput(1, b);
+  node->ReplaceInput(2, c);
+  node->ReplaceInput(3, d);
+  node->TrimInputCount(4);
+  RelaxControls(node);
+  return Changed(node);
+}
+
+
 Reduction JSIntrinsicLowering::ChangeToUndefined(Node* node, Node* effect) {
   ReplaceWithValue(node, jsgraph()->UndefinedConstant(), effect);
   return Changed(node);
@@ -547,6 +590,10 @@ Graph* JSIntrinsicLowering::graph() const { return jsgraph()->graph(); }
 
 CommonOperatorBuilder* JSIntrinsicLowering::common() const {
   return jsgraph()->common();
+}
+
+JSOperatorBuilder* JSIntrinsicLowering::javascript() const {
+  return jsgraph_->javascript();
 }
 
 

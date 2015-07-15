@@ -4,6 +4,7 @@
 
 #include "src/code-stubs.h"
 #include "src/compiler.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node.h"
 #include "src/compiler/pipeline.h"
@@ -45,6 +46,63 @@ bool CallDescriptor::HasSameReturnLocationsAs(
     if (GetReturnLocation(i) != other->GetReturnLocation(i)) return false;
   }
   return true;
+}
+
+
+bool CallDescriptor::CanTailCall(const Node* node) const {
+  // Tail calling is currently allowed if return locations match and all
+  // parameters are either in registers or on the stack but match exactly in
+  // number and content.
+  CallDescriptor const* other = OpParameter<CallDescriptor const*>(node);
+  if (!HasSameReturnLocationsAs(other)) return false;
+  size_t current_input = 0;
+  size_t other_input = 0;
+  size_t stack_parameter = 0;
+  while (true) {
+    if (other_input >= other->InputCount()) {
+      while (current_input <= InputCount()) {
+        if (!GetInputLocation(current_input).is_register()) {
+          return false;
+        }
+        ++current_input;
+      }
+      return true;
+    }
+    if (current_input >= InputCount()) {
+      while (other_input < other->InputCount()) {
+        if (!other->GetInputLocation(other_input).is_register()) {
+          return false;
+        }
+        ++other_input;
+      }
+      return true;
+    }
+    if (GetInputLocation(current_input).is_register()) {
+      ++current_input;
+      continue;
+    }
+    if (other->GetInputLocation(other_input).is_register()) {
+      ++other_input;
+      continue;
+    }
+    if (GetInputLocation(current_input) !=
+        other->GetInputLocation(other_input)) {
+      return false;
+    }
+    Node* input = node->InputAt(static_cast<int>(other_input));
+    if (input->opcode() != IrOpcode::kParameter) {
+      return false;
+    }
+    size_t param_index = ParameterIndexOf(input->op());
+    if (param_index != stack_parameter) {
+      return false;
+    }
+    ++stack_parameter;
+    ++current_input;
+    ++other_input;
+  }
+  UNREACHABLE();
+  return false;
 }
 
 
@@ -117,6 +175,7 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
     case Runtime::kDefineSetterPropertyUnchecked:  // TODO(jarin): Is it safe?
     case Runtime::kForInDone:
     case Runtime::kForInStep:
+    case Runtime::kGetOriginalConstructor:
     case Runtime::kNewArguments:
     case Runtime::kNewClosure:
     case Runtime::kNewFunctionContext:

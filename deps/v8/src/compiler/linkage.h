@@ -20,6 +20,7 @@ class CallInterfaceDescriptor;
 
 namespace compiler {
 
+class Node;
 class OsrHelper;
 
 // Describes the location for a parameter or a return value to a call.
@@ -167,6 +168,8 @@ class CallDescriptor final : public ZoneObject {
 
   bool HasSameReturnLocationsAs(const CallDescriptor* other) const;
 
+  bool CanTailCall(const Node* call) const;
+
  private:
   friend class Linkage;
 
@@ -264,6 +267,9 @@ class Linkage : public ZoneObject {
 
   // A special parameter index for JSCalls that represents the closure.
   static const int kJSFunctionCallClosureParamIndex = -1;
+
+  // A special {OsrValue} index to indicate the context spill slot.
+  static const int kOsrContextSpillSlotIndex = -1;
 
  private:
   CallDescriptor* const incoming_;

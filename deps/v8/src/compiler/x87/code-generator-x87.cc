@@ -297,13 +297,6 @@ void CodeGenerator::AssembleDeconstructActivationRecord() {
   if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
     __ mov(esp, ebp);
     __ pop(ebp);
-    int32_t bytes_to_pop =
-        descriptor->IsJSFunctionCall()
-            ? static_cast<int32_t>(descriptor->JSParameterCount() *
-                                   kPointerSize)
-            : 0;
-    __ pop(Operand(esp, bytes_to_pop));
-    __ add(esp, Immediate(bytes_to_pop));
   }
 }
 
@@ -429,11 +422,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ mov(i.OutputRegister(), esp);
       break;
     case kArchTruncateDoubleToI: {
-      auto input = i.InputDoubleRegister(0);
-      USE(input);
-      DCHECK(input.code() == 0);
-      auto result_reg = i.OutputRegister();
-      __ TruncateX87TOSToI(result_reg);
+      if (!instr->InputAt(0)->IsDoubleRegister()) {
+        __ fld_d(i.InputOperand(0));
+      }
+      __ TruncateX87TOSToI(i.OutputRegister());
+      if (!instr->InputAt(0)->IsDoubleRegister()) {
+        __ fstp(0);
+      }
       break;
     }
     case kX87Add:
@@ -1604,8 +1599,14 @@ void CodeGenerator::AssembleReturn() {
       __ pop(ebp);       // Pop caller's frame pointer.
       int pop_count = descriptor->IsJSFunctionCall()
                           ? static_cast<int>(descriptor->JSParameterCount())
-                          : 0;
-      __ Ret(pop_count * kPointerSize, ebx);
+                          : (info()->IsStub()
+                                 ? info()->code_stub()->GetStackParameterCount()
+                                 : 0);
+      if (pop_count == 0) {
+        __ ret(0);
+      } else {
+        __ Ret(pop_count * kPointerSize, ebx);
+      }
     }
   } else {
     __ ret(0);

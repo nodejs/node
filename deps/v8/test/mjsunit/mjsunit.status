@@ -354,9 +354,6 @@
   'regress/regress-2185-2': [PASS, TIMEOUT],
   'whitespaces': [PASS, TIMEOUT, SLOW],
 
-  # BUG(v8:3147). It works on other architectures by accident.
-  'regress/regress-conditional-position': [FAIL],
-
   # BUG(v8:3457).
   'deserialize-reference': [PASS, FAIL],
 
@@ -592,9 +589,6 @@
 
   # BUG(v8:3435)
   'debug-script-breakpoints': [PASS, FAIL],
-
-  # BUG(v8:4127)
-  'deserialize-script-id': [PASS, ['no_snap == True', FLAKY]],
 }],  # 'system == windows'
 
 ##############################################################################

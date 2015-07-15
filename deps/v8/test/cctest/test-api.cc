@@ -7418,6 +7418,57 @@ THREADED_TEST(Utf16Symbol) {
 }
 
 
+THREADED_TEST(Utf16MissingTrailing) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+
+  // Make sure it will go past the buffer, so it will call `WriteUtf16Slow`
+  int size = 1024 * 64;
+  uint8_t* buffer = new uint8_t[size];
+  for (int i = 0; i < size; i += 4) {
+    buffer[i] = 0xf0;
+    buffer[i + 1] = 0x9d;
+    buffer[i + 2] = 0x80;
+    buffer[i + 3] = 0x9e;
+  }
+
+  // Now invoke the decoder without last 3 bytes
+  v8::Local<v8::String> str =
+      v8::String::NewFromUtf8(
+          context->GetIsolate(), reinterpret_cast<char*>(buffer),
+          v8::NewStringType::kNormal, size - 3).ToLocalChecked();
+  USE(str);
+  delete[] buffer;
+}
+
+
+THREADED_TEST(Utf16Trailing3Byte) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+
+  // Make sure it will go past the buffer, so it will call `WriteUtf16Slow`
+  int size = 1024 * 63;
+  uint8_t* buffer = new uint8_t[size];
+  for (int i = 0; i < size; i += 3) {
+    buffer[i] = 0xe2;
+    buffer[i + 1] = 0x80;
+    buffer[i + 2] = 0xa6;
+  }
+
+  // Now invoke the decoder without last 3 bytes
+  v8::Local<v8::String> str =
+      v8::String::NewFromUtf8(
+          context->GetIsolate(), reinterpret_cast<char*>(buffer),
+          v8::NewStringType::kNormal, size).ToLocalChecked();
+
+  v8::String::Value value(str);
+  CHECK_EQ(value.length(), size / 3);
+  CHECK_EQ((*value)[value.length() - 1], 0x2026);
+
+  delete[] buffer;
+}
+
+
 THREADED_TEST(ToArrayIndex) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
@@ -7550,6 +7601,22 @@ THREADED_TEST(ExceptionCreateMessage) {
   stackTrace = message->GetStackTrace();
   CHECK(stackTrace.IsEmpty());
   CHECK(v8::Exception::GetStackTrace(error).IsEmpty());
+}
+
+
+THREADED_TEST(ExceptionCreateMessageLength) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+
+  // Test that the message is not truncated.
+  TryCatch try_catch(context->GetIsolate());
+  CompileRun(
+      "var message = 'm';"
+      "while (message.length < 1000) message += message;"
+      "throw message;");
+  CHECK(try_catch.HasCaught());
+
+  CHECK_LT(1000, try_catch.Message()->Get()->Length());
 }
 
 
@@ -8278,7 +8345,6 @@ TEST(DetachedAccesses) {
   }
 
   Local<Object> env2_global = env2->Global();
-  env2_global->TurnOnAccessCheck();
   env2->DetachGlobal();
 
   Local<Value> result;
@@ -12760,71 +12826,6 @@ THREADED_TEST(AccessChecksReenabledCorrectly) {
 }
 
 
-THREADED_TEST(TurnOnAccessCheck) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope handle_scope(isolate);
-
-  // Create an environment with access check to the global object disabled by
-  // default.
-  v8::Handle<v8::ObjectTemplate> global_template =
-      v8::ObjectTemplate::New(isolate);
-  global_template->SetAccessCheckCallbacks(AccessAlwaysBlocked, NULL,
-                                           v8::Handle<v8::Value>(), false);
-  v8::Local<Context> context = Context::New(isolate, NULL, global_template);
-  Context::Scope context_scope(context);
-
-  // Set up a property and a number of functions.
-  context->Global()->Set(v8_str("a"), v8_num(1));
-  CompileRun("function f1() {return a;}"
-             "function f2() {return a;}"
-             "function g1() {return h();}"
-             "function g2() {return h();}"
-             "function h() {return 1;}");
-  Local<Function> f1 =
-      Local<Function>::Cast(context->Global()->Get(v8_str("f1")));
-  Local<Function> f2 =
-      Local<Function>::Cast(context->Global()->Get(v8_str("f2")));
-  Local<Function> g1 =
-      Local<Function>::Cast(context->Global()->Get(v8_str("g1")));
-  Local<Function> g2 =
-      Local<Function>::Cast(context->Global()->Get(v8_str("g2")));
-  Local<Function> h =
-      Local<Function>::Cast(context->Global()->Get(v8_str("h")));
-
-  // Get the global object.
-  v8::Handle<v8::Object> global = context->Global();
-
-  // Call f1 one time and f2 a number of times. This will ensure that f1 still
-  // uses the runtime system to retreive property a whereas f2 uses global load
-  // inline cache.
-  CHECK(f1->Call(global, 0, NULL)->Equals(v8_num(1)));
-  for (int i = 0; i < 4; i++) {
-    CHECK(f2->Call(global, 0, NULL)->Equals(v8_num(1)));
-  }
-
-  // Same for g1 and g2.
-  CHECK(g1->Call(global, 0, NULL)->Equals(v8_num(1)));
-  for (int i = 0; i < 4; i++) {
-    CHECK(g2->Call(global, 0, NULL)->Equals(v8_num(1)));
-  }
-
-  // Detach the global and turn on access check.
-  Local<Object> hidden_global = Local<Object>::Cast(
-      context->Global()->GetPrototype());
-  context->DetachGlobal();
-  hidden_global->TurnOnAccessCheck();
-
-  // Failing access check results in exception.
-  CHECK(f1->Call(global, 0, NULL).IsEmpty());
-  CHECK(f2->Call(global, 0, NULL).IsEmpty());
-  CHECK(g1->Call(global, 0, NULL).IsEmpty());
-  CHECK(g2->Call(global, 0, NULL).IsEmpty());
-
-  // No failing access check when just returning a constant.
-  CHECK(h->Call(global, 0, NULL)->Equals(v8_num(1)));
-}
-
-
 // Tests that ScriptData can be serialized and deserialized.
 TEST(PreCompileSerialization) {
   v8::V8::Initialize();
@@ -15360,6 +15361,7 @@ static void CreateGarbageInOldSpace() {
 
 // Test that idle notification can be handled and eventually collects garbage.
 TEST(TestIdleNotification) {
+  if (!i::FLAG_incremental_marking) return;
   const intptr_t MB = 1024 * 1024;
   const double IdlePauseInSeconds = 1.0;
   LocalContext env;
@@ -15370,6 +15372,9 @@ TEST(TestIdleNotification) {
   CHECK_GT(size_with_garbage, initial_size + MB);
   bool finished = false;
   for (int i = 0; i < 200 && !finished; i++) {
+    if (i < 10 && CcTest::heap()->incremental_marking()->IsStopped()) {
+      CcTest::heap()->StartIdleIncrementalMarking();
+    }
     finished = env->GetIsolate()->IdleNotificationDeadline(
         (v8::base::TimeTicks::HighResolutionNow().ToInternalValue() /
          static_cast<double>(v8::base::Time::kMicrosecondsPerSecond)) +
@@ -16800,7 +16805,7 @@ TEST(GCInFailedAccessCheckCallback) {
   v8::Handle<v8::ObjectTemplate> global_template =
       v8::ObjectTemplate::New(isolate);
   global_template->SetAccessCheckCallbacks(AccessAlwaysBlocked, NULL,
-                                           v8::Handle<v8::Value>(), false);
+                                           v8::Handle<v8::Value>());
 
   // Create a context and set an x property on it's global object.
   LocalContext context0(NULL, global_template);
@@ -19246,16 +19251,6 @@ TEST(JSONStringifyAccessCheck) {
     CHECK(CompileRun("JSON.stringify(other)").IsEmpty());
     CHECK(CompileRun("JSON.stringify({ 'a' : other, 'b' : ['c'] })").IsEmpty());
     CHECK(CompileRun("JSON.stringify([other, 'b', 'c'])").IsEmpty());
-
-    v8::Handle<v8::Array> array = v8::Array::New(isolate, 2);
-    array->Set(0, v8_str("a"));
-    array->Set(1, v8_str("b"));
-    context1->Global()->Set(v8_str("array"), array);
-    ExpectString("JSON.stringify(array)", "[\"a\",\"b\"]");
-    array->TurnOnAccessCheck();
-    CHECK(CompileRun("JSON.stringify(array)").IsEmpty());
-    CHECK(CompileRun("JSON.stringify([array])").IsEmpty());
-    CHECK(CompileRun("JSON.stringify({'a' : array})").IsEmpty());
   }
 }
 
@@ -21425,6 +21420,164 @@ TEST(SealHandleScopeNested) {
 }
 
 
+static bool access_was_called = false;
+
+
+static bool AccessAlwaysAllowedWithFlag(Local<v8::Object> global,
+                                        Local<Value> name, v8::AccessType type,
+                                        Local<Value> data) {
+  access_was_called = true;
+  return true;
+}
+
+
+static bool AccessAlwaysBlockedWithFlag(Local<v8::Object> global,
+                                        Local<Value> name, v8::AccessType type,
+                                        Local<Value> data) {
+  access_was_called = true;
+  return false;
+}
+
+
+TEST(StrongModeAccessCheckAllowed) {
+  i::FLAG_strong_mode = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Handle<Value> value;
+  access_was_called = false;
+
+  v8::Handle<v8::ObjectTemplate> obj_template =
+      v8::ObjectTemplate::New(isolate);
+
+  obj_template->Set(v8_str("x"), v8::Integer::New(isolate, 42));
+  obj_template->SetAccessCheckCallbacks(AccessAlwaysAllowedWithFlag, NULL);
+
+  // Create an environment
+  v8::Local<Context> context0 = Context::New(isolate, NULL, obj_template);
+  context0->Enter();
+  v8::Handle<v8::Object> global0 = context0->Global();
+  global0->Set(v8_str("object"), obj_template->NewInstance());
+  {
+    v8::TryCatch try_catch(isolate);
+    value = CompileRun("'use strong'; object.x");
+    CHECK(!try_catch.HasCaught());
+    CHECK(!access_was_called);
+    CHECK_EQ(42, value->Int32Value());
+  }
+  {
+    v8::TryCatch try_catch(isolate);
+    value = CompileRun("'use strong'; object.foo");
+    CHECK(try_catch.HasCaught());
+    CHECK(!access_was_called);
+  }
+  {
+    v8::TryCatch try_catch(isolate);
+    value = CompileRun("'use strong'; object[10]");
+    CHECK(try_catch.HasCaught());
+    CHECK(!access_was_called);
+  }
+
+  // Create an environment
+  v8::Local<Context> context1 = Context::New(isolate);
+  context1->Enter();
+  v8::Handle<v8::Object> global1 = context1->Global();
+  global1->Set(v8_str("object"), obj_template->NewInstance());
+  {
+    v8::TryCatch try_catch(isolate);
+    value = CompileRun("'use strong'; object.x");
+    CHECK(!try_catch.HasCaught());
+    CHECK(access_was_called);
+    CHECK_EQ(42, value->Int32Value());
+  }
+  access_was_called = false;
+  {
+    v8::TryCatch try_catch(isolate);
+    value = CompileRun("'use strong'; object.foo");
+    CHECK(try_catch.HasCaught());
+    CHECK(access_was_called);
+  }
+  access_was_called = false;
+  {
+    v8::TryCatch try_catch(isolate);
+    value = CompileRun("'use strong'; object[10]");
+    CHECK(try_catch.HasCaught());
+    CHECK(access_was_called);
+  }
+
+  context1->Exit();
+  context0->Exit();
+}
+
+
+TEST(StrongModeAccessCheckBlocked) {
+  i::FLAG_strong_mode = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Handle<Value> value;
+  access_was_called = false;
+
+  v8::Handle<v8::ObjectTemplate> obj_template =
+      v8::ObjectTemplate::New(isolate);
+
+  obj_template->Set(v8_str("x"), v8::Integer::New(isolate, 42));
+  obj_template->SetAccessCheckCallbacks(AccessAlwaysBlockedWithFlag, NULL);
+
+  // Create an environment
+  v8::Local<Context> context0 = Context::New(isolate, NULL, obj_template);
+  context0->Enter();
+  v8::Handle<v8::Object> global0 = context0->Global();
+  global0->Set(v8_str("object"), obj_template->NewInstance());
+  {
+    v8::TryCatch try_catch(isolate);
+    value = CompileRun("'use strong'; object.x");
+    CHECK(!try_catch.HasCaught());
+    CHECK(!access_was_called);
+    CHECK_EQ(42, value->Int32Value());
+  }
+  {
+    v8::TryCatch try_catch(isolate);
+    value = CompileRun("'use strong'; object.foo");
+    CHECK(try_catch.HasCaught());
+    CHECK(!access_was_called);
+  }
+  {
+    v8::TryCatch try_catch(isolate);
+    value = CompileRun("'use strong'; object[10]");
+    CHECK(try_catch.HasCaught());
+    CHECK(!access_was_called);
+  }
+
+  // Create an environment
+  v8::Local<Context> context1 = Context::New(isolate);
+  context1->Enter();
+  v8::Handle<v8::Object> global1 = context1->Global();
+  global1->Set(v8_str("object"), obj_template->NewInstance());
+  {
+    v8::TryCatch try_catch(isolate);
+    value = CompileRun("'use strong'; object.x");
+    CHECK(try_catch.HasCaught());
+    CHECK(access_was_called);
+  }
+  access_was_called = false;
+  {
+    v8::TryCatch try_catch(isolate);
+    value = CompileRun("'use strong'; object.foo");
+    CHECK(try_catch.HasCaught());
+    CHECK(access_was_called);
+  }
+  access_was_called = false;
+  {
+    v8::TryCatch try_catch(isolate);
+    value = CompileRun("'use strong'; object[10]");
+    CHECK(try_catch.HasCaught());
+    CHECK(access_was_called);
+  }
+
+  context1->Exit();
+  context0->Exit();
+}
+
+
 TEST(StrongModeArityCallFromApi) {
   i::FLAG_strong_mode = true;
   LocalContext env;
@@ -21662,4 +21815,43 @@ TEST(Set) {
 
   set->Clear();
   CHECK_EQ(0U, set->Size());
+}
+
+
+TEST(CompatibleReceiverCheckOnCachedICHandler) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::FunctionTemplate> parent = FunctionTemplate::New(isolate);
+  v8::Local<v8::Signature> signature = v8::Signature::New(isolate, parent);
+  auto returns_42 =
+      v8::FunctionTemplate::New(isolate, Returns42, Local<Value>(), signature);
+  parent->PrototypeTemplate()->SetAccessorProperty(v8_str("age"), returns_42);
+  v8::Local<v8::FunctionTemplate> child = v8::FunctionTemplate::New(isolate);
+  child->Inherit(parent);
+  LocalContext env;
+  env->Global()->Set(v8_str("Child"), child->GetFunction());
+
+  // Make sure there's a compiled stub for "Child.prototype.age" in the cache.
+  CompileRun(
+      "var real = new Child();\n"
+      "for (var i = 0; i < 3; ++i) {\n"
+      "  real.age;\n"
+      "}\n");
+
+  // Check that the cached stub is never used.
+  ExpectInt32(
+      "var fake = Object.create(Child.prototype);\n"
+      "var result = 0;\n"
+      "function test(d) {\n"
+      "  if (d == 3) return;\n"
+      "  try {\n"
+      "    fake.age;\n"
+      "    result = 1;\n"
+      "  } catch (e) {\n"
+      "  }\n"
+      "  test(d+1);\n"
+      "}\n"
+      "test(0);\n"
+      "result;\n",
+      0);
 }

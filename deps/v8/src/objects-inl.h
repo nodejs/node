@@ -5092,6 +5092,7 @@ ACCESSORS(CallHandlerInfo, callback, Object, kCallbackOffset)
 ACCESSORS(CallHandlerInfo, data, Object, kDataOffset)
 
 ACCESSORS(TemplateInfo, tag, Object, kTagOffset)
+SMI_ACCESSORS(TemplateInfo, number_of_properties, kNumberOfProperties)
 ACCESSORS(TemplateInfo, property_list, Object, kPropertyListOffset)
 ACCESSORS(TemplateInfo, property_accessors, Object, kPropertyAccessorsOffset)
 
@@ -6223,7 +6224,7 @@ ElementsKind JSObject::GetElementsKind() {
             fixed_array->IsFixedArray() &&
             fixed_array->IsDictionary()) ||
            (kind > DICTIONARY_ELEMENTS));
-    DCHECK((kind != SLOPPY_ARGUMENTS_ELEMENTS) ||
+    DCHECK(!IsSloppyArgumentsElements(kind) ||
            (elements()->IsFixedArray() && elements()->length() >= 2));
   }
 #endif
@@ -6266,8 +6267,18 @@ bool JSObject::HasDictionaryElements() {
 }
 
 
+bool JSObject::HasFastArgumentsElements() {
+  return GetElementsKind() == FAST_SLOPPY_ARGUMENTS_ELEMENTS;
+}
+
+
+bool JSObject::HasSlowArgumentsElements() {
+  return GetElementsKind() == SLOW_SLOPPY_ARGUMENTS_ELEMENTS;
+}
+
+
 bool JSObject::HasSloppyArgumentsElements() {
-  return GetElementsKind() == SLOPPY_ARGUMENTS_ELEMENTS;
+  return IsSloppyArgumentsElements(GetElementsKind());
 }
 
 
@@ -6935,11 +6946,13 @@ void Map::ClearCodeCache(Heap* heap) {
 }
 
 
-int Map::SlackForArraySize(int old_size, int size_limit) {
+int Map::SlackForArraySize(bool is_prototype_map, int old_size,
+                           int size_limit) {
   const int max_slack = size_limit - old_size;
-  CHECK(max_slack >= 0);
+  CHECK_LE(0, max_slack);
   if (old_size < 4) return Min(max_slack, 1);
-  return Min(max_slack, old_size / 2);
+  if (is_prototype_map) return Min(max_slack, 4);
+  return Min(max_slack, old_size / 4);
 }
 
 

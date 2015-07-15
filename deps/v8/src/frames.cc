@@ -730,9 +730,24 @@ bool JavaScriptFrame::IsConstructor() const {
 }
 
 
+Object* JavaScriptFrame::GetOriginalConstructor() const {
+  Address fp = caller_fp();
+  if (has_adapted_arguments()) {
+    // Skip the arguments adaptor frame and look at the real caller.
+    fp = Memory::Address_at(fp + StandardFrameConstants::kCallerFPOffset);
+  }
+  DCHECK(IsConstructFrame(fp));
+  STATIC_ASSERT(ConstructFrameConstants::kOriginalConstructorOffset ==
+                StandardFrameConstants::kExpressionsOffset - 2 * kPointerSize);
+  return GetExpression(fp, 2);
+}
+
+
 int JavaScriptFrame::GetArgumentsLength() const {
   // If there is an arguments adaptor frame get the arguments length from it.
   if (has_adapted_arguments()) {
+    STATIC_ASSERT(ArgumentsAdaptorFrameConstants::kLengthOffset ==
+                  StandardFrameConstants::kExpressionsOffset);
     return Smi::cast(GetExpression(caller_fp(), 0))->value();
   } else {
     return GetNumberOfIncomingArguments();

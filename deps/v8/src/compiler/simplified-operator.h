@@ -139,6 +139,9 @@ class SimplifiedOperatorBuilder final {
   const Operator* NumberMultiply();
   const Operator* NumberDivide();
   const Operator* NumberModulus();
+  const Operator* NumberShiftLeft();
+  const Operator* NumberShiftRight();
+  const Operator* NumberShiftRightLogical();
   const Operator* NumberToInt32();
   const Operator* NumberToUint32();
 

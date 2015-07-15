@@ -30,7 +30,11 @@ size_t hash_value(VectorSlotPair const& p) {
 
 
 std::ostream& operator<<(std::ostream& os, CallFunctionParameters const& p) {
-  return os << p.arity() << ", " << p.flags() << ", " << p.language_mode();
+  os << p.arity() << ", " << p.flags() << ", " << p.language_mode();
+  if (p.AllowTailCalls()) {
+    os << ", ALLOW_TAIL_CALLS";
+  }
+  return os;
 }
 
 
@@ -470,10 +474,13 @@ CACHED_OP_LIST_WITH_LANGUAGE_MODE(CACHED_WITH_LANGUAGE_MODE)
 #undef CACHED_WITH_LANGUAGE_MODE
 
 
-const Operator* JSOperatorBuilder::CallFunction(
-    size_t arity, CallFunctionFlags flags, LanguageMode language_mode,
-    VectorSlotPair const& feedback) {
-  CallFunctionParameters parameters(arity, flags, language_mode, feedback);
+const Operator* JSOperatorBuilder::CallFunction(size_t arity,
+                                                CallFunctionFlags flags,
+                                                LanguageMode language_mode,
+                                                VectorSlotPair const& feedback,
+                                                TailCallMode tail_call_mode) {
+  CallFunctionParameters parameters(arity, flags, language_mode, feedback,
+                                    tail_call_mode);
   return new (zone()) Operator1<CallFunctionParameters>(   // --
       IrOpcode::kJSCallFunction, Operator::kNoProperties,  // opcode
       "JSCallFunction",                                    // name

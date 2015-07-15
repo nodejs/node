@@ -287,11 +287,6 @@ function ArrayOf() {
 
 // -------------------------------------------------------------------
 
-utils.InstallConstants(GlobalSymbol, [
-  // TODO(dslomov, caitp): Move to symbol.js when shipping
-  "isConcatSpreadable", symbolIsConcatSpreadable
-]);
-
 %FunctionSetLength(ArrayCopyWithin, 2);
 %FunctionSetLength(ArrayFrom, 1);
 %FunctionSetLength(ArrayFill, 1);

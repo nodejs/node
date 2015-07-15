@@ -3149,7 +3149,8 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
       case FAST_HOLEY_ELEMENTS:
       case FAST_HOLEY_SMI_ELEMENTS:
       case DICTIONARY_ELEMENTS:
-      case SLOPPY_ARGUMENTS_ELEMENTS:
+      case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
+      case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
         UNREACHABLE();
         break;
     }
@@ -4283,7 +4284,8 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
       case FAST_HOLEY_ELEMENTS:
       case FAST_HOLEY_SMI_ELEMENTS:
       case DICTIONARY_ELEMENTS:
-      case SLOPPY_ARGUMENTS_ELEMENTS:
+      case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
+      case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
         UNREACHABLE();
         break;
     }

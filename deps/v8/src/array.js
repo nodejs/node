@@ -478,7 +478,7 @@ function ArrayPop() {
 
   n--;
   var value = array[n];
-  Delete(array, $toName(n), true);
+  Delete(array, n, true);
   array.length = n;
   return value;
 }

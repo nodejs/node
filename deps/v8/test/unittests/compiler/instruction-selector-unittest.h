@@ -10,8 +10,8 @@
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/compiler/instruction-selector.h"
+#include "src/compiler/raw-machine-assembler.h"
 #include "src/macro-assembler.h"
-#include "test/unittests/compiler/raw-machine-assembler.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {

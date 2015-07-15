@@ -138,7 +138,8 @@ enum BindingFlags {
   V(BOUND_FUNCTION_MAP_INDEX, Map, bound_function_map)                         \
   V(REGEXP_RESULT_MAP_INDEX, Map, regexp_result_map)                           \
   V(SLOPPY_ARGUMENTS_MAP_INDEX, Map, sloppy_arguments_map)                     \
-  V(ALIASED_ARGUMENTS_MAP_INDEX, Map, aliased_arguments_map)                   \
+  V(FAST_ALIASED_ARGUMENTS_MAP_INDEX, Map, fast_aliased_arguments_map)         \
+  V(SLOW_ALIASED_ARGUMENTS_MAP_INDEX, Map, slow_aliased_arguments_map)         \
   V(STRICT_ARGUMENTS_MAP_INDEX, Map, strict_arguments_map)                     \
   V(MESSAGE_LISTENERS_INDEX, JSObject, message_listeners)                      \
   V(MAKE_MESSAGE_FUN_INDEX, JSFunction, make_message_fun)                      \
@@ -225,6 +226,7 @@ class ScriptContextTable : public FixedArray {
     int context_index;
     int slot_index;
     VariableMode mode;
+    VariableLocation location;
     InitializationFlag init_flag;
     MaybeAssignedFlag maybe_assigned_flag;
   };
@@ -337,7 +339,8 @@ class Context: public FixedArray {
     GLOBAL_PROXY_INDEX = MIN_CONTEXT_SLOTS,
     SECURITY_TOKEN_INDEX,
     SLOPPY_ARGUMENTS_MAP_INDEX,
-    ALIASED_ARGUMENTS_MAP_INDEX,
+    FAST_ALIASED_ARGUMENTS_MAP_INDEX,
+    SLOW_ALIASED_ARGUMENTS_MAP_INDEX,
     STRICT_ARGUMENTS_MAP_INDEX,
     REGEXP_RESULT_MAP_INDEX,
     SLOPPY_FUNCTION_MAP_INDEX,
@@ -555,6 +558,9 @@ class Context: public FixedArray {
     return this->global_object()->native_context()->security_token() ==
         that->global_object()->native_context()->security_token();
   }
+
+  // Initializes global variable bindings in given script context.
+  void InitializeGlobalSlots();
 
   // A native context holds a list of all functions with optimized code.
   void AddOptimizedFunction(JSFunction* function);

@@ -394,6 +394,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     }
 
     if (info()->shared_info()->asm_function()) {
+      if (info()->osr_frame()) info()->MarkAsFrameSpecializing();
       info()->MarkAsContextSpecializing();
     } else if (FLAG_turbo_type_feedback) {
       info()->MarkAsTypeFeedbackEnabled();
@@ -712,7 +713,9 @@ static void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
   if (code->kind() != Code::OPTIMIZED_FUNCTION) return;  // Nothing to do.
 
   // Context specialization folds-in the context, so no sharing can occur.
-  if (code->is_turbofanned() && info->is_context_specializing()) return;
+  if (info->is_context_specializing()) return;
+  // Frame specialization implies context specialization.
+  DCHECK(!info->is_frame_specializing());
 
   // Do not cache bound functions.
   Handle<JSFunction> function = info->closure();
@@ -1469,7 +1472,8 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
 MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
                                              Handle<Code> current_code,
                                              ConcurrencyMode mode,
-                                             BailoutId osr_ast_id) {
+                                             BailoutId osr_ast_id,
+                                             JavaScriptFrame* osr_frame) {
   Handle<Code> cached_code;
   if (GetCodeFromOptimizedCodeMap(
           function, osr_ast_id).ToHandle(&cached_code)) {
@@ -1527,6 +1531,7 @@ MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
       return isolate->builtins()->InOptimizationQueue();
     }
   } else {
+    info->set_osr_frame(osr_frame);
     if (GetOptimizedCodeNow(info.get())) return info->code();
   }
 

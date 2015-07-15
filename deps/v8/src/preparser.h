@@ -99,7 +99,8 @@ class ParserBase : public Traits {
         allow_harmony_destructuring_(false),
         allow_harmony_spread_arrays_(false),
         allow_harmony_new_target_(false),
-        allow_strong_mode_(false) {}
+        allow_strong_mode_(false),
+        allow_legacy_const_(true) {}
 
 #define ALLOW_ACCESSORS(name)                           \
   bool allow_##name() const { return allow_##name##_; } \
@@ -116,6 +117,7 @@ class ParserBase : public Traits {
   ALLOW_ACCESSORS(harmony_spread_arrays);
   ALLOW_ACCESSORS(harmony_new_target);
   ALLOW_ACCESSORS(strong_mode);
+  ALLOW_ACCESSORS(legacy_const);
 #undef ALLOW_ACCESSORS
 
   bool allow_harmony_modules() const { return scanner()->HarmonyModules(); }
@@ -491,6 +493,10 @@ class ParserBase : public Traits {
   LanguageMode language_mode() { return scope_->language_mode(); }
   bool is_generator() const { return function_state_->is_generator(); }
 
+  bool allow_const() {
+    return is_strict(language_mode()) || allow_legacy_const();
+  }
+
   // Report syntax errors.
   void ReportMessage(MessageTemplate::Template message, const char* arg = NULL,
                      ParseErrorType error_type = kSyntaxError) {
@@ -788,6 +794,7 @@ class ParserBase : public Traits {
   bool allow_harmony_spread_arrays_;
   bool allow_harmony_new_target_;
   bool allow_strong_mode_;
+  bool allow_legacy_const_;
 };
 
 

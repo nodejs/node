@@ -37,11 +37,12 @@ MaybeHandle<Object> Instantiate(Isolate* isolate, Handle<Object> data,
 }
 
 
-MaybeHandle<Object> DefineAccessorProperty(
-    Isolate* isolate, Handle<JSObject> object, Handle<Name> name,
-    Handle<Object> getter, Handle<Object> setter, Smi* attributes) {
-  DCHECK(PropertyDetails::AttributesField::is_valid(
-      static_cast<PropertyAttributes>(attributes->value())));
+MaybeHandle<Object> DefineAccessorProperty(Isolate* isolate,
+                                           Handle<JSObject> object,
+                                           Handle<Name> name,
+                                           Handle<Object> getter,
+                                           Handle<Object> setter,
+                                           PropertyAttributes attributes) {
   if (!getter->IsUndefined()) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, getter,
@@ -56,10 +57,8 @@ MaybeHandle<Object> DefineAccessorProperty(
                             Handle<FunctionTemplateInfo>::cast(setter)),
         Object);
   }
-  RETURN_ON_EXCEPTION(isolate,
-                      JSObject::DefineAccessor(
-                          object, name, getter, setter,
-                          static_cast<PropertyAttributes>(attributes->value())),
+  RETURN_ON_EXCEPTION(isolate, JSObject::DefineAccessor(object, name, getter,
+                                                        setter, attributes),
                       Object);
   return object;
 }
@@ -69,13 +68,7 @@ MaybeHandle<Object> DefineDataProperty(Isolate* isolate,
                                        Handle<JSObject> object,
                                        Handle<Name> name,
                                        Handle<Object> prop_data,
-                                       Smi* unchecked_attributes) {
-  DCHECK((unchecked_attributes->value() &
-          ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
-  // Compute attributes.
-  PropertyAttributes attributes =
-      static_cast<PropertyAttributes>(unchecked_attributes->value());
-
+                                       PropertyAttributes attributes) {
   Handle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
                              Instantiate(isolate, prop_data, name), Object);
@@ -150,27 +143,37 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
   HandleScope scope(isolate);
   // Disable access checks while instantiating the object.
   AccessCheckDisableScope access_check_scope(isolate, obj);
-  for (int i = 0; i < properties.length();) {
-    int length = Smi::cast(properties.get(i))->value();
-    if (length == 3) {
-      auto name = handle(Name::cast(properties.get(i + 1)), isolate);
-      auto prop_data = handle(properties.get(i + 2), isolate);
-      auto attributes = Smi::cast(properties.get(i + 3));
+
+  int i = 0;
+  for (int c = 0; c < data->number_of_properties(); c++) {
+    auto name = handle(Name::cast(properties.get(i++)), isolate);
+    PropertyDetails details(Smi::cast(properties.get(i++)));
+    PropertyAttributes attributes = details.attributes();
+    PropertyKind kind = details.kind();
+
+    if (obj->map()->owns_descriptors() &&
+        obj->map()->instance_descriptors()->length() != 0 &&
+        obj->map()->instance_descriptors()->NumberOfSlackDescriptors() == 0 &&
+        TransitionArray::SearchTransition(obj->map(), kind, *name,
+                                          attributes) == NULL) {
+      Map::EnsureDescriptorSlack(handle(obj->map()),
+                                 data->number_of_properties() - c);
+    }
+
+    if (kind == kData) {
+      auto prop_data = handle(properties.get(i++), isolate);
+
       RETURN_ON_EXCEPTION(isolate, DefineDataProperty(isolate, obj, name,
                                                       prop_data, attributes),
                           JSObject);
     } else {
-      DCHECK(length == 4);
-      auto name = handle(Name::cast(properties.get(i + 1)), isolate);
-      auto getter = handle(properties.get(i + 2), isolate);
-      auto setter = handle(properties.get(i + 3), isolate);
-      auto attributes = Smi::cast(properties.get(i + 4));
+      auto getter = handle(properties.get(i++), isolate);
+      auto setter = handle(properties.get(i++), isolate);
       RETURN_ON_EXCEPTION(isolate,
                           DefineAccessorProperty(isolate, obj, name, getter,
                                                  setter, attributes),
                           JSObject);
     }
-    i += length + 1;
   }
   return obj;
 }
@@ -311,8 +314,8 @@ void AddPropertyToPropertyList(Isolate* isolate, Handle<TemplateInfo> templ,
     list = NeanderArray(isolate).value();
     templ->set_property_list(*list);
   }
+  templ->set_number_of_properties(templ->number_of_properties() + 1);
   NeanderArray array(list);
-  array.add(isolate, isolate->factory()->NewNumberFromInt(length));
   for (int i = 0; i < length; i++) {
     Handle<Object> value =
         data[i].is_null()
@@ -361,10 +364,9 @@ void ApiNatives::AddDataProperty(Isolate* isolate, Handle<TemplateInfo> info,
                                  Handle<Name> name, Handle<Object> value,
                                  PropertyAttributes attributes) {
   const int kSize = 3;
-  DCHECK(Smi::IsValid(static_cast<int>(attributes)));
-  auto attribute_handle =
-      handle(Smi::FromInt(static_cast<int>(attributes)), isolate);
-  Handle<Object> data[kSize] = {name, value, attribute_handle};
+  PropertyDetails details(attributes, DATA, 0, PropertyCellType::kNoCell);
+  auto details_handle = handle(details.AsSmi(), isolate);
+  Handle<Object> data[kSize] = {name, details_handle, value};
   AddPropertyToPropertyList(isolate, info, kSize, data);
 }
 
@@ -376,10 +378,9 @@ void ApiNatives::AddAccessorProperty(Isolate* isolate,
                                      Handle<FunctionTemplateInfo> setter,
                                      PropertyAttributes attributes) {
   const int kSize = 4;
-  DCHECK(Smi::IsValid(static_cast<int>(attributes)));
-  auto attribute_handle =
-      handle(Smi::FromInt(static_cast<int>(attributes)), isolate);
-  Handle<Object> data[kSize] = {name, getter, setter, attribute_handle};
+  PropertyDetails details(attributes, ACCESSOR, 0, PropertyCellType::kNoCell);
+  auto details_handle = handle(details.AsSmi(), isolate);
+  Handle<Object> data[kSize] = {name, details_handle, getter, setter};
   AddPropertyToPropertyList(isolate, info, kSize, data);
 }
 

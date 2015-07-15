@@ -899,9 +899,8 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   __ jmp(&instantiate, Label::kNear);
 
   __ bind(&has_mapped_parameters);
-  __ mov(
-      edi,
-      Operand(edi, Context::SlotOffset(Context::ALIASED_ARGUMENTS_MAP_INDEX)));
+  __ mov(edi, Operand(edi, Context::SlotOffset(
+                               Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX)));
   __ bind(&instantiate);
 
   // eax = address of new object (tagged)

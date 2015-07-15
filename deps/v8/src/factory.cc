@@ -689,7 +689,8 @@ Handle<Symbol> Factory::NewPrivateSymbol(Handle<Object> name) {
 
 
 Handle<Context> Factory::NewNativeContext() {
-  Handle<FixedArray> array = NewFixedArray(Context::NATIVE_CONTEXT_SLOTS);
+  Handle<FixedArray> array =
+      NewFixedArray(Context::NATIVE_CONTEXT_SLOTS, TENURED);
   array->set_map_no_write_barrier(*native_context_map());
   Handle<Context> context = Handle<Context>::cast(array);
   context->set_js_array_maps(*undefined_value());

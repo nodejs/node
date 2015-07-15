@@ -764,7 +764,10 @@ class FunctionInfoListener {
       ZoneList<Variable*> stack_list(current_scope->StackLocalCount(), zone);
       ZoneList<Variable*> context_list(
           current_scope->ContextLocalCount(), zone);
-      current_scope->CollectStackAndContextLocals(&stack_list, &context_list);
+      ZoneList<Variable*> globals_list(current_scope->ContextGlobalCount(),
+                                       zone);
+      current_scope->CollectStackAndContextLocals(&stack_list, &context_list,
+                                                  &globals_list);
       context_list.Sort(&Variable::CompareIndex);
 
       for (int i = 0; i < context_list.length(); i++) {

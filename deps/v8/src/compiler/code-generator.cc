@@ -231,7 +231,7 @@ void CodeGenerator::RecordSafepoint(ReferenceMap* references,
 bool CodeGenerator::IsMaterializableFromFrame(Handle<HeapObject> object,
                                               int* offset_return) {
   if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
-    if (object.is_identical_to(info()->context())) {
+    if (object.is_identical_to(info()->context()) && !info()->is_osr()) {
       *offset_return = StandardFrameConstants::kContextOffset;
       return true;
     } else if (object.is_identical_to(info()->closure())) {

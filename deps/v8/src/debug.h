@@ -177,7 +177,6 @@ class BreakLocation {
     int break_index_;
     int position_;
     int statement_position_;
-    bool has_immediate_position_;
 
     DisallowHeapAllocation no_gc_;
 
@@ -285,10 +284,10 @@ class MessageImpl: public v8::Debug::Message {
   virtual bool IsResponse() const;
   virtual DebugEvent GetEvent() const;
   virtual bool WillStartRunning() const;
-  virtual v8::Handle<v8::Object> GetExecutionState() const;
-  virtual v8::Handle<v8::Object> GetEventData() const;
-  virtual v8::Handle<v8::String> GetJSON() const;
-  virtual v8::Handle<v8::Context> GetEventContext() const;
+  virtual v8::Local<v8::Object> GetExecutionState() const;
+  virtual v8::Local<v8::Object> GetEventData() const;
+  virtual v8::Local<v8::String> GetJSON() const;
+  virtual v8::Local<v8::Context> GetEventContext() const;
   virtual v8::Debug::ClientData* GetClientData() const;
   virtual v8::Isolate* GetIsolate() const;
 
@@ -320,10 +319,10 @@ class EventDetailsImpl : public v8::Debug::EventDetails {
                    Handle<Object> callback_data,
                    v8::Debug::ClientData* client_data);
   virtual DebugEvent GetEvent() const;
-  virtual v8::Handle<v8::Object> GetExecutionState() const;
-  virtual v8::Handle<v8::Object> GetEventData() const;
-  virtual v8::Handle<v8::Context> GetEventContext() const;
-  virtual v8::Handle<v8::Value> GetCallbackData() const;
+  virtual v8::Local<v8::Object> GetExecutionState() const;
+  virtual v8::Local<v8::Object> GetEventData() const;
+  virtual v8::Local<v8::Context> GetEventContext() const;
+  virtual v8::Local<v8::Value> GetCallbackData() const;
   virtual v8::Debug::ClientData* GetClientData() const;
  private:
   DebugEvent event_;  // Debug event causing the break.
@@ -466,8 +465,7 @@ class Debug {
   bool IsStepping() { return thread_local_.step_count_ > 0; }
   bool StepNextContinue(BreakLocation* location, JavaScriptFrame* frame);
   bool StepInActive() { return thread_local_.step_into_fp_ != 0; }
-  void HandleStepIn(Handle<Object> function_obj, Handle<Object> holder,
-                    Address fp, bool is_constructor);
+  void HandleStepIn(Handle<Object> function_obj, bool is_constructor);
   bool StepOutActive() { return thread_local_.step_out_fp_ != 0; }
 
   // Purge all code objects that have no debug break slots.
@@ -626,7 +624,7 @@ class Debug {
 
   static bool CompileDebuggerScript(Isolate* isolate, int index);
   void ClearOneShot();
-  void ActivateStepIn(StackFrame* frame);
+  void ActivateStepIn(Handle<JSFunction> function, StackFrame* frame);
   void ClearStepIn();
   void ActivateStepOut(StackFrame* frame);
   void ClearStepNext();

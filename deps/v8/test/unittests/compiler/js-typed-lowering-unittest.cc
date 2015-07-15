@@ -467,7 +467,7 @@ TEST_F(JSTypedLoweringTest, JSShiftLeftWithSigned32AndConstant) {
           context, EmptyFrameState(), EmptyFrameState(), effect, control));
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(r.replacement(),
-                  IsWord32Shl(lhs, IsNumberConstant(BitEq(rhs))));
+                  IsNumberShiftLeft(lhs, IsNumberConstant(BitEq(rhs))));
     }
   }
 }
@@ -484,8 +484,7 @@ TEST_F(JSTypedLoweringTest, JSShiftLeftWithSigned32AndUnsigned32) {
         javascript()->ShiftLeft(language_mode), lhs, rhs, context,
         EmptyFrameState(), EmptyFrameState(), effect, control));
     ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(),
-                IsWord32Shl(lhs, IsWord32And(rhs, IsInt32Constant(0x1f))));
+    EXPECT_THAT(r.replacement(), IsNumberShiftLeft(lhs, rhs));
   }
 }
 
@@ -506,7 +505,7 @@ TEST_F(JSTypedLoweringTest, JSShiftRightWithSigned32AndConstant) {
           context, EmptyFrameState(), EmptyFrameState(), effect, control));
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(r.replacement(),
-                  IsWord32Sar(lhs, IsNumberConstant(BitEq(rhs))));
+                  IsNumberShiftRight(lhs, IsNumberConstant(BitEq(rhs))));
     }
   }
 }
@@ -523,8 +522,7 @@ TEST_F(JSTypedLoweringTest, JSShiftRightWithSigned32AndUnsigned32) {
         javascript()->ShiftRight(language_mode), lhs, rhs, context,
         EmptyFrameState(), EmptyFrameState(), effect, control));
     ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(),
-                IsWord32Sar(lhs, IsWord32And(rhs, IsInt32Constant(0x1f))));
+    EXPECT_THAT(r.replacement(), IsNumberShiftRight(lhs, rhs));
   }
 }
 
@@ -547,7 +545,7 @@ TEST_F(JSTypedLoweringTest,
                            EmptyFrameState(), effect, control));
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(r.replacement(),
-                  IsWord32Shr(lhs, IsNumberConstant(BitEq(rhs))));
+                  IsNumberShiftRightLogical(lhs, IsNumberConstant(BitEq(rhs))));
     }
   }
 }
@@ -565,8 +563,7 @@ TEST_F(JSTypedLoweringTest,
         javascript()->ShiftRightLogical(language_mode), lhs, rhs, context,
         EmptyFrameState(), EmptyFrameState(), effect, control));
     ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(),
-                IsWord32Shr(lhs, IsWord32And(rhs, IsInt32Constant(0x1f))));
+    EXPECT_THAT(r.replacement(), IsNumberShiftRightLogical(lhs, rhs));
   }
 }
 

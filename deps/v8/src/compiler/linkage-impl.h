@@ -277,7 +277,12 @@ LinkageLocation Linkage::GetOsrValueLocation(int index) const {
   int parameter_count = static_cast<int>(incoming_->JSParameterCount() - 1);
   int first_stack_slot = OsrHelper::FirstStackSlotIndex(parameter_count);
 
-  if (index >= first_stack_slot) {
+  if (index == kOsrContextSpillSlotIndex) {
+    // Context. Use the parameter location of the context spill slot.
+    // Parameter (arity + 1) is special for the context of the function frame.
+    int context_index = 1 + 1 + parameter_count;  // target + receiver + params
+    return incoming_->GetInputLocation(context_index);
+  } else if (index >= first_stack_slot) {
     // Local variable stored in this (callee) stack.
     int spill_index =
         LinkageLocation::ANY_REGISTER + 1 + index - first_stack_slot;

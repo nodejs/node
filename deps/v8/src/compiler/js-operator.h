@@ -45,6 +45,7 @@ bool operator!=(VectorSlotPair const&, VectorSlotPair const&);
 
 size_t hash_value(VectorSlotPair const&);
 
+enum TailCallMode { NO_TAIL_CALLS, ALLOW_TAIL_CALLS };
 
 // Defines the arity and the call flags for a JavaScript function call. This is
 // used as a parameter by JSCallFunction operators.
@@ -52,10 +53,12 @@ class CallFunctionParameters final {
  public:
   CallFunctionParameters(size_t arity, CallFunctionFlags flags,
                          LanguageMode language_mode,
-                         VectorSlotPair const& feedback)
+                         VectorSlotPair const& feedback,
+                         TailCallMode tail_call_mode)
       : bit_field_(ArityField::encode(arity) | FlagsField::encode(flags) |
                    LanguageModeField::encode(language_mode)),
-        feedback_(feedback) {}
+        feedback_(feedback),
+        tail_call_mode_(tail_call_mode) {}
 
   size_t arity() const { return ArityField::decode(bit_field_); }
   CallFunctionFlags flags() const { return FlagsField::decode(bit_field_); }
@@ -72,6 +75,8 @@ class CallFunctionParameters final {
     return !(*this == that);
   }
 
+  bool AllowTailCalls() const { return tail_call_mode_ == ALLOW_TAIL_CALLS; }
+
  private:
   friend size_t hash_value(CallFunctionParameters const& p) {
     return base::hash_combine(p.bit_field_, p.feedback_);
@@ -83,6 +88,7 @@ class CallFunctionParameters final {
 
   const uint32_t bit_field_;
   const VectorSlotPair feedback_;
+  bool tail_call_mode_;
 };
 
 size_t hash_value(CallFunctionParameters const&);
@@ -415,7 +421,8 @@ class JSOperatorBuilder final : public ZoneObject {
 
   const Operator* CallFunction(
       size_t arity, CallFunctionFlags flags, LanguageMode language_mode,
-      VectorSlotPair const& feedback = VectorSlotPair());
+      VectorSlotPair const& feedback = VectorSlotPair(),
+      TailCallMode tail_call_mode = NO_TAIL_CALLS);
   const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);
 
   const Operator* CallConstruct(int arguments);

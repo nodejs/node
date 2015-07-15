@@ -689,6 +689,21 @@ class RepresentationSelector {
         if (lower()) node->set_op(Float64Op(node));
         break;
       }
+      case IrOpcode::kNumberShiftLeft: {
+        VisitBinop(node, kMachInt32, kMachUint32, kMachInt32);
+        if (lower()) lowering->DoShift(node, lowering->machine()->Word32Shl());
+        break;
+      }
+      case IrOpcode::kNumberShiftRight: {
+        VisitBinop(node, kMachInt32, kMachUint32, kMachInt32);
+        if (lower()) lowering->DoShift(node, lowering->machine()->Word32Sar());
+        break;
+      }
+      case IrOpcode::kNumberShiftRightLogical: {
+        VisitBinop(node, kMachUint32, kMachUint32, kMachUint32);
+        if (lower()) lowering->DoShift(node, lowering->machine()->Word32Shr());
+        break;
+      }
       case IrOpcode::kNumberToInt32: {
         MachineTypeUnion use_rep = use & kRepMask;
         Node* input = node->InputAt(0);
@@ -712,8 +727,10 @@ class RepresentationSelector {
           // Require the input in float64 format and perform truncation.
           // TODO(turbofan): avoid a truncation with a smi check.
           VisitUnop(node, kTypeInt32 | kRepFloat64, kTypeInt32 | kRepWord32);
-          if (lower())
-            node->set_op(lowering->machine()->TruncateFloat64ToInt32());
+          if (lower()) {
+            node->set_op(lowering->machine()->TruncateFloat64ToInt32(
+                TruncationMode::kJavaScript));
+          }
         }
         break;
       }
@@ -740,8 +757,10 @@ class RepresentationSelector {
           // Require the input in float64 format and perform truncation.
           // TODO(turbofan): avoid a truncation with a smi check.
           VisitUnop(node, kTypeUint32 | kRepFloat64, kTypeUint32 | kRepWord32);
-          if (lower())
-            node->set_op(lowering->machine()->TruncateFloat64ToInt32());
+          if (lower()) {
+            node->set_op(lowering->machine()->TruncateFloat64ToInt32(
+                TruncationMode::kJavaScript));
+          }
         }
         break;
       }
@@ -993,6 +1012,9 @@ class RepresentationSelector {
       case IrOpcode::kTruncateFloat64ToFloat32:
         return VisitUnop(node, kTypeNumber | kRepFloat64,
                          kTypeNumber | kRepFloat32);
+      case IrOpcode::kTruncateFloat64ToInt32:
+        return VisitUnop(node, kTypeNumber | kRepFloat64,
+                         kTypeInt32 | kRepWord32);
       case IrOpcode::kTruncateInt64ToInt32:
         // TODO(titzer): Is kTypeInt32 correct here?
         return VisitUnop(node, kTypeInt32 | kRepWord64,
@@ -1116,6 +1138,14 @@ Node* SimplifiedLowering::IsTagged(Node* node) {
   return graph()->NewNode(machine()->WordAnd(), node,
                           jsgraph()->Int32Constant(kSmiTagMask));
 }
+
+
+SimplifiedLowering::SimplifiedLowering(JSGraph* jsgraph, Zone* zone,
+                                       SourcePositionTable* source_positions)
+    : jsgraph_(jsgraph),
+      zone_(zone),
+      zero_thirtyone_range_(Type::Range(0, 31, zone)),
+      source_positions_(source_positions) {}
 
 
 void SimplifiedLowering::LowerAllNodes() {
@@ -1573,6 +1603,17 @@ Node* SimplifiedLowering::Uint32Mod(Node* const node) {
 
   Node* merge0 = graph()->NewNode(merge_op, if_true0, if_false0);
   return graph()->NewNode(phi_op, true0, false0, merge0);
+}
+
+
+void SimplifiedLowering::DoShift(Node* node, Operator const* op) {
+  node->set_op(op);
+  Node* const rhs = NodeProperties::GetValueInput(node, 1);
+  Type* const rhs_type = NodeProperties::GetBounds(rhs).upper;
+  if (!rhs_type->Is(zero_thirtyone_range_)) {
+    node->ReplaceInput(1, graph()->NewNode(machine()->Word32And(), rhs,
+                                           jsgraph()->Int32Constant(0x1f)));
+  }
 }
 
 

@@ -539,6 +539,17 @@ void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
 }
 
 
+void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
+  switch (TruncationModeOf(node->op())) {
+    case TruncationMode::kJavaScript:
+      return VisitRR(this, kArchTruncateDoubleToI, node);
+    case TruncationMode::kRoundToZero:
+      return VisitRR(this, kMips64TruncWD, node);
+  }
+  UNREACHABLE();
+}
+
+
 void InstructionSelector::VisitFloat32Add(Node* node) {
   VisitRRR(this, kMips64AddS, node);
 }
@@ -738,15 +749,11 @@ void InstructionSelector::VisitTailCall(Node* node) {
   DCHECK_EQ(0, descriptor->flags() & CallDescriptor::kNeedsNopAfterCall);
 
   // TODO(turbofan): Relax restriction for stack parameters.
-  if (descriptor->UsesOnlyRegisters() &&
-      descriptor->HasSameReturnLocationsAs(
-          linkage()->GetIncomingDescriptor())) {
+  if (linkage()->GetIncomingDescriptor()->CanTailCall(node)) {
     CallBuffer buffer(zone(), descriptor, nullptr);
 
     // Compute InstructionOperands for inputs and outputs.
     InitializeCallBuffer(node, &buffer, true, false);
-
-    DCHECK_EQ(0u, buffer.pushed_nodes.size());
 
     // Select the appropriate opcode based on the call type.
     InstructionCode opcode;
@@ -1048,6 +1055,9 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
       case IrOpcode::kUint64LessThan:
         cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
         return VisitWord64Compare(selector, value, cont);
+      case IrOpcode::kUint64LessThanOrEqual:
+        cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
+        return VisitWord64Compare(selector, value, cont);
       case IrOpcode::kFloat32Equal:
         cont->OverwriteAndNegateIfEqual(kEqual);
         return VisitFloat32Compare(selector, value, cont);
@@ -1220,6 +1230,12 @@ void InstructionSelector::VisitInt64LessThanOrEqual(Node* node) {
 
 void InstructionSelector::VisitUint64LessThan(Node* node) {
   FlagsContinuation cont(kUnsignedLessThan, node);
+  VisitWord64Compare(this, node, &cont);
+}
+
+
+void InstructionSelector::VisitUint64LessThanOrEqual(Node* node) {
+  FlagsContinuation cont(kUnsignedLessThanOrEqual, node);
   VisitWord64Compare(this, node, &cont);
 }
 
