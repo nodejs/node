@@ -5,6 +5,7 @@
 
 namespace node {
 
+using v8::Array;
 using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
@@ -17,12 +18,14 @@ void DefineBuiltins(Environment* env,
                     node_module* builtins) {
   HandleScope scope(env->isolate());
   struct node_module* mp;
+  int i = 0;
+  Local<Array> bindings = Array::New(env->isolate(), 0);
 
   for (mp = builtins; mp != nullptr; mp = mp->nm_link) {
     Local<String> name = String::NewFromUtf8(env->isolate(), mp->nm_modname);
-    Local<Integer> version = Integer::New(env->isolate(), mp->nm_version);
-    target->Set(name, version);
+    bindings->Set(i++, name);
   }
+  target->Set(String::NewFromUtf8(env->isolate(), "bindings"), bindings);
 }
 
 }  // namespace node
