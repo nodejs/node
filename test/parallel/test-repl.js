@@ -189,7 +189,13 @@ function error_test() {
     { client: client_unix, send: 'url.format("http://google.com")',
       expect: 'http://google.com/' },
     { client: client_unix, send: 'var path = 42; path',
-      expect: '42' }
+      expect: '42' },
+    // making sure that the fixed trim logic works fine
+    { client: client_unix, send: '    \t  .break \t \t  ',
+      expect: prompt_unix },
+    { client: client_unix, send: '.load ' +
+              require('path').join(common.fixturesDir, 'repl-load.js     \t   '),
+      expect: prompt_unix + '\'repl\'\n' + prompt_unix },
   ]);
 }
 
