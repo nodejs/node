@@ -320,11 +320,11 @@ class JSBitwiseShiftTypedLoweringTester : public JSTypedLoweringTester {
       : JSTypedLoweringTester(), language_mode_(language_mode) {
     int i = 0;
     set(i++, javascript.ShiftLeft(language_mode_), true);
-    set(i++, machine.Word32Shl(), false);
+    set(i++, simplified.NumberShiftLeft(), false);
     set(i++, javascript.ShiftRight(language_mode_), true);
-    set(i++, machine.Word32Sar(), false);
+    set(i++, simplified.NumberShiftRight(), false);
     set(i++, javascript.ShiftRightLogical(language_mode_), false);
-    set(i++, machine.Word32Shr(), false);
+    set(i++, simplified.NumberShiftRightLogical(), false);
   }
   static const int kNumberOps = 6;
   const Operator* ops[kNumberOps];
@@ -364,14 +364,7 @@ TEST(Int32BitwiseShifts) {
         Node* r1 = r->InputAt(1);
 
         CheckToI32(p0, r0, R.signedness[k]);
-
-        if (r1->opcode() == IrOpcode::kWord32And) {
-          R.CheckPureBinop(IrOpcode::kWord32And, r1);
-          CheckToI32(p1, r1->InputAt(0), R.signedness[k + 1]);
-          R.CheckInt32Constant(0x1F, r1->InputAt(1));
-        } else {
-          CheckToI32(p1, r1, R.signedness[k]);
-        }
+        CheckToI32(p1, r1, false);
       }
     }
   }

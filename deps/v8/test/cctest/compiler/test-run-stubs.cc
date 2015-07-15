@@ -40,7 +40,7 @@ TEST(RunMathFloorStub) {
   JSGraph js(isolate, &graph, &common, &javascript, &machine);
 
   // FunctionTester (ab)uses a 2-argument function
-  Node* start = graph.NewNode(common.Start(2));
+  Node* start = graph.NewNode(common.Start(4));
   // Parameter 0 is the number to round
   Node* numberParam = graph.NewNode(common.Parameter(1), start);
   Unique<HeapObject> u = Unique<HeapObject>::CreateImmovable(code);
@@ -76,7 +76,7 @@ TEST(RunStringLengthTFStub) {
   Graph graph(zone);
   CommonOperatorBuilder common(zone);
   // FunctionTester (ab)uses a 4-argument function
-  Node* start = graph.NewNode(common.Start(4));
+  Node* start = graph.NewNode(common.Start(6));
   // Parameter 0 is the receiver
   Node* receiverParam = graph.NewNode(common.Parameter(1), start);
   Node* nameParam = graph.NewNode(common.Parameter(2), start);
@@ -122,7 +122,7 @@ TEST(RunStringAddTFStub) {
   Graph graph(zone);
   CommonOperatorBuilder common(zone);
   // FunctionTester (ab)uses a 2-argument function
-  Node* start = graph.NewNode(common.Start(2));
+  Node* start = graph.NewNode(common.Start(4));
   // Parameter 0 is the receiver
   Node* leftParam = graph.NewNode(common.Parameter(1), start);
   Node* rightParam = graph.NewNode(common.Parameter(2), start);

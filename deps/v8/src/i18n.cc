@@ -738,7 +738,7 @@ icu::SimpleDateFormat* DateFormat::UnpackDateFormat(
 template<class T>
 void DeleteNativeObjectAt(const v8::WeakCallbackData<v8::Value, void>& data,
                           int index) {
-  v8::Local<v8::Object> obj = v8::Handle<v8::Object>::Cast(data.GetValue());
+  v8::Local<v8::Object> obj = v8::Local<v8::Object>::Cast(data.GetValue());
   delete reinterpret_cast<T*>(obj->GetAlignedPointerFromInternalField(index));
 }
 

@@ -22,6 +22,7 @@ struct X87LinkageHelperTraits {
   static RegList CCalleeSaveRegisters() {
     return esi.bit() | edi.bit() | ebx.bit();
   }
+  static RegList CCalleeSaveFPRegisters() { return 0; }
   static Register CRegisterParameter(int i) { return no_reg; }
   static int CRegisterParametersLength() { return 0; }
   static int CStackBackingStoreLength() { return 0; }

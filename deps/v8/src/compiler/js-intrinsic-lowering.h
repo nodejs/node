@@ -15,6 +15,7 @@ namespace compiler {
 
 // Forward declarations.
 class CommonOperatorBuilder;
+class JSOperatorBuilder;
 class JSGraph;
 class MachineOperatorBuilder;
 
@@ -52,19 +53,24 @@ class JSIntrinsicLowering final : public AdvancedReducer {
   Reduction ReduceStringGetLength(Node* node);
   Reduction ReduceUnLikely(Node* node, BranchHint hint);
   Reduction ReduceValueOf(Node* node);
+  Reduction ReduceFixedArrayGet(Node* node);
   Reduction ReduceFixedArraySet(Node* node);
   Reduction ReduceGetTypeFeedbackVector(Node* node);
   Reduction ReduceGetCallerJSFunction(Node* node);
   Reduction ReduceThrowNotDateError(Node* node);
+  Reduction ReduceCallFunction(Node* node);
 
   Reduction Change(Node* node, const Operator* op);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b, Node* c);
+  Reduction Change(Node* node, const Operator* op, Node* a, Node* b, Node* c,
+                   Node* d);
   Reduction ChangeToUndefined(Node* node, Node* effect = nullptr);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   CommonOperatorBuilder* common() const;
+  JSOperatorBuilder* javascript() const;
   MachineOperatorBuilder* machine() const;
   DeoptimizationMode mode() const { return mode_; }
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }

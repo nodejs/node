@@ -414,9 +414,11 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
     PatchCodeForDeoptimization(isolate, codes[i]);
 
     // We might be in the middle of incremental marking with compaction.
-    // Ignore all slots that might have been recorded on the deoptimized code
-    // object.
-    isolate->heap()->mark_compact_collector()->RemoveObjectSlots(codes[i]);
+    // Ignore all slots that might have been recorded in the body of the
+    // deoptimized code object.
+    Code* code = codes[i];
+    isolate->heap()->mark_compact_collector()->RemoveObjectSlots(
+        code->instruction_start(), code->address() + code->Size());
   }
 }
 
@@ -450,28 +452,6 @@ void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
     Context* native_context = Context::cast(context);
     DeoptimizeMarkedCodeForContext(native_context);
     context = native_context->get(Context::NEXT_CONTEXT_LINK);
-  }
-}
-
-
-void Deoptimizer::DeoptimizeGlobalObject(JSObject* object) {
-  if (FLAG_trace_deopt) {
-    CodeTracer::Scope scope(object->GetHeap()->isolate()->GetCodeTracer());
-    PrintF(scope.file(), "[deoptimize global object @ 0x%08" V8PRIxPTR "]\n",
-        reinterpret_cast<intptr_t>(object));
-  }
-  if (object->IsJSGlobalProxy()) {
-    PrototypeIterator iter(object->GetIsolate(), object);
-    // TODO(verwaest): This CHECK will be hit if the global proxy is detached.
-    CHECK(iter.GetCurrent()->IsJSGlobalObject());
-    Context* native_context =
-        GlobalObject::cast(iter.GetCurrent())->native_context();
-    MarkAllCodeForContext(native_context);
-    DeoptimizeMarkedCodeForContext(native_context);
-  } else if (object->IsGlobalObject()) {
-    Context* native_context = GlobalObject::cast(object)->native_context();
-    MarkAllCodeForContext(native_context);
-    DeoptimizeMarkedCodeForContext(native_context);
   }
 }
 

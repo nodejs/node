@@ -23,7 +23,7 @@ SimplifiedGraphBuilder::SimplifiedGraphBuilder(
 
 void SimplifiedGraphBuilder::Begin(int num_parameters) {
   DCHECK(graph()->start() == NULL);
-  Node* start = graph()->NewNode(common()->Start(num_parameters));
+  Node* start = graph()->NewNode(common()->Start(num_parameters + 3));
   graph()->SetStart(start);
   effect_ = start;
 }

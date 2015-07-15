@@ -33,10 +33,20 @@
 #if V8_TARGET_ARCH_IA32 || (V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_32_BIT) || \
     V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||     \
     V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_X87
+
 #define V8_TURBOFAN_BACKEND 1
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS64 || \
+    V8_TARGET_ARCH_PPC64
+// 64-bit TurboFan backends support 64-bit integer arithmetic.
+#define V8_TURBOFAN_BACKEND_64 1
+#else
+#define V8_TURBOFAN_BACKEND_64 0
+#endif
+
 #else
 #define V8_TURBOFAN_BACKEND 0
 #endif
+
 #if V8_TURBOFAN_BACKEND
 #define V8_TURBOFAN_TARGET 1
 #else
@@ -839,6 +849,40 @@ inline bool IsLexicalVariableMode(VariableMode mode) {
 inline bool IsImmutableVariableMode(VariableMode mode) {
   return mode == CONST || mode == CONST_LEGACY || mode == IMPORT;
 }
+
+
+enum class VariableLocation {
+  // Before and during variable allocation, a variable whose location is
+  // not yet determined.  After allocation, a variable looked up as a
+  // property on the global object (and possibly absent).  name() is the
+  // variable name, index() is invalid.
+  UNALLOCATED,
+
+  // A slot in the parameter section on the stack.  index() is the
+  // parameter index, counting left-to-right.  The receiver is index -1;
+  // the first parameter is index 0.
+  PARAMETER,
+
+  // A slot in the local section on the stack.  index() is the variable
+  // index in the stack frame, starting at 0.
+  LOCAL,
+
+  // An indexed slot in a heap context.  index() is the variable index in
+  // the context object on the heap, starting at 0.  scope() is the
+  // corresponding scope.
+  CONTEXT,
+
+  // An indexed slot in a script context that contains a respective global
+  // property cell.  name() is the variable name, index() is the variable
+  // index in the context object on the heap, starting at 0.  scope() is the
+  // corresponding script scope.
+  GLOBAL,
+
+  // A named slot in a heap context.  name() is the variable name in the
+  // context object on the heap, with lookup starting at the current
+  // context.  index() is invalid.
+  LOOKUP
+};
 
 
 // ES6 Draft Rev3 10.2 specifies declarative environment records with mutable

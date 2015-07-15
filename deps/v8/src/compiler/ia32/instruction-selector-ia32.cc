@@ -127,15 +127,14 @@ class IA32OperandGenerator final : public OperandGenerator {
 
 namespace {
 
-void VisitROFloat(InstructionSelector* selector, Node* node,
-                  ArchOpcode opcode) {
+void VisitRO(InstructionSelector* selector, Node* node, ArchOpcode opcode) {
   IA32OperandGenerator g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
 }
 
 
-void VisitRRFloat(InstructionSelector* selector, Node* node,
-                  InstructionCode opcode) {
+void VisitRR(InstructionSelector* selector, Node* node,
+             InstructionCode opcode) {
   IA32OperandGenerator g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)));
@@ -648,38 +647,43 @@ void InstructionSelector::VisitUint32Mod(Node* node) {
 
 
 void InstructionSelector::VisitChangeFloat32ToFloat64(Node* node) {
-  IA32OperandGenerator g(this);
-  Emit(kSSEFloat32ToFloat64, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+  VisitRO(this, node, kSSEFloat32ToFloat64);
 }
 
 
 void InstructionSelector::VisitChangeInt32ToFloat64(Node* node) {
-  IA32OperandGenerator g(this);
-  Emit(kSSEInt32ToFloat64, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+  VisitRO(this, node, kSSEInt32ToFloat64);
 }
 
 
 void InstructionSelector::VisitChangeUint32ToFloat64(Node* node) {
-  IA32OperandGenerator g(this);
-  Emit(kSSEUint32ToFloat64, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+  VisitRO(this, node, kSSEUint32ToFloat64);
 }
 
 
 void InstructionSelector::VisitChangeFloat64ToInt32(Node* node) {
-  IA32OperandGenerator g(this);
-  Emit(kSSEFloat64ToInt32, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+  VisitRO(this, node, kSSEFloat64ToInt32);
 }
 
 
 void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
-  IA32OperandGenerator g(this);
-  Emit(kSSEFloat64ToUint32, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+  VisitRO(this, node, kSSEFloat64ToUint32);
 }
 
 
 void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
-  IA32OperandGenerator g(this);
-  Emit(kSSEFloat64ToFloat32, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+  VisitRO(this, node, kSSEFloat64ToFloat32);
+}
+
+
+void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
+  switch (TruncationModeOf(node->op())) {
+    case TruncationMode::kJavaScript:
+      return VisitRR(this, node, kArchTruncateDoubleToI);
+    case TruncationMode::kRoundToZero:
+      return VisitRO(this, node, kSSEFloat64ToInt32);
+  }
+  UNREACHABLE();
 }
 
 
@@ -791,22 +795,22 @@ void InstructionSelector::VisitFloat64Abs(Node* node) {
 
 
 void InstructionSelector::VisitFloat32Sqrt(Node* node) {
-  VisitROFloat(this, node, kSSEFloat32Sqrt);
+  VisitRO(this, node, kSSEFloat32Sqrt);
 }
 
 
 void InstructionSelector::VisitFloat64Sqrt(Node* node) {
-  VisitROFloat(this, node, kSSEFloat64Sqrt);
+  VisitRO(this, node, kSSEFloat64Sqrt);
 }
 
 
 void InstructionSelector::VisitFloat64RoundDown(Node* node) {
-  VisitRRFloat(this, node, kSSEFloat64Round | MiscField::encode(kRoundDown));
+  VisitRR(this, node, kSSEFloat64Round | MiscField::encode(kRoundDown));
 }
 
 
 void InstructionSelector::VisitFloat64RoundTruncate(Node* node) {
-  VisitRRFloat(this, node, kSSEFloat64Round | MiscField::encode(kRoundToZero));
+  VisitRR(this, node, kSSEFloat64Round | MiscField::encode(kRoundToZero));
 }
 
 
@@ -906,15 +910,12 @@ void InstructionSelector::VisitTailCall(Node* node) {
   DCHECK_EQ(0, descriptor->flags() & CallDescriptor::kNeedsNopAfterCall);
 
   // TODO(turbofan): Relax restriction for stack parameters.
-  if (descriptor->UsesOnlyRegisters() &&
-      descriptor->HasSameReturnLocationsAs(
-          linkage()->GetIncomingDescriptor())) {
+
+  if (linkage()->GetIncomingDescriptor()->CanTailCall(node)) {
     CallBuffer buffer(zone(), descriptor, nullptr);
 
     // Compute InstructionOperands for inputs and outputs.
     InitializeCallBuffer(node, &buffer, true, true);
-
-    DCHECK_EQ(0u, buffer.pushed_nodes.size());
 
     // Select the appropriate opcode based on the call type.
     InstructionCode opcode;

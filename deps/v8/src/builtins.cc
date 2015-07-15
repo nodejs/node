@@ -1089,7 +1089,7 @@ MUST_USE_RESULT static MaybeHandle<Object> HandleApiCallHelper(
                                      args.length() - 1,
                                      is_construct);
 
-    v8::Handle<v8::Value> value = custom.Call(callback);
+    v8::Local<v8::Value> value = custom.Call(callback);
     Handle<Object> result;
     if (value.IsEmpty()) {
       result = isolate->factory()->undefined_value();
@@ -1226,7 +1226,7 @@ MUST_USE_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
                                      &args[0] - 1,
                                      args.length() - 1,
                                      is_construct_call);
-    v8::Handle<v8::Value> value = custom.Call(callback);
+    v8::Local<v8::Value> value = custom.Call(callback);
     if (value.IsEmpty()) {
       result = heap->undefined_value();
     } else {
@@ -1371,31 +1371,6 @@ static void Generate_KeyedStoreIC_PreMonomorphic_Strict(MacroAssembler* masm) {
 
 static void Generate_CallICStub_DebugBreak(MacroAssembler* masm) {
   DebugCodegen::GenerateCallICStubDebugBreak(masm);
-}
-
-
-static void Generate_LoadIC_DebugBreak(MacroAssembler* masm) {
-  DebugCodegen::GenerateLoadICDebugBreak(masm);
-}
-
-
-static void Generate_StoreIC_DebugBreak(MacroAssembler* masm) {
-  DebugCodegen::GenerateStoreICDebugBreak(masm);
-}
-
-
-static void Generate_KeyedLoadIC_DebugBreak(MacroAssembler* masm) {
-  DebugCodegen::GenerateKeyedLoadICDebugBreak(masm);
-}
-
-
-static void Generate_KeyedStoreIC_DebugBreak(MacroAssembler* masm) {
-  DebugCodegen::GenerateKeyedStoreICDebugBreak(masm);
-}
-
-
-static void Generate_CompareNilIC_DebugBreak(MacroAssembler* masm) {
-  DebugCodegen::GenerateCompareNilICDebugBreak(masm);
 }
 
 

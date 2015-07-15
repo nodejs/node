@@ -163,8 +163,6 @@
         'test-weakmaps.cc',
         'test-weaksets.cc',
         'trace-extension.cc',
-        '../unittests/compiler/raw-machine-assembler.cc',
-        '../unittests/compiler/raw-machine-assembler.h',
         '../../src/startup-data-util.h',
         '../../src/startup-data-util.cc'
       ],

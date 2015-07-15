@@ -25,9 +25,9 @@ class ContextSpecializationTester : public HandleAndZoneScope {
         simplified_(main_zone()),
         jsgraph_(main_isolate(), graph(), common(), &javascript_, &machine_),
         reducer_(main_zone(), graph()),
-        spec_(&reducer_, jsgraph()) {}
+        spec_(&reducer_, jsgraph(), MaybeHandle<Context>()) {}
 
-  JSContextSpecializer* spec() { return &spec_; }
+  JSContextSpecialization* spec() { return &spec_; }
   Factory* factory() { return main_isolate()->factory(); }
   CommonOperatorBuilder* common() { return &common_; }
   JSOperatorBuilder* javascript() { return &javascript_; }
@@ -43,7 +43,7 @@ class ContextSpecializationTester : public HandleAndZoneScope {
   SimplifiedOperatorBuilder simplified_;
   JSGraph jsgraph_;
   GraphReducer reducer_;
-  JSContextSpecializer spec_;
+  JSContextSpecialization spec_;
 };
 
 
@@ -71,7 +71,7 @@ TEST(ReduceJSLoadContext) {
     // Mutable slot, constant context, depth = 0 => do nothing.
     Node* load = t.graph()->NewNode(t.javascript()->LoadContext(0, 0, false),
                                     const_context, const_context, start);
-    Reduction r = t.spec()->ReduceJSLoadContext(load);
+    Reduction r = t.spec()->Reduce(load);
     CHECK(!r.Changed());
   }
 
@@ -79,7 +79,7 @@ TEST(ReduceJSLoadContext) {
     // Mutable slot, non-constant context, depth = 0 => do nothing.
     Node* load = t.graph()->NewNode(t.javascript()->LoadContext(0, 0, false),
                                     param_context, param_context, start);
-    Reduction r = t.spec()->ReduceJSLoadContext(load);
+    Reduction r = t.spec()->Reduce(load);
     CHECK(!r.Changed());
   }
 
@@ -88,7 +88,7 @@ TEST(ReduceJSLoadContext) {
     Node* load = t.graph()->NewNode(
         t.javascript()->LoadContext(2, Context::GLOBAL_EVAL_FUN_INDEX, false),
         deep_const_context, deep_const_context, start);
-    Reduction r = t.spec()->ReduceJSLoadContext(load);
+    Reduction r = t.spec()->Reduce(load);
     CHECK(r.Changed());
     Node* new_context_input = NodeProperties::GetValueInput(r.replacement(), 0);
     CHECK_EQ(IrOpcode::kHeapConstant, new_context_input->opcode());
@@ -104,7 +104,7 @@ TEST(ReduceJSLoadContext) {
     // Immutable slot, constant context, depth = 0 => specialize.
     Node* load = t.graph()->NewNode(t.javascript()->LoadContext(0, slot, true),
                                     const_context, const_context, start);
-    Reduction r = t.spec()->ReduceJSLoadContext(load);
+    Reduction r = t.spec()->Reduce(load);
     CHECK(r.Changed());
     CHECK(r.replacement() != load);
 
@@ -142,7 +142,7 @@ TEST(ReduceJSStoreContext) {
     // Mutable slot, constant context, depth = 0 => do nothing.
     Node* load = t.graph()->NewNode(t.javascript()->StoreContext(0, 0),
                                     const_context, const_context, start);
-    Reduction r = t.spec()->ReduceJSStoreContext(load);
+    Reduction r = t.spec()->Reduce(load);
     CHECK(!r.Changed());
   }
 
@@ -150,7 +150,7 @@ TEST(ReduceJSStoreContext) {
     // Mutable slot, non-constant context, depth = 0 => do nothing.
     Node* load = t.graph()->NewNode(t.javascript()->StoreContext(0, 0),
                                     param_context, param_context, start);
-    Reduction r = t.spec()->ReduceJSStoreContext(load);
+    Reduction r = t.spec()->Reduce(load);
     CHECK(!r.Changed());
   }
 
@@ -158,7 +158,7 @@ TEST(ReduceJSStoreContext) {
     // Immutable slot, constant context, depth = 0 => do nothing.
     Node* load = t.graph()->NewNode(t.javascript()->StoreContext(0, slot),
                                     const_context, const_context, start);
-    Reduction r = t.spec()->ReduceJSStoreContext(load);
+    Reduction r = t.spec()->Reduce(load);
     CHECK(!r.Changed());
   }
 
@@ -167,7 +167,7 @@ TEST(ReduceJSStoreContext) {
     Node* load = t.graph()->NewNode(
         t.javascript()->StoreContext(2, Context::GLOBAL_EVAL_FUN_INDEX),
         deep_const_context, deep_const_context, start);
-    Reduction r = t.spec()->ReduceJSStoreContext(load);
+    Reduction r = t.spec()->Reduce(load);
     CHECK(r.Changed());
     Node* new_context_input = NodeProperties::GetValueInput(r.replacement(), 0);
     CHECK_EQ(IrOpcode::kHeapConstant, new_context_input->opcode());
@@ -235,7 +235,8 @@ TEST(SpecializeToContext) {
 
     // Perform the reduction on the entire graph.
     GraphReducer graph_reducer(t.main_zone(), t.graph());
-    JSContextSpecializer spec(&graph_reducer, t.jsgraph());
+    JSContextSpecialization spec(&graph_reducer, t.jsgraph(),
+                                 MaybeHandle<Context>());
     graph_reducer.AddReducer(&spec);
     graph_reducer.ReduceGraph();
 

@@ -583,12 +583,22 @@ class AndroidPlatform(Platform):  # pragma: no cover
       bench_rel = "."
       bench_abs = suite_dir
 
-    self._PushFile(self.shell_dir, node.binary)
+    self._PushFile(self.shell_dir, node.binary, "bin")
 
     # Push external startup data. Backwards compatible for revisions where
     # these files didn't exist.
-    self._PushFile(self.shell_dir, "natives_blob.bin", skip_if_missing=True)
-    self._PushFile(self.shell_dir, "snapshot_blob.bin", skip_if_missing=True)
+    self._PushFile(
+        self.shell_dir,
+        "natives_blob.bin",
+        "bin",
+        skip_if_missing=True,
+    )
+    self._PushFile(
+        self.shell_dir,
+        "snapshot_blob.bin",
+        "bin",
+        skip_if_missing=True,
+    )
 
     if isinstance(node, Runnable):
       self._PushFile(bench_abs, node.main, bench_rel)
@@ -598,7 +608,8 @@ class AndroidPlatform(Platform):  # pragma: no cover
   def Run(self, runnable, count):
     cache = cache_control.CacheControl(self.device)
     cache.DropRamCaches()
-    binary_on_device = AndroidPlatform.DEVICE_DIR + runnable.binary
+    binary_on_device = os.path.join(
+        AndroidPlatform.DEVICE_DIR, "bin", runnable.binary)
     cmd = [binary_on_device] + runnable.GetCommandFlags(self.extra_flags)
 
     # Relative path to benchmark directory.

@@ -509,7 +509,7 @@ SHR_STRONG = function SHR_STRONG(y) {
 
 // ECMA-262, section 11.4.1, page 46.
 DELETE = function DELETE(key, language_mode) {
-  return %DeleteProperty(%$toObject(this), %$toName(key), language_mode);
+  return %DeleteProperty(%$toObject(this), key, language_mode);
 }
 
 

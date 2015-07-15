@@ -1660,7 +1660,7 @@ class VariableProxy final : public Expression {
   void BindTo(Variable* var);
 
   bool UsesVariableFeedbackSlot() const {
-    return var()->IsUnallocated() || var()->IsLookupSlot();
+    return var()->IsUnallocatedOrGlobalSlot() || var()->IsLookupSlot();
   }
 
   virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
@@ -1853,7 +1853,7 @@ class Call final : public Expression {
 
   bool global_call() const {
     VariableProxy* proxy = expression_->AsVariableProxy();
-    return proxy != NULL && proxy->var()->IsUnallocated();
+    return proxy != NULL && proxy->var()->IsUnallocatedOrGlobalSlot();
   }
 
   bool known_global_function() const {

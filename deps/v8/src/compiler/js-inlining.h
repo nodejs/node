@@ -38,7 +38,8 @@ class JSInliner final : public AdvancedReducer {
                                          Handle<SharedFunctionInfo> shared_info,
                                          Zone* temp_zone);
 
-  Reduction InlineCall(Node* call, Node* frame_state, Node* start, Node* end);
+  Reduction InlineCall(Node* call, Node* context, Node* frame_state,
+                       Node* start, Node* end);
 };
 
 }  // namespace compiler

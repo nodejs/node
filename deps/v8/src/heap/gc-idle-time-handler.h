@@ -27,7 +27,6 @@ class GCIdleTimeAction {
     result.type = DONE;
     result.parameter = 0;
     result.additional_work = false;
-    result.reduce_memory = false;
     return result;
   }
 
@@ -36,17 +35,14 @@ class GCIdleTimeAction {
     result.type = DO_NOTHING;
     result.parameter = 0;
     result.additional_work = false;
-    result.reduce_memory = false;
     return result;
   }
 
-  static GCIdleTimeAction IncrementalMarking(intptr_t step_size,
-                                             bool reduce_memory) {
+  static GCIdleTimeAction IncrementalMarking(intptr_t step_size) {
     GCIdleTimeAction result;
     result.type = DO_INCREMENTAL_MARKING;
     result.parameter = step_size;
     result.additional_work = false;
-    result.reduce_memory = reduce_memory;
     return result;
   }
 
@@ -55,18 +51,14 @@ class GCIdleTimeAction {
     result.type = DO_SCAVENGE;
     result.parameter = 0;
     result.additional_work = false;
-    // TODO(ulan): add reduce_memory argument and shrink new space size if
-    // reduce_memory = true.
-    result.reduce_memory = false;
     return result;
   }
 
-  static GCIdleTimeAction FullGC(bool reduce_memory) {
+  static GCIdleTimeAction FullGC() {
     GCIdleTimeAction result;
     result.type = DO_FULL_GC;
     result.parameter = 0;
     result.additional_work = false;
-    result.reduce_memory = reduce_memory;
     return result;
   }
 
@@ -75,7 +67,6 @@ class GCIdleTimeAction {
     result.type = DO_FINALIZE_SWEEPING;
     result.parameter = 0;
     result.additional_work = false;
-    result.reduce_memory = false;
     return result;
   }
 
@@ -84,7 +75,6 @@ class GCIdleTimeAction {
   GCIdleTimeActionType type;
   intptr_t parameter;
   bool additional_work;
-  bool reduce_memory;
 };
 
 
@@ -128,6 +118,8 @@ class GCIdleTimeHandler {
   // The maximum idle time when frames are rendered is 16.66ms.
   static const size_t kMaxFrameRenderingIdleTime = 17;
 
+  static const int kMinBackgroundIdleTime = 900;
+
   // We conservatively assume that in the next kTimeUntilNextIdleEvent ms
   // no idle notification happens.
   static const size_t kTimeUntilNextIdleEvent = 100;
@@ -147,28 +139,10 @@ class GCIdleTimeHandler {
 
   static const size_t kMinTimeForOverApproximatingWeakClosureInMs;
 
-  // The number of idle MarkCompact GCs to perform before transitioning to
-  // the kDone mode.
-  static const int kMaxIdleMarkCompacts = 3;
-
-  // The number of mutator MarkCompact GCs before transitioning to the
-  // kReduceLatency mode.
-  static const int kMarkCompactsBeforeMutatorIsActive = 1;
-
-  // Mutator is considered idle if
-  // 1) there are N idle notification with time >= kMinBackgroundIdleTime,
-  // 2) or there are M idle notifications with time >= kMinLongIdleTime
-  // without any mutator GC in between.
-  // Where N = kBackgroundIdleNotificationsBeforeMutatorIsIdle,
-  //       M = kLongIdleNotificationsBeforeMutatorIsIdle
-  static const int kMinLongIdleTime = kMaxFrameRenderingIdleTime + 1;
-  static const int kMinBackgroundIdleTime = 900;
-  static const int kBackgroundIdleNotificationsBeforeMutatorIsIdle = 2;
-  static const int kLongIdleNotificationsBeforeMutatorIsIdle = 50;
   // Number of times we will return a Nothing action in the current mode
   // despite having idle time available before we returning a Done action to
   // ensure we don't keep scheduling idle tasks and making no progress.
-  static const int kMaxNoProgressIdleTimesPerMode = 10;
+  static const int kMaxNoProgressIdleTimes = 10;
 
   class HeapState {
    public:
@@ -178,7 +152,6 @@ class GCIdleTimeHandler {
     double contexts_disposal_rate;
     size_t size_of_objects;
     bool incremental_marking_stopped;
-    bool can_start_incremental_marking;
     bool sweeping_in_progress;
     bool sweeping_completed;
     bool has_low_allocation_rate;
@@ -191,26 +164,11 @@ class GCIdleTimeHandler {
     size_t new_space_allocation_throughput_in_bytes_per_ms;
   };
 
-  GCIdleTimeHandler()
-      : idle_mark_compacts_(0),
-        mark_compacts_(0),
-        scavenges_(0),
-        long_idle_notifications_(0),
-        background_idle_notifications_(0),
-        idle_times_which_made_no_progress_per_mode_(0),
-        next_gc_likely_to_collect_more_(false),
-        mode_(kReduceLatency) {}
+  GCIdleTimeHandler() : idle_times_which_made_no_progress_(0) {}
 
   GCIdleTimeAction Compute(double idle_time_in_ms, HeapState heap_state);
 
-  void NotifyIdleMarkCompact() { ++idle_mark_compacts_; }
-
-  void NotifyMarkCompact(bool next_gc_likely_to_collect_more) {
-    next_gc_likely_to_collect_more_ = next_gc_likely_to_collect_more;
-    ++mark_compacts_;
-  }
-
-  void NotifyScavenge() { ++scavenges_; }
+  void ResetNoProgressCounter() { idle_times_which_made_no_progress_ = 0; }
 
   static size_t EstimateMarkingStepSize(size_t idle_time_in_ms,
                                         size_t marking_speed_in_bytes_per_ms);
@@ -239,36 +197,11 @@ class GCIdleTimeHandler {
       size_t scavenger_speed_in_bytes_per_ms,
       size_t new_space_allocation_throughput_in_bytes_per_ms);
 
-  enum Mode { kReduceLatency, kReduceMemory, kDone };
-
-  Mode mode() { return mode_; }
-
  private:
-  bool IsMutatorActive(int contexts_disposed, int gcs);
-  bool IsMutatorIdle(int long_idle_notifications,
-                     int background_idle_notifications, int gcs);
-  void UpdateCounters(double idle_time_in_ms);
-  void ResetCounters();
-  Mode NextMode(const HeapState& heap_state);
-  GCIdleTimeAction Action(double idle_time_in_ms, const HeapState& heap_state,
-                          bool reduce_memory);
   GCIdleTimeAction NothingOrDone();
 
-  int idle_mark_compacts_;
-  int mark_compacts_;
-  int scavenges_;
-  // The number of long idle notifications with no GC happening
-  // between the notifications.
-  int long_idle_notifications_;
-  // The number of background idle notifications with no GC happening
-  // between the notifications.
-  int background_idle_notifications_;
-  // Idle notifications with no progress in the current mode.
-  int idle_times_which_made_no_progress_per_mode_;
-
-  bool next_gc_likely_to_collect_more_;
-
-  Mode mode_;
+  // Idle notifications with no progress.
+  int idle_times_which_made_no_progress_;
 
   DISALLOW_COPY_AND_ASSIGN(GCIdleTimeHandler);
 };

@@ -405,7 +405,7 @@ test(function() {
 test(function() {
   "use strict";
   Object.defineProperty([], "length", { value: 1E100 });
-}, "defineProperty() array length out of range", RangeError);
+}, "Invalid array length", RangeError);
 
 // kInvalidArrayBufferLength
 test(function() {

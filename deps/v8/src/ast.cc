@@ -54,7 +54,7 @@ bool Expression::IsUndefinedLiteral(Isolate* isolate) const {
   Variable* var = var_proxy->var();
   // The global identifier "undefined" is immutable. Everything
   // else could be reassigned.
-  return var != NULL && var->location() == Variable::UNALLOCATED &&
+  return var != NULL && var->IsUnallocatedOrGlobalSlot() &&
          var_proxy->raw_name()->IsOneByteEqualTo("undefined");
 }
 
@@ -95,7 +95,7 @@ void VariableProxy::BindTo(Variable* var) {
 void VariableProxy::SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
                                            ICSlotCache* cache) {
   variable_feedback_slot_ = slot;
-  if (var()->IsUnallocated()) {
+  if (var()->IsUnallocatedOrGlobalSlot()) {
     cache->Add(VariableICSlotPair(var(), slot));
   }
 }
@@ -106,7 +106,7 @@ FeedbackVectorRequirements VariableProxy::ComputeFeedbackRequirements(
   if (UsesVariableFeedbackSlot()) {
     // VariableProxies that point to the same Variable within a function can
     // make their loads from the same IC slot.
-    if (var()->IsUnallocated()) {
+    if (var()->IsUnallocatedOrGlobalSlot()) {
       for (int i = 0; i < cache->length(); i++) {
         VariableICSlotPair& pair = cache->at(i);
         if (pair.variable() == var()) {
@@ -127,7 +127,7 @@ static int GetStoreICSlots(Expression* expr) {
     Property* property = expr->AsProperty();
     LhsKind assign_type = Property::GetAssignType(property);
     if ((assign_type == VARIABLE &&
-         expr->AsVariableProxy()->var()->IsUnallocated()) ||
+         expr->AsVariableProxy()->var()->IsUnallocatedOrGlobalSlot()) ||
         assign_type == NAMED_PROPERTY || assign_type == KEYED_PROPERTY) {
       ic_slots++;
     }
@@ -289,7 +289,8 @@ FeedbackVectorRequirements ClassLiteral::ComputeFeedbackRequirements(
     if (FunctionLiteral::NeedsHomeObject(value)) ic_slots++;
   }
 
-  if (scope() != NULL && class_variable_proxy()->var()->IsUnallocated()) {
+  if (scope() != NULL &&
+      class_variable_proxy()->var()->IsUnallocatedOrGlobalSlot()) {
     ic_slots++;
   }
 
@@ -752,7 +753,7 @@ Call::CallType Call::GetCallType(Isolate* isolate) const {
   if (proxy != NULL) {
     if (proxy->var()->is_possibly_eval(isolate)) {
       return POSSIBLY_EVAL_CALL;
-    } else if (proxy->var()->IsUnallocated()) {
+    } else if (proxy->var()->IsUnallocatedOrGlobalSlot()) {
       return GLOBAL_CALL;
     } else if (proxy->var()->IsLookupSlot()) {
       return LOOKUP_SLOT_CALL;

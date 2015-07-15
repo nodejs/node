@@ -1436,7 +1436,8 @@ enum ParserFlag {
   kAllowHarmonyDestructuring,
   kAllowHarmonySpreadArrays,
   kAllowHarmonyNewTarget,
-  kAllowStrongMode
+  kAllowStrongMode,
+  kNoLegacyConst
 };
 
 
@@ -1468,6 +1469,7 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
       flags.Contains(kAllowHarmonySpreadArrays));
   parser->set_allow_harmony_new_target(flags.Contains(kAllowHarmonyNewTarget));
   parser->set_allow_strong_mode(flags.Contains(kAllowStrongMode));
+  parser->set_allow_legacy_const(!flags.Contains(kNoLegacyConst));
 }
 
 
@@ -6761,4 +6763,30 @@ TEST(NewTarget) {
                     arraysize(always_flags));
   RunParserSyncTest(bad_context_data, data, kError, NULL, 0, always_flags,
                     arraysize(always_flags));
+}
+
+
+TEST(LegacyConst) {
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {"{", "}"},
+    {NULL, NULL}
+  };
+
+  const char* data[] = {
+    "const x",
+    "const x = 1",
+    "for (const x = 1; x < 1; x++) {}",
+    "for (const x in {}) {}",
+    "for (const x of []) {}",
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag always_flags[] = {kNoLegacyConst};
+
+  RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
+  RunParserSyncTest(context_data, data, kSuccess);
 }

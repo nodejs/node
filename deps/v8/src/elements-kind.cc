@@ -44,7 +44,8 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
     case FAST_HOLEY_SMI_ELEMENTS:
     case FAST_HOLEY_ELEMENTS:
     case DICTIONARY_ELEMENTS:
-    case SLOPPY_ARGUMENTS_ELEMENTS:
+    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
+    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
       return kPointerSizeLog2;
   }
   UNREACHABLE();
@@ -131,21 +132,6 @@ ElementsKind GetNextTransitionElementsKind(ElementsKind kind) {
       return GetFastElementsKindFromSequenceIndex(index + 1);
     }
   }
-}
-
-
-ElementsKind GetNextMoreGeneralFastElementsKind(ElementsKind elements_kind,
-                                                bool allow_only_packed) {
-  DCHECK(IsFastElementsKind(elements_kind));
-  DCHECK(elements_kind != TERMINAL_FAST_ELEMENTS_KIND);
-  while (true) {
-    elements_kind = GetNextTransitionElementsKind(elements_kind);
-    if (!IsFastHoleyElementsKind(elements_kind) || !allow_only_packed) {
-      return elements_kind;
-    }
-  }
-  UNREACHABLE();
-  return TERMINAL_FAST_ELEMENTS_KIND;
 }
 
 

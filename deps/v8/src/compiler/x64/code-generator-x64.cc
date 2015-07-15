@@ -538,13 +538,6 @@ void CodeGenerator::AssembleDeconstructActivationRecord() {
   if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
     __ movq(rsp, rbp);
     __ popq(rbp);
-    int32_t bytes_to_pop =
-        descriptor->IsJSFunctionCall()
-            ? static_cast<int32_t>(descriptor->JSParameterCount() *
-                                   kPointerSize)
-            : 0;
-    __ popq(Operand(rsp, bytes_to_pop));
-    __ addq(rsp, Immediate(bytes_to_pop));
   }
 }
 
@@ -1578,11 +1571,17 @@ void CodeGenerator::AssembleReturn() {
       __ popq(rbp);       // Pop caller's frame pointer.
       int pop_count = descriptor->IsJSFunctionCall()
                           ? static_cast<int>(descriptor->JSParameterCount())
-                          : 0;
-      __ Ret(pop_count * kPointerSize, rbx);
+                          : (info()->IsStub()
+                                 ? info()->code_stub()->GetStackParameterCount()
+                                 : 0);
+      if (pop_count == 0) {
+        __ Ret();
+      } else {
+        __ Ret(pop_count * kPointerSize, rbx);
+      }
     }
   } else {
-    __ ret(0);
+    __ Ret();
   }
 }
 

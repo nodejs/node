@@ -349,7 +349,7 @@ Handle<Code> PropertyICCompiler::CompileKeyedStorePolymorphic(
     Handle<Map> receiver_map(receiver_maps->at(i));
     Handle<Code> cached_stub;
     Handle<Map> transitioned_map =
-        receiver_map->FindTransitionedMap(receiver_maps);
+        Map::FindTransitionedMap(receiver_map, receiver_maps);
 
     // TODO(mvstanton): The code below is doing pessimistic elements
     // transitions. I would like to stop doing that and rely on Allocation Site

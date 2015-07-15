@@ -105,7 +105,9 @@ void AstTyper::ObserveTypesAtOsrEntry(IterationStatement* stmt) {
 
     ZoneList<Variable*> local_vars(locals, zone());
     ZoneList<Variable*> context_vars(scope->ContextLocalCount(), zone());
-    scope->CollectStackAndContextLocals(&local_vars, &context_vars);
+    ZoneList<Variable*> global_vars(scope->ContextGlobalCount(), zone());
+    scope->CollectStackAndContextLocals(&local_vars, &context_vars,
+                                        &global_vars);
     for (int i = 0; i < locals; i++) {
       PrintObserved(local_vars.at(i),
                     frame->GetExpression(i),

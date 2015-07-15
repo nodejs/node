@@ -192,15 +192,19 @@ PreParser::Statement PreParser::ParseStatementListItem(bool* ok) {
     case Token::CLASS:
       return ParseClassDeclaration(ok);
     case Token::CONST:
-      return ParseVariableStatement(kStatementListItem, ok);
+      if (allow_const()) {
+        return ParseVariableStatement(kStatementListItem, ok);
+      }
+      break;
     case Token::LET:
       if (is_strict(language_mode())) {
         return ParseVariableStatement(kStatementListItem, ok);
       }
-      // Fall through.
+      break;
     default:
-      return ParseStatement(ok);
+      break;
   }
+  return ParseStatement(ok);
 }
 
 
@@ -392,7 +396,7 @@ PreParser::Statement PreParser::ParseSubStatement(bool* ok) {
       // In ES6 CONST is not allowed as a Statement, only as a
       // LexicalDeclaration, however we continue to allow it in sloppy mode for
       // backwards compatibility.
-      if (is_sloppy(language_mode())) {
+      if (is_sloppy(language_mode()) && allow_legacy_const()) {
         return ParseVariableStatement(kStatement, ok);
       }
 
@@ -508,7 +512,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
       return Statement::Default();
     }
     Consume(Token::VAR);
-  } else if (peek() == Token::CONST) {
+  } else if (peek() == Token::CONST && allow_const()) {
     // TODO(ES6): The ES6 Draft Rev4 section 12.2.2 reads:
     //
     // ConstDeclaration : const ConstBinding (',' ConstBinding)* ';'
@@ -864,7 +868,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
   bool is_let_identifier_expression = false;
   if (peek() != Token::SEMICOLON) {
     ForEachStatement::VisitMode mode;
-    if (peek() == Token::VAR || peek() == Token::CONST ||
+    if (peek() == Token::VAR || (peek() == Token::CONST && allow_const()) ||
         (peek() == Token::LET && is_strict(language_mode()))) {
       int decl_count;
       Scanner::Location first_initializer_loc = Scanner::Location::invalid();

@@ -15,6 +15,7 @@ void Utf8DecoderBase::Reset(uint16_t* buffer, size_t buffer_length,
   // Assume everything will fit in the buffer and stream won't be needed.
   last_byte_of_buffer_unused_ = false;
   unbuffered_start_ = NULL;
+  unbuffered_length_ = 0;
   bool writing_to_buffer = true;
   // Loop until stream is read, writing to buffer as long as buffer has space.
   size_t utf16_length = 0;
@@ -41,6 +42,7 @@ void Utf8DecoderBase::Reset(uint16_t* buffer, size_t buffer_length,
         // Just wrote last character of buffer
         writing_to_buffer = false;
         unbuffered_start_ = stream;
+        unbuffered_length_ = stream_length;
       }
       continue;
     }
@@ -50,19 +52,23 @@ void Utf8DecoderBase::Reset(uint16_t* buffer, size_t buffer_length,
     writing_to_buffer = false;
     last_byte_of_buffer_unused_ = true;
     unbuffered_start_ = stream - cursor;
+    unbuffered_length_ = stream_length + cursor;
   }
   utf16_length_ = utf16_length;
 }
 
 
-void Utf8DecoderBase::WriteUtf16Slow(const uint8_t* stream, uint16_t* data,
+void Utf8DecoderBase::WriteUtf16Slow(const uint8_t* stream,
+                                     size_t stream_length, uint16_t* data,
                                      size_t data_length) {
   while (data_length != 0) {
     size_t cursor = 0;
-    uint32_t character = Utf8::ValueOf(stream, Utf8::kMaxEncodedSize, &cursor);
+    uint32_t character = Utf8::ValueOf(stream, stream_length, &cursor);
     // There's a total lack of bounds checking for stream
     // as it was already done in Reset.
     stream += cursor;
+    DCHECK(stream_length >= cursor);
+    stream_length -= cursor;
     if (character > unibrow::Utf16::kMaxNonSurrogateCharCode) {
       *data++ = Utf16::LeadSurrogate(character);
       *data++ = Utf16::TrailSurrogate(character);

@@ -239,6 +239,7 @@ namespace internal {
   F(Apply, 5, 1)                                            \
   F(GetFunctionDelegate, 1, 1)                              \
   F(GetConstructorDelegate, 1, 1)                           \
+  F(GetOriginalConstructor, 0, 1)                           \
   F(CallFunction, -1 /* receiver + n args + function */, 1) \
   F(IsConstructCall, 0, 1)                                  \
   F(IsFunction, 1, 1)
@@ -430,8 +431,6 @@ namespace internal {
   F(GetOwnProperty, 2, 1)                            \
   F(PreventExtensions, 1, 1)                         \
   F(IsExtensible, 1, 1)                              \
-  F(DisableAccessChecks, 1, 1)                       \
-  F(EnableAccessChecks, 1, 1)                        \
   F(OptimizeObjectForAddingMultipleProperties, 2, 1) \
   F(ObjectFreeze, 1, 1)                              \
   F(ObjectSeal, 1, 1)                                \
@@ -823,6 +822,10 @@ class Runtime : public AllStatic {
   MUST_USE_RESULT static MaybeHandle<Object> GetElementOrCharAt(
       Isolate* isolate, Handle<Object> object, uint32_t index,
       LanguageMode language_mode = SLOPPY);
+
+  MUST_USE_RESULT static MaybeHandle<Object> DeleteObjectProperty(
+      Isolate* isolate, Handle<JSReceiver> receiver, Handle<Object> key,
+      LanguageMode language_mode);
 
   MUST_USE_RESULT static MaybeHandle<Object> SetObjectProperty(
       Isolate* isolate, Handle<Object> object, Handle<Object> key,

@@ -151,11 +151,11 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
         PrintF("]\n");
       }
       function->ReplaceCode(function->shared()->code());
-      // Evict optimized code for this function from the cache so that it
-      // doesn't get used for new closures.
-      function->shared()->EvictFromOptimizedCodeMap(*optimized_code,
-                                                    "notify deoptimized");
     }
+    // Evict optimized code for this function from the cache so that it
+    // doesn't get used for new closures.
+    function->shared()->EvictFromOptimizedCodeMap(*optimized_code,
+                                                  "notify deoptimized");
   } else {
     // TODO(titzer): we should probably do DeoptimizeCodeList(code)
     // unconditionally if the code is not already marked for deoptimization.
@@ -219,11 +219,12 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   BailoutId ast_id = caller_code->TranslatePcOffsetToAstId(pc_offset);
   DCHECK(!ast_id.IsNone());
 
-  Compiler::ConcurrencyMode mode =
-      isolate->concurrent_osr_enabled() &&
-              (function->shared()->ast_node_count() > 512)
-          ? Compiler::CONCURRENT
-          : Compiler::NOT_CONCURRENT;
+  // Disable concurrent OSR for asm.js, to enable frame specialization.
+  Compiler::ConcurrencyMode mode = (isolate->concurrent_osr_enabled() &&
+                                    !function->shared()->asm_function() &&
+                                    function->shared()->ast_node_count() > 512)
+                                       ? Compiler::CONCURRENT
+                                       : Compiler::NOT_CONCURRENT;
   Handle<Code> result = Handle<Code>::null();
 
   OptimizedCompileJob* job = NULL;
@@ -258,8 +259,9 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
       function->PrintName();
       PrintF(" at AST id %d]\n", ast_id.ToInt());
     }
-    MaybeHandle<Code> maybe_result =
-        Compiler::GetOptimizedCode(function, caller_code, mode, ast_id);
+    MaybeHandle<Code> maybe_result = Compiler::GetOptimizedCode(
+        function, caller_code, mode, ast_id,
+        (mode == Compiler::NOT_CONCURRENT) ? frame : nullptr);
     if (maybe_result.ToHandle(&result) &&
         result.is_identical_to(isolate->builtins()->InOptimizationQueue())) {
       // Optimization is queued.  Return to check later.

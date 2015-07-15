@@ -209,13 +209,14 @@ const PureOperator kPureOperators[] = {
     PURE(Int64Add, 2, 0, 1),                  // --
     PURE(Int64Sub, 2, 0, 1),                  // --
     PURE(Int64Mul, 2, 0, 1),                  // --
-    PURE(Int64Div, 2, 0, 1),                  // --
-    PURE(Uint64Div, 2, 0, 1),                 // --
-    PURE(Int64Mod, 2, 0, 1),                  // --
-    PURE(Uint64Mod, 2, 0, 1),                 // --
+    PURE(Int64Div, 2, 1, 1),                  // --
+    PURE(Uint64Div, 2, 1, 1),                 // --
+    PURE(Int64Mod, 2, 1, 1),                  // --
+    PURE(Uint64Mod, 2, 1, 1),                 // --
     PURE(Int64LessThan, 2, 0, 1),             // --
     PURE(Int64LessThanOrEqual, 2, 0, 1),      // --
     PURE(Uint64LessThan, 2, 0, 1),            // --
+    PURE(Uint64LessThanOrEqual, 2, 0, 1),     // --
     PURE(ChangeFloat32ToFloat64, 1, 0, 1),    // --
     PURE(ChangeFloat64ToInt32, 1, 0, 1),      // --
     PURE(ChangeFloat64ToUint32, 1, 0, 1),     // --
@@ -223,7 +224,6 @@ const PureOperator kPureOperators[] = {
     PURE(ChangeUint32ToFloat64, 1, 0, 1),     // --
     PURE(ChangeUint32ToUint64, 1, 0, 1),      // --
     PURE(TruncateFloat64ToFloat32, 1, 0, 1),  // --
-    PURE(TruncateFloat64ToInt32, 1, 0, 1),    // --
     PURE(TruncateInt64ToInt32, 1, 0, 1),      // --
     PURE(Float32Abs, 1, 0, 1),                // --
     PURE(Float32Add, 2, 0, 1),                // --

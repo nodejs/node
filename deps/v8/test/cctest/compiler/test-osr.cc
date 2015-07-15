@@ -165,30 +165,6 @@ TEST(Deconstruct_osr1) {
 }
 
 
-TEST(Deconstruct_osr1_type) {
-  OsrDeconstructorTester T(1);
-
-  Node* loop = T.NewOsrLoop(1);
-  Node* osr_phi =
-      T.NewOsrPhi(loop, T.jsgraph.OneConstant(), 0, T.jsgraph.ZeroConstant());
-  Type* type = Type::Signed32();
-  NodeProperties::SetBounds(osr_phi, Bounds(type, type));
-
-  Node* ret = T.graph.NewNode(T.common.Return(), osr_phi, T.start, loop);
-  T.graph.SetEnd(ret);
-
-  OsrHelper helper(0, 0);
-  helper.Deconstruct(&T.jsgraph, &T.common, T.main_zone());
-
-  CHECK_EQ(type, NodeProperties::GetBounds(T.osr_values[0]).lower);
-  CHECK_EQ(type, NodeProperties::GetBounds(T.osr_values[0]).upper);
-
-  CheckInputs(loop, T.start, loop);
-  CheckInputs(osr_phi, T.osr_values[0], T.jsgraph.ZeroConstant(), loop);
-  CheckInputs(ret, osr_phi, T.start, loop);
-}
-
-
 TEST(Deconstruct_osr_remove_prologue) {
   OsrDeconstructorTester T(1);
   Diamond d(&T.graph, &T.common, T.p0);

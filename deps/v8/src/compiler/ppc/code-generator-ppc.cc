@@ -585,10 +585,7 @@ void CodeGenerator::AssembleDeconstructActivationRecord() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
   int stack_slots = frame()->GetSpillSlotCount();
   if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
-    int pop_count = descriptor->IsJSFunctionCall()
-                        ? static_cast<int>(descriptor->JSParameterCount())
-                        : 0;
-    __ LeaveFrame(StackFrame::MANUAL, pop_count * kPointerSize);
+    __ LeaveFrame(StackFrame::MANUAL);
   }
 }
 
@@ -620,6 +617,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
                 Operand(Code::kHeaderSize - kHeapObjectTag));
         __ Jump(ip);
       } else {
+        // We cannot use the constant pool to load the target since
+        // we've already restored the caller's frame.
+        ConstantPoolUnavailableScope constant_pool_unavailable(masm());
         __ Jump(Handle<Code>::cast(i.InputHeapObject(0)),
                 RelocInfo::CODE_TARGET);
       }
@@ -1379,7 +1379,9 @@ void CodeGenerator::AssembleReturn() {
       __ bind(&return_label_);
       int pop_count = descriptor->IsJSFunctionCall()
                           ? static_cast<int>(descriptor->JSParameterCount())
-                          : 0;
+                          : (info()->IsStub()
+                                 ? info()->code_stub()->GetStackParameterCount()
+                                 : 0);
       __ LeaveFrame(StackFrame::MANUAL, pop_count * kPointerSize);
       __ Ret();
     }

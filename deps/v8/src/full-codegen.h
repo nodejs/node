@@ -24,35 +24,6 @@ namespace internal {
 // Forward declarations.
 class JumpPatchSite;
 
-// AST node visitor which can tell whether a given statement will be breakable
-// when the code is compiled by the full compiler in the debugger. This means
-// that there will be an IC (load/store/call) in the code generated for the
-// debugger to piggybag on.
-class BreakableStatementChecker: public AstVisitor {
- public:
-  BreakableStatementChecker(Isolate* isolate, Zone* zone)
-      : is_breakable_(false) {
-    InitializeAstVisitor(isolate, zone);
-  }
-
-  void Check(Statement* stmt);
-  void Check(Expression* stmt);
-
-  bool is_breakable() { return is_breakable_; }
-
- private:
-  // AST node visit functions.
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node) override;
-  AST_NODE_LIST(DECLARE_VISIT)
-#undef DECLARE_VISIT
-
-  bool is_breakable_;
-
-  DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
-  DISALLOW_COPY_AND_ASSIGN(BreakableStatementChecker);
-};
-
-
 // -----------------------------------------------------------------------------
 // Full code generator.
 
@@ -581,7 +552,9 @@ class FullCodeGenerator: public AstVisitor {
                                  TypeofState typeof_state,
                                  Label* slow,
                                  Label* done);
-  void EmitVariableLoad(VariableProxy* proxy);
+  void EmitGlobalVariableLoad(VariableProxy* proxy, TypeofState typeof_state);
+  void EmitVariableLoad(VariableProxy* proxy,
+                        TypeofState typeof_state = NOT_INSIDE_TYPEOF);
 
   void EmitAccessor(Expression* expression);
 
@@ -683,14 +656,25 @@ class FullCodeGenerator: public AstVisitor {
 
   void CallLoadIC(ContextualMode mode, LanguageMode language_mode = SLOPPY,
                   TypeFeedbackId id = TypeFeedbackId::None());
-  void CallGlobalLoadIC(Handle<String> name);
   void CallStoreIC(TypeFeedbackId id = TypeFeedbackId::None());
 
   void SetFunctionPosition(FunctionLiteral* fun);
   void SetReturnPosition(FunctionLiteral* fun);
-  void SetStatementPosition(Statement* stmt);
-  void SetExpressionPosition(Expression* expr);
-  void SetSourcePosition(int pos);
+
+  enum InsertBreak { INSERT_BREAK, SKIP_BREAK };
+
+  // During stepping we want to be able to break at each statement, but not at
+  // every (sub-)expression. That is why by default we insert breaks at every
+  // statement position, but not at every expression position, unless stated
+  // otherwise.
+  void SetStatementPosition(Statement* stmt,
+                            InsertBreak insert_break = INSERT_BREAK);
+  void SetExpressionPosition(Expression* expr,
+                             InsertBreak insert_break = SKIP_BREAK);
+
+  // Consider an expression a statement. As such, we also insert a break.
+  // This is used in loop headers where we want to break for each iteration.
+  void SetExpressionAsStatementPosition(Expression* expr);
 
   // Non-local control flow support.
   void EnterTryBlock(int handler_index, Label* handler);

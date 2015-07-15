@@ -468,7 +468,7 @@ namespace {
 Handle<JSFunction> GetFunction(Isolate* isolate, const char* name) {
   v8::ExtensionConfiguration no_extensions;
   Handle<Context> ctx = isolate->bootstrapper()->CreateEnvironment(
-      MaybeHandle<JSGlobalProxy>(), v8::Handle<v8::ObjectTemplate>(),
+      MaybeHandle<JSGlobalProxy>(), v8::Local<v8::ObjectTemplate>(),
       &no_extensions);
   Handle<JSBuiltinsObject> builtins = handle(ctx->builtins());
   MaybeHandle<Object> fun = Object::GetProperty(isolate, builtins, name);
@@ -810,7 +810,8 @@ void StoreElementStub::Generate(MacroAssembler* masm) {
     case DICTIONARY_ELEMENTS:
       ElementHandlerCompiler::GenerateStoreSlow(masm);
       break;
-    case SLOPPY_ARGUMENTS_ELEMENTS:
+    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
+    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
       UNREACHABLE();
       break;
   }

@@ -179,50 +179,6 @@ void DebugCodegen::GenerateCallICStubDebugBreak(MacroAssembler* masm) {
 }
 
 
-void DebugCodegen::GenerateLoadICDebugBreak(MacroAssembler* masm) {
-  // Register state for IC load call (from ic-ia32.cc).
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  Register name = LoadDescriptor::NameRegister();
-  Register slot = LoadDescriptor::SlotRegister();
-  RegList regs = receiver.bit() | name.bit() | slot.bit();
-  Generate_DebugBreakCallHelper(masm, regs, 0, false);
-}
-
-
-void DebugCodegen::GenerateStoreICDebugBreak(MacroAssembler* masm) {
-  // Register state for IC store call (from ic-ia32.cc).
-  Register receiver = StoreDescriptor::ReceiverRegister();
-  Register name = StoreDescriptor::NameRegister();
-  Register value = StoreDescriptor::ValueRegister();
-  RegList regs = receiver.bit() | name.bit() | value.bit();
-  if (FLAG_vector_stores) {
-    regs |= VectorStoreICDescriptor::SlotRegister().bit();
-  }
-  Generate_DebugBreakCallHelper(masm, regs, 0, false);
-}
-
-
-void DebugCodegen::GenerateKeyedLoadICDebugBreak(MacroAssembler* masm) {
-  // Register state for keyed IC load call (from ic-ia32.cc).
-  GenerateLoadICDebugBreak(masm);
-}
-
-
-void DebugCodegen::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) {
-  // Register state for keyed IC store call (from ic-ia32.cc).
-  GenerateStoreICDebugBreak(masm);
-}
-
-
-void DebugCodegen::GenerateCompareNilICDebugBreak(MacroAssembler* masm) {
-  // Register state for CompareNil IC
-  // ----------- S t a t e -------------
-  //  -- eax    : value
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, eax.bit(), 0, false);
-}
-
-
 void DebugCodegen::GenerateReturnDebugBreak(MacroAssembler* masm) {
   // Register state just before return from JS function (from codegen-ia32.cc).
   // ----------- S t a t e -------------
@@ -283,8 +239,6 @@ void DebugCodegen::GenerateSlot(MacroAssembler* masm) {
 
 
 void DebugCodegen::GenerateSlotDebugBreak(MacroAssembler* masm) {
-  // In the places where a debug break slot is inserted no registers can contain
-  // object pointers.
   Generate_DebugBreakCallHelper(masm, 0, 0, true);
 }
 

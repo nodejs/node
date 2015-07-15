@@ -1661,6 +1661,12 @@ THREADED_TEST(IndexedInterceptorWithNoSetter) {
 }
 
 
+static bool AccessAlwaysBlocked(Local<v8::Object> global, Local<Value> name,
+                                v8::AccessType type, Local<Value> data) {
+  return false;
+}
+
+
 THREADED_TEST(IndexedInterceptorWithAccessorCheck) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
@@ -1668,9 +1674,10 @@ THREADED_TEST(IndexedInterceptorWithAccessorCheck) {
   templ->SetHandler(
       v8::IndexedPropertyHandlerConfiguration(IdentityIndexedPropertyGetter));
 
+  templ->SetAccessCheckCallbacks(AccessAlwaysBlocked, nullptr);
+
   LocalContext context;
   Local<v8::Object> obj = templ->NewInstance();
-  obj->TurnOnAccessCheck();
   context->Global()->Set(v8_str("obj"), obj);
 
   const char* code =
@@ -1683,46 +1690,6 @@ THREADED_TEST(IndexedInterceptorWithAccessorCheck) {
       "  } catch (e) {"
       "    /* pass */"
       "  }"
-      "}"
-      "result";
-  ExpectString(code, "PASSED");
-}
-
-
-THREADED_TEST(IndexedInterceptorWithAccessorCheckSwitchedOn) {
-  i::FLAG_allow_natives_syntax = true;
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->SetHandler(
-      v8::IndexedPropertyHandlerConfiguration(IdentityIndexedPropertyGetter));
-
-  LocalContext context;
-  Local<v8::Object> obj = templ->NewInstance();
-  context->Global()->Set(v8_str("obj"), obj);
-
-  const char* code =
-      "var result = 'PASSED';"
-      "for (var i = 0; i < 100; i++) {"
-      "  var expected = i;"
-      "  if (i == 5) {"
-      "    %EnableAccessChecks(obj);"
-      "  }"
-      "  try {"
-      "    var v = obj[i];"
-      "    if (i == 5) {"
-      "      result = 'Should not have reached this!';"
-      "      break;"
-      "    } else if (v != expected) {"
-      "      result = 'Wrong value ' + v + ' at iteration ' + i;"
-      "      break;"
-      "    }"
-      "  } catch (e) {"
-      "    if (i != 5) {"
-      "      result = e;"
-      "    }"
-      "  }"
-      "  if (i == 5) %DisableAccessChecks(obj);"
       "}"
       "result";
   ExpectString(code, "PASSED");
@@ -2984,7 +2951,7 @@ THREADED_TEST(NamedAllCanReadInterceptor) {
   LocalContext context;
 
   AccessCheckData access_check_data;
-  access_check_data.result = false;
+  access_check_data.result = true;
   access_check_data.count = 0;
 
   ShouldInterceptData intercept_data_0;
@@ -3016,7 +2983,7 @@ THREADED_TEST(NamedAllCanReadInterceptor) {
   auto checked = v8::ObjectTemplate::New(isolate);
   checked->SetAccessCheckCallbacks(
       SimpleAccessChecker, nullptr,
-      BuildWrappedObject<AccessCheckData>(isolate, &access_check_data), false);
+      BuildWrappedObject<AccessCheckData>(isolate, &access_check_data));
 
   context->Global()->Set(v8_str("intercepted_0"), intercepted_0->NewInstance());
   context->Global()->Set(v8_str("intercepted_1"), intercepted_1->NewInstance());
@@ -3027,14 +2994,12 @@ THREADED_TEST(NamedAllCanReadInterceptor) {
       "checked.__proto__ = intercepted_1;"
       "intercepted_1.__proto__ = intercepted_0;");
 
-  checked_instance->TurnOnAccessCheck();
-  CHECK_EQ(0, access_check_data.count);
+  CHECK_EQ(3, access_check_data.count);
 
-  access_check_data.result = true;
   ExpectInt32("checked.whatever", 17);
   CHECK(!CompileRun("Object.getOwnPropertyDescriptor(checked, 'whatever')")
              ->IsUndefined());
-  CHECK_EQ(2, access_check_data.count);
+  CHECK_EQ(5, access_check_data.count);
 
   access_check_data.result = false;
   ExpectInt32("checked.whatever", intercept_data_0.value);
@@ -3043,7 +3008,7 @@ THREADED_TEST(NamedAllCanReadInterceptor) {
     CompileRun("Object.getOwnPropertyDescriptor(checked, 'whatever')");
     CHECK(try_catch.HasCaught());
   }
-  CHECK_EQ(4, access_check_data.count);
+  CHECK_EQ(7, access_check_data.count);
 
   intercept_data_1.should_intercept = true;
   ExpectInt32("checked.whatever", intercept_data_1.value);
@@ -3052,7 +3017,7 @@ THREADED_TEST(NamedAllCanReadInterceptor) {
     CompileRun("Object.getOwnPropertyDescriptor(checked, 'whatever')");
     CHECK(try_catch.HasCaught());
   }
-  CHECK_EQ(6, access_check_data.count);
+  CHECK_EQ(9, access_check_data.count);
 }
 
 
@@ -3062,7 +3027,7 @@ THREADED_TEST(IndexedAllCanReadInterceptor) {
   LocalContext context;
 
   AccessCheckData access_check_data;
-  access_check_data.result = false;
+  access_check_data.result = true;
   access_check_data.count = 0;
 
   ShouldInterceptData intercept_data_0;
@@ -3094,7 +3059,7 @@ THREADED_TEST(IndexedAllCanReadInterceptor) {
   auto checked = v8::ObjectTemplate::New(isolate);
   checked->SetAccessCheckCallbacks(
       SimpleAccessChecker, nullptr,
-      BuildWrappedObject<AccessCheckData>(isolate, &access_check_data), false);
+      BuildWrappedObject<AccessCheckData>(isolate, &access_check_data));
 
   context->Global()->Set(v8_str("intercepted_0"), intercepted_0->NewInstance());
   context->Global()->Set(v8_str("intercepted_1"), intercepted_1->NewInstance());
@@ -3105,14 +3070,13 @@ THREADED_TEST(IndexedAllCanReadInterceptor) {
       "checked.__proto__ = intercepted_1;"
       "intercepted_1.__proto__ = intercepted_0;");
 
-  checked_instance->TurnOnAccessCheck();
-  CHECK_EQ(0, access_check_data.count);
+  CHECK_EQ(3, access_check_data.count);
 
   access_check_data.result = true;
   ExpectInt32("checked[15]", 17);
   CHECK(!CompileRun("Object.getOwnPropertyDescriptor(checked, '15')")
              ->IsUndefined());
-  CHECK_EQ(2, access_check_data.count);
+  CHECK_EQ(5, access_check_data.count);
 
   access_check_data.result = false;
   ExpectInt32("checked[15]", intercept_data_0.value);
@@ -3121,7 +3085,7 @@ THREADED_TEST(IndexedAllCanReadInterceptor) {
     CompileRun("Object.getOwnPropertyDescriptor(checked, '15')");
     CHECK(try_catch.HasCaught());
   }
-  CHECK_EQ(4, access_check_data.count);
+  CHECK_EQ(7, access_check_data.count);
 
   intercept_data_1.should_intercept = true;
   ExpectInt32("checked[15]", intercept_data_1.value);
@@ -3130,7 +3094,7 @@ THREADED_TEST(IndexedAllCanReadInterceptor) {
     CompileRun("Object.getOwnPropertyDescriptor(checked, '15')");
     CHECK(try_catch.HasCaught());
   }
-  CHECK_EQ(6, access_check_data.count);
+  CHECK_EQ(9, access_check_data.count);
 }
 
 

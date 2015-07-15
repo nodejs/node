@@ -14,6 +14,9 @@
 namespace v8 {
 namespace internal {
 
+// TODO(ishell): remove this once compiler support is landed.
+bool enable_context_globals = false;
+
 // ----------------------------------------------------------------------------
 // Implementation of LocalsMap
 //
@@ -178,6 +181,7 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   num_var_or_const_ = 0;
   num_stack_slots_ = 0;
   num_heap_slots_ = 0;
+  num_global_slots_ = 0;
   num_modules_ = 0;
   module_var_ = NULL,
   rest_parameter_ = NULL;
@@ -388,27 +392,32 @@ Variable* Scope::LookupLocal(const AstRawString* name) {
 
   // Check context slot lookup.
   VariableMode mode;
-  Variable::Location location = Variable::CONTEXT;
+  VariableLocation location;
   InitializationFlag init_flag;
   MaybeAssignedFlag maybe_assigned_flag;
-  int index = ScopeInfo::ContextSlotIndex(scope_info_, name_handle, &mode,
-                                          &init_flag, &maybe_assigned_flag);
+  int index =
+      ScopeInfo::ContextSlotIndex(scope_info_, name_handle, &mode, &location,
+                                  &init_flag, &maybe_assigned_flag);
   if (index < 0) {
     // Check parameters.
     index = scope_info_->ParameterIndex(*name_handle);
     if (index < 0) return NULL;
 
     mode = DYNAMIC;
-    location = Variable::LOOKUP;
+    location = VariableLocation::LOOKUP;
     init_flag = kCreatedInitialized;
     // Be conservative and flag parameters as maybe assigned. Better information
     // would require ScopeInfo to serialize the maybe_assigned bit also for
     // parameters.
     maybe_assigned_flag = kMaybeAssigned;
+  } else {
+    DCHECK(location != VariableLocation::GLOBAL ||
+           (is_script_scope() && IsDeclaredVariableMode(mode) &&
+            !IsLexicalVariableMode(mode)));
   }
 
   Variable::Kind kind = Variable::NORMAL;
-  if (location == Variable::CONTEXT &&
+  if (location == VariableLocation::CONTEXT &&
       index == scope_info_->ReceiverContextSlotIndex()) {
     kind = Variable::THIS;
   }
@@ -437,7 +446,7 @@ Variable* Scope::LookupFunctionVar(const AstRawString* name,
     VariableDeclaration* declaration = factory->NewVariableDeclaration(
         proxy, mode, this, RelocInfo::kNoPosition);
     DeclareFunctionVar(declaration);
-    var->AllocateTo(Variable::CONTEXT, index);
+    var->AllocateTo(VariableLocation::CONTEXT, index);
     return var;
   } else {
     return NULL;
@@ -603,9 +612,11 @@ class VarAndOrder {
 
 void Scope::CollectStackAndContextLocals(
     ZoneList<Variable*>* stack_locals, ZoneList<Variable*>* context_locals,
+    ZoneList<Variable*>* context_globals,
     ZoneList<Variable*>* strong_mode_free_variables) {
   DCHECK(stack_locals != NULL);
   DCHECK(context_locals != NULL);
+  DCHECK(context_globals != NULL);
 
   // Collect internals which are always allocated on the heap.
   for (int i = 0; i < internals_.length(); i++) {
@@ -654,6 +665,8 @@ void Scope::CollectStackAndContextLocals(
       stack_locals->Add(var, zone());
     } else if (var->IsContextSlot()) {
       context_locals->Add(var, zone());
+    } else if (var->IsGlobalSlot()) {
+      context_globals->Add(var, zone());
     }
   }
 }
@@ -693,7 +706,7 @@ bool Scope::HasTrivialContext() const {
   for (const Scope* scope = this; scope != NULL; scope = scope->outer_scope_) {
     if (scope->is_eval_scope()) return false;
     if (scope->scope_inside_with_) return false;
-    if (scope->num_heap_slots_ > 0) return false;
+    if (scope->ContextLocalCount() > 0) return false;
   }
   return true;
 }
@@ -828,18 +841,21 @@ static void PrintName(const AstRawString* name) {
 
 static void PrintLocation(Variable* var) {
   switch (var->location()) {
-    case Variable::UNALLOCATED:
+    case VariableLocation::UNALLOCATED:
       break;
-    case Variable::PARAMETER:
+    case VariableLocation::PARAMETER:
       PrintF("parameter[%d]", var->index());
       break;
-    case Variable::LOCAL:
+    case VariableLocation::LOCAL:
       PrintF("local[%d]", var->index());
       break;
-    case Variable::CONTEXT:
+    case VariableLocation::CONTEXT:
       PrintF("context[%d]", var->index());
       break;
-    case Variable::LOOKUP:
+    case VariableLocation::GLOBAL:
+      PrintF("global[%d]", var->index());
+      break;
+    case VariableLocation::LOOKUP:
       PrintF("lookup");
       break;
   }
@@ -871,7 +887,11 @@ static void PrintVar(int indent, Variable* var) {
 static void PrintMap(int indent, VariableMap* map) {
   for (VariableMap::Entry* p = map->Start(); p != NULL; p = map->Next(p)) {
     Variable* var = reinterpret_cast<Variable*>(p->value);
-    PrintVar(indent, var);
+    if (var == NULL) {
+      Indent(indent, "<?>\n");
+    } else {
+      PrintVar(indent, var);
+    }
   }
 }
 
@@ -928,10 +948,15 @@ void Scope::Print(int n) {
     Indent(n1, "// outer scope calls 'eval' in sloppy context\n");
   }
   if (inner_scope_calls_eval_) Indent(n1, "// inner scope calls 'eval'\n");
-  if (num_stack_slots_ > 0) { Indent(n1, "// ");
-  PrintF("%d stack slots\n", num_stack_slots_); }
-  if (num_heap_slots_ > 0) { Indent(n1, "// ");
-  PrintF("%d heap slots\n", num_heap_slots_); }
+  if (num_stack_slots_ > 0) {
+    Indent(n1, "// ");
+    PrintF("%d stack slots\n", num_stack_slots_);
+  }
+  if (num_heap_slots_ > 0) {
+    Indent(n1, "// ");
+    PrintF("%d heap slots (including %d global slots)\n", num_heap_slots_,
+           num_global_slots_);
+  }
 
   // Print locals.
   if (function_ != NULL) {
@@ -992,7 +1017,7 @@ Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
                        Variable::NORMAL,
                        init_flag);
     // Allocate it by giving it a dynamic lookup.
-    var->AllocateTo(Variable::LOOKUP, -1);
+    var->AllocateTo(VariableLocation::LOOKUP, -1);
   }
   return var;
 }
@@ -1343,13 +1368,13 @@ void Scope::AllocateStackSlot(Variable* var) {
   if (is_block_scope()) {
     DeclarationScope()->AllocateStackSlot(var);
   } else {
-    var->AllocateTo(Variable::LOCAL, num_stack_slots_++);
+    var->AllocateTo(VariableLocation::LOCAL, num_stack_slots_++);
   }
 }
 
 
 void Scope::AllocateHeapSlot(Variable* var) {
-  var->AllocateTo(Variable::CONTEXT, num_heap_slots_++);
+  var->AllocateTo(VariableLocation::CONTEXT, num_heap_slots_++);
 }
 
 
@@ -1414,9 +1439,11 @@ void Scope::AllocateParameter(Variable* var, int index) {
     } else {
       DCHECK(var->IsUnallocated() || var->IsParameter());
       if (var->IsUnallocated()) {
-        var->AllocateTo(Variable::PARAMETER, index);
+        var->AllocateTo(VariableLocation::PARAMETER, index);
       }
     }
+  } else {
+    DCHECK(!var->IsGlobalSlot());
   }
 }
 
@@ -1447,7 +1474,23 @@ void Scope::AllocateNonParameterLocal(Isolate* isolate, Variable* var) {
 }
 
 
-void Scope::AllocateNonParameterLocals(Isolate* isolate) {
+void Scope::AllocateDeclaredGlobal(Isolate* isolate, Variable* var) {
+  DCHECK(var->scope() == this);
+  DCHECK(!var->IsVariable(isolate->factory()->dot_result_string()) ||
+         !var->IsStackLocal());
+  if (var->IsUnallocated() && var->IsStaticGlobalObjectProperty()) {
+    DCHECK_EQ(-1, var->index());
+    DCHECK(var->name()->IsString());
+    var->AllocateTo(VariableLocation::GLOBAL, num_heap_slots_);
+    num_global_slots_++;
+    // Each global variable occupies two slots in the context: for reads
+    // and writes.
+    num_heap_slots_ += 2;
+  }
+}
+
+
+void Scope::AllocateNonParameterLocalsAndDeclaredGlobals(Isolate* isolate) {
   // All variables that have no rewrite yet are non-parameter locals.
   for (int i = 0; i < temps_.length(); i++) {
     AllocateNonParameterLocal(isolate, temps_[i]);
@@ -1468,6 +1511,12 @@ void Scope::AllocateNonParameterLocals(Isolate* isolate) {
   int var_count = vars.length();
   for (int i = 0; i < var_count; i++) {
     AllocateNonParameterLocal(isolate, vars[i].var());
+  }
+
+  if (enable_context_globals) {
+    for (int i = 0; i < var_count; i++) {
+      AllocateDeclaredGlobal(isolate, vars[i].var());
+    }
   }
 
   // For now, function_ must be allocated at the very end.  If it gets
@@ -1515,7 +1564,7 @@ void Scope::AllocateVariablesRecursively(Isolate* isolate) {
   // Parameters must be allocated first, if any.
   if (is_function_scope()) AllocateParameterLocals(isolate);
   if (has_this_declaration()) AllocateReceiver();
-  AllocateNonParameterLocals(isolate);
+  AllocateNonParameterLocalsAndDeclaredGlobals(isolate);
 
   // Force allocation of a context for this scope if necessary. For a 'with'
   // scope and for a function scope that makes an 'eval' call we need a context,
@@ -1559,8 +1608,13 @@ int Scope::StackLocalCount() const {
 
 int Scope::ContextLocalCount() const {
   if (num_heap_slots() == 0) return 0;
+  bool is_function_var_in_context =
+      function_ != NULL && function_->proxy()->var()->IsContextSlot();
   return num_heap_slots() - Context::MIN_CONTEXT_SLOTS -
-      (function_ != NULL && function_->proxy()->var()->IsContextSlot() ? 1 : 0);
+         2 * num_global_slots() - (is_function_var_in_context ? 1 : 0);
 }
+
+
+int Scope::ContextGlobalCount() const { return num_global_slots(); }
 }  // namespace internal
 }  // namespace v8

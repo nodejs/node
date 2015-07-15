@@ -914,6 +914,17 @@ void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
 }
 
 
+void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
+  switch (TruncationModeOf(node->op())) {
+    case TruncationMode::kJavaScript:
+      return VisitRR(this, kArchTruncateDoubleToI, node);
+    case TruncationMode::kRoundToZero:
+      return VisitRR(this, kArmVcvtS32F64, node);
+  }
+  UNREACHABLE();
+}
+
+
 void InstructionSelector::VisitFloat32Add(Node* node) {
   ArmOperandGenerator g(this);
   Float32BinopMatcher m(node);
@@ -1166,9 +1177,7 @@ void InstructionSelector::VisitTailCall(Node* node) {
   DCHECK_EQ(0, descriptor->flags() & CallDescriptor::kNeedsNopAfterCall);
 
   // TODO(turbofan): Relax restriction for stack parameters.
-  if (descriptor->UsesOnlyRegisters() &&
-      descriptor->HasSameReturnLocationsAs(
-          linkage()->GetIncomingDescriptor())) {
+  if (linkage()->GetIncomingDescriptor()->CanTailCall(node)) {
     CallBuffer buffer(zone(), descriptor, nullptr);
 
     // Compute InstructionOperands for inputs and outputs.
@@ -1176,8 +1185,6 @@ void InstructionSelector::VisitTailCall(Node* node) {
     // register if there are multiple uses of it. Improve constant pool and the
     // heuristics in the register allocator for where to emit constants.
     InitializeCallBuffer(node, &buffer, true, false);
-
-    DCHECK_EQ(0u, buffer.pushed_nodes.size());
 
     // Select the appropriate opcode based on the call type.
     InstructionCode opcode;

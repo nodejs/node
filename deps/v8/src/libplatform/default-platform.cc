@@ -41,16 +41,21 @@ DefaultPlatform::~DefaultPlatform() {
   base::LockGuard<base::Mutex> guard(&lock_);
   queue_.Terminate();
   if (initialized_) {
-    for (std::vector<WorkerThread*>::iterator i = thread_pool_.begin();
-         i != thread_pool_.end(); ++i) {
+    for (auto i = thread_pool_.begin(); i != thread_pool_.end(); ++i) {
       delete *i;
     }
   }
-  for (std::map<v8::Isolate*, std::queue<Task*> >::iterator i =
-           main_thread_queue_.begin();
-       i != main_thread_queue_.end(); ++i) {
+  for (auto i = main_thread_queue_.begin(); i != main_thread_queue_.end();
+       ++i) {
     while (!i->second.empty()) {
       delete i->second.front();
+      i->second.pop();
+    }
+  }
+  for (auto i = main_thread_delayed_queue_.begin();
+       i != main_thread_delayed_queue_.end(); ++i) {
+    while (!i->second.empty()) {
+      delete i->second.top().second;
       i->second.pop();
     }
   }
@@ -144,6 +149,7 @@ void DefaultPlatform::CallOnForegroundThread(v8::Isolate* isolate, Task* task) {
 void DefaultPlatform::CallDelayedOnForegroundThread(Isolate* isolate,
                                                     Task* task,
                                                     double delay_in_seconds) {
+  base::LockGuard<base::Mutex> guard(&lock_);
   double deadline = MonotonicallyIncreasingTime() + delay_in_seconds;
   main_thread_delayed_queue_[isolate].push(std::make_pair(deadline, task));
 }

@@ -755,10 +755,48 @@ class Assembler : public AssemblerBase {
   // Convenience branch instructions using labels
   void b(Label* L, LKBit lk = LeaveLK) { b(branch_offset(L, false), lk); }
 
+  inline CRegister cmpi_optimization(CRegister cr) {
+    // Check whether the branch is preceeded by an optimizable cmpi against 0.
+    // The cmpi can be deleted if it is also preceeded by an instruction that
+    // sets the register used by the compare and supports a dot form.
+    unsigned int sradi_mask = kOpcodeMask | kExt2OpcodeVariant2Mask;
+    unsigned int srawi_mask = kOpcodeMask | kExt2OpcodeMask;
+    int pos = pc_offset();
+    int cmpi_pos = pc_offset() - kInstrSize;
+
+    if (cmpi_pos > 0 && optimizable_cmpi_pos_ == cmpi_pos &&
+        cmpi_cr_.code() == cr.code() && last_bound_pos_ != pos) {
+      int xpos = cmpi_pos - kInstrSize;
+      int xinstr = instr_at(xpos);
+      int cmpi_ra = (instr_at(cmpi_pos) & 0x1f0000) >> 16;
+      // ra is at the same bit position for the three cases below.
+      int ra = (xinstr & 0x1f0000) >> 16;
+      if (cmpi_ra == ra) {
+        if ((xinstr & sradi_mask) == (EXT2 | SRADIX)) {
+          cr = cr0;
+          instr_at_put(xpos, xinstr | SetRC);
+          pc_ -= kInstrSize;
+        } else if ((xinstr & srawi_mask) == (EXT2 | SRAWIX)) {
+          cr = cr0;
+          instr_at_put(xpos, xinstr | SetRC);
+          pc_ -= kInstrSize;
+        } else if ((xinstr & kOpcodeMask) == ANDIx) {
+          cr = cr0;
+          pc_ -= kInstrSize;
+          // nothing to do here since andi. records.
+        }
+        // didn't match one of the above, must keep cmpwi.
+      }
+    }
+    return cr;
+  }
+
   void bc_short(Condition cond, Label* L, CRegister cr = cr7,
                 LKBit lk = LeaveLK) {
     DCHECK(cond != al);
     DCHECK(cr.code() >= 0 && cr.code() <= 7);
+
+    cr = cmpi_optimization(cr);
 
     int b_offset = branch_offset(L, false);
 
@@ -803,6 +841,8 @@ class Assembler : public AssemblerBase {
             CRegister cr = cr7) {
     DCHECK(cond != al);
     DCHECK(cr.code() >= 0 && cr.code() <= 7);
+
+    cr = cmpi_optimization(cr);
 
     switch (cond) {
       case eq:
@@ -1452,6 +1492,9 @@ class Assembler : public AssemblerBase {
 
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
+  // Optimizable cmpi information.
+  int optimizable_cmpi_pos_;
+  CRegister cmpi_cr_;
 
   ConstantPoolBuilder constant_pool_builder_;
 

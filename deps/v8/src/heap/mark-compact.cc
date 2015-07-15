@@ -3232,7 +3232,8 @@ void MarkCompactCollector::VerifyIsSlotInLiveObject(Address slot,
 }
 
 
-void MarkCompactCollector::RemoveObjectSlots(HeapObject* invalid_object) {
+void MarkCompactCollector::RemoveObjectSlots(Address start_slot,
+                                             Address end_slot) {
   // Remove entries by replacing them with an old-space slot containing a smi
   // that is located in an unmovable page.
   int npages = evacuation_candidates_.length();
@@ -3241,7 +3242,8 @@ void MarkCompactCollector::RemoveObjectSlots(HeapObject* invalid_object) {
     DCHECK(p->IsEvacuationCandidate() ||
            p->IsFlagSet(Page::RESCAN_ON_EVACUATION));
     if (p->IsEvacuationCandidate()) {
-      SlotsBuffer::RemoveObjectSlots(heap_, p->slots_buffer(), invalid_object);
+      SlotsBuffer::RemoveObjectSlots(heap_, p->slots_buffer(), start_slot,
+                                     end_slot);
     }
   }
 }
@@ -4460,7 +4462,7 @@ void SlotsBuffer::RemoveInvalidSlots(Heap* heap, SlotsBuffer* buffer) {
 
 
 void SlotsBuffer::RemoveObjectSlots(Heap* heap, SlotsBuffer* buffer,
-                                    HeapObject* invalid_object) {
+                                    Address start_slot, Address end_slot) {
   // Remove entries by replacing them with an old-space slot containing a smi
   // that is located in an unmovable page.
   const ObjectSlot kRemovedEntry = HeapObject::RawField(
@@ -4477,9 +4479,7 @@ void SlotsBuffer::RemoveObjectSlots(Heap* heap, SlotsBuffer* buffer,
       ObjectSlot slot = slots[slot_idx];
       if (!IsTypedSlot(slot)) {
         Address slot_address = reinterpret_cast<Address>(slot);
-        if (slot_address >= invalid_object->address() &&
-            slot_address <
-                (invalid_object->address() + invalid_object->Size())) {
+        if (slot_address >= start_slot && slot_address < end_slot) {
           slots[slot_idx] = kRemovedEntry;
           if (is_typed_slot) {
             slots[slot_idx - 1] = kRemovedEntry;

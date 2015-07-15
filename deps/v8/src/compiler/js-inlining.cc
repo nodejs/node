@@ -115,8 +115,8 @@ class CopyVisitor {
 };
 
 
-Reduction JSInliner::InlineCall(Node* call, Node* frame_state, Node* start,
-                                Node* end) {
+Reduction JSInliner::InlineCall(Node* call, Node* context, Node* frame_state,
+                                Node* start, Node* end) {
   // The scheduler is smart enough to place our code; we just ensure {control}
   // becomes the control input of the start of the inlinee, and {effect} becomes
   // the effect input of the start of the inlinee.
@@ -139,14 +139,12 @@ Reduction JSInliner::InlineCall(Node* call, Node* frame_state, Node* start,
         if (index < inliner_inputs && index < inlinee_context_index) {
           // There is an input from the call, and the index is a value
           // projection but not the context, so rewire the input.
-          ReplaceWithValue(use, call->InputAt(index));
+          Replace(use, call->InputAt(index));
         } else if (index == inlinee_context_index) {
-          // TODO(turbofan): We always context specialize inlinees currently, so
-          // we should never get here.
-          UNREACHABLE();
+          Replace(use, context);
         } else if (index < inlinee_context_index) {
           // Call has fewer arguments than required, fill with undefined.
-          ReplaceWithValue(use, jsgraph_->UndefinedConstant());
+          Replace(use, jsgraph_->UndefinedConstant());
         } else {
           // We got too many arguments, discard for now.
           // TODO(sigurds): Fix to treat arguments array correctly.
@@ -307,13 +305,14 @@ Reduction JSInliner::Reduce(Node* node) {
   Graph graph(info.zone());
   JSGraph jsgraph(info.isolate(), &graph, jsgraph_->common(),
                   jsgraph_->javascript(), jsgraph_->machine());
+  AstGraphBuilder graph_builder(local_zone_, &info, &jsgraph);
+  graph_builder.CreateGraph(false);
 
   // The inlinee specializes to the context from the JSFunction object.
   // TODO(turbofan): We might want to load the context from the JSFunction at
   // runtime in case we only know the SharedFunctionInfo once we have dynamic
   // type feedback in the compiler.
-  AstGraphBuilder graph_builder(local_zone_, &info, &jsgraph);
-  graph_builder.CreateGraph(true, false);
+  Node* context = jsgraph_->Constant(handle(function->context()));
 
   CopyVisitor visitor(&graph, jsgraph_->graph(), info.zone());
   visitor.CopyGraph();
@@ -338,7 +337,7 @@ Reduction JSInliner::Reduce(Node* node) {
   // Remember that we inlined this function.
   info_->AddInlinedFunction(info.shared_info());
 
-  return InlineCall(node, frame_state, start, end);
+  return InlineCall(node, context, frame_state, start, end);
 }
 
 }  // namespace compiler

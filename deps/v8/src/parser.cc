@@ -919,6 +919,7 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_spread_arrays(FLAG_harmony_spread_arrays);
   set_allow_harmony_new_target(FLAG_harmony_new_target);
   set_allow_strong_mode(FLAG_strong_mode);
+  set_allow_legacy_const(FLAG_legacy_const);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     use_counts_[feature] = 0;
@@ -1379,16 +1380,21 @@ Statement* Parser::ParseStatementListItem(bool* ok) {
       }
       return ParseClassDeclaration(NULL, ok);
     case Token::CONST:
+      if (allow_const()) {
+        return ParseVariableStatement(kStatementListItem, NULL, ok);
+      }
+      break;
     case Token::VAR:
       return ParseVariableStatement(kStatementListItem, NULL, ok);
     case Token::LET:
       if (is_strict(language_mode())) {
         return ParseVariableStatement(kStatementListItem, NULL, ok);
       }
-      // Fall through.
+      break;
     default:
-      return ParseStatement(NULL, ok);
+      break;
   }
+  return ParseStatement(NULL, ok);
 }
 
 
@@ -1937,7 +1943,7 @@ Statement* Parser::ParseSubStatement(ZoneList<const AstRawString*>* labels,
       // In ES6 CONST is not allowed as a Statement, only as a
       // LexicalDeclaration, however we continue to allow it in sloppy mode for
       // backwards compatibility.
-      if (is_sloppy(language_mode())) {
+      if (is_sloppy(language_mode()) && allow_legacy_const()) {
         return ParseVariableStatement(kStatement, NULL, ok);
       }
 
@@ -2095,7 +2101,7 @@ Variable* Parser::Declare(Declaration* declaration,
     // TODO(sigurds) figure out if kNotAssigned is OK here
     var = new (zone()) Variable(declaration_scope, name, mode, kind,
                                 declaration->initialization(), kNotAssigned);
-    var->AllocateTo(Variable::LOOKUP, -1);
+    var->AllocateTo(VariableLocation::LOOKUP, -1);
     resolve = true;
   }
 
@@ -2426,13 +2432,14 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
       return;
     }
     Consume(Token::VAR);
-  } else if (peek() == Token::CONST) {
+  } else if (peek() == Token::CONST && allow_const()) {
     Consume(Token::CONST);
-    if (is_sloppy(language_mode())) {
+    if (is_sloppy(language_mode()) && allow_legacy_const()) {
       parsing_result->descriptor.mode = CONST_LEGACY;
       parsing_result->descriptor.init_op = Token::INIT_CONST_LEGACY;
       ++use_counts_[v8::Isolate::kLegacyConst];
     } else {
+      DCHECK(is_strict(language_mode()));
       DCHECK(var_context != kStatement);
       parsing_result->descriptor.mode = CONST;
       parsing_result->descriptor.init_op = Token::INIT_CONST;
@@ -3208,7 +3215,7 @@ void Parser::InitializeForEachStatement(ForEachStatement* stmt,
       Expression* result_value = factory()->NewProperty(
           result_proxy, value_literal, RelocInfo::kNoPosition);
       assign_each = factory()->NewAssignment(Token::ASSIGN, each, result_value,
-                                             each->position());
+                                             RelocInfo::kNoPosition);
     }
 
     for_of->Initialize(each, subject, body,
@@ -3490,7 +3497,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
   bool is_let_identifier_expression = false;
   DeclarationParsingResult parsing_result;
   if (peek() != Token::SEMICOLON) {
-    if (peek() == Token::VAR || peek() == Token::CONST ||
+    if (peek() == Token::VAR || (peek() == Token::CONST && allow_const()) ||
         (peek() == Token::LET && is_strict(language_mode()))) {
       ParseVariableDeclarations(kForStatement, &parsing_result, CHECK_OK);
       is_const = parsing_result.descriptor.mode == CONST;
@@ -3531,8 +3538,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         Block* init_block = nullptr;
 
         // special case for legacy for (var/const x =.... in)
-        if (is_sloppy(language_mode()) &&
-            !IsLexicalVariableMode(parsing_result.descriptor.mode) &&
+        if (!IsLexicalVariableMode(parsing_result.descriptor.mode) &&
             parsing_result.declarations[0].initializer != nullptr) {
           VariableProxy* single_var = scope_->NewUnresolved(
               factory(), parsing_result.SingleName(), Variable::NORMAL,
@@ -3592,6 +3598,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
               parsing_result.declarations[0];
           auto descriptor = parsing_result.descriptor;
           descriptor.declaration_pos = RelocInfo::kNoPosition;
+          descriptor.initialization_pos = RelocInfo::kNoPosition;
           decl.initializer = factory()->NewVariableProxy(temp);
 
           PatternRewriter::DeclareAndInitializeVariables(
@@ -3614,8 +3621,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         }
 
         // Create a TDZ for any lexically-bound names.
-        if (is_strict(language_mode()) &&
-            IsLexicalVariableMode(parsing_result.descriptor.mode)) {
+        if (IsLexicalVariableMode(parsing_result.descriptor.mode)) {
           DCHECK_NULL(init_block);
 
           init_block =
@@ -3688,7 +3694,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         return loop;
 
       } else {
-        init = factory()->NewExpressionStatement(expression, position());
+        init =
+            factory()->NewExpressionStatement(expression, lhs_location.beg_pos);
       }
     }
   }

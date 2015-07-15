@@ -21,12 +21,12 @@ class ContextSlotCache {
   // Lookup context slot index for (data, name).
   // If absent, kNotFound is returned.
   int Lookup(Object* data, String* name, VariableMode* mode,
-             InitializationFlag* init_flag,
+             VariableLocation* location, InitializationFlag* init_flag,
              MaybeAssignedFlag* maybe_assigned_flag);
 
   // Update an element in the cache.
   void Update(Handle<Object> data, Handle<String> name, VariableMode mode,
-              InitializationFlag init_flag,
+              VariableLocation location, InitializationFlag init_flag,
               MaybeAssignedFlag maybe_assigned_flag, int slot_index);
 
   // Clear the cache.
@@ -47,7 +47,8 @@ class ContextSlotCache {
 
 #ifdef DEBUG
   void ValidateEntry(Handle<Object> data, Handle<String> name,
-                     VariableMode mode, InitializationFlag init_flag,
+                     VariableMode mode, VariableLocation location,
+                     InitializationFlag init_flag,
                      MaybeAssignedFlag maybe_assigned_flag, int slot_index);
 #endif
 
@@ -58,16 +59,26 @@ class ContextSlotCache {
   };
 
   struct Value {
-    Value(VariableMode mode, InitializationFlag init_flag,
-          MaybeAssignedFlag maybe_assigned_flag, int index) {
+    enum VariableLocationFlag { kContext, kGlobal };
+
+    Value(VariableMode mode, VariableLocation location,
+          InitializationFlag init_flag, MaybeAssignedFlag maybe_assigned_flag,
+          int index) {
+      DCHECK(location == VariableLocation::CONTEXT ||
+             location == VariableLocation::GLOBAL);
+      VariableLocationFlag location_flag =
+          location == VariableLocation::CONTEXT ? kContext : kGlobal;
       DCHECK(ModeField::is_valid(mode));
+      DCHECK(VariableLocationField::is_valid(location_flag));
       DCHECK(InitField::is_valid(init_flag));
       DCHECK(MaybeAssignedField::is_valid(maybe_assigned_flag));
       DCHECK(IndexField::is_valid(index));
       value_ = ModeField::encode(mode) | IndexField::encode(index) |
+               VariableLocationField::encode(location_flag) |
                InitField::encode(init_flag) |
                MaybeAssignedField::encode(maybe_assigned_flag);
       DCHECK(mode == this->mode());
+      DCHECK(location == this->location());
       DCHECK(init_flag == this->initialization_flag());
       DCHECK(maybe_assigned_flag == this->maybe_assigned_flag());
       DCHECK(index == this->index());
@@ -78,6 +89,17 @@ class ContextSlotCache {
     uint32_t raw() { return value_; }
 
     VariableMode mode() { return ModeField::decode(value_); }
+
+    VariableLocation location() {
+      switch (VariableLocationField::decode(value_)) {
+        case kContext:
+          return VariableLocation::CONTEXT;
+        case kGlobal:
+          return VariableLocation::GLOBAL;
+      }
+      UNREACHABLE();
+      return VariableLocation::CONTEXT;
+    }
 
     InitializationFlag initialization_flag() {
       return InitField::decode(value_);
@@ -94,7 +116,9 @@ class ContextSlotCache {
     class ModeField : public BitField<VariableMode, 0, 4> {};
     class InitField : public BitField<InitializationFlag, 4, 1> {};
     class MaybeAssignedField : public BitField<MaybeAssignedFlag, 5, 1> {};
-    class IndexField : public BitField<int, 6, 32 - 6> {};
+    class VariableLocationField : public BitField<VariableLocationFlag, 6, 1> {
+    };
+    class IndexField : public BitField<int, 7, 32 - 7> {};
 
    private:
     uint32_t value_;

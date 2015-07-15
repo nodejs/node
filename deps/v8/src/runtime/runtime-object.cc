@@ -162,6 +162,23 @@ MaybeHandle<Object> Runtime::KeyedGetObjectProperty(
 }
 
 
+MaybeHandle<Object> Runtime::DeleteObjectProperty(Isolate* isolate,
+                                                  Handle<JSReceiver> receiver,
+                                                  Handle<Object> key,
+                                                  LanguageMode language_mode) {
+  // Check if the given key is an array index.
+  uint32_t index = 0;
+  if (key->ToArrayIndex(&index)) {
+    return JSReceiver::DeleteElement(receiver, index, language_mode);
+  }
+
+  Handle<Name> name;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, name, ToName(isolate, key), Object);
+
+  return JSReceiver::DeletePropertyOrElement(receiver, name, language_mode);
+}
+
+
 MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
                                                Handle<Object> object,
                                                Handle<Object> key,
@@ -386,36 +403,6 @@ RUNTIME_FUNCTION(Runtime_IsExtensible) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_DisableAccessChecks) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(HeapObject, object, 0);
-  Handle<Map> old_map(object->map());
-  bool needs_access_checks = old_map->is_access_check_needed();
-  if (needs_access_checks) {
-    // Copy map so it won't interfere constructor's initial map.
-    Handle<Map> new_map = Map::Copy(old_map, "DisableAccessChecks");
-    new_map->set_is_access_check_needed(false);
-    JSObject::MigrateToMap(Handle<JSObject>::cast(object), new_map);
-  }
-  return isolate->heap()->ToBoolean(needs_access_checks);
-}
-
-
-RUNTIME_FUNCTION(Runtime_EnableAccessChecks) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  Handle<Map> old_map(object->map());
-  RUNTIME_ASSERT(!old_map->is_access_check_needed());
-  // Copy map so it won't interfere constructor's initial map.
-  Handle<Map> new_map = Map::Copy(old_map, "EnableAccessChecks");
-  new_map->set_is_access_check_needed(true);
-  JSObject::MigrateToMap(object, new_map);
-  return isolate->heap()->undefined_value();
-}
-
-
 RUNTIME_FUNCTION(Runtime_OptimizeObjectForAddingMultipleProperties) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
@@ -621,12 +608,13 @@ RUNTIME_FUNCTION(Runtime_SetProperty) {
 RUNTIME_FUNCTION(Runtime_DeleteProperty) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 2);
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, JSReceiver::DeleteProperty(object, key, language_mode));
+      isolate, result,
+      Runtime::DeleteObjectProperty(isolate, receiver, key, language_mode));
   return *result;
 }
 
@@ -1084,9 +1072,7 @@ static Object* Runtime_NewObjectHelper(Isolate* isolate,
 
   Debug* debug = isolate->debug();
   // Handle stepping into constructors if step into is active.
-  if (debug->StepInActive()) {
-    debug->HandleStepIn(function, Handle<Object>::null(), 0, true);
-  }
+  if (debug->StepInActive()) debug->HandleStepIn(function, true);
 
   if (function->has_initial_map()) {
     if (function->initial_map()->instance_type() == JS_FUNCTION_TYPE) {

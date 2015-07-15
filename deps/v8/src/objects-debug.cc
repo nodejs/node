@@ -257,7 +257,7 @@ void JSObject::JSObjectVerify() {
   VerifyHeapPointer(properties());
   VerifyHeapPointer(elements());
 
-  if (GetElementsKind() == SLOPPY_ARGUMENTS_ELEMENTS) {
+  if (HasSloppyArgumentsElements()) {
     CHECK(this->elements()->IsFixedArray());
     CHECK_GE(this->elements()->length(), 2);
   }
@@ -1104,7 +1104,8 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
           dict->Capacity() - dict->NumberOfElements();
       break;
     }
-    case SLOPPY_ARGUMENTS_ELEMENTS:
+    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
+    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
       break;
   }
 }

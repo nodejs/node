@@ -418,9 +418,9 @@ class SlotsBuffer {
   // before sweeping when mark bits are still intact.
   static void RemoveInvalidSlots(Heap* heap, SlotsBuffer* buffer);
 
-  // Eliminate all slots that point to the given invalid_object.
+  // Eliminate all slots that are within the given address range.
   static void RemoveObjectSlots(Heap* heap, SlotsBuffer* buffer,
-                                HeapObject* invalid_object);
+                                Address start_slot, Address end_slot);
 
   // Ensures that there are no invalid slots in the chain of slots buffers.
   static void VerifySlots(Heap* heap, SlotsBuffer* buffer);
@@ -742,8 +742,8 @@ class MarkCompactCollector {
   void VerifyIsSlotInLiveObject(Address slot, HeapObject* object);
 
   // Removes all the slots in the slot buffers that are within the given
-  // invalid_object.
-  void RemoveObjectSlots(HeapObject* invalid_object);
+  // address range.
+  void RemoveObjectSlots(Address start_slot, Address end_slot);
 
  private:
   class SweeperTask;

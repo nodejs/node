@@ -874,26 +874,31 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
 
 void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
   // TODO(mbrandy): inspect input to see if nop is appropriate.
-  PPCOperandGenerator g(this);
-  Emit(kPPC_Uint32ToUint64, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+  VisitRR(this, kPPC_Uint32ToUint64, node);
 }
 #endif
 
 
 void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
-  PPCOperandGenerator g(this);
-  Emit(kPPC_DoubleToFloat32, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+  VisitRR(this, kPPC_DoubleToFloat32, node);
+}
+
+
+void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
+  switch (TruncationModeOf(node->op())) {
+    case TruncationMode::kJavaScript:
+      return VisitRR(this, kArchTruncateDoubleToI, node);
+    case TruncationMode::kRoundToZero:
+      return VisitRR(this, kPPC_DoubleToInt32, node);
+  }
+  UNREACHABLE();
 }
 
 
 #if V8_TARGET_ARCH_PPC64
 void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
-  PPCOperandGenerator g(this);
   // TODO(mbrandy): inspect input to see if nop is appropriate.
-  Emit(kPPC_Int64ToInt32, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+  VisitRR(this, kPPC_Int64ToInt32, node);
 }
 #endif
 
@@ -1185,6 +1190,9 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
       case IrOpcode::kUint64LessThan:
         cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
         return VisitWord64Compare(selector, value, cont);
+      case IrOpcode::kUint64LessThanOrEqual:
+        cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
+        return VisitWord64Compare(selector, value, cont);
 #endif
       case IrOpcode::kFloat32Equal:
         cont->OverwriteAndNegateIfEqual(kEqual);
@@ -1387,6 +1395,12 @@ void InstructionSelector::VisitUint64LessThan(Node* node) {
   FlagsContinuation cont(kUnsignedLessThan, node);
   VisitWord64Compare(this, node, &cont);
 }
+
+
+void InstructionSelector::VisitUint64LessThanOrEqual(Node* node) {
+  FlagsContinuation cont(kUnsignedLessThanOrEqual, node);
+  VisitWord64Compare(this, node, &cont);
+}
 #endif
 
 
@@ -1520,9 +1534,7 @@ void InstructionSelector::VisitTailCall(Node* node) {
   DCHECK_EQ(0, descriptor->flags() & CallDescriptor::kNeedsNopAfterCall);
 
   // TODO(turbofan): Relax restriction for stack parameters.
-  if (descriptor->UsesOnlyRegisters() &&
-      descriptor->HasSameReturnLocationsAs(
-          linkage()->GetIncomingDescriptor())) {
+  if (linkage()->GetIncomingDescriptor()->CanTailCall(node)) {
     CallBuffer buffer(zone(), descriptor, nullptr);
 
     // Compute InstructionOperands for inputs and outputs.
@@ -1530,8 +1542,6 @@ void InstructionSelector::VisitTailCall(Node* node) {
     // register if there are multiple uses of it. Improve constant pool and the
     // heuristics in the register allocator for where to emit constants.
     InitializeCallBuffer(node, &buffer, true, false);
-
-    DCHECK_EQ(0u, buffer.pushed_nodes.size());
 
     // Select the appropriate opcode based on the call type.
     InstructionCode opcode;

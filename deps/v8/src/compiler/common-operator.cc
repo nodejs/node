@@ -441,9 +441,7 @@ const Operator* CommonOperatorBuilder::IfValue(int32_t index) {
 }
 
 
-const Operator* CommonOperatorBuilder::Start(int num_formal_parameters) {
-  // Outputs are formal parameters, plus context, receiver, and JSFunction.
-  const int value_output_count = num_formal_parameters + 3;
+const Operator* CommonOperatorBuilder::Start(int value_output_count) {
   return new (zone()) Operator(               // --
       IrOpcode::kStart, Operator::kFoldable,  // opcode
       "Start",                                // name

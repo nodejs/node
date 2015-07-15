@@ -23,9 +23,6 @@ namespace compiler {
 
 JSTypedLowering::JSTypedLowering(Editor* editor, JSGraph* jsgraph, Zone* zone)
     : AdvancedReducer(editor), jsgraph_(jsgraph), simplified_(graph()->zone()) {
-  zero_range_ = Type::Range(0.0, 0.0, graph()->zone());
-  one_range_ = Type::Range(1.0, 1.0, graph()->zone());
-  zero_thirtyone_range_ = Type::Range(0.0, 31.0, graph()->zone());
   for (size_t k = 0; k < arraysize(shifted_int32_ranges_); ++k) {
     double min = kMinInt / (1 << k);
     double max = kMaxInt / (1 << k);
@@ -140,20 +137,6 @@ class JSBinopReduction final {
   void ConvertInputsToString() {
     node_->ReplaceInput(0, ConvertToString(left()));
     node_->ReplaceInput(1, ConvertToString(right()));
-  }
-
-  // Convert inputs for bitwise shift operation (ES5 spec 11.7).
-  void ConvertInputsForShift(Signedness left_signedness) {
-    node_->ReplaceInput(0, ConvertToUI32(ConvertPlainPrimitiveToNumber(left()),
-                                         left_signedness));
-    Node* rnum =
-        ConvertToUI32(ConvertPlainPrimitiveToNumber(right()), kUnsigned);
-    Type* rnum_type = NodeProperties::GetBounds(rnum).upper;
-    if (!rnum_type->Is(lowering_->zero_thirtyone_range_)) {
-      rnum = graph()->NewNode(machine()->Word32And(), rnum,
-                              jsgraph()->Int32Constant(0x1F));
-    }
-    node_->ReplaceInput(1, rnum);
   }
 
   void SwapInputs() {
@@ -488,14 +471,14 @@ Reduction JSTypedLowering::ReduceUI32Shift(Node* node,
   JSBinopReduction r(this, node);
   if (r.IsStrong()) {
     if (r.BothInputsAre(Type::Number())) {
-      r.ConvertInputsForShift(left_signedness);
+      r.ConvertInputsToUI32(left_signedness, kUnsigned);
       return r.ChangeToPureOperator(shift_op);
     }
     return NoChange();
   }
   Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
   r.ConvertInputsToNumber(frame_state);
-  r.ConvertInputsForShift(left_signedness);
+  r.ConvertInputsToUI32(left_signedness, kUnsigned);
   return r.ChangeToPureOperator(shift_op);
 }
 
@@ -1612,11 +1595,12 @@ Reduction JSTypedLowering::Reduce(Node* node) {
     case IrOpcode::kJSBitwiseAnd:
       return ReduceInt32Binop(node, machine()->Word32And());
     case IrOpcode::kJSShiftLeft:
-      return ReduceUI32Shift(node, kSigned, machine()->Word32Shl());
+      return ReduceUI32Shift(node, kSigned, simplified()->NumberShiftLeft());
     case IrOpcode::kJSShiftRight:
-      return ReduceUI32Shift(node, kSigned, machine()->Word32Sar());
+      return ReduceUI32Shift(node, kSigned, simplified()->NumberShiftRight());
     case IrOpcode::kJSShiftRightLogical:
-      return ReduceUI32Shift(node, kUnsigned, machine()->Word32Shr());
+      return ReduceUI32Shift(node, kUnsigned,
+                             simplified()->NumberShiftRightLogical());
     case IrOpcode::kJSAdd:
       return ReduceJSAdd(node);
     case IrOpcode::kJSSubtract:

@@ -249,40 +249,6 @@ static void PeelOuterLoopsForOsr(Graph* graph, CommonOperatorBuilder* common,
 }
 
 
-static void TransferOsrValueTypesFromLoopPhis(Zone* zone, Node* osr_loop_entry,
-                                              Node* osr_loop) {
-  // Find the index of the osr loop entry into the loop.
-  int index = 0;
-  for (index = 0; index < osr_loop->InputCount(); index++) {
-    if (osr_loop->InputAt(index) == osr_loop_entry) break;
-  }
-  if (index == osr_loop->InputCount()) return;
-
-  for (Node* osr_value : osr_loop_entry->uses()) {
-    if (osr_value->opcode() != IrOpcode::kOsrValue) continue;
-    bool unknown = true;
-    for (Node* phi : osr_value->uses()) {
-      if (phi->opcode() != IrOpcode::kPhi) continue;
-      if (NodeProperties::GetControlInput(phi) != osr_loop) continue;
-      if (phi->InputAt(index) != osr_value) continue;
-      if (NodeProperties::IsTyped(phi)) {
-        // Transfer the type from the phi to the OSR value itself.
-        Bounds phi_bounds = NodeProperties::GetBounds(phi);
-        if (unknown) {
-          NodeProperties::SetBounds(osr_value, phi_bounds);
-        } else {
-          Bounds osr_bounds = NodeProperties::GetBounds(osr_value);
-          NodeProperties::SetBounds(osr_value,
-                                    Bounds::Both(phi_bounds, osr_bounds, zone));
-        }
-        unknown = false;
-      }
-    }
-    if (unknown) NodeProperties::SetBounds(osr_value, Bounds::Unbounded(zone));
-  }
-}
-
-
 void OsrHelper::Deconstruct(JSGraph* jsgraph, CommonOperatorBuilder* common,
                             Zone* tmp_zone) {
   Graph* graph = jsgraph->graph();
@@ -312,9 +278,6 @@ void OsrHelper::Deconstruct(JSGraph* jsgraph, CommonOperatorBuilder* common,
   }
 
   CHECK(osr_loop);  // Should have found the OSR loop.
-
-  // Transfer the types from loop phis to the OSR values which flow into them.
-  TransferOsrValueTypesFromLoopPhis(graph->zone(), osr_loop_entry, osr_loop);
 
   // Analyze the graph to determine how deeply nested the OSR loop is.
   LoopTree* loop_tree = LoopFinder::BuildLoopTree(graph, tmp_zone);

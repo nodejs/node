@@ -295,7 +295,8 @@ static uint32_t EstimateElementCount(Handle<JSArray> array) {
       }
       break;
     }
-    case SLOPPY_ARGUMENTS_ELEMENTS:
+    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
+    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
   case EXTERNAL_##TYPE##_ELEMENTS:                      \
   case TYPE##_ELEMENTS:
@@ -436,7 +437,8 @@ static void CollectElementIndices(Handle<JSObject> object, uint32_t range,
         if (length == range) return;  // All indices accounted for already.
         break;
       }
-    case SLOPPY_ARGUMENTS_ELEMENTS: {
+    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
+    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS: {
       MaybeHandle<Object> length_obj =
           Object::GetProperty(object, isolate->factory()->length_string());
       double length_num = length_obj.ToHandleChecked()->Number();
@@ -706,7 +708,8 @@ static bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
       isolate, receiver, false, false, visitor);
       break;
     }
-    case SLOPPY_ARGUMENTS_ELEMENTS: {
+    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
+    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS: {
       for (uint32_t index = 0; index < length; index++) {
         HandleScope loop_scope(isolate);
         Handle<Object> element;
@@ -726,7 +729,7 @@ static bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
 static bool IsConcatSpreadable(Isolate* isolate, Handle<Object> obj) {
   HandleScope handle_scope(isolate);
   if (!obj->IsSpecObject()) return false;
-  if (FLAG_harmony_arrays) {
+  if (FLAG_harmony_concat_spreadable) {
     Handle<Symbol> key(isolate->factory()->is_concat_spreadable_symbol());
     Handle<Object> value;
     MaybeHandle<Object> maybeValue =

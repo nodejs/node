@@ -106,9 +106,10 @@ void TransitionArray::Insert(Handle<Map> map, Handle<Name> name,
   }
 
   // We're gonna need a bigger TransitionArray.
-  Handle<TransitionArray> result = Allocate(
-      map->GetIsolate(), new_nof,
-      Map::SlackForArraySize(number_of_transitions, kMaxNumberOfTransitions));
+  Handle<TransitionArray> result =
+      Allocate(map->GetIsolate(), new_nof,
+               Map::SlackForArraySize(false, number_of_transitions,
+                                      kMaxNumberOfTransitions));
 
   // The map's transition array may have shrunk during the allocation above as
   // it was weakly traversed, though it is guaranteed not to disappear. Trim the

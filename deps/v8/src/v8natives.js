@@ -802,72 +802,7 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
 
 // ES5 section 15.4.5.1.
 function DefineArrayProperty(obj, p, desc, should_throw) {
-  // Note that the length of an array is not actually stored as part of the
-  // property, hence we use generated code throughout this function instead of
-  // DefineObjectProperty() to modify its value.
-
-  // Step 3 - Special handling for length property.
-  if (p === "length") {
-    var length = obj.length;
-    var old_length = length;
-    if (!desc.hasValue()) {
-      return DefineObjectProperty(obj, "length", desc, should_throw);
-    }
-    var new_length = $toUint32(desc.getValue());
-    if (new_length != $toNumber(desc.getValue())) {
-      throw MakeRangeError(kArrayLengthOutOfRange);
-    }
-    var length_desc = GetOwnPropertyJS(obj, "length");
-    if (new_length != length && !length_desc.isWritable()) {
-      if (should_throw) {
-        throw MakeTypeError(kRedefineDisallowed, p);
-      } else {
-        return false;
-      }
-    }
-    var threw = false;
-
-    var emit_splice = %IsObserved(obj) && new_length !== old_length;
-    var removed;
-    if (emit_splice) {
-      $observeBeginPerformSplice(obj);
-      removed = [];
-      if (new_length < old_length)
-        removed.length = old_length - new_length;
-    }
-
-    while (new_length < length--) {
-      var index = $toString(length);
-      if (emit_splice) {
-        var deletedDesc = GetOwnPropertyJS(obj, index);
-        if (deletedDesc && deletedDesc.hasValue())
-          removed[length - new_length] = deletedDesc.getValue();
-      }
-      if (!Delete(obj, index, false)) {
-        new_length = length + 1;
-        threw = true;
-        break;
-      }
-    }
-    threw = !DefineObjectProperty(obj, "length", desc, should_throw) || threw;
-    if (emit_splice) {
-      $observeEndPerformSplice(obj);
-      $observeEnqueueSpliceRecord(obj,
-          new_length < old_length ? new_length : old_length,
-          removed,
-          new_length > old_length ? new_length - old_length : 0);
-    }
-    if (threw) {
-      if (should_throw) {
-        throw MakeTypeError(kRedefineDisallowed, p);
-      } else {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  // Step 4 - Special handling for array index.
+  // Step 3 - Special handling for array index.
   if (!IS_SYMBOL(p)) {
     var index = $toUint32(p);
     var emit_splice = false;

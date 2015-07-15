@@ -58,7 +58,9 @@ function f() {
     s += a[j];                   // Break L
   }
 
-  // TODO(yangguo): add test case for for-let.
+  for (let i = 0; i < 3; i++) {  // Break m
+    s += a[i];                   // Break M
+  }
 }                                // Break y
 
 function listener(event, exec_state, event_data, data) {
@@ -106,12 +108,14 @@ var expected = [
   // For-var: var decl, condition, body, next, condition, body, ...
   "k7","k20","K4","k23","k20","K4","k23","k20","K4","k23","k20",
   // For: init, condition, body, next, condition, body, ...
-  "l11","l16","L4","l19","l16","L4","l19","l16","L4","l19","l16",
+  "l7","l16","L4","l19","l16","L4","l19","l16","L4","l19","l16",
+  // For-let: init, condition, body, next, condition, body, ...
+  "m7","m20","M4","m23","m20","M4","m23","m20","M4","m23","m20",
   // Exit.
   "y0","z0",
 ]
 print("expected:\n"+ JSON.stringify(expected));
 
 assertArrayEquals(expected, log);
-assertEquals(48, s);
+assertEquals(54, s);
 assertNull(exception);

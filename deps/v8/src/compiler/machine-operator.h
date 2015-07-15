@@ -16,8 +16,9 @@ namespace compiler {
 struct MachineOperatorGlobalCache;
 class Operator;
 
+
 // For operators that are not supported on all platforms.
-class OptionalOperator {
+class OptionalOperator final {
  public:
   explicit OptionalOperator(const Operator* op) : op_(op) {}
 
@@ -28,8 +29,24 @@ class OptionalOperator {
   }
 
  private:
-  const Operator* op_;
+  const Operator* const op_;
 };
+
+
+// Supported float64 to int32 truncation modes.
+enum class TruncationMode : uint8_t {
+  kJavaScript,  // ES6 section 7.1.5
+  kRoundToZero  // Round towards zero. Implementation defined for NaN and ovf.
+};
+
+V8_INLINE size_t hash_value(TruncationMode mode) {
+  return static_cast<uint8_t>(mode);
+}
+
+std::ostream& operator<<(std::ostream&, TruncationMode);
+
+TruncationMode TruncationModeOf(Operator const*);
+
 
 // Supported write barrier modes.
 enum WriteBarrierKind { kNoWriteBarrier, kFullWriteBarrier };
@@ -156,6 +173,7 @@ class MachineOperatorBuilder final : public ZoneObject {
   const Operator* Int64LessThanOrEqual();
   const Operator* Uint64Div();
   const Operator* Uint64LessThan();
+  const Operator* Uint64LessThanOrEqual();
   const Operator* Uint64Mod();
 
   // These operators change the representation of numbers while preserving the
@@ -174,7 +192,7 @@ class MachineOperatorBuilder final : public ZoneObject {
   // These operators truncate numbers, both changing the representation of
   // the number and mapping multiple input values onto the same output value.
   const Operator* TruncateFloat64ToFloat32();
-  const Operator* TruncateFloat64ToInt32();  // JavaScript semantics.
+  const Operator* TruncateFloat64ToInt32(TruncationMode);
   const Operator* TruncateInt64ToInt32();
 
   // Floating point operators always operate with IEEE 754 round-to-nearest
