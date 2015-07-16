@@ -115,7 +115,7 @@ test-all-valgrind: test-build
 	$(PYTHON) tools/test.py --mode=debug,release --valgrind
 
 test-ci:
-	$(PYTHON) tools/test.py -p tap --logfile test.tap --mode=release message parallel sequential
+	$(PYTHON) tools/test.py -p tap --logfile test.tap --mode=release message parallel sequential smoke
 
 test-release: test-build
 	$(PYTHON) tools/test.py --mode=release
@@ -143,6 +143,9 @@ test-npm: $(NODE_EXE)
 
 test-npm-publish: $(NODE_EXE)
 	npm_package_config_publishtest=true $(NODE) deps/npm/test/run.js
+
+test-smoke: $(NODE_EXE)
+	$(PYTHON) tools/test.py smoke
 
 test-addons: test-build
 	$(PYTHON) tools/test.py --mode=release addons

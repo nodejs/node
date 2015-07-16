@@ -52,12 +52,13 @@ if /i "%1"=="noetw"         set noetw=1&goto arg-ok
 if /i "%1"=="noperfctr"     set noperfctr=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
 if /i "%1"=="test"          set test_args=%test_args% sequential parallel message -J&set jslint=1&goto arg-ok
-if /i "%1"=="test-ci"       set test_args=%test_args% -p tap --logfile test.tap message sequential parallel&goto arg-ok
+if /i "%1"=="test-ci"       set test_args=%test_args% -p tap --logfile test.tap message sequential parallel smoke&goto arg-ok
 if /i "%1"=="test-simple"   set test_args=%test_args% sequential parallel -J&goto arg-ok
 if /i "%1"=="test-message"  set test_args=%test_args% message&goto arg-ok
 if /i "%1"=="test-gc"       set test_args=%test_args% gc&set buildnodeweak=1&goto arg-ok
 if /i "%1"=="test-internet" set test_args=%test_args% internet&goto arg-ok
 if /i "%1"=="test-pummel"   set test_args=%test_args% pummel&goto arg-ok
+if /i "%1"=="test-smoke"    set test_args=%test_args% smoke&goto arg-ok
 if /i "%1"=="test-all"      set test_args=%test_args% sequential parallel message gc internet pummel&set buildnodeweak=1&set jslint=1&goto arg-ok
 if /i "%1"=="jslint"        set jslint=1&goto arg-ok
 if /i "%1"=="msi"           set msi=1&set licensertf=1&goto arg-ok
@@ -213,7 +214,7 @@ echo Failed to create vc project files.
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [test-all/test-uv/test-internet/test-pummel/test-simple/test-message] [clean] [noprojgen] [small-icu/full-icu/intl-none] [nobuild] [nosign] [x86/x64] [download-all]
+echo vcbuild.bat [debug/release] [msi] [test-all/test-uv/test-internet/test-pummel/test-simple/test-message/test-smoke] [clean] [noprojgen] [small-icu/full-icu/intl-none] [nobuild] [nosign] [x86/x64] [download-all]
 echo Examples:
 echo   vcbuild.bat                : builds release build
 echo   vcbuild.bat debug          : builds debug build
