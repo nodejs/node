@@ -177,8 +177,12 @@
   };
 
   startup.globalConsole = function() {
-    global.__defineGetter__('console', function() {
-      return NativeModule.require('console');
+    Object.defineProperty(global, 'console', {
+      get: function() {
+        return NativeModule.require('console');
+      },
+      enumerable: true,
+      configurable: true
     });
   };
 
@@ -615,105 +619,117 @@
   startup.processStdio = function() {
     var stdin, stdout, stderr;
 
-    process.__defineGetter__('stdout', function() {
-      if (stdout) return stdout;
-      stdout = createWritableStdioStream(1);
-      stdout.destroy = stdout.destroySoon = function(er) {
-        er = er || new Error('process.stdout cannot be closed.');
-        stdout.emit('error', er);
-      };
-      if (stdout.isTTY) {
-        process.on('SIGWINCH', function() {
-          stdout._refreshSize();
-        });
-      }
-      return stdout;
-    });
-
-    process.__defineGetter__('stderr', function() {
-      if (stderr) return stderr;
-      stderr = createWritableStdioStream(2);
-      stderr.destroy = stderr.destroySoon = function(er) {
-        er = er || new Error('process.stderr cannot be closed.');
-        stderr.emit('error', er);
-      };
-      return stderr;
-    });
-
-    process.__defineGetter__('stdin', function() {
-      if (stdin) return stdin;
-
-      var tty_wrap = process.binding('tty_wrap');
-      var fd = 0;
-
-      switch (tty_wrap.guessHandleType(fd)) {
-        case 'TTY':
-          var tty = NativeModule.require('tty');
-          stdin = new tty.ReadStream(fd, {
-            highWaterMark: 0,
-            readable: true,
-            writable: false
+    Object.defineProperty(process, 'stdout', {
+      get: function() {
+        if (stdout) return stdout;
+        stdout = createWritableStdioStream(1);
+        stdout.destroy = stdout.destroySoon = function(er) {
+          er = er || new Error('process.stdout cannot be closed.');
+          stdout.emit('error', er);
+        };
+        if (stdout.isTTY) {
+          process.on('SIGWINCH', function() {
+            stdout._refreshSize();
           });
-          break;
+        }
+        return stdout;
+      },
+      enumerable: true,
+      configurable: true
+    });
 
-        case 'FILE':
-          var fs = NativeModule.require('fs');
-          stdin = new fs.ReadStream(null, { fd: fd, autoClose: false });
-          break;
+    Object.defineProperty(process, 'stderr', {
+      get: function() {
+        if (stderr) return stderr;
+        stderr = createWritableStdioStream(2);
+        stderr.destroy = stderr.destroySoon = function(er) {
+          er = er || new Error('process.stderr cannot be closed.');
+          stderr.emit('error', er);
+        };
+        return stderr;
+      },
+      enumerable: true,
+      configurable: true
+    });
 
-        case 'PIPE':
-        case 'TCP':
-          var net = NativeModule.require('net');
+    Object.defineProperty(process, 'stdin', {
+      get: function() {
+        if (stdin) return stdin;
 
-          // It could be that process has been started with an IPC channel
-          // sitting on fd=0, in such case the pipe for this fd is already
-          // present and creating a new one will lead to the assertion failure
-          // in libuv.
-          if (process._channel && process._channel.fd === fd) {
-            stdin = new net.Socket({
-              handle: process._channel,
+        var tty_wrap = process.binding('tty_wrap');
+        var fd = 0;
+
+        switch (tty_wrap.guessHandleType(fd)) {
+          case 'TTY':
+            var tty = NativeModule.require('tty');
+            stdin = new tty.ReadStream(fd, {
+              highWaterMark: 0,
               readable: true,
               writable: false
             });
-          } else {
-            stdin = new net.Socket({
-              fd: fd,
-              readable: true,
-              writable: false
-            });
-          }
-          // Make sure the stdin can't be `.end()`-ed
-          stdin._writableState.ended = true;
-          break;
+            break;
 
-        default:
-          // Probably an error on in uv_guess_handle()
-          throw new Error('Implement me. Unknown stdin file type!');
-      }
+          case 'FILE':
+            var fs = NativeModule.require('fs');
+            stdin = new fs.ReadStream(null, { fd: fd, autoClose: false });
+            break;
 
-      // For supporting legacy API we put the FD here.
-      stdin.fd = fd;
+          case 'PIPE':
+          case 'TCP':
+            var net = NativeModule.require('net');
 
-      // stdin starts out life in a paused state, but node doesn't
-      // know yet.  Explicitly to readStop() it to put it in the
-      // not-reading state.
-      if (stdin._handle && stdin._handle.readStop) {
-        stdin._handle.reading = false;
-        stdin.push('');
-        stdin._handle.readStop();
-      }
+            // It could be that process has been started with an IPC channel
+            // sitting on fd=0, in such case the pipe for this fd is already
+            // present and creating a new one will lead to the assertion failure
+            // in libuv.
+            if (process._channel && process._channel.fd === fd) {
+              stdin = new net.Socket({
+                handle: process._channel,
+                readable: true,
+                writable: false
+              });
+            } else {
+              stdin = new net.Socket({
+                fd: fd,
+                readable: true,
+                writable: false
+              });
+            }
+            // Make sure the stdin can't be `.end()`-ed
+            stdin._writableState.ended = true;
+            break;
 
-      // if the user calls stdin.pause(), then we need to stop reading
-      // immediately, so that the process can close down.
-      stdin.on('pause', function() {
-        if (!stdin._handle)
-          return;
-        stdin.push('');
-        stdin._handle.reading = false;
-        stdin._handle.readStop();
-      });
+          default:
+            // Probably an error on in uv_guess_handle()
+            throw new Error('Implement me. Unknown stdin file type!');
+        }
 
-      return stdin;
+        // For supporting legacy API we put the FD here.
+        stdin.fd = fd;
+
+        // stdin starts out life in a paused state, but node doesn't
+        // know yet.  Explicitly to readStop() it to put it in the
+        // not-reading state.
+        if (stdin._handle && stdin._handle.readStop) {
+          stdin._handle.reading = false;
+          stdin.push('');
+          stdin._handle.readStop();
+        }
+
+        // if the user calls stdin.pause(), then we need to stop reading
+        // immediately, so that the process can close down.
+        stdin.on('pause', function() {
+          if (!stdin._handle)
+            return;
+          stdin.push('');
+          stdin._handle.reading = false;
+          stdin._handle.readStop();
+        });
+
+        return stdin;
+      },
+      enumerable: true,
+      configurable: true
     });
 
     process.openStdin = function() {
