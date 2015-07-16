@@ -8,17 +8,17 @@ var wrong_script = path.join(common.fixturesDir, 'cert.pem');
 
 var p = child_process.spawn(process.execPath, [
   '-e',
-  'try { require(process.argv[1]); } catch (e) { console.log(e.stack); }',
+  'require(process.argv[1]);',
   wrong_script
 ]);
 
-p.stderr.on('data', function(data) {
-  assert(false, 'Unexpected stderr data: ' + data);
+p.stdout.on('data', function(data) {
+  assert(false, 'Unexpected stdout data: ' + data);
 });
 
 var output = '';
 
-p.stdout.on('data', function(data) {
+p.stderr.on('data', function(data) {
   output += data;
 });
 
