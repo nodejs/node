@@ -888,6 +888,7 @@
 
     return nativeModule.exports;
   };
+  process._require = NativeModule.require.bind(NativeModule);
 
   NativeModule.getCached = function(id) {
     return NativeModule._cache[id];
