@@ -1179,3 +1179,11 @@ Buffer.poolSize = ps;
 assert.throws(function() {
   Buffer(10).copy();
 });
+
+assert.throws(function() {
+  new Buffer();
+}, /must start with number, buffer, array or string/);
+
+assert.throws(function() {
+  new Buffer(null);
+}, /must start with number, buffer, array or string/);
