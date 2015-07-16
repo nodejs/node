@@ -802,7 +802,9 @@ assert.equal(buf[4], 0);
 
 // Check for fractional length args, junk length args, etc.
 // https://github.com/joyent/node/issues/1758
-Buffer(3.3).toString(); // throws bad argument error in commit 43cb4ec
+
+// Call .fill() first, stops valgrind warning about uninitialized memory reads.
+Buffer(3.3).fill().toString(); // throws bad argument error in commit 43cb4ec
 assert.equal(Buffer(-1).length, 0);
 assert.equal(Buffer(NaN).length, 0);
 assert.equal(Buffer(3.3).length, 3);
