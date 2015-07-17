@@ -7,6 +7,7 @@ test-microtask-queue-run-domain   : PASS,FLAKY
 
 [$system==win32]
 test-timers-first-fire            : PASS,FLAKY
+test-http-pipeline-flood          : PASS,FLAKY
 
 [$system==linux]
 
