@@ -240,18 +240,18 @@ The following key combinations in the REPL have these special effects:
 
 ### Overriding representation of Objects in REPL
 
-REPL module internally uses
+The REPL module internally uses
 [`util.inspect`](https://iojs.org/api/util.html#util_util_inspect_object_options),
  by default, to print the actual values. But, `util.inspect` delegates the call
  to the object's `inspect` function, if it has one. You can read more about
- this delegation,
+ this delegation
  [here](https://iojs.org/api/util.html#util_custom_inspect_function_on_objects).
 
 So, if you have defined an `inspect` function on an object, like this
 
     > var obj = { foo: 'this will not show up in the inspect() output' };
     undefined
-    > obj.inspect = function(depth) {
+    > obj.inspect = function() {
     ...   return { bar: 'baz' };
     ... };
     [Function]
