@@ -361,6 +361,7 @@ information about the governance of the io.js project, see
 * **Rich Trott** &lt;rtrott@gmail.com&gt; ([@Trott](https://github.com/Trott))
 * **Сковорода Никита Андреевич** &lt;chalkerx@gmail.com&gt; ([@ChALkeR](https://github.com/ChALkeR))
 * **Sakthipriyan Vairamani** &lt;thechargingvolcano@gmail.com&gt; ([@thefourtheye](https://github.com/thefourtheye))
+* **Michaël Zasso** &lt;mic.besace@gmail.com&gt; ([@targos](https://github.com/targos))
 
 Collaborators & TSC members follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
 maintaining the io.js project.
