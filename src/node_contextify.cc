@@ -21,7 +21,6 @@ using v8::External;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
@@ -189,7 +188,7 @@ class ContextifyContext {
     Local<Object> wrapper =
         env->script_data_constructor_function()->NewInstance();
     if (wrapper.IsEmpty())
-      return scope.Escape(Local<Value>::New(env->isolate(), Handle<Value>()));
+      return scope.Escape(Local<Value>::New(env->isolate(), Local<Value>()));
 
     Wrap(wrapper, this);
     return scope.Escape(wrapper);
@@ -732,9 +731,9 @@ class ContextifyScript : public BaseObject {
 };
 
 
-void InitContextify(Handle<Object> target,
-                    Handle<Value> unused,
-                    Handle<Context> context) {
+void InitContextify(Local<Object> target,
+                    Local<Value> unused,
+                    Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   ContextifyContext::Init(env, target);
   ContextifyScript::Init(env, target);

@@ -14,7 +14,6 @@ using v8::GCCallbackFlags;
 using v8::GCEpilogueCallback;
 using v8::GCPrologueCallback;
 using v8::GCType;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
@@ -82,7 +81,7 @@ static void counter_gc_done(Isolate* isolate,
 }
 
 
-void InitPerfCounters(Environment* env, Handle<Object> target) {
+void InitPerfCounters(Environment* env, Local<Object> target) {
   HandleScope scope(env->isolate());
 
   static struct {
@@ -118,7 +117,7 @@ void InitPerfCounters(Environment* env, Handle<Object> target) {
 }
 
 
-void TermPerfCounters(Handle<Object> target) {
+void TermPerfCounters(Local<Object> target) {
   // Only Windows performance counters supported
   // To enable other OS, use conditional compilation here
   TermPerfCountersWin32();
