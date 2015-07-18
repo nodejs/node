@@ -208,6 +208,11 @@ static void After(uv_fs_t *req) {
                                       static_cast<const char*>(req->ptr));
         break;
 
+      case UV_FS_MKDTEMP:
+        argv[1] = String::NewFromUtf8(env->isolate(),
+                                      static_cast<const char*>(req->path));
+        break;
+
       case UV_FS_READ:
         // Buffer interface
         argv[1] = Integer::New(env->isolate(), req->result);
@@ -769,6 +774,25 @@ static void MKDir(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void MKDirTemp(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  if (args.Length() < 1 || !args[0]->IsString()) {
+    return THROW_BAD_ARGS;
+  }
+
+  node::Utf8Value pattern(env->isolate(), args[0]);
+
+  if (args[1]->IsObject()) {
+    ASYNC_CALL(mkdtemp, args[1], *pattern)
+  } else {
+    SYNC_CALL(mkdtemp, *pattern, *pattern)
+    const char* path = static_cast<const char*>(SYNC_REQ.path);
+    Local<String> rc = String::NewFromUtf8(env->isolate(), path);
+    args.GetReturnValue().Set(rc);
+  }
+}
+
 static void ReadDir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1208,6 +1232,7 @@ void InitFs(Handle<Object> target,
   env->SetMethod(target, "ftruncate", FTruncate);
   env->SetMethod(target, "rmdir", RMDir);
   env->SetMethod(target, "mkdir", MKDir);
+  env->SetMethod(target, "mkdirtemp", MKDirTemp);
   env->SetMethod(target, "readdir", ReadDir);
   env->SetMethod(target, "internalModuleReadFile", InternalModuleReadFile);
   env->SetMethod(target, "internalModuleStat", InternalModuleStat);
