@@ -13,7 +13,6 @@ using v8::Array;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::FunctionCallbackInfo;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
@@ -340,9 +339,9 @@ void SyncProcessStdioPipe::CloseCallback(uv_handle_t* handle) {
 }
 
 
-void SyncProcessRunner::Initialize(Handle<Object> target,
-                                   Handle<Value> unused,
-                                   Handle<Context> context) {
+void SyncProcessRunner::Initialize(Local<Object> target,
+                                   Local<Value> unused,
+                                   Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   env->SetMethod(target, "spawn", Spawn);
 }
