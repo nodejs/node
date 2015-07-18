@@ -12,7 +12,6 @@ using v8::Array;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
-using v8::Handle;
 using v8::HandleScope;
 using v8::HeapProfiler;
 using v8::Integer;
@@ -83,7 +82,7 @@ intptr_t RetainedAsyncInfo::GetSizeInBytes() {
 }
 
 
-RetainedObjectInfo* WrapperInfo(uint16_t class_id, Handle<Value> wrapper) {
+RetainedObjectInfo* WrapperInfo(uint16_t class_id, Local<Value> wrapper) {
   // No class_id should be the provider type of NONE.
   CHECK_NE(NODE_ASYNC_ID_OFFSET, class_id);
   CHECK(wrapper->IsObject());
@@ -129,9 +128,9 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void Initialize(Handle<Object> target,
-                Handle<Value> unused,
-                Handle<Context> context) {
+static void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
   HandleScope scope(isolate);
@@ -160,9 +159,9 @@ void LoadAsyncWrapperInfo(Environment* env) {
 }
 
 
-Handle<Value> AsyncWrap::MakeCallback(const Handle<Function> cb,
+Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
                                       int argc,
-                                      Handle<Value>* argv) {
+                                      Local<Value>* argv) {
   CHECK(env()->context() == env()->isolate()->GetCurrentContext());
 
   Local<Object> context = object();

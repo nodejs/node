@@ -11,7 +11,6 @@ using v8::ArrayBuffer;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
-using v8::Handle;
 using v8::HeapStatistics;
 using v8::Isolate;
 using v8::Local;
@@ -59,9 +58,9 @@ void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void InitializeV8Bindings(Handle<Object> target,
-                          Handle<Value> unused,
-                          Handle<Context> context) {
+void InitializeV8Bindings(Local<Object> target,
+                          Local<Value> unused,
+                          Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   env->SetMethod(target,
                  "updateHeapStatisticsArrayBuffer",

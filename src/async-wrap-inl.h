@@ -14,7 +14,7 @@
 namespace node {
 
 inline AsyncWrap::AsyncWrap(Environment* env,
-                            v8::Handle<v8::Object> object,
+                            v8::Local<v8::Object> object,
                             ProviderType provider,
                             AsyncWrap* parent)
     : BaseObject(env, object), bits_(static_cast<uint32_t>(provider) << 1) {
@@ -58,20 +58,20 @@ inline AsyncWrap::ProviderType AsyncWrap::provider_type() const {
 }
 
 
-inline v8::Handle<v8::Value> AsyncWrap::MakeCallback(
-    const v8::Handle<v8::String> symbol,
+inline v8::Local<v8::Value> AsyncWrap::MakeCallback(
+    const v8::Local<v8::String> symbol,
     int argc,
-    v8::Handle<v8::Value>* argv) {
+    v8::Local<v8::Value>* argv) {
   v8::Local<v8::Value> cb_v = object()->Get(symbol);
   CHECK(cb_v->IsFunction());
   return MakeCallback(cb_v.As<v8::Function>(), argc, argv);
 }
 
 
-inline v8::Handle<v8::Value> AsyncWrap::MakeCallback(
+inline v8::Local<v8::Value> AsyncWrap::MakeCallback(
     uint32_t index,
     int argc,
-    v8::Handle<v8::Value>* argv) {
+    v8::Local<v8::Value>* argv) {
   v8::Local<v8::Value> cb_v = object()->Get(index);
   CHECK(cb_v->IsFunction());
   return MakeCallback(cb_v.As<v8::Function>(), argc, argv);

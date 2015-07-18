@@ -92,7 +92,6 @@ using v8::Exception;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::HandleScope;
 using v8::HeapStatistics;
 using v8::Integer;
@@ -990,11 +989,11 @@ void SetupPromises(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-Handle<Value> MakeCallback(Environment* env,
-                           Handle<Value> recv,
-                           const Handle<Function> callback,
+Local<Value> MakeCallback(Environment* env,
+                           Local<Value> recv,
+                           const Local<Function> callback,
                            int argc,
-                           Handle<Value> argv[]) {
+                           Local<Value> argv[]) {
   // If you hit this assertion, you forgot to enter the v8::Context first.
   CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
 
@@ -1071,43 +1070,43 @@ Handle<Value> MakeCallback(Environment* env,
 
 
 // Internal only.
-Handle<Value> MakeCallback(Environment* env,
-                           Handle<Object> recv,
+Local<Value> MakeCallback(Environment* env,
+                           Local<Object> recv,
                            uint32_t index,
                            int argc,
-                           Handle<Value> argv[]) {
+                           Local<Value> argv[]) {
   Local<Value> cb_v = recv->Get(index);
   CHECK(cb_v->IsFunction());
   return MakeCallback(env, recv.As<Value>(), cb_v.As<Function>(), argc, argv);
 }
 
 
-Handle<Value> MakeCallback(Environment* env,
-                           Handle<Object> recv,
-                           Handle<String> symbol,
+Local<Value> MakeCallback(Environment* env,
+                           Local<Object> recv,
+                           Local<String> symbol,
                            int argc,
-                           Handle<Value> argv[]) {
+                           Local<Value> argv[]) {
   Local<Value> cb_v = recv->Get(symbol);
   CHECK(cb_v->IsFunction());
   return MakeCallback(env, recv.As<Value>(), cb_v.As<Function>(), argc, argv);
 }
 
 
-Handle<Value> MakeCallback(Environment* env,
-                           Handle<Object> recv,
+Local<Value> MakeCallback(Environment* env,
+                           Local<Object> recv,
                            const char* method,
                            int argc,
-                           Handle<Value> argv[]) {
+                           Local<Value> argv[]) {
   Local<String> method_string = OneByteString(env->isolate(), method);
   return MakeCallback(env, recv, method_string, argc, argv);
 }
 
 
-Handle<Value> MakeCallback(Isolate* isolate,
-                           Handle<Object> recv,
+Local<Value> MakeCallback(Isolate* isolate,
+                           Local<Object> recv,
                            const char* method,
                            int argc,
-                           Handle<Value> argv[]) {
+                           Local<Value> argv[]) {
   EscapableHandleScope handle_scope(isolate);
   Local<Context> context = recv->CreationContext();
   Environment* env = Environment::GetCurrent(context);
@@ -1117,11 +1116,11 @@ Handle<Value> MakeCallback(Isolate* isolate,
 }
 
 
-Handle<Value> MakeCallback(Isolate* isolate,
-                           Handle<Object> recv,
-                           Handle<String> symbol,
+Local<Value> MakeCallback(Isolate* isolate,
+                           Local<Object> recv,
+                           Local<String> symbol,
                            int argc,
-                           Handle<Value> argv[]) {
+                           Local<Value> argv[]) {
   EscapableHandleScope handle_scope(isolate);
   Local<Context> context = recv->CreationContext();
   Environment* env = Environment::GetCurrent(context);
@@ -1131,11 +1130,11 @@ Handle<Value> MakeCallback(Isolate* isolate,
 }
 
 
-Handle<Value> MakeCallback(Isolate* isolate,
-                           Handle<Object> recv,
-                           Handle<Function> callback,
+Local<Value> MakeCallback(Isolate* isolate,
+                           Local<Object> recv,
+                           Local<Function> callback,
                            int argc,
-                           Handle<Value> argv[]) {
+                           Local<Value> argv[]) {
   EscapableHandleScope handle_scope(isolate);
   Local<Context> context = recv->CreationContext();
   Environment* env = Environment::GetCurrent(context);
@@ -1225,7 +1224,7 @@ enum encoding ParseEncoding(const char* encoding,
 
 
 enum encoding ParseEncoding(Isolate* isolate,
-                            Handle<Value> encoding_v,
+                            Local<Value> encoding_v,
                             enum encoding default_encoding) {
   if (!encoding_v->IsString())
     return default_encoding;
@@ -1249,7 +1248,7 @@ Local<Value> Encode(Isolate* isolate, const uint16_t* buf, size_t len) {
 
 // Returns -1 if the handle was not valid for decoding
 ssize_t DecodeBytes(Isolate* isolate,
-                    Handle<Value> val,
+                    Local<Value> val,
                     enum encoding encoding) {
   HandleScope scope(isolate);
 
@@ -1267,14 +1266,14 @@ ssize_t DecodeBytes(Isolate* isolate,
 ssize_t DecodeWrite(Isolate* isolate,
                     char* buf,
                     size_t buflen,
-                    Handle<Value> val,
+                    Local<Value> val,
                     enum encoding encoding) {
   return StringBytes::Write(isolate, buf, buflen, val, encoding, nullptr);
 }
 
 void AppendExceptionLine(Environment* env,
-                         Handle<Value> er,
-                         Handle<Message> message) {
+                         Local<Value> er,
+                         Local<Message> message) {
   if (message.IsEmpty())
     return;
 
@@ -1373,8 +1372,8 @@ void AppendExceptionLine(Environment* env,
 
 
 static void ReportException(Environment* env,
-                            Handle<Value> er,
-                            Handle<Message> message) {
+                            Local<Value> er,
+                            Local<Message> message) {
   HandleScope scope(env->isolate());
 
   AppendExceptionLine(env, er, message);
@@ -1449,8 +1448,8 @@ static void ReportException(Environment* env, const TryCatch& try_catch) {
 
 // Executes a str within the current v8 context.
 static Local<Value> ExecuteString(Environment* env,
-                                  Handle<String> source,
-                                  Handle<String> filename) {
+                                  Local<String> source,
+                                  Local<String> filename) {
   EscapableHandleScope scope(env->isolate());
   TryCatch try_catch;
 
@@ -1673,7 +1672,7 @@ static const char* name_by_gid(gid_t gid) {
 #endif
 
 
-static uid_t uid_by_name(Isolate* isolate, Handle<Value> value) {
+static uid_t uid_by_name(Isolate* isolate, Local<Value> value) {
   if (value->IsUint32()) {
     return static_cast<uid_t>(value->Uint32Value());
   } else {
@@ -1683,7 +1682,7 @@ static uid_t uid_by_name(Isolate* isolate, Handle<Value> value) {
 }
 
 
-static gid_t gid_by_name(Isolate* isolate, Handle<Value> value) {
+static gid_t gid_by_name(Isolate* isolate, Local<Value> value) {
   if (value->IsUint32()) {
     return static_cast<gid_t>(value->Uint32Value());
   } else {
@@ -2040,7 +2039,7 @@ struct node_module* get_linked_module(const char* name) {
   return mp;
 }
 
-typedef void (UV_DYNAMIC* extInit)(Handle<Object> exports);
+typedef void (UV_DYNAMIC* extInit)(Local<Object> exports);
 
 // DLOpen is process.dlopen(module, filename).
 // Used to load 'module.node' dynamically shared objects.
@@ -2142,8 +2141,8 @@ NO_RETURN void FatalError(const char* location, const char* message) {
 
 
 void FatalException(Isolate* isolate,
-                    Handle<Value> error,
-                    Handle<Message> message) {
+                    Local<Value> error,
+                    Local<Message> message) {
   HandleScope scope(isolate);
 
   Environment* env = Environment::GetCurrent(isolate);
@@ -2189,7 +2188,7 @@ void FatalException(Isolate* isolate, const TryCatch& try_catch) {
 }
 
 
-void OnMessage(Handle<Message> message, Handle<Value> error) {
+void OnMessage(Local<Message> message, Local<Value> error) {
   // The current version of V8 sends messages for errors only
   // (thus `error` is always set).
   FatalException(Isolate::GetCurrent(), error, message);
@@ -2458,7 +2457,7 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
 }
 
 
-static Handle<Object> GetFeatures(Environment* env) {
+static Local<Object> GetFeatures(Environment* env) {
   EscapableHandleScope scope(env->isolate());
 
   Local<Object> obj = Object::New(env->isolate());
@@ -3742,7 +3741,7 @@ int EmitExit(Environment* env) {
   Local<Object> process_object = env->process_object();
   process_object->Set(env->exiting_string(), True(env->isolate()));
 
-  Handle<String> exitCode = env->exit_code_string();
+  Local<String> exitCode = env->exit_code_string();
   int code = process_object->Get(exitCode)->Int32Value();
 
   Local<Value> args[] = {
@@ -3759,7 +3758,7 @@ int EmitExit(Environment* env) {
 
 // Just a convenience method
 Environment* CreateEnvironment(Isolate* isolate,
-                               Handle<Context> context,
+                               Local<Context> context,
                                int argc,
                                const char* const* argv,
                                int exec_argc,
@@ -3781,7 +3780,7 @@ Environment* CreateEnvironment(Isolate* isolate,
 }
 
 static Environment* CreateEnvironment(Isolate* isolate,
-                                      Handle<Context> context,
+                                      Local<Context> context,
                                       NodeInstanceData* instance_data) {
   return CreateEnvironment(isolate,
                            instance_data->event_loop(),
@@ -3809,7 +3808,7 @@ static void HandleCleanup(Environment* env,
 
 Environment* CreateEnvironment(Isolate* isolate,
                                uv_loop_t* loop,
-                               Handle<Context> context,
+                               Local<Context> context,
                                int argc,
                                const char* const* argv,
                                int exec_argc,
