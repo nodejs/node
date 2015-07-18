@@ -30,7 +30,6 @@ using v8::Array;
 using v8::Boolean;
 using v8::Context;
 using v8::FunctionCallbackInfo;
-using v8::Handle;
 using v8::Integer;
 using v8::Local;
 using v8::Number;
@@ -291,9 +290,9 @@ static void GetHomeDirectory(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void Initialize(Handle<Object> target,
-                Handle<Value> unused,
-                Handle<Context> context) {
+void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   env->SetMethod(target, "getHostname", GetHostname);
   env->SetMethod(target, "getLoadAvg", GetLoadAvg);

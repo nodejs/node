@@ -24,7 +24,7 @@ void AfterAsync(uv_work_t* r) {
   HandleScope scope(isolate);
   async_req* req = reinterpret_cast<async_req*>(r->data);
 
-  Handle<Value> argv[2] = {
+  Local<Value> argv[2] = {
     Null(isolate),
     Integer::New(isolate, req->output)
   };
@@ -62,7 +62,7 @@ void Method(const FunctionCallbackInfo<Value>& args) {
                 (uv_after_work_cb)AfterAsync);
 }
 
-void init(Handle<Object> exports, Handle<Object> module) {
+void init(Local<Object> exports, Local<Object> module) {
   NODE_SET_METHOD(module, "exports", Method);
 }
 

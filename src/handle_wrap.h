@@ -44,7 +44,7 @@ class HandleWrap : public AsyncWrap {
 
  protected:
   HandleWrap(Environment* env,
-             v8::Handle<v8::Object> object,
+             v8::Local<v8::Object> object,
              uv_handle_t* handle,
              AsyncWrap::ProviderType provider,
              AsyncWrap* parent = nullptr);

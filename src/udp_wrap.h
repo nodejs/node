@@ -13,9 +13,9 @@ namespace node {
 
 class UDPWrap: public HandleWrap {
  public:
-  static void Initialize(v8::Handle<v8::Object> target,
-                         v8::Handle<v8::Value> unused,
-                         v8::Handle<v8::Context> context);
+  static void Initialize(v8::Local<v8::Object> target,
+                         v8::Local<v8::Value> unused,
+                         v8::Local<v8::Context> context);
   static void GetFD(v8::Local<v8::String>,
                     const v8::PropertyCallbackInfo<v8::Value>&);
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -40,7 +40,7 @@ class UDPWrap: public HandleWrap {
   size_t self_size() const override { return sizeof(*this); }
 
  private:
-  UDPWrap(Environment* env, v8::Handle<v8::Object> object, AsyncWrap* parent);
+  UDPWrap(Environment* env, v8::Local<v8::Object> object, AsyncWrap* parent);
 
   static void DoBind(const v8::FunctionCallbackInfo<v8::Value>& args,
                      int family);
