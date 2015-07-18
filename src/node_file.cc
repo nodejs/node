@@ -32,7 +32,6 @@ using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
@@ -1218,9 +1217,9 @@ void FSInitialize(const FunctionCallbackInfo<Value>& args) {
   env->set_fs_stats_constructor_function(stats_constructor);
 }
 
-void InitFs(Handle<Object> target,
-            Handle<Value> unused,
-            Handle<Context> context,
+void InitFs(Local<Object> target,
+            Local<Value> unused,
+            Local<Context> context,
             void* priv) {
   Environment* env = Environment::GetCurrent(context);
 

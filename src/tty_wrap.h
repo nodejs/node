@@ -9,9 +9,9 @@ namespace node {
 
 class TTYWrap : public StreamWrap {
  public:
-  static void Initialize(v8::Handle<v8::Object> target,
-                         v8::Handle<v8::Value> unused,
-                         v8::Handle<v8::Context> context);
+  static void Initialize(v8::Local<v8::Object> target,
+                         v8::Local<v8::Value> unused,
+                         v8::Local<v8::Context> context);
 
   uv_tty_t* UVHandle();
 
@@ -19,7 +19,7 @@ class TTYWrap : public StreamWrap {
 
  private:
   TTYWrap(Environment* env,
-          v8::Handle<v8::Object> object,
+          v8::Local<v8::Object> object,
           int fd,
           bool readable);
 

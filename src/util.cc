@@ -3,7 +3,7 @@
 
 namespace node {
 
-Utf8Value::Utf8Value(v8::Isolate* isolate, v8::Handle<v8::Value> value)
+Utf8Value::Utf8Value(v8::Isolate* isolate, v8::Local<v8::Value> value)
     : length_(0), str_(str_st_) {
   if (value.IsEmpty())
     return;

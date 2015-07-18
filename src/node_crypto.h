@@ -59,7 +59,7 @@ class SecureContext : public BaseObject {
     FreeCTXMem();
   }
 
-  static void Initialize(Environment* env, v8::Handle<v8::Object> target);
+  static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
   X509_STORE* ca_store_;
   SSL_CTX* ctx_;
@@ -209,7 +209,7 @@ class SSLWrap {
       sizeof(SSL) + sizeof(SSL3_STATE) + 42 * 1024;
 
   static void InitNPN(SecureContext* sc);
-  static void AddMethods(Environment* env, v8::Handle<v8::FunctionTemplate> t);
+  static void AddMethods(Environment* env, v8::Local<v8::FunctionTemplate> t);
 
   static SSL_SESSION* GetSessionCallback(SSL* s,
                                          unsigned char* key,
@@ -311,7 +311,7 @@ class Connection : public SSLWrap<Connection>, public AsyncWrap {
 #endif
   }
 
-  static void Initialize(Environment* env, v8::Handle<v8::Object> target);
+  static void Initialize(Environment* env, v8::Local<v8::Object> target);
   void NewSessionDoneCb();
 
 #ifdef OPENSSL_NPN_NEGOTIATED
@@ -401,7 +401,7 @@ class CipherBase : public BaseObject {
     EVP_CIPHER_CTX_cleanup(&ctx_);
   }
 
-  static void Initialize(Environment* env, v8::Handle<v8::Object> target);
+  static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
  protected:
   enum CipherKind {
@@ -464,7 +464,7 @@ class Hmac : public BaseObject {
     HMAC_CTX_cleanup(&ctx_);
   }
 
-  static void Initialize(Environment* env, v8::Handle<v8::Object> target);
+  static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
  protected:
   void HmacInit(const char* hash_type, const char* key, int key_len);
@@ -497,7 +497,7 @@ class Hash : public BaseObject {
     EVP_MD_CTX_cleanup(&mdctx_);
   }
 
-  static void Initialize(Environment* env, v8::Handle<v8::Object> target);
+  static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
   bool HashInit(const char* hash_type);
   bool HashUpdate(const char* data, int len);
@@ -555,7 +555,7 @@ class SignBase : public BaseObject {
 class Sign : public SignBase {
  public:
 
-  static void Initialize(Environment* env, v8::Handle<v8::Object> target);
+  static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
   Error SignInit(const char* sign_type);
   Error SignUpdate(const char* data, int len);
@@ -578,7 +578,7 @@ class Sign : public SignBase {
 
 class Verify : public SignBase {
  public:
-  static void Initialize(Environment* env, v8::Handle<v8::Object> target);
+  static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
   Error VerifyInit(const char* verify_type);
   Error VerifyUpdate(const char* data, int len);
@@ -637,7 +637,7 @@ class DiffieHellman : public BaseObject {
     }
   }
 
-  static void Initialize(Environment* env, v8::Handle<v8::Object> target);
+  static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
   bool Init(int primeLength, int g);
   bool Init(const char* p, int p_len, int g);
@@ -684,7 +684,7 @@ class ECDH : public BaseObject {
     group_ = nullptr;
   }
 
-  static void Initialize(Environment* env, v8::Handle<v8::Object> target);
+  static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
  protected:
   ECDH(Environment* env, v8::Local<v8::Object> wrap, EC_KEY* key)
@@ -713,9 +713,9 @@ class ECDH : public BaseObject {
 
 class Certificate : public AsyncWrap {
  public:
-  static void Initialize(Environment* env, v8::Handle<v8::Object> target);
+  static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
-  v8::Handle<v8::Value> CertificateInit(const char* sign_type);
+  v8::Local<v8::Value> CertificateInit(const char* sign_type);
   bool VerifySpkac(const char* data, unsigned int len);
   const char* ExportPublicKey(const char* data, int len);
   const char* ExportChallenge(const char* data, int len);
@@ -738,7 +738,7 @@ bool EntropySource(unsigned char* buffer, size_t length);
 #ifndef OPENSSL_NO_ENGINE
 void SetEngine(const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif  // !OPENSSL_NO_ENGINE
-void InitCrypto(v8::Handle<v8::Object> target);
+void InitCrypto(v8::Local<v8::Object> target);
 
 }  // namespace crypto
 }  // namespace node
