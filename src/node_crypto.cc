@@ -72,7 +72,6 @@ using v8::External;
 using v8::False;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
@@ -135,7 +134,7 @@ X509_STORE* root_cert_store;
 // Just to generate static methods
 template class SSLWrap<TLSWrap>;
 template void SSLWrap<TLSWrap>::AddMethods(Environment* env,
-                                           Handle<FunctionTemplate> t);
+                                           Local<FunctionTemplate> t);
 template void SSLWrap<TLSWrap>::InitNPN(SecureContext* sc);
 template SSL_SESSION* SSLWrap<TLSWrap>::GetSessionCallback(
     SSL* s,
@@ -276,7 +275,7 @@ bool EntropySource(unsigned char* buffer, size_t length) {
 }
 
 
-void SecureContext::Initialize(Environment* env, Handle<Object> target) {
+void SecureContext::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(SecureContext::New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "SecureContext"));
@@ -415,7 +414,7 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
 
 // Takes a string or buffer and loads it into a BIO.
 // Caller responsible for BIO_free_all-ing the returned object.
-static BIO* LoadBIO(Environment* env, Handle<Value> v) {
+static BIO* LoadBIO(Environment* env, Local<Value> v) {
   BIO* bio = NodeBIO::New();
   if (!bio)
     return nullptr;
@@ -444,7 +443,7 @@ static BIO* LoadBIO(Environment* env, Handle<Value> v) {
 
 // Takes a string or buffer and loads it into an X509
 // Caller responsible for X509_free-ing the returned object.
-static X509* LoadX509(Environment* env, Handle<Value> v) {
+static X509* LoadX509(Environment* env, Local<Value> v) {
   HandleScope scope(env->isolate());
 
   BIO *bio = LoadBIO(env, v);
@@ -1122,7 +1121,7 @@ void SecureContext::GetCertificate(const FunctionCallbackInfo<Value>& args) {
 
 
 template <class Base>
-void SSLWrap<Base>::AddMethods(Environment* env, Handle<FunctionTemplate> t) {
+void SSLWrap<Base>::AddMethods(Environment* env, Local<FunctionTemplate> t) {
   HandleScope scope(env->isolate());
 
   env->SetProtoMethod(t, "getPeerCertificate", GetPeerCertificate);
@@ -1914,7 +1913,7 @@ int SSLWrap<Base>::SelectNextProtoCallback(SSL* s,
   size_t len = Buffer::Length(obj);
 
   int status = SSL_select_next_proto(out, outlen, in, inlen, npn_protos, len);
-  Handle<Value> result;
+  Local<Value> result;
   switch (status) {
     case OPENSSL_NPN_UNSUPPORTED:
       result = Null(env->isolate());
@@ -2326,7 +2325,7 @@ void Connection::NewSessionDoneCb() {
 }
 
 
-void Connection::Initialize(Environment* env, Handle<Object> target) {
+void Connection::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(Connection::New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Connection"));
@@ -2841,7 +2840,7 @@ void Connection::SetSNICallback(const FunctionCallbackInfo<Value>& args) {
 #endif
 
 
-void CipherBase::Initialize(Environment* env, Handle<Object> target) {
+void CipherBase::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -3212,7 +3211,7 @@ void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void Hmac::Initialize(Environment* env, v8::Handle<v8::Object> target) {
+void Hmac::Initialize(Environment* env, v8::Local<v8::Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -3341,7 +3340,7 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void Hash::Initialize(Environment* env, v8::Handle<v8::Object> target) {
+void Hash::Initialize(Environment* env, v8::Local<v8::Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -3486,7 +3485,7 @@ void SignBase::CheckThrow(SignBase::Error error) {
 
 
 
-void Sign::Initialize(Environment* env, v8::Handle<v8::Object> target) {
+void Sign::Initialize(Environment* env, v8::Local<v8::Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -3662,7 +3661,7 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void Verify::Initialize(Environment* env, v8::Handle<v8::Object> target) {
+void Verify::Initialize(Environment* env, v8::Local<v8::Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -4006,7 +4005,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void DiffieHellman::Initialize(Environment* env, Handle<Object> target) {
+void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
   const PropertyAttribute attributes =
@@ -4392,7 +4391,7 @@ bool DiffieHellman::VerifyContext() {
 }
 
 
-void ECDH::Initialize(Environment* env, Handle<Object> target) {
+void ECDH::Initialize(Environment* env, Local<Object> target) {
   HandleScope scope(env->isolate());
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
@@ -5133,7 +5132,7 @@ void GetCurves(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void Certificate::Initialize(Environment* env, Handle<Object> target) {
+void Certificate::Initialize(Environment* env, Local<Object> target) {
   HandleScope scope(env->isolate());
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
@@ -5399,9 +5398,9 @@ void SetEngine(const FunctionCallbackInfo<Value>& args) {
 
 
 // FIXME(bnoordhuis) Handle global init correctly.
-void InitCrypto(Handle<Object> target,
-                Handle<Value> unused,
-                Handle<Context> context,
+void InitCrypto(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context,
                 void* priv) {
   static uv_once_t init_once = UV_ONCE_INIT;
   uv_once(&init_once, InitCryptoOnce);

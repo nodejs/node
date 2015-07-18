@@ -22,7 +22,6 @@ using v8::Array;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
@@ -43,7 +42,7 @@ enum node_zlib_mode {
 };
 
 
-void InitZlib(v8::Handle<v8::Object> target);
+void InitZlib(v8::Local<v8::Object> target);
 
 
 /**
@@ -573,9 +572,9 @@ class ZCtx : public AsyncWrap {
 };
 
 
-void InitZlib(Handle<Object> target,
-              Handle<Value> unused,
-              Handle<Context> context,
+void InitZlib(Local<Object> target,
+              Local<Value> unused,
+              Local<Context> context,
               void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Local<FunctionTemplate> z = env->NewFunctionTemplate(ZCtx::New);
