@@ -33,6 +33,11 @@ var server = tls.Server({
 }, null).listen(common.PORT, function() {
   var args = ['s_client', '-quiet', '-tls1_1',
               '-connect', '127.0.0.1:' + common.PORT];
+
+  // for the performance and stability issue in s_client on Windows
+  if (process.platform === 'win32')
+    args.push('-no_rand_screen');
+
   var client = spawn(common.opensslCli, args);
   var out = '';
   client.stderr.setEncoding('utf8');
