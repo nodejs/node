@@ -57,7 +57,6 @@ using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
@@ -78,7 +77,7 @@ class CallbackInfo {
  public:
   static inline void Free(char* data, void* hint);
   static inline CallbackInfo* New(Isolate* isolate,
-                                  Handle<Object> object,
+                                  Local<Object> object,
                                   FreeCallback callback,
                                   void* hint = 0);
   inline void Dispose(Isolate* isolate);
@@ -87,7 +86,7 @@ class CallbackInfo {
   static void WeakCallback(const WeakCallbackData<Object, CallbackInfo>&);
   inline void WeakCallback(Isolate* isolate, Local<Object> object);
   inline CallbackInfo(Isolate* isolate,
-                      Handle<Object> object,
+                      Local<Object> object,
                       FreeCallback callback,
                       void* hint);
   ~CallbackInfo();
@@ -104,7 +103,7 @@ void CallbackInfo::Free(char* data, void*) {
 
 
 CallbackInfo* CallbackInfo::New(Isolate* isolate,
-                                Handle<Object> object,
+                                Local<Object> object,
                                 FreeCallback callback,
                                 void* hint) {
   return new CallbackInfo(isolate, object, callback, hint);
@@ -122,7 +121,7 @@ Persistent<Object>* CallbackInfo::persistent() {
 
 
 CallbackInfo::CallbackInfo(Isolate* isolate,
-                           Handle<Object> object,
+                           Local<Object> object,
                            FreeCallback callback,
                            void* hint)
     : persistent_(isolate, object),
@@ -162,12 +161,12 @@ void CallbackInfo::WeakCallback(Isolate* isolate, Local<Object> object) {
 
 // Buffer methods
 
-bool HasInstance(Handle<Value> val) {
+bool HasInstance(Local<Value> val) {
   return val->IsObject() && HasInstance(val.As<Object>());
 }
 
 
-bool HasInstance(Handle<Object> obj) {
+bool HasInstance(Local<Object> obj) {
   if (!obj->IsUint8Array())
     return false;
   Local<Uint8Array> array = obj.As<Uint8Array>();
@@ -176,7 +175,7 @@ bool HasInstance(Handle<Object> obj) {
 }
 
 
-char* Data(Handle<Value> val) {
+char* Data(Local<Value> val) {
   CHECK(val->IsObject());
   // Use a fully qualified name here to work around a bug in gcc 4.2.
   // It mistakes an unadorned call to Data() for the v8::String::Data type.
@@ -184,7 +183,7 @@ char* Data(Handle<Value> val) {
 }
 
 
-char* Data(Handle<Object> obj) {
+char* Data(Local<Object> obj) {
   CHECK(obj->IsUint8Array());
   Local<Uint8Array> ui = obj.As<Uint8Array>();
   ArrayBuffer::Contents ab_c = ui->Buffer()->GetContents();
@@ -192,13 +191,13 @@ char* Data(Handle<Object> obj) {
 }
 
 
-size_t Length(Handle<Value> val) {
+size_t Length(Local<Value> val) {
   CHECK(val->IsObject());
   return Length(val.As<Object>());
 }
 
 
-size_t Length(Handle<Object> obj) {
+size_t Length(Local<Object> obj) {
   CHECK(obj->IsUint8Array());
   Local<Uint8Array> ui = obj.As<Uint8Array>();
   return ui->ByteLength();
@@ -993,9 +992,9 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void Initialize(Handle<Object> target,
-                Handle<Value> unused,
-                Handle<Context> context) {
+void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
   env->SetMethod(target, "setupBufferJS", SetupBufferJS);

@@ -23,7 +23,6 @@ using v8::External;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
@@ -64,9 +63,9 @@ Local<Object> TCPWrap::Instantiate(Environment* env, AsyncWrap* parent) {
 }
 
 
-void TCPWrap::Initialize(Handle<Object> target,
-                         Handle<Value> unused,
-                         Handle<Context> context) {
+void TCPWrap::Initialize(Local<Object> target,
+                         Local<Value> unused,
+                         Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
@@ -146,7 +145,7 @@ void TCPWrap::New(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-TCPWrap::TCPWrap(Environment* env, Handle<Object> object, AsyncWrap* parent)
+TCPWrap::TCPWrap(Environment* env, Local<Object> object, AsyncWrap* parent)
     : StreamWrap(env,
                  object,
                  reinterpret_cast<uv_stream_t*>(&handle_),

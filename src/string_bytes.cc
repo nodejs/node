@@ -15,7 +15,6 @@
 namespace node {
 
 using v8::EscapableHandleScope;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
@@ -260,7 +259,7 @@ size_t hex_decode(char* buf,
 
 
 bool StringBytes::GetExternalParts(Isolate* isolate,
-                                   Handle<Value> val,
+                                   Local<Value> val,
                                    const char** data,
                                    size_t* len) {
   if (Buffer::HasInstance(val)) {
@@ -336,7 +335,7 @@ size_t StringBytes::WriteUCS2(char* buf,
 size_t StringBytes::Write(Isolate* isolate,
                           char* buf,
                           size_t buflen,
-                          Handle<Value> val,
+                          Local<Value> val,
                           enum encoding encoding,
                           int* chars_written) {
   HandleScope scope(isolate);
@@ -445,7 +444,7 @@ size_t StringBytes::Write(Isolate* isolate,
 
 
 bool StringBytes::IsValidString(Isolate* isolate,
-                                Handle<String> string,
+                                Local<String> string,
                                 enum encoding enc) {
   if (enc == HEX && string->Length() % 2 != 0)
     return false;
@@ -458,7 +457,7 @@ bool StringBytes::IsValidString(Isolate* isolate,
 // Will always be at least big enough, but may have some extra
 // UTF8 can be as much as 3x the size, Base64 can have 1-2 extra bytes
 size_t StringBytes::StorageSize(Isolate* isolate,
-                                Handle<Value> val,
+                                Local<Value> val,
                                 enum encoding encoding) {
   HandleScope scope(isolate);
   size_t data_size = 0;
@@ -507,7 +506,7 @@ size_t StringBytes::StorageSize(Isolate* isolate,
 
 
 size_t StringBytes::Size(Isolate* isolate,
-                         Handle<Value> val,
+                         Local<Value> val,
                          enum encoding encoding) {
   HandleScope scope(isolate);
   size_t data_size = 0;

@@ -187,7 +187,7 @@ class StreamBase : public StreamResource {
 
   template <class Base>
   static inline void AddMethods(Environment* env,
-                                v8::Handle<v8::FunctionTemplate> target,
+                                v8::Local<v8::FunctionTemplate> target,
                                 int flags = kFlagNone);
 
   virtual void* Cast() = 0;
