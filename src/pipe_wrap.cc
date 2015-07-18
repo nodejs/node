@@ -22,7 +22,6 @@ using v8::External;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
@@ -70,9 +69,9 @@ Local<Object> PipeWrap::Instantiate(Environment* env, AsyncWrap* parent) {
 }
 
 
-void PipeWrap::Initialize(Handle<Object> target,
-                          Handle<Value> unused,
-                          Handle<Context> context) {
+void PipeWrap::Initialize(Local<Object> target,
+                          Local<Value> unused,
+                          Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
@@ -123,7 +122,7 @@ void PipeWrap::New(const FunctionCallbackInfo<Value>& args) {
 
 
 PipeWrap::PipeWrap(Environment* env,
-                   Handle<Object> object,
+                   Local<Object> object,
                    bool ipc,
                    AsyncWrap* parent)
     : StreamWrap(env,

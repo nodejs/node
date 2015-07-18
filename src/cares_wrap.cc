@@ -38,7 +38,6 @@ using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
@@ -1240,9 +1239,9 @@ static void CaresTimerClose(Environment* env,
 }
 
 
-static void Initialize(Handle<Object> target,
-                       Handle<Value> unused,
-                       Handle<Context> context) {
+static void Initialize(Local<Object> target,
+                       Local<Value> unused,
+                       Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
   int r = ares_library_init(ARES_LIB_INIT_ALL);

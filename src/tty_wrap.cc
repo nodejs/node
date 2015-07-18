@@ -18,7 +18,6 @@ using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::Integer;
 using v8::Local;
 using v8::Object;
@@ -27,9 +26,9 @@ using v8::String;
 using v8::Value;
 
 
-void TTYWrap::Initialize(Handle<Object> target,
-                         Handle<Value> unused,
-                         Handle<Context> context) {
+void TTYWrap::Initialize(Local<Object> target,
+                         Local<Value> unused,
+                         Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
@@ -130,7 +129,7 @@ void TTYWrap::New(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-TTYWrap::TTYWrap(Environment* env, Handle<Object> object, int fd, bool readable)
+TTYWrap::TTYWrap(Environment* env, Local<Object> object, int fd, bool readable)
     : StreamWrap(env,
                  object,
                  reinterpret_cast<uv_stream_t*>(&handle_),

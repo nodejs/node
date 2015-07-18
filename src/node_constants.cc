@@ -21,14 +21,14 @@
 
 namespace node {
 
-using v8::Handle;
+using v8::Local;
 using v8::Object;
 
 #if HAVE_OPENSSL
 const char* default_cipher_list = DEFAULT_CIPHER_LIST_CORE;
 #endif
 
-void DefineErrnoConstants(Handle<Object> target) {
+void DefineErrnoConstants(Local<Object> target) {
 #ifdef E2BIG
   NODE_DEFINE_CONSTANT(target, E2BIG);
 #endif
@@ -346,7 +346,7 @@ void DefineErrnoConstants(Handle<Object> target) {
 #endif
 }
 
-void DefineWindowsErrorConstants(Handle<Object> target) {
+void DefineWindowsErrorConstants(Local<Object> target) {
 #ifdef WSAEINTR
   NODE_DEFINE_CONSTANT(target, WSAEINTR);
 #endif
@@ -580,7 +580,7 @@ void DefineWindowsErrorConstants(Handle<Object> target) {
 #endif
 }
 
-void DefineSignalConstants(Handle<Object> target) {
+void DefineSignalConstants(Local<Object> target) {
 #ifdef SIGHUP
   NODE_DEFINE_CONSTANT(target, SIGHUP);
 #endif
@@ -725,7 +725,7 @@ void DefineSignalConstants(Handle<Object> target) {
 #endif
 }
 
-void DefineOpenSSLConstants(Handle<Object> target) {
+void DefineOpenSSLConstants(Local<Object> target) {
 #ifdef SSL_OP_ALL
     NODE_DEFINE_CONSTANT(target, SSL_OP_ALL);
 #endif
@@ -969,7 +969,7 @@ void DefineOpenSSLConstants(Handle<Object> target) {
 #endif
 }
 
-void DefineSystemConstants(Handle<Object> target) {
+void DefineSystemConstants(Local<Object> target) {
   // file access modes
   NODE_DEFINE_CONSTANT(target, O_RDONLY);
   NODE_DEFINE_CONSTANT(target, O_WRONLY);
@@ -1108,11 +1108,11 @@ void DefineSystemConstants(Handle<Object> target) {
 #endif
 }
 
-void DefineUVConstants(Handle<Object> target) {
+void DefineUVConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, UV_UDP_REUSEADDR);
 }
 
-void DefineCryptoConstants(Handle<Object> target) {
+void DefineCryptoConstants(Local<Object> target) {
 #if HAVE_OPENSSL
   NODE_DEFINE_STRING_CONSTANT(target,
                               "defaultCoreCipherList",
@@ -1123,7 +1123,7 @@ void DefineCryptoConstants(Handle<Object> target) {
 #endif
 }
 
-void DefineConstants(Handle<Object> target) {
+void DefineConstants(Local<Object> target) {
   DefineErrnoConstants(target);
   DefineWindowsErrorConstants(target);
   DefineSignalConstants(target);

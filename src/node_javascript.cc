@@ -11,23 +11,22 @@
 
 namespace node {
 
-using v8::Handle;
 using v8::HandleScope;
 using v8::Local;
 using v8::Object;
 using v8::String;
 
-Handle<String> MainSource(Environment* env) {
+Local<String> MainSource(Environment* env) {
   return OneByteString(env->isolate(), node_native, sizeof(node_native) - 1);
 }
 
-void DefineJavaScript(Environment* env, Handle<Object> target) {
+void DefineJavaScript(Environment* env, Local<Object> target) {
   HandleScope scope(env->isolate());
 
   for (int i = 0; natives[i].name; i++) {
     if (natives[i].source != node_native) {
       Local<String> name = String::NewFromUtf8(env->isolate(), natives[i].name);
-      Handle<String> source = String::NewFromUtf8(env->isolate(),
+      Local<String> source = String::NewFromUtf8(env->isolate(),
                                                   natives[i].source,
                                                   String::kNormalString,
                                                   natives[i].source_len);
