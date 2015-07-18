@@ -40,6 +40,10 @@ server.listen(common.PORT, '127.0.0.1', function() {
   var cmd = '"' + common.opensslCli + '" s_client -cipher ' + options.ciphers +
             ' -connect 127.0.0.1:' + common.PORT;
 
+  // for the performance and stability issue in s_client on Windows
+  if (process.platform === 'win32')
+    cmd += ' -no_rand_screen';
+
   exec(cmd, function(err, stdout, stderr) {
     if (err) throw err;
     response = stdout;

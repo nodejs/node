@@ -70,16 +70,23 @@ function doTest(testOptions, callback) {
       callback(null, session.data);
     }, 100);
   });
+
+  var args = [
+    's_client',
+    '-tls1',
+    '-connect', 'localhost:' + common.PORT,
+    '-servername', 'ohgod',
+    '-key', join(common.fixturesDir, 'agent.key'),
+    '-cert', join(common.fixturesDir, 'agent.crt'),
+    '-reconnect'
+  ].concat(testOptions.tickets ? [] : '-no_ticket');
+
+  // for the performance and stability issue in s_client on Windows
+  if (process.platform === 'win32')
+    args.push('-no_rand_screen');
+
   server.listen(common.PORT, function() {
-    var client = spawn(common.opensslCli, [
-      's_client',
-      '-tls1',
-      '-connect', 'localhost:' + common.PORT,
-      '-servername', 'ohgod',
-      '-key', join(common.fixturesDir, 'agent.key'),
-      '-cert', join(common.fixturesDir, 'agent.crt'),
-      '-reconnect'
-    ].concat(testOptions.tickets ? [] : '-no_ticket'), {
+    var client = spawn(common.opensslCli, args, {
       stdio: [ 0, 1, 'pipe' ]
     });
     var err = '';

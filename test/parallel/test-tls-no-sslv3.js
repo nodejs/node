@@ -29,6 +29,11 @@ server.listen(common.PORT, '127.0.0.1', function() {
               '-no_tls1_1',
               '-no_tls1_2',
               '-connect', address];
+
+  // for the performance and stability issue in s_client on Windows
+  if (process.platform === 'win32')
+    args.push('-no_rand_screen');
+
   var client = spawn(common.opensslCli, args, { stdio: 'inherit' });
   client.once('exit', common.mustCall(function(exitCode) {
     assert.equal(exitCode, 1);
