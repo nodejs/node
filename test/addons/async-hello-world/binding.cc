@@ -22,7 +22,7 @@ void AfterAsync(uv_work_t* r) {
   v8::Isolate* isolate = req->isolate;
   v8::HandleScope scope(isolate);
 
-  v8::Handle<v8::Value> argv[2] = {
+  v8::Local<v8::Value> argv[2] = {
     v8::Null(isolate),
     v8::Integer::New(isolate, req->output)
   };
@@ -62,7 +62,7 @@ void Method(const v8::FunctionCallbackInfo<v8::Value>& args) {
                 (uv_after_work_cb)AfterAsync);
 }
 
-void init(v8::Handle<v8::Object> exports, v8::Handle<v8::Object> module) {
+void init(v8::Local<v8::Object> exports, v8::Local<v8::Object> module) {
   NODE_SET_METHOD(module, "exports", Method);
 }
 

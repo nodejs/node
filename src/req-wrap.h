@@ -12,7 +12,7 @@ template <typename T>
 class ReqWrap : public AsyncWrap {
  public:
   inline ReqWrap(Environment* env,
-                 v8::Handle<v8::Object> object,
+                 v8::Local<v8::Object> object,
                  AsyncWrap::ProviderType provider);
   inline ~ReqWrap() override;
   inline void Dispatched();  // Call this after the req has been dispatched.
