@@ -170,7 +170,7 @@ inline TypeName* Unwrap(v8::Local<v8::Object> object);
 
 class Utf8Value {
   public:
-    explicit Utf8Value(v8::Isolate* isolate, v8::Handle<v8::Value> value);
+    explicit Utf8Value(v8::Isolate* isolate, v8::Local<v8::Value> value);
 
     ~Utf8Value() {
       if (str_ != str_st_)

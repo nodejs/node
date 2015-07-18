@@ -27,9 +27,9 @@ class TLSWrap : public crypto::SSLWrap<TLSWrap>,
  public:
   ~TLSWrap() override;
 
-  static void Initialize(v8::Handle<v8::Object> target,
-                         v8::Handle<v8::Value> unused,
-                         v8::Handle<v8::Context> context);
+  static void Initialize(v8::Local<v8::Object> target,
+                         v8::Local<v8::Value> unused,
+                         v8::Local<v8::Context> context);
 
   void* Cast() override;
   int GetFD() override;

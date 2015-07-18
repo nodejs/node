@@ -47,7 +47,7 @@ class AsyncWrap : public BaseObject {
   };
 
   inline AsyncWrap(Environment* env,
-                   v8::Handle<v8::Object> object,
+                   v8::Local<v8::Object> object,
                    ProviderType provider,
                    AsyncWrap* parent = nullptr);
 
@@ -56,15 +56,15 @@ class AsyncWrap : public BaseObject {
   inline ProviderType provider_type() const;
 
   // Only call these within a valid HandleScope.
-  v8::Handle<v8::Value> MakeCallback(const v8::Handle<v8::Function> cb,
+  v8::Local<v8::Value> MakeCallback(const v8::Local<v8::Function> cb,
                                      int argc,
-                                     v8::Handle<v8::Value>* argv);
-  inline v8::Handle<v8::Value> MakeCallback(const v8::Handle<v8::String> symbol,
+                                     v8::Local<v8::Value>* argv);
+  inline v8::Local<v8::Value> MakeCallback(const v8::Local<v8::String> symbol,
                                             int argc,
-                                            v8::Handle<v8::Value>* argv);
-  inline v8::Handle<v8::Value> MakeCallback(uint32_t index,
+                                            v8::Local<v8::Value>* argv);
+  inline v8::Local<v8::Value> MakeCallback(uint32_t index,
                                             int argc,
-                                            v8::Handle<v8::Value>* argv);
+                                            v8::Local<v8::Value>* argv);
 
   virtual size_t self_size() const = 0;
 
