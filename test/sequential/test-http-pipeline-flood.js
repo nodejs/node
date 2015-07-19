@@ -87,6 +87,8 @@ function child() {
   });
 
   function write() {
-    while (false !== conn.write(req, 'ascii'));
+    while (false !== conn.write(req, 'ascii')) {
+      // do nothing
+    }
   }
 }

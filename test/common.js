@@ -309,7 +309,7 @@ function leakedGlobals() {
       leaked.push(val);
 
   return leaked;
-};
+}
 exports.leakedGlobals = leakedGlobals;
 
 // Turn this off if the test should not check for global leaks.

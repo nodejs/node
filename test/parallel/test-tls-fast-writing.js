@@ -60,6 +60,8 @@ server.listen(PORT, function() {
   }
   function write() {
     // this needs to return false eventually
-    while (false !== conn.write(chunk));
+    while (false !== conn.write(chunk)) {
+      // do nothing
+    }
   }
 });

@@ -8,7 +8,7 @@ var passed = false;
 
 function PassThrough() {
   stream.Transform.call(this);
-};
+}
 util.inherits(PassThrough, stream.Transform);
 PassThrough.prototype._transform = function(chunk, encoding, done) {
   this.push(chunk);
@@ -17,7 +17,7 @@ PassThrough.prototype._transform = function(chunk, encoding, done) {
 
 function TestStream() {
   stream.Transform.call(this);
-};
+}
 util.inherits(TestStream, stream.Transform);
 TestStream.prototype._transform = function(chunk, encoding, done) {
   if (!passed) {

@@ -24,7 +24,7 @@ if (process.platform === 'darwin') {
   function cleanup() {
     try { fs.unlinkSync(filepathOne); } catch (e) { }
     try { fs.rmdirSync(testsubdir); } catch (e) { }
-  };
+  }
 
   try { fs.mkdirSync(testsubdir, 0o700); } catch (e) {}
 
