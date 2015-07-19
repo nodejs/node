@@ -60,6 +60,9 @@ and servers.
 
   --throw-deprecation    throw errors on deprecations
 
+  --trace-sync-io        show stack trace when use of sync I/O
+                         is detected after the first tick
+
   --track-heap-objects   track heap object allocations for heap snapshots
 
   --v8-options           print v8 command line options
@@ -76,6 +79,10 @@ If set to 1 then colors will not be used in the REPL.
 .SH V8 OPTIONS
 
   --use_strict (enforce strict mode)
+        type: bool  default: false
+  --use_strong (enforce strong mode)
+        type: bool  default: false
+  --strong_mode (experimental strong language mode)
         type: bool  default: false
   --es_staging (enable all completed harmony features)
         type: bool  default: false
@@ -99,6 +106,12 @@ If set to 1 then colors will not be used in the REPL.
         type: bool  default: false
   --harmony_unicode (enable "harmony unicode escapes" (in progress))
         type: bool  default: false
+  --harmony_unicode_regexps (enable "harmony unicode regexps" (in progress))
+        type: bool  default: false
+  --harmony_computed_property_names (enable "harmony computed property names" (in progress))
+        type: bool  default: false
+  --harmony_rest_parameters (enable "harmony rest parameters" (in progress))
+        type: bool  default: false
   --harmony_tostring (enable "harmony toString")
         type: bool  default: false
   --harmony_numeric_literals (enable "harmony numeric literals")
@@ -107,11 +120,11 @@ If set to 1 then colors will not be used in the REPL.
         type: bool  default: true
   --harmony_scoping (enable "harmony block scoping")
         type: bool  default: true
+  --harmony_templates (enable "harmony template literals")
+        type: bool  default: true
   --harmony_classes (enable "harmony classes (implies block scoping & object literal extension)")
         type: bool  default: true
   --harmony_object_literals (enable "harmony object literal extensions")
-        type: bool  default: true
-  --harmony_templates (enable "harmony template literals")
         type: bool  default: true
   --compiled_keyed_generic_loads (use optimizing compiler to generate keyed generic load stubs)
         type: bool  default: false
@@ -321,6 +334,8 @@ If set to 1 then colors will not be used in the REPL.
         type: bool  default: false
   --turbo_stats (print TurboFan statistics)
         type: bool  default: false
+  --turbo_splitting (split nodes during scheduling in TurboFan)
+        type: bool  default: true
   --turbo_types (use typed lowering in TurboFan)
         type: bool  default: true
   --turbo_source_positions (track source code positions when building TurboFan IR)
@@ -331,21 +346,27 @@ If set to 1 then colors will not be used in the REPL.
         type: bool  default: false
   --turbo_inlining (enable inlining in TurboFan)
         type: bool  default: false
-  --turbo_inlining_intrinsics (enable inlining of intrinsics in TurboFan)
-        type: bool  default: false
   --trace_turbo_inlining (trace TurboFan inlining)
         type: bool  default: false
   --loop_assignment_analysis (perform loop assignment analysis)
         type: bool  default: true
   --turbo_profiling (enable profiling in TurboFan)
         type: bool  default: false
-  --turbo_reuse_spill_slots (reuse spill slots in TurboFan)
-        type: bool  default: true
   --turbo_delay_ssa_decon (delay ssa deconstruction in TurboFan register allocator)
+        type: bool  default: false
+  --turbo_verify_allocation (verify register allocation in TurboFan)
         type: bool  default: false
   --turbo_move_optimization (optimize gap moves in TurboFan)
         type: bool  default: true
-  --turbo_jt (enable jump threading)
+  --turbo_jt (enable jump threading in TurboFan)
+        type: bool  default: true
+  --turbo_osr (enable OSR in TurboFan)
+        type: bool  default: false
+  --turbo_exceptions (enable exception handling in TurboFan)
+        type: bool  default: false
+  --turbo_stress_loop_peeling (stress loop peeling optimization)
+        type: bool  default: false
+  --turbo_switch (optimize switches in TurboFan)
         type: bool  default: true
   --typed_array_max_size_in_heap (threshold for in-heap typed array)
         type: int  default: 64
@@ -395,8 +416,10 @@ If set to 1 then colors will not be used in the REPL.
         type: bool  default: true
   --enable_vldr_imm (enable use of constant pools for double immediate (ARM only))
         type: bool  default: false
-  --force_long_branches (force all emitted branches to be in long mode (MIPS only))
+  --force_long_branches (force all emitted branches to be in long mode (MIPS/PPC only))
         type: bool  default: false
+  --mcpu (enable optimization for specific cpu)
+        type: string  default: auto
   --expose_natives_as (expose natives in global object)
         type: string  default: NULL
   --expose_debug_as (expose debug in global object)
@@ -446,7 +469,7 @@ If set to 1 then colors will not be used in the REPL.
   --serialize_toplevel (enable caching of toplevel scripts)
         type: bool  default: true
   --serialize_inner (enable caching of inner functions)
-        type: bool  default: false
+        type: bool  default: true
   --trace_serializer (print code serializer trace)
         type: bool  default: false
   --min_preparse_length (minimum length for automatic enable preparsing)
@@ -533,11 +556,17 @@ If set to 1 then colors will not be used in the REPL.
         type: bool  default: true
   --incremental_marking_steps (do incremental marking steps)
         type: bool  default: true
+  --overapproximate_weak_closure (overapproximate weak closer to reduce atomic pause time)
+        type: bool  default: false
   --concurrent_sweeping (use concurrent sweeping)
         type: bool  default: true
   --trace_incremental_marking (trace progress of the incremental marking)
         type: bool  default: false
   --track_gc_object_stats (track object counts and memory usage)
+        type: bool  default: false
+  --trace_detached_contexts (trace native contexts that are expected to be garbage collected)
+        type: bool  default: false
+  --verify_heap (verify heap pointers before and after GC)
         type: bool  default: false
   --heap_profiler_trace_objects (Dump heap object allocations/movements/size_updates)
         type: bool  default: false
@@ -571,6 +600,8 @@ If set to 1 then colors will not be used in the REPL.
         type: bool  default: false
   --use_verbose_printer (allows verbose printing)
         type: bool  default: true
+  --trace_maps (trace map creation)
+        type: bool  default: false
   --allow_natives_syntax (allow natives syntax)
         type: bool  default: false
   --trace_parse (trace parsing and preparsing)
@@ -649,6 +680,52 @@ If set to 1 then colors will not be used in the REPL.
         type: bool  default: false
   --stress_compaction (stress the GC compactor to flush out bugs (implies --force_marking_deque_overflows))
         type: bool  default: false
+  --enable_slow_asserts (enable asserts that are slow to execute)
+        type: bool  default: false
+  --print_source (pretty print source code)
+        type: bool  default: false
+  --print_builtin_source (pretty print source code for builtins)
+        type: bool  default: false
+  --print_ast (print source AST)
+        type: bool  default: false
+  --print_builtin_ast (print source AST for builtins)
+        type: bool  default: false
+  --stop_at (function name where to insert a breakpoint)
+        type: string  default:
+  --trap_on_abort (replace aborts by breakpoints)
+        type: bool  default: false
+  --print_builtin_scopes (print scopes for builtins)
+        type: bool  default: false
+  --print_scopes (print scopes)
+        type: bool  default: false
+  --trace_contexts (trace contexts operations)
+        type: bool  default: false
+  --gc_verbose (print stuff during garbage collection)
+        type: bool  default: false
+  --heap_stats (report heap statistics before and after GC)
+        type: bool  default: false
+  --code_stats (report code statistics after GC)
+        type: bool  default: false
+  --print_handles (report handles after GC)
+        type: bool  default: false
+  --print_global_handles (report global handles after GC)
+        type: bool  default: false
+  --print_turbo_replay (print C++ code to recreate TurboFan graphs)
+        type: bool  default: false
+  --trace_normalization (prints when objects are turned into dictionaries.)
+        type: bool  default: false
+  --trace_lazy (trace lazy compilation)
+        type: bool  default: false
+  --collect_heap_spill_statistics (report heap spill statistics along with heap_stats (requires heap_stats))
+        type: bool  default: false
+  --trace_isolates (trace isolate state changes)
+        type: bool  default: false
+  --regexp_possessive_quantifier (enable possessive quantifier syntax for testing)
+        type: bool  default: false
+  --trace_regexp_bytecodes (trace regexp bytecode execution)
+        type: bool  default: false
+  --trace_regexp_assembler (trace regexp macro assembler calls.)
+        type: bool  default: false
   --log (Minimal logging (no API, code, GC, suspect, or handles samples).)
         type: bool  default: false
   --log_all (Log all events to the log file.)
@@ -666,6 +743,8 @@ If set to 1 then colors will not be used in the REPL.
   --log_suspect (Log suspect operations.)
         type: bool  default: false
   --prof (Log statistical profiling information (implies --log-code).)
+        type: bool  default: false
+  --prof_cpp (Like --prof, but ignore generated code.)
         type: bool  default: false
   --prof_browser_mode (Used with --prof, turns on browser-compatible mode for profiling.)
         type: bool  default: true
