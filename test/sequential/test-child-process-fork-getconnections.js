@@ -81,7 +81,7 @@ if (process.argv[2] === 'child') {
         closeSockets(i + 1);
       });
     });
-  };
+  }
 
   var closeEmitted = false;
   server.on('close', function() {

@@ -18,7 +18,9 @@ var chunk1 = file.slice(0, chunkSize),
 
 deflater.write(chunk1, function() {
   deflater.params(0, zlib.Z_DEFAULT_STRATEGY, function() {
-    while (deflater.read());
+    while (deflater.read()) {
+      // do nothing
+    }
     deflater.end(chunk2, function() {
       var bufs = [], buf;
       while (buf = deflater.read())
@@ -26,7 +28,9 @@ deflater.write(chunk1, function() {
       actual = Buffer.concat(bufs);
     });
   });
-  while (deflater.read());
+  while (deflater.read()) {
+    // do nothing
+  }
 });
 
 process.once('exit', function() {

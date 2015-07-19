@@ -136,7 +136,7 @@ function startTest() {
       else
         connectClient(i + 1, callback);
     }
-  };
+  }
 
   connectClient(0, function() {
     server.close();

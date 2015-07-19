@@ -30,6 +30,8 @@ rules:
   no-unreachable: 2
   ## require valid typeof compared string like typeof foo === 'strnig'
   valid-typeof: 2
+  ## disallow unnecessary semicolons after function declarations
+  no-extra-semi: 2
 
   # Best Practices
   # list: https://github.com/eslint/eslint/tree/master/docs/rules#best-practices

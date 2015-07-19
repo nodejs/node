@@ -22,7 +22,9 @@ var dInput = new stream.Readable();
 var dOutput = new stream.Writable();
 
 dInput._read = function _read(size) {
-  while (lines.length > 0 && this.push(lines.shift()));
+  while (lines.length > 0 && this.push(lines.shift())) {
+    // do nothing
+  }
   if (lines.length === 0)
     this.push(null);
 };

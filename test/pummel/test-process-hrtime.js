@@ -9,7 +9,9 @@ assert(Array.isArray(start));
 
 // busy-loop for 2 seconds
 var now = Date.now();
-while (Date.now() - now < 2000);
+while (Date.now() - now < 2000) {
+  // do nothing
+}
 
 // get a diff reading
 var diff = process.hrtime(start);

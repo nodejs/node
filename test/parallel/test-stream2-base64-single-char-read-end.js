@@ -17,7 +17,7 @@ src._read = function(n) {
       src.push(new Buffer('1'));
       src.push(null);
     });
-  };
+  }
 };
 
 dst._write = function(chunk, enc, cb) {
