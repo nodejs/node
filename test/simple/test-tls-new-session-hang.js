@@ -25,10 +25,9 @@ var server = tls.createServer({
   socket.destroySoon();
 });
 
-// Should not be actually called
-server.on('resumeSession', function (id, callback) {
-  assert(false);
-});
+server.on('resumeSession', common.mustCall(function() {
+  // Should not be actually called
+}, 0));
 
 server.listen(common.PORT, function() {
   var client = tls.connect({
