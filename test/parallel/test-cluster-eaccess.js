@@ -1,41 +1,51 @@
 'use strict';
-// test that errors propagated from cluster children are properly
-// received in their master creates an EADDRINUSE condition by also
-// forking a child process to listen on a socket
+// Test that errors propagated from cluster workers are properly
+// received in their master. Creates an EADDRINUSE condition by forking
+// a process in child cluster and propagates the error to the master.
 
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var fork = require('child_process').fork;
-var fs = require('fs');
-var net = require('net');
-
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const fork = require('child_process').fork;
+const fs = require('fs');
+const net = require('net');
 
 if (cluster.isMaster) {
-  var worker = cluster.fork();
-  var gotError = 0;
-  worker.on('message', function(err) {
-    gotError++;
+  const worker = cluster.fork();
+
+  // makes sure master is able to fork the worker
+  cluster.on('fork', common.mustCall(function() {}));
+
+  // makes sure the worker is ready
+  worker.on('online', common.mustCall(function() {}));
+
+  worker.on('message', common.mustCall(function(err) {
+    // disconnect first, so that we will not leave zombies
+    worker.disconnect();
+
     console.log(err);
     assert.strictEqual('EADDRINUSE', err.code);
-    worker.disconnect();
-  });
+  }));
+
   process.on('exit', function() {
     console.log('master exited');
     try {
       fs.unlinkSync(common.PIPE);
     } catch (e) {
     }
-    assert.equal(gotError, 1);
   });
+
 } else {
   var cp = fork(common.fixturesDir + '/listen-on-socket-and-exit.js',
                 { stdio: 'inherit' });
 
   // message from the child indicates it's ready and listening
-  cp.on('message', function() {
-    var server = net.createServer().listen(common.PIPE, function() {
-      console.log('parent listening, should not be!');
+  cp.on('message', common.mustCall(function() {
+    const server = net.createServer().listen(common.PIPE, function() {
+      // message child process so that it can exit
+      cp.send('end');
+      // inform master about the unexpected situation
+      process.send('PIPE should have been in use.');
     });
 
     server.on('error', function(err) {
@@ -45,5 +55,6 @@ if (cluster.isMaster) {
       // propagate error to parent
       process.send(err);
     });
-  });
+
+  }));
 }
