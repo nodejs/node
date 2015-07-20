@@ -362,6 +362,7 @@ information about the governance of the io.js project, see
 * **Сковорода Никита Андреевич** &lt;chalkerx@gmail.com&gt; ([@ChALkeR](https://github.com/ChALkeR))
 * **Sakthipriyan Vairamani** &lt;thechargingvolcano@gmail.com&gt; ([@thefourtheye](https://github.com/thefourtheye))
 * **Michaël Zasso** &lt;mic.besace@gmail.com&gt; ([@targos](https://github.com/targos))
+* **João Reis** &lt;reis@janeasystems.com&gt; ([@joaocgreis](https://github.com/joaocgreis))
 
 Collaborators & TSC members follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
 maintaining the io.js project.
