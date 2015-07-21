@@ -324,6 +324,7 @@ information about the governance of the io.js project, see
 * **Jeremiah Senkpiel** &lt;fishrock123@rocketmail.com&gt; ([@fishrock123](https://github.com/fishrock123))
   - Release GPG key: FD3A5288F042B6850C66B31F09FE44734EB7990E
 * **Colin Ihrig** &lt;cjihrig@gmail.com&gt; ([@cjihrig](https://github.com/cjihrig))
+  - Release GPG key: 94AE36675C464D64BAFA68DD7434390BDBE9B9C5
 * **Alexis Campailla** &lt;orangemocha@nodejs.org&gt; ([@orangemocha](https://github.com/orangemocha))
 * **Julien Gilli** &lt;jgilli@nodejs.org&gt; ([@misterdjules](https://github.com/misterdjules))
 * **James M Snell** &lt;jasnell@gmail.com&gt; ([@jasnell](https://github.com/jasnell))
