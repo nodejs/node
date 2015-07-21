@@ -23,8 +23,9 @@ built-in.</p>
 <code>node_modules/.bin</code> to the <code>PATH</code> provided to scripts. Any binaries provided by
 locally-installed dependencies can be used without the <code>node_modules/.bin</code>
 prefix. For example, if there is a <code>devDependency</code> on <code>tap</code> in your package,
-you should write <code>&quot;scripts&quot;: {&quot;test&quot;: &quot;tap test/\*.js&quot;}</code> instead of <code>&quot;scripts&quot;:
-{&quot;test&quot;: &quot;node_modules/.bin/tap test/\*.js&quot;}</code> to run your tests.</p>
+you should write:</p>
+<pre><code>&quot;scripts&quot;: {&quot;test&quot;: &quot;tap test/\*.js&quot;}
+</code></pre><p>instead of <code>&quot;scripts&quot;: {&quot;test&quot;: &quot;node_modules/.bin/tap test/\*.js&quot;}</code> to run your tests.</p>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
 <li><a href="../misc/npm-scripts.html">npm-scripts(7)</a></li>

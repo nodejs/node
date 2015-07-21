@@ -1,21 +1,28 @@
 'use strict';
 var argv = process.argv;
 
+var terminator = argv.indexOf('--');
+var hasFlag = function (flag) {
+	flag = '--' + flag;
+	var pos = argv.indexOf(flag);
+	return pos !== -1 && (terminator !== -1 ? pos < terminator : true);
+};
+
 module.exports = (function () {
 	if ('FORCE_COLOR' in process.env) {
 		return true;
 	}
 
-	if (argv.indexOf('--no-color') !== -1 ||
-		argv.indexOf('--no-colors') !== -1 ||
-		argv.indexOf('--color=false') !== -1) {
+	if (hasFlag('no-color') ||
+		hasFlag('no-colors') ||
+		hasFlag('color=false')) {
 		return false;
 	}
 
-	if (argv.indexOf('--color') !== -1 ||
-		argv.indexOf('--colors') !== -1 ||
-		argv.indexOf('--color=true') !== -1 ||
-		argv.indexOf('--color=always') !== -1) {
+	if (hasFlag('color') ||
+		hasFlag('colors') ||
+		hasFlag('color=true') ||
+		hasFlag('color=always')) {
 		return true;
 	}
 

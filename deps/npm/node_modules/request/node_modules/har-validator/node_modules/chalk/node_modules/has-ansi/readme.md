@@ -5,7 +5,7 @@
 
 ## Install
 
-```sh
+```
 $ npm install --save has-ansi
 ```
 
@@ -23,21 +23,12 @@ hasAnsi('cake');
 ```
 
 
-## CLI
+## Related
 
-```sh
-$ npm install --global has-ansi
-```
-
-```
-$ has-ansi --help
-
-  Usage
-    has-ansi <string>
-    echo <string> | has-ansi
-
-  Exits with code 0 if input has ANSI escape codes and 1 if not
-```
+- [has-ansi-cli](https://github.com/sindresorhus/has-ansi-cli) - CLI for this module
+- [strip-ansi](https://github.com/sindresorhus/strip-ansi) - Strip ANSI escape codes
+- [ansi-regex](https://github.com/sindresorhus/ansi-regex) - Regular expression for matching ANSI escape codes
+- [chalk](https://github.com/sindresorhus/chalk) - Terminal string styling done right
 
 
 ## License
