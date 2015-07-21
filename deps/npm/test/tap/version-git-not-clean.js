@@ -56,28 +56,29 @@ test('npm version <semver> with working directory not clean', function (t) {
 })
 
 test('npm version <semver> --force with working directory not clean', function (t) {
-  npm.load({ cache: cache, registry: common.registry, prefix: pkg }, function () {
-    common.npm(
-      [
-        '--force',
-        'version',
-        'patch'
-      ],
-      {cwd: pkg, env: {PATH: process.env.PATH}},
-      function (err, code, stdout, stderr) {
-        t.ifError(err, 'npm version ran without issue')
-        t.notOk(code, 'exited with a non-error code')
-        var errorLines = stderr.trim().split('\n')
-          .map(function (line) {
-            return line.trim()
-          })
-          .filter(function (line) {
-            return !line.indexOf('using --force')
-          })
-        t.notOk(errorLines.length, 'no error output')
-        t.end()
-      })
-  })
+  common.npm(
+    [
+      '--force',
+      '--no-sign-git-tag',
+      '--registry', common.registry,
+      '--prefix', pkg,
+      'version',
+      'patch'
+    ],
+    { cwd: pkg, env: {PATH: process.env.PATH} },
+    function (err, code, stdout, stderr) {
+      t.ifError(err, 'npm version ran without issue')
+      t.notOk(code, 'exited with a non-error code')
+      var errorLines = stderr.trim().split('\n')
+        .map(function (line) {
+          return line.trim()
+        })
+        .filter(function (line) {
+          return !line.indexOf('using --force')
+        })
+      t.notOk(errorLines.length, 'no error output')
+      t.end()
+    })
 })
 
 test('cleanup', function (t) {

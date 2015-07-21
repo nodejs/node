@@ -40,8 +40,15 @@ In addition to the shell's pre\-existing \fBPATH\fR, \fBnpm run\fR adds
 \fBnode_modules/\.bin\fR to the \fBPATH\fR provided to scripts\. Any binaries provided by
 locally\-installed dependencies can be used without the \fBnode_modules/\.bin\fR
 prefix\. For example, if there is a \fBdevDependency\fR on \fBtap\fR in your package,
-you should write \fB"scripts": {"test": "tap test/\\*\.js"}\fR instead of \fB"scripts":
-{"test": "node_modules/\.bin/tap test/\\*\.js"}\fR to run your tests\.
+you should write:
+.P
+.RS 2
+.nf
+"scripts": {"test": "tap test/\\*\.js"}
+.fi
+.RE
+.P
+instead of \fB"scripts": {"test": "node_modules/\.bin/tap test/\\*\.js"}\fR to run your tests\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2

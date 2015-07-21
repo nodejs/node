@@ -330,7 +330,7 @@ Donations are welcome to help support the continuous development of this project
 
 ## License
 
-[MIT](LICENSE) &copy; [Ahmad Nassri](https://www.ahmadnassri.com)
+[ISC License](LICENSE) &copy; [Ahmad Nassri](https://www.ahmadnassri.com/)
 
 [license-url]: https://github.com/ahmadnassri/har-validator/blob/master/LICENSE
 

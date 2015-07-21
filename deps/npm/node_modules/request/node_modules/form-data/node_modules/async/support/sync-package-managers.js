@@ -34,7 +34,7 @@ var bowerSpecific = {
   authors: [packageJson.author]
 };
 
-var bowerInclude = ['name', 'description', 'version', 'main', 'keywords',
+var bowerInclude = ['name', 'description', 'main', 'keywords',
   'license', 'homepage', 'repository', 'devDependencies'];
 
 var componentSpecific = {

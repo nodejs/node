@@ -1,5 +1,5 @@
 {
-  "version": "2.13.0",
+  "version": "2.13.1",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "keywords": [
@@ -32,7 +32,6 @@
   "dependencies": {
     "abbrev": "~1.0.7",
     "ansi": "~0.3.0",
-    "ansi-regex": "~1.1.1",
     "ansicolors": "~0.3.2",
     "ansistyles": "~0.1.3",
     "archy": "~1.0.0",
@@ -49,7 +48,7 @@
     "fs-vacuum": "~1.2.6",
     "fs-write-stream-atomic": "~1.0.3",
     "fstream": "~1.0.7",
-    "fstream-npm": "~1.0.3",
+    "fstream-npm": "~1.0.4",
     "github-url-from-git": "~1.4.0",
     "github-url-from-username-repo": "~1.0.2",
     "glob": "~5.0.13",
@@ -90,7 +89,6 @@
     "slide": "~1.1.6",
     "sorted-object": "~1.0.0",
     "spdx": "~0.4.1",
-    "strip-ansi": "~2.0.1",
     "tar": "~2.1.1",
     "text-table": "~0.2.0",
     "uid-number": "0.0.6",
@@ -102,7 +100,6 @@
   },
   "bundleDependencies": [
     "abbrev",
-    "ansi-regex",
     "ansi",
     "ansicolors",
     "ansistyles",
@@ -161,7 +158,6 @@
     "slide",
     "sorted-object",
     "spdx",
-    "strip-ansi",
     "tar",
     "text-table",
     "uid-number",
@@ -176,7 +172,7 @@
     "deep-equal": "~1.0.0",
     "marked": "~0.3.3",
     "marked-man": "~0.1.4",
-    "nock": "~2.6.0",
+    "nock": "~2.7.0",
     "npm-registry-couchapp": "~2.6.7",
     "npm-registry-mock": "~1.0.0",
     "require-inject": "~1.2.0",
