@@ -169,7 +169,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="custom_actions.c">
+    <ClCompile Include="custom_actions.cc">
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
