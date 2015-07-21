@@ -26,7 +26,7 @@ test('npm version <semver> with failing preversion lifecycle script', function (
   }), 'utf8')
   fs.writeFileSync(path.resolve(pkg, 'fail.sh'), 'exit 50', 'utf8')
   fs.chmodSync(path.resolve(pkg, 'fail.sh'), 448)
-  npm.load({cache: cache, registry: common.registry}, function () {
+  npm.load({cache: cache, 'sign-git-tag': false, registry: common.registry}, function () {
     var version = require('../../lib/version')
     version(['patch'], function (err) {
       t.ok(err)
@@ -49,7 +49,7 @@ test('npm version <semver> with failing version lifecycle script', function (t) 
   }), 'utf8')
   fs.writeFileSync(path.resolve(pkg, 'fail.sh'), 'exit 50', 'utf8')
   fs.chmodSync(path.resolve(pkg, 'fail.sh'), 448)
-  npm.load({cache: cache, registry: common.registry}, function () {
+  npm.load({cache: cache, 'sign-git-tag': false, registry: common.registry}, function () {
     var version = require('../../lib/version')
     version(['patch'], function (err) {
       t.ok(err)
@@ -72,7 +72,7 @@ test('npm version <semver> with failing postversion lifecycle script', function 
   }), 'utf8')
   fs.writeFileSync(path.resolve(pkg, 'fail.sh'), 'exit 50', 'utf8')
   fs.chmodSync(path.resolve(pkg, 'fail.sh'), 448)
-  npm.load({cache: cache, registry: common.registry}, function () {
+  npm.load({cache: cache, 'sign-git-tag': false, registry: common.registry}, function () {
     var version = require('../../lib/version')
     version(['patch'], function (err) {
       t.ok(err)
@@ -98,7 +98,7 @@ test('npm version <semver> execution order', function (t) {
   makeScript('preversion')
   makeScript('version')
   makeScript('postversion')
-  npm.load({cache: cache, registry: common.registry}, function () {
+  npm.load({cache: cache, 'sign-git-tag': false, registry: common.registry}, function () {
     common.makeGitRepo({path: pkg}, function (err, git) {
       t.ifError(err, 'git bootstrap ran without error')
 

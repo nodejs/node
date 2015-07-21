@@ -11,20 +11,17 @@
     function noop() {}
 
     // global on the server, window in the browser
-    var root, previous_async;
+    var previous_async;
 
-    if (typeof window == 'object' && this === window) {
-        root = window;
-    }
-    else if (typeof global == 'object' && this === global) {
-        root = global;
-    }
-    else {
-        root = this;
-    }
+    // Establish the root object, `window` (`self`) in the browser, `global`
+    // on the server, or `this` in some virtual machines. We use `self`
+    // instead of `window` for `WebWorker` support.
+    var root = typeof self === 'object' && self.self === self && self ||
+            typeof global === 'object' && global.global === global && global ||
+            this;
 
     if (root != null) {
-      previous_async = root.async;
+        previous_async = root.async;
     }
 
     async.noConflict = function () {
@@ -74,23 +71,23 @@
     }
 
     function _arrayEach(arr, iterator) {
-      var index = -1,
-          length = arr.length;
+        var index = -1,
+            length = arr.length;
 
-      while (++index < length) {
-        iterator(arr[index], index, arr);
-      }
+        while (++index < length) {
+            iterator(arr[index], index, arr);
+        }
     }
 
     function _map(arr, iterator) {
-      var index = -1,
-          length = arr.length,
-          result = Array(length);
+        var index = -1,
+            length = arr.length,
+            result = Array(length);
 
-      while (++index < length) {
-        result[index] = iterator(arr[index], index, arr);
-      }
-      return result;
+        while (++index < length) {
+            result[index] = iterator(arr[index], index, arr);
+        }
+        return result;
     }
 
     function _range(count) {
@@ -146,13 +143,13 @@
         var length = arr.length;
 
         if (start) {
-          length -= start;
-          length = length < 0 ? 0 : length;
+            length -= start;
+            length = length < 0 ? 0 : length;
         }
         var result = Array(length);
 
         while (++index < length) {
-          result[index] = arr[index + start];
+            result[index] = arr[index + start];
         }
         return result;
     }
@@ -193,7 +190,7 @@
         if (_setImmediate) {
             async.setImmediate = function (fn) {
               // not a direct alias for IE10 compatibility
-              _setImmediate(fn);
+                _setImmediate(fn);
             };
         }
         else {
@@ -230,15 +227,15 @@
             iterator(object[key], key, only_once(done));
         });
         function done(err) {
-          if (err) {
-              callback(err);
-          }
-          else {
-              completed += 1;
-              if (completed >= size) {
-                  callback(null);
-              }
-          }
+            if (err) {
+                callback(err);
+            }
+            else {
+                completed += 1;
+                if (completed >= size) {
+                    callback(null);
+                }
+            }
         }
     };
 
@@ -416,24 +413,11 @@
     async.filterSeries = doSeries(_filter);
 
     function _reject(eachfn, arr, iterator, callback) {
-        var results = [];
-        arr = _map(arr, function (x, i) {
-            return {index: i, value: x};
-        });
-        eachfn(arr, function (x, index, callback) {
-            iterator(x.value, function (v) {
-                if (!v) {
-                    results.push(x);
-                }
-                callback();
+        _filter(eachfn, arr, function(value, cb) {
+            iterator(value, function(v) {
+                cb(!v);
             });
-        }, function () {
-            callback(_map(results.sort(function (a, b) {
-                return a.index - b.index;
-            }), function (x) {
-                return x.value;
-            }));
-        });
+        }, callback);
     }
     async.reject = doParallel(_reject);
     async.rejectSeries = doSeries(_reject);
@@ -601,17 +585,55 @@
         });
     };
 
-    async.retry = function(times, task, callback) {
+
+
+    async.retry = function(/*[times,] task [, callback]*/) {
         var DEFAULT_TIMES = 5;
+        var DEFAULT_INTERVAL = 0;
+
         var attempts = [];
-        // Use defaults if times not passed
-        if (typeof times === 'function') {
-            callback = task;
-            task = times;
-            times = DEFAULT_TIMES;
+
+        var opts = {
+          times: DEFAULT_TIMES,
+          interval: DEFAULT_INTERVAL
+        };
+
+        function parseTimes(acc, t){
+          if(typeof t === 'number'){
+            acc.times = parseInt(t, 10) || DEFAULT_TIMES;
+          } else if(typeof t === 'object'){
+            acc.times = parseInt(t.times, 10) || DEFAULT_TIMES;
+            acc.interval = parseInt(t.interval, 10) || DEFAULT_INTERVAL;
+          } else {
+            throw new Error('Unsupported argument type for \'times\': ' + typeof(t));
+          }
         }
-        // Make sure times is a number
-        times = parseInt(times, 10) || DEFAULT_TIMES;
+
+        switch(arguments.length){
+            case 1: {
+              opts.task = arguments[0];
+              break;
+            }
+            case 2 : {
+              if(typeof arguments[0] === 'number' || typeof arguments[0] === 'object'){
+                parseTimes(opts, arguments[0]);
+                opts.task = arguments[1];
+              } else {
+                opts.task = arguments[0];
+                opts.callback = arguments[1];
+              }
+              break;
+            }
+            case 3: {
+              parseTimes(opts, arguments[0]);
+              opts.task = arguments[1];
+              opts.callback = arguments[2];
+              break;
+            }
+            default: {
+              throw new Error('Invalid arguments - must be either (task), (task, callback), (times, task) or (times, task, callback)');
+            }
+          }
 
         function wrappedTask(wrappedCallback, wrappedResults) {
             function retryAttempt(task, finalAttempt) {
@@ -622,24 +644,38 @@
                 };
             }
 
-            while (times) {
-                attempts.push(retryAttempt(task, !(times-=1)));
+            function retryInterval(interval){
+              return function(seriesCallback){
+                setTimeout(function(){
+                  seriesCallback(null);
+                }, interval);
+              };
             }
+
+            while (opts.times) {
+
+                var finalAttempt = !(opts.times-=1);
+                attempts.push(retryAttempt(opts.task, finalAttempt));
+                if(!finalAttempt && opts.interval > 0){
+                  attempts.push(retryInterval(opts.interval));
+                }
+            }
+
             async.series(attempts, function(done, data){
                 data = data[data.length - 1];
-                (wrappedCallback || callback)(data.err, data.result);
+                (wrappedCallback || opts.callback)(data.err, data.result);
             });
         }
 
         // If a callback is passed, run this as a controll flow
-        return callback ? wrappedTask() : wrappedTask;
+        return opts.callback ? wrappedTask() : wrappedTask;
     };
 
     async.waterfall = function (tasks, callback) {
         callback = _once(callback || noop);
         if (!_isArray(tasks)) {
-          var err = new Error('First argument to waterfall must be an array of functions');
-          return callback(err);
+            var err = new Error('First argument to waterfall must be an array of functions');
+            return callback(err);
         }
         if (!tasks.length) {
             return callback();
@@ -749,6 +785,7 @@
     async.concatSeries = doSeries(_concat);
 
     async.whilst = function (test, iterator, callback) {
+        callback = callback || noop;
         if (test()) {
             iterator(function (err) {
                 if (err) {
@@ -763,6 +800,7 @@
     };
 
     async.doWhilst = function (iterator, test, callback) {
+        callback = callback || noop;
         iterator(function (err) {
             if (err) {
                 return callback(err);
@@ -778,6 +816,7 @@
     };
 
     async.until = function (test, iterator, callback) {
+        callback = callback || noop;
         if (!test()) {
             iterator(function (err) {
                 if (err) {
@@ -792,6 +831,7 @@
     };
 
     async.doUntil = function (iterator, test, callback) {
+        callback = callback || noop;
         iterator(function (err) {
             if (err) {
                 return callback(err);
@@ -803,6 +843,48 @@
             else {
                 callback(null);
             }
+        });
+    };
+
+    async.during = function (test, iterator, callback) {
+        callback = callback || noop;
+        test(function(err, truth) {
+            if (err) {
+                return callback(err);
+            }
+            if (truth) {
+                iterator(function (err) {
+                    if (err) {
+                        return callback(err);
+                    }
+                    async.during(test, iterator, callback);
+                });
+            }
+            else {
+                callback(null);
+            }
+        });
+    };
+
+    async.doDuring = function (iterator, test, callback) {
+        callback = callback || noop;
+        iterator(function (err) {
+            if (err) {
+                return callback(err);
+            }
+            var args = _baseSlice(arguments, 1);
+            args.push(function (err, truth) {
+                if (err) {
+                   return callback(err);
+                }
+                if (truth) {
+                    async.doDuring(iterator, test, callback);
+                }
+                else {
+                    callback(null);
+                }
+            });
+            test.apply(null, args);
         });
     };
 
@@ -834,9 +916,9 @@
                 };
 
                 if (pos) {
-                  q.tasks.unshift(item);
+                    q.tasks.unshift(item);
                 } else {
-                  q.tasks.push(item);
+                    q.tasks.push(item);
                 }
 
                 if (q.tasks.length === q.concurrency) {
@@ -863,6 +945,7 @@
         var q = {
             tasks: [],
             concurrency: concurrency,
+            payload: payload,
             saturated: noop,
             empty: noop,
             drain: noop,
@@ -881,8 +964,8 @@
             process: function () {
                 if (!q.paused && workers < q.concurrency && q.tasks.length) {
                     while(workers < q.concurrency && q.tasks.length){
-                        var tasks = payload ?
-                            q.tasks.splice(0, payload) :
+                        var tasks = q.payload ?
+                            q.tasks.splice(0, q.payload) :
                             q.tasks.splice(0, q.tasks.length);
 
                         var data = _map(tasks, function (task) {
@@ -1062,9 +1145,9 @@
     };
 
     async.unmemoize = function (fn) {
-      return function () {
-        return (fn.unmemoized || fn).apply(null, arguments);
-      };
+        return function () {
+            return (fn.unmemoized || fn).apply(null, arguments);
+        };
     };
 
     function _times(mapper) {
@@ -1106,7 +1189,7 @@
     };
 
     async.compose = function (/* functions... */) {
-      return async.seq.apply(null, Array.prototype.reverse.call(arguments));
+        return async.seq.apply(null, Array.prototype.reverse.call(arguments));
     };
 
 
@@ -1172,6 +1255,28 @@
     }
 
     async.ensureAsync = ensureAsync;
+
+    async.constant = function constant(/*values...*/) {
+        var args = [null].concat(_baseSlice(arguments));
+        return function (callback) {
+            return callback.apply(this, args);
+        };
+    };
+
+    async.wrapSync =
+    async.asyncify = function asyncify(func) {
+        return function (/*args..., callback*/) {
+            var args = _baseSlice(arguments);
+            var callback = args.pop();
+            var result;
+            try {
+                result = func.apply(this, args);
+            } catch (e) {
+                return callback(e);
+            }
+            callback(null, result);
+        };
+    };
 
     // Node.js
     if (typeof module !== 'undefined' && module.exports) {

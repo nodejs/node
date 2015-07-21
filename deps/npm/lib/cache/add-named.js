@@ -250,7 +250,11 @@ function addNameRange (name, range, data, cb) {
     var versions = Object.keys(data.versions || {})
     var ms = semver.maxSatisfying(versions, range, true)
     if (!ms) {
-      return cb(installTargetsError(range, data))
+      if (range === "*" && versions.length) {
+        return addNameTag(name, "latest", data, cb)
+      } else {
+        return cb(installTargetsError(range, data))
+      }
     }
 
     // if we don't have a registry connection, try to see if

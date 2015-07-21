@@ -1,3 +1,53 @@
+### v2.13.1 (2015-07-09):
+
+#### KAUAI WAS NICE. I MISS IT.
+
+But Forrest's still kinda on vacation, and not just mentally, because he's
+hanging out with the fine meatbags at CascadiaFest. Enjoy this small bug
+release.
+
+#### MAKE OURSELVES HAPPY
+
+* [`40981f2`](https://github.com/npm/npm/commit/40981f2e0c9c12bb003ccf188169afd1d201f5af)
+  [#8862](https://github.com/npm/npm/issues/8862) Make the lifecycle's safety
+  check work with scoped packages. ([@tcort](https://github.com/tcort))
+* [`5125856`](https://github.com/npm/npm/commit/512585622481dbbda9a0306932468d59efaff658)
+  [#8855](https://github.com/npm/npm/issues/8855) Make dependency versions of
+  `"*"` match `"latest"` when all versions are prerelease.
+  ([@iarna](https://github.com/iarna))
+* [`22fdc1d`](https://github.com/npm/npm/commit/22fdc1d52602ba7098af978c75fca8f7d1060141)
+  Visually emphasize the correct way to write lifecycle scripts.
+  ([@josh-egan](https://github.com/josh-egan))
+
+#### MAKE TRAVIS HAPPY
+
+* [`413c3ac`](https://github.com/npm/npm/commit/413c3ac2ab2437f3011c6ca0d1630109ec14e604)
+  Use npm's `2.x` branch for testing its `2.x` branch.
+  ([@iarna](https://github.com/iarna))
+* [`7602f64`](https://github.com/npm/npm/commit/7602f64826f7a465d9f3a20bd87a376d992607e6)
+  Don't prompt for GnuPG passphrase in version lifecycle tests.
+  ([@othiym23](https://github.com/othiym23))
+
+#### MAKE `npm outdated` HAPPY
+
+* [`d338668`](https://github.com/npm/npm/commit/d338668601d1ebe5247a26237106e80ea8cd7f48)
+  [#8796](https://github.com/npm/npm/issues/8796) `fstream-npm@1.0.4`: When packing the
+  package tarball, npm no longer crashes for packages with certain combinations of
+  `.npmignore` entries, `.gitignore` entries, and lifecycle scripts.
+  ([@iarna](https://github.com/iarna))
+* [`dbe7c9c`](https://github.com/npm/npm/commit/dbe7c9c74734be870d16dd61b9e7f746123011f6)
+  `nock@2.7.0`: Add matching based on query strings.
+  ([@othiym23](https://github.com/othiym23))
+
+There are new versions of `strip-ansi` and `ansi-regex`, but npm only uses them
+indirectly, so we pushed them down into their dependencies where they can get
+updated at their own pace.
+
+* [`06b6ca5`](https://github.com/npm/npm/commit/06b6ca5b5333025f10c8d901628859bd4678e027)
+  undeduplicate `ansi-regex` ([@othiym23](https://github.com/othiym23))
+* [`b168e33`](https://github.com/npm/npm/commit/b168e33ad46faf47020a45f72ba8cec8c644bdb9)
+  undeduplicate `strip-ansi` ([@othiym23](https://github.com/othiym23))
+
 ### v2.13.0 (2015-07-02):
 
 #### FORREST IS OUT! LET'S SNEAK IN ALL THE THINGS!
