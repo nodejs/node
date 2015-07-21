@@ -7,7 +7,7 @@
 #define GUID_BUFFER_SIZE 39 // {8-4-4-4-12}\0
 
 
-UINT WINAPI SetInstallScope(MSIHANDLE hInstall) {
+extern "C" UINT WINAPI SetInstallScope(MSIHANDLE hInstall) {
   HRESULT hr = S_OK;
   UINT er = ERROR_SUCCESS;
   TCHAR upgrade_code[GUID_BUFFER_SIZE];
@@ -56,7 +56,7 @@ LExit:
 }
 
 
-UINT WINAPI BroadcastEnvironmentUpdate(MSIHANDLE hInstall) {
+extern "C" UINT WINAPI BroadcastEnvironmentUpdate(MSIHANDLE hInstall) {
   HRESULT hr = S_OK;
   UINT er = ERROR_SUCCESS;
 
@@ -77,7 +77,7 @@ LExit:
 }
 
 
-BOOL WINAPI DllMain(HINSTANCE hInst, ULONG ulReason, VOID* dummy) {
+extern "C" BOOL WINAPI DllMain(HINSTANCE hInst, ULONG ulReason, VOID* dummy) {
   switch (ulReason) {
     case DLL_PROCESS_ATTACH:
       WcaGlobalInitialize(hInst);
