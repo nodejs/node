@@ -4,7 +4,7 @@
 
 * [Issues and Pull Requests](#issues-and-pull-requests)
 * [Accepting Modifications](#accepting-modifications)
- - [Involving the TC](#involving-the-tc)
+ - [Involving the TSC](#involving-the-tsc)
 * [Landing Pull Requests](#landing-pull-requests)
  - [Technical HOWTO](#technical-howto)
  - [I Just Made a Mistake](#i-just-made-a-mistake)
@@ -25,7 +25,7 @@ pull requests to the io.js project.
 Collaborators should feel free to take full responsibility for
 managing issues and pull requests they feel qualified to handle, as
 long as this is done while being mindful of these guidelines, the
-opinions of other Collaborators and guidance of the TC.
+opinions of other Collaborators and guidance of the TSC.
 
 Collaborators may **close** any issue or pull request they believe is
 not relevant for the future of the io.js project. Where this is
@@ -39,7 +39,7 @@ necessary.
 
 All modifications to the io.js code and documentation should be
 performed via GitHub pull requests, including modifications by
-Collaborators and TC members.
+Collaborators and TSC members.
 
 All pull requests must be reviewed and accepted by a Collaborator with
 sufficient expertise who is able to take full responsibility for the
@@ -63,7 +63,7 @@ Where there is no disagreement amongst Collaborators, a pull request
 may be landed given appropriate review. Where there is discussion
 amongst Collaborators, consensus should be sought if possible. The
 lack of consensus may indicate the need to elevate discussion to the
-TC for resolution (see below).
+TSC for resolution (see below).
 
 All bugfixes require a test case which demonstrates the defect. The
 test should *fail* before the change, and *pass* after the change.
@@ -72,10 +72,10 @@ All pull requests that modify executable code should be subjected to
 continuous integration tests on the
 [project CI server](https://jenkins-iojs.nodesource.com/).
 
-### Involving the TC
+### Involving the TSC
 
-Collaborators may opt to elevate pull requests or issues to the TC for
-discussion by assigning the ***tc-agenda*** tag. This should be done
+Collaborators may opt to elevate pull requests or issues to the TSC for
+discussion by assigning the ***tsc-agenda*** tag. This should be done
 where a pull request:
 
 - has a significant impact on the codebase,
@@ -83,7 +83,7 @@ where a pull request:
 - has failed to reach consensus amongst the Collaborators who are
   actively participating in the discussion.
 
-The TC should serve as the final arbiter where required.
+The TSC should serve as the final arbiter where required.
 
 ## Landing Pull Requests
 
