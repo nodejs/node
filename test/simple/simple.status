@@ -10,6 +10,7 @@ test-timers-first-fire            : PASS,FLAKY
 test-http-pipeline-flood          : PASS,FLAKY
 
 [$system==linux]
+test-signal-unregister            : PASS,FLAKY
 
 [$system==macos]
 test-fs-watch                     : PASS,FLAKY
