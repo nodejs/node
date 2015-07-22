@@ -247,7 +247,7 @@ The REPL module internally uses
  this delegation
  [here](https://iojs.org/api/util.html#util_custom_inspect_function_on_objects).
 
-So, if you have defined an `inspect` function on an object, like this
+If you have defined an `inspect` function on an object, like this:
 
     > var obj = { foo: 'this will not show up in the inspect() output' };
     undefined
@@ -256,7 +256,7 @@ So, if you have defined an `inspect` function on an object, like this
     ... };
     [Function]
 
-and try to print `obj` in REPL, it will invoke the custom `inspect` function
+and try to print `obj` in REPL, it will invoke the custom `inspect` function:
 
     > obj
     { bar: 'baz' }
