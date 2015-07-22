@@ -287,7 +287,6 @@ MaybeLocal<Object> Copy(Isolate* isolate, const char* data, size_t length) {
 }
 
 
-// Make a copy of "data". Why this isn't called "Copy", we'll never know.
 MaybeLocal<Object> New(Environment* env, const char* data, size_t length) {
   EscapableHandleScope scope(env->isolate());
 
@@ -474,7 +473,7 @@ void Slice(const FunctionCallbackInfo<Value>& args) {
   Maybe<bool> mb =
       ui->SetPrototype(env->context(), env->buffer_prototype_object());
   if (!mb.FromMaybe(false))
-    env->ThrowError("Unable to set Object prototype");
+    return env->ThrowError("Unable to set Object prototype");
   args.GetReturnValue().Set(ui);
 }
 
