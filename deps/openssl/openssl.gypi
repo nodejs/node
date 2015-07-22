@@ -1249,7 +1249,6 @@
     ],
     'openssl_default_defines_all': [
       # No clue what these are for.
-      'L_ENDIAN',
       'PURIFY',
       '_REENTRANT',
 
