@@ -630,6 +630,21 @@ Returns the bound address, the address family name and port of the
 server as reported by the operating system.  See [net.Server.address()][] for
 more information.
 
+### server.getTicketKeys()
+
+Returns `Buffer` instance holding the keys currently used for
+encryption/decryption of the [TLS Session Tickets][]
+
+### server.setTicketKeys(keys)
+
+Updates the keys for encryption/decryption of the [TLS Session Tickets][].
+
+NOTE: the buffer should be 48 bytes long. See server `ticketKeys` option for
+more information oh how it is going to be used.
+
+NOTE: the change is effective only for the future server connections. Existing
+or currently pending server connections will use previous keys.
+
 ### server.addContext(hostname, context)
 
 Add secure context that will be used if client request's SNI hostname is
@@ -835,3 +850,4 @@ The numeric representation of the local port.
 [asn1.js]: http://npmjs.org/package/asn1.js
 [OCSP request]: http://en.wikipedia.org/wiki/OCSP_stapling
 [TLS recommendations]: https://wiki.mozilla.org/Security/Server_Side_TLS
+[TLS Session Tickets]: https://www.ietf.org/rfc/rfc5077.txt
