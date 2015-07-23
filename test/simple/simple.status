@@ -32,3 +32,4 @@ test-debugger-repl                      : PASS,FLAKY
 test-debugger-repl-break-in-module      : PASS,FLAKY
 test-debugger-repl-utf8                 : PASS,FLAKY
 test-net-server-max-connections         : PASS,FLAKY
+test-net-error-twice                    : PASS,FLAKY
