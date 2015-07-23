@@ -241,11 +241,11 @@ The following key combinations in the REPL have these special effects:
 ### Customizing Object displays in the REPL
 
 The REPL module internally uses
-[util.inspect()][], when printing values. But, `util.inspect` delegates the call
- to the object's `inspect` function, if it has one. You can read more about
- this delegation [here][].
+[util.inspect()][], when printing values. However, `util.inspect` delegates the
+ call to the object's `inspect()` function, if it has one. You can read more
+ about this delegation [here][].
 
-If you have defined an `inspect` function on an object, like this:
+For example, if you have defined an `inspect()` function on an object, like this:
 
     > var obj = { foo: 'this will not show up in the inspect() output' };
     undefined
@@ -254,7 +254,7 @@ If you have defined an `inspect` function on an object, like this:
     ... };
     [Function]
 
-and try to print `obj` in REPL, it will invoke the custom `inspect` function:
+and try to print `obj` in REPL, it will invoke the custom `inspect()` function:
 
     > obj
     { bar: 'baz' }
