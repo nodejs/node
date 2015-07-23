@@ -637,6 +637,11 @@
         er = er || new Error('process.stderr cannot be closed.');
         stderr.emit('error', er);
       };
+      if (stderr.isTTY) {
+        process.on('SIGWINCH', function() {
+          stderr._refreshSize();
+        });
+      }
       return stderr;
     });
 
