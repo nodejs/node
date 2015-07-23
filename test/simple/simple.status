@@ -17,7 +17,6 @@ test-tls-securepair-server              : PASS,FLAKY
 test-timers-first-fire                  : PASS,FLAKY
  
 [$system==linux]
-test-abort-fatal-error                  : PASS,FLAKY
 test-debugger-client                    : PASS,FLAKY
 test-process-argv-0                     : PASS,FLAKY
 test-cluster-master-kill                : PASS,FLAKY
@@ -29,7 +28,6 @@ test-cluster-master-error               : PASS,FLAKY
 test-http-exit-delay                    : PASS,FLAKY
 
 [$system==solaris]
-test-abort-fatal-error                  : PASS,FLAKY
 test-debugger-repl                      : PASS,FLAKY
 test-debugger-repl-break-in-module      : PASS,FLAKY
 test-debugger-repl-utf8                 : PASS,FLAKY
