@@ -11,22 +11,22 @@ npm version [<newversion> | major | minor | patch | premajor | preminor | prepat
 .SH DESCRIPTION
 .P
 Run this in a package directory to bump the version and write the new
-data back to \fBpackage\.json\fR and, if present, \fBnpm\-shrinkwrap\.json\fR\|\.
+data back to \fBpackage\.json\fP and, if present, \fBnpm\-shrinkwrap\.json\fP\|\.
 .P
-The \fBnewversion\fR argument should be a valid semver string, \fIor\fR a
-valid second argument to semver\.inc (one of \fBpatch\fR, \fBminor\fR, \fBmajor\fR,
-\fBprepatch\fR, \fBpreminor\fR, \fBpremajor\fR, \fBprerelease\fR)\. In the second case,
+The \fBnewversion\fP argument should be a valid semver string, \fIor\fR a
+valid second argument to semver\.inc (one of \fBpatch\fP, \fBminor\fP, \fBmajor\fP,
+\fBprepatch\fP, \fBpreminor\fP, \fBpremajor\fP, \fBprerelease\fP)\. In the second case,
 the existing version will be incremented by 1 in the specified field\.
 .P
 If run in a git repo, it will also create a version commit and tag\.
-This behavior is controlled by \fBgit\-tag\-version\fR (see below), and can
-be disabled on the command line by running \fBnpm \-\-no\-git\-tag\-version version\fR\|\.
-It will fail if the working directory is not clean, unless the \fB\-\-force\fR
+This behavior is controlled by \fBgit\-tag\-version\fP (see below), and can
+be disabled on the command line by running \fBnpm \-\-no\-git\-tag\-version version\fP\|\.
+It will fail if the working directory is not clean, unless the \fB\-\-force\fP
 flag is set\.
 .P
-If supplied with \fB\-\-message\fR (shorthand: \fB\-m\fR) config option, npm will
+If supplied with \fB\-\-message\fP (shorthand: \fB\-m\fP) config option, npm will
 use it as a commit message when creating a version commit\.  If the
-\fBmessage\fR config contains \fB%s\fR then that will be replaced with the
+\fBmessage\fP config contains \fB%s\fP then that will be replaced with the
 resulting version number\.  For example:
 .P
 .RS 2
@@ -35,8 +35,8 @@ npm version patch \-m "Upgrade to %s for reasons"
 .fi
 .RE
 .P
-If the \fBsign\-git\-tag\fR config is set, then the tag will be signed using
-the \fB\-s\fR flag to git\.  Note that you must have a default GPG key set up
+If the \fBsign\-git\-tag\fP config is set, then the tag will be signed using
+the \fB\-s\fP flag to git\.  Note that you must have a default GPG key set up
 in your git config for this to work properly\.  For example:
 .P
 .RS 2
@@ -52,29 +52,29 @@ Enter passphrase:
 .fi
 .RE
 .P
-If \fBpreversion\fR, \fBversion\fR, or \fBpostversion\fR are in the \fBscripts\fR property of
-the package\.json, they will be executed as part of running \fBnpm version\fR\|\.
+If \fBpreversion\fP, \fBversion\fP, or \fBpostversion\fP are in the \fBscripts\fP property of
+the package\.json, they will be executed as part of running \fBnpm version\fP\|\.
 .P
 The exact order of execution is as follows:
 .RS 0
 .IP 1. 3
 Check to make sure the git working directory is clean before we get started\.
 Your scripts may add files to the commit in future steps\.
-This step is skipped if the \fB\-\-force\fR flag is set\.
+This step is skipped if the \fB\-\-force\fP flag is set\.
 .IP 2. 3
-Run the \fBpreversion\fR script\. These scripts have access to the old \fBversion\fR in package\.json\.
+Run the \fBpreversion\fP script\. These scripts have access to the old \fBversion\fP in package\.json\.
 A typical use would be running your full test suite before deploying\.
-Any files you want added to the commit should be explicitly added using \fBgit add\fR\|\.
+Any files you want added to the commit should be explicitly added using \fBgit add\fP\|\.
 .IP 3. 3
-Bump \fBversion\fR in \fBpackage\.json\fR as requested (\fBpatch\fR, \fBminor\fR, \fBmajor\fR, etc)\.
+Bump \fBversion\fP in \fBpackage\.json\fP as requested (\fBpatch\fP, \fBminor\fP, \fBmajor\fP, etc)\.
 .IP 4. 3
-Run the \fBversion\fR script\. These scripts have access to the new \fBversion\fR in package\.json
+Run the \fBversion\fP script\. These scripts have access to the new \fBversion\fP in package\.json
 (so they can incorporate it into file headers in generated files for example)\.
-Again, scripts should explicitly add generated files to the commit using \fBgit add\fR\|\.
+Again, scripts should explicitly add generated files to the commit using \fBgit add\fP\|\.
 .IP 5. 3
 Commit and tag\.
 .IP 6. 3
-Run the \fBpostversion\fR script\. Use it to clean up the file system or automatically push
+Run the \fBpostversion\fP script\. Use it to clean up the file system or automatically push
 the commit and/or tag\.
 
 .RE
@@ -91,9 +91,9 @@ Take the following example:
 .fi
 .RE
 .P
-This runs all your tests, and proceeds only if they pass\. Then runs your \fBbuild\fR script, and
-adds everything in the \fBdist\fR directory to the commit\. After the commit, it pushes the new commit
-and tag up to the server, and deletes the \fBbuild/temp\fR directory\.
+This runs all your tests, and proceeds only if they pass\. Then runs your \fBbuild\fP script, and
+adds everything in the \fBdist\fP directory to the commit\. After the commit, it pushes the new commit
+and tag up to the server, and deletes the \fBbuild/temp\fP directory\.
 .SH CONFIGURATION
 .SS git\-tag\-version
 .RS 0

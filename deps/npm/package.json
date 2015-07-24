@@ -1,5 +1,5 @@
 {
-  "version": "2.13.1",
+  "version": "2.13.2",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "keywords": [
@@ -51,7 +51,7 @@
     "fstream-npm": "~1.0.4",
     "github-url-from-git": "~1.4.0",
     "github-url-from-username-repo": "~1.0.2",
-    "glob": "~5.0.13",
+    "glob": "~5.0.14",
     "graceful-fs": "~4.1.2",
     "hosted-git-info": "~2.1.4",
     "inflight": "~1.0.4",
@@ -62,9 +62,9 @@
     "lru-cache": "~2.6.5",
     "minimatch": "~2.0.8",
     "mkdirp": "~0.5.1",
-    "node-gyp": "~2.0.1",
+    "node-gyp": "~2.0.2",
     "nopt": "~3.0.3",
-    "normalize-git-url": "~2.0.0",
+    "normalize-git-url": "~3.0.1",
     "normalize-package-data": "~2.3.0",
     "npm-cache-filename": "~1.0.2",
     "npm-install-checks": "~1.0.5",

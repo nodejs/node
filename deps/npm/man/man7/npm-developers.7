@@ -13,9 +13,9 @@ that your users will do to install your program\.
 .SH About These Documents
 .P
 These are man pages\.  If you install npm, you should be able to
-then do \fBman npm\-thing\fR to get the documentation on a particular
-topic, or \fBnpm help thing\fR to see the same information\.
-.SH What is a \fBpackage\fR
+then do \fBman npm\-thing\fP to get the documentation on a particular
+topic, or \fBnpm help thing\fP to see the same information\.
+.SH What is a \fBpackage\fP
 .P
 A package is:
 .RS 0
@@ -26,13 +26,13 @@ b) a gzipped tarball containing (a)
 .IP \(bu 2
 c) a url that resolves to (b)
 .IP \(bu 2
-d) a \fB<name>@<version>\fR that is published on the registry with (c)
+d) a \fB<name>@<version>\fP that is published on the registry with (c)
 .IP \(bu 2
-e) a \fB<name>@<tag>\fR that points to (d)
+e) a \fB<name>@<tag>\fP that points to (d)
 .IP \(bu 2
-f) a \fB<name>\fR that has a "latest" tag satisfying (e)
+f) a \fB<name>\fP that has a "latest" tag satisfying (e)
 .IP \(bu 2
-g) a \fBgit\fR url that, when cloned, results in (a)\.
+g) a \fBgit\fP url that, when cloned, results in (a)\.
 
 .RE
 .P
@@ -52,14 +52,14 @@ git+https://user@hostname/project/blah\.git#commit\-ish
 .fi
 .RE
 .P
-The \fBcommit\-ish\fR can be any tag, sha, or branch which can be supplied as
-an argument to \fBgit checkout\fR\|\.  The default is \fBmaster\fR\|\.
+The \fBcommit\-ish\fP can be any tag, sha, or branch which can be supplied as
+an argument to \fBgit checkout\fP\|\.  The default is \fBmaster\fP\|\.
 .SH The package\.json File
 .P
-You need to have a \fBpackage\.json\fR file in the root of your project to do
+You need to have a \fBpackage\.json\fP file in the root of your project to do
 much of anything with npm\.  That is basically the whole interface\.
 .P
-See npm help 5 \fBpackage\.json\fR for details about what goes in that file\.  At the very
+See npm help 5 \fBpackage\.json\fP for details about what goes in that file\.  At the very
 least, you need:
 .RS 0
 .IP \(bu 2
@@ -70,7 +70,7 @@ You can use the "engines" field to explicitly state the versions of
 node (or whatever else) that your program requires, and it's pretty
 well assumed that it's javascript\.
 It does not necessarily need to match your github repository name\.
-So, \fBnode\-foo\fR and \fBbar\-js\fR are bad names\.  \fBfoo\fR or \fBbar\fR are better\.
+So, \fBnode\-foo\fP and \fBbar\-js\fP are bad names\.  \fBfoo\fP or \fBbar\fP are better\.
 .IP \(bu 2
 version:
 A semver\-compatible version\.
@@ -85,7 +85,7 @@ Take some credit\.
 .IP \(bu 2
 scripts:
 If you have a special compilation or installation script, then you
-should put it in the \fBscripts\fR object\.  You should definitely have at
+should put it in the \fBscripts\fP object\.  You should definitely have at
 least a basic smoke\-test command as the "scripts\.test" field\.
 See npm help 7 scripts\.
 .IP \(bu 2
@@ -101,78 +101,78 @@ they'll get installed just like these ones\.
 
 .RE
 .P
-You can use \fBnpm init\fR in the root of your package in order to get you
-started with a pretty basic package\.json file\.  See npm help \fBnpm\-init\fR for
+You can use \fBnpm init\fP in the root of your package in order to get you
+started with a pretty basic package\.json file\.  See npm help \fBnpm\-init\fP for
 more info\.
 .SH Keeping files \fIout\fR of your package
 .P
-Use a \fB\|\.npmignore\fR file to keep stuff out of your package\.  If there's
-no \fB\|\.npmignore\fR file, but there \fIis\fR a \fB\|\.gitignore\fR file, then npm will
-ignore the stuff matched by the \fB\|\.gitignore\fR file\.  If you \fIwant\fR to
-include something that is excluded by your \fB\|\.gitignore\fR file, you can
-create an empty \fB\|\.npmignore\fR file to override it\.
+Use a \fB\|\.npmignore\fP file to keep stuff out of your package\.  If there's
+no \fB\|\.npmignore\fP file, but there \fIis\fR a \fB\|\.gitignore\fP file, then npm will
+ignore the stuff matched by the \fB\|\.gitignore\fP file\.  If you \fIwant\fR to
+include something that is excluded by your \fB\|\.gitignore\fP file, you can
+create an empty \fB\|\.npmignore\fP file to override it\.
 .P
-\fB\|\.npmignore\fR files follow the same pattern rules \fIhttp://git\-scm\.com/book/en/v2/Git\-Basics\-Recording\-Changes\-to\-the\-Repository#Ignoring\-Files\fR
-as \fB\|\.gitignore\fR files:
+\fB\|\.npmignore\fP files follow the same pattern rules \fIhttp://git\-scm\.com/book/en/v2/Git\-Basics\-Recording\-Changes\-to\-the\-Repository#Ignoring\-Files\fR
+as \fB\|\.gitignore\fP files:
 .RS 0
 .IP \(bu 2
-Blank lines or lines starting with \fB#\fR are ignored\.
+Blank lines or lines starting with \fB#\fP are ignored\.
 .IP \(bu 2
 Standard glob patterns work\.
 .IP \(bu 2
-You can end patterns with a forward slash \fB/\fR to specify a directory\.
+You can end patterns with a forward slash \fB/\fP to specify a directory\.
 .IP \(bu 2
-You can negate a pattern by starting it with an exclamation point \fB!\fR\|\.
+You can negate a pattern by starting it with an exclamation point \fB!\fP\|\.
 
 .RE
 .P
 By default, the following paths and files are ignored, so there's no
-need to add them to \fB\|\.npmignore\fR explicitly:
+need to add them to \fB\|\.npmignore\fP explicitly:
 .RS 0
 .IP \(bu 2
-\fB\|\.*\.swp\fR
+\fB\|\.*\.swp\fP
 .IP \(bu 2
-\fB\|\._*\fR
+\fB\|\._*\fP
 .IP \(bu 2
-\fB\|\.DS_Store\fR
+\fB\|\.DS_Store\fP
 .IP \(bu 2
-\fB\|\.git\fR
+\fB\|\.git\fP
 .IP \(bu 2
-\fB\|\.hg\fR
+\fB\|\.hg\fP
 .IP \(bu 2
-\fB\|\.lock\-wscript\fR
+\fB\|\.lock\-wscript\fP
 .IP \(bu 2
-\fB\|\.svn\fR
+\fB\|\.svn\fP
 .IP \(bu 2
-\fB\|\.wafpickle\-*\fR
+\fB\|\.wafpickle\-*\fP
 .IP \(bu 2
-\fBCVS\fR
+\fBCVS\fP
 .IP \(bu 2
-\fBnpm\-debug\.log\fR
+\fBnpm\-debug\.log\fP
 
 .RE
 .P
-Additionally, everything in \fBnode_modules\fR is ignored, except for
+Additionally, everything in \fBnode_modules\fP is ignored, except for
 bundled dependencies\. npm automatically handles this for you, so don't
-bother adding \fBnode_modules\fR to \fB\|\.npmignore\fR\|\.
+bother adding \fBnode_modules\fP to \fB\|\.npmignore\fP\|\.
 .P
 The following paths and files are never ignored, so adding them to
-\fB\|\.npmignore\fR is pointless:
+\fB\|\.npmignore\fP is pointless:
 .RS 0
 .IP \(bu 2
-\fBpackage\.json\fR
+\fBpackage\.json\fP
 .IP \(bu 2
-\fBREADME\.*\fR
+\fBREADME\.*\fP
 
 .RE
 .SH Link Packages
 .P
-\fBnpm link\fR is designed to install a development package and see the
+\fBnpm link\fP is designed to install a development package and see the
 changes in real time without having to keep re\-installing it\.  (You do
-need to either re\-link or \fBnpm rebuild \-g\fR to update compiled packages,
+need to either re\-link or \fBnpm rebuild \-g\fP to update compiled packages,
 of course\.)
 .P
-More info at npm help \fBnpm\-link\fR\|\.
+More info at npm help \fBnpm\-link\fP\|\.
 .SH Before Publishing: Make Sure Your Package Installs and Works
 .P
 \fBThis is important\.\fR
@@ -199,7 +199,7 @@ npm link
 .fi
 .RE
 .P
-Use \fBnpm ls \-g\fR to see if it's there\.
+Use \fBnpm ls \-g\fP to see if it's there\.
 .P
 To test a local install, go into some other folder, and then do:
 .P
@@ -242,7 +242,7 @@ or a path to a folder\.
 .P
 Note that pretty much \fBeverything in that folder will be exposed\fR
 by default\.  So, if you have secret stuff in there, use a
-\fB\|\.npmignore\fR file to list out the globs to ignore, or publish
+\fB\|\.npmignore\fP file to list out the globs to ignore, or publish
 from a fresh checkout\.
 .SH Brag about it
 .P

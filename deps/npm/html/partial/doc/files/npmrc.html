@@ -36,6 +36,8 @@ config values specific to this project.</p>
 running npm in.  It has no effect when your module is published.  For
 example, you can&#39;t publish a module that forces itself to install
 globally, or in a different location.</p>
+<p>Additionally, this file is not read in global mode, such as when running
+<code>npm install -g</code>.</p>
 <h3 id="per-user-config-file">Per-user config file</h3>
 <p><code>$HOME/.npmrc</code> (or the <code>userconfig</code> param, if set in the environment
 or on the command line)</p>

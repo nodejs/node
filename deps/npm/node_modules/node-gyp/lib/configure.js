@@ -316,12 +316,14 @@ function configure (gyp, argv, callback) {
       // Windows expects an absolute path
       output_dir = buildDir
     }
+    var nodeGypDir = path.resolve(__dirname, '..')
 
     argv.push('-I', addon_gypi)
     argv.push('-I', common_gypi)
     argv.push('-Dlibrary=shared_library')
     argv.push('-Dvisibility=default')
     argv.push('-Dnode_root_dir=' + nodeDir)
+    argv.push('-Dnode_gyp_dir=' + nodeGypDir)
     argv.push('-Dmodule_root_dir=' + process.cwd())
     argv.push('--depth=.')
     argv.push('--no-parallel')
