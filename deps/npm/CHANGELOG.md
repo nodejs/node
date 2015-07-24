@@ -1,3 +1,76 @@
+### v2.13.2 (2015-07-16):
+
+#### HOLD ON TO YOUR TENTACLES... IT'S NPM RELEASE TIME!
+
+Kat: Hooray! Full team again, and we've got a pretty small patch  release this
+week, about everyone's favorite recurring issue: git URLs!
+
+Rebecca: No Way! Again?
+
+Kat: The ride never ends! In the meantime, there's some fun, exciting work in
+the background to get orgs and teams out the door. Keep an eye out for news. :)
+
+Rebecca: And make sure to keep an eye out for patches for the super-fresh
+`npm@3`!
+
+#### LET'S GIT INKY
+
+Rebecca: So what's this about another git URL issue?
+
+Kat: Welp, I apparently broke backwards-compatibility on what are actually
+invalid `git+https` URLs! So I'm making it work, but we're gonna deprecate URLs
+that look like `git+https://user@host:path/is/here`.
+
+Rebecca: What should we use instead?!
+
+Kat: Just do me a solid and use `git+ssh://user@host:path/here` or
+`git+https://user@host/absolute/https/path` instead!
+
+* [`769f06e`](https://github.com/npm/npm/commit/769f06e5455d7a9fc738379de2e05868df0dab6f)
+  Updated tests for `getResolved` so the URLs are run through
+  `normalize-git-url`.
+  ([@zkat](https://github.com/zkat))
+* [`edbae68`](https://github.com/npm/npm/commit/edbae685bf48971e878ced373d6825fc1891ee47)
+  [#8881](https://github.com/npm/npm/issues/8881) Added tests to verify that `git+https:` URLs are handled compatibly.
+  ([@zkat](https://github.com/zkat))
+
+#### NEWS FLASH! DOCUMENTATION IMPROVEMENTS!
+
+* [`bad4e014`](https://github.com/npm/npm/commit/bad4e0143cc95754a682f1da543b2b4e196e924b)
+  [#8924](https://github.com/npm/npm/pull/8924) Make sure documented default
+  values in `lib/cache.js` properly correspond to current code.
+  ([@watilde](https://github.com/watilde))
+* [`e7a11fd`](https://github.com/npm/npm/commit/e7a11fdf70e333cdfe3dac94a1a30907adb76d59)
+  [#8036](https://github.com/npm/npm/issues/8036) Clarify the documentation for
+  `.npmrc` to clarify that it's not read at the project level when doing global
+  installs.
+  ([@espadrine](https://github.com/espadrine))
+
+#### STAY FRESH~
+
+Kat: That's it for npm core changes!
+
+Rebecca: Great! Let's look at the fresh new dependencies, then!
+
+Kat: See you all next week!
+
+Both: Stay Freeesh~
+
+(some cat form of Forrest can be seen snoring in the corner)
+
+* [`bfa1f45`](https://github.com/npm/npm/bfa1f45ee760d05039557d2245b7e3df9fda8def)
+  `normalize-git-url@3.0.1`: Fixes url normalization such that `git+https:`
+  accepts scp syntax, but get converted into absolute-path `https:` URLs. Also
+  fixes scp syntax so you can have absolute paths after the `:`
+  (`git@myhost.org:/some/absolute/place.git`)
+  ([@zkat](https://github.com/zkat))
+* [`6f757d2`](https://github.com/npm/npm/6f757d22b53f91da0bebec6b5d16c1f4dbe130b4)
+  `glob@5.0.15`: Better handling of ENOTSUP
+  ([@isaacs](https://github.com/isaacs))
+* [`0920819`](https://github.com/npm/npm/09208197fb8b0c6d5dbf6bd7f59970cf366de989)
+  `node-gyp@2.0.2`: Fixes an issue with long paths on Win32
+  ([@TooTallNate](https://github.com/TooTallNate))
+
 ### v2.13.1 (2015-07-09):
 
 #### KAUAI WAS NICE. I MISS IT.

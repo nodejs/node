@@ -27,8 +27,8 @@ add data to the local installation cache explicitly\.
 .IP \(bu 2
 ls:
 Show the data in the cache\.  Argument is a path to show in the cache
-folder\.  Works a bit like the \fBfind\fR program, but limited by the
-\fBdepth\fR config\.
+folder\.  Works a bit like the \fBfind\fP program, but limited by the
+\fBdepth\fP config\.
 .IP \(bu 2
 clean:
 Delete data out of the cache folder\.  If an argument is provided, then
@@ -38,9 +38,9 @@ the entire cache is cleared\.
 .RE
 .SH DETAILS
 .P
-npm stores cache data in the directory specified in \fBnpm config get cache\fR\|\.
+npm stores cache data in the directory specified in \fBnpm config get cache\fP\|\.
 For each package that is added to the cache, three pieces of information are
-stored in \fB{cache}/{name}/{version}\fR:
+stored in \fB{cache}/{name}/{version}\fP:
 .RS 0
 .IP \(bu 2
 \|\.\.\./package/package\.json:
@@ -51,18 +51,18 @@ The tarball for that version\.
 
 .RE
 .P
-Additionally, whenever a registry request is made, a \fB\|\.cache\.json\fR file
+Additionally, whenever a registry request is made, a \fB\|\.cache\.json\fP file
 is placed at the corresponding URI, to store the ETag and the requested
-data\.  This is stored in \fB{cache}/{hostname}/{path}/\.cache\.json\fR\|\.
+data\.  This is stored in \fB{cache}/{hostname}/{path}/\.cache\.json\fP\|\.
 .P
-Commands that make non\-essential registry requests (such as \fBsearch\fR and
-\fBview\fR, or the completion scripts) generally specify a minimum timeout\.
-If the \fB\|\.cache\.json\fR file is younger than the specified timeout, then
+Commands that make non\-essential registry requests (such as \fBsearch\fP and
+\fBview\fP, or the completion scripts) generally specify a minimum timeout\.
+If the \fB\|\.cache\.json\fP file is younger than the specified timeout, then
 they do not make an HTTP request to the registry\.
 .SH CONFIGURATION
 .SS cache
 .P
-Default: \fB~/\.npm\fR on Posix, or \fB%AppData%/npm\-cache\fR on Windows\.
+Default: \fB~/\.npm\fP on Posix, or \fB%AppData%/npm\-cache\fP on Windows\.
 .P
 The root cache folder\.
 .SH SEE ALSO
