@@ -1614,17 +1614,10 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 
   expr->BuildConstantProperties(isolate());
   Handle<FixedArray> constant_properties = expr->constant_properties();
-  int flags = expr->fast_elements()
-      ? ObjectLiteral::kFastElements
-      : ObjectLiteral::kNoFlags;
-  flags |= expr->has_function()
-      ? ObjectLiteral::kHasFunction
-      : ObjectLiteral::kNoFlags;
-  int properties_count = constant_properties->length() / 2;
-  if (expr->may_store_doubles() || expr->depth() > 1 ||
-      masm()->serializer_enabled() ||
-      flags != ObjectLiteral::kFastElements ||
-      properties_count > FastCloneShallowObjectStub::kMaximumClonedProperties) {
+  int flags = expr->ComputeFlags();
+  // If any of the keys would store to the elements array, then we shouldn't
+  // allow it.
+  if (MustCreateObjectLiteralWithRuntime(expr)) {
     __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
     __ push(FieldOperand(edi, JSFunction::kLiteralsOffset));
     __ push(Immediate(Smi::FromInt(expr->literal_index())));
@@ -1637,7 +1630,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     __ mov(ebx, Immediate(Smi::FromInt(expr->literal_index())));
     __ mov(ecx, Immediate(constant_properties));
     __ mov(edx, Immediate(Smi::FromInt(flags)));
-    FastCloneShallowObjectStub stub(isolate(), properties_count);
+    FastCloneShallowObjectStub stub(isolate(), expr->properties_count());
     __ CallStub(&stub);
   }
   PrepareForBailoutForId(expr->CreateLiteralId(), TOS_REG);
@@ -1816,20 +1809,9 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   Comment cmnt(masm_, "[ ArrayLiteral");
 
   expr->BuildConstantElements(isolate());
-  int flags = expr->depth() == 1
-      ? ArrayLiteral::kShallowElements
-      : ArrayLiteral::kNoFlags;
-
-  ZoneList<Expression*>* subexprs = expr->values();
-  int length = subexprs->length();
   Handle<FixedArray> constant_elements = expr->constant_elements();
-  DCHECK_EQ(2, constant_elements->length());
-  ElementsKind constant_elements_kind =
-      static_cast<ElementsKind>(Smi::cast(constant_elements->get(0))->value());
   bool has_constant_fast_elements =
-      IsFastObjectElementsKind(constant_elements_kind);
-  Handle<FixedArrayBase> constant_elements_values(
-      FixedArrayBase::cast(constant_elements->get(1)));
+      IsFastObjectElementsKind(expr->constant_elements_kind());
 
   AllocationSiteMode allocation_site_mode = TRACK_ALLOCATION_SITE;
   if (has_constant_fast_elements && !FLAG_allocation_site_pretenuring) {
@@ -1838,12 +1820,12 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     allocation_site_mode = DONT_TRACK_ALLOCATION_SITE;
   }
 
-  if (expr->depth() > 1 || length > JSObject::kInitialMaxFastElementArray) {
+  if (MustCreateArrayLiteralWithRuntime(expr)) {
     __ mov(ebx, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
     __ push(FieldOperand(ebx, JSFunction::kLiteralsOffset));
     __ push(Immediate(Smi::FromInt(expr->literal_index())));
     __ push(Immediate(constant_elements));
-    __ push(Immediate(Smi::FromInt(flags)));
+    __ push(Immediate(Smi::FromInt(expr->ComputeFlags())));
     __ CallRuntime(Runtime::kCreateArrayLiteral, 4);
   } else {
     __ mov(ebx, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
@@ -1856,6 +1838,8 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   PrepareForBailoutForId(expr->CreateLiteralId(), TOS_REG);
 
   bool result_saved = false;  // Is the result saved to the stack?
+  ZoneList<Expression*>* subexprs = expr->values();
+  int length = subexprs->length();
 
   // Emit code to evaluate all the non-constant subexpressions and to store
   // them into the newly cloned array.
@@ -1872,7 +1856,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     }
     VisitForAccumulatorValue(subexpr);
 
-    if (IsFastObjectElementsKind(constant_elements_kind)) {
+    if (has_constant_fast_elements) {
       // Fast-case array literal with ElementsKind of FAST_*_ELEMENTS, they
       // cannot transition and don't need to call the runtime stub.
       int offset = FixedArray::kHeaderSize + (i * kPointerSize);
