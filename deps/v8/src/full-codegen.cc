@@ -415,6 +415,27 @@ void FullCodeGenerator::PopulateTypeFeedbackInfo(Handle<Code> code) {
 }
 
 
+bool FullCodeGenerator::MustCreateObjectLiteralWithRuntime(
+    ObjectLiteral* expr) const {
+  // FastCloneShallowObjectStub doesn't copy elements, and object literals don't
+  // support copy-on-write (COW) elements for now.
+  // TODO(mvstanton): make object literals support COW elements.
+  return expr->may_store_doubles() || expr->depth() > 1 ||
+         masm()->serializer_enabled() ||
+         expr->ComputeFlags() != ObjectLiteral::kFastElements ||
+         expr->has_elements() ||
+         expr->properties_count() >
+             FastCloneShallowObjectStub::kMaximumClonedProperties;
+}
+
+
+bool FullCodeGenerator::MustCreateArrayLiteralWithRuntime(
+    ArrayLiteral* expr) const {
+  return expr->depth() > 1 ||
+         expr->values()->length() > JSObject::kInitialMaxFastElementArray;
+}
+
+
 void FullCodeGenerator::Initialize() {
   InitializeAstVisitor(info_->isolate(), info_->zone());
   // The generation of debug code must match between the snapshot code and the
