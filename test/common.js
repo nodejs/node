@@ -7,6 +7,7 @@ var os = require('os');
 var child_process = require('child_process');
 const stream = require('stream');
 const util = require('util');
+const Timer = process.binding('timer_wrap').Timer;
 
 const testRoot = path.resolve(process.env.NODE_TEST_DIR ||
                               path.dirname(__filename));
@@ -483,4 +484,10 @@ exports.nodeProcessAborted = function nodeProcessAborted(exitCode, signal) {
   } else {
     return expectedExitCodes.indexOf(exitCode) > -1;
   }
+};
+
+exports.busyLoop = function busyLoop(time) {
+  var startTime = Timer.now();
+  var stopTime = startTime + time;
+  while (Timer.now() < stopTime) {}
 };
