@@ -12,30 +12,30 @@ npm publish <folder> [\-\-tag <tag>] [\-\-access <public|restricted>]
 .SH DESCRIPTION
 .P
 Publishes a package to the registry so that it can be installed by name\. See
-npm help 7 \fBnpm\-developers\fR for details on what's included in the published package, as
+npm help 7 \fBnpm\-developers\fP for details on what's included in the published package, as
 well as details on how the package is built\.
 .P
 By default npm will publish to the public registry\. This can be overridden by
-specifying a different default registry or using a npm help 7 \fBnpm\-scope\fR in the name
-(see npm help 5 \fBpackage\.json\fR)\.
+specifying a different default registry or using a npm help 7 \fBnpm\-scope\fP in the name
+(see npm help 5 \fBpackage\.json\fP)\.
 .RS 0
 .IP \(bu 2
-\fB<folder>\fR:
+\fB<folder>\fP:
 A folder containing a package\.json file
 .IP \(bu 2
-\fB<tarball>\fR:
+\fB<tarball>\fP:
 A url or file path to a gzipped tar archive containing a single folder
 with a package\.json file inside\.
 .IP \(bu 2
-\fB[\-\-tag <tag>]\fR
+\fB[\-\-tag <tag>]\fP
 Registers the published package with the given tag, such that \fBnpm install
-<name>@<tag>\fR will install this version\.  By default, \fBnpm publish\fR updates
-and \fBnpm install\fR installs the \fBlatest\fR tag\.
+<name>@<tag>\fP will install this version\.  By default, \fBnpm publish\fP updates
+and \fBnpm install\fP installs the \fBlatest\fP tag\.
 .IP \(bu 2
-\fB[\-\-access <public|restricted>]\fR
+\fB[\-\-access <public|restricted>]\fP
 Tells the registry whether this package should be published as public or
-restricted\. Only applies to scoped packages, which default to \fBrestricted\fR\|\.
-If you don't have a paid account, you must publish with \fB\-\-access public\fR
+restricted\. Only applies to scoped packages, which default to \fBrestricted\fP\|\.
+If you don't have a paid account, you must publish with \fB\-\-access public\fP
 to publish scoped packages\.
 
 .RE

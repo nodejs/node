@@ -11,26 +11,26 @@ npm update [\-g] [<name> [<name> \.\.\.]]
 .SH DESCRIPTION
 .P
 This command will update all the packages listed to the latest version
-(specified by the \fBtag\fR config), respecting semver\.
+(specified by the \fBtag\fP config), respecting semver\.
 .P
 It will also install missing packages\. As with all commands that install
-packages, the \fB\-\-dev\fR flag will cause \fBdevDependencies\fR to be processed
+packages, the \fB\-\-dev\fP flag will cause \fBdevDependencies\fP to be processed
 as well\.
 .P
-If the \fB\-g\fR flag is specified, this command will update globally installed
+If the \fB\-g\fP flag is specified, this command will update globally installed
 packages\.
 .P
 If no package name is specified, all packages in the specified location (global
 or local) will be updated\.
 .P
-As of \fBnpm@2\.6\.1\fR, the \fBnpm update\fR will only inspect top\-level packages\.
-Prior versions of \fBnpm\fR would also recursively inspect all dependencies\.
-To get the old behavior, use \fBnpm \-\-depth 9999 update\fR, but be warned that
-simultaneous asynchronous update of all packages, including \fBnpm\fR itself
-and packages that \fBnpm\fR depends on, often causes problems up to and including
-the uninstallation of \fBnpm\fR itself\.
+As of \fBnpm@2\.6\.1\fP, the \fBnpm update\fP will only inspect top\-level packages\.
+Prior versions of \fBnpm\fP would also recursively inspect all dependencies\.
+To get the old behavior, use \fBnpm \-\-depth 9999 update\fP, but be warned that
+simultaneous asynchronous update of all packages, including \fBnpm\fP itself
+and packages that \fBnpm\fP depends on, often causes problems up to and including
+the uninstallation of \fBnpm\fP itself\.
 .P
-To restore a missing \fBnpm\fR, use the command:
+To restore a missing \fBnpm\fP, use the command:
 .P
 .RS 2
 .nf
@@ -39,12 +39,12 @@ curl \-L https://npmjs\.com/install\.sh | sh
 .RE
 .SH EXAMPLES
 .P
-IMPORTANT VERSION NOTE: these examples assume \fBnpm@2\.6\.1\fR or later\.  For
-older versions of \fBnpm\fR, you must specify \fB\-\-depth 0\fR to get the behavior
+IMPORTANT VERSION NOTE: these examples assume \fBnpm@2\.6\.1\fP or later\.  For
+older versions of \fBnpm\fP, you must specify \fB\-\-depth 0\fP to get the behavior
 described below\.
 .P
-For the examples below, assume that the current package is \fBapp\fR and it depends
-on dependencies, \fBdep1\fR (\fBdep2\fR, \.\. etc\.)\.  The published versions of \fBdep1\fR are:
+For the examples below, assume that the current package is \fBapp\fP and it depends
+on dependencies, \fBdep1\fP (\fBdep2\fP, \.\. etc\.)\.  The published versions of \fBdep1\fP are:
 .P
 .RS 2
 .nf
@@ -65,7 +65,7 @@ on dependencies, \fBdep1\fR (\fBdep2\fR, \.\. etc\.)\.  The published versions o
 .RE
 .SS Caret Dependencies
 .P
-If \fBapp\fR\|'s \fBpackage\.json\fR contains:
+If \fBapp\fP\|'s \fBpackage\.json\fP contains:
 .P
 .RS 2
 .nf
@@ -75,11 +75,11 @@ dependencies: {
 .fi
 .RE
 .P
-Then \fBnpm update\fR will install \fBdep1@1\.2\.2\fR, because \fB1\.2\.2\fR is \fBlatest\fR and
-\fB1\.2\.2\fR satisfies \fB^1\.1\.1\fR\|\.
+Then \fBnpm update\fP will install \fBdep1@1\.2\.2\fP, because \fB1\.2\.2\fP is \fBlatest\fP and
+\fB1\.2\.2\fP satisfies \fB^1\.1\.1\fP\|\.
 .SS Tilde Dependencies
 .P
-However, if \fBapp\fR\|'s \fBpackage\.json\fR contains:
+However, if \fBapp\fP\|'s \fBpackage\.json\fP contains:
 .P
 .RS 2
 .nf
@@ -89,13 +89,13 @@ dependencies: {
 .fi
 .RE
 .P
-In this case, running \fBnpm update\fR will install \fBdep1@1\.1\.2\fR\|\.  Even though the \fBlatest\fR
-tag points to \fB1\.2\.2\fR, this version does not satisfy \fB~1\.1\.1\fR, which is equivalent
-to \fB>=1\.1\.1 <1\.2\.0\fR\|\.  So the highest\-sorting version that satisfies \fB~1\.1\.1\fR is used,
-which is \fB1\.1\.2\fR\|\.
+In this case, running \fBnpm update\fP will install \fBdep1@1\.1\.2\fP\|\.  Even though the \fBlatest\fP
+tag points to \fB1\.2\.2\fP, this version does not satisfy \fB~1\.1\.1\fP, which is equivalent
+to \fB>=1\.1\.1 <1\.2\.0\fP\|\.  So the highest\-sorting version that satisfies \fB~1\.1\.1\fP is used,
+which is \fB1\.1\.2\fP\|\.
 .SS Caret Dependencies below 1\.0\.0
 .P
-Suppose \fBapp\fR has a caret dependency on a version below \fB1\.0\.0\fR, for example:
+Suppose \fBapp\fP has a caret dependency on a version below \fB1\.0\.0\fP, for example:
 .P
 .RS 2
 .nf
@@ -105,10 +105,10 @@ dependencies: {
 .fi
 .RE
 .P
-\fBnpm update\fR will install \fBdep1@0\.2\.0\fR, because there are no other
-versions which satisfy \fB^0\.2\.0\fR\|\.
+\fBnpm update\fP will install \fBdep1@0\.2\.0\fP, because there are no other
+versions which satisfy \fB^0\.2\.0\fP\|\.
 .P
-If the dependence were on \fB^0\.4\.0\fR:
+If the dependence were on \fB^0\.4\.0\fP:
 .P
 .RS 2
 .nf
@@ -118,13 +118,13 @@ dependencies: {
 .fi
 .RE
 .P
-Then \fBnpm update\fR will install \fBdep1@0\.4\.1\fR, because that is the highest\-sorting
-version that satisfies \fB^0\.4\.0\fR (\fB>= 0\.4\.0 <0\.5\.0\fR)
-.SS Recording Updates with \fB\-\-save\fR
+Then \fBnpm update\fP will install \fBdep1@0\.4\.1\fP, because that is the highest\-sorting
+version that satisfies \fB^0\.4\.0\fP (\fB>= 0\.4\.0 <0\.5\.0\fP)
+.SS Recording Updates with \fB\-\-save\fP
 .P
 When you want to update a package and save the new version as
-the minimum required dependency in \fBpackage\.json\fR, you can use
-\fBnpm update \-\-save\fR\|\.  For example if \fBpackage\.json\fR contains
+the minimum required dependency in \fBpackage\.json\fP, you can use
+\fBnpm update \-\-save\fP\|\.  For example if \fBpackage\.json\fP contains
 .P
 .RS 2
 .nf
@@ -134,8 +134,8 @@ dependencies: {
 .fi
 .RE
 .P
-Then \fBnpm update \-\-save\fR will install \fBdep1@1\.2\.2\fR (i\.e\., \fBlatest\fR),
-and \fBpackage\.json\fR will be modified:
+Then \fBnpm update \-\-save\fP will install \fBdep1@1\.2\.2\fP (i\.e\., \fBlatest\fP),
+and \fBpackage\.json\fP will be modified:
 .P
 .RS 2
 .nf
@@ -145,15 +145,15 @@ dependencies: {
 .fi
 .RE
 .P
-Note that \fBnpm\fR will only write an updated version to \fBpackage\.json\fR
+Note that \fBnpm\fP will only write an updated version to \fBpackage\.json\fP
 if it installs a new package\.
 .SS Updating Globally\-Installed Packages
 .P
-\fBnpm update \-g\fR will apply the \fBupdate\fR action to each globally\- installed
-package that is \fBoutdated\fR \-\- that is, has a version that is different from
-\fBlatest\fR\|\.
+\fBnpm update \-g\fP will apply the \fBupdate\fP action to each globally\- installed
+package that is \fBoutdated\fP \-\- that is, has a version that is different from
+\fBlatest\fP\|\.
 .P
-NOTE: If a package has been upgraded to a version newer than \fBlatest\fR, it will
+NOTE: If a package has been upgraded to a version newer than \fBlatest\fP, it will
 be \fIdowngraded\fR\|\.
 .SH SEE ALSO
 .RS 0

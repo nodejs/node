@@ -13,7 +13,7 @@ npm tag <name>@<version> [<tag>]
 THIS COMMAND IS DEPRECATED\. See npm help dist\-tag for details\.
 .P
 Tags the specified version of the package with the specified tag, or the
-\fB\-\-tag\fR config if not specified\.
+\fB\-\-tag\fP config if not specified\.
 .P
 A tag can be used when installing packages as a reference to a version instead
 of using a specific version number:
@@ -32,13 +32,13 @@ npm install \-\-tag <tag>
 .fi
 .RE
 .P
-This also applies to \fBnpm dedupe\fR\|\.
+This also applies to \fBnpm dedupe\fP\|\.
 .P
 Publishing a package always sets the "latest" tag to the published version\.
 .SH PURPOSE
 .P
 Tags can be used to provide an alias instead of version numbers\.  For
-example, \fBnpm\fR currently uses the tag "next" to identify the upcoming
+example, \fBnpm\fP currently uses the tag "next" to identify the upcoming
 version, and the tag "latest" to identify the current version\.
 .P
 A project might choose to have multiple streams of development, e\.g\.,
@@ -46,16 +46,16 @@ A project might choose to have multiple streams of development, e\.g\.,
 .SH CAVEATS
 .P
 Tags must share a namespace with version numbers, because they are
-specified in the same slot: \fBnpm install <pkg>@<version>\fR vs \fBnpm
-install <pkg>@<tag>\fR\|\.
+specified in the same slot: \fBnpm install <pkg>@<version>\fP vs \fBnpm
+install <pkg>@<tag>\fP\|\.
 .P
 Tags that can be interpreted as valid semver ranges will be
-rejected\. For example, \fBv1\.4\fR cannot be used as a tag, because it is
-interpreted by semver as \fB>=1\.4\.0 <1\.5\.0\fR\|\.  See
+rejected\. For example, \fBv1\.4\fP cannot be used as a tag, because it is
+interpreted by semver as \fB>=1\.4\.0 <1\.5\.0\fP\|\.  See
 https://github\.com/npm/npm/issues/6082\|\.
 .P
 The simplest way to avoid semver problems with tags is to use tags
-that do not begin with a number or the letter \fBv\fR\|\.
+that do not begin with a number or the letter \fBv\fP\|\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2

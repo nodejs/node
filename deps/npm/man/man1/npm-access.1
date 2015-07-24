@@ -19,7 +19,7 @@ npm access edit [<package>]
 .P
 Used to set access controls on private packages\.
 .P
-For all of the subcommands, \fBnpm access\fR will perform actions on the packages
+For all of the subcommands, \fBnpm access\fP will perform actions on the packages
 in the current working directory if no package name is passed to the
 subcommand\.
 .RS 0
@@ -36,19 +36,19 @@ Show all of the access privileges for a package\. Will only show permissions
 for packages to which you have at least read access\.
 .IP \(bu 2
 edit:
-Set the access privileges for a package at once using \fB$EDITOR\fR\|\.
+Set the access privileges for a package at once using \fB$EDITOR\fP\|\.
 
 .RE
 .SH DETAILS
 .P
-\fBnpm access\fR always operates directly on the current registry, configurable
-from the command line using \fB\-\-registry=<registry url>\fR\|\.
+\fBnpm access\fP always operates directly on the current registry, configurable
+from the command line using \fB\-\-registry=<registry url>\fP\|\.
 .P
 Unscoped packages are \fIalways public\fR\|\.
 .P
 Scoped packages \fIdefault to restricted\fR, but you can either publish them as
-public using \fBnpm publish \-\-access=public\fR, or set their access as public using
-\fBnpm access public\fR after the initial publish\.
+public using \fBnpm publish \-\-access=public\fP, or set their access as public using
+\fBnpm access public\fP after the initial publish\.
 .P
 You must have privileges to set the access of a package:
 .RS 0
@@ -64,7 +64,7 @@ of a team or directly as an owner\.
 .P
 If your account is not paid, then attempts to publish scoped packages will fail
 with an HTTP 402 status code (logically enough), unless you use
-\fB\-\-access=public\fR\|\.
+\fB\-\-access=public\fP\|\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2

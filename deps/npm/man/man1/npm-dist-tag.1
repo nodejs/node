@@ -17,7 +17,7 @@ Add, remove, and enumerate distribution tags on a package:
 .IP \(bu 2
 add:
 Tags the specified version of the package with the specified tag, or the
-\fB\-\-tag\fR config if not specified\.
+\fB\-\-tag\fP config if not specified\.
 .IP \(bu 2
 rm:
 Clear a tag that is no longer in use from the package\.
@@ -45,32 +45,32 @@ npm install \-\-tag <tag>
 .fi
 .RE
 .P
-This also applies to \fBnpm dedupe\fR\|\.
+This also applies to \fBnpm dedupe\fP\|\.
 .P
 Publishing a package sets the "latest" tag to the published version unless the
-\fB\-\-tag\fR option is used\. For example, \fBnpm publish \-\-tag=beta\fR\|\.
+\fB\-\-tag\fP option is used\. For example, \fBnpm publish \-\-tag=beta\fP\|\.
 .SH PURPOSE
 .P
 Tags can be used to provide an alias instead of version numbers\.  For
-example, \fBnpm\fR currently uses the tag "next" to identify the upcoming
+example, \fBnpm\fP currently uses the tag "next" to identify the upcoming
 version, and the tag "latest" to identify the current version\.
 .P
 A project might choose to have multiple streams of development, e\.g\.,
 "stable", "canary"\.
 .SH CAVEATS
 .P
-This command used to be known as \fBnpm tag\fR, which only created new tags, and so
+This command used to be known as \fBnpm tag\fP, which only created new tags, and so
 had a different syntax\.
 .P
 Tags must share a namespace with version numbers, because they are specified in
-the same slot: \fBnpm install <pkg>@<version>\fR vs \fBnpm install <pkg>@<tag>\fR\|\.
+the same slot: \fBnpm install <pkg>@<version>\fP vs \fBnpm install <pkg>@<tag>\fP\|\.
 .P
 Tags that can be interpreted as valid semver ranges will be rejected\. For
-example, \fBv1\.4\fR cannot be used as a tag, because it is interpreted by semver as
-\fB>=1\.4\.0 <1\.5\.0\fR\|\.  See https://github\.com/npm/npm/issues/6082\|\.
+example, \fBv1\.4\fP cannot be used as a tag, because it is interpreted by semver as
+\fB>=1\.4\.0 <1\.5\.0\fP\|\.  See https://github\.com/npm/npm/issues/6082\|\.
 .P
 The simplest way to avoid semver problems with tags is to use tags that do not
-begin with a number or the letter \fBv\fR\|\.
+begin with a number or the letter \fBv\fP\|\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2

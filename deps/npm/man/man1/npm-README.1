@@ -7,7 +7,7 @@ Build Status \fIhttps://img\.shields\.io/travis/npm/npm/master\.svg\fR \fIhttps:
 .P
 This is just enough info to get you up and running\.
 .P
-Much more info available via \fBnpm help\fR once it's installed\.
+Much more info available via \fBnpm help\fP once it's installed\.
 .SH IMPORTANT
 .P
 \fBYou need node v0\.8 or higher to run this program\.\fR
@@ -25,7 +25,7 @@ Get the MSI \fIhttp://nodejs\.org/download/\fR\|\.  npm is in it\.
 Get the pkg \fIhttp://nodejs\.org/download/\fR\|\.  npm is in it\.
 .SS Other Sorts of Unices
 .P
-Run \fBmake install\fR\|\.  npm will be installed with node\.
+Run \fBmake install\fP\|\.  npm will be installed with node\.
 .P
 If you want a more fancy pants install (a different version, customized
 paths, etc\.) then read on\.
@@ -60,17 +60,17 @@ npm_debug=1 sh install\.sh
 .RE
 .SS Even Fancier
 .P
-Get the code with git\.  Use \fBmake\fR to build the docs and do other stuff\.
-If you plan on hacking on npm, \fBmake link\fR is your friend\.
+Get the code with git\.  Use \fBmake\fP to build the docs and do other stuff\.
+If you plan on hacking on npm, \fBmake link\fP is your friend\.
 .P
 If you've got the npm source code, you can also semi\-permanently set
-arbitrary config keys using the \fB\|\./configure \-\-key=val \.\.\.\fR, and then
-run npm commands by doing \fBnode cli\.js <cmd> <args>\fR\|\.  (This is helpful
+arbitrary config keys using the \fB\|\./configure \-\-key=val \.\.\.\fP, and then
+run npm commands by doing \fBnode cli\.js <cmd> <args>\fP\|\.  (This is helpful
 for testing, or running stuff without actually installing npm itself\.)
 .SH Windows Install or Upgrade
 .P
 You can download a zip file from https://github\.com/npm/npm/releases, and
-unpack it in the \fBnode_modules\\npm\\\fR folder inside node's installation folder\.
+unpack it in the \fBnode_modules\\npm\\\fP folder inside node's installation folder\.
 .P
 To upgrade to npm 2, follow the Windows upgrade instructions in
 the npm Troubleshooting Guide:
@@ -105,11 +105,11 @@ Usually, the above instructions are sufficient\.  That will remove
 npm, but leave behind anything you've installed\.
 .P
 If you would like to remove all the packages that you have installed,
-then you can use the \fBnpm ls\fR command to find them, and then \fBnpm rm\fR to
+then you can use the \fBnpm ls\fP command to find them, and then \fBnpm rm\fP to
 remove them\.
 .P
 To remove cruft left behind by npm 0\.x, you can use the included
-\fBclean\-old\.sh\fR script file\.  You can run it conveniently like this:
+\fBclean\-old\.sh\fP script file\.  You can run it conveniently like this:
 .P
 .RS 2
 .nf
@@ -136,7 +136,7 @@ you have chosen\.
 Although npm can be used programmatically, its API is meant for use by the CLI
 \fIonly\fR, and no guarantees are made regarding its fitness for any other purpose\.
 If you want to use npm to reliably perform some task, the safest thing to do is
-to invoke the desired \fBnpm\fR command with appropriate arguments\.
+to invoke the desired \fBnpm\fP command with appropriate arguments\.
 .P
 The semantic version of npm refers to the CLI itself, rather than the
 underlying API\. \fIThe internal API is not guaranteed to remain stable even when
@@ -165,25 +165,25 @@ npm\.load(myConfigObject, function (er) {
 .fi
 .RE
 .P
-The \fBload\fR function takes an object hash of the command\-line configs\.
-The various \fBnpm\.commands\.<cmd>\fR functions take an \fBarray\fR of
+The \fBload\fP function takes an object hash of the command\-line configs\.
+The various \fBnpm\.commands\.<cmd>\fP functions take an \fBarray\fR of
 positional argument \fBstrings\fR\|\.  The last argument to any
-\fBnpm\.commands\.<cmd>\fR function is a callback\.  Some commands take other
+\fBnpm\.commands\.<cmd>\fP function is a callback\.  Some commands take other
 optional arguments\.  Read the source\.
 .P
 You cannot set configs individually for any single npm function at this
-time\.  Since \fBnpm\fR is a singleton, any call to \fBnpm\.config\.set\fR will
+time\.  Since \fBnpm\fP is a singleton, any call to \fBnpm\.config\.set\fP will
 change the value for \fIall\fR npm commands in that process\.
 .P
-See \fB\|\./bin/npm\-cli\.js\fR for an example of pulling config values off of the
+See \fB\|\./bin/npm\-cli\.js\fP for an example of pulling config values off of the
 command line arguments using nopt\.  You may also want to check out \fBnpm
-help config\fR to learn about all the options you can set there\.
+help config\fP to learn about all the options you can set there\.
 .SH More Docs
 .P
 Check out the docs \fIhttps://docs\.npmjs\.com/\fR,
 especially the faq \fIhttps://docs\.npmjs\.com/misc/faq\fR\|\.
 .P
-You can use the \fBnpm help\fR command to read any of them\.
+You can use the \fBnpm help\fP command to read any of them\.
 .P
 If you're a developer, and you want to use npm to publish your program,
 you should read this \fIhttps://docs\.npmjs\.com/misc/developers\fR
@@ -237,7 +237,7 @@ https://github\.com/npm/npm/issues
 .RE
 .P
 Be sure to include \fIall\fR of the output from the npm command that didn't work
-as expected\.  The \fBnpm\-debug\.log\fR file is also helpful to provide\.
+as expected\.  The \fBnpm\-debug\.log\fP file is also helpful to provide\.
 .P
 You can also look for isaacs in #node\.js on irc://irc\.freenode\.net\.  He
 will no doubt tell you to put the output in a gist or email\.
