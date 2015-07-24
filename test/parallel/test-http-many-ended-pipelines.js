@@ -16,7 +16,13 @@ var numRequests = 20;
 var done = 0;
 
 var server = http.createServer(function(req, res) {
-  res.end('ok');
+
+  res.end('ok', common.mustCall(function() {}));
+
+  // We *might* get a socket already closed error here, which
+  // occurs when the socket was destroyed before we finished
+  // writing our data.
+  res.on('error', function() {});
 
   // Oh no!  The connection died!
   req.socket.destroy();
