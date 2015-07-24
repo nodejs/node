@@ -469,6 +469,9 @@ Options:
 - `family`: IP address family to use when resolving `host` and `hostname`.
   Valid values are `4` or `6`. When unspecified, both IP v4 and v6 will be
   used.
+- `protocol`: Protocol to use for the request. Defaults to `'http:'`. Valid
+  values are `'http:'` and `'https:'`. When the protocol is `'https:'`, options
+  will be passed to [tls.connect()][].
 - `port`: Port of remote server. Defaults to 80.
 - `localAddress`: Local interface to bind for network connections.
 - `socketPath`: Unix Domain Socket (use one of host:port or socketPath).
@@ -1099,4 +1102,5 @@ client's authentication details.
 [socket.setTimeout()]: net.html#net_socket_settimeout_timeout_callback
 [request.socket.getPeerCertificate()]: tls.html#tls_tlssocket_getpeercertificate_detailed
 [stream.setEncoding()]: stream.html#stream_stream_setencoding_encoding
+[tls.connect()]: tls.html#tls_tls_connect_port_host_options_callback
 [url.parse()]: url.html#url_url_parse_urlstr_parsequerystring_slashesdenotehost

@@ -208,13 +208,15 @@ Example:
 
 ## Class: https.Agent
 
+    Stability: 0 - Deprecated. Use [http.Agent][] instead.
+
 An Agent object for HTTPS similar to [http.Agent][].  See [https.request()][]
 for more information.
 
 
 ## https.globalAgent
 
-Global instance of [https.Agent][] for all HTTPS client requests.
+Global instance of [http.Agent][] for all HTTPS client requests.
 
 [http.Server#setTimeout()]: http.html#http_server_settimeout_msecs_callback
 [http.Server#timeout]: http.html#http_server_timeout
