@@ -54,7 +54,8 @@
     </WixExtension>
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="WixUI_en-us.wxl" />
+    <!-- <EmbeddedResource Include="i18n\de-de.wxl" /> -->
+    <EmbeddedResource Include="i18n\en-us.wxl" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="custom_actions.vcxproj">
@@ -73,6 +74,13 @@
   </Target>
   <PropertyGroup>
     <PostBuildEvent>move "!(TargetPath)" "$(TargetDir)\$(TargetFileName)"
-move "!(TargetPdbPath)" "$(TargetDir)\$(TargetPdbName)"</PostBuildEvent>
+    move "!(TargetPdbPath)" "$(TargetDir)\$(TargetPdbName)"</PostBuildEvent>
+    <!--
+    <PostBuildEvent>
+      "$(WixToolPath)\torch.exe" -t language "$(TargetDir)en-US\$(TargetFileName)" "$(TargetDir)de-de\$(TargetFileName)" -out "$(TargetDir)transforms\de-de.mst"
+      cscript.exe "$(WindowsSDK80Path)bin\$(Platform)\WiSubStg.vbs" "$(TargetDir)en-US\$(TargetFileName)" "$(TargetDir)transforms\de-de.mst" 1031
+      cscript.exe "$(WindowsSDK80Path)bin\$(Platform)\WiLangId.vbs" "$(TargetDir)en-US\$(TargetFileName)" Package 1033,1031
+    </PostBuildEvent>
+    -->
   </PropertyGroup>
 </Project>
