@@ -398,6 +398,7 @@ class Environment {
   inline AsyncHooks* async_hooks();
   inline DomainFlag* domain_flag();
   inline TickInfo* tick_info();
+  inline uint64_t timer_base() const;
 
   static inline Environment* from_cares_timer_handle(uv_timer_t* handle);
   inline uv_timer_t* cares_timer_handle();
@@ -501,6 +502,7 @@ class Environment {
   AsyncHooks async_hooks_;
   DomainFlag domain_flag_;
   TickInfo tick_info_;
+  const uint64_t timer_base_;
   uv_timer_t cares_timer_handle_;
   ares_channel cares_channel_;
   ares_task_list cares_task_list_;

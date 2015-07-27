@@ -101,6 +101,8 @@ class TimerWrap : public HandleWrap {
     Environment* env = Environment::GetCurrent(args);
     uv_update_time(env->event_loop());
     uint64_t now = uv_now(env->event_loop());
+    CHECK(now >= env->timer_base());
+    now -= env->timer_base();
     if (now <= 0xfffffff)
       args.GetReturnValue().Set(static_cast<uint32_t>(now));
     else
