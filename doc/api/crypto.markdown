@@ -781,12 +781,12 @@ The following descriptions only show some of recommendations to use
 crypto module. See [NIST SP 800-131A] for details.
 
 - MD5 and SHA-1 are no longer acceptable where collision resistance is
-required such as digital signatures.
-- The key size of RSA, DSA and DH is recommended to use more than 2048
-bits and that of the curve of ECDSA and ECDH is more than 224 bits to
-be safe to use for several years.
-- The DH groups of `modp1`, `modp2` and `modp5` have a small key size
-  less than 2048 bits so they are not recommended.
+  required such as digital signatures.
+- The key used with RSA, DSA and DH algorithms is recommended to have
+  at least 2048 bits and that of the curve of ECDSA and ECDH at least
+  224 bits, to be safe to use for several years.
+- The DH groups of `modp1`, `modp2` and `modp5` have a key size
+  smaller than 2048 bits and are not recommended.
 
 [createCipher()]: #crypto_crypto_createcipher_algorithm_password
 [createCipheriv()]: #crypto_crypto_createcipheriv_algorithm_key_iv
