@@ -97,18 +97,18 @@ Creates and returns a hash object, a cryptographic hash with the given
 algorithm which can be used to generate hash digests.
 
 `algorithm` is dependent on the available algorithms supported by the
-version of OpenSSL on the platform. Examples are `'sha1'`, `'md5'`,
-`'sha256'`, `'sha512'`, etc.  On recent releases, `openssl
+version of OpenSSL on the platform. Examples are `'sha256'`,
+`'sha512'`, etc.  On recent releases, `openssl
 list-message-digest-algorithms` will display the available digest
 algorithms.
 
-Example: this program that takes the sha1 sum of a file
+Example: this program that takes the sha256 sum of a file
 
     var filename = process.argv[2];
     var crypto = require('crypto');
     var fs = require('fs');
 
-    var shasum = crypto.createHash('sha1');
+    var shasum = crypto.createHash('sha256');
 
     var s = fs.ReadStream(filename);
     s.on('data', function(d) {
@@ -511,21 +511,21 @@ expected.
 ## crypto.getDiffieHellman(group_name)
 
 Creates a predefined Diffie-Hellman key exchange object.  The
-supported groups are: `'modp1'`, `'modp2'`, `'modp5'` (defined in [RFC
-2412][]) and `'modp14'`, `'modp15'`, `'modp16'`, `'modp17'`,
-`'modp18'` (defined in [RFC 3526][]).  The returned object mimics the
-interface of objects created by [crypto.createDiffieHellman()][]
-above, but will not allow to change the keys (with
-[diffieHellman.setPublicKey()][] for example).  The advantage of using
-this routine is that the parties don't have to generate nor exchange
-group modulus beforehand, saving both processor and communication
-time.
+supported groups are: `'modp1'`, `'modp2'`, `'modp5'` (defined in
+[RFC 2412][], but see [Caveats](#crypto_caveats)) and `'modp14'`,
+`'modp15'`, `'modp16'`, `'modp17'`, `'modp18'` (defined in
+[RFC 3526][]).  The returned object mimics the interface of objects
+created by [crypto.createDiffieHellman()][] above, but will not allow
+changing the keys (with [diffieHellman.setPublicKey()][] for example).
+The advantage of using this routine is that the parties do not have to
+generate nor exchange group modulus beforehand, saving both processor
+and communication time.
 
 Example (obtaining a shared secret):
 
     var crypto = require('crypto');
-    var alice = crypto.getDiffieHellman('modp5');
-    var bob = crypto.getDiffieHellman('modp5');
+    var alice = crypto.getDiffieHellman('modp14');
+    var bob = crypto.getDiffieHellman('modp14');
 
     alice.generateKeys();
     bob.generateKeys();
@@ -768,6 +768,26 @@ default, set the `crypto.DEFAULT_ENCODING` field to 'binary'.  Note
 that new programs will probably expect buffers, so only use this as a
 temporary measure.
 
+## Caveats
+
+The crypto module still supports some algorithms which are already
+compromised. And the API also allows the use of ciphers and hashes
+with a small key size that are considered to be too weak for safe use.
+
+Users should take full responsibility for selecting the crypto
+algorithm and key size according to their security requirements.
+
+Based on the recommendations of [NIST SP 800-131A]:
+
+- MD5 and SHA-1 are no longer acceptable where collision resistance is
+  required such as digital signatures.
+- The key used with RSA, DSA and DH algorithms is recommended to have
+  at least 2048 bits and that of the curve of ECDSA and ECDH at least
+  224 bits, to be safe to use for several years.
+- The DH groups of `modp1`, `modp2` and `modp5` have a key size
+  smaller than 2048 bits and are not recommended.
+
+See the reference for other recommendations and details.
 
 [createCipher()]: #crypto_crypto_createcipher_algorithm_password
 [createCipheriv()]: #crypto_crypto_createcipheriv_algorithm_key_iv
@@ -779,3 +799,4 @@ temporary measure.
 [RFC 3526]: http://www.rfc-editor.org/rfc/rfc3526.txt
 [crypto.pbkdf2]: #crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
 [EVP_BytesToKey]: https://www.openssl.org/docs/crypto/EVP_BytesToKey.html
+[NIST SP 800-131A]: http://csrc.nist.gov/publications/nistpubs/800-131A/sp800-131A.pdf
