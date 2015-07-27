@@ -5219,9 +5219,12 @@ void HOptimizedGraphBuilder::BuildForInBody(ForInStatement* stmt,
     HValue* function = AddLoadJSBuiltin(Builtins::FILTER_KEY);
     Add<HPushArguments>(enumerable, key);
     key = Add<HInvokeFunction>(function, 2);
+    Push(key);
+    Add<HSimulate>(stmt->FilterId());
+    key = Pop();
     Bind(each_var, key);
-    Add<HSimulate>(stmt->AssignmentId());
     Add<HCheckHeapObject>(key);
+    Add<HSimulate>(stmt->AssignmentId());
   }
 
   BreakAndContinueInfo break_info(stmt, scope(), 5);
