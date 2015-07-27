@@ -102,7 +102,7 @@ version of OpenSSL on the platform. Examples are `'sha256'`,
 list-message-digest-algorithms` will display the available digest
 algorithms.
 
-Example: this program that takes the sha1 sum of a file
+Example: this program that takes the sha256 sum of a file
 
     var filename = process.argv[2];
     var crypto = require('crypto');
