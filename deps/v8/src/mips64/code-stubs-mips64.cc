@@ -4071,8 +4071,8 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
   intptr_t loc =
       reinterpret_cast<intptr_t>(GetCode().location());
   __ Move(t9, target);
-  __ li(ra, Operand(loc, RelocInfo::CODE_TARGET), CONSTANT_SIZE);
-  __ Call(ra);
+  __ li(at, Operand(loc, RelocInfo::CODE_TARGET), CONSTANT_SIZE);
+  __ Call(at);
 }
 
 
@@ -5285,9 +5285,9 @@ static void CallApiFunctionAndReturn(
   __ li(s3, Operand(next_address));
   __ ld(s0, MemOperand(s3, kNextOffset));
   __ ld(s1, MemOperand(s3, kLimitOffset));
-  __ ld(s2, MemOperand(s3, kLevelOffset));
-  __ Daddu(s2, s2, Operand(1));
-  __ sd(s2, MemOperand(s3, kLevelOffset));
+  __ lw(s2, MemOperand(s3, kLevelOffset));
+  __ Addu(s2, s2, Operand(1));
+  __ sw(s2, MemOperand(s3, kLevelOffset));
 
   if (FLAG_log_timer_events) {
     FrameScope frame(masm, StackFrame::MANUAL);
@@ -5328,11 +5328,11 @@ static void CallApiFunctionAndReturn(
   // previous handle scope.
   __ sd(s0, MemOperand(s3, kNextOffset));
   if (__ emit_debug_code()) {
-    __ ld(a1, MemOperand(s3, kLevelOffset));
+    __ lw(a1, MemOperand(s3, kLevelOffset));
     __ Check(eq, kUnexpectedLevelAfterReturnFromApiCall, a1, Operand(s2));
   }
-  __ Dsubu(s2, s2, Operand(1));
-  __ sd(s2, MemOperand(s3, kLevelOffset));
+  __ Subu(s2, s2, Operand(1));
+  __ sw(s2, MemOperand(s3, kLevelOffset));
   __ ld(at, MemOperand(s3, kLimitOffset));
   __ Branch(&delete_allocated_handles, ne, s1, Operand(at));
 
