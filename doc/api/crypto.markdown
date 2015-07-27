@@ -511,21 +511,21 @@ expected.
 ## crypto.getDiffieHellman(group_name)
 
 Creates a predefined Diffie-Hellman key exchange object.  The
-supported groups are: `'modp1'`, `'modp2'`, `'modp5'` (defined in [RFC
-2412][]) and `'modp14'`, `'modp15'`, `'modp16'`, `'modp17'`,
-`'modp18'` (defined in [RFC 3526][]).  The returned object mimics the
-interface of objects created by [crypto.createDiffieHellman()][]
-above, but will not allow to change the keys (with
-[diffieHellman.setPublicKey()][] for example).  The advantage of using
-this routine is that the parties don't have to generate nor exchange
-group modulus beforehand, saving both processor and communication
-time.
+supported groups are: `'modp1'`, `'modp2'`, `'modp5'` (defined in
+[RFC 2412][], but see [Caveats](#crypto_caveats)) and `'modp14'`,
+`'modp15'`, `'modp16'`, `'modp17'`, `'modp18'` (defined in
+[RFC 3526][]).  The returned object mimics the interface of objects
+created by [crypto.createDiffieHellman()][] above, but will not allow
+to change the keys (with [diffieHellman.setPublicKey()][] for
+example).  The advantage of using this routine is that the parties do
+not have to generate nor exchange group modulus beforehand, saving
+both processor and communication time.
 
 Example (obtaining a shared secret):
 
     var crypto = require('crypto');
-    var alice = crypto.getDiffieHellman('modp5');
-    var bob = crypto.getDiffieHellman('modp5');
+    var alice = crypto.getDiffieHellman('modp14');
+    var bob = crypto.getDiffieHellman('modp14');
 
     alice.generateKeys();
     bob.generateKeys();
