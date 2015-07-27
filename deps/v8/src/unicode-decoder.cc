@@ -67,6 +67,7 @@ void Utf8DecoderBase::WriteUtf16Slow(const uint8_t* stream,
     // There's a total lack of bounds checking for stream
     // as it was already done in Reset.
     stream += cursor;
+    DCHECK(stream_length >= cursor);
     stream_length -= cursor;
     if (character > unibrow::Utf16::kMaxNonSurrogateCharCode) {
       *data++ = Utf16::LeadSurrogate(character);
@@ -78,7 +79,6 @@ void Utf8DecoderBase::WriteUtf16Slow(const uint8_t* stream,
       data_length -= 1;
     }
   }
-  DCHECK(stream_length >= 0);
 }
 
 }  // namespace unibrow

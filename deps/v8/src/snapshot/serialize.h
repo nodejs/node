@@ -306,6 +306,10 @@ class SerializerDeserializer: public ObjectVisitor {
   static const int kNumberOfSpaces = LAST_SPACE + 1;
 
  protected:
+  static bool CanBeDeferred(HeapObject* o) {
+    return !o->IsString() && !o->IsScript();
+  }
+
   // ---------- byte code range 0x00..0x7f ----------
   // Byte codes in this range represent Where, HowToCode and WhereToPoint.
   // Where the pointed-to object can be found:
@@ -373,6 +377,8 @@ class SerializerDeserializer: public ObjectVisitor {
   static const int kNop = 0x3d;
   // Move to next reserved chunk.
   static const int kNextChunk = 0x3e;
+  // Deferring object content.
+  static const int kDeferred = 0x3f;
   // A tag emitted at strategic points in the snapshot to delineate sections.
   // If the deserializer does not find these at the expected moments then it
   // is an indication that the snapshot and the VM do not fit together.
@@ -553,22 +559,22 @@ class Deserializer: public SerializerDeserializer {
     memcpy(dest, src, sizeof(*src));
   }
 
-  // Allocation sites are present in the snapshot, and must be linked into
-  // a list at deserialization time.
-  void RelinkAllocationSite(AllocationSite* site);
+  void DeserializeDeferredObjects();
+
+  void CommitNewInternalizedStrings(Isolate* isolate);
 
   // Fills in some heap data in an area from start to end (non-inclusive).  The
   // space id is used for the write barrier.  The object_address is the address
   // of the object we are writing into, or NULL if we are not writing into an
   // object, i.e. if we are writing a series of tagged values that are not on
-  // the heap.
-  void ReadData(Object** start, Object** end, int space,
+  // the heap. Return false if the object content has been deferred.
+  bool ReadData(Object** start, Object** end, int space,
                 Address object_address);
   void ReadObject(int space_number, Object** write_back);
   Address Allocate(int space_index, int size);
 
   // Special handling for serialized code like hooking up internalized strings.
-  HeapObject* ProcessNewObjectFromSerializedCode(HeapObject* obj);
+  HeapObject* PostProcessNewObject(HeapObject* obj, int space);
 
   // This returns the address of an object that has been described in the
   // snapshot by chunk index and offset.
@@ -594,6 +600,8 @@ class Deserializer: public SerializerDeserializer {
   ExternalReferenceTable* external_reference_table_;
 
   List<HeapObject*> deserialized_large_objects_;
+  List<Code*> new_code_objects_;
+  List<Handle<String> > new_internalized_strings_;
 
   bool deserializing_user_code_;
 
@@ -611,6 +619,8 @@ class Serializer : public SerializerDeserializer {
   void VisitPointers(Object** start, Object** end) override;
 
   void EncodeReservations(List<SerializedData::Reservation>* out) const;
+
+  void SerializeDeferredObjects();
 
   Isolate* isolate() const { return isolate_; }
 
@@ -634,6 +644,7 @@ class Serializer : public SerializerDeserializer {
           is_code_object_(o->IsCode()),
           code_has_been_output_(false) {}
     void Serialize();
+    void SerializeDeferred();
     void VisitPointers(Object** start, Object** end);
     void VisitEmbeddedPointer(RelocInfo* target);
     void VisitExternalReference(Address* p);
@@ -675,11 +686,28 @@ class Serializer : public SerializerDeserializer {
     bool code_has_been_output_;
   };
 
+  class RecursionScope {
+   public:
+    explicit RecursionScope(Serializer* serializer) : serializer_(serializer) {
+      serializer_->recursion_depth_++;
+    }
+    ~RecursionScope() { serializer_->recursion_depth_--; }
+    bool ExceedsMaximum() {
+      return serializer_->recursion_depth_ >= kMaxRecursionDepth;
+    }
+
+   private:
+    static const int kMaxRecursionDepth = 32;
+    Serializer* serializer_;
+  };
+
   virtual void SerializeObject(HeapObject* o, HowToCode how_to_code,
                                WhereToPoint where_to_point, int skip) = 0;
 
   void PutRoot(int index, HeapObject* object, HowToCode how, WhereToPoint where,
                int skip);
+
+  void PutBackReference(HeapObject* object, BackReference reference);
 
   // Returns true if the object was successfully serialized.
   bool SerializeKnownObject(HeapObject* obj, HowToCode how_to_code,
@@ -722,6 +750,11 @@ class Serializer : public SerializerDeserializer {
 
   SnapshotByteSink* sink() const { return sink_; }
 
+  void QueueDeferredObject(HeapObject* obj) {
+    DCHECK(back_reference_map_.Lookup(obj).is_valid());
+    deferred_objects_.Add(obj);
+  }
+
   void OutputStatistics(const char* name);
 
   Isolate* isolate_;
@@ -732,8 +765,11 @@ class Serializer : public SerializerDeserializer {
   BackReferenceMap back_reference_map_;
   RootIndexMap root_index_map_;
 
+  int recursion_depth_;
+
   friend class Deserializer;
   friend class ObjectSerializer;
+  friend class RecursionScope;
   friend class SnapshotData;
 
  private:
@@ -751,6 +787,9 @@ class Serializer : public SerializerDeserializer {
   uint32_t seen_large_objects_index_;
 
   List<byte> code_buffer_;
+
+  // To handle stack overflow.
+  List<HeapObject*> deferred_objects_;
 
 #ifdef OBJECT_PRINT
   static const int kInstanceTypes = 256;
@@ -797,7 +836,7 @@ class PartialSerializer : public Serializer {
   void SerializeOutdatedContextsAsFixedArray();
 
   Serializer* startup_serializer_;
-  List<BackReference> outdated_contexts_;
+  List<Context*> outdated_contexts_;
   Object* global_object_;
   PartialCacheIndexMap partial_cache_index_map_;
   DISALLOW_COPY_AND_ASSIGN(PartialSerializer);
@@ -829,11 +868,10 @@ class StartupSerializer : public Serializer {
   virtual void SerializeStrongReferences();
   virtual void SerializeObject(HeapObject* o, HowToCode how_to_code,
                                WhereToPoint where_to_point, int skip) override;
-  void SerializeWeakReferences();
+  void SerializeWeakReferencesAndDeferred();
   void Serialize() {
     SerializeStrongReferences();
-    SerializeWeakReferences();
-    Pad();
+    SerializeWeakReferencesAndDeferred();
   }
 
  private:
@@ -862,15 +900,11 @@ class CodeSerializer : public Serializer {
   }
 
   const List<uint32_t>* stub_keys() const { return &stub_keys_; }
-  int num_internalized_strings() const { return num_internalized_strings_; }
 
  private:
   CodeSerializer(Isolate* isolate, SnapshotByteSink* sink, String* source,
                  Code* main_code)
-      : Serializer(isolate, sink),
-        source_(source),
-        main_code_(main_code),
-        num_internalized_strings_(0) {
+      : Serializer(isolate, sink), source_(source), main_code_(main_code) {
     back_reference_map_.AddSourceString(source);
   }
 
@@ -892,7 +926,6 @@ class CodeSerializer : public Serializer {
   DisallowHeapAllocation no_gc_;
   String* source_;
   Code* main_code_;
-  int num_internalized_strings_;
   List<uint32_t> stub_keys_;
   DISALLOW_COPY_AND_ASSIGN(CodeSerializer);
 };
@@ -951,7 +984,6 @@ class SerializedCodeData : public SerializedData {
   Vector<const Reservation> Reservations() const;
   Vector<const byte> Payload() const;
 
-  int NumInternalizedStrings() const;
   Vector<const uint32_t> CodeStubKeys() const;
 
  private:
@@ -972,17 +1004,16 @@ class SerializedCodeData : public SerializedData {
   uint32_t SourceHash(String* source) const { return source->length(); }
 
   // The data header consists of uint32_t-sized entries:
-  // [ 0] magic number and external reference count
-  // [ 1] version hash
-  // [ 2] source hash
-  // [ 3] cpu features
-  // [ 4] flag hash
-  // [ 5] number of internalized strings
-  // [ 6] number of code stub keys
-  // [ 7] number of reservation size entries
-  // [ 8] payload length
-  // [ 9] payload checksum part 1
-  // [10] payload checksum part 2
+  // [0] magic number and external reference count
+  // [1] version hash
+  // [2] source hash
+  // [3] cpu features
+  // [4] flag hash
+  // [5] number of code stub keys
+  // [6] number of reservation size entries
+  // [7] payload length
+  // [8] payload checksum part 1
+  // [9] payload checksum part 2
   // ...  reservations
   // ...  code stub keys
   // ...  serialized payload
@@ -990,9 +1021,7 @@ class SerializedCodeData : public SerializedData {
   static const int kSourceHashOffset = kVersionHashOffset + kInt32Size;
   static const int kCpuFeaturesOffset = kSourceHashOffset + kInt32Size;
   static const int kFlagHashOffset = kCpuFeaturesOffset + kInt32Size;
-  static const int kNumInternalizedStringsOffset = kFlagHashOffset + kInt32Size;
-  static const int kNumReservationsOffset =
-      kNumInternalizedStringsOffset + kInt32Size;
+  static const int kNumReservationsOffset = kFlagHashOffset + kInt32Size;
   static const int kNumCodeStubKeysOffset = kNumReservationsOffset + kInt32Size;
   static const int kPayloadLengthOffset = kNumCodeStubKeysOffset + kInt32Size;
   static const int kChecksum1Offset = kPayloadLengthOffset + kInt32Size;

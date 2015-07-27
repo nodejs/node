@@ -2813,6 +2813,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         if (value->IsPropertyCell()) {
           value = handle(PropertyCell::cast(*value)->value(), isolate());
         }
+        if (value->IsTheHole()) continue;
         PropertyDetails details = properties->DetailsAt(i);
         DCHECK_EQ(kData, details.kind());
         JSObject::AddProperty(to, key, value, details.attributes());

@@ -3553,6 +3553,7 @@ class StringTable: public HashTable<StringTable,
   // added. The return value is the string found.
   static Handle<String> LookupString(Isolate* isolate, Handle<String> key);
   static Handle<String> LookupKey(Isolate* isolate, HashTableKey* key);
+  static String* LookupKeyIfExists(Isolate* isolate, HashTableKey* key);
 
   // Tries to internalize given string and returns string handle on success
   // or an empty handle otherwise.

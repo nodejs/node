@@ -1313,7 +1313,13 @@ LInstruction* LChunkBuilder::DoBitwise(HBitwise* instr) {
     DCHECK(instr->CheckFlag(HValue::kTruncatingToInt32));
 
     LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
-    LOperand* right = UseOrConstantAtStart(instr->BetterRightOperand());
+    LOperand* right;
+    if (SmiValuesAre32Bits() && instr->representation().IsSmi()) {
+      // We don't support tagged immediates, so we request it in a register.
+      right = UseRegisterAtStart(instr->BetterRightOperand());
+    } else {
+      right = UseOrConstantAtStart(instr->BetterRightOperand());
+    }
     return DefineSameAsFirst(new(zone()) LBitI(left, right));
   } else {
     return DoArithmeticT(instr->op(), instr);
@@ -1555,7 +1561,13 @@ LInstruction* LChunkBuilder::DoSub(HSub* instr) {
     DCHECK(instr->left()->representation().Equals(instr->representation()));
     DCHECK(instr->right()->representation().Equals(instr->representation()));
     LOperand* left = UseRegisterAtStart(instr->left());
-    LOperand* right = UseOrConstantAtStart(instr->right());
+    LOperand* right;
+    if (SmiValuesAre32Bits() && instr->representation().IsSmi()) {
+      // We don't support tagged immediates, so we request it in a register.
+      right = UseRegisterAtStart(instr->right());
+    } else {
+      right = UseOrConstantAtStart(instr->right());
+    }
     LSubI* sub = new(zone()) LSubI(left, right);
     LInstruction* result = DefineSameAsFirst(sub);
     if (instr->CheckFlag(HValue::kCanOverflow)) {

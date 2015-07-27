@@ -389,6 +389,7 @@ typedef List<HeapObject*> DebugObjectCache;
   V(uint32_t, per_isolate_assert_data, 0xFFFFFFFFu)                            \
   V(PromiseRejectCallback, promise_reject_callback, NULL)                      \
   V(const v8::StartupData*, snapshot_blob, NULL)                               \
+  V(bool, creating_default_snapshot, false)                                    \
   ISOLATE_INIT_SIMULATOR_LIST(V)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                        \
