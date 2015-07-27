@@ -768,6 +768,25 @@ default, set the `crypto.DEFAULT_ENCODING` field to 'binary'.  Note
 that new programs will probably expect buffers, so only use this as a
 temporary measure.
 
+## Caveats
+
+The crypto module still supports some algorithms which are already
+compromised. And the API also allows to use ciphers and hashes with a
+small key size that are consider to be weak for a safe use.
+
+Users should take full responsibility for selecting the crypto
+algorithm and its key size according to their security requirements.
+
+The following descriptions only show some of recommendations to use
+crypto module. See [NIST SP 800-131A] for details.
+
+- MD5 and SHA-1 are no longer acceptable where collision resistance is
+required such as digital signatures.
+- The key size of RSA, DSA and DH is recommended to use more than 2048
+bits and that of the curve of ECDSA and ECDH is more than 224 bits to
+be safe to use for several years.
+- The DH groups of `modp1`, `modp2` and `modp5` have a small key size
+  less than 2048 bits so they are not recommended.
 
 [createCipher()]: #crypto_crypto_createcipher_algorithm_password
 [createCipheriv()]: #crypto_crypto_createcipheriv_algorithm_key_iv
@@ -779,3 +798,4 @@ temporary measure.
 [RFC 3526]: http://www.rfc-editor.org/rfc/rfc3526.txt
 [crypto.pbkdf2]: #crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
 [EVP_BytesToKey]: https://www.openssl.org/docs/crypto/EVP_BytesToKey.html
+[NIST SP 800-131A]: http://csrc.nist.gov/publications/nistpubs/800-131A/sp800-131A.pdf
