@@ -199,7 +199,7 @@ DEFINE_IMPLICATION(es_staging, harmony)
 #define HARMONY_STAGED(V)                               \
   V(harmony_rest_parameters, "harmony rest parameters") \
   V(harmony_spreadcalls, "harmony spread-calls")        \
-  V(harmony_tostring, "harmony toString")               \
+  V(harmony_tostring, "harmony toString")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                                                \

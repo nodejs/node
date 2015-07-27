@@ -780,7 +780,7 @@ void Assembler::bind_to(Label* L, int pos) {
           trampoline_pos = get_trampoline_entry(fixup_pos);
           CHECK(trampoline_pos != kInvalidSlotPos);
         }
-        DCHECK((trampoline_pos - fixup_pos) <= kMaxBranchOffset);
+        CHECK((trampoline_pos - fixup_pos) <= kMaxBranchOffset);
         target_at_put(fixup_pos, trampoline_pos, false);
         fixup_pos = trampoline_pos;
         dist = pos - fixup_pos;
@@ -1396,6 +1396,7 @@ void Assembler::jal(int64_t target) {
 
 
 void Assembler::jalr(Register rs, Register rd) {
+  DCHECK(rs.code() != rd.code());
   BlockTrampolinePoolScope block_trampoline_pool(this);
   positions_recorder()->WriteRecordedPositions();
   GenInstrRegister(SPECIAL, rs, zero_reg, rd, 0, JALR);
@@ -2809,6 +2810,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
 
 
 void Assembler::BlockTrampolinePoolFor(int instructions) {
+  CheckTrampolinePoolQuick(instructions);
   BlockTrampolinePoolBefore(pc_offset() + instructions * kInstrSize);
 }
 

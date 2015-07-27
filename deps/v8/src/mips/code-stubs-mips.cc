@@ -4028,8 +4028,8 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
   intptr_t loc =
       reinterpret_cast<intptr_t>(GetCode().location());
   __ Move(t9, target);
-  __ li(ra, Operand(loc, RelocInfo::CODE_TARGET), CONSTANT_SIZE);
-  __ Call(ra);
+  __ li(at, Operand(loc, RelocInfo::CODE_TARGET), CONSTANT_SIZE);
+  __ Call(at);
 }
 
 

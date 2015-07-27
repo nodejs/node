@@ -2286,27 +2286,16 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   Register last_match_info_elements = x21;
   Register code_object = x22;
 
-  // TODO(jbramley): Is it necessary to preserve these? I don't think ARM does.
-  CPURegList used_callee_saved_registers(subject,
-                                         regexp_data,
-                                         last_match_info_elements,
-                                         code_object);
-  __ PushCPURegList(used_callee_saved_registers);
-
   // Stack frame.
-  //  jssp[0] : x19
-  //  jssp[8] : x20
-  //  jssp[16]: x21
-  //  jssp[24]: x22
-  //  jssp[32]: last_match_info (JSArray)
-  //  jssp[40]: previous index
-  //  jssp[48]: subject string
-  //  jssp[56]: JSRegExp object
+  //  jssp[00]: last_match_info (JSArray)
+  //  jssp[08]: previous index
+  //  jssp[16]: subject string
+  //  jssp[24]: JSRegExp object
 
-  const int kLastMatchInfoOffset = 4 * kPointerSize;
-  const int kPreviousIndexOffset = 5 * kPointerSize;
-  const int kSubjectOffset = 6 * kPointerSize;
-  const int kJSRegExpOffset = 7 * kPointerSize;
+  const int kLastMatchInfoOffset = 0 * kPointerSize;
+  const int kPreviousIndexOffset = 1 * kPointerSize;
+  const int kSubjectOffset = 2 * kPointerSize;
+  const int kJSRegExpOffset = 3 * kPointerSize;
 
   // Ensure that a RegExp stack is allocated.
   ExternalReference address_of_regexp_stack_memory_address =
@@ -2673,7 +2662,6 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Return last match info.
   __ Peek(x0, kLastMatchInfoOffset);
-  __ PopCPURegList(used_callee_saved_registers);
   // Drop the 4 arguments of the stub from the stack.
   __ Drop(4);
   __ Ret();
@@ -2696,13 +2684,11 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   __ Bind(&failure);
   __ Mov(x0, Operand(isolate()->factory()->null_value()));
-  __ PopCPURegList(used_callee_saved_registers);
   // Drop the 4 arguments of the stub from the stack.
   __ Drop(4);
   __ Ret();
 
   __ Bind(&runtime);
-  __ PopCPURegList(used_callee_saved_registers);
   __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
 
   // Deferred code for string handling.
