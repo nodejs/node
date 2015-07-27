@@ -7318,6 +7318,57 @@ THREADED_TEST(Utf16Symbol) {
 }
 
 
+THREADED_TEST(Utf16MissingTrailing) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+
+  // Make sure it will go past the buffer, so it will call `WriteUtf16Slow`
+  int size = 1024 * 64;
+  uint8_t* buffer = new uint8_t[size];
+  for (int i = 0; i < size; i += 4) {
+    buffer[i] = 0xf0;
+    buffer[i + 1] = 0x9d;
+    buffer[i + 2] = 0x80;
+    buffer[i + 3] = 0x9e;
+  }
+
+  // Now invoke the decoder without last 3 bytes
+  v8::Local<v8::String> str =
+      v8::String::NewFromUtf8(
+          context->GetIsolate(), reinterpret_cast<char*>(buffer),
+          v8::NewStringType::kNormal, size - 3).ToLocalChecked();
+  USE(str);
+  delete[] buffer;
+}
+
+
+THREADED_TEST(Utf16Trailing3Byte) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+
+  // Make sure it will go past the buffer, so it will call `WriteUtf16Slow`
+  int size = 1024 * 63;
+  uint8_t* buffer = new uint8_t[size];
+  for (int i = 0; i < size; i += 3) {
+    buffer[i] = 0xe2;
+    buffer[i + 1] = 0x80;
+    buffer[i + 2] = 0xa6;
+  }
+
+  // Now invoke the decoder without last 3 bytes
+  v8::Local<v8::String> str =
+      v8::String::NewFromUtf8(
+          context->GetIsolate(), reinterpret_cast<char*>(buffer),
+          v8::NewStringType::kNormal, size).ToLocalChecked();
+
+  v8::String::Value value(str);
+  CHECK_EQ(value.length(), size / 3);
+  CHECK_EQ((*value)[value.length() - 1], 0x2026);
+
+  delete[] buffer;
+}
+
+
 THREADED_TEST(ToArrayIndex) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
@@ -20926,4 +20977,43 @@ TEST(SealHandleScopeNested) {
 
     USE(obj);
   }
+}
+
+
+TEST(CompatibleReceiverCheckOnCachedICHandler) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::FunctionTemplate> parent = FunctionTemplate::New(isolate);
+  v8::Local<v8::Signature> signature = v8::Signature::New(isolate, parent);
+  auto returns_42 =
+      v8::FunctionTemplate::New(isolate, Returns42, Local<Value>(), signature);
+  parent->PrototypeTemplate()->SetAccessorProperty(v8_str("age"), returns_42);
+  v8::Local<v8::FunctionTemplate> child = v8::FunctionTemplate::New(isolate);
+  child->Inherit(parent);
+  LocalContext env;
+  env->Global()->Set(v8_str("Child"), child->GetFunction());
+
+  // Make sure there's a compiled stub for "Child.prototype.age" in the cache.
+  CompileRun(
+      "var real = new Child();\n"
+      "for (var i = 0; i < 3; ++i) {\n"
+      "  real.age;\n"
+      "}\n");
+
+  // Check that the cached stub is never used.
+  ExpectInt32(
+      "var fake = Object.create(Child.prototype);\n"
+      "var result = 0;\n"
+      "function test(d) {\n"
+      "  if (d == 3) return;\n"
+      "  try {\n"
+      "    fake.age;\n"
+      "    result = 1;\n"
+      "  } catch (e) {\n"
+      "  }\n"
+      "  test(d+1);\n"
+      "}\n"
+      "test(0);\n"
+      "result;\n",
+      0);
 }

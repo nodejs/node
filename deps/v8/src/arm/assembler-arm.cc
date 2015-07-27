@@ -1298,7 +1298,7 @@ void Assembler::addrmod5(Instr instr, CRegister crd, const MemOperand& x) {
 }
 
 
-int Assembler::branch_offset(Label* L, bool jump_elimination_allowed) {
+int Assembler::branch_offset(Label* L) {
   int target_pos;
   if (L->is_bound()) {
     target_pos = L->pos();
@@ -1315,7 +1315,8 @@ int Assembler::branch_offset(Label* L, bool jump_elimination_allowed) {
 
   // Block the emission of the constant pool, since the branch instruction must
   // be emitted at the pc offset recorded by the label.
-  BlockConstPoolFor(1);
+  if (!is_const_pool_blocked()) BlockConstPoolFor(1);
+
   return target_pos - (pc_offset() + kPcLoadDelta);
 }
 
@@ -1364,6 +1365,24 @@ void Assembler::bx(Register target, Condition cond) {  // v5 and above, plus v4t
   positions_recorder()->WriteRecordedPositions();
   DCHECK(!target.is(pc));  // use of pc is actually allowed, but discouraged
   emit(cond | B24 | B21 | 15*B16 | 15*B12 | 15*B8 | BX | target.code());
+}
+
+
+void Assembler::b(Label* L, Condition cond) {
+  CheckBuffer();
+  b(branch_offset(L), cond);
+}
+
+
+void Assembler::bl(Label* L, Condition cond) {
+  CheckBuffer();
+  bl(branch_offset(L), cond);
+}
+
+
+void Assembler::blx(Label* L) {
+  CheckBuffer();
+  blx(branch_offset(L));
 }
 
 
