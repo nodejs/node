@@ -1272,6 +1272,9 @@ def BuildOptions():
   result.add_option("--no-store-unexpected-output",
       help="Deletes the temporary JS files from tests that fails",
       dest="store_unexpected_output", action="store_false")
+  result.add_option("-r", "--run",
+      help="Divide the tests in m groups (interleaved) and run tests from group n (--run=n,m with n < m)",
+      default="")
   return result
 
 
@@ -1280,6 +1283,24 @@ def ProcessOptions(options):
   VERBOSE = options.verbose
   options.arch = options.arch.split(',')
   options.mode = options.mode.split(',')
+  options.run = options.run.split(',')
+  if options.run == [""]:
+    options.run = None
+  elif len(options.run) != 2:
+    print "The run argument must be two comma-separated integers."
+    return False
+  else:
+    try:
+      options.run = map(int, options.run)
+    except ValueError:
+      print "Could not parse the integers from the run argument."
+      return False
+    if options.run[0] < 0 or options.run[1] < 0:
+      print "The run argument cannot have negative integers."
+      return False
+    if options.run[0] >= options.run[1]:
+      print "The test group to run (n) must be smaller than number of groups (m)."
+      return False
   if options.J:
     options.j = multiprocessing.cpu_count()
   return True
@@ -1486,6 +1507,15 @@ def Main():
   def DoSkip(case):
     return SKIP in case.outcomes or SLOW in case.outcomes
   cases_to_run = [ c for c in all_cases if not DoSkip(c) ]
+  if options.run is not None:
+    # Must ensure the list of tests is sorted before selecting, to avoid
+    # silent errors if this file is changed to list the tests in a way that
+    # can be different in different machines
+    cases_to_run.sort(key=lambda c: (c.case.arch, c.case.mode, c.case.file))
+    cases_to_run = [ cases_to_run[i] for i
+                     in xrange(options.run[0],
+                               len(cases_to_run),
+                               options.run[1]) ]
   if len(cases_to_run) == 0:
     print "No tests to run."
     return 1
