@@ -451,6 +451,8 @@ exports.fileExists = function(pathname) {
     return true;
   } catch (err) {
     return false;
+  }
+};
 
 exports.busyLoop = function busyLoop(time) {
   var startTime = new Date().getTime();
