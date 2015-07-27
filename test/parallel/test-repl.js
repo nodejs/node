@@ -242,6 +242,24 @@ function error_test() {
             'RegExp.$6\nRegExp.$7\nRegExp.$8\nRegExp.$9\n',
       expect: ['\'1\'\n', '\'2\'\n', '\'3\'\n', '\'4\'\n', '\'5\'\n', '\'6\'\n',
                '\'7\'\n', '\'8\'\n', '\'9\'\n'].join(`${prompt_unix}`) },
+    // making sure that the function calls on objects will not be treated as
+    // REPL commands
+    { client: client_unix, send: 'function sum(arr) {\nreturn arr\n\t' +
+                                 '.reduce(function(a, x) { return a + x })\n}',
+      expect: prompt_multiline + prompt_multiline + prompt_multiline +
+              'undefined\n' + prompt_unix },
+    // ... even if the function calls have whitespaces between the function
+    // name and the parameters.
+    { client: client_unix, send: 'function sum(arr) {\nreturn arr\n\t' +
+                                 '.reduce  (\tfunction(a, x) { return a + x }' +
+                                 ')\n}',
+      expect: prompt_multiline + prompt_multiline + prompt_multiline +
+              'undefined\n' + prompt_unix },
+    // but the parsing will misinterpret `(` if it is used somewhere in a valid
+    // command, and it will NOT be considered as a REPL command.
+    { client: client_unix,
+      send: '.load file_name_with_opening_paren_().js\n.clear',
+      expect: prompt_multiline + prompt_unix },
   ]);
 }
 
