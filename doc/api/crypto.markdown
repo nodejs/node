@@ -97,8 +97,8 @@ Creates and returns a hash object, a cryptographic hash with the given
 algorithm which can be used to generate hash digests.
 
 `algorithm` is dependent on the available algorithms supported by the
-version of OpenSSL on the platform. Examples are `'sha1'`, `'md5'`,
-`'sha256'`, `'sha512'`, etc.  On recent releases, `openssl
+version of OpenSSL on the platform. Examples are `'sha256'`,
+`'sha512'`, etc.  On recent releases, `openssl
 list-message-digest-algorithms` will display the available digest
 algorithms.
 
@@ -108,7 +108,7 @@ Example: this program that takes the sha1 sum of a file
     var crypto = require('crypto');
     var fs = require('fs');
 
-    var shasum = crypto.createHash('sha1');
+    var shasum = crypto.createHash('sha256');
 
     var s = fs.ReadStream(filename);
     s.on('data', function(d) {
