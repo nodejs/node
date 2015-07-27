@@ -43,7 +43,6 @@ class TimerWrap : public HandleWrap {
 
     env->SetProtoMethod(constructor, "start", Start);
     env->SetProtoMethod(constructor, "stop", Stop);
-    env->SetProtoMethod(constructor, "again", Again);
 
     target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Timer"),
                 constructor->GetFunction());
@@ -87,15 +86,6 @@ class TimerWrap : public HandleWrap {
     CHECK(HandleWrap::IsAlive(wrap));
 
     int err = uv_timer_stop(&wrap->handle_);
-    args.GetReturnValue().Set(err);
-  }
-
-  static void Again(const FunctionCallbackInfo<Value>& args) {
-    TimerWrap* wrap = Unwrap<TimerWrap>(args.Holder());
-
-    CHECK(HandleWrap::IsAlive(wrap));
-
-    int err = uv_timer_again(&wrap->handle_);
     args.GetReturnValue().Set(err);
   }
 
