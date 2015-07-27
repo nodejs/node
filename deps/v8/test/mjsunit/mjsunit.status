@@ -561,10 +561,6 @@
   'math-floor-of-div-minus-zero': [SKIP],
 }],  # 'arch == mips64el'
 
-['arch == mips64el and simulator_run == False', {
-  # Random failures on HW, need investigation.
-  'debug-*': [SKIP],
-}],
 ##############################################################################
 ['system == windows', {
   # TODO(mstarzinger): Too slow with turbo fan.
