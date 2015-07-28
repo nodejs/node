@@ -24,7 +24,25 @@ Returns the operating system name.
 
 ## os.platform()
 
-Returns the operating system platform.
+Returns the operating system platform. Some of the possible values are
+`"linux"`, `"darwin"`, `"win32"`, `"sunos"` ...
+
+Its value is based on [`OS` constant of `gyp`](https://chromium.googlesource.com/external/gyp/+/HEAD/docs/InputFormatReference.md#Predefined-Variables)
+, but with exceptions in case of Mac OS X, Windows and Solaris.
+
+On Windows its value is always `"win32"`, on Mac OS X its `"darwin"` and on
+Solaris its `"sunos"`.
+
+Heres a list of possible values for some platforms:
+
+* Android: `"android"`
+* Windows/Cygwin: `"win32"`
+* Mac OS X: `"darwin"`
+* FreeBSD: `"freebsd"`
+* OpenBSD: `"openbsd"`
+* IBM AIX: `"aix"`
+* Solaris: `"sunos"`
+* Linux & Others: `"linux"`
 
 ## os.arch()
 
