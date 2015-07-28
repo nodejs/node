@@ -15,9 +15,11 @@ var gotConnect = false;
 
 var T = 100;
 
-
-// 240.*.*.*.* is "reserved for future use"
-var socket = net.createConnection(9999, '240.0.0.0');
+// 192.0.2.1 is part of subnet assigned as "TEST-NET" in RFC 5737.
+// For use solely in documentation and example source code.
+// In short, it should be unreachable.
+// In practice, it's a network black hole.
+var socket = net.createConnection(9999, '192.0.2.1');
 
 socket.setTimeout(T);
 
