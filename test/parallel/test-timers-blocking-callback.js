@@ -1,3 +1,5 @@
+'use strict';
+
 /*
  * This is a regression test for https://github.com/joyent/node/issues/15447
  * and https://github.com/joyent/node/issues/9333.
@@ -39,7 +41,7 @@ function blockingCallback(callback) {
   ++nbBlockingCallbackCalls;
 
   if (nbBlockingCallbackCalls > 1) {
-    latestDelay = new Date().getTime() - timeCallbackScheduled;
+    latestDelay = Date.now() - timeCallbackScheduled;
     // Even if timers can fire later than when they've been scheduled
     // to fire, they should more than 50% later with a timeout of
     // 100ms. Firing later than that would mean that we hit the regression
@@ -53,7 +55,7 @@ function blockingCallback(callback) {
     // block by busy-looping to trigger the issue
     common.busyLoop(TIMEOUT);
 
-    timeCallbackScheduled = new Date().getTime();
+    timeCallbackScheduled = Date.now();
     setTimeout(blockingCallback, TIMEOUT);
   }
 }
@@ -62,7 +64,7 @@ function testAddingTimerToEmptyTimersList(callback) {
   initTest();
   // Call setTimeout just once to make sure the timers list is
   // empty when blockingCallback is called.
-  setTimeout(blockingCallback.bind(global, callback), TIMEOUT);
+  setTimeout(blockingCallback.bind(null, callback), TIMEOUT);
 }
 
 function testAddingTimerToNonEmptyTimersList() {

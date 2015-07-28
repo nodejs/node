@@ -455,7 +455,7 @@ exports.fileExists = function(pathname) {
 };
 
 exports.busyLoop = function busyLoop(time) {
-  var startTime = new Date().getTime();
+  var startTime = Date.now();
   var stopTime =  startTime + time;
-  while (new Date().getTime() < stopTime);
+  while (Date.now() < stopTime);
 };
