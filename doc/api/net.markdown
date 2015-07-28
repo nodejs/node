@@ -67,7 +67,7 @@ The options are passed to both the ['net.Socket'](#net_class_net_socket)
 constructor and the ['socket.connect'](#net_socket_connect_options_connectlistener)
 method.
 
-The `connectListener` parameter will be added as an listener for the
+The `connectListener` parameter will be added as a listener for the
 ['connect'][] event.
 
 Here is an example of a client of the previously described echo server:
@@ -100,7 +100,7 @@ supplied `port` and `host`.
 
 If `host` is omitted, `'localhost'` will be assumed.
 
-The `connectListener` parameter will be added as an listener for the
+The `connectListener` parameter will be added as a listener for the
 ['connect'][] event.
 
 ## net.connect(path[, connectListener])
@@ -110,7 +110,7 @@ A factory function, which returns a new unix
 ['net.Socket'](#net_class_net_socket) and automatically connects to the
 supplied `path`.
 
-The `connectListener` parameter will be added as an listener for the
+The `connectListener` parameter will be added as a listener for the
 ['connect'][] event.
 
 ## Class: net.Server
@@ -131,7 +131,7 @@ parameter is 511 (not 512).
 
 This function is asynchronous.  When the server has been bound,
 ['listening'][] event will be emitted.  The last parameter `callback`
-will be added as an listener for the ['listening'][] event.
+will be added as a listener for the ['listening'][] event.
 
 One issue some users run into is getting `EADDRINUSE` errors. This means that
 another server is already running on the requested port. One way of handling this
@@ -193,7 +193,7 @@ Listening on a file descriptor is not supported on Windows.
 
 This function is asynchronous.  When the server has been bound,
 ['listening'][] event will be emitted.
-The last parameter `callback` will be added as an listener for the
+The last parameter `callback` will be added as a listener for the
 ['listening'][] event.
 
 ### server.listen(options[, callback])
@@ -368,7 +368,7 @@ This function is asynchronous. When the ['connect'][] event is emitted the
 socket is established. If there is a problem connecting, the `'connect'` event
 will not be emitted, the `'error'` event will be emitted with the exception.
 
-The `connectListener` parameter will be added as an listener for the
+The `connectListener` parameter will be added as a listener for the
 ['connect'][] event.
 
 ### socket.connect(port[, host][, connectListener])
