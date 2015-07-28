@@ -131,7 +131,7 @@ parameter is 511 (not 512).
 
 This function is asynchronous.  When the server has been bound,
 ['listening'][] event will be emitted.  The last parameter `callback`
-will be added as an listener for the ['listening'][] event.
+will be added as a listener for the ['listening'][] event.
 
 One issue some users run into is getting `EADDRINUSE` errors. This means that
 another server is already running on the requested port. One way of handling this
@@ -193,7 +193,7 @@ Listening on a file descriptor is not supported on Windows.
 
 This function is asynchronous.  When the server has been bound,
 ['listening'][] event will be emitted.
-The last parameter `callback` will be added as an listener for the
+The last parameter `callback` will be added as a listener for the
 ['listening'][] event.
 
 ### server.listen(options[, callback])
@@ -374,7 +374,7 @@ This function is asynchronous. When the ['connect'][] event is emitted the
 socket is established. If there is a problem connecting, the `'connect'` event
 will not be emitted, the `'error'` event will be emitted with the exception.
 
-The `connectListener` parameter will be added as an listener for the
+The `connectListener` parameter will be added as a listener for the
 ['connect'][] event.
 
 ### socket.connect(port[, host][, connectListener])
