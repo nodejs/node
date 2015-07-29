@@ -3,7 +3,7 @@ var common = require('../common');
 var assert = require('assert');
 var exec = require('child_process').exec;
 
-if (process.platform !== 'win32') {
+if (!common.isWindows) {
   // Unix.
   var SLEEP3_COMMAND = 'sleep 3';
 } else {

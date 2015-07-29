@@ -97,7 +97,7 @@ server.listen(common.PORT, function() {
   var args = ['s_client', '-connect', '127.0.0.1:' + common.PORT];
 
   // for the performance and stability issue in s_client on Windows
-  if (process.platform === 'win32')
+  if (common.isWindows)
     args.push('-no_rand_screen');
 
   var client = spawn(common.opensslCli, args);

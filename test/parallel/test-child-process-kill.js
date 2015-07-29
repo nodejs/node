@@ -4,14 +4,12 @@ var assert = require('assert');
 
 var spawn = require('child_process').spawn;
 
-var is_windows = process.platform === 'win32';
-
 var exitCode;
 var termSignal;
 var gotStdoutEOF = false;
 var gotStderrEOF = false;
 
-var cat = spawn(is_windows ? 'cmd' : 'cat');
+var cat = spawn(common.isWindows ? 'cmd' : 'cat');
 
 
 cat.stdout.on('end', function() {
