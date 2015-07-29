@@ -12,11 +12,6 @@ if (process.platform === 'win32') {
 
 var fs = require('fs');
 
-var filename = path.join(common.tmpDir, '/readfile_pipe_large_test.txt');
-var dataExpected = new Array(1000000).join('a');
-common.refreshTmpDir();
-fs.writeFileSync(filename, dataExpected);
-
 if (process.argv[2] === 'child') {
   fs.readFile('/dev/stdin', function(er, data) {
     if (er) throw er;
@@ -24,6 +19,11 @@ if (process.argv[2] === 'child') {
   });
   return;
 }
+
+var filename = path.join(common.tmpDir, '/readfile_pipe_large_test.txt');
+var dataExpected = new Array(1000000).join('a');
+common.refreshTmpDir();
+fs.writeFileSync(filename, dataExpected);
 
 var exec = require('child_process').exec;
 var f = JSON.stringify(__filename);
