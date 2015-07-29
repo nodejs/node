@@ -1,6 +1,4 @@
 'use strict';
-var is_windows = process.platform === 'win32';
-
 var common = require('../common');
 var assert = require('assert'),
     os = require('os'),
@@ -12,7 +10,7 @@ var assert = require('assert'),
 
 var grep, sed, echo;
 
-if (is_windows) {
+if (common.isWindows) {
   grep = spawn('grep', ['--binary', 'o']),
   sed = spawn('sed', ['--binary', 's/o/O/']),
   echo = spawn('cmd.exe',

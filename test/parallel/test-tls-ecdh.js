@@ -37,7 +37,7 @@ server.listen(common.PORT, '127.0.0.1', function() {
             ' -connect 127.0.0.1:' + common.PORT;
 
   // for the performance and stability issue in s_client on Windows
-  if (process.platform === 'win32')
+  if (common.isWindows)
     cmd += ' -no_rand_screen';
 
   exec(cmd, function(err, stdout, stderr) {

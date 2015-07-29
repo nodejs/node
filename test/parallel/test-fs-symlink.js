@@ -9,7 +9,7 @@ var expected_async = 4;
 var linkTime;
 var fileTime;
 
-var is_windows = process.platform === 'win32';
+var is_windows = common.isWindows;
 
 common.refreshTmpDir();
 

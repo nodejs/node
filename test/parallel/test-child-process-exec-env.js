@@ -20,7 +20,7 @@ function after(err, stdout, stderr) {
   }
 }
 
-if (process.platform !== 'win32') {
+if (!common.isWindows) {
   child = exec('/usr/bin/env', { env: { 'HELLO': 'WORLD' } }, after);
 } else {
   child = exec('set', { env: { 'HELLO': 'WORLD' } }, after);

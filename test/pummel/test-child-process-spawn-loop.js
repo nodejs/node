@@ -4,7 +4,7 @@ var assert = require('assert');
 
 var spawn = require('child_process').spawn;
 
-var is_windows = process.platform === 'win32';
+var is_windows = common.isWindows;
 
 var SIZE = 1000 * 1024;
 var N = 40;

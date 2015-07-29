@@ -4,7 +4,7 @@ var assert = require('assert');
 
 var module = require('module');
 
-var isWindows = process.platform === 'win32';
+var isWindows = common.isWindows;
 
 var file, delimiter, paths;
 

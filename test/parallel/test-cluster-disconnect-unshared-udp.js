@@ -1,5 +1,8 @@
 'use strict';
-if (process.platform === 'win32') {
+
+const common = require('../common');
+
+if (common.isWindows) {
   console.log('1..0 # Skipped: on windows, because clustered dgram is ENOTSUP');
   return;
 }

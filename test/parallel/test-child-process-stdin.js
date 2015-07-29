@@ -3,7 +3,7 @@ var common = require('../common');
 var assert = require('assert');
 
 var spawn = require('child_process').spawn;
-var is_windows = process.platform === 'win32';
+var is_windows = common.isWindows;
 
 var cat = spawn(is_windows ? 'more' : 'cat');
 cat.stdin.write('hello');

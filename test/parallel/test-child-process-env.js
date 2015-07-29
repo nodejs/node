@@ -4,7 +4,7 @@ var assert = require('assert');
 
 var spawn = require('child_process').spawn;
 
-var isWindows = process.platform === 'win32';
+var isWindows = common.isWindows;
 
 var env = {
   'HELLO': 'WORLD'

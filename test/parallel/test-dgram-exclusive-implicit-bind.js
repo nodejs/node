@@ -39,7 +39,7 @@ var dgram = require('dgram');
 // supported while using cluster, though servers still cause the master to error
 // with ENOTSUP.
 
-var windows = process.platform === 'win32';
+var windows = common.isWindows;
 
 if (cluster.isMaster) {
   var pass;

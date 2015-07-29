@@ -7,7 +7,7 @@ var got_error = false;
 var success_count = 0;
 var mode_async;
 var mode_sync;
-var is_windows = process.platform === 'win32';
+var is_windows = common.isWindows;
 
 // Need to hijack fs.open/close to make sure that things
 // get closed once they're opened.

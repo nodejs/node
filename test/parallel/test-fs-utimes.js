@@ -4,7 +4,7 @@ var assert = require('assert');
 var util = require('util');
 var fs = require('fs');
 
-var is_windows = process.platform === 'win32';
+var is_windows = common.isWindows;
 
 var tests_ok = 0;
 var tests_run = 0;

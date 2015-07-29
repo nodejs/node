@@ -3,7 +3,7 @@ var common = require('../common');
 var assert = require('assert');
 var path = require('path');
 var fs = require('fs');
-var isWindows = process.platform === 'win32';
+var isWindows = common.isWindows;
 var openCount = 0;
 var mode;
 var content;

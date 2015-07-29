@@ -5,7 +5,7 @@ var fs = require('fs');
 var path = require('path');
 var exec = require('child_process').exec;
 var async_completed = 0, async_expected = 0, unlink = [];
-var isWindows = process.platform === 'win32';
+var isWindows = common.isWindows;
 var skipSymlinks = false;
 
 common.refreshTmpDir();
