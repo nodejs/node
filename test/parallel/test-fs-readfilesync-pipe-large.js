@@ -12,15 +12,15 @@ if (process.platform === 'win32') {
 
 var fs = require('fs');
 
-var filename = path.join(common.tmpDir, '/readfilesync_pipe_large_test.txt');
-var dataExpected = new Array(1000000).join('a');
-common.refreshTmpDir();
-fs.writeFileSync(filename, dataExpected);
-
 if (process.argv[2] === 'child') {
   process.stdout.write(fs.readFileSync('/dev/stdin', 'utf8'));
   return;
 }
+
+var filename = path.join(common.tmpDir, '/readfilesync_pipe_large_test.txt');
+var dataExpected = new Array(1000000).join('a');
+common.refreshTmpDir();
+fs.writeFileSync(filename, dataExpected);
 
 var exec = require('child_process').exec;
 var f = JSON.stringify(__filename);
