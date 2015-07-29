@@ -168,16 +168,14 @@ triggered, the listener has been removed from the array of listeners for the
 Inheriting from `EventEmitter` is no different from inheriting from any other
 constructor function. For example:
 
-```js
-'use strict';
-const util = require('util');
-const EventEmitter = require('events').EventEmitter;
+    'use strict';
+    const util = require('util');
+    const EventEmitter = require('events').EventEmitter;
 
-function MyEventEmitter() {
-  // Initialize necessary properties from `EventEmitter` in this instance
-  EventEmitter.call(this);
-}
+    function MyEventEmitter() {
+      // Initialize necessary properties from `EventEmitter` in this instance
+      EventEmitter.call(this);
+    }
 
-// Inherit functions from `EventEmitter`'s prototype
-util.inherits(MyEventEmitter, EventEmitter);
-```
+    // Inherit functions from `EventEmitter`'s prototype
+    util.inherits(MyEventEmitter, EventEmitter);
