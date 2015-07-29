@@ -17,6 +17,11 @@ NODE ?= ./iojs$(EXEEXT)
 NODE_EXE = iojs$(EXEEXT)
 NODE_G_EXE = iojs_g$(EXEEXT)
 
+# Flags for packaging.
+BUILD_DOWNLOAD_FLAGS ?= --download=all
+BUILD_INTL_FLAGS ?= --with-intl=small-icu
+BUILD_RELEASE_FLAGS ?= $(BUILD_DOWNLOAD_FLAGS) $(BUILD_INTL_FLAGS)
+
 # Default to verbose builds.
 # To do quiet/pretty builds, run `make V=` to set V to an empty string,
 # or set the V environment variable to an empty string.
@@ -302,7 +307,7 @@ $(PKG): release-only
 		--dest-cpu=x64 \
 		--tag=$(TAG) \
 		--release-urlbase=$(RELEASE_URLBASE) \
-		$(CONFIG_FLAGS)
+		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
 	$(MAKE) install V=$(V) DESTDIR=$(PKGDIR)
 	SIGN="$(CODESIGN_CERT)" PKGDIR="$(PKGDIR)" bash tools/osx-codesign.sh
 	cat tools/osx-pkg.pmdoc/index.xml.tmpl \
@@ -363,7 +368,7 @@ $(TARBALL)-headers: config.gypi release-only
 		--dest-cpu=$(DESTCPU) \
 		--tag=$(TAG) \
 		--release-urlbase=$(RELEASE_URLBASE) \
-		$(CONFIG_FLAGS)
+		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
 	HEADERS_ONLY=1 $(PYTHON) tools/install.py install '$(TARNAME)' '/'
 	find $(TARNAME)/ -type l | xargs rm # annoying on windows
 	tar -cf $(TARNAME)-headers.tar $(TARNAME)
@@ -393,7 +398,7 @@ $(BINARYTAR): release-only
 		--dest-cpu=$(DESTCPU) \
 		--tag=$(TAG) \
 		--release-urlbase=$(RELEASE_URLBASE) \
-		$(CONFIG_FLAGS)
+		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
 	$(MAKE) install DESTDIR=$(BINARYNAME) V=$(V) PORTABLE=1
 	cp README.md $(BINARYNAME)
 	cp LICENSE $(BINARYNAME)
