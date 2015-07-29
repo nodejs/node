@@ -119,7 +119,7 @@ Object.defineProperty(exports, 'opensslCli', {get: function() {
     opensslCli = path.join(path.dirname(process.execPath), 'openssl-cli');
   }
 
-  if (process.platform === 'win32') opensslCli += '.exe';
+  if (exports.isWindows) opensslCli += '.exe';
 
   var openssl_cmd = child_process.spawnSync(opensslCli, ['version']);
   if (openssl_cmd.status !== 0 || openssl_cmd.error !== undefined) {
@@ -133,7 +133,7 @@ Object.defineProperty(exports, 'hasCrypto', {get: function() {
   return process.versions.openssl ? true : false;
 }});
 
-if (process.platform === 'win32') {
+if (exports.isWindows) {
   exports.PIPE = '\\\\.\\pipe\\libuv-test';
 } else {
   exports.PIPE = exports.tmpDir + '/test.sock';
@@ -150,7 +150,7 @@ if (process.env.NODE_COMMON_PIPE) {
   }
 }
 
-if (process.platform === 'win32') {
+if (exports.isWindows) {
   exports.faketimeCli = false;
 } else {
   exports.faketimeCli = path.join(__dirname, '..', 'tools', 'faketime', 'src',
@@ -183,7 +183,7 @@ exports.indirectInstanceOf = function(obj, cls) {
 
 
 exports.ddCommand = function(filename, kilobytes) {
-  if (process.platform === 'win32') {
+  if (exports.isWindows) {
     var p = path.resolve(exports.fixturesDir, 'create-file.js');
     return '"' + process.argv[0] + '" "' + p + '" "' +
            filename + '" ' + (kilobytes * 1024);
@@ -196,7 +196,7 @@ exports.ddCommand = function(filename, kilobytes) {
 exports.spawnCat = function(options) {
   var spawn = require('child_process').spawn;
 
-  if (process.platform === 'win32') {
+  if (exports.isWindows) {
     return spawn('more', [], options);
   } else {
     return spawn('cat', [], options);
@@ -207,7 +207,7 @@ exports.spawnCat = function(options) {
 exports.spawnSyncCat = function(options) {
   var spawnSync = require('child_process').spawnSync;
 
-  if (process.platform === 'win32') {
+  if (exports.isWindows) {
     return spawnSync('more', [], options);
   } else {
     return spawnSync('cat', [], options);
@@ -218,7 +218,7 @@ exports.spawnSyncCat = function(options) {
 exports.spawnPwd = function(options) {
   var spawn = require('child_process').spawn;
 
-  if (process.platform === 'win32') {
+  if (exports.isWindows) {
     return spawn('cmd.exe', ['/c', 'cd'], options);
   } else {
     return spawn('pwd', [], options);
@@ -374,7 +374,7 @@ exports.checkSpawnSyncRet = function(ret) {
 };
 
 var etcServicesFileName = path.join('/etc', 'services');
-if (process.platform === 'win32') {
+if (exports.isWindows) {
   etcServicesFileName = path.join(process.env.SystemRoot, 'System32', 'drivers',
     'etc', 'services');
 }

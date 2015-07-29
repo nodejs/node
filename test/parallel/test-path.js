@@ -4,8 +4,6 @@ var assert = require('assert');
 
 var path = require('path');
 
-var isWindows = process.platform === 'win32';
-
 var f = __filename;
 
 assert.equal(path.basename(f), 'test-path.js');
@@ -33,7 +31,7 @@ assert.equal(path.posix.basename('basename.ext\\\\'), 'basename.ext\\\\');
 
 // POSIX filenames may include control characters
 // c.f. http://www.dwheeler.com/essays/fixing-unix-linux-filenames.html
-if (!isWindows) {
+if (!common.isWindows) {
   var controlCharFilename = 'Icon' + String.fromCharCode(13);
   assert.equal(path.basename('/a/b/' + controlCharFilename),
                controlCharFilename);
@@ -42,7 +40,7 @@ if (!isWindows) {
 assert.equal(path.extname(f), '.js');
 
 assert.equal(path.dirname(f).substr(-13),
-             isWindows ? 'test\\parallel' : 'test/parallel');
+             common.isWindows ? 'test\\parallel' : 'test/parallel');
 assert.equal(path.dirname('/a/b/'), '/a');
 assert.equal(path.dirname('/a/b'), '/a');
 assert.equal(path.dirname('/a'), '/');
@@ -194,7 +192,7 @@ var joinTests =
     ];
 
 // Windows-specific join tests
-if (isWindows) {
+if (common.isWindows) {
   joinTests = joinTests.concat(
     [// UNC path expected
      [['//foo/bar'], '//foo/bar/'],
@@ -246,7 +244,7 @@ if (isWindows) {
 // Run the join tests.
 joinTests.forEach(function(test) {
   var actual = path.join.apply(path, test[0]);
-  var expected = isWindows ? test[1].replace(/\//g, '\\') : test[1];
+  var expected = common.isWindows ? test[1].replace(/\//g, '\\') : test[1];
   var message = 'path.join(' + test[0].map(JSON.stringify).join(',') + ')' +
                 '\n  expect=' + JSON.stringify(expected) +
                 '\n  actual=' + JSON.stringify(actual);
@@ -306,7 +304,7 @@ assert.equal(path.posix.normalize('a//b//./c'), 'a/b/c');
 assert.equal(path.posix.normalize('a//b//.'), 'a/b');
 
 // path.resolve tests
-if (isWindows) {
+if (common.isWindows) {
   // windows
   var resolveTests =
       // arguments                                    result
@@ -360,7 +358,7 @@ assert.equal(path.posix.isAbsolute('bar/'), false);
 assert.equal(path.posix.isAbsolute('./baz'), false);
 
 // path.relative tests
-if (isWindows) {
+if (common.isWindows) {
   // windows
   var relativeTests =
       // arguments                     result
@@ -409,7 +407,7 @@ assert.equal(path.win32.delimiter, ';');
 assert.equal(path.posix.delimiter, ':');
 
 
-if (isWindows)
+if (common.isWindows)
   assert.deepEqual(path, path.win32, 'should be win32 path module');
 else
   assert.deepEqual(path, path.posix, 'should be posix path module');

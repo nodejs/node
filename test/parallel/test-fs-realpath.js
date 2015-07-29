@@ -5,13 +5,12 @@ var fs = require('fs');
 var path = require('path');
 var exec = require('child_process').exec;
 var async_completed = 0, async_expected = 0, unlink = [];
-var isWindows = process.platform === 'win32';
 var skipSymlinks = false;
 
 common.refreshTmpDir();
 
 var root = '/';
-if (isWindows) {
+if (common.isWindows) {
   // something like "C:\\"
   root = process.cwd().substr(0, 3);
 
@@ -292,7 +291,7 @@ function test_relative_input_cwd(callback) {
 
 function test_deep_symlink_mix(callback) {
   console.log('test_deep_symlink_mix');
-  if (isWindows) {
+  if (common.isWindows) {
     // This one is a mix of files and directories, and it's quite tricky
     // to get the file/dir links sorted out correctly.
     console.log('1..0 # Skipped: symlink test (no privs)');
@@ -503,7 +502,7 @@ function test_lying_cache_liar(cb) {
                 '/a/b' : '/a/b',
                 '/a/b/c' : '/a/b',
                 '/a/b/d' : '/a/b/d' };
-  if (isWindows) {
+  if (common.isWindows) {
     var wc = {};
     Object.keys(cache).forEach(function(k) {
       wc[ path.resolve(k) ] = path.resolve(cache[k]);

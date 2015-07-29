@@ -4,7 +4,7 @@ var assert = require('assert');
 var cluster = require('cluster');
 var net = require('net');
 
-if (process.platform === 'win32') {
+if (common.isWindows) {
   console.log('1..0 # Skipped: not reliable on Windows');
   return;
 }

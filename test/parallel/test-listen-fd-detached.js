@@ -6,7 +6,7 @@ var net = require('net');
 var PORT = common.PORT;
 var spawn = require('child_process').spawn;
 
-if (process.platform === 'win32') {
+if (common.isWindows) {
   console.log('1..0 # Skipped: This test is disabled on windows.');
   return;
 }

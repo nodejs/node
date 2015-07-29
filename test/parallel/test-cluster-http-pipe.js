@@ -1,13 +1,14 @@
 'use strict';
+
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const http = require('http');
+
 // It is not possible to send pipe handles over the IPC pipe on Windows.
-if (process.platform === 'win32') {
+if (common.isWindows) {
   process.exit(0);
 }
-
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var http = require('http');
 
 if (cluster.isMaster) {
   common.refreshTmpDir();

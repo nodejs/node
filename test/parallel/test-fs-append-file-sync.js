@@ -62,7 +62,7 @@ var m = 0o600;
 fs.appendFileSync(filename4, num, { mode: m });
 
 // windows permissions aren't unix
-if (process.platform !== 'win32') {
+if (!common.isWindows) {
   var st = fs.statSync(filename4);
   assert.equal(st.mode & 0o700, m);
 }

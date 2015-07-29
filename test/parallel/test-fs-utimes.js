@@ -4,8 +4,6 @@ var assert = require('assert');
 var util = require('util');
 var fs = require('fs');
 
-var is_windows = process.platform === 'win32';
-
 var tests_ok = 0;
 var tests_run = 0;
 
@@ -99,7 +97,7 @@ function runTest(atime, mtime, callback) {
       expect_errno('utimes', 'foobarbaz', err, 'ENOENT');
 
       // don't close this fd
-      if (is_windows) {
+      if (common.isWindows) {
         fd = fs.openSync(__filename, 'r+');
       } else {
         fd = fs.openSync(__filename, 'r');

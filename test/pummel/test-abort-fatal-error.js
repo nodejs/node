@@ -2,7 +2,7 @@
 var assert = require('assert');
 var common = require('../common');
 
-if (process.platform === 'win32') {
+if (common.isWindows) {
   console.log('1..0 # Skipped: no RLIMIT_NOFILE on Windows');
   return;
 }

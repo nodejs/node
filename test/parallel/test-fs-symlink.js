@@ -9,8 +9,6 @@ var expected_async = 4;
 var linkTime;
 var fileTime;
 
-var is_windows = process.platform === 'win32';
-
 common.refreshTmpDir();
 
 var runtest = function(skip_symlinks) {
@@ -57,7 +55,7 @@ var runtest = function(skip_symlinks) {
   });
 };
 
-if (is_windows) {
+if (common.isWindows) {
   // On Windows, creating symlinks requires admin privileges.
   // We'll only try to run symlink test if we have enough privileges.
   exec('whoami /priv', function(err, o) {

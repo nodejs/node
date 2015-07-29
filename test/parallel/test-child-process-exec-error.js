@@ -17,7 +17,7 @@ function test(fun, code) {
   });
 }
 
-if (process.platform === 'win32') {
+if (common.isWindows) {
   test(child_process.exec, 1); // exit code of cmd.exe
 } else {
   test(child_process.exec, 127); // exit code of /bin/sh

@@ -1,11 +1,12 @@
 'use strict';
+
+const common = require('../common');
+const assert = require('assert');
+
 // SIGUSR1 and SIGHUP are not supported on Windows
-if (process.platform === 'win32') {
+if (common.isWindows) {
   process.exit(0);
 }
-
-var common = require('../common');
-var assert = require('assert');
 
 console.log('process.pid: ' + process.pid);
 
