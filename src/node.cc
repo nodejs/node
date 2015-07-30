@@ -3071,11 +3071,10 @@ static void PrintHelp() {
          "  --trace-deprecation  show stack traces on deprecations\n"
          "  --trace-sync-io      show stack trace when use of sync IO\n"
          "                       is detected after the first tick\n"
-         "  --use-old-buffer     Revert to old Buffer implementation\n"
          "  --v8-options         print v8 command line options\n"
 #if defined(NODE_HAVE_I18N_SUPPORT)
          "  --icu-data-dir=dir   set ICU data load path to dir\n"
-         "                         (overrides NODE_ICU_DATA)\n"
+         "                       (overrides NODE_ICU_DATA)\n"
 #if !defined(NODE_HAVE_SMALL_ICU)
          "                       Note: linked-in ICU data is\n"
          "                       present.\n"
