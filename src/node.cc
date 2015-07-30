@@ -3657,6 +3657,11 @@ void Init(int* argc,
   // TODO(bnoordhuis): Remove test/parallel/test-arm-math-exp-regress-1376.js
   // and this workaround when v8:4019 has been fixed and the patch back-ported.
   V8::SetFlagsFromString("--nofast_math", sizeof("--nofast_math") - 1);
+  // See https://github.com/nodejs/io.js/pull/2220#issuecomment-126200059
+  // and https://code.google.com/p/v8/issues/detail?id=4338
+  // TODO(targos): Remove this workaround when v8:4338 has been fixed and the
+  // patch back-ported.
+  V8::SetFlagsFromString("--novector_ics", sizeof("--novector_ics") - 1);
 #endif
 
 #if defined(NODE_V8_OPTIONS)
