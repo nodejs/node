@@ -49,6 +49,7 @@ from datetime import datetime
 from Queue import Queue, Empty
 
 logger = logging.getLogger('testrunner')
+skip_regex = re.compile(r'# SKIP\S*\s+(.*)', re.IGNORECASE)
 
 VERBOSE = False
 
@@ -256,7 +257,12 @@ class TapProgressIndicator(SimpleProgressIndicator):
       for l in output.output.stdout.splitlines():
         logger.info('#' + l)
     else:
-      logger.info('ok %i - %s' % (self._done, command))
+      skip = skip_regex.search(output.output.stdout)
+      if skip:
+        logger.info('ok %i - %s # skip %s' %
+          (self._done, command, skip.group(1)))
+      else:
+        logger.info('ok %i - %s' % (self._done, command))
 
     duration = output.test.duration
 
