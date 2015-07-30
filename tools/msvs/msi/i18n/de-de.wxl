@@ -36,5 +36,6 @@
     <String Id="EnvironmentPathNpmModules_Title">npm-Module</String>
     <String Id="EnvironmentPathNpmModules_Description">Fügt globale durch npm installierte Module zur PATH-Umgebungsvariable hinzu. Diese Option funktioniert nur für den aktuellen Benutzer, andere Benutzer müssen ihre PATH-Umgebungsvariable selbst manuell aktualisieren.</String>
 
-    <String Id="WIXUI_EXITDIALOGOPTIONALTEXT">[ProductName] wurde erfolgreich installiert.</String>
+    <!-- References like [ProductName] are not resolved for Property tags -->
+    <String Id="WIXUI_EXITDIALOGOPTIONALTEXT">io.js wurde erfolgreich installiert.</String>
 </WixLocalization>

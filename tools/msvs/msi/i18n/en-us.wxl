@@ -36,5 +36,6 @@
     <String Id="EnvironmentPathNpmModules_Title">npm modules</String>
     <String Id="EnvironmentPathNpmModules_Description">Add modules that are installed globally by npm to the PATH environment variable. This option works for the current user only; other users need to update their PATH manually.</String>
 
-    <String Id="WIXUI_EXITDIALOGOPTIONALTEXT">[ProductName] has been successfully installed.</String>
+    <!-- References like [ProductName] are not resolved for Property tags -->
+    <String Id="WIXUI_EXITDIALOGOPTIONALTEXT">io.js has been successfully installed.</String>
 </WixLocalization>
