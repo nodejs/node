@@ -4,12 +4,10 @@ var assert = require('assert');
 
 var module = require('module');
 
-var isWindows = common.isWindows;
-
 var partA, partB;
 var partC = '';
 
-if (isWindows) {
+if (common.isWindows) {
   partA = 'C:\\Users\\Rocko Artischocko\\AppData\\Roaming\\npm';
   partB = 'C:\\Program Files (x86)\\nodejs\\';
   process.env['NODE_PATH'] = partA + ';' + partB + ';' + partC;
