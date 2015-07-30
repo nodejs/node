@@ -269,20 +269,46 @@ NOTE: Windows is not yet supported
 It is possible to build io.js with
 [OpenSSL FIPS module](https://www.openssl.org/docs/fips/fipsnotes.html).
 
+**Note** that building in this way does **not** allow you to
+claim that the runtime is FIPS 140-2 validated.  Instead you
+can indicate that the runtime uses a validated module.  See
+the [security policy]
+(http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp1747.pdf)
+page 60 for more details.  In addition, the validation for
+the underlying module is only valid if it is deployed in
+accordance with its [security policy]
+(http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp1747.pdf).
+If you need FIPS validated cryptography it is recommended that you
+read both the [security policy]
+(http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp1747.pdf)
+and [user guide] (https://openssl.org/docs/fips/UserGuide-2.0.pdf).
+
 Instructions:
 
-1. Download and verify `openssl-fips-x.x.x.tar.gz` from
-   https://www.openssl.org/source/
-2. Extract source to `openssl-fips` folder
-3. ``cd openssl-fips && ./config fipscanisterbuild --prefix=`pwd`/out``
-   (NOTE: On OS X, you may want to run
-    ``./Configure darwin64-x86_64-cc --prefix=`pwd`/out`` if you are going to
-    build x64-mode io.js)
-4. `make -j && make install`
-5. Get into io.js checkout folder
-6. `./configure --openssl-fips=/path/to/openssl-fips/out`
-7. Build io.js with `make -j`
-8. Verify with `node -p "process.versions.openssl"` (`1.0.2a-fips`)
+1. Obtain a copy of openssl-fips-x.x.x.tar.gz.
+   To comply with the security policy you must ensure the path
+   through which you get the file complies with the requirements
+   for a "secure intallation" as described in section 6.6 in
+   the [user guide] (https://openssl.org/docs/fips/UserGuide-2.0.pdf).
+   For evaluation/experimentation you can simply download and verify
+   `openssl-fips-x.x.x.tar.gz` from https://www.openssl.org/source/
+2. Extract source to `openssl-fips` folder and `cd openssl-fips`
+3. `./config`
+4. `make`
+5. `make install`
+   (NOTE: to comply with the security policy you must use the exact
+   commands in steps 3-5 without any additional options as per
+   Appendix A in the [security policy]
+   (http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp1747.pdf).
+   The only exception is that `./config no-asm` can be
+   used in place of `./config` )
+6. Get into io.js checkout folder
+7. `./configure --openssl-fips=/path/to/openssl-fips/installdir`
+   For example on ubuntu 12 the installation directory was
+   /usr/local/ssl/fips-2.0
+8. Build io.js with `make -j`
+9. Verify with `node -p "process.versions.openssl"` (`1.0.2a-fips`)
+
 
 ## Resources for Newcomers
 
