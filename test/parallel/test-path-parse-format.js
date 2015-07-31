@@ -9,6 +9,7 @@ var winPaths = [
   '\\foo\\C:',
   'file',
   '.\\file',
+  '',
 
   // unc
   '\\\\server\\share\\file_path',
@@ -32,7 +33,8 @@ var unixPaths = [
   'file',
   '.\\file',
   './file',
-  'C:\\foo'
+  'C:\\foo',
+  ''
 ];
 
 var unixSpecialCaseFormatTests = [
@@ -52,8 +54,6 @@ var errors = [
    message: /Path must be a string. Received 1/},
   {method: 'parse', input: [],
    message: /Path must be a string. Received undefined/},
-  // {method: 'parse', input: [''],
-  //  message: /Invalid path/}, // omitted because it's hard to trigger!
   {method: 'format', input: [null],
    message: /Parameter 'pathObject' must be an object, not/},
   {method: 'format', input: [''],
@@ -93,8 +93,13 @@ function checkErrors(path) {
 }
 
 function checkParseFormat(path, paths) {
-  paths.forEach(function(element, index, array) {
+  paths.forEach(function(element) {
     var output = path.parse(element);
+    assert.strictEqual(typeof output.root, 'string');
+    assert.strictEqual(typeof output.dir, 'string');
+    assert.strictEqual(typeof output.base, 'string');
+    assert.strictEqual(typeof output.ext, 'string');
+    assert.strictEqual(typeof output.name, 'string');
     assert.strictEqual(path.format(output), element);
     assert.strictEqual(output.dir, output.dir ? path.dirname(element) : '');
     assert.strictEqual(output.base, path.basename(element));
