@@ -129,6 +129,26 @@ inside that folder. (Unless they would be ignored by another rule.)</p>
 which will keep files from being included, even if they would be picked
 up by the files array.  The &quot;.npmignore&quot; file works just like a
 &quot;.gitignore&quot;.</p>
+<p>Certain files are always included, regardless of settings:</p>
+<ul>
+<li><code>package.json</code></li>
+<li><code><a href="../../doc/README.html">README</a></code> (and its variants)</li>
+<li><code>CHANGELOG</code> (and its variants)</li>
+<li><code>LICENSE</code> / <code>LICENCE</code></li>
+</ul>
+<p>Conversely, some files are always ignored:</p>
+<ul>
+<li><code>.git</code></li>
+<li><code>CVS</code></li>
+<li><code>.svn</code></li>
+<li><code>.hg</code></li>
+<li><code>.lock-wscript</code></li>
+<li><code>.wafpickle-N</code></li>
+<li><code>*.swp</code></li>
+<li><code>.DS_Store</code></li>
+<li><code>._*</code></li>
+<li><code>npm-debug.log</code></li>
+</ul>
 <h2 id="main">main</h2>
 <p>The main field is a module ID that is the primary entry point to your program.
 That is, if your package is named <code>foo</code>, and a user installs it, and then does
@@ -483,12 +503,12 @@ specific registry (for example, an internal registry), then use the
 <code>publishConfig</code> dictionary described below to override the <code>registry</code> config
 param at publish-time.</p>
 <h2 id="publishconfig">publishConfig</h2>
-<p>This is a set of config values that will be used at publish-time.  It&#39;s
-especially handy if you want to set the tag or registry, so that you can
-ensure that a given package is not tagged with &quot;latest&quot; or published to
-the global public registry by default.</p>
-<p>Any config values can be overridden, but of course only &quot;tag&quot; and
-&quot;registry&quot; probably matter for the purposes of publishing.</p>
+<p>This is a set of config values that will be used at publish-time. It&#39;s
+especially handy if you want to set the tag, registry or access, so that
+you can ensure that a given package is not tagged with &quot;latest&quot;, published
+to the global public registry or that a scoped module is private by default.</p>
+<p>Any config values can be overridden, but of course only &quot;tag&quot;, &quot;registry&quot; and
+&quot;access&quot; probably matter for the purposes of publishing.</p>
 <p>See <code><a href="../misc/npm-config.html">npm-config(7)</a></code> to see the list of config options that can be
 overridden.</p>
 <h2 id="default-values">DEFAULT VALUES</h2>

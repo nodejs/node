@@ -1,3 +1,104 @@
+### v2.13.3 (2015-07-23):
+
+#### I'M SAVING THE GOOD JOKES FOR MORE INTERESTING RELEASES
+
+It's pretty hard to outdo last week's release buuuuut~ I promise I'll have a
+treat when we release our shiny new **Teams and Organizations** feature! :D
+(Coming Soon™). It'll be a real *gem*.
+
+That means it's a pretty low-key release this week. We got some nice
+documentation tweaks, a few bugfixes, and other such things, though!
+
+Oh, and a _bunch of version bumps_. Thanks, `semver`!
+
+#### IT'S THE LITTLE THINGS THAT MATTER
+
+* [`2fac6ae`](https://github.com/npm/npm/commit/2fac6aeffefba2934c3db395b525d931599c34d8)
+  [#9012](https://github.com/npm/npm/issues/9012) A convenience for releases --
+  using the globally-installed npm before now was causing minor annoyances, so
+  we just use the exact same npm we're releasing to build the new release.
+  ([@zkat](https://github.com/zkat))
+
+#### WHAT DOES THIS BUTTON DO?
+
+There's a couple of doc updates! The last one might be interesting.
+
+* [`4cd3205`](https://github.com/npm/npm/commit/4cd32050c0f89b7f1ae486354fa2c35eea302ba5)
+  [#9002](https://github.com/npm/npm/issues/9002) Updated docs to list the
+  various files that npm automatically includes and excludes, regardless of
+  settings.
+  ([@SimenB](https://github.com/SimenB))
+* [`cf09e75`](https://github.com/npm/npm/commit/cf09e754931739af32647d667b671e72a4c79081)
+
+  [#9022](https://github.com/npm/npm/issues/9022) Document the `"access"` field
+  in `"publishConfig"`. Did you know you don't need to use `--access=public`
+  when publishing scoped packages?! Just put it in your `package.json`!
+  Go refresh yourself on scopes packages by [checking our docs](https://docs.npmjs.com/getting-started/scoped-packages) on them.
+
+  ([@boennemann](https://github.com/boennemann))
+* [`bfd73da`](https://github.com/npm/npm/commit/bfd73da33349cc2afb8278953b2ae16ea95023de)
+  [#9013](https://github.com/npm/npm/issues/9013) fixed typo in changelog
+  ([@radarhere](https://github.com/radarhere))
+
+#### THE SEMVER MAJOR VERSION APOCALYPSE IS UPON US
+
+Basically, `semver` is up to `@5`, and that meant we needed to go in an update a
+bunch of our dependencies manually. `node-gyp` is still pending update, since
+it's not ours, though!
+
+* [`9232e58`](https://github.com/npm/npm/commit/9232e58d54c032c23716ef976023d36a42bfdcc9)
+  [#8972](https://github.com/npm/npm/issues/8972) `init-package-json@1.7.1`
+  ([@othiym23](https://github.com/othiym23))
+* [`ba44f6b`](https://github.com/npm/npm/commit/ba44f6b4201a4faee025341b123e372d8f45b6d9)
+  [#8972](https://github.com/npm/npm/issues/8972) `normalize-package-data@2.3.1`
+  ([@othiym23](https://github.com/othiym23))
+* [`3901d3c`](https://github.com/npm/npm/commit/3901d3cf191880bb4420b1d6b8aedbcd8fc26cdf)
+  [#8972](https://github.com/npm/npm/issues/8972) `npm-install-checks@1.0.6`
+  ([@othiym23](https://github.com/othiym23))
+* [`ffcc7dd`](https://github.com/npm/npm/commit/ffcc7dd12f8bb94ff0f64c465c57e460b3f24a24)
+  [#8972](https://github.com/npm/npm/issues/8972) `npm-package-arg@4.0.2`
+  ([@othiym23](https://github.com/othiym23))
+* [`7128f9e`](https://github.com/npm/npm/commit/7128f9ec10c0c8482087511b716dbddb54249626)
+  [#8972](https://github.com/npm/npm/issues/8972) `npm-registry-client@6.5.1`
+  ([@othiym23](https://github.com/othiym23))
+* [`af28911`](https://github.com/npm/npm/commit/af28911ecd54a844f848c6ae41887097d6aa2f3b)
+  [#8972](https://github.com/npm/npm/issues/8972) `read-installed@4.0.2`
+  ([@othiym23](https://github.com/othiym23))
+* [`3cc817a`](https://github.com/npm/npm/commit/3cc817a0f34f698b580ff6ff02308700efc54f7c)
+  [#8972](https://github.com/npm/npm/issues/8972) node-gyp needs its own version
+  of semver
+  ([@othiym23](https://github.com/othiym23))
+* [`f98eccc`](https://github.com/npm/npm/commit/f98eccc6e3a6699ca0aa9ecbad93a3b995583871)
+  [#8972](https://github.com/npm/npm/issues/8972) `semver@5.0.1`: Stop including
+  browser builds.
+  ([@isaacs](https://github.com/isaacs))
+
+#### \*BUMP\*
+
+And some other version bumps for good measure.
+
+* [`254ecfb`](https://github.com/npm/npm/commit/254ecfb04f026c2fd16427db01a53600c1892c8b)
+  [#8990](https://github.com/npm/npm/issues/8990) `marked-man@0.1.5`: Fixes an
+  issue with documentation rendering where backticks in 2nd-level headers would
+  break rendering (?!?!)
+  ([@steveklabnik](https://github.com/steveklabnik))
+* [`79efd79`](https://github.com/npm/npm/commit/79efd79ac216da8cee8636fb2ed926b0196a4eb6)
+  `minimatch@2.0.10`: A pattern like `'*.!(x).!(y)'` should not match a name
+  like `'a.xyz.yab'`.
+  ([@isaacs](https://github.com/isaacs))
+* [`39c7dc9`](https://github.com/npm/npm/commit/39c7dc9a4e17cd35a5ed882ba671821c9a900f9e)
+  `request@2.60.0`: A few bug fixes and doc updates.
+  ([@simov](https://github.com/simov))
+* [`72d3c3a`](https://github.com/npm/npm/commit/72d3c3a9e1e461608aa21b14c01a650333330da9)
+  `rimraf@2.4.2`: Minor doc and dep updates
+  ([@isaacs](https://github.com/isaacs))
+* [`7513035`](https://github.com/npm/npm/commit/75130356a06f5f4fbec3786aac9f9f0b36dfe010)
+  `nock@2.9.1`
+  ([@pgte](https://github.com/pgte))
+* [`3d9aa82`](https://github.com/npm/npm/commit/3d9aa82260f0643a32c13d0c1ed16f644b6fd4ab)
+  Fixes this thing where Kat decided to save `nock` as a regular dependency ;)
+  ([@othiym23](https://github.com/othiym23))
+
 ### v2.13.2 (2015-07-16):
 
 #### HOLD ON TO YOUR TENTACLES... IT'S NPM RELEASE TIME!
@@ -138,7 +239,7 @@ right back. This should help out folks dealing with things like proxy issues or
 other registry-access debugging issues. Give it a shot!
 
 This addresses [#5750](https://github.com/npm/npm/issues/5750), and will help
-with the `npm doctor` stuff descripbed in
+with the `npm doctor` stuff described in
 [#6756](https://github.com/npm/npm/issues/6756).
 
 * [`f1f7a85`](https://github.com/npm/npm/commit/f1f7a85)
