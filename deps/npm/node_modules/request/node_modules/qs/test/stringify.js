@@ -111,14 +111,14 @@ describe('stringify()', function () {
     it('stringifies an empty value', function (done) {
 
         expect(Qs.stringify({ a: '' })).to.equal('a=');
-        expect(Qs.stringify({ a: null }, {strictNullHandling: true})).to.equal('a');
+        expect(Qs.stringify({ a: null }, { strictNullHandling: true })).to.equal('a');
 
         expect(Qs.stringify({ a: '', b: '' })).to.equal('a=&b=');
-        expect(Qs.stringify({ a: null, b: '' }, {strictNullHandling: true})).to.equal('a&b=');
+        expect(Qs.stringify({ a: null, b: '' }, { strictNullHandling: true })).to.equal('a&b=');
 
         expect(Qs.stringify({ a: { b: '' } })).to.equal('a%5Bb%5D=');
-        expect(Qs.stringify({ a: { b: null } }, {strictNullHandling: true})).to.equal('a%5Bb%5D');
-        expect(Qs.stringify({ a: { b: null } }, {strictNullHandling: false})).to.equal('a%5Bb%5D=');
+        expect(Qs.stringify({ a: { b: null } }, { strictNullHandling: true })).to.equal('a%5Bb%5D');
+        expect(Qs.stringify({ a: { b: null } }, { strictNullHandling: false })).to.equal('a%5Bb%5D=');
 
         done();
     });
@@ -155,8 +155,8 @@ describe('stringify()', function () {
 
         expect(Qs.stringify({ a: undefined })).to.equal('');
 
-        expect(Qs.stringify({ a: { b: undefined, c: null } }, {strictNullHandling: true})).to.equal('a%5Bc%5D');
-        expect(Qs.stringify({ a: { b: undefined, c: null } }, {strictNullHandling: false})).to.equal('a%5Bc%5D=');
+        expect(Qs.stringify({ a: { b: undefined, c: null } }, { strictNullHandling: true })).to.equal('a%5Bc%5D');
+        expect(Qs.stringify({ a: { b: undefined, c: null } }, { strictNullHandling: false })).to.equal('a%5Bc%5D=');
         expect(Qs.stringify({ a: { b: undefined, c: '' } })).to.equal('a%5Bc%5D=');
         done();
     });
@@ -184,7 +184,7 @@ describe('stringify()', function () {
     it('skips properties that are part of the object prototype', function (done) {
 
         Object.prototype.crash = 'test';
-        expect(Qs.stringify({ a: 'b'})).to.equal('a=b');
+        expect(Qs.stringify({ a: 'b' })).to.equal('a=b');
         expect(Qs.stringify({ a: { b: 'c' } })).to.equal('a%5Bb%5D=c');
         delete Object.prototype.crash;
         done();
@@ -224,8 +224,8 @@ describe('stringify()', function () {
     it('selects properties when filter=array', function (done) {
 
         expect(Qs.stringify({ a: 'b' }, { filter: ['a'] })).to.equal('a=b');
-        expect(Qs.stringify({ a: 1}, { filter: [] })).to.equal('');
-        expect(Qs.stringify({ a: { b: [1, 2, 3, 4], c: 'd' }, c: 'f' }, { filter: ['a', 'b', 0, 2]})).to.equal('a%5Bb%5D%5B0%5D=1&a%5Bb%5D%5B2%5D=3');
+        expect(Qs.stringify({ a: 1 }, { filter: [] })).to.equal('');
+        expect(Qs.stringify({ a: { b: [1, 2, 3, 4], c: 'd' }, c: 'f' }, { filter: ['a', 'b', 0, 2] })).to.equal('a%5Bb%5D%5B0%5D=1&a%5Bb%5D%5B2%5D=3');
         done();
 
     });

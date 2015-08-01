@@ -1,3 +1,10 @@
+## 2.9.34 (2015-07-15)
+
+Bugfixes:
+
+-  Correct domain for .map, .each, .filter, .reduce callbacks ([#701](.)).
+ - Preserve bound-with-promise promises across the entire chain ([#702](.)).
+
 ## 2.9.33 (2015-07-09)
 
 Bugfixes:

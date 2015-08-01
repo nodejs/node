@@ -27,9 +27,12 @@ util.inherits = require('inherits');
 
 /*<replacement>*/
 var Stream;
- (function (){try{
-Stream = require('st' + 'ream');
-}catch(_){Stream = require('events').EventEmitter;}}())
+(function (){try{
+  Stream = require('st' + 'ream');
+}catch(_){}finally{
+  if (!Stream)
+    Stream = require('events').EventEmitter;
+}}())
 /*</replacement>*/
 
 var Buffer = require('buffer').Buffer;

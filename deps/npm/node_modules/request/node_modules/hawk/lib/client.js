@@ -153,16 +153,16 @@ exports.authenticate = function (res, credentials, artifacts, options) {
 
         // Parse HTTP WWW-Authenticate header
 
-        var attributes = Utils.parseAuthorizationHeader(res.headers['www-authenticate'], ['ts', 'tsm', 'error']);
-        if (attributes instanceof Error) {
+        var wwwAttributes = Utils.parseAuthorizationHeader(res.headers['www-authenticate'], ['ts', 'tsm', 'error']);
+        if (wwwAttributes instanceof Error) {
             return false;
         }
 
         // Validate server timestamp (not used to update clock since it is done via the SNPT client)
 
-        if (attributes.ts) {
-            var tsm = Crypto.calculateTsMac(attributes.ts, credentials);
-            if (tsm !== attributes.tsm) {
+        if (wwwAttributes.ts) {
+            var tsm = Crypto.calculateTsMac(wwwAttributes.ts, credentials);
+            if (tsm !== wwwAttributes.tsm) {
                 return false;
             }
         }

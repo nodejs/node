@@ -49,6 +49,7 @@ module.exports = function (dict) {return new Caseless(dict)}
 module.exports.httpify = function (resp, headers) {
   var c = new Caseless(headers)
   resp.setHeader = function (key, value, clobber) {
+    if (typeof value === 'undefined') return
     return c.set(key, value, clobber)
   }
   resp.hasHeader = function (key) {

@@ -180,7 +180,7 @@ FormData.prototype._multiPartFooter = function(field, value, options) {
 };
 
 FormData.prototype._lastBoundary = function() {
-  return '--' + this.getBoundary() + '--';
+  return '--' + this.getBoundary() + '--' + FormData.LINE_BREAK;
 };
 
 FormData.prototype.getHeaders = function(userHeaders) {
