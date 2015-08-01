@@ -5,14 +5,14 @@
 
 var internals = {};
 internals.hexTable = new Array(256);
-for (var i = 0; i < 256; ++i) {
-    internals.hexTable[i] = '%' + ((i < 16 ? '0' : '') + i.toString(16)).toUpperCase();
+for (var h = 0; h < 256; ++h) {
+    internals.hexTable[h] = '%' + ((h < 16 ? '0' : '') + h.toString(16)).toUpperCase();
 }
 
 
-exports.arrayToObject = function (source) {
+exports.arrayToObject = function (source, options) {
 
-    var obj = Object.create(null);
+    var obj = options.plainObjects ? Object.create(null) : {};
     for (var i = 0, il = source.length; i < il; ++i) {
         if (typeof source[i] !== 'undefined') {
 
@@ -24,7 +24,7 @@ exports.arrayToObject = function (source) {
 };
 
 
-exports.merge = function (target, source) {
+exports.merge = function (target, source, options) {
 
     if (!source) {
         return target;
@@ -52,7 +52,7 @@ exports.merge = function (target, source) {
     if (Array.isArray(target) &&
         !Array.isArray(source)) {
 
-        target = exports.arrayToObject(target);
+        target = exports.arrayToObject(target, options);
     }
 
     var keys = Object.keys(source);
@@ -60,11 +60,11 @@ exports.merge = function (target, source) {
         var key = keys[k];
         var value = source[key];
 
-        if (!target[key]) {
+        if (!Object.prototype.hasOwnProperty.call(target, key)) {
             target[key] = value;
         }
         else {
-            target[key] = exports.merge(target[key], value);
+            target[key] = exports.merge(target[key], value, options);
         }
     }
 

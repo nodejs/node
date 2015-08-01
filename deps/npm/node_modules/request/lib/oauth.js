@@ -81,7 +81,7 @@ OAuth.prototype.concatParams = function (oa, sep, wrap) {
   }).sort()
 
   if (oa.realm) {
-    params.splice(0, 1, 'realm')
+    params.splice(0, 0, 'realm')
   }
   params.push('oauth_signature')
 

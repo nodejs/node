@@ -221,6 +221,44 @@ You can also provide a "\.npmignore" file in the root of your package,
 which will keep files from being included, even if they would be picked
 up by the files array\.  The "\.npmignore" file works just like a
 "\.gitignore"\.
+.P
+Certain files are always included, regardless of settings:
+.RS 0
+.IP \(bu 2
+\fBpackage\.json\fP
+.IP \(bu 2
+\fBREADME\fP (and its variants)
+.IP \(bu 2
+\fBCHANGELOG\fP (and its variants)
+.IP \(bu 2
+\fBLICENSE\fP / \fBLICENCE\fP
+
+.RE
+.P
+Conversely, some files are always ignored:
+.RS 0
+.IP \(bu 2
+\fB\|\.git\fP
+.IP \(bu 2
+\fBCVS\fP
+.IP \(bu 2
+\fB\|\.svn\fP
+.IP \(bu 2
+\fB\|\.hg\fP
+.IP \(bu 2
+\fB\|\.lock\-wscript\fP
+.IP \(bu 2
+\fB\|\.wafpickle\-N\fP
+.IP \(bu 2
+\fB*\.swp\fP
+.IP \(bu 2
+\fB\|\.DS_Store\fP
+.IP \(bu 2
+\fB\|\._*\fP
+.IP \(bu 2
+\fBnpm\-debug\.log\fP
+
+.RE
 .SH main
 .P
 The main field is a module ID that is the primary entry point to your program\.
@@ -795,13 +833,13 @@ specific registry (for example, an internal registry), then use the
 param at publish\-time\.
 .SH publishConfig
 .P
-This is a set of config values that will be used at publish\-time\.  It's
-especially handy if you want to set the tag or registry, so that you can
-ensure that a given package is not tagged with "latest" or published to
-the global public registry by default\.
+This is a set of config values that will be used at publish\-time\. It's
+especially handy if you want to set the tag, registry or access, so that
+you can ensure that a given package is not tagged with "latest", published
+to the global public registry or that a scoped module is private by default\.
 .P
-Any config values can be overridden, but of course only "tag" and
-"registry" probably matter for the purposes of publishing\.
+Any config values can be overridden, but of course only "tag", "registry" and
+"access" probably matter for the purposes of publishing\.
 .P
 See npm help 7 \fBnpm\-config\fP to see the list of config options that can be
 overridden\.

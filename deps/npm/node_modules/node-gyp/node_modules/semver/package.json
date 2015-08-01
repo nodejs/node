@@ -1,0 +1,55 @@
+{
+  "name": "semver",
+  "version": "4.3.6",
+  "description": "The semantic version parser used by npm.",
+  "main": "semver.js",
+  "browser": "semver.browser.js",
+  "min": "semver.min.js",
+  "scripts": {
+    "test": "tap test/*.js",
+    "prepublish": "make"
+  },
+  "devDependencies": {
+    "tap": "^1.2.0",
+    "uglify-js": "~2.3.6"
+  },
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/npm/node-semver.git"
+  },
+  "bin": {
+    "semver": "./bin/semver"
+  },
+  "gitHead": "63c48296ca5da3ba6a88c743bb8c92effc789811",
+  "bugs": {
+    "url": "https://github.com/npm/node-semver/issues"
+  },
+  "homepage": "https://github.com/npm/node-semver#readme",
+  "_id": "semver@4.3.6",
+  "_shasum": "300bc6e0e86374f7ba61068b5b1ecd57fc6532da",
+  "_from": "semver@>=2.0.0 <3.0.0||>=3.0.0 <4.0.0||>=4.0.0 <5.0.0",
+  "_npmVersion": "2.10.1",
+  "_nodeVersion": "2.0.1",
+  "_npmUser": {
+    "name": "isaacs",
+    "email": "isaacs@npmjs.com"
+  },
+  "dist": {
+    "shasum": "300bc6e0e86374f7ba61068b5b1ecd57fc6532da",
+    "tarball": "http://registry.npmjs.org/semver/-/semver-4.3.6.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "isaacs",
+      "email": "isaacs@npmjs.com"
+    },
+    {
+      "name": "othiym23",
+      "email": "ogd@aoaioxxysz.net"
+    }
+  ],
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/semver/-/semver-4.3.6.tgz",
+  "readme": "ERROR: No README data found!"
+}

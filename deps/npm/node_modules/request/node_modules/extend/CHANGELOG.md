@@ -1,3 +1,11 @@
+3.0.0 / 2015-07-01
+==================
+  * [Possible breaking change] Use global "strict" directive (#32)
+  * [Tests] `int` is an ES3 reserved word
+  * [Tests] Test up to `io.js` `v2.3`
+  * [Tests] Add `npm run eslint`
+  * [Dev Deps] Update `covert`, `jscs`
+
 2.0.1 / 2015-04-25
 ==================
   * Use an inline `isArray` check, for ES3 browsers. (#27)

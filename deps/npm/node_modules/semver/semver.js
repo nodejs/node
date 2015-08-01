@@ -1,6 +1,4 @@
-// export the class if we are in a Node-like system.
-if (typeof module === 'object' && module.exports === exports)
-  exports = module.exports = SemVer;
+exports = module.exports = SemVer;
 
 // The debug function is excluded entirely from the minified version.
 /* nomin */ var debug;
@@ -1199,7 +1197,3 @@ function outside(version, range, hilo, loose) {
   }
   return true;
 }
-
-// Use the define() function if we're in AMD land
-if (typeof define === 'function' && define.amd)
-  define(exports);

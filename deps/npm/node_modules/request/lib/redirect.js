@@ -113,7 +113,8 @@ Redirect.prototype.onResponse = function (response) {
     , redirectUri: redirectTo
     }
   )
-  if (self.followAllRedirects && response.statusCode !== 401 && response.statusCode !== 307) {
+  if (self.followAllRedirects && request.method !== 'HEAD'
+    && response.statusCode !== 401 && response.statusCode !== 307) {
     request.method = 'GET'
   }
   // request.method = 'GET' // Force all redirects to use GET || commented out fixes #215
