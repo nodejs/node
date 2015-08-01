@@ -1,5 +1,112 @@
 # io.js ChangeLog
 
+## 2015-08-01, Version 3.0.0, @rvagg
+
+### Notable changes
+
+* **buffer**:
+  - Due to changes in V8, it has been necessary to reimplement `Buffer` on top of V8's `Uint8Array`. While every effort has been made to maintain performance, users are likely to experience a different performance profile depending on how `Buffer` is used. (Trevor Norris) [#1825](https://github.com/nodejs/io.js/pull/1825).
+  - `Buffer` can now take `ArrayBuffer`s as a constructor argument (Trevor Norris) [#2002](https://github.com/nodejs/io.js/pull/2002).
+  - When a single buffer is passed to `Buffer.concat()`, a new, copied `Buffer` object will be returned; previous behavior was to return the original `Buffer` object (Sakthipriyan Vairamani) [#1937](https://github.com/nodejs/io.js/pull/1937).
+* **build**: PPC support has been added to core to allow compiling on pLinux BE and LE (AIX support coming soon) (Michael Dawson) [#2124](https://github.com/nodejs/io.js/pull/2124).
+* **dgram**: If an error occurs within `socket.send()` and a callback has been provided, the error is only passed as the first argument to the callback and not emitted on the `socket` object; previous behavior was to do both (Matteo Collina & Chris Dickinson) [#1796](https://github.com/nodejs/io.js/pull/1796)
+* **freelist**: Deprecate the undocumented `freelist` core module (Sakthipriyan Vairamani) [#2176](https://github.com/nodejs/io.js/pull/2176).
+* **http**:
+  - Status codes now all use the official [IANA names](http://www.iana.org/assignments/http-status-codes) as per [RFC7231](https://tools.ietf.org/html/rfc7231), e.g. `http.STATUS_CODES[414]` now returns `'URI Too Long'` rather than `'Request-URI Too Large'` (jomo) [#1470](https://github.com/nodejs/io.js/pull/1470).
+  - Calling .getName() on an HTTP agent no longer returns a trailing colon, HTTPS agents will no longer return an extra colon near the middle of the string (Brendan Ashworth) [#1617](https://github.com/nodejs/io.js/pull/1617).
+* **node**:
+  - `NODE_MODULE_VERSION` has been bumped to `45` to reflect the break in ABI (Rod Vagg) [#2096](https://github.com/nodejs/io.js/pull/2096).
+  - Introduce a new `process.release` object that contains a `name` property set to `'io.js'` and `sourceUrl`, `headersUrl` and `libUrl` (Windows only) properties containing URLs for the relevant resources; this is intended to be used by node-gyp (Rod Vagg) [#2154](https://github.com/nodejs/io.js/pull/2154).
+  - The version of node-gyp bundled with io.js now downloads and uses a tarball of header files from iojs.org rather than the full source for compiling native add-ons; it is hoped this is a temporary floating patch and the change will be upstreamed to node-gyp soon (Rod Vagg) [#2066](https://github.com/nodejs/io.js/pull/2066).
+* **repl**: Persistent history is now enabled by default. The history file is located at ~/.node_repl_history, which can be overridden by the new environment variable `NODE_REPL_HISTORY`. This deprecates the previous `NODE_REPL_HISTORY_FILE` variable. Additionally, the format of the file has been changed to plain text to better handle file corruption. (Jeremiah Senkpiel) [#2224](https://github.com/nodejs/io.js/pull/2224).
+* **smalloc**: The `smalloc` module has been removed as it is no longer possible to provide the API due to changes in V8 (Ben Noordhuis) [#2022](https://github.com/nodejs/io.js/pull/2022).
+* **tls**: Add `server.getTicketKeys()` and `server.setTicketKeys()` methods for [TLS session key](https://www.ietf.org/rfc/rfc5077.txt) rotation (Fedor Indutny) [#2227](https://github.com/nodejs/io.js/pull/2227).
+* **v8**: Upgraded to 4.4.63.26
+  - ES6: Enabled [computed property names](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Object_initializer#Computed_property_names)
+  - ES6: `Array` can now be subclassed in strict mode
+  - ES6: Implement [rest parameters](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Functions/rest_parameters) in staging, use the `--harmony-rest-parameters` command line flag
+  - ES6: Implement the [spread operator](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_operator) in staging, use the `--harmony-spreadcalls` command line flag
+  - Removed `SetIndexedPropertiesToExternalArrayData` and related APIs, forcing a shift to `Buffer` to be reimplemented based on `Uint8Array`
+  - Introduction of `Maybe` and `MaybeLocal` C++ API for objects which _may_ or _may not_ have a value.
+  - Added support for PPC
+
+### Known issues
+
+See https://github.com/nodejs/io.js/labels/confirmed-bug for complete and current list of known issues.
+
+* Some problems with unreferenced timers running during `beforeExit` are still to be resolved. See [#1264](https://github.com/nodejs/io.js/issues/1264).
+* Surrogate pair in REPL can freeze terminal. [#690](https://github.com/nodejs/io.js/issues/690)
+* `process.send()` is not synchronous as the docs suggest, a regression introduced in 1.0.2, see [#760](https://github.com/nodejs/io.js/issues/760).
+* Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion. [#894](https://github.com/nodejs/io.js/issues/894)
+* `url.resolve` may transfer the auth portion of the url when resolving between two full hosts, see [#1435](https://github.com/nodejs/io.js/issues/1435).
+
+### Commits
+
+* [[`c479f4f347`](https://github.com/nodejs/io.js/commit/c479f4f347)] - **buffer**: fix missing null/undefined check (Trevor Norris)
+* [[`66546969dc`](https://github.com/nodejs/io.js/commit/66546969dc)] - **buffer**: fix not return on error (Trevor Norris) [#2225](https://github.com/nodejs/io.js/pull/2225)
+* [[`27a279202f`](https://github.com/nodejs/io.js/commit/27a279202f)] - **buffer**: rename internal/buffer_new.js to buffer.js (Ben Noordhuis) [#2022](https://github.com/nodejs/io.js/pull/2022)
+* [[`cd4711b1eb`](https://github.com/nodejs/io.js/commit/cd4711b1eb)] - **(SEMVER-MINOR)** **buffer**: allow ArrayBuffer as Buffer argument (Trevor Norris) [#2002](https://github.com/nodejs/io.js/pull/2002)
+* [[`35fd7c1f89`](https://github.com/nodejs/io.js/commit/35fd7c1f89)] - **buffer**: minor cleanup from rebase (Trevor Norris) [#2003](https://github.com/nodejs/io.js/pull/2003)
+* [[`23da05cfe3`](https://github.com/nodejs/io.js/commit/23da05cfe3)] - **buffer**: fix usage of kMaxLength (Trevor Norris) [#2003](https://github.com/nodejs/io.js/pull/2003)
+* [[`1c6279392d`](https://github.com/nodejs/io.js/commit/1c6279392d)] - **(SEMVER-MAJOR)** **buffer**: fix case of one buffer passed to concat (Sakthipriyan Vairamani) [#1937](https://github.com/nodejs/io.js/pull/1937)
+* [[`fa8ba08e58`](https://github.com/nodejs/io.js/commit/fa8ba08e58)] - **buffer**: make additional changes to native API (Trevor Norris) [#1825](https://github.com/nodejs/io.js/pull/1825)
+* [[`cc07cc9729`](https://github.com/nodejs/io.js/commit/cc07cc9729)] - **buffer**: switch API to return MaybeLocal<T> (Trevor Norris) [#1825](https://github.com/nodejs/io.js/pull/1825)
+* [[`06cbede2e9`](https://github.com/nodejs/io.js/commit/06cbede2e9)] - **buffer**: switch to using Maybe<T> API (Trevor Norris) [#1825](https://github.com/nodejs/io.js/pull/1825)
+* [[`64365e9812`](https://github.com/nodejs/io.js/commit/64365e9812)] - **buffer**: finish implementing FreeCallback (Trevor Norris) [#1825](https://github.com/nodejs/io.js/pull/1825)
+* [[`46f011f9ee`](https://github.com/nodejs/io.js/commit/46f011f9ee)] - **buffer**: implement Uint8Array backed Buffer (Trevor Norris) [#1825](https://github.com/nodejs/io.js/pull/1825)
+* [[`1d9f152040`](https://github.com/nodejs/io.js/commit/1d9f152040)] - **buffer**: allow ARGS_THIS to accept a name (Trevor Norris) [#1825](https://github.com/nodejs/io.js/pull/1825)
+* [[`d77ae26302`](https://github.com/nodejs/io.js/commit/d77ae26302)] - **build**: prepare Windows installer for i18n support (Frederic Hemberger) [#2247](https://github.com/nodejs/io.js/pull/2247)
+* [[`9978a0c777`](https://github.com/nodejs/io.js/commit/9978a0c777)] - **build**: add 'x86' option back in to configure (Rod Vagg)
+* [[`5cbff9576a`](https://github.com/nodejs/io.js/commit/5cbff9576a)] - **build**: first set of updates to enable PPC support (Michael Dawson) [#2124](https://github.com/nodejs/io.js/pull/2124)
+* [[`24dd016deb`](https://github.com/nodejs/io.js/commit/24dd016deb)] - **build**: produce symbol map files on windows (Ali Ijaz Sheikh) [#2243](https://github.com/nodejs/io.js/pull/2243)
+* [[`97f321b479`](https://github.com/nodejs/io.js/commit/97f321b479)] - **cluster**: do not unconditionally set --debug-port (cjihrig) [#1949](https://github.com/nodejs/io.js/pull/1949)
+* [[`fa98b97171`](https://github.com/nodejs/io.js/commit/fa98b97171)] - **cluster**: add handle ref/unref stubs in rr mode (Ben Noordhuis) [#2274](https://github.com/nodejs/io.js/pull/2274)
+* [[`d27a3d60d9`](https://github.com/nodejs/io.js/commit/d27a3d60d9)] - **crypto**: remove kMaxLength on randomBytes() (Trevor Norris) [#1825](https://github.com/nodejs/io.js/pull/1825)
+* [[`ce640ab8a7`](https://github.com/nodejs/io.js/commit/ce640ab8a7)] - **deps**: update V8 to 4.4.63.26 (Michaël Zasso) [#2220](https://github.com/nodejs/io.js/pull/2220)
+* [[`a5896d550a`](https://github.com/nodejs/io.js/commit/a5896d550a)] - **deps**: upgrade v8 to 4.4.63.12 (Ben Noordhuis) [#2092](https://github.com/nodejs/io.js/pull/2092)
+* [[`baf0fec202`](https://github.com/nodejs/io.js/commit/baf0fec202)] - **(SEMVER-MAJOR)** **deps**: update v8 to 4.4.63.9 (Ben Noordhuis) [#2022](https://github.com/nodejs/io.js/pull/2022)
+* [[`5f8558fdb1`](https://github.com/nodejs/io.js/commit/5f8558fdb1)] - **deps**: backport 7b24219346 from v8 upstream (Rod Vagg) [#1805](https://github.com/nodejs/io.js/pull/1805)
+* [[`93a0d94f60`](https://github.com/nodejs/io.js/commit/93a0d94f60)] - **(SEMVER-MAJOR)** **deps**: update v8 to 4.3.61.21 (Chris Dickinson) [iojs/io.js#1632](https://github.com/iojs/io.js/pull/1632)
+* [[`2a63cf612b`](https://github.com/nodejs/io.js/commit/2a63cf612b)] - **deps**: make node-gyp work with io.js (cjihrig) [iojs/io.js#990](https://github.com/iojs/io.js/pull/990)
+* [[`bf63266460`](https://github.com/nodejs/io.js/commit/bf63266460)] - **deps**: upgrade to npm 2.13.3 (Kat Marchán) [#2284](https://github.com/nodejs/io.js/pull/2284)
+* [[`f4ad51bf97`](https://github.com/nodejs/io.js/commit/f4ad51bf97)] - **(SEMVER-MAJOR)** **dgram**: make send cb act as "error" event handler (Matteo Collina) [#1796](https://github.com/nodejs/io.js/pull/1796)
+* [[`df3c032e66`](https://github.com/nodejs/io.js/commit/df3c032e66)] - **(SEMVER-MAJOR)** **dgram**: make send cb act as "error" event handler (Chris Dickinson) [#1796](https://github.com/nodejs/io.js/pull/1796)
+* [[`5cfecc96b8`](https://github.com/nodejs/io.js/commit/5cfecc96b8)] - ***Revert*** "**dns**: remove AI_V4MAPPED hint flag on FreeBSD" (cjihrig) [iojs/io.js#1555](https://github.com/iojs/io.js/pull/1555)
+* [[`9573011488`](https://github.com/nodejs/io.js/commit/9573011488)] - **doc**: document repl persistent history changes (Jeremiah Senkpiel) [#2224](https://github.com/nodejs/io.js/pull/2224)
+* [[`d843fe6151`](https://github.com/nodejs/io.js/commit/d843fe6151)] - **doc**: update v8 flags in man page (Michaël Zasso) [iojs/io.js#1701](https://github.com/iojs/io.js/pull/1701)
+* [[`d168d01b04`](https://github.com/nodejs/io.js/commit/d168d01b04)] - **doc**: properly inheriting from EventEmitter (Sakthipriyan Vairamani) [#2168](https://github.com/nodejs/io.js/pull/2168)
+* [[`500f2538cc`](https://github.com/nodejs/io.js/commit/500f2538cc)] - **doc**: a listener, not "an" listener (Sam Roberts) [#1025](https://github.com/nodejs/io.js/pull/1025)
+* [[`54627a919d`](https://github.com/nodejs/io.js/commit/54627a919d)] - **doc**: server close event does not have an argument (Sam Roberts) [#1025](https://github.com/nodejs/io.js/pull/1025)
+* [[`0e0eeb3fb7`](https://github.com/nodejs/io.js/commit/0e0eeb3fb7)] - **(SEMVER-MAJOR)** **http**: fix agent.getName() and add tests (Brendan Ashworth) [#1617](https://github.com/nodejs/io.js/pull/1617)
+* [[`dbc2931459`](https://github.com/nodejs/io.js/commit/dbc2931459)] - **(SEMVER-MAJOR)** **http**: use official IANA Status Codes (jomo) [#1470](https://github.com/nodejs/io.js/pull/1470)
+* [[`d1974e2cb5`](https://github.com/nodejs/io.js/commit/d1974e2cb5)] - **(SEMVER-MAJOR)** **http_server**: `prefinish` vs `finish` (Fedor Indutny) [#1411](https://github.com/nodejs/io.js/pull/1411)
+* [[`c6b9e2bb3c`](https://github.com/nodejs/io.js/commit/c6b9e2bb3c)] - **net**: do not set V4MAPPED on FreeBSD (Julien Gilli) [iojs/io.js#1555](https://github.com/iojs/io.js/pull/1555)
+* [[`3951336b99`](https://github.com/nodejs/io.js/commit/3951336b99)] - **node**: remove redundant --use-old-buffer (Rod Vagg) [#2275](https://github.com/nodejs/io.js/pull/2275)
+* [[`303e635024`](https://github.com/nodejs/io.js/commit/303e635024)] - **(SEMVER-MAJOR)** **node**: do not override `message`/`stack` of error (Fedor Indutny) [#2108](https://github.com/nodejs/io.js/pull/2108)
+* [[`89b435e51e`](https://github.com/nodejs/io.js/commit/89b435e51e)] - **node-gyp**: detect RC build with x.y.z-rc.n format (Rod Vagg) [#2171](https://github.com/nodejs/io.js/pull/2171)
+* [[`71af53f6d9`](https://github.com/nodejs/io.js/commit/71af53f6d9)] - **node-gyp**: download header tarball for compile (Rod Vagg) [#2066](https://github.com/nodejs/io.js/pull/2066)
+* [[`47ee1e4bc1`](https://github.com/nodejs/io.js/commit/47ee1e4bc1)] - **node-gyp**: make aware of nightly, next-nightly & rc (Rod Vagg)
+* [[`2a9de8f3e1`](https://github.com/nodejs/io.js/commit/2a9de8f3e1)] - **(SEMVER-MINOR)** **readline**: allow tabs in input (Rich Trott) [#1761](https://github.com/nodejs/io.js/pull/1761)
+* [[`b701f0f689`](https://github.com/nodejs/io.js/commit/b701f0f689)] - **repl**: default persistence to ~/.node_repl_history (Jeremiah Senkpiel) [#2224](https://github.com/nodejs/io.js/pull/2224)
+* [[`d372f3b21b`](https://github.com/nodejs/io.js/commit/d372f3b21b)] - **(SEMVER-MAJOR)** **repl**: persist history in plain text (Jeremiah Senkpiel) [#2224](https://github.com/nodejs/io.js/pull/2224)
+* [[`376757abe0`](https://github.com/nodejs/io.js/commit/376757abe0)] - **repl**: fix persistent history size limiting (Jeremiah Senkpiel) [#2224](https://github.com/nodejs/io.js/pull/2224)
+* [[`638b0e6d74`](https://github.com/nodejs/io.js/commit/638b0e6d74)] - **src**: disable vector ICs on arm (Michaël Zasso) [#2220](https://github.com/nodejs/io.js/pull/2220)
+* [[`2dcdd435f3`](https://github.com/nodejs/io.js/commit/2dcdd435f3)] - **(SEMVER-MINOR)** **src**: introduce process.release object (Rod Vagg) [#2154](https://github.com/nodejs/io.js/pull/2154)
+* [[`06f5cec529`](https://github.com/nodejs/io.js/commit/06f5cec529)] - **src**: increment NODE_MODULE_VERSION to 45 (Rod Vagg) [#2096](https://github.com/nodejs/io.js/pull/2096)
+* [[`8295a89939`](https://github.com/nodejs/io.js/commit/8295a89939)] - **test**: add tests for persistent repl history (Jeremiah Senkpiel) [#2224](https://github.com/nodejs/io.js/pull/2224)
+* [[`5209940476`](https://github.com/nodejs/io.js/commit/5209940476)] - **test**: remove two obsolete pummel tests (Ben Noordhuis) [#2022](https://github.com/nodejs/io.js/pull/2022)
+* [[`c526951b94`](https://github.com/nodejs/io.js/commit/c526951b94)] - **test**: don't use arguments.callee (Ben Noordhuis) [#2022](https://github.com/nodejs/io.js/pull/2022)
+* [[`009442157e`](https://github.com/nodejs/io.js/commit/009442157e)] - **test**: remove obsolete harmony flags (Chris Dickinson)
+* [[`64cf71195c`](https://github.com/nodejs/io.js/commit/64cf71195c)] - **test**: change the hostname to an invalid name (Sakthipriyan Vairamani) [#2287](https://github.com/nodejs/io.js/pull/2287)
+* [[`80a1cf7425`](https://github.com/nodejs/io.js/commit/80a1cf7425)] - **test**: fix messages and use return to skip tests (Sakthipriyan Vairamani) [#2290](https://github.com/nodejs/io.js/pull/2290)
+* [[`d5ab92bcc1`](https://github.com/nodejs/io.js/commit/d5ab92bcc1)] - **test**: use common.isWindows consistently (Sakthipriyan Vairamani) [#2269](https://github.com/nodejs/io.js/pull/2269)
+* [[`bc733f7065`](https://github.com/nodejs/io.js/commit/bc733f7065)] - **test**: fix fs.readFile('/dev/stdin') tests (Ben Noordhuis) [#2265](https://github.com/nodejs/io.js/pull/2265)
+* [[`3cbb5870e5`](https://github.com/nodejs/io.js/commit/3cbb5870e5)] - **tools**: expose skip output to test runner (Johan Bergström) [#2130](https://github.com/nodejs/io.js/pull/2130)
+* [[`8047015a8f`](https://github.com/nodejs/io.js/commit/8047015a8f)] - **vm**: fix symbol access (Domenic Denicola) [#1773](https://github.com/nodejs/io.js/pull/1773)
+* [[`5dcfaa3ff5`](https://github.com/nodejs/io.js/commit/5dcfaa3ff5)] - **vm**: remove unnecessary access checks (Domenic Denicola) [#1773](https://github.com/nodejs/io.js/pull/1773)
+* [[`9b29e24c81`](https://github.com/nodejs/io.js/commit/9b29e24c81)] - **vm**: fix property descriptors of sandbox properties (Domenic Denicola) [#1773](https://github.com/nodejs/io.js/pull/1773)
+* [[`9bac1dbae9`](https://github.com/nodejs/io.js/commit/9bac1dbae9)] - **win,node-gyp**: enable delay-load hook by default (Bert Belder) [iojs/io.js#1433](https://github.com/iojs/io.js/pull/1433)
+
 ## 2015-07-28, Version 2.5.0, @cjihrig
 
 ### Notable changes
