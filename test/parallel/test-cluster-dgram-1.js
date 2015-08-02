@@ -9,8 +9,9 @@ var dgram = require('dgram');
 
 
 if (common.isWindows) {
-  console.warn('dgram clustering is currently not supported on windows.');
-  process.exit(0);
+  console.log('1..0 # Skipped: dgram clustering is currently not supported ' +
+              'on windows.');
+  return;
 }
 
 if (cluster.isMaster)

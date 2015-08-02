@@ -2,7 +2,7 @@
 if (!process.features.tls_sni) {
   console.log('1..0 # Skipped: node compiled without OpenSSL or ' +
               'with old OpenSSL version.');
-  process.exit(0);
+  return;
 }
 
 var common = require('../common'),

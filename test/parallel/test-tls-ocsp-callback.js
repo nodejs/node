@@ -4,7 +4,7 @@ var common = require('../common');
 if (!process.features.tls_ocsp) {
   console.log('1..0 # Skipped: node compiled without OpenSSL or ' +
               'with old OpenSSL version.');
-  process.exit(0);
+  return;
 }
 if (!common.opensslCli) {
   console.log('1..0 # Skipped: node compiled without OpenSSL CLI.');
