@@ -10,6 +10,8 @@ ecmaFeatures:
   generators: true
   forOf: true
   objectLiteralShorthandProperties: true
+  objectLiteralShorthandMethods: true
+  classes: true
 
 rules:
   # Possible Errors
