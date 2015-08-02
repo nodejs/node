@@ -3,9 +3,9 @@
 const common = require('../common');
 const assert = require('assert');
 
-// SIGUSR1 and SIGHUP are not supported on Windows
 if (common.isWindows) {
-  process.exit(0);
+  console.log('1..0 # Skipped: SIGUSR1 and SIGHUP signals are not supported');
+  return;
 }
 
 console.log('process.pid: ' + process.pid);

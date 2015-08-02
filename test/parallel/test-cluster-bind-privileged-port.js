@@ -10,8 +10,8 @@ if (common.isWindows) {
 }
 
 if (process.getuid() === 0) {
-  console.log('Do not run this test as root.');
-  process.exit(0);
+  console.log('1..0 # Skipped: Test is not supposed to be run as root.');
+  return;
 }
 
 if (cluster.isMaster) {

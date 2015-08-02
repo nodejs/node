@@ -5,9 +5,10 @@ const assert = require('assert');
 const cluster = require('cluster');
 const http = require('http');
 
-// It is not possible to send pipe handles over the IPC pipe on Windows.
 if (common.isWindows) {
-  process.exit(0);
+  console.log('1..0 # Skipped: It is not possible to send pipe handles over ' +
+              'the IPC pipe on Windows');
+  return;
 }
 
 if (cluster.isMaster) {
