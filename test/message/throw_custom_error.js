@@ -6,5 +6,3 @@ console.error('before');
 
 // custom error throwing
 throw ({ name: 'MyCustomError', message: 'This is a custom message' });
-
-console.error('after');
