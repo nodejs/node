@@ -26,7 +26,6 @@ file
     })
   .on('error', function(err) {
       throw err;
-      console.error('error!', err.stack);
     })
   .on('drain', function() {
       console.error('drain!', callbacks.drain);
