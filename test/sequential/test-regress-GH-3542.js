@@ -7,7 +7,8 @@ var common = require('../common'),
 
 // This test is only relevant on Windows.
 if (!common.isWindows) {
-  return process.exit(0);
+  console.log('1..0 # Skipped: Windows specific test.');
+  return;
 }
 
 function test(p) {
