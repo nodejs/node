@@ -773,11 +773,12 @@ def glob_to_var(dir_base, dir_sub, patch_dir):
     (path, dirs, files) = ent
     for file in files:
       if file.endswith('.cpp') or file.endswith('.c') or file.endswith('.h'):
+        # srcfile uses "slash" as dir separator as its output is consumed by gyp
         srcfile = '%s/%s' % (dir_sub, file)
         if patch_dir:
           patchfile = '%s/%s/%s' % (dir_base, patch_dir, file)
           if os.path.isfile(patchfile):
-            srcfile = '../../%s' % patchfile
+            srcfile = '%s/%s' % (patch_dir, file)
             print 'Using version-specific floating patch %s' % patchfile
         list.append(srcfile)
     break
