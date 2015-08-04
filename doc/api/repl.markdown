@@ -29,23 +29,38 @@ For example, you could add this to your bashrc file:
 
     alias iojs="env NODE_NO_READLINE=1 rlwrap iojs"
 
+### Persistent History
+
+By default, the REPL will persist history between `iojs` REPL sessions by saving
+to a `.node_repl_history` file in the user's home directory. This can be
+disabled by setting the environment variable `NODE_REPL_HISTORY=""`.
+
+Previously in io.js v2.x, REPL history was controlled by using a
+`NODE_REPL_HISTORY_FILE` environment variable, and the history was saved in JSON
+format. This variable has now been deprecated, and your REPL history will
+automatically be converted to using plain text. The new file will be saved to
+either your home directory, or a directory defined by the `NODE_REPL_HISTORY`
+variable, as documented below.
+
+### Environment Variable Options
+
 The built-in repl (invoked by running `iojs` or `iojs -i`) may be controlled
 via the following environment variables:
 
- - `NODE_REPL_HISTORY_FILE` - if given, must be a path to a user-writable,
-   user-readable file. When a valid path is given, persistent history support
-   is enabled: REPL history will persist across `iojs` repl sessions.
- - `NODE_REPL_HISTORY_SIZE` - defaults to `1000`. In conjunction with
-   `NODE_REPL_HISTORY_FILE`, controls how many lines of history will be
-   persisted. Must be a positive number.
+ - `NODE_REPL_HISTORY` - When a valid path is given, persistent REPL history
+   will be saved to the specified file rather than `.node_repl_history` in the
+   user's home directory. Setting this value to `""` will disable persistent
+   REPL history.
+ - `NODE_REPL_HISTORY_SIZE` - defaults to `1000`. Controls how many lines of
+   history will be persisted if history is available. Must be a positive number.
  - `NODE_REPL_MODE` - may be any of `sloppy`, `strict`, or `magic`. Defaults
    to `magic`, which will automatically run "strict mode only" statements in
    strict mode.
 
 ## repl.start(options)
 
-Returns and starts a `REPLServer` instance, that inherits from 
-[Readline Interface][]. Accepts an "options" Object that takes 
+Returns and starts a `REPLServer` instance, that inherits from
+[Readline Interface][]. Accepts an "options" Object that takes
 the following values:
 
  - `prompt` - the prompt and `stream` for all I/O. Defaults to `> `.
