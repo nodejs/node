@@ -209,9 +209,6 @@ readable.on('data', function(chunk) {
   console.log('got %d bytes of data', chunk.length);
 });
 ```
-Note that the `readable` event should not be used together with `data`
-because the assigning the latter switches the stream into "flowing" mode,
-so the `readable` event will not be emitted.
 
 #### Event: 'end'
 
@@ -1360,7 +1357,7 @@ for examples and testing, but there are occasionally use cases where
 it can come in handy as a building block for novel sorts of streams.
 
 
-## Simplified Constructor API 
+## Simplified Constructor API
 
 <!--type=misc-->
 
