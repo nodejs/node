@@ -29,7 +29,7 @@ For example, you could add this to your bashrc file:
 
     alias iojs="env NODE_NO_READLINE=1 rlwrap iojs"
 
-### Persistent History
+## Persistent History
 
 By default, the REPL will persist history between `iojs` REPL sessions by saving
 to a `.node_repl_history` file in the user's home directory. This can be
@@ -42,7 +42,7 @@ automatically be converted to using plain text. The new file will be saved to
 either your home directory, or a directory defined by the `NODE_REPL_HISTORY`
 variable, as documented below.
 
-### Environment Variable Options
+## Environment Variable Options
 
 The built-in repl (invoked by running `iojs` or `iojs -i`) may be controlled
 via the following environment variables:
