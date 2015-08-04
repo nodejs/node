@@ -696,7 +696,7 @@ the total bytes written to the socket, *including the TLS overhead*.
 
 ## Class: CleartextStream
 
-The CleartextStream class in Node.js version v0.10.39 and prior has been
+The CleartextStream class in Node.js version v0.10.x (and prior) has been
 deprecated and removed.
 
 ## Class: tls.TLSSocket
