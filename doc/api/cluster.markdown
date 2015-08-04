@@ -121,7 +121,7 @@ values are `"rr"` and `"none"`.
 ## cluster.settings
 
 * {Object}
-  * `execArgv` {Array} list of string arguments passed to the io.js executable. 
+  * `execArgv` {Array} list of string arguments passed to the io.js executable.
     (Default=`process.execArgv`)
   * `exec` {String} file path to worker file.  (Default=`process.argv[1]`)
   * `args` {Array} string arguments passed to worker.
@@ -613,7 +613,7 @@ It is not emitted in the worker.
 
 ### Event: 'disconnect'
 
-Similar to the `cluster.on('disconnect')` event, but specfic to this worker.
+Similar to the `cluster.on('disconnect')` event, but specific to this worker.
 
     cluster.fork().on('disconnect', function() {
       // Worker has disconnected
