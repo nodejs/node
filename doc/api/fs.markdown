@@ -798,7 +798,7 @@ on Unix systems, it never was.
 
 Returns a new ReadStream object (See `Readable Stream`).
 
-`options` is an object or string with the following defaults:
+`options` is an object (except function) or string with the following defaults:
 
     { flags: 'r',
       encoding: null,
@@ -826,6 +826,8 @@ An example to read the last 10 bytes of a file which is 100 bytes long:
 
 If `options` is a string, then it specifies the encoding.
 
+    fs.createReadStream('sample.txt', 'utf8');
+
 ## Class: fs.ReadStream
 
 `ReadStream` is a [Readable Stream](stream.html#stream_class_stream_readable).
@@ -841,7 +843,7 @@ Emitted when the ReadStream's file is opened.
 
 Returns a new WriteStream object (See `Writable Stream`).
 
-`options` is an object or string with the following defaults:
+`options` is an object (except function) or string with the following defaults:
 
     { flags: 'w',
       encoding: null,
