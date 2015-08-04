@@ -67,6 +67,10 @@ Allocates a new buffer of `size` bytes.  `size` must be less than
 2,147,483,648 bytes (2 GB) on 64 bits architectures,
 otherwise a `RangeError` is thrown.
 
+Unlike `ArrayBuffers`, the underlying memory for buffers is not initialized. So
+the contents of a newly created `Buffer` is unknown. Use `buf.fill(0)`to
+initialize a buffer to zeroes.
+
 ### new Buffer(array)
 
 * `array` Array
