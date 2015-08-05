@@ -135,17 +135,6 @@ API
     For :man:`isatty(3)` equivalent functionality use this function and test
     for ``UV_TTY``.
 
-.. c:function:: unsigned int uv_version(void)
-
-    Returns the libuv version packed into a single integer. 8 bits are used for
-    each component, with the patch number stored in the 8 least significant
-    bits. E.g. for libuv 1.2.3 this would return 0x010203.
-
-.. c:function:: const char* uv_version_string(void)
-
-    Returns the libuv version number as a string. For non-release versions
-    "-pre" is appended, so the version number could be "1.2.3-pre".
-
 .. c:function:: int uv_replace_allocator(uv_malloc_func malloc_func, uv_realloc_func realloc_func, uv_calloc_func calloc_func, uv_free_func free_func)
 
     .. versionadded:: 1.6.0

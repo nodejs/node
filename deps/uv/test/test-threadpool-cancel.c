@@ -279,10 +279,12 @@ TEST_IMPL(threadpool_cancel_fs) {
   uv_fs_t reqs[25];
   uv_loop_t* loop;
   unsigned n;
+  uv_buf_t iov;
 
   INIT_CANCEL_INFO(&ci, reqs);
   loop = uv_default_loop();
   saturate_threadpool();
+  iov = uv_buf_init(NULL, 0);
 
   /* Needs to match ARRAY_SIZE(fs_reqs). */
   n = 0;
@@ -300,7 +302,7 @@ TEST_IMPL(threadpool_cancel_fs) {
   ASSERT(0 == uv_fs_lstat(loop, reqs + n++, "/", fs_cb));
   ASSERT(0 == uv_fs_mkdir(loop, reqs + n++, "/", 0, fs_cb));
   ASSERT(0 == uv_fs_open(loop, reqs + n++, "/", 0, 0, fs_cb));
-  ASSERT(0 == uv_fs_read(loop, reqs + n++, 0, NULL, 0, 0, fs_cb));
+  ASSERT(0 == uv_fs_read(loop, reqs + n++, 0, &iov, 1, 0, fs_cb));
   ASSERT(0 == uv_fs_scandir(loop, reqs + n++, "/", 0, fs_cb));
   ASSERT(0 == uv_fs_readlink(loop, reqs + n++, "/", fs_cb));
   ASSERT(0 == uv_fs_rename(loop, reqs + n++, "/", "/", fs_cb));
@@ -310,7 +312,7 @@ TEST_IMPL(threadpool_cancel_fs) {
   ASSERT(0 == uv_fs_symlink(loop, reqs + n++, "/", "/", 0, fs_cb));
   ASSERT(0 == uv_fs_unlink(loop, reqs + n++, "/", fs_cb));
   ASSERT(0 == uv_fs_utime(loop, reqs + n++, "/", 0, 0, fs_cb));
-  ASSERT(0 == uv_fs_write(loop, reqs + n++, 0, NULL, 0, 0, fs_cb));
+  ASSERT(0 == uv_fs_write(loop, reqs + n++, 0, &iov, 1, 0, fs_cb));
   ASSERT(n == ARRAY_SIZE(reqs));
 
   ASSERT(0 == uv_timer_init(loop, &ci.timer_handle));

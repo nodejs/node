@@ -46,7 +46,7 @@ N/A
 API
 ---
 
-.. c:function:: int uv_tty_init(uv_loop_t*, uv_tty_t*, uv_file fd, int readable)
+.. c:function:: int uv_tty_init(uv_loop_t* loop, uv_tty_t* handle, uv_file fd, int readable)
 
     Initialize a new TTY stream with the given file descriptor. Usually the
     file descriptor will be:
@@ -70,7 +70,7 @@ API
                         descriptor that refers to a file returns `UV_EINVAL`
                         on UNIX.
 
-.. c:function:: int uv_tty_set_mode(uv_tty_t*, uv_tty_mode_t mode)
+.. c:function:: int uv_tty_set_mode(uv_tty_t* handle, uv_tty_mode_t mode)
 
     .. versionchanged:: 1.2.0: the mode is specified as a
                         :c:type:`uv_tty_mode_t` value.
@@ -86,7 +86,7 @@ API
     code ``UV_EBUSY`` if you call it when execution is inside
     :c:func:`uv_tty_set_mode`.
 
-.. c:function:: int uv_tty_get_winsize(uv_tty_t*, int* width, int* height)
+.. c:function:: int uv_tty_get_winsize(uv_tty_t* handle, int* width, int* height)
 
     Gets the current Window size. On success it returns 0.
 

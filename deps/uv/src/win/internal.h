@@ -64,7 +64,7 @@ extern UV_THREAD_LOCAL int uv__crt_assert_enabled;
 
 /* Used by all handles. */
 #define UV_HANDLE_CLOSED                        0x00000002
-#define UV_HANDLE_ENDGAME_QUEUED                0x00000004
+#define UV_HANDLE_ENDGAME_QUEUED                0x00000008
 
 /* uv-common.h: #define UV__HANDLE_CLOSING      0x00000001 */
 /* uv-common.h: #define UV__HANDLE_ACTIVE       0x00000040 */
@@ -76,7 +76,6 @@ extern UV_THREAD_LOCAL int uv__crt_assert_enabled;
 #define UV_HANDLE_BOUND                         0x00000200
 #define UV_HANDLE_LISTENING                     0x00000800
 #define UV_HANDLE_CONNECTION                    0x00001000
-#define UV_HANDLE_CONNECTED                     0x00002000
 #define UV_HANDLE_READABLE                      0x00008000
 #define UV_HANDLE_WRITABLE                      0x00010000
 #define UV_HANDLE_READ_PENDING                  0x00020000

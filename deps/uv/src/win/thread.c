@@ -191,6 +191,7 @@ int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
 
 
 uv_thread_t uv_thread_self(void) {
+  uv_once(&uv__current_thread_init_guard, uv__init_current_thread_key);
   return (uv_thread_t) uv_key_get(&uv__current_thread_key);
 }
 

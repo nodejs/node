@@ -79,6 +79,8 @@ TEST_IMPL(tcp_connect_timeout) {
                      &conn,
                      (const struct sockaddr*) &addr,
                      connect_cb);
+  if (r == UV_ENETUNREACH)
+    RETURN_SKIP("Network unreachable.");
   ASSERT(r == 0);
 
   r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);

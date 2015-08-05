@@ -28,9 +28,18 @@ N/A
 API
 ---
 
-.. c:function:: int uv_tcp_init(uv_loop_t*, uv_tcp_t* handle)
+.. c:function:: int uv_tcp_init(uv_loop_t* loop, uv_tcp_t* handle)
 
-    Initialize the handle.
+    Initialize the handle. No socket is created as of yet.
+
+.. c:function:: int uv_tcp_init_ex(uv_loop_t* loop, uv_tcp_t* handle, unsigned int flags)
+
+    Initialize the handle with the specified flags. At the moment the lower 8 bits
+    of the `flags` parameter are used as the socket domain. A socket will be created
+    for the given domain. If the specified domain is ``AF_UNSPEC`` no socket is created,
+    just like :c:func:`uv_tcp_init`.
+
+    .. versionadded:: 1.7.0
 
 .. c:function:: int uv_tcp_open(uv_tcp_t* handle, uv_os_sock_t sock)
 

@@ -304,7 +304,7 @@ static int pipe_echo_start(char* pipeName) {
 #ifndef _WIN32
   {
     uv_fs_t req;
-    uv_fs_unlink(uv_default_loop(), &req, pipeName, NULL);
+    uv_fs_unlink(NULL, &req, pipeName, NULL);
     uv_fs_req_cleanup(&req);
   }
 #endif
