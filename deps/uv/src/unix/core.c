@@ -35,7 +35,7 @@
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <limits.h> /* INT_MAX, PATH_MAX */
+#include <limits.h> /* INT_MAX, PATH_MAX, IOV_MAX */
 #include <sys/uio.h> /* writev */
 #include <sys/resource.h> /* getrusage */
 #include <pwd.h>
@@ -55,13 +55,13 @@
 # include <sys/ioctl.h>
 #endif
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__DragonFly__)
 # include <sys/sysctl.h>
 # include <sys/filio.h>
 # include <sys/ioctl.h>
 # include <sys/wait.h>
 # define UV__O_CLOEXEC O_CLOEXEC
-# if __FreeBSD__ >= 10
+# if defined(__FreeBSD__) && __FreeBSD__ >= 10
 #  define uv__accept4 accept4
 #  define UV__SOCK_NONBLOCK SOCK_NONBLOCK
 #  define UV__SOCK_CLOEXEC  SOCK_CLOEXEC
@@ -197,6 +197,19 @@ void uv__make_close_pending(uv_handle_t* handle) {
   assert(!(handle->flags & UV_CLOSED));
   handle->next_closing = handle->loop->closing_handles;
   handle->loop->closing_handles = handle;
+}
+
+int uv__getiovmax(void) {
+#if defined(IOV_MAX)
+  return IOV_MAX;
+#elif defined(_SC_IOV_MAX)
+  static int iovmax = -1;
+  if (iovmax == -1)
+    iovmax = sysconf(_SC_IOV_MAX);
+  return iovmax;
+#else
+  return 1024;
+#endif
 }
 
 
@@ -477,7 +490,7 @@ int uv__close(int fd) {
 
 
 #if defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__) || \
-    defined(_AIX)
+    defined(_AIX) || defined(__DragonFly__)
 
 int uv__nonblock(int fd, int set) {
   int r;
@@ -506,7 +519,8 @@ int uv__cloexec(int fd, int set) {
   return 0;
 }
 
-#else /* !(defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__)) */
+#else /* !(defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__) || \
+	   defined(_AIX) || defined(__DragonFly__)) */
 
 int uv__nonblock(int fd, int set) {
   int flags;
@@ -569,7 +583,8 @@ int uv__cloexec(int fd, int set) {
   return 0;
 }
 
-#endif /* defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__) */
+#endif /* defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__) || \
+	  defined(_AIX) || defined(__DragonFly__) */
 
 
 /* This function is not execve-safe, there is a race window
@@ -907,7 +922,8 @@ int uv__open_cloexec(const char* path, int flags) {
   int err;
   int fd;
 
-#if defined(__linux__) || (defined(__FreeBSD__) && __FreeBSD__ >= 9)
+#if defined(__linux__) || (defined(__FreeBSD__) && __FreeBSD__ >= 9) || \
+    defined(__DragonFly__)
   static int no_cloexec;
 
   if (!no_cloexec) {
