@@ -59,14 +59,18 @@ TEST_IMPL(tcp_close_while_connecting) {
   uv_connect_t connect_req;
   struct sockaddr_in addr;
   uv_loop_t* loop;
+  int r;
 
   loop = uv_default_loop();
   ASSERT(0 == uv_ip4_addr("1.2.3.4", TEST_PORT, &addr));
   ASSERT(0 == uv_tcp_init(loop, &tcp_handle));
-  ASSERT(0 == uv_tcp_connect(&connect_req,
-                             &tcp_handle,
-                             (const struct sockaddr*) &addr,
-                             connect_cb));
+  r = uv_tcp_connect(&connect_req,
+                     &tcp_handle,
+                     (const struct sockaddr*) &addr,
+                     connect_cb);
+  if (r == UV_ENETUNREACH)
+    RETURN_SKIP("Network unreachable.");
+  ASSERT(r == 0);
   ASSERT(0 == uv_timer_init(loop, &timer1_handle));
   ASSERT(0 == uv_timer_start(&timer1_handle, timer1_cb, 50, 0));
   ASSERT(0 == uv_timer_init(loop, &timer2_handle));

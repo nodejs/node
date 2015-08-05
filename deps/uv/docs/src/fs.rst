@@ -168,6 +168,11 @@ API
 
     Equivalent to :man:`open(2)`.
 
+    .. note::
+        On Windows libuv uses `CreateFileW` and thus the file is always opened
+        in binary mode. Because of this the O_BINARY and O_TEXT flags are not
+        supported.
+
 .. c:function:: int uv_fs_read(uv_loop_t* loop, uv_fs_t* req, uv_file file, const uv_buf_t bufs[], unsigned int nbufs, int64_t offset, uv_fs_cb cb)
 
     Equivalent to :man:`preadv(2)`.
@@ -205,6 +210,13 @@ API
     for the request is called, the user can use :c:func:`uv_fs_scandir_next` to
     get `ent` populated with the next directory entry data. When there are no
     more entries ``UV_EOF`` will be returned.
+
+    .. note::
+        Unlike `scandir(3)`, this function does not return the "." and ".." entries.
+
+    .. note::
+        On Linux, getting the type of an entry is only supported by some filesystems (btrfs, ext2,
+        ext3 and ext4 at the time of this writing), check the :man:`getdents(2)` man page.
 
 .. c:function:: int uv_fs_stat(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb)
 .. c:function:: int uv_fs_fstat(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb)

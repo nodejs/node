@@ -88,7 +88,7 @@ API
     `path` for changes. `flags` can be an ORed mask of :c:type:`uv_fs_event_flags`.
 
     .. note:: Currently the only supported flag is ``UV_FS_EVENT_RECURSIVE`` and
-              only on OSX.
+              only on OSX and Windows.
 
 .. c:function:: int uv_fs_event_stop(uv_fs_event_t* handle)
 

@@ -74,6 +74,30 @@ uint64_t uv__hrtime(uv_clocktype_t type) {
 }
 
 
+#ifdef __DragonFly__
+int uv_exepath(char* buffer, size_t* size) {
+  char abspath[PATH_MAX * 2 + 1];
+  ssize_t abspath_size;
+
+  if (buffer == NULL || size == NULL || *size == 0)
+    return -EINVAL;
+
+  abspath_size = readlink("/proc/curproc/file", abspath, sizeof(abspath));
+  if (abspath_size < 0)
+    return -errno;
+
+  assert(abspath_size > 0);
+  *size -= 1;
+
+  if (*size > abspath_size)
+    *size = abspath_size;
+
+  memcpy(buffer, abspath, *size);
+  buffer[*size] = '\0';
+
+  return 0;
+}
+#else
 int uv_exepath(char* buffer, size_t* size) {
   char abspath[PATH_MAX * 2 + 1];
   int mib[4];
@@ -82,19 +106,12 @@ int uv_exepath(char* buffer, size_t* size) {
   if (buffer == NULL || size == NULL || *size == 0)
     return -EINVAL;
 
-#ifdef __DragonFly__
-  mib[0] = CTL_KERN;
-  mib[1] = KERN_PROC;
-  mib[2] = KERN_PROC_ARGS;
-  mib[3] = getpid();
-#else
   mib[0] = CTL_KERN;
   mib[1] = KERN_PROC;
   mib[2] = KERN_PROC_PATHNAME;
   mib[3] = -1;
-#endif
 
-  abspath_size = sizeof abspath;;
+  abspath_size = sizeof abspath;
   if (sysctl(mib, 4, abspath, &abspath_size, NULL, 0))
     return -errno;
 
@@ -110,7 +127,7 @@ int uv_exepath(char* buffer, size_t* size) {
 
   return 0;
 }
-
+#endif
 
 uint64_t uv_get_free_memory(void) {
   int freecount;

@@ -185,6 +185,7 @@ static void loop_creating_worker(void* context) {
     ASSERT(r == 0);
 
     uv_loop_close(loop);
+    free(loop);
 
     increment_counter(&loop_creation_counter);
   } while (!stop);

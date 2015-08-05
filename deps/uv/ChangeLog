@@ -1,3 +1,163 @@
+2015.08.28, Version 1.7.3 (Stable), 93877b11c8b86e0a6befcda83a54555c1e36e4f0
+
+Changes since version 1.7.2:
+
+* threadpool: fix thread starvation bug (Ben Noordhuis)
+
+
+2015.08.25, Version 1.7.2 (Stable), 4d13a013fcfa72311f0102751fdc7951873f466c
+
+Changes since version 1.7.1:
+
+* unix, win: make uv_loop_init return on error (Willem Thiart)
+
+* win: reset pipe handle for pipe servers (Saúl Ibarra Corretgé)
+
+* win: fix replacing pipe handle for pipe servers (Saúl Ibarra Corretgé)
+
+* win: fix setting pipe pending instances after bind (Saúl Ibarra Corretgé)
+
+
+2015.08.20, Version 1.7.1 (Stable), 44f4b6bd82d8ae4583ccc4768a83af778ef69f85
+
+Changes since version 1.7.0:
+
+* doc: document the procedure for verifying releases (Saúl Ibarra Corretgé)
+
+* doc: add note about Windows binaries to the README (Saúl Ibarra Corretgé)
+
+* doc: use long GPG IDs in MAINTAINERS.md (Saúl Ibarra Corretgé)
+
+* Revert "stream: squelch ECONNRESET error if already closed" (Saúl Ibarra
+  Corretgé)
+
+* doc: clarify uv_read_stop() is idempotent (Corbin Simpson)
+
+* unix: OpenBSD's setsockopt needs an unsigned char for multicast (Zachary
+  Hamm)
+
+* test: Fix two memory leaks (Karl Skomski)
+
+* unix,win: return EINVAL on nullptr args in uv_fs_{read,write} (Karl Skomski)
+
+* win: set accepted TCP sockets as non-inheritable (Saúl Ibarra Corretgé)
+
+* unix: remove superfluous parentheses in fs macros (Ben Noordhuis)
+
+* unix: don't copy arguments for sync fs requests (Ben Noordhuis)
+
+* test: plug small memory leak in unix test runner (Ben Noordhuis)
+
+* unix,windows: allow NULL loop for sync fs requests (Ben Noordhuis)
+
+* unix,windows: don't assert on unknown error code (Ben Noordhuis)
+
+* stream: retry write on EPROTOTYPE on OSX (Brian White)
+
+* common: fix use of snprintf on Windows (Saúl Ibarra Corretgé)
+
+* tests: refactored fs watch_dir tests for stability (Jeremy Whitlock)
+
+
+2015.08.06, Version 1.7.0 (Stable), 415a865d6365ba58d02b92b89d46ba5d7744ec8b
+
+Changes since version 1.6.1:
+
+* win,stream: add slot to remember CRT fd (Bert Belder)
+
+* win,pipe: properly close when created from CRT fd (Bert Belder)
+
+* win,pipe: don't close fd 0-2 (Bert Belder)
+
+* win,tty: convert fd -> handle safely (Bert Belder)
+
+* win,tty: properly close when created from CRT fd (Bert Belder)
+
+* win,tty: don't close fd 0-2 (Bert Belder)
+
+* win,fs: don't close fd 0-2 (Bert Belder)
+
+* win: include "malloc.h" (Cheng Zhao)
+
+* windows: MSVC 2015 has C99 inline (Jason Williams)
+
+* dragonflybsd: fixes for nonblocking and cloexec (Michael Neumann)
+
+* dragonflybsd: use sendfile(2) for uv_fs_sendfile (Michael Neumann)
+
+* dragonflybsd: fix uv_exepath (Michael Neumann)
+
+* win,fs: Fixes align(8) directive on mingw (Stefano Cristiano)
+
+* unix, win: prevent replacing fd in uv_{udp,tcp,pipe}_t (Saúl Ibarra Corretgé)
+
+* win: move logic to set socket non-inheritable to uv_tcp_set_socket (Saúl
+  Ibarra Corretgé)
+
+* unix, win: add ability to create tcp/udp sockets early (Saúl Ibarra Corretgé)
+
+* test: retry select() on EINTR, honor milliseconds (Ben Noordhuis)
+
+* unix: consolidate tcp and udp bind error (Saúl Ibarra Corretgé)
+
+* test: conditionally skip udp_ipv6_multicast_join6 (heshamsafi)
+
+* core: add UV_VERSION_HEX macro (Saúl Ibarra Corretgé)
+
+* doc: add section with version-checking macros and functions (Saúl Ibarra
+  Corretgé)
+
+* tty: cleanup handle if uv_tty_init fails (Saúl Ibarra Corretgé)
+
+* darwin: save a fd when FSEvents is used (Saúl Ibarra Corretgé)
+
+* win: fix returning thread id in uv_thread_self (Saúl Ibarra Corretgé)
+
+* common: use offsetof for QUEUE_DATA (Saúl Ibarra Corretgé)
+
+* win: remove UV_HANDLE_CONNECTED (A. Hauptmann)
+
+* docs: add Windows specific note for uv_fs_open (Saúl Ibarra Corretgé)
+
+* doc: add note about uv_fs_scandir (Saúl Ibarra Corretgé)
+
+* test,unix: reduce stack size of watchdog threads (Ben Noordhuis)
+
+* win: add support for recursive file watching (Saúl Ibarra Corretgé)
+
+* win,tty: support consoles with non-default colors (John McNamee)
+
+* doc: add missing variable name (Yosuke Furukawa)
+
+* stream: squelch ECONNRESET error if already closed (Santiago Gimeno)
+
+* build: remove ancient condition from common.gypi (Saúl Ibarra Corretgé)
+
+* tests: skip some tests when network is unreachable (Luca Bruno)
+
+* build: proper support for android cross compilation (guworks)
+
+* android: add missing include to pthread-fixes.c (RossBencina)
+
+* test: fix compilation warning (Saúl Ibarra Corretgé)
+
+* doc: add a note about uv_dirent_t.type (Saúl Ibarra Corretgé)
+
+* win,test: fix shared library build (Saúl Ibarra Corretgé)
+
+* test: fix compilation warning (Santiago Gimeno)
+
+* build: add experimental Windows installer (Roger A. Light)
+
+* threadpool: send signal only when queue is empty (chenttuuvv)
+
+* aix: fix uv_exepath with relative paths (Richard Lau)
+
+* build: fix version syntax in AppVeyor file (Saúl Ibarra Corretgé)
+
+* unix: allow nbufs > IOV_MAX in uv_fs_{read,write} (ronkorving)
+
+
 2015.06.06, Version 1.6.1 (Stable), 30c8be07bb78a66fdee5141626bf53a49a17094a
 
 Changes since version 1.6.0:

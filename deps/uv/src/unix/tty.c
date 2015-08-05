@@ -51,8 +51,6 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, int fd, int readable) {
   flags = 0;
   newfd = -1;
 
-  uv__stream_init(loop, (uv_stream_t*) tty, UV_TTY);
-
   /* Reopen the file descriptor when it refers to a tty. This lets us put the
    * tty in non-blocking mode without affecting other processes that share it
    * with us.
@@ -89,11 +87,18 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, int fd, int readable) {
   }
 
 skip:
+  uv__stream_init(loop, (uv_stream_t*) tty, UV_TTY);
+
+  /* If anything fails beyond this point we need to remove the handle from
+   * the handle queue, since it was added by uv__handle_init in uv_stream_init.
+   */
+
 #if defined(__APPLE__)
   r = uv__stream_try_select((uv_stream_t*) tty, &fd);
   if (r) {
     if (newfd != -1)
       uv__close(newfd);
+    QUEUE_REMOVE(&tty->handle_queue);
     return r;
   }
 #endif
