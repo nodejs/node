@@ -179,8 +179,8 @@ enum test_status {
 
 #include <stdarg.h>
 
-/* Define inline for MSVC */
-# ifdef _MSC_VER
+/* Define inline for MSVC<2015 */
+# if defined(_MSC_VER) && _MSC_VER < 1900
 #  define inline __inline
 # endif
 

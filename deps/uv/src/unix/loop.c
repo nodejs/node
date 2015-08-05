@@ -63,24 +63,44 @@ int uv_loop_init(uv_loop_t* loop) {
   if (err)
     return err;
 
-  uv_signal_init(loop, &loop->child_watcher);
+  err = uv_signal_init(loop, &loop->child_watcher);
+  if (err)
+    goto fail_signal_init;
+
   uv__handle_unref(&loop->child_watcher);
   loop->child_watcher.flags |= UV__HANDLE_INTERNAL;
   QUEUE_INIT(&loop->process_handles);
 
-  if (uv_rwlock_init(&loop->cloexec_lock))
-    abort();
+  err = uv_rwlock_init(&loop->cloexec_lock);
+  if (err)
+    goto fail_rwlock_init;
 
-  if (uv_mutex_init(&loop->wq_mutex))
-    abort();
+  err = uv_mutex_init(&loop->wq_mutex);
+  if (err)
+    goto fail_mutex_init;
 
-  if (uv_async_init(loop, &loop->wq_async, uv__work_done))
-    abort();
+  err = uv_async_init(loop, &loop->wq_async, uv__work_done);
+  if (err)
+    goto fail_async_init;
 
   uv__handle_unref(&loop->wq_async);
   loop->wq_async.flags |= UV__HANDLE_INTERNAL;
 
   return 0;
+
+fail_async_init:
+  uv_mutex_destroy(&loop->wq_mutex);
+
+fail_mutex_init:
+  uv_rwlock_destroy(&loop->cloexec_lock);
+
+fail_rwlock_init:
+  uv__signal_loop_cleanup(loop);
+
+fail_signal_init:
+  uv__platform_loop_delete(loop);
+
+  return err;
 }
 
 

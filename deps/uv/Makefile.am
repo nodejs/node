@@ -186,8 +186,10 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-ping-pong.c \
                          test/test-pipe-bind-error.c \
                          test/test-pipe-connect-error.c \
+                         test/test-pipe-connect-multiple.c \
                          test/test-pipe-connect-prepare.c \
                          test/test-pipe-getsockname.c \
+                         test/test-pipe-pending-instances.c \
                          test/test-pipe-sendmsg.c \
                          test/test-pipe-server-close.c \
                          test/test-pipe-close-stdout-read-stdin.c \
@@ -215,6 +217,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-tcp-close-accept.c \
                          test/test-tcp-close-while-connecting.c \
                          test/test-tcp-close.c \
+                         test/test-tcp-create-socket-early.c \
                          test/test-tcp-connect-error-after-write.c \
                          test/test-tcp-connect-error.c \
                          test/test-tcp-connect-timeout.c \
@@ -240,6 +243,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-timer.c \
                          test/test-tty.c \
                          test/test-udp-bind.c \
+                         test/test-udp-create-socket-early.c \
                          test/test-udp-dgram-too-big.c \
                          test/test-udp-ipv6.c \
                          test/test-udp-multicast-interface.c \

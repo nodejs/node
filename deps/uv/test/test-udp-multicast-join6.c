@@ -124,6 +124,11 @@ TEST_IMPL(udp_multicast_join6) {
 #else
   r = uv_udp_set_membership(&client, "ff02::1", NULL, UV_JOIN_GROUP);
 #endif
+  if (r == UV_ENODEV) {
+    MAKE_VALGRIND_HAPPY();
+    RETURN_SKIP("No ipv6 multicast route");
+  }
+
   ASSERT(r == 0);
 
   r = uv_udp_recv_start(&client, alloc_cb, cl_recv_cb);
