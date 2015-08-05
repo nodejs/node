@@ -3,9 +3,9 @@
 // verifies that, when a child process is forked, the cluster.worker
 // object can receive messages as expected
 
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
 var msg = 'foo';
 
 if (cluster.isMaster) {

@@ -1,13 +1,13 @@
 'use strict';
-var assert = require('assert');
-var util = require('util');
-var join = require('path').join;
-var fs = require('fs');
-var common = require('../common');
+const assert = require('assert');
+const util = require('util');
+const join = require('path').join;
+const fs = require('fs');
+const common = require('../common');
 
 common.refreshTmpDir();
 
-var repl = require('repl');
+const repl = require('repl');
 
 // A stream to push an array into a REPL
 function ArrayStream() {

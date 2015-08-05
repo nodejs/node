@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var stream = require('stream');
-var util = require('util');
+const stream = require('stream');
+const util = require('util');
 
 function MyWritable(fn, options) {
   stream.Writable.call(this, options);

@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var module = require('module');
+const module_ = require('module');
 
 var file, delimiter, paths;
 
@@ -14,7 +14,7 @@ if (common.isWindows) {
   delimiter = '/';
 }
 
-paths = module._nodeModulePaths(file);
+paths = module_._nodeModulePaths(file);
 
 assert.ok(paths.indexOf(file + delimiter + 'node_modules') !== -1);
 assert.ok(Array.isArray(paths));

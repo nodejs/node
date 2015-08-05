@@ -1,6 +1,6 @@
 'use strict';
-var assert = require('assert');
-var cluster = require('cluster');
+const assert = require('assert');
+const cluster = require('cluster');
 
 var OK = 2;
 

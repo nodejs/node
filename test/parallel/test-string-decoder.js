@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var StringDecoder = require('string_decoder').StringDecoder;
+const common = require('../common');
+const assert = require('assert');
+const StringDecoder = require('string_decoder').StringDecoder;
 
 process.stdout.write('scanning ');
 

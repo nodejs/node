@@ -1,10 +1,10 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
-var fs = require('fs');
-var util = require('util');
-var path = require('path');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
+const fs = require('fs');
+const util = require('util');
+const path = require('path');
 var fn = path.join(common.fixturesDir, 'does_not_exist.txt');
 
 var got_error = false;

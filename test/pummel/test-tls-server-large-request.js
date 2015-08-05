@@ -1,16 +1,16 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
-var stream = require('stream');
-var util = require('util');
+const fs = require('fs');
+const stream = require('stream');
+const util = require('util');
 
 var clientConnected = 0;
 var serverConnected = 0;

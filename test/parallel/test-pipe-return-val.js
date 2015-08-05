@@ -1,10 +1,10 @@
 'use strict';
 // This test ensures SourceStream.pipe(DestStream) returns DestStream
 
-var common = require('../common');
-var Stream = require('stream').Stream;
-var assert = require('assert');
-var util = require('util');
+const common = require('../common');
+const Stream = require('stream').Stream;
+const assert = require('assert');
+const util = require('util');
 
 var sourceStream = new Stream();
 var destStream = new Stream();

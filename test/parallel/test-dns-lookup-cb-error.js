@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 var cares = process.binding('cares_wrap');
 
-var dns = require('dns');
+const dns = require('dns');
 
 // Stub `getaddrinfo` to *always* error.
 cares.getaddrinfo = function() {

@@ -2,9 +2,9 @@
 // socket.write was not resetting the timeout timer. See
 // https://github.com/joyent/node/issues/2002
 
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
 var seconds = 5;
 var gotTimeout = false;

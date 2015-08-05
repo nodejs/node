@@ -1,7 +1,7 @@
 'use strict';
 // test uncompressing invalid input
 
-var common = require('../common'),
+const common = require('../common'),
     assert = require('assert'),
     zlib = require('zlib');
 

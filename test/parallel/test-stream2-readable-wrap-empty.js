@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var Readable = require('_stream_readable');
-var EE = require('events').EventEmitter;
+const Readable = require('_stream_readable');
+const EE = require('events').EventEmitter;
 
 var oldStream = new EE();
 oldStream.pause = function() {};

@@ -1,10 +1,10 @@
 /* eslint-disable max-len */
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var url = require('url'),
-    util = require('util');
+const url = require('url');
+const util = require('util');
 
 // URLs to parse, and expected data
 // { url : parsed }

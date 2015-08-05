@@ -1,8 +1,8 @@
 'use strict';
-var assert = require('assert');
-var common = require('../common');
-var PassThrough = require('_stream_passthrough');
-var Transform = require('_stream_transform');
+const assert = require('assert');
+const common = require('../common');
+const PassThrough = require('_stream_passthrough');
+const Transform = require('_stream_transform');
 
 // tiny node-tap lookalike.
 var tests = [];

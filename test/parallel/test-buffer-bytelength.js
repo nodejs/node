@@ -1,8 +1,8 @@
 'use strict';
 
-var common = require('../common');
-var assert = require('assert');
-var Buffer = require('buffer').Buffer;
+const common = require('../common');
+const assert = require('assert');
+const Buffer = require('buffer').Buffer;
 
 // coerce values to string
 assert.equal(Buffer.byteLength(32, 'raw'), 2);

@@ -1,12 +1,12 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var crypto = require('crypto');
+const crypto = require('crypto');
 
 var p = crypto.createDiffieHellman(256).getPrime();
 

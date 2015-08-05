@@ -20,10 +20,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
-var path = require('path');
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 
 var openCount = 0;
 var _fsopen = fs.open;

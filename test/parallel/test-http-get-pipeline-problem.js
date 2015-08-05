@@ -2,10 +2,10 @@
 // We are demonstrating a problem with http.get when queueing up many
 // transfers. The server simply introduces some delay and sends a file.
 // Note this is demonstrated with connection: close.
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const fs = require('fs');
 
 common.refreshTmpDir();
 

@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var Readable = require('stream').Readable;
-var assert = require('assert');
+const common = require('../common');
+const Readable = require('stream').Readable;
+const assert = require('assert');
 
 var s = new Readable({
   highWaterMark: 20,

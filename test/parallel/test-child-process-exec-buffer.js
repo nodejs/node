@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var exec = require('child_process').exec;
-var os = require('os');
+const assert = require('assert');
+const exec = require('child_process').exec;
+const os = require('os');
 
 var success_count = 0;
 

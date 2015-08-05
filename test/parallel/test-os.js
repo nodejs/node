@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var os = require('os');
-var path = require('path');
+const common = require('../common');
+const assert = require('assert');
+const os = require('os');
+const path = require('path');
 
 
 process.env.TMPDIR = '/tmpdir';

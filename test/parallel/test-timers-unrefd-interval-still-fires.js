@@ -2,7 +2,7 @@
 /*
  * This test is a regression test for joyent/node#8900.
  */
-var assert = require('assert');
+const assert = require('assert');
 
 var N = 5;
 var nbIntervalFired = 0;

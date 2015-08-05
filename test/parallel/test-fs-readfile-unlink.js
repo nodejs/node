@@ -1,9 +1,9 @@
 'use strict';
-var assert = require('assert'),
-    common = require('../common'),
-    fs = require('fs'),
-    path = require('path'),
-    dirName = path.resolve(common.fixturesDir, 'test-readfile-unlink'),
+const assert = require('assert');
+const common = require('../common');
+const fs = require('fs');
+const path = require('path');
+var dirName = path.resolve(common.fixturesDir, 'test-readfile-unlink'),
     fileName = path.resolve(dirName, 'test.bin');
 
 var buf = new Buffer(512 * 1024);

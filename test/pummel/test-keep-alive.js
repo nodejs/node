@@ -5,12 +5,12 @@ if (common.isWindows) {
 }
 
 // This test requires the program 'wrk'
-var common = require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
-var http = require('http');
-var path = require('path');
-var url = require('url');
+const common = require('../common');
+const assert = require('assert');
+const spawn = require('child_process').spawn;
+const http = require('http');
+const path = require('path');
+const url = require('url');
 
 var body = 'hello world\n';
 var server = http.createServer(function(req, res) {

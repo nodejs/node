@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var vm = require('vm');
+const vm = require('vm');
 var o = vm.createContext({ console: console });
 
 // This triggers the setter callback in node_contextify.cc

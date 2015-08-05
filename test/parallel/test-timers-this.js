@@ -1,5 +1,5 @@
 'use strict';
-var assert = require('assert');
+const assert = require('assert');
 
 var immediateThis, intervalThis, timeoutThis,
     immediateArgsThis, intervalArgsThis, timeoutArgsThis;

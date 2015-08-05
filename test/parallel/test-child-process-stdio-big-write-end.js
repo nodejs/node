@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 var BUFSIZE = 1024;
 
 switch (process.argv[2]) {
@@ -13,7 +13,7 @@ switch (process.argv[2]) {
 }
 
 function parent() {
-  var spawn = require('child_process').spawn;
+  const spawn = require('child_process').spawn;
   var child = spawn(process.execPath, [__filename, 'child']);
   var sent = 0;
 

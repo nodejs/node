@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var Stream = require('stream');
-var Console = require('console').Console;
+const common = require('../common');
+const assert = require('assert');
+const Stream = require('stream');
+const Console = require('console').Console;
 var called = false;
 
 // ensure the Console instance doesn't write to the

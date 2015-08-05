@@ -17,14 +17,14 @@ function serverHandler(sock) {
   }, 100);
 }
 
-var net  = require('net'),
-    weak    = require('weak'),
-    done    = 0,
+const net = require('net');
+const weak = require('weak');
+const common = require('../common');
+const assert = require('assert');
+var done    = 0,
     count   = 0,
     countGC = 0,
     todo    = 500,
-    common = require('../common'),
-    assert = require('assert'),
     PORT = common.PORT;
 
 console.log('We should do ' + todo + ' requests');

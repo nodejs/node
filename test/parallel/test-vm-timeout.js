@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var vm = require('vm');
+const common = require('../common');
+const assert = require('assert');
+const vm = require('vm');
 
 // Test 1: Timeout of 100ms executing endless loop
 assert.throws(function() {

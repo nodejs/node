@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var execFile = require('child_process').execFile;
+const common = require('../common');
+const assert = require('assert');
+const execFile = require('child_process').execFile;
 var depmod = require.resolve('../fixtures/deprecated.js');
 var node = process.execPath;
 

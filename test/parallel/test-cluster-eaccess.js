@@ -3,12 +3,12 @@
 // received in their master creates an EADDRINUSE condition by also
 // forking a child process to listen on a socket
 
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var fork = require('child_process').fork;
-var fs = require('fs');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const fork = require('child_process').fork;
+const fs = require('fs');
+const net = require('net');
 
 
 if (cluster.isMaster) {

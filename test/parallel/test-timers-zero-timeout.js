@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 // https://github.com/joyent/node/issues/2079 - zero timeout drops extra args
 (function() {

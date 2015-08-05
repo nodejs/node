@@ -1,9 +1,9 @@
 'use strict';
-var path = require('path');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
-var common = require('../common');
-var debug = require('_debugger');
+const path = require('path');
+const assert = require('assert');
+const spawn = require('child_process').spawn;
+const common = require('../common');
+const debug = require('_debugger');
 
 addScenario('global.js', null, 2);
 addScenario('timeout.js', null, 2);

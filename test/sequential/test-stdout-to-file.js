@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var childProccess = require('child_process');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const childProccess = require('child_process');
+const fs = require('fs');
 
 var scriptString = path.join(common.fixturesDir, 'print-chars.js');
 var scriptBuffer = path.join(common.fixturesDir, 'print-chars-from-buffer.js');

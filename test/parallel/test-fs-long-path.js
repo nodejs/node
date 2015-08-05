@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var fs = require('fs');
-var path = require('path');
-var assert = require('assert');
+const common = require('../common');
+const fs = require('fs');
+const path = require('path');
+const assert = require('assert');
 
 var successes = 0;
 

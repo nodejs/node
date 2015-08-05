@@ -1,5 +1,5 @@
 'use strict';
-var assert = require('assert');
+const assert = require('assert');
 
 var called = 0;
 var closed = 0;

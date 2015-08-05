@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var v8 = require('v8');
-var vm = require('vm');
+const common = require('../common');
+const assert = require('assert');
+const v8 = require('v8');
+const vm = require('vm');
 
 v8.setFlagsFromString('--allow_natives_syntax');
 assert(eval('%_IsSmi(42)'));

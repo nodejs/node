@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path'),
-    fs = require('fs'),
-    filepath = path.join(common.tmpDir, 'large.txt'),
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
+var filepath = path.join(common.tmpDir, 'large.txt'),
     fd = fs.openSync(filepath, 'w+'),
     offset = 5 * 1024 * 1024 * 1024, // 5GB
     message = 'Large File';

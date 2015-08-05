@@ -2,10 +2,10 @@
 // Testing mutual send of handles: from master to worker, and from worker to
 // master.
 
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const net = require('net');
 
 if (cluster.isMaster) {
   var worker = cluster.fork();

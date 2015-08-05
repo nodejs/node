@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common'),
+const common = require('../common'),
     assert = require('assert'),
     repl = require('repl');
 

@@ -1,5 +1,5 @@
 'use strict';
-var cluster = require('cluster');
+const cluster = require('cluster');
 
 if (cluster.isMaster) {
   var worker = cluster.fork().on('online', disconnect);

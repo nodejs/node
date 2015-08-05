@@ -1,11 +1,11 @@
 'use strict';
 // Simple tests of most basic domain functionality.
 
-var common = require('../common');
-var assert = require('assert');
-var domain = require('domain');
-var events = require('events');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const domain = require('domain');
+const events = require('events');
+const fs = require('fs');
 var caught = 0;
 var expectCaught = 0;
 

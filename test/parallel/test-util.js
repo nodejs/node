@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var util = require('util');
-var context = require('vm').runInNewContext;
+const common = require('../common');
+const assert = require('assert');
+const util = require('util');
+const context = require('vm').runInNewContext;
 
 // isArray
 assert.equal(true, util.isArray([]));

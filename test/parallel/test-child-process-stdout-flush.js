@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var spawn = require('child_process').spawn;
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const spawn = require('child_process').spawn;
 var sub = path.join(common.fixturesDir, 'print-chars.js');
 
 var n = 500000;

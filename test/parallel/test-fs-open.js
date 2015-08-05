@@ -1,8 +1,8 @@
 'use strict';
-var constants = require('constants');
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
+const constants = require('constants');
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
 
 var caughtException = false;
 try {

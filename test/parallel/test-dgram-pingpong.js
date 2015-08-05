@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var Buffer = require('buffer').Buffer;
-var dgram = require('dgram');
+const common = require('../common');
+const assert = require('assert');
+const Buffer = require('buffer').Buffer;
+const dgram = require('dgram');
 
 var debug = false;
 var tests_run = 0;

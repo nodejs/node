@@ -1,9 +1,9 @@
 'use strict';
-var util = require('util');
-var path = require('path');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
-var common = require('../common');
+const util = require('util');
+const path = require('path');
+const assert = require('assert');
+const spawn = require('child_process').spawn;
+const common = require('../common');
 
 console.error('argv=%j', process.argv);
 console.error('exec=%j', process.execPath);

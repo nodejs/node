@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 // does node think that i18n was enabled?
 var enablei18n = process.config.variables.v8_enable_i18n_support;

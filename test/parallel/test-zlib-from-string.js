@@ -1,9 +1,9 @@
 'use strict';
 // test compressing and uncompressing a string with zlib
 
-var common = require('../common');
-var assert = require('assert');
-var zlib = require('zlib');
+const common = require('../common');
+const assert = require('assert');
+const zlib = require('zlib');
 
 var inputString = 'ΩΩLorem ipsum dolor sit amet, consectetur adipiscing el' +
     'it. Morbi faucibus, purus at gravida dictum, libero arcu convallis la' +

@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var join = require('path').join;
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const join = require('path').join;
+const fs = require('fs');
 
 var currentFileData = 'ABCD';
 

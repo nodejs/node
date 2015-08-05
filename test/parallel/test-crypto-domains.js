@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var domain = require('domain');
-var assert = require('assert');
+const common = require('../common');
+const domain = require('domain');
+const assert = require('assert');
 var d = domain.create();
 var expect = ['pbkdf2', 'randomBytes', 'pseudoRandomBytes'];
 var errors = 0;
@@ -10,7 +10,7 @@ if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var crypto = require('crypto');
+const crypto = require('crypto');
 
 process.on('exit', function() {
   assert.equal(errors, 3);

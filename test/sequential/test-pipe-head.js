@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var exec = require('child_process').exec;
-var join = require('path').join;
+const exec = require('child_process').exec;
+const join = require('path').join;
 
 var nodePath = process.argv[0];
 var script = join(common.fixturesDir, 'print-10-lines.js');

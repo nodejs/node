@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var util = require('util');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const util = require('util');
 
 var body = 'hello world\n';
 var headers = {'connection': 'keep-alive'};

@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var url = require('url');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const url = require('url');
 
 //
 // Slight variation on test-http-client-race to test for another race

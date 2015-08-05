@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var dns = require('dns');
+const common = require('../common');
+const assert = require('assert');
+const dns = require('dns');
 
 // Should not raise assertion error. Issue #7070
 assert.throws(function() { dns.resolveNs([]); }); // bad name

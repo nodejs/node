@@ -1,13 +1,13 @@
 'use strict';
-var assert = require('assert');
-var common = require('../common');
+const assert = require('assert');
+const common = require('../common');
 
 if (common.isWindows) {
   console.log('1..0 # Skipped: no RLIMIT_NOFILE on Windows');
   return;
 }
 
-var exec = require('child_process').exec;
+const exec = require('child_process').exec;
 
 var cmdline = 'ulimit -c 0; ' + process.execPath;
 cmdline += ' --max-old-space-size=4 --max-semi-space-size=1';

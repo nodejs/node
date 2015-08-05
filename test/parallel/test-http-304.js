@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var http = require('http');
-var childProcess = require('child_process');
+const http = require('http');
+const childProcess = require('child_process');
 
 var s = http.createServer(function(request, response) {
   response.writeHead(304);

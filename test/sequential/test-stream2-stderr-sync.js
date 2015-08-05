@@ -1,15 +1,15 @@
 'use strict';
 // Make sure that sync writes to stderr get processed before exiting.
 
-var common = require('../common');
-var assert = require('assert');
-var util = require('util');
+const common = require('../common');
+const assert = require('assert');
+const util = require('util');
 
 var errnoException = util._errnoException;
 
 function parent() {
-  var spawn = require('child_process').spawn;
-  var assert = require('assert');
+  const spawn = require('child_process').spawn;
+  const assert = require('assert');
   var i = 0;
   children.forEach(function(_, c) {
     var child = spawn(process.execPath, [__filename, '' + c]);
@@ -46,7 +46,7 @@ function child1() {
 
 // using a net socket
 function child2() {
-  var net = require('net');
+  const net = require('net');
   var socket = new net.Socket({
     fd: 2,
     readable: false,

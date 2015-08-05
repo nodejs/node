@@ -6,19 +6,19 @@ function serverHandler(req, res) {
   res.connection.destroy();
 }
 
-var http  = require('http'),
-    weak    = require('weak'),
-    done    = 0,
+const http = require('http');
+const weak = require('weak');
+const common = require('../common');
+const assert = require('assert');
+var done    = 0,
     count   = 0,
     countGC = 0,
     todo    = 500,
-    common = require('../common'),
-    assert = require('assert'),
     PORT = common.PORT;
 
 console.log('We should do ' + todo + ' requests');
 
-var http = require('http');
+const http = require('http');
 var server = http.createServer(serverHandler);
 server.listen(PORT, getall);
 

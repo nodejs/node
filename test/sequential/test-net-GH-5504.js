@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 // this test only fails with CentOS 6.3 using kernel version 2.6.32
 // On other linuxes and darwin, the `read` call gets an ECONNRESET in
@@ -19,7 +19,7 @@ switch (process.argv[2]) {
 }
 
 function server() {
-  var net = require('net');
+  const net = require('net');
   var content = new Buffer(64 * 1024 * 1024);
   content.fill('#');
   net.createServer(function(socket) {
@@ -37,7 +37,7 @@ function server() {
 }
 
 function client() {
-  var net = require('net');
+  const net = require('net');
   var client = net.connect({
     host: 'localhost',
     port: common.PORT
@@ -47,9 +47,9 @@ function client() {
 }
 
 function parent() {
-  var spawn = require('child_process').spawn;
+  const spawn = require('child_process').spawn;
   var node = process.execPath;
-  var assert = require('assert');
+  const assert = require('assert');
   var serverExited = false;
   var clientExited = false;
   var serverListened = false;

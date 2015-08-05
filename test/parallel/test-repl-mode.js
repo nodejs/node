@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var Stream = require('stream');
-var repl = require('repl');
+const common = require('../common');
+const assert = require('assert');
+const Stream = require('stream');
+const repl = require('repl');
 
 common.globalCheck = false;
 

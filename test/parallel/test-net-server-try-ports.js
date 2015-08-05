@@ -1,9 +1,9 @@
 'use strict';
 // This tests binds to one port, then attempts to start a server on that
 // port. It should be EADDRINUSE but be able to then bind to another port.
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
 var connections = 0;
 

@@ -1,17 +1,17 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var crypto = require('crypto');
-var tls = require('tls');
+const crypto = require('crypto');
+const tls = require('tls');
 
 crypto.DEFAULT_ENCODING = 'buffer';
 
-var fs = require('fs');
+const fs = require('fs');
 
 var certPem = fs.readFileSync(common.fixturesDir + '/test_cert.pem', 'ascii');
 

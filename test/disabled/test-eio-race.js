@@ -1,12 +1,12 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 var count = 100;
-var fs = require('fs');
+const fs = require('fs');
 
 // person.jpg is 57kb. We just need some file that is sufficiently large.
-var filename = require('path').join(common.fixturesDir, 'person.jpg');
+const filename = require('path').join(common.fixturesDir, 'person.jpg');
 
 function tryToKillEventLoop() {
   console.log('trying to kill event loop ...');

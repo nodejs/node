@@ -1,6 +1,6 @@
 'use strict';
-var assert = require('assert');
-var binding = require('./build/Release/binding');
+const assert = require('assert');
+const binding = require('./build/Release/binding');
 var called = false;
 
 process.on('exit', function() {

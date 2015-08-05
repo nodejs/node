@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var cp = require('child_process');
+const common = require('../common');
+const assert = require('assert');
+const cp = require('child_process');
 
 if (process.argv[2] === 'child') {
   console.log(process.env.foo);

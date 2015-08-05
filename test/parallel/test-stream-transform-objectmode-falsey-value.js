@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var stream = require('stream');
+const stream = require('stream');
 var PassThrough = stream.PassThrough;
 
 var src = new PassThrough({ objectMode: true });

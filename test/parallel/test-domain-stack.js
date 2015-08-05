@@ -1,10 +1,10 @@
 'use strict';
 // Make sure that the domain stack doesn't get out of hand.
 
-var common = require('../common');
-var assert = require('assert');
-var domain = require('domain');
-var events = require('events');
+const common = require('../common');
+const assert = require('assert');
+const domain = require('domain');
+const events = require('events');
 
 var a = domain.create();
 a.name = 'a';

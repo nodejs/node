@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var util = require('util');
-var fork = require('child_process').fork;
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const util = require('util');
+const fork = require('child_process').fork;
 
 if (process.env.NODE_TEST_FORK) {
   var req = http.request({

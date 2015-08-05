@@ -1,8 +1,8 @@
 'use strict';
 // https://github.com/joyent/node/issues/4948
 
-var common = require('../common');
-var http = require('http');
+const common = require('../common');
+const http = require('http');
 
 var reqCount = 0;
 var server = http.createServer(function(serverReq, serverRes) {
@@ -32,7 +32,7 @@ var server = http.createServer(function(serverReq, serverRes) {
 }).listen(common.PORT);
 
 // simulate a client request that closes early
-var net = require('net');
+const net = require('net');
 
 var sock = new net.Socket();
 sock.connect(common.PORT, 'localhost');

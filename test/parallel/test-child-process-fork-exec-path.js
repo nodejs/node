@@ -1,9 +1,9 @@
 'use strict';
-var assert = require('assert');
-var cp = require('child_process');
-var fs = require('fs');
-var path = require('path');
-var common = require('../common');
+const assert = require('assert');
+const cp = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const common = require('../common');
 var msg = {test: 'this'};
 var nodePath = process.execPath;
 var copyPath = path.join(common.tmpDir, 'node-copy.exe');
@@ -28,7 +28,7 @@ else {
   // slow but simple
   var envCopy = JSON.parse(JSON.stringify(process.env));
   envCopy.FORK = 'true';
-  var child = require('child_process').fork(__filename, {
+  const child = require('child_process').fork(__filename, {
     execPath: copyPath,
     env: envCopy
   });

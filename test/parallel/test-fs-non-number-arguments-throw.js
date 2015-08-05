@@ -1,9 +1,9 @@
-var assert = require('assert'),
-    fs = require('fs'),
-    saneEmitter,
+const assert = require('assert');
+const fs = require('fs');
+var saneEmitter,
     sanity = 'ire(\'assert\')';
 
-saneEmitter = fs.createReadStream(__filename, { start: 17, end: 29 });
+saneEmitter = fs.createReadStream(__filename, { start: 19, end: 31 });
 
 assert.throws(function () {
   fs.createReadStream(__filename, { start: "17", end: 29 });

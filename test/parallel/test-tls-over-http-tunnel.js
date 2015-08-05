@@ -1,16 +1,16 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var https = require('https');
+const https = require('https');
 
-var fs = require('fs');
-var net = require('net');
-var http = require('http');
+const fs = require('fs');
+const net = require('net');
+const http = require('http');
 
 var proxyPort = common.PORT + 1;
 var gotRequest = false;

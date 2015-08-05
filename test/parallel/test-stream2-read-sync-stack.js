@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var Readable = require('stream').Readable;
+const common = require('../common');
+const assert = require('assert');
+const Readable = require('stream').Readable;
 var r = new Readable();
 var N = 256 * 1024;
 

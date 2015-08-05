@@ -1,9 +1,9 @@
 'use strict';
-var path = require('path');
-var fs = require('fs');
-var assert = require('assert');
-var os = require('os');
-var child_process = require('child_process');
+const path = require('path');
+const fs = require('fs');
+const assert = require('assert');
+const os = require('os');
+const child_process = require('child_process');
 
 exports.testDir = path.dirname(__filename);
 exports.fixturesDir = path.join(exports.testDir, 'fixtures');
@@ -164,7 +164,7 @@ exports.hasIPv6 = Object.keys(ifaces).some(function(name) {
   });
 });
 
-var util = require('util');
+const util = require('util');
 for (var i in util) exports[i] = util[i];
 //for (var i in exports) global[i] = exports[i];
 
@@ -194,7 +194,7 @@ exports.ddCommand = function(filename, kilobytes) {
 
 
 exports.spawnCat = function(options) {
-  var spawn = require('child_process').spawn;
+  const spawn = require('child_process').spawn;
 
   if (exports.isWindows) {
     return spawn('more', [], options);
@@ -205,7 +205,7 @@ exports.spawnCat = function(options) {
 
 
 exports.spawnSyncCat = function(options) {
-  var spawnSync = require('child_process').spawnSync;
+  const spawnSync = require('child_process').spawnSync;
 
   if (exports.isWindows) {
     return spawnSync('more', [], options);
@@ -216,7 +216,7 @@ exports.spawnSyncCat = function(options) {
 
 
 exports.spawnPwd = function(options) {
-  var spawn = require('child_process').spawn;
+  const spawn = require('child_process').spawn;
 
   if (exports.isWindows) {
     return spawn('cmd.exe', ['/c', 'cd'], options);

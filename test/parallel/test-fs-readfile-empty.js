@@ -1,10 +1,10 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var path = require('path'),
-    fs = require('fs'),
-    fn = path.join(common.fixturesDir, 'empty.txt');
+const path = require('path');
+const fs = require('fs');
+var fn = path.join(common.fixturesDir, 'empty.txt');
 
 fs.readFile(fn, function(err, data) {
   assert.ok(data);

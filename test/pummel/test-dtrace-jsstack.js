@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var os = require('os');
-var util = require('util');
+const common = require('../common');
+const assert = require('assert');
+const os = require('os');
+const util = require('util');
 
 if (os.type() != 'SunOS') {
   console.log('1..0 # Skipped: no DTRACE support');
@@ -33,7 +33,7 @@ var doogle = function() {
   bagnoogle('The bfs command', '(almost) like ed(1)');
 };
 
-var spawn = require('child_process').spawn;
+const spawn = require('child_process').spawn;
 var prefix = '/var/tmp/node';
 var corefile = prefix + '.' + process.pid;
 

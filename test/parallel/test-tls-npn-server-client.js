@@ -5,7 +5,7 @@ if (!process.features.tls_npn) {
   return;
 }
 
-var common = require('../common'),
+const common = require('../common'),
     assert = require('assert'),
     fs = require('fs');
 
@@ -13,7 +13,7 @@ if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
 
 function filenamePEM(n) {

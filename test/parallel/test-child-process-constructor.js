@@ -1,8 +1,8 @@
 'use strict';
 
-var assert = require('assert');
-var common = require('../common');
-var child_process = require('child_process');
+const assert = require('assert');
+const common = require('../common');
+const child_process = require('child_process');
 var ChildProcess = child_process.ChildProcess;
 assert.equal(typeof ChildProcess, 'function');
 

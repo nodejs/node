@@ -1,14 +1,14 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var crypto = require('crypto');
+const crypto = require('crypto');
 
-var stream = require('stream');
+const stream = require('stream');
 var s = new stream.PassThrough();
 var h = crypto.createHash('sha1');
 var expect = '15987e60950cf22655b9323bc1e281f9c4aff47e';

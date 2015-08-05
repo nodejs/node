@@ -1,16 +1,16 @@
 'use strict';
 // Flags: --expose-gc
 
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
+const fs = require('fs');
 
 assert(typeof gc === 'function', 'Run this test with --expose-gc');
 

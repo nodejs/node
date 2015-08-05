@@ -6,12 +6,12 @@
 // - the worker.suicide flag, and worker.state are correct
 // - the worker process actually goes away
 
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
 
 if (cluster.isWorker) {
-  var http = require('http');
+  const http = require('http');
   var server = http.Server(function() { });
 
   server.once('listening', function() { });

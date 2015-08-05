@@ -2,16 +2,16 @@
 // test unzipping a file that was created with a non-node gzip lib,
 // piped in as fast as possible.
 
-var common = require('../common');
-var assert = require('assert');
-var zlib = require('zlib');
-var path = require('path');
+const common = require('../common');
+const assert = require('assert');
+const zlib = require('zlib');
+const path = require('path');
 
 common.refreshTmpDir();
 
 var gunzip = zlib.createGunzip();
 
-var fs = require('fs');
+const fs = require('fs');
 
 var fixture = path.resolve(common.fixturesDir, 'person.jpg.gz');
 var unzippedFixture = path.resolve(common.fixturesDir, 'person.jpg');

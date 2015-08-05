@@ -1,10 +1,10 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 common.globalCheck = false;
 
-var assert = require('assert');
-var repl = require('repl');
-var Stream = require('stream');
+const assert = require('assert');
+const repl = require('repl');
+const Stream = require('stream');
 
 // create a dummy stream that does nothing
 var dummy = new Stream();

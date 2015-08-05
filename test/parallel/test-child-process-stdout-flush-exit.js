@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
 
 // if child process output to console and exit
 if (process.argv[2] === 'child') {
@@ -13,7 +13,7 @@ if (process.argv[2] === 'child') {
   process.exit(0);
 } else {
   // parent process
-  var spawn = require('child_process').spawn;
+  const spawn = require('child_process').spawn;
 
   // spawn self as child
   var child = spawn(process.argv[0], [process.argv[1], 'child']);

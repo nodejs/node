@@ -3,11 +3,11 @@
 // leave the master process in a confused state. Releasing the port and
 // trying again should Just Work[TM].
 
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var fork = require('child_process').fork;
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const fork = require('child_process').fork;
+const net = require('net');
 
 var id = '' + process.argv[2];
 

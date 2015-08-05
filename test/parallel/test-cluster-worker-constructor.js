@@ -2,9 +2,9 @@
 // test-cluster-worker-constructor.js
 // validates correct behavior of the cluster.Worker constructor
 
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
 var worker;
 
 worker = new cluster.Worker();

@@ -1,7 +1,7 @@
 'use strict';
-var assert = require('assert');
-var common = require('../common');
-var Readable = require('_stream_readable');
+const assert = require('assert');
+const common = require('../common');
+const Readable = require('_stream_readable');
 
 var len = 0;
 var chunks = new Array(10);

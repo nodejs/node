@@ -1,15 +1,15 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var stream = require('stream');
+const common = require('../common');
+const assert = require('assert');
+const stream = require('stream');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var crypto = require('crypto');
+const crypto = require('crypto');
 
-var util = require('util');
+const util = require('util');
 
 function TestWriter() {
   stream.Writable.call(this);

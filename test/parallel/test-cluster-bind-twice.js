@@ -18,11 +18,11 @@
 //
 // See https://github.com/joyent/node/issues/2721 for more details.
 
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var fork = require('child_process').fork;
-var http = require('http');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const fork = require('child_process').fork;
+const http = require('http');
 
 var id = process.argv[2];
 

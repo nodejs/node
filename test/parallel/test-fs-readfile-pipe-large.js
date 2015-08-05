@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
 
 // simulate `cat readfile.js | node readfile.js`
 
@@ -10,7 +10,7 @@ if (common.isWindows) {
   return;
 }
 
-var fs = require('fs');
+const fs = require('fs');
 
 if (process.argv[2] === 'child') {
   fs.readFile('/dev/stdin', function(er, data) {
@@ -25,7 +25,7 @@ var dataExpected = new Array(1000000).join('a');
 common.refreshTmpDir();
 fs.writeFileSync(filename, dataExpected);
 
-var exec = require('child_process').exec;
+const exec = require('child_process').exec;
 var f = JSON.stringify(__filename);
 var node = JSON.stringify(process.execPath);
 var cmd = 'cat ' + filename + ' | ' + node + ' ' + f + ' child';

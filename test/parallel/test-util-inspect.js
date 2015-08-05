@@ -1,10 +1,10 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var util = require('util');
+const common = require('../common');
+const assert = require('assert');
+const util = require('util');
 
 // test the internal isDate implementation
-var Date2 = require('vm').runInNewContext('Date');
+const Date2 = require('vm').runInNewContext('Date');
 var d = new Date2();
 var orig = util.inspect(d);
 Date2.prototype.foo = 'bar';

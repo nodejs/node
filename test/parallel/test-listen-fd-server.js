@@ -1,10 +1,10 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const net = require('net');
 var PORT = common.PORT;
-var spawn = require('child_process').spawn;
+const spawn = require('child_process').spawn;
 
 if (common.isWindows) {
   console.log('1..0 # Skipped: This test is disabled on windows.');
@@ -78,7 +78,7 @@ function parent() {
   }).listen(PORT, function() {
     console.error('server listening on %d', PORT);
 
-    var spawn = require('child_process').spawn;
+    const spawn = require('child_process').spawn;
     var child = spawn(process.execPath, [__filename, 'child'], {
       stdio: [ 0, 1, 2, server._handle ]
     });

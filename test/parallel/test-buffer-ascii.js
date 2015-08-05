@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 // ASCII conversion in node.js simply masks off the high bits,
 // it doesn't do transliteration.

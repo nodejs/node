@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var punycode = require('punycode');
-var assert = require('assert');
+const common = require('../common');
+const punycode = require('punycode');
+const assert = require('assert');
 
 assert.equal(punycode.encode('ü'), 'tda');
 assert.equal(punycode.encode('Goethe'), 'Goethe-');

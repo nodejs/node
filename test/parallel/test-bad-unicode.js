@@ -1,6 +1,6 @@
 'use strict';
-var assert = require('assert'),
-    exception = null;
+const assert = require('assert');
+var exception = null;
 
 try {
   eval('"\\uc/ef"');

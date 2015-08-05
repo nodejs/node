@@ -1,12 +1,12 @@
 /* eslint-disable max-len, strict */
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 common.globalCheck = false;
 
-var net = require('net'),
-    repl = require('repl'),
-    message = 'Read, Eval, Print Loop',
+const net = require('net');
+const repl = require('repl');
+var message = 'Read, Eval, Print Loop',
     prompt_unix = 'node via Unix socket> ',
     prompt_tcp = 'node via TCP socket> ',
     prompt_multiline = '... ',
@@ -18,7 +18,7 @@ var net = require('net'),
 
 
 // absolute path to test/fixtures/a.js
-var moduleFilename = require('path').join(common.fixturesDir, 'a');
+const moduleFilename = require('path').join(common.fixturesDir, 'a');
 
 console.error('repl test');
 

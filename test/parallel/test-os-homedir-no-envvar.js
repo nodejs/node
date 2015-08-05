@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var cp = require('child_process');
-var os = require('os');
-var path = require('path');
+const common = require('../common');
+const assert = require('assert');
+const cp = require('child_process');
+const os = require('os');
+const path = require('path');
 
 
 if (process.argv[2] === 'child') {

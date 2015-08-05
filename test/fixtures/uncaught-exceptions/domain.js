@@ -1,4 +1,4 @@
-var domain = require('domain');
+const domain = require('domain');
 
 var d = domain.create();
 d.on('error', function(err) {

@@ -1,18 +1,18 @@
 'use strict';
 
-var common = require('../common');
+const common = require('../common');
 
-var assert = require('assert');
-var path = require('path');
-var fs = require('fs');
-var constants = require('constants');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
+const constants = require('constants');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
 
-var tls = require('tls');
+const tls = require('tls');
 
 var options = {
   secureOptions: constants.SSL_OP_NO_TICKET,

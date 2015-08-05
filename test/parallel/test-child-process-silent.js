@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var childProcess = require('child_process');
+const common = require('../common');
+const assert = require('assert');
+const childProcess = require('child_process');
 
 // Child pipe test
 if (process.argv[2] === 'pipetest') {

@@ -2,10 +2,10 @@
 // Test that a Linux specific quirk in the handle passing protocol is handled
 // correctly. See https://github.com/joyent/node/issues/5330 for details.
 
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
-var spawn = require('child_process').spawn;
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
+const spawn = require('child_process').spawn;
 
 if (process.argv[2] === 'worker')
   worker();

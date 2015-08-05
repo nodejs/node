@@ -2,9 +2,9 @@
 // Just test that destroying stdin doesn't mess up listening on a server.
 // This is a regression test for GH-746.
 
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
 process.stdin.destroy();
 

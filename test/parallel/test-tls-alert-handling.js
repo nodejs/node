@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.opensslCli) {
   console.log('1..0 # Skipped: node compiled without OpenSSL CLI.');
@@ -12,9 +12,9 @@ if (!common.hasCrypto) {
   return;
 }
 
-var tls = require('tls');
-var net = require('net');
-var fs = require('fs');
+const tls = require('tls');
+const net = require('net');
+const fs = require('fs');
 
 var success = false;
 

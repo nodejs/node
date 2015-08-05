@@ -1,10 +1,10 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
-var http = require('http');
-var path = require('path');
-var cp = require('child_process');
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
+const http = require('http');
+const path = require('path');
+const cp = require('child_process');
 
 common.refreshTmpDir();
 

@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 // Make sure that throwing in 'end' handler doesn't lock
 // up the socket forever.
@@ -8,7 +8,7 @@ var assert = require('assert');
 // This is NOT a good way to handle errors in general, but all
 // the same, we should not be so brittle and easily broken.
 
-var http = require('http');
+const http = require('http');
 
 var n = 0;
 var server = http.createServer(function(req, res) {

@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var v8 = require('v8');
+const common = require('../common');
+const assert = require('assert');
+const v8 = require('v8');
 
 var s = v8.getHeapStatistics();
 var keys = [

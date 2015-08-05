@@ -1,8 +1,8 @@
 'use strict';
 
-var common = require('../common');
-var assert = require('assert');
-var events = require('events');
+const common = require('../common');
+const assert = require('assert');
+const events = require('events');
 
 function listener() {}
 function listener2() {}

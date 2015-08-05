@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var https = require('https');
-var tls = require('tls');
+const common = require('../common');
+const assert = require('assert');
+const https = require('https');
+const tls = require('tls');
 
 var options = {
   host: 'github.com',

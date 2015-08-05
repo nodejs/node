@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
 
-var spawn = require('child_process').spawn;
+const spawn = require('child_process').spawn;
 var childPath = path.join(__dirname, '..', 'fixtures',
                           'parent-process-nonpersistent.js');
 var persistentPid = -1;
