@@ -1,5 +1,5 @@
 'use strict';
-// test that errors propagated from cluster workers are properly
+// Test that errors propagated from cluster workers are properly
 // received in their master. Creates an EADDRINUSE condition by forking
 // a process in child cluster and propagates the error to the master.
 
@@ -31,15 +31,12 @@ if (cluster.isMaster) {
     console.log('master exited');
     try {
       fs.unlinkSync(common.PIPE);
-    } catch (ex) {
-      if (ex.code !== 'ENOENT') {
-        throw ex;
-      }
+    } catch (e) {
     }
   });
 
 } else {
-  const cp = fork(common.fixturesDir + '/listen-on-socket-and-exit.js',
+  var cp = fork(common.fixturesDir + '/listen-on-socket-and-exit.js',
                 { stdio: 'inherit' });
 
   // message from the child indicates it's ready and listening
