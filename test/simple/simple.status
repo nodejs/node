@@ -13,6 +13,7 @@ test-fs-empty-readStream                : PASS,FLAKY
 test-cluster-bind-twice-v2              : PASS,FLAKY
 test-pipe-file-to-http                  : PASS,FLAKY
 test-stream2-stderr-sync                : PASS,FLAKY
+test-tls-securepair-client              : PASS,FLAKY
 test-tls-securepair-server              : PASS,FLAKY
 test-timers-first-fire                  : PASS,FLAKY
  
