@@ -277,7 +277,7 @@ TEST_IMPL(spawn_stdout_to_file) {
 
   init_process_options("spawn_helper2", exit_cb);
 
-  r = uv_fs_open(uv_default_loop(), &fs_req, "stdout_file", O_CREAT | O_RDWR,
+  r = uv_fs_open(NULL, &fs_req, "stdout_file", O_CREAT | O_RDWR,
       S_IRUSR | S_IWUSR, NULL);
   ASSERT(r != -1);
   uv_fs_req_cleanup(&fs_req);
@@ -300,11 +300,11 @@ TEST_IMPL(spawn_stdout_to_file) {
   ASSERT(close_cb_called == 1);
 
   buf = uv_buf_init(output, sizeof(output));
-  r = uv_fs_read(uv_default_loop(), &fs_req, file, &buf, 1, 0, NULL);
+  r = uv_fs_read(NULL, &fs_req, file, &buf, 1, 0, NULL);
   ASSERT(r == 12);
   uv_fs_req_cleanup(&fs_req);
 
-  r = uv_fs_close(uv_default_loop(), &fs_req, file, NULL);
+  r = uv_fs_close(NULL, &fs_req, file, NULL);
   ASSERT(r == 0);
   uv_fs_req_cleanup(&fs_req);
 
@@ -331,7 +331,7 @@ TEST_IMPL(spawn_stdout_and_stderr_to_file) {
 
   init_process_options("spawn_helper6", exit_cb);
 
-  r = uv_fs_open(uv_default_loop(), &fs_req, "stdout_file", O_CREAT | O_RDWR,
+  r = uv_fs_open(NULL, &fs_req, "stdout_file", O_CREAT | O_RDWR,
       S_IRUSR | S_IWUSR, NULL);
   ASSERT(r != -1);
   uv_fs_req_cleanup(&fs_req);
@@ -356,11 +356,11 @@ TEST_IMPL(spawn_stdout_and_stderr_to_file) {
   ASSERT(close_cb_called == 1);
 
   buf = uv_buf_init(output, sizeof(output));
-  r = uv_fs_read(uv_default_loop(), &fs_req, file, &buf, 1, 0, NULL);
+  r = uv_fs_read(NULL, &fs_req, file, &buf, 1, 0, NULL);
   ASSERT(r == 27);
   uv_fs_req_cleanup(&fs_req);
 
-  r = uv_fs_close(uv_default_loop(), &fs_req, file, NULL);
+  r = uv_fs_close(NULL, &fs_req, file, NULL);
   ASSERT(r == 0);
   uv_fs_req_cleanup(&fs_req);
 
@@ -389,7 +389,7 @@ TEST_IMPL(spawn_stdout_and_stderr_to_file2) {
   init_process_options("spawn_helper6", exit_cb);
 
   /* Replace stderr with our file */
-  r = uv_fs_open(uv_default_loop(),
+  r = uv_fs_open(NULL,
                  &fs_req,
                  "stdout_file",
                  O_CREAT | O_RDWR,
@@ -418,11 +418,11 @@ TEST_IMPL(spawn_stdout_and_stderr_to_file2) {
   ASSERT(close_cb_called == 1);
 
   buf = uv_buf_init(output, sizeof(output));
-  r = uv_fs_read(uv_default_loop(), &fs_req, file, &buf, 1, 0, NULL);
+  r = uv_fs_read(NULL, &fs_req, file, &buf, 1, 0, NULL);
   ASSERT(r == 27);
   uv_fs_req_cleanup(&fs_req);
 
-  r = uv_fs_close(uv_default_loop(), &fs_req, file, NULL);
+  r = uv_fs_close(NULL, &fs_req, file, NULL);
   ASSERT(r == 0);
   uv_fs_req_cleanup(&fs_req);
 
@@ -456,7 +456,7 @@ TEST_IMPL(spawn_stdout_and_stderr_to_file_swap) {
   init_process_options("spawn_helper6", exit_cb);
 
   /* open 'stdout_file' and replace STDOUT_FILENO with it */
-  r = uv_fs_open(uv_default_loop(),
+  r = uv_fs_open(NULL,
                  &fs_req,
                  "stdout_file",
                  O_CREAT | O_RDWR,
@@ -468,7 +468,7 @@ TEST_IMPL(spawn_stdout_and_stderr_to_file_swap) {
   ASSERT(stdout_file != -1);
 
   /* open 'stderr_file' and replace STDERR_FILENO with it */
-  r = uv_fs_open(uv_default_loop(), &fs_req, "stderr_file", O_CREAT | O_RDWR,
+  r = uv_fs_open(NULL, &fs_req, "stderr_file", O_CREAT | O_RDWR,
       S_IRUSR | S_IWUSR, NULL);
   ASSERT(r != -1);
   uv_fs_req_cleanup(&fs_req);
@@ -497,11 +497,11 @@ TEST_IMPL(spawn_stdout_and_stderr_to_file_swap) {
   buf = uv_buf_init(output, sizeof(output));
 
   /* check the content of stdout_file */
-  r = uv_fs_read(uv_default_loop(), &fs_req, stdout_file, &buf, 1, 0, NULL);
+  r = uv_fs_read(NULL, &fs_req, stdout_file, &buf, 1, 0, NULL);
   ASSERT(r >= 15);
   uv_fs_req_cleanup(&fs_req);
 
-  r = uv_fs_close(uv_default_loop(), &fs_req, stdout_file, NULL);
+  r = uv_fs_close(NULL, &fs_req, stdout_file, NULL);
   ASSERT(r == 0);
   uv_fs_req_cleanup(&fs_req);
 
@@ -509,11 +509,11 @@ TEST_IMPL(spawn_stdout_and_stderr_to_file_swap) {
   ASSERT(strncmp("hello errworld\n", output, 15) == 0);
 
   /* check the content of stderr_file */
-  r = uv_fs_read(uv_default_loop(), &fs_req, stderr_file, &buf, 1, 0, NULL);
+  r = uv_fs_read(NULL, &fs_req, stderr_file, &buf, 1, 0, NULL);
   ASSERT(r >= 12);
   uv_fs_req_cleanup(&fs_req);
 
-  r = uv_fs_close(uv_default_loop(), &fs_req, stderr_file, NULL);
+  r = uv_fs_close(NULL, &fs_req, stderr_file, NULL);
   ASSERT(r == 0);
   uv_fs_req_cleanup(&fs_req);
 
@@ -994,6 +994,7 @@ TEST_IMPL(spawn_detect_pipe_name_collisions_on_windows) {
 }
 
 
+#if !defined(USING_UV_SHARED)
 int make_program_args(char** args, int verbatim_arguments, WCHAR** dst_ptr);
 WCHAR* quote_cmd_arg(const WCHAR *source, WCHAR *target);
 
@@ -1196,6 +1197,7 @@ TEST_IMPL(environment_creation) {
 
   return 0;
 }
+#endif
 
 /* Regression test for issue #909 */
 TEST_IMPL(spawn_with_an_odd_path) {
@@ -1397,8 +1399,9 @@ TEST_IMPL(spawn_fs_open) {
   uv_buf_t buf;
   uv_stdio_container_t stdio[1];
 
-  fd = uv_fs_open(uv_default_loop(), &fs_req, "/dev/null", O_RDWR, 0, NULL);
+  fd = uv_fs_open(NULL, &fs_req, "/dev/null", O_RDWR, 0, NULL);
   ASSERT(fd >= 0);
+  uv_fs_req_cleanup(&fs_req);
 
   init_process_options("spawn_helper8", exit_cb);
 
@@ -1415,7 +1418,7 @@ TEST_IMPL(spawn_fs_open) {
   ASSERT(0 == uv_write(&write_req, (uv_stream_t*) &in, &buf, 1, write_cb));
 
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
-  ASSERT(0 == uv_fs_close(uv_default_loop(), &fs_req, fd, NULL));
+  ASSERT(0 == uv_fs_close(NULL, &fs_req, fd, NULL));
 
   ASSERT(exit_cb_called == 1);
   ASSERT(close_cb_called == 2);  /* One for `in`, one for process */
@@ -1540,3 +1543,164 @@ TEST_IMPL(spawn_reads_child_path) {
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
+
+#ifndef _WIN32
+static int mpipe(int *fds) {
+  if (pipe(fds) == -1)
+    return -1;
+  if (fcntl(fds[0], F_SETFD, FD_CLOEXEC) == -1 ||
+      fcntl(fds[1], F_SETFD, FD_CLOEXEC) == -1) {
+    close(fds[0]);
+    close(fds[1]);
+    return -1;
+  }
+  return 0;
+}
+#else
+static int mpipe(int *fds) {
+  SECURITY_ATTRIBUTES attr;
+  HANDLE readh, writeh;
+  attr.nLength = sizeof(attr);
+  attr.lpSecurityDescriptor = NULL;
+  attr.bInheritHandle = FALSE;
+  if (!CreatePipe(&readh, &writeh, &attr, 0))
+    return -1;
+  fds[0] = _open_osfhandle((intptr_t)readh, 0);
+  fds[1] = _open_osfhandle((intptr_t)writeh, 0);
+  if (fds[0] == -1 || fds[1] == -1) {
+    CloseHandle(readh);
+    CloseHandle(writeh);
+    return -1;
+  }
+  return 0;
+}
+#endif /* !_WIN32 */
+
+TEST_IMPL(spawn_inherit_streams) {
+  uv_process_t child_req;
+  uv_stdio_container_t child_stdio[2];
+  int fds_stdin[2];
+  int fds_stdout[2];
+  uv_pipe_t pipe_stdin_child;
+  uv_pipe_t pipe_stdout_child;
+  uv_pipe_t pipe_stdin_parent;
+  uv_pipe_t pipe_stdout_parent;
+  unsigned char ubuf[OUTPUT_SIZE - 1];
+  uv_buf_t buf;
+  unsigned int i;
+  int r;
+  uv_write_t write_req;
+  uv_loop_t* loop;
+
+  init_process_options("spawn_helper9", exit_cb);
+
+  loop = uv_default_loop();
+  ASSERT(uv_pipe_init(loop, &pipe_stdin_child, 0) == 0);
+  ASSERT(uv_pipe_init(loop, &pipe_stdout_child, 0) == 0);
+  ASSERT(uv_pipe_init(loop, &pipe_stdin_parent, 0) == 0);
+  ASSERT(uv_pipe_init(loop, &pipe_stdout_parent, 0) == 0);
+
+  ASSERT(mpipe(fds_stdin) != -1);
+  ASSERT(mpipe(fds_stdout) != -1);
+
+  ASSERT(uv_pipe_open(&pipe_stdin_child, fds_stdin[0]) == 0);
+  ASSERT(uv_pipe_open(&pipe_stdout_child, fds_stdout[1]) == 0);
+  ASSERT(uv_pipe_open(&pipe_stdin_parent, fds_stdin[1]) == 0);
+  ASSERT(uv_pipe_open(&pipe_stdout_parent, fds_stdout[0]) == 0);
+
+  child_stdio[0].flags = UV_INHERIT_STREAM;
+  child_stdio[0].data.stream = (uv_stream_t *)&pipe_stdin_child;
+
+  child_stdio[1].flags = UV_INHERIT_STREAM;
+  child_stdio[1].data.stream = (uv_stream_t *)&pipe_stdout_child;
+
+  options.stdio = child_stdio;
+  options.stdio_count = 2;
+
+  ASSERT(uv_spawn(loop, &child_req, &options) == 0);
+
+  uv_close((uv_handle_t*)&pipe_stdin_child, NULL);
+  uv_close((uv_handle_t*)&pipe_stdout_child, NULL);
+
+  buf = uv_buf_init((char*)ubuf, sizeof ubuf);
+  for (i = 0; i < sizeof ubuf; ++i)
+    ubuf[i] = i & 255u;
+  memset(output, 0, sizeof ubuf);
+
+  r = uv_write(&write_req,
+               (uv_stream_t*)&pipe_stdin_parent,
+               &buf,
+               1,
+               write_cb);
+  ASSERT(r == 0);
+
+  r = uv_read_start((uv_stream_t*)&pipe_stdout_parent, on_alloc, on_read);
+  ASSERT(r == 0);
+
+  r = uv_run(loop, UV_RUN_DEFAULT);
+  ASSERT(r == 0);
+
+  ASSERT(exit_cb_called == 1);
+  ASSERT(close_cb_called == 3);
+
+  r = memcmp(ubuf, output, sizeof ubuf);
+  ASSERT(r == 0);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+/* Helper for child process of spawn_inherit_streams */
+#ifndef _WIN32
+int spawn_stdin_stdout(void) {
+  char buf[1024];
+  char* pbuf;
+  for (;;) {
+    ssize_t r, w, c;
+    do {
+      r = read(0, buf, sizeof buf);
+    } while (r == -1 && errno == EINTR);
+    if (r == 0) {
+      return 1;
+    }
+    ASSERT(r > 0);
+    c = r;
+    pbuf = buf;
+    while (c) {
+      do {
+        w = write(1, pbuf, (size_t)c);
+      } while (w == -1 && errno == EINTR);
+      ASSERT(w >= 0);
+      pbuf = pbuf + w;
+      c = c - w;
+    }
+  }
+  return 2;
+}
+#else
+int spawn_stdin_stdout(void) {
+  char buf[1024];
+  char* pbuf;
+  HANDLE h_stdin = GetStdHandle(STD_INPUT_HANDLE);
+  HANDLE h_stdout = GetStdHandle(STD_OUTPUT_HANDLE);
+  ASSERT(h_stdin != INVALID_HANDLE_VALUE);
+  ASSERT(h_stdout != INVALID_HANDLE_VALUE);
+  for (;;) {
+    DWORD n_read;
+    DWORD n_written;
+    DWORD to_write;
+    if (!ReadFile(h_stdin, buf, sizeof buf, &n_read, NULL)) {
+      ASSERT(GetLastError() == ERROR_BROKEN_PIPE);
+      return 1;
+    }
+    to_write = n_read;
+    pbuf = buf;
+    while (to_write) {
+      ASSERT(WriteFile(h_stdout, pbuf, to_write, &n_written, NULL));
+      to_write -= n_written;
+      pbuf += n_written;
+    }
+  }
+  return 2;
+}
+#endif /* !_WIN32 */

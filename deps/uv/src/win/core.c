@@ -124,6 +124,8 @@ static void uv_init(void) {
 
 
 int uv_loop_init(uv_loop_t* loop) {
+  int err;
+
   /* Initialize libuv itself first */
   uv__once_init();
 
@@ -165,16 +167,27 @@ int uv_loop_init(uv_loop_t* loop) {
   loop->timer_counter = 0;
   loop->stop_flag = 0;
 
-  if (uv_mutex_init(&loop->wq_mutex))
-    abort();
+  err = uv_mutex_init(&loop->wq_mutex);
+  if (err)
+    goto fail_mutex_init;
 
-  if (uv_async_init(loop, &loop->wq_async, uv__work_done))
-    abort();
+  err = uv_async_init(loop, &loop->wq_async, uv__work_done);
+  if (err)
+    goto fail_async_init;
 
   uv__handle_unref(&loop->wq_async);
   loop->wq_async.flags |= UV__HANDLE_INTERNAL;
 
   return 0;
+
+fail_async_init:
+  uv_mutex_destroy(&loop->wq_mutex);
+
+fail_mutex_init:
+  CloseHandle(loop->iocp);
+  loop->iocp = INVALID_HANDLE_VALUE;
+
+  return err;
 }
 
 

@@ -407,7 +407,7 @@ int uv__stdio_create(uv_loop_t* loop,
           stream_handle = ((uv_tty_t*) stream)->handle;
           crt_flags = FOPEN | FDEV;
         } else if (stream->type == UV_NAMED_PIPE &&
-                   stream->flags & UV_HANDLE_CONNECTED) {
+                   stream->flags & UV_HANDLE_CONNECTION) {
           stream_handle = ((uv_pipe_t*) stream)->handle;
           crt_flags = FOPEN | FPIPE;
         } else {

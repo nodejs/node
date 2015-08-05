@@ -406,7 +406,10 @@ struct uv_shutdown_s {
   /* private */                                                               \
   uv_close_cb close_cb;                                                       \
   void* handle_queue[2];                                                      \
-  void* reserved[4];                                                          \
+  union {                                                                     \
+    int fd;                                                                   \
+    void* reserved[4];                                                        \
+  } u;                                                                        \
   UV_HANDLE_PRIVATE_FIELDS                                                    \
 
 /* The abstract base class of all handles. */
@@ -504,6 +507,7 @@ struct uv_tcp_s {
 };
 
 UV_EXTERN int uv_tcp_init(uv_loop_t*, uv_tcp_t* handle);
+UV_EXTERN int uv_tcp_init_ex(uv_loop_t*, uv_tcp_t* handle, unsigned int flags);
 UV_EXTERN int uv_tcp_open(uv_tcp_t* handle, uv_os_sock_t sock);
 UV_EXTERN int uv_tcp_nodelay(uv_tcp_t* handle, int enable);
 UV_EXTERN int uv_tcp_keepalive(uv_tcp_t* handle,
@@ -594,6 +598,7 @@ struct uv_udp_send_s {
 };
 
 UV_EXTERN int uv_udp_init(uv_loop_t*, uv_udp_t* handle);
+UV_EXTERN int uv_udp_init_ex(uv_loop_t*, uv_udp_t* handle, unsigned int flags);
 UV_EXTERN int uv_udp_open(uv_udp_t* handle, uv_os_sock_t sock);
 UV_EXTERN int uv_udp_bind(uv_udp_t* handle,
                           const struct sockaddr* addr,
