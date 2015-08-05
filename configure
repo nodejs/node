@@ -335,6 +335,9 @@ parser.add_option('--enable-static',
 
 (options, args) = parser.parse_args()
 
+# Expand ~ in the install prefix now, it gets written to multiple files.
+options.prefix = os.path.expanduser(options.prefix or '')
+
 # set up auto-download list
 auto_downloads = nodedownload.parse(options.download_list)
 
@@ -611,7 +614,7 @@ def configure_mips(o):
 def configure_node(o):
   if options.dest_os == 'android':
     o['variables']['OS'] = 'android'
-  o['variables']['node_prefix'] = os.path.expanduser(options.prefix or '')
+  o['variables']['node_prefix'] = options.prefix
   o['variables']['node_install_npm'] = b(not options.without_npm)
   o['default_configuration'] = 'Debug' if options.debug else 'Release'
 
