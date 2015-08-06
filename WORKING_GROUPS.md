@@ -207,7 +207,7 @@ The current members can be found in their
 
 ### [Smoke Test](https://github.com/nodejs/smoke-test)
 
-The Smoke Test Working Group is repsonsible for making sure releases of Node.js
+The Smoke Test Working Group is responsible for making sure releases of Node.js
 and io.js do not break community modules. Smoke test will build the tooling and
 maintaining the infrastructure to achieve this.
 
