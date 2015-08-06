@@ -1,9 +1,9 @@
 'use strict';
 // Flags: --abort_on_uncaught_exception
 
-var common = require('../common');
-var assert = require('assert');
-var domain = require('domain');
+const common = require('../common');
+const assert = require('assert');
+const domain = require('domain');
 
 var tests = [
   nextTick,
@@ -74,7 +74,7 @@ function firstRun() {
 }
 
 function netServer() {
-  var net = require('net');
+  const net = require('net');
   var d = domain.create();
 
   d.on('error', function(err) {

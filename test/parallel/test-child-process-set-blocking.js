@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var ch = require('child_process');
+const common = require('../common');
+const assert = require('assert');
+const ch = require('child_process');
 
 var SIZE = 100000;
 var childGone = false;

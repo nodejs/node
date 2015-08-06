@@ -1,10 +1,10 @@
 'use strict';
 // Simple tests of most basic domain functionality.
 
-var common = require('../common');
-var assert = require('assert');
-var domain = require('domain');
-var events = require('events');
+const common = require('../common');
+const assert = require('assert');
+const domain = require('domain');
+const events = require('events');
 var caught = 0;
 var expectCaught = 1;
 
@@ -40,7 +40,7 @@ process.on('exit', function() {
 // handles are created.
 d.run(function() {
   setTimeout(function() {
-    var fs = require('fs');
+    const fs = require('fs');
     fs.readdir(__dirname, function() {
       fs.open('this file does not exist', 'r', function(er) {
         if (er) throw er;

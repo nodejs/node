@@ -3,9 +3,9 @@
 // unreachable host. This error can be reported by sendto() and even by
 // recvfrom(). Node should not propagate this error to the user.
 
-var common = require('../common');
-var assert = require('assert');
-var dgram = require('dgram');
+const common = require('../common');
+const assert = require('assert');
+const dgram = require('dgram');
 
 var socket = dgram.createSocket('udp4');
 var buf = Buffer([1, 2, 3, 4]);

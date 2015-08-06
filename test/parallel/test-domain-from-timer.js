@@ -1,13 +1,13 @@
 'use strict';
 // Simple tests of most basic domain functionality.
 
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 // timeouts call the callback directly from cc, so need to make sure the
 // domain will be used regardless
 setTimeout(function() {
-  var domain = require('domain');
+  const domain = require('domain');
   var d = domain.create();
   d.run(function() {
     process.nextTick(function() {

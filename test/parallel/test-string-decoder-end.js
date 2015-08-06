@@ -3,8 +3,8 @@
 // the whole buffer at once, and that both match the .toString(enc)
 // result of the entire buffer.
 
-var assert = require('assert');
-var SD = require('string_decoder').StringDecoder;
+const assert = require('assert');
+const SD = require('string_decoder').StringDecoder;
 var encodings = ['base64', 'hex', 'utf8', 'utf16le', 'ucs2'];
 
 var bufs = [ '☃💩', 'asdf' ].map(function(b) {

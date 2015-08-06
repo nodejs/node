@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
 
 assert.equal('NODE_UNIQUE_ID' in process.env, false,
       'NODE_UNIQUE_ID should be removed on startup');
@@ -14,7 +14,7 @@ function forEach(obj, fn) {
 
 
 if (cluster.isWorker) {
-  var http = require('http');
+  const http = require('http');
   http.Server(function() {
 
   }).listen(common.PORT, '127.0.0.1');

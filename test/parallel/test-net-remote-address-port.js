@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var net = require('net');
+const net = require('net');
 
 var conns = 0, conns_closed = 0;
 

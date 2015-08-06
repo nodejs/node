@@ -1,9 +1,9 @@
 'use strict';
 // Flags: --expose_internals
 
-var assert = require('assert');
-var common = require('../common');
-var _validateStdio = require('internal/child_process')._validateStdio;
+const assert = require('assert');
+const common = require('../common');
+const _validateStdio = require('internal/child_process')._validateStdio;
 
 // should throw if string and not ignore, pipe, or inherit
 assert.throws(function() {

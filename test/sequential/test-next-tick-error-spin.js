@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (process.argv[2] !== 'child') {
-  var spawn = require('child_process').spawn;
+  const spawn = require('child_process').spawn;
   var child = spawn(process.execPath, [__filename, 'child'], {
     stdio: 'pipe'//'inherit'
   });
@@ -17,7 +17,7 @@ if (process.argv[2] !== 'child') {
   });
 } else {
 
-  var domain = require('domain');
+  const domain = require('domain');
   var d = domain.create();
   process.maxTickDepth = 10;
 

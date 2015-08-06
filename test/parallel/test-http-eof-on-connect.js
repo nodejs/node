@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
-var http = require('http');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
+const http = require('http');
 
 // This is a regression test for https://github.com/joyent/node/issues/44
 // It is separate from test-http-malformed-request.js because it is only

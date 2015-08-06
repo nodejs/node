@@ -1,15 +1,15 @@
 'use strict';
 // Flags: --expose_gc
 
-var common = require('../common');
+const common = require('../common');
 
-var fs = require('fs');
-var testFileName = require('path').join(common.tmpDir, 'GH-814_test.txt');
+const fs = require('fs');
+const testFileName = require('path').join(common.tmpDir, 'GH-814_test.txt');
 var testFD = fs.openSync(testFileName, 'w');
 console.error(testFileName + '\n');
 
 
-var tailProc = require('child_process').spawn('tail', ['-f', testFileName]);
+const tailProc = require('child_process').spawn('tail', ['-f', testFileName]);
 tailProc.stdout.on('data', tailCB);
 
 function tailCB(data) {

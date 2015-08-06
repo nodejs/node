@@ -1,12 +1,12 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert'),
-    dns = require('dns'),
-    net = require('net'),
-    isIP = net.isIP,
+const common = require('../common');
+const assert = require('assert');
+const dns = require('dns');
+const net = require('net');
+const util = require('util');
+var isIP = net.isIP,
     isIPv4 = net.isIPv4,
     isIPv6 = net.isIPv6;
-var util = require('util');
 
 var expected = 0,
     completed = 0,

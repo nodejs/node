@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
 
 common.debug('load test-module-loading.js');
 
@@ -15,21 +15,21 @@ assert.equal(process.mainModule, module,
 require('../fixtures/not-main-module.js');
 
 // require a file with a request that includes the extension
-var a_js = require('../fixtures/a.js');
+const a_js = require('../fixtures/a.js');
 assert.equal(42, a_js.number);
 
 // require a file without any extensions
-var foo_no_ext = require('../fixtures/foo');
+const foo_no_ext = require('../fixtures/foo');
 assert.equal('ok', foo_no_ext.foo);
 
-var a = require('../fixtures/a');
-var c = require('../fixtures/b/c');
-var d = require('../fixtures/b/d');
-var d2 = require('../fixtures/b/d');
+const a = require('../fixtures/a');
+const c = require('../fixtures/b/c');
+const d = require('../fixtures/b/d');
+const d2 = require('../fixtures/b/d');
 // Absolute
 var d3 = require(path.join(__dirname, '../fixtures/b/d'));
 // Relative
-var d4 = require('../fixtures/b/d');
+const d4 = require('../fixtures/b/d');
 
 assert.equal(false, false, 'testing the test program.');
 
@@ -57,12 +57,12 @@ assert.equal('D', d4.D());
 assert.ok((new a.SomeClass()) instanceof c.SomeClass);
 
 common.debug('test index.js modules ids and relative loading');
-var one = require('../fixtures/nested-index/one'),
+const one = require('../fixtures/nested-index/one'),
     two = require('../fixtures/nested-index/two');
 assert.notEqual(one.hello, two.hello);
 
 common.debug('test index.js in a folder with a trailing slash');
-var three = require('../fixtures/nested-index/three'),
+const three = require('../fixtures/nested-index/three'),
     threeFolder = require('../fixtures/nested-index/three/'),
     threeIndex = require('../fixtures/nested-index/three/index.js');
 assert.equal(threeFolder, threeIndex);
@@ -75,7 +75,7 @@ assert.equal(require('../fixtures/packages/main-index').ok, 'ok',
              'Failed loading package with index.js in main subdir');
 
 common.debug('test cycles containing a .. path');
-var root = require('../fixtures/cycles/root'),
+const root = require('../fixtures/cycles/root'),
     foo = require('../fixtures/cycles/folder/foo');
 assert.equal(root.foo, foo);
 assert.equal(root.sayHello(), root.hello);
@@ -87,7 +87,7 @@ require('../fixtures/node_modules/foo');
 
 common.debug('test name clashes');
 // this one exists and should import the local module
-var my_path = require('../fixtures/path');
+const my_path = require('../fixtures/path');
 assert.ok(common.indirectInstanceOf(my_path.path_func, Function));
 // this one does not exist and should throw
 assert.throws(function() { require('./utils'); });
@@ -169,13 +169,13 @@ assert.equal(require(loadOrder + 'file9').file9, 'file9/index.reg2', msg);
 
 // make sure that module.require() is the same as
 // doing require() inside of that module.
-var parent = require('../fixtures/module-require/parent/');
-var child = require('../fixtures/module-require/child/');
+const parent = require('../fixtures/module-require/parent/');
+const child = require('../fixtures/module-require/child/');
 assert.equal(child.loaded, parent.loaded);
 
 
 // #1357 Loading JSON files with require()
-var json = require('../fixtures/packages/main/package.json');
+const json = require('../fixtures/packages/main/package.json');
 assert.deepEqual(json, {
   name: 'package-name',
   version: '1.2.3',

@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common'),
+const common = require('../common'),
     fs = require('fs'),
     assert = require('assert');
 
@@ -7,7 +7,7 @@ if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var https = require('https');
+const https = require('https');
 
 if (!common.hasMultiLocalhost()) {
   console.log('1..0 # Skipped: platform-specific test.');

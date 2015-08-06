@@ -1,11 +1,11 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var stream = require('stream');
+const common = require('../common');
+const assert = require('assert');
+const stream = require('stream');
 
 var chunk = new Buffer('hallo');
 
-var util = require('util');
+const util = require('util');
 
 function TestWriter() {
   stream.Writable.call(this);

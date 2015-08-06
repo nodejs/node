@@ -1,10 +1,10 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var path = require('path'),
-    fs = require('fs'),
-    fn = path.join(common.fixturesDir, 'non-existent'),
+const path = require('path');
+const fs = require('fs');
+var fn = path.join(common.fixturesDir, 'non-existent'),
     existingFile = path.join(common.fixturesDir, 'exit.js'),
     existingFile2 = path.join(common.fixturesDir, 'create-file.js'),
     existingDir = path.join(common.fixturesDir, 'empty'),

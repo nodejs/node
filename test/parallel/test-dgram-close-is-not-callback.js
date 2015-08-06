@@ -1,7 +1,7 @@
 'use strict';
-var assert = require('assert');
-var common = require('../common');
-var dgram = require('dgram');
+const assert = require('assert');
+const common = require('../common');
+const dgram = require('dgram');
 
 var buf = new Buffer(1024);
 buf.fill(42);

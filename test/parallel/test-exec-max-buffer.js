@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var exec = require('child_process').exec;
-var assert = require('assert');
+const common = require('../common');
+const exec = require('child_process').exec;
+const assert = require('assert');
 
 var cmd = 'echo "hello world"';
 

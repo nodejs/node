@@ -2,15 +2,15 @@
 // Server sends a large string. Client counts bytes and pauses every few
 // seconds. Makes sure that pause and resume work properly.
 
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var tls = require('tls');
-var fs = require('fs');
+const tls = require('tls');
+const fs = require('fs');
 
 
 var body = '';

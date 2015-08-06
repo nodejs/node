@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 // test using assert
-var qs = require('querystring');
+const qs = require('querystring');
 
 // folding block, commented to pass gjslint
 // {{{
@@ -74,7 +74,7 @@ var qsWeirdObjects = [
 ];
 // }}}
 
-var vm = require('vm');
+const vm = require('vm');
 var foreignObject = vm.runInNewContext('({"foo": ["bar", "baz"]})');
 
 var qsNoMungeTestCases = [

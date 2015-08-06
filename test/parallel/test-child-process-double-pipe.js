@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert'),
-    os = require('os'),
-    util = require('util'),
-    spawn = require('child_process').spawn;
+const common = require('../common');
+const assert = require('assert');
+const os = require('os');
+const util = require('util');
+const spawn = require('child_process').spawn;
 
 // We're trying to reproduce:
 // $ echo "hello\nnode\nand\nworld" | grep o | sed s/o/a/

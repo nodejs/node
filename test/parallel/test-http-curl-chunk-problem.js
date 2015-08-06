@@ -1,17 +1,17 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 if (!common.opensslCli) {
   console.log('1..0 # Skipped: node compiled without OpenSSL CLI.');
   return;
 }
 
 // http://groups.google.com/group/nodejs/browse_thread/thread/f66cd3c960406919
-var http = require('http');
-var cp = require('child_process');
-var fs = require('fs');
+const http = require('http');
+const cp = require('child_process');
+const fs = require('fs');
 
-var filename = require('path').join(common.tmpDir, 'big');
+const filename = require('path').join(common.tmpDir, 'big');
 
 var count = 0;
 function maybeMakeRequest() {

@@ -1,12 +1,12 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
 
 if (cluster.isWorker) {
 
   // keep the worker alive
-  var http = require('http');
+  const http = require('http');
   http.Server().listen(common.PORT, '127.0.0.1');
 
 } else if (process.argv[2] === 'cluster') {
@@ -28,7 +28,7 @@ if (cluster.isWorker) {
 } else {
 
   // This is the testcase
-  var fork = require('child_process').fork;
+  const fork = require('child_process').fork;
 
   // is process alive helper
   var isAlive = function(pid) {

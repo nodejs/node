@@ -1,12 +1,12 @@
 'use strict';
 process.env.NODE_DEBUGGER_TIMEOUT = 2000;
-var common = require('../common');
-var assert = require('assert');
-var debug = require('_debugger');
+const common = require('../common');
+const assert = require('assert');
+const debug = require('_debugger');
 
 var debugPort = common.PORT + 1337;
 debug.port = debugPort;
-var spawn = require('child_process').spawn;
+const spawn = require('child_process').spawn;
 
 setTimeout(function() {
   if (nodeProcess) nodeProcess.kill('SIGTERM');

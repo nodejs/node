@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var util = require('util');
-var assert = require('assert');
-var exec = require('child_process').exec;
+const util = require('util');
+const assert = require('assert');
+const exec = require('child_process').exec;
 
 var success_count = 0;
 var error_count = 0;

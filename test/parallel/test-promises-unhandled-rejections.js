@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var domain = require('domain');
+const common = require('../common');
+const assert = require('assert');
+const domain = require('domain');
 
 var asyncTest = (function() {
   var asyncTestsEnabled = false;

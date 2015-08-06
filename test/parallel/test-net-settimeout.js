@@ -2,9 +2,9 @@
 // This example sets a timeout then immediately attempts to disable the timeout
 // https://github.com/joyent/node/pull/2245
 
-var common = require('../common');
-var net = require('net');
-var assert = require('assert');
+const common = require('../common');
+const net = require('net');
+const assert = require('assert');
 
 var T = 100;
 

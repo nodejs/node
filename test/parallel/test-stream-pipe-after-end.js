@@ -1,10 +1,10 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var Readable = require('_stream_readable');
-var Writable = require('_stream_writable');
-var util = require('util');
+const Readable = require('_stream_readable');
+const Writable = require('_stream_writable');
+const util = require('util');
 
 util.inherits(TestReadable, Readable);
 function TestReadable(opt) {

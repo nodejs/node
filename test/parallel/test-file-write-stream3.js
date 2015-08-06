@@ -1,10 +1,10 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var path = require('path'),
-    fs = require('fs'),
-    util = require('util');
+const path = require('path');
+const fs = require('fs');
+const util = require('util');
 
 
 var filepath = path.join(common.tmpDir, 'write_pos.txt');

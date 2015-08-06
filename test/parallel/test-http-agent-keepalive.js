@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var Agent = require('_http_agent').Agent;
-var EventEmitter = require('events').EventEmitter;
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const Agent = require('_http_agent').Agent;
+const EventEmitter = require('events').EventEmitter;
 
 var agent = new Agent({
   keepAlive: true,

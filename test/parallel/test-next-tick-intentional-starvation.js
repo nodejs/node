@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 // this is the inverse of test-next-tick-starvation.
 // it verifies that process.nextTick will *always* come before other

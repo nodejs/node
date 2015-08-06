@@ -1,8 +1,8 @@
 'use strict';
 process.env.NODE_CLUSTER_SCHED_POLICY = 'none';
 
-var cluster = require('cluster');
-var net = require('net');
+const cluster = require('cluster');
+const net = require('net');
 
 if (cluster.isMaster) {
   var unbound = cluster.fork().on('online', bind);

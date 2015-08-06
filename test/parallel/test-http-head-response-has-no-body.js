@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var http = require('http');
+const http = require('http');
 
 // This test is to make sure that when the HTTP server
 // responds to a HEAD request, it does not send any body.

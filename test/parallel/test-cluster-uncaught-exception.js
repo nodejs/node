@@ -3,10 +3,10 @@
 // one that the cluster module installs.
 // https://github.com/joyent/node/issues/2556
 
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var fork = require('child_process').fork;
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const fork = require('child_process').fork;
 
 var MAGIC_EXIT_CODE = 42;
 

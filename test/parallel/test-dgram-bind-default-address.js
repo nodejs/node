@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var dgram = require('dgram');
+const common = require('../common');
+const assert = require('assert');
+const dgram = require('dgram');
 
 // skip test in FreeBSD jails since 0.0.0.0 will resolve to default interface
 if (common.inFreeBSDJail) {

@@ -1,2 +1,2 @@
 'use strict';
-var binding = require('./build/Release/binding');
+const binding = require('./build/Release/binding');

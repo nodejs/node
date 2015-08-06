@@ -1,8 +1,8 @@
 /* eslint-disable strict */
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var zlib = require('zlib');
+const zlib = require('zlib');
 
 assert.equal(zlib.Z_OK, 0, 'Z_OK should be 0');
 zlib.Z_OK = 1;

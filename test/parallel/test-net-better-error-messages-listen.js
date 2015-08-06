@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
 var server = net.createServer(assert.fail);
 server.listen(1, '1.1.1.1', assert.fail);

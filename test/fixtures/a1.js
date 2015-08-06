@@ -1,4 +1,4 @@
-var c = require('./b/c');
+const c = require('./b/c');
 
 console.error('load fixtures/a.js');
 

@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 var TCP = process.binding('tcp_wrap').TCP;
 var WriteWrap = process.binding('stream_wrap').WriteWrap;
@@ -78,7 +78,7 @@ server.onconnection = function(err, client) {
   };
 };
 
-var net = require('net');
+const net = require('net');
 
 var c = net.createConnection(common.PORT);
 c.on('connect', function() {

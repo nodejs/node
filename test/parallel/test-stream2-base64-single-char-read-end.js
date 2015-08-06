@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var R = require('_stream_readable');
-var W = require('_stream_writable');
-var assert = require('assert');
+const common = require('../common');
+const R = require('_stream_readable');
+const W = require('_stream_writable');
+const assert = require('assert');
 
 var src = new R({encoding: 'base64'});
 var dst = new W();

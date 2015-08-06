@@ -1,9 +1,10 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var fs = require('fs'),
-    dgram = require('dgram'), server, client,
+const fs = require('fs');
+const dgram = require('dgram');
+var server, client,
     server_port = common.PORT,
     message_to_send = 'A message to send',
     timer;

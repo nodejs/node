@@ -1,8 +1,8 @@
 'use strict';
 // Make sure the domain stack doesn't get clobbered by un-matched .exit()
 
-var assert = require('assert');
-var domain = require('domain');
+const assert = require('assert');
+const domain = require('domain');
 
 var a = domain.create();
 var b = domain.create();

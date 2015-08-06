@@ -1,9 +1,9 @@
 /* eslint-disable no-debugger */
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var vm = require('vm');
-var spawn = require('child_process').spawn;
+const common = require('../common');
+const assert = require('assert');
+const vm = require('vm');
+const spawn = require('child_process').spawn;
 
 assert.throws(function() {
   vm.runInDebugContext('*');

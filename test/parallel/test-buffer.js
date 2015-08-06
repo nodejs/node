@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var Buffer = require('buffer').Buffer;
-var SlowBuffer = require('buffer').SlowBuffer;
+const Buffer = require('buffer').Buffer;
+const SlowBuffer = require('buffer').SlowBuffer;
 
 // counter to ensure unique value is always copied
 var cntr = 0;
@@ -1107,7 +1107,7 @@ assert.throws(function() {
 
 if (common.hasCrypto) {
   // Test truncation after decode
-  var crypto = require('crypto');
+  const crypto = require('crypto');
 
   var b1 = new Buffer('YW55=======', 'base64');
   var b2 = new Buffer('YW55', 'base64');

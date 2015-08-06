@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var net = require('net');
-var assert = require('assert');
+const common = require('../common');
+const net = require('net');
+const assert = require('assert');
 
 var cbcount = 0;
 var N = 500000;

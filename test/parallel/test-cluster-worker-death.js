@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
 
 if (!cluster.isMaster) {
   process.exit(42);

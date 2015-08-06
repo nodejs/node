@@ -1,13 +1,13 @@
 'use strict';
-var assert = require('assert');
-var common = require('../common');
+const assert = require('assert');
+const common = require('../common');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var tls = require('tls');
-var stream = require('stream');
+const tls = require('tls');
+const stream = require('stream');
 
 var delay = new stream.Duplex({
   read: function read() {

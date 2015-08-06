@@ -5,17 +5,17 @@
 // to POST a 32mb file to us. A bug in the pause/resume functionality of the
 // TLS server causes the child process to exit cleanly before having sent
 // the entire buffer.
-var common = require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
+const common = require('../common');
+const assert = require('assert');
+const spawn = require('child_process').spawn;
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var https = require('https');
+const https = require('https');
 
-var fs = require('fs');
+const fs = require('fs');
 
 var PORT = 8000;
 
@@ -25,7 +25,8 @@ var gotResponse = false;
 
 var started = false;
 
-var childScript = require('path').join(common.fixturesDir, 'GH-892-request.js');
+const childScript = require('path').join(common.fixturesDir,
+                                         'GH-892-request.js');
 
 function makeRequest() {
   if (started) return;

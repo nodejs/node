@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var join = require('path').join;
-var util = require('util');
-var fs = require('fs');
+const common = require('../common');
+const join = require('path').join;
+const util = require('util');
+const fs = require('fs');
 
 var data = [
   '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcH',

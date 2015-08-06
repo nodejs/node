@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
-var path = require('path');
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 
 assert.equal(true, process.cwd() !== __dirname);
 

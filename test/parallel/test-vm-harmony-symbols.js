@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var vm = require('vm');
+const common = require('../common');
+const assert = require('assert');
+const vm = require('vm');
 
 // The sandbox should have its own Symbol constructor.
 var sandbox = {};

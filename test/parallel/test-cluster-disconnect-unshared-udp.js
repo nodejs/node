@@ -7,8 +7,8 @@ if (common.isWindows) {
   return;
 }
 
-var cluster = require('cluster');
-var dgram = require('dgram');
+const cluster = require('cluster');
+const dgram = require('dgram');
 
 if (cluster.isMaster) {
   var unbound = cluster.fork().on('online', bind);

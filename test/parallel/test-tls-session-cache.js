@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 
 if (!common.opensslCli) {
   console.log('1..0 # Skipped: node compiled without OpenSSL CLI.');
@@ -18,11 +18,11 @@ doTest({ tickets: false }, function() {
 });
 
 function doTest(testOptions, callback) {
-  var assert = require('assert');
-  var tls = require('tls');
-  var fs = require('fs');
-  var join = require('path').join;
-  var spawn = require('child_process').spawn;
+  const assert = require('assert');
+  const tls = require('tls');
+  const fs = require('fs');
+  const join = require('path').join;
+  const spawn = require('child_process').spawn;
 
   var keyFile = join(common.fixturesDir, 'agent.key');
   var certFile = join(common.fixturesDir, 'agent.crt');

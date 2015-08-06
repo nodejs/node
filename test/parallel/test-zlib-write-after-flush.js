@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var zlib = require('zlib');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const zlib = require('zlib');
+const fs = require('fs');
 
 var gzip = zlib.createGzip();
 var gunz = zlib.createUnzip();

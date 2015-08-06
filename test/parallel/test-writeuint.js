@@ -2,8 +2,8 @@
 /*
  * A battery of tests to help us read a series of uints
  */
-var common = require('../common');
-var ASSERT = require('assert');
+const common = require('../common');
+const ASSERT = require('assert');
 
 /*
  * We need to check the following things:

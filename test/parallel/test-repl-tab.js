@@ -1,8 +1,8 @@
 'use strict';
-var assert = require('assert');
-var util = require('util');
-var repl = require('repl');
-var zlib = require('zlib');
+const assert = require('assert');
+const util = require('util');
+const repl = require('repl');
+const zlib = require('zlib');
 
 // just use builtin stream inherited from Duplex
 var putIn = zlib.createGzip();

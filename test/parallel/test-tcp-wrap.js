@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 var TCP = process.binding('tcp_wrap').TCP;
 var uv = process.binding('uv');

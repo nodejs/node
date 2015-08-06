@@ -1,9 +1,9 @@
 'use strict';
-var assert = require('assert');
-var common = require('../common');
+const assert = require('assert');
+const common = require('../common');
 
-var util   = require('util');
-var repl   = require('repl');
+const util = require('util');
+const repl = require('repl');
 
 // A stream to push an array into a REPL
 function ArrayStream() {

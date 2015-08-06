@@ -1,6 +1,6 @@
 /* eslint-disable strict */
 try {
-  var crypto = require('crypto');
+  const crypto = require('crypto');
 } catch (e) {
   console.log('1..0 # Skipped: node compiled without OpenSSL.');
   return;

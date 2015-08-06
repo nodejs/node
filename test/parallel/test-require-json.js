@@ -1,5 +1,5 @@
 'use strict';
-var assert = require('assert');
+const assert = require('assert');
 
 try {
   require('../fixtures/invalid.json');

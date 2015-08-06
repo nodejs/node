@@ -1,24 +1,24 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var util = require('util');
+const common = require('../common');
+const assert = require('assert');
+const util = require('util');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var crypto = require('crypto');
+const crypto = require('crypto');
 
 crypto.DEFAULT_ENCODING = 'buffer';
 
-var fs = require('fs');
+const fs = require('fs');
 
 // Test Certificates
 var caPem = fs.readFileSync(common.fixturesDir + '/test_ca.pem', 'ascii');
 var certPem = fs.readFileSync(common.fixturesDir + '/test_cert.pem', 'ascii');
 var certPfx = fs.readFileSync(common.fixturesDir + '/test_cert.pfx');
 var keyPem = fs.readFileSync(common.fixturesDir + '/test_key.pem', 'ascii');
-var tls = require('tls');
+const tls = require('tls');
 
 // 'this' safety
 // https://github.com/joyent/node/issues/6690
@@ -67,7 +67,6 @@ assert.equal(-1, crypto.getCiphers().indexOf('AES-128-CBC'));
 assertSorted(crypto.getCiphers());
 
 // Assume that we have at least AES256-SHA.
-var tls = require('tls');
 assert.notEqual(0, tls.getCiphers().length);
 assert.notEqual(-1, tls.getCiphers().indexOf('aes256-sha'));
 assert.equal(-1, tls.getCiphers().indexOf('AES256-SHA'));

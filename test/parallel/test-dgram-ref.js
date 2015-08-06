@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common');
-var dgram = require('dgram');
+const common = require('../common');
+const dgram = require('dgram');
 
 // should not hang, see #1282
 dgram.createSocket('udp4');

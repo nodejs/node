@@ -1,5 +1,5 @@
 'use strict';
-var assert = require('assert');
+const assert = require('assert');
 
 // recursively calling .exit() should not overflow the call stack
 var nexits = 0;

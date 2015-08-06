@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
-var join = require('path').join;
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
+const join = require('path').join;
 
 common.refreshTmpDir();
 

@@ -1,10 +1,10 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var os = require('os');
-var util = require('util');
+const common = require('../common');
+const assert = require('assert');
+const os = require('os');
+const util = require('util');
 
-var spawnSync = require('child_process').spawnSync;
+const spawnSync = require('child_process').spawnSync;
 
 var msgOut = 'this is stdout';
 var msgErr = 'this is stderr';

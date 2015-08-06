@@ -8,13 +8,13 @@
 // },
 // in src/CNNICHashWhitelist.inc
 
-var common = require('../common');
+const common = require('../common');
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
 
-var tls = require('tls');
+const tls = require('tls');
 var socket = tls.connect(443, 'www1.cnnic.cn', function() {
   socket.resume();
   socket.destroy();

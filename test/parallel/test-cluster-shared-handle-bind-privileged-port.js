@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const net = require('net');
 
 if (common.isWindows) {
   console.log('1..0 # Skipped: not reliable on Windows');

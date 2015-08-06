@@ -1,7 +1,7 @@
 'use strict';
-var assert = require('assert');
-var common = require('../common');
-var fork = require('child_process').fork;
+const assert = require('assert');
+const common = require('../common');
+const fork = require('child_process').fork;
 var args = ['foo', 'bar'];
 
 var n = fork(common.fixturesDir + '/child-process-spawn-node.js', args);

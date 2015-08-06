@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 // simulate `cat readfile.js | node readfile.js`
 
@@ -9,7 +9,7 @@ if (common.isWindows) {
   return;
 }
 
-var fs = require('fs');
+const fs = require('fs');
 
 var dataExpected = fs.readFileSync(__filename, 'utf8');
 
@@ -21,7 +21,7 @@ if (process.argv[2] === 'child') {
   return;
 }
 
-var exec = require('child_process').exec;
+const exec = require('child_process').exec;
 var f = JSON.stringify(__filename);
 var node = JSON.stringify(process.execPath);
 var cmd = 'cat ' + f + ' | ' + node + ' ' + f + ' child';

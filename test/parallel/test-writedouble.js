@@ -2,8 +2,8 @@
 /*
  * Tests to verify we're writing doubles correctly
  */
-var common = require('../common');
-var ASSERT = require('assert');
+const common = require('../common');
+const ASSERT = require('assert');
 
 function test(clazz) {
   var buffer = new clazz(16);

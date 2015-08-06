@@ -1,10 +1,10 @@
 'use strict';
 // Tests of multiple domains happening at once.
 
-var common = require('../common');
-var assert = require('assert');
-var domain = require('domain');
-var events = require('events');
+const common = require('../common');
+const assert = require('assert');
+const domain = require('domain');
+const events = require('events');
 
 var caughtA = false;
 var caughtB = false;
@@ -20,7 +20,7 @@ a.on('error', function(er) {
 });
 
 
-var http = require('http');
+const http = require('http');
 var server = http.createServer(function(req, res) {
   // child domain of a.
   var b = domain.create();

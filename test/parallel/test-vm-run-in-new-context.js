@@ -1,9 +1,9 @@
 /* eslint-disable strict */
 // Flags: --expose-gc
 
-var common = require('../common');
-var assert = require('assert');
-var vm = require('vm');
+const common = require('../common');
+const assert = require('assert');
+const vm = require('vm');
 
 assert.equal(typeof gc, 'function', 'Run this test with --expose-gc');
 

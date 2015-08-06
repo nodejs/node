@@ -7,10 +7,10 @@ if ('linux freebsd darwin'.indexOf(process.platform) === -1) {
   return;
 }
 
-var common = require('../common');
-var assert = require('assert');
-var exec = require('child_process').exec;
-var path = require('path');
+const common = require('../common');
+const assert = require('assert');
+const exec = require('child_process').exec;
+const path = require('path');
 
 // The title shouldn't be too long; libuv's uv_set_process_title() out of
 // security considerations no longer overwrites envp, only argv, so the

@@ -3,21 +3,21 @@
 // to use buffers by default.
 
 
-var common = require('../common');
-var assert = require('assert');
-var constants = require('constants');
+const common = require('../common');
+const assert = require('assert');
+const constants = require('constants');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var crypto = require('crypto');
-var tls = require('tls');
+const crypto = require('crypto');
+const tls = require('tls');
 
 crypto.DEFAULT_ENCODING = 'binary';
 
-var fs = require('fs');
-var path = require('path');
+const fs = require('fs');
+const path = require('path');
 
 // Test Certificates
 var caPem = fs.readFileSync(common.fixturesDir + '/test_ca.pem', 'ascii');

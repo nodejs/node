@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common'),
+const common = require('../common'),
     assert = require('assert'),
     spawn = require('child_process').spawn,
     os = require('os'),

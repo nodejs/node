@@ -1,8 +1,8 @@
 'use strict';
 
-var assert = require('assert');
-var http = require('http');
-var common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const common = require('../common');
 
 var agent = new http.Agent();
 

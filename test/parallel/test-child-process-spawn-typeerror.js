@@ -1,8 +1,8 @@
 'use strict';
-var assert = require('assert');
-var child_process = require('child_process');
+const assert = require('assert');
+const child_process = require('child_process');
 var spawn = child_process.spawn;
-var cmd = require('../common').isWindows ? 'rundll32' : 'ls';
+const cmd = require('../common').isWindows ? 'rundll32' : 'ls';
 var invalidArgsMsg = /Incorrect value of args option/;
 var invalidOptionsMsg = /options argument must be an object/;
 

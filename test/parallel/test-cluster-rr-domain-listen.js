@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var cluster = require('cluster');
-var domain = require('domain');
+const common = require('../common');
+const cluster = require('cluster');
+const domain = require('domain');
 
 // RR is the default for v0.11.9+ so the following line is redundant:
 // cluster.schedulingPolicy = cluster.SCHED_RR;
@@ -10,7 +10,7 @@ if (cluster.isWorker) {
   var d = domain.create();
   d.run(function() { });
 
-  var http = require('http');
+  const http = require('http');
   http.Server(function() { }).listen(common.PORT, '127.0.0.1');
 
 } else if (cluster.isMaster) {

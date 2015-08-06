@@ -1,6 +1,6 @@
 'use strict';
-var EventEmitter = require('events');
-var assert = require('assert');
+const EventEmitter = require('events');
+const assert = require('assert');
 
 var EE = new EventEmitter();
 

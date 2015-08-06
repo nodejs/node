@@ -1,9 +1,9 @@
 'use strict';
 // Flags: --expose-gc
 
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
 assert(typeof gc === 'function', 'Run this test with --expose-gc');
 net.createServer(function() {}).listen(common.PORT);

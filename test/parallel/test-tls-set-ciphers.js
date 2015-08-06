@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 
 if (!common.opensslCli) {
   console.log('1..0 # Skipped: node compiled without OpenSSL CLI.');
@@ -11,10 +11,10 @@ if (!common.hasCrypto) {
   return;
 }
 
-var assert = require('assert');
-var exec = require('child_process').exec;
-var tls = require('tls');
-var fs = require('fs');
+const assert = require('assert');
+const exec = require('child_process').exec;
+const tls = require('tls');
+const fs = require('fs');
 
 var options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),

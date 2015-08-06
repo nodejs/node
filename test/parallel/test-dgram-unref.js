@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var dgram = require('dgram');
+const dgram = require('dgram');
 var closed = false;
 
 var s = dgram.createSocket('udp4');

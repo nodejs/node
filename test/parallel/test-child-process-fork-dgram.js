@@ -13,10 +13,10 @@
  * and the test will fail.
  */
 
-var dgram = require('dgram');
-var fork = require('child_process').fork;
-var assert = require('assert');
-var common = require('../common');
+const dgram = require('dgram');
+const fork = require('child_process').fork;
+const assert = require('assert');
+const common = require('../common');
 
 if (common.isWindows) {
   console.log('1..0 # Skipped: Sending dgram sockets to child processes is ' +

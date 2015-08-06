@@ -1,7 +1,7 @@
 /* eslint-disable strict */
-var common = require('../common');
-var assert = require('assert');
-var Script = require('vm').Script;
+const common = require('../common');
+const assert = require('assert');
+const Script = require('vm').Script;
 
 common.globalCheck = false;
 

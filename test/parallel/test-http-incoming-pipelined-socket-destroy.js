@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var http = require('http');
-var net = require('net');
+const http = require('http');
+const net = require('net');
 
 
 // Set up some timing issues where sockets can be destroyed

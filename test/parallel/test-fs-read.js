@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path'),
-    fs = require('fs'),
-    filepath = path.join(common.fixturesDir, 'x.txt'),
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
+var filepath = path.join(common.fixturesDir, 'x.txt'),
     fd = fs.openSync(filepath, 'r'),
     expected = 'xyz\n',
     readCalled = 0;

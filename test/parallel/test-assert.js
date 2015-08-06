@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var a = require('assert');
+const common = require('../common');
+const assert = require('assert');
+const a = require('assert');
 
 function makeBlock(f) {
   var args = Array.prototype.slice.call(arguments, 1);

@@ -1,11 +1,11 @@
 'use strict';
-var common = require('../common');
-var http = require('http'),
+const common = require('../common');
+const http = require('http');
+const assert = require('assert');
+const fs = require('fs');
+var hostExpect = 'localhost',
     PORT = common.PORT,
     SSLPORT = common.PORT + 1,
-    assert = require('assert'),
-    hostExpect = 'localhost',
-    fs = require('fs'),
     path = require('path'),
     fixtures = path.resolve(__dirname, '../fixtures/keys'),
     options = {
@@ -14,12 +14,6 @@ var http = require('http'),
     },
     gotHttpsResp = false,
     gotHttpResp = false;
-
-if (common.hasCrypto) {
-  var https = require('https');
-} else {
-  console.log('1..0 # Skipped: missing crypto');
-}
 
 process.on('exit', function() {
   if (common.hasCrypto) {
@@ -49,6 +43,7 @@ http.createServer(function(req, res) {
 });
 
 if (common.hasCrypto) {
+  const https = require('https');
   https.globalAgent.defaultPort = SSLPORT;
   https.createServer(options, function(req, res) {
     assert.equal(req.headers.host, hostExpect);
@@ -68,4 +63,6 @@ if (common.hasCrypto) {
       res.resume();
     });
   });
+} else {
+  console.log('1..0 # Skipped: missing crypto');
 }

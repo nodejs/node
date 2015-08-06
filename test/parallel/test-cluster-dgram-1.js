@@ -2,10 +2,10 @@
 var NUM_WORKERS = 4;
 var PACKETS_PER_WORKER = 10;
 
-var assert = require('assert');
-var cluster = require('cluster');
-var common = require('../common');
-var dgram = require('dgram');
+const assert = require('assert');
+const cluster = require('cluster');
+const common = require('../common');
+const dgram = require('dgram');
 
 
 if (common.isWindows) {

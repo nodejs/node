@@ -3,11 +3,11 @@
 // the HTTP client. This test uses a raw TCP server to better control server
 // behavior.
 
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var http = require('http');
-var net = require('net');
+const http = require('http');
+const net = require('net');
 
 // Create a TCP server
 var srv = net.createServer(function(c) {

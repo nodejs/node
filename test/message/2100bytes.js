@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var util = require('util');
+const common = require('../common');
+const assert = require('assert');
+const util = require('util');
 
 console.log([
   '_______________________________________________50',

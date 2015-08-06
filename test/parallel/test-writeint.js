@@ -2,8 +2,8 @@
 /*
  * Tests to verify we're writing signed integers correctly
  */
-var common = require('../common');
-var ASSERT = require('assert');
+const common = require('../common');
+const ASSERT = require('assert');
 
 function test8(clazz) {
   var buffer = new clazz(2);

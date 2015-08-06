@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 // This test verifies that:
 // 1. unshift() does not cause colliding _read() calls.
@@ -9,7 +9,7 @@ var assert = require('assert');
 // 3. push() after the EOF signaling null is an error.
 // 4. _read() is not called after pushing the EOF null chunk.
 
-var stream = require('stream');
+const stream = require('stream');
 var hwm = 10;
 var r = stream.Readable({ highWaterMark: hwm });
 var chunks = 10;

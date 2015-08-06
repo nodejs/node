@@ -1,7 +1,7 @@
 'use strict';
-var assert = require('assert');
-var repl = require('repl');
-var stream = require('stream');
+const assert = require('assert');
+const repl = require('repl');
+const stream = require('stream');
 var buildType = process.config.target_defaults.default_configuration;
 var buildPath = __dirname + '/build/' + buildType + '/binding';
 var cb_ran = false;

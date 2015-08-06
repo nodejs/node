@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var util = require('util');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const util = require('util');
 
 var bufferSize = 5 * 1024 * 1024;
 var measuredSize = 0;

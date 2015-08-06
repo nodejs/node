@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var util = require('util');
-var stream = require('stream');
+const common = require('../common');
+const assert = require('assert');
+const util = require('util');
+const stream = require('stream');
 
 var passed = false;
 

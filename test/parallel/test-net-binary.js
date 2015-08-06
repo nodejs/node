@@ -1,7 +1,7 @@
 /* eslint-disable strict */
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
 var binaryString = '';
 for (var i = 255; i >= 0; i--) {

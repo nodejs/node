@@ -4,9 +4,9 @@
 // exit when its child exits.
 // https://github.com/joyent/node/issues/1726
 
-var common = require('../common');
-var assert = require('assert');
-var ch = require('child_process');
+const common = require('../common');
+const assert = require('assert');
+const ch = require('child_process');
 
 var gen = +(process.argv[2] || 0);
 var maxGen = 5;

@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 
 if (!process.features.tls_ocsp) {
   console.log('1..0 # Skipped: node compiled without OpenSSL or ' +
@@ -15,12 +15,12 @@ if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var assert = require('assert');
-var constants = require('constants');
-var fs = require('fs');
-var join = require('path').join;
+const assert = require('assert');
+const constants = require('constants');
+const fs = require('fs');
+const join = require('path').join;
 
 test({ response: false }, function() {
   test({ response: 'hello world' }, function() {

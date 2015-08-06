@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var fs = require('fs');
-var spawn = require('child_process').spawn;
-var assert = require('assert');
+const common = require('../common');
+const fs = require('fs');
+const spawn = require('child_process').spawn;
+const assert = require('assert');
 
 var errors = 0;
 

@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var zlib = require('zlib');
-var path = require('path');
+const common = require('../common');
+const assert = require('assert');
+const zlib = require('zlib');
+const path = require('path');
 
 var zlibPairs =
     [[zlib.Deflate, zlib.Inflate],
@@ -36,7 +36,7 @@ if (!process.env.PUMMEL) {
   strategy = [0];
 }
 
-var fs = require('fs');
+const fs = require('fs');
 
 var testFiles = ['person.jpg', 'elipses.txt', 'empty.txt'];
 
@@ -50,8 +50,8 @@ testFiles.forEach(function(file) {
   tests[file] = fs.readFileSync(path.resolve(common.fixturesDir, file));
 });
 
-var util = require('util');
-var stream = require('stream');
+const util = require('util');
+const stream = require('stream');
 
 
 // stream that saves everything

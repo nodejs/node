@@ -1,10 +1,10 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var net = require('net'),
-    util = require('util'),
-    http = require('http');
+const net = require('net');
+const util = require('util');
+const http = require('http');
 
 var errorCount = 0;
 var eofCount = 0;

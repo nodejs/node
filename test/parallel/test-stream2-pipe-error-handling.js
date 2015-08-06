@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var stream = require('stream');
+const common = require('../common');
+const assert = require('assert');
+const stream = require('stream');
 
 (function testErrorListenerCatches() {
   var count = 1000;

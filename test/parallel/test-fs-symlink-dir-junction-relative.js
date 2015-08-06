@@ -1,10 +1,10 @@
 'use strict';
 // Test creating and resolving relative junction or symbolic link
 
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
 var completed = 0;
 var expected_tests = 2;
 

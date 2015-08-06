@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
 // Test on IPv4 Server
 var family_ipv4 = 'IPv4';

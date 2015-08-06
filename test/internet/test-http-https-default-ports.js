@@ -1,14 +1,14 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var https = require('https');
+const https = require('https');
 
-var http = require('http');
+const http = require('http');
 var gotHttpsResp = false;
 var gotHttpResp = false;
 

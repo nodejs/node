@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 switch (process.argv[2]) {
   case undefined:
@@ -12,7 +12,7 @@ switch (process.argv[2]) {
 }
 
 function parent() {
-  var http = require('http');
+  const http = require('http');
   var bigResponse = new Buffer(10240).fill('x');
   var gotTimeout = false;
   var childClosed = false;
@@ -37,7 +37,7 @@ function parent() {
   });
 
   server.listen(common.PORT, function() {
-    var spawn = require('child_process').spawn;
+    const spawn = require('child_process').spawn;
     var args = [__filename, 'child'];
     var child = spawn(process.execPath, args, { stdio: 'inherit' });
     child.on('close', function(code) {
@@ -61,7 +61,7 @@ function parent() {
 }
 
 function child() {
-  var net = require('net');
+  const net = require('net');
 
   var gotEpipe = false;
   var conn = net.connect({ port: common.PORT });

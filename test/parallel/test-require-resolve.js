@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 var fixturesDir = common.fixturesDir;
-var assert = require('assert');
-var path = require('path');
+const assert = require('assert');
+const path = require('path');
 
 assert.equal(
     path.join(__dirname, '../fixtures/a.js').toLowerCase(),

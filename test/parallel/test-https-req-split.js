@@ -2,17 +2,17 @@
 // disable strict server certificate validation by the client
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var https = require('https');
+const https = require('https');
 
-var tls = require('tls');
-var fs = require('fs');
+const tls = require('tls');
+const fs = require('fs');
 
 var seen_req = false;
 

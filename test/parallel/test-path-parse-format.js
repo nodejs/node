@@ -1,6 +1,6 @@
 'use strict';
-var assert = require('assert');
-var path = require('path');
+const assert = require('assert');
+const path = require('path');
 
 var winPaths = [
   'C:\\path\\dir\\index.html',

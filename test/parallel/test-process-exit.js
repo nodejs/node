@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 // calling .exit() from within "exit" should not overflow the call stack
 var nexits = 0;

@@ -2,8 +2,8 @@
 /*
  * Tests to verify we're reading in floats correctly
  */
-var common = require('../common');
-var ASSERT = require('assert');
+const common = require('../common');
+const ASSERT = require('assert');
 
 /*
  * Test (32 bit) float

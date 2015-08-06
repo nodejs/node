@@ -1,7 +1,7 @@
 'use strict';
-var net = require('net');
-var common = require('../common');
-var assert = require('assert');
+const net = require('net');
+const common = require('../common');
+const assert = require('assert');
 
 var timeoutCount = 0;
 

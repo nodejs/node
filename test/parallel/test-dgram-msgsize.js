@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var dgram = require('dgram');
+const common = require('../common');
+const assert = require('assert');
+const dgram = require('dgram');
 
 // Send a too big datagram. The destination doesn't matter because it's
 // not supposed to get sent out anyway.

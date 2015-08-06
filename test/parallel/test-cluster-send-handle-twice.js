@@ -1,10 +1,10 @@
 'use strict';
 // Testing to send an handle twice to the parent process.
 
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const net = require('net');
 
 var workers = {
   toStart: 1

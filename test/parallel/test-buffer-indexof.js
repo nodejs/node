@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var Buffer = require('buffer').Buffer;
+const Buffer = require('buffer').Buffer;
 
 var b = new Buffer('abcdef');
 var buf_a = new Buffer('a');

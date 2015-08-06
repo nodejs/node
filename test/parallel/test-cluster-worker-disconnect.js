@@ -1,10 +1,10 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
 
 if (cluster.isWorker) {
-  var http = require('http');
+  const http = require('http');
   http.Server(function() {
 
   }).listen(common.PORT, '127.0.0.1');

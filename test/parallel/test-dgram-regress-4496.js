@@ -1,9 +1,9 @@
 'use strict';
 // Remove this test once we support sending strings.
 
-var common = require('../common');
-var assert = require('assert');
-var dgram = require('dgram');
+const common = require('../common');
+const assert = require('assert');
+const dgram = require('dgram');
 
 // Should throw but not crash.
 var socket = dgram.createSocket('udp4');

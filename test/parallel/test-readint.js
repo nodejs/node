@@ -2,8 +2,8 @@
 /*
  * Tests to verify we're reading in signed integers correctly
  */
-var common = require('../common');
-var ASSERT = require('assert');
+const common = require('../common');
+const ASSERT = require('assert');
 
 /*
  * Test 8 bit signed integers

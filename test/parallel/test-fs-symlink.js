@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var fs = require('fs');
-var exec = require('child_process').exec;
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
+const exec = require('child_process').exec;
 var completed = 0;
 var expected_async = 4;
 var linkTime;

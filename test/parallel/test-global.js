@@ -1,6 +1,6 @@
 /* eslint-disable strict */
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 common.globalCheck = false;
 
@@ -11,8 +11,7 @@ assert.equal('foo', global.baseFoo, 'x -> global.x in base level not working');
 
 assert.equal('bar', baseBar, 'global.x -> x in base level not working');
 
-var module = require('../fixtures/global/plain'),
-    fooBar = module.fooBar;
+const fooBar = require('../fixtures/global/plain').fooBar;
 
 assert.equal('foo', fooBar.foo, 'x -> global.x in sub level not working');
 

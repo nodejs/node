@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var exec = require('child_process').exec;
-var path = require('path');
+const common = require('../common');
+const assert = require('assert');
+const exec = require('child_process').exec;
+const path = require('path');
 
 // `fs.readFile('/')` does not fail on FreeBSD, because you can open and read
 // the directory there.

@@ -8,8 +8,8 @@
  */
 
 require('../common');
-var cluster = require('cluster');
-var assert = require('assert');
+const cluster = require('cluster');
+const assert = require('assert');
 
 var worker1, worker2, workerExited, workerDisconnected;
 

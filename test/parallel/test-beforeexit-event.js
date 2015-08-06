@@ -1,8 +1,8 @@
 'use strict';
-var assert = require('assert');
-var net = require('net');
-var util = require('util');
-var common = require('../common');
+const assert = require('assert');
+const net = require('net');
+const util = require('util');
+const common = require('../common');
 var revivals = 0;
 var deaths = 0;
 

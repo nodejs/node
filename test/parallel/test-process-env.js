@@ -4,9 +4,9 @@
 // first things first, set the timezone; see tzset(3)
 process.env.TZ = 'Europe/Amsterdam';
 
-var common = require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
+const common = require('../common');
+const assert = require('assert');
+const spawn = require('child_process').spawn;
 
 /* For the moment we are not going to support setting the timezone via the
  * environment variables. The problem is that various V8 platform backends

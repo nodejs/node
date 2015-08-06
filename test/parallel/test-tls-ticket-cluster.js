@@ -1,16 +1,16 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var cluster = require('cluster');
-var fs = require('fs');
-var join = require('path').join;
+const cluster = require('cluster');
+const fs = require('fs');
+const join = require('path').join;
 
 var workerCount = 4;
 var expectedReqCount = 16;

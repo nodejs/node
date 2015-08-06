@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 // the default behavior, return an Array "tuple" of numbers
 var tuple = process.hrtime();

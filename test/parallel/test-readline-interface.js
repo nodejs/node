@@ -1,8 +1,8 @@
 'use strict';
-var assert = require('assert');
-var readline = require('readline');
-var EventEmitter = require('events').EventEmitter;
-var inherits = require('util').inherits;
+const assert = require('assert');
+const readline = require('readline');
+const EventEmitter = require('events').EventEmitter;
+const inherits = require('util').inherits;
 
 function FakeInput() {
   EventEmitter.call(this);

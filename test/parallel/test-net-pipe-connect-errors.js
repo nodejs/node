@@ -1,9 +1,9 @@
 'use strict';
-var fs = require('fs');
-var net = require('net');
-var path = require('path');
-var assert = require('assert');
-var common = require('../common');
+const fs = require('fs');
+const net = require('net');
+const path = require('path');
+const assert = require('assert');
+const common = require('../common');
 
 var notSocketErrorFired = false;
 var noEntErrorFired = false;

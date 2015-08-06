@@ -1,14 +1,14 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
+const fs = require('fs');
 var nconns = 0;
 // test only in TLSv1 to use DES which is no longer supported TLSv1.2
 // to be safe when the default method is updated in the future

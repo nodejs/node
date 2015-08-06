@@ -1,17 +1,17 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var crypto = require('crypto');
+const crypto = require('crypto');
 
-var stream = require('stream');
+const stream = require('stream');
 var Stream = stream.Stream;
-var util = require('util');
-var zlib = require('zlib');
+const util = require('util');
+const zlib = require('zlib');
 
 
 // emit random bytes, and keep a shasum

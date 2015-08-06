@@ -1,15 +1,15 @@
 'use strict';
 // This tests the situation where you try to connect a https client
 // to an http server. You should get an error and exit.
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var https = require('https');
+const https = require('https');
 
 var reqCount = 0;
 var resCount = 0;

@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 assert.equal('0', common.inspect(0));
 assert.equal('1', common.inspect(1));

@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var Stream = require('stream').Stream;
+const common = require('../common');
+const assert = require('assert');
+const Stream = require('stream').Stream;
 
 (function testErrorListenerCatches() {
   var source = new Stream();
@@ -38,7 +38,7 @@ var Stream = require('stream').Stream;
 })();
 
 (function testErrorWithRemovedListenerThrows() {
-  var EE = require('events').EventEmitter;
+  const EE = require('events').EventEmitter;
   var R = Stream.Readable;
   var W = Stream.Writable;
 
@@ -73,7 +73,7 @@ var Stream = require('stream').Stream;
 })();
 
 (function testErrorWithRemovedListenerThrows() {
-  var EE = require('events').EventEmitter;
+  const EE = require('events').EventEmitter;
   var R = Stream.Readable;
   var W = Stream.Writable;
 

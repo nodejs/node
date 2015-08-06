@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var url = require('url');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const url = require('url');
 
 var testURL = url.parse('http://asdf:qwer@localhost:' + common.PORT);
 // the test here is if you set a specific authorization header in the

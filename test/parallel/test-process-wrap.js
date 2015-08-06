@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 var Process = process.binding('process_wrap').Process;
 var Pipe = process.binding('pipe_wrap').Pipe;
 var pipe = new Pipe();
