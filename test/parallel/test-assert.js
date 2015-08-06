@@ -465,4 +465,63 @@ testBlockTypeError(assert.doesNotThrow, null);
 testBlockTypeError(assert.throws, undefined);
 testBlockTypeError(assert.doesNotThrow, undefined);
 
+// Map deep equal, deep strict equal
+const map1 = new Map();
+const map2 = new Map();
+map1.set('1', '2');
+map2.set('1', '2');
+assert.deepEqual(map1, map2);
+map1.set('2', '2');
+assert.throws(function() {
+  assert.deepEqual(map1, map2);
+});
+map1.delete('2');
+map2.set('1', 2);
+assert.deepEqual(map1, map2);
+assert.throws(function() {
+  assert.deepStrictEqual(map1, map2);
+});
+map1.clear();
+map2.clear();
+map1.set(NaN, 'not a number');
+map2.set(NaN, 'not a number');
+assert.deepEqual(map1, map2);
+map1.clear();
+map2.clear();
+map1.set('1', { name: 'test' });
+map2.set('1', { name: 'test' });
+assert.deepStrictEqual(map1, map2);
+map1.clear();
+map2.clear();
+// verify that insertion order doesn't matter
+map1.set('1', '1');
+map1.set('2', '2');
+map2.set('2', '2');
+map2.set('1', '1');
+assert.deepEqual(map1, map2);
+
+// Set deep equal, deep strict equal
+var set1 = new Set();
+var set2 = new Set();
+set1.add(1);
+set2.add(1);
+assert.deepEqual(set1, set2);
+set1.add(2);
+assert.throws(function() {
+  assert.deepEqual(set1, set2);
+});
+set1.delete(2);
+set2.delete(1);
+set2.add('1');
+// throws because we can't really check without being strict
+assert.throws(function() {
+  assert.deepEqual(set1, set2);
+});
+
+assert.deepEqual(new Set([NaN]), new Set([NaN]));
+// verify that insertion order doesn't matter
+set1 = new Set([1, 2]);
+set2 = new Set([2, 1]);
+assert.deepEqual(set1, set2);
+
 console.log('All OK');
