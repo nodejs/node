@@ -3567,10 +3567,6 @@ inline void PlatformInit() {
   RegisterSignalHandler(SIGINT, SignalExit, true);
   RegisterSignalHandler(SIGTERM, SignalExit, true);
 
-  // Block SIGPROF signals when sleeping in epoll_wait/kevent/etc.  Avoids the
-  // performance penalty of frequent EINTR wakeups when the profiler is running.
-  uv_loop_configure(uv_default_loop(), UV_LOOP_BLOCK_SIGNAL, SIGPROF);
-
   // Raise the open file descriptor limit.
   struct rlimit lim;
   if (getrlimit(RLIMIT_NOFILE, &lim) == 0 && lim.rlim_cur != lim.rlim_max) {
@@ -3634,6 +3630,15 @@ void Init(int* argc,
       break;
     }
   }
+
+#ifdef __POSIX__
+  // Block SIGPROF signals when sleeping in epoll_wait/kevent/etc.  Avoids the
+  // performance penalty of frequent EINTR wakeups when the profiler is running.
+  // Only do this for v8.log profiling, as it breaks v8::CpuProfiler users.
+  if (v8_is_profiling) {
+    uv_loop_configure(uv_default_loop(), UV_LOOP_BLOCK_SIGNAL, SIGPROF);
+  }
+#endif
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
   if (icu_data_dir == nullptr) {
