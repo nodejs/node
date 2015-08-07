@@ -485,9 +485,6 @@
 ##############################################################################
 ['arch == mipsel or arch == mips', {
 
-  # Bug in zlib due to 35eb3a0260d349cb4201fed66ff62a438962bd47
-  'asm/embenchen/zlib': [SKIP],
-
   # Slow tests which times out in debug mode.
   'try': [PASS, ['mode == debug', SKIP]],
   'debug-scripts-request': [PASS, ['mode == debug', SKIP]],
@@ -526,9 +523,6 @@
 
 ##############################################################################
 ['arch == mips64el', {
-
-  # Bug in zlib due to 35eb3a0260d349cb4201fed66ff62a438962bd47
-  'asm/embenchen/zlib': [SKIP],
 
   # Slow tests which times out in debug mode.
   'try': [PASS, ['mode == debug', SKIP]],

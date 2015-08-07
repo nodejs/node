@@ -983,37 +983,30 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   } else if (instr->arch_opcode() == kMips64Dadd ||
              instr->arch_opcode() == kMips64Dsub) {
     cc = FlagsConditionToConditionOvf(branch->condition);
-
     __ dsra32(kScratchReg, i.OutputRegister(), 0);
     __ sra(at, i.OutputRegister(), 31);
     __ Branch(tlabel, cc, at, Operand(kScratchReg));
   } else if (instr->arch_opcode() == kMips64Cmp) {
     cc = FlagsConditionToConditionCmp(branch->condition);
     __ Branch(tlabel, cc, i.InputRegister(0), i.InputOperand(1));
-
-    if (!branch->fallthru) __ Branch(flabel);  // no fallthru to flabel.
   } else if (instr->arch_opcode() == kMips64CmpS) {
     if (!convertCondition(branch->condition, cc)) {
       UNSUPPORTED_COND(kMips64CmpS, branch->condition);
     }
     __ BranchF32(tlabel, NULL, cc, i.InputSingleRegister(0),
                  i.InputSingleRegister(1));
-
-    if (!branch->fallthru) __ Branch(flabel);  // no fallthru to flabel.
-
   } else if (instr->arch_opcode() == kMips64CmpD) {
     if (!convertCondition(branch->condition, cc)) {
       UNSUPPORTED_COND(kMips64CmpD, branch->condition);
     }
     __ BranchF64(tlabel, NULL, cc, i.InputDoubleRegister(0),
                  i.InputDoubleRegister(1));
-
-    if (!branch->fallthru) __ Branch(flabel);  // no fallthru to flabel.
   } else {
     PrintF("AssembleArchBranch Unimplemented arch_opcode: %d\n",
            instr->arch_opcode());
     UNIMPLEMENTED();
   }
+  if (!branch->fallthru) __ Branch(flabel);  // no fallthru to flabel.
 }
 
 

@@ -1296,7 +1296,7 @@ class Assembler : public AssemblerBase {
   inline void CheckBuffer();
   void GrowBuffer();
   inline void emit(Instr x);
-  inline void CheckTrampolinePoolQuick();
+  inline void CheckTrampolinePoolQuick(int extra_instructions = 0);
 
   // Instruction generation.
   // We have 3 different kind of encoding layout on MIPS.

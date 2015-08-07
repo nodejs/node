@@ -151,15 +151,6 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
     PropertyAttributes attributes = details.attributes();
     PropertyKind kind = details.kind();
 
-    if (obj->map()->owns_descriptors() &&
-        obj->map()->instance_descriptors()->length() != 0 &&
-        obj->map()->instance_descriptors()->NumberOfSlackDescriptors() == 0 &&
-        TransitionArray::SearchTransition(obj->map(), kind, *name,
-                                          attributes) == NULL) {
-      Map::EnsureDescriptorSlack(handle(obj->map()),
-                                 data->number_of_properties() - c);
-    }
-
     if (kind == kData) {
       auto prop_data = handle(properties.get(i++), isolate);
 

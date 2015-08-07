@@ -1308,7 +1308,7 @@ void Assembler::addrmod5(Instr instr, CRegister crd, const MemOperand& x) {
 }
 
 
-int Assembler::branch_offset(Label* L, bool jump_elimination_allowed) {
+int Assembler::branch_offset(Label* L) {
   int target_pos;
   if (L->is_bound()) {
     target_pos = L->pos();
@@ -1374,6 +1374,24 @@ void Assembler::bx(Register target, Condition cond) {  // v5 and above, plus v4t
   positions_recorder()->WriteRecordedPositions();
   DCHECK(!target.is(pc));  // use of pc is actually allowed, but discouraged
   emit(cond | B24 | B21 | 15*B16 | 15*B12 | 15*B8 | BX | target.code());
+}
+
+
+void Assembler::b(Label* L, Condition cond) {
+  CheckBuffer();
+  b(branch_offset(L), cond);
+}
+
+
+void Assembler::bl(Label* L, Condition cond) {
+  CheckBuffer();
+  bl(branch_offset(L), cond);
+}
+
+
+void Assembler::blx(Label* L) {
+  CheckBuffer();
+  blx(branch_offset(L));
 }
 
 
@@ -3820,10 +3838,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     bind(&size_check);
 
     // Emit jump over constant pool if necessary.
-    Label after_pool;
-    if (require_jump) {
-      b(&after_pool);
-    }
+    if (require_jump) b(size - kPcLoadDelta);
 
     // Put down constant pool marker "Undefined instruction".
     // The data size helps disassembly know what to print.
@@ -3907,10 +3922,6 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     RecordComment("]");
 
     DCHECK_EQ(size, SizeOfCodeGeneratedSince(&size_check));
-
-    if (after_pool.is_linked()) {
-      bind(&after_pool);
-    }
   }
 
   // Since a constant pool was just emitted, move the check offset forward by

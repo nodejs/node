@@ -3082,6 +3082,7 @@ TEST(jump_tables1) {
 
   Label done;
   {
+    __ BlockTrampolinePoolFor(kNumCases * 2 + 7);
     PredictableCodeSizeScope predictable(
         &assm, (kNumCases * 2 + 7) * Assembler::kInstrSize);
     Label here;
@@ -3162,6 +3163,7 @@ TEST(jump_tables2) {
   }
   __ bind(&dispatch);
   {
+    __ BlockTrampolinePoolFor(kNumCases * 2 + 7);
     PredictableCodeSizeScope predictable(
         &assm, (kNumCases * 2 + 7) * Assembler::kInstrSize);
     Label here;
@@ -3244,6 +3246,7 @@ TEST(jump_tables3) {
   }
   __ bind(&dispatch);
   {
+    __ BlockTrampolinePoolFor(kNumCases * 2 + 7);
     PredictableCodeSizeScope predictable(
         &assm, (kNumCases * 2 + 7) * Assembler::kInstrSize);
     Label here;
