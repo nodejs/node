@@ -40,7 +40,7 @@
         'conditions': [
           [ 'OS=="win"', {
             'sources': [
-              'src/win_delay_load_hook.c',
+              '<(node_gyp_dir)/src/win_delay_load_hook.c',
             ],
             'msvs_settings': {
               'VCLinkerTool': {

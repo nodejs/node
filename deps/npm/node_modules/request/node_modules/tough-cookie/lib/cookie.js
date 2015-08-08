@@ -35,6 +35,7 @@ var pubsuffix = require('./pubsuffix');
 var Store = require('./store').Store;
 var MemoryCookieStore = require('./memstore').MemoryCookieStore;
 var pathMatch = require('./pathMatch').pathMatch;
+var VERSION = require('../package.json').version;
 
 var punycode;
 try {
@@ -83,8 +84,6 @@ var YEAR = /^(\d{2}|\d{4})$/; // 2 to 4 digits
 
 var MAX_TIME = 2147483647000; // 31-bit max
 var MIN_TIME = 0; // 31-bit min
-
-var cookiesCreated = 0; // Number of cookies created in runtime
 
 
 // RFC6265 S5.1.1 date parser:
@@ -458,13 +457,18 @@ function parse(str) {
     }
   }
 
-  // ensure a default date for sorting:
-  c.creation = new Date();
-  //NOTE: add runtime index for the cookieCompare() to resolve the situation when Date's precision is not enough .
-  //Store initial UTC time as well, so we will be able to determine if we need to fallback to the Date object.
-  c._creationRuntimeIdx = ++cookiesCreated;
-  c._initialCreationTime = c.creation.getTime();
   return c;
+}
+
+// avoid the V8 deoptimization monster!
+function jsonParse(str) {
+  var obj;
+  try {
+    obj = JSON.parse(str);
+  } catch (e) {
+    return e;
+  }
+  return obj;
 }
 
 function fromJSON(str) {
@@ -473,31 +477,39 @@ function fromJSON(str) {
   }
 
   var obj;
-  try {
-    obj = JSON.parse(str);
-  } catch (e) {
-    return null;
+  if (typeof str === 'string') {
+    obj = jsonParse(str);
+    if (obj instanceof Error) {
+      return null;
+    }
+  } else {
+    // assume it's an Object
+    obj = str;
   }
 
   var c = new Cookie();
-  for (var i=0; i<numCookieProperties; i++) {
-    var prop = cookieProperties[i];
-    if (obj[prop] == null) {
-      continue;
+  for (var i=0; i<Cookie.serializableProperties.length; i++) {
+    var prop = Cookie.serializableProperties[i];
+    if (obj[prop] === undefined ||
+        obj[prop] === Cookie.prototype[prop])
+    {
+      continue; // leave as prototype default
     }
+
     if (prop === 'expires' ||
         prop === 'creation' ||
         prop === 'lastAccessed')
     {
-      c[prop] = obj[prop] == "Infinity" ? "Infinity" : new Date(obj[prop]);
+      if (obj[prop] === null) {
+        c[prop] = null;
+      } else {
+        c[prop] = obj[prop] == "Infinity" ?
+          "Infinity" : new Date(obj[prop]);
+      }
     } else {
       c[prop] = obj[prop];
     }
   }
-
-
-  // ensure a default date for sorting:
-  c.creation = c.creation || new Date();
 
   return c;
 }
@@ -512,23 +524,28 @@ function fromJSON(str) {
  */
 
 function cookieCompare(a,b) {
+  var cmp = 0;
+
   // descending for length: b CMP a
-  var deltaLen = (b.path ? b.path.length : 0) - (a.path ? a.path.length : 0);
-  if (deltaLen !== 0) {
-    return deltaLen;
-  }
-
-  var aTime = a.creation ? a.creation.getTime() : MAX_TIME;
-  var bTime = b.creation ? b.creation.getTime() : MAX_TIME;
-
-  // NOTE: if creation dates are equal and they were not modified from the outside,
-  // then use _creationRuntimeIdx for the comparison.
-  if(aTime === bTime && aTime === a._initialCreationTime && bTime === b._initialCreationTime) {
-    return a._creationRuntimeIdx - b._creationRuntimeIdx;
+  var aPathLen = a.path ? a.path.length : 0;
+  var bPathLen = b.path ? b.path.length : 0;
+  cmp = bPathLen - aPathLen;
+  if (cmp !== 0) {
+    return cmp;
   }
 
   // ascending for time: a CMP b
-  return aTime - bTime;
+  var aTime = a.creation ? a.creation.getTime() : MAX_TIME;
+  var bTime = b.creation ? b.creation.getTime() : MAX_TIME;
+  cmp = aTime - bTime;
+  if (cmp !== 0) {
+    return cmp;
+  }
+
+  // break ties for the same millisecond (precision of JavaScript's clock)
+  cmp = a.creationIndex - b.creationIndex;
+
+  return cmp;
 }
 
 // Gives the permutation of all possible pathMatch()es of a given path. The
@@ -569,16 +586,30 @@ function getCookieContext(url) {
   return urlParse(url);
 }
 
-function Cookie (opts) {
-  if (typeof opts !== "object") {
-    return;
-  }
-  Object.keys(opts).forEach(function (key) {
-    if (Cookie.prototype.hasOwnProperty(key)) {
-      this[key] = opts[key] || Cookie.prototype[key];
+function Cookie(opts) {
+  opts = opts || {};
+
+  Object.keys(opts).forEach(function(prop) {
+    if (Cookie.prototype.hasOwnProperty(prop) &&
+        Cookie.prototype[prop] !== opts[prop] &&
+        prop.substr(0,1) !== '_')
+    {
+      this[prop] = opts[prop];
     }
-  }.bind(this));
+  }, this);
+
+  this.creation = this.creation || new Date();
+
+  // used to break creation ties in cookieCompare():
+  Object.defineProperty(this, 'creationIndex', {
+    configurable: false,
+    enumerable: false, // important for assert.deepEqual checks
+    writable: true,
+    value: ++Cookie.cookiesCreated
+  });
 }
+
+Cookie.cookiesCreated = 0; // incremented each time a cookie is created
 
 Cookie.parse = parse;
 Cookie.fromJSON = fromJSON;
@@ -599,17 +630,22 @@ Cookie.prototype.extensions = null;
 Cookie.prototype.hostOnly = null; // boolean when set
 Cookie.prototype.pathIsDefault = null; // boolean when set
 Cookie.prototype.creation = null; // Date when set; defaulted by Cookie.parse
-Cookie.prototype._initialCreationTime = null; // Used to determine if cookie.creation was modified
-Cookie.prototype._creationRuntimeIdx = null; // Runtime index of the created cookie, used in cookieCompare()
 Cookie.prototype.lastAccessed = null; // Date when set
+Object.defineProperty(Cookie.prototype, 'creationIndex', {
+  configurable: true,
+  enumerable: false,
+  writable: true,
+  value: 0
+});
 
-var cookieProperties = Object.freeze(Object.keys(Cookie.prototype).map(function(p) {
-  if (p instanceof Function) {
-    return;
-  }
-  return p;
-}));
-var numCookieProperties = cookieProperties.length;
+Cookie.serializableProperties = Object.keys(Cookie.prototype)
+  .filter(function(prop) {
+    return !(
+      Cookie.prototype[prop] instanceof Function ||
+      prop === 'creationIndex' ||
+      prop.substr(0,1) === '_'
+    );
+  });
 
 Cookie.prototype.inspect = function inspect() {
   var now = Date.now();
@@ -618,6 +654,46 @@ Cookie.prototype.inspect = function inspect() {
     '; aAge='+(this.lastAccessed ? (now-this.lastAccessed.getTime())+'ms' : '?') +
     '; cAge='+(this.creation ? (now-this.creation.getTime())+'ms' : '?') +
     '"';
+};
+
+Cookie.prototype.toJSON = function() {
+  var obj = {};
+
+  var props = Cookie.serializableProperties;
+  for (var i=0; i<props.length; i++) {
+    var prop = props[i];
+    if (this[prop] === Cookie.prototype[prop]) {
+      continue; // leave as prototype default
+    }
+
+    if (prop === 'expires' ||
+        prop === 'creation' ||
+        prop === 'lastAccessed')
+    {
+      if (this[prop] === null) {
+        obj[prop] = null;
+      } else {
+        obj[prop] = this[prop] == "Infinity" ? // intentionally not ===
+          "Infinity" : this[prop].toISOString();
+      }
+    } else if (prop === 'maxAge') {
+      if (this[prop] !== null) {
+        // again, intentionally not ===
+        obj[prop] = (this[prop] == Infinity || this[prop] == -Infinity) ?
+          this[prop].toString() : this[prop];
+      }
+    } else {
+      if (this[prop] !== Cookie.prototype[prop]) {
+        obj[prop] = this[prop];
+      }
+    }
+  }
+
+  return obj;
+};
+
+Cookie.prototype.clone = function() {
+  return fromJSON(this.toJSON());
 };
 
 Cookie.prototype.validate = function validate() {
@@ -744,7 +820,7 @@ Cookie.prototype.TTL = function TTL(now) {
 // elsewhere)
 Cookie.prototype.expiryTime = function expiryTime(now) {
   if (this.maxAge != null) {
-    var relativeTo = this.creation || now || new Date();
+    var relativeTo = now || this.creation || new Date();
     var age = (this.maxAge <= 0) ? -Infinity : this.maxAge*1000;
     return relativeTo.getTime() + age;
   }
@@ -781,7 +857,6 @@ Cookie.prototype.canonicalizedDomain = function canonicalizedDomain() {
   }
   return canonicalDomain(this.domain);
 };
-
 
 function CookieJar(store, rejectPublicSuffixes) {
   if (rejectPublicSuffixes != null) {
@@ -895,6 +970,7 @@ CookieJar.prototype.setCookie = function(cookie, url, options, cb) {
         return cb(options.ignoreError ? null : err);
       }
       cookie.creation = oldCookie.creation; // step 11.3
+      cookie.creationIndex = oldCookie.creationIndex; // preserve tie-breaker
       cookie.lastAccessed = now;
       // Step 11.4 (delete cookie) is implied by just setting the new one:
       store.updateCookie(oldCookie, cookie, next); // step 12
@@ -1039,6 +1115,151 @@ CookieJar.prototype.getSetCookieStrings = function(/*..., cb*/) {
   };
   args.push(next);
   this.getCookies.apply(this,args);
+};
+
+CAN_BE_SYNC.push('serialize');
+CookieJar.prototype.serialize = function(cb) {
+  var type = this.store.constructor.name;
+  if (type === 'Object') {
+    type = null;
+  }
+
+  // update README.md "Serialization Format" if you change this, please!
+  var serialized = {
+    // The version of tough-cookie that serialized this jar. Generally a good
+    // practice since future versions can make data import decisions based on
+    // known past behavior. When/if this matters, use `semver`.
+    version: 'tough-cookie@'+VERSION,
+
+    // add the store type, to make humans happy:
+    storeType: type,
+
+    // CookieJar configuration:
+    rejectPublicSuffixes: !!this.rejectPublicSuffixes,
+
+    // this gets filled from getAllCookies:
+    cookies: []
+  };
+
+  if (!(this.store.getAllCookies &&
+        typeof this.store.getAllCookies === 'function'))
+  {
+    return cb(new Error('store does not support getAllCookies and cannot be serialized'));
+  }
+
+  this.store.getAllCookies(function(err,cookies) {
+    if (err) {
+      return cb(err);
+    }
+
+    serialized.cookies = cookies.map(function(cookie) {
+      // convert to serialized 'raw' cookies
+      cookie = (cookie instanceof Cookie) ? cookie.toJSON() : cookie;
+
+      // Remove the index so new ones get assigned during deserialization
+      delete cookie.creationIndex;
+
+      return cookie;
+    });
+
+    return cb(null, serialized);
+  });
+};
+
+// well-known name that JSON.stringify calls
+CookieJar.prototype.toJSON = function() {
+  return this.serializeSync();
+};
+
+// use the class method CookieJar.deserialize instead of calling this directly
+CAN_BE_SYNC.push('_importCookies');
+CookieJar.prototype._importCookies = function(serialized, cb) {
+  var jar = this;
+  var cookies = serialized.cookies;
+  if (!cookies || !Array.isArray(cookies)) {
+    return cb(new Error('serialized jar has no cookies array'));
+  }
+
+  function putNext(err) {
+    if (err) {
+      return cb(err);
+    }
+
+    if (!cookies.length) {
+      return cb(err, jar);
+    }
+
+    var cookie;
+    try {
+      cookie = fromJSON(cookies.shift());
+    } catch (e) {
+      return cb(e);
+    }
+
+    if (cookie === null) {
+      return putNext(null); // skip this cookie
+    }
+
+    jar.store.putCookie(cookie, putNext);
+  }
+
+  putNext();
+};
+
+CookieJar.deserialize = function(strOrObj, store, cb) {
+  if (arguments.length !== 3) {
+    // store is optional
+    cb = store;
+    store = null;
+  }
+
+  var serialized;
+  if (typeof strOrObj === 'string') {
+    serialized = jsonParse(strOrObj);
+    if (serialized instanceof Error) {
+      return cb(serialized);
+    }
+  } else {
+    serialized = strOrObj;
+  }
+
+  var jar = new CookieJar(store, serialized.rejectPublicSuffixes);
+  jar._importCookies(serialized, function(err) {
+    if (err) {
+      return cb(err);
+    }
+    cb(null, jar);
+  });
+};
+
+CookieJar.fromJSON = CookieJar.deserializeSync;
+CookieJar.deserializeSync = function(strOrObj, store) {
+  var serialized = typeof strOrObj === 'string' ?
+    JSON.parse(strOrObj) : strOrObj;
+  var jar = new CookieJar(store, serialized.rejectPublicSuffixes);
+
+  // catch this mistake early:
+  if (!jar.store.synchronous) {
+    throw new Error('CookieJar store is not synchronous; use async API instead.');
+  }
+
+  jar._importCookiesSync(serialized);
+  return jar;
+};
+
+CAN_BE_SYNC.push('clone');
+CookieJar.prototype.clone = function(newStore, cb) {
+  if (arguments.length === 1) {
+    cb = newStore;
+    newStore = null;
+  }
+
+  this.serialize(function(err,serialized) {
+    if (err) {
+      return cb(err);
+    }
+    CookieJar.deserialize(newStore, serialized, cb);
+  });
 };
 
 // Use a closure to provide a true imperative API for synchronous stores.

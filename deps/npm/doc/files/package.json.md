@@ -115,9 +115,9 @@ expression syntax version 2.0 string](http://npmjs.com/package/spdx), like this:
 If you are using a license that hasn't been assigned an SPDX identifier, or if
 you are using a custom license, use the following valid SPDX expression:
 
-    { "license" : "LicenseRef-LICENSE" }
+    { "license" : "SEE LICENSE IN <filename>" }
 
-Then include a LICENSE file at the top level of the package.
+Then include a file named `<filename>` at the top level of the package.
 
 Some old packages used license objects or a "licenses" property containing an
 array of license objects:
@@ -147,6 +147,13 @@ Those styles are now deprecated. Instead, use SPDX expressions, like this:
 
     { "license": "(MIT OR Apache-2.0)" }
 
+Finally, if you do not wish to grant others the right to use a private or
+unpublished package under any terms:
+
+    { "license": "UNLICENSED"}
+
+Consider also setting `"private": true` to prevent accidental publication.
+
 ## people fields: author, contributors
 
 The "author" is one person.  "contributors" is an array of people.  A "person"
@@ -175,6 +182,26 @@ You can also provide a ".npmignore" file in the root of your package,
 which will keep files from being included, even if they would be picked
 up by the files array.  The ".npmignore" file works just like a
 ".gitignore".
+
+Certain files are always included, regardless of settings:
+
+* `package.json`
+* `README` (and its variants)
+* `CHANGELOG` (and its variants)
+* `LICENSE` / `LICENCE`
+
+Conversely, some files are always ignored:
+
+* `.git`
+* `CVS`
+* `.svn`
+* `.hg`
+* `.lock-wscript`
+* `.wafpickle-N`
+* `*.swp`
+* `.DS_Store`
+* `._*`
+* `npm-debug.log`
 
 ## main
 
@@ -276,10 +303,13 @@ with the lib folder in any way, but it's useful meta info.
 
 ### directories.bin
 
-If you specify a `bin` directory, then all the files in that folder will
-be added as children of the `bin` path.
+If you specify a `bin` directory in `directories.bin`, all the files in
+that folder will be added.
 
-If you have a `bin` path already, then this has no effect.
+Because of the way the `bin` directive works, specifying both a
+`bin` path and setting `directories.bin` is an error. If you want to
+specify individual files, use `bin`, and for all the files in an
+existing `bin` directory, use `directories.bin`.
 
 ### directories.man
 
@@ -660,13 +690,13 @@ param at publish-time.
 
 ## publishConfig
 
-This is a set of config values that will be used at publish-time.  It's
-especially handy if you want to set the tag or registry, so that you can
-ensure that a given package is not tagged with "latest" or published to
-the global public registry by default.
+This is a set of config values that will be used at publish-time. It's
+especially handy if you want to set the tag, registry or access, so that
+you can ensure that a given package is not tagged with "latest", published
+to the global public registry or that a scoped module is private by default.
 
-Any config values can be overridden, but of course only "tag" and
-"registry" probably matter for the purposes of publishing.
+Any config values can be overridden, but of course only "tag", "registry" and
+"access" probably matter for the purposes of publishing.
 
 See `npm-config(7)` to see the list of config options that can be
 overridden.

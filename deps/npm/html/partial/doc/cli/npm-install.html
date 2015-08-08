@@ -127,11 +127,24 @@ fetch the package by name if it is not valid.
 </code></pre><p>  <code>&lt;protocol&gt;</code> is one of <code>git</code>, <code>git+ssh</code>, <code>git+http</code>, or
   <code>git+https</code>.  If no <code>&lt;commit-ish&gt;</code> is specified, then <code>master</code> is
   used.</p>
-<p>  Examples:</p>
-<pre><code>    git+ssh://git@github.com:npm/npm.git#v1.0.27
-    git+https://isaacs@github.com/npm/npm.git
-    git://github.com/npm/npm.git#v1.0.27
+<p>  The following git environment variables are recognized by npm and will be added
+  to the environment when running git:</p>
+<ul>
+<li><code>GIT_ASKPASS</code></li>
+<li><code>GIT_PROXY_COMMAND</code></li>
+<li><code>GIT_SSH</code></li>
+<li><code>GIT_SSH_COMMAND</code></li>
+<li><code>GIT_SSL_CAINFO</code></li>
+<li><p><code>GIT_SSL_NO_VERIFY</code></p>
+<p>See the git man page for details.</p>
+<p>Examples:</p>
+<pre><code>npm install git+ssh://git@github.com:npm/npm.git#v1.0.27
+npm install git+https://isaacs@github.com/npm/npm.git
+npm install git://github.com/npm/npm.git#v1.0.27
+GIT_SSH_COMMAND=&#39;ssh -i ~/.ssh/custom_ident&#39; npm install git+ssh://git@github.com:npm/npm.git
 </code></pre></li>
+</ul>
+</li>
 <li><p><code>npm install &lt;githubname&gt;/&lt;githubrepo&gt;[#&lt;commit-ish&gt;]</code>:</p>
 </li>
 <li><p><code>npm install github:&lt;githubname&gt;/&lt;githubrepo&gt;[#&lt;commit-ish&gt;]</code>:</p>

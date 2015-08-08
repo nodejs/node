@@ -1,5 +1,5 @@
 var semver = require("semver")
-var spdx = require('spdx');
+var validateLicense = require('validate-npm-package-license');
 var hostedGitInfo = require("hosted-git-info")
 var depTypes = ["dependencies","devDependencies","optionalDependencies"]
 var extractDescription = require("./extract_description")
@@ -292,12 +292,16 @@ var fixer = module.exports = {
 , fixLicenseField: function(data) {
     if (!data.license) {
       return this.warn("missingLicense")
-    } else if (
-      typeof(data.license) !== 'string' ||
-      data.license.length < 1 ||
-      !spdx.valid(data.license)
-    ) {
-      this.warn("nonSPDXLicense")
+    } else{
+      if (
+        typeof(data.license) !== 'string' ||
+        data.license.length < 1
+      ) {
+        this.warn("invalidLicense")
+      } else {
+        if (!validateLicense(data.license).validForNewPackages)
+          this.warn("invalidLicense")
+      }
     }
   }
 }

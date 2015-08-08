@@ -1,4 +1,4 @@
-.TH "NPM\-LS" "1" "June 2015" "" ""
+.TH "NPM\-LS" "1" "August 2015" "" ""
 .SH "NAME"
 \fBnpm-ls\fR \- List installed packages
 .SH SYNOPSIS
@@ -16,14 +16,14 @@ npm ll [[@<scope>/]<pkg> \.\.\.]
 This command will print to stdout all the versions of packages that are
 installed, as well as their dependencies, in a tree\-structure\.
 .P
-Positional arguments are \fBname@version\-range\fR identifiers, which will
+Positional arguments are \fBname@version\-range\fP identifiers, which will
 limit the results to only the paths to the packages named\.  Note that
 nested packages will \fIalso\fR show the paths to the specified packages\.
-For example, running \fBnpm ls promzard\fR in npm's source tree will show:
+For example, running \fBnpm ls promzard\fP in npm's source tree will show:
 .P
 .RS 2
 .nf
-npm@2.11.3 /path/to/npm
+npm@2.13.4 /path/to/npm
 └─┬ init\-package\-json@0\.0\.4
   └── promzard@0\.1\.5
 .fi
@@ -35,7 +35,7 @@ If a project specifies git urls for dependencies these are shown
 in parentheses after the name@version to make it easier for users to
 recognize potential forks of a project\.
 .P
-When run as \fBll\fR or \fBla\fR, it shows extended information by default\.
+When run as \fBll\fP or \fBla\fP, it shows extended information by default\.
 .SH CONFIGURATION
 .SS json
 .RS 0
@@ -95,7 +95,7 @@ Default: false
 
 .RE
 .P
-Display only the dependency tree for packages in \fBdependencies\fR\|\.
+Display only the dependency tree for packages in \fBdependencies\fP\|\.
 .SS dev
 .RS 0
 .IP \(bu 2
@@ -105,7 +105,7 @@ Default: false
 
 .RE
 .P
-Display only the dependency tree for packages in \fBdevDependencies\fR\|\.
+Display only the dependency tree for packages in \fBdevDependencies\fP\|\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2

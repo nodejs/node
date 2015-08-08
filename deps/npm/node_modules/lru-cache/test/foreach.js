@@ -108,7 +108,6 @@ test('expires', function (t) {
       t.equal(val, j.toString(2))
     })
     t.equal(i, order.length);
-    t.end()
 
     setTimeout(function () {
       var count = 0;

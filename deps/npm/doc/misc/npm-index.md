@@ -113,6 +113,10 @@ Manage package owners
 
 Create a tarball from a package
 
+### npm-ping(1)
+
+Ping npm registry
+
 ### npm-prefix(1)
 
 Display prefix
@@ -284,6 +288,10 @@ Manage package owners
 ### npm-pack(3)
 
 Create a tarball from a package
+
+### npm-ping(3)
+
+Ping npm registry
 
 ### npm-prefix(3)
 
