@@ -340,9 +340,8 @@ void SyncProcessStdioPipe::CloseCallback(uv_handle_t* handle) {
 }
 
 
-void SyncProcessRunner::Initialize(Handle<Object> target,
-                                   Handle<Value> unused,
-                                   Handle<Context> context) {
+void SyncProcessRunner::Initialize(Local<Object> target,
+                                   Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   env->SetMethod(target, "spawn", Spawn);
 }
@@ -1041,5 +1040,4 @@ void SyncProcessRunner::KillTimerCloseCallback(uv_handle_t* handle) {
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(spawn_sync,
-  node::SyncProcessRunner::Initialize)
+NODE_MODULE_BUILTIN(spawn_sync, node::SyncProcessRunner::Initialize)

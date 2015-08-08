@@ -27,9 +27,7 @@ using v8::String;
 using v8::Value;
 
 
-void TTYWrap::Initialize(Handle<Object> target,
-                         Handle<Value> unused,
-                         Handle<Context> context) {
+void TTYWrap::Initialize(Local<Object> target, Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
@@ -140,4 +138,4 @@ TTYWrap::TTYWrap(Environment* env, Handle<Object> object, int fd, bool readable)
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(tty_wrap, node::TTYWrap::Initialize)
+NODE_MODULE_BUILTIN(tty_wrap, node::TTYWrap::Initialize)

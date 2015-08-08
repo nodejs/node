@@ -415,7 +415,7 @@ template <typename F> struct AddonInitAdapter;
 //   - takes zero or more additional arguments of arbitrary type
 //
 // To further narrow it down it uses a little bit of SFINAE. It only matches
-// if there is a suitable specialization of OptionalInitArg<> for each 
+// if there is a suitable specialization of OptionalInitArg<> for each
 // additional argument. See registerAddon(...) below. This limits the argument
 // types to:
 //   - Local<Object>   (the module)
@@ -444,7 +444,7 @@ struct AddonInitAdapter<void (*)(v8::Local<v8::Object>, Args...)> {
   }
 };
 
-// Main entry point into the init-fuction-argument-discomvobulator. It is 
+// Main entry point into the init-fuction-argument-discomvobulator. It is
 // called with an init function as argument and returns a suitable
 // addon_register_func. Note how a template function is used to capture
 // the type F. A user of this function (our NODE_MODULE_X(...) macro, below)

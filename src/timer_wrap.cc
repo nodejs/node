@@ -25,9 +25,7 @@ const uint32_t kOnTimeout = 0;
 
 class TimerWrap : public HandleWrap {
  public:
-  static void Initialize(Handle<Object> target,
-                         Handle<Value> unused,
-                         Handle<Context> context) {
+  static void Initialize(Local<Object> target, Local<Context> context) {
     Environment* env = Environment::GetCurrent(context);
     Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
@@ -115,4 +113,4 @@ class TimerWrap : public HandleWrap {
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(timer_wrap, node::TimerWrap::Initialize)
+NODE_MODULE_BUILTIN(timer_wrap, node::TimerWrap::Initialize)

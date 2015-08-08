@@ -201,9 +201,7 @@ void JSStream::EmitEOF(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void JSStream::Initialize(Handle<Object> target,
-                          Handle<Value> unused,
-                          Handle<Context> context) {
+void JSStream::Initialize(Local<Object> target, Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
@@ -226,4 +224,4 @@ void JSStream::Initialize(Handle<Object> target,
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(js_stream, node::JSStream::Initialize)
+NODE_MODULE_BUILTIN(js_stream, node::JSStream::Initialize)

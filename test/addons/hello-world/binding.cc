@@ -9,8 +9,8 @@ void Method(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(String::NewFromUtf8(isolate, "world"));
 }
 
-void init(Handle<Object> target) {
-  NODE_SET_METHOD(target, "hello", Method);
+void init(Local<Object> exports) {
+  NODE_SET_METHOD(exports, "hello", Method);
 }
 
 NODE_MODULE(binding, init);
