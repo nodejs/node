@@ -363,11 +363,11 @@ const char *signo_string(int errorno);
 namespace detail {
 
 typedef void (*addon_register_func)(
-    void * init_function,
+    void* init_function,
     v8::Local<v8::Object> exports,
     v8::Local<v8::Object> module,
     v8::Local<v8::Context> context,
-    void * priv);
+    void* priv);
 
 // This template is used to select the optional arguments of the (addon) init
 // function. Each specialization returns the corresponding argument.
@@ -377,7 +377,7 @@ template <>
 struct OptionalInitArg<v8::Local<v8::Object> > {
   static inline
   v8::Local<v8::Object>
-  pick(v8::Local<v8::Object> module, v8::Local<v8::Context>, void *) {
+  pick(v8::Local<v8::Object> module, v8::Local<v8::Context>, void*) {
     return module;
   }
 };
@@ -386,7 +386,7 @@ template <>
 struct OptionalInitArg<v8::Local<v8::Context> > {
   static inline
   v8::Local<v8::Context>
-  pick(v8::Local<v8::Object>, v8::Local<v8::Context> context, void *) {
+  pick(v8::Local<v8::Object>, v8::Local<v8::Context> context, void*) {
     return context;
   }
 };
@@ -395,7 +395,7 @@ template <>
 struct OptionalInitArg<void*> {
   static inline
   void*
-  pick(v8::Local<v8::Object>, v8::Local<v8::Context>, void * private_) {
+  pick(v8::Local<v8::Object>, v8::Local<v8::Context>, void* private_) {
     return private_;
   }
 };
@@ -432,11 +432,11 @@ struct AddonInitAdapter<void (*)(v8::Local<v8::Object>, Args...)> {
 
   static
   void
-  registerAddon(void * f,
+  registerAddon(void* f,
                 v8::Local<v8::Object> exports,
                 v8::Local<v8::Object> module,
                 v8::Local<v8::Context> context,
-                void * priv) {
+                void* priv) {
     // restore function pointer type
     init_function init(reinterpret_cast<init_function>(f));
     // call it
