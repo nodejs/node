@@ -1,3 +1,34 @@
+### v2.13.4 (2015-07-30):
+
+#### JULY ENDS ON A FAIRLY QUIET NOTE
+
+Hey everyone! I hope you've had a great week. We're having a fairly small
+release this week while we wrap up Teams and Orgs (or, as we've taken to calling
+it internally, _Teens and Orcs_).
+
+In other exciting news, a bunch of us are gonna be at the [Node.js Collaborator
+Summit](https://github.com/nodejs/summit/issues/1), and you can also find us at
+[wafflejs](https://wafflejs.com/) on Wednesday. Hopefully we'll be seeing some
+of you there. :)
+
+#### THE PATCH!!!
+
+So here it is. The patch. Hope it helps. (Thanks,
+[@ktarplee](https://github.com/ktarplee)!)
+
+* [`3e58c48`](https://github.com/npm/npm/commit/3e58c4819e3cafe4ae23ab7f4a520fe09258cfd7)
+  [#9033](https://github.com/npm/npm/pull/9033) `npm version` now works on git
+  submodules
+  ([@ktarplee](https://github.com/ktarplee))
+
+#### OH AND THERE'S A DEV DEPENDENCIES UPDATE
+
+Hooray.
+
+* [`d204683`](https://github.com/npm/npm/commit/d2046839d471322e61e3ceb0f00e78e5c481f967)
+  nock@2.9.1
+  ([@pgte](https://github.com/pgte))
+
 ### v2.13.3 (2015-07-23):
 
 #### I'M SAVING THE GOOD JOKES FOR MORE INTERESTING RELEASES
@@ -29,12 +60,10 @@ There's a couple of doc updates! The last one might be interesting.
   settings.
   ([@SimenB](https://github.com/SimenB))
 * [`cf09e75`](https://github.com/npm/npm/commit/cf09e754931739af32647d667b671e72a4c79081)
-
   [#9022](https://github.com/npm/npm/issues/9022) Document the `"access"` field
   in `"publishConfig"`. Did you know you don't need to use `--access=public`
   when publishing scoped packages?! Just put it in your `package.json`!
   Go refresh yourself on scopes packages by [checking our docs](https://docs.npmjs.com/getting-started/scoped-packages) on them.
-
   ([@boennemann](https://github.com/boennemann))
 * [`bfd73da`](https://github.com/npm/npm/commit/bfd73da33349cc2afb8278953b2ae16ea95023de)
   [#9013](https://github.com/npm/npm/issues/9013) fixed typo in changelog

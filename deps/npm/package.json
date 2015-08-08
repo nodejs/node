@@ -1,5 +1,5 @@
 {
-  "version": "2.13.3",
+  "version": "2.13.4",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "keywords": [
@@ -172,7 +172,7 @@
     "deep-equal": "~1.0.0",
     "marked": "~0.3.3",
     "marked-man": "~0.1.5",
-    "nock": "~2.7.0",
+    "nock": "~2.9.1",
     "npm-registry-couchapp": "~2.6.7",
     "npm-registry-mock": "~1.0.0",
     "require-inject": "~1.2.0",
