@@ -2149,6 +2149,10 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
     env->ThrowError("Built-in module self-registered.");
     return;
   }
+  if (mp->nm_flags & NM_F_NODE_MODULE_CONTEXT_AWARE_IS_DEPRECATED) {
+    fprintf(stderr, "NODE_MODULE_CONTEXT_AWARE(...) used by module %s is "
+            "deprecated. Use NODE_MODULE(...) instead\n", mp->nm_modname);
+  }
 
   mp->nm_dso_handle = lib.handle;
   mp->nm_link = modlist_addon;
@@ -2157,10 +2161,12 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
   Local<String> exports_string = env->exports_string();
   Local<Object> exports = module->Get(exports_string)->ToObject(env->isolate());
 
-  if (mp->nm_context_register_func != nullptr) {
-    mp->nm_context_register_func(exports, module, env->context(), mp->nm_priv);
-  } else if (mp->nm_register_func != nullptr) {
-    mp->nm_register_func(exports, module, mp->nm_priv);
+  if (mp->nm_register_func != nullptr) {
+    mp->nm_register_func(mp->nm_init,
+                         exports,
+                         module,
+                         env->context(),
+                         mp->nm_priv);
   } else {
     env->ThrowError("Module has no declared entry point.");
     return;
@@ -2271,11 +2277,12 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
   if (mod != nullptr) {
     exports = Object::New(env->isolate());
     // Internal bindings don't have a "module" object, only exports.
-    CHECK_EQ(mod->nm_register_func, nullptr);
-    CHECK_NE(mod->nm_context_register_func, nullptr);
-    Local<Value> unused = Undefined(env->isolate());
-    mod->nm_context_register_func(exports, unused,
-      env->context(), mod->nm_priv);
+    CHECK_NE(mod->nm_register_func, nullptr);
+    mod->nm_register_func(mod->nm_init,
+                          exports,
+                          Undefined(env->isolate()).As<Object>(),
+                          env->context(),
+                          mod->nm_priv);
     cache->Set(module, exports);
   } else if (!strcmp(*module_v, "constants")) {
     exports = Object::New(env->isolate());
@@ -2322,13 +2329,12 @@ static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
 
   Local<Object> exports = Object::New(env->isolate());
 
-  if (mod->nm_context_register_func != nullptr) {
-    mod->nm_context_register_func(exports,
-                                  module,
-                                  env->context(),
-                                  mod->nm_priv);
-  } else if (mod->nm_register_func != nullptr) {
-    mod->nm_register_func(exports, module, mod->nm_priv);
+  if (mod->nm_register_func != nullptr) {
+    mod->nm_register_func(mod->nm_init,
+                          exports,
+                          Undefined(env->isolate()).As<Object>(),
+                          env->context(),
+                          mod->nm_priv);
   } else {
     return env->ThrowError("Linked module has no declared entry point.");
   }

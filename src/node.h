@@ -357,28 +357,122 @@ NODE_DEPRECATED("Use WinapiErrnoException(isolate, ...)",
 
 const char *signo_string(int errorno);
 
+//==============================================================================
+// Init Function Argument Discomvobulator
+//==============================================================================
+namespace detail {
 
 typedef void (*addon_register_func)(
-    v8::Handle<v8::Object> exports,
-    v8::Handle<v8::Value> module,
-    void* priv);
+    void * init_function,
+    v8::Local<v8::Object> exports,
+    v8::Local<v8::Object> module,
+    v8::Local<v8::Context> context,
+    void * priv);
 
-typedef void (*addon_context_register_func)(
-    v8::Handle<v8::Object> exports,
-    v8::Handle<v8::Value> module,
-    v8::Handle<v8::Context> context,
-    void* priv);
+// This template is used to select the optional arguments of the (addon) init
+// function. Each specialization returns the corresponding argument.
+template <typename T> struct OptionalInitArg;
 
-#define NM_F_BUILTIN 0x01
-#define NM_F_LINKED  0x02
+template <>
+struct OptionalInitArg<v8::Local<v8::Object> > {
+  static inline
+  v8::Local<v8::Object>
+  pick(v8::Local<v8::Object> module, v8::Local<v8::Context>, void *) {
+    return module;
+  }
+};
+
+template <>
+struct OptionalInitArg<v8::Local<v8::Context> > {
+  static inline
+  v8::Local<v8::Context>
+  pick(v8::Local<v8::Object>, v8::Local<v8::Context> context, void *) {
+    return context;
+  }
+};
+
+template <>
+struct OptionalInitArg<void*> {
+  static inline
+  void*
+  pick(v8::Local<v8::Object>, v8::Local<v8::Context>, void * private_) {
+    return private_;
+  }
+};
+
+// Template that takes the type of the init function as an argument. It is used
+// to inspect the arguments of the init function at compile time and provide a
+// suitable adapter registerAddon(...). This adapter is always of type
+// addon_register_func. It calls the actual init function with the "requested"
+// arguments. To put it differently, the implementation of registerAddon(...)
+// is selected (or generated, if you like) based on the functions signature.
+template <typename F> struct AddonInitAdapter;
+
+// Partial specialization: Allow only function pointers with the following
+// properties:
+//   - returns void
+//   - takes a Local<Object> as first argument (exports)
+//   - takes zero or more additional arguments of arbitrary type
+//
+// To further narrow it down it uses a little bit of SFINAE. It only matches
+// if there is a suitable specialization of OptionalInitArg<> for each 
+// additional argument. See registerAddon(...) below. This limits the argument
+// types to:
+//   - Local<Object>   (the module)
+//   - Local<Context>  (the context, duh)
+//   - void*           (the private pointer)
+//
+// The interesting thing about this application of SFINAE is that we use it
+// to trigger a compile-time error. Since the generic version of
+// AddonInitAdapter<> is only declared but never defined, the compiler bails
+// after the substitution failure.
+template <typename... Args>
+struct AddonInitAdapter<void (*)(v8::Local<v8::Object>, Args...)> {
+  typedef void (*init_function)(v8::Local<v8::Object>, Args...);
+
+  static
+  void
+  registerAddon(void * f,
+                v8::Local<v8::Object> exports,
+                v8::Local<v8::Object> module,
+                v8::Local<v8::Context> context,
+                void * priv) {
+    // restore function pointer type
+    init_function init(reinterpret_cast<init_function>(f));
+    // call it
+    init(exports, OptionalInitArg<Args>::pick(module, context, priv)...);
+  }
+};
+
+// Main entry point into the init-fuction-argument-discomvobulator. It is 
+// called with an init function as argument and returns a suitable
+// addon_register_func. Note how a template function is used to capture
+// the type F. A user of this function (our NODE_MODULE_X(...) macro, below)
+// does not have to provide a type. No function pointer types, not even angular
+// brackets at the call site. (Remember this pattern. It's pretty powerful)
+template <typename F>
+addon_register_func
+selectAddonRegisterFunction(F f) {
+  return AddonInitAdapter<F>::registerAddon;
+}
+
+}  // end of namespace detail
+
+enum node_module_flags {
+  NM_F_BUILTIN                     = (1<<0),
+  NM_F_LINKED                      = (1<<1),
+  // Used to emit a deprecation warning. Remove once
+  // NODE_MODULE_CONTEXT_AWARE is phased out.
+  NM_F_NODE_MODULE_CONTEXT_AWARE_IS_DEPRECATED = (1<<31)
+};
 
 struct node_module {
   int nm_version;
   unsigned int nm_flags;
   void* nm_dso_handle;
   const char* nm_filename;
-  node::addon_register_func nm_register_func;
-  node::addon_context_register_func nm_context_register_func;
+  node::detail::addon_register_func nm_register_func;
+  void* nm_init;
   const char* nm_modname;
   void* nm_priv;
   struct node_module* nm_link;
@@ -408,52 +502,35 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
   static void fn(void)
 #endif
 
-#define NODE_MODULE_X(modname, regfunc, priv, flags)                  \
+#define NODE_MODULE_X(modname, initfunc, priv, flags)                 \
   extern "C" {                                                        \
-    static node::node_module _module =                                \
+    static node::node_module _module_ ## modname =                    \
     {                                                                 \
       NODE_MODULE_VERSION,                                            \
       flags,                                                          \
       NULL,                                                           \
       __FILE__,                                                       \
-      (node::addon_register_func) (regfunc),                          \
-      NULL,                                                           \
+      node::detail::selectAddonRegisterFunction(initfunc),            \
+      reinterpret_cast<void*>(initfunc),                              \
       NODE_STRINGIFY(modname),                                        \
       priv,                                                           \
       NULL                                                            \
     };                                                                \
     NODE_C_CTOR(_register_ ## modname) {                              \
-      node_module_register(&_module);                                 \
+      node_module_register(&_module_ ## modname);                     \
     }                                                                 \
   }
 
-#define NODE_MODULE_CONTEXT_AWARE_X(modname, regfunc, priv, flags)    \
-  extern "C" {                                                        \
-    static node::node_module _module =                                \
-    {                                                                 \
-      NODE_MODULE_VERSION,                                            \
-      flags,                                                          \
-      NULL,                                                           \
-      __FILE__,                                                       \
-      NULL,                                                           \
-      (node::addon_context_register_func) (regfunc),                  \
-      NODE_STRINGIFY(modname),                                        \
-      priv,                                                           \
-      NULL                                                            \
-    };                                                                \
-    NODE_C_CTOR(_register_ ## modname) {                              \
-      node_module_register(&_module);                                 \
-    }                                                                 \
-  }
+#define NODE_MODULE(modname, initfunc)                                \
+  NODE_MODULE_X(modname, initfunc, NULL, 0)
 
-#define NODE_MODULE(modname, regfunc)                                 \
-  NODE_MODULE_X(modname, regfunc, NULL, 0)
+// NOTE(agnat): Deprecated. Just use NODE_MODULE(...)
+#define NODE_MODULE_CONTEXT_AWARE(modname, initfunc)                  \
+  NODE_MODULE_X(modname, initfunc, NULL,                              \
+      NM_F_NODE_MODULE_CONTEXT_AWARE_IS_DEPRECATED)
 
-#define NODE_MODULE_CONTEXT_AWARE(modname, regfunc)                   \
-  NODE_MODULE_CONTEXT_AWARE_X(modname, regfunc, NULL, 0)
-
-#define NODE_MODULE_CONTEXT_AWARE_BUILTIN(modname, regfunc)           \
-  NODE_MODULE_CONTEXT_AWARE_X(modname, regfunc, NULL, NM_F_BUILTIN)   \
+#define NODE_MODULE_BUILTIN(modname, initfunc)                        \
+  NODE_MODULE_X(modname, initfunc, NULL, node::NM_F_BUILTIN)
 
 /*
  * For backward compatibility in add-on modules.
