@@ -198,6 +198,7 @@ namespace node {
   V(syscall_string, "syscall")                                                \
   V(tick_callback_string, "_tickCallback")                                    \
   V(tick_domain_cb_string, "_tickDomainCallback")                             \
+  V(ticketkeycallback_string, "onticketkeycallback")                          \
   V(timeout_string, "timeout")                                                \
   V(times_string, "times")                                                    \
   V(timestamp_string, "timestamp")                                            \
