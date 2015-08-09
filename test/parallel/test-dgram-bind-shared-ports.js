@@ -4,15 +4,20 @@ var assert = require('assert');
 var cluster = require('cluster');
 var dgram = require('dgram');
 
-// TODO XXX FIXME when windows supports clustered dgram ports re-enable this
-// test
-if (process.platform == 'win32')
-  process.exit(0);
-
 function noop() {}
 
 if (cluster.isMaster) {
   var worker1 = cluster.fork();
+
+  if (common.isWindows) {
+    var checkErrType = function(er) {
+      assert.equal(er.code, 'ENOTSUP');
+      worker1.kill();
+    };
+
+    worker1.on('error', common.mustCall(checkErrType, 1));
+    return;
+  }
 
   worker1.on('message', function(msg) {
     assert.equal(msg, 'success');

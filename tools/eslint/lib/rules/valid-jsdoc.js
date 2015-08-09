@@ -21,7 +21,7 @@ module.exports = function(context) {
         prefer = options.prefer || {},
 
         // these both default to true, so you have to explicitly make them false
-        requireReturn = options.requireReturn === false ? false : true,
+        requireReturn = options.requireReturn !== false,
         requireParamDescription = options.requireParamDescription !== false,
         requireReturnDescription = options.requireReturnDescription !== false;
 
@@ -143,7 +143,7 @@ module.exports = function(context) {
             });
 
             // check for functions missing @returns
-            if (!hasReturns && !hasConstructor) {
+            if (!hasReturns && !hasConstructor && node.parent.kind !== "get") {
                 if (requireReturn || functionData.returnPresent) {
                     context.report(jsdocNode, "Missing JSDoc @returns for function.");
                 }
@@ -189,3 +189,27 @@ module.exports = function(context) {
     };
 
 };
+
+module.exports.schema = [
+    {
+        "type": "object",
+        "properties": {
+            "prefer": {
+                "type": "object",
+                "additionalProperties": {
+                    "type": "string"
+                }
+            },
+            "requireReturn": {
+                "type": "boolean"
+            },
+            "requireParamDescription": {
+                "type": "boolean"
+            },
+            "requireReturnDescription": {
+                "type": "boolean"
+            }
+        },
+        "additionalProperties": false
+    }
+];

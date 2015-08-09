@@ -26,7 +26,7 @@ module.exports = function (context) {
     }
 
     /**
-     * Determines whether two adjacent tokens are have whitespace between them.
+     * Determines whether two adjacent tokens have whitespace between them.
      * @param {Object} left - The left token object.
      * @param {Object} right - The right token object.
      * @returns {boolean} Whether or not there is space between the tokens.
@@ -150,3 +150,18 @@ module.exports = function (context) {
         }
     };
 };
+
+module.exports.schema = [
+    {
+        "type": "object",
+        "properties": {
+            "before": {
+                "type": "boolean"
+            },
+            "after": {
+                "type": "boolean"
+            }
+        },
+        "additionalProperties": false
+    }
+];

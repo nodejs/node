@@ -1,5 +1,6 @@
 var fstream = require('../fstream.js')
 var notOpen = false
+process.chdir(__dirname)
 
 fstream
   .Writer({
@@ -22,4 +23,5 @@ fstream
 
 process.on('exit', function () {
   console.log((notOpen ? '' : 'not ') + 'ok 3 should be closed')
+  console.log('1..3')
 })

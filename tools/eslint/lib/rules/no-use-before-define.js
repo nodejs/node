@@ -18,6 +18,13 @@ var NO_FUNC = "nofunc";
 
 module.exports = function(context) {
 
+    /**
+     * Finds variable declarations in a given scope.
+     * @param {string} name The variable name to find.
+     * @param {Scope} scope The scope to search in.
+     * @returns {Object} The variable declaration object.
+     * @private
+     */
     function findDeclaration(name, scope) {
         // try searching in the current scope first
         for (var i = 0, l = scope.variables.length; i < l; i++) {
@@ -31,8 +38,13 @@ module.exports = function(context) {
         }
     }
 
-    function findVariables() {
-        var scope = context.getScope();
+    /**
+     * Finds and validates all variables in a given scope.
+     * @param {Scope} scope The scope object.
+     * @returns {void}
+     * @private
+     */
+    function findVariablesInScope(scope) {
         var typeOption = context.options[0];
 
         function checkLocationAndReport(reference, declaration) {
@@ -58,10 +70,36 @@ module.exports = function(context) {
         });
     }
 
+
+    /**
+     * Validates variables inside of a node's scope.
+     * @param {ASTNode} node The node to check.
+     * @returns {void}
+     * @private
+     */
+    function findVariables() {
+        var scope = context.getScope();
+        findVariablesInScope(scope);
+    }
+
     return {
-        "Program": findVariables,
+        "Program": function() {
+            var scope = context.getScope();
+            findVariablesInScope(scope);
+
+            // both Node.js and Modules have an extra scope
+            if (context.ecmaFeatures.globalReturn || context.ecmaFeatures.modules) {
+                findVariablesInScope(scope.childScopes[0]);
+            }
+        },
         "FunctionExpression": findVariables,
         "FunctionDeclaration": findVariables,
         "ArrowFunctionExpression": findVariables
     };
 };
+
+module.exports.schema = [
+    {
+        "enum": ["nofunc"]
+    }
+];

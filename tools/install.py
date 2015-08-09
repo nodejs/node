@@ -149,6 +149,8 @@ def files(action):
   # behave similarly for systemtap
   action(['src/node.stp'], 'share/systemtap/tapset/')
 
+  action(['deps/v8/tools/gdbinit'], 'share/doc/node/')
+
   if 'freebsd' in sys.platform or 'openbsd' in sys.platform:
     action(['doc/iojs.1'], 'man/man1/')
   else:

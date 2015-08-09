@@ -1,7 +1,10 @@
 'use strict';
-if (process.platform === 'win32') {
-  console.log('skipping test on windows, where clustered dgram is ENOTSUP');
-  process.exit(0);
+
+const common = require('../common');
+
+if (common.isWindows) {
+  console.log('1..0 # Skipped: on windows, because clustered dgram is ENOTSUP');
+  return;
 }
 
 var cluster = require('cluster');

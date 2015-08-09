@@ -3,10 +3,9 @@
 <img align="right" src="https://raw.github.com/hueniverse/hawk/master/images/logo.png" /> **Hawk** is an HTTP authentication scheme using a message authentication code (MAC) algorithm to provide partial
 HTTP request cryptographic verification. For more complex use cases such as access delegation, see [Oz](https://github.com/hueniverse/oz).
 
-Current version: **2.3**
+Current version: **3.x**
 
-Note: 2.x is the same exact protocol as 1.1. The version increment reflects a change in the internal error format
-used by the module and used by the node API.
+Note: 3.x and 2.x are the same exact protocol as 1.1. The version increments reflect changes in the node API.
 
 [![Build Status](https://secure.travis-ci.org/hueniverse/hawk.png)](http://travis-ci.org/hueniverse/hawk)
 

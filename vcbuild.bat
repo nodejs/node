@@ -35,6 +35,7 @@ set noperfctr_arg=
 set noperfctr_msi_arg=
 set i18n_arg=
 set download_arg=
+set release_urls_arg=
 
 :next-arg
 if "%1"=="" goto args-done
@@ -79,6 +80,7 @@ if "%config%"=="Debug" set debug_arg=--debug
 if defined nosnapshot set snapshot_arg=--without-snapshot
 if defined noetw set noetw_arg=--without-etw& set noetw_msi_arg=/p:NoETW=1
 if defined noperfctr set noperfctr_arg=--without-perfctr& set noperfctr_msi_arg=/p:NoPerfCtr=1
+if defined RELEASE_URLBASE set release_urlbase_arg=--release-urlbase=%RELEASE_URLBASE%
 
 if "%i18n_arg%"=="full-icu" set i18n_arg=--with-intl=full-icu
 if "%i18n_arg%"=="small-icu" set i18n_arg=--with-intl=small-icu
@@ -87,18 +89,6 @@ if "%i18n_arg%"=="intl-none" set i18n_arg=--with-intl=none
 call :getnodeversion || exit /b 1
 
 @rem Set environment for msbuild
-:project-gen
-@rem Skip project generation if requested.
-if defined noprojgen goto msbuild
-
-@rem Generate the VS project.
-SETLOCAL
-  if defined VS100COMNTOOLS call "%VS100COMNTOOLS%\VCVarsQueryRegistry.bat"
-  python configure %download_arg% %i18n_arg% %debug_arg% %snapshot_arg% %noetw_arg% %noperfctr_arg% --dest-cpu=%target_arch% --tag=%TAG%
-  if errorlevel 1 goto create-msvs-files-failed
-  if not exist node.sln goto create-msvs-files-failed
-  echo Project files generated.
-ENDLOCAL
 
 @rem Look for Visual Studio 2015
 if not defined VS140COMNTOOLS goto vc-set-2013
@@ -146,6 +136,7 @@ if defined nobuild goto sign
 @rem Build the sln with msbuild.
 msbuild node.sln /m /t:%target% /p:Configuration=%config% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 goto exit
+if "%target%" == "Clean" goto exit
 
 :sign
 @rem Skip signing if the `nosign` option was specified.

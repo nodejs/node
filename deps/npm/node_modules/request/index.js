@@ -14,7 +14,7 @@
 
 'use strict'
 
-var extend                = require('util')._extend
+var extend                = require('extend')
   , cookies               = require('./lib/cookies')
   , helpers               = require('./lib/helpers')
 
@@ -30,12 +30,11 @@ function initParams(uri, options, callback) {
 
   var params = {}
   if (typeof options === 'object') {
-    params = extend({}, options)
-    params = extend(params, {uri: uri})
+    extend(params, options, {uri: uri})
   } else if (typeof uri === 'string') {
-    params = extend({}, {uri: uri})
+    extend(params, {uri: uri})
   } else {
-    params = extend({}, uri)
+    extend(params, uri)
   }
 
   params.callback = callback
@@ -86,24 +85,18 @@ function wrapRequestMethod (method, options, requester, verb) {
   return function (uri, opts, callback) {
     var params = initParams(uri, opts, callback)
 
-    var headerlessOptions = extend({}, options)
-    delete headerlessOptions.headers
-    params = extend(headerlessOptions, params)
-
-    if (options.headers) {
-      var headers = extend({}, options.headers)
-      params.headers = extend(headers, params.headers)
-    }
+    var target = {}
+    extend(true, target, options, params)
 
     if (verb) {
-      params.method = (verb === 'del' ? 'DELETE' : verb.toUpperCase())
+      target.method = (verb === 'del' ? 'DELETE' : verb.toUpperCase())
     }
 
     if (isFunction(requester)) {
       method = requester
     }
 
-    return method(params, params.callback)
+    return method(target, target.callback)
   }
 }
 
@@ -131,7 +124,7 @@ request.defaults = function (options, requester) {
 request.forever = function (agentOptions, optionsArg) {
   var options = {}
   if (optionsArg) {
-    options = extend({}, optionsArg)
+    extend(options, optionsArg)
   }
   if (agentOptions) {
     options.agentOptions = agentOptions

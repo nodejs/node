@@ -344,7 +344,7 @@ function shouldUpdate (args, dir, dep, has, req, depth, cb, type) {
 
   function updateDeps (er, d) {
     if (er) {
-      if (parsed.type !== 'local') return cb()
+      if (parsed.type !== 'local') return cb(er)
       return updateLocalDeps()
     }
 

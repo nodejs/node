@@ -19,7 +19,8 @@ tap.test('the scope', function (t) {
   init(dir, i, {scope: '@foo'}, function (er, data) {
     if (er) throw er
 
-    t.same(EXPECT, data)
+    console.log('')
+    t.has(data, EXPECT)
     t.end()
   })
   setTimeout(function () {

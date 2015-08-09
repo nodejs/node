@@ -10,9 +10,9 @@
 fetching a URL:
 1. Check for URL in inflight URLs.  If present, add cb, and return.
 2. Acquire lock at {cache}/{sha(url)}.lock
-   retries = {cache-lock-retries, def=3}
-   stale = {cache-lock-stale, def=30000}
-   wait = {cache-lock-wait, def=100}
+   retries = {cache-lock-retries, def=10}
+   stale = {cache-lock-stale, def=60000}
+   wait = {cache-lock-wait, def=10000}
 3. if lock can't be acquired, then fail
 4. fetch url, clear lock, call cbs
 

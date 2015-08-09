@@ -189,7 +189,59 @@ function error_test() {
     { client: client_unix, send: 'url.format("http://google.com")',
       expect: 'http://google.com/' },
     { client: client_unix, send: 'var path = 42; path',
-      expect: '42' }
+      expect: '42' },
+    // this makes sure that we don't print `undefined` when we actually print
+    // the error message
+    { client: client_unix, send: '.invalid_repl_command',
+      expect: 'Invalid REPL keyword\n' + prompt_unix },
+    // this makes sure that we don't crash when we use an inherited property as
+    // a REPL command
+    { client: client_unix, send: '.toString',
+      expect: 'Invalid REPL keyword\n' + prompt_unix },
+    // fail when we are not inside a String and a line continuation is used
+    { client: client_unix, send: '[] \\',
+      expect: /^SyntaxError: Unexpected token ILLEGAL/ },
+    // do not fail when a String is created with line continuation
+    { client: client_unix, send: '\'the\\\nfourth\\\neye\'',
+      expect: prompt_multiline + prompt_multiline +
+              '\'thefourtheye\'\n' + prompt_unix },
+    // Don't fail when a partial String is created and line continuation is used
+    // with whitespace characters at the end of the string. We are to ignore it.
+    // This test is to make sure that we properly remove the whitespace
+    // characters at the end of line, unlike the buggy `trimWhitespace` function
+    { client: client_unix, send: '  \t    .break  \t  ',
+      expect: prompt_unix },
+    // multiline strings preserve whitespace characters in them
+    { client: client_unix, send: '\'the \\\n   fourth\t\t\\\n  eye  \'',
+      expect: prompt_multiline + prompt_multiline +
+              '\'the    fourth\\t\\t  eye  \'\n' + prompt_unix },
+    // more than one multiline strings also should preserve whitespace chars
+    { client: client_unix, send: '\'the \\\n   fourth\' +  \'\t\t\\\n  eye  \'',
+      expect: prompt_multiline + prompt_multiline +
+              '\'the    fourth\\t\\t  eye  \'\n' + prompt_unix },
+    // using REPL commands within a string literal should still work
+    { client: client_unix, send: '\'\\\n.break',
+      expect: prompt_unix },
+    // using REPL command "help" within a string literal should still work
+    { client: client_unix, send: '\'thefourth\\\n.help\neye\'',
+      expect: /'thefourtheye'/ },
+    // empty lines in the REPL should be allowed
+    { client: client_unix, send: '\n\r\n\r\n',
+      expect: prompt_unix + prompt_unix + prompt_unix },
+    // empty lines in the string literals should not affect the string
+    { client: client_unix, send: '\'the\\\n\\\nfourtheye\'\n',
+      expect: prompt_multiline + prompt_multiline +
+              '\'thefourtheye\'\n' + prompt_unix },
+    // Regression test for https://github.com/nodejs/io.js/issues/597
+    { client: client_unix,
+      send: '/(.)(.)(.)(.)(.)(.)(.)(.)(.)/.test(\'123456789\')\n',
+      expect: `true\n${prompt_unix}` },
+    // the following test's result depends on the RegEx's match from the above
+    { client: client_unix,
+      send: 'RegExp.$1\nRegExp.$2\nRegExp.$3\nRegExp.$4\nRegExp.$5\n' +
+            'RegExp.$6\nRegExp.$7\nRegExp.$8\nRegExp.$9\n',
+      expect: ['\'1\'\n', '\'2\'\n', '\'3\'\n', '\'4\'\n', '\'5\'\n', '\'6\'\n',
+               '\'7\'\n', '\'8\'\n', '\'9\'\n'].join(`${prompt_unix}`) },
   ]);
 }
 

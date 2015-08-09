@@ -99,3 +99,21 @@ module.exports = function(context) {
     };
 
 };
+
+module.exports.schema = [
+    {
+        "type": "object",
+        "properties": {
+            "exceptions": {
+                "type": "object",
+                "patternProperties": {
+                    "^([A-Z][a-z]*)+$": {
+                        "type": "boolean"
+                    }
+                },
+                "additionalProperties": false
+            }
+        },
+        "additionalProperties": false
+    }
+];

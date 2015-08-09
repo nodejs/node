@@ -131,7 +131,7 @@ parameter is 511 (not 512).
 
 This function is asynchronous.  When the server has been bound,
 ['listening'][] event will be emitted.  The last parameter `callback`
-will be added as an listener for the ['listening'][] event.
+will be added as a listener for the ['listening'][] event.
 
 One issue some users run into is getting `EADDRINUSE` errors. This means that
 another server is already running on the requested port. One way of handling this
@@ -193,7 +193,7 @@ Listening on a file descriptor is not supported on Windows.
 
 This function is asynchronous.  When the server has been bound,
 ['listening'][] event will be emitted.
-the last parameter `callback` will be added as an listener for the
+The last parameter `callback` will be added as a listener for the
 ['listening'][] event.
 
 ### server.listen(options[, callback])
@@ -228,10 +228,10 @@ shown below.
 
 Stops the server from accepting new connections and keeps existing
 connections. This function is asynchronous, the server is finally
-closed when all connections are ended and the server emits a `'close'`
-event. Optionally, you can pass a callback to listen for the `'close'`
-event. If present, the callback is invoked with any potential error
-as the first and only argument.
+closed when all connections are ended and the server emits a ['close'][] event.
+The optional `callback` will be called once the `'close'` event occurs. Unlike
+that event, it will be called with an Error as its only argument if the server
+was not open when it was closed.
 
 ### server.address()
 
@@ -317,7 +317,7 @@ event is not emitted until all connections are ended.
 
 * {Error Object}
 
-Emitted when an error occurs.  The `'close'` event will be called directly
+Emitted when an error occurs.  The ['close'][] event will be called directly
 following this event.  See example in discussion of `server.listen`.
 
 ## Class: net.Socket
@@ -374,7 +374,7 @@ This function is asynchronous. When the ['connect'][] event is emitted the
 socket is established. If there is a problem connecting, the `'connect'` event
 will not be emitted, the `'error'` event will be emitted with the exception.
 
-The `connectListener` parameter will be added as an listener for the
+The `connectListener` parameter will be added as a listener for the
 ['connect'][] event.
 
 ### socket.connect(port[, host][, connectListener])
@@ -597,7 +597,7 @@ following this event.
 
 ### Event: 'close'
 
-* `had_error` {Boolean} true if the socket had a transmission error
+* `had_error` {Boolean} `true` if the socket had a transmission error.
 
 Emitted once the socket is fully closed. The argument `had_error` is a boolean
 which says if the socket was closed due to a transmission error.
@@ -617,6 +617,7 @@ Returns true if input is a version 4 IP address, otherwise returns false.
 
 Returns true if input is a version 6 IP address, otherwise returns false.
 
+['close']: #net_event_close
 ['connect']: #net_event_connect
 ['connection']: #net_event_connection
 ['end']: #net_event_end

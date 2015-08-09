@@ -299,8 +299,22 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "getTicketKeys", SecureContext::GetTicketKeys);
   env->SetProtoMethod(t, "setTicketKeys", SecureContext::SetTicketKeys);
   env->SetProtoMethod(t, "setFreeListLength", SecureContext::SetFreeListLength);
+  env->SetProtoMethod(t,
+                      "enableTicketKeyCallback",
+                      SecureContext::EnableTicketKeyCallback);
   env->SetProtoMethod(t, "getCertificate", SecureContext::GetCertificate<true>);
   env->SetProtoMethod(t, "getIssuer", SecureContext::GetCertificate<false>);
+
+  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kTicketKeyReturnIndex"),
+         Integer::NewFromUnsigned(env->isolate(), kTicketKeyReturnIndex));
+  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kTicketKeyHMACIndex"),
+         Integer::NewFromUnsigned(env->isolate(), kTicketKeyHMACIndex));
+  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kTicketKeyAESIndex"),
+         Integer::NewFromUnsigned(env->isolate(), kTicketKeyAESIndex));
+  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kTicketKeyNameIndex"),
+         Integer::NewFromUnsigned(env->isolate(), kTicketKeyNameIndex));
+  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kTicketKeyIVIndex"),
+         Integer::NewFromUnsigned(env->isolate(), kTicketKeyIVIndex));
 
   t->PrototypeTemplate()->SetAccessor(
       FIXED_ONE_BYTE_STRING(env->isolate(), "_external"),
@@ -377,6 +391,7 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   }
 
   sc->ctx_ = SSL_CTX_new(method);
+  SSL_CTX_set_app_data(sc->ctx_, sc);
 
   // Disable SSLv2 in the case when method == SSLv23_method() and the
   // cipher list contains SSLv2 ciphers (not the default, should be rare.)
@@ -979,6 +994,95 @@ void SecureContext::SetFreeListLength(const FunctionCallbackInfo<Value>& args) {
 
   wrap->ctx_->freelist_max_len = args[0]->Int32Value();
 }
+
+
+void SecureContext::EnableTicketKeyCallback(
+    const FunctionCallbackInfo<Value>& args) {
+  SecureContext* wrap = Unwrap<SecureContext>(args.Holder());
+
+  SSL_CTX_set_tlsext_ticket_key_cb(wrap->ctx_, TicketKeyCallback);
+}
+
+
+int SecureContext::TicketKeyCallback(SSL* ssl,
+                                     unsigned char* name,
+                                     unsigned char* iv,
+                                     EVP_CIPHER_CTX* ectx,
+                                     HMAC_CTX* hctx,
+                                     int enc) {
+  static const int kTicketPartSize = 16;
+
+  SecureContext* sc = static_cast<SecureContext*>(
+      SSL_CTX_get_app_data(ssl->ctx));
+
+  Environment* env = sc->env();
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
+
+  Local<Value> argv[] = {
+    Buffer::New(env,
+                reinterpret_cast<char*>(name),
+                kTicketPartSize).ToLocalChecked(),
+    Buffer::New(env,
+                reinterpret_cast<char*>(iv),
+                kTicketPartSize).ToLocalChecked(),
+    Boolean::New(env->isolate(), enc != 0)
+  };
+  Local<Value> ret = node::MakeCallback(env,
+                                        sc->object(),
+                                        env->ticketkeycallback_string(),
+                                        ARRAY_SIZE(argv),
+                                        argv);
+  Local<Array> arr = ret.As<Array>();
+
+  int r = arr->Get(kTicketKeyReturnIndex)->Int32Value();
+  if (r < 0)
+    return r;
+
+  Local<Value> hmac = arr->Get(kTicketKeyHMACIndex);
+  Local<Value> aes = arr->Get(kTicketKeyAESIndex);
+  if (Buffer::Length(aes) != kTicketPartSize)
+    return -1;
+
+  if (enc) {
+    Local<Value> name_val = arr->Get(kTicketKeyNameIndex);
+    Local<Value> iv_val = arr->Get(kTicketKeyIVIndex);
+
+    if (Buffer::Length(name_val) != kTicketPartSize ||
+        Buffer::Length(iv_val) != kTicketPartSize) {
+      return -1;
+    }
+
+    memcpy(name, Buffer::Data(name_val), kTicketPartSize);
+    memcpy(iv, Buffer::Data(iv_val), kTicketPartSize);
+  }
+
+  HMAC_Init_ex(hctx,
+               Buffer::Data(hmac),
+               Buffer::Length(hmac),
+               EVP_sha256(),
+               nullptr);
+
+  const unsigned char* aes_key =
+      reinterpret_cast<unsigned char*>(Buffer::Data(aes));
+  if (enc) {
+    EVP_EncryptInit_ex(ectx,
+                       EVP_aes_128_cbc(),
+                       nullptr,
+                       aes_key,
+                       iv);
+  } else {
+    EVP_DecryptInit_ex(ectx,
+                       EVP_aes_128_cbc(),
+                       nullptr,
+                       aes_key,
+                       iv);
+  }
+
+  return r;
+}
+
+
 
 
 void SecureContext::CtxGetter(Local<String> property,
@@ -2311,7 +2415,7 @@ inline CheckResult CheckWhitelistedServerCert(X509_STORE_CTX* ctx) {
 inline int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx) {
   // Failure on verification of the cert is handled in
   // Connection::VerifyError.
-  if (preverify_ok == 0)
+  if (preverify_ok == 0 || X509_STORE_CTX_get_error(ctx) != X509_V_OK)
     return 1;
 
   // Server does not need to check the whitelist.
@@ -2347,8 +2451,15 @@ int Connection::SelectSNIContextCallback_(SSL *s, int *ad, void* arg) {
     if (!conn->sniObject_.IsEmpty()) {
       conn->sni_context_.Reset();
 
+      Local<Object> sni_obj = PersistentToLocal(env->isolate(),
+                                                conn->sniObject_);
+
       Local<Value> arg = PersistentToLocal(env->isolate(), conn->servername_);
-      Local<Value> ret = conn->MakeCallback(env->onselect_string(), 1, &arg);
+      Local<Value> ret = node::MakeCallback(env->isolate(),
+                                            sni_obj,
+                                            env->onselect_string(),
+                                            1,
+                                            &arg);
 
       // If ret is SecureContext
       Local<FunctionTemplate> secure_context_constructor_template =

@@ -2,8 +2,8 @@
 try {
   var crypto = require('crypto');
 } catch (e) {
-  console.log('Not compiled with OPENSSL support.');
-  process.exit();
+  console.log('1..0 # Skipped: node compiled without OpenSSL.');
+  return;
 }
 
 // the missing var keyword is intentional

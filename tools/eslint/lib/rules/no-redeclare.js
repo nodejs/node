@@ -19,7 +19,6 @@ module.exports = function(context) {
      */
     function findVariablesInScope(scope) {
         scope.variables.forEach(function(variable) {
-
             if (variable.identifiers && variable.identifiers.length > 1) {
                 variable.identifiers.sort(function(a, b) {
                     return a.range[1] - b.range[1];
@@ -50,9 +49,20 @@ module.exports = function(context) {
         }
     }
 
-    return {
-        "Program": findVariables,
-        "FunctionExpression": findVariables,
-        "FunctionDeclaration": findVariables
-    };
+    if (context.ecmaFeatures.blockBindings) {
+        return {
+            "Program": findVariables,
+            "BlockStatement": findVariables,
+            "SwitchStatement": findVariables
+        };
+    } else {
+        return {
+            "Program": findVariables,
+            "FunctionDeclaration": findVariables,
+            "FunctionExpression": findVariables,
+            "ArrowFunctionExpression": findVariables
+        };
+    }
 };
+
+module.exports.schema = [];

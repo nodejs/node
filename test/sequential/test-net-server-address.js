@@ -19,6 +19,11 @@ server_ipv4.listen(common.PORT, common.localhostIPv4, function() {
   server_ipv4.close();
 });
 
+if (!common.hasIPv6) {
+  console.log('1..0 # Skipped: ipv6 part of test, no IPv6 support');
+  return;
+}
+
 // Test on IPv6 Server
 var localhost_ipv6 = '::1';
 var family_ipv6 = 'IPv6';
@@ -35,11 +40,6 @@ server_ipv6.listen(common.PORT, localhost_ipv6, function() {
   assert.strictEqual(address_ipv6.family, family_ipv6);
   server_ipv6.close();
 });
-
-if (!common.hasIPv6) {
-  console.error('Skipping ipv6 part of test, no IPv6 support');
-  return;
-}
 
 // Test without hostname or ip
 var anycast_ipv6 = '::';

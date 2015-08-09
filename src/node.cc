@@ -117,6 +117,7 @@ static bool trace_deprecation = false;
 static bool throw_deprecation = false;
 static bool abort_on_uncaught_exception = false;
 static bool trace_sync_io = false;
+static bool track_heap_objects = false;
 static const char* eval_string = nullptr;
 static unsigned int preload_module_count = 0;
 static const char** preload_modules = nullptr;
@@ -1053,8 +1054,6 @@ Local<Value> MakeCallback(Environment* env,
         return Undefined(env->isolate());
     }
   }
-  env->tick_callback_function()->Call(process, 0, nullptr);
-  CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
 
   if (try_catch.HasCaught()) {
     return Undefined(env->isolate());
@@ -1381,16 +1380,7 @@ void AppendExceptionLine(Environment* env,
   if (arrow_str.IsEmpty() || err_obj.IsEmpty() || !err_obj->IsNativeError())
     goto print;
 
-  msg = err_obj->Get(env->message_string());
-  stack = err_obj->Get(env->stack_string());
-
-  if (msg.IsEmpty() || stack.IsEmpty())
-    goto print;
-
-  err_obj->Set(env->message_string(),
-               String::Concat(arrow_str, msg->ToString(env->isolate())));
-  err_obj->Set(env->stack_string(),
-               String::Concat(arrow_str, stack->ToString(env->isolate())));
+  err_obj->SetHiddenValue(env->arrow_message_string(), arrow_str);
   return;
 
  print:
@@ -1410,17 +1400,27 @@ static void ReportException(Environment* env,
   AppendExceptionLine(env, er, message);
 
   Local<Value> trace_value;
+  Local<Value> arrow;
 
-  if (er->IsUndefined() || er->IsNull())
+  if (er->IsUndefined() || er->IsNull()) {
     trace_value = Undefined(env->isolate());
-  else
-    trace_value = er->ToObject(env->isolate())->Get(env->stack_string());
+  } else {
+    Local<Object> err_obj = er->ToObject(env->isolate());
+
+    trace_value = err_obj->Get(env->stack_string());
+    arrow = err_obj->GetHiddenValue(env->arrow_message_string());
+  }
 
   node::Utf8Value trace(env->isolate(), trace_value);
 
   // range errors have a trace member set to undefined
   if (trace.length() > 0 && !trace_value->IsUndefined()) {
-    fprintf(stderr, "%s\n", *trace);
+    if (arrow.IsEmpty() || !arrow->IsString()) {
+      fprintf(stderr, "%s\n", *trace);
+    } else {
+      node::Utf8Value arrow_string(env->isolate(), arrow);
+      fprintf(stderr, "%s\n%s\n", *arrow_string, *trace);
+    }
   } else {
     // this really only happens for RangeErrors, since they're the only
     // kind that won't have all this info in the trace, or when non-Error
@@ -1444,7 +1444,17 @@ static void ReportException(Environment* env,
     } else {
       node::Utf8Value name_string(env->isolate(), name);
       node::Utf8Value message_string(env->isolate(), message);
-      fprintf(stderr, "%s: %s\n", *name_string, *message_string);
+
+      if (arrow.IsEmpty() || !arrow->IsString()) {
+        fprintf(stderr, "%s: %s\n", *name_string, *message_string);
+      } else {
+        node::Utf8Value arrow_string(env->isolate(), arrow);
+        fprintf(stderr,
+                "%s\n%s: %s\n",
+                *arrow_string,
+                *name_string,
+                *message_string);
+      }
     }
   }
 
@@ -2141,7 +2151,7 @@ static void OnFatalError(const char* location, const char* message) {
 
 NO_RETURN void FatalError(const char* location, const char* message) {
   OnFatalError(location, message);
-  // to supress compiler warning
+  // to suppress compiler warning
   abort();
 }
 
@@ -2717,6 +2727,39 @@ void SetupProcessObject(Environment* env,
                     "platform",
                     OneByteString(env->isolate(), NODE_PLATFORM));
 
+  // process.release
+  Local<Object> release = Object::New(env->isolate());
+  READONLY_PROPERTY(process, "release", release);
+  READONLY_PROPERTY(release, "name", OneByteString(env->isolate(), "io.js"));
+
+// if this is a release build and no explicit base has been set
+// substitute the standard release download URL
+#ifndef NODE_RELEASE_URLBASE
+# if NODE_VERSION_IS_RELEASE
+#  define NODE_RELEASE_URLBASE "https://iojs.org/download/release/"
+# endif
+#endif
+
+#if defined(NODE_RELEASE_URLBASE)
+#  define _RELEASE_URLPFX NODE_RELEASE_URLBASE "v" NODE_VERSION_STRING "/"
+#  define _RELEASE_URLFPFX _RELEASE_URLPFX "iojs-v" NODE_VERSION_STRING
+
+  READONLY_PROPERTY(release,
+                    "sourceUrl",
+                    OneByteString(env->isolate(),
+                    _RELEASE_URLFPFX ".tar.gz"));
+  READONLY_PROPERTY(release,
+                    "headersUrl",
+                    OneByteString(env->isolate(),
+                    _RELEASE_URLFPFX "-headers.tar.gz"));
+#  ifdef _WIN32
+  READONLY_PROPERTY(release,
+                    "libUrl",
+                    OneByteString(env->isolate(),
+                    _RELEASE_URLPFX "win-" NODE_ARCH "/iojs.lib"));
+#  endif
+#endif
+
   // process.argv
   Local<Array> arguments = Array::New(env->isolate(), argc);
   for (int i = 0; i < argc; ++i) {
@@ -2797,13 +2840,6 @@ void SetupProcessObject(Environment* env,
   // --trace-deprecation
   if (trace_deprecation) {
     READONLY_PROPERTY(process, "traceDeprecation", True(env->isolate()));
-  }
-
-  // --trace-sync-io
-  if (trace_sync_io) {
-    READONLY_PROPERTY(process, "traceSyncIO", True(env->isolate()));
-    // Don't env->set_trace_sync_io(true) because it will be enabled
-    // after LoadEnvironment() has run.
   }
 
   size_t exec_path_len = 2 * PATH_MAX;
@@ -3022,41 +3058,42 @@ static void PrintHelp() {
          "       iojs debug script.js [arguments] \n"
          "\n"
          "Options:\n"
-         "  -v, --version        print io.js version\n"
-         "  -e, --eval script    evaluate script\n"
-         "  -p, --print          evaluate script and print result\n"
-         "  -i, --interactive    always enter the REPL even if stdin\n"
-         "                       does not appear to be a terminal\n"
-         "  -r, --require        module to preload (option can be repeated)\n"
-         "  --no-deprecation     silence deprecation warnings\n"
-         "  --throw-deprecation  throw an exception anytime a deprecated "
+         "  -v, --version         print io.js version\n"
+         "  -e, --eval script     evaluate script\n"
+         "  -p, --print           evaluate script and print result\n"
+         "  -i, --interactive     always enter the REPL even if stdin\n"
+         "                        does not appear to be a terminal\n"
+         "  -r, --require         module to preload (option can be repeated)\n"
+         "  --no-deprecation      silence deprecation warnings\n"
+         "  --throw-deprecation   throw an exception anytime a deprecated "
          "function is used\n"
-         "  --trace-deprecation  show stack traces on deprecations\n"
-         "  --trace-sync-io      show stack trace when use of sync IO\n"
-         "                       is detected after the first tick\n"
-         "  --use-old-buffer     Revert to old Buffer implementation\n"
-         "  --v8-options         print v8 command line options\n"
+         "  --trace-deprecation   show stack traces on deprecations\n"
+         "  --trace-sync-io       show stack trace when use of sync IO\n"
+         "                        is detected after the first tick\n"
+         "  --track-heap-objects  track heap object allocations for heap "
+         "snapshots\n"
+         "  --v8-options          print v8 command line options\n"
 #if defined(NODE_HAVE_I18N_SUPPORT)
-         "  --icu-data-dir=dir   set ICU data load path to dir\n"
-         "                         (overrides NODE_ICU_DATA)\n"
+         "  --icu-data-dir=dir    set ICU data load path to dir\n"
+         "                        (overrides NODE_ICU_DATA)\n"
 #if !defined(NODE_HAVE_SMALL_ICU)
-         "                       Note: linked-in ICU data is\n"
-         "                       present.\n"
+         "                        Note: linked-in ICU data is\n"
+         "                        present.\n"
 #endif
 #endif
          "\n"
          "Environment variables:\n"
 #ifdef _WIN32
-         "NODE_PATH              ';'-separated list of directories\n"
+         "NODE_PATH               ';'-separated list of directories\n"
 #else
-         "NODE_PATH              ':'-separated list of directories\n"
+         "NODE_PATH               ':'-separated list of directories\n"
 #endif
-         "                       prefixed to the module search path.\n"
-         "NODE_DISABLE_COLORS    Set to 1 to disable colors in the REPL\n"
+         "                        prefixed to the module search path.\n"
+         "NODE_DISABLE_COLORS     Set to 1 to disable colors in the REPL\n"
 #if defined(NODE_HAVE_I18N_SUPPORT)
-         "NODE_ICU_DATA          Data path for ICU (Intl object) data\n"
+         "NODE_ICU_DATA           Data path for ICU (Intl object) data\n"
 #if !defined(NODE_HAVE_SMALL_ICU)
-         "                       (will extend linked-in data)\n"
+         "                        (will extend linked-in data)\n"
 #endif
 #endif
          "\n"
@@ -3157,6 +3194,8 @@ static void ParseArgs(int* argc,
       trace_deprecation = true;
     } else if (strcmp(arg, "--trace-sync-io") == 0) {
       trace_sync_io = true;
+    } else if (strcmp(arg, "--track-heap-objects") == 0) {
+      track_heap_objects = true;
     } else if (strcmp(arg, "--throw-deprecation") == 0) {
       throw_deprecation = true;
     } else if (strcmp(arg, "--abort-on-uncaught-exception") == 0 ||
@@ -3585,6 +3624,11 @@ void Init(int* argc,
   // TODO(bnoordhuis): Remove test/parallel/test-arm-math-exp-regress-1376.js
   // and this workaround when v8:4019 has been fixed and the patch back-ported.
   V8::SetFlagsFromString("--nofast_math", sizeof("--nofast_math") - 1);
+  // See https://github.com/nodejs/io.js/pull/2220#issuecomment-126200059
+  // and https://code.google.com/p/v8/issues/detail?id=4338
+  // TODO(targos): Remove this workaround when v8:4338 has been fixed and the
+  // patch back-ported.
+  V8::SetFlagsFromString("--novector_ics", sizeof("--novector_ics") - 1);
 #endif
 
 #if defined(NODE_V8_OPTIONS)
@@ -3847,7 +3891,12 @@ static void StartNodeInstance(void* arg) {
   ArrayBufferAllocator array_buffer_allocator;
   params.array_buffer_allocator = &array_buffer_allocator;
   Isolate* isolate = Isolate::New(params);
-    // Fetch a reference to the main isolate, so we have a reference to it
+
+  if (track_heap_objects) {
+    isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
+  }
+
+  // Fetch a reference to the main isolate, so we have a reference to it
   // even when we need it to access it from another (debugger) thread.
   if (instance_data->is_main())
     node_isolate = isolate;

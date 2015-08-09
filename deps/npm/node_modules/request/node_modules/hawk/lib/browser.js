@@ -238,18 +238,18 @@ hawk.client = {
 
             // Parse HTTP WWW-Authenticate header
 
-            var attributes = hawk.utils.parseAuthorizationHeader(wwwAuthenticate, ['ts', 'tsm', 'error']);
-            if (!attributes) {
+            var wwwAttributes = hawk.utils.parseAuthorizationHeader(wwwAuthenticate, ['ts', 'tsm', 'error']);
+            if (!wwwAttributes) {
                 return false;
             }
 
-            if (attributes.ts) {
-                var tsm = hawk.crypto.calculateTsMac(attributes.ts, credentials);
-                if (tsm !== attributes.tsm) {
+            if (wwwAttributes.ts) {
+                var tsm = hawk.crypto.calculateTsMac(wwwAttributes.ts, credentials);
+                if (tsm !== wwwAttributes.tsm) {
                     return false;
                 }
 
-                hawk.utils.setNtpOffset(attributes.ts - Math.floor((new Date()).getTime() / 1000));     // Keep offset at 1 second precision
+                hawk.utils.setNtpOffset(wwwAttributes.ts - Math.floor((new Date()).getTime() / 1000));     // Keep offset at 1 second precision
             }
         }
 
@@ -617,6 +617,7 @@ hawk.utils = {
 
 
 // $lab:coverage:off$
+/* eslint-disable */
 
 // Based on: Crypto-JS v3.1.2
 // Copyright (c) 2009-2013, Jeff Mott. All rights reserved.
@@ -638,4 +639,5 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = hawk;
 }
 
+/* eslint-enable */
 // $lab:coverage:on$

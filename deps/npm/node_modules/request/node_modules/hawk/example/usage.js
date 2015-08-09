@@ -10,7 +10,7 @@ var Hawk = require('../lib');
 var internals = {
     credentials: {
         dh37fgj492je: {
-            id: 'dh37fgj492je',                                             // Required by Hawk.client.header 
+            id: 'dh37fgj492je',                                             // Required by Hawk.client.header
             key: 'werxhqb98rpaxn39848xrunpaw3489ruxnpa98w4rxn',
             algorithm: 'sha256',
             user: 'Steve'

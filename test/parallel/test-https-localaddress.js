@@ -5,13 +5,13 @@ var common = require('../common'),
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
-  process.exit();
+  return;
 }
 var https = require('https');
 
 if (!common.hasMultiLocalhost()) {
-  console.log('Skipping platform-specific test.');
-  process.exit();
+  console.log('1..0 # Skipped: platform-specific test.');
+  return;
 }
 
 var options = {

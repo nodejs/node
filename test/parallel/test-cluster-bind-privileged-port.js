@@ -4,14 +4,14 @@ var assert = require('assert');
 var cluster = require('cluster');
 var net = require('net');
 
-if (process.platform === 'win32') {
-  console.log('Skipping test, not reliable on Windows.');
-  process.exit(0);
+if (common.isWindows) {
+  console.log('1..0 # Skipped: not reliable on Windows.');
+  return;
 }
 
 if (process.getuid() === 0) {
-  console.log('Do not run this test as root.');
-  process.exit(0);
+  console.log('1..0 # Skipped: Test is not supposed to be run as root.');
+  return;
 }
 
 if (cluster.isMaster) {

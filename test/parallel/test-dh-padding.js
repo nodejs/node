@@ -5,8 +5,8 @@ var assert = require('assert');
 try {
   var crypto = require('crypto');
 } catch (e) {
-  console.log('Not compiled with OPENSSL support.');
-  process.exit();
+  console.log('1..0 # Skipped: node compiled without OpenSSL.');
+  return;
 }
 
 var prime = 'c51f7bf8f0e1cf899243cdf408b1bc7c09c010e33ef7f3fbe5bd5feaf906113b';

@@ -62,7 +62,7 @@ module.exports = function(context) {
             var val = node.value,
                 rawVal = node.raw,
                 quoteOption = context.options[0],
-                settings = QUOTE_SETTINGS[quoteOption],
+                settings = QUOTE_SETTINGS[quoteOption || "double"],
                 avoidEscape = context.options[1] === AVOID_ESCAPE,
                 isValid;
 
@@ -81,3 +81,12 @@ module.exports = function(context) {
     };
 
 };
+
+module.exports.schema = [
+    {
+        "enum": ["single", "double", "backtick"]
+    },
+    {
+        "enum": ["avoid-escape"]
+    }
+];

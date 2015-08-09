@@ -6,7 +6,7 @@ var log = require("npmlog")
 var mkdirp = require("mkdirp")
 
 var npm = require("../npm.js")
-var getStat = require("../cache/get-stat.js")
+var correctMkdir = require('../utils/correct-mkdir.js')
 
 var installLocks = {}
 
@@ -20,25 +20,23 @@ function lockFileName (base, name) {
 }
 
 function lock (base, name, cb) {
-  getStat(function (er) {
-    var lockDir = resolve(npm.cache, "_locks")
-    mkdirp(lockDir, function () {
-      if (er) return cb(er)
+  var lockDir = resolve(npm.cache, "_locks")
+  correctMkdir(lockDir, function (er) {
+    if (er) return cb(er)
 
-      var opts = { stale:   npm.config.get("cache-lock-stale")
-                 , retries: npm.config.get("cache-lock-retries")
-                 , wait:    npm.config.get("cache-lock-wait") }
-      var lf = lockFileName(base, name)
-      lockfile.lock(lf, opts, function (er) {
-        if (er) log.warn("locking", lf, "failed", er)
+    var opts = { stale:   npm.config.get("cache-lock-stale")
+               , retries: npm.config.get("cache-lock-retries")
+               , wait:    npm.config.get("cache-lock-wait") }
+    var lf = lockFileName(base, name)
+    lockfile.lock(lf, opts, function (er) {
+      if (er) log.warn("locking", lf, "failed", er)
 
-        if (!er) {
-          log.verbose("lock", "using", lf, "for", resolve(base, name))
-          installLocks[lf] = true
-        }
+      if (!er) {
+        log.verbose("lock", "using", lf, "for", resolve(base, name))
+        installLocks[lf] = true
+      }
 
-        cb(er)
-      })
+      cb(er)
     })
   })
 }

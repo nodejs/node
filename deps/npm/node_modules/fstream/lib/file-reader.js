@@ -21,7 +21,7 @@ function FileReader (props) {
   // XXX Todo: preserve hardlinks by tracking dev+inode+nlink,
   // with a HardLinkReader class.
   if (!((props.type === 'Link' && props.Link) ||
-        (props.type === 'File' && props.File))) {
+    (props.type === 'File' && props.File))) {
     throw new Error('Non-file type ' + props.type)
   }
 
@@ -63,8 +63,8 @@ FileReader.prototype._getStream = function () {
 
     if (self._bytesEmitted !== self.props.size) {
       self.error("Didn't get expected byte count\n" +
-               'expect: ' + self.props.size + '\n' +
-               'actual: ' + self._bytesEmitted)
+        'expect: ' + self.props.size + '\n' +
+        'actual: ' + self._bytesEmitted)
     }
   })
 
@@ -124,8 +124,8 @@ FileReader.prototype._read = function () {
     }
     self._buffer.length = 0
   }
-  // console.error("FR _read done")
-  // that's about all there is to it.
+// console.error("FR _read done")
+// that's about all there is to it.
 }
 
 FileReader.prototype.pause = function (who) {

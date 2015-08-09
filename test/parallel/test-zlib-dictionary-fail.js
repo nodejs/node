@@ -12,7 +12,7 @@ var zlib = require('zlib');
   }));
 
   // String "test" encoded with dictionary "dict".
-  stream.write(Buffer([0x78,0xBB,0x04,0x09,0x01,0xA5]));
+  stream.write(Buffer([0x78, 0xBB, 0x04, 0x09, 0x01, 0xA5]));
 })();
 
 // Should raise an error, not trigger an assertion in src/node_zlib.cc
@@ -24,5 +24,5 @@ var zlib = require('zlib');
   }));
 
   // String "test" encoded with dictionary "dict".
-  stream.write(Buffer([0x78,0xBB,0x04,0x09,0x01,0xA5]));
+  stream.write(Buffer([0x78, 0xBB, 0x04, 0x09, 0x01, 0xA5]));
 })();

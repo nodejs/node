@@ -54,13 +54,13 @@ function Reader (props, currentStat) {
       break
 
     case 'Link':
-      // XXX hard links are just files.
-      // However, it would be good to keep track of files' dev+inode
-      // and nlink values, and create a HardLinkReader that emits
-      // a linkpath value of the original copy, so that the tar
-      // writer can preserve them.
-      // ClassType = HardLinkReader
-      // break
+    // XXX hard links are just files.
+    // However, it would be good to keep track of files' dev+inode
+    // and nlink values, and create a HardLinkReader that emits
+    // a linkpath value of the original copy, so that the tar
+    // writer can preserve them.
+    // ClassType = HardLinkReader
+    // break
 
     case 'File':
       ClassType = require('./file-reader.js')
@@ -103,7 +103,7 @@ function Reader (props, currentStat) {
       self._swallowErrors = true
       // if (self._path.indexOf(" ") === -1) {
       self._path = '\\\\?\\' + self.path.replace(/\//g, '\\')
-      // }
+    // }
     }
   }
   self.basename = props.basename = path.basename(self.path)
@@ -126,10 +126,10 @@ function Reader (props, currentStat) {
 
 function alphasort (a, b) {
   return a === b ? 0
-       : a.toLowerCase() > b.toLowerCase() ? 1
-       : a.toLowerCase() < b.toLowerCase() ? -1
-       : a > b ? 1
-       : -1
+    : a.toLowerCase() > b.toLowerCase() ? 1
+      : a.toLowerCase() < b.toLowerCase() ? -1
+        : a > b ? 1
+          : -1
 }
 
 Reader.prototype._stat = function (currentStat) {

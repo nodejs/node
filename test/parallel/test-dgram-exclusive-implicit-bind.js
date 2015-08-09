@@ -39,8 +39,6 @@ var dgram = require('dgram');
 // supported while using cluster, though servers still cause the master to error
 // with ENOTSUP.
 
-var windows = process.platform === 'win32';
-
 if (cluster.isMaster) {
   var pass;
   var messages = 0;
@@ -56,12 +54,12 @@ if (cluster.isMaster) {
     messages++;
     ports[rinfo.port] = true;
 
-    if (windows && messages === 2) {
+    if (common.isWindows && messages === 2) {
       assert.equal(Object.keys(ports).length, 2);
       done();
     }
 
-    if (!windows && messages === 4) {
+    if (!common.isWindows && messages === 4) {
       assert.equal(Object.keys(ports).length, 3);
       done();
     }
@@ -76,7 +74,7 @@ if (cluster.isMaster) {
   target.on('listening', function() {
     cluster.fork();
     cluster.fork();
-    if (!windows) {
+    if (!common.isWindows) {
       cluster.fork({BOUND: 'y'});
       cluster.fork({BOUND: 'y'});
     }
