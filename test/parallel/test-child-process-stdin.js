@@ -1,7 +1,6 @@
 'use strict';
 var common = require('../common');
 var assert = require('assert');
-const os = require('os');
 const path = require('path');
 var spawn = require('child_process').spawn;
 const exec = require('child_process').exec;
@@ -74,12 +73,12 @@ const cpFile = path.join(common.fixturesDir, 'child-process-stdin.js');
 const nodeBinary = process.argv[0];
 
 exec(`${nodeBinary} ${cpFile}`, function(err, stdout, stderr) {
-  const stdoutLines = stdout.split(os.EOL);
+  const stdoutLines = stdout.split('\n');
   assert.strictEqual(stdoutLines[0], 'true');
   assert.strictEqual(stdoutLines[1], 'false');
   assert.strictEqual(stdoutLines.length, 3);
 
-  const stderrLines = stderr.split(os.EOL);
+  const stderrLines = stderr.split('\n');
   assert.strictEqual(stderrLines[0], '[Error: Not a raw device]');
   assert.strictEqual(stderrLines.length, 2);
 });
