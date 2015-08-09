@@ -73,6 +73,18 @@ file has been signed by an authorized member of the io.js team.
 Once verified, use the SHASUMS256.txt.asc file to get the checksum for
 the binary verification command above.
 
+## Pre-built binaries vs source code
+
+This README.md file is included with both binaries and source tarballs.
+
+If you've downloaded a binary, the top-level folder will have a `bin`
+that contains pre-built executables for `iojs`, `node`, and `npm`,
+which you should be able to run from the command line.
+
+If you've downloaded a source tarball,
+the top-level folder will have files including `configure` and `Makefile`.
+Proceed to the next section for build instructions.
+
 ## Build
 
 ### Unix / Macintosh
