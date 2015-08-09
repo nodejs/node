@@ -717,6 +717,12 @@
         stdin._handle.readStop();
       });
 
+      stdin.isTTY = true;
+      stdin.isRaw = false;
+      stdin.setRawMode = function setRawMode() {
+        throw new Error('Not a raw device');
+      };
+
       return stdin;
     });
 
