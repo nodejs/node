@@ -13,8 +13,8 @@ var certPem = fs.readFileSync(common.fixturesDir + '/cert.pem');
 try {
   var credentials = crypto.createCredentials({key: keyPem, cert: certPem});
 } catch (e) {
-  console.log('Not compiled with OPENSSL support.');
-  process.exit();
+  console.log('1..0 # Skipped: node compiled without OpenSSL.');
+  return;
 }
 var i = 0;
 var server = net.createServer(function(connection) {

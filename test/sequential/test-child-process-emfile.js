@@ -4,8 +4,8 @@ var assert = require('assert');
 var spawn = require('child_process').spawn;
 var fs = require('fs');
 
-if (process.platform === 'win32') {
-  console.log('Skipping test, no RLIMIT_NOFILE on Windows.');
+if (common.isWindows) {
+  console.log('1..0 # Skipped: no RLIMIT_NOFILE on Windows');
   return;
 }
 

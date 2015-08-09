@@ -1,9 +1,24 @@
 'use strict';
+
+// Flags: --harmony-proxies
+
 var common = require('../common');
 var assert = require('assert');
 var util = require('util');
-
 var repl = require('repl');
+var referenceErrors = 0;
+var expectedReferenceErrors = 0;
+
+function getDoNotCallFunction() {
+  expectedReferenceErrors += 1;
+  return function() {
+    assert(false);
+  };
+}
+
+process.on('exit', function() {
+  assert.strictEqual(referenceErrors, expectedReferenceErrors);
+});
 
 // A stream to push an array into a REPL
 function ArrayStream() {
@@ -21,10 +36,19 @@ ArrayStream.prototype.resume = function() {};
 ArrayStream.prototype.write = function() {};
 
 var works = [['inner.one'], 'inner.o'];
-var doesNotBreak = [[], 'inner.o'];
-
 var putIn = new ArrayStream();
 var testMe = repl.start('', putIn);
+
+// Some errors are passed to the domain, but do not callback
+testMe._domain.on('error', function(err) {
+  // Errors come from another context, so instanceof doesn't work
+  var str = err.toString();
+
+  if (/^ReferenceError:/.test(str))
+    referenceErrors++;
+  else
+    assert(false);
+});
 
 // Tab Complete will not break in an object literal
 putIn.run(['.clear']);
@@ -32,18 +56,17 @@ putIn.run([
   'var inner = {',
   'one:1'
 ]);
-testMe.complete('inner.o', function(error, data) {
-  assert.deepEqual(data, doesNotBreak);
-});
-testMe.complete('console.lo', function(error, data) {
+testMe.complete('inner.o', getDoNotCallFunction());
+
+testMe.complete('console.lo', common.mustCall(function(error, data) {
   assert.deepEqual(data, [['console.log'], 'console.lo']);
-});
+}));
 
 // Tab Complete will return globaly scoped variables
 putIn.run(['};']);
-testMe.complete('inner.o', function(error, data) {
+testMe.complete('inner.o', common.mustCall(function(error, data) {
   assert.deepEqual(data, works);
-});
+}));
 
 putIn.run(['.clear']);
 
@@ -53,9 +76,7 @@ putIn.run([
   '?',
   '{one: 1} : '
 ]);
-testMe.complete('inner.o', function(error, data) {
-  assert.deepEqual(data, doesNotBreak);
-});
+testMe.complete('inner.o', getDoNotCallFunction());
 
 putIn.run(['.clear']);
 
@@ -64,16 +85,14 @@ putIn.run([
   'var top = function() {',
   'var inner = {one:1};'
 ]);
-testMe.complete('inner.o', function(error, data) {
+testMe.complete('inner.o', common.mustCall(function(error, data) {
   assert.deepEqual(data, works);
-});
+}));
 
 // When you close the function scope tab complete will not return the
 // locally scoped variable
 putIn.run(['};']);
-testMe.complete('inner.o', function(error, data) {
-  assert.deepEqual(data, doesNotBreak);
-});
+testMe.complete('inner.o', getDoNotCallFunction());
 
 putIn.run(['.clear']);
 
@@ -84,9 +103,9 @@ putIn.run([
   ' one:1',
   '};'
 ]);
-testMe.complete('inner.o', function(error, data) {
+testMe.complete('inner.o', common.mustCall(function(error, data) {
   assert.deepEqual(data, works);
-});
+}));
 
 putIn.run(['.clear']);
 
@@ -98,9 +117,9 @@ putIn.run([
   ' one:1',
   '};'
 ]);
-testMe.complete('inner.o', function(error, data) {
+testMe.complete('inner.o', common.mustCall(function(error, data) {
   assert.deepEqual(data, works);
-});
+}));
 
 putIn.run(['.clear']);
 
@@ -113,13 +132,12 @@ putIn.run([
   ' one:1',
   '};'
 ]);
-testMe.complete('inner.o', function(error, data) {
+testMe.complete('inner.o', common.mustCall(function(error, data) {
   assert.deepEqual(data, works);
-});
+}));
 
 putIn.run(['.clear']);
 
-// currently does not work, but should not break note the inner function
 // def has the params and { on a separate line
 putIn.run([
   'var top = function() {',
@@ -129,9 +147,7 @@ putIn.run([
   ' one:1',
   '};'
 ]);
-testMe.complete('inner.o', function(error, data) {
-  assert.deepEqual(data, doesNotBreak);
-});
+testMe.complete('inner.o', getDoNotCallFunction());
 
 putIn.run(['.clear']);
 
@@ -144,9 +160,7 @@ putIn.run([
   ' one:1',
   '};'
 ]);
-testMe.complete('inner.o', function(error, data) {
-  assert.deepEqual(data, doesNotBreak);
-});
+testMe.complete('inner.o', getDoNotCallFunction());
 
 putIn.run(['.clear']);
 
@@ -160,9 +174,7 @@ putIn.run([
   ' one:1',
   '};'
 ]);
-testMe.complete('inner.o', function(error, data) {
-  assert.deepEqual(data, doesNotBreak);
-});
+testMe.complete('inner.o', getDoNotCallFunction());
 
 putIn.run(['.clear']);
 
@@ -170,9 +182,9 @@ putIn.run(['.clear']);
 putIn.run([
   'var str = "test";'
 ]);
-testMe.complete('str.len', function(error, data) {
+testMe.complete('str.len', common.mustCall(function(error, data) {
   assert.deepEqual(data, [['str.length'], 'str.len']);
-});
+}));
 
 putIn.run(['.clear']);
 
@@ -181,28 +193,58 @@ var spaceTimeout = setTimeout(function() {
   throw new Error('timeout');
 }, 1000);
 
-testMe.complete(' ', function(error, data) {
+testMe.complete(' ', common.mustCall(function(error, data) {
   assert.deepEqual(data, [[], undefined]);
   clearTimeout(spaceTimeout);
-});
+}));
 
 // tab completion should pick up the global "toString" object, and
 // any other properties up the "global" object's prototype chain
-testMe.complete('toSt', function(error, data) {
+testMe.complete('toSt', common.mustCall(function(error, data) {
   assert.deepEqual(data, [['toString'], 'toSt']);
-});
+}));
 
 // Tab complete provides built in libs for require()
 putIn.run(['.clear']);
 
-testMe.complete('require(\'', function(error, data) {
+testMe.complete('require(\'', common.mustCall(function(error, data) {
   assert.strictEqual(error, null);
   repl._builtinLibs.forEach(function(lib) {
     assert.notStrictEqual(data[0].indexOf(lib), -1, lib + ' not found');
   });
-});
+}));
 
-testMe.complete('require(\'n', function(error, data) {
+testMe.complete('require(\'n', common.mustCall(function(error, data) {
   assert.strictEqual(error, null);
-  assert.deepEqual(data, [['net'], 'n']);
-});
+  assert.strictEqual(data.length, 2);
+  assert.strictEqual(data[1], 'n');
+  assert.notStrictEqual(data[0].indexOf('net'), -1);
+  // It's possible to pick up non-core modules too
+  data[0].forEach(function(completion) {
+    if (completion)
+      assert(/^n/.test(completion));
+  });
+}));
+
+// Make sure tab completion works on context properties
+putIn.run(['.clear']);
+
+putIn.run([
+  'var custom = "test";'
+]);
+testMe.complete('cus', common.mustCall(function(error, data) {
+  assert.deepEqual(data, [['custom'], 'cus']);
+}));
+
+// Make sure tab completion doesn't crash REPL with half-baked proxy objects.
+// See: https://github.com/nodejs/io.js/issues/2119
+putIn.run(['.clear']);
+
+putIn.run([
+  'var proxy = Proxy.create({});'
+]);
+
+testMe.complete('proxy.', common.mustCall(function(error, data) {
+  assert.strictEqual(error, null);
+  assert.deepEqual(data, [[], 'proxy.']);
+}));

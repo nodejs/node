@@ -500,8 +500,8 @@ void Assembler::CheckBuffer() {
 }
 
 
-void Assembler::CheckTrampolinePoolQuick() {
-  if (pc_offset() >= next_buffer_check_) {
+void Assembler::CheckTrampolinePoolQuick(int extra_instructions) {
+  if (pc_offset() >= next_buffer_check_ - extra_instructions * kInstrSize) {
     CheckTrampolinePool();
   }
 }

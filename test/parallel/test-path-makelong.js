@@ -3,7 +3,7 @@ var assert = require('assert');
 var path = require('path');
 var common = require('../common');
 
-if (process.platform === 'win32') {
+if (common.isWindows) {
   var file = path.join(common.fixturesDir, 'a.js');
   var resolvedFile = path.resolve(file);
 

@@ -36,7 +36,7 @@ common.refreshTmpDir();
 
   unlink(pathname);
 
-  fs.mkdir(pathname, 511 /*=0777*/, function(err) {
+  fs.mkdir(pathname, 0o777, function(err) {
     assert.equal(err, null);
     assert.equal(common.fileExists(pathname), true);
     ncalls++;

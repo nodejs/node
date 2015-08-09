@@ -49,6 +49,7 @@ from datetime import datetime
 from Queue import Queue, Empty
 
 logger = logging.getLogger('testrunner')
+skip_regex = re.compile(r'# SKIP\S*\s+(.*)', re.IGNORECASE)
 
 VERBOSE = False
 
@@ -256,7 +257,12 @@ class TapProgressIndicator(SimpleProgressIndicator):
       for l in output.output.stdout.splitlines():
         logger.info('#' + l)
     else:
-      logger.info('ok %i - %s' % (self._done, command))
+      skip = skip_regex.search(output.output.stdout)
+      if skip:
+        logger.info(
+          'ok %i - %s # skip %s' % (self._done, command, skip.group(1)))
+      else:
+        logger.info('ok %i - %s' % (self._done, command))
 
     duration = output.test.duration
 
@@ -731,7 +737,8 @@ FLAGS = {
 TIMEOUT_SCALEFACTOR = {
     'armv6' : { 'debug' : 12, 'release' : 3 },  # The ARM buildbots are slow.
     'arm'   : { 'debug' :  8, 'release' : 2 },
-    'ia32'  : { 'debug' :  4, 'release' : 1 } }
+    'ia32'  : { 'debug' :  4, 'release' : 1 },
+    'ppc'   : { 'debug' :  4, 'release' : 1 } }
 
 
 class Context(object):
@@ -1259,10 +1266,10 @@ def BuildOptions():
   result.add_option("--no-suppress-dialogs", help="Display Windows dialogs for crashing tests",
         dest="suppress_dialogs", action="store_false")
   result.add_option("--shell", help="Path to V8 shell", default="shell")
-  result.add_option("--store-unexpected-output", 
+  result.add_option("--store-unexpected-output",
       help="Store the temporary JS files from tests that fails",
       dest="store_unexpected_output", default=True, action="store_true")
-  result.add_option("--no-store-unexpected-output", 
+  result.add_option("--no-store-unexpected-output",
       help="Deletes the temporary JS files from tests that fails",
       dest="store_unexpected_output", action="store_false")
   return result

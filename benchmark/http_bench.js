@@ -8,7 +8,8 @@ var options = {
   port: 22344,
   path: '/',
   servers: 1,
-  clients: 1
+  clients: 1,
+  clientConcurrentRequests: 2
 };
 
 for (var i = 2; i < process.argv.length; ++i) {
@@ -44,13 +45,25 @@ function patch(fun) {
 function startMaster() {
   if (!cluster.isMaster) return startServer();
 
-  for (var i = ~~options.servers; i > 0; --i) cluster.fork();
+  var forkCount = 0;
 
-  for (var i = ~~options.clients; i > 0; --i) {
-    var cp = spawn(process.execPath, [__filename, 'mode=client']);
-    cp.stdout.pipe(process.stdout);
-    cp.stderr.pipe(process.stderr);
-  }
+  cluster.on('online', function () {
+    forkCount = forkCount + 1;
+    if (forkCount === ~~options.servers) {
+      var args = [
+        __filename,
+        'mode=client',
+        'clientConcurrentRequests=' + options.clientConcurrentRequests
+      ];
+      for (var i = ~~options.clients; i > 0; --i) {
+        var cp = spawn(process.execPath, args);
+        cp.stdout.pipe(process.stdout);
+        cp.stderr.pipe(process.stderr);
+      }
+    }
+  });
+
+  for (var i = ~~options.servers; i > 0; --i) cluster.fork();
 }
 
 function startServer() {
@@ -73,9 +86,9 @@ function startServer() {
 
 function startClient() {
   // send off a bunch of concurrent requests
-  // TODO make configurable
-  sendRequest();
-  sendRequest();
+  for (var i = ~~options.clientConcurrentRequests; i > 0; --i) {
+    sendRequest();
+  }
 
   function sendRequest() {
     var req = http.request(options, onConnection);

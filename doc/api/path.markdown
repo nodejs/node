@@ -22,6 +22,9 @@ Example:
     // returns
     '/foo/bar/baz/asdf'
 
+*Note:* If the path string passed as argument is a zero-length string then `'.'`
+        will be returned, which represents the current working directory.
+
 ## path.join([path1][, path2][, ...])
 
 Join all arguments together and normalize the resulting path.
@@ -38,6 +41,11 @@ Example:
     path.join('foo', {}, 'bar')
     // throws exception
     TypeError: Arguments to path.join must be strings
+
+*Note:* If the arguments to `join` have zero-length strings, unlike other path
+        module functions, they will be ignored. If the joined path string is a
+        zero-length string then `'.'` will be returned, which represents the
+        current working directory.
 
 ## path.resolve([from ...], to)
 
@@ -78,6 +86,9 @@ Examples:
     // if currently in /home/myself/iojs, it returns
     '/home/myself/iojs/wwwroot/static_files/gif/image.gif'
 
+*Note:* If the arguments to `resolve` have zero-length strings then the current
+        working directory will be used instead of them.
+
 ## path.isAbsolute(path)
 
 Determines whether `path` is an absolute path. An absolute path will always
@@ -94,8 +105,12 @@ Windows examples:
 
     path.isAbsolute('//server')  // true
     path.isAbsolute('C:/foo/..') // true
-    path.isAbsolute('bar\\baz')   // false
+    path.isAbsolute('bar\\baz')  // false
     path.isAbsolute('.')         // false
+
+*Note:* If the path string passed as parameter is a zero-length string, unlike
+        other path module functions, it will be used as-is and `false` will be
+        returned.
 
 ## path.relative(from, to)
 
@@ -116,6 +131,10 @@ Examples:
     path.relative('/data/orandea/test/aaa', '/data/orandea/impl/bbb')
     // returns
     '../../impl/bbb'
+
+*Note:* If the arguments to `relative` have zero-length strings then the current
+        working directory will be used instead of the zero-length strings. If
+        both the paths are the same then a zero-length string will be returned.
 
 ## path.dirname(p)
 

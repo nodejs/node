@@ -3,13 +3,13 @@ var common = require('../common');
 var assert = require('assert');
 
 if (!common.opensslCli) {
-  console.error('Skipping because node compiled without OpenSSL CLI.');
-  process.exit(0);
+  console.log('1..0 # Skipped: node compiled without OpenSSL CLI.');
+  return;
 }
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
-  process.exit();
+  return;
 }
 var tls = require('tls');
 
@@ -33,6 +33,11 @@ var server = tls.Server({
 }, null).listen(common.PORT, function() {
   var args = ['s_client', '-quiet', '-tls1_1',
               '-connect', '127.0.0.1:' + common.PORT];
+
+  // for the performance and stability issue in s_client on Windows
+  if (common.isWindows)
+    args.push('-no_rand_screen');
+
   var client = spawn(common.opensslCli, args);
   var out = '';
   client.stderr.setEncoding('utf8');

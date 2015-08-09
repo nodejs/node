@@ -61,8 +61,7 @@ function setGetCookieVows() {
         jar.setCookieSync(cookieStr, sentFrom, {ignoreError: true});
       });
 
-      var actual = jar.getCookiesSync(sentTo);
-      actual = actual.sort(tough.cookieCompare);
+      var actual = jar.getCookiesSync(sentTo,{sort:true});
 
       assert.strictEqual(actual.length, expected.length);
 

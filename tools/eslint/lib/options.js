@@ -90,6 +90,11 @@ module.exports = optionator({
         description: "Disable use of .eslintignore"
     },
     {
+        option: "ignore-pattern",
+        type: "String",
+        description: "Pattern of files to ignore (in addition to those in .eslintignore)"
+    },
+    {
         option: "color",
         type: "Boolean",
         default: "true",
@@ -117,5 +122,11 @@ module.exports = optionator({
         option: "stdin-filename",
         type: "String",
         description: "Specify filename to process STDIN as"
+    },
+    {
+        option: "init",
+        type: "Boolean",
+        default: "false",
+        description: "Run config initialization wizard"
     }]
 });

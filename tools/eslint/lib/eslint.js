@@ -18,15 +18,12 @@ var estraverse = require("estraverse-fb"),
     timing = require("./timing"),
     createTokenStore = require("./token-store.js"),
     EventEmitter = require("events").EventEmitter,
-    escapeRegExp = require("escape-string-regexp");
+    escapeRegExp = require("escape-string-regexp"),
+    validator = require("./config-validator");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
-
-// TODO: Remove when estraverse is updated
-estraverse.Syntax.Super = "Super";
-estraverse.VisitorKeys.Super = [];
 
 /**
  * Parses a list of "name:boolean_value" or/and "name" options divided by comma or
@@ -238,13 +235,14 @@ function enableReporting(reportingConfig, start, rulesToEnable) {
  * Parses comments in file to extract file-specific config of rules, globals
  * and environments and merges them with global config; also code blocks
  * where reporting is disabled or enabled and merges them with reporting config.
+ * @param {string} filename The file being checked.
  * @param {ASTNode} ast The top node of the AST.
  * @param {Object} config The existing configuration data.
  * @param {Object[]} reportingConfig The existing reporting configuration data.
  * @param {Object[]} messages The messages queue.
  * @returns {void}
  */
-function modifyConfigsFromComments(ast, config, reportingConfig, messages) {
+function modifyConfigsFromComments(filename, ast, config, reportingConfig, messages) {
 
     var commentConfig = {
         astGlobals: {},
@@ -284,9 +282,8 @@ function modifyConfigsFromComments(ast, config, reportingConfig, messages) {
                         var items = parseJsonConfig(value, comment.loc, messages);
                         Object.keys(items).forEach(function(name) {
                             var ruleValue = items[name];
-                            if (typeof ruleValue === "number" || (Array.isArray(ruleValue) && typeof ruleValue[0] === "number")) {
-                                commentRules[name] = ruleValue;
-                            }
+                            validator.validateRuleOptions(name, ruleValue, filename + " line " + comment.loc.start.line);
+                            commentRules[name] = ruleValue;
                         });
                         break;
 
@@ -302,11 +299,10 @@ function modifyConfigsFromComments(ast, config, reportingConfig, messages) {
         }
     });
 
-    // apply environment rules before user rules
+    // apply environment configs
     Object.keys(commentConfig.env).forEach(function (name) {
-        var environmentRules = environments[name] && environments[name].rules;
-        if (commentConfig.env[name] && environmentRules) {
-            assign(commentConfig.rules, environmentRules);
+        if (environments[name]) {
+            util.mergeConfigs(commentConfig, environments[name]);
         }
     });
     assign(commentConfig.rules, commentRules);
@@ -461,12 +457,14 @@ module.exports = (function() {
             });
         } catch (ex) {
 
+            // If the message includes a leading line number, strip it:
+            var message = ex.message.replace(/^line \d+:/i, "").trim();
+
             messages.push({
                 fatal: true,
                 severity: 2,
 
-                // messages come as "Line X: Unexpected token foo", so strip off leading part
-                message: ex.message.substring(ex.message.indexOf(":") + 1).trim(),
+                message: message,
 
                 line: ex.lineNumber,
                 column: ex.column
@@ -613,7 +611,7 @@ module.exports = (function() {
             currentAST = ast;
 
             // parse global comments and modify config
-            modifyConfigsFromComments(ast, config, reportingConfig, messages);
+            modifyConfigsFromComments(filename, ast, config, reportingConfig, messages);
 
             // enable appropriate rules
             Object.keys(config.rules).filter(function(key) {
@@ -774,7 +772,7 @@ module.exports = (function() {
         }
 
         Object.keys(opts || {}).forEach(function (key) {
-            var rx = new RegExp("{{" + escapeRegExp(key) + "}}", "g");
+            var rx = new RegExp(escapeRegExp("{{" + key + "}}"), "g");
             message = message.replace(rx, opts[key]);
         });
 
@@ -888,9 +886,24 @@ module.exports = (function() {
             return null;
         }
 
+        /**
+         * Check to see if its a ES6 export declaration
+         * @param {ASTNode} astNode - any node
+         * @returns {boolean} whether the given node represents a export declaration
+         */
+        function looksLikeExport(astNode) {
+            return astNode.type === "ExportDefaultDeclaration" || astNode.type === "ExportNamedDeclaration" ||
+                astNode.type === "ExportAllDeclaration" || astNode.type === "ExportSpecifier";
+        }
+
         switch (node.type) {
             case "FunctionDeclaration":
-                return findJSDocComment(node.leadingComments);
+                if (looksLikeExport(parent)) {
+                    return findJSDocComment(parent.leadingComments);
+                } else {
+                    return findJSDocComment(node.leadingComments);
+                }
+                break;
 
             case "ArrowFunctionExpression":
             case "FunctionExpression":
@@ -958,7 +971,7 @@ module.exports = (function() {
             // if current node is function declaration, add it to the list
             var current = controller.current();
             if (["FunctionDeclaration", "FunctionExpression",
-                    "ArrowFunctionExpression"].indexOf(current.type) >= 0) {
+                    "ArrowFunctionExpression", "SwitchStatement"].indexOf(current.type) >= 0) {
                 parents.push(current);
             }
 

@@ -59,7 +59,7 @@ module.exports = function(context) {
         "DoWhileStatement": function (node) {
             check(node);
             // check the `while`
-            var whileTokens = context.getTokensBefore(node.test, 2);
+            var whileTokens = context.getTokensAfter(node.body, 2);
             checkTokens(node, whileTokens[0], whileTokens[1]);
         },
         "SwitchStatement": check,
@@ -74,3 +74,9 @@ module.exports = function(context) {
         "WithStatement": check
     };
 };
+
+module.exports.schema = [
+    {
+        "enum": ["always", "never"]
+    }
+];

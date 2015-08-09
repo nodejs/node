@@ -966,7 +966,9 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
           (committed_memory_before - committed_memory_after) > MB ||
           HasHighFragmentation(used_memory_after, committed_memory_after) ||
           (detached_contexts()->length() > 0);
-      memory_reducer_.NotifyMarkCompact(event);
+      if (deserialization_complete_) {
+        memory_reducer_.NotifyMarkCompact(event);
+      }
     }
 
     tracer()->Stop(collector);

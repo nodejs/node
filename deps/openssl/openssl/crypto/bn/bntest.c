@@ -1042,7 +1042,6 @@ int test_mod_exp_mont_consttime(BIO *bp, BN_CTX *ctx)
 int test_mod_exp_mont5(BIO *bp, BN_CTX *ctx)
 {
     BIGNUM *a, *p, *m, *d, *e;
-
     BN_MONT_CTX *mont;
 
     a = BN_new();
@@ -1050,7 +1049,6 @@ int test_mod_exp_mont5(BIO *bp, BN_CTX *ctx)
     m = BN_new();
     d = BN_new();
     e = BN_new();
-
     mont = BN_MONT_CTX_new();
 
     BN_bntest_rand(m, 1024, 0, 1); /* must be odd for montgomery */
@@ -1099,6 +1097,7 @@ int test_mod_exp_mont5(BIO *bp, BN_CTX *ctx)
         fprintf(stderr, "Modular exponentiation test failed!\n");
         return 0;
     }
+    BN_MONT_CTX_free(mont);
     BN_free(a);
     BN_free(p);
     BN_free(m);

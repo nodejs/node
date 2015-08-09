@@ -4,7 +4,7 @@ var assert = require('assert');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
-  process.exit();
+  return;
 }
 var tls = require('tls');
 
@@ -35,6 +35,10 @@ var server = tls.createServer(options, function(conn) {
 server.listen(common.PORT, '127.0.0.1', function() {
   var cmd = '"' + common.opensslCli + '" s_client -cipher ' + options.ciphers +
             ' -connect 127.0.0.1:' + common.PORT;
+
+  // for the performance and stability issue in s_client on Windows
+  if (common.isWindows)
+    cmd += ' -no_rand_screen';
 
   exec(cmd, function(err, stdout, stderr) {
     if (err) throw err;

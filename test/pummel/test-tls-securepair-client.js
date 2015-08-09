@@ -4,13 +4,13 @@
 var common = require('../common');
 
 if (!common.opensslCli) {
-  console.error('Skipping because node compiled without OpenSSL CLI.');
-  process.exit(0);
+  console.log('1..0 # Skipped: node compiled without OpenSSL CLI.');
+  return;
 }
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
-  process.exit();
+  return;
 }
 
 var join = require('path').join;

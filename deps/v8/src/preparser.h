@@ -1617,7 +1617,8 @@ class PreParserTraits {
       PreParserIdentifier name, Scanner::Location function_name_location,
       bool name_is_strict_reserved, FunctionKind kind,
       int function_token_position, FunctionLiteral::FunctionType type,
-      FunctionLiteral::ArityRestriction arity_restriction, bool* ok);
+      FunctionLiteral::ArityRestriction arity_restriction,
+      LanguageMode language_mode, bool* ok);
 
   PreParserExpression ParseClassLiteral(PreParserIdentifier name,
                                         Scanner::Location class_name_location,
@@ -1765,7 +1766,8 @@ class PreParser : public ParserBase<PreParserTraits> {
       Identifier name, Scanner::Location function_name_location,
       bool name_is_strict_reserved, FunctionKind kind, int function_token_pos,
       FunctionLiteral::FunctionType function_type,
-      FunctionLiteral::ArityRestriction arity_restriction, bool* ok);
+      FunctionLiteral::ArityRestriction arity_restriction,
+      LanguageMode language_mode, bool* ok);
   void ParseLazyFunctionLiteralBody(bool* ok,
                                     Scanner::BookmarkScope* bookmark = nullptr);
 
@@ -2541,7 +2543,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
         name, scanner()->location(),
         false,  // reserved words are allowed here
         kind, RelocInfo::kNoPosition, FunctionLiteral::ANONYMOUS_EXPRESSION,
-        FunctionLiteral::NORMAL_ARITY,
+        FunctionLiteral::NORMAL_ARITY, language_mode(),
         CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
     return factory()->NewObjectLiteralProperty(name_expression, value,
@@ -2575,7 +2577,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
         false,  // reserved words are allowed here
         kind, RelocInfo::kNoPosition, FunctionLiteral::ANONYMOUS_EXPRESSION,
         is_get ? FunctionLiteral::GETTER_ARITY : FunctionLiteral::SETTER_ARITY,
-        CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+        language_mode(), CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
     // Make sure the name expression is a string since we need a Name for
     // Runtime_DefineAccessorPropertyUnchecked and since we can determine this
@@ -3292,7 +3294,7 @@ ParserBase<Traits>::ParseMemberExpression(ExpressionClassifier* classifier,
         is_generator ? FunctionKind::kGeneratorFunction
                      : FunctionKind::kNormalFunction,
         function_token_position, function_type, FunctionLiteral::NORMAL_ARITY,
-        CHECK_OK);
+        language_mode(), CHECK_OK);
   } else if (peek() == Token::SUPER) {
     const bool is_new = false;
     result = ParseSuperExpression(is_new, classifier, CHECK_OK);

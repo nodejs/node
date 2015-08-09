@@ -1,0 +1,89 @@
+{
+    "commit_burst_delay": 60,
+    "commit_user": "commit-bot@chromium.org",
+    "cq_status_url": "https://chromium-cq-status.appspot.com",
+    "git_repo_url": "https://chromium.googlesource.com/v8/v8",
+    "hide_ref_in_committed_msg": true,
+    "max_commit_burst": 1,
+    "project_bases_legacy_from_git_repo_url": true,
+    "remote_branch": "refs/pending/heads/master",
+    "rietveld_url": "https://codereview.chromium.org",
+    "rietveld_user": "commit-bot@chromium.org",
+    "skip_throttle_users": [
+        "commit-bot@chromium.org"
+    ],
+    "verifiers_no_patch": {
+        "experimental_try_job_verifier": {},
+        "reviewer_lgtm_verifier": {
+            "committer_project": "v8"
+        },
+        "tree_status_verifier": {
+            "tree_status_url": "https://v8-status.appspot.com"
+        },
+        "try_job_verifier": {
+            "launched": {
+                "tryserver.v8": {
+                    "v8_android_arm_compile_rel": [
+                        "defaulttests"
+                    ],
+                    "v8_linux64_asan_rel": [
+                        "defaulttests"
+                    ],
+                    "v8_linux64_avx2_rel": [
+                        "defaulttests"
+                    ],
+                    "v8_linux64_rel": [
+                        "defaulttests"
+                    ],
+                    "v8_linux_arm64_rel": [
+                        "defaulttests"
+                    ],
+                    "v8_linux_arm_rel": [
+                        "defaulttests"
+                    ],
+                    "v8_linux_chromium_gn_rel": [
+                        "defaulttests"
+                    ],
+                    "v8_linux_dbg": [
+                        "defaulttests"
+                    ],
+                    "v8_linux_gcc_compile_rel": [
+                        "defaulttests"
+                    ],
+                    "v8_linux_mipsel_compile_rel": [
+                        "defaulttests"
+                    ],
+                    "v8_linux_mips64el_compile_rel": [
+                        "defaulttests"
+                    ],
+                    "v8_linux_nodcheck_rel": [
+                        "defaulttests"
+                    ],
+                    "v8_linux_rel": [
+                        "defaulttests"
+                    ],
+                    "v8_mac_rel": [
+                        "defaulttests"
+                    ],
+                    "v8_presubmit": [
+                        "defaulttests"
+                    ],
+                    "v8_win64_rel": [
+                        "defaulttests"
+                    ],
+                    "v8_win_compile_dbg": [
+                        "defaulttests"
+                    ],
+                    "v8_win_nosnap_shared_compile_rel": [
+                        "defaulttests"
+                    ],
+                    "v8_win_rel": [
+                        "defaulttests"
+                    ]
+                }
+            },
+            "triggered": {}
+        }
+    },
+    "version": 1
+}

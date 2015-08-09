@@ -1,12 +1,15 @@
 'use strict';
-if (process.platform === 'win32') {
-  // Win32 doesn't have signals, just a kindof emulation, insufficient
-  // for this test to apply.
+
+const assert = require('assert');
+const spawn = require('child_process').spawn;
+const common = require('../common');
+
+if (common.isWindows) {
+  console.log('1..0 # Skipped: Win32 doesn\'t have signals, just a kind of ' +
+              'emulation, insufficient for this test to apply.');
   return;
 }
 
-var assert = require('assert');
-var spawn = require('child_process').spawn;
 var ok;
 
 if (process.argv[2] !== '--do-test') {

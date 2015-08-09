@@ -18,3 +18,5 @@ module.exports = function(context) {
     };
 
 };
+
+module.exports.schema = [];

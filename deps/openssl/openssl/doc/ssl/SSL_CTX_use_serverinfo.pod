@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-SSL_CTX_use_serverinfo, SSL_CTX_use_serverinfo_file
+SSL_CTX_use_serverinfo, SSL_CTX_use_serverinfo_file - use serverinfo extension
 
 =head1 SYNOPSIS
 

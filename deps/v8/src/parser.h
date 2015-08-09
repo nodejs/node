@@ -754,7 +754,7 @@ class ParserTraits {
   Expression* NewTargetExpression(Scope* scope, AstNodeFactory* factory,
                                   int pos);
   Expression* DefaultConstructor(bool call_super, Scope* scope, int pos,
-                                 int end_pos);
+                                 int end_pos, LanguageMode language_mode);
   Literal* ExpressionFromLiteral(Token::Value token, int pos, Scanner* scanner,
                                  AstNodeFactory* factory);
   Expression* ExpressionFromIdentifier(const AstRawString* name,
@@ -796,7 +796,8 @@ class ParserTraits {
       const AstRawString* name, Scanner::Location function_name_location,
       bool name_is_strict_reserved, FunctionKind kind,
       int function_token_position, FunctionLiteral::FunctionType type,
-      FunctionLiteral::ArityRestriction arity_restriction, bool* ok);
+      FunctionLiteral::ArityRestriction arity_restriction,
+      LanguageMode language_mode, bool* ok);
   V8_INLINE void SkipLazyFunctionBody(
       int* materialized_literal_count, int* expected_property_count, bool* ok,
       Scanner::BookmarkScope* bookmark = nullptr);
@@ -1098,7 +1099,8 @@ class Parser : public ParserBase<ParserTraits> {
       const AstRawString* name, Scanner::Location function_name_location,
       bool name_is_strict_reserved, FunctionKind kind,
       int function_token_position, FunctionLiteral::FunctionType type,
-      FunctionLiteral::ArityRestriction arity_restriction, bool* ok);
+      FunctionLiteral::ArityRestriction arity_restriction,
+      LanguageMode language_mode, bool* ok);
 
 
   ClassLiteral* ParseClassLiteral(const AstRawString* name,
@@ -1138,7 +1140,7 @@ class Parser : public ParserBase<ParserTraits> {
 
   // Factory methods.
   FunctionLiteral* DefaultConstructor(bool call_super, Scope* scope, int pos,
-                                      int end_pos);
+                                      int end_pos, LanguageMode language_mode);
 
   // Skip over a lazy function, either using cached data if we have it, or
   // by parsing the function with PreParser. Consumes the ending }.

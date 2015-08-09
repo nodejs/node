@@ -129,7 +129,6 @@ TRYBOTS = [
     'gyp-win64',
     'gyp-linux',
     'gyp-mac',
-    'gyp-android'
 ]
 
 

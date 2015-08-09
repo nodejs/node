@@ -239,6 +239,7 @@ class LookupIterator final BASE_EMBEDDED {
   Handle<Object> GetDataValue() const;
   void WriteDataValue(Handle<Object> value);
   void InternalizeName();
+  void ReloadHolderMap();
 
  private:
   enum class InterceptorState {

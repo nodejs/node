@@ -68,3 +68,9 @@ module.exports = function(context) {
     };
 
 };
+
+module.exports.schema = [
+    {
+        "enum": ["start", "middle", "end"]
+    }
+];

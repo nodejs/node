@@ -11,23 +11,6 @@
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
-    var loopNodeTypes = [
-        "ForStatement",
-        "WhileStatement",
-        "ForInStatement",
-        "ForOfStatement",
-        "DoWhileStatement"
-    ];
-
-    /**
-     * Checks if the given node is a loop.
-     * @param {ASTNode} node The AST node to check.
-     * @returns {boolean} Whether or not the node is a loop.
-     */
-    function isLoop(node) {
-        return loopNodeTypes.indexOf(node.type) > -1;
-    }
-
     /**
      * Reports if the given node has an ancestor node which is a loop.
      * @param {ASTNode} node The AST node to check.
@@ -36,7 +19,31 @@ module.exports = function(context) {
     function checkForLoops(node) {
         var ancestors = context.getAncestors();
 
-        if (ancestors.some(isLoop)) {
+        /**
+         * Checks if the given node is a loop and current context is in the loop.
+         * @param {ASTNode} ancestor The AST node to check.
+         * @param {number} index The index of ancestor in ancestors.
+         * @returns {boolean} Whether or not the node is a loop and current context is in the loop.
+         */
+        function isInLoop(ancestor, index) {
+            switch (ancestor.type) {
+                case "ForStatement":
+                    return ancestor.init !== ancestors[index + 1];
+
+                case "ForInStatement":
+                case "ForOfStatement":
+                    return ancestor.right !== ancestors[index + 1];
+
+                case "WhileStatement":
+                case "DoWhileStatement":
+                    return true;
+
+                default:
+                    return false;
+            }
+        }
+
+        if (ancestors.some(isInLoop)) {
             context.report(node, "Don't make functions within a loop");
         }
     }
@@ -47,3 +54,5 @@ module.exports = function(context) {
         "FunctionDeclaration": checkForLoops
     };
 };
+
+module.exports.schema = [];

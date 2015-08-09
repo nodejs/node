@@ -13,12 +13,17 @@
 
 module.exports = function(context) {
 
-    var mode = {
-        before: { before: true, after: false },
-        after: { before: false, after: true },
-        both: { before: true, after: true },
-        neither: { before: false, after: false }
-    }[context.options[0] || "before"];
+    var mode = (function(option) {
+        if (option == null || typeof option === "string") {
+            return {
+                before: { before: true, after: false },
+                after: { before: false, after: true },
+                both: { before: true, after: true },
+                neither: { before: false, after: false }
+            }[option || "before"];
+        }
+        return option;
+    }(context.options[0]));
 
     /**
      * Checks the spacing between two tokens before or after the star token.
@@ -48,30 +53,28 @@ module.exports = function(context) {
      * @returns {void}
      */
     function checkFunction(node) {
-        var isMethod, starToken, tokenBefore, tokenAfter;
+        var prevToken, starToken, nextToken;
 
         if (!node.generator) {
             return;
         }
 
-        isMethod = !!context.getAncestors().pop().method;
-
-        if (isMethod) {
+        if (node.parent.method || node.parent.type === "MethodDefinition") {
             starToken = context.getTokenBefore(node, 1);
         } else {
             starToken = context.getFirstToken(node, 1);
         }
 
         // Only check before when preceded by `function` keyword
-        tokenBefore = context.getTokenBefore(starToken);
-        if (tokenBefore.value === "function") {
-            checkSpacing("before", tokenBefore, starToken);
+        prevToken = context.getTokenBefore(starToken);
+        if (prevToken.value === "function" || prevToken.value === "static") {
+            checkSpacing("before", prevToken, starToken);
         }
 
         // Only check after when followed by an identifier
-        tokenAfter = context.getTokenAfter(starToken);
-        if (tokenAfter.type === "Identifier") {
-            checkSpacing("after", starToken, tokenAfter);
+        nextToken = context.getTokenAfter(starToken);
+        if (nextToken.type === "Identifier") {
+            checkSpacing("after", starToken, nextToken);
         }
     }
 
@@ -81,3 +84,21 @@ module.exports = function(context) {
     };
 
 };
+
+module.exports.schema = [
+    {
+        "oneOf": [
+            {
+                "enum": ["before", "after", "both", "neither"]
+            },
+            {
+                "type": "object",
+                "properties": {
+                    "before": {"type": "boolean"},
+                    "after": {"type": "boolean"}
+                },
+                "additionalProperties": false
+            }
+        ]
+    }
+];

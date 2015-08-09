@@ -66,3 +66,9 @@ module.exports = function(context) {
     };
 
 };
+
+module.exports.schema = [
+    {
+        "enum": ["smart-tabs", true, false]
+    }
+];

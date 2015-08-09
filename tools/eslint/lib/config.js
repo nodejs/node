@@ -20,7 +20,9 @@ var fs = require("fs"),
     assign = require("object-assign"),
     debug = require("debug"),
     yaml = require("js-yaml"),
-    userHome = require("user-home");
+    userHome = require("user-home"),
+    isAbsolutePath = require("path-is-absolute"),
+    validator = require("./config-validator");
 
 //------------------------------------------------------------------------------
 // Constants
@@ -44,22 +46,96 @@ var loadedPlugins = Object.create(null);
 debug = debug("eslint:config");
 
 /**
+ * Determines if a given string represents a filepath or not using the same
+ * conventions as require(), meaning that the first character must be nonalphanumeric
+ * and not the @ sign which is used for scoped packages to be considered a file path.
+ * @param {string} filePath The string to check.
+ * @returns {boolean} True if it's a filepath, false if not.
+ * @private
+ */
+function isFilePath(filePath) {
+    return isAbsolutePath(filePath) || !/\w|@/.test(filePath[0]);
+}
+
+/**
  * Load and parse a JSON config object from a file.
  * @param {string} filePath the path to the JSON config file
  * @returns {Object} the parsed config object (empty object if there was a parse error)
+ * @private
  */
 function loadConfig(filePath) {
     var config = {};
 
     if (filePath) {
-        try {
-            config = yaml.safeLoad(stripComments(fs.readFileSync(filePath, "utf8"))) || {};
-        } catch (e) {
-            debug("Error reading YAML file: " + filePath);
-            e.message = "Cannot read config file: " + filePath + "\nError: " + e.message;
-            throw e;
+
+        if (isFilePath(filePath)) {
+            try {
+                config = yaml.safeLoad(stripComments(fs.readFileSync(filePath, "utf8"))) || {};
+            } catch (e) {
+                debug("Error reading YAML file: " + filePath);
+                e.message = "Cannot read config file: " + filePath + "\nError: " + e.message;
+                throw e;
+            }
+
+            if (path.basename(filePath) === PACKAGE_CONFIG_FILENAME) {
+                config = config[PACKAGE_CONFIG_FIELD_NAME] || {};
+            }
+
+        } else {
+
+            // it's a package
+            if (filePath.indexOf("eslint-config-") === -1) {
+                if (filePath.indexOf("@") === 0) {
+                    // for scoped packages, insert the eslint-config after the first /
+                    filePath = filePath.replace(/^([^\/]+\/)(.*)$/, "$1eslint-config-$2");
+                } else {
+                    filePath = "eslint-config-" + filePath;
+                }
+            }
+
+            config = util.mergeConfigs(config, require(filePath));
         }
+
+        validator.validate(config, filePath);
+
+        // If an `extends` property is defined, it represents a configuration file to use as
+        // a "parent". Load the referenced file and merge the configuration recursively.
+        if (config.extends) {
+            var configExtends = config.extends;
+
+            if (!Array.isArray(config.extends)) {
+                configExtends = [config.extends];
+            }
+
+            // Make the last element in an array take the highest precedence
+            config = configExtends.reduceRight(function (previousValue, parentPath) {
+
+                if (isFilePath(parentPath)) {
+                    // If the `extends` path is relative, use the directory of the current configuration
+                    // file as the reference point. Otherwise, use as-is.
+                    parentPath = (!isAbsolutePath(parentPath) ?
+                        path.join(path.dirname(filePath), parentPath) :
+                        parentPath
+                    );
+                }
+
+                try {
+                    return util.mergeConfigs(loadConfig(parentPath), previousValue);
+                } catch (e) {
+                    // If the file referenced by `extends` failed to load, add the path to the
+                    // configuration file that referenced it to the error message so the user is
+                    // able to see where it was referenced from, then re-throw
+                    e.message += "\nReferenced from: " + filePath;
+                    throw e;
+                }
+
+            }, config);
+
+        }
+
+
     }
+
 
     return config;
 }
@@ -72,37 +148,35 @@ function loadConfig(filePath) {
 function getPluginsConfig(pluginNames) {
     var pluginConfig = {};
 
-    if (pluginNames) {
-        pluginNames.forEach(function (pluginName) {
-            var pluginNamespace = util.getNamespace(pluginName),
-                pluginNameWithoutNamespace = util.removeNameSpace(pluginName),
-                pluginNameWithoutPrefix = util.removePluginPrefix(pluginNameWithoutNamespace),
-                plugin = {},
-                rules = {};
+    pluginNames.forEach(function (pluginName) {
+        var pluginNamespace = util.getNamespace(pluginName),
+            pluginNameWithoutNamespace = util.removeNameSpace(pluginName),
+            pluginNameWithoutPrefix = util.removePluginPrefix(pluginNameWithoutNamespace),
+            plugin = {},
+            rules = {};
 
-            if (!loadedPlugins[pluginNameWithoutPrefix]) {
-                try {
-                    plugin = require(pluginNamespace + util.PLUGIN_NAME_PREFIX + pluginNameWithoutPrefix);
-                    loadedPlugins[pluginNameWithoutPrefix] = plugin;
-                } catch(err) {
-                    debug("Failed to load plugin configuration for " + pluginNameWithoutPrefix + ". Proceeding without it.");
-                    plugin = { rulesConfig: {}};
-                }
-            } else {
-                plugin = loadedPlugins[pluginNameWithoutPrefix];
+        if (!loadedPlugins[pluginNameWithoutPrefix]) {
+            try {
+                plugin = require(pluginNamespace + util.PLUGIN_NAME_PREFIX + pluginNameWithoutPrefix);
+                loadedPlugins[pluginNameWithoutPrefix] = plugin;
+            } catch(err) {
+                debug("Failed to load plugin configuration for " + pluginNameWithoutPrefix + ". Proceeding without it.");
+                plugin = { rulesConfig: {}};
             }
+        } else {
+            plugin = loadedPlugins[pluginNameWithoutPrefix];
+        }
 
-            if (!plugin.rulesConfig) {
-                plugin.rulesConfig = {};
-            }
+        if (!plugin.rulesConfig) {
+            plugin.rulesConfig = {};
+        }
 
-            Object.keys(plugin.rulesConfig).forEach(function(item) {
-                rules[pluginNameWithoutPrefix + "/" + item] = plugin.rulesConfig[item];
-            });
-
-            pluginConfig = util.mergeConfigs(pluginConfig, rules);
+        Object.keys(plugin.rulesConfig).forEach(function(item) {
+            rules[pluginNameWithoutPrefix + "/" + item] = plugin.rulesConfig[item];
         });
-    }
+
+        pluginConfig = util.mergeConfigs(pluginConfig, rules);
+    });
 
     return {rules: pluginConfig};
 }
@@ -147,15 +221,12 @@ function getLocalConfig(thisConfig, directory) {
             continue;
         }
 
+        debug("Loading " + localConfigFile);
         localConfig = loadConfig(localConfigFile);
 
-        if (path.basename(localConfigFile) !== LOCAL_CONFIG_FILENAME) {
-
-            // Don't consider a local config file found if the package.json doesn't have the eslintConfig field.
-            if (!localConfig.hasOwnProperty(PACKAGE_CONFIG_FIELD_NAME)) {
-                continue;
-            }
-            localConfig = localConfig[PACKAGE_CONFIG_FIELD_NAME] || {};
+        // Don't consider a local config file found if the config is empty.
+        if (!Object.keys(localConfig).length) {
+            continue;
         }
 
         found = true;
@@ -242,7 +313,6 @@ function Config(options) {
                 require(path.resolve(__dirname, "..", "conf", "eslint.json"));
     }
 
-    this.baseConfig.format = options.format;
     this.useEslintrc = (options.useEslintrc !== false);
 
     this.env = (options.envs || []).reduce(function (envs, name) {
@@ -317,10 +387,8 @@ Config.prototype.getConfig = function (filePath) {
     }
 
     // Step 6: Merge in command line environments
-    if (this.env) {
-        debug("Merging command line environment settings");
-        config = util.mergeConfigs(config, createEnvironmentConfig(this.env, this.options.reset));
-    }
+    debug("Merging command line environment settings");
+    config = util.mergeConfigs(config, createEnvironmentConfig(this.env, this.options.reset));
 
     // Step 7: Merge in command line rules
     if (this.options.rules) {

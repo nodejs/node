@@ -21,6 +21,12 @@
     if (!(r)) return env->ThrowRangeError("out of range index");            \
   } while (0)
 
+#define THROW_AND_RETURN_UNLESS_BUFFER(env, obj)                            \
+  do {                                                                      \
+    if (!HasInstance(obj))                                                  \
+      return env->ThrowTypeError("argument should be a Buffer");            \
+  } while (0)
+
 #define SPREAD_ARG(val, name)                                                 \
   CHECK((val)->IsUint8Array());                                               \
   Local<Uint8Array> name = (val).As<Uint8Array>();                            \
@@ -280,7 +286,6 @@ MaybeLocal<Object> Copy(Isolate* isolate, const char* data, size_t length) {
 }
 
 
-// Make a copy of "data". Why this isn't called "Copy", we'll never know.
 MaybeLocal<Object> New(Environment* env, const char* data, size_t length) {
   EscapableHandleScope scope(env->isolate());
 
@@ -467,7 +472,7 @@ void Slice(const FunctionCallbackInfo<Value>& args) {
   Maybe<bool> mb =
       ui->SetPrototype(env->context(), env->buffer_prototype_object());
   if (!mb.FromMaybe(false))
-    env->ThrowError("Unable to set Object prototype");
+    return env->ThrowError("Unable to set Object prototype");
   args.GetReturnValue().Set(ui);
 }
 
@@ -477,7 +482,12 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
   SPREAD_ARG(args.This(), ts_obj);
+
+  if (ts_obj_length == 0)
+    return args.GetReturnValue().SetEmptyString();
+
   SLICE_START_END(args[0], args[1], ts_obj_length)
 
   args.GetReturnValue().Set(
@@ -489,7 +499,12 @@ template <>
 void StringSlice<UCS2>(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
   SPREAD_ARG(args.This(), ts_obj);
+
+  if (ts_obj_length == 0)
+    return args.GetReturnValue().SetEmptyString();
+
   SLICE_START_END(args[0], args[1], ts_obj_length)
   length /= 2;
 
@@ -557,8 +572,8 @@ void Base64Slice(const FunctionCallbackInfo<Value>& args) {
 void Copy(const FunctionCallbackInfo<Value> &args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (!HasInstance(args[0]))
-    return env->ThrowTypeError("first arg should be a Buffer");
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
 
   Local<Object> target_obj = args[0]->ToObject(env->isolate());
   SPREAD_ARG(args.This(), ts_obj);
@@ -592,6 +607,7 @@ void Copy(const FunctionCallbackInfo<Value> &args) {
 
 
 void Fill(const FunctionCallbackInfo<Value>& args) {
+  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   SPREAD_ARG(args[0], ts_obj);
 
   size_t start = args[2]->Uint32Value();
@@ -635,6 +651,7 @@ template <encoding encoding>
 void StringWrite(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
   SPREAD_ARG(args.This(), ts_obj);
 
   if (!args[0]->IsString())
@@ -711,6 +728,7 @@ static inline void Swizzle(char* start, unsigned int len) {
 
 template <typename T, enum Endianness endianness>
 void ReadFloatGeneric(const FunctionCallbackInfo<Value>& args) {
+  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   SPREAD_ARG(args[0], ts_obj);
 
   uint32_t offset = args[1]->Uint32Value();
@@ -774,21 +792,25 @@ uint32_t WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
 
 
 void WriteFloatLE(const FunctionCallbackInfo<Value>& args) {
+  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   args.GetReturnValue().Set(WriteFloatGeneric<float, kLittleEndian>(args));
 }
 
 
 void WriteFloatBE(const FunctionCallbackInfo<Value>& args) {
+  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   args.GetReturnValue().Set(WriteFloatGeneric<float, kBigEndian>(args));
 }
 
 
 void WriteDoubleLE(const FunctionCallbackInfo<Value>& args) {
+  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   args.GetReturnValue().Set(WriteFloatGeneric<double, kLittleEndian>(args));
 }
 
 
 void WriteDoubleBE(const FunctionCallbackInfo<Value>& args) {
+  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   args.GetReturnValue().Set(WriteFloatGeneric<double, kBigEndian>(args));
 }
 
@@ -802,6 +824,10 @@ void ByteLengthUtf8(const FunctionCallbackInfo<Value> &args) {
 
 
 void Compare(const FunctionCallbackInfo<Value> &args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[1]);
   SPREAD_ARG(args[0], obj_a);
   SPREAD_ARG(args[1], obj_b);
 
@@ -844,10 +870,10 @@ int32_t IndexOf(const char* haystack,
 
 
 void IndexOfString(const FunctionCallbackInfo<Value>& args) {
-  ASSERT(args[0]->IsObject());
   ASSERT(args[1]->IsString());
   ASSERT(args[2]->IsNumber());
 
+  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   SPREAD_ARG(args[0], ts_obj);
 
   node::Utf8Value str(args.GetIsolate(), args[1]);
@@ -876,10 +902,10 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
 
 
 void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
-  ASSERT(args[0]->IsObject());
   ASSERT(args[1]->IsObject());
   ASSERT(args[2]->IsNumber());
 
+  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   SPREAD_ARG(args[0], ts_obj);
   SPREAD_ARG(args[1], buf);
   const int32_t offset_i32 = args[2]->Int32Value();
@@ -910,10 +936,10 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
 
 
 void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
-  ASSERT(args[0]->IsObject());
   ASSERT(args[1]->IsNumber());
   ASSERT(args[2]->IsNumber());
 
+  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
   SPREAD_ARG(args[0], ts_obj);
 
   uint32_t needle = args[1]->Uint32Value();

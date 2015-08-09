@@ -2,8 +2,8 @@
 var common = require('../common');
 
 if (!common.opensslCli) {
-  console.error('Skipping because node compiled without OpenSSL CLI.');
-  process.exit(0);
+  console.log('1..0 # Skipped: node compiled without OpenSSL CLI.');
+  return;
 }
 
 // This is a rather complex test which sets up various TLS servers with node
@@ -101,7 +101,7 @@ var testCases =
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
-  process.exit();
+  return;
 }
 var tls = require('tls');
 
@@ -135,7 +135,7 @@ function runClient(prefix, port, options, cb) {
   var args = ['s_client', '-connect', '127.0.0.1:' + port];
 
   // for the performance issue in s_client on Windows
-  if (process.platform === 'win32')
+  if (common.isWindows)
     args.push('-no_rand_screen');
 
   console.log(prefix + '  connecting with', options.name);

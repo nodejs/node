@@ -93,6 +93,7 @@ done
 /usr/bin/*
 /usr/include/*
 /usr/lib/node_modules/
+/usr/share/doc/node/gdbinit
 /usr/share/man/man1/iojs.1.gz
 /usr/share/systemtap/tapset/node.stp
 %{_datadir}/%{name}/
@@ -100,6 +101,9 @@ done
 
 
 %changelog
+* Tue Jul 7 2015 Ali Ijaz Sheikh <ofrobots@google.com>
+- Added gdbinit.
+
 * Mon Apr 13 2015 Dan Varga <danvarga@gmail.com>
 - Fix paths for changelog and manpage
 

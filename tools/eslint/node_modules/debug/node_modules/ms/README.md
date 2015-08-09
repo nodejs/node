@@ -23,7 +23,7 @@ ms(2 * 60000, { long: true })         // "2 minutes"
 ms(ms('10 hours'), { long: true })    // "10 hours"
 ```
 
-- Node/Browser compatible. Published as [`ms`](https://www.npmjs.org/package/ms) in [NPM](nodejs.org/download).
+- Node/Browser compatible. Published as [`ms`](https://www.npmjs.org/package/ms) in [NPM](http://nodejs.org/download).
 - If a number is supplied to `ms`, a string with a unit is returned.
 - If a string that contains the number is supplied, it returns it as
 a number (e.g: it returns `100` for `'100'`).

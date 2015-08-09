@@ -7,8 +7,8 @@ var path = require('path');
 // `fs.readFile('/')` does not fail on FreeBSD, because you can open and read
 // the directory there.
 if (process.platform === 'freebsd') {
-  console.error('Skipping test, platform not supported.');
-  process.exit();
+  console.log('1..0 # Skipped: platform not supported.');
+  return;
 }
 
 var callbacks = 0;

@@ -93,10 +93,11 @@ PreParserExpression PreParserTraits::ParseFunctionLiteral(
     PreParserIdentifier name, Scanner::Location function_name_location,
     bool name_is_strict_reserved, FunctionKind kind,
     int function_token_position, FunctionLiteral::FunctionType type,
-    FunctionLiteral::ArityRestriction arity_restriction, bool* ok) {
+    FunctionLiteral::ArityRestriction arity_restriction,
+    LanguageMode language_mode, bool* ok) {
   return pre_parser_->ParseFunctionLiteral(
       name, function_name_location, name_is_strict_reserved, kind,
-      function_token_position, type, arity_restriction, ok);
+      function_token_position, type, arity_restriction, language_mode, ok);
 }
 
 
@@ -423,7 +424,8 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
                        is_generator ? FunctionKind::kGeneratorFunction
                                     : FunctionKind::kNormalFunction,
                        pos, FunctionLiteral::DECLARATION,
-                       FunctionLiteral::NORMAL_ARITY, CHECK_OK);
+                       FunctionLiteral::NORMAL_ARITY, language_mode(),
+                       CHECK_OK);
   return Statement::FunctionDeclaration();
 }
 
@@ -1029,13 +1031,15 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     Identifier function_name, Scanner::Location function_name_location,
     bool name_is_strict_reserved, FunctionKind kind, int function_token_pos,
     FunctionLiteral::FunctionType function_type,
-    FunctionLiteral::ArityRestriction arity_restriction, bool* ok) {
+    FunctionLiteral::ArityRestriction arity_restriction,
+    LanguageMode language_mode, bool* ok) {
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
 
   // Parse function body.
   bool outer_is_script_scope = scope_->is_script_scope();
   Scope* function_scope = NewScope(scope_, FUNCTION_SCOPE, kind);
+  function_scope->SetLanguageMode(language_mode);
   PreParserFactory factory(NULL);
   FunctionState function_state(&function_state_, &scope_, function_scope, kind,
                                &factory);
@@ -1069,23 +1073,26 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   }
   Expect(Token::RBRACE, CHECK_OK);
 
+  // Parsing the body may change the language mode in our scope.
+  language_mode = function_scope->language_mode();
+
   // Validate name and parameter names. We can do this only after parsing the
   // function, since the function can declare itself strict.
-  CheckFunctionName(language_mode(), kind, function_name,
+  CheckFunctionName(language_mode, kind, function_name,
                     name_is_strict_reserved, function_name_location, CHECK_OK);
   const bool strict_formal_parameters =
       !parsing_state.is_simple_parameter_list || IsConciseMethod(kind);
   const bool allow_duplicate_parameters =
-      is_sloppy(language_mode()) && !strict_formal_parameters;
-  ValidateFormalParameters(&formals_classifier, language_mode(),
+      is_sloppy(language_mode) && !strict_formal_parameters;
+  ValidateFormalParameters(&formals_classifier, language_mode,
                            allow_duplicate_parameters, CHECK_OK);
 
-  if (is_strict(language_mode())) {
+  if (is_strict(language_mode)) {
     int end_position = scanner()->location().end_pos;
     CheckStrictOctalLiteral(start_position, end_position, CHECK_OK);
   }
 
-  if (is_strong(language_mode()) && IsSubclassConstructor(kind)) {
+  if (is_strong(language_mode) && IsSubclassConstructor(kind)) {
     if (!function_state.super_location().IsValid()) {
       ReportMessageAt(function_name_location,
                       MessageTemplate::kStrongSuperCallMissing,

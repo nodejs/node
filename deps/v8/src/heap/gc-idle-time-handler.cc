@@ -114,6 +114,10 @@ bool GCIdleTimeHandler::ShouldDoScavenge(
     size_t idle_time_in_ms, size_t new_space_size, size_t used_new_space_size,
     size_t scavenge_speed_in_bytes_per_ms,
     size_t new_space_allocation_throughput_in_bytes_per_ms) {
+  if (idle_time_in_ms >= kMinBackgroundIdleTime) {
+    // It is better to do full GC for the background tab.
+    return false;
+  }
   size_t new_space_allocation_limit =
       kMaxScheduledIdleTime * scavenge_speed_in_bytes_per_ms;
 
@@ -193,7 +197,10 @@ bool GCIdleTimeHandler::ShouldDoOverApproximateWeakClosure(
 }
 
 
-GCIdleTimeAction GCIdleTimeHandler::NothingOrDone() {
+GCIdleTimeAction GCIdleTimeHandler::NothingOrDone(double idle_time_in_ms) {
+  if (idle_time_in_ms >= kMinBackgroundIdleTime) {
+    return GCIdleTimeAction::Nothing();
+  }
   if (idle_times_which_made_no_progress_ >= kMaxNoProgressIdleTimes) {
     return GCIdleTimeAction::Done();
   } else {
@@ -232,7 +239,7 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
   // get the right idle signal.
   if (ShouldDoContextDisposalMarkCompact(heap_state.contexts_disposed,
                                          heap_state.contexts_disposal_rate)) {
-    return NothingOrDone();
+    return NothingOrDone(idle_time_in_ms);
   }
 
   if (ShouldDoScavenge(
@@ -247,7 +254,7 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
     if (heap_state.sweeping_completed) {
       return GCIdleTimeAction::FinalizeSweeping();
     } else {
-      return NothingOrDone();
+      return NothingOrDone(idle_time_in_ms);
     }
   }
 

@@ -700,7 +700,7 @@ class Assembler : public AssemblerBase {
   // Returns the branch offset to the given label from the current code position
   // Links the label to the current position if it is still unbound
   // Manages the jump elimination optimization if the second parameter is true.
-  int branch_offset(Label* L, bool jump_elimination_allowed);
+  int branch_offset(Label* L);
 
   // Returns true if the given pc address is the start of a constant pool load
   // instruction sequence.
@@ -806,13 +806,11 @@ class Assembler : public AssemblerBase {
   void bx(Register target, Condition cond = al);  // v5 and above, plus v4t
 
   // Convenience branch instructions using labels
-  void b(Label* L, Condition cond = al)  {
-    b(branch_offset(L, cond == al), cond);
-  }
-  void b(Condition cond, Label* L)  { b(branch_offset(L, cond == al), cond); }
-  void bl(Label* L, Condition cond = al)  { bl(branch_offset(L, false), cond); }
-  void bl(Condition cond, Label* L)  { bl(branch_offset(L, false), cond); }
-  void blx(Label* L)  { blx(branch_offset(L, false)); }  // v5 and above
+  void b(Label* L, Condition cond = al);
+  void b(Condition cond, Label* L) { b(L, cond); }
+  void bl(Label* L, Condition cond = al);
+  void bl(Condition cond, Label* L) { bl(L, cond); }
+  void blx(Label* L);  // v5 and above
 
   // Data-processing instructions
 
@@ -1491,6 +1489,12 @@ class Assembler : public AssemblerBase {
 
   // Check if is time to emit a constant pool.
   void CheckConstPool(bool force_emit, bool require_jump);
+
+  void MaybeCheckConstPool() {
+    if (pc_offset() >= next_buffer_check_) {
+      CheckConstPool(false, true);
+    }
+  }
 
   int EmitEmbeddedConstantPool() {
     DCHECK(FLAG_enable_embedded_constant_pool);

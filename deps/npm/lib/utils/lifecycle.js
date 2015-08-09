@@ -39,8 +39,9 @@ function lifecycle (pkg, stage, wd, unsafe, failOk, cb) {
 
     unsafe = unsafe || npm.config.get("unsafe-perm")
 
-    if ((wd.indexOf(npm.dir) !== 0 || path.basename(wd) !== pkg.name)
-        && !unsafe && pkg.scripts[stage]) {
+    if ((wd.indexOf(npm.dir) !== 0 ||
+          wd.indexOf(pkg.name) !== wd.length - pkg.name.length) &&
+        !unsafe && pkg.scripts[stage]) {
       log.warn( "cannot run in wd", "%s %s (wd=%s)"
               , pkg._id, pkg.scripts[stage], wd)
       return cb()

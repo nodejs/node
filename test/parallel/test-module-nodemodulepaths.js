@@ -4,11 +4,9 @@ var assert = require('assert');
 
 var module = require('module');
 
-var isWindows = process.platform === 'win32';
-
 var file, delimiter, paths;
 
-if (isWindows) {
+if (common.isWindows) {
   file = 'C:\\Users\\Rocko Artischocko\\node_stuff\\foo';
   delimiter = '\\';
 } else {

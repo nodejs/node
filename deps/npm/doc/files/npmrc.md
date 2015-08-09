@@ -52,6 +52,9 @@ running npm in.  It has no effect when your module is published.  For
 example, you can't publish a module that forces itself to install
 globally, or in a different location.
 
+Additionally, this file is not read in global mode, such as when running
+`npm install -g`.
+
 ### Per-user config file
 
 `$HOME/.npmrc` (or the `userconfig` param, if set in the environment

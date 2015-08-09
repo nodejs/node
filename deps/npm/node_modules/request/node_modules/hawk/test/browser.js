@@ -82,7 +82,7 @@ describe('Browser', function () {
         });
     });
 
-    describe('#bewit', function () {
+    describe('bewit()', function () {
 
         it('returns a valid bewit value', function (done) {
 
@@ -516,7 +516,7 @@ describe('Browser', function () {
 
             var localStorage = new Browser.internals.LocalStorage();
 
-            Browser.utils.setStorage(localStorage)
+            Browser.utils.setStorage(localStorage);
 
             Browser.utils.setNtpOffset(60 * 60 * 1000);
             var header = Browser.client.header('http://example.com:8080/resource/4?filter=a', req.method, { credentials: credentials, ext: 'some-app-data' });
@@ -741,7 +741,7 @@ describe('Browser', function () {
 
     describe('client', function () {
 
-        describe('#header', function () {
+        describe('header()', function () {
 
             it('returns a valid authorization header (sha1)', function (done) {
 
@@ -950,7 +950,7 @@ describe('Browser', function () {
             });
         });
 
-        describe('#authenticate', function () {
+        describe('authenticate()', function () {
 
             it('skips tsm validation when missing ts', function (done) {
 
@@ -1119,7 +1119,7 @@ describe('Browser', function () {
             });
         });
 
-        describe('#message', function () {
+        describe('message()', function () {
 
             it('generates an authorization then successfully parse it', function (done) {
 
@@ -1270,7 +1270,7 @@ describe('Browser', function () {
             });
         });
 
-        describe('#authenticateTimestamp', function (done) {
+        describe('authenticateTimestamp()', function (done) {
 
             it('validates a timestamp', function (done) {
 
@@ -1342,7 +1342,7 @@ describe('Browser', function () {
 
     describe('utils', function () {
 
-        describe('#setStorage', function () {
+        describe('setStorage()', function () {
 
             it('sets storage for the first time', function (done) {
 
@@ -1358,21 +1358,29 @@ describe('Browser', function () {
             });
         });
 
-        describe('#setNtpOffset', function (done) {
+        describe('setNtpOffset()', function (done) {
 
-            it('catches localStorage errors', function (done) {
+            it('catches localStorage errors', { parallel: false }, function (done) {
 
                 var orig = Browser.utils.storage.setItem;
-                var error = console.error;
+                var consoleOrig = console.error;
                 var count = 0;
-                console.error = function () { if (count++ === 2) { console.error = error; } };
+                console.error = function () {
+
+                    if (count++ === 2) {
+
+                        console.error = consoleOrig;
+                    }
+                };
+
                 Browser.utils.storage.setItem = function () {
 
                     Browser.utils.storage.setItem = orig;
-                    throw new Error()
+                    throw new Error();
                 };
 
                 expect(function () {
+
                     Browser.utils.setNtpOffset(100);
                 }).not.to.throw();
 
@@ -1380,7 +1388,7 @@ describe('Browser', function () {
             });
         });
 
-        describe('#parseAuthorizationHeader', function (done) {
+        describe('parseAuthorizationHeader()', function (done) {
 
             it('returns null on missing header', function (done) {
 
@@ -1419,7 +1427,7 @@ describe('Browser', function () {
             });
         });
 
-        describe('#parseUri', function () {
+        describe('parseUri()', function () {
 
             it('returns empty port when unknown scheme', function (done) {
 
@@ -1436,18 +1444,16 @@ describe('Browser', function () {
             });
         });
 
-        var str = "https://www.google.ca/webhp?sourceid=chrome-instant&ion=1&espv=2&ie=UTF-8#q=url";
-        var base64str = "aHR0cHM6Ly93d3cuZ29vZ2xlLmNhL3dlYmhwP3NvdXJjZWlkPWNocm9tZS1pbnN0YW50Jmlvbj0xJmVzcHY9MiZpZT1VVEYtOCNxPXVybA";
+        var str = 'https://www.google.ca/webhp?sourceid=chrome-instant&ion=1&espv=2&ie=UTF-8#q=url';
+        var base64str = 'aHR0cHM6Ly93d3cuZ29vZ2xlLmNhL3dlYmhwP3NvdXJjZWlkPWNocm9tZS1pbnN0YW50Jmlvbj0xJmVzcHY9MiZpZT1VVEYtOCNxPXVybA';
 
-        describe('#base64urlEncode', function () {
+        describe('base64urlEncode()', function () {
 
             it('should base64 URL-safe decode a string', function (done) {
 
                 expect(Browser.utils.base64urlEncode(str)).to.equal(base64str);
                 done();
             });
-
         });
-
     });
 });

@@ -5,18 +5,12 @@ var path = require('path');
 
 // simulate `cat readfile.js | node readfile.js`
 
-// TODO: Have some way to make this work on windows.
-if (process.platform === 'win32') {
-  console.error('No /dev/stdin on windows.  Skipping test.');
-  process.exit();
+if (common.isWindows) {
+  console.log('1..0 # Skipped: No /dev/stdin on windows.');
+  return;
 }
 
 var fs = require('fs');
-
-var filename = path.join(common.tmpDir, '/readfile_pipe_large_test.txt');
-var dataExpected = new Array(1000000).join('a');
-common.refreshTmpDir();
-fs.writeFileSync(filename, dataExpected);
 
 if (process.argv[2] === 'child') {
   fs.readFile('/dev/stdin', function(er, data) {
@@ -25,6 +19,11 @@ if (process.argv[2] === 'child') {
   });
   return;
 }
+
+var filename = path.join(common.tmpDir, '/readfile_pipe_large_test.txt');
+var dataExpected = new Array(1000000).join('a');
+common.refreshTmpDir();
+fs.writeFileSync(filename, dataExpected);
 
 var exec = require('child_process').exec;
 var f = JSON.stringify(__filename);

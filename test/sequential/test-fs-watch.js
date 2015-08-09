@@ -4,7 +4,7 @@ var assert = require('assert');
 var path = require('path');
 var fs = require('fs');
 
-var expectFilePath = process.platform === 'win32' ||
+var expectFilePath = common.isWindows ||
                      process.platform === 'linux' ||
                      process.platform === 'darwin';
 

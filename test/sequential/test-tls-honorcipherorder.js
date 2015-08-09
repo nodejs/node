@@ -4,7 +4,7 @@ var assert = require('assert');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
-  process.exit();
+  return;
 }
 var tls = require('tls');
 
@@ -57,7 +57,7 @@ test1();
 
 function test1() {
   // Client has the preference of cipher suites by default
-  test(false, 'AES256-SHA:DES-CBC-SHA:RC4-SHA','AES256-SHA', test2);
+  test(false, 'AES256-SHA:DES-CBC-SHA:RC4-SHA', 'AES256-SHA', test2);
 }
 
 function test2() {

@@ -4,7 +4,7 @@ var assert = require('assert');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
-  process.exit();
+  return;
 }
 var tls = require('tls');
 
@@ -93,8 +93,14 @@ var opensslExitCode = -1;
 
 server.listen(common.PORT, function() {
   // To test use: openssl s_client -connect localhost:8000
-  var client = spawn(common.opensslCli, ['s_client', '-connect', '127.0.0.1:' +
-        common.PORT]);
+
+  var args = ['s_client', '-connect', '127.0.0.1:' + common.PORT];
+
+  // for the performance and stability issue in s_client on Windows
+  if (common.isWindows)
+    args.push('-no_rand_screen');
+
+  var client = spawn(common.opensslCli, args);
 
 
   var out = '';
