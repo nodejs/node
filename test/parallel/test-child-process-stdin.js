@@ -1,8 +1,9 @@
 'use strict';
 var common = require('../common');
 var assert = require('assert');
-
+const path = require('path');
 var spawn = require('child_process').spawn;
+const exec = require('child_process').exec;
 
 var cat = spawn(common.isWindows ? 'more' : 'cat');
 cat.stdin.write('hello');
@@ -65,4 +66,19 @@ process.on('exit', function() {
   } else {
     assert.equal('hello world', response);
   }
+});
+
+// Regression test for https://github.com/nodejs/io.js/issues/2333
+const cpFile = path.join(common.fixturesDir, 'child-process-stdin.js');
+const nodeBinary = process.argv[0];
+
+exec(`${nodeBinary} ${cpFile}`, function(err, stdout, stderr) {
+  const stdoutLines = stdout.split('\n');
+  assert.strictEqual(stdoutLines[0], 'true');
+  assert.strictEqual(stdoutLines[1], 'false');
+  assert.strictEqual(stdoutLines.length, 3);
+
+  const stderrLines = stderr.split('\n');
+  assert.strictEqual(stderrLines[0], '[Error: Not a raw device]');
+  assert.strictEqual(stderrLines.length, 2);
 });
