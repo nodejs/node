@@ -119,6 +119,8 @@ static bool throw_deprecation = false;
 static bool abort_on_uncaught_exception = false;
 static bool trace_sync_io = false;
 static bool track_heap_objects = false;
+static bool profile_cpu = false;
+static const char* profile_title = "";
 static const char* eval_string = nullptr;
 static unsigned int preload_module_count = 0;
 static const char** preload_modules = nullptr;
@@ -3105,6 +3107,7 @@ static void PrintHelp() {
          "                        is detected after the first tick\n"
          "  --track-heap-objects  track heap object allocations for heap "
          "snapshots\n"
+         "  --profile-cpu         being cpu profile during start up\n" 
          "  --v8-options          print v8 command line options\n"
 #if defined(NODE_HAVE_I18N_SUPPORT)
          "  --icu-data-dir=dir    set ICU data load path to dir\n"
@@ -3227,6 +3230,8 @@ static void ParseArgs(int* argc,
       trace_deprecation = true;
     } else if (strcmp(arg, "--trace-sync-io") == 0) {
       trace_sync_io = true;
+    } else if (strcmp(arg, "--profile-cpu") == 0) {
+      profile_cpu = true;
     } else if (strcmp(arg, "--track-heap-objects") == 0) {
       track_heap_objects = true;
     } else if (strcmp(arg, "--throw-deprecation") == 0) {
@@ -3925,6 +3930,10 @@ static void StartNodeInstance(void* arg) {
   Isolate* isolate = Isolate::New();
   if (track_heap_objects) {
     isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
+  }
+
+  if (profile_cpu) {
+    isolate->GetCpuProfiler()->StartProfiling(String::NewFromUtf8(isolate, profile_title), true);
   }
 
   // Fetch a reference to the main isolate, so we have a reference to it
