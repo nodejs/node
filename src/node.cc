@@ -3932,10 +3932,6 @@ static void StartNodeInstance(void* arg) {
     isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
   }
 
-  if (profile_cpu) {
-    isolate->GetCpuProfiler()->StartProfiling(String::NewFromUtf8(isolate, profile_title), true);
-  }
-
   // Fetch a reference to the main isolate, so we have a reference to it
   // even when we need it to access it from another (debugger) thread.
   if (instance_data->is_main())
@@ -3945,6 +3941,12 @@ static void StartNodeInstance(void* arg) {
     Isolate::Scope isolate_scope(isolate);
     HandleScope handle_scope(isolate);
     Local<Context> context = Context::New(isolate);
+
+    // CpuProfiler requires HandleScope
+    if (profile_cpu) {
+      isolate->GetCpuProfiler()->StartProfiling(String::NewFromUtf8(isolate, profile_title), true);
+    }
+
     Environment* env = CreateEnvironment(isolate, context, instance_data);
     Context::Scope context_scope(context);
     if (instance_data->is_main())
