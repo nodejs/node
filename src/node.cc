@@ -3107,7 +3107,7 @@ static void PrintHelp() {
          "                        is detected after the first tick\n"
          "  --track-heap-objects  track heap object allocations for heap "
          "snapshots\n"
-         "  --profile-cpu         being cpu profile during start up\n" 
+         "  --profile-cpu         being cpu profiling during start up\n"
          "  --v8-options          print v8 command line options\n"
 #if defined(NODE_HAVE_I18N_SUPPORT)
          "  --icu-data-dir=dir    set ICU data load path to dir\n"
