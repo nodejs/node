@@ -7,14 +7,13 @@ function main(conf) {
   var n = conf.n | 0;
 
   var ee = new EventEmitter();
-  var listenerCount = EventEmitter.listenerCount;
 
   for (var k = 0; k < 10; k += 1)
     ee.on('dummy', function() {});
 
   bench.start();
   for (var i = 0; i < n; i += 1) {
-    var r = listenerCount(ee, 'dummy');
+    var r = ee.listenerCount('dummy');
   }
   bench.end(n);
 }
