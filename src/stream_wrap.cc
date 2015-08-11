@@ -74,9 +74,9 @@ StreamWrap::StreamWrap(Environment* env,
                  parent),
       StreamBase(env),
       stream_(stream) {
-  set_after_write_cb(OnAfterWriteImpl, this);
-  set_alloc_cb(OnAllocImpl, this);
-  set_read_cb(OnReadImpl, this);
+  set_after_write_cb({ OnAfterWriteImpl, this });
+  set_alloc_cb({ OnAllocImpl, this });
+  set_read_cb({ OnReadImpl, this });
 }
 
 
