@@ -23,7 +23,7 @@ assert(fl.length === 1);
 assert(fl[0] === assert.fail);
 
 e.listeners('bar');
-assert(!e._events.hasOwnProperty('bar'));
+assert(!e._events['bar']);
 
 e.on('foo', assert.ok);
 fl = e.listeners('foo');
