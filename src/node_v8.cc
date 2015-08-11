@@ -26,8 +26,9 @@ using v8::Value;
   V(0, total_heap_size, kTotalHeapSizeIndex)                                  \
   V(1, total_heap_size_executable, kTotalHeapSizeExecutableIndex)             \
   V(2, total_physical_size, kTotalPhysicalSizeIndex)                          \
-  V(3, used_heap_size, kUsedHeapSizeIndex)                                    \
-  V(4, heap_size_limit, kHeapSizeLimitIndex)
+  V(3, total_available_size, kTotalAvailableSize)                             \
+  V(4, used_heap_size, kUsedHeapSizeIndex)                                    \
+  V(5, heap_size_limit, kHeapSizeLimitIndex)
 
 #define V(a, b, c) +1
 static const size_t kHeapStatisticsPropertiesCount =
