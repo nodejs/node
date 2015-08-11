@@ -627,7 +627,7 @@ RUNTIME_FUNCTION(Runtime_CreateBreakIterator) {
 
   local_object->SetInternalField(0, reinterpret_cast<Smi*>(break_iterator));
   // Make sure that the pointer to adopted text is NULL.
-  local_object->SetInternalField(1, reinterpret_cast<Smi*>(NULL));
+  local_object->SetInternalField(1, static_cast<Smi*>(nullptr));
 
   Factory* factory = isolate->factory();
   Handle<String> key = factory->NewStringFromStaticChars("breakIterator");
