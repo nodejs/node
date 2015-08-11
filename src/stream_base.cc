@@ -72,7 +72,6 @@ void StreamBase::AfterShutdown(ShutdownWrap* req_wrap, int status) {
 
   // The wrap and request objects should still be there.
   CHECK_EQ(req_wrap->persistent().IsEmpty(), false);
-  CHECK_EQ(wrap->GetAsyncWrap()->persistent().IsEmpty(), false);
 
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
@@ -80,7 +79,7 @@ void StreamBase::AfterShutdown(ShutdownWrap* req_wrap, int status) {
   Local<Object> req_wrap_obj = req_wrap->object();
   Local<Value> argv[3] = {
     Integer::New(env->isolate(), status),
-    wrap->GetAsyncWrap()->object(),
+    wrap->GetObject(),
     req_wrap_obj
   };
 
@@ -370,7 +369,6 @@ void StreamBase::AfterWrite(WriteWrap* req_wrap, int status) {
 
   // The wrap and request objects should still be there.
   CHECK_EQ(req_wrap->persistent().IsEmpty(), false);
-  CHECK_EQ(wrap->GetAsyncWrap()->persistent().IsEmpty(), false);
 
   // Unref handle property
   Local<Object> req_wrap_obj = req_wrap->object();
@@ -379,7 +377,7 @@ void StreamBase::AfterWrite(WriteWrap* req_wrap, int status) {
 
   Local<Value> argv[] = {
     Integer::New(env->isolate(), status),
-    wrap->GetAsyncWrap()->object(),
+    wrap->GetObject(),
     req_wrap_obj,
     Undefined(env->isolate())
   };
@@ -414,7 +412,16 @@ void StreamBase::EmitData(ssize_t nread,
   if (argv[2].IsEmpty())
     argv[2] = Undefined(env->isolate());
 
-  GetAsyncWrap()->MakeCallback(env->onread_string(), ARRAY_SIZE(argv), argv);
+  AsyncWrap* async = GetAsyncWrap();
+  if (async == nullptr) {
+    node::MakeCallback(env,
+                       GetObject(),
+                       env->onread_string(),
+                       ARRAY_SIZE(argv),
+                       argv);
+  } else {
+    async->MakeCallback(env->onread_string(), ARRAY_SIZE(argv), argv);
+  }
 }
 
 
@@ -425,6 +432,16 @@ bool StreamBase::IsIPCPipe() {
 
 int StreamBase::GetFD() {
   return -1;
+}
+
+
+AsyncWrap* StreamBase::GetAsyncWrap() {
+  return nullptr;
+}
+
+
+Local<Object> StreamBase::GetObject() {
+  return GetAsyncWrap()->object();
 }
 
 
