@@ -15,6 +15,7 @@ Returns an object with the following properties
   total_heap_size: 7326976,
   total_heap_size_executable: 4194304,
   total_physical_size: 7326976,
+  total_available_size: 1152656,
   used_heap_size: 3476208,
   heap_size_limit: 1535115264
 }
