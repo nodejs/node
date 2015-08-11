@@ -106,6 +106,22 @@ class WriteWrap: public ReqWrap<uv_write_t>,
 
 class StreamResource {
  public:
+  template <class T>
+  struct Callback {
+    Callback() : fn(nullptr), ctx(nullptr) {}
+    Callback(T fn, void* ctx) : fn(fn), ctx(ctx) {}
+    Callback(const Callback&) = default;
+
+    inline bool is_empty() { return fn == nullptr; }
+    inline void clear() {
+      fn = nullptr;
+      ctx = nullptr;
+    }
+
+    T fn;
+    void* ctx;
+  };
+
   typedef void (*AfterWriteCb)(WriteWrap* w, void* ctx);
   typedef void (*AllocCb)(size_t size, uv_buf_t* buf, void* ctx);
   typedef void (*ReadCb)(ssize_t nread,
@@ -113,11 +129,8 @@ class StreamResource {
                          uv_handle_type pending,
                          void* ctx);
 
-  StreamResource() : after_write_cb_(nullptr),
-                     alloc_cb_(nullptr),
-                     read_cb_(nullptr) {
+  StreamResource() {
   }
-
   virtual ~StreamResource() = default;
 
   virtual int DoShutdown(ShutdownWrap* req_wrap) = 0;
@@ -131,44 +144,37 @@ class StreamResource {
 
   // Events
   inline void OnAfterWrite(WriteWrap* w) {
-    if (after_write_cb_ != nullptr)
-      after_write_cb_(w, after_write_ctx_);
+    if (!after_write_cb_.is_empty())
+      after_write_cb_.fn(w, after_write_cb_.ctx);
   }
 
   inline void OnAlloc(size_t size, uv_buf_t* buf) {
-    if (alloc_cb_ != nullptr)
-      alloc_cb_(size, buf, alloc_ctx_);
+    if (!alloc_cb_.is_empty())
+      alloc_cb_.fn(size, buf, alloc_cb_.ctx);
   }
 
   inline void OnRead(size_t nread,
                      const uv_buf_t* buf,
                      uv_handle_type pending = UV_UNKNOWN_HANDLE) {
-    if (read_cb_ != nullptr)
-      read_cb_(nread, buf, pending, read_ctx_);
+    if (!read_cb_.is_empty())
+      read_cb_.fn(nread, buf, pending, read_cb_.ctx);
   }
 
-  inline void set_after_write_cb(AfterWriteCb cb, void* ctx) {
-    after_write_ctx_ = ctx;
-    after_write_cb_ = cb;
+  inline void set_after_write_cb(Callback<AfterWriteCb> c) {
+    after_write_cb_ = c;
   }
 
-  inline void set_alloc_cb(AllocCb cb, void* ctx) {
-    alloc_cb_ = cb;
-    alloc_ctx_ = ctx;
-  }
+  inline void set_alloc_cb(Callback<AllocCb> c) { alloc_cb_ = c; }
+  inline void set_read_cb(Callback<ReadCb> c) { read_cb_ = c; }
 
-  inline void set_read_cb(ReadCb cb, void* ctx) {
-    read_cb_ = cb;
-    read_ctx_ = ctx;
-  }
+  inline Callback<AfterWriteCb> after_write_cb() { return after_write_cb_; }
+  inline Callback<AllocCb> alloc_cb() { return alloc_cb_; }
+  inline Callback<ReadCb> read_cb() { return read_cb_; }
 
  private:
-  AfterWriteCb after_write_cb_;
-  void* after_write_ctx_;
-  AllocCb alloc_cb_;
-  void* alloc_ctx_;
-  ReadCb read_cb_;
-  void* read_ctx_;
+  Callback<AfterWriteCb> after_write_cb_;
+  Callback<AllocCb> alloc_cb_;
+  Callback<ReadCb> read_cb_;
 };
 
 class StreamBase : public StreamResource {
@@ -211,7 +217,9 @@ class StreamBase : public StreamResource {
 
   virtual ~StreamBase() = default;
 
-  virtual AsyncWrap* GetAsyncWrap() = 0;
+  // One of these must be implemented
+  virtual AsyncWrap* GetAsyncWrap();
+  virtual v8::Local<v8::Object> GetObject();
 
   // Libuv callbacks
   static void AfterShutdown(ShutdownWrap* req, int status);
@@ -227,8 +235,12 @@ class StreamBase : public StreamResource {
   int WriteString(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   template <class Base>
-  static void GetFD(v8::Local<v8::String>,
-                    const v8::PropertyCallbackInfo<v8::Value>&);
+  static void GetFD(v8::Local<v8::String> key,
+                    const v8::PropertyCallbackInfo<v8::Value>& args);
+
+  template <class Base>
+  static void GetExternal(v8::Local<v8::String> key,
+                          const v8::PropertyCallbackInfo<v8::Value>& args);
 
   template <class Base,
             int (StreamBase::*Method)(  // NOLINT(whitespace/parens)

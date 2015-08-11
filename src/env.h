@@ -88,6 +88,7 @@ namespace node {
   V(exponent_string, "exponent")                                              \
   V(exports_string, "exports")                                                \
   V(ext_key_usage_string, "ext_key_usage")                                    \
+  V(external_stream_string, "_externalStream")                                \
   V(family_string, "family")                                                  \
   V(fatal_exception_string, "_fatalException")                                \
   V(fd_string, "fd")                                                          \
