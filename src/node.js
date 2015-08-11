@@ -802,8 +802,7 @@
     });
 
     process.on('removeListener', function(type, listener) {
-      if (signalWraps.hasOwnProperty(type) &&
-          NativeModule.require('events').listenerCount(this, type) === 0) {
+      if (signalWraps.hasOwnProperty(type) && this.listenerCount(type) === 0) {
         signalWraps[type].close();
         delete signalWraps[type];
       }

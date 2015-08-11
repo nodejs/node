@@ -46,4 +46,4 @@ var ee2 = new MyEE2();
 
 ee1.on('x', function() {});
 
-assert.equal(EventEmitter.listenerCount(ee2, 'x'), 0);
+assert.equal(ee2.listenerCount('x'), 0);
