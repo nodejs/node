@@ -137,10 +137,17 @@ Execute each of the listeners in order with the supplied arguments.
 Returns `true` if event had listeners, `false` otherwise.
 
 
+### emitter.listenerCount(type)
+
+* `type` {Value} The type of event
+
+Returns the number of listeners listening to the `type` of event.
+
 ### Class Method: EventEmitter.listenerCount(emitter, event)
 
 Return the number of listeners for a given event.
 
+_Note: This is deprecated. Use `emitter.listenerCount` instead._
 
 ### Event: 'newListener'
 
