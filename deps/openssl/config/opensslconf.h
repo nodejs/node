@@ -18,6 +18,8 @@
 
   | --dest-os | --dest-cpu | OpenSSL target arch  | CI  |
   | --------- | ---------- | -------------------- | --- |
+  | aix       | ppc        | aix-gcc              | o   |
+  | aix       | ppc64      | aix64-gcc            | o   |
   | linux     | ia32       | linux-elf            | o   |
   | linux     | x32        | linux-x32            | -   |
   | linux     | x64        | linux-x86_64         | o   |
@@ -41,6 +43,7 @@
 
   | --dest-os          | pre-defined macro         |
   | ------------------ | ------------------------- |
+  | aix                | _AIX                      |
   | win                | _WIN32                    |
   | win(64bit)         | _WIN64                    |
   | mac                | __APPLE__ && __MACH__     |
@@ -62,7 +65,9 @@
   | x64        | __x86_64__        |
   | x64(win)   | _M_X64            |
   | ppc        | __PPC__           |
+  |            | _ARCH_PPC         |
   | ppc64      | __PPC64__         |
+  |            | _ARCH_PPC64       |
 
   These are the list which is not implemented yet.
 
@@ -115,6 +120,10 @@
 # include "./archs/linux-ppc64/opensslconf.h"
 #elif defined(OPENSSL_LINUX) && !defined(__PPC64__) && defined(__ppc__)
 # include "./archs/linux-ppc/opensslconf.h"
+#elif defined(_AIX) && defined(_ARCH_PPC64)
+# include "./archs/aix64-gcc/opensslconf.h"
+#elif defined(_AIX) && !defined(_ARCH_PPC64) && defined(_ARCH_PPC)
+# include "./archs/aix-gcc/opensslconf.h"
 #else
 # include "./archs/linux-elf/opensslconf.h"
 #endif

@@ -11,6 +11,7 @@ exports.libDir = path.join(exports.testDir, '../lib');
 exports.tmpDirName = 'tmp';
 exports.PORT = +process.env.NODE_COMMON_PORT || 12346;
 exports.isWindows = process.platform === 'win32';
+exports.isAix = process.platform === 'aix';
 
 function rimrafSync(p) {
   try {
