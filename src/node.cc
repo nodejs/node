@@ -120,7 +120,6 @@ static bool abort_on_uncaught_exception = false;
 static bool trace_sync_io = false;
 static bool track_heap_objects = false;
 static bool profile_cpu = false;
-static const char* profile_title = "";
 static const char* eval_string = nullptr;
 static unsigned int preload_module_count = 0;
 static const char** preload_modules = nullptr;
@@ -3107,7 +3106,7 @@ static void PrintHelp() {
          "                        is detected after the first tick\n"
          "  --track-heap-objects  track heap object allocations for heap "
          "snapshots\n"
-         "  --profile-cpu         being cpu profiling during start up\n"
+         "  --profile-cpu         silently begin cpu profiler during start up\n"
          "  --v8-options          print v8 command line options\n"
 #if defined(NODE_HAVE_I18N_SUPPORT)
          "  --icu-data-dir=dir    set ICU data load path to dir\n"
@@ -3943,8 +3942,9 @@ static void StartNodeInstance(void* arg) {
     Local<Context> context = Context::New(isolate);
 
     // CpuProfiler requires HandleScope
+    // addons can pick up the results with StopProfiling(...) using same title
     if (profile_cpu) {
-      isolate->GetCpuProfiler()->StartProfiling(String::NewFromUtf8(isolate, profile_title), true);
+      isolate->GetCpuProfiler()->StartProfiling(String::Empty(isolate), true);
     }
 
     Environment* env = CreateEnvironment(isolate, context, instance_data);
