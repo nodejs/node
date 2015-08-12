@@ -25,7 +25,8 @@ import nodedownload
 # parse our options
 parser = optparse.OptionParser()
 
-valid_os = ('win', 'mac', 'solaris', 'freebsd', 'openbsd', 'linux', 'android')
+valid_os = ('win', 'mac', 'solaris', 'freebsd', 'openbsd', 'linux',
+            'android', 'aix')
 valid_arch = ('arm', 'arm64', 'ia32', 'mips', 'mipsel', 'ppc', 'ppc64', 'x32',
               'x64', 'x86')
 valid_arm_float_abi = ('soft', 'softfp', 'hard')
@@ -492,11 +493,11 @@ def check_compiler(o):
     o['variables']['gas_version'] = get_gas_version(CC)
 
 
-def cc_macros():
-  """Checks predefined macros using the CC command."""
+def cc_macros(cc=None):
+  """Checks predefined macros using the C compiler command."""
 
   try:
-    p = subprocess.Popen(shlex.split(CC) + ['-dM', '-E', '-'],
+    p = subprocess.Popen(shlex.split(cc or CC) + ['-dM', '-E', '-'],
                          stdin=subprocess.PIPE,
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
@@ -554,7 +555,12 @@ def is_arm_hard_float_abi():
 def host_arch_cc():
   """Host architecture check using the CC command."""
 
-  k = cc_macros()
+  if sys.platform.startswith('aix'):
+    # we only support gcc at this point and the default on AIX
+    # would be xlc so hard code gcc
+    k = cc_macros('gcc')
+  else:
+    k = cc_macros()
 
   matchup = {
     '__aarch64__' : 'arm64',

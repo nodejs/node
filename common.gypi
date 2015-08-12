@@ -64,6 +64,10 @@
           ['target_arch=="x64"', {
             'msvs_configuration_platform': 'x64',
           }],
+          ['OS=="aix"', {
+            'cflags': [ '-gxcoff' ],
+            'ldflags': [ '-Wl,-bbigtoc' ],
+          }],
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
@@ -217,11 +221,11 @@
           'BUILDING_UV_SHARED=1',
         ],
       }],
-      [ 'OS in "linux freebsd openbsd solaris"', {
+      [ 'OS in "linux freebsd openbsd solaris aix"', {
         'cflags': [ '-pthread', ],
         'ldflags': [ '-pthread' ],
       }],
-      [ 'OS in "linux freebsd openbsd solaris android"', {
+      [ 'OS in "linux freebsd openbsd solaris android aix"', {
         'cflags': [ '-Wall', '-Wextra', '-Wno-unused-parameter', ],
         'cflags_cc': [ '-fno-rtti', '-fno-exceptions', '-std=gnu++0x' ],
         'ldflags': [ '-rdynamic' ],
@@ -243,11 +247,11 @@
             'cflags': [ '-m64' ],
             'ldflags': [ '-m64' ],
           }],
-          [ 'target_arch=="ppc"', {
+          [ 'target_arch=="ppc" and OS!="aix"', {
             'cflags': [ '-m32' ],
             'ldflags': [ '-m32' ],
           }],
-          [ 'target_arch=="ppc64"', {
+          [ 'target_arch=="ppc64" and OS!="aix"', {
 	    'cflags': [ '-m64', '-mminimal-toc' ],
 	    'ldflags': [ '-m64' ],
 	   }],
@@ -256,6 +260,18 @@
             'ldflags': [ '-pthreads' ],
             'cflags!': [ '-pthread' ],
             'ldflags!': [ '-pthread' ],
+          }],
+          [ 'OS=="aix"', {
+            'conditions': [
+              [ 'target_arch=="ppc"', {
+                'ldflags': [ '-Wl,-bmaxdata:0x60000000/dsa' ],
+              }],
+              [ 'target_arch=="ppc64"', {
+                'cflags': [ '-maix64' ],
+                'ldflags': [ '-maix64' ],
+              }],
+            ],
+            'ldflags!': [ '-rdynamic' ],
           }],
         ],
       }],
