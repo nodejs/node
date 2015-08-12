@@ -429,6 +429,9 @@ class Environment {
   inline uint32_t* heap_statistics_buffer() const;
   inline void set_heap_statistics_buffer(uint32_t* pointer);
 
+  inline char* http_parser_buffer() const;
+  inline void set_http_parser_buffer(char* buffer);
+
   inline void ThrowError(const char* errmsg);
   inline void ThrowTypeError(const char* errmsg);
   inline void ThrowRangeError(const char* errmsg);
@@ -525,6 +528,8 @@ class Environment {
   int handle_cleanup_waiting_;
 
   uint32_t* heap_statistics_buffer_ = nullptr;
+
+  char* http_parser_buffer_;
 
 #define V(PropertyName, TypeName)                                             \
   v8::Persistent<TypeName> PropertyName ## _;
