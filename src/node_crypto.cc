@@ -5281,10 +5281,12 @@ const char* Certificate::ExportChallenge(const char* data, int len) {
   if (sp == nullptr)
     return nullptr;
 
-  const char* buf = nullptr;
-  buf = reinterpret_cast<const char*>(ASN1_STRING_data(sp->spkac->challenge));
+  unsigned char* buf = nullptr;
+  ASN1_STRING_to_UTF8(&buf, sp->spkac->challenge);
 
-  return buf;
+  NETSCAPE_SPKI_free(sp);
+
+  return reinterpret_cast<const char*>(buf);
 }
 
 
@@ -5311,7 +5313,7 @@ void Certificate::ExportChallenge(const FunctionCallbackInfo<Value>& args) {
 
   Local<Value> outString = Encode(env->isolate(), cert, strlen(cert), BUFFER);
 
-  delete[] cert;
+  OPENSSL_free(const_cast<char*>(cert));
 
   args.GetReturnValue().Set(outString);
 }
