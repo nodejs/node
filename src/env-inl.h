@@ -178,6 +178,7 @@ inline Environment::Environment(v8::Local<v8::Context> context,
       printed_error_(false),
       trace_sync_io_(false),
       debugger_agent_(this),
+      http_parser_buffer_(nullptr),
       context_(context->GetIsolate(), context) {
   // We'll be creating new objects so make sure we've entered the context.
   v8::HandleScope handle_scope(isolate());
@@ -200,6 +201,7 @@ inline Environment::~Environment() {
   isolate_data()->Put();
 
   delete[] heap_statistics_buffer_;
+  delete[] http_parser_buffer_;
 }
 
 inline void Environment::CleanupHandles() {
@@ -336,6 +338,15 @@ inline uint32_t* Environment::heap_statistics_buffer() const {
 inline void Environment::set_heap_statistics_buffer(uint32_t* pointer) {
   CHECK_EQ(heap_statistics_buffer_, nullptr);  // Should be set only once.
   heap_statistics_buffer_ = pointer;
+}
+
+inline char* Environment::http_parser_buffer() const {
+  return http_parser_buffer_;
+}
+
+inline void Environment::set_http_parser_buffer(char* buffer) {
+  CHECK_EQ(http_parser_buffer_, nullptr);  // Should be set only once.
+  http_parser_buffer_ = buffer;
 }
 
 inline Environment* Environment::from_cares_timer_handle(uv_timer_t* handle) {
