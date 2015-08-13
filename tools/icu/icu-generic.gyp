@@ -111,8 +111,8 @@
             '<@(icu_src_i18n)'
           ],
           'conditions': [
-            [ 'icu_ver_major == 54', { 'sources!': [
-              ## Strip out the following for ICU 54 only.
+            [ 'icu_ver_major == 55', { 'sources!': [
+              ## Strip out the following for ICU 55 only.
               ## add more conditions in the future?
               ## if your compiler can dead-strip, this will
               ## make ZERO difference to binary size.
@@ -369,8 +369,8 @@
         '<@(icu_src_common)',
       ],
       'conditions': [
-        [ 'icu_ver_major == 54', { 'sources!': [
-          ## Strip out the following for ICU 54 only.
+        [ 'icu_ver_major == 55', { 'sources!': [
+          ## Strip out the following for ICU 55 only.
           ## add more conditions in the future?
           ## if your compiler can dead-strip, this will
           ## make ZERO difference to binary size.
