@@ -1021,12 +1021,12 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
   Context::Scope context_scope(env->context());
 
   Local<Value> argv[] = {
-    Buffer::New(env,
-                reinterpret_cast<char*>(name),
-                kTicketPartSize).ToLocalChecked(),
-    Buffer::New(env,
-                reinterpret_cast<char*>(iv),
-                kTicketPartSize).ToLocalChecked(),
+    Buffer::Copy(env,
+                 reinterpret_cast<char*>(name),
+                 kTicketPartSize).ToLocalChecked(),
+    Buffer::Copy(env,
+                 reinterpret_cast<char*>(iv),
+                 kTicketPartSize).ToLocalChecked(),
     Boolean::New(env->isolate(), enc != 0)
   };
   Local<Value> ret = node::MakeCallback(env,
@@ -1219,7 +1219,7 @@ int SSLWrap<Base>::NewSessionCallback(SSL* s, SSL_SESSION* sess) {
   memset(serialized, 0, size);
   i2d_SSL_SESSION(sess, &serialized);
 
-  Local<Object> session = Buffer::New(
+  Local<Object> session = Buffer::Copy(
       env,
       reinterpret_cast<char*>(sess->session_id),
       sess->session_id_length).ToLocalChecked();
@@ -1240,7 +1240,7 @@ void SSLWrap<Base>::OnClientHello(void* arg,
   Context::Scope context_scope(env->context());
 
   Local<Object> hello_obj = Object::New(env->isolate());
-  Local<Object> buff = Buffer::New(
+  Local<Object> buff = Buffer::Copy(
       env,
       reinterpret_cast<const char*>(hello.session_id()),
       hello.session_size()).ToLocalChecked();
@@ -1703,7 +1703,7 @@ void SSLWrap<Base>::GetTLSTicket(const FunctionCallbackInfo<Value>& args) {
   if (sess == nullptr || sess->tlsext_tick == nullptr)
     return;
 
-  Local<Object> buff = Buffer::New(
+  Local<Object> buff = Buffer::Copy(
       env,
       reinterpret_cast<char*>(sess->tlsext_tick),
       sess->tlsext_ticklen).ToLocalChecked();
@@ -1985,7 +1985,7 @@ int SSLWrap<Base>::TLSExtStatusCallback(SSL* s, void* arg) {
     if (resp == nullptr) {
       arg = Null(env->isolate());
     } else {
-      arg = Buffer::New(
+      arg = Buffer::Copy(
           env,
           reinterpret_cast<char*>(const_cast<unsigned char*>(resp)),
           len).ToLocalChecked();
@@ -2991,7 +2991,8 @@ bool CipherBase::GetAuthTag(char** out, unsigned int* out_len) const {
   if (initialised_ || kind_ != kCipher || !auth_tag_)
     return false;
   *out_len = auth_tag_len_;
-  *out = new char[auth_tag_len_];
+  *out = static_cast<char*>(malloc(auth_tag_len_));
+  CHECK_NE(*out, nullptr);
   memcpy(*out, auth_tag_, auth_tag_len_);
   return true;
 }
@@ -3005,7 +3006,7 @@ void CipherBase::GetAuthTag(const FunctionCallbackInfo<Value>& args) {
   unsigned int out_len = 0;
 
   if (cipher->GetAuthTag(&out, &out_len)) {
-    Local<Object> buf = Buffer::New(env, out, out_len).ToLocalChecked();
+    Local<Object> buf = Buffer::Use(env, out, out_len).ToLocalChecked();
     args.GetReturnValue().Set(buf);
   } else {
     env->ThrowError("Attempting to get auth tag in unsupported state");
@@ -3122,8 +3123,9 @@ void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
                             "Trying to add data in unsupported state");
   }
 
+  CHECK(out != nullptr || out_len == 0);
   Local<Object> buf =
-      Buffer::New(env, reinterpret_cast<char*>(out), out_len).ToLocalChecked();
+      Buffer::Copy(env, reinterpret_cast<char*>(out), out_len).ToLocalChecked();
   if (out)
     delete[] out;
 
@@ -3198,7 +3200,7 @@ void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  Local<Object> buf = Buffer::New(
+  Local<Object> buf = Buffer::Copy(
       env,
       reinterpret_cast<char*>(out_value),
       out_len).ToLocalChecked();
@@ -3980,7 +3982,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  Local<Object> vbuf = Buffer::New(
+  Local<Object> vbuf = Buffer::Copy(
       env,
       reinterpret_cast<char*>(out_value),
       out_len).ToLocalChecked();
@@ -4517,7 +4519,7 @@ void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Object> buf =
-      Buffer::New(env, reinterpret_cast<char*>(out), size).ToLocalChecked();
+      Buffer::Use(env, reinterpret_cast<char*>(out), size).ToLocalChecked();
   args.GetReturnValue().Set(buf);
 }
 

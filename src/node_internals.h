@@ -273,9 +273,8 @@ class NodeInstanceData {
 };
 
 namespace Buffer {
+v8::MaybeLocal<v8::Object> Copy(Environment* env, const char* data, size_t len);
 v8::MaybeLocal<v8::Object> New(Environment* env, size_t size);
-// Makes a copy of |data|.
-v8::MaybeLocal<v8::Object> New(Environment* env, const char* data, size_t len);
 // Takes ownership of |data|.
 v8::MaybeLocal<v8::Object> New(Environment* env,
                                char* data,
