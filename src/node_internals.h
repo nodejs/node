@@ -272,6 +272,22 @@ class NodeInstanceData {
     DISALLOW_COPY_AND_ASSIGN(NodeInstanceData);
 };
 
+namespace Buffer {
+v8::MaybeLocal<v8::Object> New(Environment* env, size_t size);
+// Makes a copy of |data|.
+v8::MaybeLocal<v8::Object> New(Environment* env, const char* data, size_t len);
+// Takes ownership of |data|.
+v8::MaybeLocal<v8::Object> New(Environment* env,
+                               char* data,
+                               size_t length,
+                               void (*callback)(char* data, void* hint),
+                               void* hint);
+// Takes ownership of |data|.  Must allocate |data| with malloc() or realloc()
+// because ArrayBufferAllocator::Free() deallocates it again with free().
+// Mixing operator new and free() is undefined behavior so don't do that.
+v8::MaybeLocal<v8::Object> Use(Environment* env, char* data, size_t length);
+}  // namespace Buffer
+
 }  // namespace node
 
 #endif  // SRC_NODE_INTERNALS_H_

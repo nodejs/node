@@ -4,10 +4,6 @@
 #include "node.h"
 #include "v8.h"
 
-#if defined(NODE_WANT_INTERNALS)
-#include "env.h"
-#endif  // defined(NODE_WANT_INTERNALS)
-
 namespace node {
 namespace Buffer {
 
@@ -62,24 +58,6 @@ static inline bool IsWithinBounds(size_t off, size_t len, size_t max) {
   // Otherwise we're in bounds
   return true;
 }
-
-// Internal. Not for public consumption. We can't define these
-// in src/node_internals.h because of a circular dependency.
-#if defined(NODE_WANT_INTERNALS)
-v8::MaybeLocal<v8::Object> New(Environment* env, size_t size);
-// Makes a copy of |data|.
-v8::MaybeLocal<v8::Object> New(Environment* env, const char* data, size_t len);
-// Takes ownership of |data|.
-v8::MaybeLocal<v8::Object> New(Environment* env,
-                               char* data,
-                               size_t length,
-                               FreeCallback callback,
-                               void* hint);
-// Takes ownership of |data|.  Must allocate |data| with malloc() or realloc()
-// because ArrayBufferAllocator::Free() deallocates it again with free().
-// Mixing operator new and free() is undefined behavior so don't do that.
-v8::MaybeLocal<v8::Object> Use(Environment* env, char* data, size_t length);
-#endif  // defined(NODE_WANT_INTERNALS)
 
 }  // namespace Buffer
 }  // namespace node
