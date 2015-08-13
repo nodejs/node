@@ -37,7 +37,7 @@ var testCases = [
     },
     errorCode: 'CERT_REVOKED'
   },
-  // Test 1: for the fix of iojs#2061
+  // Test 1: for the fix of node#2061
   // agent6-cert.pem is signed by intermidate cert of ca3.
   // The server has a cert chain of agent6->ca3->ca1(root) but
   // tls.connect should be failed with an error of

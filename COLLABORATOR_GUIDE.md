@@ -1,4 +1,4 @@
-# io.js Collaborator Guide
+# Node.js Collaborator Guide
 
 **Contents**
 
@@ -9,7 +9,7 @@
  - [Technical HOWTO](#technical-howto)
  - [I Just Made a Mistake](#i-just-made-a-mistake)
 
-This document contains information for Collaborators of the io.js
+This document contains information for Collaborators of the Node.js
 project regarding maintaining the code, documentation and issues.
 
 Collaborators should be familiar with the guidelines for new
@@ -20,7 +20,7 @@ understand the project governance model as outlined in
 ## Issues and Pull Requests
 
 Courtesy should always be shown to individuals submitting issues and
-pull requests to the io.js project.
+pull requests to the Node.js project.
 
 Collaborators should feel free to take full responsibility for
 managing issues and pull requests they feel qualified to handle, as
@@ -28,16 +28,16 @@ long as this is done while being mindful of these guidelines, the
 opinions of other Collaborators and guidance of the TC.
 
 Collaborators may **close** any issue or pull request they believe is
-not relevant for the future of the io.js project. Where this is
+not relevant for the future of the Node.js project. Where this is
 unclear, the issue should be left open for several days to allow for
-additional discussion. Where this does not yield input from io.js
+additional discussion. Where this does not yield input from Node.js
 Collaborators or additional evidence that the issue has relevance, the
 issue may be closed. Remember that issues can always be re-opened if
 necessary.
 
 ## Accepting Modifications
 
-All modifications to the io.js code and documentation should be
+All modifications to the Node.js code and documentation should be
 performed via GitHub pull requests, including modifications by
 Collaborators and TC members.
 
@@ -101,7 +101,7 @@ information regarding the change process:
   appropriate.
 
 See the commit log for examples such as
-[this one](https://github.com/nodejs/io.js/commit/b636ba8186) if unsure
+[this one](https://github.com/nodejs/node/commit/b636ba8186) if unsure
 exactly how to format your commit messages.
 
 Additionally:
@@ -137,7 +137,7 @@ $ git merge --ff-only origin/master
 Apply external patches
 
 ```text
-$ curl -L https://github.com/nodejs/io.js/pull/xxx.patch | git am --whitespace=fix
+$ curl -L https://github.com/nodejs/node/pull/xxx.patch | git am --whitespace=fix
 ```
 
 Check and re-review the changes
@@ -223,7 +223,7 @@ With `git`, there's a way to override remote trees by force pushing
 (`git push -f`). This should generally be seen as forbidden (since
 you're rewriting history on a repository other people are working
 against) but is allowed for simpler slip-ups such as typos in commit
-messages. However, you are only allowed to force push to any io.js
+messages. However, you are only allowed to force push to any Node.js
 branch within 10 minutes from your original push. If someone else
 pushes to the branch or the 10 minute period passes, consider the
 commit final.

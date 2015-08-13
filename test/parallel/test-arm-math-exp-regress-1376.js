@@ -1,5 +1,5 @@
 'use strict';
-// See https://github.com/nodejs/io.js/issues/1376
+// See https://github.com/nodejs/node/issues/1376
 // and https://code.google.com/p/v8/issues/detail?id=4019
 
 Math.abs(-0.5);

@@ -24,7 +24,7 @@ if [ "$k" = "no" ]; then
 else
   k="-k"
 fi
-node=${NODE:-./iojs}
+node=${NODE:-./node}
 
 $node benchmark/http_simple.js &
 npid=$!

@@ -1,7 +1,7 @@
-io.js is licensed for use as follows:
+Node.js is licensed for use as follows:
 
 """
-Copyright io.js contributors. All rights reserved.
+Copyright Node.js contributors. All rights reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to
@@ -22,7 +22,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
 """
 
-This license applies to parts of io.js originating from the
+This license applies to parts of Node.js originating from the
 https://github.com/joyent/node repository:
 
 """
@@ -46,10 +46,10 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
 """
 
-The io.js license applies to all parts of io.js that are not externally
+The Node.js license applies to all parts of Node.js that are not externally
 maintained libraries.
 
-The externally maintained libraries used by io.js are:
+The externally maintained libraries used by Node.js are:
 
 - V8, located at deps/v8. V8's license follows:
   """
@@ -612,7 +612,7 @@ The externally maintained libraries used by io.js are:
     included for use in the npm website and documentation,
     used with permission.
 
-    This program uses several io.js modules contained in the node_modules/
+    This program uses several Node.js modules contained in the node_modules/
     subdirectory, according to the terms of their respective licenses.
   """
 

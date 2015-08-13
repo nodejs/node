@@ -38,7 +38,7 @@ time, and stop listening for new requests in that worker.
 
 In this way, `domain` usage goes hand-in-hand with the cluster module,
 since the master process can fork a new worker when a worker
-encounters an error.  For io.js programs that scale to multiple
+encounters an error.  For Node.js programs that scale to multiple
 machines, the terminating proxy or service registry can take note of
 the failure, and react accordingly.
 

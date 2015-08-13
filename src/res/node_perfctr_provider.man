@@ -6,7 +6,7 @@
       <counters xmlns="http://schemas.microsoft.com/win/2005/12/counters"
                 schemaVersion="1.1">
         <provider symbol="NodeCounterProvider"
-                  applicationIdentity="iojs.exe"
+                  applicationIdentity="node.exe"
                   providerType="userMode"
                   providerGuid="{793C9B44-3D6B-4F57-B5D7-4FF80ADCF9A2}">
           <counterSet symbol="NodeCounterSet"

@@ -1,11 +1,11 @@
-# io.js Working Groups
+# Node.js Working Groups
 
-io.js Working Groups are autonomous projects created by the
-[Technical Committee (TC)](https://github.com/nodejs/io.js/blob/master/GOVERNANCE.md#technical-committee).
+Node.js Working Groups are autonomous projects created by the
+[Technical Steering Committee (TSC)](https://github.com/nodejs/node/blob/master/GOVERNANCE.md#technical-committee).
 
-Working Groups can be formed at any time but must be ratified by the TC.
+Working Groups can be formed at any time but must be ratified by the TSC.
 Once formed the work defined in the Working Group charter is the
-responsibility of the WG rather than the TC.
+responsibility of the WG rather than the TSC.
 
 It is important that Working Groups are not formed pre-maturely. Working
 Groups are not formed to *begin* a set of tasks but instead are formed
@@ -14,7 +14,7 @@ think it would benefit from being done as an autonomous project.
 
 If the work defined in a Working Group charter is completed the Working
 Group should be dissolved and the responsibility for governance absorbed
-back in to the TC.
+back in to the TSC.
 
 ## Current Working Groups
 
@@ -33,30 +33,30 @@ back in to the TC.
 ### [Website](https://github.com/nodejs/website)
 
 The website working group's purpose is to build and maintain a public
-website for the `io.js` project.
+website for the `Node.js` project.
 
 Its responsibilities are:
-* Develop and maintain a build and automation system for `iojs.org`.
-* Ensure the site is regularly updated with changes made to `io.js` like
+* Develop and maintain a build and automation system for `nodejs.org`.
+* Ensure the site is regularly updated with changes made to `Node.js` like
 releases and features.
 * Foster and enable a community of translators.
 
 ### [Streams](https://github.com/nodejs/readable-stream)
 
 The Streams WG is dedicated to the support and improvement of the Streams API
-as used in io.js and the npm ecosystem. We seek to create a composable API that
+as used in Node.js and the npm ecosystem. We seek to create a composable API that
 solves the problem of representing multiple occurrences of an event over time
 in a humane, low-overhead fashion. Improvements to the API will be driven by
 the needs of the ecosystem; interoperability and backwards compatibility with
 other solutions and prior versions are paramount in importance. Our
 responsibilities include:
 
-* Addressing stream issues on the io.js issue tracker.
-* Authoring and editing stream documentation within the io.js project.
-* Reviewing changes to stream subclasses within the io.js project.
-* Redirecting changes to streams from the io.js project to this project.
-* Assisting in the implementation of stream providers within io.js.
-* Recommending versions of readable-stream to be included in io.js.
+* Addressing stream issues on the Node.js issue tracker.
+* Authoring and editing stream documentation within the Node.js project.
+* Reviewing changes to stream subclasses within the Node.js project.
+* Redirecting changes to streams from the Node.js project to this project.
+* Assisting in the implementation of stream providers within Node.js.
+* Recommending versions of readable-stream to be included in Node.js.
 * Messaging about the future of streams to give the community advance notice of changes.
 
 
@@ -75,7 +75,7 @@ Its responsibilities are:
 ### [Tracing](https://github.com/nodejs/tracing-wg)
 
 The tracing working group's purpose is to increase the
-transparency of software written in io.js.
+transparency of software written in Node.js.
 
 Its responsibilities are:
 * Collaboration with V8 to integrate with `trace_event`.
@@ -95,12 +95,12 @@ language community might then produce multiple localizations for
 various project resources.
 
 Their responsibilities are:
-* Translations of any io.js materials they believe are relevant to their
+* Translations of any Node.js materials they believe are relevant to their
 community.
 * Review processes for keeping translations up
 to date and of high quality.
 * Social media channels in their language.
-* Promotion of io.js speakers for meetups and conferences in their
+* Promotion of Node.js speakers for meetups and conferences in their
 language.
 
 Each language community maintains its own membership.
@@ -144,7 +144,7 @@ Each language community maintains its own membership.
 ### [Evangelism](https://github.com/nodejs/evangelism)
 
 The evangelism working group promotes the accomplishments
-of io.js and lets the community know how they can get involved.
+of Node.js and lets the community know how they can get involved.
 
 Their responsibilities are:
 * Project messaging.
@@ -158,7 +158,7 @@ content.
 ### [Roadmap](https://github.com/nodejs/roadmap)
 
 The roadmap working group is responsible for user community outreach
-and the translation of their concerns into a plan of action for io.js.
+and the translation of their concerns into a plan of action for Node.js.
 
 The final [ROADMAP](./ROADMAP.md) document is still owned by the TC and requires
 the same approval for changes as any other project asset.
@@ -172,10 +172,10 @@ Their responsibilities are:
 ### [Docker](https://github.com/nodejs/docker-iojs)
 
 The Docker working group's purpose is to build, maintain, and improve official
-Docker images for the `io.js` project.
+Docker images for the `Node.js` project.
 
 Their responsibilities are:
-* Keep the official Docker images updated in line with new `io.js` releases.
+* Keep the official Docker images updated in line with new `Node.js` releases.
 * Decide and implement image improvements and/or fixes.
 * Maintain and improve the images' documentation.
 
@@ -184,9 +184,9 @@ Their responsibilities are:
 
 The Addon API Working Group is responsible for maintaining the NAN project and
 corresponding _nan_ package in npm. The NAN project makes available an
-abstraction layer for native add-on authors for both Node.js and io.js,
+abstraction layer for native add-on authors for both Node.js and Node.js,
 assisting in the writing of code that is compatible with many actively used
-versions of Node.js, io.js, V8 and libuv.
+versions of Node.js, Node.js, V8 and libuv.
 
 Their responsibilities are:
 
@@ -194,12 +194,12 @@ Their responsibilities are:
   including code, issues and documentation.
 * Maintaining the [addon-examples](https://github.com/nodejs/node-addon-examples)
   GitHub repository, including code, issues and documentation.
-* Maintaining the C++ Addon API within the io.js project, in subordination to
-  the io.js TC.
-* Maintaining the Addon documentation within the io.js project, in
-  subordination to the io.js TC.
+* Maintaining the C++ Addon API within the Node.js project, in subordination to
+  the Node.js TSC.
+* Maintaining the Addon documentation within the Node.js project, in
+  subordination to the Node.js TSC.
 * Maintaining the _nan_ package in npm, releasing new versions as appropriate.
-* Messaging about the future of the io.js and NAN interface to give the
+* Messaging about the future of the Node.js and NAN interface to give the
   community advance notice of changes.
 
 The current members can be found in their
@@ -239,7 +239,7 @@ governance process, hence the term "bootstrap."
 
 ### *[insert WG name]* Working Group
 
-The io.js *[insert WG name]* is jointly governed by a Working Group (WG)
+The Node.js *[insert WG name]* is jointly governed by a Working Group (WG)
 that is responsible for high-level guidance of the project.
 
 The WG has final authority over this project including:

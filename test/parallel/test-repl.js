@@ -232,7 +232,7 @@ function error_test() {
     { client: client_unix, send: '\'the\\\n\\\nfourtheye\'\n',
       expect: prompt_multiline + prompt_multiline +
               '\'thefourtheye\'\n' + prompt_unix },
-    // Regression test for https://github.com/nodejs/io.js/issues/597
+    // Regression test for https://github.com/nodejs/node/issues/597
     { client: client_unix,
       send: '/(.)(.)(.)(.)(.)(.)(.)(.)(.)/.test(\'123456789\')\n',
       expect: `true\n${prompt_unix}` },

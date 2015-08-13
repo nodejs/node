@@ -86,7 +86,7 @@ dictionary with keys:
   <http://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT>
   for details on the format.
 
-If no 'ca' details are given, then io.js will use the default
+If no 'ca' details are given, then Node.js will use the default
 publicly trusted list of CAs as given in
 <http://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt>.
 
@@ -750,7 +750,7 @@ unified Stream API, and before there were Buffer objects for handling
 binary data.
 
 As such, the streaming classes don't have the typical methods found on
-other io.js classes, and many methods accepted and returned
+other Node.js classes, and many methods accepted and returned
 Binary-encoded strings by default rather than Buffers.  This was
 changed to use Buffers by default instead.
 

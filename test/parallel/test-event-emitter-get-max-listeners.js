@@ -13,7 +13,7 @@ assert.strictEqual(emitter.getMaxListeners(), 0);
 emitter.setMaxListeners(3);
 assert.strictEqual(emitter.getMaxListeners(), 3);
 
-// https://github.com/nodejs/io.js/issues/523 - second call should not throw.
+// https://github.com/nodejs/node/issues/523 - second call should not throw.
 var recv = {};
 EventEmitter.prototype.on.call(recv, 'event', function() {});
 EventEmitter.prototype.on.call(recv, 'event', function() {});
