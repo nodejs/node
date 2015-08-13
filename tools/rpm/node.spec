@@ -15,14 +15,14 @@
 # This is updated by rpmbuild.sh.
 %define _version 0.10.12
 
-Name: iojs
+Name: node
 Version: %{_version}
 Release: 1
-Summary: io.js is a platform for building fast, scalable network applications.
+Summary: Node.js is a platform for building fast, scalable network applications.
 Group: Development/Languages
 License: MIT
-URL: http://iojs.org/
-Source0: http://iojs.org/dist/v%{_version}/iojs-v%{_version}.tar.gz
+URL: http://nodejs.org/
+Source0: http://nodejs.org/dist/v%{_version}/node-v%{_version}.tar.gz
 BuildRequires: gcc
 BuildRequires: gcc-c++
 BuildRequires: glibc-devel
@@ -37,10 +37,10 @@ Conflicts: nodejs
 
 
 %description
-io.js is a platform built on Chrome's JavaScript runtime for easily
+Node.js is a platform built on Chrome's JavaScript runtime for easily
 building fast, scalable network applications.
 
-io.js uses an event-driven, non-blocking I/O model that makes it
+Node.js uses an event-driven, non-blocking I/O model that makes it
 lightweight and efficient, perfect for data-intensive real-time
 applications that run across distributed devices.
 
@@ -94,7 +94,7 @@ done
 /usr/include/*
 /usr/lib/node_modules/
 /usr/share/doc/node/gdbinit
-/usr/share/man/man1/iojs.1.gz
+/usr/share/man/man1/node.1.gz
 /usr/share/systemtap/tapset/node.stp
 %{_datadir}/%{name}/
 %doc CHANGELOG.md LICENSE README.md

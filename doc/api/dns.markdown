@@ -103,7 +103,7 @@ It's only an operating system facility that can associate name with addresses,
 and vice versa.
 
 Its implementation can have subtle but important consequences on the behavior
-of any io.js program. Please take some time to consult the [Implementation
+of any Node.js program. Please take some time to consult the [Implementation
 considerations section](#dns_implementation_considerations) before using it.
 
 ## dns.lookupService(address, port, callback)
@@ -276,7 +276,7 @@ on some operating systems (e.g FreeBSD 10.1).
 Although `dns.lookup` and `dns.resolve*/dns.reverse` functions have the same
 goal of associating a network name with a network address (or vice versa),
 their behavior is quite different. These differences can have subtle but
-significant consequences on the behavior of io.js programs.
+significant consequences on the behavior of Node.js programs.
 
 ### dns.lookup
 

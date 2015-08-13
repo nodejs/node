@@ -6,7 +6,7 @@
     <ProductVersion>3.5</ProductVersion>
     <ProjectGuid>{1d808ff0-b5a9-4be9-859d-b334b6f48be2}</ProjectGuid>
     <SchemaVersion>2.0</SchemaVersion>
-    <OutputName>iojs-v$(FullVersion)-$(Platform)</OutputName>
+    <OutputName>node-v$(FullVersion)-$(Platform)</OutputName>
     <OutputType>Package</OutputType>
     <EnableProjectHarvesting>True</EnableProjectHarvesting>
     <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' AND '$(MSBuildExtensionsPath32)' != '' ">$(MSBuildExtensionsPath32)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>

@@ -83,8 +83,8 @@ Examples:
     '/tmp/file'
 
     path.resolve('wwwroot', 'static_files/png/', '../gif/image.gif')
-    // if currently in /home/myself/iojs, it returns
-    '/home/myself/iojs/wwwroot/static_files/gif/image.gif'
+    // if currently in /home/myself/node, it returns
+    '/home/myself/node/wwwroot/static_files/gif/image.gif'
 
 *Note:* If the arguments to `resolve` have zero-length strings then the current
         working directory will be used instead of them.
@@ -215,11 +215,11 @@ An example on *nix:
 An example on Windows:
 
     console.log(process.env.PATH)
-    // 'C:\Windows\system32;C:\Windows;C:\Program Files\iojs\'
+    // 'C:\Windows\system32;C:\Windows;C:\Program Files\node\'
 
     process.env.PATH.split(path.delimiter)
     // returns
-    ['C:\\Windows\\system32', 'C:\\Windows', 'C:\\Program Files\\iojs\\']
+    ['C:\\Windows\\system32', 'C:\\Windows', 'C:\\Program Files\\node\\']
 
 ## path.parse(pathString)
 

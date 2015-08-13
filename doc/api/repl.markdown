@@ -7,10 +7,10 @@ easily includable in other programs. The REPL provides a way to interactively
 run JavaScript and see the results.  It can be used for debugging, testing, or
 just trying things out.
 
-By executing `iojs` without any arguments from the command-line you will be
+By executing `node` without any arguments from the command-line you will be
 dropped into the REPL. It has simplistic emacs line-editing.
 
-    mjr:~$ iojs
+    mjr:~$ node
     Type '.help' for options.
     > a = [ 1, 2, 3];
     [ 1, 2, 3 ]
@@ -21,21 +21,21 @@ dropped into the REPL. It has simplistic emacs line-editing.
     2
     3
 
-For advanced line-editors, start io.js with the environmental variable
+For advanced line-editors, start Node.js with the environmental variable
 `NODE_NO_READLINE=1`. This will start the main and debugger REPL in canonical
 terminal settings which will allow you to use with `rlwrap`.
 
 For example, you could add this to your bashrc file:
 
-    alias iojs="env NODE_NO_READLINE=1 rlwrap iojs"
+    alias node="env NODE_NO_READLINE=1 rlwrap node"
 
 ## Persistent History
 
-By default, the REPL will persist history between `iojs` REPL sessions by saving
+By default, the REPL will persist history between `node` REPL sessions by saving
 to a `.node_repl_history` file in the user's home directory. This can be
 disabled by setting the environment variable `NODE_REPL_HISTORY=""`.
 
-Previously in io.js v2.x, REPL history was controlled by using a
+Previously in Node.js/io.js v2.x, REPL history was controlled by using a
 `NODE_REPL_HISTORY_FILE` environment variable, and the history was saved in JSON
 format. This variable has now been deprecated, and your REPL history will
 automatically be converted to using plain text. The new file will be saved to
@@ -44,7 +44,7 @@ variable, as documented below.
 
 ## Environment Variable Options
 
-The built-in repl (invoked by running `iojs` or `iojs -i`) may be controlled
+The built-in repl (invoked by running `node` or `node -i`) may be controlled
 via the following environment variables:
 
  - `NODE_REPL_HISTORY` - When a valid path is given, persistent REPL history
@@ -108,7 +108,7 @@ You can use your own `eval` function if it has following signature:
 On tab completion - `eval` will be called with `.scope` as an input string. It
 is expected to return an array of scope names to be used for the auto-completion.
 
-Multiple REPLs may be started against the same running instance of io.js.  Each
+Multiple REPLs may be started against the same running instance of Node.js.  Each
 will share the same global object but will have unique I/O.
 
 Here is an example that starts a REPL on stdin, a Unix socket, and a TCP socket:
@@ -119,7 +119,7 @@ Here is an example that starts a REPL on stdin, a Unix socket, and a TCP socket:
     connections = 0;
 
     repl.start({
-      prompt: "io.js via stdin> ",
+      prompt: "Node.js via stdin> ",
       input: process.stdin,
       output: process.stdout
     });
@@ -127,18 +127,18 @@ Here is an example that starts a REPL on stdin, a Unix socket, and a TCP socket:
     net.createServer(function (socket) {
       connections += 1;
       repl.start({
-        prompt: "io.js via Unix socket> ",
+        prompt: "Node.js via Unix socket> ",
         input: socket,
         output: socket
       }).on('exit', function() {
         socket.end();
       })
-    }).listen("/tmp/iojs-repl-sock");
+    }).listen("/tmp/node-repl-sock");
 
     net.createServer(function (socket) {
       connections += 1;
       repl.start({
-        prompt: "io.js via TCP socket> ",
+        prompt: "Node.js via TCP socket> ",
         input: socket,
         output: socket
       }).on('exit', function() {
@@ -152,7 +152,7 @@ for connecting to TCP sockets, and `socat` can be used to connect to both Unix a
 TCP sockets.
 
 By starting a REPL from a Unix socket-based server instead of stdin, you can
-connect to a long-running io.js process without restarting it.
+connect to a long-running Node.js process without restarting it.
 
 For an example of running a "full-featured" (`terminal`) REPL over
 a `net.Server` and `net.Socket` instance, see: https://gist.github.com/2209310
@@ -228,7 +228,7 @@ associated with each `REPLServer`.  For example:
 
 Things in the `context` object appear as local within the REPL:
 
-    mjr:~$ iojs repl_test.js
+    mjr:~$ node repl_test.js
     > m
     'message'
 

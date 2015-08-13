@@ -13,8 +13,8 @@ actually in the global scope but in the module scope - this will be noted.
 
 In browsers, the top-level scope is the global scope. That means that in
 browsers if you're in the global scope `var something` will define a global
-variable. In io.js this is different. The top-level scope is not the global
-scope; `var something` inside an io.js module will be local to that module.
+variable. In Node.js this is different. The top-level scope is not the global
+scope; `var something` inside an Node.js module will be local to that module.
 
 ## process
 
@@ -74,9 +74,9 @@ Process files with the extension `.sjs` as `.js`:
     require.extensions['.sjs'] = require.extensions['.js'];
 
 **Deprecated**  In the past, this list has been used to load
-non-JavaScript modules into io.js by compiling them on-demand.
+non-JavaScript modules into Node.js by compiling them on-demand.
 However, in practice, there are much better ways to do this, such as
-loading modules via some other io.js program, or compiling them to
+loading modules via some other Node.js program, or compiling them to
 JavaScript ahead of time.
 
 Since the Module system is locked, this feature will probably never go
@@ -94,7 +94,7 @@ of this code file.  For a main program this is not necessarily the same
 filename used in the command line.  The value inside a module is the path
 to that module file.
 
-Example: running `iojs example.js` from `/Users/mjr`
+Example: running `node example.js` from `/Users/mjr`
 
     console.log(__filename);
     // /Users/mjr/example.js
@@ -109,7 +109,7 @@ Example: running `iojs example.js` from `/Users/mjr`
 
 The name of the directory that the currently executing script resides in.
 
-Example: running `iojs example.js` from `/Users/mjr`
+Example: running `node example.js` from `/Users/mjr`
 
     console.log(__dirname);
     // /Users/mjr

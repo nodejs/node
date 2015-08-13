@@ -7,8 +7,8 @@
             <provider name="NodeJS-ETW-provider"
                 guid="{77754E9B-264B-4D8D-B981-E4135C1ECB0C}"
                 symbol="NODE_ETW_PROVIDER"
-                resourceFileName="iojs.exe"
-                messageFileName="iojs.exe">
+                resourceFileName="node.exe"
+                messageFileName="node.exe">
 
                 <tasks>
                   <task name="MethodRuntime" value="1"

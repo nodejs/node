@@ -3,7 +3,7 @@
 
 
 // Application icon
-1 ICON iojs.ico
+1 ICON node.ico
 
 
 // Version resource
@@ -29,14 +29,14 @@ BEGIN
     BEGIN
         BLOCK "040904b0"
         BEGIN
-            VALUE "CompanyName", "io.js"
-            VALUE "ProductName", "io.js"
-            VALUE "FileDescription", "io.js: Server-side JavaScript"
+            VALUE "CompanyName", "Node.js"
+            VALUE "ProductName", "Node.js"
+            VALUE "FileDescription", "Node.js: Server-side JavaScript"
             VALUE "FileVersion", "NODE_VERSION_STRING"
             VALUE "ProductVersion", "NODE_VERSION_STRING"
-            VALUE "OriginalFilename", "iojs.exe"
-            VALUE "InternalName", "iojs"
-            VALUE "LegalCopyright", "Copyright io.js contributors. MIT license."
+            VALUE "OriginalFilename", "node.exe"
+            VALUE "InternalName", "node"
+            VALUE "LegalCopyright", "Copyright Node.js contributors. MIT license."
         END
     END
     BLOCK "VarFileInfo"

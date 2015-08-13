@@ -1,10 +1,10 @@
-# Contributing to io.js
+# Contributing to Node.js
 
 ## Issue Contributions
 
 When opening new issues or commenting on existing issues on this repository
 please make sure discussions are related to concrete technical issues with the
-io.js software.
+Node.js software.
 
 Discussion of non-technical topics including subjects like intellectual
 property, trademark and high level project questions should move to the
@@ -13,7 +13,7 @@ instead.
 
 ## Code Contributions
 
-The io.js project has an open governance model and welcomes new contributors.
+The Node.js project has an open governance model and welcomes new contributors.
 Individuals making significant and valuable contributions are made
 _Collaborators_ and given commit-access to the project. See the
 [GOVERNANCE.md](./GOVERNANCE.md) document for more information about how this
@@ -23,13 +23,13 @@ This document will guide you through the contribution process.
 
 ### Step 1: Fork
 
-Fork the project [on GitHub](https://github.com/nodejs/io.js) and check out your
+Fork the project [on GitHub](https://github.com/nodejs/node) and check out your
 copy locally.
 
 ```text
-$ git clone git@github.com:username/io.js.git
-$ cd io.js
-$ git remote add upstream git://github.com/nodejs/io.js.git
+$ git clone git@github.com:username/node.git
+$ cd node
+$ git remote add upstream git://github.com/nodejs/node.git
 ```
 
 #### Which branch?
@@ -48,14 +48,14 @@ always welcome but API or behavioral changes to modules at stability level 3
 
 #### Dependencies
 
-io.js has several bundled dependencies in the *deps/* and the *tools/*
+Node.js has several bundled dependencies in the *deps/* and the *tools/*
 directories that are not part of the project proper.  Any changes to files
 in those directories or its subdirectories should be sent to their respective
 projects.  Do not send your patch to us, we cannot accept it.
 
 In case of doubt, open an issue in the
-[issue tracker](https://github.com/nodejs/io.js/issues/) or contact one of the
-[project Collaborators](https://github.com/nodejs/io.js/#current-project-team-members).
+[issue tracker](https://github.com/nodejs/node/issues/) or contact one of the
+[project Collaborators](https://github.com/nodejs/node/#current-project-team-members).
 ([IRC](http://webchat.freenode.net/?channels=io.js) is often the best medium.) Especially do so if you plan to work on something big.  Nothing is more
 frustrating than seeing your hard work go to waste because your vision
 does not align with the project team.
@@ -139,10 +139,10 @@ can use this syntax to run it exactly as the test harness would:
 $ python tools/test.py -v --mode=release parallel/test-stream2-transform
 ```
 
-You can run tests directly with iojs:
+You can run tests directly with node:
 
 ```text
-$ ./iojs ./test/parallel/test-stream2-transform.js
+$ ./node ./test/parallel/test-stream2-transform.js
 ```
 
 Remember to recompile with `make -j8` in between test runs if you change
@@ -154,7 +154,7 @@ core modules.
 $ git push origin my-feature-branch
 ```
 
-Go to https://github.com/yourusername/io.js and select your feature branch.
+Go to https://github.com/yourusername/node and select your feature branch.
 Click the 'Pull Request' button and fill out the form.
 
 Pull requests are usually reviewed within a few days.  If there are comments

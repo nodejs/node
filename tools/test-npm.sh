@@ -6,7 +6,7 @@ set -e
 cd $(dirname $0)/..
 
 # pass a $NODE environment variable from something like Makefile
-# it should point to either ./iojs or ./iojs.exe, depending on the platform
+# it should point to either ./node or ./node.exe, depending on the platform
 if [ -z $NODE ]; then
   echo "No node executable provided. Bailing." >&2
   exit 0

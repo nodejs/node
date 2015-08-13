@@ -260,7 +260,7 @@ See the description of `deflateInit2` and `inflateInit2` at
 
 <!--type=misc-->
 
-From `zlib/zconf.h`, modified to io.js's usage:
+From `zlib/zconf.h`, modified to node.js's usage:
 
 The memory requirements for deflate are (in bytes):
 
@@ -291,7 +291,7 @@ The speed of zlib compression is affected most dramatically by the
 will take longer to complete.  A lower level will result in less
 compression, but will be much faster.
 
-In general, greater memory usage options will mean that io.js has to make
+In general, greater memory usage options will mean that node.js has to make
 fewer calls to zlib, since it'll be able to process more data in a
 single `write` operation.  So, this is another factor that affects the
 speed, at the cost of memory usage.

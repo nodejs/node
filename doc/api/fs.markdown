@@ -72,7 +72,7 @@ site, set the NODE_DEBUG environment variable:
     }
     bad();
 
-    $ env NODE_DEBUG=fs iojs script.js
+    $ env NODE_DEBUG=fs node script.js
     fs.js:66
             throw err;
                   ^
@@ -511,14 +511,14 @@ to `'utf8'`.
 
 Example:
 
-    fs.writeFile('message.txt', 'Hello io.js', function (err) {
+    fs.writeFile('message.txt', 'Hello Node.js', function (err) {
       if (err) throw err;
       console.log('It\'s saved!');
     });
 
 If `options` is a string, then it specifies the encoding. Example:
 
-    fs.writeFile('message.txt', 'Hello io.js', 'utf8', callback);
+    fs.writeFile('message.txt', 'Hello Node.js', 'utf8', callback);
 
 ## fs.writeFileSync(filename, data[, options])
 
@@ -794,7 +794,7 @@ The times in the stat object have the following semantics:
   an earlier value than the current `birthtime` using the `utimes(2)`
   system call.
 
-Prior to io.js v1.0 and Node v0.12, the `ctime` held the `birthtime` on Windows
+Prior to Node v0.12, the `ctime` held the `birthtime` on Windows
 systems.  Note that as of v0.12, `ctime` is not "creation time", and
 on Unix systems, it never was.
 
