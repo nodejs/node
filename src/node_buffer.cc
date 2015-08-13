@@ -281,13 +281,13 @@ MaybeLocal<Object> Copy(Isolate* isolate, const char* data, size_t length) {
   Environment* env = Environment::GetCurrent(isolate);
   EscapableHandleScope handle_scope(env->isolate());
   Local<Object> obj;
-  if (Buffer::New(env, data, length).ToLocal(&obj))
+  if (Buffer::Copy(env, data, length).ToLocal(&obj))
     return handle_scope.Escape(obj);
   return Local<Object>();
 }
 
 
-MaybeLocal<Object> New(Environment* env, const char* data, size_t length) {
+MaybeLocal<Object> Copy(Environment* env, const char* data, size_t length) {
   EscapableHandleScope scope(env->isolate());
 
   // V8 currently only allows a maximum Typed Array index of max Smi.
@@ -365,7 +365,7 @@ MaybeLocal<Object> New(Isolate* isolate, char* data, size_t length) {
   Environment* env = Environment::GetCurrent(isolate);
   EscapableHandleScope handle_scope(env->isolate());
   Local<Object> obj;
-  if (Buffer::New(env, data, length).ToLocal(&obj))
+  if (Buffer::Use(env, data, length).ToLocal(&obj))
     return handle_scope.Escape(obj);
   return Local<Object>();
 }
