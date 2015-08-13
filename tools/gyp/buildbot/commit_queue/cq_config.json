@@ -1,0 +1,15 @@
+{
+    "trybots": {
+        "launched": {
+            "tryserver.nacl": {
+                "gyp-presubmit": ["defaulttests"],
+                "gyp-linux": ["defaulttests"],
+                "gyp-mac": ["defaulttests"],
+                "gyp-win32": ["defaulttests"],
+                "gyp-win64": ["defaulttests"]
+            }
+        },
+        "triggered": {
+        }
+    }
+}
