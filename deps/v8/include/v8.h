@@ -2046,6 +2046,12 @@ class V8_EXPORT String : public Name {
   int Utf8Length() const;
 
   /**
+  * Returns the number of bytes in the CESU-8 encoded
+  * representation of this string.
+  */
+  int Cesu8Length() const;
+
+  /**
    * Returns whether this string is known to contain only one byte data.
    * Does not read the string.
    * False negatives are possible.
@@ -2091,7 +2097,10 @@ class V8_EXPORT String : public Name {
     // Used by WriteUtf8 to replace orphan surrogate code units with the
     // unicode replacement character. Needs to be set to guarantee valid UTF-8
     // output.
-    REPLACE_INVALID_UTF8 = 8
+    REPLACE_INVALID_UTF8 = 8,
+    // Compatibility Encoding Scheme for UTF-16: 8-Bit
+    // a variant of UTF-8 that is described in Unicode Technical Report #26
+    ENCODE_AS_CESU_8 = 16
   };
 
   // 16-bit character codes.

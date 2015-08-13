@@ -264,7 +264,7 @@ inline void NODE_SET_PROTOTYPE_METHOD(v8::Handle<v8::FunctionTemplate> recv,
 }
 #define NODE_SET_PROTOTYPE_METHOD node::NODE_SET_PROTOTYPE_METHOD
 
-enum encoding {ASCII, UTF8, BASE64, UCS2, BINARY, HEX, BUFFER};
+enum encoding {ASCII, UTF8, CESU8, BASE64, UCS2, BINARY, HEX, BUFFER};
 NODE_EXTERN enum encoding ParseEncoding(
     v8::Isolate* isolate,
     v8::Handle<v8::Value> encoding_v,

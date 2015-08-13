@@ -4644,7 +4644,7 @@ class Utf8LengthHelper : public i::AllStatic {
       state_ = kInitialState;
     }
 
-    void VisitTwoByteString(const uint16_t* chars, int length) {
+    virtual void VisitTwoByteString(const uint16_t* chars, int length) {
       int utf8_length = 0;
       int last_character = unibrow::Utf16::kNoPreviousCharacter;
       for (int i = 0; i < length; i++) {
@@ -4673,10 +4673,43 @@ class Utf8LengthHelper : public i::AllStatic {
       return cons_string;
     }
 
-   private:
+   protected:
     int utf8_length_;
     uint8_t state_;
     DISALLOW_COPY_AND_ASSIGN(Visitor);
+  };
+
+  class CesuVisitor : public Visitor {
+   public:
+
+    virtual void VisitTwoByteString(const uint16_t* chars, int length) {
+      int utf8_length = 0;
+      int last_character = unibrow::Utf16::kNoPreviousCharacter;
+      for (int i = 0; i < length; i++) {
+        uint16_t c = chars[i];
+        utf8_length += unibrow::Utf8::CesuLength(c, last_character);
+        last_character = c;
+      }
+      utf8_length_ = utf8_length;
+      uint8_t state = 0;
+      if (unibrow::Utf16::IsTrailSurrogate(chars[0])) {
+        state |= kStartsWithTrailingSurrogate;
+      }
+      if (unibrow::Utf16::IsLeadSurrogate(chars[length-1])) {
+        state |= kEndsWithLeadingSurrogate;
+      }
+      state_ = state;
+    }
+
+    static i::ConsString* VisitFlat(i::String* string,
+                                    int* length,
+                                    uint8_t* state) {
+      CesuVisitor visitor;
+      i::ConsString* cons_string = i::String::VisitFlat(&visitor, string);
+      *length = visitor.utf8_length_;
+      *state = visitor.state_;
+      return cons_string;
+    }
   };
 
   static inline void MergeLeafLeft(int* length,
@@ -4784,6 +4817,104 @@ class Utf8LengthHelper : public i::AllStatic {
     return Calculate(current, &state);
   }
 
+  static inline void CesuMergeLeafLeft(int* length,
+                                   uint8_t* state,
+                                   uint8_t leaf_state) {
+    bool edge_surrogate = StartsWithSurrogate(leaf_state);
+    if (!(*state & kLeftmostEdgeIsCalculated)) {
+      DCHECK(!(*state & kLeftmostEdgeIsSurrogate));
+      *state |= kLeftmostEdgeIsCalculated
+          | (edge_surrogate ? kLeftmostEdgeIsSurrogate : 0);
+    }
+    if (EndsWithSurrogate(leaf_state)) {
+      *state |= kEndsWithLeadingSurrogate;
+    } else {
+      *state &= ~kEndsWithLeadingSurrogate;
+    }
+  }
+
+  static inline void CesuMergeLeafRight(int* length,
+                                    uint8_t* state,
+                                    uint8_t leaf_state) {
+    bool edge_surrogate = EndsWithSurrogate(leaf_state);
+    if (!(*state & kRightmostEdgeIsCalculated)) {
+      DCHECK(!(*state & kRightmostEdgeIsSurrogate));
+      *state |= (kRightmostEdgeIsCalculated
+                 | (edge_surrogate ? kRightmostEdgeIsSurrogate : 0));
+    }
+    if (StartsWithSurrogate(leaf_state)) {
+      *state |= kStartsWithTrailingSurrogate;
+    } else {
+      *state &= ~kStartsWithTrailingSurrogate;
+    }
+  }
+
+  static inline void CesuMergeTerminal(int* length,
+                                   uint8_t state,
+                                   uint8_t* state_out) {
+    DCHECK((state & kLeftmostEdgeIsCalculated) &&
+           (state & kRightmostEdgeIsCalculated));
+    *state_out = kInitialState |
+        (state & kLeftmostEdgeIsSurrogate ? kStartsWithTrailingSurrogate : 0) |
+        (state & kRightmostEdgeIsSurrogate ? kEndsWithLeadingSurrogate : 0);
+  }
+
+  static int CesuCalculate(i::ConsString* current, uint8_t* state_out) {
+    using namespace internal;
+    int total_length = 0;
+    uint8_t state = kInitialState;
+    while (true) {
+      i::String* left = current->first();
+      i::String* right = current->second();
+      uint8_t right_leaf_state;
+      uint8_t left_leaf_state;
+      int leaf_length;
+      ConsString* left_as_cons =
+          Visitor::VisitFlat(left, &leaf_length, &left_leaf_state);
+      if (left_as_cons == NULL) {
+        total_length += leaf_length;
+        CesuMergeLeafLeft(&total_length, &state, left_leaf_state);
+      }
+      ConsString* right_as_cons =
+          Visitor::VisitFlat(right, &leaf_length, &right_leaf_state);
+      if (right_as_cons == NULL) {
+        total_length += leaf_length;
+        CesuMergeLeafRight(&total_length, &state, right_leaf_state);
+        if (left_as_cons != NULL) {
+          // 1 Leaf node. Descend in place.
+          current = left_as_cons;
+          continue;
+        } else {
+          // Terminal node.
+          CesuMergeTerminal(&total_length, state, state_out);
+          return total_length;
+        }
+      } else if (left_as_cons == NULL) {
+        // 1 Leaf node. Descend in place.
+        current = right_as_cons;
+        continue;
+      }
+      // Both strings are ConsStrings.
+      // Recurse on smallest.
+      if (left->length() < right->length()) {
+        total_length += CesuCalculate(left_as_cons, &left_leaf_state);
+        CesuMergeLeafLeft(&total_length, &state, left_leaf_state);
+        current = right_as_cons;
+      } else {
+        total_length += CesuCalculate(right_as_cons, &right_leaf_state);
+        CesuMergeLeafRight(&total_length, &state, right_leaf_state);
+        current = left_as_cons;
+      }
+    }
+    UNREACHABLE();
+    return 0;
+  }
+
+  static inline int CesuCalculate(i::ConsString* current) {
+    uint8_t state = kInitialState;
+    return CesuCalculate(current, &state);
+  }
+  
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Utf8LengthHelper);
 };
@@ -4799,13 +4930,27 @@ static int Utf8Length(i::String* str, i::Isolate* isolate) {
   return Utf8LengthHelper::Calculate(cons_string);
 }
 
-
 int String::Utf8Length() const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
   i::Isolate* isolate = str->GetIsolate();
   return v8::Utf8Length(*str, isolate);
 }
 
+static int Cesu8Length(i::String* str, i::Isolate* isolate) {
+  int length = str->length();
+  if (length == 0) return 0;
+  uint8_t state;
+  i::ConsString* cons_string =
+      Utf8LengthHelper::CesuVisitor::VisitFlat(str, &length, &state);
+  if (cons_string == NULL) return length;
+  return Utf8LengthHelper::CesuCalculate(cons_string);
+}
+
+int String::Cesu8Length() const {
+  i::Handle<i::String> str = Utils::OpenHandle(this);
+  i::Isolate* isolate = str->GetIsolate();
+  return v8::Cesu8Length(*str, isolate);
+}
 
 class Utf8WriterVisitor {
  public:
@@ -4813,7 +4958,8 @@ class Utf8WriterVisitor {
       char* buffer,
       int capacity,
       bool skip_capacity_check,
-      bool replace_invalid_utf8)
+      bool replace_invalid_utf8,
+      bool encode_as_cesu_8)
     : early_termination_(false),
       last_character_(unibrow::Utf16::kNoPreviousCharacter),
       buffer_(buffer),
@@ -4821,6 +4967,7 @@ class Utf8WriterVisitor {
       capacity_(capacity),
       skip_capacity_check_(capacity == -1 || skip_capacity_check),
       replace_invalid_utf8_(replace_invalid_utf8),
+      encode_as_cesu_8_(encode_as_cesu_8),
       utf16_chars_read_(0) {
   }
 
@@ -4828,17 +4975,19 @@ class Utf8WriterVisitor {
                                int last_character,
                                int remaining,
                                char* const buffer,
-                               bool replace_invalid_utf8) {
+                               bool replace_invalid_utf8,
+                               bool encode_as_cesu_8) {
     using namespace unibrow;
     DCHECK(remaining > 0);
     // We can't use a local buffer here because Encode needs to modify
     // previous characters in the stream.  We know, however, that
     // exactly one character will be advanced.
-    if (Utf16::IsSurrogatePair(last_character, character)) {
+    if (!encode_as_cesu_8 && Utf16::IsSurrogatePair(last_character, character)) {
       int written = Utf8::Encode(buffer,
                                  character,
                                  last_character,
-                                 replace_invalid_utf8);
+                                 replace_invalid_utf8,
+                                 encode_as_cesu_8);
       DCHECK(written == 1);
       return written;
     }
@@ -4848,7 +4997,8 @@ class Utf8WriterVisitor {
     int written = Utf8::Encode(temp_buffer,
                                character,
                                Utf16::kNoPreviousCharacter,
-                               replace_invalid_utf8);
+                               replace_invalid_utf8,
+                               encode_as_cesu_8);
     // Won't fit.
     if (written > remaining) return 0;
     // Copy over the character from temp_buffer.
@@ -4908,7 +5058,8 @@ class Utf8WriterVisitor {
           buffer += Utf8::Encode(buffer,
                                  character,
                                  last_character,
-                                 replace_invalid_utf8_);
+                                 replace_invalid_utf8_,
+                                 encode_as_cesu_8_);
           last_character = character;
           DCHECK(capacity_ == -1 || (buffer - start_) <= capacity_);
         }
@@ -4938,7 +5089,8 @@ class Utf8WriterVisitor {
                                       last_character,
                                       remaining_capacity,
                                       buffer,
-                                      replace_invalid_utf8_);
+                                      replace_invalid_utf8_,
+                                      encode_as_cesu_8_);
       if (written == 0) {
         early_termination_ = true;
         break;
@@ -4987,6 +5139,7 @@ class Utf8WriterVisitor {
   int capacity_;
   bool const skip_capacity_check_;
   bool const replace_invalid_utf8_;
+  bool const encode_as_cesu_8_;
   int utf16_chars_read_;
   DISALLOW_IMPLICIT_CONSTRUCTORS(Utf8WriterVisitor);
 };
@@ -5026,10 +5179,12 @@ int String::WriteUtf8(char* buffer,
   const int string_length = str->length();
   bool write_null = !(options & NO_NULL_TERMINATION);
   bool replace_invalid_utf8 = (options & REPLACE_INVALID_UTF8);
+  bool encode_as_cesu_8 = (options & ENCODE_AS_CESU_8);
   int max16BitCodeUnitSize = unibrow::Utf8::kMax16BitCodeUnitSize;
   // First check if we can just write the string without checking capacity.
   if (capacity == -1 || capacity / max16BitCodeUnitSize >= string_length) {
-    Utf8WriterVisitor writer(buffer, capacity, true, replace_invalid_utf8);
+    Utf8WriterVisitor writer(buffer, capacity, true, replace_invalid_utf8,
+                             encode_as_cesu_8);
     const int kMaxRecursion = 100;
     bool success = RecursivelySerializeToUtf8(*str, &writer, kMaxRecursion);
     if (success) return writer.CompleteWrite(write_null, nchars_ref);
@@ -5057,7 +5212,8 @@ int String::WriteUtf8(char* buffer,
   }
   // Recursive slow path can potentially be unreasonable slow. Flatten.
   str = i::String::Flatten(str);
-  Utf8WriterVisitor writer(buffer, capacity, false, replace_invalid_utf8);
+  Utf8WriterVisitor writer(buffer, capacity, false, replace_invalid_utf8,
+                           encode_as_cesu_8);
   i::String::VisitFlat(&writer, *str);
   return writer.CompleteWrite(write_null, nchars_ref);
 }

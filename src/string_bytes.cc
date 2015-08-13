@@ -333,6 +333,11 @@ size_t StringBytes::Write(Isolate* isolate,
       nbytes = str->WriteUtf8(buf, buflen, chars_written, flags);
       break;
 
+    case CESU8:
+      nbytes = str->WriteUtf8(buf, buflen, chars_written,
+                              (flags | String::ENCODE_AS_CESU_8));
+      break;
+
     case UCS2: {
       uint16_t* const dst = reinterpret_cast<uint16_t*>(buf);
       size_t nchars;
@@ -477,6 +482,10 @@ size_t StringBytes::Size(Isolate* isolate,
 
     case UTF8:
       data_size = str->Utf8Length();
+      break;
+
+    case CESU8:
+      data_size = str->Cesu8Length();
       break;
 
     case UCS2:

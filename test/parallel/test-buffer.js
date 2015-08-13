@@ -1189,3 +1189,9 @@ assert.throws(function() {
 assert.throws(function() {
   new Buffer(null);
 }, /must start with number, buffer, array or string/);
+
+// String encoded as CESU-8
+var grinning_face = new Buffer('f09f9880', 'hex').toString();
+var grinning_face_buf = new Buffer(grinning_face, 'cesu-8');
+var grinning_face_hex = grinning_face_buf.toString('hex').toLowerCase();
+assert.equal(grinning_face_hex, 'eda0bdedb880');
