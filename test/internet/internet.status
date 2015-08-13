@@ -7,5 +7,6 @@ test-dns                                : PASS,FLAKY
 [$system==linux]
 
 [$system==macos]
+test-dgram-multicast-multi-process      : PASS,FLAKY
 
 [$system==solaris]

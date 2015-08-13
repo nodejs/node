@@ -8,6 +8,9 @@ test-net-GH-5504                        : PASS,FLAKY
 test-debugger-repl-restart              : PASS,FLAKY
 test-http-curl-chunk-problem            : PASS,FLAKY
 test-fs-empty-readStream                : PASS,FLAKY
+test-debugger-repl                      : PASS,FLAKY
+test-debugger-repl-break-in-module      : PASS,FLAKY
+test-debugger-repl-utf8                 : PASS,FLAKY
 
 [$system==win32]
 test-cluster-bind-twice-v2              : PASS,FLAKY
@@ -29,8 +32,5 @@ test-cluster-master-error               : PASS,FLAKY
 test-http-exit-delay                    : PASS,FLAKY
 
 [$system==solaris]
-test-debugger-repl                      : PASS,FLAKY
-test-debugger-repl-break-in-module      : PASS,FLAKY
-test-debugger-repl-utf8                 : PASS,FLAKY
 test-net-server-max-connections         : PASS,FLAKY
 test-net-error-twice                    : PASS,FLAKY
