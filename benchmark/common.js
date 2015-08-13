@@ -19,7 +19,7 @@ if (module === require.main) {
   var type = process.argv[2];
   var testFilter = process.argv[3];
   if (!type) {
-    console.error('usage:\n ./iojs benchmark/common.js <type> [testFilter]');
+    console.error('usage:\n ./node benchmark/common.js <type> [testFilter]');
     process.exit(1);
   }
 

@@ -4,8 +4,8 @@
 
 <!--name=module-->
 
-io.js has a simple module loading system.  In io.js, files and modules are in
-one-to-one correspondence.  As an example, `foo.js` loads the module
+Node.js has a simple module loading system.  In Node.js, files and modules are
+in one-to-one correspondence.  As an example, `foo.js` loads the module
 `circle.js` in the same directory.
 
 The contents of `foo.js`:
@@ -100,7 +100,7 @@ provided to the `a.js` module.
 By the time `main.js` has loaded both modules, they're both finished.
 The output of this program would thus be:
 
-    $ iojs main.js
+    $ node main.js
     main starting
     a starting
     b starting
@@ -117,10 +117,10 @@ plan accordingly.
 
 <!--type=misc-->
 
-io.js has several modules compiled into the binary.  These modules are
+Node.js has several modules compiled into the binary.  These modules are
 described in greater detail elsewhere in this documentation.
 
-The core modules are defined in io.js's source in the `lib/` folder.
+The core modules are defined in Node.js's source in the `lib/` folder.
 
 Core modules are always preferentially loaded if their identifier is
 passed to `require()`.  For instance, `require('http')` will always
@@ -130,7 +130,7 @@ return the built in HTTP module, even if there is a file by that name.
 
 <!--type=misc-->
 
-If the exact filename is not found, then io.js will attempt to load the
+If the exact filename is not found, then Node.js will attempt to load the
 required filename with the added extension of `.js`, `.json`, and then `.node`.
 
 `.js` files are interpreted as JavaScript text files, and `.json` files are
@@ -156,7 +156,7 @@ If the given path does not exist, `require()` will throw an Error with its
 <!--type=misc-->
 
 If the module identifier passed to `require()` is not a native module,
-and does not begin with `'/'`, `'../'`, or `'./'`, then io.js starts at the
+and does not begin with `'/'`, `'../'`, or `'./'`, then Node.js starts at the
 parent directory of the current module, and adds `/node_modules`, and
 attempts to load the module from that location.
 
@@ -164,7 +164,7 @@ If it is not found there, then it moves to the parent directory, and so
 on, until the root of the file system is reached.
 
 For example, if the file at `'/home/ry/projects/foo.js'` called
-`require('bar.js')`, then io.js would look in the following locations, in
+`require('bar.js')`, then Node.js would look in the following locations, in
 this order:
 
 * `/home/ry/projects/node_modules/bar.js`
@@ -201,9 +201,9 @@ If this was in a folder at `./some-library`, then
 `require('./some-library')` would attempt to load
 `./some-library/lib/some-library.js`.
 
-This is the extent of io.js's awareness of package.json files.
+This is the extent of Node.js's awareness of package.json files.
 
-If there is no package.json file present in the directory, then io.js
+If there is no package.json file present in the directory, then Node.js
 will attempt to load an `index.js` or `index.node` file out of that
 directory.  For example, if there was no package.json file in the above
 example, then `require('./some-library')` would attempt to load:
@@ -253,10 +253,10 @@ a global but rather local to each module.
 
 * {Object}
 
-The `module.exports` object is created by the Module system. Sometimes this is not
-acceptable; many want their module to be an instance of some class. To do this,
-assign the desired export object to `module.exports`. Note that assigning the
-desired object to `exports` will simply rebind the local `exports` variable,
+The `module.exports` object is created by the Module system. Sometimes this is
+not acceptable; many want their module to be an instance of some class. To do
+this, assign the desired export object to `module.exports`. Note that assigning
+the desired object to `exports` will simply rebind the local `exports` variable,
 which is probably not what you want to do.
 
 For example suppose we were making a module called `a.js`
@@ -425,29 +425,29 @@ in pseudocode of what require.resolve does:
 <!-- type=misc -->
 
 If the `NODE_PATH` environment variable is set to a colon-delimited list
-of absolute paths, then io.js will search those paths for modules if they
+of absolute paths, then Node.js will search those paths for modules if they
 are not found elsewhere.  (Note: On Windows, `NODE_PATH` is delimited by
 semicolons instead of colons.)
 
 `NODE_PATH` was originally created to support loading modules from
 varying paths before the current
-[module resolution](https://iojs.org/api/modules.html#modules_all_together)
+[module resolution](https://nodejs.org/api/modules.html#modules_all_together)
 algorithm was frozen.
 
-`NODE_PATH` is still supported, but is less necessary now that the io.js
+`NODE_PATH` is still supported, but is less necessary now that the Node.js
 ecosystem has settled on a convention for locating dependent modules.
 Sometimes deployments that rely on `NODE_PATH` show surprising behavior
 when people are unaware that `NODE_PATH` must be set.  Sometimes a
 module's dependencies change, causing a different version (or even a
 different module) to be loaded as the `NODE_PATH` is searched.
 
-Additionally, io.js will search in the following locations:
+Additionally, Node.js will search in the following locations:
 
 * 1: `$HOME/.node_modules`
 * 2: `$HOME/.node_libraries`
 * 3: `$PREFIX/lib/node`
 
-Where `$HOME` is the user's home directory, and `$PREFIX` is io.js's
+Where `$HOME` is the user's home directory, and `$PREFIX` is Node.js's
 configured `node_prefix`.
 
 These are mostly for historic reasons.  **You are highly encouraged
@@ -458,13 +458,13 @@ will be loaded faster, and more reliably.
 
 <!-- type=misc -->
 
-When a file is run directly from io.js, `require.main` is set to its
+When a file is run directly from Node.js, `require.main` is set to its
 `module`. That means that you can determine whether a file has been run
 directly by testing
 
     require.main === module
 
-For a file `foo.js`, this will be `true` if run via `iojs foo.js`, but
+For a file `foo.js`, this will be `true` if run via `node foo.js`, but
 `false` if run by `require('./foo')`.
 
 Because `module` provides a `filename` property (normally equivalent to
@@ -475,10 +475,10 @@ by checking `require.main.filename`.
 
 <!-- type=misc -->
 
-The semantics of io.js's `require()` function were designed to be general
+The semantics of Node.js's `require()` function were designed to be general
 enough to support a number of sane directory structures. Package manager
 programs such as `dpkg`, `rpm`, and `npm` will hopefully find it possible to
-build native packages from io.js modules without modification.
+build native packages from Node.js modules without modification.
 
 Below we give a suggested directory structure that could work:
 
@@ -491,7 +491,7 @@ may have to install a specific version of package `bar`.  The `bar` package
 may itself have dependencies, and in some cases, these dependencies may even
 collide or form cycles.
 
-Since io.js looks up the `realpath` of any modules it loads (that is,
+Since Node.js looks up the `realpath` of any modules it loads (that is,
 resolves symlinks), and then looks for their dependencies in the
 `node_modules` folders as described above, this situation is very simple to
 resolve with the following architecture:
@@ -516,10 +516,10 @@ the version that is symlinked into
 
 Furthermore, to make the module lookup process even more optimal, rather
 than putting packages directly in `/usr/lib/node`, we could put them in
-`/usr/lib/node_modules/<name>/<version>`.  Then io.js will not bother
+`/usr/lib/node_modules/<name>/<version>`.  Then Node.js will not bother
 looking for missing dependencies in `/usr/node_modules` or `/node_modules`.
 
-In order to make modules available to the io.js REPL, it might be useful to
+In order to make modules available to the Node.js REPL, it might be useful to
 also add the `/usr/lib/node_modules` folder to the `$NODE_PATH` environment
 variable.  Since the module lookups using `node_modules` folders are all
 relative, and based on the real path of the files making the calls to

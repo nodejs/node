@@ -1,6 +1,6 @@
 var assert = require('assert');
 
-// https://github.com/nodejs/io.js/issues/1803
+// https://github.com/nodejs/node/issues/1803
 // this module is used as a preload module. It should have a parent with the
 // module search paths initialized from the current working directory
 assert.ok(module.parent);

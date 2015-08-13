@@ -1,7 +1,7 @@
-## How to upgrade openssl library in io.js
+## How to upgrade openssl library in Node.js
 
 This document describes the procedure to upgrade openssl from 1.0.2a
-to 1.0.2c in io.js.
+to 1.0.2c in Node.js.
 
 
 ### Build System and Upgrading Overview
@@ -17,16 +17,16 @@ hardware performance according to the type of cpus.
 `Configure TABLE` shows various build parameters that depend on each
 os and arch.
 
-In io.js, build target is defined as `--dest-os` and `--dest-cpu` in
+In Node.js, build target is defined as `--dest-os` and `--dest-cpu` in
 configure options which are different from the one that is defined in
 openssl and it's build system is gyp that is based on python,
 therefore we cannot use the openssl build system directly.
 
-In order to build openssl with gyp in iojs, files of opensslconf.h and
+In order to build openssl with gyp in node, files of opensslconf.h and
 asm are generated in advance for several supported platforms.
 
 Here is a map table to show conf(opensslconf.h) and asm between
-the openssl target and configuration parameters of os and cpu in iojs.
+the openssl target and configuration parameters of os and cpu in node.
 The tested platform in CI are also listed.
 
 | --dest-os | --dest-cpu | conf | asm  | openssl target     | CI |
@@ -74,7 +74,7 @@ build. Furthermore, these perl scripts check the version of assembler
 and generate asm files according to the supported instructions in each
 compiler.
 
-Since perl is not a build requirement in iojs, they all should be
+Since perl is not a build requirement in node, they all should be
 generated in advance and statically stored in the repository. We
 provide two sets of asm files, one is asm_latest(avx2 and addx
 supported) in `deps/openssl/asm` and the other asm_obsolete(without
@@ -91,7 +91,7 @@ https://github.com/openssl/openssl/blob/OpenSSL_1_0_2-stable/crypto/sha/asm/sha5
 otherwise asm_obsolete are used.
 
 The following is the detail instruction steps how to upgrade openssl
-version from 1.0.2a to 1.0.2c in iojs.
+version from 1.0.2a to 1.0.2c in node.
 
 ### 1. Replace openssl source in `deps/openssl/openssl`
 Remove old openssl sources in `deps/openssl/openssl` .
@@ -104,7 +104,7 @@ There are three kinds of private patches to be applied in openssl-1.0.2c.
 
 - The two fixes of assembly error on ia32 win32. masm is no longer
   supported in openssl. We should move to use nasm or yasm in future
-  version of iojs.
+  version of node.
 
 - The fix of openssl-cli built on win. Key press requirement of
   openssl-cli in win causes timeout failures of several tests.

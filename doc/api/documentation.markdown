@@ -2,7 +2,7 @@
 
 <!-- type=misc -->
 
-The goal of this documentation is to comprehensively explain the io.js
+The goal of this documentation is to comprehensively explain the Node.js
 API, both from a reference as well as a conceptual point of view.  Each
 section describes a built-in module or high-level concept.
 
@@ -16,7 +16,7 @@ experimental, and added for the benefit of IDEs and other utilities that
 wish to do programmatic things with the documentation.
 
 Every `.html` and `.json` file is generated based on the corresponding
-`.markdown` file in the `doc/api/` folder in io.js's source tree.  The
+`.markdown` file in the `doc/api/` folder in Node.js's source tree.  The
 documentation is generated using the `tools/doc/generate.js` program.
 The HTML template is located at `doc/template.html`.
 
@@ -25,7 +25,7 @@ The HTML template is located at `doc/template.html`.
 <!--type=misc-->
 
 Throughout the documentation, you will see indications of a section's
-stability.  The io.js API is still somewhat changing, and as it
+stability.  The Node.js API is still somewhat changing, and as it
 matures, certain parts are more reliable than others.  Some are so
 proven, and so relied upon, that they are unlikely to ever change at
 all.  Others are brand new and experimental, or known to be hazardous

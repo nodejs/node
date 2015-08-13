@@ -115,7 +115,7 @@ Object.defineProperty(exports, 'opensslCli', {get: function() {
     // use external command
     opensslCli = 'openssl';
   } else {
-    // use command built from sources included in io.js repository
+    // use command built from sources included in Node.js repository
     opensslCli = path.join(path.dirname(process.execPath), 'openssl-cli');
   }
 

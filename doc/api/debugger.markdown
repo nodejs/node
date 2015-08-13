@@ -6,10 +6,10 @@
 
 V8 comes with an extensive debugger which is accessible out-of-process via a
 simple [TCP protocol](http://code.google.com/p/v8/wiki/DebuggerProtocol).
-io.js has a built-in client for this debugger. To use this, start io.js with the
-`debug` argument; a prompt will appear:
+Node.js has a built-in client for this debugger. To use this, start Node.js with
+the `debug` argument; a prompt will appear:
 
-    % iojs debug myscript.js
+    % node debug myscript.js
     < debugger listening on port 5858
     connecting... ok
     break in /home/indutny/Code/git/indutny/myscript.js:1
@@ -18,7 +18,7 @@ io.js has a built-in client for this debugger. To use this, start io.js with the
       3   debugger;
     debug>
 
-io.js's debugger client doesn't support the full range of commands, but
+Node.js's debugger client doesn't support the full range of commands, but
 simple step and inspection is possible. By putting the statement `debugger;`
 into the source code of your script, you will enable a breakpoint.
 
@@ -34,7 +34,7 @@ For example, suppose `myscript.js` looked like this:
 
 Then once the debugger is run, it will break on line 4.
 
-    % iojs debug myscript.js
+    % node debug myscript.js
     < debugger listening on port 5858
     connecting... ok
     break in /home/indutny/Code/git/indutny/myscript.js:1
@@ -113,7 +113,7 @@ on line 1
 It is also possible to set a breakpoint in a file (module) that
 isn't loaded yet:
 
-    % ./iojs debug test/fixtures/break-in-module/main.js
+    % ./node debug test/fixtures/break-in-module/main.js
     < debugger listening on port 5858
     connecting to port 5858... ok
     break in test/fixtures/break-in-module/main.js:1
@@ -158,13 +158,13 @@ breakpoint)
 
 ## Advanced Usage
 
-The V8 debugger can be enabled and accessed either by starting io.js with
-the `--debug` command-line flag or by signaling an existing io.js process
+The V8 debugger can be enabled and accessed either by starting Node.js with
+the `--debug` command-line flag or by signaling an existing Node.js process
 with `SIGUSR1`.
 
 Once a process has been set in debug mode with this it can be connected to
-with the io.js debugger. Either connect to the `pid` or the URI to the debugger.
-The syntax is:
+with the Node.js debugger. Either connect to the `pid` or the URI to the
+debugger. The syntax is:
 
-* `iojs debug -p <pid>` - Connects to the process via the `pid`
-* `iojs debug <URI>` - Connects to the process via the URI such as localhost:5858
+* `node debug -p <pid>` - Connects to the process via the `pid`
+* `node debug <URI>` - Connects to the process via the URI such as localhost:5858

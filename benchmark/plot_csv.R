@@ -5,7 +5,7 @@
 #
 # Once installed, you can generate some CSV output with a command like this:
 #
-#     $ OUTPUT_FORMAT=csv iojs benchmark/http/client-request-body.js > data.csv
+#     $ OUTPUT_FORMAT=csv node benchmark/http/client-request-body.js > data.csv
 #     $ ./benchmark/plot_csv.R data.csv data.png bytes type
 #
 # Where the 3rd argument to this script is the graph's X coordinate, the 4th is

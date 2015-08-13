@@ -5,12 +5,12 @@
 These functions are in the module `'util'`. Use `require('util')` to
 access them.
 
-The `util` module is primarily designed to support the needs of io.js's
+The `util` module is primarily designed to support the needs of node.js's
 internal APIs.  Many of these utilities are useful for your own
 programs.  If you find that these functions are lacking for your
 purposes, however, you are encouraged to write your own utilities.  We
 are not interested in any future additions to the `util` module that
-are unnecessary for io.js's internal functionality.
+are unnecessary for node.js's internal functionality.
 
 ## util.debuglog(section)
 
@@ -131,7 +131,7 @@ Highlighted styles and their default values are:
  * `special` - only function at this time (cyan)
  * `name` (intentionally no styling)
 
-Predefined color codes are: `white`, `grey`, `black`, `blue`, `cyan`, 
+Predefined color codes are: `white`, `grey`, `black`, `blue`, `cyan`,
 `green`, `magenta`, `red` and `yellow`.
 There are also `bold`, `italic`, `underline` and `inverse` codes.
 

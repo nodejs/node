@@ -2768,19 +2768,19 @@ void SetupProcessObject(Environment* env,
   // process.release
   Local<Object> release = Object::New(env->isolate());
   READONLY_PROPERTY(process, "release", release);
-  READONLY_PROPERTY(release, "name", OneByteString(env->isolate(), "io.js"));
+  READONLY_PROPERTY(release, "name", OneByteString(env->isolate(), "node.js"));
 
 // if this is a release build and no explicit base has been set
 // substitute the standard release download URL
 #ifndef NODE_RELEASE_URLBASE
 # if NODE_VERSION_IS_RELEASE
-#  define NODE_RELEASE_URLBASE "https://iojs.org/download/release/"
+#  define NODE_RELEASE_URLBASE "https://nodejs.org/download/release/"
 # endif
 #endif
 
 #if defined(NODE_RELEASE_URLBASE)
 #  define _RELEASE_URLPFX NODE_RELEASE_URLBASE "v" NODE_VERSION_STRING "/"
-#  define _RELEASE_URLFPFX _RELEASE_URLPFX "iojs-v" NODE_VERSION_STRING
+#  define _RELEASE_URLFPFX _RELEASE_URLPFX "node-v" NODE_VERSION_STRING
 
   READONLY_PROPERTY(release,
                     "sourceUrl",
@@ -2794,7 +2794,7 @@ void SetupProcessObject(Environment* env,
   READONLY_PROPERTY(release,
                     "libUrl",
                     OneByteString(env->isolate(),
-                    _RELEASE_URLPFX "win-" NODE_ARCH "/iojs.lib"));
+                    _RELEASE_URLPFX "win-" NODE_ARCH "/node.lib"));
 #  endif
 #endif
 
@@ -3092,11 +3092,11 @@ static bool ParseDebugOpt(const char* arg) {
 }
 
 static void PrintHelp() {
-  printf("Usage: iojs [options] [ -e script | script.js ] [arguments] \n"
-         "       iojs debug script.js [arguments] \n"
+  printf("Usage: node [options] [ -e script | script.js ] [arguments] \n"
+         "       node debug script.js [arguments] \n"
          "\n"
          "Options:\n"
-         "  -v, --version         print io.js version\n"
+         "  -v, --version         print Node.js version\n"
          "  -e, --eval script     evaluate script\n"
          "  -p, --print           evaluate script and print result\n"
          "  -i, --interactive     always enter the REPL even if stdin\n"
@@ -3138,7 +3138,7 @@ static void PrintHelp() {
 #endif
 #endif
          "\n"
-         "Documentation can be found at https://iojs.org/\n");
+         "Documentation can be found at https://nodejs.org/\n");
 }
 
 
@@ -3664,12 +3664,12 @@ void Init(int* argc,
     defined(__ARM_ARCH_6T2__) || \
     defined(__ARM_ARCH_6ZK__) || \
     defined(__ARM_ARCH_6Z__)
-  // See https://github.com/nodejs/io.js/issues/1376
+  // See https://github.com/nodejs/node/issues/1376
   // and https://code.google.com/p/v8/issues/detail?id=4019
   // TODO(bnoordhuis): Remove test/parallel/test-arm-math-exp-regress-1376.js
   // and this workaround when v8:4019 has been fixed and the patch back-ported.
   V8::SetFlagsFromString("--nofast_math", sizeof("--nofast_math") - 1);
-  // See https://github.com/nodejs/io.js/pull/2220#issuecomment-126200059
+  // See https://github.com/nodejs/node/pull/2220#issuecomment-126200059
   // and https://code.google.com/p/v8/issues/detail?id=4338
   // TODO(targos): Remove this workaround when v8:4338 has been fixed and the
   // patch back-ported.

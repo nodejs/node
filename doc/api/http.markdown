@@ -4,7 +4,7 @@
 
 To use the HTTP server and client one must `require('http')`.
 
-The HTTP interfaces in io.js are designed to support many features
+The HTTP interfaces in Node.js are designed to support many features
 of the protocol which have been traditionally difficult to use.
 In particular, large, possibly chunk-encoded, messages. The interface is
 careful to never buffer entire requests or responses--the
@@ -20,7 +20,7 @@ HTTP message headers are represented by an object like this:
 
 Keys are lowercased. Values are not modified.
 
-In order to support the full spectrum of possible HTTP applications, io.js's
+In order to support the full spectrum of possible HTTP applications, Node.js's
 HTTP API is very low-level. It deals with stream handling and message
 parsing only. It parses a message into headers and body but it does not
 parse the actual headers or the body.
@@ -302,7 +302,7 @@ Note that Content-Length is given in bytes not characters. The above example
 works because the string `'hello world'` contains only single byte characters.
 If the body contains higher coded characters then `Buffer.byteLength()`
 should be used to determine the number of bytes in a given encoding.
-And io.js does not check whether Content-Length and the length of the body
+And Node.js does not check whether Content-Length and the length of the body
 which has been transmitted are equal or not.
 
 ### response.setTimeout(msecs, callback)
@@ -412,7 +412,7 @@ higher-level multi-part body encodings that may be used.
 
 The first time `response.write()` is called, it will send the buffered
 header information and the first body to the client. The second time
-`response.write()` is called, io.js assumes you're going to be streaming
+`response.write()` is called, Node.js assumes you're going to be streaming
 data, and sends that separately. That is, the response is buffered up to the
 first chunk of body.
 
@@ -459,7 +459,7 @@ as `false`. After `response.end()` executes, the value will be `true`.
 
 ## http.request(options[, callback])
 
-io.js maintains several connections per server to make HTTP requests.
+Node.js maintains several connections per server to make HTTP requests.
 This function allows one to transparently issue requests.
 
 `options` can be an object or a string. If `options` is a string, it is
@@ -547,7 +547,7 @@ on the returned request object.
 
 There are a few special headers that should be noted.
 
-* Sending a 'Connection: keep-alive' will notify io.js that the connection to
+* Sending a 'Connection: keep-alive' will notify Node.js that the connection to
   the server should be persisted until the next request.
 
 * Sending a 'Content-length' header will disable the default chunked encoding.
@@ -562,7 +562,7 @@ There are a few special headers that should be noted.
 
 ## http.get(options[, callback])
 
-Since most requests are GET requests without bodies, io.js provides this
+Since most requests are GET requests without bodies, Node.js provides this
 convenience method. The only difference between this method and `http.request()`
 is that it sets the method to GET and calls `req.end()` automatically.
 
@@ -582,7 +582,7 @@ requests.
 
 The HTTP Agent also defaults client requests to using
 Connection:keep-alive. If no pending HTTP requests are waiting on a
-socket to become free the socket is closed. This means that io.js's
+socket to become free the socket is closed. This means that Node.js's
 pool has the benefit of keep-alive when under load but still does not
 require developers to manually close the HTTP clients using
 KeepAlive.
@@ -591,7 +591,7 @@ If you opt into using HTTP KeepAlive, you can create an Agent object
 with that flag set to `true`.  (See the [constructor
 options](#http_new_agent_options) below.)  Then, the Agent will keep
 unused sockets in a pool for later use.  They will be explicitly
-marked so as to not keep the io.js process running.  However, it is
+marked so as to not keep the Node.js process running.  However, it is
 still a good idea to explicitly [`destroy()`](#http_agent_destroy)
 KeepAlive agents when they are no longer in use, so that the Sockets
 will be shut down.
@@ -723,7 +723,7 @@ Until the data is consumed, the `'end'` event will not fire.  Also, until
 the data is read it will consume memory that can eventually lead to a
 'process out of memory' error.
 
-Note: io.js does not check whether Content-Length and the length of the body
+Note: Node.js does not check whether Content-Length and the length of the body
 which has been transmitted are equal or not.
 
 The request implements the [Writable Stream][] interface. This is an
@@ -772,7 +772,7 @@ A client server pair that show you how to listen for the `connect` event.
       var srvUrl = url.parse('http://' + req.url);
       var srvSocket = net.connect(srvUrl.port, srvUrl.hostname, function() {
         cltSocket.write('HTTP/1.1 200 Connection Established\r\n' +
-                        'Proxy-agent: io.js-Proxy\r\n' +
+                        'Proxy-agent: Node.js-Proxy\r\n' +
                         '\r\n');
         srvSocket.write(head);
         srvSocket.pipe(cltSocket);
@@ -879,7 +879,7 @@ emitted on the first call to `abort()`.
 
 Flush the request headers.
 
-For efficiency reasons, io.js normally buffers the request headers until you
+For efficiency reasons, Node.js normally buffers the request headers until you
 call `request.end()` or write the first chunk of request data.  It then tries
 hard to pack the request headers and data into a single TCP packet.
 
@@ -1043,7 +1043,7 @@ Then `request.url` will be:
 If you would like to parse the URL into its parts, you can use
 `require('url').parse(request.url)`.  Example:
 
-    iojs> require('url').parse('/status?name=ryan')
+    node> require('url').parse('/status?name=ryan')
     { href: '/status?name=ryan',
       search: '?name=ryan',
       query: 'name=ryan',
@@ -1053,7 +1053,7 @@ If you would like to extract the params from the query string,
 you can use the `require('querystring').parse` function, or pass
 `true` as the second argument to `require('url').parse`.  Example:
 
-    iojs> require('url').parse('/status?name=ryan', true)
+    node> require('url').parse('/status?name=ryan', true)
     { href: '/status?name=ryan',
       search: '?name=ryan',
       query: { name: 'ryan' },

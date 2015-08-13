@@ -561,7 +561,7 @@
              JSON.stringify(name) + ' });\n';
     // Defer evaluation for a tick.  This is a workaround for deferred
     // events not firing when evaluating scripts from the command line,
-    // see https://github.com/nodejs/io.js/issues/1600.
+    // see https://github.com/nodejs/node/issues/1600.
     process.nextTick(function() {
       var result = module._compile(script, name + '-wrapper');
       if (process._print_eval) console.log(result);

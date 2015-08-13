@@ -432,7 +432,7 @@ void TLSWrap::ClearOut() {
 
   // We need to check whether an error occurred or the connection was
   // shutdown cleanly (SSL_ERROR_ZERO_RETURN) even when read == 0.
-  // See iojs#1642 and SSL_read(3SSL) for details.
+  // See node#1642 and SSL_read(3SSL) for details.
   if (read <= 0) {
     int err;
     Local<Value> arg = GetSSLError(read, &err, nullptr);

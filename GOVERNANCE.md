@@ -1,11 +1,11 @@
-# io.js Project Governance
+# Node.js Project Governance
 
 ## Technical Committee
 
-The io.js project is jointly governed by a Technical Committee (TC)
+The Node.js project is jointly governed by a Technical Steering Committee (TSC)
 which is responsible for high-level guidance of the project.
 
-The TC has final authority over this project including:
+The TSC has final authority over this project including:
 
 * Technical direction
 * Project governance and process (including this policy)
@@ -14,17 +14,17 @@ The TC has final authority over this project including:
 * Conduct guidelines
 * Maintaining the list of additional Collaborators
 
-Initial membership invitations to the TC were given to individuals who
-had been active contributors to io.js, and who have significant
-experience with the management of the io.js project. Membership is
+Initial membership invitations to the TSC were given to individuals who
+had been active contributors to Node.js, and who have significant
+experience with the management of the Node.js project. Membership is
 expected to evolve over time according to the needs of the project.
 
-For the current list of TC members, see the project
+For the current list of TSC members, see the project
 [README.md](./README.md#current-project-team-members).
 
 ## Collaborators
 
-The [iojs/io.js](https://github.com/nodejs/io.js) GitHub repository is
+The [nodejs/node](https://github.com/nodejs/node) GitHub repository is
 maintained by the TC and additional Collaborators who are added by the
 TC on an ongoing basis.
 
@@ -37,7 +37,7 @@ _Note:_ If you make a significant contribution and are not considered
 for commit-access, log an issue or contact a TC member directly and it
 will be brought up in the next TC meeting.
 
-Modifications of the contents of the iojs/io.js repository are made on
+Modifications of the contents of the nodejs/node repository are made on
 a collaborative basis. Anybody with a GitHub account may propose a
 modification via pull request and it will be considered by the project
 Collaborators. All pull requests must be reviewed and accepted by a
