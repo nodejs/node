@@ -442,31 +442,48 @@ Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
 // comes from not creating Error objects on failure.
 static void InternalModuleReadFile(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  uv_loop_t* loop = env->event_loop();
 
   CHECK(args[0]->IsString());
   node::Utf8Value path(env->isolate(), args[0]);
 
-  FILE* const stream = fopen(*path, "rb");
-  if (stream == nullptr) {
+  uv_fs_t open_req;
+  const int fd = uv_fs_open(loop, &open_req, *path, O_RDONLY, 0, nullptr);
+  uv_fs_req_cleanup(&open_req);
+
+  if (fd < 0) {
     return;
   }
 
   std::vector<char> chars;
-  while (!ferror(stream)) {
+  int64_t offset = 0;
+  for (;;) {
     const size_t kBlockSize = 32 << 10;
     const size_t start = chars.size();
     chars.resize(start + kBlockSize);
-    const size_t numchars = fread(&chars[start], 1, kBlockSize, stream);
-    if (numchars < kBlockSize) {
+
+    uv_buf_t buf;
+    buf.base = &chars[start];
+    buf.len = kBlockSize;
+
+    uv_fs_t read_req;
+    const ssize_t numchars =
+        uv_fs_read(loop, &read_req, fd, &buf, 1, offset, nullptr);
+    uv_fs_req_cleanup(&read_req);
+
+    CHECK_GE(numchars, 0);
+    if (static_cast<size_t>(numchars) < kBlockSize) {
       chars.resize(start + numchars);
     }
     if (numchars == 0) {
       break;
     }
+    offset += numchars;
   }
 
-  CHECK_EQ(false, ferror(stream));
-  CHECK_EQ(0, fclose(stream));
+  uv_fs_t close_req;
+  CHECK_EQ(0, uv_fs_close(loop, &close_req, fd, nullptr));
+  uv_fs_req_cleanup(&close_req);
 
   size_t start = 0;
   if (chars.size() >= 3 && 0 == memcmp(&chars[0], "\xEF\xBB\xBF", 3)) {
