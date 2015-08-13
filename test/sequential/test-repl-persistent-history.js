@@ -74,35 +74,41 @@ const oldHistoryPath = path.join(fixtures, 'old-repl-history-file.json');
 const tests = [{
   env: { NODE_REPL_HISTORY: '' },
   test: [UP],
-  expected: [prompt, replDisabled, prompt]
+  expected: [prompt, replDisabled, prompt],
+  event: 'end'
 },
 {
   env: { NODE_REPL_HISTORY: '',
          NODE_REPL_HISTORY_FILE: oldHistoryPath },
   test: [UP],
-  expected: [prompt, replDisabled, prompt]
+  expected: [prompt, replDisabled, prompt],
+  event: 'end'
 },
 {
   env: { NODE_REPL_HISTORY: historyPath },
   test: [UP, CLEAR],
-  expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
+  expected: [prompt, prompt + '\'you look fabulous today\'', prompt],
+  event: 'end'
 },
 {
   env: { NODE_REPL_HISTORY: historyPath,
          NODE_REPL_HISTORY_FILE: oldHistoryPath },
   test: [UP, CLEAR],
-  expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
+  expected: [prompt, prompt + '\'you look fabulous today\'', prompt],
+  event: 'end'
 },
 {
   env: { NODE_REPL_HISTORY: historyPath,
          NODE_REPL_HISTORY_FILE: '' },
   test: [UP, CLEAR],
-  expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
+  expected: [prompt, prompt + '\'you look fabulous today\'', prompt],
+  event: 'end'
 },
 {
   env: {},
   test: [UP],
-  expected: [prompt]
+  expected: [prompt],
+  event: 'end'
 },
 {
   env: { NODE_REPL_HISTORY_FILE: oldHistoryPath },
@@ -123,13 +129,15 @@ const tests = [{
     const historyCopy = fs.readFileSync(historyPath, 'utf8');
     assert.strictEqual(historyCopy, '\'you look fabulous today\'' + os.EOL +
                                     '\'Stay Fresh~\'' + os.EOL);
-  }
+  },
+  event: 'flushHistory'
 },
 {
   env: {},
   test: [UP, UP, ENTER],
   expected: [prompt, prompt + '\'42\'', prompt + '\'=^.^=\'', '\'=^.^=\'\n',
-             prompt]
+             prompt],
+  event: 'flushHistory'
 },
 { // Make sure this is always the last test, since we change os.homedir()
   before: function mockHomedirFailure() {
@@ -140,7 +148,8 @@ const tests = [{
   },
   env: {},
   test: [UP],
-  expected: [prompt, homedirErr, prompt, replDisabled, prompt]
+  expected: [prompt, homedirErr, prompt, replDisabled, prompt],
+  event: 'end'
 }];
 
 
@@ -180,9 +189,9 @@ function runTest() {
   }, function(err, repl) {
     if (err) throw err;
 
-    if (after) repl.on('close', after);
+    if (after) repl.on(opts.event, after);
 
-    repl.on('close', function() {
+    repl.on(opts.event, function() {
       // Ensure everything that we expected was output
       assert.strictEqual(expected.length, 0);
       setImmediate(runTest);
