@@ -365,13 +365,13 @@ MaybeLocal<Object> New(Isolate* isolate, char* data, size_t length) {
   Environment* env = Environment::GetCurrent(isolate);
   EscapableHandleScope handle_scope(env->isolate());
   Local<Object> obj;
-  if (Buffer::Use(env, data, length).ToLocal(&obj))
+  if (Buffer::New(env, data, length).ToLocal(&obj))
     return handle_scope.Escape(obj);
   return Local<Object>();
 }
 
 
-MaybeLocal<Object> Use(Environment* env, char* data, size_t length) {
+MaybeLocal<Object> New(Environment* env, char* data, size_t length) {
   EscapableHandleScope scope(env->isolate());
 
   if (length > 0) {
