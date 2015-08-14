@@ -8,7 +8,7 @@ File I/O is provided by simple wrappers around standard POSIX functions.  To
 use this module do `require('fs')`. All the methods have asynchronous and
 synchronous forms.
 
-The asynchronous form always take a completion callback as its last argument.
+The asynchronous form always takes a completion callback as its last argument.
 The arguments passed to the completion callback depend on the method, but the
 first argument is always reserved for an exception. If the operation was
 completed successfully, then the first argument will be `null` or `undefined`.
@@ -59,8 +59,8 @@ In busy processes, the programmer is _strongly encouraged_ to use the
 asynchronous versions of these calls. The synchronous versions will block
 the entire process until they complete--halting all connections.
 
-Relative path to filename can be used, remember however that this path will be
-relative to `process.cwd()`.
+The relative path to a filename can be used. Remember, however, that this path
+will be relative to `process.cwd()`.
 
 Most fs functions let you omit the callback argument. If you do, a default
 callback is used that rethrows errors. To get a trace to the original call
@@ -574,7 +574,7 @@ stat object:
 
 These stat objects are instances of `fs.Stat`.
 
-If you want to be notified when the file was modified, not just accessed
+If you want to be notified when the file was modified, not just accessed,
 you need to compare `curr.mtime` and `prev.mtime`.
 
 _Note: when an `fs.watchFile` operation results in an `ENOENT` error, it will
