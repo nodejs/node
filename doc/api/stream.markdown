@@ -230,8 +230,11 @@ readable.on('end', function() {
 
 #### Event: 'close'
 
-Emitted when the underlying resource (for example, the backing file
-descriptor) has been closed. Not all streams will emit this.
+Emitted when the stream and any of its underlying resources (a file
+descriptor, for example) have been closed, no more events will be
+emitted, and no further computation will occur.
+
+Not all streams will emit the 'close' event.
 
 #### Event: 'error'
 
