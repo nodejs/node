@@ -4570,8 +4570,12 @@ void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   if (priv == nullptr)
     return env->ThrowError("Failed to convert Buffer to BN");
 
-  if (!EC_KEY_set_private_key(ecdh->key_, priv))
+  int result = EC_KEY_set_private_key(ecdh->key_, priv);
+  BN_free(priv);
+
+  if (!result) {
     return env->ThrowError("Failed to convert BN to a private key");
+  }
 }
 
 
