@@ -183,6 +183,10 @@ an empty string.  Examples:
     // returns
     ''
 
+    path.extname('.index')
+    // returns
+    ''
+
 ## path.sep
 
 The platform-specific file separator. `'\\'` or `'/'`.
