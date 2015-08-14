@@ -117,10 +117,9 @@ will share the same global object but will have unique I/O.
 
 Here is an example that starts a REPL on stdin, a Unix socket, and a TCP socket:
 
-    var net = require("net"),
-        repl = require("repl");
-
-    connections = 0;
+    var net = require('net'),
+        repl = require('repl'),
+        connections = 0;
 
     repl.start({
       prompt: "io.js via stdin> ",
@@ -191,7 +190,7 @@ be emitted.
 Example of listening for `reset`:
 
     // Extend the initial repl context.
-    r = repl.start({ options ... });
+    var r = repl.start({ options ... });
     someExtension.extend(r.context);
 
     // When a new context is created extend it as well.
@@ -213,7 +212,7 @@ accessing `fs` will `require()` the `fs` module as `global.fs`.
 
 The special variable `_` (underscore) contains the result of the last expression.
 
-    > [ "a", "b", "c" ]
+    > [ 'a', 'b', 'c' ]
     [ 'a', 'b', 'c' ]
     > _.length
     3
@@ -225,10 +224,10 @@ a variable to the REPL explicitly by assigning it to the `context` object
 associated with each `REPLServer`.  For example:
 
     // repl_test.js
-    var repl = require("repl"),
-        msg = "message";
+    var repl = require('repl'),
+        msg = 'message';
 
-    repl.start("> ").context.m = msg;
+    repl.start('> ').context.m = msg;
 
 Things in the `context` object appear as local within the REPL:
 
