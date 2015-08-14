@@ -158,15 +158,16 @@ a packet might travel, and that generally sending a datagram greater than
 the (receiver) `MTU` won't work (the packet gets silently dropped, without
 informing the source that the data did not reach its intended recipient).
 
-### socket.bind(port[, address][, callback])
+### socket.bind([port][, address][, callback])
 
-* `port` Integer
+* `port` Integer, Optional
 * `address` String, Optional
 * `callback` Function with no parameters, Optional. Callback when
   binding is done.
 
 For UDP sockets, listen for datagrams on a named `port` and optional
-`address`. If `address` is not specified, the OS will try to listen on
+`address`. If `port` is not specified, the OS will try to bind to a random
+port. If `address` is not specified, the OS will try to listen on
 all addresses.  After binding is done, a "listening" event is emitted
 and the `callback`(if specified) is called. Specifying both a
 "listening" event listener and `callback` is not harmful but not very
