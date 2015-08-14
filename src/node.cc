@@ -52,6 +52,10 @@
 #include <string.h>
 #include <sys/types.h>
 
+#if defined(LEAK_SANITIZER)
+#include <sanitizer/lsan_interface.h>
+#endif
+
 #if defined(_MSC_VER)
 #include <direct.h>
 #include <io.h>
@@ -3966,6 +3970,10 @@ static void StartNodeInstance(void* arg) {
     if (instance_data->is_main())
       instance_data->set_exit_code(exit_code);
     RunAtExit(env);
+
+#if defined(LEAK_SANITIZER)
+    __lsan_do_leak_check();
+#endif
 
     env->Dispose();
     env = nullptr;
