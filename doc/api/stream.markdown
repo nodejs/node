@@ -1215,19 +1215,19 @@ as a result of this chunk.
 
 Call the callback function only when the current chunk is completely
 consumed.  Note that there may or may not be output as a result of any
-particular input chunk. If you supply output as the second argument to the
-callback, it will be passed to push method, in other words the following are
+particular input chunk. If you supply a second argument to the callback
+it will be passed to the push method. In other words the following are
 equivalent:
 
 ```javascript
 transform.prototype._transform = function (data, encoding, callback) {
   this.push(data);
   callback();
-}
+};
 
 transform.prototype._transform = function (data, encoding, callback) {
   callback(null, data);
-}
+};
 ```
 
 This method is prefixed with an underscore because it is internal to
