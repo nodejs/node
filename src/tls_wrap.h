@@ -53,7 +53,7 @@ class TLSWrap : public crypto::SSLWrap<TLSWrap>,
   size_t self_size() const override { return sizeof(*this); }
 
  protected:
-  static const int kClearOutChunkSize = 1024;
+  static const int kClearOutChunkSize = 16384;
 
   // Maximum number of bytes for hello parser
   static const int kMaxHelloLength = 16384;
