@@ -384,7 +384,7 @@ it can be obtained using `cluster.worker`.
 
 ### worker.id
 
-* {String}
+* {Number}
 
 Each new worker is given its own unique id, this id is stored in the
 `id`.
