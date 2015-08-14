@@ -24,7 +24,7 @@ all share server ports.
       });
     } else {
       // Workers can share any TCP connection
-      // In this case its a HTTP server
+      // In this case it is an HTTP server
       http.createServer(function(req, res) {
         res.writeHead(200);
         res.end("hello world\n");
