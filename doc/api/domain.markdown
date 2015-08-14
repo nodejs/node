@@ -32,7 +32,7 @@ process.  Of course, in a normal web server, you might have many
 connections open, and it is not reasonable to abruptly shut those down
 because an error was triggered by someone else.
 
-The better approach is send an error response to the request that
+The better approach is to send an error response to the request that
 triggered the error, while letting the others finish in their normal
 time, and stop listening for new requests in that worker.
 
