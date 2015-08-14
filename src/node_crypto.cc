@@ -4624,6 +4624,7 @@ class PBKDF2Request : public AsyncWrap {
   }
 
   ~PBKDF2Request() override {
+    release();
     persistent().Reset();
   }
 
@@ -4665,10 +4666,15 @@ class PBKDF2Request : public AsyncWrap {
 
   inline void release() {
     free(pass_);
+    pass_ = nullptr;
     passlen_ = 0;
+
     free(salt_);
+    salt_ = nullptr;
     saltlen_ = 0;
+
     free(key_);
+    key_ = nullptr;
     keylen_ = 0;
   }
 
@@ -4739,7 +4745,6 @@ void EIO_PBKDF2After(uv_work_t* work_req, int status) {
   Local<Value> argv[2];
   EIO_PBKDF2After(req, argv);
   req->MakeCallback(env->ondone_string(), ARRAY_SIZE(argv), argv);
-  req->release();
   delete req;
 }
 
@@ -4850,6 +4855,9 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     Local<Value> argv[2];
     EIO_PBKDF2(req);
     EIO_PBKDF2After(req, argv);
+
+    delete req;
+
     if (argv[0]->IsObject())
       env->isolate()->ThrowException(argv[0]);
     else
