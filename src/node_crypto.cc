@@ -3933,6 +3933,8 @@ bool PublicKeyCipher::Cipher(const char* key_pem,
   fatal = false;
 
  exit:
+  if (x509 != nullptr)
+    X509_free(x509);
   if (pkey != nullptr)
     EVP_PKEY_free(pkey);
   if (bp != nullptr)
