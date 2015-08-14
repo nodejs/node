@@ -1297,6 +1297,7 @@ static bool SafeX509ExtPrint(BIO* out, X509_EXTENSION* ext) {
       if (nval == NULL)
         return false;
       X509V3_EXT_val_prn(out, nval, 0, 0);
+      sk_CONF_VALUE_pop_free(nval, X509V3_conf_free);
     }
   }
   sk_GENERAL_NAME_pop_free(names, GENERAL_NAME_free);
