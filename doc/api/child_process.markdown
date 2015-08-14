@@ -315,7 +315,7 @@ process.
         special.send('socket', socket);
         return;
       }
-      // just the usual dudes
+      // just the usual...
       normal.send('socket', socket);
     });
     server.listen(1337);
