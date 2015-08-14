@@ -805,10 +805,12 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
     return;
 
   const int keylen = BN_num_bits(dh->p);
-  if (keylen < 1024)
+  if (keylen < 1024) {
+    DH_free(dh);
     return env->ThrowError("DH parameter is less than 1024 bits");
-  else if (keylen < 2048)
+  } else if (keylen < 2048) {
     fprintf(stderr, "WARNING: DH parameter is less than 2048 bits\n");
+  }
 
   SSL_CTX_set_options(sc->ctx_, SSL_OP_SINGLE_DH_USE);
   int r = SSL_CTX_set_tmp_dh(sc->ctx_, dh);
