@@ -143,8 +143,6 @@ when to use `module.exports`.
 
 See the [module system documentation][] for more information.
 
-See the [module section][] for more information.
-
 ## setTimeout(cb, ms)
 
 Run callback `cb` after *at least* `ms` milliseconds. The actual delay depends
