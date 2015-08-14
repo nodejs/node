@@ -357,8 +357,7 @@ loading.
 
 * {Module Object}
 
-The module that required this one.
-
+The module that first required this one.
 
 ### module.children
 
