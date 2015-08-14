@@ -314,7 +314,7 @@ socket to a "special" child process. Other sockets will go to a "normal" process
         special.send('socket', socket);
         return;
       }
-      // just the usual dudes
+      // just the usual...
       normal.send('socket', socket);
     });
     server.listen(1337);
