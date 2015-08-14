@@ -2124,6 +2124,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
 
   if (is_dlopen_error) {
     Local<String> errmsg = OneByteString(env->isolate(), uv_dlerror(&lib));
+    uv_dlclose(&lib);
 #ifdef _WIN32
     // Windows needs to add the filename into the error message
     errmsg = String::Concat(errmsg, args[1]->ToString(env->isolate()));
@@ -2133,10 +2134,12 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (mp == nullptr) {
+    uv_dlclose(&lib);
     env->ThrowError("Module did not self-register.");
     return;
   }
   if (mp->nm_version != NODE_MODULE_VERSION) {
+    uv_dlclose(&lib);
     char errmsg[1024];
     snprintf(errmsg,
              sizeof(errmsg),
@@ -2146,6 +2149,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   if (mp->nm_flags & NM_F_BUILTIN) {
+    uv_dlclose(&lib);
     env->ThrowError("Built-in module self-registered.");
     return;
   }
@@ -2162,6 +2166,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
   } else if (mp->nm_register_func != nullptr) {
     mp->nm_register_func(exports, module, mp->nm_priv);
   } else {
+    uv_dlclose(&lib);
     env->ThrowError("Module has no declared entry point.");
     return;
   }
