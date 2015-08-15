@@ -465,4 +465,25 @@ testBlockTypeError(assert.doesNotThrow, null);
 testBlockTypeError(assert.throws, undefined);
 testBlockTypeError(assert.doesNotThrow, undefined);
 
+// tests specific to NaN comparison
+assert.equal(NaN, NaN);
+assert.strictEqual(NaN, NaN);
+
+assert.throws(function() {
+  assert.notEqual(NaN, NaN);
+});
+assert.throws(function() {
+  assert.notStrictEqual(NaN, NaN);
+});
+
+assert.deepEqual(NaN, NaN);
+assert.deepStrictEqual(NaN, NaN);
+
+assert.throws(function() {
+  assert.notDeepEqual(NaN, NaN);
+});
+assert.throws(function() {
+  assert.notDeepStrictEqual(NaN, NaN);
+});
+
 console.log('All OK');
