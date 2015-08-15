@@ -1,7 +1,7 @@
 debugger;
 function a(x) {
   var i = 10;
-  while (--i != 0);
+  while (--i !== 0);
   debugger;
   return i;
 }

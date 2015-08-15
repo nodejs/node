@@ -20,7 +20,7 @@ var server = http.createServer(function(req, res) {
 
   // Oh no!  The connection died!
   req.socket.destroy();
-  if (++done == numRequests)
+  if (++done === numRequests)
     server.close();
 });
 

@@ -37,7 +37,7 @@ server.listen(common.PORT, function() {
         }, function(res) {
           res.resume();
           console.log(res.statusCode);
-          if (++responses == N * M) server.close();
+          if (++responses === N * M) server.close();
         }).on('error', function(e) {
           console.log(e.message);
           process.exit(1);

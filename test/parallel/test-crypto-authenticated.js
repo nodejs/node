@@ -55,7 +55,7 @@ var ciphers = crypto.getCiphers();
 for (var i in TEST_CASES) {
   var test = TEST_CASES[i];
 
-  if (ciphers.indexOf(test.algo) == -1) {
+  if (ciphers.indexOf(test.algo) === -1) {
     console.log('1..0 # Skipped: unsupported ' + test.algo + ' test');
     continue;
   }

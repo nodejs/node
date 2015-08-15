@@ -86,7 +86,7 @@ function worker() {
     received++;
 
     // Every 10 messages, notify the master.
-    if (received == PACKETS_PER_WORKER) {
+    if (received === PACKETS_PER_WORKER) {
       process.send({received: received});
       process.disconnect();
     }

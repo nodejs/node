@@ -181,7 +181,7 @@ if (process.argv[2] === 'child') {
 
     process.send({ message: buf.toString() });
 
-    if (receivedMessages.length == messages.length) {
+    if (receivedMessages.length === messages.length) {
       // .dropMembership() not strictly needed but here as a sanity check
       listenSocket.dropMembership(LOCAL_BROADCAST_HOST);
       process.nextTick(function() {

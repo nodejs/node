@@ -34,7 +34,7 @@ interfacer.on('line', function(line) {
   line = line.replace(/^(debug> *)+/, '');
   console.log(line);
   var expected = '\bconnecting to localhost:5959 ... ok';
-  assert.ok(expected == line, 'Got unexpected line: ' + line);
+  assert.ok(expected === line, 'Got unexpected line: ' + line);
 });
 
 // allow time to start up the debugger

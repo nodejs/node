@@ -36,7 +36,7 @@ exec('thisisnotavalidcommand', function(err, stdout, stderr) {
   if (err) {
     error_count++;
     assert.equal('', stdout);
-    assert.equal(true, err.code != 0);
+    assert.equal(true, err.code !== 0);
     assert.equal(false, err.killed);
     assert.strictEqual(null, err.signal);
     console.log('error code: ' + err.code);
@@ -45,7 +45,7 @@ exec('thisisnotavalidcommand', function(err, stdout, stderr) {
   } else {
     success_count++;
     console.dir(stdout);
-    assert.equal(true, stdout != '');
+    assert.equal(true, stdout !== '');
   }
 });
 

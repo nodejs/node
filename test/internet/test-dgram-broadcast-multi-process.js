@@ -61,7 +61,7 @@ if (process.argv[2] !== 'child') {
         // don't consider this the true death if the worker
         // has finished successfully
         // or if the exit code is 0
-        if (worker.isDone || code == 0) {
+        if (worker.isDone || code === 0) {
           return;
         }
 
@@ -200,7 +200,7 @@ if (process.argv[2] === 'child') {
 
     process.send({ message: buf.toString() });
 
-    if (receivedMessages.length == messages.length) {
+    if (receivedMessages.length === messages.length) {
       process.nextTick(function() {
         listenSocket.close();
       });

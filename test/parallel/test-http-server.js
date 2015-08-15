@@ -15,25 +15,25 @@ var server = http.createServer(function(req, res) {
   res.id = request_number;
   req.id = request_number++;
 
-  if (req.id == 0) {
+  if (req.id === 0) {
     assert.equal('GET', req.method);
     assert.equal('/hello', url.parse(req.url).pathname);
     assert.equal('world', qs.parse(url.parse(req.url).query).hello);
     assert.equal('b==ar', qs.parse(url.parse(req.url).query).foo);
   }
 
-  if (req.id == 1) {
+  if (req.id === 1) {
     common.error('req 1');
     assert.equal('POST', req.method);
     assert.equal('/quit', url.parse(req.url).pathname);
   }
 
-  if (req.id == 2) {
+  if (req.id === 2) {
     common.error('req 2');
     assert.equal('foo', req.headers['x-x']);
   }
 
-  if (req.id == 3) {
+  if (req.id === 3) {
     common.error('req 3');
     assert.equal('bar', req.headers['x-x']);
     this.close();
@@ -64,12 +64,12 @@ server.on('listening', function() {
   c.on('data', function(chunk) {
     server_response += chunk;
 
-    if (requests_sent == 1) {
+    if (requests_sent === 1) {
       c.write('POST /quit HTTP/1.1\r\n\r\n');
       requests_sent += 1;
     }
 
-    if (requests_sent == 2) {
+    if (requests_sent === 2) {
       c.write('GET / HTTP/1.1\r\nX-X: foo\r\n\r\n' +
               'GET / HTTP/1.1\r\nX-X: bar\r\n\r\n');
       // Note: we are making the connection half-closed here
@@ -99,10 +99,12 @@ process.on('exit', function() {
   assert.equal(4, requests_sent);
 
   var hello = new RegExp('/hello');
-  assert.equal(true, hello.exec(server_response) != null);
+  var res = hello.exec(server_response);
+  assert.equal(true, res !== null && res !== undefined);
 
   var quit = new RegExp('/quit');
-  assert.equal(true, quit.exec(server_response) != null);
+  res = quit.exec(server_response);
+  assert.equal(true, res !== null && res !== undefined);
 
   assert.equal(true, client_got_eof);
 });

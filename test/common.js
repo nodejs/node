@@ -390,7 +390,7 @@ if (exports.isWindows) {
  * platforms) can't be read.
  */
 exports.getServiceName = function getServiceName(port, protocol) {
-  if (port == null) {
+  if (port === null || port === undefined) {
     throw new Error('Missing port number');
   }
 

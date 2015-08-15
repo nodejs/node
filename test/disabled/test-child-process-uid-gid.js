@@ -7,7 +7,7 @@ var fs = require('fs');
 var myUid = process.getuid();
 var myGid = process.getgid();
 
-if (myUid != 0) {
+if (myUid !== 0) {
   console.error('must be run as root, otherwise the gid/uid setting will' +
                 ' fail.');
   process.exit(1);
