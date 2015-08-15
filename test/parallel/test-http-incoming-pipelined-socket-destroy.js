@@ -53,7 +53,7 @@ server.listen(common.PORT, function() {
   var client = net.connect({ port: common.PORT });
   var done = 0;
   server.on('requestDone', function() {
-    if (++done == seeds.length) {
+    if (++done === seeds.length) {
       server.close();
     }
   });

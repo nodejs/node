@@ -33,7 +33,7 @@ function master() {
   socket.on('message', function(data, info) {
     received++;
 
-    if (received == PACKETS_PER_WORKER * NUM_WORKERS) {
+    if (received === PACKETS_PER_WORKER * NUM_WORKERS) {
       console.log('master received %d packets', received);
 
       // Close the socket.

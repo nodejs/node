@@ -52,7 +52,7 @@ echo_server.listen(common.PORT, function() {
         client.write('hello\r\n');
       }, 500);
 
-      if (exchanges == 5) {
+      if (exchanges === 5) {
         console.log('wait for timeout - should come in ' + timeout + ' ms');
         starttime = new Date();
         console.dir(starttime);
@@ -76,8 +76,8 @@ echo_server.listen(common.PORT, function() {
 });
 
 process.on('exit', function() {
-  assert.ok(starttime != null);
-  assert.ok(timeouttime != null);
+  assert.ok(starttime !== null && starttime !== undefined);
+  assert.ok(timeouttime !== null && timeouttime !== undefined);
 
   var diff = timeouttime - starttime;
   console.log('diff = ' + diff);

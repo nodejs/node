@@ -22,10 +22,10 @@ try {
 }
 
 process.chdir(dir);
-assert(process.cwd() == dir);
+assert(process.cwd() === dir);
 
 process.chdir('..');
-assert(process.cwd() == path.resolve(common.fixturesDir));
+assert(process.cwd() === path.resolve(common.fixturesDir));
 cleanup();
 
 assert.throws(function() { process.chdir({}); }, TypeError, 'Bad argument.');

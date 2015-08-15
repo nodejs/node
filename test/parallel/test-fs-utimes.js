@@ -8,7 +8,7 @@ var tests_ok = 0;
 var tests_run = 0;
 
 function stat_resource(resource) {
-  if (typeof resource == 'string') {
+  if (typeof resource === 'string') {
     return fs.statSync(resource);
   } else {
     // ensure mtime has been written to disk
@@ -23,7 +23,7 @@ function check_mtime(resource, mtime) {
   var real_mtime = fs._toUnixTimestamp(stats.mtime);
   // check up to single-second precision
   // sub-second precision is OS and fs dependant
-  return Math.floor(mtime) == Math.floor(real_mtime);
+  return Math.floor(mtime) === Math.floor(real_mtime);
 }
 
 function expect_errno(syscall, resource, err, errno) {

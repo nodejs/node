@@ -28,7 +28,7 @@ function nextRequest() {
     path: '/'
   }, function(response) {
     response.on('end', function() {
-      if (methods.length == 0) {
+      if (methods.length === 0) {
         console.error('close server');
         server.close();
       } else {

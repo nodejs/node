@@ -31,7 +31,7 @@ server.listen(port, function() {
       res.on('end', function() {
         count++;
 
-        if (count == 11) {
+        if (count === 11) {
           server.close();
         }
       });

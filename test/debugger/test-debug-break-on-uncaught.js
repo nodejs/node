@@ -96,7 +96,7 @@ function runScenario(scriptName, throwsInFile, throwsOnLine, next) {
     assert.equal(exceptions.length, 1, 'debugger did not pause on exception');
     assert.equal(exceptions[0].uncaught, true);
     assert.equal(exceptions[0].script.name, throwsInFile || testScript);
-    if (throwsOnLine != null)
+    if (throwsOnLine !== null && throwsOnLine !== undefined)
       assert.equal(exceptions[0].sourceLine + 1, throwsOnLine);
     asserted = true;
     client.reqContinue(assert.ifError);

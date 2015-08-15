@@ -22,7 +22,7 @@ server.onconnection = function(err, client) {
   console.log('got connection');
 
   function maybeCloseClient() {
-    if (client.pendingWrites.length == 0 && client.gotEOF) {
+    if (client.pendingWrites.length === 0 && client.gotEOF) {
       console.log('close client');
       client.close();
     }

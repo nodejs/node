@@ -23,7 +23,7 @@ server.on('close', function() {
 server.listen(common.PORT, common.localhostIPv4, testConnect);
 
 function testConnect() {
-  if (conns == 2) {
+  if (conns === 2) {
     return server.close();
   }
   client.connect(common.PORT, common.localhostIPv4, function() {

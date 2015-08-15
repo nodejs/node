@@ -31,10 +31,10 @@ file
   .on('drain', function() {
       console.error('drain!', callbacks.drain);
       callbacks.drain++;
-      if (callbacks.drain == -1) {
+      if (callbacks.drain === -1) {
         assert.equal(EXPECTED, fs.readFileSync(fn, 'utf8'));
         file.write(EXPECTED);
-      } else if (callbacks.drain == 0) {
+      } else if (callbacks.drain === 0) {
         assert.equal(EXPECTED + EXPECTED, fs.readFileSync(fn, 'utf8'));
         file.end();
       }

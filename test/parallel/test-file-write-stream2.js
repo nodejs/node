@@ -61,7 +61,7 @@ file.on('drain', function() {
     assert.equal(fs.readFileSync(filepath, 'utf8'), EXPECTED);
     console.error('ondrain write ret=%j', file.write(EXPECTED));
     cb_occurred += 'write ';
-  } else if (countDrains == 2) {
+  } else if (countDrains === 2) {
     console.error('second drain, end');
     assert.equal(fs.readFileSync(filepath, 'utf8'), EXPECTED + EXPECTED);
     file.end();
@@ -86,6 +86,6 @@ for (var i = 0; i < 11; i++) {
   console.error('%d %j', i, ret);
 
   // return false when i hits 10
-  assert(ret === (i != 10));
+  assert(ret === (i !== 10));
 }
 cb_occurred += 'write ';

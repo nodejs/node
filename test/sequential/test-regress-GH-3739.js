@@ -13,7 +13,7 @@ for (var i = 0; i < 50; i++) {
   try {
     fs.mkdirSync(dir, '0777');
   } catch (e) {
-    if (e.code == 'EEXIST') {
+    if (e.code === 'EEXIST') {
       // Ignore;
     } else {
       cleanup();

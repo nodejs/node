@@ -55,9 +55,9 @@ try {
   assert.equal(util.inspect(e), '[ReferenceError: undef is not defined]');
 }
 var ex = util.inspect(new Error('FAIL'), true);
-assert.ok(ex.indexOf('[Error: FAIL]') != -1);
-assert.ok(ex.indexOf('[stack]') != -1);
-assert.ok(ex.indexOf('[message]') != -1);
+assert.ok(ex.indexOf('[Error: FAIL]') !== -1);
+assert.ok(ex.indexOf('[stack]') !== -1);
+assert.ok(ex.indexOf('[message]') !== -1);
 
 // GH-1941
 // should not throw:
@@ -85,7 +85,7 @@ assert.doesNotThrow(function() {
 
 // GH-2225
 var x = { inspect: util.inspect };
-assert.ok(util.inspect(x).indexOf('inspect') != -1);
+assert.ok(util.inspect(x).indexOf('inspect') !== -1);
 
 // util.inspect should not display the escaped value of a key.
 var w = {

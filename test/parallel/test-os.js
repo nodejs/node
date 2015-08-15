@@ -71,7 +71,7 @@ var arch = os.arch();
 console.log('arch = ', arch);
 assert.ok(arch.length > 0);
 
-if (process.platform != 'sunos') {
+if (process.platform !== 'sunos') {
   // not implemeneted yet
   assert.ok(os.loadavg().length > 0);
   assert.ok(os.freemem() > 0);
@@ -83,7 +83,7 @@ var interfaces = os.networkInterfaces();
 console.error(interfaces);
 switch (platform) {
   case 'linux':
-    var filter = function(e) { return e.address == '127.0.0.1'; };
+    var filter = function(e) { return e.address === '127.0.0.1'; };
     var actual = interfaces.lo.filter(filter);
     var expected = [{ address: '127.0.0.1', netmask: '255.0.0.0',
                       mac: '00:00:00:00:00:00', family: 'IPv4',
@@ -91,7 +91,7 @@ switch (platform) {
     assert.deepEqual(actual, expected);
     break;
   case 'win32':
-    var filter = function(e) { return e.address == '127.0.0.1'; };
+    var filter = function(e) { return e.address === '127.0.0.1'; };
     var actual = interfaces['Loopback Pseudo-Interface 1'].filter(filter);
     var expected = [{ address: '127.0.0.1', netmask: '255.0.0.0',
                       mac: '00:00:00:00:00:00', family: 'IPv4',

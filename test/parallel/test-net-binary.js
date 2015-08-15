@@ -14,8 +14,8 @@ for (var i = 255; i >= 0; i--) {
                JSON.stringify(String.fromCharCode(i)) +
                ' ' +
                S.charCodeAt(0));
-  assert.ok(S.charCodeAt(0) == i);
-  assert.ok(S == String.fromCharCode(i));
+  assert.ok(S.charCodeAt(0) === i);
+  assert.ok(S === String.fromCharCode(i));
   binaryString += S;
 }
 

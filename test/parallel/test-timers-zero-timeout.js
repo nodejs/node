@@ -30,7 +30,7 @@ var assert = require('assert');
     assert.equal(a, 'foo');
     assert.equal(b, 'bar');
     assert.equal(c, 'baz');
-    if (++ncalled == 3) clearTimeout(iv);
+    if (++ncalled === 3) clearTimeout(iv);
   }
 
   process.on('exit', function() {

@@ -16,7 +16,7 @@ function pingPongTest(port, host, on_complete) {
     var address = socket.remoteAddress;
     if (host === '127.0.0.1') {
       assert.equal(address, '127.0.0.1');
-    } else if (host == null || host === 'localhost') {
+    } else if (host === null || host === undefined || host === 'localhost') {
       assert(address === '127.0.0.1' || address === '::ffff:127.0.0.1');
     } else {
       console.log('host = ' + host + ', remoteAddress = ' + address);

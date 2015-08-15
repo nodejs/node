@@ -19,7 +19,7 @@ var server = net.createServer(function(socket) {
   assert.ok(socket.remotePort);
   assert.notEqual(socket.remotePort, common.PORT);
   socket.on('end', function() {
-    if (++conns_closed == 2) server.close();
+    if (++conns_closed === 2) server.close();
   });
   socket.on('close', function() {
     assert.notEqual(-1, remoteAddrCandidates.indexOf(socket.remoteAddress));

@@ -26,7 +26,7 @@ var child = exec(pwdcommand, {cwd: dir}, function(err, stdout, stderr) {
   } else {
     success_count++;
     console.log(stdout);
-    assert.ok(stdout.indexOf(dir) == 0);
+    assert.ok(stdout.indexOf(dir) === 0);
   }
 });
 
