@@ -58,12 +58,12 @@
         NativeModule.require('_third_party_main');
       });
 
-    } else if (process.argv[1] == 'debug') {
+    } else if (process.argv[1] === 'debug') {
       // Start the debugger agent
       var d = NativeModule.require('_debugger');
       d.start();
 
-    } else if (process.argv[1] == '--debug-agent') {
+    } else if (process.argv[1] === '--debug-agent') {
       // Start the debugger agent
       var d = NativeModule.require('_debug_agent');
       d.start();
@@ -82,7 +82,7 @@
         delete process.env.NODE_UNIQUE_ID;
       }
 
-      if (process._eval != null) {
+      if (process._eval !== null && process._eval !== undefined) {
         // User passed '-e' or '--eval' arguments to Node.
         startup.preloadModules();
         evalScript('[eval]');
@@ -742,7 +742,7 @@
     process.kill = function(pid, sig) {
       var err;
 
-      if (pid != (pid | 0)) {
+      if (pid != (pid | 0)) { // != is used as pid could be a string as well
         throw new TypeError('invalid pid');
       }
 
@@ -870,7 +870,7 @@
   NativeModule._cache = {};
 
   NativeModule.require = function(id) {
-    if (id == 'native_module') {
+    if (id === 'native_module') {
       return NativeModule;
     }
 
