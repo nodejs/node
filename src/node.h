@@ -504,20 +504,20 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
 
 #define NODE_MODULE_X(modname, initfunc, priv, flags)                 \
   extern "C" {                                                        \
-    static node::node_module _module_ ## modname =                    \
-    {                                                                 \
-      NODE_MODULE_VERSION,                                            \
-      flags,                                                          \
-      NULL,                                                           \
-      __FILE__,                                                       \
-      node::detail::selectAddonRegisterFunction(initfunc),            \
-      reinterpret_cast<void*>(initfunc),                              \
-      NODE_STRINGIFY(modname),                                        \
-      priv,                                                           \
-      NULL                                                            \
-    };                                                                \
     NODE_C_CTOR(_register_ ## modname) {                              \
-      node_module_register(&_module_ ## modname);                     \
+      static node::node_module _module =                              \
+      {                                                               \
+        NODE_MODULE_VERSION,                                          \
+        flags,                                                        \
+        NULL,                                                         \
+        __FILE__,                                                     \
+        node::detail::selectAddonRegisterFunction(initfunc),          \
+        reinterpret_cast<void*>(initfunc),                            \
+        NODE_STRINGIFY(modname),                                      \
+        priv,                                                         \
+        NULL                                                          \
+      };                                                              \
+      node_module_register(&_module);                                 \
     }                                                                 \
   }
 
