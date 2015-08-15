@@ -363,6 +363,14 @@ descriptor.
 
 Change file timestamps of the file referenced by the supplied path.
 
+Note: the arguments `atime` and `mtime` of the following related functions does
+follow the below rules:
+
+- If the value is a numberable string like "123456789", the value would get
+  converted to corresponding number.
+- If the value is `NaN` or `Infinity`, the value would get converted to
+  `Date.now()`.
+
 ## fs.utimesSync(path, atime, mtime)
 
 Synchronous version of `fs.utimes()`. Returns `undefined`.
