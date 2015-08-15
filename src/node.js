@@ -277,7 +277,7 @@
     process._tickDomainCallback = _tickDomainCallback;
 
     // This tickInfo thing is used so that the C++ code in src/node.cc
-    // can have easy accesss to our nextTick state, and avoid unnecessary
+    // can have easy access to our nextTick state, and avoid unnecessary
     // calls into JS land.
     const tickInfo = process._setupNextTick(_tickCallback, _runMicrotasks);
 
