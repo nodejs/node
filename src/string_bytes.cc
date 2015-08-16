@@ -22,13 +22,14 @@ using v8::Local;
 using v8::Object;
 using v8::String;
 using v8::Value;
+using v8::MaybeLocal;
 
 
 template <typename ResourceType, typename TypeName>
 class ExternString: public ResourceType {
   public:
     ~ExternString() override {
-      delete[] data_;
+      free(const_cast<TypeName*>(data_));
       isolate()->AdjustAmountOfExternalAllocatedMemory(-byte_length());
     }
 
@@ -52,7 +53,11 @@ class ExternString: public ResourceType {
       if (length == 0)
         return scope.Escape(String::Empty(isolate));
 
-      TypeName* new_data = new TypeName[length];
+      TypeName* new_data =
+          static_cast<TypeName*>(malloc(length * sizeof(*new_data)));
+      if (new_data == nullptr) {
+        return Local<String>();
+      }
       memcpy(new_data, data, length * sizeof(*new_data));
 
       return scope.Escape(ExternString<ResourceType, TypeName>::New(isolate,
@@ -72,10 +77,15 @@ class ExternString: public ResourceType {
       ExternString* h_str = new ExternString<ResourceType, TypeName>(isolate,
                                                                      data,
                                                                      length);
-      Local<String> str = String::NewExternal(isolate, h_str);
+      MaybeLocal<String> str = String::NewExternal(isolate, h_str);
       isolate->AdjustAmountOfExternalAllocatedMemory(h_str->byte_length());
 
-      return scope.Escape(str);
+      if (str.IsEmpty()) {
+        delete h_str;
+        return Local<String>();
+      }
+
+      return scope.Escape(str.ToLocalChecked());
     }
 
     inline Isolate* isolate() const { return isolate_; }
@@ -765,11 +775,14 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
 
     case ASCII:
       if (contains_non_ascii(buf, buflen)) {
-        char* out = new char[buflen];
+        char* out = static_cast<char*>(malloc(buflen));
+        if (out == nullptr) {
+          return Local<String>();
+        }
         force_ascii(buf, out, buflen);
         if (buflen < EXTERN_APEX) {
           val = OneByteString(isolate, out, buflen);
-          delete[] out;
+          free(out);
         } else {
           val = ExternOneByteString::New(isolate, out, buflen);
         }
@@ -797,14 +810,17 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
 
     case BASE64: {
       size_t dlen = base64_encoded_size(buflen);
-      char* dst = new char[dlen];
+      char* dst = static_cast<char*>(malloc(dlen));
+      if (dst == nullptr) {
+        return Local<String>();
+      }
 
       size_t written = base64_encode(buf, buflen, dst, dlen);
       CHECK_EQ(written, dlen);
 
       if (dlen < EXTERN_APEX) {
         val = OneByteString(isolate, dst, dlen);
-        delete[] dst;
+        free(dst);
       } else {
         val = ExternOneByteString::New(isolate, dst, dlen);
       }
@@ -813,13 +829,16 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
 
     case HEX: {
       size_t dlen = buflen * 2;
-      char* dst = new char[dlen];
+      char* dst = static_cast<char*>(malloc(dlen));
+      if (dst == nullptr) {
+        return Local<String>();
+      }
       size_t written = hex_encode(buf, buflen, dst, dlen);
       CHECK_EQ(written, dlen);
 
       if (dlen < EXTERN_APEX) {
         val = OneByteString(isolate, dst, dlen);
-        delete[] dst;
+        free(dst);
       } else {
         val = ExternOneByteString::New(isolate, dst, dlen);
       }
