@@ -408,8 +408,10 @@ void Create(const FunctionCallbackInfo<Value>& args) {
   void* data;
   if (length > 0) {
     data = malloc(length);
-    if (data == nullptr)
-      return env->ThrowRangeError("invalid Buffer length");
+    if (data == nullptr) {
+      return env->ThrowRangeError(
+          "Buffer allocation failed - process out of memory");
+    }
   } else {
     data = nullptr;
   }
