@@ -3111,6 +3111,9 @@ static void PrintHelp() {
          "  --track-heap-objects  track heap object allocations for heap "
          "snapshots\n"
          "  --v8-options          print v8 command line options\n"
+#if HAVE_OPENSSL
+         "  --tls-cipher-list=val use an alternative default TLS cipher list\n"
+#endif
 #if defined(NODE_HAVE_I18N_SUPPORT)
          "  --icu-data-dir=dir    set ICU data load path to dir\n"
          "                        (overrides NODE_ICU_DATA)\n"
@@ -3242,6 +3245,10 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--v8-options") == 0) {
       new_v8_argv[new_v8_argc] = "--help";
       new_v8_argc += 1;
+#if HAVE_OPENSSL
+    } else if (strncmp(arg, "--tls-cipher-list=", 18) == 0) {
+      default_cipher_list = arg + 18;
+#endif
 #if defined(NODE_HAVE_I18N_SUPPORT)
     } else if (strncmp(arg, "--icu-data-dir=", 15) == 0) {
       icu_data_dir = arg + 15;
