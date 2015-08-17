@@ -93,6 +93,22 @@
         process.argv[1] = path.resolve(process.argv[1]);
 
         var Module = NativeModule.require('module');
+
+        // check if user passed `-c` or `--check` arguments to Node.
+        if (process._syntax_check_only != null) {
+          var vm = NativeModule.require('vm');
+          var fs = NativeModule.require('fs');
+          var internalModule = NativeModule.require('internal/module');
+          // read the source
+          var filename = Module._resolveFilename(process.argv[1]);
+          var source = fs.readFileSync(filename, 'utf-8');
+          // remove shebang and BOM
+          source = internalModule.stripBOM(source.replace(/^\#\!.*/, ''));
+          // compile the script, this will throw if it fails
+          new vm.Script(source, {filename: filename, displayErrors: true});
+          process.exit(0);
+        }
+
         startup.preloadModules();
         if (global.v8debug &&
             process.execArgv.some(function(arg) {
