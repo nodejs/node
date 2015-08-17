@@ -95,6 +95,16 @@ Returns a path string from an object, the opposite of `path.parse` above.
     // returns
     '/home/user/dir/file.txt'
 
+    // `root` will be used if `dir` is not specified and `name` + `ext` will be used
+    // if `base` is not specified
+    path.format({
+        root : "/",
+        ext : ".txt",
+        name : "file"
+    })
+    // returns
+    '/file.txt'
+
 ## path.isAbsolute(path)
 
 Determines whether `path` is an absolute path. An absolute path will always
