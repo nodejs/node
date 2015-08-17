@@ -24,6 +24,10 @@ namespace node {
 using v8::Handle;
 using v8::Object;
 
+#if HAVE_OPENSSL
+const char* default_cipher_list = DEFAULT_CIPHER_LIST_CORE;
+#endif
+
 void DefineErrnoConstants(Handle<Object> target) {
 #ifdef E2BIG
   NODE_DEFINE_CONSTANT(target, E2BIG);
@@ -1108,6 +1112,17 @@ void DefineUVConstants(Handle<Object> target) {
   NODE_DEFINE_CONSTANT(target, UV_UDP_REUSEADDR);
 }
 
+void DefineCryptoConstants(Handle<Object> target) {
+#if HAVE_OPENSSL
+  NODE_DEFINE_STRING_CONSTANT(target,
+                              "defaultCoreCipherList",
+                              DEFAULT_CIPHER_LIST_CORE);
+  NODE_DEFINE_STRING_CONSTANT(target,
+                              "defaultCipherList",
+                              default_cipher_list);
+#endif
+}
+
 void DefineConstants(Handle<Object> target) {
   DefineErrnoConstants(target);
   DefineWindowsErrorConstants(target);
@@ -1115,6 +1130,7 @@ void DefineConstants(Handle<Object> target) {
   DefineOpenSSLConstants(target);
   DefineSystemConstants(target);
   DefineUVConstants(target);
+  DefineCryptoConstants(target);
 }
 
 }  // namespace node

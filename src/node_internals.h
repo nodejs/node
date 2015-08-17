@@ -12,6 +12,22 @@
 
 struct sockaddr;
 
+// Variation on NODE_DEFINE_CONSTANT that sets a String value.
+#define NODE_DEFINE_STRING_CONSTANT(target, name, constant)                   \
+  do {                                                                        \
+    v8::Isolate* isolate = target->GetIsolate();                              \
+    v8::Local<v8::String> constant_name =                                     \
+        v8::String::NewFromUtf8(isolate, name);                               \
+    v8::Local<v8::String> constant_value =                                    \
+        v8::String::NewFromUtf8(isolate, constant);                           \
+    v8::PropertyAttribute constant_attributes =                               \
+        static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);    \
+    target->ForceSet(isolate->GetCurrentContext(),                            \
+                     constant_name,                                           \
+                     constant_value,                                          \
+                     constant_attributes);                                    \
+  } while (0)
+
 namespace node {
 
 // Forward declaration
