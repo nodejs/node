@@ -409,7 +409,7 @@ void Create(const FunctionCallbackInfo<Value>& args) {
   if (length > 0) {
     data = malloc(length);
     if (data == nullptr)
-      return env->ThrowRangeError("invalid Buffer length");
+      return env->ThrowRangeError("Buffer allocation failed - process out of memory");
   } else {
     data = nullptr;
   }
