@@ -121,6 +121,7 @@ using v8::Value;
 
 static bool print_eval = false;
 static bool force_repl = false;
+static bool syntax_check_only = false;
 static bool trace_deprecation = false;
 static bool throw_deprecation = false;
 static bool abort_on_uncaught_exception = false;
@@ -2811,6 +2812,11 @@ void SetupProcessObject(Environment* env,
     READONLY_PROPERTY(process, "_print_eval", True(env->isolate()));
   }
 
+  // -c, --check
+  if (syntax_check_only) {
+    READONLY_PROPERTY(process, "_syntax_check_only", True(env->isolate()));
+  }
+
   // -i, --interactive
   if (force_repl) {
     READONLY_PROPERTY(process, "_forceRepl", True(env->isolate()));
@@ -3067,6 +3073,7 @@ static void PrintHelp() {
          "  -v, --version         print Node.js version\n"
          "  -e, --eval script     evaluate script\n"
          "  -p, --print           evaluate script and print result\n"
+         "  -c, --check           syntax check script without executing\n"
          "  -i, --interactive     always enter the REPL even if stdin\n"
          "                        does not appear to be a terminal\n"
          "  -r, --require         module to preload (option can be repeated)\n"
@@ -3196,6 +3203,8 @@ static void ParseArgs(int* argc,
       }
       args_consumed += 1;
       local_preload_modules[preload_module_count++] = module;
+    } else if (strcmp(arg, "--check") == 0 || strcmp(arg, "-c") == 0) {
+      syntax_check_only = true;
     } else if (strcmp(arg, "--interactive") == 0 || strcmp(arg, "-i") == 0) {
       force_repl = true;
     } else if (strcmp(arg, "--no-deprecation") == 0) {
