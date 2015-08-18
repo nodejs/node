@@ -66,6 +66,8 @@ rules:
   eol-last: 2
   ## no trailing spaces
   no-trailing-spaces: 2
+  # require space after keywords, eg 'for (..)'
+  space-after-keywords: 2
 
   # Strict Mode
   # list: https://github.com/eslint/eslint/tree/master/docs/rules#strict-mode
