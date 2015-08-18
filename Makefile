@@ -483,8 +483,19 @@ CPPLINT_EXCLUDE += src/node_win32_perfctr_provider.cc
 CPPLINT_EXCLUDE += src/queue.h
 CPPLINT_EXCLUDE += src/tree.h
 CPPLINT_EXCLUDE += src/v8abbr.h
+CPPLINT_EXCLUDE += $(wildcard test/addons/doc-*/*.cc test/addons/doc-*/*.h)
 
-CPPLINT_FILES = $(filter-out $(CPPLINT_EXCLUDE), $(wildcard src/*.cc src/*.h src/*.c tools/icu/*.h tools/icu/*.cc deps/debugger-agent/include/* deps/debugger-agent/src/*))
+CPPLINT_FILES = $(filter-out $(CPPLINT_EXCLUDE), $(wildcard \
+	deps/debugger-agent/include/* \
+	deps/debugger-agent/src/* \
+	src/*.c \
+	src/*.cc \
+	src/*.h \
+	test/addons/*/*.cc \
+	test/addons/*/*.h \
+	tools/icu/*.cc \
+	tools/icu/*.h \
+	))
 
 cpplint:
 	@$(PYTHON) tools/cpplint.py $(CPPLINT_FILES)
