@@ -7,6 +7,7 @@ struct async_req {
   uv_work_t req;
   int input;
   int output;
+  v8::Isolate* isolate;
   v8::Persistent<v8::Function> callback;
 };
 
@@ -17,9 +18,9 @@ void DoAsync(uv_work_t* r) {
 }
 
 void AfterAsync(uv_work_t* r) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  v8::HandleScope scope(isolate);
   async_req* req = reinterpret_cast<async_req*>(r->data);
+  v8::Isolate* isolate = req->isolate;
+  v8::HandleScope scope(isolate);
 
   v8::Handle<v8::Value> argv[2] = {
     v8::Null(isolate),
@@ -42,7 +43,7 @@ void AfterAsync(uv_work_t* r) {
 }
 
 void Method(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = args.GetIsolate();
   v8::HandleScope scope(isolate);
 
   async_req* req = new async_req;
@@ -50,6 +51,7 @@ void Method(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   req->input = args[0]->IntegerValue();
   req->output = 0;
+  req->isolate = isolate;
 
   v8::Local<v8::Function> callback = v8::Local<v8::Function>::Cast(args[1]);
   req->callback.Reset(isolate, callback);
