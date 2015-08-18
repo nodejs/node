@@ -291,9 +291,7 @@ static void GetHomeDirectory(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void Initialize(Handle<Object> target,
-                Handle<Value> unused,
-                Handle<Context> context) {
+void Initialize(Local<Object> target, Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   env->SetMethod(target, "getHostname", GetHostname);
   env->SetMethod(target, "getLoadAvg", GetLoadAvg);
@@ -312,4 +310,4 @@ void Initialize(Handle<Object> target,
 }  // namespace os
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(os, node::os::Initialize)
+NODE_MODULE_BUILTIN(os, node::os::Initialize)

@@ -36,7 +36,7 @@ static void sanity_check(void) {
   assert(at_exit_cb2_called == 2);
 }
 
-void init(Handle<Object> target) {
+void init(Local<Object> exports) {
   AtExit(at_exit_cb1);
   AtExit(at_exit_cb2, cookie);
   AtExit(at_exit_cb2, cookie);

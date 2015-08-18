@@ -59,9 +59,7 @@ void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void InitializeV8Bindings(Handle<Object> target,
-                          Handle<Value> unused,
-                          Handle<Context> context) {
+void InitializeV8Bindings(Local<Object> target, Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   env->SetMethod(target,
                  "updateHeapStatisticsArrayBuffer",
@@ -89,4 +87,4 @@ void InitializeV8Bindings(Handle<Object> target,
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(v8, node::InitializeV8Bindings)
+NODE_MODULE_BUILTIN(v8, node::InitializeV8Bindings)

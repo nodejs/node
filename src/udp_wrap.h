@@ -13,9 +13,8 @@ namespace node {
 
 class UDPWrap: public HandleWrap {
  public:
-  static void Initialize(v8::Handle<v8::Object> target,
-                         v8::Handle<v8::Value> unused,
-                         v8::Handle<v8::Context> context);
+  static void Initialize(v8::Local<v8::Object> target,
+                         v8::Local<v8::Context> context);
   static void GetFD(v8::Local<v8::String>,
                     const v8::PropertyCallbackInfo<v8::Value>&);
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);

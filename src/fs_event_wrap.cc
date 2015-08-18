@@ -24,9 +24,7 @@ using v8::Value;
 
 class FSEventWrap: public HandleWrap {
  public:
-  static void Initialize(Handle<Object> target,
-                         Handle<Value> unused,
-                         Handle<Context> context);
+  static void Initialize(Local<Object> target, Local<Context> context);
   static void New(const FunctionCallbackInfo<Value>& args);
   static void Start(const FunctionCallbackInfo<Value>& args);
   static void Close(const FunctionCallbackInfo<Value>& args);
@@ -59,9 +57,7 @@ FSEventWrap::~FSEventWrap() {
 }
 
 
-void FSEventWrap::Initialize(Handle<Object> target,
-                             Handle<Value> unused,
-                             Handle<Context> context) {
+void FSEventWrap::Initialize(Local<Object> target, Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
@@ -176,4 +172,4 @@ void FSEventWrap::Close(const FunctionCallbackInfo<Value>& args) {
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(fs_event_wrap, node::FSEventWrap::Initialize)
+NODE_MODULE_BUILTIN(fs_event_wrap, node::FSEventWrap::Initialize)

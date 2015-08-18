@@ -3,7 +3,7 @@
 
 using v8::Function;
 using v8::FunctionCallbackInfo;
-using v8::Handle;
+using v8::Local;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Object;
@@ -19,8 +19,8 @@ void Method(const FunctionCallbackInfo<Value>& args) {
                      NULL);
 }
 
-void init(Handle<Object> target) {
-  NODE_SET_METHOD(target, "method", Method);
+void init(Local<Object> exports) {
+  NODE_SET_METHOD(exports, "method", Method);
 }
 
 NODE_MODULE(binding, init);

@@ -62,7 +62,7 @@ void Method(const FunctionCallbackInfo<Value>& args) {
                 (uv_after_work_cb)AfterAsync);
 }
 
-void init(Handle<Object> exports, Handle<Object> module) {
+void init(Local<Object> exports, Local<Object> module) {
   NODE_SET_METHOD(module, "exports", Method);
 }
 
