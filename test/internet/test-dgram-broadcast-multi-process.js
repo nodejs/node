@@ -18,7 +18,7 @@ var common = require('../common'),
 // take the first non-internal interface as the address for binding
 get_bindAddress: for (var name in networkInterfaces) {
   var interfaces = networkInterfaces[name];
-  for(var i = 0; i < interfaces.length; i++) {
+  for (var i = 0; i < interfaces.length; i++) {
     var localInterface = interfaces[i];
     if (!localInterface.internal && localInterface.family === 'IPv4') {
       var bindAddress = localInterface.address;
