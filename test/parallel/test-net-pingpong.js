@@ -27,20 +27,17 @@ function pingPongTest(port, host) {
       // than one message.
       assert.ok(0 <= socket.bufferSize && socket.bufferSize <= 4);
 
-      console.log('server got: ' + data);
       assert.equal(true, socket.writable);
       assert.equal(true, socket.readable);
       assert.equal(true, count <= N);
-      if (/PING/.exec(data)) {
-        socket.write('PONG', function() {
-          sentPongs++;
-          console.error('sent PONG');
-        });
-      }
+      assert.equal(data, 'PING');
+
+      socket.write('PONG', function() {
+        sentPongs++;
+      });
     });
 
     socket.on('end', function() {
-      console.error(socket);
       assert.equal(true, socket.allowHalfOpen);
       assert.equal(true, socket.writable); // because allowHalfOpen
       assert.equal(false, socket.readable);
@@ -73,8 +70,6 @@ function pingPongTest(port, host) {
     });
 
     client.on('data', function(data) {
-      console.log('client got: ' + data);
-
       assert.equal('PONG', data);
       count += 1;
 
