@@ -3585,7 +3585,11 @@ SignBase::Error Sign::SignFinal(const char* key_pem,
                                  nullptr,
                                  CryptoPemCallback,
                                  const_cast<char*>(passphrase));
-  if (pkey == nullptr)
+
+  // Errors might be injected into OpenSSL's error stack
+  // without `pkey` being set to nullptr;
+  // cf. the test of `test_bad_rsa_privkey.pem` for an example.
+  if (pkey == nullptr || 0 != ERR_peek_error())
     goto exit;
 
   if (EVP_SignFinal(&mdctx_, *sig, sig_len, pkey))
@@ -3632,6 +3636,9 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
 
   md_len = 8192;  // Maximum key size is 8192 bits
   md_value = new unsigned char[md_len];
+
+  ClearErrorOnReturn clear_error_on_return;
+  (void) &clear_error_on_return;  // Silence compiler warning.
 
   Error err = sign->SignFinal(
       buf,
@@ -3966,6 +3973,9 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
 
   unsigned char* out_value = nullptr;
   size_t out_len = 0;
+
+  ClearErrorOnReturn clear_error_on_return;
+  (void) &clear_error_on_return;  // Silence compiler warning.
 
   bool r = Cipher<operation, EVP_PKEY_cipher_init, EVP_PKEY_cipher>(
       kbuf,
