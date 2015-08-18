@@ -3,7 +3,7 @@
     <!-- See https://msdn.microsoft.com/en-us/goglobal/bb964664.aspx -->
     <String Id="LocaleId">1031</String>
 
-    <String Id="WelcomeDlgDescription">Dieser Installationsassistent wird [ProductName] auf Ihrem Computer installieren.&#xD;&#xA;&#xD;&#xA;WARNUNG: Wenn Sie von io.js v1.0.0 oder v1.0.1 aus updaten wollen, müssen Sie diese Versionen zuerst manuell deinstallieren.</String>
+    <String Id="WelcomeDlgDescription">Dieser Installationsassistent wird [ProductName] auf Ihrem Computer installieren.</String>
     <String Id="InstallDirDlgDescription">Wählen Sie einen anderen Installationsort oder klicken Sie auf Weiter zum installieren.</String>
 
     <String Id="MajorUpgrade_DowngradeErrorMessage">Eine neuere Version von [ProductName] ist bereits installiert. Der Installationsassistent wird jetzt geschlossen.</String>

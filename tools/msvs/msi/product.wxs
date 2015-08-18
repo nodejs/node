@@ -25,6 +25,15 @@
     <MajorUpgrade AllowSameVersionUpgrades="yes"
                   DowngradeErrorMessage="!(loc.MajorUpgrade_DowngradeErrorMessage)"/>
 
+    <Upgrade Id="1d60944c-b9ce-4a71-a7c0-0384eb884baa">
+      <UpgradeVersion Maximum="1.0.0"
+                      IncludeMaximum="no"
+                      Property="NODE_0X_DETECTED" />
+      <UpgradeVersion Minimum="1.0.0"
+                      IncludeMinimum="yes"
+                      Property="EARLY_IO_DETECTED" />
+    </Upgrade>
+
     <Icon Id="NodeIcon" SourceFile="$(var.RepoDir)\src\res\node.ico"/>
     <Property Id="ARPPRODUCTICON" Value="NodeIcon"/>
     <Property Id="ApplicationFolderName" Value="node"/>
