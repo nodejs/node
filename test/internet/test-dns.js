@@ -663,7 +663,7 @@ TEST(function test_resolve_failure(done) {
   var req = dns.resolve4('nosuchhostimsure', function(err) {
     assert(err instanceof Error);
 
-    switch(err.code) {
+    switch (err.code) {
       case 'ENOTFOUND':
       case 'ESERVFAIL':
         break;

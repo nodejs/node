@@ -106,7 +106,7 @@ assert.ok(util.inspect(y), '[ \'a\', \'b\', \'c\', \'\\\\\\\': \'d\' ]');
 function test_color_style(style, input, implicit) {
   var color_name = util.inspect.styles[style];
   var color = ['', ''];
-  if(util.inspect.colors[color_name])
+  if (util.inspect.colors[color_name])
     color = util.inspect.colors[color_name];
 
   var without_color = util.inspect(input, false, 0, false);
