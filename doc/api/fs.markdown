@@ -557,11 +557,12 @@ The synchronous version of `fs.appendFile`. Returns `undefined`.
 Watch for changes on `filename`. The callback `listener` will be called each
 time the file is accessed.
 
-The second argument is optional. The `options` if provided should be an object
-containing two members a boolean, `persistent`, and `interval`. `persistent`
-indicates whether the process should continue to run as long as files are
-being watched. `interval` indicates how often the target should be polled,
-in milliseconds. The default is `{ persistent: true, interval: 5007 }`.
+The `options` argument may be omitted. If provided, it should be an object. The
+`options` object may contain a boolean named `persistent` that indicates
+whether the process should continue to run as long as files are being watched.
+The `options` object may specify an `interval` property indicating how often the
+target should be polled in milliseconds. The default is
+`{ persistent: true, interval: 5007 }`.
 
 The `listener` gets two arguments the current stat object and the previous
 stat object:
