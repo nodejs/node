@@ -8,8 +8,8 @@ var echoServer = net.createServer(function(connection) {
   serverConnection = connection;
   connection.setTimeout(0);
   assert.notEqual(connection.setKeepAlive, undefined);
-  // send a keepalive packet after 1000 ms
-  connection.setKeepAlive(true, 1000);
+  // send a keepalive packet after 50 ms
+  connection.setKeepAlive(true, common.platformTimeout(50));
   connection.on('end', function() {
     connection.end();
   });
@@ -27,5 +27,5 @@ echoServer.on('listening', function() {
     serverConnection.end();
     clientConnection.end();
     echoServer.close();
-  }, 1200);
+  }, common.platformTimeout(100));
 });
