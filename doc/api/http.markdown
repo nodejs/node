@@ -463,10 +463,10 @@ automatically parsed with [url.parse()][].
 Options:
 
 - `protocol`: Protocol to use. Defaults to `'http'`.
-- `host`: A domain name or IP address of the server to issue the request to.
-  Defaults to `'localhost'`.
-- `hostname`: Alias for `host`. To support `url.parse()` `hostname` is
-  preferred over `host`.
+- `host`: A domain name or IP address of the server to issue the request to,
+  optionally including a colon-prefixed port number. Defaults to `'localhost'`.
+- `hostname`: A domain name or IP address. May not include colon-prefixed port
+  number. To support `url.parse()`, `hostname` is preferred over `host`.
 - `family`: IP address family to use when resolving `host` and `hostname`.
   Valid values are `4` or `6`. When unspecified, both IP v4 and v6 will be
   used.
