@@ -145,9 +145,9 @@ Returns the number of listeners listening to the `type` of event.
 
 ### Class Method: EventEmitter.listenerCount(emitter, event)
 
-Return the number of listeners for a given event.
+    Stability: 0 - Deprecated: Use [emitter.listenerCount][] instead.
 
-_Note: This is deprecated. Use `emitter.listenerCount` instead._
+Returns the number of listeners for a given event.
 
 ### Event: 'newListener'
 
@@ -186,3 +186,6 @@ constructor function. For example:
 
     // Inherit functions from `EventEmitter`'s prototype
     util.inherits(MyEventEmitter, EventEmitter);
+
+
+[emitter.listenerCount]: #events_emitter_listenercount_type
