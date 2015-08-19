@@ -671,9 +671,7 @@ callback, and have some fallback logic if it is null.
 
 ## fs.exists(path, callback)
 
-`fs.exists()` is **deprecated**. For supported alternatives please check out
-[`fs.stat`](fs.html#fs_fs_stat_path_callback) or
-[`fs.access`](fs.html#fs_fs_access_path_mode_callback).
+    Stability: 0 - Deprecated: Use [fs.stat][] or [fs.access][] instead.
 
 Test whether or not the given path exists by checking with the file system.
 Then call the `callback` argument with either true or false.  Example:
@@ -697,9 +695,7 @@ and handle the error when it's not there.
 Synchronous version of [`fs.exists`](fs.html#fs_fs_exists_path_callback).
 Returns `true` if the file exists, `false` otherwise.
 
-`fs.existsSync()` is **deprecated**. For supported alternatives please check
-out [`fs.statSync`](fs.html#fs_fs_statsync_path) or
-[`fs.accessSync`](fs.html#fs_fs_accesssync_path_mode).
+    Stability: 0 - Deprecated: Use [fs.statSync][] or [fs.accessSync][] instead.
 
 ## fs.access(path[, mode], callback)
 
@@ -907,3 +903,9 @@ See more details in [fs.watch](#fs_fs_watch_filename_options_listener).
 * `error` {Error object}
 
 Emitted when an error occurs.
+
+
+[fs.stat]: #fs_fs_stat_path_callback
+[fs.access]: #fs_fs_access_path_mode_callback
+[fs.statSync]: #fs_fs_statsync_path
+[fs.accessSync]: #fs_fs_accesssync_path_mode

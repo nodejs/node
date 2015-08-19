@@ -24,8 +24,7 @@ terminal.
 
 ## tty.setRawMode(mode)
 
-Deprecated. Use `tty.ReadStream#setRawMode()`
-(i.e. `process.stdin.setRawMode()`) instead.
+    Stability: 0 - Deprecated: Use [tty.ReadStream#setRawMode][] (i.e. process.stdin.setRawMode) instead.
 
 
 ## Class: ReadStream
@@ -73,3 +72,6 @@ has changed.
       console.log('screen size has changed!');
       console.log(process.stdout.columns + 'x' + process.stdout.rows);
     });
+
+
+[tty.ReadStream#setRawMode]: #tty_rs_setrawmode_mode

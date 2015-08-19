@@ -66,7 +66,8 @@ added to the `'request'` event.
 
 ## http.createClient([port][, host])
 
-This function is **deprecated**; please use [http.request()][] instead.
+    Stability: 0 - Deprecated: Use [http.request][] instead.
+
 Constructs a new HTTP client. `port` and `host` refer to the server to be
 connected to.
 
@@ -1092,8 +1093,7 @@ client's authentication details.
 [http.IncomingMessage]: #http_http_incomingmessage
 [http.ServerResponse]: #http_class_http_serverresponse
 [http.Server]: #http_class_http_server
-[http.request()]: #http_http_request_options_callback
-[http.request()]: #http_http_request_options_callback
+[http.request]: #http_http_request_options_callback
 [net.Server.close()]: net.html#net_server_close_callback
 [net.Server.listen(path)]: net.html#net_server_listen_path_callback
 [net.Server.listen(port)]: net.html#net_server_listen_port_hostname_backlog_callback

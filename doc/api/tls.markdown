@@ -702,7 +702,7 @@ The number of concurrent connections on the server.
 
 ## Class: CryptoStream
 
-    Stability: 0 - Deprecated. Use tls.TLSSocket instead.
+    Stability: 0 - Deprecated: Use [tls.TLSSocket][] instead.
 
 This is an encrypted stream.
 
