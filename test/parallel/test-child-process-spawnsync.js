@@ -38,7 +38,7 @@ assert.deepEqual(ret_err.spawnargs, ['bar']);
   var response;
   var cwd;
 
-  if (process.platform === 'win32') {
+  if (common.isWindows) {
     cwd = 'c:\\';
     response = spawnSync('cmd.exe', ['/c', 'cd'], {cwd: cwd});
   } else {

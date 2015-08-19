@@ -26,10 +26,12 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdlib.h>
+#include <iostream>  // NOLINT(readability/streams)
 
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
+#include "src/base/utils/random-number-generator.h"
 #include "src/macro-assembler.h"
 #include "src/mips64/macro-assembler-mips64.h"
 #include "src/mips64/simulator-mips64.h"
@@ -38,6 +40,7 @@
 using namespace v8::internal;
 
 typedef void* (*F)(int64_t x, int64_t y, int p2, int p3, int p4);
+typedef Object* (*F1)(int x, int p1, int p2, int p3, int p4);
 
 #define __ masm->
 
@@ -212,6 +215,92 @@ TEST(LoadAddress) {
   ::F f = FUNCTION_CAST< ::F>(code->entry());
      (void) CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0);
   // Check results.
+}
+
+
+TEST(jump_tables4) {
+  // Similar to test-assembler-mips jump_tables1, with extra test for branch
+  // trampoline required before emission of the dd table (where trampolines are
+  // blocked), and proper transition to long-branch mode.
+  // Regression test for v8:4294.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assembler(isolate, NULL, 0);
+  MacroAssembler* masm = &assembler;
+
+  const int kNumCases = 512;
+  int values[kNumCases];
+  isolate->random_number_generator()->NextBytes(values, sizeof(values));
+  Label labels[kNumCases];
+  Label near_start, end;
+
+  __ daddiu(sp, sp, -8);
+  __ sd(ra, MemOperand(sp));
+  if ((masm->pc_offset() & 7) == 0) {
+    __ nop();
+  }
+
+  __ mov(v0, zero_reg);
+
+  __ Branch(&end);
+  __ bind(&near_start);
+
+  // Generate slightly less than 32K instructions, which will soon require
+  // trampoline for branch distance fixup.
+  for (int i = 0; i < 32768 - 256; ++i) {
+    __ addiu(v0, v0, 1);
+  }
+
+  Label done;
+  {
+    __ BlockTrampolinePoolFor(kNumCases * 2 + 6);
+    PredictableCodeSizeScope predictable(
+        masm, (kNumCases * 2 + 6) * Assembler::kInstrSize);
+    Label here;
+
+    __ bal(&here);
+    __ dsll(at, a0, 3);  // In delay slot.
+    __ bind(&here);
+    __ daddu(at, at, ra);
+    __ ld(at, MemOperand(at, 4 * Assembler::kInstrSize));
+    __ jr(at);
+    __ nop();  // Branch delay slot nop.
+    for (int i = 0; i < kNumCases; ++i) {
+      __ dd(&labels[i]);
+    }
+  }
+
+  for (int i = 0; i < kNumCases; ++i) {
+    __ bind(&labels[i]);
+    __ lui(v0, (values[i] >> 16) & 0xffff);
+    __ ori(v0, v0, values[i] & 0xffff);
+    __ Branch(&done);
+  }
+
+  __ bind(&done);
+  __ ld(ra, MemOperand(sp));
+  __ daddiu(sp, sp, 8);
+  __ jr(ra);
+  __ nop();
+
+  __ bind(&end);
+  __ Branch(&near_start);
+
+  CodeDesc desc;
+  masm->GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F1 f = FUNCTION_CAST<F1>(code->entry());
+  for (int i = 0; i < kNumCases; ++i) {
+    int64_t res =
+        reinterpret_cast<int64_t>(CALL_GENERATED_CODE(f, i, 0, 0, 0, 0));
+    ::printf("f(%d) = %" PRId64 "\n", i, res);
+    CHECK_EQ(values[i], res);
+  }
 }
 
 #undef __

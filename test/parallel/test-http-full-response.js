@@ -27,7 +27,7 @@ function runAb(opts, callback) {
   exec(command, function(err, stdout, stderr) {
     if (err) {
       if (/ab|apr/mi.test(stderr)) {
-        console.log('problem spawning ab - skipping test.\n' + stderr);
+        console.log('1..0 # Skipped: problem spawning `ab`.\n' + stderr);
         process.reallyExit(0);
       }
       process.exit();

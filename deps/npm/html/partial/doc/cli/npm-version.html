@@ -5,13 +5,14 @@
 <p>Run this in a package directory to bump the version and write the new
 data back to <code>package.json</code> and, if present, <code>npm-shrinkwrap.json</code>.</p>
 <p>The <code>newversion</code> argument should be a valid semver string, <em>or</em> a
-valid second argument to semver.inc (one of &quot;patch&quot;, &quot;minor&quot;, &quot;major&quot;,
-&quot;prepatch&quot;, &quot;preminor&quot;, &quot;premajor&quot;, &quot;prerelease&quot;). In the second case,
+valid second argument to semver.inc (one of <code>patch</code>, <code>minor</code>, <code>major</code>,
+<code>prepatch</code>, <code>preminor</code>, <code>premajor</code>, <code>prerelease</code>). In the second case,
 the existing version will be incremented by 1 in the specified field.</p>
-<p>If run in a git repo, it will also create a version commit and tag, and fail if
-the repo is not clean.  This behavior is controlled by <code>git-tag-version</code> (see
-below), and can be disabled on the command line by running <code>npm
---no-git-tag-version version</code></p>
+<p>If run in a git repo, it will also create a version commit and tag.
+This behavior is controlled by <code>git-tag-version</code> (see below), and can
+be disabled on the command line by running <code>npm --no-git-tag-version version</code>.
+It will fail if the working directory is not clean, unless the <code>--force</code>
+flag is set.</p>
 <p>If supplied with <code>--message</code> (shorthand: <code>-m</code>) config option, npm will
 use it as a commit message when creating a version commit.  If the
 <code>message</code> config contains <code>%s</code> then that will be replaced with the
@@ -28,13 +29,34 @@ user: &quot;isaacs (http://blog.izs.me/) &lt;i@izs.me&gt;&quot;
 2048-bit RSA key, ID 6C481CF6, created 2010-08-31
 
 Enter passphrase:
-</code></pre><p>If &quot;preversion&quot;, &quot;version&quot;, &quot;postversion&quot; in the &quot;scripts&quot; property of
-the package.json, it will execute by running <code>npm version</code>. preversion
-and version ware executed before bump the package version, postversion
-was executed after bump the package version. For example to run <code>npm version</code>
-after passed all test:</p>
-<pre><code>&quot;scripts&quot;: { &quot;preversion&quot;: &quot;npm test&quot; }
-</code></pre><h2 id="configuration">CONFIGURATION</h2>
+</code></pre><p>If <code>preversion</code>, <code>version</code>, or <code>postversion</code> are in the <code>scripts</code> property of
+the package.json, they will be executed as part of running <code>npm version</code>.</p>
+<p>The exact order of execution is as follows:</p>
+<ol>
+<li>Check to make sure the git working directory is clean before we get started.
+Your scripts may add files to the commit in future steps.
+This step is skipped if the <code>--force</code> flag is set.</li>
+<li>Run the <code>preversion</code> script. These scripts have access to the old <code>version</code> in package.json.
+A typical use would be running your full test suite before deploying.
+Any files you want added to the commit should be explicitly added using <code>git add</code>.</li>
+<li>Bump <code>version</code> in <code>package.json</code> as requested (<code>patch</code>, <code>minor</code>, <code>major</code>, etc). </li>
+<li>Run the <code>version</code> script. These scripts have access to the new <code>version</code> in package.json
+(so they can incorporate it into file headers in generated files for example).
+Again, scripts should explicitly add generated files to the commit using <code>git add</code>.</li>
+<li>Commit and tag.</li>
+<li>Run the <code>postversion</code> script. Use it to clean up the file system or automatically push
+the commit and/or tag.</li>
+</ol>
+<p>Take the following example:</p>
+<pre><code>&quot;scripts&quot;: {
+  &quot;preversion&quot;: &quot;npm test&quot;,
+  &quot;version&quot;: &quot;npm run build &amp;&amp; git add -A dist&quot;,
+  &quot;postversion&quot;: &quot;git push &amp;&amp; git push --tags &amp;&amp; rm -rf build/temp&quot;
+}
+</code></pre><p>This runs all your tests, and proceeds only if they pass. Then runs your <code>build</code> script, and
+adds everything in the <code>dist</code> directory to the commit. After the commit, it pushes the new commit
+and tag up to the server, and deletes the <code>build/temp</code> directory.</p>
+<h2 id="configuration">CONFIGURATION</h2>
 <h3 id="git-tag-version">git-tag-version</h3>
 <ul>
 <li>Default: true</li>

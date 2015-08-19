@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 var assert = require('assert');
 var exec = require('child_process').exec;
 
@@ -8,7 +8,7 @@ var error_count = 0;
 
 var pwdcommand, dir;
 
-if (process.platform == 'win32') {
+if (common.isWindows) {
   pwdcommand = 'echo %cd%';
   dir = 'c:\\windows';
 } else {

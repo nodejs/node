@@ -18,9 +18,10 @@ var fork = require('child_process').fork;
 var assert = require('assert');
 var common = require('../common');
 
-if (process.platform === 'win32') {
-  console.error('Sending dgram sockets to child processes not supported');
-  process.exit(0);
+if (common.isWindows) {
+  console.log('1..0 # Skipped: Sending dgram sockets to child processes is ' +
+              'not supported');
+  return;
 }
 
 if (process.argv[2] === 'child') {

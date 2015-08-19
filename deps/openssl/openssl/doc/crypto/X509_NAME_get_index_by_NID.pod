@@ -29,6 +29,7 @@ and issuer names.
 X509_NAME_get_index_by_NID() and X509_NAME_get_index_by_OBJ() retrieve
 the next index matching B<nid> or B<obj> after B<lastpos>. B<lastpos>
 should initially be set to -1. If there are no more entries -1 is returned.
+If B<nid> is invalid (doesn't correspond to a valid OID) then -2 is returned.
 
 X509_NAME_entry_count() returns the total number of entries in B<name>.
 
@@ -63,6 +64,10 @@ The list of all relevant B<NID_*> and B<OBJ_* codes> can be found in
 the source code header files E<lt>openssl/obj_mac.hE<gt> and/or
 E<lt>openssl/objects.hE<gt>.
 
+Applications which could pass invalid NIDs to X509_NAME_get_index_by_NID()
+should check for the return value of -2. Alternatively the NID validity
+can be determined first by checking OBJ_nid2obj(nid) is not NULL.
+
 =head1 EXAMPLES
 
 Process all entries:
@@ -95,6 +100,8 @@ Process all commonName entries:
 
 X509_NAME_get_index_by_NID() and X509_NAME_get_index_by_OBJ()
 return the index of the next matching entry or -1 if not found.
+X509_NAME_get_index_by_NID() can also return -2 if the supplied
+NID is invalid.
 
 X509_NAME_entry_count() returns the total number of entries.
 

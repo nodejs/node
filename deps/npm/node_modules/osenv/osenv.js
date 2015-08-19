@@ -2,6 +2,7 @@ var isWindows = process.platform === 'win32'
 var path = require('path')
 var exec = require('child_process').exec
 var osTmpdir = require('os-tmpdir')
+var osHomedir = require('os-homedir')
 
 // looking up envs is a bit costly.
 // Also, sometimes we want to have a fallback
@@ -50,9 +51,7 @@ memo('tmpdir', function () {
 })
 
 memo('home', function () {
-  return ( isWindows ? process.env.USERPROFILE
-         : process.env.HOME
-         )
+  return osHomedir()
 })
 
 memo('path', function () {

@@ -21,6 +21,16 @@ var BUILTINS = [
 
 module.exports = function(context) {
 
+    var config = context.options[0] || {};
+    var exceptions = config.exceptions || [];
+    var modifiedBuiltins = BUILTINS;
+
+    if (exceptions.length) {
+        modifiedBuiltins = BUILTINS.filter(function(builtIn) {
+            return exceptions.indexOf(builtIn) === -1;
+        });
+    }
+
     return {
 
         // handle the Array.prototype.extra style case
@@ -39,7 +49,7 @@ module.exports = function(context) {
                 return;
             }
 
-            BUILTINS.forEach(function(builtin) {
+            modifiedBuiltins.forEach(function(builtin) {
                 if (lhs.object.object.name === builtin) {
                     context.report(node, builtin + " prototype is read only, properties should not be added.");
                 }
@@ -64,7 +74,7 @@ module.exports = function(context) {
 
                 if (object &&
                     object.type === "Identifier" &&
-                    (BUILTINS.indexOf(object.name) > -1) &&
+                    (modifiedBuiltins.indexOf(object.name) > -1) &&
                     subject.property.name === "prototype") {
 
                     context.report(node, object.name + " prototype is read only, properties should not be added.");
@@ -75,3 +85,19 @@ module.exports = function(context) {
     };
 
 };
+
+module.exports.schema = [
+    {
+        "type": "object",
+        "properties": {
+            "exceptions": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                },
+                "uniqueItems": true
+            }
+        },
+        "additionalProperties": false
+    }
+];

@@ -53,8 +53,8 @@ setInterval(function(){
 
 #### Windows note
 
- On Windows the environment variable is set using the `set` command. 
- 
+ On Windows the environment variable is set using the `set` command.
+
  ```cmd
  set DEBUG=*,-not_this
  ```
@@ -77,7 +77,7 @@ Then, run the program to be debugged as usual.
 
 ## Wildcards
 
-  The `*` character may be used as a wildcard. Suppose for example your library has debuggers named "connect:bodyParser", "connect:compress", "connect:session", instead of listing all three with `DEBUG=connect:bodyParser,connect.compress,connect:session`, you may simply do `DEBUG=connect:*`, or to run everything using this module simply use `DEBUG=*`.
+  The `*` character may be used as a wildcard. Suppose for example your library has debuggers named "connect:bodyParser", "connect:compress", "connect:session", instead of listing all three with `DEBUG=connect:bodyParser,connect:compress,connect:session`, you may simply do `DEBUG=connect:*`, or to run everything using this module simply use `DEBUG=*`.
 
   You can also exclude specific debuggers by prefixing them with a "-" character.  For example, `DEBUG=*,-connect:*` would include all debuggers except those starting with "connect:".
 
@@ -145,6 +145,16 @@ error('still goes to stderr!');
 debug.log = console.info.bind(console);
 error('now goes to stdout via console.info');
 log('still goes to stdout, but via console.info now');
+```
+
+### Save debug output to a file
+
+You can save all debug statements to a file by piping them.
+
+Example:
+
+```bash
+$ DEBUG_FD=3 node your-app.js 3> whatever.log
 ```
 
 ## Authors

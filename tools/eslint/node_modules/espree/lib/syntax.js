@@ -113,7 +113,7 @@ module.exports = {
         }
     },
 
-    isStrictModeReservedWord: function(id) {
+    isStrictModeReservedWord: function(id, ecmaFeatures) {
         switch (id) {
             case "implements":
             case "interface":
@@ -125,6 +125,8 @@ module.exports = {
             case "yield":
             case "let":
                 return true;
+            case "await":
+                return ecmaFeatures.modules;
             default:
                 return false;
         }
@@ -138,7 +140,7 @@ module.exports = {
 
     isKeyword: function(id, strict, ecmaFeatures) {
 
-        if (strict && this.isStrictModeReservedWord(id)) {
+        if (strict && this.isStrictModeReservedWord(id, ecmaFeatures)) {
             return true;
         }
 

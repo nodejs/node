@@ -70,3 +70,9 @@ module.exports = function(context) {
     };
 
 };
+
+module.exports.schema = [
+    {
+        "enum": ["functions", "both"]
+    }
+];

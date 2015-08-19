@@ -7,7 +7,6 @@ var got_error = false;
 var success_count = 0;
 var mode_async;
 var mode_sync;
-var is_windows = process.platform === 'win32';
 
 // Need to hijack fs.open/close to make sure that things
 // get closed once they're opened.
@@ -44,7 +43,7 @@ function closeSync() {
 
 
 // On Windows chmod is only able to manipulate read-only bit
-if (is_windows) {
+if (common.isWindows) {
   mode_async = 0o400;   // read-only
   mode_sync = 0o600;    // read-write
 } else {
@@ -61,14 +60,14 @@ fs.chmod(file1, mode_async.toString(8), function(err) {
   } else {
     console.log(fs.statSync(file1).mode);
 
-    if (is_windows) {
+    if (common.isWindows) {
       assert.ok((fs.statSync(file1).mode & 0o777) & mode_async);
     } else {
       assert.equal(mode_async, fs.statSync(file1).mode & 0o777);
     }
 
     fs.chmodSync(file1, mode_sync);
-    if (is_windows) {
+    if (common.isWindows) {
       assert.ok((fs.statSync(file1).mode & 0o777) & mode_sync);
     } else {
       assert.equal(mode_sync, fs.statSync(file1).mode & 0o777);
@@ -89,14 +88,14 @@ fs.open(file2, 'a', function(err, fd) {
     } else {
       console.log(fs.fstatSync(fd).mode);
 
-      if (is_windows) {
+      if (common.isWindows) {
         assert.ok((fs.fstatSync(fd).mode & 0o777) & mode_async);
       } else {
         assert.equal(mode_async, fs.fstatSync(fd).mode & 0o777);
       }
 
       fs.fchmodSync(fd, mode_sync);
-      if (is_windows) {
+      if (common.isWindows) {
         assert.ok((fs.fstatSync(fd).mode & 0o777) & mode_sync);
       } else {
         assert.equal(mode_sync, fs.fstatSync(fd).mode & 0o777);

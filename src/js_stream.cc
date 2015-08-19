@@ -89,7 +89,7 @@ int JSStream::DoWrite(WriteWrap* w,
   Local<Array> bufs_arr = Array::New(env()->isolate(), count);
   Local<Object> buf;
   for (size_t i = 0; i < count; i++) {
-    buf = Buffer::New(env(), bufs[i].base, bufs[i].len).ToLocalChecked();
+    buf = Buffer::Copy(env(), bufs[i].base, bufs[i].len).ToLocalChecked();
     bufs_arr->Set(i, buf);
   }
 
@@ -167,7 +167,7 @@ template <class Wrap>
 void JSStream::Finish(const FunctionCallbackInfo<Value>& args) {
   Wrap* w = Unwrap<Wrap>(args[0].As<Object>());
 
-  w->Done(args[0]->Int32Value());
+  w->Done(args[1]->Int32Value());
 }
 
 

@@ -2,17 +2,17 @@
 var common = require('../common');
 
 if (!common.opensslCli) {
-  console.error('Skipping because node compiled without OpenSSL CLI.');
-  process.exit(0);
+  console.log('1..0 # Skipped: node compiled without OpenSSL CLI.');
+  return;
 }
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
-  process.exit();
+  return;
 }
 
-doTest({ tickets: false } , function() {
-  doTest({ tickets: true } , function() {
+doTest({ tickets: false }, function() {
+  doTest({ tickets: true }, function() {
     console.error('all done');
   });
 });
@@ -70,16 +70,23 @@ function doTest(testOptions, callback) {
       callback(null, session.data);
     }, 100);
   });
+
+  var args = [
+    's_client',
+    '-tls1',
+    '-connect', 'localhost:' + common.PORT,
+    '-servername', 'ohgod',
+    '-key', join(common.fixturesDir, 'agent.key'),
+    '-cert', join(common.fixturesDir, 'agent.crt'),
+    '-reconnect'
+  ].concat(testOptions.tickets ? [] : '-no_ticket');
+
+  // for the performance and stability issue in s_client on Windows
+  if (common.isWindows)
+    args.push('-no_rand_screen');
+
   server.listen(common.PORT, function() {
-    var client = spawn(common.opensslCli, [
-      's_client',
-      '-tls1',
-      '-connect', 'localhost:' + common.PORT,
-      '-servername', 'ohgod',
-      '-key', join(common.fixturesDir, 'agent.key'),
-      '-cert', join(common.fixturesDir, 'agent.crt'),
-      '-reconnect'
-    ].concat(testOptions.tickets ? [] : '-no_ticket'), {
+    var client = spawn(common.opensslCli, args, {
       stdio: [ 0, 1, 'pipe' ]
     });
     var err = '';

@@ -3,7 +3,6 @@ var common = require('../common'),
     assert = require('assert'),
     dgram = require('dgram'),
     util = require('util'),
-    assert = require('assert'),
     Buffer = require('buffer').Buffer,
     fork = require('child_process').fork,
     LOCAL_BROADCAST_HOST = '224.0.0.114',
@@ -183,10 +182,9 @@ if (process.argv[2] === 'child') {
     process.send({ message: buf.toString() });
 
     if (receivedMessages.length == messages.length) {
+      // .dropMembership() not strictly needed but here as a sanity check
       listenSocket.dropMembership(LOCAL_BROADCAST_HOST);
-
-      process.nextTick(function() { // TODO should be changed to below.
-        // listenSocket.dropMembership(LOCAL_BROADCAST_HOST, function() {
+      process.nextTick(function() {
         listenSocket.close();
       });
     }

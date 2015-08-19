@@ -17,6 +17,11 @@ NODE ?= ./iojs$(EXEEXT)
 NODE_EXE = iojs$(EXEEXT)
 NODE_G_EXE = iojs_g$(EXEEXT)
 
+# Flags for packaging.
+BUILD_DOWNLOAD_FLAGS ?= --download=all
+BUILD_INTL_FLAGS ?= --with-intl=small-icu
+BUILD_RELEASE_FLAGS ?= $(BUILD_DOWNLOAD_FLAGS) $(BUILD_INTL_FLAGS)
+
 # Default to verbose builds.
 # To do quiet/pretty builds, run `make V=` to set V to an empty string,
 # or set the V environment variable to an empty string.
@@ -139,7 +144,7 @@ test-debugger: all
 	$(PYTHON) tools/test.py debugger
 
 test-npm: $(NODE_EXE)
-	NODE_EXE=$(NODE_EXE) tools/test-npm.sh
+	NODE=$(NODE) tools/test-npm.sh
 
 test-npm-publish: $(NODE_EXE)
 	npm_package_config_publishtest=true $(NODE) deps/npm/test/run.js
@@ -156,7 +161,7 @@ test-timers-clean:
 
 apidoc_sources = $(wildcard doc/api/*.markdown)
 apidocs = $(addprefix out/,$(apidoc_sources:.markdown=.html)) \
-          $(addprefix out/,$(apidoc_sources:.markdown=.json))
+		$(addprefix out/,$(apidoc_sources:.markdown=.json))
 
 apidoc_dirs = out/doc out/doc/api/ out/doc/api/assets
 
@@ -184,6 +189,11 @@ docopen: out/doc/api/all.html
 
 docclean:
 	-rm -rf out/doc
+
+run-ci:
+	$(PYTHON) ./configure $(CONFIG_FLAGS)
+	$(MAKE)
+	$(MAKE) test-ci
 
 RAWVER=$(shell $(PYTHON) tools/getnodeversion.py)
 VERSION=v$(RAWVER)
@@ -237,7 +247,15 @@ else
 ifeq ($(DESTCPU),arm)
 ARCH=arm
 else
+ifeq ($(DESTCPU),ppc64)
+ARCH=ppc64
+else
+ifeq ($(DESTCPU),ppc)
+ARCH=ppc
+else
 ARCH=x86
+endif
+endif
 endif
 endif
 
@@ -264,7 +282,7 @@ release-only:
 	@if [ "$(shell git status --porcelain | egrep -v '^\?\? ')" = "" ]; then \
 		exit 0 ; \
 	else \
-	  echo "" >&2 ; \
+		echo "" >&2 ; \
 		echo "The git repository is not clean." >&2 ; \
 		echo "Please commit changes before building release tarball." >&2 ; \
 		echo "" >&2 ; \
@@ -275,17 +293,21 @@ release-only:
 	@if [ "$(DISTTYPE)" != "release" -o "$(RELEASE)" = "1" ]; then \
 		exit 0; \
 	else \
-	  echo "" >&2 ; \
+		echo "" >&2 ; \
 		echo "#NODE_VERSION_IS_RELEASE is set to $(RELEASE)." >&2 ; \
-	  echo "Did you remember to update src/node_version.h?" >&2 ; \
-	  echo "" >&2 ; \
+		echo "Did you remember to update src/node_version.h?" >&2 ; \
+		echo "" >&2 ; \
 		exit 1 ; \
 	fi
 
 $(PKG): release-only
 	rm -rf $(PKGDIR)
 	rm -rf out/deps out/Release
-	$(PYTHON) ./configure --dest-cpu=x64 --tag=$(TAG)
+	$(PYTHON) ./configure \
+		--dest-cpu=x64 \
+		--tag=$(TAG) \
+		--release-urlbase=$(RELEASE_URLBASE) \
+		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
 	$(MAKE) install V=$(V) DESTDIR=$(PKGDIR)
 	SIGN="$(CODESIGN_CERT)" PKGDIR="$(PKGDIR)" bash tools/osx-codesign.sh
 	cat tools/osx-pkg.pmdoc/index.xml.tmpl \
@@ -341,8 +363,13 @@ doc-upload: tar
 	ssh $(STAGINGSERVER) "touch staging/$(DISTTYPEDIR)/$(FULLVERSION)/doc.done"
 
 $(TARBALL)-headers: config.gypi release-only
-	$(PYTHON) ./configure --prefix=/ --dest-cpu=$(DESTCPU) --tag=$(TAG) $(CONFIG_FLAGS)
-	HEADERS_ONLY=1 $(PYTHON) tools/install.py install '$(TARNAME)' '$(PREFIX)'
+	$(PYTHON) ./configure \
+		--prefix=/ \
+		--dest-cpu=$(DESTCPU) \
+		--tag=$(TAG) \
+		--release-urlbase=$(RELEASE_URLBASE) \
+		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
+	HEADERS_ONLY=1 $(PYTHON) tools/install.py install '$(TARNAME)' '/'
 	find $(TARNAME)/ -type l | xargs rm # annoying on windows
 	tar -cf $(TARNAME)-headers.tar $(TARNAME)
 	rm -rf $(TARNAME)
@@ -366,7 +393,12 @@ endif
 $(BINARYTAR): release-only
 	rm -rf $(BINARYNAME)
 	rm -rf out/deps out/Release
-	$(PYTHON) ./configure --prefix=/ --dest-cpu=$(DESTCPU) --tag=$(TAG) $(CONFIG_FLAGS)
+	$(PYTHON) ./configure \
+		--prefix=/ \
+		--dest-cpu=$(DESTCPU) \
+		--tag=$(TAG) \
+		--release-urlbase=$(RELEASE_URLBASE) \
+		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
 	$(MAKE) install DESTDIR=$(BINARYNAME) V=$(V) PORTABLE=1
 	cp README.md $(BINARYNAME)
 	cp LICENSE $(BINARYNAME)
@@ -433,7 +465,7 @@ bench-all: bench bench-misc bench-array bench-buffer bench-url bench-events
 bench: bench-net bench-http bench-fs bench-tls
 
 bench-http-simple:
-	 benchmark/http_simple_bench.sh
+	benchmark/http_simple_bench.sh
 
 bench-idle:
 	$(NODE) benchmark/idle_server.js &
@@ -451,8 +483,19 @@ CPPLINT_EXCLUDE += src/node_win32_perfctr_provider.cc
 CPPLINT_EXCLUDE += src/queue.h
 CPPLINT_EXCLUDE += src/tree.h
 CPPLINT_EXCLUDE += src/v8abbr.h
+CPPLINT_EXCLUDE += $(wildcard test/addons/doc-*/*.cc test/addons/doc-*/*.h)
 
-CPPLINT_FILES = $(filter-out $(CPPLINT_EXCLUDE), $(wildcard src/*.cc src/*.h src/*.c tools/icu/*.h tools/icu/*.cc deps/debugger-agent/include/* deps/debugger-agent/src/*))
+CPPLINT_FILES = $(filter-out $(CPPLINT_EXCLUDE), $(wildcard \
+	deps/debugger-agent/include/* \
+	deps/debugger-agent/src/* \
+	src/*.c \
+	src/*.cc \
+	src/*.h \
+	test/addons/*/*.cc \
+	test/addons/*/*.h \
+	tools/icu/*.cc \
+	tools/icu/*.h \
+	))
 
 cpplint:
 	@$(PYTHON) tools/cpplint.py $(CPPLINT_FILES)
@@ -464,4 +507,4 @@ lint: jslint cpplint
 	dynamiclib test test-all test-addons build-addons website-upload pkg \
 	blog blogclean tar binary release-only bench-http-simple bench-idle \
 	bench-all bench bench-misc bench-array bench-buffer bench-net \
-	bench-http bench-fs bench-tls cctest
+	bench-http bench-fs bench-tls cctest run-ci

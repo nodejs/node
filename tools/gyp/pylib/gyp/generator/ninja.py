@@ -1169,7 +1169,7 @@ class NinjaWriter(object):
         ldflags.append(r'-Wl,-rpath=\$$ORIGIN/%s' % rpath)
         ldflags.append('-Wl,-rpath-link=%s' % rpath)
     self.WriteVariableList(ninja_file, 'ldflags',
-                           gyp.common.uniquer(map(self.ExpandSpecial, ldflags)))
+                           map(self.ExpandSpecial, ldflags))
 
     library_dirs = config.get('library_dirs', [])
     if self.flavor == 'win':

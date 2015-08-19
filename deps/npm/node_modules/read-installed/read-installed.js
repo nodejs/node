@@ -56,7 +56,7 @@ to READ(packagefolder, parentobj, name, reqver)
 obj = read package.json
 installed = ./node_modules/*
 if parentobj is null, and no package.json
-  obj = {dependencies:{<installed>:"*"}}
+  obj = {dependencies:{<installed>:ANY}}
 deps = Object.keys(obj.dependencies)
 obj.path = packagefolder
 obj.parent = parentobj
@@ -104,6 +104,10 @@ var extend = require("util-extend")
 var debug = require("debuglog")("read-installed")
 
 var readdir = require("readdir-scoped-modules")
+
+// Sentinel catch-all version constraint used when a dependency is not
+// listed in the package.json file.
+var ANY = {}
 
 module.exports = readInstalled
 
@@ -190,7 +194,7 @@ function readInstalled_ (folder, parent, name, reqver, depth, opts, cb) {
     if (realpathSeen[real]) return cb(null, realpathSeen[real])
     if (obj === true) {
       obj = {dependencies:{}, path:folder}
-      installed.forEach(function (i) { obj.dependencies[i] = "*" })
+      installed.forEach(function (i) { obj.dependencies[i] = ANY })
     }
     if (name && obj.name !== name) obj.invalid = true
     obj.realName = name || obj.name
@@ -198,6 +202,14 @@ function readInstalled_ (folder, parent, name, reqver, depth, opts, cb) {
 
     // At this point, figure out what dependencies we NEED to get met
     obj._dependencies = copy(obj.dependencies)
+
+    if (reqver === ANY) {
+      // We were unable to determine the required version of this
+      // dependency from the package.json file, but we now know its actual
+      // version, so treat that version as the required version to avoid
+      // marking the dependency as invalid below. See #40.
+      reqver = obj.version;
+    }
 
     // "foo":"http://blah" and "foo":"latest" are always presumed valid
     if (reqver

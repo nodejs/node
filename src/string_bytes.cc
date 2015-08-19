@@ -132,7 +132,7 @@ size_t base64_decoded_size(const TypeName* src, size_t size) {
 
 
 // supports regular and URL-safe base64
-static const int unbase64_table[] =
+static const int8_t unbase64_table[] =
   { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -2, -1, -1, -2, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 62, -1, 62, -1, 63,
@@ -150,62 +150,83 @@ static const int unbase64_table[] =
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
   };
-#define unbase64(x) unbase64_table[(uint8_t)(x)]
+#define unbase64(x)                                                           \
+  static_cast<uint8_t>(unbase64_table[static_cast<uint8_t>(x)])
 
 
 template <typename TypeName>
-size_t base64_decode(char* buf,
-                     size_t len,
-                     const TypeName* src,
-                     const size_t srcLen) {
-  char a, b, c, d;
-  char* dst = buf;
-  char* dstEnd = buf + len;
-  const TypeName* srcEnd = src + srcLen;
-
-  while (src < srcEnd && dst < dstEnd) {
-    int remaining = srcEnd - src;
-
-    while (unbase64(*src) < 0 && src < srcEnd)
-      src++, remaining--;
-    if (remaining == 0 || *src == '=')
-      break;
-    a = unbase64(*src++);
-
-    while (unbase64(*src) < 0 && src < srcEnd)
-      src++, remaining--;
-    if (remaining <= 1 || *src == '=')
-      break;
-    b = unbase64(*src++);
-
-    *dst++ = (a << 2) | ((b & 0x30) >> 4);
-    if (dst == dstEnd)
-      break;
-
-    while (unbase64(*src) < 0 && src < srcEnd)
-      src++, remaining--;
-    if (remaining <= 2 || *src == '=')
-      break;
-    c = unbase64(*src++);
-
-    *dst++ = ((b & 0x0F) << 4) | ((c & 0x3C) >> 2);
-    if (dst == dstEnd)
-      break;
-
-    while (unbase64(*src) < 0 && src < srcEnd)
-      src++, remaining--;
-    if (remaining <= 3 || *src == '=')
-      break;
-    d = unbase64(*src++);
-
-    *dst++ = ((c & 0x03) << 6) | (d & 0x3F);
+size_t base64_decode_slow(char* dst, size_t dstlen,
+                          const TypeName* src, size_t srclen) {
+  uint8_t hi;
+  uint8_t lo;
+  size_t i = 0;
+  size_t k = 0;
+  for (;;) {
+#define V(expr)                                                               \
+    while (i < srclen) {                                                      \
+      const uint8_t c = src[i];                                               \
+      lo = unbase64(c);                                                       \
+      i += 1;                                                                 \
+      if (lo < 64)                                                            \
+        break;  /* Legal character. */                                        \
+      if (c == '=')                                                           \
+        return k;                                                             \
+    }                                                                         \
+    expr;                                                                     \
+    if (i >= srclen)                                                          \
+      return k;                                                               \
+    if (k >= dstlen)                                                          \
+      return k;                                                               \
+    hi = lo;
+    V(/* Nothing. */);
+    V(dst[k++] = ((hi & 0x3F) << 2) | ((lo & 0x30) >> 4));
+    V(dst[k++] = ((hi & 0x0F) << 4) | ((lo & 0x3C) >> 2));
+    V(dst[k++] = ((hi & 0x03) << 6) | ((lo & 0x3F) >> 0));
+#undef V
   }
-
-  return dst - buf;
+  UNREACHABLE();
 }
 
 
-//// HEX ////
+template <typename TypeName>
+size_t base64_decode_fast(char* const dst, const size_t dstlen,
+                          const TypeName* const src, const size_t srclen,
+                          const size_t decoded_size) {
+  const size_t available = dstlen < decoded_size ? dstlen : decoded_size;
+  const size_t max_i = srclen / 4 * 4;
+  const size_t max_k = available / 3 * 3;
+  size_t i = 0;
+  size_t k = 0;
+  while (i < max_i && k < max_k) {
+    const uint32_t v =
+        unbase64(src[i + 0]) << 24 |
+        unbase64(src[i + 1]) << 16 |
+        unbase64(src[i + 2]) << 8 |
+        unbase64(src[i + 3]);
+    // If MSB is set, input contains whitespace or is not valid base64.
+    if (v & 0x80808080) {
+      break;
+    }
+    dst[k + 0] = ((v >> 22) & 0xFC) | ((v >> 20) & 0x03);
+    dst[k + 1] = ((v >> 12) & 0xF0) | ((v >> 10) & 0x0F);
+    dst[k + 2] = ((v >>  2) & 0xC0) | ((v >>  0) & 0x3F);
+    i += 4;
+    k += 3;
+  }
+  if (i < srclen && k < dstlen) {
+    return k + base64_decode_slow(dst + k, dstlen - k, src + i, srclen - i);
+  }
+  return k;
+}
+
+
+template <typename TypeName>
+size_t base64_decode(char* const dst, const size_t dstlen,
+                     const TypeName* const src, const size_t srclen) {
+  const size_t decoded_size = base64_decoded_size(src, srclen);
+  return base64_decode_fast(dst, dstlen, src, srclen, decoded_size);
+}
+
 
 template <typename TypeName>
 unsigned hex2bin(TypeName c) {

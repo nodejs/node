@@ -49,7 +49,7 @@ createFileWithPerms(readWriteFile, 0o666);
  * continuous integration platform to take care of that.
  */
 var hasWriteAccessForReadonlyFile = false;
-if (process.platform !== 'win32' && process.getuid() === 0) {
+if (!common.isWindows && process.getuid() === 0) {
   hasWriteAccessForReadonlyFile = true;
   try {
     process.setuid('nobody');

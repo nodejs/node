@@ -61,7 +61,7 @@ assert.ok(ex.indexOf('[message]') != -1);
 
 // GH-1941
 // should not throw:
-assert.equal(util.inspect(Object.create(Date.prototype)), '{}');
+assert.equal(util.inspect(Object.create(Date.prototype)), 'Date {}');
 
 // GH-1944
 assert.doesNotThrow(function() {
@@ -306,3 +306,44 @@ checkAlignment(function() {
 }());
 checkAlignment(new Set(big_array));
 checkAlignment(new Map(big_array.map(function(y) { return [y, null]; })));
+
+
+// Test display of constructors
+
+class ObjectSubclass {}
+class ArraySubclass extends Array {}
+class SetSubclass extends Set {}
+class MapSubclass extends Map {}
+class PromiseSubclass extends Promise {}
+
+var x = new ObjectSubclass();
+x.foo = 42;
+assert.equal(util.inspect(x),
+             'ObjectSubclass { foo: 42 }');
+assert.equal(util.inspect(new ArraySubclass(1, 2, 3)),
+             'ArraySubclass [ 1, 2, 3 ]');
+assert.equal(util.inspect(new SetSubclass([1, 2, 3])),
+             'SetSubclass { 1, 2, 3 }');
+assert.equal(util.inspect(new MapSubclass([['foo', 42]])),
+            'MapSubclass { \'foo\' => 42 }');
+assert.equal(util.inspect(new PromiseSubclass(function() {})),
+             'PromiseSubclass { <pending> }');
+
+// Corner cases.
+var x = { constructor: 42 };
+assert.equal(util.inspect(x), '{ constructor: 42 }');
+
+var x = {};
+Object.defineProperty(x, 'constructor', {
+  get: function() {
+    throw new Error('should not access constructor');
+  },
+  enumerable: true
+});
+assert.equal(util.inspect(x), '{ constructor: [Getter] }');
+
+var x = new (function() {});
+assert.equal(util.inspect(x), '{}');
+
+var x = Object.create(null);
+assert.equal(util.inspect(x), '{}');

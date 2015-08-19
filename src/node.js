@@ -636,6 +636,11 @@
         er = er || new Error('process.stderr cannot be closed.');
         stderr.emit('error', er);
       };
+      if (stderr.isTTY) {
+        process.on('SIGWINCH', function() {
+          stderr._refreshSize();
+        });
+      }
       return stderr;
     });
 
@@ -698,7 +703,7 @@
       // not-reading state.
       if (stdin._handle && stdin._handle.readStop) {
         stdin._handle.reading = false;
-        stdin._readableState.reading = false;
+        stdin.push('');
         stdin._handle.readStop();
       }
 
@@ -707,7 +712,7 @@
       stdin.on('pause', function() {
         if (!stdin._handle)
           return;
-        stdin._readableState.reading = false;
+        stdin.push('');
         stdin._handle.reading = false;
         stdin._handle.readStop();
       });

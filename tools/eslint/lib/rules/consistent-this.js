@@ -2,6 +2,7 @@
  * @fileoverview Rule to enforce consistent naming of "this" context variables
  * @author Raphael Pigulla
  * @copyright 2015 Timothy Jones. All rights reserved.
+ * @copyright 2015 David Aurelio. All rights reserved.
  */
 "use strict";
 
@@ -93,8 +94,12 @@ module.exports = function(context) {
         "FunctionDeclaration:exit": ensureWasAssigned,
 
         "VariableDeclarator": function (node) {
-            if (node.init !== null) {
-                checkAssignment(node, node.id.name, node.init);
+            var id = node.id;
+            var isDestructuring =
+                id.type === "ArrayPattern" || id.type === "ObjectPattern";
+
+            if (node.init !== null && !isDestructuring) {
+                checkAssignment(node, id.name, node.init);
             }
         },
 
@@ -106,3 +111,9 @@ module.exports = function(context) {
     };
 
 };
+
+module.exports.schema = [
+    {
+        "type": "string"
+    }
+];

@@ -4,7 +4,7 @@ var assert = require('assert');
 
 // Note in Windows one can only set the "user" bits.
 var mask;
-if (process.platform == 'win32') {
+if (common.isWindows) {
   mask = '0600';
 } else {
   mask = '0664';

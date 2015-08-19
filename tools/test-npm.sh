@@ -5,9 +5,9 @@ set -e
 # always change the working directory to the project's root directory
 cd $(dirname $0)/..
 
-# pass NODE_EXE from something like Makefile
-# it should point to either {./}node or {./}node.exe, depending on the platform
-if [ -z $NODE_EXE ]; then
+# pass a $NODE environment variable from something like Makefile
+# it should point to either ./iojs or ./iojs.exe, depending on the platform
+if [ -z $NODE ]; then
   echo "No node executable provided. Bailing." >&2
   exit 0
 fi
@@ -29,9 +29,10 @@ export npm_config_prefix="npm-prefix"
 export npm_config_tmp="npm-tmp"
 
 # install npm devDependencies and run npm's tests
-../$NODE_EXE cli.js install --ignore-scripts
-../$NODE_EXE cli.js run-script test-legacy
-../$NODE_EXE cli.js run-script test
+
+../$NODE cli.js install --ignore-scripts
+../$NODE cli.js run-script test-legacy
+../$NODE cli.js run-script test
 
 # clean up everything one single shot
 cd .. && rm -rf test-npm

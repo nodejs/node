@@ -62,6 +62,10 @@ Store.prototype.removeCookie = function(domain, path, key, cb) {
   throw new Error('removeCookie is not implemented');
 };
 
-Store.prototype.removeCookies = function removeCookies(domain, path, cb) {
+Store.prototype.removeCookies = function(domain, path, cb) {
   throw new Error('removeCookies is not implemented');
+};
+
+Store.prototype.getAllCookies = function(cb) {
+  throw new Error('getAllCookies is not implemented (therefore jar cannot be serialized)');
 };

@@ -2,9 +2,9 @@
 var assert = require('assert');
 var common = require('../common');
 
-if (process.platform === 'win32') {
-  console.log('skipping test on windows');
-  process.exit(0);
+if (common.isWindows) {
+  console.log('1..0 # Skipped: no RLIMIT_NOFILE on Windows');
+  return;
 }
 
 var exec = require('child_process').exec;

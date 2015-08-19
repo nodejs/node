@@ -8,7 +8,7 @@ var callbacks = 0;
 var client, timer, buf;
 
 if (process.platform === 'darwin') {
-  console.error('Test is disabled due to 17894467 Apple bug');
+  console.log('1..0 # Skipped: because of 17894467 Apple bug');
   return;
 }
 

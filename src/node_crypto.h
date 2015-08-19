@@ -68,6 +68,13 @@ class SecureContext : public BaseObject {
 
   static const int kMaxSessionSize = 10 * 1024;
 
+  // See TicketKeyCallback
+  static const int kTicketKeyReturnIndex = 0;
+  static const int kTicketKeyHMACIndex = 1;
+  static const int kTicketKeyAESIndex = 2;
+  static const int kTicketKeyNameIndex = 3;
+  static const int kTicketKeyIVIndex = 4;
+
  protected:
   static const int64_t kExternalSize = sizeof(SSL_CTX);
 
@@ -92,11 +99,20 @@ class SecureContext : public BaseObject {
   static void SetTicketKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetFreeListLength(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void EnableTicketKeyCallback(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CtxGetter(v8::Local<v8::String> property,
                         const v8::PropertyCallbackInfo<v8::Value>& info);
 
   template <bool primary>
   static void GetCertificate(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static int TicketKeyCallback(SSL* ssl,
+                               unsigned char* name,
+                               unsigned char* iv,
+                               EVP_CIPHER_CTX* ectx,
+                               HMAC_CTX* hctx,
+                               int enc);
 
   SecureContext(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),

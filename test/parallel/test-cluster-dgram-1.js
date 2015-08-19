@@ -8,9 +8,10 @@ var common = require('../common');
 var dgram = require('dgram');
 
 
-if (process.platform === 'win32') {
-  console.warn('dgram clustering is currently not supported on windows.');
-  process.exit(0);
+if (common.isWindows) {
+  console.log('1..0 # Skipped: dgram clustering is currently not supported ' +
+              'on windows.');
+  return;
 }
 
 if (cluster.isMaster)

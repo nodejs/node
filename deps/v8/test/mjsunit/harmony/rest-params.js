@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-rest-parameters
+// Flags: --harmony-rest-parameters --harmony-classes
 
 (function testRestIndex() {
   assertEquals(5, (function(...args) { return args.length; })(1,2,3,4,5));

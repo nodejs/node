@@ -82,3 +82,21 @@ module.exports = function (context) {
         "LineComment": checkComment
     };
 };
+
+module.exports.schema = [
+    {
+        "type": "object",
+        "properties": {
+            "terms": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                }
+            },
+            "location": {
+                "enum": ["start", "anywhere"]
+            }
+        },
+        "additionalProperties": false
+    }
+];

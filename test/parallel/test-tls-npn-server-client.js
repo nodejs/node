@@ -1,8 +1,8 @@
 'use strict';
 if (!process.features.tls_npn) {
-  console.error('Skipping because node compiled without OpenSSL or ' +
-                'with old OpenSSL version.');
-  process.exit(0);
+  console.log('1..0 # Skipped: node compiled without OpenSSL or ' +
+              'with old OpenSSL version.');
+  return;
 }
 
 var common = require('../common'),
@@ -11,7 +11,7 @@ var common = require('../common'),
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
-  process.exit();
+  return;
 }
 var tls = require('tls');
 
@@ -47,20 +47,20 @@ var clientsOptions = [{
   crl: serverOptions.crl,
   NPNProtocols: ['a', 'b', 'c'],
   rejectUnauthorized: false
-},{
+}, {
   port: serverPort,
   key: serverOptions.key,
   cert: serverOptions.cert,
   crl: serverOptions.crl,
   NPNProtocols: ['c', 'b', 'e'],
   rejectUnauthorized: false
-},{
+}, {
   port: serverPort,
   key: serverOptions.key,
   cert: serverOptions.cert,
   crl: serverOptions.crl,
   rejectUnauthorized: false
-},{
+}, {
   port: serverPort,
   key: serverOptions.key,
   cert: serverOptions.cert,

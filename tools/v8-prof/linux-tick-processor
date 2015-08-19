@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+umask 077
+TEMP_SCRIPT_FILE="/tmp/node-tick-processor-input-script-$$"
+tools_path=`cd $(dirname "$0");pwd`
+v8_tools="$tools_path/../../deps/v8/tools"
+
+cat "$tools_path/polyfill.js" "$v8_tools/splaytree.js" "$v8_tools/codemap.js" \
+  "$v8_tools/csvparser.js" "$v8_tools/consarray.js" \
+  "$v8_tools/profile.js" "$v8_tools/profile_view.js" \
+  "$v8_tools/logreader.js" "$v8_tools/tickprocessor.js" \
+  "$v8_tools/SourceMap.js" \
+  "$v8_tools/tickprocessor-driver.js" >> "$TEMP_SCRIPT_FILE"
+
+NODE=${NODE:-node}
+
+if [ ! -x "$NODE" ] && [ -x "$(dirname "$0")/../../iojs" ]; then
+  NODE="$(dirname "$0")/../../iojs"
+fi
+
+"$NODE" "$TEMP_SCRIPT_FILE" $@
+
+rm -f "$TEMP_SCRIPT_FILE"
