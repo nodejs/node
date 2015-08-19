@@ -35,6 +35,10 @@ By default, the REPL will persist history between `iojs` REPL sessions by saving
 to a `.node_repl_history` file in the user's home directory. This can be
 disabled by setting the environment variable `NODE_REPL_HISTORY=""`.
 
+### NODE_REPL_HISTORY_FILE
+
+    Stability: 0 - Deprecated: Use `NODE_REPL_HISTORY` instead.
+
 Previously in io.js v2.x, REPL history was controlled by using a
 `NODE_REPL_HISTORY_FILE` environment variable, and the history was saved in JSON
 format. This variable has now been deprecated, and your REPL history will

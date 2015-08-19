@@ -281,7 +281,8 @@ with `child_process.fork()`.
 
 ### server.connections
 
-This function is **deprecated**; please use [server.getConnections()][] instead.
+    Stability: 0 - Deprecated: Use [server.getConnections][] instead.
+
 The number of concurrent connections on the server.
 
 This becomes `null` when sending a socket to a child with
@@ -623,7 +624,7 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 ['end']: #net_event_end
 [EventEmitter]: events.html#events_class_events_eventemitter
 ['listening']: #net_event_listening
-[server.getConnections()]: #net_server_getconnections_callback
+[server.getConnections]: #net_server_getconnections_callback
 [Readable Stream]: stream.html#stream_class_stream_readable
 [stream.setEncoding()]: stream.html#stream_readable_setencoding_encoding
 [dns.lookup()]: dns.html#dns_dns_lookup_hostname_options_callback
