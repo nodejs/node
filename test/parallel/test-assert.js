@@ -465,4 +465,16 @@ testBlockTypeError(assert.doesNotThrow, null);
 testBlockTypeError(assert.throws, undefined);
 testBlockTypeError(assert.doesNotThrow, undefined);
 
+// tests specific to `NaN` values in other container objects
+assert.deepEqual([NaN], [NaN]);
+assert.deepStrictEqual([NaN], [NaN]);
+
+assert.deepEqual({key: NaN}, {key: NaN});
+assert.deepStrictEqual({key: NaN}, {key: NaN});
+
+assert.throws(assert.notDeepEqual.bind(assert, [NaN], [NaN]));
+assert.throws(assert.notDeepStrictEqual.bind(assert, [NaN], [NaN]));
+assert.throws(assert.notDeepEqual.bind(assert, {key: NaN}, {key: NaN}));
+assert.throws(assert.notDeepStrictEqual.bind(assert, {key: NaN}, {key: NaN}));
+
 console.log('All OK');
