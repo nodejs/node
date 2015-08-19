@@ -279,7 +279,7 @@ Here is an example of sending a server:
       child.send('server', server);
     });
 
-And the child would the receive the server object as:
+And the child would then receive the server object as:
 
     process.on('message', function(m, server) {
       if (m === 'server') {

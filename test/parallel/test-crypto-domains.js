@@ -8,7 +8,7 @@ var errors = 0;
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
-  process.exit();
+  return;
 }
 var crypto = require('crypto');
 

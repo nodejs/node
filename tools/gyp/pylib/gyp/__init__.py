@@ -49,7 +49,7 @@ def FindBuildFiles():
 
 def Load(build_files, format, default_variables={},
          includes=[], depth='.', params=None, check=False,
-         circular_check=True):
+         circular_check=True, duplicate_basename_check=True):
   """
   Loads one or more specified build files.
   default_variables and includes will be copied before use.
@@ -126,6 +126,7 @@ def Load(build_files, format, default_variables={},
   # Process the input specific to this generator.
   result = gyp.input.Load(build_files, default_variables, includes[:],
                           depth, generator_input_info, check, circular_check,
+                          duplicate_basename_check,
                           params['parallel'], params['root_targets'])
   return [generator] + result
 
@@ -324,6 +325,16 @@ def gyp_main(args):
   parser.add_option('--no-circular-check', dest='circular_check',
                     action='store_false', default=True, regenerate=False,
                     help="don't check for circular relationships between files")
+  # --no-duplicate-basename-check disables the check for duplicate basenames
+  # in a static_library/shared_library project. Visual C++ 2008 generator
+  # doesn't support this configuration. Libtool on Mac also generates warnings
+  # when duplicate basenames are passed into Make generator on Mac.
+  # TODO(yukawa): Remove this option when these legacy generators are
+  # deprecated.
+  parser.add_option('--no-duplicate-basename-check',
+                    dest='duplicate_basename_check', action='store_false',
+                    default=True, regenerate=False,
+                    help="don't check for duplicate basenames")
   parser.add_option('--no-parallel', action='store_true', default=False,
                     help='Disable multiprocessing')
   parser.add_option('-S', '--suffix', dest='suffix', default='',
@@ -499,7 +510,8 @@ def gyp_main(args):
     # Start with the default variables from the command line.
     [generator, flat_list, targets, data] = Load(
         build_files, format, cmdline_default_variables, includes, options.depth,
-        params, options.check, options.circular_check)
+        params, options.check, options.circular_check,
+        options.duplicate_basename_check)
 
     # TODO(mark): Pass |data| for now because the generator needs a list of
     # build files that came in.  In the future, maybe it should just accept

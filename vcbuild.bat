@@ -35,8 +35,10 @@ set noperfctr_arg=
 set noperfctr_msi_arg=
 set i18n_arg=
 set download_arg=
+set release_urls_arg=
 
 :next-arg
+set build_release=
 if "%1"=="" goto args-done
 if /i "%1"=="debug"         set config=Debug&goto arg-ok
 if /i "%1"=="release"       set config=Release&goto arg-ok
@@ -60,7 +62,9 @@ if /i "%1"=="test-internet" set test_args=%test_args% internet&goto arg-ok
 if /i "%1"=="test-pummel"   set test_args=%test_args% pummel&goto arg-ok
 if /i "%1"=="test-all"      set test_args=%test_args% sequential parallel message gc internet pummel&set buildnodeweak=1&set jslint=1&goto arg-ok
 if /i "%1"=="jslint"        set jslint=1&goto arg-ok
-if /i "%1"=="msi"           set msi=1&set licensertf=1&goto arg-ok
+@rem Include small-icu support with MSI installer
+if /i "%1"=="msi"           set msi=1&set licensertf=1&set download_arg="--download=all"&set i18n_arg=small-icu&goto arg-ok
+if /i "%1"=="build-release" set build_release=1&goto arg-ok
 if /i "%1"=="upload"        set upload=1&goto arg-ok
 if /i "%1"=="small-icu"     set i18n_arg=%1&goto arg-ok
 if /i "%1"=="full-icu"      set i18n_arg=%1&goto arg-ok
@@ -73,12 +77,22 @@ echo Warning: ignoring invalid command line option `%1`.
 :arg-ok
 shift
 goto next-arg
+if defined build_release (
+  set nosnapshot=1
+  set config=Release
+  set msi=1
+  set licensertf=1
+  set download_arg="--download=all"
+  set i18n_arg=small-icu
+)
+
 
 :args-done
 if "%config%"=="Debug" set debug_arg=--debug
 if defined nosnapshot set snapshot_arg=--without-snapshot
 if defined noetw set noetw_arg=--without-etw& set noetw_msi_arg=/p:NoETW=1
 if defined noperfctr set noperfctr_arg=--without-perfctr& set noperfctr_msi_arg=/p:NoPerfCtr=1
+if defined RELEASE_URLBASE set release_urlbase_arg=--release-urlbase=%RELEASE_URLBASE%
 
 if "%i18n_arg%"=="full-icu" set i18n_arg=--with-intl=full-icu
 if "%i18n_arg%"=="small-icu" set i18n_arg=--with-intl=small-icu
@@ -87,18 +101,6 @@ if "%i18n_arg%"=="intl-none" set i18n_arg=--with-intl=none
 call :getnodeversion || exit /b 1
 
 @rem Set environment for msbuild
-:project-gen
-@rem Skip project generation if requested.
-if defined noprojgen goto msbuild
-
-@rem Generate the VS project.
-SETLOCAL
-  if defined VS100COMNTOOLS call "%VS100COMNTOOLS%\VCVarsQueryRegistry.bat"
-  python configure %download_arg% %i18n_arg% %debug_arg% %snapshot_arg% %noetw_arg% %noperfctr_arg% --dest-cpu=%target_arch% --tag=%TAG%
-  if errorlevel 1 goto create-msvs-files-failed
-  if not exist node.sln goto create-msvs-files-failed
-  echo Project files generated.
-ENDLOCAL
 
 @rem Look for Visual Studio 2015
 if not defined VS140COMNTOOLS goto vc-set-2013
@@ -146,6 +148,7 @@ if defined nobuild goto sign
 @rem Build the sln with msbuild.
 msbuild node.sln /m /t:%target% /p:Configuration=%config% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 goto exit
+if "%target%" == "Clean" goto exit
 
 :sign
 @rem Skip signing if the `nosign` option was specified.
@@ -233,6 +236,7 @@ echo   vcbuild.bat test           : builds debug build and runs tests
 goto exit
 
 :exit
+echo   vcbuild.bat build-release  : builds the release distribution as used by nodejs.org
 goto :EOF
 
 rem ***************

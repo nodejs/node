@@ -525,6 +525,13 @@ class XcodeSettings(object):
     if self._Test('GCC_WARN_ABOUT_MISSING_NEWLINE', 'YES', default='NO'):
       cflags.append('-Wnewline-eof')
 
+    # In Xcode, this is only activated when GCC_COMPILER_VERSION is clang or
+    # llvm-gcc. It also requires a fairly recent libtool, and
+    # if the system clang isn't used, DYLD_LIBRARY_PATH needs to contain the
+    # path to the libLTO.dylib that matches the used clang.
+    if self._Test('LLVM_LTO', 'YES', default='NO'):
+      cflags.append('-flto')
+
     self._AppendPlatformVersionMinFlags(cflags)
 
     # TODO:
@@ -831,8 +838,9 @@ class XcodeSettings(object):
       # These flags reflect the compilation options used by xcode to compile
       # extensions.
       ldflags.append('-lpkstart')
-      ldflags.append(sdk_root +
-          '/System/Library/PrivateFrameworks/PlugInKit.framework/PlugInKit')
+      if XcodeVersion() < '0900':
+        ldflags.append(sdk_root +
+            '/System/Library/PrivateFrameworks/PlugInKit.framework/PlugInKit')
       ldflags.append('-fapplication-extension')
       ldflags.append('-Xlinker -rpath '
           '-Xlinker @executable_path/../../Frameworks')

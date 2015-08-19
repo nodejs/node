@@ -23,6 +23,8 @@
   | linux     | x64        | linux-x86_64         | o   |
   | linux     | arm        | linux-armv4          | o   |
   | linux     | arm64      | linux-aarch64        | o   |
+  | linux     | ppc        | linux-ppc            | o   |
+  | linux     | ppc64      | linux-ppc64          | o   |
   | mac       | ia32       | darwin-i386-cc       | o   |
   | mac       | x64        | darwin64-x86-cc      | o   |
   | win       | ia32       | VC-WIN32             | -   |
@@ -59,6 +61,8 @@
   | x32        | __ILP32__         |
   | x64        | __x86_64__        |
   | x64(win)   | _M_X64            |
+  | ppc        | __PPC__           |
+  | ppc64      | __PPC64__         |
 
   These are the list which is not implemented yet.
 
@@ -107,6 +111,10 @@
 # include "./archs/solaris-x86-gcc/opensslconf.h"
 #elif defined(__sun) && defined(__x86_64__)
 # include "./archs/solaris64-x86_64-gcc/opensslconf.h"
+#elif defined(OPENSSL_LINUX) && defined(__PPC64__)
+# include "./archs/linux-ppc64/opensslconf.h"
+#elif defined(OPENSSL_LINUX) && !defined(__PPC64__) && defined(__ppc__)
+# include "./archs/linux-ppc/opensslconf.h"
 #else
 # include "./archs/linux-elf/opensslconf.h"
 #endif

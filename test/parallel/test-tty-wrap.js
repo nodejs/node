@@ -6,8 +6,8 @@ var TTY = process.binding('tty_wrap').TTY;
 var isTTY = process.binding('tty_wrap').isTTY;
 
 if (isTTY(1) == false) {
-  console.error('fd 1 is not a tty. skipping test.');
-  process.exit(0);
+  console.log('1..0 # Skipped: fd 1 is not a tty.');
+  return;
 }
 
 var handle = new TTY(1);

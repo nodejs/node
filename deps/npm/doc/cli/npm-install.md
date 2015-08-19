@@ -166,11 +166,24 @@ after packing it up into a tarball (b).
     `git+https`.  If no `<commit-ish>` is specified, then `master` is
     used.
 
+    The following git environment variables are recognized by npm and will be added
+    to the environment when running git:
+
+    * `GIT_ASKPASS`
+    * `GIT_PROXY_COMMAND`
+    * `GIT_SSH`
+    * `GIT_SSH_COMMAND`
+    * `GIT_SSL_CAINFO`
+    * `GIT_SSL_NO_VERIFY`
+
+    See the git man page for details.
+
     Examples:
 
-          git+ssh://git@github.com:npm/npm.git#v1.0.27
-          git+https://isaacs@github.com/npm/npm.git
-          git://github.com/npm/npm.git#v1.0.27
+          npm install git+ssh://git@github.com:npm/npm.git#v1.0.27
+          npm install git+https://isaacs@github.com/npm/npm.git
+          npm install git://github.com/npm/npm.git#v1.0.27
+          GIT_SSH_COMMAND='ssh -i ~/.ssh/custom_ident' npm install git+ssh://git@github.com:npm/npm.git
 
 * `npm install <githubname>/<githubrepo>[#<commit-ish>]`:
 * `npm install github:<githubname>/<githubrepo>[#<commit-ish>]`:

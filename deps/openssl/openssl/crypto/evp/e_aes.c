@@ -1771,7 +1771,7 @@ static int aes_ccm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
     case EVP_CTRL_CCM_SET_TAG:
         if ((arg & 1) || arg < 4 || arg > 16)
             return 0;
-        if ((c->encrypt && ptr) || (!c->encrypt && !ptr))
+        if (c->encrypt && ptr)
             return 0;
         if (ptr) {
             cctx->tag_set = 1;

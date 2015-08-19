@@ -121,7 +121,7 @@ values are `"rr"` and `"none"`.
 ## cluster.settings
 
 * {Object}
-  * `execArgv` {Array} list of string arguments passed to the io.js executable. 
+  * `execArgv` {Array} list of string arguments passed to the io.js executable.
     (Default=`process.execArgv`)
   * `exec` {String} file path to worker file.  (Default=`process.argv[1]`)
   * `args` {Array} string arguments passed to worker.
@@ -247,6 +247,16 @@ This can be used to restart the worker by calling `.fork()` again.
     });
 
 See [child_process event: 'exit'](child_process.html#child_process_event_exit).
+
+## Event: 'message'
+
+* `worker` {Worker object}
+* `message` {Object}
+
+Emitted when any worker receives a message.
+
+See
+[child_process event: 'message'](child_process.html#child_process_event_message).
 
 ## Event: 'setup'
 
@@ -530,6 +540,8 @@ created. It is disconnected after the `disconnect` event is emitted.
 
 * `message` {Object}
 
+Similar to the `cluster.on('message')` event, but specific to this worker.
+
 This event is the same as the one provided by `child_process.fork()`.
 
 In a worker you can also use `process.on('message')`.
@@ -601,7 +613,7 @@ It is not emitted in the worker.
 
 ### Event: 'disconnect'
 
-Similar to the `cluster.on('disconnect')` event, but specfic to this worker.
+Similar to the `cluster.on('disconnect')` event, but specific to this worker.
 
     cluster.fork().on('disconnect', function() {
       // Worker has disconnected

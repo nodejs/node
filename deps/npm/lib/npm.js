@@ -15,7 +15,8 @@ var EventEmitter = require("events").EventEmitter
   , npm = module.exports = new EventEmitter()
   , npmconf = require("./config/core.js")
   , log = require("npmlog")
-  , fs = require("graceful-fs")
+  , gfs = require('graceful-fs')
+  , fs = gfs.gracefulify(require('fs'))
   , path = require("path")
   , abbrev = require("abbrev")
   , which = require("which")
@@ -133,6 +134,7 @@ var commandCache = {}
               , "bin"
               , "whoami"
               , "dist-tag"
+              , "ping"
 
               , "test"
               , "stop"

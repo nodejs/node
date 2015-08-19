@@ -3,7 +3,6 @@ var common = require('../common');
 var assert = require('assert');
 var path = require('path');
 var fs = require('fs');
-var isWindows = process.platform === 'win32';
 var openCount = 0;
 var mode;
 var content;
@@ -20,7 +19,7 @@ var mask = process.umask(0o000);
 
 // On Windows chmod is only able to manipulate read-only bit. Test if creating
 // the file in read-only mode works.
-if (isWindows) {
+if (common.isWindows) {
   mode = 0o444;
 } else {
   mode = 0o755;

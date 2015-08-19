@@ -81,9 +81,9 @@ function missile (entry) {
   return function (c) {
     var e = Math.random() < 0.5
     console.error(indent + '%s %s for %d damage!',
-                entry.basename,
-                e ? 'is struck' : 'fires a chunk',
-                c.length)
+      entry.basename,
+      e ? 'is struck' : 'fires a chunk',
+      c.length)
   }
 }
 
@@ -91,8 +91,8 @@ function runaway (entry) {
   return function () {
     var e = Math.random() < 0.5
     console.error(indent + '%s %s',
-                  entry.basename,
-                  e ? 'turns to flee' : 'is vanquished!')
+      entry.basename,
+      e ? 'turns to flee' : 'is vanquished!')
     indent = indent.slice(0, -1)
   }
 }
@@ -101,7 +101,7 @@ w.on('entry', attacks)
 // w.on('ready', function () { attacks(w) })
 function attacks (entry) {
   console.error(indent + '%s %s!', entry.basename,
-              entry.type === 'Directory' ? 'calls for backup' : 'attacks')
+    entry.type === 'Directory' ? 'calls for backup' : 'attacks')
   entry.on('entry', attacks)
 }
 
@@ -121,13 +121,14 @@ r.on('end', function () {
   checker.on('child', function (e) {
     var ok = e.type === 'Directory'
     console.log((ok ? '' : 'not ') + 'ok ' + (i++) +
-                ' should be a dir: ' +
-                e.path.substr(checker.path.length + 1))
+      ' should be a dir: ' +
+      e.path.substr(checker.path.length + 1))
   })
 })
 
 process.on('exit', function () {
-  console.log((ended ? '' : 'not ') + 'ok ' + (i++) + ' ended')
+  console.log((ended ? '' : 'not ') + 'ok ' + (i) + ' ended')
+  console.log('1..' + i)
 })
 
 r.pipe(w)

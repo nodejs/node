@@ -78,7 +78,7 @@ FileFinder.prototype.findInDirectoryOrParents = function (directory) {
     while (directory !== child) {
         dirs[searched++] = directory;
 
-        if (getDirectoryEntries(directory).indexOf(name) !== -1) {
+        if (getDirectoryEntries(directory).indexOf(name) !== -1 && fs.statSync(path.resolve(directory, name)).isFile()) {
             filePath = path.resolve(directory, name);
             break;
         }
@@ -137,7 +137,7 @@ FileFinder.prototype.findAllInDirectoryAndParents = function (directory) {
         for (i = 0; i < fileNamesCount; i++) {
             name = fileNames[i];
 
-            if (getDirectoryEntries(directory).indexOf(name) !== -1) {
+            if (getDirectoryEntries(directory).indexOf(name) !== -1 && fs.statSync(path.resolve(directory, name)).isFile()) {
                 filePath = path.resolve(directory, name);
 
                 // Add the file path to the cache of each directory searched.

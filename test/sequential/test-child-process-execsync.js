@@ -67,7 +67,7 @@ assert.strictEqual(ret, msg + '\n',
   var response;
   var cwd;
 
-  if (process.platform === 'win32') {
+  if (common.isWindows) {
     cwd = 'c:\\';
     response = execSync('echo %cd%', {cwd: cwd});
   } else {

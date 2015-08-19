@@ -2,7 +2,7 @@
 var common = require('../common');
 var assert = require('assert');
 var join = require('path').join;
-var childProccess = require('child_process');
+var childProcess = require('child_process');
 var fs = require('fs');
 
 var stdoutScript = join(common.fixturesDir, 'echo-close-check.js');
@@ -32,7 +32,7 @@ try {
 
 fs.writeFileSync(tmpFile, string);
 
-childProccess.exec(cmd, function(err, stdout, stderr) {
+childProcess.exec(cmd, function(err, stdout, stderr) {
   fs.unlinkSync(tmpFile);
 
   if (err) throw err;

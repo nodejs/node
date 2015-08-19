@@ -29,23 +29,38 @@ For example, you could add this to your bashrc file:
 
     alias iojs="env NODE_NO_READLINE=1 rlwrap iojs"
 
+## Persistent History
+
+By default, the REPL will persist history between `iojs` REPL sessions by saving
+to a `.node_repl_history` file in the user's home directory. This can be
+disabled by setting the environment variable `NODE_REPL_HISTORY=""`.
+
+Previously in io.js v2.x, REPL history was controlled by using a
+`NODE_REPL_HISTORY_FILE` environment variable, and the history was saved in JSON
+format. This variable has now been deprecated, and your REPL history will
+automatically be converted to using plain text. The new file will be saved to
+either your home directory, or a directory defined by the `NODE_REPL_HISTORY`
+variable, as documented below.
+
+## Environment Variable Options
+
 The built-in repl (invoked by running `iojs` or `iojs -i`) may be controlled
 via the following environment variables:
 
- - `NODE_REPL_HISTORY_FILE` - if given, must be a path to a user-writable,
-   user-readable file. When a valid path is given, persistent history support
-   is enabled: REPL history will persist across `iojs` repl sessions.
- - `NODE_REPL_HISTORY_SIZE` - defaults to `1000`. In conjunction with
-   `NODE_REPL_HISTORY_FILE`, controls how many lines of history will be
-   persisted. Must be a positive number.
+ - `NODE_REPL_HISTORY` - When a valid path is given, persistent REPL history
+   will be saved to the specified file rather than `.node_repl_history` in the
+   user's home directory. Setting this value to `""` will disable persistent
+   REPL history.
+ - `NODE_REPL_HISTORY_SIZE` - defaults to `1000`. Controls how many lines of
+   history will be persisted if history is available. Must be a positive number.
  - `NODE_REPL_MODE` - may be any of `sloppy`, `strict`, or `magic`. Defaults
    to `magic`, which will automatically run "strict mode only" statements in
    strict mode.
 
 ## repl.start(options)
 
-Returns and starts a `REPLServer` instance, that inherits from 
-[Readline Interface][]. Accepts an "options" Object that takes 
+Returns and starts a `REPLServer` instance, that inherits from
+[Readline Interface][]. Accepts an "options" Object that takes
 the following values:
 
  - `prompt` - the prompt and `stream` for all I/O. Defaults to `> `.
@@ -237,3 +252,27 @@ The following key combinations in the REPL have these special effects:
   - `<ctrl>D` - Similar to the `.exit` keyword.
   - `<tab>` - Show both global and local(scope) variables
 
+
+### Customizing Object displays in the REPL
+
+The REPL module internally uses
+[util.inspect()][], when printing values. However, `util.inspect` delegates the
+ call to the object's `inspect()` function, if it has one. You can read more
+ about this delegation [here][].
+
+For example, if you have defined an `inspect()` function on an object, like this:
+
+    > var obj = { foo: 'this will not show up in the inspect() output' };
+    undefined
+    > obj.inspect = function() {
+    ...   return { bar: 'baz' };
+    ... };
+    [Function]
+
+and try to print `obj` in REPL, it will invoke the custom `inspect()` function:
+
+    > obj
+    { bar: 'baz' }
+
+[util.inspect()]: util.html#util_util_inspect_object_options
+[here]: util.html#util_custom_inspect_function_on_objects

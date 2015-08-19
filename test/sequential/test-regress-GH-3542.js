@@ -1,14 +1,15 @@
 'use strict';
-// This test is only relevant on Windows.
-if (process.platform !== 'win32') {
-  return process.exit(0);
-}
-
 var common = require('../common'),
     assert = require('assert'),
     fs = require('fs'),
     path = require('path'),
     succeeded = 0;
+
+// This test is only relevant on Windows.
+if (!common.isWindows) {
+  console.log('1..0 # Skipped: Windows specific test.');
+  return;
+}
 
 function test(p) {
   var result = fs.realpathSync(p);

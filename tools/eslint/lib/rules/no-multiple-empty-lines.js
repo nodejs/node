@@ -15,6 +15,9 @@ module.exports = function(context) {
     // Use options.max or 2 as default
     var numLines = 2;
 
+    // store lines that appear empty but really aren't
+    var notEmpty = [];
+
     if (context.options.length) {
         numLines = context.options[0].max;
     }
@@ -25,7 +28,16 @@ module.exports = function(context) {
 
     return {
 
-        "Program": function checkBlankLines(node) {
+        "TemplateLiteral": function(node) {
+            var start = node.loc.start.line;
+            var end = node.loc.end.line;
+            while (start <= end) {
+                notEmpty.push(start);
+                start++;
+            }
+        },
+
+        "Program:exit": function checkBlankLines(node) {
             var lines = context.getSourceLines(),
                 currentLocation = -1,
                 lastLocation,
@@ -35,8 +47,21 @@ module.exports = function(context) {
                     return str.trim();
                 });
 
+            // add the notEmpty lines in there with a placeholder
+            notEmpty.forEach(function(x, i) {
+                trimmedLines[i] = x;
+            });
+
+            // swallow the final newline, as some editors add it automatically
+            // and we don't want it to cause an issue
+            if (trimmedLines[trimmedLines.length - 1] === "") {
+                trimmedLines = trimmedLines.slice(0, -1);
+            }
+
             // Aggregate and count blank lines
-            do {
+            lastLocation = currentLocation;
+            currentLocation = trimmedLines.indexOf("", currentLocation + 1);
+            while (currentLocation !== -1) {
                 lastLocation = currentLocation;
                 currentLocation = trimmedLines.indexOf("", currentLocation + 1);
                 if (lastLocation === currentLocation - 1) {
@@ -53,8 +78,21 @@ module.exports = function(context) {
                     // Finally, reset the blank counter
                     blankCounter = 0;
                 }
-            } while (currentLocation !== -1);
+            }
         }
     };
 
 };
+
+module.exports.schema = [
+    {
+        "type": "object",
+        "properties": {
+            "max": {
+                "type": "integer"
+            }
+        },
+        "required": ["max"],
+        "additionalProperties": false
+    }
+];

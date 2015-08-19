@@ -5,8 +5,8 @@ var os = require('os');
 var util = require('util');
 
 if (os.type() != 'SunOS') {
-  console.error('Skipping because DTrace not available.');
-  process.exit(0);
+  console.log('1..0 # Skipped: no DTRACE support');
+  return;
 }
 
 /*

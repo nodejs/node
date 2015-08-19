@@ -1,5 +1,5 @@
 /**
- * @fileoverview Disallow parenthesesisng higher precedence subexpressions.
+ * @fileoverview Disallow parenthesising higher precedence subexpressions.
  * @author Michael Ficarra
  * @copyright 2014 Michael Ficarra. All rights reserved.
  */
@@ -11,6 +11,24 @@
 
 module.exports = function(context) {
 
+    var ALL_NODES = context.options[0] !== "functions";
+
+    /**
+     * Determines if this rule should be enforced for a node given the current configuration.
+     * @param {ASTNode} node - The node to be checked.
+     * @returns {boolean} True if the rule should be enforced for this node.
+     * @private
+     */
+    function ruleApplies(node) {
+        return ALL_NODES || node.type === "FunctionExpression" || node.type === "ArrowFunctionExpression";
+    }
+
+    /**
+     * Determines if a node is surrounded by parentheses.
+     * @param {ASTNode} node - The node to be checked.
+     * @returns {boolean} True if the node is parenthesised.
+     * @private
+     */
     function isParenthesised(node) {
         var previousToken = context.getTokenBefore(node),
             nextToken = context.getTokenAfter(node);
@@ -20,6 +38,12 @@ module.exports = function(context) {
             nextToken.value === ")" && nextToken.range[0] >= node.range[1];
     }
 
+    /**
+     * Determines if a node is surrounded by parentheses twice.
+     * @param {ASTNode} node - The node to be checked.
+     * @returns {boolean} True if the node is doubly parenthesised.
+     * @private
+     */
     function isParenthesisedTwice(node) {
         var previousToken = context.getTokenBefore(node, 1),
             nextToken = context.getTokenAfter(node, 1);
@@ -27,6 +51,27 @@ module.exports = function(context) {
         return isParenthesised(node) && previousToken && nextToken &&
             previousToken.value === "(" && previousToken.range[1] <= node.range[0] &&
             nextToken.value === ")" && nextToken.range[0] >= node.range[1];
+    }
+
+    /**
+     * Determines if a node is surrounded by (potentially) invalid parentheses.
+     * @param {ASTNode} node - The node to be checked.
+     * @returns {boolean} True if the node is incorrectly parenthesised.
+     * @private
+     */
+    function hasExcessParens(node) {
+        return ruleApplies(node) && isParenthesised(node);
+    }
+
+    /**
+     * Determines if a node that is expected to be parenthesised is surrounded by
+     * (potentially) invalid extra parentheses.
+     * @param {ASTNode} node - The node to be checked.
+     * @returns {boolean} True if the node is has an unexpected extra pair of parentheses.
+     * @private
+     */
+    function hasDoubleExcessParens(node) {
+        return ruleApplies(node) && isParenthesisedTwice(node);
     }
 
     function precedence(node) {
@@ -110,23 +155,27 @@ module.exports = function(context) {
     }
 
     function dryUnaryUpdate(node) {
-        if (isParenthesised(node.argument) && precedence(node.argument) >= precedence(node)) {
+        if (hasExcessParens(node.argument) && precedence(node.argument) >= precedence(node)) {
             report(node.argument);
         }
     }
 
     function dryCallNew(node) {
-        if (isParenthesised(node.callee) && precedence(node.callee) >= precedence(node) &&
-        !(node.type === "CallExpression" && node.callee.type === "FunctionExpression")) {
+        if (hasExcessParens(node.callee) && precedence(node.callee) >= precedence(node) && !(
+            node.type === "CallExpression" &&
+            node.callee.type === "FunctionExpression" &&
+            // One set of parentheses are allowed for a function expression
+            !hasDoubleExcessParens(node.callee)
+        )) {
             report(node.callee);
         }
         if (node.arguments.length === 1) {
-            if (isParenthesisedTwice(node.arguments[0]) && precedence(node.arguments[0]) >= precedence({type: "AssignmentExpression"})) {
+            if (hasDoubleExcessParens(node.arguments[0]) && precedence(node.arguments[0]) >= precedence({type: "AssignmentExpression"})) {
                 report(node.arguments[0]);
             }
         } else {
             [].forEach.call(node.arguments, function(arg) {
-                if (isParenthesised(arg) && precedence(arg) >= precedence({type: "AssignmentExpression"})) {
+                if (hasExcessParens(arg) && precedence(arg) >= precedence({type: "AssignmentExpression"})) {
                     report(arg);
                 }
             });
@@ -135,10 +184,10 @@ module.exports = function(context) {
 
     function dryBinaryLogical(node) {
         var prec = precedence(node);
-        if (isParenthesised(node.left) && precedence(node.left) >= prec) {
+        if (hasExcessParens(node.left) && precedence(node.left) >= prec) {
             report(node.left);
         }
-        if (isParenthesised(node.right) && precedence(node.right) > prec) {
+        if (hasExcessParens(node.right) && precedence(node.right) > prec) {
             report(node.right);
         }
     }
@@ -146,80 +195,91 @@ module.exports = function(context) {
     return {
         "ArrayExpression": function(node) {
             [].forEach.call(node.elements, function(e) {
-                if (e && isParenthesised(e) && precedence(e) >= precedence({type: "AssignmentExpression"})) {
+                if (e && hasExcessParens(e) && precedence(e) >= precedence({type: "AssignmentExpression"})) {
                     report(e);
                 }
             });
         },
         "ArrowFunctionExpression": function(node) {
-            if (node.body.type !== "BlockStatement" && isParenthesised(node.body) && precedence(node.body) >= precedence({type: "AssignmentExpression"})) {
-                report(node.body);
+            if (node.body.type !== "BlockStatement") {
+                if (node.body.type !== "ObjectExpression" && hasExcessParens(node.body) && precedence(node.body) >= precedence({type: "AssignmentExpression"})) {
+                    report(node.body);
+                    return;
+                }
+
+                // Object literals *must* be parenthesized
+                if (node.body.type === "ObjectExpression" && hasDoubleExcessParens(node.body)) {
+                    report(node.body);
+                    return;
+                }
             }
         },
         "AssignmentExpression": function(node) {
-            if (isParenthesised(node.right) && precedence(node.right) >= precedence(node)) {
+            if (hasExcessParens(node.right) && precedence(node.right) >= precedence(node)) {
                 report(node.right);
             }
         },
         "BinaryExpression": dryBinaryLogical,
         "CallExpression": dryCallNew,
         "ConditionalExpression": function(node) {
-            if (isParenthesised(node.test) && precedence(node.test) >= precedence({type: "LogicalExpression", operator: "||"})) {
+            if (hasExcessParens(node.test) && precedence(node.test) >= precedence({type: "LogicalExpression", operator: "||"})) {
                 report(node.test);
             }
-            if (isParenthesised(node.consequent) && precedence(node.consequent) >= precedence({type: "AssignmentExpression"})) {
+            if (hasExcessParens(node.consequent) && precedence(node.consequent) >= precedence({type: "AssignmentExpression"})) {
                 report(node.consequent);
             }
-            if (isParenthesised(node.alternate) && precedence(node.alternate) >= precedence({type: "AssignmentExpression"})) {
+            if (hasExcessParens(node.alternate) && precedence(node.alternate) >= precedence({type: "AssignmentExpression"})) {
                 report(node.alternate);
             }
         },
         "DoWhileStatement": function(node) {
-            if (isParenthesisedTwice(node.test)) {
+            if (hasDoubleExcessParens(node.test)) {
                 report(node.test);
             }
         },
         "ExpressionStatement": function(node) {
             var firstToken;
-            if (isParenthesised(node.expression)) {
+            if (hasExcessParens(node.expression) && node.expression.type !== "CallExpression") {
                 firstToken = context.getFirstToken(node.expression);
-                if (firstToken.value !== "function" && firstToken.value !== "{") {
+                // Pure object literals ({}) do not need parentheses but
+                // member expressions do ({}.toString())
+                if (firstToken.value !== "{" || node.expression.type === "ObjectExpression") {
                     report(node.expression);
                 }
             }
         },
         "ForInStatement": function(node) {
-            if (isParenthesised(node.right)) {
+            if (hasExcessParens(node.right)) {
                 report(node.right);
             }
         },
         "ForOfStatement": function(node) {
-            if (isParenthesised(node.right)) {
+            if (hasExcessParens(node.right)) {
                 report(node.right);
             }
         },
         "ForStatement": function(node) {
-            if (node.init && isParenthesised(node.init)) {
+            if (node.init && hasExcessParens(node.init)) {
                 report(node.init);
             }
 
-            if (node.test && isParenthesised(node.test)) {
+            if (node.test && hasExcessParens(node.test)) {
                 report(node.test);
             }
 
-            if (node.update && isParenthesised(node.update)) {
+            if (node.update && hasExcessParens(node.update)) {
                 report(node.update);
             }
         },
         "IfStatement": function(node) {
-            if (isParenthesisedTwice(node.test)) {
+            if (hasDoubleExcessParens(node.test)) {
                 report(node.test);
             }
         },
         "LogicalExpression": dryBinaryLogical,
         "MemberExpression": function(node) {
             if (
-                isParenthesised(node.object) &&
+                hasExcessParens(node.object) &&
                 precedence(node.object) >= precedence(node) &&
                 (
                     node.computed ||
@@ -235,18 +295,21 @@ module.exports = function(context) {
             ) {
                 report(node.object);
             }
+            if (node.computed && hasExcessParens(node.property)) {
+                report(node.property);
+            }
         },
         "NewExpression": dryCallNew,
         "ObjectExpression": function(node) {
             [].forEach.call(node.properties, function(e) {
                 var v = e.value;
-                if (v && isParenthesised(v) && precedence(v) >= precedence({type: "AssignmentExpression"})) {
+                if (v && hasExcessParens(v) && precedence(v) >= precedence({type: "AssignmentExpression"})) {
                     report(v);
                 }
             });
         },
         "ReturnStatement": function(node) {
-            if (node.argument && isParenthesised(node.argument) &&
+            if (node.argument && hasExcessParens(node.argument) &&
                     // RegExp literal is allowed to have parens (#1589)
                     !(node.argument.type === "Literal" && node.argument.regex)) {
                 report(node.argument);
@@ -254,30 +317,30 @@ module.exports = function(context) {
         },
         "SequenceExpression": function(node) {
             [].forEach.call(node.expressions, function(e) {
-                if (isParenthesised(e) && precedence(e) >= precedence(node)) {
+                if (hasExcessParens(e) && precedence(e) >= precedence(node)) {
                     report(e);
                 }
             });
         },
         "SwitchCase": function(node) {
-            if (node.test && isParenthesised(node.test)) {
+            if (node.test && hasExcessParens(node.test)) {
                 report(node.test);
             }
         },
         "SwitchStatement": function(node) {
-            if (isParenthesisedTwice(node.discriminant)) {
+            if (hasDoubleExcessParens(node.discriminant)) {
                 report(node.discriminant);
             }
         },
         "ThrowStatement": function(node) {
-            if (isParenthesised(node.argument)) {
+            if (hasExcessParens(node.argument)) {
                 report(node.argument);
             }
         },
         "UnaryExpression": dryUnaryUpdate,
         "UpdateExpression": dryUnaryUpdate,
         "VariableDeclarator": function(node) {
-            if (node.init && isParenthesised(node.init) &&
+            if (node.init && hasExcessParens(node.init) &&
                     precedence(node.init) >= precedence({type: "AssignmentExpression"}) &&
                     // RegExp literal is allowed to have parens (#1589)
                     !(node.init.type === "Literal" && node.init.regex)) {
@@ -285,15 +348,21 @@ module.exports = function(context) {
             }
         },
         "WhileStatement": function(node) {
-            if (isParenthesisedTwice(node.test)) {
+            if (hasDoubleExcessParens(node.test)) {
                 report(node.test);
             }
         },
         "WithStatement": function(node) {
-            if (isParenthesisedTwice(node.object)) {
+            if (hasDoubleExcessParens(node.object)) {
                 report(node.object);
             }
         }
     };
 
 };
+
+module.exports.schema = [
+    {
+        "enum": ["all", "functions"]
+    }
+];

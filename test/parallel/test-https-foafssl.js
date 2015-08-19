@@ -2,8 +2,8 @@
 var common = require('../common');
 
 if (!common.opensslCli) {
-  console.error('Skipping because node compiled without OpenSSL CLI.');
-  process.exit(0);
+  console.log('1..0 # Skipped: node compiled without OpenSSL CLI.');
+  return;
 }
 
 var assert = require('assert');
@@ -14,7 +14,7 @@ var spawn = require('child_process').spawn;
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
-  process.exit();
+  return;
 }
 var https = require('https');
 
@@ -52,6 +52,10 @@ server.listen(common.PORT, function() {
               '-connect', '127.0.0.1:' + common.PORT,
               '-cert', join(common.fixturesDir, 'foafssl.crt'),
               '-key', join(common.fixturesDir, 'foafssl.key')];
+
+  // for the performance and stability issue in s_client on Windows
+  if (common.isWindows)
+    args.push('-no_rand_screen');
 
   var client = spawn(common.opensslCli, args);
 

@@ -44,6 +44,7 @@ namespace node {
   V(address_string, "address")                                                \
   V(args_string, "args")                                                      \
   V(argv_string, "argv")                                                      \
+  V(arrow_message_string, "arrowMessage")                                     \
   V(async, "async")                                                           \
   V(async_queue_string, "_asyncQueue")                                        \
   V(atime_string, "atime")                                                    \
@@ -197,6 +198,7 @@ namespace node {
   V(syscall_string, "syscall")                                                \
   V(tick_callback_string, "_tickCallback")                                    \
   V(tick_domain_cb_string, "_tickDomainCallback")                             \
+  V(ticketkeycallback_string, "onticketkeycallback")                          \
   V(timeout_string, "timeout")                                                \
   V(times_string, "times")                                                    \
   V(timestamp_string, "timestamp")                                            \
@@ -398,6 +400,7 @@ class Environment {
   inline AsyncHooks* async_hooks();
   inline DomainFlag* domain_flag();
   inline TickInfo* tick_info();
+  inline uint64_t timer_base() const;
 
   static inline Environment* from_cares_timer_handle(uv_timer_t* handle);
   inline uv_timer_t* cares_timer_handle();
@@ -501,6 +504,7 @@ class Environment {
   AsyncHooks async_hooks_;
   DomainFlag domain_flag_;
   TickInfo tick_info_;
+  const uint64_t timer_base_;
   uv_timer_t cares_timer_handle_;
   ares_channel cares_channel_;
   ares_task_list cares_task_list_;

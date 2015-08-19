@@ -4,7 +4,7 @@ var http = require('http');
 var assert = require('assert');
 var common = require('../common');
 
-var objects = { foo: 'bar', baz: {}, num: 42, arr: [1,2,3] };
+var objects = { foo: 'bar', baz: {}, num: 42, arr: [1, 2, 3] };
 objects.baz.asdf = objects;
 
 var serverCaught = 0;

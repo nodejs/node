@@ -1,6 +1,7 @@
 /**
- * @fileoverview A rule to ensure the use of a single variable declaration.
+ * @fileoverview A rule to control the use of single variable declarations.
  * @author Ian Christian Myers
+ * @copyright 2015 Ian VanSchooten. All rights reserved.
  * @copyright 2015 Joey Baker. All rights reserved.
  * @copyright 2015 Danny Fritz. All rights reserved.
  * @copyright 2013 Ian Christian Myers. All rights reserved.
@@ -14,16 +15,56 @@
 
 module.exports = function(context) {
 
-    var MODE = context.options[0] || "always";
-    var options = {};
+    var MODE_ALWAYS = "always",
+        MODE_NEVER = "never";
 
-    // simple options configuration with just a string or no option
-    if (typeof context.options[0] === "string" || context.options[0] == null) {
-        options.var = MODE;
-        options.let = MODE;
-        options.const = MODE;
-    } else {
-        options = context.options[0];
+    var mode = context.options[0];
+
+    var options = {
+    };
+
+    if (typeof mode === "string") { // simple options configuration with just a string
+        options.var = { uninitialized: mode, initialized: mode};
+        options.let = { uninitialized: mode, initialized: mode};
+        options.const = { uninitialized: mode, initialized: mode};
+    } else if (typeof mode === "object") { // options configuration is an object
+        if (mode.hasOwnProperty("var") && typeof mode.var === "string") {
+            options.var = { uninitialized: mode.var, initialized: mode.var};
+        }
+        if (mode.hasOwnProperty("let") && typeof mode.let === "string") {
+            options.let = { uninitialized: mode.let, initialized: mode.let};
+        }
+        if (mode.hasOwnProperty("const") && typeof mode.const === "string") {
+            options.const = { uninitialized: mode.const, initialized: mode.const};
+        }
+        if (mode.hasOwnProperty("uninitialized")) {
+            if (!options.var) {
+                options.var = {};
+            }
+            if (!options.let) {
+                options.let = {};
+            }
+            if (!options.const) {
+                options.const = {};
+            }
+            options.var.uninitialized = mode.uninitialized;
+            options.let.uninitialized = mode.uninitialized;
+            options.const.uninitialized = mode.uninitialized;
+        }
+        if (mode.hasOwnProperty("initialized")) {
+            if (!options.var) {
+                options.var = {};
+            }
+            if (!options.let) {
+                options.let = {};
+            }
+            if (!options.const) {
+                options.const = {};
+            }
+            options.var.initialized = mode.initialized;
+            options.let.initialized = mode.initialized;
+            options.const.initialized = mode.initialized;
+        }
     }
 
     //--------------------------------------------------------------------------
@@ -39,7 +80,10 @@ module.exports = function(context) {
      * @private
      */
     function startBlock() {
-        blockStack.push({let: false, const: false});
+        blockStack.push({
+            let: {initialized: false, uninitialized: false},
+            const: {initialized: false, uninitialized: false}
+        });
     }
 
     /**
@@ -48,7 +92,7 @@ module.exports = function(context) {
      * @private
      */
     function startFunction() {
-        functionStack.push(false);
+        functionStack.push({initialized: false, uninitialized: false});
         startBlock();
     }
 
@@ -72,46 +116,95 @@ module.exports = function(context) {
     }
 
     /**
+     * Records whether initialized or uninitialized variables are defined in current scope.
+     * @param {string} statementType node.kind, one of: "var", "let", or "const"
+     * @param {ASTNode[]} declarations List of declarations
+     * @param {Object} currentScope The scope being investigated
+     * @returns {void}
+     * @private
+     */
+    function recordTypes(statementType, declarations, currentScope) {
+        for (var i = 0; i < declarations.length; i++) {
+            if (declarations[i].init === null) {
+                if (options[statementType] && options[statementType].uninitialized === MODE_ALWAYS) {
+                    currentScope.uninitialized = true;
+                }
+            } else {
+                if (options[statementType] && options[statementType].initialized === MODE_ALWAYS) {
+                    currentScope.initialized = true;
+                }
+            }
+        }
+    }
+
+    /**
+     * Determines the current scope (function or block)
+     * @param  {string} statementType node.kind, one of: "var", "let", or "const"
+     * @returns {Object} The scope associated with statementType
+     */
+    function getCurrentScope(statementType) {
+        var currentScope;
+        if (statementType === "var") {
+            currentScope = functionStack[functionStack.length - 1];
+        } else if (statementType === "let") {
+            currentScope = blockStack[blockStack.length - 1].let;
+        } else if (statementType === "const") {
+            currentScope = blockStack[blockStack.length - 1].const;
+        }
+        return currentScope;
+    }
+
+    /**
+     * Counts the number of initialized and uninitialized declarations in a list of declarations
+     * @param {ASTNode[]} declarations List of declarations
+     * @returns {Object} Counts of 'uninitialized' and 'initialized' declarations
+     * @private
+     */
+    function countDeclarations(declarations) {
+        var counts = { uninitialized: 0, initialized: 0 };
+        for (var i = 0; i < declarations.length; i++) {
+            if (declarations[i].init === null) {
+                counts.uninitialized++;
+            } else {
+                counts.initialized++;
+            }
+        }
+        return counts;
+    }
+
+    /**
      * Determines if there is more than one var statement in the current scope.
+     * @param {string} statementType node.kind, one of: "var", "let", or "const"
+     * @param {ASTNode[]} declarations List of declarations
      * @returns {boolean} Returns true if it is the first var declaration, false if not.
      * @private
      */
-    function hasOnlyOneVar() {
-        if (functionStack[functionStack.length - 1]) {
-            return true;
-        } else {
-            functionStack[functionStack.length - 1] = true;
-            return false;
+    function hasOnlyOneStatement(statementType, declarations) {
+
+        var declarationCounts = countDeclarations(declarations);
+        var currentOptions = options[statementType] || {};
+        var currentScope = getCurrentScope(statementType);
+
+        if (currentOptions.uninitialized === MODE_ALWAYS && currentOptions.initialized === MODE_ALWAYS) {
+            if (currentScope.uninitialized || currentScope.initialized) {
+                return false;
+            }
         }
+
+        if (declarationCounts.uninitialized > 0) {
+            if (currentOptions.uninitialized === MODE_ALWAYS && currentScope.uninitialized) {
+                return false;
+            }
+        }
+        if (declarationCounts.initialized > 0) {
+            if (currentOptions.initialized === MODE_ALWAYS && currentScope.initialized) {
+                return false;
+            }
+        }
+        recordTypes(statementType, declarations, currentScope);
+        return true;
     }
 
-    /**
-     * Determines if there is more than one let statement in the current scope.
-     * @returns {boolean} Returns true if it is the first let declaration, false if not.
-     * @private
-     */
-    function hasOnlyOneLet() {
-        if (blockStack[blockStack.length - 1].let) {
-            return true;
-        } else {
-            blockStack[blockStack.length - 1].let = true;
-            return false;
-        }
-    }
-
-    /**
-     * Determines if there is more than one const statement in the current scope.
-     * @returns {boolean} Returns true if it is the first const declaration, false if not.
-     * @private
-     */
-    function hasOnlyOneConst() {
-        if (blockStack[blockStack.length - 1].const) {
-            return true;
-        } else {
-            blockStack[blockStack.length - 1].const = true;
-            return false;
-        }
-    }
 
     //--------------------------------------------------------------------------
     // Public API
@@ -127,39 +220,45 @@ module.exports = function(context) {
         "SwitchStatement": startBlock,
 
         "VariableDeclaration": function(node) {
-            var declarationCount = node.declarations.length;
+            var parent = node.parent,
+                type, declarations, declarationCounts;
 
-            if (node.kind === "var") {
-                if (options.var === "never") {
-                    if (declarationCount > 1) {
-                        context.report(node, "Split 'var' declaration into multiple statements.");
-                    }
-                } else {
-                    if (hasOnlyOneVar()) {
-                        context.report(node, "Combine this with the previous 'var' statement.");
-                    }
-                }
-            } else if (node.kind === "let") {
-                if (options.let === "never") {
-                    if (declarationCount > 1) {
-                        context.report(node, "Split 'let' declaration into multiple statements.");
-                    }
-                } else {
-                    if (hasOnlyOneLet()) {
-                        context.report(node, "Combine this with the previous 'let' statement.");
-                    }
-                }
-            } else if (node.kind === "const") {
-                if (options.const === "never") {
-                    if (declarationCount > 1) {
-                        context.report(node, "Split 'const' declaration into multiple statements.");
-                    }
-                } else {
-                    if (hasOnlyOneConst()) {
-                        context.report(node, "Combine this with the previous 'const' statement.");
-                    }
-                }
+            type = node.kind;
+            if (!options[type]) {
+                return;
+            }
 
+            declarations = node.declarations;
+            declarationCounts = countDeclarations(declarations);
+
+            // always
+            if (!hasOnlyOneStatement(type, declarations)) {
+                if (options[type].initialized === MODE_ALWAYS && options[type].uninitialized === MODE_ALWAYS) {
+                    context.report(node, "Combine this with the previous '" + type + "' statement.");
+                } else {
+                    if (options[type].initialized === MODE_ALWAYS) {
+                        context.report(node, "Combine this with the previous '" + type + "' statement with initialized variables.");
+                    }
+                    if (options[type].uninitialized === MODE_ALWAYS) {
+                        context.report(node, "Combine this with the previous '" + type + "' statement with uninitialized variables.");
+                    }
+                }
+            }
+            // never
+            if (parent.type !== "ForStatement" || parent.init !== node) {
+                var totalDeclarations = declarationCounts.uninitialized + declarationCounts.initialized;
+                if (totalDeclarations > 1) {
+                    // both initialized and uninitialized
+                    if (options[type].initialized === MODE_NEVER && options[type].uninitialized === MODE_NEVER) {
+                        context.report(node, "Split '" + type + "' declarations into multiple statements.");
+                    // initialized
+                    } else if (options[type].initialized === MODE_NEVER && declarationCounts.initialized > 0) {
+                        context.report(node, "Split initialized '" + type + "' declarations into multiple statements.");
+                    // uninitialized
+                    } else if (options[type].uninitialized === MODE_NEVER && declarationCounts.uninitialized > 0) {
+                        context.report(node, "Split uninitialized '" + type + "' declarations into multiple statements.");
+                    }
+                }
             }
         },
 
@@ -173,3 +272,40 @@ module.exports = function(context) {
     };
 
 };
+
+module.exports.schema = [
+    {
+        "oneOf": [
+            {
+                "enum": ["always", "never"]
+            },
+            {
+                "type": "object",
+                "properties": {
+                    "var": {
+                        "enum": ["always", "never"]
+                    },
+                    "let": {
+                        "enum": ["always", "never"]
+                    },
+                    "const": {
+                        "enum": ["always", "never"]
+                    }
+                },
+                "additionalProperties": false
+            },
+            {
+                "type": "object",
+                "properties": {
+                    "initialized": {
+                        "enum": ["always", "never"]
+                    },
+                    "uninitialized": {
+                        "enum": ["always", "never"]
+                    }
+                },
+                "additionalProperties": false
+            }
+        ]
+    }
+];

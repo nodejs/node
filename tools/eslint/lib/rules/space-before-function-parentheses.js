@@ -115,3 +115,25 @@ module.exports = function(context) {
         "FunctionExpression": validateSpacingBeforeParentheses
     };
 };
+
+module.exports.schema = [
+    {
+        "oneOf": [
+            {
+                "enum": ["always", "never"]
+            },
+            {
+                "type": "object",
+                "properties": {
+                    "anonymous": {
+                        "enum": ["always", "never"]
+                    },
+                    "named": {
+                        "enum": ["always", "never"]
+                    }
+                },
+                "additionalProperties": false
+            }
+        ]
+    }
+];

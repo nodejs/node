@@ -119,6 +119,12 @@ To read the documentation:
 $ man doc/iojs.1
 ```
 
+To test if io.js was built correctly:
+
+```
+$ iojs -e "console.log('Hello from io.js ' + process.version)"
+```
+
 ### Windows
 
 Prerequisites:
@@ -138,6 +144,12 @@ To run the tests:
 
 ```text
 > vcbuild test
+```
+
+To test if io.js was built correctly:
+
+```
+$ iojs -e "console.log('Hello from io.js ' + process.version)"
 ```
 
 ### Android / Android based devices, aka. Firefox OS
@@ -257,20 +269,46 @@ NOTE: Windows is not yet supported
 It is possible to build io.js with
 [OpenSSL FIPS module](https://www.openssl.org/docs/fips/fipsnotes.html).
 
+**Note** that building in this way does **not** allow you to
+claim that the runtime is FIPS 140-2 validated.  Instead you
+can indicate that the runtime uses a validated module.  See
+the [security policy]
+(http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp1747.pdf)
+page 60 for more details.  In addition, the validation for
+the underlying module is only valid if it is deployed in
+accordance with its [security policy]
+(http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp1747.pdf).
+If you need FIPS validated cryptography it is recommended that you
+read both the [security policy]
+(http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp1747.pdf)
+and [user guide] (https://openssl.org/docs/fips/UserGuide-2.0.pdf).
+
 Instructions:
 
-1. Download and verify `openssl-fips-x.x.x.tar.gz` from
-   https://www.openssl.org/source/
-2. Extract source to `openssl-fips` folder
-3. ``cd openssl-fips && ./config fipscanisterbuild --prefix=`pwd`/out``
-   (NOTE: On OS X, you may want to run
-    ``./Configure darwin64-x86_64-cc --prefix=`pwd`/out`` if you are going to
-    build x64-mode io.js)
-4. `make -j && make install`
-5. Get into io.js checkout folder
-6. `./configure --openssl-fips=/path/to/openssl-fips/out`
-7. Build io.js with `make -j`
-8. Verify with `node -p "process.versions.openssl"` (`1.0.2a-fips`)
+1. Obtain a copy of openssl-fips-x.x.x.tar.gz.
+   To comply with the security policy you must ensure the path
+   through which you get the file complies with the requirements
+   for a "secure intallation" as described in section 6.6 in
+   the [user guide] (https://openssl.org/docs/fips/UserGuide-2.0.pdf).
+   For evaluation/experimentation you can simply download and verify
+   `openssl-fips-x.x.x.tar.gz` from https://www.openssl.org/source/
+2. Extract source to `openssl-fips` folder and `cd openssl-fips`
+3. `./config`
+4. `make`
+5. `make install`
+   (NOTE: to comply with the security policy you must use the exact
+   commands in steps 3-5 without any additional options as per
+   Appendix A in the [security policy]
+   (http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp1747.pdf).
+   The only exception is that `./config no-asm` can be
+   used in place of `./config` )
+6. Get into io.js checkout folder
+7. `./configure --openssl-fips=/path/to/openssl-fips/installdir`
+   For example on ubuntu 12 the installation directory was
+   /usr/local/ssl/fips-2.0
+8. Build io.js with `make -j`
+9. Verify with `node -p "process.versions.openssl"` (`1.0.2a-fips`)
+
 
 ## Resources for Newcomers
 
@@ -294,35 +332,47 @@ handling your report.
 ## Current Project Team Members
 
 The io.js project team comprises a group of core collaborators and a sub-group
-that forms the _Technical Committee_ (TC) which governs the project. For more
+that forms the _Technical Steering Committee_ (TSC) which governs the project. For more
 information about the governance of the io.js project, see
 [GOVERNANCE.md](./GOVERNANCE.md).
 
-* **Isaac Z. Schlueter** &lt;i@izs.me&gt; ([@isaacs](https://github.com/isaacs)) (Technical Committee)
-* **Ben Noordhuis** &lt;info@bnoordhuis.nl&gt; ([@bnoordhuis](https://github.com/bnoordhuis)) (Technical Committee)
-* **Bert Belder** &lt;bertbelder@gmail.com&gt; ([@piscisaureus](https://github.com/piscisaureus)) (Technical Committee)
-* **Fedor Indutny** &lt;fedor.indutny@gmail.com&gt; ([@indutny](https://github.com/indutny)) (Technical Committee)
-* **Trevor Norris** &lt;trev.norris@gmail.com&gt; ([@trevnorris](https://github.com/trevnorris)) (Technical Committee)
-* **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt; ([@chrisdickinson](https://github.com/chrisdickinson)) (Technical Committee)
+=======
+### TSC (Technical Steering Committee)
+
+* **Ben Noordhuis** &lt;info@bnoordhuis.nl&gt; ([@bnoordhuis](https://github.com/bnoordhuis))
+* **Bert Belder** &lt;bertbelder@gmail.com&gt; ([@piscisaureus](https://github.com/piscisaureus))
+* **Fedor Indutny** &lt;fedor.indutny@gmail.com&gt; ([@indutny](https://github.com/indutny))
+* **Trevor Norris** &lt;trev.norris@gmail.com&gt; ([@trevnorris](https://github.com/trevnorris))
+* **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt; ([@chrisdickinson](https://github.com/chrisdickinson))
   - Release GPG key: 9554F04D7259F04124DE6B476D5A82AC7E37093B
-* **Colin Ihrig** &lt;cjihrig@gmail.com&gt; ([@cjihrig](https://github.com/cjihrig))
-* **Mikeal Rogers** &lt;mikeal.rogers@gmail.com&gt; ([@mikeal](https://github.com/mikeal))
-* **Rod Vagg** &lt;rod@vagg.org&gt; ([@rvagg](https://github.com/rvagg)) (Technical Committee)
+* **Rod Vagg** &lt;rod@vagg.org&gt; ([@rvagg](https://github.com/rvagg))
   - Release GPG key: DD8F2338BAE7501E3DD5AC78C273792F7D83545D
+* **Jeremiah Senkpiel** &lt;fishrock123@rocketmail.com&gt; ([@fishrock123](https://github.com/fishrock123))
+  - Release GPG key: FD3A5288F042B6850C66B31F09FE44734EB7990E
+* **Colin Ihrig** &lt;cjihrig@gmail.com&gt; ([@cjihrig](https://github.com/cjihrig))
+  - Release GPG key: 94AE36675C464D64BAFA68DD7434390BDBE9B9C5
+* **Alexis Campailla** &lt;orangemocha@nodejs.org&gt; ([@orangemocha](https://github.com/orangemocha))
+* **Julien Gilli** &lt;jgilli@nodejs.org&gt; ([@misterdjules](https://github.com/misterdjules))
+* **James M Snell** &lt;jasnell@gmail.com&gt; ([@jasnell](https://github.com/jasnell))
+* **Steven R Loomis** &lt;srloomis@us.ibm.com&gt; ([@srl295](https://github.com/srl295))
+* **Michael Dawson** &lt;michael_dawson@ca.ibm.com&gt; ([@mhdawson](https://github.com/mhdawson))
+* **Shigeki Ohtsu** &lt;ohtsu@iij.ad.jp&gt; ([@shigeki](https://github.com/shigeki))
+* **Brian White** &lt;mscdex@mscdex.net&gt; ([@mscdex](https://github.com/mscdex))
+
+### Collaborators
+
+* **Isaac Z. Schlueter** &lt;i@izs.me&gt; ([@isaacs](https://github.com/isaacs))
+* **Mikeal Rogers** &lt;mikeal.rogers@gmail.com&gt; ([@mikeal](https://github.com/mikeal))
 * **Thorsten Lorenz** &lt;thlorenz@gmx.de&gt; ([@thlorenz](https://github.com/thlorenz))
 * **Stephen Belanger** &lt;admin@stephenbelanger.com&gt; ([@qard](https://github.com/qard))
-* **Jeremiah Senkpiel** &lt;fishrock123@rocketmail.com&gt; ([@fishrock123](https://github.com/fishrock123)) (Technical Committee)
-  - Release GPG key: FD3A5288F042B6850C66B31F09FE44734EB7990E
 * **Evan Lucas** &lt;evanlucas@me.com&gt; ([@evanlucas](https://github.com/evanlucas))
 * **Brendan Ashworth** &lt;brendan.ashworth@me.com&gt; ([@brendanashworth](https://github.com/brendanashworth))
 * **Vladimir Kurchatkin** &lt;vladimir.kurchatkin@gmail.com&gt; ([@vkurchatkin](https://github.com/vkurchatkin))
 * **Nikolai Vavilov** &lt;vvnicholas@gmail.com&gt; ([@seishun](https://github.com/seishun))
 * **Nicu Micleușanu** &lt;micnic90@gmail.com&gt; ([@micnic](https://github.com/micnic))
 * **Aleksey Smolenchuk** &lt;lxe@lxe.co&gt; ([@lxe](https://github.com/lxe))
-* **Shigeki Ohtsu** &lt;ohtsu@iij.ad.jp&gt; ([@shigeki](https://github.com/shigeki))
 * **Sam Roberts** &lt;vieuxtech@gmail.com&gt; ([@sam-github](https://github.com/sam-github))
 * **Wyatt Preul** &lt;wpreul@gmail.com&gt; ([@geek](https://github.com/geek))
-* **Brian White** &lt;mscdex@mscdex.net&gt; ([@mscdex](https://github.com/mscdex))
 * **Christian Tellnes** &lt;christian@tellnes.no&gt; ([@tellnes](https://github.com/tellnes))
 * **Robert Kowalski** &lt;rok@kowalski.gd&gt; ([@robertkowalski](https://github.com/robertkowalski))
 * **Julian Duque** &lt;julianduquej@gmail.com&gt; ([@julianduque](https://github.com/julianduque))
@@ -337,6 +387,9 @@ information about the governance of the io.js project, see
 * **Domenic Denicola** &lt;d@domenic.me&gt; ([@domenic](https://github.com/domenic))
 * **Rich Trott** &lt;rtrott@gmail.com&gt; ([@Trott](https://github.com/Trott))
 * **Сковорода Никита Андреевич** &lt;chalkerx@gmail.com&gt; ([@ChALkeR](https://github.com/ChALkeR))
+* **Sakthipriyan Vairamani** &lt;thechargingvolcano@gmail.com&gt; ([@thefourtheye](https://github.com/thefourtheye))
+* **Michaël Zasso** &lt;mic.besace@gmail.com&gt; ([@targos](https://github.com/targos))
+* **João Reis** &lt;reis@janeasystems.com&gt; ([@joaocgreis](https://github.com/joaocgreis))
 
-Collaborators follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
+Collaborators & TSC members follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
 maintaining the io.js project.

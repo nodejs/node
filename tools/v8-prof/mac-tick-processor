@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# A wrapper script to call 'linux-tick-processor' with Mac-specific settings.
+
+tools_path=`cd $(dirname "$0");pwd`
+v8_tools="$tools_path/../../deps/v8/tools"
+"$tools_path/linux-tick-processor" --mac --nm="$v8_tools/mac-nm" $@

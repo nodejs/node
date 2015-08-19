@@ -1019,7 +1019,8 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
         # accidentally writing duplicate dummy rules for those outputs.
         self.WriteLn('%s: obj := $(abs_obj)' % outputs[0])
         self.WriteLn('%s: builddir := $(abs_builddir)' % outputs[0])
-        self.WriteMakeRule(outputs, inputs + ['FORCE_DO_CMD'], actions)
+        self.WriteMakeRule(outputs, inputs, actions,
+                           command="%s_%d" % (name, count))
         # Spaces in rule filenames are not supported, but rule variables have
         # spaces in them (e.g. RULE_INPUT_PATH expands to '$(abspath $<)').
         # The spaces within the variables are valid, so remove the variables
@@ -1688,6 +1689,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     self.WriteMakeRule(outputs, inputs,
                        actions = ['$(call do_cmd,%s%s)' % (command, suffix)],
                        comment = comment,
+                       command = command,
                        force = True)
     # Add our outputs to the list of targets we read depfiles from.
     # all_deps is only used for deps file reading, and for deps files we replace
@@ -1698,7 +1700,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
 
 
   def WriteMakeRule(self, outputs, inputs, actions=None, comment=None,
-                    order_only=False, force=False, phony=False):
+                    order_only=False, force=False, phony=False, command=None):
     """Write a Makefile rule, with some extra tricks.
 
     outputs: a list of outputs for the rule (note: this is not directly
@@ -1711,6 +1713,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     force: if true, include FORCE_DO_CMD as an order-only dep
     phony: if true, the rule does not actually generate the named output, the
            output is just a name to run the rule
+    command: (optional) command name to generate unambiguous labels
     """
     outputs = map(QuoteSpaces, outputs)
     inputs = map(QuoteSpaces, inputs)
@@ -1719,44 +1722,38 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
       self.WriteLn('# ' + comment)
     if phony:
       self.WriteLn('.PHONY: ' + ' '.join(outputs))
-    # TODO(evanm): just make order_only a list of deps instead of these hacks.
-    if order_only:
-      order_insert = '| '
-      pick_output = ' '.join(outputs)
-    else:
-      order_insert = ''
-      pick_output = outputs[0]
-    if force:
-      force_append = ' FORCE_DO_CMD'
-    else:
-      force_append = ''
     if actions:
       self.WriteLn("%s: TOOLSET := $(TOOLSET)" % outputs[0])
-    self.WriteLn('%s: %s%s%s' % (pick_output, order_insert, ' '.join(inputs),
-                                 force_append))
+    force_append = ' FORCE_DO_CMD' if force else ''
+
+    if order_only:
+      # Order only rule: Just write a simple rule.
+      # TODO(evanm): just make order_only a list of deps instead of this hack.
+      self.WriteLn('%s: | %s%s' %
+                   (' '.join(outputs), ' '.join(inputs), force_append))
+    elif len(outputs) == 1:
+      # Regular rule, one output: Just write a simple rule.
+      self.WriteLn('%s: %s%s' % (outputs[0], ' '.join(inputs), force_append))
+    else:
+      # Regular rule, more than one output: Multiple outputs are tricky in
+      # make. We will write three rules:
+      # - All outputs depend on an intermediate file.
+      # - Make .INTERMEDIATE depend on the intermediate.
+      # - The intermediate file depends on the inputs and executes the
+      #   actual command.
+      # - The intermediate recipe will 'touch' the intermediate file.
+      # - The multi-output rule will have an do-nothing recipe.
+      intermediate = "%s.intermediate" % (command if command else self.target)
+      self.WriteLn('%s: %s' % (' '.join(outputs), intermediate))
+      self.WriteLn('\t%s' % '@:');
+      self.WriteLn('%s: %s' % ('.INTERMEDIATE', intermediate))
+      self.WriteLn('%s: %s%s' %
+                   (intermediate, ' '.join(inputs), force_append))
+      actions.insert(0, '$(call do_cmd,touch)')
+
     if actions:
       for action in actions:
         self.WriteLn('\t%s' % action)
-    if not order_only and len(outputs) > 1:
-      # If we have more than one output, a rule like
-      #   foo bar: baz
-      # that for *each* output we must run the action, potentially
-      # in parallel.  That is not what we're trying to write -- what
-      # we want is that we run the action once and it generates all
-      # the files.
-      # http://www.gnu.org/software/hello/manual/automake/Multiple-Outputs.html
-      # discusses this problem and has this solution:
-      # 1) Write the naive rule that would produce parallel runs of
-      # the action.
-      # 2) Make the outputs seralized on each other, so we won't start
-      # a parallel run until the first run finishes, at which point
-      # we'll have generated all the outputs and we're done.
-      self.WriteLn('%s: %s' % (' '.join(outputs[1:]), outputs[0]))
-      # Add a dummy command to the "extra outputs" rule, otherwise make seems to
-      # think these outputs haven't (couldn't have?) changed, and thus doesn't
-      # flag them as changed (i.e. include in '$?') when evaluating dependent
-      # rules, which in turn causes do_cmd() to skip running dependent commands.
-      self.WriteLn('%s: ;' % (' '.join(outputs[1:])))
     self.WriteLn()
 
 

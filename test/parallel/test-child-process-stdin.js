@@ -3,9 +3,8 @@ var common = require('../common');
 var assert = require('assert');
 
 var spawn = require('child_process').spawn;
-var is_windows = process.platform === 'win32';
 
-var cat = spawn(is_windows ? 'more' : 'cat');
+var cat = spawn(common.isWindows ? 'more' : 'cat');
 cat.stdin.write('hello');
 cat.stdin.write(' ');
 cat.stdin.write('world');
@@ -51,7 +50,7 @@ cat.on('exit', function(status) {
 
 cat.on('close', function() {
   closed = true;
-  if (is_windows) {
+  if (common.isWindows) {
     assert.equal('hello world\r\n', response);
   } else {
     assert.equal('hello world', response);
@@ -61,7 +60,7 @@ cat.on('close', function() {
 process.on('exit', function() {
   assert.equal(0, exitStatus);
   assert(closed);
-  if (is_windows) {
+  if (common.isWindows) {
     assert.equal('hello world\r\n', response);
   } else {
     assert.equal('hello world', response);

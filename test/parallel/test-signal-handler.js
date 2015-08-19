@@ -1,11 +1,12 @@
 'use strict';
-// SIGUSR1 and SIGHUP are not supported on Windows
-if (process.platform === 'win32') {
-  process.exit(0);
-}
 
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
+
+if (common.isWindows) {
+  console.log('1..0 # Skipped: SIGUSR1 and SIGHUP signals are not supported');
+  return;
+}
 
 console.log('process.pid: ' + process.pid);
 

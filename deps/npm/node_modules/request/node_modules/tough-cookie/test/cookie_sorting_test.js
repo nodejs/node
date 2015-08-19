@@ -33,6 +33,7 @@ var vows = require('vows');
 var assert = require('assert');
 var tough = require('../lib/cookie');
 var Cookie = tough.Cookie;
+var CookieJar = tough.CookieJar;
 
 function toKeyArray(cookies) {
   return cookies.map(function (c) {
@@ -42,6 +43,71 @@ function toKeyArray(cookies) {
 
 vows
   .describe('Cookie sorting')
+  .addBatch({
+    "Assumptions:": {
+      ".creationIndex is set during construction": function() {
+        var now = new Date();
+        var c1 = new Cookie();
+        var c2 = new Cookie();
+        assert.isNumber(c1.creationIndex);
+        assert.isNumber(c2.creationIndex);
+        assert(c1.creationIndex < c2.creationIndex,
+               'creationIndex should increase with each construction');
+      },
+
+      ".creationIndex is set during construction (forced ctime)": function() {
+        var now = new Date();
+        var c1 = new Cookie({creation: now});
+        var c2 = new Cookie({creation: now});
+        assert.strictEqual(c1.creation, c2.creation);
+        assert.isNumber(c1.creationIndex);
+        assert.isNumber(c2.creationIndex);
+        assert(c1.creationIndex < c2.creationIndex,
+               'creationIndex should increase with each construction');
+      },
+
+      ".creationIndex is left alone during new setCookie": function() {
+        var jar = new CookieJar();
+        var c = new Cookie({key:'k', value:'v', domain:'example.com'});
+        var now = new Date();
+        var beforeDate = c.creation;
+        assert.instanceOf(beforeDate, Date);
+        assert.notStrictEqual(now, beforeDate);
+        var beforeIndex = c.creationIndex;
+        assert.isNumber(c.creationIndex);
+
+        jar.setCookieSync(c, 'http://example.com/', {now: now});
+
+        assert.strictEqual(c.creation, now);
+        assert.strictEqual(c.creationIndex, beforeIndex);
+      },
+
+      ".creationIndex is preserved during update setCookie": function() {
+        var jar = new CookieJar();
+
+        var thisMs = Date.now();
+        var t1 = new Date(thisMs);
+        var t2 = new Date(thisMs);
+        assert.notStrictEqual(t1, t2); // Date objects are distinct
+
+        var c = new Cookie({key:'k', value:'v1', domain:'example.com'});
+        jar.setCookieSync(c, 'http://example.com/', {now: t1});
+        var originalIndex = c.creationIndex;
+
+        assert.strictEqual(c.creation, t1);
+        assert.strictEqual(c.lastAccessed, t1);
+
+        c = new Cookie({key:'k', value:'v2', domain:'example.com'});
+        assert.notStrictEqual(c.creation, t1); // new timestamp assigned
+
+        jar.setCookieSync(c, 'http://example.com/', {now: t2});
+
+        assert.strictEqual(c.creation, t1); // retained
+        assert.strictEqual(c.lastAccessed, t2); // updated
+        assert.strictEqual(c.creationIndex, originalIndex); // retained
+      },
+    }
+  })
   .addBatch({
     "Cookie Sorting": {
       topic: function () {

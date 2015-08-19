@@ -4,7 +4,7 @@ var assert = require('assert');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
-  process.exit();
+  return;
 }
 var crypto = require('crypto');
 
@@ -56,7 +56,7 @@ for (var i in TEST_CASES) {
   var test = TEST_CASES[i];
 
   if (ciphers.indexOf(test.algo) == -1) {
-    console.log('skipping unsupported ' + test.algo + ' test');
+    console.log('1..0 # Skipped: unsupported ' + test.algo + ' test');
     continue;
   }
 
