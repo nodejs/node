@@ -69,10 +69,17 @@ const fixtures = path.join(common.testDir, 'fixtures');
 const historyFixturePath = path.join(fixtures, '.node_repl_history');
 const historyPath = path.join(common.tmpDir, '.fixture_copy_repl_history');
 const oldHistoryPath = path.join(fixtures, 'old-repl-history-file.json');
+const enoentHistoryPath = path.join(fixtures, 'enoent-repl-history-file.json');
 
 
 const tests = [{
   env: { NODE_REPL_HISTORY: '' },
+  test: [UP],
+  expected: [prompt, replDisabled, prompt]
+},
+{
+  env: { NODE_REPL_HISTORY: '',
+         NODE_REPL_HISTORY_FILE: enoentHistoryPath },
   test: [UP],
   expected: [prompt, replDisabled, prompt]
 },
