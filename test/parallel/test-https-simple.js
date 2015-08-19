@@ -1,34 +1,34 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var https = require('https');
 
-var fs = require('fs');
+const assert = require('assert');
+const https = require('https');
+const fs = require('fs');
 
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-var reqReceivedCount = 0;
 const tests = 2;
-var successful = 0;
+let reqReceivedCount = 0;
+let successful = 0;
 
-var testSucceeded = function() {
+const testSucceeded = function() {
   successful = successful + 1;
   if (successful === tests) {
     server.close();
   }
 };
 
-var body = 'hello world\n';
+const body = 'hello world\n';
 
-var server = https.createServer(options, function(req, res) {
+const server = https.createServer(options, function(req, res) {
   reqReceivedCount++;
   res.writeHead(200, { 'content-type': 'text/plain' });
   res.end(body);
@@ -37,7 +37,7 @@ var server = https.createServer(options, function(req, res) {
 
 server.listen(common.PORT, function() {
   // Do a request ignoring the invalid server certs
-  var noCertCheckOptions = {
+  const noCertCheckOptions = {
     hostname: '127.0.0.1',
     port: common.PORT,
     path: '/',
@@ -46,8 +46,8 @@ server.listen(common.PORT, function() {
   };
   noCertCheckOptions.Agent = new https.Agent(noCertCheckOptions);
 
-  var req = https.request(noCertCheckOptions, function(res) {
-    var responseBody = '';
+  const req = https.request(noCertCheckOptions, function(res) {
+    let responseBody = '';
     res.on('data', function(d) {
       responseBody = responseBody + d;
     });
@@ -64,14 +64,14 @@ server.listen(common.PORT, function() {
   });
 
   // Do a request that throws error due to the invalid server certs
-  var checkCertOptions = {
+  const checkCertOptions = {
     hostname: '127.0.0.1',
     port: common.PORT,
     path: '/',
     method: 'GET'
   };
 
-  var checkCertReq = https.request(checkCertOptions, function(res) {
+  const checkCertReq = https.request(checkCertOptions, function(res) {
     res.on('data', function() {
       throw Error('data should not be received');
     });
