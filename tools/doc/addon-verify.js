@@ -25,12 +25,9 @@ for (var i = 0; i < tokens.length; i++) {
   var token = tokens[i];
   if (token.type === 'heading') {
     if (files && Object.keys(files).length !== 0) {
-      verifyFiles(files, function(err) {
-        if (err)
-          console.log(err);
-        else
-          console.log('done');
-      });
+      verifyFiles(files,
+                  console.log.bind(null, 'wrote'),
+                  function(err) { if (err) throw err; });
     }
     files = {};
   } else if (token.type === 'code') {
@@ -51,7 +48,7 @@ function once(fn) {
   };
 }
 
-function verifyFiles(files, callback) {
+function verifyFiles(files, onprogress, ondone) {
   var dir = path.resolve(verifyDir, 'doc-' + id++);
 
   files = Object.keys(files).map(function(name) {
@@ -78,17 +75,19 @@ function verifyFiles(files, callback) {
   fs.mkdir(dir, function() {
     // Ignore errors
 
+    var done = once(ondone);
     var waiting = files.length;
-    for (var i = 0; i < files.length; i++)
-      fs.writeFile(files[i].path, files[i].content, next);
+    files.forEach(function(file) {
+      fs.writeFile(file.path, file.content, function(err) {
+        if (err)
+          return done(err);
 
-    var done = once(callback);
-    function next(err) {
-      if (err)
-        return done(err);
+        if (onprogress)
+          onprogress(file.path);
 
-      if (--waiting === 0)
-        done();
-    }
+        if (--waiting === 0)
+          done();
+      });
+    });
   });
 }
