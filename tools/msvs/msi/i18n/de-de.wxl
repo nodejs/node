@@ -12,9 +12,6 @@
     <String Id="NodeRuntime_Title">Node.js-Laufzeitumgebung</String>
     <String Id="NodeRuntime_Description">Installation der [ProductName]-Laufzeitumgebung (node.exe).</String>
 
-    <String Id="NodeAlias_Title">Verweis von node auf iojs</String>
-    <String Id="NodeAlias_Description">Erstelle node.exe als Verweis für iojs.exe.</String>
-
     <String Id="NodePerfCtrSupport_Title">Performance Counter</String>
     <String Id="NodePerfCtrSupport_Description">Installiert Unterstützung für [ProductName]-spezifische Performance Counter.</String>
 
