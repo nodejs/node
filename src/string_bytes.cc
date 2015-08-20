@@ -293,6 +293,46 @@ bool StringBytes::GetExternalParts(Isolate* isolate,
 }
 
 
+size_t StringBytes::WriteUCS2(char* buf,
+                              size_t buflen,
+                              size_t nbytes,
+                              const char* data,
+                              Local<String> str,
+                              int flags,
+                              size_t* chars_written) {
+  uint16_t* const dst = reinterpret_cast<uint16_t*>(buf);
+
+  size_t max_chars = (buflen / sizeof(*dst));
+  size_t nchars;
+  size_t alignment = reinterpret_cast<uintptr_t>(dst) % sizeof(*dst);
+  if (alignment == 0) {
+    nchars = str->Write(dst, 0, max_chars, flags);
+    *chars_written = nchars;
+    return nchars * sizeof(*dst);
+  }
+
+  uint16_t* aligned_dst =
+      reinterpret_cast<uint16_t*>(buf + sizeof(*dst) - alignment);
+  ASSERT_EQ(reinterpret_cast<uintptr_t>(aligned_dst) % sizeof(*dst), 0);
+
+  // Write all but the last char
+  nchars = str->Write(aligned_dst, 0, max_chars - 1, flags);
+
+  // Shift everything to unaligned-left
+  memmove(dst, aligned_dst, nchars * sizeof(*dst));
+
+  // One more char to be written
+  uint16_t last;
+  if (nchars == max_chars - 1 && str->Write(&last, nchars, 1, flags) != 0) {
+    memcpy(buf + nchars * sizeof(*dst), &last, sizeof(last));
+    nchars++;
+  }
+
+  *chars_written = nchars;
+  return nchars * sizeof(*dst);
+}
+
+
 size_t StringBytes::Write(Isolate* isolate,
                           char* buf,
                           size_t buflen,
@@ -334,26 +374,40 @@ size_t StringBytes::Write(Isolate* isolate,
       break;
 
     case UCS2: {
-      uint16_t* const dst = reinterpret_cast<uint16_t*>(buf);
       size_t nchars;
+
       if (is_extern && !str->IsOneByte()) {
         memcpy(buf, data, nbytes);
-        nchars = nbytes / sizeof(*dst);
+        nchars = nbytes / sizeof(uint16_t);
       } else {
-        nchars = buflen / sizeof(*dst);
-        nchars = str->Write(dst, 0, nchars, flags);
-        nbytes = nchars * sizeof(*dst);
-      }
-      if (IsBigEndian()) {
-        // Node's "ucs2" encoding wants LE character data stored in
-        // the Buffer, so we need to reorder on BE platforms.  See
-        // http://nodejs.org/api/buffer.html regarding Node's "ucs2"
-        // encoding specification
-        for (size_t i = 0; i < nchars; i++)
-          dst[i] = dst[i] << 8 | dst[i] >> 8;
+        nbytes = WriteUCS2(buf, buflen, nbytes, data, str, flags, &nchars);
       }
       if (chars_written != nullptr)
         *chars_written = nchars;
+
+      if (!IsBigEndian())
+        break;
+
+      // Node's "ucs2" encoding wants LE character data stored in
+      // the Buffer, so we need to reorder on BE platforms.  See
+      // http://nodejs.org/api/buffer.html regarding Node's "ucs2"
+      // encoding specification
+
+      const bool is_aligned =
+          reinterpret_cast<uintptr_t>(buf) % sizeof(uint16_t);
+      if (is_aligned) {
+        uint16_t* const dst = reinterpret_cast<uint16_t*>(buf);
+        for (size_t i = 0; i < nchars; i++)
+          dst[i] = dst[i] << 8 | dst[i] >> 8;
+        break;
+      }
+
+      ASSERT_EQ(sizeof(uint16_t), 2);
+      for (size_t i = 0; i < nchars; i++) {
+        char tmp = buf[i * 2];
+        buf[i * 2] = buf[i * 2 + 1];
+        buf[i * 2 + 1] = tmp;
+      }
       break;
     }
 
