@@ -151,6 +151,15 @@ class StringBytes {
       enum encoding encoding) {
     return Encode(v8::Isolate::GetCurrent(), buf, buflen, encoding);
   })
+
+ private:
+  static size_t WriteUCS2(char* buf,
+                          size_t buflen,
+                          size_t nbytes,
+                          const char* data,
+                          v8::Local<v8::String> str,
+                          int flags,
+                          size_t* chars_written);
 };
 
 }  // namespace node
