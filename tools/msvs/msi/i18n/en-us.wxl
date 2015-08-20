@@ -12,9 +12,6 @@
     <String Id="NodeRuntime_Title">Node.js runtime</String>
     <String Id="NodeRuntime_Description">Install the core [ProductName] runtime (node.exe).</String>
 
-    <String Id="NodeAlias_Title">Alias node to iojs</String>
-    <String Id="NodeAlias_Description">Create node.exe as an alias for iojs.exe.</String>
-
     <String Id="NodePerfCtrSupport_Title">Performance counters</String>
     <String Id="NodePerfCtrSupport_Description">Installs support for [ProductName]-specific performance counters.</String>
 
