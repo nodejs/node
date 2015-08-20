@@ -50,15 +50,16 @@ to verify that the file has not been tampered with.
 
 To verify a SHASUM256.txt.asc, you will first need to import all of
 the GPG keys of individuals authorized to create releases. They are
-listed at the bottom of this README. Use a command such as this to
-import the keys:
+listed at the bottom of this README under [Release Team](#release-team).
+Use a command such as this to import the keys:
 
 ```
 $ gpg --keyserver pool.sks-keyservers.net \
   --recv-keys DD8F2338BAE7501E3DD5AC78C273792F7D83545D
 ```
 
-_(Include each of the key fingerprints at the end of this command.)_
+_(See the bottom of this README for a full script to import active
+release keys)_
 
 You can then use `gpg --verify SHASUMS256.txt.asc` to verify that the
 file has been signed by an authorized member of the Node.js team.
@@ -328,7 +329,6 @@ that forms the _Technical Steering Committee_ (TSC) which governs the project. F
 information about the governance of the Node.js project, see
 [GOVERNANCE.md](./GOVERNANCE.md).
 
-=======
 ### TSC (Technical Steering Committee)
 
 * **Ben Noordhuis** &lt;info@bnoordhuis.nl&gt; ([@bnoordhuis](https://github.com/bnoordhuis))
@@ -336,13 +336,9 @@ information about the governance of the Node.js project, see
 * **Fedor Indutny** &lt;fedor.indutny@gmail.com&gt; ([@indutny](https://github.com/indutny))
 * **Trevor Norris** &lt;trev.norris@gmail.com&gt; ([@trevnorris](https://github.com/trevnorris))
 * **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt; ([@chrisdickinson](https://github.com/chrisdickinson))
-  - Release GPG key: 9554F04D7259F04124DE6B476D5A82AC7E37093B
 * **Rod Vagg** &lt;rod@vagg.org&gt; ([@rvagg](https://github.com/rvagg))
-  - Release GPG key: DD8F2338BAE7501E3DD5AC78C273792F7D83545D
 * **Jeremiah Senkpiel** &lt;fishrock123@rocketmail.com&gt; ([@fishrock123](https://github.com/fishrock123))
-  - Release GPG key: FD3A5288F042B6850C66B31F09FE44734EB7990E
 * **Colin Ihrig** &lt;cjihrig@gmail.com&gt; ([@cjihrig](https://github.com/cjihrig))
-  - Release GPG key: 94AE36675C464D64BAFA68DD7434390BDBE9B9C5
 * **Alexis Campailla** &lt;orangemocha@nodejs.org&gt; ([@orangemocha](https://github.com/orangemocha))
 * **Julien Gilli** &lt;jgilli@nodejs.org&gt; ([@misterdjules](https://github.com/misterdjules))
 * **James M Snell** &lt;jasnell@gmail.com&gt; ([@jasnell](https://github.com/jasnell))
@@ -385,3 +381,31 @@ information about the governance of the Node.js project, see
 
 Collaborators & TSC members follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
 maintaining the Node.js project.
+
+### Release Team
+
+Releases of Node.js and io.js will be signed with one of the following GPG keys:
+
+* **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt;: `9554F04D7259F04124DE6B476D5A82AC7E37093B`
+* **Colin Ihrig** &lt;cjihrig@gmail.com&gt; `94AE36675C464D64BAFA68DD7434390BDBE9B9C5`
+* **Jeremiah Senkpiel** &lt;fishrock@keybase.io&gt; `FD3A5288F042B6850C66B31F09FE44734EB7990E`
+* **Rod Vagg** &lt;rod@vagg.org&gt; `DD8F2338BAE7501E3DD5AC78C273792F7D83545D`
+
+The full set of trusted release keys can be imported by running:
+
+```
+gpg --keyserver pool.sks-keyservers.net --recv-keys 9554F04D7259F04124DE6B476D5A82AC7E37093B
+gpg --keyserver pool.sks-keyservers.net --recv-keys 94AE36675C464D64BAFA68DD7434390BDBE9B9C5
+gpg --keyserver pool.sks-keyservers.net --recv-keys FD3A5288F042B6850C66B31F09FE44734EB7990E
+gpg --keyserver pool.sks-keyservers.net --recv-keys DD8F2338BAE7501E3DD5AC78C273792F7D83545D
+```
+
+See the section above on [Verifying Binaries](#verifying-binaries) for
+details on what to do with these keys to verify a downloaded file is official.
+
+Previous releases of Node.js have been signed with one of the following GPG
+keys:
+
+* Julien Gilli &lt;jgilli@fastmail.fm&gt; `114F43EE0176B71C7BC219DD50A3051F888C628D`
+* Timothy J Fontaine &lt;tjfontaine@gmail.com&gt; `7937DFD2AB06298B2293C3187D33FF9D0246406D`
+* Isaac Z. Schlueter &lt;i@izs.me&gt; `93C7E9E91B49E432C2F75674B0A78B0A6C481CF6`
