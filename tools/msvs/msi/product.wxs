@@ -49,13 +49,6 @@
       <ComponentRef Id="AppData" />
       <ComponentGroupRef Id="Product.Generated"/>
 
-      <Feature Id="NodeAlias"
-               Level="1"
-               Title="!(loc.NodeAlias_Title)"
-               Description="!(loc.NodeAlias_Description)">
-        <ComponentRef Id="NodeAlias"/>
-      </Feature>
-
       <Feature Id="NodePerfCtrSupport"
                Level="1"
                Title="!(loc.NodePerfCtrSupport_Title)"
@@ -122,12 +115,6 @@
     <DirectoryRef Id="INSTALLDIR">
       <Component Id="NodeExecutable">
         <File Id="node.exe" KeyPath="yes" Source="$(var.SourceDir)\node.exe"/>
-      </Component>
-
-      <Component Id="NodeAlias" Guid="fde09cce-a503-4409-a3c4-61ae2a5a5906">
-        <!-- Always remove node.exe. The hard link will be recreated by the
-             `LinkNodeExeToIojsExe` custom action whenever needed. -->
-        <RemoveFile Id="node.exe" Name="node.exe" On="both" />
       </Component>
 
       <Component Id="NodeVarsScript">
@@ -262,13 +249,6 @@
       </Component>
     </DirectoryRef>
 
-    <CustomAction Id="LinkNodeExeToIojsExe"
-                  FileKey="iojs.exe"
-                  ExeCommand="-e &quot; require('fs').linkSync(process.execPath, require('path').resolve(process.execPath, '../node.exe')); &quot;"
-                  Impersonate="no"
-                  Execute="deferred"
-                  Return="check" />
-
     <Binary Id='BroadcastEnvironmentUpdate'
             SourceFile='$(var.custom_actions.TargetDir)$(var.custom_actions.TargetName).dll' />
 
@@ -279,9 +259,6 @@
                   Return="check" />
 
     <InstallExecuteSequence>
-      <Custom Action="LinkNodeExeToIojsExe" After="InstallFiles">
-        $NodeAlias = 3
-      </Custom>
       <Custom Action='BroadcastEnvironmentUpdate' After='InstallFinalize'/>
     </InstallExecuteSequence>
 
