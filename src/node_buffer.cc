@@ -835,7 +835,7 @@ void Compare(const FunctionCallbackInfo<Value> &args) {
 
   size_t cmp_length = MIN(obj_a_length, obj_b_length);
 
-  int32_t val = memcmp(obj_a_data, obj_b_data, cmp_length);
+  int val = cmp_length > 0 ? memcmp(obj_a_data, obj_b_data, cmp_length) : 0;
 
   // Normalize val to be an integer in the range of [1, -1] since
   // implementations of memcmp() can vary by platform.
