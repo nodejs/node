@@ -194,6 +194,21 @@ Returns `true` if the given "object" is a `RegExp`. `false` otherwise.
     util.isRegExp({})
       // false
 
+note: This function uses `Object.prototype.toString.call` and check the returned value is `[object RegExp]`. However, `Symbol.toStringTag` can change the returned value directly. `Symbol.toStringTag` is enabled under `--harmony-tostring`.
+
+If the argument object is modified like below, this function does not work properly.
+
+    var fakeRegExp = {};
+    fakeRegExp[Symbol.toStringTag] = 'RegExp';
+    util.isRegExp(fakeRegExp);
+      // true but this is not object
+
+    var regexp = /a/;
+    util.isRegExp(regexp);
+      // true
+    RegExp.prototype[Symbol.toStringTag] = 'Array';
+    util.isRegExp(regexp);
+      // false but this is RegExp
 
 ## util.isDate(object)
 
@@ -208,6 +223,9 @@ Returns `true` if the given "object" is a `Date`. `false` otherwise.
     util.isDate({})
       // false
 
+note: This function uses `Object.prototype.toString.call` and check the returned value is `[object Date]`. However, `Symbol.toStringTag` can change the returned value directly.
+
+see [an example in util.isRegExp](#util_util_isRegExp)
 
 ## util.isError(object)
 
@@ -222,6 +240,9 @@ Returns `true` if the given "object" is an `Error`. `false` otherwise.
     util.isError({ name: 'Error', message: 'an error occurred' })
       // false
 
+note: This function uses `Object.prototype.toString.call` and check the returned value is `[object Error]`. However, `Symbol.toStringTag` can change the returned value directly.
+
+see [an example in util.isRegExp](#util_util_isRegExp)
 
 ## util.isBoolean(object)
 
