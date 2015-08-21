@@ -679,7 +679,8 @@ for the source tarball and headers-only tarball.
 
 `process.release` contains the following properties:
 
-* `name`: a string with a value that will always be `"node.js"` for Node.js.
+* `name`: a string with a value that will always be `"node"` for Node.js. For
+  legacy io.js releases, this will be `"io.js"`.
 * `sourceUrl`: a complete URL pointing to a _.tar.gz_ file containing the
   source of the current release.
 * `headersUrl`: a complete URL pointing to a _.tar.gz_ file containing only
@@ -693,7 +694,7 @@ for the source tarball and headers-only tarball.
 
 e.g.
 
-    { name: 'node.js',
+    { name: 'node',
       sourceUrl: 'https://nodejs.org/download/release/v4.0.0/node-v4.0.0.tar.gz',
       headersUrl: 'https://nodejs.org/download/release/v4.0.0/node-v4.0.0-headers.tar.gz',
       libUrl: 'https://nodejs.org/download/release/v4.0.0/win-x64/node.lib' }
