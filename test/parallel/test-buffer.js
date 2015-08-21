@@ -1137,6 +1137,9 @@ assert.equal(Buffer.compare(d, b), 1);
 assert.equal(Buffer.compare(b, d), -1);
 assert.equal(Buffer.compare(c, c), 0);
 
+assert.equal(Buffer.compare(Buffer(0), Buffer(0)), 0);
+assert.equal(Buffer.compare(Buffer(0), Buffer(1)), -1);
+assert.equal(Buffer.compare(Buffer(1), Buffer(0)), 1);
 
 assert.throws(function() {
   var b = new Buffer(1);
