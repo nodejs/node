@@ -201,7 +201,7 @@ static void ares_sockstate_cb(void* data,
   } else {
     /* read == 0 and write == 0 this is c-ares's way of notifying us that */
     /* the socket is now closed. We must free the data associated with */
-    /* socket. */
+    /* the socket. */
     CHECK(task &&
           "When an ares socket is closed we should have a handle for it");
 
