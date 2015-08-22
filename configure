@@ -84,6 +84,13 @@ parser.add_option("--fully-static",
     help="Generate an executable without external dynamic libraries. This "
          "will not work on OSX when using default compilation environment")
 
+parser.add_option("--link-module",
+    action="append",
+    dest="linked_module",
+    help="Path to a JS file to be bundled in the binary as a builtin."
+         "This module will be referenced by basename without extension."
+         "Can be used multiple times")
+
 parser.add_option("--openssl-no-asm",
     action="store_true",
     dest="openssl_no_asm",
@@ -696,6 +703,9 @@ def configure_node(o):
 
   if options.enable_static:
     o['variables']['node_target_type'] = 'static_library'
+
+  if options.linked_module:
+    o['variables']['library_files'] = options.linked_module
 
 
 def configure_library(lib, output):
