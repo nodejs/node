@@ -79,12 +79,12 @@ code a:hover {
   color: white !important;
 }
 
-pre.api_stability_0 a,
-pre.api_stability_1 a,
-pre.api_stability_2 a,
-pre.api_stability_3 a,
-pre.api_stability_4 a,
-pre.api_stability_5 a {
+.api_stability_0 a,
+.api_stability_1 a,
+.api_stability_2 a,
+.api_stability_3 a,
+.api_stability_4 a,
+.api_stability_5 a {
   text-decoration: underline;
 }
 
