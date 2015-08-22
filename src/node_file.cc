@@ -47,8 +47,6 @@ using v8::Value;
 
 #define TYPE_ERROR(msg) env->ThrowTypeError(msg)
 
-#define THROW_BAD_ARGS TYPE_ERROR("Bad argument")
-
 #define GET_OFFSET(a) ((a)->IsNumber() ? (a)->IntegerValue() : -1)
 
 class FSReqWrap: public ReqWrap<uv_fs_t> {
@@ -306,7 +304,7 @@ static void Access(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(env->isolate());
 
   if (args.Length() < 2)
-    return THROW_BAD_ARGS;
+    return TYPE_ERROR("path and mode are required");
   if (!args[0]->IsString())
     return TYPE_ERROR("path must be a string");
   if (!args[1]->IsInt32())
@@ -326,9 +324,10 @@ static void Access(const FunctionCallbackInfo<Value>& args) {
 static void Close(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() < 1 || !args[0]->IsInt32()) {
-    return THROW_BAD_ARGS;
-  }
+  if (args.Length() < 1)
+    return TYPE_ERROR("fd is required");
+  if (!args[0]->IsInt32())
+    return TYPE_ERROR("fd must be a file descriptor");
 
   int fd = args[0]->Int32Value();
 
@@ -559,9 +558,10 @@ static void LStat(const FunctionCallbackInfo<Value>& args) {
 static void FStat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() < 1 || !args[0]->IsInt32()) {
-    return THROW_BAD_ARGS;
-  }
+  if (args.Length() < 1)
+    return TYPE_ERROR("fd is required");
+  if (!args[0]->IsInt32())
+    return TYPE_ERROR("fd must be a file descriptor");
 
   int fd = args[0]->Int32Value();
 
@@ -678,9 +678,10 @@ static void Rename(const FunctionCallbackInfo<Value>& args) {
 static void FTruncate(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() < 2 || !args[0]->IsInt32()) {
-    return THROW_BAD_ARGS;
-  }
+  if (args.Length() < 2)
+    return TYPE_ERROR("fd and length are required");
+  if (!args[0]->IsInt32())
+    return TYPE_ERROR("fd must be a file descriptor");
 
   int fd = args[0]->Int32Value();
 
@@ -706,9 +707,10 @@ static void FTruncate(const FunctionCallbackInfo<Value>& args) {
 static void Fdatasync(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() < 1 || !args[0]->IsInt32()) {
-    return THROW_BAD_ARGS;
-  }
+  if (args.Length() < 1)
+    return TYPE_ERROR("fd is required");
+  if (!args[0]->IsInt32())
+    return TYPE_ERROR("fd must be a file descriptor");
 
   int fd = args[0]->Int32Value();
 
@@ -722,9 +724,10 @@ static void Fdatasync(const FunctionCallbackInfo<Value>& args) {
 static void Fsync(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() < 1 || !args[0]->IsInt32()) {
-    return THROW_BAD_ARGS;
-  }
+  if (args.Length() < 1)
+    return TYPE_ERROR("fd is required");
+  if (!args[0]->IsInt32())
+    return TYPE_ERROR("fd must be a file descriptor");
 
   int fd = args[0]->Int32Value();
 
@@ -772,9 +775,12 @@ static void RMDir(const FunctionCallbackInfo<Value>& args) {
 static void MKDir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() < 2 || !args[0]->IsString() || !args[1]->IsInt32()) {
-    return THROW_BAD_ARGS;
-  }
+  if (args.Length() < 2)
+    return TYPE_ERROR("path and mode are required");
+  if (!args[0]->IsString())
+    return TYPE_ERROR("path must be a string");
+  if (!args[1]->IsInt32())
+    return TYPE_ERROR("mode must be an integer");
 
   node::Utf8Value path(env->isolate(), args[0]);
   int mode = static_cast<int>(args[1]->Int32Value());
@@ -990,9 +996,12 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
 static void Read(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() < 2 || !args[0]->IsInt32()) {
-    return THROW_BAD_ARGS;
-  }
+  if (args.Length() < 2)
+    return TYPE_ERROR("fd and buffer are required");
+  if (!args[0]->IsInt32())
+    return TYPE_ERROR("fd must be a file descriptor");
+  if (!Buffer::HasInstance(args[1]))
+    return TYPE_ERROR("Second argument needs to be a buffer");
 
   int fd = args[0]->Int32Value();
 
@@ -1002,10 +1011,6 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
   int64_t pos;
 
   char * buf = nullptr;
-
-  if (!Buffer::HasInstance(args[1])) {
-    return env->ThrowError("Second argument needs to be a buffer");
-  }
 
   Local<Object> buffer_obj = args[1]->ToObject(env->isolate());
   char *buffer_data = Buffer::Data(buffer_obj);
@@ -1043,9 +1048,13 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
 static void Chmod(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() < 2 || !args[0]->IsString() || !args[1]->IsInt32()) {
-    return THROW_BAD_ARGS;
-  }
+  if (args.Length() < 2)
+    return TYPE_ERROR("path and mode are required");
+  if (!args[0]->IsString())
+    return TYPE_ERROR("path must be a string");
+  if (!args[1]->IsInt32())
+    return TYPE_ERROR("mode must be an integer");
+
   node::Utf8Value path(env->isolate(), args[0]);
   int mode = static_cast<int>(args[1]->Int32Value());
 
@@ -1063,9 +1072,13 @@ static void Chmod(const FunctionCallbackInfo<Value>& args) {
 static void FChmod(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() < 2 || !args[0]->IsInt32() || !args[1]->IsInt32()) {
-    return THROW_BAD_ARGS;
-  }
+  if (args.Length() < 2)
+    return TYPE_ERROR("fd and mode are required");
+  if (!args[0]->IsInt32())
+    return TYPE_ERROR("fd must be a file descriptor");
+  if (!args[1]->IsInt32())
+    return TYPE_ERROR("mode must be an integer");
+
   int fd = args[0]->Int32Value();
   int mode = static_cast<int>(args[1]->Int32Value());
 
