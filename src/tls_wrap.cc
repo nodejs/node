@@ -561,8 +561,8 @@ int TLSWrap::DoWrite(WriteWrap* w,
     }
   if (empty) {
     ClearOut();
-    // However if there any data that should be written to socket,
-    // callback should not be invoked immediately
+    // However, if there is any data that should be written to the socket,
+    // the callback should not be invoked immediately
     if (BIO_pending(enc_out_) == 0)
       return stream_->DoWrite(w, bufs, count, send_handle);
   }
