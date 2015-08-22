@@ -248,3 +248,73 @@ testMe.complete('proxy.', common.mustCall(function(error, data) {
   assert.strictEqual(error, null);
   assert.deepEqual(data, [[], 'proxy.']);
 }));
+
+// Make sure tab completion does not include integer members of an Array
+var array_elements = [ [
+  'ary.__defineGetter__',
+  'ary.__defineSetter__',
+  'ary.__lookupGetter__',
+  'ary.__lookupSetter__',
+  'ary.__proto__',
+  'ary.constructor',
+  'ary.hasOwnProperty',
+  'ary.isPrototypeOf',
+  'ary.propertyIsEnumerable',
+  'ary.toLocaleString',
+  'ary.toString',
+  'ary.valueOf',
+  '',
+  'ary.concat',
+  'ary.entries',
+  'ary.every',
+  'ary.filter',
+  'ary.forEach',
+  'ary.indexOf',
+  'ary.join',
+  'ary.keys',
+  'ary.lastIndexOf',
+  'ary.length',
+  'ary.map',
+  'ary.pop',
+  'ary.push',
+  'ary.reduce',
+  'ary.reduceRight',
+  'ary.reverse',
+  'ary.shift',
+  'ary.slice',
+  'ary.some',
+  'ary.sort',
+  'ary.splice',
+  'ary.unshift' ],
+  'ary.'];
+
+putIn.run(['.clear']);
+
+putIn.run(['var ary = [1,2,3];']);
+testMe.complete('ary.', common.mustCall(function(error, data) {
+  assert.deepEqual(data, array_elements);
+}));
+
+// Make sure tab completion does not include integer keys in an object
+var obj_elements = [ [
+  'obj.__defineGetter__',
+  'obj.__defineSetter__',
+  'obj.__lookupGetter__',
+  'obj.__lookupSetter__',
+  'obj.__proto__',
+  'obj.constructor',
+  'obj.hasOwnProperty',
+  'obj.isPrototypeOf',
+  'obj.propertyIsEnumerable',
+  'obj.toLocaleString',
+  'obj.toString',
+  'obj.valueOf',
+  '',
+  'obj.a' ],
+  'obj.' ];
+putIn.run(['.clear']);
+putIn.run(['var obj = {1:"a","1a":"b",a:"b"};']);
+
+testMe.complete('obj.', common.mustCall(function(error, data) {
+  assert.deepEqual(data, obj_elements);
+}));
