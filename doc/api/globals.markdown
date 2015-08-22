@@ -181,7 +181,6 @@ will not execute.
 The timer functions are global variables. See the [timers][] section.
 
 [buffer section]: buffer.html
-[module section]: modules.html
 [module system documentation]: modules.html
 [Modules]: modules.html#modules_modules
 [process object]: process.html#process_process

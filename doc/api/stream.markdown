@@ -231,8 +231,8 @@ readable.on('end', function() {
 #### Event: 'close'
 
 Emitted when the stream and any of its underlying resources (a file
-descriptor, for example) have been closed, no more events will be
-emitted, and no further computation will occur.
+descriptor, for example) have been closed. The event indicates that
+no more events will be emitted, and no further computation will occur.
 
 Not all streams will emit the 'close' event.
 
