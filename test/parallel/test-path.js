@@ -15,14 +15,20 @@ assert.equal(path.basename('basename.ext'), 'basename.ext');
 assert.equal(path.basename('basename.ext/'), 'basename.ext');
 assert.equal(path.basename('basename.ext//'), 'basename.ext');
 
-// On Windows a backslash acts as a path separator.
+// Windows: case insensitivie
+assert.equal(path.win32.basename('test.js', '.JS'), 'test');
+
+// POSIX: case sensitive
+assert.equal(path.posix.basename('test.js', '.JS'), 'test.js');
+
+// Windows: a backslash is the path separator.
 assert.equal(path.win32.basename('\\dir\\basename.ext'), 'basename.ext');
 assert.equal(path.win32.basename('\\basename.ext'), 'basename.ext');
 assert.equal(path.win32.basename('basename.ext'), 'basename.ext');
 assert.equal(path.win32.basename('basename.ext\\'), 'basename.ext');
 assert.equal(path.win32.basename('basename.ext\\\\'), 'basename.ext');
 
-// On unix a backslash is just treated as any other character.
+// POSIX: a backslash is treated as any other character.
 assert.equal(path.posix.basename('\\dir\\basename.ext'), '\\dir\\basename.ext');
 assert.equal(path.posix.basename('\\basename.ext'), '\\basename.ext');
 assert.equal(path.posix.basename('basename.ext'), 'basename.ext');
