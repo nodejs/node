@@ -853,6 +853,21 @@ var parseTests = {
     pathname: '/:npm/npm',
     path: '/:npm/npm',
     href: 'git+ssh://git@github.com/:npm/npm'
+  },
+
+  'http://a.com*foo!(bar)': {
+    protocol: 'http:',
+    slashes: true,
+    auth: null,
+    host: 'a.com%2Afoo%21%28bar%29',
+    port: null,
+    hostname: 'a.com%2Afoo%21%28bar%29',
+    hash: null,
+    search: null,
+    query: null,
+    href: 'http://a.com%2Afoo%21%28bar%29/',
+    path: '/',
+    pathname: '/'
   }
 
 };
