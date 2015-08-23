@@ -25,4 +25,5 @@ void DisposeNatives() {}
 
 
 const v8::StartupData* Snapshot::DefaultSnapshotBlob() { return NULL; }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --expose-debug-as debug --expose-gc --send-idle-notification
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --expose-natives-as natives
 // Flags: --noharmony-shipping
 // Note: this test checks that that the number of scripts reported as native
 // by Debug.scripts() is the same as a number of core native scripts.
@@ -36,6 +36,7 @@
 
 // Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug;
+Debug.setListener(function(){});
 
 Date();
 RegExp();
@@ -103,3 +104,5 @@ assertEquals(Debug.ScriptType.Normal, debug_script.type);
 // Check a nonexistent script.
 var dummy_script = Debug.findScript('dummy.js');
 assertTrue(typeof dummy_script == 'undefined');
+
+Debug.setListener(null);

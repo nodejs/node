@@ -83,7 +83,7 @@ void Processor::VisitBlock(Block* node) {
   // with some JS VMs: For instance, using smjs, print(eval('var x = 7'))
   // returns 'undefined'. To obtain the same behavior with v8, we need
   // to prevent rewriting in that case.
-  if (!node->is_initializer_block()) Process(node->statements());
+  if (!node->ignore_completion_value()) Process(node->statements());
 }
 
 
@@ -248,4 +248,5 @@ bool Rewriter::Rewrite(ParseInfo* info) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

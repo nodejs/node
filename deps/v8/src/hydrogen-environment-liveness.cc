@@ -228,4 +228,5 @@ bool HEnvironmentLivenessAnalysisPhase::VerifyClosures(
 }
 #endif
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

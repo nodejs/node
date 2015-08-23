@@ -123,6 +123,7 @@ class AstPrinter: public PrettyPrinter {
                                     Variable* var,
                                     Handle<Object> value);
   void PrintLabelsIndented(ZoneList<const AstRawString*>* labels);
+  void PrintProperties(ZoneList<ObjectLiteral::Property*>* properties);
 
   void inc_indent() { indent_++; }
   void dec_indent() { indent_--; }

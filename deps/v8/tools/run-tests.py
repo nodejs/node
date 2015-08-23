@@ -187,6 +187,9 @@ def BuildOptions():
   result.add_option("--dcheck-always-on",
                     help="Indicates that V8 was compiled with DCHECKs enabled",
                     default=False, action="store_true")
+  result.add_option("--novfp3",
+                    help="Indicates that V8 was compiled without VFP3 support",
+                    default=False, action="store_true")
   result.add_option("--cat", help="Print the source of the tests",
                     default=False, action="store_true")
   result.add_option("--flaky-tests",
@@ -205,6 +208,9 @@ def BuildOptions():
                     help="Prepended to each shell command used to run a test",
                     default="")
   result.add_option("--download-data", help="Download missing test suite data",
+                    default=False, action="store_true")
+  result.add_option("--download-data-only",
+                    help="Download missing test suite data and exit",
                     default=False, action="store_true")
   result.add_option("--extra-flags",
                     help="Additional flags to pass to each test command",
@@ -298,12 +304,22 @@ def BuildOptions():
   result.add_option("--junittestsuite",
                     help="The testsuite name in the JUnit output file",
                     default="v8tests")
-  result.add_option("--random-seed", default=0, dest="random_seed",
+  result.add_option("--random-seed", default=0, dest="random_seed", type="int",
                     help="Default seed for initializing random generator")
+  result.add_option("--random-seed-stress-count", default=1, type="int",
+                    dest="random_seed_stress_count",
+                    help="Number of runs with different random seeds")
   result.add_option("--msan",
                     help="Regard test expectations for MSAN",
                     default=False, action="store_true")
   return result
+
+
+def RandomSeed():
+  seed = 0
+  while not seed:
+    seed = random.SystemRandom().randint(-2147483648, 2147483647)
+  return seed
 
 
 def ProcessOptions(options):
@@ -340,6 +356,8 @@ def ProcessOptions(options):
     # Buildbots run presubmit tests as a separate step.
     options.no_presubmit = True
     options.no_network = True
+  if options.download_data_only:
+    options.no_presubmit = True
   if options.command_prefix:
     print("Specifying --command-prefix disables network distribution, "
           "running tests locally.")
@@ -353,6 +371,9 @@ def ProcessOptions(options):
   if options.asan:
     options.extra_flags.append("--invoke-weak-callbacks")
     options.extra_flags.append("--omit-quit")
+
+  if options.novfp3:
+    options.extra_flags.append("--noenable-vfp3")
 
   if options.msan:
     VARIANTS = ["default"]
@@ -368,8 +389,8 @@ def ProcessOptions(options):
   if options.j == 0:
     options.j = multiprocessing.cpu_count()
 
-  while options.random_seed == 0:
-    options.random_seed = random.SystemRandom().randint(-2147483648, 2147483647)
+  if options.random_seed_stress_count <= 1 and options.random_seed == 0:
+    options.random_seed = RandomSeed()
 
   def excl(*args):
     """Returns true if zero or one of multiple arguments are true."""
@@ -485,9 +506,12 @@ def Main():
     if suite:
       suites.append(suite)
 
-  if options.download_data:
+  if options.download_data or options.download_data_only:
     for s in suites:
       s.DownloadData()
+
+  if options.download_data_only:
+    return exit_code
 
   for (arch, mode) in options.arch_and_mode:
     try:
@@ -532,8 +556,14 @@ def Execute(arch, mode, args, options, suites, workspace):
     # Predictable mode is slower.
     timeout *= 2
 
+  # TODO(machenbach): Remove temporary verbose output on windows after
+  # debugging driver-hung-up on XP.
+  verbose_output = (
+      options.verbose or
+      utils.IsWindows() and options.progress == "verbose"
+  )
   ctx = context.Context(arch, MODES[mode]["execution_mode"], shell_dir,
-                        mode_flags, options.verbose,
+                        mode_flags, verbose_output,
                         timeout, options.isolates,
                         options.command_prefix,
                         options.extra_flags,
@@ -566,11 +596,11 @@ def Execute(arch, mode, args, options, suites, workspace):
     "tsan": options.tsan,
     "msan": options.msan,
     "dcheck_always_on": options.dcheck_always_on,
+    "novfp3": options.novfp3,
     "byteorder": sys.byteorder,
   }
   all_tests = []
   num_tests = 0
-  test_id = 0
   for s in suites:
     s.ReadStatusFile(variables)
     s.ReadTestCases(ctx)
@@ -583,14 +613,30 @@ def Execute(arch, mode, args, options, suites, workspace):
       verbose.PrintTestSource(s.tests)
       continue
     variant_flags = [VARIANT_FLAGS[var] for var in VARIANTS]
-    s.tests = [ t.CopyAddingFlags(v)
-                for t in s.tests
-                for v in s.VariantFlags(t, variant_flags) ]
+    variant_tests = [ t.CopyAddingFlags(v)
+                      for t in s.tests
+                      for v in s.VariantFlags(t, variant_flags) ]
+
+    if options.random_seed_stress_count > 1:
+      # Duplicate test for random seed stress mode.
+      def iter_seed_flags():
+        for i in range(0, options.random_seed_stress_count):
+          # Use given random seed for all runs (set by default in execution.py)
+          # or a new random seed if none is specified.
+          if options.random_seed:
+            yield []
+          else:
+            yield ["--random-seed=%d" % RandomSeed()]
+      s.tests = [
+        t.CopyAddingFlags(v)
+        for t in variant_tests
+        for v in iter_seed_flags()
+      ]
+    else:
+      s.tests = variant_tests
+
     s.tests = ShardTests(s.tests, options.shard_count, options.shard_run)
     num_tests += len(s.tests)
-    for t in s.tests:
-      t.id = test_id
-      test_id += 1
 
   if options.cat:
     return 0  # We're done here.
@@ -600,14 +646,14 @@ def Execute(arch, mode, args, options, suites, workspace):
 
   # Run the tests, either locally or distributed on the network.
   start_time = time.time()
-  progress_indicator = progress.PROGRESS_INDICATORS[options.progress]()
+  progress_indicator = progress.IndicatorNotifier()
+  progress_indicator.Register(progress.PROGRESS_INDICATORS[options.progress]())
   if options.junitout:
-    progress_indicator = progress.JUnitTestProgressIndicator(
-        progress_indicator, options.junitout, options.junittestsuite)
+    progress_indicator.Register(progress.JUnitTestProgressIndicator(
+        options.junitout, options.junittestsuite))
   if options.json_test_results:
-    progress_indicator = progress.JsonTestProgressIndicator(
-        progress_indicator, options.json_test_results, arch,
-        MODES[mode]["execution_mode"])
+    progress_indicator.Register(progress.JsonTestProgressIndicator(
+        options.json_test_results, arch, MODES[mode]["execution_mode"]))
 
   run_networked = not options.no_network
   if not run_networked:

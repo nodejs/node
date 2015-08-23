@@ -118,6 +118,8 @@
   'regress/regress-crbug-107996': [PASS, NO_VARIANTS],
   'regress/regress-crbug-171715': [PASS, NO_VARIANTS],
   'regress/regress-crbug-222893': [PASS, NO_VARIANTS],
+  'regress/regress-crbug-323936': [PASS, NO_VARIANTS],
+  'regress/regress-crbug-491943': [PASS, NO_VARIANTS],
   'regress/regress-325676': [PASS, NO_VARIANTS],
   'debug-evaluate-closure': [PASS, NO_VARIANTS],
   'debug-evaluate-with': [PASS, NO_VARIANTS],
@@ -168,18 +170,20 @@
   ##############################################################################
   # Only RegExp stuff tested, no need for extensive optimizing compiler tests.
   'regexp-global': [PASS, NO_VARIANTS],
-  'third_party/regexp-pcre': [PASS, NO_VARIANTS],
+  'third_party/regexp-pcre/regexp-pcre': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # No need to waste time for this test.
   'd8-performance-now': [PASS, NO_VARIANTS],
+  'regress/regress-crbug-491062': [PASS, NO_VARIANTS],
 
   # Issue 488: this test sometimes times out.
   'array-constructor': [PASS, TIMEOUT],
 
   # Very slow on ARM and MIPS, contains no architecture dependent code.
-  'unicode-case-overoptimization': [PASS, NO_VARIANTS, ['arch == arm or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips', TIMEOUT]],
-  'regress/regress-3976': [PASS, NO_VARIANTS, ['arch == arm or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips', SKIP]],
+  'unicode-case-overoptimization': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips', TIMEOUT]],
+  'regress/regress-3976': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips', SKIP]],
+  'regress/regress-crbug-482998': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips', SKIP]],
 
   ##############################################################################
   # This test expects to reach a certain recursion depth, which may not work
@@ -242,6 +246,13 @@
   'regress/regress-3116': [PASS, ['isolates', FLAKY]],
 }],  # ALWAYS
 
+['novfp3 == True', {
+  'asm/embenchen/box2d': [SKIP],
+  'asm/embenchen/zlib': [SKIP],
+  'asm/embenchen/memops': [SKIP],
+  'asm/embenchen/lua_binarytrees': [SKIP],
+}],  # novfp3 == True
+
 ##############################################################################
 ['gc_stress == True', {
   # Skip tests not suitable for GC stress.
@@ -293,8 +304,8 @@
   # Issue 478788.
   'es7/object-observe': [SKIP],
 
-  # Issue 3803.
-  'es6/generators-iteration': [PASS, FLAKY],
+  # BUG(v8:4237)
+  'regress/regress-3976': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################
@@ -342,9 +353,6 @@
   'regress/regress-2185': [PASS, ['mode == debug', PASS, TIMEOUT]],
   'regress/regress-2185-2': [PASS, TIMEOUT],
   'whitespaces': [PASS, TIMEOUT, SLOW],
-
-  # BUG(v8:3147). It works on other architectures by accident.
-  'regress/regress-conditional-position': [FAIL],
 
   # BUG(v8:3457).
   'deserialize-reference': [PASS, FAIL],
@@ -408,6 +416,9 @@
   'big-array-literal': [SKIP],
   'big-object-literal': [SKIP],
   'regress/regress-crbug-178790': [SKIP],
+
+  # Exception thrown during bootstrapping on ASAN builds, see issue 4236.
+  'regress/regress-1132': [SKIP],
 }],  # 'asan == True'
 
 ##############################################################################
@@ -628,12 +639,6 @@
   'harmony/private': [SKIP],
   'harmony/symbols': [SKIP],
 }],  # 'arch == nacl_ia32 or arch == nacl_x64'
-
-##############################################################################
-['arch == x87', {
-  # Currently Turbofan is not supported by x87.
-  'compiler/opt-next-call-turbo': [SKIP],
-}],  # 'arch == x87'
 
 ##############################################################################
 ['deopt_fuzzer == True', {

@@ -1019,7 +1019,7 @@ TBR=g_name@chromium.org,reviewer@chromium.org"""
       Cmd("git pull", "", cwd=chrome_dir),
       Cmd("git fetch origin", ""),
       Cmd("git new-branch work-branch", "", cwd=chrome_dir),
-      Cmd("roll-dep v8 roll_hsh", "rolled", cb=WriteDeps, cwd=chrome_dir),
+      Cmd("roll-dep-svn v8 roll_hsh", "rolled", cb=WriteDeps, cwd=chrome_dir),
       Cmd(("git commit -am \"%s\" "
            "--author \"author@chromium.org <author@chromium.org>\"" %
            self.ROLL_COMMIT_MSG),

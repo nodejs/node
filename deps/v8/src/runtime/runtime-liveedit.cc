@@ -290,5 +290,5 @@ RUNTIME_FUNCTION(Runtime_LiveEditRestartFrame) {
   }
   return heap->true_value();
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

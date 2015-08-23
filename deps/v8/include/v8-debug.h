@@ -60,20 +60,20 @@ class V8_EXPORT Debug {
      * callbacks as their content becomes invalid. These objects are from the
      * debugger event that started the debug message loop.
      */
-    virtual Handle<Object> GetExecutionState() const = 0;
-    virtual Handle<Object> GetEventData() const = 0;
+    virtual Local<Object> GetExecutionState() const = 0;
+    virtual Local<Object> GetEventData() const = 0;
 
     /**
      * Get the debugger protocol JSON.
      */
-    virtual Handle<String> GetJSON() const = 0;
+    virtual Local<String> GetJSON() const = 0;
 
     /**
      * Get the context active when the debug event happened. Note this is not
      * the current active context as the JavaScript part of the debugger is
      * running in its own context which is entered at this point.
      */
-    virtual Handle<Context> GetEventContext() const = 0;
+    virtual Local<Context> GetEventContext() const = 0;
 
     /**
      * Client data passed with the corresponding request if any. This is the
@@ -104,21 +104,21 @@ class V8_EXPORT Debug {
      * Access to execution state and event data of the debug event. Don't store
      * these cross callbacks as their content becomes invalid.
      */
-    virtual Handle<Object> GetExecutionState() const = 0;
-    virtual Handle<Object> GetEventData() const = 0;
+    virtual Local<Object> GetExecutionState() const = 0;
+    virtual Local<Object> GetEventData() const = 0;
 
     /**
      * Get the context active when the debug event happened. Note this is not
      * the current active context as the JavaScript part of the debugger is
      * running in its own context which is entered at this point.
      */
-    virtual Handle<Context> GetEventContext() const = 0;
+    virtual Local<Context> GetEventContext() const = 0;
 
     /**
      * Client data passed with the corresponding callback when it was
      * registered.
      */
-    virtual Handle<Value> GetCallbackData() const = 0;
+    virtual Local<Value> GetCallbackData() const = 0;
 
     /**
      * Client data passed to DebugBreakForCommand function. The
@@ -156,7 +156,7 @@ class V8_EXPORT Debug {
   typedef void (*DebugMessageDispatchHandler)();
 
   static bool SetDebugEventListener(EventCallback that,
-                                    Handle<Value> data = Handle<Value>());
+                                    Local<Value> data = Local<Value>());
 
   // Schedule a debugger break to happen when JavaScript code is run
   // in the given isolate.
@@ -196,20 +196,20 @@ class V8_EXPORT Debug {
   */
   static V8_DEPRECATE_SOON(
       "Use maybe version",
-      Local<Value> Call(v8::Handle<v8::Function> fun,
-                        Handle<Value> data = Handle<Value>()));
+      Local<Value> Call(v8::Local<v8::Function> fun,
+                        Local<Value> data = Local<Value>()));
   // TODO(dcarney): data arg should be a MaybeLocal
   static MaybeLocal<Value> Call(Local<Context> context,
-                                v8::Handle<v8::Function> fun,
-                                Handle<Value> data = Handle<Value>());
+                                v8::Local<v8::Function> fun,
+                                Local<Value> data = Local<Value>());
 
   /**
    * Returns a mirror object for the given object.
    */
   static V8_DEPRECATE_SOON("Use maybe version",
-                           Local<Value> GetMirror(v8::Handle<v8::Value> obj));
+                           Local<Value> GetMirror(v8::Local<v8::Value> obj));
   static MaybeLocal<Value> GetMirror(Local<Context> context,
-                                     v8::Handle<v8::Value> obj);
+                                     v8::Local<v8::Value> obj);
 
   /**
    * Makes V8 process all pending debug messages.
@@ -248,7 +248,8 @@ class V8_EXPORT Debug {
    * Debugger is running in its own context which is entered while debugger
    * messages are being dispatched. This is an explicit getter for this
    * debugger context. Note that the content of the debugger context is subject
-   * to change.
+   * to change. The Context exists only when the debugger is active, i.e. at
+   * least one DebugEventListener or MessageHandler is set.
    */
   static Local<Context> GetDebugContext();
 
@@ -259,6 +260,14 @@ class V8_EXPORT Debug {
    * unexpectedly used. LiveEdit is enabled by default.
    */
   static void SetLiveEditEnabled(Isolate* isolate, bool enable);
+
+  /**
+   * Returns array of internal properties specific to the value type. Result has
+   * the following format: [<name>, <value>,...,<name>, <value>]. Result array
+   * will be allocated in the current context.
+   */
+  static MaybeLocal<Array> GetInternalProperties(Isolate* isolate,
+                                                 Local<Value> value);
 };
 
 

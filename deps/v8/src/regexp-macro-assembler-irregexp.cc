@@ -453,4 +453,5 @@ void RegExpMacroAssemblerIrregexp::Expand() {
 
 #endif  // V8_INTERPRETED_REGEXP
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

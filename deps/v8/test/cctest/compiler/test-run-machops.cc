@@ -82,6 +82,63 @@ TEST(CodeGenInt32Binop) {
 }
 
 
+#if V8_TURBOFAN_BACKEND_64
+static Node* Int64Input(RawMachineAssemblerTester<int64_t>* m, int index) {
+  switch (index) {
+    case 0:
+      return m->Parameter(0);
+    case 1:
+      return m->Parameter(1);
+    case 2:
+      return m->Int64Constant(0);
+    case 3:
+      return m->Int64Constant(1);
+    case 4:
+      return m->Int64Constant(-1);
+    case 5:
+      return m->Int64Constant(0xff);
+    case 6:
+      return m->Int64Constant(0x0123456789abcdefLL);
+    case 7:
+      return m->Load(kMachInt64, m->PointerConstant(NULL));
+    default:
+      return NULL;
+  }
+}
+
+
+TEST(CodeGenInt64Binop) {
+  RawMachineAssemblerTester<void> m;
+
+  const Operator* kOps[] = {
+      m.machine()->Word64And(), m.machine()->Word64Or(),
+      m.machine()->Word64Xor(), m.machine()->Word64Shl(),
+      m.machine()->Word64Shr(), m.machine()->Word64Sar(),
+      m.machine()->Word64Equal(), m.machine()->Int64Add(),
+      m.machine()->Int64Sub(), m.machine()->Int64Mul(), m.machine()->Int64Div(),
+      m.machine()->Uint64Div(), m.machine()->Int64Mod(),
+      m.machine()->Uint64Mod(), m.machine()->Int64LessThan(),
+      m.machine()->Int64LessThanOrEqual(), m.machine()->Uint64LessThan(),
+      m.machine()->Uint64LessThanOrEqual()};
+
+  for (size_t i = 0; i < arraysize(kOps); ++i) {
+    for (int j = 0; j < 8; j++) {
+      for (int k = 0; k < 8; k++) {
+        RawMachineAssemblerTester<int64_t> m(kMachInt64, kMachInt64);
+        Node* a = Int64Input(&m, j);
+        Node* b = Int64Input(&m, k);
+        m.Return(m.NewNode(kOps[i], a, b));
+        m.GenerateCode();
+      }
+    }
+  }
+}
+
+
+// TODO(titzer): add tests that run 64-bit integer operations.
+#endif  // V8_TURBOFAN_BACKEND_64
+
+
 TEST(RunGoto) {
   RawMachineAssemblerTester<int32_t> m;
   int constant = 99999;
@@ -164,15 +221,14 @@ template <typename R>
 static void BuildDiamondPhi(RawMachineAssemblerTester<R>* m, Node* cond_node,
                             MachineType type, Node* true_node,
                             Node* false_node) {
-  MLabel blocka, blockb;
-  MLabel* end = m->Exit();
+  MLabel blocka, blockb, end;
   m->Branch(cond_node, &blocka, &blockb);
   m->Bind(&blocka);
-  m->Goto(end);
+  m->Goto(&end);
   m->Bind(&blockb);
-  m->Goto(end);
+  m->Goto(&end);
 
-  m->Bind(end);
+  m->Bind(&end);
   Node* phi = m->Phi(type, true_node, false_node);
   m->Return(phi);
 }
@@ -237,16 +293,15 @@ TEST(RunLoopPhiConst) {
   Node* false_node = m.Int32Constant(false_val);
 
   // x = false_val; while(false) { x = true_val; } return x;
-  MLabel body, header;
-  MLabel* end = m.Exit();
+  MLabel body, header, end;
 
   m.Goto(&header);
   m.Bind(&header);
   Node* phi = m.Phi(kMachInt32, false_node, true_node);
-  m.Branch(cond_node, &body, end);
+  m.Branch(cond_node, &body, &end);
   m.Bind(&body);
   m.Goto(&header);
-  m.Bind(end);
+  m.Bind(&end);
   m.Return(phi);
 
   CHECK_EQ(false_val, m.Call());
@@ -256,20 +311,19 @@ TEST(RunLoopPhiConst) {
 TEST(RunLoopPhiParam) {
   RawMachineAssemblerTester<int32_t> m(kMachInt32, kMachInt32, kMachInt32);
 
-  MLabel blocka, blockb;
-  MLabel* end = m.Exit();
+  MLabel blocka, blockb, end;
 
   m.Goto(&blocka);
 
   m.Bind(&blocka);
   Node* phi = m.Phi(kMachInt32, m.Parameter(1), m.Parameter(2));
   Node* cond = m.Phi(kMachInt32, m.Parameter(0), m.Int32Constant(0));
-  m.Branch(cond, &blockb, end);
+  m.Branch(cond, &blockb, &end);
 
   m.Bind(&blockb);
   m.Goto(&blocka);
 
-  m.Bind(end);
+  m.Bind(&end);
   m.Return(phi);
 
   int32_t c1 = 0xa81903b4;
@@ -287,22 +341,21 @@ TEST(RunLoopPhiInduction) {
   int false_val = 0x10777;
 
   // x = false_val; while(false) { x++; } return x;
-  MLabel header, body;
-  MLabel* end = m.Exit();
+  MLabel header, body, end;
   Node* false_node = m.Int32Constant(false_val);
 
   m.Goto(&header);
 
   m.Bind(&header);
   Node* phi = m.Phi(kMachInt32, false_node, false_node);
-  m.Branch(m.Int32Constant(0), &body, end);
+  m.Branch(m.Int32Constant(0), &body, &end);
 
   m.Bind(&body);
   Node* add = m.Int32Add(phi, m.Int32Constant(1));
   phi->ReplaceInput(1, add);
   m.Goto(&header);
 
-  m.Bind(end);
+  m.Bind(&end);
   m.Return(phi);
 
   CHECK_EQ(false_val, m.Call());
@@ -314,21 +367,20 @@ TEST(RunLoopIncrement) {
   Int32BinopTester bt(&m);
 
   // x = 0; while(x ^ param) { x++; } return x;
-  MLabel header, body;
-  MLabel* end = m.Exit();
+  MLabel header, body, end;
   Node* zero = m.Int32Constant(0);
 
   m.Goto(&header);
 
   m.Bind(&header);
   Node* phi = m.Phi(kMachInt32, zero, zero);
-  m.Branch(m.WordXor(phi, bt.param0), &body, end);
+  m.Branch(m.WordXor(phi, bt.param0), &body, &end);
 
   m.Bind(&body);
   phi->ReplaceInput(1, m.Int32Add(phi, m.Int32Constant(1)));
   m.Goto(&header);
 
-  m.Bind(end);
+  m.Bind(&end);
   bt.AddReturn(phi);
 
   CHECK_EQ(11, bt.call(11, 0));
@@ -342,21 +394,20 @@ TEST(RunLoopIncrement2) {
   Int32BinopTester bt(&m);
 
   // x = 0; while(x < param) { x++; } return x;
-  MLabel header, body;
-  MLabel* end = m.Exit();
+  MLabel header, body, end;
   Node* zero = m.Int32Constant(0);
 
   m.Goto(&header);
 
   m.Bind(&header);
   Node* phi = m.Phi(kMachInt32, zero, zero);
-  m.Branch(m.Int32LessThan(phi, bt.param0), &body, end);
+  m.Branch(m.Int32LessThan(phi, bt.param0), &body, &end);
 
   m.Bind(&body);
   phi->ReplaceInput(1, m.Int32Add(phi, m.Int32Constant(1)));
   m.Goto(&header);
 
-  m.Bind(end);
+  m.Bind(&end);
   bt.AddReturn(phi);
 
   CHECK_EQ(11, bt.call(11, 0));
@@ -371,21 +422,20 @@ TEST(RunLoopIncrement3) {
   Int32BinopTester bt(&m);
 
   // x = 0; while(x < param) { x++; } return x;
-  MLabel header, body;
-  MLabel* end = m.Exit();
+  MLabel header, body, end;
   Node* zero = m.Int32Constant(0);
 
   m.Goto(&header);
 
   m.Bind(&header);
   Node* phi = m.Phi(kMachInt32, zero, zero);
-  m.Branch(m.Uint32LessThan(phi, bt.param0), &body, end);
+  m.Branch(m.Uint32LessThan(phi, bt.param0), &body, &end);
 
   m.Bind(&body);
   phi->ReplaceInput(1, m.Int32Add(phi, m.Int32Constant(1)));
   m.Goto(&header);
 
-  m.Bind(end);
+  m.Bind(&end);
   bt.AddReturn(phi);
 
   CHECK_EQ(11, bt.call(11, 0));
@@ -400,20 +450,19 @@ TEST(RunLoopDecrement) {
   Int32BinopTester bt(&m);
 
   // x = param; while(x) { x--; } return x;
-  MLabel header, body;
-  MLabel* end = m.Exit();
+  MLabel header, body, end;
 
   m.Goto(&header);
 
   m.Bind(&header);
   Node* phi = m.Phi(kMachInt32, bt.param0, m.Int32Constant(0));
-  m.Branch(phi, &body, end);
+  m.Branch(phi, &body, &end);
 
   m.Bind(&body);
   phi->ReplaceInput(1, m.Int32Sub(phi, m.Int32Constant(1)));
   m.Goto(&header);
 
-  m.Bind(end);
+  m.Bind(&end);
   bt.AddReturn(phi);
 
   CHECK_EQ(0, bt.call(11, 0));
@@ -426,8 +475,7 @@ TEST(RunLoopIncrementFloat32) {
   RawMachineAssemblerTester<int32_t> m;
 
   // x = -3.0f; while(x < 10f) { x = x + 0.5f; } return (int) (double) x;
-  MLabel header, body;
-  MLabel* end = m.Exit();
+  MLabel header, body, end;
   Node* minus_3 = m.Float32Constant(-3.0f);
   Node* ten = m.Float32Constant(10.0f);
 
@@ -435,13 +483,13 @@ TEST(RunLoopIncrementFloat32) {
 
   m.Bind(&header);
   Node* phi = m.Phi(kMachFloat32, minus_3, ten);
-  m.Branch(m.Float32LessThan(phi, ten), &body, end);
+  m.Branch(m.Float32LessThan(phi, ten), &body, &end);
 
   m.Bind(&body);
   phi->ReplaceInput(1, m.Float32Add(phi, m.Float32Constant(0.5f)));
   m.Goto(&header);
 
-  m.Bind(end);
+  m.Bind(&end);
   m.Return(m.ChangeFloat64ToInt32(m.ChangeFloat32ToFloat64(phi)));
 
   CHECK_EQ(10, m.Call());
@@ -452,8 +500,7 @@ TEST(RunLoopIncrementFloat64) {
   RawMachineAssemblerTester<int32_t> m;
 
   // x = -3.0; while(x < 10) { x = x + 0.5; } return (int) x;
-  MLabel header, body;
-  MLabel* end = m.Exit();
+  MLabel header, body, end;
   Node* minus_3 = m.Float64Constant(-3.0);
   Node* ten = m.Float64Constant(10.0);
 
@@ -461,13 +508,13 @@ TEST(RunLoopIncrementFloat64) {
 
   m.Bind(&header);
   Node* phi = m.Phi(kMachFloat64, minus_3, ten);
-  m.Branch(m.Float64LessThan(phi, ten), &body, end);
+  m.Branch(m.Float64LessThan(phi, ten), &body, &end);
 
   m.Bind(&body);
   phi->ReplaceInput(1, m.Float64Add(phi, m.Float64Constant(0.5)));
   m.Goto(&header);
 
-  m.Bind(end);
+  m.Bind(&end);
   m.Return(m.ChangeFloat64ToInt32(phi));
 
   CHECK_EQ(10, m.Call());
@@ -4395,7 +4442,7 @@ TEST(RunTestIntPtrArithmetic) {
   RawMachineAssemblerTester<int32_t*> m;
   Node* input = m.PointerConstant(&inputs[0]);
   Node* output = m.PointerConstant(&outputs[kInputSize - 1]);
-  Node* elem_size = m.ConvertInt32ToIntPtr(m.Int32Constant(sizeof(inputs[0])));
+  Node* elem_size = m.IntPtrConstant(sizeof(inputs[0]));
   for (int i = 0; i < kInputSize; i++) {
     m.Store(kMachInt32, output, m.Load(kMachInt32, input));
     input = m.IntPtrAdd(input, elem_size);
@@ -4412,7 +4459,7 @@ TEST(RunTestIntPtrArithmetic) {
 
 TEST(RunSpillLotsOfThings) {
   static const int kInputSize = 1000;
-  RawMachineAssemblerTester<void> m;
+  RawMachineAssemblerTester<int32_t> m;
   Node* accs[kInputSize];
   int32_t outputs[kInputSize];
   Node* one = m.Int32Constant(1);
@@ -4793,7 +4840,8 @@ TEST(RunTruncateFloat64ToInt32P) {
                  {-1.7976931348623157e+308, 0}};
   double input = -1.0;
   RawMachineAssemblerTester<int32_t> m;
-  m.Return(m.TruncateFloat64ToInt32(m.LoadFromPointer(&input, kMachFloat64)));
+  m.Return(m.TruncateFloat64ToInt32(TruncationMode::kJavaScript,
+                                    m.LoadFromPointer(&input, kMachFloat64)));
   for (size_t i = 0; i < arraysize(kValues); ++i) {
     input = kValues[i].from;
     uint64_t expected = static_cast<int64_t>(kValues[i].raw);
@@ -5080,7 +5128,7 @@ TEST(RunFloat64RoundDown1) {
   double input = -1.0;
   double result = 0.0;
   RawMachineAssemblerTester<int32_t> m;
-  if (!m.machine()->HasFloat64RoundDown()) return;
+  if (!m.machine()->Float64RoundDown().IsSupported()) return;
   m.StoreToPointer(&result, kMachFloat64,
                    m.Float64RoundDown(m.LoadFromPointer(&input, kMachFloat64)));
   m.Return(m.Int32Constant(0));
@@ -5097,7 +5145,7 @@ TEST(RunFloat64RoundDown2) {
   double input = -1.0;
   double result = 0.0;
   RawMachineAssemblerTester<int32_t> m;
-  if (!m.machine()->HasFloat64RoundDown()) return;
+  if (!m.machine()->Float64RoundDown().IsSupported()) return;
   m.StoreToPointer(&result, kMachFloat64,
                    m.Float64Sub(m.Float64Constant(-0.0),
                                 m.Float64RoundDown(m.Float64Sub(
@@ -5117,7 +5165,7 @@ TEST(RunFloat64RoundTruncate) {
   double input = -1.0;
   double result = 0.0;
   RawMachineAssemblerTester<int32_t> m;
-  if (!m.machine()->HasFloat64RoundTruncate()) return;
+  if (!m.machine()->Float64RoundTruncate().IsSupported()) return;
   m.StoreToPointer(
       &result, kMachFloat64,
       m.Float64RoundTruncate(m.LoadFromPointer(&input, kMachFloat64)));
@@ -5135,7 +5183,7 @@ TEST(RunFloat64RoundTiesAway) {
   double input = -1.0;
   double result = 0.0;
   RawMachineAssemblerTester<int32_t> m;
-  if (!m.machine()->HasFloat64RoundTiesAway()) return;
+  if (!m.machine()->Float64RoundTiesAway().IsSupported()) return;
   m.StoreToPointer(
       &result, kMachFloat64,
       m.Float64RoundTiesAway(m.LoadFromPointer(&input, kMachFloat64)));
@@ -5147,5 +5195,84 @@ TEST(RunFloat64RoundTiesAway) {
     CHECK_EQ(expected, result);
   }
 }
+
+
+#if !USE_SIMULATOR
+
+namespace {
+
+int32_t const kMagicFoo0 = 0xdeadbeef;
+
+
+int32_t foo0() { return kMagicFoo0; }
+
+
+int32_t foo1(int32_t x) { return x; }
+
+
+int32_t foo2(int32_t x, int32_t y) { return x - y; }
+
+
+int32_t foo8(int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f,
+             int32_t g, int32_t h) {
+  return a + b + c + d + e + f + g + h;
+}
+
+}  // namespace
+
+
+TEST(RunCallCFunction0) {
+  auto* foo0_ptr = &foo0;
+  RawMachineAssemblerTester<int32_t> m;
+  Node* function = m.LoadFromPointer(&foo0_ptr, kMachPtr);
+  m.Return(m.CallCFunction0(kMachInt32, function));
+  CHECK_EQ(kMagicFoo0, m.Call());
+}
+
+
+TEST(RunCallCFunction1) {
+  auto* foo1_ptr = &foo1;
+  RawMachineAssemblerTester<int32_t> m(kMachInt32);
+  Node* function = m.LoadFromPointer(&foo1_ptr, kMachPtr);
+  m.Return(m.CallCFunction1(kMachInt32, kMachInt32, function, m.Parameter(0)));
+  FOR_INT32_INPUTS(i) {
+    int32_t const expected = *i;
+    CHECK_EQ(expected, m.Call(expected));
+  }
+}
+
+
+TEST(RunCallCFunction2) {
+  auto* foo2_ptr = &foo2;
+  RawMachineAssemblerTester<int32_t> m(kMachInt32, kMachInt32);
+  Node* function = m.LoadFromPointer(&foo2_ptr, kMachPtr);
+  m.Return(m.CallCFunction2(kMachInt32, kMachInt32, kMachInt32, function,
+                            m.Parameter(0), m.Parameter(1)));
+  FOR_INT32_INPUTS(i) {
+    int32_t const x = *i;
+    FOR_INT32_INPUTS(j) {
+      int32_t const y = *j;
+      CHECK_EQ(x - y, m.Call(x, y));
+    }
+  }
+}
+
+
+TEST(RunCallCFunction8) {
+  auto* foo8_ptr = &foo8;
+  RawMachineAssemblerTester<int32_t> m(kMachInt32);
+  Node* function = m.LoadFromPointer(&foo8_ptr, kMachPtr);
+  Node* param = m.Parameter(0);
+  m.Return(m.CallCFunction8(kMachInt32, kMachInt32, kMachInt32, kMachInt32,
+                            kMachInt32, kMachInt32, kMachInt32, kMachInt32,
+                            kMachInt32, function, param, param, param, param,
+                            param, param, param, param));
+  FOR_INT32_INPUTS(i) {
+    int32_t const x = *i;
+    CHECK_EQ(x * 8, m.Call(x));
+  }
+}
+
+#endif  // USE_SIMULATOR
 
 #endif  // V8_TURBOFAN_TARGET

@@ -284,5 +284,5 @@ bool LayoutDescriptor::IsConsistentWithMap(Map* map, bool check_tail) {
   }
   return true;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

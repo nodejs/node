@@ -68,6 +68,8 @@ namespace compiler {
   V(PPC_Tst32)                     \
   V(PPC_Tst64)                     \
   V(PPC_Push)                      \
+  V(PPC_PushFrame)                 \
+  V(PPC_StoreToStackSlot)          \
   V(PPC_ExtendSignWord8)           \
   V(PPC_ExtendSignWord16)          \
   V(PPC_ExtendSignWord32)          \

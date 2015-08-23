@@ -435,6 +435,7 @@ class Scanner {
   const AstRawString* CurrentRawSymbol(AstValueFactory* ast_value_factory);
 
   double DoubleValue();
+  bool ContainsDot();
   bool LiteralMatches(const char* data, int length, bool allow_escapes = true) {
     if (is_literal_one_byte() &&
         literal_length() == length &&
@@ -483,12 +484,7 @@ class Scanner {
   void SetHarmonyModules(bool modules) {
     harmony_modules_ = modules;
   }
-  bool HarmonyClasses() const {
-    return harmony_classes_;
-  }
-  void SetHarmonyClasses(bool classes) {
-    harmony_classes_ = classes;
-  }
+
   bool HarmonyUnicode() const { return harmony_unicode_; }
   void SetHarmonyUnicode(bool unicode) { harmony_unicode_ = unicode; }
 
@@ -803,8 +799,6 @@ class Scanner {
   bool has_multiline_comment_before_next_;
   // Whether we scan 'module', 'import', 'export' as keywords.
   bool harmony_modules_;
-  // Whether we scan 'class', 'extends', 'static' and 'super' as keywords.
-  bool harmony_classes_;
   // Whether we allow \u{xxxxx}.
   bool harmony_unicode_;
 };

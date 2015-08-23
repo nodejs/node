@@ -211,7 +211,6 @@ assertTrue(Debug.showBreakPoints(g).indexOf("[B0]") < 0);
 // (This may be sensitive to compiler break position map generation).
 function h() {a=f(f2(1,2),f3())+f3();b=f3();}
 var scenario = [
-  [5, "{a[B0]=f"],
   [6, "{a=[B0]f("],
   [7, "{a=f([B0]f2("],
   [16, "f2(1,2),[B0]f3()"],

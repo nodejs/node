@@ -5,9 +5,7 @@
 #ifndef V8_COMPILER_FRAME_STATES_H_
 #define V8_COMPILER_FRAME_STATES_H_
 
-#include "src/handles-inl.h"  // TODO(everyone): Fix our inl.h crap
-#include "src/objects-inl.h"  // TODO(everyone): Fix our inl.h crap
-#include "src/utils.h"
+#include "src/handles-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -72,42 +70,81 @@ class OutputFrameStateCombine {
 
 
 // The type of stack frame that a FrameState node represents.
-enum FrameStateType {
-  JS_FRAME,          // Represents an unoptimized JavaScriptFrame.
-  ARGUMENTS_ADAPTOR  // Represents an ArgumentsAdaptorFrame.
+enum class FrameStateType {
+  kJavaScriptFunction,  // Represents an unoptimized JavaScriptFrame.
+  kArgumentsAdaptor     // Represents an ArgumentsAdaptorFrame.
 };
 
 
-class FrameStateCallInfo final {
+class FrameStateFunctionInfo {
  public:
-  FrameStateCallInfo(
-      FrameStateType type, BailoutId bailout_id,
-      OutputFrameStateCombine state_combine,
-      MaybeHandle<JSFunction> jsfunction = MaybeHandle<JSFunction>())
+  FrameStateFunctionInfo(FrameStateType type, int parameter_count,
+                         int local_count,
+                         Handle<SharedFunctionInfo> shared_info)
       : type_(type),
-        bailout_id_(bailout_id),
-        frame_state_combine_(state_combine),
-        jsfunction_(jsfunction) {}
+        parameter_count_(parameter_count),
+        local_count_(local_count),
+        shared_info_(shared_info) {}
 
+  int local_count() const { return local_count_; }
+  int parameter_count() const { return parameter_count_; }
+  Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   FrameStateType type() const { return type_; }
-  BailoutId bailout_id() const { return bailout_id_; }
-  OutputFrameStateCombine state_combine() const { return frame_state_combine_; }
-  MaybeHandle<JSFunction> jsfunction() const { return jsfunction_; }
 
  private:
-  FrameStateType type_;
-  BailoutId bailout_id_;
-  OutputFrameStateCombine frame_state_combine_;
-  MaybeHandle<JSFunction> jsfunction_;
+  FrameStateType const type_;
+  int const parameter_count_;
+  int const local_count_;
+  Handle<SharedFunctionInfo> const shared_info_;
 };
 
-bool operator==(FrameStateCallInfo const&, FrameStateCallInfo const&);
-bool operator!=(FrameStateCallInfo const&, FrameStateCallInfo const&);
 
-size_t hash_value(FrameStateCallInfo const&);
+class FrameStateInfo final {
+ public:
+  FrameStateInfo(BailoutId bailout_id, OutputFrameStateCombine state_combine,
+                 const FrameStateFunctionInfo* info)
+      : bailout_id_(bailout_id),
+        frame_state_combine_(state_combine),
+        info_(info) {}
 
-std::ostream& operator<<(std::ostream&, FrameStateCallInfo const&);
+  FrameStateType type() const {
+    return info_ == nullptr ? FrameStateType::kJavaScriptFunction
+                            : info_->type();
+  }
+  BailoutId bailout_id() const { return bailout_id_; }
+  OutputFrameStateCombine state_combine() const { return frame_state_combine_; }
+  MaybeHandle<SharedFunctionInfo> shared_info() const {
+    return info_ == nullptr ? MaybeHandle<SharedFunctionInfo>()
+                            : info_->shared_info();
+  }
+  int parameter_count() const {
+    return info_ == nullptr ? 0 : info_->parameter_count();
+  }
+  int local_count() const {
+    return info_ == nullptr ? 0 : info_->local_count();
+  }
+  const FrameStateFunctionInfo* function_info() const { return info_; }
 
+ private:
+  BailoutId const bailout_id_;
+  OutputFrameStateCombine const frame_state_combine_;
+  const FrameStateFunctionInfo* const info_;
+};
+
+bool operator==(FrameStateInfo const&, FrameStateInfo const&);
+bool operator!=(FrameStateInfo const&, FrameStateInfo const&);
+
+size_t hash_value(FrameStateInfo const&);
+
+std::ostream& operator<<(std::ostream&, FrameStateInfo const&);
+
+static const int kFrameStateParametersInput = 0;
+static const int kFrameStateLocalsInput = 1;
+static const int kFrameStateStackInput = 2;
+static const int kFrameStateContextInput = 3;
+static const int kFrameStateFunctionInput = 4;
+static const int kFrameStateOuterStateInput = 5;
+static const int kFrameStateInputCount = kFrameStateOuterStateInput + 1;
 
 }  // namespace compiler
 }  // namespace internal

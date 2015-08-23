@@ -15,10 +15,9 @@ const char* const TriggerFailureExtension::kSource =
     "native function triggerSlowAssertFalse();";
 
 
-v8::Handle<v8::FunctionTemplate>
-TriggerFailureExtension::GetNativeFunctionTemplate(
-    v8::Isolate* isolate,
-    v8::Handle<v8::String> str) {
+v8::Local<v8::FunctionTemplate>
+TriggerFailureExtension::GetNativeFunctionTemplate(v8::Isolate* isolate,
+                                                   v8::Local<v8::String> str) {
   if (strcmp(*v8::String::Utf8Value(str), "triggerCheckFalse") == 0) {
     return v8::FunctionTemplate::New(
         isolate,
@@ -53,4 +52,5 @@ void TriggerFailureExtension::TriggerSlowAssertFalse(
   SLOW_DCHECK(false);
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

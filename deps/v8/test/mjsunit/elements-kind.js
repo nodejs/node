@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --expose-gc --nostress-opt --typed-array-max_size_in-heap=2048
+// Flags: --allow-natives-syntax --expose-gc --nostress-opt --typed-array-max-size-in-heap=2048
 
 var elements_kind = {
   fast_smi_only             :  'fast smi only elements',

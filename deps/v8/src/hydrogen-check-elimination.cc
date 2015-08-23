@@ -909,4 +909,5 @@ void HCheckEliminationPhase::PrintStats() {
   PRINT_STAT(transitions);
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

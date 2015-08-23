@@ -750,4 +750,5 @@ void Bignum::SubtractTimes(const Bignum& other, int factor) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

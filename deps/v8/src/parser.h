@@ -216,6 +216,7 @@ class FunctionEntry BASE_EMBEDDED {
     kPropertyCountIndex,
     kLanguageModeIndex,
     kUsesSuperPropertyIndex,
+    kCallsEvalIndex,
     kSize
   };
 
@@ -233,6 +234,7 @@ class FunctionEntry BASE_EMBEDDED {
     return static_cast<LanguageMode>(backing_[kLanguageModeIndex]);
   }
   bool uses_super_property() { return backing_[kUsesSuperPropertyIndex]; }
+  bool calls_eval() { return backing_[kCallsEvalIndex]; }
 
   bool is_valid() { return !backing_.is_empty(); }
 
@@ -536,6 +538,27 @@ class RegExpParser BASE_EMBEDDED {
 class Parser;
 class SingletonLogger;
 
+
+struct ParserFormalParameterParsingState
+    : public PreParserFormalParameterParsingState {
+  struct Parameter {
+    Parameter(Variable* var, Expression* pattern)
+        : var(var), pattern(pattern) {}
+    Variable* var;
+    Expression* pattern;
+  };
+
+  explicit ParserFormalParameterParsingState(Scope* scope)
+      : PreParserFormalParameterParsingState(scope), params(4, scope->zone()) {}
+
+  ZoneList<Parameter> params;
+
+  void AddParameter(Variable* var, Expression* pattern) {
+    params.Add(Parameter(var, pattern), scope->zone());
+  }
+};
+
+
 class ParserTraits {
  public:
   struct Type {
@@ -558,7 +581,7 @@ class ParserTraits {
     typedef ZoneList<v8::internal::Expression*>* ExpressionList;
     typedef ZoneList<ObjectLiteral::Property*>* PropertyList;
     typedef const v8::internal::AstRawString* FormalParameter;
-    typedef Scope FormalParameterScope;
+    typedef ParserFormalParameterParsingState FormalParameterParsingState;
     typedef ZoneList<v8::internal::Statement*>* StatementList;
 
     // For constructing objects returned by the traversing functions.
@@ -659,33 +682,36 @@ class ParserTraits {
                                    int pos, AstNodeFactory* factory);
 
   // Generate AST node that throws a ReferenceError with the given type.
-  Expression* NewThrowReferenceError(const char* type, int pos);
+  Expression* NewThrowReferenceError(MessageTemplate::Template message,
+                                     int pos);
 
   // Generate AST node that throws a SyntaxError with the given
   // type. The first argument may be null (in the handle sense) in
   // which case no arguments are passed to the constructor.
-  Expression* NewThrowSyntaxError(
-      const char* type, const AstRawString* arg, int pos);
+  Expression* NewThrowSyntaxError(MessageTemplate::Template message,
+                                  const AstRawString* arg, int pos);
 
   // Generate AST node that throws a TypeError with the given
   // type. Both arguments must be non-null (in the handle sense).
-  Expression* NewThrowTypeError(const char* type, const AstRawString* arg,
-                                int pos);
+  Expression* NewThrowTypeError(MessageTemplate::Template message,
+                                const AstRawString* arg, int pos);
 
   // Generic AST generator for throwing errors from compiled code.
-  Expression* NewThrowError(
-      const AstRawString* constructor, const char* type,
-      const AstRawString* arg, int pos);
+  Expression* NewThrowError(Runtime::FunctionId function_id,
+                            MessageTemplate::Template message,
+                            const AstRawString* arg, int pos);
 
   // Reporting errors.
-  void ReportMessageAt(Scanner::Location source_location, const char* message,
+  void ReportMessageAt(Scanner::Location source_location,
+                       MessageTemplate::Template message,
                        const char* arg = NULL,
                        ParseErrorType error_type = kSyntaxError);
-  void ReportMessage(const char* message, const char* arg = NULL,
+  void ReportMessage(MessageTemplate::Template message, const char* arg = NULL,
                      ParseErrorType error_type = kSyntaxError);
-  void ReportMessage(const char* message, const AstRawString* arg,
+  void ReportMessage(MessageTemplate::Template message, const AstRawString* arg,
                      ParseErrorType error_type = kSyntaxError);
-  void ReportMessageAt(Scanner::Location source_location, const char* message,
+  void ReportMessageAt(Scanner::Location source_location,
+                       MessageTemplate::Template message,
                        const AstRawString* arg,
                        ParseErrorType error_type = kSyntaxError);
 
@@ -721,10 +747,14 @@ class ParserTraits {
 
   Expression* ThisExpression(Scope* scope, AstNodeFactory* factory,
                              int pos = RelocInfo::kNoPosition);
-  Expression* SuperReference(Scope* scope, AstNodeFactory* factory,
-                             int pos = RelocInfo::kNoPosition);
+  Expression* SuperPropertyReference(Scope* scope, AstNodeFactory* factory,
+                                     int pos);
+  Expression* SuperCallReference(Scope* scope, AstNodeFactory* factory,
+                                 int pos);
+  Expression* NewTargetExpression(Scope* scope, AstNodeFactory* factory,
+                                  int pos);
   Expression* DefaultConstructor(bool call_super, Scope* scope, int pos,
-                                 int end_pos);
+                                 int end_pos, LanguageMode language_mode);
   Literal* ExpressionFromLiteral(Token::Value token, int pos, Scanner* scanner,
                                  AstNodeFactory* factory);
   Expression* ExpressionFromIdentifier(const AstRawString* name,
@@ -742,29 +772,23 @@ class ParserTraits {
   ZoneList<v8::internal::Statement*>* NewStatementList(int size, Zone* zone) {
     return new(zone) ZoneList<v8::internal::Statement*>(size, zone);
   }
+
+  V8_INLINE void AddParameterInitializationBlock(
+      const ParserFormalParameterParsingState& formal_parameters,
+      ZoneList<v8::internal::Statement*>* body, bool* ok);
+
   V8_INLINE Scope* NewScope(Scope* parent_scope, ScopeType scope_type,
                             FunctionKind kind = kNormalFunction);
 
-  bool DeclareFormalParameter(Scope* scope, const AstRawString* name,
-                              bool is_rest) {
-    bool is_duplicate = false;
-    Variable* var = scope->DeclareParameter(name, VAR, is_rest, &is_duplicate);
-    if (is_sloppy(scope->language_mode())) {
-      // TODO(sigurds) Mark every parameter as maybe assigned. This is a
-      // conservative approximation necessary to account for parameters
-      // that are assigned via the arguments array.
-      var->set_maybe_assigned();
-    }
-    return is_duplicate;
-  }
-
-  void DeclareArrowFunctionParameters(Scope* scope, Expression* expr,
-                                      const Scanner::Location& params_loc,
-                                      FormalParameterErrorLocations* error_locs,
-                                      bool* ok);
+  V8_INLINE void DeclareFormalParameter(
+      ParserFormalParameterParsingState* parsing_state, Expression* name,
+      ExpressionClassifier* classifier, bool is_rest);
   void ParseArrowFunctionFormalParameters(
-      Scope* scope, Expression* params, const Scanner::Location& params_loc,
-      FormalParameterErrorLocations* error_locs, bool* is_rest, bool* ok);
+      ParserFormalParameterParsingState* scope, Expression* params,
+      const Scanner::Location& params_loc, Scanner::Location* duplicate_loc,
+      bool* ok);
+
+  void ReindexLiterals(const ParserFormalParameterParsingState& parsing_state);
 
   // Temporary glue; these functions will move to ParserBase.
   Expression* ParseV8Intrinsic(bool* ok);
@@ -772,13 +796,15 @@ class ParserTraits {
       const AstRawString* name, Scanner::Location function_name_location,
       bool name_is_strict_reserved, FunctionKind kind,
       int function_token_position, FunctionLiteral::FunctionType type,
-      FunctionLiteral::ArityRestriction arity_restriction, bool* ok);
+      FunctionLiteral::ArityRestriction arity_restriction,
+      LanguageMode language_mode, bool* ok);
   V8_INLINE void SkipLazyFunctionBody(
       int* materialized_literal_count, int* expected_property_count, bool* ok,
       Scanner::BookmarkScope* bookmark = nullptr);
   V8_INLINE ZoneList<Statement*>* ParseEagerFunctionBody(
-      const AstRawString* name, int pos, Variable* fvar,
-      Token::Value fvar_init_op, FunctionKind kind, bool* ok);
+      const AstRawString* name, int pos,
+      const ParserFormalParameterParsingState& formal_parameters,
+      Variable* fvar, Token::Value fvar_init_op, FunctionKind kind, bool* ok);
 
   ClassLiteral* ParseClassLiteral(const AstRawString* name,
                                   Scanner::Location class_name_location,
@@ -937,12 +963,96 @@ class Parser : public ParserBase<ParserTraits> {
   Block* ParseVariableStatement(VariableDeclarationContext var_context,
                                 ZoneList<const AstRawString*>* names,
                                 bool* ok);
-  Block* ParseVariableDeclarations(VariableDeclarationContext var_context,
-                                   int* num_decl,
-                                   ZoneList<const AstRawString*>* names,
-                                   const AstRawString** out,
-                                   Scanner::Location* first_initializer_loc,
-                                   Scanner::Location* bindings_loc, bool* ok);
+
+  struct DeclarationDescriptor {
+    enum Kind { NORMAL, PARAMETER };
+    Parser* parser;
+    Scope* declaration_scope;
+    Scope* scope;
+    VariableMode mode;
+    bool is_const;
+    bool needs_init;
+    int declaration_pos;
+    int initialization_pos;
+    Token::Value init_op;
+    Kind declaration_kind;
+  };
+
+  struct DeclarationParsingResult {
+    struct Declaration {
+      Declaration(Expression* pattern, int initializer_position,
+                  Expression* initializer)
+          : pattern(pattern),
+            initializer_position(initializer_position),
+            initializer(initializer) {}
+
+      Expression* pattern;
+      int initializer_position;
+      Expression* initializer;
+    };
+
+    DeclarationParsingResult()
+        : declarations(4),
+          first_initializer_loc(Scanner::Location::invalid()),
+          bindings_loc(Scanner::Location::invalid()) {}
+
+    Block* BuildInitializationBlock(ZoneList<const AstRawString*>* names,
+                                    bool* ok);
+    const AstRawString* SingleName() const;
+
+    DeclarationDescriptor descriptor;
+    List<Declaration> declarations;
+    Scanner::Location first_initializer_loc;
+    Scanner::Location bindings_loc;
+  };
+
+  class PatternRewriter : private AstVisitor {
+   public:
+    static void DeclareAndInitializeVariables(
+        Block* block, const DeclarationDescriptor* declaration_descriptor,
+        const DeclarationParsingResult::Declaration* declaration,
+        ZoneList<const AstRawString*>* names, bool* ok);
+
+    void set_initializer_position(int pos) { initializer_position_ = pos; }
+
+   private:
+    PatternRewriter() {}
+
+#define DECLARE_VISIT(type) void Visit##type(v8::internal::type* node) override;
+    // Visiting functions for AST nodes make this an AstVisitor.
+    AST_NODE_LIST(DECLARE_VISIT)
+#undef DECLARE_VISIT
+    virtual void Visit(AstNode* node) override;
+
+    void RecurseIntoSubpattern(AstNode* pattern, Expression* value) {
+      Expression* old_value = current_value_;
+      current_value_ = value;
+      pattern->Accept(this);
+      current_value_ = old_value;
+    }
+
+    Variable* CreateTempVar(Expression* value = nullptr);
+
+    AstNodeFactory* factory() const { return descriptor_->parser->factory(); }
+    AstValueFactory* ast_value_factory() const {
+      return descriptor_->parser->ast_value_factory();
+    }
+    bool inside_with() const { return descriptor_->parser->inside_with(); }
+    Zone* zone() const { return descriptor_->parser->zone(); }
+
+    Expression* pattern_;
+    int initializer_position_;
+    Block* block_;
+    const DeclarationDescriptor* descriptor_;
+    ZoneList<const AstRawString*>* names_;
+    Expression* current_value_;
+    bool* ok_;
+  };
+
+
+  void ParseVariableDeclarations(VariableDeclarationContext var_context,
+                                 DeclarationParsingResult* parsing_result,
+                                 bool* ok);
   Statement* ParseExpressionOrLabelledStatement(
       ZoneList<const AstRawString*>* labels, bool* ok);
   IfStatement* ParseIfStatement(ZoneList<const AstRawString*>* labels,
@@ -969,6 +1079,12 @@ class Parser : public ParserBase<ParserTraits> {
   // Support for hamony block scoped bindings.
   Block* ParseScopedBlock(ZoneList<const AstRawString*>* labels, bool* ok);
 
+  // !%_IsSpecObject(result = iterator.next()) &&
+  //     %ThrowIteratorResultNotAnObject(result)
+  Expression* BuildIteratorNextResult(Expression* iterator, Variable* result,
+                                      int pos);
+
+
   // Initialize the components of a for-in / for-of statement.
   void InitializeForEachStatement(ForEachStatement* stmt,
                                   Expression* each,
@@ -983,7 +1099,8 @@ class Parser : public ParserBase<ParserTraits> {
       const AstRawString* name, Scanner::Location function_name_location,
       bool name_is_strict_reserved, FunctionKind kind,
       int function_token_position, FunctionLiteral::FunctionType type,
-      FunctionLiteral::ArityRestriction arity_restriction, bool* ok);
+      FunctionLiteral::ArityRestriction arity_restriction,
+      LanguageMode language_mode, bool* ok);
 
 
   ClassLiteral* ParseClassLiteral(const AstRawString* name,
@@ -1010,17 +1127,20 @@ class Parser : public ParserBase<ParserTraits> {
 
   // Parser support
   VariableProxy* NewUnresolved(const AstRawString* name, VariableMode mode);
-  Variable* Declare(Declaration* declaration, bool resolve, bool* ok);
+  Variable* Declare(Declaration* declaration,
+                    DeclarationDescriptor::Kind declaration_kind, bool resolve,
+                    bool* ok);
 
   bool TargetStackContainsLabel(const AstRawString* label);
   BreakableStatement* LookupBreakTarget(const AstRawString* label, bool* ok);
   IterationStatement* LookupContinueTarget(const AstRawString* label, bool* ok);
 
   void AddAssertIsConstruct(ZoneList<Statement*>* body, int pos);
+  Statement* BuildAssertIsCoercible(Variable* var);
 
   // Factory methods.
   FunctionLiteral* DefaultConstructor(bool call_super, Scope* scope, int pos,
-                                      int end_pos);
+                                      int end_pos, LanguageMode language_mode);
 
   // Skip over a lazy function, either using cached data if we have it, or
   // by parsing the function with PreParser. Consumes the ending }.
@@ -1035,10 +1155,14 @@ class Parser : public ParserBase<ParserTraits> {
   PreParser::PreParseResult ParseLazyFunctionBodyWithPreParser(
       SingletonLogger* logger, Scanner::BookmarkScope* bookmark = nullptr);
 
+  Block* BuildParameterInitializationBlock(
+      const ParserFormalParameterParsingState& formal_parameters, bool* ok);
+
   // Consumes the ending }.
   ZoneList<Statement*>* ParseEagerFunctionBody(
-      const AstRawString* function_name, int pos, Variable* fvar,
-      Token::Value fvar_init_op, FunctionKind kind, bool* ok);
+      const AstRawString* function_name, int pos,
+      const ParserFormalParameterParsingState& formal_parameters,
+      Variable* fvar, Token::Value fvar_init_op, FunctionKind kind, bool* ok);
 
   void ThrowPendingError(Isolate* isolate, Handle<Script> script);
 
@@ -1102,10 +1226,11 @@ void ParserTraits::SkipLazyFunctionBody(int* materialized_literal_count,
 
 
 ZoneList<Statement*>* ParserTraits::ParseEagerFunctionBody(
-    const AstRawString* name, int pos, Variable* fvar,
+    const AstRawString* name, int pos,
+    const ParserFormalParameterParsingState& formal_parameters, Variable* fvar,
     Token::Value fvar_init_op, FunctionKind kind, bool* ok) {
-  return parser_->ParseEagerFunctionBody(name, pos, fvar, fvar_init_op, kind,
-                                         ok);
+  return parser_->ParseEagerFunctionBody(name, pos, formal_parameters, fvar,
+                                         fvar_init_op, kind, ok);
 }
 
 void ParserTraits::CheckConflictingVarDeclarations(v8::internal::Scope* scope,
@@ -1181,6 +1306,44 @@ Expression* ParserTraits::SpreadCall(Expression* function,
 Expression* ParserTraits::SpreadCallNew(
     Expression* function, ZoneList<v8::internal::Expression*>* args, int pos) {
   return parser_->SpreadCallNew(function, args, pos);
+}
+
+
+void ParserTraits::DeclareFormalParameter(
+    ParserFormalParameterParsingState* parsing_state, Expression* pattern,
+    ExpressionClassifier* classifier, bool is_rest) {
+  bool is_duplicate = false;
+  bool is_simple_name = pattern->IsVariableProxy();
+  DCHECK(parser_->allow_harmony_destructuring() || is_simple_name);
+
+  const AstRawString* name = is_simple_name
+                                 ? pattern->AsVariableProxy()->raw_name()
+                                 : parser_->ast_value_factory()->empty_string();
+  Variable* var =
+      parsing_state->scope->DeclareParameter(name, VAR, is_rest, &is_duplicate);
+  parsing_state->AddParameter(var, is_simple_name ? nullptr : pattern);
+  if (is_sloppy(parsing_state->scope->language_mode())) {
+    // TODO(sigurds) Mark every parameter as maybe assigned. This is a
+    // conservative approximation necessary to account for parameters
+    // that are assigned via the arguments array.
+    var->set_maybe_assigned();
+  }
+  if (is_duplicate) {
+    classifier->RecordDuplicateFormalParameterError(
+        parser_->scanner()->location());
+  }
+}
+
+
+void ParserTraits::AddParameterInitializationBlock(
+    const ParserFormalParameterParsingState& formal_parameters,
+    ZoneList<v8::internal::Statement*>* body, bool* ok) {
+  auto* init_block =
+      parser_->BuildParameterInitializationBlock(formal_parameters, ok);
+  if (!*ok) return;
+  if (init_block != nullptr) {
+    body->Add(init_block, parser_->zone());
+  }
 }
 } }  // namespace v8::internal
 

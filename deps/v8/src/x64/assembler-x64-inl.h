@@ -267,14 +267,12 @@ void Assembler::emit_vex_prefix(Register reg, Register vreg, const Operand& rm,
 }
 
 
-Address Assembler::target_address_at(Address pc,
-                                     ConstantPoolArray* constant_pool) {
+Address Assembler::target_address_at(Address pc, Address constant_pool) {
   return Memory::int32_at(pc) + pc + 4;
 }
 
 
-void Assembler::set_target_address_at(Address pc,
-                                      ConstantPoolArray* constant_pool,
+void Assembler::set_target_address_at(Address pc, Address constant_pool,
                                       Address target,
                                       ICacheFlushMode icache_flush_mode) {
   Memory::int32_at(pc) = static_cast<int32_t>(target - pc - 4);

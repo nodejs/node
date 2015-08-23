@@ -44,7 +44,7 @@ int SysInfo::NumberOfProcessors() {
   }
   return static_cast<int>(result);
 #elif V8_OS_WIN
-  SYSTEM_INFO system_info = {0};
+  SYSTEM_INFO system_info = {};
   ::GetNativeSystemInfo(&system_info);
   return static_cast<int>(system_info.dwNumberOfProcessors);
 #endif

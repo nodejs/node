@@ -38,5 +38,5 @@ bool SupplementaryPlanes::IsIDPart(uc32 c) {
   return false;
 #endif  // V8_I18N_SUPPORT
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

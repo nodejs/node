@@ -17,6 +17,11 @@ const int kNumFPRegisters = kNumFPDoubleRegisters;
 
 const int kNoRegister = -1;
 
+// Used in embedded constant pool builder - max reach in bits for
+// various load instructions (one less due to unsigned)
+const int kLoadPtrMaxReachBits = 15;
+const int kLoadDoubleMaxReachBits = 15;
+
 // sign-extend the least significant 16-bits of value <imm>
 #define SIGN_EXT_IMM16(imm) ((static_cast<int>(imm) << 16) >> 16)
 
@@ -331,7 +336,8 @@ enum {
   kBOfieldMask = 0x1f << 21,
   kOpcodeMask = 0x3f << 26,
   kExt1OpcodeMask = 0x3ff << 1,
-  kExt2OpcodeMask = 0x1f << 1,
+  kExt2OpcodeMask = 0x3ff << 1,
+  kExt2OpcodeVariant2Mask = 0x1ff << 2,
   kExt5OpcodeMask = 0x3 << 2,
   kBOMask = 0x1f << 21,
   kBIMask = 0x1F << 16,

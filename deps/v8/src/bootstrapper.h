@@ -77,7 +77,7 @@ class Bootstrapper final {
   // The returned value is a global handle casted to V8Environment*.
   Handle<Context> CreateEnvironment(
       MaybeHandle<JSGlobalProxy> maybe_global_proxy,
-      v8::Handle<v8::ObjectTemplate> global_object_template,
+      v8::Local<v8::ObjectTemplate> global_object_template,
       v8::ExtensionConfiguration* extensions);
 
   // Detach the environment from its outer global object.

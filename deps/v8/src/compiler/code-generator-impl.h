@@ -57,6 +57,10 @@ class InstructionOperandConverter {
     return static_cast<uint8_t>(InputInt32(index) & 0x3F);
   }
 
+  ExternalReference InputExternalReference(size_t index) {
+    return ToExternalReference(instr_->InputAt(index));
+  }
+
   Handle<HeapObject> InputHeapObject(size_t index) {
     return ToHeapObject(instr_->InputAt(index));
   }
@@ -107,6 +111,10 @@ class InstructionOperandConverter {
   }
 
   double ToDouble(InstructionOperand* op) { return ToConstant(op).ToFloat64(); }
+
+  ExternalReference ToExternalReference(InstructionOperand* op) {
+    return ToConstant(op).ToExternalReference();
+  }
 
   Handle<HeapObject> ToHeapObject(InstructionOperand* op) {
     return ToConstant(op).ToHeapObject();

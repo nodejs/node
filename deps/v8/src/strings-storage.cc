@@ -119,5 +119,5 @@ HashMap::Entry* StringsStorage::GetEntry(const char* str, int len) {
   uint32_t hash = StringHasher::HashSequentialString(str, len, hash_seed_);
   return names_.LookupOrInsert(const_cast<char*>(str), hash);
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

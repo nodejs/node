@@ -35,6 +35,21 @@ class HeapStringAllocator final : public StringAllocator {
 };
 
 
+class FixedStringAllocator final : public StringAllocator {
+ public:
+  FixedStringAllocator(char* buffer, unsigned length)
+      : buffer_(buffer), length_(length) {}
+  ~FixedStringAllocator() override{};
+  char* allocate(unsigned bytes) override;
+  char* grow(unsigned* bytes) override;
+
+ private:
+  char* buffer_;
+  unsigned length_;
+  DISALLOW_COPY_AND_ASSIGN(FixedStringAllocator);
+};
+
+
 class FmtElm final {
  public:
   FmtElm(int value) : type_(INT) {  // NOLINT
@@ -77,11 +92,14 @@ class FmtElm final {
 
 class StringStream final {
  public:
-  explicit StringStream(StringAllocator* allocator):
-    allocator_(allocator),
-    capacity_(kInitialCapacity),
-    length_(0),
-    buffer_(allocator_->allocate(kInitialCapacity)) {
+  enum ObjectPrintMode { kPrintObjectConcise, kPrintObjectVerbose };
+  StringStream(StringAllocator* allocator,
+               ObjectPrintMode object_print_mode = kPrintObjectConcise)
+      : allocator_(allocator),
+        object_print_mode_(object_print_mode),
+        capacity_(kInitialCapacity),
+        length_(0),
+        buffer_(allocator_->allocate(kInitialCapacity)) {
     buffer_[0] = 0;
   }
 
@@ -134,7 +152,7 @@ class StringStream final {
   void PrintMentionedObjectCache(Isolate* isolate);
   static void ClearMentionedObjectCache(Isolate* isolate);
 #ifdef DEBUG
-  static bool IsMentionedObjectCacheClear(Isolate* isolate);
+  bool IsMentionedObjectCacheClear(Isolate* isolate);
 #endif
 
   static const int kInitialCapacity = 16;
@@ -143,6 +161,7 @@ class StringStream final {
   void PrintObject(Object* obj);
 
   StringAllocator* allocator_;
+  ObjectPrintMode object_print_mode_;
   unsigned capacity_;
   unsigned length_;  // does not include terminating 0-character
   char* buffer_;

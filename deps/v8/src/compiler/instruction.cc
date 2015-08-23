@@ -403,7 +403,7 @@ void PhiInstruction::SetInput(size_t offset, int virtual_register) {
 
 InstructionBlock::InstructionBlock(Zone* zone, RpoNumber rpo_number,
                                    RpoNumber loop_header, RpoNumber loop_end,
-                                   bool deferred)
+                                   bool deferred, bool handler)
     : successors_(zone),
       predecessors_(zone),
       phis_(zone),
@@ -414,6 +414,7 @@ InstructionBlock::InstructionBlock(Zone* zone, RpoNumber rpo_number,
       code_start_(-1),
       code_end_(-1),
       deferred_(deferred),
+      handler_(handler),
       needs_frame_(false),
       must_construct_frame_(false),
       must_deconstruct_frame_(false) {}
@@ -443,9 +444,11 @@ static RpoNumber GetLoopEndRpo(const BasicBlock* block) {
 
 static InstructionBlock* InstructionBlockFor(Zone* zone,
                                              const BasicBlock* block) {
+  bool is_handler =
+      !block->empty() && block->front()->opcode() == IrOpcode::kIfException;
   InstructionBlock* instr_block = new (zone)
       InstructionBlock(zone, GetRpo(block), GetRpo(block->loop_header()),
-                       GetLoopEndRpo(block), block->deferred());
+                       GetLoopEndRpo(block), block->deferred(), is_handler);
   // Map successors and precessors
   instr_block->successors().reserve(block->SuccessorCount());
   for (BasicBlock* successor : block->successors()) {
@@ -657,29 +660,31 @@ bool InstructionSequence::GetSourcePosition(const Instruction* instr,
 
 void InstructionSequence::SetSourcePosition(const Instruction* instr,
                                             SourcePosition value) {
-  DCHECK(!value.IsInvalid());
-  DCHECK(!value.IsUnknown());
   source_positions_.insert(std::make_pair(instr, value));
 }
 
 
 FrameStateDescriptor::FrameStateDescriptor(
-    Zone* zone, const FrameStateCallInfo& state_info, size_t parameters_count,
-    size_t locals_count, size_t stack_count, FrameStateDescriptor* outer_state)
-    : type_(state_info.type()),
-      bailout_id_(state_info.bailout_id()),
-      frame_state_combine_(state_info.state_combine()),
+    Zone* zone, FrameStateType type, BailoutId bailout_id,
+    OutputFrameStateCombine state_combine, size_t parameters_count,
+    size_t locals_count, size_t stack_count,
+    MaybeHandle<SharedFunctionInfo> shared_info,
+    FrameStateDescriptor* outer_state)
+    : type_(type),
+      bailout_id_(bailout_id),
+      frame_state_combine_(state_combine),
       parameters_count_(parameters_count),
       locals_count_(locals_count),
       stack_count_(stack_count),
       types_(zone),
-      outer_state_(outer_state),
-      jsfunction_(state_info.jsfunction()) {
+      shared_info_(shared_info),
+      outer_state_(outer_state) {
   types_.resize(GetSize(), kMachNone);
 }
 
+
 size_t FrameStateDescriptor::GetSize(OutputFrameStateCombine combine) const {
-  size_t size = parameters_count() + locals_count() + stack_count() +
+  size_t size = 1 + parameters_count() + locals_count() + stack_count() +
                 (HasContext() ? 1 : 0);
   switch (combine.kind()) {
     case OutputFrameStateCombine::kPushOutput:
@@ -716,7 +721,7 @@ size_t FrameStateDescriptor::GetJSFrameCount() const {
   size_t count = 0;
   for (const FrameStateDescriptor* iter = this; iter != NULL;
        iter = iter->outer_state_) {
-    if (iter->type_ == JS_FRAME) {
+    if (iter->type_ == FrameStateType::kJavaScriptFunction) {
       ++count;
     }
   }

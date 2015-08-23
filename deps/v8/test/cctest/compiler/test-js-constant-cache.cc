@@ -21,7 +21,7 @@ class JSCacheTesterHelper {
       : main_graph_(zone),
         main_common_(zone),
         main_javascript_(zone),
-        main_typer_(isolate, &main_graph_, MaybeHandle<Context>()),
+        main_typer_(isolate, &main_graph_),
         main_machine_(zone) {}
   Graph main_graph_;
   CommonOperatorBuilder main_common_;
@@ -41,7 +41,7 @@ class JSConstantCacheTester : public HandleAndZoneScope,
         JSGraph(main_isolate(), &main_graph_, &main_common_, &main_javascript_,
                 &main_machine_) {
     main_graph_.SetStart(main_graph_.NewNode(common()->Start(0)));
-    main_graph_.SetEnd(main_graph_.NewNode(common()->End()));
+    main_graph_.SetEnd(main_graph_.NewNode(common()->End(1)));
     main_typer_.Run();
   }
 
@@ -335,7 +335,7 @@ TEST(JSGraph_GetCachedNodes_int32) {
                          25, 15, 30,  31,  45,  46,  47,  48};
 
   for (size_t i = 0; i < arraysize(constants); i++) {
-    int count_before = T.graph()->NodeCount();
+    size_t count_before = T.graph()->NodeCount();
     NodeVector nodes_before(T.main_zone());
     T.GetCachedNodes(&nodes_before);
     Node* n = T.Int32Constant(constants[i]);
@@ -357,7 +357,7 @@ TEST(JSGraph_GetCachedNodes_float64) {
                         11,  11,   -33.3, -33.3, -22,  -11};
 
   for (size_t i = 0; i < arraysize(constants); i++) {
-    int count_before = T.graph()->NodeCount();
+    size_t count_before = T.graph()->NodeCount();
     NodeVector nodes_before(T.main_zone());
     T.GetCachedNodes(&nodes_before);
     Node* n = T.Float64Constant(constants[i]);
@@ -379,7 +379,7 @@ TEST(JSGraph_GetCachedNodes_int64) {
                          19,  20,  20, 21, 21, 22, 23,  24,  25};
 
   for (size_t i = 0; i < arraysize(constants); i++) {
-    int count_before = T.graph()->NodeCount();
+    size_t count_before = T.graph()->NodeCount();
     NodeVector nodes_before(T.main_zone());
     T.GetCachedNodes(&nodes_before);
     Node* n = T.Int64Constant(constants[i]);
@@ -401,7 +401,7 @@ TEST(JSGraph_GetCachedNodes_number) {
                         11,  11,   -33.3, -33.3, -22,  -11};
 
   for (size_t i = 0; i < arraysize(constants); i++) {
-    int count_before = T.graph()->NodeCount();
+    size_t count_before = T.graph()->NodeCount();
     NodeVector nodes_before(T.main_zone());
     T.GetCachedNodes(&nodes_before);
     Node* n = T.Constant(constants[i]);
@@ -428,7 +428,7 @@ TEST(JSGraph_GetCachedNodes_external) {
                                    ExternalReference::address_of_one_half()};
 
   for (size_t i = 0; i < arraysize(constants); i++) {
-    int count_before = T.graph()->NodeCount();
+    size_t count_before = T.graph()->NodeCount();
     NodeVector nodes_before(T.main_zone());
     T.GetCachedNodes(&nodes_before);
     Node* n = T.ExternalConstant(constants[i]);

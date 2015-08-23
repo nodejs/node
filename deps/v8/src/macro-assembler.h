@@ -135,11 +135,11 @@ class FrameAndConstantPoolScope {
       : masm_(masm),
         type_(type),
         old_has_frame_(masm->has_frame()),
-        old_constant_pool_available_(FLAG_enable_ool_constant_pool &&
-                                     masm->is_ool_constant_pool_available()) {
+        old_constant_pool_available_(FLAG_enable_embedded_constant_pool &&
+                                     masm->is_constant_pool_available()) {
     masm->set_has_frame(true);
-    if (FLAG_enable_ool_constant_pool) {
-      masm->set_ool_constant_pool_available(true);
+    if (FLAG_enable_embedded_constant_pool) {
+      masm->set_constant_pool_available(true);
     }
     if (type_ != StackFrame::MANUAL && type_ != StackFrame::NONE) {
       masm->EnterFrame(type, !old_constant_pool_available_);
@@ -149,8 +149,8 @@ class FrameAndConstantPoolScope {
   ~FrameAndConstantPoolScope() {
     masm_->LeaveFrame(type_);
     masm_->set_has_frame(old_has_frame_);
-    if (FLAG_enable_ool_constant_pool) {
-      masm_->set_ool_constant_pool_available(old_constant_pool_available_);
+    if (FLAG_enable_embedded_constant_pool) {
+      masm_->set_constant_pool_available(old_constant_pool_available_);
     }
   }
 
@@ -178,15 +178,15 @@ class ConstantPoolUnavailableScope {
  public:
   explicit ConstantPoolUnavailableScope(MacroAssembler* masm)
       : masm_(masm),
-        old_constant_pool_available_(FLAG_enable_ool_constant_pool &&
-                                     masm->is_ool_constant_pool_available()) {
-    if (FLAG_enable_ool_constant_pool) {
-      masm_->set_ool_constant_pool_available(false);
+        old_constant_pool_available_(FLAG_enable_embedded_constant_pool &&
+                                     masm->is_constant_pool_available()) {
+    if (FLAG_enable_embedded_constant_pool) {
+      masm_->set_constant_pool_available(false);
     }
   }
   ~ConstantPoolUnavailableScope() {
-    if (FLAG_enable_ool_constant_pool) {
-      masm_->set_ool_constant_pool_available(old_constant_pool_available_);
+    if (FLAG_enable_embedded_constant_pool) {
+      masm_->set_constant_pool_available(old_constant_pool_available_);
     }
   }
 

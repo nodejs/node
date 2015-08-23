@@ -102,4 +102,5 @@ void HDeadCodeEliminationPhase::RemoveDeadInstructions() {
   }
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

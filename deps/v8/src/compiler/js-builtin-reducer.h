@@ -18,9 +18,9 @@ class JSGraph;
 class MachineOperatorBuilder;
 
 
-class JSBuiltinReducer final : public Reducer {
+class JSBuiltinReducer final : public AdvancedReducer {
  public:
-  explicit JSBuiltinReducer(JSGraph* jsgraph);
+  explicit JSBuiltinReducer(Editor* editor, JSGraph* jsgraph);
   ~JSBuiltinReducer() final {}
 
   Reduction Reduce(Node* node) final;
