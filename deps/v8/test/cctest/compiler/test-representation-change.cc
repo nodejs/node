@@ -69,7 +69,7 @@ class RepresentationChangerTester : public HandleAndZoneScope,
   }
 
   void CheckHeapConstant(Node* n, HeapObject* expected) {
-    HeapObjectMatcher<HeapObject> m(n);
+    HeapObjectMatcher m(n);
     CHECK(m.HasValue());
     CHECK_EQ(expected, *m.Value().handle());
   }
@@ -100,9 +100,9 @@ class RepresentationChangerTester : public HandleAndZoneScope,
     CHECK_EQ(n, c);
   }
 };
-}
-}
-}  // namespace v8::internal::compiler
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 
 static const MachineType all_reps[] = {kRepBit,     kRepWord32,  kRepWord64,

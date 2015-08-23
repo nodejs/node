@@ -15,12 +15,9 @@
 #include "src/base/logging.h"
 
 
-// The expression OFFSET_OF(type, field) computes the byte-offset
-// of the specified field relative to the containing type. This
-// corresponds to 'offsetof' (in stddef.h), except that it doesn't
-// use 0 or NULL, which causes a problem with the compiler warnings
-// we have enabled (which is also why 'offsetof' doesn't seem to work).
-// Here we simply use the aligned, non-zero value 16.
+// TODO(all) Replace all uses of this macro with C++'s offsetof. To do that, we
+// have to make sure that only standard-layout types and simple field
+// designators are used.
 #define OFFSET_OF(type, field) \
   (reinterpret_cast<intptr_t>(&(reinterpret_cast<type*>(16)->field)) - 16)
 

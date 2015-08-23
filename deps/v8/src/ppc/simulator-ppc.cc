@@ -794,10 +794,11 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
 // Set up simulator support first. Some of this information is needed to
 // setup the architecture state.
 #if V8_TARGET_ARCH_PPC64
-  size_t stack_size = 2 * 1024 * 1024;  // allocate 2MB for stack
+  size_t stack_size = FLAG_sim_stack_size * KB;
 #else
-  size_t stack_size = 1 * 1024 * 1024;  // allocate 1MB for stack
+  size_t stack_size = MB;  // allocate 1MB for stack
 #endif
+  stack_size += 2 * stack_protection_size_;
   stack_ = reinterpret_cast<char*>(malloc(stack_size));
   pc_modified_ = false;
   icount_ = 0;
@@ -823,14 +824,15 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   // The sp is initialized to point to the bottom (high address) of the
   // allocated stack area. To be safe in potential stack underflows we leave
   // some buffer below.
-  registers_[sp] = reinterpret_cast<intptr_t>(stack_) + stack_size - 64;
+  registers_[sp] =
+      reinterpret_cast<intptr_t>(stack_) + stack_size - stack_protection_size_;
   InitializeCoverage();
 
   last_debugger_input_ = NULL;
 }
 
 
-Simulator::~Simulator() {}
+Simulator::~Simulator() { free(stack_); }
 
 
 // When the generated code calls an external reference we need to catch that in
@@ -878,7 +880,7 @@ class Redirection {
   static Redirection* FromSwiInstruction(Instruction* swi_instruction) {
     char* addr_of_swi = reinterpret_cast<char*>(swi_instruction);
     char* addr_of_redirection =
-        addr_of_swi - OFFSET_OF(Redirection, swi_instruction_);
+        addr_of_swi - offsetof(Redirection, swi_instruction_);
     return reinterpret_cast<Redirection*>(addr_of_redirection);
   }
 
@@ -888,12 +890,33 @@ class Redirection {
     return redirection->external_function();
   }
 
+  static void DeleteChain(Redirection* redirection) {
+    while (redirection != nullptr) {
+      Redirection* next = redirection->next_;
+      delete redirection;
+      redirection = next;
+    }
+  }
+
  private:
   void* external_function_;
   uint32_t swi_instruction_;
   ExternalReference::Type type_;
   Redirection* next_;
 };
+
+
+// static
+void Simulator::TearDown(HashMap* i_cache, Redirection* first) {
+  Redirection::DeleteChain(first);
+  if (i_cache != nullptr) {
+    for (HashMap::Entry* entry = i_cache->Start(); entry != nullptr;
+         entry = i_cache->Next(entry)) {
+      delete static_cast<CachePage*>(entry->value);
+    }
+    delete i_cache;
+  }
+}
 
 
 void* Simulator::RedirectExternalReference(void* external_function,
@@ -1086,9 +1109,8 @@ void Simulator::WriteDW(intptr_t addr, int64_t value) {
 
 // Returns the limit of the stack area to enable checking for stack overflows.
 uintptr_t Simulator::StackLimit() const {
-  // Leave a safety margin of 1024 bytes to prevent overrunning the stack when
-  // pushing values.
-  return reinterpret_cast<uintptr_t>(stack_) + 1024;
+  // Leave a safety margin to prevent overrunning the stack when pushing values.
+  return reinterpret_cast<uintptr_t>(stack_) + stack_protection_size_;
 }
 
 
@@ -3877,8 +3899,8 @@ uintptr_t Simulator::PopAddress() {
   set_register(sp, current_sp + sizeof(uintptr_t));
   return address;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // USE_SIMULATOR
 #endif  // V8_TARGET_ARCH_PPC

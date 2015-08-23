@@ -19,6 +19,7 @@
 var EQUALS;
 var STRICT_EQUALS;
 var COMPARE;
+var COMPARE_STRONG;
 var ADD;
 var ADD_STRONG;
 var STRING_ADD_LEFT;
@@ -48,11 +49,11 @@ var SHR_STRONG;
 var DELETE;
 var IN;
 var INSTANCE_OF;
-var FILTER_KEY;
 var CALL_NON_FUNCTION;
 var CALL_NON_FUNCTION_AS_CONSTRUCTOR;
 var CALL_FUNCTION_PROXY;
 var CALL_FUNCTION_PROXY_AS_CONSTRUCTOR;
+var CONCAT_ITERABLE_TO_ARRAY;
 var APPLY_PREPARE;
 var REFLECT_APPLY_PREPARE;
 var REFLECT_CONSTRUCT_PREPARE;
@@ -62,7 +63,9 @@ var TO_NUMBER;
 var TO_STRING;
 var TO_NAME;
 
-var STRING_LENGTH_STUB;
+var StringLengthTFStub;
+var StringAddTFStub;
+var MathFloorStub;
 
 var $defaultNumber;
 var $defaultString;
@@ -83,7 +86,7 @@ var $toPrimitive;
 var $toString;
 var $toUint32;
 
-(function(global, shared, exports) {
+(function(global, utils) {
 
 %CheckIsBootstrapping();
 
@@ -203,6 +206,14 @@ COMPARE = function COMPARE(x, ncr) {
   }
 }
 
+// Strong mode COMPARE throws if an implicit conversion would be performed
+COMPARE_STRONG = function COMPARE_STRONG(x, ncr) {
+  if (IS_STRING(this) && IS_STRING(x)) return %_StringCompare(this, x);
+  if (IS_NUMBER(this) && IS_NUMBER(x)) return %NumberCompare(this, x, ncr);
+
+  throw %MakeTypeError(kStrongImplicitConversion);
+}
+
 
 
 /* -----------------------------------
@@ -235,7 +246,7 @@ ADD_STRONG = function ADD_STRONG(x) {
   if (IS_NUMBER(this) && IS_NUMBER(x)) return %NumberAdd(this, x);
   if (IS_STRING(this) && IS_STRING(x)) return %_StringAdd(this, x);
 
-  throw %MakeTypeError('strong_implicit_cast');
+  throw %MakeTypeError(kStrongImplicitConversion);
 }
 
 
@@ -259,7 +270,7 @@ STRING_ADD_LEFT_STRONG = function STRING_ADD_LEFT_STRONG(y) {
   if (IS_STRING(y)) {
     return %_StringAdd(this, y);
   }
-  throw %MakeTypeError('strong_implicit_cast');
+  throw %MakeTypeError(kStrongImplicitConversion);
 }
 
 
@@ -284,7 +295,7 @@ STRING_ADD_RIGHT_STRONG = function STRING_ADD_RIGHT_STRONG(y) {
   if (IS_STRING(this)) {
     return %_StringAdd(this, y);
   }
-  throw %MakeTypeError('strong_implicit_cast');
+  throw %MakeTypeError(kStrongImplicitConversion);
 }
 
 
@@ -301,7 +312,7 @@ SUB_STRONG = function SUB_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberSub(this, y);
   }
-  throw %MakeTypeError('strong_implicit_cast');
+  throw %MakeTypeError(kStrongImplicitConversion);
 }
 
 
@@ -318,7 +329,7 @@ MUL_STRONG = function MUL_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberMul(this, y);
   }
-  throw %MakeTypeError('strong_implicit_cast');
+  throw %MakeTypeError(kStrongImplicitConversion);
 }
 
 
@@ -335,7 +346,7 @@ DIV_STRONG = function DIV_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberDiv(this, y);
   }
-  throw %MakeTypeError('strong_implicit_cast');
+  throw %MakeTypeError(kStrongImplicitConversion);
 }
 
 
@@ -352,7 +363,7 @@ MOD_STRONG = function MOD_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberMod(this, y);
   }
-  throw %MakeTypeError('strong_implicit_cast');
+  throw %MakeTypeError(kStrongImplicitConversion);
 }
 
 
@@ -374,7 +385,7 @@ BIT_OR_STRONG = function BIT_OR_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberOr(this, y);
   }
-  throw %MakeTypeError('strong_implicit_cast');
+  throw %MakeTypeError(kStrongImplicitConversion);
 }
 
 
@@ -405,7 +416,7 @@ BIT_AND_STRONG = function BIT_AND_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberAnd(this, y);
   }
-  throw %MakeTypeError('strong_implicit_cast');
+  throw %MakeTypeError(kStrongImplicitConversion);
 }
 
 
@@ -422,7 +433,7 @@ BIT_XOR_STRONG = function BIT_XOR_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberXor(this, y);
   }
-  throw %MakeTypeError('strong_implicit_cast');
+  throw %MakeTypeError(kStrongImplicitConversion);
 }
 
 
@@ -439,7 +450,7 @@ SHL_STRONG = function SHL_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberShl(this, y);
   }
-  throw %MakeTypeError('strong_implicit_cast');
+  throw %MakeTypeError(kStrongImplicitConversion);
 }
 
 
@@ -470,7 +481,7 @@ SAR_STRONG = function SAR_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberSar(this, y);
   }
-  throw %MakeTypeError('strong_implicit_cast');
+  throw %MakeTypeError(kStrongImplicitConversion);
 }
 
 
@@ -487,7 +498,7 @@ SHR_STRONG = function SHR_STRONG(y) {
   if (IS_NUMBER(this) && IS_NUMBER(y)) {
     return %NumberShr(this, y);
   }
-  throw %MakeTypeError('strong_implicit_cast');
+  throw %MakeTypeError(kStrongImplicitConversion);
 }
 
 
@@ -498,7 +509,7 @@ SHR_STRONG = function SHR_STRONG(y) {
 
 // ECMA-262, section 11.4.1, page 46.
 DELETE = function DELETE(key, language_mode) {
-  return %DeleteProperty(%$toObject(this), %$toName(key), language_mode);
+  return %DeleteProperty(%$toObject(this), key, language_mode);
 }
 
 
@@ -546,16 +557,6 @@ INSTANCE_OF = function INSTANCE_OF(F) {
 
   // Return whether or not O is in the prototype chain of V.
   return %IsInPrototypeChain(O, V) ? 0 : 1;
-}
-
-
-// Filter a given key against an object by checking if the object
-// has a property with the given key; return the key as a string if
-// it has. Otherwise returns 0 (smi). Used in for-in statements.
-FILTER_KEY = function FILTER_KEY(key) {
-  var string = %$toName(key);
-  if (%HasProperty(this, string)) return string;
-  return 0;
 }
 
 
@@ -716,6 +717,11 @@ REFLECT_CONSTRUCT_PREPARE = function REFLECT_CONSTRUCT_PREPARE(
 }
 
 
+CONCAT_ITERABLE_TO_ARRAY = function CONCAT_ITERABLE_TO_ARRAY(iterable) {
+  return %$concatIterableToArray(this, iterable);
+};
+
+
 STACK_OVERFLOW = function STACK_OVERFLOW(length) {
   throw %MakeRangeError(kStackOverflow);
 }
@@ -750,9 +756,44 @@ TO_NAME = function TO_NAME() {
    -----------------------------------------------
 */
 
-STRING_LENGTH_STUB = function STRING_LENGTH_STUB(name) {
-  var receiver = this;  // implicit first parameter
-  return %_StringGetLength(%_JSValueGetValue(receiver));
+StringLengthTFStub = function StringLengthTFStub(call_conv, minor_key) {
+  var stub = function(receiver, name, i, v) {
+    // i and v are dummy parameters mandated by the InterfaceDescriptor,
+    // (LoadWithVectorDescriptor).
+    return %_StringGetLength(%_JSValueGetValue(receiver));
+  }
+  return stub;
+}
+
+StringAddTFStub = function StringAddTFStub(call_conv, minor_key) {
+  var stub = function(left, right) {
+    return %StringAdd(left, right);
+  }
+  return stub;
+}
+
+MathFloorStub = function MathFloorStub(call_conv, minor_key) {
+  var stub = function(f, i, v) {
+    // |f| is calling function's JSFunction
+    // |i| is TypeFeedbackVector slot # of callee's CallIC for Math.floor call
+    // |v| is the value to floor
+    var r = %_MathFloor(+v);
+    if (%_IsMinusZero(r)) {
+      // Collect type feedback when the result of the floor is -0. This is
+      // accomplished by storing a sentinel in the second, "extra"
+      // TypeFeedbackVector slot corresponding to the Math.floor CallIC call in
+      // the caller's TypeVector.
+      %_FixedArraySet(%_GetTypeFeedbackVector(f), ((i|0)+1)|0, 1);
+      return -0;
+    }
+    // Return integers in smi range as smis.
+    var trunc = r|0;
+    if (trunc === r) {
+      return trunc;
+    }
+    return r;
+  }
+  return stub;
 }
 
 
@@ -900,6 +941,14 @@ function SameValueZero(x, y) {
   return x === y;
 }
 
+function ConcatIterableToArray(target, iterable) {
+   var index = target.length;
+   for (var element of iterable) {
+     %AddElement(target, index++, element);
+   }
+   return target;
+}
+
 
 /* ---------------------------------
    - - -   U t i l i t i e s   - - -
@@ -978,6 +1027,7 @@ function ToPositiveInteger(x, rangeErrorIndex) {
 
 //----------------------------------------------------------------------------
 
+$concatIterableToArray = ConcatIterableToArray;
 $defaultNumber = DefaultNumber;
 $defaultString = DefaultString;
 $NaN = %GetRootNaN();

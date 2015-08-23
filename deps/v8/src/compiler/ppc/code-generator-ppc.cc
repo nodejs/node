@@ -585,10 +585,7 @@ void CodeGenerator::AssembleDeconstructActivationRecord() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
   int stack_slots = frame()->GetSpillSlotCount();
   if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
-    int pop_count = descriptor->IsJSFunctionCall()
-                        ? static_cast<int>(descriptor->JSParameterCount())
-                        : 0;
-    __ LeaveFrame(StackFrame::MANUAL, pop_count * kPointerSize);
+    __ LeaveFrame(StackFrame::MANUAL);
   }
 }
 
@@ -620,6 +617,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
                 Operand(Code::kHeaderSize - kHeapObjectTag));
         __ Jump(ip);
       } else {
+        // We cannot use the constant pool to load the target since
+        // we've already restored the caller's frame.
+        ConstantPoolUnavailableScope constant_pool_unavailable(masm());
         __ Jump(Handle<Code>::cast(i.InputHeapObject(0)),
                 RelocInfo::CODE_TARGET);
       }
@@ -657,6 +657,22 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
     }
+    case kArchPrepareCallCFunction: {
+      int const num_parameters = MiscField::decode(instr->opcode());
+      __ PrepareCallCFunction(num_parameters, kScratchReg);
+      break;
+    }
+    case kArchCallCFunction: {
+      int const num_parameters = MiscField::decode(instr->opcode());
+      if (instr->InputAt(0)->IsImmediate()) {
+        ExternalReference ref = i.InputExternalReference(0);
+        __ CallCFunction(ref, num_parameters);
+      } else {
+        Register func = i.InputRegister(0);
+        __ CallCFunction(func, num_parameters);
+      }
+      break;
+    }
     case kArchJmp:
       AssembleArchJump(i.InputRpo(0));
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
@@ -685,6 +701,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kArchStackPointer:
       __ mr(i.OutputRegister(), sp);
+      DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      break;
+    case kArchFramePointer:
+      __ mr(i.OutputRegister(), fp);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
     case kArchTruncateDoubleToI:
@@ -958,6 +978,16 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Push(i.InputRegister(0));
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
+    case kPPC_PushFrame: {
+      int num_slots = i.InputInt32(1);
+      __ StorePU(i.InputRegister(0), MemOperand(sp, -num_slots * kPointerSize));
+      break;
+    }
+    case kPPC_StoreToStackSlot: {
+      int slot = i.InputInt32(1);
+      __ StoreP(i.InputRegister(0), MemOperand(sp, slot * kPointerSize));
+      break;
+    }
     case kPPC_ExtendSignWord8:
       __ extsb(i.OutputRegister(), i.InputRegister(0));
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
@@ -1269,8 +1299,16 @@ void CodeGenerator::AssemblePrologue() {
     int register_save_area_size = 0;
     RegList frame_saves = fp.bit();
     __ mflr(r0);
-    __ Push(r0, fp);
-    __ mr(fp, sp);
+    if (FLAG_enable_embedded_constant_pool) {
+      __ Push(r0, fp, kConstantPoolRegister);
+      // Adjust FP to point to saved FP.
+      __ subi(fp, sp, Operand(StandardFrameConstants::kConstantPoolOffset));
+      register_save_area_size += kPointerSize;
+      frame_saves |= kConstantPoolRegister.bit();
+    } else {
+      __ Push(r0, fp);
+      __ mr(fp, sp);
+    }
     // Save callee-saved registers.
     const RegList saves = descriptor->CalleeSavedRegisters() & ~frame_saves;
     for (int i = Register::kNumRegisters - 1; i >= 0; i--) {
@@ -1284,7 +1322,7 @@ void CodeGenerator::AssemblePrologue() {
     __ Prologue(info->IsCodePreAgingActive());
     frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
-  } else if (stack_slots > 0) {
+  } else if (needs_frame_) {
     __ StubPrologue();
     frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
@@ -1323,6 +1361,9 @@ void CodeGenerator::AssembleReturn() {
       }
       // Restore registers.
       RegList frame_saves = fp.bit();
+      if (FLAG_enable_embedded_constant_pool) {
+        frame_saves |= kConstantPoolRegister.bit();
+      }
       const RegList saves = descriptor->CalleeSavedRegisters() & ~frame_saves;
       if (saves != 0) {
         __ MultiPop(saves);
@@ -1330,12 +1371,20 @@ void CodeGenerator::AssembleReturn() {
     }
     __ LeaveFrame(StackFrame::MANUAL);
     __ Ret();
-  } else if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
-    int pop_count = descriptor->IsJSFunctionCall()
-                        ? static_cast<int>(descriptor->JSParameterCount())
-                        : 0;
-    __ LeaveFrame(StackFrame::MANUAL, pop_count * kPointerSize);
-    __ Ret();
+  } else if (descriptor->IsJSFunctionCall() || needs_frame_) {
+    // Canonicalize JSFunction return sites for now.
+    if (return_label_.is_bound()) {
+      __ b(&return_label_);
+    } else {
+      __ bind(&return_label_);
+      int pop_count = descriptor->IsJSFunctionCall()
+                          ? static_cast<int>(descriptor->JSParameterCount())
+                          : (info()->IsStub()
+                                 ? info()->code_stub()->GetStackParameterCount()
+                                 : 0);
+      __ LeaveFrame(StackFrame::MANUAL, pop_count * kPointerSize);
+      __ Ret();
+    }
   } else {
     __ Ret();
   }
@@ -1540,7 +1589,6 @@ void CodeGenerator::EnsureSpaceForLazyDeopt() {
       }
     }
   }
-  MarkLazyDeoptSite();
 }
 
 #undef __

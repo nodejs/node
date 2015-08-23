@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/compiler/control-flow-optimizer.h"
-#include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/machine-operator.h"
 #include "test/unittests/compiler/graph-unittest.h"
@@ -21,28 +20,21 @@ namespace compiler {
 class ControlFlowOptimizerTest : public GraphTest {
  public:
   explicit ControlFlowOptimizerTest(int num_parameters = 3)
-      : GraphTest(num_parameters),
-        machine_(zone()),
-        javascript_(zone()),
-        jsgraph_(isolate(), graph(), common(), javascript(), machine()) {}
+      : GraphTest(num_parameters), machine_(zone()), javascript_(zone()) {}
   ~ControlFlowOptimizerTest() override {}
 
  protected:
   void Optimize() {
-    ControlFlowOptimizer optimizer(jsgraph(), zone());
+    ControlFlowOptimizer optimizer(graph(), common(), machine(), zone());
     optimizer.Optimize();
   }
 
-  Node* EmptyFrameState() { return jsgraph()->EmptyFrameState(); }
-
-  JSGraph* jsgraph() { return &jsgraph_; }
   JSOperatorBuilder* javascript() { return &javascript_; }
   MachineOperatorBuilder* machine() { return &machine_; }
 
  private:
   MachineOperatorBuilder machine_;
   JSOperatorBuilder javascript_;
-  JSGraph jsgraph_;
 };
 
 
@@ -62,7 +54,7 @@ TEST_F(ControlFlowOptimizerTest, BuildSwitch1) {
   Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
   Node* merge =
       graph()->NewNode(common()->Merge(3), if_true0, if_true1, if_false1);
-  graph()->SetEnd(graph()->NewNode(common()->End(), merge));
+  graph()->SetEnd(graph()->NewNode(common()->End(1), merge));
   Optimize();
   Capture<Node*> switch_capture;
   EXPECT_THAT(end(),
@@ -77,7 +69,7 @@ TEST_F(ControlFlowOptimizerTest, BuildSwitch2) {
   Node* input = Parameter(0);
   Node* context = Parameter(1);
   Node* index = graph()->NewNode(javascript()->ToNumber(), input, context,
-                                 EmptyFrameState(), start(), start());
+                                 start(), start(), start());
   Node* if_success = graph()->NewNode(common()->IfSuccess(), index);
   Node* branch0 = graph()->NewNode(
       common()->Branch(),
@@ -93,7 +85,7 @@ TEST_F(ControlFlowOptimizerTest, BuildSwitch2) {
   Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
   Node* merge =
       graph()->NewNode(common()->Merge(3), if_true0, if_true1, if_false1);
-  graph()->SetEnd(graph()->NewNode(common()->End(), merge));
+  graph()->SetEnd(graph()->NewNode(common()->End(1), merge));
   Optimize();
   Capture<Node*> switch_capture;
   EXPECT_THAT(
@@ -119,7 +111,7 @@ TEST_F(ControlFlowOptimizerTest, CloneBranch) {
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
   Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  graph()->SetEnd(graph()->NewNode(common()->End(), merge));
+  graph()->SetEnd(graph()->NewNode(common()->End(1), merge));
   Optimize();
   Capture<Node*> branch1_capture, branch2_capture;
   EXPECT_THAT(

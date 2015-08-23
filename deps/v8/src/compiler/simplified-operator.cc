@@ -157,33 +157,35 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
 }
 
 
-#define PURE_OP_LIST(V)                                 \
-  V(BooleanNot, Operator::kNoProperties, 1)             \
-  V(BooleanToNumber, Operator::kNoProperties, 1)        \
-  V(NumberEqual, Operator::kCommutative, 2)             \
-  V(NumberLessThan, Operator::kNoProperties, 2)         \
-  V(NumberLessThanOrEqual, Operator::kNoProperties, 2)  \
-  V(NumberAdd, Operator::kCommutative, 2)               \
-  V(NumberSubtract, Operator::kNoProperties, 2)         \
-  V(NumberMultiply, Operator::kCommutative, 2)          \
-  V(NumberDivide, Operator::kNoProperties, 2)           \
-  V(NumberModulus, Operator::kNoProperties, 2)          \
-  V(NumberToInt32, Operator::kNoProperties, 1)          \
-  V(NumberToUint32, Operator::kNoProperties, 1)         \
-  V(PlainPrimitiveToNumber, Operator::kNoProperties, 1) \
-  V(StringEqual, Operator::kCommutative, 2)             \
-  V(StringLessThan, Operator::kNoProperties, 2)         \
-  V(StringLessThanOrEqual, Operator::kNoProperties, 2)  \
-  V(StringAdd, Operator::kNoProperties, 2)              \
-  V(ChangeTaggedToInt32, Operator::kNoProperties, 1)    \
-  V(ChangeTaggedToUint32, Operator::kNoProperties, 1)   \
-  V(ChangeTaggedToFloat64, Operator::kNoProperties, 1)  \
-  V(ChangeInt32ToTagged, Operator::kNoProperties, 1)    \
-  V(ChangeUint32ToTagged, Operator::kNoProperties, 1)   \
-  V(ChangeFloat64ToTagged, Operator::kNoProperties, 1)  \
-  V(ChangeBoolToBit, Operator::kNoProperties, 1)        \
-  V(ChangeBitToBool, Operator::kNoProperties, 1)        \
-  V(ObjectIsSmi, Operator::kNoProperties, 1)            \
+#define PURE_OP_LIST(V)                                  \
+  V(BooleanNot, Operator::kNoProperties, 1)              \
+  V(BooleanToNumber, Operator::kNoProperties, 1)         \
+  V(NumberEqual, Operator::kCommutative, 2)              \
+  V(NumberLessThan, Operator::kNoProperties, 2)          \
+  V(NumberLessThanOrEqual, Operator::kNoProperties, 2)   \
+  V(NumberAdd, Operator::kCommutative, 2)                \
+  V(NumberSubtract, Operator::kNoProperties, 2)          \
+  V(NumberMultiply, Operator::kCommutative, 2)           \
+  V(NumberDivide, Operator::kNoProperties, 2)            \
+  V(NumberModulus, Operator::kNoProperties, 2)           \
+  V(NumberShiftLeft, Operator::kNoProperties, 2)         \
+  V(NumberShiftRight, Operator::kNoProperties, 2)        \
+  V(NumberShiftRightLogical, Operator::kNoProperties, 2) \
+  V(NumberToInt32, Operator::kNoProperties, 1)           \
+  V(NumberToUint32, Operator::kNoProperties, 1)          \
+  V(PlainPrimitiveToNumber, Operator::kNoProperties, 1)  \
+  V(StringEqual, Operator::kCommutative, 2)              \
+  V(StringLessThan, Operator::kNoProperties, 2)          \
+  V(StringLessThanOrEqual, Operator::kNoProperties, 2)   \
+  V(ChangeTaggedToInt32, Operator::kNoProperties, 1)     \
+  V(ChangeTaggedToUint32, Operator::kNoProperties, 1)    \
+  V(ChangeTaggedToFloat64, Operator::kNoProperties, 1)   \
+  V(ChangeInt32ToTagged, Operator::kNoProperties, 1)     \
+  V(ChangeUint32ToTagged, Operator::kNoProperties, 1)    \
+  V(ChangeFloat64ToTagged, Operator::kNoProperties, 1)   \
+  V(ChangeBoolToBit, Operator::kNoProperties, 1)         \
+  V(ChangeBitToBool, Operator::kNoProperties, 1)         \
+  V(ObjectIsSmi, Operator::kNoProperties, 1)             \
   V(ObjectIsNonNegativeSmi, Operator::kNoProperties, 1)
 
 

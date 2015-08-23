@@ -411,6 +411,12 @@ void Assembler::emit(uint32_t x) {
 }
 
 
+void Assembler::emit_q(uint64_t x) {
+  *reinterpret_cast<uint64_t*>(pc_) = x;
+  pc_ += sizeof(uint64_t);
+}
+
+
 void Assembler::emit(Handle<Object> handle) {
   AllowDeferredHandleDereference heap_object_check;
   // Verify all Objects referred by code are NOT in new space.
@@ -475,14 +481,12 @@ void Assembler::emit_w(const Immediate& x) {
 }
 
 
-Address Assembler::target_address_at(Address pc,
-                                     ConstantPoolArray* constant_pool) {
+Address Assembler::target_address_at(Address pc, Address constant_pool) {
   return pc + sizeof(int32_t) + *reinterpret_cast<int32_t*>(pc);
 }
 
 
-void Assembler::set_target_address_at(Address pc,
-                                      ConstantPoolArray* constant_pool,
+void Assembler::set_target_address_at(Address pc, Address constant_pool,
                                       Address target,
                                       ICacheFlushMode icache_flush_mode) {
   int32_t* p = reinterpret_cast<int32_t*>(pc);

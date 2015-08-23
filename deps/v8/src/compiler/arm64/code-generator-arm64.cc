@@ -331,15 +331,17 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
   } while (0)
 
 
-#define ASSEMBLE_SHIFT(asm_instr, width)                                       \
-  do {                                                                         \
-    if (instr->InputAt(1)->IsRegister()) {                                     \
-      __ asm_instr(i.OutputRegister##width(), i.InputRegister##width(0),       \
-                   i.InputRegister##width(1));                                 \
-    } else {                                                                   \
-      int64_t imm = i.InputOperand##width(1).immediate().value();              \
-      __ asm_instr(i.OutputRegister##width(), i.InputRegister##width(0), imm); \
-    }                                                                          \
+#define ASSEMBLE_SHIFT(asm_instr, width)                                    \
+  do {                                                                      \
+    if (instr->InputAt(1)->IsRegister()) {                                  \
+      __ asm_instr(i.OutputRegister##width(), i.InputRegister##width(0),    \
+                   i.InputRegister##width(1));                              \
+    } else {                                                                \
+      uint32_t imm =                                                        \
+          static_cast<uint32_t>(i.InputOperand##width(1).ImmediateValue()); \
+      __ asm_instr(i.OutputRegister##width(), i.InputRegister##width(0),    \
+                   imm % (width));                                          \
+    }                                                                       \
   } while (0)
 
 
@@ -349,10 +351,6 @@ void CodeGenerator::AssembleDeconstructActivationRecord() {
   if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
     __ Mov(jssp, fp);
     __ Pop(fp, lr);
-    int pop_count = descriptor->IsJSFunctionCall()
-                        ? static_cast<int>(descriptor->JSParameterCount())
-                        : 0;
-    __ Drop(pop_count);
   }
 }
 
@@ -418,6 +416,23 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Jump(x10);
       break;
     }
+    case kArchPrepareCallCFunction:
+      // We don't need kArchPrepareCallCFunction on arm64 as the instruction
+      // selector already perform a Claim to reserve space on the stack and
+      // guarantee correct alignment of stack pointer.
+      UNREACHABLE();
+      break;
+    case kArchCallCFunction: {
+      int const num_parameters = MiscField::decode(instr->opcode());
+      if (instr->InputAt(0)->IsImmediate()) {
+        ExternalReference ref = i.InputExternalReference(0);
+        __ CallCFunction(ref, num_parameters, 0);
+      } else {
+        Register func = i.InputRegister(0);
+        __ CallCFunction(func, num_parameters, 0);
+      }
+      break;
+    }
     case kArchJmp:
       AssembleArchJump(i.InputRpo(0));
       break;
@@ -441,6 +456,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kArchStackPointer:
       __ mov(i.OutputRegister(), masm()->StackPointer());
+      break;
+    case kArchFramePointer:
+      __ mov(i.OutputRegister(), fp);
       break;
     case kArchTruncateDoubleToI:
       __ TruncateDoubleToI(i.OutputRegister(), i.InputDoubleRegister(0));
@@ -557,12 +575,11 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
               i.InputRegister32(0));
       break;
     }
-    // TODO(dcarney): use mvn instr??
     case kArm64Not:
-      __ Orn(i.OutputRegister(), xzr, i.InputOperand(0));
+      __ Mvn(i.OutputRegister(), i.InputOperand(0));
       break;
     case kArm64Not32:
-      __ Orn(i.OutputRegister32(), wzr, i.InputOperand32(0));
+      __ Mvn(i.OutputRegister32(), i.InputOperand32(0));
       break;
     case kArm64Neg:
       __ Neg(i.OutputRegister(), i.InputOperand(0));
@@ -654,6 +671,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Ubfx(i.OutputRegister32(), i.InputRegister32(0), i.InputInt5(1),
               i.InputInt5(2));
       break;
+    case kArm64Ubfiz32:
+      __ Ubfiz(i.OutputRegister32(), i.InputRegister32(0), i.InputInt5(1),
+               i.InputInt5(2));
+      break;
     case kArm64Bfi:
       __ Bfi(i.OutputRegister(), i.InputRegister(1), i.InputInt6(2),
              i.InputInt6(3));
@@ -686,7 +707,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Cmp(i.InputRegister(0), i.InputOperand(1));
       break;
     case kArm64Cmp32:
-      __ Cmp(i.InputRegister32(0), i.InputOperand32(1));
+      __ Cmp(i.InputRegister32(0), i.InputOperand2_32(1));
       break;
     case kArm64Cmn:
       __ Cmn(i.InputRegister(0), i.InputOperand(1));
@@ -1069,16 +1090,30 @@ void CodeGenerator::AssemblePrologue() {
     __ SetStackPointer(csp);
     __ Push(lr, fp);
     __ Mov(fp, csp);
-    // TODO(dcarney): correct callee saved registers.
-    __ PushCalleeSavedRegisters();
-    frame()->SetRegisterSaveAreaSize(20 * kPointerSize);
+
+    // Save FP registers.
+    CPURegList saves_fp = CPURegList(CPURegister::kFPRegister, kDRegSizeInBits,
+                                     descriptor->CalleeSavedFPRegisters());
+    DCHECK(saves_fp.list() == CPURegList::GetCalleeSavedFP().list());
+    int saved_count = saves_fp.Count();
+    __ PushCPURegList(saves_fp);
+    // Save registers.
+    CPURegList saves = CPURegList(CPURegister::kRegister, kXRegSizeInBits,
+                                  descriptor->CalleeSavedRegisters());
+    // TODO(palfia): TF save list is not in sync with
+    // CPURegList::GetCalleeSaved(): x30 is missing.
+    // DCHECK(saves.list() == CPURegList::GetCalleeSaved().list());
+    saved_count += saves.Count();
+    __ PushCPURegList(saves);
+
+    frame()->SetRegisterSaveAreaSize(saved_count * kPointerSize);
   } else if (descriptor->IsJSFunctionCall()) {
     CompilationInfo* info = this->info();
     __ SetStackPointer(jssp);
     __ Prologue(info->IsCodePreAgingActive());
     frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
-  } else if (stack_slots > 0) {
+  } else if (needs_frame_) {
     __ SetStackPointer(jssp);
     __ StubPrologue();
     frame()->SetRegisterSaveAreaSize(
@@ -1120,21 +1155,39 @@ void CodeGenerator::AssembleReturn() {
       if (stack_slots > 0) {
         __ Add(csp, csp, AlignedStackSlots(stack_slots) * kPointerSize);
       }
+
       // Restore registers.
-      // TODO(dcarney): correct callee saved registers.
-      __ PopCalleeSavedRegisters();
+      CPURegList saves = CPURegList(CPURegister::kRegister, kXRegSizeInBits,
+                                    descriptor->CalleeSavedRegisters());
+      __ PopCPURegList(saves);
+
+      CPURegList saves_fp =
+          CPURegList(CPURegister::kFPRegister, kDRegSizeInBits,
+                     descriptor->CalleeSavedFPRegisters());
+      __ PopCPURegList(saves_fp);
     }
+
     __ Mov(csp, fp);
     __ Pop(fp, lr);
     __ Ret();
-  } else if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
-    __ Mov(jssp, fp);
-    __ Pop(fp, lr);
-    int pop_count = descriptor->IsJSFunctionCall()
-                        ? static_cast<int>(descriptor->JSParameterCount())
-                        : 0;
-    __ Drop(pop_count);
-    __ Ret();
+  } else if (descriptor->IsJSFunctionCall() || needs_frame_) {
+    // Canonicalize JSFunction return sites for now.
+    if (return_label_.is_bound()) {
+      __ B(&return_label_);
+    } else {
+      __ Bind(&return_label_);
+      __ Mov(jssp, fp);
+      __ Pop(fp, lr);
+      int pop_count = descriptor->IsJSFunctionCall()
+                          ? static_cast<int>(descriptor->JSParameterCount())
+                          : (info()->IsStub()
+                                 ? info()->code_stub()->GetStackParameterCount()
+                                 : 0);
+      if (pop_count != 0) {
+        __ Drop(pop_count);
+      }
+      __ Ret();
+    }
   } else {
     __ Ret();
   }
@@ -1321,7 +1374,6 @@ void CodeGenerator::EnsureSpaceForLazyDeopt() {
       }
     }
   }
-  MarkLazyDeoptSite();
 }
 
 #undef __

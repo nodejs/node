@@ -81,5 +81,5 @@ RUNTIME_FUNCTION(Runtime_Fix) {
   JSProxy::Fix(proxy);
   return isolate->heap()->undefined_value();
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

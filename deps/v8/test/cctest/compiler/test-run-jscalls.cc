@@ -242,6 +242,7 @@ TEST(ContextLoadedFromActivation) {
   i::Handle<i::Object> ofun = v8::Utils::OpenHandle(*value);
   i::Handle<i::JSFunction> jsfun = Handle<JSFunction>::cast(ofun);
   jsfun->set_code(T.function->code());
+  jsfun->set_shared(T.function->shared());
   context->Global()->Set(v8_str("foo"), v8::Utils::ToLocal(jsfun));
   CompileRun("var x = 24;");
   ExpectInt32("foo();", 24);
@@ -263,6 +264,7 @@ TEST(BuiltinLoadedFromActivation) {
   i::Handle<i::Object> ofun = v8::Utils::OpenHandle(*value);
   i::Handle<i::JSFunction> jsfun = Handle<JSFunction>::cast(ofun);
   jsfun->set_code(T.function->code());
+  jsfun->set_shared(T.function->shared());
   context->Global()->Set(v8_str("foo"), v8::Utils::ToLocal(jsfun));
   CompileRun("var x = 24;");
   ExpectObject("foo()", context->Global());

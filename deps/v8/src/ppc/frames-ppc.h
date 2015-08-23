@@ -116,8 +116,11 @@ class EntryFrameConstants : public AllStatic {
 
 class ExitFrameConstants : public AllStatic {
  public:
-  static const int kFrameSize = 2 * kPointerSize;
-  static const int kConstantPoolOffset = 0;  // Not used.
+  static const int kFrameSize =
+      FLAG_enable_embedded_constant_pool ? 3 * kPointerSize : 2 * kPointerSize;
+
+  static const int kConstantPoolOffset =
+      FLAG_enable_embedded_constant_pool ? -3 * kPointerSize : 0;
   static const int kCodeOffset = -2 * kPointerSize;
   static const int kSPOffset = -1 * kPointerSize;
 
@@ -142,36 +145,6 @@ class JavaScriptFrameConstants : public AllStatic {
   // Caller SP-relative.
   static const int kParam0Offset = -2 * kPointerSize;
   static const int kReceiverOffset = -1 * kPointerSize;
-};
-
-
-class ArgumentsAdaptorFrameConstants : public AllStatic {
- public:
-  // FP-relative.
-  static const int kLengthOffset = StandardFrameConstants::kExpressionsOffset;
-
-  static const int kFrameSize =
-      StandardFrameConstants::kFixedFrameSize + kPointerSize;
-};
-
-
-class ConstructFrameConstants : public AllStatic {
- public:
-  // FP-relative.
-  static const int kImplicitReceiverOffset = -6 * kPointerSize;
-  static const int kConstructorOffset = -5 * kPointerSize;
-  static const int kLengthOffset = -4 * kPointerSize;
-  static const int kCodeOffset = StandardFrameConstants::kExpressionsOffset;
-
-  static const int kFrameSize =
-      StandardFrameConstants::kFixedFrameSize + 4 * kPointerSize;
-};
-
-
-class InternalFrameConstants : public AllStatic {
- public:
-  // FP-relative.
-  static const int kCodeOffset = StandardFrameConstants::kExpressionsOffset;
 };
 
 

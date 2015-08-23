@@ -338,6 +338,26 @@
         ],
         'cflags': ['-march=i586'],
       }],  # v8_target_arch=="x87"
+      ['(v8_target_arch=="mips" or v8_target_arch=="mipsel" \
+        or v8_target_arch=="mips64el") and v8_target_arch==target_arch', {
+        'target_conditions': [
+          ['_toolset=="target"', {
+            # Target built with a Mips CXX compiler.
+            'variables': {
+              'ldso_path%': '<!(/bin/echo -n $LDSO_PATH)',
+              'ld_r_path%': '<!(/bin/echo -n $LD_R_PATH)',
+            },
+            'conditions': [
+              ['ldso_path!=""', {
+                'ldflags': ['-Wl,--dynamic-linker=<(ldso_path)'],
+              }],
+              ['ld_r_path!=""', {
+                'ldflags': ['-Wl,--rpath=<(ld_r_path)'],
+              }],
+            ],
+          }],
+        ],
+      }],
       ['v8_target_arch=="mips"', {
         'defines': [
           'V8_TARGET_ARCH_MIPS',
@@ -384,11 +404,7 @@
                     ],
                     'cflags!': ['-mfp32', '-mfpxx'],
                     'cflags': ['-mips32r6', '-Wa,-mips32r6'],
-                    'ldflags': [
-                      '-mips32r6',
-                      '-Wl,--dynamic-linker=$(LDSO_PATH)',
-                      '-Wl,--rpath=$(LD_R_PATH)',
-                    ],
+                    'ldflags': ['-mips32r6'],
                   }],
                   ['mips_arch_variant=="r2"', {
                     'conditions': [
@@ -571,11 +587,7 @@
                     ],
                     'cflags!': ['-mfp32', '-mfpxx'],
                     'cflags': ['-mips32r6', '-Wa,-mips32r6'],
-                    'ldflags': [
-                      '-mips32r6',
-                      '-Wl,--dynamic-linker=$(LDSO_PATH)',
-                      '-Wl,--rpath=$(LD_R_PATH)',
-                    ],
+                    'ldflags': ['-mips32r6'],
                   }],
                   ['mips_arch_variant=="r2"', {
                     'conditions': [
@@ -770,20 +782,12 @@
                   ['mips_arch_variant=="r6"', {
                     'defines': ['_MIPS_ARCH_MIPS64R6',],
                     'cflags': ['-mips64r6', '-mabi=64', '-Wa,-mips64r6'],
-                    'ldflags': [
-                      '-mips64r6', '-mabi=64',
-                      '-Wl,--dynamic-linker=$(LDSO_PATH)',
-                      '-Wl,--rpath=$(LD_R_PATH)',
-                    ],
+                    'ldflags': ['-mips64r6', '-mabi=64'],
                   }],
                   ['mips_arch_variant=="r2"', {
                     'defines': ['_MIPS_ARCH_MIPS64R2',],
                     'cflags': ['-mips64r2', '-mabi=64', '-Wa,-mips64r2'],
-                    'ldflags': [
-                      '-mips64r2', '-mabi=64',
-                      '-Wl,--dynamic-linker=$(LDSO_PATH)',
-                      '-Wl,--rpath=$(LD_R_PATH)',
-                    ],
+                    'ldflags': ['-mips64r2', '-mabi=64'],
                   }],
                 ],
               }, {

@@ -2,11 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-(function(global, shared, exports) {
+(function(global, utils) {
 
 "use strict";
 
 %CheckIsBootstrapping();
+
+// -------------------------------------------------------------------
+// Imports
 
 var GlobalArray = global.Array;
 var GlobalArrayBuffer = global.ArrayBuffer;
@@ -31,6 +34,16 @@ var GlobalNAME = global.NAME;
 endmacro
 
 TYPED_ARRAYS(DECLARE_GLOBALS)
+
+var MathMax;
+var MathMin;
+
+utils.Import(function(from) {
+  MathMax = from.MathMax;
+  MathMin = from.MathMin;
+});
+
+var InternalArray = utils.InternalArray;
 
 // --------------- Typed Arrays ---------------------
 
@@ -77,7 +90,7 @@ function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
       || (newLength > %_MaxSmi())) {
     throw MakeRangeError(kInvalidTypedArrayLength);
   }
-  %_TypedArrayInitialize(obj, ARRAY_ID, buffer, offset, newByteLength);
+  %_TypedArrayInitialize(obj, ARRAY_ID, buffer, offset, newByteLength, true);
 }
 
 function NAMEConstructByLength(obj, length) {
@@ -89,9 +102,9 @@ function NAMEConstructByLength(obj, length) {
   var byteLength = l * ELEMENT_SIZE;
   if (byteLength > %_TypedArrayMaxSizeInHeap()) {
     var buffer = new GlobalArrayBuffer(byteLength);
-    %_TypedArrayInitialize(obj, ARRAY_ID, buffer, 0, byteLength);
+    %_TypedArrayInitialize(obj, ARRAY_ID, buffer, 0, byteLength, true);
   } else {
-    %_TypedArrayInitialize(obj, ARRAY_ID, null, 0, byteLength);
+    %_TypedArrayInitialize(obj, ARRAY_ID, null, 0, byteLength, true);
   }
 }
 
@@ -102,7 +115,15 @@ function NAMEConstructByArrayLike(obj, arrayLike) {
   if (l > %_MaxSmi()) {
     throw MakeRangeError(kInvalidTypedArrayLength);
   }
-  if(!%TypedArrayInitializeFromArrayLike(obj, ARRAY_ID, arrayLike, l)) {
+  var initialized = false;
+  var byteLength = l * ELEMENT_SIZE;
+  if (byteLength <= %_TypedArrayMaxSizeInHeap()) {
+    %_TypedArrayInitialize(obj, ARRAY_ID, null, 0, byteLength, false);
+  } else {
+    initialized =
+        %TypedArrayInitializeFromArrayLike(obj, ARRAY_ID, arrayLike, l);
+  }
+  if (!initialized) {
     for (var i = 0; i < l; i++) {
       // It is crucial that we let any execptions from arrayLike[i]
       // propagate outside the function.
@@ -111,15 +132,40 @@ function NAMEConstructByArrayLike(obj, arrayLike) {
   }
 }
 
+function NAMEConstructByIterable(obj, iterable, iteratorFn) {
+  var list = new InternalArray();
+  // Reading the Symbol.iterator property of iterable twice would be
+  // observable with getters, so instead, we call the function which
+  // was already looked up, and wrap it in another iterable. The
+  // __proto__ of the new iterable is set to null to avoid any chance
+  // of modifications to Object.prototype being observable here.
+  var iterator = %_CallFunction(iterable, iteratorFn);
+  var newIterable = {
+    __proto__: null
+  };
+  // TODO(littledan): Computed properties don't work yet in nosnap.
+  // Rephrase when they do.
+  newIterable[symbolIterator] = function() { return iterator; }
+  for (var value of newIterable) {
+    list.push(value);
+  }
+  NAMEConstructByArrayLike(obj, list);
+}
+
 function NAMEConstructor(arg1, arg2, arg3) {
   if (%_IsConstructCall()) {
-    if (IS_ARRAYBUFFER(arg1)) {
+    if (IS_ARRAYBUFFER(arg1) || IS_SHAREDARRAYBUFFER(arg1)) {
       NAMEConstructByArrayBuffer(this, arg1, arg2, arg3);
     } else if (IS_NUMBER(arg1) || IS_STRING(arg1) ||
                IS_BOOLEAN(arg1) || IS_UNDEFINED(arg1)) {
       NAMEConstructByLength(this, arg1);
     } else {
-      NAMEConstructByArrayLike(this, arg1);
+      var iteratorFn = arg1[symbolIterator];
+      if (IS_UNDEFINED(iteratorFn) || iteratorFn === $arrayValues) {
+        NAMEConstructByArrayLike(this, arg1);
+      } else {
+        NAMEConstructByIterable(this, arg1, iteratorFn);
+      }
     }
   } else {
     throw MakeTypeError(kConstructorNotFunction, "NAME")
@@ -165,16 +211,16 @@ function NAMESubArray(begin, end) {
 
   var srcLength = %_TypedArrayGetLength(this);
   if (beginInt < 0) {
-    beginInt = $max(0, srcLength + beginInt);
+    beginInt = MathMax(0, srcLength + beginInt);
   } else {
-    beginInt = $min(srcLength, beginInt);
+    beginInt = MathMin(srcLength, beginInt);
   }
 
   var endInt = IS_UNDEFINED(end) ? srcLength : end;
   if (endInt < 0) {
-    endInt = $max(0, srcLength + endInt);
+    endInt = MathMax(0, srcLength + endInt);
   } else {
-    endInt = $min(endInt, srcLength);
+    endInt = MathMin(endInt, srcLength);
   }
   if (endInt < beginInt) {
     endInt = beginInt;
@@ -293,7 +339,7 @@ function TypedArraySet(obj, offset) {
 }
 
 function TypedArrayGetToStringTag() {
-  if (!%IsTypedArray(this)) return;
+  if (!%_IsTypedArray(this)) return;
   var name = %_ClassOf(this);
   if (IS_UNDEFINED(name)) return;
   return name;
@@ -312,16 +358,16 @@ macro SETUP_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
   %AddNamedProperty(GlobalNAME.prototype,
                     "BYTES_PER_ELEMENT", ELEMENT_SIZE,
                     READ_ONLY | DONT_ENUM | DONT_DELETE);
-  $installGetter(GlobalNAME.prototype, "buffer", NAME_GetBuffer);
-  $installGetter(GlobalNAME.prototype, "byteOffset", NAME_GetByteOffset,
-                 DONT_ENUM | DONT_DELETE);
-  $installGetter(GlobalNAME.prototype, "byteLength", NAME_GetByteLength,
-                 DONT_ENUM | DONT_DELETE);
-  $installGetter(GlobalNAME.prototype, "length", NAME_GetLength,
-                 DONT_ENUM | DONT_DELETE);
-  $installGetter(GlobalNAME.prototype, symbolToStringTag,
-                 TypedArrayGetToStringTag);
-  $installFunctions(GlobalNAME.prototype, DONT_ENUM, [
+  utils.InstallGetter(GlobalNAME.prototype, "buffer", NAME_GetBuffer);
+  utils.InstallGetter(GlobalNAME.prototype, "byteOffset", NAME_GetByteOffset,
+                      DONT_ENUM | DONT_DELETE);
+  utils.InstallGetter(GlobalNAME.prototype, "byteLength", NAME_GetByteLength,
+                      DONT_ENUM | DONT_DELETE);
+  utils.InstallGetter(GlobalNAME.prototype, "length", NAME_GetLength,
+                      DONT_ENUM | DONT_DELETE);
+  utils.InstallGetter(GlobalNAME.prototype, symbolToStringTag,
+                      TypedArrayGetToStringTag);
+  utils.InstallFunctions(GlobalNAME.prototype, DONT_ENUM, [
     "subarray", NAMESubArray,
     "set", TypedArraySet
   ]);
@@ -333,6 +379,7 @@ TYPED_ARRAYS(SETUP_TYPED_ARRAY)
 
 function DataViewConstructor(buffer, byteOffset, byteLength) { // length = 3
   if (%_IsConstructCall()) {
+    // TODO(binji): support SharedArrayBuffers?
     if (!IS_ARRAYBUFFER(buffer)) throw MakeTypeError(kDataViewNotArrayBuffer);
     if (!IS_UNDEFINED(byteOffset)) {
         byteOffset = $toPositiveInteger(byteOffset, kInvalidDataViewOffset);
@@ -427,11 +474,13 @@ DATA_VIEW_TYPES(DATA_VIEW_GETTER_SETTER)
 %AddNamedProperty(GlobalDataView.prototype, symbolToStringTag, "DataView",
                   READ_ONLY|DONT_ENUM);
 
-$installGetter(GlobalDataView.prototype, "buffer", DataViewGetBufferJS);
-$installGetter(GlobalDataView.prototype, "byteOffset", DataViewGetByteOffset);
-$installGetter(GlobalDataView.prototype, "byteLength", DataViewGetByteLength);
+utils.InstallGetter(GlobalDataView.prototype, "buffer", DataViewGetBufferJS);
+utils.InstallGetter(GlobalDataView.prototype, "byteOffset",
+                    DataViewGetByteOffset);
+utils.InstallGetter(GlobalDataView.prototype, "byteLength",
+                    DataViewGetByteLength);
 
-$installFunctions(GlobalDataView.prototype, DONT_ENUM, [
+utils.InstallFunctions(GlobalDataView.prototype, DONT_ENUM, [
   "getInt8", DataViewGetInt8JS,
   "setInt8", DataViewSetInt8JS,
 

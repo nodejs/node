@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-arrays --harmony-classes
+// Flags: --harmony-concat-spreadable
 
 (function testArrayConcatArity() {
   "use strict";
@@ -194,12 +194,34 @@ assertThrows(function() {
 
 (function testConcatArraySubclass() {
   "use strict";
+  // If @@isConcatSpreadable is not used, the value of IsArray(O)
+  // is used to determine the spreadable property.
+  class A extends Array {}
+  var obj = [].concat(new A(1, 2, 3), new A(4, 5, 6), new A(7, 8, 9));
+  assertEquals(9, obj.length);
+  for (var i = 0; i < obj.length; ++i) {
+    assertEquals(i + 1, obj[i]);
+  }
+
   // TODO(caitp): when concat is called on instances of classes which extend
   // Array, they should:
   //
   // - return an instance of the class, rather than an Array instance (if from
   //   same Realm)
   // - always treat such classes as concat-spreadable
+})();
+
+
+(function testConcatArraySubclassOptOut() {
+  "use strict";
+  class A extends Array {
+    get [Symbol.isConcatSpreadable]() { return false; }
+  }
+  var obj = [].concat(new A(1, 2, 3), new A(4, 5, 6), new A(7, 8, 9));
+  assertEquals(3, obj.length);
+  assertEquals(3, obj[0].length);
+  assertEquals(3, obj[1].length);
+  assertEquals(3, obj[2].length);
 })();
 
 

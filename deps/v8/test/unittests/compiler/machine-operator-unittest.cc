@@ -149,130 +149,199 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Combine(::testing::ValuesIn(kMachineTypes),
                            ::testing::Values(kNoWriteBarrier,
                                              kFullWriteBarrier))));
-
+#endif
 
 // -----------------------------------------------------------------------------
 // Pure operators.
-
 
 namespace {
 
 struct PureOperator {
   const Operator* (MachineOperatorBuilder::*constructor)();
-  IrOpcode::Value opcode;
+  char const* const constructor_name;
   int value_input_count;
   int control_input_count;
   int value_output_count;
 };
 
 
-std::ostream& operator<<(std::ostream& os, const PureOperator& pop) {
-  return os << IrOpcode::Mnemonic(pop.opcode);
+std::ostream& operator<<(std::ostream& os, PureOperator const& pop) {
+  return os << pop.constructor_name;
 }
-
 
 const PureOperator kPureOperators[] = {
 #define PURE(Name, value_input_count, control_input_count, value_output_count) \
   {                                                                            \
-    &MachineOperatorBuilder::Name, IrOpcode::k##Name, value_input_count,       \
+    &MachineOperatorBuilder::Name, #Name, value_input_count,                   \
         control_input_count, value_output_count                                \
   }
-    PURE(Word32And, 2, 0, 1), PURE(Word32Or, 2, 0, 1), PURE(Word32Xor, 2, 0, 1),
-    PURE(Word32Shl, 2, 0, 1), PURE(Word32Shr, 2, 0, 1),
-    PURE(Word32Sar, 2, 0, 1), PURE(Word32Ror, 2, 0, 1),
-    PURE(Word32Equal, 2, 0, 1), PURE(Word32Clz, 1, 0, 1),
-    PURE(Word64And, 2, 0, 1), PURE(Word64Or, 2, 0, 1), PURE(Word64Xor, 2, 0, 1),
-    PURE(Word64Shl, 2, 0, 1), PURE(Word64Shr, 2, 0, 1),
-    PURE(Word64Sar, 2, 0, 1), PURE(Word64Ror, 2, 0, 1),
-    PURE(Word64Equal, 2, 0, 1), PURE(Int32Add, 2, 0, 1),
-    PURE(Int32AddWithOverflow, 2, 0, 2), PURE(Int32Sub, 2, 0, 1),
-    PURE(Int32SubWithOverflow, 2, 0, 2), PURE(Int32Mul, 2, 0, 1),
-    PURE(Int32MulHigh, 2, 0, 1), PURE(Int32Div, 2, 1, 1),
-    PURE(Uint32Div, 2, 1, 1), PURE(Int32Mod, 2, 1, 1), PURE(Uint32Mod, 2, 1, 1),
-    PURE(Int32LessThan, 2, 0, 1), PURE(Int32LessThanOrEqual, 2, 0, 1),
-    PURE(Uint32LessThan, 2, 0, 1), PURE(Uint32LessThanOrEqual, 2, 0, 1),
-    PURE(Int64Add, 2, 0, 1), PURE(Int64Sub, 2, 0, 1), PURE(Int64Mul, 2, 0, 1),
-    PURE(Int64Div, 2, 0, 1), PURE(Uint64Div, 2, 0, 1), PURE(Int64Mod, 2, 0, 1),
-    PURE(Uint64Mod, 2, 0, 1), PURE(Int64LessThan, 2, 0, 1),
-    PURE(Int64LessThanOrEqual, 2, 0, 1), PURE(Uint64LessThan, 2, 0, 1),
-    PURE(ChangeFloat32ToFloat64, 1, 0, 1), PURE(ChangeFloat64ToInt32, 1, 0, 1),
-    PURE(ChangeFloat64ToUint32, 1, 0, 1), PURE(ChangeInt32ToInt64, 1, 0, 1),
-    PURE(ChangeUint32ToFloat64, 1, 0, 1), PURE(ChangeUint32ToUint64, 1, 0, 1),
-    PURE(TruncateFloat64ToFloat32, 1, 0, 1),
-    PURE(TruncateFloat64ToInt32, 1, 0, 1), PURE(TruncateInt64ToInt32, 1, 0, 1),
-    PURE(Float32Add, 2, 0, 1), PURE(Float32Sub, 2, 0, 1),
-    PURE(Float32Mul, 2, 0, 1), PURE(Float32Div, 2, 0, 1),
-    PURE(Float32Abs, 1, 0, 1), PURE(Float32Sqrt, 1, 0, 1),
-    PURE(Float32Equal, 2, 0, 1), PURE(Float32LessThan, 2, 0, 1),
-    PURE(Float32LessThanOrEqual, 2, 0, 1), PURE(Float32Max, 2, 0, 1),
-    PURE(Float32Min, 2, 0, 1), PURE(Float64Add, 2, 0, 1),
-    PURE(Float64Sub, 2, 0, 1), PURE(Float64Mul, 2, 0, 1),
-    PURE(Float64Div, 2, 0, 1), PURE(Float64Mod, 2, 0, 1),
-    PURE(Float64Abs, 1, 0, 1), PURE(Float64Sqrt, 1, 0, 1),
-    PURE(Float64Equal, 2, 0, 1), PURE(Float64LessThan, 2, 0, 1),
-    PURE(Float64LessThanOrEqual, 2, 0, 1), PURE(Float64Max, 2, 0, 1),
-    PURE(Float64Min, 2, 0, 1), PURE(LoadStackPointer, 0, 0, 1),
-    PURE(Float64RoundDown, 1, 0, 1), PURE(Float64RoundTruncate, 1, 0, 1),
-    PURE(Float64RoundTiesAway, 1, 0, 1), PURE(Float64ExtractLowWord32, 1, 0, 1),
-    PURE(Float64ExtractHighWord32, 1, 0, 1),
-    PURE(Float64InsertLowWord32, 2, 0, 1),
-    PURE(Float64InsertHighWord32, 2, 0, 1)
+    PURE(Word32And, 2, 0, 1),                 // --
+    PURE(Word32Or, 2, 0, 1),                  // --
+    PURE(Word32Xor, 2, 0, 1),                 // --
+    PURE(Word32Shl, 2, 0, 1),                 // --
+    PURE(Word32Shr, 2, 0, 1),                 // --
+    PURE(Word32Sar, 2, 0, 1),                 // --
+    PURE(Word32Ror, 2, 0, 1),                 // --
+    PURE(Word32Equal, 2, 0, 1),               // --
+    PURE(Word32Clz, 1, 0, 1),                 // --
+    PURE(Word64And, 2, 0, 1),                 // --
+    PURE(Word64Or, 2, 0, 1),                  // --
+    PURE(Word64Xor, 2, 0, 1),                 // --
+    PURE(Word64Shl, 2, 0, 1),                 // --
+    PURE(Word64Shr, 2, 0, 1),                 // --
+    PURE(Word64Sar, 2, 0, 1),                 // --
+    PURE(Word64Ror, 2, 0, 1),                 // --
+    PURE(Word64Equal, 2, 0, 1),               // --
+    PURE(Int32Add, 2, 0, 1),                  // --
+    PURE(Int32AddWithOverflow, 2, 0, 2),      // --
+    PURE(Int32Sub, 2, 0, 1),                  // --
+    PURE(Int32SubWithOverflow, 2, 0, 2),      // --
+    PURE(Int32Mul, 2, 0, 1),                  // --
+    PURE(Int32MulHigh, 2, 0, 1),              // --
+    PURE(Int32Div, 2, 1, 1),                  // --
+    PURE(Uint32Div, 2, 1, 1),                 // --
+    PURE(Int32Mod, 2, 1, 1),                  // --
+    PURE(Uint32Mod, 2, 1, 1),                 // --
+    PURE(Int32LessThan, 2, 0, 1),             // --
+    PURE(Int32LessThanOrEqual, 2, 0, 1),      // --
+    PURE(Uint32LessThan, 2, 0, 1),            // --
+    PURE(Uint32LessThanOrEqual, 2, 0, 1),     // --
+    PURE(Int64Add, 2, 0, 1),                  // --
+    PURE(Int64Sub, 2, 0, 1),                  // --
+    PURE(Int64Mul, 2, 0, 1),                  // --
+    PURE(Int64Div, 2, 1, 1),                  // --
+    PURE(Uint64Div, 2, 1, 1),                 // --
+    PURE(Int64Mod, 2, 1, 1),                  // --
+    PURE(Uint64Mod, 2, 1, 1),                 // --
+    PURE(Int64LessThan, 2, 0, 1),             // --
+    PURE(Int64LessThanOrEqual, 2, 0, 1),      // --
+    PURE(Uint64LessThan, 2, 0, 1),            // --
+    PURE(Uint64LessThanOrEqual, 2, 0, 1),     // --
+    PURE(ChangeFloat32ToFloat64, 1, 0, 1),    // --
+    PURE(ChangeFloat64ToInt32, 1, 0, 1),      // --
+    PURE(ChangeFloat64ToUint32, 1, 0, 1),     // --
+    PURE(ChangeInt32ToInt64, 1, 0, 1),        // --
+    PURE(ChangeUint32ToFloat64, 1, 0, 1),     // --
+    PURE(ChangeUint32ToUint64, 1, 0, 1),      // --
+    PURE(TruncateFloat64ToFloat32, 1, 0, 1),  // --
+    PURE(TruncateInt64ToInt32, 1, 0, 1),      // --
+    PURE(Float32Abs, 1, 0, 1),                // --
+    PURE(Float32Add, 2, 0, 1),                // --
+    PURE(Float32Sub, 2, 0, 1),                // --
+    PURE(Float32Mul, 2, 0, 1),                // --
+    PURE(Float32Div, 2, 0, 1),                // --
+    PURE(Float32Sqrt, 1, 0, 1),               // --
+    PURE(Float32Equal, 2, 0, 1),              // --
+    PURE(Float32LessThan, 2, 0, 1),           // --
+    PURE(Float32LessThanOrEqual, 2, 0, 1),    // --
+    PURE(Float64Abs, 1, 0, 1),                // --
+    PURE(Float64Add, 2, 0, 1),                // --
+    PURE(Float64Sub, 2, 0, 1),                // --
+    PURE(Float64Mul, 2, 0, 1),                // --
+    PURE(Float64Div, 2, 0, 1),                // --
+    PURE(Float64Mod, 2, 0, 1),                // --
+    PURE(Float64Sqrt, 1, 0, 1),               // --
+    PURE(Float64Equal, 2, 0, 1),              // --
+    PURE(Float64LessThan, 2, 0, 1),           // --
+    PURE(Float64LessThanOrEqual, 2, 0, 1),    // --
+    PURE(LoadStackPointer, 0, 0, 1),          // --
+    PURE(Float64ExtractLowWord32, 1, 0, 1),   // --
+    PURE(Float64ExtractHighWord32, 1, 0, 1),  // --
+    PURE(Float64InsertLowWord32, 2, 0, 1),    // --
+    PURE(Float64InsertHighWord32, 2, 0, 1),   // --
 #undef PURE
 };
 
+}  // namespace
 
-typedef MachineOperatorTestWithParam<PureOperator> MachinePureOperatorTest;
+class MachinePureOperatorTest : public TestWithZone {
+ protected:
+  MachineType word_type() { return kMachPtr; }
+};
 
+
+TEST_F(MachinePureOperatorTest, PureOperators) {
+  TRACED_FOREACH(MachineType, machine_rep1, kMachineReps) {
+    MachineOperatorBuilder machine1(zone(), machine_rep1);
+    TRACED_FOREACH(MachineType, machine_rep2, kMachineReps) {
+      MachineOperatorBuilder machine2(zone(), machine_rep2);
+      TRACED_FOREACH(PureOperator, pop, kPureOperators) {
+        const Operator* op1 = (machine1.*pop.constructor)();
+        const Operator* op2 = (machine2.*pop.constructor)();
+        EXPECT_EQ(op1, op2);
+        EXPECT_EQ(pop.value_input_count, op1->ValueInputCount());
+        EXPECT_EQ(pop.control_input_count, op1->ControlInputCount());
+        EXPECT_EQ(pop.value_output_count, op1->ValueOutputCount());
+      }
+    }
+  }
+}
+
+
+// Optional operators.
+
+namespace {
+
+struct OptionalOperatorEntry {
+  const OptionalOperator (MachineOperatorBuilder::*constructor)();
+  MachineOperatorBuilder::Flag enabling_flag;
+  char const* const constructor_name;
+  int value_input_count;
+  int control_input_count;
+  int value_output_count;
+};
+
+
+std::ostream& operator<<(std::ostream& os, OptionalOperatorEntry const& pop) {
+  return os << pop.constructor_name;
+}
+
+const OptionalOperatorEntry kOptionalOperators[] = {
+#define OPTIONAL_ENTRY(Name, value_input_count, control_input_count,       \
+                       value_output_count)                                 \
+  {                                                                        \
+    &MachineOperatorBuilder::Name, MachineOperatorBuilder::k##Name, #Name, \
+        value_input_count, control_input_count, value_output_count         \
+  }
+    OPTIONAL_ENTRY(Float32Max, 2, 0, 1),            // --
+    OPTIONAL_ENTRY(Float32Min, 2, 0, 1),            // --
+    OPTIONAL_ENTRY(Float64Max, 2, 0, 1),            // --
+    OPTIONAL_ENTRY(Float64Min, 2, 0, 1),            // --
+    OPTIONAL_ENTRY(Float64RoundDown, 1, 0, 1),      // --
+    OPTIONAL_ENTRY(Float64RoundTruncate, 1, 0, 1),  // --
+    OPTIONAL_ENTRY(Float64RoundTiesAway, 1, 0, 1),  // --
+#undef OPTIONAL_ENTRY
+};
 }  // namespace
 
 
-TEST_P(MachinePureOperatorTest, InstancesAreGloballyShared) {
-  const PureOperator& pop = GetParam();
-  MachineOperatorBuilder machine1(zone(), type());
-  MachineOperatorBuilder machine2(zone(), type());
-  EXPECT_EQ((machine1.*pop.constructor)(), (machine2.*pop.constructor)());
+class MachineOptionalOperatorTest : public TestWithZone {
+ protected:
+  MachineType word_type() { return kMachPtr; }
+};
+
+
+TEST_F(MachineOptionalOperatorTest, OptionalOperators) {
+  TRACED_FOREACH(OptionalOperatorEntry, pop, kOptionalOperators) {
+    TRACED_FOREACH(MachineType, machine_rep1, kMachineReps) {
+      MachineOperatorBuilder machine1(zone(), machine_rep1, pop.enabling_flag);
+      TRACED_FOREACH(MachineType, machine_rep2, kMachineReps) {
+        MachineOperatorBuilder machine2(zone(), machine_rep2,
+                                        pop.enabling_flag);
+        const Operator* op1 = (machine1.*pop.constructor)().op();
+        const Operator* op2 = (machine2.*pop.constructor)().op();
+        EXPECT_EQ(op1, op2);
+        EXPECT_EQ(pop.value_input_count, op1->ValueInputCount());
+        EXPECT_EQ(pop.control_input_count, op1->ControlInputCount());
+        EXPECT_EQ(pop.value_output_count, op1->ValueOutputCount());
+
+        MachineOperatorBuilder machine3(zone(), word_type());
+        EXPECT_TRUE((machine1.*pop.constructor)().IsSupported());
+        EXPECT_FALSE((machine3.*pop.constructor)().IsSupported());
+      }
+    }
+  }
 }
-
-
-TEST_P(MachinePureOperatorTest, NumberOfInputsAndOutputs) {
-  MachineOperatorBuilder machine(zone(), type());
-  const PureOperator& pop = GetParam();
-  const Operator* op = (machine.*pop.constructor)();
-
-  EXPECT_EQ(pop.value_input_count, op->ValueInputCount());
-  EXPECT_EQ(0, op->EffectInputCount());
-  EXPECT_EQ(pop.control_input_count, op->ControlInputCount());
-  EXPECT_EQ(pop.value_input_count + pop.control_input_count,
-            OperatorProperties::GetTotalInputCount(op));
-
-  EXPECT_EQ(pop.value_output_count, op->ValueOutputCount());
-  EXPECT_EQ(0, op->EffectOutputCount());
-  EXPECT_EQ(0, op->ControlOutputCount());
-}
-
-
-TEST_P(MachinePureOperatorTest, MarkedAsPure) {
-  MachineOperatorBuilder machine(zone(), type());
-  const PureOperator& pop = GetParam();
-  const Operator* op = (machine.*pop.constructor)();
-  EXPECT_TRUE(op->HasProperty(Operator::kPure));
-}
-
-
-TEST_P(MachinePureOperatorTest, OpcodeIsCorrect) {
-  MachineOperatorBuilder machine(zone(), type());
-  const PureOperator& pop = GetParam();
-  const Operator* op = (machine.*pop.constructor)();
-  EXPECT_EQ(pop.opcode, op->opcode());
-}
-
-
-INSTANTIATE_TEST_CASE_P(
-    MachineOperatorTest, MachinePureOperatorTest,
-    ::testing::Combine(::testing::ValuesIn(kMachineReps),
-                       ::testing::ValuesIn(kPureOperators)));
-
-#endif  // GTEST_HAS_COMBINE
 
 
 // -----------------------------------------------------------------------------

@@ -71,5 +71,5 @@ void BackgroundParsingTask::Run() {
     delete script_data;
   }
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

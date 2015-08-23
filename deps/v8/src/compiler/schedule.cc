@@ -145,8 +145,7 @@ BasicBlock* Schedule::block(Node* node) const {
 
 
 bool Schedule::IsScheduled(Node* node) {
-  int length = static_cast<int>(nodeid_to_block_.size());
-  if (node->id() >= length) return false;
+  if (node->id() >= nodeid_to_block_.size()) return false;
   return nodeid_to_block_[node->id()] != NULL;
 }
 
@@ -324,8 +323,7 @@ void Schedule::SetControlInput(BasicBlock* block, Node* node) {
 
 
 void Schedule::SetBlockForNode(BasicBlock* block, Node* node) {
-  int length = static_cast<int>(nodeid_to_block_.size());
-  if (node->id() >= length) {
+  if (node->id() >= nodeid_to_block_.size()) {
     nodeid_to_block_.resize(node->id() + 1);
   }
   nodeid_to_block_[node->id()] = block;

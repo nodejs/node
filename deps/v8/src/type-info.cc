@@ -317,33 +317,12 @@ Type* TypeFeedbackOracle::CountType(TypeFeedbackId id) {
 }
 
 
-void TypeFeedbackOracle::PropertyReceiverTypes(TypeFeedbackId id,
-                                               Handle<Name> name,
-                                               SmallMapList* receiver_types) {
-  receiver_types->Clear();
-  Code::Flags flags = Code::ComputeHandlerFlags(Code::LOAD_IC);
-  CollectReceiverTypes(id, name, flags, receiver_types);
-}
-
-
 bool TypeFeedbackOracle::HasOnlyStringMaps(SmallMapList* receiver_types) {
   bool all_strings = receiver_types->length() > 0;
   for (int i = 0; i < receiver_types->length(); i++) {
     all_strings &= receiver_types->at(i)->IsStringMap();
   }
   return all_strings;
-}
-
-
-void TypeFeedbackOracle::KeyedPropertyReceiverTypes(
-    TypeFeedbackId id,
-    SmallMapList* receiver_types,
-    bool* is_string,
-    IcCheckType* key_type) {
-  receiver_types->Clear();
-  CollectReceiverTypes(id, receiver_types);
-  *is_string = HasOnlyStringMaps(receiver_types);
-  GetLoadKeyType(id, key_type);
 }
 
 
@@ -451,7 +430,7 @@ void TypeFeedbackOracle::CollectReceiverTypes(T* obj, SmallMapList* types) {
 }
 
 
-byte TypeFeedbackOracle::ToBooleanTypes(TypeFeedbackId id) {
+uint16_t TypeFeedbackOracle::ToBooleanTypes(TypeFeedbackId id) {
   Handle<Object> object = GetInfo(id);
   return object->IsCode() ? Handle<Code>::cast(object)->to_boolean_state() : 0;
 }
@@ -540,4 +519,5 @@ void TypeFeedbackOracle::SetInfo(TypeFeedbackId ast_id, Object* target) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

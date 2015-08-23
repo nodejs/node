@@ -194,4 +194,5 @@ void Counters::ResetHistograms() {
 #undef HM
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -57,6 +57,17 @@ class Platform {
   virtual void CallOnForegroundThread(Isolate* isolate, Task* task) = 0;
 
   /**
+   * Schedules a task to be invoked on a foreground thread wrt a specific
+   * |isolate| after the given number of seconds |delay_in_seconds|.
+   * Tasks posted for the same isolate should be execute in order of
+   * scheduling. The definition of "foreground" is opaque to V8.
+   */
+  virtual void CallDelayedOnForegroundThread(Isolate* isolate, Task* task,
+                                             double delay_in_seconds) {
+    // TODO(ulan): Make this function abstract after V8 roll in Chromium.
+  }
+
+  /**
    * Monotonically increasing time in seconds from an arbitrary fixed point in
    * the past. This function is expected to return at least
    * millisecond-precision values. For this reason,

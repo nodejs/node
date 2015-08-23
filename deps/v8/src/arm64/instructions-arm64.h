@@ -137,8 +137,8 @@ class Instruction {
     return following(-count);
   }
 
-  #define DEFINE_GETTER(Name, HighBit, LowBit, Func)             \
-  int64_t Name() const { return Func(HighBit, LowBit); }
+#define DEFINE_GETTER(Name, HighBit, LowBit, Func) \
+  int32_t Name() const { return Func(HighBit, LowBit); }
   INSTRUCTION_FIELDS_LIST(DEFINE_GETTER)
   #undef DEFINE_GETTER
 
@@ -146,8 +146,8 @@ class Instruction {
   // formed from ImmPCRelLo and ImmPCRelHi.
   int ImmPCRel() const {
     DCHECK(IsPCRelAddressing());
-    int const offset = ((ImmPCRelHi() << ImmPCRelLo_width) | ImmPCRelLo());
-    int const width = ImmPCRelLo_width + ImmPCRelHi_width;
+    int offset = ((ImmPCRelHi() << ImmPCRelLo_width) | ImmPCRelLo());
+    int width = ImmPCRelLo_width + ImmPCRelHi_width;
     return signed_bitextract_32(width - 1, 0, offset);
   }
 
@@ -369,7 +369,7 @@ class Instruction {
   // PC-relative addressing instruction.
   Instruction* ImmPCOffsetTarget();
 
-  static bool IsValidImmPCOffset(ImmBranchType branch_type, int32_t offset);
+  static bool IsValidImmPCOffset(ImmBranchType branch_type, ptrdiff_t offset);
   bool IsTargetInImmPCOffsetRange(Instruction* target);
   // Patch a PC-relative offset to refer to 'target'. 'this' may be a branch or
   // a PC-relative addressing instruction.
@@ -409,9 +409,7 @@ class Instruction {
 
 
   static const int ImmPCRelRangeBitwidth = 21;
-  static bool IsValidPCRelOffset(int offset) {
-    return is_int21(offset);
-  }
+  static bool IsValidPCRelOffset(ptrdiff_t offset) { return is_int21(offset); }
   void SetPCRelImmTarget(Instruction* target);
   void SetBranchImmTarget(Instruction* target);
 };

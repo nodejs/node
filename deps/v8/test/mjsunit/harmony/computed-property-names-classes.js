@@ -4,7 +4,7 @@
 
 'use strict';
 
-// Flags: --harmony-computed-property-names --harmony-classes
+// Flags: --harmony-computed-property-names
 
 
 function ID(x) {

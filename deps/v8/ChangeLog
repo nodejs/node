@@ -1,3 +1,678 @@
+2015-07-08: Version 4.5.103
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-08: Version 4.5.102
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-07: Version 4.5.101
+
+        Move compatible receiver check from CompileHandler to UpdateCaches
+        (Chromium issue 505374).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-07: Version 4.5.100
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-07: Version 4.5.99
+
+        unicode-decoder: fix out-of-band write in utf16 (issue 4274).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-06: Version 4.5.98
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-04: Version 4.5.97
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-03: Version 4.5.96
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-03: Version 4.5.95
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-02: Version 4.5.94
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-02: Version 4.5.93
+
+        Include Harmony Array/TypedArray methods unconditionally (Chromium issue
+        504629).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-02: Version 4.5.92
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-01: Version 4.5.91
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-01: Version 4.5.90
+
+        Performance and stability improvements on all platforms.
+
+
+2015-07-01: Version 4.5.89
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-30: Version 4.5.88
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-30: Version 4.5.87
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-30: Version 4.5.86
+
+        Ensure mjsunit tests use dashes not underscores in flags directives
+        (Chromium issue 505228).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-29: Version 4.5.85
+
+        Fix flag convention in handle count tests and comment (Chromium issue
+        505228).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-29: Version 4.5.84
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-27: Version 4.5.83
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-26: Version 4.5.82
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-26: Version 4.5.81
+
+        Remove obsolete options in ScriptCompiler::CompileOptions (Chromium
+        issue 399580).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-25: Version 4.5.80
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-25: Version 4.5.79
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-25: Version 4.5.78
+
+        Serializer: clear next link in weak cells (Chromium issue 503552).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-24: Version 4.5.77
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-24: Version 4.5.76
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-24: Version 4.5.75
+
+        Date() should not depend on Date.prototype.toString (issue 4225).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-23: Version 4.5.74
+
+        Expose Map/Set methods through the API (issue 3340).
+
+        [turbofan] NaN is never truish (issue 4207).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-23: Version 4.5.73
+
+        Re-ship Harmony Array/TypedArray methods (issue 3578).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-23: Version 4.5.72
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-23: Version 4.5.71
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-20: Version 4.5.70
+
+        Ship Harmony Array/TypedArray methods (issue 3578).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-20: Version 4.5.69
+
+        Ship arrow functions (issue 2700).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-19: Version 4.5.68
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-19: Version 4.5.67
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-19: Version 4.5.66
+
+        Ship arrow functions (issue 2700).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-18: Version 4.5.65
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-18: Version 4.5.64
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-18: Version 4.5.63
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-17: Version 4.5.62
+
+        Hydrogen object literals: always initialize in-object properties
+        (Chromium issue 500497).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-17: Version 4.5.61
+
+        Add %TypedArray% to proto chain (issue 4085).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-17: Version 4.5.60
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-17: Version 4.5.59
+
+        [crankshaft] Fix wrong bailout points in for-in loop body (Chromium
+        issue 500435).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-16: Version 4.5.58
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-16: Version 4.5.57
+
+        Inline code generation for %_IsTypedArray (issue 4085).
+
+        Allow TypedArrays to be initialized with iterables (issue 4090).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-15: Version 4.5.56
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-15: Version 4.5.55
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-14: Version 4.5.54
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-13: Version 4.5.53
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-12: Version 4.5.52
+
+        Map::TryUpdate() must be in sync with Map::Update() (issue 4173).
+
+        Add ToObject call in Array.prototype.sort (issue 4125).
+
+        In Array.of and Array.from, fall back to DefineOwnProperty (issue 4168).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-12: Version 4.5.51
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-11: Version 4.5.50
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-11: Version 4.5.49
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-11: Version 4.5.48
+
+        Support rest parameters in arrow functions (issue 2700).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-10: Version 4.5.47
+
+        Implement %TypedArray%.prototype.slice (issue 3578).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-09: Version 4.5.46
+
+        Stage ES6 arrow functions (issue 2700).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-09: Version 4.5.45
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-09: Version 4.5.44
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-08: Version 4.5.43
+
+        [for-in] Make ForInNext and ForInFilter deal properly with exceptions
+        (Chromium issue 496331).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-08: Version 4.5.42
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-06: Version 4.5.41
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-05: Version 4.5.40
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-05: Version 4.5.39
+
+        Stage ES6 Array and TypedArray methods (issue 3578).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-05: Version 4.5.38
+
+        Implement %TypedArray%.prototype.{reduce,reduceRight} (issue 3578).
+
+        Add support for Embedded Constant Pools for PPC and Arm (Chromium issue
+        478811).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-04: Version 4.5.37
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-04: Version 4.5.36
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-04: Version 4.5.35
+
+        Flatten the Arrays returned and consumed by the v8::Map API (Chromium
+        issue 478263).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-03: Version 4.5.34
+
+        Also allocate small typed arrays on heap when initialized from an array-
+        like (issue 3996).
+
+        Implement %TypedArray%.prototype.{reduce,reduceRight} (issue 3578).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-03: Version 4.5.33
+
+        Add support for Embedded Constant Pools for PPC and Arm (Chromium issue
+        478811).
+
+        Implement %TypedArray%.prototype.{toString,toLocaleString,join} (issue
+        3578).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-03: Version 4.5.32
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-02: Version 4.5.31
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-02: Version 4.5.30
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-01: Version 4.5.29
+
+        Reland "Re-enable on-heap typed array allocation" (issue 3996).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-01: Version 4.5.28
+
+        Re-enable on-heap typed array allocation (issue 3996).
+
+        Also expose DefineOwnProperty (Chromium issue 475206).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-06-01: Version 4.5.27
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-31: Version 4.5.26
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-30: Version 4.5.25
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-29: Version 4.5.24
+
+        Debugger: consider try-finally scopes not catching wrt debug events
+        (Chromium issue 492522).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-29: Version 4.5.23
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-29: Version 4.5.22
+
+        Do not eagerly convert exception to string when creating a message
+        object (Chromium issue 490680).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-28: Version 4.5.21
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-28: Version 4.5.20
+
+        Introduce v8::Object::CreateDataProperty (Chromium issue 475206).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-27: Version 4.5.19
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-27: Version 4.5.18
+
+        Add {Map,Set}::FromArray to the API (issue 3340).
+
+        Add {Map,Set}::AsArray to the API (issue 3340).
+
+        Add basic API support for Map & Set (issue 3340).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-26: Version 4.5.17
+
+        Correctly hook up materialized receiver into the evaluation context
+        chain (Chromium issue 491943).
+
+        Implement bookmarks for ExternalStreamingStream (Chromium issue 470930).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-26: Version 4.5.16
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-26: Version 4.5.15
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-23: Version 4.5.14
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-22: Version 4.5.13
+
+        Remove v8::Private.
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-22: Version 4.5.12
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-22: Version 4.5.11
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-21: Version 4.5.10
+
+        Re-land %TypedArray%.prototype.{map,filter,some} (issue 3578).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-21: Version 4.5.9
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-20: Version 4.5.8
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-20: Version 4.5.7
+
+        Implement %TypedArray%.{lastI,i}ndexOf (issue 3578).
+
+        Implement %TypedArray%.prototype.sort (issue 3578).
+
+        Implement %TypedArray%.reverse (issue 3578).
+
+        Implement %TypedArray%.prototype.{map,filter,some,reduce,reduceRight}
+        (issue 3578).
+
+        Fix has_pending_exception logic in API's Array::CloneElementAt (issue
+        4103).
+
+        Adding api to get last gc object statistics for chrome://tracing
+        (Chromium issue 476013).
+
+        Fix harmless HGraph verification failure after hoisting inlined bounds
+        checks (Chromium issue 487608).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-20: Version 4.5.6
+
+        Add TypedArray.from method (issue 3578).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-19: Version 4.5.5
+
+        ARM64: Propagate notification about aborted compilation from
+        RegExpEngine to MacroAssembler (Chromium issue 489290).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-18: Version 4.5.4
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-18: Version 4.5.3
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-17: Version 4.5.2
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-16: Version 4.5.1
+
+        Test that TypedArray methods don't read length (issue 3578).
+
+        Implement %TypedArray%.{fill,find,findIndex} (issue 3578).
+
+        TypedArray.prototype.copyWithin method (issue 3578).
+
+        Provide accessor for object internal properties that doesn't require
+        debugger to be active (Chromium issue 481845).
+
+        Don't create debug context if debug listener is not set (Chromium issue
+        482290).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-13: Version 4.4.65
+
+        Deprecate Isolate::New.
+
+        Factor out core of Array.forEach and .every, for use in TypedArrays
+        (issue 3578).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-05-12: Version 4.4.64
+
+        Performance and stability improvements on all platforms.
+
+
 2015-05-11: Version 4.4.63
 
         Let Runtime_GrowArrayElements accept non-Smi numbers as |key| (Chromium

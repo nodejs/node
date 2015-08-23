@@ -122,8 +122,7 @@ class JSONGraphNodeWriter {
       os_ << ",\"rankInputs\":[0]";
     }
     SourcePosition position = positions_->GetSourcePosition(node);
-    if (!position.IsUnknown()) {
-      DCHECK(!position.IsInvalid());
+    if (position.IsKnown()) {
       os_ << ",\"pos\":" << position.raw();
     }
     os_ << ",\"opcode\":\"" << IrOpcode::Mnemonic(node->opcode()) << "\"";
@@ -650,8 +649,7 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
         }
         if (positions != NULL) {
           SourcePosition position = positions->GetSourcePosition(node);
-          if (!position.IsUnknown()) {
-            DCHECK(!position.IsInvalid());
+          if (position.IsKnown()) {
             os_ << " pos:" << position.raw();
           }
         }
@@ -828,6 +826,6 @@ std::ostream& operator<<(std::ostream& os, const AsRPO& ar) {
   }
   return os;
 }
-}
-}
-}  // namespace v8::internal::compiler
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

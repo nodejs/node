@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "src/assembler.h"
+#include "src/compiler/js-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/unique.h"
@@ -748,6 +749,32 @@ class IsTailCallMatcher final : public NodeMatcher {
 };
 
 
+class IsReferenceEqualMatcher final : public NodeMatcher {
+ public:
+  IsReferenceEqualMatcher(const Matcher<Type*>& type_matcher,
+                          const Matcher<Node*>& lhs_matcher,
+                          const Matcher<Node*>& rhs_matcher)
+      : NodeMatcher(IrOpcode::kReferenceEqual),
+        type_matcher_(type_matcher),
+        lhs_matcher_(lhs_matcher),
+        rhs_matcher_(rhs_matcher) {}
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            // TODO(bmeurer): The type parameter is currently ignored.
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "lhs",
+                                 lhs_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1), "rhs",
+                                 rhs_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Type*> type_matcher_;
+  const Matcher<Node*> lhs_matcher_;
+  const Matcher<Node*> rhs_matcher_;
+};
+
+
 class IsAllocateMatcher final : public NodeMatcher {
  public:
   IsAllocateMatcher(const Matcher<Node*>& size_matcher,
@@ -1160,51 +1187,6 @@ class IsLoadMatcher final : public NodeMatcher {
 };
 
 
-class IsToNumberMatcher final : public NodeMatcher {
- public:
-  IsToNumberMatcher(const Matcher<Node*>& base_matcher,
-                    const Matcher<Node*>& context_matcher,
-                    const Matcher<Node*>& effect_matcher,
-                    const Matcher<Node*>& control_matcher)
-      : NodeMatcher(IrOpcode::kJSToNumber),
-        base_matcher_(base_matcher),
-        context_matcher_(context_matcher),
-        effect_matcher_(effect_matcher),
-        control_matcher_(control_matcher) {}
-
-  void DescribeTo(std::ostream* os) const final {
-    NodeMatcher::DescribeTo(os);
-    *os << " whose base (";
-    base_matcher_.DescribeTo(os);
-    *os << "), context (";
-    context_matcher_.DescribeTo(os);
-    *os << "), effect (";
-    effect_matcher_.DescribeTo(os);
-    *os << ") and control (";
-    control_matcher_.DescribeTo(os);
-    *os << ")";
-  }
-
-  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
-    return (NodeMatcher::MatchAndExplain(node, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "base",
-                                 base_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetContextInput(node),
-                                 "context", context_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
-                                 effect_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
-                                 "control", control_matcher_, listener));
-  }
-
- private:
-  const Matcher<Node*> base_matcher_;
-  const Matcher<Node*> context_matcher_;
-  const Matcher<Node*> effect_matcher_;
-  const Matcher<Node*> control_matcher_;
-};
-
-
 class IsStoreMatcher final : public NodeMatcher {
  public:
   IsStoreMatcher(const Matcher<StoreRepresentation>& rep_matcher,
@@ -1264,6 +1246,82 @@ class IsStoreMatcher final : public NodeMatcher {
 };
 
 
+class IsToNumberMatcher final : public NodeMatcher {
+ public:
+  IsToNumberMatcher(const Matcher<Node*>& base_matcher,
+                    const Matcher<Node*>& context_matcher,
+                    const Matcher<Node*>& effect_matcher,
+                    const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::kJSToNumber),
+        base_matcher_(base_matcher),
+        context_matcher_(context_matcher),
+        effect_matcher_(effect_matcher),
+        control_matcher_(control_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose base (";
+    base_matcher_.DescribeTo(os);
+    *os << "), context (";
+    context_matcher_.DescribeTo(os);
+    *os << "), effect (";
+    effect_matcher_.DescribeTo(os);
+    *os << ") and control (";
+    control_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "base",
+                                 base_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetContextInput(node),
+                                 "context", context_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
+                                 effect_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
+                                 "control", control_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Node*> base_matcher_;
+  const Matcher<Node*> context_matcher_;
+  const Matcher<Node*> effect_matcher_;
+  const Matcher<Node*> control_matcher_;
+};
+
+
+class IsLoadContextMatcher final : public NodeMatcher {
+ public:
+  IsLoadContextMatcher(const Matcher<ContextAccess>& access_matcher,
+                       const Matcher<Node*>& context_matcher)
+      : NodeMatcher(IrOpcode::kJSLoadContext),
+        access_matcher_(access_matcher),
+        context_matcher_(context_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose access (";
+    access_matcher_.DescribeTo(os);
+    *os << ") and context (";
+    context_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(OpParameter<ContextAccess>(node), "access",
+                                 access_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetContextInput(node),
+                                 "context", context_matcher_, listener));
+  }
+
+ private:
+  const Matcher<ContextAccess> access_matcher_;
+  const Matcher<Node*> context_matcher_;
+};
+
+
 class IsBinopMatcher final : public NodeMatcher {
  public:
   IsBinopMatcher(IrOpcode::Value opcode, const Matcher<Node*>& lhs_matcher,
@@ -1320,8 +1378,28 @@ class IsUnopMatcher final : public NodeMatcher {
 }  // namespace
 
 
-Matcher<Node*> IsEnd(const Matcher<Node*>& control_matcher) {
-  return MakeMatcher(new IsControl1Matcher(IrOpcode::kEnd, control_matcher));
+Matcher<Node*> IsDead() {
+  return MakeMatcher(new NodeMatcher(IrOpcode::kDead));
+}
+
+
+Matcher<Node*> IsEnd(const Matcher<Node*>& control0_matcher) {
+  return MakeMatcher(new IsControl1Matcher(IrOpcode::kEnd, control0_matcher));
+}
+
+
+Matcher<Node*> IsEnd(const Matcher<Node*>& control0_matcher,
+                     const Matcher<Node*>& control1_matcher) {
+  return MakeMatcher(new IsControl2Matcher(IrOpcode::kEnd, control0_matcher,
+                                           control1_matcher));
+}
+
+
+Matcher<Node*> IsEnd(const Matcher<Node*>& control0_matcher,
+                     const Matcher<Node*>& control1_matcher,
+                     const Matcher<Node*>& control2_matcher) {
+  return MakeMatcher(new IsControl3Matcher(IrOpcode::kEnd, control0_matcher,
+                                           control1_matcher, control2_matcher));
 }
 
 
@@ -1600,6 +1678,14 @@ Matcher<Node*> IsTailCall(
 }
 
 
+Matcher<Node*> IsReferenceEqual(const Matcher<Type*>& type_matcher,
+                                const Matcher<Node*>& lhs_matcher,
+                                const Matcher<Node*>& rhs_matcher) {
+  return MakeMatcher(
+      new IsReferenceEqualMatcher(type_matcher, lhs_matcher, rhs_matcher));
+}
+
+
 Matcher<Node*> IsAllocate(const Matcher<Node*>& size_matcher,
                           const Matcher<Node*>& effect_matcher,
                           const Matcher<Node*>& control_matcher) {
@@ -1686,15 +1772,6 @@ Matcher<Node*> IsLoad(const Matcher<LoadRepresentation>& rep_matcher,
 }
 
 
-Matcher<Node*> IsToNumber(const Matcher<Node*>& base_matcher,
-                          const Matcher<Node*>& context_matcher,
-                          const Matcher<Node*>& effect_matcher,
-                          const Matcher<Node*>& control_matcher) {
-  return MakeMatcher(new IsToNumberMatcher(base_matcher, context_matcher,
-                                           effect_matcher, control_matcher));
-}
-
-
 Matcher<Node*> IsStore(const Matcher<StoreRepresentation>& rep_matcher,
                        const Matcher<Node*>& base_matcher,
                        const Matcher<Node*>& index_matcher,
@@ -1704,6 +1781,21 @@ Matcher<Node*> IsStore(const Matcher<StoreRepresentation>& rep_matcher,
   return MakeMatcher(new IsStoreMatcher(rep_matcher, base_matcher,
                                         index_matcher, value_matcher,
                                         effect_matcher, control_matcher));
+}
+
+
+Matcher<Node*> IsToNumber(const Matcher<Node*>& base_matcher,
+                          const Matcher<Node*>& context_matcher,
+                          const Matcher<Node*>& effect_matcher,
+                          const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsToNumberMatcher(base_matcher, context_matcher,
+                                           effect_matcher, control_matcher));
+}
+
+
+Matcher<Node*> IsLoadContext(const Matcher<ContextAccess>& access_matcher,
+                             const Matcher<Node*>& context_matcher) {
+  return MakeMatcher(new IsLoadContextMatcher(access_matcher, context_matcher));
 }
 
 
@@ -1717,6 +1809,9 @@ IS_BINOP_MATCHER(NumberEqual)
 IS_BINOP_MATCHER(NumberLessThan)
 IS_BINOP_MATCHER(NumberSubtract)
 IS_BINOP_MATCHER(NumberMultiply)
+IS_BINOP_MATCHER(NumberShiftLeft)
+IS_BINOP_MATCHER(NumberShiftRight)
+IS_BINOP_MATCHER(NumberShiftRightLogical)
 IS_BINOP_MATCHER(Word32And)
 IS_BINOP_MATCHER(Word32Sar)
 IS_BINOP_MATCHER(Word32Shl)

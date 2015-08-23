@@ -212,5 +212,5 @@ uint32_t SafepointTableBuilder::EncodeExceptPC(const DeoptimizationInfo& info,
 }
 
 
-
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

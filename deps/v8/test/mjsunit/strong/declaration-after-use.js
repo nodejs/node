@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --strong-mode --harmony_rest_parameters --harmony_arrow_functions --harmony_classes --harmony_computed-property_names
+// Flags: --strong-mode --harmony-rest-parameters --harmony-arrow-functions
+// Flags: --harmony-computed-property-names
 
 // Note that it's essential for these tests that the reference is inside dead
 // code (because we already produce ReferenceErrors for run-time unresolved
@@ -192,10 +193,6 @@ function assertThrowsHelper(code) {
     i;
   }
 
-  let var6 = [1, 2];
-  // The second var6 resolves to outside (not to the first var6).
-  for (let var6 of var6) { var6; }
-
   try {
     throw "error";
   } catch (e) {
@@ -211,13 +208,14 @@ function assertThrowsHelper(code) {
   func2;
 
   function func4(p, ...rest) { p; rest; this; func2; }
-  func4();
+  // TODO(arv): The arity checking is not correct with rest parameters.
+  func4(1, 2);
 
   let func5 = (p1, p2) => { p1; p2; };
-  func5();
+  func5(1, 2);
 
   let func5b = p1 => p1;
-  func5b();
+  func5b(1);
 
   function func6() {
     var1, var2a, var2b, var2c;

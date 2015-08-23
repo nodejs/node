@@ -428,6 +428,15 @@ class LiveRange final : public ZoneObject {
     return spills_at_definition_;
   }
 
+  // Used solely by the Greedy Allocator:
+  unsigned GetSize();
+  float weight() const { return weight_; }
+  void set_weight(float weight) { weight_ = weight; }
+
+  static const int kInvalidSize = -1;
+  static const float kInvalidWeight;
+  static const float kMaxWeight;
+
  private:
   void set_spill_type(SpillType value) {
     bits_ = SpillTypeField::update(bits_, value);
@@ -468,6 +477,14 @@ class LiveRange final : public ZoneObject {
   // This is used as a cache, it's invalid outside of BuildLiveRanges.
   mutable UsePosition* current_hint_position_;
 
+  // greedy: the number of LifetimePositions covered by this range. Used to
+  // prioritize selecting live ranges for register assignment, as well as
+  // in weight calculations.
+  int size_;
+
+  // greedy: a metric for resolving conflicts between ranges with an assigned
+  // register and ranges that intersect them and need a register.
+  float weight_;
   DISALLOW_COPY_AND_ASSIGN(LiveRange);
 };
 
@@ -607,6 +624,7 @@ class RegisterAllocationData final : public ZoneObject {
   PhiMapValue* InitializePhiMap(const InstructionBlock* block,
                                 PhiInstruction* phi);
   PhiMapValue* GetPhiMapValueFor(int virtual_register);
+  bool IsBlockBoundary(LifetimePosition pos) const;
 
  private:
   Zone* const allocation_zone_;
@@ -768,6 +786,9 @@ class RegisterAllocator : public ZoneObject {
   LifetimePosition FindOptimalSpillingPos(LiveRange* range,
                                           LifetimePosition pos);
 
+  const ZoneVector<LiveRange*>& GetFixedRegisters() const;
+  const char* RegisterName(int allocation_index) const;
+
  private:
   RegisterAllocationData* const data_;
   const RegisterKind mode_;
@@ -786,8 +807,6 @@ class LinearScanAllocator final : public RegisterAllocator {
   void AllocateRegisters();
 
  private:
-  const char* RegisterName(int allocation_index) const;
-
   ZoneVector<LiveRange*>& unhandled_live_ranges() {
     return unhandled_live_ranges_;
   }
@@ -838,55 +857,6 @@ class LinearScanAllocator final : public RegisterAllocator {
 #endif
 
   DISALLOW_COPY_AND_ASSIGN(LinearScanAllocator);
-};
-
-class CoalescedLiveRanges;
-
-
-// A variant of the LLVM Greedy Register Allocator. See
-// http://blog.llvm.org/2011/09/greedy-register-allocation-in-llvm-30.html
-class GreedyAllocator final : public RegisterAllocator {
- public:
-  explicit GreedyAllocator(RegisterAllocationData* data, RegisterKind kind,
-                           Zone* local_zone);
-
-  void AllocateRegisters();
-
- private:
-  LifetimePosition GetSplittablePos(LifetimePosition pos);
-  const RegisterConfiguration* config() const { return data()->config(); }
-  Zone* local_zone() const { return local_zone_; }
-  bool TryReuseSpillForPhi(LiveRange* range);
-  int GetHintedRegister(LiveRange* range);
-
-  typedef ZonePriorityQueue<std::pair<unsigned, LiveRange*>> PQueue;
-
-  unsigned GetLiveRangeSize(LiveRange* range);
-  void Enqueue(LiveRange* range);
-
-  void Evict(LiveRange* range);
-  float CalculateSpillWeight(LiveRange* range);
-  float CalculateMaxSpillWeight(const ZoneSet<LiveRange*>& ranges);
-
-
-  bool TryAllocate(LiveRange* current, ZoneSet<LiveRange*>* conflicting);
-  bool TryAllocatePhysicalRegister(unsigned reg_id, LiveRange* range,
-                                   ZoneSet<LiveRange*>* conflicting);
-  bool HandleSpillOperands(LiveRange* range);
-  void AllocateBlockedRange(LiveRange* current, LifetimePosition pos,
-                            bool spill);
-
-  LiveRange* SpillBetweenUntil(LiveRange* range, LifetimePosition start,
-                               LifetimePosition until, LifetimePosition end);
-  void AssignRangeToRegister(int reg_id, LiveRange* range);
-
-  LifetimePosition FindProgressingSplitPosition(LiveRange* range,
-                                                bool* is_spill_pos);
-
-  Zone* local_zone_;
-  ZoneVector<CoalescedLiveRanges*> allocations_;
-  PQueue queue_;
-  DISALLOW_COPY_AND_ASSIGN(GreedyAllocator);
 };
 
 

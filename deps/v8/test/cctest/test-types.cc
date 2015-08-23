@@ -1020,15 +1020,10 @@ struct Tests : Rep {
     CheckSub(T.Proxy, T.Receiver);
     CheckSub(T.OtherObject, T.Object);
     CheckSub(T.Undetectable, T.Object);
-    CheckSub(T.DetectableObject, T.Object);
-    CheckSub(T.GlobalObject, T.DetectableObject);
-    CheckSub(T.OtherObject, T.DetectableObject);
-    CheckSub(T.GlobalObject, T.Object);
-    CheckSub(T.GlobalObject, T.Receiver);
+    CheckSub(T.OtherObject, T.Object);
 
     CheckUnordered(T.Object, T.Proxy);
-    CheckUnordered(T.GlobalObject, T.OtherObject);
-    CheckUnordered(T.DetectableObject, T.Undetectable);
+    CheckUnordered(T.OtherObject, T.Undetectable);
 
     // Subtyping between concrete structural types
 
@@ -1350,7 +1345,6 @@ struct Tests : Rep {
     CheckDisjoint(T.InternalizedString, T.Symbol);
     CheckOverlap(T.Object, T.Receiver);
     CheckOverlap(T.OtherObject, T.Object);
-    CheckOverlap(T.GlobalObject, T.Object);
     CheckOverlap(T.Proxy, T.Receiver);
     CheckDisjoint(T.Object, T.Proxy);
 
@@ -1505,6 +1499,7 @@ struct Tests : Rep {
   void Union3() {
     // Monotonicity: T1->Is(T2) or T1->Is(T3) implies T1->Is(Union(T2, T3))
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
+      HandleScope scope(isolate);
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         for (TypeIterator it3 = it2; it3 != T.types.end(); ++it3) {
           TypeHandle type1 = *it1;
@@ -1757,6 +1752,7 @@ struct Tests : Rep {
 
     // Monotonicity: T1->Is(T2) and T1->Is(T3) implies T1->Is(Intersect(T2, T3))
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
+      HandleScope scope(isolate);
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         for (TypeIterator it3 = T.types.begin(); it3 != T.types.end(); ++it3) {
           TypeHandle type1 = *it1;
@@ -1963,66 +1959,6 @@ struct Tests : Rep {
       }
     }
   }
-
-  void GlobalObjectType() {
-    i::Handle<i::Context> context1 = v8::Utils::OpenHandle(
-        *v8::Context::New(reinterpret_cast<v8::Isolate*>(isolate)));
-    Handle<i::GlobalObject> global_object1(context1->global_object());
-    TypeHandle GlobalObjectConstant1 =
-        Type::Constant(global_object1, Rep::ToRegion(&zone, isolate));
-
-    i::Handle<i::Context> context2 = v8::Utils::OpenHandle(
-        *v8::Context::New(reinterpret_cast<v8::Isolate*>(isolate)));
-    Handle<i::GlobalObject> global_object2(context2->global_object());
-    TypeHandle GlobalObjectConstant2 =
-        Type::Constant(global_object2, Rep::ToRegion(&zone, isolate));
-
-    CheckSub(GlobalObjectConstant1, T.DetectableObject);
-    CheckSub(GlobalObjectConstant2, T.DetectableObject);
-    CheckSub(GlobalObjectConstant1, T.GlobalObject);
-    CheckSub(GlobalObjectConstant2, T.GlobalObject);
-    CheckSub(GlobalObjectConstant1, T.Object);
-    CheckSub(GlobalObjectConstant2, T.Object);
-
-    CheckUnordered(T.GlobalObject, T.OtherObject);
-    CheckUnordered(GlobalObjectConstant1, T.OtherObject);
-    CheckUnordered(GlobalObjectConstant2, T.OtherObject);
-    CheckUnordered(GlobalObjectConstant1, GlobalObjectConstant2);
-
-    CheckDisjoint(T.GlobalObject, T.ObjectClass);
-    CheckDisjoint(GlobalObjectConstant1, T.ObjectClass);
-    CheckDisjoint(GlobalObjectConstant2, T.ArrayClass);
-
-    CheckUnordered(T.Union(T.ObjectClass, T.ArrayClass), T.GlobalObject);
-    CheckUnordered(T.Union(T.ObjectClass, T.ArrayClass), GlobalObjectConstant1);
-    CheckUnordered(T.Union(T.ObjectClass, T.ArrayClass), GlobalObjectConstant2);
-
-    CheckUnordered(T.Union(T.ObjectConstant1, T.ArrayClass), T.GlobalObject);
-    CheckUnordered(T.Union(T.ObjectConstant1, T.ArrayClass),
-                   GlobalObjectConstant1);
-    CheckUnordered(T.Union(T.ObjectConstant1, T.ArrayClass),
-                   GlobalObjectConstant2);
-
-    CheckUnordered(T.Union(T.ObjectClass, T.String), T.GlobalObject);
-
-    CheckSub(T.Union(T.ObjectConstant1, T.ArrayClass),
-             T.Union(T.GlobalObject, T.Object));
-
-    CheckDisjoint(T.Union(GlobalObjectConstant1, T.ArrayClass),
-                  GlobalObjectConstant2);
-
-    CheckEqual(T.Union(T.Union(T.Number, GlobalObjectConstant1),
-                       T.Union(T.SignedSmall, T.GlobalObject)),
-               T.Union(T.Number, T.GlobalObject));
-
-    CheckEqual(T.Semantic(T.Intersect(T.ObjectClass, T.GlobalObject)), T.None);
-
-    CHECK(!T.Intersect(T.ArrayClass, GlobalObjectConstant2)->IsInhabited());
-
-    CheckEqual(T.Intersect(T.Union(T.Number, T.OtherObject),
-                           T.Union(T.Signed32, T.GlobalObject)),
-               T.Signed32);
-  }
 };
 
 typedef Tests<Type, Type*, Zone, ZoneRep> ZoneTests;
@@ -2197,9 +2133,3 @@ TEST(HTypeFromType_zone) { ZoneTests().HTypeFromType(); }
 
 
 TEST(HTypeFromType_heap) { HeapTests().HTypeFromType(); }
-
-
-TEST(GlobalObjectType_zone) { ZoneTests().GlobalObjectType(); }
-
-
-TEST(GlobalObjectType_heap) { HeapTests().GlobalObjectType(); }

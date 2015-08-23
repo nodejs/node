@@ -72,6 +72,7 @@ namespace compiler {
   V(Arm64Sbfx32)                   \
   V(Arm64Ubfx)                     \
   V(Arm64Ubfx32)                   \
+  V(Arm64Ubfiz32)                  \
   V(Arm64Bfi)                      \
   V(Arm64TestAndBranch32)          \
   V(Arm64TestAndBranch)            \

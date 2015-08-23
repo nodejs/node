@@ -6,7 +6,10 @@
 #include "src/code-stubs.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/js-graph.h"
+#include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
+#include "src/compiler/machine-operator.h"
 #include "src/compiler/pipeline.h"
 #include "src/parser.h"
 #include "test/cctest/compiler/function-tester.h"
@@ -17,60 +20,54 @@ using namespace v8::internal;
 using namespace v8::internal::compiler;
 
 
-static Handle<JSFunction> GetFunction(Isolate* isolate, const char* name) {
-  v8::ExtensionConfiguration no_extensions;
-  Handle<Context> ctx = isolate->bootstrapper()->CreateEnvironment(
-      MaybeHandle<JSGlobalProxy>(), v8::Handle<v8::ObjectTemplate>(),
-      &no_extensions);
-  Handle<JSBuiltinsObject> builtins = handle(ctx->builtins());
-  MaybeHandle<Object> fun = Object::GetProperty(isolate, builtins, name);
-  Handle<JSFunction> function = Handle<JSFunction>::cast(fun.ToHandleChecked());
-  // Just to make sure nobody calls this...
-  function->set_code(isolate->builtins()->builtin(Builtins::kIllegal));
-  return function;
+TEST(RunMathFloorStub) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+
+  // Create code and an accompanying descriptor.
+  MathFloorStub stub(isolate);
+  Handle<Code> code = stub.GenerateCode();
+  Zone* zone = scope.main_zone();
+
+  CompilationInfo info(&stub, isolate, zone);
+  CallDescriptor* descriptor = Linkage::ComputeIncoming(zone, &info);
+
+  // Create a function to call the code using the descriptor.
+  Graph graph(zone);
+  CommonOperatorBuilder common(zone);
+  JSOperatorBuilder javascript(zone);
+  MachineOperatorBuilder machine(zone);
+  JSGraph js(isolate, &graph, &common, &javascript, &machine);
+
+  // FunctionTester (ab)uses a 2-argument function
+  Node* start = graph.NewNode(common.Start(4));
+  // Parameter 0 is the number to round
+  Node* numberParam = graph.NewNode(common.Parameter(1), start);
+  Unique<HeapObject> u = Unique<HeapObject>::CreateImmovable(code);
+  Node* theCode = graph.NewNode(common.HeapConstant(u));
+  Node* dummyContext = graph.NewNode(common.NumberConstant(0.0));
+  Node* call = graph.NewNode(common.Call(descriptor), theCode,
+                             js.UndefinedConstant(), js.UndefinedConstant(),
+                             numberParam, dummyContext, start, start);
+  Node* ret = graph.NewNode(common.Return(), call, call, start);
+  Node* end = graph.NewNode(common.End(1), ret);
+  graph.SetStart(start);
+  graph.SetEnd(end);
+  FunctionTester ft(&graph);
+
+  Handle<Object> value = ft.Val(1.5);
+  Handle<Object> result = ft.Call(value, value).ToHandleChecked();
+  CHECK_EQ(1, Smi::cast(*result)->value());
 }
 
 
-class StringLengthStubTF : public CodeStub {
- public:
-  explicit StringLengthStubTF(Isolate* isolate) : CodeStub(isolate) {}
-
-  StringLengthStubTF(uint32_t key, Isolate* isolate) : CodeStub(key, isolate) {}
-
-  CallInterfaceDescriptor GetCallInterfaceDescriptor() override {
-    return LoadDescriptor(isolate());
-  };
-
-  Handle<Code> GenerateCode() override {
-    Zone zone;
-    // Build a "hybrid" CompilationInfo for a JSFunction/CodeStub pair.
-    ParseInfo parse_info(&zone, GetFunction(isolate(), "STRING_LENGTH_STUB"));
-    CompilationInfo info(&parse_info);
-    info.SetStub(this);
-    // Run a "mini pipeline", extracted from compiler.cc.
-    CHECK(Parser::ParseStatic(info.parse_info()));
-    CHECK(Compiler::Analyze(info.parse_info()));
-    return Pipeline(&info).GenerateCode();
-  }
-
-  Major MajorKey() const override { return StringLength; };
-  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
-  InlineCacheState GetICState() const override { return MONOMORPHIC; }
-  ExtraICState GetExtraICState() const override { return Code::LOAD_IC; }
-  Code::StubType GetStubType() const override { return Code::FAST; }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(StringLengthStubTF);
-};
-
-
-TEST(RunStringLengthStubTF) {
+TEST(RunStringLengthTFStub) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
   Zone* zone = scope.main_zone();
 
   // Create code and an accompanying descriptor.
-  StringLengthStubTF stub(isolate);
+  StringLengthTFStub stub(isolate);
   Handle<Code> code = stub.GenerateCode();
   CompilationInfo info(&stub, isolate, zone);
   CallDescriptor* descriptor = Linkage::ComputeIncoming(zone, &info);
@@ -78,18 +75,21 @@ TEST(RunStringLengthStubTF) {
   // Create a function to call the code using the descriptor.
   Graph graph(zone);
   CommonOperatorBuilder common(zone);
-  // FunctionTester (ab)uses a 2-argument function
-  Node* start = graph.NewNode(common.Start(2));
+  // FunctionTester (ab)uses a 4-argument function
+  Node* start = graph.NewNode(common.Start(6));
   // Parameter 0 is the receiver
   Node* receiverParam = graph.NewNode(common.Parameter(1), start);
   Node* nameParam = graph.NewNode(common.Parameter(2), start);
+  Node* slotParam = graph.NewNode(common.Parameter(3), start);
+  Node* vectorParam = graph.NewNode(common.Parameter(4), start);
   Unique<HeapObject> u = Unique<HeapObject>::CreateImmovable(code);
   Node* theCode = graph.NewNode(common.HeapConstant(u));
   Node* dummyContext = graph.NewNode(common.NumberConstant(0.0));
-  Node* call = graph.NewNode(common.Call(descriptor), theCode, receiverParam,
-                             nameParam, dummyContext, start, start);
+  Node* call =
+      graph.NewNode(common.Call(descriptor), theCode, receiverParam, nameParam,
+                    slotParam, vectorParam, dummyContext, start, start);
   Node* ret = graph.NewNode(common.Return(), call, call, start);
-  Node* end = graph.NewNode(common.End(), ret);
+  Node* end = graph.NewNode(common.End(1), ret);
   graph.SetStart(start);
   graph.SetEnd(end);
   FunctionTester ft(&graph);
@@ -99,8 +99,49 @@ TEST(RunStringLengthStubTF) {
   Handle<JSReceiver> receiverArg =
       Object::ToObject(isolate, ft.Val(testString)).ToHandleChecked();
   Handle<String> nameArg = ft.Val("length");
-  Handle<Object> result = ft.Call(receiverArg, nameArg).ToHandleChecked();
+  Handle<Object> slot = ft.Val(0.0);
+  Handle<Object> vector = ft.Val(0.0);
+  Handle<Object> result =
+      ft.Call(receiverArg, nameArg, slot, vector).ToHandleChecked();
   CHECK_EQ(static_cast<int>(strlen(testString)), Smi::cast(*result)->value());
+}
+
+
+TEST(RunStringAddTFStub) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+
+  // Create code and an accompanying descriptor.
+  StringAddTFStub stub(isolate, STRING_ADD_CHECK_BOTH, NOT_TENURED);
+  Handle<Code> code = stub.GenerateCode();
+  CompilationInfo info(&stub, isolate, zone);
+  CallDescriptor* descriptor = Linkage::ComputeIncoming(zone, &info);
+
+  // Create a function to call the code using the descriptor.
+  Graph graph(zone);
+  CommonOperatorBuilder common(zone);
+  // FunctionTester (ab)uses a 2-argument function
+  Node* start = graph.NewNode(common.Start(4));
+  // Parameter 0 is the receiver
+  Node* leftParam = graph.NewNode(common.Parameter(1), start);
+  Node* rightParam = graph.NewNode(common.Parameter(2), start);
+  Unique<HeapObject> u = Unique<HeapObject>::CreateImmovable(code);
+  Node* theCode = graph.NewNode(common.HeapConstant(u));
+  Node* dummyContext = graph.NewNode(common.NumberConstant(0.0));
+  Node* call = graph.NewNode(common.Call(descriptor), theCode, leftParam,
+                             rightParam, dummyContext, start, start);
+  Node* ret = graph.NewNode(common.Return(), call, call, start);
+  Node* end = graph.NewNode(common.End(1), ret);
+  graph.SetStart(start);
+  graph.SetEnd(end);
+  FunctionTester ft(&graph);
+
+  // Actuall call through to the stub, verifying its result.
+  Handle<String> leftArg = ft.Val("links");
+  Handle<String> rightArg = ft.Val("rechts");
+  Handle<Object> result = ft.Call(leftArg, rightArg).ToHandleChecked();
+  CHECK(String::Equals(ft.Val("linksrechts"), Handle<String>::cast(result)));
 }
 
 #endif  // V8_TURBOFAN_TARGET

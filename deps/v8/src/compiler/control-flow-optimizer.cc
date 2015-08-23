@@ -4,7 +4,8 @@
 
 #include "src/compiler/control-flow-optimizer.h"
 
-#include "src/compiler/js-graph.h"
+#include "src/compiler/common-operator.h"
+#include "src/compiler/graph.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 
@@ -12,10 +13,15 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-ControlFlowOptimizer::ControlFlowOptimizer(JSGraph* jsgraph, Zone* zone)
-    : jsgraph_(jsgraph),
+ControlFlowOptimizer::ControlFlowOptimizer(Graph* graph,
+                                           CommonOperatorBuilder* common,
+                                           MachineOperatorBuilder* machine,
+                                           Zone* zone)
+    : graph_(graph),
+      common_(common),
+      machine_(machine),
       queue_(zone),
-      queued_(jsgraph->graph(), 2),
+      queued_(graph, 2),
       zone_(zone) {}
 
 
@@ -265,19 +271,6 @@ bool ControlFlowOptimizer::TryBuildSwitch(Node* node) {
   Enqueue(if_false);
   branch->NullAllInputs();
   return true;
-}
-
-
-CommonOperatorBuilder* ControlFlowOptimizer::common() const {
-  return jsgraph()->common();
-}
-
-
-Graph* ControlFlowOptimizer::graph() const { return jsgraph()->graph(); }
-
-
-MachineOperatorBuilder* ControlFlowOptimizer::machine() const {
-  return jsgraph()->machine();
 }
 
 }  // namespace compiler

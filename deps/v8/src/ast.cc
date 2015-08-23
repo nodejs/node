@@ -54,7 +54,7 @@ bool Expression::IsUndefinedLiteral(Isolate* isolate) const {
   Variable* var = var_proxy->var();
   // The global identifier "undefined" is immutable. Everything
   // else could be reassigned.
-  return var != NULL && var->location() == Variable::UNALLOCATED &&
+  return var != NULL && var->IsUnallocatedOrGlobalSlot() &&
          var_proxy->raw_name()->IsOneByteEqualTo("undefined");
 }
 
@@ -95,8 +95,8 @@ void VariableProxy::BindTo(Variable* var) {
 void VariableProxy::SetFirstFeedbackICSlot(FeedbackVectorICSlot slot,
                                            ICSlotCache* cache) {
   variable_feedback_slot_ = slot;
-  if (var()->IsUnallocated()) {
-    cache->Add(VariableICSlotPair(var(), slot));
+  if (var()->IsUnallocatedOrGlobalSlot()) {
+    cache->Put(var(), slot);
   }
 }
 
@@ -106,13 +106,12 @@ FeedbackVectorRequirements VariableProxy::ComputeFeedbackRequirements(
   if (UsesVariableFeedbackSlot()) {
     // VariableProxies that point to the same Variable within a function can
     // make their loads from the same IC slot.
-    if (var()->IsUnallocated()) {
-      for (int i = 0; i < cache->length(); i++) {
-        VariableICSlotPair& pair = cache->at(i);
-        if (pair.variable() == var()) {
-          variable_feedback_slot_ = pair.slot();
-          return FeedbackVectorRequirements(0, 0);
-        }
+    if (var()->IsUnallocatedOrGlobalSlot()) {
+      ZoneHashMap::Entry* entry = cache->Get(var());
+      if (entry != NULL) {
+        variable_feedback_slot_ = FeedbackVectorICSlot(
+            static_cast<int>(reinterpret_cast<intptr_t>(entry->value)));
+        return FeedbackVectorRequirements(0, 0);
       }
     }
     return FeedbackVectorRequirements(0, 1);
@@ -121,16 +120,73 @@ FeedbackVectorRequirements VariableProxy::ComputeFeedbackRequirements(
 }
 
 
+static int GetStoreICSlots(Expression* expr) {
+  int ic_slots = 0;
+  if (FLAG_vector_stores) {
+    Property* property = expr->AsProperty();
+    LhsKind assign_type = Property::GetAssignType(property);
+    if ((assign_type == VARIABLE &&
+         expr->AsVariableProxy()->var()->IsUnallocatedOrGlobalSlot()) ||
+        assign_type == NAMED_PROPERTY || assign_type == KEYED_PROPERTY) {
+      ic_slots++;
+    }
+  }
+  return ic_slots;
+}
+
+
+static Code::Kind GetStoreICKind(Expression* expr) {
+  LhsKind assign_type = Property::GetAssignType(expr->AsProperty());
+  return assign_type == KEYED_PROPERTY ? Code::KEYED_STORE_IC : Code::STORE_IC;
+}
+
+
+FeedbackVectorRequirements ForEachStatement::ComputeFeedbackRequirements(
+    Isolate* isolate, const ICSlotCache* cache) {
+  int ic_slots = GetStoreICSlots(each());
+  return FeedbackVectorRequirements(0, ic_slots);
+}
+
+
+Code::Kind ForEachStatement::FeedbackICSlotKind(int index) {
+  return GetStoreICKind(each());
+}
+
+
 Assignment::Assignment(Zone* zone, Token::Value op, Expression* target,
                        Expression* value, int pos)
     : Expression(zone, pos),
-      bit_field_(IsUninitializedField::encode(false) |
-                 KeyTypeField::encode(ELEMENT) |
-                 StoreModeField::encode(STANDARD_STORE) |
-                 TokenField::encode(op)),
+      bit_field_(
+          IsUninitializedField::encode(false) | KeyTypeField::encode(ELEMENT) |
+          StoreModeField::encode(STANDARD_STORE) | TokenField::encode(op)),
       target_(target),
       value_(value),
-      binary_operation_(NULL) {}
+      binary_operation_(NULL),
+      slot_(FeedbackVectorICSlot::Invalid()) {}
+
+
+FeedbackVectorRequirements Assignment::ComputeFeedbackRequirements(
+    Isolate* isolate, const ICSlotCache* cache) {
+  int ic_slots = GetStoreICSlots(target());
+  return FeedbackVectorRequirements(0, ic_slots);
+}
+
+
+Code::Kind Assignment::FeedbackICSlotKind(int index) {
+  return GetStoreICKind(target());
+}
+
+
+FeedbackVectorRequirements CountOperation::ComputeFeedbackRequirements(
+    Isolate* isolate, const ICSlotCache* cache) {
+  int ic_slots = GetStoreICSlots(expression());
+  return FeedbackVectorRequirements(0, ic_slots);
+}
+
+
+Code::Kind CountOperation::FeedbackICSlotKind(int index) {
+  return GetStoreICKind(expression());
+}
 
 
 Token::Value Assignment::binary_op() const {
@@ -177,28 +233,10 @@ LanguageMode FunctionLiteral::language_mode() const {
 }
 
 
-bool FunctionLiteral::uses_super_property() const {
-  DCHECK_NOT_NULL(scope());
-  return scope()->uses_super_property() || scope()->inner_uses_super_property();
-}
-
-
-// Helper to find an existing shared function info in the baseline code for the
-// given function literal. Used to canonicalize SharedFunctionInfo objects.
-void FunctionLiteral::InitializeSharedInfo(
-    Handle<Code> unoptimized_code) {
-  for (RelocIterator it(*unoptimized_code); !it.done(); it.next()) {
-    RelocInfo* rinfo = it.rinfo();
-    if (rinfo->rmode() != RelocInfo::EMBEDDED_OBJECT) continue;
-    Object* obj = rinfo->target_object();
-    if (obj->IsSharedFunctionInfo()) {
-      SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
-      if (shared->start_position() == start_position()) {
-        shared_info_ = Handle<SharedFunctionInfo>(shared);
-        break;
-      }
-    }
-  }
+bool FunctionLiteral::NeedsHomeObject(Expression* expr) {
+  if (expr == nullptr || !expr->IsFunctionLiteral()) return false;
+  DCHECK_NOT_NULL(expr->AsFunctionLiteral()->scope());
+  return expr->AsFunctionLiteral()->scope()->NeedsHomeObject();
 }
 
 
@@ -236,6 +274,46 @@ ObjectLiteralProperty::ObjectLiteralProperty(AstValueFactory* ast_value_factory,
 }
 
 
+FeedbackVectorRequirements ClassLiteral::ComputeFeedbackRequirements(
+    Isolate* isolate, const ICSlotCache* cache) {
+  if (!FLAG_vector_stores) return FeedbackVectorRequirements(0, 0);
+
+  // This logic that computes the number of slots needed for vector store
+  // ICs must mirror FullCodeGenerator::VisitClassLiteral.
+  int ic_slots = 0;
+  for (int i = 0; i < properties()->length(); i++) {
+    ObjectLiteral::Property* property = properties()->at(i);
+
+    Expression* value = property->value();
+    if (FunctionLiteral::NeedsHomeObject(value)) ic_slots++;
+  }
+
+  if (scope() != NULL &&
+      class_variable_proxy()->var()->IsUnallocatedOrGlobalSlot()) {
+    ic_slots++;
+  }
+
+#ifdef DEBUG
+  // FullCodeGenerator::VisitClassLiteral verifies that it consumes slot_count_
+  // slots.
+  slot_count_ = ic_slots;
+#endif
+  return FeedbackVectorRequirements(0, ic_slots);
+}
+
+
+FeedbackVectorICSlot ClassLiteral::SlotForHomeObject(Expression* value,
+                                                     int* slot_index) const {
+  if (FLAG_vector_stores && FunctionLiteral::NeedsHomeObject(value)) {
+    DCHECK(slot_index != NULL && *slot_index >= 0 && *slot_index < slot_count_);
+    FeedbackVectorICSlot slot = GetNthSlot(*slot_index);
+    *slot_index += 1;
+    return slot;
+  }
+  return FeedbackVectorICSlot::Invalid();
+}
+
+
 bool ObjectLiteral::Property::IsCompileTimeValue() {
   return kind_ == CONSTANT ||
       (kind_ == MATERIALIZED_LITERAL &&
@@ -250,6 +328,56 @@ void ObjectLiteral::Property::set_emit_store(bool emit_store) {
 
 bool ObjectLiteral::Property::emit_store() {
   return emit_store_;
+}
+
+
+FeedbackVectorRequirements ObjectLiteral::ComputeFeedbackRequirements(
+    Isolate* isolate, const ICSlotCache* cache) {
+  if (!FLAG_vector_stores) return FeedbackVectorRequirements(0, 0);
+
+  // This logic that computes the number of slots needed for vector store
+  // ics must mirror FullCodeGenerator::VisitObjectLiteral.
+  int ic_slots = 0;
+  for (int i = 0; i < properties()->length(); i++) {
+    ObjectLiteral::Property* property = properties()->at(i);
+    if (property->IsCompileTimeValue()) continue;
+
+    Expression* value = property->value();
+    if (property->is_computed_name() &&
+        property->kind() != ObjectLiteral::Property::PROTOTYPE) {
+      if (FunctionLiteral::NeedsHomeObject(value)) ic_slots++;
+    } else if (property->emit_store()) {
+      if (property->kind() == ObjectLiteral::Property::MATERIALIZED_LITERAL ||
+          property->kind() == ObjectLiteral::Property::COMPUTED) {
+        Literal* key = property->key()->AsLiteral();
+        if (key->value()->IsInternalizedString()) ic_slots++;
+        if (FunctionLiteral::NeedsHomeObject(value)) ic_slots++;
+      } else if (property->kind() == ObjectLiteral::Property::GETTER ||
+                 property->kind() == ObjectLiteral::Property::SETTER) {
+        // We might need a slot for the home object.
+        if (FunctionLiteral::NeedsHomeObject(value)) ic_slots++;
+      }
+    }
+  }
+
+#ifdef DEBUG
+  // FullCodeGenerator::VisitObjectLiteral verifies that it consumes slot_count_
+  // slots.
+  slot_count_ = ic_slots;
+#endif
+  return FeedbackVectorRequirements(0, ic_slots);
+}
+
+
+FeedbackVectorICSlot ObjectLiteral::SlotForHomeObject(Expression* value,
+                                                      int* slot_index) const {
+  if (FLAG_vector_stores && FunctionLiteral::NeedsHomeObject(value)) {
+    DCHECK(slot_index != NULL && *slot_index >= 0 && *slot_index < slot_count_);
+    FeedbackVectorICSlot slot = GetNthSlot(*slot_index);
+    *slot_index += 1;
+    return slot;
+  }
+  return FeedbackVectorICSlot::Invalid();
 }
 
 
@@ -378,16 +506,18 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
   if (!constant_elements_.is_null()) return;
 
   // Allocate a fixed array to hold all the object literals.
-  Handle<JSArray> array =
-      isolate->factory()->NewJSArray(0, FAST_HOLEY_SMI_ELEMENTS);
-  JSArray::Expand(array, values()->length());
+  Handle<JSArray> array = isolate->factory()->NewJSArray(
+      FAST_HOLEY_SMI_ELEMENTS, values()->length(), values()->length(),
+      Strength::WEAK, INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
 
   // Fill in the literals.
   bool is_simple = true;
   int depth_acc = 1;
   bool is_holey = false;
-  for (int i = 0, n = values()->length(); i < n; i++) {
-    Expression* element = values()->at(i);
+  int array_index = 0;
+  for (int n = values()->length(); array_index < n; array_index++) {
+    Expression* element = values()->at(array_index);
+    if (element->IsSpread()) break;
     MaterializedLiteral* m_literal = element->AsMaterializedLiteral();
     if (m_literal != NULL) {
       m_literal->BuildConstants(isolate);
@@ -395,23 +525,33 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
         depth_acc = m_literal->depth() + 1;
       }
     }
+
+    // New handle scope here, needs to be after BuildContants().
+    HandleScope scope(isolate);
     Handle<Object> boilerplate_value = GetBoilerplateValue(element, isolate);
     if (boilerplate_value->IsTheHole()) {
       is_holey = true;
-    } else if (boilerplate_value->IsUninitialized()) {
-      is_simple = false;
-      JSObject::SetOwnElement(
-          array, i, handle(Smi::FromInt(0), isolate), SLOPPY).Assert();
-    } else {
-      JSObject::SetOwnElement(array, i, boilerplate_value, SLOPPY).Assert();
+      continue;
     }
+
+    if (boilerplate_value->IsUninitialized()) {
+      boilerplate_value = handle(Smi::FromInt(0), isolate);
+      is_simple = false;
+    }
+
+    JSObject::AddDataElement(array, array_index, boilerplate_value, NONE)
+        .Assert();
   }
 
+  if (array_index != values()->length()) {
+    JSArray::SetLength(array, array_index);
+  }
+  JSObject::ValidateElements(array);
   Handle<FixedArrayBase> element_values(array->elements());
 
   // Simple and shallow arrays can be lazily copied, we transform the
   // elements array to a copy-on-write array.
-  if (is_simple && depth_acc == 1 && values()->length() > 0 &&
+  if (is_simple && depth_acc == 1 && array_index > 0 &&
       array->HasFastSmiOrObjectElements()) {
     element_values->set_map(isolate->heap()->fixed_cow_array_map());
   }
@@ -582,7 +722,10 @@ void Expression::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
 
 bool Call::IsUsingCallFeedbackICSlot(Isolate* isolate) const {
   CallType call_type = GetCallType(isolate);
-  if (IsUsingCallFeedbackSlot(isolate) || call_type == POSSIBLY_EVAL_CALL) {
+  if (call_type == POSSIBLY_EVAL_CALL) {
+    return false;
+  }
+  if (call_type == SUPER_CALL && !FLAG_vector_stores) {
     return false;
   }
   return true;
@@ -591,7 +734,7 @@ bool Call::IsUsingCallFeedbackICSlot(Isolate* isolate) const {
 
 bool Call::IsUsingCallFeedbackSlot(Isolate* isolate) const {
   // SuperConstructorCall uses a CallConstructStub, which wants
-  // a Slot, not an IC slot.
+  // a Slot, in addition to any IC slots requested elsewhere.
   return GetCallType(isolate) == SUPER_CALL;
 }
 
@@ -600,8 +743,6 @@ FeedbackVectorRequirements Call::ComputeFeedbackRequirements(
     Isolate* isolate, const ICSlotCache* cache) {
   int ic_slots = IsUsingCallFeedbackICSlot(isolate) ? 1 : 0;
   int slots = IsUsingCallFeedbackSlot(isolate) ? 1 : 0;
-  // A Call uses either a slot or an IC slot.
-  DCHECK((ic_slots & slots) == 0);
   return FeedbackVectorRequirements(slots, ic_slots);
 }
 
@@ -611,14 +752,14 @@ Call::CallType Call::GetCallType(Isolate* isolate) const {
   if (proxy != NULL) {
     if (proxy->var()->is_possibly_eval(isolate)) {
       return POSSIBLY_EVAL_CALL;
-    } else if (proxy->var()->IsUnallocated()) {
+    } else if (proxy->var()->IsUnallocatedOrGlobalSlot()) {
       return GLOBAL_CALL;
     } else if (proxy->var()->IsLookupSlot()) {
       return LOOKUP_SLOT_CALL;
     }
   }
 
-  if (expression()->AsSuperReference() != NULL) return SUPER_CALL;
+  if (expression()->IsSuperCallReference()) return SUPER_CALL;
 
   Property* property = expression()->AsProperty();
   return property != NULL ? PROPERTY_CALL : OTHER_CALL;
@@ -1009,4 +1150,5 @@ bool Literal::Match(void* literal1, void* literal2) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

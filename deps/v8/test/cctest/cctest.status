@@ -64,10 +64,12 @@
   # are actually 13 * 38 * 5 * 128 = 316160 individual tests hidden here.
   'test-parsing/ParserSync': [PASS, NO_VARIANTS],
 
-  # This tests only the type system, so there is no point in running several
-  # variants.
+  # This tests only the type system, no point in running several variants.
   'test-hydrogen-types/*': [PASS, NO_VARIANTS],
   'test-types/*': [PASS, NO_VARIANTS],
+
+  # This tests API threading, no point in running several variants.
+  'test-api/Threading*': [PASS, NO_VARIANTS],
 
   # The cpu profiler tests are notoriously flaky.
   # BUG(2999). (test/cpu-profiler/CollectCpuProfile)
@@ -97,11 +99,7 @@
   ##############################################################################
   # TurboFan compiler failures.
 
-  # TODO(mstarzinger): control edges are messed up in exception tests.
-  'test-run-jsexceptions/*': [PASS, NO_VARIANTS],
-
   # Some tests are just too slow to run for now.
-  'test-api/Threading*': [PASS, NO_VARIANTS],
   'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [PASS, NO_VARIANTS],
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, NO_VARIANTS],
   'test-serialize/SerializeToplevelLargeCodeObject': [PASS, NO_VARIANTS],
@@ -118,12 +116,6 @@
   'test-debug/BreakPointThroughJavaScript': [PASS, NO_VARIANTS],  # in no-snap mode.
   'test-debug/ScriptBreakPointByIdThroughJavaScript': [PASS, NO_VARIANTS],
   'test-debug/ScriptBreakPointByNameThroughJavaScript': [PASS, NO_VARIANTS],
-
-  # TODO(jarin): Cannot lazy-deoptimize from conversions before comparisons.
-  'test-js-typed-lowering/OrderCompareEffects': [SKIP],
-
-  # TODO(jochen): Reenable after we removed the CHECK() from the marking queue.
-  'test-mark-compact/MarkingDeque': [SKIP],
 
   ############################################################################
   # Slow tests.
@@ -194,6 +186,12 @@
 ['msan == True', {
   # ICU upstream issues.
   'test-strings/CountBreakIterator': [SKIP],
+
+  # Slow tests.
+  'test-api/Threading1': [PASS, SLOW],
+  'test-api/Threading2': [PASS, SLOW],
+  'test-api/Threading3': [PASS, SLOW],
+  'test-api/Threading4': [PASS, SLOW],
 }],  # 'msan == True'
 
 ##############################################################################
@@ -258,6 +256,9 @@
 ['arch == mipsel or arch == mips', {
   'test-cpu-profiler/CollectDeoptEvents': [PASS, FAIL],
 
+  # TODO(mips-team): Improve code-size on large RegExp's.
+  'test-heap/TestSizeOfRegExpCode':  [SKIP],
+
   # BUG(1075): Unresolved crashes on MIPS also.
   'test-serialize/Deserialize': [SKIP],
   'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
@@ -271,12 +272,8 @@
   'test-api/ExternalArrays': [PASS, NO_VARIANTS],
 
   # TODO(mips-team): Currently fails on mips board.
-  'test-simplified-lowering/RunNumberMultiply_TruncatingToUint32': [SKIP],
-  'test-simplified-lowering/RunNumberDivide_2_TruncatingToUint32': [SKIP],
   'test-parsing/TooManyArguments': [SKIP],
   'test-api/Threading3': [SKIP],
-  'test-api/RequestInterruptTestWithNativeAccessor': [SKIP],
-  'test-api/RequestInterruptTestWithAccessor': [SKIP],
 }],  # 'arch == mips'
 
 ##############################################################################
@@ -295,12 +292,7 @@
 
 ##############################################################################
 ['arch == x87', {
-
-  # Test requires turbofan:
-  'codegen-tester/CompareWrapper': [SKIP],
-  'codegen-tester/ParametersEqual': [SKIP],
-  'test-simplified-lowering/LowerStringOps_to_call_and_compare': [SKIP],
-  'test-serialize/SerializeInternalReference': [FAIL],
+  'test-run-machops/RunFloat64InsertLowWord32': [SKIP]
 }],  # 'arch == x87'
 
 ##############################################################################

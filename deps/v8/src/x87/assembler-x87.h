@@ -273,6 +273,14 @@ inline Condition CommuteCondition(Condition cc) {
 }
 
 
+enum RoundingMode {
+  kRoundToNearest = 0x0,
+  kRoundDown = 0x1,
+  kRoundUp = 0x2,
+  kRoundToZero = 0x3
+};
+
+
 // -----------------------------------------------------------------------------
 // Machine instruction Immediates
 
@@ -495,15 +503,12 @@ class Assembler : public AssemblerBase {
   void GetCode(CodeDesc* desc);
 
   // Read/Modify the code target in the branch/call instruction at pc.
-  inline static Address target_address_at(Address pc,
-                                          ConstantPoolArray* constant_pool);
-  inline static void set_target_address_at(Address pc,
-                                           ConstantPoolArray* constant_pool,
-                                           Address target,
-                                           ICacheFlushMode icache_flush_mode =
-                                               FLUSH_ICACHE_IF_NEEDED);
+  inline static Address target_address_at(Address pc, Address constant_pool);
+  inline static void set_target_address_at(
+      Address pc, Address constant_pool, Address target,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   static inline Address target_address_at(Address pc, Code* code) {
-    ConstantPoolArray* constant_pool = code ? code->constant_pool() : NULL;
+    Address constant_pool = code ? code->constant_pool() : NULL;
     return target_address_at(pc, constant_pool);
   }
   static inline void set_target_address_at(Address pc,
@@ -511,7 +516,7 @@ class Assembler : public AssemblerBase {
                                            Address target,
                                            ICacheFlushMode icache_flush_mode =
                                                FLUSH_ICACHE_IF_NEEDED) {
-    ConstantPoolArray* constant_pool = code ? code->constant_pool() : NULL;
+    Address constant_pool = code ? code->constant_pool() : NULL;
     set_target_address_at(pc, constant_pool, target);
   }
 
@@ -593,6 +598,9 @@ class Assembler : public AssemblerBase {
   // possible to align the pc offset to a multiple
   // of m. m must be a power of 2.
   void Align(int m);
+  // Insert the smallest number of zero bytes possible to align the pc offset
+  // to a mulitple of m. m must be a power of 2 (>= 2).
+  void DataAlign(int m);
   void Nop(int bytes = 1);
   // Aligns code to something that's optimal for a jump target for the platform.
   void CodeTargetAlign();
@@ -620,11 +628,14 @@ class Assembler : public AssemblerBase {
   void mov_b(Register dst, const Operand& src);
   void mov_b(Register dst, int8_t imm8) { mov_b(Operand(dst), imm8); }
   void mov_b(const Operand& dst, int8_t imm8);
+  void mov_b(const Operand& dst, const Immediate& src);
   void mov_b(const Operand& dst, Register src);
 
   void mov_w(Register dst, const Operand& src);
   void mov_w(const Operand& dst, Register src);
   void mov_w(const Operand& dst, int16_t imm16);
+  void mov_w(const Operand& dst, const Immediate& src);
+
 
   void mov(Register dst, int32_t imm32);
   void mov(Register dst, const Immediate& x);
@@ -886,15 +897,21 @@ class Assembler : public AssemblerBase {
   void fadd_d(const Operand& adr);
   void fsub(int i);
   void fsub_i(int i);
+  void fsub_d(const Operand& adr);
+  void fsubr_d(const Operand& adr);
   void fmul(int i);
+  void fmul_d(const Operand& adr);
   void fmul_i(int i);
   void fdiv(int i);
+  void fdiv_d(const Operand& adr);
+  void fdivr_d(const Operand& adr);
   void fdiv_i(int i);
 
   void fisub_s(const Operand& adr);
 
   void faddp(int i = 1);
   void fsubp(int i = 1);
+  void fsubr(int i = 1);
   void fsubrp(int i = 1);
   void fmulp(int i = 1);
   void fdivp(int i = 1);
@@ -952,6 +969,8 @@ class Assembler : public AssemblerBase {
   // inline tables, e.g., jump-tables.
   void db(uint8_t data);
   void dd(uint32_t data);
+  void dq(uint64_t data);
+  void dp(uintptr_t data) { dd(data); }
   void dd(Label* label);
 
   // Check if there is less than kGap bytes available in the buffer.
@@ -978,11 +997,12 @@ class Assembler : public AssemblerBase {
   byte byte_at(int pos) { return buffer_[pos]; }
   void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
 
-  // Allocate a constant pool of the correct size for the generated code.
-  Handle<ConstantPoolArray> NewConstantPool(Isolate* isolate);
-
-  // Generate the constant pool for the generated code.
-  void PopulateConstantPool(ConstantPoolArray* constant_pool);
+  void PatchConstantPoolAccessInstruction(int pc_offset, int offset,
+                                          ConstantPoolEntry::Access access,
+                                          ConstantPoolEntry::Type type) {
+    // No embedded constant pool support.
+    UNREACHABLE();
+  }
 
  protected:
   byte* addr_at(int pos) { return buffer_ + pos; }
@@ -1008,6 +1028,7 @@ class Assembler : public AssemblerBase {
                    TypeFeedbackId id = TypeFeedbackId::None());
   inline void emit(const Immediate& x);
   inline void emit_w(const Immediate& x);
+  inline void emit_q(uint64_t x);
 
   // Emit the code-object-relative offset of the label's position
   inline void emit_code_relative_offset(Label* label);

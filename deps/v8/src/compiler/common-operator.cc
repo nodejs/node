@@ -36,6 +36,21 @@ BranchHint BranchHintOf(const Operator* const op) {
 }
 
 
+size_t hash_value(IfExceptionHint hint) { return static_cast<size_t>(hint); }
+
+
+std::ostream& operator<<(std::ostream& os, IfExceptionHint hint) {
+  switch (hint) {
+    case IfExceptionHint::kLocallyCaught:
+      return os << "Caught";
+    case IfExceptionHint::kLocallyUncaught:
+      return os << "Uncaught";
+  }
+  UNREACHABLE();
+  return os;
+}
+
+
 bool operator==(SelectParameters const& lhs, SelectParameters const& rhs) {
   return lhs.type() == rhs.type() && lhs.hint() == rhs.hint();
 }
@@ -101,19 +116,28 @@ std::ostream& operator<<(std::ostream& os, ParameterInfo const& i) {
 
 
 #define CACHED_OP_LIST(V)                                  \
-  V(Dead, Operator::kFoldable, 0, 0, 0, 0, 0, 1)           \
-  V(End, Operator::kKontrol, 0, 0, 1, 0, 0, 0)             \
+  V(Dead, Operator::kFoldable, 0, 0, 0, 1, 1, 1)           \
   V(IfTrue, Operator::kKontrol, 0, 0, 1, 0, 0, 1)          \
   V(IfFalse, Operator::kKontrol, 0, 0, 1, 0, 0, 1)         \
   V(IfSuccess, Operator::kKontrol, 0, 0, 1, 0, 0, 1)       \
-  V(IfException, Operator::kKontrol, 0, 0, 1, 1, 0, 1)     \
   V(IfDefault, Operator::kKontrol, 0, 0, 1, 0, 0, 1)       \
   V(Throw, Operator::kKontrol, 1, 1, 1, 0, 0, 1)           \
   V(Deoptimize, Operator::kNoThrow, 1, 1, 1, 0, 0, 1)      \
   V(Return, Operator::kNoThrow, 1, 1, 1, 0, 0, 1)          \
-  V(Terminate, Operator::kNoThrow, 0, 1, 1, 0, 0, 1)       \
+  V(Terminate, Operator::kKontrol, 0, 1, 1, 0, 0, 1)       \
   V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1) \
   V(OsrLoopEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)
+
+
+#define CACHED_END_LIST(V) \
+  V(1)                     \
+  V(2)                     \
+  V(3)                     \
+  V(4)                     \
+  V(5)                     \
+  V(6)                     \
+  V(7)                     \
+  V(8)
 
 
 #define CACHED_EFFECT_PHI_LIST(V) \
@@ -199,6 +223,31 @@ struct CommonOperatorGlobalCache final {
   Name##Operator k##Name##Operator;
   CACHED_OP_LIST(CACHED)
 #undef CACHED
+
+  template <IfExceptionHint kCaughtLocally>
+  struct IfExceptionOperator final : public Operator1<IfExceptionHint> {
+    IfExceptionOperator()
+        : Operator1<IfExceptionHint>(                      // --
+              IrOpcode::kIfException, Operator::kKontrol,  // opcode
+              "IfException",                               // name
+              0, 1, 1, 1, 1, 1,                            // counts
+              kCaughtLocally) {}                           // parameter
+  };
+  IfExceptionOperator<IfExceptionHint::kLocallyCaught> kIfExceptionCOperator;
+  IfExceptionOperator<IfExceptionHint::kLocallyUncaught> kIfExceptionUOperator;
+
+  template <size_t kInputCount>
+  struct EndOperator final : public Operator {
+    EndOperator()
+        : Operator(                                // --
+              IrOpcode::kEnd, Operator::kKontrol,  // opcode
+              "End",                               // name
+              0, 0, kInputCount, 0, 0, 0) {}       // counts
+  };
+#define CACHED_END(input_count) \
+  EndOperator<input_count> kEnd##input_count##Operator;
+  CACHED_END_LIST(CACHED_END)
+#undef CACHED_END
 
   template <BranchHint kBranchHint>
   struct BranchOperator final : public Operator1<BranchHint> {
@@ -329,6 +378,25 @@ CACHED_OP_LIST(CACHED)
 #undef CACHED
 
 
+const Operator* CommonOperatorBuilder::End(size_t control_input_count) {
+  DCHECK_NE(0u, control_input_count);  // Disallow empty ends.
+  switch (control_input_count) {
+#define CACHED_END(input_count) \
+  case input_count:             \
+    return &cache_.kEnd##input_count##Operator;
+    CACHED_END_LIST(CACHED_END)
+#undef CACHED_END
+    default:
+      break;
+  }
+  // Uncached.
+  return new (zone()) Operator(             //--
+      IrOpcode::kEnd, Operator::kKontrol,   // opcode
+      "End",                                // name
+      0, 0, control_input_count, 0, 0, 0);  // counts
+}
+
+
 const Operator* CommonOperatorBuilder::Branch(BranchHint hint) {
   switch (hint) {
     case BranchHint::kNone:
@@ -337,6 +405,18 @@ const Operator* CommonOperatorBuilder::Branch(BranchHint hint) {
       return &cache_.kBranchTrueOperator;
     case BranchHint::kFalse:
       return &cache_.kBranchFalseOperator;
+  }
+  UNREACHABLE();
+  return nullptr;
+}
+
+
+const Operator* CommonOperatorBuilder::IfException(IfExceptionHint hint) {
+  switch (hint) {
+    case IfExceptionHint::kLocallyCaught:
+      return &cache_.kIfExceptionCOperator;
+    case IfExceptionHint::kLocallyUncaught:
+      return &cache_.kIfExceptionUOperator;
   }
   UNREACHABLE();
   return nullptr;
@@ -361,9 +441,7 @@ const Operator* CommonOperatorBuilder::IfValue(int32_t index) {
 }
 
 
-const Operator* CommonOperatorBuilder::Start(int num_formal_parameters) {
-  // Outputs are formal parameters, plus context, receiver, and JSFunction.
-  const int value_output_count = num_formal_parameters + 3;
+const Operator* CommonOperatorBuilder::Start(int value_output_count) {
   return new (zone()) Operator(               // --
       IrOpcode::kStart, Operator::kFoldable,  // opcode
       "Start",                                // name
@@ -608,13 +686,14 @@ const Operator* CommonOperatorBuilder::TypedStateValues(
 
 
 const Operator* CommonOperatorBuilder::FrameState(
-    FrameStateType type, BailoutId bailout_id,
-    OutputFrameStateCombine state_combine, MaybeHandle<JSFunction> jsfunction) {
-  return new (zone()) Operator1<FrameStateCallInfo>(  // --
-      IrOpcode::kFrameState, Operator::kPure,         // opcode
-      "FrameState",                                   // name
-      4, 0, 0, 1, 0, 0,                               // counts
-      FrameStateCallInfo(type, bailout_id, state_combine, jsfunction));
+    BailoutId bailout_id, OutputFrameStateCombine state_combine,
+    const FrameStateFunctionInfo* function_info) {
+  FrameStateInfo state_info(bailout_id, state_combine, function_info);
+  return new (zone()) Operator1<FrameStateInfo>(  // --
+      IrOpcode::kFrameState, Operator::kPure,     // opcode
+      "FrameState",                               // name
+      5, 0, 0, 1, 0, 0,                           // counts
+      state_info);                                // parameter
 }
 
 
@@ -693,6 +772,14 @@ const Operator* CommonOperatorBuilder::ResizeMergeOrPhi(const Operator* op,
   }
 }
 
+
+const FrameStateFunctionInfo*
+CommonOperatorBuilder::CreateFrameStateFunctionInfo(
+    FrameStateType type, int parameter_count, int local_count,
+    Handle<SharedFunctionInfo> shared_info) {
+  return new (zone()->New(sizeof(FrameStateFunctionInfo)))
+      FrameStateFunctionInfo(type, parameter_count, local_count, shared_info);
+}
 
 }  // namespace compiler
 }  // namespace internal
