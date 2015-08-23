@@ -51,5 +51,5 @@ Register* PropertyAccessCompiler::GetCallingConvention(Code::Kind kind) {
   DCHECK(kind == Code::STORE_IC || kind == Code::KEYED_STORE_IC);
   return store_calling_convention();
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

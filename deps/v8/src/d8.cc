@@ -46,6 +46,7 @@
 #include "src/d8-debug.h"
 #include "src/debug.h"
 #include "src/snapshot/natives.h"
+#include "src/utils.h"
 #include "src/v8.h"
 #endif  // !V8_SHARED
 
@@ -103,6 +104,19 @@ class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 
 
 v8::Platform* g_platform = NULL;
+
+
+#ifndef V8_SHARED
+bool FindInObjectList(Handle<Object> object, const Shell::ObjectList& list) {
+  for (int i = 0; i < list.length(); ++i) {
+    if (list[i]->StrictEquals(object)) {
+      return true;
+    }
+  }
+  return false;
+}
+#endif  // !V8_SHARED
+
 
 }  // namespace
 
@@ -191,9 +205,14 @@ base::Mutex Shell::context_mutex_;
 const base::TimeTicks Shell::kInitialTicks =
     base::TimeTicks::HighResolutionNow();
 Persistent<Context> Shell::utility_context_;
+base::Mutex Shell::workers_mutex_;
+bool Shell::allow_new_workers_ = true;
+i::List<Worker*> Shell::workers_;
+i::List<SharedArrayBuffer::Contents> Shell::externalized_shared_contents_;
 #endif  // !V8_SHARED
 
 Persistent<Context> Shell::evaluation_context_;
+ArrayBuffer::Allocator* Shell::array_buffer_allocator;
 ShellOptions Shell::options;
 const char* Shell::kPrompt = "d8> ";
 
@@ -226,9 +245,8 @@ ScriptCompiler::CachedData* CompileForCachedData(
     name_buffer = new uint16_t[name_length];
     name_string->Write(name_buffer, 0, name_length);
   }
-  ShellArrayBufferAllocator allocator;
   Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = &allocator;
+  create_params.array_buffer_allocator = Shell::array_buffer_allocator;
   Isolate* temp_isolate = Isolate::New(create_params);
   ScriptCompiler::CachedData* result = NULL;
   {
@@ -307,7 +325,7 @@ bool Shell::ExecuteString(Isolate* isolate, Handle<String> source,
   bool FLAG_debugger = false;
 #endif  // !V8_SHARED
   HandleScope handle_scope(isolate);
-  TryCatch try_catch;
+  TryCatch try_catch(isolate);
   options.script_executed = true;
   if (FLAG_debugger) {
     // When debugging make exceptions appear to be uncaught.
@@ -352,7 +370,7 @@ bool Shell::ExecuteString(Isolate* isolate, Handle<String> source,
       }
 #if !defined(V8_SHARED)
     } else {
-      v8::TryCatch try_catch;
+      v8::TryCatch try_catch(isolate);
       v8::Local<v8::Context> context =
           v8::Local<v8::Context>::New(isolate, utility_context_);
       v8::Context::Scope context_scope(context);
@@ -474,17 +492,24 @@ void Shell::RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
 // Realm.create() creates a new realm and returns its index.
 void Shell::RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
+  TryCatch try_catch(isolate);
   PerIsolateData* data = PerIsolateData::Get(isolate);
   Persistent<Context>* old_realms = data->realms_;
   int index = data->realm_count_;
   data->realms_ = new Persistent<Context>[++data->realm_count_];
   for (int i = 0; i < index; ++i) {
     data->realms_[i].Reset(isolate, old_realms[i]);
+    old_realms[i].Reset();
   }
   delete[] old_realms;
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
-  data->realms_[index].Reset(
-      isolate, Context::New(isolate, NULL, global_template));
+  Local<Context> context = Context::New(isolate, NULL, global_template);
+  if (context.IsEmpty()) {
+    DCHECK(try_catch.HasCaught());
+    try_catch.ReThrow();
+    return;
+  }
+  data->realms_[index].Reset(isolate, context);
   args.GetReturnValue().Set(index);
 }
 
@@ -571,7 +596,7 @@ void Shell::Write(const v8::FunctionCallbackInfo<v8::Value>& args) {
     }
 
     // Explicitly catch potential exceptions in toString().
-    v8::TryCatch try_catch;
+    v8::TryCatch try_catch(args.GetIsolate());
     Handle<String> str_obj = args[i]->ToString(args.GetIsolate());
     if (try_catch.HasCaught()) {
       try_catch.ReThrow();
@@ -659,6 +684,128 @@ void Shell::Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
     }
   }
 }
+
+
+#ifndef V8_SHARED
+void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  HandleScope handle_scope(isolate);
+  if (args.Length() < 1 || !args[0]->IsString()) {
+    Throw(args.GetIsolate(), "1st argument must be string");
+    return;
+  }
+
+  {
+    base::LockGuard<base::Mutex> lock_guard(&workers_mutex_);
+    if (!allow_new_workers_) return;
+
+    Worker* worker = new Worker;
+    args.This()->SetInternalField(0, External::New(isolate, worker));
+    workers_.Add(worker);
+
+    String::Utf8Value script(args[0]);
+    if (!*script) {
+      Throw(args.GetIsolate(), "Can't get worker script");
+      return;
+    }
+    worker->StartExecuteInThread(isolate, *script);
+  }
+}
+
+
+void Shell::WorkerPostMessage(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  HandleScope handle_scope(isolate);
+  Local<Context> context = isolate->GetCurrentContext();
+
+  if (args.Length() < 1) {
+    Throw(isolate, "Invalid argument");
+    return;
+  }
+
+  Local<Value> this_value = args.This()->GetInternalField(0);
+  if (!this_value->IsExternal()) {
+    Throw(isolate, "this is not a Worker");
+    return;
+  }
+
+  Worker* worker =
+      static_cast<Worker*>(Local<External>::Cast(this_value)->Value());
+
+  Handle<Value> message = args[0];
+  ObjectList to_transfer;
+  if (args.Length() >= 2) {
+    if (!args[1]->IsArray()) {
+      Throw(isolate, "Transfer list must be an Array");
+      return;
+    }
+
+    Handle<Array> transfer = Handle<Array>::Cast(args[1]);
+    uint32_t length = transfer->Length();
+    for (uint32_t i = 0; i < length; ++i) {
+      Handle<Value> element;
+      if (transfer->Get(context, i).ToLocal(&element)) {
+        if (!element->IsArrayBuffer() && !element->IsSharedArrayBuffer()) {
+          Throw(isolate,
+                "Transfer array elements must be an ArrayBuffer or "
+                "SharedArrayBuffer.");
+          break;
+        }
+
+        to_transfer.Add(Handle<Object>::Cast(element));
+      }
+    }
+  }
+
+  ObjectList seen_objects;
+  SerializationData* data = new SerializationData;
+  if (SerializeValue(isolate, message, to_transfer, &seen_objects, data)) {
+    worker->PostMessage(data);
+  } else {
+    delete data;
+  }
+}
+
+
+void Shell::WorkerGetMessage(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  HandleScope handle_scope(isolate);
+
+  Local<Value> this_value = args.This()->GetInternalField(0);
+  if (!this_value->IsExternal()) {
+    Throw(isolate, "this is not a Worker");
+    return;
+  }
+
+  Worker* worker =
+      static_cast<Worker*>(Local<External>::Cast(this_value)->Value());
+
+  SerializationData* data = worker->GetMessage();
+  if (data) {
+    int offset = 0;
+    Local<Value> data_value;
+    if (Shell::DeserializeValue(isolate, *data, &offset).ToLocal(&data_value)) {
+      args.GetReturnValue().Set(data_value);
+    }
+    delete data;
+  }
+}
+
+
+void Shell::WorkerTerminate(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  HandleScope handle_scope(isolate);
+  Local<Value> this_value = args.This()->GetInternalField(0);
+  if (!this_value->IsExternal()) {
+    Throw(isolate, "this is not a Worker");
+    return;
+  }
+
+  Worker* worker =
+      static_cast<Worker*>(Local<External>::Cast(this_value)->Value());
+  worker->Terminate();
+}
+#endif  // !V8_SHARED
 
 
 void Shell::Quit(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -992,6 +1139,21 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
                             FunctionTemplate::New(isolate, PerformanceNow));
   global_template->Set(String::NewFromUtf8(isolate, "performance"),
                        performance_template);
+
+  Handle<FunctionTemplate> worker_fun_template =
+      FunctionTemplate::New(isolate, WorkerNew);
+  worker_fun_template->PrototypeTemplate()->Set(
+      String::NewFromUtf8(isolate, "terminate"),
+      FunctionTemplate::New(isolate, WorkerTerminate));
+  worker_fun_template->PrototypeTemplate()->Set(
+      String::NewFromUtf8(isolate, "postMessage"),
+      FunctionTemplate::New(isolate, WorkerPostMessage));
+  worker_fun_template->PrototypeTemplate()->Set(
+      String::NewFromUtf8(isolate, "getMessage"),
+      FunctionTemplate::New(isolate, WorkerGetMessage));
+  worker_fun_template->InstanceTemplate()->SetInternalFieldCount(1);
+  global_template->Set(String::NewFromUtf8(isolate, "Worker"),
+                       worker_fun_template);
 #endif  // !V8_SHARED
 
   Handle<ObjectTemplate> os_templ = ObjectTemplate::New(isolate);
@@ -1018,6 +1180,10 @@ void Shell::InitializeDebugger(Isolate* isolate) {
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
   utility_context_.Reset(isolate,
                          Context::New(isolate, NULL, global_template));
+  if (utility_context_.IsEmpty()) {
+    printf("Failed to initialize debugger\n");
+    Shell::Exit(1);
+  }
 #endif  // !V8_SHARED
 }
 
@@ -1321,9 +1487,8 @@ base::Thread::Options SourceGroup::GetThreadOptions() {
 
 
 void SourceGroup::ExecuteInThread() {
-  ShellArrayBufferAllocator allocator;
   Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = &allocator;
+  create_params.array_buffer_allocator = Shell::array_buffer_allocator;
   Isolate* isolate = Isolate::New(create_params);
   do {
     next_semaphore_.Wait();
@@ -1339,19 +1504,7 @@ void SourceGroup::ExecuteInThread() {
           Execute(isolate);
         }
       }
-      if (Shell::options.send_idle_notification) {
-        const double kLongIdlePauseInSeconds = 1.0;
-        isolate->ContextDisposedNotification();
-        isolate->IdleNotificationDeadline(
-            g_platform->MonotonicallyIncreasingTime() +
-            kLongIdlePauseInSeconds);
-      }
-      if (Shell::options.invoke_weak_callbacks) {
-        // By sending a low memory notifications, we will try hard to collect
-        // all garbage and will therefore also invoke all weak callbacks of
-        // actually unreachable persistent handles.
-        isolate->LowMemoryNotification();
-      }
+      Shell::CollectGarbage(isolate);
     }
     done_semaphore_.Signal();
   } while (!Shell::options.last_run);
@@ -1375,6 +1528,262 @@ void SourceGroup::WaitForThread() {
     thread_->Join();
   } else {
     done_semaphore_.Wait();
+  }
+}
+
+
+SerializationData::~SerializationData() {
+  // Any ArrayBuffer::Contents are owned by this SerializationData object.
+  // SharedArrayBuffer::Contents may be used by other threads, so must be
+  // cleaned up by the main thread in Shell::CleanupWorkers().
+  for (int i = 0; i < array_buffer_contents.length(); ++i) {
+    ArrayBuffer::Contents& contents = array_buffer_contents[i];
+    Shell::array_buffer_allocator->Free(contents.Data(), contents.ByteLength());
+  }
+}
+
+
+void SerializationData::WriteTag(SerializationTag tag) { data.Add(tag); }
+
+
+void SerializationData::WriteMemory(const void* p, int length) {
+  if (length > 0) {
+    i::Vector<uint8_t> block = data.AddBlock(0, length);
+    memcpy(&block[0], p, length);
+  }
+}
+
+
+void SerializationData::WriteArrayBufferContents(
+    const ArrayBuffer::Contents& contents) {
+  array_buffer_contents.Add(contents);
+  WriteTag(kSerializationTagTransferredArrayBuffer);
+  int index = array_buffer_contents.length() - 1;
+  Write(index);
+}
+
+
+void SerializationData::WriteSharedArrayBufferContents(
+    const SharedArrayBuffer::Contents& contents) {
+  shared_array_buffer_contents.Add(contents);
+  WriteTag(kSerializationTagTransferredSharedArrayBuffer);
+  int index = shared_array_buffer_contents.length() - 1;
+  Write(index);
+}
+
+
+SerializationTag SerializationData::ReadTag(int* offset) const {
+  return static_cast<SerializationTag>(Read<uint8_t>(offset));
+}
+
+
+void SerializationData::ReadMemory(void* p, int length, int* offset) const {
+  if (length > 0) {
+    memcpy(p, &data[*offset], length);
+    (*offset) += length;
+  }
+}
+
+
+void SerializationData::ReadArrayBufferContents(ArrayBuffer::Contents* contents,
+                                                int* offset) const {
+  int index = Read<int>(offset);
+  DCHECK(index < array_buffer_contents.length());
+  *contents = array_buffer_contents[index];
+}
+
+
+void SerializationData::ReadSharedArrayBufferContents(
+    SharedArrayBuffer::Contents* contents, int* offset) const {
+  int index = Read<int>(offset);
+  DCHECK(index < shared_array_buffer_contents.length());
+  *contents = shared_array_buffer_contents[index];
+}
+
+
+void SerializationDataQueue::Enqueue(SerializationData* data) {
+  base::LockGuard<base::Mutex> lock_guard(&mutex_);
+  data_.Add(data);
+}
+
+
+bool SerializationDataQueue::Dequeue(SerializationData** data) {
+  base::LockGuard<base::Mutex> lock_guard(&mutex_);
+  if (data_.is_empty()) return false;
+  *data = data_.Remove(0);
+  return true;
+}
+
+
+bool SerializationDataQueue::IsEmpty() {
+  base::LockGuard<base::Mutex> lock_guard(&mutex_);
+  return data_.is_empty();
+}
+
+
+void SerializationDataQueue::Clear() {
+  base::LockGuard<base::Mutex> lock_guard(&mutex_);
+  for (int i = 0; i < data_.length(); ++i) {
+    delete data_[i];
+  }
+  data_.Clear();
+}
+
+
+Worker::Worker()
+    : in_semaphore_(0),
+      out_semaphore_(0),
+      thread_(NULL),
+      script_(NULL),
+      state_(IDLE) {}
+
+
+Worker::~Worker() { Cleanup(); }
+
+
+void Worker::StartExecuteInThread(Isolate* isolate, const char* script) {
+  if (base::NoBarrier_CompareAndSwap(&state_, IDLE, RUNNING) == IDLE) {
+    script_ = i::StrDup(script);
+    thread_ = new WorkerThread(this);
+    thread_->Start();
+  } else {
+    // Somehow the Worker was started twice.
+    UNREACHABLE();
+  }
+}
+
+
+void Worker::PostMessage(SerializationData* data) {
+  in_queue_.Enqueue(data);
+  in_semaphore_.Signal();
+}
+
+
+SerializationData* Worker::GetMessage() {
+  SerializationData* data = NULL;
+  while (!out_queue_.Dequeue(&data)) {
+    if (base::NoBarrier_Load(&state_) != RUNNING) break;
+    out_semaphore_.Wait();
+  }
+
+  return data;
+}
+
+
+void Worker::Terminate() {
+  if (base::NoBarrier_CompareAndSwap(&state_, RUNNING, TERMINATED) == RUNNING) {
+    // Post NULL to wake the Worker thread message loop.
+    PostMessage(NULL);
+    thread_->Join();
+  }
+}
+
+
+void Worker::ExecuteInThread() {
+  Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = Shell::array_buffer_allocator;
+  Isolate* isolate = Isolate::New(create_params);
+  {
+    Isolate::Scope iscope(isolate);
+    {
+      HandleScope scope(isolate);
+      PerIsolateData data(isolate);
+      Local<Context> context = Shell::CreateEvaluationContext(isolate);
+      {
+        Context::Scope cscope(context);
+        PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
+
+        Handle<Object> global = context->Global();
+        Handle<Value> this_value = External::New(isolate, this);
+        Handle<FunctionTemplate> postmessage_fun_template =
+            FunctionTemplate::New(isolate, PostMessageOut, this_value);
+
+        Handle<Function> postmessage_fun;
+        if (postmessage_fun_template->GetFunction(context)
+                .ToLocal(&postmessage_fun)) {
+          global->Set(String::NewFromUtf8(isolate, "postMessage"),
+                      postmessage_fun);
+        }
+
+        // First run the script
+        Handle<String> file_name = String::NewFromUtf8(isolate, "unnamed");
+        Handle<String> source = String::NewFromUtf8(isolate, script_);
+        if (Shell::ExecuteString(isolate, source, file_name, false, true)) {
+          // Get the message handler
+          Handle<Value> onmessage =
+              global->Get(String::NewFromUtf8(isolate, "onmessage"));
+          if (onmessage->IsFunction()) {
+            Handle<Function> onmessage_fun = Handle<Function>::Cast(onmessage);
+            // Now wait for messages
+            bool done = false;
+            while (!done) {
+              in_semaphore_.Wait();
+              SerializationData* data;
+              if (!in_queue_.Dequeue(&data)) continue;
+              if (data == NULL) {
+                done = true;
+                break;
+              }
+              int offset = 0;
+              Local<Value> data_value;
+              if (Shell::DeserializeValue(isolate, *data, &offset)
+                      .ToLocal(&data_value)) {
+                Handle<Value> argv[] = {data_value};
+                (void)onmessage_fun->Call(context, global, 1, argv);
+              }
+              delete data;
+            }
+          }
+        }
+      }
+    }
+    Shell::CollectGarbage(isolate);
+  }
+  isolate->Dispose();
+
+  if (base::NoBarrier_CompareAndSwap(&state_, RUNNING, TERMINATED) == RUNNING) {
+    // Post NULL to wake the thread waiting on GetMessage() if there is one.
+    out_queue_.Enqueue(NULL);
+    out_semaphore_.Signal();
+  }
+}
+
+
+void Worker::Cleanup() {
+  delete thread_;
+  thread_ = NULL;
+  delete[] script_;
+  script_ = NULL;
+  in_queue_.Clear();
+  out_queue_.Clear();
+}
+
+
+void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  HandleScope handle_scope(isolate);
+
+  if (args.Length() < 1) {
+    Throw(isolate, "Invalid argument");
+    return;
+  }
+
+  Handle<Value> message = args[0];
+
+  // TODO(binji): Allow transferring from worker to main thread?
+  Shell::ObjectList to_transfer;
+
+  Shell::ObjectList seen_objects;
+  SerializationData* data = new SerializationData;
+  if (Shell::SerializeValue(isolate, message, to_transfer, &seen_objects,
+                            data)) {
+    DCHECK(args.Data()->IsExternal());
+    Handle<External> this_value = Handle<External>::Cast(args.Data());
+    Worker* worker = static_cast<Worker*>(this_value->Value());
+    worker->out_queue_.Enqueue(data);
+    worker->out_semaphore_.Signal();
+  } else {
+    delete data;
   }
 }
 #endif  // !V8_SHARED
@@ -1412,6 +1821,10 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       argv[i] = NULL;
     } else if (strcmp(argv[i], "--test") == 0) {
       options.test_shell = true;
+      argv[i] = NULL;
+    } else if (strcmp(argv[i], "--notest") == 0 ||
+               strcmp(argv[i], "--no-test") == 0) {
+      options.test_shell = false;
       argv[i] = NULL;
     } else if (strcmp(argv[i], "--send-idle-notification") == 0) {
       options.send_idle_notification = true;
@@ -1542,6 +1955,18 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
       options.isolate_sources[0].Execute(isolate);
     }
   }
+  CollectGarbage(isolate);
+#ifndef V8_SHARED
+  for (int i = 1; i < options.num_isolates; ++i) {
+    options.isolate_sources[i].WaitForThread();
+  }
+  CleanupWorkers();
+#endif  // !V8_SHARED
+  return 0;
+}
+
+
+void Shell::CollectGarbage(Isolate* isolate) {
   if (options.send_idle_notification) {
     const double kLongIdlePauseInSeconds = 1.0;
     isolate->ContextDisposedNotification();
@@ -1554,17 +1979,266 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
     // unreachable persistent handles.
     isolate->LowMemoryNotification();
   }
-
-#ifndef V8_SHARED
-  for (int i = 1; i < options.num_isolates; ++i) {
-    options.isolate_sources[i].WaitForThread();
-  }
-#endif  // !V8_SHARED
-  return 0;
 }
 
 
 #ifndef V8_SHARED
+bool Shell::SerializeValue(Isolate* isolate, Handle<Value> value,
+                           const ObjectList& to_transfer,
+                           ObjectList* seen_objects,
+                           SerializationData* out_data) {
+  DCHECK(out_data);
+  Local<Context> context = isolate->GetCurrentContext();
+
+  if (value->IsUndefined()) {
+    out_data->WriteTag(kSerializationTagUndefined);
+  } else if (value->IsNull()) {
+    out_data->WriteTag(kSerializationTagNull);
+  } else if (value->IsTrue()) {
+    out_data->WriteTag(kSerializationTagTrue);
+  } else if (value->IsFalse()) {
+    out_data->WriteTag(kSerializationTagFalse);
+  } else if (value->IsNumber()) {
+    Handle<Number> num = Handle<Number>::Cast(value);
+    double value = num->Value();
+    out_data->WriteTag(kSerializationTagNumber);
+    out_data->Write(value);
+  } else if (value->IsString()) {
+    v8::String::Utf8Value str(value);
+    out_data->WriteTag(kSerializationTagString);
+    out_data->Write(str.length());
+    out_data->WriteMemory(*str, str.length());
+  } else if (value->IsArray()) {
+    Handle<Array> array = Handle<Array>::Cast(value);
+    if (FindInObjectList(array, *seen_objects)) {
+      Throw(isolate, "Duplicated arrays not supported");
+      return false;
+    }
+    seen_objects->Add(array);
+    out_data->WriteTag(kSerializationTagArray);
+    uint32_t length = array->Length();
+    out_data->Write(length);
+    for (uint32_t i = 0; i < length; ++i) {
+      Local<Value> element_value;
+      if (array->Get(context, i).ToLocal(&element_value)) {
+        if (!SerializeValue(isolate, element_value, to_transfer, seen_objects,
+                            out_data))
+          return false;
+      }
+    }
+  } else if (value->IsArrayBuffer()) {
+    Handle<ArrayBuffer> array_buffer = Handle<ArrayBuffer>::Cast(value);
+    if (FindInObjectList(array_buffer, *seen_objects)) {
+      Throw(isolate, "Duplicated array buffers not supported");
+      return false;
+    }
+    seen_objects->Add(array_buffer);
+    if (FindInObjectList(array_buffer, to_transfer)) {
+      // Transfer ArrayBuffer
+      if (!array_buffer->IsNeuterable()) {
+        Throw(isolate, "Attempting to transfer an un-neuterable ArrayBuffer");
+        return false;
+      }
+
+      ArrayBuffer::Contents contents = array_buffer->Externalize();
+      array_buffer->Neuter();
+      out_data->WriteArrayBufferContents(contents);
+    } else {
+      ArrayBuffer::Contents contents = array_buffer->GetContents();
+      // Clone ArrayBuffer
+      if (contents.ByteLength() > i::kMaxUInt32) {
+        Throw(isolate, "ArrayBuffer is too big to clone");
+        return false;
+      }
+
+      int byte_length = static_cast<int>(contents.ByteLength());
+      out_data->WriteTag(kSerializationTagArrayBuffer);
+      out_data->Write(byte_length);
+      out_data->WriteMemory(contents.Data(),
+                            static_cast<int>(contents.ByteLength()));
+    }
+  } else if (value->IsSharedArrayBuffer()) {
+    Handle<SharedArrayBuffer> sab = Handle<SharedArrayBuffer>::Cast(value);
+    if (FindInObjectList(sab, *seen_objects)) {
+      Throw(isolate, "Duplicated shared array buffers not supported");
+      return false;
+    }
+    seen_objects->Add(sab);
+    if (!FindInObjectList(sab, to_transfer)) {
+      Throw(isolate, "SharedArrayBuffer must be transferred");
+      return false;
+    }
+
+    SharedArrayBuffer::Contents contents = sab->Externalize();
+    out_data->WriteSharedArrayBufferContents(contents);
+    externalized_shared_contents_.Add(contents);
+  } else if (value->IsObject()) {
+    Handle<Object> object = Handle<Object>::Cast(value);
+    if (FindInObjectList(object, *seen_objects)) {
+      Throw(isolate, "Duplicated objects not supported");
+      return false;
+    }
+    seen_objects->Add(object);
+    Local<Array> property_names;
+    if (!object->GetOwnPropertyNames(context).ToLocal(&property_names)) {
+      Throw(isolate, "Unable to get property names");
+      return false;
+    }
+
+    uint32_t length = property_names->Length();
+    out_data->WriteTag(kSerializationTagObject);
+    out_data->Write(length);
+    for (uint32_t i = 0; i < length; ++i) {
+      Handle<Value> name;
+      Handle<Value> property_value;
+      if (property_names->Get(context, i).ToLocal(&name) &&
+          object->Get(context, name).ToLocal(&property_value)) {
+        if (!SerializeValue(isolate, name, to_transfer, seen_objects, out_data))
+          return false;
+        if (!SerializeValue(isolate, property_value, to_transfer, seen_objects,
+                            out_data))
+          return false;
+      }
+    }
+  } else {
+    Throw(isolate, "Don't know how to serialize object");
+    return false;
+  }
+
+  return true;
+}
+
+
+MaybeLocal<Value> Shell::DeserializeValue(Isolate* isolate,
+                                          const SerializationData& data,
+                                          int* offset) {
+  DCHECK(offset);
+  EscapableHandleScope scope(isolate);
+  // This function should not use utility_context_ because it is running on a
+  // different thread.
+  Local<Value> result;
+  SerializationTag tag = data.ReadTag(offset);
+
+  switch (tag) {
+    case kSerializationTagUndefined:
+      result = Undefined(isolate);
+      break;
+    case kSerializationTagNull:
+      result = Null(isolate);
+      break;
+    case kSerializationTagTrue:
+      result = True(isolate);
+      break;
+    case kSerializationTagFalse:
+      result = False(isolate);
+      break;
+    case kSerializationTagNumber:
+      result = Number::New(isolate, data.Read<double>(offset));
+      break;
+    case kSerializationTagString: {
+      int length = data.Read<int>(offset);
+      static char s_buffer[128];
+      char* p = s_buffer;
+      bool allocated = false;
+      if (length > static_cast<int>(sizeof(s_buffer))) {
+        p = new char[length];
+        allocated = true;
+      }
+      data.ReadMemory(p, length, offset);
+      MaybeLocal<String> str =
+          String::NewFromUtf8(isolate, p, String::kNormalString, length);
+      if (!str.IsEmpty()) result = str.ToLocalChecked();
+      if (allocated) delete[] p;
+      break;
+    }
+    case kSerializationTagArray: {
+      uint32_t length = data.Read<uint32_t>(offset);
+      Handle<Array> array = Array::New(isolate, length);
+      for (uint32_t i = 0; i < length; ++i) {
+        Local<Value> element_value;
+        CHECK(DeserializeValue(isolate, data, offset).ToLocal(&element_value));
+        array->Set(i, element_value);
+      }
+      result = array;
+      break;
+    }
+    case kSerializationTagObject: {
+      int length = data.Read<int>(offset);
+      Handle<Object> object = Object::New(isolate);
+      for (int i = 0; i < length; ++i) {
+        Local<Value> property_name;
+        CHECK(DeserializeValue(isolate, data, offset).ToLocal(&property_name));
+        Local<Value> property_value;
+        CHECK(DeserializeValue(isolate, data, offset).ToLocal(&property_value));
+        object->Set(property_name, property_value);
+      }
+      result = object;
+      break;
+    }
+    case kSerializationTagArrayBuffer: {
+      int byte_length = data.Read<int>(offset);
+      Handle<ArrayBuffer> array_buffer = ArrayBuffer::New(isolate, byte_length);
+      ArrayBuffer::Contents contents = array_buffer->GetContents();
+      DCHECK(static_cast<size_t>(byte_length) == contents.ByteLength());
+      data.ReadMemory(contents.Data(), byte_length, offset);
+      result = array_buffer;
+      break;
+    }
+    case kSerializationTagTransferredArrayBuffer: {
+      ArrayBuffer::Contents contents;
+      data.ReadArrayBufferContents(&contents, offset);
+      result =
+          ArrayBuffer::New(isolate, contents.Data(), contents.ByteLength());
+      break;
+    }
+    case kSerializationTagTransferredSharedArrayBuffer: {
+      SharedArrayBuffer::Contents contents;
+      data.ReadSharedArrayBufferContents(&contents, offset);
+      result = SharedArrayBuffer::New(isolate, contents.Data(),
+                                      contents.ByteLength());
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+
+  return scope.Escape(result);
+}
+
+
+void Shell::CleanupWorkers() {
+  // Make a copy of workers_, because we don't want to call Worker::Terminate
+  // while holding the workers_mutex_ lock. Otherwise, if a worker is about to
+  // create a new Worker, it would deadlock.
+  i::List<Worker*> workers_copy;
+  {
+    base::LockGuard<base::Mutex> lock_guard(&workers_mutex_);
+    allow_new_workers_ = false;
+    workers_copy.AddAll(workers_);
+    workers_.Clear();
+  }
+
+  for (int i = 0; i < workers_copy.length(); ++i) {
+    Worker* worker = workers_copy[i];
+    worker->Terminate();
+    delete worker;
+  }
+
+  // Now that all workers are terminated, we can re-enable Worker creation.
+  {
+    base::LockGuard<base::Mutex> lock_guard(&workers_mutex_);
+    allow_new_workers_ = true;
+  }
+
+  for (int i = 0; i < externalized_shared_contents_.length(); ++i) {
+    const SharedArrayBuffer::Contents& contents =
+        externalized_shared_contents_[i];
+    Shell::array_buffer_allocator->Free(contents.Data(), contents.ByteLength());
+  }
+  externalized_shared_contents_.Clear();
+}
+
+
 static void DumpHeapConstants(i::Isolate* isolate) {
   i::Heap* heap = isolate->heap();
 
@@ -1651,13 +2325,14 @@ int Shell::Main(int argc, char* argv[]) {
   SetFlagsFromString("--redirect-code-traces-to=code.asm");
   int result = 0;
   Isolate::CreateParams create_params;
-  ShellArrayBufferAllocator array_buffer_allocator;
+  ShellArrayBufferAllocator shell_array_buffer_allocator;
   MockArrayBufferAllocator mock_arraybuffer_allocator;
   if (options.mock_arraybuffer_allocator) {
-    create_params.array_buffer_allocator = &mock_arraybuffer_allocator;
+    Shell::array_buffer_allocator = &mock_arraybuffer_allocator;
   } else {
-    create_params.array_buffer_allocator = &array_buffer_allocator;
+    Shell::array_buffer_allocator = &shell_array_buffer_allocator;
   }
+  create_params.array_buffer_allocator = Shell::array_buffer_allocator;
 #if !defined(V8_SHARED) && defined(ENABLE_GDB_JIT_INTERFACE)
   if (i::FLAG_gdbjit) {
     create_params.code_event_handler = i::GDBJITInterface::EventHandler;
@@ -1729,6 +2404,13 @@ int Shell::Main(int argc, char* argv[]) {
 #endif  // !V8_SHARED
       RunShell(isolate);
     }
+
+    // Shut down contexts and collect garbage.
+    evaluation_context_.Reset();
+#ifndef V8_SHARED
+    utility_context_.Reset();
+#endif  // !V8_SHARED
+    CollectGarbage(isolate);
   }
   OnExit(isolate);
 #ifndef V8_SHARED

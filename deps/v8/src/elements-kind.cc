@@ -44,7 +44,8 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
     case FAST_HOLEY_SMI_ELEMENTS:
     case FAST_HOLEY_ELEMENTS:
     case DICTIONARY_ELEMENTS:
-    case SLOPPY_ARGUMENTS_ELEMENTS:
+    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
+    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
       return kPointerSizeLog2;
   }
   UNREACHABLE();
@@ -54,8 +55,14 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
 
 int GetDefaultHeaderSizeForElementsKind(ElementsKind elements_kind) {
   STATIC_ASSERT(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
-  return IsExternalArrayElementsKind(elements_kind)
-      ? 0 : (FixedArray::kHeaderSize - kHeapObjectTag);
+
+  if (IsExternalArrayElementsKind(elements_kind)) {
+    return 0;
+  } else if (IsFixedTypedArrayElementsKind(elements_kind)) {
+    return FixedTypedArrayBase::kDataOffset - kHeapObjectTag;
+  } else {
+    return FixedArray::kHeaderSize - kHeapObjectTag;
+  }
 }
 
 
@@ -128,21 +135,6 @@ ElementsKind GetNextTransitionElementsKind(ElementsKind kind) {
 }
 
 
-ElementsKind GetNextMoreGeneralFastElementsKind(ElementsKind elements_kind,
-                                                bool allow_only_packed) {
-  DCHECK(IsFastElementsKind(elements_kind));
-  DCHECK(elements_kind != TERMINAL_FAST_ELEMENTS_KIND);
-  while (true) {
-    elements_kind = GetNextTransitionElementsKind(elements_kind);
-    if (!IsFastHoleyElementsKind(elements_kind) || !allow_only_packed) {
-      return elements_kind;
-    }
-  }
-  UNREACHABLE();
-  return TERMINAL_FAST_ELEMENTS_KIND;
-}
-
-
 static bool IsTypedArrayElementsKind(ElementsKind elements_kind) {
   return IsFixedTypedArrayElementsKind(elements_kind) ||
       IsExternalArrayElementsKind(elements_kind);
@@ -195,4 +187,5 @@ bool IsMoreGeneralElementsKindTransition(ElementsKind from_kind,
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

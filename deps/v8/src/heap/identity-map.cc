@@ -38,7 +38,7 @@ IdentityMapBase::RawEntry IdentityMapBase::Insert(Handle<Object> key) {
 
 int IdentityMapBase::Hash(Object* address) {
   uintptr_t raw_address = reinterpret_cast<uintptr_t>(address);
-  CHECK_NE(0, raw_address);  // Cannot store Smi 0 as a key here, sorry.
+  CHECK_NE(0U, raw_address);  // Cannot store Smi 0 as a key here, sorry.
   // Xor some of the upper bits, since the lower 2 or 3 are usually aligned.
   return static_cast<int>((raw_address >> 11) ^ raw_address);
 }
@@ -187,5 +187,5 @@ void IdentityMapBase::Resize() {
   heap_->UnregisterStrongRoots(old_keys);
   heap_->RegisterStrongRoots(keys_, keys_ + size_);
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

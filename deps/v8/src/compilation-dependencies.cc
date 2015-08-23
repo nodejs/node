@@ -117,5 +117,5 @@ void CompilationDependencies::AssumeTransitionStable(
     Insert(DependentCode::kAllocationSiteTransitionChangedGroup, site);
   }
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

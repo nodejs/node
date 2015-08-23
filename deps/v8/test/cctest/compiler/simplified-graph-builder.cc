@@ -23,7 +23,7 @@ SimplifiedGraphBuilder::SimplifiedGraphBuilder(
 
 void SimplifiedGraphBuilder::Begin(int num_parameters) {
   DCHECK(graph()->start() == NULL);
-  Node* start = graph()->NewNode(common()->Start(num_parameters));
+  Node* start = graph()->NewNode(common()->Start(num_parameters + 3));
   graph()->SetStart(start);
   effect_ = start;
 }
@@ -37,7 +37,7 @@ void SimplifiedGraphBuilder::Return(Node* value) {
 
 
 void SimplifiedGraphBuilder::End() {
-  Node* end = graph()->NewNode(common()->End(), return_);
+  Node* end = graph()->NewNode(common()->End(1), return_);
   graph()->SetEnd(end);
 }
 

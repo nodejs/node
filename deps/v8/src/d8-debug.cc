@@ -25,7 +25,7 @@ void HandleDebugEvent(const Debug::EventDetails& event_details) {
     return;
   }
 
-  TryCatch try_catch;
+  TryCatch try_catch(isolate);
 
   // Get the toJSONProtocol function on the event and get the JSON format.
   Local<String> to_json_fun_name =
@@ -76,7 +76,7 @@ void HandleDebugEvent(const Debug::EventDetails& event_details) {
     // Ignore empty commands.
     if (strlen(command) == 0) continue;
 
-    TryCatch try_catch;
+    TryCatch try_catch(isolate);
 
     // Convert the debugger command to a JSON debugger request.
     Handle<Value> request = Shell::DebugCommandToJSONRequest(

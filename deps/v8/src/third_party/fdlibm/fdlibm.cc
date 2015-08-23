@@ -290,5 +290,5 @@ int rempio2(double x, double* y) {
   }
   return n;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

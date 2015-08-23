@@ -257,19 +257,18 @@ Reduction ChangeLowering::ChangeTaggedToFloat64(Node* value, Node* control) {
     Node* vtrue1 = graph()->NewNode(value->op(), object, context, frame_state,
                                     effect, if_true1);
     Node* etrue1 = vtrue1;
-    {
-      Node* check2 = TestNotSmi(vtrue1);
-      Node* branch2 = graph()->NewNode(common()->Branch(), check2, if_true1);
 
-      Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
-      Node* vtrue2 = LoadHeapNumberValue(vtrue1, if_true2);
+    Node* check2 = TestNotSmi(vtrue1);
+    Node* branch2 = graph()->NewNode(common()->Branch(), check2, if_true1);
 
-      Node* if_false2 = graph()->NewNode(common()->IfFalse(), branch2);
-      Node* vfalse2 = ChangeSmiToFloat64(vtrue1);
+    Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
+    Node* vtrue2 = LoadHeapNumberValue(vtrue1, if_true2);
 
-      if_true1 = graph()->NewNode(merge_op, if_true2, if_false2);
-      vtrue1 = graph()->NewNode(phi_op, vtrue2, vfalse2, if_true1);
-    }
+    Node* if_false2 = graph()->NewNode(common()->IfFalse(), branch2);
+    Node* vfalse2 = ChangeSmiToFloat64(vtrue1);
+
+    if_true1 = graph()->NewNode(merge_op, if_true2, if_false2);
+    vtrue1 = graph()->NewNode(phi_op, vtrue2, vfalse2, if_true1);
 
     Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
     Node* vfalse1 = ChangeSmiToFloat64(object);
@@ -279,7 +278,18 @@ Reduction ChangeLowering::ChangeTaggedToFloat64(Node* value, Node* control) {
     Node* ephi1 = graph()->NewNode(ephi_op, etrue1, efalse1, merge1);
     Node* phi1 = graph()->NewNode(phi_op, vtrue1, vfalse1, merge1);
 
-    NodeProperties::ReplaceWithValue(value, phi1, ephi1, merge1);
+    // Wire the new diamond into the graph, {JSToNumber} can still throw.
+    NodeProperties::ReplaceUses(value, phi1, ephi1, etrue1, etrue1);
+
+    // TODO(mstarzinger): This iteration cuts out the IfSuccess projection from
+    // the node and places it inside the diamond. Come up with a helper method!
+    for (Node* use : etrue1->uses()) {
+      if (use->opcode() == IrOpcode::kIfSuccess) {
+        use->ReplaceUses(merge1);
+        NodeProperties::ReplaceControlInput(branch2, use);
+      }
+    }
+
     return Replace(phi1);
   }
 

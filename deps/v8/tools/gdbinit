@@ -40,7 +40,7 @@ end
 
 # Print JavaScript stack trace.
 define jst
-print v8::internal::Isolate::Current()->PrintStack((FILE*) stdout)
+print v8::internal::Isolate::Current()->PrintStack((FILE*) stdout, 1)
 end
 document jst
 Print the current JavaScript stack trace

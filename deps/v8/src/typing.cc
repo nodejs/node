@@ -105,7 +105,9 @@ void AstTyper::ObserveTypesAtOsrEntry(IterationStatement* stmt) {
 
     ZoneList<Variable*> local_vars(locals, zone());
     ZoneList<Variable*> context_vars(scope->ContextLocalCount(), zone());
-    scope->CollectStackAndContextLocals(&local_vars, &context_vars);
+    ZoneList<Variable*> global_vars(scope->ContextGlobalCount(), zone());
+    scope->CollectStackAndContextLocals(&local_vars, &context_vars,
+                                        &global_vars);
     for (int i = 0; i < locals; i++) {
       PrintObserved(local_vars.at(i),
                     frame->GetExpression(i),
@@ -346,9 +348,7 @@ void AstTyper::VisitDebuggerStatement(DebuggerStatement* stmt) {
 }
 
 
-void AstTyper::VisitFunctionLiteral(FunctionLiteral* expr) {
-  expr->InitializeSharedInfo(Handle<Code>(info_->closure()->shared()->code()));
-}
+void AstTyper::VisitFunctionLiteral(FunctionLiteral* expr) {}
 
 
 void AstTyper::VisitClassLiteral(ClassLiteral* expr) {}
@@ -492,35 +492,20 @@ void AstTyper::VisitThrow(Throw* expr) {
 void AstTyper::VisitProperty(Property* expr) {
   // Collect type feedback.
   FeedbackVectorICSlot slot(FeedbackVectorICSlot::Invalid());
-  TypeFeedbackId id(TypeFeedbackId::None());
-  if (FLAG_vector_ics) {
-    slot = expr->PropertyFeedbackSlot();
-    expr->set_inline_cache_state(oracle()->LoadInlineCacheState(slot));
-  } else {
-    id = expr->PropertyFeedbackId();
-    expr->set_inline_cache_state(oracle()->LoadInlineCacheState(id));
-  }
+  slot = expr->PropertyFeedbackSlot();
+  expr->set_inline_cache_state(oracle()->LoadInlineCacheState(slot));
 
   if (!expr->IsUninitialized()) {
     if (expr->key()->IsPropertyName()) {
       Literal* lit_key = expr->key()->AsLiteral();
       DCHECK(lit_key != NULL && lit_key->value()->IsString());
       Handle<String> name = Handle<String>::cast(lit_key->value());
-      if (FLAG_vector_ics) {
-        oracle()->PropertyReceiverTypes(slot, name, expr->GetReceiverTypes());
-      } else {
-        oracle()->PropertyReceiverTypes(id, name, expr->GetReceiverTypes());
-      }
+      oracle()->PropertyReceiverTypes(slot, name, expr->GetReceiverTypes());
     } else {
       bool is_string;
       IcCheckType key_type;
-      if (FLAG_vector_ics) {
-        oracle()->KeyedPropertyReceiverTypes(slot, expr->GetReceiverTypes(),
-                                             &is_string, &key_type);
-      } else {
-        oracle()->KeyedPropertyReceiverTypes(id, expr->GetReceiverTypes(),
-                                             &is_string, &key_type);
-      }
+      oracle()->KeyedPropertyReceiverTypes(slot, expr->GetReceiverTypes(),
+                                           &is_string, &key_type);
       expr->set_is_string_access(is_string);
       expr->set_key_type(key_type);
     }
@@ -769,14 +754,17 @@ void AstTyper::VisitCompareOperation(CompareOperation* expr) {
 }
 
 
-void AstTyper::VisitSpread(Spread* expr) { UNREACHABLE(); }
+void AstTyper::VisitSpread(Spread* expr) { RECURSE(Visit(expr->expression())); }
 
 
 void AstTyper::VisitThisFunction(ThisFunction* expr) {
 }
 
 
-void AstTyper::VisitSuperReference(SuperReference* expr) {}
+void AstTyper::VisitSuperPropertyReference(SuperPropertyReference* expr) {}
+
+
+void AstTyper::VisitSuperCallReference(SuperCallReference* expr) {}
 
 
 void AstTyper::VisitDeclarations(ZoneList<Declaration*>* decls) {
@@ -804,4 +792,5 @@ void AstTyper::VisitExportDeclaration(ExportDeclaration* declaration) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

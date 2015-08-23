@@ -17,12 +17,17 @@ class ExternalReference;
 class HeapObject;
 template <class T>
 class Unique;
+template <class>
+class TypeImpl;
+struct ZoneTypeConfig;
+typedef TypeImpl<ZoneTypeConfig> Type;
 
 namespace compiler {
 
 // Forward declarations.
 class BufferAccess;
 class CallDescriptor;
+class ContextAccess;
 struct ElementAccess;
 struct FieldAccess;
 class Node;
@@ -31,7 +36,13 @@ class Node;
 using ::testing::Matcher;
 
 
-Matcher<Node*> IsEnd(const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsDead();
+Matcher<Node*> IsEnd(const Matcher<Node*>& control0_matcher);
+Matcher<Node*> IsEnd(const Matcher<Node*>& control0_matcher,
+                     const Matcher<Node*>& control1_matcher);
+Matcher<Node*> IsEnd(const Matcher<Node*>& control0_matcher,
+                     const Matcher<Node*>& control1_matcher,
+                     const Matcher<Node*>& control2_matcher);
 Matcher<Node*> IsBranch(const Matcher<Node*>& value_matcher,
                         const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsMerge(const Matcher<Node*>& control0_matcher,
@@ -125,6 +136,9 @@ Matcher<Node*> IsTailCall(
     const Matcher<Node*>& control_matcher);
 
 Matcher<Node*> IsBooleanNot(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsReferenceEqual(const Matcher<Type*>& type_matcher,
+                                const Matcher<Node*>& lhs_matcher,
+                                const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsNumberEqual(const Matcher<Node*>& lhs_matcher,
                              const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsNumberLessThan(const Matcher<Node*>& lhs_matcher,
@@ -133,6 +147,12 @@ Matcher<Node*> IsNumberSubtract(const Matcher<Node*>& lhs_matcher,
                                 const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsNumberMultiply(const Matcher<Node*>& lhs_matcher,
                                 const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsNumberShiftLeft(const Matcher<Node*>& lhs_matcher,
+                                 const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsNumberShiftRight(const Matcher<Node*>& lhs_matcher,
+                                  const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsNumberShiftRightLogical(const Matcher<Node*>& lhs_matcher,
+                                         const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsAllocate(const Matcher<Node*>& size_matcher,
                           const Matcher<Node*>& effect_matcher,
                           const Matcher<Node*>& control_matcher);
@@ -255,6 +275,8 @@ Matcher<Node*> IsToNumber(const Matcher<Node*>& base_matcher,
                           const Matcher<Node*>& context_matcher,
                           const Matcher<Node*>& effect_matcher,
                           const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsLoadContext(const Matcher<ContextAccess>& access_matcher,
+                             const Matcher<Node*>& context_matcher);
 Matcher<Node*> IsNumberToInt32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsNumberToUint32(const Matcher<Node*>& input_matcher);
 

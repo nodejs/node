@@ -259,9 +259,15 @@ const int kSaBits        = 5;
 const int kFunctionShift = 0;
 const int kFunctionBits  = 6;
 const int kLuiShift      = 16;
+const int kBp2Shift = 6;
+const int kBp2Bits = 2;
 
 const int kImm16Shift = 0;
 const int kImm16Bits  = 16;
+const int kImm18Shift = 0;
+const int kImm18Bits = 18;
+const int kImm19Shift = 0;
+const int kImm19Bits = 19;
 const int kImm21Shift = 0;
 const int kImm21Bits  = 21;
 const int kImm26Shift = 0;
@@ -294,6 +300,9 @@ const int kFBtrueBits    = 1;
 // Instruction bit masks.
 const int  kOpcodeMask   = ((1 << kOpcodeBits) - 1) << kOpcodeShift;
 const int  kImm16Mask    = ((1 << kImm16Bits) - 1) << kImm16Shift;
+const int kImm18Mask = ((1 << kImm18Bits) - 1) << kImm18Shift;
+const int kImm19Mask = ((1 << kImm19Bits) - 1) << kImm19Shift;
+const int kImm21Mask = ((1 << kImm21Bits) - 1) << kImm21Shift;
 const int  kImm26Mask    = ((1 << kImm26Bits) - 1) << kImm26Shift;
 const int  kImm28Mask    = ((1 << kImm28Bits) - 1) << kImm28Shift;
 const int  kRsFieldMask  = ((1 << kRsBits) - 1) << kRsShift;
@@ -311,60 +320,63 @@ const int  kJumpAddrMask = (1 << (kImm26Bits + kImmFieldShift)) - 1;
 // We use this presentation to stay close to the table representation in
 // MIPS32 Architecture For Programmers, Volume II: The MIPS32 Instruction Set.
 enum Opcode {
-  SPECIAL   =   0 << kOpcodeShift,
-  REGIMM    =   1 << kOpcodeShift,
+  SPECIAL = 0 << kOpcodeShift,
+  REGIMM = 1 << kOpcodeShift,
 
-  J         =   ((0 << 3) + 2) << kOpcodeShift,
-  JAL       =   ((0 << 3) + 3) << kOpcodeShift,
-  BEQ       =   ((0 << 3) + 4) << kOpcodeShift,
-  BNE       =   ((0 << 3) + 5) << kOpcodeShift,
-  BLEZ      =   ((0 << 3) + 6) << kOpcodeShift,
-  BGTZ      =   ((0 << 3) + 7) << kOpcodeShift,
+  J = ((0 << 3) + 2) << kOpcodeShift,
+  JAL = ((0 << 3) + 3) << kOpcodeShift,
+  BEQ = ((0 << 3) + 4) << kOpcodeShift,
+  BNE = ((0 << 3) + 5) << kOpcodeShift,
+  BLEZ = ((0 << 3) + 6) << kOpcodeShift,
+  BGTZ = ((0 << 3) + 7) << kOpcodeShift,
 
-  ADDI      =   ((1 << 3) + 0) << kOpcodeShift,
-  ADDIU     =   ((1 << 3) + 1) << kOpcodeShift,
-  SLTI      =   ((1 << 3) + 2) << kOpcodeShift,
-  SLTIU     =   ((1 << 3) + 3) << kOpcodeShift,
-  ANDI      =   ((1 << 3) + 4) << kOpcodeShift,
-  ORI       =   ((1 << 3) + 5) << kOpcodeShift,
-  XORI      =   ((1 << 3) + 6) << kOpcodeShift,
-  LUI       =   ((1 << 3) + 7) << kOpcodeShift,  // LUI/AUI family.
+  ADDI = ((1 << 3) + 0) << kOpcodeShift,
+  ADDIU = ((1 << 3) + 1) << kOpcodeShift,
+  SLTI = ((1 << 3) + 2) << kOpcodeShift,
+  SLTIU = ((1 << 3) + 3) << kOpcodeShift,
+  ANDI = ((1 << 3) + 4) << kOpcodeShift,
+  ORI = ((1 << 3) + 5) << kOpcodeShift,
+  XORI = ((1 << 3) + 6) << kOpcodeShift,
+  LUI = ((1 << 3) + 7) << kOpcodeShift,  // LUI/AUI family.
 
-  BEQC      =   ((2 << 3) + 0) << kOpcodeShift,
-  COP1      =   ((2 << 3) + 1) << kOpcodeShift,  // Coprocessor 1 class.
-  BEQL      =   ((2 << 3) + 4) << kOpcodeShift,
-  BNEL      =   ((2 << 3) + 5) << kOpcodeShift,
-  BLEZL     =   ((2 << 3) + 6) << kOpcodeShift,
-  BGTZL     =   ((2 << 3) + 7) << kOpcodeShift,
+  BEQC = ((2 << 3) + 0) << kOpcodeShift,
+  COP1 = ((2 << 3) + 1) << kOpcodeShift,  // Coprocessor 1 class.
+  BEQL = ((2 << 3) + 4) << kOpcodeShift,
+  BNEL = ((2 << 3) + 5) << kOpcodeShift,
+  BLEZL = ((2 << 3) + 6) << kOpcodeShift,
+  BGTZL = ((2 << 3) + 7) << kOpcodeShift,
 
-  DADDI     =   ((3 << 3) + 0) << kOpcodeShift,  // This is also BNEC.
-  SPECIAL2  =   ((3 << 3) + 4) << kOpcodeShift,
-  SPECIAL3  =   ((3 << 3) + 7) << kOpcodeShift,
+  DADDI = ((3 << 3) + 0) << kOpcodeShift,  // This is also BNEC.
+  SPECIAL2 = ((3 << 3) + 4) << kOpcodeShift,
+  SPECIAL3 = ((3 << 3) + 7) << kOpcodeShift,
 
-  LB        =   ((4 << 3) + 0) << kOpcodeShift,
-  LH        =   ((4 << 3) + 1) << kOpcodeShift,
-  LWL       =   ((4 << 3) + 2) << kOpcodeShift,
-  LW        =   ((4 << 3) + 3) << kOpcodeShift,
-  LBU       =   ((4 << 3) + 4) << kOpcodeShift,
-  LHU       =   ((4 << 3) + 5) << kOpcodeShift,
-  LWR       =   ((4 << 3) + 6) << kOpcodeShift,
-  SB        =   ((5 << 3) + 0) << kOpcodeShift,
-  SH        =   ((5 << 3) + 1) << kOpcodeShift,
-  SWL       =   ((5 << 3) + 2) << kOpcodeShift,
-  SW        =   ((5 << 3) + 3) << kOpcodeShift,
-  SWR       =   ((5 << 3) + 6) << kOpcodeShift,
+  LB = ((4 << 3) + 0) << kOpcodeShift,
+  LH = ((4 << 3) + 1) << kOpcodeShift,
+  LWL = ((4 << 3) + 2) << kOpcodeShift,
+  LW = ((4 << 3) + 3) << kOpcodeShift,
+  LBU = ((4 << 3) + 4) << kOpcodeShift,
+  LHU = ((4 << 3) + 5) << kOpcodeShift,
+  LWR = ((4 << 3) + 6) << kOpcodeShift,
+  SB = ((5 << 3) + 0) << kOpcodeShift,
+  SH = ((5 << 3) + 1) << kOpcodeShift,
+  SWL = ((5 << 3) + 2) << kOpcodeShift,
+  SW = ((5 << 3) + 3) << kOpcodeShift,
+  SWR = ((5 << 3) + 6) << kOpcodeShift,
 
-  LWC1      =   ((6 << 3) + 1) << kOpcodeShift,
-  LDC1      =   ((6 << 3) + 5) << kOpcodeShift,
-  BEQZC     =   ((6 << 3) + 6) << kOpcodeShift,
+  LWC1 = ((6 << 3) + 1) << kOpcodeShift,
+  BC = ((6 << 3) + 2) << kOpcodeShift,
+  LDC1 = ((6 << 3) + 5) << kOpcodeShift,
+  POP66 = ((6 << 3) + 6) << kOpcodeShift,
 
-  PREF      =   ((6 << 3) + 3) << kOpcodeShift,
+  PREF = ((6 << 3) + 3) << kOpcodeShift,
 
-  SWC1      =   ((7 << 3) + 1) << kOpcodeShift,
-  SDC1      =   ((7 << 3) + 5) << kOpcodeShift,
-  BNEZC     =   ((7 << 3) + 6) << kOpcodeShift,
+  SWC1 = ((7 << 3) + 1) << kOpcodeShift,
+  BALC = ((7 << 3) + 2) << kOpcodeShift,
+  PCREL = ((7 << 3) + 3) << kOpcodeShift,
+  SDC1 = ((7 << 3) + 5) << kOpcodeShift,
+  POP76 = ((7 << 3) + 6) << kOpcodeShift,
 
-  COP1X     =   ((1 << 4) + 3) << kOpcodeShift
+  COP1X = ((1 << 4) + 3) << kOpcodeShift
 };
 
 enum SecondaryField {
@@ -435,6 +447,14 @@ enum SecondaryField {
   // SPECIAL3 Encoding of Function Field.
   EXT = ((0 << 3) + 0),
   INS = ((0 << 3) + 4),
+  BSHFL = ((4 << 3) + 0),
+
+  // SPECIAL3 Encoding of sa Field.
+  BITSWAP = ((0 << 3) + 0),
+  ALIGN = ((0 << 3) + 2),
+  WSBH = ((0 << 3) + 2),
+  SEB = ((2 << 3) + 0),
+  SEH = ((3 << 3) + 0),
 
   // REGIMM  encoding of rt Field.
   BLTZ = ((0 << 3) + 0) << 16,
@@ -457,6 +477,15 @@ enum SecondaryField {
   L = ((2 << 3) + 5) << 21,
   PS = ((2 << 3) + 6) << 21,
   // COP1 Encoding of Function Field When rs=S.
+
+  ADD_S = ((0 << 3) + 0),
+  SUB_S = ((0 << 3) + 1),
+  MUL_S = ((0 << 3) + 2),
+  DIV_S = ((0 << 3) + 3),
+  ABS_S = ((0 << 3) + 5),
+  SQRT_S = ((0 << 3) + 4),
+  MOV_S = ((0 << 3) + 6),
+  NEG_S = ((0 << 3) + 7),
   ROUND_L_S = ((1 << 3) + 0),
   TRUNC_L_S = ((1 << 3) + 1),
   CEIL_L_S = ((1 << 3) + 2),
@@ -465,10 +494,14 @@ enum SecondaryField {
   TRUNC_W_S = ((1 << 3) + 5),
   CEIL_W_S = ((1 << 3) + 6),
   FLOOR_W_S = ((1 << 3) + 7),
+  RECIP_S = ((2 << 3) + 5),
+  RSQRT_S = ((2 << 3) + 6),
+  CLASS_S = ((3 << 3) + 3),
   CVT_D_S = ((4 << 3) + 1),
   CVT_W_S = ((4 << 3) + 4),
   CVT_L_S = ((4 << 3) + 5),
   CVT_PS_S = ((4 << 3) + 6),
+
   // COP1 Encoding of Function Field When rs=D.
   ADD_D = ((0 << 3) + 0),
   SUB_D = ((0 << 3) + 1),
@@ -486,6 +519,9 @@ enum SecondaryField {
   TRUNC_W_D = ((1 << 3) + 5),
   CEIL_W_D = ((1 << 3) + 6),
   FLOOR_W_D = ((1 << 3) + 7),
+  RECIP_D = ((2 << 3) + 5),
+  RSQRT_D = ((2 << 3) + 6),
+  CLASS_D = ((3 << 3) + 3),
   MIN = ((3 << 3) + 4),
   MINA = ((3 << 3) + 5),
   MAX = ((3 << 3) + 6),
@@ -501,6 +537,7 @@ enum SecondaryField {
   C_ULT_D = ((6 << 3) + 5),
   C_OLE_D = ((6 << 3) + 6),
   C_ULE_D = ((6 << 3) + 7),
+
   // COP1 Encoding of Function Field When rs=W or L.
   CVT_S_W = ((4 << 3) + 0),
   CVT_D_W = ((4 << 3) + 1),
@@ -544,11 +581,26 @@ enum SecondaryField {
   CMP_SOGT = ((3 << 3) + 7),  // Reserved, not implemented.
 
   SEL = ((2 << 3) + 0),
+  MOVZ_C = ((2 << 3) + 2),
+  MOVN_C = ((2 << 3) + 3),
   SELEQZ_C = ((2 << 3) + 4),  // COP1 on FPR registers.
+  MOVF = ((2 << 3) + 1),      // Function field for MOVT.fmt and MOVF.fmt
   SELNEZ_C = ((2 << 3) + 7),  // COP1 on FPR registers.
   // COP1 Encoding of Function Field When rs=PS.
   // COP1X Encoding of Function Field.
   MADD_D = ((4 << 3) + 1),
+
+  // PCREL Encoding of rt Field.
+  ADDIUPC = ((0 << 2) + 0),
+  LWPC = ((0 << 2) + 1),
+  AUIPC = ((3 << 3) + 6),
+  ALUIPC = ((3 << 3) + 7),
+
+  // POP66 Encoding of rs Field.
+  JIC = ((0 << 5) + 0),
+
+  // POP76 Encoding of rs Field.
+  JIALC = ((0 << 5) + 0),
 
   NULLSF = 0
 };
@@ -683,14 +735,21 @@ inline Condition CommuteCondition(Condition cc) {
 enum FPUCondition {
   kNoFPUCondition = -1,
 
-  F     = 0,  // False.
-  UN    = 1,  // Unordered.
-  EQ    = 2,  // Equal.
-  UEQ   = 3,  // Unordered or Equal.
-  OLT   = 4,  // Ordered or Less Than.
-  ULT   = 5,  // Unordered or Less Than.
-  OLE   = 6,  // Ordered or Less Than or Equal.
-  ULE   = 7   // Unordered or Less Than or Equal.
+  F = 0x00,    // False.
+  UN = 0x01,   // Unordered.
+  EQ = 0x02,   // Equal.
+  UEQ = 0x03,  // Unordered or Equal.
+  OLT = 0x04,  // Ordered or Less Than, on Mips release < 6.
+  LT = 0x04,   // Ordered or Less Than, on Mips release >= 6.
+  ULT = 0x05,  // Unordered or Less Than.
+  OLE = 0x06,  // Ordered or Less Than or Equal, on Mips release < 6.
+  LE = 0x06,   // Ordered or Less Than or Equal, on Mips release >= 6.
+  ULE = 0x07,  // Unordered or Less Than or Equal.
+
+  // Following constants are available on Mips release >= 6 only.
+  ORD = 0x11,  // Ordered, on Mips release >= 6.
+  UNE = 0x12,  // Not equal, on Mips release >= 6.
+  NE = 0x13,   // Ordered Greater Than or Less Than. on Mips >= 6 only.
 };
 
 
@@ -853,6 +912,11 @@ class Instruction {
     return Bits(kFrShift + kFrBits -1, kFrShift);
   }
 
+  inline int Bp2Value() const {
+    DCHECK(InstructionType() == kRegisterType);
+    return Bits(kBp2Shift + kBp2Bits - 1, kBp2Shift);
+  }
+
   // Float Compare condition code instruction bits.
   inline int FCccValue() const {
     return Bits(kFCccShift + kFCccBits - 1, kFCccShift);
@@ -896,7 +960,6 @@ class Instruction {
   }
 
   inline int SaFieldRaw() const {
-    DCHECK(InstructionType() == kRegisterType);
     return InstructionBits() & kSaFieldMask;
   }
 
@@ -925,13 +988,24 @@ class Instruction {
     return Bits(kImm16Shift + kImm16Bits - 1, kImm16Shift);
   }
 
+  inline int32_t Imm18Value() const {
+    DCHECK(InstructionType() == kImmediateType);
+    return Bits(kImm18Shift + kImm18Bits - 1, kImm18Shift);
+  }
+
+  inline int32_t Imm19Value() const {
+    DCHECK(InstructionType() == kImmediateType);
+    return Bits(kImm19Shift + kImm19Bits - 1, kImm19Shift);
+  }
+
   inline int32_t Imm21Value() const {
     DCHECK(InstructionType() == kImmediateType);
     return Bits(kImm21Shift + kImm21Bits - 1, kImm21Shift);
   }
 
   inline int32_t Imm26Value() const {
-    DCHECK(InstructionType() == kJumpType);
+    DCHECK((InstructionType() == kJumpType) ||
+           (InstructionType() == kImmediateType));
     return Bits(kImm26Shift + kImm26Bits - 1, kImm26Shift);
   }
 

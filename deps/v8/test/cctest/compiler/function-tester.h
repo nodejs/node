@@ -34,15 +34,16 @@ class FunctionTester : public InitializedHandleScope {
         flags_(flags) {
     Compile(function);
     const uint32_t supported_flags = CompilationInfo::kContextSpecializing |
-                                     CompilationInfo::kBuiltinInliningEnabled |
                                      CompilationInfo::kInliningEnabled |
                                      CompilationInfo::kTypingEnabled;
     CHECK_EQ(0u, flags_ & ~supported_flags);
   }
 
+  // TODO(turbofan): generalize FunctionTester to work with N arguments. Now, it
+  // can handle up to four.
   explicit FunctionTester(Graph* graph)
       : isolate(main_isolate()),
-        function(NewFunction("(function(a,b){})")),
+        function(NewFunction("(function(a,b,c,d){})")),
         flags_(0) {
     CompileGraph(graph);
   }
@@ -55,8 +56,14 @@ class FunctionTester : public InitializedHandleScope {
     return Execution::Call(isolate, function, undefined(), 2, args, false);
   }
 
+  MaybeHandle<Object> Call(Handle<Object> a, Handle<Object> b, Handle<Object> c,
+                           Handle<Object> d) {
+    Handle<Object> args[] = {a, b, c, d};
+    return Execution::Call(isolate, function, undefined(), 4, args, false);
+  }
+
   void CheckThrows(Handle<Object> a, Handle<Object> b) {
-    TryCatch try_catch;
+    TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
     MaybeHandle<Object> no_result = Call(a, b);
     CHECK(isolate->has_pending_exception());
     CHECK(try_catch.HasCaught());
@@ -66,7 +73,7 @@ class FunctionTester : public InitializedHandleScope {
 
   v8::Handle<v8::Message> CheckThrowsReturnMessage(Handle<Object> a,
                                                    Handle<Object> b) {
-    TryCatch try_catch;
+    TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
     MaybeHandle<Object> no_result = Call(a, b);
     CHECK(isolate->has_pending_exception());
     CHECK(try_catch.HasCaught());
@@ -153,6 +160,7 @@ class FunctionTester : public InitializedHandleScope {
     Zone zone;
     ParseInfo parse_info(&zone, function);
     CompilationInfo info(&parse_info);
+    info.MarkAsDeoptimizationEnabled();
 
     CHECK(Parser::ParseStatic(info.parse_info()));
     info.SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
@@ -170,11 +178,8 @@ class FunctionTester : public InitializedHandleScope {
 
     Pipeline pipeline(&info);
     Handle<Code> code = pipeline.GenerateCode();
-    if (FLAG_turbo_deoptimization) {
-      info.context()->native_context()->AddOptimizedCode(*code);
-    }
-
     CHECK(!code.is_null());
+    info.context()->native_context()->AddOptimizedCode(*code);
     function->ReplaceCode(*code);
 #elif USE_CRANKSHAFT
     Handle<Code> unoptimized = Handle<Code>(function->code());

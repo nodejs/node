@@ -34,15 +34,18 @@ class JSTypeFeedbackTest : public TypedGraphTest {
   ~JSTypeFeedbackTest() override { dependencies_.Rollback(); }
 
  protected:
-  Reduction Reduce(Node* node) {
+  Reduction Reduce(Node* node,
+                   JSTypeFeedbackSpecializer::DeoptimizationMode mode) {
     Handle<GlobalObject> global_object(
         isolate()->native_context()->global_object(), isolate());
 
     MachineOperatorBuilder machine(zone());
     JSGraph jsgraph(isolate(), graph(), common(), javascript(), &machine);
     JSTypeFeedbackTable table(zone());
-    JSTypeFeedbackSpecializer reducer(&jsgraph, &table, nullptr, global_object,
-                                      &dependencies_);
+    // TODO(titzer): mock the GraphReducer here for better unit testing.
+    GraphReducer graph_reducer(zone(), graph());
+    JSTypeFeedbackSpecializer reducer(&graph_reducer, &jsgraph, &table, nullptr,
+                                      global_object, mode, &dependencies_);
     return reducer.Reduce(node);
   }
 
@@ -71,19 +74,23 @@ class JSTypeFeedbackTest : public TypedGraphTest {
     result.Assert();
   }
 
-  Node* ReturnLoadNamedFromGlobal(const char* string, Node* effect,
-                                  Node* control) {
-    VectorSlotPair feedback(Handle<TypeFeedbackVector>::null(),
-                            FeedbackVectorICSlot::Invalid());
-    Node* global = Parameter(Type::GlobalObject());
+  Node* ReturnLoadNamedFromGlobal(
+      const char* string, Node* effect, Node* control,
+      JSTypeFeedbackSpecializer::DeoptimizationMode mode) {
+    VectorSlotPair feedback;
+    Node* global = UndefinedConstant();
+    Node* vector = UndefinedConstant();
     Node* context = UndefinedConstant();
 
     Unique<Name> name = Unique<Name>::CreateUninitialized(
-        isolate()->factory()->NewStringFromAsciiChecked(string));
-    Node* load = graph()->NewNode(javascript()->LoadNamed(name, feedback),
-                                  global, context);
-    if (FLAG_turbo_deoptimization) {
-      load->AppendInput(zone(), EmptyFrameState());
+        isolate()->factory()->InternalizeUtf8String(string));
+    const Operator* op = javascript()->LoadGlobal(name, feedback);
+    Node* load = graph()->NewNode(op, global, vector, context);
+    if (mode == JSTypeFeedbackSpecializer::kDeoptimizationEnabled) {
+      for (int i = 0; i < OperatorProperties::GetFrameStateInputCount(op);
+           i++) {
+        load->AppendInput(zone(), EmptyFrameState());
+      }
     }
     load->AppendInput(zone(), effect);
     load->AppendInput(zone(), control);
@@ -98,180 +105,240 @@ class JSTypeFeedbackTest : public TypedGraphTest {
   CompilationDependencies dependencies_;
 };
 
-#define WITH_AND_WITHOUT_TURBO_DEOPTIMIZATION        \
-  for (int i = FLAG_turbo_deoptimization = 0; i < 2; \
-       FLAG_turbo_deoptimization = ++i)
 
+TEST_F(JSTypeFeedbackTest, JSLoadNamedGlobalConstSmi) {
+  const int kValue = 111;
+  const char* kName = "banana";
+  SetGlobalProperty(kName, kValue);
 
-TEST_F(JSTypeFeedbackTest, JSLoadNamedGlobalConst_smi) {
-  const int const_value = 111;
-  const char* property_name = "banana";
-  SetGlobalProperty(property_name, const_value);
+  Node* ret = ReturnLoadNamedFromGlobal(
+      kName, graph()->start(), graph()->start(),
+      JSTypeFeedbackSpecializer::kDeoptimizationDisabled);
+  graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
 
-  WITH_AND_WITHOUT_TURBO_DEOPTIMIZATION {
-    Node* ret = ReturnLoadNamedFromGlobal(property_name, graph()->start(),
-                                          graph()->start());
-    graph()->SetEnd(graph()->NewNode(common()->End(), ret));
-
-    Reduction r = Reduce(ret->InputAt(0));
-
-    if (FLAG_turbo_deoptimization) {
-      // Check LoadNamed(global) => HeapConstant[const_value]
-      ASSERT_TRUE(r.Changed());
-      EXPECT_THAT(r.replacement(), IsNumberConstant(const_value));
-
-      EXPECT_THAT(ret, IsReturn(IsNumberConstant(const_value), graph()->start(),
-                                graph()->start()));
-      EXPECT_THAT(graph()->end(), IsEnd(ret));
-
-      EXPECT_FALSE(dependencies()->IsEmpty());
-      dependencies()->Rollback();
-    } else {
-      ASSERT_FALSE(r.Changed());
-      EXPECT_TRUE(dependencies()->IsEmpty());
-    }
-  }
+  Reduction r = Reduce(ret->InputAt(0),
+                       JSTypeFeedbackSpecializer::kDeoptimizationDisabled);
+  EXPECT_FALSE(r.Changed());
+  EXPECT_TRUE(dependencies()->IsEmpty());
 }
 
 
-TEST_F(JSTypeFeedbackTest, JSLoadNamedGlobalConst_derble) {
-  const double const_value = -11.25;
-  const char* property_name = "kiwi";
-  SetGlobalProperty(property_name, const_value);
+TEST_F(JSTypeFeedbackTest, JSLoadNamedGlobalConstSmiWithDeoptimization) {
+  const int kValue = 111;
+  const char* kName = "banana";
+  SetGlobalProperty(kName, kValue);
 
-  WITH_AND_WITHOUT_TURBO_DEOPTIMIZATION {
-    Node* ret = ReturnLoadNamedFromGlobal(property_name, graph()->start(),
-                                          graph()->start());
-    graph()->SetEnd(graph()->NewNode(common()->End(), ret));
+  Node* ret = ReturnLoadNamedFromGlobal(
+      kName, graph()->start(), graph()->start(),
+      JSTypeFeedbackSpecializer::kDeoptimizationEnabled);
+  graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
 
-    Reduction r = Reduce(ret->InputAt(0));
+  Reduction r = Reduce(ret->InputAt(0),
+                       JSTypeFeedbackSpecializer::kDeoptimizationEnabled);
 
-    if (FLAG_turbo_deoptimization) {
-      // Check LoadNamed(global) => HeapConstant[const_value]
-      ASSERT_TRUE(r.Changed());
-      EXPECT_THAT(r.replacement(), IsNumberConstant(const_value));
+  // Check LoadNamed(global) => HeapConstant[kValue]
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsNumberConstant(kValue));
 
-      EXPECT_THAT(ret, IsReturn(IsNumberConstant(const_value), graph()->start(),
-                                graph()->start()));
-      EXPECT_THAT(graph()->end(), IsEnd(ret));
+  EXPECT_THAT(ret, IsReturn(IsNumberConstant(kValue), graph()->start(),
+                            graph()->start()));
+  EXPECT_THAT(graph()->end(), IsEnd(ret));
 
-      EXPECT_FALSE(dependencies()->IsEmpty());
-    } else {
-      ASSERT_FALSE(r.Changed());
-      EXPECT_TRUE(dependencies()->IsEmpty());
-    }
-  }
+  EXPECT_FALSE(dependencies()->IsEmpty());
+  dependencies()->Rollback();
 }
 
 
-TEST_F(JSTypeFeedbackTest, JSLoadNamedGlobalConst_string) {
-  Unique<HeapObject> const_value = Unique<HeapObject>::CreateImmovable(
+TEST_F(JSTypeFeedbackTest, JSLoadNamedGlobalConstNumber) {
+  const double kValue = -11.25;
+  const char* kName = "kiwi";
+  SetGlobalProperty(kName, kValue);
+
+  Node* ret = ReturnLoadNamedFromGlobal(
+      kName, graph()->start(), graph()->start(),
+      JSTypeFeedbackSpecializer::kDeoptimizationDisabled);
+  graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
+
+  Reduction r = Reduce(ret->InputAt(0),
+                       JSTypeFeedbackSpecializer::kDeoptimizationDisabled);
+
+  EXPECT_FALSE(r.Changed());
+  EXPECT_TRUE(dependencies()->IsEmpty());
+}
+
+
+TEST_F(JSTypeFeedbackTest, JSLoadNamedGlobalConstNumberWithDeoptimization) {
+  const double kValue = -11.25;
+  const char* kName = "kiwi";
+  SetGlobalProperty(kName, kValue);
+
+  Node* ret = ReturnLoadNamedFromGlobal(
+      kName, graph()->start(), graph()->start(),
+      JSTypeFeedbackSpecializer::kDeoptimizationEnabled);
+  graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
+
+  Reduction r = Reduce(ret->InputAt(0),
+                       JSTypeFeedbackSpecializer::kDeoptimizationEnabled);
+
+  // Check LoadNamed(global) => HeapConstant[kValue]
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsNumberConstant(kValue));
+
+  EXPECT_THAT(ret, IsReturn(IsNumberConstant(kValue), graph()->start(),
+                            graph()->start()));
+  EXPECT_THAT(graph()->end(), IsEnd(ret));
+
+  EXPECT_FALSE(dependencies()->IsEmpty());
+}
+
+
+TEST_F(JSTypeFeedbackTest, JSLoadNamedGlobalConstString) {
+  Unique<HeapObject> kValue = Unique<HeapObject>::CreateImmovable(
       isolate()->factory()->undefined_string());
-  const char* property_name = "mango";
-  SetGlobalProperty(property_name, const_value.handle());
+  const char* kName = "mango";
+  SetGlobalProperty(kName, kValue.handle());
 
-  WITH_AND_WITHOUT_TURBO_DEOPTIMIZATION {
-    Node* ret = ReturnLoadNamedFromGlobal(property_name, graph()->start(),
-                                          graph()->start());
-    graph()->SetEnd(graph()->NewNode(common()->End(), ret));
+  Node* ret = ReturnLoadNamedFromGlobal(
+      kName, graph()->start(), graph()->start(),
+      JSTypeFeedbackSpecializer::kDeoptimizationDisabled);
+  graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
 
-    Reduction r = Reduce(ret->InputAt(0));
-
-    if (FLAG_turbo_deoptimization) {
-      // Check LoadNamed(global) => HeapConstant[const_value]
-      ASSERT_TRUE(r.Changed());
-      EXPECT_THAT(r.replacement(), IsHeapConstant(const_value));
-
-      EXPECT_THAT(ret, IsReturn(IsHeapConstant(const_value), graph()->start(),
-                                graph()->start()));
-      EXPECT_THAT(graph()->end(), IsEnd(ret));
-
-      EXPECT_FALSE(dependencies()->IsEmpty());
-      dependencies()->Rollback();
-    } else {
-      ASSERT_FALSE(r.Changed());
-      EXPECT_TRUE(dependencies()->IsEmpty());
-    }
-  }
+  Reduction r = Reduce(ret->InputAt(0),
+                       JSTypeFeedbackSpecializer::kDeoptimizationDisabled);
+  ASSERT_FALSE(r.Changed());
+  EXPECT_TRUE(dependencies()->IsEmpty());
 }
 
 
-TEST_F(JSTypeFeedbackTest, JSLoadNamedGlobalPropertyCell_smi) {
-  const char* property_name = "melon";
-  SetGlobalProperty(property_name, 123);
-  SetGlobalProperty(property_name, 124);
+TEST_F(JSTypeFeedbackTest, JSLoadNamedGlobalConstStringWithDeoptimization) {
+  Unique<HeapObject> kValue = Unique<HeapObject>::CreateImmovable(
+      isolate()->factory()->undefined_string());
+  const char* kName = "mango";
+  SetGlobalProperty(kName, kValue.handle());
 
-  WITH_AND_WITHOUT_TURBO_DEOPTIMIZATION {
-    Node* ret = ReturnLoadNamedFromGlobal(property_name, graph()->start(),
-                                          graph()->start());
-    graph()->SetEnd(graph()->NewNode(common()->End(), ret));
+  Node* ret = ReturnLoadNamedFromGlobal(
+      kName, graph()->start(), graph()->start(),
+      JSTypeFeedbackSpecializer::kDeoptimizationEnabled);
+  graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
 
-    Reduction r = Reduce(ret->InputAt(0));
+  Reduction r = Reduce(ret->InputAt(0),
+                       JSTypeFeedbackSpecializer::kDeoptimizationEnabled);
 
-    if (FLAG_turbo_deoptimization) {
-      // Check LoadNamed(global) => LoadField[PropertyCell::value](cell)
-      ASSERT_TRUE(r.Changed());
-      FieldAccess access = AccessBuilder::ForPropertyCellValue();
-      Capture<Node*> cell_capture;
-      Matcher<Node*> load_field_match = IsLoadField(
-          access, CaptureEq(&cell_capture), graph()->start(), graph()->start());
-      EXPECT_THAT(r.replacement(), load_field_match);
+  // Check LoadNamed(global) => HeapConstant[kValue]
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsHeapConstant(kValue));
 
-      HeapObjectMatcher<PropertyCell> cell(cell_capture.value());
-      EXPECT_TRUE(cell.HasValue());
-      EXPECT_TRUE(cell.Value().handle()->IsPropertyCell());
+  EXPECT_THAT(ret, IsReturn(IsHeapConstant(kValue), graph()->start(),
+                            graph()->start()));
+  EXPECT_THAT(graph()->end(), IsEnd(ret));
 
-      EXPECT_THAT(
-          ret, IsReturn(load_field_match, load_field_match, graph()->start()));
-      EXPECT_THAT(graph()->end(), IsEnd(ret));
-
-      EXPECT_FALSE(dependencies()->IsEmpty());
-      dependencies()->Rollback();
-    } else {
-      ASSERT_FALSE(r.Changed());
-      EXPECT_TRUE(dependencies()->IsEmpty());
-    }
-  }
+  EXPECT_FALSE(dependencies()->IsEmpty());
+  dependencies()->Rollback();
 }
 
 
-TEST_F(JSTypeFeedbackTest, JSLoadNamedGlobalPropertyCell_string) {
-  const char* property_name = "pineapple";
-  SetGlobalProperty(property_name, isolate()->factory()->undefined_string());
-  SetGlobalProperty(property_name, isolate()->factory()->undefined_value());
+TEST_F(JSTypeFeedbackTest, JSLoadNamedGlobalPropertyCellSmi) {
+  const char* kName = "melon";
+  SetGlobalProperty(kName, 123);
+  SetGlobalProperty(kName, 124);
 
-  WITH_AND_WITHOUT_TURBO_DEOPTIMIZATION {
-    Node* ret = ReturnLoadNamedFromGlobal(property_name, graph()->start(),
-                                          graph()->start());
-    graph()->SetEnd(graph()->NewNode(common()->End(), ret));
+  Node* ret = ReturnLoadNamedFromGlobal(
+      kName, graph()->start(), graph()->start(),
+      JSTypeFeedbackSpecializer::kDeoptimizationDisabled);
+  graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
 
-    Reduction r = Reduce(ret->InputAt(0));
-
-    if (FLAG_turbo_deoptimization) {
-      // Check LoadNamed(global) => LoadField[PropertyCell::value](cell)
-      ASSERT_TRUE(r.Changed());
-      FieldAccess access = AccessBuilder::ForPropertyCellValue();
-      Capture<Node*> cell_capture;
-      Matcher<Node*> load_field_match = IsLoadField(
-          access, CaptureEq(&cell_capture), graph()->start(), graph()->start());
-      EXPECT_THAT(r.replacement(), load_field_match);
-
-      HeapObjectMatcher<PropertyCell> cell(cell_capture.value());
-      EXPECT_TRUE(cell.HasValue());
-      EXPECT_TRUE(cell.Value().handle()->IsPropertyCell());
-
-      EXPECT_THAT(
-          ret, IsReturn(load_field_match, load_field_match, graph()->start()));
-      EXPECT_THAT(graph()->end(), IsEnd(ret));
-
-      EXPECT_FALSE(dependencies()->IsEmpty());
-      dependencies()->Rollback();
-    } else {
-      ASSERT_FALSE(r.Changed());
-      EXPECT_TRUE(dependencies()->IsEmpty());
-    }
-  }
+  Reduction r = Reduce(ret->InputAt(0),
+                       JSTypeFeedbackSpecializer::kDeoptimizationDisabled);
+  ASSERT_FALSE(r.Changed());
+  EXPECT_TRUE(dependencies()->IsEmpty());
 }
+
+
+TEST_F(JSTypeFeedbackTest, JSLoadNamedGlobalPropertyCellSmiWithDeoptimization) {
+  const char* kName = "melon";
+  SetGlobalProperty(kName, 123);
+  SetGlobalProperty(kName, 124);
+
+  Node* ret = ReturnLoadNamedFromGlobal(
+      kName, graph()->start(), graph()->start(),
+      JSTypeFeedbackSpecializer::kDeoptimizationEnabled);
+  graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
+
+  Reduction r = Reduce(ret->InputAt(0),
+                       JSTypeFeedbackSpecializer::kDeoptimizationEnabled);
+
+  // Check LoadNamed(global) => LoadField[PropertyCell::value](cell)
+  ASSERT_TRUE(r.Changed());
+  FieldAccess access = AccessBuilder::ForPropertyCellValue();
+  Capture<Node*> cell_capture;
+  Matcher<Node*> load_field_match = IsLoadField(
+      access, CaptureEq(&cell_capture), graph()->start(), graph()->start());
+  EXPECT_THAT(r.replacement(), load_field_match);
+
+  HeapObjectMatcher cell(cell_capture.value());
+  EXPECT_TRUE(cell.HasValue());
+  EXPECT_TRUE(cell.Value().handle()->IsPropertyCell());
+
+  EXPECT_THAT(ret,
+              IsReturn(load_field_match, load_field_match, graph()->start()));
+  EXPECT_THAT(graph()->end(), IsEnd(ret));
+
+  EXPECT_FALSE(dependencies()->IsEmpty());
+  dependencies()->Rollback();
 }
+
+
+TEST_F(JSTypeFeedbackTest, JSLoadNamedGlobalPropertyCellString) {
+  const char* kName = "pineapple";
+  SetGlobalProperty(kName, isolate()->factory()->undefined_string());
+  SetGlobalProperty(kName, isolate()->factory()->undefined_value());
+
+  Node* ret = ReturnLoadNamedFromGlobal(
+      kName, graph()->start(), graph()->start(),
+      JSTypeFeedbackSpecializer::kDeoptimizationDisabled);
+  graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
+
+  Reduction r = Reduce(ret->InputAt(0),
+                       JSTypeFeedbackSpecializer::kDeoptimizationDisabled);
+  ASSERT_FALSE(r.Changed());
+  EXPECT_TRUE(dependencies()->IsEmpty());
 }
+
+
+TEST_F(JSTypeFeedbackTest,
+       JSLoadNamedGlobalPropertyCellStringWithDeoptimization) {
+  const char* kName = "pineapple";
+  SetGlobalProperty(kName, isolate()->factory()->undefined_string());
+  SetGlobalProperty(kName, isolate()->factory()->undefined_value());
+
+  Node* ret = ReturnLoadNamedFromGlobal(
+      kName, graph()->start(), graph()->start(),
+      JSTypeFeedbackSpecializer::kDeoptimizationEnabled);
+  graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
+
+  Reduction r = Reduce(ret->InputAt(0),
+                       JSTypeFeedbackSpecializer::kDeoptimizationEnabled);
+
+  // Check LoadNamed(global) => LoadField[PropertyCell::value](cell)
+  ASSERT_TRUE(r.Changed());
+  FieldAccess access = AccessBuilder::ForPropertyCellValue();
+  Capture<Node*> cell_capture;
+  Matcher<Node*> load_field_match = IsLoadField(
+      access, CaptureEq(&cell_capture), graph()->start(), graph()->start());
+  EXPECT_THAT(r.replacement(), load_field_match);
+
+  HeapObjectMatcher cell(cell_capture.value());
+  EXPECT_TRUE(cell.HasValue());
+  EXPECT_TRUE(cell.Value().handle()->IsPropertyCell());
+
+  EXPECT_THAT(ret,
+              IsReturn(load_field_match, load_field_match, graph()->start()));
+  EXPECT_THAT(graph()->end(), IsEnd(ret));
+
+  EXPECT_FALSE(dependencies()->IsEmpty());
+  dependencies()->Rollback();
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

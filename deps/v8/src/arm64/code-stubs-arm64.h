@@ -138,8 +138,10 @@ class RecordWriteStub: public PlatformCodeStub {
     DCHECK(instr1->IsPCRelAddressing() || instr1->IsUncondBranchImm());
     DCHECK(instr2->IsPCRelAddressing() || instr2->IsUncondBranchImm());
     // Retrieve the offsets to the labels.
-    int32_t offset_to_incremental_noncompacting = instr1->ImmPCOffset();
-    int32_t offset_to_incremental_compacting = instr2->ImmPCOffset();
+    auto offset_to_incremental_noncompacting =
+        static_cast<int32_t>(instr1->ImmPCOffset());
+    auto offset_to_incremental_compacting =
+        static_cast<int32_t>(instr2->ImmPCOffset());
 
     switch (mode) {
       case STORE_BUFFER_ONLY:

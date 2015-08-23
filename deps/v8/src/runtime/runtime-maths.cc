@@ -252,5 +252,5 @@ RUNTIME_FUNCTION(Runtime_IsMinusZero) {
   HeapNumber* number = HeapNumber::cast(obj);
   return isolate->heap()->ToBoolean(IsMinusZero(number->value()));
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

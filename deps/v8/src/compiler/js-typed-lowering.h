@@ -26,9 +26,9 @@ class MachineOperatorBuilder;
 
 
 // Lowers JS-level operators to simplified operators based on types.
-class JSTypedLowering final : public Reducer {
+class JSTypedLowering final : public AdvancedReducer {
  public:
-  JSTypedLowering(JSGraph* jsgraph, Zone* zone);
+  JSTypedLowering(Editor* editor, JSGraph* jsgraph, Zone* zone);
   ~JSTypedLowering() final {}
 
   Reduction Reduce(Node* node) final;
@@ -36,16 +36,18 @@ class JSTypedLowering final : public Reducer {
  private:
   friend class JSBinopReduction;
 
-  Reduction ReplaceEagerly(Node* old, Node* node);
   Reduction ReduceJSAdd(Node* node);
+  Reduction ReduceJSModulus(Node* node);
   Reduction ReduceJSBitwiseOr(Node* node);
   Reduction ReduceJSMultiply(Node* node);
   Reduction ReduceJSComparison(Node* node);
-  Reduction ReduceJSLoadNamed(Node* node);
+  Reduction ReduceJSLoadGlobal(Node* node);
   Reduction ReduceJSLoadProperty(Node* node);
   Reduction ReduceJSStoreProperty(Node* node);
   Reduction ReduceJSLoadContext(Node* node);
   Reduction ReduceJSStoreContext(Node* node);
+  Reduction ReduceJSLoadDynamicGlobal(Node* node);
+  Reduction ReduceJSLoadDynamicContext(Node* node);
   Reduction ReduceJSEqual(Node* node, bool invert);
   Reduction ReduceJSStrictEqual(Node* node, bool invert);
   Reduction ReduceJSUnaryNot(Node* node);
@@ -59,18 +61,22 @@ class JSTypedLowering final : public Reducer {
   Reduction ReduceJSCreateLiteralObject(Node* node);
   Reduction ReduceJSCreateWithContext(Node* node);
   Reduction ReduceJSCreateBlockContext(Node* node);
+  Reduction ReduceJSCallFunction(Node* node);
+  Reduction ReduceJSForInDone(Node* node);
+  Reduction ReduceJSForInNext(Node* node);
+  Reduction ReduceJSForInPrepare(Node* node);
+  Reduction ReduceJSForInStep(Node* node);
   Reduction ReduceNumberBinop(Node* node, const Operator* numberOp);
   Reduction ReduceInt32Binop(Node* node, const Operator* intOp);
   Reduction ReduceUI32Shift(Node* node, Signedness left_signedness,
                             const Operator* shift_op);
-
-  Node* ConvertPrimitiveToNumber(Node* input);
 
   Node* Word32Shl(Node* const lhs, int32_t const rhs);
 
   Factory* factory() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
+  Isolate* isolate() const;
   JSOperatorBuilder* javascript() const;
   CommonOperatorBuilder* common() const;
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
@@ -81,9 +87,6 @@ class JSTypedLowering final : public Reducer {
 
   JSGraph* jsgraph_;
   SimplifiedOperatorBuilder simplified_;
-  Type* zero_range_;
-  Type* one_range_;
-  Type* zero_thirtyone_range_;
   Type* shifted_int32_ranges_[4];
 };
 

@@ -79,4 +79,5 @@ void DoubleToAscii(double v, DtoaMode mode, int requested_digits,
   buffer[*length] = '\0';
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

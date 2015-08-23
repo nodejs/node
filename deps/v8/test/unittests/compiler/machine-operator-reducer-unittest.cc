@@ -234,6 +234,10 @@ const uint32_t kUint32Values[] = {
     0x00003fff, 0x00001fff, 0x00000fff, 0x000007ff, 0x000003ff, 0x000001ff};
 
 
+const TruncationMode kTruncationModes[] = {TruncationMode::kJavaScript,
+                                           TruncationMode::kRoundToZero};
+
+
 struct ComparisonBinaryOperator {
   const Operator* (MachineOperatorBuilder::*constructor)();
   const char* constructor_name;
@@ -255,53 +259,6 @@ const ComparisonBinaryOperator kComparisonBinaryOperators[] = {
 };
 
 }  // namespace
-
-
-// -----------------------------------------------------------------------------
-// Unary operators
-
-
-namespace {
-
-struct UnaryOperator {
-  const Operator* (MachineOperatorBuilder::*constructor)();
-  const char* constructor_name;
-};
-
-
-std::ostream& operator<<(std::ostream& os, const UnaryOperator& unop) {
-  return os << unop.constructor_name;
-}
-
-
-static const UnaryOperator kUnaryOperators[] = {
-    {&MachineOperatorBuilder::ChangeInt32ToFloat64, "ChangeInt32ToFloat64"},
-    {&MachineOperatorBuilder::ChangeUint32ToFloat64, "ChangeUint32ToFloat64"},
-    {&MachineOperatorBuilder::ChangeFloat64ToInt32, "ChangeFloat64ToInt32"},
-    {&MachineOperatorBuilder::ChangeFloat64ToUint32, "ChangeFloat64ToUint32"},
-    {&MachineOperatorBuilder::ChangeInt32ToInt64, "ChangeInt32ToInt64"},
-    {&MachineOperatorBuilder::ChangeUint32ToUint64, "ChangeUint32ToUint64"},
-    {&MachineOperatorBuilder::TruncateFloat64ToInt32, "TruncateFloat64ToInt32"},
-    {&MachineOperatorBuilder::TruncateInt64ToInt32, "TruncateInt64ToInt32"}};
-
-}  // namespace
-
-
-typedef MachineOperatorReducerTestWithParam<UnaryOperator>
-    MachineUnaryOperatorReducerTest;
-
-
-TEST_P(MachineUnaryOperatorReducerTest, Parameter) {
-  const UnaryOperator unop = GetParam();
-  Reduction reduction =
-      Reduce(graph()->NewNode((machine()->*unop.constructor)(), Parameter(0)));
-  EXPECT_FALSE(reduction.Changed());
-}
-
-
-INSTANTIATE_TEST_CASE_P(MachineOperatorReducerTest,
-                        MachineUnaryOperatorReducerTest,
-                        ::testing::ValuesIn(kUnaryOperators));
 
 
 // -----------------------------------------------------------------------------
@@ -459,19 +416,22 @@ TEST_F(MachineOperatorReducerTest, TruncateFloat64ToFloat32WithConstant) {
 
 TEST_F(MachineOperatorReducerTest,
        TruncateFloat64ToInt32WithChangeInt32ToFloat64) {
-  Node* value = Parameter(0);
-  Reduction reduction = Reduce(graph()->NewNode(
-      machine()->TruncateFloat64ToInt32(),
-      graph()->NewNode(machine()->ChangeInt32ToFloat64(), value)));
-  ASSERT_TRUE(reduction.Changed());
-  EXPECT_EQ(value, reduction.replacement());
+  TRACED_FOREACH(TruncationMode, mode, kTruncationModes) {
+    Node* value = Parameter(0);
+    Reduction reduction = Reduce(graph()->NewNode(
+        machine()->TruncateFloat64ToInt32(mode),
+        graph()->NewNode(machine()->ChangeInt32ToFloat64(), value)));
+    ASSERT_TRUE(reduction.Changed());
+    EXPECT_EQ(value, reduction.replacement());
+  }
 }
 
 
 TEST_F(MachineOperatorReducerTest, TruncateFloat64ToInt32WithConstant) {
   TRACED_FOREACH(double, x, kFloat64Values) {
     Reduction reduction = Reduce(graph()->NewNode(
-        machine()->TruncateFloat64ToInt32(), Float64Constant(x)));
+        machine()->TruncateFloat64ToInt32(TruncationMode::kJavaScript),
+        Float64Constant(x)));
     ASSERT_TRUE(reduction.Changed());
     EXPECT_THAT(reduction.replacement(), IsInt32Constant(DoubleToInt32(x)));
   }
@@ -482,13 +442,15 @@ TEST_F(MachineOperatorReducerTest, TruncateFloat64ToInt32WithPhi) {
   Node* const p0 = Parameter(0);
   Node* const p1 = Parameter(1);
   Node* const merge = graph()->start();
-  Reduction reduction = Reduce(graph()->NewNode(
-      machine()->TruncateFloat64ToInt32(),
-      graph()->NewNode(common()->Phi(kMachFloat64, 2), p0, p1, merge)));
-  ASSERT_TRUE(reduction.Changed());
-  EXPECT_THAT(reduction.replacement(),
-              IsPhi(kMachInt32, IsTruncateFloat64ToInt32(p0),
-                    IsTruncateFloat64ToInt32(p1), merge));
+  TRACED_FOREACH(TruncationMode, mode, kTruncationModes) {
+    Reduction reduction = Reduce(graph()->NewNode(
+        machine()->TruncateFloat64ToInt32(mode),
+        graph()->NewNode(common()->Phi(kMachFloat64, 2), p0, p1, merge)));
+    ASSERT_TRUE(reduction.Changed());
+    EXPECT_THAT(reduction.replacement(),
+                IsPhi(kMachInt32, IsTruncateFloat64ToInt32(p0),
+                      IsTruncateFloat64ToInt32(p1), merge));
+  }
 }
 
 

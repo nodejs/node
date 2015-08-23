@@ -292,4 +292,5 @@ void LGapResolver::EmitMove(int index) {
   moves_[index].Eliminate();
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -8,7 +8,6 @@
 
 using namespace v8::internal;
 
-
 static const HType kTypes[] = {
   #define DECLARE_TYPE(Name, mask) HType::Name(),
   HTYPE_LIST(DECLARE_TYPE)

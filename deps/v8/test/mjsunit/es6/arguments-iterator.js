@@ -219,10 +219,7 @@ function TestArgumentsAsProto() {
   assertSame([][Symbol.iterator], o[Symbol.iterator]);
   assertFalse(o.hasOwnProperty(Symbol.iterator));
   assertSame([][Symbol.iterator], o[Symbol.iterator]);
-  // This should throw, but currently it doesn't, because
-  // ExecutableAccessorInfo callbacks don't see the current strict mode.
-  // See note in accessors.cc:SetPropertyOnInstanceIfInherited.
-  o[Symbol.iterator] = 10;
+  assertThrows(function () { o[Symbol.iterator] = 10 });
   assertFalse(o.hasOwnProperty(Symbol.iterator));
   assertEquals([][Symbol.iterator], o[Symbol.iterator]);
   assertSame([][Symbol.iterator], arguments[Symbol.iterator]);

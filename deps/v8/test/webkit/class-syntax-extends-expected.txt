@@ -58,12 +58,12 @@ PASS new (class extends undefined { constructor () { this } }) threw exception T
 PASS new (class extends undefined { constructor () { super(); } }) threw exception TypeError: Class extends value undefined is not a function or null.
 PASS x = {}; new (class extends undefined { constructor () { return x; } }) threw exception TypeError: Class extends value undefined is not a function or null.
 PASS y = 12; new (class extends undefined { constructor () { return y; } }) threw exception TypeError: Class extends value undefined is not a function or null.
-FAIL class x {}; new (class extends null { constructor () { return new x; } }) instanceof x should be true. Threw exception TypeError: x is not a function
+PASS class x {}; new (class extends null { constructor () { return new x; } }) instanceof x is true
 PASS new (class extends null { constructor () { this; } }) threw exception ReferenceError: this is not defined.
 PASS new (class extends null { constructor () { super(); } }) threw exception TypeError: function () {} is not a constructor.
 PASS x = {}; new (class extends null { constructor () { return x } }) is x
 PASS y = 12; new (class extends null { constructor () { return y; } }) threw exception TypeError: Derived constructors may only return object or undefined.
-FAIL class x {}; new (class extends null { constructor () { return new x; } }) instanceof x should be true. Threw exception TypeError: x is not a function
+PASS class x {}; new (class extends null { constructor () { return new x; } }) instanceof x is true
 PASS x = null; Object.getPrototypeOf((class extends x { }).prototype) is null
 PASS Object.prototype.isPrototypeOf(class { }) is true
 PASS Function.prototype.isPrototypeOf(class { }) is true

@@ -29,5 +29,5 @@
 
 // Test call of JS runtime functions.
 
-var a = %$isNaN(0/0);
-assertEquals(true, a);
+var a = %MakeError(0, "error");
+assertInstanceof(a, Error);

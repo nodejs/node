@@ -29,6 +29,7 @@
 // Get the Debug object exposed from the debug context global object.
 
 Debug = debug.Debug
+Debug.setListener(function(){});
 
 var function_z_text =
 "  function Z() {\n"
@@ -111,3 +112,4 @@ for (var i = 0; i < breaks_ids.length; i++) {
 }
 
 assertEquals(0, Debug.scriptBreakPoints().length);
+Debug.setListener(null);

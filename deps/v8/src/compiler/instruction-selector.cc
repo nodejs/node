@@ -336,8 +336,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
     case CallDescriptor::kCallAddress:
       buffer->instruction_args.push_back(
           (call_address_immediate &&
-           (callee->opcode() == IrOpcode::kInt32Constant ||
-            callee->opcode() == IrOpcode::kInt64Constant))
+           callee->opcode() == IrOpcode::kExternalConstant)
               ? g.UseImmediate(callee)
               : g.UseRegister(callee));
       break;
@@ -373,7 +372,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   // not appear as arguments to the call. Everything else ends up
   // as an InstructionOperand argument to the call.
   auto iter(call->inputs().begin());
-  int pushed_count = 0;
+  size_t pushed_count = 0;
   for (size_t index = 0; index < input_count; ++iter, ++index) {
     DCHECK(iter != call->inputs().end());
     DCHECK((*iter)->op()->opcode() != IrOpcode::kFrameState);
@@ -393,10 +392,8 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
       buffer->instruction_args.push_back(op);
     }
   }
-  CHECK_EQ(pushed_count, static_cast<int>(buffer->pushed_nodes.size()));
-  DCHECK(static_cast<size_t>(input_count) ==
-         (buffer->instruction_args.size() + buffer->pushed_nodes.size() -
-          buffer->frame_state_value_count()));
+  DCHECK_EQ(input_count, buffer->instruction_args.size() + pushed_count -
+                             buffer->frame_state_value_count());
 }
 
 
@@ -423,10 +420,9 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
     if (instructions_.size() == current_node_end) continue;
     // Mark source position on first instruction emitted.
     SourcePosition source_position = source_positions_->GetSourcePosition(node);
-    if (source_position.IsUnknown()) continue;
-    DCHECK(!source_position.IsInvalid());
-    if (source_position_mode_ == kAllSourcePositions ||
-        node->opcode() == IrOpcode::kCall) {
+    if (source_position.IsKnown() &&
+        (source_position_mode_ == kAllSourcePositions ||
+         node->opcode() == IrOpcode::kCall)) {
       sequence()->SetSourcePosition(instructions_[current_node_end],
                                     source_position);
     }
@@ -678,6 +674,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord64(node), VisitUint64Div(node);
     case IrOpcode::kUint64LessThan:
       return VisitUint64LessThan(node);
+    case IrOpcode::kUint64LessThanOrEqual:
+      return VisitUint64LessThanOrEqual(node);
     case IrOpcode::kUint64Mod:
       return MarkAsWord64(node), VisitUint64Mod(node);
     case IrOpcode::kChangeFloat32ToFloat64:
@@ -762,6 +760,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsFloat64(node), VisitFloat64InsertHighWord32(node);
     case IrOpcode::kLoadStackPointer:
       return VisitLoadStackPointer(node);
+    case IrOpcode::kLoadFramePointer:
+      return VisitLoadFramePointer(node);
     case IrOpcode::kCheckedLoad: {
       MachineType rep = OpParameter<MachineType>(node);
       MarkAsRepresentation(rep, node);
@@ -779,16 +779,15 @@ void InstructionSelector::VisitNode(Node* node) {
 
 #if V8_TURBOFAN_BACKEND
 
-void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
-  OperandGenerator g(this);
-  Emit(kArchTruncateDoubleToI, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
-}
-
-
 void InstructionSelector::VisitLoadStackPointer(Node* node) {
   OperandGenerator g(this);
   Emit(kArchStackPointer, g.DefineAsRegister(node));
+}
+
+
+void InstructionSelector::VisitLoadFramePointer(Node* node) {
+  OperandGenerator g(this);
+  Emit(kArchFramePointer, g.DefineAsRegister(node));
 }
 
 
@@ -831,7 +830,7 @@ void InstructionSelector::EmitLookupSwitch(const SwitchInfo& sw,
 #endif  // V8_TURBOFAN_BACKEND
 
 // 32 bit targets do not implement the following instructions.
-#if V8_TARGET_ARCH_32_BIT && !V8_TARGET_ARCH_X64 && V8_TURBOFAN_BACKEND
+#if !V8_TURBOFAN_BACKEND_64
 
 void InstructionSelector::VisitWord64And(Node* node) { UNIMPLEMENTED(); }
 
@@ -886,6 +885,11 @@ void InstructionSelector::VisitInt64Mod(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitUint64LessThan(Node* node) { UNIMPLEMENTED(); }
 
 
+void InstructionSelector::VisitUint64LessThanOrEqual(Node* node) {
+  UNIMPLEMENTED();
+}
+
+
 void InstructionSelector::VisitUint64Mod(Node* node) { UNIMPLEMENTED(); }
 
 
@@ -924,7 +928,7 @@ void InstructionSelector::VisitParameter(Node* node) {
 
 void InstructionSelector::VisitIfException(Node* node) {
   OperandGenerator g(this);
-  Node* call = node->InputAt(0);
+  Node* call = node->InputAt(1);
   DCHECK_EQ(IrOpcode::kCall, call->opcode());
   const CallDescriptor* descriptor = OpParameter<const CallDescriptor*>(call);
   Emit(kArchNop, g.DefineAsLocation(node, descriptor->GetReturnLocation(0),
@@ -1029,25 +1033,29 @@ void InstructionSelector::VisitThrow(Node* value) {
 FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
     Node* state) {
   DCHECK(state->opcode() == IrOpcode::kFrameState);
-  DCHECK_EQ(5, state->InputCount());
-  DCHECK_EQ(IrOpcode::kTypedStateValues, state->InputAt(0)->opcode());
-  DCHECK_EQ(IrOpcode::kTypedStateValues, state->InputAt(1)->opcode());
-  DCHECK_EQ(IrOpcode::kTypedStateValues, state->InputAt(2)->opcode());
-  FrameStateCallInfo state_info = OpParameter<FrameStateCallInfo>(state);
+  DCHECK_EQ(kFrameStateInputCount, state->InputCount());
+  FrameStateInfo state_info = OpParameter<FrameStateInfo>(state);
 
-  int parameters =
-      static_cast<int>(StateValuesAccess(state->InputAt(0)).size());
-  int locals = static_cast<int>(StateValuesAccess(state->InputAt(1)).size());
-  int stack = static_cast<int>(StateValuesAccess(state->InputAt(2)).size());
+  int parameters = static_cast<int>(
+      StateValuesAccess(state->InputAt(kFrameStateParametersInput)).size());
+  int locals = static_cast<int>(
+      StateValuesAccess(state->InputAt(kFrameStateLocalsInput)).size());
+  int stack = static_cast<int>(
+      StateValuesAccess(state->InputAt(kFrameStateStackInput)).size());
+
+  DCHECK_EQ(parameters, state_info.parameter_count());
+  DCHECK_EQ(locals, state_info.local_count());
 
   FrameStateDescriptor* outer_state = NULL;
-  Node* outer_node = state->InputAt(4);
+  Node* outer_node = state->InputAt(kFrameStateOuterStateInput);
   if (outer_node->opcode() == IrOpcode::kFrameState) {
     outer_state = GetFrameStateDescriptor(outer_node);
   }
 
   return new (instruction_zone()) FrameStateDescriptor(
-      instruction_zone(), state_info, parameters, locals, stack, outer_state);
+      instruction_zone(), state_info.type(), state_info.bailout_id(),
+      state_info.state_combine(), parameters, locals, stack,
+      state_info.shared_info(), outer_state);
 }
 
 
@@ -1069,18 +1077,16 @@ void InstructionSelector::AddFrameStateInputs(
     FrameStateDescriptor* descriptor) {
   DCHECK_EQ(IrOpcode::kFrameState, state->op()->opcode());
 
-  if (descriptor->outer_state() != NULL) {
-    AddFrameStateInputs(state->InputAt(4), inputs, descriptor->outer_state());
+  if (descriptor->outer_state()) {
+    AddFrameStateInputs(state->InputAt(kFrameStateOuterStateInput), inputs,
+                        descriptor->outer_state());
   }
 
-  Node* parameters = state->InputAt(0);
-  Node* locals = state->InputAt(1);
-  Node* stack = state->InputAt(2);
-  Node* context = state->InputAt(3);
-
-  DCHECK_EQ(IrOpcode::kTypedStateValues, parameters->op()->opcode());
-  DCHECK_EQ(IrOpcode::kTypedStateValues, locals->op()->opcode());
-  DCHECK_EQ(IrOpcode::kTypedStateValues, stack->op()->opcode());
+  Node* parameters = state->InputAt(kFrameStateParametersInput);
+  Node* locals = state->InputAt(kFrameStateLocalsInput);
+  Node* stack = state->InputAt(kFrameStateStackInput);
+  Node* context = state->InputAt(kFrameStateContextInput);
+  Node* function = state->InputAt(kFrameStateFunctionInput);
 
   DCHECK_EQ(descriptor->parameters_count(),
             StateValuesAccess(parameters).size());
@@ -1092,6 +1098,8 @@ void InstructionSelector::AddFrameStateInputs(
 
   OperandGenerator g(this);
   size_t value_index = 0;
+  inputs->push_back(SlotOrImmediate(&g, function));
+  descriptor->SetType(value_index++, kMachAnyTagged);
   for (StateValuesAccess::TypedNode input_node :
        StateValuesAccess(parameters)) {
     inputs->push_back(SlotOrImmediate(&g, input_node.node));

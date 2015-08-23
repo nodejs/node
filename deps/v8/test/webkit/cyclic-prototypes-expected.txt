@@ -26,7 +26,7 @@ This test makes sure we don't hang when setting cyclic prototype values: http://
 On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
 
 
-PASS o1.__proto__ = o3; threw exception Error: Cyclic __proto__ value.
+PASS o1.__proto__ = o3; threw exception TypeError: Cyclic __proto__ value.
 PASS ({}).hasOwnProperty.call(o1, '__proto__') is false
 PASS ({}).hasOwnProperty.call(o1, '__proto__') is true
 PASS Object.getPrototypeOf(o1) is null

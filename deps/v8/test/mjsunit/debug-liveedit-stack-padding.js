@@ -29,6 +29,7 @@
 // Get the Debug object exposed from the debug context global object.
 
 Debug = debug.Debug;
+Debug.setListener(listener);
 
 SlimFunction = eval(
     "(function() {\n " +
@@ -76,7 +77,6 @@ function listener(event, exec_state, event_data, data) {
   }
 }
 
-Debug.setListener(listener);
 
 var animal = SlimFunction();
 
@@ -86,3 +86,5 @@ if (saved_exception) {
 }
 
 assertEquals("Capybara", animal);
+
+Debug.setListener(null);

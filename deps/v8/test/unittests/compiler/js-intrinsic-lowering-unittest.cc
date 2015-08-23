@@ -33,7 +33,10 @@ class JSIntrinsicLoweringTest : public GraphTest {
                                    MachineOperatorBuilder::kNoFlags) {
     MachineOperatorBuilder machine(zone(), kMachPtr, flags);
     JSGraph jsgraph(isolate(), graph(), common(), javascript(), &machine);
-    JSIntrinsicLowering reducer(&jsgraph);
+    // TODO(titzer): mock the GraphReducer here for better unit testing.
+    GraphReducer graph_reducer(zone(), graph());
+    JSIntrinsicLowering reducer(&graph_reducer, &jsgraph,
+                                JSIntrinsicLowering::kDeoptimizationEnabled);
     return reducer.Reduce(node);
   }
 
@@ -171,6 +174,68 @@ TEST_F(JSIntrinsicLoweringTest, InlineIsArray) {
 
 
 // -----------------------------------------------------------------------------
+// %_IsDate
+
+
+TEST_F(JSIntrinsicLoweringTest, InlineIsDate) {
+  Node* const input = Parameter(0);
+  Node* const context = Parameter(1);
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction const r = Reduce(
+      graph()->NewNode(javascript()->CallRuntime(Runtime::kInlineIsDate, 1),
+                       input, context, effect, control));
+  ASSERT_TRUE(r.Changed());
+
+  Node* phi = r.replacement();
+  Capture<Node*> branch, if_false;
+  EXPECT_THAT(
+      phi,
+      IsPhi(
+          static_cast<MachineType>(kTypeBool | kRepTagged), IsFalseConstant(),
+          IsWord32Equal(IsLoadField(AccessBuilder::ForMapInstanceType(),
+                                    IsLoadField(AccessBuilder::ForMap(), input,
+                                                effect, CaptureEq(&if_false)),
+                                    effect, _),
+                        IsInt32Constant(JS_DATE_TYPE)),
+          IsMerge(IsIfTrue(AllOf(CaptureEq(&branch),
+                                 IsBranch(IsObjectIsSmi(input), control))),
+                  AllOf(CaptureEq(&if_false), IsIfFalse(CaptureEq(&branch))))));
+}
+
+
+// -----------------------------------------------------------------------------
+// %_IsTypedArray
+
+
+TEST_F(JSIntrinsicLoweringTest, InlineIsTypedArray) {
+  Node* const input = Parameter(0);
+  Node* const context = Parameter(1);
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction const r = Reduce(graph()->NewNode(
+      javascript()->CallRuntime(Runtime::kInlineIsTypedArray, 1), input,
+      context, effect, control));
+  ASSERT_TRUE(r.Changed());
+
+  Node* phi = r.replacement();
+  Capture<Node*> branch, if_false;
+  EXPECT_THAT(
+      phi,
+      IsPhi(
+          static_cast<MachineType>(kTypeBool | kRepTagged), IsFalseConstant(),
+          IsWord32Equal(IsLoadField(AccessBuilder::ForMapInstanceType(),
+                                    IsLoadField(AccessBuilder::ForMap(), input,
+                                                effect, CaptureEq(&if_false)),
+                                    effect, _),
+                        IsInt32Constant(JS_TYPED_ARRAY_TYPE)),
+          IsMerge(IsIfTrue(AllOf(CaptureEq(&branch),
+                                 IsBranch(IsObjectIsSmi(input), control))),
+                  AllOf(CaptureEq(&if_false), IsIfFalse(CaptureEq(&branch))))));
+}
+
+
+// -----------------------------------------------------------------------------
 // %_IsFunction
 
 
@@ -264,7 +329,7 @@ TEST_F(JSIntrinsicLoweringTest, Likely) {
   Node* const to_boolean =
       graph()->NewNode(javascript()->ToBoolean(), likely, context);
   Diamond d(graph(), common(), to_boolean);
-  graph()->SetEnd(graph()->NewNode(common()->End(), d.merge));
+  graph()->SetEnd(graph()->NewNode(common()->End(1), d.merge));
 
   ASSERT_EQ(BranchHint::kNone, BranchHintOf(d.branch->op()));
   Reduction const r = Reduce(likely);
@@ -359,7 +424,7 @@ TEST_F(JSIntrinsicLoweringTest, Unlikely) {
   Node* const to_boolean =
       graph()->NewNode(javascript()->ToBoolean(), unlikely, context);
   Diamond d(graph(), common(), to_boolean);
-  graph()->SetEnd(graph()->NewNode(common()->End(), d.merge));
+  graph()->SetEnd(graph()->NewNode(common()->End(1), d.merge));
 
   ASSERT_EQ(BranchHint::kNone, BranchHintOf(d.branch->op()));
   Reduction const r = Reduce(unlikely);

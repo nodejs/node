@@ -95,6 +95,17 @@ class Test262TestSuite(testsuite.TestSuite):
     archive_name = os.path.join(self.root, "tc39-test262-%s.tar.gz" % revision)
     directory_name = os.path.join(self.root, "data")
     directory_old_name = os.path.join(self.root, "data.old")
+
+    # Clobber if the test is in an outdated state, i.e. if there are any other
+    # archive files present.
+    archive_files = [f for f in os.listdir(self.root)
+                     if f.startswith("tc39-test262-")]
+    if (len(archive_files) > 1 or
+        os.path.basename(archive_name) not in archive_files):
+      print "Clobber outdated test archives ..."
+      for f in archive_files:
+        os.remove(os.path.join(self.root, f))
+
     if not os.path.exists(archive_name):
       print "Downloading test data from %s ..." % archive_url
       utils.URLRetrieve(archive_url, archive_name)
@@ -108,8 +119,10 @@ class Test262TestSuite(testsuite.TestSuite):
       with open(archive_name, "rb") as f:
         for chunk in iter(lambda: f.read(8192), ""):
           md5.update(chunk)
+      print "MD5 hash is %s" % md5.hexdigest()
       if md5.hexdigest() != TEST_262_ARCHIVE_MD5:
         os.remove(archive_name)
+        print "MD5 expected %s" % TEST_262_ARCHIVE_MD5
         raise Exception("Hash mismatch of test data file")
       archive = tarfile.open(archive_name, "r:gz")
       if sys.platform in ("win32", "cygwin"):

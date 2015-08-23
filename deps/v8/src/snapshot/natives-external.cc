@@ -232,6 +232,5 @@ Vector<const char> NativesCollection<type>::GetScriptsSource() {
 template class NativesCollection<CORE>;
 template class NativesCollection<EXPERIMENTAL>;
 template class NativesCollection<EXTRAS>;
-
-}  // namespace v8::internal
+}  // namespace internal
 }  // namespace v8

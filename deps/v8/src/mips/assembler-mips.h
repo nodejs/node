@@ -500,19 +500,16 @@ class Assembler : public AssemblerBase {
                                     ICacheFlushMode icache_flush_mode =
                                         FLUSH_ICACHE_IF_NEEDED);
   // On MIPS there is no Constant Pool so we skip that parameter.
-  INLINE(static Address target_address_at(Address pc,
-                                          ConstantPoolArray* constant_pool)) {
+  INLINE(static Address target_address_at(Address pc, Address constant_pool)) {
     return target_address_at(pc);
   }
-  INLINE(static void set_target_address_at(Address pc,
-                                           ConstantPoolArray* constant_pool,
-                                           Address target,
-                                           ICacheFlushMode icache_flush_mode =
-                                               FLUSH_ICACHE_IF_NEEDED)) {
+  INLINE(static void set_target_address_at(
+      Address pc, Address constant_pool, Address target,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED)) {
     set_target_address_at(pc, target, icache_flush_mode);
   }
   INLINE(static Address target_address_at(Address pc, Code* code)) {
-    ConstantPoolArray* constant_pool = code ? code->constant_pool() : NULL;
+    Address constant_pool = code ? code->constant_pool() : NULL;
     return target_address_at(pc, constant_pool);
   }
   INLINE(static void set_target_address_at(Address pc,
@@ -520,7 +517,7 @@ class Assembler : public AssemblerBase {
                                            Address target,
                                            ICacheFlushMode icache_flush_mode =
                                                FLUSH_ICACHE_IF_NEEDED)) {
-    ConstantPoolArray* constant_pool = code ? code->constant_pool() : NULL;
+    Address constant_pool = code ? code->constant_pool() : NULL;
     set_target_address_at(pc, constant_pool, target, icache_flush_mode);
   }
 
@@ -609,6 +606,9 @@ class Assembler : public AssemblerBase {
   // possible to align the pc offset to a multiple
   // of m. m must be a power of 2 (>= 4).
   void Align(int m);
+  // Insert the smallest number of zero bytes possible to align the pc offset
+  // to a mulitple of m. m must be a power of 2 (>= 2).
+  void DataAlign(int m);
   // Aligns code to something that's optimal for a jump target for the platform.
   void CodeTargetAlign();
 
@@ -645,6 +645,10 @@ class Assembler : public AssemblerBase {
   void b(Label* L) { b(branch_offset(L, false)>>2); }
   void bal(int16_t offset);
   void bal(Label* L) { bal(branch_offset(L, false)>>2); }
+  void bc(int32_t offset);
+  void bc(Label* L) { bc(branch_offset(L, false) >> 2); }
+  void balc(int32_t offset);
+  void balc(Label* L) { balc(branch_offset(L, false) >> 2); }
 
   void beq(Register rs, Register rt, int16_t offset);
   void beq(Register rs, Register rt, Label* L) {
@@ -753,8 +757,8 @@ class Assembler : public AssemblerBase {
   void jal(int32_t target);
   void jalr(Register rs, Register rd = ra);
   void jr(Register target);
-  void j_or_jr(int32_t target, Register rs);
-  void jal_or_jalr(int32_t target, Register rs);
+  void jic(Register rt, int16_t offset);
+  void jialc(Register rt, int16_t offset);
 
 
   // -------Data-processing-instructions---------
@@ -819,6 +823,14 @@ class Assembler : public AssemblerBase {
   void swr(Register rd, const MemOperand& rs);
 
 
+  // ---------PC-Relative-instructions-----------
+
+  void addiupc(Register rs, int32_t imm19);
+  void lwpc(Register rs, int32_t offset19);
+  void auipc(Register rs, int16_t imm16);
+  void aluipc(Register rs, int16_t imm16);
+
+
   // ----------------Prefetch--------------------
 
   void pref(int32_t hint, const MemOperand& rs);
@@ -853,17 +865,33 @@ class Assembler : public AssemblerBase {
   void movf(Register rd, Register rs, uint16_t cc = 0);
 
   void sel(SecondaryField fmt, FPURegister fd, FPURegister fs, FPURegister ft);
+  void sel_s(FPURegister fd, FPURegister fs, FPURegister ft);
+  void sel_d(FPURegister fd, FPURegister fs, FPURegister ft);
   void seleqz(Register rd, Register rs, Register rt);
   void seleqz(SecondaryField fmt, FPURegister fd, FPURegister fs,
               FPURegister ft);
   void selnez(Register rd, Register rs, Register rt);
   void selnez(SecondaryField fmt, FPURegister fd, FPURegister fs,
               FPURegister ft);
+  void seleqz_d(FPURegister fd, FPURegister fs, FPURegister ft);
+  void seleqz_s(FPURegister fd, FPURegister fs, FPURegister ft);
+  void selnez_d(FPURegister fd, FPURegister fs, FPURegister ft);
+  void selnez_s(FPURegister fd, FPURegister fs, FPURegister ft);
 
+  void movz_s(FPURegister fd, FPURegister fs, Register rt);
+  void movz_d(FPURegister fd, FPURegister fs, Register rt);
+  void movt_s(FPURegister fd, FPURegister fs, uint16_t cc);
+  void movt_d(FPURegister fd, FPURegister fs, uint16_t cc);
+  void movf_s(FPURegister fd, FPURegister fs, uint16_t cc);
+  void movf_d(FPURegister fd, FPURegister fs, uint16_t cc);
+  void movn_s(FPURegister fd, FPURegister fs, Register rt);
+  void movn_d(FPURegister fd, FPURegister fs, Register rt);
   // Bit twiddling.
   void clz(Register rd, Register rs);
   void ins_(Register rt, Register rs, uint16_t pos, uint16_t size);
   void ext_(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void bitswap(Register rd, Register rt);
+  void align(Register rd, Register rs, Register rt, uint8_t bp);
 
   // --------Coprocessor-instructions----------------
 
@@ -896,10 +924,15 @@ class Assembler : public AssemblerBase {
   void abs_s(FPURegister fd, FPURegister fs);
   void abs_d(FPURegister fd, FPURegister fs);
   void mov_d(FPURegister fd, FPURegister fs);
+  void mov_s(FPURegister fd, FPURegister fs);
   void neg_s(FPURegister fd, FPURegister fs);
   void neg_d(FPURegister fd, FPURegister fs);
   void sqrt_s(FPURegister fd, FPURegister fs);
   void sqrt_d(FPURegister fd, FPURegister fs);
+  void rsqrt_s(FPURegister fd, FPURegister fs);
+  void rsqrt_d(FPURegister fd, FPURegister fs);
+  void recip_d(FPURegister fd, FPURegister fs);
+  void recip_s(FPURegister fd, FPURegister fs);
 
   // Conversion.
   void cvt_w_s(FPURegister fd, FPURegister fs);
@@ -927,6 +960,9 @@ class Assembler : public AssemblerBase {
   void ceil_l_s(FPURegister fd, FPURegister fs);
   void ceil_l_d(FPURegister fd, FPURegister fs);
 
+  void class_s(FPURegister fd, FPURegister fs);
+  void class_d(FPURegister fd, FPURegister fs);
+
   void min(SecondaryField fmt, FPURegister fd, FPURegister fs, FPURegister ft);
   void mina(SecondaryField fmt, FPURegister fd, FPURegister fs, FPURegister ft);
   void max(SecondaryField fmt, FPURegister fd, FPURegister fs, FPURegister ft);
@@ -951,6 +987,8 @@ class Assembler : public AssemblerBase {
   // Conditions and branches for MIPSr6.
   void cmp(FPUCondition cond, SecondaryField fmt,
          FPURegister fd, FPURegister ft, FPURegister fs);
+  void cmp_s(FPUCondition cond, FPURegister fd, FPURegister fs, FPURegister ft);
+  void cmp_d(FPUCondition cond, FPURegister fd, FPURegister fs, FPURegister ft);
 
   void bc1eqz(int16_t offset, FPURegister ft);
   void bc1eqz(Label* L, FPURegister ft) {
@@ -964,6 +1002,8 @@ class Assembler : public AssemblerBase {
   // Conditions and branches for non MIPSr6.
   void c(FPUCondition cond, SecondaryField fmt,
          FPURegister ft, FPURegister fs, uint16_t cc = 0);
+  void c_s(FPUCondition cond, FPURegister ft, FPURegister fs, uint16_t cc = 0);
+  void c_d(FPUCondition cond, FPURegister ft, FPURegister fs, uint16_t cc = 0);
 
   void bc1f(int16_t offset, uint16_t cc = 0);
   void bc1f(Label* L, uint16_t cc = 0) { bc1f(branch_offset(L, false)>>2, cc); }
@@ -1054,6 +1094,8 @@ class Assembler : public AssemblerBase {
   // inline tables, e.g., jump-tables.
   void db(uint8_t data);
   void dd(uint32_t data);
+  void dq(uint64_t data);
+  void dp(uintptr_t data) { dd(data); }
   void dd(Label* label);
 
   // Emits the address of the code stub's first instruction.
@@ -1138,11 +1180,12 @@ class Assembler : public AssemblerBase {
 
   void CheckTrampolinePool();
 
-  // Allocate a constant pool of the correct size for the generated code.
-  Handle<ConstantPoolArray> NewConstantPool(Isolate* isolate);
-
-  // Generate the constant pool for the generated code.
-  void PopulateConstantPool(ConstantPoolArray* constant_pool);
+  void PatchConstantPoolAccessInstruction(int pc_offset, int offset,
+                                          ConstantPoolEntry::Access access,
+                                          ConstantPoolEntry::Type type) {
+    // No embedded constant pool support.
+    UNREACHABLE();
+  }
 
  protected:
   // Relocation for a type-recording IC has the AST id added to it.  This
@@ -1317,6 +1360,8 @@ class Assembler : public AssemblerBase {
                          Register r1,
                          FPURegister r2,
                          int32_t  j);
+  void GenInstrImmediate(Opcode opcode, Register rs, int32_t j);
+  void GenInstrImmediate(Opcode opcode, int32_t offset26);
 
 
   void GenInstrJump(Opcode opcode,
