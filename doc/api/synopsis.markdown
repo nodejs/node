@@ -2,7 +2,7 @@
 
 <!--type=misc-->
 
-An example of a [web server](http.html) written with node.js which responds with
+An example of a [web server](http.html) written with Node.js which responds with
 'Hello World':
 
     var http = require('http');

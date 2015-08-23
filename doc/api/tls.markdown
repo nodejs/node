@@ -501,7 +501,7 @@ dictionary with keys:
   instead of the client preferences. For further details see `tls` module
   documentation.
 
-If no 'ca' details are given, then node.js will use the default
+If no 'ca' details are given, then Node.js will use the default
 publicly trusted list of CAs as given in
 <http://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt>.
 
