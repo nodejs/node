@@ -2,16 +2,35 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var $stringCharAt;
-var $stringIndexOf;
-var $stringSubstring;
-
-(function(global, shared, exports) {
+(function(global, utils) {
 
 %CheckIsBootstrapping();
 
+// -------------------------------------------------------------------
+// Imports
+
 var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
+var InternalArray = utils.InternalArray;
+var InternalPackedArray = utils.InternalPackedArray;
+
+var ArrayIndexOf;
+var ArrayJoin;
+var MathMax;
+var MathMin;
+var RegExpExec;
+var RegExpExecNoTests;
+var RegExpLastMatchInfo;
+
+utils.Import(function(from) {
+  ArrayIndexOf = from.ArrayIndexOf;
+  ArrayJoin = from.ArrayJoin;
+  MathMax = from.MathMax;
+  MathMin = from.MathMin;
+  RegExpExec = from.RegExpExec;
+  RegExpExecNoTests = from.RegExpExecNoTests;
+  RegExpLastMatchInfo = from.RegExpLastMatchInfo;
+});
 
 //-------------------------------------------------------------------
 
@@ -153,19 +172,16 @@ function StringMatchJS(regexp) {
     // value is discarded.
     var lastIndex = regexp.lastIndex;
     TO_INTEGER_FOR_SIDE_EFFECT(lastIndex);
-    if (!regexp.global) return $regexpExecNoTests(regexp, subject, 0);
-    var result = %StringMatch(subject, regexp, $regexpLastMatchInfo);
+    if (!regexp.global) return RegExpExecNoTests(regexp, subject, 0);
+    var result = %StringMatch(subject, regexp, RegExpLastMatchInfo);
     if (result !== null) $regexpLastMatchInfoOverride = null;
     regexp.lastIndex = 0;
     return result;
   }
   // Non-regexp argument.
   regexp = new GlobalRegExp(regexp);
-  return $regexpExecNoTests(regexp, subject, 0);
+  return RegExpExecNoTests(regexp, subject, 0);
 }
-
-
-var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
 
 
 // ECMA-262 v6, section 21.1.3.12
@@ -177,16 +193,20 @@ function StringNormalizeJS(form) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.normalize");
 
   var form = form ? TO_STRING_INLINE(form) : 'NFC';
-  var normalizationForm = NORMALIZATION_FORMS.indexOf(form);
+
+  var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
+  var normalizationForm =
+      %_CallFunction(NORMALIZATION_FORMS, form, ArrayIndexOf);
   if (normalizationForm === -1) {
-    throw MakeRangeError(kNormalizationForm, NORMALIZATION_FORMS.join(', '));
+    throw MakeRangeError(kNormalizationForm,
+                         %_CallFunction(NORMALIZATION_FORMS, ', ', ArrayJoin));
   }
 
   return %_ValueOf(this);
 }
 
 
-// This has the same size as the $regexpLastMatchInfo array, and can be used
+// This has the same size as the RegExpLastMatchInfo array, and can be used
 // for functions that expect that structure to be returned.  It is used when
 // the needle is a string rather than a regexp.  In this case we can't update
 // lastMatchArray without erroneously affecting the properties on the global
@@ -228,7 +248,7 @@ function StringReplace(search, replace) {
 
       if (!search.global) {
         // Non-global regexp search, string replace.
-        var match = $regexpExec(search, subject, 0);
+        var match = RegExpExec(search, subject, 0);
         if (match == null) {
           search.lastIndex = 0
           return subject;
@@ -237,7 +257,7 @@ function StringReplace(search, replace) {
           return %_SubString(subject, 0, match[CAPTURE0]) +
                  %_SubString(subject, match[CAPTURE1], subject.length)
         }
-        return ExpandReplacement(replace, subject, $regexpLastMatchInfo,
+        return ExpandReplacement(replace, subject, RegExpLastMatchInfo,
                                  %_SubString(subject, 0, match[CAPTURE0])) +
                %_SubString(subject, match[CAPTURE1], subject.length);
       }
@@ -246,17 +266,17 @@ function StringReplace(search, replace) {
       search.lastIndex = 0;
       if ($regexpLastMatchInfoOverride == null) {
         return %StringReplaceGlobalRegExpWithString(
-            subject, search, replace, $regexpLastMatchInfo);
+            subject, search, replace, RegExpLastMatchInfo);
       } else {
         // We use this hack to detect whether StringReplaceRegExpWithString
         // found at least one hit. In that case we need to remove any
         // override.
-        var saved_subject = $regexpLastMatchInfo[LAST_SUBJECT_INDEX];
-        $regexpLastMatchInfo[LAST_SUBJECT_INDEX] = 0;
+        var saved_subject = RegExpLastMatchInfo[LAST_SUBJECT_INDEX];
+        RegExpLastMatchInfo[LAST_SUBJECT_INDEX] = 0;
         var answer = %StringReplaceGlobalRegExpWithString(
-            subject, search, replace, $regexpLastMatchInfo);
-        if (%_IsSmi($regexpLastMatchInfo[LAST_SUBJECT_INDEX])) {
-          $regexpLastMatchInfo[LAST_SUBJECT_INDEX] = saved_subject;
+            subject, search, replace, RegExpLastMatchInfo);
+        if (%_IsSmi(RegExpLastMatchInfo[LAST_SUBJECT_INDEX])) {
+          RegExpLastMatchInfo[LAST_SUBJECT_INDEX] = saved_subject;
         } else {
           $regexpLastMatchInfoOverride = null;
         }
@@ -405,7 +425,7 @@ function CaptureString(string, lastCaptureInfo, index) {
 // TODO(lrn): This array will survive indefinitely if replace is never
 // called again. However, it will be empty, since the contents are cleared
 // in the finally block.
-var reusableReplaceArray = new InternalArray(16);
+var reusableReplaceArray = new InternalArray(4);
 
 // Helper function for replacing regular expressions with the result of a
 // function application in String.prototype.replace.
@@ -422,7 +442,7 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
   }
   var res = %RegExpExecMultiple(regexp,
                                 subject,
-                                $regexpLastMatchInfo,
+                                RegExpLastMatchInfo,
                                 resultArray);
   regexp.lastIndex = 0;
   if (IS_NULL(res)) {
@@ -431,7 +451,7 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
     return subject;
   }
   var len = res.length;
-  if (NUMBER_OF_CAPTURES($regexpLastMatchInfo) == 2) {
+  if (NUMBER_OF_CAPTURES(RegExpLastMatchInfo) == 2) {
     // If the number of captures is two then there are no explicit captures in
     // the regexp, just the implicit capture that captures the whole match.  In
     // this case we can simplify quite a bit and end up with something faster.
@@ -485,7 +505,7 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
 
 
 function StringReplaceNonGlobalRegExpWithFunction(subject, regexp, replace) {
-  var matchInfo = $regexpExec(regexp, subject, 0);
+  var matchInfo = RegExpExec(regexp, subject, 0);
   if (IS_NULL(matchInfo)) {
     regexp.lastIndex = 0;
     return subject;
@@ -533,7 +553,7 @@ function StringSearch(re) {
   } else {
     regexp = new GlobalRegExp(re);
   }
-  var match = $regexpExec(regexp, TO_STRING_INLINE(this), 0);
+  var match = RegExpExec(regexp, TO_STRING_INLINE(this), 0);
   if (match) {
     return match[CAPTURE0];
   }
@@ -619,7 +639,7 @@ function StringSplitJS(separator, limit) {
 
 function StringSplitOnRegExp(subject, separator, limit, length) {
   if (length === 0) {
-    if ($regexpExec(separator, subject, 0, 0) != null) {
+    if (RegExpExec(separator, subject, 0, 0) != null) {
       return [];
     }
     return [subject];
@@ -638,7 +658,7 @@ function StringSplitOnRegExp(subject, separator, limit, length) {
       break;
     }
 
-    var matchInfo = $regexpExec(separator, subject, startIndex);
+    var matchInfo = RegExpExec(separator, subject, startIndex);
     if (matchInfo == null || length === (startMatch = matchInfo[CAPTURE0])) {
       result[result.length] = %_SubString(subject, currentIndex, length);
       break;
@@ -831,98 +851,101 @@ function StringFromCharCode(code) {
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.2.1
 function HtmlEscape(str) {
-  return TO_STRING_INLINE(str).replace(/"/g, "&quot;");
+  return %_CallFunction(TO_STRING_INLINE(str), /"/g, "&quot;", StringReplace);
 }
 
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.2
 function StringAnchor(name) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.anchor");
-  return "<a name=\"" + HtmlEscape(name) + "\">" + this + "</a>";
+  return "<a name=\"" + HtmlEscape(name) + "\">" + TO_STRING_INLINE(this) +
+         "</a>";
 }
 
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.3
 function StringBig() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.big");
-  return "<big>" + this + "</big>";
+  return "<big>" + TO_STRING_INLINE(this) + "</big>";
 }
 
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.4
 function StringBlink() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.blink");
-  return "<blink>" + this + "</blink>";
+  return "<blink>" + TO_STRING_INLINE(this) + "</blink>";
 }
 
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.5
 function StringBold() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.bold");
-  return "<b>" + this + "</b>";
+  return "<b>" + TO_STRING_INLINE(this) + "</b>";
 }
 
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.6
 function StringFixed() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.fixed");
-  return "<tt>" + this + "</tt>";
+  return "<tt>" + TO_STRING_INLINE(this) + "</tt>";
 }
 
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.7
 function StringFontcolor(color) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.fontcolor");
-  return "<font color=\"" + HtmlEscape(color) + "\">" + this + "</font>";
+  return "<font color=\"" + HtmlEscape(color) + "\">" + TO_STRING_INLINE(this) +
+         "</font>";
 }
 
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.8
 function StringFontsize(size) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.fontsize");
-  return "<font size=\"" + HtmlEscape(size) + "\">" + this + "</font>";
+  return "<font size=\"" + HtmlEscape(size) + "\">" + TO_STRING_INLINE(this) +
+         "</font>";
 }
 
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.9
 function StringItalics() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.italics");
-  return "<i>" + this + "</i>";
+  return "<i>" + TO_STRING_INLINE(this) + "</i>";
 }
 
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.10
 function StringLink(s) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.link");
-  return "<a href=\"" + HtmlEscape(s) + "\">" + this + "</a>";
+  return "<a href=\"" + HtmlEscape(s) + "\">" + TO_STRING_INLINE(this) + "</a>";
 }
 
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.11
 function StringSmall() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.small");
-  return "<small>" + this + "</small>";
+  return "<small>" + TO_STRING_INLINE(this) + "</small>";
 }
 
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.12
 function StringStrike() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.strike");
-  return "<strike>" + this + "</strike>";
+  return "<strike>" + TO_STRING_INLINE(this) + "</strike>";
 }
 
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.13
 function StringSub() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.sub");
-  return "<sub>" + this + "</sub>";
+  return "<sub>" + TO_STRING_INLINE(this) + "</sub>";
 }
 
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.14
 function StringSup() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.sup");
-  return "<sup>" + this + "</sup>";
+  return "<sup>" + TO_STRING_INLINE(this) + "</sup>";
 }
 
 // ES6 draft 01-20-14, section 21.1.3.13
@@ -963,7 +986,7 @@ function StringStartsWith(searchString /* position */) {  // length == 1
   }
 
   var s_len = s.length;
-  var start = $min($max(pos, 0), s_len);
+  var start = MathMin(MathMax(pos, 0), s_len);
   var ss_len = ss.length;
   if (ss_len + start > s_len) {
     return false;
@@ -993,7 +1016,7 @@ function StringEndsWith(searchString /* position */) {  // length == 1
     }
   }
 
-  var end = $min($max(pos, 0), s_len);
+  var end = MathMin(MathMax(pos, 0), s_len);
   var ss_len = ss.length;
   var start = end - ss_len;
   if (start < 0) {
@@ -1022,7 +1045,7 @@ function StringIncludes(searchString /* position */) {  // length == 1
   }
 
   var s_len = s.length;
-  var start = $min($max(pos, 0), s_len);
+  var start = MathMin(MathMax(pos, 0), s_len);
   var ss_len = ss.length;
   if (ss_len + start > s_len) {
     return false;
@@ -1115,14 +1138,14 @@ function StringRaw(callSite) {
     GlobalString.prototype, "constructor", GlobalString, DONT_ENUM);
 
 // Set up the non-enumerable functions on the String object.
-$installFunctions(GlobalString, DONT_ENUM, [
+utils.InstallFunctions(GlobalString, DONT_ENUM, [
   "fromCharCode", StringFromCharCode,
   "fromCodePoint", StringFromCodePoint,
   "raw", StringRaw
 ]);
 
 // Set up the non-enumerable functions on the String prototype object.
-$installFunctions(GlobalString.prototype, DONT_ENUM, [
+utils.InstallFunctions(GlobalString.prototype, DONT_ENUM, [
   "valueOf", StringValueOf,
   "toString", StringToString,
   "charAt", StringCharAtJS,
@@ -1167,8 +1190,18 @@ $installFunctions(GlobalString.prototype, DONT_ENUM, [
   "sup", StringSup
 ]);
 
-$stringCharAt = StringCharAtJS;
-$stringIndexOf = StringIndexOfJS;
-$stringSubstring = StringSubstring;
+// -------------------------------------------------------------------
+// Exports
+
+utils.Export(function(to) {
+  to.StringCharAt = StringCharAtJS;
+  to.StringIndexOf = StringIndexOfJS;
+  to.StringLastIndexOf = StringLastIndexOfJS;
+  to.StringMatch = StringMatchJS;
+  to.StringReplace = StringReplace;
+  to.StringSplit = StringSplitJS;
+  to.StringSubstr = StringSubstr;
+  to.StringSubstring = StringSubstring;
+});
 
 })

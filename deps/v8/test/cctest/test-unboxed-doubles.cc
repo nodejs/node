@@ -1035,7 +1035,7 @@ TEST(DoScavenge) {
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);
 
   // Create temp object in the new space.
-  Handle<JSArray> temp = factory->NewJSArray(FAST_ELEMENTS, NOT_TENURED);
+  Handle<JSArray> temp = factory->NewJSArray(FAST_ELEMENTS);
   CHECK(isolate->heap()->new_space()->Contains(*temp));
 
   // Construct a double value that looks like a pointer to the new space object
@@ -1088,7 +1088,8 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
     AlwaysAllocateScope always_allocate(isolate);
     // Make sure |obj_value| is placed on an old-space evacuation candidate.
     SimulateFullSpace(old_space);
-    obj_value = factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS, TENURED);
+    obj_value = factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS,
+                                    Strength::WEAK, TENURED);
     ec_page = Page::FromAddress(obj_value->address());
   }
 
@@ -1373,7 +1374,7 @@ TEST(StoreBufferScanOnScavenge) {
   CHECK(isolate->heap()->old_space()->Contains(*obj));
 
   // Create temp object in the new space.
-  Handle<JSArray> temp = factory->NewJSArray(FAST_ELEMENTS, NOT_TENURED);
+  Handle<JSArray> temp = factory->NewJSArray(FAST_ELEMENTS);
   CHECK(isolate->heap()->new_space()->Contains(*temp));
 
   // Construct a double value that looks like a pointer to the new space object
@@ -1572,7 +1573,8 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
 
     // Make sure |obj_value| is placed on an old-space evacuation candidate.
     SimulateFullSpace(old_space);
-    obj_value = factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS, TENURED);
+    obj_value = factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS,
+                                    Strength::WEAK, TENURED);
     ec_page = Page::FromAddress(obj_value->address());
     CHECK_NE(ec_page, Page::FromAddress(obj->address()));
   }

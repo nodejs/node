@@ -20,34 +20,7 @@ class ClassVariable;
 
 class Variable: public ZoneObject {
  public:
-  enum Kind { NORMAL, FUNCTION, CLASS, THIS, NEW_TARGET, ARGUMENTS };
-
-  enum Location {
-    // Before and during variable allocation, a variable whose location is
-    // not yet determined.  After allocation, a variable looked up as a
-    // property on the global object (and possibly absent).  name() is the
-    // variable name, index() is invalid.
-    UNALLOCATED,
-
-    // A slot in the parameter section on the stack.  index() is the
-    // parameter index, counting left-to-right.  The receiver is index -1;
-    // the first parameter is index 0.
-    PARAMETER,
-
-    // A slot in the local section on the stack.  index() is the variable
-    // index in the stack frame, starting at 0.
-    LOCAL,
-
-    // An indexed slot in a heap context.  index() is the variable index in
-    // the context object on the heap, starting at 0.  scope() is the
-    // corresponding scope.
-    CONTEXT,
-
-    // A named slot in a heap context.  name() is the variable name in the
-    // context object on the heap, with lookup starting at the current
-    // context.  index() is invalid.
-    LOOKUP
-  };
+  enum Kind { NORMAL, FUNCTION, CLASS, THIS, ARGUMENTS };
 
   Variable(Scope* scope, const AstRawString* name, VariableMode mode, Kind kind,
            InitializationFlag initialization_flag,
@@ -86,13 +59,20 @@ class Variable: public ZoneObject {
     return !is_this() && name().is_identical_to(n);
   }
 
-  bool IsUnallocated() const { return location_ == UNALLOCATED; }
-  bool IsParameter() const { return location_ == PARAMETER; }
-  bool IsStackLocal() const { return location_ == LOCAL; }
+  bool IsUnallocated() const {
+    return location_ == VariableLocation::UNALLOCATED;
+  }
+  bool IsParameter() const { return location_ == VariableLocation::PARAMETER; }
+  bool IsStackLocal() const { return location_ == VariableLocation::LOCAL; }
   bool IsStackAllocated() const { return IsParameter() || IsStackLocal(); }
-  bool IsContextSlot() const { return location_ == CONTEXT; }
-  bool IsLookupSlot() const { return location_ == LOOKUP; }
+  bool IsContextSlot() const { return location_ == VariableLocation::CONTEXT; }
+  bool IsGlobalSlot() const { return location_ == VariableLocation::GLOBAL; }
+  bool IsUnallocatedOrGlobalSlot() const {
+    return IsUnallocated() || IsGlobalSlot();
+  }
+  bool IsLookupSlot() const { return location_ == VariableLocation::LOOKUP; }
   bool IsGlobalObjectProperty() const;
+  bool IsStaticGlobalObjectProperty() const;
 
   bool is_dynamic() const { return IsDynamicVariableMode(mode_); }
   bool is_const_mode() const { return IsImmutableVariableMode(mode_); }
@@ -103,8 +83,17 @@ class Variable: public ZoneObject {
   bool is_function() const { return kind_ == FUNCTION; }
   bool is_class() const { return kind_ == CLASS; }
   bool is_this() const { return kind_ == THIS; }
-  bool is_new_target() const { return kind_ == NEW_TARGET; }
   bool is_arguments() const { return kind_ == ARGUMENTS; }
+
+  // For script scopes, the "this" binding is provided by a ScriptContext added
+  // to the global's ScriptContextTable.  This binding might not statically
+  // resolve to a Variable::THIS binding, instead being DYNAMIC_LOCAL.  However
+  // any variable named "this" does indeed refer to a Variable::THIS binding;
+  // the grammar ensures this to be the case.  So wherever a "this" binding
+  // might be provided by the global, use HasThisName instead of is_this().
+  bool HasThisName(Isolate* isolate) const {
+    return is_this() || *name() == *isolate->factory()->this_string();
+  }
 
   ClassVariable* AsClassVariable() {
     DCHECK(is_class());
@@ -125,13 +114,13 @@ class Variable: public ZoneObject {
     local_if_not_shadowed_ = local;
   }
 
-  Location location() const { return location_; }
+  VariableLocation location() const { return location_; }
   int index() const { return index_; }
   InitializationFlag initialization_flag() const {
     return initialization_flag_;
   }
 
-  void AllocateTo(Location location, int index) {
+  void AllocateTo(VariableLocation location, int index) {
     location_ = location;
     index_ = index;
   }
@@ -162,7 +151,7 @@ class Variable: public ZoneObject {
   const AstRawString* name_;
   VariableMode mode_;
   Kind kind_;
-  Location location_;
+  VariableLocation location_;
   int index_;
   int initializer_position_;
   // Tracks whether the variable is bound to a VariableProxy which is in strong

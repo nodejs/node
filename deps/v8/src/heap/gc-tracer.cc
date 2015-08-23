@@ -20,7 +20,7 @@ static intptr_t CountTotalHolesSize(Heap* heap) {
 
 
 GCTracer::AllocationEvent::AllocationEvent(double duration,
-                                           intptr_t allocation_in_bytes) {
+                                           size_t allocation_in_bytes) {
   duration_ = duration;
   allocation_in_bytes_ = allocation_in_bytes;
 }
@@ -99,7 +99,13 @@ GCTracer::GCTracer(Heap* heap)
       longest_incremental_marking_step_(0.0),
       cumulative_marking_duration_(0.0),
       cumulative_sweeping_duration_(0.0),
-      new_space_top_after_gc_(0),
+      allocation_time_ms_(0.0),
+      new_space_allocation_counter_bytes_(0),
+      old_generation_allocation_counter_bytes_(0),
+      allocation_duration_since_gc_(0.0),
+      new_space_allocation_in_bytes_since_gc_(0),
+      old_generation_allocation_in_bytes_since_gc_(0),
+      combined_mark_compact_speed_cache_(0.0),
       start_counter_(0) {
   current_ = Event(Event::START, NULL, NULL);
   current_.end_time = base::OS::TimeCurrentMillis();
@@ -114,12 +120,8 @@ void GCTracer::Start(GarbageCollector collector, const char* gc_reason,
 
   previous_ = current_;
   double start_time = heap_->MonotonicallyIncreasingTimeInMs();
-  if (new_space_top_after_gc_ != 0) {
-    AddNewSpaceAllocationTime(
-        start_time - previous_.end_time,
-        reinterpret_cast<intptr_t>((heap_->new_space()->top()) -
-                                   new_space_top_after_gc_));
-  }
+  SampleAllocation(start_time, heap_->NewSpaceAllocationCounter(),
+                   heap_->OldGenerationAllocationCounter());
   if (current_.type == Event::INCREMENTAL_MARK_COMPACTOR)
     previous_incremental_mark_compactor_event_ = current_;
 
@@ -166,11 +168,9 @@ void GCTracer::Start(GarbageCollector collector, const char* gc_reason,
 void GCTracer::Stop(GarbageCollector collector) {
   start_counter_--;
   if (start_counter_ != 0) {
-    if (FLAG_trace_gc) {
-      PrintF("[Finished reentrant %s during %s.]\n",
-             collector == SCAVENGER ? "Scavenge" : "Mark-sweep",
-             current_.TypeName(false));
-    }
+    Output("[Finished reentrant %s during %s.]\n",
+           collector == SCAVENGER ? "Scavenge" : "Mark-sweep",
+           current_.TypeName(false));
     return;
   }
 
@@ -184,8 +184,9 @@ void GCTracer::Stop(GarbageCollector collector) {
   current_.end_object_size = heap_->SizeOfObjects();
   current_.end_memory_size = heap_->isolate()->memory_allocator()->Size();
   current_.end_holes_size = CountTotalHolesSize(heap_);
-  new_space_top_after_gc_ =
-      reinterpret_cast<intptr_t>(heap_->new_space()->top());
+  current_.survived_new_space_object_size = heap_->SurvivedNewSpaceObjectSize();
+
+  AddAllocation(current_.end_time);
 
   int committed_memory = static_cast<int>(heap_->CommittedMemory() / KB);
   int used_memory = static_cast<int>(current_.end_object_size / KB);
@@ -227,17 +228,17 @@ void GCTracer::Stop(GarbageCollector collector) {
             .cumulative_pure_incremental_marking_duration;
     longest_incremental_marking_step_ = 0.0;
     incremental_mark_compactor_events_.push_front(current_);
+    combined_mark_compact_speed_cache_ = 0.0;
   } else {
     DCHECK(current_.incremental_marking_bytes == 0);
     DCHECK(current_.incremental_marking_duration == 0);
     DCHECK(current_.pure_incremental_marking_duration == 0);
     longest_incremental_marking_step_ = 0.0;
     mark_compactor_events_.push_front(current_);
+    combined_mark_compact_speed_cache_ = 0.0;
   }
 
   // TODO(ernstm): move the code below out of GCTracer.
-
-  if (!FLAG_trace_gc && !FLAG_print_cumulative_gc_stat) return;
 
   double duration = current_.end_time - current_.start_time;
   double spent_in_mutator = Max(current_.start_time - previous_.end_time, 0.0);
@@ -248,20 +249,54 @@ void GCTracer::Stop(GarbageCollector collector) {
   if (current_.type == Event::SCAVENGER && FLAG_trace_gc_ignore_scavenger)
     return;
 
-  if (FLAG_trace_gc) {
-    if (FLAG_trace_gc_nvp)
-      PrintNVP();
-    else
-      Print();
+  if (FLAG_trace_gc_nvp)
+    PrintNVP();
+  else
+    Print();
 
+  if (FLAG_trace_gc) {
     heap_->PrintShortHeapStatistics();
   }
 }
 
 
-void GCTracer::AddNewSpaceAllocationTime(double duration,
-                                         intptr_t allocation_in_bytes) {
-  allocation_events_.push_front(AllocationEvent(duration, allocation_in_bytes));
+void GCTracer::SampleAllocation(double current_ms,
+                                size_t new_space_counter_bytes,
+                                size_t old_generation_counter_bytes) {
+  if (allocation_time_ms_ == 0) {
+    // It is the first sample.
+    allocation_time_ms_ = current_ms;
+    new_space_allocation_counter_bytes_ = new_space_counter_bytes;
+    old_generation_allocation_counter_bytes_ = old_generation_counter_bytes;
+    return;
+  }
+  // This assumes that counters are unsigned integers so that the subtraction
+  // below works even if the new counter is less then the old counter.
+  size_t new_space_allocated_bytes =
+      new_space_counter_bytes - new_space_allocation_counter_bytes_;
+  size_t old_generation_allocated_bytes =
+      old_generation_counter_bytes - old_generation_allocation_counter_bytes_;
+  double duration = current_ms - allocation_time_ms_;
+  allocation_time_ms_ = current_ms;
+  new_space_allocation_counter_bytes_ = new_space_counter_bytes;
+  old_generation_allocation_counter_bytes_ = old_generation_counter_bytes;
+  allocation_duration_since_gc_ += duration;
+  new_space_allocation_in_bytes_since_gc_ += new_space_allocated_bytes;
+  old_generation_allocation_in_bytes_since_gc_ +=
+      old_generation_allocated_bytes;
+}
+
+
+void GCTracer::AddAllocation(double current_ms) {
+  allocation_time_ms_ = current_ms;
+  new_space_allocation_events_.push_front(AllocationEvent(
+      allocation_duration_since_gc_, new_space_allocation_in_bytes_since_gc_));
+  old_generation_allocation_events_.push_front(
+      AllocationEvent(allocation_duration_since_gc_,
+                      old_generation_allocation_in_bytes_since_gc_));
+  allocation_duration_since_gc_ = 0;
+  new_space_allocation_in_bytes_since_gc_ = 0;
+  old_generation_allocation_in_bytes_since_gc_ = 0;
 }
 
 
@@ -288,30 +323,51 @@ void GCTracer::AddIncrementalMarkingStep(double duration, intptr_t bytes) {
 }
 
 
-void GCTracer::Print() const {
-  PrintIsolate(heap_->isolate(), "%8.0f ms: ",
-               heap_->isolate()->time_millis_since_init());
+void GCTracer::Output(const char* format, ...) const {
+  if (FLAG_trace_gc) {
+    va_list arguments;
+    va_start(arguments, format);
+    base::OS::VPrint(format, arguments);
+    va_end(arguments);
+  }
 
-  PrintF("%s %.1f (%.1f) -> %.1f (%.1f) MB, ", current_.TypeName(false),
+  const int kBufferSize = 256;
+  char raw_buffer[kBufferSize];
+  Vector<char> buffer(raw_buffer, kBufferSize);
+  va_list arguments2;
+  va_start(arguments2, format);
+  VSNPrintF(buffer, format, arguments2);
+  va_end(arguments2);
+
+  heap_->AddToRingBuffer(buffer.start());
+}
+
+
+void GCTracer::Print() const {
+  if (FLAG_trace_gc) {
+    PrintIsolate(heap_->isolate(), "");
+  }
+  Output("%8.0f ms: ", heap_->isolate()->time_millis_since_init());
+
+  Output("%s %.1f (%.1f) -> %.1f (%.1f) MB, ", current_.TypeName(false),
          static_cast<double>(current_.start_object_size) / MB,
          static_cast<double>(current_.start_memory_size) / MB,
          static_cast<double>(current_.end_object_size) / MB,
          static_cast<double>(current_.end_memory_size) / MB);
 
   int external_time = static_cast<int>(current_.scopes[Scope::EXTERNAL]);
-  if (external_time > 0) PrintF("%d / ", external_time);
-
   double duration = current_.end_time - current_.start_time;
-  PrintF("%.1f ms", duration);
+  Output("%.1f / %d ms", duration, external_time);
+
   if (current_.type == Event::SCAVENGER) {
     if (current_.incremental_marking_steps > 0) {
-      PrintF(" (+ %.1f ms in %d steps since last GC)",
+      Output(" (+ %.1f ms in %d steps since last GC)",
              current_.incremental_marking_duration,
              current_.incremental_marking_steps);
     }
   } else {
     if (current_.incremental_marking_steps > 0) {
-      PrintF(
+      Output(
           " (+ %.1f ms in %d steps since start of marking, "
           "biggest step %.1f ms)",
           current_.incremental_marking_duration,
@@ -321,14 +377,14 @@ void GCTracer::Print() const {
   }
 
   if (current_.gc_reason != NULL) {
-    PrintF(" [%s]", current_.gc_reason);
+    Output(" [%s]", current_.gc_reason);
   }
 
   if (current_.collector_reason != NULL) {
-    PrintF(" [%s]", current_.collector_reason);
+    Output(" [%s]", current_.collector_reason);
   }
 
-  PrintF(".\n");
+  Output(".\n");
 }
 
 
@@ -501,24 +557,26 @@ intptr_t GCTracer::IncrementalMarkingSpeedInBytesPerMillisecond() const {
   }
 
   if (durations == 0.0) return 0;
-
-  return static_cast<intptr_t>(bytes / durations);
+  // Make sure the result is at least 1.
+  return Max<size_t>(static_cast<size_t>(bytes / durations + 0.5), 1);
 }
 
 
-intptr_t GCTracer::ScavengeSpeedInBytesPerMillisecond() const {
+intptr_t GCTracer::ScavengeSpeedInBytesPerMillisecond(
+    ScavengeSpeedMode mode) const {
   intptr_t bytes = 0;
   double durations = 0.0;
   EventBuffer::const_iterator iter = scavenger_events_.begin();
   while (iter != scavenger_events_.end()) {
-    bytes += iter->new_space_object_size;
+    bytes += mode == kForAllObjects ? iter->new_space_object_size
+                                    : iter->survived_new_space_object_size;
     durations += iter->end_time - iter->start_time;
     ++iter;
   }
 
   if (durations == 0.0) return 0;
-
-  return static_cast<intptr_t>(bytes / durations);
+  // Make sure the result is at least 1.
+  return Max<size_t>(static_cast<size_t>(bytes / durations + 0.5), 1);
 }
 
 
@@ -533,8 +591,8 @@ intptr_t GCTracer::MarkCompactSpeedInBytesPerMillisecond() const {
   }
 
   if (durations == 0.0) return 0;
-
-  return static_cast<intptr_t>(bytes / durations);
+  // Make sure the result is at least 1.
+  return Max<size_t>(static_cast<size_t>(bytes / durations + 0.5), 1);
 }
 
 
@@ -550,24 +608,89 @@ intptr_t GCTracer::FinalIncrementalMarkCompactSpeedInBytesPerMillisecond()
   }
 
   if (durations == 0.0) return 0;
-
-  return static_cast<intptr_t>(bytes / durations);
+  // Make sure the result is at least 1.
+  return Max<size_t>(static_cast<size_t>(bytes / durations + 0.5), 1);
 }
 
 
-intptr_t GCTracer::NewSpaceAllocationThroughputInBytesPerMillisecond() const {
-  intptr_t bytes = 0;
-  double durations = 0.0;
-  AllocationEventBuffer::const_iterator iter = allocation_events_.begin();
-  while (iter != allocation_events_.end()) {
+double GCTracer::CombinedMarkCompactSpeedInBytesPerMillisecond() {
+  if (combined_mark_compact_speed_cache_ > 0)
+    return combined_mark_compact_speed_cache_;
+  const double kMinimumMarkingSpeed = 0.5;
+  double speed1 =
+      static_cast<double>(IncrementalMarkingSpeedInBytesPerMillisecond());
+  double speed2 = static_cast<double>(
+      FinalIncrementalMarkCompactSpeedInBytesPerMillisecond());
+  if (speed1 < kMinimumMarkingSpeed || speed2 < kMinimumMarkingSpeed) {
+    // No data for the incremental marking speed.
+    // Return the non-incremental mark-compact speed.
+    combined_mark_compact_speed_cache_ =
+        static_cast<double>(MarkCompactSpeedInBytesPerMillisecond());
+  } else {
+    // Combine the speed of incremental step and the speed of the final step.
+    // 1 / (1 / speed1 + 1 / speed2) = speed1 * speed2 / (speed1 + speed2).
+    combined_mark_compact_speed_cache_ = speed1 * speed2 / (speed1 + speed2);
+  }
+  return combined_mark_compact_speed_cache_;
+}
+
+
+size_t GCTracer::NewSpaceAllocationThroughputInBytesPerMillisecond(
+    double time_ms) const {
+  size_t bytes = new_space_allocation_in_bytes_since_gc_;
+  double durations = allocation_duration_since_gc_;
+  AllocationEventBuffer::const_iterator iter =
+      new_space_allocation_events_.begin();
+  const size_t max_bytes = static_cast<size_t>(-1);
+  while (iter != new_space_allocation_events_.end() &&
+         bytes < max_bytes - bytes && (time_ms == 0 || durations < time_ms)) {
     bytes += iter->allocation_in_bytes_;
     durations += iter->duration_;
     ++iter;
   }
 
   if (durations == 0.0) return 0;
+  // Make sure the result is at least 1.
+  return Max<size_t>(static_cast<size_t>(bytes / durations + 0.5), 1);
+}
 
-  return static_cast<intptr_t>(bytes / durations);
+
+size_t GCTracer::OldGenerationAllocationThroughputInBytesPerMillisecond(
+    double time_ms) const {
+  size_t bytes = old_generation_allocation_in_bytes_since_gc_;
+  double durations = allocation_duration_since_gc_;
+  AllocationEventBuffer::const_iterator iter =
+      old_generation_allocation_events_.begin();
+  const size_t max_bytes = static_cast<size_t>(-1);
+  while (iter != old_generation_allocation_events_.end() &&
+         bytes < max_bytes - bytes && (time_ms == 0 || durations < time_ms)) {
+    bytes += iter->allocation_in_bytes_;
+    durations += iter->duration_;
+    ++iter;
+  }
+
+  if (durations == 0.0) return 0;
+  // Make sure the result is at least 1.
+  return Max<size_t>(static_cast<size_t>(bytes / durations + 0.5), 1);
+}
+
+
+size_t GCTracer::AllocationThroughputInBytesPerMillisecond(
+    double time_ms) const {
+  return NewSpaceAllocationThroughputInBytesPerMillisecond(time_ms) +
+         OldGenerationAllocationThroughputInBytesPerMillisecond(time_ms);
+}
+
+
+size_t GCTracer::CurrentAllocationThroughputInBytesPerMillisecond() const {
+  return AllocationThroughputInBytesPerMillisecond(kThroughputTimeFrameMs);
+}
+
+
+size_t GCTracer::CurrentOldGenerationAllocationThroughputInBytesPerMillisecond()
+    const {
+  return OldGenerationAllocationThroughputInBytesPerMillisecond(
+      kThroughputTimeFrameMs);
 }
 
 
@@ -607,5 +730,5 @@ bool GCTracer::SurvivalEventsRecorded() const {
 
 
 void GCTracer::ResetSurvivalEvents() { survival_events_.reset(); }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

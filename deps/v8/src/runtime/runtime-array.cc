@@ -5,6 +5,7 @@
 #include "src/v8.h"
 
 #include "src/arguments.h"
+#include "src/elements.h"
 #include "src/messages.h"
 #include "src/runtime/runtime-utils.h"
 
@@ -54,6 +55,26 @@ RUNTIME_FUNCTION(Runtime_SpecialArrayFunctions) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_FixedArrayGet) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_CHECKED(FixedArray, object, 0);
+  CONVERT_SMI_ARG_CHECKED(index, 1);
+  return object->get(index);
+}
+
+
+RUNTIME_FUNCTION(Runtime_FixedArraySet) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 3);
+  CONVERT_ARG_CHECKED(FixedArray, object, 0);
+  CONVERT_SMI_ARG_CHECKED(index, 1);
+  CONVERT_ARG_CHECKED(Object, value, 2);
+  object->set(index, value);
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(Runtime_TransitionElementsKind) {
   HandleScope scope(isolate);
   RUNTIME_ASSERT(args.length() == 2);
@@ -81,7 +102,8 @@ RUNTIME_FUNCTION(Runtime_PushIfAbsent) {
 
   // Strict not needed. Used for cycle detection in Array join implementation.
   RETURN_FAILURE_ON_EXCEPTION(
-      isolate, JSObject::SetFastElement(array, length, element, SLOPPY, true));
+      isolate, JSObject::AddDataElement(array, length, element, NONE));
+  JSObject::ValidateElements(array);
   return isolate->heap()->true_value();
 }
 
@@ -273,7 +295,8 @@ static uint32_t EstimateElementCount(Handle<JSArray> array) {
       }
       break;
     }
-    case SLOPPY_ARGUMENTS_ELEMENTS:
+    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
+    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
   case EXTERNAL_##TYPE##_ELEMENTS:                      \
   case TYPE##_ELEMENTS:
@@ -414,7 +437,8 @@ static void CollectElementIndices(Handle<JSObject> object, uint32_t range,
         if (length == range) return;  // All indices accounted for already.
         break;
       }
-    case SLOPPY_ARGUMENTS_ELEMENTS: {
+    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
+    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS: {
       MaybeHandle<Object> length_obj =
           Object::GetProperty(object, isolate->factory()->length_string());
       double length_num = length_obj.ToHandleChecked()->Number();
@@ -684,17 +708,15 @@ static bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
       isolate, receiver, false, false, visitor);
       break;
     }
-    case SLOPPY_ARGUMENTS_ELEMENTS: {
-      ElementsAccessor* accessor = receiver->GetElementsAccessor();
+    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
+    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS: {
       for (uint32_t index = 0; index < length; index++) {
         HandleScope loop_scope(isolate);
-        if (accessor->HasElement(receiver, index)) {
-          Handle<Object> element;
-          ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-              isolate, element, accessor->Get(receiver, receiver, index),
-              false);
-          visitor->visit(index, element);
-        }
+        Handle<Object> element;
+        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+            isolate, element, Object::GetElement(isolate, receiver, index),
+            false);
+        visitor->visit(index, element);
       }
       break;
     }
@@ -707,17 +729,18 @@ static bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
 static bool IsConcatSpreadable(Isolate* isolate, Handle<Object> obj) {
   HandleScope handle_scope(isolate);
   if (!obj->IsSpecObject()) return false;
-  if (obj->IsJSArray()) return true;
-  if (FLAG_harmony_arrays) {
+  if (FLAG_harmony_concat_spreadable) {
     Handle<Symbol> key(isolate->factory()->is_concat_spreadable_symbol());
     Handle<Object> value;
     MaybeHandle<Object> maybeValue =
         i::Runtime::GetObjectProperty(isolate, obj, key);
     if (maybeValue.ToHandle(&value)) {
-      return value->BooleanValue();
+      if (!value->IsUndefined()) {
+        return value->BooleanValue();
+      }
     }
   }
-  return false;
+  return obj->IsJSArray();
 }
 
 
@@ -1050,8 +1073,8 @@ static Object* ArrayConstructorCommon(Isolate* isolate,
     Handle<Object> argument_one = caller_args->at<Object>(0);
     if (argument_one->IsSmi()) {
       int value = Handle<Smi>::cast(argument_one)->value();
-      if (value < 0 || JSArray::SetElementsLengthWouldNormalize(isolate->heap(),
-                                                                argument_one)) {
+      if (value < 0 ||
+          JSArray::SetLengthWouldNormalize(isolate->heap(), value)) {
         // the array is a dictionary in this case.
         can_use_type_feedback = false;
       } else if (value != 0) {
@@ -1221,7 +1244,7 @@ RUNTIME_FUNCTION(Runtime_NormalizeElements) {
 // GrowArrayElements returns a sentinel Smi if the object was normalized.
 RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_NUMBER_CHECKED(int, key, Int32, args[1]);
 
@@ -1240,16 +1263,7 @@ RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
     }
 
     uint32_t new_capacity = JSObject::NewElementsCapacity(index + 1);
-    ElementsKind kind = object->GetElementsKind();
-    if (IsFastDoubleElementsKind(kind)) {
-      JSObject::SetFastDoubleElementsCapacity(object, new_capacity);
-    } else {
-      JSObject::SetFastElementsCapacitySmiMode set_capacity_mode =
-          object->HasFastSmiElements() ? JSObject::kAllowSmiElements
-                                       : JSObject::kDontAllowSmiElements;
-      JSObject::SetFastElementsCapacity(object, new_capacity,
-                                        set_capacity_mode);
-    }
+    object->GetElementsAccessor()->GrowCapacityAndConvert(object, new_capacity);
   }
 
   // On success, return the fixed array elements.
@@ -1273,98 +1287,11 @@ RUNTIME_FUNCTION(Runtime_HasComplexElements) {
       return isolate->heap()->true_value();
     }
     if (!current->HasDictionaryElements()) continue;
-    if (current->element_dictionary()
-            ->HasComplexElements<DictionaryEntryType::kObjects>()) {
+    if (current->element_dictionary()->HasComplexElements()) {
       return isolate->heap()->true_value();
     }
   }
   return isolate->heap()->false_value();
-}
-
-
-// TODO(dcarney): remove this function when TurboFan supports it.
-// Takes the object to be iterated over and the result of GetPropertyNamesFast
-// Returns pair (cache_array, cache_type).
-RUNTIME_FUNCTION_RETURN_PAIR(Runtime_ForInInit) {
-  SealHandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  // This simulates CONVERT_ARG_HANDLE_CHECKED for calls returning pairs.
-  // Not worth creating a macro atm as this function should be removed.
-  if (!args[0]->IsJSReceiver() || !args[1]->IsObject()) {
-    Object* error = isolate->ThrowIllegalOperation();
-    return MakePair(error, isolate->heap()->undefined_value());
-  }
-  Handle<JSReceiver> object = args.at<JSReceiver>(0);
-  Handle<Object> cache_type = args.at<Object>(1);
-  if (cache_type->IsMap()) {
-    // Enum cache case.
-    if (Map::EnumLengthBits::decode(Map::cast(*cache_type)->bit_field3()) ==
-        0) {
-      // 0 length enum.
-      // Can't handle this case in the graph builder,
-      // so transform it into the empty fixed array case.
-      return MakePair(isolate->heap()->empty_fixed_array(), Smi::FromInt(1));
-    }
-    return MakePair(object->map()->instance_descriptors()->GetEnumCache(),
-                    *cache_type);
-  } else {
-    // FixedArray case.
-    Smi* new_cache_type = Smi::FromInt(object->IsJSProxy() ? 0 : 1);
-    return MakePair(*Handle<FixedArray>::cast(cache_type), new_cache_type);
-  }
-}
-
-
-// TODO(dcarney): remove this function when TurboFan supports it.
-RUNTIME_FUNCTION(Runtime_ForInCacheArrayLength) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(Object, cache_type, 0);
-  CONVERT_ARG_HANDLE_CHECKED(FixedArray, array, 1);
-  int length = 0;
-  if (cache_type->IsMap()) {
-    length = Map::cast(*cache_type)->EnumLength();
-  } else {
-    DCHECK(cache_type->IsSmi());
-    length = array->length();
-  }
-  return Smi::FromInt(length);
-}
-
-
-// TODO(dcarney): remove this function when TurboFan supports it.
-// Takes (the object to be iterated over,
-//        cache_array from ForInInit,
-//        cache_type from ForInInit,
-//        the current index)
-// Returns pair (array[index], needs_filtering).
-RUNTIME_FUNCTION_RETURN_PAIR(Runtime_ForInNext) {
-  SealHandleScope scope(isolate);
-  DCHECK(args.length() == 4);
-  int32_t index;
-  // This simulates CONVERT_ARG_HANDLE_CHECKED for calls returning pairs.
-  // Not worth creating a macro atm as this function should be removed.
-  if (!args[0]->IsJSReceiver() || !args[1]->IsFixedArray() ||
-      !args[2]->IsObject() || !args[3]->ToInt32(&index)) {
-    Object* error = isolate->ThrowIllegalOperation();
-    return MakePair(error, isolate->heap()->undefined_value());
-  }
-  Handle<JSReceiver> object = args.at<JSReceiver>(0);
-  Handle<FixedArray> array = args.at<FixedArray>(1);
-  Handle<Object> cache_type = args.at<Object>(2);
-  // Figure out first if a slow check is needed for this object.
-  bool slow_check_needed = false;
-  if (cache_type->IsMap()) {
-    if (object->map() != Map::cast(*cache_type)) {
-      // Object transitioned.  Need slow check.
-      slow_check_needed = true;
-    }
-  } else {
-    // No slow check needed for proxies.
-    slow_check_needed = Smi::cast(*cache_type)->value() == 1;
-  }
-  return MakePair(array->get(index),
-                  isolate->heap()->ToBoolean(slow_check_needed));
 }
 
 
@@ -1398,5 +1325,5 @@ RUNTIME_FUNCTION(Runtime_FastOneByteArrayJoin) {
   // to a slow path.
   return isolate->heap()->undefined_value();
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

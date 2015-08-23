@@ -39,12 +39,10 @@ class GraphAndBuilders {
 
 
 template <typename ReturnType>
-class GraphBuilderTester
-    : public HandleAndZoneScope,
-      private GraphAndBuilders,
-      public CallHelper,
-      public SimplifiedGraphBuilder,
-      public CallHelper2<ReturnType, GraphBuilderTester<ReturnType> > {
+class GraphBuilderTester : public HandleAndZoneScope,
+                           private GraphAndBuilders,
+                           public CallHelper<ReturnType>,
+                           public SimplifiedGraphBuilder {
  public:
   explicit GraphBuilderTester(MachineType p0 = kMachNone,
                               MachineType p1 = kMachNone,
@@ -52,11 +50,10 @@ class GraphBuilderTester
                               MachineType p3 = kMachNone,
                               MachineType p4 = kMachNone)
       : GraphAndBuilders(main_zone()),
-        CallHelper(
+        CallHelper<ReturnType>(
             main_isolate(),
-            MakeMachineSignature(
-                main_zone(), ReturnValueTraits<ReturnType>::Representation(),
-                p0, p1, p2, p3, p4)),
+            CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p0, p1,
+                            p2, p3, p4)),
         SimplifiedGraphBuilder(main_isolate(), main_graph_, &main_common_,
                                &main_machine_, &main_simplified_),
         parameters_(main_zone()->template NewArray<Node*>(parameter_count())) {
@@ -79,7 +76,7 @@ class GraphBuilderTester
     if (code_.is_null()) {
       Zone* zone = graph()->zone();
       CallDescriptor* desc =
-          Linkage::GetSimplifiedCDescriptor(zone, machine_sig_);
+          Linkage::GetSimplifiedCDescriptor(zone, this->csig_);
       code_ = Pipeline::GenerateCodeForTesting(main_isolate(), desc, graph());
     }
     return code_.ToHandleChecked()->entry();
@@ -92,7 +89,7 @@ class GraphBuilderTester
     }
   }
 
-  size_t parameter_count() const { return machine_sig_->parameter_count(); }
+  size_t parameter_count() const { return this->csig_->parameter_count(); }
 
  private:
   Node** parameters_;

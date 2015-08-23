@@ -493,7 +493,7 @@ UNINITIALIZED_DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
                                           &outdated_contexts).ToHandleChecked();
       CHECK(root->IsContext());
       CHECK(Handle<Context>::cast(root)->global_proxy() == *global_proxy);
-      CHECK_EQ(1, outdated_contexts->length());
+      CHECK_EQ(2, outdated_contexts->length());
     }
 
     Handle<Object> root2;
@@ -628,13 +628,13 @@ UNINITIALIZED_DEPENDENT_TEST(CustomContextDeserialization,
       root =
           deserializer.DeserializePartial(isolate, global_proxy,
                                           &outdated_contexts).ToHandleChecked();
-      CHECK_EQ(2, outdated_contexts->length());
+      CHECK_EQ(3, outdated_contexts->length());
       CHECK(root->IsContext());
       Handle<Context> context = Handle<Context>::cast(root);
       CHECK(context->global_proxy() == *global_proxy);
       Handle<String> o = isolate->factory()->NewStringFromAsciiChecked("o");
       Handle<JSObject> global_object(context->global_object(), isolate);
-      Handle<Object> property = JSObject::GetDataProperty(global_object, o);
+      Handle<Object> property = JSReceiver::GetDataProperty(global_object, o);
       CHECK(property.is_identical_to(global_proxy));
 
       v8::Handle<v8::Context> v8_context = v8::Utils::ToLocal(context);
@@ -859,7 +859,7 @@ static Handle<SharedFunctionInfo> CompileScript(
     Isolate* isolate, Handle<String> source, Handle<String> name,
     ScriptData** cached_data, v8::ScriptCompiler::CompileOptions options) {
   return Compiler::CompileScript(
-      source, name, 0, 0, false, false, Handle<Object>(),
+      source, name, 0, 0, v8::ScriptOriginOptions(), Handle<Object>(),
       Handle<Context>(isolate->native_context()), NULL, cached_data, options,
       NOT_NATIVES_CODE, false);
 }
@@ -938,7 +938,7 @@ TEST(CodeCachePromotedToCompilationCache) {
       isolate, src, src, &cache, v8::ScriptCompiler::kConsumeCodeCache);
 
   CHECK(isolate->compilation_cache()
-            ->LookupScript(src, src, 0, 0, false, false,
+            ->LookupScript(src, src, 0, 0, v8::ScriptOriginOptions(),
                            isolate->native_context(), SLOPPY)
             .ToHandleChecked()
             .is_identical_to(copy));
@@ -1098,11 +1098,11 @@ TEST(SerializeToplevelLargeStrings) {
       Execution::Call(isolate, copy_fun, global, 0, NULL).ToHandleChecked();
 
   CHECK_EQ(6 * 1999999, Handle<String>::cast(copy_result)->length());
-  Handle<Object> property = JSObject::GetDataProperty(
+  Handle<Object> property = JSReceiver::GetDataProperty(
       isolate->global_object(), f->NewStringFromAsciiChecked("s"));
   CHECK(isolate->heap()->InSpace(HeapObject::cast(*property), LO_SPACE));
-  property = JSObject::GetDataProperty(isolate->global_object(),
-                                       f->NewStringFromAsciiChecked("t"));
+  property = JSReceiver::GetDataProperty(isolate->global_object(),
+                                         f->NewStringFromAsciiChecked("t"));
   CHECK(isolate->heap()->InSpace(HeapObject::cast(*property), LO_SPACE));
   // Make sure we do not serialize too much, e.g. include the source string.
   CHECK_LT(cache->length(), 13000000);
@@ -1595,7 +1595,6 @@ TEST(SerializeInternalReference) {
   return;
 #endif
   // Disable experimental natives that are loaded after deserialization.
-  FLAG_turbo_deoptimization = false;
   FLAG_context_specialization = false;
   FLAG_always_opt = true;
   const char* flag = "--turbo-filter=foo";
@@ -1656,6 +1655,31 @@ TEST(SerializeInternalReference) {
     CHECK_EQ(10, CompileRun("foo(6)")->ToInt32(isolate)->Int32Value());
   }
   isolate->Dispose();
+}
+
+
+TEST(Regress503552) {
+  // Test that the code serializer can deal with weak cells that form a linked
+  // list during incremental marking.
+
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+
+  HandleScope scope(isolate);
+  Handle<String> source = isolate->factory()->NewStringFromAsciiChecked(
+      "function f() {} function g() {}");
+  ScriptData* script_data = NULL;
+  Handle<SharedFunctionInfo> shared = Compiler::CompileScript(
+      source, Handle<String>(), 0, 0, v8::ScriptOriginOptions(),
+      Handle<Object>(), Handle<Context>(isolate->native_context()), NULL,
+      &script_data, v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE,
+      false);
+  delete script_data;
+
+  SimulateIncrementalMarking(isolate->heap());
+
+  script_data = CodeSerializer::Serialize(isolate, shared, source);
+  delete script_data;
 }
 
 

@@ -200,7 +200,7 @@ MaybeHandle<Object> Execution::TryCall(Handle<JSFunction> func,
   // creating message objects during stack overflow we shouldn't
   // capture messages.
   {
-    v8::TryCatch catcher;
+    v8::TryCatch catcher(reinterpret_cast<v8::Isolate*>(isolate));
     catcher.SetVerbose(false);
     catcher.SetCaptureMessage(false);
 
@@ -602,35 +602,6 @@ MaybeHandle<JSRegExp> Execution::NewJSRegExp(Handle<String> pattern,
 }
 
 
-Handle<Object> Execution::CharAt(Handle<String> string, uint32_t index) {
-  Isolate* isolate = string->GetIsolate();
-  Factory* factory = isolate->factory();
-
-  int int_index = static_cast<int>(index);
-  if (int_index < 0 || int_index >= string->length()) {
-    return factory->undefined_value();
-  }
-
-  Handle<Object> char_at = Object::GetProperty(
-      isolate->js_builtins_object(),
-      factory->char_at_string()).ToHandleChecked();
-  if (!char_at->IsJSFunction()) {
-    return factory->undefined_value();
-  }
-
-  Handle<Object> index_object = factory->NewNumberFromInt(int_index);
-  Handle<Object> index_arg[] = { index_object };
-  Handle<Object> result;
-  if (!TryCall(Handle<JSFunction>::cast(char_at),
-               string,
-               arraysize(index_arg),
-               index_arg).ToHandle(&result)) {
-    return factory->undefined_value();
-  }
-  return result;
-}
-
-
 Handle<String> Execution::GetStackTraceLine(Handle<Object> recv,
                                             Handle<JSFunction> fun,
                                             Handle<Object> pos,
@@ -692,4 +663,5 @@ Object* StackGuard::HandleInterrupts() {
   return isolate_->heap()->undefined_value();
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

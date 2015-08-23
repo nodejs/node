@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-(function(global, shared, exports) {
+(function(global, utils) {
 
 "use strict";
 
@@ -43,7 +43,9 @@ function WeakMapGet(key) {
                         'WeakMap.prototype.get', this);
   }
   if (!IS_SPEC_OBJECT(key)) return UNDEFINED;
-  return %WeakCollectionGet(this, key);
+  var hash = $getExistingHash(key);
+  if (IS_UNDEFINED(hash)) return UNDEFINED;
+  return %WeakCollectionGet(this, key, hash);
 }
 
 
@@ -52,10 +54,8 @@ function WeakMapSet(key, value) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         'WeakMap.prototype.set', this);
   }
-  if (!IS_SPEC_OBJECT(key)) {
-    throw %MakeTypeError('invalid_weakmap_key', [this, key]);
-  }
-  return %WeakCollectionSet(this, key, value);
+  if (!IS_SPEC_OBJECT(key)) throw MakeTypeError(kInvalidWeakMapKey);
+  return %WeakCollectionSet(this, key, value, $getHash(key));
 }
 
 
@@ -65,7 +65,9 @@ function WeakMapHas(key) {
                         'WeakMap.prototype.has', this);
   }
   if (!IS_SPEC_OBJECT(key)) return false;
-  return %WeakCollectionHas(this, key);
+  var hash = $getExistingHash(key);
+  if (IS_UNDEFINED(hash)) return false;
+  return %WeakCollectionHas(this, key, hash);
 }
 
 
@@ -75,7 +77,9 @@ function WeakMapDelete(key) {
                         'WeakMap.prototype.delete', this);
   }
   if (!IS_SPEC_OBJECT(key)) return false;
-  return %WeakCollectionDelete(this, key);
+  var hash = $getExistingHash(key);
+  if (IS_UNDEFINED(hash)) return false;
+  return %WeakCollectionDelete(this, key, hash);
 }
 
 
@@ -90,7 +94,7 @@ function WeakMapDelete(key) {
                   DONT_ENUM | READ_ONLY);
 
 // Set up the non-enumerable functions on the WeakMap prototype object.
-$installFunctions(GlobalWeakMap.prototype, DONT_ENUM, [
+utils.InstallFunctions(GlobalWeakMap.prototype, DONT_ENUM, [
   "get", WeakMapGet,
   "set", WeakMapSet,
   "has", WeakMapHas,
@@ -124,10 +128,8 @@ function WeakSetAdd(value) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         'WeakSet.prototype.add', this);
   }
-  if (!IS_SPEC_OBJECT(value)) {
-    throw %MakeTypeError('invalid_weakset_value', [this, value]);
-  }
-  return %WeakCollectionSet(this, value, true);
+  if (!IS_SPEC_OBJECT(value)) throw MakeTypeError(kInvalidWeakSetValue);
+  return %WeakCollectionSet(this, value, true, $getHash(value));
 }
 
 
@@ -137,7 +139,9 @@ function WeakSetHas(value) {
                         'WeakSet.prototype.has', this);
   }
   if (!IS_SPEC_OBJECT(value)) return false;
-  return %WeakCollectionHas(this, value);
+  var hash = $getExistingHash(value);
+  if (IS_UNDEFINED(hash)) return false;
+  return %WeakCollectionHas(this, value, hash);
 }
 
 
@@ -147,7 +151,9 @@ function WeakSetDelete(value) {
                         'WeakSet.prototype.delete', this);
   }
   if (!IS_SPEC_OBJECT(value)) return false;
-  return %WeakCollectionDelete(this, value);
+  var hash = $getExistingHash(value);
+  if (IS_UNDEFINED(hash)) return false;
+  return %WeakCollectionDelete(this, value, hash);
 }
 
 
@@ -162,7 +168,7 @@ function WeakSetDelete(value) {
                   DONT_ENUM | READ_ONLY);
 
 // Set up the non-enumerable functions on the WeakSet prototype object.
-$installFunctions(GlobalWeakSet.prototype, DONT_ENUM, [
+utils.InstallFunctions(GlobalWeakSet.prototype, DONT_ENUM, [
   "add", WeakSetAdd,
   "has", WeakSetHas,
   "delete", WeakSetDelete

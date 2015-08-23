@@ -85,6 +85,9 @@ class RingBuffer {
 };
 
 
+enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
+
+
 // GCTracer collects and prints ONE line after each garbage collector
 // invocation IFF --trace_gc is used.
 // TODO(ernstm): Unit tests.
@@ -141,15 +144,15 @@ class GCTracer {
     // Default constructor leaves the event uninitialized.
     AllocationEvent() {}
 
-    AllocationEvent(double duration, intptr_t allocation_in_bytes);
+    AllocationEvent(double duration, size_t allocation_in_bytes);
 
-    // Time spent in the mutator during the end of the last garbage collection
-    // to the beginning of the next garbage collection.
+    // Time spent in the mutator during the end of the last sample to the
+    // beginning of the next sample.
     double duration_;
 
-    // Memory allocated in the new space during the end of the last garbage
-    // collection to the beginning of the next garbage collection.
-    intptr_t allocation_in_bytes_;
+    // Memory allocated in the new space during the end of the last sample
+    // to the beginning of the next sample
+    size_t allocation_in_bytes_;
   };
 
 
@@ -227,6 +230,8 @@ class GCTracer {
 
     // Size of new space objects in constructor.
     intptr_t new_space_object_size;
+    // Size of survived new space objects in desctructor.
+    intptr_t survived_new_space_object_size;
 
     // Number of incremental marking steps since creation of tracer.
     // (value at start of event)
@@ -286,6 +291,8 @@ class GCTracer {
 
   typedef RingBuffer<SurvivalEvent, kRingBufferMaxSize> SurvivalEventBuffer;
 
+  static const int kThroughputTimeFrameMs = 5000;
+
   explicit GCTracer(Heap* heap);
 
   // Start collecting data.
@@ -295,8 +302,12 @@ class GCTracer {
   // Stop collecting data and print results.
   void Stop(GarbageCollector collector);
 
-  // Log an allocation throughput event.
-  void AddNewSpaceAllocationTime(double duration, intptr_t allocation_in_bytes);
+  // Sample and accumulate bytes allocated since the last GC.
+  void SampleAllocation(double current_ms, size_t new_space_counter_bytes,
+                        size_t old_generation_counter_bytes);
+
+  // Log the accumulated new space allocation bytes.
+  void AddAllocation(double current_ms);
 
   void AddContextDisposalTime(double time);
 
@@ -367,7 +378,8 @@ class GCTracer {
 
   // Compute the average scavenge speed in bytes/millisecond.
   // Returns 0 if no events have been recorded.
-  intptr_t ScavengeSpeedInBytesPerMillisecond() const;
+  intptr_t ScavengeSpeedInBytesPerMillisecond(
+      ScavengeSpeedMode mode = kForAllObjects) const;
 
   // Compute the average mark-sweep speed in bytes/millisecond.
   // Returns 0 if no events have been recorded.
@@ -378,9 +390,35 @@ class GCTracer {
   // Returns 0 if no events have been recorded.
   intptr_t FinalIncrementalMarkCompactSpeedInBytesPerMillisecond() const;
 
+  // Compute the overall mark compact speed including incremental steps
+  // and the final mark-compact step.
+  double CombinedMarkCompactSpeedInBytesPerMillisecond();
+
   // Allocation throughput in the new space in bytes/millisecond.
-  // Returns 0 if no events have been recorded.
-  intptr_t NewSpaceAllocationThroughputInBytesPerMillisecond() const;
+  // Returns 0 if no allocation events have been recorded.
+  size_t NewSpaceAllocationThroughputInBytesPerMillisecond(
+      double time_ms = 0) const;
+
+  // Allocation throughput in the old generation in bytes/millisecond in the
+  // last time_ms milliseconds.
+  // Returns 0 if no allocation events have been recorded.
+  size_t OldGenerationAllocationThroughputInBytesPerMillisecond(
+      double time_ms = 0) const;
+
+  // Allocation throughput in heap in bytes/millisecond in the last time_ms
+  // milliseconds.
+  // Returns 0 if no allocation events have been recorded.
+  size_t AllocationThroughputInBytesPerMillisecond(double time_ms) const;
+
+  // Allocation throughput in heap in bytes/milliseconds in
+  // the last five seconds.
+  // Returns 0 if no allocation events have been recorded.
+  size_t CurrentAllocationThroughputInBytesPerMillisecond() const;
+
+  // Allocation throughput in old generation in bytes/milliseconds in
+  // the last five seconds.
+  // Returns 0 if no allocation events have been recorded.
+  size_t CurrentOldGenerationAllocationThroughputInBytesPerMillisecond() const;
 
   // Computes the context disposal rate in milliseconds. It takes the time
   // frame of the first recorded context disposal to the current time and
@@ -407,6 +445,10 @@ class GCTracer {
   // Print one trace line.
   // TODO(ernstm): Move to Heap.
   void Print() const;
+
+  // Prints a line and also adds it to the heap's ring buffer so that
+  // it can be included in later crash dumps.
+  void Output(const char* format, ...) const;
 
   // Compute the mean duration of the events in the given ring buffer.
   double MeanDuration(const EventBuffer& events) const;
@@ -447,7 +489,8 @@ class GCTracer {
   EventBuffer incremental_mark_compactor_events_;
 
   // RingBuffer for allocation events.
-  AllocationEventBuffer allocation_events_;
+  AllocationEventBuffer new_space_allocation_events_;
+  AllocationEventBuffer old_generation_allocation_events_;
 
   // RingBuffer for context disposal events.
   ContextDisposalEventBuffer context_disposal_events_;
@@ -485,9 +528,17 @@ class GCTracer {
   // all sweeping operations performed on the main thread.
   double cumulative_sweeping_duration_;
 
-  // Holds the new space top pointer recorded at the end of the last garbage
-  // collection.
-  intptr_t new_space_top_after_gc_;
+  // Timestamp and allocation counter at the last sampled allocation event.
+  double allocation_time_ms_;
+  size_t new_space_allocation_counter_bytes_;
+  size_t old_generation_allocation_counter_bytes_;
+
+  // Accumulated duration and allocated bytes since the last GC.
+  double allocation_duration_since_gc_;
+  size_t new_space_allocation_in_bytes_since_gc_;
+  size_t old_generation_allocation_in_bytes_since_gc_;
+
+  double combined_mark_compact_speed_cache_;
 
   // Counts how many tracers were started without stopping.
   int start_counter_;

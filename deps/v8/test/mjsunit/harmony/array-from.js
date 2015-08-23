@@ -148,4 +148,32 @@ testArrayFrom(Math.cos, Array);
 testArrayFrom(Math.cos.bind(Math), Array);
 testArrayFrom(boundFn, boundFn);
 
+// Assert that [[DefineOwnProperty]] is used in ArrayFrom, meaning a
+// setter isn't called, and a failed [[DefineOwnProperty]] will throw.
+var setterCalled = 0;
+function exotic() {
+  Object.defineProperty(this,  '0', {
+    get: function() { return 2; },
+    set: function() { setterCalled++; }
+  });
+}
+// Non-configurable properties can't be overwritten with DefineOwnProperty
+assertThrows(function () { Array.from.call(exotic, [1]); }, TypeError);
+// The setter wasn't called
+assertEquals(0, setterCalled);
+
+// Check that array properties defined are writable, enumerable, configurable
+function ordinary() { }
+var x = Array.from.call(ordinary, [2]);
+var xlength = Object.getOwnPropertyDescriptor(x, 'length');
+assertEquals(1, xlength.value);
+assertEquals(true, xlength.writable);
+assertEquals(true, xlength.enumerable);
+assertEquals(true, xlength.configurable);
+var x0 = Object.getOwnPropertyDescriptor(x, 0);
+assertEquals(2, x0.value);
+assertEquals(true, xlength.writable);
+assertEquals(true, xlength.enumerable);
+assertEquals(true, xlength.configurable);
+
 })();

@@ -71,36 +71,6 @@ class JavaScriptFrameConstants : public AllStatic {
 };
 
 
-class ArgumentsAdaptorFrameConstants : public AllStatic {
- public:
-  // FP-relative.
-  static const int kLengthOffset = StandardFrameConstants::kExpressionsOffset;
-
-  static const int kFrameSize =
-      StandardFrameConstants::kFixedFrameSize + kPointerSize;
-};
-
-
-class ConstructFrameConstants : public AllStatic {
- public:
-  // FP-relative.
-  static const int kImplicitReceiverOffset = -5 * kPointerSize;
-  static const int kConstructorOffset      = kMinInt;
-  static const int kLengthOffset           = -4 * kPointerSize;
-  static const int kCodeOffset = StandardFrameConstants::kExpressionsOffset;
-
-  static const int kFrameSize =
-      StandardFrameConstants::kFixedFrameSize + 3 * kPointerSize;
-};
-
-
-class InternalFrameConstants : public AllStatic {
- public:
-  // FP-relative.
-  static const int kCodeOffset = StandardFrameConstants::kExpressionsOffset;
-};
-
-
 inline Object* JavaScriptFrame::function_slot_object() const {
   const int offset = JavaScriptFrameConstants::kFunctionOffset;
   return Memory::Object_at(fp() + offset);

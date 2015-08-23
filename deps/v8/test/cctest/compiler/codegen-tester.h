@@ -17,38 +17,26 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-template <typename MachineAssembler>
-class MachineAssemblerTester : public HandleAndZoneScope,
-                               public CallHelper,
-                               public MachineAssembler {
+template <typename ReturnType>
+class RawMachineAssemblerTester : public HandleAndZoneScope,
+                                  public CallHelper<ReturnType>,
+                                  public RawMachineAssembler {
  public:
-  MachineAssemblerTester(MachineType return_type, MachineType p0,
-                         MachineType p1, MachineType p2, MachineType p3,
-                         MachineType p4,
-                         MachineOperatorBuilder::Flags flags =
-                             MachineOperatorBuilder::Flag::kNoFlags)
+  RawMachineAssemblerTester(MachineType p0 = kMachNone,
+                            MachineType p1 = kMachNone,
+                            MachineType p2 = kMachNone,
+                            MachineType p3 = kMachNone,
+                            MachineType p4 = kMachNone)
       : HandleAndZoneScope(),
-        CallHelper(
+        CallHelper<ReturnType>(
             main_isolate(),
-            MakeMachineSignature(main_zone(), return_type, p0, p1, p2, p3, p4)),
-        MachineAssembler(
+            CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p0, p1,
+                            p2, p3, p4)),
+        RawMachineAssembler(
             main_isolate(), new (main_zone()) Graph(main_zone()),
-            MakeMachineSignature(main_zone(), return_type, p0, p1, p2, p3, p4),
-            kMachPtr, flags) {}
-
-  Node* LoadFromPointer(void* address, MachineType rep, int32_t offset = 0) {
-    return this->Load(rep, this->PointerConstant(address),
-                      this->Int32Constant(offset));
-  }
-
-  void StoreToPointer(void* address, MachineType rep, Node* node) {
-    this->Store(rep, this->PointerConstant(address), node);
-  }
-
-  Node* StringConstant(const char* string) {
-    return this->HeapConstant(
-        this->isolate()->factory()->InternalizeUtf8String(string));
-  }
+            CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p0, p1,
+                            p2, p3, p4),
+            kMachPtr, InstructionSelector::SupportedMachineOperatorFlags()) {}
 
   void CheckNumber(double expected, Object* number) {
     CHECK(this->isolate()->factory()->NewNumber(expected)->SameValue(number));
@@ -76,41 +64,6 @@ class MachineAssemblerTester : public HandleAndZoneScope,
 
  private:
   MaybeHandle<Code> code_;
-};
-
-
-template <typename ReturnType>
-class RawMachineAssemblerTester
-    : public MachineAssemblerTester<RawMachineAssembler>,
-      public CallHelper2<ReturnType, RawMachineAssemblerTester<ReturnType> > {
- public:
-  RawMachineAssemblerTester(MachineType p0 = kMachNone,
-                            MachineType p1 = kMachNone,
-                            MachineType p2 = kMachNone,
-                            MachineType p3 = kMachNone,
-                            MachineType p4 = kMachNone)
-      : MachineAssemblerTester<RawMachineAssembler>(
-            ReturnValueTraits<ReturnType>::Representation(), p0, p1, p2, p3, p4,
-            InstructionSelector::SupportedMachineOperatorFlags()) {}
-
-  template <typename Ci, typename Fn>
-  void Run(const Ci& ci, const Fn& fn) {
-    typename Ci::const_iterator i;
-    for (i = ci.begin(); i != ci.end(); ++i) {
-      CHECK_EQ(fn(*i), this->Call(*i));
-    }
-  }
-
-  template <typename Ci, typename Cj, typename Fn>
-  void Run(const Ci& ci, const Cj& cj, const Fn& fn) {
-    typename Ci::const_iterator i;
-    typename Cj::const_iterator j;
-    for (i = ci.begin(); i != ci.end(); ++i) {
-      for (j = cj.begin(); j != cj.end(); ++j) {
-        CHECK_EQ(fn(*i, *j), this->Call(*i, *j));
-      }
-    }
-  }
 };
 
 

@@ -26,15 +26,26 @@
 var kMath;
 var rempio2result;
 
-(function(global, shared, exports) {
+(function(global, utils) {
   
 "use strict";
 
 %CheckIsBootstrapping();
 
+// -------------------------------------------------------------------
+// Imports
+
 var GlobalMath = global.Math;
 
-//-------------------------------------------------------------------
+var MathAbs;
+var MathExp;
+
+utils.Import(function(from) {
+  MathAbs = from.MathAbs;
+  MathExp = from.MathExp;
+});
+
+// -------------------------------------------------------------------
 
 define INVPIO2 = kMath[0];
 define PIO2_1  = kMath[1];
@@ -87,7 +98,7 @@ macro REMPIO2(X)
     }
   } else if (ix <= 0x413921fb) {
     // |X| ~<= 2^19*(pi/2), medium size
-    var t = $abs(X);
+    var t = MathAbs(X);
     n = (t * INVPIO2 + 0.5) | 0;
     var r = t - n * PIO2_1;
     var w = n * PIO2_1T;
@@ -269,7 +280,7 @@ function KernelTan(x, y, returnTan) {
   if (ix < 0x3e300000) {  // |x| < 2^-28
     if (((ix | %_DoubleLo(x)) | (returnTan + 1)) == 0) {
       // x == 0 && returnTan = -1
-      return 1 / $abs(x);
+      return 1 / MathAbs(x);
     } else {
       if (returnTan == 1) {
         return x;
@@ -757,7 +768,7 @@ function MathSinh(x) {
   x = x * 1;  // Convert to number.
   var h = (x < 0) ? -0.5 : 0.5;
   // |x| in [0, 22]. return sign(x)*0.5*(E+E/(E+1))
-  var ax = $abs(x);
+  var ax = MathAbs(x);
   if (ax < 22) {
     // For |x| < 2^-28, sinh(x) = x
     if (ax < TWO_M28) return x;
@@ -766,11 +777,11 @@ function MathSinh(x) {
     return h * (t + t / (t + 1));
   }
   // |x| in [22, log(maxdouble)], return 0.5 * exp(|x|)
-  if (ax < LOG_MAXD) return h * $exp(ax);
+  if (ax < LOG_MAXD) return h * MathExp(ax);
   // |x| in [log(maxdouble), overflowthreshold]
   // overflowthreshold = 710.4758600739426
   if (ax <= KSINH_OVERFLOW) {
-    var w = $exp(0.5 * ax);
+    var w = MathExp(0.5 * ax);
     var t = h * w;
     return t * w;
   }
@@ -808,7 +819,7 @@ function MathCosh(x) {
   var ix = %_DoubleHi(x) & 0x7fffffff;
   // |x| in [0,0.5*log2], return 1+expm1(|x|)^2/(2*exp(|x|))
   if (ix < 0x3fd62e43) {
-    var t = MathExpm1($abs(x));
+    var t = MathExpm1(MathAbs(x));
     var w = 1 + t;
     // For |x| < 2^-55, cosh(x) = 1
     if (ix < 0x3c800000) return w;
@@ -816,14 +827,14 @@ function MathCosh(x) {
   }
   // |x| in [0.5*log2, 22], return (exp(|x|)+1/exp(|x|)/2
   if (ix < 0x40360000) {
-    var t = $exp($abs(x));
+    var t = MathExp(MathAbs(x));
     return 0.5 * t + 0.5 / t;
   }
   // |x| in [22, log(maxdouble)], return half*exp(|x|)
-  if (ix < 0x40862e42) return 0.5 * $exp($abs(x));
+  if (ix < 0x40862e42) return 0.5 * MathExp(MathAbs(x));
   // |x| in [log(maxdouble), overflowthreshold]
-  if ($abs(x) <= KCOSH_OVERFLOW) {
-    var w = $exp(0.5 * $abs(x));
+  if (MathAbs(x) <= KCOSH_OVERFLOW) {
+    var w = MathExp(0.5 * MathAbs(x));
     var t = 0.5 * w;
     return t * w;
   }
@@ -926,7 +937,7 @@ define TWO53 = 9007199254740992;
 
 function MathLog2(x) {
   x = x * 1;  // Convert to number.
-  var ax = $abs(x);
+  var ax = MathAbs(x);
   var hx = %_DoubleHi(x);
   var lx = %_DoubleLo(x);
   var ix = hx & 0x7fffffff;
@@ -1012,7 +1023,7 @@ function MathLog2(x) {
 
 //-------------------------------------------------------------------
 
-$installFunctions(GlobalMath, DONT_ENUM, [
+utils.InstallFunctions(GlobalMath, DONT_ENUM, [
   "cos", MathCos,
   "sin", MathSin,
   "tan", MathTan,
@@ -1024,7 +1035,7 @@ $installFunctions(GlobalMath, DONT_ENUM, [
   "expm1", MathExpm1
 ]);
 
-%SetInlineBuiltinFlag(MathSin);
-%SetInlineBuiltinFlag(MathCos);
+%SetForceInlineFlag(MathSin);
+%SetForceInlineFlag(MathCos);
 
 })

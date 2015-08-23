@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --harmony-computed-property-names --harmony-sloppy
-// Flags: --harmony-classes --allow-natives-syntax
+// Flags: --allow-natives-syntax
 
 
 function ID(x) {

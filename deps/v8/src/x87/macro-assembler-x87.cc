@@ -744,9 +744,11 @@ void MacroAssembler::X87SetRC(int rc) {
 
 
 void MacroAssembler::X87SetFPUCW(int cw) {
+  RecordComment("-- X87SetFPUCW start --");
   push(Immediate(cw));
   fldcw(MemOperand(esp, 0));
   add(esp, Immediate(kPointerSize));
+  RecordComment("-- X87SetFPUCW end--");
 }
 
 
@@ -1114,6 +1116,7 @@ void MacroAssembler::GetNumberHash(Register r0, Register scratch) {
   mov(scratch, r0);
   shr(scratch, 16);
   xor_(r0, scratch);
+  and_(r0, 0x3fffffff);
 }
 
 
@@ -1714,7 +1717,7 @@ void MacroAssembler::InitializeFieldsWithFiller(Register start_offset,
   add(start_offset, Immediate(kPointerSize));
   bind(&entry);
   cmp(start_offset, end_offset);
-  j(less, &loop);
+  j(below, &loop);
 }
 
 
@@ -3101,6 +3104,7 @@ void MacroAssembler::TruncatingDiv(Register dividend, int32_t divisor) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_X87

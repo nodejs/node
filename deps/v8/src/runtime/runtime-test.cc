@@ -20,7 +20,8 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
   if (!function->IsOptimized()) return isolate->heap()->undefined_value();
 
   // TODO(turbofan): Deoptimization is not supported yet.
-  if (function->code()->is_turbofanned() && !FLAG_turbo_deoptimization) {
+  if (function->code()->is_turbofanned() &&
+      function->shared()->asm_function() && !FLAG_turbo_asm_deoptimization) {
     return isolate->heap()->undefined_value();
   }
 
@@ -50,7 +51,8 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeNow) {
   if (!function->IsOptimized()) return isolate->heap()->undefined_value();
 
   // TODO(turbofan): Deoptimization is not supported yet.
-  if (function->code()->is_turbofanned() && !FLAG_turbo_deoptimization) {
+  if (function->code()->is_turbofanned() &&
+      function->shared()->asm_function() && !FLAG_turbo_asm_deoptimization) {
     return isolate->heap()->undefined_value();
   }
 
@@ -87,7 +89,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   // JSFunction::MarkForOptimization().
   RUNTIME_ASSERT(function->shared()->allows_lazy_compilation() ||
                  (function->code()->kind() == Code::FUNCTION &&
-                  function->code()->optimizable()));
+                  !function->shared()->optimization_disabled()));
 
   // If the function is already optimized, just return.
   if (function->IsOptimized()) return isolate->heap()->undefined_value();
@@ -131,8 +133,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   // The following assertion was lifted from the DCHECK inside
   // JSFunction::MarkForOptimization().
   RUNTIME_ASSERT(function->shared()->allows_lazy_compilation() ||
-                 (function->code()->kind() == Code::FUNCTION &&
-                  function->code()->optimizable()));
+                 !function->shared()->optimization_disabled());
 
   // If the function is already optimized, just return.
   if (function->IsOptimized()) return isolate->heap()->undefined_value();
@@ -212,6 +213,21 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationCount) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_GetUndetectable) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+
+  Local<v8::ObjectTemplate> desc = v8::ObjectTemplate::New(v8_isolate);
+  desc->MarkAsUndetectable();
+  Local<v8::Object> obj;
+  if (!desc->NewInstance(v8_isolate->GetCurrentContext()).ToLocal(&obj)) {
+    return nullptr;
+  }
+  return *Utils::OpenHandle(*obj);
+}
+
+
 RUNTIME_FUNCTION(Runtime_ClearFunctionTypeFeedback) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
@@ -266,8 +282,9 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
     // and print some interesting cpu debugging info.
     JavaScriptFrameIterator it(isolate);
     JavaScriptFrame* frame = it.frame();
-    os << "fp = " << frame->fp() << ", sp = " << frame->sp()
-       << ", caller_sp = " << frame->caller_sp() << ": ";
+    os << "fp = " << static_cast<void*>(frame->fp())
+       << ", sp = " << static_cast<void*>(frame->sp())
+       << ", caller_sp = " << static_cast<void*>(frame->caller_sp()) << ": ";
   } else {
     os << "DebugPrint: ";
   }
@@ -360,7 +377,8 @@ RUNTIME_FUNCTION(Runtime_AbortJS) {
 
 RUNTIME_FUNCTION(Runtime_NativeScriptsCount) {
   DCHECK(args.length() == 0);
-  return Smi::FromInt(Natives::GetBuiltinsCount());
+  return Smi::FromInt(Natives::GetBuiltinsCount() +
+                      ExtraNatives::GetBuiltinsCount());
 }
 
 
@@ -488,5 +506,5 @@ TYPED_ARRAYS(TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION)
 TYPED_ARRAYS(FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION)
 
 #undef FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

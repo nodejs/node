@@ -4,37 +4,116 @@
 
 #include "src/compiler/node.h"
 
-#include <algorithm>
-
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-Node* Node::New(Zone* zone, NodeId id, const Operator* op, int input_count,
-                Node** inputs, bool has_extensible_inputs) {
-  size_t node_size = sizeof(Node) - sizeof(Input);
-  int reserve_input_count = has_extensible_inputs ? kDefaultReservedInputs : 0;
-  size_t inputs_size = std::max<size_t>(
-      (input_count + reserve_input_count) * sizeof(Input), sizeof(InputDeque*));
-  size_t uses_size = input_count * sizeof(Use);
-  int size = static_cast<int>(node_size + inputs_size + uses_size);
-  void* buffer = zone->New(size);
-  Node* result = new (buffer) Node(id, op, input_count, reserve_input_count);
-  Input* input = result->inputs_.static_;
-  Use* use =
-      reinterpret_cast<Use*>(reinterpret_cast<char*>(input) + inputs_size);
+Node::OutOfLineInputs* Node::OutOfLineInputs::New(Zone* zone, int capacity) {
+  size_t size =
+      sizeof(OutOfLineInputs) + capacity * (sizeof(Node*) + sizeof(Use));
+  intptr_t raw_buffer = reinterpret_cast<intptr_t>(zone->New(size));
+  Node::OutOfLineInputs* outline =
+      reinterpret_cast<OutOfLineInputs*>(raw_buffer + capacity * sizeof(Use));
+  outline->capacity_ = capacity;
+  outline->count_ = 0;
+  return outline;
+}
 
+
+void Node::OutOfLineInputs::ExtractFrom(Use* old_use_ptr, Node** old_input_ptr,
+                                        int count) {
+  // Extract the inputs from the old use and input pointers and copy them
+  // to this out-of-line-storage.
+  Use* new_use_ptr = reinterpret_cast<Use*>(this) - 1;
+  Node** new_input_ptr = inputs_;
+  for (int current = 0; current < count; current++) {
+    new_use_ptr->bit_field_ =
+        Use::InputIndexField::encode(current) | Use::InlineField::encode(false);
+    DCHECK_EQ(old_input_ptr, old_use_ptr->input_ptr());
+    DCHECK_EQ(new_input_ptr, new_use_ptr->input_ptr());
+    Node* old_to = *old_input_ptr;
+    if (old_to) {
+      *old_input_ptr = nullptr;
+      old_to->RemoveUse(old_use_ptr);
+      *new_input_ptr = old_to;
+      old_to->AppendUse(new_use_ptr);
+    } else {
+      *new_input_ptr = nullptr;
+    }
+    old_input_ptr++;
+    new_input_ptr++;
+    old_use_ptr--;
+    new_use_ptr--;
+  }
+  this->count_ = count;
+}
+
+
+Node* Node::New(Zone* zone, NodeId id, const Operator* op, int input_count,
+                Node* const* inputs, bool has_extensible_inputs) {
+  Node** input_ptr;
+  Use* use_ptr;
+  Node* node;
+  bool is_inline;
+
+  if (input_count > kMaxInlineCapacity) {
+    // Allocate out-of-line inputs.
+    int capacity =
+        has_extensible_inputs ? input_count + kMaxInlineCapacity : input_count;
+    OutOfLineInputs* outline = OutOfLineInputs::New(zone, capacity);
+
+    // Allocate node.
+    void* node_buffer = zone->New(sizeof(Node));
+    node = new (node_buffer) Node(id, op, kOutlineMarker, 0);
+    node->inputs_.outline_ = outline;
+
+    outline->node_ = node;
+    outline->count_ = input_count;
+
+    input_ptr = outline->inputs_;
+    use_ptr = reinterpret_cast<Use*>(outline);
+    is_inline = false;
+  } else {
+    // Allocate node with inline inputs.
+    int capacity = input_count;
+    if (has_extensible_inputs) {
+      const int max = kMaxInlineCapacity;
+      capacity = std::min(input_count + 3, max);
+    }
+
+    size_t size = sizeof(Node) + capacity * (sizeof(Node*) + sizeof(Use));
+    intptr_t raw_buffer = reinterpret_cast<intptr_t>(zone->New(size));
+    void* node_buffer =
+        reinterpret_cast<void*>(raw_buffer + capacity * sizeof(Use));
+
+    node = new (node_buffer) Node(id, op, input_count, capacity);
+    input_ptr = node->inputs_.inline_;
+    use_ptr = reinterpret_cast<Use*>(node);
+    is_inline = true;
+  }
+
+  // Initialize the input pointers and the uses.
   for (int current = 0; current < input_count; ++current) {
     Node* to = *inputs++;
-    input->to = to;
-    input->use = use;
-    use->input_index = current;
-    use->from = result;
+    input_ptr[current] = to;
+    Use* use = use_ptr - 1 - current;
+    use->bit_field_ = Use::InputIndexField::encode(current) |
+                      Use::InlineField::encode(is_inline);
     to->AppendUse(use);
-    ++use;
-    ++input;
   }
-  return result;
+  node->Verify();
+  return node;
+}
+
+
+Node* Node::Clone(Zone* zone, NodeId id, const Node* node) {
+  int const input_count = node->InputCount();
+  Node* const* const inputs = node->has_inline_inputs()
+                                  ? node->inputs_.inline_
+                                  : node->inputs_.outline_->inputs_;
+  Node* const clone = New(zone, id, node->op(), input_count, inputs, false);
+  clone->set_bounds(node->bounds());
+  return clone;
 }
 
 
@@ -48,22 +127,47 @@ void Node::Kill() {
 void Node::AppendInput(Zone* zone, Node* new_to) {
   DCHECK_NOT_NULL(zone);
   DCHECK_NOT_NULL(new_to);
-  Use* new_use = new (zone) Use;
-  Input new_input;
-  new_input.to = new_to;
-  new_input.use = new_use;
-  if (reserved_input_count() > 0) {
-    DCHECK(!has_appendable_inputs());
-    set_reserved_input_count(reserved_input_count() - 1);
-    inputs_.static_[input_count()] = new_input;
+
+  int inline_count = InlineCountField::decode(bit_field_);
+  int inline_capacity = InlineCapacityField::decode(bit_field_);
+  if (inline_count < inline_capacity) {
+    // Append inline input.
+    bit_field_ = InlineCountField::update(bit_field_, inline_count + 1);
+    *GetInputPtr(inline_count) = new_to;
+    Use* use = GetUsePtr(inline_count);
+    use->bit_field_ = Use::InputIndexField::encode(inline_count) |
+                      Use::InlineField::encode(true);
+    new_to->AppendUse(use);
   } else {
-    EnsureAppendableInputs(zone);
-    inputs_.appendable_->push_back(new_input);
+    // Append out-of-line input.
+    int input_count = InputCount();
+    OutOfLineInputs* outline = nullptr;
+    if (inline_count != kOutlineMarker) {
+      // switch to out of line inputs.
+      outline = OutOfLineInputs::New(zone, input_count * 2 + 3);
+      outline->node_ = this;
+      outline->ExtractFrom(GetUsePtr(0), GetInputPtr(0), input_count);
+      bit_field_ = InlineCountField::update(bit_field_, kOutlineMarker);
+      inputs_.outline_ = outline;
+    } else {
+      // use current out of line inputs.
+      outline = inputs_.outline_;
+      if (input_count >= outline->capacity_) {
+        // out of space in out-of-line inputs.
+        outline = OutOfLineInputs::New(zone, input_count * 2 + 3);
+        outline->node_ = this;
+        outline->ExtractFrom(GetUsePtr(0), GetInputPtr(0), input_count);
+        inputs_.outline_ = outline;
+      }
+    }
+    outline->count_++;
+    *GetInputPtr(input_count) = new_to;
+    Use* use = GetUsePtr(input_count);
+    use->bit_field_ = Use::InputIndexField::encode(input_count) |
+                      Use::InlineField::encode(false);
+    new_to->AppendUse(use);
   }
-  new_use->input_index = input_count();
-  new_use->from = this;
-  new_to->AppendUse(new_use);
-  set_input_count(input_count() + 1);
+  Verify();
 }
 
 
@@ -76,6 +180,7 @@ void Node::InsertInput(Zone* zone, int index, Node* new_to) {
     ReplaceInput(i, InputAt(i - 1));
   }
   ReplaceInput(index, new_to);
+  Verify();
 }
 
 
@@ -86,26 +191,38 @@ void Node::RemoveInput(int index) {
     ReplaceInput(index, InputAt(index + 1));
   }
   TrimInputCount(InputCount() - 1);
+  Verify();
 }
 
 
-void Node::NullAllInputs() {
-  for (Edge edge : input_edges()) edge.UpdateTo(nullptr);
+void Node::ClearInputs(int start, int count) {
+  Node** input_ptr = GetInputPtr(start);
+  Use* use_ptr = GetUsePtr(start);
+  while (count-- > 0) {
+    DCHECK_EQ(input_ptr, use_ptr->input_ptr());
+    Node* input = *input_ptr;
+    *input_ptr = nullptr;
+    if (input) input->RemoveUse(use_ptr);
+    input_ptr++;
+    use_ptr--;
+  }
+  Verify();
 }
+
+
+void Node::NullAllInputs() { ClearInputs(0, InputCount()); }
 
 
 void Node::TrimInputCount(int new_input_count) {
-  DCHECK_LE(new_input_count, input_count());
-  if (new_input_count == input_count()) return;  // Nothing to do.
-  for (int index = new_input_count; index < input_count(); ++index) {
-    ReplaceInput(index, nullptr);
+  int current_count = InputCount();
+  DCHECK_LE(new_input_count, current_count);
+  if (new_input_count == current_count) return;  // Nothing to do.
+  ClearInputs(new_input_count, current_count - new_input_count);
+  if (has_inline_inputs()) {
+    bit_field_ = InlineCountField::update(bit_field_, new_input_count);
+  } else {
+    inputs_.outline_->count_ = new_input_count;
   }
-  if (!has_appendable_inputs()) {
-    set_reserved_input_count(std::min<int>(
-        ReservedInputCountField::kMax,
-        reserved_input_count() + (input_count() - new_input_count)));
-  }
-  set_input_count(new_input_count);
 }
 
 
@@ -125,7 +242,7 @@ void Node::ReplaceUses(Node* that) {
   // Update the pointers to {this} to point to {that}.
   Use* last_use = nullptr;
   for (Use* use = this->first_use_; use; use = use->next) {
-    use->from->GetInputRecordPtr(use->input_index)->to = that;
+    *use->input_ptr() = that;
     last_use = use;
   }
   if (last_use) {
@@ -141,9 +258,10 @@ void Node::ReplaceUses(Node* that) {
 bool Node::OwnedBy(Node const* owner1, Node const* owner2) const {
   unsigned mask = 0;
   for (Use* use = first_use_; use; use = use->next) {
-    if (use->from == owner1) {
+    Node* from = use->from();
+    if (from == owner1) {
       mask |= 1;
-    } else if (use->from == owner2) {
+    } else if (from == owner2) {
       mask |= 2;
     } else {
       return false;
@@ -153,50 +271,21 @@ bool Node::OwnedBy(Node const* owner1, Node const* owner2) const {
 }
 
 
-void Node::Input::Update(Node* new_to) {
-  Node* old_to = this->to;
-  if (new_to == old_to) return;  // Nothing to do.
-  // Snip out the use from where it used to be
-  if (old_to) {
-    old_to->RemoveUse(use);
-  }
-  to = new_to;
-  // And put it into the new node's use list.
-  if (new_to) {
-    new_to->AppendUse(use);
-  } else {
-    use->next = nullptr;
-    use->prev = nullptr;
-  }
-}
-
-
-Node::Node(NodeId id, const Operator* op, int input_count,
-           int reserved_input_count)
+Node::Node(NodeId id, const Operator* op, int inline_count, int inline_capacity)
     : op_(op),
       mark_(0),
-      id_(id),
-      bit_field_(InputCountField::encode(input_count) |
-                 ReservedInputCountField::encode(reserved_input_count) |
-                 HasAppendableInputsField::encode(false)),
-      first_use_(nullptr) {}
-
-
-void Node::EnsureAppendableInputs(Zone* zone) {
-  if (!has_appendable_inputs()) {
-    void* deque_buffer = zone->New(sizeof(InputDeque));
-    InputDeque* deque = new (deque_buffer) InputDeque(zone);
-    for (int i = 0; i < input_count(); ++i) {
-      deque->push_back(inputs_.static_[i]);
-    }
-    inputs_.appendable_ = deque;
-    set_has_appendable_inputs(true);
-  }
+      bit_field_(IdField::encode(id) | InlineCountField::encode(inline_count) |
+                 InlineCapacityField::encode(inline_capacity)),
+      first_use_(nullptr) {
+  // Inputs must either be out of line or within the inline capacity.
+  DCHECK(inline_capacity <= kMaxInlineCapacity);
+  DCHECK(inline_count == kOutlineMarker || inline_count <= inline_capacity);
 }
 
 
-void Node::AppendUse(Use* const use) {
+void Node::AppendUse(Use* use) {
   DCHECK(first_use_ == nullptr || first_use_->prev == nullptr);
+  DCHECK_EQ(this, *use->input_ptr());
   use->next = first_use_;
   use->prev = nullptr;
   if (first_use_) first_use_->prev = use;
@@ -204,7 +293,7 @@ void Node::AppendUse(Use* const use) {
 }
 
 
-void Node::RemoveUse(Use* const use) {
+void Node::RemoveUse(Use* use) {
   DCHECK(first_use_ == nullptr || first_use_->prev == nullptr);
   if (use->prev) {
     DCHECK_NE(first_use_, use);
@@ -217,6 +306,44 @@ void Node::RemoveUse(Use* const use) {
     use->next->prev = use->prev;
   }
 }
+
+
+#if DEBUG
+void Node::Verify() {
+  // Check basic sanity of input data structures.
+  fflush(stdout);
+  int count = this->InputCount();
+  // Avoid quadratic explosion for mega nodes; only verify if the input
+  // count is less than 200 or is a round number of 100s.
+  if (count > 200 && count % 100) return;
+
+  for (int i = 0; i < count; i++) {
+    CHECK_EQ(i, this->GetUsePtr(i)->input_index());
+    CHECK_EQ(this->GetInputPtr(i), this->GetUsePtr(i)->input_ptr());
+    CHECK_EQ(count, this->InputCount());
+  }
+  {  // Direct input iteration.
+    int index = 0;
+    for (Node* input : this->inputs()) {
+      CHECK_EQ(this->InputAt(index), input);
+      index++;
+    }
+    CHECK_EQ(count, index);
+    CHECK_EQ(this->InputCount(), index);
+  }
+  {  // Input edge iteration.
+    int index = 0;
+    for (Edge edge : this->input_edges()) {
+      CHECK_EQ(edge.from(), this);
+      CHECK_EQ(index, edge.index());
+      CHECK_EQ(this->InputAt(index), edge.to());
+      index++;
+    }
+    CHECK_EQ(count, index);
+    CHECK_EQ(this->InputCount(), index);
+  }
+}
+#endif
 
 
 std::ostream& operator<<(std::ostream& os, const Node& n) {

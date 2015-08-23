@@ -201,7 +201,7 @@ assertEquals(3, a.findIndex(function(val) { return 24 === val; }));
 
 
 //
-// Test predicate is only called for existing elements
+// Test predicate is called for holes
 //
 (function() {
   var a = new Array(30);
@@ -211,7 +211,27 @@ assertEquals(3, a.findIndex(function(val) { return 24 === val; }));
 
   var count = 0;
   a.findIndex(function() { count++; return false; });
-  assertEquals(3, count);
+  assertEquals(30, count);
+})();
+
+
+(function() {
+  var a = [0, 1, , 3];
+  var count = 0;
+  var index = a.findIndex(function(val) { return val === undefined; });
+  assertEquals(2, index);
+})();
+
+
+(function() {
+  var a = [0, 1, , 3];
+  a.__proto__ = {
+    __proto__: Array.prototype,
+    2: 42,
+  };
+  var count = 0;
+  var index = a.findIndex(function(val) { return val === 42; });
+  assertEquals(2, index);
 })();
 
 

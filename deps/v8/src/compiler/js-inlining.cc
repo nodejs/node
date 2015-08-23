@@ -9,7 +9,6 @@
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/ast-graph-builder.h"
 #include "src/compiler/common-operator.h"
-#include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -57,108 +56,6 @@ class JSCallFunctionAccessor {
  private:
   Node* call_;
 };
-
-
-namespace {
-
-// A facade on a JSFunction's graph to facilitate inlining. It assumes the
-// that the function graph has only one return statement, and provides
-// {UnifyReturn} to convert a function graph to that end.
-class Inlinee {
- public:
-  Inlinee(Node* start, Node* end) : start_(start), end_(end) {}
-
-  // Returns the last regular control node, that is
-  // the last control node before the end node.
-  Node* end_block() { return NodeProperties::GetControlInput(unique_return()); }
-
-  // Return the effect output of the graph,
-  // that is the effect input of the return statement of the inlinee.
-  Node* effect_output() {
-    return NodeProperties::GetEffectInput(unique_return());
-  }
-  // Return the value output of the graph,
-  // that is the value input of the return statement of the inlinee.
-  Node* value_output() {
-    return NodeProperties::GetValueInput(unique_return(), 0);
-  }
-  // Return the control output of the graph,
-  // that is the control input of the return statement of the inlinee.
-  Node* control_output() {
-    return NodeProperties::GetControlInput(unique_return(), 0);
-  }
-  // Return the unique return statement of the graph.
-  Node* unique_return() {
-    Node* unique_return = NodeProperties::GetControlInput(end_);
-    DCHECK_EQ(IrOpcode::kReturn, unique_return->opcode());
-    return unique_return;
-  }
-
-  // Counts JSFunction, Receiver, arguments, context but not effect, control.
-  size_t total_parameters() { return start_->op()->ValueOutputCount(); }
-
-  // Counts only formal parameters.
-  size_t formal_parameters() {
-    DCHECK_GE(total_parameters(), 3u);
-    return total_parameters() - 3;
-  }
-
-  // Inline this graph at {call}, use {jsgraph} and its zone to create
-  // any new nodes.
-  Reduction InlineAtCall(JSGraph* jsgraph, Node* call);
-
-  // Ensure that only a single return reaches the end node.
-  static void UnifyReturn(JSGraph* jsgraph);
-
- private:
-  Node* start_;
-  Node* end_;
-};
-
-
-void Inlinee::UnifyReturn(JSGraph* jsgraph) {
-  Graph* graph = jsgraph->graph();
-
-  Node* final_merge = NodeProperties::GetControlInput(graph->end(), 0);
-  if (final_merge->opcode() == IrOpcode::kReturn) {
-    // nothing to do
-    return;
-  }
-  DCHECK_EQ(IrOpcode::kMerge, final_merge->opcode());
-
-  int predecessors = final_merge->op()->ControlInputCount();
-
-  const Operator* op_phi = jsgraph->common()->Phi(kMachAnyTagged, predecessors);
-  const Operator* op_ephi = jsgraph->common()->EffectPhi(predecessors);
-
-  NodeVector values(jsgraph->zone());
-  NodeVector effects(jsgraph->zone());
-  // Iterate over all control flow predecessors,
-  // which must be return statements.
-  for (Edge edge : final_merge->input_edges()) {
-    Node* input = edge.to();
-    switch (input->opcode()) {
-      case IrOpcode::kReturn:
-        values.push_back(NodeProperties::GetValueInput(input, 0));
-        effects.push_back(NodeProperties::GetEffectInput(input));
-        edge.UpdateTo(NodeProperties::GetControlInput(input));
-        input->NullAllInputs();
-        break;
-      default:
-        UNREACHABLE();
-        break;
-    }
-  }
-  values.push_back(final_merge);
-  effects.push_back(final_merge);
-  Node* phi =
-      graph->NewNode(op_phi, static_cast<int>(values.size()), &values.front());
-  Node* ephi = graph->NewNode(op_ephi, static_cast<int>(effects.size()),
-                              &effects.front());
-  Node* new_return =
-      graph->NewNode(jsgraph->common()->Return(), phi, ephi, final_merge);
-  graph->end()->ReplaceInput(0, new_return);
-}
 
 
 class CopyVisitor {
@@ -218,7 +115,8 @@ class CopyVisitor {
 };
 
 
-Reduction Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call) {
+Reduction JSInliner::InlineCall(Node* call, Node* context, Node* frame_state,
+                                Node* start, Node* end) {
   // The scheduler is smart enough to place our code; we just ensure {control}
   // becomes the control input of the start of the inlinee, and {effect} becomes
   // the effect input of the start of the inlinee.
@@ -226,12 +124,14 @@ Reduction Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call) {
   Node* effect = NodeProperties::GetEffectInput(call);
 
   // Context is last argument.
-  int inlinee_context_index = static_cast<int>(total_parameters()) - 1;
+  int const inlinee_context_index =
+      static_cast<int>(start->op()->ValueOutputCount()) - 1;
+
   // {inliner_inputs} counts JSFunction, Receiver, arguments, but not
   // context, effect, control.
   int inliner_inputs = call->op()->ValueInputCount();
   // Iterate over all uses of the start node.
-  for (Edge edge : start_->use_edges()) {
+  for (Edge edge : start->use_edges()) {
     Node* use = edge.from();
     switch (use->opcode()) {
       case IrOpcode::kParameter: {
@@ -239,14 +139,12 @@ Reduction Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call) {
         if (index < inliner_inputs && index < inlinee_context_index) {
           // There is an input from the call, and the index is a value
           // projection but not the context, so rewire the input.
-          NodeProperties::ReplaceWithValue(use, call->InputAt(index));
+          Replace(use, call->InputAt(index));
         } else if (index == inlinee_context_index) {
-          // TODO(turbofan): We always context specialize inlinees currently, so
-          // we should never get here.
-          UNREACHABLE();
+          Replace(use, context);
         } else if (index < inlinee_context_index) {
           // Call has fewer arguments than required, fill with undefined.
-          NodeProperties::ReplaceWithValue(use, jsgraph->UndefinedConstant());
+          Replace(use, jsgraph_->UndefinedConstant());
         } else {
           // We got too many arguments, discard for now.
           // TODO(sigurds): Fix to treat arguments array correctly.
@@ -258,6 +156,8 @@ Reduction Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call) {
           edge.UpdateTo(effect);
         } else if (NodeProperties::IsControlEdge(edge)) {
           edge.UpdateTo(control);
+        } else if (NodeProperties::IsFrameStateEdge(edge)) {
+          edge.UpdateTo(frame_state);
         } else {
           UNREACHABLE();
         }
@@ -265,31 +165,59 @@ Reduction Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call) {
     }
   }
 
-  NodeProperties::ReplaceWithValue(call, value_output(), effect_output(),
-                                   control_output());
+  NodeVector values(local_zone_);
+  NodeVector effects(local_zone_);
+  NodeVector controls(local_zone_);
+  for (Node* const input : end->inputs()) {
+    switch (input->opcode()) {
+      case IrOpcode::kReturn:
+        values.push_back(NodeProperties::GetValueInput(input, 0));
+        effects.push_back(NodeProperties::GetEffectInput(input));
+        controls.push_back(NodeProperties::GetControlInput(input));
+        break;
+      case IrOpcode::kDeoptimize:
+      case IrOpcode::kTerminate:
+      case IrOpcode::kThrow:
+        jsgraph_->graph()->end()->AppendInput(jsgraph_->zone(), input);
+        jsgraph_->graph()->end()->set_op(
+            jsgraph_->common()->End(jsgraph_->graph()->end()->InputCount()));
+        break;
+      default:
+        UNREACHABLE();
+        break;
+    }
+  }
+  DCHECK_NE(0u, values.size());
+  DCHECK_EQ(values.size(), effects.size());
+  DCHECK_EQ(values.size(), controls.size());
+  int const input_count = static_cast<int>(controls.size());
+  Node* control_output = jsgraph_->graph()->NewNode(
+      jsgraph_->common()->Merge(input_count), input_count, &controls.front());
+  values.push_back(control_output);
+  effects.push_back(control_output);
+  Node* value_output = jsgraph_->graph()->NewNode(
+      jsgraph_->common()->Phi(kMachAnyTagged, input_count),
+      static_cast<int>(values.size()), &values.front());
+  Node* effect_output = jsgraph_->graph()->NewNode(
+      jsgraph_->common()->EffectPhi(input_count),
+      static_cast<int>(effects.size()), &effects.front());
 
-  return Reducer::Replace(value_output());
+  ReplaceWithValue(call, value_output, effect_output, control_output);
+
+  return Changed(value_output);
 }
 
-}  // namespace
 
+Node* JSInliner::CreateArgumentsAdaptorFrameState(
+    JSCallFunctionAccessor* call, Handle<SharedFunctionInfo> shared_info,
+    Zone* temp_zone) {
+  const FrameStateFunctionInfo* state_info =
+      jsgraph_->common()->CreateFrameStateFunctionInfo(
+          FrameStateType::kArgumentsAdaptor,
+          static_cast<int>(call->formal_arguments()) + 1, 0, shared_info);
 
-void JSInliner::AddClosureToFrameState(Node* frame_state,
-                                       Handle<JSFunction> jsfunction) {
-  FrameStateCallInfo call_info = OpParameter<FrameStateCallInfo>(frame_state);
   const Operator* op = jsgraph_->common()->FrameState(
-      FrameStateType::JS_FRAME, call_info.bailout_id(),
-      call_info.state_combine(), jsfunction);
-  frame_state->set_op(op);
-}
-
-
-Node* JSInliner::CreateArgumentsAdaptorFrameState(JSCallFunctionAccessor* call,
-                                                  Handle<JSFunction> jsfunction,
-                                                  Zone* temp_zone) {
-  const Operator* op = jsgraph_->common()->FrameState(
-      FrameStateType::ARGUMENTS_ADAPTOR, BailoutId(-1),
-      OutputFrameStateCombine::Ignore(), jsfunction);
+      BailoutId(-1), OutputFrameStateCombine::Ignore(), state_info);
   const Operator* op0 = jsgraph_->common()->StateValues(0);
   Node* node0 = jsgraph_->graph()->NewNode(op0);
   NodeVector params(temp_zone);
@@ -303,7 +231,7 @@ Node* JSInliner::CreateArgumentsAdaptorFrameState(JSCallFunctionAccessor* call,
       op_param, static_cast<int>(params.size()), &params.front());
   return jsgraph_->graph()->NewNode(op, params_node, node0, node0,
                                     jsgraph_->UndefinedConstant(),
-                                    call->frame_state());
+                                    call->jsfunction(), call->frame_state());
 }
 
 
@@ -311,25 +239,60 @@ Reduction JSInliner::Reduce(Node* node) {
   if (node->opcode() != IrOpcode::kJSCallFunction) return NoChange();
 
   JSCallFunctionAccessor call(node);
-  HeapObjectMatcher<JSFunction> match(call.jsfunction());
+  HeapObjectMatcher match(call.jsfunction());
   if (!match.HasValue()) return NoChange();
 
-  Handle<JSFunction> function = match.Value().handle();
-  if (!function->IsJSFunction()) return NoChange();
-  if (mode_ == kBuiltinsInlining && !function->shared()->inline_builtin()) {
+  if (!match.Value().handle()->IsJSFunction()) return NoChange();
+  Handle<JSFunction> function =
+      Handle<JSFunction>::cast(match.Value().handle());
+  if (mode_ == kRestrictedInlining && !function->shared()->force_inline()) {
     return NoChange();
+  }
+
+  // Disallow cross native-context inlining for now. This means that all parts
+  // of the resulting code will operate on the same global object.
+  // This also prevents cross context leaks for asm.js code, where we could
+  // inline functions from a different context and hold on to that context (and
+  // closure) from the code object.
+  // TODO(turbofan): We might want to revisit this restriction later when we
+  // have a need for this, and we know how to model different native contexts
+  // in the same graph in a compositional way.
+  if (function->context()->native_context() !=
+      info_->context()->native_context()) {
+    TRACE("Not inlining %s into %s because of different native contexts\n",
+          function->shared()->DebugName()->ToCString().get(),
+          info_->shared_info()->DebugName()->ToCString().get());
+    return NoChange();
+  }
+
+  // TODO(turbofan): TranslatedState::GetAdaptedArguments() currently relies on
+  // not inlining recursive functions. We might want to relax that at some
+  // point.
+  for (Node* frame_state = call.frame_state();
+       frame_state->opcode() == IrOpcode::kFrameState;
+       frame_state = frame_state->InputAt(kFrameStateOuterStateInput)) {
+    FrameStateInfo const& info = OpParameter<FrameStateInfo>(frame_state);
+    Handle<SharedFunctionInfo> shared_info;
+    if (info.shared_info().ToHandle(&shared_info) &&
+        *shared_info == function->shared()) {
+      TRACE("Not inlining %s into %s because call is recursive\n",
+            function->shared()->DebugName()->ToCString().get(),
+            info_->shared_info()->DebugName()->ToCString().get());
+      return NoChange();
+    }
   }
 
   Zone zone;
   ParseInfo parse_info(&zone, function);
   CompilationInfo info(&parse_info);
+  if (info_->is_deoptimization_enabled()) info.MarkAsDeoptimizationEnabled();
 
   if (!Compiler::ParseAndAnalyze(info.parse_info())) return NoChange();
   if (!Compiler::EnsureDeoptimizationSupport(&info)) return NoChange();
 
   if (info.scope()->arguments() != NULL && is_sloppy(info.language_mode())) {
     // For now do not inline functions that use their arguments array.
-    TRACE("Not Inlining %s into %s because inlinee uses arguments array\n",
+    TRACE("Not inlining %s into %s because inlinee uses arguments array\n",
           function->shared()->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
     return NoChange();
@@ -342,40 +305,39 @@ Reduction JSInliner::Reduce(Node* node) {
   Graph graph(info.zone());
   JSGraph jsgraph(info.isolate(), &graph, jsgraph_->common(),
                   jsgraph_->javascript(), jsgraph_->machine());
+  AstGraphBuilder graph_builder(local_zone_, &info, &jsgraph);
+  graph_builder.CreateGraph(false);
 
   // The inlinee specializes to the context from the JSFunction object.
   // TODO(turbofan): We might want to load the context from the JSFunction at
   // runtime in case we only know the SharedFunctionInfo once we have dynamic
   // type feedback in the compiler.
-  AstGraphBuilder graph_builder(local_zone_, &info, &jsgraph);
-  graph_builder.CreateGraph(true, false);
-  JSContextSpecializer context_specializer(&jsgraph);
-  GraphReducer graph_reducer(&graph, local_zone_);
-  graph_reducer.AddReducer(&context_specializer);
-  graph_reducer.ReduceGraph();
-  Inlinee::UnifyReturn(&jsgraph);
+  Node* context = jsgraph_->Constant(handle(function->context()));
 
   CopyVisitor visitor(&graph, jsgraph_->graph(), info.zone());
   visitor.CopyGraph();
 
-  Inlinee inlinee(visitor.GetCopy(graph.start()), visitor.GetCopy(graph.end()));
+  Node* start = visitor.GetCopy(graph.start());
+  Node* end = visitor.GetCopy(graph.end());
 
-  Node* outer_frame_state = call.frame_state();
+  Node* frame_state = call.frame_state();
+  size_t const inlinee_formal_parameters = start->op()->ValueOutputCount() - 3;
   // Insert argument adaptor frame if required.
-  if (call.formal_arguments() != inlinee.formal_parameters()) {
-    outer_frame_state =
-        CreateArgumentsAdaptorFrameState(&call, function, info.zone());
-  }
-
-  for (Node* node : visitor.copies()) {
-    if (node && node->opcode() == IrOpcode::kFrameState) {
-      DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
-      AddClosureToFrameState(node, function);
-      NodeProperties::ReplaceFrameStateInput(node, 0, outer_frame_state);
+  if (call.formal_arguments() != inlinee_formal_parameters) {
+    // In strong mode, in case of too few arguments we need to throw a
+    // TypeError so we must not inline this call.
+    if (is_strong(info.language_mode()) &&
+        call.formal_arguments() < inlinee_formal_parameters) {
+      return NoChange();
     }
+    frame_state = CreateArgumentsAdaptorFrameState(&call, info.shared_info(),
+                                                   info.zone());
   }
 
-  return inlinee.InlineAtCall(jsgraph_, node);
+  // Remember that we inlined this function.
+  info_->AddInlinedFunction(info.shared_info());
+
+  return InlineCall(node, context, frame_state, start, end);
 }
 
 }  // namespace compiler

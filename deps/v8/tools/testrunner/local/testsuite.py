@@ -150,7 +150,7 @@ class TestSuite(object):
         assert rule[-1] == '*'
         if testname.startswith(rule[:-1]):
           used_rules.add(rule)
-          t.outcomes = self.wildcards[rule]
+          t.outcomes |= self.wildcards[rule]
           if statusfile.DoSkip(t.outcomes):
             skip = True
             break  # "for rule in self.wildcards"

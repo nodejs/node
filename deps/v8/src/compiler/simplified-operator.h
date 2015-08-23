@@ -139,6 +139,9 @@ class SimplifiedOperatorBuilder final {
   const Operator* NumberMultiply();
   const Operator* NumberDivide();
   const Operator* NumberModulus();
+  const Operator* NumberShiftLeft();
+  const Operator* NumberShiftRight();
+  const Operator* NumberShiftRightLogical();
   const Operator* NumberToInt32();
   const Operator* NumberToUint32();
 
@@ -149,7 +152,6 @@ class SimplifiedOperatorBuilder final {
   const Operator* StringEqual();
   const Operator* StringLessThan();
   const Operator* StringLessThanOrEqual();
-  const Operator* StringAdd();
 
   const Operator* ChangeTaggedToInt32();
   const Operator* ChangeTaggedToUint32();

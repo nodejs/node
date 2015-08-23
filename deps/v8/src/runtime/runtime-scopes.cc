@@ -17,17 +17,15 @@ namespace internal {
 
 static Object* ThrowRedeclarationError(Isolate* isolate, Handle<String> name) {
   HandleScope scope(isolate);
-  Handle<Object> args[1] = {name};
   THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError("var_redeclaration", HandleVector(args, 1)));
+      isolate, NewTypeError(MessageTemplate::kVarRedeclaration, name));
 }
 
 
 RUNTIME_FUNCTION(Runtime_ThrowConstAssignError) {
   HandleScope scope(isolate);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate,
-      NewTypeError("const_assign", HandleVector<Object>(NULL, 0)));
+  THROW_NEW_ERROR_RETURN_FAILURE(isolate,
+                                 NewTypeError(MessageTemplate::kConstAssign));
 }
 
 
@@ -250,6 +248,12 @@ RUNTIME_FUNCTION(Runtime_DeclareLookupSlot) {
         JSGlobalObject::cast(context_arg->extension()), isolate);
     return DeclareGlobals(isolate, global, name, value, attr, is_var, is_const,
                           is_function);
+  } else if (context->IsScriptContext()) {
+    DCHECK(context->global_object()->IsJSGlobalObject());
+    Handle<JSGlobalObject> global(
+        JSGlobalObject::cast(context->global_object()), isolate);
+    return DeclareGlobals(isolate, global, name, value, attr, is_var, is_const,
+                          is_function);
   }
 
   if (attributes != ABSENT) {
@@ -325,8 +329,12 @@ RUNTIME_FUNCTION(Runtime_InitializeLegacyConstLookupSlot) {
   // meanwhile. If so, re-introduce the variable in the context extension.
   if (attributes == ABSENT) {
     Handle<Context> declaration_context(context_arg->declaration_context());
-    DCHECK(declaration_context->has_extension());
-    holder = handle(declaration_context->extension(), isolate);
+    if (declaration_context->IsScriptContext()) {
+      holder = handle(declaration_context->global_object(), isolate);
+    } else {
+      DCHECK(declaration_context->has_extension());
+      holder = handle(declaration_context->extension(), isolate);
+    }
     CHECK(holder->IsJSObject());
   } else {
     // For JSContextExtensionObjects, the initializer can be run multiple times
@@ -375,11 +383,7 @@ static Handle<JSObject> NewSloppyArguments(Isolate* isolate,
       Handle<FixedArray> parameter_map =
           isolate->factory()->NewFixedArray(mapped_count + 2, NOT_TENURED);
       parameter_map->set_map(isolate->heap()->sloppy_arguments_elements_map());
-
-      Handle<Map> map = Map::Copy(handle(result->map()), "NewSloppyArguments");
-      map->set_elements_kind(SLOPPY_ARGUMENTS_ELEMENTS);
-
-      result->set_map(*map);
+      result->set_map(isolate->native_context()->fast_aliased_arguments_map());
       result->set_elements(*parameter_map);
 
       // Store the context and the arguments array at the beginning of the
@@ -514,10 +518,9 @@ RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
 }
 
 
-static Handle<JSArray> NewRestParam(Isolate* isolate,
-                                    Object** parameters,
-                                    int num_params,
-                                    int rest_index) {
+static Handle<JSArray> NewRestParam(Isolate* isolate, Object** parameters,
+                                    int num_params, int rest_index,
+                                    LanguageMode language_mode) {
   parameters -= rest_index;
   int num_elements = std::max(0, num_params - rest_index);
   Handle<FixedArray> elements =
@@ -525,26 +528,29 @@ static Handle<JSArray> NewRestParam(Isolate* isolate,
   for (int i = 0; i < num_elements; ++i) {
     elements->set(i, *--parameters);
   }
-  return isolate->factory()->NewJSArrayWithElements(elements, FAST_ELEMENTS,
-                                                    num_elements);
+  return isolate->factory()->NewJSArrayWithElements(
+      elements, FAST_ELEMENTS, num_elements, strength(language_mode));
 }
 
 
 RUNTIME_FUNCTION(Runtime_NewRestParam) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK(args.length() == 4);
   Object** parameters = reinterpret_cast<Object**>(args[0]);
   CONVERT_SMI_ARG_CHECKED(num_params, 1);
   CONVERT_SMI_ARG_CHECKED(rest_index, 2);
+  CONVERT_SMI_ARG_CHECKED(language_mode, 3);
 
-  return *NewRestParam(isolate, parameters, num_params, rest_index);
+  return *NewRestParam(isolate, parameters, num_params, rest_index,
+                       static_cast<LanguageMode>(language_mode));
 }
 
 
 RUNTIME_FUNCTION(Runtime_NewRestParamSlow) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK(args.length() == 2);
   CONVERT_SMI_ARG_CHECKED(rest_index, 0);
+  CONVERT_SMI_ARG_CHECKED(language_mode, 1);
 
   JavaScriptFrameIterator it(isolate);
 
@@ -555,7 +561,8 @@ RUNTIME_FUNCTION(Runtime_NewRestParamSlow) {
   int argument_count = frame->GetArgumentsLength();
   Object** parameters = reinterpret_cast<Object**>(frame->GetParameterSlot(-1));
 
-  return *NewRestParam(isolate, parameters, argument_count, rest_index);
+  return *NewRestParam(isolate, parameters, argument_count, rest_index,
+                       static_cast<LanguageMode>(language_mode));
 }
 
 
@@ -625,16 +632,23 @@ RUNTIME_FUNCTION(Runtime_NewScriptContext) {
   Handle<ScriptContextTable> script_context_table(
       native_context->script_context_table());
 
-  Handle<String> clashed_name;
   Object* name_clash_result =
       FindNameClash(scope_info, global_object, script_context_table);
   if (isolate->has_pending_exception()) return name_clash_result;
 
+  // Script contexts have a canonical empty function as their closure, not the
+  // anonymous closure containing the global code.  See
+  // FullCodeGenerator::PushFunctionArgumentForContextAllocation.
+  Handle<JSFunction> closure(global_object->IsJSBuiltinsObject()
+                                 ? *function
+                                 : native_context->closure());
   Handle<Context> result =
-      isolate->factory()->NewScriptContext(function, scope_info);
+      isolate->factory()->NewScriptContext(closure, scope_info);
+
+  result->InitializeGlobalSlots();
 
   DCHECK(function->context() == isolate->context());
-  DCHECK(function->context()->global_object() == result->global_object());
+  DCHECK(*global_object == result->global_object());
 
   Handle<ScriptContextTable> new_script_context_table =
       ScriptContextTable::Extend(script_context_table, result);
@@ -1005,8 +1019,7 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot) {
     } else if (is_strict(language_mode)) {
       // Setting read only property in strict mode.
       THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate,
-          NewTypeError("strict_cannot_assign", HandleVector(&name, 1)));
+          isolate, NewTypeError(MessageTemplate::kStrictCannotAssign, name));
     }
     return *value;
   }
@@ -1049,7 +1062,7 @@ RUNTIME_FUNCTION(Runtime_GetArgumentsProperty) {
 
   // Try to convert the key to an index. If successful and within
   // index return the the argument from the frame.
-  uint32_t index;
+  uint32_t index = 0;
   if (raw_key->ToArrayIndex(&index) && index < n) {
     return frame->GetParameter(index);
   }
@@ -1097,8 +1110,7 @@ RUNTIME_FUNCTION(Runtime_GetArgumentsProperty) {
     JSFunction* function = frame->function();
     if (is_strict(function->shared()->language_mode())) {
       THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewTypeError("strict_arguments_callee",
-                                HandleVector<Object>(NULL, 0)));
+          isolate, NewTypeError(MessageTemplate::kStrictPoisonPill));
     }
     return function;
   }
@@ -1125,5 +1137,5 @@ RUNTIME_FUNCTION(Runtime_Arguments) {
   SealHandleScope shs(isolate);
   return __RT_impl_Runtime_GetArgumentsProperty(args, isolate);
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

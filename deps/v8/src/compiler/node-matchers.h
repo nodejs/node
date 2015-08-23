@@ -152,11 +152,10 @@ typedef FloatMatcher<double, IrOpcode::kNumberConstant> NumberMatcher;
 
 
 // A pattern matcher for heap object constants.
-template <typename T>
 struct HeapObjectMatcher final
-    : public ValueMatcher<Unique<T>, IrOpcode::kHeapConstant> {
+    : public ValueMatcher<Unique<HeapObject>, IrOpcode::kHeapConstant> {
   explicit HeapObjectMatcher(Node* node)
-      : ValueMatcher<Unique<T>, IrOpcode::kHeapConstant>(node) {}
+      : ValueMatcher<Unique<HeapObject>, IrOpcode::kHeapConstant>(node) {}
 };
 
 

@@ -29,15 +29,13 @@
 
 #include "test/cctest/cctest.h"
 
-using namespace v8;
-
 // This test fails if properties on the prototype of the global object appear
 // as declared globals.
 TEST(StrictUndeclaredGlobalVariable) {
-  HandleScope scope(CcTest::isolate());
+  v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::String> var_name = v8_str("x");
   LocalContext context;
-  v8::TryCatch try_catch;
+  v8::TryCatch try_catch(CcTest::isolate());
   v8::Local<v8::Script> script = v8_compile("\"use strict\"; x = 42;");
   v8::Handle<v8::Object> proto = v8::Object::New(CcTest::isolate());
   v8::Handle<v8::Object> global =

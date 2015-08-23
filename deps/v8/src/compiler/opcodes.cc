@@ -5,6 +5,7 @@
 #include "src/compiler/opcodes.h"
 
 #include <algorithm>
+#include <ostream>
 
 #include "src/base/macros.h"
 
@@ -27,6 +28,11 @@ char const* const kMnemonics[] = {
 char const* IrOpcode::Mnemonic(Value value) {
   size_t const n = std::min<size_t>(value, arraysize(kMnemonics) - 1);
   return kMnemonics[n];
+}
+
+
+std::ostream& operator<<(std::ostream& os, IrOpcode::Value opcode) {
+  return os << IrOpcode::Mnemonic(opcode);
 }
 
 }  // namespace compiler

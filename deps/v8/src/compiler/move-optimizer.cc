@@ -42,7 +42,7 @@ int FindFirstNonEmptySlot(Instruction* instr) {
   return i;
 }
 
-}  // namepace
+}  // namespace
 
 
 MoveOptimizer::MoveOptimizer(Zone* local_zone, InstructionSequence* code)
