@@ -21,7 +21,7 @@ Release: 1
 Summary: Node.js is a platform for building fast, scalable network applications.
 Group: Development/Languages
 License: MIT
-URL: http://nodejs.org/
+URL: https://nodejs.org/
 Source0: http://nodejs.org/dist/v%{_version}/node-v%{_version}.tar.gz
 BuildRequires: gcc
 BuildRequires: gcc-c++

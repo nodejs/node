@@ -13,7 +13,7 @@ There are three relevant Jenkins jobs that should be used for a release flow:
 
 **a.** **Test runs:** **[iojs+any-pr+multi](https://jenkins-iojs.nodesource.com/job/iojs+any-pr+multi/)** is used for a final full-test run to ensure that the current *HEAD* is stable.
 
-**b.** **Nightly builds:** (optional) **[iojs+release](https://jenkins-iojs.nodesource.com/job/iojs+release/)** can be used to create a nightly release for the current *HEAD* if public test releases are required. Builds triggered with this job are published straight to <http://nodejs.org/download/nightly/> and are available for public download.
+**b.** **Nightly builds:** (optional) **[iojs+release](https://jenkins-iojs.nodesource.com/job/iojs+release/)** can be used to create a nightly release for the current *HEAD* if public test releases are required. Builds triggered with this job are published straight to <https://nodejs.org/download/nightly/> and are available for public download.
 
 **c.** **Release builds:** **[iojs+release](https://jenkins-iojs.nodesource.com/job/iojs+release/)** does all of the work to build all required release assets. Promotion of the release files is a manual step once they are ready (see below).
 
@@ -21,7 +21,7 @@ The [Node.js build team](https://github.com/nodejs/build) is able to provide thi
 
 ### 2. <nodejs.org> Access
 
-The _dist_ user on nodejs.org controls the assets available in <http://nodejs.org/download/> (note that <http://nodejs.org/dist/> is an alias for <https://nodejs.org/download/release/>).
+The _dist_ user on nodejs.org controls the assets available in <https://nodejs.org/download/> (note that <https://nodejs.org/dist/> is an alias for <https://nodejs.org/download/release/>).
 
 The Jenkins release build slaves upload their artifacts to the web server as the _staging_ user, the _dist_ user has access to move these assets to public access (the _staging_ user does not, for security purposes).
 
@@ -56,7 +56,7 @@ Run a **[iojs+any-pr+multi](https://jenkins-iojs.nodesource.com/job/iojs+any-pr+
 
 ### 2. Produce a Nightly Build _(optional)_
 
-If there is a reason to produce a test release for the purpose of having others try out installers or specifics of builds, produce a nightly build using **[iojs+release](https://jenkins-iojs.nodesource.com/job/iojs+release/)** and wait for it to drop in <http://nodejs.org/download/nightly/>. Follow the directions and enter a proper length commit sha, a date string and select "nightly" for "disttype".
+If there is a reason to produce a test release for the purpose of having others try out installers or specifics of builds, produce a nightly build using **[iojs+release](https://jenkins-iojs.nodesource.com/job/iojs+release/)** and wait for it to drop in <https://nodejs.org/download/nightly/>. Follow the directions and enter a proper length commit sha, a date string and select "nightly" for "disttype".
 
 This is particularly recommended if there has been recent work relating to the OS X or Windows installers as they are not tested in any way by CI.
 
