@@ -310,7 +310,7 @@ FPUCondition FlagsConditionToConditionCmpD(bool& predicate,
       __ Daddu(at, i.InputRegister(2), offset);                               \
       __ asm_instr(result, MemOperand(at, 0));                                \
     } else {                                                                  \
-      auto offset = i.InputOperand(0).immediate();                            \
+      int offset = static_cast<int>(i.InputOperand(0).immediate());           \
       __ Branch(ool->entry(), ls, i.InputRegister(1), Operand(offset));       \
       __ asm_instr(result, MemOperand(i.InputRegister(2), offset));           \
     }                                                                         \
@@ -328,7 +328,7 @@ FPUCondition FlagsConditionToConditionCmpD(bool& predicate,
       __ Daddu(at, i.InputRegister(2), offset);                               \
       __ asm_instr(result, MemOperand(at, 0));                                \
     } else {                                                                  \
-      auto offset = i.InputOperand(0).immediate();                            \
+      int offset = static_cast<int>(i.InputOperand(0).immediate());           \
       __ Branch(ool->entry(), ls, i.InputRegister(1), Operand(offset));       \
       __ asm_instr(result, MemOperand(i.InputRegister(2), offset));           \
     }                                                                         \
@@ -346,7 +346,7 @@ FPUCondition FlagsConditionToConditionCmpD(bool& predicate,
       __ Daddu(at, i.InputRegister(3), offset);                        \
       __ asm_instr(value, MemOperand(at, 0));                          \
     } else {                                                           \
-      auto offset = i.InputOperand(0).immediate();                     \
+      int offset = static_cast<int>(i.InputOperand(0).immediate());    \
       auto value = i.Input##width##Register(2);                        \
       __ Branch(&done, ls, i.InputRegister(1), Operand(offset));       \
       __ asm_instr(value, MemOperand(i.InputRegister(3), offset));     \
@@ -365,7 +365,7 @@ FPUCondition FlagsConditionToConditionCmpD(bool& predicate,
       __ Daddu(at, i.InputRegister(3), offset);                        \
       __ asm_instr(value, MemOperand(at, 0));                          \
     } else {                                                           \
-      auto offset = i.InputOperand(0).immediate();                     \
+      int offset = static_cast<int>(i.InputOperand(0).immediate());    \
       auto value = i.InputRegister(2);                                 \
       __ Branch(&done, ls, i.InputRegister(1), Operand(offset));       \
       __ asm_instr(value, MemOperand(i.InputRegister(3), offset));     \
@@ -399,10 +399,6 @@ void CodeGenerator::AssembleDeconstructActivationRecord() {
   int stack_slots = frame()->GetSpillSlotCount();
   if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
     __ LeaveFrame(StackFrame::MANUAL);
-    int pop_count = descriptor->IsJSFunctionCall()
-                        ? static_cast<int>(descriptor->JSParameterCount())
-                        : 0;
-    __ Drop(pop_count);
   }
 }
 
@@ -463,6 +459,22 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Jump(at);
       break;
     }
+    case kArchPrepareCallCFunction: {
+      int const num_parameters = MiscField::decode(instr->opcode());
+      __ PrepareCallCFunction(num_parameters, kScratchReg);
+      break;
+    }
+    case kArchCallCFunction: {
+      int const num_parameters = MiscField::decode(instr->opcode());
+      if (instr->InputAt(0)->IsImmediate()) {
+        ExternalReference ref = i.InputExternalReference(0);
+        __ CallCFunction(ref, num_parameters);
+      } else {
+        Register func = i.InputRegister(0);
+        __ CallCFunction(func, num_parameters);
+      }
+      break;
+    }
     case kArchJmp:
       AssembleArchJump(i.InputRpo(0));
       break;
@@ -486,6 +498,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kArchStackPointer:
       __ mov(i.OutputRegister(), sp);
+      break;
+    case kArchFramePointer:
+      __ mov(i.OutputRegister(), fp);
       break;
     case kArchTruncateDoubleToI:
       __ TruncateDoubleToI(i.OutputRegister(), i.InputDoubleRegister(0));
@@ -556,24 +571,27 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       if (instr->InputAt(1)->IsRegister()) {
         __ sllv(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
-        int32_t imm = i.InputOperand(1).immediate();
-        __ sll(i.OutputRegister(), i.InputRegister(0), imm);
+        int64_t imm = i.InputOperand(1).immediate();
+        __ sll(i.OutputRegister(), i.InputRegister(0),
+               static_cast<uint16_t>(imm));
       }
       break;
     case kMips64Shr:
       if (instr->InputAt(1)->IsRegister()) {
         __ srlv(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
-        int32_t imm = i.InputOperand(1).immediate();
-        __ srl(i.OutputRegister(), i.InputRegister(0), imm);
+        int64_t imm = i.InputOperand(1).immediate();
+        __ srl(i.OutputRegister(), i.InputRegister(0),
+               static_cast<uint16_t>(imm));
       }
       break;
     case kMips64Sar:
       if (instr->InputAt(1)->IsRegister()) {
         __ srav(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
-        int32_t imm = i.InputOperand(1).immediate();
-        __ sra(i.OutputRegister(), i.InputRegister(0), imm);
+        int64_t imm = i.InputOperand(1).immediate();
+        __ sra(i.OutputRegister(), i.InputRegister(0),
+               static_cast<uint16_t>(imm));
       }
       break;
     case kMips64Ext:
@@ -588,11 +606,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       if (instr->InputAt(1)->IsRegister()) {
         __ dsllv(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
-        int32_t imm = i.InputOperand(1).immediate();
+        int64_t imm = i.InputOperand(1).immediate();
         if (imm < 32) {
-          __ dsll(i.OutputRegister(), i.InputRegister(0), imm);
+          __ dsll(i.OutputRegister(), i.InputRegister(0),
+                  static_cast<uint16_t>(imm));
         } else {
-          __ dsll32(i.OutputRegister(), i.InputRegister(0), imm - 32);
+          __ dsll32(i.OutputRegister(), i.InputRegister(0),
+                    static_cast<uint16_t>(imm - 32));
         }
       }
       break;
@@ -600,11 +620,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       if (instr->InputAt(1)->IsRegister()) {
         __ dsrlv(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
-        int32_t imm = i.InputOperand(1).immediate();
+        int64_t imm = i.InputOperand(1).immediate();
         if (imm < 32) {
-          __ dsrl(i.OutputRegister(), i.InputRegister(0), imm);
+          __ dsrl(i.OutputRegister(), i.InputRegister(0),
+                  static_cast<uint16_t>(imm));
         } else {
-          __ dsrl32(i.OutputRegister(), i.InputRegister(0), imm - 32);
+          __ dsrl32(i.OutputRegister(), i.InputRegister(0),
+                    static_cast<uint16_t>(imm - 32));
         }
       }
       break;
@@ -612,7 +634,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       if (instr->InputAt(1)->IsRegister()) {
         __ dsrav(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
-        int32_t imm = i.InputOperand(1).immediate();
+        int64_t imm = i.InputOperand(1).immediate();
         if (imm < 32) {
           __ dsra(i.OutputRegister(), i.InputRegister(0), imm);
         } else {
@@ -684,6 +706,14 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ sqrt_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     }
+    case kMips64MaxS:
+      __ max_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+               i.InputDoubleRegister(1));
+      break;
+    case kMips64MinS:
+      __ min_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+               i.InputDoubleRegister(1));
+      break;
     case kMips64CmpD:
       // Psuedo-instruction used for FP cmp/branch. No opcode emitted here.
       break;
@@ -725,6 +755,14 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ sqrt_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     }
+    case kMips64MaxD:
+      __ max_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+               i.InputDoubleRegister(1));
+      break;
+    case kMips64MinD:
+      __ min_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+               i.InputDoubleRegister(1));
+      break;
     case kMips64Float64RoundDown: {
       ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(floor_l_d, Floor);
       break;
@@ -945,37 +983,30 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   } else if (instr->arch_opcode() == kMips64Dadd ||
              instr->arch_opcode() == kMips64Dsub) {
     cc = FlagsConditionToConditionOvf(branch->condition);
-
     __ dsra32(kScratchReg, i.OutputRegister(), 0);
     __ sra(at, i.OutputRegister(), 31);
     __ Branch(tlabel, cc, at, Operand(kScratchReg));
   } else if (instr->arch_opcode() == kMips64Cmp) {
     cc = FlagsConditionToConditionCmp(branch->condition);
     __ Branch(tlabel, cc, i.InputRegister(0), i.InputOperand(1));
-
-    if (!branch->fallthru) __ Branch(flabel);  // no fallthru to flabel.
   } else if (instr->arch_opcode() == kMips64CmpS) {
     if (!convertCondition(branch->condition, cc)) {
       UNSUPPORTED_COND(kMips64CmpS, branch->condition);
     }
     __ BranchF32(tlabel, NULL, cc, i.InputSingleRegister(0),
                  i.InputSingleRegister(1));
-
-    if (!branch->fallthru) __ Branch(flabel);  // no fallthru to flabel.
-
   } else if (instr->arch_opcode() == kMips64CmpD) {
     if (!convertCondition(branch->condition, cc)) {
       UNSUPPORTED_COND(kMips64CmpD, branch->condition);
     }
     __ BranchF64(tlabel, NULL, cc, i.InputDoubleRegister(0),
                  i.InputDoubleRegister(1));
-
-    if (!branch->fallthru) __ Branch(flabel);  // no fallthru to flabel.
   } else {
     PrintF("AssembleArchBranch Unimplemented arch_opcode: %d\n",
            instr->arch_opcode());
     UNIMPLEMENTED();
   }
+  if (!branch->fallthru) __ Branch(flabel);  // no fallthru to flabel.
 }
 
 
@@ -1077,7 +1108,7 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   Label here;
 
   __ Branch(GetLabel(i.InputRpo(1)), hs, input, Operand(case_count));
-  __ BlockTrampolinePoolFor(case_count * 2 + 7);
+  __ BlockTrampolinePoolFor(static_cast<int>(case_count) * 2 + 7);
   // Ensure that dd-ed labels use 8 byte aligned addresses.
   if ((masm()->pc_offset() & 7) != 0) {
     __ nop();
@@ -1109,23 +1140,28 @@ void CodeGenerator::AssemblePrologue() {
   if (descriptor->kind() == CallDescriptor::kCallAddress) {
     __ Push(ra, fp);
     __ mov(fp, sp);
+
     const RegList saves = descriptor->CalleeSavedRegisters();
-    if (saves != 0) {  // Save callee-saved registers.
-      // TODO(plind): make callee save size const, possibly DCHECK it.
-      int register_save_area_size = 0;
-      for (int i = Register::kNumRegisters - 1; i >= 0; i--) {
-        if (!((1 << i) & saves)) continue;
-        register_save_area_size += kPointerSize;
-      }
-      frame()->SetRegisterSaveAreaSize(register_save_area_size);
-      __ MultiPush(saves);
-    }
+    // Save callee-saved registers.
+    __ MultiPush(saves);
+    // kNumCalleeSaved includes the fp register, but the fp register
+    // is saved separately in TF.
+    DCHECK(kNumCalleeSaved == base::bits::CountPopulation32(saves) + 1);
+    int register_save_area_size = kNumCalleeSaved * kPointerSize;
+
+    const RegList saves_fpu = descriptor->CalleeSavedFPRegisters();
+    // Save callee-saved FPU registers.
+    __ MultiPushFPU(saves_fpu);
+    DCHECK(kNumCalleeSavedFPU == base::bits::CountPopulation32(saves_fpu));
+    register_save_area_size += kNumCalleeSavedFPU * kDoubleSize * kPointerSize;
+
+    frame()->SetRegisterSaveAreaSize(register_save_area_size);
   } else if (descriptor->IsJSFunctionCall()) {
     CompilationInfo* info = this->info();
     __ Prologue(info->IsCodePreAgingActive());
     frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
-  } else if (stack_slots > 0) {
+  } else if (needs_frame_) {
     __ StubPrologue();
     frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
@@ -1162,22 +1198,36 @@ void CodeGenerator::AssembleReturn() {
       if (stack_slots > 0) {
         __ Daddu(sp, sp, Operand(stack_slots * kPointerSize));
       }
-      // Restore registers.
+      // Restore FPU registers.
+      const RegList saves_fpu = descriptor->CalleeSavedFPRegisters();
+      __ MultiPopFPU(saves_fpu);
+
+      // Restore GP registers.
       const RegList saves = descriptor->CalleeSavedRegisters();
-      if (saves != 0) {
-        __ MultiPop(saves);
-      }
+      __ MultiPop(saves);
     }
     __ mov(sp, fp);
     __ Pop(ra, fp);
     __ Ret();
-  } else if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
-    __ mov(sp, fp);
-    __ Pop(ra, fp);
-    int pop_count = descriptor->IsJSFunctionCall()
-                        ? static_cast<int>(descriptor->JSParameterCount())
-                        : 0;
-    __ DropAndRet(pop_count);
+  } else if (descriptor->IsJSFunctionCall() || needs_frame_) {
+    // Canonicalize JSFunction return sites for now.
+    if (return_label_.is_bound()) {
+      __ Branch(&return_label_);
+    } else {
+      __ bind(&return_label_);
+      __ mov(sp, fp);
+      __ Pop(ra, fp);
+      int pop_count = descriptor->IsJSFunctionCall()
+                          ? static_cast<int>(descriptor->JSParameterCount())
+                          : (info()->IsStub()
+                                 ? info()->code_stub()->GetStackParameterCount()
+                                 : 0);
+      if (pop_count != 0) {
+        __ DropAndRet(pop_count);
+      } else {
+        __ Ret();
+      }
+    }
   } else {
     __ Ret();
   }
@@ -1388,7 +1438,6 @@ void CodeGenerator::EnsureSpaceForLazyDeopt() {
       }
     }
   }
-  MarkLazyDeoptSite();
 }
 
 #undef __

@@ -11,7 +11,7 @@ function f0() {
   try {
     throw 1;
   } catch (e) {
-    try{
+    try {
       f1();
     } catch (e) {
       var v02 = 2;          // Break 13
@@ -19,6 +19,8 @@ function f0() {
   }
   var v03 = 3;
   var v04 = 4;
+  eval('var v05 = 5;        // Break 14');
+  var v06 = 6;              // Break 15
 }
 
 function f1() {
@@ -104,7 +106,7 @@ for (step_size = 1; step_size < 6; step_size++) {
   Debug.setListener(listener);
   debugger;                 // Break 0
   f0();
-  Debug.setListener(null);  // Break 14
+  Debug.setListener(null);  // Break 16
   assertTrue(break_count > 14);
 }
 

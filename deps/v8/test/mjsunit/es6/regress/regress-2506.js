@@ -18,15 +18,15 @@ assertEquals(3, f[2]());
 
 let x = 1;
 s = 0;
-for (const x of [x, x+1, x+2]) {
-  s += x;
+for (const z of [x, x+1, x+2]) {
+  s += z;
 }
 assertEquals(6, s);
 
 s = 0;
 var q = 1;
-for (const q of [q, q+1, q+2]) {
-  s += q;
+for (const x of [q, q+1, q+2]) {
+  s += x;
 }
 assertEquals(6, s);
 
@@ -56,15 +56,15 @@ assertThrows("'use strict'; for (const x in [1,2,3]) { x++ }", TypeError);
 
   let x = 1;
   s = 0;
-  for (const x of [x, x+1, x+2]) {
-    s += x;
+  for (const q of [x, x+1, x+2]) {
+    s += q;
   }
   assertEquals(6, s);
 
   s = 0;
   var q = 1;
-  for (const q of [q, q+1, q+2]) {
-    s += q;
+  for (const x of [q, q+1, q+2]) {
+    s += x;
   }
   assertEquals(6, s);
 

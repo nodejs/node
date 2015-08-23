@@ -130,7 +130,7 @@ if __name__ == '__main__':
 
   # Generate for the architectures supported on the given platform.
   gyp_args = list(args)
-  gyp_generators = os.environ.get('GYP_GENERATORS')
+  gyp_generators = os.environ.get('GYP_GENERATORS', '')
   if platform.system() == 'Linux' and gyp_generators != 'ninja':
     # Work around for crbug.com/331475.
     for f in glob.glob(os.path.join(v8_root, 'out', 'Makefile.*')):
@@ -140,4 +140,13 @@ if __name__ == '__main__':
     # -Goutput_dir defines where the build output goes, relative to the
     # Makefile. Set it to . so that the build output doesn't end up in out/out.
     gyp_args.append('-Goutput_dir=.')
+
+  gyp_defines = os.environ.get('GYP_DEFINES', '')
+
+  # Automatically turn on crosscompile support for platforms that need it.
+  if all(('ninja' in gyp_generators,
+          'OS=android' in gyp_defines,
+          'GYP_CROSSCOMPILE' not in os.environ)):
+    os.environ['GYP_CROSSCOMPILE'] = '1'
+
   run_gyp(gyp_args)

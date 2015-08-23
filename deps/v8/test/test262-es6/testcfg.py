@@ -33,12 +33,14 @@ import sys
 import tarfile
 import imp
 
+from testrunner.local import statusfile
 from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.objects import testcase
 
-TEST_262_ARCHIVE_REVISION = "43acf61"  # This is the 2015-03-31 revision.
-TEST_262_ARCHIVE_MD5 = "a77a0352a0462be98e50522a15b7a3c4"
+# The revision hash needs to be 7 characters?
+TEST_262_ARCHIVE_REVISION = "c6ac390"  # This is the 2015-07-06 revision.
+TEST_262_ARCHIVE_MD5 = "e1393ef330f38e9cb1bfa4e3eada5ba8"
 TEST_262_URL = "https://github.com/tc39/test262/tarball/%s"
 TEST_262_HARNESS_FILES = ["sta.js", "assert.js"]
 
@@ -78,6 +80,16 @@ class Test262TestSuite(testsuite.TestSuite):
     return (testcase.flags + context.mode_flags + self.harness +
             self.GetIncludesForTest(testcase) + ["--harmony"] +
             [os.path.join(self.testroot, testcase.path + ".js")])
+
+  def VariantFlags(self, testcase, default_flags):
+    flags = super(Test262TestSuite, self).VariantFlags(testcase, default_flags)
+    test_record = self.GetTestRecord(testcase)
+    if "noStrict" in test_record:
+      return flags
+    strict_flags = [f + ["--use-strict"] for f in flags]
+    if "onlyStrict" in test_record:
+      return strict_flags
+    return flags + strict_flags
 
   def LoadParseTestRecord(self):
     if not self.ParseTestRecord:
@@ -125,12 +137,30 @@ class Test262TestSuite(testsuite.TestSuite):
       return True
     return "FAILED!" in output.stdout
 
+  def HasUnexpectedOutput(self, testcase):
+    outcome = self.GetOutcome(testcase)
+    if (statusfile.FAIL_SLOPPY in testcase.outcomes and
+        "--use-strict" not in testcase.flags):
+      return outcome != statusfile.FAIL
+    return not outcome in (testcase.outcomes or [statusfile.PASS])
+
   def DownloadData(self):
     revision = TEST_262_ARCHIVE_REVISION
     archive_url = TEST_262_URL % revision
     archive_name = os.path.join(self.root, "tc39-test262-%s.tar.gz" % revision)
     directory_name = os.path.join(self.root, "data")
     directory_old_name = os.path.join(self.root, "data.old")
+
+    # Clobber if the test is in an outdated state, i.e. if there are any other
+    # archive files present.
+    archive_files = [f for f in os.listdir(self.root)
+                     if f.startswith("tc39-test262-")]
+    if (len(archive_files) > 1 or
+        os.path.basename(archive_name) not in archive_files):
+      print "Clobber outdated test archives ..."
+      for f in archive_files:
+        os.remove(os.path.join(self.root, f))
+
     if not os.path.exists(archive_name):
       print "Downloading test data from %s ..." % archive_url
       utils.URLRetrieve(archive_url, archive_name)

@@ -284,5 +284,5 @@ RUNTIME_FUNCTION(Runtime_URIUnescape) {
                            : URIUnescape::Unescape<uc16>(isolate, source));
   return *result;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

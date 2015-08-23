@@ -28,6 +28,7 @@
 // Flags: --expose-debug-as debug
 // Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
+Debug.setListener(function(){});
 
 // Set and remove a script break point for a named script.
 var sbp = Debug.setScriptBreakPointByName("1", 2, 3);
@@ -110,3 +111,5 @@ Debug.clearBreakPoint(sbp3);
 assertEquals(1, Debug.scriptBreakPoints().length);
 Debug.clearBreakPoint(sbp2);
 assertEquals(0, Debug.scriptBreakPoints().length);
+
+Debug.setListener(null);

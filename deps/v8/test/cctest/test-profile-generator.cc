@@ -681,14 +681,13 @@ TEST(BailoutReason) {
   CHECK_EQ(0, iprofiler->GetProfilesCount());
   v8::Handle<v8::Script> script =
       v8::Script::Compile(v8::String::NewFromUtf8(env->GetIsolate(),
-                                                  "function TryCatch() {\n"
-                                                  "  try {\n"
-                                                  "    startProfiling();\n"
-                                                  "  } catch (e) { };\n"
+                                                  "function Debugger() {\n"
+                                                  "  debugger;\n"
+                                                  "  startProfiling();\n"
                                                   "}\n"
                                                   "function TryFinally() {\n"
                                                   "  try {\n"
-                                                  "    TryCatch();\n"
+                                                  "    Debugger();\n"
                                                   "  } finally { };\n"
                                                   "}\n"
                                                   "TryFinally();\n"
@@ -703,8 +702,8 @@ TEST(BailoutReason) {
   // The tree should look like this:
   //  (root)
   //   ""
-  //     kTryFinally
-  //       kTryCatch
+  //     kTryFinallyStatement
+  //       kDebuggerStatement
   current = PickChild(current, "");
   CHECK(const_cast<v8::CpuProfileNode*>(current));
 
@@ -712,7 +711,7 @@ TEST(BailoutReason) {
   CHECK(const_cast<v8::CpuProfileNode*>(current));
   CHECK(!strcmp("TryFinallyStatement", current->GetBailoutReason()));
 
-  current = PickChild(current, "TryCatch");
+  current = PickChild(current, "Debugger");
   CHECK(const_cast<v8::CpuProfileNode*>(current));
-  CHECK(!strcmp("TryCatchStatement", current->GetBailoutReason()));
+  CHECK(!strcmp("DebuggerStatement", current->GetBailoutReason()));
 }

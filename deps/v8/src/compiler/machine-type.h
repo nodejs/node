@@ -18,28 +18,28 @@ namespace compiler {
 
 // Machine-level types and representations.
 // TODO(titzer): Use the real type system instead of MachineType.
-enum MachineType {
+enum MachineType : uint16_t {
   // Representations.
-  kRepBit = 1 << 0,
-  kRepWord8 = 1 << 1,
-  kRepWord16 = 1 << 2,
-  kRepWord32 = 1 << 3,
-  kRepWord64 = 1 << 4,
-  kRepFloat32 = 1 << 5,
-  kRepFloat64 = 1 << 6,
-  kRepTagged = 1 << 7,
+  kRepBit = 1u << 0,
+  kRepWord8 = 1u << 1,
+  kRepWord16 = 1u << 2,
+  kRepWord32 = 1u << 3,
+  kRepWord64 = 1u << 4,
+  kRepFloat32 = 1u << 5,
+  kRepFloat64 = 1u << 6,
+  kRepTagged = 1u << 7,
 
   // Types.
-  kTypeBool = 1 << 8,
-  kTypeInt32 = 1 << 9,
-  kTypeUint32 = 1 << 10,
-  kTypeInt64 = 1 << 11,
-  kTypeUint64 = 1 << 12,
-  kTypeNumber = 1 << 13,
-  kTypeAny = 1 << 14,
+  kTypeBool = 1u << 8,
+  kTypeInt32 = 1u << 9,
+  kTypeUint32 = 1u << 10,
+  kTypeInt64 = 1u << 11,
+  kTypeUint64 = 1u << 12,
+  kTypeNumber = 1u << 13,
+  kTypeAny = 1u << 14,
 
   // Machine types.
-  kMachNone = 0,
+  kMachNone = 0u,
   kMachBool = kRepBit | kTypeBool,
   kMachFloat32 = kRepFloat32 | kTypeNumber,
   kMachFloat64 = kRepFloat64 | kTypeNumber,
@@ -56,6 +56,10 @@ enum MachineType {
   kMachPtr = (kPointerSize == 4) ? kRepWord32 : kRepWord64,
   kMachAnyTagged = kRepTagged | kTypeAny
 };
+
+V8_INLINE size_t hash_value(MachineType type) {
+  return static_cast<size_t>(type);
+}
 
 std::ostream& operator<<(std::ostream& os, const MachineType& type);
 

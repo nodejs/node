@@ -28,7 +28,10 @@ enum ElementsKind {
 
   // The "slow" kind.
   DICTIONARY_ELEMENTS,
-  SLOPPY_ARGUMENTS_ELEMENTS,
+
+  FAST_SLOPPY_ARGUMENTS_ELEMENTS,
+  SLOW_SLOPPY_ARGUMENTS_ELEMENTS,
+
   // The "fast" kind for external arrays
   EXTERNAL_INT8_ELEMENTS,
   EXTERNAL_UINT8_ELEMENTS,
@@ -88,7 +91,8 @@ inline bool IsDictionaryElementsKind(ElementsKind kind) {
 
 
 inline bool IsSloppyArgumentsElements(ElementsKind kind) {
-  return kind == SLOPPY_ARGUMENTS_ELEMENTS;
+  return kind == FAST_SLOPPY_ARGUMENTS_ELEMENTS ||
+         kind == SLOW_SLOPPY_ARGUMENTS_ELEMENTS;
 }
 
 
@@ -117,7 +121,8 @@ inline bool IsFastElementsKind(ElementsKind kind) {
 
 
 inline bool IsTransitionElementsKind(ElementsKind kind) {
-  return IsFastElementsKind(kind) || IsFixedTypedArrayElementsKind(kind);
+  return IsFastElementsKind(kind) || IsFixedTypedArrayElementsKind(kind) ||
+         kind == FAST_SLOPPY_ARGUMENTS_ELEMENTS;
 }
 
 
@@ -236,19 +241,6 @@ bool IsMoreGeneralElementsKindTransition(ElementsKind from_kind,
 inline bool IsTransitionableFastElementsKind(ElementsKind from_kind) {
   return IsFastElementsKind(from_kind) &&
       from_kind != TERMINAL_FAST_ELEMENTS_KIND;
-}
-
-
-ElementsKind GetNextMoreGeneralFastElementsKind(ElementsKind elements_kind,
-                                                bool allow_only_packed);
-
-
-inline bool CanTransitionToMoreGeneralFastElementsKind(
-    ElementsKind elements_kind,
-    bool allow_only_packed) {
-  return IsFastElementsKind(elements_kind) &&
-      (elements_kind != TERMINAL_FAST_ELEMENTS_KIND &&
-       (!allow_only_packed || elements_kind != FAST_ELEMENTS));
 }
 
 

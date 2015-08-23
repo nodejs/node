@@ -5,7 +5,7 @@
 #ifndef V8_COMPILER_NODE_MARKER_H_
 #define V8_COMPILER_NODE_MARKER_H_
 
-#include "src/base/macros.h"
+#include "src/compiler/node.h"
 
 namespace v8 {
 namespace internal {
@@ -13,13 +13,6 @@ namespace compiler {
 
 // Forward declarations.
 class Graph;
-class Node;
-
-
-// Marks are used during traversal of the graph to distinguish states of nodes.
-// Each node has a mark which is a monotonically increasing integer, and a
-// {NodeMarker} has a range of values that indicate states of a node.
-typedef uint32_t Mark;
 
 
 // Base class for templatized NodeMarkers.
@@ -27,13 +20,24 @@ class NodeMarkerBase {
  public:
   NodeMarkerBase(Graph* graph, uint32_t num_states);
 
-  Mark Get(Node* node);
-  void Set(Node* node, Mark mark);
-  void Reset(Graph* graph);
+  V8_INLINE Mark Get(Node* node) {
+    Mark mark = node->mark();
+    if (mark < mark_min_) {
+      mark = mark_min_;
+      node->set_mark(mark_min_);
+    }
+    DCHECK_LT(mark, mark_max_);
+    return mark - mark_min_;
+  }
+  V8_INLINE void Set(Node* node, Mark mark) {
+    DCHECK_LT(mark, mark_max_ - mark_min_);
+    DCHECK_LT(node->mark(), mark_max_);
+    node->set_mark(mark + mark_min_);
+  }
 
  private:
-  Mark mark_min_;
-  Mark mark_max_;
+  Mark const mark_min_;
+  Mark const mark_max_;
 
   DISALLOW_COPY_AND_ASSIGN(NodeMarkerBase);
 };
@@ -44,14 +48,14 @@ class NodeMarkerBase {
 template <typename State>
 class NodeMarker : public NodeMarkerBase {
  public:
-  NodeMarker(Graph* graph, uint32_t num_states)
+  V8_INLINE NodeMarker(Graph* graph, uint32_t num_states)
       : NodeMarkerBase(graph, num_states) {}
 
-  State Get(Node* node) {
+  V8_INLINE State Get(Node* node) {
     return static_cast<State>(NodeMarkerBase::Get(node));
   }
 
-  void Set(Node* node, State state) {
+  V8_INLINE void Set(Node* node, State state) {
     NodeMarkerBase::Set(node, static_cast<Mark>(state));
   }
 };

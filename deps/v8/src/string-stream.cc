@@ -18,6 +18,18 @@ char* HeapStringAllocator::allocate(unsigned bytes) {
 }
 
 
+char* FixedStringAllocator::allocate(unsigned bytes) {
+  CHECK_LE(bytes, length_);
+  return buffer_;
+}
+
+
+char* FixedStringAllocator::grow(unsigned* old) {
+  *old = length_;
+  return buffer_;
+}
+
+
 bool StringStream::Put(char c) {
   if (full()) return false;
   DCHECK(length_ < capacity_);
@@ -170,7 +182,7 @@ void StringStream::PrintObject(Object* o) {
   } else if (o->IsNumber() || o->IsOddball()) {
     return;
   }
-  if (o->IsHeapObject()) {
+  if (o->IsHeapObject() && object_print_mode_ == kPrintObjectVerbose) {
     HeapObject* ho = HeapObject::cast(o);
     DebugObjectCache* debug_object_cache = ho->GetIsolate()->
         string_stream_debug_object_cache();
@@ -284,7 +296,8 @@ void StringStream::ClearMentionedObjectCache(Isolate* isolate) {
 
 #ifdef DEBUG
 bool StringStream::IsMentionedObjectCacheClear(Isolate* isolate) {
-  return isolate->string_stream_debug_object_cache()->length() == 0;
+  return object_print_mode_ == kPrintObjectConcise ||
+         isolate->string_stream_debug_object_cache()->length() == 0;
 }
 #endif
 
@@ -403,6 +416,7 @@ void StringStream::PrintByteArray(ByteArray* byte_array) {
 
 
 void StringStream::PrintMentionedObjectCache(Isolate* isolate) {
+  if (object_print_mode_ == kPrintObjectConcise) return;
   DebugObjectCache* debug_object_cache =
       isolate->string_stream_debug_object_cache();
   Add("==== Key         ============================================\n\n");
@@ -562,4 +576,5 @@ char* HeapStringAllocator::grow(unsigned* bytes) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

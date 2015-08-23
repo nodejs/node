@@ -88,11 +88,11 @@ class NodeProperties final {
   static void MergeControlToEnd(Graph* graph, CommonOperatorBuilder* common,
                                 Node* node);
 
-  // Replace value uses of {node} with {value} and effect uses of {node} with
-  // {effect}. If {effect == NULL}, then use the effect input to {node}. All
-  // control uses will be relaxed assuming {node} cannot throw.
-  static void ReplaceWithValue(Node* node, Node* value, Node* effect = nullptr,
-                               Node* control = nullptr);
+  // Replace all uses of {node} with the given replacement nodes. All occurring
+  // use kinds need to be replaced, {NULL} is only valid if a use kind is
+  // guaranteed not to exist.
+  static void ReplaceUses(Node* node, Node* value, Node* effect = nullptr,
+                          Node* success = nullptr, Node* exception = nullptr);
 
   // ---------------------------------------------------------------------------
   // Miscellaneous utilities.

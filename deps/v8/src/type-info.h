@@ -42,14 +42,8 @@ class TypeFeedbackOracle: public ZoneObject {
                               IcCheckType* key_type);
   void GetLoadKeyType(TypeFeedbackId id, IcCheckType* key_type);
 
-  void PropertyReceiverTypes(TypeFeedbackId id, Handle<Name> name,
-                             SmallMapList* receiver_types);
   void PropertyReceiverTypes(FeedbackVectorICSlot slot, Handle<Name> name,
                              SmallMapList* receiver_types);
-  void KeyedPropertyReceiverTypes(TypeFeedbackId id,
-                                  SmallMapList* receiver_types,
-                                  bool* is_string,
-                                  IcCheckType* key_type);
   void KeyedPropertyReceiverTypes(FeedbackVectorICSlot slot,
                                   SmallMapList* receiver_types, bool* is_string,
                                   IcCheckType* key_type);
@@ -84,7 +78,7 @@ class TypeFeedbackOracle: public ZoneObject {
   // TODO(1571) We can't use ToBooleanStub::Types as the return value because
   // of various cycles in our headers. Death to tons of implementations in
   // headers!! :-P
-  byte ToBooleanTypes(TypeFeedbackId id);
+  uint16_t ToBooleanTypes(TypeFeedbackId id);
 
   // Get type information for arithmetic operations and compares.
   void BinaryType(TypeFeedbackId id,

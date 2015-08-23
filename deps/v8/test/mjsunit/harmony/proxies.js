@@ -29,8 +29,7 @@
 // test enters an infinite recursion which goes through the runtime and we
 // overflow the system stack before the simulator stack.
 
-// Flags: --harmony-proxies --sim-stack-size=500 --turbo-deoptimization
-// Flags: --allow-natives-syntax
+// Flags: --harmony-proxies --sim-stack-size=500 --allow-natives-syntax
 
 
 // Helper.

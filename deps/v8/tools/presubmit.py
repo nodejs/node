@@ -103,7 +103,7 @@ whitespace/todo
 # TODO(bmeurer): Fix and re-enable readability/check
 
 LINT_OUTPUT_PATTERN = re.compile(r'^.+[:(]\d+[:)]|^Done processing')
-
+FLAGS_LINE = re.compile("//\s*Flags:.*--([A-z0-9-])+_[A-z0-9].*\n")
 
 def CppLintWorker(command):
   try:
@@ -413,6 +413,12 @@ class SourceProcessor(SourceFileProcessor):
         else:
           print "%s does not have two empty lines between declarations " \
                 "in line %s." % (name, linenumbers)
+        result = False
+    # Sanitize flags for fuzzer.
+    if "mjsunit" in name:
+      match = FLAGS_LINE.search(contents)
+      if match:
+        print "%s Flags should use '-' (not '_')" % name
         result = False
     return result
 

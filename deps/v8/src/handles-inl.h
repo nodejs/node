@@ -92,7 +92,19 @@ HandleScope::HandleScope(Isolate* isolate) {
 
 
 HandleScope::~HandleScope() {
-  CloseScope(isolate_, prev_next_, prev_limit_);
+#ifdef DEBUG
+  if (FLAG_check_handle_count) {
+    int before = NumberOfHandles(isolate_);
+    CloseScope(isolate_, prev_next_, prev_limit_);
+    int after = NumberOfHandles(isolate_);
+    DCHECK(after - before < kCheckHandleThreshold);
+    DCHECK(before < kCheckHandleThreshold);
+  } else {
+#endif  // DEBUG
+    CloseScope(isolate_, prev_next_, prev_limit_);
+#ifdef DEBUG
+  }
+#endif  // DEBUG
 }
 
 

@@ -100,8 +100,8 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
       int num_const = d.ConstantPoolSizeAt(pc);
       if (num_const >= 0) {
         SNPrintF(decode_buffer,
-                 "%08x       constant pool begin",
-                 *reinterpret_cast<int32_t*>(pc));
+                 "%08x       constant pool begin (num_const = %d)",
+                 *reinterpret_cast<int32_t*>(pc), num_const);
         constants = num_const;
         pc += 4;
       } else if (it != NULL && !it->done() && it->rinfo()->pc() == pc &&
@@ -295,4 +295,5 @@ int Disassembler::Decode(Isolate* isolate, std::ostream* os, byte* begin,
 
 #endif  // ENABLE_DISASSEMBLER
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

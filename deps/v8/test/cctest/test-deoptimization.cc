@@ -112,8 +112,6 @@ static Handle<JSFunction> GetJSFunction(v8::Handle<v8::Object> obj,
 
 
 TEST(DeoptimizeSimple) {
-  i::FLAG_turbo_deoptimization = true;
-
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -152,8 +150,6 @@ TEST(DeoptimizeSimple) {
 
 
 TEST(DeoptimizeSimpleWithArguments) {
-  i::FLAG_turbo_deoptimization = true;
-
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -193,8 +189,6 @@ TEST(DeoptimizeSimpleWithArguments) {
 
 
 TEST(DeoptimizeSimpleNested) {
-  i::FLAG_turbo_deoptimization = true;
-
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -220,7 +214,6 @@ TEST(DeoptimizeSimpleNested) {
 
 
 TEST(DeoptimizeRecursive) {
-  i::FLAG_turbo_deoptimization = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -248,7 +241,6 @@ TEST(DeoptimizeRecursive) {
 
 
 TEST(DeoptimizeMultiple) {
-  i::FLAG_turbo_deoptimization = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -277,7 +269,6 @@ TEST(DeoptimizeMultiple) {
 
 
 TEST(DeoptimizeConstructor) {
-  i::FLAG_turbo_deoptimization = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -316,7 +307,6 @@ TEST(DeoptimizeConstructor) {
 
 
 TEST(DeoptimizeConstructorMultiple) {
-  i::FLAG_turbo_deoptimization = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -346,7 +336,6 @@ TEST(DeoptimizeConstructorMultiple) {
 
 
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationADDString) {
-  i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   AllowNativesSyntaxNoInlining options;
   v8::Isolate::CreateParams create_params;
@@ -451,7 +440,6 @@ static void TestDeoptimizeBinaryOpHelper(LocalContext* env,
 
 
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationADD) {
-  i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -474,7 +462,6 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationADD) {
 
 
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationSUB) {
-  i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -497,7 +484,6 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationSUB) {
 
 
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationMUL) {
-  i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -520,7 +506,6 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationMUL) {
 
 
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationDIV) {
-  i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -543,7 +528,6 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationDIV) {
 
 
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationMOD) {
-  i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -566,7 +550,6 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationMOD) {
 
 
 UNINITIALIZED_TEST(DeoptimizeCompare) {
-  i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -623,7 +606,6 @@ UNINITIALIZED_TEST(DeoptimizeCompare) {
 
 
 UNINITIALIZED_TEST(DeoptimizeLoadICStoreIC) {
-  i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -716,7 +698,6 @@ UNINITIALIZED_TEST(DeoptimizeLoadICStoreIC) {
 
 
 UNINITIALIZED_TEST(DeoptimizeLoadICStoreICNested) {
-  i::FLAG_turbo_deoptimization = true;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();

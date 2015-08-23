@@ -146,7 +146,6 @@ struct TickSample;
 class JitLogger;
 class PerfBasicLogger;
 class LowLevelLogger;
-class PerfJitLogger;
 class Sampler;
 
 class Logger {
@@ -187,11 +186,6 @@ class Logger {
   // Emits memory management events for C allocated structures.
   void NewEvent(const char* name, void* object, size_t size);
   void DeleteEvent(const char* name, void* object);
-
-  // Static versions of the above, operate on current isolate's logger.
-  // Used in TRACK_MEMORY(TypeName) defined in globals.h
-  static void NewEventStatic(const char* name, void* object, size_t size);
-  static void DeleteEventStatic(const char* name, void* object);
 
   // Emits an event with a tag, and some resource usage information.
   // -> (name, tag, <rusage information>).
@@ -360,9 +354,6 @@ class Logger {
   // Internal configurable move event.
   void MoveEventInternal(LogEventsAndTags event, Address from, Address to);
 
-  // Emits the source code of a regexp. Used by regexp events.
-  void LogRegExpSource(Handle<JSRegExp> regexp);
-
   // Used for logging stubs found in the snapshot.
   void LogCodeObject(Object* code_object);
 
@@ -406,7 +397,6 @@ class Logger {
   bool is_logging_;
   Log* log_;
   PerfBasicLogger* perf_basic_logger_;
-  PerfJitLogger* perf_jit_logger_;
   LowLevelLogger* ll_logger_;
   JitLogger* jit_logger_;
   List<CodeEventListener*> listeners_;

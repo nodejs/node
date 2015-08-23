@@ -26,6 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+from functools import wraps
 import json
 import os
 import sys
@@ -54,6 +55,9 @@ class ProgressIndicator(object):
   def __init__(self):
     self.runner = None
 
+  def SetRunner(self, runner):
+    self.runner = runner
+
   def Starting(self):
     pass
 
@@ -78,6 +82,30 @@ class ProgressIndicator(object):
       'label': test.GetLabel(),
       'negative': negative_marker
     }
+
+
+class IndicatorNotifier(object):
+  """Holds a list of progress indicators and notifies them all on events."""
+  def __init__(self):
+    self.indicators = []
+
+  def Register(self, indicator):
+    self.indicators.append(indicator)
+
+
+# Forge all generic event-dispatching methods in IndicatorNotifier, which are
+# part of the ProgressIndicator interface.
+for func_name in ProgressIndicator.__dict__:
+  func = getattr(ProgressIndicator, func_name)
+  if callable(func) and not func.__name__.startswith('_'):
+    def wrap_functor(f):
+      @wraps(f)
+      def functor(self, *args, **kwargs):
+        """Generic event dispatcher."""
+        for indicator in self.indicators:
+          getattr(indicator, f.__name__)(*args, **kwargs)
+      return functor
+    setattr(IndicatorNotifier, func_name, wrap_functor(func))
 
 
 class SimpleProgressIndicator(ProgressIndicator):
@@ -130,6 +158,7 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
     else:
       outcome = 'pass'
     print 'Done running %s: %s' % (test.GetLabel(), outcome)
+    sys.stdout.flush()
 
   def Heartbeat(self):
     print 'Still working...'
@@ -250,29 +279,19 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
 
 class JUnitTestProgressIndicator(ProgressIndicator):
 
-  def __init__(self, progress_indicator, junitout, junittestsuite):
-    self.progress_indicator = progress_indicator
+  def __init__(self, junitout, junittestsuite):
     self.outputter = junit_output.JUnitTestOutput(junittestsuite)
     if junitout:
       self.outfile = open(junitout, "w")
     else:
       self.outfile = sys.stdout
 
-  def Starting(self):
-    self.progress_indicator.runner = self.runner
-    self.progress_indicator.Starting()
-
   def Done(self):
-    self.progress_indicator.Done()
     self.outputter.FinishAndWrite(self.outfile)
     if self.outfile != sys.stdout:
       self.outfile.close()
 
-  def AboutToRun(self, test):
-    self.progress_indicator.AboutToRun(test)
-
   def HasRun(self, test, has_unexpected_output):
-    self.progress_indicator.HasRun(test, has_unexpected_output)
     fail_text = ""
     if has_unexpected_output:
       stdout = test.output.stdout.strip()
@@ -294,20 +313,14 @@ class JUnitTestProgressIndicator(ProgressIndicator):
 
 class JsonTestProgressIndicator(ProgressIndicator):
 
-  def __init__(self, progress_indicator, json_test_results, arch, mode):
-    self.progress_indicator = progress_indicator
+  def __init__(self, json_test_results, arch, mode):
     self.json_test_results = json_test_results
     self.arch = arch
     self.mode = mode
     self.results = []
     self.tests = []
 
-  def Starting(self):
-    self.progress_indicator.runner = self.runner
-    self.progress_indicator.Starting()
-
   def Done(self):
-    self.progress_indicator.Done()
     complete_results = []
     if os.path.exists(self.json_test_results):
       with open(self.json_test_results, "r") as f:
@@ -337,11 +350,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
     with open(self.json_test_results, "w") as f:
       f.write(json.dumps(complete_results))
 
-  def AboutToRun(self, test):
-    self.progress_indicator.AboutToRun(test)
-
   def HasRun(self, test, has_unexpected_output):
-    self.progress_indicator.HasRun(test, has_unexpected_output)
     # Buffer all tests for sorting the durations in the end.
     self.tests.append(test)
     if not has_unexpected_output:

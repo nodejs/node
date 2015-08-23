@@ -94,9 +94,6 @@ class Execution final : public AllStatic {
   MUST_USE_RESULT static MaybeHandle<JSRegExp> NewJSRegExp(
       Handle<String> pattern, Handle<String> flags);
 
-  // Used to implement [] notation on strings (calls JS code)
-  static Handle<Object> CharAt(Handle<String> str, uint32_t index);
-
   static Handle<Object> GetFunctionFor();
   static Handle<String> GetStackTraceLine(Handle<Object> recv,
                                           Handle<JSFunction> fun,

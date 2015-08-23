@@ -42,6 +42,11 @@ const int kNumVFPRegisters = kNumVFPSingleRegisters + kNumVFPDoubleRegisters;
 const int kPCRegister = 15;
 const int kNoRegister = -1;
 
+// Used in embedded constant pool builder - max reach in bits for
+// various load instructions (unsigned)
+const int kLdrMaxReachBits = 12;
+const int kVldrMaxReachBits = 10;
+
 // -----------------------------------------------------------------------------
 // Conditions.
 

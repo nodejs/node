@@ -58,7 +58,9 @@ function f() {
     s += a[j];                   // Break L
   }
 
-  // TODO(yangguo): add test case for for-let.
+  for (let i = 0; i < 3; i++) {  // Break m
+    s += a[i];                   // Break M
+  }
 }                                // Break y
 
 function listener(event, exec_state, event_data, data) {
@@ -81,36 +83,39 @@ Debug.setListener(listener);
 f();
 Debug.setListener(null);         // Break z
 
-print(JSON.stringify(log));
+print("log:\n"+ JSON.stringify(log));
 // The let declaration differs from var in that the loop variable
 // is declared in every iteration.
 var expected = [
   // Entry
   "a2","b2",
-  // Empty for-in-var: var decl, get enumerable
-  "c7","c16",
+  // Empty for-in-var: get enumerable
+  "c16",
   // Empty for-in: get enumerable
   "d12",
-  // For-in-var: var decl, get enumerable, assign, body, assign, body, ...
-  "e7","e16","e11","E4","e11","E4","e11","E4","e11",
+  // For-in-var: get enumerable, assign, body, assign, body, ...
+  "e16","e11","E4","e11","E4","e11","E4","e11",
   // For-in: get enumerable, assign, body, assign, body, ...
   "f12","f7","F4","f7","F4","f7","F4","f7",
-  // For-in-let: get enumerable, next, new let, body, next, new let, ...
-  "g16","g11","g7","G4","g11","g7","G4","g11","g7","G4","g11",
-  // For-of-var: var decl, next(), body, next(), body, ...
-  "h7","h16","H4","h16","H4","h16","H4","h16",
+  // For-in-let: get enumerable, next, body, next,  ...
+  "g16","g11","G4","g11","G4","g11","G4","g11",
+  // For-of-var: next(), body, next(), body, ...
+  "h16","H4","h16","H4","h16","H4","h16",
   // For-of: next(), body, next(), body, ...
   "i12","I4","i12","I4","i12","I4","i12",
-  // For-of-let: next(), new let, body, next(), new let, ...
-  "j16","j7","J4","j16","j7","J4","j16","j7","J4","j16",
+  // For-of-let: next(), body, next(), ...
+  "j16","J4","j16","J4","j16","J4","j16",
   // For-var: var decl, condition, body, next, condition, body, ...
   "k7","k20","K4","k23","k20","K4","k23","k20","K4","k23","k20",
   // For: init, condition, body, next, condition, body, ...
-  "l11","l16","L4","l19","l16","L4","l19","l16","L4","l19","l16",
+  "l7","l16","L4","l19","l16","L4","l19","l16","L4","l19","l16",
+  // For-let: init, condition, body, next, condition, body, ...
+  "m7","m20","M4","m23","m20","M4","m23","m20","M4","m23","m20",
   // Exit.
   "y0","z0",
 ]
+print("expected:\n"+ JSON.stringify(expected));
 
 assertArrayEquals(expected, log);
-assertEquals(48, s);
+assertEquals(54, s);
 assertNull(exception);

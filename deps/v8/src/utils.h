@@ -340,7 +340,7 @@ inline uint32_t ComputeIntegerHash(uint32_t key, uint32_t seed) {
   hash = hash ^ (hash >> 4);
   hash = hash * 2057;  // hash = (hash + (hash << 3)) + (hash << 11);
   hash = hash ^ (hash >> 16);
-  return hash;
+  return hash & 0x3fffffff;
 }
 
 
@@ -1047,23 +1047,31 @@ template <int dummy_parameter>
 class VectorSlot {
  public:
   explicit VectorSlot(int id) : id_(id) {}
+
   int ToInt() const { return id_; }
 
   static VectorSlot Invalid() { return VectorSlot(kInvalidSlot); }
   bool IsInvalid() const { return id_ == kInvalidSlot; }
 
   VectorSlot next() const {
-    DCHECK(id_ != kInvalidSlot);
+    DCHECK_NE(kInvalidSlot, id_);
     return VectorSlot(id_ + 1);
   }
 
-  bool operator==(const VectorSlot& other) const { return id_ == other.id_; }
+  bool operator==(VectorSlot that) const { return this->id_ == that.id_; }
+  bool operator!=(VectorSlot that) const { return !(*this == that); }
 
  private:
   static const int kInvalidSlot = -1;
 
   int id_;
 };
+
+
+template <int dummy_parameter>
+size_t hash_value(VectorSlot<dummy_parameter> slot) {
+  return slot.ToInt();
+}
 
 
 typedef VectorSlot<0> FeedbackVectorSlot;
@@ -1690,7 +1698,7 @@ bool StringToArrayIndex(Stream* stream, uint32_t* index) {
     d = stream->GetNext() - '0';
     if (d < 0 || d > 9) return false;
     // Check that the new result is below the 32 bit limit.
-    if (result > 429496729U - ((d > 5) ? 1 : 0)) return false;
+    if (result > 429496729U - ((d + 3) >> 3)) return false;
     result = (result * 10) + d;
   }
 
@@ -1706,6 +1714,41 @@ inline uintptr_t GetCurrentStackPosition() {
   // the top of stack is right now.
   uintptr_t limit = reinterpret_cast<uintptr_t>(&limit);
   return limit;
+}
+
+static inline double ReadDoubleValue(const void* p) {
+#ifndef V8_TARGET_ARCH_MIPS
+  return *reinterpret_cast<const double*>(p);
+#else   // V8_TARGET_ARCH_MIPS
+  // Prevent compiler from using load-double (mips ldc1) on (possibly)
+  // non-64-bit aligned address.
+  union conversion {
+    double d;
+    uint32_t u[2];
+  } c;
+  const uint32_t* ptr = reinterpret_cast<const uint32_t*>(p);
+  c.u[0] = *ptr;
+  c.u[1] = *(ptr + 1);
+  return c.d;
+#endif  // V8_TARGET_ARCH_MIPS
+}
+
+
+static inline void WriteDoubleValue(void* p, double value) {
+#ifndef V8_TARGET_ARCH_MIPS
+  *(reinterpret_cast<double*>(p)) = value;
+#else   // V8_TARGET_ARCH_MIPS
+  // Prevent compiler from using load-double (mips sdc1) on (possibly)
+  // non-64-bit aligned address.
+  union conversion {
+    double d;
+    uint32_t u[2];
+  } c;
+  c.d = value;
+  uint32_t* ptr = reinterpret_cast<uint32_t*>(p);
+  *ptr = c.u[0];
+  *(ptr + 1) = c.u[1];
+#endif  // V8_TARGET_ARCH_MIPS
 }
 
 }  // namespace internal

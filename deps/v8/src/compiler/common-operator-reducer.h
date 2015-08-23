@@ -14,33 +14,40 @@ namespace compiler {
 // Forward declarations.
 class CommonOperatorBuilder;
 class Graph;
-class JSGraph;
 class MachineOperatorBuilder;
 class Operator;
 
 
 // Performs strength reduction on nodes that have common operators.
-class CommonOperatorReducer final : public Reducer {
+class CommonOperatorReducer final : public AdvancedReducer {
  public:
-  explicit CommonOperatorReducer(JSGraph* jsgraph) : jsgraph_(jsgraph) {}
+  CommonOperatorReducer(Editor* editor, Graph* graph,
+                        CommonOperatorBuilder* common,
+                        MachineOperatorBuilder* machine);
   ~CommonOperatorReducer() final {}
 
   Reduction Reduce(Node* node) final;
 
  private:
+  Reduction ReduceBranch(Node* node);
+  Reduction ReduceMerge(Node* node);
   Reduction ReduceEffectPhi(Node* node);
   Reduction ReducePhi(Node* node);
+  Reduction ReduceReturn(Node* node);
   Reduction ReduceSelect(Node* node);
 
   Reduction Change(Node* node, Operator const* op, Node* a);
   Reduction Change(Node* node, Operator const* op, Node* a, Node* b);
 
-  CommonOperatorBuilder* common() const;
-  Graph* graph() const;
-  JSGraph* jsgraph() const { return jsgraph_; }
-  MachineOperatorBuilder* machine() const;
+  Graph* graph() const { return graph_; }
+  CommonOperatorBuilder* common() const { return common_; }
+  MachineOperatorBuilder* machine() const { return machine_; }
+  Node* dead() const { return dead_; }
 
-  JSGraph* const jsgraph_;
+  Graph* const graph_;
+  CommonOperatorBuilder* const common_;
+  MachineOperatorBuilder* const machine_;
+  Node* const dead_;
 };
 
 }  // namespace compiler

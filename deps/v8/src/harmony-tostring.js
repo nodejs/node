@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-(function(global, shared, exports) {
+(function(global, utils) {
 
 "use strict";
 
@@ -10,7 +10,7 @@
 
 var GlobalSymbol = global.Symbol;
 
-$installConstants(GlobalSymbol, [
+utils.InstallConstants(GlobalSymbol, [
    // TODO(dslomov, caitp): Move to symbol.js when shipping
    "toStringTag", symbolToStringTag
 ]);

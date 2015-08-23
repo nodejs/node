@@ -372,13 +372,16 @@ function for_loop_1() {
 
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Block,
+                   debug.ScopeType.Block,
                    debug.ScopeType.Local,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({x:'y'}, 0, exec_state);
   // The function scope contains a temporary iteration variable, but it is
   // hidden to the debugger.
-  CheckScopeContent({}, 1, exec_state);
+  // TODO(adamk): This variable is only used to provide a TDZ for the enumerable
+  // expression and should not be visible to the debugger.
+  CheckScopeContent({x:undefined}, 1, exec_state);
 };
 for_loop_1();
 EndTest();
@@ -398,6 +401,7 @@ function for_loop_2() {
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Block,
                    debug.ScopeType.Block,
+                   debug.ScopeType.Block,
                    debug.ScopeType.Local,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
@@ -405,7 +409,9 @@ listener_delegate = function(exec_state) {
   CheckScopeContent({x:'y'}, 1, exec_state);
   // The function scope contains a temporary iteration variable, hidden to the
   // debugger.
-  CheckScopeContent({}, 2, exec_state);
+  // TODO(adamk): This variable is only used to provide a TDZ for the enumerable
+  // expression and should not be visible to the debugger.
+  CheckScopeContent({x:undefined}, 2, exec_state);
 };
 for_loop_2();
 EndTest();

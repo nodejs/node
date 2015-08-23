@@ -16,4 +16,5 @@ namespace internal {
 // good_suffix_shift_table()
 // suffix_table()
 
-}}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
