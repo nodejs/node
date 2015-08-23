@@ -1,16 +1,16 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
-var path = require('path');
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 
 assert.equal(true, process.cwd() !== __dirname);
 
 process.chdir(__dirname);
 assert.equal(true, process.cwd() === __dirname);
 
-var dir = path.resolve(common.fixturesDir,
-    'weird \uc3a4\uc3ab\uc3af characters \u00e1\u00e2\u00e3');
+const dir = path.resolve(common.fixturesDir,
+      'weird \uc3a4\uc3ab\uc3af characters \u00e1\u00e2\u00e3');
 
 try {
   fs.mkdirSync(dir);

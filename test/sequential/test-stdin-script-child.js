@@ -1,14 +1,14 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var spawn = require('child_process').spawn;
-var child = spawn(process.execPath, [], {
+const spawn = require('child_process').spawn;
+const child = spawn(process.execPath, [], {
   env: {
     NODE_DEBUG: process.argv[2]
   }
 });
-var wanted = child.pid + '\n';
+const wanted = child.pid + '\n';
 var found = '';
 
 child.stdout.setEncoding('utf8');

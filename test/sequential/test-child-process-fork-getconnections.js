@@ -1,13 +1,13 @@
 'use strict';
-var assert = require('assert');
-var common = require('../common');
-var fork = require('child_process').fork;
-var net = require('net');
-var count = 12;
+const assert = require('assert');
+const common = require('../common');
+const fork = require('child_process').fork;
+const net = require('net');
+const count = 12;
 
 if (process.argv[2] === 'child') {
-  var sockets = [];
-  var id = process.argv[3];
+  const sockets = [];
+  const id = process.argv[3];
 
   process.on('message', function(m, socket) {
     if (m.cmd === 'new') {
@@ -30,15 +30,15 @@ if (process.argv[2] === 'child') {
   });
 
 } else {
-  var child = fork(process.argv[1], ['child']);
+  const child = fork(process.argv[1], ['child']);
 
   child.on('exit', function(code, signal) {
     if (!childKilled)
       throw new Error('child died unexpectedly!');
   });
 
-  var server = net.createServer();
-  var sockets = [];
+  const server = net.createServer();
+  const sockets = [];
   var sent = 0;
 
   server.on('connection', function(socket) {
@@ -51,7 +51,7 @@ if (process.argv[2] === 'child') {
   });
 
   var disconnected = 0;
-  var clients = [];
+  const clients = [];
   server.on('listening', function() {
     var j = count, client;
     while (j--) {

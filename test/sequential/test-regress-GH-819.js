@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var net = require('net');
-var assert = require('assert');
+const common = require('../common');
+const net = require('net');
+const assert = require('assert');
 
 // Connect to something that we need to DNS resolve
-var c = net.createConnection(80, 'google.com');
+const c = net.createConnection(80, 'google.com');
 c.destroy();

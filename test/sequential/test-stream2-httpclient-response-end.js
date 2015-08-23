@@ -1,11 +1,11 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var msg = 'Hello';
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const msg = 'Hello';
 var readable_event = false;
 var end_event = false;
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.end(msg);
 }).listen(common.PORT, function() {
@@ -29,4 +29,3 @@ process.on('exit', function() {
   assert(readable_event);
   assert(end_event);
 });
-

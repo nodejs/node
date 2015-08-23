@@ -1,20 +1,20 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 // This is similar to simple/test-socket-write-after-fin, except that
 // we don't set allowHalfOpen.  Then we write after the client has sent
 // a FIN, and this is an error.  However, the standard "write after end"
 // message is too vague, and doesn't actually tell you what happens.
 
-var net = require('net');
+const net = require('net');
 var serverData = '';
 var gotServerEnd = false;
 var clientData = '';
 var gotClientEnd = false;
 var gotServerError = false;
 
-var server = net.createServer(function(sock) {
+const server = net.createServer(function(sock) {
   sock.setEncoding('utf8');
   sock.on('error', function(er) {
     console.error(er.code + ': ' + er.message);
@@ -33,7 +33,7 @@ var server = net.createServer(function(sock) {
 });
 server.listen(common.PORT);
 
-var sock = net.connect(common.PORT);
+const sock = net.connect(common.PORT);
 sock.setEncoding('utf8');
 sock.on('data', function(c) {
   clientData += c;

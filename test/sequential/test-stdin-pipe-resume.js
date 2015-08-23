@@ -1,19 +1,19 @@
 'use strict';
 // This tests that piping stdin will cause it to resume() as well.
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (process.argv[2] === 'child') {
   process.stdin.pipe(process.stdout);
 } else {
-  var spawn = require('child_process').spawn;
-  var buffers = [];
-  var child = spawn(process.execPath, [__filename, 'child']);
+  const spawn = require('child_process').spawn;
+  const buffers = [];
+  const child = spawn(process.execPath, [__filename, 'child']);
   child.stdout.on('data', function(c) {
     buffers.push(c);
   });
   child.stdout.on('close', function() {
-    var b = Buffer.concat(buffers).toString();
+    const b = Buffer.concat(buffers).toString();
     assert.equal(b, 'Hello, world\n');
     console.log('ok');
   });
@@ -25,4 +25,3 @@ if (process.argv[2] === 'child') {
     child.stdin.end();
   }, 10);
 }
-

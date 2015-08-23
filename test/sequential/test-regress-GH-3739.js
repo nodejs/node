@@ -1,11 +1,11 @@
 'use strict';
-var common = require('../common'),
-    assert = require('assert'),
-    fs = require('fs'),
-    path = require('path');
+const common = require('../common'),
+      assert = require('assert'),
+      fs = require('fs'),
+      path = require('path');
 
-var dir = path.resolve(common.fixturesDir),
-    dirs = [];
+var dir = path.resolve(common.fixturesDir);
+const dirs = [];
 
 // Make a long path.
 for (var i = 0; i < 50; i++) {
@@ -24,7 +24,7 @@ for (var i = 0; i < 50; i++) {
 }
 
 // Test existsSync
-var r = common.fileExists(dir);
+const r = common.fileExists(dir);
 if (r !== true) {
   cleanup();
   throw new Error('fs.accessSync returned false');

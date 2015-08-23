@@ -1,13 +1,13 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 var serverData = '';
 var gotServerEnd = false;
 var clientData = '';
 var gotClientEnd = false;
 
-var server = net.createServer({ allowHalfOpen: true }, function(sock) {
+const server = net.createServer({ allowHalfOpen: true }, function(sock) {
   sock.setEncoding('utf8');
   sock.on('data', function(c) {
     serverData += c;
@@ -20,7 +20,7 @@ var server = net.createServer({ allowHalfOpen: true }, function(sock) {
 });
 server.listen(common.PORT);
 
-var sock = net.connect(common.PORT);
+const sock = net.connect(common.PORT);
 sock.setEncoding('utf8');
 sock.on('data', function(c) {
   clientData += c;

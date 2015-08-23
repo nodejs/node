@@ -1,17 +1,17 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var join = require('path').join;
-var childProcess = require('child_process');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const join = require('path').join;
+const childProcess = require('child_process');
+const fs = require('fs');
 
-var stdoutScript = join(common.fixturesDir, 'echo-close-check.js');
-var tmpFile = join(common.fixturesDir, 'stdin.txt');
+const stdoutScript = join(common.fixturesDir, 'echo-close-check.js');
+const tmpFile = join(common.fixturesDir, 'stdin.txt');
 
-var cmd = '"' + process.argv[0] + '" "' + stdoutScript + '" < "' +
-    tmpFile + '"';
+const cmd = '"' + process.argv[0] + '" "' + stdoutScript + '" < "' +
+      tmpFile + '"';
 
-var string = 'abc\nümlaut.\nsomething else\n' +
+const string = 'abc\nümlaut.\nsomething else\n' +
              '南越国是前203年至前111年存在于岭南地区的一个国家，国都位于番禺，' +
              '疆域包括今天中国的广东、广西两省区的大部份地区，福建省、湖南、贵州、' +
              '云南的一小部份地区和越南的北部。南越国是秦朝灭亡后，' +
