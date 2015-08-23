@@ -3,12 +3,12 @@ maintained libraries.  The externally maintained libraries used by V8
 are:
 
   - PCRE test suite, located in
-    test/mjsunit/third_party/regexp-pcre.js.  This is based on the
+    test/mjsunit/third_party/regexp-pcre/regexp-pcre.js.  This is based on the
     test suite from PCRE-7.3, which is copyrighted by the University
     of Cambridge and Google, Inc.  The copyright notice and license
     are embedded in regexp-pcre.js.
 
-  - Layout tests, located in test/mjsunit/third_party.  These are
+  - Layout tests, located in test/mjsunit/third_party/object-keys.  These are
     based on layout tests from webkit.org which are copyrighted by
     Apple Computer, Inc. and released under a 3-clause BSD license.
 
@@ -25,6 +25,9 @@ are:
 
 These libraries have their own licenses; we recommend you read them,
 as their terms may differ from the terms below.
+
+Further license information can be found in LICENSE files located in 
+sub-directories.
 
 Copyright 2014, the V8 project authors. All rights reserved.
 Redistribution and use in source and binary forms, with or without

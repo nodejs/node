@@ -23,11 +23,17 @@ struct ArmLinkageHelperTraits {
     return r4.bit() | r5.bit() | r6.bit() | r7.bit() | r8.bit() | r9.bit() |
            r10.bit();
   }
+  static RegList CCalleeSaveFPRegisters() {
+    return (1 << d8.code()) | (1 << d9.code()) | (1 << d10.code()) |
+           (1 << d11.code()) | (1 << d12.code()) | (1 << d13.code()) |
+           (1 << d14.code()) | (1 << d15.code());
+  }
   static Register CRegisterParameter(int i) {
     static Register register_parameters[] = {r0, r1, r2, r3};
     return register_parameters[i];
   }
   static int CRegisterParametersLength() { return 4; }
+  static int CStackBackingStoreLength() { return 0; }
 };
 
 

@@ -28,7 +28,6 @@ class LCodeGen: public LCodeGenBase {
       : LCodeGenBase(chunk, assembler, info),
         deoptimizations_(4, info->zone()),
         jump_table_(4, info->zone()),
-        deoptimization_literals_(8, info->zone()),
         inlined_function_count_(0),
         scope_(info->scope()),
         translations_(info->zone()),
@@ -37,7 +36,8 @@ class LCodeGen: public LCodeGenBase {
         frame_is_built_(false),
         safepoints_(info->zone()),
         resolver_(this),
-        expected_safepoint_kind_(Safepoint::kSimple) {
+        expected_safepoint_kind_(Safepoint::kSimple),
+        pushed_arguments_(0) {
     PopulateDeoptimizationLiteralsWithInlinedFunctions();
   }
 
@@ -81,7 +81,9 @@ class LCodeGen: public LCodeGenBase {
   Register ToRegister32(LOperand* op) const;
   Operand ToOperand(LOperand* op);
   Operand ToOperand32(LOperand* op);
-  MemOperand ToMemOperand(LOperand* op) const;
+  enum StackMode { kMustUseFramePointer, kCanUseStackPointer };
+  MemOperand ToMemOperand(LOperand* op,
+                          StackMode stack_mode = kCanUseStackPointer) const;
   Handle<Object> ToHandle(LConstantOperand* op) const;
 
   template <class LI>
@@ -114,6 +116,7 @@ class LCodeGen: public LCodeGenBase {
   // Deferred code support.
   void DoDeferredNumberTagD(LNumberTagD* instr);
   void DoDeferredStackCheck(LStackCheck* instr);
+  void DoDeferredMaybeGrowElements(LMaybeGrowElements* instr);
   void DoDeferredStringCharCodeAt(LStringCharCodeAt* instr);
   void DoDeferredStringCharFromCode(LStringCharFromCode* instr);
   void DoDeferredMathAbsTagged(LMathAbsTagged* instr,
@@ -190,6 +193,8 @@ class LCodeGen: public LCodeGenBase {
 
   template <class T>
   void EmitVectorLoadICRegisters(T* instr);
+  template <class T>
+  void EmitVectorStoreICRegisters(T* instr);
 
   // Emits optimized code for %_IsString(x).  Preserves input register.
   // Returns the condition on which a final split to
@@ -197,7 +202,6 @@ class LCodeGen: public LCodeGenBase {
   Condition EmitIsString(Register input, Register temp1, Label* is_not_string,
                          SmiCheck check_needed);
 
-  int DefineDeoptimizationLiteral(Handle<Object> literal);
   void PopulateDeoptimizationData(Handle<Code> code);
   void PopulateDeoptimizationLiteralsWithInlinedFunctions();
 
@@ -341,7 +345,6 @@ class LCodeGen: public LCodeGenBase {
 
   ZoneList<LEnvironment*> deoptimizations_;
   ZoneList<Deoptimizer::JumpTableEntry*> jump_table_;
-  ZoneList<Handle<Object> > deoptimization_literals_;
   int inlined_function_count_;
   Scope* const scope_;
   TranslationBuffer translations_;
@@ -357,6 +360,15 @@ class LCodeGen: public LCodeGenBase {
   LGapResolver resolver_;
 
   Safepoint::Kind expected_safepoint_kind_;
+
+  // The number of arguments pushed onto the stack, either by this block or by a
+  // predecessor.
+  int pushed_arguments_;
+
+  void RecordPushedArgumentsDelta(int delta) {
+    pushed_arguments_ += delta;
+    DCHECK(pushed_arguments_ >= 0);
+  }
 
   int old_position_;
 

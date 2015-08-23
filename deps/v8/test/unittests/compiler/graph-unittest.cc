@@ -13,7 +13,7 @@ namespace compiler {
 
 GraphTest::GraphTest(int num_parameters) : common_(zone()), graph_(zone()) {
   graph()->SetStart(graph()->NewNode(common()->Start(num_parameters)));
-  graph()->SetEnd(graph()->NewNode(common()->End(), graph()->start()));
+  graph()->SetEnd(graph()->NewNode(common()->End(1), graph()->start()));
 }
 
 
@@ -81,6 +81,16 @@ Node* GraphTest::UndefinedConstant() {
 }
 
 
+Node* GraphTest::EmptyFrameState() {
+  Node* state_values = graph()->NewNode(common()->StateValues(0));
+  return graph()->NewNode(
+      common()->FrameState(BailoutId::None(), OutputFrameStateCombine::Ignore(),
+                           nullptr),
+      state_values, state_values, state_values, NumberConstant(0),
+      UndefinedConstant(), graph()->start());
+}
+
+
 Matcher<Node*> GraphTest::IsFalseConstant() {
   return IsHeapConstant(
       Unique<HeapObject>::CreateImmovable(factory()->false_value()));
@@ -100,8 +110,7 @@ Matcher<Node*> GraphTest::IsUndefinedConstant() {
 
 
 TypedGraphTest::TypedGraphTest(int num_parameters)
-    : GraphTest(num_parameters),
-      typer_(isolate(), graph(), MaybeHandle<Context>()) {}
+    : GraphTest(num_parameters), typer_(isolate(), graph()) {}
 
 
 TypedGraphTest::~TypedGraphTest() {}
@@ -126,8 +135,8 @@ TEST_F(GraphTest, NewNode) {
   Node* n0 = graph()->NewNode(&kDummyOperator);
   Node* n1 = graph()->NewNode(&kDummyOperator);
   EXPECT_NE(n0, n1);
-  EXPECT_LT(0, n0->id());
-  EXPECT_LT(0, n1->id());
+  EXPECT_LT(0u, n0->id());
+  EXPECT_LT(0u, n1->id());
   EXPECT_NE(n0->id(), n1->id());
   EXPECT_EQ(&kDummyOperator, n0->op());
   EXPECT_EQ(&kDummyOperator, n1->op());

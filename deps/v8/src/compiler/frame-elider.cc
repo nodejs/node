@@ -48,7 +48,7 @@ void FrameElider::MarkDeConstruction() {
       // deconstructions.
       for (auto succ : block->successors()) {
         if (!InstructionBlockAt(succ)->needs_frame()) {
-          DCHECK_EQ(1, block->SuccessorCount());
+          DCHECK_EQ(1U, block->SuccessorCount());
           block->mark_must_deconstruct_frame();
         }
       }
@@ -56,7 +56,7 @@ void FrameElider::MarkDeConstruction() {
       // Find "no frame -> frame" transitions, inserting frame constructions.
       for (auto succ : block->successors()) {
         if (InstructionBlockAt(succ)->needs_frame()) {
-          DCHECK_NE(1, block->SuccessorCount());
+          DCHECK_NE(1U, block->SuccessorCount());
           InstructionBlockAt(succ)->mark_must_construct_frame();
         }
       }

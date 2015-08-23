@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 function argc0() {
   return arguments.length;
 }
@@ -188,3 +190,17 @@ function arg_set(x) { return (arguments[x] = 117); }
 assertEquals(undefined, arg_get(0xFFFFFFFF));
 assertEquals(true, arg_del(0xFFFFFFFF));
 assertEquals(117, arg_set(0xFFFFFFFF));
+
+(function() {
+  function f(a) { return arguments; }
+  var a = f(1,2,3);
+  // Turn arguments into slow.
+  assertTrue(%HasSloppyArgumentsElements(a));
+  a[10000] = 1;
+  assertTrue(%HasSloppyArgumentsElements(a));
+  // Make it fast again by adding values.
+  for (var i = 0; i < 1000; i++) {
+    a[i] = 1.5;
+  }
+  assertTrue(%HasSloppyArgumentsElements(a));
+})();

@@ -186,10 +186,10 @@ const SharedOperatorWithLanguageMode kSharedOperatorsWithLanguageMode[] = {
         control_input_count, value_output_count, effect_output_count,        \
         control_output_count                                                 \
   }
-    SHARED(LessThan, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
-    SHARED(GreaterThan, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
-    SHARED(LessThanOrEqual, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
-    SHARED(GreaterThanOrEqual, Operator::kNoProperties, 2, 1, 1, 1, 1, 1, 2),
+    SHARED(LessThan, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
+    SHARED(GreaterThan, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
+    SHARED(LessThanOrEqual, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
+    SHARED(GreaterThanOrEqual, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
     SHARED(BitwiseOr, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
     SHARED(BitwiseXor, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
     SHARED(BitwiseAnd, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
@@ -201,7 +201,6 @@ const SharedOperatorWithLanguageMode kSharedOperatorsWithLanguageMode[] = {
     SHARED(Multiply, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
     SHARED(Divide, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
     SHARED(Modulus, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
-    SHARED(StoreProperty, Operator::kNoProperties, 3, 2, 1, 1, 0, 1, 2),
 #undef SHARED
 };
 

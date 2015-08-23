@@ -26,9 +26,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-// Flags: --expose-natives_as natives
-// Test keyed access to deleted property in a global object without access checks.
-// Regression test that exposed the_hole value from Runtime_KeyedGetPoperty.
+// Flags: --expose-natives-as natives
+// Test keyed access to deleted property in a global object w/o access checks.
+// Regression test that exposed the_hole value from Runtime_KeyedGetProperty.
 
 var name = "fisk";
 natives[name] = name;

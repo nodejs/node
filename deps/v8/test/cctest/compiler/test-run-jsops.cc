@@ -523,9 +523,7 @@ TEST(RegExpLiteral) {
 
 
 TEST(ClassLiteral) {
-  FLAG_harmony_classes = true;
   FLAG_harmony_sloppy = true;
-  FLAG_harmony_object_literals = true;
   const char* src =
       "(function(a,b) {"
       "  class C {"

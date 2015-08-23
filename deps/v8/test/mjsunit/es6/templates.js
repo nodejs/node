@@ -588,6 +588,26 @@ var global = this;
 })();
 
 
+(function testReturnValueAsTagFn() {
+  "use strict";
+  var i = 0;
+  function makeTag() {
+    return function tag(cs) {
+      var args = Array.prototype.slice.call(arguments, 1);
+      var rcs = [];
+      rcs.raw = cs.map(function(s) {
+        return '!' + s + '!';
+      });
+      args.unshift(rcs);
+      return String.raw.apply(null, args);
+    }
+  }
+  assertEquals('!hi!', makeTag()`hi`);
+  assertEquals('!test!0!test!', makeTag()`test${0}test`);
+  assertEquals('!!', makeTag()``);
+});
+
+
 (function testToStringSubstitutions() {
   var a = {
     toString: function() { return "a"; },

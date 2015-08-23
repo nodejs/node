@@ -156,4 +156,5 @@ void PowersOfTenCache::GetCachedPowerForDecimalExponent(int requested_exponent,
   DCHECK(requested_exponent < *found_exponent + kDecimalExponentDistance);
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

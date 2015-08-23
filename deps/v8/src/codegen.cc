@@ -239,18 +239,5 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
 #endif  // ENABLE_DISASSEMBLER
 }
 
-
-bool CodeGenerator::RecordPositions(MacroAssembler* masm,
-                                    int pos,
-                                    bool right_here) {
-  if (pos != RelocInfo::kNoPosition) {
-    masm->positions_recorder()->RecordStatementPosition(pos);
-    masm->positions_recorder()->RecordPosition(pos);
-    if (right_here) {
-      return masm->positions_recorder()->WriteRecordedPositions();
-    }
-  }
-  return false;
-}
-
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -290,13 +290,6 @@ void CodeGenerator::AssembleDeconstructActivationRecord() {
   if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
     __ mov(esp, ebp);
     __ pop(ebp);
-    int32_t bytes_to_pop =
-        descriptor->IsJSFunctionCall()
-            ? static_cast<int32_t>(descriptor->JSParameterCount() *
-                                   kPointerSize)
-            : 0;
-    __ pop(Operand(esp, bytes_to_pop));
-    __ add(esp, Immediate(bytes_to_pop));
   }
 }
 
@@ -352,6 +345,22 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ jmp(FieldOperand(func, JSFunction::kCodeEntryOffset));
       break;
     }
+    case kArchPrepareCallCFunction: {
+      int const num_parameters = MiscField::decode(instr->opcode());
+      __ PrepareCallCFunction(num_parameters, i.TempRegister(0));
+      break;
+    }
+    case kArchCallCFunction: {
+      int const num_parameters = MiscField::decode(instr->opcode());
+      if (HasImmediateInput(instr, 0)) {
+        ExternalReference ref = i.InputExternalReference(0);
+        __ CallCFunction(ref, num_parameters);
+      } else {
+        Register func = i.InputRegister(0);
+        __ CallCFunction(func, num_parameters);
+      }
+      break;
+    }
     case kArchJmp:
       AssembleArchJump(i.InputRpo(0));
       break;
@@ -375,6 +384,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kArchStackPointer:
       __ mov(i.OutputRegister(), esp);
+      break;
+    case kArchFramePointer:
+      __ mov(i.OutputRegister(), ebp);
       break;
     case kArchTruncateDoubleToI: {
       auto result = i.OutputRegister();
@@ -867,6 +879,15 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ push(i.InputOperand(0));
       }
       break;
+    case kIA32Poke: {
+      int const slot = MiscField::decode(instr->opcode());
+      if (HasImmediateInput(instr, 0)) {
+        __ mov(Operand(esp, slot * kPointerSize), i.InputImmediate(0));
+      } else {
+        __ mov(Operand(esp, slot * kPointerSize), i.InputRegister(0));
+      }
+      break;
+    }
     case kIA32StoreWriteBarrier: {
       Register object = i.InputRegister(0);
       Register value = i.InputRegister(2);
@@ -1256,7 +1277,7 @@ void CodeGenerator::AssemblePrologue() {
     __ Prologue(info->IsCodePreAgingActive());
     frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
-  } else if (stack_slots > 0) {
+  } else if (needs_frame_) {
     __ StubPrologue();
     frame()->SetRegisterSaveAreaSize(
         StandardFrameConstants::kFixedFrameSizeFromFp);
@@ -1310,13 +1331,25 @@ void CodeGenerator::AssembleReturn() {
       __ pop(ebp);       // Pop caller's frame pointer.
       __ ret(0);
     }
-  } else if (descriptor->IsJSFunctionCall() || stack_slots > 0) {
-    __ mov(esp, ebp);  // Move stack pointer back to frame pointer.
-    __ pop(ebp);       // Pop caller's frame pointer.
-    int pop_count = descriptor->IsJSFunctionCall()
-                        ? static_cast<int>(descriptor->JSParameterCount())
-                        : 0;
-    __ Ret(pop_count * kPointerSize, ebx);
+  } else if (descriptor->IsJSFunctionCall() || needs_frame_) {
+    // Canonicalize JSFunction return sites for now.
+    if (return_label_.is_bound()) {
+      __ jmp(&return_label_);
+    } else {
+      __ bind(&return_label_);
+      __ mov(esp, ebp);  // Move stack pointer back to frame pointer.
+      __ pop(ebp);       // Pop caller's frame pointer.
+      int pop_count = descriptor->IsJSFunctionCall()
+                          ? static_cast<int>(descriptor->JSParameterCount())
+                          : (info()->IsStub()
+                                 ? info()->code_stub()->GetStackParameterCount()
+                                 : 0);
+      if (pop_count == 0) {
+        __ ret(0);
+      } else {
+        __ Ret(pop_count * kPointerSize, ebx);
+      }
+    }
   } else {
     __ ret(0);
   }
@@ -1508,7 +1541,6 @@ void CodeGenerator::EnsureSpaceForLazyDeopt() {
       __ Nop(padding_size);
     }
   }
-  MarkLazyDeoptSite();
 }
 
 #undef __

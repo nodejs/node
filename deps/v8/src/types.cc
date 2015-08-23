@@ -235,6 +235,7 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case JS_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_TYPE:
     case JS_BUILTINS_OBJECT_TYPE:
+    case JS_GLOBAL_OBJECT_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
     case JS_ARRAY_TYPE:
@@ -248,8 +249,6 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case JS_WEAK_SET_TYPE:
       if (map->is_undetectable()) return kUndetectable;
       return kOtherObject;
-    case JS_GLOBAL_OBJECT_TYPE:
-      return kGlobalObject;
     case JS_FUNCTION_TYPE:
       return kOtherObject;  // TODO(rossberg): there should be a Function type.
     case JS_REGEXP_TYPE:
@@ -1367,4 +1366,5 @@ template TypeImpl<HeapTypeConfig>::TypeHandle
   TypeImpl<HeapTypeConfig>::Convert<Type>(
     TypeImpl<ZoneTypeConfig>::TypeHandle, TypeImpl<HeapTypeConfig>::Region*);
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

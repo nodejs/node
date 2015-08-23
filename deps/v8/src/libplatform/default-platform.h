@@ -5,6 +5,7 @@
 #ifndef V8_LIBPLATFORM_DEFAULT_PLATFORM_H_
 #define V8_LIBPLATFORM_DEFAULT_PLATFORM_H_
 
+#include <functional>
 #include <map>
 #include <queue>
 #include <vector>
@@ -37,10 +38,15 @@ class DefaultPlatform : public Platform {
       Task* task, ExpectedRuntime expected_runtime) override;
   virtual void CallOnForegroundThread(v8::Isolate* isolate,
                                       Task* task) override;
+  virtual void CallDelayedOnForegroundThread(Isolate* isolate, Task* task,
+                                             double delay_in_seconds) override;
   double MonotonicallyIncreasingTime() override;
 
  private:
   static const int kMaxThreadPoolSize;
+
+  Task* PopTaskInMainThreadQueue(v8::Isolate* isolate);
+  Task* PopTaskInMainThreadDelayedQueue(v8::Isolate* isolate);
 
   base::Mutex lock_;
   bool initialized_;
@@ -48,6 +54,12 @@ class DefaultPlatform : public Platform {
   std::vector<WorkerThread*> thread_pool_;
   TaskQueue queue_;
   std::map<v8::Isolate*, std::queue<Task*> > main_thread_queue_;
+
+  typedef std::pair<double, Task*> DelayedEntry;
+  std::map<v8::Isolate*,
+           std::priority_queue<DelayedEntry, std::vector<DelayedEntry>,
+                               std::greater<DelayedEntry> > >
+      main_thread_delayed_queue_;
 
   DISALLOW_COPY_AND_ASSIGN(DefaultPlatform);
 };

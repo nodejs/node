@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-classes --allow-natives-syntax
+// Flags: --harmony-arrow-functions --allow-natives-syntax
 
 
 (function TestHomeObject() {
@@ -130,4 +130,53 @@
   };
 
   assertEquals(42, o.g().next().value);
+})();
+
+
+(function TestSuperPropertyInEval() {
+  var y = 3;
+  var p  = {
+    m() { return 1; },
+    get x() { return 2; }
+  };
+  var o = {
+    __proto__: p,
+    evalM() {
+      assertEquals(1, eval('super.m()'));
+    },
+    evalX() {
+      assertEquals(2, eval('super.x'));
+    },
+    globalEval1() {
+      assertThrows('super.x', SyntaxError);
+      assertThrows('super.m()', SyntaxError);
+    },
+    globalEval2() {
+      super.x;
+      assertThrows('super.x', SyntaxError);
+      assertThrows('super.m()', SyntaxError);
+    }
+  };
+  o.evalM();
+  o.evalX();
+  o.globalEval1();
+  o.globalEval2();
+})();
+
+
+(function TestSuperPropertyInArrow() {
+  var y = 3;
+  var p  = {
+    m() { return 1; },
+    get x() { return 2; }
+  };
+  var o = {
+    __proto__: p,
+    arrow() {
+      assertSame(super.x, (() => super.x)());
+      assertSame(super.m(), (() => super.m())());
+      return (() => super.m())();
+    }
+  };
+  assertSame(1, o.arrow());
 })();

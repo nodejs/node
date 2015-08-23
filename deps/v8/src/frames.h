@@ -114,25 +114,57 @@ class StackHandler BASE_EMBEDDED {
 class StandardFrameConstants : public AllStatic {
  public:
   // Fixed part of the frame consists of return address, caller fp,
-  // constant pool (if FLAG_enable_ool_constant_pool), context, and function.
-  // StandardFrame::IterateExpressions assumes that kLastObjectOffset is the
-  // last object pointer.
+  // constant pool (if FLAG_enable_embedded_constant_pool), context, and
+  // function. StandardFrame::IterateExpressions assumes that kLastObjectOffset
+  // is the last object pointer.
   static const int kCPSlotSize =
-      FLAG_enable_ool_constant_pool ? kPointerSize : 0;
+      FLAG_enable_embedded_constant_pool ? kPointerSize : 0;
   static const int kFixedFrameSizeFromFp =  2 * kPointerSize + kCPSlotSize;
-  static const int kFixedFrameSize       =  kPCOnStackSize + kFPOnStackSize +
-                                            kFixedFrameSizeFromFp;
-  static const int kExpressionsOffset    = -3 * kPointerSize - kCPSlotSize;
-  static const int kMarkerOffset         = -2 * kPointerSize - kCPSlotSize;
-  static const int kContextOffset        = -1 * kPointerSize - kCPSlotSize;
-  static const int kConstantPoolOffset   = FLAG_enable_ool_constant_pool ?
-                                           -1 * kPointerSize : 0;
-  static const int kCallerFPOffset       =  0 * kPointerSize;
-  static const int kCallerPCOffset       = +1 * kFPOnStackSize;
-  static const int kCallerSPOffset       = kCallerPCOffset + 1 * kPCOnStackSize;
+  static const int kFixedFrameSize =
+      kPCOnStackSize + kFPOnStackSize + kFixedFrameSizeFromFp;
+  static const int kExpressionsOffset = -3 * kPointerSize - kCPSlotSize;
+  static const int kMarkerOffset = -2 * kPointerSize - kCPSlotSize;
+  static const int kContextOffset = -1 * kPointerSize - kCPSlotSize;
+  static const int kConstantPoolOffset = kCPSlotSize ? -1 * kPointerSize : 0;
+  static const int kCallerFPOffset = 0 * kPointerSize;
+  static const int kCallerPCOffset = +1 * kFPOnStackSize;
+  static const int kCallerSPOffset = kCallerPCOffset + 1 * kPCOnStackSize;
 
-  static const int kLastObjectOffset     = FLAG_enable_ool_constant_pool ?
-                                           kConstantPoolOffset : kContextOffset;
+  static const int kLastObjectOffset = kContextOffset;
+};
+
+
+class ArgumentsAdaptorFrameConstants : public AllStatic {
+ public:
+  // FP-relative.
+  static const int kLengthOffset = StandardFrameConstants::kExpressionsOffset;
+
+  static const int kFrameSize =
+      StandardFrameConstants::kFixedFrameSize + kPointerSize;
+};
+
+
+class InternalFrameConstants : public AllStatic {
+ public:
+  // FP-relative.
+  static const int kCodeOffset = StandardFrameConstants::kExpressionsOffset;
+};
+
+
+class ConstructFrameConstants : public AllStatic {
+ public:
+  // FP-relative.
+  static const int kImplicitReceiverOffset =
+      StandardFrameConstants::kExpressionsOffset - 2 * kPointerSize;
+  static const int kOriginalConstructorOffset =
+      StandardFrameConstants::kExpressionsOffset - 2 * kPointerSize;
+  static const int kLengthOffset =
+      StandardFrameConstants::kExpressionsOffset - 1 * kPointerSize;
+  static const int kCodeOffset =
+      StandardFrameConstants::kExpressionsOffset - 0 * kPointerSize;
+
+  static const int kFrameSize =
+      StandardFrameConstants::kFixedFrameSize + 3 * kPointerSize;
 };
 
 
@@ -215,8 +247,8 @@ class StackFrame BASE_EMBEDDED {
   void set_pc(Address pc) { *pc_address() = pc; }
 
   Address constant_pool() const { return *constant_pool_address(); }
-  void set_constant_pool(ConstantPoolArray* constant_pool) {
-    *constant_pool_address() = reinterpret_cast<Address>(constant_pool);
+  void set_constant_pool(Address constant_pool) {
+    *constant_pool_address() = constant_pool;
   }
 
   virtual void SetCallerFp(Address caller_fp) = 0;
@@ -258,7 +290,8 @@ class StackFrame BASE_EMBEDDED {
                                 unsigned* stack_slots);
 
   virtual void Iterate(ObjectVisitor* v) const = 0;
-  static void IteratePc(ObjectVisitor* v, Address* pc_address, Code* holder);
+  static void IteratePc(ObjectVisitor* v, Address* pc_address,
+                        Address* constant_pool_address, Code* holder);
 
   // Sets a callback function for return-address rewriting profilers
   // to resolve the location of a return address to the location of the
@@ -380,7 +413,6 @@ class ExitFrame: public StackFrame {
   virtual Code* unchecked_code() const;
 
   Object*& code_slot() const;
-  Object*& constant_pool_slot() const;
 
   // Garbage collection support.
   virtual void Iterate(ObjectVisitor* v) const;
@@ -535,6 +567,10 @@ class JavaScriptFrame: public StandardFrame {
   // Check if this frame is a constructor frame invoked through 'new'.
   bool IsConstructor() const;
 
+  // Returns the original constructor function that was used in the constructor
+  // call to this frame. Note that this is only valid on constructor frames.
+  Object* GetOriginalConstructor() const;
+
   // Check if this frame has "adapted" arguments in the sense that the
   // actual passed arguments are available in an arguments adaptor
   // frame below it on the stack.
@@ -552,9 +588,6 @@ class JavaScriptFrame: public StandardFrame {
   // Determine the code for the frame.
   virtual Code* unchecked_code() const;
 
-  // Returns the levels of inlining for this frame.
-  virtual int GetInlineCount() { return 1; }
-
   // Return a list with JSFunctions of this frame.
   virtual void GetFunctions(List<JSFunction*>* functions);
 
@@ -563,7 +596,8 @@ class JavaScriptFrame: public StandardFrame {
 
   // Lookup exception handler for current {pc}, returns -1 if none found. Also
   // returns the expected number of stack slots at the handler site.
-  virtual int LookupExceptionHandlerInTable(int* stack_slots);
+  virtual int LookupExceptionHandlerInTable(
+      int* stack_slots, HandlerTable::CatchPrediction* prediction);
 
   // Architecture-specific register description.
   static Register fp_register();
@@ -628,8 +662,6 @@ class OptimizedFrame : public JavaScriptFrame {
   // GC support.
   virtual void Iterate(ObjectVisitor* v) const;
 
-  virtual int GetInlineCount();
-
   // Return a list with JSFunctions of this frame.
   // The functions are ordered bottom-to-top (i.e. functions.last()
   // is the top-most activation)
@@ -639,7 +671,8 @@ class OptimizedFrame : public JavaScriptFrame {
 
   // Lookup exception handler for current {pc}, returns -1 if none found. Also
   // returns the expected number of stack slots at the handler site.
-  virtual int LookupExceptionHandlerInTable(int* stack_slots);
+  virtual int LookupExceptionHandlerInTable(
+      int* stack_slots, HandlerTable::CatchPrediction* prediction);
 
   DeoptimizationInputData* GetDeoptimizationData(int* deopt_index);
 
@@ -647,9 +680,9 @@ class OptimizedFrame : public JavaScriptFrame {
   inline explicit OptimizedFrame(StackFrameIteratorBase* iterator);
 
  private:
-  JSFunction* LiteralAt(FixedArray* literal_array, int literal_id);
-
   friend class StackFrameIteratorBase;
+
+  Object* StackSlotAt(int index) const;
 };
 
 

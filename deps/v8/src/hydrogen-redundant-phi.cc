@@ -62,4 +62,5 @@ void HRedundantPhiEliminationPhase::ProcessPhis(const ZoneList<HPhi*>* phis) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

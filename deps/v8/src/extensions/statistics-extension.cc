@@ -11,9 +11,8 @@ const char* const StatisticsExtension::kSource =
     "native function getV8Statistics();";
 
 
-v8::Handle<v8::FunctionTemplate> StatisticsExtension::GetNativeFunctionTemplate(
-    v8::Isolate* isolate,
-    v8::Handle<v8::String> str) {
+v8::Local<v8::FunctionTemplate> StatisticsExtension::GetNativeFunctionTemplate(
+    v8::Isolate* isolate, v8::Local<v8::String> str) {
   DCHECK(strcmp(*v8::String::Utf8Value(str), "getV8Statistics") == 0);
   return v8::FunctionTemplate::New(isolate, StatisticsExtension::GetCounters);
 }
@@ -24,8 +23,11 @@ static void AddCounter(v8::Isolate* isolate,
                        StatsCounter* counter,
                        const char* name) {
   if (counter->Enabled()) {
-    object->Set(v8::String::NewFromUtf8(isolate, name),
-                v8::Number::New(isolate, *counter->GetInternalPointer()));
+    object->Set(isolate->GetCurrentContext(),
+                v8::String::NewFromUtf8(isolate, name, NewStringType::kNormal)
+                    .ToLocalChecked(),
+                v8::Number::New(isolate, *counter->GetInternalPointer()))
+        .FromJust();
   }
 }
 
@@ -33,8 +35,10 @@ static void AddNumber(v8::Isolate* isolate,
                       v8::Local<v8::Object> object,
                       intptr_t value,
                       const char* name) {
-  object->Set(v8::String::NewFromUtf8(isolate, name),
-              v8::Number::New(isolate, static_cast<double>(value)));
+  object->Set(isolate->GetCurrentContext(),
+              v8::String::NewFromUtf8(isolate, name, NewStringType::kNormal)
+                  .ToLocalChecked(),
+              v8::Number::New(isolate, static_cast<double>(value))).FromJust();
 }
 
 
@@ -42,8 +46,10 @@ static void AddNumber64(v8::Isolate* isolate,
                         v8::Local<v8::Object> object,
                         int64_t value,
                         const char* name) {
-  object->Set(v8::String::NewFromUtf8(isolate, name),
-              v8::Number::New(isolate, static_cast<double>(value)));
+  object->Set(isolate->GetCurrentContext(),
+              v8::String::NewFromUtf8(isolate, name, NewStringType::kNormal)
+                  .ToLocalChecked(),
+              v8::Number::New(isolate, static_cast<double>(value))).FromJust();
 }
 
 
@@ -54,7 +60,9 @@ void StatisticsExtension::GetCounters(
 
   if (args.Length() > 0) {  // GC if first argument evaluates to true.
     if (args[0]->IsBoolean() &&
-        args[0]->ToBoolean(args.GetIsolate())->Value()) {
+        args[0]
+            ->BooleanValue(args.GetIsolate()->GetCurrentContext())
+            .FromMaybe(false)) {
       heap->CollectAllGarbage(Heap::kNoGCFlags, "counters extension");
     }
   }
@@ -129,4 +137,5 @@ void StatisticsExtension::GetCounters(
   args.GetReturnValue().Set(result);
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

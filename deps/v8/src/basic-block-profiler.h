@@ -14,9 +14,6 @@
 namespace v8 {
 namespace internal {
 
-class Schedule;
-class Graph;
-
 class BasicBlockProfiler {
  public:
   class Data {

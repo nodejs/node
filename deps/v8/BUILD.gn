@@ -52,7 +52,7 @@ config("internal_config") {
 
   include_dirs = [ "." ]
 
-  if (component_mode == "shared_library") {
+  if (is_component_build) {
     defines = [
       "V8_SHARED",
       "BUILDING_V8_SHARED",
@@ -202,8 +202,9 @@ action("js2c") {
 
   sources = [
     "src/macros.py",
-    "src/messages.h",  
+    "src/messages.h",
     "src/runtime.js",
+    "src/prologue.js",
     "src/v8natives.js",
     "src/symbol.js",
     "src/array.js",
@@ -215,6 +216,7 @@ action("js2c") {
     "src/regexp.js",
     "src/arraybuffer.js",
     "src/typedarray.js",
+    "src/iterator-prototype.js",
     "src/generator.js",
     "src/object-observe.js",
     "src/collection.js",
@@ -229,6 +231,8 @@ action("js2c") {
     "src/mirror-debugger.js",
     "src/liveedit-debugger.js",
     "src/templates.js",
+    "src/harmony-array.js",
+    "src/harmony-typedarray.js",
   ]
 
   outputs = [
@@ -264,17 +268,18 @@ action("js2c_experimental") {
 
   sources = [
     "src/macros.py",
-    "src/messages.h",  
+    "src/messages.h",
     "src/proxy.js",
     "src/generator.js",
-    "src/harmony-array.js",
+    "src/harmony-atomics.js",
     "src/harmony-array-includes.js",
-    "src/harmony-typedarray.js",
+    "src/harmony-concat-spreadable.js",
     "src/harmony-tostring.js",
     "src/harmony-regexp.js",
     "src/harmony-reflect.js",
     "src/harmony-spread.js",
-    "src/harmony-object.js"
+    "src/harmony-object.js",
+    "src/harmony-sharedarraybuffer.js"
   ]
 
   outputs = [
@@ -474,8 +479,12 @@ source_set("v8_snapshot") {
     ":js2c",
     ":js2c_experimental",
     ":js2c_extras",
-    ":run_mksnapshot",
     ":v8_base",
+  ]
+  public_deps = [
+    # This should be public so downstream targets can declare the snapshot
+    # output file as their inputs.
+    ":run_mksnapshot",
   ]
 
   sources = [
@@ -502,9 +511,11 @@ if (v8_use_external_startup_data) {
       ":js2c",
       ":js2c_experimental",
       ":js2c_extras",
-      ":run_mksnapshot",
       ":v8_base",
+    ]
+    public_deps = [
       ":natives_blob",
+      ":run_mksnapshot",
     ]
 
     sources = [
@@ -526,6 +537,14 @@ source_set("v8_base") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   sources = [
+    "include/v8-debug.h",
+    "include/v8-platform.h",
+    "include/v8-profiler.h",
+    "include/v8-testing.h",
+    "include/v8-util.h",
+    "include/v8-version.h",
+    "include/v8.h",
+    "include/v8config.h",
     "src/accessors.cc",
     "src/accessors.h",
     "src/allocation.cc",
@@ -544,6 +563,8 @@ source_set("v8_base") {
     "src/assembler.h",
     "src/assert-scope.h",
     "src/assert-scope.cc",
+    "src/ast-literal-reindexer.cc",
+    "src/ast-literal-reindexer.h",
     "src/ast-numbering.cc",
     "src/ast-numbering.h",
     "src/ast-value-factory.cc",
@@ -602,6 +623,8 @@ source_set("v8_base") {
     "src/compiler/basic-block-instrumentor.h",
     "src/compiler/change-lowering.cc",
     "src/compiler/change-lowering.h",
+    "src/compiler/coalesced-live-ranges.cc",
+    "src/compiler/coalesced-live-ranges.h",
     "src/compiler/code-generator-impl.h",
     "src/compiler/code-generator.cc",
     "src/compiler/code-generator.h",
@@ -617,8 +640,8 @@ source_set("v8_base") {
     "src/compiler/control-equivalence.h",
     "src/compiler/control-flow-optimizer.cc",
     "src/compiler/control-flow-optimizer.h",
-    "src/compiler/control-reducer.cc",
-    "src/compiler/control-reducer.h",
+    "src/compiler/dead-code-elimination.cc",
+    "src/compiler/dead-code-elimination.h",
     "src/compiler/diamond.h",
     "src/compiler/frame.h",
     "src/compiler/frame-elider.cc",
@@ -632,10 +655,14 @@ source_set("v8_base") {
     "src/compiler/graph-reducer.h",
     "src/compiler/graph-replay.cc",
     "src/compiler/graph-replay.h",
+    "src/compiler/graph-trimmer.cc",
+    "src/compiler/graph-trimmer.h",
     "src/compiler/graph-visualizer.cc",
     "src/compiler/graph-visualizer.h",
     "src/compiler/graph.cc",
     "src/compiler/graph.h",
+    "src/compiler/greedy-allocator.cc",
+    "src/compiler/greedy-allocator.h",
     "src/compiler/instruction-codes.h",
     "src/compiler/instruction-selector-impl.h",
     "src/compiler/instruction-selector.cc",
@@ -646,6 +673,8 @@ source_set("v8_base") {
     "src/compiler/js-builtin-reducer.h",
     "src/compiler/js-context-specialization.cc",
     "src/compiler/js-context-specialization.h",
+    "src/compiler/js-frame-specialization.cc",
+    "src/compiler/js-frame-specialization.h",
     "src/compiler/js-generic-lowering.cc",
     "src/compiler/js-generic-lowering.h",
     "src/compiler/js-graph.cc",
@@ -774,6 +803,7 @@ source_set("v8_base") {
     "src/elements.h",
     "src/execution.cc",
     "src/execution.h",
+    "src/expression-classifier.h",
     "src/extensions/externalize-string-extension.cc",
     "src/extensions/externalize-string-extension.h",
     "src/extensions/free-buffer-extension.cc",
@@ -830,6 +860,8 @@ source_set("v8_base") {
     "src/heap/mark-compact-inl.h",
     "src/heap/mark-compact.cc",
     "src/heap/mark-compact.h",
+    "src/heap/memory-reducer.cc",
+    "src/heap/memory-reducer.h",
     "src/heap/objects-visiting-inl.h",
     "src/heap/objects-visiting.cc",
     "src/heap/objects-visiting.h",
@@ -958,12 +990,11 @@ source_set("v8_base") {
     "src/optimizing-compile-dispatcher.h",
     "src/ostreams.cc",
     "src/ostreams.h",
+    "src/pattern-rewriter.cc",
     "src/parser.cc",
     "src/parser.h",
     "src/pending-compilation-error-handler.cc",
     "src/pending-compilation-error-handler.h",
-    "src/perf-jit.cc",
-    "src/perf-jit.h",
     "src/preparse-data-format.h",
     "src/preparse-data.cc",
     "src/preparse-data.h",
@@ -992,11 +1023,13 @@ source_set("v8_base") {
     "src/runtime-profiler.cc",
     "src/runtime-profiler.h",
     "src/runtime/runtime-array.cc",
+    "src/runtime/runtime-atomics.cc",
     "src/runtime/runtime-classes.cc",
     "src/runtime/runtime-collections.cc",
     "src/runtime/runtime-compiler.cc",
     "src/runtime/runtime-date.cc",
     "src/runtime/runtime-debug.cc",
+    "src/runtime/runtime-forin.cc",
     "src/runtime/runtime-function.cc",
     "src/runtime/runtime-generator.cc",
     "src/runtime/runtime-i18n.cc",
@@ -1032,6 +1065,7 @@ source_set("v8_base") {
     "src/scopes.cc",
     "src/scopes.h",
     "src/signature.h",
+    "src/simulator.h",
     "src/small-pointer-list.h",
     "src/smart-pointers.h",
     "src/snapshot/natives.h",
@@ -1040,6 +1074,8 @@ source_set("v8_base") {
     "src/snapshot/snapshot-common.cc",
     "src/snapshot/snapshot-source-sink.cc",
     "src/snapshot/snapshot-source-sink.h",
+    "src/splay-tree.h",
+    "src/splay-tree-inl.h",
     "src/snapshot/snapshot.h",
     "src/string-builder.cc",
     "src/string-builder.h",
@@ -1089,6 +1125,8 @@ source_set("v8_base") {
     "src/vm-state.h",
     "src/zone.cc",
     "src/zone.h",
+    "src/zone-allocator.h",
+    "src/zone-containers.h",
     "src/third_party/fdlibm/fdlibm.cc",
     "src/third_party/fdlibm/fdlibm.h",
   ]
@@ -1201,6 +1239,7 @@ source_set("v8_base") {
       "src/arm/regexp-macro-assembler-arm.cc",
       "src/arm/regexp-macro-assembler-arm.h",
       "src/arm/simulator-arm.cc",
+      "src/arm/simulator-arm.h",
       "src/compiler/arm/code-generator-arm.cc",
       "src/compiler/arm/instruction-codes-arm.h",
       "src/compiler/arm/instruction-selector-arm.cc",
@@ -1295,6 +1334,7 @@ source_set("v8_base") {
       "src/mips/regexp-macro-assembler-mips.cc",
       "src/mips/regexp-macro-assembler-mips.h",
       "src/mips/simulator-mips.cc",
+      "src/mips/simulator-mips.h",
       "src/compiler/mips/code-generator-mips.cc",
       "src/compiler/mips/instruction-codes-mips.h",
       "src/compiler/mips/instruction-selector-mips.cc",
@@ -1336,6 +1376,7 @@ source_set("v8_base") {
       "src/mips64/regexp-macro-assembler-mips64.cc",
       "src/mips64/regexp-macro-assembler-mips64.h",
       "src/mips64/simulator-mips64.cc",
+      "src/mips64/simulator-mips64.h",
       "src/ic/mips64/access-compiler-mips64.cc",
       "src/ic/mips64/handler-compiler-mips64.cc",
       "src/ic/mips64/ic-mips64.cc",
@@ -1399,6 +1440,8 @@ source_set("v8_libbase") {
     "src/base/atomicops_internals_atomicword_compat.h",
     "src/base/atomicops_internals_mac.h",
     "src/base/atomicops_internals_mips_gcc.h",
+    "src/base/atomicops_internals_mips64_gcc.h",
+    "src/base/atomicops_internals_portable.h",
     "src/base/atomicops_internals_tsan.h",
     "src/base/atomicops_internals_x86_gcc.cc",
     "src/base/atomicops_internals_x86_gcc.h",
@@ -1558,7 +1601,7 @@ if (current_toolchain == snapshot_toolchain) {
 # Public targets
 #
 
-if (component_mode == "shared_library") {
+if (is_component_build) {
   component("v8") {
     sources = [
       "src/v8dll-main.cc",
@@ -1567,11 +1610,17 @@ if (component_mode == "shared_library") {
     if (v8_use_snapshot && v8_use_external_startup_data) {
       deps = [
         ":v8_base",
+      ]
+      public_deps = [
         ":v8_external_snapshot",
       ]
     } else if (v8_use_snapshot) {
       deps = [
         ":v8_base",
+      ]
+      # v8_snapshot should be public so downstream targets can declare the
+      # snapshot file as their input.
+      public_deps = [
         ":v8_snapshot",
       ]
     } else {
@@ -1607,6 +1656,8 @@ if (component_mode == "shared_library") {
     } else if (v8_use_snapshot) {
       deps = [
         ":v8_base",
+      ]
+      public_deps = [
         ":v8_snapshot",
       ]
     } else {
@@ -1657,9 +1708,10 @@ if ((current_toolchain == host_toolchain && v8_toolset_for_d8 == "host") ||
       sources += [ "src/d8-windows.cc" ]
     }
 
-    if (component_mode != "shared_library") {
+    if (!is_component_build) {
       sources += [
         "src/d8-debug.cc",
+        "src/d8-debug.h",
         "$target_gen_dir/d8-js.cc",
       ]
     }

@@ -9,14 +9,15 @@ import sys
 
 from common_includes import *
 
-
 ROLL_SUMMARY = ("Summary of changes available at:\n"
                 "https://chromium.googlesource.com/v8/v8/+log/%s..%s")
 
-
 ISSUE_MSG = (
 """Please follow these instructions for assigning/CC'ing issues:
-https://code.google.com/p/v8-wiki/wiki/TriagingIssues""")
+https://code.google.com/p/v8-wiki/wiki/TriagingIssues
+
+Please close rolling in case of a roll revert:
+https://v8-roll.appspot.com/""")
 
 class Preparation(Step):
   MESSAGE = "Preparation."
@@ -77,7 +78,8 @@ class UploadCL(Step):
   def RunStep(self):
     cwd = self._options.chromium
     # Patch DEPS file.
-    if self.Command("roll-dep", "v8 %s" % self._options.roll, cwd=cwd) is None:
+    if self.Command("roll-dep-svn", "v8 %s" %
+                    self._options.roll, cwd=cwd) is None:
       self.Die("Failed to create deps for %s" % self._options.roll)
 
     message = []

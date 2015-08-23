@@ -646,14 +646,13 @@ Reduction MachineOperatorReducer::ReduceTruncateFloat64ToInt32(Node* node) {
     Node* const phi = m.node();
     DCHECK_EQ(kRepFloat64, RepresentationOf(OpParameter<MachineType>(phi)));
     if (phi->OwnedBy(node)) {
-      // TruncateFloat64ToInt32(Phi[Float64](x1,...,xn))
-      //   => Phi[Int32](TruncateFloat64ToInt32(x1),
+      // TruncateFloat64ToInt32[mode](Phi[Float64](x1,...,xn))
+      //   => Phi[Int32](TruncateFloat64ToInt32[mode](x1),
       //                 ...,
-      //                 TruncateFloat64ToInt32(xn))
+      //                 TruncateFloat64ToInt32[mode](xn))
       const int value_input_count = phi->InputCount() - 1;
       for (int i = 0; i < value_input_count; ++i) {
-        Node* input = graph()->NewNode(machine()->TruncateFloat64ToInt32(),
-                                       phi->InputAt(i));
+        Node* input = graph()->NewNode(node->op(), phi->InputAt(i));
         // TODO(bmeurer): Reschedule input for reduction once we have Revisit()
         // instead of recursing into ReduceTruncateFloat64ToInt32() here.
         Reduction reduction = ReduceTruncateFloat64ToInt32(input);

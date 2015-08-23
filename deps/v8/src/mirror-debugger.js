@@ -904,57 +904,12 @@ ObjectMirror.prototype.toText = function() {
  * @return {Array} array (possibly empty) of InternalProperty instances
  */
 ObjectMirror.GetInternalProperties = function(value) {
-  if (IS_STRING_WRAPPER(value) || IS_NUMBER_WRAPPER(value) ||
-      IS_BOOLEAN_WRAPPER(value)) {
-    var primitiveValue = %_ValueOf(value);
-    return [new InternalPropertyMirror("[[PrimitiveValue]]", primitiveValue)];
-  } else if (IS_FUNCTION(value)) {
-    var bindings = %BoundFunctionGetBindings(value);
-    var result = [];
-    if (bindings && IS_ARRAY(bindings)) {
-      result.push(new InternalPropertyMirror("[[TargetFunction]]",
-                                             bindings[0]));
-      result.push(new InternalPropertyMirror("[[BoundThis]]", bindings[1]));
-      var boundArgs = [];
-      for (var i = 2; i < bindings.length; i++) {
-        boundArgs.push(bindings[i]);
-      }
-      result.push(new InternalPropertyMirror("[[BoundArgs]]", boundArgs));
-    }
-    return result;
-  } else if (IS_MAP_ITERATOR(value) || IS_SET_ITERATOR(value)) {
-    var details = IS_MAP_ITERATOR(value) ? %MapIteratorDetails(value)
-                                         : %SetIteratorDetails(value);
-    var kind;
-    switch (details[2]) {
-      case 1: kind = "keys"; break;
-      case 2: kind = "values"; break;
-      case 3: kind = "entries"; break;
-    }
-    var result = [
-      new InternalPropertyMirror("[[IteratorHasMore]]", details[0]),
-      new InternalPropertyMirror("[[IteratorIndex]]", details[1])
-    ];
-    if (kind) {
-      result.push(new InternalPropertyMirror("[[IteratorKind]]", kind));
-    }
-    return result;
-  } else if (IS_GENERATOR(value)) {
-    return [
-      new InternalPropertyMirror("[[GeneratorStatus]]",
-                                 GeneratorGetStatus_(value)),
-      new InternalPropertyMirror("[[GeneratorFunction]]",
-                                 %GeneratorGetFunction(value)),
-      new InternalPropertyMirror("[[GeneratorReceiver]]",
-                                 %GeneratorGetReceiver(value))
-    ];
-  } else if (ObjectIsPromise(value)) {
-    return [
-      new InternalPropertyMirror("[[PromiseStatus]]", PromiseGetStatus_(value)),
-      new InternalPropertyMirror("[[PromiseValue]]", PromiseGetValue_(value))
-    ];
+  var properties = %DebugGetInternalProperties(value);
+  var result = [];
+  for (var i = 0; i < properties.length; i += 2) {
+    result.push(new InternalPropertyMirror(properties[i], properties[i + 1]));
   }
-  return [];
+  return result;
 }
 
 

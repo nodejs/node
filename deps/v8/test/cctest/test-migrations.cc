@@ -503,8 +503,7 @@ TEST(ReconfigureAccessorToNonExistingDataFieldHeavy) {
   CHECK(obj->map()->instance_descriptors()->GetValue(0)->IsAccessorPair());
 
   Handle<Object> value(Smi::FromInt(42), isolate);
-  JSObject::SetOwnPropertyIgnoreAttributes(
-      obj, foo_str, value, NONE, JSObject::DONT_FORCE_FIELD).ToHandleChecked();
+  JSObject::SetOwnPropertyIgnoreAttributes(obj, foo_str, value, NONE).Check();
 
   // Check that the property contains |value|.
   CHECK_EQ(1, obj->map()->NumberOfOwnDescriptors());

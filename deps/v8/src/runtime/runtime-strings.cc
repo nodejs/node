@@ -121,11 +121,13 @@ RUNTIME_FUNCTION(Runtime_StringReplaceOneCharWithString) {
   if (isolate->has_pending_exception()) return isolate->heap()->exception();
 
   subject = String::Flatten(subject);
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      StringReplaceOneCharWithString(isolate, subject, search, replace, &found,
-                                     kRecursionLimit));
-  return *result;
+  if (StringReplaceOneCharWithString(isolate, subject, search, replace, &found,
+                                     kRecursionLimit).ToHandle(&result)) {
+    return *result;
+  }
+  if (isolate->has_pending_exception()) return isolate->heap()->exception();
+  // In case of empty handle and no pending exception we have stack overflow.
+  return isolate->StackOverflow();
 }
 
 
@@ -137,7 +139,7 @@ RUNTIME_FUNCTION(Runtime_StringIndexOf) {
   CONVERT_ARG_HANDLE_CHECKED(String, pat, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, index, 2);
 
-  uint32_t start_index;
+  uint32_t start_index = 0;
   if (!index->ToArrayIndex(&start_index)) return Smi::FromInt(-1);
 
   RUNTIME_ASSERT(start_index <= static_cast<uint32_t>(sub->length()));
@@ -188,7 +190,7 @@ RUNTIME_FUNCTION(Runtime_StringLastIndexOf) {
   CONVERT_ARG_HANDLE_CHECKED(String, pat, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, index, 2);
 
-  uint32_t start_index;
+  uint32_t start_index = 0;
   if (!index->ToArrayIndex(&start_index)) return Smi::FromInt(-1);
 
   uint32_t pat_length = pat->length();
@@ -1349,5 +1351,5 @@ RUNTIME_FUNCTION(Runtime_StringGetLength) {
   CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
   return Smi::FromInt(s->length());
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

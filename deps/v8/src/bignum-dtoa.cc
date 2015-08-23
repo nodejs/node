@@ -632,4 +632,5 @@ static void FixupMultiply10(int estimated_power, bool is_even,
   }
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

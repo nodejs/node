@@ -111,5 +111,5 @@ void CallOptimization::AnalyzePossibleApiFunction(Handle<JSFunction> function) {
 
   is_simple_api_call_ = true;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

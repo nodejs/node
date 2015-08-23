@@ -21,8 +21,8 @@ Handle<LayoutDescriptor> LayoutDescriptor::New(Isolate* isolate, int length) {
     return handle(LayoutDescriptor::FromSmi(Smi::FromInt(0)), isolate);
   }
   length = GetSlowModeBackingStoreLength(length);
-  return Handle<LayoutDescriptor>::cast(
-      isolate->factory()->NewFixedTypedArray(length, kExternalUint32Array));
+  return Handle<LayoutDescriptor>::cast(isolate->factory()->NewFixedTypedArray(
+      length, kExternalUint32Array, true));
 }
 
 

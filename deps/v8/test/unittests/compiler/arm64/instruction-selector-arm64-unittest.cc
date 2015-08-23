@@ -47,7 +47,7 @@ Node* BuildConstant(InstructionSelectorTest::StreamBuilder& m, MachineType type,
                     int64_t value) {
   switch (type) {
     case kMachInt32:
-      return m.Int32Constant(value);
+      return m.Int32Constant(static_cast<int32_t>(value));
       break;
 
     case kMachInt64:
@@ -642,7 +642,9 @@ TEST_F(InstructionSelectorTest, AddShiftByImmediateOnLeft) {
     if (shift.mi.machine_type != kMachInt32) continue;
     if (shift.mi.arch_opcode == kArm64Ror32) continue;
 
-    TRACED_FORRANGE(int, imm, 0, 31) {
+    // The available shift operand range is `0 <= imm < 32`, but we also test
+    // that immediates outside this range are handled properly (modulo-32).
+    TRACED_FORRANGE(int, imm, -32, 63) {
       StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
       m.Return((m.Int32Add)(
           (m.*shift.mi.constructor)(m.Parameter(1), m.Int32Constant(imm)),
@@ -663,7 +665,9 @@ TEST_F(InstructionSelectorTest, AddShiftByImmediateOnLeft) {
     if (shift.mi.machine_type != kMachInt64) continue;
     if (shift.mi.arch_opcode == kArm64Ror) continue;
 
-    TRACED_FORRANGE(int, imm, 0, 63) {
+    // The available shift operand range is `0 <= imm < 64`, but we also test
+    // that immediates outside this range are handled properly (modulo-64).
+    TRACED_FORRANGE(int, imm, -64, 127) {
       StreamBuilder m(this, kMachInt64, kMachInt64, kMachInt64);
       m.Return((m.Int64Add)(
           (m.*shift.mi.constructor)(m.Parameter(1), m.Int64Constant(imm)),
@@ -1641,6 +1645,102 @@ TEST_F(InstructionSelectorTest, Int32MulWithImmediate) {
     EXPECT_EQ(k, s.ToInt32(s[0]->InputAt(2)));
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
+  // x * (2^k + 1) + c -> x + (x << k) + c
+  TRACED_FORRANGE(int32_t, k, 1, 30) {
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    m.Return(
+        m.Int32Add(m.Int32Mul(m.Parameter(0), m.Int32Constant((1 << k) + 1)),
+                   m.Parameter(1)));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kArm64Add32, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64Add32, s[1]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(k, s.ToInt32(s[0]->InputAt(2)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // (2^k + 1) * x + c -> x + (x << k) + c
+  TRACED_FORRANGE(int32_t, k, 1, 30) {
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    m.Return(
+        m.Int32Add(m.Int32Mul(m.Int32Constant((1 << k) + 1), m.Parameter(0)),
+                   m.Parameter(1)));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kArm64Add32, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64Add32, s[1]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(k, s.ToInt32(s[0]->InputAt(2)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // c + x * (2^k + 1) -> c + x + (x << k)
+  TRACED_FORRANGE(int32_t, k, 1, 30) {
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    m.Return(
+        m.Int32Add(m.Parameter(0),
+                   m.Int32Mul(m.Parameter(1), m.Int32Constant((1 << k) + 1))));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kArm64Add32, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64Add32, s[1]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(1)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(k, s.ToInt32(s[0]->InputAt(2)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // c + (2^k + 1) * x -> c + x + (x << k)
+  TRACED_FORRANGE(int32_t, k, 1, 30) {
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    m.Return(
+        m.Int32Add(m.Parameter(0),
+                   m.Int32Mul(m.Int32Constant((1 << k) + 1), m.Parameter(1))));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kArm64Add32, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64Add32, s[1]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(1)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(k, s.ToInt32(s[0]->InputAt(2)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // c - x * (2^k + 1) -> c - x + (x << k)
+  TRACED_FORRANGE(int32_t, k, 1, 30) {
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    m.Return(
+        m.Int32Sub(m.Parameter(0),
+                   m.Int32Mul(m.Parameter(1), m.Int32Constant((1 << k) + 1))));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kArm64Add32, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64Sub32, s[1]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(1)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(k, s.ToInt32(s[0]->InputAt(2)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // c - (2^k + 1) * x -> c - x + (x << k)
+  TRACED_FORRANGE(int32_t, k, 1, 30) {
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    m.Return(
+        m.Int32Sub(m.Parameter(0),
+                   m.Int32Mul(m.Int32Constant((1 << k) + 1), m.Parameter(1))));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kArm64Add32, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64Sub32, s[1]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(1)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(k, s.ToInt32(s[0]->InputAt(2)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
 }
 
 
@@ -1665,6 +1765,102 @@ TEST_F(InstructionSelectorTest, Int64MulWithImmediate) {
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(k, s.ToInt64(s[0]->InputAt(2)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // x * (2^k + 1) + c -> x + (x << k) + c
+  TRACED_FORRANGE(int64_t, k, 1, 62) {
+    StreamBuilder m(this, kMachInt64, kMachInt64, kMachInt64);
+    m.Return(
+        m.Int64Add(m.Int64Mul(m.Parameter(0), m.Int64Constant((1L << k) + 1)),
+                   m.Parameter(1)));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64Add, s[1]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(k, s.ToInt64(s[0]->InputAt(2)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // (2^k + 1) * x + c -> x + (x << k) + c
+  TRACED_FORRANGE(int64_t, k, 1, 62) {
+    StreamBuilder m(this, kMachInt64, kMachInt64, kMachInt64);
+    m.Return(
+        m.Int64Add(m.Int64Mul(m.Int64Constant((1L << k) + 1), m.Parameter(0)),
+                   m.Parameter(1)));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64Add, s[1]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(k, s.ToInt64(s[0]->InputAt(2)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // c + x * (2^k + 1) -> c + x + (x << k)
+  TRACED_FORRANGE(int64_t, k, 1, 62) {
+    StreamBuilder m(this, kMachInt64, kMachInt64, kMachInt64);
+    m.Return(
+        m.Int64Add(m.Parameter(0),
+                   m.Int64Mul(m.Parameter(1), m.Int64Constant((1L << k) + 1))));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64Add, s[1]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(k, s.ToInt64(s[0]->InputAt(2)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // c + (2^k + 1) * x -> c + x + (x << k)
+  TRACED_FORRANGE(int64_t, k, 1, 62) {
+    StreamBuilder m(this, kMachInt64, kMachInt64, kMachInt64);
+    m.Return(
+        m.Int64Add(m.Parameter(0),
+                   m.Int64Mul(m.Int64Constant((1L << k) + 1), m.Parameter(1))));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64Add, s[1]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(k, s.ToInt64(s[0]->InputAt(2)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // c - x * (2^k + 1) -> c - x + (x << k)
+  TRACED_FORRANGE(int64_t, k, 1, 62) {
+    StreamBuilder m(this, kMachInt64, kMachInt64, kMachInt64);
+    m.Return(
+        m.Int64Sub(m.Parameter(0),
+                   m.Int64Mul(m.Parameter(1), m.Int64Constant((1L << k) + 1))));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64Sub, s[1]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(k, s.ToInt64(s[0]->InputAt(2)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // c - (2^k + 1) * x -> c - x + (x << k)
+  TRACED_FORRANGE(int64_t, k, 1, 62) {
+    StreamBuilder m(this, kMachInt64, kMachInt64, kMachInt64);
+    m.Return(
+        m.Int64Sub(m.Parameter(0),
+                   m.Int64Mul(m.Int64Constant((1L << k) + 1), m.Parameter(1))));
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64Sub, s[1]->arch_opcode());
     EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
     ASSERT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(1)));
@@ -2041,6 +2237,190 @@ TEST_F(InstructionSelectorTest, Word64EqualWithZero) {
 }
 
 
+TEST_F(InstructionSelectorTest, Word32EqualWithWord32Shift) {
+  TRACED_FOREACH(Shift, shift, kShiftInstructions) {
+    // Skip non 32-bit shifts or ror operations.
+    if (shift.mi.machine_type != kMachInt32 ||
+        shift.mi.arch_opcode == kArm64Ror32) {
+      continue;
+    }
+
+    TRACED_FORRANGE(int32_t, imm, -32, 63) {
+      StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+      Node* const p0 = m.Parameter(0);
+      Node* const p1 = m.Parameter(1);
+      Node* r = (m.*shift.mi.constructor)(p1, m.Int32Constant(imm));
+      m.Return(m.Word32Equal(p0, r));
+      Stream s = m.Build();
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(kArm64Cmp32, s[0]->arch_opcode());
+      EXPECT_EQ(shift.mode, s[0]->addressing_mode());
+      ASSERT_EQ(3U, s[0]->InputCount());
+      EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+      EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+      EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(2)));
+      ASSERT_EQ(1U, s[0]->OutputCount());
+    }
+    TRACED_FORRANGE(int32_t, imm, -32, 63) {
+      StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+      Node* const p0 = m.Parameter(0);
+      Node* const p1 = m.Parameter(1);
+      Node* r = (m.*shift.mi.constructor)(p1, m.Int32Constant(imm));
+      m.Return(m.Word32Equal(r, p0));
+      Stream s = m.Build();
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(kArm64Cmp32, s[0]->arch_opcode());
+      EXPECT_EQ(shift.mode, s[0]->addressing_mode());
+      ASSERT_EQ(3U, s[0]->InputCount());
+      EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+      EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+      EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(2)));
+      ASSERT_EQ(1U, s[0]->OutputCount());
+    }
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Word32EqualWithUnsignedExtendByte) {
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    Node* r = m.Word32And(p1, m.Int32Constant(0xff));
+    m.Return(m.Word32Equal(p0, r));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Cmp32, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_UXTB, s[0]->addressing_mode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    Node* r = m.Word32And(p1, m.Int32Constant(0xff));
+    m.Return(m.Word32Equal(r, p0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Cmp32, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_UXTB, s[0]->addressing_mode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Word32EqualWithUnsignedExtendHalfword) {
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    Node* r = m.Word32And(p1, m.Int32Constant(0xffff));
+    m.Return(m.Word32Equal(p0, r));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Cmp32, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_UXTH, s[0]->addressing_mode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    Node* r = m.Word32And(p1, m.Int32Constant(0xffff));
+    m.Return(m.Word32Equal(r, p0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Cmp32, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_UXTH, s[0]->addressing_mode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Word32EqualWithSignedExtendByte) {
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    Node* r =
+        m.Word32Sar(m.Word32Shl(p1, m.Int32Constant(24)), m.Int32Constant(24));
+    m.Return(m.Word32Equal(p0, r));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Cmp32, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_SXTB, s[0]->addressing_mode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    Node* r =
+        m.Word32Sar(m.Word32Shl(p1, m.Int32Constant(24)), m.Int32Constant(24));
+    m.Return(m.Word32Equal(r, p0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Cmp32, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_SXTB, s[0]->addressing_mode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Word32EqualWithSignedExtendHalfword) {
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    Node* r =
+        m.Word32Sar(m.Word32Shl(p1, m.Int32Constant(16)), m.Int32Constant(16));
+    m.Return(m.Word32Equal(p0, r));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Cmp32, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_SXTH, s[0]->addressing_mode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    Node* r =
+        m.Word32Sar(m.Word32Shl(p1, m.Int32Constant(16)), m.Int32Constant(16));
+    m.Return(m.Word32Equal(r, p0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Cmp32, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_SXTH, s[0]->addressing_mode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+
 // -----------------------------------------------------------------------------
 // Miscellaneous
 
@@ -2202,14 +2582,17 @@ TEST_F(InstructionSelectorTest, Word64XorMinusOneWithParameter) {
 
 
 TEST_F(InstructionSelectorTest, Word32ShrWithWord32AndWithImmediate) {
-  TRACED_FORRANGE(int32_t, lsb, 1, 31) {
+  // The available shift operand range is `0 <= imm < 32`, but we also test
+  // that immediates outside this range are handled properly (modulo-32).
+  TRACED_FORRANGE(int32_t, shift, -32, 63) {
+    int32_t lsb = shift & 0x1f;
     TRACED_FORRANGE(int32_t, width, 1, 32 - lsb) {
       uint32_t jnk = rng()->NextInt();
-      jnk >>= 32 - lsb;
+      jnk = (lsb > 0) ? (jnk >> (32 - lsb)) : 0;
       uint32_t msk = ((0xffffffffu >> (32 - width)) << lsb) | jnk;
       StreamBuilder m(this, kMachInt32, kMachInt32);
       m.Return(m.Word32Shr(m.Word32And(m.Parameter(0), m.Int32Constant(msk)),
-                           m.Int32Constant(lsb)));
+                           m.Int32Constant(shift)));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
       EXPECT_EQ(kArm64Ubfx32, s[0]->arch_opcode());
@@ -2218,14 +2601,15 @@ TEST_F(InstructionSelectorTest, Word32ShrWithWord32AndWithImmediate) {
       EXPECT_EQ(width, s.ToInt32(s[0]->InputAt(2)));
     }
   }
-  TRACED_FORRANGE(int32_t, lsb, 1, 31) {
+  TRACED_FORRANGE(int32_t, shift, -32, 63) {
+    int32_t lsb = shift & 0x1f;
     TRACED_FORRANGE(int32_t, width, 1, 32 - lsb) {
       uint32_t jnk = rng()->NextInt();
-      jnk >>= 32 - lsb;
+      jnk = (lsb > 0) ? (jnk >> (32 - lsb)) : 0;
       uint32_t msk = ((0xffffffffu >> (32 - width)) << lsb) | jnk;
       StreamBuilder m(this, kMachInt32, kMachInt32);
       m.Return(m.Word32Shr(m.Word32And(m.Int32Constant(msk), m.Parameter(0)),
-                           m.Int32Constant(lsb)));
+                           m.Int32Constant(shift)));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
       EXPECT_EQ(kArm64Ubfx32, s[0]->arch_opcode());
@@ -2238,15 +2622,18 @@ TEST_F(InstructionSelectorTest, Word32ShrWithWord32AndWithImmediate) {
 
 
 TEST_F(InstructionSelectorTest, Word64ShrWithWord64AndWithImmediate) {
-  TRACED_FORRANGE(int32_t, lsb, 1, 63) {
+  // The available shift operand range is `0 <= imm < 64`, but we also test
+  // that immediates outside this range are handled properly (modulo-64).
+  TRACED_FORRANGE(int32_t, shift, -64, 127) {
+    int32_t lsb = shift & 0x3f;
     TRACED_FORRANGE(int32_t, width, 1, 64 - lsb) {
       uint64_t jnk = rng()->NextInt64();
-      jnk >>= 64 - lsb;
+      jnk = (lsb > 0) ? (jnk >> (64 - lsb)) : 0;
       uint64_t msk =
           ((V8_UINT64_C(0xffffffffffffffff) >> (64 - width)) << lsb) | jnk;
       StreamBuilder m(this, kMachInt64, kMachInt64);
       m.Return(m.Word64Shr(m.Word64And(m.Parameter(0), m.Int64Constant(msk)),
-                           m.Int64Constant(lsb)));
+                           m.Int64Constant(shift)));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
       EXPECT_EQ(kArm64Ubfx, s[0]->arch_opcode());
@@ -2255,15 +2642,16 @@ TEST_F(InstructionSelectorTest, Word64ShrWithWord64AndWithImmediate) {
       EXPECT_EQ(width, s.ToInt64(s[0]->InputAt(2)));
     }
   }
-  TRACED_FORRANGE(int32_t, lsb, 1, 63) {
+  TRACED_FORRANGE(int32_t, shift, -64, 127) {
+    int32_t lsb = shift & 0x3f;
     TRACED_FORRANGE(int32_t, width, 1, 64 - lsb) {
       uint64_t jnk = rng()->NextInt64();
-      jnk >>= 64 - lsb;
+      jnk = (lsb > 0) ? (jnk >> (64 - lsb)) : 0;
       uint64_t msk =
           ((V8_UINT64_C(0xffffffffffffffff) >> (64 - width)) << lsb) | jnk;
       StreamBuilder m(this, kMachInt64, kMachInt64);
       m.Return(m.Word64Shr(m.Word64And(m.Int64Constant(msk), m.Parameter(0)),
-                           m.Int64Constant(lsb)));
+                           m.Int64Constant(shift)));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
       EXPECT_EQ(kArm64Ubfx, s[0]->arch_opcode());
@@ -2276,11 +2664,14 @@ TEST_F(InstructionSelectorTest, Word64ShrWithWord64AndWithImmediate) {
 
 
 TEST_F(InstructionSelectorTest, Word32AndWithImmediateWithWord32Shr) {
-  TRACED_FORRANGE(int32_t, lsb, 1, 31) {
+  // The available shift operand range is `0 <= imm < 32`, but we also test
+  // that immediates outside this range are handled properly (modulo-32).
+  TRACED_FORRANGE(int32_t, shift, -32, 63) {
+    int32_t lsb = shift & 0x1f;
     TRACED_FORRANGE(int32_t, width, 1, 31) {
       uint32_t msk = (1 << width) - 1;
       StreamBuilder m(this, kMachInt32, kMachInt32);
-      m.Return(m.Word32And(m.Word32Shr(m.Parameter(0), m.Int32Constant(lsb)),
+      m.Return(m.Word32And(m.Word32Shr(m.Parameter(0), m.Int32Constant(shift)),
                            m.Int32Constant(msk)));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
@@ -2291,12 +2682,14 @@ TEST_F(InstructionSelectorTest, Word32AndWithImmediateWithWord32Shr) {
       EXPECT_EQ(actual_width, s.ToInt32(s[0]->InputAt(2)));
     }
   }
-  TRACED_FORRANGE(int32_t, lsb, 1, 31) {
+  TRACED_FORRANGE(int32_t, shift, -32, 63) {
+    int32_t lsb = shift & 0x1f;
     TRACED_FORRANGE(int32_t, width, 1, 31) {
       uint32_t msk = (1 << width) - 1;
       StreamBuilder m(this, kMachInt32, kMachInt32);
-      m.Return(m.Word32And(m.Int32Constant(msk),
-                           m.Word32Shr(m.Parameter(0), m.Int32Constant(lsb))));
+      m.Return(
+          m.Word32And(m.Int32Constant(msk),
+                      m.Word32Shr(m.Parameter(0), m.Int32Constant(shift))));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
       EXPECT_EQ(kArm64Ubfx32, s[0]->arch_opcode());
@@ -2310,11 +2703,14 @@ TEST_F(InstructionSelectorTest, Word32AndWithImmediateWithWord32Shr) {
 
 
 TEST_F(InstructionSelectorTest, Word64AndWithImmediateWithWord64Shr) {
-  TRACED_FORRANGE(int64_t, lsb, 1, 63) {
+  // The available shift operand range is `0 <= imm < 64`, but we also test
+  // that immediates outside this range are handled properly (modulo-64).
+  TRACED_FORRANGE(int64_t, shift, -64, 127) {
+    int64_t lsb = shift & 0x3f;
     TRACED_FORRANGE(int64_t, width, 1, 63) {
       uint64_t msk = (V8_UINT64_C(1) << width) - 1;
       StreamBuilder m(this, kMachInt64, kMachInt64);
-      m.Return(m.Word64And(m.Word64Shr(m.Parameter(0), m.Int64Constant(lsb)),
+      m.Return(m.Word64And(m.Word64Shr(m.Parameter(0), m.Int64Constant(shift)),
                            m.Int64Constant(msk)));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
@@ -2325,12 +2721,14 @@ TEST_F(InstructionSelectorTest, Word64AndWithImmediateWithWord64Shr) {
       EXPECT_EQ(actual_width, s.ToInt64(s[0]->InputAt(2)));
     }
   }
-  TRACED_FORRANGE(int64_t, lsb, 1, 63) {
+  TRACED_FORRANGE(int64_t, shift, -64, 127) {
+    int64_t lsb = shift & 0x3f;
     TRACED_FORRANGE(int64_t, width, 1, 63) {
       uint64_t msk = (V8_UINT64_C(1) << width) - 1;
       StreamBuilder m(this, kMachInt64, kMachInt64);
-      m.Return(m.Word64And(m.Int64Constant(msk),
-                           m.Word64Shr(m.Parameter(0), m.Int64Constant(lsb))));
+      m.Return(
+          m.Word64And(m.Int64Constant(msk),
+                      m.Word64Shr(m.Parameter(0), m.Int64Constant(shift))));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
       EXPECT_EQ(kArm64Ubfx, s[0]->arch_opcode());
@@ -2362,6 +2760,87 @@ TEST_F(InstructionSelectorTest, Int32MulHighWithParameters) {
   EXPECT_EQ(32, s.ToInt64(s[1]->InputAt(1)));
   ASSERT_EQ(1U, s[1]->OutputCount());
   EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[1]->Output()));
+}
+
+
+TEST_F(InstructionSelectorTest, Int32MulHighWithSar) {
+  TRACED_FORRANGE(int32_t, shift, -32, 63) {
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    Node* const n = m.Word32Sar(m.Int32MulHigh(p0, p1), m.Int32Constant(shift));
+    m.Return(n);
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kArm64Smull, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(kArm64Asr, s[1]->arch_opcode());
+    ASSERT_EQ(2U, s[1]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->Output()), s.ToVreg(s[1]->InputAt(0)));
+    EXPECT_EQ((shift & 0x1f) + 32, s.ToInt64(s[1]->InputAt(1)));
+    ASSERT_EQ(1U, s[1]->OutputCount());
+    EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[1]->Output()));
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Int32MulHighWithAdd) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const a = m.Int32Add(m.Int32MulHigh(p0, p1), p0);
+  // Test only one shift constant here, as we're only interested in it being a
+  // 32-bit operation; the shift amount is irrelevant.
+  Node* const n = m.Word32Sar(a, m.Int32Constant(1));
+  m.Return(n);
+  Stream s = m.Build();
+  ASSERT_EQ(3U, s.size());
+  EXPECT_EQ(kArm64Smull, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kArm64Add, s[1]->arch_opcode());
+  EXPECT_EQ(kMode_Operand2_R_ASR_I, s[1]->addressing_mode());
+  ASSERT_EQ(3U, s[1]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[1]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(s[0]->Output()), s.ToVreg(s[1]->InputAt(1)));
+  EXPECT_EQ(32, s.ToInt64(s[1]->InputAt(2)));
+  ASSERT_EQ(1U, s[1]->OutputCount());
+  EXPECT_EQ(kArm64Asr32, s[2]->arch_opcode());
+  ASSERT_EQ(2U, s[2]->InputCount());
+  EXPECT_EQ(s.ToVreg(s[1]->Output()), s.ToVreg(s[2]->InputAt(0)));
+  EXPECT_EQ(1, s.ToInt64(s[2]->InputAt(1)));
+  ASSERT_EQ(1U, s[2]->OutputCount());
+  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[2]->Output()));
+}
+
+
+TEST_F(InstructionSelectorTest, Uint32MulHighWithShr) {
+  TRACED_FORRANGE(int32_t, shift, -32, 63) {
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    Node* const n =
+        m.Word32Shr(m.Uint32MulHigh(p0, p1), m.Int32Constant(shift));
+    m.Return(n);
+    Stream s = m.Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kArm64Umull, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(kArm64Lsr, s[1]->arch_opcode());
+    ASSERT_EQ(2U, s[1]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->Output()), s.ToVreg(s[1]->InputAt(0)));
+    EXPECT_EQ((shift & 0x1f) + 32, s.ToInt64(s[1]->InputAt(1)));
+    ASSERT_EQ(1U, s[1]->OutputCount());
+    EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[1]->Output()));
+  }
 }
 
 
@@ -2422,6 +2901,40 @@ TEST_F(InstructionSelectorTest, Word32ShrWithWord32Shl) {
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArm64Ubfx32, s[0]->arch_opcode());
     ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Word32ShlWithWord32And) {
+  TRACED_FORRANGE(int32_t, shift, 1, 30) {
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const r =
+        m.Word32Shl(m.Word32And(p0, m.Int32Constant((1 << (31 - shift)) - 1)),
+                    m.Int32Constant(shift));
+    m.Return(r);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Ubfiz32, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
+  }
+  TRACED_FORRANGE(int32_t, shift, 0, 30) {
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    Node* const p0 = m.Parameter(0);
+    Node* const r =
+        m.Word32Shl(m.Word32And(p0, m.Int32Constant((1 << (31 - shift)) - 1)),
+                    m.Int32Constant(shift + 1));
+    m.Return(r);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Lsl32, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
     ASSERT_EQ(1U, s[0]->OutputCount());
     EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));

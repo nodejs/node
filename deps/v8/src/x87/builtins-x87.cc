@@ -138,6 +138,7 @@ static void Generate_Runtime_NewObject(MacroAssembler* masm,
 
 static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                                            bool is_api_function,
+                                           bool use_new_target,
                                            bool create_memento) {
   // ----------- S t a t e -------------
   //  -- eax: number of arguments
@@ -158,12 +159,13 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ push(ebx);
     }
 
-    // Store a smi-tagged arguments count on the stack.
+    // Preserve the incoming parameters on the stack.
     __ SmiTag(eax);
     __ push(eax);
-
-    // Push the function to invoke on the stack.
     __ push(edi);
+    if (use_new_target) {
+      __ push(edx);
+    }
 
     __ cmp(edx, edi);
     Label normal_new;
@@ -358,17 +360,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // ebx: JSObject
       // edi: FixedArray
       // ecx: start of next object
-      { Label loop, entry;
-        __ mov(edx, factory->undefined_value());
-        __ lea(eax, Operand(edi, FixedArray::kHeaderSize));
-        __ jmp(&entry);
-        __ bind(&loop);
-        __ mov(Operand(eax, 0), edx);
-        __ add(eax, Immediate(kPointerSize));
-        __ bind(&entry);
-        __ cmp(eax, ecx);
-        __ j(below, &loop);
-      }
+      __ mov(edx, factory->undefined_value());
+      __ lea(eax, Operand(edi, FixedArray::kHeaderSize));
+      __ InitializeFieldsWithFiller(eax, ecx, edx);
 
       // Store the initialized FixedArray into the properties field of
       // the JSObject
@@ -399,7 +393,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ bind(&allocated);
 
     if (create_memento) {
-      __ mov(ecx, Operand(esp, kPointerSize * 2));
+      int offset = (use_new_target ? 3 : 2) * kPointerSize;
+      __ mov(ecx, Operand(esp, offset));
       __ cmp(ecx, masm->isolate()->factory()->undefined_value());
       __ j(equal, &count_incremented);
       // ecx is an AllocationSite. We are creating a memento from it, so we
@@ -409,12 +404,21 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ bind(&count_incremented);
     }
 
-    // Retrieve the function from the stack.
-    __ pop(edi);
+    // Restore the parameters.
+    if (use_new_target) {
+      __ pop(edx);  // new.target
+    }
+    __ pop(edi);  // Constructor function.
 
     // Retrieve smi-tagged arguments count from the stack.
     __ mov(eax, Operand(esp, 0));
     __ SmiUntag(eax);
+
+    // Push new.target onto the construct frame. This is stored just below the
+    // receiver on the stack.
+    if (use_new_target) {
+      __ push(edx);
+    }
 
     // Push the allocated receiver to the stack. We need two copies
     // because we may have to return the original one and the calling
@@ -448,7 +452,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     }
 
     // Store offset of return address for deoptimizer.
-    if (!is_api_function) {
+    // TODO(arv): Remove the "!use_new_target" before supporting optimization
+    // of functions that reference new.target
+    if (!is_api_function && !use_new_target) {
       masm->isolate()->heap()->SetConstructStubDeoptPCOffset(masm->pc_offset());
     }
 
@@ -473,9 +479,11 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ bind(&use_receiver);
     __ mov(eax, Operand(esp, 0));
 
-    // Restore the arguments count and leave the construct frame.
+    // Restore the arguments count and leave the construct frame. The arguments
+    // count is stored below the reciever and the new.target.
     __ bind(&exit);
-    __ mov(ebx, Operand(esp, kPointerSize));  // Get arguments count.
+    int offset = (use_new_target ? 2 : 1) * kPointerSize;
+    __ mov(ebx, Operand(esp, offset));
 
     // Leave construct frame.
   }
@@ -491,12 +499,17 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
 
 void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, false, FLAG_pretenuring_call_new);
+  Generate_JSConstructStubHelper(masm, false, false, FLAG_pretenuring_call_new);
 }
 
 
 void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, true, false);
+  Generate_JSConstructStubHelper(masm, true, false, false);
+}
+
+
+void Builtins::Generate_JSConstructStubNewTarget(MacroAssembler* masm) {
+  Generate_JSConstructStubHelper(masm, false, true, FLAG_pretenuring_call_new);
 }
 
 
@@ -538,9 +551,6 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
     __ dec(ecx);
     __ j(greater_equal, &loop);
 
-    __ inc(eax);  // Pushed new.target.
-
-
     // Handle step in.
     Label skip_step_in;
     ExternalReference debug_step_in_fp =
@@ -564,7 +574,8 @@ void Builtins::Generate_JSConstructStubForDerived(MacroAssembler* masm) {
     // Restore context from the frame.
     __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
 
-    __ mov(ebx, Operand(esp, 0));
+    // Get arguments count, skipping over new.target.
+    __ mov(ebx, Operand(esp, kPointerSize));
   }
 
   __ pop(ecx);  // Return address.
@@ -1052,13 +1063,22 @@ static void Generate_PushAppliedArguments(MacroAssembler* masm,
   Label entry, loop;
   Register receiver = LoadDescriptor::ReceiverRegister();
   Register key = LoadDescriptor::NameRegister();
+  Register slot = LoadDescriptor::SlotRegister();
+  Register vector = LoadWithVectorDescriptor::VectorRegister();
   __ mov(key, Operand(ebp, indexOffset));
   __ jmp(&entry);
   __ bind(&loop);
   __ mov(receiver, Operand(ebp, argumentsOffset));  // load arguments
 
   // Use inline caching to speed up access to arguments.
-  Handle<Code> ic = masm->isolate()->builtins()->KeyedLoadIC_Megamorphic();
+  FeedbackVectorSpec spec(0, Code::KEYED_LOAD_IC);
+  Handle<TypeFeedbackVector> feedback_vector =
+      masm->isolate()->factory()->NewTypeFeedbackVector(&spec);
+  int index = feedback_vector->GetIndex(FeedbackVectorICSlot(0));
+  __ mov(slot, Immediate(Smi::FromInt(index)));
+  __ mov(vector, Immediate(feedback_vector));
+  Handle<Code> ic =
+      KeyedLoadICStub(masm->isolate(), LoadICState(kNoExtraICState)).GetCode();
   __ call(ic, RelocInfo::CODE_TARGET);
   // It is important that we do not have a test instruction after the
   // call.  A test instruction after the call is used to indicate that
@@ -1577,6 +1597,27 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
   {  // Too few parameters: Actual < expected.
     __ bind(&too_few);
+
+    // If the function is strong we need to throw an error.
+    Label no_strong_error;
+    __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+    __ test_b(FieldOperand(ecx, SharedFunctionInfo::kStrongModeByteOffset),
+              1 << SharedFunctionInfo::kStrongModeBitWithinByte);
+    __ j(equal, &no_strong_error, Label::kNear);
+
+    // What we really care about is the required number of arguments.
+    __ mov(ecx, FieldOperand(ecx, SharedFunctionInfo::kLengthOffset));
+    __ SmiUntag(ecx);
+    __ cmp(eax, ecx);
+    __ j(greater_equal, &no_strong_error, Label::kNear);
+
+    {
+      FrameScope frame(masm, StackFrame::MANUAL);
+      EnterArgumentsAdaptorFrame(masm);
+      __ CallRuntime(Runtime::kThrowStrongModeTooFewArguments, 0);
+    }
+
+    __ bind(&no_strong_error);
     EnterArgumentsAdaptorFrame(masm);
 
     // Copy receiver and all actual arguments.
@@ -1690,7 +1731,7 @@ void Builtins::Generate_OsrAfterStackCheck(MacroAssembler* masm) {
 }
 
 #undef __
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_X87

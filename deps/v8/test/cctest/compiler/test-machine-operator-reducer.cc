@@ -60,7 +60,7 @@ class ReducerTester : public HandleAndZoneScope {
         common(main_zone()),
         graph(main_zone()),
         javascript(main_zone()),
-        typer(isolate, &graph, MaybeHandle<Context>()),
+        typer(isolate, &graph),
         jsgraph(isolate, &graph, &common, &javascript, &machine),
         maxuint32(Constant<int32_t>(kMaxUInt32)) {
     Node* s = graph.NewNode(common.Start(num_parameters));

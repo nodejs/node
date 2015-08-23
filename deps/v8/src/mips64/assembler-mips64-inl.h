@@ -196,24 +196,17 @@ Address Assembler::break_address_from_return_address(Address pc) {
 
 void Assembler::set_target_internal_reference_encoded_at(Address pc,
                                                          Address target) {
-  // Encoded internal references are lui/ori load of 48-bit absolute address.
-  Instr instr_lui = Assembler::instr_at(pc + 0 * Assembler::kInstrSize);
-  Instr instr_ori = Assembler::instr_at(pc + 1 * Assembler::kInstrSize);
-  Instr instr_ori2 = Assembler::instr_at(pc + 3 * Assembler::kInstrSize);
-  DCHECK(Assembler::IsLui(instr_lui));
-  DCHECK(Assembler::IsOri(instr_ori));
-  DCHECK(Assembler::IsOri(instr_ori2));
-  instr_lui &= ~kImm16Mask;
-  instr_ori &= ~kImm16Mask;
-  instr_ori2 &= ~kImm16Mask;
-  int64_t imm = reinterpret_cast<int64_t>(target);
-  DCHECK((imm & 3) == 0);
-  Assembler::instr_at_put(pc + 0 * Assembler::kInstrSize,
-                          instr_lui | ((imm >> 32) & kImm16Mask));
-  Assembler::instr_at_put(pc + 1 * Assembler::kInstrSize,
-                          instr_ori | ((imm >> 16) & kImm16Mask));
-  Assembler::instr_at_put(pc + 3 * Assembler::kInstrSize,
-                          instr_ori | (imm & kImm16Mask));
+  // Encoded internal references are j/jal instructions.
+  Instr instr = Assembler::instr_at(pc + 0 * Assembler::kInstrSize);
+
+  uint64_t imm28 =
+      (reinterpret_cast<uint64_t>(target) & static_cast<uint64_t>(kImm28Mask));
+
+  instr &= ~kImm26Mask;
+  uint64_t imm26 = imm28 >> 2;
+  DCHECK(is_uint26(imm26));
+
+  instr_at_put(pc, instr | (imm26 & kImm26Mask));
   // Currently used only by deserializer, and all code will be flushed
   // after complete deserialization, no need to flush on each reference.
 }
@@ -222,7 +215,7 @@ void Assembler::set_target_internal_reference_encoded_at(Address pc,
 void Assembler::deserialization_set_target_internal_reference_at(
     Address pc, Address target, RelocInfo::Mode mode) {
   if (mode == RelocInfo::INTERNAL_REFERENCE_ENCODED) {
-    DCHECK(IsLui(instr_at(pc)));
+    DCHECK(IsJ(instr_at(pc)));
     set_target_internal_reference_encoded_at(pc, target);
   } else {
     DCHECK(mode == RelocInfo::INTERNAL_REFERENCE);
@@ -270,18 +263,14 @@ Address RelocInfo::target_internal_reference() {
   if (rmode_ == INTERNAL_REFERENCE) {
     return Memory::Address_at(pc_);
   } else {
-    // Encoded internal references are lui/ori load of 48-bit absolute address.
+    // Encoded internal references are j/jal instructions.
     DCHECK(rmode_ == INTERNAL_REFERENCE_ENCODED);
-    Instr instr_lui = Assembler::instr_at(pc_ + 0 * Assembler::kInstrSize);
-    Instr instr_ori = Assembler::instr_at(pc_ + 1 * Assembler::kInstrSize);
-    Instr instr_ori2 = Assembler::instr_at(pc_ + 3 * Assembler::kInstrSize);
-    DCHECK(Assembler::IsLui(instr_lui));
-    DCHECK(Assembler::IsOri(instr_ori));
-    DCHECK(Assembler::IsOri(instr_ori2));
-    int64_t imm = (instr_lui & static_cast<int64_t>(kImm16Mask)) << 32;
-    imm |= (instr_ori & static_cast<int64_t>(kImm16Mask)) << 16;
-    imm |= (instr_ori2 & static_cast<int64_t>(kImm16Mask));
-    return reinterpret_cast<Address>(imm);
+    Instr instr = Assembler::instr_at(pc_ + 0 * Assembler::kInstrSize);
+    instr &= kImm26Mask;
+    uint64_t imm28 = instr << 2;
+    uint64_t segment =
+        (reinterpret_cast<uint64_t>(pc_) & ~static_cast<uint64_t>(kImm28Mask));
+    return reinterpret_cast<Address>(segment | imm28);
   }
 }
 

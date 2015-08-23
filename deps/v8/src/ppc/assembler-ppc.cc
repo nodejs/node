@@ -148,13 +148,17 @@ const int RelocInfo::kApplyMask = 1 << RelocInfo::INTERNAL_REFERENCE |
 bool RelocInfo::IsCodedSpecially() {
   // The deserializer needs to know whether a pointer is specially
   // coded.  Being specially coded on PPC means that it is a lis/ori
-  // instruction sequence, and these are always the case inside code
-  // objects.
+  // instruction sequence or is a constant pool entry, and these are
+  // always the case inside code objects.
   return true;
 }
 
 
 bool RelocInfo::IsInConstantPool() {
+  if (FLAG_enable_embedded_constant_pool) {
+    Address constant_pool = host_->constant_pool();
+    return (constant_pool && Assembler::IsConstantPoolLoadStart(pc_));
+  }
   return false;
 }
 
@@ -201,11 +205,13 @@ MemOperand::MemOperand(Register ra, Register rb) {
 Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
     : AssemblerBase(isolate, buffer, buffer_size),
       recorded_ast_id_(TypeFeedbackId::None()),
+      constant_pool_builder_(kLoadPtrMaxReachBits, kLoadDoubleMaxReachBits),
       positions_recorder_(this) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 
   no_trampoline_pool_before_ = 0;
   trampoline_pool_blocked_nesting_ = 0;
+  constant_pool_entry_sharing_blocked_nesting_ = 0;
   // We leave space (kMaxBlockTrampolineSectionSize)
   // for BlockTrampolinePoolScope buffer.
   next_buffer_check_ =
@@ -213,6 +219,7 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
                                                kMaxBlockTrampolineSectionSize;
   internal_trampoline_exception_ = false;
   last_bound_pos_ = 0;
+  optimizable_cmpi_pos_ = -1;
   trampoline_emitted_ = FLAG_force_long_branches;
   unbound_labels_count_ = 0;
   ClearRecordedAstId();
@@ -221,6 +228,9 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
 
 
 void Assembler::GetCode(CodeDesc* desc) {
+  // Emit constant pool if necessary.
+  int constant_pool_offset = EmitConstantPool();
+
   EmitRelocations();
 
   // Set up code descriptor.
@@ -228,16 +238,15 @@ void Assembler::GetCode(CodeDesc* desc) {
   desc->buffer_size = buffer_size_;
   desc->instr_size = pc_offset();
   desc->reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
+  desc->constant_pool_size =
+      (constant_pool_offset ? desc->instr_size - constant_pool_offset : 0);
   desc->origin = this;
 }
 
 
 void Assembler::Align(int m) {
-#if V8_TARGET_ARCH_PPC64
-  DCHECK(m >= 4 && base::bits::IsPowerOfTwo64(m));
-#else
   DCHECK(m >= 4 && base::bits::IsPowerOfTwo32(m));
-#endif
+  DCHECK((pc_offset() & (kInstrSize - 1)) == 0);
   while ((pc_offset() & (m - 1)) != 0) {
     nop();
   }
@@ -327,6 +336,9 @@ bool Assembler::IsCmpRegister(Instr instr) {
 bool Assembler::IsRlwinm(Instr instr) {
   return ((instr & kOpcodeMask) == RLWINMX);
 }
+
+
+bool Assembler::IsAndi(Instr instr) { return ((instr & kOpcodeMask) == ANDIx); }
 
 
 #if V8_TARGET_ARCH_PPC64
@@ -471,7 +483,8 @@ void Assembler::target_at_put(int pos, int target_pos) {
       // Load the address of the label in a register.
       Register dst = Register::from_code(instr_at(pos + kInstrSize));
       CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos),
-                          kMovInstructions, CodePatcher::DONT_FLUSH);
+                          kMovInstructionsNoConstantPool,
+                          CodePatcher::DONT_FLUSH);
       // Keep internal references relative until EmitRelocations.
       patcher.masm()->bitwise_mov(dst, target_pos);
       break;
@@ -480,7 +493,7 @@ void Assembler::target_at_put(int pos, int target_pos) {
       CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos),
                           kPointerSize / kInstrSize, CodePatcher::DONT_FLUSH);
       // Keep internal references relative until EmitRelocations.
-      patcher.masm()->emit_ptr(target_pos);
+      patcher.masm()->dp(target_pos);
       break;
     }
     default:
@@ -1018,9 +1031,17 @@ void Assembler::cmpl(Register src1, Register src2, CRegister cr) {
 void Assembler::cmpwi(Register src1, const Operand& src2, CRegister cr) {
   intptr_t imm16 = src2.imm_;
   int L = 0;
+  int pos = pc_offset();
   DCHECK(is_int16(imm16));
   DCHECK(cr.code() >= 0 && cr.code() <= 7);
   imm16 &= kImm16Mask;
+
+  // For cmpwi against 0, save postition and cr for later examination
+  // of potential optimization.
+  if (imm16 == 0 && pos > 0 && last_bound_pos_ != pos) {
+    optimizable_cmpi_pos_ = pos;
+    cmpi_cr_ = cr;
+  }
   emit(CMPI | cr.code() * B23 | L * B21 | src1.code() * B16 | imm16);
 }
 
@@ -1492,10 +1513,53 @@ void Assembler::function_descriptor() {
   Label instructions;
   DCHECK(pc_offset() == 0);
   emit_label_addr(&instructions);
-  emit_ptr(0);
-  emit_ptr(0);
+  dp(0);
+  dp(0);
   bind(&instructions);
 #endif
+}
+
+
+int Assembler::instructions_required_for_mov(Register dst,
+                                             const Operand& src) const {
+  bool canOptimize =
+      !(src.must_output_reloc_info(this) || is_trampoline_pool_blocked());
+  if (use_constant_pool_for_mov(dst, src, canOptimize)) {
+    if (ConstantPoolAccessIsInOverflow()) {
+      return kMovInstructionsConstantPool + 1;
+    }
+    return kMovInstructionsConstantPool;
+  }
+  DCHECK(!canOptimize);
+  return kMovInstructionsNoConstantPool;
+}
+
+
+bool Assembler::use_constant_pool_for_mov(Register dst, const Operand& src,
+                                          bool canOptimize) const {
+  if (!FLAG_enable_embedded_constant_pool || !is_constant_pool_available()) {
+    // If there is no constant pool available, we must use a mov
+    // immediate sequence.
+    return false;
+  }
+
+  intptr_t value = src.immediate();
+#if V8_TARGET_ARCH_PPC64
+  bool allowOverflow = !((canOptimize && is_int32(value)) || dst.is(r0));
+#else
+  bool allowOverflow = !(canOptimize || dst.is(r0));
+#endif
+  if (canOptimize && is_int16(value)) {
+    // Prefer a single-instruction load-immediate.
+    return false;
+  }
+  if (!allowOverflow && ConstantPoolAccessIsInOverflow()) {
+    // Prefer non-relocatable two-instruction bitwise-mov32 over
+    // overflow sequence.
+    return false;
+  }
+
+  return true;
 }
 
 
@@ -1530,6 +1594,30 @@ void Assembler::mov(Register dst, const Operand& src) {
 
   canOptimize =
       !(relocatable || (is_trampoline_pool_blocked() && !is_int16(value)));
+
+  if (use_constant_pool_for_mov(dst, src, canOptimize)) {
+    DCHECK(is_constant_pool_available());
+    if (relocatable) {
+      RecordRelocInfo(src.rmode_);
+    }
+    ConstantPoolEntry::Access access = ConstantPoolAddEntry(src.rmode_, value);
+#if V8_TARGET_ARCH_PPC64
+    if (access == ConstantPoolEntry::OVERFLOWED) {
+      addis(dst, kConstantPoolRegister, Operand::Zero());
+      ld(dst, MemOperand(dst, 0));
+    } else {
+      ld(dst, MemOperand(kConstantPoolRegister, 0));
+    }
+#else
+    if (access == ConstantPoolEntry::OVERFLOWED) {
+      addis(dst, kConstantPoolRegister, Operand::Zero());
+      lwz(dst, MemOperand(dst, 0));
+    } else {
+      lwz(dst, MemOperand(kConstantPoolRegister, 0));
+    }
+#endif
+    return;
+  }
 
   if (canOptimize) {
     if (is_int16(value)) {
@@ -1696,8 +1784,8 @@ void Assembler::mov_label_addr(Register dst, Label* label) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     emit(kUnboundMovLabelAddrOpcode | (link & kImm26Mask));
     emit(dst.code());
-    DCHECK(kMovInstructions >= 2);
-    for (int i = 0; i < kMovInstructions - 2; i++) nop();
+    DCHECK(kMovInstructionsNoConstantPool >= 2);
+    for (int i = 0; i < kMovInstructionsNoConstantPool - 2; i++) nop();
   }
 }
 
@@ -1708,7 +1796,7 @@ void Assembler::emit_label_addr(Label* label) {
   int position = link(label);
   if (label->is_bound()) {
     // Keep internal references relative until EmitRelocations.
-    emit_ptr(position);
+    dp(position);
   } else {
     // Encode internal reference to unbound label. We use a dummy opcode
     // such that it won't collide with any opcode that might appear in the
@@ -1839,6 +1927,7 @@ void Assembler::isync() { emit(EXT1 | ISYNC); }
 void Assembler::lfd(const DoubleRegister frt, const MemOperand& src) {
   int offset = src.offset();
   Register ra = src.ra();
+  DCHECK(!ra.is(r0));
   DCHECK(is_int16(offset));
   int imm16 = offset & kImm16Mask;
   // could be x_form instruction with some casting magic
@@ -1849,6 +1938,7 @@ void Assembler::lfd(const DoubleRegister frt, const MemOperand& src) {
 void Assembler::lfdu(const DoubleRegister frt, const MemOperand& src) {
   int offset = src.offset();
   Register ra = src.ra();
+  DCHECK(!ra.is(r0));
   DCHECK(is_int16(offset));
   int imm16 = offset & kImm16Mask;
   // could be x_form instruction with some casting magic
@@ -2248,51 +2338,33 @@ void Assembler::dd(uint32_t data) {
 }
 
 
-void Assembler::emit_ptr(intptr_t data) {
+void Assembler::dq(uint64_t value) {
   CheckBuffer();
-  *reinterpret_cast<intptr_t*>(pc_) = data;
-  pc_ += sizeof(intptr_t);
+  *reinterpret_cast<uint64_t*>(pc_) = value;
+  pc_ += sizeof(uint64_t);
 }
 
 
-void Assembler::emit_double(double value) {
+void Assembler::dp(uintptr_t data) {
   CheckBuffer();
-  *reinterpret_cast<double*>(pc_) = value;
-  pc_ += sizeof(double);
+  *reinterpret_cast<uintptr_t*>(pc_) = data;
+  pc_ += sizeof(uintptr_t);
 }
 
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
+  if (RelocInfo::IsNone(rmode) ||
+      // Don't record external references unless the heap will be serialized.
+      (rmode == RelocInfo::EXTERNAL_REFERENCE && !serializer_enabled() &&
+       !emit_debug_code())) {
+    return;
+  }
+  if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
+    data = RecordedAstId().ToInt();
+    ClearRecordedAstId();
+  }
   DeferredRelocInfo rinfo(pc_offset(), rmode, data);
-  RecordRelocInfo(rinfo);
-}
-
-
-void Assembler::RecordRelocInfo(const DeferredRelocInfo& rinfo) {
-  if (rinfo.rmode() >= RelocInfo::JS_RETURN &&
-      rinfo.rmode() <= RelocInfo::DEBUG_BREAK_SLOT) {
-    // Adjust code for new modes.
-    DCHECK(RelocInfo::IsDebugBreakSlot(rinfo.rmode()) ||
-           RelocInfo::IsJSReturn(rinfo.rmode()) ||
-           RelocInfo::IsComment(rinfo.rmode()) ||
-           RelocInfo::IsPosition(rinfo.rmode()));
-  }
-  if (!RelocInfo::IsNone(rinfo.rmode())) {
-    // Don't record external references unless the heap will be serialized.
-    if (rinfo.rmode() == RelocInfo::EXTERNAL_REFERENCE) {
-      if (!serializer_enabled() && !emit_debug_code()) {
-        return;
-      }
-    }
-    if (rinfo.rmode() == RelocInfo::CODE_TARGET_WITH_ID) {
-      DeferredRelocInfo reloc_info_with_ast_id(rinfo.position(), rinfo.rmode(),
-                                               RecordedAstId().ToInt());
-      ClearRecordedAstId();
-      relocations_.push_back(reloc_info_with_ast_id);
-    } else {
-      relocations_.push_back(rinfo);
-    }
-  }
+  relocations_.push_back(rinfo);
 }
 
 
@@ -2378,16 +2450,7 @@ void Assembler::CheckTrampolinePool() {
 }
 
 
-Handle<ConstantPoolArray> Assembler::NewConstantPool(Isolate* isolate) {
-  DCHECK(!FLAG_enable_ool_constant_pool);
-  return isolate->factory()->empty_constant_pool_array();
-}
-
-
-void Assembler::PopulateConstantPool(ConstantPoolArray* constant_pool) {
-  DCHECK(!FLAG_enable_ool_constant_pool);
-}
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_PPC

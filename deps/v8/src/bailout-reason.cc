@@ -16,5 +16,5 @@ const char* GetBailoutReason(BailoutReason reason) {
 #undef ERROR_MESSAGES_TEXTS
   return error_messages_[reason];
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

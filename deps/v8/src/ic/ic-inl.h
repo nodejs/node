@@ -48,41 +48,40 @@ Address IC::address() const {
 }
 
 
-ConstantPoolArray* IC::constant_pool() const {
-  if (!FLAG_enable_ool_constant_pool) {
+Address IC::constant_pool() const {
+  if (!FLAG_enable_embedded_constant_pool) {
     return NULL;
   } else {
-    Handle<ConstantPoolArray> result = raw_constant_pool_;
+    Address constant_pool = raw_constant_pool();
     Debug* debug = isolate()->debug();
     // First check if any break points are active if not just return the
     // original constant pool.
-    if (!debug->has_break_points()) return *result;
+    if (!debug->has_break_points()) return constant_pool;
 
     // At least one break point is active perform additional test to ensure that
     // break point locations are updated correctly.
     Address target = Assembler::target_address_from_return_address(pc());
     if (debug->IsDebugBreak(
-            Assembler::target_address_at(target, raw_constant_pool()))) {
+            Assembler::target_address_at(target, constant_pool))) {
       // If the call site is a call to debug break then we want to return the
       // constant pool for the original code instead of the breakpointed code.
       return GetOriginalCode()->constant_pool();
     }
-    return *result;
+    return constant_pool;
   }
 }
 
 
-ConstantPoolArray* IC::raw_constant_pool() const {
-  if (FLAG_enable_ool_constant_pool) {
-    return *raw_constant_pool_;
+Address IC::raw_constant_pool() const {
+  if (FLAG_enable_embedded_constant_pool) {
+    return *constant_pool_address_;
   } else {
     return NULL;
   }
 }
 
 
-Code* IC::GetTargetAtAddress(Address address,
-                             ConstantPoolArray* constant_pool) {
+Code* IC::GetTargetAtAddress(Address address, Address constant_pool) {
   // Get the target address of the IC.
   Address target = Assembler::target_address_at(address, constant_pool);
   // Convert target address to the code object. Code::GetCodeFromTargetAddress
@@ -94,13 +93,16 @@ Code* IC::GetTargetAtAddress(Address address,
 
 
 void IC::SetTargetAtAddress(Address address, Code* target,
-                            ConstantPoolArray* constant_pool) {
+                            Address constant_pool) {
+  if (AddressIsDeoptimizedCode(target->GetIsolate(), address)) return;
+
   DCHECK(target->is_inline_cache_stub() || target->is_compare_ic_stub());
 
-  // Don't use this for load_ics when --vector-ics is turned on.
-  DCHECK(!(FLAG_vector_ics && target->is_inline_cache_stub()) ||
+  DCHECK(!target->is_inline_cache_stub() ||
          (target->kind() != Code::LOAD_IC &&
-          target->kind() != Code::KEYED_LOAD_IC));
+          target->kind() != Code::KEYED_LOAD_IC &&
+          (!FLAG_vector_stores || (target->kind() != Code::STORE_IC &&
+                                   target->kind() != Code::KEYED_STORE_IC))));
 
   Heap* heap = target->GetHeap();
   Code* old_target = GetTargetAtAddress(address, constant_pool);
@@ -109,8 +111,8 @@ void IC::SetTargetAtAddress(Address address, Code* target,
   // ICs as language mode. The language mode of the IC must be preserved.
   if (old_target->kind() == Code::STORE_IC ||
       old_target->kind() == Code::KEYED_STORE_IC) {
-    DCHECK(StoreIC::GetLanguageMode(old_target->extra_ic_state()) ==
-           StoreIC::GetLanguageMode(target->extra_ic_state()));
+    DCHECK(StoreICState::GetLanguageMode(old_target->extra_ic_state()) ==
+           StoreICState::GetLanguageMode(target->extra_ic_state()));
   }
 #endif
   Assembler::set_target_address_at(address, constant_pool,
@@ -134,6 +136,9 @@ void LoadIC::set_target(Code* code) {
   // The contextual mode must be preserved across IC patching.
   DCHECK(LoadICState::GetContextualMode(code->extra_ic_state()) ==
          LoadICState::GetContextualMode(target()->extra_ic_state()));
+  // Strongness must be preserved across IC patching.
+  DCHECK(LoadICState::GetLanguageMode(code->extra_ic_state()) ==
+         LoadICState::GetLanguageMode(target()->extra_ic_state()));
 
   IC::set_target(code);
 }
@@ -141,15 +146,16 @@ void LoadIC::set_target(Code* code) {
 
 void StoreIC::set_target(Code* code) {
   // Language mode must be preserved across IC patching.
-  DCHECK(GetLanguageMode(code->extra_ic_state()) ==
-         GetLanguageMode(target()->extra_ic_state()));
+  DCHECK(StoreICState::GetLanguageMode(code->extra_ic_state()) ==
+         StoreICState::GetLanguageMode(target()->extra_ic_state()));
   IC::set_target(code);
 }
 
 
 void KeyedStoreIC::set_target(Code* code) {
   // Language mode must be preserved across IC patching.
-  DCHECK(GetLanguageMode(code->extra_ic_state()) == language_mode());
+  DCHECK(StoreICState::GetLanguageMode(code->extra_ic_state()) ==
+         language_mode());
   IC::set_target(code);
 }
 
@@ -211,11 +217,24 @@ Handle<Map> IC::GetICCacheHolder(Handle<Map> map, Isolate* isolate,
 }
 
 
-inline Code* IC::get_host() {
+Code* IC::get_host() {
   return isolate()
       ->inner_pointer_to_code_cache()
       ->GetCacheEntry(address())
       ->code;
+}
+
+
+bool IC::AddressIsDeoptimizedCode() const {
+  return AddressIsDeoptimizedCode(isolate(), address());
+}
+
+
+bool IC::AddressIsDeoptimizedCode(Isolate* isolate, Address address) {
+  Code* host =
+      isolate->inner_pointer_to_code_cache()->GetCacheEntry(address)->code;
+  return (host->kind() == Code::OPTIMIZED_FUNCTION &&
+          host->marked_for_deoptimization());
 }
 }
 }  // namespace v8::internal

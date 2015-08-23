@@ -296,4 +296,5 @@ void LGapResolver::EmitMove(int index) {
 
 #undef __
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
