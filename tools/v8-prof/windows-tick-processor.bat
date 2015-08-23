@@ -8,7 +8,7 @@ SET temp_script=%TEMP%\node-tick-processor-input-script
 
 IF NOT DEFINED NODE (SET NODE=node.exe)
 %NODE% --version 2> NUL
-if %ERRORLEVEL%==9009 (SET NODE=%~dp0\..\..\Release\iojs.exe)
+if %ERRORLEVEL%==9009 (SET NODE=%~dp0\..\..\Release\node.exe)
 
 
 type %tools_dir%polyfill.js %v8_tools%splaytree.js %v8_tools%codemap.js^

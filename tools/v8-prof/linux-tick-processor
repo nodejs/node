@@ -14,8 +14,8 @@ cat "$tools_path/polyfill.js" "$v8_tools/splaytree.js" "$v8_tools/codemap.js" \
 
 NODE=${NODE:-node}
 
-if [ ! -x "$NODE" ] && [ -x "$(dirname "$0")/../../iojs" ]; then
-  NODE="$(dirname "$0")/../../iojs"
+if [ ! -x "$NODE" ] && [ -x "$(dirname "$0")/../../node" ]; then
+  NODE="$(dirname "$0")/../../node"
 fi
 
 "$NODE" "$TEMP_SCRIPT_FILE" $@
