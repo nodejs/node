@@ -193,12 +193,19 @@ int List<T, P>::CountOccurrences(const T& elm, int start, int end) const {
 }
 
 
-template<typename T, class P>
-void List<T, P>::Sort(int (*cmp)(const T* x, const T* y)) {
-  ToVector().Sort(cmp);
+template <typename T, class P>
+template <typename CompareFunction>
+void List<T, P>::Sort(CompareFunction cmp) {
+  Sort(cmp, 0, length_);
+}
+
+
+template <typename T, class P>
+template <typename CompareFunction>
+void List<T, P>::Sort(CompareFunction cmp, size_t s, size_t l) {
+  ToVector().Sort(cmp, s, l);
 #ifdef DEBUG
-  for (int i = 1; i < length_; i++)
-    DCHECK(cmp(&data_[i - 1], &data_[i]) <= 0);
+  for (size_t i = s + 1; i < l; i++) DCHECK(cmp(&data_[i - 1], &data_[i]) <= 0);
 #endif
 }
 
@@ -209,7 +216,30 @@ void List<T, P>::Sort() {
 }
 
 
-template<typename T, class P>
+template <typename T, class P>
+template <typename CompareFunction>
+void List<T, P>::StableSort(CompareFunction cmp) {
+  StableSort(cmp, 0, length_);
+}
+
+
+template <typename T, class P>
+template <typename CompareFunction>
+void List<T, P>::StableSort(CompareFunction cmp, size_t s, size_t l) {
+  ToVector().StableSort(cmp, s, l);
+#ifdef DEBUG
+  for (size_t i = s + 1; i < l; i++) DCHECK(cmp(&data_[i - 1], &data_[i]) <= 0);
+#endif
+}
+
+
+template <typename T, class P>
+void List<T, P>::StableSort() {
+  ToVector().StableSort();
+}
+
+
+template <typename T, class P>
 void List<T, P>::Initialize(int capacity, P allocator) {
   DCHECK(capacity >= 0);
   data_ = (capacity > 0) ? NewData(capacity, allocator) : NULL;

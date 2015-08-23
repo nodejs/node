@@ -139,6 +139,24 @@ function TestSetPrototypeOfNonExtensibleObject() {
 TestSetPrototypeOfNonExtensibleObject();
 
 
+function TestSetPrototypeCyclic() {
+  var objects = [
+    Object.prototype, {},
+    Array.prototype, [],
+    Error.prototype, new TypeError,
+    // etc ...
+  ];
+  for (var i = 0; i < objects.length; i += 2) {
+    var object = objects[i];
+    var value = objects[i + 1];
+    assertThrows(function() {
+      Object.setPrototypeOf(object, value);
+    }, TypeError);
+  }
+}
+TestSetPrototypeCyclic();
+
+
 function TestLookup() {
   var object = {};
   assertFalse('x' in object);

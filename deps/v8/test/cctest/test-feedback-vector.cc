@@ -46,19 +46,13 @@ TEST(VectorStructure) {
   CHECK_EQ(1, vector->ICSlots());
 
   ZoneFeedbackVectorSpec spec(zone, 3, 5);
-  if (FLAG_vector_ics) {
-    for (int i = 0; i < 5; i++) spec.SetKind(i, Code::CALL_IC);
-  }
+  for (int i = 0; i < 5; i++) spec.SetKind(i, Code::CALL_IC);
   vector = factory->NewTypeFeedbackVector(&spec);
   CHECK_EQ(3, vector->Slots());
   CHECK_EQ(5, vector->ICSlots());
 
   int metadata_length = vector->ic_metadata_length();
-  if (!FLAG_vector_ics) {
-    CHECK_EQ(0, metadata_length);
-  } else {
-    CHECK(metadata_length > 0);
-  }
+  CHECK(metadata_length > 0);
 
   int index = vector->GetIndex(FeedbackVectorSlot(0));
 
@@ -79,11 +73,6 @@ TEST(VectorStructure) {
 TEST(VectorICMetadata) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
-  if (!FLAG_vector_ics) {
-    // If FLAG_vector_ics is false, we only store CALL_ICs in the vector, so
-    // there is no need for metadata to describe the slots.
-    return;
-  }
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   Zone* zone = isolate->runtime_zone();
@@ -259,7 +248,7 @@ TEST(VectorCallICStates) {
 
 
 TEST(VectorLoadICStates) {
-  if (i::FLAG_always_opt || !i::FLAG_vector_ics) return;
+  if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -313,7 +302,7 @@ TEST(VectorLoadICStates) {
 
 
 TEST(VectorLoadICSlotSharing) {
-  if (i::FLAG_always_opt || !i::FLAG_vector_ics) return;
+  if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -322,7 +311,7 @@ TEST(VectorLoadICSlotSharing) {
   // Function f has 3 LoadICs, one for each o, but the ICs share the same
   // feedback vector IC slot.
   CompileRun(
-      "var o = 10;"
+      "o = 10;"
       "function f() {"
       "  var x = o + 10;"
       "  return o + x + o;"
@@ -341,7 +330,7 @@ TEST(VectorLoadICSlotSharing) {
 
 
 TEST(VectorLoadICOnSmi) {
-  if (i::FLAG_always_opt || !i::FLAG_vector_ics) return;
+  if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());

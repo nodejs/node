@@ -141,6 +141,8 @@ bool Instruction::IsForbiddenInBranchDelay() const {
     case BNEL:
     case BLEZL:
     case BGTZL:
+    case BC:
+    case BALC:
       return true;
     case REGIMM:
       switch (RtFieldRaw()) {
@@ -173,6 +175,11 @@ bool Instruction::IsLinkingInstruction() const {
   switch (op) {
     case JAL:
       return true;
+    case POP76:
+      if (RsFieldRawNoAssert() == JIALC)
+        return true;  // JIALC
+      else
+        return false;  // BNEZC
     case REGIMM:
       switch (RtFieldRaw()) {
         case BGEZAL:
@@ -291,6 +298,42 @@ Instruction::Type Instruction::InstructionType() const {
         case EXT:
         case DEXT:
           return kRegisterType;
+        case BSHFL: {
+          int sa = SaFieldRaw() >> kSaShift;
+          switch (sa) {
+            case BITSWAP:
+              return kRegisterType;
+            case WSBH:
+            case SEB:
+            case SEH:
+              return kUnsupported;
+          }
+          sa >>= kBp2Bits;
+          switch (sa) {
+            case ALIGN:
+              return kRegisterType;
+            default:
+              return kUnsupported;
+          }
+        }
+        case DBSHFL: {
+          int sa = SaFieldRaw() >> kSaShift;
+          switch (sa) {
+            case DBITSWAP:
+              return kRegisterType;
+            case DSBH:
+            case DSHD:
+              return kUnsupported;
+          }
+          sa = SaFieldRaw() >> kSaShift;
+          sa >>= kBp3Bits;
+          switch (sa) {
+            case DALIGN:
+              return kRegisterType;
+            default:
+              return kUnsupported;
+          }
+        }
         default:
           return kUnsupported;
       }
@@ -327,8 +370,8 @@ Instruction::Type Instruction::InstructionType() const {
     case BNEL:
     case BLEZL:
     case BGTZL:
-    case BEQZC:
-    case BNEZC:
+    case POP66:
+    case POP76:
     case LB:
     case LH:
     case LWL:
@@ -348,6 +391,9 @@ Instruction::Type Instruction::InstructionType() const {
     case LDC1:
     case SWC1:
     case SDC1:
+    case PCREL:
+    case BC:
+    case BALC:
       return kImmediateType;
     // 26 bits immediate type instructions. e.g.: j imm26.
     case J:
@@ -360,6 +406,7 @@ Instruction::Type Instruction::InstructionType() const {
 }
 
 
-} }   // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_MIPS64

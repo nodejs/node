@@ -142,8 +142,8 @@ int32_t RunGeneratedCodeCallWrapper(ConvertDToIFunc func,
       Simulator::CallArgument(from),
       Simulator::CallArgument::End()
   };
-  return Simulator::current(Isolate::Current())->CallInt64(
-      FUNCTION_ADDR(func), args);
+  return static_cast<int32_t>(Simulator::current(Isolate::Current())
+                                  ->CallInt64(FUNCTION_ADDR(func), args));
 #else
   return (*func)(from);
 #endif

@@ -586,14 +586,13 @@ Address Assembler::target_pointer_address_at(Address pc) {
 
 
 // Read/Modify the code target address in the branch/call instruction at pc.
-Address Assembler::target_address_at(Address pc,
-                                     ConstantPoolArray* constant_pool) {
+Address Assembler::target_address_at(Address pc, Address constant_pool) {
   return Memory::Address_at(target_pointer_address_at(pc));
 }
 
 
 Address Assembler::target_address_at(Address pc, Code* code) {
-  ConstantPoolArray* constant_pool = code ? code->constant_pool() : NULL;
+  Address constant_pool = code ? code->constant_pool() : NULL;
   return target_address_at(pc, constant_pool);
 }
 
@@ -665,8 +664,7 @@ void Assembler::deserialization_set_target_internal_reference_at(
 }
 
 
-void Assembler::set_target_address_at(Address pc,
-                                      ConstantPoolArray* constant_pool,
+void Assembler::set_target_address_at(Address pc, Address constant_pool,
                                       Address target,
                                       ICacheFlushMode icache_flush_mode) {
   Memory::Address_at(target_pointer_address_at(pc)) = target;
@@ -685,7 +683,7 @@ void Assembler::set_target_address_at(Address pc,
                                       Code* code,
                                       Address target,
                                       ICacheFlushMode icache_flush_mode) {
-  ConstantPoolArray* constant_pool = code ? code->constant_pool() : NULL;
+  Address constant_pool = code ? code->constant_pool() : NULL;
   set_target_address_at(pc, constant_pool, target, icache_flush_mode);
 }
 
@@ -867,8 +865,8 @@ bool RelocInfo::IsPatchedReturnSequence() {
   // See arm64/debug-arm64.cc BreakLocation::SetDebugBreakAtReturn().
   Instruction* i1 = reinterpret_cast<Instruction*>(pc_);
   Instruction* i2 = i1->following();
-  return i1->IsLdrLiteralX() && (i1->Rt() == ip0.code()) &&
-         i2->IsBranchAndLinkToRegister() && (i2->Rn() == ip0.code());
+  return i1->IsLdrLiteralX() && (i1->Rt() == kIp0Code) &&
+         i2->IsBranchAndLinkToRegister() && (i2->Rn() == kIp0Code);
 }
 
 
@@ -1084,13 +1082,14 @@ Instr Assembler::SF(Register rd) {
 }
 
 
-Instr Assembler::ImmAddSub(int64_t imm) {
+Instr Assembler::ImmAddSub(int imm) {
   DCHECK(IsImmAddSub(imm));
   if (is_uint12(imm)) {  // No shift required.
-    return imm << ImmAddSub_offset;
+    imm <<= ImmAddSub_offset;
   } else {
-    return ((imm >> 12) << ImmAddSub_offset) | (1 << ShiftAddSub_offset);
+    imm = ((imm >> 12) << ImmAddSub_offset) | (1 << ShiftAddSub_offset);
   }
+  return imm;
 }
 
 
@@ -1239,13 +1238,13 @@ LSDataSize Assembler::CalcLSDataSize(LoadStoreOp op) {
 }
 
 
-Instr Assembler::ImmMoveWide(uint64_t imm) {
+Instr Assembler::ImmMoveWide(int imm) {
   DCHECK(is_uint16(imm));
   return imm << ImmMoveWide_offset;
 }
 
 
-Instr Assembler::ShiftMoveWide(int64_t shift) {
+Instr Assembler::ShiftMoveWide(int shift) {
   DCHECK(is_uint2(shift));
   return shift << ShiftMoveWide_offset;
 }

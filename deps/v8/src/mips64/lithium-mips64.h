@@ -19,7 +19,9 @@ class LCodeGen;
 
 #define LITHIUM_CONCRETE_INSTRUCTION_LIST(V) \
   V(AccessArgumentsAt)                       \
+  V(AddE)                                    \
   V(AddI)                                    \
+  V(AddS)                                    \
   V(Allocate)                                \
   V(AllocateBlockContext)                    \
   V(ApplyArguments)                          \
@@ -117,10 +119,12 @@ class LCodeGen;
   V(MathPowHalf)                             \
   V(MathRound)                               \
   V(MathSqrt)                                \
+  V(MaybeGrowElements)                       \
   V(ModByConstI)                             \
   V(ModByPowerOf2I)                          \
   V(ModI)                                    \
   V(MulI)                                    \
+  V(MulS)                                    \
   V(MultiplyAddD)                            \
   V(NumberTagD)                              \
   V(NumberTagU)                              \
@@ -149,8 +153,8 @@ class LCodeGen;
   V(StringCharFromCode)                      \
   V(StringCompareAndBranch)                  \
   V(SubI)                                    \
+  V(SubS)                                    \
   V(TaggedToI)                               \
-  V(TailCallThroughMegamorphicCache)         \
   V(ThisFunction)                            \
   V(ToFastProperties)                        \
   V(TransitionElementsKind)                  \
@@ -470,26 +474,6 @@ class LCallStub final : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LTailCallThroughMegamorphicCache final
-    : public LTemplateInstruction<0, 3, 0> {
- public:
-  LTailCallThroughMegamorphicCache(LOperand* context, LOperand* receiver,
-                                   LOperand* name) {
-    inputs_[0] = context;
-    inputs_[1] = receiver;
-    inputs_[2] = name;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-  LOperand* receiver() { return inputs_[1]; }
-  LOperand* name() { return inputs_[2]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(TailCallThroughMegamorphicCache,
-                               "tail-call-through-megamorphic-cache")
-  DECLARE_HYDROGEN_ACCESSOR(TailCallThroughMegamorphicCache)
-};
-
-
 class LUnknownOSRValue final : public LTemplateInstruction<1, 0, 0> {
  public:
   bool HasInterestingComment(LCodeGen* gen) const override { return false; }
@@ -770,6 +754,21 @@ class LFlooringDivI final : public LTemplateInstruction<1, 2, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(FlooringDivI, "flooring-div-i")
   DECLARE_HYDROGEN_ACCESSOR(MathFloorOfDiv)
+};
+
+
+class LMulS final : public LTemplateInstruction<1, 2, 0> {
+ public:
+  LMulS(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  LOperand* left() { return inputs_[0]; }
+  LOperand* right() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MulS, "mul-s")
+  DECLARE_HYDROGEN_ACCESSOR(Mul)
 };
 
 
@@ -1173,6 +1172,8 @@ class LCmpT final : public LTemplateInstruction<1, 3, 0> {
   DECLARE_CONCRETE_INSTRUCTION(CmpT, "cmp-t")
   DECLARE_HYDROGEN_ACCESSOR(CompareGeneric)
 
+  Strength strength() { return hydrogen()->strength(); }
+
   Token::Value op() const { return hydrogen()->token(); }
 };
 
@@ -1287,6 +1288,21 @@ class LSubI final : public LTemplateInstruction<1, 2, 0> {
   LOperand* right() { return inputs_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(SubI, "sub-i")
+  DECLARE_HYDROGEN_ACCESSOR(Sub)
+};
+
+
+class LSubS final : public LTemplateInstruction<1, 2, 0> {
+ public:
+  LSubS(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  LOperand* left() { return inputs_[0]; }
+  LOperand* right() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(SubS, "sub-s")
   DECLARE_HYDROGEN_ACCESSOR(Sub)
 };
 
@@ -1439,6 +1455,21 @@ class LSeqStringSetChar final : public LTemplateInstruction<1, 4, 0> {
 };
 
 
+class LAddE final : public LTemplateInstruction<1, 2, 0> {
+ public:
+  LAddE(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  LOperand* left() { return inputs_[0]; }
+  LOperand* right() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(AddE, "add-e")
+  DECLARE_HYDROGEN_ACCESSOR(Add)
+};
+
+
 class LAddI final : public LTemplateInstruction<1, 2, 0> {
  public:
   LAddI(LOperand* left, LOperand* right) {
@@ -1450,6 +1481,21 @@ class LAddI final : public LTemplateInstruction<1, 2, 0> {
   LOperand* right() { return inputs_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(AddI, "add-i")
+  DECLARE_HYDROGEN_ACCESSOR(Add)
+};
+
+
+class LAddS final : public LTemplateInstruction<1, 2, 0> {
+ public:
+  LAddS(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  LOperand* left() { return inputs_[0]; }
+  LOperand* right() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(AddS, "add-s")
   DECLARE_HYDROGEN_ACCESSOR(Add)
 };
 
@@ -1528,7 +1574,7 @@ class LArithmeticT final : public LTemplateInstruction<1, 3, 0> {
 
   DECLARE_HYDROGEN_ACCESSOR(BinaryOperation)
 
-  LanguageMode language_mode() { return hydrogen()->language_mode(); }
+  Strength strength() { return hydrogen()->strength(); }
 
  private:
   Token::Value op_;
@@ -1826,8 +1872,12 @@ class LCallWithDescriptor final : public LTemplateResultInstruction<1> {
   LCallWithDescriptor(CallInterfaceDescriptor descriptor,
                       const ZoneList<LOperand*>& operands, Zone* zone)
       : descriptor_(descriptor),
-        inputs_(descriptor.GetRegisterParameterCount() + 1, zone) {
-    DCHECK(descriptor.GetRegisterParameterCount() + 1 == operands.length());
+        inputs_(descriptor.GetRegisterParameterCount() +
+                    kImplicitRegisterParameterCount,
+                zone) {
+    DCHECK(descriptor.GetRegisterParameterCount() +
+               kImplicitRegisterParameterCount ==
+           operands.length());
     inputs_.AddAll(operands, zone);
   }
 
@@ -1836,6 +1886,10 @@ class LCallWithDescriptor final : public LTemplateResultInstruction<1> {
   const CallInterfaceDescriptor descriptor() { return descriptor_; }
 
   DECLARE_HYDROGEN_ACCESSOR(CallWithDescriptor)
+
+  // The target and context are passed as implicit parameters that are not
+  // explicitly listed in the descriptor.
+  static const int kImplicitRegisterParameterCount = 2;
 
  private:
   DECLARE_CONCRETE_INSTRUCTION(CallWithDescriptor, "call-with-descriptor")
@@ -2133,17 +2187,22 @@ class LStoreNamedField final : public LTemplateInstruction<0, 2, 1> {
 };
 
 
-class LStoreNamedGeneric final : public LTemplateInstruction<0, 3, 0> {
+class LStoreNamedGeneric final : public LTemplateInstruction<0, 3, 2> {
  public:
-  LStoreNamedGeneric(LOperand* context, LOperand* object, LOperand* value) {
+  LStoreNamedGeneric(LOperand* context, LOperand* object, LOperand* value,
+                     LOperand* slot, LOperand* vector) {
     inputs_[0] = context;
     inputs_[1] = object;
     inputs_[2] = value;
+    temps_[0] = slot;
+    temps_[1] = vector;
   }
 
   LOperand* context() { return inputs_[0]; }
   LOperand* object() { return inputs_[1]; }
   LOperand* value() { return inputs_[2]; }
+  LOperand* temp_slot() { return temps_[0]; }
+  LOperand* temp_vector() { return temps_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreNamedGeneric, "store-named-generic")
   DECLARE_HYDROGEN_ACCESSOR(StoreNamedGeneric)
@@ -2186,22 +2245,24 @@ class LStoreKeyed final : public LTemplateInstruction<0, 3, 0> {
 };
 
 
-class LStoreKeyedGeneric final : public LTemplateInstruction<0, 4, 0> {
+class LStoreKeyedGeneric final : public LTemplateInstruction<0, 4, 2> {
  public:
-  LStoreKeyedGeneric(LOperand* context,
-                     LOperand* obj,
-                     LOperand* key,
-                     LOperand* value) {
+  LStoreKeyedGeneric(LOperand* context, LOperand* object, LOperand* key,
+                     LOperand* value, LOperand* slot, LOperand* vector) {
     inputs_[0] = context;
-    inputs_[1] = obj;
+    inputs_[1] = object;
     inputs_[2] = key;
     inputs_[3] = value;
+    temps_[0] = slot;
+    temps_[1] = vector;
   }
 
   LOperand* context() { return inputs_[0]; }
   LOperand* object() { return inputs_[1]; }
   LOperand* key() { return inputs_[2]; }
   LOperand* value() { return inputs_[3]; }
+  LOperand* temp_slot() { return temps_[0]; }
+  LOperand* temp_vector() { return temps_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedGeneric, "store-keyed-generic")
   DECLARE_HYDROGEN_ACCESSOR(StoreKeyedGeneric)
@@ -2254,6 +2315,28 @@ class LTrapAllocationMemento final : public LTemplateInstruction<0, 1, 1> {
 
   DECLARE_CONCRETE_INSTRUCTION(TrapAllocationMemento,
                                "trap-allocation-memento")
+};
+
+
+class LMaybeGrowElements final : public LTemplateInstruction<1, 5, 0> {
+ public:
+  LMaybeGrowElements(LOperand* context, LOperand* object, LOperand* elements,
+                     LOperand* key, LOperand* current_capacity) {
+    inputs_[0] = context;
+    inputs_[1] = object;
+    inputs_[2] = elements;
+    inputs_[3] = key;
+    inputs_[4] = current_capacity;
+  }
+
+  LOperand* context() { return inputs_[0]; }
+  LOperand* object() { return inputs_[1]; }
+  LOperand* elements() { return inputs_[2]; }
+  LOperand* key() { return inputs_[3]; }
+  LOperand* current_capacity() { return inputs_[4]; }
+
+  DECLARE_HYDROGEN_ACCESSOR(MaybeGrowElements)
+  DECLARE_CONCRETE_INSTRUCTION(MaybeGrowElements, "maybe-grow-elements")
 };
 
 

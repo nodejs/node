@@ -925,6 +925,8 @@ Register MacroAssembler::GetSmiConstant(Smi* source) {
 
 
 void MacroAssembler::LoadSmiConstant(Register dst, Smi* source) {
+  // Special-casing 0 here to use xorl seems to make things slower, so we don't
+  // do it.
   Move(dst, source, Assembler::RelocInfoNone());
 }
 
@@ -4008,6 +4010,7 @@ void MacroAssembler::GetNumberHash(Register r0, Register scratch) {
   movl(scratch, r0);
   shrl(scratch, Immediate(16));
   xorl(r0, scratch);
+  andl(r0, Immediate(0x3fffffff));
 }
 
 
@@ -4567,7 +4570,7 @@ void MacroAssembler::InitializeFieldsWithFiller(Register start_offset,
   addp(start_offset, Immediate(kPointerSize));
   bind(&entry);
   cmpp(start_offset, end_offset);
-  j(less, &loop);
+  j(below, &loop);
 }
 
 
@@ -5094,6 +5097,7 @@ void MacroAssembler::TruncatingDiv(Register dividend, int32_t divisor) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_X64

@@ -429,8 +429,8 @@ InstructionBlock* InstructionSequenceTest::NewBlock() {
     }
   }
   // Construct instruction block.
-  auto instruction_block =
-      new (zone()) InstructionBlock(zone(), rpo, loop_header, loop_end, false);
+  auto instruction_block = new (zone())
+      InstructionBlock(zone(), rpo, loop_header, loop_end, false, false);
   instruction_blocks_.push_back(instruction_block);
   current_block_ = instruction_block;
   sequence()->StartBlock(rpo);

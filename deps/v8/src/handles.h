@@ -66,13 +66,31 @@ class MaybeHandle {
 
   bool is_null() const { return location_ == NULL; }
 
+  template <typename S>
+  bool operator==(MaybeHandle<S> that) const {
+    return this->location_ == that.location_;
+  }
+  template <typename S>
+  bool operator!=(MaybeHandle<S> that) const {
+    return !(*this == that);
+  }
+
+
  protected:
   T** location_;
 
   // MaybeHandles of different classes are allowed to access each
   // other's location_.
   template<class S> friend class MaybeHandle;
+  template <typename S>
+  friend size_t hash_value(MaybeHandle<S>);
 };
+
+template <typename S>
+inline size_t hash_value(MaybeHandle<S> maybe_handle) {
+  return bit_cast<size_t>(maybe_handle.location_);
+}
+
 
 // ----------------------------------------------------------------------------
 // A Handle provides a reference to an object that survives relocation by
@@ -156,13 +174,6 @@ inline Handle<T> handle(T* t) {
 }
 
 
-// Key comparison function for Map handles.
-inline bool operator<(const Handle<Map>& lhs, const Handle<Map>& rhs) {
-  // This is safe because maps don't move.
-  return *lhs < *rhs;
-}
-
-
 class DeferredHandles;
 class HandleScopeImplementer;
 
@@ -207,6 +218,11 @@ class HandleScope {
   Handle<T> CloseAndEscape(Handle<T> handle_value);
 
   Isolate* isolate() { return isolate_; }
+
+  // Limit for number of handles with --check-handle-count. This is
+  // large enough to compile natives and pass unit tests with some
+  // slack for future changes to natives.
+  static const int kCheckHandleThreshold = 30 * 1024;
 
  private:
   // Prevent heap allocation or illegal handle scopes.

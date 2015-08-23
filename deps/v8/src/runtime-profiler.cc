@@ -88,8 +88,6 @@ static void GetICCounts(SharedFunctionInfo* shared,
 
 
 void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
-  DCHECK(function->IsOptimizable());
-
   if (FLAG_trace_opt && function->PassesFilter(FLAG_hydrogen_filter)) {
     PrintF("[marking ");
     function->ShortPrint();
@@ -117,7 +115,7 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function,
   }
 
   // If the code is not optimizable, don't try OSR.
-  if (!shared->code()->optimizable()) return;
+  if (shared->optimization_disabled()) return;
 
   // We are not prepared to do OSR for a function that already has an
   // allocated arguments object.  The optimized code would bypass it for
@@ -217,7 +215,7 @@ void RuntimeProfiler::OptimizeNow() {
       }
       continue;
     }
-    if (!function->IsOptimizable()) continue;
+    if (function->IsOptimized()) continue;
 
     int ticks = shared_code->profiler_ticks();
 
@@ -262,4 +260,5 @@ void RuntimeProfiler::OptimizeNow() {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -337,4 +337,5 @@ void AllocationTracker::UnresolvedLocation::HandleWeakScript(
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

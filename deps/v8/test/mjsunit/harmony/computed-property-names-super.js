@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-computed-property-names --harmony-object-literals
-// Flags: --harmony-classes --allow-natives-syntax
+// Flags: --harmony-computed-property-names --allow-natives-syntax
 
 
 function ID(x) {

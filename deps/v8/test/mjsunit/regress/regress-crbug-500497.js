@@ -13,6 +13,9 @@ function Ctor() {
 }
 
 for (var i = 0; i < 120; i++) {
+  // This print() is important! Without it, in --gc-stress mode, the function
+  // Ctor is optimized too early. No idea why.
+  print(i);
   // Make the "a" property long-lived, while everything else is short-lived.
   global.push(Ctor().a);
   (function FillNewSpace() { new Array(10000); })();

@@ -128,8 +128,8 @@ class CustomArguments : public CustomArgumentsBase<T::kArgsLength> {
  protected:
   explicit inline CustomArguments(Isolate* isolate) : Super(isolate) {}
 
-  template<typename V>
-  v8::Handle<V> GetReturnValue(Isolate* isolate);
+  template <typename V>
+  v8::Local<V> GetReturnValue(Isolate* isolate);
 
   inline Isolate* isolate() {
     return reinterpret_cast<Isolate*>(this->begin()[T::kIsolateIndex]);
@@ -177,14 +177,14 @@ class PropertyCallbackArguments
    * and used if it's been set to anything inside the callback.
    * New style callbacks always use the return value.
    */
-#define WRITE_CALL_0(Function, ReturnValue)                                  \
-  v8::Handle<ReturnValue> Call(Function f);                                  \
+#define WRITE_CALL_0(Function, ReturnValue) \
+  v8::Local<ReturnValue> Call(Function f);
 
-#define WRITE_CALL_1(Function, ReturnValue, Arg1)                            \
-  v8::Handle<ReturnValue> Call(Function f, Arg1 arg1);                       \
+#define WRITE_CALL_1(Function, ReturnValue, Arg1) \
+  v8::Local<ReturnValue> Call(Function f, Arg1 arg1);
 
-#define WRITE_CALL_2(Function, ReturnValue, Arg1, Arg2)                      \
-  v8::Handle<ReturnValue> Call(Function f, Arg1 arg1, Arg2 arg2);            \
+#define WRITE_CALL_2(Function, ReturnValue, Arg1, Arg2) \
+  v8::Local<ReturnValue> Call(Function f, Arg1 arg1, Arg2 arg2);
 
 #define WRITE_CALL_2_VOID(Function, ReturnValue, Arg1, Arg2)                 \
   void Call(Function f, Arg1 arg1, Arg2 arg2);                               \
@@ -250,7 +250,7 @@ class FunctionCallbackArguments
    * and used if it's been set to anything inside the callback.
    * New style callbacks always use the return value.
    */
-  v8::Handle<v8::Value> Call(FunctionCallback f);
+  v8::Local<v8::Value> Call(FunctionCallback f);
 
  private:
   internal::Object** argv_;

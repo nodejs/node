@@ -48,4 +48,5 @@ void PrintExtension::Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
   printf("\n");
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

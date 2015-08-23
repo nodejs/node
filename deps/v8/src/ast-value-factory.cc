@@ -140,6 +140,7 @@ bool AstValue::BooleanValue() const {
     case SYMBOL:
       UNREACHABLE();
       break;
+    case NUMBER_WITH_DOT:
     case NUMBER:
       return DoubleToBoolean(number_);
     case SMI:
@@ -167,9 +168,15 @@ void AstValue::Internalize(Isolate* isolate) {
       DCHECK(!string_->string().is_null());
       break;
     case SYMBOL:
-      DCHECK_EQ(0, strcmp(symbol_name_, "iterator_symbol"));
-      value_ = isolate->factory()->iterator_symbol();
+      if (symbol_name_[0] == 'i') {
+        DCHECK_EQ(0, strcmp(symbol_name_, "iterator_symbol"));
+        value_ = isolate->factory()->iterator_symbol();
+      } else {
+        DCHECK_EQ(0, strcmp(symbol_name_, "home_object_symbol"));
+        value_ = isolate->factory()->home_object_symbol();
+      }
       break;
+    case NUMBER_WITH_DOT:
     case NUMBER:
       value_ = isolate->factory()->NewNumber(number_, TENURED);
       break;
@@ -285,8 +292,8 @@ const AstValue* AstValueFactory::NewSymbol(const char* name) {
 }
 
 
-const AstValue* AstValueFactory::NewNumber(double number) {
-  AstValue* value = new (zone_) AstValue(number);
+const AstValue* AstValueFactory::NewNumber(double number, bool with_dot) {
+  AstValue* value = new (zone_) AstValue(number, with_dot);
   if (isolate_) {
     value->Internalize(isolate_);
   }
@@ -378,4 +385,5 @@ bool AstValueFactory::AstRawStringCompare(void* a, void* b) {
   if (rhs->byte_length() != len) return false;
   return memcmp(lhs->raw_data(), rhs->raw_data(), len) == 0;
 }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

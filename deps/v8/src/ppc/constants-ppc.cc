@@ -85,7 +85,7 @@ int Registers::Number(const char* name) {
   // No register with the requested name found.
   return kNoRegister;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_PPC

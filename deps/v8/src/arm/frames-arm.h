@@ -66,11 +66,23 @@ const int kNumDoubleCalleeSaved = 8;
 // TODO(regis): Only 8 registers may actually be sufficient. Revisit.
 const int kNumSafepointRegisters = 16;
 
+// The embedded constant pool pointer (r8/pp) is not included in the safepoint
+// since it is not tagged.  This register is preserved in the stack frame where
+// its value will be updated if GC code movement occurs.  Including it in the
+// safepoint (where it will not be relocated) would cause a stale value to be
+// restored.
+const RegList kConstantPointerRegMask =
+    FLAG_enable_embedded_constant_pool ? (1 << 8) : 0;
+const int kNumConstantPoolPointerReg =
+    FLAG_enable_embedded_constant_pool ? 1 : 0;
+
 // Define the list of registers actually saved at safepoints.
 // Note that the number of saved registers may be smaller than the reserved
 // space, i.e. kNumSafepointSavedRegisters <= kNumSafepointRegisters.
-const RegList kSafepointSavedRegisters = kJSCallerSaved | kCalleeSaved;
-const int kNumSafepointSavedRegisters = kNumJSCallerSaved + kNumCalleeSaved;
+const RegList kSafepointSavedRegisters =
+    kJSCallerSaved | (kCalleeSaved & ~kConstantPointerRegMask);
+const int kNumSafepointSavedRegisters =
+    kNumJSCallerSaved + kNumCalleeSaved - kNumConstantPoolPointerReg;
 
 // ----------------------------------------------------
 
@@ -84,11 +96,11 @@ class EntryFrameConstants : public AllStatic {
 
 class ExitFrameConstants : public AllStatic {
  public:
-  static const int kFrameSize          = FLAG_enable_ool_constant_pool ?
-                                         3 * kPointerSize : 2 * kPointerSize;
+  static const int kFrameSize =
+      FLAG_enable_embedded_constant_pool ? 3 * kPointerSize : 2 * kPointerSize;
 
-  static const int kConstantPoolOffset = FLAG_enable_ool_constant_pool ?
-                                         -3 * kPointerSize : 0;
+  static const int kConstantPoolOffset =
+      FLAG_enable_embedded_constant_pool ? -3 * kPointerSize : 0;
   static const int kCodeOffset         = -2 * kPointerSize;
   static const int kSPOffset           = -1 * kPointerSize;
 
@@ -113,36 +125,6 @@ class JavaScriptFrameConstants : public AllStatic {
   // Caller SP-relative.
   static const int kParam0Offset   = -2 * kPointerSize;
   static const int kReceiverOffset = -1 * kPointerSize;
-};
-
-
-class ArgumentsAdaptorFrameConstants : public AllStatic {
- public:
-  // FP-relative.
-  static const int kLengthOffset = StandardFrameConstants::kExpressionsOffset;
-
-  static const int kFrameSize =
-      StandardFrameConstants::kFixedFrameSize + kPointerSize;
-};
-
-
-class ConstructFrameConstants : public AllStatic {
- public:
-  // FP-relative.
-  static const int kImplicitReceiverOffset = -6 * kPointerSize;
-  static const int kConstructorOffset      = -5 * kPointerSize;
-  static const int kLengthOffset           = -4 * kPointerSize;
-  static const int kCodeOffset = StandardFrameConstants::kExpressionsOffset;
-
-  static const int kFrameSize =
-      StandardFrameConstants::kFixedFrameSize + 4 * kPointerSize;
-};
-
-
-class InternalFrameConstants : public AllStatic {
- public:
-  // FP-relative.
-  static const int kCodeOffset = StandardFrameConstants::kExpressionsOffset;
 };
 
 

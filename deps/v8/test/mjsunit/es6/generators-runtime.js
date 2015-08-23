@@ -35,6 +35,7 @@ function* g() { yield 1; }
 var GeneratorFunctionPrototype = Object.getPrototypeOf(g);
 var GeneratorFunction = GeneratorFunctionPrototype.constructor;
 var GeneratorObjectPrototype = GeneratorFunctionPrototype.prototype;
+var IteratorPrototype = Object.getPrototypeOf(GeneratorObjectPrototype);
 
 // A generator function should have the same set of properties as any
 // other function.
@@ -51,16 +52,9 @@ function TestGeneratorFunctionInstance() {
     var prop = f_own_property_names[i];
     var f_desc = Object.getOwnPropertyDescriptor(f, prop);
     var g_desc = Object.getOwnPropertyDescriptor(g, prop);
-    if (prop === "prototype") {
-      // ES6 draft 03-17-2015 section 25.2.2.2
-      assertFalse(g_desc.writable, prop);
-      assertFalse(g_desc.enumerable, prop);
-      assertFalse(g_desc.configurable, prop);
-    } else {
-      assertEquals(f_desc.configurable, g_desc.configurable, prop);
-      assertEquals(f_desc.writable, g_desc.writable, prop);
-      assertEquals(f_desc.enumerable, g_desc.enumerable, prop);
-    }
+    assertEquals(f_desc.configurable, g_desc.configurable, prop);
+    assertEquals(f_desc.writable, g_desc.writable, prop);
+    assertEquals(f_desc.enumerable, g_desc.enumerable, prop);
   }
 }
 TestGeneratorFunctionInstance();
@@ -100,7 +94,7 @@ TestGeneratorFunctionPrototype();
 // Functions that we associate with generator objects are actually defined by
 // a common prototype.
 function TestGeneratorObjectPrototype() {
-  assertSame(Object.prototype,
+  assertSame(IteratorPrototype,
              Object.getPrototypeOf(GeneratorObjectPrototype));
   assertSame(GeneratorObjectPrototype,
              Object.getPrototypeOf((function*(){yield 1}).prototype));
@@ -134,16 +128,6 @@ function TestGeneratorObjectPrototype() {
   assertTrue(throw_desc.writable);
   assertFalse(throw_desc.enumerable);
   assertTrue(throw_desc.configurable);
-
-  var iterator_desc = Object.getOwnPropertyDescriptor(GeneratorObjectPrototype,
-      Symbol.iterator);
-  assertTrue(iterator_desc !== undefined);
-  assertFalse(iterator_desc.writable);
-  assertFalse(iterator_desc.enumerable);
-  assertFalse(iterator_desc.configurable);
-
-  // The generator object's "iterator" function is just the identity.
-  assertSame(iterator_desc.value.call(42), 42);
 }
 TestGeneratorObjectPrototype();
 
@@ -165,6 +149,13 @@ function TestGeneratorFunction() {
 
   assertTrue((new GeneratorFunction()) instanceof GeneratorFunction);
   assertTrue(GeneratorFunction() instanceof GeneratorFunction);
+
+  // ES6 draft 04-14-15, section 25.2.2.2
+  var prototype_desc = Object.getOwnPropertyDescriptor(GeneratorFunction,
+      "prototype");
+  assertFalse(prototype_desc.writable);
+  assertFalse(prototype_desc.enumerable);
+  assertFalse(prototype_desc.configurable);
 }
 TestGeneratorFunction();
 

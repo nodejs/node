@@ -115,8 +115,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
   // the vector and slot registers, which need to be preserved for a handler
   // call or miss.
   if (IC::ICUseVector(ic_kind)) {
-    Register vector = VectorLoadICDescriptor::VectorRegister();
-    Register slot = VectorLoadICDescriptor::SlotRegister();
+    Register vector = LoadWithVectorDescriptor::VectorRegister();
+    Register slot = LoadDescriptor::SlotRegister();
     DCHECK(!AreAliased(vector, slot, scratch));
   }
 #endif
@@ -161,7 +161,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
 
 
 #undef __
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_X64

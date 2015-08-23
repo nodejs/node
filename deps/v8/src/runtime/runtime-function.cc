@@ -10,6 +10,7 @@
 #include "src/cpu-profiler.h"
 #include "src/deoptimizer.h"
 #include "src/frames.h"
+#include "src/messages.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {
@@ -231,7 +232,6 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   target_shared->set_feedback_vector(source_shared->feedback_vector());
   target_shared->set_internal_formal_parameter_count(
       source_shared->internal_formal_parameter_count());
-  target_shared->set_script(source_shared->script());
   target_shared->set_start_position_and_type(
       source_shared->start_position_and_type());
   target_shared->set_end_position(source_shared->end_position());
@@ -241,6 +241,8 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
       source_shared->opt_count_and_bailout_reason());
   target_shared->set_native(was_native);
   target_shared->set_profiler_ticks(source_shared->profiler_ticks());
+  SharedFunctionInfo::SetScript(
+      target_shared, Handle<Object>(source_shared->script(), isolate));
 
   // Set the code of the target function.
   target->ReplaceCode(source_shared->code());
@@ -310,14 +312,14 @@ RUNTIME_FUNCTION(Runtime_IsConstructor) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_SetInlineBuiltinFlag) {
+RUNTIME_FUNCTION(Runtime_SetForceInlineFlag) {
   SealHandleScope shs(isolate);
   RUNTIME_ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
 
   if (object->IsJSFunction()) {
     JSFunction* func = JSFunction::cast(*object);
-    func->shared()->set_inline_builtin(true);
+    func->shared()->set_force_inline(true);
   }
   return isolate->heap()->undefined_value();
 }
@@ -336,22 +338,36 @@ static SmartArrayPointer<Handle<Object> > GetCallerArguments(Isolate* isolate,
   frame->GetFunctions(&functions);
   if (functions.length() > 1) {
     int inlined_jsframe_index = functions.length() - 1;
-    JSFunction* inlined_function = functions[inlined_jsframe_index];
-    SlotRefValueBuilder slot_refs(
-        frame, inlined_jsframe_index,
-        inlined_function->shared()->internal_formal_parameter_count());
+    TranslatedState translated_values(frame);
+    translated_values.Prepare(false, frame->fp());
 
-    int args_count = slot_refs.args_length();
+    int argument_count = 0;
+    TranslatedFrame* translated_frame =
+        translated_values.GetArgumentsInfoFromJSFrameIndex(
+            inlined_jsframe_index, &argument_count);
+    TranslatedFrame::iterator iter = translated_frame->begin();
 
-    *total_argc = prefix_argc + args_count;
+    // Skip the function.
+    iter++;
+
+    // Skip the receiver.
+    iter++;
+    argument_count--;
+
+    *total_argc = prefix_argc + argument_count;
     SmartArrayPointer<Handle<Object> > param_data(
         NewArray<Handle<Object> >(*total_argc));
-    slot_refs.Prepare(isolate);
-    for (int i = 0; i < args_count; i++) {
-      Handle<Object> val = slot_refs.GetNext(isolate, 0);
-      param_data[prefix_argc + i] = val;
+    bool should_deoptimize = false;
+    for (int i = 0; i < argument_count; i++) {
+      should_deoptimize = should_deoptimize || iter->IsMaterializedObject();
+      Handle<Object> value = iter->GetValue();
+      param_data[prefix_argc + i] = value;
+      iter++;
     }
-    slot_refs.Finish(isolate);
+
+    if (should_deoptimize) {
+      translated_values.StoreMaterializedValuesAndDeopt();
+    }
 
     return param_data;
   } else {
@@ -381,6 +397,7 @@ RUNTIME_FUNCTION(Runtime_FunctionBindArguments) {
 
   // TODO(lrn): Create bound function in C++ code from premade shared info.
   bound_function->shared()->set_bound(true);
+  bound_function->shared()->set_optimized_code_map(Smi::FromInt(0));
   bound_function->shared()->set_inferred_name(isolate->heap()->empty_string());
   // Get all arguments of calling function (Function.prototype.bind).
   int argc = 0;
@@ -430,8 +447,11 @@ RUNTIME_FUNCTION(Runtime_FunctionBindArguments) {
       isolate->native_context()->bound_function_map());
   JSObject::MigrateToMap(bound_function, bound_function_map);
   Handle<String> length_string = isolate->factory()->length_string();
+  // These attributes must be kept in sync with how the bootstrapper
+  // configures the bound_function_map retrieved above.
+  // We use ...IgnoreAttributes() here because of length's read-onliness.
   PropertyAttributes attr =
-      static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY);
+      static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
   RETURN_FAILURE_ON_EXCEPTION(
       isolate, JSObject::SetOwnPropertyIgnoreAttributes(
                    bound_function, length_string, new_length, attr));
@@ -584,6 +604,16 @@ RUNTIME_FUNCTION(Runtime_GetConstructorDelegate) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_GetOriginalConstructor) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 0);
+  JavaScriptFrameIterator it(isolate);
+  JavaScriptFrame* frame = it.frame();
+  return frame->IsConstructor() ? frame->GetOriginalConstructor()
+                                : isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(Runtime_CallFunction) {
   SealHandleScope shs(isolate);
   return __RT_impl_Runtime_Call(args, isolate);
@@ -605,5 +635,13 @@ RUNTIME_FUNCTION(Runtime_IsFunction) {
   CONVERT_ARG_CHECKED(Object, obj, 0);
   return isolate->heap()->ToBoolean(obj->IsJSFunction());
 }
+
+
+RUNTIME_FUNCTION(Runtime_ThrowStrongModeTooFewArguments) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  THROW_NEW_ERROR_RETURN_FAILURE(isolate,
+                                 NewTypeError(MessageTemplate::kStrongArity));
 }
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
