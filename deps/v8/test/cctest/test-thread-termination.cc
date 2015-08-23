@@ -61,7 +61,7 @@ void Loop(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 
 void DoLoop(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::TryCatch try_catch;
+  v8::TryCatch try_catch(args.GetIsolate());
   CHECK(!v8::V8::IsExecutionTerminating(args.GetIsolate()));
   v8::Script::Compile(v8::String::NewFromUtf8(args.GetIsolate(),
                                               "function f() {"
@@ -86,7 +86,7 @@ void DoLoop(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 
 void DoLoopNoCall(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::TryCatch try_catch;
+  v8::TryCatch try_catch(args.GetIsolate());
   CHECK(!v8::V8::IsExecutionTerminating(args.GetIsolate()));
   v8::Script::Compile(v8::String::NewFromUtf8(args.GetIsolate(),
                                               "var term = true;"
@@ -217,7 +217,7 @@ void TerminateOrReturnObject(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 
 void LoopGetProperty(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::TryCatch try_catch;
+  v8::TryCatch try_catch(args.GetIsolate());
   CHECK(!v8::V8::IsExecutionTerminating(args.GetIsolate()));
   v8::Script::Compile(
       v8::String::NewFromUtf8(args.GetIsolate(),
@@ -275,7 +275,7 @@ v8::Persistent<v8::String> reenter_script_1;
 v8::Persistent<v8::String> reenter_script_2;
 
 void ReenterAfterTermination(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::TryCatch try_catch;
+  v8::TryCatch try_catch(args.GetIsolate());
   v8::Isolate* isolate = args.GetIsolate();
   CHECK(!v8::V8::IsExecutionTerminating(isolate));
   v8::Local<v8::String> script =
@@ -328,7 +328,7 @@ TEST(TerminateAndReenterFromThreadItself) {
 
 
 void DoLoopCancelTerminate(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::TryCatch try_catch;
+  v8::TryCatch try_catch(args.GetIsolate());
   CHECK(!v8::V8::IsExecutionTerminating());
   v8::Script::Compile(v8::String::NewFromUtf8(args.GetIsolate(),
                                               "var term = true;"
@@ -426,7 +426,7 @@ TEST(PostponeTerminateException) {
       v8::Context::New(CcTest::isolate(), NULL, global);
   v8::Context::Scope context_scope(context);
 
-  v8::TryCatch try_catch;
+  v8::TryCatch try_catch(isolate);
   static const char* terminate_and_loop =
       "terminate(); for (var i = 0; i < 10000; i++);";
 
@@ -504,7 +504,7 @@ TEST(TerminationInInnerTryCall) {
       v8::Context::New(CcTest::isolate(), NULL, global_template);
   v8::Context::Scope context_scope(context);
   {
-    v8::TryCatch try_catch;
+    v8::TryCatch try_catch(isolate);
     CompileRun("inner_try_call_terminate()");
     CHECK(try_catch.HasTerminated());
   }
@@ -522,7 +522,7 @@ TEST(TerminateAndTryCall) {
   v8::Handle<v8::Context> context = v8::Context::New(isolate, NULL, global);
   v8::Context::Scope context_scope(context);
   CHECK(!v8::V8::IsExecutionTerminating(isolate));
-  v8::TryCatch try_catch;
+  v8::TryCatch try_catch(isolate);
   CHECK(!v8::V8::IsExecutionTerminating(isolate));
   // Terminate execution has been triggered inside TryCall, but re-requested
   // to trigger later.

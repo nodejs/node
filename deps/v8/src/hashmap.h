@@ -43,7 +43,7 @@ class TemplateHashMapImpl {
 
   // If an entry with matching key is found, returns that entry.
   // Otherwise, NULL is returned.
-  Entry* Lookup(void* key, uint32_t hash);
+  Entry* Lookup(void* key, uint32_t hash) const;
 
   // If an entry with matching key is found, returns that entry.
   // If no matching entry is found, a new entry is inserted with
@@ -90,7 +90,7 @@ class TemplateHashMapImpl {
   uint32_t occupancy_;
 
   Entry* map_end() const { return map_ + capacity_; }
-  Entry* Probe(void* key, uint32_t hash);
+  Entry* Probe(void* key, uint32_t hash) const;
   void Initialize(uint32_t capacity, AllocationPolicy allocator);
   void Resize(AllocationPolicy allocator);
 };
@@ -113,7 +113,7 @@ TemplateHashMapImpl<AllocationPolicy>::~TemplateHashMapImpl() {
 
 template <class AllocationPolicy>
 typename TemplateHashMapImpl<AllocationPolicy>::Entry*
-TemplateHashMapImpl<AllocationPolicy>::Lookup(void* key, uint32_t hash) {
+TemplateHashMapImpl<AllocationPolicy>::Lookup(void* key, uint32_t hash) const {
   Entry* p = Probe(key, hash);
   return p->key != NULL ? p : NULL;
 }
@@ -242,7 +242,7 @@ typename TemplateHashMapImpl<AllocationPolicy>::Entry*
 
 template <class AllocationPolicy>
 typename TemplateHashMapImpl<AllocationPolicy>::Entry*
-TemplateHashMapImpl<AllocationPolicy>::Probe(void* key, uint32_t hash) {
+TemplateHashMapImpl<AllocationPolicy>::Probe(void* key, uint32_t hash) const {
   DCHECK(key != NULL);
 
   DCHECK(base::bits::IsPowerOfTwo32(capacity_));

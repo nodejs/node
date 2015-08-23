@@ -33,4 +33,5 @@ void DiyFp::Multiply(const DiyFp& other) {
   f_ = result_f;
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

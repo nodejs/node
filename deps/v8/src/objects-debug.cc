@@ -47,10 +47,6 @@ void HeapObject::HeapObjectVerify() {
     return;
   }
 
-  // TODO(yangguo): Use this check once crbug/436911 has been fixed.
-  //  DCHECK(!NeedsToEnsureDoubleAlignment() ||
-  //         IsAligned(OffsetFrom(address()), kDoubleAlignment));
-
   switch (instance_type) {
     case SYMBOL_TYPE:
       Symbol::cast(this)->SymbolVerify();
@@ -62,14 +58,14 @@ void HeapObject::HeapObjectVerify() {
     case MUTABLE_HEAP_NUMBER_TYPE:
       HeapNumber::cast(this)->HeapNumberVerify();
       break;
+    case FLOAT32X4_TYPE:
+      Float32x4::cast(this)->Float32x4Verify();
+      break;
     case FIXED_ARRAY_TYPE:
       FixedArray::cast(this)->FixedArrayVerify();
       break;
     case FIXED_DOUBLE_ARRAY_TYPE:
       FixedDoubleArray::cast(this)->FixedDoubleArrayVerify();
-      break;
-    case CONSTANT_POOL_ARRAY_TYPE:
-      ConstantPoolArray::cast(this)->ConstantPoolArrayVerify();
       break;
     case BYTE_ARRAY_TYPE:
       ByteArray::cast(this)->ByteArrayVerify();
@@ -218,6 +214,9 @@ void HeapNumber::HeapNumberVerify() {
 }
 
 
+void Float32x4::Float32x4Verify() { CHECK(IsFloat32x4()); }
+
+
 void ByteArray::ByteArrayVerify() {
   CHECK(IsByteArray());
 }
@@ -242,6 +241,7 @@ void FixedTypedArray<Traits>::FixedTypedArrayVerify() {
   CHECK(IsHeapObject() &&
         HeapObject::cast(this)->map()->instance_type() ==
             Traits::kInstanceType);
+  CHECK(base_pointer() == this);
 }
 
 
@@ -257,7 +257,7 @@ void JSObject::JSObjectVerify() {
   VerifyHeapPointer(properties());
   VerifyHeapPointer(elements());
 
-  if (GetElementsKind() == SLOPPY_ARGUMENTS_ELEMENTS) {
+  if (HasSloppyArgumentsElements()) {
     CHECK(this->elements()->IsFixedArray());
     CHECK_GE(this->elements()->length(), 2);
   }
@@ -402,20 +402,6 @@ void FixedDoubleArray::FixedDoubleArrayVerify() {
 }
 
 
-void ConstantPoolArray::ConstantPoolArrayVerify() {
-  CHECK(IsConstantPoolArray());
-  ConstantPoolArray::Iterator code_iter(this, ConstantPoolArray::CODE_PTR);
-  while (!code_iter.is_finished()) {
-    Address code_entry = get_code_ptr_entry(code_iter.next_index());
-    VerifyPointer(Code::GetCodeFromTargetAddress(code_entry));
-  }
-  ConstantPoolArray::Iterator heap_iter(this, ConstantPoolArray::HEAP_PTR);
-  while (!heap_iter.is_finished()) {
-    VerifyObjectField(OffsetOfElementAt(heap_iter.next_index()));
-  }
-}
-
-
 void JSGeneratorObject::JSGeneratorObjectVerify() {
   // In an expression like "new g()", there can be a point where a generator
   // object is allocated but its fields are all undefined, as it hasn't yet been
@@ -493,8 +479,6 @@ void JSDate::JSDateVerify() {
 
 void JSMessageObject::JSMessageObjectVerify() {
   CHECK(IsJSMessageObject());
-  CHECK(type()->IsString());
-  CHECK(arguments()->IsJSArray());
   VerifyObjectField(kStartPositionOffset);
   VerifyObjectField(kEndPositionOffset);
   VerifyObjectField(kArgumentsOffset);
@@ -1070,6 +1054,11 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
     info->number_of_objects_with_fast_properties_++;
     info->number_of_fast_used_fields_   += map()->NextFreePropertyIndex();
     info->number_of_fast_unused_fields_ += map()->unused_property_fields();
+  } else if (IsGlobalObject()) {
+    GlobalDictionary* dict = global_dictionary();
+    info->number_of_slow_used_properties_ += dict->NumberOfElements();
+    info->number_of_slow_unused_properties_ +=
+        dict->Capacity() - dict->NumberOfElements();
   } else {
     NameDictionary* dict = property_dictionary();
     info->number_of_slow_used_properties_ += dict->NumberOfElements();
@@ -1115,7 +1104,8 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
           dict->Capacity() - dict->NumberOfElements();
       break;
     }
-    case SLOPPY_ARGUMENTS_ELEMENTS:
+    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
+    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
       break;
   }
 }
@@ -1288,4 +1278,5 @@ void Code::VerifyEmbeddedObjects(VerifyMode mode) {
 
 #endif  // DEBUG
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

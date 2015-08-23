@@ -523,6 +523,7 @@ void MacroAssembler::GetNumberHash(Register reg0, Register scratch) {
   // hash = hash ^ (hash >> 16);
   srl(at, reg0, 16);
   xor_(reg0, reg0, at);
+  And(reg0, reg0, Operand(0x3fffffff));
 }
 
 
@@ -3803,7 +3804,7 @@ void MacroAssembler::InitializeFieldsWithFiller(Register start_offset,
   sw(filler, MemOperand(start_offset));
   Addu(start_offset, start_offset, kPointerSize);
   bind(&entry);
-  Branch(&loop, lt, start_offset, Operand(end_offset));
+  Branch(&loop, ult, start_offset, Operand(end_offset));
 }
 
 
@@ -4451,17 +4452,17 @@ void MacroAssembler::AdduAndCheckForOverflow(Register dst, Register left,
   } else {
     if (dst.is(left)) {
       mov(scratch, left);                   // Preserve left.
-      addiu(dst, left, right.immediate());  // Left is overwritten.
+      Addu(dst, left, right.immediate());   // Left is overwritten.
       xor_(scratch, dst, scratch);          // Original left.
       // Load right since xori takes uint16 as immediate.
-      addiu(t9, zero_reg, right.immediate());
+      Addu(t9, zero_reg, right);
       xor_(overflow_dst, dst, t9);
       and_(overflow_dst, overflow_dst, scratch);
     } else {
-      addiu(dst, left, right.immediate());
+      Addu(dst, left, right.immediate());
       xor_(overflow_dst, dst, left);
       // Load right since xori takes uint16 as immediate.
-      addiu(t9, zero_reg, right.immediate());
+      Addu(t9, zero_reg, right);
       xor_(scratch, dst, t9);
       and_(overflow_dst, scratch, overflow_dst);
     }
@@ -4519,17 +4520,17 @@ void MacroAssembler::SubuAndCheckForOverflow(Register dst, Register left,
   } else {
     if (dst.is(left)) {
       mov(scratch, left);                      // Preserve left.
-      addiu(dst, left, -(right.immediate()));  // Left is overwritten.
+      Subu(dst, left, right);                  // Left is overwritten.
       xor_(overflow_dst, dst, scratch);        // scratch is original left.
       // Load right since xori takes uint16 as immediate.
-      addiu(t9, zero_reg, right.immediate());
+      Addu(t9, zero_reg, right);
       xor_(scratch, scratch, t9);  // scratch is original left.
       and_(overflow_dst, scratch, overflow_dst);
     } else {
-      addiu(dst, left, -(right.immediate()));
+      Subu(dst, left, right);
       xor_(overflow_dst, dst, left);
       // Load right since xori takes uint16 as immediate.
-      addiu(t9, zero_reg, right.immediate());
+      Addu(t9, zero_reg, right);
       xor_(scratch, left, t9);
       and_(overflow_dst, scratch, overflow_dst);
     }
@@ -5566,7 +5567,7 @@ void MacroAssembler::CallCFunctionHelper(Register function,
   if (base::OS::ActivationFrameAlignment() > kPointerSize) {
     lw(sp, MemOperand(sp, stack_passed_arguments * kPointerSize));
   } else {
-    Addu(sp, sp, Operand(stack_passed_arguments * sizeof(kPointerSize)));
+    Addu(sp, sp, Operand(stack_passed_arguments * kPointerSize));
   }
 }
 
@@ -6128,6 +6129,7 @@ void MacroAssembler::TruncatingDiv(Register result,
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_MIPS

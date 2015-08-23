@@ -212,6 +212,8 @@ class Simulator {
   // Call on program start.
   static void Initialize(Isolate* isolate);
 
+  static void TearDown(HashMap* i_cache, Redirection* first);
+
   // V8 generally calls into generated JS code with 5 parameters and into
   // generated RegExp code with 7 parameters. This is a convenience function,
   // which sets up the simulator state and grabs the result on return.
@@ -349,6 +351,7 @@ class Simulator {
 
   // Simulator support.
   char* stack_;
+  static const size_t stack_protection_size_ = 256 * kPointerSize;
   bool pc_modified_;
   int icount_;
 

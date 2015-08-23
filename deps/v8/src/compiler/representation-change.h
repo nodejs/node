@@ -232,13 +232,13 @@ class RepresentationChanger {
     // Select the correct X -> Word32 truncation operator.
     const Operator* op = NULL;
     if (output_type & kRepFloat64) {
-      op = machine()->TruncateFloat64ToInt32();
+      op = machine()->TruncateFloat64ToInt32(TruncationMode::kJavaScript);
     } else if (output_type & kRepFloat32) {
       node = InsertChangeFloat32ToFloat64(node);
-      op = machine()->TruncateFloat64ToInt32();
+      op = machine()->TruncateFloat64ToInt32(TruncationMode::kJavaScript);
     } else if (output_type & kRepTagged) {
       node = InsertChangeTaggedToFloat64(node);
-      op = machine()->TruncateFloat64ToInt32();
+      op = machine()->TruncateFloat64ToInt32(TruncationMode::kJavaScript);
     } else {
       return TypeError(node, output_type, kRepWord32);
     }

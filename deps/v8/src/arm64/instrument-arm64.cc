@@ -591,4 +591,5 @@ void Instrument::VisitUnimplemented(Instruction* instr) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

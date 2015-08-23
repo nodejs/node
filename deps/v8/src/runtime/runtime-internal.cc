@@ -60,6 +60,39 @@ RUNTIME_FUNCTION(Runtime_ThrowReferenceError) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_NewTypeError) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_INT32_ARG_CHECKED(template_index, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, arg0, 1);
+  auto message_template =
+      static_cast<MessageTemplate::Template>(template_index);
+  return *isolate->factory()->NewTypeError(message_template, arg0);
+}
+
+
+RUNTIME_FUNCTION(Runtime_NewReferenceError) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_INT32_ARG_CHECKED(template_index, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, arg0, 1);
+  auto message_template =
+      static_cast<MessageTemplate::Template>(template_index);
+  return *isolate->factory()->NewReferenceError(message_template, arg0);
+}
+
+
+RUNTIME_FUNCTION(Runtime_NewSyntaxError) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_INT32_ARG_CHECKED(template_index, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, arg0, 1);
+  auto message_template =
+      static_cast<MessageTemplate::Template>(template_index);
+  return *isolate->factory()->NewSyntaxError(message_template, arg0);
+}
+
+
 RUNTIME_FUNCTION(Runtime_ThrowIteratorResultNotAnObject) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
@@ -67,6 +100,14 @@ RUNTIME_FUNCTION(Runtime_ThrowIteratorResultNotAnObject) {
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate,
       NewTypeError(MessageTemplate::kIteratorResultNotAnObject, value));
+}
+
+
+RUNTIME_FUNCTION(Runtime_ThrowStrongModeImplicitConversion) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kStrongImplicitConversion));
 }
 
 
@@ -79,7 +120,7 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectEvent) {
   if (debug_event) isolate->debug()->OnPromiseReject(promise, value);
   Handle<Symbol> key = isolate->factory()->promise_has_handler_symbol();
   // Do not report if we actually have a handler.
-  if (JSObject::GetDataProperty(promise, key)->IsUndefined()) {
+  if (JSReceiver::GetDataProperty(promise, key)->IsUndefined()) {
     isolate->ReportPromiseReject(promise, value,
                                  v8::kPromiseRejectWithNoHandler);
   }
@@ -93,7 +134,7 @@ RUNTIME_FUNCTION(Runtime_PromiseRevokeReject) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
   Handle<Symbol> key = isolate->factory()->promise_has_handler_symbol();
   // At this point, no revocation has been issued before
-  RUNTIME_ASSERT(JSObject::GetDataProperty(promise, key)->IsUndefined());
+  RUNTIME_ASSERT(JSReceiver::GetDataProperty(promise, key)->IsUndefined());
   isolate->ReportPromiseReject(promise, Handle<Object>(),
                                v8::kPromiseHandlerAddedAfterReject);
   return isolate->heap()->undefined_value();
@@ -408,5 +449,23 @@ RUNTIME_FUNCTION(Runtime_HarmonyToString) {
   // TODO(caitp): Delete this runtime method when removing --harmony-tostring
   return isolate->heap()->ToBoolean(FLAG_harmony_tostring);
 }
+
+
+RUNTIME_FUNCTION(Runtime_GetTypeFeedbackVector) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  return function->shared()->feedback_vector();
 }
-}  // namespace v8::internal
+
+
+RUNTIME_FUNCTION(Runtime_GetCallerJSFunction) {
+  SealHandleScope shs(isolate);
+  StackFrameIterator it(isolate);
+  RUNTIME_ASSERT(it.frame()->type() == StackFrame::STUB);
+  it.Advance();
+  RUNTIME_ASSERT(it.frame()->type() == StackFrame::JAVA_SCRIPT);
+  return JavaScriptFrame::cast(it.frame())->function();
+}
+}  // namespace internal
+}  // namespace v8

@@ -85,7 +85,7 @@ class TestCode : public HandleAndZoneScope {
     if (current_ == NULL) {
       current_ = new (main_zone())
           InstructionBlock(main_zone(), rpo_number_, RpoNumber::Invalid(),
-                           RpoNumber::Invalid(), deferred);
+                           RpoNumber::Invalid(), deferred, false);
       blocks_.push_back(current_);
       sequence_.StartBlock(rpo_number_);
     }

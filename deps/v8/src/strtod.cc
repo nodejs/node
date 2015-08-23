@@ -419,4 +419,5 @@ double Strtod(Vector<const char> buffer, int exponent) {
   return BignumStrtod(trimmed, exponent, guess);
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

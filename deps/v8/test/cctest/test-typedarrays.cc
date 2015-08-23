@@ -48,7 +48,7 @@ TEST(CopyContentsArray) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   CompileRun("var a = new Uint8Array([0, 1, 2, 3]);");
-  TestArrayBufferViewContents(env, true);
+  TestArrayBufferViewContents(env, false);
 }
 
 

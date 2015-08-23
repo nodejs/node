@@ -130,10 +130,9 @@ void NamedLoadHandlerCompiler::GenerateDirectLoadGlobalFunctionPrototype(
 void NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(
     MacroAssembler* masm, Register receiver, Register scratch1,
     Register scratch2, Label* miss_label) {
-  DCHECK(!FLAG_vector_ics);
-  __ TryGetFunctionPrototype(receiver, scratch1, scratch2, miss_label);
-  __ mov(eax, scratch1);
-  __ ret(0);
+  // TODO(mvstanton): This isn't used on ia32. Move all the other
+  // platform implementations into a code stub so this method can be removed.
+  UNREACHABLE();
 }
 
 
@@ -809,7 +808,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
 
 
 #undef __
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_IA32

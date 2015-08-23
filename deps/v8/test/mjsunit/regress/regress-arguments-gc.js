@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-gc --nocleanup_code_caches_at_gc
+// Flags: --expose-gc --nocleanup-code-caches-at-gc
 
 function f(x) {
   gc();

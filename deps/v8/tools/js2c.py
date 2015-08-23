@@ -415,7 +415,7 @@ def PrepareSources(source_files, native_type, emit_js):
     message_template_file = message_template_files[0]
 
   filters = None
-  if native_type == "EXTRA":
+  if native_type == "EXTRAS":
     filters = BuildExtraFilterChain()
   else:
     filters = BuildFilterChain(macro_file, message_template_file)

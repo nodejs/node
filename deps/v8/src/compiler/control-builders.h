@@ -131,6 +131,9 @@ class BlockBuilder final : public ControlBuilder {
   // Primitive support for break.
   void Break() final;
 
+  // Compound control commands for conditional break.
+  void BreakWhen(Node* condition, BranchHint = BranchHint::kNone);
+
  private:
   Environment* break_environment_;  // Environment after the block exits.
 };

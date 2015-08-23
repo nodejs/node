@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_VISITING_INL_H_
 #define V8_OBJECTS_VISITING_INL_H_
 
+#include "src/heap/objects-visiting.h"
 
 namespace v8 {
 namespace internal {
@@ -139,8 +140,6 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
   table_.Register(kVisitFixedTypedArray, &DataObjectVisitor::Visit);
 
   table_.Register(kVisitFixedFloat64Array, &DataObjectVisitor::Visit);
-
-  table_.Register(kVisitConstantPoolArray, &VisitConstantPoolArray);
 
   table_.Register(kVisitNativeContext, &VisitNativeContext);
 
@@ -303,7 +302,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitMap(Map* map,
 
   // When map collection is enabled we have to mark through map's transitions
   // and back pointers in a special way to make these links weak.
-  if (FLAG_collect_maps && map_object->CanTransition()) {
+  if (map_object->CanTransition()) {
     MarkMapContents(heap, map_object);
   } else {
     StaticVisitor::VisitPointers(
@@ -330,12 +329,12 @@ void StaticMarkingVisitor<StaticVisitor>::VisitWeakCell(Map* map,
                                                         HeapObject* object) {
   Heap* heap = map->GetHeap();
   WeakCell* weak_cell = reinterpret_cast<WeakCell*>(object);
-  Object* undefined = heap->undefined_value();
   // Enqueue weak cell in linked list of encountered weak collections.
   // We can ignore weak cells with cleared values because they will always
   // contain smi zero.
-  if (weak_cell->next() == undefined && !weak_cell->cleared()) {
-    weak_cell->set_next(heap->encountered_weak_cells());
+  if (weak_cell->next_cleared() && !weak_cell->cleared()) {
+    weak_cell->set_next(heap->encountered_weak_cells(),
+                        UPDATE_WEAK_WRITE_BARRIER);
     heap->set_encountered_weak_cells(weak_cell);
   }
 }
@@ -410,14 +409,15 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfo(
   if (FLAG_cleanup_code_caches_at_gc) {
     shared->ClearTypeFeedbackInfoAtGCTime();
   }
-  if (FLAG_cache_optimized_code && FLAG_flush_optimized_code_cache &&
+  if ((FLAG_flush_optimized_code_cache ||
+       heap->isolate()->serializer_enabled()) &&
       !shared->optimized_code_map()->IsSmi()) {
     // Always flush the optimized code map if requested by flag.
     shared->ClearOptimizedCodeMap();
   }
   MarkCompactCollector* collector = heap->mark_compact_collector();
   if (collector->is_code_flushing_enabled()) {
-    if (FLAG_cache_optimized_code && !shared->optimized_code_map()->IsSmi()) {
+    if (!shared->optimized_code_map()->IsSmi()) {
       // Add the shared function info holding an optimized code map to
       // the code flusher for processing of code maps after marking.
       collector->code_flusher()->AddOptimizedCodeMap(shared);
@@ -439,41 +439,13 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfo(
       return;
     }
   } else {
-    if (FLAG_cache_optimized_code && !shared->optimized_code_map()->IsSmi()) {
+    if (!shared->optimized_code_map()->IsSmi()) {
       // Flush optimized code map on major GCs without code flushing,
       // needed because cached code doesn't contain breakpoints.
       shared->ClearOptimizedCodeMap();
     }
   }
   VisitSharedFunctionInfoStrongCode(heap, object);
-}
-
-
-template <typename StaticVisitor>
-void StaticMarkingVisitor<StaticVisitor>::VisitConstantPoolArray(
-    Map* map, HeapObject* object) {
-  Heap* heap = map->GetHeap();
-  ConstantPoolArray* array = ConstantPoolArray::cast(object);
-  ConstantPoolArray::Iterator code_iter(array, ConstantPoolArray::CODE_PTR);
-  while (!code_iter.is_finished()) {
-    Address code_entry = reinterpret_cast<Address>(
-        array->RawFieldOfElementAt(code_iter.next_index()));
-    StaticVisitor::VisitCodeEntry(heap, code_entry);
-  }
-
-  ConstantPoolArray::Iterator heap_iter(array, ConstantPoolArray::HEAP_PTR);
-  while (!heap_iter.is_finished()) {
-    Object** slot = array->RawFieldOfElementAt(heap_iter.next_index());
-    HeapObject* object = HeapObject::cast(*slot);
-    heap->mark_compact_collector()->RecordSlot(slot, slot, object);
-    bool is_weak_object =
-        (array->get_weak_object_state() ==
-             ConstantPoolArray::WEAK_OBJECTS_IN_OPTIMIZED_CODE &&
-         Code::IsWeakObjectInOptimizedCode(object));
-    if (!is_weak_object) {
-      StaticVisitor::MarkObject(heap, object);
-    }
-  }
 }
 
 
@@ -571,22 +543,25 @@ void StaticMarkingVisitor<StaticVisitor>::MarkMapContents(Heap* heap,
   }
 
   // Since descriptor arrays are potentially shared, ensure that only the
-  // descriptors that belong to this map are marked. The first time a
-  // non-empty descriptor array is marked, its header is also visited. The slot
-  // holding the descriptor array will be implicitly recorded when the pointer
-  // fields of this map are visited.
-  DescriptorArray* descriptors = map->instance_descriptors();
-  if (StaticVisitor::MarkObjectWithoutPush(heap, descriptors) &&
-      descriptors->length() > 0) {
-    StaticVisitor::VisitPointers(heap, descriptors->GetFirstElementAddress(),
-                                 descriptors->GetDescriptorEndSlot(0));
-  }
-  int start = 0;
-  int end = map->NumberOfOwnDescriptors();
-  if (start < end) {
-    StaticVisitor::VisitPointers(heap,
-                                 descriptors->GetDescriptorStartSlot(start),
-                                 descriptors->GetDescriptorEndSlot(end));
+  // descriptors that belong to this map are marked. The first time a non-empty
+  // descriptor array is marked, its header is also visited. The slot holding
+  // the descriptor array will be implicitly recorded when the pointer fields of
+  // this map are visited.  Prototype maps don't keep track of transitions, so
+  // just mark the entire descriptor array.
+  if (!map->is_prototype_map()) {
+    DescriptorArray* descriptors = map->instance_descriptors();
+    if (StaticVisitor::MarkObjectWithoutPush(heap, descriptors) &&
+        descriptors->length() > 0) {
+      StaticVisitor::VisitPointers(heap, descriptors->GetFirstElementAddress(),
+                                   descriptors->GetDescriptorEndSlot(0));
+    }
+    int start = 0;
+    int end = map->NumberOfOwnDescriptors();
+    if (start < end) {
+      StaticVisitor::VisitPointers(heap,
+                                   descriptors->GetDescriptorStartSlot(start),
+                                   descriptors->GetDescriptorEndSlot(end));
+    }
   }
 
   // Mark the pointer fields of the Map. Since the transitions array has
@@ -604,13 +579,8 @@ void StaticMarkingVisitor<StaticVisitor>::MarkTransitionArray(
   if (!StaticVisitor::MarkObjectWithoutPush(heap, transitions)) return;
 
   if (transitions->HasPrototypeTransitions()) {
-    // Mark prototype transitions array but do not push it onto marking
-    // stack, this will make references from it weak. We will clean dead
-    // prototype transitions in ClearNonLiveReferences.
-    Object** slot = transitions->GetPrototypeTransitionsSlot();
-    HeapObject* obj = HeapObject::cast(*slot);
-    heap->mark_compact_collector()->RecordSlot(slot, slot, obj);
-    StaticVisitor::MarkObjectWithoutPush(heap, obj);
+    StaticVisitor::VisitPointer(heap,
+                                transitions->GetPrototypeTransitionsSlot());
   }
 
   int num_transitions = TransitionArray::NumberOfTransitions(transitions);
@@ -623,19 +593,16 @@ void StaticMarkingVisitor<StaticVisitor>::MarkTransitionArray(
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::MarkInlinedFunctionsCode(Heap* heap,
                                                                    Code* code) {
-  // Skip in absence of inlining.
-  // TODO(turbofan): Revisit once we support inlining.
-  if (code->is_turbofanned()) return;
   // For optimized functions we should retain both non-optimized version
   // of its code and non-optimized version of all inlined functions.
   // This is required to support bailing out from inlined code.
-  DeoptimizationInputData* data =
+  DeoptimizationInputData* const data =
       DeoptimizationInputData::cast(code->deoptimization_data());
-  FixedArray* literals = data->LiteralArray();
-  for (int i = 0, count = data->InlinedFunctionCount()->value(); i < count;
-       i++) {
-    JSFunction* inlined = JSFunction::cast(literals->get(i));
-    StaticVisitor::MarkObject(heap, inlined->shared()->code());
+  FixedArray* const literals = data->LiteralArray();
+  int const inlined_count = data->InlinedFunctionCount()->value();
+  for (int i = 0; i < inlined_count; ++i) {
+    StaticVisitor::MarkObject(
+        heap, SharedFunctionInfo::cast(literals->get(i))->code());
   }
 }
 
@@ -832,7 +799,6 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
   IteratePointer(v, kDeoptimizationDataOffset);
   IteratePointer(v, kTypeFeedbackInfoOffset);
   IterateNextCodeLink(v, kNextCodeLinkOffset);
-  IteratePointer(v, kConstantPoolOffset);
 
   RelocIterator it(this, mode_mask);
   Isolate* isolate = this->GetIsolate();
@@ -869,8 +835,6 @@ void Code::CodeIterateBody(Heap* heap) {
       reinterpret_cast<Object**>(this->address() + kTypeFeedbackInfoOffset));
   StaticVisitor::VisitNextCodeLink(
       heap, reinterpret_cast<Object**>(this->address() + kNextCodeLinkOffset));
-  StaticVisitor::VisitPointer(
-      heap, reinterpret_cast<Object**>(this->address() + kConstantPoolOffset));
 
 
   RelocIterator it(this, mode_mask);

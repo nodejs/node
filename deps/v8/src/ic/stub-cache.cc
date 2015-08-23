@@ -143,5 +143,5 @@ void StubCache::CollectMatchingMaps(SmallMapList* types, Handle<Name> name,
     }
   }
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

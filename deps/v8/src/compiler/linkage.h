@@ -20,6 +20,7 @@ class CallInterfaceDescriptor;
 
 namespace compiler {
 
+class Node;
 class OsrHelper;
 
 // Describes the location for a parameter or a return value to a call.
@@ -73,7 +74,8 @@ class CallDescriptor final : public ZoneObject {
     kPatchableCallSite = 1u << 1,
     kNeedsNopAfterCall = 1u << 2,
     kHasExceptionHandler = 1u << 3,
-    kSupportsTailCalls = 1u << 4,
+    kHasLocalCatchHandler = 1u << 4,
+    kSupportsTailCalls = 1u << 5,
     kPatchableCallSiteWithNop = kPatchableCallSite | kNeedsNopAfterCall
   };
   typedef base::Flags<Flag> Flags;
@@ -82,7 +84,8 @@ class CallDescriptor final : public ZoneObject {
                  const MachineSignature* machine_sig,
                  LocationSignature* location_sig, size_t js_param_count,
                  Operator::Properties properties,
-                 RegList callee_saved_registers, Flags flags,
+                 RegList callee_saved_registers,
+                 RegList callee_saved_fp_registers, Flags flags,
                  const char* debug_name = "")
       : kind_(kind),
         target_type_(target_type),
@@ -92,6 +95,7 @@ class CallDescriptor final : public ZoneObject {
         js_param_count_(js_param_count),
         properties_(properties),
         callee_saved_registers_(callee_saved_registers),
+        callee_saved_fp_registers_(callee_saved_fp_registers),
         flags_(flags),
         debug_name_(debug_name) {
     DCHECK(machine_sig->return_count() == location_sig->return_count());
@@ -101,11 +105,17 @@ class CallDescriptor final : public ZoneObject {
   // Returns the kind of this call.
   Kind kind() const { return kind_; }
 
+  // Returns {true} if this descriptor is a call to a C function.
+  bool IsCFunctionCall() const { return kind_ == kCallAddress; }
+
   // Returns {true} if this descriptor is a call to a JSFunction.
   bool IsJSFunctionCall() const { return kind_ == kCallJSFunction; }
 
   // The number of return values from this call.
   size_t ReturnCount() const { return machine_sig_->return_count(); }
+
+  // The number of C parameters to this call.
+  size_t CParameterCount() const { return machine_sig_->parameter_count(); }
 
   // The number of JavaScript parameters to this call, including the receiver
   // object.
@@ -149,11 +159,16 @@ class CallDescriptor final : public ZoneObject {
   // Get the callee-saved registers, if any, across this call.
   RegList CalleeSavedRegisters() const { return callee_saved_registers_; }
 
+  // Get the callee-saved FP registers, if any, across this call.
+  RegList CalleeSavedFPRegisters() const { return callee_saved_fp_registers_; }
+
   const char* debug_name() const { return debug_name_; }
 
   bool UsesOnlyRegisters() const;
 
   bool HasSameReturnLocationsAs(const CallDescriptor* other) const;
+
+  bool CanTailCall(const Node* call) const;
 
  private:
   friend class Linkage;
@@ -166,6 +181,7 @@ class CallDescriptor final : public ZoneObject {
   const size_t js_param_count_;
   const Operator::Properties properties_;
   const RegList callee_saved_registers_;
+  const RegList callee_saved_fp_registers_;
   const Flags flags_;
   const char* const debug_name_;
 
@@ -244,13 +260,16 @@ class Linkage : public ZoneObject {
   // the frame offset, e.g. to index into part of a double slot.
   FrameOffset GetFrameOffset(int spill_slot, Frame* frame, int extra = 0) const;
 
-  static bool NeedsFrameState(Runtime::FunctionId function);
+  static int FrameStateInputCount(Runtime::FunctionId function);
 
   // Get the location where an incoming OSR value is stored.
   LinkageLocation GetOsrValueLocation(int index) const;
 
   // A special parameter index for JSCalls that represents the closure.
   static const int kJSFunctionCallClosureParamIndex = -1;
+
+  // A special {OsrValue} index to indicate the context spill slot.
+  static const int kOsrContextSpillSlotIndex = -1;
 
  private:
   CallDescriptor* const incoming_;

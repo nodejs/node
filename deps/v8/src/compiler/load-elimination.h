@@ -11,9 +11,9 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class LoadElimination final : public Reducer {
+class LoadElimination final : public AdvancedReducer {
  public:
-  LoadElimination() {}
+  explicit LoadElimination(Editor* editor) : AdvancedReducer(editor) {}
   ~LoadElimination() final;
 
   Reduction Reduce(Node* node) final;

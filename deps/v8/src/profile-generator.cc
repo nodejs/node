@@ -696,4 +696,5 @@ CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {
   }
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -46,7 +46,8 @@ void SetVersion(int major, int minor, int build, int patch,
   Version::soname_ = soname;
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 
 static void CheckVersion(int major, int minor, int build,

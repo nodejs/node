@@ -158,7 +158,7 @@ closure_in_for_next();
 
 
 // In a for-in statement the iteration variable is fresh
-// for earch iteration.
+// for each iteration.
 function closures3(x) {
   let a = [];
   for (let p in x) {
@@ -171,3 +171,28 @@ function closures3(x) {
   }
 }
 closures3({a : [0], b : 1, c : {v : 1}, get d() {}, set e(x) {}});
+
+// Check normal for statement completion values.
+assertEquals(1, eval("for (let i = 0; i < 10; i++) { 1; }"));
+assertEquals(9, eval("for (let i = 0; i < 10; i++) { i; }"));
+assertEquals(undefined, eval("for (let i = 0; false;) { }"));
+assertEquals(undefined, eval("for (const i = 0; false;) { }"));
+assertEquals(undefined, eval("for (let i = 0; i < 10; i++) { }"));
+assertEquals(undefined, eval("for (let i = 0; false;) { i; }"));
+assertEquals(undefined, eval("for (const i = 0; false;) { i; }"));
+assertEquals(undefined, eval("for (let i = 0; true;) { break; }"));
+assertEquals(undefined, eval("for (const i = 0; true;) { break; }"));
+assertEquals(undefined, eval("for (let i = 0; i < 10; i++) { continue; }"));
+assertEquals(undefined, eval("for (let i = 0; true;) { break; i; }"));
+assertEquals(undefined, eval("for (const i = 0; true;) { break; i; }"));
+assertEquals(undefined, eval("for (let i = 0; i < 10; i++) { continue; i; }"));
+assertEquals(0, eval("for (let i = 0; true;) { i; break; }"));
+assertEquals(0, eval("for (const i = 0; true;) { i; break; }"));
+assertEquals(9, eval("for (let i = 0; i < 10; i++) { i; continue; }"));
+assertEquals(3, eval("for (let i = 0; true; i++) { i; if (i >= 3) break; }"));
+assertEquals(2, eval("for (let i = 0; true; i++) { if (i >= 3) break; i; }"));
+assertEquals(
+  2, eval("for (let i = 0; i < 10; i++) { if (i >= 3) continue; i; }"));
+assertEquals(undefined, eval("foo: for (let i = 0; true;) { break foo; }"));
+assertEquals(undefined, eval("foo: for (const i = 0; true;) { break foo; }"));
+assertEquals(3, eval("foo: for (let i = 3; true;) { i; break foo; }"));

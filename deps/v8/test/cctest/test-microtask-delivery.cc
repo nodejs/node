@@ -29,7 +29,6 @@
 
 #include "test/cctest/cctest.h"
 
-using namespace v8;
 namespace i = v8::internal;
 
 namespace {
@@ -38,7 +37,7 @@ class HarmonyIsolate {
   HarmonyIsolate() {
     v8::Isolate::CreateParams create_params;
     create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-    isolate_ = Isolate::New(create_params);
+    isolate_ = v8::Isolate::New(create_params);
     isolate_->Enter();
   }
 
@@ -47,17 +46,17 @@ class HarmonyIsolate {
     isolate_->Dispose();
   }
 
-  Isolate* GetIsolate() const { return isolate_; }
+  v8::Isolate* GetIsolate() const { return isolate_; }
 
  private:
-  Isolate* isolate_;
+  v8::Isolate* isolate_;
 };
 }
 
 
 TEST(MicrotaskDeliverySimple) {
   HarmonyIsolate isolate;
-  HandleScope scope(isolate.GetIsolate());
+  v8::HandleScope scope(isolate.GetIsolate());
   LocalContext context(isolate.GetIsolate());
   CompileRun(
       "var ordering = [];"
@@ -95,16 +94,16 @@ TEST(MicrotaskDeliverySimple) {
 
 TEST(MicrotaskPerIsolateState) {
   HarmonyIsolate isolate;
-  HandleScope scope(isolate.GetIsolate());
+  v8::HandleScope scope(isolate.GetIsolate());
   LocalContext context1(isolate.GetIsolate());
   isolate.GetIsolate()->SetAutorunMicrotasks(false);
   CompileRun(
       "var obj = { calls: 0 };");
-  Handle<Value> obj = CompileRun("obj");
+  v8::Handle<v8::Value> obj = CompileRun("obj");
   {
     LocalContext context2(isolate.GetIsolate());
-    context2->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "obj"),
-                            obj);
+    context2->Global()->Set(
+        v8::String::NewFromUtf8(isolate.GetIsolate(), "obj"), obj);
     CompileRun(
         "var resolver = {};"
         "new Promise(function(resolve) {"
@@ -118,8 +117,8 @@ TEST(MicrotaskPerIsolateState) {
   }
   {
     LocalContext context3(isolate.GetIsolate());
-    context3->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "obj"),
-                            obj);
+    context3->Global()->Set(
+        v8::String::NewFromUtf8(isolate.GetIsolate(), "obj"), obj);
     CompileRun(
         "var foo = { id: 1 };"
         "Object.observe(foo, function() {"
@@ -129,8 +128,8 @@ TEST(MicrotaskPerIsolateState) {
   }
   {
     LocalContext context4(isolate.GetIsolate());
-    context4->Global()->Set(String::NewFromUtf8(isolate.GetIsolate(), "obj"),
-                            obj);
+    context4->Global()->Set(
+        v8::String::NewFromUtf8(isolate.GetIsolate(), "obj"), obj);
     isolate.GetIsolate()->RunMicrotasks();
     CHECK_EQ(2, CompileRun("obj.calls")->Int32Value());
   }

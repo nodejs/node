@@ -382,4 +382,5 @@ bool FastFixedDtoa(double v,
   return true;
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

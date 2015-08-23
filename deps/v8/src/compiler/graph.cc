@@ -22,9 +22,9 @@ Graph::Graph(Zone* zone)
       decorators_(zone) {}
 
 
-void Graph::Decorate(Node* node, bool incomplete) {
+void Graph::Decorate(Node* node) {
   for (auto const decorator : decorators_) {
-    decorator->Decorate(node, incomplete);
+    decorator->Decorate(node);
   }
 }
 
@@ -46,14 +46,22 @@ Node* Graph::NewNode(const Operator* op, int input_count, Node** inputs,
   DCHECK_LE(op->ValueInputCount(), input_count);
   Node* const node =
       Node::New(zone(), NextNodeId(), op, input_count, inputs, incomplete);
-  Decorate(node, incomplete);
+  Decorate(node);
   return node;
+}
+
+
+Node* Graph::CloneNode(const Node* node) {
+  DCHECK_NOT_NULL(node);
+  Node* const clone = Node::Clone(zone(), NextNodeId(), node);
+  Decorate(clone);
+  return clone;
 }
 
 
 NodeId Graph::NextNodeId() {
   NodeId const id = next_node_id_;
-  CHECK(!base::bits::SignedAddOverflow32(id, 1, &next_node_id_));
+  CHECK(!base::bits::UnsignedAddOverflow32(id, 1, &next_node_id_));
   return id;
 }
 

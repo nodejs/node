@@ -143,4 +143,5 @@ void V8::SetSnapshotBlob(StartupData* snapshot_blob) {
   CHECK(false);
 #endif
 }
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

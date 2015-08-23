@@ -45,6 +45,9 @@ class RegExpMacroAssembler {
 
   RegExpMacroAssembler(Isolate* isolate, Zone* zone);
   virtual ~RegExpMacroAssembler();
+  // This function is called when code generation is aborted, so that
+  // the assembler could clean up internal data structures.
+  virtual void AbortedCodeGeneration() {}
   // The maximal number of pushes between stack checks. Users must supply
   // kCheckStackLimit flag to push operations (instead of kNoStackLimitCheck)
   // at least once for every stack_limit() pushes that are executed.

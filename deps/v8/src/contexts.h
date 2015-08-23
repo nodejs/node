@@ -82,9 +82,11 @@ enum BindingFlags {
   V(STRING_FUNCTION_PROTOTYPE_MAP_INDEX, Map, string_function_prototype_map)   \
   V(SYMBOL_FUNCTION_INDEX, JSFunction, symbol_function)                        \
   V(OBJECT_FUNCTION_INDEX, JSFunction, object_function)                        \
+  V(JS_OBJECT_STRONG_MAP_INDEX, Map, js_object_strong_map)                     \
   V(INTERNAL_ARRAY_FUNCTION_INDEX, JSFunction, internal_array_function)        \
   V(ARRAY_FUNCTION_INDEX, JSFunction, array_function)                          \
   V(JS_ARRAY_MAPS_INDEX, Object, js_array_maps)                                \
+  V(JS_ARRAY_STRONG_MAPS_INDEX, Object, js_array_strong_maps)                  \
   V(DATE_FUNCTION_INDEX, JSFunction, date_function)                            \
   V(JSON_OBJECT_INDEX, JSObject, json_object)                                  \
   V(REGEXP_FUNCTION_INDEX, JSFunction, regexp_function)                        \
@@ -101,6 +103,7 @@ enum BindingFlags {
   V(TO_LENGTH_FUN_INDEX, JSFunction, to_length_fun)                            \
   V(GLOBAL_EVAL_FUN_INDEX, JSFunction, global_eval_fun)                        \
   V(ARRAY_BUFFER_FUN_INDEX, JSFunction, array_buffer_fun)                      \
+  V(SHARED_ARRAY_BUFFER_FUN_INDEX, JSFunction, shared_array_buffer_fun)        \
   V(ARRAY_BUFFER_MAP_INDEX, Map, array_buffer_map)                             \
   V(UINT8_ARRAY_FUN_INDEX, JSFunction, uint8_array_fun)                        \
   V(INT8_ARRAY_FUN_INDEX, JSFunction, int8_array_fun)                          \
@@ -135,7 +138,8 @@ enum BindingFlags {
   V(BOUND_FUNCTION_MAP_INDEX, Map, bound_function_map)                         \
   V(REGEXP_RESULT_MAP_INDEX, Map, regexp_result_map)                           \
   V(SLOPPY_ARGUMENTS_MAP_INDEX, Map, sloppy_arguments_map)                     \
-  V(ALIASED_ARGUMENTS_MAP_INDEX, Map, aliased_arguments_map)                   \
+  V(FAST_ALIASED_ARGUMENTS_MAP_INDEX, Map, fast_aliased_arguments_map)         \
+  V(SLOW_ALIASED_ARGUMENTS_MAP_INDEX, Map, slow_aliased_arguments_map)         \
   V(STRICT_ARGUMENTS_MAP_INDEX, Map, strict_arguments_map)                     \
   V(MESSAGE_LISTENERS_INDEX, JSObject, message_listeners)                      \
   V(MAKE_MESSAGE_FUN_INDEX, JSFunction, make_message_fun)                      \
@@ -152,11 +156,13 @@ enum BindingFlags {
   V(OPAQUE_REFERENCE_FUNCTION_INDEX, JSFunction, opaque_reference_function)    \
   V(CONTEXT_EXTENSION_FUNCTION_INDEX, JSFunction, context_extension_function)  \
   V(MAP_CACHE_INDEX, Object, map_cache)                                        \
+  V(STRONG_MAP_CACHE_INDEX, Object, strong_map_cache)                          \
   V(EMBEDDER_DATA_INDEX, FixedArray, embedder_data)                            \
   V(ALLOW_CODE_GEN_FROM_STRINGS_INDEX, Object, allow_code_gen_from_strings)    \
   V(ERROR_MESSAGE_FOR_CODE_GEN_FROM_STRINGS_INDEX, Object,                     \
     error_message_for_code_gen_from_strings)                                   \
   V(PROMISE_STATUS_INDEX, Symbol, promise_status)                              \
+  V(PROMISE_VALUE_INDEX, Symbol, promise_value)                                \
   V(PROMISE_CREATE_INDEX, JSFunction, promise_create)                          \
   V(PROMISE_RESOLVE_INDEX, JSFunction, promise_resolve)                        \
   V(PROMISE_REJECT_INDEX, JSFunction, promise_reject)                          \
@@ -182,10 +188,25 @@ enum BindingFlags {
   V(STRONG_GENERATOR_FUNCTION_MAP_INDEX, Map, strong_generator_function_map)   \
   V(GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX, Map, generator_object_prototype_map) \
   V(ITERATOR_RESULT_MAP_INDEX, Map, iterator_result_map)                       \
+  V(JS_MAP_FUN_INDEX, JSFunction, js_map_fun)                                  \
+  V(JS_MAP_MAP_INDEX, Map, js_map_map)                                         \
+  V(JS_SET_FUN_INDEX, JSFunction, js_set_fun)                                  \
+  V(JS_SET_MAP_INDEX, Map, js_set_map)                                         \
+  V(MAP_GET_METHOD_INDEX, JSFunction, map_get)                                 \
+  V(MAP_SET_METHOD_INDEX, JSFunction, map_set)                                 \
+  V(MAP_HAS_METHOD_INDEX, JSFunction, map_has)                                 \
+  V(MAP_DELETE_METHOD_INDEX, JSFunction, map_delete)                           \
+  V(SET_ADD_METHOD_INDEX, JSFunction, set_add)                                 \
+  V(SET_HAS_METHOD_INDEX, JSFunction, set_has)                                 \
+  V(SET_DELETE_METHOD_INDEX, JSFunction, set_delete)                           \
+  V(MAP_FROM_ARRAY_INDEX, JSFunction, map_from_array)                          \
+  V(SET_FROM_ARRAY_INDEX, JSFunction, set_from_array)                          \
   V(MAP_ITERATOR_MAP_INDEX, Map, map_iterator_map)                             \
   V(SET_ITERATOR_MAP_INDEX, Map, set_iterator_map)                             \
   V(ARRAY_VALUES_ITERATOR_INDEX, JSFunction, array_values_iterator)            \
-  V(SCRIPT_CONTEXT_TABLE_INDEX, ScriptContextTable, script_context_table)
+  V(SCRIPT_CONTEXT_TABLE_INDEX, ScriptContextTable, script_context_table)      \
+  V(NATIVES_UTILS_OBJECT_INDEX, Object, natives_utils_object)                  \
+  V(EXTRAS_EXPORTS_OBJECT_INDEX, JSObject, extras_exports_object)
 
 
 // A table of all script contexts. Every loaded top-level script with top-level
@@ -205,6 +226,7 @@ class ScriptContextTable : public FixedArray {
     int context_index;
     int slot_index;
     VariableMode mode;
+    VariableLocation location;
     InitializationFlag init_flag;
     MaybeAssignedFlag maybe_assigned_flag;
   };
@@ -317,7 +339,8 @@ class Context: public FixedArray {
     GLOBAL_PROXY_INDEX = MIN_CONTEXT_SLOTS,
     SECURITY_TOKEN_INDEX,
     SLOPPY_ARGUMENTS_MAP_INDEX,
-    ALIASED_ARGUMENTS_MAP_INDEX,
+    FAST_ALIASED_ARGUMENTS_MAP_INDEX,
+    SLOW_ALIASED_ARGUMENTS_MAP_INDEX,
     STRICT_ARGUMENTS_MAP_INDEX,
     REGEXP_RESULT_MAP_INDEX,
     SLOPPY_FUNCTION_MAP_INDEX,
@@ -336,9 +359,11 @@ class Context: public FixedArray {
     STRING_FUNCTION_PROTOTYPE_MAP_INDEX,
     SYMBOL_FUNCTION_INDEX,
     OBJECT_FUNCTION_INDEX,
+    JS_OBJECT_STRONG_MAP_INDEX,
     INTERNAL_ARRAY_FUNCTION_INDEX,
     ARRAY_FUNCTION_INDEX,
     JS_ARRAY_MAPS_INDEX,
+    JS_ARRAY_STRONG_MAPS_INDEX,
     DATE_FUNCTION_INDEX,
     JSON_OBJECT_INDEX,
     REGEXP_FUNCTION_INDEX,
@@ -373,6 +398,7 @@ class Context: public FixedArray {
     FLOAT64_ARRAY_EXTERNAL_MAP_INDEX,
     UINT8_CLAMPED_ARRAY_EXTERNAL_MAP_INDEX,
     DATA_VIEW_FUN_INDEX,
+    SHARED_ARRAY_BUFFER_FUN_INDEX,
     MESSAGE_LISTENERS_INDEX,
     MAKE_MESSAGE_FUN_INDEX,
     GET_STACK_TRACE_LINE_INDEX,
@@ -393,6 +419,7 @@ class Context: public FixedArray {
     RUN_MICROTASKS_INDEX,
     ENQUEUE_MICROTASK_INDEX,
     PROMISE_STATUS_INDEX,
+    PROMISE_VALUE_INDEX,
     PROMISE_CREATE_INDEX,
     PROMISE_RESOLVE_INDEX,
     PROMISE_REJECT_INDEX,
@@ -416,12 +443,28 @@ class Context: public FixedArray {
     STRONG_GENERATOR_FUNCTION_MAP_INDEX,
     GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX,
     ITERATOR_RESULT_MAP_INDEX,
+    JS_MAP_FUN_INDEX,
+    JS_MAP_MAP_INDEX,
+    JS_SET_FUN_INDEX,
+    JS_SET_MAP_INDEX,
+    MAP_GET_METHOD_INDEX,
+    MAP_SET_METHOD_INDEX,
+    MAP_HAS_METHOD_INDEX,
+    MAP_DELETE_METHOD_INDEX,
+    SET_ADD_METHOD_INDEX,
+    SET_HAS_METHOD_INDEX,
+    SET_DELETE_METHOD_INDEX,
+    MAP_FROM_ARRAY_INDEX,
+    SET_FROM_ARRAY_INDEX,
     MAP_ITERATOR_MAP_INDEX,
     SET_ITERATOR_MAP_INDEX,
     ARRAY_VALUES_ITERATOR_INDEX,
     SCRIPT_CONTEXT_TABLE_INDEX,
     MAP_CACHE_INDEX,
+    STRONG_MAP_CACHE_INDEX,
     TO_LENGTH_FUN_INDEX,
+    NATIVES_UTILS_OBJECT_INDEX,
+    EXTRAS_EXPORTS_OBJECT_INDEX,
 
     // Properties from here are treated as weak references by the full GC.
     // Scavenge treats them as strong references.
@@ -515,6 +558,9 @@ class Context: public FixedArray {
     return this->global_object()->native_context()->security_token() ==
         that->global_object()->native_context()->security_token();
   }
+
+  // Initializes global variable bindings in given script context.
+  void InitializeGlobalSlots();
 
   // A native context holds a list of all functions with optimized code.
   void AddOptimizedFunction(JSFunction* function);

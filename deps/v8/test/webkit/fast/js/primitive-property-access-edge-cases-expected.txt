@@ -56,9 +56,9 @@ PASS checkNumericGet(true, Boolean) is true
 FAIL checkNumericSet(1, Number) should be true. Was false.
 FAIL checkNumericSet('hello', String) should be true. Was false.
 FAIL checkNumericSet(true, Boolean) should be true. Was false.
-FAIL checkNumericGetStrict(1, Number) should be true. Was false.
-FAIL checkNumericGetStrict('hello', String) should be true. Was false.
-FAIL checkNumericGetStrict(true, Boolean) should be true. Was false.
+PASS checkNumericGetStrict(1, Number) is true
+PASS checkNumericGetStrict('hello', String) is true
+PASS checkNumericGetStrict(true, Boolean) is true
 FAIL checkNumericSetStrict(1, Number) should be true. Was false.
 FAIL checkNumericSetStrict('hello', String) should be true. Was false.
 FAIL checkNumericSetStrict(true, Boolean) should be true. Was false.

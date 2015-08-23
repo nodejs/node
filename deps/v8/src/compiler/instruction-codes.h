@@ -21,6 +21,8 @@
 #include "src/compiler/x64/instruction-codes-x64.h"
 #elif V8_TARGET_ARCH_PPC
 #include "src/compiler/ppc/instruction-codes-ppc.h"
+#elif V8_TARGET_ARCH_X87
+#include "src/compiler/x87/instruction-codes-x87.h"
 #else
 #define TARGET_ARCH_OPCODE_LIST(V)
 #define TARGET_ADDRESSING_MODE_LIST(V)
@@ -33,31 +35,34 @@ namespace compiler {
 
 // Target-specific opcodes that specify which assembly sequence to emit.
 // Most opcodes specify a single instruction.
-#define ARCH_OPCODE_LIST(V) \
-  V(ArchCallCodeObject)     \
-  V(ArchTailCallCodeObject) \
-  V(ArchCallJSFunction)     \
-  V(ArchTailCallJSFunction) \
-  V(ArchJmp)                \
-  V(ArchLookupSwitch)       \
-  V(ArchTableSwitch)        \
-  V(ArchNop)                \
-  V(ArchDeoptimize)         \
-  V(ArchRet)                \
-  V(ArchStackPointer)       \
-  V(ArchTruncateDoubleToI)  \
-  V(CheckedLoadInt8)        \
-  V(CheckedLoadUint8)       \
-  V(CheckedLoadInt16)       \
-  V(CheckedLoadUint16)      \
-  V(CheckedLoadWord32)      \
-  V(CheckedLoadFloat32)     \
-  V(CheckedLoadFloat64)     \
-  V(CheckedStoreWord8)      \
-  V(CheckedStoreWord16)     \
-  V(CheckedStoreWord32)     \
-  V(CheckedStoreFloat32)    \
-  V(CheckedStoreFloat64)    \
+#define ARCH_OPCODE_LIST(V)   \
+  V(ArchCallCodeObject)       \
+  V(ArchTailCallCodeObject)   \
+  V(ArchCallJSFunction)       \
+  V(ArchTailCallJSFunction)   \
+  V(ArchPrepareCallCFunction) \
+  V(ArchCallCFunction)        \
+  V(ArchJmp)                  \
+  V(ArchLookupSwitch)         \
+  V(ArchTableSwitch)          \
+  V(ArchNop)                  \
+  V(ArchDeoptimize)           \
+  V(ArchRet)                  \
+  V(ArchStackPointer)         \
+  V(ArchFramePointer)         \
+  V(ArchTruncateDoubleToI)    \
+  V(CheckedLoadInt8)          \
+  V(CheckedLoadUint8)         \
+  V(CheckedLoadInt16)         \
+  V(CheckedLoadUint16)        \
+  V(CheckedLoadWord32)        \
+  V(CheckedLoadFloat32)       \
+  V(CheckedLoadFloat64)       \
+  V(CheckedStoreWord8)        \
+  V(CheckedStoreWord16)       \
+  V(CheckedStoreWord32)       \
+  V(CheckedStoreFloat32)      \
+  V(CheckedStoreFloat64)      \
   TARGET_ARCH_OPCODE_LIST(V)
 
 enum ArchOpcode {

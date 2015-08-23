@@ -102,7 +102,9 @@ class MacroAssembler : public Assembler {
   MacroAssembler(Isolate* isolate, void* buffer, int size);
 
 
-  // Returns the size of a call in instructions.
+  // Returns the size of a call in instructions. Note, the value returned is
+  // only valid as long as no entries are added to the constant pool between
+  // checking the call size and emitting the actual call.
   static int CallSize(Register target);
   int CallSize(Address target, RelocInfo::Mode rmode, Condition cond = al);
   static int CallSizeNotPredictableCodeSize(Address target,
@@ -1061,11 +1063,16 @@ class MacroAssembler : public Assembler {
     DCHECK(rangeStart >= rangeEnd && rangeStart < kBitsPerPointer);
     int rotate = (rangeEnd == 0) ? 0 : kBitsPerPointer - rangeEnd;
     int width = rangeStart - rangeEnd + 1;
+    if (rc == SetRC && rangeEnd == 0 && width <= 16) {
+      andi(dst, src, Operand((1 << width) - 1));
+    } else {
 #if V8_TARGET_ARCH_PPC64
-    rldicl(dst, src, rotate, kBitsPerPointer - width, rc);
+      rldicl(dst, src, rotate, kBitsPerPointer - width, rc);
 #else
-    rlwinm(dst, src, rotate, kBitsPerPointer - width, kBitsPerPointer - 1, rc);
+      rlwinm(dst, src, rotate, kBitsPerPointer - width, kBitsPerPointer - 1,
+             rc);
 #endif
+    }
   }
 
   inline void ExtractBit(Register dst, Register src, uint32_t bitNumber,
@@ -1360,7 +1367,11 @@ class MacroAssembler : public Assembler {
   // ---------------------------------------------------------------------------
   // Patching helpers.
 
-  // Retrieve/patch the relocated value (lis/ori pair).
+  // Decode offset from constant pool load instruction(s).
+  // Caller must place the instruction word at <location> in <result>.
+  void DecodeConstantPoolOffset(Register result, Register location);
+
+  // Retrieve/patch the relocated value (lis/ori pair or constant pool load).
   void GetRelocatedValue(Register location, Register result, Register scratch);
   void SetRelocatedValue(Register location, Register scratch,
                          Register new_value);
@@ -1448,6 +1459,19 @@ class MacroAssembler : public Assembler {
   // Jumps to found label if a prototype map has dictionary elements.
   void JumpIfDictionaryInPrototypeChain(Register object, Register scratch0,
                                         Register scratch1, Label* found);
+
+  // Loads the constant pool pointer (kConstantPoolRegister).
+  void LoadConstantPoolPointerRegisterFromCodeTargetAddress(
+      Register code_target_address);
+  void LoadConstantPoolPointerRegister();
+  void LoadConstantPoolPointerRegister(Register base, int code_entry_delta = 0);
+
+  void AbortConstantPoolBuilding() {
+#ifdef DEBUG
+    // Avoid DCHECK(!is_linked()) failure in ~Label()
+    bind(ConstantPoolPosition());
+#endif
+  }
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;

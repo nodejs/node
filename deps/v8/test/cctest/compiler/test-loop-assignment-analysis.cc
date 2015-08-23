@@ -51,7 +51,7 @@ struct TestHelper : public HandleAndZoneScope {
     i::Variable* var = scope->Lookup(name);
     CHECK(var);
 
-    if (var->location() == Variable::UNALLOCATED) {
+    if (var->location() == VariableLocation::UNALLOCATED) {
       CHECK_EQ(0, expected);
     } else {
       CHECK(var->IsStackAllocated());

@@ -179,6 +179,7 @@ namespace internal {
   V(kOperandIsASmiAndNotAName, "Operand is a smi and not a name")              \
   V(kOperandIsASmiAndNotAString, "Operand is a smi and not a string")          \
   V(kOperandIsASmi, "Operand is a smi")                                        \
+  V(kOperandIsNotADate, "Operand is not a date")                               \
   V(kOperandIsNotAName, "Operand is not a name")                               \
   V(kOperandIsNotANumber, "Operand is not a number")                           \
   V(kOperandIsNotASmi, "Operand is not a smi")                                 \
@@ -210,6 +211,7 @@ namespace internal {
   V(kScriptContext, "Allocation of script context")                            \
   V(kSmiAdditionOverflow, "Smi addition overflow")                             \
   V(kSmiSubtractionOverflow, "Smi subtraction overflow")                       \
+  V(kSpread, "Spread in array literal")                                        \
   V(kStackAccessBelowStackPointer, "Stack access below stack pointer")         \
   V(kStackFrameTypesMustMatch, "Stack frame types must match")                 \
   V(kSuperReference, "Super reference")                                        \

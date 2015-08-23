@@ -129,17 +129,8 @@ class BreakLocation {
 
  private:
   BreakLocation(Handle<DebugInfo> debug_info, RelocInfo* rinfo,
-                RelocInfo* original_rinfo, int position, int statement_position)
-      : debug_info_(debug_info),
-        pc_offset_(static_cast<int>(rinfo->pc() - debug_info->code()->entry())),
-        original_pc_offset_(static_cast<int>(
-            original_rinfo->pc() - debug_info->original_code()->entry())),
-        rmode_(rinfo->rmode()),
-        original_rmode_(original_rinfo->rmode()),
-        data_(rinfo->data()),
-        original_data_(original_rinfo->data()),
-        position_(position),
-        statement_position_(statement_position) {}
+                RelocInfo* original_rinfo, int position,
+                int statement_position);
 
   class Iterator {
    public:
@@ -228,31 +219,22 @@ class BreakLocation {
 // to it is created and that weak handle is stored in the cache. The weak handle
 // callback takes care of removing the script from the cache. The key used in
 // the cache is the script id.
-class ScriptCache : private HashMap {
+class ScriptCache {
  public:
   explicit ScriptCache(Isolate* isolate);
-  virtual ~ScriptCache() { Clear(); }
+  ~ScriptCache();
 
   // Add script to the cache.
   void Add(Handle<Script> script);
 
   // Return the scripts in the cache.
-  Handle<FixedArray> GetScripts();
-
- private:
-  // Calculate the hash value from the key (script id).
-  static uint32_t Hash(int key) {
-    return ComputeIntegerHash(key, v8::internal::kZeroHashSeed);
+  Handle<FixedArray> GetScripts() {
+    return WeakValueHashTable::GetWeakValues(table_);
   }
 
-  // Clear the cache releasing all the weak handles.
-  void Clear();
-
-  // Weak handle callback for scripts in the cache.
-  static void HandleWeakScript(
-      const v8::WeakCallbackData<v8::Value, void>& data);
-
+ private:
   Isolate* isolate_;
+  Handle<WeakValueHashTable> table_;
 };
 
 
@@ -302,10 +284,10 @@ class MessageImpl: public v8::Debug::Message {
   virtual bool IsResponse() const;
   virtual DebugEvent GetEvent() const;
   virtual bool WillStartRunning() const;
-  virtual v8::Handle<v8::Object> GetExecutionState() const;
-  virtual v8::Handle<v8::Object> GetEventData() const;
-  virtual v8::Handle<v8::String> GetJSON() const;
-  virtual v8::Handle<v8::Context> GetEventContext() const;
+  virtual v8::Local<v8::Object> GetExecutionState() const;
+  virtual v8::Local<v8::Object> GetEventData() const;
+  virtual v8::Local<v8::String> GetJSON() const;
+  virtual v8::Local<v8::Context> GetEventContext() const;
   virtual v8::Debug::ClientData* GetClientData() const;
   virtual v8::Isolate* GetIsolate() const;
 
@@ -337,10 +319,10 @@ class EventDetailsImpl : public v8::Debug::EventDetails {
                    Handle<Object> callback_data,
                    v8::Debug::ClientData* client_data);
   virtual DebugEvent GetEvent() const;
-  virtual v8::Handle<v8::Object> GetExecutionState() const;
-  virtual v8::Handle<v8::Object> GetEventData() const;
-  virtual v8::Handle<v8::Context> GetEventContext() const;
-  virtual v8::Handle<v8::Value> GetCallbackData() const;
+  virtual v8::Local<v8::Object> GetExecutionState() const;
+  virtual v8::Local<v8::Object> GetEventData() const;
+  virtual v8::Local<v8::Context> GetEventContext() const;
+  virtual v8::Local<v8::Value> GetCallbackData() const;
   virtual v8::Debug::ClientData* GetClientData() const;
  private:
   DebugEvent event_;  // Debug event causing the break.
@@ -483,8 +465,7 @@ class Debug {
   bool IsStepping() { return thread_local_.step_count_ > 0; }
   bool StepNextContinue(BreakLocation* location, JavaScriptFrame* frame);
   bool StepInActive() { return thread_local_.step_into_fp_ != 0; }
-  void HandleStepIn(Handle<Object> function_obj, Handle<Object> holder,
-                    Address fp, bool is_constructor);
+  void HandleStepIn(Handle<Object> function_obj, bool is_constructor);
   bool StepOutActive() { return thread_local_.step_out_fp_ != 0; }
 
   // Purge all code objects that have no debug break slots.
@@ -497,6 +478,9 @@ class Debug {
                        Handle<JSFunction> function);
   static Handle<DebugInfo> GetDebugInfo(Handle<SharedFunctionInfo> shared);
   static bool HasDebugInfo(Handle<SharedFunctionInfo> shared);
+
+  template <typename C>
+  bool CompileToRevealInnerFunctions(C* compilable);
 
   // This function is used in FunctionNameUsing* tests.
   Handle<Object> FindSharedFunctionInfoInScript(Handle<Script> script,
@@ -534,7 +518,8 @@ class Debug {
   static void RecordEvalCaller(Handle<Script> script);
 
   bool CheckExecutionState(int id) {
-    return !debug_context().is_null() && break_id() != 0 && break_id() == id;
+    return is_active() && !debug_context().is_null() && break_id() != 0 &&
+           break_id() == id;
   }
 
   // Flags and states.
@@ -639,7 +624,7 @@ class Debug {
 
   static bool CompileDebuggerScript(Isolate* isolate, int index);
   void ClearOneShot();
-  void ActivateStepIn(StackFrame* frame);
+  void ActivateStepIn(Handle<JSFunction> function, StackFrame* frame);
   void ClearStepIn();
   void ActivateStepOut(StackFrame* frame);
   void ClearStepNext();

@@ -83,10 +83,11 @@ using namespace v8::internal;
     abort();                                                                   \
   }
 
-#define CLEANUP()                                                              \
-  delete disasm;                                                               \
-  delete decoder;                                                              \
-  delete assm
+#define CLEANUP() \
+  delete disasm;  \
+  delete decoder; \
+  delete assm;    \
+  free(buf)
 
 
 static bool vm_initialized = false;
