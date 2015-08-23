@@ -1,19 +1,19 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
 
 if (process.platform === 'darwin') {
   var watchSeenOne = 0;
 
-  var testDir = common.tmpDir;
+  const testDir = common.tmpDir;
 
-  var filenameOne = 'watch.txt';
-  var testsubdirName = 'testsubdir';
-  var testsubdir = path.join(testDir, testsubdirName);
-  var relativePathOne = path.join('testsubdir', filenameOne);
-  var filepathOne = path.join(testsubdir, filenameOne);
+  const filenameOne = 'watch.txt';
+  const testsubdirName = 'testsubdir';
+  const testsubdir = path.join(testDir, testsubdirName);
+  const relativePathOne = path.join('testsubdir', filenameOne);
+  const filepathOne = path.join(testsubdir, filenameOne);
 
   common.refreshTmpDir();
 
@@ -29,7 +29,7 @@ if (process.platform === 'darwin') {
   try { fs.mkdirSync(testsubdir, 0o700); } catch (e) {}
 
   assert.doesNotThrow(function() {
-    var watcher = fs.watch(testDir, {recursive: true});
+    const watcher = fs.watch(testDir, {recursive: true});
     watcher.on('change', function(event, filename) {
       assert.ok('change' === event || 'rename' === event);
 

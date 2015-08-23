@@ -1,12 +1,12 @@
 'use strict';
 // Serving up a zero-length buffer should work.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
 
-var server = http.createServer(function(req, res) {
-  var buffer = new Buffer(0);
+const server = http.createServer(function(req, res) {
+  const buffer = new Buffer(0);
   // FIXME: WTF gjslint want this?
   res.writeHead(200, {'Content-Type': 'text/html',
                  'Content-Length': buffer.length});
@@ -34,4 +34,3 @@ process.on('exit', function() {
   assert.ok(gotResponse);
   assert.equal(0, resBodySize);
 });
-

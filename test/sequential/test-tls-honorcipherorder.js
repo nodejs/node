@@ -1,26 +1,26 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
+const fs = require('fs');
 var nconns = 0;
 // test only in TLSv1 to use DES which is no longer supported TLSv1.2
 // to be safe when the default method is updated in the future
 var SSL_Method = 'TLSv1_method';
-var localhost = '127.0.0.1';
+const localhost = '127.0.0.1';
 
 process.on('exit', function() {
   assert.equal(nconns, 6);
 });
 
 function test(honorCipherOrder, clientCipher, expectedCipher, cb) {
-  var soptions = {
+  const soptions = {
     secureProtocol: SSL_Method,
     key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
     cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem'),
@@ -28,7 +28,7 @@ function test(honorCipherOrder, clientCipher, expectedCipher, cb) {
     honorCipherOrder: !!honorCipherOrder
   };
 
-  var server = tls.createServer(soptions, function(cleartextStream) {
+  const server = tls.createServer(soptions, function(cleartextStream) {
     nconns++;
 
     // End socket to send CLOSE_NOTIFY and TCP FIN packet, otherwise
@@ -36,15 +36,15 @@ function test(honorCipherOrder, clientCipher, expectedCipher, cb) {
     cleartextStream.end();
   });
   server.listen(common.PORT, localhost, function() {
-    var coptions = {
+    const coptions = {
       rejectUnauthorized: false,
       secureProtocol: SSL_Method
     };
     if (clientCipher) {
       coptions.ciphers = clientCipher;
     }
-    var client = tls.connect(common.PORT, localhost, coptions, function() {
-      var cipher = client.getCipher();
+    const client = tls.connect(common.PORT, localhost, coptions, function() {
+      const cipher = client.getCipher();
       client.end();
       server.close();
       assert.equal(cipher.name, expectedCipher);

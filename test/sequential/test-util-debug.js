@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (process.argv[2] === 'child')
   child();
@@ -25,8 +25,8 @@ function test(environ, shouldWrite) {
   var expectOut = 'ok\n';
   var didTest = false;
 
-  var spawn = require('child_process').spawn;
-  var child = spawn(process.execPath, [__filename, 'child'], {
+  const spawn = require('child_process').spawn;
+  const child = spawn(process.execPath, [__filename, 'child'], {
     // Lttng requires the HOME env variable or it prints to stderr,
     // This is not really ideal, as it breaks this test, so the HOME
     // env variable is passed to the child to make the test pass.
@@ -64,8 +64,8 @@ function test(environ, shouldWrite) {
 
 
 function child() {
-  var util = require('util');
-  var debug = util.debuglog('tud');
+  const util = require('util');
+  const debug = util.debuglog('tud');
   debug('this', { is: 'a' }, /debugging/);
   debug('number=%d string=%s obj=%j', 1234, 'asdf', { foo: 'bar' });
   console.log('ok');

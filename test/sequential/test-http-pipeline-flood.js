@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 switch (process.argv[2]) {
   case undefined:
@@ -12,14 +12,14 @@ switch (process.argv[2]) {
 }
 
 function parent() {
-  var http = require('http');
-  var bigResponse = new Buffer(10240).fill('x');
+  const http = require('http');
+  const bigResponse = new Buffer(10240).fill('x');
   var gotTimeout = false;
   var childClosed = false;
   var requests = 0;
   var connections = 0;
 
-  var server = http.createServer(function(req, res) {
+  const server = http.createServer(function(req, res) {
     requests++;
     res.setHeader('content-length', bigResponse.length);
     res.end(bigResponse);
@@ -37,9 +37,9 @@ function parent() {
   });
 
   server.listen(common.PORT, function() {
-    var spawn = require('child_process').spawn;
-    var args = [__filename, 'child'];
-    var child = spawn(process.execPath, args, { stdio: 'inherit' });
+    const spawn = require('child_process').spawn;
+    const args = [__filename, 'child'];
+    const child = spawn(process.execPath, args, { stdio: 'inherit' });
     child.on('close', function(code) {
       assert(!code);
       childClosed = true;
@@ -61,10 +61,10 @@ function parent() {
 }
 
 function child() {
-  var net = require('net');
+  const net = require('net');
 
   var gotEpipe = false;
-  var conn = net.connect({ port: common.PORT });
+  const conn = net.connect({ port: common.PORT });
 
   var req = 'GET / HTTP/1.1\r\nHost: localhost:' +
             common.PORT + '\r\nAccept: */*\r\n\r\n';

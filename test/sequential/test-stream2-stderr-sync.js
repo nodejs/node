@@ -1,18 +1,18 @@
 'use strict';
 // Make sure that sync writes to stderr get processed before exiting.
 
-var common = require('../common');
-var assert = require('assert');
-var util = require('util');
+const common = require('../common');
+const assert = require('assert');
+const util = require('util');
 
-var errnoException = util._errnoException;
+const errnoException = util._errnoException;
 
 function parent() {
-  var spawn = require('child_process').spawn;
-  var assert = require('assert');
+  const spawn = require('child_process').spawn;
+  const assert = require('assert');
   var i = 0;
   children.forEach(function(_, c) {
-    var child = spawn(process.execPath, [__filename, '' + c]);
+    const child = spawn(process.execPath, [__filename, '' + c]);
     var err = '';
 
     child.stderr.on('data', function(c) {
@@ -46,8 +46,8 @@ function child1() {
 
 // using a net socket
 function child2() {
-  var net = require('net');
-  var socket = new net.Socket({
+  const net = require('net');
+  const socket = new net.Socket({
     fd: 2,
     readable: false,
     writable: true});
@@ -66,7 +66,7 @@ function child4() {
   process.stderr.write('child 4\nfoo\nbar\nbaz\n');
 }
 
-var children = [ child0, child1, child2, child3, child4 ];
+const children = [ child0, child1, child2, child3, child4 ];
 
 if (!process.argv[2]) {
   parent();

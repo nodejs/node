@@ -1,16 +1,16 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
-var fs = require('fs');
-var util = require('util');
-var path = require('path');
-var fn = path.join(common.fixturesDir, 'does_not_exist.txt');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
+const fs = require('fs');
+const util = require('util');
+const path = require('path');
+const fn = path.join(common.fixturesDir, 'does_not_exist.txt');
 
 var got_error = false;
 var conn_closed = false;
 
-var server = net.createServer(function(stream) {
+const server = net.createServer(function(stream) {
   common.error('pump!');
   util.pump(fs.createReadStream(fn), stream, function(err) {
     common.error('util.pump\'s callback fired');
@@ -26,7 +26,7 @@ var server = net.createServer(function(stream) {
 });
 
 server.listen(common.PORT, function() {
-  var conn = net.createConnection(common.PORT);
+  const conn = net.createConnection(common.PORT);
   conn.setEncoding('utf8');
   conn.on('data', function(chunk) {
     common.error('recv data! nchars = ' + chunk.length);

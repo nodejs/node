@@ -1,9 +1,9 @@
 'use strict';
 (function() {
-  var assert = require('assert'),
-      child = require('child_process'),
-      util = require('util'),
-      common = require('../common');
+  const assert = require('assert'),
+        child = require('child_process'),
+        util = require('util'),
+        common = require('../common');
   if (process.env['TEST_INIT']) {
     util.print('Loaded successfully!');
   } else {
@@ -12,7 +12,7 @@
     process.chdir(__dirname);
 
     // slow but simple
-    var envCopy = JSON.parse(JSON.stringify(process.env));
+    const envCopy = JSON.parse(JSON.stringify(process.env));
     envCopy.TEST_INIT = 1;
 
     child.exec('"' + process.execPath + '" test-init', {env: envCopy},

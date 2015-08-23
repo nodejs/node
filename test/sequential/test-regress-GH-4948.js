@@ -1,11 +1,11 @@
 'use strict';
 // https://github.com/joyent/node/issues/4948
 
-var common = require('../common');
-var http = require('http');
+const common = require('../common');
+const http = require('http');
 
 var reqCount = 0;
-var server = http.createServer(function(serverReq, serverRes) {
+const server = http.createServer(function(serverReq, serverRes) {
   if (reqCount) {
     serverRes.end();
     server.close();
@@ -16,8 +16,8 @@ var server = http.createServer(function(serverReq, serverRes) {
 
   // normally the use case would be to call an external site
   // does not require connecting locally or to itself to fail
-  var r = http.request({hostname: 'localhost',
-                        port: common.PORT}, function(res) {
+  const r = http.request({hostname: 'localhost',
+                          port: common.PORT}, function(res) {
     // required, just needs to be in the client response somewhere
     serverRes.end();
 
@@ -32,9 +32,9 @@ var server = http.createServer(function(serverReq, serverRes) {
 }).listen(common.PORT);
 
 // simulate a client request that closes early
-var net = require('net');
+const net = require('net');
 
-var sock = new net.Socket();
+const sock = new net.Socket();
 sock.connect(common.PORT, 'localhost');
 
 sock.on('connect', function() {

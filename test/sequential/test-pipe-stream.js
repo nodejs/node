@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
 function test(clazz, cb) {
   var have_ping = false;
@@ -13,7 +13,7 @@ function test(clazz, cb) {
   }
 
   function ping() {
-    var conn = new clazz();
+    const conn = new clazz();
 
     conn.on('error', function(err) {
       throw err;
@@ -46,11 +46,11 @@ function test(clazz, cb) {
     });
   }
 
-  var timeout = setTimeout(function() {
+  const timeout = setTimeout(function() {
     server.close();
   }, 2000);
 
-  var server = net.Server();
+  const server = net.Server();
   server.listen(common.PIPE, ping);
   server.on('connection', pong);
   server.on('close', function() {
@@ -63,4 +63,3 @@ function test(clazz, cb) {
 test(net.Stream, function() {
   test(net.Socket);
 });
-

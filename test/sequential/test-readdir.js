@@ -1,24 +1,24 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
 
-var got_error = false,
-    readdirDir = path.join(common.fixturesDir, 'readdir');
+var got_error = false;
+const readdirDir = path.join(common.fixturesDir, 'readdir');
 
-var files = ['are',
-             'dir',
-             'empty',
-             'files',
-             'for',
-             'just',
-             'testing.js',
-             'these'];
+const files = ['are',
+               'dir',
+               'empty',
+               'files',
+               'for',
+               'just',
+               'testing.js',
+               'these'];
 
 
 console.log('readdirSync ' + readdirDir);
-var f = fs.readdirSync(readdirDir);
+const f = fs.readdirSync(readdirDir);
 console.dir(f);
 assert.deepEqual(files, f.sort());
 

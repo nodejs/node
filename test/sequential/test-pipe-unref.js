@@ -1,11 +1,11 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var net = require('net');
-var closed = false;
+const net = require('net');
+const closed = false;
 
-var s = net.Server();
+const s = net.Server();
 s.listen(common.PIPE);
 s.unref();
 

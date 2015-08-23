@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common'),
-    assert = require('assert'),
-    fs = require('fs'),
-    path = require('path'),
-    succeeded = 0;
+const common = require('../common'),
+      assert = require('assert'),
+      fs = require('fs'),
+      path = require('path');
+var succeeded = 0;
 
 // This test is only relevant on Windows.
 if (!common.isWindows) {
@@ -12,7 +12,7 @@ if (!common.isWindows) {
 }
 
 function test(p) {
-  var result = fs.realpathSync(p);
+  const result = fs.realpathSync(p);
   assert.strictEqual(result, path.resolve(p));
 
   fs.realpath(p, function(err, result) {

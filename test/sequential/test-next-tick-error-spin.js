@@ -1,13 +1,13 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (process.argv[2] !== 'child') {
-  var spawn = require('child_process').spawn;
-  var child = spawn(process.execPath, [__filename, 'child'], {
+  const spawn = require('child_process').spawn;
+  const child = spawn(process.execPath, [__filename, 'child'], {
     stdio: 'pipe'//'inherit'
   });
-  var timer = setTimeout(function() {
+  const timer = setTimeout(function() {
     throw new Error('child is hung');
   }, common.platformTimeout(3000));
   child.on('exit', function(code) {
@@ -17,8 +17,8 @@ if (process.argv[2] !== 'child') {
   });
 } else {
 
-  var domain = require('domain');
-  var d = domain.create();
+  const domain = require('domain');
+  const d = domain.create();
   process.maxTickDepth = 10;
 
   // in the error handler, we trigger several MakeCallback events

@@ -1,22 +1,22 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var child_process = require('child_process');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const child_process = require('child_process');
+const fs = require('fs');
 
-var testScript = path.join(common.fixturesDir, 'catch-stdout-error.js');
+const testScript = path.join(common.fixturesDir, 'catch-stdout-error.js');
 
-var cmd = JSON.stringify(process.execPath) + ' ' +
+const cmd = JSON.stringify(process.execPath) + ' ' +
           JSON.stringify(testScript) + ' | ' +
           JSON.stringify(process.execPath) + ' ' +
           '-pe "process.exit(1);"';
 
-var child = child_process.exec(cmd);
+const child = child_process.exec(cmd);
 var output = '';
-var outputExpect = { 'code': 'EPIPE',
-                     'errno': 'EPIPE',
-                     'syscall': 'write' };
+const outputExpect = { 'code': 'EPIPE',
+                       'errno': 'EPIPE',
+                       'syscall': 'write' };
 
 child.stderr.on('data', function(c) {
   output += c;

@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 // this test only fails with CentOS 6.3 using kernel version 2.6.32
 // On other linuxes and darwin, the `read` call gets an ECONNRESET in
@@ -19,8 +19,8 @@ switch (process.argv[2]) {
 }
 
 function server() {
-  var net = require('net');
-  var content = new Buffer(64 * 1024 * 1024);
+  const net = require('net');
+  const content = new Buffer(64 * 1024 * 1024);
   content.fill('#');
   net.createServer(function(socket) {
     this.close();
@@ -37,8 +37,8 @@ function server() {
 }
 
 function client() {
-  var net = require('net');
-  var client = net.connect({
+  const net = require('net');
+  const client = net.connect({
     host: 'localhost',
     port: common.PORT
   }, function() {
@@ -47,13 +47,13 @@ function client() {
 }
 
 function parent() {
-  var spawn = require('child_process').spawn;
-  var node = process.execPath;
-  var assert = require('assert');
+  const spawn = require('child_process').spawn;
+  const node = process.execPath;
+  const assert = require('assert');
   var serverExited = false;
   var clientExited = false;
   var serverListened = false;
-  var opt = {
+  const opt = {
     env: {
       NODE_DEBUG: 'net',
       NODE_COMMON_PORT: process.env.NODE_COMMON_PORT,
@@ -75,7 +75,7 @@ function parent() {
     });
   }, common.platformTimeout(2000)).unref();
 
-  var s = spawn(node, [__filename, 'server'], opt);
+  const s = spawn(node, [__filename, 'server'], opt);
   var c;
 
   wrap(s.stderr, process.stderr, 'SERVER 2>');
@@ -105,4 +105,3 @@ function parent() {
     });
   }
 }
-

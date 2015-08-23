@@ -1,33 +1,33 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const net = require('net');
 
-var webPort = common.PORT;
-var tcpPort = webPort + 1;
+const webPort = common.PORT;
+const tcpPort = webPort + 1;
 
 var listenCount = 0;
 var gotThanks = false;
 var tcpLengthSeen = 0;
-var bufferSize = 5 * 1024 * 1024;
+const bufferSize = 5 * 1024 * 1024;
 
 
 /*
  * 5MB of random buffer.
  */
-var buffer = Buffer(bufferSize);
+const buffer = Buffer(bufferSize);
 for (var i = 0; i < buffer.length; i++) {
   buffer[i] = parseInt(Math.random() * 10000) % 256;
 }
 
 
-var web = http.Server(function(req, res) {
+const web = http.Server(function(req, res) {
   web.close();
 
   console.log(req.headers);
 
-  var socket = net.Stream();
+  const socket = net.Stream();
   socket.connect(tcpPort);
 
   socket.on('connect', function() {
@@ -51,7 +51,7 @@ var web = http.Server(function(req, res) {
 web.listen(webPort, startClient);
 
 
-var tcp = net.Server(function(s) {
+const tcp = net.Server(function(s) {
   tcp.close();
 
   console.log('tcp server connection');
@@ -86,7 +86,7 @@ function startClient() {
 
   console.log('Making request');
 
-  var req = http.request({
+  const req = http.request({
     port: common.PORT,
     method: 'GET',
     path: '/',
@@ -108,4 +108,3 @@ process.on('exit', function() {
   assert.ok(gotThanks);
   assert.equal(bufferSize, tcpLengthSeen);
 });
-
