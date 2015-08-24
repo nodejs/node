@@ -1241,6 +1241,10 @@ enum encoding ParseEncoding(const char* encoding,
     return UTF8;
   } else if (strcasecmp(encoding, "utf-8") == 0) {
     return UTF8;
+  } else if (strcasecmp(encoding, "cesu8") == 0) {
+    return CESU8;
+  } else if (strcasecmp(encoding, "cesu-8") == 0) {
+    return CESU8;
   } else if (strcasecmp(encoding, "ascii") == 0) {
     return ASCII;
   } else if (strcasecmp(encoding, "base64") == 0) {

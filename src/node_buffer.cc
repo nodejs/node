@@ -702,6 +702,9 @@ void Utf8Write(const FunctionCallbackInfo<Value>& args) {
   StringWrite<UTF8>(args);
 }
 
+void Cesu8Write(const FunctionCallbackInfo<Value>& args) {
+  StringWrite<CESU8>(args);
+}
 
 void Ucs2Write(const FunctionCallbackInfo<Value>& args) {
   StringWrite<UCS2>(args);
@@ -824,6 +827,12 @@ void ByteLengthUtf8(const FunctionCallbackInfo<Value> &args) {
   args.GetReturnValue().Set(args[0].As<String>()->Utf8Length());
 }
 
+void ByteLengthCesu8(const FunctionCallbackInfo<Value> &args) {
+  CHECK(args[0]->IsString());
+
+  // Fast case: avoid StringBytes on CESU8 string. Jump to v8.
+  args.GetReturnValue().Set(args[0].As<String>()->Cesu8Length());
+}
 
 void Compare(const FunctionCallbackInfo<Value> &args) {
   Environment* env = Environment::GetCurrent(args);
@@ -988,6 +997,7 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   env->SetMethod(proto, "hexWrite", HexWrite);
   env->SetMethod(proto, "ucs2Write", Ucs2Write);
   env->SetMethod(proto, "utf8Write", Utf8Write);
+  env->SetMethod(proto, "cesu8Write", Cesu8Write);
 
   env->SetMethod(proto, "copy", Copy);
 }
@@ -1005,6 +1015,7 @@ void Initialize(Handle<Object> target,
 
   env->SetMethod(target, "slice", Slice);
   env->SetMethod(target, "byteLengthUtf8", ByteLengthUtf8);
+  env->SetMethod(target, "byteLengthCesu8", ByteLengthCesu8);
   env->SetMethod(target, "compare", Compare);
   env->SetMethod(target, "fill", Fill);
   env->SetMethod(target, "indexOfBuffer", IndexOfBuffer);
