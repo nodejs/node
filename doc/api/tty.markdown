@@ -22,11 +22,6 @@ Returns `true` or `false` depending on if the `fd` is associated with a
 terminal.
 
 
-## tty.setRawMode(mode)
-
-    Stability: 0 - Deprecated: Use [tty.ReadStream#setRawMode][] (i.e. process.stdin.setRawMode) instead.
-
-
 ## Class: ReadStream
 
 A `net.Socket` subclass that represents the readable portion of a tty. In normal
