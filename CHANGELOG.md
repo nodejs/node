@@ -21,7 +21,6 @@
 
 See https://github.com/nodejs/io.js/labels/confirmed-bug for complete and current list of known issues.
 
-* Possible remaining post-3.0.0 buffer memory leak(s), details at [#2308](https://github.com/nodejs/node/issues/2308). Mostly fixed in [2781333...8841947](https://github.com/nodejs/node/compare/27813339cf713275fa7bbf2ae497d13b66aa78ce...88419479ccb6384473339f09e5c55f234f4ee194) - [#2352](https://github.com/nodejs/node/pull/2352), and also [6fff0f7...a40ae51](https://github.com/nodejs/node/compare/6fff0f73dc371153507d96ecd5f88c1ddc7780c9...a40ae513bb99ec3f85ea5b864a366bc7552d61f0) - [#2375](https://github.com/nodejs/node/pull/2375).
 * Some problems with unreferenced timers running during `beforeExit` are still to be resolved. See [#1264](https://github.com/nodejs/io.js/issues/1264).
 * Surrogate pair in REPL can freeze terminal. [#690](https://github.com/nodejs/io.js/issues/690)
 * `process.send()` is not synchronous as the docs suggest, a regression introduced in 1.0.2, see [#760](https://github.com/nodejs/io.js/issues/760).
