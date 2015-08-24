@@ -65,8 +65,4 @@ gets updated on "resize" events.
 Returns `true` or `false` depending on if the `fd` is associated with a
 terminal.
 
-## tty.setRawMode(mode)
-
-    Stability: 0 - Deprecated: Use [tty.ReadStream#setRawMode][] (i.e. process.stdin.setRawMode) instead.
-
 [tty.ReadStream#setRawMode]: #tty_rs_setrawmode_mode
