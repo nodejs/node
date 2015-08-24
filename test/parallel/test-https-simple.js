@@ -16,7 +16,6 @@ const options = {
 };
 
 const tests = 2;
-let reqReceivedCount = 0;
 let successful = 0;
 
 const testSucceeded = function() {
@@ -28,12 +27,12 @@ const testSucceeded = function() {
 
 const body = 'hello world\n';
 
-const server = https.createServer(options, function(req, res) {
-  reqReceivedCount++;
+const serverCallback = common.mustCall(function(req, res) {
   res.writeHead(200, { 'content-type': 'text/plain' });
   res.end(body);
 });
 
+const server = https.createServer(options, serverCallback);
 
 server.listen(common.PORT, function() {
   // Do a request ignoring the unauthorized server certs
@@ -89,6 +88,5 @@ server.listen(common.PORT, function() {
 });
 
 process.on('exit', function() {
-  assert.equal(1, reqReceivedCount);
   assert.equal(successful, tests);
 });
