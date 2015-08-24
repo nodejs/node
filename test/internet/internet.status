@@ -2,4 +2,7 @@ prefix internet
 
 test-dns                          : PASS,FLAKY
 
+[$system==linux]
+test-https-aws-ssl                : PASS,FLAKY
+
 [$system==solaris]
