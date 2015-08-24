@@ -11,7 +11,7 @@ var accum = [];
 var timeout;
 
 src._read = function(n) {
-  if(!hasRead) {
+  if (!hasRead) {
     hasRead = true;
     process.nextTick(function() {
       src.push(new Buffer('1'));

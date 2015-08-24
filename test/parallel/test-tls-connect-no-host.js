@@ -14,7 +14,7 @@ var path = require('path');
 var cert = fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'));
 var key = fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem'));
 
-// https://github.com/nodejs/io.js/issues/1489
+// https://github.com/nodejs/node/issues/1489
 // tls.connect(options) with no options.host should accept a cert with
 //   CN:'localhost'
 tls.createServer({

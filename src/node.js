@@ -277,7 +277,7 @@
     process._tickDomainCallback = _tickDomainCallback;
 
     // This tickInfo thing is used so that the C++ code in src/node.cc
-    // can have easy accesss to our nextTick state, and avoid unnecessary
+    // can have easy access to our nextTick state, and avoid unnecessary
     // calls into JS land.
     const tickInfo = process._setupNextTick(_tickCallback, _runMicrotasks);
 
@@ -561,7 +561,7 @@
              JSON.stringify(name) + ' });\n';
     // Defer evaluation for a tick.  This is a workaround for deferred
     // events not firing when evaluating scripts from the command line,
-    // see https://github.com/nodejs/io.js/issues/1600.
+    // see https://github.com/nodejs/node/issues/1600.
     process.nextTick(function() {
       var result = module._compile(script, name + '-wrapper');
       if (process._print_eval) console.log(result);
@@ -802,8 +802,7 @@
     });
 
     process.on('removeListener', function(type, listener) {
-      if (signalWraps.hasOwnProperty(type) &&
-          NativeModule.require('events').listenerCount(this, type) === 0) {
+      if (signalWraps.hasOwnProperty(type) && this.listenerCount(type) === 0) {
         signalWraps[type].close();
         delete signalWraps[type];
       }

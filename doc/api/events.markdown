@@ -4,7 +4,7 @@
 
 <!--type=module-->
 
-Many objects in io.js emit events: a `net.Server` emits an event each time
+Many objects in Node.js emit events: a `net.Server` emits an event each time
 a peer connects to it, a `fs.readStream` emits an event when the file is
 opened. All objects which emit events are instances of `events.EventEmitter`.
 You can access this module by doing: `require("events");`
@@ -28,7 +28,7 @@ var EventEmitter = require('events');
 
 When an `EventEmitter` instance experiences an error, the typical action is
 to emit an `'error'` event.  Error events are treated as a special case in
-io.js.  If there is no listener for it, then the default action is to print
+Node.js.  If there is no listener for it, then the default action is to print
 a stack trace and exit the program.
 
 All EventEmitters emit the event `'newListener'` when new listeners are
@@ -137,10 +137,17 @@ Execute each of the listeners in order with the supplied arguments.
 Returns `true` if event had listeners, `false` otherwise.
 
 
+### emitter.listenerCount(type)
+
+* `type` {Value} The type of event
+
+Returns the number of listeners listening to the `type` of event.
+
 ### Class Method: EventEmitter.listenerCount(emitter, event)
 
-Return the number of listeners for a given event.
+    Stability: 0 - Deprecated: Use [emitter.listenerCount][] instead.
 
+Returns the number of listeners for a given event.
 
 ### Event: 'newListener'
 
@@ -179,3 +186,6 @@ constructor function. For example:
 
     // Inherit functions from `EventEmitter`'s prototype
     util.inherits(MyEventEmitter, EventEmitter);
+
+
+[emitter.listenerCount]: #events_emitter_listenercount_type

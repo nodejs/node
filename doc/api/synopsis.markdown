@@ -2,7 +2,7 @@
 
 <!--type=misc-->
 
-An example of a [web server](http.html) written with io.js which responds with
+An example of a [web server](http.html) written with Node.js which responds with
 'Hello World':
 
     var http = require('http');
@@ -15,9 +15,9 @@ An example of a [web server](http.html) written with io.js which responds with
     console.log('Server running at http://127.0.0.1:8124/');
 
 To run the server, put the code into a file called `example.js` and execute
-it with the iojs program
+it with the node program
 
-    > iojs example.js
+    > node example.js
     Server running at http://127.0.0.1:8124/
 
 All of the examples in the documentation can be run similarly.

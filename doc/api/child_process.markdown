@@ -2,12 +2,12 @@
 
     Stability: 2 - Stable
 
-io.js provides a tri-directional `popen(3)` facility through the
+Node.js provides a tri-directional `popen(3)` facility through the
 `child_process` module.
 
 It is possible to stream data through a child's `stdin`, `stdout`, and
 `stderr` in a fully non-blocking way.  (Note that some programs use
-line-buffered I/O internally.  That doesn't affect io.js but it means
+line-buffered I/O internally.  That doesn't affect Node.js but it means
 data you send to the child process may not be immediately consumed.)
 
 To create a child process use `require('child_process').spawn()` or
@@ -61,7 +61,7 @@ of the signal, otherwise `null`.
 
 Note that the child process stdio streams might still be open.
 
-Also, note that io.js establishes signal handlers for `'SIGINT'` and
+Also, note that Node.js establishes signal handlers for `'SIGINT'` and
 `'SIGTERM`', so it will not terminate due to receipt of those signals,
 it will exit.
 
@@ -253,7 +253,7 @@ instead, see
 
 There is a special case when sending a `{cmd: 'NODE_foo'}` message. All messages
 containing a `NODE_` prefix in its `cmd` property will not be emitted in
-the `message` event, since they are internal messages used by io.js core.
+the `message` event, since they are internal messages used by Node.js core.
 Messages containing the prefix are emitted in the `internalMessage` event.
 Avoid using this feature; it is subject to change without notice.
 
@@ -300,7 +300,8 @@ a `message` event instead of `connection` and use `server.bind` instead of
 
 Here is an example of sending a socket. It will spawn two children and handle
 connections with the remote address `74.125.127.100` as VIP by sending the
-socket to a "special" child process. Other sockets will go to a "normal" process.
+socket to a "special" child process. Other sockets will go to a "normal"
+process.
 
     var normal = require('child_process').fork('child.js', ['normal']);
     var special = require('child_process').fork('child.js', ['special']);
@@ -365,8 +366,8 @@ callback or returning an EventEmitter).
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
 * return: {ChildProcess object}
 
-Launches a new process with the given `command`, with  command line arguments in `args`.
-If omitted, `args` defaults to an empty Array.
+Launches a new process with the given `command`, with  command line arguments in
+`args`. If omitted, `args` defaults to an empty Array.
 
 The third argument is used to specify additional options, with these defaults:
 
@@ -463,19 +464,19 @@ index corresponds to a fd in the child.  The value is one of the following:
    between parent and child. A ChildProcess may have at most *one* IPC stdio
    file descriptor. Setting this option enables the ChildProcess.send() method.
    If the child writes JSON messages to this file descriptor, then this will
-   trigger ChildProcess.on('message').  If the child is an io.js program, then
+   trigger ChildProcess.on('message').  If the child is an Node.js program, then
    the presence of an IPC channel will enable process.send() and
    process.on('message').
-3. `'ignore'` - Do not set this file descriptor in the child. Note that io.js
+3. `'ignore'` - Do not set this file descriptor in the child. Note that Node.js
    will always open fd 0 - 2 for the processes it spawns. When any of these is
-   ignored io.js will open `/dev/null` and attach it to the child's fd.
+   ignored Node.js will open `/dev/null` and attach it to the child's fd.
 4. `Stream` object - Share a readable or writable stream that refers to a tty,
    file, socket, or a pipe with the child process. The stream's underlying
-   file descriptor is duplicated in the child process to the fd that 
+   file descriptor is duplicated in the child process to the fd that
    corresponds to the index in the `stdio` array. Note that the stream must
    have an underlying descriptor (file streams do not until the `'open'`
    event has occurred).
-5. Positive integer - The integer value is interpreted as a file descriptor 
+5. Positive integer - The integer value is interpreted as a file descriptor
    that is is currently open in the parent process. It is shared with the child
    process, similar to how `Stream` objects can be shared.
 6. `null`, `undefined` - Use default value. For stdio fds 0, 1 and 2 (in other
@@ -499,7 +500,7 @@ Example:
 #### options.detached
 
 If the `detached` option is set, the child process will be made the leader of a
-new process group.  This makes it possible for the child to continue running 
+new process group.  This makes it possible for the child to continue running
 after the parent exits.
 
 By default, the parent will wait for the detached child to exit.  To prevent
@@ -632,17 +633,17 @@ leaner than `child_process.exec`. It has the same options.
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
 * Return: ChildProcess object
 
-This is a special case of the `spawn()` functionality for spawning io.js
+This is a special case of the `spawn()` functionality for spawning Node.js
 processes. In addition to having all the methods in a normal ChildProcess
 instance, the returned object has a communication channel built-in. See
 `child.send(message, [sendHandle])` for details.
 
-These child io.js processes are still whole new instances of V8. Assume at
-least 30ms startup and 10mb memory for each new io.js. That is, you cannot
+These child Node.js processes are still whole new instances of V8. Assume at
+least 30ms startup and 10mb memory for each new Node.js. That is, you cannot
 create many thousands of them.
 
 The `execPath` property in the `options` object allows for a process to be
-created for the child rather than the current `iojs` executable. This should be
+created for the child rather than the current `node` executable. This should be
 done with care and by default will talk over the fd represented an
 environmental variable `NODE_CHANNEL_FD` on the child process. The input and
 output on this fd is expected to be line delimited JSON objects.

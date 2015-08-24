@@ -2,11 +2,11 @@
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
      xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
 
-  <?define ProductName = "io.js" ?>
-  <?define ProductDescription = "io.js" ?>
-  <?define ProductAuthor = "io.js contributors" ?>
+  <?define ProductName = "Node.js" ?>
+  <?define ProductDescription = "Node.js" ?>
+  <?define ProductAuthor = "Node.js Foundation" ?>
 
-  <?define RegistryKeyPath = "SOFTWARE\io.js" ?>
+  <?define RegistryKeyPath = "SOFTWARE\Node.js" ?>
 
   <?define RepoDir="$(var.ProjectDir)..\..\..\" ?>
   <?define SourceDir="$(var.RepoDir)\$(var.Configuration)\" ?>
@@ -25,9 +25,9 @@
     <MajorUpgrade AllowSameVersionUpgrades="yes"
                   DowngradeErrorMessage="!(loc.MajorUpgrade_DowngradeErrorMessage)"/>
 
-    <Icon Id="NodeIcon" SourceFile="$(var.RepoDir)\src\res\iojs.ico"/>
+    <Icon Id="NodeIcon" SourceFile="$(var.RepoDir)\src\res\node.ico"/>
     <Property Id="ARPPRODUCTICON" Value="NodeIcon"/>
-    <Property Id="ApplicationFolderName" Value="iojs"/>
+    <Property Id="ApplicationFolderName" Value="node"/>
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR"/>
 
     <Property Id="INSTALLDIR">
@@ -48,13 +48,6 @@
       <ComponentRef Id="NodeStartMenuAndRegistryEntries"/>
       <ComponentRef Id="AppData" />
       <ComponentGroupRef Id="Product.Generated"/>
-
-      <Feature Id="NodeAlias"
-               Level="1"
-               Title="!(loc.NodeAlias_Title)"
-               Description="!(loc.NodeAlias_Description)">
-        <ComponentRef Id="NodeAlias"/>
-      </Feature>
 
       <Feature Id="NodePerfCtrSupport"
                Level="1"
@@ -110,24 +103,18 @@
 
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramMenuFolder">
-        <Directory Id="ApplicationProgramsFolder" Name="io.js"/>
+        <Directory Id="ApplicationProgramsFolder" Name="Node.js"/>
       </Directory>
 
       <Directory Id="$(var.ProgramFilesFolderId)">
-        <Directory Id="INSTALLDIR" Name="iojs">
+        <Directory Id="INSTALLDIR" Name="nodejs">
         </Directory>
       </Directory>
     </Directory>
 
     <DirectoryRef Id="INSTALLDIR">
       <Component Id="NodeExecutable">
-        <File Id="iojs.exe" KeyPath="yes" Source="$(var.SourceDir)\iojs.exe"/>
-      </Component>
-
-      <Component Id="NodeAlias" Guid="fde09cce-a503-4409-a3c4-61ae2a5a5906">
-        <!-- Always remove node.exe. The hard link will be recreated by the
-             `LinkNodeExeToIojsExe` custom action whenever needed. -->
-        <RemoveFile Id="node.exe" Name="node.exe" On="both" />
+        <File Id="node.exe" KeyPath="yes" Source="$(var.SourceDir)\node.exe"/>
       </Component>
 
       <Component Id="NodeVarsScript">
@@ -145,7 +132,7 @@
       <?if $(var.NoETW) != 1 ?>
       <Component Id="NodeEtwSupport">
         <File Id="node_etw_provider.man" Source="$(var.RepoDir)\src\res\node_etw_provider.man">
-          <util:EventManifest MessageFile="[INSTALLDIR]iojs.exe" ResourceFile="[INSTALLDIR]iojs.exe"/>
+          <util:EventManifest MessageFile="[INSTALLDIR]node.exe" ResourceFile="[INSTALLDIR]node.exe"/>
         </File>
       </Component>
       <?endif?>
@@ -165,17 +152,17 @@
                        Type="string"
                        Value="$(var.ProductVersion)"/>
         <Shortcut Id="NodeVarsScriptShortcut"
-                  Name="io.js command prompt"
+                  Name="Node.js command prompt"
                   Target="[%ComSpec]"
                   Arguments='/k "[INSTALLDIR]nodevars.bat"'
                   Show="normal"
                   WorkingDirectory="INSTALLDIR"/>
         <Shortcut Id="NodeExecutableShortcut"
-                  Name="io.js"
-                  Target="[INSTALLDIR]iojs.exe"
+                  Name="Node.js"
+                  Target="[INSTALLDIR]node.exe"
                   WorkingDirectory="INSTALLDIR"/>
         <Shortcut Id="UninstallProduct"
-                  Name="Uninstall io.js"
+                  Name="Uninstall Node.js"
                   Target="[SystemFolder]msiexec.exe"
                   Arguments="/x [ProductCode]"/>
         <RemoveFolder Id="RemoveApplicationProgramsFolder"
@@ -220,12 +207,12 @@
                        Value="1"
                        KeyPath="yes"/>
         <util:InternetShortcut Id="WebsiteShortcut"
-                               Name="io.js website"
-                               Target="http://iojs.org"
+                               Name="Node.js website"
+                               Target="http://nodejs.org"
                                Type="url"/>
         <util:InternetShortcut Id="DocsShortcut"
-                               Name="io.js documentation"
-                               Target="https://iojs.org/download/$(var.DistTypeDir)/v$(var.FullVersion)/doc/api/"
+                               Name="Node.js documentation"
+                               Target="https://nodejs.org/download/$(var.DistTypeDir)/v$(var.FullVersion)/doc/api/"
                                Type="url"/>
       </Component>
     </DirectoryRef>
@@ -262,13 +249,6 @@
       </Component>
     </DirectoryRef>
 
-    <CustomAction Id="LinkNodeExeToIojsExe"
-                  FileKey="iojs.exe"
-                  ExeCommand="-e &quot; require('fs').linkSync(process.execPath, require('path').resolve(process.execPath, '../node.exe')); &quot;"
-                  Impersonate="no"
-                  Execute="deferred"
-                  Return="check" />
-
     <Binary Id='BroadcastEnvironmentUpdate'
             SourceFile='$(var.custom_actions.TargetDir)$(var.custom_actions.TargetName).dll' />
 
@@ -279,9 +259,6 @@
                   Return="check" />
 
     <InstallExecuteSequence>
-      <Custom Action="LinkNodeExeToIojsExe" After="InstallFiles">
-        $NodeAlias = 3
-      </Custom>
       <Custom Action='BroadcastEnvironmentUpdate' After='InstallFinalize'/>
     </InstallExecuteSequence>
 

@@ -147,7 +147,7 @@ would be to wait a second and then try again. This can be done with
       }
     });
 
-(Note: All sockets in io.js set `SO_REUSEADDR` already)
+(Note: All sockets in Node.js set `SO_REUSEADDR` already)
 
 
 ### server.listen(path[, callback])
@@ -281,7 +281,8 @@ with `child_process.fork()`.
 
 ### server.connections
 
-This function is **deprecated**; please use [server.getConnections()][] instead.
+    Stability: 0 - Deprecated: Use [server.getConnections][] instead.
+
 The number of concurrent connections on the server.
 
 This becomes `null` when sending a socket to a child with
@@ -324,7 +325,7 @@ following this event.  See example in discussion of `server.listen`.
 
 This object is an abstraction of a TCP or local socket.  `net.Socket`
 instances implement a duplex Stream interface.  They can be created by the
-user and used as a client (with `connect()`) or they can be created by io.js
+user and used as a client (with `connect()`) or they can be created by Node.js
 and passed to the user through the `'connection'` event of a server.
 
 ### new net.Socket([options])
@@ -388,7 +389,7 @@ with options either as either `{port: port, host: host}` or `{path: path}`.
 `net.Socket` has the property that `socket.write()` always works. This is to
 help users get up and running quickly. The computer cannot always keep up
 with the amount of data that is written to a socket - the network connection
-simply might be too slow. io.js will internally queue up the data written to a
+simply might be too slow. Node.js will internally queue up the data written to a
 socket and send it out over the wire when it is possible. (Internally it is
 polling on the socket's file descriptor for being writable).
 
@@ -623,7 +624,7 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 ['end']: #net_event_end
 [EventEmitter]: events.html#events_class_events_eventemitter
 ['listening']: #net_event_listening
-[server.getConnections()]: #net_server_getconnections_callback
+[server.getConnections]: #net_server_getconnections_callback
 [Readable Stream]: stream.html#stream_class_stream_readable
 [stream.setEncoding()]: stream.html#stream_readable_setencoding_encoding
 [dns.lookup()]: dns.html#dns_dns_lookup_hostname_options_callback

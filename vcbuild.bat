@@ -103,31 +103,57 @@ call :getnodeversion || exit /b 1
 @rem Set environment for msbuild
 
 @rem Look for Visual Studio 2015
+echo Looking for Visual Studio 2015
 if not defined VS140COMNTOOLS goto vc-set-2013
 if not exist "%VS140COMNTOOLS%\..\..\vc\vcvarsall.bat" goto vc-set-2013
+echo Found Visual Studio 2015
+if defined msi (
+  echo Looking for WiX installation for Visual Studio 2015...
+  if not exist "%WIX%\SDK\VS2015" (
+    echo Failed to find WiX install for Visual Studio 2015
+    echo VS2015 support for WiX is only present starting at version 3.10
+    goto vc-set-2013
+  )
+)
 if "%VCVARS_VER%" NEQ "140" (
   call "%VS140COMNTOOLS%\..\..\vc\vcvarsall.bat"
   SET VCVARS_VER=140
 )
 if not defined VCINSTALLDIR goto vc-set-2013
 set GYP_MSVS_VERSION=2015
+set PLATFORM_TOOLSET=v140
 goto msbuild-found
 
 :vc-set-2013
 @rem Look for Visual Studio 2013
+echo Looking for Visual Studio 2013
 if not defined VS120COMNTOOLS goto msbuild-not-found
 if not exist "%VS120COMNTOOLS%\..\..\vc\vcvarsall.bat" goto msbuild-not-found
+echo Found Visual Studio 2013
+if defined msi (
+  echo Looking for WiX installation for Visual Studio 2013...
+  if not exist "%WIX%\SDK\VS2013" (
+    echo Failed to find WiX install for Visual Studio 2013
+    echo VS2013 support for WiX is only present starting at version 3.8
+    goto vc-set-2012
+  )
+)
 if "%VCVARS_VER%" NEQ "120" (
   call "%VS120COMNTOOLS%\..\..\vc\vcvarsall.bat"
   SET VCVARS_VER=120
 )
 if not defined VCINSTALLDIR goto msbuild-not-found
 set GYP_MSVS_VERSION=2013
+set PLATFORM_TOOLSET=v120
 goto msbuild-found
 
 :msbuild-not-found
 echo Failed to find Visual Studio installation.
 goto exit
+
+:wix-not-found
+echo Build skipped. To generate installer, you need to install Wix.
+goto run
 
 :msbuild-found
 
@@ -154,14 +180,14 @@ if "%target%" == "Clean" goto exit
 @rem Skip signing if the `nosign` option was specified.
 if defined nosign goto licensertf
 
-signtool sign /a /d "io.js" /t http://timestamp.globalsign.com/scripts/timestamp.dll Release\iojs.exe
+signtool sign /a /d "node" /t http://timestamp.globalsign.com/scripts/timestamp.dll Release\node.exe
 if errorlevel 1 echo Failed to sign exe&goto exit
 
 :licensertf
 @rem Skip license.rtf generation if not requested.
 if not defined licensertf goto msi
 
-%config%\iojs tools\license2rtf.js < LICENSE > %config%\license.rtf
+%config%\node tools\license2rtf.js < LICENSE > %config%\license.rtf
 if errorlevel 1 echo Failed to generate license.rtf&goto exit
 
 :msi
@@ -169,12 +195,12 @@ if errorlevel 1 echo Failed to generate license.rtf&goto exit
 if not defined msi goto run
 
 :msibuild
-echo Building iojs-v%FULLVERSION%-%target_arch%.msi
-msbuild "%~dp0tools\msvs\msi\nodemsi.sln" /m /t:Clean,Build /p:Configuration=%config% /p:Platform=%target_arch% /p:NodeVersion=%NODE_VERSION% /p:FullVersion=%FULLVERSION% /p:DistTypeDir=%DISTTYPEDIR% %noetw_msi_arg% %noperfctr_msi_arg% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
+echo Building node-v%FULLVERSION%-%target_arch%.msi
+msbuild "%~dp0tools\msvs\msi\nodemsi.sln" /m /t:Clean,Build /p:PlatformToolset=%PLATFORM_TOOLSET% /p:GypMsvsVersion=%GYP_MSVS_VERSION% /p:Configuration=%config% /p:Platform=%target_arch% /p:NodeVersion=%NODE_VERSION% /p:FullVersion=%FULLVERSION% /p:DistTypeDir=%DISTTYPEDIR% %noetw_msi_arg% %noperfctr_msi_arg% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 goto exit
 
 if defined nosign goto upload
-signtool sign /a /d "io.js" /t http://timestamp.globalsign.com/scripts/timestamp.dll iojs-v%FULLVERSION%-%target_arch%.msi
+signtool sign /a /d "node" /t http://timestamp.globalsign.com/scripts/timestamp.dll node-v%FULLVERSION%-%target_arch%.msi
 if errorlevel 1 echo Failed to sign msi&goto exit
 
 :upload
@@ -185,12 +211,12 @@ if not defined SSHCONFIG (
   echo SSHCONFIG is not set for upload
   exit /b 1
 )
-if not defined STAGINGSERVER set STAGINGSERVER=iojs-www
+if not defined STAGINGSERVER set STAGINGSERVER=node-www
 ssh -F %SSHCONFIG% %STAGINGSERVER% "mkdir -p staging/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%"
-scp -F %SSHCONFIG% Release\iojs.exe %STAGINGSERVER%:staging/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/iojs.exe
-scp -F %SSHCONFIG% Release\iojs.lib %STAGINGSERVER%:staging/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/iojs.lib
-scp -F %SSHCONFIG% iojs-v%FULLVERSION%-%target_arch%.msi %STAGINGSERVER%:staging/%DISTTYPEDIR%/v%FULLVERSION%/
-ssh -F %SSHCONFIG% %STAGINGSERVER% "touch staging/%DISTTYPEDIR%/v%FULLVERSION%/iojs-v%FULLVERSION%-%target_arch%.msi.done staging/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%.done"
+scp -F %SSHCONFIG% Release\node.exe %STAGINGSERVER%:staging/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.exe
+scp -F %SSHCONFIG% Release\node.lib %STAGINGSERVER%:staging/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.lib
+scp -F %SSHCONFIG% node-v%FULLVERSION%-%target_arch%.msi %STAGINGSERVER%:staging/%DISTTYPEDIR%/v%FULLVERSION%/
+ssh -F %SSHCONFIG% %STAGINGSERVER% "touch staging/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.msi.done staging/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%.done"
 
 :run
 @rem Run tests if requested.
@@ -198,7 +224,7 @@ ssh -F %SSHCONFIG% %STAGINGSERVER% "touch staging/%DISTTYPEDIR%/v%FULLVERSION%/i
 :build-node-weak
 @rem Build node-weak if required
 if "%buildnodeweak%"=="" goto run-tests
-"%config%\iojs" deps\npm\node_modules\node-gyp\bin\node-gyp rebuild --directory="%~dp0test\gc\node_modules\weak" --nodedir="%~dp0."
+"%config%\node" deps\npm\node_modules\node-gyp\bin\node-gyp rebuild --directory="%~dp0test\gc\node_modules\weak" --nodedir="%~dp0."
 if errorlevel 1 goto build-node-weak-failed
 goto run-tests
 
@@ -219,7 +245,7 @@ goto jslint
 :jslint
 if not defined jslint goto exit
 echo running jslint
-%config%\iojs tools\eslint\bin\eslint.js src lib test --rulesdir tools\eslint-rules --reset --quiet
+%config%\node tools\eslint\bin\eslint.js src lib test --rulesdir tools\eslint-rules --reset --quiet
 goto exit
 
 :create-msvs-files-failed
@@ -250,7 +276,7 @@ set FULLVERSION=
 
 for /F "usebackq tokens=*" %%i in (`python "%~dp0tools\getnodeversion.py"`) do set NODE_VERSION=%%i
 if not defined NODE_VERSION (
-  echo Cannot determine current version of io.js
+  echo Cannot determine current version of Node.js
   exit /b 1
 )
 

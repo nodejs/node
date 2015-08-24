@@ -6,7 +6,7 @@ knowledge of several libraries:
 
  - V8 JavaScript, a C++ library. Used for interfacing with JavaScript:
    creating objects, calling functions, etc.  Documented mostly in the
-   `v8.h` header file (`deps/v8/include/v8.h` in the io.js source
+   `v8.h` header file (`deps/v8/include/v8.h` in the Node.js source
    tree), which is also available
    [online](https://v8docs.nodesource.com/).
 
@@ -16,12 +16,12 @@ knowledge of several libraries:
    to interface with libuv. That is, if you perform any I/O, libuv will
    need to be used.
 
- - Internal io.js libraries. Most importantly is the `node::ObjectWrap`
+ - Internal Node.js libraries. Most importantly is the `node::ObjectWrap`
    class which you will likely want to derive from.
 
  - Others. Look in `deps/` for what else is available.
 
-io.js statically compiles all its dependencies into the executable.
+Node.js statically compiles all its dependencies into the executable.
 When compiling your module, you don't need to worry about linking to
 any of these libraries.
 
@@ -64,7 +64,7 @@ First we create a file `hello.cc`:
 
     }  // namespace demo
 
-Note that all io.js addons must export an initialization function:
+Note that all Node.js addons must export an initialization function:
 
     void Initialize(Local<Object> exports);
     NODE_MODULE(module_name, Initialize)
@@ -99,7 +99,7 @@ command.
 Now you have your compiled `.node` bindings file! The compiled bindings end up
 in `build/Release/`.
 
-You can now use the binary addon in an io.js project `hello.js` by pointing
+You can now use the binary addon in an Node.js project `hello.js` by pointing
 `require` to the recently built `hello.node` module:
 
     // hello.js
@@ -656,7 +656,7 @@ Test it with:
 ### Passing wrapped objects around
 
 In addition to wrapping and returning C++ objects, you can pass them around
-by unwrapping them with io.js's `node::ObjectWrap::Unwrap` helper function.
+by unwrapping them with Node.js's `node::ObjectWrap::Unwrap` helper function.
 In the following `addon.cc` we introduce a function `add()` that can take on two
 `MyObject` objects:
 

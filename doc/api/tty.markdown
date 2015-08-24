@@ -5,14 +5,14 @@
 The `tty` module houses the `tty.ReadStream` and `tty.WriteStream` classes. In
 most cases, you will not need to use this module directly.
 
-When io.js detects that it is being run inside a TTY context, then `process.stdin`
+When Node.js detects that it is being run inside a TTY context, then `process.stdin`
 will be a `tty.ReadStream` instance and `process.stdout` will be
-a `tty.WriteStream` instance. The preferred way to check if io.js is being run
+a `tty.WriteStream` instance. The preferred way to check if Node.js is being run
 in a TTY context is to check `process.stdout.isTTY`:
 
-    $ iojs -p -e "Boolean(process.stdout.isTTY)"
+    $ node -p -e "Boolean(process.stdout.isTTY)"
     true
-    $ iojs -p -e "Boolean(process.stdout.isTTY)" | cat
+    $ node -p -e "Boolean(process.stdout.isTTY)" | cat
     false
 
 
@@ -24,15 +24,14 @@ terminal.
 
 ## tty.setRawMode(mode)
 
-Deprecated. Use `tty.ReadStream#setRawMode()`
-(i.e. `process.stdin.setRawMode()`) instead.
+    Stability: 0 - Deprecated: Use [tty.ReadStream#setRawMode][] (i.e. process.stdin.setRawMode) instead.
 
 
 ## Class: ReadStream
 
 A `net.Socket` subclass that represents the readable portion of a tty. In normal
 circumstances, `process.stdin` will be the only `tty.ReadStream` instance in any
-io.js program (only when `isatty(0)` is true).
+Node.js program (only when `isatty(0)` is true).
 
 ### rs.isRaw
 
@@ -73,3 +72,6 @@ has changed.
       console.log('screen size has changed!');
       console.log(process.stdout.columns + 'x' + process.stdout.rows);
     });
+
+
+[tty.ReadStream#setRawMode]: #tty_rs_setrawmode_mode

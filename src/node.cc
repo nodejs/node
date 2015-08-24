@@ -2124,6 +2124,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
 
   if (is_dlopen_error) {
     Local<String> errmsg = OneByteString(env->isolate(), uv_dlerror(&lib));
+    uv_dlclose(&lib);
 #ifdef _WIN32
     // Windows needs to add the filename into the error message
     errmsg = String::Concat(errmsg, args[1]->ToString(env->isolate()));
@@ -2133,10 +2134,12 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (mp == nullptr) {
+    uv_dlclose(&lib);
     env->ThrowError("Module did not self-register.");
     return;
   }
   if (mp->nm_version != NODE_MODULE_VERSION) {
+    uv_dlclose(&lib);
     char errmsg[1024];
     snprintf(errmsg,
              sizeof(errmsg),
@@ -2146,6 +2149,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   if (mp->nm_flags & NM_F_BUILTIN) {
+    uv_dlclose(&lib);
     env->ThrowError("Built-in module self-registered.");
     return;
   }
@@ -2162,6 +2166,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
   } else if (mp->nm_register_func != nullptr) {
     mp->nm_register_func(exports, module, mp->nm_priv);
   } else {
+    uv_dlclose(&lib);
     env->ThrowError("Module has no declared entry point.");
     return;
   }
@@ -2763,19 +2768,19 @@ void SetupProcessObject(Environment* env,
   // process.release
   Local<Object> release = Object::New(env->isolate());
   READONLY_PROPERTY(process, "release", release);
-  READONLY_PROPERTY(release, "name", OneByteString(env->isolate(), "io.js"));
+  READONLY_PROPERTY(release, "name", OneByteString(env->isolate(), "node"));
 
 // if this is a release build and no explicit base has been set
 // substitute the standard release download URL
 #ifndef NODE_RELEASE_URLBASE
 # if NODE_VERSION_IS_RELEASE
-#  define NODE_RELEASE_URLBASE "https://iojs.org/download/release/"
+#  define NODE_RELEASE_URLBASE "https://nodejs.org/download/release/"
 # endif
 #endif
 
 #if defined(NODE_RELEASE_URLBASE)
 #  define _RELEASE_URLPFX NODE_RELEASE_URLBASE "v" NODE_VERSION_STRING "/"
-#  define _RELEASE_URLFPFX _RELEASE_URLPFX "iojs-v" NODE_VERSION_STRING
+#  define _RELEASE_URLFPFX _RELEASE_URLPFX "node-v" NODE_VERSION_STRING
 
   READONLY_PROPERTY(release,
                     "sourceUrl",
@@ -2789,7 +2794,7 @@ void SetupProcessObject(Environment* env,
   READONLY_PROPERTY(release,
                     "libUrl",
                     OneByteString(env->isolate(),
-                    _RELEASE_URLPFX "win-" NODE_ARCH "/iojs.lib"));
+                    _RELEASE_URLPFX "win-" NODE_ARCH "/node.lib"));
 #  endif
 #endif
 
@@ -3087,11 +3092,11 @@ static bool ParseDebugOpt(const char* arg) {
 }
 
 static void PrintHelp() {
-  printf("Usage: iojs [options] [ -e script | script.js ] [arguments] \n"
-         "       iojs debug script.js [arguments] \n"
+  printf("Usage: node [options] [ -e script | script.js ] [arguments] \n"
+         "       node debug script.js [arguments] \n"
          "\n"
          "Options:\n"
-         "  -v, --version         print io.js version\n"
+         "  -v, --version         print Node.js version\n"
          "  -e, --eval script     evaluate script\n"
          "  -p, --print           evaluate script and print result\n"
          "  -i, --interactive     always enter the REPL even if stdin\n"
@@ -3106,6 +3111,9 @@ static void PrintHelp() {
          "  --track-heap-objects  track heap object allocations for heap "
          "snapshots\n"
          "  --v8-options          print v8 command line options\n"
+#if HAVE_OPENSSL
+         "  --tls-cipher-list=val use an alternative default TLS cipher list\n"
+#endif
 #if defined(NODE_HAVE_I18N_SUPPORT)
          "  --icu-data-dir=dir    set ICU data load path to dir\n"
          "                        (overrides NODE_ICU_DATA)\n"
@@ -3130,7 +3138,7 @@ static void PrintHelp() {
 #endif
 #endif
          "\n"
-         "Documentation can be found at https://iojs.org/\n");
+         "Documentation can be found at https://nodejs.org/\n");
 }
 
 
@@ -3237,6 +3245,10 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--v8-options") == 0) {
       new_v8_argv[new_v8_argc] = "--help";
       new_v8_argc += 1;
+#if HAVE_OPENSSL
+    } else if (strncmp(arg, "--tls-cipher-list=", 18) == 0) {
+      default_cipher_list = arg + 18;
+#endif
 #if defined(NODE_HAVE_I18N_SUPPORT)
     } else if (strncmp(arg, "--icu-data-dir=", 15) == 0) {
       icu_data_dir = arg + 15;
@@ -3652,12 +3664,12 @@ void Init(int* argc,
     defined(__ARM_ARCH_6T2__) || \
     defined(__ARM_ARCH_6ZK__) || \
     defined(__ARM_ARCH_6Z__)
-  // See https://github.com/nodejs/io.js/issues/1376
+  // See https://github.com/nodejs/node/issues/1376
   // and https://code.google.com/p/v8/issues/detail?id=4019
   // TODO(bnoordhuis): Remove test/parallel/test-arm-math-exp-regress-1376.js
   // and this workaround when v8:4019 has been fixed and the patch back-ported.
   V8::SetFlagsFromString("--nofast_math", sizeof("--nofast_math") - 1);
-  // See https://github.com/nodejs/io.js/pull/2220#issuecomment-126200059
+  // See https://github.com/nodejs/node/pull/2220#issuecomment-126200059
   // and https://code.google.com/p/v8/issues/detail?id=4338
   // TODO(targos): Remove this workaround when v8:4338 has been fixed and the
   // patch back-ported.
@@ -3701,7 +3713,8 @@ void Init(int* argc,
 #endif
   // The const_cast doesn't violate conceptual const-ness.  V8 doesn't modify
   // the argv array or the elements it points to.
-  V8::SetFlagsFromCommandLine(&v8_argc, const_cast<char**>(v8_argv), true);
+  if (v8_argc != 0)
+    V8::SetFlagsFromCommandLine(&v8_argc, const_cast<char**>(v8_argv), true);
 
   // Anything that's still in v8_argv is not a V8 or a node option.
   for (int i = 1; i < v8_argc; i++) {

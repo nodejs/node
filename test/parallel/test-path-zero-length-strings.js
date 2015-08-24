@@ -3,7 +3,7 @@
 // These testcases are specific to one uncommon behaviour in path module. Few
 // of the functions in path module, treat '' strings as current working
 // directory. This test makes sure that the behaviour is intact between commits.
-// See: https://github.com/nodejs/io.js/pull/2106
+// See: https://github.com/nodejs/node/pull/2106
 
 const common = require('../common');
 const assert = require('assert');

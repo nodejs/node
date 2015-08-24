@@ -4,7 +4,6 @@ const common = require('../common');
 const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
-const fixtures = path.join(__dirname, '..', 'fixtures');
 
 // Basic usage tests.
 assert.throws(function() {
@@ -19,7 +18,7 @@ assert.throws(function() {
   fs.watchFile(new Object(), function() {});
 }, /Path must be a string/);
 
-const enoentFile = path.join(fixtures, 'non-existent-file');
+const enoentFile = path.join(common.tmpDir, 'non-existent-file');
 const expectedStatObject = new fs.Stats(
     0,                                        // dev
     0,                                        // mode
@@ -37,24 +36,13 @@ const expectedStatObject = new fs.Stats(
     Date.UTC(1970, 0, 1, 0, 0, 0)             // birthtime
 );
 
-function removeTestFile() {
-  try {
-    fs.unlinkSync(enoentFile);
-  } catch (ex) {
-    if (ex.code !== 'ENOENT') {
-      throw ex;
-    }
-  }
-}
-
-// Make sure that the file does not exist, when the test starts
-removeTestFile();
+common.refreshTmpDir();
 
 // If the file initially didn't exist, and gets created at a later point of
 // time, the callback should be invoked again with proper values in stat object
 var fileExists = false;
 
-fs.watchFile(enoentFile, common.mustCall(function(curr, prev) {
+fs.watchFile(enoentFile, {interval: 0}, common.mustCall(function(curr, prev) {
   if (!fileExists) {
     // If the file does not exist, all the fields should be zero and the date
     // fields should be UNIX EPOCH time
@@ -71,8 +59,7 @@ fs.watchFile(enoentFile, common.mustCall(function(curr, prev) {
     // As the file just got created, previous ino value should be lesser than
     // or equal to zero (non-existent file).
     assert(prev.ino <= 0);
-    // Stop watching the file and delete it
+    // Stop watching the file
     fs.unwatchFile(enoentFile);
-    removeTestFile();
   }
 }, 2));

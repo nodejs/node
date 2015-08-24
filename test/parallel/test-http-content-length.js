@@ -40,7 +40,6 @@ var server = http.createServer(function(req, res) {
       break;
     default:
       throw new Error('Unreachable');
-      break;
   }
 
   receivedRequests++;

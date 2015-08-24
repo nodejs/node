@@ -4,7 +4,7 @@
 
 Pure JavaScript is Unicode friendly but not nice to binary data.  When
 dealing with TCP streams or the file system, it's necessary to handle octet
-streams. io.js has several strategies for manipulating, creating, and
+streams. Node.js has several strategies for manipulating, creating, and
 consuming octet streams.
 
 Raw data is stored in instances of the `Buffer` class. A `Buffer` is similar
@@ -33,7 +33,7 @@ encoding method.  Here are the different string encodings.
 * `'binary'` - A way of encoding raw binary data into strings by using only
   the first 8 bits of each character. This encoding method is deprecated and
   should be avoided in favor of `Buffer` objects where possible. This encoding
-  will be removed in future versions of io.js.
+  will be removed in future versions of Node.js.
 
 * `'hex'` - Encode each byte as two hexadecimal characters.
 
@@ -295,7 +295,7 @@ so the legal range is between `0x00` and `0xFF` hex or `0` and `255`.
 
 Example: copy an ASCII string into a buffer, one byte at a time:
 
-    str = "io.js";
+    str = "Node.js";
     buf = new Buffer(str.length);
 
     for (var i = 0; i < str.length ; i++) {
@@ -304,7 +304,7 @@ Example: copy an ASCII string into a buffer, one byte at a time:
 
     console.log(buf);
 
-    // io.js
+    // Node.js
 
 ### buf.equals(otherBuffer)
 

@@ -16,12 +16,10 @@ static int at_exit_cb1_called = 0;
 static int at_exit_cb2_called = 0;
 
 static void at_exit_cb1(void* arg) {
-  // FIXME(bnoordhuis) Isolate::GetCurrent() is on its way out.
-  Isolate* isolate = Isolate::GetCurrent();
+  Isolate* isolate = static_cast<Isolate*>(arg);
   HandleScope handle_scope(isolate);
-  assert(arg == 0);
   Local<Object> obj = Object::New(isolate);
-  assert(!obj.IsEmpty()); // assert VM is still alive
+  assert(!obj.IsEmpty());  // Assert VM is still alive.
   assert(obj->IsObject());
   at_exit_cb1_called++;
 }
@@ -37,7 +35,7 @@ static void sanity_check(void) {
 }
 
 void init(Handle<Object> target) {
-  AtExit(at_exit_cb1);
+  AtExit(at_exit_cb1, target->CreationContext()->GetIsolate());
   AtExit(at_exit_cb2, cookie);
   AtExit(at_exit_cb2, cookie);
   atexit(sanity_check);

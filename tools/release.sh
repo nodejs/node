@@ -8,7 +8,7 @@
 
 set -e
 
-webhost=iojs.org
+webhost=nodejs.org
 webuser=dist
 promotablecmd=dist-promotable
 promotecmd=dist-promote
@@ -91,7 +91,7 @@ function sign {
 
   shafile=$(basename $shapath)
   shadir=$(dirname $shapath)
-  tmpdir="/tmp/_iojs_release.$$"
+  tmpdir="/tmp/_node_release.$$"
 
   mkdir -p $tmpdir
 

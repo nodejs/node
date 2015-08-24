@@ -5,12 +5,12 @@
 These functions are in the module `'util'`. Use `require('util')` to
 access them.
 
-The `util` module is primarily designed to support the needs of io.js's
+The `util` module is primarily designed to support the needs of node.js's
 internal APIs.  Many of these utilities are useful for your own
 programs.  If you find that these functions are lacking for your
 purposes, however, you are encouraged to write your own utilities.  We
 are not interested in any future additions to the `util` module that
-are unnecessary for io.js's internal functionality.
+are unnecessary for node.js's internal functionality.
 
 ## util.debuglog(section)
 
@@ -131,7 +131,7 @@ Highlighted styles and their default values are:
  * `special` - only function at this time (cyan)
  * `name` (intentionally no styling)
 
-Predefined color codes are: `white`, `grey`, `black`, `blue`, `cyan`, 
+Predefined color codes are: `white`, `grey`, `black`, `blue`, `cyan`,
 `green`, `magenta`, `red` and `yellow`.
 There are also `bold`, `italic`, `underline` and `inverse` codes.
 
@@ -167,6 +167,8 @@ formatted according to the returned Object. This is similar to how
 
 ## util.isArray(object)
 
+    Stability: 0 - Deprecated
+
 Internal alias for Array.isArray.
 
 Returns `true` if the given "object" is an `Array`. `false` otherwise.
@@ -180,8 +182,9 @@ Returns `true` if the given "object" is an `Array`. `false` otherwise.
     util.isArray({})
       // false
 
-
 ## util.isRegExp(object)
+
+    Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is a `RegExp`. `false` otherwise.
 
@@ -194,8 +197,9 @@ Returns `true` if the given "object" is a `RegExp`. `false` otherwise.
     util.isRegExp({})
       // false
 
-
 ## util.isDate(object)
+
+    Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is a `Date`. `false` otherwise.
 
@@ -208,8 +212,9 @@ Returns `true` if the given "object" is a `Date`. `false` otherwise.
     util.isDate({})
       // false
 
-
 ## util.isError(object)
+
+    Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is an `Error`. `false` otherwise.
 
@@ -222,8 +227,9 @@ Returns `true` if the given "object" is an `Error`. `false` otherwise.
     util.isError({ name: 'Error', message: 'an error occurred' })
       // false
 
-
 ## util.isBoolean(object)
+
+    Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is a `Boolean`. `false` otherwise.
 
@@ -236,8 +242,9 @@ Returns `true` if the given "object" is a `Boolean`. `false` otherwise.
     util.isBoolean(false)
       // true
 
-
 ## util.isNull(object)
+
+    Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is strictly `null`. `false` otherwise.
 
@@ -250,8 +257,9 @@ Returns `true` if the given "object" is strictly `null`. `false` otherwise.
     util.isNull(null)
       // true
 
-
 ## util.isNullOrUndefined(object)
+
+    Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is `null` or `undefined`. `false` otherwise.
 
@@ -264,8 +272,9 @@ Returns `true` if the given "object" is `null` or `undefined`. `false` otherwise
     util.isNullOrUndefined(null)
       // true
 
-
 ## util.isNumber(object)
+
+    Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is a `Number`. `false` otherwise.
 
@@ -280,8 +289,9 @@ Returns `true` if the given "object" is a `Number`. `false` otherwise.
     util.isNumber(NaN)
       // true
 
-
 ## util.isString(object)
+
+    Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is a `String`. `false` otherwise.
 
@@ -296,8 +306,9 @@ Returns `true` if the given "object" is a `String`. `false` otherwise.
     util.isString(5)
       // false
 
-
 ## util.isSymbol(object)
+
+    Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is a `Symbol`. `false` otherwise.
 
@@ -310,8 +321,9 @@ Returns `true` if the given "object" is a `Symbol`. `false` otherwise.
     util.isSymbol(Symbol('foo'))
       // true
 
-
 ## util.isUndefined(object)
+
+    Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is `undefined`. `false` otherwise.
 
@@ -325,8 +337,9 @@ Returns `true` if the given "object" is `undefined`. `false` otherwise.
     util.isUndefined(null)
       // false
 
-
 ## util.isObject(object)
+
+    Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is strictly an `Object` __and__ not a
 `Function`. `false` otherwise.
@@ -342,8 +355,9 @@ Returns `true` if the given "object" is strictly an `Object` __and__ not a
     util.isObject(function(){})
       // false
 
-
 ## util.isFunction(object)
+
+    Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is a `Function`. `false` otherwise.
 
@@ -359,8 +373,9 @@ Returns `true` if the given "object" is a `Function`. `false` otherwise.
     util.isFunction(Bar)
       // true
 
-
 ## util.isPrimitive(object)
+
+    Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is a primitive type. `false` otherwise.
 
@@ -385,8 +400,9 @@ Returns `true` if the given "object" is a primitive type. `false` otherwise.
     util.isPrimitive(new Date())
       // false
 
-
 ## util.isBuffer(object)
+
+    Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is a `Buffer`. `false` otherwise.
 
@@ -398,7 +414,6 @@ Returns `true` if the given "object" is a `Buffer`. `false` otherwise.
       // false
     util.isBuffer(new Buffer('hello world'))
       // true
-
 
 ## util.inherits(constructor, superConstructor)
 

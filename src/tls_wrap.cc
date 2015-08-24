@@ -6,7 +6,6 @@
 #include "node_crypto_bio.h"  // NodeBIO
 #include "node_crypto_clienthello.h"  // ClientHelloParser
 #include "node_crypto_clienthello-inl.h"
-#include "node_wrap.h"  // WithGenericStream
 #include "node_counters.h"
 #include "node_internals.h"
 #include "stream_base.h"
@@ -63,12 +62,12 @@ TLSWrap::TLSWrap(Environment* env,
   SSL_CTX_sess_set_new_cb(sc_->ctx_, SSLWrap<TLSWrap>::NewSessionCallback);
 
   stream_->Consume();
-  stream_->set_after_write_cb(OnAfterWriteImpl, this);
-  stream_->set_alloc_cb(OnAllocImpl, this);
-  stream_->set_read_cb(OnReadImpl, this);
+  stream_->set_after_write_cb({ OnAfterWriteImpl, this });
+  stream_->set_alloc_cb({ OnAllocImpl, this });
+  stream_->set_read_cb({ OnReadImpl, this });
 
-  set_alloc_cb(OnAllocSelf, this);
-  set_read_cb(OnReadSelf, this);
+  set_alloc_cb({ OnAllocSelf, this });
+  set_read_cb({ OnReadSelf, this });
 
   InitSSL();
 }
@@ -177,15 +176,12 @@ void TLSWrap::Wrap(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() < 3 || !args[2]->IsBoolean())
     return env->ThrowTypeError("Third argument should be boolean");
 
-  Local<Object> stream_obj = args[0].As<Object>();
+  Local<External> stream_obj = args[0].As<External>();
   Local<Object> sc = args[1].As<Object>();
   Kind kind = args[2]->IsTrue() ? SSLWrap<TLSWrap>::kServer :
                                   SSLWrap<TLSWrap>::kClient;
 
-  StreamBase* stream = nullptr;
-  WITH_GENERIC_STREAM(env, stream_obj, {
-    stream = wrap;
-  });
+  StreamBase* stream = static_cast<StreamBase*>(stream_obj->Value());
   CHECK_NE(stream, nullptr);
 
   TLSWrap* res = new TLSWrap(env, kind, stream, Unwrap<SecureContext>(sc));
@@ -436,7 +432,7 @@ void TLSWrap::ClearOut() {
 
   // We need to check whether an error occurred or the connection was
   // shutdown cleanly (SSL_ERROR_ZERO_RETURN) even when read == 0.
-  // See iojs#1642 and SSL_read(3SSL) for details.
+  // See node#1642 and SSL_read(3SSL) for details.
   if (read <= 0) {
     int err;
     Local<Value> arg = GetSSLError(read, &err, nullptr);
@@ -565,8 +561,8 @@ int TLSWrap::DoWrite(WriteWrap* w,
     }
   if (empty) {
     ClearOut();
-    // However if there any data that should be written to socket,
-    // callback should not be invoked immediately
+    // However, if there is any data that should be written to the socket,
+    // the callback should not be invoked immediately
     if (BIO_pending(enc_out_) == 0)
       return stream_->DoWrite(w, bufs, count, send_handle);
   }

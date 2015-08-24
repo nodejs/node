@@ -30,6 +30,13 @@ var tests = [
            'DNS:omg.com'
   },
 
+  // Empty Cert
+  {
+    host: 'a.com',
+    cert: { },
+    error: 'Cert is empty'
+  },
+
   // Multiple CN fields
   {
     host: 'foo.com', cert: {

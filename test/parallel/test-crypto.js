@@ -124,5 +124,21 @@ assert.throws(function() {
   crypto.createSign('RSA-SHA256').update('test').sign(priv);
 }, /RSA_sign:digest too big for rsa key/);
 
+assert.throws(function() {
+  // The correct header inside `test_bad_rsa_privkey.pem` should have been
+  // -----BEGIN PRIVATE KEY----- and -----END PRIVATE KEY-----
+  // instead of
+  // -----BEGIN RSA PRIVATE KEY----- and -----END RSA PRIVATE KEY-----
+  // It is generated in this way:
+  //   $ openssl genrsa -out mykey.pem 512;
+  //   $ openssl pkcs8 -topk8 -inform PEM -outform PEM -in mykey.pem \
+  //     -out private_key.pem -nocrypt;
+  //   Then open private_key.pem and change its header and footer.
+  var sha1_privateKey = fs.readFileSync(common.fixturesDir +
+                                        '/test_bad_rsa_privkey.pem', 'ascii');
+  // this would inject errors onto OpenSSL's error stack
+  crypto.createSign('sha1').sign(sha1_privateKey);
+}, /asn1 encoding routines:ASN1_CHECK_TLEN:wrong tag/);
+
 // Make sure memory isn't released before being returned
 console.log(crypto.randomBytes(16));

@@ -805,10 +805,12 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
     return;
 
   const int keylen = BN_num_bits(dh->p);
-  if (keylen < 1024)
+  if (keylen < 1024) {
+    DH_free(dh);
     return env->ThrowError("DH parameter is less than 1024 bits");
-  else if (keylen < 2048)
+  } else if (keylen < 2048) {
     fprintf(stderr, "WARNING: DH parameter is less than 2048 bits\n");
+  }
 
   SSL_CTX_set_options(sc->ctx_, SSL_OP_SINGLE_DH_USE);
   int r = SSL_CTX_set_tmp_dh(sc->ctx_, dh);
@@ -1295,6 +1297,7 @@ static bool SafeX509ExtPrint(BIO* out, X509_EXTENSION* ext) {
       if (nval == NULL)
         return false;
       X509V3_EXT_val_prn(out, nval, 0, 0);
+      sk_CONF_VALUE_pop_free(nval, X509V3_conf_free);
     }
   }
   sk_GENERAL_NAME_pop_free(names, GENERAL_NAME_free);
@@ -3582,7 +3585,11 @@ SignBase::Error Sign::SignFinal(const char* key_pem,
                                  nullptr,
                                  CryptoPemCallback,
                                  const_cast<char*>(passphrase));
-  if (pkey == nullptr)
+
+  // Errors might be injected into OpenSSL's error stack
+  // without `pkey` being set to nullptr;
+  // cf. the test of `test_bad_rsa_privkey.pem` for an example.
+  if (pkey == nullptr || 0 != ERR_peek_error())
     goto exit;
 
   if (EVP_SignFinal(&mdctx_, *sig, sig_len, pkey))
@@ -3629,6 +3636,9 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
 
   md_len = 8192;  // Maximum key size is 8192 bits
   md_value = new unsigned char[md_len];
+
+  ClearErrorOnReturn clear_error_on_return;
+  (void) &clear_error_on_return;  // Silence compiler warning.
 
   Error err = sign->SignFinal(
       buf,
@@ -3930,6 +3940,8 @@ bool PublicKeyCipher::Cipher(const char* key_pem,
   fatal = false;
 
  exit:
+  if (x509 != nullptr)
+    X509_free(x509);
   if (pkey != nullptr)
     EVP_PKEY_free(pkey);
   if (bp != nullptr)
@@ -3961,6 +3973,9 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
 
   unsigned char* out_value = nullptr;
   size_t out_len = 0;
+
+  ClearErrorOnReturn clear_error_on_return;
+  (void) &clear_error_on_return;  // Silence compiler warning.
 
   bool r = Cipher<operation, EVP_PKEY_cipher_init, EVP_PKEY_cipher>(
       kbuf,
@@ -4565,8 +4580,12 @@ void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   if (priv == nullptr)
     return env->ThrowError("Failed to convert Buffer to BN");
 
-  if (!EC_KEY_set_private_key(ecdh->key_, priv))
+  int result = EC_KEY_set_private_key(ecdh->key_, priv);
+  BN_free(priv);
+
+  if (!result) {
     return env->ThrowError("Failed to convert BN to a private key");
+  }
 }
 
 
@@ -4615,6 +4634,7 @@ class PBKDF2Request : public AsyncWrap {
   }
 
   ~PBKDF2Request() override {
+    release();
     persistent().Reset();
   }
 
@@ -4656,10 +4676,15 @@ class PBKDF2Request : public AsyncWrap {
 
   inline void release() {
     free(pass_);
+    pass_ = nullptr;
     passlen_ = 0;
+
     free(salt_);
+    salt_ = nullptr;
     saltlen_ = 0;
+
     free(key_);
+    key_ = nullptr;
     keylen_ = 0;
   }
 
@@ -4730,7 +4755,6 @@ void EIO_PBKDF2After(uv_work_t* work_req, int status) {
   Local<Value> argv[2];
   EIO_PBKDF2After(req, argv);
   req->MakeCallback(env->ondone_string(), ARRAY_SIZE(argv), argv);
-  req->release();
   delete req;
 }
 
@@ -4841,6 +4865,9 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     Local<Value> argv[2];
     EIO_PBKDF2(req);
     EIO_PBKDF2After(req, argv);
+
+    delete req;
+
     if (argv[0]->IsObject())
       env->isolate()->ThrowException(argv[0]);
     else
@@ -5254,10 +5281,12 @@ const char* Certificate::ExportChallenge(const char* data, int len) {
   if (sp == nullptr)
     return nullptr;
 
-  const char* buf = nullptr;
-  buf = reinterpret_cast<const char*>(ASN1_STRING_data(sp->spkac->challenge));
+  unsigned char* buf = nullptr;
+  ASN1_STRING_to_UTF8(&buf, sp->spkac->challenge);
 
-  return buf;
+  NETSCAPE_SPKI_free(sp);
+
+  return reinterpret_cast<const char*>(buf);
 }
 
 
@@ -5284,7 +5313,7 @@ void Certificate::ExportChallenge(const FunctionCallbackInfo<Value>& args) {
 
   Local<Value> outString = Encode(env->isolate(), cert, strlen(cert), BUFFER);
 
-  delete[] cert;
+  OPENSSL_free(const_cast<char*>(cert));
 
   args.GetReturnValue().Set(outString);
 }

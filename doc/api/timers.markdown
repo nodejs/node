@@ -12,7 +12,7 @@ To schedule execution of a one-time `callback` after `delay` milliseconds. Retur
 also pass arguments to the callback.
 
 It is important to note that your callback will probably not be called in exactly
-`delay` milliseconds - io.js makes no guarantees about the exact timing of when
+`delay` milliseconds - Node.js makes no guarantees about the exact timing of when
 the callback will fire, nor of the ordering things will fire in. The callback will
 be called as close as possible to the time specified.
 

@@ -7,7 +7,7 @@ It is an instance of [EventEmitter][].
 
 ## Exit Codes
 
-io.js will normally exit with a `0` status code when no more async
+Node.js will normally exit with a `0` status code when no more async
 operations are pending.  The following status codes are used in other
 cases:
 
@@ -16,13 +16,13 @@ cases:
   handler.
 * `2` - Unused (reserved by Bash for builtin misuse)
 * `3` **Internal JavaScript Parse Error** - The JavaScript source code
-  internal in io.js's bootstrapping process caused a parse error.  This
+  internal in Node.js's bootstrapping process caused a parse error.  This
   is extremely rare, and generally can only happen during development
-  of io.js itself.
+  of Node.js itself.
 * `4` **Internal JavaScript Evaluation Failure** - The JavaScript
-  source code internal in io.js's bootstrapping process failed to
+  source code internal in Node.js's bootstrapping process failed to
   return a function value when evaluated.  This is extremely rare, and
-  generally can only happen during development of io.js itself.
+  generally can only happen during development of Node.js itself.
 * `5` **Fatal Error** - There was a fatal unrecoverable error in V8.
   Typically a message will be printed to stderr with the prefix `FATAL
   ERROR`.
@@ -34,17 +34,17 @@ cases:
   function itself threw an error while attempting to handle it.  This
   can happen, for example, if a `process.on('uncaughtException')` or
   `domain.on('error')` handler throws an error.
-* `8` - Unused.  In previous versions of io.js, exit code 8 sometimes
+* `8` - Unused.  In previous versions of Node.js, exit code 8 sometimes
   indicated an uncaught exception.
 * `9` - **Invalid Argument** - Either an unknown option was specified,
   or an option requiring a value was provided without a value.
 * `10` **Internal JavaScript Run-Time Failure** - The JavaScript
-  source code internal in io.js's bootstrapping process threw an error
+  source code internal in Node.js's bootstrapping process threw an error
   when the bootstrapping function was called.  This is extremely rare,
-  and generally can only happen during development of io.js itself.
+  and generally can only happen during development of Node.js itself.
 * `12` **Invalid Debug Argument** - The `--debug` and/or `--debug-brk`
   options were set, but an invalid port number was chosen.
-* `>128` **Signal Exits** - If io.js receives a fatal signal such as
+* `>128` **Signal Exits** - If Node.js receives a fatal signal such as
   `SIGKILL` or `SIGHUP`, then its exit code will be `128` plus the
   value of the signal code.  This is a standard Unix practice, since
   exit codes are defined to be 7-bit integers, and signal exits set
@@ -72,9 +72,9 @@ Example of listening for `exit`:
 
 ## Event: 'beforeExit'
 
-This event is emitted when io.js empties its event loop and has nothing else to
-schedule. Normally, io.js exits when there is no work scheduled, but a listener
-for 'beforeExit' can make asynchronous calls, and cause io.js to continue.
+This event is emitted when Node.js empties its event loop and has nothing else to
+schedule. Normally, Node.js exits when there is no work scheduled, but a listener
+for 'beforeExit' can make asynchronous calls, and cause Node.js to continue.
 
 'beforeExit' is not emitted for conditions causing explicit termination, such as
 `process.exit()` or uncaught exceptions, and should not be used as an
@@ -104,8 +104,8 @@ Example of listening for `uncaughtException`:
 Note that `uncaughtException` is a very crude mechanism for exception
 handling.
 
-Do *not* use it as the io.js equivalent of `On Error Resume Next`. An
-unhandled exception means your application - and by extension io.js itself -
+Do *not* use it as the Node.js equivalent of `On Error Resume Next`. An
+unhandled exception means your application - and by extension Node.js itself -
 is in an undefined state. Blindly resuming means *anything* could happen.
 
 Think of resuming as pulling the power cord when you are upgrading your system.
@@ -202,18 +202,18 @@ programs.
 
 Note:
 
-- `SIGUSR1` is reserved by io.js to start the debugger.  It's possible to
+- `SIGUSR1` is reserved by Node.js to start the debugger.  It's possible to
   install a listener but that won't stop the debugger from starting.
 - `SIGTERM` and `SIGINT` have default handlers on non-Windows platforms that resets
   the terminal mode before exiting with code `128 + signal number`. If one of
   these signals has a listener installed, its default behaviour will be removed
-  (io.js will no longer exit).
+  (Node.js will no longer exit).
 - `SIGPIPE` is ignored by default, it can have a listener installed.
 - `SIGHUP` is generated on Windows when the console window is closed, and on other
   platforms under various similar conditions, see signal(7). It can have a
-  listener installed, however io.js will be unconditionally terminated by
+  listener installed, however Node.js will be unconditionally terminated by
   Windows about 10 seconds later. On non-Windows platforms, the default
-  behaviour of `SIGHUP` is to terminate io.js, but once a listener has been
+  behaviour of `SIGHUP` is to terminate Node.js, but once a listener has been
   installed its default behaviour will be removed.
 - `SIGTERM` is not supported on Windows, it can be listened on.
 - `SIGINT` from the terminal is supported on all platforms, and can usually be
@@ -225,10 +225,10 @@ Note:
   only happen on write to the console when the cursor is being moved, or when a
   readable tty is used in raw mode.
 - `SIGKILL` cannot have a listener installed, it will unconditionally terminate
-  io.js on all platforms.
+  Node.js on all platforms.
 - `SIGSTOP` cannot have a listener installed.
 
-Note that Windows does not support sending Signals, but io.js offers some
+Note that Windows does not support sending Signals, but Node.js offers some
 emulation with `process.kill()`, and `child_process.kill()`:
 - Sending signal `0` can be used to search for the existence of a process
 - Sending `SIGINT`, `SIGTERM`, and `SIGKILL` cause the unconditional exit of the
@@ -244,7 +244,7 @@ For example, a `console.log` equivalent could look like this:
       process.stdout.write(msg + '\n');
     };
 
-`process.stderr` and `process.stdout` are unlike other streams in io.js in
+`process.stderr` and `process.stdout` are unlike other streams in Node.js in
 that they cannot be closed (`end()` will throw), they never emit the `finish`
 event and that writes are usually blocking.
 
@@ -254,17 +254,17 @@ event and that writes are usually blocking.
   - They are blocking in Linux/Unix.
   - They are non-blocking like other streams in Windows.
 
-To check if io.js is being run in a TTY context, read the `isTTY` property
+To check if Node.js is being run in a TTY context, read the `isTTY` property
 on `process.stderr`, `process.stdout`, or `process.stdin`:
 
-    $ iojs -p "Boolean(process.stdin.isTTY)"
+    $ node -p "Boolean(process.stdin.isTTY)"
     true
-    $ echo "foo" | iojs -p "Boolean(process.stdin.isTTY)"
+    $ echo "foo" | node -p "Boolean(process.stdin.isTTY)"
     false
 
-    $ iojs -p "Boolean(process.stdout.isTTY)"
+    $ node -p "Boolean(process.stdout.isTTY)"
     true
-    $ iojs -p "Boolean(process.stdout.isTTY)" | cat
+    $ node -p "Boolean(process.stdout.isTTY)" | cat
     false
 
 See [the tty docs](tty.html#tty_tty) for more information.
@@ -273,7 +273,7 @@ See [the tty docs](tty.html#tty_tty) for more information.
 
 A writable stream to stderr (on fd `2`).
 
-`process.stderr` and `process.stdout` are unlike other streams in io.js in
+`process.stderr` and `process.stdout` are unlike other streams in Node.js in
 that they cannot be closed (`end()` will throw), they never emit the `finish`
 event and that writes are usually blocking.
 
@@ -318,7 +318,7 @@ mode over "old" one.
 ## process.argv
 
 An array containing the command line arguments.  The first element will be
-'iojs', the second element will be the name of the JavaScript file.  The
+'node', the second element will be the name of the JavaScript file.  The
 next elements will be any additional command line arguments.
 
     // print process.argv
@@ -328,9 +328,9 @@ next elements will be any additional command line arguments.
 
 This will generate:
 
-    $ iojs process-2.js one two=three four
-    0: iojs
-    1: /Users/mjr/work/iojs/process-2.js
+    $ node process-2.js one two=three four
+    0: node
+    1: /Users/mjr/work/node/process-2.js
     2: one
     3: two=three
     4: four
@@ -342,21 +342,21 @@ This is the absolute pathname of the executable that started the process.
 
 Example:
 
-    /usr/local/bin/iojs
+    /usr/local/bin/node
 
 
 ## process.execArgv
 
-This is the set of io.js-specific command line options from the
+This is the set of Node.js-specific command line options from the
 executable that started the process.  These options do not show up in
-`process.argv`, and do not include the io.js executable, the name of
+`process.argv`, and do not include the Node.js executable, the name of
 the script, or any options following the script name. These options
 are useful in order to spawn child processes with the same execution
 environment as the parent.
 
 Example:
 
-    $ iojs --harmony script.js --version
+    $ node --harmony script.js --version
 
 results in process.execArgv:
 
@@ -364,12 +364,12 @@ results in process.execArgv:
 
 and process.argv:
 
-    ['/usr/local/bin/iojs', 'script.js', '--version']
+    ['/usr/local/bin/node', 'script.js', '--version']
 
 
 ## process.abort()
 
-This causes io.js to emit an abort. This will cause io.js to exit and
+This causes Node.js to emit an abort. This will cause Node.js to exit and
 generate a core file.
 
 ## process.chdir(directory)
@@ -409,12 +409,12 @@ An example of this object looks like:
       SHLVL: '1',
       HOME: '/Users/maciej',
       LOGNAME: 'maciej',
-      _: '/usr/local/bin/iojs' }
+      _: '/usr/local/bin/node' }
 
 You can write to this object, but changes won't be reflected outside of your
 process. That means that the following won't work:
 
-    $ iojs -e 'process.env.foo = "bar"' && echo $foo
+    $ node -e 'process.env.foo = "bar"' && echo $foo
 
 But this will:
 
@@ -431,7 +431,7 @@ To exit with a 'failure' code:
 
     process.exit(1);
 
-The shell that executed io.js should see the exit code as 1.
+The shell that executed Node.js should see the exit code as 1.
 
 
 ## process.exitCode
@@ -586,7 +586,7 @@ Note: this function is only available on POSIX platforms (i.e. not Windows,
 Android)
 
 Returns an array with the supplementary group IDs. POSIX leaves it unspecified
-if the effective group ID is included but io.js ensures it always is.
+if the effective group ID is included but Node.js ensures it always is.
 
 
 ## process.setgroups(groups)
@@ -628,7 +628,7 @@ A compiled-in property that exposes `NODE_VERSION`.
 
 ## process.versions
 
-A property exposing version strings of io.js and its dependencies.
+A property exposing version strings of Node.js and its dependencies.
 
     console.log(process.versions);
 
@@ -646,7 +646,7 @@ Will print something like:
 ## process.config
 
 An Object containing the JavaScript representation of the configure options
-that were used to compile the current io.js executable. This is the same as
+that were used to compile the current Node.js executable. This is the same as
 the "config.gypi" file that was produced when running the `./configure` script.
 
 An example of the possible output looks like:
@@ -679,24 +679,25 @@ for the source tarball and headers-only tarball.
 
 `process.release` contains the following properties:
 
-* `name`: a string with a value that will always be `"io.js"` for io.js.
+* `name`: a string with a value that will always be `"node"` for Node.js. For
+  legacy io.js releases, this will be `"io.js"`.
 * `sourceUrl`: a complete URL pointing to a _.tar.gz_ file containing the
   source of the current release.
 * `headersUrl`: a complete URL pointing to a _.tar.gz_ file containing only
   the header files for the current release. This file is significantly smaller
   than the full source file and can be used for compiling add-ons against
-  io.js.
-* `libUrl`: a complete URL pointing to an _iojs.lib_ file matching the
+  Node.js.
+* `libUrl`: a complete URL pointing to an _node.lib_ file matching the
   architecture and version of the current release. This file is used for
-  compiling add-ons against io.js. _This property is only present on Windows
-  builds of io.js and will be missing on all other platforms._
+  compiling add-ons against Node.js. _This property is only present on Windows
+  builds of Node.js and will be missing on all other platforms._
 
 e.g.
 
-    { name: 'io.js',
-      sourceUrl: 'https://iojs.org/download/release/v2.3.5/iojs-v2.3.5.tar.gz',
-      headersUrl: 'https://iojs.org/download/release/v2.3.5/iojs-v2.3.5-headers.tar.gz',
-      libUrl: 'https://iojs.org/download/release/v2.3.5/win-x64/iojs.lib' }
+    { name: 'node',
+      sourceUrl: 'https://nodejs.org/download/release/v4.0.0/node-v4.0.0.tar.gz',
+      headersUrl: 'https://nodejs.org/download/release/v4.0.0/node-v4.0.0-headers.tar.gz',
+      libUrl: 'https://nodejs.org/download/release/v4.0.0/win-x64/node.lib' }
 
 In custom builds from non-release versions of the source tree, only the
 `name` property may be present. The additional properties should not be
@@ -729,7 +730,7 @@ Example of sending a signal to yourself:
 
     process.kill(process.pid, 'SIGHUP');
 
-Note: When SIGUSR1 is received by io.js it starts the debugger, see
+Note: When SIGUSR1 is received by Node.js it starts the debugger, see
 [Signal Events](#process_signal_events).
 
 ## process.pid
@@ -771,7 +772,7 @@ What platform you're running on:
 
 ## process.memoryUsage()
 
-Returns an object describing the memory usage of the io.js process
+Returns an object describing the memory usage of the Node.js process
 measured in bytes.
 
     var util = require('util');
@@ -878,7 +879,7 @@ given, otherwise returns the current mask.
 
 ## process.uptime()
 
-Number of seconds io.js has been running.
+Number of seconds Node.js has been running.
 
 
 ## process.hrtime()

@@ -72,7 +72,7 @@ site, set the NODE_DEBUG environment variable:
     }
     bad();
 
-    $ env NODE_DEBUG=fs iojs script.js
+    $ env NODE_DEBUG=fs node script.js
     fs.js:66
             throw err;
                   ^
@@ -511,14 +511,14 @@ to `'utf8'`.
 
 Example:
 
-    fs.writeFile('message.txt', 'Hello io.js', function (err) {
+    fs.writeFile('message.txt', 'Hello Node.js', function (err) {
       if (err) throw err;
       console.log('It\'s saved!');
     });
 
 If `options` is a string, then it specifies the encoding. Example:
 
-    fs.writeFile('message.txt', 'Hello io.js', 'utf8', callback);
+    fs.writeFile('message.txt', 'Hello Node.js', 'utf8', callback);
 
 ## fs.writeFileSync(filename, data[, options])
 
@@ -557,11 +557,12 @@ The synchronous version of `fs.appendFile`. Returns `undefined`.
 Watch for changes on `filename`. The callback `listener` will be called each
 time the file is accessed.
 
-The second argument is optional. The `options` if provided should be an object
-containing two members a boolean, `persistent`, and `interval`. `persistent`
-indicates whether the process should continue to run as long as files are
-being watched. `interval` indicates how often the target should be polled,
-in milliseconds. The default is `{ persistent: true, interval: 5007 }`.
+The `options` argument may be omitted. If provided, it should be an object. The
+`options` object may contain a boolean named `persistent` that indicates
+whether the process should continue to run as long as files are being watched.
+The `options` object may specify an `interval` property indicating how often the
+target should be polled in milliseconds. The default is
+`{ persistent: true, interval: 5007 }`.
 
 The `listener` gets two arguments the current stat object and the previous
 stat object:
@@ -670,9 +671,7 @@ callback, and have some fallback logic if it is null.
 
 ## fs.exists(path, callback)
 
-`fs.exists()` is **deprecated**. For supported alternatives please check out
-[`fs.stat`](fs.html#fs_fs_stat_path_callback) or
-[`fs.access`](fs.html#fs_fs_access_path_mode_callback).
+    Stability: 0 - Deprecated: Use [fs.stat][] or [fs.access][] instead.
 
 Test whether or not the given path exists by checking with the file system.
 Then call the `callback` argument with either true or false.  Example:
@@ -696,9 +695,7 @@ and handle the error when it's not there.
 Synchronous version of [`fs.exists`](fs.html#fs_fs_exists_path_callback).
 Returns `true` if the file exists, `false` otherwise.
 
-`fs.existsSync()` is **deprecated**. For supported alternatives please check
-out [`fs.statSync`](fs.html#fs_fs_statsync_path) or
-[`fs.accessSync`](fs.html#fs_fs_accesssync_path_mode).
+    Stability: 0 - Deprecated: Use [fs.statSync][] or [fs.accessSync][] instead.
 
 ## fs.access(path[, mode], callback)
 
@@ -793,7 +790,7 @@ The times in the stat object have the following semantics:
   an earlier value than the current `birthtime` using the `utimes(2)`
   system call.
 
-Prior to io.js v1.0 and Node v0.12, the `ctime` held the `birthtime` on Windows
+Prior to Node v0.12, the `ctime` held the `birthtime` on Windows
 systems.  Note that as of v0.12, `ctime` is not "creation time", and
 on Unix systems, it never was.
 
@@ -906,3 +903,9 @@ See more details in [fs.watch](#fs_fs_watch_filename_options_listener).
 * `error` {Error object}
 
 Emitted when an error occurs.
+
+
+[fs.stat]: #fs_fs_stat_path_callback
+[fs.access]: #fs_fs_access_path_mode_callback
+[fs.statSync]: #fs_fs_statsync_path
+[fs.accessSync]: #fs_fs_accesssync_path_mode

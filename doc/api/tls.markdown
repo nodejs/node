@@ -77,6 +77,44 @@ handshake extensions allowing you:
   * SNI - to use one TLS server for multiple hostnames with different SSL
     certificates.
 
+## Modifying the Default TLS Cipher suite
+
+Node.js is built with a default suite of enabled and disabled TLS ciphers.
+Currently, the default cipher suite is:
+
+    ECDHE-RSA-AES128-GCM-SHA256:
+    ECDHE-ECDSA-AES128-GCM-SHA256:
+    ECDHE-RSA-AES256-GCM-SHA384:
+    ECDHE-ECDSA-AES256-GCM-SHA384:
+    DHE-RSA-AES128-GCM-SHA256:
+    ECDHE-RSA-AES128-SHA256:
+    DHE-RSA-AES128-SHA256:
+    ECDHE-RSA-AES256-SHA384:
+    DHE-RSA-AES256-SHA384:
+    ECDHE-RSA-AES256-SHA256:
+    DHE-RSA-AES256-SHA256:
+    HIGH:
+    !aNULL:
+    !eNULL:
+    !EXPORT:
+    !DES:
+    !RC4:
+    !MD5:
+    !PSK:
+    !SRP:
+    !CAMELLIA
+
+This default can be overriden entirely using the `--tls-cipher-list` command
+line switch. For instance, the following makes
+`ECDHE-RSA-AES128-GCM-SHA256:!RC4` the default TLS cipher suite:
+
+    node --tls-cipher-list="ECDHE-RSA-AES128-GCM-SHA256:!RC4"
+
+Note that the default cipher suite included within Node.js has been carefully
+selected to reflect current security best practices and risk mitigation.
+Changing the default cipher suite can have a significant impact on the security
+of an application. The `--tls-cipher-list` switch should by used only if
+absolutely necessary.
 
 ## Perfect Forward Secrecy
 
@@ -138,7 +176,7 @@ automatically set as a listener for the [secureConnection][] event.  The
   - `crl` : Either a string or list of strings of PEM encoded CRLs (Certificate
     Revocation List)
 
-  - `ciphers`: A string describing the ciphers to use or exclude, seperated by
+  - `ciphers`: A string describing the ciphers to use or exclude, separated by
     `:`. The default cipher suite is:
 
         ECDHE-RSA-AES128-GCM-SHA256:
@@ -463,7 +501,7 @@ dictionary with keys:
   instead of the client preferences. For further details see `tls` module
   documentation.
 
-If no 'ca' details are given, then io.js will use the default
+If no 'ca' details are given, then Node.js will use the default
 publicly trusted list of CAs as given in
 <http://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt>.
 
@@ -664,7 +702,7 @@ The number of concurrent connections on the server.
 
 ## Class: CryptoStream
 
-    Stability: 0 - Deprecated. Use tls.TLSSocket instead.
+    Stability: 0 - Deprecated: Use [tls.TLSSocket][] instead.
 
 This is an encrypted stream.
 
@@ -729,14 +767,14 @@ Example:
        { C: 'UK',
          ST: 'Acknack Ltd',
          L: 'Rhys Jones',
-         O: 'io.js',
+         O: 'node.js',
          OU: 'Test TLS Certificate',
          CN: 'localhost' },
       issuerInfo:
        { C: 'UK',
          ST: 'Acknack Ltd',
          L: 'Rhys Jones',
-         O: 'io.js',
+         O: 'node.js',
          OU: 'Test TLS Certificate',
          CN: 'localhost' },
       issuer:

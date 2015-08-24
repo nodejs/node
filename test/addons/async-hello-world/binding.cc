@@ -3,35 +3,34 @@
 #include <v8.h>
 #include <uv.h>
 
-using namespace v8;
-using namespace node;
-
 struct async_req {
   uv_work_t req;
   int input;
   int output;
-  Persistent<Function> callback;
+  v8::Isolate* isolate;
+  v8::Persistent<v8::Function> callback;
 };
 
 void DoAsync(uv_work_t* r) {
   async_req* req = reinterpret_cast<async_req*>(r->data);
-  sleep(1); // simulate CPU intensive process...
+  sleep(1);  // Simulate CPU intensive process...
   req->output = req->input * 2;
 }
 
 void AfterAsync(uv_work_t* r) {
-  Isolate* isolate = Isolate::GetCurrent();
-  HandleScope scope(isolate);
   async_req* req = reinterpret_cast<async_req*>(r->data);
+  v8::Isolate* isolate = req->isolate;
+  v8::HandleScope scope(isolate);
 
-  Handle<Value> argv[2] = {
-    Null(isolate),
-    Integer::New(isolate, req->output)
+  v8::Handle<v8::Value> argv[2] = {
+    v8::Null(isolate),
+    v8::Integer::New(isolate, req->output)
   };
 
-  TryCatch try_catch;
+  v8::TryCatch try_catch(isolate);
 
-  Local<Function> callback = Local<Function>::New(isolate, req->callback);
+  v8::Local<v8::Function> callback =
+      v8::Local<v8::Function>::New(isolate, req->callback);
   callback->Call(isolate->GetCurrentContext()->Global(), 2, argv);
 
   // cleanup
@@ -39,21 +38,22 @@ void AfterAsync(uv_work_t* r) {
   delete req;
 
   if (try_catch.HasCaught()) {
-    FatalException(isolate, try_catch);
+    node::FatalException(isolate, try_catch);
   }
 }
 
-void Method(const FunctionCallbackInfo<Value>& args) {
-  Isolate* isolate = Isolate::GetCurrent();
-  HandleScope scope(isolate);
+void Method(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  v8::HandleScope scope(isolate);
 
   async_req* req = new async_req;
   req->req.data = req;
 
   req->input = args[0]->IntegerValue();
   req->output = 0;
+  req->isolate = isolate;
 
-  Local<Function> callback = Local<Function>::Cast(args[1]);
+  v8::Local<v8::Function> callback = v8::Local<v8::Function>::Cast(args[1]);
   req->callback.Reset(isolate, callback);
 
   uv_queue_work(uv_default_loop(),
@@ -62,7 +62,7 @@ void Method(const FunctionCallbackInfo<Value>& args) {
                 (uv_after_work_cb)AfterAsync);
 }
 
-void init(Handle<Object> exports, Handle<Object> module) {
+void init(v8::Handle<v8::Object> exports, v8::Handle<v8::Object> module) {
   NODE_SET_METHOD(module, "exports", Method);
 }
 

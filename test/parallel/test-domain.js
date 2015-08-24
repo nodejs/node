@@ -163,7 +163,6 @@ expectCaught++;
 // as a callback instead.
 function fn(er) {
   throw new Error('This function should never be called!');
-  process.exit(1);
 }
 
 var bound = d.intercept(fn);

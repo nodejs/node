@@ -6,7 +6,7 @@
 #include <wcautil.h>
 
 
-UINT WINAPI BroadcastEnvironmentUpdate(MSIHANDLE hInstall) {
+extern "C" UINT WINAPI BroadcastEnvironmentUpdate(MSIHANDLE hInstall) {
   HRESULT hr = S_OK;
   UINT er = ERROR_SUCCESS;
 
@@ -27,7 +27,7 @@ LExit:
 }
 
 
-BOOL WINAPI DllMain(HINSTANCE hInst, ULONG ulReason, VOID* dummy) {
+extern "C" BOOL WINAPI DllMain(HINSTANCE hInst, ULONG ulReason, VOID* dummy) {
   switch (ulReason) {
     case DLL_PROCESS_ATTACH:
       WcaGlobalInitialize(hInst);

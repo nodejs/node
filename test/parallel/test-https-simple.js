@@ -1,51 +1,92 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
 
 if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var https = require('https');
 
-var fs = require('fs');
-var exec = require('child_process').exec;
+const assert = require('assert');
+const https = require('https');
+const fs = require('fs');
 
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-var reqCount = 0;
-var body = 'hello world\n';
+const tests = 2;
+let successful = 0;
 
-var server = https.createServer(options, function(req, res) {
-  reqCount++;
-  console.log('got request');
+const testSucceeded = function() {
+  successful = successful + 1;
+  if (successful === tests) {
+    server.close();
+  }
+};
+
+const body = 'hello world\n';
+
+const serverCallback = common.mustCall(function(req, res) {
   res.writeHead(200, { 'content-type': 'text/plain' });
   res.end(body);
 });
 
+const server = https.createServer(options, serverCallback);
 
 server.listen(common.PORT, function() {
-  var cmd = 'curl --insecure https://127.0.0.1:' + common.PORT + '/';
-  console.error('executing %j', cmd);
-  exec(cmd, function(err, stdout, stderr) {
-    if (err) throw err;
-    common.error(common.inspect(stdout));
-    assert.equal(body, stdout);
+  // Do a request ignoring the unauthorized server certs
+  const noCertCheckOptions = {
+    hostname: '127.0.0.1',
+    port: common.PORT,
+    path: '/',
+    method: 'GET',
+    rejectUnauthorized: false
+  };
+  noCertCheckOptions.Agent = new https.Agent(noCertCheckOptions);
 
-    // Do the same thing now without --insecure
-    // The connection should not be accepted.
-    var cmd = 'curl https://127.0.0.1:' + common.PORT + '/';
-    console.error('executing %j', cmd);
-    exec(cmd, function(err, stdout, stderr) {
-      assert.ok(err);
-      server.close();
+  const req = https.request(noCertCheckOptions, function(res) {
+    let responseBody = '';
+    res.on('data', function(d) {
+      responseBody = responseBody + d;
     });
+
+    res.on('end', function() {
+      assert.equal(responseBody, body);
+      testSucceeded();
+    });
+  });
+  req.end();
+
+  req.on('error', function(e) {
+    throw e;
+  });
+
+  // Do a request that throws error due to the invalid server certs
+  const checkCertOptions = {
+    hostname: '127.0.0.1',
+    port: common.PORT,
+    path: '/',
+    method: 'GET'
+  };
+
+  const checkCertReq = https.request(checkCertOptions, function(res) {
+    res.on('data', function() {
+      throw new Error('data should not be received');
+    });
+
+    res.on('end', function() {
+      throw new Error('connection should not be established');
+    });
+  });
+  checkCertReq.end();
+
+  checkCertReq.on('error', function(e) {
+    assert.equal(e.code, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
+    testSucceeded();
   });
 });
 
 process.on('exit', function() {
-  assert.equal(1, reqCount);
+  assert.equal(successful, tests);
 });
