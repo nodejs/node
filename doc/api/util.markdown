@@ -260,7 +260,7 @@ Returns `true` if the given "object" is a `Boolean`. `false` otherwise.
       // false
     util.isBoolean(false)
       // true
-      
+
 ## util.isBuffer(object)
 
     Stability: 0 - Deprecated
@@ -492,12 +492,6 @@ Output with timestamp on `stdout`.
     Stability: 0 - Deprecated: Use `console.log` instead.
 
 Deprecated predecessor of `console.log`.
-
-## util.pump(readableStream, writableStream[, callback])
-
-    Stability: 0 - Deprecated: Use readableStream.pipe(writableStream)
-
-Deprecated predecessor of `stream.pipe()`.
 
 ## util.puts([...])
 
