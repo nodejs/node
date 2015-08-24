@@ -36,7 +36,7 @@ const server = https.createServer(options, function(req, res) {
 
 
 server.listen(common.PORT, function() {
-  // Do a request ignoring the invalid server certs
+  // Do a request ignoring the unauthorized server certs
   const noCertCheckOptions = {
     hostname: '127.0.0.1',
     port: common.PORT,
@@ -73,11 +73,11 @@ server.listen(common.PORT, function() {
 
   const checkCertReq = https.request(checkCertOptions, function(res) {
     res.on('data', function() {
-      throw Error('data should not be received');
+      throw new Error('data should not be received');
     });
 
     res.on('end', function() {
-      throw Error('connection should not be established');
+      throw new Error('connection should not be established');
     });
   });
   checkCertReq.end();
