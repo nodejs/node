@@ -493,12 +493,6 @@ Output with timestamp on `stdout`.
 
 Deprecated predecessor of `console.log`.
 
-## util.pump(readableStream, writableStream[, callback])
-
-    Stability: 0 - Deprecated: Use readableStream.pipe(writableStream)
-
-Deprecated predecessor of `stream.pipe()`.
-
 ## util.puts([...])
 
     Stability: 0 - Deprecated: Use console.log() instead.
