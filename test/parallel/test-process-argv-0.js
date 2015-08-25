@@ -12,7 +12,7 @@ if (process.argv[2] !== 'child') {
   child.stdout.on('data', function(chunk) {
     childArgv0 += chunk;
   });
-  child.on('exit', function() {
+  process.on('exit', function() {
     assert.equal(childArgv0, process.execPath);
   });
 }
