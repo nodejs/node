@@ -443,7 +443,7 @@ class Parser : public BaseObject {
     if (rv != 0) {
       enum http_errno err = HTTP_PARSER_ERRNO(&parser->parser_);
 
-      Local<Value> e = env->parse_error_string();
+      Local<Value> e = Exception::Error(env->parse_error_string());
       Local<Object> obj = e->ToObject(env->isolate());
       obj->Set(env->bytes_parsed_string(), Integer::New(env->isolate(), 0));
       obj->Set(env->code_string(),
