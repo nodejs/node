@@ -7,12 +7,8 @@ var spawnSync = require('child_process').spawnSync;
 var TIMER = 100;
 var SLEEP = 1000;
 
-var timeout = 0;
-
 setTimeout(function() {
-  timeout = process.hrtime(start);
   assert.ok(stop, 'timer should not fire before process exits');
-  assert.strictEqual(timeout[0], 1, 'timer should take as long as sleep');
 }, TIMER);
 
 console.log('sleep started');
