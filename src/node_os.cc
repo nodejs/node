@@ -116,7 +116,7 @@ static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
 
   int err = uv_cpu_info(&cpu_infos, &count);
   if (err)
-    return;
+    return env->ThrowUVException(err, "uv_cpu_info");
 
   Local<Array> cpus = Array::New(env->isolate());
   for (i = 0; i < count; i++) {
