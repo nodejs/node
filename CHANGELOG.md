@@ -390,6 +390,23 @@ See https://github.com/nodejs/node/labels/confirmed-bug for complete and current
 * [[`ee3ce2ed88`](https://github.com/nodejs/node/commit/ee3ce2ed88)] - **tools**: install gdbinit from v8 to $PREFIX/share (Ali Ijaz Sheikh) [#2123](https://github.com/nodejs/node/pull/2123)
 * [[`dd523c75da`](https://github.com/nodejs/node/commit/dd523c75da)] - **win,node-gyp**: enable delay-load hook by default (Bert Belder) [iojs/io.js#1433](https://github.com/iojs/io.js/pull/1433)
 
+## 2015-07-09, Version 0.12.7 (Stable)
+
+### Commits
+
+* [[`0cf9f27703`](https://github.com/nodejs/node/commit/0cf9f27703)] - **deps**: upgrade openssl sources to 1.0.1p [#25654](https://github.com/joyent/node/pull/25654)
+* [[`8917e430b8`](https://github.com/nodejs/node/commit/8917e430b8)] - **deps**: upgrade to npm 2.11.3 [#25545](https://github.com/joyent/node/pull/25545)
+* [[`88a27a9621`](https://github.com/nodejs/node/commit/88a27a9621)] - **V8**: cherry-pick JitCodeEvent patch from upstream (Ben Noordhuis) [#25589](https://github.com/joyent/node/pull/25589)
+* [[`18d413d299`](https://github.com/nodejs/node/commit/18d413d299)] - **win,msi**: create npm folder in AppData directory (Steven Rockarts) [#8838](https://github.com/joyent/node/pull/8838)
+
+## 2015-07-09, Version 0.10.40 (Maintenance)
+
+### Commits
+
+* [[`0cf9f27703`](https://github.com/nodejs/node/commit/0cf9f27703)] - **openssl**: upgrade to 1.0.1p [#25654](https://github.com/joyent/node/pull/25654)
+* [[`5a60e0d904`](https://github.com/nodejs/node/commit/5a60e0d904)] - **V8**: back-port JitCodeEvent patch from upstream (Ben Noordhuis) [#25588](https://github.com/joyent/node/pull/25588)
+* [[`18d413d299`](https://github.com/nodejs/node/commit/18d413d299)] - **win,msi**: create npm folder in AppData directory (Steven Rockarts) [#8838](https://github.com/joyent/node/pull/8838)
+
 ## 2015-07-04, Version 2.3.3, @Fishrock123
 
 ### Notable changes
@@ -411,6 +428,16 @@ See https://github.com/nodejs/node/labels/confirmed-bug for complete and current
 * [[`030f8045c7`](https://github.com/nodejs/node/commit/030f8045c7)] - **deps**: fix out-of-band write in utf8 decoder (Fedor Indutny)
 * [[`0f09b8db28`](https://github.com/nodejs/node/commit/0f09b8db28)] - **doc**: don't recommend domains for error handling (Benjamin Gruenbaum) [#2056](https://github.com/nodejs/node/pull/2056)
 * [[`9cd44bb2b6`](https://github.com/nodejs/node/commit/9cd44bb2b6)] - **util**: prepend '(node) ' to deprecation messages (Sakthipriyan Vairamani) [#1892](https://github.com/nodejs/node/pull/1892)
+
+## 2015-07-03, Version 0.12.6 (Stable)
+
+### Notable changes
+
+* **deps**: Fixed an out-of-band write in utf8 decoder. **This is an important security update** as it can be used to cause a denial of service attack.
+
+### Commits
+
+* [[`78b0e30954`](https://github.com/nodejs/node/commit/78b0e30954)] - **deps**: fix out-of-band write in utf8 decoder (Fedor Indutny)
 
 ## 2015-07-01, Version 2.3.2, @rvagg
 
@@ -540,6 +567,29 @@ See https://github.com/nodejs/node/labels/confirmed-bug for complete and current
 * [[`0ecf9457b5`](https://github.com/nodejs/node/commit/0ecf9457b5)] - **win,node-gyp**: enable delay-load hook by default (Bert Belder) [iojs/io.js#1433](https://github.com/iojs/io.js/pull/1433)
 * [[`953b3e75e8`](https://github.com/nodejs/node/commit/953b3e75e8)] - **win,node-gyp**: enable delay-load hook by default (Bert Belder) [iojs/io.js#1433](https://github.com/iojs/io.js/pull/1433)
 * [[`3806d875d3`](https://github.com/nodejs/node/commit/3806d875d3)] - **zlib**: prevent uncaught exception in zlibBuffer (Michaël Zasso) [#1811](https://github.com/nodejs/node/pull/1811)
+
+## 2015-06-22, Version 0.12.5 (Stable)
+
+### Commits
+
+* [[`456c22f63f`](https://github.com/nodejs/node/commit/456c22f63f)] - **openssl**: upgrade to 1.0.1o (Addressing multiple CVEs) [#25523](https://github.com/joyent/node/pull/25523)
+* [[`20d8db1a42`](https://github.com/nodejs/node/commit/20d8db1a42)] - **npm**: upgrade to 2.11.2 [#25517](https://github.com/joyent/node/pull/25517)
+* [[`50f961596d`](https://github.com/nodejs/node/commit/50f961596d)] - **uv**: upgrade to 1.6.1 [#25475](https://github.com/joyent/node/pull/25475)
+* [[`b81a643f9a`](https://github.com/nodejs/node/commit/b81a643f9a)] - **V8**: avoid deadlock when profiling is active (Dmitri Melikyan) [#25309](https://github.com/joyent/node/pull/25309)
+* [[`9d19dfbfdb`](https://github.com/nodejs/node/commit/9d19dfbfdb)] - **install**: fix source path for openssl headers (Oguz Bastemur) [#14089](https://github.com/joyent/node/pull/14089)
+* [[`4028669531`](https://github.com/nodejs/node/commit/4028669531)] - **install**: make sure opensslconf.h is overwritten (Oguz Bastemur) [#14089](https://github.com/joyent/node/pull/14089)
+* [[`d38e865fce`](https://github.com/nodejs/node/commit/d38e865fce)] - **timers**: fix timeout when added in timer's callback (Julien Gilli) [#17203](https://github.com/joyent/node/pull/17203)
+* [[`e7c84f82c7`](https://github.com/nodejs/node/commit/e7c84f82c7)] - **windows**: broadcast WM_SETTINGCHANGE after install (Mathias Küsel) [#25100](https://github.com/joyent/node/pull/25100)
+
+## 2015-06-18, Version 0.10.39 (Maintenance)
+
+### Commits
+
+* [[`456c22f63f`](https://github.com/nodejs/node/commit/456c22f63f)] - **openssl**: upgrade to 1.0.1o (Addressing multiple CVEs) [#25523](https://github.com/joyent/node/pull/25523)
+* [[`9d19dfbfdb`](https://github.com/nodejs/node/commit/9d19dfbfdb)] - **install**: fix source path for openssl headers (Oguz Bastemur) [#14089](https://github.com/joyent/node/pull/14089)
+* [[`4028669531`](https://github.com/nodejs/node/commit/4028669531)] - **install**: make sure opensslconf.h is overwritten (Oguz Bastemur) [#14089](https://github.com/joyent/node/pull/14089)
+* [[`d38e865fce`](https://github.com/nodejs/node/commit/d38e865fce)] - **timers**: fix timeout when added in timer's callback (Julien Gilli) [#17203](https://github.com/joyent/node/pull/17203)
+* [[`e7c84f82c7`](https://github.com/nodejs/node/commit/e7c84f82c7)] - **windows**: broadcast WM_SETTINGCHANGE after install (Mathias Küsel) [#25100](https://github.com/joyent/node/pull/25100)
 
 ## 2015-06-13, Version 2.3.0, @rvagg
 
@@ -779,6 +829,14 @@ See https://github.com/nodejs/node/labels/confirmed-bug for complete and current
 * [[`d144e96fbf`](https://github.com/nodejs/node/commit/d144e96fbf)] - **win,node-gyp**: enable delay-load hook by default (Bert Belder) [#1763](https://github.com/nodejs/node/pull/1763)
 * [[`0d6d3dda95`](https://github.com/nodejs/node/commit/0d6d3dda95)] - **win,node-gyp**: make delay-load hook C89 compliant (Sharat M R) [TooTallNate/node-gyp#616](https://github.com/TooTallNate/node-gyp/pull/616)
 
+## 2015-05-22, Version 0.12.4 (Stable)
+
+### Commits
+
+* [[`202c18bbc3`](https://github.com/nodejs/node/commit/202c18bbc3)] - **npm**: upgrade to 2.10.1 [#25364](https://github.com/joyent/node/pull/25364)
+* [[`6157697bd5`](https://github.com/nodejs/node/commit/6157697bd5)] - **V8**: revert v8 Array.prototype.values() removal (cjihrig) [#25328](https://github.com/joyent/node/pull/25328)
+* [[`3122052890`](https://github.com/nodejs/node/commit/3122052890)] - **win**: bring back xp/2k3 support (Bert Belder) [#25367](https://github.com/joyent/node/pull/25367)
+
 ## 2015-05-15, Version 2.0.2, @Fishrock123
 
 ### Notable changes
@@ -827,6 +885,21 @@ See https://github.com/nodejs/node/labels/confirmed-bug for complete and current
 * [[`f07b3b600b`](https://github.com/nodejs/node/commit/f07b3b600b)] - **tools**: set eslint comma-spacing to 'warn' (Roman Reiss) [#1672](https://github.com/nodejs/node/pull/1672)
 * [[`f9dd34d301`](https://github.com/nodejs/node/commit/f9dd34d301)] - **tools**: replace closure-linter with eslint (Yosuke Furukawa) [#1539](https://github.com/nodejs/node/pull/1539)
 * [[`64d3210c98`](https://github.com/nodejs/node/commit/64d3210c98)] - **win,node-gyp**: enable delay-load hook by default (Bert Belder) [#1667](https://github.com/nodejs/node/issues/1667)
+
+## 2015-05-13, Version 0.12.3 (Stable)
+
+### Commits
+
+* [[`32166a90cf`](https://github.com/nodejs/node/commit/32166a90cf)] - **V8**: update to 3.28.71.19 [#18206](https://github.com/joyent/node/pull/18206)
+* [[`84f1ab6114`](https://github.com/nodejs/node/commit/84f1ab6114)] - **uv**: upgrade to 1.5.0 [#25141](https://github.com/joyent/node/pull/25141)
+* [[`03cfbd65fb`](https://github.com/nodejs/node/commit/03cfbd65fb)] - **npm**: upgrade to 2.9.1 [#25289](https://github.com/joyent/node/pull/25289)
+* [[`80cdae855f`](https://github.com/nodejs/node/commit/80cdae855f)] - **V8**: don't busy loop in v8 cpu profiler thread (Mike Tunnicliffe) [#25268](https://github.com/joyent/node/pull/25268)
+* [[`2a5f4bd7ce`](https://github.com/nodejs/node/commit/2a5f4bd7ce)] - **V8**: fix issue with let bindings in for loops (adamk) [#23948](https://github.com/joyent/node/pull/23948)
+* [[`f0ef597e09`](https://github.com/nodejs/node/commit/f0ef597e09)] - **debugger**: don't spawn child process in remote mode (Jackson Tian) [#14172](https://github.com/joyent/node/pull/14172)
+* [[`0e392f3b68`](https://github.com/nodejs/node/commit/0e392f3b68)] - **net**: do not set V4MAPPED on FreeBSD (Julien Gilli) [#18204](https://github.com/joyent/node/pull/18204)
+* [[`101e103e3b`](https://github.com/nodejs/node/commit/101e103e3b)] - **repl**: make 'Unexpected token' errors recoverable (Julien Gilli) [#8875](https://github.com/joyent/node/pull/8875)
+* [[`d5b32246fb`](https://github.com/nodejs/node/commit/d5b32246fb)] - **src**: backport ignore ENOTCONN on shutdown race (Ben Noordhuis) [#14480](https://github.com/joyent/node/pull/14480)
+* [[`f99eaefe75`](https://github.com/nodejs/node/commit/f99eaefe75)] - **src**: fix backport of SIGINT crash fix on FreeBSD (Julien Gilli) [#14819](https://github.com/joyent/node/pull/14819)
 
 ## 2015-05-07, Version 2.0.1, @rvagg
 
@@ -1315,6 +1388,33 @@ will be removed at a later point. (Roman Reiss) [#1363](https://github.com/nodej
 * [[`08acf1352c`](https://github.com/nodejs/node/commit/08acf1352c)] - **win,node-gyp**: make delay-load hook optional (Bert Belder) [#1266](https://github.com/nodejs/node/pull/1266)
 * [[`3d46fefe0c`](https://github.com/nodejs/node/commit/3d46fefe0c)] - **win,node-gyp**: allow node.exe/iojs.exe to be renamed (Bert Belder) [#1251](https://github.com/nodejs/node/pull/1251)
 
+## 2015-03-31, Version 0.12.2 (Stable)
+
+### Commits
+
+* [[`7a37910f25`](https://github.com/nodejs/node/commit/7a37910f25)] - **uv**: Upgrade to 1.4.2 [#9179](https://github.com/joyent/node/pull/9179)
+* [[`2704c62933`](https://github.com/nodejs/node/commit/2704c62933)] - **npm**: Upgrade to 2.7.4 [#14180](https://github.com/joyent/node/pull/14180)
+* [[`a103712a62`](https://github.com/nodejs/node/commit/a103712a62)] - **V8**: do not add extra newline in log file (Julien Gilli)
+* [[`2fc5eeb3da`](https://github.com/nodejs/node/commit/2fc5eeb3da)] - **V8**: Fix --max_old_space_size=4096 integer overflow (Andrei Sedoi) [#9200](https://github.com/joyent/node/pull/9200)
+* [[`605329d7f7`](https://github.com/nodejs/node/commit/605329d7f7)] - **asyncwrap**: fix constructor condition for early ret (Trevor Norris) [#9146](https://github.com/joyent/node/pull/9146)
+* [[`a33f23cbbc`](https://github.com/nodejs/node/commit/a33f23cbbc)] - **buffer**: align chunks on 8-byte boundary (Fedor Indutny) [#9375](https://github.com/joyent/node/pull/9375)
+* [[`a35ba2f67d`](https://github.com/nodejs/node/commit/a35ba2f67d)] - **buffer**: fix pool offset adjustment (Trevor Norris)
+* [[`c0766eb1a4`](https://github.com/nodejs/node/commit/c0766eb1a4)] - **build**: fix use of strict aliasing (Trevor Norris) [#9179](https://github.com/joyent/node/pull/9179)
+* [[`6c3647c38d`](https://github.com/nodejs/node/commit/6c3647c38d)] - **console**: allow Object.prototype fields as labels (Colin Ihrig) [#9116](https://github.com/joyent/node/pull/9116)
+* [[`4823afcbe2`](https://github.com/nodejs/node/commit/4823afcbe2)] - **fs**: make F_OK/R_OK/W_OK/X_OK not writable (Jackson Tian) [#9060](https://github.com/joyent/node/pull/9060)
+* [[`b3aa876f08`](https://github.com/nodejs/node/commit/b3aa876f08)] - **fs**: properly handle fd passed to truncate() (Bruno Jouhier) [#9161](https://github.com/joyent/node/pull/9161)
+* [[`d6484f3f7b`](https://github.com/nodejs/node/commit/d6484f3f7b)] - **http**: fix assert on data/end after socket error (Fedor Indutny) [#14087](https://github.com/joyent/node/pull/14087)
+* [[`04b63e022a`](https://github.com/nodejs/node/commit/04b63e022a)] - **lib**: fix max size check in Buffer constructor (Ben Noordhuis) [#657](https://github.com/iojs/io.js/pull/657)
+* [[`2411bea0df`](https://github.com/nodejs/node/commit/2411bea0df)] - **lib**: fix stdio/ipc sync i/o regression (Ben Noordhuis) [#9179](https://github.com/joyent/node/pull/9179)
+* [[`b8604fa480`](https://github.com/nodejs/node/commit/b8604fa480)] - **module**: replace NativeModule.require (Herbert Vojčík) [#9201](https://github.com/joyent/node/pull/9201)
+* [[`1a2a4dac23`](https://github.com/nodejs/node/commit/1a2a4dac23)] - **net**: allow port 0 in connect() (cjihrig) [#9268](https://github.com/joyent/node/pull/9268)
+* [[`bada87bd66`](https://github.com/nodejs/node/commit/bada87bd66)] - **net**: unref timer in parent sockets (Fedor Indutny) [#891](https://github.com/iojs/io.js/pull/891)
+* [[`c66f8c21f0`](https://github.com/nodejs/node/commit/c66f8c21f0)] - **path**: refactor for performance and consistency (Nathan Woltman) [#9289](https://github.com/joyent/node/pull/9289)
+* [[`9deade4322`](https://github.com/nodejs/node/commit/9deade4322)] - **smalloc**: extend user API (Trevor Norris) [#905](https://github.com/iojs/io.js/pull/905)
+* [[`61fe1fe21b`](https://github.com/nodejs/node/commit/61fe1fe21b)] - **src**: fix for SIGINT crash on FreeBSD (Fedor Indutny) [#14184](https://github.com/joyent/node/pull/14184)
+* [[`b233131901`](https://github.com/nodejs/node/commit/b233131901)] - **src**: fix builtin modules failing with --use-strict (Julien Gilli) [#9237](https://github.com/joyent/node/pull/9237)
+* [[`7e9d2f8de8`](https://github.com/nodejs/node/commit/7e9d2f8de8)] - **watchdog**: fix timeout for early polling return (Saúl Ibarra Corretgé) [#9410](https://github.com/joyent/node/pull/9410)
+
 ## 2015-03-23, Version 1.6.2, @rvagg
 
 ### Notable changes
@@ -1353,6 +1453,18 @@ will be removed at a later point. (Roman Reiss) [#1363](https://github.com/nodej
 * [[`2b3b2d392f`](https://github.com/nodejs/node/commit/2b3b2d392f)] - **test**: add setTimeout/setInterval multi-arg tests (Ben Noordhuis) [#1221](https://github.com/nodejs/node/pull/1221)
 * [[`849319a260`](https://github.com/nodejs/node/commit/849319a260)] - **util**: Check input to util.inherits (Connor Peet) [#1240](https://github.com/nodejs/node/pull/1240)
 * [[`cf081a4712`](https://github.com/nodejs/node/commit/cf081a4712)] - **vm**: fix crash on fatal error in debug context (Ben Noordhuis) [#1229](https://github.com/nodejs/node/pull/1229)
+
+## 2015-03-23, Version 0.12.1 (Stable)
+
+### Commits
+
+* [[`3b511a8ccd`](https://github.com/nodejs/node/commit/3b511a8ccd)] - **openssl**: upgrade to 1.0.1m (Addressing multiple CVES)
+
+## 2015-03-23, Version 0.10.38 (Maintenance)
+
+### Commits
+
+* [[`3b511a8ccd`](https://github.com/nodejs/node/commit/3b511a8ccd)] - **openssl**: upgrade to 1.0.1m (Addressing multiple CVES)
 
 ## 2015-03-20, Version 1.6.1, @rvagg
 
@@ -1462,6 +1574,17 @@ will be removed at a later point. (Roman Reiss) [#1363](https://github.com/nodej
 * [[`684a5878b6`](https://github.com/nodejs/node/commit/684a5878b6)] - **doc**: fix missing periods in url.markdown (Ryuichi Okumura) [#1115](https://github.com/nodejs/node/pull/1115)
 * [[`8431fc53f1`](https://github.com/nodejs/node/commit/8431fc53f1)] - **tls_wrap**: proxy handle methods in prototype (Fedor Indutny) [#1108](https://github.com/nodejs/node/pull/1108)
 * [[`8070b1ff99`](https://github.com/nodejs/node/commit/8070b1ff99)] - **buffer**: Don't assign .parent if none exists (Trevor Norris) [#1109](https://github.com/nodejs/node/pull/1109)
+
+## 2015-03-11, Version 0.10.37 (Maintenance)
+
+### Commits
+
+* [[`dcff5d565c`](https://github.com/nodejs/node/commit/dcff5d565c)] - uv: update to 0.10.36 (CVE-2015-0278) [#9274](https://github.com/joyent/node/pull/9274)
+* [[`f2a45caf2e`](https://github.com/nodejs/node/commit/f2a45caf2e)] - domains: fix stack clearing after error handled (Jonas Dohse) [#9364](https://github.com/joyent/node/pull/9364)
+* [[`d01a900078`](https://github.com/nodejs/node/commit/d01a900078)] - buffer: reword Buffer.concat error message (Chris Dickinson) [#8723](https://github.com/joyent/node/pull/8723)
+* [[`c8239c08d7`](https://github.com/nodejs/node/commit/c8239c08d7)] - console: allow Object.prototype fields as labels (Julien Gilli) [#9215](https://github.com/joyent/node/pull/9215)
+* [[`431eb172f9`](https://github.com/nodejs/node/commit/431eb172f9)] - V8: log version in profiler log file (Ben Noordhuis) [#9043](https://github.com/joyent/node/pull/9043)
+* [[`8bcd0a4c4a`](https://github.com/nodejs/node/commit/8bcd0a4c4a)] - http: fix performance regression for GET requests (Florin-Cristian Gavrila) [#9026](https://github.com/joyent/node/pull/9026)
 
 ## 2015-03-09, Version 1.5.1, @rvagg
 
@@ -1895,6 +2018,12 @@ _Note: version **1.4.0** was tagged and built but not released. A libuv bug was 
 * [[`513724e`](https://github.com/nodejs/node/commit/513724efcc42ed150391915050fe60402f8dd48d)] - doc: add GPG fingerprint for chrisdickinson (Chris Dickinson)
 * [[`4168198`](https://github.com/nodejs/node/commit/41681983921d323da79b6d45e4ae0f8edb541e18)] - doc: add TC meeting 2015-01-28 minutes (Rod Vagg)
 
+## 2015-02-06, Version 0.12.0 (Stable)
+
+### Commits
+
+* [[`087a7519ce`](https://github.com/nodejs/node/commit/087a7519ce)] - **npm**: Upgrade to 2.5.1
+* [[`4312f8d760`](https://github.com/nodejs/node/commit/4312f8d760)] - **mdb_v8**: update for v0.12 (Dave Pacheco)
 
 ## 2015-02-03, Version 1.1.0, @chrisdickinson
 
@@ -1994,6 +2123,13 @@ _Note: version **1.4.0** was tagged and built but not released. A libuv bug was 
 * [[`50ac4b7`](https://github.com/nodejs/node/commit/50ac4b7e2a823f92f0e102b804ec73f00eacb216)] - Working on 1.0.5 (Rod Vagg)
 * [[`d1fc9c6`](https://github.com/nodejs/node/commit/d1fc9c6caec68883401fe601d99f3a69fee52556)] - 2015-01-24 io.js v1.0.4 Release (Rod Vagg)
 
+## 2015-01-26, Version 0.10.36 (Stable)
+
+### Commits
+
+* [[`deef605085`](https://github.com/nodejs/node/commit/deef605085)] - **openssl**: update to 1.0.1l
+* [[`45f1330425`](https://github.com/nodejs/node/commit/45f1330425)] - **v8**: Fix debugger and strict mode regression (Julien Gilli)
+* [[`6ebd85e105`](https://github.com/nodejs/node/commit/6ebd85e105)] - **v8**: don't busy loop in cpu profiler thread (Ben Noordhuis) [#8789](https://github.com/joyent/node/pull/8789)
 
 ## 2015-01-24, Version 1.0.4, @rvagg
 
