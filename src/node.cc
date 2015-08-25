@@ -3260,6 +3260,15 @@ static void ParseArgs(int* argc,
       // V8 option.  Pass through as-is.
       new_v8_argv[new_v8_argc] = arg;
       new_v8_argc += 1;
+
+      // TODO(bnoordhuis) Intercept --prof arguments and start the CPU profiler
+      // manually?  That would give us a little more control over its runtime
+      // behavior but it could also interfere with the user's intentions in ways
+      // we fail to anticipate.  Dillema.
+      if (!v8_is_profiling
+          && strncmp(arg, "--prof", sizeof("--prof") - 1) == 0) {
+        v8_is_profiling = true;
+      }
     }
 
     memcpy(new_exec_argv + new_exec_argc,
@@ -3687,17 +3696,6 @@ void Init(int* argc,
   int v8_argc;
   const char** v8_argv;
   ParseArgs(argc, argv, exec_argc, exec_argv, &v8_argc, &v8_argv);
-
-  // TODO(bnoordhuis) Intercept --prof arguments and start the CPU profiler
-  // manually?  That would give us a little more control over its runtime
-  // behavior but it could also interfere with the user's intentions in ways
-  // we fail to anticipate.  Dillema.
-  for (int i = 1; i < v8_argc; ++i) {
-    if (strncmp(v8_argv[i], "--prof", sizeof("--prof") - 1) == 0) {
-      v8_is_profiling = true;
-      break;
-    }
-  }
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
   if (icu_data_dir == nullptr) {
