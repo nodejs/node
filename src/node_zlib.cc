@@ -141,6 +141,7 @@ class ZCtx : public AsyncWrap {
     Bytef *in;
     Bytef *out;
     size_t in_off, in_len, out_off, out_len;
+    Environment* env = ctx->env();
 
     if (args[1]->IsNull()) {
       // just a flush
@@ -151,7 +152,7 @@ class ZCtx : public AsyncWrap {
     } else {
       CHECK(Buffer::HasInstance(args[1]));
       Local<Object> in_buf;
-      in_buf = args[1]->ToObject(args.GetIsolate());
+      in_buf = args[1]->ToObject(env->isolate());
       in_off = args[2]->Uint32Value();
       in_len = args[3]->Uint32Value();
 
@@ -160,7 +161,7 @@ class ZCtx : public AsyncWrap {
     }
 
     CHECK(Buffer::HasInstance(args[4]));
-    Local<Object> out_buf = args[4]->ToObject(args.GetIsolate());
+    Local<Object> out_buf = args[4]->ToObject(env->isolate());
     out_off = args[5]->Uint32Value();
     out_len = args[6]->Uint32Value();
     CHECK(Buffer::IsWithinBounds(out_off, out_len, Buffer::Length(out_buf)));
@@ -198,7 +199,7 @@ class ZCtx : public AsyncWrap {
 
 
   static void AfterSync(ZCtx* ctx, const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args);
+    Environment* env = ctx->env();
     Local<Integer> avail_out = Integer::New(env->isolate(),
                                             ctx->strm_.avail_out);
     Local<Integer> avail_in = Integer::New(env->isolate(),
