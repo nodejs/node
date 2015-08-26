@@ -120,7 +120,6 @@ plan accordingly.
 io.js has several modules compiled into the binary.  These modules are
 described in greater detail elsewhere in this documentation.
 
-The core modules are defined in io.js's source in the `lib/` folder.
 The core modules are defined within io.js's source and are located in the
 `lib/` folder.
 
