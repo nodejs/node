@@ -73,6 +73,7 @@
       'lib/internal/socket_list.js',
       'lib/internal/repl.js',
       'lib/internal/util.js',
+      'lib/internal/streams/LazyTransform.js',
     ],
   },
 
