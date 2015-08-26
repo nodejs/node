@@ -120,12 +120,8 @@ plan accordingly.
 Node.js has several modules compiled into the binary.  These modules are
 described in greater detail elsewhere in this documentation.
 
-<<<<<<< HEAD
-The core modules are defined in Node.js's source in the `lib/` folder.
-=======
-The core modules are defined within io.js's source and are located in the
+The core modules are defined within Node.js's source and are located in the
 `lib/` folder.
->>>>>>> doc: small clarifications to modules.markdown
 
 Core modules are always preferentially loaded if their identifier is
 passed to `require()`.  For instance, `require('http')` will always
@@ -135,14 +131,9 @@ return the built in HTTP module, even if there is a file by that name.
 
 <!--type=misc-->
 
-<<<<<<< HEAD
 If the exact filename is not found, then Node.js will attempt to load the
-required filename with the added extension of `.js`, `.json`, and then `.node`.
-=======
-If the exact filename is not found, then io.js will attempt to load the
 required filename with the added extensions: `.js`, `.json`, and finally
 `.node`.
->>>>>>> doc: small clarifications to modules.markdown
 
 `.js` files are interpreted as JavaScript text files, and `.json` files are
 parsed as JSON text files. `.node` files are interpreted as compiled addon
