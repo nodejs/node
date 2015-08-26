@@ -18,7 +18,10 @@
            Manufacturer="$(var.ProductAuthor)"
            UpgradeCode="47c07a3a-42ef-4213-a85d-8f5a59077c28">
 
-    <Package Languages="!(loc.LocaleId)" InstallerVersion="200" Compressed="yes"/>
+    <Package Languages="!(loc.LocaleId)"
+             InstallerVersion="200"
+             Compressed="yes"
+             InstallScope="perMachine"/>
 
     <Media Id="1" Cabinet="media1.cab" EmbedCab="yes"/>
 
@@ -258,16 +261,27 @@
       </Component>
     </DirectoryRef>
 
-    <Binary Id='BroadcastEnvironmentUpdate'
+    <Binary Id='CustomActionsDLL'
             SourceFile='$(var.custom_actions.TargetDir)$(var.custom_actions.TargetName).dll' />
 
+    <CustomAction Id="SetInstallScope"
+                  BinaryKey="CustomActionsDLL"
+                  DllEntry="SetInstallScope"
+                  Execute="immediate"
+                  Return="check" />
+
     <CustomAction Id="BroadcastEnvironmentUpdate"
-                  BinaryKey="BroadcastEnvironmentUpdate"
+                  BinaryKey="CustomActionsDLL"
                   DllEntry="BroadcastEnvironmentUpdate"
                   Execute="immediate"
                   Return="check" />
 
+    <InstallUISequence>
+      <Custom Action='SetInstallScope' Before='FindRelatedProducts'/>
+    </InstallUISequence>
+
     <InstallExecuteSequence>
+      <Custom Action='SetInstallScope' Before='FindRelatedProducts'/>
       <Custom Action='BroadcastEnvironmentUpdate' After='InstallFinalize'/>
     </InstallExecuteSequence>
 
