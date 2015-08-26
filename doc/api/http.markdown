@@ -640,6 +640,14 @@ passed as the second parameter to the `'request'` event.
 The response implements the [Writable Stream][] interface. This is an
 [`EventEmitter`][] with the following events:
 
+### Event: 'before-flushing-head'
+
+`function () {}`
+
+Indicates that the server is about to flush the HTTP headers to the underlying 
+socket. This event can be used for measuring time to first byte or customizing 
+the response headers.
+
 ### Event: 'close'
 
 `function () { }`
