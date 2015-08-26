@@ -5,7 +5,6 @@ var http = require('http');
 var net = require('net');
 
 var expected = {
-  '0.9': 'I AM THE WALRUS',
   '1.0': 'I AM THE WALRUS',
   '1.1': ''
 };
@@ -51,8 +50,6 @@ function test(httpVersion, callback) {
   });
 }
 
-test('0.9', function() {
-  test('1.0', function() {
-    test('1.1');
-  });
+test('1.0', function() {
+  test('1.1');
 });

@@ -6,12 +6,7 @@
 
 var common = require('../common');
 var assert = require('assert');
-var HTTPParser = process.binding('http_parser').HTTPParser;
-
-var kOnHeaders = HTTPParser.kOnHeaders | 0;
-var kOnHeadersComplete = HTTPParser.kOnHeadersComplete | 0;
-var kOnBody = HTTPParser.kOnBody | 0;
-var kOnMessageComplete = HTTPParser.kOnMessageComplete | 0;
+var HTTPParser = require('_http_parser');
 
 var headersComplete = 0;
 var messagesComplete = 0;
@@ -24,24 +19,15 @@ function flushPool() {
 function demoBug(part1, part2) {
   flushPool();
 
-  var parser = new HTTPParser('REQUEST');
+  var parser = new HTTPParser(HTTPParser.REQUEST);
 
-  parser.headers = [];
-  parser.url = '';
-
-  parser[kOnHeaders] = function(headers, url) {
-    parser.headers = parser.headers.concat(headers);
-    parser.url += url;
-  };
-
-  parser[kOnHeadersComplete] = function(info) {
+  parser.onHeaders = function() {
     headersComplete++;
-    console.log('url', info.url);
   };
 
-  parser[kOnBody] = function(b, start, len) { };
+  parser.onBody = function(b, start, len) { };
 
-  parser[kOnMessageComplete] = function() {
+  parser.onComplete = function() {
     messagesComplete++;
   };
 
