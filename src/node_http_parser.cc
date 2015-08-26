@@ -562,6 +562,8 @@ class Parser : public BaseObject {
 
     parser->current_buffer_len_ = 0;
     parser->current_buffer_data_ = nullptr;
+
+    parser->env()->KickNextTick();
   }
 
 
