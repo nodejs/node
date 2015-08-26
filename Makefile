@@ -6,6 +6,7 @@ DESTDIR ?=
 SIGN ?=
 PREFIX ?= /usr/local
 FLAKY_TESTS ?= run
+TEST_CI_ARGS ?=
 STAGINGSERVER ?= node-www
 
 OSTYPE := $(shell uname -s | tr '[A-Z]' '[a-z]')
@@ -142,7 +143,7 @@ test-all-valgrind: test-build
 
 test-ci: | build-addons
 	$(PYTHON) tools/test.py -p tap --logfile test.tap --mode=release --flaky-tests=$(FLAKY_TESTS) \
-		addons message parallel sequential
+		$(TEST_CI_ARGS) addons message parallel sequential
 
 test-release: test-build
 	$(PYTHON) tools/test.py --mode=release
