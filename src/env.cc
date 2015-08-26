@@ -10,6 +10,7 @@ using v8::Local;
 using v8::Message;
 using v8::StackFrame;
 using v8::StackTrace;
+using v8::TryCatch;
 
 void Environment::PrintSyncTrace() const {
   if (!trace_sync_io_)
@@ -53,6 +54,40 @@ void Environment::PrintSyncTrace() const {
     }
   }
   fflush(stderr);
+}
+
+
+bool Environment::KickNextTick() {
+  TickInfo* info = tick_info();
+
+  if (info->in_tick()) {
+    return true;
+  }
+
+  if (info->length() == 0) {
+    isolate()->RunMicrotasks();
+  }
+
+  if (info->length() == 0) {
+    info->set_index(0);
+    return true;
+  }
+
+  info->set_in_tick(true);
+
+  // process nextTicks after call
+  TryCatch try_catch;
+  try_catch.SetVerbose(true);
+  tick_callback_function()->Call(process_object(), 0, nullptr);
+
+  info->set_in_tick(false);
+
+  if (try_catch.HasCaught()) {
+    info->set_last_threw(true);
+    return false;
+  }
+
+  return true;
 }
 
 }  // namespace node

@@ -1026,7 +1026,6 @@ Handle<Value> MakeCallback(Environment* env,
   // If you hit this assertion, you forgot to enter the v8::Context first.
   CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
 
-  Local<Object> process = env->process_object();
   Local<Object> object, domain;
   bool has_async_queue = false;
   bool has_domain = false;
@@ -1092,32 +1091,8 @@ Handle<Value> MakeCallback(Environment* env,
     return Undefined(env->isolate());
   }
 
-  Environment::TickInfo* tick_info = env->tick_info();
-
-  if (tick_info->in_tick()) {
-    return ret;
-  }
-
-  if (tick_info->length() == 0) {
-    env->isolate()->RunMicrotasks();
-  }
-
-  if (tick_info->length() == 0) {
-    tick_info->set_index(0);
-    return ret;
-  }
-
-  tick_info->set_in_tick(true);
-
-  // process nextTicks after call
-  env->tick_callback_function()->Call(process, 0, nullptr);
-
-  tick_info->set_in_tick(false);
-
-  if (try_catch.HasCaught()) {
-    tick_info->set_last_threw(true);
+  if (!env->KickNextTick())
     return Undefined(env->isolate());
-  }
 
   return ret;
 }
