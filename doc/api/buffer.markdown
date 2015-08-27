@@ -68,8 +68,8 @@ Allocates a new buffer of `size` bytes.  `size` must be less than
 otherwise a `RangeError` is thrown.
 
 Unlike `ArrayBuffers`, the underlying memory for buffers is not initialized. So
-the contents of a newly created `Buffer` is unknown. Use `buf.fill(0)`to
-initialize a buffer to zeroes.
+the contents of a newly created `Buffer` are unknown and could contain
+sensitive data. Use `buf.fill(0)` to initialize a buffer to zeroes.
 
 ### new Buffer(array)
 
