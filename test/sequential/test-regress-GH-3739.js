@@ -1,46 +1,31 @@
 'use strict';
-var common = require('../common'),
-    assert = require('assert'),
-    fs = require('fs'),
-    path = require('path');
 
-var dir = path.resolve(common.fixturesDir),
-    dirs = [];
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+
+var dir = path.resolve(common.tmpDir);
+
+// Make sure that the tmp directory is clean
+common.refreshTmpDir();
 
 // Make a long path.
 for (var i = 0; i < 50; i++) {
-  dir = dir + '/123456790';
+  dir = dir + '/1234567890';
   try {
     fs.mkdirSync(dir, '0777');
   } catch (e) {
-    if (e.code == 'EEXIST') {
-      // Ignore;
-    } else {
-      cleanup();
+    if (e.code !== 'EEXIST') {
       throw e;
     }
   }
-  dirs.push(dir);
 }
 
-// Test existsSync
-var r = common.fileExists(dir);
-if (r !== true) {
-  cleanup();
-  throw new Error('fs.accessSync returned false');
-}
+// Test if file exists synchronously
+assert(common.fileExists(dir), 'Directory is not accessible');
 
-// Text exists
+// Test if file exists asynchronously
 fs.access(dir, function(err) {
-  cleanup();
-  if (err) {
-    throw new Error('fs.access reported false');
-  }
+  assert(!err, 'Directory is not accessible');
 });
-
-// Remove all created directories
-function cleanup() {
-  for (var i = dirs.length - 1; i >= 0; i--) {
-    fs.rmdirSync(dirs[i]);
-  }
-}
