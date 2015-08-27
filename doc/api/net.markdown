@@ -255,9 +255,6 @@ Example:
 
 Don't call `server.address()` until the `'listening'` event has been emitted.
 
-This method used to return the file path as a string for UNIX sockets and
-Windows pipes.  As of Node.js v4.0.0, it returns the expected object.
-
 ### server.unref()
 
 Calling `unref` on a server will allow the program to exit if this is the only
@@ -511,18 +508,14 @@ Returns `socket`.
 The string representation of the remote IP address. For example,
 `'74.125.127.100'` or `'2001:4860:a005::68'`.
 
-For UNIX sockets and Windows pipes, the file path the socket is connected
-to.  The remote address for server sockets is always `''`, the empty string.
-
 ### socket.remoteFamily
 
-The string representation of the remote IP family. `'IPv4'` or `'IPv6'`
-for TCP sockets, `'pipe'` for UNIX sockets and Windows pipes.
+The string representation of the remote IP family. `'IPv4'` or `'IPv6'`.
 
 ### socket.remotePort
 
-The numeric representation of the remote port. For example, `80` or `21`.
-`undefined` for UNIX sockets and Windows pipes.
+The numeric representation of the remote port. For example,
+`80` or `21`.
 
 ### socket.localAddress
 
@@ -530,18 +523,10 @@ The string representation of the local IP address the remote client is
 connecting on. For example, if you are listening on `'0.0.0.0'` and the
 client connects on `'192.168.1.1'`, the value would be `'192.168.1.1'`.
 
-For UNIX sockets and Windows pipes, the file path the socket is listening
-on.  The local address for client sockets is always `''`, the empty string.
-
-### socket.localFamily
-
-The string representation of the local IP family. `'IPv4'` or `'IPv6'`
-for TCP sockets, `'pipe'` for UNIX sockets and Windows pipes.
-
 ### socket.localPort
 
-The numeric representation of the local port. For example, `80` or `21`.
-`undefined` for UNIX sockets and Windows pipes.
+The numeric representation of the local port. For example,
+`80` or `21`.
 
 ### socket.bytesRead
 

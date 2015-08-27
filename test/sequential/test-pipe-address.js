@@ -15,6 +15,5 @@ server.listen(common.PIPE, function() {
 });
 
 process.on('exit', function() {
-  assert.equal(address.address, common.PIPE);
-  assert.equal(address.family, 'pipe');
+  assert.equal(address, common.PIPE);
 });
