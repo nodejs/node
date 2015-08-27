@@ -4721,8 +4721,8 @@ void EIO_PBKDF2(PBKDF2Request* req) {
     req->digest(),
     req->keylen(),
     reinterpret_cast<unsigned char*>(req->key())));
-  memset(req->pass(), 0, req->passlen());
-  memset(req->salt(), 0, req->saltlen());
+  OPENSSL_cleanse(req->pass(), req->passlen());
+  OPENSSL_cleanse(req->salt(), req->saltlen());
 }
 
 
@@ -4736,7 +4736,7 @@ void EIO_PBKDF2After(PBKDF2Request* req, Local<Value> argv[2]) {
   if (req->error()) {
     argv[0] = Undefined(req->env()->isolate());
     argv[1] = Encode(req->env()->isolate(), req->key(), req->keylen(), BUFFER);
-    memset(req->key(), 0, req->keylen());
+    OPENSSL_cleanse(req->key(), req->keylen());
   } else {
     argv[0] = Exception::Error(req->env()->pbkdf2_error_string());
     argv[1] = Undefined(req->env()->isolate());
