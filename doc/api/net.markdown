@@ -256,7 +256,7 @@ Example:
 Don't call `server.address()` until the `'listening'` event has been emitted.
 
 This method used to return the file path as a string for UNIX sockets and
-Windows pipes.  As of io.js v1.5.0, it returns the expected object.
+Windows pipes.  As of Node.js v4.0.0, it returns the expected object.
 
 ### server.unref()
 
