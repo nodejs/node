@@ -6,7 +6,7 @@ Prerequisites:
 
 * Packages: http://s.sudre.free.fr/Software/Packages/about.html
 
-In the root io.js folder:
+In the root folder:
 
 ```bash
 make pkg
@@ -22,9 +22,9 @@ http://s.sudre.free.fr/Software/Packages/about.html
 2. Duplicate the `strings/en` folder for reference, and rename the folder to
 the language you are localizing (ex. `fr`, `ru`, etc.)
 3. Translate `introduction.rtf` and `summary.rtf`. Do not modify the words
-`__iojsversion__` or `__npmversion__`, as these are automatically replaced
-by the build step with the io.js and npm versions, respectively.
-4. In the root `io.js` folder, run `make pre-pkg`. This will generate the
+`__nodeversion__` or `__npmversion__`, as these are automatically replaced
+by the build step with the Node.js and npm versions, respectively.
+4. In the root folder, run `make pre-pkg`. This will generate the
 files needed for Packages.
 5. Open `tools/osx-pkg/osx-pkg.pkgproj` in Packages. (Not
 `osx-pkg-out.pkgproj`, as this is a generated file)
