@@ -1,8 +1,10 @@
 'use strict';
+// Flags: --expose-internals
 var common = require('../common');
 var assert = require('assert');
 var EventEmitter = require('events').EventEmitter;
 var util = require('util');
+const EEEvents = require('internal/symbols').EEEvents;
 
 util.inherits(MyEE, EventEmitter);
 
@@ -30,7 +32,7 @@ assert.throws(function() {
 
 process.on('exit', function() {
   assert(called);
-  assert.deepEqual(myee._events, {});
+  assert.strictEqual(myee[EEEvents].size, 0);
   console.log('ok');
 });
 

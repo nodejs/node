@@ -78,7 +78,6 @@ namespace node {
   V(env_string, "env")                                                        \
   V(errno_string, "errno")                                                    \
   V(error_string, "error")                                                    \
-  V(events_string, "_events")                                                 \
   V(exec_argv_string, "execArgv")                                             \
   V(exec_path_string, "execPath")                                             \
   V(exiting_string, "_exiting")                                               \
