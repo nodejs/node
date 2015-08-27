@@ -5407,6 +5407,12 @@ void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
     factor = min_factor;
   }
 
+  const double kConservativeHeapGrowingFactor = 1.3;
+  if (gc_idle_time_handler_.ShouldGrowHeapSlowly()) {
+    factor = Min(factor, kConservativeHeapGrowingFactor);
+  }
+
+
   idle_factor = Min(factor, idle_max_factor);
 
   old_generation_allocation_limit_ =
