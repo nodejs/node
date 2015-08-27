@@ -113,6 +113,10 @@ bool GCIdleTimeHandler::ShouldDoScavenge(
     size_t idle_time_in_ms, size_t new_space_size, size_t used_new_space_size,
     size_t scavenge_speed_in_bytes_per_ms,
     size_t new_space_allocation_throughput_in_bytes_per_ms) {
+  if (idle_time_in_ms >= kMinBackgroundIdleTime) {
+    // It is better to do full GC for the background tab.
+    return false;
+  }
   size_t new_space_allocation_limit =
       kMaxScheduledIdleTime * scavenge_speed_in_bytes_per_ms;
 
@@ -185,7 +189,10 @@ bool GCIdleTimeHandler::ShouldDoOverApproximateWeakClosure(
 }
 
 
-GCIdleTimeAction GCIdleTimeHandler::NothingOrDone() {
+GCIdleTimeAction GCIdleTimeHandler::NothingOrDone(double idle_time_in_ms) {
+  if (idle_time_in_ms >= kMinBackgroundIdleTime) {
+    return GCIdleTimeAction::Nothing();
+  }
   if (idle_times_which_made_no_progress_per_mode_ >=
       kMaxNoProgressIdleTimesPerMode) {
     return GCIdleTimeAction::Done();
@@ -234,6 +241,13 @@ GCIdleTimeAction GCIdleTimeHandler::NothingOrDone() {
 GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
                                             HeapState heap_state) {
   Mode next_mode = NextMode(heap_state);
+
+  // Immediately go from reduce latency to reduce memory mode in
+  // background tab.
+  if (next_mode == kReduceLatency &&
+      idle_time_in_ms >= kMinBackgroundIdleTime) {
+    next_mode = kReduceMemory;
+  }
 
   if (next_mode != mode_) {
     mode_ = next_mode;
@@ -298,13 +312,13 @@ GCIdleTimeAction GCIdleTimeHandler::Action(double idle_time_in_ms,
     if (heap_state.sweeping_completed) {
       return GCIdleTimeAction::FinalizeSweeping();
     } else {
-      return NothingOrDone();
+      return NothingOrDone(idle_time_in_ms);
     }
   }
 
   if (heap_state.incremental_marking_stopped &&
       !heap_state.can_start_incremental_marking && !reduce_memory) {
-    return NothingOrDone();
+    return NothingOrDone(idle_time_in_ms);
   }
 
   size_t step_size = EstimateMarkingStepSize(
