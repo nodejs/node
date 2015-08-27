@@ -109,7 +109,7 @@ server.listen(port, function () {
 });
 
 function dump_mm_stats() {
-  if (typeof gc != 'function') return;
+  if (typeof gc !== 'function') return;
 
   var before = process.memoryUsage();
   for (var i = 0; i < 10; ++i) gc();
