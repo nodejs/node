@@ -166,10 +166,13 @@ static void GetTotalMemory(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetUptime(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   double uptime;
   int err = uv_uptime(&uptime);
   if (err == 0)
     args.GetReturnValue().Set(uptime);
+  else
+    return env->ThrowUVException(err, "uv_uptime");
 }
 
 
