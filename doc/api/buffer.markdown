@@ -58,9 +58,10 @@ arrays specification.  `ArrayBuffer#slice()` makes a copy of the slice while
 The Buffer class is a global type for dealing with binary data directly.
 It can be constructed in a variety of ways.
 
-### new Buffer(size)
+### new Buffer(size[, zeroFill])
 
-* `size` Number
+* `size` {Number}
+* `zeroFill` {Value}
 
 Allocates a new buffer of `size` bytes.  `size` must be less than
 1,073,741,824 bytes (1 GB) on 32 bits architectures or
@@ -69,7 +70,9 @@ otherwise a `RangeError` is thrown.
 
 Unlike `ArrayBuffers`, the underlying memory for buffers is not initialized. So
 the contents of a newly created `Buffer` are unknown and could contain
-sensitive data. Use `buf.fill(0)` to initialize a buffer to zeroes.
+sensitive data. Use `buf.fill(0)` to initialize a buffer to zeroes. If a truthy
+value is passed as the second argument, then the returned buffer will be zero-filled
+by default.
 
 ### new Buffer(array)
 
