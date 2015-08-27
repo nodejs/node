@@ -642,11 +642,18 @@ The response implements the [Writable Stream][] interface. This is an
 
 ### Event: 'before-flushing-head'
 
-`function () {}`
+`function (messageHead) {}`
 
 Indicates that the server is about to flush the HTTP headers to the underlying 
 socket. This event can be used for measuring time to first byte or customizing 
-the response headers.
+the response headers and status code.
+
+The `messageHead` parameter allows overriding the http response code, message and headers. 
+It includes
+
+* `responseCode` {Number}
+* `responseMessage` {String}
+* `headers` {Object}
 
 ### Event: 'close'
 
