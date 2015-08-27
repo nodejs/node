@@ -15010,6 +15010,9 @@ TEST(TestIdleNotification) {
         (v8::base::TimeTicks::HighResolutionNow().ToInternalValue() /
          static_cast<double>(v8::base::Time::kMicrosecondsPerSecond)) +
         IdlePauseInSeconds);
+    if (CcTest::heap()->mark_compact_collector()->sweeping_in_progress()) {
+      CcTest::heap()->mark_compact_collector()->EnsureSweepingCompleted();
+    }
   }
   intptr_t final_size = CcTest::heap()->SizeOfObjects();
   CHECK(finished);
