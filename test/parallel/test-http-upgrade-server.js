@@ -39,7 +39,7 @@ function testServer() {
 
     socket.on('data', function(d) {
       var data = d.toString('utf8');
-      if (data == 'kill') {
+      if (data === 'kill') {
         socket.end();
       } else {
         socket.write(data, 'utf8');

@@ -26,7 +26,7 @@ server2.on('error', function(e) {
   server2errors++;
   console.error('server2 error');
 
-  if (e.code == 'EADDRINUSE') {
+  if (e.code === 'EADDRINUSE') {
     server2eaddrinuse = true;
   }
 
