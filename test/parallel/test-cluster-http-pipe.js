@@ -29,12 +29,8 @@ if (cluster.isMaster) {
 }
 
 http.createServer(function(req, res) {
-  assert.equal(req.connection.remoteAddress, '');
-  assert.equal(req.connection.remoteFamily, 'pipe');
-  assert.equal(req.connection.remotePort, undefined);
-  assert.equal(req.connection.localAddress, common.PIPE);
-  assert.equal(req.connection.localFamily, 'pipe');
-  assert.equal(req.connection.localPort, undefined);
+  assert.equal(req.connection.remoteAddress, undefined);
+  assert.equal(req.connection.localAddress, undefined); // TODO common.PIPE?
   res.writeHead(200);
   res.end('OK');
 }).listen(common.PIPE, function() {
