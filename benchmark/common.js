@@ -60,7 +60,7 @@ function runBenchmarks() {
   if (test.match(/^[\._]/))
     return process.nextTick(runBenchmarks);
 
-  if (outputFormat == 'default')
+  if (outputFormat === 'default')
     console.error(type + '/' + test);
 
   test = path.resolve(dir, test);
@@ -160,7 +160,7 @@ Benchmark.prototype._run = function() {
   }, [[main]]);
 
   // output csv heading
-  if (outputFormat == 'csv')
+  if (outputFormat === 'csv')
     console.log('filename,' + Object.keys(options).join(',') + ',result');
 
   var node = process.execPath;
@@ -229,9 +229,9 @@ Benchmark.prototype.end = function(operations) {
 Benchmark.prototype.report = function(value) {
   var heading = this.getHeading();
 
-  if (outputFormat == 'default')
+  if (outputFormat === 'default')
     console.log('%s: %s', heading, value.toFixed(5));
-  else if (outputFormat == 'csv')
+  else if (outputFormat === 'csv')
     console.log('%s,%s', heading, value.toFixed(5));
 
   process.exit(0);
@@ -240,11 +240,11 @@ Benchmark.prototype.report = function(value) {
 Benchmark.prototype.getHeading = function() {
   var conf = this.config;
 
-  if (outputFormat == 'default') {
+  if (outputFormat === 'default') {
     return this._name + ' ' + Object.keys(conf).map(function(key) {
       return key + '=' + conf[key];
     }).join(' ');
-  } else if (outputFormat == 'csv') {
+  } else if (outputFormat === 'csv') {
     return this._name + ',' + Object.keys(conf).map(function(key) {
       return conf[key];
     }).join(',');

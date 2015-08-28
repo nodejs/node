@@ -25,7 +25,7 @@ assert.equal(5, date.getHours());
 
 
 // changes in environment should be visible to child processes
-if (process.argv[2] == 'you-are-the-child') {
+if (process.argv[2] === 'you-are-the-child') {
   // failed assertion results in process exiting with status code 1
   assert.equal(false, 'NODE_PROCESS_ENV_DELETED' in process.env);
   assert.equal(42, process.env.NODE_PROCESS_ENV);

@@ -88,7 +88,7 @@ if (cluster.isWorker) {
       checkResults(expected_results, results);
     } catch (exc) {
       console.error('FAIL: ' + exc.message);
-      if (exc.name != 'AssertionError') {
+      if (exc.name !== 'AssertionError') {
         console.trace(exc);
       }
 

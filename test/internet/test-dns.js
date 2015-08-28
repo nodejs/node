@@ -709,7 +709,7 @@ req.oncomplete = function(err, domains) {
   console.log('nodejs.org = ', domains);
   assert.ok(Array.isArray(domains));
   assert.ok(domains.length >= 1);
-  assert.ok(typeof domains[0] == 'string');
+  assert.ok(typeof domains[0] === 'string');
   getaddrinfoCallbackCalled = true;
 };
 

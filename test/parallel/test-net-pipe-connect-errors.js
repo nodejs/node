@@ -27,7 +27,7 @@ if (common.isWindows) {
     try {
       fs.unlinkSync(emptyTxt);
     } catch (e) {
-      if (e.code != 'ENOENT')
+      if (e.code !== 'ENOENT')
         throw e;
     }
   }

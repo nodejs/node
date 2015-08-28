@@ -8,7 +8,7 @@ var tests_ok = 0;
 var tests_run = 0;
 
 function stat_resource(resource) {
-  if (typeof resource == 'string') {
+  if (typeof resource === 'string') {
     return fs.statSync(resource);
   } else {
     // ensure mtime has been written to disk

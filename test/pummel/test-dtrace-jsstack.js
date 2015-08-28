@@ -4,7 +4,7 @@ var assert = require('assert');
 var os = require('os');
 var util = require('util');
 
-if (os.type() != 'SunOS') {
+if (os.type() !== 'SunOS') {
   console.log('1..0 # Skipped: no DTRACE support');
   return;
 }
