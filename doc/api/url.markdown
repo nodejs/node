@@ -5,6 +5,8 @@
 This module has utilities for URL resolution and parsing.
 Call `require('url')` to use it.
 
+## URL Parsing
+
 Parsed URL objects have some or all of the following fields, depending on
 whether or not they exist in the URL string. Any parts that are not in the URL
 string will not be in the parsed object. Examples are shown for the URL
@@ -63,6 +65,15 @@ string will not be in the parsed object. Examples are shown for the URL
 * `hash`: The 'fragment' portion of the URL including the pound-sign.
 
     Example: `'#hash'`
+
+### Escaped Characters
+
+Spaces (`' '`) and the following characters will be automatically escaped in the
+properties of URL objects:
+
+    < > " ` \r \n \t { } | \ ^ '
+
+---
 
 The following methods are provided by the URL module:
 
