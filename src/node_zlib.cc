@@ -271,8 +271,12 @@ class ZCtx : public AsyncWrap {
     // Acceptable error states depend on the type of zlib stream.
     switch (ctx->err_) {
     case Z_OK:
-    case Z_STREAM_END:
     case Z_BUF_ERROR:
+      if (ctx->strm_.avail_out != 0 && ctx->flush_ == Z_FINISH) {
+        ZCtx::Error(ctx, "unexpected end of file");
+        return false;
+      }
+    case Z_STREAM_END:
       // normal statuses, not fatal
       break;
     case Z_NEED_DICT:
