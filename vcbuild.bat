@@ -163,7 +163,7 @@ goto run
 if defined noprojgen goto msbuild
 
 @rem Generate the VS project.
-python configure %download_arg% %i18n_arg% %debug_arg% %snapshot_arg% %noetw_arg% %noperfctr_arg% --dest-cpu=%target_arch% --tag=%TAG%
+call python configure %download_arg% %i18n_arg% %debug_arg% %snapshot_arg% %noetw_arg% %noperfctr_arg% --dest-cpu=%target_arch% --tag=%TAG%
 if errorlevel 1 goto create-msvs-files-failed
 if not exist node.sln goto create-msvs-files-failed
 echo Project files generated.
@@ -240,7 +240,7 @@ if "%config%"=="Release" set test_args=--mode=release %test_args%
 echo running 'cctest'
 "%config%\cctest"
 echo running 'python tools\test.py %test_args%'
-python tools\test.py %test_args%
+call python tools\test.py %test_args%
 goto jslint
 
 :jslint
