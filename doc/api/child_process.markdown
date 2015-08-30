@@ -214,13 +214,15 @@ to a process.
 
 See `kill(2)`
 
-### child.send(message[, sendHandle])
+### child.send(message[, sendHandle][, callback])
 
 * `message` {Object}
 * `sendHandle` {Handle object}
+* `callback` {Function}
+* Return: Boolean
 
 When using `child_process.fork()` you can write to the child using
-`child.send(message, [sendHandle])` and messages are received by
+`child.send(message[, sendHandle][, callback])` and messages are received by
 a `'message'` event on the child.
 
 For example:
@@ -246,11 +248,6 @@ And then the child script, `'sub.js'` might look like this:
 In the child the `process` object will have a `send()` method, and `process`
 will emit objects each time it receives a message on its channel.
 
-Please note that the `send()` method on both the parent and child are
-synchronous - sending large chunks of data is not advised (pipes can be used
-instead, see
-[`child_process.spawn`](#child_process_child_process_spawn_command_args_options)).
-
 There is a special case when sending a `{cmd: 'NODE_foo'}` message. All messages
 containing a `NODE_` prefix in its `cmd` property will not be emitted in
 the `message` event, since they are internal messages used by Node.js core.
@@ -261,8 +258,16 @@ The `sendHandle` option to `child.send()` is for sending a TCP server or
 socket object to another process. The child will receive the object as its
 second argument to the `message` event.
 
-Emits an `'error'` event if the message cannot be sent, for example because
-the child process has already exited.
+The `callback` option is a function that is invoked after the message is
+sent but before the target may have received it.  It is called with a single
+argument: `null` on success, or an `Error` object on failure.
+
+`child.send()` emits an `'error'` event if no callback was given and the message
+cannot be sent, for example because the child process has already exited.
+
+Returns `true` under normal circumstances or `false` when the backlog of
+unsent messages exceeds a threshold that makes it unwise to send more.
+Use the callback mechanism to implement flow control.
 
 #### Example: sending server object
 
