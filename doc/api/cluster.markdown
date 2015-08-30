@@ -426,10 +426,12 @@ exit, the master may choose not to respawn a worker based on this value.
     // kill worker
     worker.kill();
 
-### worker.send(message[, sendHandle])
+### worker.send(message[, sendHandle][, callback])
 
 * `message` {Object}
 * `sendHandle` {Handle object}
+* `callback` {Function}
+* Return: Boolean
 
 Send a message to a worker or master, optionally with a handle.
 
