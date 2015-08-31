@@ -213,11 +213,11 @@ if not defined SSHCONFIG (
   exit /b 1
 )
 if not defined STAGINGSERVER set STAGINGSERVER=iojs-www
-ssh -F %SSHCONFIG% %STAGINGSERVER% "mkdir -p staging/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%"
-scp -F %SSHCONFIG% Release\iojs.exe %STAGINGSERVER%:staging/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/iojs.exe
-scp -F %SSHCONFIG% Release\iojs.lib %STAGINGSERVER%:staging/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/iojs.lib
-scp -F %SSHCONFIG% iojs-v%FULLVERSION%-%target_arch%.msi %STAGINGSERVER%:staging/%DISTTYPEDIR%/v%FULLVERSION%/
-ssh -F %SSHCONFIG% %STAGINGSERVER% "touch staging/%DISTTYPEDIR%/v%FULLVERSION%/iojs-v%FULLVERSION%-%target_arch%.msi.done staging/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%.done"
+ssh -F %SSHCONFIG% %STAGINGSERVER% "mkdir -p iojs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%"
+scp -F %SSHCONFIG% Release\iojs.exe %STAGINGSERVER%:iojs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/iojs.exe
+scp -F %SSHCONFIG% Release\iojs.lib %STAGINGSERVER%:iojs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/iojs.lib
+scp -F %SSHCONFIG% iojs-v%FULLVERSION%-%target_arch%.msi %STAGINGSERVER%:iojs/%DISTTYPEDIR%/v%FULLVERSION%/
+ssh -F %SSHCONFIG% %STAGINGSERVER% "touch iojs/%DISTTYPEDIR%/v%FULLVERSION%/iojs-v%FULLVERSION%-%target_arch%.msi.done iojs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%.done"
 
 :run
 @rem Run tests if requested.
