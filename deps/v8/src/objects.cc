@@ -4765,20 +4765,32 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
     }
   }
 
-  int inobject_props = object->map()->inobject_properties();
+  Handle<Map> old_map(object->map(), isolate);
+
+  int inobject_props = old_map->inobject_properties();
 
   // Allocate new map.
-  Handle<Map> new_map = Map::CopyDropDescriptors(handle(object->map()));
+  Handle<Map> new_map = Map::CopyDropDescriptors(old_map);
   new_map->set_dictionary_map(false);
 
-  if (object->map()->is_prototype_map()) {
+  if (old_map->is_prototype_map() && FLAG_track_prototype_users) {
     DCHECK(new_map->is_prototype_map());
-    new_map->set_prototype_info(object->map()->prototype_info());
-    object->map()->set_prototype_info(Smi::FromInt(0));
+
+    Object* maybe_old_prototype = old_map->prototype();
+    if (maybe_old_prototype->IsJSObject()) {
+      Handle<JSObject> old_prototype(JSObject::cast(maybe_old_prototype));
+      bool was_registered =
+          JSObject::UnregisterPrototypeUser(old_prototype, old_map);
+      if (was_registered) {
+        JSObject::LazyRegisterPrototypeUser(new_map, isolate);
+      }
+    }
+    new_map->set_prototype_info(old_map->prototype_info());
+    old_map->set_prototype_info(Smi::FromInt(0));
     if (FLAG_trace_prototype_users) {
       PrintF("Moving prototype_info %p from map %p to map %p.\n",
              reinterpret_cast<void*>(new_map->prototype_info()),
-             reinterpret_cast<void*>(object->map()),
+             reinterpret_cast<void*>(*old_map),
              reinterpret_cast<void*>(*new_map));
     }
   }
@@ -4786,8 +4798,8 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
 #if TRACE_MAPS
   if (FLAG_trace_maps) {
     PrintF("[TraceMaps: SlowToFast from= %p to= %p reason= %s ]\n",
-           reinterpret_cast<void*>(object->map()),
-           reinterpret_cast<void*>(*new_map), reason);
+           reinterpret_cast<void*>(*old_map), reinterpret_cast<void*>(*new_map),
+           reason);
   }
 #endif
 

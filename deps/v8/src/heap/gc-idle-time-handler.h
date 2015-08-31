@@ -231,6 +231,10 @@ class GCIdleTimeHandler {
       size_t scavenger_speed_in_bytes_per_ms,
       size_t new_space_allocation_throughput_in_bytes_per_ms);
 
+  bool ShouldGrowHeapSlowly() {
+    return mode() == kDone;
+  }
+
   enum Mode { kReduceLatency, kReduceMemory, kDone };
 
   Mode mode() { return mode_; }
@@ -244,7 +248,7 @@ class GCIdleTimeHandler {
   Mode NextMode(const HeapState& heap_state);
   GCIdleTimeAction Action(double idle_time_in_ms, const HeapState& heap_state,
                           bool reduce_memory);
-  GCIdleTimeAction NothingOrDone();
+  GCIdleTimeAction NothingOrDone(double idle_time_in_ms);
 
   int idle_mark_compacts_;
   int mark_compacts_;

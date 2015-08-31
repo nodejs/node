@@ -11300,16 +11300,20 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
   HValue* object_size_constant = Add<HConstant>(initial_map->instance_size());
 
   PretenureFlag pretenure_flag = NOT_TENURED;
-  Handle<AllocationSite> current_site(*site_context->current(), isolate());
+  Handle<AllocationSite> top_site(*site_context->top(), isolate());
   if (FLAG_allocation_site_pretenuring) {
-    pretenure_flag = current_site->GetPretenureMode();
-    top_info()->dependencies()->AssumeTenuringDecision(current_site);
+    pretenure_flag = top_site->GetPretenureMode();
   }
 
+  Handle<AllocationSite> current_site(*site_context->current(), isolate());
+  if (*top_site == *current_site) {
+    // We install a dependency for pretenuring only on the outermost literal.
+    top_info()->dependencies()->AssumeTenuringDecision(top_site);
+  }
   top_info()->dependencies()->AssumeTransitionStable(current_site);
 
   HInstruction* object = Add<HAllocate>(
-      object_size_constant, type, pretenure_flag, instance_type, current_site);
+      object_size_constant, type, pretenure_flag, instance_type, top_site);
 
   // If allocation folding reaches Page::kMaxRegularHeapObjectSize the
   // elements array may not get folded into the object. Hence, we set the
@@ -11349,9 +11353,8 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
     HValue* object_elements_size = Add<HConstant>(elements_size);
     InstanceType instance_type = boilerplate_object->HasFastDoubleElements()
         ? FIXED_DOUBLE_ARRAY_TYPE : FIXED_ARRAY_TYPE;
-    object_elements =
-        Add<HAllocate>(object_elements_size, HType::HeapObject(),
-                       pretenure_flag, instance_type, current_site);
+    object_elements = Add<HAllocate>(object_elements_size, HType::HeapObject(),
+                                     pretenure_flag, instance_type, top_site);
     BuildEmitElements(boilerplate_object, elements, object_elements,
                       site_context);
     Add<HStoreNamedField>(object, HObjectAccess::ForElementsPointer(),
@@ -11452,10 +11455,6 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
       if (representation.IsDouble()) {
         // Allocate a HeapNumber box and store the value into it.
         HValue* heap_number_constant = Add<HConstant>(HeapNumber::kSize);
-        // This heap number alloc does not have a corresponding
-        // AllocationSite. That is okay because
-        // 1) it's a child object of another object with a valid allocation site
-        // 2) we can just use the mode of the parent object for pretenuring
         HInstruction* double_box =
             Add<HAllocate>(heap_number_constant, HType::HeapObject(),
                 pretenure_flag, MUTABLE_HEAP_NUMBER_TYPE);
