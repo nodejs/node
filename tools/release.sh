@@ -8,7 +8,7 @@
 
 set -e
 
-webhost=iojs.org
+webhost=direct.iojs.org
 webuser=dist
 promotablecmd=dist-promotable
 promotecmd=dist-promote
@@ -80,7 +80,7 @@ function sign {
     echo "GPG key for \"${version}\" tag is not yours, cannot sign"
   fi
 
-  shapath=$(ssh ${webuser}@${webhost} $signcmd $version)
+  shapath=$(ssh ${webuser}@${webhost} $signcmd iojs $version)
 
   if ! [[ ${shapath} =~ ^/.+/SHASUMS256.txt$ ]]; then
     echo 'Error: No SHASUMS file returned by sign!'
@@ -98,7 +98,6 @@ function sign {
   scp ${webuser}@${webhost}:${shapath} ${tmpdir}/${shafile}
 
   gpg --default-key $gpgkey --clearsign ${tmpdir}/${shafile}
-  gpg --default-key $gpgkey --armor --export --output ${tmpdir}/${shafile}.gpg
 
   echo "Wrote to ${tmpdir}/"
 
@@ -118,7 +117,7 @@ function sign {
     fi
 
     if [ "X${yorn}" == "Xy" ]; then
-      scp ${tmpdir}/${shafile} ${tmpdir}/${shafile}.asc ${tmpdir}/${shafile}.gpg ${webuser}@${webhost}:${shadir}/
+      scp ${tmpdir}/${shafile} ${tmpdir}/${shafile}.asc ${webuser}@${webhost}:${shadir}/
       break
     fi
   done
@@ -145,7 +144,7 @@ fi
 
 echo -e "\n# Checking for releases ..."
 
-promotable=$(ssh ${webuser}@${webhost} $promotablecmd)
+promotable=$(ssh ${webuser}@${webhost} $promotablecmd iojs)
 
 if [ "X${promotable}" == "X" ]; then
   echo "No releases to promote!"
@@ -178,7 +177,7 @@ for version in $versions; do
 
     echo -e "\n# Promoting ${version}..."
 
-    ssh ${webuser}@${webhost} $promotecmd $version
+    ssh ${webuser}@${webhost} $promotecmd iojs $version
 
     sign $version
 
