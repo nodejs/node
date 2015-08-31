@@ -36,9 +36,9 @@ set noperfctr_msi_arg=
 set i18n_arg=
 set download_arg=
 set release_urls_arg=
+set build_release=
 
 :next-arg
-set build_release=
 if "%1"=="" goto args-done
 if /i "%1"=="debug"         set config=Debug&goto arg-ok
 if /i "%1"=="release"       set config=Release&goto arg-ok
@@ -78,8 +78,10 @@ echo Warning: ignoring invalid command line option `%1`.
 :arg-ok
 shift
 goto next-arg
+
+:args-done
+
 if defined build_release (
-  set nosnapshot=1
   set config=Release
   set msi=1
   set licensertf=1
@@ -87,8 +89,6 @@ if defined build_release (
   set i18n_arg=small-icu
 )
 
-
-:args-done
 if "%config%"=="Debug" set debug_arg=--debug
 if defined nosnapshot set snapshot_arg=--without-snapshot
 if defined noetw set noetw_arg=--without-etw& set noetw_msi_arg=/p:NoETW=1
@@ -260,10 +260,10 @@ echo   vcbuild.bat                : builds release build
 echo   vcbuild.bat debug          : builds debug build
 echo   vcbuild.bat release msi    : builds release build and MSI installer package
 echo   vcbuild.bat test           : builds debug build and runs tests
+echo   vcbuild.bat build-release  : builds the release distribution as used by nodejs.org
 goto exit
 
 :exit
-echo   vcbuild.bat build-release  : builds the release distribution as used by nodejs.org
 goto :EOF
 
 rem ***************
