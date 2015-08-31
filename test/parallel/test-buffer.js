@@ -1189,3 +1189,7 @@ assert.throws(function() {
 assert.throws(function() {
   new Buffer(null);
 }, /must start with number, buffer, array or string/);
+
+// Test the zero fill option
+const zeroFilledBuffer = Buffer(5, true);
+assert.equal(0, Buffer.compare(zeroFilledBuffer, Buffer([0, 0, 0, 0, 0])));
