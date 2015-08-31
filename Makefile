@@ -346,9 +346,9 @@ $(PKG): release-only
 pkg: $(PKG)
 
 pkg-upload: pkg
-	ssh $(STAGINGSERVER) "mkdir -p staging/$(DISTTYPEDIR)/$(FULLVERSION)"
-	scp -p node-$(FULLVERSION).pkg $(STAGINGSERVER):staging/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).pkg
-	ssh $(STAGINGSERVER) "touch staging/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).pkg.done"
+	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
+	scp -p node-$(FULLVERSION).pkg $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).pkg
+	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).pkg.done"
 
 $(TARBALL): release-only $(NODE_EXE) doc
 	git checkout-index -a -f --prefix=$(TARNAME)/
@@ -372,18 +372,18 @@ endif
 tar: $(TARBALL)
 
 tar-upload: tar
-	ssh $(STAGINGSERVER) "mkdir -p staging/$(DISTTYPEDIR)/$(FULLVERSION)"
-	scp -p node-$(FULLVERSION).tar.gz $(STAGINGSERVER):staging/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).tar.gz
-	ssh $(STAGINGSERVER) "touch staging/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).tar.gz.done"
+	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
+	scp -p node-$(FULLVERSION).tar.gz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).tar.gz
+	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).tar.gz.done"
 ifeq ($(XZ), 0)
-	scp -p node-$(FULLVERSION).tar.xz $(STAGINGSERVER):staging/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).tar.xz
-	ssh $(STAGINGSERVER) "touch staging/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).tar.xz.done"
+	scp -p node-$(FULLVERSION).tar.xz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).tar.xz
+	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).tar.xz.done"
 endif
 
 doc-upload: tar
-	ssh $(STAGINGSERVER) "mkdir -p staging/$(DISTTYPEDIR)/$(FULLVERSION)"
-	scp -r out/doc/ $(STAGINGSERVER):staging/$(DISTTYPEDIR)/$(FULLVERSION)/docs/
-	ssh $(STAGINGSERVER) "touch staging/$(DISTTYPEDIR)/$(FULLVERSION)/docs.done"
+	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
+	scp -r out/doc/ $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/docs/
+	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/docs.done"
 
 $(TARBALL)-headers: config.gypi release-only
 	$(PYTHON) ./configure \
@@ -405,12 +405,12 @@ endif
 tar-headers: $(TARBALL)-headers
 
 tar-headers-upload: tar-headers
-	ssh $(STAGINGSERVER) "mkdir -p staging/$(DISTTYPEDIR)/$(FULLVERSION)"
-	scp -p $(TARNAME)-headers.tar.gz $(STAGINGSERVER):staging/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.gz
-	ssh $(STAGINGSERVER) "touch staging/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.gz.done"
+	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
+	scp -p $(TARNAME)-headers.tar.gz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.gz
+	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.gz.done"
 ifeq ($(XZ), 0)
-	scp -p $(TARNAME)-headers.tar.xz $(STAGINGSERVER):staging/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.xz
-	ssh $(STAGINGSERVER) "touch staging/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.xz.done"
+	scp -p $(TARNAME)-headers.tar.xz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.xz
+	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.xz.done"
 endif
 
 $(BINARYTAR): release-only
@@ -437,12 +437,12 @@ endif
 binary: $(BINARYTAR)
 
 binary-upload: binary
-	ssh $(STAGINGSERVER) "mkdir -p staging/$(DISTTYPEDIR)/$(FULLVERSION)"
-	scp -p node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.gz $(STAGINGSERVER):staging/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.gz
-	ssh $(STAGINGSERVER) "touch staging/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.gz.done"
+	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
+	scp -p node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.gz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.gz
+	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.gz.done"
 ifeq ($(XZ), 0)
-	scp -p node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.xz $(STAGINGSERVER):staging/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.xz
-	ssh $(STAGINGSERVER) "touch staging/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.xz.done"
+	scp -p node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.xz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.xz
+	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.xz.done"
 endif
 
 haswrk=$(shell which wrk > /dev/null 2>&1; echo $$?)
