@@ -128,7 +128,8 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (FLAG_enable_32dregs && cpu.has_vfp3_d32()) supported_ |= 1u << VFP32DREGS;
 
   if (cpu.implementer() == base::CPU::NVIDIA &&
-      cpu.variant() == base::CPU::NVIDIA_DENVER) {
+      cpu.variant() == base::CPU::NVIDIA_DENVER &&
+      cpu.part() <= base::CPU::NVIDIA_DENVER_V10) {
     supported_ |= 1u << COHERENT_CACHE;
   }
 #endif
