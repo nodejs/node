@@ -1077,6 +1077,8 @@ source_set("v8_base") {
     "src/splay-tree.h",
     "src/splay-tree-inl.h",
     "src/snapshot/snapshot.h",
+    "src/startup-data-util.h",
+    "src/startup-data-util.cc",
     "src/string-builder.cc",
     "src/string-builder.h",
     "src/string-search.cc",
@@ -1678,8 +1680,6 @@ if ((current_toolchain == host_toolchain && v8_toolset_for_d8 == "host") ||
     sources = [
       "src/d8.cc",
       "src/d8.h",
-      "src/startup-data-util.h",
-      "src/startup-data-util.cc",
     ]
 
     configs -= [ "//build/config/compiler:chromium_code" ]

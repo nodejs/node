@@ -8,66 +8,41 @@
 #include <string.h>
 
 #include "src/base/logging.h"
+#include "src/base/platform/platform.h"
 
 
 namespace v8 {
+namespace internal {
 
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
 
-StartupDataHandler::StartupDataHandler(const char* exec_path,
-                                       const char* natives_blob,
-                                       const char* snapshot_blob) {
-  // If we have (at least one) explicitly given blob, use those.
-  // If not, use the default blob locations next to the d8 binary.
-  if (natives_blob || snapshot_blob) {
-    LoadFromFiles(natives_blob, snapshot_blob);
-  } else {
-    char* natives;
-    char* snapshot;
-    LoadFromFiles(RelativePath(&natives, exec_path, "natives_blob.bin"),
-                  RelativePath(&snapshot, exec_path, "snapshot_blob.bin"));
+namespace {
 
-    free(natives);
-    free(snapshot);
-  }
+v8::StartupData g_natives;
+v8::StartupData g_snapshot;
+
+
+void ClearStartupData(v8::StartupData* data) {
+  data->data = nullptr;
+  data->raw_size = 0;
 }
 
 
-StartupDataHandler::~StartupDataHandler() {
-  delete[] natives_.data;
-  delete[] snapshot_.data;
+void DeleteStartupData(v8::StartupData* data) {
+  delete[] data->data;
+  ClearStartupData(data);
 }
 
 
-char* StartupDataHandler::RelativePath(char** buffer, const char* exec_path,
-                                       const char* name) {
-  DCHECK(exec_path);
-  const char* last_slash = strrchr(exec_path, '/');
-  if (last_slash) {
-    int after_slash = static_cast<int>(last_slash - exec_path + 1);
-    int name_length = static_cast<int>(strlen(name));
-    *buffer = reinterpret_cast<char*>(calloc(after_slash + name_length + 1, 1));
-    strncpy(*buffer, exec_path, after_slash);
-    strncat(*buffer, name, name_length);
-  } else {
-    *buffer = strdup(name);
-  }
-  return *buffer;
+void FreeStartupData() {
+  DeleteStartupData(&g_natives);
+  DeleteStartupData(&g_snapshot);
 }
 
 
-void StartupDataHandler::LoadFromFiles(const char* natives_blob,
-                                       const char* snapshot_blob) {
-  Load(natives_blob, &natives_, v8::V8::SetNativesDataBlob);
-  Load(snapshot_blob, &snapshot_, v8::V8::SetSnapshotDataBlob);
-}
-
-
-void StartupDataHandler::Load(const char* blob_file,
-                              v8::StartupData* startup_data,
-                              void (*setter_fn)(v8::StartupData*)) {
-  startup_data->data = NULL;
-  startup_data->raw_size = 0;
+void Load(const char* blob_file, v8::StartupData* startup_data,
+          void (*setter_fn)(v8::StartupData*)) {
+  ClearStartupData(startup_data);
 
   if (!blob_file) return;
 
@@ -86,6 +61,57 @@ void StartupDataHandler::Load(const char* blob_file,
   if (startup_data->raw_size == read_size) (*setter_fn)(startup_data);
 }
 
+
+void LoadFromFiles(const char* natives_blob, const char* snapshot_blob) {
+  Load(natives_blob, &g_natives, v8::V8::SetNativesDataBlob);
+  Load(snapshot_blob, &g_snapshot, v8::V8::SetSnapshotDataBlob);
+
+  atexit(&FreeStartupData);
+}
+
+
+char* RelativePath(char** buffer, const char* exec_path, const char* name) {
+  DCHECK(exec_path);
+  int path_separator = static_cast<int>(strlen(exec_path)) - 1;
+  while (path_separator >= 0 &&
+         !base::OS::isDirectorySeparator(exec_path[path_separator])) {
+    path_separator--;
+  }
+  if (path_separator >= 0) {
+    int name_length = static_cast<int>(strlen(name));
+    *buffer =
+        reinterpret_cast<char*>(calloc(path_separator + name_length + 2, 1));
+    *buffer[0] = '\0';
+    strncat(*buffer, exec_path, path_separator + 1);
+    strncat(*buffer, name, name_length);
+  } else {
+    *buffer = strdup(name);
+  }
+  return *buffer;
+}
+
+}  // namespace
 #endif  // V8_USE_EXTERNAL_STARTUP_DATA
 
+
+void InitializeExternalStartupData(const char* directory_path) {
+#ifdef V8_USE_EXTERNAL_STARTUP_DATA
+  char* natives;
+  char* snapshot;
+  LoadFromFiles(RelativePath(&natives, directory_path, "natives_blob.bin"),
+                RelativePath(&snapshot, directory_path, "snapshot_blob.bin"));
+  free(natives);
+  free(snapshot);
+#endif  // V8_USE_EXTERNAL_STARTUP_DATA
+}
+
+
+void InitializeExternalStartupData(const char* natives_blob,
+                                   const char* snapshot_blob) {
+#ifdef V8_USE_EXTERNAL_STARTUP_DATA
+  LoadFromFiles(natives_blob, snapshot_blob);
+#endif  // V8_USE_EXTERNAL_STARTUP_DATA
+}
+
+}  // namespace internal
 }  // namespace v8

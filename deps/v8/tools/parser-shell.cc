@@ -146,6 +146,8 @@ int main(int argc, char* argv[]) {
   v8::Platform* platform = v8::platform::CreateDefaultPlatform();
   v8::V8::InitializePlatform(platform);
   v8::V8::Initialize();
+  v8::V8::InitializeExternalStartupData(argv[0]);
+
   Encoding encoding = LATIN1;
   std::vector<std::string> fnames;
   std::string benchmark;
