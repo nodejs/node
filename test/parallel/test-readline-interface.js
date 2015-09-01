@@ -1,8 +1,10 @@
 'use strict';
+// Flags: --expose-internals
 var assert = require('assert');
 var readline = require('readline');
 var EventEmitter = require('events').EventEmitter;
 var inherits = require('util').inherits;
+const EEEvents = require('internal/symbols').EEEvents;
 
 function FakeInput() {
   EventEmitter.call(this);
@@ -14,8 +16,7 @@ FakeInput.prototype.write = function() {};
 FakeInput.prototype.end = function() {};
 
 function isWarned(emitter) {
-  for (var name in emitter) {
-    var listeners = emitter[name];
+  for (var listeners of emitter.values()) {
     if (listeners.warned) return true;
   }
   return false;
@@ -343,8 +344,8 @@ function isWarned(emitter) {
       output: process.stdout
     });
     rl.close();
-    assert.equal(isWarned(process.stdin._events), false);
-    assert.equal(isWarned(process.stdout._events), false);
+    assert.equal(isWarned(process.stdin[EEEvents]), false);
+    assert.equal(isWarned(process.stdout[EEEvents]), false);
   }
 
   //can create a new readline Interface with a null output arugument
