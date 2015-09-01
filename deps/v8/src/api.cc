@@ -49,6 +49,7 @@
 #include "src/simulator.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
+#include "src/startup-data-util.h"
 #include "src/unicode-inl.h"
 #include "src/v8threads.h"
 #include "src/version.h"
@@ -5398,8 +5399,20 @@ HeapObjectStatistics::HeapObjectStatistics()
       object_count_(0),
       object_size_(0) {}
 
+
 bool v8::V8::InitializeICU(const char* icu_data_file) {
   return i::InitializeICU(icu_data_file);
+}
+
+
+void v8::V8::InitializeExternalStartupData(const char* directory_path) {
+  i::InitializeExternalStartupData(directory_path);
+}
+
+
+void v8::V8::InitializeExternalStartupData(const char* natives_blob,
+                                           const char* snapshot_blob) {
+  i::InitializeExternalStartupData(natives_blob, snapshot_blob);
 }
 
 
