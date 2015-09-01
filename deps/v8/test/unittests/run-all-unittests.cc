@@ -7,10 +7,6 @@
 #include "src/base/compiler-specific.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
-#ifdef V8_USE_EXTERNAL_STARTUP_DATA
-#include "src/startup-data-util.h"
-#endif  // V8_USE_EXTERNAL_STARTUP_DATA
-
 namespace {
 
 class DefaultPlatformEnvironment final : public ::testing::Environment {
@@ -45,8 +41,6 @@ int main(int argc, char** argv) {
   testing::InitGoogleMock(&argc, argv);
   testing::AddGlobalTestEnvironment(new DefaultPlatformEnvironment);
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
-#ifdef V8_USE_EXTERNAL_STARTUP_DATA
-  v8::StartupDataHandler startup_data(argv[0], NULL, NULL);
-#endif
+  v8::V8::InitializeExternalStartupData(argv[0]);
   return RUN_ALL_TESTS();
 }

@@ -910,6 +910,8 @@
         '../../src/snapshot/snapshot-source-sink.h',
         '../../src/splay-tree.h',
         '../../src/splay-tree-inl.h',
+        '../../src/startup-data-util.cc',
+        '../../src/startup-data-util.h',
         '../../src/string-builder.cc',
         '../../src/string-builder.h',
         '../../src/string-search.cc',
