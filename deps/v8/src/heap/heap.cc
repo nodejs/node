@@ -4867,19 +4867,6 @@ void Heap::ReduceNewSpaceSize() {
 }
 
 
-void Heap::FinalizeIncrementalMarkingIfComplete(const char* comment) {
-  if (FLAG_overapproximate_weak_closure &&
-      (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
-       (!incremental_marking()->weak_closure_was_overapproximated() &&
-        mark_compact_collector_.marking_deque()->IsEmpty()))) {
-    OverApproximateWeakClosure(comment);
-  } else if (incremental_marking()->IsComplete() ||
-             (mark_compact_collector_.marking_deque()->IsEmpty())) {
-    CollectAllGarbage(kNoGCFlags, comment);
-  }
-}
-
-
 bool Heap::TryFinalizeIdleIncrementalMarking(
     double idle_time_in_ms, size_t size_of_objects,
     size_t final_incremental_mark_compact_speed_in_bytes_per_ms) {

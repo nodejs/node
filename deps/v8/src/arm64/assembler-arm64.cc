@@ -53,7 +53,8 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Probe for runtime features
   base::CPU cpu;
   if (cpu.implementer() == base::CPU::NVIDIA &&
-      cpu.variant() == base::CPU::NVIDIA_DENVER) {
+      cpu.variant() == base::CPU::NVIDIA_DENVER &&
+      cpu.part() <= base::CPU::NVIDIA_DENVER_V10) {
     supported_ |= 1u << COHERENT_CACHE;
   }
 }
