@@ -3516,6 +3516,67 @@ TEST(UseConstLegacyCount) {
 }
 
 
+TEST(ErrorsArrowFormalParameters) {
+  const char* context_data[][2] = {
+    { "()", "=>{}" },
+    { "()", "=>{};" },
+    { "var x = ()", "=>{}" },
+    { "var x = ()", "=>{};" },
+
+    { "a", "=>{}" },
+    { "a", "=>{};" },
+    { "var x = a", "=>{}" },
+    { "var x = a", "=>{};" },
+
+    { "(a)", "=>{}" },
+    { "(a)", "=>{};" },
+    { "var x = (a)", "=>{}" },
+    { "var x = (a)", "=>{};" },
+
+    { "(...a)", "=>{}" },
+    { "(...a)", "=>{};" },
+    { "var x = (...a)", "=>{}" },
+    { "var x = (...a)", "=>{};" },
+
+    { "(a,b)", "=>{}" },
+    { "(a,b)", "=>{};" },
+    { "var x = (a,b)", "=>{}" },
+    { "var x = (a,b)", "=>{};" },
+
+    { "(a,...b)", "=>{}" },
+    { "(a,...b)", "=>{};" },
+    { "var x = (a,...b)", "=>{}" },
+    { "var x = (a,...b)", "=>{};" },
+
+    { nullptr, nullptr }
+  };
+  const char* assignment_expression_suffix_data[] = {
+    "?c:d=>{}",
+    "=c=>{}",
+    "()",
+    "(c)",
+    "[1]",
+    "[c]",
+    ".c",
+    "-c",
+    "+c",
+    "c++",
+    "`c`",
+    "`${c}`",
+    "`template-head${c}`",
+    "`${c}template-tail`",
+    "`template-head${c}template-tail`",
+    "`${c}template-tail`",
+    nullptr
+  };
+
+  static const ParserFlag always_flags[] = { kAllowHarmonyArrowFunctions,
+                                             kAllowHarmonyRestParameters };
+  RunParserSyncTest(context_data, assignment_expression_suffix_data, kError,
+                    NULL, 0, always_flags, arraysize(always_flags));
+}
+
+
 TEST(ErrorsArrowFunctions) {
   // Tests that parser and preparser generate the same kind of errors
   // on invalid arrow function syntax.

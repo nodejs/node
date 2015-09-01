@@ -2939,6 +2939,7 @@ ParserBase<Traits>::ParseConditionalExpression(bool accept_IN,
   ExpressionT expression =
       this->ParseBinaryExpression(4, accept_IN, classifier, CHECK_OK);
   if (peek() != Token::CONDITIONAL) return expression;
+  ArrowFormalParametersUnexpectedToken(classifier);
   BindingPatternUnexpectedToken(classifier);
   Consume(Token::CONDITIONAL);
   // In parsing the first assignment expression in conditional
@@ -2964,6 +2965,7 @@ ParserBase<Traits>::ParseBinaryExpression(int prec, bool accept_IN,
     // prec1 >= 4
     while (Precedence(peek(), accept_IN) == prec1) {
       BindingPatternUnexpectedToken(classifier);
+      ArrowFormalParametersUnexpectedToken(classifier);
       Token::Value op = Next();
       Scanner::Location op_location = scanner()->location();
       int pos = position();
@@ -3026,6 +3028,7 @@ ParserBase<Traits>::ParseUnaryExpression(ExpressionClassifier* classifier,
   Token::Value op = peek();
   if (Token::IsUnaryOp(op)) {
     BindingPatternUnexpectedToken(classifier);
+    ArrowFormalParametersUnexpectedToken(classifier);
 
     op = Next();
     int pos = position();
@@ -3048,6 +3051,7 @@ ParserBase<Traits>::ParseUnaryExpression(ExpressionClassifier* classifier,
     return this->BuildUnaryExpression(expression, op, pos, factory());
   } else if (Token::IsCountOp(op)) {
     BindingPatternUnexpectedToken(classifier);
+    ArrowFormalParametersUnexpectedToken(classifier);
     op = Next();
     Scanner::Location lhs_location = scanner()->peek_location();
     ExpressionT expression = this->ParseUnaryExpression(classifier, CHECK_OK);
@@ -3080,6 +3084,7 @@ ParserBase<Traits>::ParsePostfixExpression(ExpressionClassifier* classifier,
   if (!scanner()->HasAnyLineTerminatorBeforeNext() &&
       Token::IsCountOp(peek())) {
     BindingPatternUnexpectedToken(classifier);
+    ArrowFormalParametersUnexpectedToken(classifier);
 
     expression = this->CheckAndRewriteReferenceExpression(
         expression, lhs_location, MessageTemplate::kInvalidLhsInPostfixOp,
@@ -3111,6 +3116,7 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
     switch (peek()) {
       case Token::LBRACK: {
         BindingPatternUnexpectedToken(classifier);
+        ArrowFormalParametersUnexpectedToken(classifier);
         Consume(Token::LBRACK);
         int pos = position();
         ExpressionT index = ParseExpression(true, classifier, CHECK_OK);
@@ -3121,6 +3127,7 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
 
       case Token::LPAREN: {
         BindingPatternUnexpectedToken(classifier);
+        ArrowFormalParametersUnexpectedToken(classifier);
 
         if (is_strong(language_mode()) && this->IsIdentifier(result) &&
             this->IsEval(this->AsIdentifier(result))) {
@@ -3172,6 +3179,7 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
 
       case Token::PERIOD: {
         BindingPatternUnexpectedToken(classifier);
+        ArrowFormalParametersUnexpectedToken(classifier);
         Consume(Token::PERIOD);
         int pos = position();
         IdentifierT name = ParseIdentifierName(CHECK_OK);
@@ -3184,6 +3192,7 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
       case Token::TEMPLATE_SPAN:
       case Token::TEMPLATE_TAIL: {
         BindingPatternUnexpectedToken(classifier);
+        ArrowFormalParametersUnexpectedToken(classifier);
         result = ParseTemplateLiteral(result, position(), classifier, CHECK_OK);
         break;
       }
@@ -3221,6 +3230,7 @@ ParserBase<Traits>::ParseMemberWithNewPrefixesExpression(
 
   if (peek() == Token::NEW) {
     BindingPatternUnexpectedToken(classifier);
+    ArrowFormalParametersUnexpectedToken(classifier);
     Consume(Token::NEW);
     int new_pos = position();
     ExpressionT result = this->EmptyExpression();
@@ -3274,6 +3284,7 @@ ParserBase<Traits>::ParseMemberExpression(ExpressionClassifier* classifier,
   ExpressionT result = this->EmptyExpression();
   if (peek() == Token::FUNCTION) {
     BindingPatternUnexpectedToken(classifier);
+    ArrowFormalParametersUnexpectedToken(classifier);
 
     Consume(Token::FUNCTION);
     int function_token_position = position();
@@ -3523,6 +3534,7 @@ ParserBase<Traits>::ParseMemberExpressionContinuation(
     switch (peek()) {
       case Token::LBRACK: {
         BindingPatternUnexpectedToken(classifier);
+        ArrowFormalParametersUnexpectedToken(classifier);
 
         Consume(Token::LBRACK);
         int pos = position();
@@ -3536,6 +3548,7 @@ ParserBase<Traits>::ParseMemberExpressionContinuation(
       }
       case Token::PERIOD: {
         BindingPatternUnexpectedToken(classifier);
+        ArrowFormalParametersUnexpectedToken(classifier);
 
         Consume(Token::PERIOD);
         int pos = position();
@@ -3550,6 +3563,7 @@ ParserBase<Traits>::ParseMemberExpressionContinuation(
       case Token::TEMPLATE_SPAN:
       case Token::TEMPLATE_TAIL: {
         BindingPatternUnexpectedToken(classifier);
+        ArrowFormalParametersUnexpectedToken(classifier);
         int pos;
         if (scanner()->current_token() == Token::IDENTIFIER) {
           pos = position();

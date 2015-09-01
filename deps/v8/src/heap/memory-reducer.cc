@@ -44,35 +44,12 @@ void MemoryReducer::NotifyTimer(const Event& event) {
   if (state_.action == kRun) {
     DCHECK(heap()->incremental_marking()->IsStopped());
     DCHECK(FLAG_incremental_marking);
+    heap()->StartIdleIncrementalMarking();
     if (FLAG_trace_gc_verbose) {
       PrintIsolate(heap()->isolate(), "Memory reducer: started GC #%d\n",
                    state_.started_gcs);
     }
-    if (heap()->ShouldOptimizeForMemoryUsage()) {
-      // Do full GC if memory usage has higher priority than latency. This is
-      // important for background tabs that do not send idle notifications.
-      heap()->CollectAllGarbage(Heap::kReduceMemoryFootprintMask,
-                                "memory reducer");
-    } else {
-      heap()->StartIdleIncrementalMarking();
-    }
   } else if (state_.action == kWait) {
-    if (!heap()->incremental_marking()->IsStopped() &&
-        heap()->ShouldOptimizeForMemoryUsage()) {
-      // Make progress with pending incremental marking if memory usage has
-      // higher priority than latency. This is important for background tabs
-      // that do not send idle notifications.
-      const int kIncrementalMarkingDelayMs = 500;
-      double deadline = heap()->MonotonicallyIncreasingTimeInMs() +
-                        kIncrementalMarkingDelayMs;
-      heap()->AdvanceIncrementalMarking(
-          0, deadline, i::IncrementalMarking::StepActions(
-                           i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                           i::IncrementalMarking::FORCE_MARKING,
-                           i::IncrementalMarking::FORCE_COMPLETION));
-      heap()->FinalizeIncrementalMarkingIfComplete(
-          "Memory reducer: finalize incremental marking");
-    }
     // Re-schedule the timer.
     ScheduleTimer(state_.next_gc_start_ms - event.time_ms);
     if (FLAG_trace_gc_verbose) {

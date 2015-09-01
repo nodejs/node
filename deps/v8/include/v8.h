@@ -6248,6 +6248,25 @@ class V8_EXPORT V8 {
   static bool InitializeICU(const char* icu_data_file = NULL);
 
   /**
+   * Initialize the external startup data. The embedder only needs to
+   * invoke this method when external startup data was enabled in a build.
+   *
+   * If V8 was compiled with the startup data in an external file, then
+   * V8 needs to be given those external files during startup. There are
+   * three ways to do this:
+   * - InitializeExternalStartupData(const char*)
+   *   This will look in the given directory for files "natives_blob.bin"
+   *   and "snapshot_blob.bin" - which is what the default build calls them.
+   * - InitializeExternalStartupData(const char*, const char*)
+   *   As above, but will directly use the two given file names.
+   * - Call SetNativesDataBlob, SetNativesDataBlob.
+   *   This will read the blobs from the given data structures and will
+   *   not perform any file IO.
+   */
+  static void InitializeExternalStartupData(const char* directory_path);
+  static void InitializeExternalStartupData(const char* natives_blob,
+                                            const char* snapshot_blob);
+  /**
    * Sets the v8::Platform to use. This should be invoked before V8 is
    * initialized.
    */

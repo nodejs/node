@@ -94,8 +94,6 @@
         'run-all-unittests.cc',
         'test-utils.h',
         'test-utils.cc',
-        '../../src/startup-data-util.h',
-        '../../src/startup-data-util.cc'
       ],
       'conditions': [
         ['v8_target_arch=="arm"', {
