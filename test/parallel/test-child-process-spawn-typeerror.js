@@ -1,28 +1,20 @@
 'use strict';
-var assert = require('assert'),
-  child_process = require('child_process'),
-  spawn = child_process.spawn,
-  fork = child_process.fork,
-  execFile = child_process.execFile,
-  windows = (process.platform === 'win32'),
-  cmd = (windows) ? 'rundll32' : 'ls',
-  invalidcmd = 'hopefully_you_dont_have_this_on_your_machine',
-  invalidArgsMsg = /Incorrect value of args option/,
-  invalidOptionsMsg = /options argument must be an object/,
-  empty = require('../common').fixturesDir + '/empty.js',
-  errors = 0;
+const assert = require('assert');
+const child_process = require('child_process');
+const spawn = child_process.spawn;
+const fork = child_process.fork;
+const execFile = child_process.execFile;
+const common = require('../common');
+const cmd = common.isWindows ? 'rundll32' : 'ls';
+const invalidcmd = 'hopefully_you_dont_have_this_on_your_machine';
+const invalidArgsMsg = /Incorrect value of args option/;
+const invalidOptionsMsg = /options argument must be an object/;
+const empty = common.fixturesDir + '/empty.js';
 
-try {
-  // Ensure this throws a TypeError
+assert.throws(function() {
   var child = spawn(invalidcmd, 'this is not an array');
-
-  child.on('error', function(err) {
-    errors++;
-  });
-
-} catch (e) {
-  assert.equal(e instanceof TypeError, true);
-}
+  child.on('error', assert.fail);
+}, TypeError);
 
 // verify that valid argument combinations do not throw
 assert.doesNotThrow(function() {
@@ -62,17 +54,13 @@ assert.throws(function() {
   spawn(cmd, [], 1);
 }, invalidOptionsMsg);
 
-process.on('exit', function() {
-  assert.equal(errors, 0);
-});
-
 // Argument types for combinatorics
-var a = [],
-    o = {},
-    c = (function callback() {}),
-    s = 'string',
-    u = undefined,
-    n = null;
+const a = [];
+const o = {};
+const c = function callback() {};
+const s = 'string';
+const u = undefined;
+const n = null;
 
 // function spawn(file=f [,args=a] [, options=o]) has valid combinations:
 //   (f)
