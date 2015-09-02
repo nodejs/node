@@ -6,6 +6,7 @@ prefix sequential
 
 [true] # This section applies to all platforms
 test-child-process-fork-getconnections          : PASS,FLAKY
+test-repl-persistent-history                    : PASS,FLAKY
 
 [$system==win32]
 
