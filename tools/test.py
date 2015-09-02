@@ -263,6 +263,10 @@ class TapProgressIndicator(SimpleProgressIndicator):
       if FLAKY in output.test.outcomes and self.flaky_tests_mode == DONTCARE:
         status_line = status_line + ' # TODO : Fix flaky test'
       logger.info(status_line)
+
+      if output.HasTimedOut():
+        logger.info('# TIMEOUT')
+
       for l in output.output.stderr.splitlines():
         logger.info('#' + l)
       for l in output.output.stdout.splitlines():
