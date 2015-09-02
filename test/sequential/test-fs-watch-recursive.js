@@ -4,7 +4,7 @@ var assert = require('assert');
 var path = require('path');
 var fs = require('fs');
 
-if (process.platform === 'darwin') {
+if (process.platform === 'darwin' || common.isWindows) {
   var watchSeenOne = 0;
 
   var testDir = common.tmpDir;
@@ -46,4 +46,6 @@ if (process.platform === 'darwin') {
   setTimeout(function() {
     fs.writeFileSync(filepathOne, 'world');
   }, 10);
+} else {
+  console.log('1..0 # Skipped: recursive option is darwin/windows specific');
 }
