@@ -10,6 +10,7 @@ test-child-process-fork-getconnections          : PASS,FLAKY
 [$system==win32]
 
 [$system==linux]
+test-vm-syntax-error-stderr                     : PASS,FLAKY
 
 [$system==macos]
 
