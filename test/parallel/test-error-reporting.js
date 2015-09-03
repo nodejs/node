@@ -54,7 +54,11 @@ errExec('throws_error4.js', function(err, stdout, stderr) {
   assert.ok(/SyntaxError/.test(stderr));
 });
 
+// Long exception line doesn't result in stack overflow
+errExec('throws_error5.js', function(err, stdout, stderr) {
+  assert.ok(/SyntaxError/.test(stderr));
+});
 
 process.on('exit', function() {
-  assert.equal(4, exits);
+  assert.equal(5, exits);
 });
