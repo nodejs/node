@@ -95,16 +95,18 @@ void GetSockOrPeerName(const v8::FunctionCallbackInfo<v8::Value>& args) {
 #ifdef _WIN32
 // emulate snprintf() on windows, _snprintf() doesn't zero-terminate the buffer
 // on overflow...
+// VS 2015 added a standard conform snprintf
+#if defined( _MSC_VER ) && (_MSC_VER < 1900)
 #include <stdarg.h>
-inline static int snprintf(char* buf, unsigned int len, const char* fmt, ...) {
-  va_list ap;
-  va_start(ap, fmt);
-  int n = _vsprintf_p(buf, len, fmt, ap);
-  if (len)
-    buf[len - 1] = '\0';
-  va_end(ap);
-  return n;
+inline static int snprintf(char *buffer, size_t n, const char *format, ...) {
+  va_list argp;
+  va_start(argp, format);
+  int ret = _vscprintf(format, argp);
+  vsnprintf_s(buffer, n, _TRUNCATE, format, argp);
+  va_end(argp);
+  return ret;
 }
+#endif
 #endif
 
 #if defined(__x86_64__)
