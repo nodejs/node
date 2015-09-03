@@ -12,10 +12,14 @@ test-repl-persistent-history                    : PASS,FLAKY
 
 [$system==linux]
 test-vm-syntax-error-stderr                     : PASS,FLAKY
+test-sigint-infinite-loop                       : PASS,FLAKY
+test-child-process-emfile                       : PASS,FLAKY
+test-stdout-stderr-reading                      : PASS,FLAKY
 
 [$system==macos]
 
 [$system==solaris] # Also applies to SmartOS
+test-regress-GH-877                             : PASS,FLAKY
 
 [$system==freebsd]
 

@@ -5,17 +5,38 @@ prefix parallel
 # sample-test                       : PASS,FLAKY
 
 [true] # This section applies to all platforms
-
-[$system==win32]
+test-child-process-fork-net2      : PASS,FLAKY
+test-tick-processor               : PASS,FLAKY
 test-tls-ticket-cluster           : PASS,FLAKY
 
+[$system==win32]
+test-process-config               : PASS,FLAKY
+test-repl-tab-complete            : PASS,FLAKY
+
 [$system==linux]
-test-cluster-worker-forced-exit   : PASS,FLAKY
-test-http-client-timeout-event    : PASS,FLAKY
-test-tick-processor               : PASS,FLAKY
-test-tls-no-sslv3                 : PASS,FLAKY
 test-child-process-buffering      : PASS,FLAKY
 test-child-process-exit-code      : PASS,FLAKY
+test-child-process-fork-dgram     : PASS,FLAKY
+test-cluster-dgram-1              : PASS,FLAKY
+test-cluster-dgram-2              : PASS,FLAKY
+test-cluster-disconnect           : PASS,FLAKY
+test-cluster-worker-forced-exit   : PASS,FLAKY
+test-dgram-bind-default-address   : PASS,FLAKY
+test-dgram-bind-shared-ports      : PASS,FLAKY
+test-dgram-empty-packet           : PASS,FLAKY
+test-dgram-exclusive-implicit-bind : PASS,FLAKY
+test-dgram-implicit-bind          : PASS,FLAKY
+test-dgram-multicast-setTTL       : PASS,FLAKY
+test-dgram-pingpong               : PASS,FLAKY
+test-dgram-udp4                   : PASS,FLAKY
+test-http-client-timeout-event    : PASS,FLAKY
+test-http-end-throw-socket-handling : PASS,FLAKY
+test-http-set-timeout             : PASS,FLAKY
+test-net-listen-shared-ports      : PASS,FLAKY
+test-net-server-max-connections   : PASS,FLAKY
+test-stringbytes-external         : PASS,FLAKY
+test-tls-cipher-list              : PASS,FLAKY
+test-tls-no-sslv3                 : PASS,FLAKY
 
 [$system==macos]
 
