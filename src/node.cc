@@ -1321,8 +1321,6 @@ void AppendExceptionLine(Environment* env,
     err_obj->SetHiddenValue(env->processed_string(), True(env->isolate()));
   }
 
-  char arrow[1024];
-
   // Print (filename):(line number): (message).
   node::Utf8Value filename(env->isolate(), message->GetScriptResourceName());
   const char* filename_string = *filename;
@@ -1355,6 +1353,9 @@ void AppendExceptionLine(Environment* env,
   int start = message->GetStartColumn();
   int end = message->GetEndColumn();
 
+  char arrow[1024];
+  int max_off = sizeof(arrow) - 2;
+
   int off = snprintf(arrow,
                      sizeof(arrow),
                      "%s:%i\n%s\n",
@@ -1362,27 +1363,28 @@ void AppendExceptionLine(Environment* env,
                      linenum,
                      sourceline_string);
   CHECK_GE(off, 0);
+  if (off > max_off) {
+    off = max_off;
+  }
 
   // Print wavy underline (GetUnderline is deprecated).
   for (int i = 0; i < start; i++) {
-    if (sourceline_string[i] == '\0' ||
-        static_cast<size_t>(off) >= sizeof(arrow)) {
+    if (sourceline_string[i] == '\0' || off >= max_off) {
       break;
     }
-    CHECK_LT(static_cast<size_t>(off), sizeof(arrow));
+    CHECK_LT(off, max_off);
     arrow[off++] = (sourceline_string[i] == '\t') ? '\t' : ' ';
   }
   for (int i = start; i < end; i++) {
-    if (sourceline_string[i] == '\0' ||
-        static_cast<size_t>(off) >= sizeof(arrow)) {
+    if (sourceline_string[i] == '\0' || off >= max_off) {
       break;
     }
-    CHECK_LT(static_cast<size_t>(off), sizeof(arrow));
+    CHECK_LT(off, max_off);
     arrow[off++] = '^';
   }
-  CHECK_LE(static_cast<size_t>(off - 1), sizeof(arrow) - 1);
-  arrow[off++] = '\n';
-  arrow[off] = '\0';
+  CHECK_LE(off, max_off);
+  arrow[off] = '\n';
+  arrow[off + 1] = '\0';
 
   Local<String> arrow_str = String::NewFromUtf8(env->isolate(), arrow);
   Local<Value> msg;
