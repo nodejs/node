@@ -21,6 +21,7 @@ test-child-process-exit-code      : PASS,FLAKY
 
 [$system==solaris] # Also applies to SmartOS
 test-debug-signal-cluster         : PASS,FLAKY
+test-child-process-fork-net2      : PASS,FLAKY
 
 [$system==freebsd]
 test-net-socket-local-address     : PASS,FLAKY
