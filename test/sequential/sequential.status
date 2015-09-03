@@ -12,6 +12,7 @@ test-repl-persistent-history                    : PASS,FLAKY
 
 [$system==linux]
 test-vm-syntax-error-stderr                     : PASS,FLAKY
+test-child-process-emfile                       : PASS,FLAKY
 
 [$system==macos]
 
