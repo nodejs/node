@@ -113,6 +113,7 @@ var commandCache = {}
               , "unpublish"
               , "owner"
               , "access"
+              , "team"
               , "deprecate"
               , "shrinkwrap"
 
