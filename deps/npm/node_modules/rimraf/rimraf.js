@@ -83,7 +83,7 @@ function rimraf (p, options, cb) {
     results.forEach(function (p) {
       rimraf_(p, options, function CB (er) {
         if (er) {
-          if (isWindows && (er.code === "EBUSY" || er.code === "ENOTEMPTY") &&
+          if (isWindows && (er.code === "EBUSY" || er.code === "ENOTEMPTY" || er.code === "EPERM") &&
               busyTries < options.maxBusyTries) {
             busyTries ++
             var time = busyTries * 100

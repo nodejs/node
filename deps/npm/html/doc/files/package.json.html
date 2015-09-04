@@ -14,7 +14,7 @@
 <p>This document is all you need to know about what&#39;s required in your package.json
 file.  It must be actual JSON, not just a JavaScript object literal.</p>
 <p>A lot of the behavior described in this document is affected by the config
-settings described in <code><a href="../misc/npm-config.html"><a href="../misc/npm-config.html">npm-config(7)</a></a></code>.</p>
+settings described in <code><a href="../misc/npm-config.html">npm-config(7)</a></code>.</p>
 <h2 id="name">name</h2>
 <p>The <em>most</em> important things in your package.json are the name and version fields.
 Those are actually required, and your package won&#39;t install without
@@ -43,7 +43,7 @@ be something short, but also reasonably descriptive.</li>
 already, before you get too attached to it. <a href="https://www.npmjs.com/">https://www.npmjs.com/</a></li>
 </ul>
 <p>A name can be optionally prefixed by a scope, e.g. <code>@myorg/mypackage</code>. See
-<code><a href="../misc/npm-scope.html"><a href="../misc/npm-scope.html">npm-scope(7)</a></a></code> for more detail.</p>
+<code><a href="../misc/npm-scope.html">npm-scope(7)</a></code> for more detail.</p>
 <h2 id="version">version</h2>
 <p>The <em>most</em> important things in your package.json are the name and version fields.
 Those are actually required, and your package won&#39;t install without
@@ -53,7 +53,7 @@ changes to the version.</p>
 <p>Version must be parseable by
 <a href="https://github.com/isaacs/node-semver">node-semver</a>, which is bundled
 with npm as a dependency.  (<code>npm install semver</code> to use it yourself.)</p>
-<p>More on version numbers and ranges at <a href="../misc/semver.html"><a href="../misc/semver.html">semver(7)</a></a>.</p>
+<p>More on version numbers and ranges at <a href="../misc/semver.html">semver(7)</a>.</p>
 <h2 id="description">description</h2>
 <p>Put a description in it.  It&#39;s a string.  This helps people discover your
 package, as it&#39;s listed in <code>npm search</code>.</p>
@@ -143,7 +143,7 @@ up by the files array.  The &quot;.npmignore&quot; file works just like a
 <p>Certain files are always included, regardless of settings:</p>
 <ul>
 <li><code>package.json</code></li>
-<li><code><a href="../../doc/README.html"><a href="../../doc/README.html">README</a></a></code> (and its variants)</li>
+<li><code><a href="../../doc/README.html">README</a></code> (and its variants)</li>
 <li><code>CHANGELOG</code> (and its variants)</li>
 <li><code>LICENSE</code> / <code>LICENCE</code></li>
 </ul>
@@ -272,7 +272,7 @@ shortcut syntax you use for <code>npm install</code>:</p>
 <p>The &quot;scripts&quot; property is a dictionary containing script commands that are run
 at various times in the lifecycle of your package.  The key is the lifecycle
 event, and the value is the command to run at that point.</p>
-<p>See <code><a href="../misc/npm-scripts.html"><a href="../misc/npm-scripts.html">npm-scripts(7)</a></a></code> to find out more about writing package scripts.</p>
+<p>See <code><a href="../misc/npm-scripts.html">npm-scripts(7)</a></code> to find out more about writing package scripts.</p>
 <h2 id="config">config</h2>
 <p>A &quot;config&quot; object can be used to set configuration parameters used in package
 scripts that persist across upgrades.  For instance, if a package had the
@@ -282,7 +282,7 @@ following:</p>
 </code></pre><p>and then had a &quot;start&quot; command that then referenced the
 <code>npm_package_config_port</code> environment variable, then the user could
 override that by doing <code>npm config set foo:port 8001</code>.</p>
-<p>See <code><a href="../misc/npm-config.html"><a href="../misc/npm-config.html">npm-config(7)</a></a></code> and <code><a href="../misc/npm-scripts.html"><a href="../misc/npm-scripts.html">npm-scripts(7)</a></a></code> for more on package
+<p>See <code><a href="../misc/npm-config.html">npm-config(7)</a></code> and <code><a href="../misc/npm-scripts.html">npm-scripts(7)</a></code> for more on package
 configs.</p>
 <h2 id="dependencies">dependencies</h2>
 <p>Dependencies are specified in a simple object that maps a package name to a
@@ -291,15 +291,15 @@ space-separated descriptors.  Dependencies can also be identified with a
 tarball or git URL.</p>
 <p><strong>Please do not put test harnesses or transpilers in your
 <code>dependencies</code> object.</strong>  See <code>devDependencies</code>, below.</p>
-<p>See <a href="../misc/semver.html"><a href="../misc/semver.html">semver(7)</a></a> for more details about specifying version ranges.</p>
+<p>See <a href="../misc/semver.html">semver(7)</a> for more details about specifying version ranges.</p>
 <ul>
 <li><code>version</code> Must match <code>version</code> exactly</li>
 <li><code>&gt;version</code> Must be greater than <code>version</code></li>
 <li><code>&gt;=version</code> etc</li>
 <li><code>&lt;version</code></li>
 <li><code>&lt;=version</code></li>
-<li><code>~version</code> &quot;Approximately equivalent to version&quot;  See <a href="../misc/semver.html"><a href="../misc/semver.html">semver(7)</a></a></li>
-<li><code>^version</code> &quot;Compatible with version&quot;  See <a href="../misc/semver.html"><a href="../misc/semver.html">semver(7)</a></a></li>
+<li><code>~version</code> &quot;Approximately equivalent to version&quot;  See <a href="../misc/semver.html">semver(7)</a></li>
+<li><code>^version</code> &quot;Compatible with version&quot;  See <a href="../misc/semver.html">semver(7)</a></li>
 <li><code>1.2.x</code> 1.2.0, 1.2.1, etc., but not 1.3.0</li>
 <li><code>http://...</code> See &#39;URLs as Dependencies&#39; below</li>
 <li><code>*</code> Matches any version</li>
@@ -308,7 +308,7 @@ tarball or git URL.</p>
 <li><code>range1 || range2</code> Passes if either range1 or range2 are satisfied.</li>
 <li><code>git...</code> See &#39;Git URLs as Dependencies&#39; below</li>
 <li><code>user/repo</code> See &#39;GitHub URLs&#39; below</li>
-<li><code>tag</code> A specific version tagged and published as <code>tag</code>  See <code><a href="../cli/npm-tag.html"><a href="../cli/npm-tag.html">npm-tag(1)</a></a></code></li>
+<li><code>tag</code> A specific version tagged and published as <code>tag</code>  See <code><a href="../cli/npm-tag.html">npm-tag(1)</a></code></li>
 <li><code>path/path/path</code> See Local Paths below</li>
 </ul>
 <p>For example, these are all valid:</p>
@@ -380,7 +380,7 @@ the external test or documentation framework that you use.</p>
 object.</p>
 <p>These things will be installed when doing <code>npm link</code> or <code>npm install</code>
 from the root of a package, and can be managed like any other npm
-configuration param.  See <code><a href="../misc/npm-config.html"><a href="../misc/npm-config.html">npm-config(7)</a></a></code> for more on the topic.</p>
+configuration param.  See <code><a href="../misc/npm-config.html">npm-config(7)</a></code> for more on the topic.</p>
 <p>For build steps that are not platform-specific, such as compiling
 CoffeeScript or other languages to JavaScript, use the <code>prepublish</code>
 script to do this, and make the required package a devDependency.</p>
@@ -433,7 +433,7 @@ with every 1.x version of the host package, use <code>&quot;^1.0&quot;</code> or
 this. If you depend on features introduced in 1.5.2, use <code>&quot;&gt;= 1.5.2 &lt; 2&quot;</code>.</p>
 <h2 id="bundleddependencies">bundledDependencies</h2>
 <p>Array of package names that will be bundled when publishing the package.</p>
-<p>If this is spelled <code>&quot;bundleDependencies&quot;</code>, then that is also honorable.</p>
+<p>If this is spelled <code>&quot;bundleDependencies&quot;</code>, then that is also honored.</p>
 <h2 id="optionaldependencies">optionalDependencies</h2>
 <p>If a dependency can be used, but you would like npm to proceed if it cannot be
 found or fails to install, then you may put it in the <code>optionalDependencies</code>
@@ -520,7 +520,7 @@ you can ensure that a given package is not tagged with &quot;latest&quot;, publi
 to the global public registry or that a scoped module is private by default.</p>
 <p>Any config values can be overridden, but of course only &quot;tag&quot;, &quot;registry&quot; and
 &quot;access&quot; probably matter for the purposes of publishing.</p>
-<p>See <code><a href="../misc/npm-config.html"><a href="../misc/npm-config.html">npm-config(7)</a></a></code> to see the list of config options that can be
+<p>See <code><a href="../misc/npm-config.html">npm-config(7)</a></code> to see the list of config options that can be
 overridden.</p>
 <h2 id="default-values">DEFAULT VALUES</h2>
 <p>npm will default some values based on package contents.</p>
@@ -542,16 +542,16 @@ ignored.</p>
 </ul>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
-<li><a href="../misc/semver.html"><a href="../misc/semver.html">semver(7)</a></a></li>
-<li><a href="../cli/npm-init.html"><a href="../cli/npm-init.html">npm-init(1)</a></a></li>
-<li><a href="../cli/npm-version.html"><a href="../cli/npm-version.html">npm-version(1)</a></a></li>
-<li><a href="../cli/npm-config.html"><a href="../cli/npm-config.html">npm-config(1)</a></a></li>
-<li><a href="../misc/npm-config.html"><a href="../misc/npm-config.html">npm-config(7)</a></a></li>
-<li><a href="../cli/npm-help.html"><a href="../cli/npm-help.html">npm-help(1)</a></a></li>
-<li><a href="../misc/npm-faq.html"><a href="../misc/npm-faq.html">npm-faq(7)</a></a></li>
-<li><a href="../cli/npm-install.html"><a href="../cli/npm-install.html">npm-install(1)</a></a></li>
-<li><a href="../cli/npm-publish.html"><a href="../cli/npm-publish.html">npm-publish(1)</a></a></li>
-<li><a href="../cli/npm-rm.html"><a href="../cli/npm-rm.html">npm-rm(1)</a></a></li>
+<li><a href="../misc/semver.html">semver(7)</a></li>
+<li><a href="../cli/npm-init.html">npm-init(1)</a></li>
+<li><a href="../cli/npm-version.html">npm-version(1)</a></li>
+<li><a href="../cli/npm-config.html">npm-config(1)</a></li>
+<li><a href="../misc/npm-config.html">npm-config(7)</a></li>
+<li><a href="../cli/npm-help.html">npm-help(1)</a></li>
+<li><a href="../misc/npm-faq.html">npm-faq(7)</a></li>
+<li><a href="../cli/npm-install.html">npm-install(1)</a></li>
+<li><a href="../cli/npm-publish.html">npm-publish(1)</a></li>
+<li><a href="../cli/npm-rm.html">npm-rm(1)</a></li>
 </ul>
 
 </div>
@@ -565,5 +565,5 @@ ignored.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">package.json &mdash; npm@2.13.3</p>
+<p id="footer">package.json &mdash; npm@2.14.2</p>
 

@@ -366,6 +366,14 @@ function errorHandler (er) {
               ].join("\n"))
     break
 
+  case "EISDIR":
+    log.error("eisdir", [er.message
+              ,"This is most likely not a problem with npm itself"
+              ,"and is related to npm not being able to find a package.json in"
+              ,"a package you are trying to install."
+              ].join("\n"))
+    break
+
   default:
     log.error("", er.message || er)
     log.error("", ["", "If you need help, you may report this error at:"

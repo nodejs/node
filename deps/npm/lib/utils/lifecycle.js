@@ -196,12 +196,12 @@ function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb_) {
     conf.gid = gid ^ 0
   }
 
-  var sh = "sh"
-  var shFlag = "-c"
+  var sh = 'sh'
+  var shFlag = '-c'
 
-  if (process.platform === "win32") {
-    sh = process.env.comspec || "cmd"
-    shFlag = "/c"
+  if (process.platform === 'win32') {
+    sh = process.env.comspec || 'cmd'
+    shFlag = '/d /s /c'
     conf.windowsVerbatimArguments = true
   }
 
@@ -313,7 +313,9 @@ function makeEnv (data, prefix, env) {
     , verPref = data.name + "@" + data.version + ":"
 
   keys.forEach(function (i) {
-    if (i.charAt(0) === "_" && i.indexOf("_"+namePref) !== 0) {
+    // in some rare cases (e.g. working with nerf darts), there are segmented
+    // "private" (underscore-prefixed) config names -- don't export
+    if (i.charAt(0) === '_' && i.indexOf('_' + namePref) !== 0 || i.match(/:_/)) {
       return
     }
     var value = npm.config.get(i)

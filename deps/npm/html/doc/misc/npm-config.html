@@ -33,7 +33,7 @@ same.</p>
 <li>global config file ($PREFIX/npmrc)</li>
 <li>npm builtin config file (/path/to/npm/npmrc)</li>
 </ul>
-<p>See <a href="../files/npmrc.html"><a href="../files/npmrc.html">npmrc(5)</a></a> for more details.</p>
+<p>See <a href="../files/npmrc.html">npmrc(5)</a> for more details.</p>
 <h3 id="default-configs">Default Configs</h3>
 <p>A set of configuration parameters that are internal to npm, and are
 defaults if nothing else is specified.</p>
@@ -78,7 +78,7 @@ example:</p>
 # same as:
 npm ls --global --parseable --long --loglevel info
 </code></pre><h2 id="per-package-config-settings">Per-Package Config Settings</h2>
-<p>When running scripts (see <code><a href="../misc/npm-scripts.html"><a href="../misc/npm-scripts.html">npm-scripts(7)</a></a></code>) the package.json &quot;config&quot;
+<p>When running scripts (see <code><a href="../misc/npm-scripts.html">npm-scripts(7)</a></code>) the package.json &quot;config&quot;
 keys are overwritten in the environment if there is a config param of
 <code>&lt;name&gt;[@&lt;version&gt;]:&lt;key&gt;</code>.  For example, if the package.json has
 this:</p>
@@ -89,7 +89,7 @@ this:</p>
 <pre><code>http.createServer(...).listen(process.env.npm_package_config_port)
 </code></pre><p>then the user could change the behavior by doing:</p>
 <pre><code>npm config set foo:port 80
-</code></pre><p>See <a href="../files/package.json.html"><a href="../files/package.json.html">package.json(5)</a></a> for more information.</p>
+</code></pre><p>See <a href="../files/package.json.html">package.json(5)</a> for more information.</p>
 <h2 id="config-settings">Config Settings</h2>
 <h3 id="access">access</h3>
 <ul>
@@ -151,7 +151,7 @@ well as for the CA information to be stored in a file on disk.</p>
 <li>Default: Windows: <code>%AppData%\npm-cache</code>, Posix: <code>~/.npm</code></li>
 <li>Type: path</li>
 </ul>
-<p>The location of npm&#39;s cache directory.  See <code><a href="../cli/npm-cache.html"><a href="../cli/npm-cache.html">npm-cache(1)</a></a></code></p>
+<p>The location of npm&#39;s cache directory.  See <code><a href="../cli/npm-cache.html">npm-cache(1)</a></code></p>
 <h3 id="cache-lock-stale">cache-lock-stale</h3>
 <ul>
 <li>Default: 60000 (1 minute)</li>
@@ -302,7 +302,7 @@ the git binary.</p>
 </ul>
 <p>Operates in &quot;global&quot; mode, so that packages are installed into the
 <code>prefix</code> folder instead of the current working directory.  See
-<code><a href="../files/npm-folders.html"><a href="../files/npm-folders.html">npm-folders(5)</a></a></code> for more on the differences in behavior.</p>
+<code><a href="../files/npm-folders.html">npm-folders(5)</a></code> for more on the differences in behavior.</p>
 <ul>
 <li>packages are installed into the <code>{prefix}/lib/node_modules</code> folder, instead of the
 current working directory.</li>
@@ -360,7 +360,7 @@ scripts that may only apply for some builds in an otherwise generic CI setup.</p
 <p>A module that will be loaded by the <code>npm init</code> command.  See the
 documentation for the
 <a href="https://github.com/isaacs/init-package-json">init-package-json</a> module
-for more information, or <a href="../cli/npm-init.html"><a href="../cli/npm-init.html">npm-init(1)</a></a>.</p>
+for more information, or <a href="../cli/npm-init.html">npm-init(1)</a>.</p>
 <h3 id="init-author-name">init-author-name</h3>
 <ul>
 <li>Default: &quot;&quot;</li>
@@ -500,7 +500,7 @@ process is not aborted.</p>
 standard output.</p>
 <h3 id="prefix">prefix</h3>
 <ul>
-<li>Default: see <a href="../files/npm-folders.html"><a href="../files/npm-folders.html">npm-folders(5)</a></a></li>
+<li>Default: see <a href="../files/npm-folders.html">npm-folders(5)</a></li>
 <li>Type: path</li>
 </ul>
 <p>The location to install global items.  If set on the command line, then
@@ -728,7 +728,7 @@ will fail.</p>
 <li>Type: Boolean</li>
 </ul>
 <p>Set to show short usage output (like the -H output)
-instead of complete help when doing <code><a href="../cli/npm-help.html"><a href="../cli/npm-help.html">npm-help(1)</a></a></code>.</p>
+instead of complete help when doing <code><a href="../cli/npm-help.html">npm-help(1)</a></code>.</p>
 <h3 id="user">user</h3>
 <ul>
 <li>Default: &quot;nobody&quot;</li>
@@ -781,11 +781,11 @@ exit successfully.</p>
 <p>Set to <code>&quot;browser&quot;</code> to view html help content in the default web browser.</p>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
-<li><a href="../cli/npm-config.html"><a href="../cli/npm-config.html">npm-config(1)</a></a></li>
-<li><a href="../files/npmrc.html"><a href="../files/npmrc.html">npmrc(5)</a></a></li>
-<li><a href="../misc/npm-scripts.html"><a href="../misc/npm-scripts.html">npm-scripts(7)</a></a></li>
-<li><a href="../files/npm-folders.html"><a href="../files/npm-folders.html">npm-folders(5)</a></a></li>
-<li><a href="../cli/npm.html"><a href="../cli/npm.html">npm(1)</a></a></li>
+<li><a href="../cli/npm-config.html">npm-config(1)</a></li>
+<li><a href="../files/npmrc.html">npmrc(5)</a></li>
+<li><a href="../misc/npm-scripts.html">npm-scripts(7)</a></li>
+<li><a href="../files/npm-folders.html">npm-folders(5)</a></li>
+<li><a href="../cli/npm.html">npm(1)</a></li>
 </ul>
 
 </div>
@@ -799,5 +799,5 @@ exit successfully.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-config &mdash; npm@2.13.3</p>
+<p id="footer">npm-config &mdash; npm@2.14.2</p>
 
