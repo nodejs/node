@@ -3083,7 +3083,7 @@ static void PrintHelp() {
          "                        (will extend linked-in data)\n"
 #endif
 #endif
-         "NODE_REPL_HISTORY       persistent history file location\n"
+         "NODE_REPL_HISTORY       path to the persistent REPL history file\n"
          "\n"
          "Documentation can be found at https://nodejs.org/\n");
 }
