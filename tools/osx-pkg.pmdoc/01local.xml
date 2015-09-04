@@ -1,6 +1,6 @@
 <pkgref spec="1.12" uuid="053587FE-BDF3-4EF5-815D-281427431048">
   <config>
-    <identifier>org.iojs.iojs.pkg</identifier>
+    <identifier>org.nodejs.node.pkg</identifier>
     <version>1.0</version>
     <description></description>
     <post-install type="none"/>
