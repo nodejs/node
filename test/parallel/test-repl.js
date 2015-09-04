@@ -148,7 +148,7 @@ function error_test() {
     { client: client_unix, send: '(function() { "use strict"; return 0755; })()',
       expect: /^SyntaxError: Octal literals are not allowed in strict mode/ },
     { client: client_unix, send: '(function(a, a, b) { "use strict"; return a + b + c; })()',
-      expect: /^SyntaxError: Strict mode function may not have duplicate parameter names/ },
+      expect: /^SyntaxError: Duplicate parameter name not allowed in this context/ },
     { client: client_unix, send: '(function() { "use strict"; with (this) {} })()',
       expect: /^SyntaxError: Strict mode code may not include a with statement/ },
     { client: client_unix, send: '(function() { "use strict"; var x; delete x; })()',
