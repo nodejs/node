@@ -47,6 +47,7 @@ function read(fileName) {
   return fs.readFileSync(fileName, 'utf8');
 }
 arguments = process.argv.slice(2);
+var quit = process.exit;
 
 // Polyfill "readline()".
 var fd = fs.openSync(arguments[arguments.length - 1], 'r');
