@@ -1,9 +1,9 @@
 <!doctype html>
 <html>
-  <title>npm-global</title>
+  <title>npm-folders</title>
   <meta http-equiv="content-type" value="text/html;utf-8">
   <link rel="stylesheet" type="text/css" href="../../static/style.css">
-  <link rel="canonical" href="https://www.npmjs.org/doc/files/npm-global.html">
+  <link rel="canonical" href="https://www.npmjs.org/doc/files/npm-folders.html">
   <script async=true src="../../static/toc.js"></script>
 
   <body>
@@ -44,7 +44,7 @@ Global installs on Windows go to <code>{prefix}/node_modules</code> (that is, no
 <p>Scoped packages are installed the same way, except they are grouped together
 in a sub-folder of the relevant <code>node_modules</code> folder with the name of that
 scope prefix by the @ symbol, e.g. <code>npm install @myorg/package</code> would place
-the package in <code>{prefix}/node_modules/@myorg/package</code>. See <code><a href="../misc/scopes.html"><a href="../misc/scopes.html">scopes(7)</a></a></code> for
+the package in <code>{prefix}/node_modules/@myorg/package</code>. See <code><a href="../misc/scopes.html">scopes(7)</a></code> for
 more details.</p>
 <p>If you wish to <code>require()</code> a package, then install it locally.</p>
 <h3 id="executables">Executables</h3>
@@ -59,7 +59,7 @@ when you run <code>npm test</code>.)</p>
 <p>When in local mode, man pages are not installed.</p>
 <p>Man pages are not installed on Windows systems.</p>
 <h3 id="cache">Cache</h3>
-<p>See <code><a href="../cli/npm-cache.html"><a href="../cli/npm-cache.html">npm-cache(1)</a></a></code>.  Cache files are stored in <code>~/.npm</code> on Posix, or
+<p>See <code><a href="../cli/npm-cache.html">npm-cache(1)</a></code>.  Cache files are stored in <code>~/.npm</code> on Posix, or
 <code>~/npm-cache</code> on Windows.</p>
 <p>This is controlled by the <code>cache</code> configuration param.</p>
 <h3 id="temp-files">Temp Files</h3>
@@ -159,18 +159,18 @@ the items there are not in the <code>bundledDependencies</code> array, then they
 not be included in the package tarball.</p>
 <p>This allows a package maintainer to install all of their dependencies
 (and dev dependencies) locally, but only re-publish those items that
-cannot be found elsewhere.  See <code><a href="../files/package.json.html"><a href="../files/package.json.html">package.json(5)</a></a></code> for more information.</p>
+cannot be found elsewhere.  See <code><a href="../files/package.json.html">package.json(5)</a></code> for more information.</p>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
-<li><a href="../misc/npm-faq.html"><a href="../misc/npm-faq.html">npm-faq(7)</a></a></li>
-<li><a href="../files/package.json.html"><a href="../files/package.json.html">package.json(5)</a></a></li>
-<li><a href="../cli/npm-install.html"><a href="../cli/npm-install.html">npm-install(1)</a></a></li>
-<li><a href="../cli/npm-pack.html"><a href="../cli/npm-pack.html">npm-pack(1)</a></a></li>
-<li><a href="../cli/npm-cache.html"><a href="../cli/npm-cache.html">npm-cache(1)</a></a></li>
-<li><a href="../cli/npm-config.html"><a href="../cli/npm-config.html">npm-config(1)</a></a></li>
-<li><a href="../files/npmrc.html"><a href="../files/npmrc.html">npmrc(5)</a></a></li>
-<li><a href="../misc/npm-config.html"><a href="../misc/npm-config.html">npm-config(7)</a></a></li>
-<li><a href="../cli/npm-publish.html"><a href="../cli/npm-publish.html">npm-publish(1)</a></a></li>
+<li><a href="../misc/npm-faq.html">npm-faq(7)</a></li>
+<li><a href="../files/package.json.html">package.json(5)</a></li>
+<li><a href="../cli/npm-install.html">npm-install(1)</a></li>
+<li><a href="../cli/npm-pack.html">npm-pack(1)</a></li>
+<li><a href="../cli/npm-cache.html">npm-cache(1)</a></li>
+<li><a href="../cli/npm-config.html">npm-config(1)</a></li>
+<li><a href="../files/npmrc.html">npmrc(5)</a></li>
+<li><a href="../misc/npm-config.html">npm-config(7)</a></li>
+<li><a href="../cli/npm-publish.html">npm-publish(1)</a></li>
 </ul>
 
 </div>
@@ -184,5 +184,5 @@ cannot be found elsewhere.  See <code><a href="../files/package.json.html"><a hr
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-global &mdash; npm@2.13.3</p>
+<p id="footer">npm-folders &mdash; npm@2.14.2</p>
 
