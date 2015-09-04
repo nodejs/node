@@ -72,9 +72,15 @@ and servers.
 
 .IP NODE_PATH
 \':\'\-separated list of directories prefixed to the module search path.
-
 .IP NODE_DISABLE_COLORS
 If set to 1 then colors will not be used in the REPL.
+.IP NODE_ICU_DATA
+Data path for ICU (Intl object) data. Will extend linked-in data when compiled
+with small-icu support.
+.IP NODE_REPL_HISTORY
+Path to the file used to store the persistent REPL history. The default path
+is ~/.node_repl_history, which is overridden by this variable. Setting the
+value to an empty string ("") disables persistent REPL history.
 
 .SH V8 OPTIONS
 
