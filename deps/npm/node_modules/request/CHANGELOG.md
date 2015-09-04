@@ -1,5 +1,15 @@
 ## Change Log
 
+### v2.61.0 (2015/08/19)
+- [#1721](https://github.com/request/request/pull/1721) Minor fix in README.md (@arbaaz)
+- [#1733](https://github.com/request/request/pull/1733) Avoid useless Buffer transformation (@michelsalib)
+- [#1726](https://github.com/request/request/pull/1726) Update README.md (@paulomcnally)
+- [#1715](https://github.com/request/request/pull/1715) Fix forever option in node > 0.10 #1709 (@calibr)
+- [#1716](https://github.com/request/request/pull/1716) Do not create Buffer from Object in setContentLength(iojs v3.0 issue) (@calibr)
+- [#1711](https://github.com/request/request/pull/1711) Add ability to detect connect timeouts (@kevinburke)
+- [#1712](https://github.com/request/request/pull/1712) Set certificate expiration to August 2, 2018 (@kevinburke)
+- [#1700](https://github.com/request/request/pull/1700) debug() when JSON.parse() on a response body fails (@phillipj)
+
 ### v2.60.0 (2015/07/21)
 - [#1687](https://github.com/request/request/pull/1687) Fix caseless bug - content-type not being set for multipart/form-data (@simov, @garymathews)
 

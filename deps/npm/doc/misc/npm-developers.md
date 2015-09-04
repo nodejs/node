@@ -118,9 +118,11 @@ need to add them to `.npmignore` explicitly:
 * `.DS_Store`
 * `.git`
 * `.hg`
+* `.npmrc`
 * `.lock-wscript`
 * `.svn`
 * `.wafpickle-*`
+* `config.gypi`
 * `CVS`
 * `npm-debug.log`
 
@@ -132,7 +134,9 @@ The following paths and files are never ignored, so adding them to
 `.npmignore` is pointless:
 
 * `package.json`
-* `README.*`
+* `README` (and its variants)
+* `CHANGELOG` (and its variants)
+* `LICENSE` / `LICENCE`
 
 ## Link Packages
 
