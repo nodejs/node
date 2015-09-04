@@ -1,0 +1,63 @@
+.TH "NPM\-TEAM" "1" "September 2015" "" ""
+.SH "NAME"
+\fBnpm-team\fR \- Manage organization teams and team memberships
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm team create <scope:team>
+npm team destroy <scope:team>
+
+npm team add <scope:team> <user>
+npm team rm <scope:team> <user>
+
+npm team ls <scope>|<scope:team>
+
+npm team edit <scope:team>
+.fi
+.RE
+.SH DESCRIPTION
+.P
+Used to manage teams in organizations, and change team memberships\. Does not
+handle permissions for packages\.
+.P
+Teams must always be fully qualified with the organization/scope they belond to
+when operating on them, separated by a colon (\fB:\fP)\. That is, if you have a
+\fBdevelopers\fP team on a \fBfoo\fP organization, you must always refer to that team as
+\fBdevelopers:foo\fP in these commands\.
+.RS 0
+.IP \(bu 2
+create / destroy:
+Create a new team, or destroy an existing one\.
+.IP \(bu 2
+add / rm:
+Add a user to an existing team, or remove a user from a team they belong to\.
+.IP \(bu 2
+ls:
+If performed on an organization name, will return a list of existing teams
+under that organization\. If performed on a team, it will instead return a list
+of all users belonging to that particular team\.
+
+.RE
+.SH DETAILS
+.P
+\fBnpm team\fP always operates directly on the current registry, configurable from
+the command line using \fB\-\-registry=<registry url>\fP\|\.
+.P
+In order to create teams and manage team membership, you must be a \fIteam admin\fR
+under the given organization\. Listing teams and team memberships may be done by
+any member of the organizations\.
+.P
+Organization creation and management of team admins and \fIorganization\fR members
+is done through the website, not the npm CLI\.
+.P
+To use teams to manage permissions on packages belonging to your organization,
+use the \fBnpm access\fP command to grant or revoke the appropriate permissions\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help access
+.IP \(bu 2
+npm help 7 registr
+
+.RE

@@ -15,7 +15,7 @@
 </code></pre><h2 id="description">DESCRIPTION</h2>
 <p>Create or verify a user named <code>&lt;username&gt;</code> in the specified registry, and
 save the credentials to the <code>.npmrc</code> file. If no registry is specified,
-the default registry will be used (see <code><a href="../misc/npm-config.html"><a href="../misc/npm-config.html">npm-config(7)</a></a></code>).</p>
+the default registry will be used (see <code><a href="../misc/npm-config.html">npm-config(7)</a></code>).</p>
 <p>The username, password, and email are read in from prompts.</p>
 <p>To reset your password, go to <a href="https://www.npmjs.com/forgot">https://www.npmjs.com/forgot</a></p>
 <p>To change your email address, go to <a href="https://www.npmjs.com/email-edit">https://www.npmjs.com/email-edit</a></p>
@@ -28,11 +28,11 @@ your existing record.</p>
 <h3 id="registry">registry</h3>
 <p>Default: <a href="http://registry.npmjs.org/">http://registry.npmjs.org/</a></p>
 <p>The base URL of the npm package registry. If <code>scope</code> is also specified,
-this registry will only be used for packages with that scope. See <code><a href="../misc/npm-scope.html"><a href="../misc/npm-scope.html">npm-scope(7)</a></a></code>.</p>
+this registry will only be used for packages with that scope. See <code><a href="../misc/npm-scope.html">npm-scope(7)</a></code>.</p>
 <h3 id="scope">scope</h3>
 <p>Default: none</p>
 <p>If specified, the user and login credentials given will be associated
-with the specified scope. See <code><a href="../misc/npm-scope.html"><a href="../misc/npm-scope.html">npm-scope(7)</a></a></code>. You can use both at the same time,
+with the specified scope. See <code><a href="../misc/npm-scope.html">npm-scope(7)</a></code>. You can use both at the same time,
 e.g.</p>
 <pre><code>npm adduser --registry=http://myregistry.example.com --scope=@myco
 </code></pre><p>This will set a registry for the given scope and login or create a user for
@@ -44,17 +44,17 @@ registry should include authorization information. Useful for private
 registries. Can be used with <code>--registry</code> and / or <code>--scope</code>, e.g.</p>
 <pre><code>npm adduser --registry=http://private-registry.example.com --always-auth
 </code></pre><p>This will ensure that all requests to that registry (including for tarballs)
-include an authorization header. See <code>always-auth</code> in <code><a href="../misc/npm-config.html"><a href="../misc/npm-config.html">npm-config(7)</a></a></code> for more
+include an authorization header. See <code>always-auth</code> in <code><a href="../misc/npm-config.html">npm-config(7)</a></code> for more
 details on always-auth. Registry-specific configuration of <code>always-auth</code> takes
 precedence over any global configuration.</p>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
-<li><a href="../misc/npm-registry.html"><a href="../misc/npm-registry.html">npm-registry(7)</a></a></li>
-<li><a href="../cli/npm-config.html"><a href="../cli/npm-config.html">npm-config(1)</a></a></li>
-<li><a href="../misc/npm-config.html"><a href="../misc/npm-config.html">npm-config(7)</a></a></li>
-<li><a href="../files/npmrc.html"><a href="../files/npmrc.html">npmrc(5)</a></a></li>
-<li><a href="../cli/npm-owner.html"><a href="../cli/npm-owner.html">npm-owner(1)</a></a></li>
-<li><a href="../cli/npm-whoami.html"><a href="../cli/npm-whoami.html">npm-whoami(1)</a></a></li>
+<li><a href="../misc/npm-registry.html">npm-registry(7)</a></li>
+<li><a href="../cli/npm-config.html">npm-config(1)</a></li>
+<li><a href="../misc/npm-config.html">npm-config(7)</a></li>
+<li><a href="../files/npmrc.html">npmrc(5)</a></li>
+<li><a href="../cli/npm-owner.html">npm-owner(1)</a></li>
+<li><a href="../cli/npm-whoami.html">npm-whoami(1)</a></li>
 </ul>
 
 </div>
@@ -68,5 +68,5 @@ precedence over any global configuration.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-adduser &mdash; npm@2.13.3</p>
+<p id="footer">npm-adduser &mdash; npm@2.14.2</p>
 

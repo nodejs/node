@@ -141,7 +141,7 @@ function dump (data, cb) {
 
 function checkGit (localData, cb) {
   fs.stat(path.join(npm.localPrefix, '.git'), function (er, s) {
-    var doGit = !er && s.isDirectory() && npm.config.get('git-tag-version')
+    var doGit = !er && npm.config.get('git-tag-version')
     if (!doGit) {
       if (er) log.verbose('version', 'error checking for .git', er)
       log.verbose('version', 'not tagging in git')

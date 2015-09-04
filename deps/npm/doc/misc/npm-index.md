@@ -181,6 +181,10 @@ Stop a package
 
 Tag a published version
 
+### npm-team(1)
+
+Manage organization teams and team memberships
+
 ### npm-test(1)
 
 Test a package
