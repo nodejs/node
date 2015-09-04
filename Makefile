@@ -338,7 +338,7 @@ $(PKG): release-only
 		| sed -E "s/\\{npmversion\\}/$(NPMVERSION)/g" \
 		> tools/osx-pkg.pmdoc/index.xml
 	$(PACKAGEMAKER) \
-		--id "org.node.pkg" \
+		--id "org.nodejs.pkg" \
 		--doc tools/osx-pkg.pmdoc \
 		--out $(PKG)
 	SIGN="$(PRODUCTSIGN_CERT)" PKG="$(PKG)" bash tools/osx-productsign.sh
