@@ -1,8 +1,4 @@
 'use strict';
-if (common.isWindows) {
-  console.log('1..0 # Skipped: no `wrk` on windows');
-  return;
-}
 
 // This test requires the program 'wrk'
 var common = require('../common');
@@ -11,6 +7,11 @@ var spawn = require('child_process').spawn;
 var http = require('http');
 var path = require('path');
 var url = require('url');
+
+if (common.isWindows) {
+  console.log('1..0 # Skipped: no `wrk` on windows');
+  return;
+}
 
 var body = 'hello world\n';
 var server = http.createServer(function(req, res) {
