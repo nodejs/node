@@ -177,7 +177,7 @@ function populateMaps(extensions, types) {
         if (types[extension] !== 'application/octet-stream'
           && from > to || (from === to && types[extension].substr(0, 12) === 'application/')) {
           // skip the remapping
-          return
+          continue
         }
       }
 
