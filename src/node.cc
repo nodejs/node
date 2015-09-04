@@ -3066,7 +3066,7 @@ static void PrintHelp() {
          "  --icu-data-dir=dir    set ICU data load path to dir\n"
          "                        (overrides NODE_ICU_DATA)\n"
 #if !defined(NODE_HAVE_SMALL_ICU)
-         "                        Note: linked-in ICU data is\n"
+         "                        note: linked-in ICU data is\n"
          "                        present.\n"
 #endif
 #endif
@@ -3078,13 +3078,14 @@ static void PrintHelp() {
          "NODE_PATH               ':'-separated list of directories\n"
 #endif
          "                        prefixed to the module search path.\n"
-         "NODE_DISABLE_COLORS     Set to 1 to disable colors in the REPL\n"
+         "NODE_DISABLE_COLORS     set to 1 to disable colors in the REPL\n"
 #if defined(NODE_HAVE_I18N_SUPPORT)
-         "NODE_ICU_DATA           Data path for ICU (Intl object) data\n"
+         "NODE_ICU_DATA           data path for ICU (Intl object) data\n"
 #if !defined(NODE_HAVE_SMALL_ICU)
          "                        (will extend linked-in data)\n"
 #endif
 #endif
+         "NODE_REPL_HISTORY       path to the persistent REPL history file\n"
          "\n"
          "Documentation can be found at https://nodejs.org/\n");
 }
