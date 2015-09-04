@@ -4,10 +4,11 @@
 
 * [Issues and Pull Requests](#issues-and-pull-requests)
 * [Accepting Modifications](#accepting-modifications)
- - [Involving the TC](#involving-the-tc)
+  * [Involving the TC](#involving-the-tc)
 * [Landing Pull Requests](#landing-pull-requests)
- - [Technical HOWTO](#technical-howto)
- - [I Just Made a Mistake](#i-just-made-a-mistake)
+  * [Landing Pull Requests manually (for emergency only)](#landing-pull-requests-manually-for-emergency-only)
+    * [Technical HOWTO](#technical-howto)
+    * [I Just Made a Mistake](#i-just-made-a-mistake)
 
 This document contains information for Collaborators of the Node.js
 project regarding maintaining the code, documentation and issues.
@@ -87,6 +88,18 @@ The TC should serve as the final arbiter where required.
 
 ## Landing Pull Requests
 
+Pull requests should be landed with Jenkins as documented [here]
+(https://github.com/nodejs/node/wiki/Merging-pull-requests-with-Jenkins). 
+
+### Landing Pull Requests manually (for emergency only)
+All pull requests should be landed via Jenkins, as documented [here]
+(https://github.com/nodejs/node/wiki/Merging-pull-requests-with-Jenkins).
+However, sometimes emergency situations arise, and manual intervention is
+required. Below is a description of a manual procedure for doing the same,
+should a manual procedure be necessary. Please don't do this unless there
+is an emergency situation for which the collaborators have agreed that
+this is necessary.
+
 Always modify the original commit message to include additional meta
 information regarding the change process:
 
@@ -112,7 +125,7 @@ Additionally:
   contained (meaning every commit should pass all tests). This makes
   it much easier when bisecting to find a breaking change.
 
-### Technical HOWTO
+#### Technical HOWTO
 
 _Optional:_ ensure that you are not in a borked `am`/`rebase` state
 
@@ -217,7 +230,7 @@ Time to push it:
 $ git push origin master
 ```
 
-### I Just Made a Mistake
+#### I Just Made a Mistake
 
 With `git`, there's a way to override remote trees by force pushing
 (`git push -f`). This should generally be seen as forbidden (since
