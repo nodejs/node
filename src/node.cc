@@ -2742,7 +2742,10 @@ void SetupProcessObject(Environment* env,
   READONLY_PROPERTY(release,
                     "libUrl",
                     OneByteString(env->isolate(),
-                    _RELEASE_URLPFX "win-" NODE_ARCH "/node.lib"));
+                    strcmp(NODE_ARCH, "ia32") ? _RELEASE_URLPFX "win-"
+                                                NODE_ARCH "/node.lib"
+                                              : _RELEASE_URLPFX
+                                                "win-x86/node.lib"));
 #  endif
 #endif
 
