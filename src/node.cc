@@ -2727,22 +2727,25 @@ void SetupProcessObject(Environment* env,
 #endif
 
 #if defined(NODE_RELEASE_URLBASE)
-#  define _RELEASE_URLPFX NODE_RELEASE_URLBASE "v" NODE_VERSION_STRING "/"
-#  define _RELEASE_URLFPFX _RELEASE_URLPFX "node-v" NODE_VERSION_STRING
+#  define NODE_RELEASE_URLPFX NODE_RELEASE_URLBASE "v" NODE_VERSION_STRING "/"
+#  define NODE_RELEASE_URLFPFX NODE_RELEASE_URLPFX "node-v" NODE_VERSION_STRING
 
   READONLY_PROPERTY(release,
                     "sourceUrl",
                     OneByteString(env->isolate(),
-                    _RELEASE_URLFPFX ".tar.gz"));
+                    NODE_RELEASE_URLFPFX ".tar.gz"));
   READONLY_PROPERTY(release,
                     "headersUrl",
                     OneByteString(env->isolate(),
-                    _RELEASE_URLFPFX "-headers.tar.gz"));
+                    NODE_RELEASE_URLFPFX "-headers.tar.gz"));
 #  ifdef _WIN32
   READONLY_PROPERTY(release,
                     "libUrl",
                     OneByteString(env->isolate(),
-                    _RELEASE_URLPFX "win-" NODE_ARCH "/node.lib"));
+                    strcmp(NODE_ARCH, "ia32") ? NODE_RELEASE_URLPFX "win-"
+                                                NODE_ARCH "/node.lib"
+                                              : NODE_RELEASE_URLPFX
+                                                "win-x86/node.lib"));
 #  endif
 #endif
 
