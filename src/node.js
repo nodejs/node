@@ -834,9 +834,11 @@
 
 
   startup.processRawDebug = function() {
-    var format = NativeModule.require('util').format;
+    var format;
     var rawDebug = process._rawDebug;
     process._rawDebug = function() {
+      if (format === undefined)
+        format = NativeModule.require('util').format;
       rawDebug(format.apply(null, arguments));
     };
   };
