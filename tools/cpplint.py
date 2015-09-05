@@ -695,37 +695,10 @@ class FileInfo:
     locations won't see bogus errors.
     """
     fullname = self.FullName()
-
-    if os.path.exists(fullname):
-      project_dir = os.path.dirname(fullname)
-
-      if os.path.exists(os.path.join(project_dir, ".svn")):
-        # If there's a .svn file in the current directory, we recursively look
-        # up the directory tree for the top of the SVN checkout
-        root_dir = project_dir
-        one_up_dir = os.path.dirname(root_dir)
-        while os.path.exists(os.path.join(one_up_dir, ".svn")):
-          root_dir = os.path.dirname(root_dir)
-          one_up_dir = os.path.dirname(one_up_dir)
-
-        prefix = os.path.commonprefix([root_dir, project_dir])
-        return fullname[len(prefix) + 1:]
-
-      # Not SVN? Try to find a git or hg top level directory by searching up
-      # from the current path.
-      root_dir = os.path.dirname(fullname)
-      while (root_dir != os.path.dirname(root_dir) and
-             not os.path.exists(os.path.join(root_dir, ".git")) and
-             not os.path.exists(os.path.join(root_dir, ".hg"))):
-        root_dir = os.path.dirname(root_dir)
-
-      if (os.path.exists(os.path.join(root_dir, ".git")) or
-          os.path.exists(os.path.join(root_dir, ".hg"))):
-        prefix = os.path.commonprefix([root_dir, project_dir])
-        return fullname[len(prefix) + 1:]
-
-    # Don't know what to do; header guard warnings may be wrong...
-    return fullname
+    # XXX(bnoordhuis) Expects that cpplint.py lives in the tools/ directory.
+    toplevel = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    prefix = os.path.commonprefix([fullname, toplevel])
+    return fullname[len(prefix) + 1:]
 
   def Split(self):
     """Splits the file into the directory, basename, and extension.
