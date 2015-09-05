@@ -20,9 +20,12 @@ var fs = require('graceful-fs')
   , request = require('request')
   , minimatch = require('minimatch')
   , mkdir = require('mkdirp')
+  , processRelease = require('./process-release')
   , win = process.platform == 'win32'
 
 function install (gyp, argv, callback) {
+
+  var release = processRelease(argv, gyp, process.version, process.release)
 
   // ensure no double-callbacks happen
   function cb (err) {
@@ -31,34 +34,29 @@ function install (gyp, argv, callback) {
     if (err) {
       log.warn('install', 'got an error, rolling back install')
       // roll-back the install if anything went wrong
-      gyp.commands.remove([ version ], function (err2) {
+      gyp.commands.remove([ release.versionDir ], function (err2) {
         callback(err)
       })
     } else {
-      callback(null, version)
+      callback(null, release.version)
     }
   }
 
-  var distUrl = gyp.opts['dist-url'] || gyp.opts.disturl || 'https://nodejs.org/dist'
-
-
   // Determine which node dev files version we are installing
-  var versionStr = argv[0] || gyp.opts.target || process.version
-  log.verbose('install', 'input version string %j', versionStr)
+  log.verbose('install', 'input version string %j', release.version)
 
   // parse the version to normalize and ensure it's valid
-  var version = semver.parse(versionStr)
-  if (!version) {
-    return callback(new Error('Invalid version number: ' + versionStr))
+  if (!release.semver) {
+    return callback(new Error('Invalid version number: ' + release.version))
   }
 
-  if (semver.lt(versionStr, '0.8.0')) {
-    return callback(new Error('Minimum target version is `0.8.0` or greater. Got: ' + versionStr))
+  if (semver.lt(release.version, '0.8.0')) {
+    return callback(new Error('Minimum target version is `0.8.0` or greater. Got: ' + release.version))
   }
 
   // 0.x.y-pre versions are not published yet and cannot be installed. Bail.
-  if (version.prerelease[0] === 'pre') {
-    log.verbose('detected "pre" node version', versionStr)
+  if (release.semver.prerelease[0] === 'pre') {
+    log.verbose('detected "pre" node version', release.version)
     if (gyp.opts.nodedir) {
       log.verbose('--nodedir flag was passed; skipping install', gyp.opts.nodedir)
       callback()
@@ -69,14 +67,10 @@ function install (gyp, argv, callback) {
   }
 
   // flatten version into String
-  version = version.version
-  log.verbose('install', 'installing version: %s', version)
-
-  // distributions starting with 0.10.0 contain sha256 checksums
-  var checksumAlgo = semver.gte(version, '0.10.0') ? 'sha256' : 'sha1'
+  log.verbose('install', 'installing version: %s', release.versionDir)
 
   // the directory where the dev files will be installed
-  var devDir = path.resolve(gyp.devDir, version)
+  var devDir = path.resolve(gyp.devDir, release.versionDir)
 
   // If '--ensure' was passed, then don't *always* install the version;
   // check if it is already installed, and only install when needed
@@ -85,7 +79,7 @@ function install (gyp, argv, callback) {
     fs.stat(devDir, function (err, stat) {
       if (err) {
         if (err.code == 'ENOENT') {
-          log.verbose('install', 'version not already installed, continuing with install', version)
+          log.verbose('install', 'version not already installed, continuing with install', release.version)
           go()
         } else if (err.code == 'EACCES') {
           eaccesFallback()
@@ -156,7 +150,7 @@ function install (gyp, argv, callback) {
   }
 
   function getContentSha(res, callback) {
-    var shasum = crypto.createHash(checksumAlgo)
+    var shasum = crypto.createHash(release.checksumAlgo)
     res.on('data', function (chunk) {
       shasum.update(chunk)
     }).on('end', function () {
@@ -184,9 +178,8 @@ function install (gyp, argv, callback) {
       }
 
       // now download the node tarball
-      var tarPath = gyp.opts['tarball']
-      var tarballUrl = tarPath ? tarPath : distUrl + '/v' + version + '/node-v' + version + '.tar.gz'
-        , badDownload = false
+      var tarPath = gyp.opts.tarball
+      var badDownload = false
         , extractCount = 0
         , gunzip = zlib.createGunzip()
         , extracter = tar.Extract({ path: devDir, strip: 1, filter: isValid })
@@ -220,12 +213,12 @@ function install (gyp, argv, callback) {
       // download the tarball, gunzip and extract!
 
       if (tarPath) {
-        var input = fs.createReadStream(tarballUrl)
+        var input = fs.createReadStream(tarPath)
         input.pipe(gunzip).pipe(extracter)
         return
       }
 
-      var req = download(tarballUrl)
+      var req = download(release.tarballUrl)
       if (!req) return
 
       // something went wrong downloading the tarball?
@@ -248,12 +241,12 @@ function install (gyp, argv, callback) {
       req.on('response', function (res) {
         if (res.statusCode !== 200) {
           badDownload = true
-          cb(new Error(res.statusCode + ' response downloading ' + tarballUrl))
+          cb(new Error(res.statusCode + ' response downloading ' + release.tarballUrl))
           return
         }
         // content checksum
         getContentSha(res, function (_, checksum) {
-          var filename = path.basename(tarballUrl).trim()
+          var filename = path.basename(release.tarballUrl).trim()
           contentShasums[filename] = checksum
           log.verbose('content checksum', filename, checksum)
         })
@@ -314,13 +307,11 @@ function install (gyp, argv, callback) {
       }
 
       function downloadShasums(done) {
-        var shasumsFile = (checksumAlgo === 'sha256') ? 'SHASUMS256.txt' : 'SHASUMS.txt'
-        log.verbose('check download content checksum, need to download `' + shasumsFile + '`...')
-        var shasumsPath = path.resolve(devDir, shasumsFile)
-          , shasumsUrl = distUrl + '/v' + version + '/' + shasumsFile
+        log.verbose('check download content checksum, need to download `' + release.shasumsFile + '`...')
+        var shasumsPath = path.resolve(devDir, release.shasumsFile)
 
-        log.verbose('checksum url', shasumsUrl)
-        var req = download(shasumsUrl)
+        log.verbose('checksum url', release.shasumsUrl)
+        var req = download(release.shasumsUrl)
         if (!req) return
         req.on('error', done)
         req.on('response', function (res) {
@@ -351,39 +342,37 @@ function install (gyp, argv, callback) {
       }
 
       function downloadNodeLib (done) {
-        log.verbose('on Windows; need to download `node.lib`...')
+        log.verbose('on Windows; need to download `' + release.name + '.lib`...')
         var dir32 = path.resolve(devDir, 'ia32')
           , dir64 = path.resolve(devDir, 'x64')
-          , nodeLibPath32 = path.resolve(dir32, 'node.lib')
-          , nodeLibPath64 = path.resolve(dir64, 'node.lib')
-          , nodeLibUrl32 = distUrl + '/v' + version + '/node.lib'
-          , nodeLibUrl64 = distUrl + '/v' + version + '/x64/node.lib'
+          , libPath32 = path.resolve(dir32, release.name + '.lib')
+          , libPath64 = path.resolve(dir64, release.name + '.lib')
 
-        log.verbose('32-bit node.lib dir', dir32)
-        log.verbose('64-bit node.lib dir', dir64)
-        log.verbose('`node.lib` 32-bit url', nodeLibUrl32)
-        log.verbose('`node.lib` 64-bit url', nodeLibUrl64)
+        log.verbose('32-bit ' + release.name + '.lib dir', dir32)
+        log.verbose('64-bit ' + release.name + '.lib dir', dir64)
+        log.verbose('`' + release.name + '.lib` 32-bit url', release.libUrl32)
+        log.verbose('`' + release.name + '.lib` 64-bit url', release.libUrl64)
 
         var async = 2
         mkdir(dir32, function (err) {
           if (err) return done(err)
-          log.verbose('streaming 32-bit node.lib to:', nodeLibPath32)
+          log.verbose('streaming 32-bit ' + release.name + '.lib to:', libPath32)
 
-          var req = download(nodeLibUrl32)
+          var req = download(release.libUrl32)
           if (!req) return
           req.on('error', done)
           req.on('response', function (res) {
             if (res.statusCode !== 200) {
-              done(new Error(res.statusCode + ' status code downloading 32-bit node.lib'))
+              done(new Error(res.statusCode + ' status code downloading 32-bit ' + release.name + '.lib'))
               return
             }
 
             getContentSha(res, function (_, checksum) {
-              contentShasums['node.lib'] = checksum
-              log.verbose('content checksum', 'node.lib', checksum)
+              contentShasums[release.libPath32] = checksum
+              log.verbose('content checksum', release.libPath32, checksum)
             })
 
-            var ws = fs.createWriteStream(nodeLibPath32)
+            var ws = fs.createWriteStream(libPath32)
             ws.on('error', cb)
             req.pipe(ws)
           })
@@ -393,23 +382,23 @@ function install (gyp, argv, callback) {
         })
         mkdir(dir64, function (err) {
           if (err) return done(err)
-          log.verbose('streaming 64-bit node.lib to:', nodeLibPath64)
+          log.verbose('streaming 64-bit ' + release.name + '.lib to:', libPath64)
 
-          var req = download(nodeLibUrl64)
+          var req = download(release.libUrl64)
           if (!req) return
           req.on('error', done)
           req.on('response', function (res) {
             if (res.statusCode !== 200) {
-              done(new Error(res.statusCode + ' status code downloading 64-bit node.lib'))
+              done(new Error(res.statusCode + ' status code downloading 64-bit ' + release.name + '.lib'))
               return
             }
 
             getContentSha(res, function (_, checksum) {
-              contentShasums['x64/node.lib'] = checksum
-              log.verbose('content checksum', 'x64/node.lib', checksum)
+              contentShasums[release.libPath64] = checksum
+              log.verbose('content checksum', release.libPath64, checksum)
             })
 
-            var ws = fs.createWriteStream(nodeLibPath64)
+            var ws = fs.createWriteStream(libPath64)
             ws.on('error', cb)
             req.pipe(ws)
           })

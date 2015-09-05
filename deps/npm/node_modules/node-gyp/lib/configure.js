@@ -15,6 +15,7 @@ var fs = require('graceful-fs')
   , cp = require('child_process')
   , PathArray = require('path-array')
   , extend = require('util')._extend
+  , processRelease = require('./process-release')
   , spawn = cp.spawn
   , execFile = cp.execFile
   , win = process.platform == 'win32'
@@ -28,6 +29,7 @@ function configure (gyp, argv, callback) {
     , configNames = [ 'config.gypi', 'common.gypi' ]
     , configs = []
     , nodeDir
+    , release = processRelease(argv, gyp, process.version, process.release)
 
   checkPython()
 
@@ -135,35 +137,25 @@ function configure (gyp, argv, callback) {
 
     } else {
       // if no --nodedir specified, ensure node dependencies are installed
-      var version
-      var versionStr
-
-      if (gyp.opts.target) {
+      if ('v' + release.version !== process.version) {
         // if --target was given, then determine a target version to compile for
-        versionStr = gyp.opts.target
-        log.verbose('get node dir', 'compiling against --target node version: %s', versionStr)
+        log.verbose('get node dir', 'compiling against --target node version: %s', release.version)
       } else {
         // if no --target was specified then use the current host node version
-        versionStr = process.version
-        log.verbose('get node dir', 'no --target version specified, falling back to host node version: %s', versionStr)
+        log.verbose('get node dir', 'no --target version specified, falling back to host node version: %s', release.version)
       }
 
       // make sure we have a valid version
-      try {
-        version = semver.parse(versionStr)
-      } catch (e) {
-        return callback(e)
-      }
-      if (!version) {
-        return callback(new Error('Invalid version number: ' + versionStr))
+      if (!release.semver) {
+        return callback(new Error('Invalid version number: ' + release.version))
       }
 
       // ensure that the target node version's dev files are installed
       gyp.opts.ensure = true
-      gyp.commands.install([ versionStr ], function (err, version) {
+      gyp.commands.install([ release.version ], function (err, version) {
         if (err) return callback(err)
-        log.verbose('get node dir', 'target node version installed:', version)
-        nodeDir = path.resolve(gyp.devDir, version)
+        log.verbose('get node dir', 'target node version installed:', release.versionDir)
+        nodeDir = path.resolve(gyp.devDir, release.versionDir)
         createBuildDir()
       })
     }
@@ -310,42 +302,49 @@ function configure (gyp, argv, callback) {
     // this logic ported from the old `gyp_addon` python file
     var gyp_script = path.resolve(__dirname, '..', 'gyp', 'gyp_main.py')
     var addon_gypi = path.resolve(__dirname, '..', 'addon.gypi')
-    var common_gypi = path.resolve(nodeDir, 'common.gypi')
-    var output_dir = 'build'
-    if (win) {
-      // Windows expects an absolute path
-      output_dir = buildDir
-    }
-    var nodeGypDir = path.resolve(__dirname, '..')
+    var common_gypi = path.resolve(nodeDir, 'include/node/common.gypi')
+    fs.stat(common_gypi, function (err, stat) {
+      if (err || !stat.isFile()) {
+        common_gypi = path.resolve(nodeDir, 'common.gypi')
+      }
 
-    argv.push('-I', addon_gypi)
-    argv.push('-I', common_gypi)
-    argv.push('-Dlibrary=shared_library')
-    argv.push('-Dvisibility=default')
-    argv.push('-Dnode_root_dir=' + nodeDir)
-    argv.push('-Dnode_gyp_dir=' + nodeGypDir)
-    argv.push('-Dmodule_root_dir=' + process.cwd())
-    argv.push('--depth=.')
-    argv.push('--no-parallel')
+      var output_dir = 'build'
+      if (win) {
+        // Windows expects an absolute path
+        output_dir = buildDir
+      }
+      var nodeGypDir = path.resolve(__dirname, '..')
 
-    // tell gyp to write the Makefile/Solution files into output_dir
-    argv.push('--generator-output', output_dir)
+      argv.push('-I', addon_gypi)
+      argv.push('-I', common_gypi)
+      argv.push('-Dlibrary=shared_library')
+      argv.push('-Dvisibility=default')
+      argv.push('-Dnode_root_dir=' + nodeDir)
+      argv.push('-Dnode_gyp_dir=' + nodeGypDir)
+      argv.push('-Dnode_lib_file=' + release.name + '.lib')
+      argv.push('-Dmodule_root_dir=' + process.cwd())
+      argv.push('--depth=.')
+      argv.push('--no-parallel')
 
-    // tell make to write its output into the same dir
-    argv.push('-Goutput_dir=.')
+      // tell gyp to write the Makefile/Solution files into output_dir
+      argv.push('--generator-output', output_dir)
 
-    // enforce use of the "binding.gyp" file
-    argv.unshift('binding.gyp')
+      // tell make to write its output into the same dir
+      argv.push('-Goutput_dir=.')
 
-    // execute `gyp` from the current target nodedir
-    argv.unshift(gyp_script)
+      // enforce use of the "binding.gyp" file
+      argv.unshift('binding.gyp')
 
-    // make sure python uses files that came with this particular node package
-    var pypath = new PathArray(process.env, 'PYTHONPATH')
-    pypath.unshift(path.join(__dirname, '..', 'gyp', 'pylib'))
+      // execute `gyp` from the current target nodedir
+      argv.unshift(gyp_script)
 
-    var cp = gyp.spawn(python, argv)
-    cp.on('exit', onCpExit)
+      // make sure python uses files that came with this particular node package
+      var pypath = new PathArray(process.env, 'PYTHONPATH')
+      pypath.unshift(path.join(__dirname, '..', 'gyp', 'pylib'))
+
+      var cp = gyp.spawn(python, argv)
+      cp.on('exit', onCpExit)
+    })
   }
 
   /**

@@ -62,7 +62,7 @@
     "lru-cache": "~2.6.5",
     "minimatch": "~2.0.10",
     "mkdirp": "~0.5.1",
-    "node-gyp": "~2.0.2",
+    "node-gyp": "nodejs/node-gyp#process.release",
     "nopt": "~3.0.3",
     "normalize-git-url": "~3.0.1",
     "normalize-package-data": "~2.3.2",

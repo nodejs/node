@@ -19,22 +19,18 @@ function remove (gyp, argv, callback) {
   log.verbose('remove', 'using node-gyp dir:', devDir)
 
   // get the user-specified version to remove
-  var v = argv[0] || gyp.opts.target
-  log.verbose('remove', 'removing target version:', v)
+  var version = argv[0] || gyp.opts.target
+  log.verbose('remove', 'removing target version:', version)
 
-  if (!v) {
+  if (!version) {
     return callback(new Error('You must specify a version number to remove. Ex: "' + process.version + '"'))
   }
 
-  // parse the version to normalize and make sure it's valid
-  var version = semver.parse(v)
-
-  if (!version) {
-    return callback(new Error('Invalid version number: ' + v))
+  var versionSemver = semver.parse(version)
+  if (versionSemver) {
+    // flatten the version Array into a String
+    version = versionSemver.version
   }
-
-  // flatten the version Array into a String
-  version = version.version
 
   var versionPath = path.resolve(gyp.devDir, version)
   log.verbose('remove', 'removing development files for version:', version)
