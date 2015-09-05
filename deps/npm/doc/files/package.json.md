@@ -571,7 +571,7 @@ this. If you depend on features introduced in 1.5.2, use `">= 1.5.2 < 2"`.
 
 Array of package names that will be bundled when publishing the package.
 
-If this is spelled `"bundleDependencies"`, then that is also honorable.
+If this is spelled `"bundleDependencies"`, then that is also honored.
 
 ## optionalDependencies
 

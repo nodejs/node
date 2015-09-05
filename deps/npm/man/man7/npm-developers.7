@@ -1,4 +1,4 @@
-.TH "NPM\-DEVELOPERS" "7" "July 2015" "" ""
+.TH "NPM\-DEVELOPERS" "7" "September 2015" "" ""
 .SH "NAME"
 \fBnpm-developers\fR \- Developer Guide
 .SH DESCRIPTION
@@ -140,11 +140,15 @@ need to add them to \fB\|\.npmignore\fP explicitly:
 .IP \(bu 2
 \fB\|\.hg\fP
 .IP \(bu 2
+\fB\|\.npmrc\fP
+.IP \(bu 2
 \fB\|\.lock\-wscript\fP
 .IP \(bu 2
 \fB\|\.svn\fP
 .IP \(bu 2
 \fB\|\.wafpickle\-*\fP
+.IP \(bu 2
+\fBconfig\.gypi\fP
 .IP \(bu 2
 \fBCVS\fP
 .IP \(bu 2
@@ -162,7 +166,11 @@ The following paths and files are never ignored, so adding them to
 .IP \(bu 2
 \fBpackage\.json\fP
 .IP \(bu 2
-\fBREADME\.*\fP
+\fBREADME\fP (and its variants)
+.IP \(bu 2
+\fBCHANGELOG\fP (and its variants)
+.IP \(bu 2
+\fBLICENSE\fP / \fBLICENCE\fP
 
 .RE
 .SH Link Packages

@@ -16,7 +16,7 @@ and prior, clone the git repo and dig through the old tags and branches.
 
 ## Super Easy Install
 
-npm comes with [node](http://nodejs.org/download/) now.
+npm is bundled with [node](http://nodejs.org/download/).
 
 ### Windows Computers
 
