@@ -139,7 +139,7 @@ Some additional resources for addons and writing `gyp` files:
  * ["Hello World" node addon example](https://github.com/joyent/node/tree/master/test/addons/hello-world)
  * [gyp user documentation](https://chromium.googlesource.com/external/gyp/+/master/docs/UserDocumentation.md)
  * [gyp input format reference](https://chromium.googlesource.com/external/gyp/+/master/docs/InputFormatReference.md)
- * [*"binding.gyp" files out in the wild* wiki page](https://github.com/TooTallNate/node-gyp/wiki/%22binding.gyp%22-files-out-in-the-wild)
+ * [*"binding.gyp" files out in the wild* wiki page](https://github.com/nodejs/node-gyp/wiki/%22binding.gyp%22-files-out-in-the-wild)
 
 
 Commands
