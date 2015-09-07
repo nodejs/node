@@ -106,7 +106,7 @@ static Persistent<String> sessionid_sym;
 
 static Persistent<FunctionTemplate> secure_context_constructor;
 
-static uv_rwlock_t* locks;
+static uv_mutex_t* locks;
 
 
 static void crypto_threadid_cb(CRYPTO_THREADID* tid) {
@@ -118,29 +118,22 @@ static void crypto_lock_init(void) {
   int i, n;
 
   n = CRYPTO_num_locks();
-  locks = new uv_rwlock_t[n];
+  locks = new uv_mutex_t[n];
 
   for (i = 0; i < n; i++)
-    if (uv_rwlock_init(locks + i))
+    if (uv_mutex_init(locks + i))
       abort();
 }
 
 
 static void crypto_lock_cb(int mode, int n, const char* file, int line) {
-  assert((mode & CRYPTO_LOCK) || (mode & CRYPTO_UNLOCK));
-  assert((mode & CRYPTO_READ) || (mode & CRYPTO_WRITE));
+  assert(!(mode & CRYPTO_LOCK) ^ !(mode & CRYPTO_UNLOCK));
+  assert(!(mode & CRYPTO_READ) ^ !(mode & CRYPTO_WRITE));
 
-  if (mode & CRYPTO_LOCK) {
-    if (mode & CRYPTO_READ)
-      uv_rwlock_rdlock(locks + n);
-    else
-      uv_rwlock_wrlock(locks + n);
-  } else {
-    if (mode & CRYPTO_READ)
-      uv_rwlock_rdunlock(locks + n);
-    else
-      uv_rwlock_wrunlock(locks + n);
-  }
+  if (mode & CRYPTO_LOCK)
+    uv_mutex_lock(locks + n);
+  else
+    uv_mutex_unlock(locks + n);
 }
 
 
