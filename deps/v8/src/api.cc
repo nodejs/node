@@ -3262,14 +3262,16 @@ Maybe<int64_t> Value::IntegerValue(Local<Context> context) const {
   i::Handle<i::Object> num;
   if (obj->IsNumber()) {
     num = obj;
+    return Just(num->IsSmi() ? static_cast<int64_t>(i::Smi::cast(*num)->value())
+                             : static_cast<int64_t>(num->Number()));
   } else {
     PREPARE_FOR_EXECUTION_PRIMITIVE(context, "IntegerValue", int64_t);
     has_pending_exception =
         !i::Execution::ToInteger(isolate, obj).ToHandle(&num);
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(int64_t);
+    return Just(num->IsSmi() ? static_cast<int64_t>(i::Smi::cast(*num)->value())
+                             : static_cast<int64_t>(num->Number()));
   }
-  return Just(num->IsSmi() ? static_cast<int64_t>(i::Smi::cast(*num)->value())
-                           : static_cast<int64_t>(num->Number()));
 }
 
 
