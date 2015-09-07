@@ -145,8 +145,8 @@ function configure (gyp, argv, callback) {
         log.verbose('get node dir', 'no --target version specified, falling back to host node version: %s', release.version)
       }
 
-      // make sure we have a valid version
       if (!release.semver) {
+        // could not parse the version string with semver
         return callback(new Error('Invalid version number: ' + release.version))
       }
 
@@ -304,9 +304,8 @@ function configure (gyp, argv, callback) {
     var addon_gypi = path.resolve(__dirname, '..', 'addon.gypi')
     var common_gypi = path.resolve(nodeDir, 'include/node/common.gypi')
     fs.stat(common_gypi, function (err, stat) {
-      if (err || !stat.isFile()) {
+      if (err)
         common_gypi = path.resolve(nodeDir, 'common.gypi')
-      }
 
       var output_dir = 'build'
       if (win) {
