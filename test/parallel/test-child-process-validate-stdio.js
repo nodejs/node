@@ -28,3 +28,15 @@ var stdio2 = ['ipc', 'ipc', 'ipc'];
 assert.throws(function() {
   _validateStdio(stdio2, true);
 }, /You cannot use IPC with synchronous forks/);
+
+const stdio3 = [process.stdin, process.stdout, process.stderr];
+var result = _validateStdio(stdio3, false);
+assert.deepStrictEqual(result, {
+  stdio: [
+    { type: 'fd', fd: 0 },
+    { type: 'fd', fd: 1 },
+    { type: 'fd', fd: 2 }
+  ],
+  ipc: undefined,
+  ipcFd: undefined
+});
