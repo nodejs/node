@@ -390,6 +390,15 @@ TEST(function test_lookup_ipv6_explicit_object(done) {
 
 
 TEST(function test_lookup_ipv6_hint(done) {
+  // FreeBSD does not support V4MAPPED flag.
+  if (process.platform === 'freebsd') {
+    console.log(
+      '1..0 # Skipped: test_lookup_ipv6_hint is disabled on FreeBSD.'
+    );
+    done();
+    return;
+  }
+
   var req = dns.lookup('www.google.com', {
     family: 6,
     hints: dns.V4MAPPED
