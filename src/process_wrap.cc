@@ -98,7 +98,7 @@ class ProcessWrap : public HandleWrap {
         options->stdio[i].data.stream = stream;
       } else {
         Local<String> fd_key = env->fd_string();
-        int fd = static_cast<int>(stdio->Get(fd_key)->IntegerValue());
+        int fd = static_cast<int>(stdio->Get(fd_key)->Int32Value());
         options->stdio[i].flags = UV_INHERIT_FD;
         options->stdio[i].data.fd = fd;
       }
