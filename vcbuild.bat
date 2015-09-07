@@ -217,8 +217,7 @@ ssh -F %SSHCONFIG% %STAGINGSERVER% "mkdir -p iojs/%DISTTYPEDIR%/v%FULLVERSION%/w
 scp -F %SSHCONFIG% Release\iojs.exe %STAGINGSERVER%:iojs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/iojs.exe
 scp -F %SSHCONFIG% Release\iojs.lib %STAGINGSERVER%:iojs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/iojs.lib
 scp -F %SSHCONFIG% iojs-v%FULLVERSION%-%target_arch%.msi %STAGINGSERVER%:iojs/%DISTTYPEDIR%/v%FULLVERSION%/
-ssh -F %SSHCONFIG% %STAGINGSERVER% "touch iojs/%DISTTYPEDIR%/v%FULLVERSION%/iojs-v%FULLVERSION%-%target_arch%.msi.done iojs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%.done"
-ssh -F %SSHCONFIG% %STAGINGSERVER% "chmod -R ug=rw-x+X,o=r+X iojs/%DISTTYPEDIR%/v%FULLVERSION%/iojs-v%FULLVERSION%-%target_arch%.msi* iojs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%*"
+ssh -F %SSHCONFIG% %STAGINGSERVER% "touch iojs/%DISTTYPEDIR%/v%FULLVERSION%/iojs-v%FULLVERSION%-%target_arch%.msi.done iojs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%.done && chmod -R ug=rw-x+X,o=r+X iojs/%DISTTYPEDIR%/v%FULLVERSION%/iojs-v%FULLVERSION%-%target_arch%.msi* iojs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%*"
 
 :run
 @rem Run tests if requested.
