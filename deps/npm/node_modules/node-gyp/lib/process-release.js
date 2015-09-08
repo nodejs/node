@@ -38,7 +38,8 @@ function processRelease (argv, gyp, defaultVersion, defaultRelease) {
     isIojs = name === 'iojs'
   } else {
     // old node or alternative --target=
-    isIojs = semver.satisfies(version, '>=1.0.0 <4.0.0')
+    // semver.satisfies() doesn't like prerelease tags so test major directly
+    isIojs = versionSemver.major >= 1 & versionSemver.major < 4
     name = isIojs ? 'iojs' : 'node'
   }
 
@@ -60,8 +61,8 @@ function processRelease (argv, gyp, defaultVersion, defaultRelease) {
   // new style, based on process.release so we have a lot of the data we need
   if (defaultRelease && defaultRelease.headersUrl && !overrideDistUrl) {
     baseUrl = url.resolve(defaultRelease.headersUrl, './')
-    libUrl32 = resolveLibUrl(name, defaultRelease.libUrl || baseUrl || distBaseUrl, 'x86', version)
-    libUrl64 = resolveLibUrl(name, defaultRelease.libUrl || baseUrl || distBaseUrl, 'x64', version)
+    libUrl32 = resolveLibUrl(name, defaultRelease.libUrl || baseUrl || distBaseUrl, 'x86', versionSemver.major)
+    libUrl64 = resolveLibUrl(name, defaultRelease.libUrl || baseUrl || distBaseUrl, 'x64', versionSemver.major)
 
     return {
       version: version,
@@ -83,12 +84,12 @@ function processRelease (argv, gyp, defaultVersion, defaultRelease) {
   // current process.release
 
   baseUrl = distBaseUrl
-  libUrl32 = resolveLibUrl(name, baseUrl, 'x86', version)
-  libUrl64 = resolveLibUrl(name, baseUrl, 'x64', version)
+  libUrl32 = resolveLibUrl(name, baseUrl, 'x86', versionSemver.major)
+  libUrl64 = resolveLibUrl(name, baseUrl, 'x64', versionSemver.major)
   // making the bold assumption that anything with a version number >3.0.0 will
   // have a *-headers.tar.gz file in its dist location, even some frankenstein
   // custom version
-  tarballUrl = url.resolve(baseUrl, name + '-v' + version + (semver.satisfies(version, '>=3') ? '-headers' : '') + '.tar.gz')
+  tarballUrl = url.resolve(baseUrl, name + '-v' + version + (versionSemver.major >= 3 ? '-headers' : '') + '.tar.gz')
 
   return {
     version: version,
@@ -109,21 +110,20 @@ function normalizePath (p) {
   return path.normalize(p).replace(/\\/g, '/')
 }
 
-function resolveLibUrl (name, defaultUrl, arch, version) {
+function resolveLibUrl (name, defaultUrl, arch, versionMajor) {
   var base = url.resolve(defaultUrl, './')
-    , isV3 = semver.satisfies(version, '^3')
-    , hasLibUrl = bitsre.test(defaultUrl) || (isV3 && bitsreV3.test(defaultUrl))
+    , hasLibUrl = bitsre.test(defaultUrl) || (versionMajor === 3 && bitsreV3.test(defaultUrl))
 
   if (!hasLibUrl) {
     // let's assume it's a baseUrl then
-    if (semver.gte(version, '1.0.0'))
+    if (versionMajor >= 1)
       return url.resolve(base, 'win-' + arch  +'/' + name + '.lib')
     // prior to io.js@1.0.0 32-bit node.lib lives in /, 64-bit lives in /x64/
     return url.resolve(base, (arch === 'x64' ? 'x64/' : '') + name + '.lib')
   }
 
   // else we have a proper url to a .lib, just make sure it's the right arch
-  return defaultUrl.replace(isV3 ? bitsreV3 : bitsre, '/win-' + arch + '/')
+  return defaultUrl.replace(versionMajor === 3 ? bitsreV3 : bitsre, '/win-' + arch + '/')
 }
 
 module.exports = processRelease
