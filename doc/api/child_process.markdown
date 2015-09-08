@@ -46,7 +46,7 @@ you are listening on both events to fire a function, remember to guard against
 calling your function twice.
 
 See also [`ChildProcess#kill()`](#child_process_child_kill_signal) and
-[`ChildProcess#send()`](#child_process_child_send_message_sendhandle).
+[`ChildProcess#send()`](#child_process_child_send_message_sendhandle_callback).
 
 ### Event:  'exit'
 

@@ -436,7 +436,7 @@ exit, the master may choose not to respawn a worker based on this value.
 Send a message to a worker or master, optionally with a handle.
 
 In the master this sends a message to a specific worker. It is identical to
-[child.send()](child_process.html#child_process_child_send_message_sendhandle).
+[child.send()](child_process.html#child_process_child_send_message_sendhandle_callback).
 
 In a worker this sends a message to the master. It is identical to
 `process.send()`.
