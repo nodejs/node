@@ -368,3 +368,56 @@ test('test process release - process.release ~ frankenstein@4.1.23 --dist-url=ht
   })
 })
 
+test('test process release - process.release ~ node@4.0.0-rc.4', function (t) {
+  t.plan(2)
+
+  var release = processRelease([], { opts: {} }, 'v4.0.0-rc.4', {
+    name: 'node',
+    headersUrl: 'https://nodejs.org/download/rc/v4.0.0-rc.4/node-v4.0.0-rc.4-headers.tar.gz'
+  })
+
+  t.equal(release.semver.version, '4.0.0-rc.4')
+  delete release.semver
+
+  t.deepEqual(release, {
+    version: '4.0.0-rc.4',
+    name: 'node',
+    baseUrl: 'https://nodejs.org/download/rc/v4.0.0-rc.4/',
+    tarballUrl: 'https://nodejs.org/download/rc/v4.0.0-rc.4/node-v4.0.0-rc.4-headers.tar.gz',
+    shasumsUrl: 'https://nodejs.org/download/rc/v4.0.0-rc.4/SHASUMS256.txt',
+    versionDir: '4.0.0-rc.4',
+    libUrl32: 'https://nodejs.org/download/rc/v4.0.0-rc.4/win-x86/node.lib',
+    libUrl64: 'https://nodejs.org/download/rc/v4.0.0-rc.4/win-x64/node.lib',
+    libPath32: 'win-x86/node.lib',
+    libPath64: 'win-x64/node.lib'
+  })
+})
+
+
+test('test process release - process.release ~ node@4.0.0-rc.4 passed as argv[0]', function (t) {
+  t.plan(2)
+
+  // note the missing 'v' on the arg, it should normalise when checking
+  // whether we're on the default or not
+  var release = processRelease([ '4.0.0-rc.4' ], { opts: {} }, 'v4.0.0-rc.4', {
+    name: 'node',
+    headersUrl: 'https://nodejs.org/download/rc/v4.0.0-rc.4/node-v4.0.0-rc.4-headers.tar.gz'
+  })
+
+  t.equal(release.semver.version, '4.0.0-rc.4')
+  delete release.semver
+
+  t.deepEqual(release, {
+    version: '4.0.0-rc.4',
+    name: 'node',
+    baseUrl: 'https://nodejs.org/download/rc/v4.0.0-rc.4/',
+    tarballUrl: 'https://nodejs.org/download/rc/v4.0.0-rc.4/node-v4.0.0-rc.4-headers.tar.gz',
+    shasumsUrl: 'https://nodejs.org/download/rc/v4.0.0-rc.4/SHASUMS256.txt',
+    versionDir: '4.0.0-rc.4',
+    libUrl32: 'https://nodejs.org/download/rc/v4.0.0-rc.4/win-x86/node.lib',
+    libUrl64: 'https://nodejs.org/download/rc/v4.0.0-rc.4/win-x64/node.lib',
+    libPath32: 'win-x86/node.lib',
+    libPath64: 'win-x64/node.lib'
+  })
+})
+

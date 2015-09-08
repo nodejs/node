@@ -11,9 +11,9 @@ var semver = require('semver')
 // `process.version` and `process.release` where it exists.
 function processRelease (argv, gyp, defaultVersion, defaultRelease) {
   var version = argv[0] || gyp.opts.target || defaultVersion
-    , isDefaultVersion = version === defaultVersion
     , versionSemver = semver.parse(version)
     , overrideDistUrl = gyp.opts['dist-url'] || gyp.opts.disturl
+    , isDefaultVersion
     , isIojs
     , name
     , distBaseUrl
@@ -27,6 +27,9 @@ function processRelease (argv, gyp, defaultVersion, defaultRelease) {
   }
   // flatten version into String
   version = versionSemver.version
+
+  // defaultVersion should come from process.version so ought to be valid semver
+  isDefaultVersion = version === semver.parse(defaultVersion).version
 
   // can't use process.release if we're using --target=x.y.z
   if (!isDefaultVersion)
