@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var dgram = require('dgram');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const dgram = require('dgram');
 
 if (cluster.isMaster) {
   cluster.fork().on('exit', function(code) {
@@ -11,7 +11,7 @@ if (cluster.isMaster) {
   return;
 }
 
-var sockets = [];
+const sockets = [];
 function next() {
   sockets.push(this);
   if (sockets.length !== 2)
