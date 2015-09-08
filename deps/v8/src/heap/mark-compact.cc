@@ -4310,6 +4310,9 @@ void MarkCompactCollector::SweepSpaces() {
 
   EvacuateNewSpaceAndCandidates();
 
+  // NOTE: ArrayBuffers must be evacuated first, before freeing them. Otherwise
+  // not yet discovered buffers for scavenge will have all of them, and they
+  // will be erroneously freed.
   heap()->FreeDeadArrayBuffers(false);
 
   // ClearNonLiveReferences depends on precise sweeping of map space to
