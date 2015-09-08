@@ -4357,6 +4357,9 @@ void MarkCompactCollector::SweepSpaces() {
 
   EvacuateNewSpaceAndCandidates();
 
+  // NOTE: ArrayBuffers must be evacuated first, before freeing them. Otherwise
+  // not yet discovered buffers for scavenge will have all of them, and they
+  // will be erroneously freed.
   heap()->FreeDeadArrayBuffers(false);
 
   // Deallocate unmarked objects and clear marked bits for marked objects.
