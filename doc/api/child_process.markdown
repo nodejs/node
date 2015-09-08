@@ -45,8 +45,8 @@ Note that the `exit`-event may or may not fire after an error has occurred. If
 you are listening on both events to fire a function, remember to guard against
 calling your function twice.
 
-See also [`ChildProcess#kill()`](#child_process_child_kill_signal) and
-[`ChildProcess#send()`](#child_process_child_send_message_sendhandle).
+See also [`ChildProcess.kill()`](#child_process_child_kill_signal) and
+[`ChildProcess.send()`](#child_process_child_send_message_sendhandle_callback).
 
 ### Event:  'exit'
 
@@ -221,7 +221,7 @@ See `kill(2)`
 * `callback` {Function}
 * Return: Boolean
 
-When using `child_process.fork()` you can write to the child using
+When using [`child_process.fork()`](#child_process_child_process_fork_modulepath_args_options) you can write to the child using
 `child.send(message[, sendHandle][, callback])` and messages are received by
 a `'message'` event on the child.
 
@@ -376,7 +376,8 @@ Launches a new process with the given `command`, with  command line arguments in
 
 The third argument is used to specify additional options, with these defaults:
 
-    { cwd: undefined,
+    { 
+      cwd: undefined,
       env: process.env
     }
 
@@ -457,7 +458,7 @@ As a shorthand, the `stdio` argument may be one of the following strings:
 * `'ignore'` - `['ignore', 'ignore', 'ignore']`
 * `'inherit'` - `[process.stdin, process.stdout, process.stderr]` or `[0,1,2]`
 
-Otherwise, the 'stdio' option to `child_process.spawn()` is an array where each
+Otherwise, the 'stdio' option to [`child_process.spawn()`](#child_process_child_process_spawn_command_args_options) is an array where each
 index corresponds to a fd in the child.  The value is one of the following:
 
 1. `'pipe'` - Create a pipe between the child process and the parent process.
@@ -532,7 +533,7 @@ will not stay running in the background unless it is provided with a `stdio`
 configuration that is not connected to the parent.  If the parent's `stdio` is
 inherited, the child will remain attached to the controlling terminal.
 
-See also: `child_process.exec()` and `child_process.fork()`
+See also: [`child_process.exec()`](#child_process_child_process_exec_command_options_callback) and [`child_process.fork()`](#child_process_child_process_fork_modulepath_args_options)
 
 ### child_process.exec(command[, options], callback)
 
@@ -579,12 +580,14 @@ signal that terminated the process.
 There is a second optional argument to specify several options. The
 default options are
 
-    { encoding: 'utf8',
+    { 
+      encoding: 'utf8',
       timeout: 0,
       maxBuffer: 200*1024,
       killSignal: 'SIGTERM',
       cwd: null,
-      env: null }
+      env: null
+    }
 
 If `timeout` is greater than 0, then it will kill the child process
 if it runs longer than `timeout` milliseconds. The child process is killed with
@@ -615,9 +618,9 @@ the existing process and uses a shell to execute the command.*
   * `stderr` {Buffer}
 * Return: ChildProcess object
 
-This is similar to `child_process.exec()` except it does not execute a
+This is similar to [`child_process.exec()`](#child_process_child_process_exec_command_options_callback) except it does not execute a
 subshell but rather the specified file directly. This makes it slightly
-leaner than `child_process.exec`. It has the same options.
+leaner than [`child_process.exec()`](#child_process_child_process_exec_command_options_callback). It has the same options.
 
 
 ### child_process.fork(modulePath[, args][, options])
@@ -726,7 +729,7 @@ process has exited.
 
 If the process times out, or has a non-zero exit code, this method ***will***
 throw.  The `Error` object will contain the entire result from
-[`child_process.spawnSync`](#child_process_child_process_spawnsync_command_args_options)
+[`child_process.spawnSync()`](#child_process_child_process_spawnsync_command_args_options).
 
 
 ### child_process.execSync(command[, options])
@@ -757,6 +760,6 @@ process has exited.
 
 If the process times out, or has a non-zero exit code, this method ***will***
 throw.  The `Error` object will contain the entire result from
-[`child_process.spawnSync`](#child_process_child_process_spawnsync_command_args_options)
+[`child_process.spawnSync()`](#child_process_child_process_spawnsync_command_args_options).
 
 [EventEmitter]: events.html#events_class_events_eventemitter
