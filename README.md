@@ -345,7 +345,7 @@ Instructions:
 * [CONTRIBUTING.md](./CONTRIBUTING.md)
 * [GOVERNANCE.md](./GOVERNANCE.md)
 * IRC:
-  [#io.js on Freenode.net](http://webchat.freenode.net?channels=io.js&uio=d4)
+  [#node.js on Freenode.net](http://webchat.freenode.net?channels=node.js&uio=d4)
 * [nodejs/node on Gitter](https://gitter.im/nodejs/node)
 
 ## Security
