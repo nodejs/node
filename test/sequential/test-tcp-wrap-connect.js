@@ -1,9 +1,10 @@
 'use strict';
+// Flags: --expose_internals
 var common = require('../common');
 var assert = require('assert');
-var TCP = process.binding('tcp_wrap').TCP;
-var TCPConnectWrap = process.binding('tcp_wrap').TCPConnectWrap;
-var ShutdownWrap = process.binding('stream_wrap').ShutdownWrap;
+var TCP = require('binding/tcp_wrap').TCP;
+var TCPConnectWrap = require('binding/tcp_wrap').TCPConnectWrap;
+var ShutdownWrap = require('binding/stream_wrap').ShutdownWrap;
 
 function makeConnection() {
   var client = new TCP();

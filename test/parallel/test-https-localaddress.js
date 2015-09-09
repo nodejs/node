@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --expose_internals
 var common = require('../common'),
     fs = require('fs'),
     assert = require('assert');

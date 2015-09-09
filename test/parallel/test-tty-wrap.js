@@ -1,9 +1,10 @@
 'use strict';
+// Flags: --expose_internals
 var common = require('../common');
 var assert = require('assert');
 
-var TTY = process.binding('tty_wrap').TTY;
-var isTTY = process.binding('tty_wrap').isTTY;
+var TTY = require('binding/tty_wrap').TTY;
+var isTTY = require('binding/tty_wrap').isTTY;
 
 if (isTTY(1) == false) {
   console.log('1..0 # Skipped: fd 1 is not a tty.');

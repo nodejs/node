@@ -1,9 +1,9 @@
 'use strict';
-
+// Flags: --expose_internals
 const common = require('../common');
 const assert = require('assert');
 const net = require('net');
-const async_wrap = process.binding('async_wrap');
+const async_wrap = require('binding/async_wrap');
 const providers = Object.keys(async_wrap.Providers);
 
 let cntr = 0;

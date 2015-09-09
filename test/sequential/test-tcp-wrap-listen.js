@@ -1,9 +1,10 @@
 'use strict';
+// Flags: --expose_internals
 var common = require('../common');
 var assert = require('assert');
 
-var TCP = process.binding('tcp_wrap').TCP;
-var WriteWrap = process.binding('stream_wrap').WriteWrap;
+var TCP = require('binding/tcp_wrap').TCP;
+var WriteWrap = require('binding/stream_wrap').WriteWrap;
 
 var server = new TCP();
 

@@ -1,13 +1,14 @@
 'use strict';
+// Flags: --expose_internals
 var common = require('../common');
 var assert = require('assert');
-var cares = process.binding('cares_wrap');
+var cares = require('binding/cares_wrap');
 
 var dns = require('dns');
 
 // Stub `getaddrinfo` to *always* error.
 cares.getaddrinfo = function() {
-  return process.binding('uv').UV_ENOENT;
+  return require('binding/uv').UV_ENOENT;
 };
 
 assert.doesNotThrow(function() {

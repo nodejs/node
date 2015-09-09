@@ -1,10 +1,11 @@
 'use strict';
+// Flags: --expose_internals
 const common = require('../common');
 const assert = require('assert');
 
 const StreamWrap = require('_stream_wrap');
 const Duplex = require('stream').Duplex;
-const ShutdownWrap = process.binding('stream_wrap').ShutdownWrap;
+const ShutdownWrap = require('binding/stream_wrap').ShutdownWrap;
 
 var done = false;
 

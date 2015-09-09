@@ -1,16 +1,17 @@
 'use strict';
+// Flags: --expose_internals
 require('../common');
 var assert = require('assert');
 
 assert.throws(
   function() {
-    process.binding('test');
+    require('binding/test');
   },
   /No such module: test/
 );
 
 assert.doesNotThrow(function() {
-  process.binding('buffer');
+  require('binding/buffer');
 }, function(err) {
   if ( (err instanceof Error) ) {
     return true;

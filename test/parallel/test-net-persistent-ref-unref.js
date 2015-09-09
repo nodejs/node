@@ -1,8 +1,9 @@
 'use strict';
+// Flags: --expose_internals
 var common = require('../common');
 var assert = require('assert');
 var net = require('net');
-var TCPWrap = process.binding('tcp_wrap').TCP;
+var TCPWrap = require('binding/tcp_wrap').TCP;
 
 var echoServer = net.createServer(function(conn) {
   conn.end();

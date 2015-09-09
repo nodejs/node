@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --expose_internals
 var common = require('../common');
 var assert = require('assert'),
     dns = require('dns'),
@@ -367,7 +368,7 @@ var getaddrinfoCallbackCalled = false;
 
 console.log('looking up nodejs.org...');
 
-var cares = process.binding('cares_wrap');
+var cares = require('binding/cares_wrap');
 var req = new cares.GetAddrInfoReqWrap();
 var err = cares.getaddrinfo(req, 'nodejs.org', 4);
 

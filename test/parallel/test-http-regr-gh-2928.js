@@ -1,8 +1,9 @@
 'use strict';
+// Flags: --expose_internals
 const common = require('../common');
 const assert = require('assert');
 const httpCommon = require('_http_common');
-const HTTPParser = process.binding('http_parser').HTTPParser;
+const HTTPParser = require('binding/http_parser').HTTPParser;
 const net = require('net');
 
 const PARALLEL = 30;

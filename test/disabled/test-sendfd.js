@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --expose_internals
 // Test sending and receiving a file descriptor.
 //
 // This test is pretty complex. It ends up spawning test/fixtures/recvfd.js
@@ -33,7 +34,7 @@ var buffer = require('buffer');
 var child_process = require('child_process');
 var fs = require('fs');
 var net = require('net');
-var netBinding = process.binding('net');
+var netBinding = require('binding/net');
 var path = require('path');
 
 var DATA = {
