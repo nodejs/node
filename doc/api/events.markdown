@@ -62,7 +62,7 @@ Returns emitter, so calls can be chained.
 
 ### emitter.removeListener(event, listener)
 
-Remove a listener from the listener array for the specified event.
+Removes a listener from the listener array for the specified event.
 **Caution**: changes array indices in the listener array behind the listener.
 
     var callback = function(stream) {
