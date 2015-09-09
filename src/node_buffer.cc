@@ -456,29 +456,6 @@ void CreateFromArrayBuffer(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void Slice(const FunctionCallbackInfo<Value>& args) {
-  CHECK(args[0]->IsUint8Array());
-  CHECK(args[1]->IsNumber());
-  CHECK(args[2]->IsNumber());
-  Environment* env = Environment::GetCurrent(args);
-  Local<Uint8Array> ab_ui = args[0].As<Uint8Array>();
-  Local<ArrayBuffer> ab = ab_ui->Buffer();
-  ArrayBuffer::Contents ab_c = ab->GetContents();
-  size_t offset = ab_ui->ByteOffset();
-  size_t start = args[1]->NumberValue() + offset;
-  size_t end = args[2]->NumberValue() + offset;
-  CHECK_GE(end, start);
-  size_t size = end - start;
-  CHECK_GE(ab_c.ByteLength(), start + size);
-  Local<Uint8Array> ui = Uint8Array::New(ab, start, size);
-  Maybe<bool> mb =
-      ui->SetPrototype(env->context(), env->buffer_prototype_object());
-  if (!mb.FromMaybe(false))
-    return env->ThrowError("Unable to set Object prototype");
-  args.GetReturnValue().Set(ui);
-}
-
-
 template <encoding encoding>
 void StringSlice(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -1002,7 +979,6 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "createFromString", CreateFromString);
   env->SetMethod(target, "createFromArrayBuffer", CreateFromArrayBuffer);
 
-  env->SetMethod(target, "slice", Slice);
   env->SetMethod(target, "byteLengthUtf8", ByteLengthUtf8);
   env->SetMethod(target, "compare", Compare);
   env->SetMethod(target, "fill", Fill);
