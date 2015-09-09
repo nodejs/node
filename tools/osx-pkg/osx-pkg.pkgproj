@@ -1665,7 +1665,7 @@
 			<key>BACKGROUND</key>
 			<dict>
 				<key>ALIGNMENT</key>
-				<integer>4</integer>
+				<integer>6</integer>
 				<key>BACKGROUND_PATH</key>
 				<dict>
 					<key>PATH</key>
