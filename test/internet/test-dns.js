@@ -394,7 +394,19 @@ TEST(function test_lookup_ipv6_hint(done) {
     family: 6,
     hints: dns.V4MAPPED
   }, function(err, ip, family) {
-    if (err) throw err;
+    if (err) {
+      // FreeBSD does not support V4MAPPED
+      if (process.platform === 'freebsd') {
+        assert(err instanceof Error);
+        assert.strictEqual(err.code, 'EAI_BADFLAGS');
+        assert.strictEqual(err.hostname, 'www.google.com');
+        assert.ok(/getaddrinfo EAI_BADFLAGS/.test(err.message));
+        done();
+        return;
+      } else {
+        throw err;
+      }
+    }
     assert.ok(net.isIPv6(ip));
     assert.strictEqual(family, 6);
 
