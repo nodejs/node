@@ -904,6 +904,40 @@ a diff reading, useful for benchmarks and measuring intervals:
     }, 1000);
 
 
+## process.resourceUsage()
+
+Returns the resource usage measures.
+
+Note: Windows only provides the following resource usage measures - all others
+are filled with zero:
+
+- `userCpuTimeUsedSec`
+- `userCpuTimeUsedMs`
+- `systemCpuTimeUsedSec`
+- `systemCpuTimeUsedMs`
+
+An example output looks like this:
+
+    { userCpuTimeUsedSec: 0,
+      userCpuTimeUsedMs: 159729,
+      systemCpuTimeUsedSec: 0,
+      systemCpuTimeUsedMs: 30597,
+      maxResidentSetSize: 20426752,
+      sharedMemSize: 0,
+      integralUnsharedDataSize: 0,
+      integralUnsharedStackSize: 0,
+      pageReclaims: 3002,
+      pageFaults: 2250,
+      swaps: 0,
+      blockInputOperations: 0,
+      blockOutputOperations: 0,
+      ipcMessagesSent: 55,
+      ipcMessagesReceived: 54,
+      signalsReceived: 0,
+      voluntaryContextSwitches: 92,
+      involuntaryContextSwitches: 374 }
+
+
 ## process.mainModule
 
 Alternate way to retrieve
