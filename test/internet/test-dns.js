@@ -575,7 +575,8 @@ TEST(function test_lookup_all_mixed(done) {
 TEST(function test_lookupservice_ip_ipv4(done) {
   var req = dns.lookupService('127.0.0.1', 80, function(err, host, service) {
     if (err) throw err;
-    assert.ok(common.isValidHostname(host));
+    assert.equal(typeof host, 'string');
+    assert(host);
 
     /*
      * Retrieve the actual HTTP service name as setup on the host currently
@@ -604,7 +605,8 @@ TEST(function test_lookupservice_ip_ipv4(done) {
 TEST(function test_lookupservice_ip_ipv6(done) {
   var req = dns.lookupService('::1', 80, function(err, host, service) {
     if (err) throw err;
-    assert.ok(common.isValidHostname(host));
+    assert.equal(typeof host, 'string');
+    assert(host);
 
     /*
      * Retrieve the actual HTTP service name as setup on the host currently
