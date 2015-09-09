@@ -62,7 +62,7 @@ Returns emitter, so calls can be chained.
 
 ### emitter.removeListener(event, listener)
 
-Remove a listener from the listener array for the specified event.
+Removes a listener from the listener array for the specified event.
 **Caution**: changes array indices in the listener array behind the listener.
 
     var callback = function(stream) {
@@ -132,7 +132,7 @@ Returns a copy of the array of listeners for the specified event.
 
 ### emitter.emit(event[, arg1][, arg2][, ...])
 
-Execute each of the listeners in order with the supplied arguments.
+Executes each of the listeners in order with the supplied arguments.
 
 Returns `true` if event had listeners, `false` otherwise.
 
