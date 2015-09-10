@@ -2,8 +2,8 @@
 
     Stability: 2 - Stable
 
-This module is used for writing unit tests for your applications. You can
-access it with `require('assert')`.
+This module is used for writing assertion tests. You can access it with
+`require('assert')`.
 
 ## assert.fail(actual, expected, message, operator)
 
