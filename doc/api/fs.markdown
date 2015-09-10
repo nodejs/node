@@ -828,7 +828,7 @@ default value of 64 kb for the same parameter.
 
 `options` can include `start` and `end` values to read a range of bytes from
 the file instead of the entire file.  Both `start` and `end` are inclusive and
-start at 0. The `encoding` can be `'utf8'`, `'ascii'`, or `'base64'`.
+start at 0. The `encoding` can be any one of those accepted by [Buffer](buffer.html).
 
 If `fd` is specified, `ReadStream` will ignore the `path` argument and will use
 the specified file descriptor. This means that no `open` event will be emitted.
@@ -873,8 +873,7 @@ Returns a new WriteStream object (See `Writable Stream`).
 `options` may also include a `start` option to allow writing data at
 some position past the beginning of the file.  Modifying a file rather
 than replacing it may require a `flags` mode of `r+` rather than the
-default mode `w`. The `defaultEncoding` can be `'utf8'`, `'ascii'`, `binary`,
-or `'base64'`.
+default mode `w`. The `defaultEncoding` can be any one of those accepted by [Buffer](buffer.html).
 
 Like `ReadStream` above, if `fd` is specified, `WriteStream` will ignore the
 `path` argument and will use the specified file descriptor. This means that no
