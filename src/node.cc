@@ -2087,12 +2087,15 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   if (mp->nm_version != NODE_MODULE_VERSION) {
-    uv_dlclose(&lib);
     char errmsg[1024];
     snprintf(errmsg,
              sizeof(errmsg),
              "Module version mismatch. Expected %d, got %d.",
              NODE_MODULE_VERSION, mp->nm_version);
+
+    // NOTE: `mp` is allocated inside of the shared library's memory, calling
+    // `uv_dlclose` will deallocate it
+    uv_dlclose(&lib);
     env->ThrowError(errmsg);
     return;
   }
