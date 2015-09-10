@@ -1543,6 +1543,18 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ary);
 }
 
+bool HasUnrefedTimerHandles(Environment* env) {
+
+  HandleScope handle_scope(env->isolate());
+
+  for (auto w : *env->handle_wrap_queue()) {
+    if (!w->persistent().IsEmpty() && w->flags_ & HandleWrap::kUnref)
+      return true;
+  }
+
+  return false;
+}
+
 
 static void Abort(const FunctionCallbackInfo<Value>& args) {
   ABORT();
@@ -3968,6 +3980,11 @@ static void StartNodeInstance(void* arg) {
         if (more == false) {
           v8::platform::PumpMessageLoop(default_platform, isolate);
           EmitBeforeExit(env);
+
+          // We need to run an extra event loop turn to purge unrefed handles.
+          bool unrefedTimers = HasUnrefedTimerHandles(env);
+          if (unrefedTimers == true)
+            uv_run(env->event_loop(), UV_RUN_NOWAIT);
 
           // Emit `beforeExit` if the loop became alive either after emitting
           // event, or after running some callbacks.
