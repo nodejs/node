@@ -132,7 +132,7 @@ Returns a copy of the array of listeners for the specified event.
 
 ### emitter.emit(event[, arg1][, arg2][, ...])
 
-Executes each of the listeners in order with the supplied arguments.
+Calls each of the listeners in order with the supplied arguments.
 
 Returns `true` if event had listeners, `false` otherwise.
 
