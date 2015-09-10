@@ -477,6 +477,19 @@ when the deprecated API is used.  Configurable at run-time through the
 
 `process.throwDeprecation` takes precedence over `process.traceDeprecation`.
 
+## util.guessHandleType(fd)
+
+Returns the assumed handle type for the given `fd`.
+
+Possible values include:
+
+* `'FILE'`
+* `'TTY'`
+* `'PIPE'`
+* `'TCP'`
+* `'UNKNOWN'`
+
+
 ## util.debug(string)
 
     Stability: 0 - Deprecated: use console.error() instead.
