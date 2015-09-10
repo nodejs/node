@@ -100,22 +100,37 @@ bool Accessors::IsJSArrayBufferViewFieldAccessor(Handle<Map> map,
   Isolate* isolate = name->GetIsolate();
 
   switch (map->instance_type()) {
-    case JS_TYPED_ARRAY_TYPE:
-      // %TypedArray%.prototype is non-configurable, and so are the following
-      // named properties on %TypedArray%.prototype, so we can directly inline
-      // the field-load for typed array maps that still use their
-      // %TypedArray%.prototype.
-      if (JSFunction::cast(map->GetConstructor())->prototype() !=
-          map->prototype()) {
+    case JS_TYPED_ARRAY_TYPE: {
+      if (!CheckForName(name, isolate->factory()->length_string(),
+                        JSTypedArray::kLengthOffset, object_offset) &&
+          !CheckForName(name, isolate->factory()->byte_length_string(),
+                        JSTypedArray::kByteLengthOffset, object_offset) &&
+          !CheckForName(name, isolate->factory()->byte_offset_string(),
+                        JSTypedArray::kByteOffsetOffset, object_offset)) {
         return false;
       }
-      return CheckForName(name, isolate->factory()->length_string(),
-                          JSTypedArray::kLengthOffset, object_offset) ||
-             CheckForName(name, isolate->factory()->byte_length_string(),
-                          JSTypedArray::kByteLengthOffset, object_offset) ||
-             CheckForName(name, isolate->factory()->byte_offset_string(),
-                          JSTypedArray::kByteOffsetOffset, object_offset);
 
+      if (map->is_dictionary_map()) return false;
+
+      // Check if the property is overridden on the instance.
+      DescriptorArray* descriptors = map->instance_descriptors();
+      int descriptor = descriptors->SearchWithCache(*name, *map);
+      if (descriptor != DescriptorArray::kNotFound) return false;
+
+      Handle<Object> proto = Handle<Object>(map->prototype(), isolate);
+      if (!proto->IsJSReceiver()) return false;
+
+      // Check if the property is defined in the prototype chain.
+      LookupIterator it(proto, name);
+      if (!it.IsFound()) return false;
+
+      Object* original_proto =
+          JSFunction::cast(map->GetConstructor())->prototype();
+
+      // Property is not configurable. It is enough to verify that
+      // the holder is the same.
+      return *it.GetHolder<Object>() == original_proto;
+    }
     case JS_DATA_VIEW_TYPE:
       return CheckForName(name, isolate->factory()->byte_length_string(),
                           JSDataView::kByteLengthOffset, object_offset) ||
