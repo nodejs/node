@@ -301,7 +301,7 @@ The `exports` variable that is available within a module starts as a reference
 to `module.exports`. As with any variable, if you assign a new value to it, it
 is no longer bound to the previous value.
 
-To illustrate the behaviour, imagine this hypothetical implementation of
+To illustrate the behavior, imagine this hypothetical implementation of
 `require()`:
 
     function require(...) {
