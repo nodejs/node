@@ -244,7 +244,7 @@
                                Type="url"/>
         <util:InternetShortcut Id="DocsShortcut"
                                Name="Node.js documentation"
-                               Target="https://nodejs.org/download/$(var.DistTypeDir)/v$(var.FullVersion)/doc/api/"
+                               Target="https://nodejs.org/download/$(var.DistTypeDir)/v$(var.FullVersion)/docs/api/"
                                Type="url"/>
       </Component>
     </DirectoryRef>
