@@ -1,5 +1,5 @@
 {
-  "version": "2.14.2",
+  "version": "2.14.3",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "keywords": [
@@ -62,7 +62,7 @@
     "lru-cache": "~2.6.5",
     "minimatch": "~2.0.10",
     "mkdirp": "~0.5.1",
-    "node-gyp": "~3.0.1",
+    "node-gyp": "~2.0.2",
     "nopt": "~3.0.3",
     "normalize-git-url": "~3.0.1",
     "normalize-package-data": "~2.3.2",
@@ -170,7 +170,7 @@
     "write-file-atomic"
   ],
   "devDependencies": {
-    "deep-equal": "~1.0.0",
+    "deep-equal": "~1.0.1",
     "marked": "~0.3.3",
     "marked-man": "~0.1.5",
     "nock": "~2.10.0",
@@ -178,7 +178,7 @@
     "npm-registry-mock": "~1.0.0",
     "require-inject": "~1.2.0",
     "sprintf-js": "~1.0.2",
-    "tap": "~1.3.1"
+    "tap": "~1.4.0"
   },
   "scripts": {
     "dumpconf": "env | grep npm | sort | uniq",
