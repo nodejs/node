@@ -226,13 +226,14 @@ static int uv__process_open_stream(uv_stdio_container_t* container,
                                    int pipefds[2],
                                    int writable) {
   int flags;
+  int err;
 
   if (!(container->flags & UV_CREATE_PIPE) || pipefds[0] < 0)
     return 0;
 
-  if (uv__close(pipefds[1]))
-    if (errno != EINTR && errno != EINPROGRESS)
-      abort();
+  err = uv__close(pipefds[1]);
+  if (err != 0 && err != -EINPROGRESS)
+    abort();
 
   pipefds[1] = -1;
   uv__nonblock(pipefds[0], 1);
