@@ -17,7 +17,7 @@ server.listen(common.PORT, function() {
     port: common.PORT
   });
 
-  const payload = new Array(1640).join('0123456789');
+  const payload = new Buffer(16390);
   req.write(payload);
   req.end();
 });
