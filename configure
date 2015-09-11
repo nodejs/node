@@ -728,7 +728,7 @@ def configure_library(lib, output):
     # libpath needs to be provided ahead libraries
     if pkg_libpath:
       output['libraries'] += (
-          map('-L{0}'.format, filter(None, map(str.strip, pkg_libpath.split('-L'))))
+          map('-L{0}'.format, filter(None, map(str.strip, pkg_libpath.split('-L')))))
 
     default_libs = getattr(options, shared_lib + '_libname')
     default_libs = map('-l{0}'.format, default_libs.split(','))
