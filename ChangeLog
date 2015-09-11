@@ -1,3 +1,44 @@
+2015.11.23, Version 0.10.41 (Maintenance)
+
+* [16ca0779f5] - src/node.cc: fix build error without OpenSSL support (Jörg Krause) https://github.com/joyent/node/pull/25862
+* [9c773c813b] - build: backport tools/release.sh (Rod Vagg)
+* [aa1d012fbc] - build: backport config for new CI infrastructure (Rod Vagg)
+* [c88a0b26da] - build: update manifest to include Windows 10 (Lucien Greathouse) https://github.com/nodejs/node/pull/2838
+* [8564a9f5f7] - build: gcc version detection on openSUSE Tumbleweed (Henrique Aparecido Lavezzo) https://github.com/joyent/node/pull/25671
+* [9c7bd6de56] - build: run-ci makefile rule (Alexis Campailla) https://github.com/joyent/node/pull/25686
+* [ffa1e1f31d] - build: support flaky tests in test-ci (Alexis Campailla) https://github.com/joyent/node/pull/25686
+* [100dd19e61] - build: support Jenkins via test-ci (Alexis Campailla) https://github.com/joyent/node/pull/25686
+* [ec861f6f90] - build: make release process easier for multi users (Julien Gilli) https://github.com/joyent/node/pull/25638
+* [6ac47aa9f5] - build,win: try next MSVS version on failure (João Reis) https://github.com/nodejs/node/pull/2910
+* [e669b27740] - crypto: replace rwlocks with simple mutexes (Ben Noordhuis) https://github.com/nodejs/node/pull/2723
+* [b68781e500] - deps: upgrade npm to 1.4.29 (Forrest L Norvell) https://github.com/nodejs/node/pull/3639
+* [7cf0d9c1d9] - deps: fix openssl for MSVS 2015 (Andy Polyakov) https://github.com/joyent/node/pull/25857
+* [9ee8a14f9e] - deps: fix gyp to work on MacOSX without XCode (Shigeki Ohtsu) https://github.com/joyent/node/pull/25857
+* [a525c7244e] - deps: update gyp to 25ed9ac (João Reis) https://github.com/joyent/node/pull/25857
+* [6502160294] - dns: allow v8 to optimize lookup() (Brian White) https://github.com/joyent/node/pull/8942
+* [db3d302d2a] - doc: backport README.md (Rod Vagg)
+* [c919d91dd6] - doc: update LICENSE file to match v4.x+ LICENSE (Rod Vagg)
+* [62c8948109] - doc: fix Folders as Modules omission of index.json (Elan Shanker) https://github.com/joyent/node/pull/8868
+* [572663f303] - https: don't overwrite servername option (skenqbx) https://github.com/joyent/node/pull/9368
+* [75c84b2439] - test: add test for https agent servername option (skenqbx) https://github.com/joyent/node/pull/9368
+* [841a6dd264] - test: mark more tests as flaky (Alexis Campailla) https://github.com/joyent/node/pull/25807
+* [a7fee30da1] - test: mark test-tls-securepair-server as flaky (Alexis Campailla) https://github.com/joyent/node/pull/25807
+* [7df57703dd] - test: mark test-net-error-twice flaky on SmartOS (Julien Gilli) https://github.com/joyent/node/pull/25760
+* [e10892cccc] - test: make test-abort-fatal-error non flaky (Julien Gilli) https://github.com/joyent/node/pull/25755
+* [a2f879f197] - test: mark recently failing tests as flaky (Alexis Campailla) https://github.com/joyent/node/pull/25686
+* [e7010bdf92] - test: runner should return 0 on flaky tests (Alexis Campailla) https://github.com/joyent/node/pull/25686
+* [c283c9bbb3] - test: support writing test output to file (Alexis Campailla) https://github.com/joyent/node/pull/25686
+* [eeaed586bb] - test: runner support for flaky tests (Alexis Campailla) https://github.com/joyent/node/pull/25686
+* [3bb8174b94] - test: refactor to use common testcfg (Timothy J Fontaine) https://github.com/joyent/node/pull/25686
+* [df59d43586] - tools: pass constant to logger instead of string (Johan Bergström) https://github.com/joyent/node/pull/25686
+* [d103d4ed9a] - tools: fix test.py after v8 upgrade (Ben Noordhuis) https://github.com/joyent/node/pull/25686
+* [8002192b4e] - win: manifest node.exe for Windows 8.1 (Alexis Campailla) https://github.com/nodejs/node/pull/2838
+* [66ec1dae8f] - win: add MSVS 2015 support (Rod Vagg) https://github.com/joyent/node/pull/25857
+* [e192f61514] - win: fix custom actions for WiX older than 3.9 (João Reis) https://github.com/joyent/node/pull/25569
+* [16bcd68dc5] - win: fix custom actions on Visual Studio != 2013 (Julien Gilli) https://github.com/joyent/node/pull/25569
+* [517986c2f4] - win: backport bringing back xp/2k3 support (Bert Belder) https://github.com/joyent/node/pull/25569
+* [10f251e8dd] - win: backport set env before generating projects (Alexis Campailla) https://github.com/joyent/node/pull/25569
+
 2015.07.09, Version 0.10.40 (Maintenance)
 
 * openssl: upgrade to 1.0.1p
