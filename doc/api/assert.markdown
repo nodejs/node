@@ -7,11 +7,13 @@ access it with `require('assert')`.
 
 ## assert.fail(actual, expected, message, operator)
 
-Throws an exception that displays the values for `actual` and `expected` separated by the provided operator.
+Throws an exception that displays the values for `actual` and `expected`
+separated by the provided operator.
 
 ## assert(value[, message]), assert.ok(value[, message])
 
-Tests if value is truthy. It is equivalent to `assert.equal(true, !!value, message)`.
+Tests if value is truthy. It is equivalent to
+`assert.equal(true, !!value, message)`.
 
 ## assert.equal(actual, expected[, message])
 
@@ -86,9 +88,31 @@ Custom error validation:
       "unexpected error"
     );
 
-## assert.doesNotThrow(block[, message])
+## assert.doesNotThrow(block[, error][, message])
 
-Expects `block` not to throw an error. See `assert.throws()` for details.
+Expects `block` not to throw an error. See [assert.throws()](#assert_assert_throws_block_error_message) for more details.
+
+If `block` throws an error and if it is of a different type from `error`, the
+thrown error will get propagated back to the caller. The following call will
+throw the `TypeError`, since we're not matching the error types in the
+assertion.
+
+    assert.doesNotThrow(
+      function() {
+        throw new TypeError("Wrong value");
+      },
+      SyntaxError
+    );
+
+In case `error` matches with the error thrown by `block`, an `AssertionError`
+is thrown instead.
+
+    assert.doesNotThrow(
+      function() {
+        throw new TypeError("Wrong value");
+      },
+      TypeError
+    );
 
 ## assert.ifError(value)
 
