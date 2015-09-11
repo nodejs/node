@@ -695,7 +695,18 @@ void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
   X509_CRL_free(x509);
 }
 
+bool LoadRootCertsFromFile(const char* root_certs_file) {
+  if (root_cert_store) {
+    return false;
+  }
 
+  root_cert_store = X509_STORE_new();
+  X509_LOOKUP* lookup =
+      X509_STORE_add_lookup(root_cert_store, X509_LOOKUP_file());
+
+  return
+      X509_LOOKUP_load_file(lookup, root_certs_file, X509_FILETYPE_PEM) != 0;
+}
 
 void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc = Unwrap<SecureContext>(args.Holder());

@@ -3067,6 +3067,7 @@ static void PrintHelp() {
          "  --v8-options          print v8 command line options\n"
 #if HAVE_OPENSSL
          "  --tls-cipher-list=val use an alternative default TLS cipher list\n"
+         "  --root-certs use specified PEM root certificate(s) file\n"
 #endif
 #if defined(NODE_HAVE_I18N_SUPPORT)
          "  --icu-data-dir=dir    set ICU data load path to dir\n"
@@ -3133,6 +3134,8 @@ static void ParseArgs(int* argc,
   unsigned int new_argc = 1;
   new_v8_argv[0] = argv[0];
   new_argv[0] = argv[0];
+
+  bool root_certs_specified = false;
 
   unsigned int index = 1;
   while (index < nargs && argv[index][0] == '-') {
@@ -3203,6 +3206,23 @@ static void ParseArgs(int* argc,
 #if HAVE_OPENSSL
     } else if (strncmp(arg, "--tls-cipher-list=", 18) == 0) {
       default_cipher_list = arg + 18;
+    } else if (strcmp(arg, "--root-certs") == 0) {
+      if (root_certs_specified) {
+        fprintf(stderr, "%s: %s cannot be specified twice\n", argv[0], arg);
+        exit(9);
+      }
+      const char* root_cert_path = argv[index + 1];
+      if (root_cert_path == nullptr) {
+        fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
+        exit(9);
+      }
+      if (!crypto::LoadRootCertsFromFile(root_cert_path)) {
+        const char* error_msg = "%s: Unable to load root certs file %s\n";
+        fprintf(stderr, error_msg, argv[0], root_cert_path);
+        exit(9);
+      }
+      root_certs_specified = true;
+      args_consumed += 1;
 #endif
 #if defined(NODE_HAVE_I18N_SUPPORT)
     } else if (strncmp(arg, "--icu-data-dir=", 15) == 0) {

@@ -48,6 +48,8 @@ enum CheckResult {
 
 extern int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx);
 
+extern bool LoadRootCertsFromFile(const char* root_certs_file);
+
 extern X509_STORE* root_cert_store;
 
 // Forward declaration
