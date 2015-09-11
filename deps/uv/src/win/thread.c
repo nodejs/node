@@ -396,18 +396,16 @@ static void uv__rwlock_srwlock_wrunlock(uv_rwlock_t* rwlock) {
 
 
 static int uv__rwlock_fallback_init(uv_rwlock_t* rwlock) {
-  int err;
+  /* Initialize the semaphore that acts as the write lock. */
+  HANDLE handle = CreateSemaphoreW(NULL, 1, 1, NULL);
+  if (handle == NULL)
+    return uv_translate_sys_error(GetLastError());
+  rwlock->fallback_.write_lock_.sem = handle;
 
-  err = uv_mutex_init(&rwlock->fallback_.read_mutex_);
-  if (err)
-    return err;
+  /* Initialize the critical section protecting the reader count. */
+  InitializeCriticalSection(&rwlock->fallback_.read_lock_.cs);
 
-  err = uv_mutex_init(&rwlock->fallback_.write_mutex_);
-  if (err) {
-    uv_mutex_destroy(&rwlock->fallback_.read_mutex_);
-    return err;
-  }
-
+  /* Initialize the reader count. */
   rwlock->fallback_.num_readers_ = 0;
 
   return 0;
@@ -415,64 +413,88 @@ static int uv__rwlock_fallback_init(uv_rwlock_t* rwlock) {
 
 
 static void uv__rwlock_fallback_destroy(uv_rwlock_t* rwlock) {
-  uv_mutex_destroy(&rwlock->fallback_.read_mutex_);
-  uv_mutex_destroy(&rwlock->fallback_.write_mutex_);
+  DeleteCriticalSection(&rwlock->fallback_.read_lock_.cs);
+  CloseHandle(rwlock->fallback_.write_lock_.sem);
 }
 
 
 static void uv__rwlock_fallback_rdlock(uv_rwlock_t* rwlock) {
-  uv_mutex_lock(&rwlock->fallback_.read_mutex_);
+  /* Acquire the lock that protects the reader count. */
+  EnterCriticalSection(&rwlock->fallback_.read_lock_.cs);
 
-  if (++rwlock->fallback_.num_readers_ == 1)
-    uv_mutex_lock(&rwlock->fallback_.write_mutex_);
+  /* Increase the reader count, and lock for write if this is the first
+   * reader.
+   */
+  if (++rwlock->fallback_.num_readers_ == 1) {
+    DWORD r = WaitForSingleObject(rwlock->fallback_.write_lock_.sem, INFINITE);
+    if (r != WAIT_OBJECT_0)
+      uv_fatal_error(GetLastError(), "WaitForSingleObject");
+  }
 
-  uv_mutex_unlock(&rwlock->fallback_.read_mutex_);
+  /* Release the lock that protects the reader count. */
+  LeaveCriticalSection(&rwlock->fallback_.read_lock_.cs);
 }
 
 
 static int uv__rwlock_fallback_tryrdlock(uv_rwlock_t* rwlock) {
   int err;
 
-  err = uv_mutex_trylock(&rwlock->fallback_.read_mutex_);
-  if (err)
-    goto out;
+  if (!TryEnterCriticalSection(&rwlock->fallback_.read_lock_.cs))
+    return UV_EAGAIN;
 
   err = 0;
-  if (rwlock->fallback_.num_readers_ == 0)
-    err = uv_mutex_trylock(&rwlock->fallback_.write_mutex_);
+  if (rwlock->fallback_.num_readers_ == 0) {
+    DWORD r = WaitForSingleObject(rwlock->fallback_.write_lock_.sem, 0);
+    if (r == WAIT_OBJECT_0)
+      rwlock->fallback_.num_readers_++;
+    else if (r == WAIT_TIMEOUT)
+      err = UV_EAGAIN;
+    else if (r == WAIT_FAILED)
+      err = uv_translate_sys_error(GetLastError());
+    else
+      err = UV_EIO;
+  }
 
-  if (err == 0)
-    rwlock->fallback_.num_readers_++;
-
-  uv_mutex_unlock(&rwlock->fallback_.read_mutex_);
-
-out:
+  LeaveCriticalSection(&rwlock->fallback_.read_lock_.cs);
   return err;
 }
 
 
 static void uv__rwlock_fallback_rdunlock(uv_rwlock_t* rwlock) {
-  uv_mutex_lock(&rwlock->fallback_.read_mutex_);
+  EnterCriticalSection(&rwlock->fallback_.read_lock_.cs);
 
-  if (--rwlock->fallback_.num_readers_ == 0)
-    uv_mutex_unlock(&rwlock->fallback_.write_mutex_);
+  if (--rwlock->fallback_.num_readers_ == 0) {
+    if (!ReleaseSemaphore(rwlock->fallback_.write_lock_.sem, 1, NULL))
+      uv_fatal_error(GetLastError(), "ReleaseSemaphore");
+  }
 
-  uv_mutex_unlock(&rwlock->fallback_.read_mutex_);
+  LeaveCriticalSection(&rwlock->fallback_.read_lock_.cs);
 }
 
 
 static void uv__rwlock_fallback_wrlock(uv_rwlock_t* rwlock) {
-  uv_mutex_lock(&rwlock->fallback_.write_mutex_);
+  DWORD r = WaitForSingleObject(rwlock->fallback_.write_lock_.sem, INFINITE);
+  if (r != WAIT_OBJECT_0)
+    uv_fatal_error(GetLastError(), "WaitForSingleObject");
 }
 
 
 static int uv__rwlock_fallback_trywrlock(uv_rwlock_t* rwlock) {
-  return uv_mutex_trylock(&rwlock->fallback_.write_mutex_);
+  DWORD r = WaitForSingleObject(rwlock->fallback_.write_lock_.sem, 0);
+  if (r == WAIT_OBJECT_0)
+    return 0;
+  else if (r == WAIT_TIMEOUT)
+    return UV_EAGAIN;
+  else if (r == WAIT_FAILED)
+    return uv_translate_sys_error(GetLastError());
+  else
+    return UV_EIO;
 }
 
 
 static void uv__rwlock_fallback_wrunlock(uv_rwlock_t* rwlock) {
-  uv_mutex_unlock(&rwlock->fallback_.write_mutex_);
+  if (!ReleaseSemaphore(rwlock->fallback_.write_lock_.sem, 1, NULL))
+    uv_fatal_error(GetLastError(), "ReleaseSemaphore");
 }
 
 
