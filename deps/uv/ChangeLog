@@ -1,3 +1,34 @@
+2015.09.12, Version 1.7.4 (Stable), a7ad4f52189d89cfcba35f78bfc5ff3b1f4105c4
+
+Changes since version 1.7.3:
+
+* doc: uv_read_start and uv_read_cb clarifications (Ben Trask)
+
+* freebsd: obtain true uptime through clock_gettime() (Jianghua Yang)
+
+* win, tty: do not convert \r to \r\n (Colin Snover)
+
+* build,gyp: add DragonFly to the list of OSes (Michael Neumann)
+
+* fs: fix bug in sendfile for DragonFly (Michael Neumann)
+
+* doc: add uv_dlsym() return type (Brian White)
+
+* tests: fix fs tests run w/o full getdents support (Jeremy Whitlock)
+
+* doc: fix typo (Devchandra Meetei Leishangthem)
+
+* doc: fix uv-unix.h location (Sakthipriyan Vairamani)
+
+* unix: fix error check when closing process pipe fd (Ben Noordhuis)
+
+* test,freebsd: fix ipc_listen_xx_write tests (Santiago Gimeno)
+
+* win: fix unsavory rwlock fallback implementation (Bert Belder)
+
+* doc: clarify repeat timer behavior (Eli Skeggs)
+
+
 2015.08.28, Version 1.7.3 (Stable), 93877b11c8b86e0a6befcda83a54555c1e36e4f0
 
 Changes since version 1.7.2:
