@@ -34,7 +34,7 @@ API
 
     Close the shared library.
 
-.. c:function:: uv_dlsym(uv_lib_t* lib, const char* name, void** ptr)
+.. c:function:: int uv_dlsym(uv_lib_t* lib, const char* name, void** ptr)
 
     Retrieves a data pointer from a dynamic library. It is legal for a symbol
     to map to NULL. Returns 0 on success and -1 if the symbol was not found.
