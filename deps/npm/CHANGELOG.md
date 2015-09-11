@@ -1,3 +1,45 @@
+### v2.14.3 (2015-09-03):
+
+#### TEAMS AND ORGS STILL BETA. CLI CODE STILL SOLID.
+
+Our closed beta for Teens and Orcs is happening! The web team is hard at work
+making sure everything looks pretty and usable and such. Once we fix things
+stemming from that beta, you can expect the feature to be available publicly.
+Some time after that, it'll even be available for free for FOSS orgs. It'll Be
+Done When It's Done™.
+
+#### OH GOOD, I CAN ACTUALLY UPSTREAM NOW
+
+Looks like last week's release foiled our own test suite when trying to upstream
+it to Node! Just a friendly reminder that no, `.npmrc` is no longer included
+then you pack/release a package! [@othiym23](https://github.com/othiym23) and
+[@isaacs](https://github.com/isaacs) managed to suss the really strange test
+failures resulting from that, and we've patched it in this release.
+
+* [`01a3428`](https://github.com/npm/npm/commit/01a3428534b754dca89a56fd1e49f55cb22f6f25)
+  [#9476](https://github.com/npm/npm/issues/9476) test: Recreate missing
+  `.npmrc` files when missing so downstream packagers can run tests on packed
+  npm.
+  ([@othiym23](https://github.com/othiym23))
+
+#### TALKING ABOUT THE CHANGELOG IN THE CHANGELOG IS LIKE, POMO OR SOMETHING
+
+* [`c1e7a83`](https://github.com/npm/npm/commit/c1e7a83c0ae7aadf01aecc57cf8a0ae2009d4da8)
+  [#9431](https://github.com/npm/npm/issues/9431) CHANGELOG: clarify
+  windows-related nature of patch
+  ([@saper](https://github.com/saper))
+
+#### devDependencies UPDATED
+
+No actual dep updates this week, but we're bumping a couple of devDeps:
+
+* [`8454835`](https://github.com/npm/npm/commit/84548351bfd63e3e305d195abbcad24c6b7c3e8e)
+  `tap@1.4.0`: Add `t.contains()` as alias to `t.match()`
+  ([@isaacs](https://github.com/isaacs))
+* [`13d2216`](https://github.com/npm/npm/commit/13d22161bcdeb6e1ed095d5ba2f77e6abfffa5eb)
+  `deep-equal@1.0.1`: Make `null == undefined` in non-strict mode
+  ([@isaacs](https://github.com/isaacs))
+
 ### v2.14.2 (2015-08-27):
 
 #### GETTING THAT PESKY `preferGlobal` WARNING RIGHT
@@ -6,7 +48,8 @@ So apparently the `preferGlobal` option hasn't quite been warning correctly for
 some time. But now it should be all better! tl;dr: if you try and install a
 dependency with `preferGlobal: true`, and it's _not already_ in your
 `package.json`, you'll get a warning that the author would really rather you
-install it with `--global`. :)
+install it with `--global`. This should prevent Windows PowerShell from thinking
+npm has failed just because of a benign warning.
 
 * [`bbb25f3`](https://github.com/npm/npm/commit/bbb25f30d582f8979168c79233a9f8f840974f90)
   [#8841](https://github.com/npm/npm/issues/8841)
