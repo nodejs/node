@@ -1498,6 +1498,11 @@ static int uv_tty_write_bufs(uv_tty_t* handle,
     }                                                               \
   } while (0)
 
+#define ENSURE_BUFFER_SPACE(wchars_needed)                          \
+  if (wchars_needed > ARRAY_SIZE(utf16_buf) - utf16_buf_used) {     \
+    FLUSH_TEXT();                                                   \
+  }
+
   /* Cache for fast access */
   unsigned char utf8_bytes_left = handle->tty.wr.utf8_bytes_left;
   unsigned int utf8_codepoint = handle->tty.wr.utf8_codepoint;
@@ -1881,32 +1886,29 @@ static int uv_tty_write_bufs(uv_tty_t* handle,
       }
 
       if (utf8_codepoint == 0x0a || utf8_codepoint == 0x0d) {
-        /* EOL conversion - emit \r\n, when we see either \r or \n. */
-        /* If a \n immediately follows a \r or vice versa, ignore it. */
-        if (previous_eol == 0 || utf8_codepoint == previous_eol) {
-          /* If there's no room in the utf16 buf, flush it first. */
-          if (2 > ARRAY_SIZE(utf16_buf) - utf16_buf_used) {
-            uv_tty_emit_text(handle, utf16_buf, utf16_buf_used, error);
-            utf16_buf_used = 0;
-          }
+        /* EOL conversion - emit \r\n when we see \n. */
 
+        if (utf8_codepoint == 0x0a && previous_eol != 0x0d) {
+          /* \n was not preceded by \r; print \r\n. */
+          ENSURE_BUFFER_SPACE(2);
           utf16_buf[utf16_buf_used++] = L'\r';
           utf16_buf[utf16_buf_used++] = L'\n';
-          previous_eol = (char) utf8_codepoint;
+        } else if (utf8_codepoint == 0x0d && previous_eol == 0x0a) {
+          /* \n was followed by \r; do not print the \r, since */
+          /* the source was either \r\n\r (so the second \r is */
+          /* redundant) or was \n\r (so the \n was processed */
+          /* by the last case and an \r automatically inserted). */
         } else {
-          /* Ignore this newline, but don't ignore later ones. */
-          previous_eol = 0;
+          /* \r without \n; print \r as-is. */
+          ENSURE_BUFFER_SPACE(1);
+          utf16_buf[utf16_buf_used++] = (WCHAR) utf8_codepoint;
         }
+
+        previous_eol = (char) utf8_codepoint;
 
       } else if (utf8_codepoint <= 0xffff) {
         /* Encode character into utf-16 buffer. */
-
-        /* If there's no room in the utf16 buf, flush it first. */
-        if (1 > ARRAY_SIZE(utf16_buf) - utf16_buf_used) {
-          uv_tty_emit_text(handle, utf16_buf, utf16_buf_used, error);
-          utf16_buf_used = 0;
-        }
-
+        ENSURE_BUFFER_SPACE(1);
         utf16_buf[utf16_buf_used++] = (WCHAR) utf8_codepoint;
         previous_eol = 0;
       }
