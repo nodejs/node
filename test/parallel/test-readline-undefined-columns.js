@@ -7,15 +7,14 @@ const readline = require('readline');
 // Checks that tab completion still works
 // when output column size is undefined
 
-var iStream = new PassThrough();
-var oStream = new PassThrough();
+const iStream = new PassThrough();
+const oStream = new PassThrough();
 
-var rli = readline.createInterface({
+const rli = readline.createInterface({
   terminal: true,
   input: iStream,
   output: oStream,
   completer: function(line, cb) {
-
     cb(null, [['process.stdout', 'process.stdin', 'process.stderr'], line]);
   }
 });
@@ -27,7 +26,7 @@ oStream.on('data', function(data) {
 });
 
 oStream.on('end', function() {
-  var expect = 'process.stdout\r\n' +
+  const expect = 'process.stdout\r\n' +
     'process.stdin\r\n' +
     'process.stderr';
   assert(new RegExp(expect).test(output));
