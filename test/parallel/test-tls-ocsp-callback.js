@@ -45,7 +45,6 @@ function test(testOptions, cb) {
   var clientSecure = 0;
   var ocspCount = 0;
   var ocspResponse;
-  var session;
 
   var server = tls.createServer(options, function(cleartext) {
     cleartext.on('error', function(er) {

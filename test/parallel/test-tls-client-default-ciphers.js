@@ -19,7 +19,7 @@ function test1() {
   };
 
   try {
-    var s = tls.connect(common.PORT);
+    tls.connect(common.PORT);
   } catch (e) {
     assert(e instanceof Done);
   }

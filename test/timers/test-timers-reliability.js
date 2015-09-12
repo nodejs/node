@@ -1,8 +1,6 @@
 'use strict';
 // FaketimeFlags: --exclude-monotonic -f '2014-07-21 09:00:00'
 
-var common = require('../common');
-
 var Timer  = process.binding('timer_wrap').Timer;
 var assert = require('assert');
 
@@ -44,7 +42,7 @@ monoTimer.ontimeout = function() {
 
 monoTimer.start(300, 0);
 
-var timer = setTimeout(function() {
+setTimeout(function() {
   timerFired = true;
 }, 200);
 

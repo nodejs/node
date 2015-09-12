@@ -6,7 +6,6 @@ var fs = require('fs');
 
 common.refreshTmpDir();
 
-var dirname = path.dirname(__filename);
 var d = path.join(common.tmpDir, 'dir');
 
 var mkdir_error = false;

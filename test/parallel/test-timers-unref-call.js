@@ -1,6 +1,4 @@
 'use strict';
-var common = require('../common');
-
 var Timer = process.binding('timer_wrap').Timer;
 Timer.now = function() { return ++Timer.now.ticks; };
 Timer.now.ticks = 0;

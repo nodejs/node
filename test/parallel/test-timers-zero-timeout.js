@@ -1,5 +1,4 @@
 'use strict';
-var common = require('../common');
 var assert = require('assert');
 
 // https://github.com/joyent/node/issues/2079 - zero timeout drops extra args
@@ -7,7 +6,7 @@ var assert = require('assert');
   var ncalled = 0;
 
   setTimeout(f, 0, 'foo', 'bar', 'baz');
-  var timer = setTimeout(function() {}, 0);
+  setTimeout(function() {}, 0);
 
   function f(a, b, c) {
     assert.equal(a, 'foo');

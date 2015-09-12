@@ -1,5 +1,4 @@
 'use strict';
-var common = require('../common');
 var assert = require('assert');
 
 // If everything aligns so that you do a read(n) of exactly the
@@ -54,7 +53,7 @@ function push() {
 }
 
 // start the flow
-var ret = r.read(0);
+r.read(0);
 
 process.on('exit', function() {
   assert.equal(pushes, PUSHCOUNT + 1);

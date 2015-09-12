@@ -59,6 +59,8 @@ cat.on('close', function() {
 
 process.on('exit', function() {
   assert.equal(0, exitStatus);
+  assert.equal(gotStdoutEOF, true);
+  assert.equal(gotStderrEOF, true);
   assert(closed);
   if (common.isWindows) {
     assert.equal('hello world\r\n', response);

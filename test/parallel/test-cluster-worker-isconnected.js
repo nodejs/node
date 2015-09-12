@@ -1,7 +1,6 @@
 'use strict';
 var cluster = require('cluster');
 var assert = require('assert');
-var util = require('util');
 
 if (cluster.isMaster) {
   var worker = cluster.fork();

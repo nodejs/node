@@ -8,9 +8,7 @@ if (!common.hasCrypto) {
   return;
 }
 var tls = require('tls');
-
 var fs = require('fs');
-var net = require('net');
 
 var errorCount = 0;
 var closeCount = 0;

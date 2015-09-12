@@ -1,7 +1,6 @@
 'use strict';
 var domain = require('domain');
 var assert = require('assert');
-var common = require('../common');
 
 var timeout_err, timeout, immediate_err;
 

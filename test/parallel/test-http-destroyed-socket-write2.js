@@ -6,7 +6,6 @@ var assert = require('assert');
 // where the server has ended the socket.
 
 var http = require('http');
-var net = require('net');
 var server = http.createServer(function(req, res) {
   setImmediate(function() {
     res.destroy();

@@ -11,7 +11,6 @@ var crypto = require('crypto');
 crypto.DEFAULT_ENCODING = 'buffer';
 
 var fs = require('fs');
-var path = require('path');
 
 // Test Certificates
 var spkacValid = fs.readFileSync(common.fixturesDir + '/spkac.valid');

@@ -45,7 +45,7 @@ server.listen(common.PORT, function() {
 });
 
 function doRequest(i) {
-  var req = http.get({
+  http.get({
     port: common.PORT,
     path: '/request' + i
   }, function(res) {

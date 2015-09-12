@@ -12,7 +12,7 @@ var fs = require('fs');
 var path = require('path');
 var net = require('net');
 
-var options, a, b, portA, portB;
+var options, a, b;
 var gotHello = false;
 
 options = {

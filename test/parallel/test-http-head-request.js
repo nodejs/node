@@ -2,8 +2,6 @@
 var common = require('../common');
 var assert = require('assert');
 var http = require('http');
-var util = require('util');
-
 
 var body = 'hello world\n';
 var id = 0;

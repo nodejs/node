@@ -7,7 +7,6 @@ if ('linux freebsd darwin'.indexOf(process.platform) === -1) {
   return;
 }
 
-var common = require('../common');
 var assert = require('assert');
 var exec = require('child_process').exec;
 var path = require('path');

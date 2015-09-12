@@ -5,11 +5,9 @@ if (module.parent) {
   process.exit(42);
 }
 
-var common = require('../common'),
-    assert = require('assert'),
-    child = require('child_process'),
-    nodejs = '"' + process.execPath + '"';
-
+var assert = require('assert');
+var child = require('child_process');
+var nodejs = '"' + process.execPath + '"';
 
 // replace \ by / because windows uses backslashes in paths, but they're still
 // interpreted as the escape character when put between quotes.

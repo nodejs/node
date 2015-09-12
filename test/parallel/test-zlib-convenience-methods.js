@@ -1,7 +1,6 @@
 'use strict';
 // test convenience methods with and without options supplied
 
-var common = require('../common');
 var assert = require('assert');
 var zlib = require('zlib');
 

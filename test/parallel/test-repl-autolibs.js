@@ -19,7 +19,7 @@ ArrayStream.prototype.resume = function() {};
 ArrayStream.prototype.write = function() {};
 
 var putIn = new ArrayStream();
-var testMe = repl.start('', putIn, null, true);
+repl.start('', putIn, null, true);
 
 test1();
 

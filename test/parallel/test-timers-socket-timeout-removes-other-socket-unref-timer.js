@@ -5,7 +5,6 @@
  */
 
 const common = require('../common');
-const assert = require('assert');
 const net = require('net');
 
 const clients = [];

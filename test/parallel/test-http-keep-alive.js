@@ -11,7 +11,6 @@ var server = http.createServer(function(req, res) {
   res.end();
 });
 
-var connectCount = 0;
 var agent = new http.Agent({maxSockets: 1});
 var headers = {'connection': 'keep-alive'};
 var name = agent.getName({ port: common.PORT });

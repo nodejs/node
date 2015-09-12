@@ -1,6 +1,5 @@
 'use strict';
 var assert = require('assert');
-var common = require('../common');
 
 var errs = 0;
 

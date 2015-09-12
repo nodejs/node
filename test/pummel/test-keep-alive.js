@@ -5,7 +5,6 @@ var common = require('../common');
 var assert = require('assert');
 var spawn = require('child_process').spawn;
 var http = require('http');
-var path = require('path');
 var url = require('url');
 
 if (common.isWindows) {

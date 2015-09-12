@@ -32,7 +32,7 @@ var server = http.createServer(function(req, res) {
 
 server.listen(common.PORT, function() {
   for (var i = 0; i < 5; i++) {
-    var req = http.get({ port: common.PORT, path: '/' }, function(res) {
+    http.get({ port: common.PORT, path: '/' }, function(res) {
       assert.strictEqual(res.headers.test, 'foo invalid: bar');
       assert.strictEqual(res.headers.invalid, undefined);
       responses++;

@@ -15,7 +15,6 @@
  * all 10 timeouts had the time to expire.
  */
 
-const common = require('../common');
 const timers = require('timers');
 const assert = require('assert');
 

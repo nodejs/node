@@ -1,10 +1,9 @@
 'use strict';
-var common = require('../common'),
-    assert = require('assert'),
-    Stream = require('stream'),
-    repl = require('repl'),
-    terminalExit = 0,
-    regularExit = 0;
+var assert = require('assert');
+var Stream = require('stream');
+var repl = require('repl');
+var terminalExit = 0;
+var regularExit = 0;
 
 // create a dummy stream that does nothing
 var stream = new Stream();

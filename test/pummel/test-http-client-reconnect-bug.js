@@ -2,9 +2,8 @@
 var common = require('../common');
 var assert = require('assert');
 
-var net = require('net'),
-    util = require('util'),
-    http = require('http');
+var net = require('net');
+var http = require('http');
 
 var errorCount = 0;
 var eofCount = 0;

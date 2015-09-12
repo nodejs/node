@@ -31,5 +31,5 @@ function grandparent() {
 
 function parent() {
   // should not immediately exit.
-  var child = common.spawnCat({ stdio: 'inherit' });
+  common.spawnCat({ stdio: 'inherit' });
 }

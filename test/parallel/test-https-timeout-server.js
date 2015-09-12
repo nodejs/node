@@ -9,7 +9,6 @@ if (!common.hasCrypto) {
 var https = require('https');
 
 var net = require('net');
-var tls = require('tls');
 var fs = require('fs');
 
 var clientErrors = 0;

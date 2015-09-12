@@ -54,14 +54,6 @@ http.createServer(function(req, res) {
   ]);
   res.end('x f o o');
 }).listen(common.PORT, function() {
-  var expectRawHeaders = [
-    'Date',
-    'Tue, 06 Aug 2013 01:31:54 GMT',
-    'Connection',
-    'close',
-    'Transfer-Encoding',
-    'chunked'
-  ];
   var req = http.request({ port: common.PORT, path: '/' });
   req.addTrailers([
     ['x-bAr', 'yOyOyOy'],

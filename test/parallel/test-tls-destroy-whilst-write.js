@@ -1,5 +1,4 @@
 'use strict';
-var assert = require('assert');
 var common = require('../common');
 
 if (!common.hasCrypto) {
