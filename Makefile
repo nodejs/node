@@ -69,6 +69,7 @@ clean:
 	-rm -rf out/Makefile $(NODE_EXE) $(NODE_G_EXE) out/$(BUILDTYPE)/$(NODE_EXE)
 	@if [ -d out ]; then find out/ -name '*.o' -o -name '*.a' | xargs rm -rf; fi
 	-rm -rf node_modules
+	-rm -f test.tap
 
 distclean:
 	-rm -rf out
