@@ -3,15 +3,16 @@ env:
 
 # enable ECMAScript features
 ecmaFeatures:
-  blockBindings: true
-  templateStrings: true
-  octalLiterals: true
+  arrowFunctions: true
   binaryLiterals: true
-  generators: true
-  forOf: true
-  objectLiteralShorthandProperties: true
-  objectLiteralShorthandMethods: true
+  blockBindings: true
   classes: true
+  forOf: true
+  generators: true
+  objectLiteralShorthandMethods: true
+  objectLiteralShorthandProperties: true
+  octalLiterals: true
+  templateStrings: true
 
 rules:
   # Possible Errors
