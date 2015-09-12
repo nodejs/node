@@ -50,10 +50,10 @@ class zone_allocator {
   }
   void destroy(pointer p) { p->~T(); }
 
-  bool operator==(zone_allocator const& other) {
+  bool operator==(zone_allocator const& other) const {
     return zone_ == other.zone_;
   }
-  bool operator!=(zone_allocator const& other) {
+  bool operator!=(zone_allocator const& other) const {
     return zone_ != other.zone_;
   }
 
