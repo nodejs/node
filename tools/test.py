@@ -1418,7 +1418,7 @@ def Main():
   logger.addHandler(ch)
   logger.setLevel(logging.INFO)
   if options.logfile:
-    fh = logging.FileHandler(options.logfile)
+    fh = logging.FileHandler(options.logfile, mode='wb')
     logger.addHandler(fh)
 
   workspace = abspath(join(dirname(sys.argv[0]), '..'))
