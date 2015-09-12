@@ -2,7 +2,6 @@
 /*
  * Tests to verify we're reading in floats correctly
  */
-var common = require('../common');
 var ASSERT = require('assert');
 
 /*

@@ -1,5 +1,4 @@
 'use strict';
-var common = require('../common');
 var assert = require('assert');
 var execFile = require('child_process').execFile;
 var depmod = require.resolve('../fixtures/deprecated.js');

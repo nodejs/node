@@ -5,8 +5,7 @@ if (module.parent) {
   process.exit(42);
 }
 
-var common = require('../common'),
-    assert = require('assert'),
+var assert = require('assert'),
     child = require('child_process'),
     nodejs = '"' + process.execPath + '"';
 

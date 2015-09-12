@@ -2,7 +2,6 @@
 /*
  * Tests to verify we're writing floats correctly
  */
-var common = require('../common');
 var ASSERT = require('assert');
 
 function test(clazz) {

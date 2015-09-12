@@ -1,5 +1,4 @@
 'use strict';
-var common = require('../common');
 var assert = require('assert');
 
 // does node think that i18n was enabled?

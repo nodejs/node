@@ -1,5 +1,4 @@
 'use strict';
-var common = require('../common');
 var Readable = require('stream').Readable;
 var assert = require('assert');
 
