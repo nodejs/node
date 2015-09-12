@@ -4,7 +4,12 @@ const assert = require('assert');
 const cluster = require('cluster');
 
 if (cluster.isMaster) {
-  assert.strictEqual(process.execArgv.length, 0, 'run test with no args');
+  /*
+   * By default, the `-r` and `./test/common` will be passed, to preload common
+   * module. So, we are making sure that no other arguments are passed.
+   */
+  assert.strictEqual(process.execArgv.length, 2, 'run test with no args');
+  assert.deepStrictEqual(process.execArgv, ['-r', './test/common']);
 
   function checkExitCode(code, signal) {
     assert.strictEqual(code, 0);

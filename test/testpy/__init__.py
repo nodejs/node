@@ -49,7 +49,7 @@ class SimpleTestCase(test.TestCase):
     self.tmpdir = join(dirname(self.config.root), 'tmp')
     self.additional_flags = additional
 
-  
+
   def GetLabel(self):
     return "%s %s" % (self.mode, self.GetName())
 
@@ -57,7 +57,8 @@ class SimpleTestCase(test.TestCase):
     return self.path[-1]
 
   def GetCommand(self):
-    result = [self.config.context.GetVm(self.arch, self.mode)]
+    result = [self.config.context.GetVm(self.arch, self.mode),
+      '-r', './test/common']
     source = open(self.file).read()
     flags_match = FLAGS_PATTERN.search(source)
     if flags_match:

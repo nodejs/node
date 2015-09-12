@@ -1,4 +1,11 @@
 'use strict';
+/*
+ * Explicitly disable the global leaked data check, because the REPL module
+ * exports few objects to the global scope and the objects are not accessible
+ * here. So we cannot explicitly whitelist them by adding them to
+ * `common.knownGlobals`.
+ */
+require('../common').globalCheck = false;
 var assert = require('assert');
 var util = require('util');
 var repl = require('repl');

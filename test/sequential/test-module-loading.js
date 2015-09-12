@@ -194,8 +194,12 @@ var children = module.children.reduce(function red(set, child) {
   return set;
 }, {});
 
+/*
+ * NOTE: common.js, which is required as the first module will not be included
+ * in the children, because it is preloaded by test-runner. So, it is not
+ * actually imported, but loaded from the cache.
+ */
 assert.deepEqual(children, {
-  'common.js': {},
   'fixtures/not-main-module.js': {},
   'fixtures/a.js': {
     'fixtures/b/c.js': {
