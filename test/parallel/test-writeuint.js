@@ -2,7 +2,6 @@
 /*
  * A battery of tests to help us read a series of uints
  */
-var common = require('../common');
 var ASSERT = require('assert');
 
 /*

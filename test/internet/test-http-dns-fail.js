@@ -4,7 +4,6 @@
  * should trigger the error event after each attempt.
  */
 
-var common = require('../common');
 var assert = require('assert');
 var http = require('http');
 

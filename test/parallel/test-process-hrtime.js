@@ -1,5 +1,4 @@
 'use strict';
-var common = require('../common');
 var assert = require('assert');
 
 // the default behavior, return an Array "tuple" of numbers

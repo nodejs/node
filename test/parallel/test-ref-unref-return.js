@@ -2,7 +2,6 @@
 var assert = require('assert');
 var net = require('net');
 var dgram = require('dgram');
-var common = require('../common');
 
 assert.ok((new net.Server()).ref() instanceof net.Server);
 assert.ok((new net.Server()).unref() instanceof net.Server);

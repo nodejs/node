@@ -1,5 +1,4 @@
 'use strict';
-var common = require('../common');
 
 process.maxTickDepth = 10;
 var i = 20;

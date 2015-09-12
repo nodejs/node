@@ -247,6 +247,12 @@ var knownGlobals = [setTimeout,
                     process,
                     global];
 
+/*
+ * Exporting this, because we can add additional purposefully leaked stuff if
+ * the test needs.
+ */
+exports.knownGlobals = knownGlobals;
+
 if (global.gc) {
   knownGlobals.push(gc);
 }

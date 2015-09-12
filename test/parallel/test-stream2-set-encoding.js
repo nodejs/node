@@ -1,5 +1,4 @@
 'use strict';
-var common = require('../common');
 var assert = require('assert');
 var R = require('_stream_readable');
 var util = require('util');
