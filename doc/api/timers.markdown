@@ -41,11 +41,15 @@ In the case of `setTimeout` when you `unref` you create a separate timer that
 will wakeup the event loop, creating too many of these may adversely effect
 event loop performance -- use wisely.
 
+Returns the timer.
+
 ## ref()
 
 If you had previously `unref()`d a timer you can call `ref()` to explicitly
 request the timer hold the program open. If the timer is already `ref`d calling
 `ref` again will have no effect.
+
+Returns the timer.
 
 ## setImmediate(callback[, arg][, ...])
 
