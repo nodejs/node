@@ -924,7 +924,7 @@ parent process using `process.send()`. Each will be received as a
 ['message'](child_process.html#child_process_event_message)
 event on the parent's `ChildProcess` object.
 
-If io.js was not spawned with an IPC channel, `process.send()` will be undefined.
+If Node.js was not spawned with an IPC channel, `process.send()` will be undefined.
 
 
 ## process.disconnect()
@@ -935,7 +935,7 @@ gracefully once there are no other connections keeping it alive.
 Identical to the parent process's
 [ChildProcess.disconnect()](child_process.html#child_process_child_disconnect).
 
-If io.js was not spawned with an IPC channel, `process.disconnect()` will be
+If Node.js was not spawned with an IPC channel, `process.disconnect()` will be
 undefined.
 
 
