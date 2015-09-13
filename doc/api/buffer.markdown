@@ -364,7 +364,7 @@ region in the same buffer
     // efghijghijklmnopqrstuvwxyz
 
 
-### buf.slice([start][, end])
+### buf.slice([start[, end]])
 
 * `start` Number, Optional, Default: 0
 * `end` Number, Optional, Default: `buffer.length`
