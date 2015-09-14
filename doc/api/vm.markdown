@@ -26,10 +26,16 @@ The options when creating a script are:
 
 - `filename`: allows you to control the filename that shows up in any stack
   traces produced from this script.
+- `lineOffset`: allows you to add an offset to the line number that is
+  displayed in stack traces
+- `columnOffset`: allows you to add an offset to the column number that is
+  displayed in stack traces
 - `displayErrors`: whether or not to print any errors to stderr, with the
   line of code that caused them highlighted, before throwing an exception.
   Applies only to syntax errors compiling the code; errors while running the
   code are controlled by the options to the script's methods.
+- `timeout`: a number of milliseconds to execute `code` before terminating
+  execution. If execution is terminated, an `Error` will be thrown.
 
 ### script.runInContext(contextifiedSandbox[, options])
 
@@ -124,8 +130,14 @@ multiple times:
 
 The options for running a script are:
 
-- `displayErrors`: whether or not to print any runtime errors to stderr, with
-  the line of code that caused them highlighted, before throwing an exception.
+- `filename`: allows you to control the filename that shows up in any stack
+  traces produced.
+- `lineOffset`: allows you to add an offset to the line number that is
+  displayed in stack traces
+- `columnOffset`: allows you to add an offset to the column number that is
+  displayed in stack traces
+- `displayErrors`: whether or not to print any errors to stderr, with the
+  line of code that caused them highlighted, before throwing an exception.
   Applies only to runtime errors executing the code; it is impossible to create
   a `Script` instance with syntax errors, as the constructor will throw.
 - `timeout`: a number of milliseconds to execute the script before terminating
@@ -252,6 +264,10 @@ e.g. `(0,eval)('code')`. However, it also has the following additional options:
 
 - `filename`: allows you to control the filename that shows up in any stack
   traces produced.
+- `lineOffset`: allows you to add an offset to the line number that is
+  displayed in stack traces
+- `columnOffset`: allows you to add an offset to the column number that is
+  displayed in stack traces
 - `displayErrors`: whether or not to print any errors to stderr, with the
   line of code that caused them highlighted, before throwing an exception.
   Will capture both syntax errors from compiling `code` and runtime errors
