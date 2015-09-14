@@ -59,6 +59,9 @@ finished running the process will exit. Therefore you **must** only perform
 checks on the module's state (like for unit tests). The callback takes one
 argument, the code the process is exiting with.
 
+This event may not be fired if the process terminates due to signals like
+`SIGINT`, `SIGTERM`, `SIGKILL`, and `SIGHUP`.
+
 Example of listening for `exit`:
 
     process.on('exit', function(code) {
@@ -218,7 +221,7 @@ Note:
   the terminal mode before exiting with code `128 + signal number`. If one of
   these signals has a listener installed, its default behavior will be removed
   (Node.js will no longer exit).
-- `SIGPIPE` is ignored by default, it can have a listener installed.
+- `SIGPIPE` is ignored by default. It can have a listener installed.
 - `SIGHUP` is generated on Windows when the console window is closed, and on other
   platforms under various similar conditions, see signal(7). It can have a
   listener installed, however Node.js will be unconditionally terminated by
@@ -237,12 +240,12 @@ Note:
 - `SIGKILL` cannot have a listener installed, it will unconditionally terminate
   Node.js on all platforms.
 - `SIGSTOP` cannot have a listener installed.
-
-Note that Windows does not support sending Signals, but Node.js offers some
-emulation with `process.kill()`, and `child_process.kill()`:
-- Sending signal `0` can be used to search for the existence of a process
 - Sending `SIGINT`, `SIGTERM`, and `SIGKILL` cause the unconditional exit of the
   target process.
+
+Note that Windows does not support sending Signals, but Node.js offers some
+emulation with `process.kill()`, and `child_process.kill()`. Sending signal `0`
+can be used to test for the existence of a process
 
 ## process.stdout
 
@@ -714,12 +717,12 @@ string describing the signal to send.  Signal names are strings like
 'SIGINT' or 'SIGHUP'.  If omitted, the signal will be 'SIGTERM'.
 See [Signal Events](#process_signal_events) and kill(2) for more information.
 
-Will throw an error if target does not exist, and as a special case, a signal of
-`0` can be used to test for the existence of a process.
+Will throw an error if target does not exist, and as a special case, a signal
+of `0` can be used to test for the existence of a process.
 
-Note that just because the name of this function is `process.kill`, it is
-really just a signal sender, like the `kill` system call.  The signal sent
-may do something other than kill the target process.
+Note that even though the name of this function is `process.kill`, it is really
+just a signal sender, like the `kill` system call.  The signal sent may do
+something other than kill the target process.
 
 Example of sending a signal to yourself:
 
