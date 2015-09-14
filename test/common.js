@@ -51,6 +51,22 @@ function rmdirSync(p, originalEr) {
   }
 }
 
+function getEnvironmentDefault(environ, defaultValue) {
+  let value = null;
+  if (exports.inFreeBSDJail) {
+    if (process.env[environ]) {
+      value = process.env[environ];
+    } else {
+      console.error('In a FreeBSD jail. You might have to override the value ' +
+                    'by passing %s=\'value\' to avoid any test ' +
+                    'failures', environ);
+    }
+  }
+
+  if (value === null) value = defaultValue;
+  return value;
+}
+
 exports.refreshTmpDir = function() {
   rimrafSync(exports.tmpDir);
   fs.mkdirSync(exports.tmpDir);
@@ -88,43 +104,15 @@ Object.defineProperty(exports, 'inFreeBSDJail', {
 Object.defineProperty(exports, 'localhostIPv4', {
   get: function() {
     if (localhostIPv4 !== null) return localhostIPv4;
-
-    if (exports.inFreeBSDJail) {
-      // Jailed network interfaces are a bit special - since we need to jump
-      // through loops, as well as this being an exception case, assume the
-      // user will provide this instead.
-      if (process.env.LOCALHOST) {
-        localhostIPv4 = process.env.LOCALHOST;
-      } else {
-        console.error('Looks like we\'re in a FreeBSD Jail. ' +
-                      'Please provide your default interface address ' +
-                      'as LOCALHOST or expect some tests to fail.');
-      }
-    }
-
-    if (localhostIPv4 === null) localhostIPv4 = '127.0.0.1';
-
+    localhostIPv4 = getEnvironmentDefault('LOCALHOST', '127.0.0.1');
     return localhostIPv4;
   }
 });
 
 Object.defineProperty(exports, 'broadcastIPv4', {
-
   get: function() {
     if (broadcastIPv4 !== null) return broadcastIPv4;
-
-    if (exports.inFreeBSDJail) {
-      if (process.env.BROADCAST) {
-        broadcastIPv4 = process.env.BROADCAST;
-      } else {
-        // shorter error than above since you'd probably be seeing both
-        console.error('In a FreeBSD jail. Pass broadcast as \'BROADCAST=\' ' +
-                      'to avoid test failures.');
-      }
-    }
-
-    if (broadcastIPv4 === null) broadcastIPv4 = '255.255.255.255';
-
+    broadcastIPv4 = getEnvironmentDefault('BROADCAST', '255.255.255.255');
     return broadcastIPv4;
   }
 });
