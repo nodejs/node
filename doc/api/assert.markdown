@@ -2,8 +2,7 @@
 
     Stability: 2 - Stable
 
-This module is used for testing actual values against expected values. You can
-access it with `require('assert')`.
+This module is used for writing assertion tests. You can access it with `require('assert')`.
 
 ## assert.fail(actual, expected, message, operator)
 
