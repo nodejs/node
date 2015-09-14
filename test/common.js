@@ -51,22 +51,6 @@ function rmdirSync(p, originalEr) {
   }
 }
 
-function getEnvironmentDefault(environ, defaultValue) {
-  let value = null;
-  if (exports.inFreeBSDJail) {
-    if (process.env[environ]) {
-      value = process.env[environ];
-    } else {
-      console.error('In a FreeBSD jail. You might have to override the value ' +
-                    'by passing %s=\'value\' to avoid any test ' +
-                    'failures', environ);
-    }
-  }
-
-  if (value === null) value = defaultValue;
-  return value;
-}
-
 exports.refreshTmpDir = function() {
   rimrafSync(exports.tmpDir);
   fs.mkdirSync(exports.tmpDir);
@@ -177,6 +161,22 @@ exports.hasIPv6 = Object.keys(ifaces).some(function(name) {
 var util = require('util');
 for (var i in util) exports[i] = util[i];
 //for (var i in exports) global[i] = exports[i];
+
+function getEnvironmentDefault(environ, defaultValue) {
+  let value = null;
+  if (exports.inFreeBSDJail) {
+    if (process.env[environ]) {
+      value = process.env[environ];
+    } else {
+      console.error('In a FreeBSD jail. You might have to override the value ' +
+                    'by passing %s=\'value\' to avoid any test ' +
+                    'failures', environ);
+    }
+  }
+
+  if (value === null) value = defaultValue;
+  return value;
+}
 
 function protoCtrChain(o) {
   var result = [];
