@@ -339,6 +339,27 @@ class Environment {
     DISALLOW_COPY_AND_ASSIGN(TickInfo);
   };
 
+  class ArrayBufferAllocatorInfo {
+   public:
+    inline uint32_t* fields();
+    inline int fields_count() const;
+    inline bool no_zero_fill() const;
+    inline void reset_fill_flag();
+
+   private:
+    friend class Environment;  // So we can call the constructor.
+    inline ArrayBufferAllocatorInfo();
+
+    enum Fields {
+      kNoZeroFill,
+      kFieldsCount
+    };
+
+    uint32_t fields_[kFieldsCount];
+
+    DISALLOW_COPY_AND_ASSIGN(ArrayBufferAllocatorInfo);
+  };
+
   typedef void (*HandleCleanupCb)(Environment* env,
                                   uv_handle_t* handle,
                                   void* arg);
@@ -401,6 +422,7 @@ class Environment {
   inline AsyncHooks* async_hooks();
   inline DomainFlag* domain_flag();
   inline TickInfo* tick_info();
+  inline ArrayBufferAllocatorInfo* array_buffer_allocator_info();
   inline uint64_t timer_base() const;
 
   static inline Environment* from_cares_timer_handle(uv_timer_t* handle);
@@ -510,6 +532,7 @@ class Environment {
   AsyncHooks async_hooks_;
   DomainFlag domain_flag_;
   TickInfo tick_info_;
+  ArrayBufferAllocatorInfo array_buffer_allocator_info_;
   const uint64_t timer_base_;
   uv_timer_t cares_timer_handle_;
   ares_channel cares_channel_;
