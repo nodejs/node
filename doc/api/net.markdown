@@ -121,7 +121,7 @@ This class is used to create a TCP or local server.
 
 Begin accepting connections on the specified `port` and `hostname`. If the
 `hostname` is omitted, the server will accept connections on any IPv6 address
-(`::`) when IPv6 is available, or any IPv4 address (`0.0.0.0`) otherwise. A
+(`::1`) when IPv6 is available, or any IPv4 address (`localhost`) otherwise. A
 port value of zero will assign a random port.
 
 Backlog is the maximum length of the queue of pending connections.
