@@ -282,7 +282,7 @@ Instructions:
 1. Obtain a copy of openssl-fips-x.x.x.tar.gz.
    To comply with the security policy you must ensure the path
    through which you get the file complies with the requirements
-   for a "secure intallation" as described in section 6.6 in
+   for a "secure installation" as described in section 6.6 in
    the [user guide] (https://openssl.org/docs/fips/UserGuide-2.0.pdf).
    For evaluation/experimentation you can simply download and verify
    `openssl-fips-x.x.x.tar.gz` from https://www.openssl.org/source/
@@ -406,7 +406,7 @@ gpg --keyserver pool.sks-keyservers.net --recv-keys DD8F2338BAE7501E3DD5AC78C273
 ```
 
 See the section above on [Verifying Binaries](#verifying-binaries) for
-details on what to do with these keys to verify a downloaded file is official.
+details on what to do with these keys to verify that a downloaded file is official.
 
 Previous releases of Node.js have been signed with one of the following GPG
 keys:
