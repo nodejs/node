@@ -1217,18 +1217,6 @@ enum encoding ParseEncoding(const char* encoding,
     return BUFFER;
   } else if (strcasecmp(encoding, "hex") == 0) {
     return HEX;
-  } else if (strcasecmp(encoding, "raw") == 0) {
-    if (!no_deprecation) {
-      fprintf(stderr, "'raw' (array of integers) has been removed. "
-                      "Use 'binary'.\n");
-    }
-    return BINARY;
-  } else if (strcasecmp(encoding, "raws") == 0) {
-    if (!no_deprecation) {
-      fprintf(stderr, "'raws' encoding has been renamed to 'binary'. "
-                      "Please update your code.\n");
-    }
-    return BINARY;
   } else {
     return default_encoding;
   }
