@@ -68,6 +68,7 @@ exports.tmpDir = path.join(exports.testDir, exports.tmpDirName);
 var opensslCli = null;
 var inFreeBSDJail = null;
 var localhostIPv4 = null;
+var broadcastIPv4 = null;
 
 Object.defineProperty(exports, 'inFreeBSDJail', {
   get: function() {
@@ -104,6 +105,27 @@ Object.defineProperty(exports, 'localhostIPv4', {
     if (localhostIPv4 === null) localhostIPv4 = '127.0.0.1';
 
     return localhostIPv4;
+  }
+});
+
+Object.defineProperty(exports, 'broadcastIPv4', {
+
+  get: function() {
+    if (broadcastIPv4 !== null) return broadcastIPv4;
+
+    if (exports.inFreeBSDJail) {
+      if (process.env.BROADCAST) {
+        broadcastIPv4 = process.env.BROADCAST;
+      } else {
+        // shorter error than above since you'd probably be seeing both
+        console.error('In a FreeBSD jail. Pass broadcast as \'BROADCAST=\' ' +
+                      'to avoid test failures.');
+      }
+    }
+
+    if (broadcastIPv4 === null) broadcastIPv4 = '255.255.255.255';
+
+    return broadcastIPv4;
   }
 });
 
