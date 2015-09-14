@@ -405,7 +405,7 @@ gpg --keyserver pool.sks-keyservers.net --recv-keys DD8F2338BAE7501E3DD5AC78C273
 ```
 
 See the section above on [Verifying Binaries](#verifying-binaries) for
-details on what to do with these keys to verify if a downloaded file is official.
+details on what to do with these keys to verify that a downloaded file is official.
 
 Previous releases of Node.js have been signed with one of the following GPG
 keys:
