@@ -68,6 +68,7 @@ using v8::Object;
 using v8::Persistent;
 using v8::String;
 using v8::Uint32;
+using v8::Uint32Array;
 using v8::Uint8Array;
 using v8::Value;
 using v8::WeakCallbackData;
@@ -389,43 +390,6 @@ MaybeLocal<Object> New(Environment* env, char* data, size_t length) {
   if (mb.FromMaybe(false))
     return scope.Escape(ui);
   return Local<Object>();
-}
-
-
-void Create(const FunctionCallbackInfo<Value>& args) {
-  Isolate* isolate = args.GetIsolate();
-  Environment* env = Environment::GetCurrent(args);
-
-  CHECK(args[0]->IsNumber());
-
-  int64_t length = args[0]->IntegerValue();
-
-  if (length < 0 || length > kMaxLength) {
-    return env->ThrowRangeError("invalid Buffer length");
-  }
-
-  void* data;
-  if (length > 0) {
-    data = malloc(length);
-    if (data == nullptr) {
-      return env->ThrowRangeError(
-          "Buffer allocation failed - process out of memory");
-    }
-  } else {
-    data = nullptr;
-  }
-
-  Local<ArrayBuffer> ab =
-      ArrayBuffer::New(isolate,
-                       data,
-                       length,
-                       ArrayBufferCreationMode::kInternalized);
-  Local<Uint8Array> ui = Uint8Array::New(ab, 0, length);
-  Maybe<bool> mb =
-      ui->SetPrototype(env->context(), env->buffer_prototype_object());
-  if (!mb.FromMaybe(false))
-    return env->ThrowError("Unable to set Object prototype");
-  args.GetReturnValue().Set(ui);
 }
 
 
@@ -966,6 +930,19 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   env->SetMethod(proto, "utf8Write", Utf8Write);
 
   env->SetMethod(proto, "copy", Copy);
+
+  CHECK(args[1]->IsObject());
+  Local<Object> bObj = args[1].As<Object>();
+
+  uint32_t* const fields = env->array_buffer_allocator_info()->fields();
+  uint32_t const fields_count =
+      env->array_buffer_allocator_info()->fields_count();
+
+  Local<ArrayBuffer> array_buffer =
+      ArrayBuffer::New(env->isolate(), fields, sizeof(*fields) * fields_count);
+
+  bObj->Set(String::NewFromUtf8(env->isolate(), "flags"),
+            Uint32Array::New(array_buffer, 0, fields_count));
 }
 
 
@@ -975,7 +952,6 @@ void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
 
   env->SetMethod(target, "setupBufferJS", SetupBufferJS);
-  env->SetMethod(target, "create", Create);
   env->SetMethod(target, "createFromString", CreateFromString);
   env->SetMethod(target, "createFromArrayBuffer", CreateFromArrayBuffer);
 
