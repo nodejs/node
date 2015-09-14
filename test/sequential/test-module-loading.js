@@ -279,3 +279,11 @@ process.on('exit', function() {
 // #1440 Loading files with a byte order marker.
 assert.equal(42, require('../fixtures/utf8-bom.js'));
 assert.equal(42, require('../fixtures/utf8-bom.json'));
+
+// Error on the first line of a module should
+// have the correct line and column number
+assert.throws(function() {
+  require('../fixtures/test-error-first-line-offset.js');
+}, function(err) {
+  return /test-error-first-line-offset.js:1:1/.test(err.stack);
+}, 'Expected appearance of proper offset in Error stack');
