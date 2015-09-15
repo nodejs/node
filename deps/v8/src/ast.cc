@@ -441,6 +441,7 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
 
     if (position == boilerplate_properties_ * 2) {
       DCHECK(property->is_computed_name());
+      is_simple = false;
       break;
     }
     DCHECK(!property->is_computed_name());
