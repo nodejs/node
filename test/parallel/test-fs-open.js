@@ -32,8 +32,15 @@ fs.open(__filename, 'rs', function(err, fd) {
   openFd2 = fd;
 });
 
+assert.throws(function() {
+  fs.open('/path/to/file/that/does/not/exist', { bad: 'flags' }, assert.fail);
+}, function(err) {
+  if (err instanceof TypeError) {
+    return err.message === 'File open flags may only be string or integer';
+  }
+});
+
 process.on('exit', function() {
   assert.ok(openFd);
   assert.ok(openFd2);
 });
-
