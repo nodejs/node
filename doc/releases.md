@@ -11,11 +11,11 @@ Release authorization is given by the node.js TSC. Once authorized, an individua
 
 There are three relevant Jenkins jobs that should be used for a release flow:
 
-**a.** **Test runs:** **[iojs+any-pr+multi](https://jenkins-iojs.nodesource.com/job/iojs+any-pr+multi/)** is used for a final full-test run to ensure that the current *HEAD* is stable.
+**a.** **Test runs:** **[node-test-pull-request](https://ci.nodejs.org/job/node-test-pull-request/)** is used for a final full-test run to ensure that the current *HEAD* is stable.
 
-**b.** **Nightly builds:** (optional) **[iojs+release](https://jenkins-iojs.nodesource.com/job/iojs+release/)** can be used to create a nightly release for the current *HEAD* if public test releases are required. Builds triggered with this job are published straight to <https://nodejs.org/download/nightly/> and are available for public download.
+**b.** **Nightly builds:** (optional) **[iojs+release](https://ci.nodejs.org/job/iojs+release/)** can be used to create a nightly release for the current *HEAD* if public test releases are required. Builds triggered with this job are published straight to <https://nodejs.org/download/nightly/> and are available for public download.
 
-**c.** **Release builds:** **[iojs+release](https://jenkins-iojs.nodesource.com/job/iojs+release/)** does all of the work to build all required release assets. Promotion of the release files is a manual step once they are ready (see below).
+**c.** **Release builds:** **[iojs+release](https://ci.nodejs.org/job/iojs+release/)** does all of the work to build all required release assets. Promotion of the release files is a manual step once they are ready (see below).
 
 The [Node.js build team](https://github.com/nodejs/build) is able to provide this access to individuals authorized by the TC.
 
@@ -52,11 +52,11 @@ Notes:
 
 ### 1. Ensure that HEAD Is Stable
 
-Run a **[iojs+any-pr+multi](https://jenkins-iojs.nodesource.com/job/iojs+any-pr+multi/)** test run to ensure that the build is stable and the HEAD commit is ready for release.
+Run a **[node-test-pull-request](https://ci.nodejs.org/job/node-test-pull-request/)** test run to ensure that the build is stable and the HEAD commit is ready for release.
 
 ### 2. Produce a Nightly Build _(optional)_
 
-If there is a reason to produce a test release for the purpose of having others try out installers or specifics of builds, produce a nightly build using **[iojs+release](https://jenkins-iojs.nodesource.com/job/iojs+release/)** and wait for it to drop in <https://nodejs.org/download/nightly/>. Follow the directions and enter a proper length commit sha, a date string and select "nightly" for "disttype".
+If there is a reason to produce a test release for the purpose of having others try out installers or specifics of builds, produce a nightly build using **[iojs+release](https://ci.nodejs.org/job/iojs+release/)** and wait for it to drop in <https://nodejs.org/download/nightly/>. Follow the directions and enter a proper length commit sha, a date string and select "nightly" for "disttype".
 
 This is particularly recommended if there has been recent work relating to the OS X or Windows installers as they are not tested in any way by CI.
 
@@ -145,7 +145,7 @@ Note that it is not essential that the release builds be created from the Node.j
 
 ### 7. Produce Release Builds
 
-Use **[iojs+release](https://jenkins-iojs.nodesource.com/job/iojs+release/)** to produce release artifacts. Enter the commit that you want to build from and select "release" for "disttype".
+Use **[iojs+release](https://ci.nodejs.org/job/iojs+release/)** to produce release artifacts. Enter the commit that you want to build from and select "release" for "disttype".
 
 Artifacts from each slave are uploaded to Jenkins and are available if further testing is required. Use this opportunity particularly to test OS X and Windows installers if there are any concerns. Click through to the individual slaves for a run to find the artifacts.
 
