@@ -70,7 +70,7 @@ test should *fail* before the change, and *pass* after the change.
 
 All pull requests that modify executable code should be subjected to
 continuous integration tests on the
-[project CI server](https://jenkins-iojs.nodesource.com/).
+[project CI server](https://ci.nodejs.org/).
 
 ### Involving the TC
 
