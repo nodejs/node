@@ -131,6 +131,27 @@ inline void Environment::TickInfo::set_last_threw(bool value) {
   last_threw_ = value;
 }
 
+inline Environment::ArrayBufferAllocator::ArrayBufferAllocator() {
+  for (int i = 0; i < kFieldsCount; ++i)
+    fields_[i] = 0;
+}
+
+inline uint32_t* Environment::ArrayBufferAllocator::fields() {
+  return fields_;
+}
+
+inline int Environment::ArrayBufferAllocator::fields_count() const {
+  return kFieldsCount;
+}
+
+inline bool Environment::ArrayBufferAllocator::no_zero_fill() const {
+  return fields_[kNoZeroFill] != 0;
+}
+
+inline void Environment::ArrayBufferAllocator::reset_fill_flag() {
+  fields_[kNoZeroFill] = 0;
+}
+
 inline Environment* Environment::New(v8::Local<v8::Context> context,
                                      uv_loop_t* loop) {
   Environment* env = new Environment(context, loop);
@@ -288,6 +309,11 @@ inline Environment::DomainFlag* Environment::domain_flag() {
 
 inline Environment::TickInfo* Environment::tick_info() {
   return &tick_info_;
+}
+
+inline Environment::ArrayBufferAllocator*
+    Environment::array_buffer_allocator() {
+  return &array_buffer_allocator_;
 }
 
 inline uint64_t Environment::timer_base() const {
