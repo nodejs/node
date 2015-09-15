@@ -300,3 +300,59 @@ function ID(x) {
     };
   }, MyError);
 })();
+
+
+(function TestNestedLiterals() {
+  var array = [
+    42,
+    { a: 'A',
+      ['b']: 'B',
+      c: 'C',
+      [ID('d')]: 'D',
+    },
+    43,
+  ];
+  assertEquals(42, array[0]);
+  assertEquals(43, array[2]);
+  assertEquals('A', array[1].a);
+  assertEquals('B', array[1].b);
+  assertEquals('C', array[1].c);
+  assertEquals('D', array[1].d);
+  var object = {
+    outer: 42,
+    inner: {
+      a: 'A',
+      ['b']: 'B',
+      c: 'C',
+      [ID('d')]: 'D',
+    },
+    outer2: 43,
+  };
+  assertEquals(42, object.outer);
+  assertEquals(43, object.outer2);
+  assertEquals('A', object.inner.a);
+  assertEquals('B', object.inner.b);
+  assertEquals('C', object.inner.c);
+  assertEquals('D', object.inner.d);
+  var object = {
+    outer: 42,
+    array: [
+      43,
+      { a: 'A',
+        ['b']: 'B',
+        c: 'C',
+        [ID('d')]: 'D',
+      },
+      44,
+    ],
+    outer2: 45
+  };
+  assertEquals(42, object.outer);
+  assertEquals(45, object.outer2);
+  assertEquals(43, object.array[0]);
+  assertEquals(44, object.array[2]);
+  assertEquals('A', object.array[1].a);
+  assertEquals('B', object.array[1].b);
+  assertEquals('C', object.array[1].c);
+  assertEquals('D', object.array[1].d);
+})();
