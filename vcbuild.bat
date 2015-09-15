@@ -97,7 +97,7 @@ if defined msi (
   )
 )
 call "%VS140COMNTOOLS%\..\..\vc\vcvarsall.bat"
-if not defined VCINSTALLDIR goto msbuild-not-found
+if not defined VCINSTALLDIR goto vc-set-2013
 set GYP_MSVS_VERSION=2015
 set PLATFORM_TOOLSET=v140
 goto msbuild-found
@@ -117,7 +117,7 @@ if defined msi (
   )
 )
 call "%VS120COMNTOOLS%\..\..\vc\vcvarsall.bat"
-if not defined VCINSTALLDIR goto msbuild-not-found
+if not defined VCINSTALLDIR goto vc-set-2012
 set GYP_MSVS_VERSION=2013
 set PLATFORM_TOOLSET=v120
 goto msbuild-found
@@ -136,7 +136,7 @@ if defined msi (
   )
 )
 call "%VS110COMNTOOLS%\..\..\vc\vcvarsall.bat"
-if not defined VCINSTALLDIR goto msbuild-not-found
+if not defined VCINSTALLDIR goto vc-set-2010
 set GYP_MSVS_VERSION=2012
 set PLATFORM_TOOLSET=v110
 goto msbuild-found
