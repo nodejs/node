@@ -125,7 +125,7 @@ if "%VCVARS_VER%" NEQ "140" (
   call "%VS140COMNTOOLS%\..\..\vc\vcvarsall.bat"
   SET VCVARS_VER=140
 )
-if not defined VCINSTALLDIR goto msbuild-not-found
+if not defined VCINSTALLDIR goto vc-set-2013
 set GYP_MSVS_VERSION=2015
 set PLATFORM_TOOLSET=v140
 goto msbuild-found
@@ -148,7 +148,7 @@ if "%VCVARS_VER%" NEQ "120" (
   call "%VS120COMNTOOLS%\..\..\vc\vcvarsall.bat"
   SET VCVARS_VER=120
 )
-if not defined VCINSTALLDIR goto msbuild-not-found
+if not defined VCINSTALLDIR goto vc-set-2012
 set GYP_MSVS_VERSION=2013
 set PLATFORM_TOOLSET=v120
 goto msbuild-found
@@ -170,7 +170,7 @@ if "%VCVARS_VER%" NEQ "110" (
   call "%VS110COMNTOOLS%\..\..\vc\vcvarsall.bat"
   SET VCVARS_VER=110
 )
-if not defined VCINSTALLDIR goto msbuild-not-found
+if not defined VCINSTALLDIR goto vc-set-2010
 set GYP_MSVS_VERSION=2012
 set PLATFORM_TOOLSET=v110
 goto msbuild-found
