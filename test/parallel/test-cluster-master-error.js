@@ -93,7 +93,12 @@ if (cluster.isWorker) {
     existMaster = !!code;
 
     // Give the workers time to shut down
-    setTimeout(checkWorkers, 200);
+    var timeout = 200;
+    if (common.isAix) {
+      // AIX needs more time due to default exit performance
+      timeout = 1000;
+    }
+    setTimeout(checkWorkers, timeout);
 
     function checkWorkers() {
       // When master is dead all workers should be dead to
