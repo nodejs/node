@@ -14220,6 +14220,28 @@ THREADED_TEST(DataView) {
 }
 
 
+THREADED_TEST(SkipArrayBufferBackingStoreDuringGC) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  // Make sure the pointer looks like a heap object
+  uint8_t* store_ptr = reinterpret_cast<uint8_t*>(i::kHeapObjectTag);
+
+  // Create ArrayBuffer with pointer-that-cannot-be-visited in the backing store
+  Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, store_ptr, 8);
+
+  // Should not crash
+  CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
+  CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
+  CcTest::heap()->CollectAllGarbage();
+  CcTest::heap()->CollectAllGarbage();
+
+  // Should not move the pointer
+  CHECK_EQ(ab->GetContents().Data(), store_ptr);
+}
+
+
 THREADED_TEST(SharedUint8Array) {
   i::FLAG_harmony_sharedarraybuffer = true;
   TypedArrayTestHelper<uint8_t, v8::Uint8Array, i::FixedUint8Array,

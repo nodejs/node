@@ -9451,9 +9451,14 @@ class JSArrayBuffer: public JSObject {
   DECLARE_PRINTER(JSArrayBuffer)
   DECLARE_VERIFIER(JSArrayBuffer)
 
-  static const int kBackingStoreOffset = JSObject::kHeaderSize;
-  static const int kByteLengthOffset = kBackingStoreOffset + kPointerSize;
-  static const int kBitFieldSlot = kByteLengthOffset + kPointerSize;
+  static const int kByteLengthOffset = JSObject::kHeaderSize;
+
+  // NOTE: GC will visit objects fields:
+  // 1. From JSObject::BodyDescriptor::kStartOffset to kByteLengthOffset +
+  //    kPointerSize
+  // 2. From start of the internal fields and up to the end of them
+  static const int kBackingStoreOffset = kByteLengthOffset + kPointerSize;
+  static const int kBitFieldSlot = kBackingStoreOffset + kPointerSize;
 #if V8_TARGET_LITTLE_ENDIAN || !V8_HOST_ARCH_64_BIT
   static const int kBitFieldOffset = kBitFieldSlot;
 #else
@@ -9463,6 +9468,12 @@ class JSArrayBuffer: public JSObject {
 
   static const int kSizeWithInternalFields =
       kSize + v8::ArrayBuffer::kInternalFieldCount * kPointerSize;
+
+  template <typename StaticVisitor>
+  static inline void JSArrayBufferIterateBody(Heap* heap, HeapObject* obj);
+
+  static inline void JSArrayBufferIterateBody(HeapObject* obj,
+                                              ObjectVisitor* v);
 
   class IsExternal : public BitField<bool, 1, 1> {};
   class IsNeuterable : public BitField<bool, 2, 1> {};
