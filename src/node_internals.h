@@ -230,7 +230,7 @@ NODE_DEPRECATED("Use ThrowUVException(isolate)",
 
 class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
-  ArrayBufferAllocator() { }
+  ArrayBufferAllocator() : env_(nullptr) { }
 
   inline void set_env(Environment* env) { env_ = env; }
 
