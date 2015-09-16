@@ -146,7 +146,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
     event_string = env->change_string();
   } else {
     CHECK(0 && "bad fs events flag");
-    abort();
+    ABORT();
   }
 
   Local<Value> argv[] = {

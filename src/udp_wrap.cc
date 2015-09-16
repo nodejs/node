@@ -166,7 +166,7 @@ void UDPWrap::DoBind(const FunctionCallbackInfo<Value>& args, int family) {
     break;
   default:
     CHECK(0 && "unexpected address family");
-    abort();
+    ABORT();
   }
 
   if (err == 0) {
@@ -278,7 +278,7 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
     break;
   default:
     CHECK(0 && "unexpected address family");
-    abort();
+    ABORT();
   }
 
   if (err == 0) {
