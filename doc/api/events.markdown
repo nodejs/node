@@ -23,7 +23,7 @@ attached to.
 Use `require('events')` to access the EventEmitter class.
 
 ```javascript
-var EventEmitter = require('events');
+var EventEmitter = require('events').EventEmitter;
 ```
 
 When an `EventEmitter` instance experiences an error, the typical action is
