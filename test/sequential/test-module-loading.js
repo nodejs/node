@@ -127,10 +127,6 @@ assert.equal(require('../fixtures/registerExt2').custom, 'passed');
 assert.equal(require('../fixtures/foo').foo, 'ok',
              'require module with no extension');
 
-assert.throws(function() {
-  require.paths;
-}, /removed/, 'Accessing require.paths should throw.');
-
 // Should not attempt to load a directory
 try {
   require('../fixtures/empty');
