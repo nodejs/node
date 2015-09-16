@@ -10,7 +10,7 @@
   this.global = this;
 
   function startup() {
-    var EventEmitter = NativeModule.require('events').EventEmitter;
+    var EventEmitter = NativeModule.require('events');
 
     process.__proto__ = Object.create(EventEmitter.prototype, {
       constructor: {
