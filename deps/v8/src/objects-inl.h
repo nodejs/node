@@ -1483,6 +1483,8 @@ HeapObjectContents HeapObject::ContentType() {
   } else if (type >= FIRST_FIXED_TYPED_ARRAY_TYPE &&
              type <= LAST_FIXED_TYPED_ARRAY_TYPE) {
     return HeapObjectContents::kMixedValues;
+  } else if (type == JS_ARRAY_BUFFER_TYPE) {
+    return HeapObjectContents::kMixedValues;
   } else if (type <= LAST_DATA_TYPE) {
     // TODO(jochen): Why do we claim that Code and Map contain only raw values?
     return HeapObjectContents::kRawValues;
@@ -6513,6 +6515,32 @@ bool JSArrayBuffer::is_shared() { return IsShared::decode(bit_field()); }
 
 void JSArrayBuffer::set_is_shared(bool value) {
   set_bit_field(IsShared::update(bit_field(), value));
+}
+
+
+// static
+template <typename StaticVisitor>
+void JSArrayBuffer::JSArrayBufferIterateBody(Heap* heap, HeapObject* obj) {
+  StaticVisitor::VisitPointers(
+      heap, obj,
+      HeapObject::RawField(obj, JSArrayBuffer::BodyDescriptor::kStartOffset),
+      HeapObject::RawField(obj,
+                           JSArrayBuffer::kByteLengthOffset + kPointerSize));
+  StaticVisitor::VisitPointers(
+      heap, obj, HeapObject::RawField(obj, JSArrayBuffer::kSize),
+      HeapObject::RawField(obj, JSArrayBuffer::kSizeWithInternalFields));
+}
+
+
+void JSArrayBuffer::JSArrayBufferIterateBody(HeapObject* obj,
+                                             ObjectVisitor* v) {
+  v->VisitPointers(
+      HeapObject::RawField(obj, JSArrayBuffer::BodyDescriptor::kStartOffset),
+      HeapObject::RawField(obj,
+                           JSArrayBuffer::kByteLengthOffset + kPointerSize));
+  v->VisitPointers(
+      HeapObject::RawField(obj, JSArrayBuffer::kSize),
+      HeapObject::RawField(obj, JSArrayBuffer::kSizeWithInternalFields));
 }
 
 

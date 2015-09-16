@@ -219,7 +219,6 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case JS_VALUE_TYPE:
     case JS_DATE_TYPE:
     case JS_ARRAY_TYPE:
-    case JS_ARRAY_BUFFER_TYPE:
     case JS_TYPED_ARRAY_TYPE:
     case JS_DATA_VIEW_TYPE:
     case JS_SET_TYPE:
@@ -234,6 +233,9 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case JS_BUILTINS_OBJECT_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
       JSObject::BodyDescriptor::IterateBody(this, object_size, v);
+      break;
+    case JS_ARRAY_BUFFER_TYPE:
+      JSArrayBuffer::JSArrayBufferIterateBody(this, v);
       break;
     case JS_FUNCTION_TYPE:
       reinterpret_cast<JSFunction*>(this)

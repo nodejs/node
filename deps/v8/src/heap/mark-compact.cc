@@ -2755,6 +2755,28 @@ void MarkCompactCollector::MigrateObjectMixed(HeapObject* dst, HeapObject* src,
     Address base_pointer_slot =
         dst->address() + FixedTypedArrayBase::kBasePointerOffset;
     RecordMigratedSlot(Memory::Object_at(base_pointer_slot), base_pointer_slot);
+  } else if (src->IsJSArrayBuffer()) {
+    heap()->MoveBlock(dst->address(), src->address(), size);
+
+    // Visit inherited JSObject properties and byte length of ArrayBuffer
+    Address regular_slot =
+        dst->address() + JSArrayBuffer::BodyDescriptor::kStartOffset;
+    Address regular_slots_end =
+        dst->address() + JSArrayBuffer::kByteLengthOffset + kPointerSize;
+    while (regular_slot < regular_slots_end) {
+      RecordMigratedSlot(Memory::Object_at(regular_slot), regular_slot);
+      regular_slot += kPointerSize;
+    }
+
+    // Skip backing store and visit just internal fields
+    Address internal_field_slot = dst->address() + JSArrayBuffer::kSize;
+    Address internal_fields_end =
+        dst->address() + JSArrayBuffer::kSizeWithInternalFields;
+    while (internal_field_slot < internal_fields_end) {
+      RecordMigratedSlot(Memory::Object_at(internal_field_slot),
+                         internal_field_slot);
+      internal_field_slot += kPointerSize;
+    }
   } else if (FLAG_unbox_double_fields) {
     Address dst_addr = dst->address();
     Address src_addr = src->address();
@@ -3178,6 +3200,12 @@ bool MarkCompactCollector::IsSlotInLiveObject(Address slot) {
         if (object->IsFixedTypedArrayBase()) {
           return static_cast<int>(slot - object->address()) ==
                  FixedTypedArrayBase::kBasePointerOffset;
+        } else if (object->IsJSArrayBuffer()) {
+          int off = static_cast<int>(slot - object->address());
+          return (off >= JSArrayBuffer::BodyDescriptor::kStartOffset &&
+                  off <= JSArrayBuffer::kByteLengthOffset) ||
+                 (off >= JSArrayBuffer::kSize &&
+                  off < JSArrayBuffer::kSizeWithInternalFields);
         } else if (FLAG_unbox_double_fields) {
           // Filter out slots that happen to point to unboxed double fields.
           LayoutDescriptorHelper helper(object->map());
