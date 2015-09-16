@@ -59,8 +59,8 @@ finished running the process will exit. Therefore you **must** only perform
 checks on the module's state (like for unit tests). The callback takes one
 argument, the code the process is exiting with.
 
-This event may not be fired if the process terminates due to signals like
-`SIGINT`, `SIGTERM`, `SIGKILL`, and `SIGHUP`.
+This event is only emitted when node exits explicitly by process.exit() or
+implicitly by the event loop draining.
 
 Example of listening for `exit`:
 
@@ -240,12 +240,12 @@ Note:
 - `SIGKILL` cannot have a listener installed, it will unconditionally terminate
   Node.js on all platforms.
 - `SIGSTOP` cannot have a listener installed.
-- Sending `SIGINT`, `SIGTERM`, and `SIGKILL` cause the unconditional exit of the
-  target process.
 
 Note that Windows does not support sending Signals, but Node.js offers some
 emulation with `process.kill()`, and `child_process.kill()`. Sending signal `0`
-can be used to test for the existence of a process
+can be used to test for the existence of a process. Sending `SIGINT`,
+`SIGTERM`, and `SIGKILL` cause the unconditional termination of the target
+process.
 
 ## process.stdout
 
