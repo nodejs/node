@@ -182,7 +182,7 @@ static void crypto_lock_init(void) {
 
   for (i = 0; i < n; i++)
     if (uv_mutex_init(locks + i))
-      abort();
+      ABORT();
 }
 
 
@@ -3466,7 +3466,7 @@ void SignBase::CheckThrow(SignBase::Error error) {
           case kSignPublicKey:
             return env()->ThrowError("PEM_read_bio_PUBKEY failed");
           default:
-            abort();
+            ABORT();
         }
       }
 

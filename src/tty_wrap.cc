@@ -72,7 +72,7 @@ void TTYWrap::GuessHandleType(const FunctionCallbackInfo<Value>& args) {
   case UV_NAMED_PIPE: type = "PIPE"; break;
   case UV_UNKNOWN_HANDLE: type = "UNKNOWN"; break;
   default:
-    abort();
+    ABORT();
   }
 
   args.GetReturnValue().Set(OneByteString(env->isolate(), type));
