@@ -8,7 +8,7 @@ this module with `require('net');`.
 
 ## net.createServer([options][, connectionListener])
 
-Creates a new TCP server. The `connectionListener` argument is
+Creates a new server. The `connectionListener` argument is
 automatically set as a listener for the ['connection'][] event.
 
 `options` is an object with the following defaults:
