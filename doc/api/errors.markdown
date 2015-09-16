@@ -454,9 +454,9 @@ provided by Node.js -- even user created event emitters and streams will throw
 errors when no error handlers are attached. An example:
 
 ```javascript
-var events = require('events');
+var EventEmitter = require('events');
 
-var ee = new events.EventEmitter;
+var ee = new EventEmitter();
 
 setImmediate(function() {
   // this will crash the process because no "error" event

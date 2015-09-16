@@ -263,7 +263,7 @@ which is probably not what you want to do.
 
 For example suppose we were making a module called `a.js`
 
-    var EventEmitter = require('events').EventEmitter;
+    var EventEmitter = require('events');
 
     module.exports = new EventEmitter();
 
