@@ -21,7 +21,6 @@ var GlobalFunction = global.Function;
 var GlobalNumber = global.Number;
 var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
-var SetFunctionName = utils.SetFunctionName;
 
 var MathAbs;
 var ProxyDelegateCallAndConstruct;
@@ -1705,7 +1704,8 @@ function FunctionBind(this_arg) { // Length is 1.
 
   var name = this.name;
   var bound_name = IS_STRING(name) ? name : "";
-  SetFunctionName(result, bound_name, "bound");
+  %DefineDataPropertyUnchecked(result, "name", "bound " + bound_name,
+                               DONT_ENUM | READ_ONLY);
 
   // We already have caller and arguments properties on functions,
   // which are non-configurable. It therefore makes no sence to
