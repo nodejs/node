@@ -115,12 +115,12 @@ var PRE_3OF4_APEX = Math.ceil((EXTERN_APEX / 4) * 3) - RADIOS;
 
   assert.throws(function() {
     new Buffer(kStringMaxLength + 1).toString();
-  }, /toString failed|Buffer allocation failed/);
+  }, /toString failed|Invalid array buffer length/);
 
   try {
     new Buffer(kStringMaxLength * 4);
   } catch(e) {
-    assert.equal(e.message, 'Buffer allocation failed - process out of memory');
+    assert.equal(e.message, 'Invalid array buffer length');
     console.log(
         '1..0 # Skipped: intensive toString tests due to memory confinements');
     return;
