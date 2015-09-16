@@ -2180,7 +2180,11 @@ void FatalException(Isolate* isolate,
 
   if (false == caught->BooleanValue()) {
     ReportException(env, error, message);
-    exit(1);
+    if (abort_on_uncaught_exception) {
+      ABORT();
+    } else {
+      exit(1);
+    }
   }
 }
 
