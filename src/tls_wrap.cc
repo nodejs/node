@@ -152,7 +152,7 @@ void TLSWrap::InitSSL() {
     SSL_set_connect_state(ssl_);
   } else {
     // Unexpected
-    abort();
+    ABORT();
   }
 
   // Initialize ring for queud clear data

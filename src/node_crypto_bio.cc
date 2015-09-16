@@ -172,7 +172,7 @@ long NodeBIO::Ctrl(BIO* bio, int cmd, long num, void* ptr) {
       break;
     case BIO_C_SET_BUF_MEM:
       CHECK(0 && "Can't use SET_BUF_MEM_PTR with NodeBIO");
-      abort();
+      ABORT();
       break;
     case BIO_C_GET_BUF_MEM_PTR:
       CHECK(0 && "Can't use GET_BUF_MEM_PTR with NodeBIO");

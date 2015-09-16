@@ -179,7 +179,7 @@ static Local<Object> AcceptHandle(Environment* env, StreamWrap* parent) {
   handle = wrap->UVHandle();
 
   if (uv_accept(parent->stream(), reinterpret_cast<uv_stream_t*>(handle)))
-    abort();
+    ABORT();
 
   return scope.Escape(wrap_obj);
 }
