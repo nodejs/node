@@ -426,13 +426,13 @@ As an additional convenience, `superConstructor` will be accessible
 through the `constructor.super_` property.
 
     var util = require("util");
-    var events = require("events");
+    var EventEmitter = require("events");
 
     function MyStream() {
-        events.EventEmitter.call(this);
+        EventEmitter.call(this);
     }
 
-    util.inherits(MyStream, events.EventEmitter);
+    util.inherits(MyStream, EventEmitter);
 
     MyStream.prototype.write = function(data) {
         this.emit("data", data);
@@ -440,8 +440,8 @@ through the `constructor.super_` property.
 
     var stream = new MyStream();
 
-    console.log(stream instanceof events.EventEmitter); // true
-    console.log(MyStream.super_ === events.EventEmitter); // true
+    console.log(stream instanceof EventEmitter); // true
+    console.log(MyStream.super_ === EventEmitter); // true
 
     stream.on("data", function(data) {
         console.log('Received data: "' + data + '"');
