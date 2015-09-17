@@ -220,7 +220,14 @@ MaybeLocal<Object> New(Isolate* isolate,
   CHECK(actual <= length);
 
   if (actual < length) {
-    data = static_cast<char*>(realloc(data, actual));
+    char* new_data = static_cast<char*>(realloc(data, actual));
+    if ( new_data != nullptr )
+    {
+        data = new_data;
+    }else{
+        free(data);
+        data = nullptr;
+    }
     CHECK_NE(data, nullptr);
   }
 
