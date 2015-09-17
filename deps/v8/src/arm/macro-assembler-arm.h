@@ -13,6 +13,19 @@
 namespace v8 {
 namespace internal {
 
+// Give alias names to registers for calling conventions.
+const Register kReturnRegister0 = {kRegister_r0_Code};
+const Register kReturnRegister1 = {kRegister_r1_Code};
+const Register kJSFunctionRegister = {kRegister_r1_Code};
+const Register kContextRegister = {kRegister_r7_Code};
+const Register kInterpreterAccumulatorRegister = {kRegister_r0_Code};
+const Register kInterpreterRegisterFileRegister = {kRegister_r4_Code};
+const Register kInterpreterBytecodeOffsetRegister = {kRegister_r5_Code};
+const Register kInterpreterBytecodeArrayRegister = {kRegister_r6_Code};
+const Register kInterpreterDispatchTableRegister = {kRegister_r8_Code};
+const Register kRuntimeCallFunctionRegister = {kRegister_r1_Code};
+const Register kRuntimeCallArgCountRegister = {kRegister_r0_Code};
+
 // ----------------------------------------------------------------------------
 // Static helper functions
 
@@ -250,7 +263,7 @@ class MacroAssembler: public Assembler {
   // |object| is the object being stored into, |value| is the object being
   // stored.  value and scratch registers are clobbered by the operation.
   // The offset is the offset from the start of the object, not the offset from
-  // the tagged HeapObject pointer.  For use with FieldOperand(reg, off).
+  // the tagged HeapObject pointer.  For use with FieldMemOperand(reg, off).
   void RecordWriteField(
       Register object,
       int offset,
@@ -325,9 +338,7 @@ class MacroAssembler: public Assembler {
 
   // Push three registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Register src3, Condition cond = al) {
-    DCHECK(!src1.is(src2));
-    DCHECK(!src2.is(src3));
-    DCHECK(!src1.is(src3));
+    DCHECK(!AreAliased(src1, src2, src3));
     if (src1.code() > src2.code()) {
       if (src2.code() > src3.code()) {
         stm(db_w, sp, src1.bit() | src2.bit() | src3.bit(), cond);
@@ -347,12 +358,7 @@ class MacroAssembler: public Assembler {
             Register src3,
             Register src4,
             Condition cond = al) {
-    DCHECK(!src1.is(src2));
-    DCHECK(!src2.is(src3));
-    DCHECK(!src1.is(src3));
-    DCHECK(!src1.is(src4));
-    DCHECK(!src2.is(src4));
-    DCHECK(!src3.is(src4));
+    DCHECK(!AreAliased(src1, src2, src3, src4));
     if (src1.code() > src2.code()) {
       if (src2.code() > src3.code()) {
         if (src3.code() > src4.code()) {
@@ -374,6 +380,36 @@ class MacroAssembler: public Assembler {
     }
   }
 
+  // Push five registers.  Pushes leftmost register first (to highest address).
+  void Push(Register src1, Register src2, Register src3, Register src4,
+            Register src5, Condition cond = al) {
+    DCHECK(!AreAliased(src1, src2, src3, src4, src5));
+    if (src1.code() > src2.code()) {
+      if (src2.code() > src3.code()) {
+        if (src3.code() > src4.code()) {
+          if (src4.code() > src5.code()) {
+            stm(db_w, sp,
+                src1.bit() | src2.bit() | src3.bit() | src4.bit() | src5.bit(),
+                cond);
+          } else {
+            stm(db_w, sp, src1.bit() | src2.bit() | src3.bit() | src4.bit(),
+                cond);
+            str(src5, MemOperand(sp, 4, NegPreIndex), cond);
+          }
+        } else {
+          stm(db_w, sp, src1.bit() | src2.bit() | src3.bit(), cond);
+          Push(src4, src5, cond);
+        }
+      } else {
+        stm(db_w, sp, src1.bit() | src2.bit(), cond);
+        Push(src3, src4, src5, cond);
+      }
+    } else {
+      str(src1, MemOperand(sp, 4, NegPreIndex), cond);
+      Push(src2, src3, src4, src5, cond);
+    }
+  }
+
   // Pop two registers. Pops rightmost register first (from lower address).
   void Pop(Register src1, Register src2, Condition cond = al) {
     DCHECK(!src1.is(src2));
@@ -387,9 +423,7 @@ class MacroAssembler: public Assembler {
 
   // Pop three registers.  Pops rightmost register first (from lower address).
   void Pop(Register src1, Register src2, Register src3, Condition cond = al) {
-    DCHECK(!src1.is(src2));
-    DCHECK(!src2.is(src3));
-    DCHECK(!src1.is(src3));
+    DCHECK(!AreAliased(src1, src2, src3));
     if (src1.code() > src2.code()) {
       if (src2.code() > src3.code()) {
         ldm(ia_w, sp, src1.bit() | src2.bit() | src3.bit(), cond);
@@ -409,12 +443,7 @@ class MacroAssembler: public Assembler {
            Register src3,
            Register src4,
            Condition cond = al) {
-    DCHECK(!src1.is(src2));
-    DCHECK(!src2.is(src3));
-    DCHECK(!src1.is(src3));
-    DCHECK(!src1.is(src4));
-    DCHECK(!src2.is(src4));
-    DCHECK(!src3.is(src4));
+    DCHECK(!AreAliased(src1, src2, src3, src4));
     if (src1.code() > src2.code()) {
       if (src2.code() > src3.code()) {
         if (src3.code() > src4.code()) {
@@ -744,13 +773,6 @@ class MacroAssembler: public Assembler {
                 Register scratch2,
                 Label* gc_required,
                 AllocationFlags flags);
-
-  // Undo allocation in new space. The object passed and objects allocated after
-  // it will no longer be allocated. The caller must make sure that no pointers
-  // are left to the object(s) no longer allocated as they would be invalid when
-  // allocation is undone.
-  void UndoAllocationInNewSpace(Register object, Register scratch);
-
 
   void AllocateTwoByteString(Register result,
                              Register length,
@@ -1513,7 +1535,7 @@ class CodePatcher {
   CodePatcher(byte* address,
               int instructions,
               FlushICache flush_cache = FLUSH);
-  virtual ~CodePatcher();
+  ~CodePatcher();
 
   // Macro assembler to emit code.
   MacroAssembler* masm() { return &masm_; }
@@ -1539,7 +1561,7 @@ class CodePatcher {
 // -----------------------------------------------------------------------------
 // Static helper functions.
 
-inline MemOperand ContextOperand(Register context, int index) {
+inline MemOperand ContextOperand(Register context, int index = 0) {
   return MemOperand(context, Context::SlotOffset(index));
 }
 

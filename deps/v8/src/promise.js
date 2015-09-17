@@ -2,12 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var $promiseCreate;
-var $promiseResolve;
-var $promiseReject;
-var $promiseChain;
-var $promiseCatch;
-var $promiseThen;
 var $promiseHasUserDefinedRejectHandler;
 var $promiseStatus;
 var $promiseValue;
@@ -386,14 +380,19 @@ utils.InstallFunctions(GlobalPromise.prototype, DONT_ENUM, [
   "catch", PromiseCatch
 ]);
 
-$promiseCreate = PromiseCreate;
-$promiseResolve = PromiseResolve;
-$promiseReject = PromiseReject;
-$promiseChain = PromiseChain;
-$promiseCatch = PromiseCatch;
-$promiseThen = PromiseThen;
-$promiseHasUserDefinedRejectHandler = PromiseHasUserDefinedRejectHandler;
 $promiseStatus = promiseStatus;
 $promiseValue = promiseValue;
+
+utils.ExportToRuntime(function(to) {
+  to.promiseStatus = promiseStatus;
+  to.promiseValue = promiseValue;
+  to.PromiseCreate = PromiseCreate;
+  to.PromiseResolve = PromiseResolve;
+  to.PromiseReject = PromiseReject;
+  to.PromiseChain = PromiseChain;
+  to.PromiseCatch = PromiseCatch;
+  to.PromiseThen = PromiseThen;
+  to.PromiseHasUserDefinedRejectHandler = PromiseHasUserDefinedRejectHandler;
+});
 
 })

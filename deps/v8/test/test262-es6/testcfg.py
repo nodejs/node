@@ -39,14 +39,63 @@ from testrunner.local import utils
 from testrunner.objects import testcase
 
 # The revision hash needs to be 7 characters?
-TEST_262_ARCHIVE_REVISION = "c6ac390"  # This is the 2015-07-06 revision.
-TEST_262_ARCHIVE_MD5 = "e1393ef330f38e9cb1bfa4e3eada5ba8"
+TEST_262_ARCHIVE_REVISION = "258d212"  # This is the 2015-07-31 revision.
+TEST_262_ARCHIVE_MD5 = "a9b26e19ce582492642af973c8cee826"
 TEST_262_URL = "https://github.com/tc39/test262/tarball/%s"
 TEST_262_HARNESS_FILES = ["sta.js", "assert.js"]
 
 TEST_262_SUITE_PATH = ["data", "test"]
 TEST_262_HARNESS_PATH = ["data", "harness"]
 TEST_262_TOOLS_PATH = ["data", "tools", "packaging"]
+
+ALL_VARIANT_FLAGS_STRICT = dict(
+    (v, [flags + ["--use-strict"] for flags in flag_sets])
+    for v, flag_sets in testsuite.ALL_VARIANT_FLAGS.iteritems()
+)
+
+FAST_VARIANT_FLAGS_STRICT = dict(
+    (v, [flags + ["--use-strict"] for flags in flag_sets])
+    for v, flag_sets in testsuite.FAST_VARIANT_FLAGS.iteritems()
+)
+
+ALL_VARIANT_FLAGS_BOTH = dict(
+    (v, [flags for flags in testsuite.ALL_VARIANT_FLAGS[v] +
+                            ALL_VARIANT_FLAGS_STRICT[v]])
+    for v in testsuite.ALL_VARIANT_FLAGS
+)
+
+FAST_VARIANT_FLAGS_BOTH = dict(
+    (v, [flags for flags in testsuite.FAST_VARIANT_FLAGS[v] +
+                            FAST_VARIANT_FLAGS_STRICT[v]])
+    for v in testsuite.FAST_VARIANT_FLAGS
+)
+
+ALL_VARIANTS = {
+  'nostrict': testsuite.ALL_VARIANT_FLAGS,
+  'strict': ALL_VARIANT_FLAGS_STRICT,
+  'both': ALL_VARIANT_FLAGS_BOTH,
+}
+
+FAST_VARIANTS = {
+  'nostrict': testsuite.FAST_VARIANT_FLAGS,
+  'strict': FAST_VARIANT_FLAGS_STRICT,
+  'both': FAST_VARIANT_FLAGS_BOTH,
+}
+
+class Test262VariantGenerator(testsuite.VariantGenerator):
+  def GetFlagSets(self, testcase, variant):
+    if testcase.outcomes and statusfile.OnlyFastVariants(testcase.outcomes):
+      variant_flags = FAST_VARIANTS
+    else:
+      variant_flags = ALL_VARIANTS
+
+    test_record = self.suite.GetTestRecord(testcase)
+    if "noStrict" in test_record:
+      return variant_flags["nostrict"][variant]
+    if "onlyStrict" in test_record:
+      return variant_flags["strict"][variant]
+    return variant_flags["both"][variant]
+
 
 class Test262TestSuite(testsuite.TestSuite):
 
@@ -81,15 +130,8 @@ class Test262TestSuite(testsuite.TestSuite):
             self.GetIncludesForTest(testcase) + ["--harmony"] +
             [os.path.join(self.testroot, testcase.path + ".js")])
 
-  def VariantFlags(self, testcase, default_flags):
-    flags = super(Test262TestSuite, self).VariantFlags(testcase, default_flags)
-    test_record = self.GetTestRecord(testcase)
-    if "noStrict" in test_record:
-      return flags
-    strict_flags = [f + ["--use-strict"] for f in flags]
-    if "onlyStrict" in test_record:
-      return strict_flags
-    return flags + strict_flags
+  def _VariantGeneratorFactory(self):
+    return Test262VariantGenerator
 
   def LoadParseTestRecord(self):
     if not self.ParseTestRecord:

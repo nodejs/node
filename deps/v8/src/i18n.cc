@@ -5,6 +5,9 @@
 
 #include "src/i18n.h"
 
+#include "src/api.h"
+#include "src/factory.h"
+#include "src/isolate.h"
 #include "unicode/brkiter.h"
 #include "unicode/calendar.h"
 #include "unicode/coll.h"
@@ -258,7 +261,24 @@ icu::DecimalFormat* CreateICUNumberFormat(
 #endif
 
       number_format = static_cast<icu::DecimalFormat*>(
-          icu::NumberFormat::createInstance(icu_locale, format_style,  status));
+          icu::NumberFormat::createInstance(icu_locale, format_style, status));
+
+      if (U_FAILURE(status)) {
+        delete number_format;
+        return NULL;
+      }
+
+      UErrorCode status_digits = U_ZERO_ERROR;
+      uint32_t fraction_digits = ucurr_getDefaultFractionDigits(
+        currency.getTerminatedBuffer(), &status_digits);
+      if (U_SUCCESS(status_digits)) {
+        number_format->setMinimumFractionDigits(fraction_digits);
+        number_format->setMaximumFractionDigits(fraction_digits);
+      } else {
+        // Set min & max to default values (previously in i18n.js)
+        number_format->setMinimumFractionDigits(0);
+        number_format->setMaximumFractionDigits(3);
+      }
     } else if (style == UNICODE_STRING_SIMPLE("percent")) {
       number_format = static_cast<icu::DecimalFormat*>(
           icu::NumberFormat::createPercentInstance(icu_locale, status));

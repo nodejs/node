@@ -9,3 +9,11 @@ assertEquals('', ''.normalize());
 assertThrows(function() { ''.normalize('invalid'); }, RangeError);
 assertTrue(delete Array.prototype.join);
 assertThrows(function() { ''.normalize('invalid'); }, RangeError);
+
+// All of these toString to an invalid form argument.
+assertThrows(function() { ''.normalize(null) }, RangeError);
+assertThrows(function() { ''.normalize(true) }, RangeError);
+assertThrows(function() { ''.normalize(false) }, RangeError);
+assertThrows(function() { ''.normalize(42) }, RangeError);
+assertThrows(function() { ''.normalize({}) }, RangeError);
+assertThrows(function() { ''.normalize([]) }, RangeError);

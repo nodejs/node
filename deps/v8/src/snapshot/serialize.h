@@ -6,7 +6,6 @@
 #define V8_SNAPSHOT_SERIALIZE_H_
 
 #include "src/hashmap.h"
-#include "src/heap-profiler.h"
 #include "src/isolate.h"
 #include "src/snapshot/snapshot-source-sink.h"
 
@@ -156,6 +155,8 @@ class BackReference {
                          ChunkOffsetBits::encode(index));
   }
 
+  static BackReference DummyReference() { return BackReference(kDummyValue); }
+
   static BackReference Reference(AllocationSpace space, uint32_t chunk_index,
                                  uint32_t chunk_offset) {
     DCHECK(IsAligned(chunk_offset, kObjectAlignment));
@@ -201,6 +202,7 @@ class BackReference {
   static const uint32_t kInvalidValue = 0xFFFFFFFF;
   static const uint32_t kSourceValue = 0xFFFFFFFE;
   static const uint32_t kGlobalProxyValue = 0xFFFFFFFD;
+  static const uint32_t kDummyValue = 0xFFFFFFFC;
   static const int kChunkOffsetSize = kPageSizeBits - kObjectAlignmentBits;
   static const int kChunkIndexSize = 32 - kChunkOffsetSize - kSpaceTagSize;
 
@@ -381,23 +383,29 @@ class SerializerDeserializer: public ObjectVisitor {
   static const int kNextChunk = 0x3e;
   // Deferring object content.
   static const int kDeferred = 0x3f;
+  // Used for the source code of the natives, which is in the executable, but
+  // is referred to from external strings in the snapshot.
+  static const int kNativesStringResource = 0x5d;
+  // Used for the source code for compiled stubs, which is in the executable,
+  // but is referred to from external strings in the snapshot.
+  static const int kCodeStubNativesStringResource = 0x5e;
+  // Used for the source code for V8 extras, which is in the executable,
+  // but is referred to from external strings in the snapshot.
+  static const int kExtraNativesStringResource = 0x5f;
   // A tag emitted at strategic points in the snapshot to delineate sections.
   // If the deserializer does not find these at the expected moments then it
   // is an indication that the snapshot and the VM do not fit together.
   // Examine the build process for architecture, version or configuration
   // mismatches.
   static const int kSynchronize = 0x17;
-  // Used for the source code of the natives, which is in the executable, but
-  // is referred to from external strings in the snapshot.
-  static const int kNativesStringResource = 0x37;
+  // Repeats of variable length.
+  static const int kVariableRepeat = 0x37;
   // Raw data of variable length.
   static const int kVariableRawData = 0x57;
-  // Repeats of variable length.
-  static const int kVariableRepeat = 0x77;
   // Alignment prefixes 0x7d..0x7f
   static const int kAlignmentPrefix = 0x7d;
 
-  // 0x5d..0x5f unused
+  // 0x77 unused
 
   // ---------- byte code range 0x80..0xff ----------
   // First 32 root array items.
@@ -539,8 +547,6 @@ class Deserializer: public SerializerDeserializer {
   // Deserialize a shared function info. Fail gracefully.
   MaybeHandle<SharedFunctionInfo> DeserializeCode(Isolate* isolate);
 
-  void FlushICacheForNewCodeObjects();
-
   // Pass a vector of externally-provided objects referenced by the snapshot.
   // The ownership to its backing store is handed over as well.
   void SetAttachedObjects(Vector<Handle<Object> > attached_objects) {
@@ -568,6 +574,9 @@ class Deserializer: public SerializerDeserializer {
 
   void DeserializeDeferredObjects();
 
+  void FlushICacheForNewIsolate();
+  void FlushICacheForNewCodeObjects();
+
   void CommitNewInternalizedStrings(Isolate* isolate);
 
   // Fills in some heap data in an area from start to end (non-inclusive).  The
@@ -586,6 +595,9 @@ class Deserializer: public SerializerDeserializer {
   // This returns the address of an object that has been described in the
   // snapshot by chunk index and offset.
   HeapObject* GetBackReferencedObject(int space);
+
+  Object** CopyInNativesSource(Vector<const char> source_vector,
+                               Object** current);
 
   // Cached current isolate.
   Isolate* isolate_;
@@ -674,6 +686,11 @@ class Serializer : public SerializerDeserializer {
 
    private:
     void SerializePrologue(AllocationSpace space, int size, Map* map);
+
+    bool SerializeExternalNativeSourceString(
+        int builtin_count,
+        v8::String::ExternalOneByteStringResource** resource_pointer,
+        FixedArray* source_cache, int resource_index);
 
     enum ReturnSkip { kCanReturnSkipInsteadOfSkipping, kIgnoringReturn };
     // This function outputs or skips the raw data between the last pointer and

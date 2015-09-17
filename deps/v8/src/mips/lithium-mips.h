@@ -102,6 +102,7 @@ class LCodeGen;
   V(LoadFieldByIndex)                        \
   V(LoadFunctionPrototype)                   \
   V(LoadGlobalGeneric)                       \
+  V(LoadGlobalViaContext)                    \
   V(LoadKeyed)                               \
   V(LoadKeyedGeneric)                        \
   V(LoadNamedField)                          \
@@ -142,6 +143,7 @@ class LCodeGen;
   V(StoreCodeEntry)                          \
   V(StoreContextSlot)                        \
   V(StoreFrameContext)                       \
+  V(StoreGlobalViaContext)                   \
   V(StoreKeyed)                              \
   V(StoreKeyedGeneric)                       \
   V(StoreNamedField)                         \
@@ -1608,14 +1610,8 @@ class LLoadKeyed final : public LTemplateInstruction<1, 2, 0> {
   ElementsKind elements_kind() const {
     return hydrogen()->elements_kind();
   }
-  bool is_external() const {
-    return hydrogen()->is_external();
-  }
   bool is_fixed_typed_array() const {
     return hydrogen()->is_fixed_typed_array();
-  }
-  bool is_typed_elements() const {
-    return is_external() || is_fixed_typed_array();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyed, "load-keyed")
@@ -1663,7 +1659,23 @@ class LLoadGlobalGeneric final : public LTemplateInstruction<1, 2, 1> {
   DECLARE_HYDROGEN_ACCESSOR(LoadGlobalGeneric)
 
   Handle<Object> name() const { return hydrogen()->name(); }
-  bool for_typeof() const { return hydrogen()->for_typeof(); }
+  TypeofMode typeof_mode() const { return hydrogen()->typeof_mode(); }
+};
+
+
+class LLoadGlobalViaContext final : public LTemplateInstruction<1, 1, 1> {
+ public:
+  explicit LLoadGlobalViaContext(LOperand* context) { inputs_[0] = context; }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadGlobalViaContext, "load-global-via-context")
+  DECLARE_HYDROGEN_ACCESSOR(LoadGlobalViaContext)
+
+  void PrintDataTo(StringStream* stream) override;
+
+  LOperand* context() { return inputs_[0]; }
+
+  int depth() const { return hydrogen()->depth(); }
+  int slot_index() const { return hydrogen()->slot_index(); }
 };
 
 
@@ -2168,6 +2180,28 @@ class LStoreNamedGeneric final : public LTemplateInstruction<0, 3, 2> {
 };
 
 
+class LStoreGlobalViaContext final : public LTemplateInstruction<0, 2, 0> {
+ public:
+  LStoreGlobalViaContext(LOperand* context, LOperand* value) {
+    inputs_[0] = context;
+    inputs_[1] = value;
+  }
+
+  LOperand* context() { return inputs_[0]; }
+  LOperand* value() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(StoreGlobalViaContext,
+                               "store-global-via-context")
+  DECLARE_HYDROGEN_ACCESSOR(StoreGlobalViaContext)
+
+  void PrintDataTo(StringStream* stream) override;
+
+  int depth() { return hydrogen()->depth(); }
+  int slot_index() { return hydrogen()->slot_index(); }
+  LanguageMode language_mode() { return hydrogen()->language_mode(); }
+};
+
+
 class LStoreKeyed final : public LTemplateInstruction<0, 3, 0> {
  public:
   LStoreKeyed(LOperand* object, LOperand* key, LOperand* value) {
@@ -2176,12 +2210,8 @@ class LStoreKeyed final : public LTemplateInstruction<0, 3, 0> {
     inputs_[2] = value;
   }
 
-  bool is_external() const { return hydrogen()->is_external(); }
   bool is_fixed_typed_array() const {
     return hydrogen()->is_fixed_typed_array();
-  }
-  bool is_typed_elements() const {
-    return is_external() || is_fixed_typed_array();
   }
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }

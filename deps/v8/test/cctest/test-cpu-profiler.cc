@@ -31,9 +31,9 @@
 
 #include "include/v8-profiler.h"
 #include "src/base/platform/platform.h"
+#include "src/base/smart-pointers.h"
 #include "src/cpu-profiler-inl.h"
 #include "src/deoptimizer.h"
-#include "src/smart-pointers.h"
 #include "src/utils.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/profiler-extension.h"
@@ -46,8 +46,8 @@ using i::ProfileGenerator;
 using i::ProfileNode;
 using i::ProfilerEventsProcessor;
 using i::ScopedVector;
-using i::SmartPointer;
 using i::Vector;
+using v8::base::SmartPointer;
 
 
 // Helper methods

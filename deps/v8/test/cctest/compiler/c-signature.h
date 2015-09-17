@@ -69,6 +69,10 @@ class CSignature : public MachineSignature {
     }
   }
 
+  static CSignature* FromMachine(Zone* zone, MachineSignature* msig) {
+    return reinterpret_cast<CSignature*>(msig);
+  }
+
   static CSignature* New(Zone* zone, MachineType ret,
                          MachineType p1 = kMachNone, MachineType p2 = kMachNone,
                          MachineType p3 = kMachNone, MachineType p4 = kMachNone,

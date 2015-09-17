@@ -20,6 +20,7 @@
 // ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Flags: --stack-size=100
 
 description(
 "This tests that we can correctly call Function.prototype.apply"
@@ -73,7 +74,7 @@ function stackOverflowTest() {
         stackOverflowTest();
     } catch(e) {
         // Blow the stack with a sparse array
-        shouldThrow("myFunction.apply(null, new Array(5000000))");
+        shouldThrow("myFunction.apply(null, new Array(500000))");
         // Blow the stack with a sparse array that is sufficiently large to cause int overflow
         shouldThrow("myFunction.apply(null, new Array(1 << 30))");
     }

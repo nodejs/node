@@ -2,15 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
 #include "src/compiler.h"
 #include "src/deoptimizer.h"
-#include "src/frames.h"
-#include "src/full-codegen.h"
+#include "src/frames-inl.h"
+#include "src/full-codegen/full-codegen.h"
 #include "src/messages.h"
-#include "src/runtime/runtime-utils.h"
 #include "src/v8threads.h"
 #include "src/vm-state-inl.h"
 
@@ -35,8 +34,8 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
   Handle<Code> code;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, code,
                                      Compiler::GetLazyCode(function));
-  DCHECK(code->kind() == Code::FUNCTION ||
-         code->kind() == Code::OPTIMIZED_FUNCTION);
+  DCHECK(code->IsJavaScriptCode());
+
   function->ReplaceCode(*code);
   return *code;
 }
@@ -132,9 +131,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   RUNTIME_ASSERT(frame->function()->IsJSFunction());
   DCHECK(frame->function() == *function);
 
-  // Avoid doing too much work when running with --always-opt and keep
-  // the optimized code around.
-  if (FLAG_always_opt || type == Deoptimizer::LAZY) {
+  if (type == Deoptimizer::LAZY) {
     return isolate->heap()->undefined_value();
   }
 

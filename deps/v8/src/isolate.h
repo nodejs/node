@@ -6,21 +6,26 @@
 #define V8_ISOLATE_H_
 
 #include <queue>
+#include <set>
+
 #include "include/v8-debug.h"
 #include "src/allocation.h"
 #include "src/assert-scope.h"
 #include "src/base/atomicops.h"
 #include "src/builtins.h"
+#include "src/cancelable-task.h"
 #include "src/contexts.h"
 #include "src/date.h"
 #include "src/execution.h"
 #include "src/frames.h"
+#include "src/futex-emulation.h"
 #include "src/global-handles.h"
 #include "src/handles.h"
 #include "src/hashmap.h"
 #include "src/heap/heap.h"
+#include "src/messages.h"
 #include "src/optimizing-compile-dispatcher.h"
-#include "src/regexp-stack.h"
+#include "src/regexp/regexp-stack.h"
 #include "src/runtime/runtime.h"
 #include "src/runtime-profiler.h"
 #include "src/zone.h"
@@ -59,10 +64,12 @@ class HStatistics;
 class HTracer;
 class InlineRuntimeFunctionsTable;
 class InnerPointerToCodeCache;
+class Logger;
 class MaterializedObjectStore;
 class CodeAgingHelper;
 class RegExpStack;
 class SaveContext;
+class StatsTable;
 class StringTracker;
 class StubCache;
 class SweeperThread;
@@ -79,11 +86,13 @@ typedef void* ExternalReferenceRedirectorPointer();
 
 
 class Debug;
-class Debugger;
 class PromiseOnStack;
 class Redirection;
 class Simulator;
 
+namespace interpreter {
+class Interpreter;
+}
 
 // Static indirection table for handles to constants.  If a frame
 // element represents a constant, the data contains an index into
@@ -378,7 +387,6 @@ typedef List<HeapObject*> DebugObjectCache;
   V(uint32_t, per_isolate_assert_data, 0xFFFFFFFFu)                            \
   V(PromiseRejectCallback, promise_reject_callback, NULL)                      \
   V(const v8::StartupData*, snapshot_blob, NULL)                               \
-  V(bool, creating_default_snapshot, false)                                    \
   ISOLATE_INIT_SIMULATOR_LIST(V)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                        \
@@ -902,8 +910,6 @@ class Isolate {
 
   ThreadManager* thread_manager() { return thread_manager_; }
 
-  StringTracker* string_tracker() { return string_tracker_; }
-
   unibrow::Mapping<unibrow::Ecma262UnCanonicalize>* jsregexp_uncanonicalize() {
     return &jsregexp_uncanonicalize_;
   }
@@ -989,6 +995,10 @@ class Isolate {
       delete date_cache_;
     }
     date_cache_ = date_cache;
+  }
+
+  ErrorToStringHelper* error_tostring_helper() {
+    return &error_tostring_helper_;
   }
 
   Map* get_initial_js_array_map(ElementsKind kind,
@@ -1100,23 +1110,6 @@ class Isolate {
   int GetNextUniqueSharedFunctionInfoId() { return next_unique_sfi_id_++; }
 #endif
 
-  void set_store_buffer_hash_set_1_address(
-      uintptr_t* store_buffer_hash_set_1_address) {
-    store_buffer_hash_set_1_address_ = store_buffer_hash_set_1_address;
-  }
-
-  uintptr_t* store_buffer_hash_set_1_address() {
-    return store_buffer_hash_set_1_address_;
-  }
-
-  void set_store_buffer_hash_set_2_address(
-      uintptr_t* store_buffer_hash_set_2_address) {
-    store_buffer_hash_set_2_address_ = store_buffer_hash_set_2_address;
-  }
-
-  uintptr_t* store_buffer_hash_set_2_address() {
-    return store_buffer_hash_set_2_address_;
-  }
 
   void AddDetachedContext(Handle<Context> context);
   void CheckDetachedContextsAfterGC();
@@ -1129,6 +1122,13 @@ class Isolate {
   v8::ArrayBuffer::Allocator* array_buffer_allocator() const {
     return array_buffer_allocator_;
   }
+
+  FutexWaitListNode* futex_wait_list_node() { return &futex_wait_list_node_; }
+
+  void RegisterCancelableTask(Cancelable* task);
+  void RemoveCancelableTask(Cancelable* task);
+
+  interpreter::Interpreter* interpreter() const { return interpreter_; }
 
  protected:
   explicit Isolate(bool enable_serializer);
@@ -1280,19 +1280,16 @@ class Isolate {
   RuntimeState runtime_state_;
   Builtins builtins_;
   bool has_installed_extensions_;
-  StringTracker* string_tracker_;
   unibrow::Mapping<unibrow::Ecma262UnCanonicalize> jsregexp_uncanonicalize_;
   unibrow::Mapping<unibrow::CanonicalizationRange> jsregexp_canonrange_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize>
       regexp_macro_assembler_canonicalize_;
   RegExpStack* regexp_stack_;
   DateCache* date_cache_;
+  ErrorToStringHelper error_tostring_helper_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
   CallInterfaceDescriptorData* call_descriptor_data_;
   base::RandomNumberGenerator* random_number_generator_;
-  // TODO(hpayer): Remove the following store buffer addresses.
-  uintptr_t* store_buffer_hash_set_1_address_;
-  uintptr_t* store_buffer_hash_set_2_address_;
 
   // Whether the isolate has been created for snapshotting.
   bool serializer_enabled_;
@@ -1316,6 +1313,8 @@ class Isolate {
   CpuProfiler* cpu_profiler_;
   HeapProfiler* heap_profiler_;
   FunctionEntryHook function_entry_hook_;
+
+  interpreter::Interpreter* interpreter_;
 
   typedef std::pair<InterruptCallback, void*> InterruptEntry;
   std::queue<InterruptEntry> api_interrupts_queue_;
@@ -1362,6 +1361,10 @@ class Isolate {
   List<Object*> partial_snapshot_cache_;
 
   v8::ArrayBuffer::Allocator* array_buffer_allocator_;
+
+  FutexWaitListNode futex_wait_list_node_;
+
+  std::set<Cancelable*> cancelable_tasks_;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;

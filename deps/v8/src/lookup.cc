@@ -59,9 +59,22 @@ void LookupIterator::RestartLookupForNonMaskingInterceptors() {
 }
 
 
-Handle<JSReceiver> LookupIterator::GetRoot(Handle<Object> receiver,
-                                           Isolate* isolate) {
+// static
+Handle<JSReceiver> LookupIterator::GetRoot(Isolate* isolate,
+                                           Handle<Object> receiver,
+                                           uint32_t index) {
   if (receiver->IsJSReceiver()) return Handle<JSReceiver>::cast(receiver);
+  // Strings are the only objects with properties (only elements) directly on
+  // the wrapper. Hence we can skip generating the wrapper for all other cases.
+  if (index != kMaxUInt32 && receiver->IsString() &&
+      index < static_cast<uint32_t>(String::cast(*receiver)->length())) {
+    // TODO(verwaest): Speed this up. Perhaps use a cached wrapper on the native
+    // context, ensuring that we don't leak it into JS?
+    Handle<JSFunction> constructor = isolate->string_function();
+    Handle<JSObject> result = isolate->factory()->NewJSObject(constructor);
+    Handle<JSValue>::cast(result)->set_value(*receiver);
+    return result;
+  }
   auto root = handle(receiver->GetRootMap(isolate)->prototype(), isolate);
   if (root->IsNull()) {
     unsigned int magic = 0xbbbbbbbb;
@@ -72,7 +85,7 @@ Handle<JSReceiver> LookupIterator::GetRoot(Handle<Object> receiver,
 
 
 Handle<Map> LookupIterator::GetReceiverMap() const {
-  if (receiver_->IsNumber()) return isolate_->factory()->heap_number_map();
+  if (receiver_->IsNumber()) return factory()->heap_number_map();
   return handle(Handle<HeapObject>::cast(receiver_)->map(), isolate_);
 }
 
@@ -104,8 +117,7 @@ void LookupIterator::ReloadPropertyInformation() {
 void LookupIterator::ReloadHolderMap() {
   DCHECK_EQ(DATA, state_);
   DCHECK(IsElement());
-  DCHECK(JSObject::cast(*holder_)->HasExternalArrayElements() ||
-         JSObject::cast(*holder_)->HasFixedTypedArrayElements());
+  DCHECK(JSObject::cast(*holder_)->HasFixedTypedArrayElements());
   if (*holder_map_ != holder_->map()) {
     holder_map_ = handle(holder_->map(), isolate_);
   }
@@ -119,29 +131,15 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
   Handle<JSObject> holder = GetHolder<JSObject>();
 
   if (IsElement()) {
-    ElementsKind old_kind = holder_map_->elements_kind();
-    holder_map_ = Map::PrepareForDataElement(holder_map_, value);
-    ElementsKind new_kind = holder_map_->elements_kind();
-    if (new_kind != old_kind) {
-      // TODO(verwaest): Handle element migration in MigrateToMap.
-      JSObject::UpdateAllocationSite(holder, new_kind);
-      if (IsFastDoubleElementsKind(old_kind) !=
-          IsFastDoubleElementsKind(new_kind)) {
-        uint32_t capacity = holder->elements()->length();
-        ElementsAccessor* accessor = ElementsAccessor::ForKind(new_kind);
-        accessor->GrowCapacityAndConvert(holder, capacity);
-        // GrowCapacityAndConvert migrated the object. No reloading of property
-        // infomation is necessary for elements.
-        return;
-      } else if (FLAG_trace_elements_transitions) {
-        Handle<FixedArrayBase> elements(holder->elements());
-        JSObject::PrintElementsTransition(stdout, holder, old_kind, elements,
-                                          new_kind, elements);
-      }
-    }
+    ElementsKind kind = holder_map_->elements_kind();
+    ElementsKind to = value->OptimalElementsKind();
+    if (IsHoleyElementsKind(kind)) to = GetHoleyElementsKind(to);
+    to = IsMoreGeneralElementsKindTransition(kind, to) ? to : kind;
+    JSObject::TransitionElementsKind(holder, to);
+    holder_map_ = handle(holder->map(), isolate_);
 
     // Copy the backing store if it is copy-on-write.
-    if (IsFastSmiOrObjectElementsKind(new_kind)) {
+    if (IsFastSmiOrObjectElementsKind(to)) {
       JSObject::EnsureWritableFastElements(holder);
     }
 
@@ -162,7 +160,6 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
   DCHECK(HolderIsReceiverOrHiddenPrototype());
   Handle<JSObject> holder = GetHolder<JSObject>();
   if (IsElement()) {
-    DCHECK(!holder->HasExternalArrayElements());
     DCHECK(!holder->HasFixedTypedArrayElements());
     DCHECK(attributes != NONE || !holder->HasFastElements());
     Handle<FixedArrayBase> elements(holder->elements());
@@ -264,20 +261,19 @@ void LookupIterator::TransitionToAccessorProperty(
   // handled via a trap. Adding properties to primitive values is not
   // observable.
   Handle<JSObject> receiver = GetStoreTarget();
-  holder_ = receiver;
-  holder_map_ =
-      Map::TransitionToAccessorProperty(handle(receiver->map(), isolate_),
-                                        name_, component, accessor, attributes);
-  JSObject::MigrateToMap(receiver, holder_map_);
 
-  ReloadPropertyInformation();
+  if (!IsElement() && !receiver->map()->is_dictionary_map()) {
+    holder_ = receiver;
+    holder_map_ = Map::TransitionToAccessorProperty(
+        handle(receiver->map(), isolate_), name_, component, accessor,
+        attributes);
+    JSObject::MigrateToMap(receiver, holder_map_);
 
-  if (!holder_map_->is_dictionary_map()) return;
+    ReloadPropertyInformation();
 
+    if (!holder_map_->is_dictionary_map()) return;
+  }
 
-  // Install the accessor into the dictionary-mode object.
-  PropertyDetails details(attributes, ACCESSOR_CONSTANT, 0,
-                          PropertyCellType::kMutable);
   Handle<AccessorPair> pair;
   if (state() == ACCESSOR && GetAccessors()->IsAccessorPair()) {
     pair = Handle<AccessorPair>::cast(GetAccessors());
@@ -289,12 +285,56 @@ void LookupIterator::TransitionToAccessorProperty(
       pair->set(component, *accessor);
     }
   } else {
-    pair = isolate()->factory()->NewAccessorPair();
+    pair = factory()->NewAccessorPair();
     pair->set(component, *accessor);
   }
-  JSObject::SetNormalizedProperty(receiver, name_, pair, details);
 
-  JSObject::ReoptimizeIfPrototype(receiver);
+  TransitionToAccessorPair(pair, attributes);
+}
+
+
+void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
+                                              PropertyAttributes attributes) {
+  Handle<JSObject> receiver = GetStoreTarget();
+  holder_ = receiver;
+
+  PropertyDetails details(attributes, ACCESSOR_CONSTANT, 0,
+                          PropertyCellType::kMutable);
+
+  if (IsElement()) {
+    // TODO(verwaest): Move code into the element accessor.
+    Handle<SeededNumberDictionary> dictionary =
+        JSObject::NormalizeElements(receiver);
+
+    // We unconditionally pass used_as_prototype=false here because the call
+    // to RequireSlowElements takes care of the required IC clearing and
+    // we don't want to walk the heap twice.
+    dictionary =
+        SeededNumberDictionary::Set(dictionary, index_, pair, details, false);
+    receiver->RequireSlowElements(*dictionary);
+
+    if (receiver->HasSlowArgumentsElements()) {
+      FixedArray* parameter_map = FixedArray::cast(receiver->elements());
+      uint32_t length = parameter_map->length() - 2;
+      if (number_ < length) {
+        parameter_map->set(number_ + 2, heap()->the_hole_value());
+      }
+      FixedArray::cast(receiver->elements())->set(1, *dictionary);
+    } else {
+      receiver->set_elements(*dictionary);
+    }
+  } else {
+    PropertyNormalizationMode mode = receiver->map()->is_prototype_map()
+                                         ? KEEP_INOBJECT_PROPERTIES
+                                         : CLEAR_INOBJECT_PROPERTIES;
+    // Normalize object to make this operation simple.
+    JSObject::NormalizeProperties(receiver, mode, 0,
+                                  "TransitionToAccessorPair");
+
+    JSObject::SetNormalizedProperty(receiver, name_, pair, details);
+    JSObject::ReoptimizeIfPrototype(receiver);
+  }
+
   holder_map_ = handle(receiver->map(), isolate_);
   ReloadPropertyInformation();
 }
@@ -340,7 +380,7 @@ Handle<Object> LookupIterator::FetchValue() const {
     }
 
     ElementsAccessor* accessor = holder->GetElementsAccessor();
-    return accessor->Get(holder, index_);
+    return accessor->Get(handle(holder->elements()), number_);
   } else if (holder_map_->IsGlobalObjectMap()) {
     result = holder->global_dictionary()->ValueAt(number_);
     DCHECK(result->IsPropertyCell());
@@ -425,7 +465,7 @@ void LookupIterator::WriteDataValue(Handle<Object> value) {
   Handle<JSObject> holder = GetHolder<JSObject>();
   if (IsElement()) {
     ElementsAccessor* accessor = holder->GetElementsAccessor();
-    accessor->Set(holder->elements(), index_, *value);
+    accessor->Set(holder->elements(), number_, *value);
   } else if (holder->IsGlobalObject()) {
     Handle<GlobalDictionary> property_dictionary =
         handle(holder->global_dictionary());

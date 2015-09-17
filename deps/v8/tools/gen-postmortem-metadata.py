@@ -142,7 +142,7 @@ extras_accessors = [
     'JSObject, elements, Object, kElementsOffset',
     'FixedArray, data, uintptr_t, kHeaderSize',
     'Map, instance_attributes, int, kInstanceAttributesOffset',
-    'Map, inobject_properties, int, kInObjectPropertiesOffset',
+    'Map, inobject_properties_of_constructor_function_index_offset, int, kInObjectPropertiesOrConstructorFunctionIndexOffset',
     'Map, instance_size, int, kInstanceSizeOffset',
     'Map, bit_field, char, kBitFieldOffset',
     'Map, bit_field2, char, kBitField2Offset',

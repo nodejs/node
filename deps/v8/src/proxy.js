@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var $proxyDerivedGetTrap;
-var $proxyDerivedHasTrap;
-var $proxyDerivedSetTrap;
-var $proxyEnumerate;
-
 (function(global, utils) {
 
 "use strict";
@@ -199,15 +194,17 @@ utils.InstallFunctions(Proxy, DONT_ENUM, [
 // -------------------------------------------------------------------
 // Exports
 
-$proxyDerivedGetTrap = DerivedGetTrap;
-$proxyDerivedHasTrap = DerivedHasTrap;
-$proxyDerivedSetTrap = DerivedSetTrap;
-$proxyEnumerate = ProxyEnumerate;
-
 utils.Export(function(to) {
   to.ProxyDelegateCallAndConstruct = DelegateCallAndConstruct;
   to.ProxyDerivedHasOwnTrap = DerivedHasOwnTrap;
   to.ProxyDerivedKeysTrap = DerivedKeysTrap;
+});
+
+utils.ExportToRuntime(function(to) {
+  to.ProxyDerivedGetTrap = DerivedGetTrap;
+  to.ProxyDerivedHasTrap = DerivedHasTrap;
+  to.ProxyDerivedSetTrap = DerivedSetTrap;
+  to.ProxyEnumerate = ProxyEnumerate;
 });
 
 })

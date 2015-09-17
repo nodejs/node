@@ -4,14 +4,6 @@
 
 var $getHash;
 var $getExistingHash;
-var $mapSet;
-var $mapHas;
-var $mapDelete;
-var $setAdd;
-var $setHas;
-var $setDelete;
-var $mapFromArray;
-var $setFromArray;
 
 (function(global, utils) {
 "use strict";
@@ -268,7 +260,7 @@ function SetForEach(f, receiver) {
   while (%SetIteratorNext(iterator, value_array)) {
     if (stepping) %DebugPrepareStepInIfStepping(f);
     key = value_array[0];
-    var new_receiver = needs_wrapper ? $toObject(receiver) : receiver;
+    var new_receiver = needs_wrapper ? TO_OBJECT(receiver) : receiver;
     %_CallFunction(new_receiver, key, key, this, f);
   }
 }
@@ -457,7 +449,7 @@ function MapForEach(f, receiver) {
   var value_array = [UNDEFINED, UNDEFINED];
   while (%MapIteratorNext(iterator, value_array)) {
     if (stepping) %DebugPrepareStepInIfStepping(f);
-    var new_receiver = needs_wrapper ? $toObject(receiver) : receiver;
+    var new_receiver = needs_wrapper ? TO_OBJECT(receiver) : receiver;
     %_CallFunction(new_receiver, value_array[1], value_array[0], this, f);
   }
 }
@@ -487,15 +479,8 @@ utils.InstallFunctions(GlobalMap.prototype, DONT_ENUM, [
 // Expose to the global scope.
 $getHash = GetHash;
 $getExistingHash = GetExistingHash;
-$mapGet = MapGet;
-$mapSet = MapSet;
-$mapHas = MapHas;
-$mapDelete = MapDelete;
-$setAdd = SetAdd;
-$setHas = SetHas;
-$setDelete = SetDelete;
 
-$mapFromArray = function(array) {
+function MapFromArray(array) {
   var map = new GlobalMap;
   var length = array.length;
   for (var i = 0; i < length; i += 2) {
@@ -506,7 +491,7 @@ $mapFromArray = function(array) {
   return map;
 };
 
-$setFromArray = function(array) {
+function SetFromArray(array) {
   var set = new GlobalSet;
   var length = array.length;
   for (var i = 0; i < length; ++i) {
@@ -514,5 +499,20 @@ $setFromArray = function(array) {
   }
   return set;
 };
+
+// -----------------------------------------------------------------------
+// Exports
+
+utils.ExportToRuntime(function(to) {
+  to.MapGet = MapGet;
+  to.MapSet = MapSet;
+  to.MapHas = MapHas;
+  to.MapDelete = MapDelete;
+  to.SetAdd = SetAdd;
+  to.SetHas = SetHas;
+  to.SetDelete = SetDelete;
+  to.MapFromArray = MapFromArray;
+  to.SetFromArray = SetFromArray;
+});
 
 })

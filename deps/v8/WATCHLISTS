@@ -40,7 +40,7 @@
       'filepath': 'src/snapshot/',
     },
     'debugger': {
-      'filepath': 'src/debug\.(cc|h)|src/.*-debugger\.js|src/runtime/runtime-debug\.cc',
+      'filepath': 'src/debug/',
     },
   },
 

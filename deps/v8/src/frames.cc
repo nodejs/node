@@ -6,14 +6,11 @@
 
 #include <sstream>
 
-#include "src/v8.h"
-
 #include "src/ast.h"
 #include "src/base/bits.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
-#include "src/full-codegen.h"
-#include "src/heap/mark-compact.h"
+#include "src/full-codegen/full-codegen.h"
 #include "src/safepoint-table.h"
 #include "src/scopeinfo.h"
 #include "src/string-stream.h"
@@ -738,8 +735,8 @@ Object* JavaScriptFrame::GetOriginalConstructor() const {
   }
   DCHECK(IsConstructFrame(fp));
   STATIC_ASSERT(ConstructFrameConstants::kOriginalConstructorOffset ==
-                StandardFrameConstants::kExpressionsOffset - 2 * kPointerSize);
-  return GetExpression(fp, 2);
+                StandardFrameConstants::kExpressionsOffset - 3 * kPointerSize);
+  return GetExpression(fp, 3);
 }
 
 
@@ -819,7 +816,7 @@ void JavaScriptFrame::PrintFunctionAndOffset(JSFunction* function, Code* code,
       Object* script_name_raw = script->name();
       if (script_name_raw->IsString()) {
         String* script_name = String::cast(script->name());
-        SmartArrayPointer<char> c_script_name =
+        base::SmartArrayPointer<char> c_script_name =
             script_name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
         PrintF(file, " at %s:%d", c_script_name.get(), line);
       } else {
@@ -1082,18 +1079,14 @@ void OptimizedFrame::GetFunctions(List<JSFunction*>* functions) {
 }
 
 
-Object* OptimizedFrame::StackSlotAt(int index) const {
-  // Positive index means the value is spilled to the locals
-  // area. Negative means it is stored in the incoming parameter
-  // area.
-  if (index >= 0) return GetExpression(index);
+int OptimizedFrame::StackSlotOffsetRelativeToFp(int slot_index) {
+  return StandardFrameConstants::kCallerSPOffset -
+         ((slot_index + 1) * kPointerSize);
+}
 
-  // Index -1 overlaps with last parameter, -n with the first parameter,
-  // (-n - 1) with the receiver with n being the number of parameters
-  // of the outermost, optimized frame.
-  int const parameter_count = ComputeParametersCount();
-  int const parameter_index = index + parameter_count;
-  return (parameter_index == -1) ? receiver() : GetParameter(parameter_index);
+
+Object* OptimizedFrame::StackSlotAt(int index) const {
+  return Memory::Object_at(fp() + StackSlotOffsetRelativeToFp(index));
 }
 
 
@@ -1445,6 +1438,9 @@ Code* InnerPointerToCodeCache::GcSafeFindCodeForInnerPointer(
   // Iterate through the page until we reach the end or find an object starting
   // after the inner pointer.
   Page* page = Page::FromAddress(inner_pointer);
+
+  DCHECK_EQ(page->owner(), heap->code_space());
+  heap->mark_compact_collector()->SweepOrWaitUntilSweepingCompleted(page);
 
   Address addr = page->skip_list()->StartFor(inner_pointer);
 

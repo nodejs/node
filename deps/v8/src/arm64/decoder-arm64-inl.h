@@ -231,7 +231,8 @@ void Decoder<V>::DecodeLoadStore(Instruction* instr) {
             if (instr->Mask(0xC4400000) == 0xC0400000) {
               V::VisitUnallocated(instr);
             } else {
-              V::VisitLoadStorePairNonTemporal(instr);
+              // Nontemporals are unimplemented.
+              V::VisitUnimplemented(instr);
             }
           } else {
             V::VisitLoadStorePairPostIndex(instr);

@@ -489,17 +489,6 @@ test_for_in();
 test_for_in();
 test_for_in();
 
-function test_get_property_names() {
-  names = %GetPropertyNames(large_array3);
-  property_name_count = 0;
-  for (x in names) { property_name_count++; };
-  assertEquals(26, property_name_count);
-}
-
-test_get_property_names();
-test_get_property_names();
-test_get_property_names();
-
 // Test elements getters.
 assertEquals(expected_array_value(10), large_array3[10]);
 assertEquals(expected_array_value(-NaN), large_array3[2]);

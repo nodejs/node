@@ -8,12 +8,16 @@
 #include <cmath>
 
 #include "src/base/platform/platform.h"
+#include "src/counters.h"
 #include "src/heap/heap.h"
+#include "src/heap/incremental-marking-inl.h"
+#include "src/heap/spaces-inl.h"
 #include "src/heap/store-buffer.h"
 #include "src/heap/store-buffer-inl.h"
 #include "src/heap-profiler.h"
 #include "src/isolate.h"
 #include "src/list-inl.h"
+#include "src/log.h"
 #include "src/msan.h"
 #include "src/objects.h"
 
@@ -40,6 +44,44 @@ void PromotionQueue::insert(HeapObject* target, int size) {
                               reinterpret_cast<Address>(rear_));
 #endif
 }
+
+
+#define ROOT_ACCESSOR(type, name, camel_name) \
+  type* Heap::name() { return type::cast(roots_[k##camel_name##RootIndex]); }
+ROOT_LIST(ROOT_ACCESSOR)
+#undef ROOT_ACCESSOR
+
+#define STRUCT_MAP_ACCESSOR(NAME, Name, name) \
+  Map* Heap::name##_map() { return Map::cast(roots_[k##Name##MapRootIndex]); }
+STRUCT_LIST(STRUCT_MAP_ACCESSOR)
+#undef STRUCT_MAP_ACCESSOR
+
+#define STRING_ACCESSOR(name, str) \
+  String* Heap::name() { return String::cast(roots_[k##name##RootIndex]); }
+INTERNALIZED_STRING_LIST(STRING_ACCESSOR)
+#undef STRING_ACCESSOR
+
+#define SYMBOL_ACCESSOR(name) \
+  Symbol* Heap::name() { return Symbol::cast(roots_[k##name##RootIndex]); }
+PRIVATE_SYMBOL_LIST(SYMBOL_ACCESSOR)
+#undef SYMBOL_ACCESSOR
+
+#define SYMBOL_ACCESSOR(name, varname, description) \
+  Symbol* Heap::name() { return Symbol::cast(roots_[k##name##RootIndex]); }
+PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
+#undef SYMBOL_ACCESSOR
+
+#define ROOT_ACCESSOR(type, name, camel_name)                                 \
+  void Heap::set_##name(type* value) {                                        \
+    /* The deserializer makes use of the fact that these common roots are */  \
+    /* never in new space and never on a page that is being compacted.    */  \
+    DCHECK(!deserialization_complete() ||                                     \
+           RootCanBeWrittenAfterInitialization(k##camel_name##RootIndex));    \
+    DCHECK(k##camel_name##RootIndex >= kOldSpaceRoots || !InNewSpace(value)); \
+    roots_[k##camel_name##RootIndex] = value;                                 \
+  }
+ROOT_LIST(ROOT_ACCESSOR)
+#undef ROOT_ACCESSOR
 
 
 template <>
@@ -629,6 +671,27 @@ void ExternalStringTable::ShrinkNewStrings(int position) {
 }
 
 
+int DescriptorLookupCache::Lookup(Map* source, Name* name) {
+  if (!name->IsUniqueName()) return kAbsent;
+  int index = Hash(source, name);
+  Key& key = keys_[index];
+  if ((key.source == source) && (key.name == name)) return results_[index];
+  return kAbsent;
+}
+
+
+void DescriptorLookupCache::Update(Map* source, Name* name, int result) {
+  DCHECK(result != kAbsent);
+  if (name->IsUniqueName()) {
+    int index = Hash(source, name);
+    Key& key = keys_[index];
+    key.source = source;
+    key.name = name;
+    results_[index] = result;
+  }
+}
+
+
 void Heap::ClearInstanceofCache() {
   set_instanceof_cache_function(Smi::FromInt(0));
 }
@@ -642,6 +705,46 @@ Object* Heap::ToBoolean(bool condition) {
 void Heap::CompletelyClearInstanceofCache() {
   set_instanceof_cache_map(Smi::FromInt(0));
   set_instanceof_cache_function(Smi::FromInt(0));
+}
+
+
+uint32_t Heap::HashSeed() {
+  uint32_t seed = static_cast<uint32_t>(hash_seed()->value());
+  DCHECK(FLAG_randomize_hashes || seed == 0);
+  return seed;
+}
+
+
+Smi* Heap::NextScriptId() {
+  int next_id = last_script_id()->value() + 1;
+  if (!Smi::IsValid(next_id) || next_id < 0) next_id = 1;
+  Smi* next_id_smi = Smi::FromInt(next_id);
+  set_last_script_id(next_id_smi);
+  return next_id_smi;
+}
+
+
+void Heap::SetArgumentsAdaptorDeoptPCOffset(int pc_offset) {
+  DCHECK(arguments_adaptor_deopt_pc_offset() == Smi::FromInt(0));
+  set_arguments_adaptor_deopt_pc_offset(Smi::FromInt(pc_offset));
+}
+
+
+void Heap::SetConstructStubDeoptPCOffset(int pc_offset) {
+  DCHECK(construct_stub_deopt_pc_offset() == Smi::FromInt(0));
+  set_construct_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
+}
+
+
+void Heap::SetGetterStubDeoptPCOffset(int pc_offset) {
+  DCHECK(getter_stub_deopt_pc_offset() == Smi::FromInt(0));
+  set_getter_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
+}
+
+
+void Heap::SetSetterStubDeoptPCOffset(int pc_offset) {
+  DCHECK(setter_stub_deopt_pc_offset() == Smi::FromInt(0));
+  set_setter_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
 

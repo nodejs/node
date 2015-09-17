@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_X64
 
 #include "src/base/bits.h"
@@ -11,7 +9,7 @@
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/cpu-profiler.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/heap/heap.h"
 #include "src/x64/assembler-x64.h"
 #include "src/x64/macro-assembler-x64.h"
@@ -1380,10 +1378,8 @@ void MacroAssembler::SmiAddConstant(const Operand& dst, Smi* constant) {
 }
 
 
-void MacroAssembler::SmiAddConstant(Register dst,
-                                    Register src,
-                                    Smi* constant,
-                                    SmiOperationExecutionMode mode,
+void MacroAssembler::SmiAddConstant(Register dst, Register src, Smi* constant,
+                                    SmiOperationConstraints constraints,
                                     Label* bailout_label,
                                     Label::Distance near_jump) {
   if (constant->value() == 0) {
@@ -1394,12 +1390,12 @@ void MacroAssembler::SmiAddConstant(Register dst,
     DCHECK(!dst.is(kScratchRegister));
     LoadSmiConstant(kScratchRegister, constant);
     addp(dst, kScratchRegister);
-    if (mode.Contains(BAILOUT_ON_NO_OVERFLOW)) {
+    if (constraints & SmiOperationConstraint::kBailoutOnNoOverflow) {
       j(no_overflow, bailout_label, near_jump);
-      DCHECK(mode.Contains(PRESERVE_SOURCE_REGISTER));
+      DCHECK(constraints & SmiOperationConstraint::kPreserveSourceRegister);
       subp(dst, kScratchRegister);
-    } else if (mode.Contains(BAILOUT_ON_OVERFLOW)) {
-      if (mode.Contains(PRESERVE_SOURCE_REGISTER)) {
+    } else if (constraints & SmiOperationConstraint::kBailoutOnOverflow) {
+      if (constraints & SmiOperationConstraint::kPreserveSourceRegister) {
         Label done;
         j(no_overflow, &done, Label::kNear);
         subp(dst, kScratchRegister);
@@ -1410,11 +1406,11 @@ void MacroAssembler::SmiAddConstant(Register dst,
         j(overflow, bailout_label, near_jump);
       }
     } else {
-      CHECK(mode.IsEmpty());
+      UNREACHABLE();
     }
   } else {
-    DCHECK(mode.Contains(PRESERVE_SOURCE_REGISTER));
-    DCHECK(mode.Contains(BAILOUT_ON_OVERFLOW));
+    DCHECK(constraints & SmiOperationConstraint::kPreserveSourceRegister);
+    DCHECK(constraints & SmiOperationConstraint::kBailoutOnOverflow);
     LoadSmiConstant(dst, constant);
     addp(dst, src);
     j(overflow, bailout_label, near_jump);
@@ -1446,10 +1442,8 @@ void MacroAssembler::SmiSubConstant(Register dst, Register src, Smi* constant) {
 }
 
 
-void MacroAssembler::SmiSubConstant(Register dst,
-                                    Register src,
-                                    Smi* constant,
-                                    SmiOperationExecutionMode mode,
+void MacroAssembler::SmiSubConstant(Register dst, Register src, Smi* constant,
+                                    SmiOperationConstraints constraints,
                                     Label* bailout_label,
                                     Label::Distance near_jump) {
   if (constant->value() == 0) {
@@ -1460,12 +1454,12 @@ void MacroAssembler::SmiSubConstant(Register dst,
     DCHECK(!dst.is(kScratchRegister));
     LoadSmiConstant(kScratchRegister, constant);
     subp(dst, kScratchRegister);
-    if (mode.Contains(BAILOUT_ON_NO_OVERFLOW)) {
+    if (constraints & SmiOperationConstraint::kBailoutOnNoOverflow) {
       j(no_overflow, bailout_label, near_jump);
-      DCHECK(mode.Contains(PRESERVE_SOURCE_REGISTER));
+      DCHECK(constraints & SmiOperationConstraint::kPreserveSourceRegister);
       addp(dst, kScratchRegister);
-    } else if (mode.Contains(BAILOUT_ON_OVERFLOW)) {
-      if (mode.Contains(PRESERVE_SOURCE_REGISTER)) {
+    } else if (constraints & SmiOperationConstraint::kBailoutOnOverflow) {
+      if (constraints & SmiOperationConstraint::kPreserveSourceRegister) {
         Label done;
         j(no_overflow, &done, Label::kNear);
         addp(dst, kScratchRegister);
@@ -1476,11 +1470,11 @@ void MacroAssembler::SmiSubConstant(Register dst,
         j(overflow, bailout_label, near_jump);
       }
     } else {
-      CHECK(mode.IsEmpty());
+      UNREACHABLE();
     }
   } else {
-    DCHECK(mode.Contains(PRESERVE_SOURCE_REGISTER));
-    DCHECK(mode.Contains(BAILOUT_ON_OVERFLOW));
+    DCHECK(constraints & SmiOperationConstraint::kPreserveSourceRegister);
+    DCHECK(constraints & SmiOperationConstraint::kBailoutOnOverflow);
     if (constant->value() == Smi::kMinValue) {
       DCHECK(!dst.is(kScratchRegister));
       movp(dst, src);
@@ -3559,10 +3553,11 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value) {
 
 void MacroAssembler::DebugBreak() {
   Set(rax, 0);  // No arguments.
-  LoadAddress(rbx, ExternalReference(Runtime::kDebugBreak, isolate()));
+  LoadAddress(rbx,
+              ExternalReference(Runtime::kHandleDebuggerStatement, isolate()));
   CEntryStub ces(isolate(), 1);
   DCHECK(AllowThisStubCall(&ces));
-  Call(ces.GetCode(), RelocInfo::DEBUG_BREAK);
+  Call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);
 }
 
 
@@ -4308,21 +4303,6 @@ void MacroAssembler::Allocate(Register object_size,
 }
 
 
-void MacroAssembler::UndoAllocationInNewSpace(Register object) {
-  ExternalReference new_space_allocation_top =
-      ExternalReference::new_space_allocation_top_address(isolate());
-
-  // Make sure the object has no tag before resetting top.
-  andp(object, Immediate(~kHeapObjectTagMask));
-  Operand top_operand = ExternalOperand(new_space_allocation_top);
-#ifdef DEBUG
-  cmpp(object, top_operand);
-  Check(below, kUndoAllocationOfNonAllocatedMemory);
-#endif
-  movp(top_operand, object);
-}
-
-
 void MacroAssembler::AllocateHeapNumber(Register result,
                                         Register scratch,
                                         Label* gc_required,
@@ -5063,13 +5043,21 @@ void MacroAssembler::JumpIfDictionaryInPrototypeChain(
   DCHECK(!(scratch0.is(kScratchRegister) && scratch1.is(kScratchRegister)));
   DCHECK(!scratch1.is(scratch0));
   Register current = scratch0;
-  Label loop_again;
+  Label loop_again, end;
 
   movp(current, object);
+  movp(current, FieldOperand(current, HeapObject::kMapOffset));
+  movp(current, FieldOperand(current, Map::kPrototypeOffset));
+  CompareRoot(current, Heap::kNullValueRootIndex);
+  j(equal, &end);
 
   // Loop based on the map going up the prototype chain.
   bind(&loop_again);
   movp(current, FieldOperand(current, HeapObject::kMapOffset));
+  STATIC_ASSERT(JS_PROXY_TYPE < JS_OBJECT_TYPE);
+  STATIC_ASSERT(JS_VALUE_TYPE < JS_OBJECT_TYPE);
+  CmpInstanceType(current, JS_OBJECT_TYPE);
+  j(below, found);
   movp(scratch1, FieldOperand(current, Map::kBitField2Offset));
   DecodeField<Map::ElementsKindBits>(scratch1);
   cmpp(scratch1, Immediate(DICTIONARY_ELEMENTS));
@@ -5077,6 +5065,8 @@ void MacroAssembler::JumpIfDictionaryInPrototypeChain(
   movp(current, FieldOperand(current, Map::kPrototypeOffset));
   CompareRoot(current, Heap::kNullValueRootIndex);
   j(not_equal, &loop_again);
+
+  bind(&end);
 }
 
 

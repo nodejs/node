@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
+#include "src/arm64/frames-arm64.h"
 #include "src/arm64/lithium-codegen-arm64.h"
 #include "src/arm64/lithium-gap-resolver-arm64.h"
 #include "src/base/bits.h"
@@ -276,15 +275,23 @@ void LCodeGen::AddToTranslation(LEnvironment* environment,
   }
 
   if (op->IsStackSlot()) {
+    int index = op->index();
+    if (index >= 0) {
+      index += StandardFrameConstants::kFixedFrameSize / kPointerSize;
+    }
     if (is_tagged) {
-      translation->StoreStackSlot(op->index());
+      translation->StoreStackSlot(index);
     } else if (is_uint32) {
-      translation->StoreUint32StackSlot(op->index());
+      translation->StoreUint32StackSlot(index);
     } else {
-      translation->StoreInt32StackSlot(op->index());
+      translation->StoreInt32StackSlot(index);
     }
   } else if (op->IsDoubleStackSlot()) {
-    translation->StoreDoubleStackSlot(op->index());
+    int index = op->index();
+    if (index >= 0) {
+      index += StandardFrameConstants::kFixedFrameSize / kPointerSize;
+    }
+    translation->StoreDoubleStackSlot(index);
   } else if (op->IsRegister()) {
     Register reg = ToRegister(op);
     if (is_tagged) {
@@ -1476,9 +1483,14 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
 void LCodeGen::DoAddE(LAddE* instr) {
   Register result = ToRegister(instr->result());
   Register left = ToRegister(instr->left());
-  Operand right = (instr->right()->IsConstantOperand())
-      ? ToInteger32(LConstantOperand::cast(instr->right()))
-      : Operand(ToRegister32(instr->right()), SXTW);
+  Operand right = Operand(x0);  // Dummy initialization.
+  if (instr->hydrogen()->external_add_type() == AddOfExternalAndTagged) {
+    right = Operand(ToRegister(instr->right()));
+  } else if (instr->right()->IsConstantOperand()) {
+    right = ToInteger32(LConstantOperand::cast(instr->right()));
+  } else {
+    right = Operand(ToRegister32(instr->right()), SXTW);
+  }
 
   DCHECK(!instr->hydrogen()->CheckFlag(HValue::kCanOverflow));
   __ Add(result, left, right);
@@ -1923,6 +1935,12 @@ void LCodeGen::DoBranch(LBranch* instr) {
       if (expected.Contains(ToBooleanStub::SYMBOL)) {
         // Symbol value -> true.
         __ CompareInstanceType(map, scratch, SYMBOL_TYPE);
+        __ B(eq, true_label);
+      }
+
+      if (expected.Contains(ToBooleanStub::SIMD_VALUE)) {
+        // SIMD value -> true.
+        __ CompareInstanceType(map, scratch, SIMD128_VALUE_TYPE);
         __ B(eq, true_label);
       }
 
@@ -3362,10 +3380,28 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
   DCHECK(ToRegister(instr->result()).Is(x0));
   __ Mov(LoadDescriptor::NameRegister(), Operand(instr->name()));
   EmitVectorLoadICRegisters<LLoadGlobalGeneric>(instr);
-  ContextualMode mode = instr->for_typeof() ? NOT_CONTEXTUAL : CONTEXTUAL;
-  Handle<Code> ic = CodeFactory::LoadICInOptimizedCode(isolate(), mode, SLOPPY,
-                                                       PREMONOMORPHIC).code();
+  Handle<Code> ic =
+      CodeFactory::LoadICInOptimizedCode(isolate(), instr->typeof_mode(),
+                                         SLOPPY, PREMONOMORPHIC).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
+}
+
+
+void LCodeGen::DoLoadGlobalViaContext(LLoadGlobalViaContext* instr) {
+  DCHECK(ToRegister(instr->context()).is(cp));
+  DCHECK(ToRegister(instr->result()).is(x0));
+
+  int const slot = instr->slot_index();
+  int const depth = instr->depth();
+  if (depth <= LoadGlobalViaContextStub::kMaximumDepth) {
+    __ Mov(LoadGlobalViaContextDescriptor::SlotRegister(), Operand(slot));
+    Handle<Code> stub =
+        CodeFactory::LoadGlobalViaContext(isolate(), depth).code();
+    CallCode(stub, RelocInfo::CODE_TARGET, instr);
+  } else {
+    __ Push(Smi::FromInt(slot));
+    __ CallRuntime(Runtime::kLoadGlobalViaContext, 1);
+  }
 }
 
 
@@ -3426,42 +3462,33 @@ void LCodeGen::DoLoadKeyedExternal(LLoadKeyedExternal* instr) {
                                        elements_kind,
                                        instr->base_offset());
 
-  if ((elements_kind == EXTERNAL_FLOAT32_ELEMENTS) ||
-      (elements_kind == FLOAT32_ELEMENTS)) {
+  if (elements_kind == FLOAT32_ELEMENTS) {
     DoubleRegister result = ToDoubleRegister(instr->result());
     __ Ldr(result.S(), mem_op);
     __ Fcvt(result, result.S());
-  } else if ((elements_kind == EXTERNAL_FLOAT64_ELEMENTS) ||
-             (elements_kind == FLOAT64_ELEMENTS)) {
+  } else if (elements_kind == FLOAT64_ELEMENTS) {
     DoubleRegister result = ToDoubleRegister(instr->result());
     __ Ldr(result, mem_op);
   } else {
     Register result = ToRegister(instr->result());
 
     switch (elements_kind) {
-      case EXTERNAL_INT8_ELEMENTS:
       case INT8_ELEMENTS:
         __ Ldrsb(result, mem_op);
         break;
-      case EXTERNAL_UINT8_CLAMPED_ELEMENTS:
-      case EXTERNAL_UINT8_ELEMENTS:
       case UINT8_ELEMENTS:
       case UINT8_CLAMPED_ELEMENTS:
         __ Ldrb(result, mem_op);
         break;
-      case EXTERNAL_INT16_ELEMENTS:
       case INT16_ELEMENTS:
         __ Ldrsh(result, mem_op);
         break;
-      case EXTERNAL_UINT16_ELEMENTS:
       case UINT16_ELEMENTS:
         __ Ldrh(result, mem_op);
         break;
-      case EXTERNAL_INT32_ELEMENTS:
       case INT32_ELEMENTS:
         __ Ldrsw(result, mem_op);
         break;
-      case EXTERNAL_UINT32_ELEMENTS:
       case UINT32_ELEMENTS:
         __ Ldr(result.W(), mem_op);
         if (!instr->hydrogen()->CheckFlag(HInstruction::kUint32)) {
@@ -3472,8 +3499,6 @@ void LCodeGen::DoLoadKeyedExternal(LLoadKeyedExternal* instr) {
         break;
       case FLOAT32_ELEMENTS:
       case FLOAT64_ELEMENTS:
-      case EXTERNAL_FLOAT32_ELEMENTS:
-      case EXTERNAL_FLOAT64_ELEMENTS:
       case FAST_HOLEY_DOUBLE_ELEMENTS:
       case FAST_HOLEY_ELEMENTS:
       case FAST_HOLEY_SMI_ELEMENTS:
@@ -3692,7 +3717,7 @@ void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
   EmitVectorLoadICRegisters<LLoadNamedGeneric>(instr);
   Handle<Code> ic =
       CodeFactory::LoadICInOptimizedCode(
-          isolate(), NOT_CONTEXTUAL, instr->hydrogen()->language_mode(),
+          isolate(), NOT_INSIDE_TYPEOF, instr->hydrogen()->language_mode(),
           instr->hydrogen()->initialization_state()).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 
@@ -5017,8 +5042,8 @@ void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
   // here.
   __ LoadHeapObject(scratch1, instr->hydrogen()->pairs());
   __ Mov(scratch2, Smi::FromInt(instr->hydrogen()->flags()));
-  __ Push(cp, scratch1, scratch2);  // The context is the first argument.
-  CallRuntime(Runtime::kDeclareGlobals, 3, instr);
+  __ Push(scratch1, scratch2);
+  CallRuntime(Runtime::kDeclareGlobals, 2, instr);
 }
 
 
@@ -5148,44 +5173,33 @@ void LCodeGen::DoStoreKeyedExternal(LStoreKeyedExternal* instr) {
                                      elements_kind,
                                      instr->base_offset());
 
-  if ((elements_kind == EXTERNAL_FLOAT32_ELEMENTS) ||
-      (elements_kind == FLOAT32_ELEMENTS)) {
+  if (elements_kind == FLOAT32_ELEMENTS) {
     DoubleRegister value = ToDoubleRegister(instr->value());
     DoubleRegister dbl_scratch = double_scratch();
     __ Fcvt(dbl_scratch.S(), value);
     __ Str(dbl_scratch.S(), dst);
-  } else if ((elements_kind == EXTERNAL_FLOAT64_ELEMENTS) ||
-             (elements_kind == FLOAT64_ELEMENTS)) {
+  } else if (elements_kind == FLOAT64_ELEMENTS) {
     DoubleRegister value = ToDoubleRegister(instr->value());
     __ Str(value, dst);
   } else {
     Register value = ToRegister(instr->value());
 
     switch (elements_kind) {
-      case EXTERNAL_UINT8_CLAMPED_ELEMENTS:
-      case EXTERNAL_INT8_ELEMENTS:
-      case EXTERNAL_UINT8_ELEMENTS:
       case UINT8_ELEMENTS:
       case UINT8_CLAMPED_ELEMENTS:
       case INT8_ELEMENTS:
         __ Strb(value, dst);
         break;
-      case EXTERNAL_INT16_ELEMENTS:
-      case EXTERNAL_UINT16_ELEMENTS:
       case INT16_ELEMENTS:
       case UINT16_ELEMENTS:
         __ Strh(value, dst);
         break;
-      case EXTERNAL_INT32_ELEMENTS:
-      case EXTERNAL_UINT32_ELEMENTS:
       case INT32_ELEMENTS:
       case UINT32_ELEMENTS:
         __ Str(value.W(), dst);
         break;
       case FLOAT32_ELEMENTS:
       case FLOAT64_ELEMENTS:
-      case EXTERNAL_FLOAT32_ELEMENTS:
-      case EXTERNAL_FLOAT64_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
       case FAST_ELEMENTS:
       case FAST_SMI_ELEMENTS:
@@ -5504,6 +5518,30 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
                         isolate(), instr->language_mode(),
                         instr->hydrogen()->initialization_state()).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
+}
+
+
+void LCodeGen::DoStoreGlobalViaContext(LStoreGlobalViaContext* instr) {
+  DCHECK(ToRegister(instr->context()).is(cp));
+  DCHECK(ToRegister(instr->value())
+             .is(StoreGlobalViaContextDescriptor::ValueRegister()));
+
+  int const slot = instr->slot_index();
+  int const depth = instr->depth();
+  if (depth <= StoreGlobalViaContextStub::kMaximumDepth) {
+    __ Mov(StoreGlobalViaContextDescriptor::SlotRegister(), Operand(slot));
+    Handle<Code> stub = CodeFactory::StoreGlobalViaContext(
+                            isolate(), depth, instr->language_mode())
+                            .code();
+    CallCode(stub, RelocInfo::CODE_TARGET, instr);
+  } else {
+    __ Push(Smi::FromInt(slot));
+    __ Push(StoreGlobalViaContextDescriptor::ValueRegister());
+    __ CallRuntime(is_strict(instr->language_mode())
+                       ? Runtime::kStoreGlobalViaContext_Strict
+                       : Runtime::kStoreGlobalViaContext_Sloppy,
+                   2);
+  }
 }
 
 
@@ -5907,10 +5945,8 @@ void LCodeGen::DoTypeofIsAndBranch(LTypeofIsAndBranch* instr) {
     Register scratch = ToRegister(instr->temp2());
 
     __ JumpIfSmi(value, false_label);
-    __ JumpIfObjectType(
-        value, map, scratch, FIRST_NONSTRING_TYPE, false_label, ge);
-    __ Ldrb(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
-    EmitTestAndBranch(instr, eq, scratch, 1 << Map::kIsUndetectable);
+    __ CompareObjectType(value, map, scratch, FIRST_NONSTRING_TYPE);
+    EmitBranch(instr, lt);
 
   } else if (String::Equals(type_name, factory->symbol_string())) {
     DCHECK((instr->temp1() != NULL) && (instr->temp2() != NULL));
@@ -5961,6 +5997,20 @@ void LCodeGen::DoTypeofIsAndBranch(LTypeofIsAndBranch* instr) {
     // Check for undetectable objects => false.
     __ Ldrb(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
     EmitTestAndBranch(instr, eq, scratch, 1 << Map::kIsUndetectable);
+
+// clang-format off
+#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type)       \
+  } else if (String::Equals(type_name, factory->type##_string())) { \
+    DCHECK((instr->temp1() != NULL) && (instr->temp2() != NULL));   \
+    Register map = ToRegister(instr->temp1());                      \
+                                                                    \
+    __ JumpIfSmi(value, false_label);                               \
+    __ Ldr(map, FieldMemOperand(value, HeapObject::kMapOffset));    \
+    __ CompareRoot(map, Heap::k##Type##MapRootIndex);               \
+    EmitBranch(instr, eq);
+  SIMD128_TYPES(SIMD128_TYPE)
+#undef SIMD128_TYPE
+    // clang-format on
 
   } else {
     __ B(false_label);

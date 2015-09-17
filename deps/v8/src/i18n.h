@@ -6,7 +6,7 @@
 #ifndef V8_I18N_H_
 #define V8_I18N_H_
 
-#include "src/v8.h"
+#include "src/handles.h"
 #include "unicode/uversion.h"
 
 namespace U_ICU_NAMESPACE {
@@ -18,6 +18,9 @@ class SimpleDateFormat;
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class ObjectTemplateInfo;
 
 class I18N {
  public:

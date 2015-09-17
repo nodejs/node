@@ -25,12 +25,14 @@
 #include "src/compiler/instruction.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/js-builtin-reducer.h"
+#include "src/compiler/js-context-relaxation.h"
 #include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-frame-specialization.h"
 #include "src/compiler/js-generic-lowering.h"
 #include "src/compiler/js-inlining.h"
 #include "src/compiler/js-intrinsic-lowering.h"
 #include "src/compiler/js-type-feedback.h"
+#include "src/compiler/js-type-feedback-lowering.h"
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/jump-threading.h"
 #include "src/compiler/load-elimination.h"
@@ -40,6 +42,7 @@
 #include "src/compiler/move-optimizer.h"
 #include "src/compiler/osr.h"
 #include "src/compiler/pipeline-statistics.h"
+#include "src/compiler/preprocess-live-ranges.h"
 #include "src/compiler/register-allocator.h"
 #include "src/compiler/register-allocator-verifier.h"
 #include "src/compiler/schedule.h"
@@ -256,10 +259,18 @@ class PipelineData {
   }
 
   void InitializeRegisterAllocationData(const RegisterConfiguration* config,
+                                        CallDescriptor* descriptor,
                                         const char* debug_name) {
     DCHECK(frame_ == nullptr);
     DCHECK(register_allocation_data_ == nullptr);
-    frame_ = new (instruction_zone()) Frame();
+    int fixed_frame_size = 0;
+    if (descriptor != nullptr) {
+      fixed_frame_size = (descriptor->kind() == CallDescriptor::kCallAddress)
+                             ? StandardFrameConstants::kFixedSlotCountAboveFp +
+                                   StandardFrameConstants::kCPSlotCount
+                             : StandardFrameConstants::kFixedSlotCount;
+    }
+    frame_ = new (instruction_zone()) Frame(fixed_frame_size);
     register_allocation_data_ = new (register_allocation_zone())
         RegisterAllocationData(config, register_allocation_zone(), frame(),
                                sequence(), debug_name);
@@ -280,7 +291,7 @@ class PipelineData {
   Zone* graph_zone_;
   Graph* graph_;
   // TODO(dcarney): make this into a ZoneObject.
-  SmartPointer<SourcePositionTable> source_positions_;
+  base::SmartPointer<SourcePositionTable> source_positions_;
   LoopAssignmentAnalysis* loop_assignment_;
   MachineOperatorBuilder* machine_;
   CommonOperatorBuilder* common_;
@@ -339,17 +350,17 @@ void TraceSchedule(CompilationInfo* info, Schedule* schedule) {
 }
 
 
-SmartArrayPointer<char> GetDebugName(CompilationInfo* info) {
+base::SmartArrayPointer<char> GetDebugName(CompilationInfo* info) {
   if (info->code_stub() != NULL) {
     CodeStub::Major major_key = info->code_stub()->MajorKey();
     const char* major_name = CodeStub::MajorName(major_key, false);
     size_t len = strlen(major_name) + 1;
-    SmartArrayPointer<char> name(new char[len]);
+    base::SmartArrayPointer<char> name(new char[len]);
     memcpy(name.get(), major_name, len);
     return name;
   } else {
     AllowHandleDereference allow_deref;
-    return info->function()->debug_name()->ToCString();
+    return info->literal()->debug_name()->ToCString();
   }
 }
 
@@ -497,7 +508,9 @@ struct InliningPhase {
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
     JSContextSpecialization context_specialization(
-        &graph_reducer, data->jsgraph(), data->info()->context());
+        &graph_reducer, data->jsgraph(), data->info()->is_context_specializing()
+                                             ? data->info()->context()
+                                             : MaybeHandle<Context>());
     JSFrameSpecialization frame_specialization(data->info()->osr_frame(),
                                                data->jsgraph());
     JSInliner inliner(&graph_reducer, data->info()->is_inlining_enabled()
@@ -509,9 +522,7 @@ struct InliningPhase {
     if (data->info()->is_frame_specializing()) {
       AddReducer(data, &graph_reducer, &frame_specialization);
     }
-    if (data->info()->is_context_specializing()) {
-      AddReducer(data, &graph_reducer, &context_specialization);
-    }
+    AddReducer(data, &graph_reducer, &context_specialization);
     AddReducer(data, &graph_reducer, &inliner);
     graph_reducer.ReduceGraph();
   }
@@ -577,6 +588,11 @@ struct TypedLoweringPhase {
     LoadElimination load_elimination(&graph_reducer);
     JSBuiltinReducer builtin_reducer(&graph_reducer, data->jsgraph());
     JSTypedLowering typed_lowering(&graph_reducer, data->jsgraph(), temp_zone);
+    JSTypeFeedbackLowering type_feedback_lowering(
+        &graph_reducer, data->info()->is_deoptimization_enabled()
+                            ? JSTypeFeedbackLowering::kDeoptimizationEnabled
+                            : JSTypeFeedbackLowering::kNoFlags,
+        data->jsgraph());
     JSIntrinsicLowering intrinsic_lowering(
         &graph_reducer, data->jsgraph(),
         data->info()->is_deoptimization_enabled()
@@ -588,6 +604,7 @@ struct TypedLoweringPhase {
     AddReducer(data, &graph_reducer, &builtin_reducer);
     AddReducer(data, &graph_reducer, &typed_lowering);
     AddReducer(data, &graph_reducer, &intrinsic_lowering);
+    AddReducer(data, &graph_reducer, &type_feedback_lowering);
     AddReducer(data, &graph_reducer, &load_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
     graph_reducer.ReduceGraph();
@@ -697,6 +714,7 @@ struct GenericLoweringPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
+    JSContextRelaxation context_relaxing;
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
@@ -706,6 +724,7 @@ struct GenericLoweringPhase {
     SelectLowering select_lowering(data->jsgraph()->graph(),
                                    data->jsgraph()->common());
     TailCallOptimization tco(data->common(), data->graph());
+    AddReducer(data, &graph_reducer, &context_relaxing);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
     AddReducer(data, &graph_reducer, &generic_lowering);
@@ -771,6 +790,17 @@ struct BuildLiveRangesPhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     LiveRangeBuilder builder(data->register_allocation_data(), temp_zone);
     builder.BuildLiveRanges();
+  }
+};
+
+
+struct PreprocessLiveRangesPhase {
+  static const char* phase_name() { return "preprocess live ranges"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    PreprocessLiveRanges live_range_preprocessor(
+        data->register_allocation_data(), temp_zone);
+    live_range_preprocessor.PreprocessRanges();
   }
 };
 
@@ -973,7 +1003,7 @@ Handle<Code> Pipeline::GenerateCode() {
   }
 
   ZonePool zone_pool;
-  SmartPointer<PipelineStatistics> pipeline_statistics;
+  base::SmartPointer<PipelineStatistics> pipeline_statistics;
 
   if (FLAG_turbo_stats) {
     pipeline_statistics.Reset(new PipelineStatistics(info(), &zone_pool));
@@ -985,8 +1015,8 @@ Handle<Code> Pipeline::GenerateCode() {
     if (json_file != nullptr) {
       OFStream json_of(json_file);
       Handle<Script> script = info()->script();
-      FunctionLiteral* function = info()->function();
-      SmartArrayPointer<char> function_name =
+      FunctionLiteral* function = info()->literal();
+      base::SmartArrayPointer<char> function_name =
           info()->shared_info()->DebugName()->ToCString();
       int pos = info()->shared_info()->start_position();
       json_of << "{\"function\":\"" << function_name.get()
@@ -1054,10 +1084,7 @@ Handle<Code> Pipeline::GenerateCode() {
     GraphReplayPrinter::PrintReplay(data.graph());
   }
 
-  // Bailout here in case target architecture is not supported.
-  if (!SupportedTarget()) return Handle<Code>::null();
-
-  SmartPointer<Typer> typer;
+  base::SmartPointer<Typer> typer;
   if (info()->is_typing_enabled()) {
     // Type the graph.
     typer.Reset(new Typer(isolate(), data.graph(), info()->function_type()));
@@ -1145,7 +1172,7 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
   // Construct a pipeline for scheduling and code generation.
   ZonePool zone_pool;
   PipelineData data(&zone_pool, info, graph, schedule);
-  SmartPointer<PipelineStatistics> pipeline_statistics;
+  base::SmartPointer<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats) {
     pipeline_statistics.Reset(new PipelineStatistics(info, &zone_pool));
     pipeline_statistics->BeginPhaseKind("test codegen");
@@ -1171,7 +1198,7 @@ bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
   PipelineData data(&zone_pool, &info, sequence);
   Pipeline pipeline(&info);
   pipeline.data_ = &data;
-  pipeline.AllocateRegisters(config, run_verifier);
+  pipeline.AllocateRegisters(config, nullptr, run_verifier);
   return !data.compilation_failed();
 }
 
@@ -1181,7 +1208,6 @@ Handle<Code> Pipeline::ScheduleAndGenerateCode(
   PipelineData* data = this->data_;
 
   DCHECK_NOT_NULL(data->graph());
-  CHECK(SupportedBackend());
 
   if (data->schedule() == nullptr) Run<ComputeSchedulePhase>();
   TraceSchedule(data->info(), data->schedule());
@@ -1216,7 +1242,8 @@ Handle<Code> Pipeline::ScheduleAndGenerateCode(
 
   bool run_verifier = FLAG_turbo_verify_allocation;
   // Allocate registers.
-  AllocateRegisters(RegisterConfiguration::ArchDefault(), run_verifier);
+  AllocateRegisters(RegisterConfiguration::ArchDefault(), call_descriptor,
+                    run_verifier);
   if (data->compilation_failed()) {
     info()->AbortOptimization(kNotEnoughVirtualRegistersRegalloc);
     return Handle<Code>();
@@ -1275,11 +1302,12 @@ Handle<Code> Pipeline::ScheduleAndGenerateCode(
 
 
 void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
+                                 CallDescriptor* descriptor,
                                  bool run_verifier) {
   PipelineData* data = this->data_;
 
   // Don't track usage for this zone in compiler stats.
-  SmartPointer<Zone> verifier_zone;
+  base::SmartPointer<Zone> verifier_zone;
   RegisterAllocatorVerifier* verifier = nullptr;
   if (run_verifier) {
     verifier_zone.Reset(new Zone());
@@ -1287,12 +1315,12 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
         verifier_zone.get(), config, data->sequence());
   }
 
-  SmartArrayPointer<char> debug_name;
+  base::SmartArrayPointer<char> debug_name;
 #ifdef DEBUG
   debug_name = GetDebugName(data->info());
 #endif
 
-  data->InitializeRegisterAllocationData(config, debug_name.get());
+  data->InitializeRegisterAllocationData(config, descriptor, debug_name.get());
   if (info()->is_osr()) {
     OsrHelper osr_helper(info());
     osr_helper.SetupFrame(data->frame());
@@ -1310,13 +1338,14 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   if (verifier != nullptr) {
     CHECK(!data->register_allocation_data()->ExistsUseWithoutDefinition());
   }
-  if (FLAG_turbo_greedy_regalloc) {
-    Run<AllocateGeneralRegistersPhase<GreedyAllocator>>();
-    Run<AllocateDoubleRegistersPhase<GreedyAllocator>>();
-  } else {
-    Run<AllocateGeneralRegistersPhase<LinearScanAllocator>>();
-    Run<AllocateDoubleRegistersPhase<LinearScanAllocator>>();
+
+  if (FLAG_turbo_preprocess_ranges) {
+    Run<PreprocessLiveRangesPhase>();
   }
+
+  // TODO(mtrofin): re-enable greedy once we have bots for range preprocessing.
+  Run<AllocateGeneralRegistersPhase<LinearScanAllocator>>();
+  Run<AllocateDoubleRegistersPhase<LinearScanAllocator>>();
 
   if (FLAG_turbo_frame_elision) {
     Run<LocateSpillSlotsPhase>();

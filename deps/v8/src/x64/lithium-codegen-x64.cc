@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_X64
 
 #include "src/base/bits.h"
@@ -122,7 +120,7 @@ bool LCodeGen::GeneratePrologue() {
 
 #ifdef DEBUG
     if (strlen(FLAG_stop_at) > 0 &&
-        info_->function()->name()->IsUtf8EqualTo(CStrVector(FLAG_stop_at))) {
+        info_->literal()->name()->IsUtf8EqualTo(CStrVector(FLAG_stop_at))) {
       __ int3();
     }
 #endif
@@ -458,6 +456,11 @@ bool LCodeGen::IsInteger32Constant(LConstantOperand* op) const {
 }
 
 
+bool LCodeGen::IsExternalConstant(LConstantOperand* op) const {
+  return chunk_->LookupLiteralRepresentation(op).IsExternal();
+}
+
+
 bool LCodeGen::IsDehoistedKeyConstant(LConstantOperand* op) const {
   return op->IsConstantOperand() &&
       chunk_->IsDehoistedKey(chunk_->LookupConstant(op));
@@ -589,15 +592,23 @@ void LCodeGen::AddToTranslation(LEnvironment* environment,
   }
 
   if (op->IsStackSlot()) {
+    int index = op->index();
+    if (index >= 0) {
+      index += StandardFrameConstants::kFixedFrameSize / kPointerSize;
+    }
     if (is_tagged) {
-      translation->StoreStackSlot(op->index());
+      translation->StoreStackSlot(index);
     } else if (is_uint32) {
-      translation->StoreUint32StackSlot(op->index());
+      translation->StoreUint32StackSlot(index);
     } else {
-      translation->StoreInt32StackSlot(op->index());
+      translation->StoreInt32StackSlot(index);
     }
   } else if (op->IsDoubleStackSlot()) {
-    translation->StoreDoubleStackSlot(op->index());
+    int index = op->index();
+    if (index >= 0) {
+      index += StandardFrameConstants::kFixedFrameSize / kPointerSize;
+    }
+    translation->StoreDoubleStackSlot(index);
   } else if (op->IsRegister()) {
     Register reg = ToRegister(op);
     if (is_tagged) {
@@ -2208,6 +2219,12 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ j(equal, instr->TrueLabel(chunk_));
       }
 
+      if (expected.Contains(ToBooleanStub::SIMD_VALUE)) {
+        // SIMD value -> true.
+        __ CmpInstanceType(map, SIMD128_VALUE_TYPE);
+        __ j(equal, instr->TrueLabel(chunk_));
+      }
+
       if (expected.Contains(ToBooleanStub::HEAP_NUMBER)) {
         // heap number -> false iff +0, -0, or NaN.
         Label not_heap_number;
@@ -2877,10 +2894,27 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
 
   __ Move(LoadDescriptor::NameRegister(), instr->name());
   EmitVectorLoadICRegisters<LLoadGlobalGeneric>(instr);
-  ContextualMode mode = instr->for_typeof() ? NOT_CONTEXTUAL : CONTEXTUAL;
-  Handle<Code> ic = CodeFactory::LoadICInOptimizedCode(isolate(), mode, SLOPPY,
-                                                       PREMONOMORPHIC).code();
+  Handle<Code> ic =
+      CodeFactory::LoadICInOptimizedCode(isolate(), instr->typeof_mode(),
+                                         SLOPPY, PREMONOMORPHIC).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
+}
+
+
+void LCodeGen::DoLoadGlobalViaContext(LLoadGlobalViaContext* instr) {
+  DCHECK(ToRegister(instr->context()).is(rsi));
+  DCHECK(ToRegister(instr->result()).is(rax));
+  int const slot = instr->slot_index();
+  int const depth = instr->depth();
+  if (depth <= LoadGlobalViaContextStub::kMaximumDepth) {
+    __ Set(LoadGlobalViaContextDescriptor::SlotRegister(), slot);
+    Handle<Code> stub =
+        CodeFactory::LoadGlobalViaContext(isolate(), depth).code();
+    CallCode(stub, RelocInfo::CODE_TARGET, instr);
+  } else {
+    __ Push(Smi::FromInt(slot));
+    __ CallRuntime(Runtime::kLoadGlobalViaContext, 1);
+  }
 }
 
 
@@ -2996,7 +3030,7 @@ void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
   EmitVectorLoadICRegisters<LLoadNamedGeneric>(instr);
   Handle<Code> ic =
       CodeFactory::LoadICInOptimizedCode(
-          isolate(), NOT_CONTEXTUAL, instr->hydrogen()->language_mode(),
+          isolate(), NOT_INSIDE_TYPEOF, instr->hydrogen()->language_mode(),
           instr->hydrogen()->initialization_state()).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
@@ -3086,40 +3120,31 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
       elements_kind,
       instr->base_offset()));
 
-  if (elements_kind == EXTERNAL_FLOAT32_ELEMENTS ||
-      elements_kind == FLOAT32_ELEMENTS) {
+  if (elements_kind == FLOAT32_ELEMENTS) {
     XMMRegister result(ToDoubleRegister(instr->result()));
     __ movss(result, operand);
     __ cvtss2sd(result, result);
-  } else if (elements_kind == EXTERNAL_FLOAT64_ELEMENTS ||
-             elements_kind == FLOAT64_ELEMENTS) {
+  } else if (elements_kind == FLOAT64_ELEMENTS) {
     __ movsd(ToDoubleRegister(instr->result()), operand);
   } else {
     Register result(ToRegister(instr->result()));
     switch (elements_kind) {
-      case EXTERNAL_INT8_ELEMENTS:
       case INT8_ELEMENTS:
         __ movsxbl(result, operand);
         break;
-      case EXTERNAL_UINT8_ELEMENTS:
-      case EXTERNAL_UINT8_CLAMPED_ELEMENTS:
       case UINT8_ELEMENTS:
       case UINT8_CLAMPED_ELEMENTS:
         __ movzxbl(result, operand);
         break;
-      case EXTERNAL_INT16_ELEMENTS:
       case INT16_ELEMENTS:
         __ movsxwl(result, operand);
         break;
-      case EXTERNAL_UINT16_ELEMENTS:
       case UINT16_ELEMENTS:
         __ movzxwl(result, operand);
         break;
-      case EXTERNAL_INT32_ELEMENTS:
       case INT32_ELEMENTS:
         __ movl(result, operand);
         break;
-      case EXTERNAL_UINT32_ELEMENTS:
       case UINT32_ELEMENTS:
         __ movl(result, operand);
         if (!instr->hydrogen()->CheckFlag(HInstruction::kUint32)) {
@@ -3127,8 +3152,6 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
           DeoptimizeIf(negative, instr, Deoptimizer::kNegativeValue);
         }
         break;
-      case EXTERNAL_FLOAT32_ELEMENTS:
-      case EXTERNAL_FLOAT64_ELEMENTS:
       case FLOAT32_ELEMENTS:
       case FLOAT64_ELEMENTS:
       case FAST_ELEMENTS:
@@ -3247,7 +3270,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
 
 
 void LCodeGen::DoLoadKeyed(LLoadKeyed* instr) {
-  if (instr->is_typed_elements()) {
+  if (instr->is_fixed_typed_array()) {
     DoLoadKeyedExternalArray(instr);
   } else if (instr->hydrogen()->representation().IsDouble()) {
     DoLoadKeyedFixedDoubleArray(instr);
@@ -3477,10 +3500,9 @@ void LCodeGen::DoContext(LContext* instr) {
 
 void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
   DCHECK(ToRegister(instr->context()).is(rsi));
-  __ Push(rsi);  // The context is the first argument.
   __ Push(instr->hydrogen()->pairs());
   __ Push(Smi::FromInt(instr->hydrogen()->flags()));
-  CallRuntime(Runtime::kDeclareGlobals, 3, instr);
+  CallRuntime(Runtime::kDeclareGlobals, 2, instr);
 }
 
 
@@ -4196,6 +4218,11 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
         __ movl(operand, Immediate(value));
       }
 
+    } else if (IsExternalConstant(operand_value)) {
+      DCHECK(!hinstr->NeedsWriteBarrier());
+      ExternalReference ptr = ToExternalReference(operand_value);
+      __ Move(kScratchRegister, ptr);
+      __ movp(operand, kScratchRegister);
     } else {
       Handle<Object> handle_value = ToHandle(operand_value);
       DCHECK(!hinstr->NeedsWriteBarrier());
@@ -4233,6 +4260,29 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
                         isolate(), instr->language_mode(),
                         instr->hydrogen()->initialization_state()).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
+}
+
+
+void LCodeGen::DoStoreGlobalViaContext(LStoreGlobalViaContext* instr) {
+  DCHECK(ToRegister(instr->context()).is(rsi));
+  DCHECK(ToRegister(instr->value())
+             .is(StoreGlobalViaContextDescriptor::ValueRegister()));
+  int const slot = instr->slot_index();
+  int const depth = instr->depth();
+  if (depth <= StoreGlobalViaContextStub::kMaximumDepth) {
+    __ Set(StoreGlobalViaContextDescriptor::SlotRegister(), slot);
+    Handle<Code> stub = CodeFactory::StoreGlobalViaContext(
+                            isolate(), depth, instr->language_mode())
+                            .code();
+    CallCode(stub, RelocInfo::CODE_TARGET, instr);
+  } else {
+    __ Push(Smi::FromInt(slot));
+    __ Push(StoreGlobalViaContextDescriptor::ValueRegister());
+    __ CallRuntime(is_strict(instr->language_mode())
+                       ? Runtime::kStoreGlobalViaContext_Strict
+                       : Runtime::kStoreGlobalViaContext_Sloppy,
+                   2);
+  }
 }
 
 
@@ -4319,39 +4369,28 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
       elements_kind,
       instr->base_offset()));
 
-  if (elements_kind == EXTERNAL_FLOAT32_ELEMENTS ||
-      elements_kind == FLOAT32_ELEMENTS) {
+  if (elements_kind == FLOAT32_ELEMENTS) {
     XMMRegister value(ToDoubleRegister(instr->value()));
     __ cvtsd2ss(value, value);
     __ movss(operand, value);
-  } else if (elements_kind == EXTERNAL_FLOAT64_ELEMENTS ||
-             elements_kind == FLOAT64_ELEMENTS) {
+  } else if (elements_kind == FLOAT64_ELEMENTS) {
     __ movsd(operand, ToDoubleRegister(instr->value()));
   } else {
     Register value(ToRegister(instr->value()));
     switch (elements_kind) {
-      case EXTERNAL_UINT8_CLAMPED_ELEMENTS:
-      case EXTERNAL_INT8_ELEMENTS:
-      case EXTERNAL_UINT8_ELEMENTS:
       case INT8_ELEMENTS:
       case UINT8_ELEMENTS:
       case UINT8_CLAMPED_ELEMENTS:
         __ movb(operand, value);
         break;
-      case EXTERNAL_INT16_ELEMENTS:
-      case EXTERNAL_UINT16_ELEMENTS:
       case INT16_ELEMENTS:
       case UINT16_ELEMENTS:
         __ movw(operand, value);
         break;
-      case EXTERNAL_INT32_ELEMENTS:
-      case EXTERNAL_UINT32_ELEMENTS:
       case INT32_ELEMENTS:
       case UINT32_ELEMENTS:
         __ movl(operand, value);
         break;
-      case EXTERNAL_FLOAT32_ELEMENTS:
-      case EXTERNAL_FLOAT64_ELEMENTS:
       case FLOAT32_ELEMENTS:
       case FLOAT64_ELEMENTS:
       case FAST_ELEMENTS:
@@ -4475,7 +4514,7 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
 
 
 void LCodeGen::DoStoreKeyed(LStoreKeyed* instr) {
-  if (instr->is_typed_elements()) {
+  if (instr->is_fixed_typed_array()) {
     DoStoreKeyedExternalArray(instr);
   } else if (instr->hydrogen()->value()->representation().IsDouble()) {
     DoStoreKeyedFixedDoubleArray(instr);
@@ -5664,10 +5703,7 @@ Condition LCodeGen::EmitTypeofIs(LTypeofIsAndBranch* instr, Register input) {
   } else if (String::Equals(type_name, factory->string_string())) {
     __ JumpIfSmi(input, false_label, false_distance);
     __ CmpObjectType(input, FIRST_NONSTRING_TYPE, input);
-    __ j(above_equal, false_label, false_distance);
-    __ testb(FieldOperand(input, Map::kBitFieldOffset),
-             Immediate(1 << Map::kIsUndetectable));
-    final_branch_condition = zero;
+    final_branch_condition = below;
 
   } else if (String::Equals(type_name, factory->symbol_string())) {
     __ JumpIfSmi(input, false_label, false_distance);
@@ -5710,6 +5746,17 @@ Condition LCodeGen::EmitTypeofIs(LTypeofIsAndBranch* instr, Register input) {
     __ testb(FieldOperand(input, Map::kBitFieldOffset),
              Immediate(1 << Map::kIsUndetectable));
     final_branch_condition = zero;
+
+// clang-format off
+#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type)       \
+  } else if (String::Equals(type_name, factory->type##_string())) { \
+    __ JumpIfSmi(input, false_label, false_distance);               \
+    __ movp(input, FieldOperand(input, HeapObject::kMapOffset));    \
+    __ CompareRoot(input, Heap::k##Type##MapRootIndex);             \
+    final_branch_condition = equal;
+  SIMD128_TYPES(SIMD128_TYPE)
+#undef SIMD128_TYPE
+    // clang-format on
 
   } else {
     __ jmp(false_label, false_distance);

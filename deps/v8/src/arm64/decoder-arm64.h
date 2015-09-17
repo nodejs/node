@@ -33,7 +33,6 @@ namespace internal {
   V(LoadStorePairPostIndex)         \
   V(LoadStorePairOffset)            \
   V(LoadStorePairPreIndex)          \
-  V(LoadStorePairNonTemporal)       \
   V(LoadLiteral)                    \
   V(LoadStoreUnscaledOffset)        \
   V(LoadStorePostIndex)             \

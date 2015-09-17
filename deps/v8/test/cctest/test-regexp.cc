@@ -32,55 +32,56 @@
 
 #include "src/ast.h"
 #include "src/char-predicates-inl.h"
-#include "src/jsregexp.h"
 #include "src/ostreams.h"
 #include "src/parser.h"
-#include "src/regexp-macro-assembler.h"
-#include "src/regexp-macro-assembler-irregexp.h"
+#include "src/regexp/jsregexp.h"
+#include "src/regexp/regexp-macro-assembler.h"
+#include "src/regexp/regexp-macro-assembler-irregexp.h"
+#include "src/splay-tree-inl.h"
 #include "src/string-stream.h"
 #ifdef V8_INTERPRETED_REGEXP
-#include "src/interpreter-irregexp.h"
+#include "src/regexp/interpreter-irregexp.h"
 #else  // V8_INTERPRETED_REGEXP
 #include "src/macro-assembler.h"
 #if V8_TARGET_ARCH_ARM
 #include "src/arm/assembler-arm.h"  // NOLINT
 #include "src/arm/macro-assembler-arm.h"
-#include "src/arm/regexp-macro-assembler-arm.h"
+#include "src/regexp/arm/regexp-macro-assembler-arm.h"
 #endif
 #if V8_TARGET_ARCH_ARM64
 #include "src/arm64/assembler-arm64.h"
 #include "src/arm64/macro-assembler-arm64.h"
-#include "src/arm64/regexp-macro-assembler-arm64.h"
+#include "src/regexp/arm64/regexp-macro-assembler-arm64.h"
 #endif
 #if V8_TARGET_ARCH_PPC
 #include "src/ppc/assembler-ppc.h"
 #include "src/ppc/macro-assembler-ppc.h"
-#include "src/ppc/regexp-macro-assembler-ppc.h"
+#include "src/regexp/ppc/regexp-macro-assembler-ppc.h"
 #endif
 #if V8_TARGET_ARCH_MIPS
 #include "src/mips/assembler-mips.h"
 #include "src/mips/macro-assembler-mips.h"
-#include "src/mips/regexp-macro-assembler-mips.h"
+#include "src/regexp/mips/regexp-macro-assembler-mips.h"
 #endif
 #if V8_TARGET_ARCH_MIPS64
 #include "src/mips64/assembler-mips64.h"
 #include "src/mips64/macro-assembler-mips64.h"
-#include "src/mips64/regexp-macro-assembler-mips64.h"
+#include "src/regexp/mips64/regexp-macro-assembler-mips64.h"
 #endif
 #if V8_TARGET_ARCH_X64
+#include "src/regexp/x64/regexp-macro-assembler-x64.h"
 #include "src/x64/assembler-x64.h"
 #include "src/x64/macro-assembler-x64.h"
-#include "src/x64/regexp-macro-assembler-x64.h"
 #endif
 #if V8_TARGET_ARCH_IA32
 #include "src/ia32/assembler-ia32.h"
 #include "src/ia32/macro-assembler-ia32.h"
-#include "src/ia32/regexp-macro-assembler-ia32.h"
+#include "src/regexp/ia32/regexp-macro-assembler-ia32.h"
 #endif
 #if V8_TARGET_ARCH_X87
+#include "src/regexp/x87/regexp-macro-assembler-x87.h"
 #include "src/x87/assembler-x87.h"
 #include "src/x87/macro-assembler-x87.h"
-#include "src/x87/regexp-macro-assembler-x87.h"
 #endif
 #endif  // V8_INTERPRETED_REGEXP
 #include "test/cctest/cctest.h"
@@ -413,7 +414,7 @@ static void ExpectError(const char* input,
             CcTest::i_isolate(), &zone, &reader, false, false, &result));
   CHECK(result.tree == NULL);
   CHECK(!result.error.is_null());
-  SmartArrayPointer<char> str = result.error->ToCString(ALLOW_NULLS);
+  v8::base::SmartArrayPointer<char> str = result.error->ToCString(ALLOW_NULLS);
   CHECK_EQ(0, strcmp(expected, str.get()));
 }
 

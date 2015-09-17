@@ -108,7 +108,7 @@ PASS 'use strict'; var VarA = class A { constructor() {} }; var VarB = class B e
 Class statement binding in other circumstances
 PASS var result = A; result threw exception ReferenceError: A is not defined.
 PASS 'use strict'; var result = A; result threw exception ReferenceError: A is not defined.
-FAIL var result = A; class A {}; result should throw an exception. Was undefined.
+PASS var result = A; class A {}; result threw exception ReferenceError: A is not defined.
 PASS 'use strict'; var result = A; class A {}; result threw exception ReferenceError: A is not defined.
 PASS class A { constructor() { A = 1; } }; new A threw exception TypeError: Assignment to constant variable..
 PASS 'use strict'; class A { constructor() { A = 1; } }; new A threw exception TypeError: Assignment to constant variable..
@@ -118,7 +118,7 @@ PASS class A {}; var result = A; result did not throw exception.
 PASS 'use strict'; class A {}; var result = A; result did not throw exception.
 PASS eval('var Foo = 10'); Foo is 10
 PASS 'use strict'; eval('var Foo = 10'); Foo threw exception ReferenceError: Foo is not defined.
-PASS eval('class Bar { constructor() {} }'); Bar.toString() is 'class Bar { constructor() {} }'
+PASS eval('class Bar { constructor() {} }; Bar.toString()') is 'class Bar { constructor() {} }'
 PASS 'use strict'; eval('class Bar { constructor() {} }'); Bar.toString() threw exception ReferenceError: Bar is not defined.
 PASS successfullyParsed is true
 

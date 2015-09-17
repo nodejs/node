@@ -9,6 +9,10 @@
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class JavaScriptFrame;
+
 namespace compiler {
 
 // Forward declarations.

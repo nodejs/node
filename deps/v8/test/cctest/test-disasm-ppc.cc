@@ -30,7 +30,7 @@
 
 #include "src/v8.h"
 
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/disasm.h"
 #include "src/disassembler.h"
 #include "src/macro-assembler.h"
@@ -107,8 +107,8 @@ TEST(DisasmPPC) {
   COMPARE(and_(r6, r0, r6, SetRC), "7c063039       and.    r6, r0, r6");
   // skipping branches (for now?)
   COMPARE(bctr(), "4e800420       bctr");
+  COMPARE(bctrl(), "4e800421       bctrl");
   COMPARE(blr(), "4e800020       blr");
-  COMPARE(bclr(BA, SetLK), "4e800021       blrl");
 // skipping call - only used in simulator
 #if V8_TARGET_ARCH_PPC64
   COMPARE(cmpi(r0, Operand(5)), "2fa00005       cmpi    r0, 5");

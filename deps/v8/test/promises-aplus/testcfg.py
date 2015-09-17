@@ -77,7 +77,7 @@ class PromiseAplusTestSuite(testsuite.TestSuite):
             if fname.endswith('.js')]
 
   def GetFlagsForTestCase(self, testcase, context):
-    return (testcase.flags + context.mode_flags + ['--harmony'] +
+    return (testcase.flags + context.mode_flags + ['--allow-natives-syntax'] +
             self.helper_files_pre +
             [os.path.join(self.test_files_root, testcase.path + '.js')] +
             self.helper_files_post)

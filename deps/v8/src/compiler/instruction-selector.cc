@@ -777,8 +777,6 @@ void InstructionSelector::VisitNode(Node* node) {
 }
 
 
-#if V8_TURBOFAN_BACKEND
-
 void InstructionSelector::VisitLoadStackPointer(Node* node) {
   OperandGenerator g(this);
   Emit(kArchStackPointer, g.DefineAsRegister(node));
@@ -827,10 +825,8 @@ void InstructionSelector::EmitLookupSwitch(const SwitchInfo& sw,
 }
 
 
-#endif  // V8_TURBOFAN_BACKEND
-
 // 32 bit targets do not implement the following instructions.
-#if !V8_TURBOFAN_BACKEND_64
+#if V8_TARGET_ARCH_32_BIT
 
 void InstructionSelector::VisitWord64And(Node* node) { UNIMPLEMENTED(); }
 
@@ -907,7 +903,7 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
   UNIMPLEMENTED();
 }
 
-#endif  // V8_TARGET_ARCH_32_BIT && !V8_TARGET_ARCH_X64 && V8_TURBOFAN_BACKEND
+#endif  // V8_TARGET_ARCH_32_BIT
 
 
 void InstructionSelector::VisitFinish(Node* node) {
@@ -997,9 +993,13 @@ void InstructionSelector::VisitGoto(BasicBlock* target) {
 void InstructionSelector::VisitReturn(Node* value) {
   DCHECK_NOT_NULL(value);
   OperandGenerator g(this);
-  Emit(kArchRet, g.NoOutput(),
-       g.UseLocation(value, linkage()->GetReturnLocation(),
-                     linkage()->GetReturnType()));
+  if (linkage()->GetIncomingDescriptor()->ReturnCount() == 0) {
+    Emit(kArchRet, g.NoOutput());
+  } else {
+    Emit(kArchRet, g.NoOutput(),
+         g.UseLocation(value, linkage()->GetReturnLocation(),
+                       linkage()->GetReturnType()));
+  }
 }
 
 
@@ -1119,42 +1119,6 @@ void InstructionSelector::AddFrameStateInputs(
   }
   DCHECK(value_index == descriptor->GetSize());
 }
-
-
-#if !V8_TURBOFAN_BACKEND
-
-#define DECLARE_UNIMPLEMENTED_SELECTOR(x) \
-  void InstructionSelector::Visit##x(Node* node) { UNIMPLEMENTED(); }
-MACHINE_OP_LIST(DECLARE_UNIMPLEMENTED_SELECTOR)
-#undef DECLARE_UNIMPLEMENTED_SELECTOR
-
-
-void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
-  UNIMPLEMENTED();
-}
-
-
-void InstructionSelector::VisitTailCall(Node* node) { UNIMPLEMENTED(); }
-
-
-void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
-                                      BasicBlock* fbranch) {
-  UNIMPLEMENTED();
-}
-
-
-void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
-  UNIMPLEMENTED();
-}
-
-
-// static
-MachineOperatorBuilder::Flags
-InstructionSelector::SupportedMachineOperatorFlags() {
-  return MachineOperatorBuilder::Flag::kNoFlags;
-}
-
-#endif  // !V8_TURBOFAN_BACKEND
 
 }  // namespace compiler
 }  // namespace internal

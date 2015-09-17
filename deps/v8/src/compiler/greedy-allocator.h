@@ -62,10 +62,28 @@ class GreedyAllocator final : public RegisterAllocator {
   void AllocateRegisters();
 
  private:
+  static const float kAllocatedRangeMultiplier;
+
+  static void UpdateWeightAtAllocation(LiveRange* range) {
+    DCHECK_NE(range->weight(), LiveRange::kInvalidWeight);
+    range->set_weight(range->weight() * kAllocatedRangeMultiplier);
+  }
+
+
+  static void UpdateWeightAtEviction(LiveRange* range) {
+    DCHECK_NE(range->weight(), LiveRange::kInvalidWeight);
+    range->set_weight(range->weight() / kAllocatedRangeMultiplier);
+  }
+
   AllocationScheduler& scheduler() { return scheduler_; }
   CoalescedLiveRanges* current_allocations(unsigned i) {
     return allocations_[i];
   }
+
+  CoalescedLiveRanges* current_allocations(unsigned i) const {
+    return allocations_[i];
+  }
+
   Zone* local_zone() const { return local_zone_; }
 
   // Insert fixed ranges.
@@ -74,6 +92,13 @@ class GreedyAllocator final : public RegisterAllocator {
   // Schedule unassigned live ranges for allocation.
   // TODO(mtrofin): groups.
   void ScheduleAllocationCandidates();
+
+  void AllocateRegisterToRange(unsigned reg_id, LiveRange* range) {
+    UpdateWeightAtAllocation(range);
+    current_allocations(reg_id)->AllocateRange(range);
+  }
+  // Evict and reschedule conflicts of a given range, at a given register.
+  void EvictAndRescheduleConflicts(unsigned reg_id, const LiveRange* range);
 
   // Find the optimal split for ranges defined by a memory operand, e.g.
   // constants or function parameters passed on the stack.
@@ -91,6 +116,11 @@ class GreedyAllocator final : public RegisterAllocator {
 
   // Calculate the new weight of a range that is about to be allocated.
   float GetAllocatedRangeWeight(float candidate_weight);
+
+  // Returns kInvalidWeight if there are no conflicts, or the largest weight of
+  // a range conflicting with the given range, at the given register.
+  float GetMaximumConflictingWeight(unsigned reg_id,
+                                    const LiveRange* range) const;
 
   // This is the extension point for splitting heuristics.
   void SplitOrSpillBlockedRange(LiveRange* range);

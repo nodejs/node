@@ -1,10 +1,10 @@
 // Copyright 2015 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-#include "src/v8.h"
+
+#include "src/ast-literal-reindexer.h"
 
 #include "src/ast.h"
-#include "src/ast-literal-reindexer.h"
 #include "src/scopes.h"
 
 namespace v8 {

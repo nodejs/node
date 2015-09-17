@@ -53,7 +53,7 @@ enum PropertyLocation { kField = 0, kDescriptor = 1 };
 
 // Order of properties is significant.
 // Must fit in the BitField PropertyDetails::TypeField.
-// A copy of this is in mirror-debugger.js.
+// A copy of this is in debug/mirrors.js.
 enum PropertyType {
   DATA = (kField << 1) | kData,
   DATA_CONSTANT = (kDescriptor << 1) | kData,
@@ -320,6 +320,8 @@ class PropertyDetails BASE_EMBEDDED {
   class KindField : public BitField<PropertyKind, 0, 1> {};
   class LocationField : public BitField<PropertyLocation, 1, 1> {};
   class AttributesField : public BitField<PropertyAttributes, 2, 3> {};
+  static const int kAttributesReadOnlyMask =
+      (READ_ONLY << AttributesField::kShift);
 
   // Bit fields for normalized objects.
   class PropertyCellTypeField : public BitField<PropertyCellType, 5, 2> {};

@@ -14,7 +14,6 @@
 #include "src/global-handles.h"
 #include "src/ic/stub-cache.h"
 #include "src/macro-assembler.h"
-#include "src/smart-pointers.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;

@@ -24,10 +24,8 @@ TypeFeedbackVector::VectorICKind TypeFeedbackVector::FromCodeKind(
     case Code::KEYED_LOAD_IC:
       return KindKeyedLoadIC;
     case Code::STORE_IC:
-      DCHECK(FLAG_vector_stores);
       return KindStoreIC;
     case Code::KEYED_STORE_IC:
-      DCHECK(FLAG_vector_stores);
       return KindKeyedStoreIC;
     default:
       // Shouldn't get here.
@@ -222,6 +220,12 @@ void TypeFeedbackVector::ClearICSlotsImpl(SharedFunctionInfo* shared,
       }
     }
   }
+}
+
+
+// static
+Handle<TypeFeedbackVector> TypeFeedbackVector::DummyVector(Isolate* isolate) {
+  return Handle<TypeFeedbackVector>::cast(isolate->factory()->dummy_vector());
 }
 
 

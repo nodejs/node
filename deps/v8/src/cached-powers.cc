@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/cached-powers.h"
+
 #include <limits.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <cmath>
 
 #include "src/base/logging.h"
-#include "src/cached-powers.h"
 #include "src/globals.h"
 
 namespace v8 {

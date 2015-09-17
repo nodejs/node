@@ -6,8 +6,6 @@
 #include <stdlib.h>
 #include <cmath>
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_ARM
 
 #include "src/arm/constants-arm.h"
@@ -1229,9 +1227,15 @@ void Simulator::WriteDW(int32_t addr, int32_t value1, int32_t value2) {
 
 
 // Returns the limit of the stack area to enable checking for stack overflows.
-uintptr_t Simulator::StackLimit() const {
-  // Leave a safety margin of 1024 bytes to prevent overrunning the stack when
-  // pushing values.
+uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
+  // The simulator uses a separate JS stack. If we have exhausted the C stack,
+  // we also drop down the JS limit to reflect the exhaustion on the JS stack.
+  if (GetCurrentStackPosition() < c_limit) {
+    return reinterpret_cast<uintptr_t>(get_sp());
+  }
+
+  // Otherwise the limit is the JS stack. Leave a safety margin of 1024 bytes
+  // to prevent overrunning the stack when pushing values.
   return reinterpret_cast<uintptr_t>(stack_) + 1024;
 }
 
@@ -4011,6 +4015,9 @@ void Simulator::Execute() {
 
 
 void Simulator::CallInternal(byte* entry) {
+  // Adjust JS-based stack limit to C-based stack limit.
+  isolate_->stack_guard()->AdjustStackLimitForSimulator();
+
   // Prepare to execute the code at entry
   set_register(pc, reinterpret_cast<int32_t>(entry));
   // Put down marker for end of simulation. The simulator will stop simulation

@@ -11,8 +11,6 @@
 #include <asm/cachectl.h>
 #endif  // #ifdef __mips
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_MIPS
 
 #include "src/assembler.h"

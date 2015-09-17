@@ -874,7 +874,11 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithSafeKey) {
 }
 
 
-TEST_F(JSTypedLoweringTest, JSLoadNamedGlobalConstants) {
+// -----------------------------------------------------------------------------
+// JSLoadGlobal
+
+
+TEST_F(JSTypedLoweringTest, JSLoadGlobalConstants) {
   Handle<String> names[] = {
       Handle<String>(isolate()->heap()->undefined_string(), isolate()),
       Handle<String>(isolate()->heap()->infinity_string(), isolate()),
@@ -897,11 +901,36 @@ TEST_F(JSTypedLoweringTest, JSLoadNamedGlobalConstants) {
   for (size_t i = 0; i < arraysize(names); i++) {
     Unique<Name> name = Unique<Name>::CreateImmovable(names[i]);
     Reduction r = Reduce(graph()->NewNode(
-        javascript()->LoadGlobal(name, feedback), global, vector, context,
-        EmptyFrameState(), EmptyFrameState(), effect, control));
+        javascript()->LoadGlobal(name, feedback), context, global, vector,
+        context, EmptyFrameState(), EmptyFrameState(), effect, control));
 
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), matches[i]);
+  }
+}
+
+
+// -----------------------------------------------------------------------------
+// JSLoadNamed
+
+
+TEST_F(JSTypedLoweringTest, JSLoadNamedStringLength) {
+  VectorSlotPair feedback;
+  Unique<Name> name = Unique<Name>::CreateImmovable(factory()->length_string());
+  Node* const receiver = Parameter(Type::String(), 0);
+  Node* const vector = Parameter(Type::Internal(), 1);
+  Node* const context = UndefinedConstant();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
+    Reduction const r = Reduce(
+        graph()->NewNode(javascript()->LoadNamed(name, feedback, language_mode),
+                         receiver, vector, context, EmptyFrameState(),
+                         EmptyFrameState(), effect, control));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(),
+                IsLoadField(AccessBuilder::ForStringLength(zone()), receiver,
+                            effect, control));
   }
 }
 
@@ -921,7 +950,8 @@ TEST_F(JSTypedLoweringTest, JSLoadDynamicGlobal) {
   for (int i = 0; i < DynamicGlobalAccess::kMaxCheckDepth; ++i) {
     uint32_t bitset = 1 << i;  // Only single check.
     Reduction r = Reduce(graph()->NewNode(
-        javascript()->LoadDynamicGlobal(name, bitset, feedback, NOT_CONTEXTUAL),
+        javascript()->LoadDynamicGlobal(name, bitset, feedback,
+                                        NOT_INSIDE_TYPEOF),
         vector, context, context, frame_state, frame_state, effect, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(
@@ -974,7 +1004,6 @@ TEST_F(JSTypedLoweringTest, JSLoadDynamicContext) {
   }
 }
 
-#if V8_TURBOFAN_TARGET
 
 // -----------------------------------------------------------------------------
 // JSAdd
@@ -1073,8 +1102,6 @@ TEST_F(JSTypedLoweringTest, JSCreateLiteralObject) {
                     CodeFactory::FastCloneShallowObject(isolate(), 6).code())),
              input0, input1, input2, _, context, frame_state, effect, control));
 }
-
-#endif  // V8_TURBOFAN_TARGET
 
 
 // -----------------------------------------------------------------------------

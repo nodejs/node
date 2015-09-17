@@ -266,6 +266,7 @@ class CpuProfile {
 class CodeMap {
  public:
   CodeMap() {}
+  ~CodeMap();
   void AddCode(Address addr, CodeEntry* entry, unsigned size);
   void MoveCode(Address from, Address to);
   CodeEntry* FindEntry(Address addr, Address* start = NULL);

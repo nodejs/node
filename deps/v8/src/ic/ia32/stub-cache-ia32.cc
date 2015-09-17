@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_IA32
 
 #include "src/codegen.h"
@@ -18,7 +16,7 @@ namespace internal {
 
 
 static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
-                       Code::Kind ic_kind, Code::Flags flags, bool leave_frame,
+                       Code::Kind ic_kind, Code::Flags flags,
                        StubCache::Table table, Register name, Register receiver,
                        // Number of the cache entry pointer-size scaled.
                        Register offset, Register extra) {
@@ -64,8 +62,6 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
       __ pop(LoadWithVectorDescriptor::VectorRegister());
       __ pop(LoadDescriptor::SlotRegister());
     }
-
-    if (leave_frame) __ leave();
 
     // Jump to the first instruction in the code stub.
     __ add(extra, Immediate(Code::kHeaderSize - kHeapObjectTag));
@@ -120,8 +116,6 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
       __ pop(slot);
     }
 
-    if (leave_frame) __ leave();
-
     // Jump to the first instruction in the code stub.
     __ add(offset, Immediate(Code::kHeaderSize - kHeapObjectTag));
     __ jmp(offset);
@@ -134,10 +128,9 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
 
 
 void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
-                              Code::Flags flags, bool leave_frame,
-                              Register receiver, Register name,
-                              Register scratch, Register extra, Register extra2,
-                              Register extra3) {
+                              Code::Flags flags, Register receiver,
+                              Register name, Register scratch, Register extra,
+                              Register extra2, Register extra3) {
   Label miss;
 
   // Assert that code is valid.  The multiplying code relies on the entry size
@@ -180,8 +173,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
   DCHECK(kCacheIndexShift == kPointerSizeLog2);
 
   // Probe the primary table.
-  ProbeTable(isolate(), masm, ic_kind, flags, leave_frame, kPrimary, name,
-             receiver, offset, extra);
+  ProbeTable(isolate(), masm, ic_kind, flags, kPrimary, name, receiver, offset,
+             extra);
 
   // Primary miss: Compute hash for secondary probe.
   __ mov(offset, FieldOperand(name, Name::kHashFieldOffset));
@@ -193,8 +186,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
   __ and_(offset, (kSecondaryTableSize - 1) << kCacheIndexShift);
 
   // Probe the secondary table.
-  ProbeTable(isolate(), masm, ic_kind, flags, leave_frame, kSecondary, name,
-             receiver, offset, extra);
+  ProbeTable(isolate(), masm, ic_kind, flags, kSecondary, name, receiver,
+             offset, extra);
 
   // Cache miss: Fall-through and let caller handle the miss by
   // entering the runtime system.

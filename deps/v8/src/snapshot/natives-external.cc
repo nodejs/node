@@ -157,6 +157,7 @@ void ReadNatives() {
   if (natives_blob_ && NativesHolder<CORE>::empty()) {
     SnapshotByteSource bytes(natives_blob_->data, natives_blob_->raw_size);
     NativesHolder<CORE>::set(NativesStore::MakeFromScriptsSource(&bytes));
+    NativesHolder<CODE_STUB>::set(NativesStore::MakeFromScriptsSource(&bytes));
     NativesHolder<EXPERIMENTAL>::set(
         NativesStore::MakeFromScriptsSource(&bytes));
     NativesHolder<EXTRAS>::set(NativesStore::MakeFromScriptsSource(&bytes));
@@ -185,6 +186,7 @@ void SetNativesFromFile(StartupData* natives_blob) {
  */
 void DisposeNatives() {
   NativesHolder<CORE>::Dispose();
+  NativesHolder<CODE_STUB>::Dispose();
   NativesHolder<EXPERIMENTAL>::Dispose();
   NativesHolder<EXTRAS>::Dispose();
 }
@@ -227,10 +229,19 @@ Vector<const char> NativesCollection<type>::GetScriptsSource() {
 }
 
 
-// The compiler can't 'see' all uses of the static methods and hence
-// my choice to elide them. This we'll explicitly instantiate these.
-template class NativesCollection<CORE>;
-template class NativesCollection<EXPERIMENTAL>;
-template class NativesCollection<EXTRAS>;
+// Explicit template instantiations.
+#define INSTANTIATE_TEMPLATES(T)                                            \
+  template int NativesCollection<T>::GetBuiltinsCount();                    \
+  template int NativesCollection<T>::GetDebuggerCount();                    \
+  template int NativesCollection<T>::GetIndex(const char* name);            \
+  template Vector<const char> NativesCollection<T>::GetScriptSource(int i); \
+  template Vector<const char> NativesCollection<T>::GetScriptName(int i);   \
+  template Vector<const char> NativesCollection<T>::GetScriptsSource();
+INSTANTIATE_TEMPLATES(CORE)
+INSTANTIATE_TEMPLATES(CODE_STUB)
+INSTANTIATE_TEMPLATES(EXPERIMENTAL)
+INSTANTIATE_TEMPLATES(EXTRAS)
+#undef INSTANTIATE_TEMPLATES
+
 }  // namespace internal
 }  // namespace v8

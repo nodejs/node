@@ -5,8 +5,6 @@
 #ifndef V8_LITHIUM_ALLOCATOR_H_
 #define V8_LITHIUM_ALLOCATOR_H_
 
-#include "src/v8.h"
-
 #include "src/allocation.h"
 #include "src/lithium.h"
 #include "src/zone.h"

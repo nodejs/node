@@ -19,8 +19,6 @@
 #include "src/compiler/schedule.h"
 #include "test/cctest/cctest.h"
 
-#if V8_TURBOFAN_TARGET
-
 using namespace v8::internal;
 using namespace v8::internal::compiler;
 
@@ -80,7 +78,7 @@ TEST(TestLinkageCodeStubIncoming) {
   CompilationInfo info(&stub, isolate, &zone);
   CallDescriptor* descriptor = Linkage::ComputeIncoming(&zone, &info);
   CHECK(descriptor);
-  CHECK_EQ(1, static_cast<int>(descriptor->JSParameterCount()));
+  CHECK_EQ(0, static_cast<int>(descriptor->StackParameterCount()));
   CHECK_EQ(1, static_cast<int>(descriptor->ReturnCount()));
   CHECK_EQ(Operator::kNoProperties, descriptor->properties());
   CHECK_EQ(false, descriptor->IsJSFunctionCall());
@@ -113,5 +111,3 @@ TEST(TestLinkageRuntimeCall) {
 TEST(TestLinkageStubCall) {
   // TODO(titzer): test linkage creation for outgoing stub calls.
 }
-
-#endif  // V8_TURBOFAN_TARGET

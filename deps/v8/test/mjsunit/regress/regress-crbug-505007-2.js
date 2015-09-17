@@ -5,11 +5,16 @@
 // Flags: --stack-size=100 --allow-natives-syntax
 
 function g() {}
+
+var count = 0;
 function f() {
   try {
     f();
   } catch(e) {
-    %ExecuteInDebugContext(g);
+    if (count < 100) {
+      count++;
+      %ExecuteInDebugContext(g);
+    }
   }
 }
 f();

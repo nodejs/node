@@ -96,6 +96,10 @@
   # BUG(2340). Preprocessing stack traces is disabled at the moment.
   'test-heap/PreprocessStackTrace': [FAIL],
 
+  # BUG(4333). Function name inferrer does not work for ES6 clases.
+  'test-func-name-inference/UpperCaseClass': [FAIL],
+  'test-func-name-inference/LowerCaseClass': [FAIL],
+
   ##############################################################################
   # TurboFan compiler failures.
 
@@ -104,7 +108,6 @@
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, NO_VARIANTS],
   'test-serialize/SerializeToplevelLargeCodeObject': [PASS, NO_VARIANTS],
   'test-debug/ThreadedDebugging': [PASS, NO_VARIANTS],
-  'test-debug/DebugBreakLoop': [PASS, NO_VARIANTS],
   # BUG(3742).
   'test-mark-compact/MarkCompactCollector': [PASS, ['arch==arm', NO_VARIANTS]],
 
@@ -127,6 +130,9 @@
 
   # TODO(machenbach, mvstanton): Flaky in debug on all platforms.
   'test-lockers/LockerUnlocker': [PASS, ['mode == debug', FLAKY]],
+
+  # BUG(4141).
+  'test-alloc/CodeRange': [PASS, FLAKY],
 }],  # ALWAYS
 
 ##############################################################################
@@ -173,7 +179,6 @@
   'test-api/ExternalFloatArray': [SKIP],
   'test-api/Float32Array': [SKIP],
   'test-api/Float64Array': [SKIP],
-  'test-debug/DebugBreakLoop': [SKIP],
 }],  # 'arch == arm64 and mode == debug and simulator_run == True'
 
 ##############################################################################

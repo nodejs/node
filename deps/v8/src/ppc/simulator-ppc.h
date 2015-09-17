@@ -199,12 +199,12 @@ class Simulator {
   void set_pc(intptr_t value);
   intptr_t get_pc() const;
 
-  Address get_sp() {
+  Address get_sp() const {
     return reinterpret_cast<Address>(static_cast<intptr_t>(get_register(sp)));
   }
 
   // Accessor to the internal simulator stack area.
-  uintptr_t StackLimit() const;
+  uintptr_t StackLimit(uintptr_t c_limit) const;
 
   // Executes PPC instructions until the PC reaches end_sim_pc.
   void Execute();
@@ -252,6 +252,8 @@ class Simulator {
     // C code.
     end_sim_pc = -2
   };
+
+  enum BCType { BC_OFFSET, BC_LINK_REG, BC_CTR_REG };
 
   // Unsupported instructions use Format to print an error and stop execution.
   void Format(Instruction* instr, const char* format);
@@ -302,7 +304,7 @@ class Simulator {
 
   void Trace(Instruction* instr);
   void SetCR0(intptr_t result, bool setSO = false);
-  void ExecuteBranchConditional(Instruction* instr);
+  void ExecuteBranchConditional(Instruction* instr, BCType type);
   void ExecuteExt1(Instruction* instr);
   bool ExecuteExt2_10bit(Instruction* instr);
   bool ExecuteExt2_9bit_part1(Instruction* instr);
@@ -401,15 +403,14 @@ class Simulator {
 
 
 // The simulator has its own stack. Thus it has a different stack limit from
-// the C-based native code.  Setting the c_limit to indicate a very small
-// stack cause stack overflow errors, since the simulator ignores the input.
-// This is unlikely to be an issue in practice, though it might cause testing
-// trouble down the line.
+// the C-based native code.  The JS-based limit normally points near the end of
+// the simulator stack.  When the C-based limit is exhausted we reflect that by
+// lowering the JS-based limit as well, to make stack checks trigger.
 class SimulatorStack : public v8::internal::AllStatic {
  public:
   static inline uintptr_t JsLimitFromCLimit(v8::internal::Isolate* isolate,
                                             uintptr_t c_limit) {
-    return Simulator::current(isolate)->StackLimit();
+    return Simulator::current(isolate)->StackLimit(c_limit);
   }
 
   static inline uintptr_t RegisterCTryCatch(uintptr_t try_catch_address) {

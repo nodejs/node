@@ -5,6 +5,12 @@
 #ifndef V8_PPC_CONSTANTS_PPC_H_
 #define V8_PPC_CONSTANTS_PPC_H_
 
+#include <stdint.h>
+
+#include "src/base/logging.h"
+#include "src/base/macros.h"
+#include "src/globals.h"
+
 namespace v8 {
 namespace internal {
 

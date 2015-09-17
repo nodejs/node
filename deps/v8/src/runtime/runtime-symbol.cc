@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
-#include "src/runtime/runtime-utils.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -48,14 +48,6 @@ RUNTIME_FUNCTION(Runtime_CreateGlobalPrivateSymbol) {
     JSObject::AddProperty(Handle<JSObject>::cast(privates), name, symbol, NONE);
   }
   return *symbol;
-}
-
-
-RUNTIME_FUNCTION(Runtime_NewSymbolWrapper) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Symbol, symbol, 0);
-  return *Object::ToObject(isolate, symbol).ToHandleChecked();
 }
 
 

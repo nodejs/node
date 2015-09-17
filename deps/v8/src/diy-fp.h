@@ -5,6 +5,10 @@
 #ifndef V8_DIY_FP_H_
 #define V8_DIY_FP_H_
 
+#include <stdint.h>
+
+#include "src/base/logging.h"
+
 namespace v8 {
 namespace internal {
 

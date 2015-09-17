@@ -417,6 +417,7 @@ var typedArrayConstructors = [
 
 function TestPropertyTypeChecks(constructor) {
   function CheckProperty(name) {
+    assertThrows(function() { 'use strict'; new constructor(10)[name] = 0; })
     var d = Object.getOwnPropertyDescriptor(constructor.prototype, name);
     var o = {};
     assertThrows(function() {d.get.call(o);}, TypeError);
@@ -756,3 +757,13 @@ TestArbitrary(new DataView(new ArrayBuffer(256)));
 // Test direct constructor call
 assertThrows(function() { ArrayBuffer(); }, TypeError);
 assertThrows(function() { DataView(new ArrayBuffer()); }, TypeError);
+
+function TestNonConfigurableProperties(constructor) {
+  var arr = new constructor([100])
+  assertFalse(Object.getOwnPropertyDescriptor(arr,"0").configurable)
+  assertFalse(delete arr[0])
+}
+
+for(i = 0; i < typedArrayConstructors.length; i++) {
+  TestNonConfigurableProperties(typedArrayConstructors[i]);
+}

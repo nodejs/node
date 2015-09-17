@@ -8,8 +8,6 @@
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/value-helper.h"
 
-#if V8_TURBOFAN_TARGET
-
 using namespace v8::internal;
 using namespace v8::internal::compiler;
 
@@ -459,4 +457,3 @@ TEST(BranchCombineFloat64Compares) {
     }
   }
 }
-#endif  // V8_TURBOFAN_TARGET

@@ -307,7 +307,9 @@ void JSGenericLowering::LowerJSToName(Node* node) {
 
 
 void JSGenericLowering::LowerJSToObject(Node* node) {
-  ReplaceWithBuiltinCall(node, Builtins::TO_OBJECT, 1);
+  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
+  Callable callable = CodeFactory::ToObject(isolate());
+  ReplaceWithStubCall(node, callable, flags);
 }
 
 
@@ -325,7 +327,7 @@ void JSGenericLowering::LowerJSLoadNamed(Node* node) {
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   const LoadNamedParameters& p = LoadNamedParametersOf(node->op());
   Callable callable = CodeFactory::LoadICInOptimizedCode(
-      isolate(), p.contextual_mode(), p.language_mode(), UNINITIALIZED);
+      isolate(), NOT_INSIDE_TYPEOF, p.language_mode(), UNINITIALIZED);
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
   node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
   ReplaceWithStubCall(node, callable, flags);
@@ -334,12 +336,24 @@ void JSGenericLowering::LowerJSLoadNamed(Node* node) {
 
 void JSGenericLowering::LowerJSLoadGlobal(Node* node) {
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
-  const LoadNamedParameters& p = LoadGlobalParametersOf(node->op());
-  Callable callable = CodeFactory::LoadICInOptimizedCode(
-      isolate(), p.contextual_mode(), SLOPPY, UNINITIALIZED);
-  node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
-  node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
-  ReplaceWithStubCall(node, callable, flags);
+  const LoadGlobalParameters& p = LoadGlobalParametersOf(node->op());
+  if (p.slot_index() >= 0) {
+    Callable callable = CodeFactory::LoadGlobalViaContext(isolate(), 0);
+    Node* script_context = node->InputAt(0);
+    node->ReplaceInput(0, jsgraph()->Int32Constant(p.slot_index()));
+    node->ReplaceInput(1, script_context);  // Set new context...
+    node->RemoveInput(2);
+    node->RemoveInput(2);  // ...instead of old one.
+    ReplaceWithStubCall(node, callable, flags);
+
+  } else {
+    Callable callable = CodeFactory::LoadICInOptimizedCode(
+        isolate(), p.typeof_mode(), SLOPPY, UNINITIALIZED);
+    node->RemoveInput(0);  // script context
+    node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
+    node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
+    ReplaceWithStubCall(node, callable, flags);
+  }
 }
 
 
@@ -347,10 +361,14 @@ void JSGenericLowering::LowerJSStoreProperty(Node* node) {
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   const StorePropertyParameters& p = StorePropertyParametersOf(node->op());
   LanguageMode language_mode = OpParameter<LanguageMode>(node);
+  // We have a special case where we do keyed stores but don't have a type
+  // feedback vector slot allocated to support it. In this case, install
+  // the megamorphic keyed store stub which needs neither vector nor slot.
+  bool use_vector_slot = FLAG_vector_stores && p.feedback().index() != -1;
   Callable callable = CodeFactory::KeyedStoreICInOptimizedCode(
-      isolate(), language_mode, UNINITIALIZED);
-  if (FLAG_vector_stores) {
-    DCHECK(p.feedback().index() != -1);
+      isolate(), language_mode,
+      (use_vector_slot || !FLAG_vector_stores) ? UNINITIALIZED : MEGAMORPHIC);
+  if (use_vector_slot) {
     node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
   } else {
     node->RemoveInput(3);
@@ -379,24 +397,42 @@ void JSGenericLowering::LowerJSStoreNamed(Node* node) {
 
 void JSGenericLowering::LowerJSStoreGlobal(Node* node) {
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
-  const StoreNamedParameters& p = StoreGlobalParametersOf(node->op());
-  Callable callable = CodeFactory::StoreIC(isolate(), p.language_mode());
-  node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
-  if (FLAG_vector_stores) {
-    DCHECK(p.feedback().index() != -1);
-    node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
-  } else {
+  const StoreGlobalParameters& p = StoreGlobalParametersOf(node->op());
+  if (p.slot_index() >= 0) {
+    Callable callable =
+        CodeFactory::StoreGlobalViaContext(isolate(), 0, p.language_mode());
+    Node* script_context = node->InputAt(0);
+    Node* value = node->InputAt(2);
+    node->ReplaceInput(0, jsgraph()->Int32Constant(p.slot_index()));
+    node->ReplaceInput(1, value);
+    node->ReplaceInput(2, script_context);  // Set new context...
     node->RemoveInput(3);
+    node->RemoveInput(3);  // ...instead of old one.
+    ReplaceWithStubCall(node, callable, flags);
+
+  } else {
+    Callable callable = CodeFactory::StoreICInOptimizedCode(
+        isolate(), p.language_mode(), UNINITIALIZED);
+    node->RemoveInput(0);  // script context
+    node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
+    if (FLAG_vector_stores) {
+      DCHECK(p.feedback().index() != -1);
+      node->InsertInput(zone(), 3,
+                        jsgraph()->SmiConstant(p.feedback().index()));
+    } else {
+      node->RemoveInput(3);
+    }
+    ReplaceWithStubCall(node, callable,
+                        CallDescriptor::kPatchableCallSite | flags);
   }
-  ReplaceWithStubCall(node, callable,
-                      CallDescriptor::kPatchableCallSite | flags);
 }
 
 
 void JSGenericLowering::LowerJSDeleteProperty(Node* node) {
   LanguageMode language_mode = OpParameter<LanguageMode>(node);
-  ReplaceWithBuiltinCall(node, Builtins::DELETE, 3);
-  node->InsertInput(zone(), 4, jsgraph()->SmiConstant(language_mode));
+  ReplaceWithRuntimeCall(node, is_strict(language_mode)
+                                   ? Runtime::kDeleteProperty_Strict
+                                   : Runtime::kDeleteProperty_Sloppy);
 }
 
 
@@ -455,8 +491,9 @@ void JSGenericLowering::LowerJSStoreContext(Node* node) {
 void JSGenericLowering::LowerJSLoadDynamicGlobal(Node* node) {
   const DynamicGlobalAccess& access = DynamicGlobalAccessOf(node->op());
   Runtime::FunctionId function_id =
-      (access.mode() == CONTEXTUAL) ? Runtime::kLoadLookupSlot
-                                    : Runtime::kLoadLookupSlotNoReferenceError;
+      (access.typeof_mode() == NOT_INSIDE_TYPEOF)
+          ? Runtime::kLoadLookupSlot
+          : Runtime::kLoadLookupSlotNoReferenceError;
   Node* projection = graph()->NewNode(common()->Projection(0), node);
   NodeProperties::ReplaceUses(node, projection, node, node, node);
   node->RemoveInput(NodeProperties::FirstFrameStateIndex(node) + 1);
@@ -508,17 +545,20 @@ void JSGenericLowering::LowerJSCreateCatchContext(Node* node) {
 
 void JSGenericLowering::LowerJSCallConstruct(Node* node) {
   int arity = OpParameter<int>(node);
-  CallConstructStub stub(isolate(), NO_CALL_CONSTRUCTOR_FLAGS);
+  CallConstructStub stub(isolate(), SUPER_CONSTRUCTOR_CALL);
   CallInterfaceDescriptor d = stub.GetCallInterfaceDescriptor();
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   CallDescriptor* desc =
-      Linkage::GetStubCallDescriptor(isolate(), zone(), d, arity, flags);
+      Linkage::GetStubCallDescriptor(isolate(), zone(), d, arity - 1, flags);
   Node* stub_code = jsgraph()->HeapConstant(stub.GetCode());
-  Node* construct = NodeProperties::GetValueInput(node, 0);
+  Node* actual_construct = NodeProperties::GetValueInput(node, 0);
+  Node* original_construct = NodeProperties::GetValueInput(node, arity - 1);
+  node->RemoveInput(arity - 1);  // Drop original constructor.
   node->InsertInput(zone(), 0, stub_code);
-  node->InsertInput(zone(), 1, jsgraph()->Int32Constant(arity - 1));
-  node->InsertInput(zone(), 2, construct);
-  node->InsertInput(zone(), 3, jsgraph()->UndefinedConstant());
+  node->InsertInput(zone(), 1, jsgraph()->Int32Constant(arity - 2));
+  node->InsertInput(zone(), 2, actual_construct);
+  node->InsertInput(zone(), 3, original_construct);
+  node->InsertInput(zone(), 4, jsgraph()->UndefinedConstant());
   node->set_op(common()->Call(desc));
 }
 

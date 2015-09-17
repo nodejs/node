@@ -7,11 +7,10 @@
 
 #include <vector>
 
+#include "src/arm64/assembler-arm64.h"
 #include "src/bailout-reason.h"
-#include "src/globals.h"
-
-#include "src/arm64/assembler-arm64-inl.h"
 #include "src/base/bits.h"
+#include "src/globals.h"
 
 // Simulator specific helpers.
 #if USE_SIMULATOR
@@ -33,6 +32,20 @@
 
 namespace v8 {
 namespace internal {
+
+// Give alias names to registers for calling conventions.
+// TODO(titzer): arm64 is a pain for aliasing; get rid of these macros
+#define kReturnRegister0 x0
+#define kReturnRegister1 x1
+#define kJSFunctionRegister x1
+#define kContextRegister cp
+#define kInterpreterAccumulatorRegister x0
+#define kInterpreterRegisterFileRegister x18
+#define kInterpreterBytecodeOffsetRegister x19
+#define kInterpreterBytecodeArrayRegister x20
+#define kInterpreterDispatchTableRegister x21
+#define kRuntimeCallFunctionRegister x1
+#define kRuntimeCallArgCountRegister x0
 
 #define LS_MACRO_LIST(V)                                      \
   V(Ldrb, Register&, rt, LDRB_w)                              \
@@ -569,6 +582,10 @@ class MacroAssembler : public Assembler {
             const CPURegister& src6 = NoReg, const CPURegister& src7 = NoReg);
   void Pop(const CPURegister& dst0, const CPURegister& dst1 = NoReg,
            const CPURegister& dst2 = NoReg, const CPURegister& dst3 = NoReg);
+  void Pop(const CPURegister& dst0, const CPURegister& dst1,
+           const CPURegister& dst2, const CPURegister& dst3,
+           const CPURegister& dst4, const CPURegister& dst5 = NoReg,
+           const CPURegister& dst6 = NoReg, const CPURegister& dst7 = NoReg);
   void Push(const Register& src0, const FPRegister& src1);
 
   // Alternative forms of Push and Pop, taking a RegList or CPURegList that
@@ -1305,12 +1322,6 @@ class MacroAssembler : public Assembler {
                 Label* gc_required,
                 AllocationFlags flags);
 
-  // Undo allocation in new space. The object passed and objects allocated after
-  // it will no longer be allocated. The caller must make sure that no pointers
-  // are left to the object(s) no longer allocated as they would be invalid when
-  // allocation is undone.
-  void UndoAllocationInNewSpace(Register object, Register scratch);
-
   void AllocateTwoByteString(Register result,
                              Register length,
                              Register scratch1,
@@ -1771,7 +1782,7 @@ class MacroAssembler : public Assembler {
   // |object| is the object being stored into, |value| is the object being
   // stored.  value and scratch registers are clobbered by the operation.
   // The offset is the offset from the start of the object, not the offset from
-  // the tagged HeapObject pointer.  For use with FieldOperand(reg, off).
+  // the tagged HeapObject pointer.  For use with FieldMemOperand(reg, off).
   void RecordWriteField(
       Register object,
       int offset,
@@ -2235,7 +2246,7 @@ class UseScratchRegisterScope {
 };
 
 
-inline MemOperand ContextMemOperand(Register context, int index) {
+inline MemOperand ContextMemOperand(Register context, int index = 0) {
   return MemOperand(context, Context::SlotOffset(index));
 }
 

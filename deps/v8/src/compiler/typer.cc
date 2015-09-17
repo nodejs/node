@@ -7,6 +7,7 @@
 #include "src/base/flags.h"
 #include "src/base/lazy-instance.h"
 #include "src/bootstrapper.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node.h"
@@ -571,11 +572,11 @@ Bounds Typer::Visitor::TypeIfException(Node* node) {
 
 
 Bounds Typer::Visitor::TypeParameter(Node* node) {
-  int param = OpParameter<int>(node);
-  Type::FunctionType* function_type = typer_->function_type();
-  if (function_type != nullptr && param >= 0 &&
-      param < static_cast<int>(function_type->Arity())) {
-    return Bounds(Type::None(), function_type->Parameter(param));
+  if (Type::FunctionType* function_type = typer_->function_type()) {
+    int const index = ParameterIndexOf(node->op());
+    if (index >= 0 && index < function_type->Arity()) {
+      return Bounds(Type::None(), function_type->Parameter(index));
+    }
   }
   return Bounds::Unbounded(zone());
 }
@@ -1558,6 +1559,8 @@ Bounds Typer::Visitor::TypeJSCallRuntime(Node* node) {
       return Bounds(Type::None(), Type::Range(0, 32, zone()));
     case Runtime::kInlineStringGetLength:
       return Bounds(Type::None(), Type::Range(0, String::kMaxLength, zone()));
+    case Runtime::kInlineToObject:
+      return Bounds(Type::None(), Type::Receiver());
     default:
       break;
   }

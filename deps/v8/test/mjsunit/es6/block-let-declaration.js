@@ -33,17 +33,20 @@
 let x;
 let y = 2;
 const z = 4;
+class c { static foo() { return 1; } }
 
 // Block local
 {
   let y;
   let x = 3;
   const z = 5;
+  class c { static foo() { return 2; } }
 }
 
 assertEquals(undefined, x);
 assertEquals(2,y);
 assertEquals(4,z);
+assertEquals(1, c.foo());
 
 if (true) {
   let y;
@@ -106,6 +109,16 @@ TestLocalDoesNotThrow("for (;false;) var x;");
 TestLocalDoesNotThrow("switch (true) { case true: var x; }");
 TestLocalDoesNotThrow("switch (true) { default: var x; }");
 
+// Test class declarations with initialisers in statement positions.
+TestLocalThrows("if (true) class x { };", SyntaxError);
+TestLocalThrows("if (true) {} else class x { };", SyntaxError);
+TestLocalThrows("do class x { }; while (false)", SyntaxError);
+TestLocalThrows("while (false) class x { };", SyntaxError);
+TestLocalThrows("label: class x { };", SyntaxError);
+TestLocalThrows("for (;false;) class x { };", SyntaxError);
+TestLocalDoesNotThrow("switch (true) { case true: class x { }; }");
+TestLocalDoesNotThrow("switch (true) { default: class x { }; }");
+
 // Test that redeclarations of functions are only allowed in outermost scope.
 TestLocalThrows("{ let f; var f; }");
 TestLocalThrows("{ var f; let f; }");
@@ -113,9 +126,13 @@ TestLocalThrows("{ function f() {} let f; }");
 TestLocalThrows("{ let f; function f() {} }");
 TestLocalThrows("{ function f() {} var f; }");
 TestLocalThrows("{ var f; function f() {} }");
+TestLocalThrows("{ function f() {} class f {} }");
+TestLocalThrows("{ class f {}; function f() {} }");
 TestLocalThrows("{ function f() {} function f() {} }");
 TestLocalThrows("function f() {} let f;");
 TestLocalThrows("let f; function f() {}");
+TestLocalThrows("function f() {} class f {}");
+TestLocalThrows("class f {}; function f() {}");
 TestLocalDoesNotThrow("function arg() {}");
 TestLocalDoesNotThrow("function f() {} var f;");
 TestLocalDoesNotThrow("var f; function f() {}");

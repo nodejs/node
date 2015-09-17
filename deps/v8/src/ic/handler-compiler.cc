@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/ic/handler-compiler.h"
 
 #include "src/cpu-profiler.h"
 #include "src/ic/call-optimization.h"
-#include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
 #include "src/ic/ic-inl.h"
 
@@ -99,21 +98,11 @@ Register NamedLoadHandlerCompiler::FrontendHeader(Register object_reg,
                                                   Handle<Name> name,
                                                   Label* miss,
                                                   ReturnHolder return_what) {
-  PrototypeCheckType check_type = CHECK_ALL_MAPS;
-  int function_index = -1;
-  if (map()->instance_type() < FIRST_NONSTRING_TYPE) {
-    function_index = Context::STRING_FUNCTION_INDEX;
-  } else if (map()->instance_type() == SYMBOL_TYPE) {
-    function_index = Context::SYMBOL_FUNCTION_INDEX;
-  } else if (map()->instance_type() == HEAP_NUMBER_TYPE) {
-    function_index = Context::NUMBER_FUNCTION_INDEX;
-  } else if (*map() == isolate()->heap()->boolean_map()) {
-    function_index = Context::BOOLEAN_FUNCTION_INDEX;
-  } else {
-    check_type = SKIP_RECEIVER;
-  }
-
-  if (check_type == CHECK_ALL_MAPS) {
+  PrototypeCheckType check_type = SKIP_RECEIVER;
+  int function_index = map()->IsPrimitiveMap()
+                           ? map()->GetConstructorFunctionIndex()
+                           : Map::kNoConstructorFunctionIndex;
+  if (function_index != Map::kNoConstructorFunctionIndex) {
     GenerateDirectLoadGlobalFunctionPrototype(masm(), function_index,
                                               scratch1(), miss);
     Object* function = isolate()->native_context()->get(function_index);
@@ -121,6 +110,7 @@ Register NamedLoadHandlerCompiler::FrontendHeader(Register object_reg,
     Handle<Map> map(JSObject::cast(prototype)->map());
     set_map(map);
     object_reg = scratch1();
+    check_type = CHECK_ALL_MAPS;
   }
 
   // Check that the maps starting from the prototype haven't changed.
@@ -463,11 +453,17 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
   DCHECK(!transition->is_access_check_needed());
 
   // Call to respective StoreTransitionStub.
+  Register transition_map_reg = StoreTransitionDescriptor::MapRegister();
+  bool push_map_on_stack = transition_map_reg.is(no_reg);
+  Register map_reg = push_map_on_stack ? scratch1() : transition_map_reg;
+
   if (details.type() == DATA_CONSTANT) {
-    GenerateRestoreMap(transition, scratch2(), &miss);
     DCHECK(descriptors->GetValue(descriptor)->IsJSFunction());
-    Register map_reg = StoreTransitionDescriptor::MapRegister();
+    GenerateRestoreMap(transition, map_reg, scratch2(), &miss);
     GenerateConstantCheck(map_reg, descriptor, value(), scratch2(), &miss);
+    if (push_map_on_stack) {
+      GeneratePushMap(map_reg, scratch2());
+    }
     GenerateRestoreName(name);
     StoreTransitionStub stub(isolate());
     GenerateTailCall(masm(), stub.GetCode());
@@ -482,7 +478,10 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
             ? StoreTransitionStub::ExtendStorageAndStoreMapAndValue
             : StoreTransitionStub::StoreMapAndValue;
 
-    GenerateRestoreMap(transition, scratch2(), &miss);
+    GenerateRestoreMap(transition, map_reg, scratch2(), &miss);
+    if (push_map_on_stack) {
+      GeneratePushMap(map_reg, scratch2());
+    }
     GenerateRestoreName(name);
     StoreTransitionStub stub(isolate(),
                              FieldIndex::ForDescriptor(*transition, descriptor),
@@ -566,7 +565,6 @@ void ElementHandlerCompiler::CompileElementHandlers(
       } else if (IsSloppyArgumentsElements(elements_kind)) {
         cached_stub = KeyedLoadSloppyArgumentsStub(isolate()).GetCode();
       } else if (IsFastElementsKind(elements_kind) ||
-                 IsExternalArrayElementsKind(elements_kind) ||
                  IsFixedTypedArrayElementsKind(elements_kind)) {
         cached_stub = LoadFastElementStub(isolate(), is_js_array, elements_kind,
                                           convert_hole_to_undefined).GetCode();

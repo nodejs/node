@@ -1249,25 +1249,6 @@ TEST_(load_store_pair) {
 }
 
 
-TEST_(load_store_pair_nontemp) {
-  SET_UP();
-
-  COMPARE(ldnp(w0, w1, MemOperand(x2)), "ldnp w0, w1, [x2]");
-  COMPARE(stnp(w3, w4, MemOperand(x5, 252)), "stnp w3, w4, [x5, #252]");
-  COMPARE(ldnp(w6, w7, MemOperand(x8, -256)), "ldnp w6, w7, [x8, #-256]");
-  COMPARE(stnp(x9, x10, MemOperand(x11)), "stnp x9, x10, [x11]");
-  COMPARE(ldnp(x12, x13, MemOperand(x14, 504)), "ldnp x12, x13, [x14, #504]");
-  COMPARE(stnp(x15, x16, MemOperand(x17, -512)), "stnp x15, x16, [x17, #-512]");
-  COMPARE(ldnp(s18, s19, MemOperand(x20)), "ldnp s18, s19, [x20]");
-  COMPARE(stnp(s21, s22, MemOperand(x23, 252)), "stnp s21, s22, [x23, #252]");
-  COMPARE(ldnp(s24, s25, MemOperand(x26, -256)), "ldnp s24, s25, [x26, #-256]");
-  COMPARE(stnp(d27, d28, MemOperand(fp)), "stnp d27, d28, [fp]");
-  COMPARE(ldnp(d30, d31, MemOperand(x0, 504)), "ldnp d30, d31, [x0, #504]");
-  COMPARE(stnp(d1, d2, MemOperand(x3, -512)), "stnp d1, d2, [x3, #-512]");
-
-  CLEANUP();
-}
-
 #if 0  // TODO(all): enable.
 TEST_(load_literal) {
   SET_UP();

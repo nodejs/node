@@ -42,8 +42,6 @@
 //   CodeForDoWhileConditionPosition
 //   CodeForSourcePosition
 
-enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
-
 #if V8_TARGET_ARCH_IA32
 #include "src/ia32/codegen-ia32.h"  // NOLINT
 #elif V8_TARGET_ARCH_X64

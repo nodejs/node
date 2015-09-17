@@ -64,6 +64,9 @@
 
     # Set to 1 to enable DCHECKs in release builds.
     'dcheck_always_on%': 0,
+
+    # Set to 1 to enable building with wasm prototype.
+    'v8_wasm%': 0,
   },
   'target_defaults': {
     'conditions': [
@@ -102,6 +105,9 @@
       }],
       ['dcheck_always_on!=0', {
         'defines': ['DEBUG',],
+      }],
+      ['v8_wasm!=0', {
+        'defines': ['V8_WASM',],
       }],
     ],  # conditions
     'configurations': {

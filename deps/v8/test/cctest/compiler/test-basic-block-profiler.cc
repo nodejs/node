@@ -8,8 +8,6 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 
-#if V8_TURBOFAN_TARGET
-
 using namespace v8::internal;
 using namespace v8::internal::compiler;
 
@@ -110,5 +108,3 @@ TEST(ProfileLoop) {
     m.Expect(arraysize(expected), expected);
   }
 }
-
-#endif  // V8_TURBOFAN_TARGET

@@ -175,7 +175,7 @@ try {
 
 
 // Verify that the context is correctly set in the stack frame after exiting
-// from with.
+// from eval.
 function f() {}
 
 (function(x) {

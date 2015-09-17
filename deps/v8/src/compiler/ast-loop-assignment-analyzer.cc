@@ -21,7 +21,7 @@ ALAA::AstLoopAssignmentAnalyzer(Zone* zone, CompilationInfo* info)
 LoopAssignmentAnalysis* ALAA::Analyze() {
   LoopAssignmentAnalysis* a = new (zone()) LoopAssignmentAnalysis(zone());
   result_ = a;
-  VisitStatements(info()->function()->body());
+  VisitStatements(info()->literal()->body());
   result_ = NULL;
   return a;
 }

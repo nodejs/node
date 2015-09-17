@@ -126,16 +126,16 @@ def LoadAndroidBuildTools(path):  # pragma: no cover
   assert os.path.exists(path)
   sys.path.insert(0, path)
 
-  from pylib.device import device_utils  # pylint: disable=F0401
+  from pylib.device import adb_wrapper  # pylint: disable=F0401
   from pylib.device import device_errors  # pylint: disable=F0401
+  from pylib.device import device_utils  # pylint: disable=F0401
   from pylib.perf import cache_control  # pylint: disable=F0401
   from pylib.perf import perf_control  # pylint: disable=F0401
-  import pylib.android_commands  # pylint: disable=F0401
+  global adb_wrapper
   global cache_control
   global device_errors
   global device_utils
   global perf_control
-  global pylib
 
 
 def GeometricMean(values):
@@ -169,6 +169,174 @@ class Results(object):
     return str(self.ToDict())
 
 
+class Measurement(object):
+  """Represents a series of results of one trace.
+
+  The results are from repetitive runs of the same executable. They are
+  gathered by repeated calls to ConsumeOutput.
+  """
+  def __init__(self, graphs, units, results_regexp, stddev_regexp):
+    self.name = graphs[-1]
+    self.graphs = graphs
+    self.units = units
+    self.results_regexp = results_regexp
+    self.stddev_regexp = stddev_regexp
+    self.results = []
+    self.errors = []
+    self.stddev = ""
+
+  def ConsumeOutput(self, stdout):
+    try:
+      result = re.search(self.results_regexp, stdout, re.M).group(1)
+      self.results.append(str(float(result)))
+    except ValueError:
+      self.errors.append("Regexp \"%s\" returned a non-numeric for test %s."
+                         % (self.results_regexp, self.name))
+    except:
+      self.errors.append("Regexp \"%s\" didn't match for test %s."
+                         % (self.results_regexp, self.name))
+
+    try:
+      if self.stddev_regexp and self.stddev:
+        self.errors.append("Test %s should only run once since a stddev "
+                           "is provided by the test." % self.name)
+      if self.stddev_regexp:
+        self.stddev = re.search(self.stddev_regexp, stdout, re.M).group(1)
+    except:
+      self.errors.append("Regexp \"%s\" didn't match for test %s."
+                         % (self.stddev_regexp, self.name))
+
+  def GetResults(self):
+    return Results([{
+      "graphs": self.graphs,
+      "units": self.units,
+      "results": self.results,
+      "stddev": self.stddev,
+    }], self.errors)
+
+
+class NullMeasurement(object):
+  """Null object to avoid having extra logic for configurations that didn't
+  run like running without patch on trybots.
+  """
+  def ConsumeOutput(self, stdout):
+    pass
+
+  def GetResults(self):
+    return Results()
+
+
+def Unzip(iterable):
+  left = []
+  right = []
+  for l, r in iterable:
+    left.append(l)
+    right.append(r)
+  return lambda: iter(left), lambda: iter(right)
+
+
+def AccumulateResults(
+    graph_names, trace_configs, iter_output, trybot, no_patch, calc_total):
+  """Iterates over the output of multiple benchmark reruns and accumulates
+  results for a configured list of traces.
+
+  Args:
+    graph_names: List of names that configure the base path of the traces. E.g.
+                 ['v8', 'Octane'].
+    trace_configs: List of "TraceConfig" instances. Each trace config defines
+                   how to perform a measurement.
+    iter_output: Iterator over the standard output of each test run.
+    trybot: Indicates that this is run in trybot mode, i.e. run twice, once
+            with once without patch.
+    no_patch: Indicates weather this is a trybot run without patch.
+    calc_total: Boolean flag to speficy the calculation of a summary trace.
+  Returns: A "Results" object.
+  """
+  measurements = [
+    trace.CreateMeasurement(trybot, no_patch) for trace in trace_configs]
+  for stdout in iter_output():
+    for measurement in measurements:
+      measurement.ConsumeOutput(stdout)
+
+  res = reduce(lambda r, m: r + m.GetResults(), measurements, Results())
+
+  if not res.traces or not calc_total:
+    return res
+
+  # Assume all traces have the same structure.
+  if len(set(map(lambda t: len(t["results"]), res.traces))) != 1:
+    res.errors.append("Not all traces have the same number of results.")
+    return res
+
+  # Calculate the geometric means for all traces. Above we made sure that
+  # there is at least one trace and that the number of results is the same
+  # for each trace.
+  n_results = len(res.traces[0]["results"])
+  total_results = [GeometricMean(t["results"][i] for t in res.traces)
+                   for i in range(0, n_results)]
+  res.traces.append({
+    "graphs": graph_names + ["Total"],
+    "units": res.traces[0]["units"],
+    "results": total_results,
+    "stddev": "",
+  })
+  return res
+
+
+def AccumulateGenericResults(graph_names, suite_units, iter_output):
+  """Iterates over the output of multiple benchmark reruns and accumulates
+  generic results.
+
+  Args:
+    graph_names: List of names that configure the base path of the traces. E.g.
+                 ['v8', 'Octane'].
+    suite_units: Measurement default units as defined by the benchmark suite.
+    iter_output: Iterator over the standard output of each test run.
+  Returns: A "Results" object.
+  """
+  traces = OrderedDict()
+  for stdout in iter_output():
+    if stdout is None:
+      # The None value is used as a null object to simplify logic.
+      continue
+    for line in stdout.strip().splitlines():
+      match = GENERIC_RESULTS_RE.match(line)
+      if match:
+        stddev = ""
+        graph = match.group(1)
+        trace = match.group(2)
+        body = match.group(3)
+        units = match.group(4)
+        match_stddev = RESULT_STDDEV_RE.match(body)
+        match_list = RESULT_LIST_RE.match(body)
+        errors = []
+        if match_stddev:
+          result, stddev = map(str.strip, match_stddev.group(1).split(","))
+          results = [result]
+        elif match_list:
+          results = map(str.strip, match_list.group(1).split(","))
+        else:
+          results = [body.strip()]
+
+        try:
+          results = map(lambda r: str(float(r)), results)
+        except ValueError:
+          results = []
+          errors = ["Found non-numeric in %s" %
+                    "/".join(graph_names + [graph, trace])]
+
+        trace_result = traces.setdefault(trace, Results([{
+          "graphs": graph_names + [graph, trace],
+          "units": (units or suite_units).strip(),
+          "results": [],
+          "stddev": "",
+        }], errors))
+        trace_result.traces[0]["results"].extend(results)
+        trace_result.traces[0]["stddev"] = stddev
+
+  return reduce(lambda r, t: r + t, traces.itervalues(), Results())
+
+
 class Node(object):
   """Represents a node in the suite tree structure."""
   def __init__(self, *args):
@@ -196,13 +364,13 @@ class DefaultSentinel(Node):
     self.total = False
 
 
-class Graph(Node):
+class GraphConfig(Node):
   """Represents a suite definition.
 
   Can either be a leaf or an inner node that provides default values.
   """
   def __init__(self, suite, parent, arch):
-    super(Graph, self).__init__()
+    super(GraphConfig, self).__init__()
     self._suite = suite
 
     assert isinstance(suite.get("path", []), list)
@@ -248,49 +416,26 @@ class Graph(Node):
     self.stddev_regexp = suite.get("stddev_regexp", stddev_default)
 
 
-class Trace(Graph):
-  """Represents a leaf in the suite tree structure.
-
-  Handles collection of measurements.
-  """
+class TraceConfig(GraphConfig):
+  """Represents a leaf in the suite tree structure."""
   def __init__(self, suite, parent, arch):
-    super(Trace, self).__init__(suite, parent, arch)
+    super(TraceConfig, self).__init__(suite, parent, arch)
     assert self.results_regexp
-    self.results = []
-    self.errors = []
-    self.stddev = ""
 
-  def ConsumeOutput(self, stdout):
-    try:
-      result = re.search(self.results_regexp, stdout, re.M).group(1)
-      self.results.append(str(float(result)))
-    except ValueError:
-      self.errors.append("Regexp \"%s\" returned a non-numeric for test %s."
-                         % (self.results_regexp, self.graphs[-1]))
-    except:
-      self.errors.append("Regexp \"%s\" didn't match for test %s."
-                         % (self.results_regexp, self.graphs[-1]))
+  def CreateMeasurement(self, trybot, no_patch):
+    if not trybot and no_patch:
+      # Use null object for no-patch logic if this is not a trybot run.
+      return NullMeasurement()
 
-    try:
-      if self.stddev_regexp and self.stddev:
-        self.errors.append("Test %s should only run once since a stddev "
-                           "is provided by the test." % self.graphs[-1])
-      if self.stddev_regexp:
-        self.stddev = re.search(self.stddev_regexp, stdout, re.M).group(1)
-    except:
-      self.errors.append("Regexp \"%s\" didn't match for test %s."
-                         % (self.stddev_regexp, self.graphs[-1]))
-
-  def GetResults(self):
-    return Results([{
-      "graphs": self.graphs,
-      "units": self.units,
-      "results": self.results,
-      "stddev": self.stddev,
-    }], self.errors)
+    return Measurement(
+        self.graphs,
+        self.units,
+        self.results_regexp,
+        self.stddev_regexp,
+    )
 
 
-class Runnable(Graph):
+class RunnableConfig(GraphConfig):
   """Represents a runnable suite definition (i.e. has a main file).
   """
   @property
@@ -315,119 +460,85 @@ class Runnable(Graph):
     cmd = [os.path.join(shell_dir, self.binary)]
     return cmd + self.GetCommandFlags(extra_flags=extra_flags)
 
-  def Run(self, runner):
+  def Run(self, runner, trybot):
     """Iterates over several runs and handles the output for all traces."""
-    for stdout in runner():
-      for trace in self._children:
-        trace.ConsumeOutput(stdout)
-    res = reduce(lambda r, t: r + t.GetResults(), self._children, Results())
+    stdout_with_patch, stdout_no_patch = Unzip(runner())
+    return (
+        AccumulateResults(
+            self.graphs,
+            self._children,
+            iter_output=stdout_with_patch,
+            trybot=trybot,
+            no_patch=False,
+            calc_total=self.total,
+        ),
+        AccumulateResults(
+            self.graphs,
+            self._children,
+            iter_output=stdout_no_patch,
+            trybot=trybot,
+            no_patch=True,
+            calc_total=self.total,
+        ),
+    )
 
-    if not res.traces or not self.total:
-      return res
 
-    # Assume all traces have the same structure.
-    if len(set(map(lambda t: len(t["results"]), res.traces))) != 1:
-      res.errors.append("Not all traces have the same number of results.")
-      return res
-
-    # Calculate the geometric means for all traces. Above we made sure that
-    # there is at least one trace and that the number of results is the same
-    # for each trace.
-    n_results = len(res.traces[0]["results"])
-    total_results = [GeometricMean(t["results"][i] for t in res.traces)
-                     for i in range(0, n_results)]
-    res.traces.append({
-      "graphs": self.graphs + ["Total"],
-      "units": res.traces[0]["units"],
-      "results": total_results,
-      "stddev": "",
-    })
-    return res
-
-class RunnableTrace(Trace, Runnable):
+class RunnableTraceConfig(TraceConfig, RunnableConfig):
   """Represents a runnable suite definition that is a leaf."""
   def __init__(self, suite, parent, arch):
-    super(RunnableTrace, self).__init__(suite, parent, arch)
+    super(RunnableTraceConfig, self).__init__(suite, parent, arch)
 
-  def Run(self, runner):
+  def Run(self, runner, trybot):
     """Iterates over several runs and handles the output."""
-    for stdout in runner():
-      self.ConsumeOutput(stdout)
-    return self.GetResults()
+    measurement_with_patch = self.CreateMeasurement(trybot, False)
+    measurement_no_patch = self.CreateMeasurement(trybot, True)
+    for stdout_with_patch, stdout_no_patch in runner():
+      measurement_with_patch.ConsumeOutput(stdout_with_patch)
+      measurement_no_patch.ConsumeOutput(stdout_no_patch)
+    return (
+        measurement_with_patch.GetResults(),
+        measurement_no_patch.GetResults(),
+    )
 
 
-class RunnableGeneric(Runnable):
+class RunnableGenericConfig(RunnableConfig):
   """Represents a runnable suite definition with generic traces."""
   def __init__(self, suite, parent, arch):
-    super(RunnableGeneric, self).__init__(suite, parent, arch)
+    super(RunnableGenericConfig, self).__init__(suite, parent, arch)
 
-  def Run(self, runner):
-    """Iterates over several runs and handles the output."""
-    traces = OrderedDict()
-    for stdout in runner():
-      for line in stdout.strip().splitlines():
-        match = GENERIC_RESULTS_RE.match(line)
-        if match:
-          stddev = ""
-          graph = match.group(1)
-          trace = match.group(2)
-          body = match.group(3)
-          units = match.group(4)
-          match_stddev = RESULT_STDDEV_RE.match(body)
-          match_list = RESULT_LIST_RE.match(body)
-          errors = []
-          if match_stddev:
-            result, stddev = map(str.strip, match_stddev.group(1).split(","))
-            results = [result]
-          elif match_list:
-            results = map(str.strip, match_list.group(1).split(","))
-          else:
-            results = [body.strip()]
-
-          try:
-            results = map(lambda r: str(float(r)), results)
-          except ValueError:
-            results = []
-            errors = ["Found non-numeric in %s" %
-                      "/".join(self.graphs + [graph, trace])]
-
-          trace_result = traces.setdefault(trace, Results([{
-            "graphs": self.graphs + [graph, trace],
-            "units": (units or self.units).strip(),
-            "results": [],
-            "stddev": "",
-          }], errors))
-          trace_result.traces[0]["results"].extend(results)
-          trace_result.traces[0]["stddev"] = stddev
-
-    return reduce(lambda r, t: r + t, traces.itervalues(), Results())
+  def Run(self, runner, trybot):
+    stdout_with_patch, stdout_no_patch = Unzip(runner())
+    return (
+        AccumulateGenericResults(self.graphs, self.units, stdout_with_patch),
+        AccumulateGenericResults(self.graphs, self.units, stdout_no_patch),
+    )
 
 
-def MakeGraph(suite, arch, parent):
-  """Factory method for making graph objects."""
-  if isinstance(parent, Runnable):
+def MakeGraphConfig(suite, arch, parent):
+  """Factory method for making graph configuration objects."""
+  if isinstance(parent, RunnableConfig):
     # Below a runnable can only be traces.
-    return Trace(suite, parent, arch)
+    return TraceConfig(suite, parent, arch)
   elif suite.get("main") is not None:
     # A main file makes this graph runnable. Empty strings are accepted.
     if suite.get("tests"):
       # This graph has subgraphs (traces).
-      return Runnable(suite, parent, arch)
+      return RunnableConfig(suite, parent, arch)
     else:
       # This graph has no subgraphs, it's a leaf.
-      return RunnableTrace(suite, parent, arch)
+      return RunnableTraceConfig(suite, parent, arch)
   elif suite.get("generic"):
     # This is a generic suite definition. It is either a runnable executable
     # or has a main js file.
-    return RunnableGeneric(suite, parent, arch)
+    return RunnableGenericConfig(suite, parent, arch)
   elif suite.get("tests"):
     # This is neither a leaf nor a runnable.
-    return Graph(suite, parent, arch)
+    return GraphConfig(suite, parent, arch)
   else:  # pragma: no cover
     raise Exception("Invalid suite configuration.")
 
 
-def BuildGraphs(suite, arch, parent=None):
+def BuildGraphConfigs(suite, arch, parent=None):
   """Builds a tree structure of graph objects that corresponds to the suite
   configuration.
   """
@@ -437,9 +548,9 @@ def BuildGraphs(suite, arch, parent=None):
   if arch not in suite.get("archs", SUPPORTED_ARCHS):
     return None
 
-  graph = MakeGraph(suite, arch, parent)
+  graph = MakeGraphConfig(suite, arch, parent)
   for subsuite in suite.get("tests", []):
-    BuildGraphs(subsuite, arch, graph)
+    BuildGraphConfigs(subsuite, arch, graph)
   parent.AppendChild(graph)
   return graph
 
@@ -449,7 +560,7 @@ def FlattenRunnables(node, node_cb):
   runnables.
   """
   node_cb(node)
-  if isinstance(node, Runnable):
+  if isinstance(node, RunnableConfig):
     yield node
   elif isinstance(node, Node):
     for child in node._children:
@@ -462,6 +573,7 @@ def FlattenRunnables(node, node_cb):
 class Platform(object):
   def __init__(self, options):
     self.shell_dir = options.shell_dir
+    self.shell_dir_no_patch = options.shell_dir_no_patch
     self.extra_flags = options.extra_flags.split()
 
   @staticmethod
@@ -470,6 +582,27 @@ class Platform(object):
       return AndroidPlatform(options)
     else:
       return DesktopPlatform(options)
+
+  def _Run(self, runnable, count, no_patch=False):
+    raise NotImplementedError()  # pragma: no cover
+
+  def Run(self, runnable, count):
+    """Execute the benchmark's main file.
+
+    If options.shell_dir_no_patch is specified, the benchmark is run once with
+    and once without patch.
+    Args:
+      runnable: A Runnable benchmark instance.
+      count: The number of this (repeated) run.
+    Returns: A tuple with the benchmark outputs with and without patch. The
+             latter will be None if options.shell_dir_no_patch was not
+             specified.
+    """
+    stdout = self._Run(runnable, count, no_patch=False)
+    if self.shell_dir_no_patch:
+      return stdout, self._Run(runnable, count, no_patch=True)
+    else:
+      return stdout, None
 
 
 class DesktopPlatform(Platform):
@@ -483,24 +616,27 @@ class DesktopPlatform(Platform):
     pass
 
   def PreTests(self, node, path):
-    if isinstance(node, Runnable):
+    if isinstance(node, RunnableConfig):
       node.ChangeCWD(path)
 
-  def Run(self, runnable, count):
+  def _Run(self, runnable, count, no_patch=False):
+    suffix = ' - without patch' if no_patch else ''
+    shell_dir = self.shell_dir_no_patch if no_patch else self.shell_dir
+    title = ">>> %%s (#%d)%s:" % ((count + 1), suffix)
     try:
       output = commands.Execute(
-          runnable.GetCommand(self.shell_dir, self.extra_flags),
+          runnable.GetCommand(shell_dir, self.extra_flags),
           timeout=runnable.timeout,
       )
-    except OSError as e:
-      print ">>> OSError (#%d):" % (count + 1)
+    except OSError as e:  # pragma: no cover
+      print title % "OSError"
       print e
       return ""
-    print ">>> Stdout (#%d):" % (count + 1)
+    print title % "Stdout"
     print output.stdout
     if output.stderr:  # pragma: no cover
       # Print stderr for debugging.
-      print ">>> Stderr (#%d):" % (count + 1)
+      print title % "Stderr"
       print output.stderr
     if output.timed_out:
       print ">>> Test timed out after %ss." % runnable.timeout
@@ -516,15 +652,13 @@ class AndroidPlatform(Platform):  # pragma: no cover
 
     if not options.device:
       # Detect attached device if not specified.
-      devices = pylib.android_commands.GetAttachedDevices(
-          hardware=True, emulator=False, offline=False)
+      devices = adb_wrapper.AdbWrapper.Devices()
       assert devices and len(devices) == 1, (
           "None or multiple devices detected. Please specify the device on "
           "the command-line with --device")
-      options.device = devices[0]
-    adb_wrapper = pylib.android_commands.AndroidCommands(options.device)
-    self.device = device_utils.DeviceUtils(adb_wrapper)
-    self.adb = adb_wrapper.Adb()
+      options.device = str(devices[0])
+    self.adb_wrapper = adb_wrapper.AdbWrapper(options.device)
+    self.device = device_utils.DeviceUtils(self.adb_wrapper)
 
   def PreExecution(self):
     perf = perf_control.PerfControl(self.device)
@@ -537,10 +671,6 @@ class AndroidPlatform(Platform):  # pragma: no cover
     perf = perf_control.PerfControl(self.device)
     perf.SetDefaultPerfMode()
     self.device.RunShellCommand(["rm", "-rf", AndroidPlatform.DEVICE_DIR])
-
-  def _SendCommand(self, cmd):
-    logging.info("adb -s %s %s" % (str(self.device), cmd))
-    return self.adb.SendCommand(cmd, timeout_time=60)
 
   def _PushFile(self, host_dir, file_name, target_rel=".",
                 skip_if_missing=False):
@@ -565,14 +695,31 @@ class AndroidPlatform(Platform):  # pragma: no cover
 
     # Work-around for "text file busy" errors. Push the files to a temporary
     # location and then copy them with a shell command.
-    output = self._SendCommand(
-        "push %s %s" % (file_on_host, file_on_device_tmp))
+    output = self.adb_wrapper.Push(file_on_host, file_on_device_tmp)
     # Success looks like this: "3035 KB/s (12512056 bytes in 4.025s)".
     # Errors look like this: "failed to copy  ... ".
     if output and not re.search('^[0-9]', output.splitlines()[-1]):
       logging.critical('PUSH FAILED: ' + output)
-    self._SendCommand("shell mkdir -p %s" % folder_on_device)
-    self._SendCommand("shell cp %s %s" % (file_on_device_tmp, file_on_device))
+    self.adb_wrapper.Shell("mkdir -p %s" % folder_on_device)
+    self.adb_wrapper.Shell("cp %s %s" % (file_on_device_tmp, file_on_device))
+
+  def _PushExecutable(self, shell_dir, target_dir, binary):
+    self._PushFile(shell_dir, binary, target_dir)
+
+    # Push external startup data. Backwards compatible for revisions where
+    # these files didn't exist.
+    self._PushFile(
+        shell_dir,
+        "natives_blob.bin",
+        target_dir,
+        skip_if_missing=True,
+    )
+    self._PushFile(
+        shell_dir,
+        "snapshot_blob.bin",
+        target_dir,
+        skip_if_missing=True,
+    )
 
   def PreTests(self, node, path):
     suite_dir = os.path.abspath(os.path.dirname(path))
@@ -583,33 +730,24 @@ class AndroidPlatform(Platform):  # pragma: no cover
       bench_rel = "."
       bench_abs = suite_dir
 
-    self._PushFile(self.shell_dir, node.binary, "bin")
+    self._PushExecutable(self.shell_dir, "bin", node.binary)
+    if self.shell_dir_no_patch:
+      self._PushExecutable(
+          self.shell_dir_no_patch, "bin_no_patch", node.binary)
 
-    # Push external startup data. Backwards compatible for revisions where
-    # these files didn't exist.
-    self._PushFile(
-        self.shell_dir,
-        "natives_blob.bin",
-        "bin",
-        skip_if_missing=True,
-    )
-    self._PushFile(
-        self.shell_dir,
-        "snapshot_blob.bin",
-        "bin",
-        skip_if_missing=True,
-    )
-
-    if isinstance(node, Runnable):
+    if isinstance(node, RunnableConfig):
       self._PushFile(bench_abs, node.main, bench_rel)
     for resource in node.resources:
       self._PushFile(bench_abs, resource, bench_rel)
 
-  def Run(self, runnable, count):
+  def _Run(self, runnable, count, no_patch=False):
+    suffix = ' - without patch' if no_patch else ''
+    target_dir = "bin_no_patch" if no_patch else "bin"
+    title = ">>> %%s (#%d)%s:" % ((count + 1), suffix)
     cache = cache_control.CacheControl(self.device)
     cache.DropRamCaches()
     binary_on_device = os.path.join(
-        AndroidPlatform.DEVICE_DIR, "bin", runnable.binary)
+        AndroidPlatform.DEVICE_DIR, target_dir, runnable.binary)
     cmd = [binary_on_device] + runnable.GetCommandFlags(self.extra_flags)
 
     # Relative path to benchmark directory.
@@ -626,7 +764,7 @@ class AndroidPlatform(Platform):  # pragma: no cover
           retries=0,
       )
       stdout = "\n".join(output)
-      print ">>> Stdout (#%d):" % (count + 1)
+      print title % "Stdout"
       print stdout
     except device_errors.CommandTimeoutError:
       print ">>> Test timed out after %ss." % runnable.timeout
@@ -656,8 +794,13 @@ def Main(args):
                     default="")
   parser.add_option("--json-test-results",
                     help="Path to a file for storing json results.")
+  parser.add_option("--json-test-results-no-patch",
+                    help="Path to a file for storing json results from run "
+                         "without patch.")
   parser.add_option("--outdir", help="Base directory with compile output",
                     default="out")
+  parser.add_option("--outdir-no-patch",
+                    help="Base directory with compile output without patch")
   (options, args) = parser.parse_args(args)
 
   if len(args) == 0:  # pragma: no cover
@@ -671,21 +814,35 @@ def Main(args):
     print "Unknown architecture %s" % options.arch
     return 1
 
-  if (options.device and not options.android_build_tools):  # pragma: no cover
+  if options.device and not options.android_build_tools:  # pragma: no cover
     print "Specifying a device requires Android build tools."
+    return 1
+
+  if (options.json_test_results_no_patch and
+      not options.outdir_no_patch):  # pragma: no cover
+    print("For writing json test results without patch, an outdir without "
+          "patch must be specified.")
     return 1
 
   workspace = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
   if options.buildbot:
-    options.shell_dir = os.path.join(workspace, options.outdir, "Release")
+    build_config = "Release"
   else:
-    options.shell_dir = os.path.join(workspace, options.outdir,
-                                     "%s.release" % options.arch)
+    build_config = "%s.release" % options.arch
+
+  options.shell_dir = os.path.join(workspace, options.outdir, build_config)
+
+  if options.outdir_no_patch:
+    options.shell_dir_no_patch = os.path.join(
+        workspace, options.outdir_no_patch, build_config)
+  else:
+    options.shell_dir_no_patch = None
 
   platform = Platform.GetPlatform(options)
 
   results = Results()
+  results_no_patch = Results()
   for path in args:
     path = os.path.abspath(path)
 
@@ -703,7 +860,7 @@ def Main(args):
     platform.PreExecution()
 
     # Build the graph/trace tree structure.
-    root = BuildGraphs(suite, options.arch)
+    root = BuildGraphConfigs(suite, options.arch)
 
     # Callback to be called on each node on traversal.
     def NodeCB(node):
@@ -721,14 +878,21 @@ def Main(args):
           yield platform.Run(runnable, i)
 
       # Let runnable iterate over all runs and handle output.
-      results += runnable.Run(Runner)
-
+      result, result_no_patch = runnable.Run(
+          Runner, trybot=options.shell_dir_no_patch)
+      results += result
+      results_no_patch += result_no_patch
     platform.PostExecution()
 
   if options.json_test_results:
     results.WriteToFile(options.json_test_results)
   else:  # pragma: no cover
     print results
+
+  if options.json_test_results_no_patch:
+    results_no_patch.WriteToFile(options.json_test_results_no_patch)
+  else:  # pragma: no cover
+    print results_no_patch
 
   return min(1, len(results.errors))
 

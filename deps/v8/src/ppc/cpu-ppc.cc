@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // CPU specific code for ppc independent of OS goes here.
-#include "src/v8.h"
 
 #if V8_TARGET_ARCH_PPC
 

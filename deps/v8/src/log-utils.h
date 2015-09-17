@@ -6,6 +6,8 @@
 #define V8_LOG_UTILS_H_
 
 #include "src/allocation.h"
+#include "src/base/platform/mutex.h"
+#include "src/flags.h"
 
 namespace v8 {
 namespace internal {
