@@ -7,10 +7,7 @@ if (!common.hasCrypto) {
   return;
 }
 var tls = require('tls');
-
 var fs = require('fs');
-var net = require('net');
-
 var common = require('../common');
 
 var buf = new Buffer(10000);

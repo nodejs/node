@@ -1,8 +1,7 @@
 'use strict';
-var common = require('../common'),
-    assert = require('assert'),
-    path = require('path'),
-    child_process = require('child_process');
+var assert = require('assert');
+var path = require('path');
+var child_process = require('child_process');
 
 var nodeBinary = process.argv[0];
 
@@ -82,7 +81,6 @@ child_process.exec(nodeBinary + ' '
   });
 
 // https://github.com/nodejs/node/issues/1691
-var originalCwd = process.cwd();
 process.chdir(path.join(__dirname, '../fixtures/'));
 child_process.exec(nodeBinary + ' '
   + '--expose_debug_as=v8debug '

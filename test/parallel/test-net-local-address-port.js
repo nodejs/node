@@ -3,7 +3,7 @@ var common = require('../common');
 var assert = require('assert');
 var net = require('net');
 
-var conns = 0, conns_closed = 0;
+var conns = 0;
 
 var server = net.createServer(function(socket) {
   conns++;

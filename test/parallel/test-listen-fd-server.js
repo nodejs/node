@@ -4,7 +4,6 @@ var assert = require('assert');
 var http = require('http');
 var net = require('net');
 var PORT = common.PORT;
-var spawn = require('child_process').spawn;
 
 if (common.isWindows) {
   console.log('1..0 # Skipped: This test is disabled on windows.');

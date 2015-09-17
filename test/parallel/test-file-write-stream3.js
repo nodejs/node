@@ -1,11 +1,8 @@
 'use strict';
 var common = require('../common');
 var assert = require('assert');
-
-var path = require('path'),
-    fs = require('fs'),
-    util = require('util');
-
+var path = require('path');
+var fs = require('fs');
 
 var filepath = path.join(common.tmpDir, 'write_pos.txt');
 
@@ -125,7 +122,7 @@ function run_test_2() {
 
 
 function run_test_3() {
-  var file, buffer, options;
+  var file, options;
 
   var data = '\u2026\u2026',    // 3 bytes * 2 = 6 bytes in UTF-8
       fileData;
@@ -168,10 +165,7 @@ function run_test_3() {
 
 
 function run_test_4() {
-  var file, options;
-
-  options = { start: -5,
-              flags: 'r+' };
+  var options = { start: -5, flags: 'r+' };
 
   //  Error: start must be >= zero
   assert.throws(

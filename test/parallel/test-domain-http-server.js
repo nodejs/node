@@ -9,7 +9,6 @@ objects.baz.asdf = objects;
 
 var serverCaught = 0;
 var clientCaught = 0;
-var disposeEmit = 0;
 
 var server = http.createServer(function(req, res) {
   var dom = domain.create();

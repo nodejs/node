@@ -1,10 +1,7 @@
 /* eslint-disable max-len */
 'use strict';
-var common = require('../common');
 var assert = require('assert');
-
-var url = require('url'),
-    util = require('util');
+var url = require('url');
 
 // URLs to parse, and expected data
 // { url : parsed }
@@ -1514,9 +1511,6 @@ relativeTests2.forEach(function(relativeTest) {
 
 //if format and parse are inverse operations then
 //resolveObject(parse(x), y) == parse(resolve(x, y))
-
-//host and hostname are special, in this case a '' value is important
-var emptyIsImportant = {'host': true, 'hostname': ''};
 
 //format: [from, path, expected]
 relativeTests.forEach(function(relativeTest) {

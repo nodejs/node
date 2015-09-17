@@ -17,6 +17,6 @@ connect({
 
 function connect(opts, msg) {
   assert.throws(function() {
-    var client = net.connect(opts);
+    net.connect(opts);
   }, msg);
 }

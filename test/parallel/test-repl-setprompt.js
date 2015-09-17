@@ -1,9 +1,8 @@
 'use strict';
-var common = require('../common'),
-    assert = require('assert'),
-    spawn = require('child_process').spawn,
-    os = require('os'),
-    util = require('util');
+var assert = require('assert');
+var spawn = require('child_process').spawn;
+var os = require('os');
+var util = require('util');
 
 var args = [
   '-e',

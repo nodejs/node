@@ -25,7 +25,7 @@ code = 'foo = 1;' +
        'if (typeof baz !== \'undefined\') throw new Error(\'test fail\');';
 foo = 2;
 obj = { foo: 0, baz: 3 };
-var baz = vm.runInThisContext(code);
+vm.runInThisContext(code);
 assert.equal(0, obj.foo);
 assert.equal(2, bar);
 assert.equal(1, foo);

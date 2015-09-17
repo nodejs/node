@@ -29,7 +29,7 @@ code = 'foo = 1;' +
        'if (baz !== 3) throw new Error(\'test fail\');';
 foo = 2;
 obj = { foo: 0, baz: 3 };
-var baz = vm.runInNewContext(code, obj);
+vm.runInNewContext(code, obj);
 assert.equal(1, obj.foo);
 assert.equal(2, obj.bar);
 assert.equal(2, foo);

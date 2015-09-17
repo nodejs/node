@@ -9,7 +9,6 @@ var watchSeenTwo = 0;
 var watchSeenThree = 0;
 var watchSeenFour = 0;
 
-var startDir = process.cwd();
 var testDir = common.tmpDir;
 
 var filenameOne = 'watch.txt';

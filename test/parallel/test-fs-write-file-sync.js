@@ -14,9 +14,6 @@ fs.openSync = openSync;
 fs._closeSync = fs.closeSync;
 fs.closeSync = closeSync;
 
-// Reset the umask for testing
-var mask = process.umask(0o000);
-
 // On Windows chmod is only able to manipulate read-only bit. Test if creating
 // the file in read-only mode works.
 if (common.isWindows) {

@@ -7,9 +7,7 @@ if (!common.hasCrypto) {
   return;
 }
 var tls = require('tls');
-
 var fs = require('fs');
-var net = require('net');
 
 var ended = 0;
 

@@ -2,8 +2,7 @@
 var common = require('../common');
 var assert = require('assert');
 
-var fs = require('fs'),
-    dgram = require('dgram'), server, client,
+var dgram = require('dgram'), server, client,
     server_port = common.PORT,
     message_to_send = 'A message to send',
     timer;

@@ -14,7 +14,7 @@ var server = http.Server(function(req, res) {
 var responseClose = false;
 
 server.listen(common.PORT, function() {
-  var client = http.get({
+  http.get({
     port: common.PORT,
     headers: { connection: 'keep-alive' }
 

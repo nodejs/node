@@ -1,9 +1,5 @@
 'use strict';
 
-var common = require('../common');
-var assert = require('assert');
-var events = require('events');
-
 var EventEmitter = require('events').EventEmitter;
 var assert = require('assert');
 

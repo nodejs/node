@@ -57,6 +57,7 @@ function pingPongTest(port, host) {
 
     client.on('close', function() {
       console.log('client has closed, closing server');
+      assert.equal(sent_final_ping, true);
       assert.equal(N, count);
       tests_run += 1;
       server.close();

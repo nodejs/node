@@ -1,7 +1,6 @@
 'use strict';
-var common = require('../common'),
-    assert = require('assert'),
-    repl = require('repl');
+var assert = require('assert');
+var repl = require('repl');
 
 // https://github.com/joyent/node/issues/3226
 

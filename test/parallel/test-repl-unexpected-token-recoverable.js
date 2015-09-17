@@ -2,7 +2,6 @@
 /*
  * This is a regression test for https://github.com/joyent/node/issues/8874.
  */
-var common = require('../common');
 var assert = require('assert');
 
 var spawn = require('child_process').spawn;

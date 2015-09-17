@@ -2,7 +2,6 @@
 var common = require('../common');
 var assert = require('assert');
 var util = require('util');
-var os = require('os');
 
 var execSync = require('child_process').execSync;
 var execFileSync = require('child_process').execFileSync;

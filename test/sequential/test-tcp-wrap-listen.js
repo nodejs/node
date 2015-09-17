@@ -12,7 +12,7 @@ assert.equal(0, r);
 
 server.listen(128);
 
-var slice, sliceCount = 0, eofCount = 0;
+var sliceCount = 0, eofCount = 0;
 
 var writeCount = 0;
 var recvCount = 0;

@@ -5,7 +5,6 @@ var assert = require('assert');
 var net = require('net');
 
 var N = 50;
-var c = 0;
 var client_recv_count = 0;
 var client_end_count = 0;
 var disconnect_count = 0;

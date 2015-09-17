@@ -34,7 +34,6 @@ http.createServer(function(req, res) {
   res.writeHead(200);
   res.end('OK');
 }).listen(common.PIPE, function() {
-  var self = this;
   http.get({ socketPath: common.PIPE, path: '/' }, function(res) {
     res.resume();
     res.on('end', function(err) {

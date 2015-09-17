@@ -1,6 +1,5 @@
 'use strict';
 
-const common = require('../common');
 const assert = require('assert');
 const buffer = require('buffer');
 const Buffer = buffer.Buffer;
