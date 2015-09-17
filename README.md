@@ -324,26 +324,10 @@ handling your report.
 
 ## Current Project Team Members
 
-The Node.js project team comprises a group of core collaborators and a sub-group
-that forms the _Technical Steering Committee_ (TSC) which governs the project. For more
-information about the governance of the Node.js project, see
-[GOVERNANCE.md](./GOVERNANCE.md).
-
-### TSC (Technical Steering Committee)
-
-* [bnoordhuis](https://github.com/bnoordhuis) - **Ben Noordhuis** &lt;info@bnoordhuis.nl&gt;
-* [chrisdickinson](https://github.com/chrisdickinson) - **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt;
-* [cjihrig](https://github.com/cjihrig) - **Colin Ihrig** &lt;cjihrig@gmail.com&gt;
-* [fishrock123](https://github.com/fishrock123) - **Jeremiah Senkpiel** &lt;fishrock123@rocketmail.com&gt;
-* [indutny](https://github.com/indutny) - **Fedor Indutny** &lt;fedor.indutny@gmail.com&gt;
-* [jasnell](https://github.com/jasnell) - **James M Snell** &lt;jasnell@gmail.com&gt;
-* [misterdjules](https://github.com/misterdjules) - **Julien Gilli** &lt;jgilli@nodejs.org&gt;
-* [mscdex](https://github.com/mscdex) - **Brian White** &lt;mscdex@mscdex.net&gt;
-* [orangemocha](https://github.com/orangemocha) - **Alexis Campailla** &lt;orangemocha@nodejs.org&gt;
-* [piscisaureus](https://github.com/piscisaureus) - **Bert Belder** &lt;bertbelder@gmail.com&gt;
-* [rvagg](https://github.com/rvagg) - **Rod Vagg** &lt;rod@vagg.org&gt;
-* [shigeki](https://github.com/shigeki) - **Shigeki Ohtsu** &lt;ohtsu@iij.ad.jp&gt;
-* [trevnorris](https://github.com/trevnorris) - **Trevor Norris** &lt;trev.norris@gmail.com&gt;
+The Node.js project team comprises a group of core collaborators and a sub-
+group that forms the [Technical Steering Committee (TSC)](https://github.com/nodejs/TSC)
+which governs the project. For more information about the governance of the
+Node.js project, see [GOVERNANCE.md](./GOVERNANCE.md).
 
 ### Collaborators
 
