@@ -30,9 +30,13 @@ string will not be in the parsed object. Examples are shown for the URL
 
     Example: `'host.com:8080'`
 
-* `auth`: The authentication information portion of a URL.
+* `username`: The username portion of a URL.
 
-    Example: `'user:pass'`
+    Example: `'user'`
+
+* `password`: The password portion of a URL.
+
+    Example: `'pass'`
 
 * `hostname`: Just the lowercased hostname portion of the host.
 
@@ -65,6 +69,11 @@ string will not be in the parsed object. Examples are shown for the URL
 * `hash`: The 'fragment' portion of the URL including the pound-sign.
 
     Example: `'#hash'`
+
+* `auth`: The authentication information portion of a URL.
+
+    Example: `'user:pass'`
+    Deprecated: `auth` does not handled URL encoding properly, use `username` and `password` instead.
 
 ### Escaped Characters
 

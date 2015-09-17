@@ -2,6 +2,7 @@
 'use strict';
 require('../common');
 var assert = require('assert');
+var util = require('util');
 
 var url = require('url');
 
@@ -95,6 +96,8 @@ var parseTests = {
     protocol: 'http:',
     slashes: true,
     auth: 'user:pw',
+    username: 'user',
+    password: 'pw',
     host: 'www.example.com',
     hostname: 'www.example.com',
     pathname: '/',
@@ -106,6 +109,8 @@ var parseTests = {
     protocol: 'http:',
     slashes: true,
     auth: 'USER:PW',
+    username: 'USER',
+    password: 'PW',
     host: 'www.example.com',
     hostname: 'www.example.com',
     pathname: '/',
@@ -117,6 +122,7 @@ var parseTests = {
     protocol: 'http:',
     slashes: true,
     auth: 'user',
+    username: 'user',
     host: 'www.example.com',
     hostname: 'www.example.com',
     pathname: '/',
@@ -124,10 +130,12 @@ var parseTests = {
   },
 
   'http://user%3Apw@www.example.com/': {
-    href: 'http://user:pw@www.example.com/',
+    href: 'http://user%3Apw@www.example.com/',
     protocol: 'http:',
     slashes: true,
     auth: 'user:pw',
+    username: 'user%3Apw',
+    password: null,
     host: 'www.example.com',
     hostname: 'www.example.com',
     pathname: '/',
@@ -266,6 +274,8 @@ var parseTests = {
     slashes: true,
     host: 'mt0.google.com',
     auth: 'user:pass',
+    username: 'user',
+    password: 'pass',
     hostname: 'mt0.google.com',
     search: '???&hl=en&src=api&x=2&y=2&z=3&s=',
     query: '??&hl=en&src=api&x=2&y=2&z=3&s=',
@@ -346,6 +356,8 @@ var parseTests = {
     slashes: true,
     host: 'example.com:8000',
     auth: 'user:pass',
+    username: 'user',
+    password: 'pass',
     port: '8000',
     hostname: 'example.com',
     hash: '#frag',
@@ -360,6 +372,8 @@ var parseTests = {
     slashes: true,
     host: 'example.com:8000',
     auth: 'user:pass',
+    username: 'user',
+    password: 'pass',
     port: '8000',
     hostname: 'example.com',
     hash: '#frag',
@@ -393,6 +407,7 @@ var parseTests = {
     protocol: 'mailto:',
     host: 'bar.com',
     auth: 'foo',
+    username: 'foo',
     hostname: 'bar.com',
     search: '?subject=hello',
     query: 'subject=hello',
@@ -411,6 +426,7 @@ var parseTests = {
     protocol: 'xmpp:',
     host: 'jabber.org',
     auth: 'isaacschlueter',
+    username: 'isaacschlueter',
     hostname: 'jabber.org'
   },
 
@@ -420,6 +436,8 @@ var parseTests = {
     slashes: true,
     host: '127.0.0.1:8080',
     auth: 'atpass:foo@bar',
+    username: 'atpass',
+    password: 'foo%40bar',
     hostname: '127.0.0.1',
     port: '8080',
     pathname: '/path',
@@ -620,6 +638,8 @@ var parseTests = {
     protocol: 'http:',
     slashes: true,
     auth: 'user:password',
+    username: 'user',
+    password: 'password',
     host: '[3ffe:2a00:100:7031::1]:8080',
     port: '8080',
     hostname: '3ffe:2a00:100:7031::1',
@@ -632,6 +652,8 @@ var parseTests = {
     protocol: 'coap:',
     slashes: true,
     auth: 'u:p',
+    username: 'u',
+    password: 'p',
     host: '[::192.9.5.5]:61616',
     port: '61616',
     hostname: '::192.9.5.5',
@@ -724,6 +746,8 @@ var parseTests = {
     protocol: 'http:',
     slashes: true,
     auth: 'user:pass',
+    username: 'user',
+    password: 'pass',
     host: '-lovemonsterz.tumblr.com',
     hostname: '-lovemonsterz.tumblr.com',
     href: 'http://user:pass@-lovemonsterz.tumblr.com/rss',
@@ -735,6 +759,8 @@ var parseTests = {
     protocol: 'http:',
     slashes: true,
     auth: 'user:pass',
+    username: 'user',
+    password: 'pass',
     port: '80',
     host: '-lovemonsterz.tumblr.com:80',
     hostname: '-lovemonsterz.tumblr.com',
@@ -757,6 +783,8 @@ var parseTests = {
     protocol: 'http:',
     slashes: true,
     auth: 'user:pass',
+    username: 'user',
+    password: 'pass',
     host: '_jabber._tcp.google.com',
     hostname: '_jabber._tcp.google.com',
     href: 'http://user:pass@_jabber._tcp.google.com/test',
@@ -779,6 +807,8 @@ var parseTests = {
     protocol: 'http:',
     slashes: true,
     auth: 'user:pass',
+    username: 'user',
+    password: 'pass',
     port: '80',
     host: '_jabber._tcp.google.com:80',
     hostname: '_jabber._tcp.google.com',
@@ -802,6 +832,8 @@ var parseTests = {
     protocol: 'http:',
     slashes: true,
     auth: 'a@b',
+    username: 'a%40b',
+    password: null,
     host: 'c',
     hostname: 'c',
     href: 'http://a%40b@c/',
@@ -813,6 +845,7 @@ var parseTests = {
     protocol: 'http:',
     slashes: true,
     auth: 'a',
+    username: 'a',
     host: 'b',
     hostname: 'b',
     href: 'http://a@b/?@c',
@@ -826,6 +859,8 @@ var parseTests = {
     protocol: 'http:',
     slashes: true,
     auth: 'a\r" \t\n<\'b:b',
+    username: 'a%22%20%3C%27b',
+    password: 'b',
     host: 'c',
     port: null,
     hostname: 'c',
@@ -834,7 +869,7 @@ var parseTests = {
     query: 'f',
     pathname: '%0D%0Ad/e',
     path: '%0D%0Ad/e?f',
-    href: 'http://a%0D%22%20%09%0A%3C\'b:b@c/%0D%0Ad/e?f'
+    href: 'http://a%22%20%3C%27b:b@c/%0D%0Ad/e?f'
   },
 
   // git urls used by npm
@@ -842,6 +877,7 @@ var parseTests = {
     protocol: 'git+ssh:',
     slashes: true,
     auth: 'git',
+    username: 'git',
     host: 'github.com',
     port: null,
     hostname: 'github.com',
@@ -881,14 +917,16 @@ for (const u in parseTests) {
     }
   });
 
-  assert.deepStrictEqual(actual, expected);
-  assert.deepStrictEqual(spaced, expected);
+  assert.deepStrictEqual(actual, expected,
+      `parse('${u}') == ${util.inspect(expected)}\nactual:${util.inspect(actual)}`);
+  assert.deepStrictEqual(spaced, expected,
+      `parse('     \t  ${u}\n\t') == ${util.inspect(spaced)}\nactual:${util.inspect(actual)}`);
 
   expected = parseTests[u].href;
   actual = url.format(parseTests[u]);
 
   assert.equal(actual, expected,
-               'format(' + u + ') == ' + u + '\nactual:' + actual);
+      `format(${util.inspect(parseTests[u])}) == '${expected}'\nactual:'${actual}'`);
 }
 
 function createWithNoPrototype(properties = []) {
@@ -1057,11 +1095,14 @@ var formatTests = {
     protocol: 'xmpp:',
     host: 'jabber.org',
     auth: 'isaacschlueter',
+    username: 'isaacschlueter',
     hostname: 'jabber.org'
   },
   'http://atpass:foo%40bar@127.0.0.1/': {
     href: 'http://atpass:foo%40bar@127.0.0.1/',
     auth: 'atpass:foo@bar',
+    username: 'atpass',
+    password: 'foo@bar',
     hostname: '127.0.0.1',
     protocol: 'http:',
     pathname: '/'
@@ -1069,6 +1110,8 @@ var formatTests = {
   'http://atslash%2F%40:%2F%40@foo/': {
     href: 'http://atslash%2F%40:%2F%40@foo/',
     auth: 'atslash/@:/@',
+    username: 'atslash/@',
+    password: '/@',
     hostname: 'foo',
     protocol: 'http:',
     pathname: '/'
@@ -1111,6 +1154,8 @@ var formatTests = {
     href: 'coap:u:p@[::1]:61616/.well-known/r?n=Temperature',
     protocol: 'coap:',
     auth: 'u:p',
+    username: 'u',
+    password: 'p',
     hostname: '::1',
     port: '61616',
     pathname: '/.well-known/r',
@@ -1172,13 +1217,9 @@ for (const u in formatTests) {
   delete formatTests[u].href;
   const actual = url.format(u);
   const actualObj = url.format(formatTests[u]);
-  assert.equal(actual, expect,
-               'wonky format(' + u + ') == ' + expect +
-               '\nactual:' + actual);
-  assert.equal(actualObj, expect,
-               'wonky format(' + JSON.stringify(formatTests[u]) +
-               ') == ' + expect +
-               '\nactual: ' + actualObj);
+  assert.equal(actual, expect, `format(${u}) == ${expect}\nactual:${actual}`);
+  assert.equal(actualObj, expect, `format(${util.inspect(formatTests[u])})` +
+      ` == ${expect}\nactual: ${actualObj}`);
 }
 
 /*
@@ -1234,8 +1275,7 @@ relativeTests.forEach(function(relativeTest) {
   const a = url.resolve(relativeTest[0], relativeTest[1]);
   const e = relativeTest[2];
   assert.equal(a, e,
-               'resolve(' + [relativeTest[0], relativeTest[1]] + ') == ' + e +
-               '\n  actual=' + a);
+      `resolve(${relativeTest[0]},${relativeTest[1]}) == ${e}\n  actual=${a}`);
 });
 
 
@@ -1558,8 +1598,7 @@ relativeTests2.forEach(function(relativeTest) {
   const a = url.resolve(relativeTest[1], relativeTest[0]);
   const e = relativeTest[2];
   assert.equal(a, e,
-               'resolve(' + [relativeTest[1], relativeTest[0]] + ') == ' + e +
-               '\n  actual=' + a);
+    `resolve(${relativeTest[1]},${relativeTest[0]}) == ${e}\nactual=${a}`);
 });
 
 //if format and parse are inverse operations then
@@ -1577,7 +1616,7 @@ relativeTests.forEach(function(relativeTest) {
   actual = url.format(actual);
 
   assert.equal(actual, expected,
-               'format(' + actual + ') == ' + expected + '\nactual:' + actual);
+    `format(${actual}) == ${expected}\nactual:${actual}`);
 });
 
 //format: [to, from, result]
