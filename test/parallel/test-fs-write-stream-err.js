@@ -2,6 +2,7 @@
 var common = require('../common');
 var assert = require('assert');
 var fs = require('fs');
+var binding = process.binding('fs');
 
 common.refreshTmpDir();
 
@@ -10,21 +11,18 @@ var stream = fs.createWriteStream(common.tmpDir + '/out', {
 });
 var err = new Error('BAM');
 
-var write = fs.write;
+var writeBuffer = binding.writeBuffer;
 var writeCalls = 0;
-fs.write = function() {
+binding.writeBuffer = function() {
   switch (writeCalls++) {
     case 0:
-      console.error('first write');
       // first time is ok.
-      return write.apply(fs, arguments);
+      console.error('first write');
+      return writeBuffer.apply(this, arguments);
     case 1:
       // then it breaks
       console.error('second write');
-      var cb = arguments[arguments.length - 1];
-      return process.nextTick(function() {
-        cb(err);
-      });
+      return process.nextTick(arguments[5].oncomplete, err);
     default:
       // and should not be called again!
       throw new Error('BOOM!');
