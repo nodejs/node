@@ -520,7 +520,7 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
       Strength::WEAK, INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
 
   // Fill in the literals.
-  bool is_simple = true;
+  bool is_simple = (first_spread_index_ < 0);
   int depth_acc = 1;
   bool is_holey = false;
   int array_index = 0;

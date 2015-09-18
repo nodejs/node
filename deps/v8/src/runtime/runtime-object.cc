@@ -1470,5 +1470,12 @@ RUNTIME_FUNCTION(Runtime_StrictEquals) {
   return Smi::FromInt(x->StrictEquals(y) ? EQUAL : NOT_EQUAL);
 }
 
+
+RUNTIME_FUNCTION(Runtime_IsAccessCheckNeeded) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_CHECKED(Object, object, 0);
+  return isolate->heap()->ToBoolean(object->IsAccessCheckNeeded());
+}
 }  // namespace internal
 }  // namespace v8
