@@ -146,7 +146,7 @@ extras_accessors = [
     'Map, instance_size, int, kInstanceSizeOffset',
     'Map, bit_field, char, kBitFieldOffset',
     'Map, bit_field2, char, kBitField2Offset',
-    'Map, bit_field3, SMI, kBitField3Offset',
+    'Map, bit_field3, int, kBitField3Offset',
     'Map, prototype, Object, kPrototypeOffset',
     'NameDictionaryShape, prefix_size, int, kPrefixSize',
     'NameDictionaryShape, entry_size, int, kEntrySize',
