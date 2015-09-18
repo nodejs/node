@@ -110,7 +110,9 @@ Use a \fB\|\.npmignore\fP file to keep stuff out of your package\.  If there's
 no \fB\|\.npmignore\fP file, but there \fIis\fR a \fB\|\.gitignore\fP file, then npm will
 ignore the stuff matched by the \fB\|\.gitignore\fP file\.  If you \fIwant\fR to
 include something that is excluded by your \fB\|\.gitignore\fP file, you can
-create an empty \fB\|\.npmignore\fP file to override it\.
+create an empty \fB\|\.npmignore\fP file to override it\. Like \fBgit\fP, \fBnpm\fP looks
+for \fB\|\.npmignore\fP and \fB\|\.gitignore\fP files in all subdirectories of your
+package, not only the root directory\.
 .P
 \fB\|\.npmignore\fP files follow the same pattern rules \fIhttp://git\-scm\.com/book/en/v2/Git\-Basics\-Recording\-Changes\-to\-the\-Repository#Ignoring\-Files\fR
 as \fB\|\.gitignore\fP files:

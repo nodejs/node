@@ -8,7 +8,7 @@ var log = require("npmlog")
   , crypto
 
 try {
-  crypto = process.binding("crypto") && require("crypto")
+  crypto = require("crypto")
 } catch (ex) {}
 
 adduser.usage = "npm adduser\nThen enter stuff at the prompts"
