@@ -215,6 +215,12 @@ function error_test() {
             'RegExp.$6\nRegExp.$7\nRegExp.$8\nRegExp.$9\n',
       expect: ['\'1\'\n', '\'2\'\n', '\'3\'\n', '\'4\'\n', '\'5\'\n', '\'6\'\n',
                '\'7\'\n', '\'8\'\n', '\'9\'\n'].join(`${prompt_unix}`) },
+    // making sure that the lines entered are trimmed properly
+    { client: client_unix, send: '    \t  .break \t \t  ',
+      expect: prompt_unix },
+    { client: client_unix, send: '.load ' +
+              require('path').join(common.fixturesDir, 'repl-load.js    \t  '),
+      expect: prompt_unix + '\'repl\'\n' + prompt_unix },
   ]);
 }
 
