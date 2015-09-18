@@ -704,9 +704,9 @@ until the process has completely exited. That is to say, if the process handles
 the `SIGTERM` signal and doesn't exit, your process will wait until the child
 process has exited.
 
-### child_process.execFileSync(command[, args][, options])
+### child_process.execFileSync(file[, args][, options])
 
-* `command` {String} The command to run
+* `file` {String} The filename of the program to run
 * `args` {Array} List of string arguments
 * `options` {Object}
   * `cwd` {String} Current working directory of the child process
