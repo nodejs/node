@@ -14,8 +14,12 @@ var target = path.resolve(__dirname, repeat(1000,'test'))
 
 test('name too long', function (t) {
   var stream = writeStream(target)
+  var hadError = false
   stream.on('error', function (er) {
-    t.is(er.code, 'ENAMETOOLONG', target.length + " character name results in ENAMETOOLONG")
+    if (!hadError) {
+      t.is(er.code, 'ENAMETOOLONG', target.length + " character name results in ENAMETOOLONG")
+      hadError = true
+    }
   })
   stream.on('close', function () {
     t.end()

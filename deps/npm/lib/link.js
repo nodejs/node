@@ -26,13 +26,13 @@ link.completion = function (opts, cb) {
 }
 
 function link (args, cb) {
-  if (process.platform === "win32") {
-    var semver = require("semver")
-    if (!semver.satisfies(process.version, ">=0.7.9")) {
-      var msg = "npm link not supported on windows prior to node 0.7.9"
-        , e = new Error(msg)
-      e.code = "ENOTSUP"
-      e.errno = require("constants").ENOTSUP
+  if (process.platform === 'win32') {
+    var semver = require('semver')
+    if (!semver.gte(process.version, '0.7.9')) {
+      var msg = 'npm link not supported on windows prior to node 0.7.9'
+      var e = new Error(msg)
+      e.code = 'ENOTSUP'
+      e.errno = require('constants').ENOTSUP
       return cb(e)
     }
   }

@@ -1,3 +1,84 @@
+### v2.14.4 (2015-09-10):
+
+#### THE GREAT NODEv4 SAGA
+
+So [Node 4 is out now](https://nodejs.org/en/blog/release/v4.0.0/) and that's
+going to involve a number of things over in npm land. Most importantly, it's the
+last major release that will include the `2.x` branch of npm. That also means
+that `2.x` is going to go into LTS mode in the coming weeks -- once `npm@3`
+becomes our official `latest` release. You can most likely expect Node 5 to
+include `npm@3` by default, whenever that happens. We'll go into more detail
+about LTS at that point, as well, so keep your eyes peeled for announcements!
+
+#### NODE IS DEAD. LONG LIVE NODE!
+
+Node 4 being released means that a few things that used to be floating patches
+are finally making it right into npm proper. This week, we've got two such
+updates, both to dependencies:
+
+* [`505d9e4`](https://github.com/npm/npm/commit/505d9e40c13b8b0bb3f70ee9886f7b73ba569407)
+  `node-gyp@3.0.1`: Support for node nightlies and compilation for both node and
+  io.js without extra patching
+  ([@rvagg](https://github.com/rvagg))
+
+[@thefourtheye](https://github.com/thefourtheye) was kind enough to submit a
+*bunch* of PRs to npm's dependencies updating them to `graceful-fs@4.1.2`, which
+mainly makes it so we're no longer monkey-patching `fs`. The following are all
+updates related to this:
+
+* [`10cb189`](https://github.com/npm/npm/commit/10cb189c773fef804214018d57509cc7a943184b)
+  `write-file-atomic@1.1.3`
+  ([@thefourtheye](https://github.com/thefourtheye))
+* [`edfb80b`](https://github.com/npm/npm/commit/edfb80b39f8cfce9a993f139eb98248001198e09)
+  `tar@2.2.1`
+  ([@thefourtheye](https://github.com/thefourtheye))
+* [`aa6e1ee`](https://github.com/npm/npm/commit/aa6e1eede7d71fa69d7256afdfbaa3406bc39a5b)
+  `read-package-json@2.0.1`
+  ([@thefourtheye](https://github.com/thefourtheye))
+* [`18971a3`](https://github.com/npm/npm/commit/18971a361635ed3958ecd39b63930ae1e56f8612)
+  `read-installed@4.0.3`
+  ([@thefourtheye](https://github.com/thefourtheye))
+* [`a4cba71`](https://github.com/npm/npm/commit/a4cba71bd2532236fda7385bf55e8790cafd4f0a)
+  `fstream@1.0.8`
+  ([@thefourtheye](https://github.com/thefourtheye))
+* [`70a38e2`](https://github.com/npm/npm/commit/70a38e29418951ac61ab6cf269d188074fe8ac3a)
+  `fs-write-stream-atomic@1.0.4`
+  ([@thefourtheye](https://github.com/thefourtheye))
+* [`9cbd20f`](https://github.com/npm/npm/commit/9cbd20f691e37960e4ba12d401abd1069657cb47)
+  `fs-vacuum@1.2.7`
+  ([@thefourtheye](https://github.com/thefourtheye))
+
+#### OTHER PATCHES
+
+* [`c4dd521`](https://github.com/npm/npm/commit/c4dd5213b2f3283ea0392845e5f78cac4573529e)
+  [#9506](https://github.com/npm/npm/issues/9506) Make `npm link` work on
+  Windows when using node pre-release/RC releases.
+  ([@jon-hall](https://github.com/jon-hall))
+* [`b6bc29c`](https://github.com/npm/npm/commit/b6bc29c1401b3d6b570c09cbef1866bdb0436b59)
+  [#9544](https://github.com/npm/npm/issues/9549) `process.binding` is being
+  deprecated, so our only direct usage has been removed.
+  ([@ChALkeR](https://github.com/ChALkeR))
+
+#### MORE DEPENDENCIES!
+
+* [`d940594`](https://github.com/npm/npm/commit/d940594e479a7f012b6dd6952e8ef985ba2a6216)
+  `tap@1.4.1`
+  ([@isaacs](https://github.com/isaacs))
+* [`ee38486`](https://github.com/npm/npm/commit/ee3848669331fd98879a3175789d963543f67ce3)
+  `which@1.1.2`: Added tests for Windows-related dead code that was previously
+  helping a silent failure happen.  Travis stuff, too.
+  ([@isaacs](https://github.com/isaacs))
+
+#### DOC UPDATES
+
+* [`475daf5`](https://github.com/npm/npm/commit/475daf54ad07777938d1d7ee1a3e576961e84510)
+  [#9492](https://github.com/npm/npm/issues/9492) Clarify how `.npmignore` and
+  `.gitignore` are found and used by npm.
+  ([@addaleax](https://github.com/addaleax))
+* [`b2c391d`](https://github.com/npm/npm/commit/b2c391d7833249626a6d7650363a83bcc778717a)
+  `nopt@3.0.4`: Minor clarifications to docs about how array and errors work.
+  ([@zkat](https://github.com/zkat))
+
 ### v2.14.3 (2015-09-03):
 
 #### TEAMS AND ORGS STILL BETA. CLI CODE STILL SOLID.
