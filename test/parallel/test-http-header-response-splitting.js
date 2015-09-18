@@ -4,7 +4,7 @@ var common = require('../common'),
     http = require('http');
 
 var testIndex = 0;
-const testCount = 4 * 6;
+const testCount = 2 * 4 * 6;
 const responseBody = 'Hi mars!';
 
 var server = http.createServer(function(req, res) {
@@ -29,9 +29,15 @@ var server = http.createServer(function(req, res) {
     default:
       assert.fail('unreachable');
     }
-    res.end(responseBody);
+    res.write(responseBody);
+    if (testIndex % 8 < 4) {
+      res.addTrailers({ ta: header, tb: header });
+    } else {
+      res.addTrailers([['ta', header], ['tb', header]]);
+    }
+    res.end();
   }
-  switch ((testIndex / 4) | 0) {
+  switch ((testIndex / 8) | 0) {
     case 0:
       reply('foo \r\ninvalid: bar');
       break;
@@ -70,6 +76,10 @@ server.listen(common.PORT, common.mustCall(function() {
       res.on('data', function(s) { data += s; });
       res.on('end', common.mustCall(function() {
         assert.equal(data, responseBody);
+        assert.strictEqual(res.trailers.ta, 'foo invalid: bar');
+        assert.strictEqual(res.trailers.tb, 'foo invalid: bar');
+        assert.strictEqual(res.trailers.foo, undefined);
+        assert.strictEqual(res.trailers.invalid, undefined);
       }));
       res.resume();
     }));
