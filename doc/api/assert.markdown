@@ -91,5 +91,5 @@ Expects `block` not to throw an error. See `assert.throws()` for details.
 
 ## assert.ifError(value)
 
-Tests if value is an `Error` and, if so, throws it. This is useful when
-testing the `error` argument in callbacks.
+Throws `value` if `value` is truthy. This is useful when testing the `error`
+argument in callbacks.
