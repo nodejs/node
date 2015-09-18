@@ -19,7 +19,8 @@ Tests shallow, coercive equality with the equal comparison operator ( `==` ).
 
 ## assert.notEqual(actual, expected[, message])
 
-Tests shallow, coercive non-equality with the not equal comparison operator ( `!=` ).
+Tests shallow, coercive inequality with the not equal comparison operator
+( `!=` ).
 
 ## assert.deepEqual(actual, expected[, message])
 
@@ -36,8 +37,8 @@ Tests strict equality as determined by the strict equality operator ( `===` ).
 
 ## assert.notStrictEqual(actual, expected[, message])
 
-Tests strict non-equality as determined by the strict not equal
-operator ( `!==` ).
+Tests strict inequality as determined by the strict not equal operator
+( `!==` ).
 
 ## assert.deepStrictEqual(actual, expected[, message])
 
