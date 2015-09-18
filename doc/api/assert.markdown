@@ -2,7 +2,7 @@
 
     Stability: 2 - Stable
 
-This module is used for writing unit tests for your applications, you can
+This module is used for writing unit tests for your applications. You can
 access it with `require('assert')`.
 
 ## assert.fail(actual, expected, message, operator)
@@ -19,7 +19,8 @@ Tests shallow, coercive equality with the equal comparison operator ( `==` ).
 
 ## assert.notEqual(actual, expected[, message])
 
-Tests shallow, coercive non-equality with the not equal comparison operator ( `!=` ).
+Tests shallow, coercive inequality with the not equal comparison operator
+( `!=` ).
 
 ## assert.deepEqual(actual, expected[, message])
 
@@ -32,12 +33,12 @@ Tests for any deep inequality. Opposite of `assert.deepEqual`.
 
 ## assert.strictEqual(actual, expected[, message])
 
-Tests strict equality, as determined by the strict equality operator ( `===` )
+Tests strict equality as determined by the strict equality operator ( `===` ).
 
 ## assert.notStrictEqual(actual, expected[, message])
 
-Tests strict non-equality, as determined by the strict not equal
-operator ( `!==` )
+Tests strict inequality as determined by the strict not equal operator
+( `!==` ).
 
 ## assert.deepStrictEqual(actual, expected[, message])
 
@@ -50,7 +51,7 @@ Tests for deep inequality. Opposite of `assert.deepStrictEqual`.
 
 ## assert.throws(block[, error][, message])
 
-Expects `block` to throw an error. `error` can be constructor, `RegExp` or
+Expects `block` to throw an error. `error` can be a constructor, `RegExp`, or
 validation function.
 
 Validate instanceof using constructor:
@@ -87,9 +88,9 @@ Custom error validation:
 
 ## assert.doesNotThrow(block[, message])
 
-Expects `block` not to throw an error, see `assert.throws` for details.
+Expects `block` not to throw an error. See `assert.throws()` for details.
 
 ## assert.ifError(value)
 
-Tests if value is not a false value, throws if it is a true value. Useful when
-testing the first argument, `error` in callbacks.
+Throws `value` if `value` is truthy. This is useful when testing the `error`
+argument in callbacks.
