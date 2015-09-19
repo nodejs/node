@@ -198,33 +198,6 @@ function error_test() {
     // a REPL command
     { client: client_unix, send: '.toString',
       expect: 'Invalid REPL keyword\n' + prompt_unix },
-    // fail when we are not inside a String and a line continuation is used
-    { client: client_unix, send: '[] \\',
-      expect: /^SyntaxError: Unexpected token ILLEGAL/ },
-    // do not fail when a String is created with line continuation
-    { client: client_unix, send: '\'the\\\nfourth\\\neye\'',
-      expect: prompt_multiline + prompt_multiline +
-              '\'thefourtheye\'\n' + prompt_unix },
-    // Don't fail when a partial String is created and line continuation is used
-    // with whitespace characters at the end of the string. We are to ignore it.
-    // This test is to make sure that we properly remove the whitespace
-    // characters at the end of line, unlike the buggy `trimWhitespace` function
-    { client: client_unix, send: '  \t    .break  \t  ',
-      expect: prompt_unix },
-    // multiline strings preserve whitespace characters in them
-    { client: client_unix, send: '\'the \\\n   fourth\t\t\\\n  eye  \'',
-      expect: prompt_multiline + prompt_multiline +
-              '\'the    fourth\\t\\t  eye  \'\n' + prompt_unix },
-    // more than one multiline strings also should preserve whitespace chars
-    { client: client_unix, send: '\'the \\\n   fourth\' +  \'\t\t\\\n  eye  \'',
-      expect: prompt_multiline + prompt_multiline +
-              '\'the    fourth\\t\\t  eye  \'\n' + prompt_unix },
-    // using REPL commands within a string literal should still work
-    { client: client_unix, send: '\'\\\n.break',
-      expect: prompt_unix },
-    // using REPL command "help" within a string literal should still work
-    { client: client_unix, send: '\'thefourth\\\n.help\neye\'',
-      expect: /'thefourtheye'/ },
     // empty lines in the REPL should be allowed
     { client: client_unix, send: '\n\r\n\r\n',
       expect: prompt_unix + prompt_unix + prompt_unix },
@@ -242,6 +215,12 @@ function error_test() {
             'RegExp.$6\nRegExp.$7\nRegExp.$8\nRegExp.$9\n',
       expect: ['\'1\'\n', '\'2\'\n', '\'3\'\n', '\'4\'\n', '\'5\'\n', '\'6\'\n',
                '\'7\'\n', '\'8\'\n', '\'9\'\n'].join(`${prompt_unix}`) },
+    // making sure that the lines entered are trimmed properly
+    { client: client_unix, send: '    \t  .break \t \t  ',
+      expect: prompt_unix },
+    { client: client_unix, send: '.load ' +
+              require('path').join(common.fixturesDir, 'repl-load.js    \t  '),
+      expect: prompt_unix + '\'repl\'\n' + prompt_unix },
   ]);
 }
 
