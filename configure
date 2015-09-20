@@ -566,6 +566,7 @@ def host_arch_cc():
     '__aarch64__' : 'arm64',
     '__arm__'     : 'arm',
     '__i386__'    : 'ia32',
+    '__MIPSEL__'  : 'mipsel',
     '__mips__'    : 'mips',
     '__PPC64__'   : 'ppc64',
     '__PPC__'     : 'ppc',
