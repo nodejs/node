@@ -464,7 +464,12 @@ Node.js maintains several connections per server to make HTTP requests.
 This function allows one to transparently issue requests.
 
 `options` can be an object or a string. If `options` is a string, it is
-automatically parsed with [url.parse()][].
+automatically parsed with [url.parse()][] and it must be a valid complete URL,
+including protocol and complete domain name or IP address.
+
+**Note**: If the passed string is not in the valid URL format, then the
+ connection will be established to the default domain name, localhost, and on
+ the default port, 80. *This will be fixed soon.*
 
 Options:
 
@@ -564,7 +569,7 @@ There are a few special headers that should be noted.
 ## http.get(options[, callback])
 
 Since most requests are GET requests without bodies, Node.js provides this
-convenience method. The only difference between this method and `http.request()`
+convenience method. The only difference between this method and [http.request][]
 is that it sets the method to GET and calls `req.end()` automatically.
 
 Example:
