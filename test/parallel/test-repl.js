@@ -242,6 +242,13 @@ function error_test() {
             'RegExp.$6\nRegExp.$7\nRegExp.$8\nRegExp.$9\n',
       expect: ['\'1\'\n', '\'2\'\n', '\'3\'\n', '\'4\'\n', '\'5\'\n', '\'6\'\n',
                '\'7\'\n', '\'8\'\n', '\'9\'\n'].join(`${prompt_unix}`) },
+    // regression tests for https://github.com/nodejs/node/issues/2749
+    { client: client_unix, send: 'function x() {\nreturn \'\\n\';\n }',
+      expect: prompt_multiline + prompt_multiline +
+              'undefined\n' + prompt_unix },
+    { client: client_unix, send: 'function x() {\nreturn \'\\\\\';\n }',
+      expect: prompt_multiline + prompt_multiline +
+              'undefined\n' + prompt_unix },
   ]);
 }
 
