@@ -303,6 +303,67 @@ function isWarned(emitter) {
     return false;
   });
 
+  // duplicate lines are removed from history when `options.deDupeHistory`
+  // is `true`
+  fi = new FakeInput();
+  rli = new readline.Interface({
+    input: fi,
+    output: fi,
+    terminal: true,
+    deDupeHistory: true
+  });
+  expectedLines = ['foo', 'bar', 'baz', 'bar', 'bat', 'bat'];
+  callCount = 0;
+  rli.on('line', function(line) {
+    assert.strictEqual(line, expectedLines[callCount]);
+    callCount++;
+  });
+  fi.emit('data', expectedLines.join('\n') + '\n');
+  assert.strictEqual(callCount, expectedLines.length);
+  fi.emit('keypress', '.', { name: 'up' }); // 'bat'
+  assert.strictEqual(rli.line, expectedLines[--callCount]);
+  fi.emit('keypress', '.', { name: 'up' }); // 'bar'
+  assert.notStrictEqual(rli.line, expectedLines[--callCount]);
+  assert.strictEqual(rli.line, expectedLines[--callCount]);
+  fi.emit('keypress', '.', { name: 'up' }); // 'baz'
+  assert.strictEqual(rli.line, expectedLines[--callCount]);
+  fi.emit('keypress', '.', { name: 'up' }); // 'foo'
+  assert.notStrictEqual(rli.line, expectedLines[--callCount]);
+  assert.strictEqual(rli.line, expectedLines[--callCount]);
+  assert.strictEqual(callCount, 0);
+  rli.close();
+
+  // duplicate lines are not removed from history when `options.deDupeHistory`
+  // is `false`
+  fi = new FakeInput();
+  rli = new readline.Interface({
+    input: fi,
+    output: fi,
+    terminal: true,
+    deDupeHistory: false
+  });
+  expectedLines = ['foo', 'bar', 'baz', 'bar', 'bat', 'bat'];
+  callCount = 0;
+  rli.on('line', function(line) {
+    assert.strictEqual(line, expectedLines[callCount]);
+    callCount++;
+  });
+  fi.emit('data', expectedLines.join('\n') + '\n');
+  assert.strictEqual(callCount, expectedLines.length);
+  fi.emit('keypress', '.', { name: 'up' }); // 'bat'
+  assert.strictEqual(rli.line, expectedLines[--callCount]);
+  fi.emit('keypress', '.', { name: 'up' }); // 'bar'
+  assert.notStrictEqual(rli.line, expectedLines[--callCount]);
+  assert.strictEqual(rli.line, expectedLines[--callCount]);
+  fi.emit('keypress', '.', { name: 'up' }); // 'baz'
+  assert.strictEqual(rli.line, expectedLines[--callCount]);
+  fi.emit('keypress', '.', { name: 'up' }); // 'bar'
+  assert.strictEqual(rli.line, expectedLines[--callCount]);
+  fi.emit('keypress', '.', { name: 'up' }); // 'foo'
+  assert.strictEqual(rli.line, expectedLines[--callCount]);
+  assert.strictEqual(callCount, 0);
+  rli.close();
+
   // sending a multi-byte utf8 char over multiple writes
   const buf = Buffer.from('☮', 'utf8');
   fi = new FakeInput();
