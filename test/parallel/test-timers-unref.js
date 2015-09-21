@@ -71,5 +71,5 @@ process.on('exit', function() {
   assert.strictEqual(unref_interval, true,
                      'An unrefd interval should still fire');
   assert.strictEqual(unref_callbacks, 1,
-                     'Callback should only run once');
+                     'Callback should run exactly once');
 });

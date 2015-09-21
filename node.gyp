@@ -17,7 +17,6 @@
       'src/node.js',
       'lib/_debug_agent.js',
       'lib/_debugger.js',
-      'lib/_linklist.js',
       'lib/assert.js',
       'lib/buffer.js',
       'lib/child_process.js',
