@@ -50,6 +50,17 @@ if (process.argv[2] == 'you-are-the-child') {
   delete process.env.NODE_PROCESS_ENV_DELETED;
   assert.equal(false, 'NODE_PROCESS_ENV_DELETED' in process.env);
 
+  Object.defineProperty(process.env, 'NODE_PROCESS_ENV_DELETED', {
+    writable: true,
+    configurable: true,
+    enumerable: true,
+    value: 0
+  });
+  assert.equal(true, 'NODE_PROCESS_ENV_DELETED' in process.env);
+
+  delete process.env.NODE_PROCESS_ENV_DELETED;
+  assert.equal(false, 'NODE_PROCESS_ENV_DELETED' in process.env);
+
   var child = spawn(process.argv[0], [process.argv[1], 'you-are-the-child']);
   child.stdout.on('data', function(data) { console.log(data.toString()); });
   child.stderr.on('data', function(data) { console.log(data.toString()); });
