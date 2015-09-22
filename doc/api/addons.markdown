@@ -160,6 +160,7 @@ function calls and return a result. This is the main and only needed source
     using v8::Object;
     using v8::String;
     using v8::Value;
+    using v8::Exception;
 
     void Add(const FunctionCallbackInfo<Value>& args) {
       Isolate* isolate = args.GetIsolate();
