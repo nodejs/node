@@ -71,6 +71,9 @@ deps/openssl/openssl.xml
 deps/openssl/openssl.target.mk
 deps/zlib/zlib.target.mk
 
+# not needed and causes issues for distro packagers
+deps/npm/node_modules/.bin/
+
 # build/release artifacts
 /*.tar.*
 /SHASUMS*.txt*
