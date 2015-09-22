@@ -124,14 +124,14 @@ void uv_mutex_lock(uv_mutex_t* mutex) {
 int uv_mutex_trylock(uv_mutex_t* mutex) {
   int err;
 
-  /* FIXME(bnoordhuis) EAGAIN means recursive lock limit reached. Arguably
-   * a bug, should probably abort rather than return -EAGAIN.
-   */
   err = pthread_mutex_trylock(mutex);
-  if (err && err != EBUSY && err != EAGAIN)
-    abort();
+  if (err) {
+    if (err != EBUSY && err != EAGAIN)
+      abort();
+    return -EBUSY;
+  }
 
-  return -err;
+  return 0;
 }
 
 
@@ -162,10 +162,13 @@ int uv_rwlock_tryrdlock(uv_rwlock_t* rwlock) {
   int err;
 
   err = pthread_rwlock_tryrdlock(rwlock);
-  if (err && err != EBUSY && err != EAGAIN)
-    abort();
+  if (err) {
+    if (err != EBUSY && err != EAGAIN)
+      abort();
+    return -EBUSY;
+  }
 
-  return -err;
+  return 0;
 }
 
 
@@ -185,10 +188,13 @@ int uv_rwlock_trywrlock(uv_rwlock_t* rwlock) {
   int err;
 
   err = pthread_rwlock_trywrlock(rwlock);
-  if (err && err != EBUSY && err != EAGAIN)
-    abort();
+  if (err) {
+    if (err != EBUSY && err != EAGAIN)
+      abort();
+    return -EBUSY;
+  }
 
-  return -err;
+  return 0;
 }
 
 
