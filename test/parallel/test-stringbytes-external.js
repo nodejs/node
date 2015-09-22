@@ -113,12 +113,8 @@ var PRE_3OF4_APEX = Math.ceil((EXTERN_APEX / 4) * 3) - RADIOS;
   // v8::String::kMaxLength defined in v8.h
   const kStringMaxLength = process.binding('buffer').kStringMaxLength;
 
-  assert.throws(function() {
-    new Buffer(kStringMaxLength + 1).toString();
-  }, /toString failed|Invalid array buffer length/);
-
   try {
-    new Buffer(kStringMaxLength * 4);
+    new Buffer(kStringMaxLength * 3);
   } catch(e) {
     assert.equal(e.message, 'Invalid array buffer length');
     console.log(
@@ -126,50 +122,57 @@ var PRE_3OF4_APEX = Math.ceil((EXTERN_APEX / 4) * 3) - RADIOS;
     return;
   }
 
+  const buf0 = new Buffer(kStringMaxLength * 2 + 2);
+  const buf1 = buf0.slice(0, kStringMaxLength + 1);
+  const buf2 = buf0.slice(0, kStringMaxLength);
+  const buf3 = buf0.slice(0, kStringMaxLength + 2);
+
   assert.throws(function() {
-    new Buffer(kStringMaxLength + 1).toString('ascii');
+    buf1.toString();
+  }, /toString failed|Invalid array buffer length/);
+
+  assert.throws(function() {
+    buf1.toString('ascii');
   }, /toString failed/);
 
   assert.throws(function() {
-    new Buffer(kStringMaxLength + 1).toString('utf8');
+    buf1.toString('utf8');
   }, /toString failed/);
 
   assert.throws(function() {
-    new Buffer(kStringMaxLength * 2 + 2).toString('utf16le');
+    buf0.toString('utf16le');
   }, /toString failed/);
 
   assert.throws(function() {
-    new Buffer(kStringMaxLength + 1).toString('binary');
+    buf1.toString('binary');
   }, /toString failed/);
 
   assert.throws(function() {
-    new Buffer(kStringMaxLength + 1).toString('base64');
+    buf1.toString('base64');
   }, /toString failed/);
 
   assert.throws(function() {
-    new Buffer(kStringMaxLength + 1).toString('hex');
+    buf1.toString('hex');
   }, /toString failed/);
 
-  var maxString = new Buffer(kStringMaxLength).toString();
+  var maxString = buf2.toString();
   assert.equal(maxString.length, kStringMaxLength);
   // Free the memory early instead of at the end of the next assignment
   maxString = undefined;
 
-  maxString = new Buffer(kStringMaxLength).toString('binary');
+  maxString = buf2.toString('binary');
   assert.equal(maxString.length, kStringMaxLength);
   maxString = undefined;
 
-  maxString =
-      new Buffer(kStringMaxLength + 1).toString('binary', 1);
+  maxString = buf1.toString('binary', 1);
   assert.equal(maxString.length, kStringMaxLength);
   maxString = undefined;
 
-  maxString =
-      new Buffer(kStringMaxLength + 1).toString('binary', 0, kStringMaxLength);
+  maxString = buf1.toString('binary', 0, kStringMaxLength);
   assert.equal(maxString.length, kStringMaxLength);
   maxString = undefined;
 
-  maxString = new Buffer(kStringMaxLength + 2).toString('utf16le');
+  maxString = buf3.toString('utf16le');
   assert.equal(maxString.length, (kStringMaxLength + 2) / 2);
   maxString = undefined;
 })();
