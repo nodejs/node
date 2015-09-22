@@ -1387,6 +1387,8 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyUnchecked) {
   CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 3);
 
   LookupIterator it(js_object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
+  LookupIterator it_interceptor(js_object, name, LookupIterator::OWN);
+
   if (it.IsFound() && it.state() == LookupIterator::ACCESS_CHECK) {
     if (!isolate->MayAccess(js_object)) {
       return isolate->heap()->undefined_value();
@@ -1404,6 +1406,16 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyUnchecked) {
         isolate, result,
         JSObject::SetOwnPropertyIgnoreAttributes(
             js_object, name, obj_value, attrs, JSObject::DONT_FORCE_FIELD));
+    return *result;
+  }
+
+  // If there's an interceptor, try to store the property with the
+  // interceptor.
+  if (it_interceptor.state() == LookupIterator::INTERCEPTOR) {
+    Handle<Object> result;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result,
+        JSObject::SetPropertyWithInterceptor(&it_interceptor, obj_value));
     return *result;
   }
 
