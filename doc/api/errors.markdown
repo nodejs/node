@@ -308,7 +308,7 @@ An operation expected a file, but the given pathname was a directory.
 
 #### EMFILE: Too many open files in system
 
-Maxiumum number of [file descriptors](http://en.wikipedia.org/wiki/File_descriptor) allowable on the system has
+Maximum number of [file descriptors](http://en.wikipedia.org/wiki/File_descriptor) allowable on the system has
 been reached, and requests for another descriptor cannot be fulfilled until
 at least one has been closed.
 
