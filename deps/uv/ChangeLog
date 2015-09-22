@@ -1,3 +1,24 @@
+2015.09.23, Version 1.7.5 (Stable), a8c1136de2cabf25b143021488cbaab05834daa8
+
+Changes since version 1.7.4:
+
+* unix: Support atomic compare & swap xlC on AIX (nmushell)
+
+* unix: Fix including uv-aix.h on AIX (nmushell)
+
+* unix: consolidate rwlock tryrdlock trywrlock errors (Saúl Ibarra Corretgé)
+
+* unix, win: consolidate mutex trylock errors (Saúl Ibarra Corretgé)
+
+* darwin: fix memory leak in uv_cpu_info (Jianghua Yang)
+
+* test: add tests for the uv_rwlock implementation (Bert Belder)
+
+* win: redo/fix the uv_rwlock APIs (Bert Belder)
+
+* win: don't fetch function pointers to SRWLock APIs (Bert Belder)
+
+
 2015.09.12, Version 1.7.4 (Stable), a7ad4f52189d89cfcba35f78bfc5ff3b1f4105c4
 
 Changes since version 1.7.3:

@@ -199,8 +199,10 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   }
 
   *cpu_infos = uv__malloc(numcpus * sizeof(**cpu_infos));
-  if (!(*cpu_infos))
-    return -ENOMEM;  /* FIXME(bnoordhuis) Deallocate info? */
+  if (!(*cpu_infos)) {
+    vm_deallocate(mach_task_self(), (vm_address_t)info, msg_type);
+    return -ENOMEM;
+  }
 
   *count = numcpus;
 
