@@ -563,7 +563,7 @@ in the master process using the message system:
         console.log("numReqs =", numReqs);
       }, 1000);
 
-      // Count requestes
+      // Count requests
       function messageHandler(msg) {
         if (msg.cmd && msg.cmd == 'notifyRequest') {
           numReqs += 1;
