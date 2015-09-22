@@ -34,7 +34,6 @@
 import os, re, sys, string
 import optparse
 import jsmin
-import bz2
 import textwrap
 
 
