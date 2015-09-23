@@ -411,7 +411,7 @@ def try_check_compiler(cc, lang):
 #
 # The version of asm compiler is needed for building openssl asm files.
 # See deps/openssl/openssl.gypi for detail.
-# Commands and reglar expressions to obtain its version number is taken from
+# Commands and regular expressions to obtain its version number are taken from
 # https://github.com/openssl/openssl/blob/OpenSSL_1_0_2-stable/crypto/sha/asm/sha512-x86_64.pl#L112-L129
 #
 def get_llvm_version(cc):
@@ -483,7 +483,7 @@ def check_compiler(o):
     # to a version that is not completely ancient.
     warn('C compiler too old, need gcc 4.2 or clang 3.2 (CC=%s)' % CC)
 
-    # Need llvm_version or gas_version when openssl asm files are compiled
+  # Need llvm_version or gas_version when openssl asm files are compiled
   if options.without_ssl or options.openssl_no_asm or options.shared_openssl:
     return
 
