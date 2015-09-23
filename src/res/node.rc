@@ -53,8 +53,8 @@ BEGIN
             VALUE "CompanyName", "Joyent, Inc"
             VALUE "ProductName", "Node.js"
             VALUE "FileDescription", "Evented I/O for V8 JavaScript"
-            VALUE "FileVersion", NODE_VERSION_STRING
-            VALUE "ProductVersion", NODE_VERSION_STRING
+            VALUE "FileVersion", NODE_EXE_VERSION
+            VALUE "ProductVersion", NODE_EXE_VERSION
             VALUE "OriginalFilename", "node.exe"
             VALUE "InternalName", "node"
             VALUE "LegalCopyright", "Copyright Joyent, Inc. and other Node contributors. MIT license."
