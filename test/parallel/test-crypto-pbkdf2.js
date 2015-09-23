@@ -59,3 +59,31 @@ function ondone(err, key) {
 assert.throws(function() {
   crypto.pbkdf2('password', 'salt', 1, 20, null);
 });
+
+// Should not work with Infinity key length
+assert.throws(function() {
+  crypto.pbkdf2('password', 'salt', 1, Infinity, assert.fail);
+}, function(err) {
+  return err instanceof Error && err.message === 'Bad key length';
+});
+
+// Should not work with negative Infinity key length
+assert.throws(function() {
+  crypto.pbkdf2('password', 'salt', 1, -Infinity, assert.fail);
+}, function(err) {
+  return err instanceof Error && err.message === 'Bad key length';
+});
+
+// Should not work with NaN key length
+assert.throws(function() {
+  crypto.pbkdf2('password', 'salt', 1, NaN, assert.fail);
+}, function(err) {
+  return err instanceof Error && err.message === 'Bad key length';
+});
+
+// Should not work with negative key length
+assert.throws(function() {
+  crypto.pbkdf2('password', 'salt', 1, -1, assert.fail);
+}, function(err) {
+  return err instanceof Error && err.message === 'Bad key length';
+});
