@@ -19,6 +19,7 @@
 #include "CNNICHashWhitelist.inc"
 
 #include <errno.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -4760,7 +4761,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
   char* salt = nullptr;
   ssize_t passlen = -1;
   ssize_t saltlen = -1;
-  ssize_t keylen = -1;
+  double keylen = -1;
   ssize_t iter = -1;
   PBKDF2Request* req = nullptr;
   Local<Object> obj;
@@ -4813,8 +4814,8 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     goto err;
   }
 
-  keylen = args[3]->Int32Value();
-  if (keylen < 0) {
+  keylen = args[3]->NumberValue();
+  if (keylen < 0 || isnan(keylen) || isinf(keylen)) {
     type_error = "Bad key length";
     goto err;
   }
@@ -4841,7 +4842,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
                           saltlen,
                           salt,
                           iter,
-                          keylen);
+                          static_cast<ssize_t>(keylen));
 
   if (args[5]->IsFunction()) {
     obj->Set(env->ondone_string(), args[5]);
