@@ -150,6 +150,7 @@ extras_accessors = [
     'HeapObject, map, Map, kMapOffset',
     'JSObject, elements, Object, kElementsOffset',
     'FixedArray, data, uintptr_t, kHeaderSize',
+    'JSTypedArray, length, Object, kLengthOffset',
     'Map, instance_attributes, int, kInstanceAttributesOffset',
     'Map, inobject_properties, int, kInObjectPropertiesOffset',
     'Map, instance_size, int, kInstanceSizeOffset',
