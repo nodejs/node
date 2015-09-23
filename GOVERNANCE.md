@@ -19,8 +19,7 @@ had been active contributors to Node.js, and who have significant
 experience with the management of the Node.js project. Membership is
 expected to evolve over time according to the needs of the project.
 
-For the current list of TSC members, see the project
-[README.md](./README.md#current-project-team-members).
+[See the current list of TSC members](https://github.com/nodejs/TSC).
 
 ## Collaborators
 
