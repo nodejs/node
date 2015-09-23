@@ -115,6 +115,7 @@ using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::PropertyCallbackInfo;
+using v8::SealHandleScope;
 using v8::String;
 using v8::TryCatch;
 using v8::Uint32;
@@ -3755,19 +3756,23 @@ int Start(int argc, char** argv) {
     if (use_debug_agent)
       EnableDebug(env);
 
-    bool more;
-    do {
-      more = uv_run(env->event_loop(), UV_RUN_ONCE);
-      if (more == false) {
-        EmitBeforeExit(env);
+    {
+      SealHandleScope seal(node_isolate);
+      bool more;
+      do {
+        more = uv_run(env->event_loop(), UV_RUN_ONCE);
+        if (more == false) {
+          EmitBeforeExit(env);
 
-        // Emit `beforeExit` if the loop became alive either after emitting
-        // event, or after running some callbacks.
-        more = uv_loop_alive(env->event_loop());
-        if (uv_run(env->event_loop(), UV_RUN_NOWAIT) != 0)
-          more = true;
-      }
-    } while (more == true);
+          // Emit `beforeExit` if the loop became alive either after emitting
+          // event, or after running some callbacks.
+          more = uv_loop_alive(env->event_loop());
+          if (uv_run(env->event_loop(), UV_RUN_NOWAIT) != 0)
+            more = true;
+        }
+      } while (more == true);
+    }
+
     code = EmitExit(env);
     RunAtExit(env);
 
