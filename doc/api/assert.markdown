@@ -86,7 +86,7 @@ Custom error validation:
       "unexpected error"
     );
 
-## assert.doesNotThrow(block[, message])
+## assert.doesNotThrow(block[, error][, message])
 
 Expects `block` not to throw an error. See `assert.throws()` for details.
 
