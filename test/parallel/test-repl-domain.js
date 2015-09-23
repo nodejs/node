@@ -5,6 +5,8 @@ var common = require('../common');
 var util   = require('util');
 var repl   = require('repl');
 
+var PROMPT = '';
+
 // A stream to push an array into a REPL
 function ArrayStream() {
   this.run = function(data) {
@@ -21,16 +23,16 @@ ArrayStream.prototype.resume = function() {};
 ArrayStream.prototype.write = function() {};
 
 var putIn = new ArrayStream();
-var testMe = repl.start('', putIn);
+var testMe = repl.start(PROMPT, putIn);
 
 putIn.write = function(data) {
   // Don't use assert for this because the domain might catch it, and
   // give a false negative.  Don't throw, just print and exit.
-  if (data === 'OK\n') {
+  if (data === 'OK\n' || data === 'undefined\n' || data === PROMPT) {
     console.log('ok');
   }
   else {
-    console.error(data);
+    console.error('error:', data);
     process.exit(1);
   }
 };
