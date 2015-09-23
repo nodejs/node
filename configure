@@ -205,7 +205,7 @@ parser.add_option('--release-urlbase',
     dest='release_urlbase',
     help='Provide a custom URL prefix for the `process.release` properties '
          '`sourceUrl` and `headersUrl`. When compiling a release build, this '
-         'will default to https://iojs.org/download/release/')
+         'will default to https://nodejs.org/download/release/')
 
 parser.add_option('--v8-options',
     action='store',
