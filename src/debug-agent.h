@@ -22,10 +22,10 @@
 #ifndef SRC_DEBUG_AGENT_H_
 #define SRC_DEBUG_AGENT_H_
 
+#include "node.h"
 #include "util.h"
 #include "util-inl.h"
 #include "uv.h"
-#include "v8.h"
 #include "v8-debug.h"
 
 #include <string.h>
@@ -66,8 +66,8 @@ class AgentMessage {
 
 class Agent {
  public:
-  explicit Agent(node::Environment* env);
-  ~Agent();
+  NODE_EXTERN explicit Agent(node::Environment* env);
+  NODE_EXTERN ~Agent();
 
   typedef void (*DispatchHandler)(node::Environment* env);
 
