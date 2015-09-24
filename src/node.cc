@@ -2967,7 +2967,7 @@ void LoadEnvironment(Environment* env) {
   env->isolate()->AddMessageListener(OnMessage);
 
   // Compile, execute the src/node.js file. (Which was included as static C
-  // string in node_natives.h. 'natve_node' is the string containing that
+  // string in node_natives.h. 'native_node' is the string containing that
   // source code.)
 
   // The node.js file returns a function 'f'
