@@ -7,7 +7,7 @@ const http = require('http');
 const ee = new EventEmitter();
 var count = 3;
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   assert.doesNotThrow(function() {
     res.setHeader('testing_123', 123);
   });
@@ -18,7 +18,7 @@ var server = http.createServer(function(req, res) {
 });
 server.listen(common.PORT, function() {
 
-  http.get({port:common.PORT}, function() {
+  http.get({port: common.PORT}, function() {
     ee.emit('done');
   });
 
@@ -42,7 +42,7 @@ server.listen(common.PORT, function() {
         port: common.PORT,
         headers: {'testing_123': 123}
       };
-      http.get(options, function(res) {
+      http.get(options, function() {
         ee.emit('done');
       });
     }, TypeError
