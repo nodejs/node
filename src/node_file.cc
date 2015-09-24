@@ -273,8 +273,10 @@ struct fs_req_wrap {
     uv_req->result = err;                                                     \
     uv_req->path = nullptr;                                                   \
     After(uv_req);                                                            \
-  }                                                                           \
-  args.GetReturnValue().Set(req_wrap->persistent());
+    req_wrap = nullptr;                                                       \
+  } else {                                                                    \
+    args.GetReturnValue().Set(req_wrap->persistent());                        \
+  }
 
 #define ASYNC_CALL(func, req, ...)                                            \
   ASYNC_DEST_CALL(func, req, nullptr, __VA_ARGS__)                            \
@@ -1028,6 +1030,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
     uv_req->result = err;
     uv_req->path = nullptr;
     After(uv_req);
+    return;
   }
 
   return args.GetReturnValue().Set(req_wrap->persistent());
