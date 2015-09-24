@@ -90,7 +90,7 @@ The TC should serve as the final arbiter where required.
 Always modify the original commit message to include additional meta
 information regarding the change process:
 
-- A `Reviewed-By: Name <email>` line for yourself and any
+- A `Reviewed-By: @{Github username}` line for yourself and any
   other Collaborators who have reviewed the change.
 - A `PR-URL:` line that references the full GitHub URL of the original
   pull request being merged so it's easy to trace a commit back to the
