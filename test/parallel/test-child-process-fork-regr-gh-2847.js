@@ -1,7 +1,7 @@
 'use strict';
 
-const assert = require('assert');
 const common = require('../common');
+const assert = require('assert');
 
 const cluster = require('cluster');
 const net = require('net');
@@ -25,8 +25,6 @@ var server = net.createServer(function(s) {
   function send(callback) {
     var s = net.connect(common.PORT, function() {
       worker.send({}, s, callback);
-    });
-    s.on('error', function() {
     });
   }
 
