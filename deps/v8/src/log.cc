@@ -147,7 +147,7 @@ class CodeEventLogger::NameBuffer {
 
  private:
   static const int kUtf8BufferSize = 512;
-  static const int kUtf16BufferSize = 128;
+  static const int kUtf16BufferSize = kUtf8BufferSize;
 
   int utf8_pos_;
   char utf8_buffer_[kUtf8BufferSize];
