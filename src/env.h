@@ -39,7 +39,7 @@ namespace node {
 #endif
 
 // Strings are per-isolate primitives but Environment proxies them
-// for the sake of convenience.
+// for the sake of convenience.  Strings should be ASCII-only.
 #define PER_ISOLATE_STRING_PROPERTIES(V)                                      \
   V(address_string, "address")                                                \
   V(args_string, "args")                                                      \
