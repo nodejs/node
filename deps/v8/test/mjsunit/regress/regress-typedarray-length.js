@@ -71,6 +71,43 @@ assertEquals(undefined, get(a));
   assertEquals(undefined, get(a));
 })();
 
+(function() {
+  "use strict";
+
+  class MyTypedArray extends Int32Array {
+    constructor(length) {
+      super(length);
+    }
+  }
+
+  a = new MyTypedArray(1024);
+
+  get = function(a) {
+    return a.length;
+  }
+
+  assertEquals(1024, get(a));
+  assertEquals(1024, get(a));
+  assertEquals(1024, get(a));
+  %OptimizeFunctionOnNextCall(get);
+  assertEquals(1024, get(a));
+})();
+
+(function() {
+  "use strict";
+  var a = new Uint8Array(4);
+  Object.defineProperty(a, "length", {get: function() { return "blah"; }});
+  get = function(a) {
+    return a.length;
+  }
+
+  assertEquals("blah", get(a));
+  assertEquals("blah", get(a));
+  assertEquals("blah", get(a));
+  %OptimizeFunctionOnNextCall(get);
+  assertEquals("blah", get(a));
+})();
+
 // Ensure we cannot delete length, byteOffset, byteLength.
 assertTrue(Int32Array.prototype.hasOwnProperty("length"));
 assertTrue(Int32Array.prototype.hasOwnProperty("byteOffset"));
