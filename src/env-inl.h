@@ -36,12 +36,26 @@ inline void Environment::IsolateData::Put() {
   }
 }
 
+// Create string properties as internalized one byte strings.
+//
+// Internalized because it makes property lookups a little faster and because
+// the string is created in the old space straight away.  It's going to end up
+// in the old space sooner or later anyway but now it doesn't go through
+// v8::Eternal's new space handling first.
+//
+// One byte because our strings are ASCII and we can safely skip V8's UTF-8
+// decoding step.  It's a one-time cost, but why pay it when you don't have to?
 inline Environment::IsolateData::IsolateData(v8::Isolate* isolate,
                                              uv_loop_t* loop)
     : event_loop_(loop),
       isolate_(isolate),
 #define V(PropertyName, StringValue)                                          \
-    PropertyName ## _(isolate, FIXED_ONE_BYTE_STRING(isolate, StringValue)),
+    PropertyName ## _(isolate,                                                \
+                      v8::String::NewFromOneByte(                             \
+                          isolate,                                            \
+                          reinterpret_cast<const uint8_t*>(StringValue),      \
+                          v8::NewStringType::kInternalized,                   \
+                          sizeof(StringValue) - 1).ToLocalChecked()),
     PER_ISOLATE_STRING_PROPERTIES(V)
 #undef V
     ref_count_(0) {}
