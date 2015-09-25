@@ -3,7 +3,7 @@ var common = require('../common');
 var assert = require('assert');
 var http = require('http');
 
-for (var path of ['bad path', 'line\nfeed', 'carriage\rreturn']) {
+for (var path of ['bad path', 'line\nfeed', 'carriage\rreturn', 'tab\t']) {
   assert.throws(
     function() { http.get({ path: path }, assert.fail); },
     /contains unescaped characters/,
