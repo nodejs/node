@@ -7,7 +7,10 @@
 
 {
   'variables': {
-    'icu_src_derb': [ '../../deps/icu/source/tools/genrb/derb.c' ],
+    'icu_src_derb': [
+      '../../deps/icu/source/tools/genrb/derb.c',
+      '../../deps/icu/source/tools/genrb/derb.cpp'
+    ],
   },
   'includes': [ '../../icu_config.gypi' ],
   'targets': [
