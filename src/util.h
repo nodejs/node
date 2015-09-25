@@ -4,6 +4,7 @@
 #include "v8.h"
 
 #include <assert.h>
+#include <signal.h>
 #include <stddef.h>
 #include <stdlib.h>
 
