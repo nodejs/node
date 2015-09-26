@@ -34,7 +34,7 @@ server.listen(common.PORT, function() {
   }, function(res) {
     var timer;
     res.pause();
-    common.debug('paused');
+    console.error('paused');
     send();
     function send() {
       if (req.write(new Buffer(bufSize))) {
@@ -43,10 +43,10 @@ server.listen(common.PORT, function() {
         return process.nextTick(send);
       }
       sent += bufSize;
-      common.debug('sent: ' + sent);
+      console.error('sent: ' + sent);
       resumed = true;
       res.resume();
-      common.debug('resumed');
+      console.error('resumed');
       timer = setTimeout(function() {
         process.exit(1);
       }, 1000);
@@ -60,7 +60,7 @@ server.listen(common.PORT, function() {
       }
       received += data.length;
       if (received >= sent) {
-        common.debug('received: ' + received);
+        console.error('received: ' + received);
         req.end();
         server.close();
       }

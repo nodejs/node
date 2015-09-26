@@ -326,7 +326,6 @@ function test_deep_symlink_mix(callback) {
       [fixturesAbsDir + '/nested-index/two/realpath-c',
         '../../../' + common.tmpDirName + '/cycles/root.js']
     ].forEach(function(t) {
-      //common.debug('setting up '+t[0]+' -> '+t[1]);
       try { fs.unlinkSync(t[0]); } catch (e) {}
       fs.symlinkSync(t[1], t[0]);
       unlink.push(t[0]);

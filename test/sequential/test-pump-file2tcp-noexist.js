@@ -17,8 +17,8 @@ var server = net.createServer(function(stream) {
     if (err) {
       got_error = true;
     } else {
-      common.debug('util.pump\'s callback fired with no error');
-      common.debug('this shouldn\'t happen as the file doesn\'t exist...');
+      console.error('util.pump\'s callback fired with no error');
+      console.error('this shouldn\'t happen as the file doesn\'t exist...');
       assert.equal(true, false);
     }
     server.close();
