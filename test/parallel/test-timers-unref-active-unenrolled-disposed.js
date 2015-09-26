@@ -24,8 +24,6 @@ someTimer._onTimeout = function() {
 };
 
 endTest._onTimeout = common.mustCall(function() {
-  assert.strictEqual(someTimer._idlePrev, null);
-  assert.strictEqual(someTimer._idleNext, null);
   clearTimeout(keepOpen);
 });
 
