@@ -163,24 +163,20 @@ void CallbackInfo::WeakCallback(Isolate* isolate, Local<Object> object) {
 // Buffer methods
 
 bool HasInstance(Local<Value> val) {
-  return val->IsObject() && HasInstance(val.As<Object>());
+  return val->IsUint8Array();
 }
 
 
 bool HasInstance(Local<Object> obj) {
-  if (!obj->IsUint8Array())
-    return false;
-  Local<Uint8Array> array = obj.As<Uint8Array>();
-  Environment* env = Environment::GetCurrent(array->GetIsolate());
-  return array->GetPrototype()->StrictEquals(env->buffer_prototype_object());
+  return obj->IsUint8Array();
 }
 
 
 char* Data(Local<Value> val) {
-  CHECK(val->IsObject());
-  // Use a fully qualified name here to work around a bug in gcc 4.2.
-  // It mistakes an unadorned call to Data() for the v8::String::Data type.
-  return node::Buffer::Data(val.As<Object>());
+  CHECK(val->IsUint8Array());
+  Local<Uint8Array> ui = val.As<Uint8Array>();
+  ArrayBuffer::Contents ab_c = ui->Buffer()->GetContents();
+  return static_cast<char*>(ab_c.Data()) + ui->ByteOffset();
 }
 
 
@@ -193,8 +189,9 @@ char* Data(Local<Object> obj) {
 
 
 size_t Length(Local<Value> val) {
-  CHECK(val->IsObject());
-  return Length(val.As<Object>());
+  CHECK(val->IsUint8Array());
+  Local<Uint8Array> ui = val.As<Uint8Array>();
+  return ui->ByteLength();
 }
 
 
