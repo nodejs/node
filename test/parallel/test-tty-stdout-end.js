@@ -9,7 +9,7 @@ try {
   process.stdout.end();
 } catch (e) {
   exceptionCaught = true;
-  assert.ok(common.isError(e));
+  assert.ok(e instanceof Error);
   assert.equal('process.stdout cannot be closed.', e.message);
 }
 
