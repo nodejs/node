@@ -4,10 +4,6 @@ var assert = require('assert');
 var http = require('http');
 var url = require('url');
 
-function p(x) {
-  common.error(common.inspect(x));
-}
-
 var responses_sent = 0;
 var responses_recvd = 0;
 var body0 = '';
