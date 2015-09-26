@@ -54,7 +54,7 @@ server.listen(common.PORT, function() {
     responses_recvd += 1;
     res.setEncoding('utf8');
     res.on('data', function(chunk) { body0 += chunk; });
-    common.debug('Got /hello response');
+    console.error('Got /hello response');
   });
 
   setTimeout(function() {
@@ -65,16 +65,16 @@ server.listen(common.PORT, function() {
       responses_recvd += 1;
       res.setEncoding('utf8');
       res.on('data', function(chunk) { body1 += chunk; });
-      common.debug('Got /world response');
+      console.error('Got /world response');
     });
   }, 1);
 });
 
 process.on('exit', function() {
-  common.debug('responses_recvd: ' + responses_recvd);
+  console.error('responses_recvd: ' + responses_recvd);
   assert.equal(2, responses_recvd);
 
-  common.debug('responses_sent: ' + responses_sent);
+  console.error('responses_sent: ' + responses_sent);
   assert.equal(2, responses_sent);
 
   assert.equal('The path was /hello', body0);
