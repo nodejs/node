@@ -65,5 +65,5 @@ server.listen(common.PORT);
 
 process.on('exit', function() {
   assert.equal(N, recv.length);
-  common.debug('Exit');
+  console.error('Exit');
 });

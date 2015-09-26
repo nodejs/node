@@ -35,7 +35,7 @@ server.listen(common.PORT, function() {
     peerCert = socket.getPeerCertificate(true);
     assert.ok(peerCert.issuerCertificate);
 
-    common.debug(util.inspect(peerCert));
+    console.error(util.inspect(peerCert));
     assert.equal(peerCert.subject.emailAddress, 'ry@tinyclouds.org');
     assert.equal(peerCert.serialNumber, '9A84ABCFB8A72AC0');
     assert.equal(peerCert.exponent, '0x10001');

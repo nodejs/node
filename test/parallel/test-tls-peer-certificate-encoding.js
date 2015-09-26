@@ -30,7 +30,7 @@ server.listen(common.PORT, function() {
   }, function() {
     var peerCert = socket.getPeerCertificate();
 
-    common.debug(util.inspect(peerCert));
+    console.error(util.inspect(peerCert));
     assert.equal(peerCert.subject.CN, 'Ádám Lippai');
     verified = true;
     server.close();
