@@ -24,7 +24,7 @@ server.on('listening', function() {
   var client = net.createConnection(common.PORT);
   client.setEncoding('ascii');
   client.on('data', function(d) {
-    common.print(d);
+    console.log(d);
     recv += d;
   });
 
