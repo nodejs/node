@@ -5322,10 +5322,12 @@ void InitCryptoOnce() {
   CRYPTO_THREADID_set_callback(crypto_threadid_cb);
 
 #ifdef OPENSSL_FIPS
-  if (!FIPS_mode_set(1)) {
-    int err = ERR_get_error();
-    fprintf(stderr, "openssl fips failed: %s\n", ERR_error_string(err, NULL));
-    UNREACHABLE();
+  if (FIPS_mode()) {
+    if (!FIPS_mode_set(1)) {
+       int err = ERR_get_error();
+       fprintf(stderr, "openssl fips failed: %s\n", ERR_error_string(err, NULL));
+       UNREACHABLE();
+    }
   }
 #endif  // OPENSSL_FIPS
 
