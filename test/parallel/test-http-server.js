@@ -23,21 +23,17 @@ var server = http.createServer(function(req, res) {
   }
 
   if (req.id == 1) {
-    common.error('req 1');
     assert.equal('POST', req.method);
     assert.equal('/quit', url.parse(req.url).pathname);
   }
 
   if (req.id == 2) {
-    common.error('req 2');
     assert.equal('foo', req.headers['x-x']);
   }
 
   if (req.id == 3) {
-    common.error('req 3');
     assert.equal('bar', req.headers['x-x']);
     this.close();
-    common.error('server closed');
   }
 
   setTimeout(function() {
