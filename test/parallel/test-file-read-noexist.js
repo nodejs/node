@@ -10,8 +10,8 @@ fs.readFile(filename, 'raw', function(err, content) {
   if (err) {
     got_error = true;
   } else {
-    common.debug('cat returned some content: ' + content);
-    common.debug('this shouldn\'t happen as the file doesn\'t exist...');
+    console.error('cat returned some content: ' + content);
+    console.error('this shouldn\'t happen as the file doesn\'t exist...');
     assert.equal(true, false);
   }
 });

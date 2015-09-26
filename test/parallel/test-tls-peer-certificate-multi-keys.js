@@ -28,7 +28,7 @@ server.listen(common.PORT, function() {
     rejectUnauthorized: false
   }, function() {
     var peerCert = socket.getPeerCertificate();
-    common.debug(util.inspect(peerCert));
+    console.error(util.inspect(peerCert));
     assert.deepEqual(peerCert.subject.OU,
                      ['Information Technology', 'Engineering', 'Marketing']);
     verified = true;

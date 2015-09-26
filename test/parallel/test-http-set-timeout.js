@@ -10,7 +10,7 @@ var server = http.createServer(function(req, res) {
   assert.ok(s instanceof net.Socket);
   req.connection.on('timeout', function() {
     req.connection.destroy();
-    common.debug('TIMEOUT');
+    console.error('TIMEOUT');
     server.close();
   });
 });
