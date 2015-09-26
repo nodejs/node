@@ -19,7 +19,7 @@ for (var i = 0; i < bytes; i++) {
 var server = net.createServer(function(c) {
   console.log('connected');
   total_connections++;
-  common.print('#');
+  console.log('#');
   c.write(body);
   c.end();
 });
@@ -32,7 +32,7 @@ function runClient(callback) {
   client.setEncoding('utf8');
 
   client.on('connect', function() {
-    common.print('c');
+    console.log('c');
     client.recved = '';
     client.connections += 1;
   });
@@ -51,7 +51,7 @@ function runClient(callback) {
   });
 
   client.on('close', function(had_error) {
-    common.print('.');
+    console.log('.');
     assert.equal(false, had_error);
     assert.equal(bytes, client.recved.length);
 
