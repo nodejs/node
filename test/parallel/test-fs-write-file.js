@@ -8,8 +8,6 @@ common.refreshTmpDir();
 
 var filename = join(common.tmpDir, 'test.txt');
 
-common.error('writing to ' + filename);
-
 var n = 220;
 var s = '南越国是前203年至前111年存在于岭南地区的一个国家，国都位于番禺，疆域包括今天中国的广东、' +
         '广西两省区的大部份地区，福建省、湖南、贵州、云南的一小部份地区和越南的北部。' +
@@ -25,11 +23,9 @@ fs.writeFile(filename, s, function(e) {
   if (e) throw e;
 
   ncallbacks++;
-  common.error('file written');
 
   fs.readFile(filename, function(e, buffer) {
     if (e) throw e;
-    common.error('file read');
     ncallbacks++;
     assert.equal(Buffer.byteLength(s), buffer.length);
   });
@@ -38,17 +34,14 @@ fs.writeFile(filename, s, function(e) {
 // test that writeFile accepts buffers
 var filename2 = join(common.tmpDir, 'test2.txt');
 var buf = new Buffer(s, 'utf8');
-common.error('writing to ' + filename2);
 
 fs.writeFile(filename2, buf, function(e) {
   if (e) throw e;
 
   ncallbacks++;
-  common.error('file2 written');
 
   fs.readFile(filename2, function(e, buffer) {
     if (e) throw e;
-    common.error('file2 read');
     ncallbacks++;
     assert.equal(buf.length, buffer.length);
   });
@@ -56,7 +49,6 @@ fs.writeFile(filename2, buf, function(e) {
 
 // test that writeFile accepts numbers.
 var filename3 = join(common.tmpDir, 'test3.txt');
-common.error('writing to ' + filename3);
 
 var m = 0o600;
 fs.writeFile(filename3, n, { mode: m }, function(e) {
@@ -69,11 +61,9 @@ fs.writeFile(filename3, n, { mode: m }, function(e) {
   }
 
   ncallbacks++;
-  common.error('file3 written');
 
   fs.readFile(filename3, function(e, buffer) {
     if (e) throw e;
-    common.error('file3 read');
     ncallbacks++;
     assert.equal(Buffer.byteLength('' + n), buffer.length);
   });
@@ -81,7 +71,6 @@ fs.writeFile(filename3, n, { mode: m }, function(e) {
 
 
 process.on('exit', function() {
-  common.error('done');
   assert.equal(6, ncallbacks);
 
   fs.unlinkSync(filename);

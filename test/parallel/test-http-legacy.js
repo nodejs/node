@@ -4,10 +4,6 @@ var assert = require('assert');
 var http = require('http');
 var url = require('url');
 
-function p(x) {
-  common.error(common.inspect(x));
-}
-
 var responses_sent = 0;
 var responses_recvd = 0;
 var body0 = '';
@@ -39,8 +35,6 @@ var server = http.createServer(function(req, res) {
     responses_sent += 1;
   });
   req.resume();
-
-  //assert.equal('127.0.0.1', res.connection.remoteAddress);
 });
 
 server.listen(common.PORT, function() {
