@@ -648,6 +648,7 @@ Will print something like:
       zlib: '1.2.8',
       ares: '1.10.0-DEV',
       modules: '43',
+      icu: '55.1',
       openssl: '1.0.1k' }
 
 ## process.config

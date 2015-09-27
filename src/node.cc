@@ -52,6 +52,10 @@
 #include <string.h>
 #include <sys/types.h>
 
+#if defined(NODE_HAVE_I18N_SUPPORT)
+#include <unicode/uvernum.h>
+#endif
+
 #if defined(LEAK_SANITIZER)
 #include <sanitizer/lsan_interface.h>
 #endif
@@ -2668,6 +2672,12 @@ void SetupProcessObject(Environment* env,
   READONLY_PROPERTY(versions,
                     "ares",
                     FIXED_ONE_BYTE_STRING(env->isolate(), ARES_VERSION_STR));
+
+#if defined(NODE_HAVE_I18N_SUPPORT) && defined(U_ICU_VERSION)
+  READONLY_PROPERTY(versions,
+                    "icu",
+                    OneByteString(env->isolate(), U_ICU_VERSION));
+#endif
 
   const char node_modules_version[] = NODE_STRINGIFY(NODE_MODULE_VERSION);
   READONLY_PROPERTY(
