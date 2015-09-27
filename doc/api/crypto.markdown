@@ -651,13 +651,8 @@ Generates cryptographically strong pseudo-random data. Usage:
     });
 
     // sync
-    try {
-      var buf = crypto.randomBytes(256);
-      console.log('Have %d bytes of random data: %s', buf.length, buf);
-    } catch (ex) {
-      // handle error
-      // most likely, entropy sources are drained
-    }
+    const buf = crypto.randomBytes(256);
+    console.log('Have %d bytes of random data: %s', buf.length, buf);
 
 NOTE: This will block if there is insufficient entropy, although it should
 normally never take longer than a few milliseconds. The only time when this
