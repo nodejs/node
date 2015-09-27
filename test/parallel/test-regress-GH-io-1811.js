@@ -1,5 +1,6 @@
 'use strict';
 
+require('../common');
 const assert = require('assert');
 
 // Change kMaxLength for zlib to trigger the error without having to allocate

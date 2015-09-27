@@ -2,6 +2,7 @@
 /*
  * This test is a regression test for joyent/node#8900.
  */
+require('../common');
 var assert = require('assert');
 
 var N = 5;
