@@ -1,4 +1,5 @@
 'use strict';
+require('../common');
 var EventEmitter = require('events').EventEmitter;
 var PassThrough = require('stream').PassThrough;
 var assert = require('assert');

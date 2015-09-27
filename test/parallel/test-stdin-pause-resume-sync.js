@@ -1,4 +1,5 @@
 'use strict';
+require('../common');
 console.error('before opening stdin');
 process.stdin.resume();
 console.error('stdin opened');
