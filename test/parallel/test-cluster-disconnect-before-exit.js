@@ -1,4 +1,5 @@
 'use strict';
+require('../common');
 var cluster = require('cluster');
 
 if (cluster.isMaster) {

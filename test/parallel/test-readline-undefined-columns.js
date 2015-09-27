@@ -1,5 +1,6 @@
 'use strict';
 
+require('../common');
 const assert = require('assert');
 const PassThrough = require('stream').PassThrough;
 const readline = require('readline');
