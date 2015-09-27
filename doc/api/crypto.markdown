@@ -650,6 +650,10 @@ Generates cryptographically strong pseudo-random data. Usage:
       console.log('Have %d bytes of random data: %s', buf.length, buf);
     });
 
+    // sync
+    var buf = crypto.randomBytes(256);
+    console.log('Have %d bytes of random data: %s', buf.length, buf);
+
 NOTE: This will block if there is insufficient entropy, although it should
 normally never take longer than a few milliseconds. The only time when this
 may conceivably block is right after boot, when the whole system is still
