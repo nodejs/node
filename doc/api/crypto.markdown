@@ -660,9 +660,9 @@ Generates cryptographically strong pseudo-random data. Usage:
     }
 
 NOTE: This will block if there is insufficient entropy, although it should
-normally never take longer than a few milliseconds. The only time when this
-may conceivably block is right after boot, when the whole system is still
-low on entropy.
+normally never take longer than a few milliseconds. 
+Under normal circumstances, the only error thrown from this is from RAND_bytes(), which throws when it doesn't have enough entropy.
+However, with CheckEntropy, this will block until the system has enough entropy for the OpenSSL pool.
 
 ## Class: Certificate
 
