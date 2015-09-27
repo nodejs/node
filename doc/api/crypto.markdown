@@ -651,7 +651,6 @@ Generates cryptographically strong pseudo-random data. Usage:
     });
 
     // sync
-    // Implementation of handling errors is recommended.
     var buf = crypto.randomBytes(256);
     console.log('Have %d bytes of random data: %s', buf.length, buf);
 
