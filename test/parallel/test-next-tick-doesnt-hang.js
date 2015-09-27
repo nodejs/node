@@ -4,6 +4,7 @@
  * does not hang the event loop. If this test times out it has failed.
  */
 
+require('../common');
 process.nextTick(function() {
   // Nothing
 });

@@ -1,6 +1,7 @@
 'use strict';
 // Make sure the domain stack doesn't get clobbered by un-matched .exit()
 
+require('../common');
 var assert = require('assert');
 var domain = require('domain');
 
