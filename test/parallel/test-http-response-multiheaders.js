@@ -1,7 +1,7 @@
 'use strict';
 
-const http = require('http');
 const common = require('../common');
+const http = require('http');
 const assert = require('assert');
 
 // Test that certain response header fields do not repeat
@@ -22,12 +22,12 @@ const server = http.createServer(function(req, res) {
   res.end('ok');
 });
 
-server.listen(common.PORT, function() {
-  http.get({port:common.PORT}, function(res) {
+server.listen(common.PORT, common.mustCall(function() {
+  http.get({port:common.PORT}, common.mustCall(function(res) {
+    server.close();
     for (let name of norepeat) {
       assert.equal(res.headers[name], 'A');
     }
     assert.equal(res.headers['x-a'], 'A, B');
-    server.close();
-  });
-});
+  }));
+}));
