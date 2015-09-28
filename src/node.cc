@@ -909,6 +909,33 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
 #endif
 
 
+static bool IsDomainActive(const Environment* env) {
+  if (!env->using_domains()) {
+    return false;
+  }
+
+  Local<Array> domain_array = env->domain_array().As<Array>();
+  uint32_t domains_array_length = domain_array->Length();
+  if (domains_array_length == 0)
+    return false;
+
+  Local<Value> domain_v = domain_array->Get(0);
+  return !domain_v->IsNull();
+}
+
+
+bool ShouldAbortOnUncaughtException(v8::Isolate* isolate) {
+  Environment* env = Environment::GetCurrent(isolate);
+  Local<Object> process_object = env->process_object();
+  Local<String> emitting_top_level_domain_error_key =
+    env->emitting_top_level_domain_error_string();
+  bool isEmittingTopLevelDomainError =
+    process_object->Get(emitting_top_level_domain_error_key)->BooleanValue();
+
+  return !IsDomainActive(env) || isEmittingTopLevelDomainError;
+}
+
+
 void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
@@ -2772,6 +2799,9 @@ void SetupProcessObject(Environment* env,
 
   // pre-set _events object for faster emit checks
   process->Set(env->events_string(), Object::New(env->isolate()));
+
+  process->Set(env->emitting_top_level_domain_error_string(),
+               False(env->isolate()));
 }
 
 
@@ -3452,6 +3482,8 @@ void Init(int* argc,
   // even when we need it to access it from another (debugger) thread.
   node_isolate = Isolate::New();
   Isolate::Scope isolate_scope(node_isolate);
+
+  node_isolate->SetAbortOnUncaughtException(ShouldAbortOnUncaughtException);
 
 #ifdef __POSIX__
   // Raise the open file descriptor limit.
