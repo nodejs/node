@@ -707,6 +707,9 @@ class Isolate {
       int frame_limit,
       StackTrace::StackTraceOptions options);
 
+  typedef bool (*abort_on_uncaught_exception_t)(v8::Isolate*);
+  void SetAbortOnUncaughtException(abort_on_uncaught_exception_t callback);
+
   void PrintCurrentStackTrace(FILE* out);
   void PrintStack(StringStream* accumulator);
   void PrintStack(FILE* out);
@@ -1330,6 +1333,8 @@ class Isolate {
   List<CallCompletedCallback> call_completed_callbacks_;
 
   v8::Isolate::UseCounterCallback use_counter_callback_;
+
+  abort_on_uncaught_exception_t abort_on_uncaught_exception_callback_;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;
