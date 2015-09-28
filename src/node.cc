@@ -3226,6 +3226,13 @@ void LoadEnvironment(Environment* env) {
   f->Call(global, 1, &arg);
 }
 
+
+void FreeEnvironment(Environment* env) {
+  CHECK_NE(env, nullptr);
+  env->Dispose();
+}
+
+
 static void PrintHelp();
 
 static bool ParseDebugOpt(const char* arg) {
