@@ -633,9 +633,7 @@ the event.
 The `fs.watch` API is not 100% consistent across platforms, and is
 unavailable in some situations.
 
-The recursive option is currently supported on OS X and Windows. Only FSEvents
- supports this type of file watching so it is unlikely any additional platforms
- will be added soon.
+The recursive option is only supported on OS X and Windows.
 
 #### Availability
 
@@ -662,11 +660,10 @@ less reliable.
 
 <!--type=misc-->
 
-Providing `filename` argument in the callback is not supported
-on every platform (currently it's only supported on Linux and Windows).  Even
-on supported platforms `filename` is not always guaranteed to be provided.
-Therefore, don't assume that `filename` argument is always provided in the
-callback, and have some fallback logic if it is null.
+Providing `filename` argument in the callback is only supported on Linux and 
+Windows.  Even on supported platforms, `filename` is not always guaranteed to
+be provided. Therefore, don't assume that `filename` argument is always
+provided in the callback, and have some fallback logic if it is null.
 
     fs.watch('somedir', function (event, filename) {
       console.log('event is: ' + event);
