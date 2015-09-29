@@ -367,8 +367,25 @@
         # things when their commandline changes). Nothing should ever read this
         # define.
         'defines': ['CR_CLANG_REVISION=<!(<(DEPTH)/tools/clang/scripts/update.sh --print-revision)'],
-        'cflags+': [
-          '-Wno-format-pedantic',
+        'conditions': [
+          ['host_clang==1', {
+            'target_conditions': [
+              ['_toolset=="host"', {
+                'cflags+': [
+                  '-Wno-format-pedantic',
+                 ],
+              }],
+           ],
+          }],
+          ['clang==1', {
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'cflags+': [
+                  '-Wno-format-pedantic',
+                 ],
+              }],
+           ],
+          }],
         ],
       }],
     ],
