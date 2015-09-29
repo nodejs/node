@@ -115,6 +115,7 @@
         'src/node_javascript.cc',
         'src/node_main.cc',
         'src/node_os.cc',
+        'src/node_util.cc',
         'src/node_v8.cc',
         'src/node_stat_watcher.cc',
         'src/node_watchdog.cc',

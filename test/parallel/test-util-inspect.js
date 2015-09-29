@@ -287,6 +287,26 @@ global.Promise = function() { this.bar = 42; };
 assert.equal(util.inspect(new Promise()), '{ bar: 42 }');
 global.Promise = oldPromise;
 
+// Map/Set Iterators
+var m = new Map([['foo', 'bar']]);
+assert.strictEqual(util.inspect(m.keys()), 'MapIterator { \'foo\' }');
+assert.strictEqual(util.inspect(m.values()), 'MapIterator { \'bar\' }');
+assert.strictEqual(util.inspect(m.entries()),
+                   'MapIterator { [ \'foo\', \'bar\' ] }');
+// make sure the iterator doesn't get consumed
+var keys = m.keys();
+assert.strictEqual(util.inspect(keys), 'MapIterator { \'foo\' }');
+assert.strictEqual(util.inspect(keys), 'MapIterator { \'foo\' }');
+
+var s = new Set([1, 3]);
+assert.strictEqual(util.inspect(s.keys()), 'SetIterator { 1, 3 }');
+assert.strictEqual(util.inspect(s.values()), 'SetIterator { 1, 3 }');
+assert.strictEqual(util.inspect(s.entries()),
+                   'SetIterator { [ 1, 1 ], [ 3, 3 ] }');
+// make sure the iterator doesn't get consumed
+keys = s.keys();
+assert.strictEqual(util.inspect(keys), 'SetIterator { 1, 3 }');
+assert.strictEqual(util.inspect(keys), 'SetIterator { 1, 3 }');
 
 // Test alignment of items in container
 // Assumes that the first numeric character is the start of an item.
