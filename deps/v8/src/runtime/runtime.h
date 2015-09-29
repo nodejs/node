@@ -483,7 +483,8 @@ namespace internal {
   F(IsStrong, 1, 1)                                  \
   F(ClassOf, 1, 1)                                   \
   F(DefineGetterPropertyUnchecked, 4, 1)             \
-  F(DefineSetterPropertyUnchecked, 4, 1)
+  F(DefineSetterPropertyUnchecked, 4, 1)             \
+  F(IsAccessCheckNeeded, 1, 1)
 
 
 #define FOR_EACH_INTRINSIC_OBSERVE(F)            \

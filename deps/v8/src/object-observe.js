@@ -389,6 +389,8 @@ function ObjectObserve(object, callback, acceptList) {
     throw MakeTypeError(kObserveNonObject, "observe", "observe");
   if (%IsJSGlobalProxy(object))
     throw MakeTypeError(kObserveGlobalProxy, "observe");
+  if (%IsAccessCheckNeeded(object))
+    throw MakeTypeError(kObserveAccessChecked, "observe");
   if (!IS_SPEC_FUNCTION(callback))
     throw MakeTypeError(kObserveNonFunction, "observe");
   if (ObjectIsFrozen(callback))
@@ -617,6 +619,8 @@ function ObjectGetNotifier(object) {
     throw MakeTypeError(kObserveNonObject, "getNotifier", "getNotifier");
   if (%IsJSGlobalProxy(object))
     throw MakeTypeError(kObserveGlobalProxy, "getNotifier");
+  if (%IsAccessCheckNeeded(object))
+    throw MakeTypeError(kObserveAccessChecked, "getNotifier");
 
   if (ObjectIsFrozen(object)) return null;
 
