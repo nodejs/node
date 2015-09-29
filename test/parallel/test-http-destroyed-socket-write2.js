@@ -40,7 +40,11 @@ server.listen(common.PORT, function() {
   var sawEnd = false;
 
   req.on('error', function(er) {
-    assert(!gotError);
+
+    // Each failed write will cause an error, but
+    // we are only interested in one
+    if (gotError) return;
+
     gotError = true;
     switch (er.code) {
       // This is the expected case
