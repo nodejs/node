@@ -675,6 +675,10 @@ def configure_node(o):
   elif target_arch in ('mips', 'mipsel'):
     configure_mips(o)
 
+  if flavor == 'aix':
+    o['variables']['node_core_target_name'] = 'node_base'
+    o['variables']['node_target_type'] = 'static_library'
+
   if flavor in ('solaris', 'mac', 'linux', 'freebsd'):
     use_dtrace = not options.without_dtrace
     # Don't enable by default on linux and freebsd
