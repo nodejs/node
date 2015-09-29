@@ -13,6 +13,7 @@
     'node_shared_openssl%': 'false',
     'node_v8_options%': '',
     'node_target_type%': 'executable',
+    'node_core_target_name%': 'node',
     'library_files': [
       'src/node.js',
       'lib/_debug_agent.js',
@@ -79,7 +80,7 @@
 
   'targets': [
     {
-      'target_name': 'node',
+      'target_name': '<(node_core_target_name)',
       'type': '<(node_target_type)',
 
       'dependencies': [
@@ -666,5 +667,53 @@
         'test/cctest/util.cc',
       ],
     }
-  ] # end targets
+  ], # end targets
+
+  'conditions': [
+    ['OS=="aix"', {
+      'targets': [
+        {
+          'target_name': 'node',
+          'type': 'executable',
+          'dependencies': ['<(node_core_target_name)', 'node_exp'],
+
+          'include_dirs': [
+            'src',
+            'deps/v8/include',
+          ],
+
+          'sources': [
+            'src/node_main.cc',
+            '<@(library_files)',
+            # node.gyp is added to the project by default.
+            'common.gypi',
+          ],
+
+          'ldflags': ['-Wl,-bbigtoc,-bE:<(PRODUCT_DIR)/node.exp'],
+        },
+        {
+          'target_name': 'node_exp',
+          'type': 'none',
+          'dependencies': [
+            '<(node_core_target_name)',
+          ],
+          'actions': [
+            {
+              'action_name': 'expfile',
+              'inputs': [
+                '<(OBJ_DIR)'
+              ],
+              'outputs': [
+                '<(PRODUCT_DIR)/node.exp'
+              ],
+              'action': [
+                'sh', 'tools/create_expfile.sh',
+                      '<@(_inputs)', '<@(_outputs)'
+              ],
+            }
+          ]
+        }
+      ], # end targets
+    }], # end aix section
+  ], # end conditions block
 }

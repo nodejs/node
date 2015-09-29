@@ -160,6 +160,10 @@ def headers(action):
     'src/node_version.h',
   ], 'include/node/')
 
+  # Add the expfile that is created on AIX
+  if sys.platform.startswith('aix'):
+    action(['out/Release/node.exp'], 'include/node/')
+
   subdir_files('deps/cares/include', 'include/node/', action)
   subdir_files('deps/v8/include', 'include/node/', action)
 
