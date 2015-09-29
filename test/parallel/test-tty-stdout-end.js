@@ -3,14 +3,13 @@
 var common = require('../common');
 var assert = require('assert');
 
-var exceptionCaught = false;
-
-try {
+var shouldThrow = function() {
   process.stdout.end();
-} catch (e) {
-  exceptionCaught = true;
-  assert.ok(e instanceof Error);
-  assert.equal('process.stdout cannot be closed.', e.message);
-}
+};
 
-assert.ok(exceptionCaught);
+var validateError = function(e) {
+  return e instanceof Error &&
+    e.message === 'process.stdout cannot be closed.';
+};
+
+assert.throws(shouldThrow, validateError);
