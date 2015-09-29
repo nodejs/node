@@ -173,6 +173,7 @@ class CallSite {
   T(ObserveCallbackFrozen,                                                     \
     "Object.observe cannot deliver to a frozen function object")               \
   T(ObserveGlobalProxy, "% cannot be called on the global proxy object")       \
+  T(ObserveAccessChecked, "% cannot be called on access-checked objects")      \
   T(ObserveInvalidAccept,                                                      \
     "Third argument to Object.observe must be an array of strings.")           \
   T(ObserveNonFunction, "Object.% cannot deliver to non-function")             \
