@@ -1,13 +1,13 @@
 'use strict';
 // Can't test this when 'make test' doesn't assign a tty to the stdout.
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var shouldThrow = function() {
+const shouldThrow = function() {
   process.stdout.end();
 };
 
-var validateError = function(e) {
+const validateError = function(e) {
   return e instanceof Error &&
     e.message === 'process.stdout cannot be closed.';
 };
