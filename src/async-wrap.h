@@ -12,8 +12,6 @@ namespace node {
 
 #define NODE_ASYNC_PROVIDER_TYPES(V)                                          \
   V(NONE)                                                                     \
-  V(CARES)                                                                    \
-  V(CONNECTWRAP)                                                              \
   V(CRYPTO)                                                                   \
   V(FSEVENTWRAP)                                                              \
   V(FSREQWRAP)                                                                \
@@ -21,17 +19,19 @@ namespace node {
   V(GETNAMEINFOREQWRAP)                                                       \
   V(JSSTREAM)                                                                 \
   V(PIPEWRAP)                                                                 \
+  V(PIPECONNECTWRAP)                                                          \
   V(PROCESSWRAP)                                                              \
   V(QUERYWRAP)                                                                \
-  V(REQWRAP)                                                                  \
   V(SHUTDOWNWRAP)                                                             \
   V(SIGNALWRAP)                                                               \
   V(STATWATCHER)                                                              \
   V(TCPWRAP)                                                                  \
+  V(TCPCONNECTWRAP)                                                           \
   V(TIMERWRAP)                                                                \
   V(TLSWRAP)                                                                  \
   V(TTYWRAP)                                                                  \
   V(UDPWRAP)                                                                  \
+  V(UDPSENDWRAP)                                                              \
   V(WRITEWRAP)                                                                \
   V(ZLIB)
 
