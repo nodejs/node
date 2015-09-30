@@ -362,6 +362,9 @@ try {
   gotError = true;
 }
 
+// https://github.com/nodejs/node/issues/3122
+a.throws(makeBlock(a.deepEqual, Error('a'), Error('b')));
+
 // GH-7178. Ensure reflexivity of deepEqual with `arguments` objects.
 var args = (function() { return arguments; })();
 a.throws(makeBlock(a.deepEqual, [], args));
