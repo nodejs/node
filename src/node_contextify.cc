@@ -217,7 +217,7 @@ class ContextifyContext {
 
     Local<Context> ctx = Context::New(env->isolate(), nullptr, object_template);
     
-    assert(!ctx.IsEmpty());
+    CHECK(!ctx.IsEmpty());
     ctx->SetSecurityToken(env->context()->GetSecurityToken());
 
     env->AssignToContext(ctx);
