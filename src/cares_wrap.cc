@@ -85,6 +85,11 @@ static void NewGetNameInfoReqWrap(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+static void NewQueryReqWrap(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args.IsConstructCall());
+}
+
+
 static int cmp_ares_tasks(const ares_task_t* a, const ares_task_t* b) {
   if (a->sock < b->sock)
     return -1;
@@ -1312,6 +1317,14 @@ static void Initialize(Local<Object> target,
       FIXED_ONE_BYTE_STRING(env->isolate(), "GetNameInfoReqWrap"));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "GetNameInfoReqWrap"),
               niw->GetFunction());
+
+  Local<FunctionTemplate> qrw =
+      FunctionTemplate::New(env->isolate(), NewQueryReqWrap);
+  qrw->InstanceTemplate()->SetInternalFieldCount(1);
+  qrw->SetClassName(
+      FIXED_ONE_BYTE_STRING(env->isolate(), "QueryReqWrap"));
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "QueryReqWrap"),
+              qrw->GetFunction());
 }
 
 }  // namespace cares_wrap

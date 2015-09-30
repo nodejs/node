@@ -18,10 +18,11 @@ inline AsyncWrap::AsyncWrap(Environment* env,
                             ProviderType provider,
                             AsyncWrap* parent)
     : BaseObject(env, object), bits_(static_cast<uint32_t>(provider) << 1) {
-  // Only set wrapper class id if object will be Wrap'd.
-  if (object->InternalFieldCount() > 0)
-    // Shift provider value over to prevent id collision.
-    persistent().SetWrapperClassId(NODE_ASYNC_ID_OFFSET + provider);
+  CHECK_NE(provider, PROVIDER_NONE);
+  CHECK_GE(object->InternalFieldCount(), 1);
+
+  // Shift provider value over to prevent id collision.
+  persistent().SetWrapperClassId(NODE_ASYNC_ID_OFFSET + provider);
 
   // Check user controlled flag to see if the init callback should run.
   if (!env->using_asyncwrap())
