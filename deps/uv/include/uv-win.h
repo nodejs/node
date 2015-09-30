@@ -246,22 +246,20 @@ typedef union {
 } uv_cond_t;
 
 typedef union {
-  /* srwlock_ has type SRWLOCK, but not all toolchains define this type in */
-  /* windows.h. */
-  SRWLOCK srwlock_;
   struct {
-    union {
-      CRITICAL_SECTION cs;
-      /* TODO: remove me in v2.x. */
-      uv_mutex_t unused;
-    } read_lock_;
-    union {
-      HANDLE sem;
-      /* TODO: remove me in v2.x. */
-      uv_mutex_t unused;
-    } write_lock_;
     unsigned int num_readers_;
-  } fallback_;
+    CRITICAL_SECTION num_readers_lock_;
+    HANDLE write_semaphore_;
+  } state_;
+  /* TODO: remove me in v2.x. */
+  struct {
+    SRWLOCK unused_;
+  } unused1_;
+  /* TODO: remove me in v2.x. */
+  struct {
+    uv_mutex_t unused1_;
+    uv_mutex_t unused2_;
+  } unused2_;
 } uv_rwlock_t;
 
 typedef struct {
