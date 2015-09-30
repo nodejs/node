@@ -753,11 +753,15 @@ def configure_library(lib, output):
     if pkg_cflags:
       output['include_dirs'] += (
           filter(None, map(str.strip, pkg_cflags.split('-I'))))
+    elif options.__dict__[shared_lib + '_includes']:
+      output['include_dirs'] += [options.__dict__[shared_lib + '_includes']]
 
     # libpath needs to be provided ahead libraries
     if pkg_libpath:
-      output['libraries'] += (
-          filter(None, map(str.strip, pkg_cflags.split('-L'))))
+      output['libraries'] += [pkg_libpath]
+    elif options.__dict__[shared_lib + '_libpath']:
+      output['libraries'] += [
+          '-L%s' % options.__dict__[shared_lib + '_libpath']]
 
     default_libs = getattr(options, shared_lib + '_libname')
     default_libs = map('-l{0}'.format, default_libs.split(','))
