@@ -4624,6 +4624,7 @@ class PBKDF2Request : public AsyncWrap {
         iter_(iter) {
     if (key() == nullptr)
       FatalError("node::PBKDF2Request()", "Out of Memory");
+    Wrap(object, this);
   }
 
   ~PBKDF2Request() override {
@@ -4833,7 +4834,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     digest = EVP_sha1();
   }
 
-  obj = Object::New(env->isolate());
+  obj = env->NewInternalFieldObject();
   req = new PBKDF2Request(env,
                           obj,
                           digest,
@@ -4885,6 +4886,7 @@ class RandomBytesRequest : public AsyncWrap {
         data_(static_cast<char*>(malloc(size))) {
     if (data() == nullptr)
       FatalError("node::RandomBytesRequest()", "Out of Memory");
+    Wrap(object, this);
   }
 
   ~RandomBytesRequest() override {
@@ -5001,7 +5003,7 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
   if (size < 0 || size > Buffer::kMaxLength)
     return env->ThrowRangeError("size is not a valid Smi");
 
-  Local<Object> obj = Object::New(env->isolate());
+  Local<Object> obj = env->NewInternalFieldObject();
   RandomBytesRequest* req = new RandomBytesRequest(env, obj, size);
 
   if (args[1]->IsFunction()) {
