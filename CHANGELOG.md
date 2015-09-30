@@ -1,5 +1,72 @@
 # Node.js ChangeLog
 
+## 2015-10-05, Version 4.1.2 (Stable), @rvagg
+
+### Notable changes
+
+* **http**:
+  - Fix out-of-order 'finish' event bug in pipelining that can abort execution, fixes DoS vulnerability [CVE-2015-7384](https://github.com/nodejs/node/issues/3138) (Fedor Indutny) [#3128](https://github.com/nodejs/node/pull/3128)
+  - Account for pending response data instead of just the data on the current request to decide whether pause the socket or not (Fedor Indutny) [#3128](https://github.com/nodejs/node/pull/3128)
+* **libuv**: Upgraded from v1.7.4 to v1.7.5, see [release notes](https://github.com/libuv/libuv/releases/tag/v1.7.5) for details (Saúl Ibarra Corretgé) [#3010](https://github.com/nodejs/node/pull/3010)
+  - A better rwlock implementation for all Windows versions
+  - Improved AIX support
+* **v8**:
+  - Upgraded from v4.5.103.33 to v4.5.103.35 (Ali Ijaz Sheikh) [#3117](https://github.com/nodejs/node/pull/3117)
+  - Backported [f782159](https://codereview.chromium.org/1367123003) from v8's upstream to help speed up Promise introspection (Ben Noordhuis) [#3130](https://github.com/nodejs/node/pull/3130)
+  - Backported [c281c15](https://codereview.chromium.org/1363683002) from v8's upstream to add JSTypedArray length in post-mortem metadata (Julien Gilli) [#3031](https://github.com/nodejs/node/pull/3031)
+
+### Known issues
+
+See https://github.com/nodejs/node/labels/confirmed-bug for complete and current list of known issues.
+
+* Some problems with unreferenced timers running during `beforeExit` are still to be resolved. See [#1264](https://github.com/nodejs/node/issues/1264).
+* Surrogate pair in REPL can freeze terminal. [#690](https://github.com/nodejs/node/issues/690)
+* Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion. [#894](https://github.com/nodejs/node/issues/894)
+* `url.resolve` may transfer the auth portion of the url when resolving between two full hosts, see [#1435](https://github.com/nodejs/node/issues/1435).
+
+### Commits
+
+* [[`39b8730e8b`](https://github.com/nodejs/node/commit/39b8730e8b)] - **async_wrap**: ensure all objects have internal field (Trevor Norris) [#3139](https://github.com/nodejs/node/pull/3139)
+* [[`99e66074d7`](https://github.com/nodejs/node/commit/99e66074d7)] - **async_wrap**: update providers and add test (Trevor Norris) [#3139](https://github.com/nodejs/node/pull/3139)
+* [[`7a58157d4e`](https://github.com/nodejs/node/commit/7a58157d4e)] - **benchmark**: update comment in common.js (Minwoo Jung) [#2399](https://github.com/nodejs/node/pull/2399)
+* [[`9e9bfa4dc0`](https://github.com/nodejs/node/commit/9e9bfa4dc0)] - **build**: iojs -> nodejs of release-urlbase (P.S.V.R) [#3015](https://github.com/nodejs/node/pull/3015)
+* [[`8335ec7191`](https://github.com/nodejs/node/commit/8335ec7191)] - **build**: fix some typos inside the configure script (P.S.V.R) [#3016](https://github.com/nodejs/node/pull/3016)
+* [[`d6ac547d5d`](https://github.com/nodejs/node/commit/d6ac547d5d)] - **build,win**: fix node.exe resource version (João Reis) [#3053](https://github.com/nodejs/node/pull/3053)
+* [[`798dad24f4`](https://github.com/nodejs/node/commit/798dad24f4)] - **child_process**: `null` channel handle on close (Fedor Indutny) [#3041](https://github.com/nodejs/node/pull/3041)
+* [[`e5615854ea`](https://github.com/nodejs/node/commit/e5615854ea)] - **contextify**: use CHECK instead of `if` (Oguz Bastemur) [#3125](https://github.com/nodejs/node/pull/3125)
+* [[`f055a66a38`](https://github.com/nodejs/node/commit/f055a66a38)] - **crypto**: enable FIPS only when configured with it (Fedor Indutny) [#3153](https://github.com/nodejs/node/pull/3153)
+* [[`4c8d96bc30`](https://github.com/nodejs/node/commit/4c8d96bc30)] - **crypto**: add more keylen sanity checks in pbkdf2 (Johann) [#3029](https://github.com/nodejs/node/pull/3029)
+* [[`4c5940776c`](https://github.com/nodejs/node/commit/4c5940776c)] - **deps**: upgrade libuv to 1.7.5 (Saúl Ibarra Corretgé) [#3010](https://github.com/nodejs/node/pull/3010)
+* [[`5a9e795577`](https://github.com/nodejs/node/commit/5a9e795577)] - **deps**: upgrade V8 to 4.5.103.35 (Ali Ijaz Sheikh) [#3117](https://github.com/nodejs/node/pull/3117)
+* [[`925b29f959`](https://github.com/nodejs/node/commit/925b29f959)] - **deps**: backport f782159 from v8's upstream (Ben Noordhuis) [#3130](https://github.com/nodejs/node/pull/3130)
+* [[`039f73fa83`](https://github.com/nodejs/node/commit/039f73fa83)] - **deps**: remove and gitignore .bin directory (Ben Noordhuis) [#3004](https://github.com/nodejs/node/pull/3004)
+* [[`5fbb24812d`](https://github.com/nodejs/node/commit/5fbb24812d)] - **deps**: backport c281c15 from V8's upstream (Julien Gilli) [#3031](https://github.com/nodejs/node/pull/3031)
+* [[`6ee5d0f69f`](https://github.com/nodejs/node/commit/6ee5d0f69f)] - **dns**: add missing exports.BADNAME (Roman Reiss) [#3051](https://github.com/nodejs/node/pull/3051)
+* [[`f92aee7170`](https://github.com/nodejs/node/commit/f92aee7170)] - **doc**: fix outdated 'try/catch' statement in sync (Minwoo Jung) [#3087](https://github.com/nodejs/node/pull/3087)
+* [[`c7161f39e8`](https://github.com/nodejs/node/commit/c7161f39e8)] - **doc**: add TSC meeting minutes 2015-09-16 (Rod Vagg) [#3023](https://github.com/nodejs/node/pull/3023)
+* [[`928166c4a8`](https://github.com/nodejs/node/commit/928166c4a8)] - **doc**: copyedit fs.watch() information (Rich Trott) [#3097](https://github.com/nodejs/node/pull/3097)
+* [[`75d5dcea76`](https://github.com/nodejs/node/commit/75d5dcea76)] - **doc**: jenkins-iojs.nodesource.com -> ci.nodejs.org (Michał Gołębiowski) [#2886](https://github.com/nodejs/node/pull/2886)
+* [[`5c3f50b21d`](https://github.com/nodejs/node/commit/5c3f50b21d)] - **doc**: rearrange execSync and execFileSync (Laurent Fortin) [#2940](https://github.com/nodejs/node/pull/2940)
+* [[`4fc33ac11a`](https://github.com/nodejs/node/commit/4fc33ac11a)] - **doc**: make execFileSync in line with execFile (Laurent Fortin) [#2940](https://github.com/nodejs/node/pull/2940)
+* [[`a366e84b17`](https://github.com/nodejs/node/commit/a366e84b17)] - **doc**: fix typos in cluster & errors (reggi) [#3011](https://github.com/nodejs/node/pull/3011)
+* [[`52031e1bf1`](https://github.com/nodejs/node/commit/52031e1bf1)] - **doc**: switch LICENSE from closure-linter to eslint (P.S.V.R) [#3018](https://github.com/nodejs/node/pull/3018)
+* [[`b28f6a53bc`](https://github.com/nodejs/node/commit/b28f6a53bc)] - **docs**: Clarify assert.doesNotThrow behavior (Fabio Oliveira) [#2807](https://github.com/nodejs/node/pull/2807)
+* [[`99943e189d`](https://github.com/nodejs/node/commit/99943e189d)] - **http**: fix out-of-order 'finish' bug in pipelining (Fedor Indutny) [#3128](https://github.com/nodejs/node/pull/3128)
+* [[`fb7a491d1c`](https://github.com/nodejs/node/commit/fb7a491d1c)] - **http_server**: pause socket properly (Fedor Indutny) [#3128](https://github.com/nodejs/node/pull/3128)
+* [[`a0b35bfcf3`](https://github.com/nodejs/node/commit/a0b35bfcf3)] - **i18n**: add caller to removal list for bidi in ICU55 (Michael Dawson) [#3115](https://github.com/nodejs/node/pull/3115)
+* [[`ac2bce0b0c`](https://github.com/nodejs/node/commit/ac2bce0b0c)] - **path**: improve posixSplitPath performance (Evan Lucas) [#3034](https://github.com/nodejs/node/pull/3034)
+* [[`37cdeafa2f`](https://github.com/nodejs/node/commit/37cdeafa2f)] - **smalloc**: remove module (Brendan Ashworth) [#3099](https://github.com/nodejs/node/pull/3099)
+* [[`5ec5d0aa8b`](https://github.com/nodejs/node/commit/5ec5d0aa8b)] - **src**: internalize binding function property names (Ben Noordhuis) [#3060](https://github.com/nodejs/node/pull/3060)
+* [[`c8175fc2af`](https://github.com/nodejs/node/commit/c8175fc2af)] - **src**: internalize per-isolate string properties (Ben Noordhuis) [#3060](https://github.com/nodejs/node/pull/3060)
+* [[`9a593abc47`](https://github.com/nodejs/node/commit/9a593abc47)] - **src**: include signal.h in util.h (Cheng Zhao) [#3058](https://github.com/nodejs/node/pull/3058)
+* [[`fde0c6f321`](https://github.com/nodejs/node/commit/fde0c6f321)] - **src**: fix function and variable names in comments (Sakthipriyan Vairamani) [#3039](https://github.com/nodejs/node/pull/3039)
+* [[`1cc7b41ba4`](https://github.com/nodejs/node/commit/1cc7b41ba4)] - **stream_wrap**: support empty `TryWrite`s (Fedor Indutny) [#3128](https://github.com/nodejs/node/pull/3128)
+* [[`9faf4c6fcf`](https://github.com/nodejs/node/commit/9faf4c6fcf)] - **test**: load common.js to test for global leaks (Rich Trott) [#3095](https://github.com/nodejs/node/pull/3095)
+* [[`0858c86374`](https://github.com/nodejs/node/commit/0858c86374)] - **test**: fix invalid variable name (Sakthipriyan Vairamani) [#3150](https://github.com/nodejs/node/pull/3150)
+* [[`1167171004`](https://github.com/nodejs/node/commit/1167171004)] - **test**: change calls to deprecated util.print() (Rich Trott) [#3083](https://github.com/nodejs/node/pull/3083)
+* [[`5ada45bf28`](https://github.com/nodejs/node/commit/5ada45bf28)] - **test**: replace deprecated util.debug() calls (Rich Trott) [#3082](https://github.com/nodejs/node/pull/3082)
+* [[`d8ab4e185d`](https://github.com/nodejs/node/commit/d8ab4e185d)] - **util**: optimize promise introspection (Ben Noordhuis) [#3130](https://github.com/nodejs/node/pull/3130)
+
 ## 2015-09-22, Version 4.1.1 (Stable), @rvagg
 
 ### Notable changes
