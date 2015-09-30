@@ -163,7 +163,9 @@ automatically set as a listener for the [secureConnection][] event.  The
     the `key`, `cert` and `ca` options.)
 
   - `key`: A string or `Buffer` containing the private key of the server in
-    PEM format. (Could be an array of keys). (Required)
+    PEM format. To support multiple keys using different algorithms, an array
+    can be provided. It can either be a plain array of keys, or an array of
+    objects in the format `{pem: key, passphrase: passphrase}`. (Required)
 
   - `passphrase`: A string of passphrase for the private key or pfx.
 
@@ -508,7 +510,10 @@ dictionary with keys:
 
 * `pfx` : A string or buffer holding the PFX or PKCS12 encoded private
   key, certificate and CA certificates
-* `key` : A string holding the PEM encoded private key
+* `key`: A string or `Buffer` containing the private key of the server in
+  PEM format. To support multiple keys using different algorithms, an array
+  can be provided. It can either be a plain array of keys, or an array of
+  objects in the format `{pem: key, passphrase: passphrase}`. (Required)
 * `passphrase` : A string of passphrase for the private key or pfx
 * `cert` : A string holding the PEM encoded certificate
 * `ca` : Either a string or list of strings of PEM encoded CA
