@@ -19,16 +19,9 @@ function ToggleMirrorCache(value) {
 }
 
 
-// Wrapper to check whether an object is a Promise.  The call may not work
-// if promises are not enabled.
-// TODO(yangguo): remove try-catch once promises are enabled by default.
 function ObjectIsPromise(value) {
-  try {
-    return IS_SPEC_OBJECT(value) &&
-           !IS_UNDEFINED(%DebugGetProperty(value, builtins.$promiseStatus));
-  } catch (e) {
-    return false;
-  }
+  return IS_SPEC_OBJECT(value) &&
+         !IS_UNDEFINED(%DebugGetProperty(value, builtins.$promiseStatus));
 }
 
 
