@@ -1,4 +1,4 @@
-/* eslint-disable strict */
+/* eslint-disable strict, block-scoped-var */
 // Flags: --expose-gc
 
 var common = require('../common');

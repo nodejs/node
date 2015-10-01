@@ -18,6 +18,7 @@ function parent() {
   var sent = 0;
 
   var n = '';
+  var buf;
   child.stdout.setEncoding('ascii');
   child.stdout.on('data', function(c) {
     n += c;
@@ -29,7 +30,7 @@ function parent() {
 
   // Write until the buffer fills up.
   do {
-    var buf = new Buffer(BUFSIZE);
+    buf = new Buffer(BUFSIZE);
     buf.fill('.');
     sent += BUFSIZE;
   } while (child.stdin.write(buf));

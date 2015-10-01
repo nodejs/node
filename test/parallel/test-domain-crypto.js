@@ -1,4 +1,4 @@
-/* eslint-disable strict */
+/* eslint-disable strict, block-scoped-var */
 try {
   var crypto = require('crypto');
 } catch (e) {

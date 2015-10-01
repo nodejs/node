@@ -21,6 +21,7 @@ tls.createServer({
 
 (function() {
   // 2**26 == 64M entries
+  var junk;
   for (var i = 0, junk = [0]; i < 26; ++i) junk = junk.concat(junk);
 
   var options = { rejectUnauthorized: false };

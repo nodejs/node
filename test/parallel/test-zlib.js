@@ -171,7 +171,8 @@ Object.keys(tests).forEach(function(file) {
                       Def.name + ' -> ' + Inf.name;
                   var ok = true;
                   var testNum = ++done;
-                  for (var i = 0; i < Math.max(c.length, test.length); i++) {
+                  var i;
+                  for (i = 0; i < Math.max(c.length, test.length); i++) {
                     if (c[i] !== test[i]) {
                       ok = false;
                       failures++;

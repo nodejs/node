@@ -117,8 +117,9 @@ test('write backpressure', function(t) {
 
   var i = 0;
   (function W() {
+    var ret;
     do {
-      var ret = tw.write(chunks[i++]);
+      ret = tw.write(chunks[i++]);
     } while (ret !== false && i < chunks.length);
 
     if (i < chunks.length) {
