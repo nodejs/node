@@ -83,6 +83,9 @@ rules:
   # Custom rules in tools/eslint-rules
   require-buffer: 2
 
+  # treat `var` as Block Scoped
+  block-scoped-var: 2
+
 # Global scoped method and vars
 globals:
   DTRACE_HTTP_CLIENT_REQUEST           : false
