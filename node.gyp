@@ -228,6 +228,9 @@
             'src/tls_wrap.h'
           ],
           'conditions': [
+            ['openssl_fips != ""', {
+              'defines': [ 'NODE_FIPS_MODE' ],
+            }],
             [ 'node_shared_openssl=="false"', {
               'dependencies': [
                 './deps/openssl/openssl.gyp:openssl',
