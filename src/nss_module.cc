@@ -121,8 +121,8 @@ void NSSModule::New(const FunctionCallbackInfo<Value>& args) {
 
   Local<Boolean> has_ghbn_v = Boolean::New(env->isolate(), ghbn3 != nullptr);
   Local<Boolean> has_ghba_v = Boolean::New(env->isolate(), ghba2 != nullptr);
-  args.This()->ForceSet(env->hasbyname(), has_ghbn_v, v8::ReadOnly);
-  args.This()->ForceSet(env->hasbyaddr(), has_ghba_v, v8::ReadOnly);
+  args.This()->ForceSet(env->hasbyname_string(), has_ghbn_v, v8::ReadOnly);
+  args.This()->ForceSet(env->hasbyaddr_string(), has_ghba_v, v8::ReadOnly);
   args.This()->ForceSet(env->name_string(), args[0], v8::ReadOnly);
 
   new NSSModule(env, args.This(), lib, ghbn3, ghbn4, ghba2);
