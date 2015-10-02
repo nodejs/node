@@ -63,3 +63,14 @@ fs.watchFile(enoentFile, {interval: 0}, common.mustCall(function(curr, prev) {
     fs.unwatchFile(enoentFile);
   }
 }, 2));
+
+// whitebox test to ensure that wrapped FSEvent is safe
+// https://github.com/joyent/node/issues/6690
+var oldhandle;
+assert.throws(function() {
+  var w = fs.watchFile(__filename, {persistent:false}, function() {});
+  oldhandle = w._handle;
+  w._handle = { stop: w._handle.stop };
+  w.stop();
+}, TypeError);
+oldhandle.stop(); // clean up
