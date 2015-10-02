@@ -70,7 +70,7 @@ class AsyncWrap : public BaseObject {
 
  private:
   inline AsyncWrap();
-  inline bool has_async_queue() const;
+  inline bool ran_init_callback() const;
 
   // When the async hooks init JS function is called from the constructor it is
   // expected the context object will receive a _asyncQueue object property

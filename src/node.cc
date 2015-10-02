@@ -1040,15 +1040,19 @@ Local<Value> MakeCallback(Environment* env,
   // If you hit this assertion, you forgot to enter the v8::Context first.
   CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
 
+  Local<Function> pre_fn = env->async_hooks_pre_function();
+  Local<Function> post_fn = env->async_hooks_post_function();
   Local<Object> object, domain;
-  bool has_async_queue = false;
+  bool ran_init_callback = false;
   bool has_domain = false;
 
+  // TODO(trevnorris): Adding "_asyncQueue" to the "this" in the init callback
+  // is a horrible way to detect usage. Rethink how detection should happen.
   if (recv->IsObject()) {
     object = recv.As<Object>();
     Local<Value> async_queue_v = object->Get(env->async_queue_string());
     if (async_queue_v->IsObject())
-      has_async_queue = true;
+      ran_init_callback = true;
   }
 
   if (env->using_domains()) {
@@ -1074,9 +1078,9 @@ Local<Value> MakeCallback(Environment* env,
     }
   }
 
-  if (has_async_queue) {
+  if (ran_init_callback && !pre_fn.IsEmpty()) {
     try_catch.SetVerbose(false);
-    env->async_hooks_pre_function()->Call(object, 0, nullptr);
+    pre_fn->Call(object, 0, nullptr);
     if (try_catch.HasCaught())
       FatalError("node::MakeCallback", "pre hook threw");
     try_catch.SetVerbose(true);
@@ -1084,9 +1088,9 @@ Local<Value> MakeCallback(Environment* env,
 
   Local<Value> ret = callback->Call(recv, argc, argv);
 
-  if (has_async_queue) {
+  if (ran_init_callback && !post_fn.IsEmpty()) {
     try_catch.SetVerbose(false);
-    env->async_hooks_post_function()->Call(object, 0, nullptr);
+    post_fn->Call(object, 0, nullptr);
     if (try_catch.HasCaught())
       FatalError("node::MakeCallback", "post hook threw");
     try_catch.SetVerbose(true);
