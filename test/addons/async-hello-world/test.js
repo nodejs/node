@@ -1,4 +1,5 @@
 'use strict';
+require('../../common');
 var assert = require('assert');
 var binding = require('./build/Release/binding');
 var called = false;
