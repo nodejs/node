@@ -24,32 +24,39 @@ inline AsyncWrap::AsyncWrap(Environment* env,
   // Shift provider value over to prevent id collision.
   persistent().SetWrapperClassId(NODE_ASYNC_ID_OFFSET + provider);
 
-  // Check user controlled flag to see if the init callback should run.
-  if (!env->using_asyncwrap())
+  v8::Local<v8::Function> init_fn = env->async_hooks_init_function();
+
+  // No init callback exists, no reason to go on.
+  if (init_fn.IsEmpty())
     return;
 
-  // If callback hooks have not been enabled, and there is no parent, return.
-  if (!env->async_wrap_callbacks_enabled() && parent == nullptr)
-    return;
-
-  // If callback hooks have not been enabled and parent has no queue, return.
-  if (!env->async_wrap_callbacks_enabled() && !parent->has_async_queue())
+  // If async wrap callbacks are disabled and no parent was passed that has
+  // run the init callback then return.
+  if (!env->async_wrap_callbacks_enabled() &&
+      (parent == nullptr || !parent->ran_init_callback()))
     return;
 
   v8::HandleScope scope(env->isolate());
-  v8::TryCatch try_catch;
 
-  v8::Local<v8::Value> n = v8::Int32::New(env->isolate(), provider);
-  env->async_hooks_init_function()->Call(object, 1, &n);
+  v8::Local<v8::Value> argv[] = {
+    v8::Int32::New(env->isolate(), provider),
+    Null(env->isolate())
+  };
 
-  if (try_catch.HasCaught())
+  if (parent != nullptr)
+    argv[1] = parent->object();
+
+  v8::MaybeLocal<v8::Value> ret =
+      init_fn->Call(env->context(), object, ARRAY_SIZE(argv), argv);
+
+  if (ret.IsEmpty())
     FatalError("node::AsyncWrap::AsyncWrap", "init hook threw");
 
-  bits_ |= 1;  // has_async_queue() is true now.
+  bits_ |= 1;  // ran_init_callback() is true now.
 }
 
 
-inline bool AsyncWrap::has_async_queue() const {
+inline bool AsyncWrap::ran_init_callback() const {
   return static_cast<bool>(bits_ & 1);
 }
 
