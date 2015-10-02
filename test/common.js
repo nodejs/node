@@ -1,3 +1,4 @@
+/* eslint-disable required-modules */
 'use strict';
 var path = require('path');
 var fs = require('fs');

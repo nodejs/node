@@ -1,4 +1,4 @@
-/* eslint-disable strict */
+/* eslint-disable strict, required-modules */
 try {
   var crypto = require('crypto');
 } catch (e) {
