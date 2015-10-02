@@ -1,5 +1,46 @@
 # Node.js ChangeLog
 
+## 2015-10-05, Version 4.1.2 (Stable), @rvagg
+
+### Notable changes
+
+_WIP_
+
+### Known issues
+
+See https://github.com/nodejs/node/labels/confirmed-bug for complete and current list of known issues.
+
+* Some problems with unreferenced timers running during `beforeExit` are still to be resolved. See [#1264](https://github.com/nodejs/node/issues/1264).
+* Surrogate pair in REPL can freeze terminal. [#690](https://github.com/nodejs/node/issues/690)
+* Calling `dns.setServers()` while a DNS query is in progress can cause the process to crash on a failed assertion. [#894](https://github.com/nodejs/node/issues/894)
+* `url.resolve` may transfer the auth portion of the url when resolving between two full hosts, see [#1435](https://github.com/nodejs/node/issues/1435).
+
+### Commits
+
+* [[`3de58b9531`](https://github.com/nodejs/node/commit/3de58b9531)] - **benchmark**: update comment in common.js (Minwoo Jung) [#2399](https://github.com/nodejs/node/pull/2399)
+* [[`9e9bfa4dc0`](https://github.com/nodejs/node/commit/9e9bfa4dc0)] - **build**: iojs -> nodejs of release-urlbase (P.S.V.R) [#3015](https://github.com/nodejs/node/pull/3015)
+* [[`8335ec7191`](https://github.com/nodejs/node/commit/8335ec7191)] - **build**: fix some typos inside the configure script (P.S.V.R) [#3016](https://github.com/nodejs/node/pull/3016)
+* [[`798dad24f4`](https://github.com/nodejs/node/commit/798dad24f4)] - **child_process**: `null` channel handle on close (Fedor Indutny) [#3041](https://github.com/nodejs/node/pull/3041)
+* [[`4c8d96bc30`](https://github.com/nodejs/node/commit/4c8d96bc30)] - **crypto**: add more keylen sanity checks in pbkdf2 (Johann) [#3029](https://github.com/nodejs/node/pull/3029)
+* [[`039f73fa83`](https://github.com/nodejs/node/commit/039f73fa83)] - **deps**: remove and gitignore .bin directory (Ben Noordhuis) [#3004](https://github.com/nodejs/node/pull/3004)
+* [[`5fbb24812d`](https://github.com/nodejs/node/commit/5fbb24812d)] - **deps**: backport c281c15 from V8's upstream (Julien Gilli) [#3031](https://github.com/nodejs/node/pull/3031)
+* [[`55a1f94e44`](https://github.com/nodejs/node/commit/55a1f94e44)] - **dns**: remove nonexistant exports.ADNAME (Roman Reiss) [#3051](https://github.com/nodejs/node/pull/3051)
+* [[`6ee5d0f69f`](https://github.com/nodejs/node/commit/6ee5d0f69f)] - **dns**: add missing exports.BADNAME (Roman Reiss) [#3051](https://github.com/nodejs/node/pull/3051)
+* [[`75d5dcea76`](https://github.com/nodejs/node/commit/75d5dcea76)] - **doc**: jenkins-iojs.nodesource.com -> ci.nodejs.org (Michał Gołębiowski) [#2886](https://github.com/nodejs/node/pull/2886)
+* [[`5c3f50b21d`](https://github.com/nodejs/node/commit/5c3f50b21d)] - **doc**: rearrange execSync and execFileSync (Laurent Fortin) [#2940](https://github.com/nodejs/node/pull/2940)
+* [[`4fc33ac11a`](https://github.com/nodejs/node/commit/4fc33ac11a)] - **doc**: make execFileSync in line with execFile (Laurent Fortin) [#2940](https://github.com/nodejs/node/pull/2940)
+* [[`a366e84b17`](https://github.com/nodejs/node/commit/a366e84b17)] - **doc**: fix typos in cluster & errors (reggi) [#3011](https://github.com/nodejs/node/pull/3011)
+* [[`52031e1bf1`](https://github.com/nodejs/node/commit/52031e1bf1)] - **doc**: switch LICENSE from closure-linter to eslint (P.S.V.R) [#3018](https://github.com/nodejs/node/pull/3018)
+* [[`b28f6a53bc`](https://github.com/nodejs/node/commit/b28f6a53bc)] - **docs**: Clarify assert.doesNotThrow behavior (Fabio Oliveira) [#2807](https://github.com/nodejs/node/pull/2807)
+* [[`ac2bce0b0c`](https://github.com/nodejs/node/commit/ac2bce0b0c)] - **path**: improve posixSplitPath performance (Evan Lucas) [#3034](https://github.com/nodejs/node/pull/3034)
+* [[`4fc89939f5`](https://github.com/nodejs/node/commit/4fc89939f5)] - **smalloc**: remove module (Brendan Ashworth) [#3099](https://github.com/nodejs/node/pull/3099)
+* [[`5ec5d0aa8b`](https://github.com/nodejs/node/commit/5ec5d0aa8b)] - **src**: internalize binding function property names (Ben Noordhuis) [#3060](https://github.com/nodejs/node/pull/3060)
+* [[`c8175fc2af`](https://github.com/nodejs/node/commit/c8175fc2af)] - **src**: internalize per-isolate string properties (Ben Noordhuis) [#3060](https://github.com/nodejs/node/pull/3060)
+* [[`9a593abc47`](https://github.com/nodejs/node/commit/9a593abc47)] - **src**: include signal.h in util.h (Cheng Zhao) [#3058](https://github.com/nodejs/node/pull/3058)
+* [[`fde0c6f321`](https://github.com/nodejs/node/commit/fde0c6f321)] - **src**: fix function and variable names in comments (Sakthipriyan Vairamani) [#3039](https://github.com/nodejs/node/pull/3039)
+* [[`1e964bb8e9`](https://github.com/nodejs/node/commit/1e964bb8e9)] - **test**: change calls to deprecated util.print() (Rich Trott) [#3083](https://github.com/nodejs/node/pull/3083)
+* [[`b97358a772`](https://github.com/nodejs/node/commit/b97358a772)] - **test**: replace deprecated util.debug() calls (Rich Trott) [#3082](https://github.com/nodejs/node/pull/3082)
+
 ## 2015-09-22, Version 4.1.1 (Stable), @rvagg
 
 ### Notable changes
