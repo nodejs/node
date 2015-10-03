@@ -92,11 +92,42 @@ fs.appendFile(filename4, n, { mode: m }, function(e) {
   });
 });
 
+// test that appendFile accepts file descriptors
+var filename5 = join(common.tmpDir, 'append5.txt');
+fs.writeFileSync(filename5, currentFileData);
+
+fs.open(filename5, 'a+', function(e, fd) {
+  if (e) throw e;
+
+  ncallbacks++;
+
+  fs.appendFile(fd, s, function(e) {
+    if (e) throw e;
+
+    ncallbacks++;
+
+    fs.close(fd, function(e) {
+      if (e) throw e;
+
+      ncallbacks++;
+
+      fs.readFile(filename5, function(e, buffer) {
+        if (e) throw e;
+
+        ncallbacks++;
+        assert.equal(Buffer.byteLength(s) + currentFileData.length,
+                     buffer.length);
+      });
+    });
+  });
+});
+
 process.on('exit', function() {
-  assert.equal(8, ncallbacks);
+  assert.equal(12, ncallbacks);
 
   fs.unlinkSync(filename);
   fs.unlinkSync(filename2);
   fs.unlinkSync(filename3);
   fs.unlinkSync(filename4);
+  fs.unlinkSync(filename5);
 });
