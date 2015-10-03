@@ -282,7 +282,9 @@ For example, a `console.log` equivalent could look like this:
 
 `process.stderr` and `process.stdout` are unlike other streams in Node.js in
 that they cannot be closed (`end()` will throw), they never emit the `finish`
-event and that writes are always blocking.
+event and that writes can block when output is redirected to a file (although
+disks are fast and operating systems normally employ write-back caching so it
+should be a very rare occurrence indeed.)
 
 To check if Node.js is being run in a TTY context, read the `isTTY` property
 on `process.stderr`, `process.stdout`, or `process.stdin`:
@@ -305,14 +307,9 @@ A writable stream to stderr (on fd `2`).
 
 `process.stderr` and `process.stdout` are unlike other streams in Node.js in
 that they cannot be closed (`end()` will throw), they never emit the `finish`
-event and that writes are usually blocking.
-
-- They are blocking in the case that they refer to regular files or TTY file
-  descriptors.
-- In the case they refer to pipes:
-  - They are blocking in Linux/Unix.
-  - They are non-blocking like other streams in Windows.
-
+event and that writes can block when output is redirected to a file (although
+disks are fast and operating systems normally employ write-back caching so it
+should be a very rare occurrence indeed.)
 
 ## process.stdin
 
