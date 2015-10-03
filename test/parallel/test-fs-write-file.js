@@ -69,11 +69,40 @@ fs.writeFile(filename3, n, { mode: m }, function(e) {
   });
 });
 
+// test that writeFile accepts file descriptors
+var filename4 = join(common.tmpDir, 'test4.txt');
+var buf = new Buffer(s, 'utf8');
+
+fs.open(filename4, 'w+', function(e, fd) {
+  if (e) throw e;
+
+  ncallbacks++;
+
+  fs.writeFile(fd, s, function(e) {
+    if (e) throw e;
+
+    ncallbacks++;
+
+    fs.close(fd, function(e) {
+      if (e) throw e;
+
+      ncallbacks++;
+
+      fs.readFile(filename4, function(e, buffer) {
+        if (e) throw e;
+
+        ncallbacks++;
+        assert.equal(Buffer.byteLength(s), buffer.length);
+      });
+    });
+  });
+});
 
 process.on('exit', function() {
-  assert.equal(6, ncallbacks);
+  assert.equal(10, ncallbacks);
 
   fs.unlinkSync(filename);
   fs.unlinkSync(filename2);
   fs.unlinkSync(filename3);
+  fs.unlinkSync(filename4);
 });

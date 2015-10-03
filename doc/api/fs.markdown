@@ -468,9 +468,9 @@ The callback is given the three arguments, `(err, bytesRead, buffer)`.
 
 Synchronous version of `fs.read`. Returns the number of `bytesRead`.
 
-## fs.readFile(filename[, options], callback)
+## fs.readFile(file[, options], callback)
 
-* `filename` {String}
+* `file` {String | Integer} filename or file descriptor
 * `options` {Object | String}
   * `encoding` {String | Null} default = `null`
   * `flag` {String} default = `'r'`
@@ -492,18 +492,20 @@ If `options` is a string, then it specifies the encoding. Example:
 
     fs.readFile('/etc/passwd', 'utf8', callback);
 
+Any specified file descriptor has to support reading.
 
-## fs.readFileSync(filename[, options])
+_Note: Specified file descriptors will not be closed automatically._
 
-Synchronous version of `fs.readFile`. Returns the contents of the `filename`.
+## fs.readFileSync(file[, options])
+
+Synchronous version of `fs.readFile`. Returns the contents of the `file`.
 
 If the `encoding` option is specified then this function returns a
 string. Otherwise it returns a buffer.
 
+## fs.writeFile(file, data[, options], callback)
 
-## fs.writeFile(filename, data[, options], callback)
-
-* `filename` {String}
+* `file` {String | Integer} filename or file descriptor
 * `data` {String | Buffer}
 * `options` {Object | String}
   * `encoding` {String | Null} default = `'utf8'`
@@ -528,13 +530,21 @@ If `options` is a string, then it specifies the encoding. Example:
 
     fs.writeFile('message.txt', 'Hello Node.js', 'utf8', callback);
 
-## fs.writeFileSync(filename, data[, options])
+Any specified file descriptor has to support writing.
+
+Note that it is unsafe to use `fs.writeFile` multiple times on the same file
+without waiting for the callback. For this scenario,
+`fs.createWriteStream` is strongly recommended.
+
+_Note: Specified file descriptors will not be closed automatically._
+
+## fs.writeFileSync(file, data[, options])
 
 The synchronous version of `fs.writeFile`. Returns `undefined`.
 
-## fs.appendFile(filename, data[, options], callback)
+## fs.appendFile(file, data[, options], callback)
 
-* `filename` {String}
+* `file` {String | Integer} filename or file descriptor
 * `data` {String | Buffer}
 * `options` {Object | String}
   * `encoding` {String | Null} default = `'utf8'`
@@ -556,7 +566,11 @@ If `options` is a string, then it specifies the encoding. Example:
 
     fs.appendFile('message.txt', 'data to append', 'utf8', callback);
 
-## fs.appendFileSync(filename, data[, options])
+Any specified file descriptor has to have been opened for appending.
+
+_Note: Specified file descriptors will not be closed automatically._
+
+## fs.appendFileSync(file, data[, options])
 
 The synchronous version of `fs.appendFile`. Returns `undefined`.
 
