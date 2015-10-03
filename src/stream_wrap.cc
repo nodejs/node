@@ -313,7 +313,7 @@ int StreamWrap::DoTryWrite(uv_buf_t** bufs, size_t* count) {
   // Slice off the buffers: skip all written buffers and slice the one that
   // was partially written.
   written = err;
-  for (; written != 0 && vcount > 0; vbufs++, vcount--) {
+  for (; vcount > 0; vbufs++, vcount--) {
     // Slice
     if (vbufs[0].len > written) {
       vbufs[0].base += written;
