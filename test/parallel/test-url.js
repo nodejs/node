@@ -1145,6 +1145,32 @@ for (var u in formatTests) {
                '\nactual: ' + actualObj);
 }
 
+//
+// {attempt: array of args, expected: string}
+//
+var joinTests = [
+  {
+    attempt: ['http://google.com', 'search', '/this', '//nothing', '../page'],
+    expected: 'http://google.com/search/this/page'
+  },
+  {
+    attempt: ['http://npmjs.com', 'my', '/favorite', 'module'],
+    expected: 'http://npmjs.com/my/favorite/module'
+  },
+  {
+    attempt: ['https://example.org', 'page'],
+    expected: 'https://example.org/page'
+  }
+];
+
+joinTests.forEach(function (joinTest) {
+  var a = url.join.apply(null, joinTest.attempt);
+  var e = joinTest.expected;
+  assert.equal(a, e,
+               'join(' + joinTest.attempt + ') == ' + e +
+               '\n actual=' + a);
+});
+
 /*
  [from, path, expected]
 */
