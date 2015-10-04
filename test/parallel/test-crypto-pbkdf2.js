@@ -84,3 +84,30 @@ assert.throws(function() {
 assert.throws(function() {
   crypto.pbkdf2('password', 'salt', 1, 4073741824, 'sha256', common.fail);
 }, /Bad key length/);
+
+// Should not work with negative iterations
+assert.throws(function() {
+  crypto.pbkdf2('password', 'salt', -1, 1, 'sha256', common.fail);
+}, /Bad iterations/);
+
+// Should not work with Infinity iterations
+assert.throws(function() {
+  crypto.pbkdf2('password', 'salt', Infinity, 1, 'sha256', common.fail);
+}, /Bad iterations/);
+
+// Should not work with -Infinity iterations
+assert.throws(function() {
+  crypto.pbkdf2('password', 'salt', -Infinity, 1, 'sha256', common.fail);
+}, /Bad iterations/);
+
+// Should not work with NaN iterations
+assert.throws(function() {
+  crypto.pbkdf2('password', 'salt', NaN, 1, 'sha256', common.fail);
+}, /Bad iterations/);
+
+// Should not work with an iteration number that does
+// not fit into 32 signed bits
+assert.throws(function() {
+  crypto.pbkdf2('password', 'salt', 4073741824, 1, 'sha256', common.fail);
+}, /Bad iterations/);
+

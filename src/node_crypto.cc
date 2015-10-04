@@ -5250,6 +5250,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
   int passlen = -1;
   int saltlen = -1;
   double raw_keylen = -1;
+  double raw_iter = -1;
   int keylen = -1;
   int iter = -1;
   PBKDF2Request* req = nullptr;
@@ -5292,11 +5293,14 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     goto err;
   }
 
-  iter = args[2]->Int32Value();
-  if (iter < 0) {
+  raw_iter = args[2]->NumberValue();
+  if (raw_iter < 0 || isnan(raw_iter) || isinf(raw_iter) ||
+      raw_iter > INT_MAX) {
     type_error = "Bad iterations";
     goto err;
   }
+
+  iter = static_cast<int>(raw_iter);
 
   if (!args[3]->IsNumber()) {
     type_error = "Key length not a number";
