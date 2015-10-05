@@ -217,10 +217,6 @@ static Type* kNumberTypes[] = {
     Type::OrderedNumber(), Type::PlainNumber(), Type::Number()};
 
 
-static Type* kJSTypes[] = {Type::Undefined(), Type::Null(),   Type::Boolean(),
-                           Type::Number(),    Type::String(), Type::Object()};
-
-
 static Type* I32Type(bool is_signed) {
   return is_signed ? Type::Signed32() : Type::Unsigned32();
 }
