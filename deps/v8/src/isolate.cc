@@ -1013,13 +1013,21 @@ Object* Isolate::Throw(Object* exception, MessageLocation* location) {
       Handle<Object> message_obj = CreateMessage(exception_handle, location);
       thread_local_top()->pending_message_obj_ = *message_obj;
 
-      // If the abort-on-uncaught-exception flag is specified, abort on any
-      // exception not caught by JavaScript, even when an external handler is
-      // present.  This flag is intended for use by JavaScript developers, so
-      // print a user-friendly stack trace (not an internal one).
+      // For any exception not caught by JavaScript, even when an external
+      // handler is present:
+      // If the abort-on-uncaught-exception flag is specified, and if the
+      // embedder didn't specify a custom uncaught exception callback,
+      // or if the custom callback determined that V8 should abort, then
+      // abort.
       if (FLAG_abort_on_uncaught_exception &&
-          PredictExceptionCatcher() != CAUGHT_BY_JAVASCRIPT) {
-        FLAG_abort_on_uncaught_exception = false;  // Prevent endless recursion.
+          PredictExceptionCatcher() != CAUGHT_BY_JAVASCRIPT &&
+          (!abort_on_uncaught_exception_callback_ ||
+           abort_on_uncaught_exception_callback_(
+               reinterpret_cast<v8::Isolate*>(this)))) {
+        // Prevent endless recursion.
+        FLAG_abort_on_uncaught_exception = false;
+        // This flag is intended for use by JavaScript developers, so
+        // print a user-friendly stack trace (not an internal one).
         PrintF(stderr, "%s\n\nFROM\n",
                MessageHandler::GetLocalizedMessage(this, message_obj).get());
         PrintCurrentStackTrace(stderr);
@@ -1612,6 +1620,12 @@ void Isolate::SetCaptureStackTraceForUncaughtExceptions(
 }
 
 
+void Isolate::SetAbortOnUncaughtExceptionCallback(
+    v8::Isolate::AbortOnUncaughtExceptionCallback callback) {
+  abort_on_uncaught_exception_callback_ = callback;
+}
+
+
 Handle<Context> Isolate::native_context() {
   return handle(context()->native_context());
 }
@@ -1782,7 +1796,8 @@ Isolate::Isolate(bool enable_serializer)
       next_unique_sfi_id_(0),
 #endif
       use_counter_callback_(NULL),
-      basic_block_profiler_(NULL) {
+      basic_block_profiler_(NULL),
+      abort_on_uncaught_exception_callback_(NULL) {
   {
     base::LockGuard<base::Mutex> lock_guard(thread_data_table_mutex_.Pointer());
     CHECK(thread_data_table_);

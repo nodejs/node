@@ -21880,3 +21880,34 @@ TEST(CompatibleReceiverCheckOnCachedICHandler) {
       "result;\n",
       0);
 }
+
+
+static int nb_uncaught_exception_callback_calls = 0;
+
+
+bool NoAbortOnUncaughtException(v8::Isolate* isolate) {
+  ++nb_uncaught_exception_callback_calls;
+  return false;
+}
+
+
+TEST(AbortOnUncaughtExceptionNoAbort) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Handle<v8::ObjectTemplate> global_template =
+      v8::ObjectTemplate::New(isolate);
+  LocalContext env(NULL, global_template);
+
+  i::FLAG_abort_on_uncaught_exception = true;
+  isolate->SetAbortOnUncaughtExceptionCallback(NoAbortOnUncaughtException);
+
+  CompileRun("function boom() { throw new Error(\"boom\") }");
+
+  v8::Local<v8::Object> global_object = env->Global();
+  v8::Local<v8::Function> foo =
+      v8::Local<v8::Function>::Cast(global_object->Get(v8_str("boom")));
+
+  foo->Call(global_object, 0, NULL);
+
+  CHECK_EQ(1, nb_uncaught_exception_callback_calls);
+}
