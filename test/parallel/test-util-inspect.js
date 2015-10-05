@@ -23,6 +23,19 @@ assert.equal(util.inspect(a), '[ \'foo\', , \'baz\' ]');
 assert.equal(util.inspect(a, true), '[ \'foo\', , \'baz\', [length]: 3 ]');
 assert.equal(util.inspect(new Array(5)), '[ , , , ,  ]');
 
+// test for Array constructor in different context
+const Debug = require('vm').runInDebugContext('Debug');
+var map = new Map();
+map.set(1, 2);
+var mirror = Debug.MakeMirror(map.entries(), true);
+var vals = mirror.preview();
+var valsOutput = [];
+for (let o of vals) {
+  valsOutput.push(o);
+}
+
+assert.strictEqual(util.inspect(valsOutput), '[ [ 1, 2 ] ]');
+
 // test for property descriptors
 var getter = Object.create(null, {
   a: {
