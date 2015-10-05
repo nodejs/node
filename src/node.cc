@@ -2185,11 +2185,7 @@ void FatalException(Isolate* isolate,
 
   if (false == caught->BooleanValue()) {
     ReportException(env, error, message);
-    if (abort_on_uncaught_exception) {
-      ABORT();
-    } else {
-      exit(1);
-    }
+    exit(1);
   }
 }
 
@@ -3220,6 +3216,10 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--abort-on-uncaught-exception") == 0 ||
                strcmp(arg, "--abort_on_uncaught_exception") == 0) {
       abort_on_uncaught_exception = true;
+      // Pass this option to V8 anyway, because V8 uses it to determine
+      // if it needs to abort on an uncaught exception
+      new_v8_argv[new_v8_argc] = arg;
+      new_v8_argc += 1;
     } else if (strcmp(arg, "--v8-options") == 0) {
       new_v8_argv[new_v8_argc] = "--help";
       new_v8_argc += 1;

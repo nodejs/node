@@ -300,6 +300,10 @@
 
     _runMicrotasks = _runMicrotasks.runMicrotasks;
 
+    process._forceTickDone = function _forceTickDone() {
+      process._tickDoneForced = true;
+    };
+
     function tickDone() {
       if (tickInfo[kLength] !== 0) {
         if (tickInfo[kLength] <= tickInfo[kIndex]) {
@@ -375,38 +379,59 @@
       } while (tickInfo[kLength] !== 0);
     }
 
+    function performNTCallback(args, callback) {
+      // Using separate callback execution functions helps to limit the
+      // scope of DEOPTs caused by using try blocks and allows direct
+      // callback invocation with small numbers of arguments to avoid the
+      // performance hit associated with using `fn.apply()`
+      if (args === undefined) {
+        doNTCallback0(callback);
+      } else {
+        switch (args.length) {
+          case 1:
+            doNTCallback1(callback, args[0]);
+            break;
+          case 2:
+            doNTCallback2(callback, args[0], args[1]);
+            break;
+          case 3:
+            doNTCallback3(callback, args[0], args[1], args[2]);
+            break;
+          default:
+            doNTCallbackMany(callback, args);
+        }
+      }
+    }
+
     function _tickDomainCallback() {
       var callback, domain, args, tock;
 
       do {
-        while (tickInfo[kIndex] < tickInfo[kLength]) {
+        while (!process._tickDoneForced &&
+          tickInfo[kIndex] < tickInfo[kLength]) {
           tock = nextTickQueue[tickInfo[kIndex]++];
           callback = tock.callback;
           domain = tock.domain;
           args = tock.args;
           if (domain)
             domain.enter();
-          // Using separate callback execution functions helps to limit the
-          // scope of DEOPTs caused by using try blocks and allows direct
-          // callback invocation with small numbers of arguments to avoid the
-          // performance hit associated with using `fn.apply()`
-          if (args === undefined) {
-            doNTCallback0(callback);
+
+          // If there's no active domain or we're in the
+          // error handler for the domain at the top of the stack,
+          // don't use try/catch to allow --abort-on-uncaught-exception
+          // to abort if an error is thrown.
+          // Otherwise, use try/catch to get the chance to emit an
+          // error on the current domain
+          if (!domain || domain.emittingTopLevelError) {
+            performNTCallback(args, callback);
           } else {
-            switch (args.length) {
-              case 1:
-                doNTCallback1(callback, args[0]);
-                break;
-              case 2:
-                doNTCallback2(callback, args[0], args[1]);
-                break;
-              case 3:
-                doNTCallback3(callback, args[0], args[1], args[2]);
-                break;
-              default:
-                doNTCallbackMany(callback, args);
+            try {
+              performNTCallback(args, callback);
+            } catch (err) {
+              process._fatalException(err);
             }
           }
+
           if (1e4 < tickInfo[kIndex])
             tickDone();
           if (domain)
@@ -415,7 +440,8 @@
         tickDone();
         _runMicrotasks();
         emitPendingUnhandledRejections();
-      } while (tickInfo[kLength] !== 0);
+      } while (!process._tickDoneForced && tickInfo[kLength] !== 0);
+      process._tickDoneForced = false;
     }
 
     function doNTCallback0(callback) {
