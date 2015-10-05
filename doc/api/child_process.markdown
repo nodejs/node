@@ -222,7 +222,7 @@ See `kill(2)`
 * `callback` {Function}
 * Return: Boolean
 
-When using `child_process.fork()` you can write to the child using
+When using [`child_process.fork()`](#child_process_child_process_fork_modulepath_args_options) you can write to the child using
 `child.send(message[, sendHandle][, callback])` and messages are received by
 a `'message'` event on the child.
 
@@ -539,7 +539,7 @@ will not stay running in the background unless it is provided with a `stdio`
 configuration that is not connected to the parent.  If the parent's `stdio` is
 inherited, the child will remain attached to the controlling terminal.
 
-See also: `child_process.exec()` and `child_process.fork()`
+See also: [`child_process.exec()`](#child_process_child_process_exec_command_options_callback) and [`child_process.fork()`](#child_process_child_process_fork_modulepath_args_options)
 
 ### child_process.exec(command[, options], callback)
 
@@ -622,9 +622,9 @@ the existing process and uses a shell to execute the command.*
   * `stderr` {Buffer}
 * Return: ChildProcess object
 
-This is similar to `child_process.exec()` except it does not execute a
+This is similar to [`child_process.exec()`](#child_process_child_process_exec_command_options_callback) except it does not execute a
 subshell but rather the specified file directly. This makes it slightly
-leaner than `child_process.exec`. It has the same options.
+leaner than [`child_process.exec()`](#child_process_child_process_exec_command_options_callback). It has the same options.
 
 
 ### child_process.fork(modulePath[, args][, options])
@@ -645,10 +645,10 @@ leaner than `child_process.exec`. It has the same options.
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
 * Return: ChildProcess object
 
-This is a special case of the `spawn()` functionality for spawning Node.js
+This is a special case of the [`child_process.spawn()`](#child_process_child_process_spawn_command_args_options) functionality for spawning Node.js
 processes. In addition to having all the methods in a normal ChildProcess
 instance, the returned object has a communication channel built-in. See
-`child.send(message, [sendHandle])` for details.
+[`child.send(message, [sendHandle])`](#child_process_child_send_message_sendhandle_callback) for details.
 
 These child Node.js processes are still whole new instances of V8. Assume at
 least 30ms startup and 10mb memory for each new Node.js. That is, you cannot
@@ -732,7 +732,7 @@ process has exited.
 
 If the process times out, or has a non-zero exit code, this method ***will***
 throw.  The `Error` object will contain the entire result from
-[`child_process.spawnSync`](#child_process_child_process_spawnsync_command_args_options)
+[`child_process.spawnSync()`](#child_process_child_process_spawnsync_command_args_options)
 
 ### child_process.execFileSync(file[, args][, options])
 
@@ -763,7 +763,7 @@ process has exited.
 
 If the process times out, or has a non-zero exit code, this method ***will***
 throw.  The `Error` object will contain the entire result from
-[`child_process.spawnSync`](#child_process_child_process_spawnsync_command_args_options)
+[`child_process.spawnSync()`](#child_process_child_process_spawnsync_command_args_options)
 
 [EventEmitter]: events.html#events_class_events_eventemitter
 [net.Server]: net.html#net_class_net_server
