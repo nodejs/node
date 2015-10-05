@@ -99,7 +99,7 @@ Returns emitter, so calls can be chained.
 ### emitter.getMaxListeners()
 
 Returns the current max listener value for the emitter which is either set by
-`emitter.setMaxListeners(n)` or defaults to `EventEmitter.defaultMaxListeners`.
+[`emitter.setMaxListeners(n)`](#events_emitter_setmaxlisteners_n) or defaults to [`EventEmitter.defaultMaxListeners`](#events_eventemitter_defaultmaxlisteners).
 
 This can be useful to increment/decrement max listeners to avoid the warning
 while not being irresponsible and setting a too big number.
@@ -112,11 +112,11 @@ while not being irresponsible and setting a too big number.
 
 ### EventEmitter.defaultMaxListeners
 
-`emitter.setMaxListeners(n)` sets the maximum on a per-instance basis.
+[`emitter.setMaxListeners(n)`](#events_emitter_setmaxlisteners_n) sets the maximum on a per-instance basis.
 This class property lets you set it for *all* `EventEmitter` instances,
 current and future, effective immediately. Use with care.
 
-Note that `emitter.setMaxListeners(n)` still has precedence over
+Note that [`emitter.setMaxListeners(n)`](#events_emitter_setmaxlisteners_n) still has precedence over
 `EventEmitter.defaultMaxListeners`.
 
 
