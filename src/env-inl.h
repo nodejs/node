@@ -208,7 +208,6 @@ inline Environment::Environment(v8::Local<v8::Context> context,
       isolate_data_(IsolateData::GetOrCreate(context->GetIsolate(), loop)),
       timer_base_(uv_now(loop)),
       using_domains_(false),
-      using_abort_on_uncaught_exc_(false),
       using_asyncwrap_(false),
       printed_error_(false),
       trace_sync_io_(false),
@@ -339,14 +338,6 @@ inline Environment::ArrayBufferAllocatorInfo*
 
 inline uint64_t Environment::timer_base() const {
   return timer_base_;
-}
-
-inline bool Environment::using_abort_on_uncaught_exc() const {
-  return using_abort_on_uncaught_exc_;
-}
-
-inline void Environment::set_using_abort_on_uncaught_exc(bool value) {
-  using_abort_on_uncaught_exc_ = value;
 }
 
 inline bool Environment::using_domains() const {

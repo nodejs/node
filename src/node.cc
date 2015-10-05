@@ -124,7 +124,6 @@ static bool force_repl = false;
 static bool syntax_check_only = false;
 static bool trace_deprecation = false;
 static bool throw_deprecation = false;
-static bool abort_on_uncaught_exception = false;
 static bool trace_sync_io = false;
 static bool track_heap_objects = false;
 static const char* eval_string = nullptr;
@@ -904,6 +903,33 @@ void* ArrayBufferAllocator::Allocate(size_t size) {
     return calloc(size, 1);
   env_->array_buffer_allocator_info()->reset_fill_flag();
   return malloc(size);
+}
+
+
+static bool IsDomainActive(const Environment* env) {
+  if (!env->using_domains())
+    return false;
+
+  Local<Array> domain_array = env->domain_array().As<Array>();
+  if (domain_array->Length() == 0)
+    return false;
+
+  Local<Value> domain_v = domain_array->Get(0);
+  return !domain_v->IsNull();
+}
+
+
+static bool ShouldAbortOnUncaughtException(Isolate* isolate) {
+  HandleScope scope(isolate);
+
+  Environment* env = Environment::GetCurrent(isolate);
+  Local<Object> process_object = env->process_object();
+  Local<String> emitting_top_level_domain_error_key =
+    env->emitting_top_level_domain_error_string();
+  bool isEmittingTopLevelDomainError =
+      process_object->Get(emitting_top_level_domain_error_key)->BooleanValue();
+
+  return !IsDomainActive(env) || isEmittingTopLevelDomainError;
 }
 
 
@@ -2185,11 +2211,7 @@ void FatalException(Isolate* isolate,
 
   if (false == caught->BooleanValue()) {
     ReportException(env, error, message);
-    if (abort_on_uncaught_exception) {
-      ABORT();
-    } else {
-      exit(1);
-    }
+    exit(1);
   }
 }
 
@@ -3217,9 +3239,6 @@ static void ParseArgs(int* argc,
       track_heap_objects = true;
     } else if (strcmp(arg, "--throw-deprecation") == 0) {
       throw_deprecation = true;
-    } else if (strcmp(arg, "--abort-on-uncaught-exception") == 0 ||
-               strcmp(arg, "--abort_on_uncaught_exception") == 0) {
-      abort_on_uncaught_exception = true;
     } else if (strcmp(arg, "--v8-options") == 0) {
       new_v8_argv[new_v8_argc] = "--help";
       new_v8_argc += 1;
@@ -3923,8 +3942,10 @@ static void StartNodeInstance(void* arg) {
     Environment* env = CreateEnvironment(isolate, context, instance_data);
     array_buffer_allocator->set_env(env);
     Context::Scope context_scope(context);
-    if (instance_data->is_main())
-      env->set_using_abort_on_uncaught_exc(abort_on_uncaught_exception);
+
+    node_isolate->SetAbortOnUncaughtExceptionCallback(
+        ShouldAbortOnUncaughtException);
+
     // Start debug agent when argv has --debug
     if (instance_data->use_debug_agent())
       StartDebug(env, debug_wait_connect);
