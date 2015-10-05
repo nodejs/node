@@ -690,6 +690,9 @@ class Isolate {
       int frame_limit,
       StackTrace::StackTraceOptions options);
 
+  void SetAbortOnUncaughtExceptionCallback(
+      v8::Isolate::AbortOnUncaughtExceptionCallback callback);
+
   enum PrintStackMode { kPrintStackConcise, kPrintStackVerbose };
   void PrintCurrentStackTrace(FILE* out);
   void PrintStack(StringStream* accumulator,
@@ -1362,6 +1365,9 @@ class Isolate {
   List<Object*> partial_snapshot_cache_;
 
   v8::ArrayBuffer::Allocator* array_buffer_allocator_;
+
+  v8::Isolate::AbortOnUncaughtExceptionCallback
+      abort_on_uncaught_exception_callback_;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;
