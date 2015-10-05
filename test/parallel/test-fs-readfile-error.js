@@ -25,13 +25,15 @@ function test(env, cb) {
   });
 }
 
-test({ NODE_DEBUG: '' }, function(data) {
+process.env.NODE_DEBUG = '';
+test(process.env, function(data) {
   assert(/EISDIR/.test(data));
   assert(!/test-fs-readfile-error/.test(data));
   callbacks++;
 });
 
-test({ NODE_DEBUG: 'fs' }, function(data) {
+process.env.NODE_DEBUG = 'fs';
+test(process.env, function(data) {
   assert(/EISDIR/.test(data));
   assert(/test-fs-readfile-error/.test(data));
   callbacks++;
