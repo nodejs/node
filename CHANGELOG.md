@@ -2975,7 +2975,7 @@ https://iojs.org/api/tls.html
 - Added async session storage events.
 - Added async SNI callback.
 - Added multi-key server support (for example, ECDSA+RSA server).
-- Added optional callback to `checkServerIdentity` for manual certificate validation in user-land.
+- Added optional callback to `checkServerIdentity` for manual certificate validation in userland.
 - Added support for ECDSA/ECDHE cipher.
 - Implemented TLS streams in C++, boosting their performance.
 - Moved `createCredentials` to `tls` and renamed it to `createSecureContext`.
