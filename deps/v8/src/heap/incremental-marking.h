@@ -5,7 +5,6 @@
 #ifndef V8_HEAP_INCREMENTAL_MARKING_H_
 #define V8_HEAP_INCREMENTAL_MARKING_H_
 
-
 #include "src/execution.h"
 #include "src/heap/mark-compact.h"
 #include "src/objects.h"
@@ -82,11 +81,9 @@ class IncrementalMarking {
 
   bool WasActivated();
 
-  void Start(int mark_compact_flags,
+  void Start(int flags,
              const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags,
              const char* reason = nullptr);
-
-  void Stop();
 
   void MarkObjectGroups();
 
@@ -96,7 +93,7 @@ class IncrementalMarking {
 
   void Finalize();
 
-  void Abort();
+  void Stop();
 
   void OverApproximateWeakClosure(CompletionAction action);
 

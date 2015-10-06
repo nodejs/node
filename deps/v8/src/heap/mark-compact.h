@@ -26,11 +26,12 @@ class MarkingVisitor;
 class RootMarkingVisitor;
 
 
-class Marking {
+class Marking : public AllStatic {
  public:
-  explicit Marking(Heap* heap) : heap_(heap) {}
-
-  INLINE(static MarkBit MarkBitFrom(Address addr));
+  INLINE(static MarkBit MarkBitFrom(Address addr)) {
+    MemoryChunk* p = MemoryChunk::FromAddress(addr);
+    return p->markbits()->MarkBitFromIndex(p->AddressToMarkbitIndex(addr));
+  }
 
   INLINE(static MarkBit MarkBitFrom(HeapObject* obj)) {
     return MarkBitFrom(reinterpret_cast<Address>(obj));
@@ -116,7 +117,11 @@ class Marking {
     markbit.Next().Set();
   }
 
-  void TransferMark(Address old_start, Address new_start);
+  static void SetAllMarkBitsInRange(MarkBit start, MarkBit end);
+  static void ClearAllMarkBitsOfCellsContainedInRange(MarkBit start,
+                                                      MarkBit end);
+
+  static void TransferMark(Heap* heap, Address old_start, Address new_start);
 
 #ifdef DEBUG
   enum ObjectColor {
@@ -170,7 +175,7 @@ class Marking {
   }
 
  private:
-  Heap* heap_;
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Marking);
 };
 
 // ----------------------------------------------------------------------------
@@ -200,28 +205,17 @@ class MarkingDeque {
 
   void SetOverflowed() { overflowed_ = true; }
 
-  // Push the (marked) object on the marking stack if there is room,
-  // otherwise mark the object as overflowed and wait for a rescan of the
-  // heap.
-  INLINE(void PushBlack(HeapObject* object)) {
-    DCHECK(object->IsHeapObject());
-    if (IsFull()) {
-      Marking::BlackToGrey(object);
-      MemoryChunk::IncrementLiveBytesFromGC(object->address(), -object->Size());
-      SetOverflowed();
-    } else {
-      array_[top_] = object;
-      top_ = ((top_ + 1) & mask_);
-    }
-  }
-
-  INLINE(void PushGrey(HeapObject* object)) {
+  // Push the object on the marking stack if there is room, otherwise mark the
+  // deque as overflowed and wait for a rescan of the heap.
+  INLINE(bool Push(HeapObject* object)) {
     DCHECK(object->IsHeapObject());
     if (IsFull()) {
       SetOverflowed();
+      return false;
     } else {
       array_[top_] = object;
       top_ = ((top_ + 1) & mask_);
+      return true;
     }
   }
 
@@ -233,26 +227,17 @@ class MarkingDeque {
     return object;
   }
 
-  INLINE(void UnshiftGrey(HeapObject* object)) {
+  // Unshift the object into the marking stack if there is room, otherwise mark
+  // the deque as overflowed and wait for a rescan of the heap.
+  INLINE(bool Unshift(HeapObject* object)) {
     DCHECK(object->IsHeapObject());
     if (IsFull()) {
       SetOverflowed();
+      return false;
     } else {
       bottom_ = ((bottom_ - 1) & mask_);
       array_[bottom_] = object;
-    }
-  }
-
-  INLINE(void UnshiftBlack(HeapObject* object)) {
-    DCHECK(object->IsHeapObject());
-    DCHECK(Marking::IsBlack(Marking::MarkBitFrom(object)));
-    if (IsFull()) {
-      Marking::BlackToGrey(object);
-      MemoryChunk::IncrementLiveBytesFromGC(object->address(), -object->Size());
-      SetOverflowed();
-    } else {
-      bottom_ = ((bottom_ - 1) & mask_);
-      array_[bottom_] = object;
+      return true;
     }
   }
 
@@ -335,7 +320,6 @@ class SlotsBuffer {
     CODE_TARGET_SLOT,
     CODE_ENTRY_SLOT,
     DEBUG_TARGET_SLOT,
-    JS_RETURN_SLOT,
     NUMBER_OF_SLOT_TYPES
   };
 
@@ -355,8 +339,6 @@ class SlotsBuffer {
         return "CODE_ENTRY_SLOT";
       case DEBUG_TARGET_SLOT:
         return "DEBUG_TARGET_SLOT";
-      case JS_RETURN_SLOT:
-        return "JS_RETURN_SLOT";
       case NUMBER_OF_SLOT_TYPES:
         return "NUMBER_OF_SLOT_TYPES";
     }
@@ -364,6 +346,8 @@ class SlotsBuffer {
   }
 
   void UpdateSlots(Heap* heap);
+
+  void UpdateSlotsWithFilter(Heap* heap);
 
   SlotsBuffer* next() { return next_; }
 
@@ -379,7 +363,7 @@ class SlotsBuffer {
 
   static void UpdateSlotsRecordedIn(Heap* heap, SlotsBuffer* buffer) {
     while (buffer != NULL) {
-      buffer->UpdateSlots(heap);
+        buffer->UpdateSlots(heap);
       buffer = buffer->next();
     }
   }
@@ -455,27 +439,9 @@ class CodeFlusher {
         shared_function_info_candidates_head_(NULL),
         optimized_code_map_holder_head_(NULL) {}
 
-  void AddCandidate(SharedFunctionInfo* shared_info) {
-    if (GetNextCandidate(shared_info) == NULL) {
-      SetNextCandidate(shared_info, shared_function_info_candidates_head_);
-      shared_function_info_candidates_head_ = shared_info;
-    }
-  }
-
-  void AddCandidate(JSFunction* function) {
-    DCHECK(function->code() == function->shared()->code());
-    if (GetNextCandidate(function)->IsUndefined()) {
-      SetNextCandidate(function, jsfunction_candidates_head_);
-      jsfunction_candidates_head_ = function;
-    }
-  }
-
-  void AddOptimizedCodeMap(SharedFunctionInfo* code_map_holder) {
-    if (GetNextCodeMap(code_map_holder)->IsUndefined()) {
-      SetNextCodeMap(code_map_holder, optimized_code_map_holder_head_);
-      optimized_code_map_holder_head_ = code_map_holder;
-    }
-  }
+  inline void AddCandidate(SharedFunctionInfo* shared_info);
+  inline void AddCandidate(JSFunction* function);
+  inline void AddOptimizedCodeMap(SharedFunctionInfo* code_map_holder);
 
   void EvictOptimizedCodeMap(SharedFunctionInfo* code_map_holder);
   void EvictCandidate(SharedFunctionInfo* shared_info);
@@ -503,57 +469,23 @@ class CodeFlusher {
   void EvictJSFunctionCandidates();
   void EvictSharedFunctionInfoCandidates();
 
-  static JSFunction** GetNextCandidateSlot(JSFunction* candidate) {
-    return reinterpret_cast<JSFunction**>(
-        HeapObject::RawField(candidate, JSFunction::kNextFunctionLinkOffset));
-  }
+  static inline JSFunction** GetNextCandidateSlot(JSFunction* candidate);
+  static inline JSFunction* GetNextCandidate(JSFunction* candidate);
+  static inline void SetNextCandidate(JSFunction* candidate,
+                                      JSFunction* next_candidate);
+  static inline void ClearNextCandidate(JSFunction* candidate,
+                                        Object* undefined);
 
-  static JSFunction* GetNextCandidate(JSFunction* candidate) {
-    Object* next_candidate = candidate->next_function_link();
-    return reinterpret_cast<JSFunction*>(next_candidate);
-  }
+  static inline SharedFunctionInfo* GetNextCandidate(
+      SharedFunctionInfo* candidate);
+  static inline void SetNextCandidate(SharedFunctionInfo* candidate,
+                                      SharedFunctionInfo* next_candidate);
+  static inline void ClearNextCandidate(SharedFunctionInfo* candidate);
 
-  static void SetNextCandidate(JSFunction* candidate,
-                               JSFunction* next_candidate) {
-    candidate->set_next_function_link(next_candidate,
-                                      UPDATE_WEAK_WRITE_BARRIER);
-  }
-
-  static void ClearNextCandidate(JSFunction* candidate, Object* undefined) {
-    DCHECK(undefined->IsUndefined());
-    candidate->set_next_function_link(undefined, SKIP_WRITE_BARRIER);
-  }
-
-  static SharedFunctionInfo* GetNextCandidate(SharedFunctionInfo* candidate) {
-    Object* next_candidate = candidate->code()->gc_metadata();
-    return reinterpret_cast<SharedFunctionInfo*>(next_candidate);
-  }
-
-  static void SetNextCandidate(SharedFunctionInfo* candidate,
-                               SharedFunctionInfo* next_candidate) {
-    candidate->code()->set_gc_metadata(next_candidate);
-  }
-
-  static void ClearNextCandidate(SharedFunctionInfo* candidate) {
-    candidate->code()->set_gc_metadata(NULL, SKIP_WRITE_BARRIER);
-  }
-
-  static SharedFunctionInfo* GetNextCodeMap(SharedFunctionInfo* holder) {
-    FixedArray* code_map = FixedArray::cast(holder->optimized_code_map());
-    Object* next_map = code_map->get(SharedFunctionInfo::kNextMapIndex);
-    return reinterpret_cast<SharedFunctionInfo*>(next_map);
-  }
-
-  static void SetNextCodeMap(SharedFunctionInfo* holder,
-                             SharedFunctionInfo* next_holder) {
-    FixedArray* code_map = FixedArray::cast(holder->optimized_code_map());
-    code_map->set(SharedFunctionInfo::kNextMapIndex, next_holder);
-  }
-
-  static void ClearNextCodeMap(SharedFunctionInfo* holder) {
-    FixedArray* code_map = FixedArray::cast(holder->optimized_code_map());
-    code_map->set_undefined(SharedFunctionInfo::kNextMapIndex);
-  }
+  static inline SharedFunctionInfo* GetNextCodeMap(SharedFunctionInfo* holder);
+  static inline void SetNextCodeMap(SharedFunctionInfo* holder,
+                                    SharedFunctionInfo* next_holder);
+  static inline void ClearNextCodeMap(SharedFunctionInfo* holder);
 
   Isolate* isolate_;
   JSFunction* jsfunction_candidates_head_;
@@ -572,9 +504,6 @@ class ThreadLocalTop;
 // Mark-Compact collector
 class MarkCompactCollector {
  public:
-  // Set the global flags, it must be called before Prepare to take effect.
-  inline void SetFlags(int flags);
-
   static void Initialize();
 
   void SetUp();
@@ -637,11 +566,6 @@ class MarkCompactCollector {
   void VerifyOmittedMapChecks();
 #endif
 
-  INLINE(static bool ShouldSkipEvacuationSlotRecording(Object** anchor)) {
-    return Page::FromAddress(reinterpret_cast<Address>(anchor))
-        ->ShouldSkipEvacuationSlotRecording();
-  }
-
   INLINE(static bool ShouldSkipEvacuationSlotRecording(Object* host)) {
     return Page::FromAddress(reinterpret_cast<Address>(host))
         ->ShouldSkipEvacuationSlotRecording();
@@ -653,11 +577,11 @@ class MarkCompactCollector {
   }
 
   void RecordRelocSlot(RelocInfo* rinfo, Object* target);
-  void RecordCodeEntrySlot(Address slot, Code* target);
+  void RecordCodeEntrySlot(HeapObject* object, Address slot, Code* target);
   void RecordCodeTargetPatch(Address pc, Code* target);
 
   INLINE(void RecordSlot(
-      Object** anchor_slot, Object** slot, Object* object,
+      HeapObject* object, Object** slot, Object* target,
       SlotsBuffer::AdditionMode mode = SlotsBuffer::FAIL_ON_OVERFLOW));
 
   void MigrateObject(HeapObject* dst, HeapObject* src, int size,
@@ -669,13 +593,9 @@ class MarkCompactCollector {
 
   bool TryPromoteObject(HeapObject* object, int object_size);
 
+  void InvalidateCode(Code* code);
+
   void ClearMarkbits();
-
-  bool abort_incremental_marking() const { return abort_incremental_marking_; }
-
-  bool finalize_incremental_marking() const {
-    return finalize_incremental_marking_;
-  }
 
   bool is_compacting() const { return compacting_; }
 
@@ -693,6 +613,8 @@ class MarkCompactCollector {
   int SweepInParallel(Page* page, PagedSpace* space);
 
   void EnsureSweepingCompleted();
+
+  void SweepOrWaitUntilSweepingCompleted(Page* page);
 
   // If sweeper threads are not active this method will return true. If
   // this is a latency issue we should be smarter here. Otherwise, it will
@@ -753,7 +675,6 @@ class MarkCompactCollector {
 
   bool WillBeDeoptimized(Code* code);
   void EvictPopularEvacuationCandidate(Page* page);
-  void ClearInvalidSlotsBufferEntries(PagedSpace* space);
   void ClearInvalidStoreAndSlotsBufferEntries();
 
   void StartSweeperThreads();
@@ -772,12 +693,6 @@ class MarkCompactCollector {
   // The current stage of the collector.
   CollectorState state_;
 #endif
-
-  bool reduce_memory_footprint_;
-
-  bool abort_incremental_marking_;
-
-  bool finalize_incremental_marking_;
 
   MarkingParity marking_parity_;
 
@@ -810,11 +725,12 @@ class MarkCompactCollector {
   //
   //   After: Live objects are marked and non-live objects are unmarked.
 
-  friend class RootMarkingVisitor;
-  friend class MarkingVisitor;
-  friend class MarkCompactMarkingVisitor;
   friend class CodeMarkingVisitor;
+  friend class MarkCompactMarkingVisitor;
+  friend class MarkingVisitor;
+  friend class RootMarkingVisitor;
   friend class SharedFunctionInfoMarkingVisitor;
+  friend class IncrementalMarkingMarkingVisitor;
 
   // Mark code objects that are active on the stack to prevent them
   // from being flushed.
@@ -826,6 +742,14 @@ class MarkCompactCollector {
   void MarkLiveObjects();
 
   void AfterMarking();
+
+  // Pushes a black object onto the marking stack and accounts for live bytes.
+  // Note that this assumes live bytes have not yet been counted.
+  INLINE(void PushBlack(HeapObject* obj));
+
+  // Unshifts a black object into the marking stack and accounts for live bytes.
+  // Note that this assumes lives bytes have already been counted.
+  INLINE(void UnshiftBlack(HeapObject* obj));
 
   // Marks the object black and pushes it on the marking stack.
   // This is for non-incremental marking only.
@@ -874,6 +798,14 @@ class MarkCompactCollector {
   // function either leaves the marking stack full or clears the overflow
   // flag on the marking stack.
   void RefillMarkingDeque();
+
+  // Helper methods for refilling the marking stack by discovering grey objects
+  // on various pages of the heap. Used by {RefillMarkingDeque} only.
+  template <class T>
+  void DiscoverGreyObjectsWithIterator(T* it);
+  void DiscoverGreyObjectsOnPage(MemoryChunk* p);
+  void DiscoverGreyObjectsInSpace(PagedSpace* space);
+  void DiscoverGreyObjectsInNewSpace();
 
   // Callback function for telling whether the object *p is an unmarked
   // heap object.
@@ -969,7 +901,9 @@ class MarkCompactCollector {
 
   List<Page*> evacuation_candidates_;
 
-  SmartPointer<FreeList> free_list_old_space_;
+  base::SmartPointer<FreeList> free_list_old_space_;
+  base::SmartPointer<FreeList> free_list_code_space_;
+  base::SmartPointer<FreeList> free_list_map_space_;
 
   friend class Heap;
 };

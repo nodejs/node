@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Tests the Function.prototype.bind (ES 15.3.4.5) method.
 
 // Simple tests.
@@ -298,3 +300,20 @@ assertThrows(function() { f.arguments = 42; }, TypeError);
 // the caller is strict and the callee isn't. A bound function is built-in,
 // but not considered strict.
 (function foo() { return foo.caller; }).bind()();
+
+
+(function TestProtoIsPreserved() {
+  function fun() {}
+
+  function proto() {}
+  Object.setPrototypeOf(fun, proto);
+  var bound = fun.bind({});
+  assertEquals(proto, Object.getPrototypeOf(bound));
+
+  var bound2 = fun.bind({});
+  assertTrue(%HaveSameMap(new bound, new bound2));
+
+  Object.setPrototypeOf(fun, null);
+  bound = Function.prototype.bind.call(fun, {});
+  assertEquals(null, Object.getPrototypeOf(bound));
+})();

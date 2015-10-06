@@ -12,45 +12,11 @@
 namespace v8 {
 namespace internal {
 
-
-// IC_UTIL_LIST defines all utility functions called from generated
-// inline caching code. The argument for the macro, ICU, is the function name.
-#define IC_UTIL_LIST(ICU)              \
-  ICU(LoadIC_Miss)                     \
-  ICU(KeyedLoadIC_Miss)                \
-  ICU(CallIC_Miss)                     \
-  ICU(CallIC_Customization_Miss)       \
-  ICU(StoreIC_Miss)                    \
-  ICU(StoreIC_Slow)                    \
-  ICU(KeyedStoreIC_Miss)               \
-  ICU(KeyedStoreIC_Slow)               \
-  /* Utilities for IC stubs. */        \
-  ICU(StoreCallbackProperty)           \
-  ICU(LoadPropertyWithInterceptorOnly) \
-  ICU(LoadPropertyWithInterceptor)     \
-  ICU(LoadElementWithInterceptor)      \
-  ICU(StorePropertyWithInterceptor)    \
-  ICU(CompareIC_Miss)                  \
-  ICU(BinaryOpIC_Miss)                 \
-  ICU(CompareNilIC_Miss)               \
-  ICU(Unreachable)                     \
-  ICU(ToBooleanIC_Miss)
 //
 // IC is the base class for LoadIC, StoreIC, KeyedLoadIC, and KeyedStoreIC.
 //
 class IC {
  public:
-  // The ids for utility called from the generated code.
-  enum UtilityId {
-#define CONST_NAME(name) k##name,
-    IC_UTIL_LIST(CONST_NAME)
-#undef CONST_NAME
-    kUtilityCount
-  };
-
-  // Looks up the address of the named utility.
-  static Address AddressFromUtilityId(UtilityId id);
-
   // Alias the inline cache state type to make the IC code more readable.
   typedef InlineCacheState State;
 
@@ -60,8 +26,7 @@ class IC {
 
   // Construct the IC structure with the given number of extra
   // JavaScript frames on the stack.
-  IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL,
-     bool for_queries_only = false);
+  IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL);
   virtual ~IC() {}
 
   State state() const { return state_; }
@@ -131,8 +96,6 @@ class IC {
   SharedFunctionInfo* GetSharedFunctionInfo() const;
   // Get the code object of the caller.
   Code* GetCode() const;
-  // Get the original (non-breakpointed) code object of the caller.
-  Code* GetOriginalCode() const;
 
   bool AddressIsOptimizedCode() const;
   inline bool AddressIsDeoptimizedCode() const;
@@ -310,23 +273,6 @@ class IC {
 };
 
 
-// An IC_Utility encapsulates IC::UtilityId. It exists mainly because you
-// cannot make forward declarations to an enum.
-class IC_Utility {
- public:
-  explicit IC_Utility(IC::UtilityId id)
-      : address_(IC::AddressFromUtilityId(id)), id_(id) {}
-
-  Address address() const { return address_; }
-
-  IC::UtilityId id() const { return id_; }
-
- private:
-  Address address_;
-  IC::UtilityId id_;
-};
-
-
 class CallIC : public IC {
  public:
   CallIC(Isolate* isolate, CallICNexus* nexus)
@@ -354,13 +300,13 @@ class CallIC : public IC {
 
 class LoadIC : public IC {
  public:
-  static ExtraICState ComputeExtraICState(ContextualMode contextual_mode,
+  static ExtraICState ComputeExtraICState(TypeofMode typeof_mode,
                                           LanguageMode language_mode) {
-    return LoadICState(contextual_mode, language_mode).GetExtraICState();
+    return LoadICState(typeof_mode, language_mode).GetExtraICState();
   }
 
-  ContextualMode contextual_mode() const {
-    return LoadICState::GetContextualMode(extra_ic_state());
+  TypeofMode typeof_mode() const {
+    return LoadICState::GetTypeofMode(extra_ic_state());
   }
 
   LanguageMode language_mode() const {
@@ -373,24 +319,8 @@ class LoadIC : public IC {
     DCHECK(IsLoadStub());
   }
 
-  // TODO(mvstanton): The for_queries_only is because we have a case where we
-  // construct an IC only to gather the contextual mode, and we don't have
-  // vector/slot information. for_queries_only is a temporary hack to enable the
-  // strong DCHECK protection around vector/slot.
-  LoadIC(FrameDepth depth, Isolate* isolate, bool for_queries_only)
-      : IC(depth, isolate, NULL, for_queries_only) {
-    DCHECK(IsLoadStub());
-  }
-
-  // Returns if this IC is for contextual (no explicit receiver)
-  // access to properties.
-  bool IsUndeclaredGlobal(Handle<Object> receiver) {
-    if (receiver->IsGlobalObject()) {
-      return contextual_mode() == CONTEXTUAL;
-    } else {
-      DCHECK(contextual_mode() != CONTEXTUAL);
-      return false;
-    }
+  bool ShouldThrowReferenceError(Handle<Object> receiver) {
+    return receiver->IsGlobalObject() && typeof_mode() == NOT_INSIDE_TYPEOF;
   }
 
   // Code generator routines.
@@ -452,10 +382,10 @@ class KeyedLoadIC : public LoadIC {
   class IcCheckTypeField
       : public BitField<IcCheckType, LoadICState::kNextBitFieldOffset, 1> {};
 
-  static ExtraICState ComputeExtraICState(ContextualMode contextual_mode,
+  static ExtraICState ComputeExtraICState(TypeofMode typeof_mode,
                                           LanguageMode language_mode,
                                           IcCheckType key_type) {
-    return LoadICState(contextual_mode, language_mode).GetExtraICState() |
+    return LoadICState(typeof_mode, language_mode).GetExtraICState() |
            IcCheckTypeField::encode(key_type);
   }
 
@@ -666,9 +596,6 @@ class KeyedStoreIC : public StoreIC {
   static void Clear(Isolate* isolate, Address address, Code* target,
                     Address constant_pool);
 
-  KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver,
-                                    Handle<Object> key, Handle<Object> value);
-
   Handle<Map> ComputeTransitionedMap(Handle<Map> map,
                                      KeyedAccessStoreMode store_mode);
 
@@ -750,25 +677,6 @@ class ToBooleanIC : public IC {
 enum InlinedSmiCheck { ENABLE_INLINED_SMI_CHECK, DISABLE_INLINED_SMI_CHECK };
 void PatchInlinedSmiCode(Address address, InlinedSmiCheck check);
 
-DECLARE_RUNTIME_FUNCTION(KeyedLoadIC_MissFromStubFailure);
-DECLARE_RUNTIME_FUNCTION(KeyedStoreIC_MissFromStubFailure);
-DECLARE_RUNTIME_FUNCTION(UnaryOpIC_Miss);
-DECLARE_RUNTIME_FUNCTION(StoreIC_MissFromStubFailure);
-DECLARE_RUNTIME_FUNCTION(ElementsTransitionAndStoreIC_Miss);
-DECLARE_RUNTIME_FUNCTION(BinaryOpIC_Miss);
-DECLARE_RUNTIME_FUNCTION(BinaryOpIC_MissWithAllocationSite);
-DECLARE_RUNTIME_FUNCTION(CompareNilIC_Miss);
-DECLARE_RUNTIME_FUNCTION(ToBooleanIC_Miss);
-DECLARE_RUNTIME_FUNCTION(LoadIC_MissFromStubFailure);
-
-// Support functions for callbacks handlers.
-DECLARE_RUNTIME_FUNCTION(StoreCallbackProperty);
-
-// Support functions for interceptor handlers.
-DECLARE_RUNTIME_FUNCTION(LoadPropertyWithInterceptorOnly);
-DECLARE_RUNTIME_FUNCTION(LoadPropertyWithInterceptor);
-DECLARE_RUNTIME_FUNCTION(LoadElementWithInterceptor);
-DECLARE_RUNTIME_FUNCTION(StorePropertyWithInterceptor);
 }
 }  // namespace v8::internal
 

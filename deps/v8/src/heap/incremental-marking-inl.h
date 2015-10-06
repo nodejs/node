@@ -85,7 +85,7 @@ void IncrementalMarking::BlackToGreyAndUnshift(HeapObject* obj,
   DCHECK(IsMarking());
   Marking::BlackToGrey(mark_bit);
   int obj_size = obj->Size();
-  MemoryChunk::IncrementLiveBytesFromGC(obj->address(), -obj_size);
+  MemoryChunk::IncrementLiveBytesFromGC(obj, -obj_size);
   bytes_scanned_ -= obj_size;
   int64_t old_bytes_rescanned = bytes_rescanned_;
   bytes_rescanned_ = old_bytes_rescanned + obj_size;
@@ -105,13 +105,13 @@ void IncrementalMarking::BlackToGreyAndUnshift(HeapObject* obj,
     }
   }
 
-  heap_->mark_compact_collector()->marking_deque()->UnshiftGrey(obj);
+  heap_->mark_compact_collector()->marking_deque()->Unshift(obj);
 }
 
 
 void IncrementalMarking::WhiteToGreyAndPush(HeapObject* obj, MarkBit mark_bit) {
   Marking::WhiteToGrey(mark_bit);
-  heap_->mark_compact_collector()->marking_deque()->PushGrey(obj);
+  heap_->mark_compact_collector()->marking_deque()->Push(obj);
 }
 }
 }  // namespace v8::internal

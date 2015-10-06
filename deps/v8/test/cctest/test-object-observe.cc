@@ -711,7 +711,7 @@ TEST(DontLeakContextOnObserve) {
   }
 
   CcTest::isolate()->ContextDisposedNotification();
-  CheckSurvivingGlobalObjectsCount(1);
+  CheckSurvivingGlobalObjectsCount(2);
 }
 
 
@@ -732,7 +732,7 @@ TEST(DontLeakContextOnGetNotifier) {
   }
 
   CcTest::isolate()->ContextDisposedNotification();
-  CheckSurvivingGlobalObjectsCount(1);
+  CheckSurvivingGlobalObjectsCount(2);
 }
 
 
@@ -759,7 +759,7 @@ TEST(DontLeakContextOnNotifierPerformChange) {
   }
 
   CcTest::isolate()->ContextDisposedNotification();
-  CheckSurvivingGlobalObjectsCount(1);
+  CheckSurvivingGlobalObjectsCount(2);
 }
 
 

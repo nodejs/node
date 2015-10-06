@@ -382,6 +382,10 @@ function TestSet2(create, handler) {
   assertEquals(46, (function(n) { return p[n] = 46 })(99))
   assertEquals("99", key)
   assertEquals(46, val)
+
+  assertEquals(47, p["0"] = 47)
+  assertEquals("0", key)
+  assertEquals(47, val)
 }
 
 TestSet({

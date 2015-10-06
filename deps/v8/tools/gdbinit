@@ -20,6 +20,15 @@ Print a v8 Code object from an internal code address
 Usage: jco pc
 end
 
+# Print TypeFeedbackVector
+define jfv
+print ((v8::internal::TypeFeedbackVector*)($arg0))->Print()
+end
+document jfv
+Print a v8 TypeFeedbackVector object
+Usage: jtv tagged_ptr
+end
+
 # Print DescriptorArray.
 define jda
 print ((v8::internal::DescriptorArray*)($arg0))->Print()

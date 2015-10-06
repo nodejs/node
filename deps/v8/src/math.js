@@ -12,6 +12,7 @@ var rngstate;  // Initialized to a Uint32Array during genesis.
 // -------------------------------------------------------------------
 // Imports
 
+var GlobalMath = global.Math;
 var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
 
@@ -287,20 +288,10 @@ function CubeRoot(x) {
 
 // -------------------------------------------------------------------
 
-// Instance class name can only be set on functions. That is the only
-// purpose for MathConstructor.
-function MathConstructor() {}
-
-var Math = new MathConstructor();
-
-%InternalSetPrototype(Math, GlobalObject.prototype);
-%AddNamedProperty(global, "Math", Math, DONT_ENUM);
-%FunctionSetInstanceClassName(MathConstructor, 'Math');
-
-%AddNamedProperty(Math, symbolToStringTag, "Math", READ_ONLY | DONT_ENUM);
+%AddNamedProperty(GlobalMath, symbolToStringTag, "Math", READ_ONLY | DONT_ENUM);
 
 // Set up math constants.
-utils.InstallConstants(Math, [
+utils.InstallConstants(GlobalMath, [
   // ECMA-262, section 15.8.1.1.
   "E", 2.7182818284590452354,
   // ECMA-262, section 15.8.1.2.
@@ -317,7 +308,7 @@ utils.InstallConstants(Math, [
 
 // Set up non-enumerable functions of the Math object and
 // set their names.
-utils.InstallFunctions(Math, DONT_ENUM, [
+utils.InstallFunctions(GlobalMath, DONT_ENUM, [
   "random", MathRandom,
   "abs", MathAbs,
   "acos", MathAcosJS,

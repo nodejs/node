@@ -525,9 +525,6 @@ class Assembler : public AssemblerBase {
   // of that call in the instruction stream.
   inline static Address target_address_from_return_address(Address pc);
 
-  // Return the code target address of the patch debug break slot
-  inline static Address break_address_from_return_address(Address pc);
-
   static void JumpToJumpRegister(Address pc);
 
   static void QuietNaN(HeapObject* nan);
@@ -575,25 +572,14 @@ class Assembler : public AssemblerBase {
   // target and the return address.
   static const int kCallTargetAddressOffset = 4 * kInstrSize;
 
-  // Distance between start of patched return sequence and the emitted address
-  // to jump to.
-  static const int kPatchReturnSequenceAddressOffset = 0;
-
   // Distance between start of patched debug break slot and the emitted address
   // to jump to.
-  static const int kPatchDebugBreakSlotAddressOffset =  0 * kInstrSize;
+  static const int kPatchDebugBreakSlotAddressOffset = 4 * kInstrSize;
 
   // Difference between address of current opcode and value read from pc
   // register.
   static const int kPcLoadDelta = 4;
 
-  static const int kPatchDebugBreakSlotReturnOffset = 4 * kInstrSize;
-
-  // Number of instructions used for the JS return sequence. The constant is
-  // used by the debugger to patch the JS return sequence.
-  static const int kJSReturnSequenceInstructions = 7;
-  static const int kJSReturnSequenceLength =
-      kJSReturnSequenceInstructions * kInstrSize;
   static const int kDebugBreakSlotInstructions = 4;
   static const int kDebugBreakSlotLength =
       kDebugBreakSlotInstructions * kInstrSize;
@@ -1058,11 +1044,11 @@ class Assembler : public AssemblerBase {
 
   // Debugging.
 
-  // Mark address of the ExitJSFrame code.
-  void RecordJSReturn();
+  // Mark generator continuation.
+  void RecordGeneratorContinuation();
 
   // Mark address of a debug break slot.
-  void RecordDebugBreakSlot();
+  void RecordDebugBreakSlot(RelocInfo::Mode mode, int argc = 0);
 
   // Record the AST id of the CallIC being compiled, so that it can be placed
   // in the relocation information.

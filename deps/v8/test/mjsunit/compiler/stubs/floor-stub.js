@@ -25,30 +25,37 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --expose-natives-as=builtins --noalways-opt
+// Flags: --allow-natives-syntax --noalways-opt --turbo-filter=*
+
+var stubs = %GetCodeStubExportsObject();
 
 const kExtraTypeFeedbackMinusZeroSentinel = 1;
+const kFirstJSFunctionTypeFeedbackIndex = 5;
 const kFirstSlotExtraTypeFeedbackIndex = 5;
 
-(function(){
-  var floorFunc = function() {
-    Math.floor(NaN);
+(function()  {
+  var stub1 = stubs.MathFloorStub("MathFloorStub", 1);
+  var tempForTypeVector = function(d) {
+    return Math.round(d);
   }
-  // Execute the function once to make sure it has a type feedback vector.
-  floorFunc(5);
-  var stub = builtins.MathFloorStub("MathFloorStub", 0);
+  tempForTypeVector(5);
+  var tv = %GetTypeFeedbackVector(tempForTypeVector);
+  var floorFunc1 = function(v, first) {
+    if (first) return;
+    return stub1(stub1, kFirstSlotExtraTypeFeedbackIndex - 1, tv, undefined, v);
+  };
+  %OptimizeFunctionOnNextCall(stub1);
+  floorFunc1(5, true);
+  %FixedArraySet(tv, kFirstSlotExtraTypeFeedbackIndex - 1, stub1);
   assertTrue(kExtraTypeFeedbackMinusZeroSentinel !==
-             %FixedArrayGet(%GetTypeFeedbackVector(floorFunc),
-                            kFirstSlotExtraTypeFeedbackIndex));
-  assertEquals(5.0, stub(floorFunc, 4, 5.5));
+             %FixedArrayGet(tv, kFirstSlotExtraTypeFeedbackIndex));
+  assertEquals(5.0, floorFunc1(5.5));
   assertTrue(kExtraTypeFeedbackMinusZeroSentinel !==
-             %FixedArrayGet(%GetTypeFeedbackVector(floorFunc),
-                            kFirstSlotExtraTypeFeedbackIndex));
+             %FixedArrayGet(tv, kFirstSlotExtraTypeFeedbackIndex));
   // Executing floor such that it returns -0 should set the proper sentinel in
   // the feedback vector.
-  assertEquals(-Infinity, 1/stub(floorFunc, 4, -0));
+  assertEquals(-Infinity, 1/floorFunc1(-0));
   assertEquals(kExtraTypeFeedbackMinusZeroSentinel,
-               %FixedArrayGet(%GetTypeFeedbackVector(floorFunc),
-                              kFirstSlotExtraTypeFeedbackIndex));
-  %ClearFunctionTypeFeedback(floorFunc);
+               %FixedArrayGet(tv, kFirstSlotExtraTypeFeedbackIndex));
+  %ClearFunctionTypeFeedback(floorFunc1);
 })();

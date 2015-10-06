@@ -27,78 +27,94 @@
 
 
 // Flags: --expose-natives-as natives
-// Test the SameValue internal method.
+// Test the SameValue and SameValueZero internal methods.
 
 var obj1 = {x: 10, y: 11, z: "test"};
 var obj2 = {x: 10, y: 11, z: "test"};
 
 var sameValue = natives.$sameValue;
+var sameValueZero = natives.$sameValueZero;
 
-assertTrue(sameValue(0, 0));
-assertTrue(sameValue(+0, +0));
-assertTrue(sameValue(-0, -0));
-assertTrue(sameValue(1, 1));
-assertTrue(sameValue(2, 2));
-assertTrue(sameValue(-1, -1));
-assertTrue(sameValue(0.5, 0.5));
-assertTrue(sameValue(true, true));
-assertTrue(sameValue(false, false));
-assertTrue(sameValue(NaN, NaN));
-assertTrue(sameValue(null, null));
-assertTrue(sameValue("foo", "foo"));
-assertTrue(sameValue(obj1, obj1));
+// Calls SameValue and SameValueZero and checks that their results match.
+function sameValueBoth(a, b) {
+  var result = sameValue(a, b);
+  assertTrue(result === sameValueZero(a, b));
+  return result;
+}
+
+// Calls SameValue and SameValueZero and checks that their results don't match.
+function sameValueZeroOnly(a, b) {
+  var result = sameValueZero(a, b);
+  assertTrue(result && !sameValue(a, b));
+  return result;
+}
+
+assertTrue(sameValueBoth(0, 0));
+assertTrue(sameValueBoth(+0, +0));
+assertTrue(sameValueBoth(-0, -0));
+assertTrue(sameValueBoth(1, 1));
+assertTrue(sameValueBoth(2, 2));
+assertTrue(sameValueBoth(-1, -1));
+assertTrue(sameValueBoth(0.5, 0.5));
+assertTrue(sameValueBoth(true, true));
+assertTrue(sameValueBoth(false, false));
+assertTrue(sameValueBoth(NaN, NaN));
+assertTrue(sameValueBoth(null, null));
+assertTrue(sameValueBoth("foo", "foo"));
+assertTrue(sameValueBoth(obj1, obj1));
 // Undefined values.
-assertTrue(sameValue());
-assertTrue(sameValue(undefined, undefined));
+assertTrue(sameValueBoth());
+assertTrue(sameValueBoth(undefined, undefined));
 
-assertFalse(sameValue(0,1));
-assertFalse(sameValue("foo", "bar"));
-assertFalse(sameValue(obj1, obj2));
-assertFalse(sameValue(true, false));
+assertFalse(sameValueBoth(0,1));
+assertFalse(sameValueBoth("foo", "bar"));
+assertFalse(sameValueBoth(obj1, obj2));
+assertFalse(sameValueBoth(true, false));
 
-assertFalse(sameValue(obj1, true));
-assertFalse(sameValue(obj1, "foo"));
-assertFalse(sameValue(obj1, 1));
-assertFalse(sameValue(obj1, undefined));
-assertFalse(sameValue(obj1, NaN));
+assertFalse(sameValueBoth(obj1, true));
+assertFalse(sameValueBoth(obj1, "foo"));
+assertFalse(sameValueBoth(obj1, 1));
+assertFalse(sameValueBoth(obj1, undefined));
+assertFalse(sameValueBoth(obj1, NaN));
 
-assertFalse(sameValue(undefined, true));
-assertFalse(sameValue(undefined, "foo"));
-assertFalse(sameValue(undefined, 1));
-assertFalse(sameValue(undefined, obj1));
-assertFalse(sameValue(undefined, NaN));
+assertFalse(sameValueBoth(undefined, true));
+assertFalse(sameValueBoth(undefined, "foo"));
+assertFalse(sameValueBoth(undefined, 1));
+assertFalse(sameValueBoth(undefined, obj1));
+assertFalse(sameValueBoth(undefined, NaN));
 
-assertFalse(sameValue(NaN, true));
-assertFalse(sameValue(NaN, "foo"));
-assertFalse(sameValue(NaN, 1));
-assertFalse(sameValue(NaN, obj1));
-assertFalse(sameValue(NaN, undefined));
+assertFalse(sameValueBoth(NaN, true));
+assertFalse(sameValueBoth(NaN, "foo"));
+assertFalse(sameValueBoth(NaN, 1));
+assertFalse(sameValueBoth(NaN, obj1));
+assertFalse(sameValueBoth(NaN, undefined));
 
-assertFalse(sameValue("foo", true));
-assertFalse(sameValue("foo", 1));
-assertFalse(sameValue("foo", obj1));
-assertFalse(sameValue("foo", undefined));
-assertFalse(sameValue("foo", NaN));
+assertFalse(sameValueBoth("foo", true));
+assertFalse(sameValueBoth("foo", 1));
+assertFalse(sameValueBoth("foo", obj1));
+assertFalse(sameValueBoth("foo", undefined));
+assertFalse(sameValueBoth("foo", NaN));
 
-assertFalse(sameValue(true, 1));
-assertFalse(sameValue(true, obj1));
-assertFalse(sameValue(true, undefined));
-assertFalse(sameValue(true, NaN));
-assertFalse(sameValue(true, "foo"));
+assertFalse(sameValueBoth(true, 1));
+assertFalse(sameValueBoth(true, obj1));
+assertFalse(sameValueBoth(true, undefined));
+assertFalse(sameValueBoth(true, NaN));
+assertFalse(sameValueBoth(true, "foo"));
 
-assertFalse(sameValue(1, true));
-assertFalse(sameValue(1, obj1));
-assertFalse(sameValue(1, undefined));
-assertFalse(sameValue(1, NaN));
-assertFalse(sameValue(1, "foo"));
+assertFalse(sameValueBoth(1, true));
+assertFalse(sameValueBoth(1, obj1));
+assertFalse(sameValueBoth(1, undefined));
+assertFalse(sameValueBoth(1, NaN));
+assertFalse(sameValueBoth(1, "foo"));
 
 // Special string cases.
-assertFalse(sameValue("1", 1));
-assertFalse(sameValue("true", true));
-assertFalse(sameValue("false", false));
-assertFalse(sameValue("undefined", undefined));
-assertFalse(sameValue("NaN", NaN));
+assertFalse(sameValueBoth("1", 1));
+assertFalse(sameValueBoth("true", true));
+assertFalse(sameValueBoth("false", false));
+assertFalse(sameValueBoth("undefined", undefined));
+assertFalse(sameValueBoth("NaN", NaN));
 
-// -0 and +0 are should be different
-assertFalse(sameValue(+0, -0));
-assertFalse(sameValue(-0, +0));
+// SameValue considers -0 and +0 to be different; SameValueZero considers
+// -0 and +0 to be the same.
+assertTrue(sameValueZeroOnly(+0, -0));
+assertTrue(sameValueZeroOnly(-0, +0));

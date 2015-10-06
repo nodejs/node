@@ -250,11 +250,11 @@ void StringStream::Add(const char* format, FmtElm arg0, FmtElm arg1,
 }
 
 
-SmartArrayPointer<const char> StringStream::ToCString() const {
+base::SmartArrayPointer<const char> StringStream::ToCString() const {
   char* str = NewArray<char>(length_ + 1);
   MemCopy(str, buffer_, length_);
   str[length_] = '\0';
-  return SmartArrayPointer<const char>(str);
+  return base::SmartArrayPointer<const char>(str);
 }
 
 

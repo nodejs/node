@@ -10,7 +10,9 @@
 namespace v8 {
 namespace internal {
 
+// Forward declarations.
 class Heap;
+class Zone;
 
 // Base class of identity maps contains shared code for all template
 // instantions.

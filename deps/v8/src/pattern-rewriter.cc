@@ -214,8 +214,8 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
 
 
 Variable* Parser::PatternRewriter::CreateTempVar(Expression* value) {
-  auto temp_scope = descriptor_->parser->scope_->DeclarationScope();
-  auto temp = temp_scope->NewTemporary(ast_value_factory()->empty_string());
+  auto temp = descriptor_->parser->scope_->NewTemporary(
+      ast_value_factory()->empty_string());
   if (value != nullptr) {
     auto assignment = factory()->NewAssignment(
         Token::ASSIGN, factory()->NewVariableProxy(temp), value,

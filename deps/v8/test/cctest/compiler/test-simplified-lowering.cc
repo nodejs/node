@@ -110,14 +110,12 @@ TEST(RunNumberToInt32_float64) {
   t.LowerAllNodes();
   t.GenerateCode();
 
-  if (Pipeline::SupportedTarget()) {
     FOR_FLOAT64_INPUTS(i) {
       input = *i;
       int32_t expected = DoubleToInt32(*i);
       t.Call();
       CHECK_EQ(expected, result);
     }
-  }
 }
 
 
@@ -139,7 +137,6 @@ TEST(RunNumberToUint32_float64) {
   t.LowerAllNodes();
   t.GenerateCode();
 
-  if (Pipeline::SupportedTarget()) {
     FOR_FLOAT64_INPUTS(i) {
       input = *i;
       uint32_t expected = DoubleToUint32(*i);
@@ -147,7 +144,6 @@ TEST(RunNumberToUint32_float64) {
       CHECK_EQ(static_cast<int32_t>(expected), static_cast<int32_t>(result));
     }
   }
-}
 
 
 // Create a simple JSObject with a unique map.
@@ -168,12 +164,10 @@ TEST(RunLoadMap) {
   t.LowerAllNodes();
   t.GenerateCode();
 
-  if (Pipeline::SupportedTarget()) {
-    Handle<JSObject> src = TestObject();
-    Handle<Map> src_map(src->map());
-    Object* result = t.Call(*src);  // TODO(titzer): raw pointers in call
-    CHECK_EQ(*src_map, result);
-  }
+  Handle<JSObject> src = TestObject();
+  Handle<Map> src_map(src->map());
+  Object* result = t.Call(*src);  // TODO(titzer): raw pointers in call
+  CHECK_EQ(*src_map, result);
 }
 
 
@@ -186,7 +180,6 @@ TEST(RunStoreMap) {
   t.LowerAllNodes();
   t.GenerateCode();
 
-  if (Pipeline::SupportedTarget()) {
     Handle<JSObject> src = TestObject();
     Handle<Map> src_map(src->map());
     Handle<JSObject> dst = TestObject();
@@ -194,7 +187,6 @@ TEST(RunStoreMap) {
     t.Call(*src_map, *dst);  // TODO(titzer): raw pointers in call
     CHECK(*src_map == dst->map());
   }
-}
 
 
 TEST(RunLoadProperties) {
@@ -206,12 +198,10 @@ TEST(RunLoadProperties) {
   t.LowerAllNodes();
   t.GenerateCode();
 
-  if (Pipeline::SupportedTarget()) {
     Handle<JSObject> src = TestObject();
     Handle<FixedArray> src_props(src->properties());
     Object* result = t.Call(*src);  // TODO(titzer): raw pointers in call
     CHECK_EQ(*src_props, result);
-  }
 }
 
 
@@ -225,7 +215,6 @@ TEST(RunLoadStoreMap) {
   t.LowerAllNodes();
   t.GenerateCode();
 
-  if (Pipeline::SupportedTarget()) {
     Handle<JSObject> src = TestObject();
     Handle<Map> src_map(src->map());
     Handle<JSObject> dst = TestObject();
@@ -234,7 +223,6 @@ TEST(RunLoadStoreMap) {
     CHECK(result->IsMap());
     CHECK_EQ(*src_map, result);
     CHECK(*src_map == dst->map());
-  }
 }
 
 
@@ -248,7 +236,6 @@ TEST(RunLoadStoreFixedArrayIndex) {
   t.LowerAllNodes();
   t.GenerateCode();
 
-  if (Pipeline::SupportedTarget()) {
     Handle<FixedArray> array = t.factory()->NewFixedArray(2);
     Handle<JSObject> src = TestObject();
     Handle<JSObject> dst = TestObject();
@@ -258,7 +245,6 @@ TEST(RunLoadStoreFixedArrayIndex) {
     CHECK_EQ(*src, result);
     CHECK_EQ(*src, array->get(0));
     CHECK_EQ(*src, array->get(1));
-  }
 }
 
 
@@ -279,7 +265,6 @@ TEST(RunLoadStoreArrayBuffer) {
   t.LowerAllNodes();
   t.GenerateCode();
 
-  if (Pipeline::SupportedTarget()) {
     Handle<JSArrayBuffer> array = t.factory()->NewJSArrayBuffer();
     Runtime::SetupArrayBufferAllocatingData(t.isolate(), array, array_length);
     uint8_t* data = reinterpret_cast<uint8_t*>(array->backing_store());
@@ -296,7 +281,6 @@ TEST(RunLoadStoreArrayBuffer) {
       CHECK_EQ(data[i], expected);
     }
   }
-}
 
 
 TEST(RunLoadFieldFromUntaggedBase) {
@@ -311,8 +295,6 @@ TEST(RunLoadFieldFromUntaggedBase) {
     Node* load = t.LoadField(access, t.PointerConstant(smis));
     t.Return(load);
     t.LowerAllNodes();
-
-    if (!Pipeline::SupportedTarget()) continue;
 
     for (int j = -5; j <= 5; j++) {
       Smi* expected = Smi::FromInt(j);
@@ -336,8 +318,6 @@ TEST(RunStoreFieldToUntaggedBase) {
     t.StoreField(access, t.PointerConstant(smis), p0);
     t.Return(p0);
     t.LowerAllNodes();
-
-    if (!Pipeline::SupportedTarget()) continue;
 
     for (int j = -5; j <= 5; j++) {
       Smi* expected = Smi::FromInt(j);
@@ -365,8 +345,6 @@ TEST(RunLoadElementFromUntaggedBase) {
       t.Return(load);
       t.LowerAllNodes();
 
-      if (!Pipeline::SupportedTarget()) continue;
-
       for (int k = -5; k <= 5; k++) {
         Smi* expected = Smi::FromInt(k);
         smis[i + j] = expected;
@@ -393,8 +371,6 @@ TEST(RunStoreElementFromUntaggedBase) {
                      t.Int32Constant(static_cast<int>(j)), p0);
       t.Return(p0);
       t.LowerAllNodes();
-
-      if (!Pipeline::SupportedTarget()) continue;
 
       for (int k = -5; k <= 5; k++) {
         Smi* expected = Smi::FromInt(k);
@@ -462,10 +438,8 @@ class AccessTester : public HandleAndZoneScope {
     t.LowerAllNodes();
     t.GenerateCode();
 
-    if (Pipeline::SupportedTarget()) {
       Object* result = t.Call();
       CHECK_EQ(t.isolate()->heap()->true_value(), result);
-    }
   }
 
   // Create and run code that copies the field in either {untagged_array}
@@ -484,10 +458,8 @@ class AccessTester : public HandleAndZoneScope {
     t.LowerAllNodes();
     t.GenerateCode();
 
-    if (Pipeline::SupportedTarget()) {
       Object* result = t.Call();
       CHECK_EQ(t.isolate()->heap()->true_value(), result);
-    }
   }
 
   // Create and run code that copies the elements from {this} to {that}.
@@ -525,10 +497,8 @@ class AccessTester : public HandleAndZoneScope {
     t.LowerAllNodes();
     t.GenerateCode();
 
-    if (Pipeline::SupportedTarget()) {
       Object* result = t.Call();
       CHECK_EQ(t.isolate()->heap()->true_value(), result);
-    }
 #endif
   }
 
@@ -596,13 +566,11 @@ static void RunAccessTest(MachineType rep, E* original_elements, size_t num) {
         } else {
           a.RunCopyElement(i, i + 1);  // Test element read/write.
         }
-        if (Pipeline::SupportedTarget()) {  // verify.
           for (int j = 0; j < num_elements; j++) {
             E expect =
                 j == (i + 1) ? original_elements[i] : original_elements[j];
             CHECK_EQ(expect, a.GetElement(j));
           }
-        }
       }
     }
   }
@@ -612,10 +580,8 @@ static void RunAccessTest(MachineType rep, E* original_elements, size_t num) {
       AccessTester<E> a(tf == 1, rep, original_elements, num);
       AccessTester<E> b(tt == 1, rep, original_elements, num);
       a.RunCopyElements(&b);
-      if (Pipeline::SupportedTarget()) {  // verify.
         for (int i = 0; i < num_elements; i++) {
           CHECK_EQ(a.GetElement(i), b.GetElement(i));
-        }
       }
     }
   }
@@ -668,7 +634,7 @@ TEST(RunAccessTests_Smi) {
   RunAccessTest<Smi*>(kMachAnyTagged, data, arraysize(data));
 }
 
-#if V8_TURBOFAN_TARGET
+
 TEST(RunAllocate) {
   PretenureFlag flag[] = {NOT_TENURED, TENURED};
 
@@ -684,15 +650,13 @@ TEST(RunAllocate) {
     t.LowerAllNodes();
     t.GenerateCode();
 
-    if (Pipeline::SupportedTarget()) {
       HeapObject* result = t.CallWithPotentialGC<HeapObject>();
       CHECK(t.heap()->new_space()->Contains(result) || flag[i] == TENURED);
       CHECK(t.heap()->old_space()->Contains(result) || flag[i] == NOT_TENURED);
       CHECK(result->IsHeapNumber());
-    }
   }
 }
-#endif
+
 
 // Fills in most of the nodes of the graph in order to make tests shorter.
 class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
@@ -1264,7 +1228,6 @@ TEST(LowerReferenceEqual_to_wordeq) {
 
 
 TEST(LowerStringOps_to_call_and_compare) {
-  if (Pipeline::SupportedTarget()) {
     // These tests need linkage for the calls.
     TestingGraph t(Type::String(), Type::String());
     IrOpcode::Value compare_eq =
@@ -1277,7 +1240,6 @@ TEST(LowerStringOps_to_call_and_compare) {
     t.CheckLoweringBinop(compare_lt, t.simplified()->StringLessThan());
     t.CheckLoweringBinop(compare_le, t.simplified()->StringLessThanOrEqual());
   }
-}
 
 
 void CheckChangeInsertion(IrOpcode::Value expected, MachineType from,
@@ -1708,7 +1670,6 @@ TEST(RunNumberDivide_minus_1_TruncatingToInt32) {
   Node* trunc = t.NumberToInt32(div);
   t.Return(trunc);
 
-  if (Pipeline::SupportedTarget()) {
     t.LowerAllNodesAndLowerChanges();
     t.GenerateCode();
 
@@ -1716,7 +1677,6 @@ TEST(RunNumberDivide_minus_1_TruncatingToInt32) {
       int32_t x = 0 - *i;
       t.CheckNumberCall(static_cast<double>(x), static_cast<double>(*i));
     }
-  }
 }
 
 
@@ -1747,7 +1707,6 @@ TEST(RunNumberMultiply_TruncatingToInt32) {
     Node* trunc = t.NumberToInt32(mul);
     t.Return(trunc);
 
-    if (Pipeline::SupportedTarget()) {
       t.LowerAllNodesAndLowerChanges();
       t.GenerateCode();
 
@@ -1756,7 +1715,6 @@ TEST(RunNumberMultiply_TruncatingToInt32) {
         t.CheckNumberCall(static_cast<double>(x), static_cast<double>(*i));
       }
     }
-  }
 }
 
 
@@ -1771,14 +1729,12 @@ TEST(RunNumberMultiply_TruncatingToUint32) {
     Node* trunc = t.NumberToUint32(mul);
     t.Return(trunc);
 
-    if (Pipeline::SupportedTarget()) {
       t.LowerAllNodesAndLowerChanges();
       t.GenerateCode();
 
       FOR_UINT32_INPUTS(i) {
         uint32_t x = DoubleToUint32(static_cast<double>(*i) * k);
         t.CheckNumberCall(static_cast<double>(x), static_cast<double>(*i));
-      }
     }
   }
 }
@@ -1791,7 +1747,6 @@ TEST(RunNumberDivide_2_TruncatingToUint32) {
   Node* trunc = t.NumberToUint32(div);
   t.Return(trunc);
 
-  if (Pipeline::SupportedTarget()) {
     t.LowerAllNodesAndLowerChanges();
     t.GenerateCode();
 
@@ -1799,7 +1754,6 @@ TEST(RunNumberDivide_2_TruncatingToUint32) {
       uint32_t x = DoubleToUint32(static_cast<double>(*i / 2.0));
       t.CheckNumberCall(static_cast<double>(x), static_cast<double>(*i));
     }
-  }
 }
 
 
@@ -1853,7 +1807,6 @@ TEST(RunNumberDivide_TruncatingToInt32) {
     Node* trunc = t.NumberToInt32(div);
     t.Return(trunc);
 
-    if (Pipeline::SupportedTarget()) {
       t.LowerAllNodesAndLowerChanges();
       t.GenerateCode();
 
@@ -1861,7 +1814,6 @@ TEST(RunNumberDivide_TruncatingToInt32) {
         if (*i == INT_MAX) continue;  // exclude max int.
         int32_t x = DoubleToInt32(static_cast<double>(*i) / k);
         t.CheckNumberCall(static_cast<double>(x), static_cast<double>(*i));
-      }
     }
   }
 }
@@ -1894,14 +1846,12 @@ TEST(RunNumberDivide_TruncatingToUint32) {
     Node* trunc = t.NumberToUint32(div);
     t.Return(trunc);
 
-    if (Pipeline::SupportedTarget()) {
       t.LowerAllNodesAndLowerChanges();
       t.GenerateCode();
 
       FOR_UINT32_INPUTS(i) {
         uint32_t x = *i / k;
         t.CheckNumberCall(static_cast<double>(x), static_cast<double>(*i));
-      }
     }
   }
 }
@@ -1972,7 +1922,6 @@ TEST(RunNumberModulus_TruncatingToInt32) {
     Node* trunc = t.NumberToInt32(mod);
     t.Return(trunc);
 
-    if (Pipeline::SupportedTarget()) {
       t.LowerAllNodesAndLowerChanges();
       t.GenerateCode();
 
@@ -1980,7 +1929,6 @@ TEST(RunNumberModulus_TruncatingToInt32) {
         if (*i == INT_MAX) continue;  // exclude max int.
         int32_t x = DoubleToInt32(std::fmod(static_cast<double>(*i), k));
         t.CheckNumberCall(static_cast<double>(x), static_cast<double>(*i));
-      }
     }
   }
 }
@@ -2014,14 +1962,12 @@ TEST(RunNumberModulus_TruncatingToUint32) {
     Node* trunc = t.NumberToUint32(mod);
     t.Return(trunc);
 
-    if (Pipeline::SupportedTarget()) {
       t.LowerAllNodesAndLowerChanges();
       t.GenerateCode();
 
       FOR_UINT32_INPUTS(i) {
         uint32_t x = *i % k;
         t.CheckNumberCall(static_cast<double>(x), static_cast<double>(*i));
-      }
     }
   }
 }

@@ -45,7 +45,7 @@ function ArrayIterator() {}
 
 // 15.4.5.1 CreateArrayIterator Abstract Operation
 function CreateArrayIterator(array, kind) {
-  var object = $toObject(array);
+  var object = TO_OBJECT(array);
   var iterator = new ArrayIterator;
   SET_PRIVATE(iterator, arrayIteratorObjectSymbol, object);
   SET_PRIVATE(iterator, arrayIteratorNextIndexSymbol, 0);
@@ -68,7 +68,7 @@ function ArrayIteratorIterator() {
 
 // 15.4.5.2.2 ArrayIterator.prototype.next( )
 function ArrayIteratorNext() {
-  var iterator = $toObject(this);
+  var iterator = TO_OBJECT(this);
 
   if (!HAS_DEFINED_PRIVATE(iterator, arrayIteratorNextIndexSymbol)) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
@@ -138,6 +138,10 @@ utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
   'keys', ArrayKeys
 ]);
 
+// TODO(adam): Remove this call once 'values' is in the above
+// InstallFunctions block, as it'll be redundant.
+utils.SetFunctionName(ArrayValues, 'values');
+
 %AddNamedProperty(GlobalArray.prototype, symbolIterator, ArrayValues,
                   DONT_ENUM);
 
@@ -159,5 +163,9 @@ utils.Export(function(to) {
 });
 
 $arrayValues = ArrayValues;
+
+utils.ExportToRuntime(function(to) {
+  to.ArrayValues = ArrayValues;
+});
 
 })

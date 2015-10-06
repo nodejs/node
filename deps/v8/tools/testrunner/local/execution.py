@@ -104,6 +104,8 @@ class Runner(object):
         "--stress-opt" in self.context.mode_flags or
         "--stress-opt" in self.context.extra_flags):
       timeout *= 4
+    if "--noenable-vfp3" in self.context.extra_flags:
+      timeout *= 2
     # FIXME(machenbach): Make this more OO. Don't expose default outcomes or
     # the like.
     if statusfile.IsSlow(test.outcomes or [statusfile.PASS]):

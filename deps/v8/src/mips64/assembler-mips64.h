@@ -75,7 +75,7 @@ namespace internal {
 // Core register.
 struct Register {
   static const int kNumRegisters = v8::internal::kNumRegisters;
-  static const int kMaxNumAllocatableRegisters = 14;  // v0 through t6 and cp.
+  static const int kMaxNumAllocatableRegisters = 14;  // v0 through t2 and cp.
   static const int kSizeInBytes = 8;
   static const int kCpRegister = 23;  // cp (s7) is the 23rd register.
 
@@ -481,6 +481,7 @@ class Assembler : public AssemblerBase {
     return o >> 2;
   }
   uint64_t jump_address(Label* L);
+  uint64_t jump_offset(Label* L);
 
   // Puts a labels target address at the given position.
   // The high 8 bits are set to zero.
@@ -517,9 +518,6 @@ class Assembler : public AssemblerBase {
   // Return the code target address at a call site from the return address
   // of that call in the instruction stream.
   inline static Address target_address_from_return_address(Address pc);
-
-  // Return the code target address of the patch debug break slot
-  inline static Address break_address_from_return_address(Address pc);
 
   static void JumpLabelToJumpRegister(Address pc);
 
@@ -566,25 +564,14 @@ class Assembler : public AssemblerBase {
   // target and the return address.
   static const int kCallTargetAddressOffset = 6 * kInstrSize;
 
-  // Distance between start of patched return sequence and the emitted address
-  // to jump to.
-  static const int kPatchReturnSequenceAddressOffset = 0;
-
   // Distance between start of patched debug break slot and the emitted address
   // to jump to.
-  static const int kPatchDebugBreakSlotAddressOffset =  0 * kInstrSize;
+  static const int kPatchDebugBreakSlotAddressOffset = 6 * kInstrSize;
 
   // Difference between address of current opcode and value read from pc
   // register.
   static const int kPcLoadDelta = 4;
 
-  static const int kPatchDebugBreakSlotReturnOffset = 6 * kInstrSize;
-
-  // Number of instructions used for the JS return sequence. The constant is
-  // used by the debugger to patch the JS return sequence.
-  static const int kJSReturnSequenceInstructions = 7;
-  static const int kJSReturnSequenceLength =
-      kJSReturnSequenceInstructions * kInstrSize;
   static const int kDebugBreakSlotInstructions = 6;
   static const int kDebugBreakSlotLength =
       kDebugBreakSlotInstructions * kInstrSize;
@@ -747,6 +734,8 @@ class Assembler : public AssemblerBase {
   // Jump targets must be in the current 256 MB-aligned region. i.e. 28 bits.
   void j(int64_t target);
   void jal(int64_t target);
+  void j(Label* target);
+  void jal(Label* target);
   void jalr(Register rs, Register rd = ra);
   void jr(Register target);
   void jic(Register rt, int16_t offset);
@@ -1100,11 +1089,11 @@ class Assembler : public AssemblerBase {
 
   // Debugging.
 
-  // Mark address of the ExitJSFrame code.
-  void RecordJSReturn();
+  // Mark generator continuation.
+  void RecordGeneratorContinuation();
 
   // Mark address of a debug break slot.
-  void RecordDebugBreakSlot();
+  void RecordDebugBreakSlot(RelocInfo::Mode mode, int argc = 0);
 
   // Record the AST id of the CallIC being compiled, so that it can be placed
   // in the relocation information.

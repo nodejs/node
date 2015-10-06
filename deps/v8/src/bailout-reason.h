@@ -36,15 +36,10 @@ namespace internal {
     "Bad value context for arguments value")                                   \
   V(kBailedOutDueToDependencyChange, "Bailed out due to dependency change")    \
   V(kBailoutWasNotPrepared, "Bailout was not prepared")                        \
-  V(kBinaryStubGenerateFloatingPointCode,                                      \
-    "BinaryStub_GenerateFloatingPointCode")                                    \
   V(kBothRegistersWereSmisInSelectNonSmi,                                      \
     "Both registers were smis in SelectNonSmi")                                \
-  V(kBuiltinFunctionCannotBeOptimized, "Builtin function cannot be optimized") \
   V(kCallToAJavaScriptRuntimeFunction,                                         \
     "Call to a JavaScript runtime function")                                   \
-  V(kCannotTranslatePositionInChangedArea,                                     \
-    "Cannot translate position in changed area")                               \
   V(kClassLiteral, "Class literal")                                            \
   V(kCodeGenerationFailed, "Code generation failed")                           \
   V(kCodeObjectNotProperlyPatched, "Code object not properly patched")         \
@@ -54,7 +49,6 @@ namespace internal {
   V(kCopyBuffersOverlap, "Copy buffers overlap")                               \
   V(kCouldNotGenerateZero, "Could not generate +0.0")                          \
   V(kCouldNotGenerateNegativeZero, "Could not generate -0.0")                  \
-  V(kDebuggerHasBreakPoints, "Debugger has break points")                      \
   V(kDebuggerStatement, "DebuggerStatement")                                   \
   V(kDeclarationInCatchContext, "Declaration in catch context")                \
   V(kDeclarationInWithContext, "Declaration in with context")                  \
@@ -70,7 +64,6 @@ namespace internal {
   V(kEmitLoadRegisterUnsupportedDoubleImmediate,                               \
     "EmitLoadRegister: Unsupported double immediate")                          \
   V(kEval, "eval")                                                             \
-  V(kExpected0AsASmiSentinel, "Expected 0 as a Smi sentinel")                  \
   V(kExpectedAlignmentMarker, "Expected alignment marker")                     \
   V(kExpectedAllocationSite, "Expected allocation site")                       \
   V(kExpectedFunctionObject, "Expected function object in register")           \
@@ -79,30 +72,23 @@ namespace internal {
   V(kExpectedNonIdenticalObjects, "Expected non-identical objects")            \
   V(kExpectedNonNullContext, "Expected non-null context")                      \
   V(kExpectedPositiveZero, "Expected +0.0")                                    \
-  V(kExpectedAllocationSiteInCell, "Expected AllocationSite in property cell") \
-  V(kExpectedFixedArrayInFeedbackVector,                                       \
-    "Expected fixed array in feedback vector")                                 \
-  V(kExpectedFixedArrayInRegisterA2, "Expected fixed array in register a2")    \
-  V(kExpectedFixedArrayInRegisterEbx, "Expected fixed array in register ebx")  \
-  V(kExpectedFixedArrayInRegisterR2, "Expected fixed array in register r2")    \
-  V(kExpectedFixedArrayInRegisterRbx, "Expected fixed array in register rbx")  \
   V(kExpectedNewSpaceObject, "Expected new space object")                      \
-  V(kExpectedSmiOrHeapNumber, "Expected smi or HeapNumber")                    \
   V(kExpectedUndefinedOrCell, "Expected undefined or cell in register")        \
   V(kExpectingAlignmentForCopyBytes, "Expecting alignment for CopyBytes")      \
   V(kExportDeclaration, "Export declaration")                                  \
   V(kExternalStringExpectedButNotFound,                                        \
     "External string expected, but not found")                                 \
-  V(kFailedBailedOutLastTime, "Failed/bailed out last time")                   \
   V(kForInStatementOptimizationIsDisabled,                                     \
     "ForInStatement optimization is disabled")                                 \
   V(kForInStatementWithNonLocalEachVariable,                                   \
     "ForInStatement with non-local each variable")                             \
   V(kForOfStatement, "ForOfStatement")                                         \
   V(kFrameIsExpectedToBeAligned, "Frame is expected to be aligned")            \
+  V(kFunctionBeingDebugged, "Function is being debugged")                      \
   V(kFunctionCallsEval, "Function calls eval")                                 \
-  V(kFunctionIsAGenerator, "Function is a generator")                          \
   V(kFunctionWithIllegalRedeclaration, "Function with illegal redeclaration")  \
+  V(kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry,                      \
+    "The function_data field should be a BytecodeArray on interpreter entry")  \
   V(kGeneratedCodeIsTooLarge, "Generated code is too large")                   \
   V(kGeneratorFailedToResume, "Generator failed to resume")                    \
   V(kGenerator, "Generator")                                                   \
@@ -111,14 +97,10 @@ namespace internal {
   V(kHeapNumberMapRegisterClobbered, "HeapNumberMap register clobbered")       \
   V(kHydrogenFilter, "Optimization disabled by filter")                        \
   V(kImportDeclaration, "Import declaration")                                  \
-  V(kImproperObjectOnPrototypeChainForStore,                                   \
-    "Improper object on prototype chain for store")                            \
   V(kIndexIsNegative, "Index is negative")                                     \
   V(kIndexIsTooLarge, "Index is too large")                                    \
   V(kInlinedRuntimeFunctionFastOneByteArrayJoin,                               \
     "Inlined runtime function: FastOneByteArrayJoin")                          \
-  V(kInlinedRuntimeFunctionGetFromCache,                                       \
-    "Inlined runtime function: GetFromCache")                                  \
   V(kInliningBailedOut, "Inlining bailed out")                                 \
   V(kInputGPRIsExpectedToHaveUpper32Cleared,                                   \
     "Input GPR is expected to have upper32 cleared")                           \
@@ -149,13 +131,11 @@ namespace internal {
   V(kJSObjectWithFastElementsMapHasSlowElements,                               \
     "JSObject with fast elements map has slow elements")                       \
   V(kLetBindingReInitialization, "Let binding re-initialization")              \
-  V(kLhsHasBeenClobbered, "lhs has been clobbered")                            \
   V(kLiveBytesCountOverflowChunkSize, "Live Bytes Count overflow chunk size")  \
   V(kLiveEdit, "LiveEdit")                                                     \
   V(kLookupVariableInCountOperation, "Lookup variable in count operation")     \
   V(kMapBecameDeprecated, "Map became deprecated")                             \
   V(kMapBecameUnstable, "Map became unstable")                                 \
-  V(kMapIsNoLongerInEax, "Map is no longer in eax")                            \
   V(kNativeFunctionLiteral, "Native function literal")                         \
   V(kNeedSmiLiteral, "Need a Smi literal here")                                \
   V(kNoCasesLeft, "No cases left")                                             \
@@ -173,8 +153,6 @@ namespace internal {
     "Not enough virtual registers (regalloc)")                                 \
   V(kObjectFoundInSmiOnlyArray, "Object found in smi-only array")              \
   V(kObjectLiteralWithComplexProperty, "Object literal with complex property") \
-  V(kOddballInStringTableIsNotUndefinedOrTheHole,                              \
-    "Oddball in string table is not undefined or the hole")                    \
   V(kOffsetOutOfRange, "Offset out of range")                                  \
   V(kOperandIsASmiAndNotAName, "Operand is a smi and not a name")              \
   V(kOperandIsASmiAndNotAString, "Operand is a smi and not a string")          \
@@ -194,8 +172,6 @@ namespace internal {
     "Out of virtual registers while trying to allocate temp register")         \
   V(kParseScopeError, "Parse/scope error")                                     \
   V(kPossibleDirectCallToEval, "Possible direct call to eval")                 \
-  V(kPreconditionsWereNotMet, "Preconditions were not met")                    \
-  V(kPropertyAllocationCountFailed, "Property allocation count failed")        \
   V(kReceivedInvalidReturnAddress, "Received invalid return address")          \
   V(kReferenceToAVariableWhichRequiresDynamicLookup,                           \
     "Reference to a variable which requires dynamic lookup")                   \
@@ -206,8 +182,6 @@ namespace internal {
   V(kRememberedSetPointerInNewSpace, "Remembered set pointer is in new space") \
   V(kRestParameter, "Rest parameters")                                         \
   V(kReturnAddressNotFoundInFrame, "Return address not found in frame")        \
-  V(kRhsHasBeenClobbered, "Rhs has been clobbered")                            \
-  V(kScopedBlock, "ScopedBlock")                                               \
   V(kScriptContext, "Allocation of script context")                            \
   V(kSmiAdditionOverflow, "Smi addition overflow")                             \
   V(kSmiSubtractionOverflow, "Smi subtraction overflow")                       \
@@ -235,7 +209,6 @@ namespace internal {
     "The instruction to patch should be an ori")                               \
   V(kTheSourceAndDestinationAreTheSame,                                        \
     "The source and destination are the same")                                 \
-  V(kTheStackPointerIsNotAligned, "The stack pointer is not aligned.")         \
   V(kTheStackWasCorruptedByMacroAssemblerCall,                                 \
     "The stack was corrupted by MacroAssembler::Call()")                       \
   V(kTooManyParametersLocals, "Too many parameters/locals")                    \
@@ -251,9 +224,6 @@ namespace internal {
   V(kUnableToEncodeValueAsSmi, "Unable to encode value as smi")                \
   V(kUnalignedAllocationInNewSpace, "Unaligned allocation in new space")       \
   V(kUnalignedCellInWriteBarrier, "Unaligned cell in write barrier")           \
-  V(kUndefinedValueNotLoaded, "Undefined value not loaded")                    \
-  V(kUndoAllocationOfNonAllocatedMemory,                                       \
-    "Undo allocation of non allocated memory")                                 \
   V(kUnexpectedAllocationTop, "Unexpected allocation top")                     \
   V(kUnexpectedColorFound, "Unexpected color bit pattern found")               \
   V(kUnexpectedElementsKindInArrayConstructor,                                 \
@@ -264,8 +234,6 @@ namespace internal {
     "Unexpected fallthrough from CharFromCode slow case")                      \
   V(kUnexpectedFallThroughFromStringComparison,                                \
     "Unexpected fall-through from string comparison")                          \
-  V(kUnexpectedFallThroughInBinaryStubGenerateFloatingPointCode,               \
-    "Unexpected fall-through in BinaryStub_GenerateFloatingPointCode")         \
   V(kUnexpectedFallthroughToCharCodeAtSlowCase,                                \
     "Unexpected fallthrough to CharCodeAt slow case")                          \
   V(kUnexpectedFallthroughToCharFromCodeSlowCase,                              \
@@ -296,7 +264,6 @@ namespace internal {
   V(kUnexpectedValue, "Unexpected value")                                      \
   V(kUnexpectedUnusedPropertiesOfStringWrapper,                                \
     "Unexpected unused properties of string wrapper")                          \
-  V(kUnimplemented, "unimplemented")                                           \
   V(kUnsupportedConstCompoundAssignment,                                       \
     "Unsupported const compound assignment")                                   \
   V(kUnsupportedCountOperationWithConst,                                       \

@@ -27,23 +27,10 @@
 
 // Basic includes
 #include "include/v8.h"
-#include "include/v8-platform.h"
-#include "src/checks.h"  // NOLINT
-#include "src/allocation.h"  // NOLINT
-#include "src/assert-scope.h"  // NOLINT
-#include "src/utils.h"  // NOLINT
-#include "src/flags.h"  // NOLINT
-#include "src/globals.h"  // NOLINT
+#include "src/allocation.h"
 
-// Objects & heap
-#include "src/objects-inl.h"  // NOLINT
-#include "src/heap/spaces-inl.h"               // NOLINT
-#include "src/heap/heap-inl.h"                 // NOLINT
-#include "src/heap/incremental-marking-inl.h"  // NOLINT
-#include "src/heap/mark-compact-inl.h"         // NOLINT
-#include "src/log-inl.h"  // NOLINT
-#include "src/handles-inl.h"  // NOLINT
-#include "src/types-inl.h"  // NOLINT
+// Objects
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -69,15 +56,6 @@ class V8 : public AllStatic {
   // Support for entry hooking JITed code.
   static void SetFunctionEntryHook(FunctionEntryHook entry_hook);
 
-  static v8::ArrayBuffer::Allocator* ArrayBufferAllocator() {
-    return array_buffer_allocator_;
-  }
-
-  static void SetArrayBufferAllocator(v8::ArrayBuffer::Allocator *allocator) {
-    CHECK_NULL(array_buffer_allocator_);
-    array_buffer_allocator_ = allocator;
-  }
-
   static void InitializePlatform(v8::Platform* platform);
   static void ShutdownPlatform();
   static v8::Platform* GetCurrentPlatform();
@@ -89,16 +67,9 @@ class V8 : public AllStatic {
   static void InitializeOncePerProcessImpl();
   static void InitializeOncePerProcess();
 
-  // Allocator for external array buffers.
-  static v8::ArrayBuffer::Allocator* array_buffer_allocator_;
   // v8::Platform to use.
   static v8::Platform* platform_;
 };
-
-
-// JavaScript defines two kinds of 'nil'.
-enum NilValue { kNullValue, kUndefinedValue };
-
 
 } }  // namespace v8::internal
 

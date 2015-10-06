@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "src/runtime/runtime.h"
+
+#include "src/handles-inl.h"
+#include "src/heap/heap.h"
+#include "src/isolate.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {

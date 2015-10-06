@@ -32,9 +32,10 @@ class Callable final BASE_EMBEDDED {
 class CodeFactory final {
  public:
   // Initial states for ICs.
-  static Callable LoadIC(Isolate* isolate, ContextualMode mode,
+  static Callable LoadIC(Isolate* isolate, TypeofMode typeof_mode,
                          LanguageMode language_mode);
-  static Callable LoadICInOptimizedCode(Isolate* isolate, ContextualMode mode,
+  static Callable LoadICInOptimizedCode(Isolate* isolate,
+                                        TypeofMode typeof_mode,
                                         LanguageMode language_mode,
                                         InlineCacheState initialization_state);
   static Callable KeyedLoadIC(Isolate* isolate, LanguageMode language_mode);
@@ -61,6 +62,10 @@ class CodeFactory final {
 
   // Code stubs. Add methods here as needed to reduce dependency on
   // code-stubs.h.
+  static Callable LoadGlobalViaContext(Isolate* isolate, int depth);
+  static Callable StoreGlobalViaContext(Isolate* isolate, int depth,
+                                        LanguageMode language_mode);
+
   static Callable Instanceof(Isolate* isolate, InstanceofStub::Flags flags);
 
   static Callable ToBoolean(
@@ -68,6 +73,7 @@ class CodeFactory final {
       ToBooleanStub::Types types = ToBooleanStub::Types());
 
   static Callable ToNumber(Isolate* isolate);
+  static Callable ToObject(Isolate* isolate);
 
   static Callable StringAdd(Isolate* isolate, StringAddFlags flags,
                             PretenureFlag pretenure_flag);

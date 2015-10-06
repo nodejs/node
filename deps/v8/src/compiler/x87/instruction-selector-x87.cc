@@ -841,21 +841,26 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
 
     // Poke any stack arguments.
     for (size_t n = 0; n < buffer.pushed_nodes.size(); ++n) {
-      if (Node* node = buffer.pushed_nodes[n]) {
+      if (Node* input = buffer.pushed_nodes[n]) {
         int const slot = static_cast<int>(n);
-        InstructionOperand value =
-            g.CanBeImmediate(node) ? g.UseImmediate(node) : g.UseRegister(node);
+        InstructionOperand value = g.CanBeImmediate(input)
+                                       ? g.UseImmediate(input)
+                                       : g.UseRegister(input);
         Emit(kX87Poke | MiscField::encode(slot), g.NoOutput(), value);
       }
     }
   } else {
     // Push any stack arguments.
-    for (Node* node : base::Reversed(buffer.pushed_nodes)) {
+    for (Node* input : base::Reversed(buffer.pushed_nodes)) {
       // TODO(titzer): handle pushing double parameters.
+      if (input == nullptr) continue;
       InstructionOperand value =
-          g.CanBeImmediate(node)
-              ? g.UseImmediate(node)
-              : IsSupported(ATOM) ? g.UseRegister(node) : g.Use(node);
+          g.CanBeImmediate(input)
+              ? g.UseImmediate(input)
+              : IsSupported(ATOM) ||
+                        sequence()->IsFloat(GetVirtualRegister(input))
+                    ? g.UseRegister(input)
+                    : g.Use(input);
       Emit(kX87Push, g.NoOutput(), value);
     }
   }
@@ -945,12 +950,12 @@ void InstructionSelector::VisitTailCall(Node* node) {
     InitializeCallBuffer(node, &buffer, true, true);
 
     // Push any stack arguments.
-    for (Node* node : base::Reversed(buffer.pushed_nodes)) {
+    for (Node* input : base::Reversed(buffer.pushed_nodes)) {
       // TODO(titzer): Handle pushing double parameters.
       InstructionOperand value =
-          g.CanBeImmediate(node)
-              ? g.UseImmediate(node)
-              : IsSupported(ATOM) ? g.UseRegister(node) : g.Use(node);
+          g.CanBeImmediate(input)
+              ? g.UseImmediate(input)
+              : IsSupported(ATOM) ? g.UseRegister(input) : g.Use(input);
       Emit(kX87Push, g.NoOutput(), value);
     }
 

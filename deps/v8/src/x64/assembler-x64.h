@@ -556,9 +556,6 @@ class Assembler : public AssemblerBase {
   // of that call in the instruction stream.
   static inline Address target_address_from_return_address(Address pc);
 
-  // Return the code target address of the patch debug break slot
-  inline static Address break_address_from_return_address(Address pc);
-
   // This sets the branch destination (which is in the instruction on x64).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
@@ -599,23 +596,11 @@ class Assembler : public AssemblerBase {
       kMoveAddressIntoScratchRegisterInstructionLength +
       kCallScratchRegisterInstructionLength;
 
-  // The js return and debug break slot must be able to contain an indirect
-  // call sequence, some x64 JS code is padded with int3 to make it large
-  // enough to hold an instruction when the debugger patches it.
-  static const int kJSReturnSequenceLength = kCallSequenceLength;
+  // The debug break slot must be able to contain an indirect call sequence.
   static const int kDebugBreakSlotLength = kCallSequenceLength;
-  static const int kPatchDebugBreakSlotReturnOffset = kCallTargetAddressOffset;
-  // Distance between the start of the JS return sequence and where the
-  // 32-bit displacement of a short call would be. The short call is from
-  // SetDebugBreakAtIC from debug-x64.cc.
-  static const int kPatchReturnSequenceAddressOffset =
-      kJSReturnSequenceLength - kPatchDebugBreakSlotReturnOffset;
-  // Distance between the start of the JS return sequence and where the
-  // 32-bit displacement of a short call would be. The short call is from
-  // SetDebugBreakAtIC from debug-x64.cc.
+  // Distance between start of patched debug break slot and the emitted address
+  // to jump to.
   static const int kPatchDebugBreakSlotAddressOffset =
-      kDebugBreakSlotLength - kPatchDebugBreakSlotReturnOffset;
-  static const int kRealPatchReturnSequenceAddressOffset =
       kMoveAddressIntoScratchRegisterInstructionLength - kPointerSize;
 
   // One byte opcode for test eax,0xXXXXXXXX.
@@ -1614,11 +1599,11 @@ class Assembler : public AssemblerBase {
     return pc_offset() - label->pos();
   }
 
-  // Mark address of the ExitJSFrame code.
-  void RecordJSReturn();
+  // Mark generator continuation.
+  void RecordGeneratorContinuation();
 
   // Mark address of a debug break slot.
-  void RecordDebugBreakSlot();
+  void RecordDebugBreakSlot(RelocInfo::Mode mode, int argc = 0);
 
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --code-comments to enable.

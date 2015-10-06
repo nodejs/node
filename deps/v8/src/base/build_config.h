@@ -177,6 +177,11 @@
 
 // Number of bits to represent the page size for paged spaces. The value of 20
 // gives 1Mb bytes per page.
+#if V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
+// Bump up for Power Linux due to larger (64K) page size.
+const int kPageSizeBits = 22;
+#else
 const int kPageSizeBits = 20;
+#endif
 
 #endif  // V8_BASE_BUILD_CONFIG_H_

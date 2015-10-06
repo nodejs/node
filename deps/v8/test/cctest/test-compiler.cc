@@ -376,7 +376,7 @@ TEST(OptimizedCodeSharing1) {
   FLAG_cache_optimized_code = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < 3; i++) {
     LocalContext env;
     env->Global()->Set(v8::String::NewFromUtf8(CcTest::isolate(), "x"),
                        v8::Integer::New(CcTest::isolate(), i));
@@ -432,7 +432,65 @@ TEST(OptimizedCodeSharing2) {
     CHECK(fun0->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
     reference_code = handle(fun0->code());
   }
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < 3; i++) {
+    LocalContext env;
+    env->Global()->Set(v8::String::NewFromUtf8(CcTest::isolate(), "x"),
+                       v8::Integer::New(CcTest::isolate(), i));
+    script->GetUnboundScript()->BindToCurrentContext()->Run();
+    CompileRun(
+        "var closure0 = MakeClosure();"
+        "%DebugPrint(closure0());"
+        "%OptimizeFunctionOnNextCall(closure0);"
+        "%DebugPrint(closure0());"
+        "var closure1 = MakeClosure();"
+        "var closure2 = MakeClosure();");
+    Handle<JSFunction> fun1 = v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(env->Global()->Get(v8_str("closure1"))));
+    Handle<JSFunction> fun2 = v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(env->Global()->Get(v8_str("closure2"))));
+    CHECK(fun1->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
+    CHECK(fun2->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
+    CHECK_EQ(*reference_code, fun1->code());
+    CHECK_EQ(*reference_code, fun2->code());
+  }
+}
+
+
+// Test that optimized code for different closures is actually shared
+// immediately by the FastNewClosureStub without context-dependent entries.
+TEST(OptimizedCodeSharing3) {
+  if (FLAG_stress_compaction) return;
+  FLAG_allow_natives_syntax = true;
+  FLAG_cache_optimized_code = true;
+  FLAG_turbo_cache_shared_code = true;
+  const char* flag = "--turbo-filter=*";
+  FlagList::SetFlagsFromString(flag, StrLength(flag));
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Script> script = v8_compile(
+      "function MakeClosure() {"
+      "  return function() { return x; };"
+      "}");
+  Handle<Code> reference_code;
+  {
+    LocalContext env;
+    env->Global()->Set(v8::String::NewFromUtf8(CcTest::isolate(), "x"),
+                       v8::Integer::New(CcTest::isolate(), 23));
+    script->GetUnboundScript()->BindToCurrentContext()->Run();
+    CompileRun(
+        "var closure0 = MakeClosure();"
+        "%DebugPrint(closure0());"
+        "%OptimizeFunctionOnNextCall(closure0);"
+        "%DebugPrint(closure0());");
+    Handle<JSFunction> fun0 = v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(env->Global()->Get(v8_str("closure0"))));
+    CHECK(fun0->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
+    reference_code = handle(fun0->code());
+    // Evict only the context-dependent entry from the optimized code map. This
+    // leaves it in a state where only the context-independent entry exists.
+    fun0->shared()->TrimOptimizedCodeMap(SharedFunctionInfo::kEntryLength);
+  }
+  for (int i = 0; i < 3; i++) {
     LocalContext env;
     env->Global()->Set(v8::String::NewFromUtf8(CcTest::isolate(), "x"),
                        v8::Integer::New(CcTest::isolate(), i));
@@ -563,6 +621,32 @@ TEST(CompileFunctionInContextNonIdentifierArgs) {
   v8::Local<v8::Function> fun = v8::ScriptCompiler::CompileFunctionInContext(
       CcTest::isolate(), &script_source, env.local(), 1, &arg, 0, NULL);
   CHECK(fun.IsEmpty());
+}
+
+
+TEST(CompileFunctionInContextScriptOrigin) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::ScriptOrigin origin(v8_str("test"),
+                          v8::Integer::New(CcTest::isolate(), 22),
+                          v8::Integer::New(CcTest::isolate(), 41));
+  v8::ScriptCompiler::Source script_source(v8_str("throw new Error()"), origin);
+  v8::Local<v8::Function> fun = v8::ScriptCompiler::CompileFunctionInContext(
+      CcTest::isolate(), &script_source, env.local(), 0, NULL, 0, NULL);
+  CHECK(!fun.IsEmpty());
+  v8::TryCatch try_catch;
+  CcTest::isolate()->SetCaptureStackTraceForUncaughtExceptions(true);
+  fun->Call(env->Global(), 0, NULL);
+  CHECK(try_catch.HasCaught());
+  CHECK(!try_catch.Exception().IsEmpty());
+  v8::Local<v8::StackTrace> stack =
+      v8::Exception::GetStackTrace(try_catch.Exception());
+  CHECK(!stack.IsEmpty());
+  CHECK(stack->GetFrameCount() > 0);
+  v8::Local<v8::StackFrame> frame = stack->GetFrame(0);
+  CHECK_EQ(23, frame->GetLineNumber());
+  CHECK_EQ(42 + strlen("throw "), static_cast<unsigned>(frame->GetColumn()));
 }
 
 
