@@ -5,8 +5,6 @@
 #ifndef V8_EXPRESSION_CLASSIFIER_H
 #define V8_EXPRESSION_CLASSIFIER_H
 
-#include "src/v8.h"
-
 #include "src/messages.h"
 #include "src/scanner.h"
 #include "src/token.h"
@@ -157,8 +155,7 @@ class ExpressionClassifier {
     if (!is_valid_formal_parameter_list_without_duplicates()) return;
     invalid_productions_ |= DistinctFormalParametersProduction;
     duplicate_formal_parameter_error_.location = loc;
-    duplicate_formal_parameter_error_.message =
-        MessageTemplate::kStrictParamDupe;
+    duplicate_formal_parameter_error_.message = MessageTemplate::kParamDupe;
     duplicate_formal_parameter_error_.arg = nullptr;
   }
 
@@ -223,18 +220,6 @@ class ExpressionClassifier {
         !inner.is_valid_binding_pattern()) {
       invalid_productions_ |= ArrowFormalParametersProduction;
       arrow_formal_parameters_error_ = inner.binding_pattern_error_;
-    }
-  }
-
-  void AccumulateReclassifyingAsPattern(const ExpressionClassifier& inner) {
-    Accumulate(inner, AllProductions & ~PatternProductions);
-    if (!inner.is_valid_expression()) {
-      if (is_valid_binding_pattern()) {
-        binding_pattern_error_ = inner.expression_error();
-      }
-      if (is_valid_assignment_pattern()) {
-        assignment_pattern_error_ = inner.expression_error();
-      }
     }
   }
 

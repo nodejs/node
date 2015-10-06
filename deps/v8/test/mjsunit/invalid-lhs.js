@@ -50,9 +50,9 @@ assertDoesNotThrow("if (false) ++(eval('12'))", ReferenceError);
 assertDoesNotThrow("if (false) (eval('12'))++", ReferenceError);
 
 // For in:
-assertThrows("for (12 in [1]) print(12);", ReferenceError);
+assertThrows("for (12 in [1]) print(12);", SyntaxError);
 assertThrows("for (eval('var x') in [1]) print(12);", ReferenceError);
-assertThrows("if (false) for (12 in [1]) print(12);", ReferenceError);
+assertThrows("if (false) for (12 in [1]) print(12);", SyntaxError);
 assertDoesNotThrow("if (false) for (eval('0') in [1]) print(12);", ReferenceError);
 
 // For:
@@ -64,7 +64,7 @@ assertDoesNotThrow("if (false) for (eval('var x') = 1;;) print(12);", ReferenceE
 // Assignments to 'this'.
 assertThrows("this = 42", ReferenceError);
 assertThrows("function f() { this = 12; }", ReferenceError);
-assertThrows("for (this in {x:3, y:4, z:5}) ;", ReferenceError);
+assertThrows("for (this in {x:3, y:4, z:5}) ;", SyntaxError);
 assertThrows("for (this = 0;;) ;", ReferenceError);
 assertThrows("this++", ReferenceError);
 assertThrows("++this", ReferenceError);

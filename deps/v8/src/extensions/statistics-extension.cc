@@ -4,6 +4,8 @@
 
 #include "src/extensions/statistics-extension.h"
 
+#include "src/v8.h"
+
 namespace v8 {
 namespace internal {
 

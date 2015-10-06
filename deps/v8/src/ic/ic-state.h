@@ -202,10 +202,10 @@ class CompareICState {
 
 class LoadICState final BASE_EMBEDDED {
  private:
-  class ContextualModeBits : public BitField<ContextualMode, 0, 1> {};
+  class TypeofModeBits : public BitField<TypeofMode, 0, 1> {};
   class LanguageModeBits
-      : public BitField<LanguageMode, ContextualModeBits::kNext, 2> {};
-  STATIC_ASSERT(static_cast<int>(NOT_CONTEXTUAL) == 0);
+      : public BitField<LanguageMode, TypeofModeBits::kNext, 2> {};
+  STATIC_ASSERT(static_cast<int>(INSIDE_TYPEOF) == 0);
   const ExtraICState state_;
 
  public:
@@ -216,22 +216,20 @@ class LoadICState final BASE_EMBEDDED {
 
   explicit LoadICState(ExtraICState extra_ic_state) : state_(extra_ic_state) {}
 
-  explicit LoadICState(ContextualMode mode, LanguageMode language_mode)
-      : state_(ContextualModeBits::encode(mode) |
+  explicit LoadICState(TypeofMode typeof_mode, LanguageMode language_mode)
+      : state_(TypeofModeBits::encode(typeof_mode) |
                LanguageModeBits::encode(language_mode)) {}
 
   ExtraICState GetExtraICState() const { return state_; }
 
-  ContextualMode contextual_mode() const {
-    return ContextualModeBits::decode(state_);
-  }
+  TypeofMode typeof_mode() const { return TypeofModeBits::decode(state_); }
 
   LanguageMode language_mode() const {
     return LanguageModeBits::decode(state_);
   }
 
-  static ContextualMode GetContextualMode(ExtraICState state) {
-    return LoadICState(state).contextual_mode();
+  static TypeofMode GetTypeofMode(ExtraICState state) {
+    return LoadICState(state).typeof_mode();
   }
 
   static LanguageMode GetLanguageMode(ExtraICState state) {

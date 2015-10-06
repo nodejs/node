@@ -8,8 +8,6 @@
 #include "src/third_party/valgrind/valgrind.h"
 #endif
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_X64
 
 #include "src/assembler.h"

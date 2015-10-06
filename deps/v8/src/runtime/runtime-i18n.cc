@@ -4,13 +4,14 @@
 
 
 #ifdef V8_I18N_SUPPORT
-#include "src/v8.h"
+#include "src/runtime/runtime-utils.h"
 
+#include "src/api.h"
 #include "src/api-natives.h"
 #include "src/arguments.h"
+#include "src/factory.h"
 #include "src/i18n.h"
 #include "src/messages.h"
-#include "src/runtime/runtime-utils.h"
 
 #include "unicode/brkiter.h"
 #include "unicode/calendar.h"

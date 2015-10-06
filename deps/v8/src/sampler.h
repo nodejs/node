@@ -8,6 +8,7 @@
 #include "include/v8.h"
 
 #include "src/base/atomicops.h"
+#include "src/base/platform/time.h"
 #include "src/frames.h"
 #include "src/globals.h"
 

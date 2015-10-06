@@ -31,8 +31,23 @@ import shutil
 import subprocess
 import tarfile
 
+from testrunner.local import statusfile
 from testrunner.local import testsuite
 from testrunner.objects import testcase
+
+
+class BenchmarksVariantGenerator(testsuite.VariantGenerator):
+  # Both --nocrankshaft and --stressopt are very slow. Add TF but without
+  # always opt to match the way the benchmarks are run for performance
+  # testing.
+  def FilterVariantsByTest(self, testcase):
+    if testcase.outcomes and statusfile.OnlyStandardVariant(
+        testcase.outcomes):
+      return self.standard_variant
+    return self.fast_variants
+
+  def GetFlagSets(self, testcase, variant):
+    return testsuite.FAST_VARIANT_FLAGS[variant]
 
 
 class BenchmarksTestSuite(testsuite.TestSuite):
@@ -182,11 +197,8 @@ class BenchmarksTestSuite(testsuite.TestSuite):
 
     os.chdir(old_cwd)
 
-  def VariantFlags(self, testcase, default_flags):
-    # Both --nocrankshaft and --stressopt are very slow. Add TF but without
-    # always opt to match the way the benchmarks are run for performance
-    # testing.
-    return [[], ["--turbo"]]
+  def _VariantGeneratorFactory(self):
+    return BenchmarksVariantGenerator
 
 
 def GetSuite(name, root):

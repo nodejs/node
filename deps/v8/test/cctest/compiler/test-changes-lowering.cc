@@ -147,7 +147,6 @@ TEST(RunChangeTaggedToInt32) {
   ChangesLoweringTester<int32_t> t(kMachAnyTagged);
   t.BuildAndLower(t.simplified()->ChangeTaggedToInt32());
 
-  if (Pipeline::SupportedTarget()) {
     FOR_INT32_INPUTS(i) {
       int32_t input = *i;
 
@@ -167,7 +166,6 @@ TEST(RunChangeTaggedToInt32) {
         int32_t result = t.Call(*number);
         CHECK_EQ(input, result);
       }
-    }
   }
 }
 
@@ -177,7 +175,6 @@ TEST(RunChangeTaggedToUint32) {
   ChangesLoweringTester<uint32_t> t(kMachAnyTagged);
   t.BuildAndLower(t.simplified()->ChangeTaggedToUint32());
 
-  if (Pipeline::SupportedTarget()) {
     FOR_UINT32_INPUTS(i) {
       uint32_t input = *i;
 
@@ -198,7 +195,6 @@ TEST(RunChangeTaggedToUint32) {
         CHECK_EQ(static_cast<int32_t>(input), static_cast<int32_t>(result));
       }
     }
-  }
 }
 
 
@@ -211,7 +207,7 @@ TEST(RunChangeTaggedToFloat64) {
       t.machine()->Store(StoreRepresentation(kMachFloat64, kNoWriteBarrier)),
       &result);
 
-  if (Pipeline::SupportedTarget()) {
+  {
     FOR_INT32_INPUTS(i) {
       int32_t input = *i;
 
@@ -234,7 +230,7 @@ TEST(RunChangeTaggedToFloat64) {
     }
   }
 
-  if (Pipeline::SupportedTarget()) {
+  {
     FOR_FLOAT64_INPUTS(i) {
       double input = *i;
       {
@@ -257,13 +253,13 @@ TEST(RunChangeBoolToBit) {
   ChangesLoweringTester<int32_t> t(kMachAnyTagged);
   t.BuildAndLower(t.simplified()->ChangeBoolToBit());
 
-  if (Pipeline::SupportedTarget()) {
+  {
     Object* true_obj = t.heap()->true_value();
     int32_t result = t.Call(true_obj);
     CHECK_EQ(1, result);
   }
 
-  if (Pipeline::SupportedTarget()) {
+  {
     Object* false_obj = t.heap()->false_value();
     int32_t result = t.Call(false_obj);
     CHECK_EQ(0, result);
@@ -275,122 +271,15 @@ TEST(RunChangeBitToBool) {
   ChangesLoweringTester<Object*> t(kMachInt32);
   t.BuildAndLower(t.simplified()->ChangeBitToBool());
 
-  if (Pipeline::SupportedTarget()) {
+  {
     Object* result = t.Call(1);
     Object* true_obj = t.heap()->true_value();
     CHECK_EQ(true_obj, result);
   }
 
-  if (Pipeline::SupportedTarget()) {
+  {
     Object* result = t.Call(0);
     Object* false_obj = t.heap()->false_value();
     CHECK_EQ(false_obj, result);
   }
 }
-
-
-#if V8_TURBOFAN_BACKEND
-// TODO(titzer): disabled on ARM
-
-TEST(RunChangeInt32ToTaggedSmi) {
-  ChangesLoweringTester<Object*> t;
-  int32_t input;
-  t.BuildLoadAndLower(t.simplified()->ChangeInt32ToTagged(),
-                      t.machine()->Load(kMachInt32), &input);
-
-  if (Pipeline::SupportedTarget()) {
-    FOR_INT32_INPUTS(i) {
-      input = *i;
-      if (!Smi::IsValid(input)) continue;
-      Object* result = t.Call();
-      t.CheckNumber(static_cast<double>(input), result);
-    }
-  }
-}
-
-
-TEST(RunChangeUint32ToTaggedSmi) {
-  ChangesLoweringTester<Object*> t;
-  uint32_t input;
-  t.BuildLoadAndLower(t.simplified()->ChangeUint32ToTagged(),
-                      t.machine()->Load(kMachUint32), &input);
-
-  if (Pipeline::SupportedTarget()) {
-    FOR_UINT32_INPUTS(i) {
-      input = *i;
-      if (input > static_cast<uint32_t>(Smi::kMaxValue)) continue;
-      Object* result = t.Call();
-      double expected = static_cast<double>(input);
-      t.CheckNumber(expected, result);
-    }
-  }
-}
-
-
-TEST(RunChangeInt32ToTagged) {
-  ChangesLoweringTester<Object*> t;
-  int32_t input;
-  t.BuildLoadAndLower(t.simplified()->ChangeInt32ToTagged(),
-                      t.machine()->Load(kMachInt32), &input);
-
-  if (Pipeline::SupportedTarget()) {
-    for (int m = 0; m < 3; m++) {  // Try 3 GC modes.
-      FOR_INT32_INPUTS(i) {
-        if (m == 0) CcTest::heap()->EnableInlineAllocation();
-        if (m == 1) CcTest::heap()->DisableInlineAllocation();
-        if (m == 2) SimulateFullSpace(CcTest::heap()->new_space());
-
-        input = *i;
-        Object* result = t.CallWithPotentialGC<Object>();
-        t.CheckNumber(static_cast<double>(input), result);
-      }
-    }
-  }
-}
-
-
-TEST(RunChangeUint32ToTagged) {
-  ChangesLoweringTester<Object*> t;
-  uint32_t input;
-  t.BuildLoadAndLower(t.simplified()->ChangeUint32ToTagged(),
-                      t.machine()->Load(kMachUint32), &input);
-
-  if (Pipeline::SupportedTarget()) {
-    for (int m = 0; m < 3; m++) {  // Try 3 GC modes.
-      FOR_UINT32_INPUTS(i) {
-        if (m == 0) CcTest::heap()->EnableInlineAllocation();
-        if (m == 1) CcTest::heap()->DisableInlineAllocation();
-        if (m == 2) SimulateFullSpace(CcTest::heap()->new_space());
-
-        input = *i;
-        Object* result = t.CallWithPotentialGC<Object>();
-        double expected = static_cast<double>(input);
-        t.CheckNumber(expected, result);
-      }
-    }
-  }
-}
-
-
-TEST(RunChangeFloat64ToTagged) {
-  ChangesLoweringTester<Object*> t;
-  double input;
-  t.BuildLoadAndLower(t.simplified()->ChangeFloat64ToTagged(),
-                      t.machine()->Load(kMachFloat64), &input);
-
-  if (Pipeline::SupportedTarget()) {
-    for (int m = 0; m < 3; m++) {  // Try 3 GC modes.
-      FOR_FLOAT64_INPUTS(i) {
-        if (m == 0) CcTest::heap()->EnableInlineAllocation();
-        if (m == 1) CcTest::heap()->DisableInlineAllocation();
-        if (m == 2) SimulateFullSpace(CcTest::heap()->new_space());
-
-        input = *i;
-        Object* result = t.CallWithPotentialGC<Object>();
-        t.CheckNumber(input, result);
-      }
-    }
-  }
-}
-
-#endif  // V8_TURBOFAN_BACKEND

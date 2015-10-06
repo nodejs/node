@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/raw-machine-assembler.h"
+
 #include "src/code-factory.h"
 #include "src/compiler/pipeline.h"
-#include "src/compiler/raw-machine-assembler.h"
 #include "src/compiler/scheduler.h"
 
 namespace v8 {
@@ -12,17 +13,16 @@ namespace internal {
 namespace compiler {
 
 RawMachineAssembler::RawMachineAssembler(Isolate* isolate, Graph* graph,
-                                         const MachineSignature* machine_sig,
+                                         CallDescriptor* call_descriptor,
                                          MachineType word,
                                          MachineOperatorBuilder::Flags flags)
-    : GraphBuilder(isolate, graph),
+    : isolate_(isolate),
+      graph_(graph),
       schedule_(new (zone()) Schedule(zone())),
       machine_(zone(), word, flags),
       common_(zone()),
-      machine_sig_(machine_sig),
-      call_descriptor_(
-          Linkage::GetSimplifiedCDescriptor(graph->zone(), machine_sig)),
-      parameters_(NULL),
+      call_descriptor_(call_descriptor),
+      parameters_(nullptr),
       current_block_(schedule()->start()) {
   int param_count = static_cast<int>(parameter_count());
   Node* s = graph->NewNode(common_.Start(param_count));
@@ -40,9 +40,9 @@ Schedule* RawMachineAssembler::Export() {
   // Compute the correct codegen order.
   DCHECK(schedule_->rpo_order()->empty());
   Scheduler::ComputeSpecialRPO(zone(), schedule_);
-  // Invalidate MachineAssembler.
+  // Invalidate RawMachineAssembler.
   Schedule* schedule = schedule_;
-  schedule_ = NULL;
+  schedule_ = nullptr;
   return schedule;
 }
 
@@ -56,7 +56,7 @@ Node* RawMachineAssembler::Parameter(size_t index) {
 void RawMachineAssembler::Goto(Label* label) {
   DCHECK(current_block_ != schedule()->end());
   schedule()->AddGoto(CurrentBlock(), Use(label));
-  current_block_ = NULL;
+  current_block_ = nullptr;
 }
 
 
@@ -65,7 +65,7 @@ void RawMachineAssembler::Branch(Node* condition, Label* true_val,
   DCHECK(current_block_ != schedule()->end());
   Node* branch = NewNode(common()->Branch(), condition);
   schedule()->AddBranch(CurrentBlock(), branch, Use(true_val), Use(false_val));
-  current_block_ = NULL;
+  current_block_ = nullptr;
 }
 
 
@@ -94,9 +94,25 @@ void RawMachineAssembler::Switch(Node* index, Label* default_label,
 
 
 void RawMachineAssembler::Return(Node* value) {
-  Node* ret = NewNode(common()->Return(), value);
+  Node* ret = graph()->NewNode(common()->Return(), value);
   schedule()->AddReturn(CurrentBlock(), ret);
-  current_block_ = NULL;
+  current_block_ = nullptr;
+}
+
+
+Node* RawMachineAssembler::CallN(CallDescriptor* desc, Node* function,
+                                 Node** args) {
+  int param_count =
+      static_cast<int>(desc->GetMachineSignature()->parameter_count());
+  Node** buffer = zone()->NewArray<Node*>(param_count + 1);
+  int index = 0;
+  buffer[index++] = function;
+  for (int i = 0; i < param_count; i++) {
+    buffer[index++] = args[i];
+  }
+  Node* call = graph()->NewNode(common()->Call(desc), param_count + 1, buffer);
+  schedule()->AddNode(CurrentBlock(), call);
+  return call;
 }
 
 
@@ -216,8 +232,19 @@ Node* RawMachineAssembler::CallCFunction8(
 }
 
 
+Node* RawMachineAssembler::TailCallInterpreterDispatch(
+    const CallDescriptor* call_descriptor, Node* target, Node* arg1, Node* arg2,
+    Node* arg3, Node* arg4, Node* arg5) {
+  Node* tail_call =
+      graph()->NewNode(common()->TailCall(call_descriptor), target, arg1, arg2,
+                       arg3, arg4, arg5, graph()->start(), graph()->start());
+  schedule()->AddTailCall(CurrentBlock(), tail_call);
+  return tail_call;
+}
+
+
 void RawMachineAssembler::Bind(Label* label) {
-  DCHECK(current_block_ == NULL);
+  DCHECK(current_block_ == nullptr);
   DCHECK(!label->bound_);
   label->bound_ = true;
   current_block_ = EnsureBlock(label);
@@ -231,7 +258,7 @@ BasicBlock* RawMachineAssembler::Use(Label* label) {
 
 
 BasicBlock* RawMachineAssembler::EnsureBlock(Label* label) {
-  if (label->block_ == NULL) label->block_ = schedule()->NewBasicBlock();
+  if (label->block_ == nullptr) label->block_ = schedule()->NewBasicBlock();
   return label->block_;
 }
 
@@ -243,15 +270,11 @@ BasicBlock* RawMachineAssembler::CurrentBlock() {
 
 
 Node* RawMachineAssembler::MakeNode(const Operator* op, int input_count,
-                                    Node** inputs, bool incomplete) {
-  DCHECK(ScheduleValid());
-  DCHECK(current_block_ != NULL);
-  Node* node = graph()->NewNode(op, input_count, inputs, incomplete);
-  BasicBlock* block = op->opcode() == IrOpcode::kParameter ? schedule()->start()
-                                                           : CurrentBlock();
-  if (op->opcode() != IrOpcode::kReturn) {
-    schedule()->AddNode(block, node);
-  }
+                                    Node** inputs) {
+  DCHECK_NOT_NULL(schedule_);
+  DCHECK(current_block_ != nullptr);
+  Node* node = graph()->NewNode(op, input_count, inputs);
+  schedule()->AddNode(CurrentBlock(), node);
   return node;
 }
 

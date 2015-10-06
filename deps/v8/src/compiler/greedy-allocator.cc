@@ -9,10 +9,14 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+
 #define TRACE(...)                             \
   do {                                         \
     if (FLAG_trace_alloc) PrintF(__VA_ARGS__); \
   } while (false)
+
+
+const float GreedyAllocator::kAllocatedRangeMultiplier = 10.0;
 
 
 namespace {
@@ -131,12 +135,10 @@ void GreedyAllocator::AssignRangeToRegister(int reg_id, LiveRange* range) {
 
   DCHECK(!range->HasRegisterAssigned());
 
-  current_allocations(reg_id)->AllocateRange(range);
+  AllocateRegisterToRange(reg_id, range);
 
   TRACE("Assigning %s to range %d\n", RegisterName(reg_id), range->id());
   range->set_assigned_register(reg_id);
-
-  DCHECK(current_allocations(reg_id)->VerifyAllocationsAreValid());
 }
 
 
@@ -153,7 +155,7 @@ void GreedyAllocator::PreallocateFixedRanges() {
 
       int reg_nr = fixed_range->assigned_register();
       EnsureValidRangeWeight(fixed_range);
-      current_allocations(reg_nr)->AllocateRange(fixed_range);
+      AllocateRegisterToRange(reg_nr, fixed_range);
     }
   }
 }
@@ -190,8 +192,7 @@ void GreedyAllocator::TryAllocateLiveRange(LiveRange* range) {
   // where the maximum conflict is lower than the candidate's weight, the one
   // with the smallest such weight.
   for (int i = 0; i < num_registers(); i++) {
-    float max_conflict_weight =
-        current_allocations(i)->GetMaximumConflictingWeight(range);
+    float max_conflict_weight = GetMaximumConflictingWeight(i, range);
     if (max_conflict_weight == LiveRange::kInvalidWeight) {
       free_reg = i;
       break;
@@ -216,14 +217,28 @@ void GreedyAllocator::TryAllocateLiveRange(LiveRange* range) {
   if (evictable_reg >= 0) {
     TRACE("Found evictable register %s for live range %d\n",
           RegisterName(free_reg), range->id());
-    current_allocations(evictable_reg)
-        ->EvictAndRescheduleConflicts(range, &scheduler());
+    EvictAndRescheduleConflicts(evictable_reg, range);
     AssignRangeToRegister(evictable_reg, range);
     return;
   }
 
   // The range needs to be split or spilled.
   SplitOrSpillBlockedRange(range);
+}
+
+
+void GreedyAllocator::EvictAndRescheduleConflicts(unsigned reg_id,
+                                                  const LiveRange* range) {
+  auto conflicts = current_allocations(reg_id)->GetConflicts(range);
+  for (LiveRange* conflict = conflicts.Current(); conflict != nullptr;
+       conflict = conflicts.RemoveCurrentAndGetNext()) {
+    DCHECK(conflict->HasRegisterAssigned());
+    CHECK(!conflict->IsFixed());
+    conflict->UnsetAssignedRegister();
+    UpdateWeightAtEviction(conflict);
+    scheduler().Schedule(conflict);
+    TRACE("Evicted range %d.\n", conflict->id());
+  }
 }
 
 
@@ -295,6 +310,22 @@ void GreedyAllocator::AllocateRegisters() {
 
   TRACE("End allocating function %s with the Greedy Allocator\n",
         data()->debug_name());
+}
+
+
+float GreedyAllocator::GetMaximumConflictingWeight(
+    unsigned reg_id, const LiveRange* range) const {
+  float ret = LiveRange::kInvalidWeight;
+
+  auto conflicts = current_allocations(reg_id)->GetConflicts(range);
+  for (LiveRange* conflict = conflicts.Current(); conflict != nullptr;
+       conflict = conflicts.GetNext()) {
+    DCHECK_NE(conflict->weight(), LiveRange::kInvalidWeight);
+    ret = Max(ret, conflict->weight());
+    if (ret == LiveRange::kMaxWeight) return ret;
+  }
+
+  return ret;
 }
 
 

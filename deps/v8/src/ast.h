@@ -5,19 +5,18 @@
 #ifndef V8_AST_H_
 #define V8_AST_H_
 
-#include "src/v8.h"
-
 #include "src/assembler.h"
 #include "src/ast-value-factory.h"
 #include "src/bailout-reason.h"
+#include "src/base/flags.h"
+#include "src/base/smart-pointers.h"
 #include "src/factory.h"
 #include "src/isolate.h"
-#include "src/jsregexp.h"
-#include "src/list-inl.h"
+#include "src/list.h"
 #include "src/modules.h"
+#include "src/regexp/jsregexp.h"
 #include "src/runtime/runtime.h"
 #include "src/small-pointer-list.h"
-#include "src/smart-pointers.h"
 #include "src/token.h"
 #include "src/types.h"
 #include "src/utils.h"
@@ -137,9 +136,6 @@ typedef ZoneList<Handle<Object>> ZoneObjectList;
   friend class AstNodeFactory;
 
 
-enum AstPropertiesFlag { kDontSelfOptimize, kDontCrankshaft };
-
-
 class FeedbackVectorRequirements {
  public:
   FeedbackVectorRequirements(int slots, int ic_slots)
@@ -179,11 +175,18 @@ class ICSlotCache {
 
 class AstProperties final BASE_EMBEDDED {
  public:
-  class Flags : public EnumSet<AstPropertiesFlag, int> {};
+  enum Flag {
+    kNoFlags = 0,
+    kDontSelfOptimize = 1 << 0,
+    kDontCrankshaft = 1 << 1
+  };
+
+  typedef base::Flags<Flag> Flags;
 
   explicit AstProperties(Zone* zone) : node_count_(0), spec_(zone) {}
 
-  Flags* flags() { return &flags_; }
+  Flags& flags() { return flags_; }
+  Flags flags() const { return flags_; }
   int node_count() { return node_count_; }
   void add_node_count(int count) { node_count_ += count; }
 
@@ -200,6 +203,8 @@ class AstProperties final BASE_EMBEDDED {
   int node_count_;
   ZoneFeedbackVectorSpec spec_;
 };
+
+DEFINE_OPERATORS_FOR_FLAGS(AstProperties::Flags)
 
 
 class AstNode: public ZoneObject {
@@ -336,6 +341,7 @@ class Expression : public AstNode {
     kTest
   };
 
+  // True iff the expression is a valid reference expression.
   virtual bool IsValidReferenceExpression() const { return false; }
 
   // Helpers for ToBoolean conversion.
@@ -358,6 +364,9 @@ class Expression : public AstNode {
 
   // True if we can prove that the expression is the undefined literal.
   bool IsUndefinedLiteral(Isolate* isolate) const;
+
+  // True iff the expression is a valid target for an assignment.
+  bool IsValidReferenceExpressionOrThis() const;
 
   // Expression type bounds
   Bounds bounds() const { return bounds_; }
@@ -1609,10 +1618,12 @@ class ArrayLiteral final : public MaterializedLiteral {
   };
 
  protected:
-  ArrayLiteral(Zone* zone, ZoneList<Expression*>* values, int literal_index,
-               bool is_strong, int pos)
+  ArrayLiteral(Zone* zone, ZoneList<Expression*>* values,
+               int first_spread_index, int literal_index, bool is_strong,
+               int pos)
       : MaterializedLiteral(zone, literal_index, is_strong, pos),
-        values_(values) {}
+        values_(values),
+        first_spread_index_(first_spread_index) {}
   static int parent_num_ids() { return MaterializedLiteral::num_ids(); }
 
  private:
@@ -1620,6 +1631,7 @@ class ArrayLiteral final : public MaterializedLiteral {
 
   Handle<FixedArray> constant_elements_;
   ZoneList<Expression*>* values_;
+  int first_spread_index_;
 };
 
 
@@ -1627,7 +1639,9 @@ class VariableProxy final : public Expression {
  public:
   DECLARE_NODE_TYPE(VariableProxy)
 
-  bool IsValidReferenceExpression() const override { return !is_this(); }
+  bool IsValidReferenceExpression() const override {
+    return !is_this() && !is_new_target();
+  }
 
   bool IsArguments() const { return is_resolved() && var()->is_arguments(); }
 
@@ -1658,13 +1672,18 @@ class VariableProxy final : public Expression {
     bit_field_ = IsResolvedField::update(bit_field_, true);
   }
 
+  bool is_new_target() const { return IsNewTargetField::decode(bit_field_); }
+  void set_is_new_target() {
+    bit_field_ = IsNewTargetField::update(bit_field_, true);
+  }
+
   int end_position() const { return end_position_; }
 
   // Bind this proxy to the variable var.
   void BindTo(Variable* var);
 
   bool UsesVariableFeedbackSlot() const {
-    return var()->IsUnallocatedOrGlobalSlot() || var()->IsLookupSlot();
+    return var()->IsUnallocated() || var()->IsLookupSlot();
   }
 
   virtual FeedbackVectorRequirements ComputeFeedbackRequirements(
@@ -1674,7 +1693,6 @@ class VariableProxy final : public Expression {
                               ICSlotCache* cache) override;
   Code::Kind FeedbackICSlotKind(int index) override { return Code::LOAD_IC; }
   FeedbackVectorICSlot VariableFeedbackSlot() {
-    DCHECK(!UsesVariableFeedbackSlot() || !variable_feedback_slot_.IsInvalid());
     return variable_feedback_slot_;
   }
 
@@ -1694,6 +1712,7 @@ class VariableProxy final : public Expression {
   class IsThisField : public BitField8<bool, 0, 1> {};
   class IsAssignedField : public BitField8<bool, 1, 1> {};
   class IsResolvedField : public BitField8<bool, 2, 1> {};
+  class IsNewTargetField : public BitField8<bool, 3, 1> {};
 
   // Start with 16-bit (or smaller) field, which should get packed together
   // with Expression's trailing 16-bit field.
@@ -1782,7 +1801,6 @@ class Property final : public Expression {
   }
 
   FeedbackVectorICSlot PropertyFeedbackSlot() const {
-    DCHECK(!property_feedback_slot_.IsInvalid());
     return property_feedback_slot_;
   }
 
@@ -2591,7 +2609,7 @@ class FunctionLiteral final : public Expression {
   FunctionKind kind() const { return FunctionKindBits::decode(bitfield_); }
 
   int ast_node_count() { return ast_properties_.node_count(); }
-  AstProperties::Flags* flags() { return ast_properties_.flags(); }
+  AstProperties::Flags flags() const { return ast_properties_.flags(); }
   void set_ast_properties(AstProperties* ast_properties) {
     ast_properties_ = *ast_properties;
   }
@@ -2819,7 +2837,7 @@ class SuperCallReference final : public Expression {
         new_target_var_(new_target_var),
         this_function_var_(this_function_var) {
     DCHECK(this_var->is_this());
-    DCHECK(new_target_var->raw_name()->IsOneByteEqualTo("new.target"));
+    DCHECK(new_target_var->raw_name()->IsOneByteEqualTo(".new.target"));
     DCHECK(this_function_var->raw_name()->IsOneByteEqualTo(".this_function"));
   }
 
@@ -3449,8 +3467,15 @@ class AstNodeFactory final BASE_EMBEDDED {
                                 int literal_index,
                                 bool is_strong,
                                 int pos) {
-    return new (zone_) ArrayLiteral(zone_, values, literal_index, is_strong,
-                                    pos);
+    return new (zone_)
+        ArrayLiteral(zone_, values, -1, literal_index, is_strong, pos);
+  }
+
+  ArrayLiteral* NewArrayLiteral(ZoneList<Expression*>* values,
+                                int first_spread_index, int literal_index,
+                                bool is_strong, int pos) {
+    return new (zone_) ArrayLiteral(zone_, values, first_spread_index,
+                                    literal_index, is_strong, pos);
   }
 
   VariableProxy* NewVariableProxy(Variable* var,

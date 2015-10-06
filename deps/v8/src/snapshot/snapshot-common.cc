@@ -8,7 +8,7 @@
 
 #include "src/api.h"
 #include "src/base/platform/platform.h"
-#include "src/full-codegen.h"
+#include "src/full-codegen/full-codegen.h"
 #include "src/snapshot/snapshot.h"
 
 namespace v8 {
@@ -137,7 +137,7 @@ void CalculateFirstPageSizes(bool is_default_snapshot,
                   2 * context_reservations[context_index].chunk_size()) +
                  Page::kObjectStartOffset;
       // Add a small allowance to the code space for small scripts.
-      if (space == CODE_SPACE) required += 64 * KB;
+      if (space == CODE_SPACE) required += 32 * KB;
     } else {
       // We expect the vanilla snapshot to only require on page per space.
       DCHECK(!is_default_snapshot);

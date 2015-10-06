@@ -7,11 +7,12 @@
 #include "src/profile-generator-inl.h"
 
 #include "src/compiler.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/global-handles.h"
 #include "src/sampler.h"
 #include "src/scopeinfo.h"
+#include "src/splay-tree-inl.h"
 #include "src/unicode.h"
 
 namespace v8 {
@@ -375,6 +376,9 @@ void CpuProfile::Print() {
   base::OS::Print("[Top down]:\n");
   top_down_.Print();
 }
+
+
+CodeMap::~CodeMap() {}
 
 
 const CodeMap::CodeTreeConfig::Key CodeMap::CodeTreeConfig::kNoKey = NULL;

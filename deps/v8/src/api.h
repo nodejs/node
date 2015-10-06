@@ -5,13 +5,12 @@
 #ifndef V8_API_H_
 #define V8_API_H_
 
-#include "src/v8.h"
-
 #include "include/v8-testing.h"
 #include "src/contexts.h"
 #include "src/factory.h"
 #include "src/isolate.h"
-#include "src/list-inl.h"
+#include "src/list.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 
@@ -309,17 +308,6 @@ OPEN_HANDLE_LIST(DECLARE_OPEN_HANDLE)
 
 
 template <class T>
-v8::internal::Handle<T> v8::internal::Handle<T>::EscapeFrom(
-    v8::EscapableHandleScope* scope) {
-  v8::internal::Handle<T> handle;
-  if (!is_null()) {
-    handle = *this;
-  }
-  return Utils::OpenHandle(*scope->Escape(Utils::ToLocal(handle)), true);
-}
-
-
-template <class T>
 inline T* ToApi(v8::internal::Handle<v8::internal::Object> obj) {
   return reinterpret_cast<T*>(obj.location());
 }
@@ -416,72 +404,6 @@ OPEN_HANDLE_LIST(MAKE_OPEN_HANDLE)
 
 
 namespace internal {
-
-// Tracks string usage to help make better decisions when
-// externalizing strings.
-//
-// Implementation note: internally this class only tracks fresh
-// strings and keeps a single use counter for them.
-class StringTracker {
- public:
-  // Records that the given string's characters were copied to some
-  // external buffer. If this happens often we should honor
-  // externalization requests for the string.
-  void RecordWrite(Handle<String> string) {
-    Address address = reinterpret_cast<Address>(*string);
-    Address top = isolate_->heap()->NewSpaceTop();
-    if (IsFreshString(address, top)) {
-      IncrementUseCount(top);
-    }
-  }
-
-  // Estimates freshness and use frequency of the given string based
-  // on how close it is to the new space top and the recorded usage
-  // history.
-  inline bool IsFreshUnusedString(Handle<String> string) {
-    Address address = reinterpret_cast<Address>(*string);
-    Address top = isolate_->heap()->NewSpaceTop();
-    return IsFreshString(address, top) && IsUseCountLow(top);
-  }
-
- private:
-  StringTracker() : use_count_(0), last_top_(NULL), isolate_(NULL) { }
-
-  static inline bool IsFreshString(Address string, Address top) {
-    return top - kFreshnessLimit <= string && string <= top;
-  }
-
-  inline bool IsUseCountLow(Address top) {
-    if (last_top_ != top) return true;
-    return use_count_ < kUseLimit;
-  }
-
-  inline void IncrementUseCount(Address top) {
-    if (last_top_ != top) {
-      use_count_ = 0;
-      last_top_ = top;
-    }
-    ++use_count_;
-  }
-
-  // Single use counter shared by all fresh strings.
-  int use_count_;
-
-  // Last new space top when the use count above was valid.
-  Address last_top_;
-
-  Isolate* isolate_;
-
-  // How close to the new space top a fresh string has to be.
-  static const int kFreshnessLimit = 1024;
-
-  // The number of uses required to consider a string useful.
-  static const int kUseLimit = 32;
-
-  friend class Isolate;
-
-  DISALLOW_COPY_AND_ASSIGN(StringTracker);
-};
 
 
 class DeferredHandles {

@@ -132,6 +132,7 @@
   # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
   'debug-evaluate-const': [PASS, NO_VARIANTS],
   'debug-evaluate-locals': [PASS, NO_VARIANTS],
+  'debug-evaluate-locals-capturing': [PASS, NO_VARIANTS],
   'debug-liveedit-check-stack': [PASS, NO_VARIANTS],  # only in no-snap mode.
   'debug-liveedit-double-call': [PASS, NO_VARIANTS],
   'debug-set-variable-value': [PASS, NO_VARIANTS],
@@ -244,6 +245,17 @@
 
   # BUG(v8:3838).
   'regress/regress-3116': [PASS, ['isolates', FLAKY]],
+
+  # BUG(chromium:508074). Remove this once the issue is fixed.
+  'harmony/arrow-rest-params': [PASS, NO_VARIANTS],
+  'harmony/rest-params': [PASS, ['no_snap == True', NO_VARIANTS]],
+
+  # BUG(v8:4378).
+  'regress/regress-crbug-501711': [PASS, ['isolates', SKIP]],
+  'regress/regress-4279': [PASS, ['isolates', SKIP]],
+
+  # BUG(chromium:518748)
+  'regress/regress-crbug-518748': [SKIP],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -301,11 +313,15 @@
 
   # Issue 3723.
   'regress/regress-3717': [SKIP],
-  # Issue 478788.
-  'es7/object-observe': [SKIP],
 
   # BUG(v8:4237)
   'regress/regress-3976': [SKIP],
+
+  # BUG(v8:4359)
+  'strong/load-proxy': [SKIP],
+
+  # BUG(v8:4381)
+  'for-in-opt': [PASS, FAIL],
 }],  # 'gc_stress == True'
 
 ##############################################################################
@@ -647,7 +663,6 @@
   'assert-opt-and-deopt': [SKIP],
   'never-optimize': [SKIP],
   'regress/regress-2185-2': [SKIP],
-  'harmony/object-observe': [SKIP],
   'readonly': [SKIP],
   'array-feedback': [SKIP],
 

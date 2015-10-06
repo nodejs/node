@@ -5,7 +5,7 @@
 #ifndef V8_GDB_JIT_H_
 #define V8_GDB_JIT_H_
 
-#include "src/v8.h"
+#include "include/v8.h"
 
 //
 // GDB has two ways of interacting with JIT code.  With the "JIT compilation

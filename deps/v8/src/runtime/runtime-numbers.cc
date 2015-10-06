@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
 #include "src/base/bits.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
-#include "src/runtime/runtime-utils.h"
 
 
 #ifndef _STLP_VENDOR_CSTD
@@ -231,7 +230,7 @@ RUNTIME_FUNCTION(Runtime_StringParseFloat) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_NumberToStringRT) {
+RUNTIME_FUNCTION(Runtime_NumberToString) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(number, 0);
@@ -268,24 +267,6 @@ RUNTIME_FUNCTION(Runtime_NumberToIntegerMapMinusZero) {
   if (double_value == 0) double_value = 0;
 
   return *isolate->factory()->NewNumber(double_value);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberToJSUint32) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-
-  CONVERT_NUMBER_CHECKED(int32_t, number, Uint32, args[0]);
-  return *isolate->factory()->NewNumberFromUint(number);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberToJSInt32) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-
-  CONVERT_DOUBLE_ARG_CHECKED(number, 0);
-  return *isolate->factory()->NewNumberFromInt(DoubleToInt32(number));
 }
 
 
@@ -555,12 +536,6 @@ RUNTIME_FUNCTION(Runtime_MaxSmi) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 0);
   return Smi::FromInt(Smi::kMaxValue);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberToString) {
-  SealHandleScope shs(isolate);
-  return __RT_impl_Runtime_NumberToStringRT(args, isolate);
 }
 
 

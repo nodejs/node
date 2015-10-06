@@ -8,7 +8,11 @@ function f() {
   try {
     f();
   } catch(e) {
-    Realm.create();
+    try {
+      Realm.create();
+    } catch (e) {
+      quit();
+    }
   }
 }
 f();

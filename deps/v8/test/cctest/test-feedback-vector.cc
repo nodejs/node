@@ -6,7 +6,7 @@
 #include "test/cctest/cctest.h"
 
 #include "src/api.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/global-handles.h"
@@ -40,7 +40,8 @@ TEST(VectorStructure) {
   CHECK_EQ(1, vector->Slots());
   CHECK_EQ(0, vector->ICSlots());
 
-  FeedbackVectorSpec one_icslot(0, Code::CALL_IC);
+  ZoneFeedbackVectorSpec one_icslot(zone, 0, 1);
+  one_icslot.SetKind(0, Code::CALL_IC);
   vector = factory->NewTypeFeedbackVector(&one_icslot);
   CHECK_EQ(0, vector->Slots());
   CHECK_EQ(1, vector->ICSlots());
@@ -384,5 +385,102 @@ TEST(VectorLoadICOnSmi) {
   MapHandleList maps2;
   nexus.FindAllMaps(&maps2);
   CHECK_EQ(2, maps2.length());
+}
+
+
+static Handle<JSFunction> GetFunction(const char* name) {
+  Handle<JSFunction> f = v8::Utils::OpenHandle(
+      *v8::Handle<v8::Function>::Cast(CcTest::global()->Get(v8_str(name))));
+  return f;
+}
+
+
+TEST(ReferenceContextAllocatesNoSlots) {
+  if (i::FLAG_always_opt) return;
+  CcTest::InitializeVM();
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+
+  CompileRun(
+      "function testvar(x) {"
+      "  y = x;"
+      "  y = a;"
+      "  return y;"
+      "}"
+      "a = 3;"
+      "testvar({});");
+
+  Handle<JSFunction> f = GetFunction("testvar");
+
+  // There should be two LOAD_ICs, one for a and one for y at the end.
+  Handle<TypeFeedbackVector> feedback_vector =
+      handle(f->shared()->feedback_vector(), isolate);
+  CHECK_EQ(2, feedback_vector->ICSlots());
+  CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(0)) == Code::LOAD_IC);
+  CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(1)) == Code::LOAD_IC);
+
+  CompileRun(
+      "function testprop(x) {"
+      "  x.blue = a;"
+      "}"
+      "testprop({ blue: 3 });");
+
+  f = GetFunction("testprop");
+
+  // There should be one LOAD_IC, for the load of a.
+  feedback_vector = handle(f->shared()->feedback_vector(), isolate);
+  CHECK_EQ(1, feedback_vector->ICSlots());
+
+  CompileRun(
+      "function testpropfunc(x) {"
+      "  x().blue = a;"
+      "  return x().blue;"
+      "}"
+      "function makeresult() { return { blue: 3 }; }"
+      "testpropfunc(makeresult);");
+
+  f = GetFunction("testpropfunc");
+
+  // There should be 2 LOAD_ICs and 2 CALL_ICs.
+  feedback_vector = handle(f->shared()->feedback_vector(), isolate);
+  CHECK_EQ(4, feedback_vector->ICSlots());
+  CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(0)) == Code::CALL_IC);
+  CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(1)) == Code::LOAD_IC);
+  CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(2)) == Code::CALL_IC);
+  CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(3)) == Code::LOAD_IC);
+
+  CompileRun(
+      "function testkeyedprop(x) {"
+      "  x[0] = a;"
+      "  return x[0];"
+      "}"
+      "testkeyedprop([0, 1, 2]);");
+
+  f = GetFunction("testkeyedprop");
+
+  // There should be 1 LOAD_ICs for the load of a, and one KEYED_LOAD_IC for the
+  // load of x[0] in the return statement.
+  feedback_vector = handle(f->shared()->feedback_vector(), isolate);
+  CHECK_EQ(2, feedback_vector->ICSlots());
+  CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(0)) == Code::LOAD_IC);
+  CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(1)) ==
+        Code::KEYED_LOAD_IC);
+
+  CompileRun(
+      "function testcompound(x) {"
+      "  x.old = x.young = x.in_between = a;"
+      "  return x.old + x.young;"
+      "}"
+      "testcompound({ old: 3, young: 3, in_between: 3 });");
+
+  f = GetFunction("testcompound");
+
+  // There should be 3 LOAD_ICs, for load of a and load of x.old and x.young.
+  feedback_vector = handle(f->shared()->feedback_vector(), isolate);
+  CHECK_EQ(3, feedback_vector->ICSlots());
+  CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(0)) == Code::LOAD_IC);
+  CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(1)) == Code::LOAD_IC);
+  CHECK(feedback_vector->GetKind(FeedbackVectorICSlot(2)) == Code::LOAD_IC);
 }
 }

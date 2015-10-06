@@ -34,8 +34,10 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
                             p2, p3, p4)),
         RawMachineAssembler(
             main_isolate(), new (main_zone()) Graph(main_zone()),
-            CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p0, p1,
-                            p2, p3, p4),
+            Linkage::GetSimplifiedCDescriptor(
+                main_zone(),
+                CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p0,
+                                p1, p2, p3, p4)),
             kMachPtr, InstructionSelector::SupportedMachineOperatorFlags()) {}
 
   void CheckNumber(double expected, Object* number) {

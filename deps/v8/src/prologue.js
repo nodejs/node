@@ -12,28 +12,44 @@
 // Utils
 
 var imports = UNDEFINED;
-var exports = UNDEFINED;
 var imports_from_experimental = UNDEFINED;
-
+var exports_to_runtime = UNDEFINED;
+var exports_container = {};
 
 // Export to other scripts.
 // In normal natives, this exports functions to other normal natives.
 // In experimental natives, this exports to other experimental natives and
 // to normal natives that import using utils.ImportFromExperimental.
 function Export(f) {
-  f.next = exports;
-  exports = f;
-};
+  f(exports_container);
+}
 
 
-// Import from other scripts.
+// Export to the native context for calls from the runtime.
+function ExportToRuntime(f) {
+  f.next = exports_to_runtime;
+  exports_to_runtime = f;
+}
+
+
+// Import from other scripts. The actual importing happens in PostNatives and
+// PostExperimental so that we can import from scripts executed later. However,
+// that means that the import is not available until the very end. If the
+// import needs to be available immediate, use ImportNow.
 // In normal natives, this imports from other normal natives.
 // In experimental natives, this imports from other experimental natives and
 // whitelisted exports from normal natives.
 function Import(f) {
   f.next = imports;
   imports = f;
-};
+}
+
+// Import immediately from exports of previous scripts. We need this for
+// functions called during bootstrapping. Hooking up imports in PostNatives
+// would be too late.
+function ImportNow(f) {
+  f(exports_container);
+}
 
 
 // In normal natives, import from experimental natives.
@@ -41,7 +57,7 @@ function Import(f) {
 function ImportFromExperimental(f) {
   f.next = imports_from_experimental;
   imports_from_experimental = f;
-};
+}
 
 
 function SetFunctionName(f, name, prefix) {
@@ -143,18 +159,24 @@ function SetUpLockedPrototype(
 // -----------------------------------------------------------------------
 // To be called by bootstrapper
 
-var experimental_exports = UNDEFINED;
-
 function PostNatives(utils) {
   %CheckIsBootstrapping();
 
-  var container = {};
-  for ( ; !IS_UNDEFINED(exports); exports = exports.next) exports(container);
-  for ( ; !IS_UNDEFINED(imports); imports = imports.next) imports(container);
+  for ( ; !IS_UNDEFINED(imports); imports = imports.next) {
+    imports(exports_container);
+  }
 
-  // Whitelist of exports from normal natives to experimental natives.
-  var expose_to_experimental = [
+  var runtime_container = {};
+  for ( ; !IS_UNDEFINED(exports_to_runtime);
+          exports_to_runtime = exports_to_runtime.next) {
+    exports_to_runtime(runtime_container);
+  }
+  %ImportToRuntime(runtime_container);
+
+  // Whitelist of exports from normal natives to experimental natives and debug.
+  var expose_list = [
     "ArrayToString",
+    "FunctionSourceString",
     "GetIterator",
     "GetMethod",
     "InnerArrayEvery",
@@ -177,56 +199,83 @@ function PostNatives(utils) {
     "ObjectDefineProperty",
     "OwnPropertyKeys",
     "ToNameArray",
+    "ToBoolean",
+    "ToNumber",
+    "ToString",
   ];
-  experimental_exports = {};
+
+  var filtered_exports = {};
   %OptimizeObjectForAddingMultipleProperties(
-      experimental_exports, expose_to_experimental.length);
-  for (var key of expose_to_experimental) {
-    experimental_exports[key] = container[key];
+      filtered_exports, expose_list.length);
+  for (var key of expose_list) {
+    filtered_exports[key] = exports_container[key];
   }
-  %ToFastProperties(experimental_exports);
-  container = UNDEFINED;
+  %ToFastProperties(filtered_exports);
+  exports_container = filtered_exports;
 
   utils.PostNatives = UNDEFINED;
   utils.ImportFromExperimental = UNDEFINED;
-};
+}
 
 
 function PostExperimentals(utils) {
   %CheckIsBootstrapping();
 
-  for ( ; !IS_UNDEFINED(exports); exports = exports.next) {
-    exports(experimental_exports);
-  }
   for ( ; !IS_UNDEFINED(imports); imports = imports.next) {
-    imports(experimental_exports);
+    imports(exports_container);
   }
   for ( ; !IS_UNDEFINED(imports_from_experimental);
           imports_from_experimental = imports_from_experimental.next) {
-    imports_from_experimental(experimental_exports);
+    imports_from_experimental(exports_container);
+  }
+  var runtime_container = {};
+  for ( ; !IS_UNDEFINED(exports_to_runtime);
+          exports_to_runtime = exports_to_runtime.next) {
+    exports_to_runtime(runtime_container);
+  }
+  %ImportExperimentalToRuntime(runtime_container);
+
+  exports_container = UNDEFINED;
+
+  utils.PostExperimentals = UNDEFINED;
+  utils.PostDebug = UNDEFINED;
+  utils.Import = UNDEFINED;
+  utils.Export = UNDEFINED;
+}
+
+
+function PostDebug(utils) {
+  for ( ; !IS_UNDEFINED(imports); imports = imports.next) {
+    imports(exports_container);
   }
 
-  experimental_exports = UNDEFINED;
+  exports_container = UNDEFINED;
 
+  utils.PostDebug = UNDEFINED;
   utils.PostExperimentals = UNDEFINED;
   utils.Import = UNDEFINED;
   utils.Export = UNDEFINED;
-};
+}
 
 // -----------------------------------------------------------------------
 
-InstallFunctions(utils, NONE, [
-  "Import", Import,
-  "Export", Export,
-  "ImportFromExperimental", ImportFromExperimental,
-  "SetFunctionName", SetFunctionName,
-  "InstallConstants", InstallConstants,
-  "InstallFunctions", InstallFunctions,
-  "InstallGetter", InstallGetter,
-  "InstallGetterSetter", InstallGetterSetter,
-  "SetUpLockedPrototype", SetUpLockedPrototype,
-  "PostNatives", PostNatives,
-  "PostExperimentals", PostExperimentals,
-]);
+%OptimizeObjectForAddingMultipleProperties(utils, 14);
+
+utils.Import = Import;
+utils.ImportNow = ImportNow;
+utils.Export = Export;
+utils.ExportToRuntime = ExportToRuntime;
+utils.ImportFromExperimental = ImportFromExperimental;
+utils.SetFunctionName = SetFunctionName;
+utils.InstallConstants = InstallConstants;
+utils.InstallFunctions = InstallFunctions;
+utils.InstallGetter = InstallGetter;
+utils.InstallGetterSetter = InstallGetterSetter;
+utils.SetUpLockedPrototype = SetUpLockedPrototype;
+utils.PostNatives = PostNatives;
+utils.PostExperimentals = PostExperimentals;
+utils.PostDebug = PostDebug;
+
+%ToFastProperties(utils);
 
 })

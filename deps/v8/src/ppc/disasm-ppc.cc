@@ -28,8 +28,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_PPC
 
 #include "src/base/platform/platform.h"
@@ -243,6 +241,14 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       }
       return 1;
     }
+    case 'c': {  // 'cr: condition register of branch instruction
+      int code = instr->Bits(20, 18);
+      if (code != 7) {
+        out_buffer_pos_ +=
+            SNPrintF(out_buffer_ + out_buffer_pos_, " cr%d", code);
+      }
+      return 2;
+    }
     case 't': {  // 'target: target of branch instructions
       // target26 or target16
       DCHECK(STRING_STARTS_WITH(format, "target"));
@@ -366,7 +372,10 @@ void Decoder::DecodeExt1(Instruction* instr) {
       break;
     }
     case BCLRX: {
-      switch (instr->Bits(25, 21) << 21) {
+      int bo = instr->Bits(25, 21) << 21;
+      int bi = instr->Bits(20, 16);
+      CRBit cond = static_cast<CRBit>(bi & (CRWIDTH - 1));
+      switch (bo) {
         case DCBNZF: {
           UnknownFormat(instr, "bclrx-dcbnzf");
           break;
@@ -376,7 +385,20 @@ void Decoder::DecodeExt1(Instruction* instr) {
           break;
         }
         case BF: {
-          UnknownFormat(instr, "bclrx-bf");
+          switch (cond) {
+            case CR_EQ:
+              Format(instr, "bnelr'l'cr");
+              break;
+            case CR_GT:
+              Format(instr, "blelr'l'cr");
+              break;
+            case CR_LT:
+              Format(instr, "bgelr'l'cr");
+              break;
+            case CR_SO:
+              Format(instr, "bnsolr'l'cr");
+              break;
+          }
           break;
         }
         case DCBNZT: {
@@ -388,7 +410,20 @@ void Decoder::DecodeExt1(Instruction* instr) {
           break;
         }
         case BT: {
-          UnknownFormat(instr, "bclrx-bt");
+          switch (cond) {
+            case CR_EQ:
+              Format(instr, "beqlr'l'cr");
+              break;
+            case CR_GT:
+              Format(instr, "bgtlr'l'cr");
+              break;
+            case CR_LT:
+              Format(instr, "bltlr'l'cr");
+              break;
+            case CR_SO:
+              Format(instr, "bsolr'l'cr");
+              break;
+          }
           break;
         }
         case DCBNZ: {
@@ -400,11 +435,7 @@ void Decoder::DecodeExt1(Instruction* instr) {
           break;
         }
         case BA: {
-          if (instr->Bit(0) == 1) {
-            Format(instr, "blrl");
-          } else {
-            Format(instr, "blr");
-          }
+          Format(instr, "blr'l");
           break;
         }
       }
@@ -1062,43 +1093,48 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
     case BCX: {
       int bo = instr->Bits(25, 21) << 21;
       int bi = instr->Bits(20, 16);
-      switch (bi) {
-        case 2:
-        case 30:
-          if (BT == bo) {
-            Format(instr, "beq'l'a 'target16");
-            break;
+      CRBit cond = static_cast<CRBit>(bi & (CRWIDTH - 1));
+      switch (bo) {
+        case BT: {  // Branch if condition true
+          switch (cond) {
+            case CR_EQ:
+              Format(instr, "beq'l'a'cr 'target16");
+              break;
+            case CR_GT:
+              Format(instr, "bgt'l'a'cr 'target16");
+              break;
+            case CR_LT:
+              Format(instr, "blt'l'a'cr 'target16");
+              break;
+            case CR_SO:
+              Format(instr, "bso'l'a'cr 'target16");
+              break;
           }
-          if (BF == bo) {
-            Format(instr, "bne'l'a 'target16");
-            break;
-          }
-          Format(instr, "bc'l'a 'target16");
           break;
-        case 29:
-          if (BT == bo) {
-            Format(instr, "bgt'l'a 'target16");
-            break;
+        }
+        case BF: {  // Branch if condition false
+          switch (cond) {
+            case CR_EQ:
+              Format(instr, "bne'l'a'cr 'target16");
+              break;
+            case CR_GT:
+              Format(instr, "ble'l'a'cr 'target16");
+              break;
+            case CR_LT:
+              Format(instr, "bge'l'a'cr 'target16");
+              break;
+            case CR_SO:
+              Format(instr, "bnso'l'a'cr 'target16");
+              break;
           }
-          if (BF == bo) {
-            Format(instr, "ble'l'a 'target16");
-            break;
-          }
-          Format(instr, "bc'l'a 'target16");
           break;
-        case 28:
-          if (BT == bo) {
-            Format(instr, "blt'l'a 'target16");
-            break;
-          }
-          if (BF == bo) {
-            Format(instr, "bge'l'a 'target16");
-            break;
-          }
-          Format(instr, "bc'l'a 'target16");
+        }
+        case DCBNZ: {  // Decrement CTR; branch if CTR != 0
+          Format(instr, "bdnz'l'a 'target16");
           break;
+        }
         default:
-          Format(instr, "bc'l'a 'target16");
+          Format(instr, "bc'l'a'cr 'target16");
           break;
       }
       break;
