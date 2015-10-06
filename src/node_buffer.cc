@@ -353,7 +353,7 @@ MaybeLocal<Object> New(Environment* env,
   if (!mb.FromMaybe(false))
     return Local<Object>();
 
-  CallbackInfo::New(env->isolate(), ui, callback, hint);
+  CallbackInfo::New(env->isolate(), ab, callback, hint);
   return scope.Escape(ui);
 }
 
