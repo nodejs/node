@@ -23,6 +23,10 @@ static void IsSetIterator(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(args[0]->IsSetIterator());
 }
 
+static void IsPromise(const FunctionCallbackInfo<Value>& args) {
+  CHECK_EQ(1, args.Length());
+  args.GetReturnValue().Set(args[0]->IsPromise());
+}
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,
@@ -30,6 +34,7 @@ void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   env->SetMethod(target, "isMapIterator", IsMapIterator);
   env->SetMethod(target, "isSetIterator", IsSetIterator);
+  env->SetMethod(target, "isPromise", IsPromise);
 }
 
 }  // namespace util
