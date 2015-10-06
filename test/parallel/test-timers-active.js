@@ -3,7 +3,7 @@ const common = require('../common');
 const assert = require('assert');
 const active = require('timers').active;
 
-// active() should not create a timer for these
+// active() should create timers for these
 var legitTimers = [
   { _idleTimeout: 0 },
   { _idleTimeout: 1 }
