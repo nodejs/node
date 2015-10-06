@@ -1,5 +1,3 @@
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 var processIncludes = require('./preprocess.js');
 var marked = require('marked');
 var fs = require('fs');
