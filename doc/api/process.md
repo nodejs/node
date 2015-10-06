@@ -1271,6 +1271,12 @@ tarball.
 
 * `name` {String} A value that will always be `'node'` for Node.js. For
   legacy io.js releases, this will be `'io.js'`.
+* `lts`: a string with a value indicating the _codename_ of the LTS (Long-term
+  Support) line the current release is part of. This property only exists for
+  LTS releases and is `undefined` for all other release types, including stable
+  releases. Current valid values are:
+  - `"Argon"` for the v4.x LTS line beginning with v4.2.0.
+  - `"Boron"` for the v6.x LTS line beginning with v6.9.0.
 * `sourceUrl` {String} an absolute URL pointing to a `_.tar.gz_` file containing
   the source code of the current release.
 * `headersUrl`{String} an absolute URL pointing to a `_.tar.gz_` file containing
