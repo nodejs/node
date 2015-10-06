@@ -533,9 +533,6 @@ class Assembler : public AssemblerBase {
   // of that call in the instruction stream.
   inline static Address target_address_from_return_address(Address pc);
 
-  // Return the code target address of the patch debug break slot
-  inline static Address break_address_from_return_address(Address pc);
-
   // This sets the branch destination (which is in the instruction on x86).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
@@ -553,20 +550,15 @@ class Assembler : public AssemblerBase {
   // Distance between the address of the code target in the call instruction
   // and the return address
   static const int kCallTargetAddressOffset = kPointerSize;
-  // Distance between start of patched return sequence and the emitted address
-  // to jump to.
-  static const int kPatchReturnSequenceAddressOffset = 1;  // JMP imm32.
+
+  static const int kCallInstructionLength = 5;
+
+  // The debug break slot must be able to contain a call instruction.
+  static const int kDebugBreakSlotLength = kCallInstructionLength;
 
   // Distance between start of patched debug break slot and the emitted address
   // to jump to.
   static const int kPatchDebugBreakSlotAddressOffset = 1;  // JMP imm32.
-
-  static const int kCallInstructionLength = 5;
-  static const int kPatchDebugBreakSlotReturnOffset = kPointerSize;
-  static const int kJSReturnSequenceLength = 6;
-
-  // The debug break slot must be able to contain a call instruction.
-  static const int kDebugBreakSlotLength = kCallInstructionLength;
 
   // One byte opcode for test al, 0xXX.
   static const byte kTestAlByte = 0xA8;
@@ -1085,10 +1077,6 @@ class Assembler : public AssemblerBase {
   }
   void pinsrd(XMMRegister dst, const Operand& src, int8_t offset);
 
-  // Parallel XMM operations.
-  void movntdqa(XMMRegister dst, const Operand& src);
-  void movntdq(const Operand& dst, XMMRegister src);
-
   // AVX instructions
   void vfmadd132sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
     vfmadd132sd(dst, src1, Operand(src2));
@@ -1433,11 +1421,11 @@ class Assembler : public AssemblerBase {
     return pc_offset() - label->pos();
   }
 
-  // Mark address of the ExitJSFrame code.
-  void RecordJSReturn();
+  // Mark generator continuation.
+  void RecordGeneratorContinuation();
 
   // Mark address of a debug break slot.
-  void RecordDebugBreakSlot();
+  void RecordDebugBreakSlot(RelocInfo::Mode mode, int argc = 0);
 
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --code-comments to enable.

@@ -13,7 +13,6 @@
 // Imports
 
 var GlobalObject = global.Object;
-
 var OwnPropertyKeys;
 
 utils.Import(function(from) {
@@ -24,7 +23,7 @@ utils.Import(function(from) {
 
 // ES6, draft 04-03-15, section 19.1.2.1
 function ObjectAssign(target, sources) {
-  var to = TO_OBJECT_INLINE(target);
+  var to = TO_OBJECT(target);
   var argsLen = %_ArgumentsLength();
   if (argsLen < 2) return to;
 
@@ -34,7 +33,7 @@ function ObjectAssign(target, sources) {
       continue;
     }
 
-    var from = TO_OBJECT_INLINE(nextSource);
+    var from = TO_OBJECT(nextSource);
     var keys = OwnPropertyKeys(from);
     var len = keys.length;
 

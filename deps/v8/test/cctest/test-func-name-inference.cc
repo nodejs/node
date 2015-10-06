@@ -29,11 +29,12 @@
 #include "src/v8.h"
 
 #include "src/api.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/string-search.h"
 #include "test/cctest/cctest.h"
 
 
+using ::v8::base::SmartArrayPointer;
 using ::v8::internal::CStrVector;
 using ::v8::internal::Factory;
 using ::v8::internal::Handle;
@@ -43,7 +44,6 @@ using ::v8::internal::JSFunction;
 using ::v8::internal::Object;
 using ::v8::internal::Runtime;
 using ::v8::internal::Script;
-using ::v8::internal::SmartArrayPointer;
 using ::v8::internal::SharedFunctionInfo;
 using ::v8::internal::String;
 using ::v8::internal::Vector;
@@ -80,7 +80,6 @@ static void CheckFunctionName(v8::Handle<v8::Script> script,
   CHECK_NE(0, func_pos);
 
   // Obtain SharedFunctionInfo for the function.
-  isolate->debug()->PrepareForBreakPoints();
   Handle<SharedFunctionInfo> shared_func_info =
       Handle<SharedFunctionInfo>::cast(
           isolate->debug()->FindSharedFunctionInfoInScript(i_script, func_pos));
@@ -88,6 +87,8 @@ static void CheckFunctionName(v8::Handle<v8::Script> script,
   // Verify inferred function name.
   SmartArrayPointer<char> inferred_name =
       shared_func_info->inferred_name()->ToCString();
+  i::PrintF("expected: %s, found: %s\n", ref_inferred_name,
+            inferred_name.get());
   CHECK_EQ(0, strcmp(ref_inferred_name, inferred_name.get()));
 }
 
@@ -220,6 +221,44 @@ TEST(ObjectLiteral) {
       "  method2: function() { return 2; } }");
   CheckFunctionName(script, "return 1", "MyClass.method1");
   CheckFunctionName(script, "return 2", "MyClass.method2");
+}
+
+
+TEST(UpperCaseClass) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  v8::Handle<v8::Script> script = Compile(CcTest::isolate(),
+                                          "'use strict';\n"
+                                          "class MyClass {\n"
+                                          "  constructor() {\n"
+                                          "    this.value = 1;\n"
+                                          "  }\n"
+                                          "  method() {\n"
+                                          "    this.value = 2;\n"
+                                          "  }\n"
+                                          "}");
+  CheckFunctionName(script, "this.value = 1", "MyClass");
+  CheckFunctionName(script, "this.value = 2", "MyClass.method");
+}
+
+
+TEST(LowerCaseClass) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  v8::Handle<v8::Script> script = Compile(CcTest::isolate(),
+                                          "'use strict';\n"
+                                          "class myclass {\n"
+                                          "  constructor() {\n"
+                                          "    this.value = 1;\n"
+                                          "  }\n"
+                                          "  method() {\n"
+                                          "    this.value = 2;\n"
+                                          "  }\n"
+                                          "}");
+  CheckFunctionName(script, "this.value = 1", "myclass");
+  CheckFunctionName(script, "this.value = 2", "myclass.method");
 }
 
 

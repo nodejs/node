@@ -4,6 +4,10 @@
 
 #include "src/extensions/externalize-string-extension.h"
 
+#include "src/api.h"
+#include "src/handles.h"
+#include "src/isolate.h"
+
 namespace v8 {
 namespace internal {
 

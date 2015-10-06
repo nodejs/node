@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_MIPS64
 
 #include "src/codegen.h"
@@ -1082,10 +1080,9 @@ CodeAgingHelper::CodeAgingHelper() {
   // to avoid overloading the stack in stress conditions.
   // DONT_FLUSH is used because the CodeAgingHelper is initialized early in
   // the process, before MIPS simulator ICache is setup.
-  SmartPointer<CodePatcher> patcher(
-      new CodePatcher(young_sequence_.start(),
-                      young_sequence_.length() / Assembler::kInstrSize,
-                      CodePatcher::DONT_FLUSH));
+  base::SmartPointer<CodePatcher> patcher(new CodePatcher(
+      young_sequence_.start(), young_sequence_.length() / Assembler::kInstrSize,
+      CodePatcher::DONT_FLUSH));
   PredictableCodeSizeScope scope(patcher->masm(), young_sequence_.length());
   patcher->masm()->Push(ra, fp, cp, a1);
   patcher->masm()->nop(Assembler::CODE_AGE_SEQUENCE_NOP);

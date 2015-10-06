@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "src/assembler.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
@@ -1375,6 +1376,27 @@ class IsUnopMatcher final : public NodeMatcher {
   const Matcher<Node*> input_matcher_;
 };
 
+class IsParameterMatcher final : public NodeMatcher {
+ public:
+  explicit IsParameterMatcher(const Matcher<int>& index_matcher)
+      : NodeMatcher(IrOpcode::kParameter), index_matcher_(index_matcher) {}
+
+  void DescribeTo(std::ostream* os) const override {
+    *os << "is a Parameter node with index(";
+    index_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(ParameterIndexOf(node->op()), "index",
+                                 index_matcher_, listener));
+  }
+
+ private:
+  const Matcher<int> index_matcher_;
+};
+
 }  // namespace
 
 
@@ -1678,6 +1700,72 @@ Matcher<Node*> IsTailCall(
 }
 
 
+Matcher<Node*> IsTailCall(
+    const Matcher<CallDescriptor const*>& descriptor_matcher,
+    const Matcher<Node*>& value0_matcher, const Matcher<Node*>& value1_matcher,
+    const Matcher<Node*>& value2_matcher, const Matcher<Node*>& effect_matcher,
+    const Matcher<Node*>& control_matcher) {
+  std::vector<Matcher<Node*>> value_matchers;
+  value_matchers.push_back(value0_matcher);
+  value_matchers.push_back(value1_matcher);
+  value_matchers.push_back(value2_matcher);
+  return MakeMatcher(new IsTailCallMatcher(descriptor_matcher, value_matchers,
+                                           effect_matcher, control_matcher));
+}
+
+
+Matcher<Node*> IsTailCall(
+    const Matcher<CallDescriptor const*>& descriptor_matcher,
+    const Matcher<Node*>& value0_matcher, const Matcher<Node*>& value1_matcher,
+    const Matcher<Node*>& value2_matcher, const Matcher<Node*>& value3_matcher,
+    const Matcher<Node*>& effect_matcher,
+    const Matcher<Node*>& control_matcher) {
+  std::vector<Matcher<Node*>> value_matchers;
+  value_matchers.push_back(value0_matcher);
+  value_matchers.push_back(value1_matcher);
+  value_matchers.push_back(value2_matcher);
+  value_matchers.push_back(value3_matcher);
+  return MakeMatcher(new IsTailCallMatcher(descriptor_matcher, value_matchers,
+                                           effect_matcher, control_matcher));
+}
+
+
+Matcher<Node*> IsTailCall(
+    const Matcher<CallDescriptor const*>& descriptor_matcher,
+    const Matcher<Node*>& value0_matcher, const Matcher<Node*>& value1_matcher,
+    const Matcher<Node*>& value2_matcher, const Matcher<Node*>& value3_matcher,
+    const Matcher<Node*>& value4_matcher, const Matcher<Node*>& effect_matcher,
+    const Matcher<Node*>& control_matcher) {
+  std::vector<Matcher<Node*>> value_matchers;
+  value_matchers.push_back(value0_matcher);
+  value_matchers.push_back(value1_matcher);
+  value_matchers.push_back(value2_matcher);
+  value_matchers.push_back(value3_matcher);
+  value_matchers.push_back(value4_matcher);
+  return MakeMatcher(new IsTailCallMatcher(descriptor_matcher, value_matchers,
+                                           effect_matcher, control_matcher));
+}
+
+
+Matcher<Node*> IsTailCall(
+    const Matcher<CallDescriptor const*>& descriptor_matcher,
+    const Matcher<Node*>& value0_matcher, const Matcher<Node*>& value1_matcher,
+    const Matcher<Node*>& value2_matcher, const Matcher<Node*>& value3_matcher,
+    const Matcher<Node*>& value4_matcher, const Matcher<Node*>& value5_matcher,
+    const Matcher<Node*>& effect_matcher,
+    const Matcher<Node*>& control_matcher) {
+  std::vector<Matcher<Node*>> value_matchers;
+  value_matchers.push_back(value0_matcher);
+  value_matchers.push_back(value1_matcher);
+  value_matchers.push_back(value2_matcher);
+  value_matchers.push_back(value3_matcher);
+  value_matchers.push_back(value4_matcher);
+  value_matchers.push_back(value5_matcher);
+  return MakeMatcher(new IsTailCallMatcher(descriptor_matcher, value_matchers,
+                                           effect_matcher, control_matcher));
+}
+
+
 Matcher<Node*> IsReferenceEqual(const Matcher<Type*>& type_matcher,
                                 const Matcher<Node*>& lhs_matcher,
                                 const Matcher<Node*>& rhs_matcher) {
@@ -1799,6 +1887,16 @@ Matcher<Node*> IsLoadContext(const Matcher<ContextAccess>& access_matcher,
 }
 
 
+Matcher<Node*> IsParameter(const Matcher<int> index_matcher) {
+  return MakeMatcher(new IsParameterMatcher(index_matcher));
+}
+
+
+Matcher<Node*> IsLoadFramePointer() {
+  return MakeMatcher(new NodeMatcher(IrOpcode::kLoadFramePointer));
+}
+
+
 #define IS_BINOP_MATCHER(Name)                                            \
   Matcher<Node*> Is##Name(const Matcher<Node*>& lhs_matcher,              \
                           const Matcher<Node*>& rhs_matcher) {            \
@@ -1830,8 +1928,13 @@ IS_BINOP_MATCHER(Int32MulHigh)
 IS_BINOP_MATCHER(Int32LessThan)
 IS_BINOP_MATCHER(Uint32LessThan)
 IS_BINOP_MATCHER(Uint32LessThanOrEqual)
+IS_BINOP_MATCHER(Int64Add)
+IS_BINOP_MATCHER(Int64Sub)
 IS_BINOP_MATCHER(Float32Max)
 IS_BINOP_MATCHER(Float32Min)
+IS_BINOP_MATCHER(Float32Equal)
+IS_BINOP_MATCHER(Float32LessThan)
+IS_BINOP_MATCHER(Float32LessThanOrEqual)
 IS_BINOP_MATCHER(Float64Max)
 IS_BINOP_MATCHER(Float64Min)
 IS_BINOP_MATCHER(Float64Sub)

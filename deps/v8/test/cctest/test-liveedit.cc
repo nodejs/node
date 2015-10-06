@@ -29,7 +29,7 @@
 
 #include "src/v8.h"
 
-#include "src/liveedit.h"
+#include "src/debug/liveedit.h"
 #include "test/cctest/cctest.h"
 
 

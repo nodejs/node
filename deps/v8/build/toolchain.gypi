@@ -1149,7 +1149,9 @@
               }],
             ],
           }],
-          ['linux_use_gold_flags==1', {
+          # TODO(pcc): Re-enable in LTO builds once we've fixed the intermittent
+          # link failures (crbug.com/513074).
+          ['linux_use_gold_flags==1 and use_lto==0', {
             'target_conditions': [
               ['_toolset=="target"', {
                 'ldflags': [

@@ -4,10 +4,12 @@
 
 #include "src/compiler/code-generator.h"
 
+#include "src/arm64/frames-arm64.h"
 #include "src/arm64/macro-assembler-arm64.h"
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/osr.h"
 #include "src/scopes.h"
 
 namespace v8 {
@@ -184,12 +186,9 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
 
   MemOperand ToMemOperand(InstructionOperand* op, MacroAssembler* masm) const {
     DCHECK(op != NULL);
-    DCHECK(!op->IsRegister());
-    DCHECK(!op->IsDoubleRegister());
     DCHECK(op->IsStackSlot() || op->IsDoubleStackSlot());
-    // The linkage computes where all spill slots are located.
-    FrameOffset offset = linkage()->GetFrameOffset(
-        AllocatedOperand::cast(op)->index(), frame(), 0);
+    FrameOffset offset =
+        linkage()->GetFrameOffset(AllocatedOperand::cast(op)->index(), frame());
     return MemOperand(offset.from_stack_pointer() ? masm->StackPointer() : fp,
                       offset.offset());
   }
@@ -1085,41 +1084,22 @@ static int AlignedStackSlots(int stack_slots) {
 
 void CodeGenerator::AssemblePrologue() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  int stack_slots = frame()->GetSpillSlotCount();
   if (descriptor->kind() == CallDescriptor::kCallAddress) {
     __ SetStackPointer(csp);
     __ Push(lr, fp);
     __ Mov(fp, csp);
-
-    // Save FP registers.
-    CPURegList saves_fp = CPURegList(CPURegister::kFPRegister, kDRegSizeInBits,
-                                     descriptor->CalleeSavedFPRegisters());
-    DCHECK(saves_fp.list() == CPURegList::GetCalleeSavedFP().list());
-    int saved_count = saves_fp.Count();
-    __ PushCPURegList(saves_fp);
-    // Save registers.
-    CPURegList saves = CPURegList(CPURegister::kRegister, kXRegSizeInBits,
-                                  descriptor->CalleeSavedRegisters());
-    // TODO(palfia): TF save list is not in sync with
-    // CPURegList::GetCalleeSaved(): x30 is missing.
-    // DCHECK(saves.list() == CPURegList::GetCalleeSaved().list());
-    saved_count += saves.Count();
-    __ PushCPURegList(saves);
-
-    frame()->SetRegisterSaveAreaSize(saved_count * kPointerSize);
   } else if (descriptor->IsJSFunctionCall()) {
     CompilationInfo* info = this->info();
     __ SetStackPointer(jssp);
     __ Prologue(info->IsCodePreAgingActive());
-    frame()->SetRegisterSaveAreaSize(
-        StandardFrameConstants::kFixedFrameSizeFromFp);
   } else if (needs_frame_) {
     __ SetStackPointer(jssp);
     __ StubPrologue();
-    frame()->SetRegisterSaveAreaSize(
-        StandardFrameConstants::kFixedFrameSizeFromFp);
+  } else {
+    frame()->SetElidedFrameSizeInSlots(0);
   }
 
+  int stack_shrink_slots = frame()->GetSpillSlotCount();
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
     __ Abort(kShouldNotDirectlyEnterOsrFunction);
@@ -1132,65 +1112,75 @@ void CodeGenerator::AssemblePrologue() {
     osr_pc_offset_ = __ pc_offset();
     // TODO(titzer): cannot address target function == local #-1
     __ ldr(x1, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-    DCHECK(stack_slots >= frame()->GetOsrStackSlotCount());
-    stack_slots -= frame()->GetOsrStackSlotCount();
+    stack_shrink_slots -= OsrHelper(info()).UnoptimizedFrameSlots();
   }
 
-  if (stack_slots > 0) {
+  if (stack_shrink_slots > 0) {
     Register sp = __ StackPointer();
     if (!sp.Is(csp)) {
-      __ Sub(sp, sp, stack_slots * kPointerSize);
+      __ Sub(sp, sp, stack_shrink_slots * kPointerSize);
     }
-    __ Sub(csp, csp, AlignedStackSlots(stack_slots) * kPointerSize);
+    __ Sub(csp, csp, AlignedStackSlots(stack_shrink_slots) * kPointerSize);
+  }
+
+  // Save FP registers.
+  CPURegList saves_fp = CPURegList(CPURegister::kFPRegister, kDRegSizeInBits,
+                                   descriptor->CalleeSavedFPRegisters());
+  int saved_count = saves_fp.Count();
+  if (saved_count != 0) {
+    DCHECK(saves_fp.list() == CPURegList::GetCalleeSavedFP().list());
+    __ PushCPURegList(saves_fp);
+    frame()->AllocateSavedCalleeRegisterSlots(saved_count *
+                                              (kDoubleSize / kPointerSize));
+  }
+  // Save registers.
+  // TODO(palfia): TF save list is not in sync with
+  // CPURegList::GetCalleeSaved(): x30 is missing.
+  // DCHECK(saves.list() == CPURegList::GetCalleeSaved().list());
+  CPURegList saves = CPURegList(CPURegister::kRegister, kXRegSizeInBits,
+                                descriptor->CalleeSavedRegisters());
+  saved_count = saves.Count();
+  if (saved_count != 0) {
+    __ PushCPURegList(saves);
+    frame()->AllocateSavedCalleeRegisterSlots(saved_count);
   }
 }
 
 
 void CodeGenerator::AssembleReturn() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  int stack_slots = frame()->GetSpillSlotCount();
+
+  // Restore registers.
+  CPURegList saves = CPURegList(CPURegister::kRegister, kXRegSizeInBits,
+                                descriptor->CalleeSavedRegisters());
+  if (saves.Count() != 0) {
+    __ PopCPURegList(saves);
+  }
+
+  // Restore fp registers.
+  CPURegList saves_fp = CPURegList(CPURegister::kFPRegister, kDRegSizeInBits,
+                                   descriptor->CalleeSavedFPRegisters());
+  if (saves_fp.Count() != 0) {
+    __ PopCPURegList(saves_fp);
+  }
+
+  int pop_count = static_cast<int>(descriptor->StackParameterCount());
   if (descriptor->kind() == CallDescriptor::kCallAddress) {
-    if (frame()->GetRegisterSaveAreaSize() > 0) {
-      // Remove this frame's spill slots first.
-      if (stack_slots > 0) {
-        __ Add(csp, csp, AlignedStackSlots(stack_slots) * kPointerSize);
-      }
-
-      // Restore registers.
-      CPURegList saves = CPURegList(CPURegister::kRegister, kXRegSizeInBits,
-                                    descriptor->CalleeSavedRegisters());
-      __ PopCPURegList(saves);
-
-      CPURegList saves_fp =
-          CPURegList(CPURegister::kFPRegister, kDRegSizeInBits,
-                     descriptor->CalleeSavedFPRegisters());
-      __ PopCPURegList(saves_fp);
-    }
-
     __ Mov(csp, fp);
     __ Pop(fp, lr);
-    __ Ret();
   } else if (descriptor->IsJSFunctionCall() || needs_frame_) {
     // Canonicalize JSFunction return sites for now.
     if (return_label_.is_bound()) {
       __ B(&return_label_);
+      return;
     } else {
       __ Bind(&return_label_);
       __ Mov(jssp, fp);
       __ Pop(fp, lr);
-      int pop_count = descriptor->IsJSFunctionCall()
-                          ? static_cast<int>(descriptor->JSParameterCount())
-                          : (info()->IsStub()
-                                 ? info()->code_stub()->GetStackParameterCount()
-                                 : 0);
-      if (pop_count != 0) {
-        __ Drop(pop_count);
-      }
-      __ Ret();
     }
-  } else {
-    __ Ret();
   }
+  __ Drop(pop_count);
+  __ Ret();
 }
 
 

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_MIPS64
 
 #include "src/ic/ic.h"
@@ -48,7 +46,7 @@ Handle<Code> PropertyICCompiler::CompilePolymorphic(MapHandleList* maps,
   // Polymorphic keyed stores may use the map register
   Register map_reg = scratch1();
   DCHECK(kind() != Code::KEYED_STORE_IC ||
-         map_reg.is(ElementTransitionAndStoreDescriptor::MapRegister()));
+         map_reg.is(StoreTransitionDescriptor::MapRegister()));
 
   int receiver_count = maps->length();
   int number_of_handled_maps = 0;

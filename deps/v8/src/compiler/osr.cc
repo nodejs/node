@@ -328,8 +328,6 @@ void OsrHelper::SetupFrame(Frame* frame) {
   // The optimized frame will subsume the unoptimized frame. Do so by reserving
   // the first spill slots.
   frame->ReserveSpillSlots(UnoptimizedFrameSlots());
-  // The frame needs to be adjusted by the number of unoptimized frame slots.
-  frame->SetOsrStackSlotCount(static_cast<int>(UnoptimizedFrameSlots()));
 }
 
 }  // namespace compiler

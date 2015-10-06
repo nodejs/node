@@ -5,13 +5,13 @@
 #ifndef V8_COMPILER_RAW_MACHINE_ASSEMBLER_H_
 #define V8_COMPILER_RAW_MACHINE_ASSEMBLER_H_
 
+#include "src/assembler.h"
 #include "src/compiler/common-operator.h"
-#include "src/compiler/graph-builder.h"
+#include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
-
 
 namespace v8 {
 namespace internal {
@@ -20,21 +20,21 @@ namespace compiler {
 class BasicBlock;
 class Schedule;
 
-
-class RawMachineAssembler : public GraphBuilder {
+// The RawMachineAssembler produces a low-level IR graph. All nodes are wired
+// into a graph and also placed into a schedule immediately, hence subsequent
+// code generation can happen without the need for scheduling.
+//
+// In order to create a schedule on-the-fly, the assembler keeps track of basic
+// blocks by having one current basic block being populated and by referencing
+// other basic blocks through the use of labels.
+class RawMachineAssembler {
  public:
   class Label {
    public:
     Label() : block_(NULL), used_(false), bound_(false) {}
     ~Label() { DCHECK(bound_ || !used_); }
 
-    BasicBlock* block() { return block_; }
-
    private:
-    // Private constructor for exit label.
-    explicit Label(BasicBlock* block)
-        : block_(block), used_(false), bound_(false) {}
-
     BasicBlock* block_;
     bool used_;
     bool bound_;
@@ -43,18 +43,33 @@ class RawMachineAssembler : public GraphBuilder {
   };
 
   RawMachineAssembler(Isolate* isolate, Graph* graph,
-                      const MachineSignature* machine_sig,
+                      CallDescriptor* call_descriptor,
                       MachineType word = kMachPtr,
                       MachineOperatorBuilder::Flags flags =
                           MachineOperatorBuilder::Flag::kNoFlags);
-  ~RawMachineAssembler() override {}
+  ~RawMachineAssembler() {}
 
+  Isolate* isolate() const { return isolate_; }
+  Graph* graph() const { return graph_; }
+  Schedule* schedule() { return schedule_; }
   Zone* zone() const { return graph()->zone(); }
   MachineOperatorBuilder* machine() { return &machine_; }
   CommonOperatorBuilder* common() { return &common_; }
   CallDescriptor* call_descriptor() const { return call_descriptor_; }
-  size_t parameter_count() const { return machine_sig_->parameter_count(); }
-  const MachineSignature* machine_sig() const { return machine_sig_; }
+  size_t parameter_count() const { return machine_sig()->parameter_count(); }
+  const MachineSignature* machine_sig() const {
+    return call_descriptor_->GetMachineSignature();
+  }
+  BasicBlock* CurrentBlock();
+
+  // Finalizes the schedule and exports it to be used for code generation. Note
+  // that this RawMachineAssembler becomes invalid after export.
+  Schedule* Export();
+
+  // ===========================================================================
+  // The following utility methods create new nodes with specific operators and
+  // place them into the current basic block. They don't perform control flow,
+  // hence will not switch the current basic block.
 
   Node* UndefinedConstant() {
     Unique<HeapObject> unique = Unique<HeapObject>::CreateImmovable(
@@ -90,6 +105,9 @@ class RawMachineAssembler : public GraphBuilder {
     Unique<HeapObject> val = Unique<HeapObject>::CreateUninitialized(object);
     return NewNode(common()->HeapConstant(val));
   }
+  Node* HeapConstant(Unique<HeapObject> object) {
+    return NewNode(common()->HeapConstant(object));
+  }
   Node* ExternalConstant(ExternalReference address) {
     return NewNode(common()->ExternalConstant(address));
   }
@@ -106,13 +124,14 @@ class RawMachineAssembler : public GraphBuilder {
     return NewNode(machine()->Load(rep), base, index, graph()->start(),
                    graph()->start());
   }
-  void Store(MachineType rep, Node* base, Node* value) {
-    Store(rep, base, IntPtrConstant(0), value);
+  Node* Store(MachineType rep, Node* base, Node* value) {
+    return Store(rep, base, IntPtrConstant(0), value);
   }
-  void Store(MachineType rep, Node* base, Node* index, Node* value) {
-    NewNode(machine()->Store(StoreRepresentation(rep, kNoWriteBarrier)), base,
-            index, value, graph()->start(), graph()->start());
+  Node* Store(MachineType rep, Node* base, Node* index, Node* value) {
+    return NewNode(machine()->Store(StoreRepresentation(rep, kNoWriteBarrier)),
+                   base, index, value, graph()->start(), graph()->start());
   }
+
   // Arithmetic Operations.
   Node* WordAnd(Node* a, Node* b) {
     return NewNode(machine()->WordAnd(), a, b);
@@ -453,37 +472,35 @@ class RawMachineAssembler : public GraphBuilder {
   Node* LoadFromPointer(void* address, MachineType rep, int32_t offset = 0) {
     return Load(rep, PointerConstant(address), Int32Constant(offset));
   }
-  void StoreToPointer(void* address, MachineType rep, Node* node) {
-    Store(rep, PointerConstant(address), node);
+  Node* StoreToPointer(void* address, MachineType rep, Node* node) {
+    return Store(rep, PointerConstant(address), node);
   }
   Node* StringConstant(const char* string) {
     return HeapConstant(isolate()->factory()->InternalizeUtf8String(string));
   }
 
-  // Control flow.
-  void Goto(Label* label);
-  void Branch(Node* condition, Label* true_val, Label* false_val);
-  void Switch(Node* index, Label* default_label, int32_t* case_values,
-              Label** case_labels, size_t case_count);
+  // Call a given call descriptor and the given arguments.
+  Node* CallN(CallDescriptor* desc, Node* function, Node** args);
+
   // Call through CallFunctionStub with lazy deopt and frame-state.
   Node* CallFunctionStub0(Node* function, Node* receiver, Node* context,
                           Node* frame_state, CallFunctionFlags flags);
-  // Call to a JS function with zero parameters.
+  // Call to a JS function with zero arguments.
   Node* CallJS0(Node* function, Node* receiver, Node* context,
                 Node* frame_state);
-  // Call to a runtime function with zero parameters.
+  // Call to a runtime function with zero arguments.
   Node* CallRuntime1(Runtime::FunctionId function, Node* arg0, Node* context,
                      Node* frame_state);
-  // Call to a C function with zero parameters.
+  // Call to a C function with zero arguments.
   Node* CallCFunction0(MachineType return_type, Node* function);
   // Call to a C function with one parameter.
   Node* CallCFunction1(MachineType return_type, MachineType arg0_type,
                        Node* function, Node* arg0);
-  // Call to a C function with two parameters.
+  // Call to a C function with two arguments.
   Node* CallCFunction2(MachineType return_type, MachineType arg0_type,
                        MachineType arg1_type, Node* function, Node* arg0,
                        Node* arg1);
-  // Call to a C function with eight parameters.
+  // Call to a C function with eight arguments.
   Node* CallCFunction8(MachineType return_type, MachineType arg0_type,
                        MachineType arg1_type, MachineType arg2_type,
                        MachineType arg3_type, MachineType arg4_type,
@@ -491,6 +508,19 @@ class RawMachineAssembler : public GraphBuilder {
                        MachineType arg7_type, Node* function, Node* arg0,
                        Node* arg1, Node* arg2, Node* arg3, Node* arg4,
                        Node* arg5, Node* arg6, Node* arg7);
+  Node* TailCallInterpreterDispatch(const CallDescriptor* call_descriptor,
+                                    Node* target, Node* arg1, Node* arg2,
+                                    Node* arg3, Node* arg4, Node* arg5);
+
+  // ===========================================================================
+  // The following utility methods deal with control flow, hence might switch
+  // the current basic block or create new basic blocks for labels.
+
+  // Control flow.
+  void Goto(Label* label);
+  void Branch(Node* condition, Label* true_val, Label* false_val);
+  void Switch(Node* index, Label* default_label, int32_t* case_values,
+              Label** case_labels, size_t case_count);
   void Return(Node* value);
   void Bind(Label* label);
   void Deoptimize(Node* state);
@@ -506,29 +536,59 @@ class RawMachineAssembler : public GraphBuilder {
     return NewNode(common()->Phi(type, 4), n1, n2, n3, n4);
   }
 
-  // MachineAssembler is invalid after export.
-  Schedule* Export();
+  // ===========================================================================
+  // The following generic node creation methods can be used for operators that
+  // are not covered by the above utility methods. There should rarely be a need
+  // to do that outside of testing though.
 
- protected:
-  Node* MakeNode(const Operator* op, int input_count, Node** inputs,
-                 bool incomplete) final;
+  Node* NewNode(const Operator* op) {
+    return MakeNode(op, 0, static_cast<Node**>(NULL));
+  }
 
-  bool ScheduleValid() { return schedule_ != NULL; }
+  Node* NewNode(const Operator* op, Node* n1) { return MakeNode(op, 1, &n1); }
 
-  Schedule* schedule() {
-    DCHECK(ScheduleValid());
-    return schedule_;
+  Node* NewNode(const Operator* op, Node* n1, Node* n2) {
+    Node* buffer[] = {n1, n2};
+    return MakeNode(op, arraysize(buffer), buffer);
+  }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3) {
+    Node* buffer[] = {n1, n2, n3};
+    return MakeNode(op, arraysize(buffer), buffer);
+  }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4) {
+    Node* buffer[] = {n1, n2, n3, n4};
+    return MakeNode(op, arraysize(buffer), buffer);
+  }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
+                Node* n5) {
+    Node* buffer[] = {n1, n2, n3, n4, n5};
+    return MakeNode(op, arraysize(buffer), buffer);
+  }
+
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
+                Node* n5, Node* n6) {
+    Node* nodes[] = {n1, n2, n3, n4, n5, n6};
+    return MakeNode(op, arraysize(nodes), nodes);
+  }
+
+  Node* NewNode(const Operator* op, int value_input_count,
+                Node** value_inputs) {
+    return MakeNode(op, value_input_count, value_inputs);
   }
 
  private:
+  Node* MakeNode(const Operator* op, int input_count, Node** inputs);
   BasicBlock* Use(Label* label);
   BasicBlock* EnsureBlock(Label* label);
-  BasicBlock* CurrentBlock();
 
+  Isolate* isolate_;
+  Graph* graph_;
   Schedule* schedule_;
   MachineOperatorBuilder machine_;
   CommonOperatorBuilder common_;
-  const MachineSignature* machine_sig_;
   CallDescriptor* call_descriptor_;
   Node** parameters_;
   BasicBlock* current_block_;

@@ -10,8 +10,12 @@
 
 [
 [ALWAYS, {
-  # TODO(bradnelson): Drop when test is fixed upstream.
+  # TODO(bbudge): Drop when test is fixed upstream.
   'benchmarks/aobench': SKIP,
+  'benchmarks/averageFloat64x2': SKIP,
+  'benchmarks/averageFloat64x2Load': SKIP,
+  'benchmarks/mandelbrot': SKIP,
+  'benchmarks/sinx4': SKIP,
 
   # TODO(bbudge): Drop this when simd implementation is faster.
   'benchmarks/memcpy': SKIP,

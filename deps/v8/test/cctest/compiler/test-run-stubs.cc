@@ -14,23 +14,21 @@
 #include "src/parser.h"
 #include "test/cctest/compiler/function-tester.h"
 
-#if V8_TURBOFAN_TARGET
-
 using namespace v8::internal;
 using namespace v8::internal::compiler;
 
 
-TEST(RunMathFloorStub) {
+TEST(RunOptimizedMathFloorStub) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
 
   // Create code and an accompanying descriptor.
-  MathFloorStub stub(isolate);
+  MathFloorStub stub(isolate, TurboFanIC::CALL_FROM_OPTIMIZED_CODE);
   Handle<Code> code = stub.GenerateCode();
   Zone* zone = scope.main_zone();
-
   CompilationInfo info(&stub, isolate, zone);
   CallDescriptor* descriptor = Linkage::ComputeIncoming(zone, &info);
+  Handle<FixedArray> tv = isolate->factory()->NewFixedArray(10);
 
   // Create a function to call the code using the descriptor.
   Graph graph(zone);
@@ -45,10 +43,13 @@ TEST(RunMathFloorStub) {
   Node* numberParam = graph.NewNode(common.Parameter(1), start);
   Unique<HeapObject> u = Unique<HeapObject>::CreateImmovable(code);
   Node* theCode = graph.NewNode(common.HeapConstant(u));
+  Unique<HeapObject> tvu = Unique<HeapObject>::CreateImmovable(tv);
+  Node* vector = graph.NewNode(common.HeapConstant(tvu));
   Node* dummyContext = graph.NewNode(common.NumberConstant(0.0));
-  Node* call = graph.NewNode(common.Call(descriptor), theCode,
-                             js.UndefinedConstant(), js.UndefinedConstant(),
-                             numberParam, dummyContext, start, start);
+  Node* call =
+      graph.NewNode(common.Call(descriptor), theCode, js.UndefinedConstant(),
+                    js.OneConstant(), vector, js.UndefinedConstant(),
+                    numberParam, dummyContext, start, start);
   Node* ret = graph.NewNode(common.Return(), call, call, start);
   Node* end = graph.NewNode(common.End(1), ret);
   graph.SetStart(start);
@@ -143,5 +144,3 @@ TEST(RunStringAddTFStub) {
   Handle<Object> result = ft.Call(leftArg, rightArg).ToHandleChecked();
   CHECK(String::Equals(ft.Val("linksrechts"), Handle<String>::cast(result)));
 }
-
-#endif  // V8_TURBOFAN_TARGET

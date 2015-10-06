@@ -47,6 +47,9 @@ function TestArrayPrototype() {
   assertHasOwnProperty(Array.prototype, 'entries', DONT_ENUM);
   assertHasOwnProperty(Array.prototype, 'keys', DONT_ENUM);
   assertHasOwnProperty(Array.prototype, Symbol.iterator, DONT_ENUM);
+  assertEquals('entries', Array.prototype.entries.name);
+  assertEquals('keys', Array.prototype.keys.name);
+  assertEquals('values', Array.prototype[Symbol.iterator].name);
 }
 TestArrayPrototype();
 

@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compilation-dependencies.h"
+
 #include "src/factory.h"
 #include "src/handles-inl.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/zone.h"
-
-#include "src/compilation-dependencies.h"
 
 namespace v8 {
 namespace internal {

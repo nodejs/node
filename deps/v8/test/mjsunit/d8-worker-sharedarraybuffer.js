@@ -27,42 +27,80 @@
 
 // Flags: --harmony-sharedarraybuffer --harmony-atomics
 
-var workerScript =
-  `onmessage = function(m) {
-   var sab = m;
-   var ta = new Uint32Array(sab);
-   if (sab.byteLength !== 16) {
-     throw new Error('SharedArrayBuffer transfer byteLength');
-   }
-   for (var i = 0; i < 4; ++i) {
-     if (ta[i] !== i) {
-       throw new Error('SharedArrayBuffer transfer value ' + i);
-     }
-   }
-    // Atomically update ta[0]
-    Atomics.store(ta, 0, 100);
-  };`;
-
 if (this.Worker) {
-  var w = new Worker(workerScript);
 
-  var sab = new SharedArrayBuffer(16);
-  var ta = new Uint32Array(sab);
-  for (var i = 0; i < 4; ++i) {
-    ta[i] = i;
-  }
+  (function TestTransfer() {
+    var workerScript =
+      `onmessage = function(m) {
+       var sab = m;
+       var ta = new Uint32Array(sab);
+       if (sab.byteLength !== 16) {
+         throw new Error('SharedArrayBuffer transfer byteLength');
+       }
+       for (var i = 0; i < 4; ++i) {
+         if (ta[i] !== i) {
+           throw new Error('SharedArrayBuffer transfer value ' + i);
+         }
+       }
+        // Atomically update ta[0]
+        Atomics.store(ta, 0, 100);
+      };`;
 
-  // Transfer SharedArrayBuffer
-  w.postMessage(sab, [sab]);
-  assertEquals(16, sab.byteLength);  // ArrayBuffer should not be neutered.
+    var w = new Worker(workerScript);
 
-  // Spinwait for the worker to update ta[0]
-  var ta0;
-  while ((ta0 = Atomics.load(ta, 0)) == 0) {}
+    var sab = new SharedArrayBuffer(16);
+    var ta = new Uint32Array(sab);
+    for (var i = 0; i < 4; ++i) {
+      ta[i] = i;
+    }
 
-  assertEquals(100, ta0);
+    // Transfer SharedArrayBuffer
+    w.postMessage(sab, [sab]);
+    assertEquals(16, sab.byteLength);  // ArrayBuffer should not be neutered.
 
-  w.terminate();
+    // Spinwait for the worker to update ta[0]
+    var ta0;
+    while ((ta0 = Atomics.load(ta, 0)) == 0) {}
 
-  assertEquals(16, sab.byteLength);  // Still not neutered.
+    assertEquals(100, ta0);
+
+    w.terminate();
+
+    assertEquals(16, sab.byteLength);  // Still not neutered.
+  })();
+
+  (function TestTransferMulti() {
+    var workerScript =
+      `onmessage = function(msg) {
+       var sab = msg.sab;
+       var id = msg.id;
+       var ta = new Uint32Array(sab);
+       Atomics.store(ta, id, 1);
+       postMessage(id);
+      };`;
+
+    var sab = new SharedArrayBuffer(16);
+    var ta = new Uint32Array(sab);
+
+    var id;
+    var workers = [];
+    for (id = 0; id < 4; ++id) {
+      workers[id] = new Worker(workerScript);
+      workers[id].postMessage({sab: sab, id: id}, [sab]);
+    }
+
+    // Spinwait for each worker to update ta[id]
+    var count = 0;
+    while (count < 4) {
+      for (id = 0; id < 4; ++id) {
+        if (Atomics.compareExchange(ta, id, 1, -1) == 1) {
+          // Worker is finished.
+          assertEquals(id, workers[id].getMessage());
+          workers[id].terminate();
+          count++;
+        }
+      }
+    }
+  })();
+
 }

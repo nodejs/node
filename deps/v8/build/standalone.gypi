@@ -88,6 +88,13 @@
 
       'clang_dir%': '<(base_dir)/third_party/llvm-build/Release+Asserts',
 
+      'use_lto%': 0,
+
+      # Control Flow Integrity for virtual calls and casts.
+      # See http://clang.llvm.org/docs/ControlFlowIntegrity.html
+      'cfi_vptr%': 0,
+      'cfi_diag%': 0,
+
       # goma settings.
       # 1 to use goma.
       # If no gomadir is set, it uses the default gomadir.
@@ -104,6 +111,16 @@
           'host_clang%': '1',
         }, {
           'host_clang%': '0',
+        }],
+        # linux_use_bundled_gold: whether to use the gold linker binary checked
+        # into third_party/binutils.  Force this off via GYP_DEFINES when you
+        # are using a custom toolchain and need to control -B in ldflags.
+        # Do not use 32-bit gold on 32-bit hosts as it runs out address space
+        # for component=static_library builds.
+        ['(OS=="linux" or OS=="android") and (target_arch=="x64" or target_arch=="arm" or (target_arch=="ia32" and host_arch=="x64"))', {
+          'linux_use_bundled_gold%': 1,
+        }, {
+          'linux_use_bundled_gold%': 0,
         }],
       ],
     },
@@ -122,6 +139,10 @@
     'tsan%': '<(tsan)',
     'sanitizer_coverage%': '<(sanitizer_coverage)',
     'use_custom_libcxx%': '<(use_custom_libcxx)',
+    'linux_use_bundled_gold%': '<(linux_use_bundled_gold)',
+    'use_lto%': '<(use_lto)',
+    'cfi_vptr%': '<(cfi_vptr)',
+    'cfi_diag%': '<(cfi_diag)',
 
     # Add a simple extra solely for the purpose of the cctests
     'v8_extra_library_files': ['../test/cctest/test-extra.js'],
@@ -148,7 +169,7 @@
     # the JS builtins sources and the start snapshot.
     # Embedders that don't use standalone.gypi will need to add
     # their own default value.
-    'v8_use_external_startup_data%': 0,
+    'v8_use_external_startup_data%': 1,
 
     # Relative path to icu.gyp from this file.
     'icu_gyp_path': '../third_party/icu/icu.gyp',
@@ -179,8 +200,8 @@
           }],
         ],
       }],
-      ['(v8_target_arch=="ia32" or v8_target_arch=="x64" or v8_target_arch=="x87") and \
-        (OS=="linux" or OS=="mac")', {
+      ['((v8_target_arch=="ia32" or v8_target_arch=="x64" or v8_target_arch=="x87") and \
+        (OS=="linux" or OS=="mac")) or (v8_target_arch=="ppc64" and OS=="linux")', {
         'v8_enable_gdbjit%': 1,
       }, {
         'v8_enable_gdbjit%': 0,
@@ -207,10 +228,8 @@
         # the C++ standard library is used.
         'use_custom_libcxx%': 1,
       }],
-      ['OS=="linux"', {
-        # Gradually roll out v8_use_external_startup_data.
-        # Should eventually be default enabled on all platforms.
-        'v8_use_external_startup_data%': 1,
+      ['cfi_vptr==1', {
+        'use_lto%': 1,
       }],
       ['OS=="android"', {
         # Location of Android NDK.
@@ -358,6 +377,19 @@
       'Release': {
         'cflags+': ['<@(release_extra_cflags)'],
       },
+      'conditions': [
+        ['OS=="win"', {
+          'Optdebug_x64': {
+            'inherit_from': ['Optdebug'],
+          },
+          'Debug_x64': {
+            'inherit_from': ['Debug'],
+          },
+          'Release_x64': {
+            'inherit_from': ['Release'],
+          },
+        }],
+      ],
     },
     'conditions':[
       ['(clang==1 or host_clang==1) and OS!="win"', {
@@ -522,6 +554,21 @@
               }],
             ],
           }],
+          ['linux_use_bundled_gold==1 and not (clang==0 and use_lto==1)', {
+            # Put our binutils, which contains gold in the search path. We pass
+            # the path to gold to the compiler. gyp leaves unspecified what the
+            # cwd is when running the compiler, so the normal gyp path-munging
+            # fails us. This hack gets the right path.
+            #
+            # Disabled when using GCC LTO because GCC also uses the -B search
+            # path at link time to find "as", and our bundled "as" can only
+            # target x86.
+            'ldflags': [
+              # Note, Chromium allows ia32 host arch as well, we limit this to
+              # x64 in v8.
+              '-B<(base_dir)/third_party/binutils/Linux_x64/Release/bin',
+            ],
+          }],
         ],
       },
     }],
@@ -658,7 +705,85 @@
           }],
         ],
         'msvs_cygwin_dirs': ['<(DEPTH)/third_party/cygwin'],
-        'msvs_disabled_warnings': [4355, 4800],
+        'msvs_disabled_warnings': [
+          # C4091: 'typedef ': ignored on left of 'X' when no variable is
+          #                    declared.
+          # This happens in a number of Windows headers. Dumb.
+          4091,
+
+          # C4127: conditional expression is constant
+          # This warning can in theory catch dead code and other problems, but
+          # triggers in far too many desirable cases where the conditional
+          # expression is either set by macros or corresponds some legitimate
+          # compile-time constant expression (due to constant template args,
+          # conditionals comparing the sizes of different types, etc.).  Some of
+          # these can be worked around, but it's not worth it.
+          4127,
+
+          # C4351: new behavior: elements of array 'array' will be default
+          #        initialized
+          # This is a silly "warning" that basically just alerts you that the
+          # compiler is going to actually follow the language spec like it's
+          # supposed to, instead of not following it like old buggy versions
+          # did.  There's absolutely no reason to turn this on.
+          4351,
+
+          # C4355: 'this': used in base member initializer list
+          # It's commonly useful to pass |this| to objects in a class'
+          # initializer list.  While this warning can catch real bugs, most of
+          # the time the constructors in question don't attempt to call methods
+          # on the passed-in pointer (until later), and annotating every legit
+          # usage of this is simply more hassle than the warning is worth.
+          4355,
+
+          # C4503: 'identifier': decorated name length exceeded, name was
+          #        truncated
+          # This only means that some long error messages might have truncated
+          # identifiers in the presence of lots of templates.  It has no effect
+          # on program correctness and there's no real reason to waste time
+          # trying to prevent it.
+          4503,
+
+          # Warning C4589 says: "Constructor of abstract class ignores
+          # initializer for virtual base class." Disable this warning because it
+          # is flaky in VS 2015 RTM. It triggers on compiler generated
+          # copy-constructors in some cases.
+          4589,
+
+          # C4611: interaction between 'function' and C++ object destruction is
+          #        non-portable
+          # This warning is unavoidable when using e.g. setjmp/longjmp.  MSDN
+          # suggests using exceptions instead of setjmp/longjmp for C++, but
+          # Chromium code compiles without exception support.  We therefore have
+          # to use setjmp/longjmp for e.g. JPEG decode error handling, which
+          # means we have to turn off this warning (and be careful about how
+          # object destruction happens in such cases).
+          4611,
+
+          # TODO(jochen): These warnings are level 4. They will be slowly
+          # removed as code is fixed.
+          4100, # Unreferenced formal parameter
+          4121, # Alignment of a member was sensitive to packing
+          4244, # Conversion from 'type1' to 'type2', possible loss of data
+          4302, # Truncation from 'type 1' to 'type 2'
+          4309, # Truncation of constant value
+          4311, # Pointer truncation from 'type' to 'type'
+          4312, # Conversion from 'type1' to 'type2' of greater size
+          4481, # Nonstandard extension used: override specifier 'keyword'
+          4505, # Unreferenced local function has been removed
+          4510, # Default constructor could not be generated
+          4512, # Assignment operator could not be generated
+          4610, # Object can never be instantiated
+          4800, # Forcing value to bool.
+          4838, # Narrowing conversion. Doesn't seem to be very useful.
+          4995, # 'X': name was marked as #pragma deprecated
+          4996, # 'X': was declared deprecated (for GetVersionEx).
+
+          # These are variable shadowing warnings that are new in VS2015. We
+          # should work through these at some point -- they may be removed from
+          # the RTM release in the /W4 set.
+          4456, 4457, 4458, 4459,
+        ],
         'msvs_settings': {
           'VCCLCompilerTool': {
             'MinimalRebuild': 'false',
@@ -774,6 +899,12 @@
               'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
               'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++0x',  # -std=gnu++0x
             },
+            'conditions': [
+              ['v8_target_arch=="x64" or v8_target_arch=="arm64" \
+                or v8_target_arch=="mips64el"', {
+                'xcode_settings': {'WARNING_CFLAGS': ['-Wshorten-64-to-32']},
+              }],
+            ],
           }],
         ],
         'target_conditions': [
@@ -1046,6 +1177,101 @@
        ['CC.host_wrapper', '<(gomadir)/gomacc'],
        ['CXX.host_wrapper', '<(gomadir)/gomacc'],
       ],
+    }],
+    ['use_lto==1', {
+      'target_defaults': {
+        'target_conditions': [
+          ['_toolset=="target"', {
+            'cflags': [
+              '-flto',
+            ],
+          }],
+        ],
+      },
+    }],
+    ['use_lto==1 and clang==0', {
+      'target_defaults': {
+        'target_conditions': [
+          ['_toolset=="target"', {
+            'cflags': [
+              '-ffat-lto-objects',
+            ],
+          }],
+        ],
+      },
+    }],
+    ['use_lto==1 and clang==1', {
+      'target_defaults': {
+        'target_conditions': [
+          ['_toolset=="target"', {
+            'arflags': [
+              '--plugin', '<(clang_dir)/lib/LLVMgold.so',
+            ],
+            # Apply a lower optimization level with lto. Chromium does this
+            # for non-official builds only - a differentiation that doesn't
+            # exist in v8.
+            'ldflags': [
+              '-Wl,--plugin-opt,O1',
+            ],
+          }],
+        ],
+      },
+    }],
+    ['use_lto==1 and clang==0', {
+      'target_defaults': {
+        'target_conditions': [
+          ['_toolset=="target"', {
+            'ldflags': [
+              '-flto=32',
+            ],
+          }],
+        ],
+      },
+    }],
+    ['use_lto==1 and clang==1', {
+      'target_defaults': {
+        'target_conditions': [
+          ['_toolset=="target"', {
+            'ldflags': [
+              '-flto',
+            ],
+          }],
+        ],
+      },
+    }],
+    ['cfi_diag==1', {
+      'target_defaults': {
+        'target_conditions': [
+          ['_toolset=="target"', {
+            'cflags': [
+              '-fno-sanitize-trap=cfi',
+              '-fsanitize-recover=cfi',
+            ],
+            'ldflags': [
+              '-fno-sanitize-trap=cfi',
+              '-fsanitize-recover=cfi',
+            ],
+          }],
+        ],
+      },
+    }],
+    ['cfi_vptr==1', {
+      'target_defaults': {
+        'target_conditions': [
+          ['_toolset=="target"', {
+            'cflags': [
+              '-fsanitize=cfi-vcall',
+              '-fsanitize=cfi-derived-cast',
+              '-fsanitize=cfi-unrelated-cast',
+            ],
+            'ldflags': [
+              '-fsanitize=cfi-vcall',
+              '-fsanitize=cfi-derived-cast',
+              '-fsanitize=cfi-unrelated-cast',
+            ],
+          }],
+        ],
+      },
     }],
   ],
 }

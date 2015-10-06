@@ -2,9 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "src/heap/gc-tracer.h"
+
+#include "src/counters.h"
+#include "src/heap/heap.h"
+#include "src/isolate.h"
+#include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
 
 namespace v8 {
 namespace internal {
@@ -399,36 +402,69 @@ void GCTracer::PrintNVP() const {
   PrintF("mutator=%.1f ", spent_in_mutator);
   PrintF("gc=%s ", current_.TypeName(true));
 
-  PrintF("external=%.1f ", current_.scopes[Scope::EXTERNAL]);
-  PrintF("mark=%.1f ", current_.scopes[Scope::MC_MARK]);
-  PrintF("sweep=%.2f ", current_.scopes[Scope::MC_SWEEP]);
-  PrintF("sweepns=%.2f ", current_.scopes[Scope::MC_SWEEP_NEWSPACE]);
-  PrintF("sweepos=%.2f ", current_.scopes[Scope::MC_SWEEP_OLDSPACE]);
-  PrintF("sweepcode=%.2f ", current_.scopes[Scope::MC_SWEEP_CODE]);
-  PrintF("sweepcell=%.2f ", current_.scopes[Scope::MC_SWEEP_CELL]);
-  PrintF("sweepmap=%.2f ", current_.scopes[Scope::MC_SWEEP_MAP]);
-  PrintF("evacuate=%.1f ", current_.scopes[Scope::MC_EVACUATE_PAGES]);
-  PrintF("new_new=%.1f ",
-         current_.scopes[Scope::MC_UPDATE_NEW_TO_NEW_POINTERS]);
-  PrintF("root_new=%.1f ",
-         current_.scopes[Scope::MC_UPDATE_ROOT_TO_NEW_POINTERS]);
-  PrintF("old_new=%.1f ",
-         current_.scopes[Scope::MC_UPDATE_OLD_TO_NEW_POINTERS]);
-  PrintF("compaction_ptrs=%.1f ",
-         current_.scopes[Scope::MC_UPDATE_POINTERS_TO_EVACUATED]);
-  PrintF("intracompaction_ptrs=%.1f ",
-         current_.scopes[Scope::MC_UPDATE_POINTERS_BETWEEN_EVACUATED]);
-  PrintF("misc_compaction=%.1f ",
-         current_.scopes[Scope::MC_UPDATE_MISC_POINTERS]);
-  PrintF("weak_closure=%.1f ", current_.scopes[Scope::MC_WEAKCLOSURE]);
-  PrintF("inc_weak_closure=%.1f ",
-         current_.scopes[Scope::MC_INCREMENTAL_WEAKCLOSURE]);
-  PrintF("weakcollection_process=%.1f ",
-         current_.scopes[Scope::MC_WEAKCOLLECTION_PROCESS]);
-  PrintF("weakcollection_clear=%.1f ",
-         current_.scopes[Scope::MC_WEAKCOLLECTION_CLEAR]);
-  PrintF("weakcollection_abort=%.1f ",
-         current_.scopes[Scope::MC_WEAKCOLLECTION_ABORT]);
+  switch (current_.type) {
+    case Event::SCAVENGER:
+      PrintF("scavenge=%.2f ", current_.scopes[Scope::SCAVENGER_SCAVENGE]);
+      PrintF("old_new=%.2f ",
+             current_.scopes[Scope::SCAVENGER_OLD_TO_NEW_POINTERS]);
+      PrintF("weak=%.2f ", current_.scopes[Scope::SCAVENGER_WEAK]);
+      PrintF("roots=%.2f ", current_.scopes[Scope::SCAVENGER_ROOTS]);
+      PrintF("code=%.2f ",
+             current_.scopes[Scope::SCAVENGER_CODE_FLUSH_CANDIDATES]);
+      PrintF("semispace=%.2f ", current_.scopes[Scope::SCAVENGER_SEMISPACE]);
+      PrintF("object_groups=%.2f ",
+             current_.scopes[Scope::SCAVENGER_OBJECT_GROUPS]);
+      PrintF("steps_count=%d ", current_.incremental_marking_steps);
+      PrintF("steps_took=%.1f ", current_.incremental_marking_duration);
+      PrintF("scavenge_throughput=%" V8_PTR_PREFIX "d ",
+             ScavengeSpeedInBytesPerMillisecond());
+      break;
+    case Event::MARK_COMPACTOR:
+    case Event::INCREMENTAL_MARK_COMPACTOR:
+      PrintF("external=%.1f ", current_.scopes[Scope::EXTERNAL]);
+      PrintF("mark=%.1f ", current_.scopes[Scope::MC_MARK]);
+      PrintF("sweep=%.2f ", current_.scopes[Scope::MC_SWEEP]);
+      PrintF("sweepns=%.2f ", current_.scopes[Scope::MC_SWEEP_NEWSPACE]);
+      PrintF("sweepos=%.2f ", current_.scopes[Scope::MC_SWEEP_OLDSPACE]);
+      PrintF("sweepcode=%.2f ", current_.scopes[Scope::MC_SWEEP_CODE]);
+      PrintF("sweepcell=%.2f ", current_.scopes[Scope::MC_SWEEP_CELL]);
+      PrintF("sweepmap=%.2f ", current_.scopes[Scope::MC_SWEEP_MAP]);
+      PrintF("rescan_lo=%.2f ",
+             current_.scopes[Scope::MC_RESCAN_LARGE_OBJECTS]);
+      PrintF("evacuate=%.1f ", current_.scopes[Scope::MC_EVACUATE_PAGES]);
+      PrintF("new_new=%.1f ",
+             current_.scopes[Scope::MC_UPDATE_NEW_TO_NEW_POINTERS]);
+      PrintF("root_new=%.1f ",
+             current_.scopes[Scope::MC_UPDATE_ROOT_TO_NEW_POINTERS]);
+      PrintF("old_new=%.1f ",
+             current_.scopes[Scope::MC_UPDATE_OLD_TO_NEW_POINTERS]);
+      PrintF("compaction_ptrs=%.1f ",
+             current_.scopes[Scope::MC_UPDATE_POINTERS_TO_EVACUATED]);
+      PrintF("intracompaction_ptrs=%.1f ",
+             current_.scopes[Scope::MC_UPDATE_POINTERS_BETWEEN_EVACUATED]);
+      PrintF("misc_compaction=%.1f ",
+             current_.scopes[Scope::MC_UPDATE_MISC_POINTERS]);
+      PrintF("weak_closure=%.1f ", current_.scopes[Scope::MC_WEAKCLOSURE]);
+      PrintF("inc_weak_closure=%.1f ",
+             current_.scopes[Scope::MC_INCREMENTAL_WEAKCLOSURE]);
+      PrintF("weakcollection_process=%.1f ",
+             current_.scopes[Scope::MC_WEAKCOLLECTION_PROCESS]);
+      PrintF("weakcollection_clear=%.1f ",
+             current_.scopes[Scope::MC_WEAKCOLLECTION_CLEAR]);
+      PrintF("weakcollection_abort=%.1f ",
+             current_.scopes[Scope::MC_WEAKCOLLECTION_ABORT]);
+
+      PrintF("steps_count=%d ", current_.incremental_marking_steps);
+      PrintF("steps_took=%.1f ", current_.incremental_marking_duration);
+      PrintF("longest_step=%.1f ", current_.longest_incremental_marking_step);
+      PrintF("incremental_marking_throughput=%" V8_PTR_PREFIX "d ",
+             IncrementalMarkingSpeedInBytesPerMillisecond());
+      break;
+    case Event::START:
+      break;
+    default:
+      UNREACHABLE();
+  }
 
   PrintF("total_size_before=%" V8_PTR_PREFIX "d ", current_.start_object_size);
   PrintF("total_size_after=%" V8_PTR_PREFIX "d ", current_.end_object_size);
@@ -451,19 +487,6 @@ void GCTracer::PrintNVP() const {
   PrintF("new_space_allocation_throughput=%" V8_PTR_PREFIX "d ",
          NewSpaceAllocationThroughputInBytesPerMillisecond());
   PrintF("context_disposal_rate=%.1f ", ContextDisposalRateInMilliseconds());
-
-  if (current_.type == Event::SCAVENGER) {
-    PrintF("steps_count=%d ", current_.incremental_marking_steps);
-    PrintF("steps_took=%.1f ", current_.incremental_marking_duration);
-    PrintF("scavenge_throughput=%" V8_PTR_PREFIX "d ",
-           ScavengeSpeedInBytesPerMillisecond());
-  } else {
-    PrintF("steps_count=%d ", current_.incremental_marking_steps);
-    PrintF("steps_took=%.1f ", current_.incremental_marking_duration);
-    PrintF("longest_step=%.1f ", current_.longest_incremental_marking_step);
-    PrintF("incremental_marking_throughput=%" V8_PTR_PREFIX "d ",
-           IncrementalMarkingSpeedInBytesPerMillisecond());
-  }
 
   PrintF("\n");
 }

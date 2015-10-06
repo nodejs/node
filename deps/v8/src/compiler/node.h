@@ -7,7 +7,7 @@
 
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
-#include "src/types-inl.h"
+#include "src/types.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
@@ -210,7 +210,6 @@ class Node final {
     uint32_t bit_field_;
 
     int input_index() const { return InputIndexField::decode(bit_field_); }
-    int output_index() const { return OutputIndexField::decode(bit_field_); }
     bool is_inline_use() const { return InlineField::decode(bit_field_); }
     Node** input_ptr() {
       int index = input_index();
@@ -229,7 +228,8 @@ class Node final {
 
     typedef BitField<bool, 0, 1> InlineField;
     typedef BitField<unsigned, 1, 17> InputIndexField;
-    typedef BitField<unsigned, 17, 14> OutputIndexField;
+    // Leaving some space in the bitset in case we ever decide to record
+    // the output index.
   };
 
   //============================================================================

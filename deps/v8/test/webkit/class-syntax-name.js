@@ -111,5 +111,5 @@ runTestShouldBe("class A { constructor() { } }; A = 1; A", "1");
 runTestShouldNotThrow("class A {}; var result = A; result");
 shouldBe("eval('var Foo = 10'); Foo", "10");
 shouldThrow("'use strict'; eval('var Foo = 10'); Foo");
-shouldBe("eval('class Bar { constructor() {} }'); Bar.toString()", "'class Bar { constructor() {} }'");
+shouldBe("eval('class Bar { constructor() {} }; Bar.toString()')", "'class Bar { constructor() {} }'");
 shouldThrow("'use strict'; eval('class Bar { constructor() {} }'); Bar.toString()");

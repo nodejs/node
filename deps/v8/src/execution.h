@@ -5,10 +5,16 @@
 #ifndef V8_EXECUTION_H_
 #define V8_EXECUTION_H_
 
+#include "src/allocation.h"
+#include "src/base/atomicops.h"
 #include "src/handles.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class JSRegExp;
 
 class Execution final : public AllStatic {
  public:
@@ -129,6 +135,11 @@ class StackGuard final {
   // Pass the address beyond which the stack should not grow.  The stack
   // is assumed to grow downwards.
   void SetStackLimit(uintptr_t limit);
+
+  // The simulator uses a separate JS stack. Limits on the JS stack might have
+  // to be adjusted in order to reflect overflows of the C stack, because we
+  // cannot rely on the interleaving of frames on the simulator.
+  void AdjustStackLimitForSimulator();
 
   // Threading support.
   char* ArchiveStackGuard(char* to);

@@ -31,11 +31,11 @@
 
 #include "src/api.h"
 #include "src/base/platform/platform.h"
+#include "src/base/smart-pointers.h"
 #include "src/compilation-cache.h"
 #include "src/execution.h"
 #include "src/isolate.h"
 #include "src/parser.h"
-#include "src/smart-pointers.h"
 #include "src/unicode-inl.h"
 #include "src/utils.h"
 #include "test/cctest/cctest.h"
@@ -101,7 +101,7 @@ TEST(KangarooIsolates) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
-  i::SmartPointer<KangarooThread> thread1;
+  v8::base::SmartPointer<KangarooThread> thread1;
   {
     v8::Locker locker(isolate);
     v8::Isolate::Scope isolate_scope(isolate);
@@ -464,7 +464,8 @@ class LockAndUnlockDifferentIsolatesThread : public JoinableThread {
   }
 
   virtual void Run() {
-    i::SmartPointer<LockIsolateAndCalculateFibSharedContextThread> thread;
+    v8::base::SmartPointer<LockIsolateAndCalculateFibSharedContextThread>
+        thread;
     v8::Locker lock1(isolate1_);
     CHECK(v8::Locker::IsLocked(isolate1_));
     CHECK(!v8::Locker::IsLocked(isolate2_));

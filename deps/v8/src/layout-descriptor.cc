@@ -46,7 +46,7 @@ Handle<LayoutDescriptor> LayoutDescriptor::ShareAppend(
   Handle<LayoutDescriptor> layout_descriptor(map->GetLayoutDescriptor(),
                                              isolate);
 
-  if (!InobjectUnboxedField(map->inobject_properties(), details)) {
+  if (!InobjectUnboxedField(map->GetInObjectProperties(), details)) {
     DCHECK(details.location() != kField ||
            layout_descriptor->IsTagged(details.field_index()));
     return layout_descriptor;
@@ -73,7 +73,7 @@ Handle<LayoutDescriptor> LayoutDescriptor::AppendIfFastOrUseFull(
   if (layout_descriptor->IsSlowLayout()) {
     return full_layout_descriptor;
   }
-  if (!InobjectUnboxedField(map->inobject_properties(), details)) {
+  if (!InobjectUnboxedField(map->GetInObjectProperties(), details)) {
     DCHECK(details.location() != kField ||
            layout_descriptor->IsTagged(details.field_index()));
     return handle(layout_descriptor, map->GetIsolate());

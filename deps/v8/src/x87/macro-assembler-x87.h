@@ -13,6 +13,19 @@
 namespace v8 {
 namespace internal {
 
+// Give alias names to registers for calling conventions.
+const Register kReturnRegister0 = {kRegister_eax_Code};
+const Register kReturnRegister1 = {kRegister_edx_Code};
+const Register kJSFunctionRegister = {kRegister_edi_Code};
+const Register kContextRegister = {kRegister_esi_Code};
+const Register kInterpreterAccumulatorRegister = {kRegister_eax_Code};
+const Register kInterpreterRegisterFileRegister = {kRegister_edx_Code};
+const Register kInterpreterBytecodeOffsetRegister = {kRegister_ecx_Code};
+const Register kInterpreterBytecodeArrayRegister = {kRegister_edi_Code};
+const Register kInterpreterDispatchTableRegister = {kRegister_ebx_Code};
+const Register kRuntimeCallFunctionRegister = {kRegister_ebx_Code};
+const Register kRuntimeCallArgCountRegister = {kRegister_eax_Code};
+
 // Convenience for platform-independent signatures.  We do not normally
 // distinguish memory operands from other operands on ia32.
 typedef Operand MemOperand;
@@ -600,12 +613,6 @@ class MacroAssembler: public Assembler {
                 Label* gc_required,
                 AllocationFlags flags);
 
-  // Undo allocation in new space. The object passed and objects allocated after
-  // it will no longer be allocated. Make sure that no pointers are left to the
-  // object(s) no longer allocated as they would be invalid when allocation is
-  // un-done.
-  void UndoAllocationInNewSpace(Register object);
-
   // Allocate a heap number in new space with undefined value. The
   // register scratch2 can be passed as no_reg; the others must be
   // valid registers. Returns tagged pointer in result register, or
@@ -985,7 +992,7 @@ class MacroAssembler: public Assembler {
 class CodePatcher {
  public:
   CodePatcher(byte* address, int size);
-  virtual ~CodePatcher();
+  ~CodePatcher();
 
   // Macro assembler to emit code.
   MacroAssembler* masm() { return &masm_; }
@@ -1025,6 +1032,11 @@ inline Operand FixedArrayElementOperand(Register array,
 
 inline Operand ContextOperand(Register context, int index) {
   return Operand(context, Context::SlotOffset(index));
+}
+
+
+inline Operand ContextOperand(Register context, Register index) {
+  return Operand(context, index, times_pointer_size, Context::SlotOffset(0));
 }
 
 

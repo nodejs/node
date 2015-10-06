@@ -368,8 +368,6 @@ void Int32BinopInputShapeTester::RunRight(
 }
 
 
-#if V8_TURBOFAN_TARGET
-
 TEST(ParametersEqual) {
   RawMachineAssemblerTester<int32_t> m(kMachInt32, kMachInt32);
   Node* p1 = m.Parameter(1);
@@ -572,5 +570,3 @@ TEST(RunBinopTester) {
     FOR_FLOAT64_INPUTS(i) { CheckDoubleEq(*i, bt.call(-11.25, *i)); }
   }
 }
-
-#endif  // V8_TURBOFAN_TARGET

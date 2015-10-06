@@ -10,136 +10,131 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-#define TRACE(...)                             \
-  do {                                         \
-    if (FLAG_trace_alloc) PrintF(__VA_ARGS__); \
-  } while (false)
 
-
-const float CoalescedLiveRanges::kAllocatedRangeMultiplier = 10.0;
-
-void CoalescedLiveRanges::AllocateRange(LiveRange* range) {
-  UpdateWeightAtAllocation(range);
-  for (auto interval = range->first_interval(); interval != nullptr;
-       interval = interval->next()) {
-    storage().insert({interval->start(), interval->end(), range});
-  }
+LiveRangeConflictIterator::LiveRangeConflictIterator(const LiveRange* range,
+                                                     IntervalStore* storage)
+    : query_(range->first_interval()),
+      pos_(storage->end()),
+      intervals_(storage) {
+  MovePosAndQueryToFirstConflict();
 }
 
 
-void CoalescedLiveRanges::Remove(LiveRange* range) {
-  for (auto interval = range->first_interval(); interval != nullptr;
-       interval = interval->next()) {
-    storage().erase({interval->start(), interval->end(), nullptr});
-  }
-  range->UnsetAssignedRegister();
+LiveRange* LiveRangeConflictIterator::Current() const {
+  if (IsFinished()) return nullptr;
+  return pos_->range_;
 }
 
 
-float CoalescedLiveRanges::GetMaximumConflictingWeight(
-    const LiveRange* range) const {
-  float ret = LiveRange::kInvalidWeight;
-  auto end = storage().end();
-  for (auto query = range->first_interval(); query != nullptr;
-       query = query->next()) {
-    auto conflict = GetFirstConflict(query);
+void LiveRangeConflictIterator::MovePosToFirstConflictForQuery() {
+  DCHECK(query_ != nullptr);
+  auto end = intervals_->end();
+  LifetimePosition q_start = query_->start();
+  LifetimePosition q_end = query_->end();
 
-    if (conflict == end) continue;
-    for (; QueryIntersectsAllocatedInterval(query, conflict); ++conflict) {
-      // It is possible we'll visit the same range multiple times, because
-      // successive (not necessarily consecutive) intervals belong to the same
-      // range, or because different intervals of the query range have the same
-      // range as conflict.
-      DCHECK_NE(conflict->range->weight(), LiveRange::kInvalidWeight);
-      ret = Max(ret, conflict->range->weight());
-      if (ret == LiveRange::kMaxWeight) break;
-    }
-  }
-  return ret;
-}
-
-
-void CoalescedLiveRanges::EvictAndRescheduleConflicts(
-    LiveRange* range, AllocationScheduler* scheduler) {
-  auto end = storage().end();
-
-  for (auto query = range->first_interval(); query != nullptr;
-       query = query->next()) {
-    auto conflict = GetFirstConflict(query);
-    if (conflict == end) continue;
-    while (QueryIntersectsAllocatedInterval(query, conflict)) {
-      LiveRange* range_to_evict = conflict->range;
-      // Bypass successive intervals belonging to the same range, because we're
-      // about to remove this range, and we don't want the storage iterator to
-      // become invalid.
-      while (conflict != end && conflict->range == range_to_evict) {
-        ++conflict;
-      }
-
-      DCHECK(range_to_evict->HasRegisterAssigned());
-      CHECK(!range_to_evict->IsFixed());
-      Remove(range_to_evict);
-      UpdateWeightAtEviction(range_to_evict);
-      TRACE("Evicted range %d.\n", range_to_evict->id());
-      scheduler->Schedule(range_to_evict);
-    }
-  }
-}
-
-
-bool CoalescedLiveRanges::VerifyAllocationsAreValid() const {
-  LifetimePosition last_end = LifetimePosition::GapFromInstructionIndex(0);
-  for (auto i : storage_) {
-    if (i.start < last_end) {
-      return false;
-    }
-    last_end = i.end;
-  }
-  return true;
-}
-
-
-void CoalescedLiveRanges::UpdateWeightAtAllocation(LiveRange* range) {
-  DCHECK_NE(range->weight(), LiveRange::kInvalidWeight);
-  range->set_weight(range->weight() * kAllocatedRangeMultiplier);
-}
-
-
-void CoalescedLiveRanges::UpdateWeightAtEviction(LiveRange* range) {
-  DCHECK_NE(range->weight(), LiveRange::kInvalidWeight);
-  range->set_weight(range->weight() / kAllocatedRangeMultiplier);
-}
-
-
-CoalescedLiveRanges::interval_iterator CoalescedLiveRanges::GetFirstConflict(
-    const UseInterval* query) const {
-  DCHECK(query != nullptr);
-  auto end = storage().end();
-  LifetimePosition q_start = query->start();
-  LifetimePosition q_end = query->end();
-
-  if (storage().empty() || storage().rbegin()->end <= q_start ||
-      storage().begin()->start >= q_end) {
-    return end;
+  if (intervals_->empty() || intervals_->rbegin()->end_ <= q_start ||
+      intervals_->begin()->start_ >= q_end) {
+    pos_ = end;
+    return;
   }
 
-  auto ret = storage().upper_bound(AsAllocatedInterval(q_start));
-  // ret is either at the end (no start strictly greater than q_start) or
+  pos_ = intervals_->upper_bound(AsAllocatedInterval(q_start));
+  // pos is either at the end (no start strictly greater than q_start) or
   // at some position with the aforementioned property. In either case, the
   // allocated interval before this one may intersect our query:
   // either because, although it starts before this query's start, it ends
   // after; or because it starts exactly at the query start. So unless we're
   // right at the beginning of the storage - meaning the first allocated
   // interval is also starting after this query's start - see what's behind.
-  if (ret != storage().begin()) {
-    --ret;
-    if (!QueryIntersectsAllocatedInterval(query, ret)) {
+  if (pos_ != intervals_->begin()) {
+    --pos_;
+    if (!QueryIntersectsAllocatedInterval()) {
       // The interval behind wasn't intersecting, so move back.
-      ++ret;
+      ++pos_;
     }
   }
-  if (ret != end && QueryIntersectsAllocatedInterval(query, ret)) return ret;
-  return end;
+  if (pos_ == end || !QueryIntersectsAllocatedInterval()) {
+    pos_ = end;
+  }
+}
+
+
+void LiveRangeConflictIterator::MovePosAndQueryToFirstConflict() {
+  auto end = intervals_->end();
+  for (; query_ != nullptr; query_ = query_->next()) {
+    MovePosToFirstConflictForQuery();
+    if (pos_ != end) {
+      DCHECK(QueryIntersectsAllocatedInterval());
+      return;
+    }
+  }
+
+  Invalidate();
+}
+
+
+void LiveRangeConflictIterator::IncrementPosAndSkipOverRepetitions() {
+  auto end = intervals_->end();
+  DCHECK(pos_ != end);
+  LiveRange* current_conflict = Current();
+  while (pos_ != end && pos_->range_ == current_conflict) {
+    ++pos_;
+  }
+}
+
+
+LiveRange* LiveRangeConflictIterator::InternalGetNext(bool clean_behind) {
+  if (IsFinished()) return nullptr;
+
+  LiveRange* to_clear = Current();
+  IncrementPosAndSkipOverRepetitions();
+  // At this point, pos_ is either at the end, or on an interval that doesn't
+  // correspond to the same range as to_clear. This interval may not even be
+  // a conflict.
+  if (clean_behind) {
+    // Since we parked pos_ on an iterator that won't be affected by removal,
+    // we can safely delete to_clear's intervals.
+    for (auto interval = to_clear->first_interval(); interval != nullptr;
+         interval = interval->next()) {
+      AllocatedInterval erase_key(interval->start(), interval->end(), nullptr);
+      intervals_->erase(erase_key);
+    }
+  }
+  // We may have parked pos_ at the end, or on a non-conflict. In that case,
+  // move to the next query and reinitialize pos and query. This may invalidate
+  // the iterator, if no more conflicts are available.
+  if (!QueryIntersectsAllocatedInterval()) {
+    query_ = query_->next();
+    MovePosAndQueryToFirstConflict();
+  }
+  return Current();
+}
+
+
+LiveRangeConflictIterator CoalescedLiveRanges::GetConflicts(
+    const LiveRange* range) {
+  return LiveRangeConflictIterator(range, &intervals());
+}
+
+
+void CoalescedLiveRanges::AllocateRange(LiveRange* range) {
+  for (auto interval = range->first_interval(); interval != nullptr;
+       interval = interval->next()) {
+    AllocatedInterval to_insert(interval->start(), interval->end(), range);
+    intervals().insert(to_insert);
+  }
+}
+
+
+bool CoalescedLiveRanges::VerifyAllocationsAreValidForTesting() const {
+  LifetimePosition last_end = LifetimePosition::GapFromInstructionIndex(0);
+  for (auto i : intervals_) {
+    if (i.start_ < last_end) {
+      return false;
+    }
+    last_end = i.end_;
+  }
+  return true;
 }
 
 

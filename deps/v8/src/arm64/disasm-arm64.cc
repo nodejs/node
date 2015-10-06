@@ -7,8 +7,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_ARM64
 
 #include "src/arm64/decoder-arm64-inl.h"
@@ -912,25 +910,6 @@ void Disassembler::VisitLoadStorePairOffset(Instruction* instr) {
     case A##_off: mnemonic = B; form = C ", ['Xns'ILP" D "]"; break;
     LOAD_STORE_PAIR_LIST(LSP_OFFSET)
     #undef LSP_OFFSET
-  }
-  Format(instr, mnemonic, form);
-}
-
-
-void Disassembler::VisitLoadStorePairNonTemporal(Instruction* instr) {
-  const char *mnemonic = "unimplemented";
-  const char *form;
-
-  switch (instr->Mask(LoadStorePairNonTemporalMask)) {
-    case STNP_w: mnemonic = "stnp"; form = "'Wt, 'Wt2, ['Xns'ILP4]"; break;
-    case LDNP_w: mnemonic = "ldnp"; form = "'Wt, 'Wt2, ['Xns'ILP4]"; break;
-    case STNP_x: mnemonic = "stnp"; form = "'Xt, 'Xt2, ['Xns'ILP8]"; break;
-    case LDNP_x: mnemonic = "ldnp"; form = "'Xt, 'Xt2, ['Xns'ILP8]"; break;
-    case STNP_s: mnemonic = "stnp"; form = "'St, 'St2, ['Xns'ILP4]"; break;
-    case LDNP_s: mnemonic = "ldnp"; form = "'St, 'St2, ['Xns'ILP4]"; break;
-    case STNP_d: mnemonic = "stnp"; form = "'Dt, 'Dt2, ['Xns'ILP8]"; break;
-    case LDNP_d: mnemonic = "ldnp"; form = "'Dt, 'Dt2, ['Xns'ILP8]"; break;
-    default: form = "(LoadStorePairNonTemporal)";
   }
   Format(instr, mnemonic, form);
 }

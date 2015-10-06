@@ -682,22 +682,22 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
 
     // Poke any stack arguments.
     int slot = kCArgSlotCount;
-    for (Node* node : buffer.pushed_nodes) {
-      Emit(kMips64StoreToStackSlot, g.NoOutput(), g.UseRegister(node),
+    for (Node* input : buffer.pushed_nodes) {
+      Emit(kMips64StoreToStackSlot, g.NoOutput(), g.UseRegister(input),
            g.TempImmediate(slot << kPointerSizeLog2));
       ++slot;
     }
   } else {
-    const int32_t push_count = static_cast<int32_t>(buffer.pushed_nodes.size());
+    int push_count = static_cast<int>(descriptor->StackParameterCount());
     if (push_count > 0) {
       Emit(kMips64StackClaim, g.NoOutput(),
            g.TempImmediate(push_count << kPointerSizeLog2));
     }
-    int32_t slot = push_count - 1;
-    for (Node* node : base::Reversed(buffer.pushed_nodes)) {
-      Emit(kMips64StoreToStackSlot, g.NoOutput(), g.UseRegister(node),
-           g.TempImmediate(slot << kPointerSizeLog2));
-      slot--;
+    for (size_t n = 0; n < buffer.pushed_nodes.size(); ++n) {
+      if (Node* input = buffer.pushed_nodes[n]) {
+        Emit(kMips64StoreToStackSlot, g.NoOutput(), g.UseRegister(input),
+             g.TempImmediate(static_cast<int>(n << kPointerSizeLog2)));
+      }
     }
   }
 
@@ -791,8 +791,8 @@ void InstructionSelector::VisitTailCall(Node* node) {
            g.TempImmediate(push_count << kPointerSizeLog2));
     }
     int slot = push_count - 1;
-    for (Node* node : base::Reversed(buffer.pushed_nodes)) {
-      Emit(kMips64StoreToStackSlot, g.NoOutput(), g.UseRegister(node),
+    for (Node* input : base::Reversed(buffer.pushed_nodes)) {
+      Emit(kMips64StoreToStackSlot, g.NoOutput(), g.UseRegister(input),
            g.TempImmediate(slot << kPointerSizeLog2));
       slot--;
     }
