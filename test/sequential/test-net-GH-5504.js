@@ -53,12 +53,6 @@ function parent() {
   var serverExited = false;
   var clientExited = false;
   var serverListened = false;
-  var opt = {
-    env: {
-      NODE_DEBUG: 'net',
-      NODE_COMMON_PORT: process.env.NODE_COMMON_PORT,
-    }
-  };
 
   process.on('exit', function() {
     assert(serverExited);
@@ -75,7 +69,11 @@ function parent() {
     });
   }, common.platformTimeout(2000)).unref();
 
-  var s = spawn(node, [__filename, 'server'], opt);
+  var s = spawn(node, [__filename, 'server'], {
+    env: Object.assign(process.env, {
+      NODE_DEBUG: 'net'
+    })
+  });
   var c;
 
   wrap(s.stderr, process.stderr, 'SERVER 2>');
