@@ -159,7 +159,7 @@ $ make
 
 ### `Intl` (ECMA-402) support:
 
-[Intl](https://github.com/joyent/node/wiki/Intl) support is not
+[Intl](https://github.com/nodejs/node/wiki/Intl) support is not
 enabled by default.
 
 #### "small" (English only) support
@@ -184,7 +184,7 @@ The `small-icu` mode builds with English-only data. You can add full
 data at runtime.
 
 *Note:* more docs are on
-[the joyent/node wiki](https://github.com/joyent/node/wiki/Intl).
+[the node wiki](https://github.com/nodejs/node/wiki/Intl).
 
 #### Build with full ICU support (all locales supported by ICU):
 
